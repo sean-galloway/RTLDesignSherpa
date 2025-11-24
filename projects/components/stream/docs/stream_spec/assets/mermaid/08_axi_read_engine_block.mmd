@@ -1,0 +1,40 @@
+graph TB
+    subgraph "AXI Read Engine"
+        subgraph "AR Channel Management"
+            SCH0[Scheduler CH0<br/>sched_rd_valid/addr/beats] --> ARB_REQ[Arbiter Request Masking]
+            SCH1[Scheduler CH1] --> ARB_REQ
+            SCHN[Scheduler CHN-1] --> ARB_REQ
+
+            SPACE[rd_space_free] --> |Space Check:<br/>>= 2x burst| ARB_REQ
+            OUT_LIM[Outstanding Limit] --> |< MAX| ARB_REQ
+
+            ARB_REQ --> ARB[Round-Robin Arbiter]
+            ARB --> |grant_id| AR_MUX[AR Channel Mux]
+            AR_MUX --> |m_axi_arvalid/araddr/arlen| MEM[Memory]
+
+            AR_MUX --> |AR handshake| ALLOC[SRAM Allocation]
+            ALLOC --> |rd_alloc_req/size/id| SRAM_ALLOC[SRAM Controller]
+            SRAM_ALLOC --> |rd_space_free| SPACE
+        end
+
+        subgraph "R Channel Data Path"
+            MEM --> |m_axi_rvalid/rdata/rid| R_PASS[R Passthrough]
+            R_PASS --> |axi_rd_sram_valid/data/id| SRAM_WR[SRAM Write]
+        end
+
+        subgraph "Completion Tracking"
+            AR_MUX --> |done_strobe| DONE_GEN[Done Strobe Gen]
+            DONE_GEN --> |sched_rd_done_strobe<br/>sched_rd_beats_done| SCH0
+            DONE_GEN --> SCH1
+            DONE_GEN --> SCHN
+
+            MEM --> |m_axi_rlast| OUT_CNT[Outstanding Counter]
+            AR_MUX --> |AR issued| OUT_CNT
+            OUT_CNT --> |outstanding_count| OUT_LIM
+        end
+    end
+
+    style ARB fill:#f9f,stroke:#333,stroke-width:3px
+    style AR_MUX fill:#bbf,stroke:#333,stroke-width:2px
+    style R_PASS fill:#bfb,stroke:#333,stroke-width:2px
+    style SPACE fill:#ffb,stroke:#333,stroke-width:2px

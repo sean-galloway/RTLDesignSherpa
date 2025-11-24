@@ -31,7 +31,7 @@ Data Width Converters
 
 **Block Diagram:**
 
-![AXI Data Upsize](../assets/graphviz/axi_data_upsize.png)
+![AXI Data Upsize](../assets/graphviz/axi_data_upsize.svg)
 
 **Documentation:** [02_axi_data_upsize.md](02_axi_data_upsize.md)
 
@@ -49,10 +49,10 @@ Data Width Converters
 
 **Block Diagrams:**
 
-![AXI Data Downsize Single](../assets/graphviz/axi_data_dnsize_single.png)
+![AXI Data Downsize Single](../assets/graphviz/axi_data_dnsize_single.svg)
 *Single Buffer Mode - 80% throughput, 1× area*
 
-![AXI Data Downsize Dual](../assets/graphviz/axi_data_dnsize_dual.png)
+![AXI Data Downsize Dual](../assets/graphviz/axi_data_dnsize_dual.svg)
 *Dual Buffer Mode - 100% throughput, 2× area*
 
 **Documentation:** [03_axi_data_dnsize.md](03_axi_data_dnsize.md) | [04_dual_buffer_mode.md](04_dual_buffer_mode.md)
@@ -73,7 +73,7 @@ Data Width Converters
 
 **Block Diagram:**
 
-![AXI4 Write Converter](../assets/graphviz/axi4_dwidth_converter_wr.png)
+![AXI4 Write Converter](../assets/graphviz/axi4_dwidth_converter_wr.svg)
 
 **Documentation:** [05_axi4_dwidth_converter_wr.md](05_axi4_dwidth_converter_wr.md)
 
@@ -91,7 +91,7 @@ Data Width Converters
 
 **Block Diagram:**
 
-![AXI4 Read Converter](../assets/graphviz/axi4_dwidth_converter_rd.png)
+![AXI4 Read Converter](../assets/graphviz/axi4_dwidth_converter_rd.svg)
 
 **Documentation:** [06_axi4_dwidth_converter_rd.md](06_axi4_dwidth_converter_rd.md)
 

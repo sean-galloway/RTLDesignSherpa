@@ -6,7 +6,7 @@ The `hpet_config_regs` module serves as the critical bridge between the PeakRDL-
 
 **Block Diagram:**
 
-![HPET Config Registers Block Diagram](../assets/png/hpet_config_regs.png)
+![HPET Config Registers Block Diagram](../assets/svg/hpet_config_regs.svg)
 
 *Figure: HPET Config Registers architecture showing APB interface, PeakRDL registers, edge detection, per-timer data buses, and W1C logic. [Source: assets/graphviz/hpet_config_regs.gv](../assets/graphviz/hpet_config_regs.gv) | [SVG](../assets/svg/hpet_config_regs.svg)*
 

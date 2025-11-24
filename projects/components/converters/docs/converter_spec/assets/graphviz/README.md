@@ -1,6 +1,6 @@
 # Converters Graphviz Block Diagrams
 
-This directory contains Graphviz source files (.gv) and generated PNG diagrams for Converters component modules.
+This directory contains Graphviz source files (.gv) and generated SVG diagrams for Converters component modules.
 
 ## Files
 
@@ -20,16 +20,16 @@ This directory contains Graphviz source files (.gv) and generated PNG diagrams f
 - **`axi4_to_apb.gv`** - AXI4-to-APB protocol bridge
 - **`peakrdl_adapter.gv`** - PeakRDL register interface to command/response adapter
 
-### Generated Images (.png)
+### Generated Images (.svg)
 
-All diagrams are available as PNG files:
-- `axi_data_upsize.png`
-- `axi_data_dnsize_single.png`
-- `axi_data_dnsize_dual.png`
-- `axi4_dwidth_converter_wr.png`
-- `axi4_dwidth_converter_rd.png`
-- `axi4_to_apb.png`
-- `peakrdl_adapter.png`
+All diagrams are available as SVG files:
+- `axi_data_upsize.svg`
+- `axi_data_dnsize_single.svg`
+- `axi_data_dnsize_dual.svg`
+- `axi4_dwidth_converter_wr.svg`
+- `axi4_dwidth_converter_rd.svg`
+- `axi4_to_apb.svg`
+- `peakrdl_adapter.svg`
 
 ## Regenerating Diagrams
 
@@ -42,11 +42,11 @@ All diagrams are available as PNG files:
 
 ```bash
 # From this directory
-make all
+./regenerate_diagrams.sh
 
 # Or manually
-dot -Tpng axi_data_upsize.gv -o axi_data_upsize.png
-dot -Tpng axi_data_dnsize_single.gv -o axi_data_dnsize_single.png
+dot -Tsvg axi_data_upsize.gv -o axi_data_upsize.svg
+dot -Tsvg axi_data_dnsize_single.gv -o axi_data_dnsize_single.svg
 # ... etc
 ```
 
@@ -54,20 +54,20 @@ dot -Tpng axi_data_dnsize_single.gv -o axi_data_dnsize_single.png
 
 ```bash
 # Upsize converter
-dot -Tpng axi_data_upsize.gv -o axi_data_upsize.png
+dot -Tsvg axi_data_upsize.gv -o axi_data_upsize.svg
 
 # Downsize single buffer
-dot -Tpng axi_data_dnsize_single.gv -o axi_data_dnsize_single.png
+dot -Tsvg axi_data_dnsize_single.gv -o axi_data_dnsize_single.svg
 
 # Downsize dual buffer
-dot -Tpng axi_data_dnsize_dual.gv -o axi_data_dnsize_dual.png
+dot -Tsvg axi_data_dnsize_dual.gv -o axi_data_dnsize_dual.svg
 ```
 
-### Generate SVG (for web/docs)
+### Generate PNG (for legacy docs)
 
 ```bash
-dot -Tsvg axi_data_upsize.gv -o axi_data_upsize.svg
-# ... for all diagrams
+dot -Tpng axi_data_upsize.gv -o axi_data_upsize.png
+# Note: Not recommended - use SVG instead for crisp vector graphics
 ```
 
 ### Generate PDF (for documentation)
@@ -216,14 +216,14 @@ To add a new converter diagram:
              my_new_converter.gv
    ```
 
-4. Generate PNG:
+4. Generate SVG:
    ```bash
-   make all
+   ./regenerate_diagrams.sh
    ```
 
 5. Link from documentation:
    ```markdown
-   ![My Converter Block Diagram](../assets/graphviz/my_new_converter.png)
+   ![My Converter Block Diagram](../assets/graphviz/my_new_converter.svg)
    ```
 
 ## Referenced In Documentation
@@ -241,15 +241,16 @@ These diagrams are referenced in:
 **Alternative Viewers:**
 - Online: http://www.webgraphviz.com/ (paste .gv content)
 - VS Code: Install "Graphviz Preview" extension
-- Command line: `xdg-open <diagram>.png` (Linux)
+- Command line: `xdg-open <diagram>.svg` (Linux)
 
 ## Notes
 
-- PNG files are version controlled for easy documentation viewing
+- SVG files are version controlled for high-quality documentation viewing
 - Source .gv files are the authoritative source
-- Regenerate PNGs after any .gv file changes
+- Regenerate SVGs after any .gv file changes using `./regenerate_diagrams.sh`
 - Keep diagrams up-to-date with module implementations
 - Use consistent color scheme across all diagrams
+- SVG provides crisp vector graphics at any zoom level (preferred over PNG)
 
 ---
 

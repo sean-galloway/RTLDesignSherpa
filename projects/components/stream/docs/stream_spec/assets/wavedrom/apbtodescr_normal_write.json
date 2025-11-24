@@ -1,0 +1,24 @@
+{
+  "signal": [
+    {"name": "clk", "wave": "p...."},
+    {},
+    {"name": "apb_cmd_valid", "wave": "01..."},
+    {"name": "apb_cmd_ready", "wave": "0.10."},
+    {},
+    {"name": "FSM", "wave": "x2345", "data": ["IDLE", "ROUTE", "RESPOND", "IDLE"]},
+    {},
+    {"name": "desc_apb_valid[0]", "wave": "0.1.0"},
+    {"name": "desc_apb_ready[0]", "wave": "0.1.0"},
+    {},
+    {"name": "apb_rsp_valid", "wave": "0..10"}
+  ],
+  "head": {
+    "text": "APB to Descriptor - Normal Write Transaction",
+    "tick": 0
+  },
+  "foot": {
+    "text": "Latched: [CH0] [0x1000_0000]",
+    "tock": 0
+  },
+  "config": {"hscale": 2}
+}

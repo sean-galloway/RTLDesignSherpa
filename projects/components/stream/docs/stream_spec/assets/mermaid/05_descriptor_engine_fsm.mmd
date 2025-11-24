@@ -1,0 +1,48 @@
+stateDiagram-v2
+    [*] --> RD_IDLE
+
+    RD_IDLE --> RD_ISSUE_ADDR : descriptor address<br/>available in FIFO
+
+    RD_ISSUE_ADDR --> RD_WAIT_DATA : AXI AR issued
+
+    RD_WAIT_DATA --> RD_COMPLETE : AXI R valid<br/>(RESP = OKAY)
+    RD_WAIT_DATA --> RD_ERROR : AXI R valid<br/>(RESP != OKAY)
+
+    RD_COMPLETE --> RD_IDLE : descriptor parsed<br/>and forwarded
+
+    RD_ERROR --> RD_IDLE : error reported
+
+    note right of RD_IDLE
+        Waits for descriptor address from:
+        - APB kickoff (initial)
+        - Autonomous chaining (next_descriptor_ptr)
+    end note
+
+    note right of RD_ISSUE_ADDR
+        Issues AXI AR:
+        - Address from address FIFO
+        - 256-bit single-beat read
+        - ID contains channel number
+    end note
+
+    note right of RD_WAIT_DATA
+        Waits for AXI R response:
+        - Single 256-bit descriptor
+        - Checks RESP field
+        - Timeout detection
+    end note
+
+    note right of RD_COMPLETE
+        Descriptor processing:
+        - Parse 256-bit descriptor
+        - Extract src/dst/length/next_ptr
+        - Forward to scheduler
+        - Check for chaining
+    end note
+
+    note right of RD_ERROR
+        Error handling:
+        - Set descriptor_error flag
+        - Generate MonBus error event
+        - Return to idle
+    end note

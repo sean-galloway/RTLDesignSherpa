@@ -1,7 +1,7 @@
 # STREAM Specification Index
 
-**Version:** 0.26
-**Date:** 2025-10-17
+**Version:** 0.90
+**Date:** 2025-11-22
 **Purpose:** Complete technical specification for STREAM subsystem
 
 ---
@@ -12,21 +12,59 @@
 
 ### Chapter 1: Overview
 
+- [Architecture](ch01_overview/01_architecture.md)
+- [Top-Level Port List](ch01_overview/02_port_list.md)
 - [Clocks and Reset](ch01_overview/03_clocks_and_reset.md)
 
 ### Chapter 2: Functional Blocks
 
-- [Descriptor Engine](ch02_blocks/01_01_descriptor_engine.md)
-- [Scheduler](ch02_blocks/01_02_scheduler.md)
-- [AXI Read Engine](ch02_blocks/02_01_axi_read_engine.md)
-- [AXI Write Engine](ch02_blocks/02_02_axi_write_engine.md)
-- [SRAM Controller](ch02_blocks/03_sram_controller.md)
-- [Simple SRAM](ch02_blocks/04_simple_sram.md)
-- [Channel Arbiter](ch02_blocks/05_channel_arbiter.md)
-- [APB Config](ch02_blocks/06_apb_config.md)
-- [MonBus AXIL Group](ch02_blocks/07_monbus_axil_group.md)
-- [Top-Level Integration](ch02_blocks/08_stream_top.md)
-- [Performance Profiler](ch02_blocks/09_perf_profiler.md)
+**Macro/Integration Level:**
+- [Stream Core](ch02_blocks/01_stream_core.md)
+- [Scheduler Group Array](ch02_blocks/02_scheduler_group_array.md)
+- [Scheduler Group](ch02_blocks/03_scheduler_group.md)
+
+**Control Path:**
+- [Scheduler](ch02_blocks/04_scheduler.md)
+- [Descriptor Engine](ch02_blocks/05_descriptor_engine.md)
+
+**Read Datapath:**
+- [AXI Read Engine](ch02_blocks/06_axi_read_engine.md)
+- [Stream Alloc Control](ch02_blocks/07_stream_alloc_ctrl.md)
+
+**SRAM Buffering:**
+- [SRAM Controller](ch02_blocks/08_sram_controller.md)
+- [SRAM Controller Unit](ch02_blocks/09_sram_controller_unit.md)
+- [Stream Latency Bridge](ch02_blocks/10_stream_latency_bridge.md)
+
+**Write Datapath:**
+- [Stream Drain Control](ch02_blocks/11_stream_drain_ctrl.md)
+- [AXI Write Engine](ch02_blocks/12_axi_write_engine.md)
+
+**Configuration & Monitoring:**
+- [APB to Descriptor Router](ch02_blocks/13_apbtodescr.md)
+- [APB Config](ch02_blocks/14_apb_config.md)
+- [Performance Profiler](ch02_blocks/15_perf_profiler.md)
+- [MonBus AXIL Group](ch02_blocks/16_monbus_axil_group.md)
+
+### Chapter 3: Interfaces
+
+- [Interface Overview](ch03_interfaces/README.md)
+- [AXI4 Interface Specification](ch03_interfaces/01_axi4_interface_spec.md)
+- [AXIL4 Interface Specification](ch03_interfaces/02_axil4_interface_spec.md)
+- [APB Programming Interface](ch03_interfaces/03_apb_interface_spec.md)
+- [MonBus Interface Specification](ch03_interfaces/05_monbus_interface_spec.md)
+
+### Chapter 4: Registers
+
+- [Register Map](ch04_registers/register_map.md)
+
+### Chapter 5: Programming
+
+- [Programming Guide](ch05_programming/README.md)
+
+### Chapter 6: Configuration Reference
+
+- [Complete Configuration Guide](ch06_configuration/config_reference.md)
 
 ---
 
@@ -36,12 +74,12 @@
 
 | Module | File | Purpose | Lines | Status |
 |--------|------|---------|-------|--------|
-| descriptor_engine | `stream_fub/descriptor_engine.sv` | Descriptor fetch/parse (256-bit) | ~300 | [Done] Simplified from RAPIDS |
+| descriptor_engine | `stream_fub/descriptor_engine.sv` | Descriptor fetch/parse (256-bit) | ~300 | [Done] |
 | scheduler | `stream_fub/scheduler.sv` | Transfer coordinator | ~400 | [Done] Created (corrected) |
 | axi_read_engine | `stream_fub/axi_read_engine.sv` | AXI read master | ~350 | [Done] Created (no FSM - streaming pipeline) |
 | axi_write_engine | `stream_fub/axi_write_engine.sv` | AXI write master | ~400 | [Done] Created (no FSM - streaming pipeline) |
 | sram_controller | `stream_fub/sram_controller.sv` | Per-channel buffer management | ~350 | [Done] Created (no FSM - pointer arithmetic + pre-allocation) |
-| simple_sram | `stream_fub/simple_sram.sv` | Dual-port SRAM primitive | ~150 | [Done] Copied from RAPIDS |
+| simple_sram | `stream_fub/simple_sram.sv` | Dual-port SRAM primitive | ~150 | [Done] |
 | perf_profiler | `stream_fub/perf_profiler.sv` | Channel performance profiling | ~400 | [Done] Dual-mode timestamp/elapsed tracking |
 
 ### Integration Blocks (MAC)
@@ -50,7 +88,7 @@
 |--------|------|---------|-------|--------|
 | channel_arbiter | `stream_macro/channel_arbiter.sv` | Priority arbitration | ~200 | [Pending] To be created |
 | apb_config | `regs/stream_regs.rdl` + wrapper | Config registers | ~350 | [Future] PeakRDL-based |
-| monbus_axil_group | `stream_macro/monbus_axil_group.sv` | MonBus + AXIL | ~800 | [Done] Copied from RAPIDS |
+| monbus_axil_group | `stream_macro/monbus_axil_group.sv` | MonBus + AXIL | ~800 | [Done] |
 | stream_top | `stream_macro/stream_top.sv` | Top-level | ~500 | [Pending] To be created |
 
 ---

@@ -1,0 +1,61 @@
+graph TB
+    subgraph "AXI Write Engine"
+        subgraph "AW Channel Management"
+            SCH0[Scheduler CH0<br/>sched_wr_valid/addr/beats] --> SPACE_CHK[Space Check]
+            SCH1[Scheduler CH1] --> SPACE_CHK
+            SCHN[Scheduler CHN-1] --> SPACE_CHK
+
+            DRAIN_AVAIL[axi_wr_drain_data_avail] --> |Check: >= burst size| SPACE_CHK
+            OUT_LIM[Outstanding Limit Check] --> SPACE_CHK
+
+            SPACE_CHK --> ARB[Round-Robin Arbiter]
+            ARB --> |grant_id| AW_MUX[AW Channel Mux]
+            AW_MUX --> |m_axi_awvalid/awaddr/awlen| MEM[Memory]
+
+            AW_MUX --> |AW handshake| W_FIFO[W-Phase FIFO<br/>SINGLE SHARED]
+            AW_MUX --> |AW handshake| DRAIN_REQ[Drain Request Gen]
+            DRAIN_REQ --> |axi_wr_drain_req/size| SRAM_CTRL[SRAM Controller]
+            SRAM_CTRL --> |drain_data_avail| DRAIN_AVAIL
+        end
+
+        subgraph "B-Phase Tracking - Loaded on AW Handshake"
+            AW_MUX --> |AW handshake| B_FIFO_PUSH[B-Phase FIFO Push Logic]
+            B_FIFO_PUSH --> |"Write: (beats, last)"| B_FIFO0[B-Phase FIFO CH0]
+            B_FIFO_PUSH --> |"Write: (beats, last)"| B_FIFO1[B-Phase FIFO CH1]
+            B_FIFO_PUSH --> |"Write: (beats, last)"| B_FIFON[B-Phase FIFO CHN]
+        end
+
+        subgraph "W Channel Data Path"
+            W_FIFO --> |"Read: (channel_id, beats)"| W_CTRL[W Phase Control]
+            W_CTRL --> |axi_wr_sram_drain/id| SRAM_CTRL
+            SRAM_CTRL --> |axi_wr_sram_valid/data| W_CTRL
+            W_CTRL --> |m_axi_wvalid/wdata/wlast| MEM
+
+            W_CTRL --> |wlast: pop FIFO| W_FIFO
+        end
+
+        subgraph "B Channel Response"
+            MEM --> |m_axi_bvalid/bid/bresp| B_DEC[B Response Decoder]
+            B_DEC --> |Extract channel_id from BID| B_ROUTER[B Response Router]
+
+            B_ROUTER --> |Pop when BID matches| B_FIFO0
+            B_ROUTER --> |Pop when BID matches| B_FIFO1
+            B_ROUTER --> |Pop when BID matches| B_FIFON
+
+            B_FIFO0 --> |"Read: (beats, last)"| DONE0[Done Gen CH0]
+            B_FIFO1 --> |"Read: (beats, last)"| DONE1[Done Gen CH1]
+            B_FIFON --> |"Read: (beats, last)"| DONEN[Done Gen CHN]
+
+            DONE0 --> |sched_wr_done_strobe<br/>sched_wr_beats_done| SCH0
+            DONE1 --> SCH1
+            DONEN --> SCHN
+        end
+    end
+
+    style ARB fill:#f9f,stroke:#333,stroke-width:3px
+    style AW_MUX fill:#bbf,stroke:#333,stroke-width:2px
+    style W_FIFO fill:#bfb,stroke:#333,stroke-width:2px
+    style B_FIFO_PUSH fill:#ffb,stroke:#333,stroke-width:2px
+    style B_FIFO0 fill:#fbb,stroke:#333,stroke-width:2px
+    style B_FIFO1 fill:#fbb,stroke:#333,stroke-width:2px
+    style B_FIFON fill:#fbb,stroke:#333,stroke-width:2px

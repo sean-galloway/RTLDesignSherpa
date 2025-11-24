@@ -28,6 +28,7 @@ from datetime import date
 
 MD_LINK_RE = re.compile(r"\[([^\]]+)\]\(([^)]+\.md)(#[^)]+)?\)", re.IGNORECASE)
 IMG_JSON_RE = re.compile(r'!\[([^\]]*)\]\(([^)]+\.json)\)')
+IMG_RE = re.compile(r'!\[([^\]]*)\]\(([^)]+)\)')
 
 EMOJI_MAP = {
     "✅": "✓",
@@ -88,10 +89,30 @@ def collect_from_index(index_path: pathlib.Path) -> list[pathlib.Path]:
         links = [idx] + [p for p in links if p != idx]
     return links
 
+def rewrite_image_paths_for_file(text: str, source_file: pathlib.Path) -> str:
+    """
+    Rewrite relative image paths in markdown text to absolute paths.
+    This is necessary when concatenating markdown files from different directories.
+    """
+    def _sub(m):
+        alt, path = m.group(1), m.group(2)
+        # Skip absolute paths, URLs, and already processed paths
+        if path.startswith('/') or '://' in path:
+            return m.group(0)
+        # Resolve relative path based on source file location
+        abs_path = (source_file.parent / path).resolve()
+        if abs_path.exists():
+            return f"![{alt}]({abs_path.as_posix()})"
+        # If file doesn't exist, keep original reference
+        return m.group(0)
+    return IMG_RE.sub(_sub, text)
+
 def concat_markdown(files: list[pathlib.Path], pagebreak: bool) -> str:
     parts = []
     for i, f in enumerate(files):
         text = read_text(f).rstrip() + "\n"
+        # Rewrite relative image paths to absolute paths
+        text = rewrite_image_paths_for_file(text, f)
         parts.append(text)
         if pagebreak and i < len(files) - 1:
             parts.append('\n::: {.pagebreak}\n:::\n')

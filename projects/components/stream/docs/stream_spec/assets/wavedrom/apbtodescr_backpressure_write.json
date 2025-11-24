@@ -1,0 +1,24 @@
+{
+  "signal": [
+    {"name": "clk", "wave": "p......."},
+    {},
+    {"name": "apb_cmd_valid", "wave": "01......"},
+    {"name": "apb_cmd_ready", "wave": "0......1"},
+    {},
+    {"name": "FSM", "wave": "x234445", "data": ["IDLE", "ROUTE", "ROUTE", "ROUTE", "RESPOND", "IDLE"]},
+    {},
+    {"name": "desc_apb_valid[1]", "wave": "0.1....0"},
+    {"name": "desc_apb_ready[1]", "wave": "0.....10"},
+    {},
+    {"name": "apb_rsp_valid", "wave": "0......1"}
+  ],
+  "head": {
+    "text": "APB to Descriptor - Write with Back-pressure (3 cycle stall)",
+    "tick": 0
+  },
+  "foot": {
+    "text": "Note: ROUTE state extends until desc_apb_ready[1] asserts (3 cycle back-pressure)",
+    "tock": 0
+  },
+  "config": {"hscale": 2}
+}

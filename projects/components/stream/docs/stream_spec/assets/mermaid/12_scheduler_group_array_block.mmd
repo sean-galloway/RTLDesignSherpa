@@ -1,0 +1,45 @@
+graph TB
+    APB0[APB CH0] --> GRP0[Scheduler Group CH0<br/>DESC ID=16, SCHED ID=48]
+    APB1[APB CH1] --> GRP1[Scheduler Group CH1<br/>DESC ID=17, SCHED ID=49]
+    APB7[APB CH7] --> GRP7[Scheduler Group CH7<br/>DESC ID=23, SCHED ID=55]
+
+    CFG[Global Config] --> GRP0
+    CFG --> GRP1
+    CFG --> GRP7
+
+    subgraph "Scheduler Group Array"
+        GRP0 --> |desc_ar_*| AR_ARB[Descriptor AR Arbiter<br/>8 Channels Round-Robin]
+        GRP1 --> |desc_ar_*| AR_ARB
+        GRP7 --> |desc_ar_*| AR_ARB
+
+        AR_ARB --> |desc_axi_ar_*| DESC_AXI[Shared Descriptor AXI Master]
+        DESC_AXI --> |desc_axi_r_*| R_BCAST[R Broadcast<br/>All Channels]
+
+        R_BCAST --> |desc_r_* ID-based claim| GRP0
+        R_BCAST --> |desc_r_*| GRP1
+        R_BCAST --> |desc_r_*| GRP7
+
+        DESC_AXI --> MON_TAP[AXI Master Monitor<br/>Agent ID 0x08]
+
+        GRP0 --> |datard/wr_valid| DATA_IF[Direct Passthrough<br/>No Arbitration]
+        GRP1 --> |datard/wr_valid| DATA_IF
+        GRP7 --> |datard/wr_valid| DATA_IF
+
+        GRP0 --> |mon_valid/packet| MON_AGG[MonBus Aggregator<br/>9 Sources]
+        GRP1 --> |mon_valid/packet| MON_AGG
+        GRP7 --> |mon_valid/packet| MON_AGG
+        MON_TAP --> |mon_valid/packet| MON_AGG
+
+        MON_AGG --> |mon_valid/ready/packet| MON_OUT[System MonBus]
+    end
+
+    DATA_IF --> |"datard[8]"| RD_ENG[AXI Read Engine<br/>Internal Arbiter]
+    DATA_IF --> |"datawr[8]"| WR_ENG[AXI Write Engine<br/>Internal Arbiter]
+
+    RD_ENG --> |"datard_done[8]"| DATA_IF
+    WR_ENG --> |"datawr_done[8]"| DATA_IF
+
+    style AR_ARB fill:#f9f,stroke:#333,stroke-width:3px
+    style DESC_AXI fill:#bbf,stroke:#333,stroke-width:2px
+    style MON_AGG fill:#bfb,stroke:#333,stroke-width:2px
+    style DATA_IF fill:#ffb,stroke:#333,stroke-width:2px

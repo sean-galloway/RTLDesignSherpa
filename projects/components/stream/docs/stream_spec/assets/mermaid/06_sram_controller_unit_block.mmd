@@ -1,0 +1,21 @@
+graph LR
+    RD_ENG[AXI Read Engine] --> |rd_alloc_req/size| ALLOC[Allocation Controller]
+    RD_ENG --> |axi_rd_sram_valid/data| FIFO[FIFO Buffer]
+    ALLOC --> |rd_space_free| RD_ENG
+
+    FIFO --> |rd_data 1-cycle latency| BRIDGE[Latency Bridge]
+    BRIDGE --> |axi_wr_sram_valid/data| WR_ENG[AXI Write Engine]
+    WR_ENG --> |wr_drain_req/size| DRAIN[Drain Controller]
+    DRAIN --> |wr_drain_data_avail| WR_ENG
+
+    FIFO --> |wr_valid| DRAIN
+    BRIDGE --> |rd_valid| ALLOC
+
+    BRIDGE --> |bridge_occupancy| SUM[+]
+    DRAIN --> |drain_data_available| SUM
+    SUM --> |wr_drain_data_avail| WR_ENG
+
+    style ALLOC fill:#bfb,stroke:#333,stroke-width:2px
+    style FIFO fill:#bbf,stroke:#333,stroke-width:3px
+    style BRIDGE fill:#fbf,stroke:#333,stroke-width:2px
+    style DRAIN fill:#bfb,stroke:#333,stroke-width:2px

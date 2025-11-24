@@ -33,7 +33,6 @@ module scheduler_group #(
     parameter int ADDR_WIDTH = 64,
     parameter int DATA_WIDTH = 512,
     parameter int AXI_ID_WIDTH = 8,
-    parameter int TIMEOUT_CYCLES = 1000,
     // Monitor Bus Parameters - Base IDs for each component
     parameter DESC_MON_AGENT_ID = 16,       // 0x10 - Descriptor Engine
     parameter SCHED_MON_AGENT_ID = 48,      // 0x30 - Scheduler
@@ -72,6 +71,7 @@ module scheduler_group #(
     output logic                        descriptor_engine_idle,
     output logic                        scheduler_idle,
     output logic [6:0]                  scheduler_state,  // ONE-HOT encoding (7 bits)
+    output logic                        sched_error,       // Scheduler error (sticky)
 
     // Descriptor Engine AXI4 Master Read Interface (256-bit descriptor fetch)
     output logic                        desc_ar_valid,
@@ -95,31 +95,28 @@ module scheduler_group #(
     input  logic                        desc_r_last,
     input  logic [AXI_ID_WIDTH-1:0]     desc_r_id,
 
-    // Data Read Interface (to AXI Read Engine via Arbiter)
+    // Data Read Interface (to AXI Read Engine)
     // NOTE: Engine decides burst length internally, scheduler just tracks beats remaining
-    output logic                        datard_valid,
-    input  logic                        datard_ready,
-    output logic [ADDR_WIDTH-1:0]       datard_addr,
-    output logic [31:0]                 datard_beats_remaining,
-    output logic [3:0]                  datard_channel_id,
+    output logic                        sched_rd_valid,
+    output logic [ADDR_WIDTH-1:0]       sched_rd_addr,
+    output logic [31:0]                 sched_rd_beats,
 
-    // Data Write Interface (to AXI Write Engine via Arbiter)
+    // Data Write Interface (to AXI Write Engine)
     // NOTE: Engine decides burst length internally, scheduler just tracks beats remaining
-    output logic                        datawr_valid,
-    input  logic                        datawr_ready,
-    output logic [ADDR_WIDTH-1:0]       datawr_addr,
-    output logic [31:0]                 datawr_beats_remaining,
-    output logic [3:0]                  datawr_channel_id,
+    output logic                        sched_wr_valid,
+    input  logic                        sched_wr_ready,
+    output logic [ADDR_WIDTH-1:0]       sched_wr_addr,
+    output logic [31:0]                 sched_wr_beats,
 
     // Data Path Completion Strobes
-    input  logic                        datard_done_strobe,
-    input  logic [31:0]                 datard_beats_done,
-    input  logic                        datawr_done_strobe,
-    input  logic [31:0]                 datawr_beats_done,
+    input  logic                        sched_rd_done_strobe,
+    input  logic [31:0]                 sched_rd_beats_done,
+    input  logic                        sched_wr_done_strobe,
+    input  logic [31:0]                 sched_wr_beats_done,
 
-    // Error Signals
-    input  logic                        datard_error,
-    input  logic                        datawr_error,
+    // Error Signals (from AXI engines)
+    input  logic                        sched_rd_error,
+    input  logic                        sched_wr_error,
 
     // Unified Monitor Bus Interface
     output logic                        mon_valid,
@@ -236,19 +233,20 @@ module scheduler_group #(
 
     // Single Scheduler Instance (Simplified from RAPIDS)
     // NOTE: Scheduler module currently does NOT support runtime configuration for:
-    //       - cfg_sched_timeout_cycles (TIMEOUT_CYCLES is compile-time parameter)
-    //       - cfg_sched_timeout_enable (always enabled)
     //       - cfg_sched_err_enable (always enabled)
     //       - cfg_sched_compl_enable (always enabled)
     //       - cfg_sched_perf_enable (not implemented)
     //       These config inputs are defined for future enhancement.
+    //
+    //       Timeout configuration now uses runtime inputs:
+    //       - cfg_sched_timeout_cycles (replaces TIMEOUT_CYCLES parameter)
+    //       - cfg_sched_timeout_enable (can disable timeout detection)
     scheduler #(
         .CHANNEL_ID             (CHANNEL_ID),
         .NUM_CHANNELS           (NUM_CHANNELS),
         .CHAN_WIDTH             (CHAN_WIDTH),
         .ADDR_WIDTH             (ADDR_WIDTH),
         .DATA_WIDTH             (DATA_WIDTH),
-        .TIMEOUT_CYCLES         (TIMEOUT_CYCLES),
         .MON_AGENT_ID           (8'(SCHED_MON_AGENT_ID)),
         .MON_UNIT_ID            (4'(MON_UNIT_ID)),
         .MON_CHANNEL_ID         (6'(MON_CHANNEL_ID))
@@ -259,10 +257,13 @@ module scheduler_group #(
         // Configuration
         .cfg_channel_enable     (cfg_channel_enable),
         .cfg_channel_reset      (cfg_channel_reset),
+        .cfg_sched_timeout_cycles(cfg_sched_timeout_cycles),
+        .cfg_sched_timeout_enable(cfg_sched_timeout_enable),
 
         // Status
         .scheduler_idle         (scheduler_idle),
         .scheduler_state        (scheduler_state),
+        .sched_error            (sched_error),
 
         // Descriptor engine interface
         .descriptor_valid       (desceng_to_sched_valid),
@@ -271,28 +272,25 @@ module scheduler_group #(
         .descriptor_error       (desceng_to_sched_error),
 
         // Data read interface (to AXI read engine)
-        .datard_valid           (datard_valid),
-        .datard_ready           (datard_ready),
-        .datard_addr            (datard_addr),
-        .datard_beats_remaining (datard_beats_remaining),
-        .datard_channel_id      (datard_channel_id),
+        .sched_rd_valid         (sched_rd_valid),
+        .sched_rd_addr          (sched_rd_addr),
+        .sched_rd_beats         (sched_rd_beats),
 
         // Data write interface (to AXI write engine)
-        .datawr_valid           (datawr_valid),
-        .datawr_ready           (datawr_ready),
-        .datawr_addr            (datawr_addr),
-        .datawr_beats_remaining (datawr_beats_remaining),
-        .datawr_channel_id      (datawr_channel_id),
+        .sched_wr_valid         (sched_wr_valid),
+        .sched_wr_ready         (sched_wr_ready),
+        .sched_wr_addr          (sched_wr_addr),
+        .sched_wr_beats         (sched_wr_beats),
 
         // Data path completion strobes
-        .datard_done_strobe     (datard_done_strobe),
-        .datard_beats_done      (datard_beats_done),
-        .datawr_done_strobe     (datawr_done_strobe),
-        .datawr_beats_done      (datawr_beats_done),
+        .sched_rd_done_strobe   (sched_rd_done_strobe),
+        .sched_rd_beats_done    (sched_rd_beats_done),
+        .sched_wr_done_strobe   (sched_wr_done_strobe),
+        .sched_wr_beats_done    (sched_wr_beats_done),
 
         // Error signals
-        .datard_error           (datard_error),
-        .datawr_error           (datawr_error),
+        .sched_rd_error         (sched_rd_error),
+        .sched_wr_error         (sched_wr_error),
 
         // Monitor bus
         .mon_valid              (sched_mon_valid),

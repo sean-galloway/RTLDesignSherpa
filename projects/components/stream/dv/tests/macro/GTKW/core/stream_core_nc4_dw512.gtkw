@@ -1,33 +1,36 @@
 [*]
 [*] GTKWave Analyzer v3.3.116 (w)1999-2023 BSI
-[*] Fri Nov 14 06:13:41 2025
+[*] Sun Nov 23 08:02:19 2025
 [*]
 [dumpfile] "(null)"
-[savefile] "/mnt/data/github/rtldesignsherpa/projects/components/stream/dv/tests/macro/GTKW/core/stream_core_nc4_dw512.gtkw"
-[timestart] 792700
-[size] 3627 1849
-[pos] 12 -24
-*-15.881525 990000 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
+[savefile] "/mnt/data/github/rtldesignsherpa/projects/components/stream/dv/tests/macro/GTKW/core/stream_core_nc4_dw128.gtkw"
+[timestart] 0
+[size] 3330 1916
+[pos] 150 94
+*-23.306234 36700000 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
 [treeopen] stream_core.
-[treeopen] stream_core.u_axi_write_engine.
-[treeopen] stream_core.u_axi_write_engine.gen_completion_pipeline.
 [treeopen] stream_core.u_axi_write_engine.gen_multi_channel.
 [treeopen] stream_core.u_axi_write_engine.gen_pipeline_tracking.
-[treeopen] stream_core.u_axi_write_engine.gen_w_pipeline.
 [treeopen] stream_core.u_axi_write_engine.gen_w_pipeline.u_ch_id_fifo.
-[treeopen] stream_core.u_axi_write_engine.unnamedblk9.
+[treeopen] stream_core.u_scheduler_group_array.
+[treeopen] stream_core.u_scheduler_group_array.gen_scheduler_groups[0].
 [treeopen] stream_core.u_scheduler_group_array.gen_scheduler_groups[0].u_scheduler_group.
+[treeopen] stream_core.u_scheduler_group_array.gen_scheduler_groups[0].u_scheduler_group.u_scheduler.
+[treeopen] stream_core.u_scheduler_group_array.gen_scheduler_groups[1].u_scheduler_group.
 [treeopen] stream_core.u_sram_controller.
 [treeopen] stream_core.u_sram_controller.gen_channel_units[0].
-[sst_width] 295
-[signals_width] 488
+[treeopen] stream_core.u_sram_controller.gen_channel_units[0].u_channel_unit.
+[treeopen] stream_core.u_sram_controller.gen_channel_units[0].u_channel_unit.u_latency_bridge.
+[treeopen] stream_core.u_sram_controller.gen_channel_units[1].
+[sst_width] 466
+[signals_width] 555
 [sst_expanded] 1
-[sst_vpaned_height] 593
+[sst_vpaned_height] 1000
 @22
+stream_core.u_axi_write_engine.PIPELINE[31:0]
 stream_core.NUM_CHANNELS[31:0]
 stream_core.DW[31:0]
 stream_core.MON_UNIT_ID[31:0]
-stream_core.TIMEOUT_CYCLES[31:0]
 stream_core.SCHED_MON_BASE_AGENT_ID[31:0]
 stream_core.cfg_channel_enable[3:0]
 stream_core.cfg_channel_reset[3:0]
@@ -38,18 +41,6 @@ stream_core.cfg_perf_mode
 stream_core.cfg_sched_compl_enable
 stream_core.cfg_sched_enable
 stream_core.cfg_sched_timeout_enable
-stream_core.cfg_sts_data_rd_skid_busy
-stream_core.cfg_sts_data_wr_skid_busy
-@22
-stream_core.cfg_sts_desc_axi_active_txns[7:0]
-@28
-stream_core.cfg_sts_desc_axi_busy
-stream_core.cfg_sts_desc_axi_conflict_error
-@22
-stream_core.cfg_sts_desc_axi_error_count[15:0]
-stream_core.cfg_sts_desc_axi_txn_count[31:0]
-@28
-stream_core.cfg_sts_desc_rd_skid_busy
 stream_core.clk
 stream_core.rst_n
 @200
@@ -82,6 +73,14 @@ stream_core.m_axi_desc_rdata[255:0]
 stream_core.m_axi_desc_arid[7:0]
 @28
 stream_core.m_axi_desc_rlast
+stream_core.u_scheduler_group_array.gen_scheduler_groups[0].u_scheduler_group.u_descriptor_engine.descriptor_error
+stream_core.u_scheduler_group_array.gen_scheduler_groups[0].u_scheduler_group.u_descriptor_engine.w_pkt_error
+stream_core.u_scheduler_group_array.gen_scheduler_groups[0].u_scheduler_group.u_descriptor_engine.r_current_state[2:0]
+stream_core.u_scheduler_group_array.gen_scheduler_groups[0].u_scheduler_group.u_descriptor_engine.clk
+stream_core.u_scheduler_group_array.gen_scheduler_groups[0].u_scheduler_group.u_descriptor_engine.rst_n
+stream_core.u_scheduler_group_array.gen_scheduler_groups[0].u_scheduler_group.u_descriptor_engine.w_apb_skid_valid_out
+stream_core.u_scheduler_group_array.gen_scheduler_groups[0].u_scheduler_group.u_descriptor_engine.w_apb_skid_ready_out
+stream_core.u_scheduler_group_array.gen_scheduler_groups[0].u_scheduler_group.u_descriptor_engine.r_apb_ip
 @200
 -descriptor-axi-interface
 @28
@@ -102,158 +101,151 @@ stream_core.u_scheduler_group_array.gen_scheduler_groups[0].u_scheduler_group.u_
 stream_core.u_scheduler_group_array.gen_scheduler_groups[0].u_scheduler_group.u_descriptor_engine.r_resp[1:0]
 @200
 -scheduler
-@28
-stream_core.u_scheduler_group_array.gen_scheduler_groups[0].u_scheduler_group.u_scheduler.r_descriptor_error
-stream_core.u_scheduler_group_array.gen_scheduler_groups[0].u_scheduler_group.u_scheduler.descriptor_error
-@200
--descriptor-scheduler
-@28
-stream_core.u_scheduler_group_array.gen_scheduler_groups[0].u_scheduler_group.u_descriptor_engine.descriptor_valid
-stream_core.u_scheduler_group_array.gen_scheduler_groups[0].u_scheduler_group.u_descriptor_engine.descriptor_ready
 @22
-stream_core.u_scheduler_group_array.gen_scheduler_groups[0].u_scheduler_group.u_descriptor_engine.descriptor_packet[255:0]
-@200
--scheduler
+stream_core.axi_rd_all_complete[3:0]
+stream_core.axi_wr_all_complete[3:0]
+stream_core.u_scheduler_group_array.scheduler_idle[3:0]
+stream_core.u_scheduler_group_array.sched_error[3:0]
+stream_core.sched_rd_valid[3:0]
+stream_core.sched_rd_addr[0][63:0]
+stream_core.sched_rd_addr[1][63:0]
+stream_core.sched_rd_addr[2][63:0]
+stream_core.sched_rd_addr[3][63:0]
+stream_core.u_scheduler_group_array.sched_rd_done_strobe[3:0]
+stream_core.sched_wr_valid[3:0]
+@800022
+stream_core.u_scheduler_group_array.sched_wr_ready[3:0]
+@1001200
+-group_end
+@800022
+stream_core.u_scheduler_group_array.sched_wr_done_strobe[3:0]
 @28
-stream_core.u_scheduler_group_array.gen_scheduler_groups[0].u_scheduler_group.u_scheduler.r_descriptor_loaded
+(0)stream_core.u_scheduler_group_array.sched_wr_done_strobe[3:0]
+(1)stream_core.u_scheduler_group_array.sched_wr_done_strobe[3:0]
+(2)stream_core.u_scheduler_group_array.sched_wr_done_strobe[3:0]
+(3)stream_core.u_scheduler_group_array.sched_wr_done_strobe[3:0]
 @22
-stream_core.u_scheduler_group_array.gen_scheduler_groups[0].u_scheduler_group.u_scheduler.r_src_addr[63:0]
-stream_core.u_scheduler_group_array.gen_scheduler_groups[0].u_scheduler_group.u_scheduler.r_dst_addr[63:0]
-stream_core.u_scheduler_group_array.gen_scheduler_groups[0].u_scheduler_group.u_scheduler.r_beats_remaining[31:0]
-@200
--descriptor-internals
-@22
-stream_core.u_scheduler_group_array.gen_scheduler_groups[0].u_scheduler_group.u_descriptor_engine.cfg_addr0_base[63:0]
-stream_core.u_scheduler_group_array.gen_scheduler_groups[0].u_scheduler_group.u_descriptor_engine.cfg_addr0_limit[63:0]
-stream_core.u_scheduler_group_array.gen_scheduler_groups[0].u_scheduler_group.u_descriptor_engine.cfg_addr1_base[63:0]
-stream_core.u_scheduler_group_array.gen_scheduler_groups[0].u_scheduler_group.u_descriptor_engine.cfg_addr1_limit[63:0]
+stream_core.u_scheduler_group_array.gen_scheduler_groups[0].u_scheduler_group.u_scheduler.scheduler_state[6:0]
 @28
-stream_core.u_scheduler_group_array.gen_scheduler_groups[0].u_scheduler_group.u_descriptor_engine.w_next_addr_valid
+stream_core.u_scheduler_group_array.gen_scheduler_groups[0].u_scheduler_group.u_scheduler.sched_wr_valid
+@1001200
+-group_end
 @22
-stream_core.u_scheduler_group_array.gen_scheduler_groups[0].u_scheduler_group.u_descriptor_engine.w_next_addr[31:0]
-stream_core.u_scheduler_group_array.gen_scheduler_groups[0].u_scheduler_group.u_descriptor_engine.w_next_addr_extended[63:0]
-@28
-stream_core.u_scheduler_group_array.gen_scheduler_groups[0].u_scheduler_group.u_descriptor_engine.descriptor_valid
-stream_core.u_scheduler_group_array.gen_scheduler_groups[0].u_scheduler_group.u_descriptor_engine.descriptor_ready
-stream_core.u_scheduler_group_array.gen_scheduler_groups[0].u_scheduler_group.u_descriptor_engine.descriptor_type[1:0]
-@22
-stream_core.u_scheduler_group_array.gen_scheduler_groups[0].u_scheduler_group.u_descriptor_engine.descriptor_packet[255:0]
-@200
--descriptor-axi-skid-buffer
-@28
-stream_core.u_scheduler_group_array.u_desc_axi_monitor.fub_axi_arvalid
-stream_core.u_scheduler_group_array.u_desc_axi_monitor.fub_axi_arready
-@22
-stream_core.u_scheduler_group_array.u_desc_axi_monitor.fub_axi_araddr[63:0]
-stream_core.u_scheduler_group_array.u_desc_axi_monitor.fub_axi_arid[7:0]
+stream_core.u_scheduler_group_array.sched_rd_addr[0][63:0]
+stream_core.u_scheduler_group_array.sched_rd_beats[0][31:0]
+stream_core.u_scheduler_group_array.sched_rd_beats_done[0][31:0]
+stream_core.u_scheduler_group_array.sched_rd_addr[1][63:0]
+stream_core.u_scheduler_group_array.sched_rd_beats[1][31:0]
+stream_core.u_scheduler_group_array.sched_rd_beats_done[1][31:0]
+stream_core.u_scheduler_group_array.sched_rd_addr[2][63:0]
+stream_core.u_scheduler_group_array.sched_rd_beats[2][31:0]
+stream_core.u_scheduler_group_array.sched_rd_beats_done[2][31:0]
+stream_core.u_scheduler_group_array.sched_rd_addr[3][63:0]
+stream_core.u_scheduler_group_array.sched_rd_beats[3][31:0]
+stream_core.u_scheduler_group_array.sched_rd_beats_done[3][31:0]
+stream_core.sched_wr_done_strobe[3:0]
+stream_core.sched_wr_addr[0][63:0]
+stream_core.sched_wr_beats[0][31:0]
+stream_core.sched_wr_beats_done[0][31:0]
+stream_core.sched_wr_addr[1][63:0]
+stream_core.sched_wr_beats[1][31:0]
+stream_core.sched_wr_beats_done[1][31:0]
+stream_core.sched_wr_addr[2][63:0]
+stream_core.sched_wr_beats[2][31:0]
+stream_core.sched_wr_beats_done[2][31:0]
+stream_core.sched_wr_addr[3][63:0]
+stream_core.sched_wr_beats[3][31:0]
+stream_core.sched_wr_beats_done[3][31:0]
 @200
 -axi-rd-interface
 @28
 stream_core.u_axi_read_engine.m_axi_arvalid
+stream_core.u_axi_read_engine.m_axi_arready
 @22
+stream_core.u_axi_read_engine.m_axi_araddr[63:0]
 stream_core.u_axi_read_engine.m_axi_arid[7:0]
 stream_core.u_axi_read_engine.m_axi_arlen[7:0]
 @28
 stream_core.u_axi_read_engine.m_axi_rvalid
+stream_core.u_axi_read_engine.m_axi_rready
 @22
 stream_core.u_axi_read_engine.m_axi_rdata[511:0]
 stream_core.u_axi_read_engine.m_axi_rid[7:0]
 @28
 stream_core.u_axi_read_engine.m_axi_rlast
 stream_core.u_axi_read_engine.m_axi_rresp[1:0]
-stream_core.u_axi_read_engine.m_axi_arready
-@22
-stream_core.u_axi_read_engine.m_axi_araddr[63:0]
-stream_core.u_axi_read_engine.r_outstanding_count[0][3:0]
-stream_core.u_axi_read_engine.r_outstanding_count[1][3:0]
-stream_core.u_axi_read_engine.r_outstanding_count[2][3:0]
-stream_core.u_axi_read_engine.r_outstanding_count[3][3:0]
-stream_core.u_axi_read_engine.axi_rd_all_complete[3:0]
 @200
 -axi-wr-interface
-@22
-stream_core.u_axi_write_engine.cfg_axi_wr_xfer_beats[7:0]
-stream_core.u_axi_write_engine.sched_wr_burst_len[0][7:0]
-stream_core.u_axi_write_engine.r_w_beats_remaining[7:0]
-@28
-stream_core.u_axi_write_engine.unnamedblk9.unnamedblk10.is_final_burst
-stream_core.u_axi_write_engine.unnamedblk9.unnamedblk10.has_data
-@22
-stream_core.u_axi_write_engine.w_data_ok[3:0]
-@28
-stream_core.u_axi_write_engine.gen_w_pipeline.r_current_drain_valid
-stream_core.u_axi_write_engine.gen_w_pipeline.r_current_drain_id[1:0]
-@c00024
-stream_core.u_axi_write_engine.gen_w_pipeline.r_current_drain_remaining[7:0]
-@28
-(0)stream_core.u_axi_write_engine.gen_w_pipeline.r_current_drain_remaining[7:0]
-(1)stream_core.u_axi_write_engine.gen_w_pipeline.r_current_drain_remaining[7:0]
-(2)stream_core.u_axi_write_engine.gen_w_pipeline.r_current_drain_remaining[7:0]
-(3)stream_core.u_axi_write_engine.gen_w_pipeline.r_current_drain_remaining[7:0]
-(4)stream_core.u_axi_write_engine.gen_w_pipeline.r_current_drain_remaining[7:0]
-(5)stream_core.u_axi_write_engine.gen_w_pipeline.r_current_drain_remaining[7:0]
-(6)stream_core.u_axi_write_engine.gen_w_pipeline.r_current_drain_remaining[7:0]
-(7)stream_core.u_axi_write_engine.gen_w_pipeline.r_current_drain_remaining[7:0]
-@1401204
--group_end
 @28
 stream_core.u_axi_write_engine.m_axi_awvalid
 stream_core.u_axi_write_engine.m_axi_awready
 @22
 stream_core.u_axi_write_engine.m_axi_awaddr[63:0]
-stream_core.u_axi_write_engine.m_axi_awlen[7:0]
 stream_core.u_axi_write_engine.m_axi_awid[7:0]
-@29
-stream_core.u_axi_write_engine.m_axi_wvalid
+stream_core.u_axi_write_engine.m_axi_awlen[7:0]
 @28
+stream_core.u_axi_write_engine.m_axi_wvalid
 stream_core.u_axi_write_engine.m_axi_wready
-stream_core.u_axi_write_engine.m_axi_wlast
 @22
 stream_core.u_axi_write_engine.m_axi_wdata[511:0]
+stream_core.u_axi_write_engine.m_axi_wuser[1:0]
 @28
+stream_core.u_axi_write_engine.m_axi_wlast
 stream_core.u_axi_write_engine.m_axi_bvalid
 stream_core.u_axi_write_engine.m_axi_bready
 @22
 stream_core.u_axi_write_engine.m_axi_bid[7:0]
-@28
-stream_core.u_axi_write_engine.m_axi_bresp[1:0]
-@22
-stream_core.u_axi_write_engine.r_outstanding_count[0][3:0]
-stream_core.u_axi_write_engine.r_outstanding_count[1][3:0]
-stream_core.u_axi_write_engine.r_outstanding_count[2][3:0]
-stream_core.u_axi_write_engine.r_outstanding_count[3][3:0]
-stream_core.u_axi_write_engine.axi_wr_all_complete[3:0]
 @200
 -axi-write-engine
 @22
-stream_core.u_axi_write_engine.sched_wr_valid[3:0]
-stream_core.u_axi_write_engine.sched_wr_ready[3:0]
-stream_core.u_axi_write_engine.sched_wr_beats[0][31:0]
-stream_core.u_axi_write_engine.sched_wr_beats[1][31:0]
-stream_core.u_axi_write_engine.sched_wr_done_strobe[3:0]
-stream_core.u_axi_write_engine.sched_wr_beats_done[0][31:0]
-stream_core.u_axi_write_engine.sched_wr_beats_done[1][31:0]
-stream_core.u_axi_write_engine.sched_wr_beats_done[2][31:0]
-stream_core.u_axi_write_engine.sched_wr_beats_done[2][31:0]
-stream_core.u_axi_write_engine.sched_wr_beats_done[3][31:0]
-@200
--axi-read-engine
-@22
-stream_core.u_axi_read_engine.sched_rd_valid[3:0]
-stream_core.u_axi_read_engine.w_beats_ok[3:0]
-stream_core.u_axi_read_engine.w_space_ok[3:0]
-stream_core.u_axi_read_engine.w_arb_request[3:0]
+stream_core.u_axi_write_engine.w_has_data[3:0]
+@24
+stream_core.u_axi_write_engine.axi_wr_drain_data_avail[0][9:0]
 @28
-stream_core.u_axi_read_engine.w_arb_grant_valid
+stream_core.u_axi_write_engine.r_w_active
+@29
+stream_core.u_axi_write_engine.r_w_channel_id[1:0]
 @200
--SRAM-controller
-@22
-stream_core.u_sram_controller.NC[31:0]
-stream_core.u_sram_controller.gen_channel_units[0].u_channel_unit.alloc_space_free[9:0]
+-sram-controller
+@24
+stream_core.u_sram_controller.gen_channel_units[0].u_channel_unit.fifo_count[9:0]
+stream_core.u_sram_controller.gen_channel_units[0].u_channel_unit.bridge_occupancy[2:0]
 @28
-stream_core.u_axi_read_engine.w_arb_grant_id[1:0]
+stream_core.u_sram_controller.gen_channel_units[0].u_channel_unit.axi_wr_sram_valid
+stream_core.u_sram_controller.axi_rd_alloc_req
+stream_core.u_sram_controller.axi_rd_alloc_id[1:0]
 @22
-stream_core.u_axi_read_engine.w_arb_grant[3:0]
-stream_core.u_axi_read_engine.w_arb_grant_ack[3:0]
+stream_core.u_sram_controller.axi_rd_alloc_size[7:0]
+@24
+stream_core.u_sram_controller.axi_rd_drain_space_free[0][9:0]
+stream_core.u_sram_controller.axi_rd_drain_space_free[1][9:0]
+stream_core.u_sram_controller.axi_rd_drain_space_free[2][9:0]
+stream_core.u_sram_controller.axi_rd_drain_space_free[3][9:0]
+@28
+stream_core.u_sram_controller.axi_rd_sram_valid
+stream_core.u_sram_controller.axi_rd_sram_ready
+stream_core.u_sram_controller.axi_rd_sram_id[1:0]
+@22
+stream_core.u_sram_controller.axi_rd_sram_data[511:0]
+stream_core.u_sram_controller.axi_wr_drain_req[3:0]
+stream_core.u_sram_controller.axi_wr_drain_size[0][7:0]
+stream_core.u_sram_controller.axi_wr_drain_size[1][7:0]
+stream_core.u_sram_controller.axi_wr_drain_size[2][7:0]
+stream_core.u_sram_controller.axi_wr_drain_size[3][7:0]
+stream_core.u_sram_controller.axi_wr_drain_data_avail[0][9:0]
+stream_core.u_sram_controller.axi_wr_drain_data_avail[1][9:0]
+stream_core.u_sram_controller.axi_wr_drain_data_avail[2][9:0]
+stream_core.u_sram_controller.axi_wr_drain_data_avail[3][9:0]
+stream_core.u_sram_controller.axi_wr_sram_valid[3:0]
+@28
+stream_core.u_sram_controller.axi_wr_sram_drain
+stream_core.u_sram_controller.axi_wr_sram_id[1:0]
+@22
+stream_core.u_sram_controller.axi_wr_sram_data_per_channel[0][511:0]
+stream_core.u_sram_controller.axi_wr_sram_data_per_channel[1][511:0]
+stream_core.u_sram_controller.axi_wr_sram_data_per_channel[2][511:0]
+stream_core.u_sram_controller.axi_wr_sram_data_per_channel[3][511:0]
+@28
+stream_core.u_axi_write_engine.m_axi_bresp[1:0]
 [pattern_trace] 1
 [pattern_trace] 0

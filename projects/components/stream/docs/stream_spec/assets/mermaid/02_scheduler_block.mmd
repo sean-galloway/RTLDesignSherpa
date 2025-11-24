@@ -1,0 +1,27 @@
+graph TB
+    subgraph "Scheduler"
+        DESC[Descriptor Input] --> FETCH[Descriptor Latch]
+        FETCH --> FSM[FSM Controller]
+        FSM --> RD_IF[Read Interface]
+        FSM --> WR_IF[Write Interface]
+        FSM --> MON[MonBus Reporter]
+
+        BEAT_RD[Read Beat Counter] --> FSM
+        BEAT_WR[Write Beat Counter] --> FSM
+        TIMEOUT[Timeout Counter] --> FSM
+        ERR[Error Aggregator] --> FSM
+
+        RD_IF --> |datard_valid/ready| RD_ENG[Read Engine]
+        WR_IF --> |datawr_valid/ready| WR_ENG[Write Engine]
+        RD_ENG --> |done_strobe| BEAT_RD
+        WR_ENG --> |done_strobe| BEAT_WR
+    end
+
+    DESC_ENG[Descriptor Engine] --> |descriptor_packet| DESC
+    RD_ENG --> |datard_error| ERR
+    WR_ENG --> |datawr_error| ERR
+    MON --> |mon_valid/ready| MONBUS[MonBus]
+
+    style FSM fill:#f9f,stroke:#333,stroke-width:4px
+    style BEAT_RD fill:#bfb,stroke:#333,stroke-width:2px
+    style BEAT_WR fill:#bfb,stroke:#333,stroke-width:2px

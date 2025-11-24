@@ -6,7 +6,7 @@ The `apb_hpet` module is the top-level system integration point that combines AP
 
 **Top-Level Block Diagram:**
 
-![APB HPET Top-Level Block Diagram](../assets/png/apb_hpet.png)
+![APB HPET Top-Level Block Diagram](../assets/svg/apb_hpet.svg)
 
 *Figure: APB HPET top-level integration showing dual clock domains (PCLK and HPET_CLK), optional CDC, configuration registers, HPET core, and interrupt outputs. [Source: assets/graphviz/apb_hpet.gv](../assets/graphviz/apb_hpet.gv) | [SVG](../assets/svg/apb_hpet.svg)*
 

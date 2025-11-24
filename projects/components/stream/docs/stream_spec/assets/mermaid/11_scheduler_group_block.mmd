@@ -1,0 +1,37 @@
+graph TB
+    APB[APB Interface<br/>apb_valid/addr] --> DESC_ENG[Descriptor Engine]
+    CFG[Configuration] --> DESC_ENG
+    CFG --> SCHED
+
+    subgraph "Scheduler Group"
+        subgraph "Descriptor Engine"
+            DESC_ENG --> |desc_ar_*| DESC_AXI[AXI AR/R]
+            DESC_AXI --> |desc_r_data| DESC_PARSE[Parse Descriptor]
+            DESC_PARSE --> |descriptor_packet 256-bit| DESC_OUT[Descriptor Output]
+            DESC_ENG --> |mon_valid/packet| DESC_MON[MonBus Events<br/>Agent ID 0x10]
+        end
+
+        DESC_OUT --> |descriptor_valid/ready| SCHED[Scheduler FSM]
+
+        subgraph "Scheduler"
+            SCHED --> |datard_valid/addr/beats| RD_IF[Read Interface]
+            SCHED --> |datawr_valid/addr/beats| WR_IF[Write Interface]
+            RD_IF --> |datard_done_strobe| SCHED
+            WR_IF --> |datawr_done_strobe| SCHED
+            SCHED --> |mon_valid/packet| SCHED_MON[MonBus Events<br/>Agent ID 0x30]
+        end
+
+        DESC_MON --> ARB[MonBus Arbiter<br/>2 Clients]
+        SCHED_MON --> ARB
+        ARB --> |mon_valid/ready/packet| MON_OUT[MonBus Output]
+    end
+
+    RD_IF --> RD_ENG[AXI Read Engine]
+    WR_IF --> WR_ENG[AXI Write Engine]
+    RD_ENG --> |datard_done| RD_IF
+    WR_ENG --> |datawr_done| WR_IF
+    MON_OUT --> SYS_MON[System MonBus]
+
+    style DESC_ENG fill:#bbf,stroke:#333,stroke-width:2px
+    style SCHED fill:#f9f,stroke:#333,stroke-width:3px
+    style ARB fill:#bfb,stroke:#333,stroke-width:2px

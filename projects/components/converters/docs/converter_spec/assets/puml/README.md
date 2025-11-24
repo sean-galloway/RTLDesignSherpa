@@ -1,6 +1,6 @@
 # Converters PlantUML FSM Diagrams
 
-This directory contains PlantUML source files (.puml) and generated PNG diagrams for Converters FSM documentation.
+This directory contains PlantUML source files (.puml) and generated SVG diagrams for Converters FSM documentation.
 
 ## Files
 
@@ -8,9 +8,9 @@ This directory contains PlantUML source files (.puml) and generated PNG diagrams
 
 - **`axi4_to_apb_fsm.puml`** - APB state machine for AXI4-to-APB protocol converter
 
-### Generated Images (.png)
+### Generated Images (.svg)
 
-- **`axi4_to_apb_fsm.png`** - FSM diagram for AXI4-to-APB converter
+- **`axi4_to_apb_fsm.svg`** - FSM diagram for AXI4-to-APB converter
 
 ## FSM Overview
 
@@ -63,22 +63,26 @@ sudo apt install plantuml
 wget https://github.com/plantuml/plantuml/releases/download/v1.2023.13/plantuml-1.2023.13.jar
 ```
 
-### Generate PNG from PlantUML
+### Generate SVG from PlantUML
 
 ```bash
-# Using installed plantuml
-plantuml axi4_to_apb_fsm.puml
+# Using regeneration script
+./regenerate_diagrams.sh
+
+# Or manually using installed plantuml
+plantuml -tsvg axi4_to_apb_fsm.puml
 
 # Or using downloaded JAR
-java -jar plantuml.jar axi4_to_apb_fsm.puml
+java -jar plantuml.jar -tsvg axi4_to_apb_fsm.puml
 
-# Output: axi4_to_apb_fsm.png
+# Output: axi4_to_apb_fsm.svg
 ```
 
-### Generate SVG (for web)
+### Generate PNG (for legacy docs)
 
 ```bash
-plantuml -tsvg axi4_to_apb_fsm.puml
+plantuml -tpng axi4_to_apb_fsm.puml
+# Not recommended - use SVG instead for crisp vector graphics
 ```
 
 ### Generate PDF (for documentation)
@@ -125,14 +129,14 @@ If future converters include FSMs:
    @enduml
    ```
 
-2. Generate PNG:
+2. Generate SVG:
    ```bash
-   plantuml my_converter_fsm.puml
+   ./regenerate_diagrams.sh
    ```
 
 3. Link from documentation:
    ```markdown
-   ![My Converter FSM](../assets/puml/my_converter_fsm.png)
+   ![My Converter FSM](../assets/puml/my_converter_fsm.svg)
    ```
 
 ## Tools
@@ -146,10 +150,11 @@ If future converters include FSMs:
 
 ## Notes
 
-- PNG files are version controlled for easy viewing
+- SVG files are version controlled for high-quality viewing
 - Source .puml files are the authoritative source
-- Regenerate PNGs after any .puml changes
+- Regenerate SVGs after any .puml changes using `./regenerate_diagrams.sh`
 - Keep FSM diagrams synchronized with RTL state definitions
+- SVG provides crisp vector graphics at any zoom level (preferred over PNG)
 
 ---
 

@@ -1,0 +1,11 @@
+graph LR
+    CH[Channel event] --> ISKID[Input skid]
+    ISKID --> ARB[Arbiter]
+    ARB --> OSKID[Output skid]
+    OSKID --> SYS[System]
+
+    style CH fill:#ffe1e1,stroke:#333,stroke-width:2px
+    style ISKID fill:#f0f0f0,stroke:#333,stroke-width:2px
+    style ARB fill:#f9f,stroke:#333,stroke-width:2px
+    style OSKID fill:#f0f0f0,stroke:#333,stroke-width:2px
+    style SYS fill:#bfb,stroke:#333,stroke-width:2px

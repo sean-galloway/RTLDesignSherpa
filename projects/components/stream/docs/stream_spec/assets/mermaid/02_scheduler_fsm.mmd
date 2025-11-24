@@ -1,0 +1,21 @@
+stateDiagram-v2
+    [*] --> CH_IDLE
+    CH_IDLE --> CH_FETCH_DESC: descriptor_valid && cfg_channel_enable
+    CH_FETCH_DESC --> CH_XFER_DATA: valid descriptor
+    CH_FETCH_DESC --> CH_ERROR: invalid descriptor
+    CH_XFER_DATA --> CH_COMPLETE: read_complete && write_complete
+    CH_COMPLETE --> CH_IDLE: last or next_ptr==0
+    CH_COMPLETE --> CH_NEXT_DESC: chaining (next_ptr != 0)
+    CH_NEXT_DESC --> CH_FETCH_DESC: next descriptor valid
+    CH_ERROR --> CH_IDLE: errors cleared && cfg_channel_reset
+
+    note right of CH_XFER_DATA
+        Concurrent Read/Write
+        Both engines run simultaneously
+        Prevents deadlock
+    end note
+
+    note right of CH_COMPLETE
+        Check next_descriptor_ptr
+        Generate IRQ if requested
+    end note

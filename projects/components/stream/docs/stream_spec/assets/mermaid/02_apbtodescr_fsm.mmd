@@ -1,0 +1,21 @@
+stateDiagram-v2
+    [*] --> IDLE
+    IDLE --> ROUTE: apb_cmd_valid && apb_cmd_write
+    ROUTE --> RESPOND: desc_apb_ready or r_error
+    RESPOND --> IDLE: apb_rsp_ready
+
+    note right of IDLE
+        apb_cmd_ready = 1
+        Waiting for command
+        Latch: channel_id, wdata, error
+    end note
+
+    note right of ROUTE
+        desc_apb_valid[ch] = 1
+        Waiting for descriptor engine
+    end note
+
+    note right of RESPOND
+        apb_rsp_valid = 1
+        apb_rsp_error = r_error
+    end note

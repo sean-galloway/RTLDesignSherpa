@@ -1,0 +1,67 @@
+graph TB
+    subgraph "SRAM Controller"
+        RD_ENG[AXI Read Engine] --> |axi_rd_sram_valid/id/data| ID_DEC_WR[ID Decode Write]
+
+        subgraph "Channel 0 Unit"
+            ALLOC0[Alloc Controller] --> FIFO0[FIFO 512 deep]
+            FIFO0 --> BRIDGE0[Latency Bridge]
+            BRIDGE0 --> DRAIN0[Drain Controller]
+        end
+
+        subgraph "Channel 1 Unit"
+            ALLOC1[Alloc Controller] --> FIFO1[FIFO 512 deep]
+            FIFO1 --> BRIDGE1[Latency Bridge]
+            BRIDGE1 --> DRAIN1[Drain Controller]
+        end
+
+        subgraph "Channel N-1 Unit"
+            ALLOCN[Alloc Controller] --> FIFON[FIFO 512 deep]
+            FIFON --> BRIDGEN[Latency Bridge]
+            BRIDGEN --> DRAINN[Drain Controller]
+        end
+
+        ID_DEC_WR --> |valid_decoded| FIFO0
+        ID_DEC_WR --> |valid_decoded| FIFO1
+        ID_DEC_WR --> |valid_decoded| FIFON
+
+        RD_ENG --> |rd_alloc_req/size/id| ALLOC_DEC[Alloc Decode]
+        ALLOC_DEC --> ALLOC0
+        ALLOC_DEC --> ALLOC1
+        ALLOC_DEC --> ALLOCN
+
+        ALLOC0 --> |rd_space_free| SPACE_MUX[Space Mux]
+        ALLOC1 --> |rd_space_free| SPACE_MUX
+        ALLOCN --> |rd_space_free| SPACE_MUX
+        SPACE_MUX --> RD_ENG
+
+        WR_ENG[AXI Write Engine] --> |wr_drain_req/size| DRAIN_DEC[Drain Decode]
+        DRAIN_DEC --> DRAIN0
+        DRAIN_DEC --> DRAIN1
+        DRAIN_DEC --> DRAINN
+
+        DRAIN0 --> |wr_drain_data_avail| AVAIL_MUX[Data Avail Mux]
+        DRAIN1 --> |wr_drain_data_avail| AVAIL_MUX
+        DRAINN --> |wr_drain_data_avail| AVAIL_MUX
+        AVAIL_MUX --> WR_ENG
+
+        WR_ENG --> |axi_wr_sram_drain/id| ID_DEC_RD[ID Decode Read]
+        ID_DEC_RD --> BRIDGE0
+        ID_DEC_RD --> BRIDGE1
+        ID_DEC_RD --> BRIDGEN
+
+        BRIDGE0 --> |data| DATA_MUX[Data Mux]
+        BRIDGE1 --> |data| DATA_MUX
+        BRIDGEN --> |data| DATA_MUX
+        DATA_MUX --> |axi_wr_sram_data| WR_ENG
+
+        BRIDGE0 --> |valid| VALID_OUT[Valid Array]
+        BRIDGE1 --> |valid| VALID_OUT
+        BRIDGEN --> |valid| VALID_OUT
+        VALID_OUT --> |axi_wr_sram_valid| WR_ENG
+    end
+
+    style FIFO0 fill:#bbf,stroke:#333,stroke-width:2px
+    style FIFO1 fill:#bbf,stroke:#333,stroke-width:2px
+    style FIFON fill:#bbf,stroke:#333,stroke-width:2px
+    style ID_DEC_WR fill:#fbb,stroke:#333,stroke-width:2px
+    style ID_DEC_RD fill:#fbb,stroke:#333,stroke-width:2px

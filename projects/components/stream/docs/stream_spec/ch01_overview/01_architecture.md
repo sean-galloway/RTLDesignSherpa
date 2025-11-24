@@ -1,8 +1,8 @@
 # STREAM Architecture Overview
 
 **Component:** STREAM (Scatter-gather Transfer Rapid Engine for AXI Memory)
-**Version:** 1.0
-**Status:** Implementation Complete
+**Version:** 0.90
+**Status:** Pre-release
 
 ---
 
@@ -23,7 +23,7 @@ STREAM is a high-performance, multi-channel descriptor-based DMA engine designed
 
 ### High-Level Block Diagram
 
-![Diagram](../images/01_architecture_L026.png)
+![Diagram](../assets/mermaid/01_architecture_block.svg)
 
 <!--
 Original Mermaid diagram (for editing):
@@ -189,7 +189,7 @@ Concurrent (CORRECT):
 
 ### Single Channel Transfer
 
-![Diagram](../images/01_architecture_L184.png)
+![Diagram](../assets/mermaid/01_architecture_sequence.svg)
 
 <!--
 Original Mermaid diagram (for editing):
@@ -247,33 +247,44 @@ sequenceDiagram
 
 ## Component Hierarchy
 
-```
-stream_core (top-level)
-├── scheduler_group_array
-│   ├── scheduler_group [0..7]
-│   │   ├── descriptor_engine
-│   │   └── scheduler
-│   ├── descriptor AR arbiter
-│   └── MonBus aggregator (9 sources)
-│
-├── axi_read_engine
-│   ├── AR channel manager
-│   ├── R channel receiver
-│   └── Space-aware arbiter
-│
-├── axi_write_engine
-│   ├── AW channel manager
-│   ├── W channel streaming
-│   └── B response tracker
-│
-├── sram_controller
-│   └── sram_controller_unit [0..7]
-│       ├── stream_alloc_ctrl
-│       ├── gaxi_fifo_sync
-│       ├── stream_latency_bridge
-│       └── stream_drain_ctrl
-│
-└── apb_config (TBD)
+```mermaid
+graph TB
+    CORE["stream_core<br/>(top-level)"]
+
+    CORE --> SGA["scheduler_group_array"]
+    CORE --> RD["axi_read_engine"]
+    CORE --> WR["axi_write_engine"]
+    CORE --> SRAM["sram_controller"]
+    CORE --> APB["apb_config<br/>(TBD)"]
+
+    SGA --> SG["scheduler_group<br/>[0..7]"]
+    SGA --> DESC_ARB["descriptor AR arbiter"]
+    SGA --> MON_AGG["MonBus aggregator<br/>(9 sources)"]
+
+    SG --> DESC["descriptor_engine"]
+    SG --> SCHED["scheduler"]
+
+    RD --> AR_MGR["AR channel manager"]
+    RD --> R_RX["R channel receiver"]
+    RD --> RD_ARB["Space-aware arbiter"]
+
+    WR --> AW_MGR["AW channel manager"]
+    WR --> W_STR["W channel streaming"]
+    WR --> B_TRK["B response tracker"]
+
+    SRAM --> SCU["sram_controller_unit<br/>[0..7]"]
+
+    SCU --> ALLOC["stream_alloc_ctrl"]
+    SCU --> FIFO["gaxi_fifo_sync"]
+    SCU --> BRIDGE["stream_latency_bridge"]
+    SCU --> DRAIN["stream_drain_ctrl"]
+
+    style CORE fill:#e1f5ff,stroke:#333,stroke-width:3px
+    style SGA fill:#ffe1e1,stroke:#333,stroke-width:2px
+    style RD fill:#e1ffe1,stroke:#333,stroke-width:2px
+    style WR fill:#ffe1ff,stroke:#333,stroke-width:2px
+    style SRAM fill:#ffffe1,stroke:#333,stroke-width:2px
+    style APB fill:#f0f0f0,stroke:#333,stroke-width:1px,stroke-dasharray: 5 5
 ```
 
 ---
@@ -370,23 +381,6 @@ stream_core (top-level)
 
 ---
 
-## Comparison: STREAM vs RAPIDS
-
-| Aspect | STREAM | RAPIDS |
-|--------|--------|--------|
-| **Purpose** | Tutorial DMA | Production accelerator |
-| **Channels** | 8 | 8 |
-| **Interfaces** | APB + AXI | APB + AXI + Network |
-| **Alignment** | Aligned only | Full fixup support |
-| **Length Units** | Beats | Chunks (4-byte) |
-| **Credit Management** | None | Exponential encoding |
-| **Complexity** | Simple, educational | Full-featured |
-| **Use Case** | Learning, simple DMA | High-performance accelerators |
-
-**Learning Path:** STREAM → STREAM with alignment → RAPIDS
-
----
-
 ## Design Decisions
 
 ### Why These Simplifications?
@@ -469,10 +463,9 @@ If extending STREAM for production use, consider:
 
 **Other Resources:**
 - [STREAM PRD](../../PRD.md) - Product requirements
-- [RAPIDS Comparison](../../ARCHITECTURAL_NOTES.md) - Feature comparison
 - [Test Plan](../ch03_testing/test_plan.md) - Verification strategy
 
 ---
 
-**Last Updated:** 2025-11-16
-**Document Version:** 1.0
+**Last Updated:** 2025-11-22
+**Document Version:** 0.90

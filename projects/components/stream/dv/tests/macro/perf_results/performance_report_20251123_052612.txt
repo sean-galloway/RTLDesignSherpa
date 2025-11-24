@@ -1,0 +1,39 @@
+==============================================================================
+ STREAM Core Performance Profiling Report
+==============================================================================
+
+Generated: Sun Nov 23 05:29:34 AM PST 2025
+Timing Profile: FAST (no-stress)
+Test Level: func
+
+------------------------------------------------------------------------------
+Test Results
+------------------------------------------------------------------------------
+
+Configuration                                 Status          Duration (us)
+------------------------------------------------------------------------------
+Single Channel Config 0 (128-bit)             PASSED          13.11       
+Single Channel Config 1 (256-bit)             PASSED          11.53       
+Single Channel Config 2 (512-bit)             FAILED          N/A         
+==============================================================================
+
+------------------------------------------------------------------------------
+Performance Metrics (Extracted from Logs)
+------------------------------------------------------------------------------
+
+Configuration: 
+ERROR    cocotb:simulator.py:305 2025-11-23 05:26:45,896 - cocotb_log_stream_core - INFO - Transfer completed in 13.11 us
+  (No detailed metrics in log)
+
+Configuration: 
+INFO     cocotb:simulator.py:305  12700.00ns INFO     cocotb_log_stream_core             Transfer completed in 11.53 us
+  (No detailed metrics in log)
+
+==============================================================================
+
+Notes:
+  - 'fast' timing profile = no artificial delays (BFMs respond immediately)
+  - Metrics represent ideal performance under no-stress conditions
+  - Real-world performance depends on memory latency and system load
+
+==============================================================================

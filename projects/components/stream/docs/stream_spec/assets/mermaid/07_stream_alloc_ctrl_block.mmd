@@ -1,0 +1,20 @@
+graph TB
+    subgraph "Allocation Controller Virtual FIFO"
+        REQ[rd_alloc_req + size] --> |Variable increment| WR_PTR[Write Pointer<br/>Allocation Pointer]
+        OUT[Output Handshake<br/>axi_wr_sram_valid && ready] --> |Single increment| RD_PTR[Read Pointer<br/>Release Pointer]
+
+        WR_PTR --> CALC[Space Calculation]
+        RD_PTR --> CALC
+        CALC --> |space_free = DEPTH - wr_ptr - rd_ptr| SPACE[rd_space_free]
+
+        SPACE --> |To Read Engine| CHECK[Space Check]
+        CHECK --> |OK: >= 2x burst| GRANT[Grant AR Issue]
+    end
+
+    GRANT --> |When AR handshakes| REQ
+    LATENCY[Latency Bridge Output] --> OUT
+
+    style WR_PTR fill:#fbb,stroke:#333,stroke-width:2px
+    style RD_PTR fill:#bfb,stroke:#333,stroke-width:2px
+    style CALC fill:#bbf,stroke:#333,stroke-width:2px
+    style SPACE fill:#ffb,stroke:#333,stroke-width:3px

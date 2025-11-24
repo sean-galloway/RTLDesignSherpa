@@ -47,11 +47,13 @@ module axi_write_engine #(
     parameter int ADDR_WIDTH = 64,                  // AXI address width
     parameter int DATA_WIDTH = 512,                 // AXI data width
     parameter int ID_WIDTH = 8,                     // AXI ID width
-    parameter int USER_WIDTH = 1,                   // AXI USER field width (channel ID)
+    parameter int USER_WIDTH = 8,                   // AXI USER width (for channel tracking)
     parameter int SEG_COUNT_WIDTH = 8,              // Width of space/count signals (typically $clog2(SRAM_DEPTH)+1)
     parameter int PIPELINE = 0,                     // 0: wait for all data before next request per channel
                                                     // 1: allow multiple outstanding requests per channel
     parameter int AW_MAX_OUTSTANDING = 8,           // Maximum outstanding AW requests per channel (PIPELINE=1 only)
+    parameter int W_PHASE_FIFO_DEPTH = 64,          // W-phase transaction FIFO depth (in-order with AW)
+    parameter int B_PHASE_FIFO_DEPTH = 16,          // B-phase transaction FIFO depth (out-of-order responses)
 
     // Short aliases (for internal use)
     parameter int NC = NUM_CHANNELS,
@@ -81,12 +83,28 @@ module axi_write_engine #(
     input  logic [NC-1:0][7:0]          sched_wr_burst_len,  // Requested burst length
 
     //=========================================================================
+    // Completion Interface (to Schedulers)
+    //=========================================================================
+    // Notify schedulers when write burst completes
+    output logic [NC-1:0]               sched_wr_done_strobe,  // Burst completed (pulsed for 1 cycle)
+    output logic [NC-1:0][31:0]         sched_wr_beats_done,   // Number of beats completed in burst
+
+    //=========================================================================
     // SRAM Drain Interface (to SRAM Controller)
     //=========================================================================
     // Drain interface (reserves data before AW command)
-    output logic [NC-1:0]               wr_drain_req,        // Channel requests to reserve data
-    output logic [NC-1:0][7:0]          wr_drain_size,       // Beats to reserve
-    input  logic [NC-1:0][SCW-1:0]      wr_drain_data_avail, // Data available after reservations
+    output logic [NC-1:0]               axi_wr_drain_req,        // Channel requests to reserve data
+    output logic [NC-1:0][7:0]          axi_wr_drain_size,       // Beats to reserve
+    input  logic [NC-1:0][SCW-1:0]      axi_wr_drain_data_avail, // Data available after reservations
+
+    //=========================================================================
+    // SRAM Read Interface (from SRAM Controller)
+    // ID-based interface matching sram_controller output
+    //=========================================================================
+    input  logic [NC-1:0]               axi_wr_sram_valid,   // Per-channel valid (data available)
+    output logic                        axi_wr_sram_drain,   // Drain request (consumer ready)
+    output logic [CIW-1:0]              axi_wr_sram_id,      // Channel ID select for drain
+    input  logic [DW-1:0]               axi_wr_sram_data,    // Data from selected channel (muxed)
 
     //=========================================================================
     // AXI4 AW Channel (Write Address)
@@ -105,7 +123,7 @@ module axi_write_engine #(
     output logic [DW-1:0]               m_axi_wdata,
     output logic [(DW/8)-1:0]           m_axi_wstrb,
     output logic                        m_axi_wlast,
-    output logic [UW-1:0]               m_axi_wuser,         // USER field (channel ID for debug)
+    output logic [UW-1:0]               m_axi_wuser,     // Channel ID for transaction tracking
     output logic                        m_axi_wvalid,
     input  logic                        m_axi_wready,
 
@@ -118,25 +136,14 @@ module axi_write_engine #(
     output logic                        m_axi_bready,
 
     //=========================================================================
-    // SRAM Read Interface (from SRAM Controller)
-    // ID-based interface matching sram_controller output
+    // Error Signals (to Scheduler)
     //=========================================================================
-    input  logic [NC-1:0]               axi_wr_sram_valid,   // Per-channel valid (data available)
-    output logic                        axi_wr_sram_drain,   // Drain request (consumer ready)
-    output logic [CIW-1:0]              axi_wr_sram_id,      // Channel ID select for drain
-    input  logic [DW-1:0]               axi_wr_sram_data,    // Data from selected channel (muxed)
-
-    //=========================================================================
-    // Completion Interface (to Schedulers)
-    //=========================================================================
-    // Notify schedulers when write burst completes
-    output logic [NC-1:0]               sched_wr_done_strobe,  // Burst completed (pulsed for 1 cycle)
-    output logic [NC-1:0][31:0]         sched_wr_beats_done,   // Number of beats completed in burst
-    output logic [NC-1:0]               axi_wr_all_complete,   // All writes complete (no outstanding txns)
+    output logic [NC-1:0]               sched_wr_error,        // Sticky error flag per channel (bad B response)
 
     //=========================================================================
     // Debug Interface (for verification/debug only)
     //=========================================================================
+    output logic [NC-1:0]               dbg_wr_all_complete,   // All writes complete (no outstanding txns)
     output logic [31:0]                 dbg_aw_transactions,   // Total AW transactions issued
     output logic [31:0]                 dbg_w_beats            // Total W beats written to AXI
 );
@@ -221,102 +228,46 @@ module axi_write_engine #(
     // Completion signal: sticky - stays high until new transfer starts
     // This prevents false pulses when outstanding_count temporarily hits 0 between bursts
     logic [NC-1:0] r_all_complete;
-    logic [NC-1:0] r_all_complete_prev;  // Previous cycle value for edge detection
 
-    generate
-        if (PIPELINE == 0) begin : gen_completion_no_pipeline
-            // PIPELINE=0: Use r_outstanding_limit (boolean flag)
-            `ALWAYS_FF_RST(clk, rst_n,
-                if (`RST_ASSERTED(rst_n)) begin
-                    r_all_complete <= '1;  // Start as complete
-                    r_all_complete_prev <= '1;
-                end else begin
-                    r_all_complete_prev <= r_all_complete;
-
-                    for (int i = 0; i < NC; i++) begin
-                        // Set complete when no outstanding transaction
-                        if (!r_outstanding_limit[i]) begin
-                            r_all_complete[i] <= 1'b1;
-                        // Clear complete when transitioning from complete to having outstanding txn
-                        // This happens when first AW of new descriptor issues
-                        end else if (r_all_complete_prev[i] && r_outstanding_limit[i]) begin
-                            r_all_complete[i] <= 1'b0;
-                        end
-                    end
-                end
-            )
-        end else begin : gen_completion_pipeline
-            // PIPELINE=1: Use r_outstanding_count (counter)
-            `ALWAYS_FF_RST(clk, rst_n,
-                if (`RST_ASSERTED(rst_n)) begin
-                    r_all_complete <= '1;  // Start as complete
-                    r_all_complete_prev <= '1;
-                end else begin
-                    r_all_complete_prev <= r_all_complete;
-
-                    for (int i = 0; i < NC; i++) begin
-                        // Set complete when outstanding count reaches zero
-                        if (r_outstanding_count[i] == '0) begin
-                            r_all_complete[i] <= 1'b1;
-                        // Clear complete when transitioning from complete to having outstanding txns
-                        // This happens when first AW of new descriptor issues (count goes from 0 to non-zero)
-                        end else if (r_all_complete_prev[i] && (r_outstanding_count[i] != '0)) begin
-                            r_all_complete[i] <= 1'b0;
-                        end
-                    end
-                end
-            )
-        end
-    endgenerate
-
-    assign axi_wr_all_complete = r_all_complete;
-
-    //=========================================================================
-    // Beats Written Tracking (for address calculation)
-    //=========================================================================
-    // Track how many beats have been written (B responses received)
-    // Track whether we've issued first AW for current descriptor (PIPELINE=1 only)
-
-    logic [NC-1:0][31:0] r_beats_written;  // Beats written per channel (B responses)
-    logic [NC-1:0][31:0] r_beats_issued;   // Beats issued per channel (AW transactions)
-    logic [NC-1:0] r_aw_issued;  // Has first AW been issued for current descriptor (PIPELINE=1)
-
-    // Track beats written: increment when B response arrives, reset when sched_wr_valid de-asserts
     `ALWAYS_FF_RST(clk, rst_n,
         if (`RST_ASSERTED(rst_n)) begin
-            r_beats_written <= '{default:0};
-            r_aw_issued <= '0;
+            r_all_complete <= '1;  // Start as complete
         end else begin
             for (int i = 0; i < NC; i++) begin
-                // Reset written counter when scheduler de-asserts valid (new descriptor or transfer complete)
-                if (!sched_wr_valid[i]) begin
-                    r_beats_written[i] <= 32'h0;
-                    r_aw_issued[i] <= 1'b0;  // New descriptor coming, clear AW issued flag
-                // Increment when B response arrives for this channel
-                end else if (m_axi_bvalid && m_axi_bready && (m_axi_bid[CIW-1:0] == i[CIW-1:0])) begin
-                    r_beats_written[i] <= r_beats_written[i] + {24'h0, cfg_axi_wr_xfer_beats};
+                // Set complete when outstanding transactions reach zero
+                if (r_outstanding_count[i] == '0) begin
+                    r_all_complete[i] <= 1'b1;
                 end
-
-                // Track when first AW issues for descriptor (PIPELINE=1 only)
-                if (m_axi_awvalid && m_axi_awready && (r_aw_channel_id == i[CIW-1:0])) begin
-                    r_aw_issued[i] <= 1'b1;
+                // Clear complete when new transfer starts
+                if (sched_wr_valid[i] && r_beats_written[i] == '0) begin
+                    r_all_complete[i] <= 1'b0;
                 end
             end
         end
     )
 
-    // Track beats issued: increment when AW issues, reset when sched_wr_valid de-asserts
+    assign dbg_wr_all_complete = r_all_complete;
+
+    //=========================================================================
+    // Beats Written Tracking (for completion detection)
+    //=========================================================================
+    // Track how many beats have been written (B responses received)
+    // Note: Address tracking moved to scheduler, r_beats_issued removed
+
+    logic [NC-1:0][31:0] r_beats_written;  // Beats written per channel (B responses)
+
+    // Track beats written: increment when B response arrives, reset when sched_wr_valid de-asserts
     `ALWAYS_FF_RST(clk, rst_n,
         if (`RST_ASSERTED(rst_n)) begin
-            r_beats_issued <= '{default:0};
+            r_beats_written <= '{default:0};
         end else begin
             for (int i = 0; i < NC; i++) begin
-                // Reset issued counter when scheduler de-asserts valid (new descriptor or transfer complete)
+                // Reset written counter when scheduler de-asserts valid (new descriptor or transfer complete)
                 if (!sched_wr_valid[i]) begin
-                    r_beats_issued[i] <= 32'h0;
-                // Increment when AW transaction issues for this channel
-                end else if (m_axi_awvalid && m_axi_awready && (w_arb_grant_id == i[CIW-1:0])) begin
-                    r_beats_issued[i] <= r_beats_issued[i] + {24'h0, cfg_axi_wr_xfer_beats};
+                    r_beats_written[i] <= 32'h0;
+                // Increment when B response arrives for this channel (use actual transfer size from FIFO)
+                end else if (m_axi_bvalid && m_axi_bready && (m_axi_bid[CIW-1:0] == i[CIW-1:0])) begin
+                    r_beats_written[i] <= r_beats_written[i] + {24'h0, b_phase_txn_fifo_dout[i].beats};
                 end
             end
         end
@@ -331,56 +282,48 @@ module axi_write_engine #(
     // For PERFORMANCE: Always burst the full configured amount (cfg_axi_wr_xfer_beats)
     // Only allow partial bursts on the final burst of a descriptor
 
-    logic [NC-1:0] w_data_ok;                   // Channel has enough data for burst
-    logic [NC-1:0] w_below_outstanding_limit;   // Channel below max outstanding limit (can issue new AW)
-    logic [NC-1:0] w_arb_request;               // Masked requests to arbiter
+    logic [NC-1:0]      w_has_data;           // Channel has enough data for burst
+    logic [NC-1:0]      w_data_ok;            // Channel has enough data for burst
+    logic [NC-1:0]      w_no_outstanding;     // Channel has no outstanding transaction (or pipeline allowed)
+    logic [NC-1:0]      w_arb_request;        // Masked requests to arbiter
+    logic [NC-1:0][7:0] w_transfer_size;      // Masked requests to arbiter
+    logic [NC-1:0]      w_final_burst;        // Final burst
 
     always_comb begin
         for (int i = 0; i < NC; i++) begin
-            // Declare variables outside if/else for debug visibility
-            logic has_data;
-            logic [31:0] remaining_beats;
-            logic is_final_burst;
 
             // Only check data availability if scheduler is requesting
             // This prevents issues with uninitialized/inactive channels
             if (sched_wr_valid[i]) begin
+                // Find the amount to transfer now (cast to 8-bit for AXI burst length)
+                w_transfer_size[i] = 8'((sched_wr_beats[i] <= 32'(cfg_axi_wr_xfer_beats)) ?
+                            sched_wr_beats[i] : 32'(cfg_axi_wr_xfer_beats));
                 // Check if channel has enough data for configured burst size
-                has_data = (SCW'(wr_drain_data_avail[i]) >= SCW'(cfg_axi_wr_xfer_beats));
+                w_has_data[i] = (SCW'(axi_wr_drain_data_avail[i]) >= SCW'(w_transfer_size[i]));
 
                 // OR if this is the final burst (remaining beats < burst size AND all data available)
-                remaining_beats = sched_wr_beats[i] - r_beats_issued[i];
-                is_final_burst = (remaining_beats > 0) &&
-                                    (remaining_beats < 32'(cfg_axi_wr_xfer_beats)) &&
-                                    (SCW'(wr_drain_data_avail[i]) >= SCW'(remaining_beats));
+                w_final_burst[i] = (sched_wr_beats[i] > 0) &&
+                                    (sched_wr_beats[i] <= 32'(cfg_axi_wr_xfer_beats));
 
-                w_data_ok[i] = has_data || is_final_burst;
+                w_data_ok[i] = w_has_data[i] || w_final_burst[i];
             end else begin
                 // Channel not requesting - don't check data availability
-                has_data = 1'b0;
-                remaining_beats = 32'h0;
-                is_final_burst = 1'b0;
+                w_has_data[i] = 1'b0;
+                w_transfer_size[i] = 'b0;
+                w_final_burst[i] = 1'b0;
                 w_data_ok[i] = 1'b0;
             end
 
-            // Debug: Display w_data_ok state
-            `ifndef SYNTHESIS
-            if (sched_wr_valid[i]) begin
-                $display("AXI_WR_ENG @%t: CH%0d w_data_ok=%0d: wr_drain_data_avail=%0d, cfg_burst=%0d, has_data=%0d, is_final=%0d, remaining=%0d",
-                        $time, i, w_data_ok[i], wr_drain_data_avail[i], cfg_axi_wr_xfer_beats, has_data, is_final_burst, remaining_beats);
-            end
-            `endif
-
             // Check outstanding constraint
-            // PIPELINE=0: !r_outstanding_limit means no outstanding transaction (can issue)
-            // PIPELINE=1: !r_outstanding_limit means below max outstanding (can issue more)
-            w_below_outstanding_limit[i] = !r_outstanding_limit[i];
+            // PIPELINE=0: Block if any outstanding transaction
+            // PIPELINE=1: Block if at or exceeds AW_MAX_OUTSTANDING
+            w_no_outstanding[i] = !r_outstanding_limit[i];
 
             // Only request arbitration if:
             // 1. Scheduler is requesting (sched_wr_valid)
             // 2. Sufficient SRAM data available (w_data_ok) - accounting for bridge latency
-            // 3. Outstanding count below limit (w_below_outstanding_limit)
-            w_arb_request[i] = sched_wr_valid[i] && w_data_ok[i] && w_below_outstanding_limit[i];
+            // 3. Outstanding count below limit (w_no_outstanding)
+            w_arb_request[i] = sched_wr_valid[i] && w_data_ok[i] && w_no_outstanding[i];
         end
     end
 
@@ -390,7 +333,7 @@ module axi_write_engine #(
 
     logic              w_arb_grant_valid;
     logic [NC-1:0]     w_arb_grant;
-    logic [CIW-1:0]     w_arb_grant_id;
+    logic [CIW-1:0]    w_arb_grant_id;
     logic [NC-1:0]     w_arb_grant_ack;
 
     generate
@@ -422,20 +365,6 @@ module axi_write_engine #(
     //=========================================================================
     // AW Channel Management
     //=========================================================================
-    localparam int CH_ID_FIFO_WIDTH = CIW + 8;   // channel_id + burst_len
-    localparam int CH_ID_FIFO_DEPTH = AW_MAX_OUTSTANDING;  // Match outstanding limit
-    localparam int CIFW = CH_ID_FIFO_WIDTH;
-    localparam int CIFD = CH_ID_FIFO_DEPTH;
-
-    // Channel ID FIFO write interface (enqueue on AW handshake)
-    logic               ch_id_fifo_wr_valid;
-    logic               ch_id_fifo_wr_ready;
-    logic [CIFW-1:0]    ch_id_fifo_wr_data;
-
-    // Channel ID FIFO read interface (dequeue for W processing)
-    logic               ch_id_fifo_rd_valid;
-    logic               ch_id_fifo_rd_ready;
-    logic [CIFW-1:0]    ch_id_fifo_rd_data;
 
     logic [7:0]    r_aw_len;
     logic [CIW-1:0] r_aw_channel_id;
@@ -452,10 +381,10 @@ module axi_write_engine #(
             r_aw_channel_id <= '0;
         end else begin
             // Accept new command from arbiter
-            if (w_arb_grant_valid && !r_aw_valid && ch_id_fifo_wr_ready) begin
+            if (w_arb_grant_valid && !r_aw_valid) begin
                 r_aw_valid <= 1'b1;
                 r_aw_channel_id <= w_arb_grant_id;
-                r_aw_len <= cfg_axi_wr_xfer_beats - 8'd1;  // AXI uses len-1 (configured burst size)
+                r_aw_len <= w_transfer_size[w_arb_grant_id] - 8'd1;  // AXI uses len-1 (configured burst size)
             end
 
             // Clear valid when AXI accepts AW
@@ -468,8 +397,8 @@ module axi_write_engine #(
     // AXI AW outputs
     assign m_axi_awvalid = r_aw_valid;
     assign m_axi_awid = {{(IW-CIW){1'b0}}, r_aw_channel_id};  // Channel ID in lower bits
-    // Address = base + beats_issued (simple combinational, same as read engine)
-    assign m_axi_awaddr = sched_wr_addr[w_arb_grant_id] + (AW'(r_beats_issued[w_arb_grant_id]) << AXSIZE);
+    // Address comes directly from scheduler (scheduler increments after each AW)
+    assign m_axi_awaddr = sched_wr_addr[r_aw_channel_id];
     assign m_axi_awlen = r_aw_len;
     assign m_axi_awsize = 3'(AXSIZE);
     assign m_axi_awburst = 2'b01;  // INCR
@@ -494,14 +423,14 @@ module axi_write_engine #(
         end
     end
 
-    assign wr_drain_req = w_drain_req;
-    assign wr_drain_size = w_drain_size;
+    assign axi_wr_drain_req = w_drain_req;
+    assign axi_wr_drain_size = w_drain_size;
 
     //=========================================================================
     // Scheduler Ready Signals
     //=========================================================================
-    // Ready when descriptor transfer completes (final B response received)
-    // NOT when AW handshakes (that would reset r_beats_written prematurely!)
+    // Ready when final B response completes (B channel handshake with 'last' flag)
+    // The 'last' flag in txn_fifo indicates this was the final AW for the descriptor
 
     logic [NC-1:0] r_sched_ready;
 
@@ -512,17 +441,14 @@ module axi_write_engine #(
             // Default: clear ready
             r_sched_ready <= '0;
 
-            // Assert ready when B response completes descriptor transfer
-            // Check if this B response finishes all beats for the descriptor
+            // Assert ready when B response completes for the LAST transaction of a descriptor
+            // The 'last' flag was set when the AW was issued (see txn_fifo_din logic)
             if (m_axi_bvalid && m_axi_bready) begin
                 logic [CIW-1:0] ch_id;
-                logic [31:0] new_beats_written;
-
                 ch_id = m_axi_bid[CIW-1:0];
-                new_beats_written = r_beats_written[ch_id] + {24'h0, cfg_axi_wr_xfer_beats};
 
-                // If all descriptor beats completed, assert ready
-                if (new_beats_written >= sched_wr_beats[ch_id]) begin
+                // Check if this B response corresponds to the last AW for this descriptor
+                if (b_phase_txn_fifo_dout[ch_id].last) begin
                     r_sched_ready[ch_id] <= 1'b1;
                 end
             end
@@ -536,10 +462,10 @@ module axi_write_engine #(
     always @(posedge clk) begin
         if (m_axi_bvalid && m_axi_bready) begin
             automatic logic [CIW-1:0] ch_id = m_axi_bid[CIW-1:0];
-            automatic logic [31:0] new_beats = r_beats_written[ch_id] + {24'h0, cfg_axi_wr_xfer_beats};
-            $display("AXI_WR_ENG @%t: B response ch=%0d, r_beats_written=%0d, new=%0d, sched_wr_beats=%0d, ready_will_assert=%b",
+            automatic logic [31:0] new_beats = r_beats_written[ch_id] + {24'h0, b_phase_txn_fifo_dout[ch_id].beats};
+            $display("AXI_WR_ENG @%t: B response ch=%0d, r_beats_written=%0d, new=%0d, sched_wr_beats=%0d, last=%b, ready_will_assert=%b",
                     $time, ch_id, r_beats_written[ch_id], new_beats, sched_wr_beats[ch_id],
-                    (new_beats >= sched_wr_beats[ch_id]));
+                    b_phase_txn_fifo_dout[ch_id].last, b_phase_txn_fifo_dout[ch_id].last);
         end
 
         for (int i = 0; i < NC; i++) begin
@@ -552,148 +478,57 @@ module axi_write_engine #(
     `endif
 
     //=========================================================================
-    // W Channel Management
+    // W Channel Management - FIFO-Based Tracking (No FSM!)
     //=========================================================================
-    // Stream data from active channel's FIFO to AXI W channel
+    // Use single W-phase transaction FIFO to track active W transfers
+    // FIFO is shared across all channels (in-order with AW issue)
     //
-    // PIPELINE=0: Direct connection from AW to W (one transaction at a time)
-    // PIPELINE=1: AW commands queued in FIFO, W processes sequentially
+    // Key Concept: When AW issues for ANY channel, push transaction to the
+    // shared W-phase FIFO. W-phase logic pops from FIFO to get next channel
+    // and beats. This preserves AW command order which is critical for W-phase.
 
-    logic [7:0]    r_w_beats_remaining;
+    logic [7:0]     r_w_beats_remaining;
     logic [CIW-1:0] r_w_channel_id;
-    logic          r_w_active;
+    logic           r_w_active;
 
-    // Signals for W channel start (either direct or from FIFO)
-    logic          w_start_w_phase;
-    logic [7:0]    w_start_w_len;
-    logic [CIW-1:0] w_start_w_channel_id;
+    // W-phase control logic - FIFO-based, no FSM state machine!
+    // Read from single shared W-phase FIFO to get next channel and beats
+    `ALWAYS_FF_RST(clk, rst_n,
+        if (`RST_ASSERTED(rst_n)) begin
+            r_w_beats_remaining <= '0;
+            r_w_channel_id <= '0;
+            r_w_active <= 1'b0;
+        end else begin
+            // Case 1: No active W transfer, check for pending W transaction in FIFO
+            if (!r_w_active) begin
+                if (!w_phase_txn_fifo_empty) begin
+                    // Start W transfer using info from FIFO head
+                    r_w_active <= 1'b1;
+                    r_w_channel_id <= w_phase_txn_fifo_dout.channel_id;
+                    r_w_beats_remaining <= w_phase_txn_fifo_dout.beats;
+                end
+            end
 
-    generate
-        if (PIPELINE == 0) begin : gen_w_no_pipeline
-            // PIPELINE=0: Direct connection from AW to W
-            // W phase starts immediately when AW handshakes
-            assign w_start_w_phase = m_axi_awvalid && m_axi_awready;
-            assign w_start_w_len = m_axi_awlen + 8'd1;
-            assign w_start_w_channel_id = r_aw_channel_id;
-            assign ch_id_fifo_wr_ready = 1'b1;
+            // Case 2: Active W transfer, decrement beats on W handshake
+            else if (m_axi_wvalid && m_axi_wready) begin
+                r_w_beats_remaining <= r_w_beats_remaining - 8'd1;
 
-        end else begin : gen_w_pipeline
-            // PIPELINE=1: Channel ID FIFO with lookahead for bubble-free W phase
-            // Key insight: Queue channel IDs as AW issues, use lookahead to transition
-            // from current channel to next on wlast WITHOUT bubbles
-
-            // Current drain state (active channel being drained)
-            logic [CIW-1:0] r_current_drain_id;       // Which channel is draining now
-            logic          r_current_drain_valid;    // Valid drain in progress
-            logic [7:0]    r_current_drain_remaining; // Beats remaining for current
-
-            // Enqueue channel ID when AW handshakes
-            assign ch_id_fifo_wr_valid = m_axi_awvalid && m_axi_awready;
-            assign ch_id_fifo_wr_data = {m_axi_awlen + 8'd1, r_aw_channel_id};  // {burst_len, ch_id}
-
-            // Channel ID FIFO for W phase sequencing
-            gaxi_fifo_sync #(
-                .MEM_STYLE    (FIFO_AUTO),
-                .REGISTERED   (0),               // No extra latency
-                .DATA_WIDTH   (CH_ID_FIFO_WIDTH),
-                .DEPTH        (CH_ID_FIFO_DEPTH)
-            ) u_ch_id_fifo (
-                .axi_aclk     (clk),
-                .axi_aresetn  (rst_n),
-                .wr_valid     (ch_id_fifo_wr_valid),
-                .wr_ready     (ch_id_fifo_wr_ready),
-                .wr_data      (ch_id_fifo_wr_data),
-                .rd_valid     (ch_id_fifo_rd_valid),
-                .rd_ready     (ch_id_fifo_rd_ready),
-                .rd_data      (ch_id_fifo_rd_data),
-                .count        ()
-            );
-
-            // W phase state machine with lookahead
-            // Key: Load next channel on wlast if FIFO has data → zero bubbles!
-            `ALWAYS_FF_RST(clk, rst_n,
-                if (`RST_ASSERTED(rst_n)) begin
-                    r_current_drain_valid <= 1'b0;
-                    r_current_drain_id <= '0;
-                    r_current_drain_remaining <= '0;
-                    ch_id_fifo_rd_ready <= 1'b0;
-                end else begin
-                    // Default: clear FIFO read ready
-                    ch_id_fifo_rd_ready <= 1'b0;
-
-                    // Case 1: No active drain, FIFO has entry → Start drain
-                    if (!r_current_drain_valid && ch_id_fifo_rd_valid) begin
-                        r_current_drain_valid <= 1'b1;
-                        r_current_drain_id <= ch_id_fifo_rd_data[CIW-1:0];
-                        r_current_drain_remaining <= ch_id_fifo_rd_data[CIFW-1:CIW];
-                        ch_id_fifo_rd_ready <= 1'b1;  // Consume FIFO entry
-                    end
-
-                    // Case 2: Active drain, W beat transfers
-                    else if (r_current_drain_valid && m_axi_wvalid && m_axi_wready) begin
-                        r_current_drain_remaining <= r_current_drain_remaining - 8'd1;
-
-                        // Sub-case 2a: Last beat AND FIFO has next → Load next immediately (NO BUBBLE!)
-                        if ((r_current_drain_remaining == 8'd1) && ch_id_fifo_rd_valid) begin
-                            r_current_drain_id <= ch_id_fifo_rd_data[CIW-1:0];
-                            r_current_drain_remaining <= ch_id_fifo_rd_data[CIFW-1:CIW];
-                            ch_id_fifo_rd_ready <= 1'b1;  // Consume FIFO entry
-                            // r_current_drain_valid stays 1 → Continuous wvalid!
-                        end
-
-                        // Sub-case 2b: Last beat AND FIFO empty → Go idle
-                        else if (r_current_drain_remaining == 8'd1) begin
-                            r_current_drain_valid <= 1'b0;
-                        end
+                // Last beat of current transfer
+                if (m_axi_wlast) begin
+                    // Check if more pending transactions in FIFO
+                    if (!w_phase_txn_fifo_empty) begin
+                        // Continue with next transaction from FIFO (NO BUBBLE!)
+                        r_w_channel_id <= w_phase_txn_fifo_dout.channel_id;
+                        r_w_beats_remaining <= w_phase_txn_fifo_dout.beats;
+                        // r_w_active stays 1 → Continuous wvalid!
+                    end else begin
+                        // No more transactions in FIFO, go idle
+                        r_w_active <= 1'b0;
                     end
                 end
-            )
-
-            // W phase signals not used in PIPELINE=1 (handled by drain state)
-            assign w_start_w_phase = 1'b0;
-            assign w_start_w_len = '0;
-            assign w_start_w_channel_id = '0;
-
-        end
-    endgenerate
-
-    // W channel state machine (PIPELINE=0 only, PIPELINE=1 uses drain state)
-    generate
-        if (PIPELINE == 0) begin : gen_w_state_pipeline0
-            `ALWAYS_FF_RST(clk, rst_n,
-                if (`RST_ASSERTED(rst_n)) begin
-                    r_w_beats_remaining <= '0;
-                    r_w_channel_id <= '0;
-                    r_w_active <= 1'b0;
-                end else begin
-                    // Start W phase (from direct connection)
-                    if (w_start_w_phase) begin
-                        r_w_beats_remaining <= w_start_w_len;
-                        r_w_channel_id <= w_start_w_channel_id;
-                        r_w_active <= 1'b1;
-                    end
-
-                    // Decrement beats as data transfers
-                    if (r_w_active && m_axi_wvalid && m_axi_wready) begin
-                        r_w_beats_remaining <= r_w_beats_remaining - 8'd1;
-
-                        // End W phase on last beat
-                        if (m_axi_wlast) begin
-                            r_w_active <= 1'b0;
-                        end
-                    end
-                end
-            )
-        end else begin : gen_w_state_pipeline1
-            // PIPELINE=1: State comes from drain logic in gen_w_pipeline block
-            // Just wire through the drain state to the register signals
-            always_comb begin
-                r_w_channel_id = gen_w_pipeline.r_current_drain_id;
-                r_w_active = gen_w_pipeline.r_current_drain_valid;
-                r_w_beats_remaining = gen_w_pipeline.r_current_drain_remaining;
             end
         end
-    endgenerate
+    )
 
     // SRAM drain control - ID-based interface
     // When active and AXI ready, drain from SRAM using channel ID
@@ -708,10 +543,156 @@ module axi_write_engine #(
     assign m_axi_wuser = UW'(r_w_channel_id);  // Channel ID for debug/tracking
 
     //=========================================================================
+    // W-Phase Transaction Tracking FIFO (In-Order with AW - SINGLE FIFO)
+    //=========================================================================
+    // Track beats and channel ID for W-phase (in-order with AW issue)
+    // Push on AW handshake, pop on W last beat
+    //
+    // CRITICAL: Since W-phase is in-order with AW, we use ONE shared FIFO
+    // (not per-channel). This preserves the order that AW commands were issued.
+
+    typedef struct packed {
+        logic [7:0]    beats;       // Number of beats for this W transaction
+        logic [CIW-1:0] channel_id;  // Channel ID for this transaction
+    } w_phase_txn_t;
+
+    // Single W-phase FIFO (shared across all channels)
+    logic            w_phase_txn_fifo_wr;
+    logic            w_phase_txn_fifo_rd;
+    w_phase_txn_t    w_phase_txn_fifo_din;
+    w_phase_txn_t    w_phase_txn_fifo_dout;
+    logic            w_phase_txn_fifo_empty;
+    logic            w_phase_txn_fifo_full;
+    logic            w_phase_txn_fifo_wr_ready;
+    logic            w_phase_txn_fifo_rd_valid;
+
+    gaxi_fifo_sync #(
+        .DATA_WIDTH($bits(w_phase_txn_t)),
+        .DEPTH(W_PHASE_FIFO_DEPTH)
+    ) u_w_phase_txn_fifo (
+        .axi_aclk   (clk),
+        .axi_aresetn(rst_n),
+        .wr_data    (w_phase_txn_fifo_din),
+        .wr_valid   (w_phase_txn_fifo_wr),
+        .wr_ready   (w_phase_txn_fifo_wr_ready),
+        .rd_data    (w_phase_txn_fifo_dout),
+        .rd_valid   (w_phase_txn_fifo_rd_valid),
+        .rd_ready   (w_phase_txn_fifo_rd),
+        .count      ()  // Not used
+    );
+
+    // Convert wr_ready/rd_valid to full/empty flags
+    assign w_phase_txn_fifo_full = !w_phase_txn_fifo_wr_ready;
+    assign w_phase_txn_fifo_empty = !w_phase_txn_fifo_rd_valid;
+
+    // Push to W-phase FIFO on AW handshake (in-order)
+    // This preserves the order that AW commands were issued
+    always_comb begin
+        w_phase_txn_fifo_wr = 1'b0;
+        w_phase_txn_fifo_din = '0;
+
+        if (m_axi_awvalid && m_axi_awready) begin
+            w_phase_txn_fifo_wr = 1'b1;
+            w_phase_txn_fifo_din.beats = m_axi_awlen + 8'd1;
+            w_phase_txn_fifo_din.channel_id = r_aw_channel_id;
+        end
+    end
+
+    // Pop from W-phase FIFO when loading new W transfer
+    // Two cases: (1) starting idle, (2) completing current and loading next
+    logic w_phase_fifo_pop;
+
+    always_comb begin
+        w_phase_fifo_pop = 1'b0;
+
+        // Pop when starting new W transfer from idle
+        if (!r_w_active && !w_phase_txn_fifo_empty) begin
+            w_phase_fifo_pop = 1'b1;
+        end
+        // Pop when completing current transfer and loading next
+        else if (m_axi_wvalid && m_axi_wready && m_axi_wlast && !w_phase_txn_fifo_empty) begin
+            w_phase_fifo_pop = 1'b1;
+        end
+    end
+
+    assign w_phase_txn_fifo_rd = w_phase_fifo_pop;
+
+    //=========================================================================
+    // B-Phase Transaction Tracking FIFOs (Out-of-Order Responses)
+    //=========================================================================
+    // Track beats and last-flag for each outstanding transaction per channel
+    // Push on AW handshake, pop on B response
+
+    typedef struct packed {
+        logic [7:0]  beats;     // Number of beats in this transaction
+        logic        last;      // Is this the last transfer for descriptor?
+    } b_phase_txn_t;
+
+    logic [NC-1:0]           b_phase_txn_fifo_wr;
+    logic [NC-1:0]           b_phase_txn_fifo_rd;
+    b_phase_txn_t [NC-1:0]   b_phase_txn_fifo_din;
+    b_phase_txn_t [NC-1:0]   b_phase_txn_fifo_dout;
+    logic [NC-1:0]           b_phase_txn_fifo_empty;
+    logic [NC-1:0]           b_phase_txn_fifo_full;
+
+    genvar g;
+    generate
+        for (g = 0; g < NC; g++) begin : gen_b_phase_txn_fifos
+            logic b_phase_txn_fifo_wr_ready;
+            logic b_phase_txn_fifo_rd_valid;
+
+            gaxi_fifo_sync #(
+                .DATA_WIDTH($bits(b_phase_txn_t)),
+                .DEPTH(B_PHASE_FIFO_DEPTH)
+            ) u_b_phase_txn_fifo (
+                .axi_aclk   (clk),
+                .axi_aresetn(rst_n),
+                .wr_data    (b_phase_txn_fifo_din[g]),
+                .wr_valid   (b_phase_txn_fifo_wr[g]),
+                .wr_ready   (b_phase_txn_fifo_wr_ready),
+                .rd_data    (b_phase_txn_fifo_dout[g]),
+                .rd_valid   (b_phase_txn_fifo_rd_valid),
+                .rd_ready   (b_phase_txn_fifo_rd[g]),
+                .count      ()  // Not used
+            );
+
+            // Convert wr_ready/rd_valid to full/empty flags
+            assign b_phase_txn_fifo_full[g] = !b_phase_txn_fifo_wr_ready;
+            assign b_phase_txn_fifo_empty[g] = !b_phase_txn_fifo_rd_valid;
+        end
+    endgenerate
+
+    // Push to B-phase FIFO on AW handshake
+    always_comb begin
+        b_phase_txn_fifo_wr = '0;
+        b_phase_txn_fifo_din = '{default: '0};
+
+        if (m_axi_awvalid && m_axi_awready) begin
+            b_phase_txn_fifo_wr[r_aw_channel_id] = 1'b1;
+            b_phase_txn_fifo_din[r_aw_channel_id].beats = m_axi_awlen + 8'd1;
+            // Determine if this is last transfer: check if remaining beats after this <= cfg_axi_wr_xfer_beats
+            b_phase_txn_fifo_din[r_aw_channel_id].last =
+                (sched_wr_beats[r_aw_channel_id] <= {24'd0, m_axi_awlen} + 32'd1);
+        end
+    end
+
+    // Pop from B-phase FIFO on B response
+    always_comb begin
+        b_phase_txn_fifo_rd = '0;
+
+        if (m_axi_bvalid && m_axi_bready) begin
+            b_phase_txn_fifo_rd[m_axi_bid[CIW-1:0]] = !b_phase_txn_fifo_empty[m_axi_bid[CIW-1:0]];
+        end
+    end
+
+    //=========================================================================
     // Completion Strobe Generation
     //=========================================================================
-    // Notify scheduler when write burst completes (B response received)
-    // This tells scheduler that data has been drained from SRAM and written to AXI
+
+    //=========================================================================
+    // Completion Strobe Generation - Fire on AW handshake (not B response)
+    //=========================================================================
+    // Notify scheduler immediately when AW issues so it can proceed
 
     logic [NC-1:0] r_done_strobe;
     logic [NC-1:0][31:0] r_beats_done;
@@ -724,11 +705,11 @@ module axi_write_engine #(
             // Default: clear strobe (one-cycle pulse)
             r_done_strobe <= '{default:0};
 
-            // Pulse when B response is received (bvalid && bready)
-            // This tells scheduler that write has completed and data is drained
-            if (m_axi_bvalid && m_axi_bready) begin
-                r_done_strobe[m_axi_bid[CIW-1:0]] <= 1'b1;
-                r_beats_done[m_axi_bid[CIW-1:0]] <= {24'd0, cfg_axi_wr_xfer_beats};
+            // Pulse when AW handshakes (transaction issued to AXI)
+            // This tells scheduler that SRAM data is committed and it can proceed
+            if (m_axi_awvalid && m_axi_awready) begin
+                r_done_strobe[r_aw_channel_id] <= 1'b1;
+                r_beats_done[r_aw_channel_id] <= {24'd0, m_axi_awlen} + 32'd1;
             end
         end
     )
@@ -739,9 +720,35 @@ module axi_write_engine #(
     //=========================================================================
     // B Channel → Response Handling
     //=========================================================================
-    // Accept all responses (error handling can be added later)
+    // Accept all responses and flag errors per channel
 
     assign m_axi_bready = 1'b1;  // Always ready for response
+
+    // Error tracking: sticky error flags per channel
+    logic [NC-1:0] r_wr_error;
+
+    `ALWAYS_FF_RST(clk, rst_n,
+        if (`RST_ASSERTED(rst_n)) begin
+            r_wr_error <= '0;
+        end else begin
+            // Check for bad B response on each valid B beat
+            if (m_axi_bvalid && m_axi_bready && (m_axi_bresp != 2'b00)) begin
+                // Extract channel ID from BID and set corresponding error flag
+                logic [CIW-1:0] ch_id;
+                ch_id = m_axi_bid[CIW-1:0];
+                r_wr_error[ch_id] <= 1'b1;
+
+                // Debug display for error detection
+                `ifndef SYNTHESIS
+                $display("AXI_WR_ENG @%t: ERROR on channel %0d, BRESP=%2b", $time, ch_id, m_axi_bresp);
+                `endif
+            end
+            // Note: Error flags are NOT auto-cleared - must be cleared by external logic
+            // Scheduler can clear on channel reset or descriptor completion
+        end
+    )
+
+    assign sched_wr_error = r_wr_error;
 
     //=========================================================================
     // Debug Counters - Track AW transactions and W beats for verification
@@ -785,7 +792,7 @@ module axi_write_engine #(
 
     // Drain request only when AW command issues
     assert property (@(posedge clk) disable iff (!rst_n)
-        (|wr_drain_req) |-> $past(m_axi_awvalid && m_axi_awready));
+        (|axi_wr_drain_req) |-> $past(m_axi_awvalid && m_axi_awready));
 
     // Channel ID must be valid
     assert property (@(posedge clk) disable iff (!rst_n)

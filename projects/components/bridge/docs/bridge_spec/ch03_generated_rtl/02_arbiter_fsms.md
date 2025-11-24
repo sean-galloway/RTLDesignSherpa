@@ -19,7 +19,7 @@ These arbiters provide fair, round-robin access to slave resources, preventing m
 
 **Algorithm:** Round-robin with grant locking
 
-![AW Arbiter FSM](../assets/puml/aw_arbiter_fsm.png)
+![AW Arbiter FSM](../assets/puml/aw_arbiter_fsm.svg)
 
 **State Descriptions:**
 
@@ -56,7 +56,7 @@ These arbiters provide fair, round-robin access to slave resources, preventing m
 
 **Algorithm:** Round-robin with grant locking (same as AW)
 
-![AR Arbiter FSM](../assets/puml/ar_arbiter_fsm.png)
+![AR Arbiter FSM](../assets/puml/ar_arbiter_fsm.svg)
 
 **State Descriptions:**
 

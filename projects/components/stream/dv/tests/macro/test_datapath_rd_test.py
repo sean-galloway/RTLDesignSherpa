@@ -62,6 +62,10 @@ async def cocotb_test_datapath_rd(dut):
         await run_nostress_test(tb, xfer_beats, num_channels, sram_depth)
     elif test_type == 'per_channel_sequential':
         await run_per_channel_sequential_test(tb, xfer_beats, num_channels, sram_depth)
+    elif test_type == 'varying_lengths':
+        await run_varying_lengths_test(tb, xfer_beats, num_channels, sram_depth)
+    elif test_type == 'b2b_multi_channel':
+        await run_b2b_multi_channel_test(tb, xfer_beats, num_channels, sram_depth)
     else:
         raise ValueError(f"Unknown TEST_TYPE: {test_type}")
 
@@ -426,6 +430,149 @@ async def run_nostress_test(tb, xfer_beats, num_channels, sram_depth):
     tb.log.info("✓ NOSTRESS test passed - All channels verified with zero BFM delays")
 
 
+async def run_varying_lengths_test(tb, xfer_beats, num_channels, sram_depth):
+    """VARYING LENGTHS: Test successive descriptors with increasing lengths.
+
+    This test validates the datapath's ability to handle descriptors of varying
+    lengths using a fixed AXI burst size (cfg_axi_rd_xfer_beats = 8).
+
+    Test flow:
+    - Single channel (channel 0)
+    - cfg_axi_rd_xfer_beats = 8 beats fixed
+    - Successive descriptors with lengths: 16, 17, 18, ..., 32 beats
+    - Each descriptor is independent (separate address range)
+    - Verifies data integrity for each descriptor
+
+    This stresses the descriptor processing logic with:
+    - Descriptors requiring multiple AXI bursts (16-32 beats @ 8 beats/burst = 2-4 bursts)
+    - Non-aligned descriptor lengths (17, 19, 21, etc.) testing partial burst handling
+    - Consecutive descriptor processing without gaps
+    """
+    tb.log.info("="*80)
+    tb.log.info("VARYING LENGTHS TEST")
+    tb.log.info(f"Configuration: cfg_axi_rd_xfer_beats = {xfer_beats} beats (fixed)")
+    tb.log.info(f"Descriptor lengths: 16, 17, 18, ..., 32 beats")
+    tb.log.info("="*80)
+
+    channel_id = 0  # Test single channel only
+    src_addr_base = 0x0010_0000
+    bytes_per_beat = tb.data_width // 8
+
+    # Test descriptor lengths from 16 to 32 beats
+    descriptor_lengths = list(range(16, 33))  # [16, 17, 18, ..., 32]
+    total_descriptors = len(descriptor_lengths)
+
+    tb.log.info(f"Testing {total_descriptors} descriptors with varying lengths on channel {channel_id}")
+
+    # Calculate total beats needed
+    total_beats = sum(descriptor_lengths)
+
+    # Step 1: Populate memory with all test data
+    tb.log.info(f"Step 1: Populating memory with {total_beats} total beats")
+    await tb.populate_memory(src_addr_base, total_beats, pattern='increment')
+
+    # Step 1.5: Clear any stale data in SRAM from previous operations
+    # CRITICAL: Must clear ALL stale data before starting auto-drain monitor!
+    tb.log.info("Step 1.5: Aggressively clearing all stale SRAM data")
+    cleared = 0
+    for _ in range(1000):  # Try to drain up to 1000 stale beats (more than enough)
+        data = await tb.read_sram_data(channel_id, timeout_cycles=5)
+        if data is not None:
+            cleared += 1
+        else:
+            break
+    if cleared > 0:
+        tb.log.warning(f"Cleared {cleared} stale beats from SRAM before test (all stale data must be removed before auto-drain starts!)")
+
+    # Step 2: Start auto-drain background task BEFORE issuing descriptors
+    tb.log.info(f"Step 2: Starting auto-drain monitor (drains any channel immediately when valid asserts)")
+    # Initialize data structures before starting monitor
+    tb.drained_data = []
+    tb.drain_active = True
+    drain_task = cocotb.start_soon(tb.auto_drain_sram_monitor())
+    await tb.wait_clocks(tb.clk_name, 10)  # Let drain task start and stabilize
+
+    # Step 3: Issue all descriptors (read engine will process them sequentially)
+    tb.log.info(f"Step 3: Issuing {total_descriptors} descriptors with lengths 16-32 beats")
+    current_addr = src_addr_base
+
+    for idx, desc_length in enumerate(descriptor_lengths):
+        tb.log.info(f"  Descriptor {idx+1}/{total_descriptors}: {desc_length} beats @ addr 0x{current_addr:08X}")
+
+        # Issue descriptor
+        # CRITICAL: Mark EACH descriptor as last=True to ensure it completes fully
+        # before the next one is issued. This prevents descriptor overlap.
+        success = await tb.issue_descriptor_packet(
+            channel_id=channel_id,
+            src_addr=current_addr,
+            length=desc_length,
+            last=True  # Each descriptor is independent - mark as last
+        )
+        assert success, f"Failed to issue descriptor {idx+1} (length={desc_length})"
+        current_addr += desc_length * bytes_per_beat
+
+    # Step 4: Wait for all data to be collected by auto-drain
+    tb.log.info(f"Step 4: Waiting for auto-drain to collect all {total_beats} beats")
+    timeout_cycles = 20000
+    for cycle in range(timeout_cycles):
+        collected_data = tb.get_drained_data_for_channel(channel_id)
+        if len(collected_data) >= total_beats:
+            tb.log.info(f"All {total_beats} beats collected after {cycle} cycles")
+            break
+        await tb.wait_clocks(tb.clk_name, 1)
+    else:
+        collected_data = tb.get_drained_data_for_channel(channel_id)
+        tb.log.error(f"Timeout: Only collected {len(collected_data)}/{total_beats} beats after {timeout_cycles} cycles")
+
+    # Stop auto-drain
+    tb.stop_auto_drain()
+    await tb.wait_clocks(tb.clk_name, 10)
+
+    # Step 5: Verify all collected data matches expected pattern
+    tb.log.info(f"Step 5: Verifying {len(collected_data)} collected beats against expected pattern")
+    verification_errors = 0
+
+    for beat_idx in range(min(len(collected_data), total_beats)):
+        addr = src_addr_base + (beat_idx * bytes_per_beat)
+        expected_data_bytes = tb._increment_data_pattern(bytes_per_beat, addr)
+        expected_data = int.from_bytes(expected_data_bytes, byteorder='little')
+
+        if collected_data[beat_idx] != expected_data:
+            tb.log.error(f"Beat {beat_idx}: Expected 0x{expected_data:064X}, Got 0x{collected_data[beat_idx]:064X}")
+            verification_errors += 1
+            if verification_errors >= 10:  # Limit error logging
+                tb.log.error(f"... (stopping after 10 errors)")
+                break
+
+    # Check overall verification result
+    if verification_errors > 0 or len(collected_data) != total_beats:
+        tb.log.error(f"✗ Verification FAILED: {verification_errors} data mismatches, {len(collected_data)}/{total_beats} beats collected")
+        assert False, f"Varying lengths test failed: {verification_errors} errors, {len(collected_data)}/{total_beats} beats"
+    else:
+        tb.log.info(f"✓ All {total_beats} beats verified successfully across {total_descriptors} descriptors")
+
+    # Stop FIFO health monitor and check for violations
+    fifo_violation_count, fifo_violations = tb.stop_fifo_health_monitor()
+    if fifo_violation_count > 0:
+        tb.log.error(f"FIFO HEALTH VIOLATIONS DETECTED: {fifo_violation_count} total")
+        assert False, f"FIFO health violations detected: {fifo_violation_count} instances"
+    else:
+        tb.log.info(f"✓ FIFO health check: PASS - No pointer bugs detected")
+
+    # Validate completion signal
+    tb.log.info("Validating axi_rd_all_complete signal behavior...")
+    completion_ok = await tb.validate_completion_signal_sticky(
+        channel_id=channel_id,
+        duration_cycles=500
+    )
+    assert completion_ok, f"Channel {channel_id}: Completion signal pulsing detected!"
+
+    tb.log.info("="*80)
+    tb.log.info("✓ VARYING LENGTHS TEST PASSED")
+    tb.log.info(f"Successfully processed {total_descriptors} descriptors with lengths 16-32 beats")
+    tb.log.info("="*80)
+
+
 async def run_per_channel_sequential_test(tb, xfer_beats, num_channels, sram_depth):
     """PER-CHANNEL SEQUENTIAL: Test each channel independently, one at a time.
 
@@ -682,6 +829,115 @@ async def run_per_channel_sequential_test(tb, xfer_beats, num_channels, sram_dep
     tb.log.info("✓ Completion signal validation passed for all channels")
 
 
+async def run_b2b_multi_channel_test(tb, xfer_beats, num_channels, sram_depth):
+    """B2B MULTI-CHANNEL: Back-to-back multi-descriptor test on all channels simultaneously.
+
+    This test stresses multi-channel operation by:
+    - Issuing multiple requests per channel back-to-back (no delays)
+    - All channels active simultaneously
+    - Multiple "descriptors" (request groups) per channel
+    - Verifies the recent W-phase FIFO refactoring in write engine
+
+    Test scenario:
+    - Each channel gets 3 descriptors (request groups)
+    - Each descriptor has 2-3 requests (random)
+    - All requests issued back-to-back with no gaps
+    - Data verified per channel after all requests complete
+    """
+    tb.log.info("="*80)
+    tb.log.info("B2B MULTI-CHANNEL MULTI-DESCRIPTOR TEST")
+    tb.log.info(f"Configuration: {num_channels} channels, {xfer_beats} beats/xfer")
+    tb.log.info(f"Strategy: Multiple descriptors per channel, all channels active simultaneously")
+    tb.log.info("="*80)
+
+    # Test configuration
+    src_addr_base = 0x0010_0000
+    beats_per_request = xfer_beats
+    bytes_per_beat = tb.data_width // 8
+    per_channel_depth = sram_depth // num_channels
+
+    # Multi-descriptor configuration: 3 descriptors per channel
+    descriptors_per_channel = 3
+    min_requests_per_desc = 2
+    max_requests_per_desc = 3
+
+    # Calculate total requests per channel (random between min/max for each descriptor)
+    channel_request_counts = []
+    for ch in range(num_channels):
+        total_requests = sum(random.randint(min_requests_per_desc, max_requests_per_desc)
+                            for _ in range(descriptors_per_channel))
+        channel_request_counts.append(total_requests)
+
+    tb.log.info(f"Per-channel request counts: {channel_request_counts}")
+
+    # Validate SRAM capacity
+    max_requests = max(channel_request_counts)
+    max_beats = max_requests * beats_per_request
+    if max_beats > per_channel_depth * 0.7:  # 70% capacity limit for safety
+        tb.log.warning(f"Reducing requests to fit in SRAM capacity")
+        safe_requests = int((per_channel_depth * 0.7) / beats_per_request)
+        channel_request_counts = [min(safe_requests, cnt) for cnt in channel_request_counts]
+        tb.log.info(f"Adjusted request counts: {channel_request_counts}")
+
+    # Step 1: Populate memory with test pattern for all channels
+    total_beats_all = sum(cnt * beats_per_request for cnt in channel_request_counts)
+    tb.log.info(f"Step 1: Populating memory with {total_beats_all} beats total")
+    await tb.populate_memory(src_addr_base, total_beats_all, pattern='increment')
+
+    # Step 2: Issue all requests for all channels back-to-back
+    tb.log.info(f"Step 2: Issuing requests for all {num_channels} channels (B2B, no delays)")
+
+    for channel_id in range(num_channels):
+        num_requests = channel_request_counts[channel_id]
+        channel_start_addr = src_addr_base + sum(channel_request_counts[:channel_id]) * beats_per_request * bytes_per_beat
+
+        tb.log.info(f"Channel {channel_id}: Issuing {num_requests} requests "
+                   f"(~{descriptors_per_channel} descriptors) starting at 0x{channel_start_addr:08x}")
+
+        success = await tb.issue_multiple_requests(
+            channel_id=channel_id,
+            start_addr=channel_start_addr,
+            num_requests=num_requests,
+            beats_per_request=beats_per_request,
+            burst_len=xfer_beats
+        )
+        assert success, f"Failed to issue requests for channel {channel_id}"
+
+    # Step 3: Wait for all data to arrive (longer timeout for multi-channel stress)
+    tb.log.info("Step 3: Waiting for all channels to complete reading...")
+    max_timeout = max(channel_request_counts) * beats_per_request * 20  # 20 cycles per beat estimate
+    await tb.wait_clocks(tb.clk_name, min(max_timeout, 10000))
+
+    # Step 4: Verify data for each channel
+    tb.log.info("Step 4: Verifying data for all channels")
+    for channel_id in range(num_channels):
+        total_beats = channel_request_counts[channel_id] * beats_per_request
+        channel_start_addr = src_addr_base + sum(channel_request_counts[:channel_id]) * beats_per_request * bytes_per_beat
+
+        tb.log.info(f"Channel {channel_id}: Expecting {total_beats} beats")
+
+        # Wait for data to arrive in SRAM
+        await tb.wait_for_sram_data(channel_id, total_beats, timeout_cycles=5000)
+
+        # Drain and verify
+        success, errors = await tb.drain_and_verify_sram(
+            channel_id=channel_id,
+            expected_beats=total_beats,
+            start_addr=channel_start_addr
+        )
+
+        if not success:
+            tb.log.error(f"✗ Channel {channel_id}: Verification FAILED ({errors} errors)")
+            tb.log.error(f"  This may indicate a W-phase FIFO issue or multi-channel arbitration problem")
+            assert False, f"Channel {channel_id} verification failed"
+        else:
+            tb.log.info(f"✓ Channel {channel_id}: All {total_beats} beats verified successfully")
+
+    tb.log.info("="*80)
+    tb.log.info("B2B MULTI-CHANNEL TEST PASSED")
+    tb.log.info("="*80)
+
+
 #=============================================================================
 # Parameter Generation
 #=============================================================================
@@ -708,8 +964,8 @@ def generate_params():
 
     QUICK_DEBUG=1: Single minimal test (128-bit, 4ch, pipe, 16 beats, 'basic' test) - for fast iteration
     REG_LEVEL=GATE: 1 test (smoke test - 128-bit, 4ch, 256B transfer, 'fixed' timing, 'basic' test)
-    REG_LEVEL=FUNC: 18 tests (9 base configs × 2 timing profiles: fixed, fast) × 1 test type (basic only)
-    REG_LEVEL=FULL: 234 tests (26 base configs × 3 timing profiles: fixed, fast, constrained) × 3 test types (basic, nostress, per_channel_sequential)
+    REG_LEVEL=FUNC: 20 tests (9 base configs × 2 timing profiles: fixed, fast) × 1 test type (basic only) + 2 varying_lengths tests (128/256-bit)
+    REG_LEVEL=FULL: 240 tests (26 base configs × 3 timing profiles: fixed, fast, constrained) × 3 test types (basic, nostress, per_channel_sequential) + 6 varying_lengths tests (128/256/512-bit × 2 timing profiles)
 
     Parameters: (test_type, data_width, num_channels, sram_depth, test_level, enable_pipeline, xfer_beats, timing_profile)
 
@@ -717,6 +973,7 @@ def generate_params():
         - 'basic': Multiple scheduler requests with SRAM verification
         - 'nostress': Maximum BFM speed with bubble detection
         - 'per_channel_sequential': Test each channel independently
+        - 'varying_lengths': Successive descriptors with lengths 16-32 beats (xfer_beats=8 fixed)
 
     Data widths: 128, 256, 512 bits (16, 32, 64 bytes per beat)
     Transfer sizes scaled by data width:
@@ -806,6 +1063,50 @@ def generate_params():
         for base in base_params:
             for profile in timing_profiles:
                 params.append((test_type,) + base + (profile,))
+
+    # Add varying_lengths tests (separate from main test types)
+    # These tests ALWAYS use xfer_beats=8 to test varying descriptor lengths against fixed burst size
+    # Test format: (test_type, data_width, num_channels, sram_depth, test_level, enable_pipeline, xfer_beats, timing_profile)
+    if reg_level == 'FUNC':
+        # FUNC: 2 varying_lengths tests (128/256-bit × 1 timing profile)
+        varying_params = [
+            ('varying_lengths', 128, 1, calc_sram_depth(128, 1), 'basic', 0, 8, 'fixed'),  # 128-bit, single-channel, xfer_beats=8
+            ('varying_lengths', 256, 1, calc_sram_depth(256, 1), 'basic', 0, 8, 'fixed'),  # 256-bit, single-channel, xfer_beats=8
+        ]
+        params.extend(varying_params)
+    elif reg_level == 'FULL':
+        # FULL: 6 varying_lengths tests (128/256/512-bit × 2 timing profiles: fixed, fast)
+        varying_params = [
+            ('varying_lengths', 128, 1, calc_sram_depth(128, 1), 'basic', 0, 8, 'fixed'),  # 128-bit, xfer_beats=8, fixed timing
+            ('varying_lengths', 128, 1, calc_sram_depth(128, 1), 'basic', 0, 8, 'fast'),   # 128-bit, xfer_beats=8, fast timing
+            ('varying_lengths', 256, 1, calc_sram_depth(256, 1), 'basic', 0, 8, 'fixed'),  # 256-bit, xfer_beats=8, fixed timing
+            ('varying_lengths', 256, 1, calc_sram_depth(256, 1), 'basic', 0, 8, 'fast'),   # 256-bit, xfer_beats=8, fast timing
+            ('varying_lengths', 512, 1, calc_sram_depth(512, 1), 'basic', 0, 8, 'fixed'),  # 512-bit, xfer_beats=8, fixed timing
+            ('varying_lengths', 512, 1, calc_sram_depth(512, 1), 'basic', 0, 8, 'fast'),   # 512-bit, xfer_beats=8, fast timing
+        ]
+        params.extend(varying_params)
+
+    # Add b2b_multi_channel tests (separate from main test types)
+    # These tests stress multi-channel operation with back-to-back requests
+    # Test format: (test_type, data_width, num_channels, sram_depth, test_level, enable_pipeline, xfer_beats, timing_profile)
+    if reg_level == 'FUNC':
+        # FUNC: 2 b2b_multi_channel tests (128/256-bit, 4 channels, fixed timing)
+        b2b_params = [
+            ('b2b_multi_channel', 128, 4, calc_sram_depth(128, 4), 'basic', 0, 16, 'fixed'),  # 128-bit, 4 ch, no-pipe
+            ('b2b_multi_channel', 256, 4, calc_sram_depth(256, 4), 'basic', 0, 8, 'fixed'),   # 256-bit, 4 ch, no-pipe
+        ]
+        params.extend(b2b_params)
+    elif reg_level == 'FULL':
+        # FULL: 6 b2b_multi_channel tests (128/256/512-bit, 4 channels, 2 timing profiles: fixed, fast)
+        b2b_params = [
+            ('b2b_multi_channel', 128, 4, calc_sram_depth(128, 4), 'basic', 0, 16, 'fixed'),  # 128-bit, 4 ch, no-pipe, fixed
+            ('b2b_multi_channel', 128, 4, calc_sram_depth(128, 4), 'basic', 0, 16, 'fast'),   # 128-bit, 4 ch, no-pipe, fast
+            ('b2b_multi_channel', 256, 4, calc_sram_depth(256, 4), 'basic', 0, 8, 'fixed'),   # 256-bit, 4 ch, no-pipe, fixed
+            ('b2b_multi_channel', 256, 4, calc_sram_depth(256, 4), 'basic', 0, 8, 'fast'),    # 256-bit, 4 ch, no-pipe, fast
+            ('b2b_multi_channel', 512, 4, calc_sram_depth(512, 4), 'basic', 0, 4, 'fixed'),   # 512-bit, 4 ch, no-pipe, fixed
+            ('b2b_multi_channel', 512, 4, calc_sram_depth(512, 4), 'basic', 0, 4, 'fast'),    # 512-bit, 4 ch, no-pipe, fast
+        ]
+        params.extend(b2b_params)
 
     return params
 

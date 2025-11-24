@@ -60,39 +60,8 @@ Cycle 15: AXI read data arrives, enters FIFO
 
 ### Two-Pointer System
 
-![Diagram](../images/07_stream_alloc_ctrl_L063.png)
+![Diagram](../assets/mermaid/07_stream_alloc_ctrl_block.svg)
 
-<!--
-Original Mermaid diagram (for editing):
-
-![Diagram](../images/07_stream_alloc_ctrl_L068.png)
-
-<!--
-Original Mermaid diagram (for editing):
-
-```mermaid
-graph TB
-    subgraph "Allocation Controller Virtual FIFO"
-        REQ[rd_alloc_req + size] --> |Variable increment| WR_PTR[Write Pointer<br/>Allocation Pointer]
-        OUT[Output Handshake<br/>axi_wr_sram_valid && ready] --> |Single increment| RD_PTR[Read Pointer<br/>Release Pointer]
-
-        WR_PTR --> CALC[Space Calculation]
-        RD_PTR --> CALC
-        CALC --> |space_free = DEPTH - wr_ptr - rd_ptr| SPACE[rd_space_free]
-
-        SPACE --> |To Read Engine| CHECK[Space Check]
-        CHECK --> |OK: >= 2x burst| GRANT[Grant AR Issue]
-    end
-
-    GRANT --> |When AR handshakes| REQ
-    LATENCY[Latency Bridge Output] --> OUT
-
-    style WR_PTR fill:#fbb,stroke:#333,stroke-width:2px
-    style RD_PTR fill:#bfb,stroke:#333,stroke-width:2px
-    style CALC fill:#bbf,stroke:#333,stroke-width:2px
-    style SPACE fill:#ffb,stroke:#333,stroke-width:3px
-```
--->
 -->
 
 **Write Pointer (Allocation Pointer):**
@@ -112,7 +81,7 @@ space_free = DEPTH - (wr_ptr - rd_ptr)
 
 ### CRITICAL: Confusing Naming Convention
 
-**⚠️ WARNING:** Allocation controller uses OPPOSITE naming from normal FIFO!
+**WARNING:** Allocation controller uses OPPOSITE naming from normal FIFO!
 
 **Normal FIFO:**
 | Signal | Meaning |
@@ -148,6 +117,44 @@ space_free = DEPTH - (wr_ptr - rd_ptr)
 | `ALMOST_WR_MARGIN` | int | 1 | Almost full threshold |
 | `ALMOST_RD_MARGIN` | int | 1 | Almost empty threshold |
 | `REGISTERED` | int | 1 | Register outputs for timing |
+
+---
+
+## Port List
+
+### Clock and Reset
+
+| Signal | Direction | Width | Description |
+|--------|-----------|-------|-------------|
+| `axi_aclk` | input | 1 | System clock |
+| `axi_aresetn` | input | 1 | Active-low asynchronous reset |
+
+### Write Interface (Allocation Requests)
+
+| Signal | Direction | Width | Description |
+|--------|-----------|-------|-------------|
+| `wr_valid` | input | 1 | Allocate space request |
+| `wr_size` | input | 8 | Number of entries to allocate |
+| `wr_ready` | output | 1 | Space available (!wr_full) |
+
+### Read Interface (Actual Data Written)
+
+| Signal | Direction | Width | Description |
+|--------|-----------|-------|-------------|
+| `rd_valid` | input | 1 | Data exits controller (release space) |
+| `rd_ready` | output | 1 | Not empty (!rd_empty) |
+
+### Status Outputs
+
+| Signal | Direction | Width | Description |
+|--------|-----------|-------|-------------|
+| `space_free` | output | AW+1 | Available space (beats) |
+| `wr_full` | output | 1 | Full flag (no space available) |
+| `wr_almost_full` | output | 1 | Almost full flag |
+| `rd_empty` | output | 1 | Empty flag (no allocations) |
+| `rd_almost_empty` | output | 1 | Almost empty flag |
+
+---
 
 ## Interfaces
 

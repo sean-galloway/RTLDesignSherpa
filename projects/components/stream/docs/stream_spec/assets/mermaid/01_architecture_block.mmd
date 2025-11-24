@@ -1,0 +1,70 @@
+graph TB
+    subgraph "External Interfaces"
+        APB[APB Config<br/>Software Control]
+        DESC_MEM[Descriptor Memory<br/>256-bit AXI]
+        SRC_MEM[Source Data Memory<br/>512-bit AXI Read]
+        DST_MEM[Destination Memory<br/>512-bit AXI Write]
+        MON_IF[MonBus Output<br/>Debug/Trace]
+        IRQ_OUT[IRQ Output<br/>Interrupts]
+    end
+
+    subgraph "STREAM Core"
+        subgraph "Per-Channel Components 8x"
+            DESC_ENG[Descriptor Engine<br/>Fetch & Parse]
+            SCHED[Scheduler<br/>FSM Control]
+        end
+
+        subgraph "Shared Resource Arbitration"
+            DESC_ARB[Descriptor AR Arbiter<br/>Round-Robin]
+            RD_ARB[Read Request Arbiter<br/>Priority-Based]
+            WR_ARB[Write Request Arbiter<br/>Priority-Based]
+        end
+
+        subgraph "Shared Data Path"
+            RD_ENG[AXI Read Engine<br/>Multi-Channel]
+            WR_ENG[AXI Write Engine<br/>Multi-Channel]
+            SRAM[SRAM Controller<br/>8x Per-Channel FIFOs]
+        end
+
+        subgraph "Monitoring & Control"
+            MON_AGG[MonBus Aggregator<br/>9 Sources]
+            APB_CFG[APB Config Registers<br/>8 Channels]
+        end
+    end
+
+    APB --> APB_CFG
+    APB_CFG --> |enable, config| DESC_ENG
+    APB_CFG --> |enable, config| SCHED
+
+    DESC_ENG --> |desc_ar_valid| DESC_ARB
+    DESC_ARB --> |m_axi_desc_ar| DESC_MEM
+    DESC_MEM --> |m_axi_desc_r| DESC_ENG
+    DESC_ENG --> |descriptor| SCHED
+
+    SCHED --> |datard_req| RD_ARB
+    RD_ARB --> RD_ENG
+    RD_ENG --> |m_axi_rd_ar| SRC_MEM
+    SRC_MEM --> |m_axi_rd_r| RD_ENG
+    RD_ENG --> |rd_data| SRAM
+
+    SCHED --> |datawr_req| WR_ARB
+    WR_ARB --> WR_ENG
+    SRAM --> |wr_data| WR_ENG
+    WR_ENG --> |m_axi_wr_aw/w| DST_MEM
+    DST_MEM --> |m_axi_wr_b| WR_ENG
+
+    RD_ENG --> |done_strobe| SCHED
+    WR_ENG --> |done_strobe| SCHED
+
+    DESC_ENG --> |mon_events| MON_AGG
+    SCHED --> |mon_events| MON_AGG
+    RD_ENG --> |mon_events| MON_AGG
+    WR_ENG --> |mon_events| MON_AGG
+    MON_AGG --> MON_IF
+    MON_AGG --> IRQ_OUT
+
+    style DESC_ARB fill:#f9f,stroke:#333,stroke-width:3px
+    style RD_ARB fill:#f9f,stroke:#333,stroke-width:3px
+    style WR_ARB fill:#f9f,stroke:#333,stroke-width:3px
+    style SRAM fill:#bbf,stroke:#333,stroke-width:3px
+    style MON_AGG fill:#bfb,stroke:#333,stroke-width:2px

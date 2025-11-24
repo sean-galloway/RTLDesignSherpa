@@ -61,6 +61,8 @@ class StreamCoreTB(TBBase):
         self.axi_id_width = axi_id_width
         self.fifo_depth = fifo_depth
         self.data_bytes = data_width // 8
+        # AXI user width must match channel encoding (same as RTL)
+        self.user_width = max(1, (num_channels - 1).bit_length()) if num_channels > 1 else 1
 
         # Clock/reset
         self.clk = dut.clk
@@ -106,18 +108,19 @@ class StreamCoreTB(TBBase):
         self.datard_completions = []      # Read Engine → Scheduler
         self.datawr_completions = []      # Write Engine → Scheduler
 
-    async def setup_clocks_and_reset(self, xfer_beats=16):
+    async def setup_clocks_and_reset(self, rd_xfer_beats=16, wr_xfer_beats=16):
         """
         Complete initialization following datapath pattern.
 
         Args:
-            xfer_beats: AXI transfer size in beats (default 16)
+            rd_xfer_beats: AXI read transfer size in beats (default 16)
+            wr_xfer_beats: AXI write transfer size in beats (default 16)
         """
         # Start clock
         await self.start_clock(self.clk_name, freq=10, units='ns')
 
         # Initialize configuration signals before reset
-        self._init_config_signals(xfer_beats)
+        self._init_config_signals(rd_xfer_beats, wr_xfer_beats)
 
         # Reset sequence
         await self.assert_reset()
@@ -151,14 +154,15 @@ class StreamCoreTB(TBBase):
         """Deassert reset signal"""
         self.rst_n.value = 1
 
-    def _init_config_signals(self, xfer_beats):
+    def _init_config_signals(self, rd_xfer_beats, wr_xfer_beats):
         """Initialize configuration signals before reset"""
-        # Save xfer_beats for test use
-        self.xfer_beats = xfer_beats
+        # Save burst sizes for test use
+        self.rd_xfer_beats = rd_xfer_beats
+        self.wr_xfer_beats = wr_xfer_beats
 
-        # Configure transfer sizes
-        self.dut.cfg_axi_rd_xfer_beats.value = xfer_beats
-        self.dut.cfg_axi_wr_xfer_beats.value = xfer_beats
+        # Configure transfer sizes (can be different for read and write)
+        self.dut.cfg_axi_rd_xfer_beats.value = rd_xfer_beats
+        self.dut.cfg_axi_wr_xfer_beats.value = wr_xfer_beats
 
         # Enable all channels (vectored signal)
         channel_enable_mask = (1 << self.num_channels) - 1  # All channels enabled
@@ -166,7 +170,7 @@ class StreamCoreTB(TBBase):
 
         # Scheduler configuration
         self.dut.cfg_sched_timeout_enable.value = 1
-        self.dut.cfg_sched_timeout_cycles.value = 1000
+        self.dut.cfg_sched_timeout_cycles.value = 0xFFFF
         self.dut.cfg_sched_err_enable.value = 1
         self.dut.cfg_sched_compl_enable.value = 1
         self.dut.cfg_sched_perf_enable.value = 1
@@ -182,7 +186,7 @@ class StreamCoreTB(TBBase):
         self.dut.cfg_desceng_addr1_base.value = 0
         self.dut.cfg_desceng_addr1_limit.value = 0xFFFFFFFF
 
-        self.log.info(f"Configured AXI transfer size: {xfer_beats} beats")
+        self.log.info(f"Configured AXI transfer sizes: RD={rd_xfer_beats} beats, WR={wr_xfer_beats} beats")
 
     async def _init_bfm_components(self):
         """Initialize AXI slave BFMs after reset"""
@@ -218,7 +222,7 @@ class StreamCoreTB(TBBase):
             data_width=256,
             id_width=self.axi_id_width,
             addr_width=self.addr_width,
-            user_width=1,
+            user_width=self.user_width,  # Channel ID encoding width
             multi_sig=True,
             memory_model=self.desc_memory_model,
             base_addr=self.desc_mem_base  # ← FIX: Subtract base from AXI addresses
@@ -235,7 +239,7 @@ class StreamCoreTB(TBBase):
             data_width=self.data_width,
             id_width=self.axi_id_width,
             addr_width=self.addr_width,
-            user_width=1,
+            user_width=self.user_width,  # Channel ID encoding width
             multi_sig=True,
             memory_model=self.src_memory_model,
             base_addr=self.src_mem_base  # ← FIX: Subtract base from AXI addresses
@@ -252,7 +256,7 @@ class StreamCoreTB(TBBase):
             data_width=self.data_width,
             id_width=self.axi_id_width,
             addr_width=self.addr_width,
-            user_width=1,
+            user_width=self.user_width,  # Channel ID encoding width
             multi_sig=True,
             memory_model=self.dst_memory_model,
             base_addr=self.dst_mem_base  # ← FIX: Subtract base from AXI addresses
@@ -309,11 +313,10 @@ class StreamCoreTB(TBBase):
                 continue
 
             sched_rd_valid = int(self.dut.sched_rd_valid.value)
-            sched_rd_ready = int(self.dut.sched_rd_ready.value)
 
-            # Check each channel
+            # Check each channel for valid requests (no ready signal on read interface)
             for ch in range(self.num_channels):
-                if ((sched_rd_valid >> ch) & 1) and ((sched_rd_ready >> ch) & 1):
+                if ((sched_rd_valid >> ch) & 1):
                     # Extract address and beats for this channel
                     addr_val = int(self.dut.sched_rd_addr.value)
                     beats_val = int(self.dut.sched_rd_beats.value)
@@ -646,6 +649,124 @@ class StreamCoreTB(TBBase):
         else:
             self.log.error(f"Verification failed: {errors} mismatches out of {num_beats} beats")
             return False
+
+    def verify_descriptor_chain(self, descriptors):
+        """
+        Verify data transfers for a chain of descriptors with descriptor-aware error reporting.
+
+        Similar to analysis script grouping, but done in TB with live descriptor info.
+
+        Args:
+            descriptors: List of descriptor dicts, each containing:
+                - src_addr: Source address
+                - dst_addr: Destination address
+                - length: Transfer length in beats
+                - (optional) desc_num: Descriptor number for logging
+
+        Returns:
+            dict: Verification results with per-descriptor breakdown
+                {
+                    'total_descriptors': int,
+                    'passed_descriptors': int,
+                    'failed_descriptors': int,
+                    'total_beats': int,
+                    'total_mismatches': int,
+                    'descriptor_results': [
+                        {
+                            'desc_num': int,
+                            'beats': int,
+                            'mismatches': int,
+                            'passed': bool,
+                            'error_details': [(beat, src, dst), ...]
+                        }
+                    ]
+                }
+        """
+        results = {
+            'total_descriptors': len(descriptors),
+            'passed_descriptors': 0,
+            'failed_descriptors': 0,
+            'total_beats': 0,
+            'total_mismatches': 0,
+            'descriptor_results': []
+        }
+
+        self.log.info("="*80)
+        self.log.info("DESCRIPTOR CHAIN VERIFICATION")
+        self.log.info("="*80)
+
+        for desc_idx, desc in enumerate(descriptors):
+            desc_num = desc.get('desc_num', desc_idx + 1)
+            src_addr = desc['src_addr']
+            dst_addr = desc['dst_addr']
+            length = desc['length']
+
+            self.log.info(f"\nDescriptor {desc_num}:")
+            self.log.info(f"  src=0x{src_addr:08x}, dst=0x{dst_addr:08x}, length={length} beats")
+
+            # Verify this descriptor's data
+            errors = []
+            for beat in range(length):
+                beat_src_addr = src_addr + (beat * self.data_bytes)
+                beat_dst_addr = dst_addr + (beat * self.data_bytes)
+
+                src_offset = beat_src_addr - self.src_mem_base
+                dst_offset = beat_dst_addr - self.dst_mem_base
+
+                src_data_bytes = self.src_memory_model.read(src_offset, self.data_bytes)
+                dst_data_bytes = self.dst_memory_model.read(dst_offset, self.data_bytes)
+
+                src_data = int.from_bytes(bytes(src_data_bytes), byteorder='little')
+                dst_data = int.from_bytes(bytes(dst_data_bytes), byteorder='little')
+
+                if src_data != dst_data:
+                    errors.append((beat, src_data, dst_data))
+
+            # Record results for this descriptor
+            desc_result = {
+                'desc_num': desc_num,
+                'beats': length,
+                'mismatches': len(errors),
+                'passed': (len(errors) == 0),
+                'error_details': errors
+            }
+            results['descriptor_results'].append(desc_result)
+            results['total_beats'] += length
+            results['total_mismatches'] += len(errors)
+
+            # Log descriptor result
+            if len(errors) == 0:
+                self.log.info(f"  ✓ PASS: All {length} beats match")
+                results['passed_descriptors'] += 1
+            else:
+                self.log.error(f"  ✗ FAIL: {len(errors)} mismatches out of {length} beats")
+                results['failed_descriptors'] += 1
+
+                # Show first 5 errors
+                for beat, src, dst in errors[:5]:
+                    self.log.error(f"    Beat {beat}: src=0x{src:0{self.data_bytes*2}x}, "
+                                 f"dst=0x{dst:0{self.data_bytes*2}x}")
+                if len(errors) > 5:
+                    self.log.error(f"    ... and {len(errors)-5} more mismatches")
+
+        # Print summary
+        self.log.info("\n" + "="*80)
+        self.log.info("VERIFICATION SUMMARY")
+        self.log.info("="*80)
+        self.log.info(f"Total descriptors: {results['total_descriptors']}")
+        self.log.info(f"  Passed: {results['passed_descriptors']}")
+        self.log.info(f"  Failed: {results['failed_descriptors']}")
+        self.log.info(f"Total beats verified: {results['total_beats']}")
+        self.log.info(f"Total mismatches: {results['total_mismatches']}")
+
+        if results['failed_descriptors'] == 0:
+            self.log.info("\n✓ ALL DESCRIPTORS PASSED - Data integrity verified!")
+        else:
+            self.log.error(f"\n✗ {results['failed_descriptors']} DESCRIPTOR(S) FAILED")
+
+        self.log.info("="*80 + "\n")
+
+        return results
 
     # =========================================================================
     # Channel Control

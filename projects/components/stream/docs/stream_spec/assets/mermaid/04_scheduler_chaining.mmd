@@ -1,0 +1,16 @@
+sequenceDiagram
+    participant State
+    participant Chain as Chain Check
+    participant DescEng as Desc Engine
+
+    Note over State: Cycle 0: IDLE
+    Note over State: Cycle 1: FETCH_DESC
+    Note over State: Cycle 2-N: XFER_DATA
+    Note over State: Cycle N+1: COMPLETE
+    State->>Chain: Check next_descriptor_ptr != 0
+    Chain-->>State: Pointer valid
+    Note over State: Cycle N+2: NEXT_DESC
+    State->>DescEng: Fetch next descriptor
+    DescEng-->>State: Descriptor valid/ready
+    Note over State: Cycle N+3: FETCH_DESC
+    Note over State: Cycle N+4+: XFER_DATA (next transfer)

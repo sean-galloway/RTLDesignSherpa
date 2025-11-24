@@ -1,28 +1,31 @@
 [*]
 [*] GTKWave Analyzer v3.3.116 (w)1999-2023 BSI
-[*] Thu Nov  6 23:24:35 2025
+[*] Fri Nov 21 03:02:47 2025
 [*]
-[dumpfile] "/mnt/data/github/rtldesignsherpa/projects/components/stream/dv/tests/fub_tests/local_sim_build/test_datapath_wr_basic_nc1_dw128_sd256_basic_pipe_xb16/dump.vcd"
-[dumpfile_mtime] "Thu Nov  6 23:23:28 2025"
-[dumpfile_size] 5219790
-[savefile] "/mnt/data/github/rtldesignsherpa/projects/components/stream/dv/tests/fub_tests/GTKW/datapath_wr_test/datapath_wr_test_dw128.gtkw"
-[timestart] 4156800
-[size] 3488 1854
-[pos] -30 -25
-*-14.853400 4290300 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
+[dumpfile] "/mnt/data/github/rtldesignsherpa/projects/components/stream/dv/tests/macro/local_sim_build/test_datapath_wr_varying_lengths_nc1_dw128_sd256_basic_nopipe_xb8_fixed/dump.vcd"
+[dumpfile_mtime] "Fri Nov 21 02:23:01 2025"
+[dumpfile_size] 16799620
+[savefile] "/mnt/data/github/rtldesignsherpa/projects/components/stream/dv/tests/macro/GTKW/datapath_wr_test/datapath_wr_test_dw128.gtkw"
+[timestart] 5605200
+[size] 3456 1863
+[pos] -1 -1
+*-17.271053 6550000 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
 [treeopen] datapath_wr_test.
+[treeopen] datapath_wr_test.gen_schedulers[0].
 [treeopen] datapath_wr_test.u_axi_write_engine.
+[treeopen] datapath_wr_test.u_axi_write_engine.gen_no_pipeline_tracking.
+[treeopen] datapath_wr_test.u_axi_write_engine.unnamedblk8.
+[treeopen] datapath_wr_test.u_axi_write_engine.unnamedblk9.
 [treeopen] datapath_wr_test.u_sram_controller.
 [treeopen] datapath_wr_test.u_sram_controller.gen_channel_units[0].
 [treeopen] datapath_wr_test.u_sram_controller.gen_channel_units[0].u_channel_unit.
 [treeopen] datapath_wr_test.u_sram_controller.gen_channel_units[0].u_channel_unit.u_latency_bridge.
 [treeopen] datapath_wr_test.u_sram_controller.gen_channel_units[0].u_channel_unit.u_latency_bridge.u_skid_buffer.
 [sst_width] 503
-[signals_width] 487
+[signals_width] 568
 [sst_expanded] 1
-[sst_vpaned_height] 555
+[sst_vpaned_height] 983
 @22
-datapath_wr_test.MAX_BURST_LEN[31:0]
 datapath_wr_test.NUM_CHANNELS[31:0]
 datapath_wr_test.PIPELINE[31:0]
 datapath_wr_test.SEG_SIZE[31:0]
@@ -38,19 +41,37 @@ datapath_wr_test.sched_wr_valid[0]
 datapath_wr_test.sched_wr_ready[0]
 @22
 datapath_wr_test.sched_wr_addr[63:0]
+@24
 datapath_wr_test.sched_wr_beats[31:0]
-datapath_wr_test.u_axi_write_engine.sched_wr_burst_len[7:0]
 @28
 datapath_wr_test.u_axi_write_engine.sched_wr_done_strobe[0]
-@22
+@24
 datapath_wr_test.u_axi_write_engine.sched_wr_beats_done[31:0]
+@28
+datapath_wr_test.gen_schedulers[0].u_scheduler.descriptor_error
+datapath_wr_test.gen_schedulers[0].u_scheduler.w_pkt_error
+datapath_wr_test.gen_schedulers[0].u_scheduler.w_state_error
+datapath_wr_test.sched_error[0]
+@200
+-axi-wr-engine
+@28
+datapath_wr_test.u_axi_write_engine.w_has_data[0]
+@22
+datapath_wr_test.u_axi_write_engine.w_transfer_size[7:0]
+@28
+datapath_wr_test.u_axi_write_engine.w_data_ok[0]
+datapath_wr_test.u_axi_write_engine.w_no_outstanding[0]
+datapath_wr_test.u_axi_write_engine.w_arb_request[0]
 @200
 -m_axi_aw
 @28
 datapath_wr_test.u_axi_write_engine.m_axi_awvalid
 datapath_wr_test.u_axi_write_engine.m_axi_awready
 @22
+datapath_wr_test.u_axi_write_engine.m_axi_awaddr[63:0]
+@24
 datapath_wr_test.u_axi_write_engine.m_axi_awlen[7:0]
+@22
 datapath_wr_test.u_axi_write_engine.m_axi_awid[7:0]
 @28
 datapath_wr_test.u_axi_write_engine.m_axi_awsize[2:0]
@@ -67,6 +88,10 @@ datapath_wr_test.u_axi_write_engine.m_axi_wstrb[15:0]
 datapath_wr_test.u_axi_write_engine.m_axi_wlast
 @24
 datapath_wr_test.u_axi_write_engine.r_w_beats_remaining[7:0]
+@22
+datapath_wr_test.u_axi_write_engine.w_start_w_len[7:0]
+@23
+datapath_wr_test.u_axi_write_engine.w_transfer_size[7:0]
 @200
 -m_axi_b
 @28
@@ -80,14 +105,13 @@ datapath_wr_test.u_axi_write_engine.m_axi_bresp[1:0]
 -axi_wr_sram
 @28
 datapath_wr_test.u_axi_write_engine.axi_wr_sram_valid[0]
-datapath_wr_test.u_axi_write_engine.axi_wr_sram_ready[0]
 @22
 datapath_wr_test.u_axi_write_engine.axi_wr_sram_data[127:0]
 @200
 -sram_ctrl
-@22
-datapath_wr_test.wr_data_available[8:0]
 @28
+datapath_wr_test.u_sram_controller.gen_channel_units[0].u_channel_unit.axi_wr_sram_valid
+datapath_wr_test.u_sram_controller.gen_channel_units[0].u_channel_unit.axi_wr_sram_ready
 datapath_wr_test.u_sram_controller.axi_rd_sram_valid
 datapath_wr_test.u_sram_controller.axi_rd_sram_ready
 datapath_wr_test.u_sram_controller.axi_rd_sram_id[0]
@@ -130,13 +154,8 @@ datapath_wr_test.u_sram_controller.gen_channel_units[0].u_channel_unit.u_latency
 datapath_wr_test.u_sram_controller.gen_channel_units[0].u_channel_unit.u_latency_bridge.u_skid_buffer.gen_auto.mem[0][127:0]
 datapath_wr_test.u_sram_controller.gen_channel_units[0].u_channel_unit.u_latency_bridge.u_skid_buffer.gen_auto.mem[1][127:0]
 datapath_wr_test.u_sram_controller.gen_channel_units[0].u_channel_unit.u_latency_bridge.u_skid_buffer.gen_auto.mem[2][127:0]
-@23
 datapath_wr_test.u_sram_controller.gen_channel_units[0].u_channel_unit.u_latency_bridge.u_skid_buffer.gen_auto.mem[3][127:0]
 @200
 -arbiter
-@28
-datapath_wr_test.u_axi_write_engine.w_data_ok[0]
-datapath_wr_test.u_axi_write_engine.r_outstanding[0]
-datapath_wr_test.u_axi_write_engine.w_no_outstanding[0]
 [pattern_trace] 1
 [pattern_trace] 0

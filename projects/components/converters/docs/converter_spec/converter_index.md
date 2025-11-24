@@ -70,13 +70,13 @@ This specification provides comprehensive documentation for the Converters compo
 
 **Block Diagrams:**
 
-![AXI Data Upsize](assets/graphviz/axi_data_upsize.png)
+![AXI Data Upsize](assets/graphviz/axi_data_upsize.svg)
 *Figure 1: axi_data_upsize - Narrow-to-Wide Accumulator*
 
-![AXI Data Downsize Single](assets/graphviz/axi_data_dnsize_single.png)
+![AXI Data Downsize Single](assets/graphviz/axi_data_dnsize_single.svg)
 *Figure 2: axi_data_dnsize - Wide-to-Narrow Splitter (Single Buffer, 80% throughput)*
 
-![AXI Data Downsize Dual](assets/graphviz/axi_data_dnsize_dual.png)
+![AXI Data Downsize Dual](assets/graphviz/axi_data_dnsize_dual.svg)
 *Figure 3: axi_data_dnsize - Wide-to-Narrow Splitter (Dual Buffer, 100% throughput)*
 
 ### Protocol Converters
@@ -97,15 +97,15 @@ This specification provides comprehensive documentation for the Converters compo
 
 **Block Diagrams:**
 
-![AXI4-to-APB](assets/graphviz/axi4_to_apb.png)
+![AXI4-to-APB](assets/graphviz/axi4_to_apb.svg)
 *Figure 4: axi4_to_apb_convert - Protocol Conversion*
 
-![PeakRDL Adapter](assets/graphviz/peakrdl_adapter.png)
+![PeakRDL Adapter](assets/graphviz/peakrdl_adapter.svg)
 *Figure 5: peakrdl_to_cmdrsp - Register Interface Adapter*
 
 **FSM Diagram:**
 
-![AXI4-to-APB FSM](assets/puml/axi4_to_apb_fsm.png)
+![AXI4-to-APB FSM](assets/puml/axi4_to_apb_fsm.svg)
 *Figure 6: AXI4-to-APB State Machine*
 
 ---
@@ -151,26 +151,26 @@ This specification provides comprehensive documentation for the Converters compo
 
 ### Graphviz Block Diagrams
 Located in `assets/graphviz/`:
-- axi_data_upsize.gv/.png
-- axi_data_dnsize_single.gv/.png
-- axi_data_dnsize_dual.gv/.png
-- axi4_dwidth_converter_wr.gv/.png
-- axi4_dwidth_converter_rd.gv/.png
-- axi4_to_apb.gv/.png
-- peakrdl_adapter.gv/.png
-- axi4_to_axil4.gv/.png (wrapper)
-- axi4_to_axil4_rd.gv/.png (read path)
-- axi4_to_axil4_wr.gv/.png (write path)
-- axil4_to_axi4.gv/.png (wrapper)
-- axil4_to_axi4_rd.gv/.png (read path)
-- axil4_to_axi4_wr.gv/.png (write path)
-- uart_axil_bridge.gv/.png
+- axi_data_upsize.gv/.svg
+- axi_data_dnsize_single.gv/.svg
+- axi_data_dnsize_dual.gv/.svg
+- axi4_dwidth_converter_wr.gv/.svg
+- axi4_dwidth_converter_rd.gv/.svg
+- axi4_to_apb.gv/.svg
+- peakrdl_adapter.gv/.svg
+- axi4_to_axil4.gv/.svg (wrapper)
+- axi4_to_axil4_rd.gv/.svg (read path)
+- axi4_to_axil4_wr.gv/.svg (write path)
+- axil4_to_axi4.gv/.svg (wrapper)
+- axil4_to_axi4_rd.gv/.svg (read path)
+- axil4_to_axi4_wr.gv/.svg (write path)
+- uart_axil_bridge.gv/.svg
 
 See [assets/graphviz/README.md](assets/graphviz/README.md) for regeneration instructions.
 
 ### PlantUML FSM Diagrams
 Located in `assets/puml/`:
-- axi4_to_apb_fsm.puml/.png
+- axi4_to_apb_fsm.puml/.svg
 
 See [assets/puml/README.md](assets/puml/README.md) for regeneration instructions.
 

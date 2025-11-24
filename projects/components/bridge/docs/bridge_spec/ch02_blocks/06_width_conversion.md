@@ -36,7 +36,7 @@ Master (128-bit) → [Downsizer] → Crossbar (64-bit) → [Upsizer] → Slave (
 
 ## 2.6.3 Block Diagram
 
-![Width Conversion Architecture](../assets/graphviz/width_conversion.png)
+![Width Conversion Architecture](../assets/graphviz/width_conversion.svg)
 
 *Figure 2.6: Width conversion architecture showing data upsizing and downsizing with beat count adjustment and strobe handling.*
 

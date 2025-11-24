@@ -1,0 +1,8 @@
+graph LR
+    A[Software APB Write<br/>Write 0x1000_0000<br/>to BASE+0x00<br/>blocks until ready]
+    B[apbtodescr Router<br/>Address Decode<br/>relative_addr<br/>bits 4:2 = ch_id<br/>FSM: IDLE→ROUTE→RESPOND]
+    C[Descriptor Engines<br/>desc_apb_valid<br/>desc_apb_ready<br/>desc_apb_addr<br/>CH0: 0x1000_0000<br/>CH1: ready<br/>...<br/>CH7: ready]
+
+    A -->|CMD| B
+    B -->|RSP| A
+    B --> C

@@ -1,0 +1,20 @@
+sequenceDiagram
+    participant State
+    participant Desc as Descriptor
+    participant Read
+    participant Write
+
+    Note over State: Cycle 0 - IDLE
+    State->>Desc: Request descriptor
+    Note over State: Cycle 1 - FETCH_DESC
+    Desc-->>State: Descriptor ready
+    Note over State: Cycle 2-N - XFER_DATA
+    State->>Read: sched_rd_valid (concurrent)
+    State->>Write: sched_wr_valid (concurrent)
+    Read-->>State: done strobe
+    Write-->>State: done strobe
+    Note over State: Cycle N+1 - XFER_DATA continues
+    Read-->>State: done strobe
+    Write-->>State: done strobe
+    Note over State: Cycle N+2 - COMPLETE
+    Note over State: Cycle N+3 - IDLE

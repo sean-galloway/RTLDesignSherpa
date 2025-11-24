@@ -1,0 +1,77 @@
+================================================================================
+ STREAM Core Performance Profiling - Quick Reference
+================================================================================
+
+DATE: 2025-11-23
+CONFIGURATION: Fast (no-stress) timing profile
+TEST LEVEL: func (4 descriptors, 2 channels)
+
+--------------------------------------------------------------------------------
+ Results Summary
+--------------------------------------------------------------------------------
+
+✅ params0 (128-bit):  13.11 μs   PASSED
+✅ params1 (256-bit):  11.53 μs   PASSED  (12% faster than 128-bit)
+⚠️ params2 (512-bit):  13.2 μs    INFRA FAIL (transfer succeeded, cleanup failed)
+
+--------------------------------------------------------------------------------
+ Key Findings
+--------------------------------------------------------------------------------
+
+1. 256-bit configuration shows measurable improvement over 128-bit
+2. 512-bit hardware transfer completes successfully
+3. Test infrastructure has Python 3.12 compatibility issue for 512-bit
+
+--------------------------------------------------------------------------------
+ Quick Commands
+--------------------------------------------------------------------------------
+
+# Run performance profiling (currently uses params0, params1, params2)
+./run_performance_profile.sh
+
+# View detailed summary
+cat perf_results/PERFORMANCE_SUMMARY.md
+
+# Extract params2 timing from log (workaround for infra issue)
+grep "FULLY COMPLETE" perf_results/params2.log
+
+# Run single configuration
+WAVES=0 TEST_LEVEL=func timeout 120 \
+  /mnt/data/github/rtldesignsherpa/venv/bin/python -m pytest \
+  test_stream_core.py::test_stream_core_single_channel -k "params0" -v
+
+--------------------------------------------------------------------------------
+ Files Generated
+--------------------------------------------------------------------------------
+
+perf_results/
+├── params0.log (2.1M)                    - 128-bit test log
+├── params1.log (2.1M)                    - 256-bit test log
+├── params2.log (4.4M)                    - 512-bit test log
+├── performance_report_20251123_052612.txt - Console report
+├── PERFORMANCE_SUMMARY.md                - Detailed analysis
+└── QUICK_REFERENCE.txt                   - This file
+
+--------------------------------------------------------------------------------
+ Known Issues
+--------------------------------------------------------------------------------
+
+1. Python 3.12 + cocotb-test StreamReader.flush() AttributeError
+   - Workaround: Extract timing from logs manually
+   - Status: Tracking with cocotb-test upstream
+
+2. Data verification timeout for 512-bit configuration
+   - Workaround: Use params0/params1 for automated runs
+   - Future: Optimize verification or use dedicated perf tests
+
+--------------------------------------------------------------------------------
+ Documentation
+--------------------------------------------------------------------------------
+
+See PERFORMANCE_PROFILING.md for complete guide including:
+- How to customize test configurations
+- Interpreting results
+- Troubleshooting
+- Performance optimization workflow
+
+================================================================================

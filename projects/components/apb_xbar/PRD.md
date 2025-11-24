@@ -100,7 +100,7 @@ APB Crossbar (M masters × N slaves)
 └──────────────────────────────────────────────────────────────────┘
 ```
 
-![APB Crossbar Architecture (2x4 Example)](docs/apb_xbar_spec/assets/png/apb_xbar_architecture.png)
+![APB Crossbar Architecture (2x4 Example)](docs/apb_xbar_spec/assets/svg/apb_xbar_architecture.svg)
 *Figure: APB Crossbar top-level architecture showing 2 masters connected to 4 slaves. [Source: docs/apb_xbar_spec/assets/graphviz/apb_xbar_architecture.gv](docs/apb_xbar_spec/assets/graphviz/apb_xbar_architecture.gv) | [SVG](docs/apb_xbar_spec/assets/svg/apb_xbar_architecture.svg)*
 
 ### 3.2 Address Mapping
@@ -123,7 +123,7 @@ The crossbar extracts the slave index from the upper bits of the address offset:
 slave_index = (address - BASE_ADDR) >> 16  // Divide by 64KB (0x10000)
 ```
 
-![Address Decode Flow](docs/apb_xbar_spec/assets/png/address_decode_flow.png)
+![Address Decode Flow](docs/apb_xbar_spec/assets/svg/address_decode_flow.svg)
 *Figure: Address decode flow showing how address 0x10023456 routes to Slave 2. [Source: docs/apb_xbar_spec/assets/graphviz/address_decode_flow.gv](docs/apb_xbar_spec/assets/graphviz/address_decode_flow.gv) | [SVG](docs/apb_xbar_spec/assets/svg/address_decode_flow.svg)*
 
 ### 3.3 Arbitration Strategy
@@ -140,7 +140,7 @@ Slave 0 accessed by M0, M1, M0 → Next grant goes to M1
 Slave 1 accessed by M1, M1, M0 → Next grant goes to M0
 ```
 
-![Round-Robin Arbitration Timing](docs/apb_xbar_spec/assets/png/arbitration_round_robin.png)
+![Round-Robin Arbitration Timing](docs/apb_xbar_spec/assets/wavedrom/arbitration_round_robin.svg)
 *Figure: Round-robin arbitration timing showing 2 masters competing for Slave 0. Master priority rotates after each grant to ensure fair access. [Source: docs/apb_xbar_spec/assets/wavedrom/arbitration_round_robin.json](docs/apb_xbar_spec/assets/wavedrom/arbitration_round_robin.json)*
 
 ---

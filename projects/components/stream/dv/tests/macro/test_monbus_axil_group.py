@@ -46,15 +46,22 @@ import pytest
 import cocotb
 from cocotb_test.simulator import run
 
-# Add dv directory to path so we can import from tbclasses/
-dv_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), '../..'))
-if dv_dir not in sys.path:
-    sys.path.insert(0, dv_dir)
+# CRITICAL: Must setup paths BEFORE importing from CocoTBFramework
+# First, do minimal setup to import get_repo_root
+repo_root_temp = os.path.abspath(os.path.join(os.path.dirname(__file__), '../../../../../..'))
+sys.path.insert(0, os.path.join(repo_root_temp, 'bin'))
 
-from tbclasses.monbus_axil_group_tb import MonbusAxilGroupTB
-from CocoTBFramework.tbclasses.shared.utilities import get_paths, create_view_cmd
+# Now we can import utilities
+from CocoTBFramework.tbclasses.shared.utilities import get_paths, create_view_cmd, get_repo_root
 from CocoTBFramework.tbclasses.shared.tbbase import TBBase
 from CocoTBFramework.tbclasses.shared.filelist_utils import get_sources_from_filelist
+
+# Use the proper get_repo_root() function
+repo_root = get_repo_root()
+sys.path.insert(0, repo_root)
+
+# Import from project area
+from projects.components.stream.dv.tbclasses.monbus_axil_group_tb import MonbusAxilGroupTB
 
 
 # ===========================================================================
@@ -182,6 +189,16 @@ def test_monbus_axil_group(request, test_type, fifo_depth_err, fifo_depth_write,
 
     cmd_filename = create_view_cmd(log_dir, log_path, sim_build, 'test_monbus_axil_group', test_name_plus_params)
 
+    # Build args conditionally based on waves
+    waves_enabled = False
+    compile_args = ["-Wno-TIMESCALEMOD", "-Wno-SELRANGE"]
+    sim_args = []
+    plusargs = []
+    if waves_enabled:
+        compile_args.extend(["--trace", "--trace-structs", "--trace-depth", "99"])
+        sim_args.extend(["--trace", "--trace-structs", "--trace-depth", "99"])
+        plusargs.append("--trace")
+
     try:
         run(
             python_search=[tests_dir],
@@ -193,22 +210,12 @@ def test_monbus_axil_group(request, test_type, fifo_depth_err, fifo_depth_write,
             parameters=rtl_parameters,
             sim_build=sim_build,
             extra_env=extra_env,
-            waves=False,
+            simulator="verilator",
+            waves=waves_enabled,
             keep_files=True,
-            compile_args=[
-                "--trace",
-                "--trace-structs",
-                "--trace-depth", "99",
-                "-Wno-TIMESCALEMOD",
-            ],
-            sim_args=[
-                "--trace",
-                "--trace-structs",
-                "--trace-depth", "99",
-            ],
-            plusargs=[
-                "--trace",
-            ]
+            compile_args=compile_args,
+            sim_args=sim_args,
+            plusargs=plusargs,
         )
         print(f"✓ MonBus AXIL {test_type} test PASSED! Logs: {log_path}")
     except Exception as e:

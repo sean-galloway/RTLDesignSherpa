@@ -44,47 +44,47 @@ module sram_controller #(
     parameter int SCW = SEG_COUNT_WIDTH,             // Segment count width
     parameter int CIW = (NC > 1) ? $clog2(NC) : 1    // Channel ID width (min 1 bit)
 ) (
-    input  logic                    clk,
-    input  logic                    rst_n,
-
-    //=========================================================================
-    // Write Interface (AXI Read Engine → FIFO)
-    // Transaction ID-based: single valid + ID selects channel
-    //=========================================================================
-    input  logic                    axi_rd_sram_valid,      // Single valid
-    input  logic [CIW-1:0]           axi_rd_sram_id,         // Channel ID select
-    output logic                    axi_rd_sram_ready,      // Ready (muxed from selected channel)
-    input  logic [DW-1:0]           axi_rd_sram_data,       // common data bus
+    input  logic                        clk,
+    input  logic                        rst_n,
 
     //=========================================================================
     // Allocation Interface (for AXI Read Engine flow control)
     // Single request with ID - ID selects which channel's space to check
     //=========================================================================
-    input  logic                                axi_rd_alloc_req,       // Allocation request
-    input  logic [7:0]                          axi_rd_alloc_size,      // Number of beats to allocate
-    input  logic [CIW-1:0]                       axi_rd_alloc_id,        // Channel ID for allocation
-    output logic [NC-1:0][SCW-1:0]              axi_rd_space_free,      // Free space in each FIFO
+    input  logic                        axi_rd_alloc_req,        // Allocation request
+    input  logic [7:0]                  axi_rd_alloc_size,       // Number of beats to allocate
+    input  logic [CIW-1:0]              axi_rd_alloc_id,         // Channel ID for allocation
+    output logic [NC-1:0][SCW-1:0]      axi_rd_alloc_space_free, // Free space in each FIFO
+
+    //=========================================================================
+    // Write Interface (AXI Read Engine → FIFO)
+    // Transaction ID-based: single valid + ID selects channel
+    //=========================================================================
+    input  logic                        axi_rd_sram_valid,      // Single valid
+    output logic                        axi_rd_sram_ready,      // Ready (muxed from selected channel)
+    input  logic [CIW-1:0]              axi_rd_sram_id,         // Channel ID select
+    input  logic [DW-1:0]               axi_rd_sram_data,       // common data bus
 
     //=========================================================================
     // Drain Interface (Write Engine Flow Control)
     //=========================================================================
-    input  logic [NC-1:0]                       axi_wr_drain_req,       // Per-channel drain request
-    input  logic [NC-1:0][7:0]                  axi_wr_drain_size,      // Per-channel drain size
-    output logic [NC-1:0][SCW-1:0]              axi_wr_drain_data_avail,  // Available data after reservations
+    output logic [NC-1:0][SCW-1:0]      axi_wr_drain_data_avail,  // Available data after reservations
+    input  logic [NC-1:0]               axi_wr_drain_req,         // Per-channel drain request
+    input  logic [NC-1:0][7:0]          axi_wr_drain_size,        // Per-channel drain size
 
     //=========================================================================
     // Read Interface (FIFO → AXI Write Engine)
     //=========================================================================
-    output logic [NC-1:0]           axi_wr_sram_valid,      // Per-channel valid (data available)
-    input  logic                    axi_wr_sram_drain,      // Ready (consumer requests data)
-    input  logic [CIW-1:0]           axi_wr_sram_id,         // Channel ID select
-    output logic [DW-1:0]           axi_wr_sram_data,       // Data from selected channel
+    output logic [NC-1:0]               axi_wr_sram_valid,      // Per-channel valid (data available)
+    input  logic                        axi_wr_sram_drain,      // Ready (consumer requests data)
+    input  logic [CIW-1:0]              axi_wr_sram_id,         // Channel ID select
+    output logic [DW-1:0]               axi_wr_sram_data,       // Data from selected channel
 
     //=========================================================================
     // Debug Interface (for catching bridge bugs)
     //=========================================================================
-    output logic [NC-1:0]           dbg_bridge_pending,
-    output logic [NC-1:0]           dbg_bridge_out_valid
+    output logic [NC-1:0]               dbg_bridge_pending,
+    output logic [NC-1:0]               dbg_bridge_out_valid
 );
 
     //=========================================================================
@@ -182,14 +182,14 @@ module sram_controller #(
 
                 // Allocation interface (Read Engine Flow Control)
                 // Decoded from ID - only selected channel sees req
-                .rd_alloc_req       (axi_rd_alloc_req_decoded[i]),
-                .rd_alloc_size      (axi_rd_alloc_size),         // SHARED - all see same size
-                .rd_space_free      (axi_rd_space_free[i]),
+                .axi_rd_alloc_req       (axi_rd_alloc_req_decoded[i]),
+                .axi_rd_alloc_size      (axi_rd_alloc_size),         // SHARED - all see same size
+                .axi_rd_alloc_space_free(axi_rd_alloc_space_free[i]),
 
                 // Drain interface (Write Engine Flow Control)
-                .wr_drain_req       (axi_wr_drain_req[i]),
-                .wr_drain_size      (axi_wr_drain_size[i]),
-                .wr_drain_data_avail(axi_wr_drain_data_avail[i]),
+                .axi_wr_drain_req       (axi_wr_drain_req[i]),
+                .axi_wr_drain_size      (axi_wr_drain_size[i]),
+                .axi_wr_drain_data_avail(axi_wr_drain_data_avail[i]),
 
                 // Debug
                 .dbg_bridge_pending     (dbg_bridge_pending[i]),

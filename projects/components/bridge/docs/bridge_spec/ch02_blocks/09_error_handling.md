@@ -67,7 +67,7 @@ Response: Generation error, fail early
 
 ## 2.9.3 Block Diagram
 
-![Error Handling System](../assets/graphviz/error_handling.png)
+![Error Handling System](../assets/graphviz/error_handling.svg)
 
 *Figure 2.9: Error handling system showing detection (OOR, protocol, timeout, CAM), generation, and logging subsystems.*
 

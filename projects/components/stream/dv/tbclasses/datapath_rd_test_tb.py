@@ -1412,3 +1412,73 @@ class DatapathRdTestTB(TBBase):
 
         # Timeout
         return (False, cycles, stall_cycles)
+
+    # =========================================================================
+    # Auto-drain methods for varying_lengths test
+    # =========================================================================
+
+    async def auto_drain_sram_monitor(self):
+        """Background task that automatically drains SRAM whenever any channel has valid data.
+
+        Monitors axi_wr_sram_valid[NC-1:0] and drains immediately when any bit asserts.
+        Saves (channel_id, data, time_ns) tuples for later verification.
+
+        NOTE: Caller must initialize self.drained_data=[] and self.drain_active=True before calling.
+        """
+        # Data structures initialized by caller
+        drain_count = 0
+        self.log.info(f"Auto-drain monitor STARTED{self.get_time_ns_str()}")
+
+        while self.drain_active:
+            await RisingEdge(self.clk)
+
+            try:
+                # Check which channels have valid data
+                valid_vec = int(self.dut.axi_wr_sram_valid.value)
+
+                if valid_vec != 0:  # Only process if at least one channel has data
+                    # Find first channel with valid data
+                    for ch in range(self.num_channels):
+                        if (valid_vec >> ch) & 0x1:
+                            # Channel has valid data - drain it
+                            # Set ID and assert drain HIGH for FULL CLOCK CYCLE
+                            self.dut.axi_wr_sram_id.value = ch
+                            self.dut.axi_wr_sram_drain.value = 1
+
+                            # Wait for NEXT rising edge (drain held high for full clock)
+                            await RisingEdge(self.clk)
+
+                            # Sample data on THIS rising edge
+                            data = int(self.dut.axi_wr_sram_data.value)
+                            time_ns = cocotb.utils.get_sim_time('ns')
+
+                            # Clear drain AFTER sampling
+                            self.dut.axi_wr_sram_drain.value = 0
+
+                            # Save for later verification
+                            self.drained_data.append((ch, data, time_ns))
+                            drain_count += 1
+                            if drain_count <= 5 or drain_count % 50 == 0:
+                                self.log.info(f"SRAM_OUT: ch={ch} data=0x{data:064X} @ {time_ns}ns (total={drain_count})")
+
+                            break  # Check again from the top (will check valid on NEXT rising edge)
+
+            except Exception as e:
+                self.log.error(f"Auto-drain error: {e}{self.get_time_ns_str()}")
+
+        self.log.info(f"Auto-drain monitor STOPPED (drained {drain_count} total beats){self.get_time_ns_str()}")
+
+    def stop_auto_drain(self):
+        """Stop the auto-drain background task."""
+        self.drain_active = False
+
+    def get_drained_data_for_channel(self, channel_id):
+        """Get all drained data for a specific channel in order.
+
+        Args:
+            channel_id: Channel to get data for
+
+        Returns:
+            List of data values (in order received)
+        """
+        return [data for ch, data, time_ns in self.drained_data if ch == channel_id]

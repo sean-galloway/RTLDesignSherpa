@@ -195,8 +195,7 @@ def test_scheduler(request, test_type, channel_id, num_channels, addr_width, dat
         'CHANNEL_ID': channel_id,
         'NUM_CHANNELS': num_channels,
         'ADDR_WIDTH': addr_width,
-        'DATA_WIDTH': data_width,
-        'TIMEOUT_CYCLES': timeout_cycles,
+        'DATA_WIDTH': data_width
     }
 
     extra_env = {
@@ -229,6 +228,7 @@ def test_scheduler(request, test_type, channel_id, num_channels, addr_width, dat
             parameters=rtl_parameters,
             sim_build=sim_build,
             extra_env=extra_env,
+            simulator="verilator",  # ← Must specify verilator
             waves=False,
             keep_files=True,
             compile_args=[

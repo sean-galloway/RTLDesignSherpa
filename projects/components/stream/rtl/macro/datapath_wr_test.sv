@@ -49,7 +49,8 @@ module datapath_wr_test #(
     parameter int SEG_COUNT_WIDTH = $clog2(SEG_SIZE) + 1,
 
     // Descriptor width - 256 bits (STREAM descriptor format)
-    parameter int DESC_WIDTH = 256
+    parameter int DESC_WIDTH = 256,
+    parameter int UW = (NUM_CHANNELS > 1) ? $clog2(NUM_CHANNELS) : 1  // AXI user width = channel ID width
 ) (
     // Clock and Reset
     input  logic                        clk,
@@ -129,6 +130,7 @@ module datapath_wr_test #(
     // W Channel
     output logic [DW-1:0]               m_axi_wdata,
     output logic [DW/8-1:0]             m_axi_wstrb,
+    output logic [UW-1:0]               m_axi_wuser,
     output logic                        m_axi_wlast,
     output logic                        m_axi_wvalid,
     input  logic                        m_axi_wready,
@@ -157,7 +159,14 @@ module datapath_wr_test #(
 
     // Write engine debug (for monitoring write completion)
     output logic [31:0]                 dbg_aw_transactions,    // AW transaction count
-    output logic [31:0]                 dbg_w_beats             // W beat count
+    output logic [31:0]                 dbg_w_beats,            // W beat count
+
+    //=========================================================================
+    // Status Interface (Scheduler state)
+    //=========================================================================
+    output logic [NC-1:0]               sched_idle,             // Scheduler idle per channel
+    output logic [NC-1:0][6:0]          sched_state,            // Scheduler state per channel
+    output logic [NC-1:0]               sched_error             // Scheduler error per channel (sticky)
 );
 
     //=========================================================================
@@ -184,16 +193,17 @@ module datapath_wr_test #(
     logic [NC-1:0]                  sched_wr_ready;
     logic [NC-1:0][AW-1:0]          sched_wr_addr;
     logic [NC-1:0][31:0]            sched_wr_beats;
-    logic [NC-1:0][3:0]             sched_wr_channel_id;
 
-    // Scheduler status
-    logic [NC-1:0]                  sched_idle;
-    logic [NC-1:0][6:0]             sched_state;  // One-hot encoded (7 states)
+    // Scheduler status - Now declared as outputs (lines 167-169)
+    // logic [NC-1:0]                  sched_idle;       // REMOVED - now output port
+    // logic [NC-1:0][6:0]             sched_state;      // REMOVED - now output port
+    // logic [NC-1:0]                  sched_error;      // REMOVED - now output port
 
     // Scheduler completion strobes (from write engine)
     logic [NC-1:0]                  sched_wr_done_strobe;
     logic [NC-1:0][31:0]            sched_wr_beats_done;
-    logic [NC-1:0]                  axi_wr_all_complete;
+    logic [NC-1:0]                  sched_wr_error;
+    logic [NC-1:0]                  dbg_wr_all_complete;
 
     // SRAM controller ↔ Write engine (direct connection - ID-based interface)
     logic [NC-1:0]                      axi_wr_sram_valid;           // Per-channel valid from SRAM
@@ -295,7 +305,6 @@ module datapath_wr_test #(
                 .NUM_CHANNELS(NC),
                 .ADDR_WIDTH(AW),
                 .DATA_WIDTH(DW),
-                .TIMEOUT_CYCLES(1000),
                 .MON_AGENT_ID(8'h40),       // STREAM Scheduler
                 .MON_UNIT_ID(4'h1),
                 .MON_CHANNEL_ID(i)
@@ -306,10 +315,13 @@ module datapath_wr_test #(
                 // Configuration (tied off for test - channel always enabled)
                 .cfg_channel_enable     (1'b1),
                 .cfg_channel_reset      (1'b0),
+                .cfg_sched_timeout_cycles(16'd1000),  // Runtime timeout config
+                .cfg_sched_timeout_enable(1'b1),      // Enable timeout
 
                 // Status
                 .scheduler_idle         (sched_idle[i]),
                 .scheduler_state        (sched_state[i]),
+                .sched_error            (sched_error[i]),
 
                 // Descriptor interface (from testbench GAXI masters)
                 .descriptor_valid       (desc_valid[i]),
@@ -318,28 +330,25 @@ module datapath_wr_test #(
                 .descriptor_error       (desc_error[i]),
 
                 // Data read interface (tied off for write-only test)
-                .datard_valid           (sched_rd_valid[i]),
-                .datard_ready           (1'b1),                    // Always ready
-                .datard_addr            (),                        // Unused
-                .datard_beats_remaining (sched_rd_beats[i]),
-                .datard_channel_id      (),                        // Unused
+                .sched_rd_valid         (sched_rd_valid[i]),
+                .sched_rd_addr          (),                        // Unused
+                .sched_rd_beats         (sched_rd_beats[i]),
 
                 // Data write interface (to AXI write engine via arbiter)
-                .datawr_valid           (sched_wr_valid[i]),
-                .datawr_ready           (sched_wr_ready[i]),
-                .datawr_addr            (sched_wr_addr[i]),
-                .datawr_beats_remaining (sched_wr_beats[i]),
-                .datawr_channel_id      (sched_wr_channel_id[i]),
+                .sched_wr_valid         (sched_wr_valid[i]),
+                .sched_wr_ready         (sched_wr_ready[i]),
+                .sched_wr_addr          (sched_wr_addr[i]),
+                .sched_wr_beats         (sched_wr_beats[i]),
 
                 // Completion strobes from engines
-                .datard_done_strobe     (r_rd_done_strobe[i]),     // Registered: asserts next cycle
-                .datard_beats_done      (r_rd_beats_done[i]),      // All beats completed in 1 cycle
-                .datawr_done_strobe     (sched_wr_done_strobe[i]),
-                .datawr_beats_done      (sched_wr_beats_done[i]),
+                .sched_rd_done_strobe   (r_rd_done_strobe[i]),     // Registered: asserts next cycle
+                .sched_rd_beats_done    (r_rd_beats_done[i]),      // All beats completed in 1 cycle
+                .sched_wr_done_strobe   (sched_wr_done_strobe[i]),
+                .sched_wr_beats_done    (sched_wr_beats_done[i]),
 
                 // Error signals from engines
-                .datard_error           (1'b0),
-                .datawr_error           (1'b0),
+                .sched_rd_error         (1'b0),
+                .sched_wr_error         (sched_wr_error[i]),
 
                 // Monitor bus (tied off for test)
                 .mon_valid              (),
@@ -358,6 +367,7 @@ module datapath_wr_test #(
         .ADDR_WIDTH(AW),
         .DATA_WIDTH(DW),
         .ID_WIDTH(IW),
+        .USER_WIDTH(UW),                // Channel ID width for USER field
         .SEG_COUNT_WIDTH(SEG_COUNT_WIDTH),
         .PIPELINE(PIPELINE),            // Pass through wrapper's PIPELINE parameter
         .AW_MAX_OUTSTANDING(AW_MAX_OUTSTANDING)  // Maximum outstanding AW requests per channel
@@ -378,12 +388,13 @@ module datapath_wr_test #(
         // Completion interface (to schedulers)
         .sched_wr_done_strobe   (sched_wr_done_strobe),
         .sched_wr_beats_done    (sched_wr_beats_done),
-        .axi_wr_all_complete    (axi_wr_all_complete),
+        .dbg_wr_all_complete    (dbg_wr_all_complete),
+        .sched_wr_error         (sched_wr_error),
 
         // Drain interface (to SRAM controller)
-        .wr_drain_req           (wr_drain_req),
-        .wr_drain_size          (wr_drain_size),
-        .wr_drain_data_avail    (wr_drain_data_avail),
+        .axi_wr_drain_req       (wr_drain_req),
+        .axi_wr_drain_size      (wr_drain_size),
+        .axi_wr_drain_data_avail(wr_drain_data_avail),
 
         // SRAM read interface (ID-based - direct connection)
         .axi_wr_sram_valid      (axi_wr_sram_valid),
@@ -402,6 +413,7 @@ module datapath_wr_test #(
 
         .m_axi_wdata            (m_axi_wdata),
         .m_axi_wstrb            (m_axi_wstrb),
+        .m_axi_wuser            (m_axi_wuser),
         .m_axi_wlast            (m_axi_wlast),
         .m_axi_wvalid           (m_axi_wvalid),
         .m_axi_wready           (m_axi_wready),
@@ -431,8 +443,8 @@ module datapath_wr_test #(
         // Allocation interface (unused - write engine doesn't use allocation)
         .axi_rd_alloc_req       (1'b0),
         .axi_rd_alloc_size      (8'h0),
-        .axi_rd_alloc_id        (1'b0),                    // Tie to 0 (single channel ID)
-        .axi_rd_space_free      (axi_rd_space_free),
+        .axi_rd_alloc_id        (CW'(0)),                  // Tie to 0 with correct width
+        .axi_rd_alloc_space_free(axi_rd_space_free),
 
         // Write interface (from testbench for filling SRAM)
         .axi_rd_sram_valid      (axi_rd_sram_valid),

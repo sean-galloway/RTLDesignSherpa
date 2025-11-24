@@ -1,0 +1,42 @@
+graph TB
+    subgraph STREAM_CORE["STREAM CORE"]
+        subgraph SGA["SCHEDULER GROUP ARRAY (8 channels)"]
+            CH0["Chan 0"]
+            CH1["Chan 1"]
+            CHDOTS["..."]
+            CH7["Chan 7"]
+            DESC_ENG["Shared Descriptor Fetch Engine"]
+        end
+
+        subgraph SRAM["SRAM CONTROLLER (8 FIFOs)"]
+            FIFO0["FIFO 0<br/>512x512b"]
+            FIFO1["FIFO 1<br/>512x512b"]
+            FIFODOTS["..."]
+            FIFO7["FIFO 7<br/>512x512b"]
+        end
+
+        RD_ENG["AXI Read Engine<br/>(Shared)"]
+        WR_ENG["AXI Write Engine<br/>(Shared)"]
+
+        RD_SKID["AXI Skid Buffers<br/>(AR/R ch)"]
+        WR_SKID["AXI Skid Buffers<br/>(AW/W/B ch)"]
+    end
+
+    RD_MEM["m_axi_rd_*<br/>(External Memory)"]
+    WR_MEM["m_axi_wr_*<br/>(External Memory)"]
+
+    SGA --> SRAM
+    SRAM --> WR_ENG
+    RD_ENG --> SRAM
+    RD_ENG --> RD_SKID
+    WR_ENG --> WR_SKID
+    RD_SKID --> RD_MEM
+    WR_SKID --> WR_MEM
+
+    style STREAM_CORE fill:#e1f5ff,stroke:#333,stroke-width:2px
+    style SGA fill:#ffe1e1,stroke:#333,stroke-width:2px
+    style SRAM fill:#ffffe1,stroke:#333,stroke-width:2px
+    style RD_ENG fill:#e1ffe1,stroke:#333,stroke-width:2px
+    style WR_ENG fill:#ffe1ff,stroke:#333,stroke-width:2px
+    style RD_SKID fill:#f0f0f0,stroke:#333,stroke-width:1px
+    style WR_SKID fill:#f0f0f0,stroke:#333,stroke-width:1px

@@ -114,7 +114,7 @@ module descriptor_engine #(
     input  logic [ADDR_WIDTH-1:0]       cfg_addr1_base,
     input  logic [ADDR_WIDTH-1:0]       cfg_addr1_limit,
 
-    // FIXED: Channel reset interface
+    // Channel reset interface
     input  logic                        cfg_channel_reset,
 
     // Status Interface

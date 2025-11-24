@@ -23,7 +23,7 @@ The APB Crossbar is a parametric interconnect that connects M APB masters to N A
 
 The following diagram shows a 2x4 crossbar configuration connecting 2 masters (CPU and DMA) to 4 slaves (UART, GPIO, Timer, SPI):
 
-![APB Crossbar Architecture (2x4 Example)](../assets/png/apb_xbar_architecture.png)
+![APB Crossbar Architecture (2x4 Example)](../assets/svg/apb_xbar_architecture.svg)
 
 *Figure: APB Crossbar top-level architecture showing 2 masters connected to 4 slaves via master-side protocol conversion, internal arbitration logic, and slave-side protocol conversion. [Source](../assets/graphviz/apb_xbar_architecture.gv) | [SVG](../assets/svg/apb_xbar_architecture.svg)*
 

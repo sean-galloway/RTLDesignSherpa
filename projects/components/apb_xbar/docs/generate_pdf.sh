@@ -94,7 +94,6 @@ python3 "${REPO_ROOT}/bin/md_to_docx.py" \
   --sansfont "Noto Sans" \
   --mathfont "Noto Serif" \
   --assets-dir "${ASSETS}" \
-  --assets-dir "${ASSETS}/png" \
   --assets-dir "${ASSETS}/svg" \
   --assets-dir "${ASSETS}/graphviz" \
   --assets-dir "${ASSETS}/wavedrom" \

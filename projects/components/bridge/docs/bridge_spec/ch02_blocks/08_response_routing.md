@@ -14,7 +14,7 @@ Response routing performs the following critical functions:
 
 ## 2.8.2 Block Diagram
 
-![Response Routing Architecture](../assets/graphviz/response_routing.png)
+![Response Routing Architecture](../assets/graphviz/response_routing.svg)
 
 *Figure 2.8: Response routing architecture showing B and R channel merging from slaves and ID-based demultiplexing to masters.*
 

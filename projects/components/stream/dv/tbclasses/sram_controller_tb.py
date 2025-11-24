@@ -244,7 +244,7 @@ class SRAMControllerTB(TBBase):
                 # Timeout!
                 self.log.error(f"Write timeout: channel={channel}, waited {timeout_cycles} cycles, ready never went high{self.get_time_ns_str()}")
                 space = await self.get_space_free(channel)
-                self.log.error(f"  axi_rd_space_free[{channel}] = {space}{self.get_time_ns_str()}")
+                self.log.error(f"  axi_rd_alloc_space_free[{channel}] = {space}{self.get_time_ns_str()}")
                 # Clear valid before returning
                 self.dut.axi_rd_sram_valid.value = 0
                 return False
@@ -342,11 +342,11 @@ class SRAMControllerTB(TBBase):
         Returns:
             int: Free space in beats
         """
-        # axi_rd_space_free is [NC-1:0][$clog2(FIFO_DEPTH):0] packed array
+        # axi_rd_alloc_space_free is [NC-1:0][$clog2(FIFO_DEPTH):0] packed array
         # Width per element = $clog2(FIFO_DEPTH) + 1
         import math
         element_width = math.ceil(math.log2(self.fifo_depth)) + 1
-        full_value = int(self.dut.axi_rd_space_free.value)
+        full_value = int(self.dut.axi_rd_alloc_space_free.value)
         mask = (1 << element_width) - 1
         space = (full_value >> (channel * element_width)) & mask
         return space

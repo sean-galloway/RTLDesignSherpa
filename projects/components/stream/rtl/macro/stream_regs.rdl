@@ -1,23 +1,27 @@
 // SPDX-License-Identifier: MIT
 // SPDX-FileCopyrightText: 2024-2025 sean galloway
 //
-// STREAM Register Definition - PeakRDL Format
+// STREAM Register Definition v2 - PeakRDL Format
+// Enhanced with full monitor configuration fields
 //
 // Address Space Layout:
-//   0x000 - 0x01C: Channel kick-off registers (handled by apbtodescr.sv)
-//   0x100 - 0xFFF: Control and status registers (this file)
+//   0x000 - 0x03F: Channel kick-off registers (handled by apbtodescr.sv)
+//                  - 16 registers: CHx_CTRL_LOW + CHx_CTRL_HIGH for 8 channels
+//                  - 64-bit descriptor addresses split across LOW/HIGH pairs
+//   0x100 - 0x3FF: Control and status registers (this file)
 //
 // Notes:
 //   - Channel kick-off registers (CHx_CTRL) are NOT defined here
 //   - Those are routed directly to descriptor engines via apbtodescr.sv
 //   - This file defines all other configuration and status registers
+//   - v2 adds full monitor mask and threshold registers
 //
 // Author: sean galloway
-// Created: 2025-10-20
+// Created: 2025-11-21
 
-addrmap stream_regs {
-    name = "STREAM DMA Engine Registers";
-    desc = "Configuration and status registers for 8-channel STREAM DMA engine";
+addrmap stream_regs_v2 {
+    name = "STREAM DMA Engine Registers v2";
+    desc = "Configuration and status registers for 8-channel STREAM DMA engine with full monitor control";
 
     default regwidth = 32;
     default accesswidth = 32;
@@ -48,7 +52,7 @@ addrmap stream_regs {
             desc = "Reserved";
             sw = r;
             hw = na;
-        } RSVD[29:2] = 28'h0;
+        } RSVD[31:2] = 30'h0;
 
     } GLOBAL_CTRL @ 0x100;
 
@@ -66,7 +70,7 @@ addrmap stream_regs {
             desc = "Reserved";
             sw = r;
             hw = na;
-        } RSVD[30:1] = 30'h0;
+        } RSVD[31:1] = 31'h0;
 
     } GLOBAL_STATUS @ 0x104;
 
@@ -78,13 +82,13 @@ addrmap stream_regs {
             desc = "Minor version";
             sw = r;
             hw = na;
-        } MINOR[7:0] = 8'h00;
+        } MINOR[7:0] = 8'd90;  // 0.90
 
         field {
             desc = "Major version";
             sw = r;
             hw = na;
-        } MAJOR[15:8] = 8'h01;
+        } MAJOR[15:8] = 8'h00;  // 0.90 (pre-release)
 
         field {
             desc = "Number of channels";
@@ -206,19 +210,19 @@ addrmap stream_regs {
 
         reg {
             name = "Channel State";
-            desc = "Current FSM state of scheduler";
+            desc = "Current FSM state of scheduler (one-hot 7-bit encoding)";
 
             field {
-                desc = "Scheduler state [3:0]";
+                desc = "Scheduler state [6:0] - one-hot encoding";
                 sw = r;
                 hw = w;
-            } STATE[3:0];
+            } STATE[6:0];
 
             field {
                 desc = "Reserved";
                 sw = r;
                 hw = na;
-            } RSVD[31:4] = 28'h0;
+            } RSVD[31:7] = 25'h0;
 
         } STATE @ 0x0;
 
@@ -371,12 +375,18 @@ addrmap stream_regs {
     } DESCENG_ADDR1_LIMIT @ 0x230;
 
     //=========================================================================
-    // Monitor Configuration (0x240 - 0x27F)
+    // Descriptor AXI Monitor Configuration (0x240 - 0x25F)
     //=========================================================================
 
     reg {
-        name = "Descriptor AXI Monitor Configuration";
-        desc = "Descriptor AXI master monitor configuration";
+        name = "Descriptor AXI Monitor Enable";
+        desc = "Descriptor AXI master monitor enable controls";
+
+        field {
+            desc = "Monitor enable - master enable for descriptor monitor";
+            sw = rw;
+            hw = r;
+        } MON_EN = 1'b1;
 
         field {
             desc = "Error enable - enable error detection";
@@ -403,70 +413,46 @@ addrmap stream_regs {
         } PERF_EN = 1'b0;
 
         field {
-            desc = "Debug enable - enable debug packets";
-            sw = rw;
-            hw = r;
-        } DEBUG_EN = 1'b0;
-
-        field {
             desc = "Reserved";
             sw = r;
             hw = na;
         } RSVD[31:5] = 27'h0;
 
-    } DAXMON_CONFIG @ 0x240;
+    } DAXMON_ENABLE @ 0x240;
 
     reg {
-        name = "Data Read Monitor Configuration";
-        desc = "Data read AXI master monitor configuration";
+        name = "Descriptor AXI Monitor Timeout";
+        desc = "Descriptor AXI monitor timeout threshold (cycles)";
 
         field {
-            desc = "Error enable - enable error detection";
+            desc = "Timeout cycles [31:0]";
             sw = rw;
             hw = r;
-        } ERR_EN = 1'b1;
+        } TIMEOUT_CYCLES[31:0] = 32'd10000;
 
-        field {
-            desc = "Completion enable - enable completion packets";
-            sw = rw;
-            hw = r;
-        } COMPL_EN = 1'b0;
-
-        field {
-            desc = "Timeout enable - enable timeout detection";
-            sw = rw;
-            hw = r;
-        } TIMEOUT_EN = 1'b1;
-
-        field {
-            desc = "Performance enable - enable performance packets";
-            sw = rw;
-            hw = r;
-        } PERF_EN = 1'b0;
-
-        field {
-            desc = "Debug enable - enable debug packets";
-            sw = rw;
-            hw = r;
-        } DEBUG_EN = 1'b0;
-
-        field {
-            desc = "Reserved";
-            sw = r;
-            hw = na;
-        } RSVD[31:5] = 27'h0;
-
-    } RDMON_CONFIG @ 0x244;
+    } DAXMON_TIMEOUT @ 0x244;
 
     reg {
-        name = "Data Read Monitor Timeout";
-        desc = "Data read monitor timeout threshold";
+        name = "Descriptor AXI Monitor Latency Threshold";
+        desc = "Descriptor AXI monitor latency threshold (cycles)";
 
         field {
-            desc = "Timeout cycles [15:0]";
+            desc = "Latency threshold cycles [31:0]";
             sw = rw;
             hw = r;
-        } TIMEOUT_CYCLES[15:0] = 16'd5000;
+        } LATENCY_THRESH[31:0] = 32'd5000;
+
+    } DAXMON_LATENCY_THRESH @ 0x248;
+
+    reg {
+        name = "Descriptor AXI Monitor Packet Mask";
+        desc = "Descriptor AXI monitor packet type filtering (16-bit mask)";
+
+        field {
+            desc = "Packet type mask [15:0] - 1=enable, 0=disable";
+            sw = rw;
+            hw = r;
+        } PKT_MASK[15:0] = 16'hFFFF;
 
         field {
             desc = "Reserved";
@@ -474,11 +460,123 @@ addrmap stream_regs {
             hw = na;
         } RSVD[31:16] = 16'h0;
 
-    } RDMON_TIMEOUT @ 0x248;
+    } DAXMON_PKT_MASK @ 0x24C;
 
     reg {
-        name = "Data Write Monitor Configuration";
-        desc = "Data write AXI master monitor configuration";
+        name = "Descriptor AXI Monitor Error Select and Mask";
+        desc = "Descriptor AXI monitor error selection and filtering";
+
+        field {
+            desc = "Error select [3:0] - error type selection";
+            sw = rw;
+            hw = r;
+        } ERR_SELECT[3:0] = 4'h0;
+
+        field {
+            desc = "Reserved";
+            sw = r;
+            hw = na;
+        } RSVD1[7:4] = 4'h0;
+
+        field {
+            desc = "Error mask [15:8] - error type filtering";
+            sw = rw;
+            hw = r;
+        } ERR_MASK[15:8] = 8'hFF;
+
+        field {
+            desc = "Reserved";
+            sw = r;
+            hw = na;
+        } RSVD2[31:16] = 16'h0;
+
+    } DAXMON_ERR_CFG @ 0x250;
+
+    reg {
+        name = "Descriptor AXI Monitor Masks 1";
+        desc = "Descriptor AXI monitor timeout and completion masks";
+
+        field {
+            desc = "Timeout mask [7:0]";
+            sw = rw;
+            hw = r;
+        } TIMEOUT_MASK[7:0] = 8'hFF;
+
+        field {
+            desc = "Completion mask [15:8]";
+            sw = rw;
+            hw = r;
+        } COMPL_MASK[15:8] = 8'h00;
+
+        field {
+            desc = "Reserved";
+            sw = r;
+            hw = na;
+        } RSVD[31:16] = 16'h0;
+
+    } DAXMON_MASK1 @ 0x254;
+
+    reg {
+        name = "Descriptor AXI Monitor Masks 2";
+        desc = "Descriptor AXI monitor threshold and performance masks";
+
+        field {
+            desc = "Threshold mask [7:0]";
+            sw = rw;
+            hw = r;
+        } THRESH_MASK[7:0] = 8'hFF;
+
+        field {
+            desc = "Performance mask [15:8]";
+            sw = rw;
+            hw = r;
+        } PERF_MASK[15:8] = 8'h00;
+
+        field {
+            desc = "Reserved";
+            sw = r;
+            hw = na;
+        } RSVD[31:16] = 16'h0;
+
+    } DAXMON_MASK2 @ 0x258;
+
+    reg {
+        name = "Descriptor AXI Monitor Masks 3";
+        desc = "Descriptor AXI monitor address and debug masks";
+
+        field {
+            desc = "Address mask [7:0]";
+            sw = rw;
+            hw = r;
+        } ADDR_MASK[7:0] = 8'hFF;
+
+        field {
+            desc = "Debug mask [15:8]";
+            sw = rw;
+            hw = r;
+        } DEBUG_MASK[15:8] = 8'h00;
+
+        field {
+            desc = "Reserved";
+            sw = r;
+            hw = na;
+        } RSVD[31:16] = 16'h0;
+
+    } DAXMON_MASK3 @ 0x25C;
+
+    //=========================================================================
+    // Read Engine AXI Monitor Configuration (0x260 - 0x27F)
+    //=========================================================================
+
+    reg {
+        name = "Read Engine AXI Monitor Enable";
+        desc = "Read engine AXI master monitor enable controls";
+
+        field {
+            desc = "Monitor enable - master enable for read monitor";
+            sw = rw;
+            hw = r;
+        } MON_EN = 1'b1;
 
         field {
             desc = "Error enable - enable error detection";
@@ -505,28 +603,46 @@ addrmap stream_regs {
         } PERF_EN = 1'b0;
 
         field {
-            desc = "Debug enable - enable debug packets";
-            sw = rw;
-            hw = r;
-        } DEBUG_EN = 1'b0;
-
-        field {
             desc = "Reserved";
             sw = r;
             hw = na;
         } RSVD[31:5] = 27'h0;
 
-    } WRMON_CONFIG @ 0x24C;
+    } RDMON_ENABLE @ 0x260;
 
     reg {
-        name = "Data Write Monitor Timeout";
-        desc = "Data write monitor timeout threshold";
+        name = "Read Engine AXI Monitor Timeout";
+        desc = "Read engine AXI monitor timeout threshold (cycles)";
 
         field {
-            desc = "Timeout cycles [15:0]";
+            desc = "Timeout cycles [31:0]";
             sw = rw;
             hw = r;
-        } TIMEOUT_CYCLES[15:0] = 16'd5000;
+        } TIMEOUT_CYCLES[31:0] = 32'd10000;
+
+    } RDMON_TIMEOUT @ 0x264;
+
+    reg {
+        name = "Read Engine AXI Monitor Latency Threshold";
+        desc = "Read engine AXI monitor latency threshold (cycles)";
+
+        field {
+            desc = "Latency threshold cycles [31:0]";
+            sw = rw;
+            hw = r;
+        } LATENCY_THRESH[31:0] = 32'd5000;
+
+    } RDMON_LATENCY_THRESH @ 0x268;
+
+    reg {
+        name = "Read Engine AXI Monitor Packet Mask";
+        desc = "Read engine AXI monitor packet type filtering (16-bit mask)";
+
+        field {
+            desc = "Packet type mask [15:0] - 1=enable, 0=disable";
+            sw = rw;
+            hw = r;
+        } PKT_MASK[15:0] = 16'hFFFF;
 
         field {
             desc = "Reserved";
@@ -534,6 +650,361 @@ addrmap stream_regs {
             hw = na;
         } RSVD[31:16] = 16'h0;
 
-    } WRMON_TIMEOUT @ 0x250;
+    } RDMON_PKT_MASK @ 0x26C;
+
+    reg {
+        name = "Read Engine AXI Monitor Error Select and Mask";
+        desc = "Read engine AXI monitor error selection and filtering";
+
+        field {
+            desc = "Error select [3:0] - error type selection";
+            sw = rw;
+            hw = r;
+        } ERR_SELECT[3:0] = 4'h0;
+
+        field {
+            desc = "Reserved";
+            sw = r;
+            hw = na;
+        } RSVD1[7:4] = 4'h0;
+
+        field {
+            desc = "Error mask [15:8] - error type filtering";
+            sw = rw;
+            hw = r;
+        } ERR_MASK[15:8] = 8'hFF;
+
+        field {
+            desc = "Reserved";
+            sw = r;
+            hw = na;
+        } RSVD2[31:16] = 16'h0;
+
+    } RDMON_ERR_CFG @ 0x270;
+
+    reg {
+        name = "Read Engine AXI Monitor Masks 1";
+        desc = "Read engine AXI monitor timeout and completion masks";
+
+        field {
+            desc = "Timeout mask [7:0]";
+            sw = rw;
+            hw = r;
+        } TIMEOUT_MASK[7:0] = 8'hFF;
+
+        field {
+            desc = "Completion mask [15:8]";
+            sw = rw;
+            hw = r;
+        } COMPL_MASK[15:8] = 8'h00;
+
+        field {
+            desc = "Reserved";
+            sw = r;
+            hw = na;
+        } RSVD[31:16] = 16'h0;
+
+    } RDMON_MASK1 @ 0x274;
+
+    reg {
+        name = "Read Engine AXI Monitor Masks 2";
+        desc = "Read engine AXI monitor threshold and performance masks";
+
+        field {
+            desc = "Threshold mask [7:0]";
+            sw = rw;
+            hw = r;
+        } THRESH_MASK[7:0] = 8'hFF;
+
+        field {
+            desc = "Performance mask [15:8]";
+            sw = rw;
+            hw = r;
+        } PERF_MASK[15:8] = 8'h00;
+
+        field {
+            desc = "Reserved";
+            sw = r;
+            hw = na;
+        } RSVD[31:16] = 16'h0;
+
+    } RDMON_MASK2 @ 0x278;
+
+    reg {
+        name = "Read Engine AXI Monitor Masks 3";
+        desc = "Read engine AXI monitor address and debug masks";
+
+        field {
+            desc = "Address mask [7:0]";
+            sw = rw;
+            hw = r;
+        } ADDR_MASK[7:0] = 8'hFF;
+
+        field {
+            desc = "Debug mask [15:8]";
+            sw = rw;
+            hw = r;
+        } DEBUG_MASK[15:8] = 8'h00;
+
+        field {
+            desc = "Reserved";
+            sw = r;
+            hw = na;
+        } RSVD[31:16] = 16'h0;
+
+    } RDMON_MASK3 @ 0x27C;
+
+    //=========================================================================
+    // Write Engine AXI Monitor Configuration (0x280 - 0x29F)
+    //=========================================================================
+
+    reg {
+        name = "Write Engine AXI Monitor Enable";
+        desc = "Write engine AXI master monitor enable controls";
+
+        field {
+            desc = "Monitor enable - master enable for write monitor";
+            sw = rw;
+            hw = r;
+        } MON_EN = 1'b1;
+
+        field {
+            desc = "Error enable - enable error detection";
+            sw = rw;
+            hw = r;
+        } ERR_EN = 1'b1;
+
+        field {
+            desc = "Completion enable - enable completion packets";
+            sw = rw;
+            hw = r;
+        } COMPL_EN = 1'b0;
+
+        field {
+            desc = "Timeout enable - enable timeout detection";
+            sw = rw;
+            hw = r;
+        } TIMEOUT_EN = 1'b1;
+
+        field {
+            desc = "Performance enable - enable performance packets";
+            sw = rw;
+            hw = r;
+        } PERF_EN = 1'b0;
+
+        field {
+            desc = "Reserved";
+            sw = r;
+            hw = na;
+        } RSVD[31:5] = 27'h0;
+
+    } WRMON_ENABLE @ 0x280;
+
+    reg {
+        name = "Write Engine AXI Monitor Timeout";
+        desc = "Write engine AXI monitor timeout threshold (cycles)";
+
+        field {
+            desc = "Timeout cycles [31:0]";
+            sw = rw;
+            hw = r;
+        } TIMEOUT_CYCLES[31:0] = 32'd10000;
+
+    } WRMON_TIMEOUT @ 0x284;
+
+    reg {
+        name = "Write Engine AXI Monitor Latency Threshold";
+        desc = "Write engine AXI monitor latency threshold (cycles)";
+
+        field {
+            desc = "Latency threshold cycles [31:0]";
+            sw = rw;
+            hw = r;
+        } LATENCY_THRESH[31:0] = 32'd5000;
+
+    } WRMON_LATENCY_THRESH @ 0x288;
+
+    reg {
+        name = "Write Engine AXI Monitor Packet Mask";
+        desc = "Write engine AXI monitor packet type filtering (16-bit mask)";
+
+        field {
+            desc = "Packet type mask [15:0] - 1=enable, 0=disable";
+            sw = rw;
+            hw = r;
+        } PKT_MASK[15:0] = 16'hFFFF;
+
+        field {
+            desc = "Reserved";
+            sw = r;
+            hw = na;
+        } RSVD[31:16] = 16'h0;
+
+    } WRMON_PKT_MASK @ 0x28C;
+
+    reg {
+        name = "Write Engine AXI Monitor Error Select and Mask";
+        desc = "Write engine AXI monitor error selection and filtering";
+
+        field {
+            desc = "Error select [3:0] - error type selection";
+            sw = rw;
+            hw = r;
+        } ERR_SELECT[3:0] = 4'h0;
+
+        field {
+            desc = "Reserved";
+            sw = r;
+            hw = na;
+        } RSVD1[7:4] = 4'h0;
+
+        field {
+            desc = "Error mask [15:8] - error type filtering";
+            sw = rw;
+            hw = r;
+        } ERR_MASK[15:8] = 8'hFF;
+
+        field {
+            desc = "Reserved";
+            sw = r;
+            hw = na;
+        } RSVD2[31:16] = 16'h0;
+
+    } WRMON_ERR_CFG @ 0x290;
+
+    reg {
+        name = "Write Engine AXI Monitor Masks 1";
+        desc = "Write engine AXI monitor timeout and completion masks";
+
+        field {
+            desc = "Timeout mask [7:0]";
+            sw = rw;
+            hw = r;
+        } TIMEOUT_MASK[7:0] = 8'hFF;
+
+        field {
+            desc = "Completion mask [15:8]";
+            sw = rw;
+            hw = r;
+        } COMPL_MASK[15:8] = 8'h00;
+
+        field {
+            desc = "Reserved";
+            sw = r;
+            hw = na;
+        } RSVD[31:16] = 16'h0;
+
+    } WRMON_MASK1 @ 0x294;
+
+    reg {
+        name = "Write Engine AXI Monitor Masks 2";
+        desc = "Write engine AXI monitor threshold and performance masks";
+
+        field {
+            desc = "Threshold mask [7:0]";
+            sw = rw;
+            hw = r;
+        } THRESH_MASK[7:0] = 8'hFF;
+
+        field {
+            desc = "Performance mask [15:8]";
+            sw = rw;
+            hw = r;
+        } PERF_MASK[15:8] = 8'h00;
+
+        field {
+            desc = "Reserved";
+            sw = r;
+            hw = na;
+        } RSVD[31:16] = 16'h0;
+
+    } WRMON_MASK2 @ 0x298;
+
+    reg {
+        name = "Write Engine AXI Monitor Masks 3";
+        desc = "Write engine AXI monitor address and debug masks";
+
+        field {
+            desc = "Address mask [7:0]";
+            sw = rw;
+            hw = r;
+        } ADDR_MASK[7:0] = 8'hFF;
+
+        field {
+            desc = "Debug mask [15:8]";
+            sw = rw;
+            hw = r;
+        } DEBUG_MASK[15:8] = 8'h00;
+
+        field {
+            desc = "Reserved";
+            sw = r;
+            hw = na;
+        } RSVD[31:16] = 16'h0;
+
+    } WRMON_MASK3 @ 0x29C;
+
+    //=========================================================================
+    // AXI Transfer Configuration (0x2A0 - 0x2AF)
+    //=========================================================================
+
+    reg {
+        name = "AXI Transfer Configuration";
+        desc = "AXI read and write transfer burst sizes";
+
+        field {
+            desc = "AXI read transfer beats [7:0] - burst size in beats (1-16)";
+            sw = rw;
+            hw = r;
+        } RD_XFER_BEATS[7:0] = 8'd16;
+
+        field {
+            desc = "AXI write transfer beats [15:8] - burst size in beats (1-16)";
+            sw = rw;
+            hw = r;
+        } WR_XFER_BEATS[15:8] = 8'd16;
+
+        field {
+            desc = "Reserved";
+            sw = r;
+            hw = na;
+        } RSVD[31:16] = 16'h0;
+
+    } AXI_XFER_CONFIG @ 0x2A0;
+
+    //=========================================================================
+    // Performance Profiler Configuration (0x2B0 - 0x2BF)
+    //=========================================================================
+
+    reg {
+        name = "Performance Profiler Configuration";
+        desc = "Performance profiler enable and mode controls";
+
+        field {
+            desc = "Performance profiler enable";
+            sw = rw;
+            hw = r;
+        } PERF_EN = 1'b0;
+
+        field {
+            desc = "Performance profiler mode - 0=count, 1=histogram";
+            sw = rw;
+            hw = r;
+        } PERF_MODE = 1'b0;
+
+        field {
+            desc = "Performance profiler clear - write 1 to clear counters";
+            sw = rw;
+            hw = r;
+            swmod;  // Self-clearing
+        } PERF_CLEAR = 1'b0;
+
+        field {
+            desc = "Reserved";
+            sw = r;
+            hw = na;
+        } RSVD[31:3] = 29'h0;
+
+    } PERF_CONFIG @ 0x2B0;
 
 };

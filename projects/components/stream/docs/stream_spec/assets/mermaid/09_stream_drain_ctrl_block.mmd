@@ -1,0 +1,22 @@
+graph TB
+    subgraph "Drain Controller Virtual FIFO"
+        DATA_IN[FIFO Write<br/>axi_rd_sram_valid && ready] --> |Single increment| WR_PTR[Write Pointer<br/>Data Entry Pointer]
+        DRAIN_REQ[wr_drain_req + size] --> |Variable increment| RD_PTR[Read Pointer<br/>Reservation Pointer]
+
+        WR_PTR --> CALC[Data Calculation]
+        RD_PTR --> CALC
+        CALC --> |data_available = wr_ptr - rd_ptr| AVAIL[drain_data_available]
+
+        BRIDGE[Latency Bridge<br/>Occupancy] --> ADD[+]
+        AVAIL --> ADD
+        ADD --> |wr_drain_data_avail| WR_ENG[To Write Engine]
+
+        WR_ENG --> |Data Check:<br/>>= burst size| CHECK[Check Available]
+        CHECK --> |OK| DRAIN_REQ
+    end
+
+    style WR_PTR fill:#bfb,stroke:#333,stroke-width:2px
+    style RD_PTR fill:#fbb,stroke:#333,stroke-width:2px
+    style CALC fill:#bbf,stroke:#333,stroke-width:2px
+    style AVAIL fill:#ffb,stroke:#333,stroke-width:3px
+    style ADD fill:#fbf,stroke:#333,stroke-width:2px

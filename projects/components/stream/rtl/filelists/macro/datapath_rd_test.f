@@ -18,26 +18,10 @@ $REPO_ROOT/rtl/amba/includes/fifo_defs.svh
 $REPO_ROOT/rtl/amba/includes/monitor_pkg.sv
 $STREAM_ROOT/rtl/includes/stream_pkg.sv
 
-# Dependencies - Arbiter (for axi_read_engine scheduler arbitration)
-$REPO_ROOT/rtl/common/arbiter_priority_encoder.sv
-$REPO_ROOT/rtl/common/arbiter_round_robin.sv
-
-# Dependencies - GAXI FIFO, simple SRAM, counter_bin, fifo_control
-$REPO_ROOT/rtl/common/counter_bin.sv
-$REPO_ROOT/rtl/common/fifo_control.sv
-$REPO_ROOT/rtl/amba/gaxi/gaxi_fifo_sync.sv
-
-
-# FUB Components - Scheduler (parses descriptors, drives read engine)
-$STREAM_ROOT/rtl/fub/scheduler.sv
-
-# Component modules - AXI Read Engine and supporting logic
-$STREAM_ROOT/rtl/fub/stream_alloc_ctrl.sv
-$STREAM_ROOT/rtl/fub/stream_drain_ctrl.sv
-$STREAM_ROOT/rtl/fub/stream_latency_bridge.sv
-$STREAM_ROOT/rtl/fub/axi_read_engine.sv
-$STREAM_ROOT/rtl/fub/sram_controller_unit.sv
-$STREAM_ROOT/rtl/fub/sram_controller.sv
+# Include FUB-level components via -f (automatically pulls in dependencies)
+-f $STREAM_ROOT/rtl/filelists/fub/scheduler.f
+-f $STREAM_ROOT/rtl/filelists/fub/axi_read_engine.f
+-f $STREAM_ROOT/rtl/filelists/fub/sram_controller.f
 
 # Test wrapper module (instantiates 8 scheduler + axi_read_engine)
 $STREAM_ROOT/rtl/macro/datapath_rd_test.sv

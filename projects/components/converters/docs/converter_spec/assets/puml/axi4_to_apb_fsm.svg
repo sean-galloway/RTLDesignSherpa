@@ -1,0 +1,78 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?><svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" contentScriptType="application/ecmascript" contentStyleType="text/css" height="432px" preserveAspectRatio="none" style="width:1446px;height:432px;" version="1.1" viewBox="0 0 1446 432" width="1446px" zoomAndPan="magnify"><defs><filter height="300%" id="f8skwtzyg080g" width="300%" x="-1" y="-1"><feGaussianBlur result="blurOut" stdDeviation="2.0"/><feColorMatrix in="blurOut" result="blurOut2" type="matrix" values="0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 .4 0"/><feOffset dx="4.0" dy="4.0" in="blurOut2" result="blurOut3"/><feBlend in="SourceGraphic" in2="blurOut3" mode="normal"/></filter></defs><g><text fill="#000000" font-family="sans-serif" font-size="18" lengthAdjust="spacingAndGlyphs" textLength="369" x="542" y="19.2419">AXI4-to-APB Converter - APB State Machine</text><ellipse cx="456" cy="42.5158" fill="#000000" filter="url(#f8skwtzyg080g)" rx="10" ry="10" style="stroke: none; stroke-width: 1.0;"/><path d="M577,145.0158 L577,163.5158 L541.72,167.5158 L577,171.5158 L577,190.4279 A0,0 0 0 0 577,190.4279 L753,190.4279 A0,0 0 0 0 753,190.4279 L753,155.0158 L743,145.0158 L577,145.0158 A0,0 0 0 0 577,145.0158 " fill="#FBFB77" filter="url(#f8skwtzyg080g)" style="stroke: #A80036; stroke-width: 1.0;"/><path d="M743,145.0158 L743,155.0158 L753,155.0158 L743,145.0158 " fill="#FBFB77" style="stroke: #A80036; stroke-width: 1.0;"/><text fill="#000000" font-family="sans-serif" font-size="13" lengthAdjust="spacingAndGlyphs" textLength="151" x="583" y="163.9129">Priority: Read has priority</text><text fill="#000000" font-family="sans-serif" font-size="13" lengthAdjust="spacingAndGlyphs" textLength="155" x="583" y="181.6189">over write if both pending</text><path d="M475.5,303.0158 L475.5,357.0158 L202.01,361.0158 L475.5,365.0158 L475.5,419.2519 A0,0 0 0 0 475.5,419.2519 L670.5,419.2519 A0,0 0 0 0 670.5,419.2519 L670.5,313.0158 L660.5,303.0158 L475.5,303.0158 A0,0 0 0 0 475.5,303.0158 " fill="#FBFB77" filter="url(#f8skwtzyg080g)" style="stroke: #A80036; stroke-width: 1.0;"/><path d="M660.5,303.0158 L660.5,313.0158 L670.5,313.0158 L660.5,303.0158 " fill="#FBFB77" style="stroke: #A80036; stroke-width: 1.0;"/><text fill="#000000" font-family="sans-serif" font-size="13" font-weight="bold" lengthAdjust="spacingAndGlyphs" textLength="135" x="481.5" y="321.9129">APB READ Sequence:</text><text fill="#000000" font-family="sans-serif" font-size="13" lengthAdjust="spacingAndGlyphs" textLength="172" x="481.5" y="339.6189">1. Setup: PSEL=1, PENABLE=0</text><text fill="#000000" font-family="sans-serif" font-size="13" lengthAdjust="spacingAndGlyphs" textLength="127" x="481.5" y="357.3249">2. Access: PENABLE=1</text><text fill="#000000" font-family="sans-serif" font-size="13" lengthAdjust="spacingAndGlyphs" textLength="107" x="481.5" y="375.0309">3. Wait: PREADY=1</text><text fill="#000000" font-family="sans-serif" font-size="13" lengthAdjust="spacingAndGlyphs" textLength="174" x="481.5" y="392.7369">4. Capture: PRDATA, PSLVERR</text><text fill="#000000" font-family="sans-serif" font-size="13" lengthAdjust="spacingAndGlyphs" textLength="110" x="481.5" y="410.4429">5. Repeat for burst</text><path d="M1197.5,303.0158 L1197.5,357.0158 L924.1,361.0158 L1197.5,365.0158 L1197.5,419.2519 A0,0 0 0 0 1197.5,419.2519 L1434.5,419.2519 A0,0 0 0 0 1434.5,419.2519 L1434.5,313.0158 L1424.5,303.0158 L1197.5,303.0158 A0,0 0 0 0 1197.5,303.0158 " fill="#FBFB77" filter="url(#f8skwtzyg080g)" style="stroke: #A80036; stroke-width: 1.0;"/><path d="M1424.5,303.0158 L1424.5,313.0158 L1434.5,313.0158 L1424.5,303.0158 " fill="#FBFB77" style="stroke: #A80036; stroke-width: 1.0;"/><text fill="#000000" font-family="sans-serif" font-size="13" font-weight="bold" lengthAdjust="spacingAndGlyphs" textLength="142" x="1203.5" y="321.9129">APB WRITE Sequence:</text><text fill="#000000" font-family="sans-serif" font-size="13" lengthAdjust="spacingAndGlyphs" textLength="172" x="1203.5" y="339.6189">1. Setup: PSEL=1, PENABLE=0</text><text fill="#000000" font-family="sans-serif" font-size="13" lengthAdjust="spacingAndGlyphs" textLength="216" x="1203.5" y="357.3249">2. Access: PENABLE=1, PWDATA valid</text><text fill="#000000" font-family="sans-serif" font-size="13" lengthAdjust="spacingAndGlyphs" textLength="107" x="1203.5" y="375.0309">3. Wait: PREADY=1</text><text fill="#000000" font-family="sans-serif" font-size="13" lengthAdjust="spacingAndGlyphs" textLength="108" x="1203.5" y="392.7369">4. Check: PSLVERR</text><text fill="#000000" font-family="sans-serif" font-size="13" lengthAdjust="spacingAndGlyphs" textLength="110" x="1203.5" y="410.4429">5. Repeat for burst</text><rect fill="#FEFECE" filter="url(#f8skwtzyg080g)" height="71.7561" rx="12.5" ry="12.5" style="stroke: #A80036; stroke-width: 1.5;" width="171" x="370.5" y="131.5158"/><line style="stroke: #A80036; stroke-width: 1.5;" x1="370.5" x2="541.5" y1="160.5838" y2="160.5838"/><text fill="#000000" font-family="sans-serif" font-size="14" lengthAdjust="spacingAndGlyphs" textLength="30" x="441" y="151.4818">IDLE</text><text fill="#000000" font-family="sans-serif" font-size="12" lengthAdjust="spacingAndGlyphs" textLength="139" x="375.5" y="178.4119">Wait for AXI4 transaction</text><text fill="#000000" font-family="sans-serif" font-size="12" lengthAdjust="spacingAndGlyphs" textLength="151" x="375.5" y="194.756">Check AR and AW channels</text><rect fill="#FEFECE" filter="url(#f8skwtzyg080g)" height="120.7885" rx="12.5" ry="12.5" style="stroke: #A80036; stroke-width: 1.5;" width="196" x="6" y="300.5158"/><line style="stroke: #A80036; stroke-width: 1.5;" x1="6" x2="202" y1="329.5838" y2="329.5838"/><text fill="#000000" font-family="sans-serif" font-size="14" lengthAdjust="spacingAndGlyphs" textLength="36" x="86" y="320.4818">READ</text><text fill="#000000" font-family="sans-serif" font-size="12" lengthAdjust="spacingAndGlyphs" textLength="120" x="11" y="347.4119">Entry: Issue APB read</text><text fill="#000000" font-family="sans-serif" font-size="12" lengthAdjust="spacingAndGlyphs" textLength="47" x="11" y="363.756">PSEL = 1</text><text fill="#000000" font-family="sans-serif" font-size="12" lengthAdjust="spacingAndGlyphs" textLength="89" x="11" y="380.1001">PENABLE = 0→1</text><text fill="#000000" font-family="sans-serif" font-size="12" lengthAdjust="spacingAndGlyphs" textLength="63" x="11" y="396.4442">PWRITE = 0</text><text fill="#000000" font-family="sans-serif" font-size="12" lengthAdjust="spacingAndGlyphs" textLength="176" x="11" y="412.7883">Processing AR→APB conversion</text><rect fill="#FEFECE" filter="url(#f8skwtzyg080g)" height="120.7885" rx="12.5" ry="12.5" style="stroke: #A80036; stroke-width: 1.5;" width="218" x="706" y="300.5158"/><line style="stroke: #A80036; stroke-width: 1.5;" x1="706" x2="924" y1="329.5838" y2="329.5838"/><text fill="#000000" font-family="sans-serif" font-size="14" lengthAdjust="spacingAndGlyphs" textLength="43" x="793.5" y="320.4818">WRITE</text><text fill="#000000" font-family="sans-serif" font-size="12" lengthAdjust="spacingAndGlyphs" textLength="122" x="711" y="347.4119">Entry: Issue APB write</text><text fill="#000000" font-family="sans-serif" font-size="12" lengthAdjust="spacingAndGlyphs" textLength="47" x="711" y="363.756">PSEL = 1</text><text fill="#000000" font-family="sans-serif" font-size="12" lengthAdjust="spacingAndGlyphs" textLength="89" x="711" y="380.1001">PENABLE = 0→1</text><text fill="#000000" font-family="sans-serif" font-size="12" lengthAdjust="spacingAndGlyphs" textLength="63" x="711" y="396.4442">PWRITE = 1</text><text fill="#000000" font-family="sans-serif" font-size="12" lengthAdjust="spacingAndGlyphs" textLength="198" x="711" y="412.7883">Processing AW+W→APB conversion</text><!--MD5=[9c5673dd9f569fe24504060ab78be963]
+link *start to IDLE--><path d="M456,52.7558 C456,68.2158 456,100.1658 456,126.2758 " fill="none" id="*start-&gt;IDLE" style="stroke: #A80036; stroke-width: 1.0;"/><polygon fill="#A80036" points="456,131.4158,460,122.4158,456,126.4158,452,122.4158,456,131.4158" style="stroke: #A80036; stroke-width: 1.0;"/><text fill="#000000" font-family="sans-serif" font-size="13" lengthAdjust="spacingAndGlyphs" textLength="33" x="457" y="97.4129">Reset</text><!--MD5=[9e8c39b264b56f55a19ad16877f85bd1]
+link IDLE to READ--><path d="M370.17,172.3558 C277.68,178.4958 139.25,194.1558 106,233.5158 C91.83,250.2958 88.42,273.2558 89.53,295.0258 " fill="none" id="IDLE-&gt;READ" style="stroke: #A80036; stroke-width: 1.0;"/><polygon fill="#A80036" points="89.88,300.2358,93.2795,290.9923,89.5512,295.2467,85.2968,291.5184,89.88,300.2358" style="stroke: #A80036; stroke-width: 1.0;"/><text fill="#000000" font-family="sans-serif" font-size="13" lengthAdjust="spacingAndGlyphs" textLength="182" x="107" y="248.4129">s_axi_arvalid &amp;&amp; s_axi_arready</text><text fill="#000000" font-family="sans-serif" font-size="13" lengthAdjust="spacingAndGlyphs" textLength="87" x="154.5" y="266.1189">(Read request)</text><!--MD5=[b3cf4abaeeec308ea10984344c6a9f06]
+link READ to IDLE--><path d="M202.28,321.5358 C232.9,307.5358 265.96,290.2258 294,270.5158 C313.02,257.1358 312.24,247.2658 331,233.5158 C344.5,223.6258 359.71,214.3758 374.76,206.1358 " fill="none" id="READ-&gt;IDLE" style="stroke: #A80036; stroke-width: 1.0;"/><polygon fill="#A80036" points="379.42,203.6058,369.6026,204.3927,375.0278,205.9951,373.4254,211.4203,379.42,203.6058" style="stroke: #A80036; stroke-width: 1.0;"/><text fill="#000000" font-family="sans-serif" font-size="13" lengthAdjust="spacingAndGlyphs" textLength="204" x="332" y="248.4129">m_apb_pready &amp;&amp; all_beats_done</text><text fill="#000000" font-family="sans-serif" font-size="13" lengthAdjust="spacingAndGlyphs" textLength="97" x="385.5" y="266.1189">(Read complete)</text><!--MD5=[7b726ae4e4d291dae40edb622b37e2c7]
+link IDLE to WRITE--><path d="M504.63,203.7658 C516.79,213.0958 529.61,223.4058 541,233.5158 C558.16,248.7458 557.22,258.8858 577,270.5158 C621.05,296.4158 640.01,282.9458 688,300.5158 C692.28,302.0858 696.62,303.7358 700.97,305.4658 " fill="none" id="IDLE-&gt;WRITE" style="stroke: #A80036; stroke-width: 1.0;"/><polygon fill="#A80036" points="705.71,307.3658,698.8393,300.3094,701.0676,305.5089,695.8681,307.7372,705.71,307.3658" style="stroke: #A80036; stroke-width: 1.0;"/><text fill="#000000" font-family="sans-serif" font-size="13" lengthAdjust="spacingAndGlyphs" textLength="192" x="578" y="248.4129">s_axi_awvalid &amp;&amp; s_axi_awready</text><text fill="#000000" font-family="sans-serif" font-size="13" lengthAdjust="spacingAndGlyphs" textLength="89" x="629.5" y="266.1189">(Write request)</text><!--MD5=[1d7ad0593652948c90ab510d3174974a]
+link WRITE to IDLE--><path d="M809.91,300.4458 C804.74,276.2158 794.62,250.0858 775,233.5158 C737.97,202.2458 606.15,214.6958 559,203.5158 C554.91,202.5458 550.74,201.4758 546.56,200.3358 " fill="none" id="WRITE-&gt;IDLE" style="stroke: #A80036; stroke-width: 1.0;"/><polygon fill="#A80036" points="541.63,198.9658,549.2244,205.2368,546.4462,200.3092,551.3738,197.531,541.63,198.9658" style="stroke: #A80036; stroke-width: 1.0;"/><text fill="#000000" font-family="sans-serif" font-size="13" lengthAdjust="spacingAndGlyphs" textLength="204" x="801" y="248.4129">m_apb_pready &amp;&amp; all_beats_done</text><text fill="#000000" font-family="sans-serif" font-size="13" lengthAdjust="spacingAndGlyphs" textLength="99" x="853.5" y="266.1189">(Write complete)</text><!--MD5=[c8926bdfdd0675b78a4d8437dd079d05]
+link READ to READ--><path d="M202.02,341.4758 C222.37,343.5358 237,350.0458 237,361.0158 C237,371.0458 224.77,377.3458 207.13,379.9258 " fill="none" id="READ-&gt;READ" style="stroke: #A80036; stroke-width: 1.0;"/><polygon fill="#A80036" points="202.02,380.5558,211.4354,383.4454,206.9838,379.955,210.4741,375.5034,202.02,380.5558" style="stroke: #A80036; stroke-width: 1.0;"/><text fill="#000000" font-family="sans-serif" font-size="13" lengthAdjust="spacingAndGlyphs" textLength="208" x="243" y="357.4129">m_apb_pready &amp;&amp; !all_beats_done</text><text fill="#000000" font-family="sans-serif" font-size="13" lengthAdjust="spacingAndGlyphs" textLength="98" x="298" y="375.1189">(Continue burst)</text><!--MD5=[564434403e792da5ae09ebbf6617a00f]
+link WRITE to WRITE--><path d="M924.26,341.8058 C944.64,344.1758 959,350.5758 959,361.0158 C959,370.5558 947,376.7258 929.37,379.5258 " fill="none" id="WRITE-&gt;WRITE" style="stroke: #A80036; stroke-width: 1.0;"/><polygon fill="#A80036" points="924.26,380.2258,933.7232,382.9549,929.2128,379.5407,932.627,375.0304,924.26,380.2258" style="stroke: #A80036; stroke-width: 1.0;"/><text fill="#000000" font-family="sans-serif" font-size="13" lengthAdjust="spacingAndGlyphs" textLength="208" x="965" y="357.4129">m_apb_pready &amp;&amp; !all_beats_done</text><text fill="#000000" font-family="sans-serif" font-size="13" lengthAdjust="spacingAndGlyphs" textLength="98" x="1020" y="375.1189">(Continue burst)</text><!--MD5=[7674aecea98b6b6467b26360a4b78f65]
+@startuml axi4_to_apb_fsm
+title AXI4-to-APB Converter - APB State Machine
+
+[*] - -> IDLE : Reset
+
+state IDLE {
+  IDLE : Wait for AXI4 transaction
+  IDLE : Check AR and AW channels
+}
+
+state READ {
+  READ : Entry: Issue APB read
+  READ : PSEL = 1
+  READ : PENABLE = 0→1
+  READ : PWRITE = 0
+  READ : Processing AR→APB conversion
+}
+
+state WRITE {
+  WRITE : Entry: Issue APB write
+  WRITE : PSEL = 1
+  WRITE : PENABLE = 0→1
+  WRITE : PWRITE = 1
+  WRITE : Processing AW+W→APB conversion
+}
+
+IDLE - -> READ : s_axi_arvalid && s_axi_arready\n(Read request)
+IDLE - -> WRITE : s_axi_awvalid && s_axi_awready\n(Write request)
+
+READ - -> IDLE : m_apb_pready && all_beats_done\n(Read complete)
+WRITE - -> IDLE : m_apb_pready && all_beats_done\n(Write complete)
+
+READ - -> READ : m_apb_pready && !all_beats_done\n(Continue burst)
+WRITE - -> WRITE : m_apb_pready && !all_beats_done\n(Continue burst)
+
+note right of IDLE
+  Priority: Read has priority
+  over write if both pending
+end note
+
+note right of READ
+  **APB READ Sequence:**
+  1. Setup: PSEL=1, PENABLE=0
+  2. Access: PENABLE=1
+  3. Wait: PREADY=1
+  4. Capture: PRDATA, PSLVERR
+  5. Repeat for burst
+end note
+
+note right of WRITE
+  **APB WRITE Sequence:**
+  1. Setup: PSEL=1, PENABLE=0
+  2. Access: PENABLE=1, PWDATA valid
+  3. Wait: PREADY=1
+  4. Check: PSLVERR
+  5. Repeat for burst
+end note
+
+@enduml
+
+PlantUML version 1.2020.02(Sun Mar 01 02:22:07 PST 2020)
+(GPL source distribution)
+Java Runtime: OpenJDK Runtime Environment
+JVM: OpenJDK 64-Bit Server VM
+Java Version: 21.0.8+9-Ubuntu-0ubuntu124.04.1
+Operating System: Linux
+Default Encoding: UTF-8
+Language: en
+Country: US
+--></g></svg>

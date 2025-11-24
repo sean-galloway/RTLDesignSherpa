@@ -10,11 +10,11 @@ The Bridge generator creates complete SystemVerilog crossbar modules from CSV co
 
 **2x2 Configuration:** 2 masters connecting to 2 slaves
 
-![Bridge 2x2 Block Diagram](../assets/graphviz/bridge_2x2.png)
+![Bridge 2x2 Block Diagram](../assets/graphviz/bridge_2x2.svg)
 
 **1x4 Configuration:** 1 master connecting to 4 slaves
 
-![Bridge 1x4 Block Diagram](../assets/graphviz/bridge_1x4.png)
+![Bridge 1x4 Block Diagram](../assets/graphviz/bridge_1x4.svg)
 
 #### Module Organization
 

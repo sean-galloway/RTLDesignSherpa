@@ -68,7 +68,7 @@ Both are text-based and can be edited with any text editor.
 The generated PNG/SVG files are referenced in markdown documents:
 
 ```markdown
-![IOAPIC Block Diagram](../assets/png/apb_ioapic.png)
+![IOAPIC Block Diagram](../assets/svg/apb_ioapic.svg)
 ```
 
 Or for SVG (better for web):

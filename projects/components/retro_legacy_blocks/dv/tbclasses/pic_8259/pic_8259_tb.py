@@ -290,6 +290,7 @@ class PIC8259TB(TBBase):
         current = self.dut.irq_in.value.integer
         new_value = current | (1 << irq_num)
         self.dut.irq_in.value = new_value
+        await self.wait_clocks('pclk', 1)  # Wait for signal to propagate
 
         self.log.info(f"IRQ{irq_num} asserted (irq_in=0x{new_value:02X})")
 
@@ -306,6 +307,7 @@ class PIC8259TB(TBBase):
         current = self.dut.irq_in.value.integer
         new_value = current & ~(1 << irq_num)
         self.dut.irq_in.value = new_value
+        await self.wait_clocks('pclk', 1)  # Wait for signal to propagate
 
         self.log.info(f"IRQ{irq_num} deasserted (irq_in=0x{new_value:02X})")
 
@@ -388,9 +390,10 @@ class PIC8259TB(TBBase):
         self.log.info(f"  Trigger mode: {'edge' if edge_triggered else 'level'}")
         self.log.info(f"  Auto-EOI: {auto_eoi}")
 
-        # Enable PIC and enter init mode with auto_reset_init
-        # auto_reset_init will automatically clear init_mode after ICW4 is written
-        await self.write_register(PIC8259RegisterMap.PIC_CONFIG, 0x00000007)  # pic_enable=1, init_mode=1, auto_reset_init=1
+        # Enable PIC - do NOT set init_mode bit as it prevents operation after init
+        # Setting init_mode=1 causes PIC to return to INIT_IDLE after reaching INIT_COMPLETE
+        await self.write_register(PIC8259RegisterMap.PIC_CONFIG, 0x00000001)  # pic_enable=1, init_mode=0, auto_reset_init=0
+        await self.wait_clocks('pclk', 5)  # Wait for config write to propagate
 
         # ICW1: edge/level, single mode, ICW4 needed
         icw1 = 0x10  # ICW1 marker bit
@@ -402,11 +405,11 @@ class PIC8259TB(TBBase):
         icw1 |= 0x01  # IC4=1 (ICW4 needed)
 
         await self.write_register(PIC8259RegisterMap.PIC_ICW1, icw1)
-        await self.wait_clocks('pclk', 2)
+        await self.wait_clocks('pclk', 5)  # Wait for ICW1 write to propagate
 
         # ICW2: vector base
         await self.write_register(PIC8259RegisterMap.PIC_ICW2, vector_base)
-        await self.wait_clocks('pclk', 2)
+        await self.wait_clocks('pclk', 5)  # Wait for ICW2 write to propagate
 
         # ICW4: 8086 mode, auto-EOI
         icw4 = 0x01  # UPM=1 (8086/8088 mode)
@@ -414,7 +417,7 @@ class PIC8259TB(TBBase):
             icw4 |= 0x02  # AEOI=1
 
         await self.write_register(PIC8259RegisterMap.PIC_ICW4, icw4)
-        await self.wait_clocks('pclk', 2)
+        await self.wait_clocks('pclk', 10)  # Wait for ICW4 write to propagate and state machine to transition
 
         # Verify initialization complete
         _, status = await self.read_register(PIC8259RegisterMap.PIC_STATUS)
@@ -424,6 +427,9 @@ class PIC8259TB(TBBase):
             self.log.info("✓ PIC initialization complete")
         else:
             self.log.error("✗ PIC initialization failed!")
+
+        # Wait a few more cycles to ensure PIC is fully operational
+        await self.wait_clocks('pclk', 10)
 
         return init_complete == 1
 
@@ -436,6 +442,10 @@ class PIC8259TB(TBBase):
         """
         await self.write_register(PIC8259RegisterMap.PIC_OCW1, mask)
         self.log.info(f"IMR set to 0x{mask:02X}")
+
+        # Wait for write to propagate: APB → config regs → core r_imr
+        # Timing: APB ack (2 cyc) + wr_ack delay (1 cyc) + core update (1 cyc) = ~5 cycles
+        await self.wait_clocks('pclk', 5)
 
     async def send_eoi(self, irq: Optional[int] = None, specific: bool = False):
         """
@@ -458,4 +468,4 @@ class PIC8259TB(TBBase):
             self.log.info("Sending non-specific EOI")
 
         await self.write_register(PIC8259RegisterMap.PIC_OCW2, ocw2_value)
-        await self.wait_clocks('pclk', 2)
+        await self.wait_clocks('pclk', 5)  # Wait for EOI write to propagate

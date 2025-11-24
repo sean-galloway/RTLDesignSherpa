@@ -1,0 +1,45 @@
+sequenceDiagram
+    participant SW as Software
+    participant APB as APB Config
+    participant DESC as Descriptor Engine
+    participant SCHED as Scheduler
+    participant RD as Read Engine
+    participant SRAM as SRAM Controller
+    participant WR as Write Engine
+    participant MEM as Memory
+
+    SW->>APB: Write CH0_CTRL = 0x1000_0000
+    APB->>DESC: Kickoff descriptor fetch
+    DESC->>MEM: AR: fetch descriptor @ 0x1000_0000
+    MEM-->>DESC: R: descriptor data (256-bit)
+    DESC->>SCHED: descriptor_packet
+
+    SCHED->>RD: datard_valid + src_addr
+    RD->>SRAM: Check space_free >= 2x burst
+    SRAM-->>RD: Space OK
+    RD->>SRAM: Allocate 16 beats
+    RD->>MEM: AR: read 16 beats @ src_addr
+    MEM-->>RD: R: 16 beats of data
+    RD->>SRAM: Write data (16 beats)
+    RD->>SCHED: done_strobe (16 beats)
+
+    par Concurrent Read/Write
+        RD->>SRAM: Continue reading...
+    and
+        SCHED->>WR: datawr_valid + dst_addr
+        WR->>SRAM: Check data_avail >= burst
+        SRAM-->>WR: Data OK
+        WR->>SRAM: Reserve 16 beats
+        WR->>MEM: AW: write 16 beats @ dst_addr
+        SRAM->>WR: W: 16 beats of data
+        MEM-->>WR: B: write response
+        WR->>SCHED: done_strobe (16 beats)
+    end
+
+    SCHED->>SCHED: Both counters reach 0
+    SCHED->>DESC: Check next_descriptor_ptr
+    alt More descriptors
+        DESC->>MEM: Fetch next descriptor
+    else Chain complete
+        SCHED->>APB: Transfer complete IRQ
+    end

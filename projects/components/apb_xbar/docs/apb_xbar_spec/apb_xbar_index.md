@@ -60,26 +60,23 @@ All diagrams referenced in the documentation are available in:
   - `assets/wavedrom/*.json` - WaveJSON timing diagrams
 
 - **Rendered Files:**
-  - `assets/png/*.png` - PNG format (embedded in markdown)
-  - `assets/svg/*.svg` - SVG format (web viewing, scalable)
+  - `assets/svg/*.svg` - SVG format (scalable vector graphics for all diagrams)
 
 ### Architecture Diagrams
 
 1. **APB Crossbar Architecture (2x4 Example)**
-   - Source: [assets/graphviz/apb_xbar_architecture.gv](apb_xbar_spec/assets/graphviz/apb_xbar_architecture.gv)
-   - SVG: [assets/svg/apb_xbar_architecture.svg](apb_xbar_spec/assets/svg/apb_xbar_architecture.svg)
-   - PNG: [assets/png/apb_xbar_architecture.png](apb_xbar_spec/assets/png/apb_xbar_architecture.png)
+   - Source: [assets/graphviz/apb_xbar_architecture.gv](assets/graphviz/apb_xbar_architecture.gv)
+   - Rendered: [assets/svg/apb_xbar_architecture.svg](assets/svg/apb_xbar_architecture.svg)
 
 2. **Address Decode Flow**
-   - Source: [assets/graphviz/address_decode_flow.gv](apb_xbar_spec/assets/graphviz/address_decode_flow.gv)
-   - SVG: [assets/svg/address_decode_flow.svg](apb_xbar_spec/assets/svg/address_decode_flow.svg)
-   - PNG: [assets/png/address_decode_flow.png](apb_xbar_spec/assets/png/address_decode_flow.png)
+   - Source: [assets/graphviz/address_decode_flow.gv](assets/graphviz/address_decode_flow.gv)
+   - Rendered: [assets/svg/address_decode_flow.svg](assets/svg/address_decode_flow.svg)
 
 ### Timing Diagrams
 
 1. **Round-Robin Arbitration**
-   - Source: [assets/wavedrom/arbitration_round_robin.json](apb_xbar_spec/assets/wavedrom/arbitration_round_robin.json)
-   - PNG: [assets/png/arbitration_round_robin.png](apb_xbar_spec/assets/png/arbitration_round_robin.png)
+   - Source: [assets/wavedrom/arbitration_round_robin.json](assets/wavedrom/arbitration_round_robin.json)
+   - Rendered: [assets/svg/arbitration_round_robin.svg](assets/svg/arbitration_round_robin.svg)
 
 ---
 

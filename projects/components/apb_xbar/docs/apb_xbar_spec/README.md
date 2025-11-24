@@ -45,7 +45,7 @@ This directory contains visual documentation for the APB Crossbar component, inc
 | [address_decode_flow](apb_xbar_spec/assets/graphviz/address_decode_flow.gv) | Graphviz | Step-by-step address decode example (0x10023456 → Slave 2) |
 
 **Rendered Formats:**
-- PNG: `assets/png/*.png` (for markdown embedding)
+- PNG: `assets/svg/*.svg` (for markdown embedding)
 - SVG: `assets/svg/*.svg` (for web viewing, scalable)
 
 ### Timing Diagrams
@@ -55,7 +55,7 @@ This directory contains visual documentation for the APB Crossbar component, inc
 | [arbitration_round_robin](apb_xbar_spec/assets/wavedrom/arbitration_round_robin.json) | WaveJSON | 2 masters competing for Slave 0 with round-robin arbitration |
 
 **Rendered Format:**
-- PNG: `assets/png/arbitration_round_robin.png`
+- PNG: `assets/svg/arbitration_round_robin.svg`
 
 ---
 
@@ -116,9 +116,9 @@ docs/apb_xbar_spec/
     │   ├── apb_xbar_architecture.svg
     │   └── address_decode_flow.svg
     └── png/                               ← Rendered PNG (embedded)
-        ├── apb_xbar_architecture.png
-        ├── address_decode_flow.png
-        └── arbitration_round_robin.png
+        ├── apb_xbar_architecture.svg
+        ├── address_decode_flow.svg
+        └── arbitration_round_robin.svg
 ```
 
 ---
@@ -267,8 +267,8 @@ dot -Tsvg apb_xbar_architecture.gv -o ../svg/apb_xbar_architecture.svg
 dot -Tsvg address_decode_flow.gv -o ../svg/address_decode_flow.svg
 
 # Generate PNG
-dot -Tpng apb_xbar_architecture.gv -o ../png/apb_xbar_architecture.png
-dot -Tpng address_decode_flow.gv -o ../png/address_decode_flow.png
+dot -Tsvg apb_xbar_architecture.gv -o ../svg/apb_xbar_architecture.svg
+dot -Tsvg address_decode_flow.gv -o ../svg/address_decode_flow.svg
 ```
 
 ### WaveJSON Diagrams (Timing)
@@ -277,7 +277,7 @@ dot -Tpng address_decode_flow.gv -o ../png/address_decode_flow.png
 cd assets/wavedrom/
 
 # Generate PNG
-wavedrom-cli -i arbitration_round_robin.json -p ../png/arbitration_round_robin.png
+wavedrom-cli -i arbitration_round_robin.json -s ../svg/arbitration_round_robin.svg
 ```
 
 ---

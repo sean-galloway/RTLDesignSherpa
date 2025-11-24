@@ -8,7 +8,7 @@ This directory contains Graphviz source files (.gv) and generated PNG diagrams f
 - **`bridge_2x2.gv`** - 2 masters × 2 slaves configuration
 - **`bridge_1x4.gv`** - 1 master × 4 slaves configuration
 
-### Generated Images (.png)
+### Generated Images (.svg)
 - **`bridge_2x2.png`** - 2×2 block diagram (427 KB)
 - **`bridge_1x4.png`** - 1×4 block diagram (518 KB)
 
@@ -124,7 +124,7 @@ To add a new configuration (e.g., 4×2):
 
 4. Link from documentation:
    ```markdown
-   ![Bridge 4x2 Block Diagram](../assets/graphviz/bridge_4x2.png)
+   ![Bridge 4x2 Block Diagram](../assets/graphviz/bridge_4x2.svg)
    ```
 
 ## Referenced In Documentation

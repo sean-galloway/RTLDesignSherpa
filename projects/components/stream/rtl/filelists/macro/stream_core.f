@@ -21,49 +21,26 @@ $REPO_ROOT/rtl/amba/includes/fifo_defs.svh
 $REPO_ROOT/rtl/amba/includes/monitor_pkg.sv
 $STREAM_ROOT/rtl/includes/stream_pkg.sv
 
-# Dependencies - Common blocks
-$REPO_ROOT/rtl/common/arbiter_priority_encoder.sv
-$REPO_ROOT/rtl/common/arbiter_round_robin.sv
-$REPO_ROOT/rtl/common/counter_bin.sv
-$REPO_ROOT/rtl/common/counter_freq_invariant.sv
-$REPO_ROOT/rtl/common/counter_load_clear.sv
-$REPO_ROOT/rtl/common/fifo_control.sv
-
-# Dependencies - GAXI Components
-$REPO_ROOT/rtl/amba/gaxi/gaxi_fifo_sync.sv
+# Additional dependencies not covered by FUB-level includes
+# GAXI skid buffer (used by stream_core for AXI interfaces)
 $REPO_ROOT/rtl/amba/gaxi/gaxi_skid_buffer.sv
 
-# Dependencies - AMBA Monitors (order matters - submodules before base)
-$REPO_ROOT/rtl/amba/shared/axi_monitor_trans_mgr.sv
-$REPO_ROOT/rtl/amba/shared/axi_monitor_timer.sv
-$REPO_ROOT/rtl/amba/shared/axi_monitor_timeout.sv
-$REPO_ROOT/rtl/amba/shared/axi_monitor_reporter.sv
-$REPO_ROOT/rtl/amba/shared/axi_monitor_base.sv
-$REPO_ROOT/rtl/amba/shared/axi_monitor_filtered.sv
-$REPO_ROOT/rtl/amba/axi4/axi4_master_rd_mon.sv
+# Counter modules used by stream_core directly
+$REPO_ROOT/rtl/common/counter_freq_invariant.sv
+$REPO_ROOT/rtl/common/counter_load_clear.sv
 
-# Dependencies - MonBus Infrastructure
-$REPO_ROOT/rtl/amba/shared/monbus_arbiter.sv
-
-# Dependencies - AXI skid buffers (from rtl/amba/axi4/)
+# AXI skid buffer wrappers (used by stream_core for interface buffering)
 $REPO_ROOT/rtl/amba/axi4/axi4_master_rd.sv
 $REPO_ROOT/rtl/amba/axi4/axi4_master_wr.sv
 
-# FUB Components
-$STREAM_ROOT/rtl/fub/descriptor_engine.sv
-$STREAM_ROOT/rtl/fub/scheduler.sv
-$STREAM_ROOT/rtl/fub/stream_alloc_ctrl.sv
-$STREAM_ROOT/rtl/fub/stream_drain_ctrl.sv
-$STREAM_ROOT/rtl/fub/stream_latency_bridge.sv
-$STREAM_ROOT/rtl/fub/axi_read_engine.sv
-$STREAM_ROOT/rtl/fub/axi_write_engine.sv
-$STREAM_ROOT/rtl/fub/sram_controller_unit.sv
-$STREAM_ROOT/rtl/fub/sram_controller.sv
-$STREAM_ROOT/rtl/fub/perf_profiler.sv
+# Include macro-level components via -f (automatically pulls in dependencies)
+-f $STREAM_ROOT/rtl/filelists/macro/scheduler_group_array.f
 
-# Macro Components
-$STREAM_ROOT/rtl/macro/scheduler_group.sv
-$STREAM_ROOT/rtl/macro/scheduler_group_array.sv
+# Include FUB-level components via -f (automatically pulls in their dependencies)
+-f $STREAM_ROOT/rtl/filelists/fub/axi_read_engine.f
+-f $STREAM_ROOT/rtl/filelists/fub/axi_write_engine.f
+-f $STREAM_ROOT/rtl/filelists/fub/sram_controller.f
+-f $STREAM_ROOT/rtl/filelists/fub/perf_profiler.f
 
-# Top-level integration
+# Top-level integration (unique to this filelist)
 $STREAM_ROOT/rtl/macro/stream_core.sv

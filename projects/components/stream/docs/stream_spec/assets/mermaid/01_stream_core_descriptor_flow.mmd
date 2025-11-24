@@ -1,0 +1,11 @@
+sequenceDiagram
+    participant APB as APB Write
+    participant SCHED as Scheduler
+    participant DESC as Descriptor Engine
+    participant MEM as m_axi_desc_*
+
+    APB->>SCHED: descriptor address
+    SCHED->>DESC: fetch request
+    DESC->>MEM: AXI read
+    MEM-->>DESC: 256-bit descriptor
+    DESC->>SCHED: parsed descriptor

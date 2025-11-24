@@ -20,19 +20,19 @@ Each timer occupies a 32-byte (0x20) register block, supporting up to 8 timers.
 
 The following timing diagrams illustrate key register access sequences:
 
-![APB Write Timer Config](../assets/png/apb_write_timer_config.png)
+![APB Write Timer Config](../assets/svg/apb_write_timer_config.svg)
 
 *Figure 1: APB write to TIMER0_CONFIG register (0x100). [Source: assets/wavedrom/apb_write_timer_config.json](../assets/wavedrom/apb_write_timer_config.json)*
 
-![APB Read Counter](../assets/png/apb_read_counter.png)
+![APB Read Counter](../assets/svg/apb_read_counter.svg)
 
 *Figure 2: APB read of 64-bit counter (two 32-bit reads from COUNTER_LO and COUNTER_HI). [Source: assets/wavedrom/apb_read_counter.json](../assets/wavedrom/apb_read_counter.json)*
 
-![Interrupt W1C Sequence](../assets/png/interrupt_w1c_sequence.png)
+![Interrupt W1C Sequence](../assets/svg/interrupt_w1c_sequence.svg)
 
 *Figure 3: Timer interrupt generation and W1C (Write-1-to-Clear) status clearing sequence. [Source: assets/wavedrom/interrupt_w1c_sequence.json](../assets/wavedrom/interrupt_w1c_sequence.json)*
 
-![Timer Setup Sequence](../assets/png/timer_setup_sequence.png)
+![Timer Setup Sequence](../assets/svg/timer_setup_sequence.svg)
 
 *Figure 4: Complete timer setup sequence: disable HPET, reset counter, configure comparator, enable timer, enable HPET. [Source: assets/wavedrom/timer_setup_sequence.json](../assets/wavedrom/timer_setup_sequence.json)*
 

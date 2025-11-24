@@ -68,7 +68,6 @@ module scheduler #(
     parameter int CHAN_WIDTH = $clog2(NUM_CHANNELS),
     parameter int ADDR_WIDTH = 64,
     parameter int DATA_WIDTH = 512,
-    parameter int TIMEOUT_CYCLES = 1000,
     // Monitor Bus Parameters
     parameter logic [7:0] MON_AGENT_ID = 8'h40,      // STREAM Scheduler Agent ID
     parameter logic [3:0] MON_UNIT_ID = 4'h1,        // Unit identifier
@@ -85,6 +84,8 @@ module scheduler #(
     // Configuration Interface
     input  logic                        cfg_channel_enable,     // Enable this channel
     input  logic                        cfg_channel_reset,      // Channel reset
+    input  logic [15:0]                 cfg_sched_timeout_cycles, // Timeout threshold (cycles)
+    input  logic                        cfg_sched_timeout_enable, // Enable timeout detection
 
     // Status Interface
     output logic                        scheduler_idle,         // Scheduler idle
@@ -96,31 +97,29 @@ module scheduler #(
     input  logic [DESC_WIDTH-1:0]       descriptor_packet,     // 256-bit STREAM descriptor
     input  logic                        descriptor_error,      // Error signal FROM descriptor engine
 
-    // Data Read Interface (to AXI Read Engine via Arbiter)
+    // Data Read Interface (to AXI Read Engine)
     // NOTE: Engine decides burst length internally, scheduler just tracks beats remaining
-    output logic                        datard_valid,           // Request read access
-    input  logic                        datard_ready,           // Engine granted access
-    output logic [ADDR_WIDTH-1:0]       datard_addr,            // Source address (aligned)
-    output logic [31:0]                 datard_beats_remaining, // Total beats left to read
-    output logic [3:0]                  datard_channel_id,      // Channel ID
+    output logic                        sched_rd_valid,         // Channel requests read
+    output logic [ADDR_WIDTH-1:0]       sched_rd_addr,          // Source address (aligned)
+    output logic [31:0]                 sched_rd_beats,         // Beats remaining to read
 
-    // Data Write Interface (to AXI Write Engine via Arbiter)
+    // Data Write Interface (to AXI Write Engine)
     // NOTE: Engine decides burst length internally, scheduler just tracks beats remaining
-    output logic                        datawr_valid,           // Request write access
-    input  logic                        datawr_ready,           // Engine granted access
-    output logic [ADDR_WIDTH-1:0]       datawr_addr,            // Destination address (aligned)
-    output logic [31:0]                 datawr_beats_remaining, // Total beats left to write
-    output logic [3:0]                  datawr_channel_id,      // Channel ID
+    output logic                        sched_wr_valid,         // Channel requests write
+    input  logic                        sched_wr_ready,         // Engine ready for channel (used for completion)
+    output logic [ADDR_WIDTH-1:0]       sched_wr_addr,          // Destination address (aligned)
+    output logic [31:0]                 sched_wr_beats,         // Beats remaining to write
 
-    // Data Path Completion Strobes
-    input  logic                        datard_done_strobe,     // Read engine completed beats
-    input  logic [31:0]                 datard_beats_done,      // Number of beats completed
-    input  logic                        datawr_done_strobe,     // Write engine completed beats
-    input  logic [31:0]                 datawr_beats_done,      // Number of beats completed
+    // Completion Interface (from Engines to Scheduler)
+    input  logic                        sched_rd_done_strobe,   // Read burst completed (pulsed)
+    input  logic [31:0]                 sched_rd_beats_done,    // Number of beats completed
+    input  logic                        sched_wr_done_strobe,   // Write burst completed (pulsed)
+    input  logic [31:0]                 sched_wr_beats_done,    // Number of beats completed
 
-    // Error Signals
-    input  logic                        datard_error,           // Read engine error
-    input  logic                        datawr_error,           // Write engine error
+    // Error Signals (from Engines to Scheduler)
+    input  logic                        sched_rd_error,         // Read engine error
+    input  logic                        sched_wr_error,         // Write engine error
+    output logic                        sched_error,            // Scheduler error output (sticky)
 
     // Monitor Bus Interface
     output logic                        mon_valid,
@@ -213,10 +212,10 @@ module scheduler #(
     logic [31:0] r_write_beats_remaining;         // Beats left to write to destination
 
     // Timeout tracking
-    // Counts clock cycles while waiting for engine grant (datard_ready/datawr_ready)
+    // Counts clock cycles while waiting for engine grant (sched_wr_ready)
     // Prevents deadlock if engines don't respond
     logic [31:0] r_timeout_counter;
-    logic w_timeout_expired;                      // Asserted when counter >= TIMEOUT_CYCLES
+    logic w_timeout_expired;                      // Asserted when counter >= cfg_sched_timeout_cycles
 
     // Interrupt generation
     // IRQ event is generated via MonBus when descriptor completes with gen_irq flag set
@@ -279,10 +278,10 @@ module scheduler #(
         end else begin
             // Priority 2: Error handling - aggregate errors from all sources
             // Sources: descriptor_engine (descriptor_error)
-            //          read_engine (datard_error)
-            //          write_engine (datawr_error)
+            //          read_engine (sched_rd_error)
+            //          write_engine (sched_wr_error)
             //          scheduler internal (timeout, sticky errors)
-            if (descriptor_error || datard_error || datawr_error ||
+            if (descriptor_error || sched_rd_error || sched_wr_error ||
                 r_read_error_sticky || r_write_error_sticky || w_timeout_expired) begin
                 w_next_state = CH_ERROR;
             end else begin
@@ -314,11 +313,13 @@ module scheduler #(
                         // - Both report progress via done strobes
                         // - Natural backpressure via SRAM full/empty flags
                         //
-                        // Exit when BOTH engines complete (both counters == 0)
-                        if (w_transfer_complete) begin
+                        // Exit when:
+                        // 1. Transfer complete (both counters == 0)
+                        // 2. Write engine signals ready (all transactions acknowledged)
+                        if (w_transfer_complete && sched_wr_ready) begin
                             w_next_state = CH_COMPLETE;
                         end
-                        // Note: Stays in XFER_DATA until both complete or error
+                        // Note: Stays in XFER_DATA until both conditions met or error
                     end
 
                     CH_COMPLETE: begin
@@ -341,13 +342,9 @@ module scheduler #(
                     end
 
                     CH_ERROR: begin
-                        // Error state - wait for all error sources to clear
-                        // Errors clear automatically on transition to CH_IDLE
-                        if (!datard_error && !datawr_error &&
-                            !r_read_error_sticky && !r_write_error_sticky) begin
-                            w_next_state = CH_IDLE;
-                        end
-                        // Note: Timeout doesn't need explicit check (counter resets when not active)
+                        // Error state - STICKY, stay here until reset
+                        // Once in error, only way out is through reset
+                        w_next_state = CH_ERROR;
                     end
 
                     default: begin
@@ -436,23 +433,27 @@ module scheduler #(
                     // - Natural backpressure via SRAM full (read) and empty (write)
                     //
                     // Read progress: Source → SRAM
-                    if (datard_done_strobe) begin
+                    if (sched_rd_done_strobe) begin
                         // Decrement by number of beats engine completed
                         // Saturate at 0 (safety check, shouldn't underflow)
-                        r_read_beats_remaining <= (r_read_beats_remaining >= datard_beats_done) ?
-                                                (r_read_beats_remaining - datard_beats_done) : 32'h0;
-                        // NOTE: Address increment handled by axi_read_engine internally
-                        //       via r_beats_issued offset. Scheduler provides static base address.
+                        r_read_beats_remaining <= (r_read_beats_remaining >= sched_rd_beats_done) ?
+                                                (r_read_beats_remaining - sched_rd_beats_done) : 32'h0;
+
+                        // Increment source address by bytes transferred
+                        // Address increment = beats_done << AXSIZE (where AXSIZE = log2(DATA_WIDTH/8))
+                        r_src_addr <= r_src_addr + (ADDR_WIDTH'(sched_rd_beats_done) << $clog2(DATA_WIDTH/8));
                     end
 
                     // Write progress: SRAM → Destination (independent from read!)
-                    if (datawr_done_strobe) begin
+                    if (sched_wr_done_strobe) begin
                         // Decrement by number of beats engine completed
                         // Saturate at 0 (safety check, shouldn't underflow)
-                        r_write_beats_remaining <= (r_write_beats_remaining >= datawr_beats_done) ?
-                                                (r_write_beats_remaining - datawr_beats_done) : 32'h0;
-                        // NOTE: Address increment handled by axi_write_engine internally
-                        //       via r_beats_issued offset. Scheduler provides static base address.
+                        r_write_beats_remaining <= (r_write_beats_remaining >= sched_wr_beats_done) ?
+                                                (r_write_beats_remaining - sched_wr_beats_done) : 32'h0;
+
+                        // Increment destination address by bytes transferred
+                        // Address increment = beats_done << AXSIZE (where AXSIZE = log2(DATA_WIDTH/8))
+                        r_dst_addr <= r_dst_addr + (ADDR_WIDTH'(sched_wr_beats_done) << $clog2(DATA_WIDTH/8));
                     end
                 end
 
@@ -497,55 +498,53 @@ module scheduler #(
     //
     // Without this, sequence is:
     //   Cycle N:   Engine completes last beat
-    //   Cycle N+1: done_strobe asserted, BUT datard_valid still HIGH
+    //   Cycle N+1: done_strobe asserted, BUT sched_rd_valid still HIGH
     //   Cycle N+1: Engine sees valid+space+no_outstanding → issues SECOND transaction!
     //   Cycle N+2: Scheduler updates beats_remaining to 0
-    //   Cycle N+3: Scheduler de-asserts datard_valid (too late!)
+    //   Cycle N+3: Scheduler de-asserts sched_rd_valid (too late!)
     //
     // With this fix:
-    //   Cycle N+1: done_strobe asserted, datard_valid de-asserted immediately
-    //   Cycle N+1: Engine sees !datard_valid → does NOT issue second transaction
-    logic w_datard_completing_this_cycle;
-    logic w_datawr_completing_this_cycle;
+    //   Cycle N+1: done_strobe asserted, sched_rd_valid de-asserted immediately
+    //   Cycle N+1: Engine sees !sched_rd_valid → does NOT issue second transaction
+    logic w_sched_rd_completing_this_cycle;
+    logic w_sched_wr_completing_this_cycle;
 
-    assign w_datard_completing_this_cycle = datard_done_strobe &&
-                                        (r_read_beats_remaining <= datard_beats_done);
-    assign w_datawr_completing_this_cycle = datawr_done_strobe &&
-                                        (r_write_beats_remaining <= datawr_beats_done);
+    assign w_sched_rd_completing_this_cycle = sched_rd_done_strobe &&
+                                        (r_read_beats_remaining <= sched_rd_beats_done);
+    assign w_sched_wr_completing_this_cycle = sched_wr_done_strobe &&
+                                        (r_write_beats_remaining <= sched_wr_beats_done);
 
     //=========================================================================
     // Data Read Interface Outputs
     //=========================================================================
     // Scheduler tells engine: "I need this many beats from this address"
     // Engine decides: "I'll do X beats per burst based on my config/design"
-    // Engine reports back: "I moved X beats" via datard_done_strobe
+    // Engine reports back: "I moved X beats" via sched_rd_done_strobe
     //
-    // CONCURRENT OPERATION: datard_valid asserted in CH_XFER_DATA (not CH_READ_DATA)
+    // CONCURRENT OPERATION: sched_rd_valid asserted in CH_XFER_DATA (not CH_READ_DATA)
     //                       Runs simultaneously with write engine
 
-    assign datard_valid = (r_current_state == CH_XFER_DATA) &&
+    assign sched_rd_valid = (r_current_state == CH_XFER_DATA) &&
                         !w_read_complete &&
-                        !w_datard_completing_this_cycle;
-    assign datard_addr = r_src_addr;
-    assign datard_beats_remaining = r_read_beats_remaining;
-    assign datard_channel_id = CHANNEL_ID[3:0];
+                        !w_sched_rd_completing_this_cycle;
+    assign sched_rd_addr = r_src_addr;
+    assign sched_rd_beats = r_read_beats_remaining;
 
     //=========================================================================
     // Data Write Interface Outputs
     //=========================================================================
     // Scheduler tells engine: "I need this many beats written to this address"
     // Engine decides: "I'll do X beats per burst based on my config/design"
-    // Engine reports back: "I moved X beats" via datawr_done_strobe
+    // Engine reports back: "I moved X beats" via sched_wr_done_strobe
     //
-    // CONCURRENT OPERATION: datawr_valid asserted in CH_XFER_DATA (not CH_WRITE_DATA)
+    // CONCURRENT OPERATION: sched_wr_valid asserted in CH_XFER_DATA (not CH_WRITE_DATA)
     //                       Runs simultaneously with read engine
 
-    assign datawr_valid = (r_current_state == CH_XFER_DATA) &&
+    assign sched_wr_valid = (r_current_state == CH_XFER_DATA) &&
                         !w_write_complete &&
-                        !w_datawr_completing_this_cycle;
-    assign datawr_addr = r_dst_addr;
-    assign datawr_beats_remaining = r_write_beats_remaining;
-    assign datawr_channel_id = CHANNEL_ID[3:0];
+                        !w_sched_wr_completing_this_cycle;
+    assign sched_wr_addr = r_dst_addr;
+    assign sched_wr_beats = r_write_beats_remaining;
 
     //=========================================================================
     // Descriptor Engine Interface
@@ -561,8 +560,8 @@ module scheduler #(
     //
     // Error Sources:
     //   1. descriptor_error  - Descriptor engine fetch error (AXI R error, invalid descriptor)
-    //   2. datard_error      - Read engine error (AXI R error, SRAM full)
-    //   3. datawr_error      - Write engine error (AXI B error, SRAM empty)
+    //   2. sched_rd_error    - Read engine error (AXI R error, SRAM full)
+    //   3. sched_wr_error    - Write engine error (AXI B error, SRAM empty)
     //   4. w_timeout_expired - Scheduler timeout (engines not granting access)
     //
     // Error Handling Flow:
@@ -577,24 +576,24 @@ module scheduler #(
             r_write_error_sticky <= 1'b0;
             r_descriptor_error <= 1'b0;
         end else begin
-            // Timeout counter: Increments while waiting for engine grant
-            // Counts cycles where datard_valid or datawr_valid is high but ready is low
-            // Prevents deadlock if arbiter/engine doesn't respond
-            if ((datard_valid && !datard_ready) || (datawr_valid && !datawr_ready)) begin
+            // Timeout counter: Increments while waiting for write engine completion
+            // Counts cycles where sched_wr_valid is high but ready is low
+            // Prevents deadlock if write engine doesn't complete
+            if (sched_wr_valid && !sched_wr_ready) begin
                 r_timeout_counter <= r_timeout_counter + 1;
             end else begin
-                r_timeout_counter <= 32'h0;  // Reset when not waiting or grant received
+                r_timeout_counter <= 32'h0;  // Reset when not waiting or completion received
             end
 
             // Error capture: Latch errors from external components
             // Sticky flags ensure errors aren't lost due to transient de-assertion
             if (descriptor_error) r_descriptor_error <= 1'b1;   // Descriptor engine error
-            if (datard_error) r_read_error_sticky <= 1'b1;       // Read engine error
-            if (datawr_error) r_write_error_sticky <= 1'b1;      // Write engine error
+            if (sched_rd_error) r_read_error_sticky <= 1'b1;    // Read engine error
+            if (sched_wr_error) r_write_error_sticky <= 1'b1;   // Write engine error
 
             // Also set descriptor_error flag for ANY scheduler-internal error
             // This ensures consistent error reporting via MonBus
-            if (datard_error || datawr_error || w_timeout_expired) begin
+            if (sched_rd_error || sched_wr_error || w_timeout_expired) begin
                 r_descriptor_error <= 1'b1;
             end
 
@@ -609,8 +608,9 @@ module scheduler #(
     )
 
 
-    // Timeout threshold: Compare counter to parameterized limit
-    assign w_timeout_expired = (r_timeout_counter >= TIMEOUT_CYCLES);
+    // Timeout threshold: Compare counter to configured limit (if enabled)
+    assign w_timeout_expired = cfg_sched_timeout_enable &&
+                               (r_timeout_counter >= {16'h0, cfg_sched_timeout_cycles});
 
     //=========================================================================
     // Monitor Packet Generation
@@ -725,13 +725,14 @@ module scheduler #(
         end
     )
 
-
     //=========================================================================
     // Status Outputs
     //=========================================================================
 
-    assign scheduler_idle = (r_current_state == CH_IDLE) && !r_channel_reset_active;
+    assign scheduler_idle = ((r_current_state == CH_IDLE) || (r_current_state == CH_ERROR))
+                                && !r_channel_reset_active;
     assign scheduler_state = r_current_state;
+    assign sched_error = w_state_error;  // Sticky error output
 
     // Monitor bus output
     assign mon_valid = r_mon_valid;

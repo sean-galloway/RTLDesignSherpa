@@ -1,8 +1,8 @@
 # Clocks and Reset Specification
 
 **Chapter:** 01
-**Version:** 1.0
-**Last Updated:** 2025-10-17
+**Version:** 0.90
+**Last Updated:** 2025-11-22
 
 ---
 

@@ -1,0 +1,15 @@
+sequenceDiagram
+    participant SCHED as Scheduler
+    participant RD as Read Engine
+    participant RD_MEM as m_axi_rd_*
+    participant SRAM as SRAM Controller
+    participant FIFO as FIFO[channel_id]
+    participant WR as Write Engine
+    participant WR_MEM as m_axi_wr_*
+
+    SCHED->>RD: source address, length
+    RD->>RD_MEM: AXI read
+    RD_MEM-->>SRAM: data + channel ID
+    SRAM->>FIFO: buffered data
+    FIFO->>WR: drain request
+    WR->>WR_MEM: AXI write

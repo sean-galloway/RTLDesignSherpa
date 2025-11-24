@@ -46,7 +46,7 @@ Now responses with RID = 6'b00_0101 → Route to Master 0
 
 ## 2.5.3 Block Diagram
 
-![ID Management Architecture](../assets/graphviz/id_management.png)
+![ID Management Architecture](../assets/graphviz/id_management.svg)
 
 *Figure 2.5: ID management architecture showing CAM and FIFO modes for transaction tracking and response routing.*
 

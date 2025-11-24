@@ -42,7 +42,6 @@ module stream_core #(
     parameter int DATA_WIDTH = 512,
     parameter int AXI_ID_WIDTH = 8,
     parameter int FIFO_DEPTH = 512,
-    parameter int TIMEOUT_CYCLES = 1000,
     parameter int AR_MAX_OUTSTANDING = 8,
     parameter int AW_MAX_OUTSTANDING = 8,
 
@@ -101,12 +100,56 @@ module stream_core #(
     input  logic [AW-1:0]                       cfg_desceng_addr1_base,
     input  logic [AW-1:0]                       cfg_desceng_addr1_limit,
 
-    // Descriptor AXI monitor configuration
-    input  logic                                cfg_daxmon_err_enable,
-    input  logic                                cfg_daxmon_compl_enable,
-    input  logic                                cfg_daxmon_timeout_enable,
-    input  logic                                cfg_daxmon_perf_enable,
-    input  logic                                cfg_daxmon_debug_enable,
+    // Descriptor AXI monitor configuration (expanded with filtering)
+    input  logic                                cfg_desc_mon_enable,
+    input  logic                                cfg_desc_mon_err_enable,
+    input  logic                                cfg_desc_mon_perf_enable,
+    input  logic                                cfg_desc_mon_timeout_enable,
+    input  logic [31:0]                         cfg_desc_mon_timeout_cycles,
+    input  logic [31:0]                         cfg_desc_mon_latency_thresh,
+    input  logic [15:0]                         cfg_desc_mon_pkt_mask,
+    input  logic [3:0]                          cfg_desc_mon_err_select,
+    input  logic [7:0]                          cfg_desc_mon_err_mask,
+    input  logic [7:0]                          cfg_desc_mon_timeout_mask,
+    input  logic [7:0]                          cfg_desc_mon_compl_mask,
+    input  logic [7:0]                          cfg_desc_mon_thresh_mask,
+    input  logic [7:0]                          cfg_desc_mon_perf_mask,
+    input  logic [7:0]                          cfg_desc_mon_addr_mask,
+    input  logic [7:0]                          cfg_desc_mon_debug_mask,
+
+    // Read Engine AXI monitor configuration
+    input  logic                                cfg_rdeng_mon_enable,
+    input  logic                                cfg_rdeng_mon_err_enable,
+    input  logic                                cfg_rdeng_mon_perf_enable,
+    input  logic                                cfg_rdeng_mon_timeout_enable,
+    input  logic [31:0]                         cfg_rdeng_mon_timeout_cycles,
+    input  logic [31:0]                         cfg_rdeng_mon_latency_thresh,
+    input  logic [15:0]                         cfg_rdeng_mon_pkt_mask,
+    input  logic [3:0]                          cfg_rdeng_mon_err_select,
+    input  logic [7:0]                          cfg_rdeng_mon_err_mask,
+    input  logic [7:0]                          cfg_rdeng_mon_timeout_mask,
+    input  logic [7:0]                          cfg_rdeng_mon_compl_mask,
+    input  logic [7:0]                          cfg_rdeng_mon_thresh_mask,
+    input  logic [7:0]                          cfg_rdeng_mon_perf_mask,
+    input  logic [7:0]                          cfg_rdeng_mon_addr_mask,
+    input  logic [7:0]                          cfg_rdeng_mon_debug_mask,
+
+    // Write Engine AXI monitor configuration
+    input  logic                                cfg_wreng_mon_enable,
+    input  logic                                cfg_wreng_mon_err_enable,
+    input  logic                                cfg_wreng_mon_perf_enable,
+    input  logic                                cfg_wreng_mon_timeout_enable,
+    input  logic [31:0]                         cfg_wreng_mon_timeout_cycles,
+    input  logic [31:0]                         cfg_wreng_mon_latency_thresh,
+    input  logic [15:0]                         cfg_wreng_mon_pkt_mask,
+    input  logic [3:0]                          cfg_wreng_mon_err_select,
+    input  logic [7:0]                          cfg_wreng_mon_err_mask,
+    input  logic [7:0]                          cfg_wreng_mon_timeout_mask,
+    input  logic [7:0]                          cfg_wreng_mon_compl_mask,
+    input  logic [7:0]                          cfg_wreng_mon_thresh_mask,
+    input  logic [7:0]                          cfg_wreng_mon_perf_mask,
+    input  logic [7:0]                          cfg_wreng_mon_addr_mask,
+    input  logic [7:0]                          cfg_wreng_mon_debug_mask,
 
     // AXI transfer configuration
     input  logic [7:0]                          cfg_axi_rd_xfer_beats,
@@ -120,9 +163,11 @@ module stream_core #(
     //=========================================================================
     // Status Interface
     //=========================================================================
+    output logic                                system_idle,           // System-level idle (all channels)
     output logic [NC-1:0]                       descriptor_engine_idle,
     output logic [NC-1:0]                       scheduler_idle,
     output logic [NC-1:0][6:0]                  scheduler_state,  // ONE-HOT encoding (7 bits)
+    output logic [NC-1:0]                       sched_error,       // Scheduler error (sticky)
     output logic [NC-1:0]                       axi_rd_all_complete,  // All AXI read txns complete
     output logic [NC-1:0]                       axi_wr_all_complete,  // All AXI write txns complete
 
@@ -225,20 +270,25 @@ module stream_core #(
     // Status/Debug Outputs
     //=========================================================================
     // Descriptor AXI Monitor Status
-    output logic                                cfg_sts_desc_axi_busy,
-    output logic [7:0]                          cfg_sts_desc_axi_active_txns,
-    output logic [15:0]                         cfg_sts_desc_axi_error_count,
-    output logic [31:0]                         cfg_sts_desc_axi_txn_count,
-    output logic                                cfg_sts_desc_axi_conflict_error,
+    output logic                                cfg_sts_desc_mon_busy,
+    output logic [7:0]                          cfg_sts_desc_mon_active_txns,
+    output logic [15:0]                         cfg_sts_desc_mon_error_count,
+    output logic [31:0]                         cfg_sts_desc_mon_txn_count,
+    output logic                                cfg_sts_desc_mon_conflict_error,
 
-    // Descriptor AXI Read Skid Buffer Status
-    output logic                                cfg_sts_desc_rd_skid_busy,
+    // Data Read Engine AXI Monitor Status
+    output logic                                cfg_sts_rdeng_skid_busy,
+    output logic [7:0]                          cfg_sts_rdeng_mon_active_txns,
+    output logic [15:0]                         cfg_sts_rdeng_mon_error_count,
+    output logic [31:0]                         cfg_sts_rdeng_mon_txn_count,
+    output logic                                cfg_sts_rdeng_mon_conflict_error,
 
-    // Data Read AXI Skid Buffer Status
-    output logic                                cfg_sts_data_rd_skid_busy,
-
-    // Data Write AXI Skid Buffer Status
-    output logic                                cfg_sts_data_wr_skid_busy,
+    // Data Write Engine AXI Monitor Status
+    output logic                                cfg_sts_wreng_skid_busy,
+    output logic [7:0]                          cfg_sts_wreng_mon_active_txns,
+    output logic [15:0]                         cfg_sts_wreng_mon_error_count,
+    output logic [31:0]                         cfg_sts_wreng_mon_txn_count,
+    output logic                                cfg_sts_wreng_mon_conflict_error,
 
     //=========================================================================
     // Unified Monitor Bus Interface
@@ -310,7 +360,6 @@ module stream_core #(
     //=========================================================================
     // Read requests from schedulers to read engine
     logic [NC-1:0]               sched_rd_valid;
-    logic [NC-1:0]               sched_rd_ready;
     logic [NC-1:0][AW-1:0]       sched_rd_addr;
     logic [NC-1:0][31:0]         sched_rd_beats;
 
@@ -326,14 +375,18 @@ module stream_core #(
     logic [NC-1:0]               sched_wr_done_strobe;
     logic [NC-1:0][31:0]         sched_wr_beats_done;
 
+    // Error signals from engines to schedulers
+    logic [NC-1:0]               sched_rd_error;
+    logic [NC-1:0]               sched_wr_error;
+
     //=========================================================================
     // Internal Signals - Engines ↔ SRAM Controller
     //=========================================================================
     // Read engine → SRAM (allocation and write)
-    logic                        rd_alloc_req;
-    logic [7:0]                  rd_alloc_size;
-    logic [IW-1:0]               rd_alloc_id;
-    logic [NC-1:0][$clog2(FIFO_DEPTH):0] rd_space_free;  // SRAM → read engine
+    logic                        axi_rd_alloc_req;
+    logic [7:0]                  axi_rd_alloc_size;
+    logic [IW-1:0]               axi_rd_alloc_id;
+    logic [NC-1:0][$clog2(FIFO_DEPTH)+1-1:0] axi_rd_space_free;  // SRAM → read engine
 
     logic                        axi_rd_sram_valid;
     logic                        axi_rd_sram_ready;
@@ -342,14 +395,21 @@ module stream_core #(
 
     // Write engine → SRAM (drain and read)
     // Direct connection - both use ID-based interface
-    logic [NC-1:0]               wr_drain_req;
-    logic [NC-1:0][7:0]          wr_drain_size;
-    logic [NC-1:0][$clog2(FIFO_DEPTH):0] wr_drain_data_avail;  // SRAM → write engine
+    logic [NC-1:0]               axi_wr_drain_req;
+    logic [NC-1:0][7:0]          axi_wr_drain_size;
+    logic [NC-1:0][$clog2(FIFO_DEPTH)+1-1:0] axi_wr_drain_data_avail;  // SRAM → write engine
 
     logic [NC-1:0]               axi_wr_sram_valid;           // Per-channel valid from SRAM
     logic                        axi_wr_sram_drain;           // Drain signal from write engine
     logic [CHAN_WIDTH-1:0]       axi_wr_sram_id;              // Channel ID from write engine
     logic [DW-1:0]               axi_wr_sram_data;            // Muxed data from SRAM
+
+    //=========================================================================
+    // Internal Signals - Scheduler Group Monitor Bus (from scheduler_group_array)
+    //=========================================================================
+    logic                        schedgrp_mon_valid;
+    logic                        schedgrp_mon_ready;
+    logic [63:0]                 schedgrp_mon_packet;
 
     //=========================================================================
     // Component Instantiation - Scheduler Group Array
@@ -360,7 +420,6 @@ module stream_core #(
         .ADDR_WIDTH             (AW),
         .DATA_WIDTH             (DW),
         .AXI_ID_WIDTH           (IW),
-        .TIMEOUT_CYCLES         (TIMEOUT_CYCLES),
         .DESC_MON_BASE_AGENT_ID (DESC_MON_BASE_AGENT_ID),
         .SCHED_MON_BASE_AGENT_ID(SCHED_MON_BASE_AGENT_ID),
         .DESC_AXI_MON_AGENT_ID  (DESC_AXI_MON_AGENT_ID),
@@ -390,16 +449,36 @@ module stream_core #(
         .cfg_desceng_addr0_limit(cfg_desceng_addr0_limit),
         .cfg_desceng_addr1_base (cfg_desceng_addr1_base),
         .cfg_desceng_addr1_limit(cfg_desceng_addr1_limit),
-        .cfg_daxmon_err_enable  (cfg_daxmon_err_enable),
-        .cfg_daxmon_compl_enable(cfg_daxmon_compl_enable),
-        .cfg_daxmon_timeout_enable(cfg_daxmon_timeout_enable),
-        .cfg_daxmon_perf_enable (cfg_daxmon_perf_enable),
-        .cfg_daxmon_debug_enable(cfg_daxmon_debug_enable),
+
+        // Descriptor AXI Monitor Configuration
+        .cfg_desc_mon_enable        (cfg_desc_mon_enable),
+        .cfg_desc_mon_err_enable    (cfg_desc_mon_err_enable),
+        .cfg_desc_mon_perf_enable   (cfg_desc_mon_perf_enable),
+        .cfg_desc_mon_timeout_enable(cfg_desc_mon_timeout_enable),
+        .cfg_desc_mon_timeout_cycles(cfg_desc_mon_timeout_cycles),
+        .cfg_desc_mon_latency_thresh(cfg_desc_mon_latency_thresh),
+        .cfg_desc_mon_pkt_mask      (cfg_desc_mon_pkt_mask),
+        .cfg_desc_mon_err_select    (cfg_desc_mon_err_select),
+        .cfg_desc_mon_err_mask      (cfg_desc_mon_err_mask),
+        .cfg_desc_mon_timeout_mask  (cfg_desc_mon_timeout_mask),
+        .cfg_desc_mon_compl_mask    (cfg_desc_mon_compl_mask),
+        .cfg_desc_mon_thresh_mask   (cfg_desc_mon_thresh_mask),
+        .cfg_desc_mon_perf_mask     (cfg_desc_mon_perf_mask),
+        .cfg_desc_mon_addr_mask     (cfg_desc_mon_addr_mask),
+        .cfg_desc_mon_debug_mask    (cfg_desc_mon_debug_mask),
 
         // Status
         .descriptor_engine_idle (descriptor_engine_idle),
         .scheduler_idle         (scheduler_idle),
         .scheduler_state        (scheduler_state),
+        .sched_error            (sched_error),
+
+        // Descriptor AXI Monitor Status
+        .cfg_sts_desc_mon_busy          (cfg_sts_desc_mon_busy),
+        .cfg_sts_desc_mon_active_txns   (cfg_sts_desc_mon_active_txns),
+        .cfg_sts_desc_mon_error_count   (cfg_sts_desc_mon_error_count),
+        .cfg_sts_desc_mon_txn_count     (cfg_sts_desc_mon_txn_count),
+        .cfg_sts_desc_mon_conflict_error(cfg_sts_desc_mon_conflict_error),
 
         // Descriptor AXI master (connect directly to top-level ports)
         .desc_axi_arvalid       (m_axi_desc_arvalid),
@@ -422,39 +501,38 @@ module stream_core #(
         .desc_axi_rid           (m_axi_desc_rid),
 
         // Data read interface to read engine (per-channel arrays)
-        .datard_valid           (sched_rd_valid),
-        .datard_ready           (sched_rd_ready),
-        .datard_addr            (sched_rd_addr),
-        .datard_beats_remaining (sched_rd_beats),
+        .sched_rd_valid         (sched_rd_valid),
+        .sched_rd_addr          (sched_rd_addr),
+        .sched_rd_beats         (sched_rd_beats),
 
         // Data write interface to write engine (per-channel arrays)
-        .datawr_valid           (sched_wr_valid),
-        .datawr_ready           (sched_wr_ready),
-        .datawr_addr            (sched_wr_addr),
-        .datawr_beats_remaining (sched_wr_beats),
+        .sched_wr_valid         (sched_wr_valid),
+        .sched_wr_ready         (sched_wr_ready),
+        .sched_wr_addr          (sched_wr_addr),
+        .sched_wr_beats         (sched_wr_beats),
 
         // Completion strobes from engines (per-channel arrays)
-        .datard_done_strobe     (sched_rd_done_strobe),
-        .datard_beats_done      (sched_rd_beats_done),
-        .datawr_done_strobe     (sched_wr_done_strobe),
-        .datawr_beats_done      (sched_wr_beats_done),
+        .sched_rd_done_strobe   (sched_rd_done_strobe),
+        .sched_rd_beats_done    (sched_rd_beats_done),
+        .sched_wr_done_strobe   (sched_wr_done_strobe),
+        .sched_wr_beats_done    (sched_wr_beats_done),
 
-        // Error signals (per-channel arrays)
-        .datard_error           ({NC{1'b0}}),  // TBD: Connect to read engine errors
-        .datawr_error           ({NC{1'b0}}),  // TBD: Connect to write engine errors
+        // Error signals (per-channel arrays from engines)
+        .sched_rd_error         (sched_rd_error),
+        .sched_wr_error         (sched_wr_error),
 
-        // Monitor bus output
-        .mon_valid              (mon_valid),
-        .mon_ready              (mon_ready),
-        .mon_packet             (mon_packet),
-
-        // Descriptor AXI Monitor Status
-        .desc_axi_mon_busy              (cfg_sts_desc_axi_busy),
-        .desc_axi_mon_active_txns       (cfg_sts_desc_axi_active_txns),
-        .desc_axi_mon_error_count       (cfg_sts_desc_axi_error_count),
-        .desc_axi_mon_txn_count         (cfg_sts_desc_axi_txn_count),
-        .desc_axi_mon_conflict_error    (cfg_sts_desc_axi_conflict_error)
+        // Monitor bus output (scheduler group monitor - directly to top-level)
+        .mon_valid              (schedgrp_mon_valid),
+        .mon_ready              (schedgrp_mon_ready),
+        .mon_packet             (schedgrp_mon_packet)
     );
+
+    //=========================================================================
+    // Monitor Bus - Direct connection (no arbiter needed with single source)
+    //=========================================================================
+    assign mon_valid = schedgrp_mon_valid;
+    assign schedgrp_mon_ready = mon_ready;
+    assign mon_packet = schedgrp_mon_packet;
 
     //=========================================================================
     // Component Instantiation - AXI Read Engine
@@ -478,7 +556,6 @@ module stream_core #(
 
         // Scheduler interface
         .sched_rd_valid         (sched_rd_valid),
-        .sched_rd_ready         (sched_rd_ready),
         .sched_rd_addr          (sched_rd_addr),
         .sched_rd_beats         (sched_rd_beats),
 
@@ -500,10 +577,10 @@ module stream_core #(
         .m_axi_rready           (fub_rd_axi_rready),
 
         // SRAM allocation interface
-        .rd_alloc_req           (rd_alloc_req),
-        .rd_alloc_size          (rd_alloc_size),
-        .rd_alloc_id            (rd_alloc_id),
-        .rd_space_free          (rd_space_free),
+        .axi_rd_alloc_req       (axi_rd_alloc_req),
+        .axi_rd_alloc_size      (axi_rd_alloc_size),
+        .axi_rd_alloc_id        (axi_rd_alloc_id),
+        .axi_rd_alloc_space_free(axi_rd_space_free),
 
         // SRAM write interface
         .axi_rd_sram_valid      (axi_rd_sram_valid),
@@ -514,7 +591,12 @@ module stream_core #(
         // Completion interface
         .sched_rd_done_strobe   (sched_rd_done_strobe),
         .sched_rd_beats_done    (sched_rd_beats_done),
-        .axi_rd_all_complete    (axi_rd_all_complete),
+
+        // Debug interface
+        .dbg_rd_all_complete    (axi_rd_all_complete),
+
+        // Error signals
+        .sched_rd_error         (sched_rd_error),
 
         // Debug
         .dbg_r_beats_rcvd       (),
@@ -550,9 +632,9 @@ module stream_core #(
         .sched_wr_burst_len     ({NC{cfg_axi_wr_xfer_beats}}),  // All channels use same burst length
 
         // SRAM drain interface
-        .wr_drain_req           (wr_drain_req),
-        .wr_drain_size          (wr_drain_size),
-        .wr_drain_data_avail    (wr_drain_data_avail),
+        .axi_wr_drain_req       (axi_wr_drain_req),
+        .axi_wr_drain_size      (axi_wr_drain_size),
+        .axi_wr_drain_data_avail(axi_wr_drain_data_avail),
 
         // AXI AW channel (pre-skid)
         .m_axi_awid             (fub_wr_axi_awid),
@@ -586,7 +668,8 @@ module stream_core #(
         // Completion interface
         .sched_wr_done_strobe   (sched_wr_done_strobe),
         .sched_wr_beats_done    (sched_wr_beats_done),
-        .axi_wr_all_complete    (axi_wr_all_complete),
+        .dbg_wr_all_complete    (axi_wr_all_complete),
+        .sched_wr_error         (sched_wr_error),
 
         // Debug
         .dbg_aw_transactions    (),
@@ -611,15 +694,15 @@ module stream_core #(
         .axi_rd_sram_data       (axi_rd_sram_data),
 
         // Allocation interface (for read engine)
-        .axi_rd_alloc_req       (rd_alloc_req),
-        .axi_rd_alloc_size      (rd_alloc_size),
-        .axi_rd_alloc_id        (rd_alloc_id[CHAN_WIDTH-1:0]),     // Extract channel ID from AXI ID
-        .axi_rd_space_free      (rd_space_free),
+        .axi_rd_alloc_req       (axi_rd_alloc_req),
+        .axi_rd_alloc_size      (axi_rd_alloc_size),
+        .axi_rd_alloc_id        (axi_rd_alloc_id[CHAN_WIDTH-1:0]),     // Extract channel ID from AXI ID
+        .axi_rd_alloc_space_free(axi_rd_space_free),
 
         // Drain interface (for write engine flow control)
-        .axi_wr_drain_req       (wr_drain_req),
-        .axi_wr_drain_size      (wr_drain_size),
-        .axi_wr_drain_data_avail(wr_drain_data_avail),
+        .axi_wr_drain_req       (axi_wr_drain_req),
+        .axi_wr_drain_size      (axi_wr_drain_size),
+        .axi_wr_drain_data_avail(axi_wr_drain_data_avail),
 
         // Read interface (to write engine - direct connection)
         .axi_wr_sram_valid      (axi_wr_sram_valid),          // Per-channel valids from SRAM
@@ -667,9 +750,6 @@ module stream_core #(
     // NOTE: Descriptor AXI skid buffer removed - scheduler_group_array connects
     //       directly to top-level ports (descriptor fetch has built-in monitor)
 
-    // Descriptor skid buffer busy status - tie off (no longer used)
-    assign cfg_sts_desc_rd_skid_busy = 1'b0;
-
     // Data read AXI skid buffer
     // Tie off unused AXI signals
     assign fub_rd_axi_arlock = 1'b0;
@@ -677,8 +757,9 @@ module stream_core #(
     assign fub_rd_axi_arprot = 3'h0;
     assign fub_rd_axi_arqos = 4'h0;
     assign fub_rd_axi_arregion = 4'h0;
-    assign fub_rd_axi_aruser = '0;
-    assign fub_rd_axi_ruser = '0;
+    // AXI USER fields carry channel ID for packet analysis/sorting
+    assign fub_rd_axi_aruser = UW'(fub_rd_axi_arid);  // Extract channel ID from transaction ID
+    assign fub_rd_axi_ruser = '0;  // R channel user not used (response path)
 
     axi4_master_rd #(
         .SKID_DEPTH_AR          (SKID_DEPTH_AR),
@@ -738,7 +819,7 @@ module stream_core #(
         .m_axi_rready           (m_axi_rd_rready),
 
         // Status
-        .busy                   (cfg_sts_data_rd_skid_busy)
+        .busy                   (cfg_sts_rdeng_skid_busy)
     );
 
     // Data write AXI skid buffer
@@ -748,9 +829,10 @@ module stream_core #(
     assign fub_wr_axi_awprot = 3'h0;
     assign fub_wr_axi_awqos = 4'h0;
     assign fub_wr_axi_awregion = 4'h0;
-    assign fub_wr_axi_awuser = '0;
-    // NOTE: fub_wr_axi_wuser now carries channel ID from write engine (not tied off)
-    assign fub_wr_axi_buser = '0;
+    // AXI USER fields carry channel ID for packet analysis/sorting
+    assign fub_wr_axi_awuser = UW'(fub_wr_axi_awid);  // Extract channel ID from transaction ID
+    // NOTE: fub_wr_axi_wuser already carries channel ID from write engine (passes through)
+    assign fub_wr_axi_buser = '0;  // B channel user not used (response path)
 
     axi4_master_wr #(
         .SKID_DEPTH_AW          (SKID_DEPTH_AW),
@@ -821,7 +903,13 @@ module stream_core #(
         .m_axi_bready           (m_axi_wr_bready),
 
         // Status
-        .busy                   (cfg_sts_data_wr_skid_busy)
+        .busy                   (cfg_sts_wreng_skid_busy)
     );
+
+    //=========================================================================
+    // System-Level Status Logic
+    //=========================================================================
+    // System is idle when ALL schedulers are idle (AND reduction)
+    assign system_idle = &scheduler_idle;
 
 endmodule : stream_core

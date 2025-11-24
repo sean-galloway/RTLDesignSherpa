@@ -4,7 +4,7 @@
 
 **Bridge** is a Python-based AXI4 crossbar generator that creates parameterized SystemVerilog RTL from human-readable CSV configuration files. It solves the problem of manually writing complex AXI4 crossbars by automating RTL generation, converter insertion, and signal routing.
 
-![Bridge Architecture Concept](../assets/images/bridge_concept.png)
+![Bridge Architecture Concept](../assets/images/bridge_concept.svg)
 
 **Key Innovation:** CSV-driven configuration makes complex crossbars accessible to:
 - RTL designers without deep AXI4 expertise
@@ -202,12 +202,12 @@ This specification is organized as follows:
 - `../../bin/bridge_csv_generator.py` - Generator source code
 
 **PlantUML FSM Diagrams:**
-- [AW Arbiter FSM](../assets/puml/aw_arbiter_fsm.png) - Write address arbiter state machine
-- [AR Arbiter FSM](../assets/puml/ar_arbiter_fsm.png) - Read address arbiter state machine
+- [AW Arbiter FSM](../assets/puml/aw_arbiter_fsm.svg) - Write address arbiter state machine
+- [AR Arbiter FSM](../assets/puml/ar_arbiter_fsm.svg) - Read address arbiter state machine
 
 **Graphviz Block Diagrams:**
-- [Bridge 2×2 Configuration](../assets/graphviz/bridge_2x2.png) - 2 masters, 2 slaves block diagram
-- [Bridge 1×4 Configuration](../assets/graphviz/bridge_1x4.png) - 1 master, 4 slaves block diagram
+- [Bridge 2×2 Configuration](../assets/graphviz/bridge_2x2.svg) - 2 masters, 2 slaves block diagram
+- [Bridge 1×4 Configuration](../assets/graphviz/bridge_1x4.svg) - 1 master, 4 slaves block diagram
 
 ---
 

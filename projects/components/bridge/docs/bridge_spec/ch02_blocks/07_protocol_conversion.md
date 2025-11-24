@@ -62,7 +62,7 @@ Protocol conversion performs the following critical functions:
 
 ## 2.7.4 Block Diagram
 
-![Protocol Conversion Architecture](../assets/graphviz/protocol_conversion_apb.png)
+![Protocol Conversion Architecture](../assets/graphviz/protocol_conversion_apb.svg)
 
 *Figure 2.7: Protocol conversion showing AXI4 to APB conversion with state machine, burst decomposition, and response mapping.*
 

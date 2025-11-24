@@ -52,7 +52,7 @@ slave_index = offset[19:16]  // Upper 4 bits of 20-bit offset
 
 The following diagram shows a concrete example of how address 0x10023456 routes to Slave 2:
 
-![Address Decode Flow](../assets/png/address_decode_flow.png)
+![Address Decode Flow](../assets/svg/address_decode_flow.svg)
 
 *Figure: Address decode flow showing step-by-step routing of address 0x10023456 to Slave 2. [Source](../assets/graphviz/address_decode_flow.gv) | [SVG](../assets/svg/address_decode_flow.svg)*
 
@@ -130,9 +130,9 @@ Each slave has an **independent arbiter** that implements round-robin scheduling
 
 The following timing diagram shows 2 masters (M0, M1) competing for access to Slave 0:
 
-![Round-Robin Arbitration Timing](../assets/png/arbitration_round_robin.png)
+![Round-Robin Arbitration Timing](../assets/wavedrom/arbitration_round_robin.svg)
 
-*Figure: Round-robin arbitration timing showing 2 masters competing for Slave 0. Master priority rotates after each grant to ensure fair access. [Source](../assets/wavedrom/arbitration_round_robin.json)*
+**Source:** [arbitration_round_robin.json](../assets/wavedrom/arbitration_round_robin.json)
 
 ### Arbitration Example Walkthrough
 

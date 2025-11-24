@@ -1,0 +1,9 @@
+graph LR
+    CH[Channel AR request] --> ARB[Arbiter]
+    ARB --> MUX[AR mux]
+    MUX --> AXI[AXI master]
+
+    style CH fill:#ffe1e1,stroke:#333,stroke-width:2px
+    style ARB fill:#f9f,stroke:#333,stroke-width:2px
+    style MUX fill:#bbf,stroke:#333,stroke-width:2px
+    style AXI fill:#bfb,stroke:#333,stroke-width:2px

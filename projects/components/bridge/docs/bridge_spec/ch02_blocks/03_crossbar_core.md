@@ -14,7 +14,7 @@ The Crossbar Core performs the following critical functions:
 
 ## 2.3.2 Block Diagram
 
-![Crossbar Core Architecture](../assets/graphviz/crossbar_core.png)
+![Crossbar Core Architecture](../assets/graphviz/crossbar_core.svg)
 
 *Figure 2.3: Crossbar core architecture showing complete M×S switching fabric with address decode, per-slave arbitration, data path multiplexing, and ID-based response routing.*
 

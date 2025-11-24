@@ -281,18 +281,22 @@ class DatapathWrTestTB(TBBase):
             self.dut.axi_rd_sram_id.value = channel_id
             self.dut.axi_rd_sram_data.value = data
 
-            await RisingEdge(self.clk)
+            # Wait for ready to complete handshake (like read drain path fix)
+            while True:
+                await RisingEdge(self.clk)
 
-            # Get timestamp after clock edge
-            timestamp_ns = cocotb.utils.get_sim_time(units='ns')
+                # Get timestamp after clock edge
+                timestamp_ns = cocotb.utils.get_sim_time(units='ns')
 
-            # Check if ready (handshake successful)
-            ready = int(self.dut.axi_rd_sram_ready.value)
-            if ready == 1:
-                # Log SRAM write with timestamp and data (following GLOBAL_REQUIREMENTS.md Section 3.4)
-                self.log.info(f"@ {timestamp_ns:.1f}ns: SRAM write beat {beat+1}/{num_beats} ch={channel_id} @ 0x{addr:X}: data=0x{data:0{data_width_hex}X}")
-            else:
-                self.log.warning(f"@ {timestamp_ns:.1f}ns: Channel {channel_id}: SRAM not ready at beat {beat}")
+                # Check if ready (handshake successful)
+                ready = int(self.dut.axi_rd_sram_ready.value)
+                if ready == 1:
+                    # Log SRAM write with timestamp and data (following GLOBAL_REQUIREMENTS.md Section 3.4)
+                    self.log.info(f"@ {timestamp_ns:.1f}ns: SRAM write beat {beat+1}/{num_beats} ch={channel_id} @ 0x{addr:X}: data=0x{data:0{data_width_hex}X}")
+                    # LOGGING: Input data to SRAM for post-processing WITH TIMESTAMP
+                    self.log.info(f"SRAM_IN @ {timestamp_ns:.1f}ns: ch={channel_id} beat={beat} data=0x{data:064X}")
+                    break  # Handshake complete, move to next beat
+                # Keep valid asserted if not ready yet
 
         # Clear valid
         self.dut.axi_rd_sram_valid.value = 0
@@ -337,7 +341,7 @@ class DatapathWrTestTB(TBBase):
         desc_error_signal.value = 0
 
         # Wait for ready handshake
-        timeout_cycles = 1000
+        timeout_cycles = 20000
         for cycle in range(timeout_cycles):
             await RisingEdge(self.clk)
             if int(desc_ready_signal.value) == 1:

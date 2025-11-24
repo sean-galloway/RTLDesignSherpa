@@ -21,32 +21,19 @@ $REPO_ROOT/rtl/amba/includes/fifo_defs.svh
 $REPO_ROOT/rtl/amba/includes/monitor_pkg.sv
 $STREAM_ROOT/rtl/includes/stream_pkg.sv
 
-# Dependencies - Common utilities
-$REPO_ROOT/rtl/common/counter_bin.sv
-$REPO_ROOT/rtl/common/fifo_control.sv
-
-# Dependencies - Arbiters (for shared resource access)
+# Dependencies - Arbiters (for shared descriptor AXI master access)
 $REPO_ROOT/rtl/common/arbiter_priority_encoder.sv
 $REPO_ROOT/rtl/common/arbiter_round_robin.sv
 
-# Dependencies - GAXI FIFO (used by descriptor engine and monitors)
-$REPO_ROOT/rtl/amba/gaxi/gaxi_fifo_sync.sv
+# Dependencies - AMBA Monitors (for descriptor AXI master monitoring)
+# Use -f to include complete monitor infrastructure
+-f $REPO_ROOT/rtl/amba/filelists/axi4_master_rd_mon.f
 
-# Dependencies - AMBA Monitors
-$REPO_ROOT/rtl/amba/shared/axi_monitor_base.sv
-$REPO_ROOT/rtl/amba/axi4/axi4_master_rd_mon.sv
-
-# Dependencies - MonBus Infrastructure
+# Dependencies - MonBus Infrastructure (for aggregating 9 MonBus sources)
 $REPO_ROOT/rtl/amba/shared/monbus_arbiter.sv
 
-# FUB Components - Descriptor Engine
-$STREAM_ROOT/rtl/fub/descriptor_engine.sv
-
-# FUB Components - Scheduler
-$STREAM_ROOT/rtl/fub/scheduler.sv
-
-# Macro Component - Scheduler Group (instantiated 8 times)
-$STREAM_ROOT/rtl/macro/scheduler_group.sv
+# Include macro-level component via -f (automatically pulls in FUB dependencies)
+-f $STREAM_ROOT/rtl/filelists/macro/scheduler_group.f
 
 # Macro Component - This module
 $STREAM_ROOT/rtl/macro/scheduler_group_array.sv

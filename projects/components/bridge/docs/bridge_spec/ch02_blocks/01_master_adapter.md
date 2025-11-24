@@ -14,7 +14,7 @@ The Master Adapter serves several critical functions:
 
 ## 2.1.2 Block Diagram
 
-![Master Adapter Architecture](../assets/graphviz/master_adapter.png)
+![Master Adapter Architecture](../assets/graphviz/master_adapter.svg)
 
 *Figure 2.1: Master Adapter architecture showing per-master skid buffers, bridge ID injection/stripping, and channel specialization for rd/wr/rw configurations.*
 

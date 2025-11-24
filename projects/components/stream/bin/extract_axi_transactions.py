@@ -1,14 +1,18 @@
 #!/usr/bin/env python3
 """
-AXI Transaction Extractor v2.0
+AXI Transaction Extractor v2.2
 
-Refactored architecture:
+Features:
 1. Parse entire log into separate queues (AR/AW, R/W, B)
 2. Match data beats to transactions in FIFO order
 3. Assemble complete transactions with all beats
+4. Extract and parse 256-bit descriptor fields with full field breakdown
+5. Show id/user as decimal numbers for readability
+6. Clean W beat output (no strb field in reports)
 
 Usage:
-    ./extract_axi_transactions_v2.py <logfile> <rdeng|wreng> [--channel N]
+    ./extract_axi_transactions.py <logfile> <rdeng|wreng> [--channel N]
+    ./extract_axi_transactions.py <logfile> rdeng --interface descr  # Extract descriptors
 """
 
 import sys
@@ -36,7 +40,7 @@ class ARTransaction:
         return len(self.r_beats) == expected_beats
 
     def __str__(self):
-        return f"{self.timestamp:7.1f}: AR[id={self.id:02x}] addr=0x{self.addr} len={self.len} size={self.size}"
+        return f"{self.timestamp:7.1f}: AR[id={self.id}] addr=0x{self.addr} len={self.len} size={self.size}"
 
 
 @dataclass
@@ -49,7 +53,7 @@ class RBeat:
 
     def __str__(self):
         last_marker = " LAST" if self.last else ""
-        return f"{self.timestamp:7.1f}: R[id={self.id:02x}] data=0x{self.data}{last_marker}"
+        return f"{self.timestamp:7.1f}: R[id={self.id}] data=0x{self.data}{last_marker}"
 
 
 @dataclass
@@ -71,7 +75,7 @@ class AWTransaction:
         return len(self.w_beats) == expected_beats
 
     def __str__(self):
-        return f"{self.timestamp:7.1f}: AW[id={self.id:02x}] addr=0x{self.addr} len={self.len} size={self.size}"
+        return f"{self.timestamp:7.1f}: AW[id={self.id}] addr=0x{self.addr} len={self.len} size={self.size}"
 
 
 @dataclass
@@ -85,7 +89,7 @@ class WBeat:
 
     def __str__(self):
         last_marker = " LAST" if self.last else ""
-        return f"{self.timestamp:7.1f}: W[user={self.user:x}] data=0x{self.data} strb=0x{self.strb}{last_marker}"
+        return f"{self.timestamp:7.1f}: W[user={self.user}] data=0x{self.data}{last_marker}"
 
 
 @dataclass
@@ -96,7 +100,68 @@ class BResponse:
     resp: str
 
     def __str__(self):
-        return f"{self.timestamp:7.1f}: B[id={self.id:02x}] resp={self.resp}"
+        return f"{self.timestamp:7.1f}: B[id={self.id}] resp={self.resp}"
+
+
+@dataclass
+class Descriptor:
+    """256-bit STREAM Descriptor"""
+    timestamp: float
+    channel_id: int
+    # Parsed fields from 256-bit descriptor
+    src_addr: int       # bits[63:0]
+    dst_addr: int       # bits[127:64]
+    length: int         # bits[159:128]
+    next_ptr: int       # bits[191:160]
+    valid: bool         # bit[192]
+    interrupt: bool     # bit[193]
+    last: bool          # bit[194]
+    error: bool         # bit[195]
+    priority: int       # bits[207:200]
+    reserved: int       # bits[255:208]
+
+    @classmethod
+    def from_r_beats(cls, r_beats: List[RBeat], timestamp: float, channel_id: int):
+        """Parse 256-bit descriptor from 4x 64-bit R beats"""
+        if len(r_beats) != 4:
+            raise ValueError(f"Descriptor requires 4 R beats, got {len(r_beats)}")
+
+        # Concatenate 4x 64-bit beats into 256-bit value (little-endian)
+        # Beat 0 = bits[63:0], Beat 1 = bits[127:64], etc.
+        desc_val = 0
+        for i, beat in enumerate(r_beats):
+            beat_val = int(beat.data, 16)
+            desc_val |= (beat_val << (i * 64))
+
+        # Extract fields
+        return cls(
+            timestamp=timestamp,
+            channel_id=channel_id,
+            src_addr=(desc_val >> 0) & ((1 << 64) - 1),
+            dst_addr=(desc_val >> 64) & ((1 << 64) - 1),
+            length=(desc_val >> 128) & ((1 << 32) - 1),
+            next_ptr=(desc_val >> 160) & ((1 << 32) - 1),
+            valid=bool((desc_val >> 192) & 1),
+            interrupt=bool((desc_val >> 193) & 1),
+            last=bool((desc_val >> 194) & 1),
+            error=bool((desc_val >> 195) & 1),
+            priority=(desc_val >> 200) & 0xFF,
+            reserved=(desc_val >> 208) & ((1 << 48) - 1)
+        )
+
+    def __str__(self):
+        return (f"    Timestamp:     {self.timestamp:7.1f} ns\n"
+                f"    Channel ID:    {self.channel_id}\n"
+                f"    Source Addr:   0x{self.src_addr:016x}\n"
+                f"    Dest Addr:     0x{self.dst_addr:016x}\n"
+                f"    Length:        {self.length} beats (0x{self.length:08x})\n"
+                f"    Next Ptr:      0x{self.next_ptr:08x}\n"
+                f"    Valid:         {self.valid}\n"
+                f"    Interrupt:     {self.interrupt}\n"
+                f"    Last:          {self.last}\n"
+                f"    Error:         {self.error}\n"
+                f"    Priority:      {self.priority} (0x{self.priority:02x})\n"
+                f"    Reserved:      0x{self.reserved:012x}")
 
 
 class AXITransactionExtractor:
@@ -121,6 +186,9 @@ class AXITransactionExtractor:
         # Phase 2 storage: Matched transactions by channel
         self.completed_read_transactions: dict[int, List[ARTransaction]] = {}
         self.completed_write_transactions: dict[int, List[AWTransaction]] = {}
+
+        # Descriptor storage by channel
+        self.descriptors: dict[int, List[Descriptor]] = {}
 
         # Compile regex patterns
         self.patterns = self._compile_patterns()
@@ -239,12 +307,24 @@ class AXITransactionExtractor:
         match = self.patterns['w_data'].search(line)
         if match:
             timestamp, user_hex, last_str, strb, data = match.groups()
+
+            # Detect format from original line to parse correctly
+            # Line contains either "user=0xN" or "user=0bN"
+            user_match = re.search(r'user=(0[xb][0-9A-Fa-f]+)', line, re.IGNORECASE)
+            if user_match:
+                user_str = user_match.group(1)
+                # Python's int() auto-detects 0x and 0b prefixes
+                user_val = int(user_str, 0)  # base=0 means auto-detect from prefix
+            else:
+                # Fallback: assume hex if no prefix found
+                user_val = int(user_hex, 16)
+
             w = WBeat(
                 timestamp=float(timestamp),
                 data=data,
                 last=(last_str.lower() == 'last'),
                 strb=strb,
-                user=int(user_hex, 16)  # Channel ID from USER field
+                user=user_val  # Channel ID from USER field
             )
             self.w_queue.append(w)
             return
@@ -303,7 +383,7 @@ class AXITransactionExtractor:
                     self.completed_read_transactions[r_id].append(ar_txn)
             else:
                 unmatched_count += 1
-                print(f"  WARNING: R beat at {r_beat.timestamp}ns has no matching AR (id={r_id:02x})")
+                print(f"  WARNING: R beat at {r_beat.timestamp}ns has no matching AR (id={r_id})")
 
         # Check for incomplete transactions
         for ch_id, ar_list in pending_ar.items():
@@ -311,12 +391,71 @@ class AXITransactionExtractor:
                 if not ar_txn.is_complete():
                     expected = ar_txn.len + 1
                     actual = len(ar_txn.r_beats)
-                    print(f"  WARNING: AR[id={ch_id:02x}] addr=0x{ar_txn.addr} incomplete: "
+                    print(f"  WARNING: AR[id={ch_id}] addr=0x{ar_txn.addr} incomplete: "
                           f"{actual}/{expected} beats")
 
         print(f"  Matched {matched_count} R beats")
         print(f"  Unmatched {unmatched_count} R beats")
         print(f"  Completed transactions: {sum(len(v) for v in self.completed_read_transactions.values())}")
+
+    def extract_descriptors(self):
+        """
+        Extract and parse descriptor fields from completed read transactions.
+        Descriptor format: 256-bit (single 256-bit R beat OR 4x 64-bit R beats)
+        """
+        print(f"\nPhase 3: Extracting descriptor fields...")
+
+        descriptor_count = 0
+
+        for ch_id, ar_transactions in self.completed_read_transactions.items():
+            if ch_id not in self.descriptors:
+                self.descriptors[ch_id] = []
+
+            for ar_txn in ar_transactions:
+                # Check if this is a descriptor fetch
+                # Case 1: Single 256-bit beat (len=0, size=6 with 256-bit data)
+                # Case 2: Four 64-bit beats (len=3, size=3)
+                if len(ar_txn.r_beats) == 1:
+                    # Single beat - check if data is 256 bits (64 hex chars)
+                    r_beat = ar_txn.r_beats[0]
+                    if len(r_beat.data) == 64:  # 256 bits = 64 hex chars
+                        try:
+                            # Parse as single 256-bit value
+                            desc_val = int(r_beat.data, 16)
+                            desc = Descriptor(
+                                timestamp=ar_txn.timestamp,
+                                channel_id=ch_id,
+                                src_addr=(desc_val >> 0) & ((1 << 64) - 1),
+                                dst_addr=(desc_val >> 64) & ((1 << 64) - 1),
+                                length=(desc_val >> 128) & ((1 << 32) - 1),
+                                next_ptr=(desc_val >> 160) & ((1 << 32) - 1),
+                                valid=bool((desc_val >> 192) & 1),
+                                interrupt=bool((desc_val >> 193) & 1),
+                                last=bool((desc_val >> 194) & 1),
+                                error=bool((desc_val >> 195) & 1),
+                                priority=(desc_val >> 200) & 0xFF,
+                                reserved=(desc_val >> 208) & ((1 << 48) - 1)
+                            )
+                            self.descriptors[ch_id].append(desc)
+                            descriptor_count += 1
+                        except Exception as e:
+                            print(f"  WARNING: Failed to parse single-beat descriptor at {ar_txn.timestamp}ns: {e}")
+                elif len(ar_txn.r_beats) == 4:
+                    # Four 64-bit beats
+                    try:
+                        desc = Descriptor.from_r_beats(
+                            r_beats=ar_txn.r_beats,
+                            timestamp=ar_txn.timestamp,
+                            channel_id=ch_id
+                        )
+                        self.descriptors[ch_id].append(desc)
+                        descriptor_count += 1
+                    except Exception as e:
+                        print(f"  WARNING: Failed to parse multi-beat descriptor at {ar_txn.timestamp}ns: {e}")
+
+        print(f"  Extracted {descriptor_count} descriptors across {len(self.descriptors)} channels")
+        for ch_id in sorted(self.descriptors.keys()):
+            print(f"    Channel {ch_id}: {len(self.descriptors[ch_id])} descriptors")
 
     def match_write_transactions(self):
         """
@@ -405,7 +544,7 @@ class AXITransactionExtractor:
 
             if not matched:
                 unmatched_b_count += 1
-                print(f"  WARNING: B response at {b_resp.timestamp}ns has no matching AW (id={b_id:02x})")
+                print(f"  WARNING: B response at {b_resp.timestamp}ns has no matching AW (id={b_id})")
 
         # Move completed transactions to final list
         for aw_txn in pending_aw:
@@ -418,10 +557,10 @@ class AXITransactionExtractor:
             if not aw_txn.is_complete():
                 expected = aw_txn.len + 1
                 actual = len(aw_txn.w_beats)
-                print(f"  WARNING: AW[id={ch_id:02x}] addr=0x{aw_txn.addr} incomplete: "
+                print(f"  WARNING: AW[id={ch_id}] addr=0x{aw_txn.addr} incomplete: "
                       f"{actual}/{expected} W beats")
             if aw_txn.b_response is None:
-                print(f"  WARNING: AW[id={ch_id:02x}] addr=0x{aw_txn.addr} has no B response")
+                print(f"  WARNING: AW[id={ch_id}] addr=0x{aw_txn.addr} has no B response")
 
         print(f"  Matched {matched_w_count} W beats")
         print(f"  Unmatched {unmatched_w_count} W beats")
@@ -461,28 +600,38 @@ class AXITransactionExtractor:
 
         for ch_id in channels:
             transactions = self.completed_read_transactions[ch_id]
+            descriptors = self.descriptors.get(ch_id, [])
 
             f.write("\n\n")
             f.write("=" * 100 + "\n")
             f.write(f"CHANNEL {ch_id}\n")
             f.write("=" * 100 + "\n")
 
-            # Group transactions into descriptors
-            descriptor_groups = self._group_by_descriptor(transactions)
+            # Print descriptors first (if available)
+            if descriptors:
+                f.write("\n" + "=" * 100 + "\n")
+                f.write(f"DESCRIPTORS ({len(descriptors)})\n")
+                f.write("=" * 100 + "\n")
+                for desc_num, desc in enumerate(descriptors, start=1):
+                    f.write(f"\nDescriptor {desc_num}:\n")
+                    f.write(f"{desc}\n")
+
+            # Group transactions into descriptors using descriptor length info
+            descriptor_groups = self._group_by_descriptor(transactions, descriptors)
 
             # Print each descriptor group
             for desc_num, desc_transactions in enumerate(descriptor_groups, start=1):
                 f.write("\n")
                 f.write("-" * 100 + "\n")
-                f.write(f"DESCRIPTOR {desc_num}\n")
+                f.write(f"DESCRIPTOR {desc_num} - AXI TRANSACTIONS\n")
                 f.write("-" * 100 + "\n")
 
-                # AR transactions for this descriptor
+                # AR transactions
                 f.write(f"\nAR Transactions ({len(desc_transactions)}):\n")
                 for ar in desc_transactions:
                     f.write(f"  {ar}\n")
 
-                # R data beats for this descriptor
+                # R data beats
                 total_r_beats = sum(len(ar.r_beats) for ar in desc_transactions)
                 f.write(f"\nR Data Beats ({total_r_beats}):\n")
 
@@ -500,28 +649,38 @@ class AXITransactionExtractor:
 
         for ch_id in channels:
             transactions = self.completed_write_transactions[ch_id]
+            descriptors = self.descriptors.get(ch_id, [])
 
             f.write("\n\n")
             f.write("=" * 100 + "\n")
             f.write(f"CHANNEL {ch_id}\n")
             f.write("=" * 100 + "\n")
 
-            # Group transactions into descriptors (assuming contiguous bursts = one descriptor)
-            # Each descriptor starts at burst 1
-            descriptor_groups = self._group_by_descriptor(transactions)
+            # Print descriptors first (if available)
+            if descriptors:
+                f.write("\n" + "=" * 100 + "\n")
+                f.write(f"DESCRIPTORS ({len(descriptors)})\n")
+                f.write("=" * 100 + "\n")
+                for desc_num, desc in enumerate(descriptors, start=1):
+                    f.write(f"\nDescriptor {desc_num}:\n")
+                    f.write(f"{desc}\n")
 
+            # Group transactions into descriptors using descriptor length info
+            descriptor_groups = self._group_by_descriptor(transactions, descriptors)
+
+            # Print each descriptor group
             for desc_num, desc_transactions in enumerate(descriptor_groups, start=1):
                 f.write("\n")
                 f.write("-" * 100 + "\n")
-                f.write(f"DESCRIPTOR {desc_num}\n")
+                f.write(f"DESCRIPTOR {desc_num} - AXI TRANSACTIONS\n")
                 f.write("-" * 100 + "\n")
 
-                # AW transactions for this descriptor
+                # AW transactions
                 f.write(f"\nAW Transactions ({len(desc_transactions)}):\n")
                 for aw in desc_transactions:
                     f.write(f"  {aw}\n")
 
-                # W data beats for this descriptor
+                # W data beats
                 total_w_beats = sum(len(aw.w_beats) for aw in desc_transactions)
                 f.write(f"\nW Data Beats ({total_w_beats}):\n")
 
@@ -531,26 +690,64 @@ class AXITransactionExtractor:
                     for beat_num, w_beat in enumerate(aw.w_beats, 1):
                         f.write(f"  Burst {burst_num:4d}, Beat {beat_num:2d}: {w_beat}\n")
 
-                # B responses for this descriptor
+                # B responses
                 f.write(f"\nB Responses ({len(desc_transactions)}):\n")
                 for aw in desc_transactions:
                     if aw.b_response:
                         f.write(f"  {aw.b_response}\n")
 
-    def _group_by_descriptor(self, transactions: List[AWTransaction]) -> List[List[AWTransaction]]:
+    def _group_by_descriptor(self, transactions, descriptors) -> List:
         """
-        Group AW transactions into descriptors - simply group every 8 transactions together.
-        No time-based grouping needed.
+        Group AR/AW transactions into descriptors using descriptor length information.
+
+        For asymmetric bursts (rd_burst != wr_burst), the number of transactions
+        per descriptor varies based on burst size:
+        - Descriptor length = total beats (from descriptor.length field)
+        - Read: length ÷ rd_burst = number of AR transactions
+        - Write: length ÷ wr_burst = number of AW transactions
+
+        Example for rd16/wr8 with 6 descriptors of 64 beats each:
+        - Descriptor 1: 64 beats → 4 AR transactions (64÷16), 8 AW transactions (64÷8)
+        - Descriptor 2: 64 beats → 4 AR transactions, 8 AW transactions
+        - ...
+
+        Args:
+            transactions: List of AR or AW transactions
+            descriptors: List of descriptor objects with length field
+
+        Returns:
+            List of transaction groups, one per descriptor
         """
         if not transactions:
             return []
 
-        TRANSACTIONS_PER_DESCRIPTOR = 8
-        descriptor_groups = []
+        # If no descriptor info available, fall back to showing all transactions
+        if not descriptors:
+            return [transactions]
 
-        for i in range(0, len(transactions), TRANSACTIONS_PER_DESCRIPTOR):
-            group = transactions[i:i + TRANSACTIONS_PER_DESCRIPTOR]
-            descriptor_groups.append(group)
+        descriptor_groups = []
+        txn_idx = 0
+
+        # Group transactions based on descriptor lengths
+        for desc in descriptors:
+            desc_length = desc.length  # Total beats for this descriptor
+            current_group = []
+            accumulated_beats = 0
+
+            # Accumulate transactions until we've seen desc_length beats
+            while txn_idx < len(transactions) and accumulated_beats < desc_length:
+                txn = transactions[txn_idx]
+                txn_beats = txn.len + 1  # AXI len field: 0=1 beat, 1=2 beats, etc.
+                current_group.append(txn)
+                accumulated_beats += txn_beats
+                txn_idx += 1
+
+            descriptor_groups.append(current_group)
+
+        # Handle any remaining transactions (shouldn't happen in well-formed tests)
+        if txn_idx < len(transactions):
+            remaining = transactions[txn_idx:]
+            descriptor_groups.append(remaining)
 
         return descriptor_groups
 
@@ -597,6 +794,50 @@ Examples:
         extractor.match_read_transactions()
     else:
         extractor.match_write_transactions()
+
+    # Phase 3: Extract descriptor fields for all engine types
+    # Parse descriptor transactions separately to show in reports
+    saved_filter = extractor.interface_filter
+    saved_ar_queue = list(extractor.ar_queue)
+    saved_r_queue = list(extractor.r_queue)
+    saved_completed = dict(extractor.completed_read_transactions)
+
+    extractor.interface_filter = 'descr'  # Look for descriptor interface
+    extractor.ar_queue.clear()
+    extractor.r_queue.clear()
+    extractor.completed_read_transactions.clear()
+
+    # Re-parse log to get descriptor transactions
+    with open(args.logfile, 'r') as f:
+        for line in f:
+            extractor._parse_read_line(line)
+
+    # Match descriptor transactions
+    pending_ar = {}
+    for ar in extractor.ar_queue:
+        if ar.id not in pending_ar:
+            pending_ar[ar.id] = []
+        pending_ar[ar.id].append(ar)
+
+    for r_beat in extractor.r_queue:
+        if r_beat.id in pending_ar and pending_ar[r_beat.id]:
+            ar_txn = pending_ar[r_beat.id][0]
+            ar_txn.r_beats.append(r_beat)
+            if ar_txn.is_complete():
+                pending_ar[r_beat.id].pop(0)
+                if r_beat.id not in extractor.completed_read_transactions:
+                    extractor.completed_read_transactions[r_beat.id] = []
+                extractor.completed_read_transactions[r_beat.id].append(ar_txn)
+
+    # Extract descriptors
+    extractor.extract_descriptors()
+
+    # Restore original queues and filter
+    extractor.interface_filter = saved_filter
+    extractor.ar_queue = saved_ar_queue
+    extractor.r_queue = saved_r_queue
+    if args.engine == 'rdeng':
+        extractor.completed_read_transactions = saved_completed
 
     # Print report
     extractor.print_report(channel_filter=args.channel, output_file=args.output)

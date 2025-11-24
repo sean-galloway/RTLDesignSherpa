@@ -153,7 +153,14 @@ module datapath_rd_test #(
     output logic [NC-1:0]               dbg_bridge_out_valid,
 
     // Arbiter request debug (for bubble filtering)
-    output logic [NC-1:0]               dbg_arb_request
+    output logic [NC-1:0]               dbg_arb_request,
+
+    //=========================================================================
+    // Status Interface (Scheduler state)
+    //=========================================================================
+    output logic [NC-1:0]               sched_idle,             // Scheduler idle per channel
+    output logic [NC-1:0][6:0]          sched_state,            // Scheduler state per channel
+    output logic [NC-1:0]               sched_error             // Scheduler error per channel (sticky)
 );
 
     //=========================================================================
@@ -169,10 +176,8 @@ module datapath_rd_test #(
 
     // Scheduler → Read Engine interface
     logic [NC-1:0]                  sched_rd_valid;
-    logic [NC-1:0]                  sched_rd_ready;
     logic [NC-1:0][AW-1:0]          sched_rd_addr;
     logic [NC-1:0][31:0]            sched_rd_beats;
-    logic [NC-1:0][3:0]             sched_rd_channel_id;
 
     // Scheduler → Write Engine interface (for read-only test, capture and auto-complete)
     logic [NC-1:0]                  sched_wr_valid;
@@ -182,13 +187,15 @@ module datapath_rd_test #(
     logic [NC-1:0]                  r_wr_done_strobe;
     logic [NC-1:0][31:0]            r_wr_beats_done;
 
-    // Scheduler status
-    logic [NC-1:0]                  sched_idle;
-    logic [NC-1:0][6:0]             sched_state;  // One-hot encoded (7 states)
+    // Scheduler status - Now declared as outputs (lines 161-163)
+    // logic [NC-1:0]                  sched_idle;       // REMOVED - now output port
+    // logic [NC-1:0][6:0]             sched_state;      // REMOVED - now output port
+    // logic [NC-1:0]                  sched_error;      // REMOVED - now output port
 
     // Scheduler completion strobes (from read engine)
     logic [NC-1:0]                  sched_rd_done_strobe;
     logic [NC-1:0][31:0]            sched_rd_beats_done;
+    logic [NC-1:0]                  sched_rd_error;        // Error signals from read engine
     logic [NC-1:0]                  axi_rd_all_complete;
 
     // Read engine → SRAM controller
@@ -308,7 +315,6 @@ module datapath_rd_test #(
                 .NUM_CHANNELS(NC),
                 .ADDR_WIDTH(AW),
                 .DATA_WIDTH(DW),
-                .TIMEOUT_CYCLES(1000),
                 .MON_AGENT_ID(8'h40),       // STREAM Scheduler
                 .MON_UNIT_ID(4'h1),
                 .MON_CHANNEL_ID(i)
@@ -319,10 +325,13 @@ module datapath_rd_test #(
                 // Configuration (tied off for test - channel always enabled)
                 .cfg_channel_enable     (1'b1),
                 .cfg_channel_reset      (1'b0),
+                .cfg_sched_timeout_cycles(16'd1000),  // Runtime timeout config
+                .cfg_sched_timeout_enable(1'b1),      // Enable timeout
 
                 // Status
                 .scheduler_idle         (sched_idle[i]),
                 .scheduler_state        (sched_state[i]),
+                .sched_error            (sched_error[i]),
 
                 // Descriptor interface (from testbench GAXI masters)
                 .descriptor_valid       (desc_valid[i]),
@@ -331,28 +340,25 @@ module datapath_rd_test #(
                 .descriptor_error       (desc_error[i]),
 
                 // Data read interface (to AXI read engine via arbiter)
-                .datard_valid           (sched_rd_valid[i]),
-                .datard_ready           (sched_rd_ready[i]),
-                .datard_addr            (sched_rd_addr[i]),
-                .datard_beats_remaining (sched_rd_beats[i]),
-                .datard_channel_id      (sched_rd_channel_id[i]),
+                .sched_rd_valid         (sched_rd_valid[i]),
+                .sched_rd_addr          (sched_rd_addr[i]),
+                .sched_rd_beats         (sched_rd_beats[i]),
 
                 // Data write interface (tied off for read-only test)
-                .datawr_valid           (sched_wr_valid[i]),
-                .datawr_ready           (1'b1),                    // Always ready
-                .datawr_addr            (),                        // Unused
-                .datawr_beats_remaining (sched_wr_beats[i]),
-                .datawr_channel_id      (),                        // Unused
+                .sched_wr_valid         (sched_wr_valid[i]),
+                .sched_wr_ready         (1'b1),                    // Always ready
+                .sched_wr_addr          (),                        // Unused
+                .sched_wr_beats         (sched_wr_beats[i]),
 
                 // Completion strobes from engines
-                .datard_done_strobe     (sched_rd_done_strobe[i]),
-                .datard_beats_done      (sched_rd_beats_done[i]),
-                .datawr_done_strobe     (r_wr_done_strobe[i]),     // Registered: asserts next cycle
-                .datawr_beats_done      (r_wr_beats_done[i]),      // All beats completed in 1 cycle
+                .sched_rd_done_strobe   (sched_rd_done_strobe[i]),
+                .sched_rd_beats_done    (sched_rd_beats_done[i]),
+                .sched_wr_done_strobe   (r_wr_done_strobe[i]),     // Registered: asserts next cycle
+                .sched_wr_beats_done    (r_wr_beats_done[i]),      // All beats completed in 1 cycle
 
                 // Error signals from engines
-                .datard_error           (1'b0),
-                .datawr_error           (1'b0),
+                .sched_rd_error         (sched_rd_error[i]),       // From AXI read engine
+                .sched_wr_error         (1'b0),                    // No write engine in this test
 
                 // Monitor bus (tied off for test)
                 .mon_valid              (),
@@ -383,21 +389,24 @@ module datapath_rd_test #(
 
         // Scheduler interface (8 channels)
         .sched_rd_valid         (sched_rd_valid),
-        .sched_rd_ready         (sched_rd_ready),
         .sched_rd_addr          (sched_rd_addr),
         .sched_rd_beats         (sched_rd_beats),
-        .sched_rd_burst_len     ({NC{8'h0}}),  // Unused - engine decides burst len
 
         // Completion interface (to schedulers)
         .sched_rd_done_strobe   (sched_rd_done_strobe),
         .sched_rd_beats_done    (sched_rd_beats_done),
-        .axi_rd_all_complete    (axi_rd_all_complete),
 
-        // SRAM allocation interface
-        .rd_alloc_req           (rd_alloc_req),
-        .rd_alloc_size          (rd_alloc_size),
-        .rd_alloc_id            (rd_alloc_id),
-        .rd_space_free          (rd_space_free),
+        // Error signals (to schedulers)
+        .sched_rd_error         (sched_rd_error),
+
+        // SRAM allocation interface (updated signal names)
+        .axi_rd_alloc_req       (rd_alloc_req),
+        .axi_rd_alloc_size      (rd_alloc_size),
+        .axi_rd_alloc_id        (rd_alloc_id),
+        .axi_rd_alloc_space_free(rd_space_free),
+
+        // Debug signals
+        .dbg_rd_all_complete    (axi_rd_all_complete),
 
         // SRAM write interface
         .axi_rd_sram_valid      (axi_rd_sram_valid),
@@ -443,7 +452,7 @@ module datapath_rd_test #(
         .axi_rd_alloc_req       (rd_alloc_req),
         .axi_rd_alloc_size      (rd_alloc_size),
         .axi_rd_alloc_id        (rd_alloc_channel_id),  // Channel ID only
-        .axi_rd_space_free      (rd_space_free),
+        .axi_rd_alloc_space_free(rd_space_free),
 
         // Write interface (from read engine)
         .axi_rd_sram_valid      (axi_rd_sram_valid),

@@ -4,7 +4,7 @@
 
 The STREAM DMA engine register interface consists of two distinct regions:
 
-1. **Channel Kick-off Registers** (0x000 - 0x01C) - Direct routing to descriptor engines
+1. **Channel Kick-off Registers** (0x000 - 0x03F) - Direct routing to descriptor engines
 2. **Configuration and Status Registers** (0x100 - 0xFFF) - PeakRDL-generated register file
 
 ## Address Space Layout
@@ -12,17 +12,25 @@ The STREAM DMA engine register interface consists of two distinct regions:
 ```
 Base Address (configurable parameter)
 │
-├─ 0x000 - 0x01C: Channel Kick-off (apbtodescr.sv routing)
-│  ├─ 0x000: CH0_CTRL - Channel 0 descriptor address
-│  ├─ 0x004: CH1_CTRL - Channel 1 descriptor address
-│  ├─ 0x008: CH2_CTRL - Channel 2 descriptor address
-│  ├─ 0x00C: CH3_CTRL - Channel 3 descriptor address
-│  ├─ 0x010: CH4_CTRL - Channel 4 descriptor address
-│  ├─ 0x014: CH5_CTRL - Channel 5 descriptor address
-│  ├─ 0x018: CH6_CTRL - Channel 6 descriptor address
-│  └─ 0x01C: CH7_CTRL - Channel 7 descriptor address
+├─ 0x000 - 0x03F: Channel Kick-off (apbtodescr.sv routing)
+│  ├─ 0x000: CH0_CTRL_LOW  - Channel 0 descriptor address [31:0]
+│  ├─ 0x004: CH0_CTRL_HIGH - Channel 0 descriptor address [63:32]
+│  ├─ 0x008: CH1_CTRL_LOW  - Channel 1 descriptor address [31:0]
+│  ├─ 0x00C: CH1_CTRL_HIGH - Channel 1 descriptor address [63:32]
+│  ├─ 0x010: CH2_CTRL_LOW  - Channel 2 descriptor address [31:0]
+│  ├─ 0x014: CH2_CTRL_HIGH - Channel 2 descriptor address [63:32]
+│  ├─ 0x018: CH3_CTRL_LOW  - Channel 3 descriptor address [31:0]
+│  ├─ 0x01C: CH3_CTRL_HIGH - Channel 3 descriptor address [63:32]
+│  ├─ 0x020: CH4_CTRL_LOW  - Channel 4 descriptor address [31:0]
+│  ├─ 0x024: CH4_CTRL_HIGH - Channel 4 descriptor address [63:32]
+│  ├─ 0x028: CH5_CTRL_LOW  - Channel 5 descriptor address [31:0]
+│  ├─ 0x02C: CH5_CTRL_HIGH - Channel 5 descriptor address [63:32]
+│  ├─ 0x030: CH6_CTRL_LOW  - Channel 6 descriptor address [31:0]
+│  ├─ 0x034: CH6_CTRL_HIGH - Channel 6 descriptor address [63:32]
+│  ├─ 0x038: CH7_CTRL_LOW  - Channel 7 descriptor address [31:0]
+│  └─ 0x03C: CH7_CTRL_HIGH - Channel 7 descriptor address [63:32]
 │
-├─ 0x020 - 0x0FF: Reserved
+├─ 0x040 - 0x0FF: Reserved
 │
 └─ 0x100 - 0xFFF: Configuration and Status Registers
    ├─ 0x100 - 0x11F: Global Control and Status
@@ -34,32 +42,53 @@ Base Address (configurable parameter)
 
 ## Register Details
 
-### Channel Kick-off Registers (0x000 - 0x01C)
+### Channel Kick-off Registers (0x000 - 0x03F)
 
 These registers are **NOT** traditional registers. Writes are routed directly to descriptor engine APB ports via `apbtodescr.sv`.
 
-| Offset | Register   | Type | Reset | Description                                    |
-|--------|------------|------|-------|------------------------------------------------|
-| 0x000  | CH0_CTRL   | WO   | N/A   | Channel 0 descriptor address kick-off          |
-| 0x004  | CH1_CTRL   | WO   | N/A   | Channel 1 descriptor address kick-off          |
-| 0x008  | CH2_CTRL   | WO   | N/A   | Channel 2 descriptor address kick-off          |
-| 0x00C  | CH3_CTRL   | WO   | N/A   | Channel 3 descriptor address kick-off          |
-| 0x010  | CH4_CTRL   | WO   | N/A   | Channel 4 descriptor address kick-off          |
-| 0x014  | CH5_CTRL   | WO   | N/A   | Channel 5 descriptor address kick-off          |
-| 0x018  | CH6_CTRL   | WO   | N/A   | Channel 6 descriptor address kick-off          |
-| 0x01C  | CH7_CTRL   | WO   | N/A   | Channel 7 descriptor address kick-off          |
+**Note:** Descriptor addresses are 64-bit (ADDR_WIDTH parameter, default 64). On 32-bit APB bus, each channel requires TWO registers (LOW/HIGH).
+
+| Offset | Register       | Type | Reset | Description                                    |
+|--------|----------------|------|-------|------------------------------------------------|
+| 0x000  | CH0_CTRL_LOW   | WO   | N/A   | Channel 0 descriptor address [31:0]            |
+| 0x004  | CH0_CTRL_HIGH  | WO   | N/A   | Channel 0 descriptor address [63:32]           |
+| 0x008  | CH1_CTRL_LOW   | WO   | N/A   | Channel 1 descriptor address [31:0]            |
+| 0x00C  | CH1_CTRL_HIGH  | WO   | N/A   | Channel 1 descriptor address [63:32]           |
+| 0x010  | CH2_CTRL_LOW   | WO   | N/A   | Channel 2 descriptor address [31:0]            |
+| 0x014  | CH2_CTRL_HIGH  | WO   | N/A   | Channel 2 descriptor address [63:32]           |
+| 0x018  | CH3_CTRL_LOW   | WO   | N/A   | Channel 3 descriptor address [31:0]            |
+| 0x01C  | CH3_CTRL_HIGH  | WO   | N/A   | Channel 3 descriptor address [63:32]           |
+| 0x020  | CH4_CTRL_LOW   | WO   | N/A   | Channel 4 descriptor address [31:0]            |
+| 0x024  | CH4_CTRL_HIGH  | WO   | N/A   | Channel 4 descriptor address [63:32]           |
+| 0x028  | CH5_CTRL_LOW   | WO   | N/A   | Channel 5 descriptor address [31:0]            |
+| 0x02C  | CH5_CTRL_HIGH  | WO   | N/A   | Channel 5 descriptor address [63:32]           |
+| 0x030  | CH6_CTRL_LOW   | WO   | N/A   | Channel 6 descriptor address [31:0]            |
+| 0x034  | CH6_CTRL_HIGH  | WO   | N/A   | Channel 6 descriptor address [63:32]           |
+| 0x038  | CH7_CTRL_LOW   | WO   | N/A   | Channel 7 descriptor address [31:0]            |
+| 0x03C  | CH7_CTRL_HIGH  | WO   | N/A   | Channel 7 descriptor address [63:32]           |
 
 **Write Behavior:**
-- Write data = 32-bit descriptor address (lower 32 bits)
-- Upper 32 bits assumed to be 0 (descriptors in lower 4GB)
+- Descriptor address is 64-bit, split across LOW and HIGH registers
+- Write to HIGH register triggers descriptor engine kick-off
+- LOW register write is buffered, HIGH register write initiates transfer
+- Both registers must be written in order (LOW then HIGH)
 - Write blocks until descriptor engine accepts (back-pressure)
 - Read not supported (returns error)
 
 **Example:**
 ```c
 // Start DMA transfer on channel 0
-// Descriptor at physical address 0x8000_0000
-write32(BASE + CH0_CTRL, 0x8000_0000);  // Blocks until accepted
+// Descriptor at physical address 0x0000_0001_8000_0000 (64-bit)
+
+// Write lower 32 bits first (buffered)
+write32(BASE + CH0_CTRL_LOW, 0x8000_0000);
+
+// Write upper 32 bits second (triggers kick-off)
+write32(BASE + CH0_CTRL_HIGH, 0x0000_0001);  // Blocks until accepted
+
+// For descriptors in lower 4GB (typical case):
+write32(BASE + CH0_CTRL_LOW, 0x8000_0000);
+write32(BASE + CH0_CTRL_HIGH, 0x0000_0000);  // Upper 32 bits = 0
 ```
 
 ---
@@ -103,8 +132,8 @@ Version and configuration information (read-only).
 |--------|---------------|------|-------|------------------------------------|
 | 31:24  | Reserved      | RO   | 0x00  | Reserved                           |
 | 23:16  | NUM_CHANNELS  | RO   | 0x08  | Number of channels (8)             |
-| 15:8   | MAJOR         | RO   | 0x01  | Major version (1)                  |
-| 7:0    | MINOR         | RO   | 0x00  | Minor version (0)                  |
+| 15:8   | MAJOR         | RO   | 0x00  | Major version (0)                  |
+| 7:0    | MINOR         | RO   | 0x5A  | Minor version (90 decimal = 0.90)  |
 
 ---
 
@@ -179,26 +208,28 @@ Per-channel scheduler FSM state (8 registers, stride 0x4).
 
 | Offset | Register   | Bits  | Field    | Type | Description                    |
 |--------|------------|-------|----------|------|--------------------------------|
-| 0x150  | CH0_STATE  | 31:4  | Reserved | RO   | Reserved                       |
-|        |            | 3:0   | STATE    | RO   | Channel 0 scheduler state      |
-| 0x154  | CH1_STATE  | 3:0   | STATE    | RO   | Channel 1 scheduler state      |
-| 0x158  | CH2_STATE  | 3:0   | STATE    | RO   | Channel 2 scheduler state      |
-| 0x15C  | CH3_STATE  | 3:0   | STATE    | RO   | Channel 3 scheduler state      |
-| 0x160  | CH4_STATE  | 3:0   | STATE    | RO   | Channel 4 scheduler state      |
-| 0x164  | CH5_STATE  | 3:0   | STATE    | RO   | Channel 5 scheduler state      |
-| 0x168  | CH6_STATE  | 3:0   | STATE    | RO   | Channel 6 scheduler state      |
-| 0x16C  | CH7_STATE  | 3:0   | STATE    | RO   | Channel 7 scheduler state      |
+| 0x150  | CH0_STATE  | 31:7  | Reserved | RO   | Reserved                       |
+|        |            | 6:0   | STATE    | RO   | Channel 0 scheduler state (one-hot) |
+| 0x154  | CH1_STATE  | 6:0   | STATE    | RO   | Channel 1 scheduler state (one-hot) |
+| 0x158  | CH2_STATE  | 6:0   | STATE    | RO   | Channel 2 scheduler state (one-hot) |
+| 0x15C  | CH3_STATE  | 6:0   | STATE    | RO   | Channel 3 scheduler state (one-hot) |
+| 0x160  | CH4_STATE  | 6:0   | STATE    | RO   | Channel 4 scheduler state (one-hot) |
+| 0x164  | CH5_STATE  | 6:0   | STATE    | RO   | Channel 5 scheduler state (one-hot) |
+| 0x168  | CH6_STATE  | 6:0   | STATE    | RO   | Channel 6 scheduler state (one-hot) |
+| 0x16C  | CH7_STATE  | 6:0   | STATE    | RO   | Channel 7 scheduler state (one-hot) |
 
-**State Encoding:**
+**State Encoding (One-Hot):**
 ```
-0x0 = CH_IDLE       - Idle, waiting for descriptor
-0x1 = CH_FETCH_DESC - Fetching descriptor
-0x2 = CH_READ_DATA  - Reading source data
-0x3 = CH_WRITE_DATA - Writing destination data
-0x4 = CH_COMPLETE   - Transfer complete
-0x5 = CH_NEXT_DESC  - Chaining to next descriptor
-0x6 = CH_ERROR      - Error state
+Bit 0 (0x01) = CH_IDLE         - Channel idle, waiting for descriptor
+Bit 1 (0x02) = CH_FETCH_DESC   - Fetching descriptor from memory
+Bit 2 (0x04) = CH_XFER_DATA    - Concurrent read AND write transfer
+Bit 3 (0x08) = CH_COMPLETE     - Transfer complete
+Bit 4 (0x10) = CH_NEXT_DESC    - Fetching next chained descriptor
+Bit 5 (0x20) = CH_ERROR        - Error state
+Bit 6 (0x40) = CH_RESERVED     - Reserved for future use
 ```
+
+**Note:** Only ONE bit should be set at a time (one-hot encoding). Multiple bits set indicates a logic error.
 
 ---
 
@@ -365,8 +396,10 @@ write32(BASE + CHANNEL_ENABLE, 0xFF);  // All 8 channels
 ### Start Transfer
 
 ```c
-// Write descriptor address to channel kick-off register
-write32(BASE + CH0_CTRL, 0x8000_0100);  // Channel 0 descriptor at 0x8000_0100
+// Write 64-bit descriptor address to channel kick-off registers
+// Descriptor at address 0x0000_0000_8000_0100 (64-bit)
+write32(BASE + CH0_CTRL_LOW, 0x8000_0100);   // Lower 32 bits (buffered)
+write32(BASE + CH0_CTRL_HIGH, 0x0000_0000);  // Upper 32 bits (triggers kick-off)
 // Transfer starts immediately (blocks until descriptor engine ready)
 ```
 
@@ -378,19 +411,19 @@ while (!(read32(BASE + CHANNEL_IDLE) & 0x01)) {
     // Wait for channel 0 to become idle
 }
 
-// Or check scheduler state
-while ((read32(BASE + CH0_STATE) & 0xF) != 0x0) {
-    // Wait for CH_IDLE state (0x0)
+// Or check scheduler state (one-hot encoding)
+while ((read32(BASE + CH0_STATE) & 0x7F) != 0x01) {
+    // Wait for CH_IDLE state (bit 0 = 0x01)
 }
 ```
 
 ### Error Handling
 
 ```c
-// Check all channel states for errors
+// Check all channel states for errors (one-hot encoding)
 for (int ch = 0; ch < 8; ch++) {
-    uint32_t state = read32(BASE + CH0_STATE + (ch * 4)) & 0xF;
-    if (state == 0x6) {  // CH_ERROR
+    uint32_t state = read32(BASE + CH0_STATE + (ch * 4)) & 0x7F;
+    if (state & 0x20) {  // CH_ERROR (bit 5)
         // Reset channel
         write32(BASE + CHANNEL_RESET, 1 << ch);
     }
@@ -403,14 +436,14 @@ for (int ch = 0; ch < 8; ch++) {
 
 | Offset Range | Description                           | Count | Type          |
 |--------------|---------------------------------------|-------|---------------|
-| 0x000-0x01C  | Channel kick-off registers            | 8     | Write-routing |
+| 0x000-0x03F  | Channel kick-off registers (LOW/HIGH) | 16    | Write-routing |
 | 0x100-0x11F  | Global control and status             | 3     | RW/RO         |
 | 0x120-0x17F  | Per-channel control and status        | 12    | RW/RO         |
 | 0x200-0x21F  | Scheduler configuration               | 2     | RW            |
 | 0x220-0x23F  | Descriptor engine configuration       | 6     | RW            |
 | 0x240-0x27F  | Monitor configuration                 | 5     | RW            |
 
-**Total:** 36 registers (8 kick-off + 28 config/status)
+**Total:** 44 registers (16 kick-off + 28 config/status)
 
 ---
 

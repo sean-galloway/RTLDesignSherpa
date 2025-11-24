@@ -14,7 +14,7 @@ The Slave Router performs the following critical functions:
 
 ## 2.2.2 Block Diagram
 
-![Slave Router Architecture](../assets/graphviz/slave_router.png)
+![Slave Router Architecture](../assets/graphviz/slave_router.svg)
 
 *Figure 2.2: Slave router architecture showing address decoding, routing matrix, and out-of-range detection for AW and AR channels.*
 

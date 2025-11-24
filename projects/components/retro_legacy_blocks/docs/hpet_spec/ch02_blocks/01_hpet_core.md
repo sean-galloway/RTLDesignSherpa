@@ -6,7 +6,7 @@ The HPET core (`hpet_core.sv`) implements the fundamental timer functionality: a
 
 **Block Diagram:**
 
-![HPET Core Block Diagram](../assets/png/hpet_core.png)
+![HPET Core Block Diagram](../assets/svg/hpet_core.svg)
 
 *Figure: HPET Core architecture showing main counter, timer comparators, match detection, and interrupt generation. [Source: assets/graphviz/hpet_core.gv](../assets/graphviz/hpet_core.gv) | [SVG](../assets/svg/hpet_core.svg)*
 
@@ -65,7 +65,7 @@ The HPET core (`hpet_core.sv`) implements the fundamental timer functionality: a
 
 Each timer instance implements an identical FSM controlling its operation:
 
-![Timer FSM](../assets/puml/hpet_core_fsm.png)
+![Timer FSM](../assets/svg/hpet_core_fsm.svg)
 
 ##### FSM States
 

@@ -1,0 +1,33 @@
+graph TB
+    subgraph RegisteredFIFO["Registered FIFO Output"]
+        A1[s_valid]
+        A2[s_ready]
+        A3[s_data]
+    end
+
+    subgraph Bridge["Stream Latency Bridge"]
+        subgraph Glue["Glue Logic (1 flop)"]
+            B1[Tracks drain<br/>in progress]
+        end
+
+        subgraph Skid["Skid Buffer"]
+            C1[gaxi_fifo_sync<br/>DEPTH=4]
+        end
+
+        D1[occupancy 2:0]
+    end
+
+    subgraph Consumer["Consumer"]
+        E1[m_valid]
+        E2[m_ready]
+        E3[m_data]
+    end
+
+    A1 --> Glue
+    A2 -.-> Glue
+    A3 --> Glue
+    Glue --> Skid
+    Skid --> D1
+    Skid --> E1
+    E2 --> Skid
+    Skid --> E3

@@ -1,0 +1,11 @@
+graph LR
+    AXI[AXI R data] --> BCAST[Broadcast]
+    BCAST --> CH[All channels]
+    CH --> ID[ID match]
+    ID --> CLAIM[Claim]
+
+    style AXI fill:#bfb,stroke:#333,stroke-width:2px
+    style BCAST fill:#bbf,stroke:#333,stroke-width:2px
+    style CH fill:#ffe1e1,stroke:#333,stroke-width:2px
+    style ID fill:#f9f,stroke:#333,stroke-width:2px
+    style CLAIM fill:#ffffe1,stroke:#333,stroke-width:2px

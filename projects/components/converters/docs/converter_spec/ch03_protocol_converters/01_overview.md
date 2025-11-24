@@ -148,13 +148,13 @@ Converts AXI4 master transactions (from CPU, DMA) to APB peripheral accesses.
 
 ### Block Diagram
 
-![AXI4-to-APB Converter](../assets/graphviz/axi4_to_apb.png)
+![AXI4-to-APB Converter](../assets/graphviz/axi4_to_apb.svg)
 
 ### State Machine
 
 The converter uses a state machine to manage protocol translation:
 
-![AXI4-to-APB FSM](../assets/puml/axi4_to_apb_fsm.png)
+![AXI4-to-APB FSM](../assets/puml/axi4_to_apb_fsm.svg)
 
 **States:**
 - **IDLE** - Wait for AXI4 transaction
@@ -187,7 +187,7 @@ Converts PeakRDL-generated register interface to a custom command/response proto
 
 ### Block Diagram
 
-![PeakRDL Adapter](../assets/graphviz/peakrdl_adapter.png)
+![PeakRDL Adapter](../assets/graphviz/peakrdl_adapter.svg)
 
 ### Interface Types
 

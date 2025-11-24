@@ -42,25 +42,25 @@ module sram_controller_unit #(
     input  logic          clk,
     input  logic          rst_n,
 
-    // Write interface (AXI Read Engine → FIFO)
-    input  logic          axi_rd_sram_valid,
-    output logic          axi_rd_sram_ready,
-    input  logic [DW-1:0] axi_rd_sram_data,
-
-    // Read interface (FIFO → Latency Bridge → AXI Write Engine)
-    output logic          axi_wr_sram_valid,
-    input  logic          axi_wr_sram_ready,
-    output logic [DW-1:0] axi_wr_sram_data,
-
     // Allocation interface (Read Engine Flow Control)
-    input  logic                  rd_alloc_req,
-    input  logic [7:0]            rd_alloc_size,
-    output logic [SCW-1:0]        rd_space_free,
+    input  logic                  axi_rd_alloc_req,
+    input  logic [7:0]            axi_rd_alloc_size,
+    output logic [SCW-1:0]        axi_rd_alloc_space_free,
+
+    // Write interface (AXI Read Engine → FIFO)
+    input  logic                  axi_rd_sram_valid,
+    output logic                  axi_rd_sram_ready,
+    input  logic [DW-1:0]         axi_rd_sram_data,
 
     // Drain interface (Write Engine Flow Control)
-    input  logic                  wr_drain_req,
-    input  logic [7:0]            wr_drain_size,
-    output logic [SCW-1:0]        wr_drain_data_avail,
+    output logic [SCW-1:0]        axi_wr_drain_data_avail,
+    input  logic                  axi_wr_drain_req,
+    input  logic [7:0]            axi_wr_drain_size,
+
+    // Read interface (FIFO → Latency Bridge → AXI Write Engine)
+    output logic                  axi_wr_sram_valid,
+    input  logic                  axi_wr_sram_ready,
+    output logic [DW-1:0]         axi_wr_sram_data,
 
     // Debug interface (for catching bridge bugs)
     output logic                  dbg_bridge_pending,
@@ -132,8 +132,8 @@ module sram_controller_unit #(
 
         // wr_* = ALLOCATE (reserve space for upcoming burst)
         // Read engine says "I need 16 beats" → wr_ptr += 16 → space_free -= 16
-        .wr_valid           (rd_alloc_req),
-        .wr_size            (rd_alloc_size),
+        .wr_valid           (axi_rd_alloc_req),
+        .wr_size            (axi_rd_alloc_size),
         .wr_ready           (),
 
         // rd_* = RELEASE (data exits controller, free space)
@@ -187,8 +187,8 @@ module sram_controller_unit #(
 
         // rd_* = DRAIN REQUEST (reserve data for upcoming write)
         // Write engine says "I need 16 beats" → rd_ptr += 16 → data_available -= 16
-        .rd_valid           (wr_drain_req),
-        .rd_size            (wr_drain_size),
+        .rd_valid           (axi_wr_drain_req),
+        .rd_size            (axi_wr_drain_size),
         .rd_ready           (),
 
         // Data tracking
@@ -275,16 +275,16 @@ module sram_controller_unit #(
     `ifndef SYNTHESIS
     always @(posedge clk) begin
         if (axi_rd_sram_valid && axi_rd_sram_ready) begin
-            $display("CH_UNIT @%t: FIFO WRITE, fifo_count will be %0d -> %0d, bridge_occ=%0d, wr_drain_data_avail=%0d",
-                    $time, fifo_count, fifo_count+1, bridge_occupancy, wr_drain_data_avail);
+            $display("CH_UNIT @%t: FIFO WRITE, fifo_count will be %0d -> %0d, bridge_occ=%0d, axi_wr_drain_data_avail=%0d",
+                    $time, fifo_count, fifo_count+1, bridge_occupancy, axi_wr_drain_data_avail);
         end
         if (fifo_rd_valid_internal && fifo_rd_ready_internal) begin
-            $display("CH_UNIT @%t: FIFO DRAIN, fifo_count will be %0d -> %0d, bridge_occ=%0d, wr_drain_data_avail=%0d",
-                    $time, fifo_count, fifo_count-1, bridge_occupancy, wr_drain_data_avail);
+            $display("CH_UNIT @%t: FIFO DRAIN, fifo_count will be %0d -> %0d, bridge_occ=%0d, axi_wr_drain_data_avail=%0d",
+                    $time, fifo_count, fifo_count-1, bridge_occupancy, axi_wr_drain_data_avail);
         end
         if (axi_wr_sram_valid && axi_wr_sram_ready) begin
-            $display("CH_UNIT @%t: OUTPUT DRAIN, fifo_count=%0d, bridge_occ=%0d, wr_drain_data_avail=%0d",
-                    $time, fifo_count, bridge_occupancy, wr_drain_data_avail);
+            $display("CH_UNIT @%t: OUTPUT DRAIN, fifo_count=%0d, bridge_occ=%0d, axi_wr_drain_data_avail=%0d",
+                    $time, fifo_count, bridge_occupancy, axi_wr_drain_data_avail);
         end
     end
     `endif
@@ -292,14 +292,14 @@ module sram_controller_unit #(
     // Total data available = drain controller data + latency bridge occupancy
     // The drain controller tracks FIFO only; we must add bridge buffered data
     // COMBINATIONAL - updates immediately when drain/bridge state changes
-    assign wr_drain_data_avail = drain_data_available + SCW'(bridge_occupancy);
+    assign axi_wr_drain_data_avail = drain_data_available + SCW'(bridge_occupancy);
 
-    // Register rd_space_free to break combinatorial paths to read engine
+    // Register axi_rd_alloc_space_free to break combinatorial paths to read engine
     `ALWAYS_FF_RST(clk, rst_n,
         if (`RST_ASSERTED(rst_n)) begin
-            rd_space_free <= SCW'(SD);  // Full space on reset (correct width)
+            axi_rd_alloc_space_free <= SCW'(SD);  // Full space on reset (correct width)
         end else begin
-            rd_space_free <= alloc_space_free;
+            axi_rd_alloc_space_free <= alloc_space_free;
         end
     )
 

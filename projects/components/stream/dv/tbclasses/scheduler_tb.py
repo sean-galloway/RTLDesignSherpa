@@ -237,16 +237,21 @@ class SchedulerTB(TBBase):
         self.dut.cfg_channel_enable.value = 1
         self.dut.cfg_channel_reset.value = 0
 
-        # Data engine interfaces (ready by default)
-        self.dut.datard_ready.value = 1
-        self.dut.datard_done_strobe.value = 0
-        self.dut.datard_beats_done.value = 0
-        self.dut.datard_error.value = 0
+        # Timeout configuration - use large value to effectively disable for most tests
+        # (can be overridden by specific timeout tests)
+        self.dut.cfg_sched_timeout_cycles.value = 65535  # Max 16-bit value (2^16 - 1)
+        self.dut.cfg_sched_timeout_enable.value = 1
 
-        self.dut.datawr_ready.value = 1
-        self.dut.datawr_done_strobe.value = 0
-        self.dut.datawr_beats_done.value = 0
-        self.dut.datawr_error.value = 0
+        # Data engine interfaces
+        # Note: sched_rd_ready removed - scheduler doesn't wait for read engine ready
+        self.dut.sched_rd_done_strobe.value = 0
+        self.dut.sched_rd_beats_done.value = 0
+        self.dut.sched_rd_error.value = 0
+
+        self.dut.sched_wr_ready.value = 1
+        self.dut.sched_wr_done_strobe.value = 0
+        self.dut.sched_wr_beats_done.value = 0
+        self.dut.sched_wr_error.value = 0
 
         # Monitor bus interface
         self.dut.mon_ready.value = 1
@@ -368,21 +373,21 @@ class SchedulerTB(TBBase):
         while True:
             await self.wait_clocks(self.clk_name, 1)
 
-            # Check if read request is active
-            if int(self.dut.datard_valid.value) == 1 and int(self.dut.datard_ready.value) == 1:
+            # Check if read request is active (no ready signal check needed)
+            if int(self.dut.sched_rd_valid.value) == 1:
                 # Read request accepted
-                beats_remaining = int(self.dut.datard_beats_remaining.value)
+                beats_remaining = int(self.dut.sched_rd_beats.value)
                 self.log.info(f"📖 Read engine: Processing {beats_remaining} beats")
 
                 # Simulate read processing time
                 await self.wait_clocks(self.clk_name, random.randint(5, 15))
 
                 # Complete read (all beats in one go for simple tests)
-                self.dut.datard_done_strobe.value = 1
-                self.dut.datard_beats_done.value = beats_remaining
+                self.dut.sched_rd_done_strobe.value = 1
+                self.dut.sched_rd_beats_done.value = beats_remaining
                 await self.wait_clocks(self.clk_name, 1)
-                self.dut.datard_done_strobe.value = 0
-                self.dut.datard_beats_done.value = 0
+                self.dut.sched_rd_done_strobe.value = 0
+                self.dut.sched_rd_beats_done.value = 0
 
                 self.read_completions += 1
                 self.log.info(f"✅ Read engine: Completed {beats_remaining} beats")
@@ -393,20 +398,20 @@ class SchedulerTB(TBBase):
             await self.wait_clocks(self.clk_name, 1)
 
             # Check if write request is active
-            if int(self.dut.datawr_valid.value) == 1 and int(self.dut.datawr_ready.value) == 1:
+            if int(self.dut.sched_wr_valid.value) == 1 and int(self.dut.sched_wr_ready.value) == 1:
                 # Write request accepted
-                beats_remaining = int(self.dut.datawr_beats_remaining.value)
+                beats_remaining = int(self.dut.sched_wr_beats.value)
                 self.log.info(f"✍️  Write engine: Processing {beats_remaining} beats")
 
                 # Simulate write processing time
                 await self.wait_clocks(self.clk_name, random.randint(5, 15))
 
                 # Complete write (all beats in one go for simple tests)
-                self.dut.datawr_done_strobe.value = 1
-                self.dut.datawr_beats_done.value = beats_remaining
+                self.dut.sched_wr_done_strobe.value = 1
+                self.dut.sched_wr_beats_done.value = beats_remaining
                 await self.wait_clocks(self.clk_name, 1)
-                self.dut.datawr_done_strobe.value = 0
-                self.dut.datawr_beats_done.value = 0
+                self.dut.sched_wr_done_strobe.value = 0
+                self.dut.sched_wr_beats_done.value = 0
 
                 self.write_completions += 1
                 self.log.info(f"✅ Write engine: Completed {beats_remaining} beats")
@@ -534,9 +539,9 @@ class SchedulerTB(TBBase):
 
         # Inject read error after some delay
         await self.wait_clocks(self.clk_name, 30)
-        self.dut.datard_error.value = 1
+        self.dut.sched_rd_error.value = 1
         await self.wait_clocks(self.clk_name, 5)
-        self.dut.datard_error.value = 0
+        self.dut.sched_rd_error.value = 0
 
         # Check ERROR state
         await self.wait_clocks(self.clk_name, 10)
@@ -553,10 +558,17 @@ class SchedulerTB(TBBase):
         """Test timeout detection"""
         self.log.info("=== Testing Timeout Detection ===")
 
-        # CRITICAL: Force backpressure BEFORE sending descriptor
-        # This prevents the read engine mock from completing before we can test timeout
-        self.log.info("  Setting datard_ready=0 BEFORE sending descriptor")
-        self.dut.datard_ready.value = 0
+        # CRITICAL: Reconfigure timeout to short value for this test
+        # (Default was set to 65535 in configure_scheduler to disable for other tests)
+        self.log.info(f"  Reconfiguring timeout to {self.TIMEOUT_CYCLES} cycles")
+        self.dut.cfg_sched_timeout_cycles.value = self.TIMEOUT_CYCLES
+        self.dut.cfg_sched_timeout_enable.value = 1
+        await self.wait_clocks(self.clk_name, 2)
+
+        # CRITICAL: Force write backpressure BEFORE sending descriptor
+        # Timeout now only applies to write engine (sched_wr_ready)
+        self.log.info("  Setting sched_wr_ready=0 BEFORE sending descriptor")
+        self.dut.sched_wr_ready.value = 0
         await self.wait_clocks(self.clk_name, 2)
 
         # Send descriptor
@@ -567,18 +579,18 @@ class SchedulerTB(TBBase):
         )
         await self.send_descriptor(descriptor)
 
-        # Wait for read request to start
+        # Wait for write request to start
         timeout_wait = 0
-        while int(self.dut.datard_valid.value) != 1 and timeout_wait < 50:
+        while int(self.dut.sched_wr_valid.value) != 1 and timeout_wait < 50:
             await self.wait_clocks(self.clk_name, 1)
             timeout_wait += 1
 
         if timeout_wait >= 50:
-            self.log.error("  ❌ Scheduler never asserted datard_valid")
-            self.dut.datard_ready.value = 1  # Restore before returning
+            self.log.error("  ❌ Scheduler never asserted sched_wr_valid")
+            self.dut.sched_wr_ready.value = 1  # Restore before returning
             return False
 
-        self.log.info(f"  ✅ Read request started after {timeout_wait} cycles (with ready=0)")
+        self.log.info(f"  ✅ Write request started after {timeout_wait} cycles (with ready=0)")
 
         # Continue backpressure for TIMEOUT_CYCLES
         self.log.info(f"  Applying backpressure for {self.TIMEOUT_CYCLES + 10} cycles to trigger timeout")
@@ -594,8 +606,8 @@ class SchedulerTB(TBBase):
                 break
 
         # Restore ready (cleanup)
-        self.log.info("  Restoring datard_ready=1")
-        self.dut.datard_ready.value = 1
+        self.log.info("  Restoring sched_wr_ready=1")
+        self.dut.sched_wr_ready.value = 1
         await self.wait_clocks(self.clk_name, 5)
 
         if error_detected:
@@ -697,13 +709,13 @@ class SchedulerTB(TBBase):
         """Test concurrent read/write operation in XFER_DATA state
 
         This validates the deadlock fix: scheduler should enter XFER_DATA and
-        both datard_valid and datawr_valid should be high simultaneously.
+        both sched_rd_valid and sched_wr_valid should be high simultaneously.
 
         Tests that the scheduler doesn't get stuck when transfer size exceeds
         SRAM buffer capacity (the original deadlock bug scenario).
         """
         self.log.info("=== Testing Concurrent Read/Write Operation ===")
-        self.log.info("Validating XFER_DATA state with concurrent datard/datawr activity")
+        self.log.info("Validating XFER_DATA state with concurrent sched_rd/sched_wr activity")
 
         xfer_state_count = 0
         concurrent_valid_count = 0
@@ -731,18 +743,18 @@ class SchedulerTB(TBBase):
                 await self.wait_clocks(self.clk_name, 1)
 
                 state = int(self.dut.scheduler_state.value)
-                datard_valid = int(self.dut.datard_valid.value) if hasattr(self.dut, 'datard_valid') else 0
-                datawr_valid = int(self.dut.datawr_valid.value) if hasattr(self.dut, 'datawr_valid') else 0
+                sched_rd_valid = int(self.dut.sched_rd_valid.value) if hasattr(self.dut, 'sched_rd_valid') else 0
+                sched_wr_valid = int(self.dut.sched_wr_valid.value) if hasattr(self.dut, 'sched_wr_valid') else 0
 
                 # Count XFER_DATA state occurrences
                 if state == SchedulerState.CH_XFER_DATA.value:
                     xfer_state_count += 1
 
                     # Check for concurrent valid signals (the key to avoiding deadlock!)
-                    if datard_valid and datawr_valid:
+                    if sched_rd_valid and sched_wr_valid:
                         concurrent_valid_count += 1
                         if concurrent_valid_count == 1:
-                            self.log.info(f"  ✅ Concurrent rd/wr detected @ cycle {_}: datard_valid={datard_valid}, datawr_valid={datawr_valid}")
+                            self.log.info(f"  ✅ Concurrent rd/wr detected @ cycle {_}: sched_rd_valid={sched_rd_valid}, sched_wr_valid={sched_wr_valid}")
 
                 # Check for completion
                 if int(self.dut.scheduler_idle.value) == 1:
@@ -770,7 +782,7 @@ class SchedulerTB(TBBase):
             self.log.info("  ✅ Concurrent read/write VALIDATED - deadlock fix working!")
             return True
         else:
-            self.log.error("  ❌ No concurrent datard_valid + datawr_valid detected!")
+            self.log.error("  ❌ No concurrent sched_rd_valid + sched_wr_valid detected!")
             self.log.error("  This suggests the scheduler is NOT using concurrent operation.")
             self.log.error("  Deadlock risk remains - FAILED!")
             self.test_errors.append("No concurrent read/write activity detected in XFER_DATA state")

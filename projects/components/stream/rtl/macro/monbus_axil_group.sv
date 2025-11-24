@@ -423,7 +423,7 @@ module monbus_axil_group #(
             end else begin
                 // For 32-bit data width, select upper or lower word based on address bit [2]
                 fub_rd_rdata = fub_rd_araddr[2] ? err_fifo_rd_data[63:32] :
-                                                 err_fifo_rd_data[31:0];
+                                                err_fifo_rd_data[31:0];
             end
         end
     end
@@ -577,7 +577,7 @@ module monbus_axil_group #(
         end else begin
             // For 32-bit data width, send lower or upper word
             fub_wr_wdata = upper_word_pending ? current_packet[31:0] :
-                                               current_packet[63:32];
+                                            current_packet[63:32];
         end
     end
 

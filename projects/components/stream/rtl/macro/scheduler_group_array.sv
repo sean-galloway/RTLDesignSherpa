@@ -39,12 +39,12 @@ module scheduler_group_array #(
     parameter int ADDR_WIDTH = 64,
     parameter int DATA_WIDTH = 512,
     parameter int AXI_ID_WIDTH = 8,
-    parameter int TIMEOUT_CYCLES = 1000,
     // Monitor Bus Base IDs
-    parameter DESC_MON_BASE_AGENT_ID = 16,   // 0x10 - Descriptor Engines (16-23)
-    parameter SCHED_MON_BASE_AGENT_ID = 48,  // 0x30 - Schedulers (48-55)
-    parameter DESC_AXI_MON_AGENT_ID = 8,     // 0x08 - Descriptor AXI Master Monitor
-    parameter MON_UNIT_ID = 1                // 0x1
+    parameter int DESC_MON_BASE_AGENT_ID = 16,   // 0x10 - Descriptor Engines (16-23)
+    parameter int SCHED_MON_BASE_AGENT_ID = 48,  // 0x30 - Schedulers (48-55)
+    parameter int DESC_AXI_MON_AGENT_ID = 8,     // 0x08 - Descriptor AXI Master Monitor
+    parameter int MON_UNIT_ID = 1,               // 0x1
+    parameter int MON_MAX_TRANSACTIONS = 16
 ) (
     // Clock and Reset
     input  logic                        clk,
@@ -76,24 +76,35 @@ module scheduler_group_array #(
     input  logic [ADDR_WIDTH-1:0]                cfg_desceng_addr1_base,    // Address range 1 base
     input  logic [ADDR_WIDTH-1:0]                cfg_desceng_addr1_limit,   // Address range 1 limit
 
-    // Descriptor AXI Monitor Configuration
-    input  logic                                 cfg_daxmon_err_enable,     // Enable error detection
-    input  logic                                 cfg_daxmon_compl_enable,   // Enable completion packets
-    input  logic                                 cfg_daxmon_timeout_enable, // Enable timeout detection
-    input  logic                                 cfg_daxmon_perf_enable,    // Enable performance packets
-    input  logic                                 cfg_daxmon_debug_enable,   // Enable debug packets
+    // Descriptor AXI Monitor Configuration (expanded with filtering)
+    input  logic                                 cfg_desc_mon_enable,
+    input  logic                                 cfg_desc_mon_err_enable,
+    input  logic                                 cfg_desc_mon_perf_enable,
+    input  logic                                 cfg_desc_mon_timeout_enable,
+    input  logic [31:0]                          cfg_desc_mon_timeout_cycles,
+    input  logic [31:0]                          cfg_desc_mon_latency_thresh,
+    input  logic [15:0]                          cfg_desc_mon_pkt_mask,
+    input  logic [3:0]                           cfg_desc_mon_err_select,
+    input  logic [7:0]                           cfg_desc_mon_err_mask,
+    input  logic [7:0]                           cfg_desc_mon_timeout_mask,
+    input  logic [7:0]                           cfg_desc_mon_compl_mask,
+    input  logic [7:0]                           cfg_desc_mon_thresh_mask,
+    input  logic [7:0]                           cfg_desc_mon_perf_mask,
+    input  logic [7:0]                           cfg_desc_mon_addr_mask,
+    input  logic [7:0]                           cfg_desc_mon_debug_mask,
 
     // Status Interface (per channel)
     output logic [NUM_CHANNELS-1:0]              descriptor_engine_idle,
     output logic [NUM_CHANNELS-1:0]              scheduler_idle,
     output logic [NUM_CHANNELS-1:0][6:0]         scheduler_state,  // ONE-HOT encoding (7 bits)
+    output logic [NUM_CHANNELS-1:0]              sched_error,       // Scheduler error (sticky)
 
     // Descriptor AXI Monitor Status
-    output logic                                 desc_axi_mon_busy,
-    output logic [7:0]                           desc_axi_mon_active_txns,
-    output logic [15:0]                          desc_axi_mon_error_count,
-    output logic [31:0]                          desc_axi_mon_txn_count,
-    output logic                                 desc_axi_mon_conflict_error,
+    output logic                                 cfg_sts_desc_mon_busy,
+    output logic [7:0]                           cfg_sts_desc_mon_active_txns,
+    output logic [15:0]                          cfg_sts_desc_mon_error_count,
+    output logic [31:0]                          cfg_sts_desc_mon_txn_count,
+    output logic                                 cfg_sts_desc_mon_conflict_error,
 
     // Shared Descriptor AXI4 Master Read Interface (256-bit descriptor fetch)
     output logic                        desc_axi_arvalid,
@@ -119,27 +130,26 @@ module scheduler_group_array #(
 
     // Shared Data Read Interface (to AXI Read Engine)
     // Per-channel arrays - direct passthrough to engines
-    output logic [NUM_CHANNELS-1:0]                     datard_valid,
-    input  logic [NUM_CHANNELS-1:0]                     datard_ready,
-    output logic [NUM_CHANNELS-1:0][ADDR_WIDTH-1:0]     datard_addr,
-    output logic [NUM_CHANNELS-1:0][31:0]               datard_beats_remaining,
+    output logic [NUM_CHANNELS-1:0]                     sched_rd_valid,
+    output logic [NUM_CHANNELS-1:0][ADDR_WIDTH-1:0]     sched_rd_addr,
+    output logic [NUM_CHANNELS-1:0][31:0]               sched_rd_beats,
 
     // Shared Data Write Interface (to AXI Write Engine)
     // Per-channel arrays - direct passthrough to engines
-    output logic [NUM_CHANNELS-1:0]                     datawr_valid,
-    input  logic [NUM_CHANNELS-1:0]                     datawr_ready,
-    output logic [NUM_CHANNELS-1:0][ADDR_WIDTH-1:0]     datawr_addr,
-    output logic [NUM_CHANNELS-1:0][31:0]               datawr_beats_remaining,
+    output logic [NUM_CHANNELS-1:0]                     sched_wr_valid,
+    input  logic [NUM_CHANNELS-1:0]                     sched_wr_ready,
+    output logic [NUM_CHANNELS-1:0][ADDR_WIDTH-1:0]     sched_wr_addr,
+    output logic [NUM_CHANNELS-1:0][31:0]               sched_wr_beats,
 
     // Data Path Completion Strobes (per-channel from engines)
-    input  logic [NUM_CHANNELS-1:0]                     datard_done_strobe,
-    input  logic [NUM_CHANNELS-1:0][31:0]               datard_beats_done,
-    input  logic [NUM_CHANNELS-1:0]                     datawr_done_strobe,
-    input  logic [NUM_CHANNELS-1:0][31:0]               datawr_beats_done,
+    input  logic [NUM_CHANNELS-1:0]                     sched_rd_done_strobe,
+    input  logic [NUM_CHANNELS-1:0][31:0]               sched_rd_beats_done,
+    input  logic [NUM_CHANNELS-1:0]                     sched_wr_done_strobe,
+    input  logic [NUM_CHANNELS-1:0][31:0]               sched_wr_beats_done,
 
-    // Error Signals (per-channel from engines)
-    input  logic [NUM_CHANNELS-1:0]                     datard_error,
-    input  logic [NUM_CHANNELS-1:0]                     datawr_error,
+    // Error Signals (per-channel from AXI engines)
+    input  logic [NUM_CHANNELS-1:0]                     sched_rd_error,
+    input  logic [NUM_CHANNELS-1:0]                     sched_wr_error,
 
     // Unified Monitor Bus Interface
     output logic                        mon_valid,
@@ -252,7 +262,6 @@ module scheduler_group_array #(
                 .ADDR_WIDTH             (ADDR_WIDTH),
                 .DATA_WIDTH             (DATA_WIDTH),
                 .AXI_ID_WIDTH           (AXI_ID_WIDTH),
-                .TIMEOUT_CYCLES         (TIMEOUT_CYCLES),
                 .DESC_MON_AGENT_ID      (8'(DESC_MON_BASE_AGENT_ID + ch)),
                 .SCHED_MON_AGENT_ID     (8'(SCHED_MON_BASE_AGENT_ID + ch)),
                 .MON_UNIT_ID            (4'(MON_UNIT_ID)),
@@ -289,6 +298,7 @@ module scheduler_group_array #(
                 .descriptor_engine_idle (descriptor_engine_idle[ch]),
                 .scheduler_idle         (scheduler_idle[ch]),
                 .scheduler_state        (scheduler_state[ch]),
+                .sched_error            (sched_error[ch]),
 
                 // Descriptor AXI (per channel, to arbiter)
                 .desc_ar_valid          (desc_ar_valid[ch]),
@@ -312,28 +322,25 @@ module scheduler_group_array #(
                 .desc_r_id              (desc_r_id[ch]),
 
                 // Data read interface (direct passthrough - no arbitration)
-                .datard_valid           (datard_valid[ch]),
-                .datard_ready           (datard_ready[ch]),
-                .datard_addr            (datard_addr[ch]),
-                .datard_beats_remaining (datard_beats_remaining[ch]),
-                .datard_channel_id      (),  // Not used - index IS the channel ID
+                .sched_rd_valid         (sched_rd_valid[ch]),
+                .sched_rd_addr          (sched_rd_addr[ch]),
+                .sched_rd_beats         (sched_rd_beats[ch]),
 
                 // Data write interface (direct passthrough - no arbitration)
-                .datawr_valid           (datawr_valid[ch]),
-                .datawr_ready           (datawr_ready[ch]),
-                .datawr_addr            (datawr_addr[ch]),
-                .datawr_beats_remaining (datawr_beats_remaining[ch]),
-                .datawr_channel_id      (),  // Not used - index IS the channel ID
+                .sched_wr_valid         (sched_wr_valid[ch]),
+                .sched_wr_ready         (sched_wr_ready[ch]),
+                .sched_wr_addr          (sched_wr_addr[ch]),
+                .sched_wr_beats         (sched_wr_beats[ch]),
 
                 // Completion strobes (direct passthrough)
-                .datard_done_strobe     (datard_done_strobe[ch]),
-                .datard_beats_done      (datard_beats_done[ch]),
-                .datawr_done_strobe     (datawr_done_strobe[ch]),
-                .datawr_beats_done      (datawr_beats_done[ch]),
+                .sched_rd_done_strobe   (sched_rd_done_strobe[ch]),
+                .sched_rd_beats_done    (sched_rd_beats_done[ch]),
+                .sched_wr_done_strobe   (sched_wr_done_strobe[ch]),
+                .sched_wr_beats_done    (sched_wr_beats_done[ch]),
 
                 // Error signals (direct passthrough)
-                .datard_error           (datard_error[ch]),
-                .datawr_error           (datawr_error[ch]),
+                .sched_rd_error         (sched_rd_error[ch]),
+                .sched_wr_error         (sched_wr_error[ch]),
 
                 // Monitor bus (per channel)
                 .mon_valid              (mon_valid_ch[ch]),
@@ -456,7 +463,7 @@ module scheduler_group_array #(
         .AXI_USER_WIDTH         (1),
         .UNIT_ID                (4'(MON_UNIT_ID)),
         .AGENT_ID               (8'(DESC_AXI_MON_AGENT_ID)),
-        .MAX_TRANSACTIONS       (16),
+        .MAX_TRANSACTIONS       (MON_MAX_TRANSACTIONS),
         .ENABLE_FILTERING       (1)
     ) u_desc_axi_monitor (
         .aclk                   (clk),
@@ -509,23 +516,23 @@ module scheduler_group_array #(
         .m_axi_rready           (desc_axi_rready),
 
         // Monitor Configuration
-        .cfg_monitor_enable     (1'b1),
-        .cfg_error_enable       (cfg_daxmon_err_enable),
-        .cfg_timeout_enable     (cfg_daxmon_timeout_enable),
-        .cfg_perf_enable        (cfg_daxmon_perf_enable),
-        .cfg_timeout_cycles     (cfg_sched_timeout_cycles),
-        .cfg_latency_threshold  (32'hFFFFFFFF),
+        .cfg_monitor_enable     (cfg_desc_mon_enable),
+        .cfg_error_enable       (cfg_desc_mon_err_enable),
+        .cfg_perf_enable        (cfg_desc_mon_perf_enable),
+        .cfg_timeout_enable     (cfg_desc_mon_timeout_enable),
+        .cfg_timeout_cycles     (cfg_desc_mon_timeout_cycles),
+        .cfg_latency_threshold  (cfg_desc_mon_latency_thresh),
 
         // AXI Protocol Filtering Configuration
-        .cfg_axi_pkt_mask       (16'h0000),
-        .cfg_axi_err_select     (16'h0000),
-        .cfg_axi_error_mask     (16'h0000),
-        .cfg_axi_timeout_mask   (16'h0000),
-        .cfg_axi_compl_mask     (16'h0000),
-        .cfg_axi_thresh_mask    (16'h0000),
-        .cfg_axi_perf_mask      (16'h0000),
-        .cfg_axi_addr_mask      (16'h0000),
-        .cfg_axi_debug_mask     (16'h0000),
+        .cfg_axi_pkt_mask       (cfg_desc_mon_pkt_mask),
+        .cfg_axi_err_select     (cfg_desc_mon_err_select),
+        .cfg_axi_error_mask     (cfg_desc_mon_err_mask),
+        .cfg_axi_timeout_mask   (cfg_desc_mon_timeout_mask),
+        .cfg_axi_compl_mask     (cfg_desc_mon_compl_mask),
+        .cfg_axi_thresh_mask    (cfg_desc_mon_thresh_mask),
+        .cfg_axi_perf_mask      (cfg_desc_mon_perf_mask),
+        .cfg_axi_addr_mask      (cfg_desc_mon_addr_mask),
+        .cfg_axi_debug_mask     (cfg_desc_mon_debug_mask),
 
         // Monitor bus
         .monbus_valid           (desc_axi_mon_valid),
@@ -533,14 +540,14 @@ module scheduler_group_array #(
         .monbus_packet          (desc_axi_mon_packet),
 
         // Status outputs
-        .busy                   (desc_axi_mon_busy),
-        .active_transactions    (desc_axi_mon_active_txns),
-        .error_count            (desc_axi_mon_error_count),
-        .transaction_count      (desc_axi_mon_txn_count),
-        .cfg_conflict_error     (desc_axi_mon_conflict_error)
+        .busy                   (cfg_sts_desc_mon_busy),
+        .active_transactions    (cfg_sts_desc_mon_active_txns),
+        .error_count            (cfg_sts_desc_mon_error_count),
+        .transaction_count      (cfg_sts_desc_mon_txn_count),
+        .cfg_conflict_error     (cfg_sts_desc_mon_conflict_error)
     );
 
-    // Monitor handles pass-through from desc_axi_int_* (FUB) to desc_axi_* (Master) internally
+    // Monitor handles pass-through from axi_desc_int_* (FUB) to desc_axi_* (Master) internally
     // No additional assigns needed - monitor connects both sides
 
     //=========================================================================
@@ -597,17 +604,8 @@ module scheduler_group_array #(
     endproperty
     assert property (desc_ar_arbiter_one_hot);
 
-    property datard_arbiter_one_hot;
-        @(posedge clk) disable iff (!rst_n)
-        $onehot0(datard_grant);
-    endproperty
-    assert property (datard_arbiter_one_hot);
-
-    property datawr_arbiter_one_hot;
-        @(posedge clk) disable iff (!rst_n)
-        $onehot0(datawr_grant);
-    endproperty
-    assert property (datawr_arbiter_one_hot);
+    // NOTE: Data path arbitration assertions removed - no arbitration at this level
+    // Read/Write interfaces pass directly through to engines (arbitration in engines)
 
     // R channel routing
     property desc_r_channel_valid_routing;
@@ -617,20 +615,8 @@ module scheduler_group_array #(
     endproperty
     assert property (desc_r_channel_valid_routing);
 
-    // Completion strobe routing
-    property datard_completion_routing;
-        @(posedge clk) disable iff (!rst_n)
-        datard_done_strobe && (datard_done_channel_id < NUM_CHANNELS) |->
-            datard_done_strobe_ch[datard_done_channel_id];
-    endproperty
-    assert property (datard_completion_routing);
-
-    property datawr_completion_routing;
-        @(posedge clk) disable iff (!rst_n)
-        datawr_done_strobe && (datawr_done_channel_id < NUM_CHANNELS) |->
-            datawr_done_strobe_ch[datawr_done_channel_id];
-    endproperty
-    assert property (datawr_completion_routing);
+    // NOTE: Completion strobe routing assertions removed - signals pass directly through
+    // No demux/routing logic at this level (completion strobes are per-channel arrays)
     `endif
 
 endmodule : scheduler_group_array

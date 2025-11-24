@@ -91,39 +91,24 @@ module axi_read_engine #(
     // Scheduler Interface (Per-Channel Read Requests)
     //=========================================================================
     input  logic [NC-1:0]               sched_rd_valid,      // Channel requests read
-    output logic [NC-1:0]               sched_rd_ready,      // Engine ready for channel
     input  logic [NC-1:0][AW-1:0]       sched_rd_addr,       // Source addresses
     input  logic [NC-1:0][31:0]         sched_rd_beats,      // Beats remaining to read
 
     //=========================================================================
-    // AXI4 AR Channel (Read Address)
+    // Completion Interface (to Schedulers)
     //=========================================================================
-    output logic [IW-1:0]               m_axi_arid,
-    output logic [AW-1:0]               m_axi_araddr,
-    output logic [7:0]                  m_axi_arlen,         // Burst length - 1
-    output logic [2:0]                  m_axi_arsize,        // Burst size (log2(bytes))
-    output logic [1:0]                  m_axi_arburst,       // Burst type (INCR)
-    output logic                        m_axi_arvalid,
-    input  logic                        m_axi_arready,
-
-    //=========================================================================
-    // AXI4 R Channel (Read Data)
-    //=========================================================================
-    input  logic [IW-1:0]               m_axi_rid,
-    input  logic [DW-1:0]               m_axi_rdata,
-    input  logic [1:0]                  m_axi_rresp,
-    input  logic                        m_axi_rlast,
-    input  logic                        m_axi_rvalid,
-    output logic                        m_axi_rready,
+    // Notify schedulers when read burst completes
+    output logic [NC-1:0]               sched_rd_done_strobe,  // Burst completed (pulsed for 1 cycle)
+    output logic [NC-1:0][31:0]         sched_rd_beats_done,   // Number of beats completed in burst
 
     //=========================================================================
     // SRAM Allocation Interface (to SRAM Controller)
     //=========================================================================
     // Pre-allocation interface (before data arrives)
-    output logic                        rd_alloc_req,        // Channel requests space
-    output logic [7:0]                  rd_alloc_size,       // Beats to reserve
-    output logic [IW-1:0]               rd_alloc_id,         // Transaction ID → channel
-    input  logic [NC-1:0][SCW-1:0]      rd_space_free,       // Free space count (beats available)
+    output logic                        axi_rd_alloc_req,        // Channel requests space
+    output logic [7:0]                  axi_rd_alloc_size,       // Beats to reserve
+    output logic [IW-1:0]               axi_rd_alloc_id,         // Transaction ID → channel
+    input  logic [NC-1:0][SCW-1:0]      axi_rd_alloc_space_free, // Free space count (beats available)
 
     //=========================================================================
     // SRAM Write Interface (to SRAM Controller)
@@ -135,16 +120,35 @@ module axi_read_engine #(
     output logic [DW-1:0]               axi_rd_sram_data,    // Read data payload
 
     //=========================================================================
-    // Completion Interface (to Schedulers)
+    // AXI4 AR Channel (Read Address)
     //=========================================================================
-    // Notify schedulers when read burst completes
-    output logic [NC-1:0]               sched_rd_done_strobe,  // Burst completed (pulsed for 1 cycle)
-    output logic [NC-1:0][31:0]         sched_rd_beats_done,   // Number of beats completed in burst
-    output logic [NC-1:0]               axi_rd_all_complete,   // All reads complete (no outstanding txns)
+    output logic                        m_axi_arvalid,
+    input  logic                        m_axi_arready,
+    output logic [IW-1:0]               m_axi_arid,
+    output logic [AW-1:0]               m_axi_araddr,
+    output logic [7:0]                  m_axi_arlen,         // Burst length - 1
+    output logic [2:0]                  m_axi_arsize,        // Burst size (log2(bytes))
+    output logic [1:0]                  m_axi_arburst,       // Burst type (INCR)
+
+    //=========================================================================
+    // AXI4 R Channel (Read Data)
+    //=========================================================================
+    input  logic                        m_axi_rvalid,
+    output logic                        m_axi_rready,
+    input  logic [IW-1:0]               m_axi_rid,
+    input  logic [DW-1:0]               m_axi_rdata,
+    input  logic [1:0]                  m_axi_rresp,
+    input  logic                        m_axi_rlast,
+
+    //=========================================================================
+    // Error Signals (to Scheduler)
+    //=========================================================================
+    output logic [NC-1:0]               sched_rd_error,      // Sticky error flag per channel (bad R response)
 
     //=========================================================================
     // Debug Interface (for verification/debug only)
     //=========================================================================
+    output logic [NC-1:0]               dbg_rd_all_complete,   // All reads complete (no outstanding txns)
     output logic [31:0]                 dbg_r_beats_rcvd,    // Total R beats received from AXI
     output logic [31:0]                 dbg_sram_writes,     // Total writes to SRAM controller
     output logic [NC-1:0]               dbg_arb_request      // Arbiter request vector (for bubble filtering)
@@ -170,12 +174,10 @@ module axi_read_engine #(
     logic [NC-1:0][MOW-1:0] r_outstanding_count;   // Outstanding AR count per channel (PIPELINE=1 only)
 
     //=========================================================================
-    // Beats Issued Tracking
+    // Beats Issued Tracking - REMOVED
     //=========================================================================
-    // Track how many beats have been issued (AR transactions) vs. requested
-    // This prevents issuing more ARs than the scheduler needs
-
-    logic [NC-1:0][31:0] r_beats_issued;  // Beats issued per channel (cumulative)
+    // Address tracking moved to scheduler (scheduler increments after each strobe)
+    // Read engine now uses direct address from scheduler, no offset needed
 
     generate
         if (PIPELINE == 0) begin : gen_no_pipeline_tracking
@@ -263,24 +265,7 @@ module axi_read_engine #(
         end
     )
 
-    assign axi_rd_all_complete = r_all_complete;
-
-    // Track beats issued: increment when AR issues, reset when sched_rd_valid de-asserts
-    `ALWAYS_FF_RST(clk, rst_n,
-        if (`RST_ASSERTED(rst_n)) begin
-            r_beats_issued <= '{default:0};
-        end else begin
-            for (int i = 0; i < NC; i++) begin
-                // Reset issued counter when scheduler de-asserts valid (new descriptor or transfer complete)
-                if (!sched_rd_valid[i]) begin
-                    r_beats_issued[i] <= 32'h0;
-                // Increment when AR transaction issues for this channel
-                end else if (m_axi_arvalid && m_axi_arready && (w_arb_grant_id == i[CW-1:0])) begin
-                    r_beats_issued[i] <= r_beats_issued[i] + {24'h0, cfg_axi_rd_xfer_beats};
-                end
-            end
-        end
-    )
+    assign dbg_rd_all_complete = r_all_complete;
 
     //=========================================================================
     // Space-Aware Request Masking
@@ -293,13 +278,18 @@ module axi_read_engine #(
     logic [NC-1:0] w_below_outstanding_limit;   // Channel below max outstanding limit (can issue new AR)
     logic [NC-1:0] w_beats_ok;                  // Haven't issued more than requested
     logic [NC-1:0] w_arb_request;               // Masked requests to arbiter
+    logic [NC-1:0][7:0] w_transfer_size;        // Actual transfer size per channel (min of remaining beats or config)
 
     always_comb begin
         for (int i = 0; i < NC; i++) begin
-            // Check if channel has enough space for configured burst size
+            // Calculate actual transfer size for this channel (matches write engine pattern)
+            w_transfer_size[i] = 8'((sched_rd_beats[i] <= 32'(cfg_axi_rd_xfer_beats)) ?
+                        sched_rd_beats[i] : 32'(cfg_axi_rd_xfer_beats));
+
+            // Check if channel has enough space for actual transfer size
             // FIX: Use SCW for both operands (was hardcoded 8, truncated for depths > 128)
             // FIX: Require 2x burst size margin to account for in-flight allocation timing
-            w_space_ok[i] = (SCW'(rd_space_free[i]) >= SCW'(cfg_axi_rd_xfer_beats << 1));
+            w_space_ok[i] = (SCW'(axi_rd_alloc_space_free[i]) >= SCW'(w_transfer_size[i] << 1));
 
             // Check outstanding constraint
             // PIPELINE=0: !r_outstanding_limit means no outstanding transaction (can issue)
@@ -309,7 +299,7 @@ module axi_read_engine #(
             // Check if next burst fits in remaining beats
             // Note: sched_rd_beats is REMAINING beats (decrements as engine completes bursts)
             // We only need to check if the next burst fits, not cumulative issued
-            w_beats_ok[i] = ({24'h0, cfg_axi_rd_xfer_beats}) <= sched_rd_beats[i];
+            w_beats_ok[i] = 'b0 < sched_rd_beats[i];
 
             // Only request arbitration if:
             // 1. Scheduler is requesting (sched_rd_valid)
@@ -359,13 +349,16 @@ module axi_read_engine #(
     // AR Channel Management - COMBINATIONAL (no flops for immediate response)
     //=========================================================================
     // FIX: Drive AR outputs combinationally from arbiter to avoid 1-cycle delay
-    // When rd_space_free goes to 0, arvalid must drop in the same cycle
+    // When axi_rd_alloc_space_free goes to 0, arvalid must drop in the same cycle
 
     // AXI AR outputs - COMBINATIONAL
     assign m_axi_arvalid = w_arb_grant_valid;
     assign m_axi_arid = {{(IW-CW){1'b0}}, w_arb_grant_id};  // Channel ID in lower bits
-    assign m_axi_araddr = sched_rd_addr[w_arb_grant_id] + (AW'(r_beats_issued[w_arb_grant_id]) << AXSIZE);
-    assign m_axi_arlen = cfg_axi_rd_xfer_beats - 8'd1;  // AXI uses len-1 (configured burst size)
+    // Address comes directly from scheduler (scheduler increments after each AR)
+    assign m_axi_araddr = sched_rd_addr[w_arb_grant_id];
+    // Use w_transfer_size (already calculated as min of remaining beats or config)
+    // AXI uses len-1 encoding
+    assign m_axi_arlen = w_transfer_size[w_arb_grant_id] - 8'd1;
     assign m_axi_arsize = 3'(AXSIZE);
     assign m_axi_arburst = 2'b01;  // INCR
 
@@ -393,38 +386,15 @@ module axi_read_engine #(
             // Assert allocation when AXI AR command issues
             if (m_axi_arvalid && m_axi_arready) begin
                 r_alloc_req <= 1'b1;
-                r_alloc_size <= cfg_axi_rd_xfer_beats;  // Configured burst size
+                r_alloc_size <= w_transfer_size[w_arb_grant_id];  // Actual transfer size (matches arlen+1)
                 r_alloc_id <= {{(IW-CW){1'b0}}, w_arb_grant_id};  // Channel ID from arbiter
             end
         end
     )
 
-    assign rd_alloc_req = r_alloc_req;
-    assign rd_alloc_size = r_alloc_size;
-    assign rd_alloc_id = r_alloc_id;
-
-    //=========================================================================
-    // Scheduler Ready Signals
-    //=========================================================================
-    // Ready when granted and AR command accepted
-
-    logic [NC-1:0] r_sched_ready;
-
-    `ALWAYS_FF_RST(clk, rst_n,
-        if (`RST_ASSERTED(rst_n)) begin
-            r_sched_ready <= '0;
-        end else begin
-            // Default: clear ready
-            r_sched_ready <= '0;
-
-            // Assert ready when command accepted
-            if (m_axi_arvalid && m_axi_arready) begin
-                r_sched_ready[w_arb_grant_id] <= 1'b1;
-            end
-        end
-    )
-
-    assign sched_rd_ready = r_sched_ready;
+    assign axi_rd_alloc_req = r_alloc_req;
+    assign axi_rd_alloc_size = r_alloc_size;
+    assign axi_rd_alloc_id = r_alloc_id;
 
     //=========================================================================
     // AXI R Channel → SRAM Controller
@@ -442,23 +412,6 @@ module axi_read_engine #(
     // Two modes controlled by STROBE_EVERY_BEAT parameter:
     //   Mode 0 (default): Strobe only on last beat, report full burst size
     //   Mode 1: Strobe every beat, report 1 beat each time
-
-    // Per-channel tracking: beats in current outstanding burst
-    logic [NC-1:0][7:0] r_burst_beats;  // Beats expected in current burst (arlen + 1)
-
-    // Capture burst size when AR issues
-    `ALWAYS_FF_RST(clk, rst_n,
-        if (`RST_ASSERTED(rst_n)) begin
-            r_burst_beats <= '{default:0};
-        end else begin
-            for (int i = 0; i < NC; i++) begin
-                // Start of new burst: capture beat count
-                if (m_axi_arvalid && m_axi_arready && (w_arb_grant_id == i[CW-1:0])) begin
-                    r_burst_beats[i] <= cfg_axi_rd_xfer_beats;  // Configured burst size
-                end
-            end
-        end
-    )
 
     // Generate completion strobes - REGISTERED but based on AR handshake
     // FIX: Scheduler needs to know when AR transaction is accepted (not R completion)
@@ -478,13 +431,44 @@ module axi_read_engine #(
             // This tells scheduler that request was issued to AXI bus
             if (m_axi_arvalid && m_axi_arready) begin
                 r_done_strobe[w_arb_grant_id] <= 1'b1;
-                r_beats_done[w_arb_grant_id] <= {24'd0, cfg_axi_rd_xfer_beats};
+                r_beats_done[w_arb_grant_id] <= {24'd0, w_transfer_size[w_arb_grant_id]};  // Actual beats issued
             end
         end
     )
 
     assign sched_rd_done_strobe = r_done_strobe;
     assign sched_rd_beats_done = r_beats_done;
+
+    //=========================================================================
+    // Error Sticky Flags
+    //=========================================================================
+    // Sticky error flag per channel - set on bad R response (RRESP != 2'b00)
+    // Remains set until cleared by external logic (scheduler reset or descriptor completion)
+
+    logic [NC-1:0] r_rd_error;
+
+    `ALWAYS_FF_RST(clk, rst_n,
+        if (`RST_ASSERTED(rst_n)) begin
+            r_rd_error <= '0;
+        end else begin
+            // Check for bad R response on each valid R beat
+            if (m_axi_rvalid && m_axi_rready && (m_axi_rresp != 2'b00)) begin
+                // Extract channel ID from RID and set corresponding error flag
+                logic [CW-1:0] ch_id;
+                ch_id = m_axi_rid[CW-1:0];
+                r_rd_error[ch_id] <= 1'b1;
+
+                // Debug display for error detection
+                `ifndef SYNTHESIS
+                $display("AXI_RD_ENG @%t: ERROR on channel %0d, RRESP=%2b", $time, ch_id, m_axi_rresp);
+                `endif
+            end
+            // Note: Error flags are NOT auto-cleared - must be cleared by external logic
+            // Scheduler can clear on channel reset or descriptor completion
+        end
+    )
+
+    assign sched_rd_error = r_rd_error;
 
     //=========================================================================
     // Debug Counters
@@ -529,7 +513,7 @@ module axi_read_engine #(
 
     // Allocation only when AR command issues
     assert property (@(posedge clk) disable iff (!rst_n)
-        rd_alloc_req |-> $past(m_axi_arvalid && m_axi_arready));
+        axi_rd_alloc_req |-> $past(m_axi_arvalid && m_axi_arready));
 
     // Channel ID must be valid
     assert property (@(posedge clk) disable iff (!rst_n)

@@ -1,0 +1,122 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?><svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" contentScriptType="application/ecmascript" contentStyleType="text/css" height="966px" preserveAspectRatio="none" style="width:1106px;height:966px;" version="1.1" viewBox="0 0 1106 966" width="1106px" zoomAndPan="magnify"><defs><filter height="300%" id="f14ua274jd64ck" width="300%" x="-1" y="-1"><feGaussianBlur result="blurOut" stdDeviation="2.0"/><feColorMatrix in="blurOut" result="blurOut2" type="matrix" values="0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 .4 0"/><feOffset dx="4.0" dy="4.0" in="blurOut2" result="blurOut3"/><feBlend in="SourceGraphic" in2="blurOut3" mode="normal"/></filter></defs><g><text fill="#000000" font-family="sans-serif" font-size="18" lengthAdjust="spacingAndGlyphs" textLength="358" x="378" y="19.2419">HPET Core Timer FSM (Per-Timer Instance)</text><ellipse cx="219.5" cy="650.0158" fill="#000000" filter="url(#f14ua274jd64ck)" rx="10" ry="10" style="stroke: none; stroke-width: 1.0;"/><path d="M701.5,32.5158 L701.5,104.5158 L666.44,108.5158 L701.5,112.5158 L701.5,184.164 A0,0 0 0 0 701.5,184.164 L923.5,184.164 A0,0 0 0 0 923.5,184.164 L923.5,42.5158 L913.5,32.5158 L701.5,32.5158 A0,0 0 0 0 701.5,32.5158 " fill="#FBFB77" filter="url(#f14ua274jd64ck)" style="stroke: #A80036; stroke-width: 1.0;"/><path d="M913.5,32.5158 L913.5,42.5158 L923.5,42.5158 L913.5,32.5158 " fill="#FBFB77" style="stroke: #A80036; stroke-width: 1.0;"/><text fill="#000000" font-family="sans-serif" font-size="13" font-weight="bold" lengthAdjust="spacingAndGlyphs" textLength="69" x="707.5" y="51.4129">Fire Event:</text><text fill="#000000" font-family="sans-serif" font-size="13" lengthAdjust="spacingAndGlyphs" textLength="143" x="707.5" y="69.1189">- Asserts timer_fired flag</text><text fill="#000000" font-family="sans-serif" font-size="13" lengthAdjust="spacingAndGlyphs" textLength="138" x="707.5" y="86.8249">- Sets STATUS bit (W1C)</text><text fill="#000000" font-family="sans-serif" font-size="13" lengthAdjust="spacingAndGlyphs" textLength="201" x="707.5" y="104.5309">- Interrupt output follows STATUS</text><text fill="#000000" font-family="sans-serif" font-size="13" lengthAdjust="spacingAndGlyphs" textLength="0" x="710.5" y="122.2369"/><text fill="#000000" font-family="sans-serif" font-size="13" font-weight="bold" lengthAdjust="spacingAndGlyphs" textLength="50" x="707.5" y="139.9429">Timing:</text><text fill="#000000" font-family="sans-serif" font-size="13" lengthAdjust="spacingAndGlyphs" textLength="173" x="707.5" y="157.649">- Fire detected on rising edge</text><text fill="#000000" font-family="sans-serif" font-size="13" lengthAdjust="spacingAndGlyphs" textLength="110" x="707.5" y="175.355">- One cycle latency</text><path d="M708.5,299.0158 L708.5,362.0158 L673.31,366.0158 L708.5,370.0158 L708.5,432.958 A0,0 0 0 0 708.5,432.958 L908.5,432.958 A0,0 0 0 0 908.5,432.958 L908.5,309.0158 L898.5,299.0158 L708.5,299.0158 A0,0 0 0 0 708.5,299.0158 " fill="#FBFB77" filter="url(#f14ua274jd64ck)" style="stroke: #A80036; stroke-width: 1.0;"/><path d="M898.5,299.0158 L898.5,309.0158 L908.5,309.0158 L898.5,299.0158 " fill="#FBFB77" style="stroke: #A80036; stroke-width: 1.0;"/><text fill="#000000" font-family="sans-serif" font-size="13" font-weight="bold" lengthAdjust="spacingAndGlyphs" textLength="85" x="714.5" y="317.9129">Auto-Reload:</text><text fill="#000000" font-family="sans-serif" font-size="13" lengthAdjust="spacingAndGlyphs" textLength="114" x="714.5" y="335.6189">comparator_next =</text><text fill="#000000" font-family="sans-serif" font-size="13" lengthAdjust="spacingAndGlyphs" textLength="173" x="720.5" y="353.3249">comparator_current + period</text><text fill="#000000" font-family="sans-serif" font-size="13" lengthAdjust="spacingAndGlyphs" textLength="0" x="717.5" y="371.0309"/><text fill="#000000" font-family="sans-serif" font-size="13" font-weight="bold" lengthAdjust="spacingAndGlyphs" textLength="150" x="714.5" y="388.7369">Continuous Operation:</text><text fill="#000000" font-family="sans-serif" font-size="13" lengthAdjust="spacingAndGlyphs" textLength="146" x="714.5" y="406.4429">Timer fires indefinitely at</text><text fill="#000000" font-family="sans-serif" font-size="13" lengthAdjust="spacingAndGlyphs" textLength="166" x="714.5" y="424.149">fixed intervals until disabled</text><path d="M266,281.5158 L266,362.0158 L231.43,366.0158 L266,370.0158 L266,450.87 A0,0 0 0 0 266,450.87 L461,450.87 A0,0 0 0 0 461,450.87 L461,291.5158 L451,281.5158 L266,281.5158 A0,0 0 0 0 266,281.5158 " fill="#FBFB77" filter="url(#f14ua274jd64ck)" style="stroke: #A80036; stroke-width: 1.0;"/><path d="M451,281.5158 L451,291.5158 L461,291.5158 L451,281.5158 " fill="#FBFB77" style="stroke: #A80036; stroke-width: 1.0;"/><text fill="#000000" font-family="sans-serif" font-size="13" font-weight="bold" lengthAdjust="spacingAndGlyphs" textLength="144" x="272" y="300.4129">One-Shot Completion:</text><text fill="#000000" font-family="sans-serif" font-size="13" lengthAdjust="spacingAndGlyphs" textLength="101" x="272" y="318.1189">- Timer fires once</text><text fill="#000000" font-family="sans-serif" font-size="13" lengthAdjust="spacingAndGlyphs" textLength="167" x="272" y="335.8249">- Interrupt remains asserted</text><text fill="#000000" font-family="sans-serif" font-size="13" lengthAdjust="spacingAndGlyphs" textLength="168" x="278" y="353.5309">until software clears STATUS</text><text fill="#000000" font-family="sans-serif" font-size="13" lengthAdjust="spacingAndGlyphs" textLength="0" x="275" y="371.2369"/><text fill="#000000" font-family="sans-serif" font-size="13" font-weight="bold" lengthAdjust="spacingAndGlyphs" textLength="112" x="272" y="388.9429">Reconfiguration:</text><text fill="#000000" font-family="sans-serif" font-size="13" lengthAdjust="spacingAndGlyphs" textLength="126" x="272" y="406.649">- Update comparator</text><text fill="#000000" font-family="sans-serif" font-size="13" lengthAdjust="spacingAndGlyphs" textLength="101" x="272" y="424.355">- Re-enable timer</text><text fill="#000000" font-family="sans-serif" font-size="13" lengthAdjust="spacingAndGlyphs" textLength="117" x="272" y="442.061">- Returns to ARMED</text><path d="M264.5,547.5158 L264.5,752.282 A0,0 0 0 0 264.5,752.282 L460.5,752.282 A0,0 0 0 0 460.5,752.282 L460.5,654.0158 L495.2,650.0158 L460.5,646.0158 L460.5,557.5158 L450.5,547.5158 L264.5,547.5158 A0,0 0 0 0 264.5,547.5158 " fill="#FBFB77" filter="url(#f14ua274jd64ck)" style="stroke: #A80036; stroke-width: 1.0;"/><path d="M450.5,547.5158 L450.5,557.5158 L460.5,557.5158 L450.5,547.5158 " fill="#FBFB77" style="stroke: #A80036; stroke-width: 1.0;"/><text fill="#000000" font-family="sans-serif" font-size="13" font-weight="bold" lengthAdjust="spacingAndGlyphs" textLength="115" x="270.5" y="566.4129">Match Detection:</text><text fill="#000000" font-family="sans-serif" font-size="13" lengthAdjust="spacingAndGlyphs" textLength="92" x="270.5" y="584.1189">fire_condition =</text><text fill="#000000" font-family="sans-serif" font-size="13" lengthAdjust="spacingAndGlyphs" textLength="169" x="276.5" y="601.8249">(counter &gt;= comparator) &amp;&amp;</text><text fill="#000000" font-family="sans-serif" font-size="13" lengthAdjust="spacingAndGlyphs" textLength="109" x="276.5" y="619.5309">timer_enabled &amp;&amp;</text><text fill="#000000" font-family="sans-serif" font-size="13" lengthAdjust="spacingAndGlyphs" textLength="82" x="276.5" y="637.2369">hpet_enabled</text><text fill="#000000" font-family="sans-serif" font-size="13" lengthAdjust="spacingAndGlyphs" textLength="0" x="273.5" y="654.9429"/><text fill="#000000" font-family="sans-serif" font-size="13" font-weight="bold" lengthAdjust="spacingAndGlyphs" textLength="147" x="270.5" y="672.649">Comparator Sampling:</text><text fill="#000000" font-family="sans-serif" font-size="13" lengthAdjust="spacingAndGlyphs" textLength="165" x="270.5" y="690.355">Latched on entry to ARMED</text><text fill="#000000" font-family="sans-serif" font-size="13" lengthAdjust="spacingAndGlyphs" textLength="73" x="270.5" y="708.061">Updates on:</text><text fill="#000000" font-family="sans-serif" font-size="13" lengthAdjust="spacingAndGlyphs" textLength="117" x="270.5" y="725.767">- Timer enable edge</text><text fill="#000000" font-family="sans-serif" font-size="13" lengthAdjust="spacingAndGlyphs" textLength="113" x="270.5" y="743.473">- Comparator write</text><rect fill="#FEFECE" filter="url(#f14ua274jd64ck)" height="88.1003" rx="12.5" ry="12.5" style="stroke: #A80036; stroke-width: 1.5;" width="145" x="248" y="867.5158"/><line style="stroke: #A80036; stroke-width: 1.5;" x1="248" x2="393" y1="896.5838" y2="896.5838"/><text fill="#000000" font-family="sans-serif" font-size="14" lengthAdjust="spacingAndGlyphs" textLength="30" x="305.5" y="887.4818">IDLE</text><text fill="#000000" font-family="sans-serif" font-size="12" lengthAdjust="spacingAndGlyphs" textLength="116" x="253" y="914.4119">Entry: timer_fired = 0</text><text fill="#000000" font-family="sans-serif" font-size="12" lengthAdjust="spacingAndGlyphs" textLength="125" x="253" y="930.756">timer_irq = STATUS bit</text><text fill="#000000" font-family="sans-serif" font-size="12" lengthAdjust="spacingAndGlyphs" textLength="118" x="253" y="947.1001">Wait for timer enable</text><rect fill="#FEFECE" filter="url(#f14ua274jd64ck)" height="88.1003" rx="12.5" ry="12.5" style="stroke: #A80036; stroke-width: 1.5;" width="252" x="495.5" y="606.0158"/><line style="stroke: #A80036; stroke-width: 1.5;" x1="495.5" x2="747.5" y1="635.0838" y2="635.0838"/><text fill="#000000" font-family="sans-serif" font-size="14" lengthAdjust="spacingAndGlyphs" textLength="49" x="597" y="625.9818">ARMED</text><text fill="#000000" font-family="sans-serif" font-size="12" lengthAdjust="spacingAndGlyphs" textLength="179" x="500.5" y="652.9119">Entry: Sample comparator value</text><text fill="#000000" font-family="sans-serif" font-size="12" lengthAdjust="spacingAndGlyphs" textLength="174" x="500.5" y="669.256">Monitor counter vs comparator</text><text fill="#000000" font-family="sans-serif" font-size="12" lengthAdjust="spacingAndGlyphs" textLength="232" x="500.5" y="685.6001">timer_irq = STATUS bit (if previously fired)</text><rect fill="#FEFECE" filter="url(#f14ua274jd64ck)" height="104.4444" rx="12.5" ry="12.5" style="stroke: #A80036; stroke-width: 1.5;" width="163" x="503" y="56.5158"/><line style="stroke: #A80036; stroke-width: 1.5;" x1="503" x2="666" y1="85.5838" y2="85.5838"/><text fill="#000000" font-family="sans-serif" font-size="14" lengthAdjust="spacingAndGlyphs" textLength="29" x="570" y="76.4818">FIRE</text><text fill="#000000" font-family="sans-serif" font-size="12" lengthAdjust="spacingAndGlyphs" textLength="141" x="508" y="103.4119">Entry: Set timer_fired flag</text><text fill="#000000" font-family="sans-serif" font-size="12" lengthAdjust="spacingAndGlyphs" textLength="143" x="508" y="119.756">Set STATUS bit (interrupt)</text><text fill="#000000" font-family="sans-serif" font-size="12" lengthAdjust="spacingAndGlyphs" textLength="94" x="508" y="136.1001">timer_irq asserts</text><text fill="#000000" font-family="sans-serif" font-size="12" lengthAdjust="spacingAndGlyphs" textLength="124" x="508" y="152.4442">Duration: 1 clock cycle</text><rect fill="#FEFECE" filter="url(#f14ua274jd64ck)" height="88.1003" rx="12.5" ry="12.5" style="stroke: #A80036; stroke-width: 1.5;" width="177" x="496" y="322.0158"/><line style="stroke: #A80036; stroke-width: 1.5;" x1="496" x2="673" y1="351.0838" y2="351.0838"/><text fill="#000000" font-family="sans-serif" font-size="14" lengthAdjust="spacingAndGlyphs" textLength="125" x="522" y="341.9818">PERIODIC_RELOAD</text><text fill="#000000" font-family="sans-serif" font-size="12" lengthAdjust="spacingAndGlyphs" textLength="157" x="501" y="368.9119">Entry: comparator += period</text><text fill="#000000" font-family="sans-serif" font-size="12" lengthAdjust="spacingAndGlyphs" textLength="113" x="501" y="385.256">Prepare for next fire</text><text fill="#000000" font-family="sans-serif" font-size="12" lengthAdjust="spacingAndGlyphs" textLength="124" x="501" y="401.6001">Duration: 1 clock cycle</text><rect fill="#FEFECE" filter="url(#f14ua274jd64ck)" height="88.1003" rx="12.5" ry="12.5" style="stroke: #A80036; stroke-width: 1.5;" width="225" x="6" y="322.0158"/><line style="stroke: #A80036; stroke-width: 1.5;" x1="6" x2="231" y1="351.0838" y2="351.0838"/><text fill="#000000" font-family="sans-serif" font-size="14" lengthAdjust="spacingAndGlyphs" textLength="151" x="43" y="341.9818">ONE_SHOT_COMPLETE</text><text fill="#000000" font-family="sans-serif" font-size="12" lengthAdjust="spacingAndGlyphs" textLength="123" x="11" y="368.9119">Entry: Timer complete</text><text fill="#000000" font-family="sans-serif" font-size="12" lengthAdjust="spacingAndGlyphs" textLength="205" x="11" y="385.256">Wait for software clear + reconfigure</text><text fill="#000000" font-family="sans-serif" font-size="12" lengthAdjust="spacingAndGlyphs" textLength="167" x="11" y="401.6001">timer_irq = STATUS bit (sticky)</text><!--MD5=[9c5673dd9f569fe24504060ab78be963]
+link *start to IDLE--><path d="M220.97,659.9258 C225.72,687.4158 242.15,772.9258 272.5,837.5158 C276.47,845.9758 281.31,854.5858 286.37,862.7858 " fill="none" id="*start-&gt;IDLE" style="stroke: #A80036; stroke-width: 1.0;"/><polygon fill="#A80036" points="289.2,867.3058,287.8132,857.5551,286.5462,863.0683,281.033,861.8013,289.2,867.3058" style="stroke: #A80036; stroke-width: 1.0;"/><text fill="#000000" font-family="sans-serif" font-size="13" lengthAdjust="spacingAndGlyphs" textLength="104" x="273.5" y="815.4129">Reset / Power-On</text><!--MD5=[fee423d932ce40f5dd2549a165383dff]
+link IDLE to ARMED--><path d="M393.18,900.3258 C438.15,890.7458 494.54,872.3858 533.5,837.5158 C574.39,800.9158 597.86,741.2958 610.11,699.3358 " fill="none" id="IDLE-&gt;ARMED" style="stroke: #A80036; stroke-width: 1.0;"/><polygon fill="#A80036" points="611.55,694.3058,605.2166,701.8483,610.167,699.1108,612.9045,704.0611,611.55,694.3058" style="stroke: #A80036; stroke-width: 1.0;"/><text fill="#000000" font-family="sans-serif" font-size="13" lengthAdjust="spacingAndGlyphs" textLength="106" x="576.5" y="797.4129">HPET enabled &amp;&amp;</text><text fill="#000000" font-family="sans-serif" font-size="13" lengthAdjust="spacingAndGlyphs" textLength="85" x="587" y="815.1189">Timer enabled</text><text fill="#000000" font-family="sans-serif" font-size="13" lengthAdjust="spacingAndGlyphs" textLength="91" x="584" y="832.8249">(CONFIG[0] = 1)</text><!--MD5=[fecf577485198f58ae49b852f172d78f]
+link ARMED to IDLE--><path d="M563.74,694.1558 C537.86,712.8458 506.65,734.5258 477.5,752.5158 C453.47,767.3458 442.67,763.8358 421.5,782.5158 C399.03,802.3358 400.88,813.8558 382.5,837.5158 C375.93,845.9758 368.73,854.8058 361.65,863.2858 " fill="none" id="ARMED-&gt;IDLE" style="stroke: #A80036; stroke-width: 1.0;"/><polygon fill="#A80036" points="358.18,867.4158,367.0304,863.0949,361.395,863.5865,360.9034,857.951,358.18,867.4158" style="stroke: #A80036; stroke-width: 1.0;"/><text fill="#000000" font-family="sans-serif" font-size="13" lengthAdjust="spacingAndGlyphs" textLength="102" x="422.5" y="806.4129">HPET disabled ||</text><text fill="#000000" font-family="sans-serif" font-size="13" lengthAdjust="spacingAndGlyphs" textLength="87" x="430" y="824.1189">Timer disabled</text><!--MD5=[64808d0cd570c9cbfd1405bcedae0705]
+link ARMED to FIRE--><path d="M738.5,605.9158 C806.3,574.1758 885.89,523.6858 925.5,450.5158 C961.26,384.4658 967.59,343.7258 925.5,281.5158 C860.57,185.5458 784.36,241.5658 683.5,184.5158 C672.56,178.3258 661.48,171.0758 650.88,163.5558 " fill="none" id="ARMED-&gt;FIRE" style="stroke: #A80036; stroke-width: 1.0;"/><polygon fill="#A80036" points="646.68,160.5558,651.6561,169.0552,650.7409,163.4728,656.3233,162.5577,646.68,160.5558" style="stroke: #A80036; stroke-width: 1.0;"/><text fill="#000000" font-family="sans-serif" font-size="13" lengthAdjust="spacingAndGlyphs" textLength="138" x="956.5" y="371.4129">counter &gt;= comparator</text><!--MD5=[060eaf7b3d3e97c571801770b682b535]
+link FIRE to PERIODIC_RELOAD--><path d="M584.5,160.6058 C584.5,206.0358 584.5,271.9958 584.5,316.5958 " fill="none" id="FIRE-&gt;PERIODIC_RELOAD" style="stroke: #A80036; stroke-width: 1.0;"/><polygon fill="#A80036" points="584.5,321.6558,588.5,312.6558,584.5,316.6558,580.5,312.6558,584.5,321.6558" style="stroke: #A80036; stroke-width: 1.0;"/><text fill="#000000" font-family="sans-serif" font-size="13" lengthAdjust="spacingAndGlyphs" textLength="86" x="588" y="229.4129">Periodic mode</text><text fill="#000000" font-family="sans-serif" font-size="13" lengthAdjust="spacingAndGlyphs" textLength="91" x="585.5" y="247.1189">(CONFIG[2] = 1)</text><!--MD5=[ea519ae27142d8cf0d0378e979186656]
+link FIRE to ONE_SHOT_COMPLETE--><path d="M502.87,148.5158 C434.08,182.0458 333.56,232.5858 248.5,281.5158 C228.29,293.1458 206.81,306.5058 187.27,319.0758 " fill="none" id="FIRE-&gt;ONE_SHOT_COMPLETE" style="stroke: #A80036; stroke-width: 1.0;"/><polygon fill="#A80036" points="182.86,321.9158,192.5936,320.4137,187.0659,319.2121,188.2676,313.6843,182.86,321.9158" style="stroke: #A80036; stroke-width: 1.0;"/><text fill="#000000" font-family="sans-serif" font-size="13" lengthAdjust="spacingAndGlyphs" textLength="94" x="368.5" y="229.4129">One-shot mode</text><text fill="#000000" font-family="sans-serif" font-size="13" lengthAdjust="spacingAndGlyphs" textLength="91" x="370" y="247.1189">(CONFIG[2] = 0)</text><!--MD5=[7f43d42af1d1afc527db925ec0d7048e]
+link PERIODIC_RELOAD to ARMED--><path d="M590.16,410.1558 C596.91,461.5658 608.15,547.2458 615.17,600.8058 " fill="none" id="PERIODIC_RELOAD-&gt;ARMED" style="stroke: #A80036; stroke-width: 1.0;"/><polygon fill="#A80036" points="615.84,605.8858,618.6226,596.4382,615.1829,600.9292,610.692,597.4896,615.84,605.8858" style="stroke: #A80036; stroke-width: 1.0;"/><text fill="#000000" font-family="sans-serif" font-size="13" lengthAdjust="spacingAndGlyphs" textLength="41" x="650" y="495.4129">Always</text><text fill="#000000" font-family="sans-serif" font-size="13" lengthAdjust="spacingAndGlyphs" textLength="130" x="605.5" y="513.1189">(automatic transition)</text><!--MD5=[da117f6e4282bafa9658adf5e44355a7]
+link ONE_SHOT_COMPLETE to IDLE--><path d="M102.89,410.1658 C78.71,484.7158 40.68,640.3858 98.5,752.5158 C128.76,811.1858 191.99,852.8358 243.25,878.5958 " fill="none" id="ONE_SHOT_COMPLETE-&gt;IDLE" style="stroke: #A80036; stroke-width: 1.0;"/><polygon fill="#A80036" points="247.86,880.8858,241.5893,873.2912,243.385,878.6555,238.0207,880.4512,247.86,880.8858" style="stroke: #A80036; stroke-width: 1.0;"/><text fill="#000000" font-family="sans-serif" font-size="13" lengthAdjust="spacingAndGlyphs" textLength="87" x="101.5" y="646.4129">Timer disabled</text><text fill="#000000" font-family="sans-serif" font-size="13" lengthAdjust="spacingAndGlyphs" textLength="91" x="99.5" y="664.1189">(CONFIG[0] = 0)</text><!--MD5=[81334cf5d29d604704248a78b3198184]
+link ONE_SHOT_COMPLETE to ARMED--><path d="M181.01,410.2158 C202,423.8958 225.85,438.5558 248.5,450.5158 C346.24,502.1258 380.89,493.8158 477.5,547.5158 C506.44,563.5958 536.65,584.2258 561.88,602.6858 " fill="none" id="ONE_SHOT_COMPLETE-&gt;ARMED" style="stroke: #A80036; stroke-width: 1.0;"/><polygon fill="#A80036" points="566.21,605.8658,561.3218,597.3157,562.1793,602.9072,556.5879,603.7648,566.21,605.8658" style="stroke: #A80036; stroke-width: 1.0;"/><text fill="#000000" font-family="sans-serif" font-size="13" lengthAdjust="spacingAndGlyphs" textLength="150" x="414.5" y="495.4129">Comparator updated &amp;&amp;</text><text fill="#000000" font-family="sans-serif" font-size="13" lengthAdjust="spacingAndGlyphs" textLength="136" x="421.5" y="513.1189">Timer remains enabled</text><!--MD5=[41699f568d07f1065ab6d214c8962377]
+@startuml hpet_core_fsm
+
+title HPET Core Timer FSM (Per-Timer Instance)
+
+[*] - -> IDLE : Reset / Power-On
+
+state IDLE {
+  IDLE : Entry: timer_fired = 0
+  IDLE : timer_irq = STATUS bit
+  IDLE : Wait for timer enable
+}
+
+state ARMED {
+  ARMED : Entry: Sample comparator value
+  ARMED : Monitor counter vs comparator
+  ARMED : timer_irq = STATUS bit (if previously fired)
+}
+
+state FIRE {
+  FIRE : Entry: Set timer_fired flag
+  FIRE : Set STATUS bit (interrupt)
+  FIRE : timer_irq asserts
+  FIRE : Duration: 1 clock cycle
+}
+
+state PERIODIC_RELOAD {
+  PERIODIC_RELOAD : Entry: comparator += period
+  PERIODIC_RELOAD : Prepare for next fire
+  PERIODIC_RELOAD : Duration: 1 clock cycle
+}
+
+state ONE_SHOT_COMPLETE {
+  ONE_SHOT_COMPLETE : Entry: Timer complete
+  ONE_SHOT_COMPLETE : Wait for software clear + reconfigure
+  ONE_SHOT_COMPLETE : timer_irq = STATUS bit (sticky)
+}
+
+IDLE - -> ARMED : HPET enabled &&\nTimer enabled\n(CONFIG[0] = 1)
+
+ARMED - -> FIRE : counter >= comparator
+
+FIRE - -> PERIODIC_RELOAD : Periodic mode\n(CONFIG[2] = 1)
+
+FIRE - -> ONE_SHOT_COMPLETE : One-shot mode\n(CONFIG[2] = 0)
+
+PERIODIC_RELOAD - -> ARMED : Always\n(automatic transition)
+
+ONE_SHOT_COMPLETE - -> IDLE : Timer disabled\n(CONFIG[0] = 0)
+
+ONE_SHOT_COMPLETE - -> ARMED : Comparator updated &&\nTimer remains enabled
+
+ARMED - -> IDLE : HPET disabled ||\nTimer disabled
+
+note right of FIRE
+  **Fire Event:**
+  - Asserts timer_fired flag
+  - Sets STATUS bit (W1C)
+  - Interrupt output follows STATUS
+
+  **Timing:**
+  - Fire detected on rising edge
+  - One cycle latency
+end note
+
+note right of PERIODIC_RELOAD
+  **Auto-Reload:**
+  comparator_next =
+    comparator_current + period
+
+  **Continuous Operation:**
+  Timer fires indefinitely at
+  fixed intervals until disabled
+end note
+
+note right of ONE_SHOT_COMPLETE
+  **One-Shot Completion:**
+  - Timer fires once
+  - Interrupt remains asserted
+    until software clears STATUS
+
+  **Reconfiguration:**
+  - Update comparator
+  - Re-enable timer
+  - Returns to ARMED
+end note
+
+note left of ARMED
+  **Match Detection:**
+  fire_condition =
+    (counter >= comparator) &&
+    timer_enabled &&
+    hpet_enabled
+
+  **Comparator Sampling:**
+  Latched on entry to ARMED
+  Updates on:
+  - Timer enable edge
+  - Comparator write
+end note
+
+@enduml
+
+PlantUML version 1.2020.02(Sun Mar 01 02:22:07 PST 2020)
+(GPL source distribution)
+Java Runtime: OpenJDK Runtime Environment
+JVM: OpenJDK 64-Bit Server VM
+Java Version: 21.0.8+9-Ubuntu-0ubuntu124.04.1
+Operating System: Linux
+Default Encoding: UTF-8
+Language: en
+Country: US
+--></g></svg>
