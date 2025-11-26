@@ -51,10 +51,10 @@ from projects.components.stream.dv.tbclasses.stream_core_tb import StreamCoreTB
 # ==============================================================================
 
 def generate_test_params():
-    """Generate test parameter sets based on TEST_LEVEL (gate/func/full)"""
+    """Generate test parameter sets based on TEST_LEVEL (gate/func/full/burst)"""
     test_level = os.environ.get('TEST_LEVEL', 'gate').lower()
 
-    # Test levels: gate (quick), func (functional), full (comprehensive)
+    # Test levels: gate (quick), func (functional), full (comprehensive), burst (burst matrix)
     level_configs = {
         'gate': {
             'desc_count': 2,      # 2 descriptors per channel
@@ -73,6 +73,12 @@ def generate_test_params():
             'channels': [0, 1, 2, 3],  # All channels
             'transfer_sizes': [64, 128, 256, 512],
             'timing_profile': 'mixed',  # Mix of fast, normal, constrained
+        },
+        'burst': {
+            'desc_count': 6,      # 6 descriptors per channel (4-8 range for machinery churn)
+            'channels': [0, 1],   # 2 channels for multi-channel stress
+            'transfer_sizes': [256, 384, 512, 768],  # 8-96 bursts per descriptor (24 avg for 16-beat bursts)
+            'timing_profile': 'fast',  # Fast/no-stress for debugging
         }
     }
 
@@ -84,6 +90,73 @@ def generate_test_params():
     # Data width configurations: 128, 256, 512-bit (production widths)
     data_widths = [128, 256, 512]
 
+    # Realistic SRAM sizing: Power-of-2 scaled depths
+    # Based on testing: 128-bit works well with 4KB, but 512-bit needs 8KB minimum
+    # See REALISTIC_SRAM_ANALYSIS.md for details
+    fifo_depths = {
+        128: 256,  # 4KB = 4096 / 16 bytes/entry (optimal from testing)
+        256: 256,  # 8KB = 8192 / 32 bytes/entry (safe, power-of-2)
+        512: 128,  # 8KB = 8192 / 64 bytes/entry (minimum for safe concurrent ops)
+    }
+
+    # Burst matrix test level - comprehensive burst size and segment size combinations
+    # Design rule: Minimum SRAM per segment = MAX(2KB, 2 × single_burst_size)
+    if test_level == 'burst':
+        # 128-bit: 3 rd × 3 wr × 1 segment = 9 tests
+        for rd_burst in [8, 16, 32]:
+            for wr_burst in [8, 16, 32]:
+                params.append({
+                    'num_channels': 4,
+                    'data_width': 128,
+                    'fifo_depth': 128,  # 2KB segment (2048 / 16 bytes = 128 entries)
+                    'axi_id_width': 8,
+                    'desc_count': config['desc_count'],
+                    'test_channels': config['channels'],
+                    'transfer_sizes': config['transfer_sizes'],
+                    'timing_profile': config['timing_profile'],
+                    'rd_xfer_beats': rd_burst,
+                    'wr_xfer_beats': wr_burst,
+                    'scenario': f'burst_rd{rd_burst}_wr{wr_burst}_2KB',
+                })
+
+        # 256-bit: 2 rd × 2 wr × 2 segments = 8 tests
+        for rd_burst in [8, 16]:
+            for wr_burst in [8, 16]:
+                for segment_kb, fifo_depth in [(2, 64), (4, 128)]:
+                    params.append({
+                        'num_channels': 4,
+                        'data_width': 256,
+                        'fifo_depth': fifo_depth,  # 2KB=64 or 4KB=128 entries
+                        'axi_id_width': 8,
+                        'desc_count': config['desc_count'],
+                        'test_channels': config['channels'],
+                        'transfer_sizes': config['transfer_sizes'],
+                        'timing_profile': config['timing_profile'],
+                        'rd_xfer_beats': rd_burst,
+                        'wr_xfer_beats': wr_burst,
+                        'scenario': f'burst_rd{rd_burst}_wr{wr_burst}_{segment_kb}KB',
+                    })
+
+        # 512-bit: 2 rd × 2 wr × 2 segments = 8 tests
+        for rd_burst in [8, 16]:
+            for wr_burst in [8, 16]:
+                for segment_kb, fifo_depth in [(2, 32), (4, 64)]:
+                    params.append({
+                        'num_channels': 4,
+                        'data_width': 512,
+                        'fifo_depth': fifo_depth,  # 2KB=32 or 4KB=64 entries
+                        'axi_id_width': 8,
+                        'desc_count': config['desc_count'],
+                        'test_channels': config['channels'],
+                        'transfer_sizes': config['transfer_sizes'],
+                        'timing_profile': config['timing_profile'],
+                        'rd_xfer_beats': rd_burst,
+                        'wr_xfer_beats': wr_burst,
+                        'scenario': f'burst_rd{rd_burst}_wr{wr_burst}_{segment_kb}KB',
+                    })
+
+        return params
+
     # For full level, generate multiple scenarios with varied chain lengths
     if test_level == 'full':
         for dw in data_widths:
@@ -91,7 +164,7 @@ def generate_test_params():
             params.append({
                 'num_channels': 4,
                 'data_width': dw,
-                'fifo_depth': 512,
+                'fifo_depth': fifo_depths[dw],  # Scaled SRAM depth
                 'axi_id_width': 8,
                 'desc_count': 3,  # Short chains
                 'test_channels': config['channels'],
@@ -104,7 +177,7 @@ def generate_test_params():
             params.append({
                 'num_channels': 4,
                 'data_width': dw,
-                'fifo_depth': 512,
+                'fifo_depth': fifo_depths[dw],  # Scaled SRAM depth
                 'axi_id_width': 8,
                 'desc_count': 10,  # Medium chains
                 'test_channels': config['channels'],
@@ -117,7 +190,7 @@ def generate_test_params():
             params.append({
                 'num_channels': 4,
                 'data_width': dw,
-                'fifo_depth': 512,
+                'fifo_depth': fifo_depths[dw],  # Scaled SRAM depth
                 'axi_id_width': 8,
                 'desc_count': config['desc_count'],  # Full length
                 'test_channels': config['channels'],
@@ -131,7 +204,7 @@ def generate_test_params():
             params.append({
                 'num_channels': 4,
                 'data_width': dw,
-                'fifo_depth': 512,
+                'fifo_depth': fifo_depths[dw],  # Scaled SRAM depth
                 'axi_id_width': 8,
                 'desc_count': config['desc_count'],
                 'test_channels': config['channels'],
@@ -156,7 +229,10 @@ async def cocotb_test_single_channel_transfer(dut):
     data_width = int(os.environ.get('DATA_WIDTH', '512'))
     fifo_depth = int(os.environ.get('FIFO_DEPTH', '512'))
     axi_id_width = int(os.environ.get('AXI_ID_WIDTH', '8'))
+    # Support separate read/write burst sizes (default to unified if not specified)
     xfer_beats = int(os.environ.get('XFER_BEATS', '16'))
+    rd_xfer_beats = int(os.environ.get('RD_XFER_BEATS', str(xfer_beats)))
+    wr_xfer_beats = int(os.environ.get('WR_XFER_BEATS', str(xfer_beats)))
     desc_count = int(os.environ.get('DESC_COUNT', '2'))
 
     # Initialize testbench
@@ -169,11 +245,10 @@ async def cocotb_test_single_channel_transfer(dut):
         fifo_depth=fifo_depth
     )
 
-    await tb.setup_clocks_and_reset()
-    await tb.wait_clocks('clk', 10)
+    await tb.setup_clocks_and_reset(rd_xfer_beats=rd_xfer_beats, wr_xfer_beats=wr_xfer_beats)
     tb.log.info(f"=== Single Channel Transfer Test ===")
     tb.log.info(f"Channels: {num_channels}, Data Width: {data_width}, "
-               f"XferBeats: {xfer_beats}, Descriptors: {desc_count}")
+               f"RdBurst: {rd_xfer_beats}, WrBurst: {wr_xfer_beats}, Descriptors: {desc_count}")
 
     # Test channel 0 only
     channel = 0
@@ -250,6 +325,10 @@ async def cocotb_test_multi_channel_concurrent(dut):
     data_width = int(os.environ.get('DATA_WIDTH', '512'))
     fifo_depth = int(os.environ.get('FIFO_DEPTH', '512'))
     axi_id_width = int(os.environ.get('AXI_ID_WIDTH', '8'))
+    # Support separate read/write burst sizes (default to unified if not specified)
+    xfer_beats = int(os.environ.get('XFER_BEATS', '16'))
+    rd_xfer_beats = int(os.environ.get('RD_XFER_BEATS', str(xfer_beats)))
+    wr_xfer_beats = int(os.environ.get('WR_XFER_BEATS', str(xfer_beats)))
     desc_count = int(os.environ.get('DESC_COUNT', '2'))
     test_channels_str = os.environ.get('TEST_CHANNELS', '0,1')
     test_channels = [int(x) for x in test_channels_str.split(',')]
@@ -264,9 +343,9 @@ async def cocotb_test_multi_channel_concurrent(dut):
         fifo_depth=fifo_depth
     )
 
-    await tb.setup_clocks_and_reset()
+    await tb.setup_clocks_and_reset(rd_xfer_beats=rd_xfer_beats, wr_xfer_beats=wr_xfer_beats)
     cocotb.log.info(f"=== Multi-Channel Concurrent Test ===")
-    cocotb.log.info(f"Testing channels: {test_channels}, Descriptors/channel: {desc_count}")
+    cocotb.log.info(f"Testing channels: {test_channels}, RdBurst: {rd_xfer_beats}, WrBurst: {wr_xfer_beats}, Descriptors/channel: {desc_count}")
 
     transfer_beats = 128  # 128 beats per transfer
 
@@ -478,6 +557,12 @@ def test_stream_core_mon_single_channel(request, params):
         'COCOTB_RESULTS_FILE': results_path,
     }
 
+    # Add burst size parameters if specified
+    if 'rd_xfer_beats' in params:
+        extra_env['RD_XFER_BEATS'] = str(params['rd_xfer_beats'])
+    if 'wr_xfer_beats' in params:
+        extra_env['WR_XFER_BEATS'] = str(params['wr_xfer_beats'])
+
     # WAVES support - conditionally enable VCD tracing
     enable_waves = bool(int(os.environ.get('WAVES', '0')))
     if enable_waves:
@@ -584,6 +669,12 @@ def test_stream_core_mon_multi_channel(request, params):
         'COCOTB_LOG_LEVEL': 'INFO',
         'COCOTB_RESULTS_FILE': results_path,
     }
+
+    # Add burst size parameters if specified
+    if 'rd_xfer_beats' in params:
+        extra_env['RD_XFER_BEATS'] = str(params['rd_xfer_beats'])
+    if 'wr_xfer_beats' in params:
+        extra_env['WR_XFER_BEATS'] = str(params['wr_xfer_beats'])
 
     # WAVES support - conditionally enable VCD tracing
     enable_waves = bool(int(os.environ.get('WAVES', '0')))

@@ -68,6 +68,8 @@ help:
 	@echo "  make run-fifos-parallel        Run all FIFO tests (parallel)"
 	@echo "  make run-math                  Run all math tests"
 	@echo "  make run-math-parallel         Run all math tests (parallel)"
+	@echo "  make run-bf16                  Run BF16 floating-point tests"
+	@echo "  make run-bf16-parallel         Run BF16 floating-point tests (parallel)"
 	@echo "  make run-dataint               Run data integrity tests (ECC, CRC, parity)"
 	@echo "  make run-dataint-parallel      Run data integrity tests (parallel)"
 	@echo "  make run-shifters              Run all shifter tests"
@@ -98,6 +100,8 @@ help:
 	@echo "    make run-shifters-{gate|func|full}[-parallel]"
 	@echo "  Math:"
 	@echo "    make run-math-{gate|func|full}[-parallel]"
+	@echo "  BF16 Floating-Point:"
+	@echo "    make run-bf16-{gate|func|full}[-parallel]"
 	@echo "  Encoders/Converters:"
 	@echo "    make run-encoders-{gate|func|full}[-parallel]"
 	@echo "  Miscellaneous:"
@@ -632,6 +636,80 @@ run-math-full-parallel:
 	@echo "================================================================================"
 	REG_LEVEL=FULL $(PYTEST) $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE) $(PYTEST_XDIST) $(PYTEST_RERUNS) test_math*.py
 
+# ==============================================================================
+# BF16 FLOATING-POINT TESTS - All REG_LEVEL Variants
+# ==============================================================================
+# BF16 tests include:
+#   test_math_bf16_multiplier.py      - BF16 multiplier (86+ tests)
+#   test_math_bf16_fma.py             - BF16 FMA with special/random cases
+#   test_math_bf16_fma_systematic.py  - BF16 FMA systematic power-of-2 tests (25k+)
+#   test_math_bf16_mantissa_mult.py   - BF16 mantissa multiplier sub-block
+#   test_math_bf16_exponent_adder.py  - BF16 exponent adder sub-block
+
+.PHONY: run-bf16
+run-bf16:
+	$(check_repo_root)
+	@echo "================================================================================"
+	@echo "Running BF16 Floating-Point Tests (default FUNC level)"
+	@echo "================================================================================"
+	SIM=verilator $(PYTEST) $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE) test_math_bf16*.py
+
+.PHONY: run-bf16-gate
+run-bf16-gate:
+	$(check_repo_root)
+	@echo "================================================================================"
+	@echo "Running BF16 Tests - GATE level (~5 tests, ~2 min)"
+	@echo "================================================================================"
+	SIM=verilator REG_LEVEL=GATE $(PYTEST) $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE) test_math_bf16*.py
+
+.PHONY: run-bf16-func
+run-bf16-func:
+	$(check_repo_root)
+	@echo "================================================================================"
+	@echo "Running BF16 Tests - FUNC level (~5 tests, ~5 min)"
+	@echo "================================================================================"
+	SIM=verilator REG_LEVEL=FUNC $(PYTEST) $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE) test_math_bf16*.py
+
+.PHONY: run-bf16-full
+run-bf16-full:
+	$(check_repo_root)
+	@echo "================================================================================"
+	@echo "Running BF16 Tests - FULL level (~5 tests, ~10 min)"
+	@echo "================================================================================"
+	SIM=verilator REG_LEVEL=FULL $(PYTEST) $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE) test_math_bf16*.py
+
+.PHONY: run-bf16-parallel
+run-bf16-parallel:
+	$(check_repo_root)
+	@echo "================================================================================"
+	@echo "Running BF16 Floating-Point Tests (Parallel)"
+	@echo "================================================================================"
+	SIM=verilator $(PYTEST) $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE) $(PYTEST_XDIST) $(PYTEST_RERUNS) test_math_bf16*.py
+
+.PHONY: run-bf16-gate-parallel
+run-bf16-gate-parallel:
+	$(check_repo_root)
+	@echo "================================================================================"
+	@echo "Running BF16 Tests - GATE level PARALLEL (~5 tests, ~1 min)"
+	@echo "================================================================================"
+	SIM=verilator REG_LEVEL=GATE $(PYTEST) $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE) $(PYTEST_XDIST) $(PYTEST_RERUNS) test_math_bf16*.py
+
+.PHONY: run-bf16-func-parallel
+run-bf16-func-parallel:
+	$(check_repo_root)
+	@echo "================================================================================"
+	@echo "Running BF16 Tests - FUNC level PARALLEL (~5 tests, ~2 min)"
+	@echo "================================================================================"
+	SIM=verilator REG_LEVEL=FUNC $(PYTEST) $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE) $(PYTEST_XDIST) $(PYTEST_RERUNS) test_math_bf16*.py
+
+.PHONY: run-bf16-full-parallel
+run-bf16-full-parallel:
+	$(check_repo_root)
+	@echo "================================================================================"
+	@echo "Running BF16 Tests - FULL level PARALLEL (~5 tests, ~5 min)"
+	@echo "================================================================================"
+	SIM=verilator REG_LEVEL=FULL $(PYTEST) $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE) $(PYTEST_XDIST) $(PYTEST_RERUNS) test_math_bf16*.py
+
 # ------------------------------------------------------------------------------
 # Encoder/Converter Tests - REG_LEVEL Parallel Targets
 # ------------------------------------------------------------------------------
@@ -893,6 +971,8 @@ status:
 	@ls test_fifo*.py 2>/dev/null | wc -l
 	@echo -n "  Math:        "
 	@ls test_math*.py 2>/dev/null | wc -l
+	@echo -n "  BF16:        "
+	@ls test_math_bf16*.py 2>/dev/null | wc -l
 	@echo -n "  Data Integ:  "
 	@ls test_dataint*.py 2>/dev/null | wc -l
 	@echo -n "  Shifters:    "
@@ -942,6 +1022,12 @@ fifos: run-fifos
 
 .PHONY: fifos-parallel
 fifos-parallel: run-fifos-parallel
+
+.PHONY: bf16
+bf16: run-bf16
+
+.PHONY: bf16-parallel
+bf16-parallel: run-bf16-parallel
 
 .PHONY: all
 all: run-all
