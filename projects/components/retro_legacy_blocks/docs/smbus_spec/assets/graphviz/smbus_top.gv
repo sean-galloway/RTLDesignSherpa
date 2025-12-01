@@ -1,0 +1,35 @@
+// SMBus Top-Level Block Diagram
+digraph smbus_top {
+    rankdir=LR;
+    node [shape=box, style="rounded,filled", fillcolor=lightblue];
+
+    apb_in [label="APB Slave\nInterface", shape=ellipse, fillcolor=lightgreen];
+    scl_sda [label="SCL/SDA\n(open-drain)", shape=ellipse, fillcolor=lightgreen];
+
+    subgraph cluster_smbus {
+        label="apb_smbus";
+        style=rounded;
+
+        apb_if [label="APB\nInterface", fillcolor=lightyellow];
+        regs [label="Register\nFile", fillcolor=lightyellow];
+        host_ctrl [label="Host\nController", fillcolor=lightcyan];
+        clk_gen [label="Clock\nGenerator", fillcolor=lightcyan];
+        pec_calc [label="PEC\nCalculator", fillcolor=lightcyan];
+        block_buf [label="Block\nBuffer", fillcolor=lightcyan];
+    }
+
+    irq [label="irq", shape=ellipse, fillcolor=pink];
+    apb_out [label="APB\nResponse", shape=ellipse, fillcolor=pink];
+
+    apb_in -> apb_if;
+    apb_if -> regs;
+    apb_if -> apb_out;
+    regs -> host_ctrl;
+    host_ctrl -> regs;
+    clk_gen -> host_ctrl [label="SCL"];
+    host_ctrl -> scl_sda [dir=both];
+    host_ctrl -> pec_calc;
+    host_ctrl -> block_buf;
+    block_buf -> regs;
+    host_ctrl -> irq;
+}

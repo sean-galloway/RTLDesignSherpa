@@ -98,24 +98,12 @@ cfg_channel_reset = 8'h00;
 
 ## 2. Scheduler Configuration
 
-### cfg_sched_enable
-
-**Type:** Global scheduler enable
-**Width:** 1 bit
-**Default:** 1'b1 (enabled)
-**Register:** SCHED_CTRL @ 0x200[0]
-
-**Description:**
-Master enable for all schedulers. When disabled, all channels stop scheduling new operations.
-
----
-
 ### cfg_sched_timeout_cycles[15:0]
 
 **Type:** Timeout threshold
 **Width:** 16 bits
-**Default:** 16'd10000 (10,000 cycles)
-**Register:** SCHED_TIMEOUT @ 0x204[15:0]
+**Default:** 16'd1000 (1,000 cycles)
+**Register:** SCHED_TIMEOUT_CYCLES @ 0x200[15:0]
 
 **Description:**
 Number of clock cycles before a channel operation times out. Applies to:
@@ -141,12 +129,24 @@ Example for DDR4 @ 200 MHz:
 
 ---
 
+### cfg_sched_enable
+
+**Type:** Global scheduler enable
+**Width:** 1 bit
+**Default:** 1'b1 (enabled)
+**Register:** SCHED_CONFIG @ 0x204[0]
+
+**Description:**
+Master enable for all schedulers. When disabled, all channels stop scheduling new operations.
+
+---
+
 ### cfg_sched_timeout_enable
 
 **Type:** Timeout detection enable
 **Width:** 1 bit
 **Default:** 1'b1 (enabled)
-**Register:** SCHED_CTRL @ 0x200[1]
+**Register:** SCHED_CONFIG @ 0x204[1]
 
 **Description:**
 Enables timeout detection for scheduler operations. Disable for simulation or known slow memory.
@@ -158,7 +158,7 @@ Enables timeout detection for scheduler operations. Disable for simulation or kn
 **Type:** Error detection enable
 **Width:** 1 bit
 **Default:** 1'b1 (enabled)
-**Register:** SCHED_CTRL @ 0x200[2]
+**Register:** SCHED_CONFIG @ 0x204[2]
 
 **Description:**
 Enables error packet generation for scheduler errors (AXI SLVERR, DECERR, timeouts).
@@ -169,8 +169,8 @@ Enables error packet generation for scheduler errors (AXI SLVERR, DECERR, timeou
 
 **Type:** Completion event enable
 **Width:** 1 bit
-**Default:** 1'b0 (disabled by default)
-**Register:** SCHED_CTRL @ 0x200[3]
+**Default:** 1'b1 (enabled by default)
+**Register:** SCHED_CONFIG @ 0x204[3]
 
 **Description:**
 Enables MonBus packets for transfer completion events. Generate high traffic, use sparingly.
@@ -182,7 +182,7 @@ Enables MonBus packets for transfer completion events. Generate high traffic, us
 **Type:** Performance monitoring enable
 **Width:** 1 bit
 **Default:** 1'b0 (disabled by default)
-**Register:** SCHED_CTRL @ 0x200[4]
+**Register:** SCHED_CONFIG @ 0x204[4]
 
 **Description:**
 Enables performance profiling packets (latency, throughput metrics).
@@ -241,12 +241,12 @@ Number of entries in descriptor FIFO before asserting backpressure.
 
 ---
 
-### cfg_desceng_addr0_base[ADDR_WIDTH-1:0]
+### cfg_desceng_addr0_base[31:0]
 
 **Type:** Base address for descriptor region 0
-**Width:** 64 bits (parameterizable)
-**Default:** 64'h0000_0000_0000_0000
-**Register:** DESCENG_ADDR0_BASE @ 0x224-0x228
+**Width:** 32 bits
+**Default:** 32'h0000_0000
+**Register:** DESCENG_ADDR0_BASE @ 0x224
 
 **Description:**
 Base address of first descriptor memory region. Descriptors fetched from this region if within range.
@@ -255,36 +255,36 @@ Base address of first descriptor memory region. Descriptors fetched from this re
 
 ---
 
-### cfg_desceng_addr0_limit[ADDR_WIDTH-1:0]
+### cfg_desceng_addr0_limit[31:0]
 
 **Type:** Limit address for descriptor region 0
-**Width:** 64 bits
-**Default:** 64'hFFFF_FFFF_FFFF_FFFF (no limit)
-**Register:** DESCENG_ADDR0_LIMIT @ 0x22C-0x230
+**Width:** 32 bits
+**Default:** 32'hFFFF_FFFF (no limit)
+**Register:** DESCENG_ADDR0_LIMIT @ 0x228
 
 **Description:**
 Upper limit of first descriptor region. Descriptors beyond this address use region 1.
 
 ---
 
-### cfg_desceng_addr1_base[ADDR_WIDTH-1:0]
+### cfg_desceng_addr1_base[31:0]
 
 **Type:** Base address for descriptor region 1
-**Width:** 64 bits
-**Default:** 64'h0000_0000_0000_0000
-**Register:** DESCENG_ADDR1_BASE @ 0x234-0x238
+**Width:** 32 bits
+**Default:** 32'h0000_0000
+**Register:** DESCENG_ADDR1_BASE @ 0x22C
 
 **Description:**
 Base address of second descriptor memory region (optional).
 
 ---
 
-### cfg_desceng_addr1_limit[ADDR_WIDTH-1:0]
+### cfg_desceng_addr1_limit[31:0]
 
 **Type:** Limit address for descriptor region 1
-**Width:** 64 bits
-**Default:** 64'hFFFF_FFFF_FFFF_FFFF
-**Register:** DESCENG_ADDR1_LIMIT @ 0x23C-0x240
+**Width:** 32 bits
+**Default:** 32'hFFFF_FFFF
+**Register:** DESCENG_ADDR1_LIMIT @ 0x230
 
 **Description:**
 Upper limit of second descriptor region.
@@ -925,13 +925,13 @@ Example for DDR4 (8KB page), FIFO depth 512 entries:
 | 0x100 | GLOBAL_CTRL | global_en, global_rst | - |
 | 0x120 | CHANNEL_ENABLE | ch_en[7:0] | 1 |
 | 0x124 | CHANNEL_RESET | ch_rst[7:0] | 1 |
-| 0x200 | SCHED_CTRL | enable, timeout_en, err_en, compl_en, perf_en | 2 |
-| 0x204 | SCHED_TIMEOUT | timeout_cycles[15:0] | 2 |
-| 0x220 | DESCENG_CTRL | enable, prefetch, fifo_thresh | 3 |
-| 0x224 | DESCENG_ADDR0_BASE | addr0_base[63:0] | 3 |
-| 0x22C | DESCENG_ADDR0_LIMIT | addr0_limit[63:0] | 3 |
-| 0x234 | DESCENG_ADDR1_BASE | addr1_base[63:0] | 3 |
-| 0x23C | DESCENG_ADDR1_LIMIT | addr1_limit[63:0] | 3 |
+| 0x200 | SCHED_TIMEOUT_CYCLES | timeout_cycles[15:0] | 2 |
+| 0x204 | SCHED_CONFIG | enable, timeout_en, err_en, compl_en, perf_en | 2 |
+| 0x220 | DESCENG_CONFIG | enable, prefetch, fifo_thresh | 3 |
+| 0x224 | DESCENG_ADDR0_BASE | addr0_base[31:0] | 3 |
+| 0x228 | DESCENG_ADDR0_LIMIT | addr0_limit[31:0] | 3 |
+| 0x22C | DESCENG_ADDR1_BASE | addr1_base[31:0] | 3 |
+| 0x230 | DESCENG_ADDR1_LIMIT | addr1_limit[31:0] | 3 |
 | 0x240-0x25F | DAXMON_* | Descriptor monitor (15 signals) | 4.1 |
 | 0x260-0x27F | RDMON_* | Read engine monitor (15 signals) | 4.2 |
 | 0x280-0x29F | WRMON_* | Write engine monitor (15 signals) | 4.3 |
@@ -956,8 +956,8 @@ void stream_init_minimal(volatile uint32_t *base_addr) {
     base_addr[0x120/4] = 0x00000001;  // CHANNEL_ENABLE.ch_en
 
     // Scheduler config
-    base_addr[0x200/4] = 0x00000007;  // enable | timeout_en | err_en
-    base_addr[0x204/4] = 500;         // timeout_cycles (SRAM)
+    base_addr[0x200/4] = 500;         // SCHED_TIMEOUT_CYCLES (SRAM)
+    base_addr[0x204/4] = 0x00000007;  // SCHED_CONFIG: enable | timeout_en | err_en
 
     // Descriptor engine
     base_addr[0x220/4] = 0x00000041;  // enable | fifo_thresh=4
@@ -986,8 +986,8 @@ void stream_init_balanced(volatile uint32_t *base_addr) {
     base_addr[0x120/4] = 0x000000FF;
 
     // Scheduler config
-    base_addr[0x200/4] = 0x00000007;  // enable | timeout_en | err_en
-    base_addr[0x204/4] = 5000;        // timeout_cycles (DDR4)
+    base_addr[0x200/4] = 5000;        // SCHED_TIMEOUT_CYCLES (DDR4)
+    base_addr[0x204/4] = 0x00000007;  // SCHED_CONFIG: enable | timeout_en | err_en
 
     // Descriptor engine
     base_addr[0x220/4] = 0x00000083;  // enable | prefetch | fifo_thresh=8
@@ -1072,5 +1072,5 @@ void stream_init_balanced(volatile uint32_t *base_addr) {
 
 ---
 
-**Last Updated:** 2025-11-21
+**Last Updated:** 2025-12-01
 **Maintained By:** STREAM Architecture Team

@@ -1,0 +1,40 @@
+// RTC Top-Level Block Diagram
+digraph rtc_top {
+    rankdir=LR;
+    node [shape=box, style="rounded,filled", fillcolor=lightblue];
+
+    // Inputs
+    clk_32k [label="32.768 kHz\nOscillator", shape=ellipse, fillcolor=lightgreen];
+    apb_in [label="APB Slave\nInterface", shape=ellipse, fillcolor=lightgreen];
+
+    // Main blocks
+    subgraph cluster_rtc {
+        label="apb_rtc";
+        style=rounded;
+
+        apb_if [label="APB\nInterface", fillcolor=lightyellow];
+        regs [label="Register\nFile", fillcolor=lightyellow];
+        divider [label="Clock\nDivider\n(1 Hz)", fillcolor=lightcyan];
+        time_cnt [label="Time\nCounters\n(sec to year)", fillcolor=lightcyan];
+        alarm [label="Alarm\nComparator", fillcolor=lightcyan];
+        int_gen [label="Interrupt\nGenerator", fillcolor=lightcyan];
+    }
+
+    // Outputs
+    irq [label="irq", shape=ellipse, fillcolor=pink];
+    apb_out [label="APB\nResponse", shape=ellipse, fillcolor=pink];
+
+    // Connections
+    apb_in -> apb_if;
+    apb_if -> regs;
+    apb_if -> apb_out;
+    clk_32k -> divider;
+    divider -> time_cnt [label="1 Hz"];
+    regs -> time_cnt;
+    time_cnt -> regs [label="time"];
+    time_cnt -> alarm;
+    regs -> alarm [label="alarm"];
+    alarm -> int_gen [label="match"];
+    divider -> int_gen [label="periodic"];
+    int_gen -> irq;
+}

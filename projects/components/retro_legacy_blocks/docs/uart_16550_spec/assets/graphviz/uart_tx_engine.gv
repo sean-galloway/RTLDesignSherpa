@@ -1,0 +1,45 @@
+// UART TX Engine Block Diagram
+// Purpose: Transmit data path with FIFO
+
+digraph uart_tx_engine {
+    rankdir=LR;
+    node [shape=box, style="rounded,filled", fillcolor=lightblue];
+    edge [fontsize=10];
+
+    // Input signals
+    thr_write [label="THR Write", shape=ellipse, fillcolor=lightgreen];
+    lcr [label="LCR Config\n(data bits, parity, stop)", shape=ellipse, fillcolor=lightgreen];
+    baud_clk [label="16x Baud Clock", shape=ellipse, fillcolor=lightgreen];
+
+    // TX FIFO
+    tx_fifo [label="TX FIFO\n16 x 8 bits", fillcolor=lightyellow];
+
+    // Serializer
+    subgraph cluster_serializer {
+        label="TX Serializer";
+        style=dashed;
+        fillcolor=white;
+
+        shift_reg [label="Shift\nRegister", fillcolor=lightcyan];
+        parity_gen [label="Parity\nGenerator", fillcolor=lightcyan];
+        frame_gen [label="Frame\nGenerator\n(Start/Stop)", fillcolor=lightcyan];
+    }
+
+    // Output
+    txd [label="TXD", shape=ellipse, fillcolor=pink];
+    lsr_status [label="LSR Status\n(THRE, TEMT)", shape=ellipse, fillcolor=pink];
+
+    // Connections
+    thr_write -> tx_fifo;
+    tx_fifo -> shift_reg;
+    tx_fifo -> lsr_status [label="FIFO status"];
+    lcr -> frame_gen;
+    lcr -> parity_gen;
+    baud_clk -> shift_reg;
+    baud_clk -> frame_gen;
+
+    shift_reg -> parity_gen;
+    shift_reg -> frame_gen;
+    frame_gen -> txd;
+    shift_reg -> lsr_status [label="TEMT"];
+}

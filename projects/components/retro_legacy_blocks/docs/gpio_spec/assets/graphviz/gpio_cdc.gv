@@ -1,0 +1,60 @@
+// GPIO CDC Logic Block Diagram
+// Purpose: Clock domain crossing between APB and GPIO domains
+
+digraph gpio_cdc {
+    rankdir=LR;
+    node [shape=box, style="rounded,filled", fillcolor=lightblue];
+    edge [fontsize=10];
+
+    // Clock domains
+    subgraph cluster_pclk {
+        label="pclk Domain";
+        style=filled;
+        fillcolor=lightyellow;
+
+        apb_if [label="APB\nInterface"];
+        reg_file [label="Register\nFile"];
+        apb_status [label="Status\nRegisters"];
+    }
+
+    subgraph cluster_cdc {
+        label="CDC Logic";
+        style=filled;
+        fillcolor=lightgray;
+
+        sync_to_gpio [label="Sync to GPIO\n(reg2hw)", shape=hexagon];
+        sync_to_apb [label="Sync to APB\n(hw2reg)", shape=hexagon];
+    }
+
+    subgraph cluster_gpio {
+        label="gpio_clk Domain";
+        style=filled;
+        fillcolor=lightcyan;
+
+        gpio_regs [label="GPIO\nShadow Regs"];
+        gpio_core [label="GPIO\nCore"];
+        int_ctrl [label="Interrupt\nController"];
+    }
+
+    // External signals
+    gpio_in [label="gpio_in[31:0]", shape=ellipse, fillcolor=lightgreen];
+    gpio_out [label="gpio_out[31:0]\ngpio_oe[31:0]", shape=ellipse, fillcolor=pink];
+    irq [label="irq", shape=ellipse, fillcolor=pink];
+
+    // Connections
+    apb_if -> reg_file;
+    reg_file -> sync_to_gpio [label="direction\noutput\nint_config"];
+    sync_to_gpio -> gpio_regs;
+    gpio_regs -> gpio_core;
+
+    gpio_in -> gpio_core;
+    gpio_core -> gpio_out;
+    gpio_core -> int_ctrl;
+
+    int_ctrl -> sync_to_apb [label="status"];
+    gpio_core -> sync_to_apb [label="input"];
+    sync_to_apb -> apb_status;
+    apb_status -> reg_file;
+
+    int_ctrl -> irq;
+}

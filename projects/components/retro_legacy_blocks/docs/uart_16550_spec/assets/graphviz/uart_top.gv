@@ -1,0 +1,85 @@
+// UART 16550 Top-Level Block Diagram
+// Module: apb_uart_16550
+// Purpose: 16550-compatible UART with APB interface
+
+digraph uart_top {
+    rankdir=LR;
+    node [shape=box, style="rounded,filled", fillcolor=lightblue];
+    edge [fontsize=10];
+
+    // Clock and Reset
+    clk_rst [label="pclk\npresetn", shape=ellipse, fillcolor=lightgreen];
+
+    // APB Interface signals
+    apb_in [label="s_apb_psel\ns_apb_penable\ns_apb_pwrite\ns_apb_paddr[11:0]\ns_apb_pwdata[31:0]\ns_apb_pstrb[3:0]", shape=ellipse, fillcolor=lightgreen];
+    apb_out [label="s_apb_prdata[31:0]\ns_apb_pready\ns_apb_pslverr", shape=ellipse, fillcolor=pink];
+
+    // Serial signals
+    rxd [label="rxd", shape=ellipse, fillcolor=lightgreen];
+    txd [label="txd", shape=ellipse, fillcolor=pink];
+
+    // Modem signals
+    modem_in [label="cts_n\ndsr_n\ndcd_n\nri_n", shape=ellipse, fillcolor=lightgreen];
+    modem_out [label="rts_n\ndtr_n\nout1_n\nout2_n", shape=ellipse, fillcolor=pink];
+
+    // Interrupt
+    irq_out [label="irq", shape=ellipse, fillcolor=pink];
+
+    // Main blocks
+    subgraph cluster_uart {
+        label="apb_uart_16550";
+        style=rounded;
+        fillcolor=white;
+
+        apb_if [label="APB\nInterface", fillcolor=lightyellow];
+        reg_file [label="Register\nFile\n(16550)", fillcolor=lightyellow];
+        baud_gen [label="Baud\nGenerator", fillcolor=lightcyan];
+        tx_engine [label="TX Engine\n+ FIFO", fillcolor=lightcyan];
+        rx_engine [label="RX Engine\n+ FIFO", fillcolor=lightcyan];
+        int_ctrl [label="Interrupt\nController", fillcolor=lightcyan];
+        modem_ctrl [label="Modem\nControl", fillcolor=lightcyan];
+    }
+
+    // Connections
+    clk_rst -> apb_if;
+    clk_rst -> baud_gen;
+    clk_rst -> tx_engine;
+    clk_rst -> rx_engine;
+
+    apb_in -> apb_if;
+    apb_if -> apb_out;
+    apb_if -> reg_file [label="hwif"];
+
+    reg_file -> baud_gen [label="DLL/DLM"];
+    reg_file -> tx_engine [label="THR"];
+    reg_file -> rx_engine [label="LCR"];
+    rx_engine -> reg_file [label="RBR"];
+
+    baud_gen -> tx_engine [label="16x clk"];
+    baud_gen -> rx_engine [label="16x clk"];
+
+    rxd -> rx_engine;
+    tx_engine -> txd;
+
+    modem_in -> modem_ctrl;
+    modem_ctrl -> modem_out;
+    modem_ctrl -> reg_file [label="MSR"];
+    reg_file -> modem_ctrl [label="MCR"];
+
+    rx_engine -> int_ctrl;
+    tx_engine -> int_ctrl;
+    modem_ctrl -> int_ctrl;
+    reg_file -> int_ctrl [label="IER"];
+    int_ctrl -> reg_file [label="IIR"];
+    int_ctrl -> irq_out;
+
+    // Legend
+    subgraph cluster_legend {
+        label="Legend";
+        style=filled;
+        fillcolor=white;
+
+        leg_apb [label="APB Domain", shape=box, fillcolor=lightyellow];
+        leg_uart [label="UART Logic", shape=box, fillcolor=lightcyan];
+    }
+}

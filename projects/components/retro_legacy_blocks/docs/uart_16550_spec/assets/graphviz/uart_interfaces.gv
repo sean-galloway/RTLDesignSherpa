@@ -1,0 +1,63 @@
+// UART 16550 External Interfaces Block Diagram
+// Purpose: Show all external connections
+
+digraph uart_interfaces {
+    rankdir=LR;
+    node [shape=box, style="rounded,filled", fillcolor=lightblue];
+    edge [fontsize=10];
+
+    // External interfaces
+    subgraph cluster_system {
+        label="System";
+        style=filled;
+        fillcolor=lightgreen;
+
+        clocks [label="pclk"];
+        resets [label="presetn"];
+    }
+
+    subgraph cluster_apb {
+        label="APB Bus";
+        style=filled;
+        fillcolor=lightyellow;
+
+        apb_sigs [label="s_apb_psel\ns_apb_penable\ns_apb_pwrite\ns_apb_paddr[11:0]\ns_apb_pwdata[31:0]\ns_apb_pstrb[3:0]\ns_apb_prdata[31:0]\ns_apb_pready\ns_apb_pslverr"];
+    }
+
+    // Main module
+    uart [label="apb_uart_16550\n\n16550-Compatible\nUART", fillcolor=lightcyan, shape=box3d];
+
+    subgraph cluster_serial {
+        label="Serial";
+        style=filled;
+        fillcolor=pink;
+
+        serial [label="txd\nrxd"];
+    }
+
+    subgraph cluster_modem {
+        label="Modem";
+        style=filled;
+        fillcolor=pink;
+
+        modem_out [label="rts_n, dtr_n\nout1_n, out2_n"];
+        modem_in [label="cts_n, dsr_n\ndcd_n, ri_n"];
+    }
+
+    subgraph cluster_int {
+        label="Interrupt";
+        style=filled;
+        fillcolor=pink;
+
+        irq [label="irq"];
+    }
+
+    // Connections
+    clocks -> uart;
+    resets -> uart;
+    apb_sigs -> uart [dir=both];
+    uart -> serial [dir=both];
+    uart -> modem_out;
+    modem_in -> uart;
+    uart -> irq;
+}

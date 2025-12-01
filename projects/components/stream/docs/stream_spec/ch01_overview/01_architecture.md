@@ -247,9 +247,29 @@ sequenceDiagram
 
 ## Component Hierarchy
 
+### Top-Level Integration (stream_top_ch8.sv)
+
+```
+stream_top_ch8 (Top-Level Wrapper)
+├── APB Interface Path
+│   ├── apb_slave_cdc        (CDC_ENABLE=1: APB clock domain crossing)
+│   └── cmdrsp_router        (Address-based routing)
+│       ├── apbtodescr       (0x000-0x03F: Channel kick-off routing)
+│       ├── perf_profiler    (0x040-0x0FF: Performance profiling)
+│       └── peakrdl_to_cmdrsp (0x100-0x3FF: APB → CMD/RSP conversion)
+│           └── stream_regs  (PeakRDL-generated register file)
+├── stream_config_block      (Register → config signal mapping)
+├── stream_core              (Main DMA engine - see below)
+└── monbus_axil_group        (USE_AXI_MONITORS=1: MonBus → AXI-Lite)
+    ├── Error FIFO (s_axil_err_* slave read)
+    └── Master Writer (m_axil_mon_* master write)
+```
+
+### Core DMA Engine (stream_core.sv)
+
 ```mermaid
 graph TB
-    CORE["stream_core<br/>(top-level)"]
+    CORE["stream_core<br/>(DMA engine)"]
 
     CORE --> SGA["scheduler_group_array"]
     CORE --> RD["axi_read_engine"]
@@ -291,32 +311,45 @@ graph TB
 
 ## Interface Summary
 
-### External Interfaces
+### External Interfaces (stream_top_ch8.sv)
 
 | Interface | Type | Width | Purpose |
 |-----------|------|-------|---------|
-| APB | Slave | 32-bit | Configuration, control, status |
+| APB | Slave | 32-bit | Configuration, control, status (with optional CDC) |
 | Descriptor AXI | Master | 256-bit | Fetch descriptors from memory |
 | Data Read AXI | Master | 512-bit | Read source data |
 | Data Write AXI | Master | 512-bit | Write destination data |
-| MonBus | Output | 64-bit | Debug/trace event stream |
-| IRQ | Output | 1-bit | Transfer completion interrupts |
+| Error FIFO AXIL | Slave | 32-bit | Read monitor error/interrupt FIFO |
+| Monitor Write AXIL | Master | 32-bit | Write monitor data to memory |
+| IRQ | Output | 1-bit | Interrupt (error FIFO not empty) |
+
+### Internal MonBus Interface (stream_core.sv)
+
+| Interface | Type | Width | Purpose |
+|-----------|------|-------|---------|
+| MonBus | Output | 64-bit | Debug/trace event stream to monbus_axil_group |
 
 ### Configuration Registers (APB)
 
-**Global Registers:**
-- STREAM_CTRL - Global enable/disable
-- STREAM_STATUS - Overall status
-- STREAM_IRQ_STATUS - Interrupt status (per-channel)
-- STREAM_IRQ_ENABLE - Interrupt enable mask
+**APB Address Map:**
+```
+0x000-0x03F: Channel kick-off registers (apbtodescr routing)
+0x040-0x0FF: Performance profiler interface
+0x100-0x3FF: PeakRDL configuration registers
+```
 
-**Per-Channel Registers (CH0-CH7):**
-- CHx_CTRL - Channel enable, kickoff descriptor address
-- CHx_STATUS - Channel state, error flags
-- CHx_CONFIG - Burst sizes, timeouts, priority
-- CHx_CURRENT_DESC - Current descriptor address (RO)
-- CHx_BEATS_READ - Read beat counter (RO)
-- CHx_BEATS_WRITE - Write beat counter (RO)
+**Key Register Groups:**
+- 0x100: Global Control (enable, reset, version)
+- 0x120: Per-Channel Control (enable, reset)
+- 0x140: Per-Channel Status (idle, state, completion)
+- 0x180: Monitor FIFO Status
+- 0x200: Scheduler Configuration
+- 0x220: Descriptor Engine Configuration
+- 0x240-0x29F: AXI Monitor Configuration (DAXMON, RDMON, WRMON)
+- 0x2A0: AXI Transfer Configuration
+- 0x2B0: Performance Profiler Configuration
+
+**See:** [Register Map](../ch04_registers/register_map.md) for complete documentation.
 
 ---
 
@@ -467,5 +500,5 @@ If extending STREAM for production use, consider:
 
 ---
 
-**Last Updated:** 2025-11-22
-**Document Version:** 0.90
+**Last Updated:** 2025-12-01
+**Document Version:** 0.91

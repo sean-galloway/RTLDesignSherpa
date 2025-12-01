@@ -1,0 +1,55 @@
+// UART RX Engine Block Diagram
+// Purpose: Receive data path with FIFO
+
+digraph uart_rx_engine {
+    rankdir=LR;
+    node [shape=box, style="rounded,filled", fillcolor=lightblue];
+    edge [fontsize=10];
+
+    // Input signals
+    rxd [label="RXD", shape=ellipse, fillcolor=lightgreen];
+    lcr [label="LCR Config", shape=ellipse, fillcolor=lightgreen];
+    baud_clk [label="16x Baud Clock", shape=ellipse, fillcolor=lightgreen];
+
+    // Synchronizer
+    sync [label="2-Stage\nSynchronizer", fillcolor=lightyellow];
+
+    // Deserializer
+    subgraph cluster_deserializer {
+        label="RX Deserializer";
+        style=dashed;
+        fillcolor=white;
+
+        start_det [label="Start Bit\nDetector", fillcolor=lightcyan];
+        sampler [label="Mid-bit\nSampler", fillcolor=lightcyan];
+        shift_reg [label="Shift\nRegister", fillcolor=lightcyan];
+        parity_chk [label="Parity\nChecker", fillcolor=lightcyan];
+        frame_chk [label="Frame\nChecker", fillcolor=lightcyan];
+    }
+
+    // RX FIFO
+    rx_fifo [label="RX FIFO\n16 x 11 bits\n(8 data + 3 error)", fillcolor=lightyellow];
+
+    // Output
+    rbr_read [label="RBR Read", shape=ellipse, fillcolor=pink];
+    lsr_status [label="LSR Status\n(DR, OE, PE, FE, BI)", shape=ellipse, fillcolor=pink];
+
+    // Connections
+    rxd -> sync;
+    sync -> start_det;
+    baud_clk -> start_det;
+    baud_clk -> sampler;
+    start_det -> sampler;
+    sampler -> shift_reg;
+    lcr -> shift_reg;
+    lcr -> parity_chk;
+
+    shift_reg -> parity_chk;
+    shift_reg -> frame_chk;
+    shift_reg -> rx_fifo [label="data"];
+    parity_chk -> rx_fifo [label="PE"];
+    frame_chk -> rx_fifo [label="FE, BI"];
+
+    rx_fifo -> rbr_read;
+    rx_fifo -> lsr_status;
+}

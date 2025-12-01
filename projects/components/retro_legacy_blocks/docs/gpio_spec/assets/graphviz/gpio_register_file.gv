@@ -1,0 +1,65 @@
+// GPIO Register File Block Diagram
+// Purpose: PeakRDL-generated register interface
+
+digraph gpio_register_file {
+    rankdir=TB;
+    node [shape=box, style="rounded,filled", fillcolor=lightblue];
+    edge [fontsize=10];
+
+    // APB signals
+    apb_in [label="APB Interface\npaddr, pwdata, pwrite\npsel, penable, pstrb", shape=ellipse, fillcolor=lightgreen];
+    apb_out [label="prdata, pready, pslverr", shape=ellipse, fillcolor=pink];
+
+    // Register blocks
+    subgraph cluster_regs {
+        label="Register File (PeakRDL Generated)";
+        style=rounded;
+        fillcolor=white;
+
+        ctrl [label="GPIO_CONTROL\n[0x000]\nRW", fillcolor=lightyellow];
+        dir [label="GPIO_DIRECTION\n[0x004]\nRW", fillcolor=lightyellow];
+        out [label="GPIO_OUTPUT\n[0x008]\nRW", fillcolor=lightyellow];
+        inp [label="GPIO_INPUT\n[0x00C]\nRO", fillcolor=lightcyan];
+        ie [label="GPIO_INT_ENABLE\n[0x010]\nRW", fillcolor=lightyellow];
+        itype [label="GPIO_INT_TYPE\n[0x014]\nRW", fillcolor=lightyellow];
+        ipol [label="GPIO_INT_POLARITY\n[0x018]\nRW", fillcolor=lightyellow];
+        iboth [label="GPIO_INT_BOTH\n[0x01C]\nRW", fillcolor=lightyellow];
+        istat [label="GPIO_INT_STATUS\n[0x020]\nW1C", fillcolor=pink];
+    }
+
+    // Hardware interface
+    hw_in [label="hw2reg\n(from GPIO core)", shape=ellipse, fillcolor=lightgreen];
+    hw_out [label="reg2hw\n(to GPIO core)", shape=ellipse, fillcolor=pink];
+
+    // Connections
+    apb_in -> ctrl;
+    apb_in -> dir;
+    apb_in -> out;
+    apb_in -> inp;
+    apb_in -> ie;
+    apb_in -> itype;
+    apb_in -> ipol;
+    apb_in -> iboth;
+    apb_in -> istat;
+
+    ctrl -> apb_out;
+    dir -> apb_out;
+    out -> apb_out;
+    inp -> apb_out;
+    ie -> apb_out;
+    itype -> apb_out;
+    ipol -> apb_out;
+    iboth -> apb_out;
+    istat -> apb_out;
+
+    hw_in -> inp [label="input values"];
+    hw_in -> istat [label="int status"];
+
+    ctrl -> hw_out;
+    dir -> hw_out;
+    out -> hw_out;
+    ie -> hw_out;
+    itype -> hw_out;
+    ipol -> hw_out;
+    iboth -> hw_out;
+}

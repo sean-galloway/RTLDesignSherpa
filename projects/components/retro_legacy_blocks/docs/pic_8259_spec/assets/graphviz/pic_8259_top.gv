@@ -1,0 +1,41 @@
+// PIC 8259 Top-Level Block Diagram
+digraph pic_8259_top {
+    rankdir=LR;
+    node [shape=box, style="rounded,filled", fillcolor=lightblue];
+
+    apb_in [label="APB Slave\nInterface", shape=ellipse, fillcolor=lightgreen];
+    irq_in [label="IR[7:0]\nInterrupt\nRequests", shape=ellipse, fillcolor=lightgreen];
+    cascade_in [label="CAS[2:0]\n(from master)", shape=ellipse, fillcolor=lightgreen];
+
+    subgraph cluster_pic {
+        label="apb_pic_8259";
+        style=rounded;
+
+        apb_if [label="APB\nInterface", fillcolor=lightyellow];
+        regs [label="Control\nRegisters\n(ICW/OCW)", fillcolor=lightyellow];
+        irr [label="IRR\n(Request)", fillcolor=lightcyan];
+        isr [label="ISR\n(In-Service)", fillcolor=lightcyan];
+        imr [label="IMR\n(Mask)", fillcolor=lightcyan];
+        priority [label="Priority\nResolver", fillcolor=lightcyan];
+        vector [label="Vector\nGenerator", fillcolor=lightcyan];
+    }
+
+    int_out [label="INT\n(to CPU)", shape=ellipse, fillcolor=pink];
+    cascade_out [label="CAS[2:0]\n(to slave)", shape=ellipse, fillcolor=pink];
+    ack_in [label="INTA\n(from CPU)", shape=ellipse, fillcolor=lightgreen];
+
+    apb_in -> apb_if;
+    apb_if -> regs;
+    irq_in -> irr;
+    irr -> priority;
+    imr -> priority;
+    isr -> priority;
+    regs -> imr;
+    regs -> isr;
+    priority -> int_out;
+    ack_in -> vector;
+    vector -> isr;
+    regs -> vector;
+    cascade_in -> priority [style=dashed];
+    priority -> cascade_out [style=dashed];
+}

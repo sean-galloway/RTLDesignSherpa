@@ -1,0 +1,38 @@
+// PM/ACPI Top-Level Block Diagram
+digraph pm_acpi_top {
+    rankdir=LR;
+    node [shape=box, style="rounded,filled", fillcolor=lightblue];
+
+    apb_in [label="APB Slave\nInterface", shape=ellipse, fillcolor=lightgreen];
+    events_in [label="Event Inputs\n(PWRBTN, SLPBTN,\nRTC, GPE)", shape=ellipse, fillcolor=lightgreen];
+
+    subgraph cluster_pm {
+        label="apb_pm_acpi";
+        style=rounded;
+
+        apb_if [label="APB\nInterface", fillcolor=lightyellow];
+        regs [label="Register\nFile", fillcolor=lightyellow];
+        pm_timer [label="PM Timer\n(24-bit\n3.579545 MHz)", fillcolor=lightcyan];
+        event_ctrl [label="Event\nController", fillcolor=lightcyan];
+        sleep_ctrl [label="Sleep\nController", fillcolor=lightcyan];
+        sci_gen [label="SCI/SMI\nGenerator", fillcolor=lightcyan];
+    }
+
+    sci_out [label="sci_n\nsmi_n", shape=ellipse, fillcolor=pink];
+    sleep_out [label="sleep_state[2:0]", shape=ellipse, fillcolor=pink];
+    apb_out [label="APB\nResponse", shape=ellipse, fillcolor=pink];
+
+    apb_in -> apb_if;
+    apb_if -> regs;
+    apb_if -> apb_out;
+    events_in -> event_ctrl;
+    regs -> event_ctrl;
+    event_ctrl -> regs;
+    regs -> pm_timer;
+    pm_timer -> regs;
+    pm_timer -> event_ctrl [label="overflow"];
+    regs -> sleep_ctrl;
+    sleep_ctrl -> sleep_out;
+    event_ctrl -> sci_gen;
+    sci_gen -> sci_out;
+}

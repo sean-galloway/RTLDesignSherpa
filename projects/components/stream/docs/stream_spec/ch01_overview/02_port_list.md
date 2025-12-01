@@ -2,13 +2,20 @@
 
 **Module:** `stream_core.sv`
 **Location:** `projects/components/stream/rtl/macro/`
-**Last Updated:** 2025-11-22
+**Last Updated:** 2025-12-01
 
 ---
 
 ## Overview
 
 This document provides a complete reference for all top-level ports of the STREAM Core module, organized by interface type. All port names, directions, widths, and descriptions are extracted directly from the RTL implementation.
+
+**Note:** This documents `stream_core.sv` which is instantiated inside `stream_top_ch8.sv`. The top-level wrapper adds:
+- APB slave interface (replaces apb_valid/ready/addr with standard APB protocol)
+- AXI-Lite interfaces for monitor bus (s_axil_err_*, m_axil_mon_*)
+- Optional APB CDC crossing (CDC_ENABLE parameter)
+
+For top-level integration, see the [Architecture Overview](01_architecture.md).
 
 **Quick Navigation:**
 - [Clock and Reset](#clock-and-reset)
@@ -523,5 +530,5 @@ gaxi_fifo_sync #(
 
 ---
 
-**Last Updated:** 2025-11-22
+**Last Updated:** 2025-12-01
 **Maintained By:** STREAM Architecture Team
