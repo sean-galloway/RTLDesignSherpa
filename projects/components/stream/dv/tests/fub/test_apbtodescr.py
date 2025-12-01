@@ -108,31 +108,63 @@ async def cocotb_test_apbtodescr(dut):
         # Test out-of-range address
         result1 = await tb.test_out_of_range()
         assert result1, "Out-of-range test failed"
-
         await tb.wait_clocks(tb.clk_name, 5)
 
         # Test read request (not supported)
         result2 = await tb.test_read_error()
         assert result2, "Read error test failed"
+        await tb.wait_clocks(tb.clk_name, 5)
 
-        tb.log.info("✓ Error tests PASSED")
+        # Test HIGH write before LOW write (two-write sequence violation)
+        result3 = await tb.test_high_write_first()
+        assert result3, "HIGH-before-LOW test failed"
+        await tb.wait_clocks(tb.clk_name, 5)
+
+        # Test LOW write twice in a row (expecting HIGH, got LOW)
+        result4 = await tb.test_low_write_twice()
+        assert result4, "LOW-write-twice test failed"
+        await tb.wait_clocks(tb.clk_name, 5)
+
+        # Test write to different channel mid-sequence
+        result5 = await tb.test_different_channel_mid_sequence()
+        assert result5, "Different channel mid-sequence test failed"
+        await tb.wait_clocks(tb.clk_name, 5)
+
+        # Test read during write sequence
+        result6 = await tb.test_read_during_sequence()
+        assert result6, "Read during sequence test failed"
+
+        tb.log.info("✓ All error tests PASSED (6 error cases verified)")
 
     elif test_type == 'rapid_fire':
-        tb.log.info("Testing rapid-fire writes to multiple channels")
+        tb.log.info("Testing rapid-fire writes to multiple channels (TWO-WRITE SEQUENCE)")
 
         # Write to channels 0, 1, 2, 3 in quick succession
         for ch in range(4):
-            addr = ch * 4
-            data = 0x3000_0000 + (ch * 0x1000)
+            # NEW: Two-write sequence for 64-bit descriptor address
+            addr_low = ch * 8
+            addr_high = ch * 8 + 4
+            desc_addr_64 = 0x0003_0000 + (ch * 0x10_0000)
+            data_low = desc_addr_64 & 0xFFFF_FFFF
+            data_high = (desc_addr_64 >> 32) & 0xFFFF_FFFF
 
-            success, error, cycles, kickoff_hit = await tb.apb_write(addr, data)
-            assert success, f"Rapid-fire write to channel {ch} failed"
-            assert kickoff_hit, f"kickoff_hit not asserted for channel {ch}"
+            # Write LOW register
+            success, error, cycles, kickoff_hit = await tb.apb_write(addr_low, data_low)
+            assert success, f"Rapid-fire LOW write to channel {ch} failed"
+            assert not kickoff_hit, f"kickoff_hit asserted after LOW write (should wait for HIGH)"
 
-            # Minimal delay between writes
+            # Minimal delay between LOW and HIGH
             await tb.wait_clocks(tb.clk_name, 1)
 
-        tb.log.info("✓ Rapid-fire test PASSED")
+            # Write HIGH register (completes 64-bit address, triggers routing)
+            success, error, cycles, kickoff_hit = await tb.apb_write(addr_high, data_high)
+            assert success, f"Rapid-fire HIGH write to channel {ch} failed"
+            assert kickoff_hit, f"kickoff_hit not asserted for channel {ch} after HIGH write"
+
+            # Minimal delay between channels
+            await tb.wait_clocks(tb.clk_name, 1)
+
+        tb.log.info("✓ Rapid-fire test PASSED (4 channels, 8 writes total)")
 
     else:
         raise ValueError(f"Unknown TEST_TYPE: {test_type}")

@@ -1,0 +1,255 @@
+// SPDX-License-Identifier: MIT
+// SPDX-FileCopyrightText: 2024-2025 sean galloway
+//
+// RTL Design Sherpa - Industry-Standard RTL Design and Verification
+// https://github.com/sean-galloway/RTLDesignSherpa
+//
+// PeakRDL Register Definition: GPIO Controller
+//
+// Purpose: FPGA-friendly General Purpose I/O controller
+//
+// Features:
+//   - 32-bit GPIO port
+//   - Per-bit direction control (input/output)
+//   - Per-bit interrupt enable and edge detection
+//   - Interrupt status with W1C (Write-1-to-Clear)
+//   - Optional pull-up/pull-down control (FPGA fabric dependent)
+//
+// Documentation: projects/components/retro_legacy_blocks/rtl/gpio/README.md
+// Created: 2025-11-29
+// Updated: 2025-11-30 - Changed to 32-bit register width
+
+addrmap gpio_regs {
+    name = "GPIO Controller Registers";
+    desc = "General Purpose I/O Controller for FPGA applications";
+
+    default regwidth = 32;
+    default sw = rw;
+    default hw = r;
+
+    // ========================================================================
+    // Control Register (0x00)
+    // ========================================================================
+    reg {
+        name = "GPIO Control Register";
+        desc = "Global GPIO control settings";
+
+        field {
+            name = "GPIO Enable";
+            desc = "Global GPIO enable (1=enabled, 0=disabled/tristate all)";
+            sw = rw;
+            hw = r;
+        } gpio_enable[0:0] = 1'b1;
+
+        field {
+            name = "Interrupt Enable";
+            desc = "Global interrupt enable (1=enabled)";
+            sw = rw;
+            hw = r;
+        } int_enable[1:1] = 1'b0;
+
+        field {
+            name = "Reserved";
+            desc = "Reserved bits";
+            sw = r;
+            hw = na;
+        } reserved[31:2] = 30'h0;
+
+    } GPIO_CONTROL @ 0x000;
+
+    // ========================================================================
+    // Direction Register (0x04)
+    // ========================================================================
+    reg {
+        name = "GPIO Direction Register";
+        desc = "Direction control for GPIO[31:0] (1=output, 0=input)";
+
+        field {
+            name = "Direction [31:0]";
+            desc = "Per-bit direction: 1=output, 0=input";
+            sw = rw;
+            hw = r;
+        } direction[31:0] = 32'h00000000;  // Default all inputs
+
+    } GPIO_DIRECTION @ 0x004;
+
+    // ========================================================================
+    // Output Data Register (0x08)
+    // ========================================================================
+    reg {
+        name = "GPIO Output Data Register";
+        desc = "Output data for GPIO[31:0] (only affects pins configured as outputs)";
+
+        field {
+            name = "Output Data [31:0]";
+            desc = "Data to drive on output pins";
+            sw = rw;
+            hw = r;
+        } output_data[31:0] = 32'h00000000;
+
+    } GPIO_OUTPUT @ 0x008;
+
+    // ========================================================================
+    // Input Data Register (0x0C) - Read Only
+    // ========================================================================
+    reg {
+        name = "GPIO Input Data Register";
+        desc = "Current state of GPIO[31:0] pins (read-only)";
+
+        field {
+            name = "Input Data [31:0]";
+            desc = "Current pin state (after synchronization)";
+            sw = r;
+            hw = w;
+        } input_data[31:0] = 32'h00000000;
+
+    } GPIO_INPUT @ 0x00C;
+
+    // ========================================================================
+    // Interrupt Enable Register (0x10)
+    // ========================================================================
+    reg {
+        name = "GPIO Interrupt Enable Register";
+        desc = "Per-pin interrupt enable for GPIO[31:0]";
+
+        field {
+            name = "Interrupt Enable [31:0]";
+            desc = "1=interrupt enabled for this pin";
+            sw = rw;
+            hw = r;
+        } int_enable[31:0] = 32'h00000000;
+
+    } GPIO_INT_ENABLE @ 0x010;
+
+    // ========================================================================
+    // Interrupt Type Register (0x14)
+    // ========================================================================
+    reg {
+        name = "GPIO Interrupt Type Register";
+        desc = "Interrupt type for GPIO[31:0] (1=level, 0=edge)";
+
+        field {
+            name = "Interrupt Type [31:0]";
+            desc = "1=level-sensitive, 0=edge-sensitive";
+            sw = rw;
+            hw = r;
+        } int_type[31:0] = 32'h00000000;  // Default edge
+
+    } GPIO_INT_TYPE @ 0x014;
+
+    // ========================================================================
+    // Interrupt Polarity Register (0x18)
+    // ========================================================================
+    reg {
+        name = "GPIO Interrupt Polarity Register";
+        desc = "Interrupt polarity for GPIO[31:0] (1=high/rising, 0=low/falling)";
+
+        field {
+            name = "Interrupt Polarity [31:0]";
+            desc = "For edge: 1=rising, 0=falling. For level: 1=high, 0=low";
+            sw = rw;
+            hw = r;
+        } int_polarity[31:0] = 32'hFFFFFFFF;  // Default rising/high
+
+    } GPIO_INT_POLARITY @ 0x018;
+
+    // ========================================================================
+    // Interrupt Both Edge Register (0x1C)
+    // ========================================================================
+    reg {
+        name = "GPIO Interrupt Both Edges Register";
+        desc = "Both-edge interrupt for GPIO[31:0] (overrides polarity when set)";
+
+        field {
+            name = "Both Edges [31:0]";
+            desc = "1=interrupt on both edges (ignores polarity)";
+            sw = rw;
+            hw = r;
+        } int_both[31:0] = 32'h00000000;
+
+    } GPIO_INT_BOTH @ 0x01C;
+
+    // ========================================================================
+    // Interrupt Status Register (0x20) - W1C
+    // ========================================================================
+    reg {
+        name = "GPIO Interrupt Status Register";
+        desc = "Interrupt status for GPIO[31:0] (write 1 to clear)";
+
+        field {
+            name = "Interrupt Status [31:0]";
+            desc = "1=interrupt pending (W1C) - sticky bits set by hardware";
+            sw = rw;
+            hw = rw;     // hardware can set bits (write) and read back sticky status
+            stickybit;   // each bit is sticky - set by next[i] going high
+            onwrite = woclr;
+        } int_status[31:0] = 32'h00000000;
+
+    } GPIO_INT_STATUS @ 0x020;
+
+    // ========================================================================
+    // Raw Interrupt Status Register (0x24) - Read Only
+    // ========================================================================
+    reg {
+        name = "GPIO Raw Interrupt Status Register";
+        desc = "Raw interrupt status before masking GPIO[31:0]";
+
+        field {
+            name = "Raw Status [31:0]";
+            desc = "Raw interrupt condition (before enable mask)";
+            sw = r;
+            hw = w;
+        } raw_status[31:0] = 32'h00000000;
+
+    } GPIO_RAW_INT @ 0x024;
+
+    // ========================================================================
+    // Output Set Register (0x28) - Atomic operation
+    // ========================================================================
+    reg {
+        name = "GPIO Output Set Register";
+        desc = "Write 1 to set corresponding output bit (atomic)";
+
+        field {
+            name = "Set Bits [31:0]";
+            desc = "Write 1 to set output bit (read returns 0)";
+            sw = w;
+            hw = r;
+            // Write-only, reading returns 0
+        } set_bits[31:0] = 32'h00000000;
+
+    } GPIO_OUTPUT_SET @ 0x028;
+
+    // ========================================================================
+    // Output Clear Register (0x2C) - Atomic operation
+    // ========================================================================
+    reg {
+        name = "GPIO Output Clear Register";
+        desc = "Write 1 to clear corresponding output bit (atomic)";
+
+        field {
+            name = "Clear Bits [31:0]";
+            desc = "Write 1 to clear output bit (read returns 0)";
+            sw = w;
+            hw = r;
+        } clear_bits[31:0] = 32'h00000000;
+
+    } GPIO_OUTPUT_CLR @ 0x02C;
+
+    // ========================================================================
+    // Output Toggle Register (0x30) - Atomic operation
+    // ========================================================================
+    reg {
+        name = "GPIO Output Toggle Register";
+        desc = "Write 1 to toggle corresponding output bit (atomic)";
+
+        field {
+            name = "Toggle Bits [31:0]";
+            desc = "Write 1 to toggle output bit (read returns 0)";
+            sw = w;
+            hw = r;
+        } toggle_bits[31:0] = 32'h00000000;
+
+    } GPIO_OUTPUT_TGL @ 0x030;
+
+};

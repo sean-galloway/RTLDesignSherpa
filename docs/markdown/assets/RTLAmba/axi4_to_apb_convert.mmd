@@ -1,0 +1,37 @@
+%%{init: {'theme': 'neutral', 'themeVariables': { 'fontSize': '14px'}}}%%
+flowchart TB
+    subgraph AXI4["AXI4 Input"]
+        AXI_CMD["Command\n(AR/AW)"]
+        AXI_DATA["Data\n(R/W)"]
+    end
+
+    subgraph axi4_to_apb_convert["axi4_to_apb_convert"]
+        subgraph Burst_Split["Burst Splitter"]
+            SPLIT["Split bursts\ninto singles"]
+        end
+
+        subgraph Addr_Gen["Address Generator"]
+            ADDR["Calculate APB\naddresses per beat"]
+        end
+
+        subgraph FSM["APB State Machine"]
+            STATE["IDLE -> SETUP\n-> ACCESS -> RESP"]
+        end
+
+        subgraph Data_Width["Data Width Adapt"]
+            WIDTH["AXI DW -> APB DW\n(if different)"]
+        end
+    end
+
+    subgraph APB["APB Output"]
+        APB_CTRL["Control\npsel/penable/pwrite"]
+        APB_DATA["Data\npaddr/pwdata/prdata"]
+    end
+
+    AXI_CMD --> Burst_Split
+    Burst_Split --> Addr_Gen
+    Addr_Gen --> FSM
+    AXI_DATA --> Data_Width
+    Data_Width --> FSM
+    FSM --> APB_CTRL
+    FSM --> APB_DATA

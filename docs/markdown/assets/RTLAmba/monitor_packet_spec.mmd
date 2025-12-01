@@ -1,0 +1,28 @@
+%%{init: {'theme': 'neutral', 'themeVariables': { 'fontSize': '14px'}}}%%
+flowchart TB
+    subgraph Packet["Monitor Packet (64-bit)"]
+        subgraph Header["Packet Header"]
+            TYPE["Type[7:0]\n(CMD/DATA/PERF/ERR)"]
+            FLAGS["Flags[7:0]"]
+            LEN["Length[7:0]"]
+            SEQ["Sequence[7:0]"]
+        end
+
+        subgraph Payload["Payload (varies by type)"]
+            CMD_PL["CMD: addr, burst, size"]
+            DATA_PL["DATA: wdata/rdata, resp"]
+            PERF_PL["PERF: latency, timestamp"]
+            ERR_PL["ERR: error code, context"]
+        end
+    end
+
+    subgraph Types["Packet Types"]
+        T0["0x01: Command Start"]
+        T1["0x02: Command Complete"]
+        T2["0x10: Data Beat"]
+        T3["0x20: Performance"]
+        T4["0x40: Error/Timeout"]
+    end
+
+    TYPE --> Types
+    Header --> Payload

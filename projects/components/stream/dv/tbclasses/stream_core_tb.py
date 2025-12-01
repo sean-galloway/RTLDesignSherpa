@@ -26,6 +26,90 @@ from CocoTBFramework.components.axi4.axi4_factories import create_axi4_slave_rd,
 from projects.components.stream.dv.tbclasses.descriptor_packet_builder import DescriptorPacketBuilder
 
 
+class StreamRegisterMap:
+    """STREAM Register address definitions - PeakRDL generated registers."""
+
+    # Channel kick-off registers (0x000-0x03F) - handled by apbtodescr.sv
+    # These are NOT PeakRDL registers - used by existing kick_off_channel() method
+    CH0_CTRL_LOW = 0x000
+    CH0_CTRL_HIGH = 0x004
+    # ... (repeat for channels 1-7, stride = 0x008)
+
+    # Global Control and Status (0x100+) - PeakRDL registers
+    GLOBAL_CTRL = 0x100
+    GLOBAL_STATUS = 0x104
+    VERSION = 0x108
+
+    # Per-Channel Control (0x120+)
+    CHANNEL_ENABLE = 0x120
+    CHANNEL_RESET = 0x124
+
+    # Per-Channel Status (0x140+) - must match stream_regs.rdl!
+    CHANNEL_IDLE = 0x140      # CHANNEL_IDLE @ 0x140
+    DESC_ENGINE_IDLE = 0x144  # DESC_ENGINE_IDLE @ 0x144
+    SCHEDULER_IDLE = 0x148    # SCHEDULER_IDLE @ 0x148
+
+    # Descriptor Engine Configuration (0x220+)
+    DESCENG_CONFIG = 0x220
+    DESCENG_ADDR0_BASE = 0x224   # Base address (lower 32 bits only)
+    DESCENG_ADDR0_LIMIT = 0x228  # Limit address (lower 32 bits only)
+    DESCENG_ADDR1_BASE = 0x22C
+    DESCENG_ADDR1_LIMIT = 0x230
+
+    # AXI Transfer Configuration (0x2A0)
+    AXI_XFER_CONFIG = 0x2A0  # RD_XFER_BEATS[7:0], WR_XFER_BEATS[15:8]
+
+    # Per-Channel State (0x160+)
+    # CH_STATE is an array: 0x160 + (channel * 4)
+
+    @classmethod
+    def get_ch_ctrl_low_addr(cls, channel: int) -> int:
+        """Get channel control low register address (kick-off)."""
+        return 0x000 + (channel * 0x008)
+
+    @classmethod
+    def get_ch_ctrl_high_addr(cls, channel: int) -> int:
+        """Get channel control high register address (kick-off)."""
+        return 0x004 + (channel * 0x008)
+
+    @classmethod
+    def get_ch_state_addr(cls, channel: int) -> int:
+        """Get channel state register address."""
+        return 0x160 + (channel * 0x004)
+
+    @classmethod
+    def get_register_name(cls, addr: int) -> str:
+        """Get human-readable register name."""
+        if addr == cls.GLOBAL_CTRL:
+            return "GLOBAL_CTRL"
+        elif addr == cls.GLOBAL_STATUS:
+            return "GLOBAL_STATUS"
+        elif addr == cls.VERSION:
+            return "VERSION"
+        elif addr == cls.CHANNEL_ENABLE:
+            return "CHANNEL_ENABLE"
+        elif addr == cls.CHANNEL_RESET:
+            return "CHANNEL_RESET"
+        elif addr == cls.DESC_ENGINE_IDLE:
+            return "DESC_ENGINE_IDLE"
+        elif addr == cls.SCHEDULER_IDLE:
+            return "SCHEDULER_IDLE"
+        elif addr == cls.CHANNEL_IDLE:
+            return "CHANNEL_IDLE"
+        elif addr == cls.AXI_XFER_CONFIG:
+            return "AXI_XFER_CONFIG"
+        else:
+            # Check if it's a channel-specific register
+            for ch in range(8):
+                if addr == cls.get_ch_ctrl_low_addr(ch):
+                    return f"CH{ch}_CTRL_LOW"
+                elif addr == cls.get_ch_ctrl_high_addr(ch):
+                    return f"CH{ch}_CTRL_HIGH"
+                elif addr == cls.get_ch_state_addr(ch):
+                    return f"CH{ch}_STATE"
+        return f"UNKNOWN_0x{addr:03X}"
+
+
 class StreamCoreTB(TBBase):
     """
     Testbench for stream_core - Complete STREAM DMA integration.
@@ -64,10 +148,26 @@ class StreamCoreTB(TBBase):
         # AXI user width must match channel encoding (same as RTL)
         self.user_width = max(1, (num_channels - 1).bit_length()) if num_channels > 1 else 1
 
-        # Clock/reset
-        self.clk = dut.clk
-        self.rst_n = dut.rst_n
-        self.clk_name = 'clk'
+        # Clock/reset - auto-detect stream_core vs stream_top
+        # stream_core: clk/rst_n
+        # stream_top: aclk/aresetn (and pclk/presetn for APB)
+        if hasattr(dut, 'clk'):
+            # stream_core
+            self.clk = dut.clk
+            self.rst_n = dut.rst_n
+            self.clk_name = 'clk'
+            self.pclk = None
+            self.presetn = None
+        elif hasattr(dut, 'aclk'):
+            # stream_top
+            self.clk = dut.aclk
+            self.rst_n = dut.aresetn
+            self.clk_name = 'aclk'
+            # Detect APB clock domain
+            self.pclk = dut.pclk if hasattr(dut, 'pclk') else None
+            self.presetn = dut.presetn if hasattr(dut, 'presetn') else None
+        else:
+            raise RuntimeError("DUT has neither 'clk' nor 'aclk' - unsupported module")
 
         # Memory maps
         # NOTE: Descriptor base must be non-zero (address 0 is invalid/error)
@@ -94,6 +194,9 @@ class StreamCoreTB(TBBase):
         # Descriptor builder
         self.desc_builder = DescriptorPacketBuilder()
 
+        # APB Master (for stream_top configuration, initialized separately)
+        self.apb_master = None
+
         # MonBus packet capture
         self.mon_packets = []
 
@@ -116,11 +219,25 @@ class StreamCoreTB(TBBase):
             rd_xfer_beats: AXI read transfer size in beats (default 16)
             wr_xfer_beats: AXI write transfer size in beats (default 16)
         """
-        # Start clock
+        # Start main clock (aclk or clk)
         await self.start_clock(self.clk_name, freq=10, units='ns')
 
-        # Initialize configuration signals before reset
-        self._init_config_signals(rd_xfer_beats, wr_xfer_beats)
+        # Start APB clock if present (stream_top has separate pclk domain)
+        if self.pclk is not None:
+            await self.start_clock('pclk', freq=10, units='ns')
+            self.log.info("Started APB clock (pclk) @ 10ns period")
+
+        # Initialize configuration signals ONLY for stream_core
+        # stream_top configures via APB registers, not direct signals
+        if self.pclk is None:
+            # stream_core: has direct config signal ports
+            self._init_config_signals(rd_xfer_beats, wr_xfer_beats)
+        else:
+            # stream_top: will configure via APB after reset
+            # Just save parameters for later APB configuration
+            self.rd_xfer_beats = rd_xfer_beats
+            self.wr_xfer_beats = wr_xfer_beats
+            self.log.info("stream_top: Deferring config to APB register writes")
 
         # Reset sequence
         await self.assert_reset()
@@ -147,12 +264,18 @@ class StreamCoreTB(TBBase):
         self.log.info("Background monitors started for APB, datard, datawr, scheduler state, descriptor errors")
 
     async def assert_reset(self):
-        """Assert reset signal"""
+        """Assert reset signal(s)"""
         self.rst_n.value = 0
+        # Also assert APB reset if present (stream_top)
+        if self.presetn is not None:
+            self.presetn.value = 0
 
     async def deassert_reset(self):
-        """Deassert reset signal"""
+        """Deassert reset signal(s)"""
         self.rst_n.value = 1
+        # Also deassert APB reset if present (stream_top)
+        if self.presetn is not None:
+            self.presetn.value = 1
 
     def _init_config_signals(self, rd_xfer_beats, wr_xfer_beats):
         """Initialize configuration signals before reset"""
@@ -161,8 +284,9 @@ class StreamCoreTB(TBBase):
         self.wr_xfer_beats = wr_xfer_beats
 
         # Configure transfer sizes (can be different for read and write)
-        self.dut.cfg_axi_rd_xfer_beats.value = rd_xfer_beats
-        self.dut.cfg_axi_wr_xfer_beats.value = wr_xfer_beats
+        # Config register stores ARLEN values (0==1 beat per AXI spec), so subtract 1 from beat count
+        self.dut.cfg_axi_rd_xfer_beats.value = rd_xfer_beats - 1
+        self.dut.cfg_axi_wr_xfer_beats.value = wr_xfer_beats - 1
 
         # Enable all channels (vectored signal)
         channel_enable_mask = (1 << self.num_channels) - 1  # All channels enabled
@@ -530,7 +654,7 @@ class StreamCoreTB(TBBase):
     # =========================================================================
 
     def write_descriptor(self, addr, src_addr, dst_addr, length,
-                        next_ptr=0, priority=0, last=False, channel_id=0):
+                        next_ptr=0, priority=0, last=False, channel_id=0, interrupt=False):
         """
         Write a descriptor to descriptor memory.
 
@@ -543,6 +667,7 @@ class StreamCoreTB(TBBase):
             priority: Descriptor priority (0-7)
             last: Last descriptor flag
             channel_id: Channel ID (0-7)
+            interrupt: Generate interrupt on completion
         """
         # Build descriptor packet using builder
         packet = self.desc_builder.build_descriptor_packet(
@@ -552,6 +677,7 @@ class StreamCoreTB(TBBase):
             next_ptr=next_ptr,
             valid=True,
             last=last,
+            gen_irq=interrupt,
             channel_id=channel_id,
             priority=priority
         )
@@ -774,7 +900,10 @@ class StreamCoreTB(TBBase):
 
     async def kick_off_channel(self, channel, descriptor_addr):
         """
-        Kick off a DMA transfer on specified channel via per-channel control interface.
+        Kick off a DMA transfer on specified channel.
+
+        For stream_core: Uses per-channel control signals (apb_addr, apb_valid, apb_ready)
+        For stream_top: Uses APB4 protocol writes to CHx_CTRL_LOW/HIGH registers
 
         Args:
             channel: Channel number (0 to num_channels-1)
@@ -784,57 +913,80 @@ class StreamCoreTB(TBBase):
             self.log.error(f"Invalid channel {channel}, max is {self.num_channels-1}")
             return
 
-        # stream_core uses per-channel control signals (not standard APB)
-        # Drive descriptor address with valid pulse
+        # DEBUG: Log what we're about to do
+        self.log.info(f"kick_off_channel: channel={channel}, descriptor_addr=0x{descriptor_addr:016X}")
+        self.log.info(f"  APB master initialized: {self.apb_master is not None}")
 
-        await RisingEdge(self.clk)
+        # Detect mode: APB (stream_top) or direct (stream_core)
+        if self.apb_master is not None:
+            # APB mode (stream_top) - write descriptor address to CHx_CTRL registers
+            # 64-bit descriptor address split into two 32-bit registers
+            ctrl_low_addr = StreamRegisterMap.get_ch_ctrl_low_addr(channel)
+            ctrl_high_addr = StreamRegisterMap.get_ch_ctrl_high_addr(channel)
 
-        # Set channel's address and assert valid
-        # Note: apb_addr, apb_valid, apb_ready are vectored per-channel
-        current_apb_addr = self.dut.apb_addr.value
-        current_apb_valid = self.dut.apb_valid.value
+            desc_low = descriptor_addr & 0xFFFFFFFF
+            desc_high = (descriptor_addr >> 32) & 0xFFFFFFFF
 
-        # Create mutable copy
-        apb_addr_list = [int((current_apb_addr >> (i * self.addr_width)) & ((1 << self.addr_width) - 1))
-                        for i in range(self.num_channels)]
-        apb_valid_list = [(current_apb_valid >> i) & 1 for i in range(self.num_channels)]
+            self.log.info(f"  Writing to APB addr 0x{ctrl_low_addr:03X} = 0x{desc_low:08X} (descriptor LOW)")
+            self.log.info(f"  Writing to APB addr 0x{ctrl_high_addr:03X} = 0x{desc_high:08X} (descriptor HIGH)")
 
-        # Update target channel
-        apb_addr_list[channel] = descriptor_addr
-        apb_valid_list[channel] = 1
+            # Write lower 32 bits
+            await self.write_apb_register(ctrl_low_addr, desc_low)
 
-        # Pack back into concatenated value
-        new_apb_addr = 0
-        for i in range(self.num_channels):
-            new_apb_addr |= (apb_addr_list[i] << (i * self.addr_width))
-        new_apb_valid = sum(bit << i for i, bit in enumerate(apb_valid_list))
+            # Write upper 32 bits (triggers kick-off)
+            await self.write_apb_register(ctrl_high_addr, desc_high)
 
-        self.dut.apb_addr.value = new_apb_addr
-        self.dut.apb_valid.value = new_apb_valid
+            self.log.info(f"Kicked off channel {channel} via APB with descriptor @ 0x{descriptor_addr:016X}")
 
-        # Wait for ready
-        for _ in range(100):  # Timeout after 100 cycles
+        else:
+            # Direct mode (stream_core) - drive per-channel control signals
             await RisingEdge(self.clk)
-            await ReadOnly()
-            apb_ready = self.dut.apb_ready.value
-            if (apb_ready >> channel) & 1:
-                break
 
-        # Deassert valid
-        await RisingEdge(self.clk)
-        self.dut.apb_valid.value = current_apb_valid  # Restore previous value
+            # Set channel's address and assert valid
+            # Note: apb_addr, apb_valid, apb_ready are vectored per-channel
+            current_apb_addr = self.dut.apb_addr.value
+            current_apb_valid = self.dut.apb_valid.value
 
-        self.log.info(f"Kicked off channel {channel} with descriptor @ 0x{descriptor_addr:08x}")
+            # Create mutable copy
+            apb_addr_list = [int((current_apb_addr >> (i * self.addr_width)) & ((1 << self.addr_width) - 1))
+                            for i in range(self.num_channels)]
+            apb_valid_list = [(current_apb_valid >> i) & 1 for i in range(self.num_channels)]
+
+            # Update target channel
+            apb_addr_list[channel] = descriptor_addr
+            apb_valid_list[channel] = 1
+
+            # Pack back into concatenated value
+            new_apb_addr = 0
+            for i in range(self.num_channels):
+                new_apb_addr |= (apb_addr_list[i] << (i * self.addr_width))
+            new_apb_valid = sum(bit << i for i, bit in enumerate(apb_valid_list))
+
+            self.dut.apb_addr.value = new_apb_addr
+            self.dut.apb_valid.value = new_apb_valid
+
+            # Wait for ready
+            for _ in range(100):  # Timeout after 100 cycles
+                await RisingEdge(self.clk)
+                await ReadOnly()
+                apb_ready = self.dut.apb_ready.value
+                if (apb_ready >> channel) & 1:
+                    break
+
+            # Deassert valid
+            await RisingEdge(self.clk)
+            self.dut.apb_valid.value = current_apb_valid  # Restore previous value
+
+            self.log.info(f"Kicked off channel {channel} with descriptor @ 0x{descriptor_addr:08x}")
+
         self.transfer_start_time[channel] = cocotb.utils.get_sim_time('ns')
 
     async def wait_for_channel_idle(self, channel, timeout_us=10000):
         """
         Wait for channel to return to idle state and all AXI transactions to complete.
 
-        Monitors:
-        - scheduler_idle: Scheduler FSM is idle
-        - axi_rd_all_complete: All read transactions completed
-        - axi_wr_all_complete: All write transactions completed
+        For stream_core: Monitors scheduler_idle, axi_rd_all_complete, axi_wr_all_complete signals
+        For stream_top: Reads CHANNEL_IDLE APB register
 
         Args:
             channel: Channel number
@@ -848,67 +1000,499 @@ class StreamCoreTB(TBBase):
 
         self.log.info(f"Waiting for channel {channel} to become idle (timeout={timeout_us}us){self.get_time_ns_str()}")
 
-        sched_idle_seen = False
-        rd_complete_seen = False
-        wr_complete_seen = False
+        # Detect mode: APB (stream_top) or direct (stream_core)
+        if self.apb_master is not None:
+            # APB mode (stream_top) - read CHANNEL_IDLE register
+            idle_seen = False
+            cycle_count = 0
 
-        debug_log_interval = 1000  # Log every 1000 cycles when all not complete
-        cycle_count = 0
+            while True:
+                await RisingEdge(self.clk)
 
-        while True:
-            await RisingEdge(self.clk)
-            await ReadOnly()
+                current_time = cocotb.utils.get_sim_time('ns')
+                elapsed_ns = current_time - start_time
+                cycle_count += 1
 
-            current_time = cocotb.utils.get_sim_time('ns')
-            elapsed_ns = current_time - start_time
-            cycle_count += 1
+                # Read CHANNEL_IDLE register (bit per channel)
+                channel_idle = await self.read_apb_register(StreamRegisterMap.CHANNEL_IDLE)
+                channel_idle_ch = (channel_idle >> channel) & 0x1
 
-            # Check all completion conditions
-            scheduler_idle = int(self.dut.scheduler_idle.value)
-            rd_complete = int(self.dut.axi_rd_all_complete.value)
-            wr_complete = int(self.dut.axi_wr_all_complete.value)
+                # Log first time idle is seen
+                if channel_idle_ch and not idle_seen:
+                    elapsed_us = elapsed_ns / 1000.0
+                    self.log.info(f"  Channel {channel} idle after {elapsed_us:.1f}us{self.get_time_ns_str()}")
+                    idle_seen = True
 
-            sched_idle_ch = (scheduler_idle >> channel) & 0x1
-            rd_complete_ch = (rd_complete >> channel) & 0x1
-            wr_complete_ch = (wr_complete >> channel) & 0x1
+                # Channel is idle when bit is set
+                if channel_idle_ch:
+                    elapsed_us = elapsed_ns / 1000.0
+                    self.log.info(f"✓ Channel {channel} FULLY COMPLETE after {elapsed_us:.1f}us{self.get_time_ns_str()}")
+                    self.transfer_end_time[channel] = current_time
+                    return True
 
-            # Log first time each condition is met
-            if sched_idle_ch and not sched_idle_seen:
-                elapsed_us = elapsed_ns / 1000.0
-                self.log.info(f"  Channel {channel} scheduler idle after {elapsed_us:.1f}us{self.get_time_ns_str()}")
-                sched_idle_seen = True
+                # Timeout check
+                if elapsed_ns > timeout_ns:
+                    elapsed_us = elapsed_ns / 1000.0
+                    self.log.error(f"✗ Channel {channel} timeout after {elapsed_us:.1f}us{self.get_time_ns_str()}")
+                    self.log.error(f"  channel_idle[{channel}]={channel_idle_ch}")
+                    # Read individual idle registers for debugging
+                    desc_eng_idle = await self.read_apb_register(StreamRegisterMap.DESC_ENGINE_IDLE)
+                    sched_idle = await self.read_apb_register(StreamRegisterMap.SCHEDULER_IDLE)
+                    self.log.error(f"  DESC_ENGINE_IDLE=0x{desc_eng_idle:02X} (ch{channel}={(desc_eng_idle >> channel) & 1})")
+                    self.log.error(f"  SCHEDULER_IDLE=0x{sched_idle:02X} (ch{channel}={(sched_idle >> channel) & 1})")
 
-            if rd_complete_ch and not rd_complete_seen:
-                elapsed_us = elapsed_ns / 1000.0
-                self.log.info(f"  Channel {channel} AXI read complete after {elapsed_us:.1f}us{self.get_time_ns_str()}")
-                rd_complete_seen = True
+                    # Also probe internal RTL signals directly for comparison
+                    try:
+                        await ReadOnly()
+                        # Try to access stream_core's internal signals (inside generate block)
+                        # stream_top_ch8.g_stream_core.u_stream_core (when USE_AXI_MONITORS=0)
+                        rtl_sched_idle = int(self.dut.g_stream_core.u_stream_core.scheduler_idle.value)
+                        rtl_desc_idle = int(self.dut.g_stream_core.u_stream_core.descriptor_engine_idle.value)
+                        self.log.error(f"  RTL scheduler_idle=0x{rtl_sched_idle:02X} (ch{channel}={(rtl_sched_idle >> channel) & 1})")
+                        self.log.error(f"  RTL descriptor_engine_idle=0x{rtl_desc_idle:02X} (ch{channel}={(rtl_desc_idle >> channel) & 1})")
+                        # Also probe signals directly in stream_top_ch8
+                        top_sched_idle = int(self.dut.scheduler_idle.value)
+                        top_desc_idle = int(self.dut.descriptor_engine_idle.value)
+                        self.log.error(f"  TOP scheduler_idle=0x{top_sched_idle:02X}")
+                        self.log.error(f"  TOP descriptor_engine_idle=0x{top_desc_idle:02X}")
 
-            if wr_complete_ch and not wr_complete_seen:
-                elapsed_us = elapsed_ns / 1000.0
-                self.log.info(f"  Channel {channel} AXI write complete after {elapsed_us:.1f}us{self.get_time_ns_str()}")
-                wr_complete_seen = True
+                        # Probe hwif_in struct values inside stream_regs to see if struct connection works
+                        try:
+                            # Access the hwif_in port of u_stream_regs
+                            hwif_in_val = self.dut.hwif_in.value
+                            self.log.error(f"  hwif_in (raw): {hwif_in_val}")
+                            # Probe intermediate signals that feed the struct
+                            try:
+                                hwif_sched_idle = int(self.dut.hwif_scheduler_idle.value)
+                                hwif_desc_idle = int(self.dut.hwif_desc_engine_idle.value)
+                                hwif_ch_idle = int(self.dut.hwif_channel_idle.value)
+                                self.log.error(f"  hwif_scheduler_idle=0x{hwif_sched_idle:02X}")
+                                self.log.error(f"  hwif_desc_engine_idle=0x{hwif_desc_idle:02X}")
+                                self.log.error(f"  hwif_channel_idle=0x{hwif_ch_idle:02X}")
+                            except Exception as e2:
+                                self.log.error(f"  Cannot access hwif_ intermediate signals: {e2}")
+                            # Probe debug outputs that show hwif_in struct field values
+                            try:
+                                debug_sched = int(self.dut.debug_hwif_scheduler_idle.value)
+                                debug_desc = int(self.dut.debug_hwif_desc_engine_idle.value)
+                                debug_ch = int(self.dut.debug_hwif_channel_idle.value)
+                                self.log.error(f"  debug_hwif_scheduler_idle=0x{debug_sched:02X}")
+                                self.log.error(f"  debug_hwif_desc_engine_idle=0x{debug_desc:02X}")
+                                self.log.error(f"  debug_hwif_channel_idle=0x{debug_ch:02X}")
+                            except Exception as e2b:
+                                self.log.error(f"  Cannot access debug_hwif_ signals: {e2b}")
+                            # Probe regblk interface debug signals
+                            try:
+                                debug_req = int(self.dut.debug_regblk_req.value)
+                                debug_req_is_wr = int(self.dut.debug_regblk_req_is_wr.value)
+                                debug_addr = int(self.dut.debug_regblk_addr.value)
+                                debug_rd_data = int(self.dut.debug_regblk_rd_data.value)
+                                debug_rd_ack = int(self.dut.debug_regblk_rd_ack.value)
+                                self.log.error(f"  debug_regblk_req={debug_req}")
+                                self.log.error(f"  debug_regblk_req_is_wr={debug_req_is_wr}")
+                                self.log.error(f"  debug_regblk_addr=0x{debug_addr:03X}")
+                                self.log.error(f"  debug_regblk_rd_data=0x{debug_rd_data:08X}")
+                                self.log.error(f"  debug_regblk_rd_ack={debug_rd_ack}")
+                            except Exception as e2c:
+                                self.log.error(f"  Cannot access debug_regblk_ signals: {e2c}")
+                            # Try individual fields if Verilator exposes them
+                            try:
+                                hwif_sched = self.dut.u_stream_regs.hwif_in.value
+                                self.log.error(f"  u_stream_regs.hwif_in (raw): {hwif_sched}")
+                            except Exception as e3:
+                                self.log.error(f"  Cannot access u_stream_regs.hwif_in: {e3}")
+                        except Exception as e4:
+                            self.log.error(f"  Cannot access hwif_in: {e4}")
+                    except Exception as e:
+                        self.log.error(f"  Could not probe internal RTL signals: {e}")
+                    return False
 
-            # Periodic debug logging when scheduler idle but engines not complete
-            if sched_idle_ch and (not rd_complete_ch or not wr_complete_ch) and (cycle_count % debug_log_interval == 0):
-                elapsed_us = elapsed_ns / 1000.0
-                self.log.warning(f"Channel {channel} waiting for AXI complete after {elapsed_us:.1f}us: "
-                               f"sched_idle={sched_idle_ch}, rd_complete={rd_complete_ch}, wr_complete={wr_complete_ch}")
+                # Poll every 10us to reduce APB traffic (1000 cycles @ 10ns = 10us)
+                for _ in range(999):
+                    await RisingEdge(self.clk)
 
-            # All three conditions must be true
-            if sched_idle_ch and rd_complete_ch and wr_complete_ch:
-                elapsed_us = elapsed_ns / 1000.0
-                self.log.info(f"✓ Channel {channel} FULLY COMPLETE after {elapsed_us:.1f}us{self.get_time_ns_str()}")
-                self.transfer_end_time[channel] = current_time
-                return True
+        else:
+            # Direct mode (stream_core) - read internal signals
+            sched_idle_seen = False
+            rd_complete_seen = False
+            wr_complete_seen = False
 
-            # Timeout check
-            if elapsed_ns > timeout_ns:
-                elapsed_us = elapsed_ns / 1000.0
-                self.log.error(f"✗ Channel {channel} timeout after {elapsed_us:.1f}us{self.get_time_ns_str()}")
-                self.log.error(f"  scheduler_idle[{channel}]={sched_idle_ch}, "
-                             f"rd_complete[{channel}]={rd_complete_ch}, "
-                             f"wr_complete[{channel}]={wr_complete_ch}")
-                return False
+            debug_log_interval = 1000  # Log every 1000 cycles when all not complete
+            cycle_count = 0
+
+            while True:
+                await RisingEdge(self.clk)
+                await ReadOnly()
+
+                current_time = cocotb.utils.get_sim_time('ns')
+                elapsed_ns = current_time - start_time
+                cycle_count += 1
+
+                # Check all completion conditions
+                scheduler_idle = int(self.dut.scheduler_idle.value)
+                rd_complete = int(self.dut.axi_rd_all_complete.value)
+                wr_complete = int(self.dut.axi_wr_all_complete.value)
+
+                sched_idle_ch = (scheduler_idle >> channel) & 0x1
+                rd_complete_ch = (rd_complete >> channel) & 0x1
+                wr_complete_ch = (wr_complete >> channel) & 0x1
+
+                # Log first time each condition is met
+                if sched_idle_ch and not sched_idle_seen:
+                    elapsed_us = elapsed_ns / 1000.0
+                    self.log.info(f"  Channel {channel} scheduler idle after {elapsed_us:.1f}us{self.get_time_ns_str()}")
+                    sched_idle_seen = True
+
+                if rd_complete_ch and not rd_complete_seen:
+                    elapsed_us = elapsed_ns / 1000.0
+                    self.log.info(f"  Channel {channel} AXI read complete after {elapsed_us:.1f}us{self.get_time_ns_str()}")
+                    rd_complete_seen = True
+
+                if wr_complete_ch and not wr_complete_seen:
+                    elapsed_us = elapsed_ns / 1000.0
+                    self.log.info(f"  Channel {channel} AXI write complete after {elapsed_us:.1f}us{self.get_time_ns_str()}")
+                    wr_complete_seen = True
+
+                # Periodic debug logging when scheduler idle but engines not complete
+                if sched_idle_ch and (not rd_complete_ch or not wr_complete_ch) and (cycle_count % debug_log_interval == 0):
+                    elapsed_us = elapsed_ns / 1000.0
+                    self.log.warning(f"Channel {channel} waiting for AXI complete after {elapsed_us:.1f}us: "
+                                   f"sched_idle={sched_idle_ch}, rd_complete={rd_complete_ch}, wr_complete={wr_complete_ch}")
+
+                # All three conditions must be true
+                if sched_idle_ch and rd_complete_ch and wr_complete_ch:
+                    elapsed_us = elapsed_ns / 1000.0
+                    self.log.info(f"✓ Channel {channel} FULLY COMPLETE after {elapsed_us:.1f}us{self.get_time_ns_str()}")
+                    self.transfer_end_time[channel] = current_time
+                    return True
+
+                # Timeout check
+                if elapsed_ns > timeout_ns:
+                    elapsed_us = elapsed_ns / 1000.0
+                    self.log.error(f"✗ Channel {channel} timeout after {elapsed_us:.1f}us{self.get_time_ns_str()}")
+                    self.log.error(f"  scheduler_idle[{channel}]={sched_idle_ch}, "
+                                 f"rd_complete[{channel}]={rd_complete_ch}, "
+                                 f"wr_complete[{channel}]={wr_complete_ch}")
+                    return False
+
+    # =========================================================================
+    # APB Configuration Interface (stream_top only)
+    # =========================================================================
+
+    async def init_apb_master(self):
+        """
+        Initialize APB master for stream_top configuration interface.
+
+        Only call this for stream_top testing. stream_core uses direct signals.
+        """
+        # Import here to avoid circular dependencies
+        from CocoTBFramework.components.apb.apb_components import APBMaster
+        from CocoTBFramework.components.shared.flex_randomizer import FlexRandomizer
+        from CocoTBFramework.tbclasses.amba.amba_random_configs import APB_MASTER_RANDOMIZER_CONFIGS
+
+        # Check if DUT has APB interface
+        if not hasattr(self.dut, 's_apb_paddr'):
+            self.log.warning("DUT does not have APB interface - APB master not initialized")
+            self.apb_master = None
+            return
+
+        # Create APB Master
+        # IMPORTANT: When CDC_ENABLE=0, the RTL connects apb_slave to aclk internally,
+        # NOT the external pclk port. So the APBMaster must use the same clock.
+        # For non-CDC testing, use self.clk (which is aclk).
+        # For CDC testing, use self.dut.pclk (the separate APB clock domain).
+        # Since we're primarily testing with CDC_ENABLE=0, use aclk (self.clk).
+        self.apb_master = APBMaster(
+            entity=self.dut,
+            title='STREAM APB Master',
+            prefix='s_apb',
+            clock=self.clk,     # Use aclk - must match RTL's apb_slave clock when CDC_ENABLE=0
+            bus_width=32,       # 32-bit data
+            addr_width=12,      # 12-bit addressing (4KB space)
+            randomizer=FlexRandomizer(APB_MASTER_RANDOMIZER_CONFIGS['fixed']),
+            log=self.log
+        )
+
+        # Initialize the APB master
+        await self.apb_master.reset_bus()
+
+        self.log.info("APB Master initialized for stream_top configuration")
+
+    async def write_apb_register(self, addr, data):
+        """
+        Write to APB configuration register using standard APB protocol.
+
+        Args:
+            addr: Register address (12-bit)
+            data: 32-bit data to write
+
+        Returns:
+            APBPacket: Response packet
+        """
+        if self.apb_master is None:
+            raise RuntimeError("APB master not initialized. Call init_apb_master() first.")
+
+        # Create APB write packet with proper field configuration (matches HPET pattern)
+        from CocoTBFramework.components.apb.apb_packet import APBPacket
+
+        packet = APBPacket(
+            pwrite=1,
+            paddr=addr,
+            pwdata=data,
+            pstrb=0xF,      # All 4 bytes enabled for 32-bit
+            pprot=0,
+            data_width=32,  # Fixed 32-bit data
+            addr_width=12,  # Fixed 12-bit addressing
+            strb_width=4    # Fixed 4-byte strobe
+        )
+
+        # Send transaction and wait for completion
+        # IMPORTANT: Use busy_send() to wait for transaction to complete!
+        # send() is non-blocking and just queues the transaction.
+        await self.apb_master.busy_send(packet)
+
+        # Wait one more clock for APBMaster to finish bus cleanup
+        # This avoids race conditions with background monitors using ReadOnly()
+        await RisingEdge(self.clk)
+
+        reg_name = StreamRegisterMap.get_register_name(addr)
+        self.log.info(f"APB WRITE: {reg_name} (0x{addr:03X}) = 0x{data:08X}")
+
+    async def read_apb_register(self, addr, debug_probe=False):
+        """
+        Read from APB configuration register using standard APB protocol.
+
+        Args:
+            addr: Register address (12-bit)
+            debug_probe: If True, probe debug signals during read
+
+        Returns:
+            int: 32-bit data read
+        """
+        if self.apb_master is None:
+            raise RuntimeError("APB master not initialized. Call init_apb_master() first.")
+
+        # Create APB read packet with proper field configuration (matches HPET pattern)
+        from CocoTBFramework.components.apb.apb_packet import APBPacket
+
+        packet = APBPacket(
+            pwrite=0,
+            paddr=addr,
+            pwdata=0,       # Don't care for reads
+            pstrb=0xF,      # All 4 bytes enabled for 32-bit
+            pprot=0,
+            data_width=32,  # Fixed 32-bit data
+            addr_width=12,  # Fixed 12-bit addressing
+            strb_width=4    # Fixed 4-byte strobe
+        )
+
+        # Send transaction and wait for completion
+        # IMPORTANT: Use busy_send() to wait for transaction to complete!
+        # send() is non-blocking and just queues the transaction.
+        await self.apb_master.busy_send(packet)
+
+        # Wait one more clock for APBMaster to finish bus cleanup
+        # This avoids race conditions with background monitors using ReadOnly()
+        await RisingEdge(self.clk)
+
+        # Extract data from packet after transaction completes
+        data = packet.fields.get('prdata', 0)
+        reg_name = StreamRegisterMap.get_register_name(addr)
+        self.log.info(f"APB READ:  {reg_name} (0x{addr:03X}) = 0x{data:08X}")
+
+        # Optional debug probing
+        if debug_probe:
+            try:
+                await ReadOnly()
+                # Probe regblk signals (to stream_regs)
+                debug_req = int(self.dut.debug_regblk_req.value)
+                debug_addr = int(self.dut.debug_regblk_addr.value)
+                debug_rd_data = int(self.dut.debug_regblk_rd_data.value)
+                debug_rd_ack = int(self.dut.debug_regblk_rd_ack.value)
+                self.log.info(f"  [DEBUG] regblk_req={debug_req}, addr=0x{debug_addr:03X}, "
+                             f"rd_data=0x{debug_rd_data:08X}, rd_ack={debug_rd_ack}")
+                # Probe peakrdl cmd/rsp signals
+                peakrdl_cmd_valid = int(self.dut.debug_peakrdl_cmd_valid.value)
+                peakrdl_cmd_paddr = int(self.dut.debug_peakrdl_cmd_paddr.value)
+                peakrdl_rsp_valid = int(self.dut.debug_peakrdl_rsp_valid.value)
+                peakrdl_rsp_prdata = int(self.dut.debug_peakrdl_rsp_prdata.value)
+                self.log.info(f"  [DEBUG] peakrdl cmd_valid={peakrdl_cmd_valid}, cmd_paddr=0x{peakrdl_cmd_paddr:03X}, "
+                             f"rsp_valid={peakrdl_rsp_valid}, rsp_prdata=0x{peakrdl_rsp_prdata:08X}")
+                # Probe registered debug capture (holds values from last read)
+                last_addr = int(self.dut.debug_last_cpuif_addr.value)
+                last_rd_data = int(self.dut.debug_last_cpuif_rd_data.value)
+                last_rd_ack = int(self.dut.debug_last_cpuif_rd_ack.value)
+                self.log.info(f"  [DEBUG CAPTURE] last_addr=0x{last_addr:03X}, "
+                             f"last_rd_data=0x{last_rd_data:08X}, last_rd_ack={last_rd_ack}")
+                # Probe APB cmd/rsp path (from apb_slave_cdc output) - current values
+                apb_cmd_valid = int(self.dut.debug_apb_cmd_valid.value)
+                apb_cmd_ready = int(self.dut.debug_apb_cmd_ready.value)
+                apb_cmd_pwrite = int(self.dut.debug_apb_cmd_pwrite.value)
+                apb_cmd_paddr = int(self.dut.debug_apb_cmd_paddr.value)
+                apb_rsp_valid = int(self.dut.debug_apb_rsp_valid.value)
+                apb_rsp_ready = int(self.dut.debug_apb_rsp_ready.value)
+                apb_rsp_prdata = int(self.dut.debug_apb_rsp_prdata.value)
+                self.log.info(f"  [APB CMD NOW] valid={apb_cmd_valid}, ready={apb_cmd_ready}, "
+                             f"pwrite={apb_cmd_pwrite}, paddr=0x{apb_cmd_paddr:03X}")
+                self.log.info(f"  [APB RSP NOW] valid={apb_rsp_valid}, ready={apb_rsp_ready}, "
+                             f"prdata=0x{apb_rsp_prdata:08X}")
+                # Registered captures (hold values after transaction)
+                rd_cmd_seen = int(self.dut.debug_apb_rd_cmd_seen.value)
+                rd_cmd_addr = int(self.dut.debug_apb_rd_cmd_addr.value)
+                rsp_captured = int(self.dut.debug_apb_rsp_prdata_captured.value)
+                self.log.info(f"  [APB CAPTURED] rd_cmd_seen={rd_cmd_seen}, rd_cmd_addr=0x{rd_cmd_addr:03X}, "
+                             f"rsp_prdata=0x{rsp_captured:08X}")
+                # Sticky counters - total reads at each pipeline stage
+                apb_rd_count = int(self.dut.debug_apb_rd_count.value)
+                peakrdl_rd_count = int(self.dut.debug_peakrdl_rd_count.value)
+                regblk_rd_count = int(self.dut.debug_regblk_rd_count.value)
+                self.log.info(f"  [STICKY COUNTERS] apb_rd={apb_rd_count}, peakrdl_rd={peakrdl_rd_count}, "
+                             f"regblk_rd={regblk_rd_count}")
+            except Exception as e:
+                self.log.warning(f"  [DEBUG] Cannot probe debug signals: {e}")
+
+        return data
+
+    async def enable_global(self):
+        """Enable STREAM engine globally via GLOBAL_CTRL register."""
+        await self.write_apb_register(StreamRegisterMap.GLOBAL_CTRL, 0x1)
+        self.log.info("STREAM engine globally enabled")
+
+    async def disable_global(self):
+        """Disable STREAM engine globally via GLOBAL_CTRL register."""
+        await self.write_apb_register(StreamRegisterMap.GLOBAL_CTRL, 0x0)
+        self.log.info("STREAM engine globally disabled")
+
+    async def read_global_status(self):
+        """
+        Read global status register.
+
+        Returns:
+            int: Global status value
+        """
+        return await self.read_apb_register(StreamRegisterMap.GLOBAL_STATUS)
+
+    async def read_version(self):
+        """
+        Read version register.
+
+        Returns:
+            int: Version register value
+        """
+        return await self.read_apb_register(StreamRegisterMap.VERSION)
+
+    async def enable_channel_mask(self, channel_mask):
+        """
+        Enable channels via CHANNEL_ENABLE register.
+
+        Args:
+            channel_mask: 8-bit mask (bit N = channel N enable)
+        """
+        await self.write_apb_register(StreamRegisterMap.CHANNEL_ENABLE, channel_mask)
+        self.log.info(f"Enabled channels: 0b{channel_mask:08b}")
+
+    async def reset_channels(self, channel_mask):
+        """
+        Reset channels via CHANNEL_RESET register.
+
+        Args:
+            channel_mask: 8-bit mask (bit N = reset channel N)
+        """
+        await self.write_apb_register(StreamRegisterMap.CHANNEL_RESET, channel_mask)
+        self.log.info(f"Reset channels: 0b{channel_mask:08b}")
+
+    async def configure_descriptor_address_range(self, base_addr=None, limit_addr=None):
+        """
+        Configure descriptor engine address range for descriptor 0.
+
+        Sets the legal address range that the descriptor engine will accept
+        for descriptor addresses. Addresses outside this range will be rejected.
+
+        NOTE: Registers are 32-bit only - can only configure lower 32 bits of address.
+              Upper 32 bits are assumed to be 0 (addresses must be in lower 4GB).
+
+        Args:
+            base_addr: Base address of descriptor memory (default: self.desc_mem_base)
+            limit_addr: Limit address of descriptor memory (default: base + size - 1)
+        """
+        # Use default descriptor memory range if not specified
+        if base_addr is None:
+            base_addr = self.desc_mem_base
+        if limit_addr is None:
+            limit_addr = self.desc_mem_base + self.desc_mem_size - 1
+
+        # Extract lower 32 bits (registers are 32-bit only)
+        base_low = base_addr & 0xFFFFFFFF
+        limit_low = limit_addr & 0xFFFFFFFF
+
+        # Warn if upper bits are non-zero
+        if (base_addr >> 32) != 0:
+            self.log.warning(f"Base address has non-zero upper 32 bits: 0x{base_addr:016X}")
+            self.log.warning("  Descriptor engine only supports 32-bit addresses (lower 4GB)")
+        if (limit_addr >> 32) != 0:
+            self.log.warning(f"Limit address has non-zero upper 32 bits: 0x{limit_addr:016X}")
+            self.log.warning("  Descriptor engine only supports 32-bit addresses (lower 4GB)")
+
+        # Write base and limit address registers (32-bit only)
+        await self.write_apb_register(StreamRegisterMap.DESCENG_ADDR0_BASE, base_low)
+        await self.write_apb_register(StreamRegisterMap.DESCENG_ADDR0_LIMIT, limit_low)
+
+        self.log.info(f"Configured descriptor address range (lower 32 bits):")
+        self.log.info(f"  BASE:  0x{base_low:08X}")
+        self.log.info(f"  LIMIT: 0x{limit_low:08X}")
+
+    async def configure_transfer_beats(self, rd_xfer_beats=None, wr_xfer_beats=None):
+        """
+        Configure AXI read/write transfer burst sizes.
+
+        This register MUST be configured via APB for stream_top (unlike stream_core
+        which uses direct signal ports). Without this configuration, the AXI engines
+        will not know what burst size to use, causing descriptor transfers to stall.
+
+        Args:
+            rd_xfer_beats: AXI read transfer beats (ARLEN value, 0-255 = 1-256 beats)
+                          Default: use value from setup_clocks_and_reset()
+            wr_xfer_beats: AXI write transfer beats (AWLEN value, 0-255 = 1-256 beats)
+                          Default: use value from setup_clocks_and_reset()
+        """
+        # Use saved values from setup_clocks_and_reset if not specified
+        if rd_xfer_beats is None:
+            rd_xfer_beats = getattr(self, 'rd_xfer_beats', 16)
+        if wr_xfer_beats is None:
+            wr_xfer_beats = getattr(self, 'wr_xfer_beats', 16)
+
+        # Build register value: WR_XFER_BEATS[15:8], RD_XFER_BEATS[7:0]
+        reg_value = ((wr_xfer_beats & 0xFF) << 8) | (rd_xfer_beats & 0xFF)
+
+        # Write AXI_XFER_CONFIG register
+        await self.write_apb_register(StreamRegisterMap.AXI_XFER_CONFIG, reg_value)
+
+        self.log.info(f"Configured AXI transfer beats:")
+        self.log.info(f"  RD_XFER_BEATS: {rd_xfer_beats} beats")
+        self.log.info(f"  WR_XFER_BEATS: {wr_xfer_beats} beats")
+        self.log.info(f"  Register value: 0x{reg_value:08X}")
+
+    async def read_channel_idle_status(self):
+        """
+        Read channel idle status register.
+
+        Returns:
+            int: 8-bit channel idle status (bit N = channel N idle)
+        """
+        return await self.read_apb_register(StreamRegisterMap.CHANNEL_IDLE)
+
+    async def read_channel_state(self, channel):
+        """
+        Read per-channel state register.
+
+        Args:
+            channel: Channel number (0-7)
+
+        Returns:
+            int: Channel state value
+        """
+        addr = StreamRegisterMap.get_ch_state_addr(channel)
+        return await self.read_apb_register(addr)
 
     # =========================================================================
     # Test Helpers

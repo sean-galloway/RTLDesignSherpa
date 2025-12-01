@@ -1,0 +1,40 @@
+%%{init: {'theme': 'neutral', 'themeVariables': { 'fontSize': '14px'}}}%%
+flowchart TB
+    subgraph Inputs["Transaction Inputs"]
+        CMD["cmd_valid, cmd_id\ncmd_addr, cmd_len"]
+        DATA["data_valid, data_id\ndata_last, data_resp"]
+        RESP["resp_valid, resp_id\nresp_code"]
+    end
+
+    subgraph axi_monitor_trans_mgr["axi_monitor_trans_mgr"]
+        subgraph Table["Transaction Table"]
+            ENTRY["Entry[MAX_TRANS-1:0]\n- id, addr, len\n- beat_count\n- start_time\n- state"]
+        end
+
+        subgraph Lookup["ID Lookup"]
+            FIND["Find entry by ID\nO(1) direct index or\nO(n) CAM search"]
+        end
+
+        subgraph State["State Machine"]
+            FSM["IDLE -> CMD_PHASE\n-> DATA_PHASE\n-> RESP_PHASE\n-> COMPLETE"]
+        end
+
+        subgraph Alloc["Allocation"]
+            ALLOC["Find free entry\nHandle table full"]
+        end
+    end
+
+    subgraph Outputs["Status Outputs"]
+        EVENTS["event_complete\nevent_error\nevent_timeout"]
+        COUNT["active_count\ntable_full"]
+    end
+
+    CMD --> Lookup
+    CMD --> Alloc
+    DATA --> Lookup
+    RESP --> Lookup
+    Lookup --> Table
+    Alloc --> Table
+    Table --> State
+    State --> EVENTS
+    Table --> COUNT

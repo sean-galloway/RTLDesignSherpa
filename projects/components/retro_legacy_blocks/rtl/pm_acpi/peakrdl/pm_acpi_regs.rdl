@@ -130,6 +130,7 @@ addrmap pm_acpi_regs {
             desc = "Power Management Event occurred (W1C)";
             sw = rw;
             hw = w;
+            hwset;
             onwrite = woclr;
         } pme_status[0:0] = 1'b0;
 
@@ -138,6 +139,7 @@ addrmap pm_acpi_regs {
             desc = "System woke from low power state (W1C)";
             sw = rw;
             hw = w;
+            hwset;
             onwrite = woclr;
         } wake_status[1:1] = 1'b0;
 
@@ -146,6 +148,7 @@ addrmap pm_acpi_regs {
             desc = "PM Timer overflow occurred (W1C)";
             sw = rw;
             hw = w;
+            hwset;
             onwrite = woclr;
         } timer_overflow[2:2] = 1'b0;
 
@@ -154,6 +157,7 @@ addrmap pm_acpi_regs {
             desc = "Power state transition complete (W1C)";
             sw = rw;
             hw = w;
+            hwset;
             onwrite = woclr;
         } state_transition[3:3] = 1'b0;
 
@@ -238,6 +242,7 @@ addrmap pm_acpi_regs {
             desc = "PME interrupt pending (W1C)";
             sw = rw;
             hw = w;
+            hwset;
             onwrite = woclr;
         } pme_int[0:0] = 1'b0;
 
@@ -246,6 +251,7 @@ addrmap pm_acpi_regs {
             desc = "Wake interrupt pending (W1C)";
             sw = rw;
             hw = w;
+            hwset;
             onwrite = woclr;
         } wake_int[1:1] = 1'b0;
 
@@ -254,6 +260,7 @@ addrmap pm_acpi_regs {
             desc = "Timer overflow interrupt pending (W1C)";
             sw = rw;
             hw = w;
+            hwset;
             onwrite = woclr;
         } timer_ovf_int[2:2] = 1'b0;
 
@@ -262,6 +269,7 @@ addrmap pm_acpi_regs {
             desc = "State transition interrupt pending (W1C)";
             sw = rw;
             hw = w;
+            hwset;
             onwrite = woclr;
         } state_trans_int[3:3] = 1'b0;
 
@@ -270,6 +278,7 @@ addrmap pm_acpi_regs {
             desc = "PM1 interrupt pending (W1C)";
             sw = rw;
             hw = w;
+            hwset;
             onwrite = woclr;
         } pm1_int[4:4] = 1'b0;
 
@@ -278,6 +287,7 @@ addrmap pm_acpi_regs {
             desc = "GPE interrupt pending (W1C)";
             sw = rw;
             hw = w;
+            hwset;
             onwrite = woclr;
         } gpe_int[5:5] = 1'b0;
 
@@ -348,6 +358,7 @@ addrmap pm_acpi_regs {
             desc = "PM Timer carry/overflow (W1C)";
             sw = rw;
             hw = w;
+            hwset;
             onwrite = woclr;
         } tmr_sts[0:0] = 1'b0;
 
@@ -356,6 +367,7 @@ addrmap pm_acpi_regs {
             desc = "Power button pressed (W1C)";
             sw = rw;
             hw = w;
+            hwset;
             onwrite = woclr;
         } pwrbtn_sts[1:1] = 1'b0;
 
@@ -364,6 +376,7 @@ addrmap pm_acpi_regs {
             desc = "Sleep button pressed (W1C)";
             sw = rw;
             hw = w;
+            hwset;
             onwrite = woclr;
         } slpbtn_sts[2:2] = 1'b0;
 
@@ -372,6 +385,7 @@ addrmap pm_acpi_regs {
             desc = "RTC alarm occurred (W1C)";
             sw = rw;
             hw = w;
+            hwset;
             onwrite = woclr;
         } rtc_sts[3:3] = 1'b0;
 
@@ -380,6 +394,7 @@ addrmap pm_acpi_regs {
             desc = "System wake event (W1C)";
             sw = rw;
             hw = w;
+            hwset;
             onwrite = woclr;
         } wak_sts[4:4] = 1'b0;
 
@@ -491,6 +506,7 @@ addrmap pm_acpi_regs {
             desc = "General Purpose Event status bits 0-15 (W1C)";
             sw = rw;
             hw = w;
+            hwset;
             onwrite = woclr;
         } gpe_status[15:0] = 16'h0;
 
@@ -516,6 +532,7 @@ addrmap pm_acpi_regs {
             desc = "General Purpose Event status bits 16-31 (W1C)";
             sw = rw;
             hw = w;
+            hwset;
             onwrite = woclr;
         } gpe_status[15:0] = 16'h0;
 
@@ -671,6 +688,7 @@ addrmap pm_acpi_regs {
             desc = "Woke from GPE event (W1C)";
             sw = rw;
             hw = w;
+            hwset;
             onwrite = woclr;
         } gpe_wake[0:0] = 1'b0;
 
@@ -679,6 +697,7 @@ addrmap pm_acpi_regs {
             desc = "Woke from power button (W1C)";
             sw = rw;
             hw = w;
+            hwset;
             onwrite = woclr;
         } pwrbtn_wake[1:1] = 1'b0;
 
@@ -687,6 +706,7 @@ addrmap pm_acpi_regs {
             desc = "Woke from RTC alarm (W1C)";
             sw = rw;
             hw = w;
+            hwset;
             onwrite = woclr;
         } rtc_wake[2:2] = 1'b0;
 
@@ -695,6 +715,7 @@ addrmap pm_acpi_regs {
             desc = "Woke from external signal (W1C)";
             sw = rw;
             hw = w;
+            hwset;
             onwrite = woclr;
         } ext_wake[3:3] = 1'b0;
 

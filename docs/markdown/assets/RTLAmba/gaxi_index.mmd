@@ -1,0 +1,31 @@
+%%{init: {'theme': 'neutral', 'themeVariables': { 'fontSize': '14px'}}}%%
+flowchart TB
+    subgraph GAXI["GAXI Module Family"]
+        subgraph Buffers["Elastic Buffers"]
+            SKID["gaxi_skid_buffer\n(flow control)"]
+            SKID_ASYNC["gaxi_skid_buffer_async\n(CDC + flow control)"]
+            SKID_STRUCT["gaxi_skid_buffer_struct\n(struct support)"]
+        end
+
+        subgraph FIFOs["FIFO Variants"]
+            FIFO_SYNC["gaxi_fifo_sync\n(single clock)"]
+            FIFO_ASYNC["gaxi_fifo_async\n(clock crossing)"]
+            FIFO_DROP["gaxi_drop_fifo_sync\n(with drop support)"]
+        end
+
+        subgraph Pipeline["Pipeline Elements"]
+            REGSLICE["gaxi_regslice\n(timing closure)"]
+        end
+    end
+
+    subgraph Usage["Common Use Cases"]
+        CDC["Clock Domain\nCrossing"]
+        PIPE["Pipeline\nStages"]
+        FLOW["Flow Control\nBuffering"]
+    end
+
+    SKID --> FLOW
+    SKID_ASYNC --> CDC
+    FIFO_SYNC --> FLOW
+    FIFO_ASYNC --> CDC
+    REGSLICE --> PIPE

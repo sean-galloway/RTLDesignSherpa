@@ -1,0 +1,280 @@
+[*]
+[*] GTKWave Analyzer v3.3.116 (w)1999-2023 BSI
+[*] Mon Dec  1 04:39:57 2025
+[*]
+[dumpfile] "/mnt/data/github/rtldesignsherpa/projects/components/stream/dv/tests/top/local_sim_build/test_stream_top_ch8_multi_channel_concurrent_full_gw0/dump.vcd"
+[dumpfile_mtime] "Sun Nov 30 23:49:59 2025"
+[dumpfile_size] 242150256
+[savefile] "/mnt/data/github/rtldesignsherpa/projects/components/stream/dv/tests/top/GTKW/stream_top.gtkw"
+[timestart] 0
+[size] 3072 1935
+[pos] 169 27
+*-22.226059 3210000 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
+[treeopen] stream_top_ch8.
+[treeopen] stream_top_ch8.g_stream_core.
+[treeopen] stream_top_ch8.g_stream_core.u_stream_core.
+[treeopen] stream_top_ch8.g_stream_core.u_stream_core.u_scheduler_group_array.
+[treeopen] stream_top_ch8.g_stream_core.u_stream_core.u_scheduler_group_array.gen_scheduler_groups[0].
+[treeopen] stream_top_ch8.g_stream_core.u_stream_core.u_scheduler_group_array.gen_scheduler_groups[0].u_scheduler_group.
+[treeopen] stream_top_ch8.g_stream_core.u_stream_core.u_scheduler_group_array.gen_scheduler_groups[1].
+[treeopen] stream_top_ch8.g_stream_core.u_stream_core.u_scheduler_group_array.gen_scheduler_groups[1].u_scheduler_group.
+[treeopen] stream_top_ch8.g_stream_core.u_stream_core.u_scheduler_group_array.gen_scheduler_groups[2].
+[treeopen] stream_top_ch8.g_stream_core.u_stream_core.u_scheduler_group_array.gen_scheduler_groups[2].u_scheduler_group.
+[treeopen] stream_top_ch8.g_stream_core.u_stream_core.u_scheduler_group_array.gen_scheduler_groups[3].
+[treeopen] stream_top_ch8.g_stream_core.u_stream_core.u_scheduler_group_array.gen_scheduler_groups[3].u_scheduler_group.
+[treeopen] stream_top_ch8.g_stream_core.u_stream_core.u_scheduler_group_array.gen_scheduler_groups[4].
+[treeopen] stream_top_ch8.g_stream_core.u_stream_core.u_scheduler_group_array.gen_scheduler_groups[4].u_scheduler_group.
+[treeopen] stream_top_ch8.g_stream_core.u_stream_core.u_scheduler_group_array.gen_scheduler_groups[5].
+[treeopen] stream_top_ch8.g_stream_core.u_stream_core.u_scheduler_group_array.gen_scheduler_groups[5].u_scheduler_group.
+[treeopen] stream_top_ch8.g_stream_core.u_stream_core.u_scheduler_group_array.gen_scheduler_groups[6].
+[treeopen] stream_top_ch8.g_stream_core.u_stream_core.u_scheduler_group_array.gen_scheduler_groups[6].u_scheduler_group.
+[treeopen] stream_top_ch8.g_stream_core.u_stream_core.u_scheduler_group_array.gen_scheduler_groups[7].
+[treeopen] stream_top_ch8.g_stream_core.u_stream_core.u_scheduler_group_array.gen_scheduler_groups[7].u_scheduler_group.
+[treeopen] stream_top_ch8.g_stream_core.u_stream_core.u_sram_controller.gen_channel_units[0].
+[treeopen] stream_top_ch8.g_stream_core.u_stream_core.u_sram_controller.gen_channel_units[0].u_channel_unit.
+[treeopen] stream_top_ch8.u_apbtodescr.
+[sst_width] 452
+[signals_width] 576
+[sst_expanded] 1
+[sst_vpaned_height] 793
+@22
+stream_top_ch8.CDC_ENABLE[31:0]
+stream_top_ch8.NUM_CHANNELS[31:0]
+stream_top_ch8.SRAM_DEPTH[31:0]
+stream_top_ch8.USE_AXI_MONITORS[31:0]
+@28
+stream_top_ch8.aclk
+stream_top_ch8.aresetn
+stream_top_ch8.pclk
+stream_top_ch8.presetn
+@200
+-apb
+@28
+stream_top_ch8.s_apb_psel
+stream_top_ch8.s_apb_penable
+stream_top_ch8.s_apb_pready
+stream_top_ch8.s_apb_pwrite
+@22
+stream_top_ch8.s_apb_paddr[11:0]
+stream_top_ch8.s_apb_pwdata[31:0]
+@28
+stream_top_ch8.s_apb_pslverr
+@22
+stream_top_ch8.s_apb_prdata[31:0]
+@200
+-apb-cmd-rsp
+@28
+stream_top_ch8.apb_cmd_valid
+stream_top_ch8.apb_cmd_ready
+stream_top_ch8.apb_cmd_pwrite
+@22
+stream_top_ch8.apb_cmd_paddr[11:0]
+stream_top_ch8.apb_cmd_pwdata[31:0]
+@28
+stream_top_ch8.apb_rsp_valid
+stream_top_ch8.apb_rsp_ready
+@22
+stream_top_ch8.apb_rsp_prdata[31:0]
+@28
+stream_top_ch8.apb_rsp_pslverr
+@200
+-apb-router
+@28
+stream_top_ch8.u_cmdrsp_router.s_cmd_valid
+stream_top_ch8.u_cmdrsp_router.s_cmd_ready
+stream_top_ch8.u_cmdrsp_router.s_cmd_pwrite
+@22
+stream_top_ch8.u_cmdrsp_router.s_cmd_paddr[11:0]
+stream_top_ch8.u_cmdrsp_router.s_cmd_pwdata[31:0]
+@28
+stream_top_ch8.u_cmdrsp_router.s_rsp_valid
+stream_top_ch8.u_cmdrsp_router.s_rsp_ready
+stream_top_ch8.u_cmdrsp_router.s_rsp_pslverr
+@22
+stream_top_ch8.u_cmdrsp_router.s_rsp_prdata[31:0]
+@28
+stream_top_ch8.u_cmdrsp_router.addr_hit_m0
+stream_top_ch8.u_cmdrsp_router.addr_hit_m1
+stream_top_ch8.u_cmdrsp_router.addr_hit_perf
+@200
+-router-cfg-interface
+@28
+stream_top_ch8.u_cmdrsp_router.m1_cmd_valid
+stream_top_ch8.u_cmdrsp_router.m1_cmd_ready
+stream_top_ch8.u_cmdrsp_router.m1_cmd_pwrite
+@22
+stream_top_ch8.u_cmdrsp_router.m1_cmd_pwdata[31:0]
+stream_top_ch8.u_cmdrsp_router.m1_cmd_paddr[11:0]
+@28
+stream_top_ch8.u_cmdrsp_router.m1_rsp_valid
+stream_top_ch8.u_cmdrsp_router.m1_rsp_ready
+stream_top_ch8.u_cmdrsp_router.m1_rsp_pslverr
+@22
+stream_top_ch8.u_cmdrsp_router.m1_rsp_prdata[31:0]
+@200
+-router-apb2desc-interface
+@28
+stream_top_ch8.u_cmdrsp_router.m0_cmd_valid
+stream_top_ch8.u_cmdrsp_router.m0_cmd_ready
+stream_top_ch8.u_cmdrsp_router.m0_cmd_pwrite
+@22
+stream_top_ch8.u_cmdrsp_router.m0_cmd_paddr[11:0]
+stream_top_ch8.u_cmdrsp_router.m0_cmd_pwdata[31:0]
+@28
+stream_top_ch8.u_cmdrsp_router.m0_rsp_valid
+stream_top_ch8.u_cmdrsp_router.m0_rsp_ready
+stream_top_ch8.u_cmdrsp_router.m0_rsp_pslverr
+@22
+stream_top_ch8.u_cmdrsp_router.m0_rsp_prdata[31:0]
+@200
+-apb-to-descr
+@28
+stream_top_ch8.u_apbtodescr.apb_descriptor_kickoff_hit
+@22
+stream_top_ch8.u_apbtodescr.desc_apb_valid[7:0]
+stream_top_ch8.u_apbtodescr.desc_apb_ready[7:0]
+stream_top_ch8.u_apbtodescr.desc_apb_addr[0][63:0]
+stream_top_ch8.u_apbtodescr.desc_apb_addr[1][63:0]
+@28
+stream_top_ch8.u_apbtodescr.apb_cmd_valid
+stream_top_ch8.u_apbtodescr.apb_cmd_ready
+stream_top_ch8.u_apbtodescr.addr_in_range
+stream_top_ch8.u_apbtodescr.apb_rsp_valid
+stream_top_ch8.u_apbtodescr.apb_rsp_ready
+@22
+stream_top_ch8.u_apbtodescr.apb_rsp_rdata[31:0]
+@28
+stream_top_ch8.u_apbtodescr.apb_rsp_error
+@200
+-axi-rd-descriptor
+@28
+stream_top_ch8.g_stream_core.u_stream_core.u_scheduler_group_array.u_desc_ar_arbiter.grant_valid
+@22
+stream_top_ch8.g_stream_core.u_stream_core.u_scheduler_group_array.u_desc_ar_arbiter.grant[7:0]
+@28
+stream_top_ch8.g_stream_core.u_stream_core.u_scheduler_group_array.u_desc_ar_arbiter.grant_id[2:0]
+@22
+stream_top_ch8.g_stream_core.u_stream_core.u_scheduler_group_array.u_desc_ar_arbiter.grant_ack[7:0]
+@28
+stream_top_ch8.m_axi_desc_arvalid
+stream_top_ch8.m_axi_desc_arready
+@23
+stream_top_ch8.m_axi_desc_araddr[63:0]
+@22
+stream_top_ch8.m_axi_desc_arlen[7:0]
+@28
+stream_top_ch8.m_axi_desc_rvalid
+stream_top_ch8.m_axi_desc_rready
+@22
+stream_top_ch8.m_axi_desc_rdata[255:0]
+@28
+stream_top_ch8.m_axi_desc_rlast
+stream_top_ch8.m_axi_desc_rresp[1:0]
+@200
+-stream-core
+@22
+stream_top_ch8.g_stream_core.u_stream_core.descriptor_engine_idle[7:0]
+stream_top_ch8.g_stream_core.u_stream_core.scheduler_idle[7:0]
+@28
+stream_top_ch8.g_stream_core.u_stream_core.system_idle
+@200
+-r-channel-skid
+@28
+stream_top_ch8.g_stream_core.u_stream_core.u_scheduler_group_array.desc_axi_int_arvalid
+stream_top_ch8.g_stream_core.u_stream_core.u_scheduler_group_array.desc_axi_int_arready
+@22
+stream_top_ch8.g_stream_core.u_stream_core.u_scheduler_group_array.desc_axi_int_araddr[63:0]
+stream_top_ch8.g_stream_core.u_stream_core.u_scheduler_group_array.desc_axi_int_arid[7:0]
+@28
+stream_top_ch8.g_stream_core.u_stream_core.u_scheduler_group_array.desc_axi_int_rvalid
+stream_top_ch8.g_stream_core.u_stream_core.u_scheduler_group_array.desc_axi_int_rready
+@22
+stream_top_ch8.g_stream_core.u_stream_core.u_scheduler_group_array.desc_axi_int_rid[7:0]
+@200
+-descr-eng-0
+@28
+stream_top_ch8.g_stream_core.u_stream_core.u_scheduler_group_array.gen_scheduler_groups[0].u_scheduler_group.u_descriptor_engine.r_current_state[2:0]
+stream_top_ch8.g_stream_core.u_stream_core.u_scheduler_group_array.gen_scheduler_groups[0].u_scheduler_group.u_descriptor_engine.descriptor_engine_idle
+stream_top_ch8.g_stream_core.u_stream_core.u_scheduler_group_array.gen_scheduler_groups[0].u_scheduler_group.u_descriptor_engine.r_descriptor_error
+@200
+-descr-eng-1
+@28
+stream_top_ch8.g_stream_core.u_stream_core.u_scheduler_group_array.gen_scheduler_groups[1].u_scheduler_group.u_descriptor_engine.r_current_state[2:0]
+stream_top_ch8.g_stream_core.u_stream_core.u_scheduler_group_array.gen_scheduler_groups[1].u_scheduler_group.u_descriptor_engine.descriptor_engine_idle
+stream_top_ch8.g_stream_core.u_stream_core.u_scheduler_group_array.gen_scheduler_groups[1].u_scheduler_group.u_descriptor_engine.r_descriptor_error
+@200
+-descr-eng-2
+@28
+stream_top_ch8.g_stream_core.u_stream_core.u_scheduler_group_array.gen_scheduler_groups[2].u_scheduler_group.u_descriptor_engine.r_current_state[2:0]
+stream_top_ch8.g_stream_core.u_stream_core.u_scheduler_group_array.gen_scheduler_groups[2].u_scheduler_group.u_descriptor_engine.descriptor_engine_idle
+stream_top_ch8.g_stream_core.u_stream_core.u_scheduler_group_array.gen_scheduler_groups[2].u_scheduler_group.u_descriptor_engine.r_descriptor_error
+@200
+-descr-eng-3
+@28
+stream_top_ch8.g_stream_core.u_stream_core.u_scheduler_group_array.gen_scheduler_groups[3].u_scheduler_group.u_descriptor_engine.r_current_state[2:0]
+stream_top_ch8.g_stream_core.u_stream_core.u_scheduler_group_array.gen_scheduler_groups[3].u_scheduler_group.u_descriptor_engine.descriptor_engine_idle
+stream_top_ch8.g_stream_core.u_stream_core.u_scheduler_group_array.gen_scheduler_groups[3].u_scheduler_group.u_descriptor_engine.r_descriptor_error
+@200
+-descr-eng-4
+@28
+stream_top_ch8.g_stream_core.u_stream_core.u_scheduler_group_array.gen_scheduler_groups[4].u_scheduler_group.u_descriptor_engine.r_current_state[2:0]
+stream_top_ch8.g_stream_core.u_stream_core.u_scheduler_group_array.gen_scheduler_groups[4].u_scheduler_group.u_descriptor_engine.descriptor_engine_idle
+stream_top_ch8.g_stream_core.u_stream_core.u_scheduler_group_array.gen_scheduler_groups[4].u_scheduler_group.u_descriptor_engine.r_descriptor_error
+@200
+-descr-eng-5
+@28
+stream_top_ch8.g_stream_core.u_stream_core.u_scheduler_group_array.gen_scheduler_groups[5].u_scheduler_group.u_descriptor_engine.r_current_state[2:0]
+stream_top_ch8.g_stream_core.u_stream_core.u_scheduler_group_array.gen_scheduler_groups[5].u_scheduler_group.u_descriptor_engine.descriptor_engine_idle
+stream_top_ch8.g_stream_core.u_stream_core.u_scheduler_group_array.gen_scheduler_groups[5].u_scheduler_group.u_descriptor_engine.r_descriptor_error
+@200
+-descr-eng-6
+@28
+stream_top_ch8.g_stream_core.u_stream_core.u_scheduler_group_array.gen_scheduler_groups[6].u_scheduler_group.u_descriptor_engine.r_current_state[2:0]
+stream_top_ch8.g_stream_core.u_stream_core.u_scheduler_group_array.gen_scheduler_groups[6].u_scheduler_group.u_descriptor_engine.descriptor_engine_idle
+stream_top_ch8.g_stream_core.u_stream_core.u_scheduler_group_array.gen_scheduler_groups[6].u_scheduler_group.u_descriptor_engine.r_descriptor_error
+@200
+-descr-eng-7
+@28
+stream_top_ch8.g_stream_core.u_stream_core.u_scheduler_group_array.gen_scheduler_groups[7].u_scheduler_group.u_descriptor_engine.r_current_state[2:0]
+stream_top_ch8.g_stream_core.u_stream_core.u_scheduler_group_array.gen_scheduler_groups[7].u_scheduler_group.u_descriptor_engine.descriptor_engine_idle
+stream_top_ch8.g_stream_core.u_stream_core.u_scheduler_group_array.gen_scheduler_groups[7].u_scheduler_group.u_descriptor_engine.r_descriptor_error
+@200
+-axi-rd-engine
+@22
+stream_top_ch8.axi_rd_all_complete[7:0]
+@28
+stream_top_ch8.m_axi_rd_arvalid
+stream_top_ch8.m_axi_rd_arready
+@22
+stream_top_ch8.m_axi_rd_araddr[63:0]
+stream_top_ch8.m_axi_rd_arlen[7:0]
+@28
+stream_top_ch8.m_axi_rd_rvalid
+stream_top_ch8.m_axi_rd_rready
+@22
+stream_top_ch8.m_axi_rd_rdata[511:0]
+@28
+stream_top_ch8.m_axi_rd_rlast
+stream_top_ch8.m_axi_rd_rresp[1:0]
+@200
+-axi-wr-engine
+@22
+stream_top_ch8.axi_wr_all_complete[7:0]
+@28
+stream_top_ch8.m_axi_wr_awvalid
+stream_top_ch8.m_axi_wr_awready
+@22
+stream_top_ch8.m_axi_wr_awaddr[63:0]
+stream_top_ch8.m_axi_wr_awlen[7:0]
+@28
+stream_top_ch8.m_axi_wr_wvalid
+stream_top_ch8.m_axi_wr_wready
+@22
+stream_top_ch8.m_axi_wr_wdata[511:0]
+@28
+stream_top_ch8.m_axi_wr_wlast
+stream_top_ch8.m_axi_wr_bvalid
+stream_top_ch8.m_axi_wr_bready
+stream_top_ch8.m_axi_wr_bresp[1:0]
+[pattern_trace] 1
+[pattern_trace] 0

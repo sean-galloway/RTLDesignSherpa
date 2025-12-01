@@ -1,0 +1,37 @@
+%%{init: {'theme': 'neutral', 'themeVariables': { 'fontSize': '14px'}}}%%
+flowchart LR
+    subgraph Events["Event Inputs"]
+        COMPL["event_complete"]
+        ERR["event_error"]
+        TMO["event_timeout"]
+        THRESH["event_threshold"]
+        PERF["event_perf"]
+    end
+
+    subgraph Config["Configuration"]
+        CFG["cfg_*_enable\nUNIT_ID, AGENT_ID"]
+    end
+
+    subgraph axi_monitor_reporter["axi_monitor_reporter"]
+        subgraph Priority["Event Priority"]
+            PRI["Error > Timeout >\nThreshold > Compl > Perf"]
+        end
+
+        subgraph Format["Packet Formatter"]
+            FMT["64-bit packet:\n[63:60] type\n[59:56] unit_id\n[55:48] agent_id\n[47:0] payload"]
+        end
+
+        subgraph Queue["Output Queue"]
+            QUE["Event FIFO\nBackpressure handling"]
+        end
+    end
+
+    subgraph Output["Monitor Bus"]
+        MONBUS["monbus_packet[63:0]\nmonbus_valid\nmonbus_ready"]
+    end
+
+    Events --> Priority
+    Config --> Format
+    Priority --> Format
+    Format --> Queue
+    Queue --> MONBUS

@@ -98,31 +98,37 @@ module apbtodescr #(
     logic                   addr_in_range;       // Address within valid range
 
     // FSM for transaction control
-    typedef enum logic [1:0] {
-        IDLE        = 2'b00,    // Waiting for APB command
-        ROUTE       = 2'b01,    // Routing to descriptor engine
-        RESPOND     = 2'b10     // Sending APB response
+    typedef enum logic [2:0] {
+        IDLE          = 3'b000,    // Waiting for APB command (LOW write)
+        RESPOND_LOW   = 3'b001,    // Sending response after LOW write
+        WAIT_HIGH     = 3'b010,    // Waiting for HIGH write
+        ROUTE         = 3'b011,    // Routing to descriptor engine
+        RESPOND_HIGH  = 3'b100     // Sending final response after HIGH write
     } state_t;
 
     state_t r_state, w_next_state;
 
     // Registered transaction info
     logic [2:0]             r_channel_id;        // Latched channel ID (0-7, 3 bits)
-    logic [DATA_WIDTH-1:0]  r_wdata;             // Latched write data
+    logic [DATA_WIDTH-1:0]  r_wdata_low;         // Latched LOW write data [31:0]
+    logic [DATA_WIDTH-1:0]  r_wdata_high;        // Latched HIGH write data [63:32]
     logic                   r_error;             // Latched error flag
+    logic                   r_is_high_write;     // Current write is HIGH (bit 2 = 1)
 
     //=========================================================================
     // Address Decode
     //=========================================================================
 
-    // Extract channel ID from address (word-aligned: addr[4:2])
+    // Extract channel ID from address (dword-aligned: addr[5:3])
     // Address bits [1:0] are ignored (word-aligned)
-    // Address bits [4:2] select channel 0-7
-    assign channel_id = apb_cmd_addr[4:2];
+    // Address bit  [2]   selects LOW (0) or HIGH (1) register
+    // Address bits [5:3] select channel 0-7
+    assign channel_id = apb_cmd_addr[5:3];
+    assign r_is_high_write = apb_cmd_addr[2];
 
     // Check if address is within valid range (first 4KB of address space)
-    // Valid: 0x00 to 0x1C (8 channels × 4 bytes) within lower 12 bits
-    assign addr_in_range = ({20'h0, apb_cmd_addr[11:0]} < (NUM_CHANNELS * 4));
+    // Valid: 0x00 to 0x3F (8 channels × 8 bytes) within lower 12 bits
+    assign addr_in_range = ({20'h0, apb_cmd_addr[11:0]} < (NUM_CHANNELS * 8));
 
     //=========================================================================
     // FSM State Register
@@ -146,12 +152,47 @@ module apbtodescr #(
 
         case (r_state)
             IDLE: begin
-                // Wait for valid APB command
-                if (apb_cmd_valid && apb_cmd_write) begin
-                    w_next_state = ROUTE;
-                end else if (apb_cmd_valid && !apb_cmd_write) begin
+                // Wait for valid APB command (must be LOW write first)
+                if (apb_cmd_valid && !apb_cmd_write) begin
                     // Read not supported - go directly to error response
-                    w_next_state = RESPOND;
+                    w_next_state = RESPOND_LOW;
+                end else if (apb_cmd_valid && apb_cmd_write) begin
+                    if (!r_is_high_write) begin
+                        // LOW write - respond, then wait for HIGH
+                        w_next_state = RESPOND_LOW;
+                    end else begin
+                        // HIGH write without LOW - error
+                        w_next_state = RESPOND_LOW;
+                    end
+                end
+            end
+
+            RESPOND_LOW: begin
+                // Send response after LOW write (or error)
+                if (apb_rsp_ready) begin
+                    if (r_error) begin
+                        // Error during LOW write - return to IDLE
+                        w_next_state = IDLE;
+                    end else begin
+                        // Successful LOW write - wait for HIGH write
+                        w_next_state = WAIT_HIGH;
+                    end
+                end
+            end
+
+            WAIT_HIGH: begin
+                // Wait for HIGH write to complete the 64-bit address
+                if (apb_cmd_valid && !apb_cmd_write) begin
+                    // Read during sequence - error
+                    w_next_state = RESPOND_HIGH;
+                end else if (apb_cmd_valid && apb_cmd_write) begin
+                    if (r_is_high_write && (channel_id == r_channel_id)) begin
+                        // HIGH write to same channel - proceed to ROUTE
+                        w_next_state = ROUTE;
+                    end else begin
+                        // Wrong write (LOW again or different channel) - error
+                        w_next_state = RESPOND_HIGH;
+                    end
                 end
             end
 
@@ -160,16 +201,16 @@ module apbtodescr #(
                 // Only the selected channel's ready matters
                 if (r_error) begin
                     // Address error - skip routing, go to response
-                    w_next_state = RESPOND;
+                    w_next_state = RESPOND_HIGH;
                 end else if (desc_apb_ready[r_channel_id]) begin
                     // Descriptor engine accepted - go to response
-                    w_next_state = RESPOND;
+                    w_next_state = RESPOND_HIGH;
                 end
                 // Otherwise stay in ROUTE (back-pressure from descriptor engine)
             end
 
-            RESPOND: begin
-                // Wait for APB master to accept response
+            RESPOND_HIGH: begin
+                // Send final response after HIGH write (or error)
                 if (apb_rsp_ready) begin
                     w_next_state = IDLE;
                 end
@@ -188,21 +229,38 @@ module apbtodescr #(
     `ALWAYS_FF_RST(clk, rst_n,
         if (`RST_ASSERTED(rst_n)) begin
             r_channel_id <= 3'h0;
-            r_wdata <= '0;
+            r_wdata_low <= '0;
+            r_wdata_high <= '0;
             r_error <= 1'b0;
         end else begin
+            // Capture LOW write in IDLE state
             if (r_state == IDLE && apb_cmd_valid) begin
-                // Latch transaction info
-                r_channel_id <= channel_id;
-                r_wdata <= apb_cmd_wdata;
-
-                // Latch error conditions
                 if (!apb_cmd_write) begin
                     r_error <= 1'b1;  // Read not supported
                 end else if (!addr_in_range) begin
                     r_error <= 1'b1;  // Address out of range
+                end else if (r_is_high_write) begin
+                    r_error <= 1'b1;  // HIGH write without LOW
                 end else begin
-                    r_error <= 1'b0;  // Valid write
+                    // Valid LOW write
+                    r_channel_id <= channel_id;
+                    r_wdata_low <= apb_cmd_wdata;
+                    r_error <= 1'b0;
+                end
+            end
+
+            // Capture HIGH write in WAIT_HIGH state
+            if (r_state == WAIT_HIGH && apb_cmd_valid) begin
+                if (!apb_cmd_write) begin
+                    r_error <= 1'b1;  // Read during sequence
+                end else if (!r_is_high_write) begin
+                    r_error <= 1'b1;  // LOW write again
+                end else if (channel_id != r_channel_id) begin
+                    r_error <= 1'b1;  // Different channel
+                end else begin
+                    // Valid HIGH write
+                    r_wdata_high <= apb_cmd_wdata;
+                    r_error <= 1'b0;
                 end
             end
         end
@@ -213,15 +271,15 @@ module apbtodescr #(
     // APB CMD Interface Outputs
     //=========================================================================
 
-    // Accept command when in IDLE state
-    assign apb_cmd_ready = (r_state == IDLE);
+    // Accept command when in IDLE or WAIT_HIGH state
+    assign apb_cmd_ready = (r_state == IDLE) || (r_state == WAIT_HIGH);
 
     //=========================================================================
     // APB RSP Interface Outputs
     //=========================================================================
 
-    // Assert response valid in RESPOND state
-    assign apb_rsp_valid = (r_state == RESPOND);
+    // Assert response valid in RESPOND_LOW or RESPOND_HIGH state
+    assign apb_rsp_valid = (r_state == RESPOND_LOW) || (r_state == RESPOND_HIGH);
 
     // Read data always zero (writes only)
     assign apb_rsp_rdata = '0;
@@ -243,13 +301,12 @@ module apbtodescr #(
         end
     end
 
-    // Broadcast write data (descriptor address) to all channels
+    // Broadcast assembled 64-bit descriptor address to all channels
     // Only the selected channel's valid will be asserted
     always_comb begin
         for (int ch = 0; ch < NUM_CHANNELS; ch++) begin
-            // Zero-extend 32-bit write data to 64-bit descriptor address
-            // Upper 32 bits are 0 (assumes descriptors in lower 4GB)
-            desc_apb_addr[ch] = {32'h0000_0000, r_wdata};
+            // Assemble 64-bit descriptor address from LOW + HIGH writes
+            desc_apb_addr[ch] = {r_wdata_high, r_wdata_low};
         end
     end
 
@@ -258,8 +315,9 @@ module apbtodescr #(
     //=========================================================================
 
     // Assert when this block is handling a valid kick-off transaction
+    // Only assert during ROUTE/RESPOND_HIGH (not during RESPOND_LOW - still waiting for HIGH write)
     // Parent module uses this to mux between register file responses and kick-off responses
-    assign apb_descriptor_kickoff_hit = (r_state == ROUTE || r_state == RESPOND) && !r_error;
+    assign apb_descriptor_kickoff_hit = (r_state == ROUTE || r_state == RESPOND_HIGH) && !r_error;
 
     //=========================================================================
     // Assertions for Verification
@@ -280,10 +338,10 @@ module apbtodescr #(
     endproperty
     assert property (valid_only_in_route);
 
-    // Response valid only in RESPOND state
+    // Response valid only in RESPOND_LOW or RESPOND_HIGH state
     property response_in_respond_state;
         @(posedge clk) disable iff (!rst_n)
-        apb_rsp_valid |-> (r_state == RESPOND);
+        apb_rsp_valid |-> ((r_state == RESPOND_LOW) || (r_state == RESPOND_HIGH));
     endproperty
     assert property (response_in_respond_state);
 

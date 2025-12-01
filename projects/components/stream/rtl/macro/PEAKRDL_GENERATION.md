@@ -2,8 +2,8 @@
 
 ## Status
 
-- ✅ Register definition created: `stream_regs_v2.rdl`
-- ⏳ RTL generation pending (requires PeakRDL tool installation)
+- ✅ Register definition created: `stream_regs.rdl`
+- ✅ RTL generated with passthrough CPU interface (matching HPET pattern)
 
 ## Installation
 
@@ -19,103 +19,153 @@ python3 -m pip install peakrdl peakrdl-regblock
 
 ## RTL Generation
 
-Once PeakRDL is installed, generate the register block RTL:
+**IMPORTANT: Use passthrough interface (not apb4) to match HPET architecture:**
 
 ```bash
 cd /mnt/data/github/rtldesignsherpa/projects/components/stream/rtl/macro
 
-# Generate APB4 register block
-peakrdl regblock stream_regs_v2.rdl --cpuif apb4 -o generated_rtl/
+# Generate with passthrough CPU interface
+peakrdl regblock stream_regs.rdl --cpuif passthrough -o ../../regs/generated/rtl/
 
 # Generated files:
-#   generated_rtl/stream_regs_v2_regs.sv    - Register file RTL
-#   generated_rtl/stream_regs_v2_regs_pkg.sv - Register package
+#   ../../regs/generated/rtl/stream_regs.sv      - Register file RTL
+#   ../../regs/generated/rtl/stream_regs_pkg.sv  - Register package
 ```
+
+**Why passthrough interface?**
+- Matches proven HPET architecture pattern
+- Compatible with `peakrdl_to_cmdrsp` adapter
+- Cleaner separation between APB protocol and register logic
+- Discrete signals easier to route than SystemVerilog interfaces
 
 ## Generated Interface
 
-The PeakRDL-generated register block will have an APB4 interface:
+The PeakRDL-generated register block has a passthrough CPU interface:
 
 ```systemverilog
-module stream_regs_v2 (
+module stream_regs (
     // Clock and reset
-    input  logic        pclk,
-    input  logic        presetn,
+    input  logic        clk,
+    input  logic        rst,
 
-    // APB4 interface
-    input  logic [31:0] paddr,
-    input  logic        psel,
-    input  logic        penable,
-    input  logic        pwrite,
-    input  logic [31:0] pwdata,
-    input  logic [3:0]  pstrb,
-    output logic [31:0] prdata,
-    output logic        pready,
-    output logic        pslverr,
+    // Passthrough CPU interface (discrete signals)
+    input  logic        s_cpuif_req,
+    input  logic        s_cpuif_req_is_wr,
+    input  logic [9:0]  s_cpuif_addr,
+    input  logic [31:0] s_cpuif_wr_data,
+    input  logic [31:0] s_cpuif_wr_biten,
+    output logic        s_cpuif_req_stall_wr,
+    output logic        s_cpuif_req_stall_rd,
+    output logic        s_cpuif_rd_ack,
+    output logic        s_cpuif_rd_err,
+    output logic [31:0] s_cpuif_rd_data,
+    output logic        s_cpuif_wr_ack,
+    output logic        s_cpuif_wr_err,
 
-    // Register outputs (to stream_config_block.sv)
-    output logic        GLOBAL_CTRL_GLOBAL_EN,
-    output logic        GLOBAL_CTRL_GLOBAL_RST,
-    output logic [7:0]  CHANNEL_ENABLE_CH_EN,
-    output logic [7:0]  CHANNEL_RESET_CH_RST,
-    // ... (all other register fields)
-
-    // Register inputs (from stream_core.sv status)
-    input logic         GLOBAL_STATUS_SYSTEM_IDLE,
-    input logic [7:0]   CHANNEL_IDLE_CH_IDLE,
-    input logic [7:0]   DESC_ENGINE_IDLE_DESC_IDLE,
-    input logic [7:0]   SCHEDULER_IDLE_SCHED_IDLE,
-    // ... (all other status fields)
+    // Hardware interface (register access)
+    input  stream_regs_pkg::stream_regs__in_t  hwif_in,
+    output stream_regs_pkg::stream_regs__out_t hwif_out
 );
 ```
 
-## Wrapper Integration
+## Wrapper Integration Architecture
 
-The generated register block will be instantiated in `stream_top_chX.sv` wrappers:
+Following HPET pattern, the integration requires three components:
+
+**1. APB → CMD/RSP converter** (existing utility):
+- Module: `projects/components/converters/rtl/peakrdl_to_cmdrsp.sv`
+- Converts APB4 protocol to CMD/RSP handshake
+- Part of common infrastructure
+
+**2. stream_regs** (PeakRDL-generated):
+- Module: `projects/components/stream/regs/generated/rtl/stream_regs.sv`
+- Passthrough CPU interface
+- Hardware interface for register access
+
+**3. stream_config_block** (wrapper):
+- Module: `projects/components/stream/rtl/top/stream_config_block.sv`
+- Extracts hwif fields and maps to STREAM core config signals
+- Combines CDC if needed
+
+### Integration Example (matching HPET pattern)
 
 ```systemverilog
-// PeakRDL register block
-stream_regs_v2 u_regs (
-    .pclk    (pclk),
-    .presetn (presetn),
-    .paddr   (paddr),
-    .psel    (psel),
-    // ... APB signals
+// In stream_top_ch8.sv or wrapper module
 
-    // Register outputs
-    .GLOBAL_CTRL_GLOBAL_EN(...),
-    // ... all register fields
+// CMD/RSP adapter
+peakrdl_to_cmdrsp #(
+    .ADDR_WIDTH(12),
+    .DATA_WIDTH(32)
+) u_peakrdl_adapter (
+    .aclk       (aclk),
+    .aresetn    (aresetn),
+    // CMD/RSP input (from stream_apb_router)
+    .cmd_valid  (regs_cmd_valid),
+    .cmd_ready  (regs_cmd_ready),
+    .cmd_pwrite (regs_cmd_pwrite),
+    .cmd_paddr  (regs_cmd_paddr),
+    .cmd_pwdata (regs_cmd_pwdata),
+    .rsp_valid  (regs_rsp_valid),
+    .rsp_ready  (regs_rsp_ready),
+    .rsp_prdata (regs_rsp_prdata),
+    .rsp_pslverr(regs_rsp_pslverr),
+    // Passthrough interface (to stream_regs)
+    .regblk_req        (regblk_req),
+    .regblk_req_is_wr  (regblk_req_is_wr),
+    .regblk_addr       (regblk_addr),
+    .regblk_wr_data    (regblk_wr_data),
+    .regblk_wr_biten   (regblk_wr_biten),
+    .regblk_req_stall_wr(regblk_req_stall_wr),
+    .regblk_req_stall_rd(regblk_req_stall_rd),
+    .regblk_rd_ack     (regblk_rd_ack),
+    .regblk_rd_err     (regblk_rd_err),
+    .regblk_rd_data    (regblk_rd_data),
+    .regblk_wr_ack     (regblk_wr_ack),
+    .regblk_wr_err     (regblk_wr_err)
 );
 
-// Config block (maps PeakRDL outputs to stream_core inputs)
+// PeakRDL register block
+stream_regs u_stream_regs (
+    .clk    (aclk),
+    .rst    (~aresetn),  // Active-high reset
+    // Passthrough CPU interface
+    .s_cpuif_req        (regblk_req),
+    .s_cpuif_req_is_wr  (regblk_req_is_wr),
+    .s_cpuif_addr       (regblk_addr[9:0]),
+    .s_cpuif_wr_data    (regblk_wr_data),
+    .s_cpuif_wr_biten   (regblk_wr_biten),
+    .s_cpuif_req_stall_wr(regblk_req_stall_wr),
+    .s_cpuif_req_stall_rd(regblk_req_stall_rd),
+    .s_cpuif_rd_ack     (regblk_rd_ack),
+    .s_cpuif_rd_err     (regblk_rd_err),
+    .s_cpuif_rd_data    (regblk_rd_data),
+    .s_cpuif_wr_ack     (regblk_wr_ack),
+    .s_cpuif_wr_err     (regblk_wr_err),
+    // Hardware interface
+    .hwif_in            (hwif_in),
+    .hwif_out           (hwif_out)
+);
+
+// Config block (extracts hwif and maps to core)
 stream_config_block u_config (
     .clk     (aclk),
     .rst_n   (aresetn),
-
-    // From PeakRDL registers
-    .reg_global_enable(GLOBAL_CTRL_GLOBAL_EN),
-    // ... all register fields
-
+    // From hwif
+    .hwif_out(hwif_out),
+    .hwif_in (hwif_in),
     // To stream_core
-    .cfg_channel_enable(...),
+    .cfg_channel_enable(cfg_channel_enable),
     // ... all config signals
 );
 ```
 
 ## Next Steps
 
-1. Install PeakRDL tools (see Installation section above)
-2. Generate RTL from `stream_regs_v2.rdl`
-3. Integrate generated RTL into `stream_top_chX.sv` wrappers
-4. Test register access via APB interface
+1. ✅ PeakRDL registers generated with passthrough interface
+2. ⏳ Create stream_config_block wrapper (extract hwif to config signals)
+3. ⏳ Integrate into stream_top_ch8.sv following HPET pattern
+4. ⏳ Test register access via APB interface
 
-## Alternative: Manual Register File
+## Reference Implementation
 
-If PeakRDL is not available, a manual register file can be created following the same register map defined in `stream_regs_v2.rdl`. This would require:
-
-1. APB4 slave interface logic
-2. Register address decode (using register addresses from .rdl file)
-3. Read/write logic for each register
-4. Field extraction and output assignment
-
-However, using PeakRDL is strongly recommended for consistency, maintainability, and automatic documentation generation.
+**See:** `projects/components/retro_legacy_blocks/rtl/hpet/hpet_config_regs.sv` for complete working example of this integration pattern.

@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 // SPDX-FileCopyrightText: 2024-2025 sean galloway
 //
-// STREAM Register Definition v2 - PeakRDL Format
+// STREAM Register Definition - PeakRDL Format
 // Enhanced with full monitor configuration fields
 //
 // Address Space Layout:
@@ -14,13 +14,13 @@
 //   - Channel kick-off registers (CHx_CTRL) are NOT defined here
 //   - Those are routed directly to descriptor engines via apbtodescr.sv
 //   - This file defines all other configuration and status registers
-//   - v2 adds full monitor mask and threshold registers
+//   - Includes full monitor mask and threshold registers
 //
 // Author: sean galloway
 // Created: 2025-11-21
 
-addrmap stream_regs_v2 {
-    name = "STREAM DMA Engine Registers v2";
+addrmap stream_regs {
+    name = "STREAM DMA Engine Registers";
     desc = "Configuration and status registers for 8-channel STREAM DMA engine with full monitor control";
 
     default regwidth = 32;
@@ -227,6 +227,122 @@ addrmap stream_regs_v2 {
         } STATE @ 0x0;
 
     } CH_STATE[8] @ 0x150 += 0x4;
+
+    //=========================================================================
+    // Engine Completion and Error Status (0x170 - 0x17F)
+    //=========================================================================
+
+    reg {
+        name = "Scheduler Error Status";
+        desc = "Per-channel scheduler error flags";
+
+        field {
+            desc = "Scheduler error bits [7:0] - 1=error detected, 0=no error";
+            sw = r;
+            hw = w;
+        } SCHED_ERR[7:0];
+
+        field {
+            desc = "Reserved";
+            sw = r;
+            hw = na;
+        } RSVD[31:8] = 24'h0;
+
+    } SCHED_ERROR @ 0x170;
+
+    reg {
+        name = "AXI Read Engine Completion Status";
+        desc = "Per-channel read engine all_complete flags";
+
+        field {
+            desc = "Read completion bits [7:0] - 1=all reads complete, 0=reads pending";
+            sw = r;
+            hw = w;
+        } RD_COMPLETE[7:0];
+
+        field {
+            desc = "Reserved";
+            sw = r;
+            hw = na;
+        } RSVD[31:8] = 24'h0;
+
+    } AXI_RD_COMPLETE @ 0x174;
+
+    reg {
+        name = "AXI Write Engine Completion Status";
+        desc = "Per-channel write engine all_complete flags";
+
+        field {
+            desc = "Write completion bits [7:0] - 1=all writes complete, 0=writes pending";
+            sw = r;
+            hw = w;
+        } WR_COMPLETE[7:0];
+
+        field {
+            desc = "Reserved";
+            sw = r;
+            hw = na;
+        } RSVD[31:8] = 24'h0;
+
+    } AXI_WR_COMPLETE @ 0x178;
+
+    //=========================================================================
+    // Monitor Status (0x180 - 0x1FF) - When USE_AXI_MONITORS=1
+    //=========================================================================
+
+    reg {
+        name = "Monitor FIFO Status";
+        desc = "Monitor bus FIFO status indicators";
+
+        field {
+            desc = "Monitor FIFO full - 1=FIFO full, 0=space available";
+            sw = r;
+            hw = w;
+        } MON_FIFO_FULL;
+
+        field {
+            desc = "Monitor FIFO empty - 1=FIFO empty, 0=data available";
+            sw = r;
+            hw = w;
+        } MON_FIFO_EMPTY;
+
+        field {
+            desc = "Monitor FIFO overflow - 1=overflow detected, 0=normal";
+            sw = r;
+            hw = w;
+        } MON_FIFO_OVFL;
+
+        field {
+            desc = "Monitor FIFO underflow - 1=underflow detected, 0=normal";
+            sw = r;
+            hw = w;
+        } MON_FIFO_UNFL;
+
+        field {
+            desc = "Reserved";
+            sw = r;
+            hw = na;
+        } RSVD[31:4] = 28'h0;
+
+    } MON_FIFO_STATUS @ 0x180;
+
+    reg {
+        name = "Monitor FIFO Count";
+        desc = "Monitor bus FIFO entry count";
+
+        field {
+            desc = "FIFO count [15:0] - number of entries in FIFO";
+            sw = r;
+            hw = w;
+        } FIFO_COUNT[15:0];
+
+        field {
+            desc = "Reserved";
+            sw = r;
+            hw = na;
+        } RSVD[31:16] = 16'h0;
+
+    } MON_FIFO_COUNT @ 0x184;
 
     //=========================================================================
     // Scheduler Configuration (0x200 - 0x21F)
@@ -953,16 +1069,16 @@ addrmap stream_regs_v2 {
         desc = "AXI read and write transfer burst sizes";
 
         field {
-            desc = "AXI read transfer beats [7:0] - burst size in beats (1-16)";
+            desc = "AXI read transfer beats [7:0] - ARLEN value (0-255 represents 1-256 beats)";
             sw = rw;
             hw = r;
-        } RD_XFER_BEATS[7:0] = 8'd16;
+        } RD_XFER_BEATS[7:0] = 8'd15;
 
         field {
-            desc = "AXI write transfer beats [15:8] - burst size in beats (1-16)";
+            desc = "AXI write transfer beats [15:8] - AWLEN value (0-255 represents 1-256 beats)";
             sw = rw;
             hw = r;
-        } WR_XFER_BEATS[15:8] = 8'd16;
+        } WR_XFER_BEATS[15:8] = 8'd15;
 
         field {
             desc = "Reserved";

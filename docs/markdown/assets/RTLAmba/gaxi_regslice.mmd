@@ -1,0 +1,42 @@
+%%{init: {'theme': 'neutral', 'themeVariables': { 'fontSize': '14px'}}}%%
+flowchart LR
+    subgraph Inputs
+        CLK[aclk]
+        RST[aresetn]
+        S_VALID[s_valid]
+        S_DATA["s_data[WIDTH-1:0]"]
+        M_READY[m_ready]
+    end
+
+    subgraph gaxi_regslice["gaxi_regslice"]
+        subgraph Mode["Slice Mode"]
+            MODE_SEL["MODE parameter:\n0=Bypass\n1=Forward\n2=Reverse\n3=Full"]
+        end
+
+        subgraph Forward["Forward Register"]
+            FWD["Register output data\n(breaks forward path)"]
+        end
+
+        subgraph Reverse["Reverse Register"]
+            REV["Register ready signal\n(breaks reverse path)"]
+        end
+    end
+
+    subgraph Outputs
+        S_READY[s_ready]
+        M_VALID[m_valid]
+        M_DATA["m_data[WIDTH-1:0]"]
+    end
+
+    CLK --> Forward
+    CLK --> Reverse
+    RST --> Forward
+    RST --> Reverse
+    S_VALID --> Mode
+    S_DATA --> Forward
+    M_READY --> Reverse
+    Mode --> Forward
+    Mode --> Reverse
+    Forward --> M_DATA
+    Forward --> M_VALID
+    Reverse --> S_READY

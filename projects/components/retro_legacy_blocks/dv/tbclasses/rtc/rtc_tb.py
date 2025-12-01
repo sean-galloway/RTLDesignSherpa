@@ -146,7 +146,7 @@ class RTCTB(TBBase):
             self.apb_master = APBMaster(
                 entity=self.dut,
                 title='RTC APB Master',
-                prefix='s_apb',  # NO UNDERSCORE
+                prefix='s_apb_',  # Consistent s_apb_* naming
                 clock=self.dut.pclk,
                 bus_width=32,
                 addr_width=12,

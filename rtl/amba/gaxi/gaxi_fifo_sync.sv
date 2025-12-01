@@ -220,13 +220,9 @@ module gaxi_fifo_sync #(
                 always_comb w_rd_data = mem[r_rd_addr];
             end
 
-            // synopsys translate_off
-            logic [(DW*DEPTH)-1:0] flat_mem_auto;
-            genvar i_auto;
-            for (i_auto = 0; i_auto < DEPTH; i_auto++) begin : gen_flatten_auto
-                assign flat_mem_auto[i_auto*DW+:DW] = mem[i_auto];
-            end
-            // synopsys translate_on
+            // Note: Waveform flattening removed for AUTO style to avoid Verilator
+            // unroll limit errors with large DEPTH parameters (e.g., 4096).
+            // Use indexed array viewing in waveform viewer instead.
         end
     endgenerate
 
@@ -249,3 +245,4 @@ module gaxi_fifo_sync #(
     // synopsys translate_on
 
 endmodule : gaxi_fifo_sync
+

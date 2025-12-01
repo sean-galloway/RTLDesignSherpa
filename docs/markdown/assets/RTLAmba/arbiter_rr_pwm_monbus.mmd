@@ -1,0 +1,38 @@
+%%{init: {'theme': 'neutral', 'themeVariables': { 'fontSize': '14px'}}}%%
+flowchart TB
+    subgraph Inputs["Monitor Bus Inputs"]
+        REQ0["req[0]: monbus_valid"]
+        REQ1["req[1]: monbus_valid"]
+        REQN["req[N-1]: monbus_valid"]
+        DATA["data[N-1:0][63:0]"]
+    end
+
+    subgraph arbiter_rr_pwm_monbus["arbiter_rr_pwm_monbus"]
+        subgraph Arbiter["Round-Robin Core"]
+            RR["arbiter_round_robin\nFair scheduling"]
+        end
+
+        subgraph PWM["PWM Modulation"]
+            PWM_CTRL["Duty cycle control\nper requestor"]
+        end
+
+        subgraph Mux["Output Mux"]
+            MUX["Select winning\npacket data"]
+        end
+    end
+
+    subgraph Outputs["Arbitrated Output"]
+        GNT["grant[N-1:0]"]
+        OUT_V["out_valid"]
+        OUT_D["out_data[63:0]"]
+    end
+
+    REQ0 --> Arbiter
+    REQ1 --> Arbiter
+    REQN --> Arbiter
+    Arbiter --> PWM
+    PWM --> GNT
+    GNT --> Mux
+    DATA --> Mux
+    Mux --> OUT_V
+    Mux --> OUT_D

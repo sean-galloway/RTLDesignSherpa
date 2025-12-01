@@ -1,0 +1,36 @@
+%%{init: {'theme': 'neutral', 'themeVariables': { 'fontSize': '14px'}}}%%
+flowchart TB
+    subgraph Masters["APB Masters"]
+        M0["Master 0"]
+        M1["Master 1"]
+        MN["Master N"]
+    end
+
+    subgraph apb_crossbar["apb_crossbar"]
+        subgraph Arbiter["Arbiter"]
+            ARB["Round-robin\nper slave"]
+        end
+
+        subgraph Decode["Address Decode"]
+            DEC["Slave select\nbased on addr"]
+        end
+
+        subgraph Mux["Crossbar Mux"]
+            XBAR["N:M routing"]
+        end
+    end
+
+    subgraph Slaves["APB Slaves"]
+        S0["Slave 0"]
+        S1["Slave 1"]
+        SM["Slave M"]
+    end
+
+    M0 --> Arbiter
+    M1 --> Arbiter
+    MN --> Arbiter
+    Arbiter --> Decode
+    Decode --> Mux
+    Mux --> S0
+    Mux --> S1
+    Mux --> SM

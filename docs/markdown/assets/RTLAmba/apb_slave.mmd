@@ -1,0 +1,44 @@
+%%{init: {'theme': 'neutral', 'themeVariables': { 'fontSize': '14px'}}}%%
+flowchart LR
+    subgraph Slave["Slave APB (Input)"]
+        S_PSEL["s_psel"]
+        S_PADDR["s_paddr"]
+        S_PWRITE["s_pwrite"]
+        S_PWDATA["s_pwdata"]
+        S_PENABLE["s_penable"]
+    end
+
+    subgraph apb_slave["apb_slave"]
+        subgraph Buffer["Skid Buffer"]
+            SKID["gaxi_skid_buffer"]
+        end
+
+        subgraph FSM["APB FSM"]
+            STATE["IDLE -> ACCESS -> RESP"]
+        end
+
+        subgraph Status["Status"]
+            BUSY["busy signal"]
+        end
+    end
+
+    subgraph FUB["FUB Interface (Output)"]
+        FUB_PSEL["fub_psel"]
+        FUB_ADDR["fub_paddr"]
+        FUB_WRITE["fub_pwrite"]
+        FUB_WDATA["fub_pwdata"]
+        FUB_PRDATA["fub_prdata"]
+        FUB_PREADY["fub_pready"]
+    end
+
+    S_PSEL --> Buffer
+    S_PADDR --> Buffer
+    S_PWRITE --> Buffer
+    S_PWDATA --> Buffer
+    S_PENABLE --> FSM
+    Buffer --> FUB_PSEL
+    Buffer --> FUB_ADDR
+    Buffer --> FUB_WRITE
+    Buffer --> FUB_WDATA
+    FUB_PRDATA --> Buffer
+    FUB_PREADY --> FSM

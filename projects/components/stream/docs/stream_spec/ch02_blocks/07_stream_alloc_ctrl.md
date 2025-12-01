@@ -1,8 +1,13 @@
 # Stream Allocation Controller
 
 **Module:** `stream_alloc_ctrl.sv`
+**Location:** `projects/components/stream/rtl/fub/`
 **Category:** FUB (Functional Unit Block)
 **Parent:** `sram_controller_unit.sv`
+**Status:** Implemented
+**Last Updated:** 2025-11-30
+
+---
 
 ## Overview
 
@@ -460,8 +465,13 @@ logic [AW:0] r_wr_ptr_bin;     // AW+1 bits (for full detection)
 - **Parent:** `sram_controller_unit.sv` - Instantiates allocation controller
 - **User:** `axi_read_engine.sv` - Checks `rd_space_free` before issuing AR
 
-## References
+## Related Documentation
 
-- **Drain Controller:** `stream_drain_ctrl.md`
-- **SRAM Controller Unit:** `sram_controller_unit.md`
-- **AXI Read Engine:** `axi_read_engine.md`
+- **Drain Controller:** `11_stream_drain_ctrl.md`
+- **SRAM Controller Unit:** `09_sram_controller_unit.md`
+- **SRAM Controller:** `08_sram_controller.md`
+- **AXI Read Engine:** `06_axi_read_engine.md`
+
+---
+
+**Last Updated:** 2025-11-30 (verified against RTL implementation)

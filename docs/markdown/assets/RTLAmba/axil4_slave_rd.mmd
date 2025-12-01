@@ -1,0 +1,30 @@
+%%{init: {'theme': 'neutral', 'themeVariables': { 'fontSize': '14px'}}}%%
+flowchart LR
+    subgraph Slave["Slave AXIL (Input)"]
+        S_AR["s_axil_ar*"]
+        S_R["s_axil_r*"]
+    end
+
+    subgraph axil4_slave_rd["axil4_slave_rd"]
+        subgraph AR_Buffer["AR Skid Buffer"]
+            AR_SKID["gaxi_skid_buffer"]
+        end
+
+        subgraph R_Buffer["R Skid Buffer"]
+            R_SKID["gaxi_skid_buffer"]
+        end
+
+        subgraph Status["Status"]
+            BUSY["busy signal"]
+        end
+    end
+
+    subgraph FUB["FUB Interface (Output)"]
+        FUB_AR["fub_axi_ar*"]
+        FUB_R["fub_axi_r*"]
+    end
+
+    S_AR --> AR_Buffer
+    AR_Buffer --> FUB_AR
+    FUB_R --> R_Buffer
+    R_Buffer --> S_R

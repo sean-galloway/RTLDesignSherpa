@@ -409,7 +409,7 @@ class HPETTB(TBBase):
             self.apb_master = APBMaster(
                 entity=self.dut,
                 title='HPET APB Master',
-                prefix='s_apb',
+                prefix='s_apb_',  # Consistent s_apb_* naming
                 clock=self.dut.pclk,
                 bus_width=32,       # Fixed 32-bit data
                 addr_width=12,      # Fixed 12-bit addressing

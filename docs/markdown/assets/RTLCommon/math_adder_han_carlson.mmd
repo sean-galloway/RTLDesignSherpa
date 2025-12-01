@@ -1,0 +1,48 @@
+%%{init: {'theme': 'neutral', 'themeVariables': { 'fontSize': '14px'}}}%%
+flowchart TB
+    subgraph Inputs
+        A["i_a[N-1:0]"]
+        B["i_b[N-1:0]"]
+        CIN[i_cin]
+    end
+
+    subgraph math_adder_han_carlson["math_adder_han_carlson_NNN"]
+        subgraph Stage0["Stage 0: Initial PG"]
+            PG0["P[i] = A[i] XOR B[i]\nG[i] = A[i] AND B[i]"]
+        end
+
+        subgraph Hybrid["Han-Carlson Hybrid Tree"]
+            direction TB
+            S1["Stage 1: Even positions\nSpan-2 prefix"]
+            S2["Stage 2: Kogge-Stone\non even positions"]
+            S3["Stage 3: Continue\neven positions"]
+            S4["Stage 4: Span-8\neven positions"]
+            S5["Stage 5: Fill odd\nfrom neighbors"]
+        end
+
+        subgraph Cells["Prefix Cells"]
+            PC["math_prefix_cell\n(Black Cell)"]
+            PCG["math_prefix_cell_gray\n(Gray Cell)"]
+        end
+
+        subgraph Final["Sum Generation"]
+            SGEN["Sum[i] = P0[i] XOR G[i-1]"]
+        end
+    end
+
+    subgraph Outputs
+        OSUM["ow_sum[N-1:0]"]
+        OCOUT[ow_cout]
+    end
+
+    A --> Stage0
+    B --> Stage0
+    CIN --> Stage0
+    Stage0 --> Hybrid
+    S1 --> S2
+    S2 --> S3
+    S3 --> S4
+    S4 --> S5
+    Hybrid --> Final
+    Final --> OSUM
+    Final --> OCOUT

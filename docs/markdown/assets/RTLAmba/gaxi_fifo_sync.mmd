@@ -1,0 +1,52 @@
+%%{init: {'theme': 'neutral', 'themeVariables': { 'fontSize': '14px'}}}%%
+flowchart LR
+    subgraph Inputs
+        CLK[aclk]
+        RST[aresetn]
+        WR_V[wr_valid]
+        WR_D["wr_data[WIDTH-1:0]"]
+    end
+
+    subgraph gaxi_fifo_sync["gaxi_fifo_sync"]
+        subgraph Write_Logic["Write Logic"]
+            WR_PTR["wr_ptr[DEPTH:0]"]
+            WR_EN["Write enable\n(valid & ready)"]
+        end
+
+        subgraph Memory["Memory Array"]
+            MEM["mem[DEPTH-1:0]\n[WIDTH-1:0]"]
+        end
+
+        subgraph Read_Logic["Read Logic"]
+            RD_PTR["rd_ptr[DEPTH:0]"]
+            RD_EN["Read enable\n(valid & ready)"]
+        end
+
+        subgraph Status["Status Flags"]
+            FULL["Full: ptrs match\n(MSB differs)"]
+            EMPTY["Empty: ptrs equal"]
+            COUNT["count[DEPTH:0]"]
+        end
+    end
+
+    subgraph Outputs
+        RD_V[rd_valid]
+        RD_D["rd_data[WIDTH-1:0]"]
+        FU[full]
+        EM[empty]
+    end
+
+    CLK --> Write_Logic
+    CLK --> Read_Logic
+    RST --> Write_Logic
+    RST --> Read_Logic
+    WR_V --> Write_Logic
+    WR_D --> Memory
+    Write_Logic --> Memory
+    Memory --> RD_D
+    Read_Logic --> Memory
+    Status --> FU
+    Status --> EM
+    Read_Logic --> RD_V
+    Write_Logic --> Status
+    Read_Logic --> Status

@@ -1,0 +1,40 @@
+%%{init: {'theme': 'neutral', 'themeVariables': { 'fontSize': '14px'}}}%%
+flowchart LR
+    subgraph Inputs
+        CLK_SRC[clk_src]
+        CLK_DST[clk_dst]
+        RST[rst_n]
+        PULSE[i_pulse]
+    end
+
+    subgraph sync_pulse["sync_pulse"]
+        subgraph Toggle["Toggle Generator"]
+            direction TB
+            TGL["Toggle FF on\nsource pulse"]
+        end
+
+        subgraph Sync["2-FF Synchronizer"]
+            direction LR
+            FF1["FF1"]
+            FF2["FF2"]
+            FF1 --> FF2
+        end
+
+        subgraph Edge["Edge Detector"]
+            EDGE["XOR sync'd value\nwith delayed value"]
+        end
+    end
+
+    subgraph Outputs
+        SYNC[o_pulse]
+    end
+
+    CLK_SRC --> Toggle
+    PULSE --> Toggle
+    RST --> Toggle
+    RST --> Sync
+    Toggle --> Sync
+    CLK_DST --> Sync
+    CLK_DST --> Edge
+    Sync --> Edge
+    Edge --> SYNC

@@ -1,0 +1,29 @@
+%%{init: {'theme': 'neutral', 'themeVariables': { 'fontSize': '14px'}}}%%
+flowchart LR
+    subgraph Inputs
+        CLK[aclk]
+        CG_EN[cg_enable]
+        CG_TEST[cg_test_enable]
+    end
+
+    subgraph axi4_master_rd_cg["axi4_master_rd_cg"]
+        subgraph ICG["Clock Gate"]
+            GATE["amba_clock_gate_ctrl\nenable | test | busy"]
+        end
+
+        subgraph Core["axi4_master_rd"]
+            CORE["Core module\n(gated clock)"]
+        end
+    end
+
+    subgraph Outputs
+        BUSY[busy]
+        GCLK[gated_clk]
+    end
+
+    CLK --> ICG
+    CG_EN --> ICG
+    CG_TEST --> ICG
+    ICG --> Core
+    Core --> BUSY
+    BUSY --> ICG

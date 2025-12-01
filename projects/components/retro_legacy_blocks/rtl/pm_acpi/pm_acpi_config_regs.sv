@@ -325,10 +325,13 @@ module pm_acpi_config_regs
     // PM Timer value (hardware writes, read-only from SW)
     assign hwif_in.PM_TIMER_VALUE.timer_value.next = status_pm_timer_value;
 
-    // GPE Status - edge detection for sticky W1C fields
+    // GPE Status - Edge detection on the sticky status from pm_acpi_core.
+    // When hwset is asserted, the PeakRDL register latches the 'next' value as a SET
+    // (not a replace), so we pass the edge bits to 'next'. The W1C behavior in PeakRDL
+    // handles clearing. We don't want to continuously re-assert from the sticky status.
     logic [31:0] r_gpe_status_prev;
     logic [31:0] w_gpe_status_edge;
-    
+
     `ALWAYS_FF_RST(clk, rst_n,
         if (`RST_ASSERTED(rst_n)) begin
             r_gpe_status_prev <= 32'h0;
@@ -337,12 +340,16 @@ module pm_acpi_config_regs
         end
     )
 
+    // Detect new bits being set in the sticky status from pm_acpi_core
     assign w_gpe_status_edge = status_gpe_status & ~r_gpe_status_prev;
 
     // GPE status to registers (split into low and high)
+    // hwset triggers when any new bit is set in edge detection
+    // next provides the specific edge bits (not the full sticky status)
+    // This allows W1C to clear bits that aren't being newly set
     assign hwif_in.GPE0_STATUS_LO.gpe_status.hwset = |w_gpe_status_edge[15:0];
     assign hwif_in.GPE0_STATUS_LO.gpe_status.next = w_gpe_status_edge[15:0];
-    
+
     assign hwif_in.GPE0_STATUS_HI.gpe_status.hwset = |w_gpe_status_edge[31:16];
     assign hwif_in.GPE0_STATUS_HI.gpe_status.next = w_gpe_status_edge[31:16];
 

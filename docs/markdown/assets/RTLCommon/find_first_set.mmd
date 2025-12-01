@@ -1,0 +1,30 @@
+%%{init: {'theme': 'neutral', 'themeVariables': { 'fontSize': '14px'}}}%%
+flowchart LR
+    subgraph Inputs
+        DATA["i_data[WIDTH-1:0]"]
+    end
+
+    subgraph find_first_set["find_first_set"]
+        subgraph Scan["Priority Scan"]
+            SCAN["Scan from LSB to MSB\nFind first 1 bit"]
+        end
+
+        subgraph Encode["Position Encoding"]
+            ENC["Encode position\nas binary index"]
+        end
+
+        subgraph Valid["Valid Detection"]
+            VAL["|data != 0"]
+        end
+    end
+
+    subgraph Outputs
+        POS["o_position[$clog2(WIDTH)-1:0]"]
+        FOUND[o_found]
+    end
+
+    DATA --> Scan
+    Scan --> Encode
+    DATA --> Valid
+    Encode --> POS
+    Valid --> FOUND

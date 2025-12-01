@@ -1,0 +1,25 @@
+%%{init: {'theme': 'neutral', 'themeVariables': { 'fontSize': '14px'}}}%%
+flowchart LR
+    subgraph Inputs
+        IN["i_in[WIDTH-1:0]"]
+    end
+
+    subgraph encoder["encoder"]
+        subgraph Encode["One-Hot to Binary"]
+            ENC["OR tree to generate\neach output bit"]
+        end
+
+        subgraph Valid["Valid Detection"]
+            VAL["|in != 0"]
+        end
+    end
+
+    subgraph Outputs
+        CODE["o_code[$clog2(WIDTH)-1:0]"]
+        VALID[o_valid]
+    end
+
+    IN --> Encode
+    IN --> Valid
+    Encode --> CODE
+    Valid --> VALID

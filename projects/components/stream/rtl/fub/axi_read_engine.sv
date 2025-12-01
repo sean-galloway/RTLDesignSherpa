@@ -276,37 +276,28 @@ module axi_read_engine #(
 
     logic [NC-1:0] w_space_ok;                  // Channel has enough space for burst
     logic [NC-1:0] w_below_outstanding_limit;   // Channel below max outstanding limit (can issue new AR)
-    logic [NC-1:0] w_beats_ok;                  // Haven't issued more than requested
     logic [NC-1:0] w_arb_request;               // Masked requests to arbiter
     logic [NC-1:0][7:0] w_transfer_size;        // Actual transfer size per channel (min of remaining beats or config)
 
     always_comb begin
         for (int i = 0; i < NC; i++) begin
-            // Calculate actual transfer size for this channel (matches write engine pattern)
-            w_transfer_size[i] = 8'((sched_rd_beats[i] <= 32'(cfg_axi_rd_xfer_beats)) ?
-                        sched_rd_beats[i] : 32'(cfg_axi_rd_xfer_beats));
+            // Calculate actual transfer size for this channel
+            w_transfer_size[i] = 8'((sched_rd_beats[i] <= (32'(cfg_axi_rd_xfer_beats) + 32'd1)) ?
+                        (sched_rd_beats[i] - 32'd1) : 32'(cfg_axi_rd_xfer_beats));
 
             // Check if channel has enough space for actual transfer size
-            // FIX: Use SCW for both operands (was hardcoded 8, truncated for depths > 128)
-            // FIX: Require 2x burst size margin to account for in-flight allocation timing
-            w_space_ok[i] = (SCW'(axi_rd_alloc_space_free[i]) >= SCW'(w_transfer_size[i] << 1));
+            w_space_ok[i] = (SCW'(axi_rd_alloc_space_free[i]) >= SCW'(w_transfer_size[i] + 8'd1));
 
             // Check outstanding constraint
             // PIPELINE=0: !r_outstanding_limit means no outstanding transaction (can issue)
             // PIPELINE=1: !r_outstanding_limit means below max outstanding (can issue more)
             w_below_outstanding_limit[i] = !r_outstanding_limit[i];
 
-            // Check if next burst fits in remaining beats
-            // Note: sched_rd_beats is REMAINING beats (decrements as engine completes bursts)
-            // We only need to check if the next burst fits, not cumulative issued
-            w_beats_ok[i] = 'b0 < sched_rd_beats[i];
-
             // Only request arbitration if:
             // 1. Scheduler is requesting (sched_rd_valid)
             // 2. Sufficient SRAM space available (w_space_ok)
             // 3. Below outstanding limit (w_below_outstanding_limit)
-            // 4. Haven't issued enough beats yet (w_beats_ok)
-            w_arb_request[i] = sched_rd_valid[i] && w_space_ok[i] && w_below_outstanding_limit[i] && w_beats_ok[i];
+            w_arb_request[i] = sched_rd_valid[i] && w_space_ok[i] && w_below_outstanding_limit[i];
         end
     end
 
@@ -357,8 +348,8 @@ module axi_read_engine #(
     // Address comes directly from scheduler (scheduler increments after each AR)
     assign m_axi_araddr = sched_rd_addr[w_arb_grant_id];
     // Use w_transfer_size (already calculated as min of remaining beats or config)
-    // AXI uses len-1 encoding
-    assign m_axi_arlen = w_transfer_size[w_arb_grant_id] - 8'd1;
+    // cfg_axi_rd_xfer_beats stores ARLEN value directly (no conversion needed)
+    assign m_axi_arlen = w_transfer_size[w_arb_grant_id];
     assign m_axi_arsize = 3'(AXSIZE);
     assign m_axi_arburst = 2'b01;  // INCR
 
@@ -386,7 +377,7 @@ module axi_read_engine #(
             // Assert allocation when AXI AR command issues
             if (m_axi_arvalid && m_axi_arready) begin
                 r_alloc_req <= 1'b1;
-                r_alloc_size <= w_transfer_size[w_arb_grant_id];  // Actual transfer size (matches arlen+1)
+                r_alloc_size <= w_transfer_size[w_arb_grant_id] + 8'd1;  // Convert ARLEN to beat count for SRAM (0==0 encoding)
                 r_alloc_id <= {{(IW-CW){1'b0}}, w_arb_grant_id};  // Channel ID from arbiter
             end
         end
@@ -431,7 +422,7 @@ module axi_read_engine #(
             // This tells scheduler that request was issued to AXI bus
             if (m_axi_arvalid && m_axi_arready) begin
                 r_done_strobe[w_arb_grant_id] <= 1'b1;
-                r_beats_done[w_arb_grant_id] <= {24'd0, w_transfer_size[w_arb_grant_id]};  // Actual beats issued
+                r_beats_done[w_arb_grant_id] <= {24'd0, (w_transfer_size[w_arb_grant_id] + 8'd1)};  // Actual beats issued
             end
         end
     )

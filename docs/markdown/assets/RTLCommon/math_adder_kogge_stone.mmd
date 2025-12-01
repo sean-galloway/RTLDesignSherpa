@@ -1,0 +1,42 @@
+%%{init: {'theme': 'neutral', 'themeVariables': { 'fontSize': '14px'}}}%%
+flowchart TB
+    subgraph Inputs
+        A["i_a[N-1:0]"]
+        B["i_b[N-1:0]"]
+    end
+
+    subgraph math_adder_kogge_stone["math_adder_kogge_stone_nbit"]
+        subgraph Step1["Step 1: Generate/Propagate"]
+            GP["G[i] = A[i] AND B[i]\nP[i] = A[i] OR B[i]"]
+        end
+
+        subgraph Step2["Step 2: Parallel Prefix Tree"]
+            direction TB
+            L0["Level 0: Span 1"]
+            L1["Level 1: Span 2"]
+            L2["Level 2: Span 4"]
+            L3["Level 3: Span 8"]
+            LN["Level log2(N)"]
+            CELL["Each cell:\nG' = G_hi | P_hi & G_lo\nCarry[j] = G[j] | P[j] & Carry[j-1]"]
+        end
+
+        subgraph Step3["Step 3: Sum Calculation"]
+            SGEN["Sum[0] = A[0] XOR B[0]\nSum[i] = A[i] XOR B[i] XOR C[i-1]"]
+        end
+    end
+
+    subgraph Outputs
+        OSUM["ow_sum[N-1:0]"]
+        OCOUT[ow_carry]
+    end
+
+    A --> Step1
+    B --> Step1
+    Step1 --> Step2
+    L0 --> L1
+    L1 --> L2
+    L2 --> L3
+    L3 --> LN
+    Step2 --> Step3
+    Step3 --> OSUM
+    Step3 --> OCOUT

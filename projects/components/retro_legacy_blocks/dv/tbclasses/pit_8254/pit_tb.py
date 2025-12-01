@@ -184,7 +184,7 @@ class PITTB(TBBase):
             self.apb_master = APBMaster(
                 entity=self.dut,
                 title='PIT APB Master',
-                prefix='s_apb',  # NO UNDERSCORE - matches HPET
+                prefix='s_apb_',  # Consistent s_apb_* naming
                 clock=self.dut.pclk,
                 bus_width=32,
                 addr_width=12,

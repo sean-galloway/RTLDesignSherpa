@@ -1,0 +1,43 @@
+%%{init: {'theme': 'neutral', 'themeVariables': { 'fontSize': '14px'}}}%%
+flowchart TB
+    subgraph Inputs
+        CLK[clk]
+        RST[rst_n]
+        DATA["i_data[WIDTH-1:0]"]
+        MODE["i_mode[1:0]"]
+        SI_L[i_serial_in_left]
+        SI_R[i_serial_in_right]
+    end
+
+    subgraph shifter_universal["shifter_universal"]
+        subgraph Mode_Decode["Mode Decoder"]
+            DEC["00: Hold\n01: Shift Left\n10: Shift Right\n11: Parallel Load"]
+        end
+
+        subgraph Mux_Array["Mux Array"]
+            MUX["4:1 mux per bit\nselects next value"]
+        end
+
+        subgraph Register["Shift Register"]
+            REG["r_data[WIDTH-1:0]"]
+        end
+    end
+
+    subgraph Outputs
+        Q["o_data[WIDTH-1:0]"]
+        SO_L[o_serial_out_left]
+        SO_R[o_serial_out_right]
+    end
+
+    CLK --> Register
+    RST --> Register
+    DATA --> Mux_Array
+    MODE --> Mode_Decode
+    Mode_Decode --> Mux_Array
+    SI_L --> Mux_Array
+    SI_R --> Mux_Array
+    Mux_Array --> Register
+    Register --> Mux_Array
+    Register --> Q
+    Register --> SO_L
+    Register --> SO_R

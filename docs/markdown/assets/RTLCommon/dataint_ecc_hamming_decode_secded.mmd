@@ -1,0 +1,42 @@
+%%{init: {'theme': 'neutral', 'themeVariables': { 'fontSize': '14px'}}}%%
+flowchart TB
+    subgraph Inputs
+        CODE["i_encoded[CODE_WIDTH-1:0]"]
+    end
+
+    subgraph dataint_ecc_hamming_decode_secded["dataint_ecc_hamming_decode_secded"]
+        subgraph Syndrome["Syndrome Calculation"]
+            SYN["Recalculate parity\nXOR with received parity"]
+        end
+
+        subgraph Error_Detect["Error Detection"]
+            DET["Syndrome != 0?\nError position = syndrome"]
+        end
+
+        subgraph Correct["Error Correction"]
+            COR["Flip bit at\nsyndrome position"]
+        end
+
+        subgraph Double["Double Error Check"]
+            DBL["Overall parity check\nP0 detects 2-bit errors"]
+        end
+
+        subgraph Extract["Data Extraction"]
+            EXT["Remove parity bits\nReturn original data"]
+        end
+    end
+
+    subgraph Outputs
+        DATA["o_data[DATA_WIDTH-1:0]"]
+        SEC[o_single_error]
+        DED[o_double_error]
+    end
+
+    CODE --> Syndrome
+    Syndrome --> Error_Detect
+    Error_Detect --> Correct
+    CODE --> Double
+    Double --> DED
+    Correct --> Extract
+    Extract --> DATA
+    Error_Detect --> SEC

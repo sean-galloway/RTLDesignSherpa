@@ -1,0 +1,47 @@
+%%{init: {'theme': 'neutral', 'themeVariables': { 'fontSize': '14px'}}}%%
+flowchart LR
+    subgraph AXI4["AXI4 Slave Interface"]
+        S_AW["AW Channel"]
+        S_W["W Channel"]
+        S_B["B Channel"]
+        S_AR["AR Channel"]
+        S_R["R Channel"]
+    end
+
+    subgraph axi4_to_apb_shim["axi4_to_apb_shim"]
+        subgraph Converter["Protocol Converter"]
+            CONV["Burst -> Single\nAXI4 -> APB timing"]
+        end
+
+        subgraph Arbiter["RD/WR Arbiter"]
+            ARB["Priority: WR > RD"]
+        end
+
+        subgraph Buffer["Response Buffer"]
+            BUF["Hold APB resp\nfor AXI B/R"]
+        end
+    end
+
+    subgraph APB["APB Master Interface"]
+        M_PSEL["psel"]
+        M_PENABLE["penable"]
+        M_PADDR["paddr"]
+        M_PWRITE["pwrite"]
+        M_PWDATA["pwdata"]
+        M_PRDATA["prdata"]
+        M_PREADY["pready"]
+    end
+
+    S_AW --> Arbiter
+    S_W --> Arbiter
+    S_AR --> Arbiter
+    Arbiter --> Converter
+    Converter --> M_PSEL
+    Converter --> M_PENABLE
+    Converter --> M_PADDR
+    Converter --> M_PWRITE
+    Converter --> M_PWDATA
+    M_PRDATA --> Buffer
+    M_PREADY --> Converter
+    Buffer --> S_B
+    Buffer --> S_R

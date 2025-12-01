@@ -1,0 +1,53 @@
+%%{init: {'theme': 'neutral', 'themeVariables': { 'fontSize': '14px'}}}%%
+flowchart TB
+    subgraph Inputs
+        CLK[clk]
+        RST[rst_n]
+        WR[i_write]
+        RD[i_read]
+    end
+
+    subgraph fifo_control["fifo_control"]
+        subgraph Write_Ptr["Write Pointer"]
+            WPTR["r_wr_ptr[ADDR_WIDTH:0]\nIncrement on write"]
+        end
+
+        subgraph Read_Ptr["Read Pointer"]
+            RPTR["r_rd_ptr[ADDR_WIDTH:0]\nIncrement on read"]
+        end
+
+        subgraph Status["Status Logic"]
+            FULL["Full: wr_ptr[MSB] != rd_ptr[MSB]\nand wr_ptr[rest] == rd_ptr[rest]"]
+            EMPTY["Empty: wr_ptr == rd_ptr"]
+            COUNT["count = wr_ptr - rd_ptr"]
+        end
+
+        subgraph Addr_Gen["Address Generation"]
+            WADDR["wr_addr = wr_ptr[ADDR-1:0]"]
+            RADDR["rd_addr = rd_ptr[ADDR-1:0]"]
+        end
+    end
+
+    subgraph Outputs
+        WA["o_wr_addr[ADDR_WIDTH-1:0]"]
+        RA["o_rd_addr[ADDR_WIDTH-1:0]"]
+        FU[o_full]
+        EM[o_empty]
+        CNT["o_count[ADDR_WIDTH:0]"]
+    end
+
+    CLK --> Write_Ptr
+    CLK --> Read_Ptr
+    RST --> Write_Ptr
+    RST --> Read_Ptr
+    WR --> Write_Ptr
+    RD --> Read_Ptr
+    Write_Ptr --> Status
+    Read_Ptr --> Status
+    Write_Ptr --> Addr_Gen
+    Read_Ptr --> Addr_Gen
+    Addr_Gen --> WA
+    Addr_Gen --> RA
+    Status --> FU
+    Status --> EM
+    Status --> CNT

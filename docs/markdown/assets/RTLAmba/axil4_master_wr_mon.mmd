@@ -1,0 +1,29 @@
+%%{init: {'theme': 'neutral', 'themeVariables': { 'fontSize': '14px'}}}%%
+flowchart TB
+    subgraph AXIL_Channels["AXIL Master Channels"]
+        AW["AW Channel\n(Write Address)"]
+        W["W Channel\n(Write Data)"]
+        B["B Channel\n(Write Response)"]
+    end
+
+    subgraph axil4_master_wr_mon["axil4_master_wr_mon"]
+        subgraph Base["Monitor Base"]
+            TRANS["Transaction Tracker"]
+            TIMEOUT["Timeout Detection"]
+        end
+
+        subgraph Reporter["Reporter"]
+            PKT["Packet Generation"]
+        end
+    end
+
+    subgraph Output["Monitor Bus Output"]
+        MONBUS["mon_*\n(64-bit packets)"]
+    end
+
+    AW --> TRANS
+    W --> TRANS
+    B --> TRANS
+    TRANS --> TIMEOUT
+    TIMEOUT --> PKT
+    PKT --> MONBUS

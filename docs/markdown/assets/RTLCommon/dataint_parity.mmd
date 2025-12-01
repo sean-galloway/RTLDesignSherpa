@@ -1,0 +1,23 @@
+%%{init: {'theme': 'neutral', 'themeVariables': { 'fontSize': '14px'}}}%%
+flowchart LR
+    subgraph Inputs
+        DATA["i_data[WIDTH-1:0]"]
+    end
+
+    subgraph dataint_parity["dataint_parity"]
+        subgraph XOR_Tree["XOR Reduction Tree"]
+            XOR["^data\n(reduction XOR)"]
+        end
+
+        subgraph Mode["Parity Mode"]
+            MODE["EVEN: result\nODD: ~result"]
+        end
+    end
+
+    subgraph Outputs
+        PAR[o_parity]
+    end
+
+    DATA --> XOR_Tree
+    XOR_Tree --> Mode
+    Mode --> PAR

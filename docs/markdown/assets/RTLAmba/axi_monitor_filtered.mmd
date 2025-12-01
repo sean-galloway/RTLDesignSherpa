@@ -1,0 +1,28 @@
+%%{init: {'theme': 'neutral', 'themeVariables': { 'fontSize': '14px'}}}%%
+flowchart LR
+    subgraph Input["Monitor Input"]
+        MONBUS_IN["monbus_packet[63:0]\nmonbus_valid"]
+    end
+
+    subgraph axi_monitor_filtered["axi_monitor_filtered"]
+        subgraph Decode["Packet Decoder"]
+            DEC["Extract packet type\nunit_id, agent_id"]
+        end
+
+        subgraph Filter["Filter Logic"]
+            FILT["cfg_filter_mask\ncfg_filter_value\nPacket type enables"]
+        end
+
+        subgraph Queue["Output Queue"]
+            QUE["Filtered packet\nbuffering"]
+        end
+    end
+
+    subgraph Output["Filtered Output"]
+        MONBUS_OUT["filtered_packet[63:0]\nfiltered_valid"]
+    end
+
+    MONBUS_IN --> Decode
+    Decode --> Filter
+    Filter --> Queue
+    Queue --> MONBUS_OUT

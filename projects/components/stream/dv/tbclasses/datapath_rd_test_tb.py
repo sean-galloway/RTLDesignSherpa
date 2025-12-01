@@ -109,9 +109,10 @@ class DatapathRdTestTB(TBBase):
         await self.start_clock(self.clk_name, freq=10, units='ns')
 
         # Initialize configuration
-        self.dut.cfg_axi_rd_xfer_beats.value = xfer_beats
+        # Config register stores ARLEN values (0==1 beat per AXI spec), so subtract 1 from beat count
+        self.dut.cfg_axi_rd_xfer_beats.value = xfer_beats - 1
         self.xfer_beats = xfer_beats  # Store for test use
-        self.log.info(f"Configured AXI read transfer size: {xfer_beats} beats{self.get_time_ns_str()}")
+        self.log.info(f"Configured AXI read transfer size: {xfer_beats} beats (ARLEN={xfer_beats-1}){self.get_time_ns_str()}")
 
         # Initialize descriptor interface signals (all channels)
         for ch_id in range(self.num_channels):

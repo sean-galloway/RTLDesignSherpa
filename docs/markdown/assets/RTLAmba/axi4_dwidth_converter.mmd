@@ -1,0 +1,31 @@
+%%{init: {'theme': 'neutral', 'themeVariables': { 'fontSize': '14px'}}}%%
+flowchart TB
+    subgraph Slave["Slave Interface (Narrow)"]
+        S_AXI["s_axi_*\nDATA_WIDTH=S_DW"]
+    end
+
+    subgraph axi4_dwidth_converter["axi4_dwidth_converter"]
+        subgraph Read_Path["Read Data Width Converter"]
+            RD_CONV["axi4_dwidth_converter_rd\nWide -> Narrow"]
+        end
+
+        subgraph Write_Path["Write Data Width Converter"]
+            WR_CONV["axi4_dwidth_converter_wr\nNarrow -> Wide"]
+        end
+
+        subgraph Addr_Calc["Address Calculation"]
+            ADDR["Burst splitting\nBeat counting"]
+        end
+    end
+
+    subgraph Master["Master Interface (Wide)"]
+        M_AXI["m_axi_*\nDATA_WIDTH=M_DW"]
+    end
+
+    S_AXI --> Write_Path
+    S_AXI --> Addr_Calc
+    Write_Path --> M_AXI
+    M_AXI --> Read_Path
+    Read_Path --> S_AXI
+    Addr_Calc --> Read_Path
+    Addr_Calc --> Write_Path

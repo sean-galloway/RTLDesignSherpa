@@ -1,0 +1,48 @@
+%%{init: {'theme': 'neutral', 'themeVariables': { 'fontSize': '14px'}}}%%
+flowchart TB
+    subgraph AXI_Channels["AXI Channel Inputs"]
+        CMD["Command Channel\n(AR/AW)"]
+        DATA["Data Channel\n(R/W)"]
+        RESP["Response Channel\n(B)"]
+    end
+
+    subgraph Config["Configuration"]
+        CFG["cfg_*_enable\ncfg_*_cnt\ncfg_freq_sel"]
+    end
+
+    subgraph axi_monitor_base["axi_monitor_base"]
+        subgraph Trans_Mgr["Transaction Manager"]
+            TABLE["Transaction Table\n[MAX_TRANSACTIONS]"]
+            TRACK["ID-based tracking\nBeat counting"]
+        end
+
+        subgraph Timeout["Timeout Monitor"]
+            TMO["Per-phase timeouts\nConfigurable thresholds"]
+        end
+
+        subgraph Perf["Performance Tracker"]
+            PERF["Latency measurement\nThroughput metrics"]
+        end
+
+        subgraph Reporter["Reporter"]
+            PKT["Packet formatting\nEvent queuing"]
+        end
+    end
+
+    subgraph Output["Monitor Bus Output"]
+        MONBUS["monbus_packet[63:0]\nmonbus_valid"]
+        STATUS["busy, active_count\nblock_ready"]
+    end
+
+    CMD --> Trans_Mgr
+    DATA --> Trans_Mgr
+    RESP --> Trans_Mgr
+    Config --> Timeout
+    Config --> Perf
+    Trans_Mgr --> Timeout
+    Trans_Mgr --> Perf
+    Timeout --> Reporter
+    Perf --> Reporter
+    Trans_Mgr --> Reporter
+    Reporter --> MONBUS
+    Trans_Mgr --> STATUS

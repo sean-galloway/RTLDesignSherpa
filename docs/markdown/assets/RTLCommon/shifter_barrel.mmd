@@ -1,0 +1,39 @@
+%%{init: {'theme': 'neutral', 'themeVariables': { 'fontSize': '14px'}}}%%
+flowchart TB
+    subgraph Inputs
+        DATA["i_data[WIDTH-1:0]"]
+        AMT["i_shift_amt[$clog2(WIDTH)-1:0]"]
+        DIR[i_direction]
+    end
+
+    subgraph shifter_barrel["shifter_barrel"]
+        subgraph Stage0["Stage 0 (shift by 1)"]
+            MUX0["2:1 mux per bit\nshift_amt[0] selects"]
+        end
+
+        subgraph Stage1["Stage 1 (shift by 2)"]
+            MUX1["2:1 mux per bit\nshift_amt[1] selects"]
+        end
+
+        subgraph StageN["Stage N (shift by 2^N)"]
+            MUXN["2:1 mux per bit\nshift_amt[N] selects"]
+        end
+
+        subgraph Fill["Fill Logic"]
+            FILL["0 for logical\nMSB for arithmetic"]
+        end
+    end
+
+    subgraph Outputs
+        RESULT["o_result[WIDTH-1:0]"]
+    end
+
+    DATA --> Stage0
+    AMT --> Stage0
+    AMT --> Stage1
+    AMT --> StageN
+    DIR --> Fill
+    Stage0 --> Stage1
+    Stage1 --> StageN
+    Fill --> Stage0
+    StageN --> RESULT

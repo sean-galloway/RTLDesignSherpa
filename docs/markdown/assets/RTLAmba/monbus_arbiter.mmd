@@ -1,0 +1,39 @@
+%%{init: {'theme': 'neutral', 'themeVariables': { 'fontSize': '14px'}}}%%
+flowchart TB
+    subgraph Monitors["Monitor Sources"]
+        M0["Monitor 0"]
+        M1["Monitor 1"]
+        M2["Monitor 2"]
+        MN["Monitor N-1"]
+    end
+
+    subgraph monbus_arbiter["monbus_arbiter"]
+        subgraph Collect["Request Collection"]
+            REQ["Gather all\nmonbus_valid signals"]
+        end
+
+        subgraph Arb_Core["Arbitration Core"]
+            ARB["Configurable:\n- Round-robin\n- Weighted RR\n- Priority"]
+        end
+
+        subgraph Backpressure["Flow Control"]
+            BP["Handle downstream\nbackpressure"]
+        end
+
+        subgraph Select["Packet Selection"]
+            SEL["Mux winning\npacket to output"]
+        end
+    end
+
+    subgraph Output["Unified Monitor Bus"]
+        MONBUS["monbus_packet[63:0]\nmonbus_valid\nmonbus_ready"]
+    end
+
+    M0 --> Collect
+    M1 --> Collect
+    M2 --> Collect
+    MN --> Collect
+    Collect --> Arb_Core
+    Arb_Core --> Backpressure
+    Backpressure --> Select
+    Select --> MONBUS

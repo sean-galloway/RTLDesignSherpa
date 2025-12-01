@@ -1,0 +1,30 @@
+%%{init: {'theme': 'neutral', 'themeVariables': { 'fontSize': '14px'}}}%%
+flowchart LR
+    subgraph Slave["Slave APB (Input)"]
+        S_PSEL["s_psel"]
+        S_PADDR["s_paddr"]
+        S_PENABLE["s_penable"]
+        S_PWRITE["s_pwrite"]
+        S_PWDATA["s_pwdata"]
+    end
+
+    subgraph apb_slave_stub["apb_slave_stub"]
+        subgraph Logic["Stub Logic"]
+            STUB["Accept all\nRespond OKAY"]
+        end
+    end
+
+    subgraph Outputs["Outputs"]
+        S_PRDATA["s_prdata = 0"]
+        S_PREADY["s_pready = 1"]
+        S_PSLVERR["s_pslverr = 0"]
+    end
+
+    S_PSEL --> Logic
+    S_PADDR --> Logic
+    S_PENABLE --> Logic
+    S_PWRITE --> Logic
+    S_PWDATA --> Logic
+    Logic --> S_PRDATA
+    Logic --> S_PREADY
+    Logic --> S_PSLVERR

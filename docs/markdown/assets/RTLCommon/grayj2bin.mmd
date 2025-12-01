@@ -1,0 +1,23 @@
+%%{init: {'theme': 'neutral', 'themeVariables': { 'fontSize': '14px'}}}%%
+flowchart LR
+    subgraph Inputs
+        GRAYJ["i_grayj[WIDTH-1:0]"]
+    end
+
+    subgraph grayj2bin["grayj2bin"]
+        subgraph Detect["Johnson Code Detection"]
+            DET["Detect transition point\nin Johnson sequence"]
+        end
+
+        subgraph Convert["Position Encoding"]
+            ENC["Encode position\nas binary value"]
+        end
+    end
+
+    subgraph Outputs
+        BIN["o_bin[$clog2(WIDTH)-1:0]"]
+    end
+
+    GRAYJ --> Detect
+    Detect --> Convert
+    Convert --> BIN

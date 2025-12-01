@@ -45,7 +45,7 @@ module stream_config_block #(
     input  logic                        rst_n,
 
     //=========================================================================
-    // PeakRDL Register Outputs (from stream_regs_v2)
+    // PeakRDL Register Outputs (from stream_regs)
     //=========================================================================
 
     // Global Control

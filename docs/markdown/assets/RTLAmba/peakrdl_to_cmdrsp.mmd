@@ -1,0 +1,43 @@
+%%{init: {'theme': 'neutral', 'themeVariables': { 'fontSize': '14px'}}}%%
+flowchart LR
+    subgraph PeakRDL["PeakRDL Interface"]
+        REQ["req"]
+        REQ_IS_WR["req_is_wr"]
+        WR_DATA["wr_data"]
+        WR_BITEN["wr_biten"]
+        ADDR["addr"]
+    end
+
+    subgraph peakrdl_to_cmdrsp["peakrdl_to_cmdrsp"]
+        subgraph Convert["Protocol Convert"]
+            CONV["PeakRDL -> CmdRsp\ntiming adaptation"]
+        end
+
+        subgraph Decode["Field Decode"]
+            DEC["Address decode\nField mapping"]
+        end
+    end
+
+    subgraph CmdRsp["CmdRsp Interface"]
+        CMD_VALID["cmd_valid"]
+        CMD_READY["cmd_ready"]
+        CMD_ADDR["cmd_addr"]
+        CMD_WR["cmd_wr"]
+        CMD_WDATA["cmd_wdata"]
+        RSP_VALID["rsp_valid"]
+        RSP_RDATA["rsp_rdata"]
+    end
+
+    REQ --> Convert
+    REQ_IS_WR --> Convert
+    WR_DATA --> Convert
+    WR_BITEN --> Convert
+    ADDR --> Decode
+    Decode --> Convert
+    Convert --> CMD_VALID
+    CMD_READY --> Convert
+    Convert --> CMD_ADDR
+    Convert --> CMD_WR
+    Convert --> CMD_WDATA
+    RSP_RDATA --> Convert
+    RSP_VALID --> Convert

@@ -1,0 +1,40 @@
+%%{init: {'theme': 'neutral', 'themeVariables': { 'fontSize': '14px'}}}%%
+flowchart TB
+    subgraph Slave["Slave AR (Narrow Request)"]
+        S_AR["s_axi_ar*\narlen, arsize"]
+    end
+
+    subgraph axi4_dwidth_converter_rd["axi4_dwidth_converter_rd"]
+        subgraph Addr_Split["Address Splitter"]
+            SPLIT["Split narrow burst\ninto wide transactions"]
+        end
+
+        subgraph AR_Gen["AR Generator"]
+            AR["Generate wide AR\nwith adjusted len/size"]
+        end
+
+        subgraph R_Pack["R Data Packer"]
+            PACK["Pack wide R data\ninto narrow beats"]
+        end
+
+        subgraph Beat_Track["Beat Tracker"]
+            BEAT["Track narrow beats\nvs wide beats"]
+        end
+    end
+
+    subgraph Master["Master Interface (Wide)"]
+        M_AR["m_axi_ar*"]
+        M_R["m_axi_r*\n(wide data)"]
+    end
+
+    subgraph Slave_R["Slave R (Narrow Data)"]
+        S_R["s_axi_r*\n(narrow data)"]
+    end
+
+    S_AR --> Addr_Split
+    Addr_Split --> AR_Gen
+    AR_Gen --> M_AR
+    M_R --> R_Pack
+    Beat_Track --> R_Pack
+    R_Pack --> S_R
+    Addr_Split --> Beat_Track

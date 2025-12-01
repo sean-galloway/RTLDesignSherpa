@@ -56,6 +56,9 @@ help:
 	@echo "  make run-parallel-waves   Run all FUB tests parallel with waveforms"
 	@echo ""
 	@echo "INDIVIDUAL MODULE TARGETS:"
+	@echo "  make run-apb              Run APB to descriptor tests"
+	@echo "  make run-apb-parallel     Run APB to descriptor tests in parallel"
+	@echo "  make run-apb-parallel-waves  Run APB parallel with waveforms"
 	@echo "  make run-sram             Run SRAM controller tests"
 	@echo "  make run-sram-waves       Run SRAM controller tests with waveforms"
 	@echo "  make run-sram-alloc       Run SRAM allocation tests"
@@ -63,7 +66,6 @@ help:
 	@echo "  make run-descriptor       Run descriptor engine tests"
 	@echo "  make run-latency-bridge   Run stream latency bridge tests"
 	@echo "  make run-perf             Run performance profiler tests"
-	@echo "  make run-apb              Run APB to descriptor tests (has import error)"
 	@echo ""
 	@echo "SCHEDULER TARGETS (gate/func/full - always parallel, waves optional):"
 	@echo "  make run-scheduler-gate        Run scheduler at GATE level (parallel, 7 tests)"
@@ -269,8 +271,17 @@ run-perf:
 .PHONY: run-apb
 run-apb:
 	@echo "Running APB to descriptor tests..."
-	@echo "⚠️  WARNING: This test currently has an import error (ModuleNotFoundError)"
-	$(PYTEST) test_apbtodescr.py $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE) || true
+	$(PYTEST) test_apbtodescr.py $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE)
+
+.PHONY: run-apb-parallel
+run-apb-parallel:
+	@echo "Running APB to descriptor tests in parallel..."
+	$(PYTEST) test_apbtodescr.py $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE) $(PYTEST_XDIST)
+
+.PHONY: run-apb-parallel-waves
+run-apb-parallel-waves:
+	@echo "Running APB to descriptor tests in parallel with waveforms..."
+	WAVES=1 $(PYTEST) test_apbtodescr.py $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE) $(PYTEST_XDIST)
 
 # ==============================================================================
 # REG_LEVEL Targets

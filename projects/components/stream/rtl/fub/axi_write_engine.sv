@@ -296,14 +296,16 @@ module axi_write_engine #(
             // This prevents issues with uninitialized/inactive channels
             if (sched_wr_valid[i]) begin
                 // Find the amount to transfer now (cast to 8-bit for AXI burst length)
-                w_transfer_size[i] = 8'((sched_wr_beats[i] <= 32'(cfg_axi_wr_xfer_beats)) ?
-                            sched_wr_beats[i] : 32'(cfg_axi_wr_xfer_beats));
+                // sched_wr_beats uses 0==0 encoding, cfg_axi_wr_xfer_beats stores ARLEN (0==1 beat)
+                w_transfer_size[i] = 8'((sched_wr_beats[i] <= (32'(cfg_axi_wr_xfer_beats) + 32'd1)) ?
+                            (sched_wr_beats[i] - 32'd1) : 32'(cfg_axi_wr_xfer_beats));
                 // Check if channel has enough data for configured burst size
-                w_has_data[i] = (SCW'(axi_wr_drain_data_avail[i]) >= SCW'(w_transfer_size[i]));
+                // Convert ARLEN to beat count (+1) before comparing with SRAM amounts (which use 0==0 encoding)
+                w_has_data[i] = (SCW'(axi_wr_drain_data_avail[i]) >= SCW'(w_transfer_size[i] + 8'd1));
 
                 // OR if this is the final burst (remaining beats < burst size AND all data available)
                 w_final_burst[i] = (sched_wr_beats[i] > 0) &&
-                                    (sched_wr_beats[i] <= 32'(cfg_axi_wr_xfer_beats));
+                                    (sched_wr_beats[i] <= (32'(cfg_axi_wr_xfer_beats) + 32'd1));
 
                 w_data_ok[i] = w_has_data[i] || w_final_burst[i];
             end else begin
@@ -384,7 +386,7 @@ module axi_write_engine #(
             if (w_arb_grant_valid && !r_aw_valid) begin
                 r_aw_valid <= 1'b1;
                 r_aw_channel_id <= w_arb_grant_id;
-                r_aw_len <= w_transfer_size[w_arb_grant_id] - 8'd1;  // AXI uses len-1 (configured burst size)
+                r_aw_len <= w_transfer_size[w_arb_grant_id];  // cfg_axi_wr_xfer_beats stores AWLEN value directly
             end
 
             // Clear valid when AXI accepts AW

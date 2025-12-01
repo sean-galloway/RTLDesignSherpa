@@ -1,0 +1,52 @@
+%%{init: {'theme': 'neutral', 'themeVariables': { 'fontSize': '14px'}}}%%
+flowchart LR
+    subgraph Inputs
+        CLK[aclk]
+        RST[aresetn]
+        WR_V[wr_valid]
+        WR_D["wr_data[WIDTH-1:0]"]
+        DROP[drop_enable]
+    end
+
+    subgraph gaxi_drop_fifo_sync["gaxi_drop_fifo_sync"]
+        subgraph Write_Logic["Write Logic"]
+            WR_CTRL["Write Control\n(with drop support)"]
+        end
+
+        subgraph Memory["Memory Array"]
+            MEM["mem[DEPTH-1:0]"]
+        end
+
+        subgraph Drop_Logic["Drop Logic"]
+            DROP_CTRL["Drop oldest entry\nwhen drop_enable"]
+        end
+
+        subgraph Read_Logic["Read Logic"]
+            RD_CTRL["Read Control"]
+        end
+
+        subgraph Status["Status"]
+            FLAGS["full, empty\nalmost_full\nalmost_empty"]
+        end
+    end
+
+    subgraph Outputs
+        WR_R[wr_ready]
+        RD_V[rd_valid]
+        RD_D["rd_data[WIDTH-1:0]"]
+    end
+
+    CLK --> Write_Logic
+    CLK --> Read_Logic
+    RST --> Write_Logic
+    RST --> Read_Logic
+    WR_V --> Write_Logic
+    WR_D --> Memory
+    DROP --> Drop_Logic
+    Write_Logic --> Memory
+    Drop_Logic --> Read_Logic
+    Memory --> RD_D
+    Read_Logic --> RD_V
+    Write_Logic --> WR_R
+    Write_Logic --> Status
+    Read_Logic --> Status

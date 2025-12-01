@@ -27,18 +27,22 @@ package pm_acpi_regs_pkg;
 
     typedef struct {
         logic next;
+        logic hwset;
     } pm_acpi_regs__ACPI_STATUS__pme_status__in_t;
 
     typedef struct {
         logic next;
+        logic hwset;
     } pm_acpi_regs__ACPI_STATUS__wake_status__in_t;
 
     typedef struct {
         logic next;
+        logic hwset;
     } pm_acpi_regs__ACPI_STATUS__timer_overflow__in_t;
 
     typedef struct {
         logic next;
+        logic hwset;
     } pm_acpi_regs__ACPI_STATUS__state_transition__in_t;
 
     typedef struct {
@@ -50,26 +54,32 @@ package pm_acpi_regs_pkg;
 
     typedef struct {
         logic next;
+        logic hwset;
     } pm_acpi_regs__ACPI_INT_STATUS__pme_int__in_t;
 
     typedef struct {
         logic next;
+        logic hwset;
     } pm_acpi_regs__ACPI_INT_STATUS__wake_int__in_t;
 
     typedef struct {
         logic next;
+        logic hwset;
     } pm_acpi_regs__ACPI_INT_STATUS__timer_ovf_int__in_t;
 
     typedef struct {
         logic next;
+        logic hwset;
     } pm_acpi_regs__ACPI_INT_STATUS__state_trans_int__in_t;
 
     typedef struct {
         logic next;
+        logic hwset;
     } pm_acpi_regs__ACPI_INT_STATUS__pm1_int__in_t;
 
     typedef struct {
         logic next;
+        logic hwset;
     } pm_acpi_regs__ACPI_INT_STATUS__gpe_int__in_t;
 
     typedef struct {
@@ -91,22 +101,27 @@ package pm_acpi_regs_pkg;
 
     typedef struct {
         logic next;
+        logic hwset;
     } pm_acpi_regs__PM1_STATUS__tmr_sts__in_t;
 
     typedef struct {
         logic next;
+        logic hwset;
     } pm_acpi_regs__PM1_STATUS__pwrbtn_sts__in_t;
 
     typedef struct {
         logic next;
+        logic hwset;
     } pm_acpi_regs__PM1_STATUS__slpbtn_sts__in_t;
 
     typedef struct {
         logic next;
+        logic hwset;
     } pm_acpi_regs__PM1_STATUS__rtc_sts__in_t;
 
     typedef struct {
         logic next;
+        logic hwset;
     } pm_acpi_regs__PM1_STATUS__wak_sts__in_t;
 
     typedef struct {
@@ -127,6 +142,7 @@ package pm_acpi_regs_pkg;
 
     typedef struct {
         logic [15:0] next;
+        logic hwset;
     } pm_acpi_regs__GPE0_STATUS_LO__gpe_status__in_t;
 
     typedef struct {
@@ -135,6 +151,7 @@ package pm_acpi_regs_pkg;
 
     typedef struct {
         logic [15:0] next;
+        logic hwset;
     } pm_acpi_regs__GPE0_STATUS_HI__gpe_status__in_t;
 
     typedef struct {
@@ -159,18 +176,22 @@ package pm_acpi_regs_pkg;
 
     typedef struct {
         logic next;
+        logic hwset;
     } pm_acpi_regs__WAKE_STATUS__gpe_wake__in_t;
 
     typedef struct {
         logic next;
+        logic hwset;
     } pm_acpi_regs__WAKE_STATUS__pwrbtn_wake__in_t;
 
     typedef struct {
         logic next;
+        logic hwset;
     } pm_acpi_regs__WAKE_STATUS__rtc_wake__in_t;
 
     typedef struct {
         logic next;
+        logic hwset;
     } pm_acpi_regs__WAKE_STATUS__ext_wake__in_t;
 
     typedef struct {

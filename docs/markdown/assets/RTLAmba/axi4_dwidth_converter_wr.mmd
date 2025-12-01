@@ -1,0 +1,44 @@
+%%{init: {'theme': 'neutral', 'themeVariables': { 'fontSize': '14px'}}}%%
+flowchart TB
+    subgraph Slave["Slave Interface (Narrow)"]
+        S_AW["s_axi_aw*"]
+        S_W["s_axi_w*\n(narrow data)"]
+        S_B["s_axi_b*"]
+    end
+
+    subgraph axi4_dwidth_converter_wr["axi4_dwidth_converter_wr"]
+        subgraph Addr_Split["Address Splitter"]
+            SPLIT["Split narrow burst\ninto wide transactions"]
+        end
+
+        subgraph AW_Gen["AW Generator"]
+            AW["Generate wide AW\nwith adjusted params"]
+        end
+
+        subgraph W_Pack["W Data Packer"]
+            PACK["Pack narrow W beats\ninto wide word"]
+        end
+
+        subgraph Strobe["Strobe Generation"]
+            STRB["Generate wstrb\nfor partial writes"]
+        end
+
+        subgraph B_Combine["B Combiner"]
+            BCMB["Combine wide B\ninto single narrow B"]
+        end
+    end
+
+    subgraph Master["Master Interface (Wide)"]
+        M_AW["m_axi_aw*"]
+        M_W["m_axi_w*\n(wide data)"]
+        M_B["m_axi_b*"]
+    end
+
+    S_AW --> Addr_Split
+    Addr_Split --> AW_Gen
+    AW_Gen --> M_AW
+    S_W --> W_Pack
+    W_Pack --> Strobe
+    Strobe --> M_W
+    M_B --> B_Combine
+    B_Combine --> S_B

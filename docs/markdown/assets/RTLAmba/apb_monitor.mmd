@@ -1,0 +1,42 @@
+%%{init: {'theme': 'neutral', 'themeVariables': { 'fontSize': '14px'}}}%%
+flowchart TB
+    subgraph APB_Signals["APB Signals"]
+        PSEL["psel"]
+        PENABLE["penable"]
+        PWRITE["pwrite"]
+        PADDR["paddr"]
+        PWDATA["pwdata"]
+        PRDATA["prdata"]
+        PREADY["pready"]
+        PSLVERR["pslverr"]
+    end
+
+    subgraph apb_monitor["apb_monitor"]
+        subgraph Capture["Signal Capture"]
+            CAP["Sample @ posedge\nwhen psel & penable"]
+        end
+
+        subgraph Trans["Transaction Tracking"]
+            TRACK["Start: psel & !penable\nEnd: pready | pslverr"]
+        end
+
+        subgraph Reporter["Reporter"]
+            PKT["Generate packets\n(cmd/data/perf)"]
+        end
+    end
+
+    subgraph Output["Monitor Bus Output"]
+        MONBUS["mon_*\n(64-bit packets)"]
+    end
+
+    PSEL --> Capture
+    PENABLE --> Capture
+    PWRITE --> Capture
+    PADDR --> Capture
+    PWDATA --> Capture
+    PRDATA --> Capture
+    PREADY --> Capture
+    PSLVERR --> Capture
+    Capture --> Trans
+    Trans --> Reporter
+    Reporter --> MONBUS

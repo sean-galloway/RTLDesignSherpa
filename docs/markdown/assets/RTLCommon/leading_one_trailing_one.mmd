@@ -1,0 +1,37 @@
+%%{init: {'theme': 'neutral', 'themeVariables': { 'fontSize': '14px'}}}%%
+flowchart TB
+    subgraph Inputs
+        DATA["i_data[WIDTH-1:0]"]
+    end
+
+    subgraph leading_one_trailing_one["leading_one_trailing_one"]
+        subgraph Leading["Leading One Detection"]
+            LO["Scan MSB -> LSB\nFind first 1"]
+        end
+
+        subgraph Trailing["Trailing One Detection"]
+            TO["Scan LSB -> MSB\nFind first 1"]
+        end
+
+        subgraph Encode_L["Leading Encoder"]
+            ENC_L["Position of\nhighest set bit"]
+        end
+
+        subgraph Encode_T["Trailing Encoder"]
+            ENC_T["Position of\nlowest set bit"]
+        end
+    end
+
+    subgraph Outputs
+        LPOS["o_leading_pos[$clog2(WIDTH)-1:0]"]
+        TPOS["o_trailing_pos[$clog2(WIDTH)-1:0]"]
+        VALID[o_valid]
+    end
+
+    DATA --> Leading
+    DATA --> Trailing
+    Leading --> Encode_L
+    Trailing --> Encode_T
+    Encode_L --> LPOS
+    Encode_T --> TPOS
+    DATA --> VALID

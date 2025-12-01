@@ -1,0 +1,42 @@
+%%{init: {'theme': 'neutral', 'themeVariables': { 'fontSize': '14px'}}}%%
+flowchart TB
+    subgraph Inputs
+        CLK[clk]
+        RST[rst_n]
+        DATA["i_data[DATA_WIDTH-1:0]"]
+        VALID[i_valid]
+        INIT[i_init]
+    end
+
+    subgraph dataint_crc["dataint_crc"]
+        subgraph Polynomial["CRC Polynomial"]
+            POLY["Configurable polynomial\n(e.g., CRC-32, CRC-16)"]
+        end
+
+        subgraph LFSR["LFSR Structure"]
+            direction LR
+            XOR1["XOR"]
+            REG["Shift Register\n[CRC_WIDTH-1:0]"]
+            XOR2["XOR taps"]
+        end
+
+        subgraph Control["Process Control"]
+            CTRL["Multi-bit processing\nper cycle"]
+        end
+    end
+
+    subgraph Outputs
+        CRC["o_crc[CRC_WIDTH-1:0]"]
+    end
+
+    CLK --> LFSR
+    RST --> LFSR
+    DATA --> Control
+    VALID --> Control
+    INIT --> LFSR
+    Polynomial --> LFSR
+    Control --> XOR1
+    XOR1 --> REG
+    REG --> XOR2
+    XOR2 --> XOR1
+    REG --> CRC

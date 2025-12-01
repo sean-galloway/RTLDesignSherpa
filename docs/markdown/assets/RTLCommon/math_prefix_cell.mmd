@@ -1,0 +1,32 @@
+%%{init: {'theme': 'neutral', 'themeVariables': { 'fontSize': '14px'}}}%%
+flowchart TB
+    subgraph Inputs
+        G_I["i_g (generate in)"]
+        P_I["i_p (propagate in)"]
+        G_J["i_g_prev (generate from prev)"]
+        P_J["i_p_prev (propagate from prev)"]
+    end
+
+    subgraph math_prefix_cell["math_prefix_cell"]
+        subgraph Black_Cell["Black Cell (full)"]
+            BC_G["G_out = G_i | (P_i & G_j)"]
+            BC_P["P_out = P_i & P_j"]
+        end
+
+        subgraph Gray_Cell["Gray Cell (generate only)"]
+            GC_G["G_out = G_i | (P_i & G_j)"]
+            GC_P["P_out = P_i (passthrough)"]
+        end
+    end
+
+    subgraph Outputs
+        G_O["o_g (generate out)"]
+        P_O["o_p (propagate out)"]
+    end
+
+    G_I --> Black_Cell
+    P_I --> Black_Cell
+    G_J --> Black_Cell
+    P_J --> Black_Cell
+    Black_Cell --> G_O
+    Black_Cell --> P_O

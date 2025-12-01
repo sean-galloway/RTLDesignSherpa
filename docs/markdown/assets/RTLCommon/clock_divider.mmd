@@ -1,0 +1,36 @@
+%%{init: {'theme': 'neutral', 'themeVariables': { 'fontSize': '14px'}}}%%
+flowchart LR
+    subgraph Inputs
+        CLK[clk]
+        RST[rst_n]
+        EN[i_enable]
+        DIV["i_divisor[WIDTH-1:0]"]
+    end
+
+    subgraph clock_divider["clock_divider"]
+        subgraph Counter["Divide Counter"]
+            CNT["Count 0 to divisor-1\nReset on match"]
+        end
+
+        subgraph Toggle["Output Toggle"]
+            TGL["Toggle output\non counter wrap"]
+        end
+
+        subgraph Duty["Duty Cycle Control"]
+            DUTY["50% duty cycle\nfrom toggle"]
+        end
+    end
+
+    subgraph Outputs
+        CLKOUT[o_clk_div]
+        TICK[o_tick]
+    end
+
+    CLK --> Counter
+    RST --> Counter
+    EN --> Counter
+    DIV --> Counter
+    Counter --> Toggle
+    Toggle --> Duty
+    Duty --> CLKOUT
+    Counter --> TICK

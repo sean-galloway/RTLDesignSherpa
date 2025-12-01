@@ -1,0 +1,29 @@
+%%{init: {'theme': 'neutral', 'themeVariables': { 'fontSize': '14px'}}}%%
+flowchart LR
+    subgraph Inputs
+        A["i_a[WIDTH-1:0]"]
+        B["i_b[WIDTH-1:0]"]
+        CIN[i_cin]
+    end
+
+    subgraph math_adder_ripple_carry["math_adder_ripple_carry"]
+        subgraph Chain["Full Adder Chain"]
+            direction LR
+            FA0["FA[0]"]
+            FA1["FA[1]"]
+            FAN["FA[N-1]"]
+            FA0 -->|cout| FA1
+            FA1 -->|cout| FAN
+        end
+    end
+
+    subgraph Outputs
+        SUM["o_sum[WIDTH-1:0]"]
+        COUT[o_cout]
+    end
+
+    A --> Chain
+    B --> Chain
+    CIN --> FA0
+    Chain --> SUM
+    FAN --> COUT

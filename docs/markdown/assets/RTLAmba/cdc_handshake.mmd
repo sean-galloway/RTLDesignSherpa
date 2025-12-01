@@ -1,0 +1,30 @@
+%%{init: {'theme': 'neutral', 'themeVariables': { 'fontSize': '14px'}}}%%
+flowchart TB
+    subgraph Source["Source Domain (src_clk)"]
+        SRC_REQ["src_req"]
+        SRC_DATA["src_data"]
+        SRC_ACK_SYNC["ack synchronizer\n(from dest)"]
+    end
+
+    subgraph CDC["Clock Domain Crossing"]
+        subgraph Req_Sync["Request Sync"]
+            REQ_FF["2-3 FF\nsynchronizer"]
+        end
+
+        subgraph Ack_Sync["Ack Sync"]
+            ACK_FF["2-3 FF\nsynchronizer"]
+        end
+    end
+
+    subgraph Dest["Destination Domain (dst_clk)"]
+        DST_REQ_SYNC["req synchronizer\n(from source)"]
+        DST_DATA["dst_data\n(stable when req)"]
+        DST_ACK["dst_ack"]
+    end
+
+    SRC_REQ --> Req_Sync
+    Req_Sync --> DST_REQ_SYNC
+    DST_REQ_SYNC --> DST_DATA
+    DST_ACK --> Ack_Sync
+    Ack_Sync --> SRC_ACK_SYNC
+    SRC_DATA --> DST_DATA

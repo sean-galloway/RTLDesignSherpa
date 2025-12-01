@@ -1,0 +1,35 @@
+%%{init: {'theme': 'neutral', 'themeVariables': { 'fontSize': '14px'}}}%%
+flowchart LR
+    subgraph Inputs
+        CLK[clk]
+        RST[rst_n]
+        EN[i_enable]
+    end
+
+    subgraph counter_bin["counter_bin"]
+        subgraph Increment["Increment Logic"]
+            ADD["count + 1"]
+        end
+
+        subgraph Register["Count Register"]
+            REG["r_count[WIDTH-1:0]"]
+        end
+
+        subgraph Compare["Overflow Detection"]
+            CMP["count == MAX_VALUE"]
+        end
+    end
+
+    subgraph Outputs
+        CNT["o_count[WIDTH-1:0]"]
+        OVF[o_overflow]
+    end
+
+    CLK --> Register
+    RST --> Register
+    EN --> Increment
+    Register --> Increment
+    Increment --> Register
+    Register --> Compare
+    Register --> CNT
+    Compare --> OVF

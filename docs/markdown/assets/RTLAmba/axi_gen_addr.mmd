@@ -1,0 +1,40 @@
+%%{init: {'theme': 'neutral', 'themeVariables': { 'fontSize': '14px'}}}%%
+flowchart LR
+    subgraph Inputs
+        ADDR["start_addr[AW-1:0]"]
+        LEN["burst_len[7:0]"]
+        SIZE["burst_size[2:0]"]
+        BURST["burst_type[1:0]"]
+        BEAT["beat_num"]
+    end
+
+    subgraph axi_gen_addr["axi_gen_addr"]
+        subgraph Decode["Burst Type Decode"]
+            TYPE["FIXED (00)\nINCR (01)\nWRAP (10)"]
+        end
+
+        subgraph Calc["Address Calculation"]
+            INCR_CALC["INCR: addr + (beat * size)"]
+            WRAP_CALC["WRAP: addr with wrap mask"]
+            FIXED_CALC["FIXED: addr (unchanged)"]
+        end
+
+        subgraph Align["Alignment"]
+            ALIGN["Align to size boundary\n(natural alignment)"]
+        end
+    end
+
+    subgraph Outputs
+        NEXT["next_addr[AW-1:0]"]
+        VALID["addr_valid"]
+    end
+
+    ADDR --> Decode
+    LEN --> Calc
+    SIZE --> Calc
+    BURST --> Decode
+    BEAT --> Calc
+    Decode --> Calc
+    Calc --> Align
+    Align --> NEXT
+    Calc --> VALID

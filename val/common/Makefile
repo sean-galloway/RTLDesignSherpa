@@ -102,6 +102,9 @@ help:
 	@echo "    make run-math-{gate|func|full}[-parallel]"
 	@echo "  BF16 Floating-Point:"
 	@echo "    make run-bf16-{gate|func|full}[-parallel]"
+	@echo "  BF16 Adder (individual):"
+	@echo "    make run-bf16-adder[-gate|-func|-full][-parallel]"
+	@echo "    make run-bf16-adder-wave              (with waveforms)"
 	@echo "  Encoders/Converters:"
 	@echo "    make run-encoders-{gate|func|full}[-parallel]"
 	@echo "  Miscellaneous:"
@@ -640,6 +643,7 @@ run-math-full-parallel:
 # BF16 FLOATING-POINT TESTS - All REG_LEVEL Variants
 # ==============================================================================
 # BF16 tests include:
+#   test_math_bf16_adder.py           - BF16 adder with pipeline stages
 #   test_math_bf16_multiplier.py      - BF16 multiplier (86+ tests)
 #   test_math_bf16_fma.py             - BF16 FMA with special/random cases
 #   test_math_bf16_fma_systematic.py  - BF16 FMA systematic power-of-2 tests (25k+)
@@ -709,6 +713,76 @@ run-bf16-full-parallel:
 	@echo "Running BF16 Tests - FULL level PARALLEL (~5 tests, ~5 min)"
 	@echo "================================================================================"
 	SIM=verilator REG_LEVEL=FULL $(PYTEST) $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE) $(PYTEST_XDIST) $(PYTEST_RERUNS) test_math_bf16*.py
+
+# ------------------------------------------------------------------------------
+# BF16 Adder Specific Targets (with waveform support)
+# ------------------------------------------------------------------------------
+
+.PHONY: run-bf16-adder
+run-bf16-adder:
+	$(check_repo_root)
+	@echo "================================================================================"
+	@echo "Running BF16 Adder Test (default FUNC level)"
+	@echo "================================================================================"
+	SIM=verilator $(PYTEST) $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE) test_math_bf16_adder.py
+
+.PHONY: run-bf16-adder-gate
+run-bf16-adder-gate:
+	$(check_repo_root)
+	@echo "================================================================================"
+	@echo "Running BF16 Adder Test - GATE level"
+	@echo "================================================================================"
+	SIM=verilator REG_LEVEL=GATE $(PYTEST) $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE) test_math_bf16_adder.py
+
+.PHONY: run-bf16-adder-func
+run-bf16-adder-func:
+	$(check_repo_root)
+	@echo "================================================================================"
+	@echo "Running BF16 Adder Test - FUNC level"
+	@echo "================================================================================"
+	SIM=verilator REG_LEVEL=FUNC $(PYTEST) $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE) test_math_bf16_adder.py
+
+.PHONY: run-bf16-adder-full
+run-bf16-adder-full:
+	$(check_repo_root)
+	@echo "================================================================================"
+	@echo "Running BF16 Adder Test - FULL level"
+	@echo "================================================================================"
+	SIM=verilator REG_LEVEL=FULL $(PYTEST) $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE) test_math_bf16_adder.py
+
+.PHONY: run-bf16-adder-wave
+run-bf16-adder-wave:
+	$(check_repo_root)
+	@echo "================================================================================"
+	@echo "Running BF16 Adder Test with Waveforms (FUNC level)"
+	@echo "================================================================================"
+	SIM=verilator WAVES=1 $(PYTEST) $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE) test_math_bf16_adder.py
+
+.PHONY: run-bf16-adder-parallel
+run-bf16-adder-parallel:
+	$(check_repo_root)
+	@echo "================================================================================"
+	@echo "Running BF16 Adder Test (Parallel)"
+	@echo "================================================================================"
+	SIM=verilator $(PYTEST) $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE) $(PYTEST_XDIST) $(PYTEST_RERUNS) test_math_bf16_adder.py
+
+.PHONY: run-bf16-adder-full-parallel
+run-bf16-adder-full-parallel:
+	$(check_repo_root)
+	@echo "================================================================================"
+	@echo "Running BF16 Adder Test - FULL level PARALLEL"
+	@echo "================================================================================"
+	SIM=verilator REG_LEVEL=FULL $(PYTEST) $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE) $(PYTEST_XDIST) $(PYTEST_RERUNS) test_math_bf16_adder.py
+
+# Quick aliases for BF16 adder
+.PHONY: bf16-adder
+bf16-adder: run-bf16-adder
+
+.PHONY: bf16-adder-wave
+bf16-adder-wave: run-bf16-adder-wave
+
+.PHONY: bf16-adder-parallel
+bf16-adder-parallel: run-bf16-adder-parallel
 
 # ------------------------------------------------------------------------------
 # Encoder/Converter Tests - REG_LEVEL Parallel Targets

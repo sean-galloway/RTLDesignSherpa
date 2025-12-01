@@ -1,0 +1,29 @@
+%%{init: {'theme': 'neutral', 'themeVariables': { 'fontSize': '14px'}}}%%
+flowchart LR
+    subgraph Inputs
+        CLK[aclk]
+        RST[aresetn]
+        FREQ["cfg_freq_sel[3:0]"]
+    end
+
+    subgraph axi_monitor_timer["axi_monitor_timer"]
+        subgraph Prescaler["Prescaler"]
+            PRE["Divide clock by\n2^cfg_freq_sel"]
+        end
+
+        subgraph Counter["Tick Counter"]
+            CNT["Free-running\ntick generator"]
+        end
+    end
+
+    subgraph Outputs
+        TICK[tick]
+        COUNT["tick_count[31:0]"]
+    end
+
+    CLK --> Prescaler
+    RST --> Prescaler
+    FREQ --> Prescaler
+    Prescaler --> Counter
+    Counter --> TICK
+    Counter --> COUNT

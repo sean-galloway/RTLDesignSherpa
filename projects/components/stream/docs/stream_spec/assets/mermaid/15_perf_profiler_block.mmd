@@ -1,0 +1,47 @@
+graph TB
+    subgraph "perf_profiler"
+        subgraph "Input Processing"
+            CH_IDLE[channel_idle<br/>8 bits] --> EDGE[Edge Detection<br/>Per-Channel]
+            EDGE --> |rising| END_EVT[End Event<br/>idle → active]
+            EDGE --> |falling| START_EVT[Start Event<br/>active → idle]
+        end
+
+        subgraph "Timestamp Generation"
+            CLK[Clock] --> COUNTER[Timestamp Counter<br/>32-bit Free-Running]
+            CFG_EN[cfg_enable] --> COUNTER
+            CFG_CLR[cfg_clear] --> COUNTER
+        end
+
+        subgraph "Per-Channel State - Elapsed Mode"
+            START_EVT --> START_REG[Start Time<br/>Registers 0-7]
+            COUNTER --> START_REG
+            END_EVT --> CALC[Elapsed<br/>Calculation]
+            START_REG --> CALC
+            COUNTER --> CALC
+        end
+
+        subgraph "Mode Selection"
+            CFG_MODE[cfg_mode<br/>0=TS 1=EL] --> MODE_MUX[Mode Mux]
+            COUNTER --> MODE_MUX
+            CALC --> MODE_MUX
+            START_EVT --> MODE_MUX
+            END_EVT --> MODE_MUX
+        end
+
+        subgraph "Output FIFO"
+            MODE_MUX --> ENTRY[Entry Assembly<br/>36-bit: ts/el + ch + evt]
+            ENTRY --> FIFO[Performance FIFO<br/>256 Entries]
+            FIFO --> DATA_LO[perf_fifo_data_low<br/>timestamp/elapsed]
+            FIFO --> DATA_HI[perf_fifo_data_high<br/>channel_id, event_type]
+            FIFO_RD[perf_fifo_rd] --> FIFO
+        end
+    end
+
+    FIFO --> EMPTY[perf_fifo_empty]
+    FIFO --> FULL[perf_fifo_full]
+    FIFO --> COUNT[perf_fifo_count]
+
+    style EDGE fill:#bbf,stroke:#333,stroke-width:2px
+    style COUNTER fill:#bfb,stroke:#333,stroke-width:2px
+    style MODE_MUX fill:#f9f,stroke:#333,stroke-width:3px
+    style FIFO fill:#ffb,stroke:#333,stroke-width:3px

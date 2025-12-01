@@ -1,0 +1,35 @@
+%%{init: {'theme': 'neutral', 'themeVariables': { 'fontSize': '14px'}}}%%
+flowchart LR
+    subgraph Inputs
+        CLK[clk]
+        RST[rst_n]
+        EN[i_enable]
+    end
+
+    subgraph counter_ring["counter_ring"]
+        subgraph Shift["Circular Shift Register"]
+            direction TB
+            FF0["FF[0] = 1"]
+            FF1["FF[1]"]
+            FFN["FF[N-1]"]
+            FF0 --> FF1
+            FF1 --> FFN
+        end
+
+        subgraph Feedback["Ring Feedback"]
+            FB["FF[N-1] -> FF[0]"]
+        end
+    end
+
+    subgraph Outputs
+        Q["o_ring[WIDTH-1:0]"]
+        HOT[o_one_hot]
+    end
+
+    CLK --> Shift
+    RST --> Shift
+    EN --> Shift
+    FFN --> Feedback
+    Feedback --> FF0
+    Shift --> Q
+    Shift --> HOT

@@ -1,0 +1,34 @@
+%%{init: {'theme': 'neutral', 'themeVariables': { 'fontSize': '14px'}}}%%
+flowchart TB
+    subgraph APB_Domain["APB Clock Domain"]
+        S_APB["Slave APB\nInterface"]
+        APB_FSM["APB FSM\n(IDLE/SETUP/ACCESS)"]
+    end
+
+    subgraph CDC["Clock Domain Crossing"]
+        subgraph REQ_Sync["Request Sync"]
+            REQ["req_sync\n(2FF)"]
+        end
+
+        subgraph ACK_Sync["Acknowledge Sync"]
+            ACK["ack_sync\n(2FF)"]
+        end
+
+        subgraph Data_Hold["Data Holding"]
+            HOLD["Stable during CDC"]
+        end
+    end
+
+    subgraph Core_Domain["Core Clock Domain"]
+        FUB["FUB Interface"]
+        CORE_FSM["Core FSM\n(IDLE/PROCESS)"]
+    end
+
+    S_APB --> APB_FSM
+    APB_FSM --> REQ
+    REQ --> CORE_FSM
+    APB_FSM --> HOLD
+    HOLD --> FUB
+    CORE_FSM --> ACK
+    ACK --> APB_FSM
+    FUB --> HOLD

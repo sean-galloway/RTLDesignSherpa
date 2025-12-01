@@ -243,7 +243,7 @@ module rtc_core (
         end else if (r_second_tick && !cfg_time_set_mode) begin
             // Increment time
             logic [7:0] next_seconds, next_minutes, next_hours, next_day, next_month, next_year;
-            logic carry_minute, carry_hour, carry_day, carry_month;
+            logic carry_minute, carry_hour, carry_day, carry_month, carry_year;
             logic [7:0] max_days;
             
             // Seconds increment
@@ -342,10 +342,11 @@ module rtc_core (
             end
             
             // Year increment
+            // Note: Year is 2-digit (00-99), bcd_increment already wraps 99->00
             if (carry_year) begin
                 if (cfg_bcd_mode) begin
                     next_year = bcd_increment(r_year, 8'h99);
-                    if (bcd_compare_ge(next_year, 8'h100)) next_year = 8'h00;
+                    // bcd_increment wraps 99->00 automatically
                 end else begin
                     next_year = binary_increment(r_year);
                     if (binary_compare_ge(next_year, 8'd100)) next_year = 8'd0;

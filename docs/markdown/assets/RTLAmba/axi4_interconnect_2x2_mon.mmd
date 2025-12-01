@@ -1,0 +1,50 @@
+%%{init: {'theme': 'neutral', 'themeVariables': { 'fontSize': '14px'}}}%%
+flowchart TB
+    subgraph Masters["AXI Masters"]
+        M0["Master 0"]
+        M1["Master 1"]
+    end
+
+    subgraph axi4_interconnect_2x2_mon["axi4_interconnect_2x2_mon"]
+        subgraph Crossbar["2x2 Crossbar"]
+            subgraph M0_Path["Master 0 Path"]
+                M0_ARB["Address decode\n& arbitration"]
+            end
+            subgraph M1_Path["Master 1 Path"]
+                M1_ARB["Address decode\n& arbitration"]
+            end
+        end
+
+        subgraph Monitors["Embedded Monitors"]
+            MON_M0["Master 0 Monitor\n(rd + wr)"]
+            MON_M1["Master 1 Monitor\n(rd + wr)"]
+            MON_S0["Slave 0 Monitor"]
+            MON_S1["Slave 1 Monitor"]
+        end
+
+        subgraph MonBus_Arb["Monitor Bus Arbiter"]
+            ARB["Combine monitor\npackets"]
+        end
+    end
+
+    subgraph Slaves["AXI Slaves"]
+        S0["Slave 0"]
+        S1["Slave 1"]
+    end
+
+    subgraph MonBus["Monitor Output"]
+        MONBUS["monbus_packet[63:0]"]
+    end
+
+    M0 --> M0_Path
+    M1 --> M1_Path
+    M0_Path --> S0
+    M0_Path --> S1
+    M1_Path --> S0
+    M1_Path --> S1
+    M0 --> MON_M0
+    M1 --> MON_M1
+    S0 --> MON_S0
+    S1 --> MON_S1
+    Monitors --> MonBus_Arb
+    MonBus_Arb --> MONBUS

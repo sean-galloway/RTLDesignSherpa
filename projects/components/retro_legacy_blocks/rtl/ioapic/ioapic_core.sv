@@ -206,7 +206,24 @@ module ioapic_core #(
     // ========================================================================
     // Interrupt Pending Logic
     // ========================================================================
-    
+
+    // Delay delivery_state by one cycle to avoid clearing pending on same cycle as delivery
+    delivery_state_t delivery_state_d1;
+    logic [4:0] current_irq_d1;
+    logic irq_out_ready_d1;
+
+    `ALWAYS_FF_RST(clk, rst_n,
+        if (`RST_ASSERTED(rst_n)) begin
+            delivery_state_d1 <= IDLE;
+            current_irq_d1 <= '0;
+            irq_out_ready_d1 <= 1'b0;
+        end else begin
+            delivery_state_d1 <= delivery_state;
+            current_irq_d1 <= current_irq;
+            irq_out_ready_d1 <= irq_out_ready;
+        end
+    )
+
     generate
         for (i = 0; i < NUM_IRQS; i++) begin : g_pending
             `ALWAYS_FF_RST(clk, rst_n,
@@ -217,9 +234,9 @@ module ioapic_core #(
                         // Edge-triggered: Set on edge, clear when delivery completes
                         if (irq_edge_trigger[i]) begin
                             irq_pending[i] <= 1'b1;
-                        end else if ((delivery_state == DELIVER) && (current_irq == i[4:0]) &&
-                                   irq_out_ready) begin
-                            irq_pending[i] <= 1'b0;  // Clear when delivery acknowledged
+                        end else if ((delivery_state_d1 == DELIVER) && (current_irq_d1 == i[4:0]) &&
+                                   irq_out_ready_d1) begin
+                            irq_pending[i] <= 1'b0;  // Clear when delivery acknowledged (1 cycle delay)
                         end
                     end else begin
                         // Level-triggered: Pending = active level AND not masked by Remote IRR

@@ -1,0 +1,53 @@
+%%{init: {'theme': 'neutral', 'themeVariables': { 'fontSize': '14px'}}}%%
+flowchart TB
+    subgraph Inputs
+        CLK[clk]
+        RST[rst_n]
+        REQ["request[N-1:0]"]
+    end
+
+    subgraph arbiter_round_robin_simple["arbiter_round_robin_simple"]
+        subgraph Rotate["Rotate Logic"]
+            SHIFT["w_shift_amount\n= last_grant + 1"]
+            ROTL["Rotate Left\nby shift_amount"]
+        end
+
+        subgraph Isolate["Lowest Bit Isolate"]
+            LSB["x & (~x + 1)"]
+        end
+
+        subgraph Restore["Restore Position"]
+            ROTR["Rotate Right\nby shift_amount"]
+        end
+
+        subgraph Encode["One-Hot to Binary"]
+            ENC["Encoder Loop"]
+        end
+
+        subgraph State["State Register"]
+            LAST["r_last_grant"]
+        end
+    end
+
+    subgraph Outputs
+        GV[grant_valid]
+        GR["grant[N-1:0]"]
+        GID["grant_id[W-1:0]"]
+    end
+
+    CLK --> State
+    RST --> State
+    REQ --> Rotate
+
+    LAST --> SHIFT
+    SHIFT --> ROTL
+    REQ --> ROTL
+    ROTL --> Isolate
+    Isolate --> Restore
+    SHIFT --> Restore
+    Restore --> Encode
+    Restore --> GR
+    Encode --> GID
+    Restore --> GV
+
+    GID --> State

@@ -1,0 +1,34 @@
+%%{init: {'theme': 'neutral', 'themeVariables': { 'fontSize': '14px'}}}%%
+flowchart LR
+    subgraph Inputs
+        A["i_a[WIDTH-1:0]"]
+        B["i_b[WIDTH-1:0]"]
+        BIN[i_borrow_in]
+    end
+
+    subgraph math_subtractor["math_subtractor"]
+        subgraph Invert["B Inversion"]
+            INV["~B (one's complement)"]
+        end
+
+        subgraph Add["Adder Core"]
+            ADDER["A + ~B + 1\n(two's complement)"]
+        end
+
+        subgraph Borrow["Borrow Logic"]
+            BOR["Borrow = ~Cout"]
+        end
+    end
+
+    subgraph Outputs
+        DIFF["o_diff[WIDTH-1:0]"]
+        BOUT[o_borrow_out]
+    end
+
+    A --> Add
+    B --> Invert
+    BIN --> Add
+    Invert --> Add
+    Add --> DIFF
+    Add --> Borrow
+    Borrow --> BOUT

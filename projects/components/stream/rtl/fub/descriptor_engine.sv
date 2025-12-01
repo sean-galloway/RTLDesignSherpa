@@ -291,9 +291,9 @@ module descriptor_engine #(
     // 3. Descriptor address FIFO is empty
     // 4. Channel is idle (scheduler finished previous work)
     // 5. No APB transaction currently in progress (!r_apb_ip)
-    assign w_apb_skid_valid_in = apb_valid && w_apb_addr_valid && !r_channel_reset_active &&
+    assign w_apb_skid_valid_in = apb_valid && !r_channel_reset_active &&
                                 w_desc_addr_fifo_empty && channel_idle && !r_apb_ip;
-    assign apb_ready = w_apb_skid_ready_in && w_apb_addr_valid && !r_channel_reset_active &&
+    assign apb_ready = w_apb_skid_ready_in && !r_channel_reset_active &&
                         w_desc_addr_fifo_empty && channel_idle && !r_apb_ip;
 
     gaxi_skid_buffer #(

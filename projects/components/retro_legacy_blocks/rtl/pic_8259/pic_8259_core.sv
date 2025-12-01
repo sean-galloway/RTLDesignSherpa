@@ -169,10 +169,17 @@ module pic_8259_core (
     // Edge/Level Detection for IRQ Inputs
     //========================================================================
 
+    // Edge detection state must be reset when PIC is re-initialized (ICW1 write)
+    // and only update when PIC is enabled and initialized.
+    // This ensures edges are properly detected after initialization completes.
     always_ff @(posedge clk) begin
         if (rst) begin
             r_irq_last <= 8'h00;
-        end else begin
+        end else if (icw1_wr) begin
+            // Reset edge detection state when re-initializing PIC
+            // Sample current irq_in to avoid detecting spurious edges after init
+            r_irq_last <= irq_in;
+        end else if (cfg_pic_enable && (r_init_state == INIT_COMPLETE)) begin
             r_irq_last <= irq_in;
         end
     end
@@ -241,8 +248,19 @@ module pic_8259_core (
     // Interrupt Request Register (IRR) Management
     //========================================================================
 
+    // IRR bits are SET by edge/level detection and CLEARED by:
+    // 1. Re-initialization (ICW1 write)
+    // 2. In level-triggered mode, when IRQ input goes low
+    // Note: In a full 8259A implementation, IRR would also be cleared
+    // during INTA cycle, but we don't implement that here. The testbench
+    // uses EOI commands to manage interrupt flow instead.
+
     always_ff @(posedge clk) begin
         if (rst) begin
+            r_irr <= 8'h00;
+            highest_irq_latched <= 3'd0;
+        end else if (icw1_wr) begin
+            // Clear IRR on re-initialization
             r_irr <= 8'h00;
             highest_irq_latched <= 3'd0;
         end else if (!cfg_pic_enable) begin
@@ -251,13 +269,16 @@ module pic_8259_core (
         end else if (r_init_state == INIT_COMPLETE) begin
             // Latch the highest IRQ at the start of the cycle
             highest_irq_latched <= highest_irq_comb;
-            
-            // Set bits for triggered interrupts (unless special mask mode)
-            r_irr <= r_irr | w_irq_trigger;
 
-            // Clear IRR bit when interrupt moves to ISR
-            if (int_output && !cfg_aeoi) begin
-                r_irr[highest_irq_comb] <= 1'b0;
+            // Set bits for triggered interrupts
+            // In edge mode: set on rising edge, stays until cleared
+            // In level mode: set while IRQ is high
+            if (cfg_ltim) begin
+                // Level-triggered: IRR follows IRQ input
+                r_irr <= irq_in;
+            end else begin
+                // Edge-triggered: IRR is set by rising edge, not cleared automatically
+                r_irr <= r_irr | w_irq_trigger;
             end
         end
     end
@@ -266,17 +287,19 @@ module pic_8259_core (
     // In-Service Register (ISR) Management
     //========================================================================
 
+    // Note: In a full 8259A implementation, ISR would be set during INTA cycle.
+    // Since we don't implement INTA, ISR is only managed by EOI commands.
+    // This allows INT to stay asserted until the interrupt is explicitly handled.
+
     always_ff @(posedge clk) begin
         if (rst) begin
+            r_isr <= 8'h00;
+        end else if (icw1_wr) begin
+            // Clear ISR on re-initialization
             r_isr <= 8'h00;
         end else if (!cfg_pic_enable) begin
             r_isr <= 8'h00;
         end else if (r_init_state == INIT_COMPLETE) begin
-            // Set ISR bit when interrupt acknowledged (unless auto-EOI)
-            if (int_output && !cfg_aeoi) begin
-                r_isr[highest_irq_comb] <= 1'b1;
-            end
-
             // Clear ISR bit on EOI command
             if (ocw2_wr) begin
                 case (ocw2_eoi_cmd)

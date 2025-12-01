@@ -1,0 +1,31 @@
+%%{init: {'theme': 'neutral', 'themeVariables': { 'fontSize': '14px'}}}%%
+flowchart TB
+    subgraph Inputs["Control Inputs"]
+        CLK["aclk"]
+        EN["cg_enable"]
+        TEST["cg_test_enable"]
+    end
+
+    subgraph ICG["amba_clock_gate_ctrl"]
+        subgraph Logic["Gate Logic"]
+            OR["enable | test | busy"]
+        end
+
+        subgraph Latch["Clock Gate"]
+            LATCH["Latch-based ICG\n(glitch-free)"]
+        end
+    end
+
+    subgraph Core["Core Module"]
+        BUSY["busy output"]
+        GCLK["gated_clk"]
+    end
+
+    CLK --> LATCH
+    EN --> OR
+    TEST --> OR
+    BUSY --> OR
+    OR --> LATCH
+    LATCH --> GCLK
+    GCLK --> Core
+    Core --> BUSY

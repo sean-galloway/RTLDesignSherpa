@@ -1,0 +1,33 @@
+%%{init: {'theme': 'neutral', 'themeVariables': { 'fontSize': '14px'}}}%%
+flowchart LR
+    subgraph Inputs
+        CLK[clk]
+        RST[rst_n]
+        EN[i_enable]
+    end
+
+    subgraph counter_johnson["counter_johnson"]
+        subgraph Shift["Shift Register"]
+            direction TB
+            FF0["FF[0]"]
+            FF1["FF[1]"]
+            FFN["FF[N-1]"]
+            FF0 --> FF1
+            FF1 --> FFN
+        end
+
+        subgraph Feedback["Inverted Feedback"]
+            INV["~FF[N-1] -> FF[0]"]
+        end
+    end
+
+    subgraph Outputs
+        Q["o_count[WIDTH-1:0]"]
+    end
+
+    CLK --> Shift
+    RST --> Shift
+    EN --> Shift
+    FFN --> Feedback
+    Feedback --> FF0
+    Shift --> Q

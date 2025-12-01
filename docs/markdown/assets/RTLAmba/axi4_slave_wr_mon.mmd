@@ -1,0 +1,32 @@
+%%{init: {'theme': 'neutral', 'themeVariables': { 'fontSize': '14px'}}}%%
+flowchart LR
+    subgraph AXI["AXI4 Slave Interface"]
+        AW["AW Channel"]
+        W["W Channel"]
+        B["B Channel"]
+    end
+
+    subgraph axi4_slave_wr_mon["axi4_slave_wr_mon"]
+        subgraph Frontend["AXI4 Slave Frontend"]
+            FE["Signal capture\nW-before-AW support"]
+        end
+
+        subgraph Monitor["axi_monitor_base"]
+            MON["Transaction tracking\nTimeout detection"]
+        end
+
+        subgraph Filter["axi_monitor_filtered"]
+            FILT["Packet filtering"]
+        end
+    end
+
+    subgraph Output["Monitor Bus"]
+        MONBUS["monbus_packet[63:0]"]
+    end
+
+    AW --> Frontend
+    W --> Frontend
+    B --> Frontend
+    Frontend --> Monitor
+    Monitor --> Filter
+    Filter --> MONBUS

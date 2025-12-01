@@ -1,0 +1,25 @@
+%%{init: {'theme': 'neutral', 'themeVariables': { 'fontSize': '14px'}}}%%
+flowchart LR
+    subgraph Inputs
+        SEL["i_sel[$clog2(WIDTH)-1:0]"]
+        EN[i_enable]
+    end
+
+    subgraph decoder["decoder"]
+        subgraph Decode["Binary to One-Hot"]
+            DEC["1 << sel\n(shift 1 to position)"]
+        end
+
+        subgraph Gate["Enable Gating"]
+            GATE["output & enable"]
+        end
+    end
+
+    subgraph Outputs
+        OUT["o_out[WIDTH-1:0]"]
+    end
+
+    SEL --> Decode
+    Decode --> Gate
+    EN --> Gate
+    Gate --> OUT

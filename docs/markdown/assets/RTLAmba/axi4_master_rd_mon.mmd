@@ -1,0 +1,30 @@
+%%{init: {'theme': 'neutral', 'themeVariables': { 'fontSize': '14px'}}}%%
+flowchart LR
+    subgraph AXI["AXI4 Master Interface"]
+        AR["AR Channel\n(observed)"]
+        R["R Channel\n(observed)"]
+    end
+
+    subgraph axi4_master_rd_mon["axi4_master_rd_mon"]
+        subgraph Frontend["AXI4 Frontend"]
+            FE["Signal capture\nProtocol decode"]
+        end
+
+        subgraph Monitor["axi_monitor_base"]
+            MON["Transaction tracking\nTimeout detection\nEvent generation"]
+        end
+
+        subgraph Filter["axi_monitor_filtered"]
+            FILT["Packet filtering\n(optional)"]
+        end
+    end
+
+    subgraph Output["Monitor Bus"]
+        MONBUS["monbus_packet[63:0]\nmonbus_valid"]
+    end
+
+    AR --> Frontend
+    R --> Frontend
+    Frontend --> Monitor
+    Monitor --> Filter
+    Filter --> MONBUS

@@ -1,0 +1,41 @@
+%%{init: {'theme': 'neutral', 'themeVariables': { 'fontSize': '14px'}}}%%
+flowchart TB
+    subgraph Masters["APB Masters"]
+        M0["Master 0\n(highest priority)"]
+        M1["Master 1"]
+        MN["Master N\n(lowest priority)"]
+    end
+
+    subgraph apb_xbar["apb_xbar"]
+        subgraph Priority["Priority Arbiter"]
+            PRI["Fixed priority\nmaster selection"]
+        end
+
+        subgraph Decode["Address Decode"]
+            DEC["Base/size decode\nper slave region"]
+        end
+
+        subgraph Switch["Switch Matrix"]
+            SW["1:N demux\nN:1 mux"]
+        end
+
+        subgraph Default["Default Slave"]
+            DEF["SLVERR on\nunmapped access"]
+        end
+    end
+
+    subgraph Slaves["APB Slaves"]
+        S0["Slave 0\naddr_base[0]"]
+        S1["Slave 1\naddr_base[1]"]
+        SM["Slave M\naddr_base[M]"]
+    end
+
+    M0 --> Priority
+    M1 --> Priority
+    MN --> Priority
+    Priority --> Decode
+    Decode --> Switch
+    Decode --> Default
+    Switch --> S0
+    Switch --> S1
+    Switch --> SM

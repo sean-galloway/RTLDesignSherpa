@@ -1,0 +1,18 @@
+%%{init: {'theme': 'neutral', 'themeVariables': { 'fontSize': '14px'}}}%%
+flowchart LR
+    subgraph Inputs
+        GRAY["i_gray[WIDTH-1:0]"]
+    end
+
+    subgraph gray2bin["gray2bin"]
+        subgraph Convert["XOR Cascade"]
+            XOR["bin[N-1] = gray[N-1]\nbin[i] = bin[i+1] ^ gray[i]\n(from MSB to LSB)"]
+        end
+    end
+
+    subgraph Outputs
+        BIN["o_bin[WIDTH-1:0]"]
+    end
+
+    GRAY --> Convert
+    Convert --> BIN

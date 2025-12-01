@@ -1,0 +1,41 @@
+%%{init: {'theme': 'neutral', 'themeVariables': { 'fontSize': '14px'}}}%%
+flowchart TB
+    subgraph Inputs
+        CLK[clk]
+        RST[rst_n]
+        IN[i_signal]
+    end
+
+    subgraph debounce["debounce"]
+        subgraph Sync["Input Synchronizer"]
+            SYNC["2-FF sync\nfor metastability"]
+        end
+
+        subgraph Counter["Stability Counter"]
+            CNT["Count stable cycles\nReset on change"]
+        end
+
+        subgraph Compare["Threshold Compare"]
+            CMP["counter >= THRESHOLD"]
+        end
+
+        subgraph Output_Reg["Output Register"]
+            OUT_R["Update output when\nthreshold reached"]
+        end
+    end
+
+    subgraph Outputs
+        OUT[o_debounced]
+    end
+
+    CLK --> Sync
+    CLK --> Counter
+    CLK --> Output_Reg
+    RST --> Sync
+    RST --> Counter
+    RST --> Output_Reg
+    IN --> Sync
+    Sync --> Counter
+    Counter --> Compare
+    Compare --> Output_Reg
+    Output_Reg --> OUT

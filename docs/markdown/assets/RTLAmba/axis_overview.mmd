@@ -1,0 +1,29 @@
+%%{init: {'theme': 'neutral', 'themeVariables': { 'fontSize': '14px'}}}%%
+flowchart LR
+    subgraph Source["Source (Producer)"]
+        SRC["Data Source"]
+    end
+
+    subgraph AXIS["AXI-Stream"]
+        subgraph Signals["Stream Signals"]
+            TDATA["tdata[WIDTH-1:0]"]
+            TVALID["tvalid"]
+            TREADY["tready"]
+            TLAST["tlast"]
+            TKEEP["tkeep[BYTES-1:0]"]
+        end
+
+        subgraph Protocol["Handshake"]
+            HS["Transfer when\ntvalid & tready"]
+        end
+    end
+
+    subgraph Sink["Sink (Consumer)"]
+        SNK["Data Sink"]
+    end
+
+    SRC -->|"tvalid"| Protocol
+    SNK -->|"tready"| Protocol
+    TDATA --> SNK
+    TLAST --> SNK
+    TKEEP --> SNK

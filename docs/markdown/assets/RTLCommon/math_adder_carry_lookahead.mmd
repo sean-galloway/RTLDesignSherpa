@@ -1,0 +1,39 @@
+%%{init: {'theme': 'neutral', 'themeVariables': { 'fontSize': '14px'}}}%%
+flowchart TB
+    subgraph Inputs
+        A["i_a[WIDTH-1:0]"]
+        B["i_b[WIDTH-1:0]"]
+        CIN[i_cin]
+    end
+
+    subgraph math_adder_carry_lookahead["math_adder_carry_lookahead"]
+        subgraph PG_Gen["P/G Generation"]
+            PG["P = A ^ B (propagate)\nG = A & B (generate)"]
+        end
+
+        subgraph CLA_Logic["CLA Logic (4-bit groups)"]
+            CLA["C1 = G0 + P0*C0\nC2 = G1 + P1*G0 + P1*P0*C0\n..."]
+        end
+
+        subgraph Group_PG["Group P/G"]
+            GPG["PG = P0*P1*P2*P3\nGG = G3 + P3*G2 + ..."]
+        end
+
+        subgraph Sum_Gen["Sum Generation"]
+            SUM["S = P ^ C"]
+        end
+    end
+
+    subgraph Outputs
+        S["o_sum[WIDTH-1:0]"]
+        COUT[o_cout]
+    end
+
+    A --> PG_Gen
+    B --> PG_Gen
+    CIN --> CLA_Logic
+    PG_Gen --> CLA_Logic
+    PG_Gen --> Group_PG
+    CLA_Logic --> Sum_Gen
+    Group_PG --> COUT
+    Sum_Gen --> S

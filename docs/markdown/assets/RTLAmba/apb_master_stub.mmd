@@ -1,0 +1,28 @@
+%%{init: {'theme': 'neutral', 'themeVariables': { 'fontSize': '14px'}}}%%
+flowchart LR
+    subgraph Inputs["Inputs"]
+        CLK[aclk]
+        RST[aresetn]
+    end
+
+    subgraph apb_master_stub["apb_master_stub"]
+        subgraph Logic["Stub Logic"]
+            STUB["Drive defaults\nRespond immediately"]
+        end
+    end
+
+    subgraph Master["Master APB (Output)"]
+        M_PSEL["m_psel = 0"]
+        M_PADDR["m_paddr = 0"]
+        M_PENABLE["m_penable = 0"]
+        M_PWRITE["m_pwrite = 0"]
+        M_PWDATA["m_pwdata = 0"]
+    end
+
+    CLK --> Logic
+    RST --> Logic
+    Logic --> M_PSEL
+    Logic --> M_PADDR
+    Logic --> M_PENABLE
+    Logic --> M_PWRITE
+    Logic --> M_PWDATA

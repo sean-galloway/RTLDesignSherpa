@@ -1,0 +1,41 @@
+%%{init: {'theme': 'neutral', 'themeVariables': { 'fontSize': '14px'}}}%%
+flowchart LR
+    subgraph Input["Single AXI Master"]
+        AR_IN["AR Channel\n(address)"]
+        R_OUT["R Channel\n(data back)"]
+    end
+
+    subgraph axi_master_rd_splitter["axi_master_rd_splitter"]
+        subgraph Decode["Address Decode"]
+            DEC["Decode target\nfrom address range"]
+        end
+
+        subgraph Route_AR["AR Router"]
+            AR_RT["Route AR to\nselected slave"]
+        end
+
+        subgraph Route_R["R Combiner"]
+            R_CMB["Combine R from\nall slaves"]
+        end
+
+        subgraph Track["ID Tracking"]
+            TRK["Track which slave\nhas each ID"]
+        end
+    end
+
+    subgraph Outputs["Multiple AXI Slaves"]
+        S0_AR["Slave 0 AR"]
+        S0_R["Slave 0 R"]
+        S1_AR["Slave 1 AR"]
+        S1_R["Slave 1 R"]
+    end
+
+    AR_IN --> Decode
+    Decode --> Route_AR
+    Route_AR --> S0_AR
+    Route_AR --> S1_AR
+    S0_R --> Route_R
+    S1_R --> Route_R
+    Route_R --> R_OUT
+    Decode --> Track
+    Track --> Route_R

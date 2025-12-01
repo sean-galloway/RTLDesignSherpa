@@ -1,0 +1,51 @@
+%%{init: {'theme': 'neutral', 'themeVariables': { 'fontSize': '14px'}}}%%
+flowchart TB
+    subgraph Inputs
+        CLK[clk]
+        RST[rst_n]
+        WR[i_write]
+        RD[i_read]
+        WDATA["i_wr_data[WIDTH-1:0]"]
+    end
+
+    subgraph fifo_sync["fifo_sync"]
+        subgraph Control["FIFO Control"]
+            CTRL["fifo_control\n(pointers & status)"]
+        end
+
+        subgraph Memory["Memory Array"]
+            MEM["mem[DEPTH-1:0][WIDTH-1:0]\nDual-port: 1W/1R"]
+        end
+
+        subgraph Write_Logic["Write Logic"]
+            WL["Write when:\nwrite & !full"]
+        end
+
+        subgraph Read_Logic["Read Logic"]
+            RL["Read when:\nread & !empty"]
+        end
+    end
+
+    subgraph Outputs
+        RDATA["o_rd_data[WIDTH-1:0]"]
+        FULL[o_full]
+        EMPTY[o_empty]
+        COUNT["o_count[ADDR_WIDTH:0]"]
+    end
+
+    CLK --> Control
+    CLK --> Memory
+    RST --> Control
+    WR --> Control
+    WR --> Write_Logic
+    RD --> Control
+    RD --> Read_Logic
+    WDATA --> Memory
+    Control --> Write_Logic
+    Control --> Read_Logic
+    Write_Logic --> Memory
+    Read_Logic --> Memory
+    Memory --> RDATA
+    Control --> FULL
+    Control --> EMPTY
+    Control --> COUNT

@@ -3,7 +3,7 @@
 **Module:** `scheduler.sv`
 **Location:** `projects/components/stream/rtl/fub/`
 **Status:** Implemented
-**Last Updated:** 2025-11-21
+**Last Updated:** 2025-11-30
 
 ---
 
@@ -416,9 +416,10 @@ CH_ERROR       - Error condition
 - **Next:** CH_FETCH_DESC
 
 **CH_ERROR:**
-- **Wait for:** All error flags cleared
+- **STICKY STATE:** Once in error, stays here until channel reset
 - **Action:** Report error via MonBus
-- **Next:** CH_IDLE
+- **Recovery:** Requires `cfg_channel_reset` assertion (or global reset)
+- **Note:** `scheduler_idle` asserts in this state (allows external monitoring)
 
 ---
 
@@ -604,9 +605,19 @@ if (descriptor_error || sched_rd_error || sched_wr_error ||
 end
 ```
 
+**CH_ERROR is STICKY:**
+```systemverilog
+CH_ERROR: begin
+    // Error state - STICKY, stay here until reset
+    // Once in error, only way out is through reset
+    w_next_state = CH_ERROR;
+end
+```
+
 **Recovery:**
-- CH_ERROR → CH_IDLE (when all errors cleared)
-- Software must reset channel (`cfg_channel_reset`)
+- CH_ERROR is a **sticky state** - does NOT auto-recover
+- Software **must** assert `cfg_channel_reset` (or global `rst_n`)
+- On channel reset: FSM → CH_IDLE, sticky flags cleared
 
 ---
 
@@ -816,11 +827,12 @@ Cycle  State        Descriptor  sched_wr_beats  Notes
 
 ## Related Documentation
 
-- **Descriptor Engine:** `01_descriptor_engine.md` - Descriptor fetch
-- **AXI Read Engine:** `08_axi_read_engine.md` - Source data read
-- **AXI Write Engine:** `10_axi_write_engine.md` - Destination data write
-- **SRAM Controller:** `05_sram_controller.md` - Buffer management
-- **Scheduler Group:** `11_scheduler_group.md` - Multi-channel integration
+- **Descriptor Engine:** `05_descriptor_engine.md` - Descriptor fetch
+- **AXI Read Engine:** `06_axi_read_engine.md` - Source data read
+- **AXI Write Engine:** `12_axi_write_engine.md` - Destination data write
+- **SRAM Controller:** `08_sram_controller.md` - Buffer management
+- **Scheduler Group:** `03_scheduler_group.md` - Single-channel integration
+- **Scheduler Group Array:** `02_scheduler_group_array.md` - Multi-channel integration
 
 ---
 
@@ -831,7 +843,8 @@ Cycle  State        Descriptor  sched_wr_beats  Notes
 | 2025-10-17 | 1.0 | Initial documentation with old signal names (datard_, datawr_) |
 | 2025-11-16 | 1.5 | Enhanced documentation with detailed sections |
 | 2025-11-21 | 2.0 | **Merged documentation:**<br>- Updated all signal names (sched_rd_*, sched_wr_*)<br>- Added runtime timeout configuration (cfg_sched_timeout_cycles/enable)<br>- Registered ready signal timing clarification<br>- Added multiple requests per descriptor section<br>- Enhanced beat tracking and error handling details<br>- Updated all code examples and timing diagrams<br>- Added timing examples for chained descriptors<br>- Combined best content from multiple documentation sources |
+| 2025-11-30 | 2.1 | **RTL Sync Update:**<br>- CH_ERROR is now STICKY (requires reset to recover)<br>- scheduler_idle asserts in CH_ERROR state<br>- Updated related documentation references |
 
 ---
 
-**Last Updated:** 2025-11-21 (matched to current RTL implementation)
+**Last Updated:** 2025-11-30 (matched to current RTL implementation)

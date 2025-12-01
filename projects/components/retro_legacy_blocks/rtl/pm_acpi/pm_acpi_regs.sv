@@ -690,6 +690,9 @@ module pm_acpi_regs (
         if(decoded_reg_strb.ACPI_STATUS && decoded_req_is_wr) begin // SW write 1 clear
             next_c = field_storage.ACPI_STATUS.pme_status.value & ~(decoded_wr_data[0:0] & decoded_wr_biten[0:0]);
             load_next_c = '1;
+        end else if(hwif_in.ACPI_STATUS.pme_status.hwset) begin // HW Set
+            next_c = '1;
+            load_next_c = '1;
         end else begin // HW Write
             next_c = hwif_in.ACPI_STATUS.pme_status.next;
             load_next_c = '1;
@@ -714,6 +717,9 @@ module pm_acpi_regs (
         load_next_c = '0;
         if(decoded_reg_strb.ACPI_STATUS && decoded_req_is_wr) begin // SW write 1 clear
             next_c = field_storage.ACPI_STATUS.wake_status.value & ~(decoded_wr_data[1:1] & decoded_wr_biten[1:1]);
+            load_next_c = '1;
+        end else if(hwif_in.ACPI_STATUS.wake_status.hwset) begin // HW Set
+            next_c = '1;
             load_next_c = '1;
         end else begin // HW Write
             next_c = hwif_in.ACPI_STATUS.wake_status.next;
@@ -740,6 +746,9 @@ module pm_acpi_regs (
         if(decoded_reg_strb.ACPI_STATUS && decoded_req_is_wr) begin // SW write 1 clear
             next_c = field_storage.ACPI_STATUS.timer_overflow.value & ~(decoded_wr_data[2:2] & decoded_wr_biten[2:2]);
             load_next_c = '1;
+        end else if(hwif_in.ACPI_STATUS.timer_overflow.hwset) begin // HW Set
+            next_c = '1;
+            load_next_c = '1;
         end else begin // HW Write
             next_c = hwif_in.ACPI_STATUS.timer_overflow.next;
             load_next_c = '1;
@@ -764,6 +773,9 @@ module pm_acpi_regs (
         load_next_c = '0;
         if(decoded_reg_strb.ACPI_STATUS && decoded_req_is_wr) begin // SW write 1 clear
             next_c = field_storage.ACPI_STATUS.state_transition.value & ~(decoded_wr_data[3:3] & decoded_wr_biten[3:3]);
+            load_next_c = '1;
+        end else if(hwif_in.ACPI_STATUS.state_transition.hwset) begin // HW Set
+            next_c = '1;
             load_next_c = '1;
         end else begin // HW Write
             next_c = hwif_in.ACPI_STATUS.state_transition.next;
@@ -928,6 +940,9 @@ module pm_acpi_regs (
         if(decoded_reg_strb.ACPI_INT_STATUS && decoded_req_is_wr) begin // SW write 1 clear
             next_c = field_storage.ACPI_INT_STATUS.pme_int.value & ~(decoded_wr_data[0:0] & decoded_wr_biten[0:0]);
             load_next_c = '1;
+        end else if(hwif_in.ACPI_INT_STATUS.pme_int.hwset) begin // HW Set
+            next_c = '1;
+            load_next_c = '1;
         end else begin // HW Write
             next_c = hwif_in.ACPI_INT_STATUS.pme_int.next;
             load_next_c = '1;
@@ -952,6 +967,9 @@ module pm_acpi_regs (
         load_next_c = '0;
         if(decoded_reg_strb.ACPI_INT_STATUS && decoded_req_is_wr) begin // SW write 1 clear
             next_c = field_storage.ACPI_INT_STATUS.wake_int.value & ~(decoded_wr_data[1:1] & decoded_wr_biten[1:1]);
+            load_next_c = '1;
+        end else if(hwif_in.ACPI_INT_STATUS.wake_int.hwset) begin // HW Set
+            next_c = '1;
             load_next_c = '1;
         end else begin // HW Write
             next_c = hwif_in.ACPI_INT_STATUS.wake_int.next;
@@ -978,6 +996,9 @@ module pm_acpi_regs (
         if(decoded_reg_strb.ACPI_INT_STATUS && decoded_req_is_wr) begin // SW write 1 clear
             next_c = field_storage.ACPI_INT_STATUS.timer_ovf_int.value & ~(decoded_wr_data[2:2] & decoded_wr_biten[2:2]);
             load_next_c = '1;
+        end else if(hwif_in.ACPI_INT_STATUS.timer_ovf_int.hwset) begin // HW Set
+            next_c = '1;
+            load_next_c = '1;
         end else begin // HW Write
             next_c = hwif_in.ACPI_INT_STATUS.timer_ovf_int.next;
             load_next_c = '1;
@@ -1002,6 +1023,9 @@ module pm_acpi_regs (
         load_next_c = '0;
         if(decoded_reg_strb.ACPI_INT_STATUS && decoded_req_is_wr) begin // SW write 1 clear
             next_c = field_storage.ACPI_INT_STATUS.state_trans_int.value & ~(decoded_wr_data[3:3] & decoded_wr_biten[3:3]);
+            load_next_c = '1;
+        end else if(hwif_in.ACPI_INT_STATUS.state_trans_int.hwset) begin // HW Set
+            next_c = '1;
             load_next_c = '1;
         end else begin // HW Write
             next_c = hwif_in.ACPI_INT_STATUS.state_trans_int.next;
@@ -1028,6 +1052,9 @@ module pm_acpi_regs (
         if(decoded_reg_strb.ACPI_INT_STATUS && decoded_req_is_wr) begin // SW write 1 clear
             next_c = field_storage.ACPI_INT_STATUS.pm1_int.value & ~(decoded_wr_data[4:4] & decoded_wr_biten[4:4]);
             load_next_c = '1;
+        end else if(hwif_in.ACPI_INT_STATUS.pm1_int.hwset) begin // HW Set
+            next_c = '1;
+            load_next_c = '1;
         end else begin // HW Write
             next_c = hwif_in.ACPI_INT_STATUS.pm1_int.next;
             load_next_c = '1;
@@ -1052,6 +1079,9 @@ module pm_acpi_regs (
         load_next_c = '0;
         if(decoded_reg_strb.ACPI_INT_STATUS && decoded_req_is_wr) begin // SW write 1 clear
             next_c = field_storage.ACPI_INT_STATUS.gpe_int.value & ~(decoded_wr_data[5:5] & decoded_wr_biten[5:5]);
+            load_next_c = '1;
+        end else if(hwif_in.ACPI_INT_STATUS.gpe_int.hwset) begin // HW Set
+            next_c = '1;
             load_next_c = '1;
         end else begin // HW Write
             next_c = hwif_in.ACPI_INT_STATUS.gpe_int.next;
@@ -1173,6 +1203,9 @@ module pm_acpi_regs (
         if(decoded_reg_strb.PM1_STATUS && decoded_req_is_wr) begin // SW write 1 clear
             next_c = field_storage.PM1_STATUS.tmr_sts.value & ~(decoded_wr_data[0:0] & decoded_wr_biten[0:0]);
             load_next_c = '1;
+        end else if(hwif_in.PM1_STATUS.tmr_sts.hwset) begin // HW Set
+            next_c = '1;
+            load_next_c = '1;
         end else begin // HW Write
             next_c = hwif_in.PM1_STATUS.tmr_sts.next;
             load_next_c = '1;
@@ -1197,6 +1230,9 @@ module pm_acpi_regs (
         load_next_c = '0;
         if(decoded_reg_strb.PM1_STATUS && decoded_req_is_wr) begin // SW write 1 clear
             next_c = field_storage.PM1_STATUS.pwrbtn_sts.value & ~(decoded_wr_data[1:1] & decoded_wr_biten[1:1]);
+            load_next_c = '1;
+        end else if(hwif_in.PM1_STATUS.pwrbtn_sts.hwset) begin // HW Set
+            next_c = '1;
             load_next_c = '1;
         end else begin // HW Write
             next_c = hwif_in.PM1_STATUS.pwrbtn_sts.next;
@@ -1223,6 +1259,9 @@ module pm_acpi_regs (
         if(decoded_reg_strb.PM1_STATUS && decoded_req_is_wr) begin // SW write 1 clear
             next_c = field_storage.PM1_STATUS.slpbtn_sts.value & ~(decoded_wr_data[2:2] & decoded_wr_biten[2:2]);
             load_next_c = '1;
+        end else if(hwif_in.PM1_STATUS.slpbtn_sts.hwset) begin // HW Set
+            next_c = '1;
+            load_next_c = '1;
         end else begin // HW Write
             next_c = hwif_in.PM1_STATUS.slpbtn_sts.next;
             load_next_c = '1;
@@ -1248,6 +1287,9 @@ module pm_acpi_regs (
         if(decoded_reg_strb.PM1_STATUS && decoded_req_is_wr) begin // SW write 1 clear
             next_c = field_storage.PM1_STATUS.rtc_sts.value & ~(decoded_wr_data[3:3] & decoded_wr_biten[3:3]);
             load_next_c = '1;
+        end else if(hwif_in.PM1_STATUS.rtc_sts.hwset) begin // HW Set
+            next_c = '1;
+            load_next_c = '1;
         end else begin // HW Write
             next_c = hwif_in.PM1_STATUS.rtc_sts.next;
             load_next_c = '1;
@@ -1272,6 +1314,9 @@ module pm_acpi_regs (
         load_next_c = '0;
         if(decoded_reg_strb.PM1_STATUS && decoded_req_is_wr) begin // SW write 1 clear
             next_c = field_storage.PM1_STATUS.wak_sts.value & ~(decoded_wr_data[4:4] & decoded_wr_biten[4:4]);
+            load_next_c = '1;
+        end else if(hwif_in.PM1_STATUS.wak_sts.hwset) begin // HW Set
+            next_c = '1;
             load_next_c = '1;
         end else begin // HW Write
             next_c = hwif_in.PM1_STATUS.wak_sts.next;
@@ -1413,6 +1458,9 @@ module pm_acpi_regs (
         if(decoded_reg_strb.GPE0_STATUS_LO && decoded_req_is_wr) begin // SW write 1 clear
             next_c = field_storage.GPE0_STATUS_LO.gpe_status.value & ~(decoded_wr_data[15:0] & decoded_wr_biten[15:0]);
             load_next_c = '1;
+        end else if(hwif_in.GPE0_STATUS_LO.gpe_status.hwset) begin // HW Set
+            next_c = '1;
+            load_next_c = '1;
         end else begin // HW Write
             next_c = hwif_in.GPE0_STATUS_LO.gpe_status.next;
             load_next_c = '1;
@@ -1437,6 +1485,9 @@ module pm_acpi_regs (
         load_next_c = '0;
         if(decoded_reg_strb.GPE0_STATUS_HI && decoded_req_is_wr) begin // SW write 1 clear
             next_c = field_storage.GPE0_STATUS_HI.gpe_status.value & ~(decoded_wr_data[15:0] & decoded_wr_biten[15:0]);
+            load_next_c = '1;
+        end else if(hwif_in.GPE0_STATUS_HI.gpe_status.hwset) begin // HW Set
+            next_c = '1;
             load_next_c = '1;
         end else begin // HW Write
             next_c = hwif_in.GPE0_STATUS_HI.gpe_status.next;
@@ -1555,6 +1606,9 @@ module pm_acpi_regs (
         if(decoded_reg_strb.WAKE_STATUS && decoded_req_is_wr) begin // SW write 1 clear
             next_c = field_storage.WAKE_STATUS.gpe_wake.value & ~(decoded_wr_data[0:0] & decoded_wr_biten[0:0]);
             load_next_c = '1;
+        end else if(hwif_in.WAKE_STATUS.gpe_wake.hwset) begin // HW Set
+            next_c = '1;
+            load_next_c = '1;
         end else begin // HW Write
             next_c = hwif_in.WAKE_STATUS.gpe_wake.next;
             load_next_c = '1;
@@ -1579,6 +1633,9 @@ module pm_acpi_regs (
         load_next_c = '0;
         if(decoded_reg_strb.WAKE_STATUS && decoded_req_is_wr) begin // SW write 1 clear
             next_c = field_storage.WAKE_STATUS.pwrbtn_wake.value & ~(decoded_wr_data[1:1] & decoded_wr_biten[1:1]);
+            load_next_c = '1;
+        end else if(hwif_in.WAKE_STATUS.pwrbtn_wake.hwset) begin // HW Set
+            next_c = '1;
             load_next_c = '1;
         end else begin // HW Write
             next_c = hwif_in.WAKE_STATUS.pwrbtn_wake.next;
@@ -1605,6 +1662,9 @@ module pm_acpi_regs (
         if(decoded_reg_strb.WAKE_STATUS && decoded_req_is_wr) begin // SW write 1 clear
             next_c = field_storage.WAKE_STATUS.rtc_wake.value & ~(decoded_wr_data[2:2] & decoded_wr_biten[2:2]);
             load_next_c = '1;
+        end else if(hwif_in.WAKE_STATUS.rtc_wake.hwset) begin // HW Set
+            next_c = '1;
+            load_next_c = '1;
         end else begin // HW Write
             next_c = hwif_in.WAKE_STATUS.rtc_wake.next;
             load_next_c = '1;
@@ -1629,6 +1689,9 @@ module pm_acpi_regs (
         load_next_c = '0;
         if(decoded_reg_strb.WAKE_STATUS && decoded_req_is_wr) begin // SW write 1 clear
             next_c = field_storage.WAKE_STATUS.ext_wake.value & ~(decoded_wr_data[3:3] & decoded_wr_biten[3:3]);
+            load_next_c = '1;
+        end else if(hwif_in.WAKE_STATUS.ext_wake.hwset) begin // HW Set
+            next_c = '1;
             load_next_c = '1;
         end else begin // HW Write
             next_c = hwif_in.WAKE_STATUS.ext_wake.next;

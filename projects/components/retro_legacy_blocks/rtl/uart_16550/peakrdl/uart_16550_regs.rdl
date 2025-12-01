@@ -1,0 +1,568 @@
+// SPDX-License-Identifier: MIT
+// SPDX-FileCopyrightText: 2024-2025 sean galloway
+//
+// RTL Design Sherpa - Industry-Standard RTL Design and Verification
+// https://github.com/sean-galloway/RTLDesignSherpa
+//
+// PeakRDL Register Definition: UART 16550 Compatible
+//
+// Purpose: NS16550-compatible UART controller registers
+//
+// Features:
+//   - TX/RX data with 16-byte FIFOs
+//   - Programmable baud rate divisor (16-bit)
+//   - Line control (data bits, parity, stop bits)
+//   - Modem control and status
+//   - Interrupt enable and identification
+//   - FIFO control
+//   - Line status (errors, THRE, DR)
+//
+// Register Compatibility Notes:
+//   The 16550 has aliased addresses based on DLAB (Divisor Latch Access Bit):
+//   - DLAB=0: 0x00=RBR/THR, 0x04=IER
+//   - DLAB=1: 0x00=DLL, 0x04=DLM
+//   This implementation exposes all registers at unique addresses.
+//
+// Documentation: projects/components/retro_legacy_blocks/rtl/uart_16550/README.md
+// Created: 2025-11-29
+// Updated: 2025-11-30 - Changed to 32-bit register width
+
+addrmap uart_16550_regs {
+    name = "UART 16550 Controller Registers";
+    desc = "NS16550-compatible UART controller for legacy serial communication";
+
+    default regwidth = 32;
+    default sw = rw;
+    default hw = r;
+
+    // ========================================================================
+    // Data Registers (0x00)
+    // ========================================================================
+    // Note: In real 16550, RBR (read) and THR (write) share address 0x00
+    // We separate them for PeakRDL, wrapper handles aliasing
+    reg {
+        name = "Receive Buffer Register / Transmit Holding Register";
+        desc = "RX data (read) / TX data (write) when DLAB=0";
+
+        field {
+            name = "TX Data";
+            desc = "Data to transmit (write-only in real 16550)";
+            sw = rw;
+            hw = r;
+        } tx_data[7:0] = 8'h00;
+
+        field {
+            name = "RX Data";
+            desc = "Received data (read-only in real 16550)";
+            sw = r;
+            hw = w;
+        } rx_data[15:8] = 8'h00;
+
+        field {
+            name = "Reserved";
+            desc = "Reserved bits";
+            sw = r;
+            hw = na;
+        } reserved[31:16] = 16'h0;
+
+    } UART_DATA @ 0x000;
+
+    // ========================================================================
+    // Interrupt Enable Register (0x04)
+    // ========================================================================
+    reg {
+        name = "Interrupt Enable Register";
+        desc = "Controls which events generate interrupts (DLAB=0)";
+
+        field {
+            name = "RX Data Available Interrupt Enable";
+            desc = "1=Enable interrupt when RX data available";
+            sw = rw;
+            hw = r;
+        } rx_data_avail_ie[0:0] = 1'b0;
+
+        field {
+            name = "TX Holding Empty Interrupt Enable";
+            desc = "1=Enable interrupt when TX holding empty";
+            sw = rw;
+            hw = r;
+        } tx_empty_ie[1:1] = 1'b0;
+
+        field {
+            name = "RX Line Status Interrupt Enable";
+            desc = "1=Enable interrupt on RX line status change";
+            sw = rw;
+            hw = r;
+        } rx_line_status_ie[2:2] = 1'b0;
+
+        field {
+            name = "Modem Status Interrupt Enable";
+            desc = "1=Enable interrupt on modem status change";
+            sw = rw;
+            hw = r;
+        } modem_status_ie[3:3] = 1'b0;
+
+        field {
+            name = "Reserved";
+            desc = "Reserved bits";
+            sw = r;
+            hw = na;
+        } reserved[31:4] = 28'h0;
+
+    } UART_IER @ 0x004;
+
+    // ========================================================================
+    // Interrupt Identification Register (0x08) - Read Only
+    // ========================================================================
+    reg {
+        name = "Interrupt Identification Register";
+        desc = "Identifies pending interrupt source (read-only)";
+
+        field {
+            name = "Interrupt Not Pending";
+            desc = "0=Interrupt pending, 1=No interrupt";
+            sw = r;
+            hw = w;
+        } int_not_pending[0:0] = 1'b1;
+
+        field {
+            name = "Interrupt ID";
+            desc = "Interrupt priority: 11=RX Error, 10=RX Data, 01=TX Empty, 00=Modem Status";
+            sw = r;
+            hw = w;
+        } int_id[2:1] = 2'b00;
+
+        field {
+            name = "Timeout Interrupt Pending";
+            desc = "1=Character timeout interrupt pending (FIFO mode)";
+            sw = r;
+            hw = w;
+        } timeout_pending[3:3] = 1'b0;
+
+        field {
+            name = "Reserved IIR";
+            desc = "Reserved bits (read as 0)";
+            sw = r;
+            hw = na;
+        } reserved_iir[5:4] = 2'b00;
+
+        field {
+            name = "FIFO Status";
+            desc = "11=FIFOs enabled and usable, 00=FIFOs disabled";
+            sw = r;
+            hw = w;
+        } fifo_status[7:6] = 2'b00;
+
+        field {
+            name = "Reserved High";
+            desc = "Reserved bits";
+            sw = r;
+            hw = na;
+        } reserved_hi[31:8] = 24'h0;
+
+    } UART_IIR @ 0x008;
+
+    // ========================================================================
+    // FIFO Control Register (0x0C) - Write Only
+    // ========================================================================
+    reg {
+        name = "FIFO Control Register";
+        desc = "Controls FIFO operation (write-only in real 16550)";
+
+        field {
+            name = "FIFO Enable";
+            desc = "1=Enable TX and RX FIFOs";
+            sw = rw;
+            hw = r;
+        } fifo_enable[0:0] = 1'b0;
+
+        field {
+            name = "RX FIFO Reset";
+            desc = "1=Clear RX FIFO (self-clearing)";
+            sw = rw;
+            hw = r;
+            singlepulse;
+        } rx_fifo_reset[1:1] = 1'b0;
+
+        field {
+            name = "TX FIFO Reset";
+            desc = "1=Clear TX FIFO (self-clearing)";
+            sw = rw;
+            hw = r;
+            singlepulse;
+        } tx_fifo_reset[2:2] = 1'b0;
+
+        field {
+            name = "DMA Mode Select";
+            desc = "DMA mode control (usually 0)";
+            sw = rw;
+            hw = r;
+        } dma_mode[3:3] = 1'b0;
+
+        field {
+            name = "Reserved FCR";
+            desc = "Reserved bits";
+            sw = r;
+            hw = na;
+        } reserved_fcr[5:4] = 2'b00;
+
+        field {
+            name = "RX Trigger Level";
+            desc = "RX FIFO trigger level: 00=1, 01=4, 10=8, 11=14 bytes";
+            sw = rw;
+            hw = r;
+        } rx_trigger[7:6] = 2'b00;
+
+        field {
+            name = "Reserved High FCR";
+            desc = "Reserved bits";
+            sw = r;
+            hw = na;
+        } reserved_hi_fcr[31:8] = 24'h0;
+
+    } UART_FCR @ 0x00C;
+
+    // ========================================================================
+    // Line Control Register (0x10)
+    // ========================================================================
+    reg {
+        name = "Line Control Register";
+        desc = "Controls serial line format";
+
+        field {
+            name = "Word Length";
+            desc = "Data bits: 00=5, 01=6, 10=7, 11=8";
+            sw = rw;
+            hw = r;
+        } word_length[1:0] = 2'b11;  // Default 8 bits
+
+        field {
+            name = "Stop Bits";
+            desc = "0=1 stop bit, 1=1.5 (5-bit) or 2 (6-8 bit)";
+            sw = rw;
+            hw = r;
+        } stop_bits[2:2] = 1'b0;
+
+        field {
+            name = "Parity Enable";
+            desc = "1=Enable parity generation/checking";
+            sw = rw;
+            hw = r;
+        } parity_enable[3:3] = 1'b0;
+
+        field {
+            name = "Even Parity";
+            desc = "0=Odd parity, 1=Even parity";
+            sw = rw;
+            hw = r;
+        } even_parity[4:4] = 1'b0;
+
+        field {
+            name = "Stick Parity";
+            desc = "1=Force parity to fixed value";
+            sw = rw;
+            hw = r;
+        } stick_parity[5:5] = 1'b0;
+
+        field {
+            name = "Set Break";
+            desc = "1=Force TX line to break (space)";
+            sw = rw;
+            hw = r;
+        } set_break[6:6] = 1'b0;
+
+        field {
+            name = "Divisor Latch Access Bit";
+            desc = "1=Access DLL/DLM, 0=Access RBR/THR/IER";
+            sw = rw;
+            hw = r;
+        } dlab[7:7] = 1'b0;
+
+        field {
+            name = "Reserved LCR";
+            desc = "Reserved bits";
+            sw = r;
+            hw = na;
+        } reserved_lcr[31:8] = 24'h0;
+
+    } UART_LCR @ 0x010;
+
+    // ========================================================================
+    // Modem Control Register (0x14)
+    // ========================================================================
+    reg {
+        name = "Modem Control Register";
+        desc = "Controls modem interface signals";
+
+        field {
+            name = "DTR";
+            desc = "Data Terminal Ready output";
+            sw = rw;
+            hw = r;
+        } dtr[0:0] = 1'b0;
+
+        field {
+            name = "RTS";
+            desc = "Request To Send output";
+            sw = rw;
+            hw = r;
+        } rts[1:1] = 1'b0;
+
+        field {
+            name = "OUT1";
+            desc = "User-defined output 1 (active low)";
+            sw = rw;
+            hw = r;
+        } out1[2:2] = 1'b0;
+
+        field {
+            name = "OUT2";
+            desc = "User-defined output 2 / Interrupt gate (active low)";
+            sw = rw;
+            hw = r;
+        } out2[3:3] = 1'b0;
+
+        field {
+            name = "Loopback";
+            desc = "1=Enable internal loopback mode";
+            sw = rw;
+            hw = r;
+        } loopback[4:4] = 1'b0;
+
+        field {
+            name = "Reserved MCR";
+            desc = "Reserved bits";
+            sw = r;
+            hw = na;
+        } reserved_mcr[31:5] = 27'h0;
+
+    } UART_MCR @ 0x014;
+
+    // ========================================================================
+    // Line Status Register (0x18) - Read Only (mostly)
+    // ========================================================================
+    reg {
+        name = "Line Status Register";
+        desc = "Indicates line status and errors";
+
+        field {
+            name = "Data Ready";
+            desc = "1=Received data available";
+            sw = r;
+            hw = w;
+        } data_ready[0:0] = 1'b0;
+
+        field {
+            name = "Overrun Error";
+            desc = "1=RX buffer overrun (W1C)";
+            sw = rw;
+            hw = w;
+            hwset;
+            onwrite = woclr;
+        } overrun_error[1:1] = 1'b0;
+
+        field {
+            name = "Parity Error";
+            desc = "1=Parity error detected (W1C)";
+            sw = rw;
+            hw = w;
+            hwset;
+            onwrite = woclr;
+        } parity_error[2:2] = 1'b0;
+
+        field {
+            name = "Framing Error";
+            desc = "1=Missing stop bit (W1C)";
+            sw = rw;
+            hw = w;
+            hwset;
+            onwrite = woclr;
+        } framing_error[3:3] = 1'b0;
+
+        field {
+            name = "Break Interrupt";
+            desc = "1=Break condition detected (W1C)";
+            sw = rw;
+            hw = w;
+            hwset;
+            onwrite = woclr;
+        } break_interrupt[4:4] = 1'b0;
+
+        field {
+            name = "TX Holding Empty";
+            desc = "1=TX holding register empty";
+            sw = r;
+            hw = w;
+        } tx_holding_empty[5:5] = 1'b1;  // Empty on reset
+
+        field {
+            name = "TX Empty";
+            desc = "1=TX shift register and holding register empty";
+            sw = r;
+            hw = w;
+        } tx_empty[6:6] = 1'b1;  // Empty on reset
+
+        field {
+            name = "RX FIFO Error";
+            desc = "1=Error in RX FIFO (parity, framing, break)";
+            sw = r;
+            hw = w;
+        } rx_fifo_error[7:7] = 1'b0;
+
+        field {
+            name = "Reserved LSR";
+            desc = "Reserved bits";
+            sw = r;
+            hw = na;
+        } reserved_lsr[31:8] = 24'h0;
+
+    } UART_LSR @ 0x018;
+
+    // ========================================================================
+    // Modem Status Register (0x1C) - Read Only
+    // ========================================================================
+    reg {
+        name = "Modem Status Register";
+        desc = "Indicates modem line status";
+
+        field {
+            name = "Delta CTS";
+            desc = "1=CTS changed since last read (W1C)";
+            sw = rw;
+            hw = w;
+            hwset;
+            onwrite = woclr;
+        } delta_cts[0:0] = 1'b0;
+
+        field {
+            name = "Delta DSR";
+            desc = "1=DSR changed since last read (W1C)";
+            sw = rw;
+            hw = w;
+            hwset;
+            onwrite = woclr;
+        } delta_dsr[1:1] = 1'b0;
+
+        field {
+            name = "Trailing Edge RI";
+            desc = "1=RI changed from low to high (W1C)";
+            sw = rw;
+            hw = w;
+            hwset;
+            onwrite = woclr;
+        } trailing_ri[2:2] = 1'b0;
+
+        field {
+            name = "Delta DCD";
+            desc = "1=DCD changed since last read (W1C)";
+            sw = rw;
+            hw = w;
+            hwset;
+            onwrite = woclr;
+        } delta_dcd[3:3] = 1'b0;
+
+        field {
+            name = "CTS";
+            desc = "Clear To Send (inverted input)";
+            sw = r;
+            hw = w;
+        } cts[4:4] = 1'b0;
+
+        field {
+            name = "DSR";
+            desc = "Data Set Ready (inverted input)";
+            sw = r;
+            hw = w;
+        } dsr[5:5] = 1'b0;
+
+        field {
+            name = "RI";
+            desc = "Ring Indicator (inverted input)";
+            sw = r;
+            hw = w;
+        } ri[6:6] = 1'b0;
+
+        field {
+            name = "DCD";
+            desc = "Data Carrier Detect (inverted input)";
+            sw = r;
+            hw = w;
+        } dcd[7:7] = 1'b0;
+
+        field {
+            name = "Reserved MSR";
+            desc = "Reserved bits";
+            sw = r;
+            hw = na;
+        } reserved_msr[31:8] = 24'h0;
+
+    } UART_MSR @ 0x01C;
+
+    // ========================================================================
+    // Scratch Register (0x20)
+    // ========================================================================
+    reg {
+        name = "Scratch Register";
+        desc = "General purpose scratch register (no hardware function)";
+
+        field {
+            name = "Scratch Data";
+            desc = "Scratch data (software use only)";
+            sw = rw;
+            hw = r;
+        } scratch[7:0] = 8'h00;
+
+        field {
+            name = "Reserved SCR";
+            desc = "Reserved bits";
+            sw = r;
+            hw = na;
+        } reserved_scr[31:8] = 24'h0;
+
+    } UART_SCR @ 0x020;
+
+    // ========================================================================
+    // Divisor Latch (Low and High) (0x24, 0x28)
+    // Note: In real 16550, these are accessed at 0x00/0x04 when DLAB=1
+    // ========================================================================
+    reg {
+        name = "Divisor Latch Low";
+        desc = "Low byte of baud rate divisor (DLAB=1 access)";
+
+        field {
+            name = "Divisor Low";
+            desc = "Low 8 bits of divisor";
+            sw = rw;
+            hw = r;
+        } dll[7:0] = 8'h01;  // Default to something non-zero
+
+        field {
+            name = "Reserved DLL";
+            desc = "Reserved bits";
+            sw = r;
+            hw = na;
+        } reserved_dll[31:8] = 24'h0;
+
+    } UART_DLL @ 0x024;
+
+    reg {
+        name = "Divisor Latch High";
+        desc = "High byte of baud rate divisor (DLAB=1 access)";
+
+        field {
+            name = "Divisor High";
+            desc = "High 8 bits of divisor";
+            sw = rw;
+            hw = r;
+        } dlm[7:0] = 8'h00;
+
+        field {
+            name = "Reserved DLM";
+            desc = "Reserved bits";
+            sw = r;
+            hw = na;
+        } reserved_dlm[31:8] = 24'h0;
+
+    } UART_DLM @ 0x028;
+
+};

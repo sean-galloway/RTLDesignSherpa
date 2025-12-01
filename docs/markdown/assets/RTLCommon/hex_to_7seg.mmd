@@ -1,0 +1,23 @@
+%%{init: {'theme': 'neutral', 'themeVariables': { 'fontSize': '14px'}}}%%
+flowchart LR
+    subgraph Inputs
+        HEX["i_hex[3:0]"]
+    end
+
+    subgraph hex_to_7seg["hex_to_7seg"]
+        subgraph LUT["Lookup Table"]
+            CASE["case(hex)\n0: 7'b0111111\n1: 7'b0000110\n...\nF: 7'b1110001"]
+        end
+    end
+
+    subgraph Outputs
+        SEG["o_seg[6:0]"]
+    end
+
+    subgraph Display["7-Segment Layout"]
+        DISP["  a\nf   b\n  g\ne   c\n  d"]
+    end
+
+    HEX --> LUT
+    LUT --> SEG
+    SEG --> Display

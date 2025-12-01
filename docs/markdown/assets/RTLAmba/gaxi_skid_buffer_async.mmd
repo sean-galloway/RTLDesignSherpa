@@ -1,0 +1,34 @@
+%%{init: {'theme': 'neutral', 'themeVariables': { 'fontSize': '14px'}}}%%
+flowchart TB
+    subgraph Source_Domain["Source Domain (s_aclk)"]
+        S_IN["s_valid, s_data"]
+        S_SKID["Source Skid Buffer"]
+        S_READY_OUT[s_ready]
+    end
+
+    subgraph CDC["Clock Domain Crossing"]
+        subgraph Async_FIFO["gaxi_fifo_async"]
+            WR_SIDE["Write Logic\n+ Gray ptr"]
+            SYNC["Gray Code\nSynchronizers"]
+            RD_SIDE["Read Logic\n+ Gray ptr"]
+        end
+    end
+
+    subgraph Dest_Domain["Destination Domain (m_aclk)"]
+        D_SKID["Dest Skid Buffer"]
+        M_OUT["m_valid, m_data"]
+        M_READY_IN[m_ready]
+    end
+
+    S_IN --> S_SKID
+    S_SKID --> WR_SIDE
+    WR_SIDE --> SYNC
+    SYNC --> RD_SIDE
+    RD_SIDE --> D_SKID
+    D_SKID --> M_OUT
+    M_READY_IN --> D_SKID
+    D_SKID --> RD_SIDE
+    RD_SIDE --> SYNC
+    SYNC --> WR_SIDE
+    WR_SIDE --> S_SKID
+    S_SKID --> S_READY_OUT

@@ -1,0 +1,47 @@
+%%{init: {'theme': 'neutral', 'themeVariables': { 'fontSize': '14px'}}}%%
+flowchart TB
+    subgraph Inputs
+        A["i_a[N-1:0]"]
+        B["i_b[N-1:0]"]
+        CIN[i_c]
+    end
+
+    subgraph math_adder_brent_kung["math_adder_brent_kung_NNN"]
+        subgraph Stage1["Stage 1: Bitwise PG"]
+            BWPG["math_adder_brent_kung_bitwisepg"]
+            PG_OUT["P[i] = A[i] XOR B[i]\nG[i] = A[i] AND B[i]"]
+        end
+
+        subgraph Stage2["Stage 2: Group PG Tree"]
+            GPG["math_adder_brent_kung_grouppg"]
+            direction TB
+            L1["Level 1: Span-2"]
+            L2["Level 2: Span-4"]
+            L3["Level 3: Span-8"]
+            LN["..."]
+            BLACK["Black Cells:\nG' = G_hi | P_hi & G_lo\nP' = P_hi & P_lo"]
+            GRAY["Gray Cells:\nG' = G_hi | P_hi & G_lo\n(P not needed)"]
+        end
+
+        subgraph Stage3["Stage 3: Sum Generation"]
+            SUM["math_adder_brent_kung_sum"]
+            SOUT["Sum[i] = P[i] XOR G[i-1]"]
+        end
+    end
+
+    subgraph Outputs
+        OSUM["ow_sum[N-1:0]"]
+        OCOUT[ow_carry]
+    end
+
+    A --> Stage1
+    B --> Stage1
+    CIN --> Stage1
+    Stage1 --> Stage2
+    Stage2 --> Stage3
+    Stage3 --> OSUM
+    Stage3 --> OCOUT
+
+    L1 --> L2
+    L2 --> L3
+    L3 --> LN

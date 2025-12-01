@@ -1,0 +1,40 @@
+%%{init: {'theme': 'neutral', 'themeVariables': { 'fontSize': '14px'}}}%%
+flowchart LR
+    subgraph Inputs
+        CLK[aclk]
+        RST[aresetn]
+        S_VALID[i_valid]
+        S_DATA["i_data (struct)"]
+        M_READY[o_ready]
+    end
+
+    subgraph gaxi_skid_buffer_struct["gaxi_skid_buffer_struct"]
+        subgraph Pack["Struct Packing"]
+            PACK["Pack struct fields\ninto flat vector"]
+        end
+
+        subgraph Core["gaxi_skid_buffer"]
+            SKID["Standard skid buffer\n(flat data path)"]
+        end
+
+        subgraph Unpack["Struct Unpacking"]
+            UNPACK["Unpack flat vector\nback to struct"]
+        end
+    end
+
+    subgraph Outputs
+        S_READY[i_ready]
+        M_VALID[o_valid]
+        M_DATA["o_data (struct)"]
+    end
+
+    CLK --> Core
+    RST --> Core
+    S_VALID --> Core
+    S_DATA --> Pack
+    Pack --> Core
+    M_READY --> Core
+    Core --> Unpack
+    Unpack --> M_DATA
+    Core --> S_READY
+    Core --> M_VALID

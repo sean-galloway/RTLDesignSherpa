@@ -1,0 +1,32 @@
+%%{init: {'theme': 'neutral', 'themeVariables': { 'fontSize': '14px'}}}%%
+flowchart LR
+    subgraph FUB["FUB Interface (Input)"]
+        FUB_AR["fub_axi_ar*\n(address request)"]
+        FUB_R["fub_axi_r*\n(data response)"]
+    end
+
+    subgraph axi4_master_rd["axi4_master_rd"]
+        subgraph AR_Buffer["AR Skid Buffer"]
+            AR_SKID["gaxi_skid_buffer\nDEPTH=SKID_DEPTH_AR"]
+        end
+
+        subgraph R_Buffer["R Skid Buffer"]
+            R_SKID["gaxi_skid_buffer\nDEPTH=SKID_DEPTH_R"]
+        end
+
+        subgraph Status["Status"]
+            BUSY["busy signal\nfor clock gating"]
+        end
+    end
+
+    subgraph Master["Master AXI (Output)"]
+        M_AR["m_axi_ar*\n(to memory)"]
+        M_R["m_axi_r*\n(from memory)"]
+    end
+
+    FUB_AR --> AR_Buffer
+    AR_Buffer --> M_AR
+    M_R --> R_Buffer
+    R_Buffer --> FUB_R
+    AR_Buffer --> Status
+    R_Buffer --> Status

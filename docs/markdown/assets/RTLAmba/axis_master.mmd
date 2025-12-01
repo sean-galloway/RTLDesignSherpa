@@ -1,0 +1,38 @@
+%%{init: {'theme': 'neutral', 'themeVariables': { 'fontSize': '14px'}}}%%
+flowchart LR
+    subgraph FUB["FUB Interface (Input)"]
+        FUB_DATA["fub_axis_tdata"]
+        FUB_VALID["fub_axis_tvalid"]
+        FUB_LAST["fub_axis_tlast"]
+        FUB_KEEP["fub_axis_tkeep"]
+        FUB_READY["fub_axis_tready"]
+    end
+
+    subgraph axis_master["axis_master"]
+        subgraph Buffer["Skid Buffer"]
+            SKID["gaxi_skid_buffer"]
+        end
+
+        subgraph Status["Status"]
+            BUSY["busy signal"]
+        end
+    end
+
+    subgraph Master["Master AXI-Stream (Output)"]
+        M_DATA["m_axis_tdata"]
+        M_VALID["m_axis_tvalid"]
+        M_LAST["m_axis_tlast"]
+        M_KEEP["m_axis_tkeep"]
+        M_READY["m_axis_tready"]
+    end
+
+    FUB_DATA --> Buffer
+    FUB_VALID --> Buffer
+    FUB_LAST --> Buffer
+    FUB_KEEP --> Buffer
+    Buffer --> M_DATA
+    Buffer --> M_VALID
+    Buffer --> M_LAST
+    Buffer --> M_KEEP
+    M_READY --> Buffer
+    M_READY --> FUB_READY

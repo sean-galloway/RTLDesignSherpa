@@ -1,45 +1,42 @@
-# =============================================================================
-# PM_ACPI APB Wrapper Filelist
-# =============================================================================
-# Complete filelist for APB PM_ACPI (Power Management ACPI) controller
-# Includes all dependencies for synthesis and simulation
-# =============================================================================
-
-# Common headers and packages (required for reset macros)
-+incdir+${RTL_ROOT}/common
-
-# PeakRDL generated package and register block
-${RTL_ROOT}/pm_acpi/pm_acpi_regs_pkg.sv
-${RTL_ROOT}/pm_acpi/pm_acpi_regs.sv
-
-# PM_ACPI core modules
-${RTL_ROOT}/pm_acpi/pm_acpi_core.sv
-${RTL_ROOT}/pm_acpi/pm_acpi_config_regs.sv
-
-# APB top-level wrapper
-${RTL_ROOT}/pm_acpi/apb_pm_acpi.sv
-
-# =============================================================================
-# Dependencies
-# =============================================================================
-# This filelist requires the following external dependencies:
+# SPDX-License-Identifier: MIT
+# SPDX-FileCopyrightText: 2024-2025 sean galloway
 #
-# 1. APB Slave Infrastructure:
-#    - ${CONVERTERS_ROOT}/rtl/apb_slave.sv
-#    - ${CONVERTERS_ROOT}/rtl/apb_slave_cdc.sv
+# RTL Design Sherpa - Industry-Standard RTL Design and Verification
+# https://github.com/sean-galloway/RTLDesignSherpa
 #
-# 2. PeakRDL Adapter:
-#    - ${CONVERTERS_ROOT}/rtl/peakrdl_to_cmdrsp.sv
+# Filelist: apb_pm_acpi.f
+# Purpose: Complete file list for APB PM_ACPI module
 #
-# 3. Reset Definitions:
-#    - ${RTL_ROOT}/common/reset_defs.svh
-#
-# Include these from their respective filelists:
-#    +incdir+${CONVERTERS_ROOT}/rtl
-#    ${CONVERTERS_ROOT}/rtl/apb_slave.sv
-#    ${CONVERTERS_ROOT}/rtl/apb_slave_cdc.sv
-#    ${CONVERTERS_ROOT}/rtl/peakrdl_to_cmdrsp.sv
-#
-# Note: RTL_ROOT should be set to: projects/components/retro_legacy_blocks/rtl
-#       CONVERTERS_ROOT should be set to: projects/components/converters
-# =============================================================================
+# Usage: Source this file in simulation/synthesis tools
+
+# Include directories
++incdir+$REPO_ROOT/rtl/amba/includes
+
+# Header files with macros (MUST be compiled first)
+$REPO_ROOT/rtl/amba/includes/reset_defs.svh
+
+# Low-level dependencies (for APB slave modules)
+$REPO_ROOT/rtl/amba/gaxi/gaxi_skid_buffer.sv
+$REPO_ROOT/rtl/amba/shared/cdc_handshake.sv
+
+# Layer 1: APB Slave (APB → CMD/RSP interface)
+$REPO_ROOT/rtl/amba/apb/apb_slave.sv
+$REPO_ROOT/rtl/amba/apb/apb_slave_cdc.sv
+
+# Layer 2: CMD/RSP to PeakRDL Adapter
+$REPO_ROOT/projects/components/converters/rtl/peakrdl_to_cmdrsp.sv
+
+# Package (must come first)
+$RETRO_ROOT/rtl/pm_acpi/pm_acpi_regs_pkg.sv
+
+# Register file (PeakRDL generated)
+$RETRO_ROOT/rtl/pm_acpi/pm_acpi_regs.sv
+
+# PM_ACPI core (power management logic)
+$RETRO_ROOT/rtl/pm_acpi/pm_acpi_core.sv
+
+# Config register wrapper
+$RETRO_ROOT/rtl/pm_acpi/pm_acpi_config_regs.sv
+
+# Top-level APB wrapper
+$RETRO_ROOT/rtl/pm_acpi/apb_pm_acpi.sv

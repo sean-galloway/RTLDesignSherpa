@@ -1,0 +1,40 @@
+%%{init: {'theme': 'neutral', 'themeVariables': { 'fontSize': '14px'}}}%%
+flowchart LR
+    subgraph Inputs
+        CLK[clk]
+        RST[rst_n]
+    end
+
+    subgraph reset_sync["reset_sync"]
+        subgraph Polarity["Polarity Handling"]
+            POL["Normalize to\nactive-HIGH"]
+        end
+
+        subgraph Chain["Synchronizer Chain"]
+            direction LR
+            FF0["FF[0]"]
+            FF1["FF[1]"]
+            FFN["FF[N-1]"]
+        end
+
+        subgraph Mode["Operating Mode"]
+            ASYNC["ASYNC_ASSERT=1:\nAsync assert, sync deassert"]
+            SYNC["ASYNC_ASSERT=0:\nFully synchronous"]
+        end
+
+        subgraph Output["Output Polarity"]
+            OUTPOL["Convert to\nactive-LOW"]
+        end
+    end
+
+    subgraph Outputs
+        SRST[sync_rst_n]
+    end
+
+    RST --> Polarity
+    Polarity --> FF0
+    CLK --> Chain
+    FF0 --> FF1
+    FF1 --> FFN
+    FFN --> Output
+    Output --> SRST

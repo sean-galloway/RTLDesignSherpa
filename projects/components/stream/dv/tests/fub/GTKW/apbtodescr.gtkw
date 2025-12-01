@@ -1,0 +1,54 @@
+[*]
+[*] GTKWave Analyzer v3.3.116 (w)1999-2023 BSI
+[*] Sun Nov 30 04:42:11 2025
+[*]
+[dumpfile] "/mnt/data/github/rtldesignsherpa/projects/components/stream/dv/tests/fub/local_sim_build/test_apbtodescr_basic_all_channels_aw32_dw32_nc08_gw0/dump.vcd"
+[dumpfile_mtime] "Sun Nov 30 04:37:15 2025"
+[dumpfile_size] 21465
+[savefile] "/mnt/data/github/rtldesignsherpa/projects/components/stream/dv/tests/fub/GTKW/apbtodescr.gtkw"
+[timestart] 0
+[size] 2559 1585
+[pos] -1 -1
+*-16.500469 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
+[treeopen] apbtodescr.
+[sst_width] 278
+[signals_width] 378
+[sst_expanded] 1
+[sst_vpaned_height] 500
+@22
+apbtodescr.NUM_CHANNELS[31:0]
+@28
+apbtodescr.clk
+apbtodescr.rst_n
+@200
+-apb-interface
+@28
+apbtodescr.apb_descriptor_kickoff_hit
+apbtodescr.apb_cmd_valid
+apbtodescr.apb_cmd_ready
+apbtodescr.apb_cmd_write
+@22
+apbtodescr.apb_cmd_addr[31:0]
+apbtodescr.apb_cmd_wdata[31:0]
+@28
+apbtodescr.apb_rsp_valid
+apbtodescr.apb_rsp_ready
+@22
+apbtodescr.apb_rsp_rdata[31:0]
+@28
+apbtodescr.apb_rsp_error
+@200
+-descriptor-interfface
+@22
+apbtodescr.desc_apb_valid[7:0]
+apbtodescr.desc_apb_ready[7:0]
+apbtodescr.desc_apb_addr[511:0]
+@201
+-internals
+@28
+apbtodescr.r_is_high_write
+@22
+apbtodescr.r_wdata_high[31:0]
+apbtodescr.r_wdata_low[31:0]
+[pattern_trace] 1
+[pattern_trace] 0

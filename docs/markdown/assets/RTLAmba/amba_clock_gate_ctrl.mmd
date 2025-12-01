@@ -1,0 +1,30 @@
+%%{init: {'theme': 'neutral', 'themeVariables': { 'fontSize': '14px'}}}%%
+flowchart LR
+    subgraph Inputs
+        CLK[aclk]
+        RST[aresetn]
+        CG_EN[cg_enable]
+        CG_TEST[cg_test_enable]
+        BUSY[busy]
+    end
+
+    subgraph amba_clock_gate_ctrl["amba_clock_gate_ctrl"]
+        subgraph Logic["Gating Logic"]
+            CTRL["enable = cg_enable |\ncg_test_enable |\nbusy"]
+        end
+
+        subgraph ICG["Integrated Clock Gate"]
+            GATE["icg cell\n(latch + AND)"]
+        end
+    end
+
+    subgraph Outputs
+        GCLK[gated_clk]
+    end
+
+    CLK --> ICG
+    CG_EN --> Logic
+    CG_TEST --> Logic
+    BUSY --> Logic
+    Logic --> ICG
+    ICG --> GCLK

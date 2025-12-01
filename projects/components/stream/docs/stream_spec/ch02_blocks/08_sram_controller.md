@@ -3,7 +3,7 @@
 **Module:** `sram_controller.sv`
 **Location:** `projects/components/stream/rtl/fub/`
 **Status:** Implemented
-**Last Updated:** 2025-11-21
+**Last Updated:** 2025-11-30
 
 ---
 
@@ -632,11 +632,12 @@ Notes:
 
 ## Related Documentation
 
-- **SRAM Controller Unit:** `06_sram_controller_unit.md` - Per-channel implementation
+- **SRAM Controller Unit:** `09_sram_controller_unit.md` - Per-channel implementation
 - **Allocation Controller:** `07_stream_alloc_ctrl.md` - Write-side flow control
-- **Drain Controller:** `09_stream_drain_ctrl.md` - Read-side flow control
-- **AXI Read Engine:** `08_axi_read_engine.md` - Write interface usage
-- **AXI Write Engine:** `10_axi_write_engine.md` - Read interface usage
+- **Drain Controller:** `11_stream_drain_ctrl.md` - Read-side flow control
+- **AXI Read Engine:** `06_axi_read_engine.md` - Write interface usage
+- **AXI Write Engine:** `12_axi_write_engine.md` - Read interface usage
+- **Stream Core:** `01_stream_core.md` - Top-level integration
 
 ---
 
@@ -647,7 +648,8 @@ Notes:
 | 2025-10-18 | 0.5 | Initial draft documenting segmented SRAM approach |
 | 2025-11-16 | 1.0 | Updated to document per-channel FIFO implementation (actual RTL) |
 | 2025-11-21 | 1.5 | **Merged documentation:**<br>- Consolidated duplicate files<br>- Added design rationale section<br>- Enhanced allocation/drain explanations with examples<br>- Clarified per-channel FIFO architecture<br>- Added performance comparison<br>- Verified all content matches current RTL implementation |
+| 2025-11-30 | 1.6 | Updated related documentation references |
 
 ---
 
-**Last Updated:** 2025-11-21 (verified against RTL implementation)
+**Last Updated:** 2025-11-30 (verified against RTL implementation)

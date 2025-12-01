@@ -1,0 +1,60 @@
+%%{init: {'theme': 'neutral', 'themeVariables': { 'fontSize': '14px'}}}%%
+flowchart TB
+    subgraph Inputs
+        EA["i_exp_a[7:0]"]
+        EB["i_exp_b[7:0]"]
+        NADJ[i_norm_adjust]
+    end
+
+    subgraph math_bf16_exponent_adder["math_bf16_exponent_adder"]
+        subgraph Special["Special Case Detection"]
+            DET["exp = 0: Zero/Subnormal\nexp = 255: Inf/NaN"]
+        end
+
+        subgraph Calculate["Exponent Calculation"]
+            CALC["10-bit precision:\nexp_a + exp_b - 127 + norm_adjust"]
+        end
+
+        subgraph Overflow["Overflow Detection"]
+            OVF["result > 254"]
+        end
+
+        subgraph Underflow["Underflow Detection"]
+            UDF["result <= 0\n(signed check)"]
+        end
+
+        subgraph Saturate["Saturation Logic"]
+            SAT["Overflow: 255 (inf)\nUnderflow: 0 (zero)\nNormal: result[7:0]"]
+        end
+    end
+
+    subgraph Outputs
+        EOUT["ow_exp_out[7:0]"]
+        OOVF[ow_overflow]
+        OUDF[ow_underflow]
+        AZ[ow_a_is_zero]
+        BZ[ow_b_is_zero]
+        AI[ow_a_is_inf]
+        BI[ow_b_is_inf]
+        AN[ow_a_is_nan]
+        BN[ow_b_is_nan]
+    end
+
+    EA --> Special
+    EB --> Special
+    EA --> Calculate
+    EB --> Calculate
+    NADJ --> Calculate
+    Calculate --> Overflow
+    Calculate --> Underflow
+    Overflow --> Saturate
+    Underflow --> Saturate
+    Saturate --> EOUT
+    Overflow --> OOVF
+    Underflow --> OUDF
+    Special --> AZ
+    Special --> BZ
+    Special --> AI
+    Special --> BI
+    Special --> AN
+    Special --> BN

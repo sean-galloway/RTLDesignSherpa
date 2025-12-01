@@ -1,0 +1,31 @@
+%%{init: {'theme': 'neutral', 'themeVariables': { 'fontSize': '14px'}}}%%
+flowchart LR
+    subgraph Inputs
+        CLK[clk]
+        RST[rst_n]
+        DATA["i_data[WIDTH-1:0]"]
+        VALID[i_valid]
+        INIT[i_init]
+    end
+
+    subgraph dataint_checksum["dataint_checksum"]
+        subgraph Accumulate["Checksum Accumulation"]
+            ACC["checksum += data\n(with overflow wrap)"]
+        end
+
+        subgraph Complement["One's Complement"]
+            COMP["Optional 1's complement\nfor verification"]
+        end
+    end
+
+    subgraph Outputs
+        CSUM["o_checksum[WIDTH-1:0]"]
+    end
+
+    CLK --> Accumulate
+    RST --> Accumulate
+    DATA --> Accumulate
+    VALID --> Accumulate
+    INIT --> Accumulate
+    Accumulate --> Complement
+    Complement --> CSUM

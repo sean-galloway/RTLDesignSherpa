@@ -1,0 +1,36 @@
+%%{init: {'theme': 'neutral', 'themeVariables': { 'fontSize': '14px'}}}%%
+flowchart LR
+    subgraph Inputs["N Monitor Sources"]
+        SRC0["Source 0\nvalid, packet"]
+        SRC1["Source 1\nvalid, packet"]
+        SRCN["Source N-1\nvalid, packet"]
+    end
+
+    subgraph arbiter_monbus_common["arbiter_monbus_common"]
+        subgraph Interface["Input Interface"]
+            IF["Collect requests\nand packet data"]
+        end
+
+        subgraph Arbiter["Arbitration"]
+            ARB["Round-robin or\nweighted selection"]
+        end
+
+        subgraph Output_Stage["Output Stage"]
+            OUT["Mux selected packet\nGenerate grant signals"]
+        end
+    end
+
+    subgraph Outputs["Combined Output"]
+        READY["ready[N-1:0]"]
+        VALID["out_valid"]
+        PKT["out_packet[63:0]"]
+    end
+
+    SRC0 --> Interface
+    SRC1 --> Interface
+    SRCN --> Interface
+    Interface --> Arbiter
+    Arbiter --> Output_Stage
+    Output_Stage --> READY
+    Output_Stage --> VALID
+    Output_Stage --> PKT

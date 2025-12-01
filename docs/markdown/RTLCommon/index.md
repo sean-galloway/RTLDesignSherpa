@@ -24,6 +24,9 @@ This directory contains documentation for the common RTL modules library, provid
 - **[math_adder_brent_kung](math_adder_brent_kung.md)** - Brent-Kung parallel prefix adder family (8/16/32-bit)
   - Includes: `math_adder_brent_kung_008.sv`, `math_adder_brent_kung_016.sv`, `math_adder_brent_kung_032.sv`
   - Sub-modules: `math_adder_brent_kung_pg.sv`, `math_adder_brent_kung_black.sv`, `math_adder_brent_kung_gray.sv`, `math_adder_brent_kung_bitwisepg.sv`, `math_adder_brent_kung_grouppg_*.sv`, `math_adder_brent_kung_sum.sv`
+- **[math_adder_han_carlson](math_adder_han_carlson.md)** - Han-Carlson hybrid parallel prefix adder (16/48-bit)
+  - Includes: `math_adder_han_carlson_016.sv`, `math_adder_han_carlson_048.sv`
+  - Building blocks: `math_prefix_cell.sv`, `math_prefix_cell_gray.sv`
 - **[math_addsub](math_addsub.md)** - Combined adder/subtractor
   - Includes: `math_addsub_full_nbit.sv`
 
@@ -37,8 +40,33 @@ This directory contains documentation for the common RTL modules library, provid
   - CSA variants: `math_multiplier_wallace_tree_csa_008.sv`, `math_multiplier_wallace_tree_csa_016.sv`, `math_multiplier_wallace_tree_csa_032.sv`
 - **[math_multiplier_dadda_tree](math_multiplier_dadda_tree.md)** - Dadda tree multiplier family (8/16/32-bit)
   - Includes: `math_multiplier_dadda_tree_008.sv`, `math_multiplier_dadda_tree_016.sv`, `math_multiplier_dadda_tree_032.sv`
+- **[math_multiplier_dadda_4to2](math_multiplier_dadda_4to2.md)** - Dadda tree multiplier with 4:2 compressors (8-bit for BF16)
+  - Includes: `math_multiplier_dadda_4to2_008.sv`
+  - Building blocks: `math_compressor_4to2.sv`
 - **[math_multiplier_basic](math_multiplier_basic.md)** - Basic multiplier components
   - Includes: `math_multiplier_basic_cell.sv`, `math_multiplier_carry_save.sv`
+
+#### BF16 Floating-Point Arithmetic
+- **[math_bf16_adder](math_bf16_adder.md)** - Pipelined BF16 adder with configurable latency
+  - Includes: `math_bf16_adder.sv`
+  - Dependencies: `shifter_barrel.sv`, `count_leading_zeros.sv`
+- **[math_bf16_multiplier](math_bf16_multiplier.md)** - Complete BF16 multiplier with IEEE 754 compliance
+  - Includes: `math_bf16_multiplier.sv`
+  - Sub-modules: `math_bf16_mantissa_mult.sv`, `math_bf16_exponent_adder.sv`
+- **[math_bf16_mantissa_mult](math_bf16_mantissa_mult.md)** - BF16 mantissa multiplier with normalization detection
+  - Includes: `math_bf16_mantissa_mult.sv`
+- **[math_bf16_exponent_adder](math_bf16_exponent_adder.md)** - BF16 exponent computation with overflow/underflow detection
+  - Includes: `math_bf16_exponent_adder.sv`
+- **[math_bf16_fma](math_bf16_fma.md)** - BF16 Fused Multiply-Add with FP32 accumulator for AI training
+  - Includes: `math_bf16_fma.sv`
+
+#### Compressors and Prefix Cells
+- **[math_compressor_4to2](math_compressor_4to2.md)** - 4:2 compressor for fast parallel reduction
+  - Includes: `math_compressor_4to2.sv`
+- **[math_prefix_cell](math_prefix_cell.md)** - Black cell for parallel prefix adders
+  - Includes: `math_prefix_cell.sv`
+- **[math_prefix_cell_gray](math_prefix_cell_gray.md)** - Gray cell for parallel prefix adders (area-optimized)
+  - Includes: `math_prefix_cell_gray.sv`
 
 ### Data Integrity and Error Correction
 

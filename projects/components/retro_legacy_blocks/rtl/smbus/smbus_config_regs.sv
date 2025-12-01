@@ -230,19 +230,27 @@ module smbus_config_regs
     //========================================================================
     // TX FIFO Write Detection and Data
     //========================================================================
+    // Note: We detect TX FIFO writes by monitoring the cpuif signals directly
+    // since the tx_data field doesn't have swmod enabled in the RDL.
+    // TX_FIFO register is at offset 0x014 (byte address)
 
     logic r_tx_fifo_wr_prev;
-    
+    logic w_tx_fifo_write_req;
+
+    // Detect write request to TX_FIFO register (address 0x014)
+    assign w_tx_fifo_write_req = regblk_req && regblk_req_is_wr &&
+                                  (regblk_addr[5:0] == 6'h14);
+
     `ALWAYS_FF_RST(clk, rst_n,
         if (`RST_ASSERTED(rst_n)) begin
             r_tx_fifo_wr_prev <= 1'b0;
         end else begin
-            r_tx_fifo_wr_prev <= hwif_out.SMBUS_TX_FIFO.tx_data.swmod;
+            r_tx_fifo_wr_prev <= w_tx_fifo_write_req;
         end
     )
 
-    // Detect SW write to TX_FIFO register (rising edge of swmod)
-    assign tx_fifo_wr = hwif_out.SMBUS_TX_FIFO.tx_data.swmod && !r_tx_fifo_wr_prev;
+    // Detect SW write to TX_FIFO register (rising edge of write request)
+    assign tx_fifo_wr = w_tx_fifo_write_req && !r_tx_fifo_wr_prev;
     assign tx_fifo_wdata = hwif_out.SMBUS_TX_FIFO.tx_data.value;
 
     //========================================================================

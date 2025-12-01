@@ -1,0 +1,34 @@
+%%{init: {'theme': 'neutral', 'themeVariables': { 'fontSize': '14px'}}}%%
+flowchart TB
+    subgraph Inputs
+        DATA["i_data[DATA_WIDTH-1:0]"]
+        CRC_IN["i_crc[CRC_WIDTH-1:0]"]
+    end
+
+    subgraph dataint_crc_xor_shift_cascade["dataint_crc_xor_shift_cascade"]
+        subgraph Stage0["XOR-Shift Stage 0"]
+            S0["Process bit 0"]
+        end
+
+        subgraph Stage1["XOR-Shift Stage 1"]
+            S1["Process bit 1"]
+        end
+
+        subgraph StageN["XOR-Shift Stage N-1"]
+            SN["Process bit N-1"]
+        end
+
+        subgraph Chain["Cascaded Processing"]
+            CHAIN["Each stage processes\none data bit"]
+        end
+    end
+
+    subgraph Outputs
+        CRC_OUT["o_crc[CRC_WIDTH-1:0]"]
+    end
+
+    DATA --> Stage0
+    CRC_IN --> Stage0
+    Stage0 --> Stage1
+    Stage1 --> StageN
+    StageN --> CRC_OUT

@@ -1,0 +1,35 @@
+%%{init: {'theme': 'neutral', 'themeVariables': { 'fontSize': '14px'}}}%%
+flowchart TB
+    subgraph Shared["Shared Infrastructure"]
+        subgraph Monitor_Stack["Monitor Stack"]
+            MON_BASE["axi_monitor_base"]
+            MON_FILT["axi_monitor_filtered"]
+            MON_TRANS["axi_monitor_trans_mgr"]
+            MON_RPT["axi_monitor_reporter"]
+            MON_TMO["axi_monitor_timeout"]
+            MON_TMR["axi_monitor_timer"]
+        end
+
+        subgraph Arbiters["MonBus Arbiters"]
+            ARB_RR["arbiter_rr_pwm_monbus"]
+            ARB_WRR["arbiter_wrr_pwm_monbus"]
+            ARB_CMN["arbiter_monbus_common"]
+            MONBUS["monbus_arbiter"]
+        end
+
+        subgraph Utilities["Utilities"]
+            GEN_ADDR["axi_gen_addr"]
+            SPLIT_RD["axi_master_rd_splitter"]
+            SPLIT_WR["axi_master_wr_splitter"]
+            SPLIT_CMB["axi_split_combi"]
+            CDC["cdc_handshake"]
+            CG_CTRL["amba_clock_gate_ctrl"]
+        end
+    end
+
+    MON_BASE --> MON_FILT
+    MON_TRANS --> MON_BASE
+    MON_RPT --> MON_BASE
+    MON_TMO --> MON_BASE
+    MON_TMR --> MON_TMO
+    MON_BASE --> Arbiters

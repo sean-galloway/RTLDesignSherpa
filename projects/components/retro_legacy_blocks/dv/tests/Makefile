@@ -15,6 +15,10 @@
 #   make run-rtc        - Run RTC tests
 #   make run-pic        - Run 8259 PIC tests
 #   make run-ioapic     - Run IOAPIC tests
+#   make run-smbus      - Run SMBus tests
+#   make run-acpi       - Run PM_ACPI tests
+#   make run-uart       - Run UART 16550 tests
+#   make run-gpio       - Run GPIO tests
 #   make run-all        - Run all tests
 #   make clean          - Clean local artifacts
 #
@@ -32,7 +36,7 @@ endif
 PYTEST = python3 -m pytest
 PYTEST_VERBOSE = -v
 PYTEST_QUIET = -q
-PYTEST_XDIST = -n 8
+PYTEST_XDIST = -n 48
 PYTEST_TBSTYLE = --tb=short
 PYTEST_RERUNS = --reruns 0 --reruns-delay 1
 
@@ -55,6 +59,10 @@ help:
 	@echo "  make run-rtc                    Run RTC tests"
 	@echo "  make run-pic                    Run 8259 PIC tests"
 	@echo "  make run-ioapic                 Run IOAPIC tests"
+	@echo "  make run-smbus                  Run SMBus tests"
+	@echo "  make run-acpi                   Run PM_ACPI tests"
+	@echo "  make run-uart                   Run UART 16550 tests"
+	@echo "  make run-gpio                   Run GPIO tests"
 	@echo "  make run-all                    Run all tests"
 	@echo ""
 	@echo "HPET TARGETS (test_apb_hpet.py):"
@@ -127,6 +135,62 @@ help:
 	@echo "  make run-ioapic-full-parallel   Run IOAPIC at FULL level in parallel"
 	@echo "  make run-ioapic-full-parallel-waves Run IOAPIC at FULL parallel + waves"
 	@echo ""
+	@echo "SMBUS TARGETS (test_apb_smbus.py):"
+	@echo "  make run-smbus-basic            Run SMBus at BASIC level"
+	@echo "  make run-smbus-basic-waves      Run SMBus at BASIC level with waveforms"
+	@echo "  make run-smbus-basic-parallel   Run SMBus at BASIC level in parallel"
+	@echo "  make run-smbus-basic-parallel-waves Run SMBus at BASIC parallel + waves"
+	@echo "  make run-smbus-medium           Run SMBus at MEDIUM level"
+	@echo "  make run-smbus-medium-waves     Run SMBus at MEDIUM level with waveforms"
+	@echo "  make run-smbus-medium-parallel  Run SMBus at MEDIUM level in parallel"
+	@echo "  make run-smbus-medium-parallel-waves Run SMBus at MEDIUM parallel + waves"
+	@echo "  make run-smbus-full             Run SMBus at FULL level"
+	@echo "  make run-smbus-full-waves       Run SMBus at FULL level with waveforms"
+	@echo "  make run-smbus-full-parallel    Run SMBus at FULL level in parallel"
+	@echo "  make run-smbus-full-parallel-waves Run SMBus at FULL parallel + waves"
+	@echo ""
+	@echo "PM_ACPI TARGETS (test_apb_pm_acpi.py):"
+	@echo "  make run-acpi-basic             Run PM_ACPI at BASIC level"
+	@echo "  make run-acpi-basic-waves       Run PM_ACPI at BASIC level with waveforms"
+	@echo "  make run-acpi-basic-parallel    Run PM_ACPI at BASIC level in parallel"
+	@echo "  make run-acpi-basic-parallel-waves Run PM_ACPI at BASIC parallel + waves"
+	@echo "  make run-acpi-medium            Run PM_ACPI at MEDIUM level"
+	@echo "  make run-acpi-medium-waves      Run PM_ACPI at MEDIUM level with waveforms"
+	@echo "  make run-acpi-medium-parallel   Run PM_ACPI at MEDIUM level in parallel"
+	@echo "  make run-acpi-medium-parallel-waves Run PM_ACPI at MEDIUM parallel + waves"
+	@echo "  make run-acpi-full              Run PM_ACPI at FULL level"
+	@echo "  make run-acpi-full-waves        Run PM_ACPI at FULL level with waveforms"
+	@echo "  make run-acpi-full-parallel     Run PM_ACPI at FULL level in parallel"
+	@echo "  make run-acpi-full-parallel-waves Run PM_ACPI at FULL parallel + waves"
+	@echo ""
+	@echo "UART 16550 TARGETS (test_apb_uart_16550.py):"
+	@echo "  make run-uart-basic             Run UART at BASIC level"
+	@echo "  make run-uart-basic-waves       Run UART at BASIC level with waveforms"
+	@echo "  make run-uart-basic-parallel    Run UART at BASIC level in parallel"
+	@echo "  make run-uart-basic-parallel-waves Run UART at BASIC parallel + waves"
+	@echo "  make run-uart-medium            Run UART at MEDIUM level"
+	@echo "  make run-uart-medium-waves      Run UART at MEDIUM level with waveforms"
+	@echo "  make run-uart-medium-parallel   Run UART at MEDIUM level in parallel"
+	@echo "  make run-uart-medium-parallel-waves Run UART at MEDIUM parallel + waves"
+	@echo "  make run-uart-full              Run UART at FULL level"
+	@echo "  make run-uart-full-waves        Run UART at FULL level with waveforms"
+	@echo "  make run-uart-full-parallel     Run UART at FULL level in parallel"
+	@echo "  make run-uart-full-parallel-waves Run UART at FULL parallel + waves"
+	@echo ""
+	@echo "GPIO TARGETS (test_apb_gpio.py):"
+	@echo "  make run-gpio-basic             Run GPIO at BASIC level"
+	@echo "  make run-gpio-basic-waves       Run GPIO at BASIC level with waveforms"
+	@echo "  make run-gpio-basic-parallel    Run GPIO at BASIC level in parallel"
+	@echo "  make run-gpio-basic-parallel-waves Run GPIO at BASIC parallel + waves"
+	@echo "  make run-gpio-medium            Run GPIO at MEDIUM level"
+	@echo "  make run-gpio-medium-waves      Run GPIO at MEDIUM level with waveforms"
+	@echo "  make run-gpio-medium-parallel   Run GPIO at MEDIUM level in parallel"
+	@echo "  make run-gpio-medium-parallel-waves Run GPIO at MEDIUM parallel + waves"
+	@echo "  make run-gpio-full              Run GPIO at FULL level"
+	@echo "  make run-gpio-full-waves        Run GPIO at FULL level with waveforms"
+	@echo "  make run-gpio-full-parallel     Run GPIO at FULL level in parallel"
+	@echo "  make run-gpio-full-parallel-waves Run GPIO at FULL parallel + waves"
+	@echo ""
 	@echo "COMBINED TARGETS (all blocks):"
 	@echo "  make run-all-basic              Run all tests at BASIC level"
 	@echo "  make run-all-basic-waves        Run all tests at BASIC level with waveforms"
@@ -147,6 +211,10 @@ help:
 	@echo "  make collect-rtc          Collect (don't run) RTC tests"
 	@echo "  make collect-pic          Collect (don't run) PIC tests"
 	@echo "  make collect-ioapic       Collect (don't run) IOAPIC tests"
+	@echo "  make collect-smbus        Collect (don't run) SMBus tests"
+	@echo "  make collect-acpi         Collect (don't run) PM_ACPI tests"
+	@echo "  make collect-uart         Collect (don't run) UART tests"
+	@echo "  make collect-gpio         Collect (don't run) GPIO tests"
 	@echo "  make clean                Clean local artifacts"
 	@echo "  make clean-all            Clean all test artifacts"
 	@echo ""
@@ -181,10 +249,30 @@ run-ioapic:
 	@echo "Running IOAPIC tests (BASIC level)..."
 	TEST_LEVEL=basic $(PYTEST) test_apb_ioapic.py $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE)
 
+.PHONY: run-smbus
+run-smbus:
+	@echo "Running SMBus tests (BASIC level)..."
+	TEST_LEVEL=basic $(PYTEST) test_apb_smbus.py $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE)
+
+.PHONY: run-acpi
+run-acpi:
+	@echo "Running PM_ACPI tests (BASIC level)..."
+	TEST_LEVEL=basic $(PYTEST) test_apb_pm_acpi.py $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE)
+
+.PHONY: run-uart
+run-uart:
+	@echo "Running UART 16550 tests (BASIC level)..."
+	TEST_LEVEL=basic $(PYTEST) test_apb_uart_16550.py $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE)
+
+.PHONY: run-gpio
+run-gpio:
+	@echo "Running GPIO tests (BASIC level)..."
+	TEST_LEVEL=basic $(PYTEST) test_apb_gpio.py $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE)
+
 .PHONY: run-all
 run-all:
 	@echo "Running all RLB tests (BASIC level)..."
-	TEST_LEVEL=basic $(PYTEST) test_apb_hpet.py test_apb_pit_8254.py test_apb_rtc.py test_apb_pic_8259.py test_apb_ioapic.py $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE)
+	TEST_LEVEL=basic $(PYTEST) test_apb_hpet.py test_apb_pit_8254.py test_apb_rtc.py test_apb_pic_8259.py test_apb_ioapic.py test_apb_smbus.py test_apb_pm_acpi.py test_apb_uart_16550.py test_apb_gpio.py $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE)
 
 # ==============================================================================
 # HPET Targets (test_apb_hpet.py)
@@ -534,6 +622,286 @@ run-ioapic-full-parallel-waves:
 
 
 # ==============================================================================
+# SMBus Targets (test_apb_smbus.py)
+# ==============================================================================
+
+# BASIC level
+.PHONY: run-smbus-basic
+run-smbus-basic:
+	@echo "Running SMBus tests at BASIC level..."
+	TEST_LEVEL=basic $(PYTEST) test_apb_smbus.py $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE)
+
+.PHONY: run-smbus-basic-waves
+run-smbus-basic-waves:
+	@echo "Running SMBus tests at BASIC level with waveforms..."
+	WAVES=1 TEST_LEVEL=basic $(PYTEST) test_apb_smbus.py $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE)
+
+.PHONY: run-smbus-basic-parallel
+run-smbus-basic-parallel:
+	@echo "Running SMBus tests at BASIC level in parallel..."
+	TEST_LEVEL=basic $(PYTEST) test_apb_smbus.py $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE) $(PYTEST_XDIST) $(PYTEST_RERUNS)
+
+.PHONY: run-smbus-basic-parallel-waves
+run-smbus-basic-parallel-waves:
+	@echo "Running SMBus tests at BASIC level in parallel with waveforms..."
+	WAVES=1 TEST_LEVEL=basic $(PYTEST) test_apb_smbus.py $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE) $(PYTEST_XDIST) $(PYTEST_RERUNS)
+
+
+# MEDIUM level
+.PHONY: run-smbus-medium
+run-smbus-medium:
+	@echo "Running SMBus tests at MEDIUM level..."
+	TEST_LEVEL=medium $(PYTEST) test_apb_smbus.py $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE)
+
+.PHONY: run-smbus-medium-waves
+run-smbus-medium-waves:
+	@echo "Running SMBus tests at MEDIUM level with waveforms..."
+	WAVES=1 TEST_LEVEL=medium $(PYTEST) test_apb_smbus.py $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE)
+
+.PHONY: run-smbus-medium-parallel
+run-smbus-medium-parallel:
+	@echo "Running SMBus tests at MEDIUM level in parallel..."
+	TEST_LEVEL=medium $(PYTEST) test_apb_smbus.py $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE) $(PYTEST_XDIST) $(PYTEST_RERUNS)
+
+.PHONY: run-smbus-medium-parallel-waves
+run-smbus-medium-parallel-waves:
+	@echo "Running SMBus tests at MEDIUM level in parallel with waveforms..."
+	WAVES=1 TEST_LEVEL=medium $(PYTEST) test_apb_smbus.py $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE) $(PYTEST_XDIST) $(PYTEST_RERUNS)
+
+
+# FULL level
+.PHONY: run-smbus-full
+run-smbus-full:
+	@echo "Running SMBus tests at FULL level..."
+	TEST_LEVEL=full $(PYTEST) test_apb_smbus.py $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE)
+
+.PHONY: run-smbus-full-waves
+run-smbus-full-waves:
+	@echo "Running SMBus tests at FULL level with waveforms..."
+	WAVES=1 TEST_LEVEL=full $(PYTEST) test_apb_smbus.py $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE)
+
+.PHONY: run-smbus-full-parallel
+run-smbus-full-parallel:
+	@echo "Running SMBus tests at FULL level in parallel..."
+	TEST_LEVEL=full $(PYTEST) test_apb_smbus.py $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE) $(PYTEST_XDIST) $(PYTEST_RERUNS)
+
+.PHONY: run-smbus-full-parallel-waves
+run-smbus-full-parallel-waves:
+	@echo "Running SMBus tests at FULL level in parallel with waveforms..."
+	WAVES=1 TEST_LEVEL=full $(PYTEST) test_apb_smbus.py $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE) $(PYTEST_XDIST) $(PYTEST_RERUNS)
+
+
+# ==============================================================================
+# PM_ACPI Targets (test_apb_pm_acpi.py)
+# ==============================================================================
+
+# BASIC level
+.PHONY: run-acpi-basic
+run-acpi-basic:
+	@echo "Running PM_ACPI tests at BASIC level..."
+	TEST_LEVEL=basic $(PYTEST) test_apb_pm_acpi.py $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE)
+
+.PHONY: run-acpi-basic-waves
+run-acpi-basic-waves:
+	@echo "Running PM_ACPI tests at BASIC level with waveforms..."
+	WAVES=1 TEST_LEVEL=basic $(PYTEST) test_apb_pm_acpi.py $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE)
+
+.PHONY: run-acpi-basic-parallel
+run-acpi-basic-parallel:
+	@echo "Running PM_ACPI tests at BASIC level in parallel..."
+	TEST_LEVEL=basic $(PYTEST) test_apb_pm_acpi.py $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE) $(PYTEST_XDIST) $(PYTEST_RERUNS)
+
+.PHONY: run-acpi-basic-parallel-waves
+run-acpi-basic-parallel-waves:
+	@echo "Running PM_ACPI tests at BASIC level in parallel with waveforms..."
+	WAVES=1 TEST_LEVEL=basic $(PYTEST) test_apb_pm_acpi.py $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE) $(PYTEST_XDIST) $(PYTEST_RERUNS)
+
+
+# MEDIUM level
+.PHONY: run-acpi-medium
+run-acpi-medium:
+	@echo "Running PM_ACPI tests at MEDIUM level..."
+	TEST_LEVEL=medium $(PYTEST) test_apb_pm_acpi.py $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE)
+
+.PHONY: run-acpi-medium-waves
+run-acpi-medium-waves:
+	@echo "Running PM_ACPI tests at MEDIUM level with waveforms..."
+	WAVES=1 TEST_LEVEL=medium $(PYTEST) test_apb_pm_acpi.py $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE)
+
+.PHONY: run-acpi-medium-parallel
+run-acpi-medium-parallel:
+	@echo "Running PM_ACPI tests at MEDIUM level in parallel..."
+	TEST_LEVEL=medium $(PYTEST) test_apb_pm_acpi.py $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE) $(PYTEST_XDIST) $(PYTEST_RERUNS)
+
+.PHONY: run-acpi-medium-parallel-waves
+run-acpi-medium-parallel-waves:
+	@echo "Running PM_ACPI tests at MEDIUM level in parallel with waveforms..."
+	WAVES=1 TEST_LEVEL=medium $(PYTEST) test_apb_pm_acpi.py $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE) $(PYTEST_XDIST) $(PYTEST_RERUNS)
+
+
+# FULL level
+.PHONY: run-acpi-full
+run-acpi-full:
+	@echo "Running PM_ACPI tests at FULL level..."
+	TEST_LEVEL=full $(PYTEST) test_apb_pm_acpi.py $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE)
+
+.PHONY: run-acpi-full-waves
+run-acpi-full-waves:
+	@echo "Running PM_ACPI tests at FULL level with waveforms..."
+	WAVES=1 TEST_LEVEL=full $(PYTEST) test_apb_pm_acpi.py $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE)
+
+.PHONY: run-acpi-full-parallel
+run-acpi-full-parallel:
+	@echo "Running PM_ACPI tests at FULL level in parallel..."
+	TEST_LEVEL=full $(PYTEST) test_apb_pm_acpi.py $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE) $(PYTEST_XDIST) $(PYTEST_RERUNS)
+
+.PHONY: run-acpi-full-parallel-waves
+run-acpi-full-parallel-waves:
+	@echo "Running PM_ACPI tests at FULL level in parallel with waveforms..."
+	WAVES=1 TEST_LEVEL=full $(PYTEST) test_apb_pm_acpi.py $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE) $(PYTEST_XDIST) $(PYTEST_RERUNS)
+
+
+# ==============================================================================
+# UART 16550 Targets (test_apb_uart_16550.py)
+# ==============================================================================
+
+# BASIC level
+.PHONY: run-uart-basic
+run-uart-basic:
+	@echo "Running UART 16550 tests at BASIC level..."
+	TEST_LEVEL=basic $(PYTEST) test_apb_uart_16550.py $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE)
+
+.PHONY: run-uart-basic-waves
+run-uart-basic-waves:
+	@echo "Running UART 16550 tests at BASIC level with waveforms..."
+	WAVES=1 TEST_LEVEL=basic $(PYTEST) test_apb_uart_16550.py $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE)
+
+.PHONY: run-uart-basic-parallel
+run-uart-basic-parallel:
+	@echo "Running UART 16550 tests at BASIC level in parallel..."
+	TEST_LEVEL=basic $(PYTEST) test_apb_uart_16550.py $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE) $(PYTEST_XDIST) $(PYTEST_RERUNS)
+
+.PHONY: run-uart-basic-parallel-waves
+run-uart-basic-parallel-waves:
+	@echo "Running UART 16550 tests at BASIC level in parallel with waveforms..."
+	WAVES=1 TEST_LEVEL=basic $(PYTEST) test_apb_uart_16550.py $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE) $(PYTEST_XDIST) $(PYTEST_RERUNS)
+
+
+# MEDIUM level
+.PHONY: run-uart-medium
+run-uart-medium:
+	@echo "Running UART 16550 tests at MEDIUM level..."
+	TEST_LEVEL=medium $(PYTEST) test_apb_uart_16550.py $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE)
+
+.PHONY: run-uart-medium-waves
+run-uart-medium-waves:
+	@echo "Running UART 16550 tests at MEDIUM level with waveforms..."
+	WAVES=1 TEST_LEVEL=medium $(PYTEST) test_apb_uart_16550.py $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE)
+
+.PHONY: run-uart-medium-parallel
+run-uart-medium-parallel:
+	@echo "Running UART 16550 tests at MEDIUM level in parallel..."
+	TEST_LEVEL=medium $(PYTEST) test_apb_uart_16550.py $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE) $(PYTEST_XDIST) $(PYTEST_RERUNS)
+
+.PHONY: run-uart-medium-parallel-waves
+run-uart-medium-parallel-waves:
+	@echo "Running UART 16550 tests at MEDIUM level in parallel with waveforms..."
+	WAVES=1 TEST_LEVEL=medium $(PYTEST) test_apb_uart_16550.py $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE) $(PYTEST_XDIST) $(PYTEST_RERUNS)
+
+
+# FULL level
+.PHONY: run-uart-full
+run-uart-full:
+	@echo "Running UART 16550 tests at FULL level..."
+	TEST_LEVEL=full $(PYTEST) test_apb_uart_16550.py $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE)
+
+.PHONY: run-uart-full-waves
+run-uart-full-waves:
+	@echo "Running UART 16550 tests at FULL level with waveforms..."
+	WAVES=1 TEST_LEVEL=full $(PYTEST) test_apb_uart_16550.py $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE)
+
+.PHONY: run-uart-full-parallel
+run-uart-full-parallel:
+	@echo "Running UART 16550 tests at FULL level in parallel..."
+	TEST_LEVEL=full $(PYTEST) test_apb_uart_16550.py $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE) $(PYTEST_XDIST) $(PYTEST_RERUNS)
+
+.PHONY: run-uart-full-parallel-waves
+run-uart-full-parallel-waves:
+	@echo "Running UART 16550 tests at FULL level in parallel with waveforms..."
+	WAVES=1 TEST_LEVEL=full $(PYTEST) test_apb_uart_16550.py $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE) $(PYTEST_XDIST) $(PYTEST_RERUNS)
+
+
+# ==============================================================================
+# GPIO Targets (test_apb_gpio.py)
+# ==============================================================================
+
+# BASIC level
+.PHONY: run-gpio-basic
+run-gpio-basic:
+	@echo "Running GPIO tests at BASIC level..."
+	TEST_LEVEL=basic $(PYTEST) test_apb_gpio.py $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE)
+
+.PHONY: run-gpio-basic-waves
+run-gpio-basic-waves:
+	@echo "Running GPIO tests at BASIC level with waveforms..."
+	WAVES=1 TEST_LEVEL=basic $(PYTEST) test_apb_gpio.py $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE)
+
+.PHONY: run-gpio-basic-parallel
+run-gpio-basic-parallel:
+	@echo "Running GPIO tests at BASIC level in parallel..."
+	TEST_LEVEL=basic $(PYTEST) test_apb_gpio.py $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE) $(PYTEST_XDIST) $(PYTEST_RERUNS)
+
+.PHONY: run-gpio-basic-parallel-waves
+run-gpio-basic-parallel-waves:
+	@echo "Running GPIO tests at BASIC level in parallel with waveforms..."
+	WAVES=1 TEST_LEVEL=basic $(PYTEST) test_apb_gpio.py $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE) $(PYTEST_XDIST) $(PYTEST_RERUNS)
+
+
+# MEDIUM level
+.PHONY: run-gpio-medium
+run-gpio-medium:
+	@echo "Running GPIO tests at MEDIUM level..."
+	TEST_LEVEL=medium $(PYTEST) test_apb_gpio.py $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE)
+
+.PHONY: run-gpio-medium-waves
+run-gpio-medium-waves:
+	@echo "Running GPIO tests at MEDIUM level with waveforms..."
+	WAVES=1 TEST_LEVEL=medium $(PYTEST) test_apb_gpio.py $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE)
+
+.PHONY: run-gpio-medium-parallel
+run-gpio-medium-parallel:
+	@echo "Running GPIO tests at MEDIUM level in parallel..."
+	TEST_LEVEL=medium $(PYTEST) test_apb_gpio.py $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE) $(PYTEST_XDIST) $(PYTEST_RERUNS)
+
+.PHONY: run-gpio-medium-parallel-waves
+run-gpio-medium-parallel-waves:
+	@echo "Running GPIO tests at MEDIUM level in parallel with waveforms..."
+	WAVES=1 TEST_LEVEL=medium $(PYTEST) test_apb_gpio.py $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE) $(PYTEST_XDIST) $(PYTEST_RERUNS)
+
+
+# FULL level
+.PHONY: run-gpio-full
+run-gpio-full:
+	@echo "Running GPIO tests at FULL level..."
+	TEST_LEVEL=full $(PYTEST) test_apb_gpio.py $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE)
+
+.PHONY: run-gpio-full-waves
+run-gpio-full-waves:
+	@echo "Running GPIO tests at FULL level with waveforms..."
+	WAVES=1 TEST_LEVEL=full $(PYTEST) test_apb_gpio.py $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE)
+
+.PHONY: run-gpio-full-parallel
+run-gpio-full-parallel:
+	@echo "Running GPIO tests at FULL level in parallel..."
+	TEST_LEVEL=full $(PYTEST) test_apb_gpio.py $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE) $(PYTEST_XDIST) $(PYTEST_RERUNS)
+
+.PHONY: run-gpio-full-parallel-waves
+run-gpio-full-parallel-waves:
+	@echo "Running GPIO tests at FULL level in parallel with waveforms..."
+	WAVES=1 TEST_LEVEL=full $(PYTEST) test_apb_gpio.py $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE) $(PYTEST_XDIST) $(PYTEST_RERUNS)
+
+
+# ==============================================================================
 # Combined Targets (All Blocks)
 # ==============================================================================
 
@@ -541,66 +909,66 @@ run-ioapic-full-parallel-waves:
 .PHONY: run-all-basic
 run-all-basic:
 	@echo "Running all RLB tests at BASIC level..."
-	TEST_LEVEL=basic $(PYTEST) test_apb_hpet.py test_apb_pit_8254.py test_apb_rtc.py test_apb_pic_8259.py test_apb_ioapic.py $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE)
+	TEST_LEVEL=basic $(PYTEST) test_apb_hpet.py test_apb_pit_8254.py test_apb_rtc.py test_apb_pic_8259.py test_apb_ioapic.py test_apb_smbus.py test_apb_pm_acpi.py test_apb_uart_16550.py test_apb_gpio.py $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE)
 
 .PHONY: run-all-basic-waves
 run-all-basic-waves:
 	@echo "Running all RLB tests at BASIC level with waveforms..."
-	WAVES=1 TEST_LEVEL=basic $(PYTEST) test_apb_hpet.py test_apb_pit_8254.py test_apb_rtc.py test_apb_pic_8259.py test_apb_ioapic.py $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE)
+	WAVES=1 TEST_LEVEL=basic $(PYTEST) test_apb_hpet.py test_apb_pit_8254.py test_apb_rtc.py test_apb_pic_8259.py test_apb_ioapic.py test_apb_smbus.py test_apb_pm_acpi.py test_apb_uart_16550.py test_apb_gpio.py $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE)
 
 .PHONY: run-all-basic-parallel
 run-all-basic-parallel:
 	@echo "Running all RLB tests at BASIC level in parallel..."
-	TEST_LEVEL=basic $(PYTEST) test_apb_hpet.py test_apb_pit_8254.py test_apb_rtc.py test_apb_pic_8259.py test_apb_ioapic.py $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE) $(PYTEST_XDIST) $(PYTEST_RERUNS)
+	TEST_LEVEL=basic $(PYTEST) test_apb_hpet.py test_apb_pit_8254.py test_apb_rtc.py test_apb_pic_8259.py test_apb_ioapic.py test_apb_smbus.py test_apb_pm_acpi.py test_apb_uart_16550.py test_apb_gpio.py $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE) $(PYTEST_XDIST) $(PYTEST_RERUNS)
 
 .PHONY: run-all-basic-parallel-waves
 run-all-basic-parallel-waves:
 	@echo "Running all RLB tests at BASIC level in parallel with waveforms..."
-	WAVES=1 TEST_LEVEL=basic $(PYTEST) test_apb_hpet.py test_apb_pit_8254.py test_apb_rtc.py test_apb_pic_8259.py test_apb_ioapic.py $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE) $(PYTEST_XDIST) $(PYTEST_RERUNS)
+	WAVES=1 TEST_LEVEL=basic $(PYTEST) test_apb_hpet.py test_apb_pit_8254.py test_apb_rtc.py test_apb_pic_8259.py test_apb_ioapic.py test_apb_smbus.py test_apb_pm_acpi.py test_apb_uart_16550.py test_apb_gpio.py $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE) $(PYTEST_XDIST) $(PYTEST_RERUNS)
 
 
 # MEDIUM level
 .PHONY: run-all-medium
 run-all-medium:
 	@echo "Running all RLB tests at MEDIUM level..."
-	TEST_LEVEL=medium $(PYTEST) test_apb_hpet.py test_apb_pit_8254.py test_apb_rtc.py test_apb_pic_8259.py test_apb_ioapic.py $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE)
+	TEST_LEVEL=medium $(PYTEST) test_apb_hpet.py test_apb_pit_8254.py test_apb_rtc.py test_apb_pic_8259.py test_apb_ioapic.py test_apb_smbus.py test_apb_pm_acpi.py test_apb_uart_16550.py test_apb_gpio.py $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE)
 
 .PHONY: run-all-medium-waves
 run-all-medium-waves:
 	@echo "Running all RLB tests at MEDIUM level with waveforms..."
-	WAVES=1 TEST_LEVEL=medium $(PYTEST) test_apb_hpet.py test_apb_pit_8254.py test_apb_rtc.py test_apb_pic_8259.py test_apb_ioapic.py $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE)
+	WAVES=1 TEST_LEVEL=medium $(PYTEST) test_apb_hpet.py test_apb_pit_8254.py test_apb_rtc.py test_apb_pic_8259.py test_apb_ioapic.py test_apb_smbus.py test_apb_pm_acpi.py test_apb_uart_16550.py test_apb_gpio.py $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE)
 
 .PHONY: run-all-medium-parallel
 run-all-medium-parallel:
 	@echo "Running all RLB tests at MEDIUM level in parallel..."
-	TEST_LEVEL=medium $(PYTEST) test_apb_hpet.py test_apb_pit_8254.py test_apb_rtc.py test_apb_pic_8259.py test_apb_ioapic.py $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE) $(PYTEST_XDIST) $(PYTEST_RERUNS)
+	TEST_LEVEL=medium $(PYTEST) test_apb_hpet.py test_apb_pit_8254.py test_apb_rtc.py test_apb_pic_8259.py test_apb_ioapic.py test_apb_smbus.py test_apb_pm_acpi.py test_apb_uart_16550.py test_apb_gpio.py $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE) $(PYTEST_XDIST) $(PYTEST_RERUNS)
 
 .PHONY: run-all-medium-parallel-waves
 run-all-medium-parallel-waves:
 	@echo "Running all RLB tests at MEDIUM level in parallel with waveforms..."
-	WAVES=1 TEST_LEVEL=medium $(PYTEST) test_apb_hpet.py test_apb_pit_8254.py test_apb_rtc.py test_apb_pic_8259.py test_apb_ioapic.py $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE) $(PYTEST_XDIST) $(PYTEST_RERUNS)
+	WAVES=1 TEST_LEVEL=medium $(PYTEST) test_apb_hpet.py test_apb_pit_8254.py test_apb_rtc.py test_apb_pic_8259.py test_apb_ioapic.py test_apb_smbus.py test_apb_pm_acpi.py test_apb_uart_16550.py test_apb_gpio.py $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE) $(PYTEST_XDIST) $(PYTEST_RERUNS)
 
 
 # FULL level
 .PHONY: run-all-full
 run-all-full:
 	@echo "Running all RLB tests at FULL level..."
-	TEST_LEVEL=full $(PYTEST) test_apb_hpet.py test_apb_pit_8254.py test_apb_rtc.py test_apb_pic_8259.py test_apb_ioapic.py $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE)
+	TEST_LEVEL=full $(PYTEST) test_apb_hpet.py test_apb_pit_8254.py test_apb_rtc.py test_apb_pic_8259.py test_apb_ioapic.py test_apb_smbus.py test_apb_pm_acpi.py test_apb_uart_16550.py test_apb_gpio.py $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE)
 
 .PHONY: run-all-full-waves
 run-all-full-waves:
 	@echo "Running all RLB tests at FULL level with waveforms..."
-	WAVES=1 TEST_LEVEL=full $(PYTEST) test_apb_hpet.py test_apb_pit_8254.py test_apb_rtc.py test_apb_pic_8259.py test_apb_ioapic.py $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE)
+	WAVES=1 TEST_LEVEL=full $(PYTEST) test_apb_hpet.py test_apb_pit_8254.py test_apb_rtc.py test_apb_pic_8259.py test_apb_ioapic.py test_apb_smbus.py test_apb_pm_acpi.py test_apb_uart_16550.py test_apb_gpio.py $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE)
 
 .PHONY: run-all-full-parallel
 run-all-full-parallel:
 	@echo "Running all RLB tests at FULL level in parallel..."
-	TEST_LEVEL=full $(PYTEST) test_apb_hpet.py test_apb_pit_8254.py test_apb_rtc.py test_apb_pic_8259.py test_apb_ioapic.py $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE) $(PYTEST_XDIST) $(PYTEST_RERUNS)
+	TEST_LEVEL=full $(PYTEST) test_apb_hpet.py test_apb_pit_8254.py test_apb_rtc.py test_apb_pic_8259.py test_apb_ioapic.py test_apb_smbus.py test_apb_pm_acpi.py test_apb_uart_16550.py test_apb_gpio.py $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE) $(PYTEST_XDIST) $(PYTEST_RERUNS)
 
 .PHONY: run-all-full-parallel-waves
 run-all-full-parallel-waves:
 	@echo "Running all RLB tests at FULL level in parallel with waveforms..."
-	WAVES=1 TEST_LEVEL=full $(PYTEST) test_apb_hpet.py test_apb_pit_8254.py test_apb_rtc.py test_apb_pic_8259.py test_apb_ioapic.py $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE) $(PYTEST_XDIST) $(PYTEST_RERUNS)
+	WAVES=1 TEST_LEVEL=full $(PYTEST) test_apb_hpet.py test_apb_pit_8254.py test_apb_rtc.py test_apb_pic_8259.py test_apb_ioapic.py test_apb_smbus.py test_apb_pm_acpi.py test_apb_uart_16550.py test_apb_gpio.py $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE) $(PYTEST_XDIST) $(PYTEST_RERUNS)
 
 
 # ==============================================================================
@@ -631,6 +999,26 @@ collect-pic:
 collect-ioapic:
 	@echo "Collecting IOAPIC tests..."
 	$(PYTEST) test_apb_ioapic.py --collect-only
+
+.PHONY: collect-smbus
+collect-smbus:
+	@echo "Collecting SMBus tests..."
+	$(PYTEST) test_apb_smbus.py --collect-only
+
+.PHONY: collect-acpi
+collect-acpi:
+	@echo "Collecting PM_ACPI tests..."
+	$(PYTEST) test_apb_pm_acpi.py --collect-only
+
+.PHONY: collect-uart
+collect-uart:
+	@echo "Collecting UART 16550 tests..."
+	$(PYTEST) test_apb_uart_16550.py --collect-only
+
+.PHONY: collect-gpio
+collect-gpio:
+	@echo "Collecting GPIO tests..."
+	$(PYTEST) test_apb_gpio.py --collect-only
 
 .PHONY: clean
 clean:

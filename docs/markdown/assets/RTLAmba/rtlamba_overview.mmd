@@ -1,0 +1,39 @@
+%%{init: {'theme': 'neutral', 'themeVariables': { 'fontSize': '14px'}}}%%
+flowchart TB
+    subgraph RTLAmba["RTLAmba Library"]
+        subgraph Core["Core Interfaces"]
+            AXI4["AXI4\nFull/Master/Slave"]
+            AXIL4["AXI4-Lite\nMaster/Slave"]
+            APB["APB\nMaster/Slave/Crossbar"]
+            AXIS["AXI-Stream\nMaster/Slave"]
+        end
+
+        subgraph Monitor["Monitor Infrastructure"]
+            MON_BASE["axi_monitor_base"]
+            MON_TRANS["Transaction Manager"]
+            MON_REPORT["Reporter"]
+            MONBUS["Monitor Bus\n(64-bit packets)"]
+        end
+
+        subgraph Infrastructure["GAXI Infrastructure"]
+            FIFO["FIFO\n(sync/async)"]
+            SKID["Skid Buffer\n(sync/async)"]
+            CDC["CDC Utilities"]
+        end
+
+        subgraph Utilities["Protocol Utilities"]
+            ADDR["Address Generation"]
+            SPLIT["Transaction Splitters"]
+            DWIDTH["Data Width Convert"]
+        end
+    end
+
+    AXI4 --> MON_BASE
+    AXIL4 --> MON_BASE
+    APB --> MON_BASE
+    MON_BASE --> MON_TRANS
+    MON_TRANS --> MON_REPORT
+    MON_REPORT --> MONBUS
+
+    Core --> Infrastructure
+    Infrastructure --> Utilities

@@ -1,0 +1,52 @@
+%%{init: {'theme': 'neutral', 'themeVariables': { 'fontSize': '14px'}}}%%
+flowchart TB
+    subgraph Inputs
+        MA["i_mant_a[6:0]"]
+        MB["i_mant_b[6:0]"]
+        AN[i_a_is_normal]
+        BN[i_b_is_normal]
+    end
+
+    subgraph math_bf16_mantissa_mult["math_bf16_mantissa_mult"]
+        subgraph Extend["Mantissa Extension"]
+            EXT["Add implied 1\nw_mant_ext = {is_normal, mant}"]
+        end
+
+        subgraph Multiply["8x8 Multiplier"]
+            DADDA["math_multiplier_dadda_4to2_008\n16-bit product"]
+        end
+
+        subgraph Normalize["Normalization Detection"]
+            NORM["needs_norm = product[15]\nIf MSB set: right shift needed"]
+        end
+
+        subgraph Extract["Mantissa Extraction"]
+            SEL["If needs_norm: [14:8]\nElse: [13:7]"]
+        end
+
+        subgraph Round["Rounding Support"]
+            RND["Guard, Round, Sticky bits\nfor RNE rounding"]
+        end
+    end
+
+    subgraph Outputs
+        PROD["ow_product[15:0]"]
+        NEED[ow_needs_norm]
+        MOUT["ow_mant_out[6:0]"]
+        RBIT[ow_round_bit]
+        SBIT[ow_sticky_bit]
+    end
+
+    MA --> Extend
+    MB --> Extend
+    AN --> Extend
+    BN --> Extend
+    Extend --> Multiply
+    Multiply --> Normalize
+    Multiply --> Extract
+    Multiply --> Round
+    Normalize --> NEED
+    Extract --> MOUT
+    Multiply --> PROD
+    Round --> RBIT
+    Round --> SBIT

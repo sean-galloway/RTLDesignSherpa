@@ -1,0 +1,36 @@
+%%{init: {'theme': 'neutral', 'themeVariables': { 'fontSize': '14px'}}}%%
+flowchart TB
+    subgraph Inputs
+        CLK[clk]
+        RST[rst_n]
+        EN[i_enable]
+        FREQ["i_freq[FREQ_WIDTH-1:0]"]
+    end
+
+    subgraph counter_freq_invariant["counter_freq_invariant"]
+        subgraph Accumulator["Phase Accumulator"]
+            ACC["r_accumulator +=\ni_freq each cycle"]
+        end
+
+        subgraph Overflow["Overflow Detection"]
+            OVF_DET["Detect accumulator\noverflow/wrap"]
+        end
+
+        subgraph Output_Gen["Output Pulse"]
+            PULSE["Generate pulse on\naccumulator overflow"]
+        end
+    end
+
+    subgraph Outputs
+        TICK[o_tick]
+        ACC_OUT["o_accumulator[ACC_WIDTH-1:0]"]
+    end
+
+    CLK --> Accumulator
+    RST --> Accumulator
+    EN --> Accumulator
+    FREQ --> Accumulator
+    Accumulator --> Overflow
+    Overflow --> Output_Gen
+    Output_Gen --> TICK
+    Accumulator --> ACC_OUT

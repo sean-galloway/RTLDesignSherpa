@@ -1,0 +1,23 @@
+%%{init: {'theme': 'neutral', 'themeVariables': { 'fontSize': '14px'}}}%%
+flowchart LR
+    subgraph Inputs
+        EN[en]
+        CLK[clk]
+    end
+
+    subgraph icg["icg (Integrated Clock Gating)"]
+        LATCH["Latch\n(transparent when clk=0)"]
+        AND["AND Gate"]
+        EN_OUT[en_out]
+    end
+
+    subgraph Outputs
+        GCLK[gclk]
+    end
+
+    EN --> LATCH
+    CLK --> LATCH
+    LATCH --> EN_OUT
+    EN_OUT --> AND
+    CLK --> AND
+    AND --> GCLK

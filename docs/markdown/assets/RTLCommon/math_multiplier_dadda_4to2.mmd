@@ -1,0 +1,37 @@
+%%{init: {'theme': 'neutral', 'themeVariables': { 'fontSize': '14px'}}}%%
+flowchart TB
+    subgraph Inputs
+        A["i_multiplier[N-1:0]"]
+        B["i_multiplicand[N-1:0]"]
+    end
+
+    subgraph math_multiplier_dadda_4to2["math_multiplier_dadda_4to2_NNN"]
+        subgraph PPGen["Partial Product Generation"]
+            PP["PP[i][j] = A[i] AND B[j]\nN x N partial products"]
+        end
+
+        subgraph DaddaTree["Dadda Tree with 4:2 Compressors"]
+            direction TB
+            NOTE["4:2 compressors reduce\n4 inputs to 2 outputs faster"]
+            S1["Stage 1: 4:2 reduction"]
+            S2["Stage 2: 4:2 reduction"]
+            SN["Final: 2 rows"]
+            COMP["math_compressor_4to2\n4 inputs + cin ->\n2 outputs + cout"]
+        end
+
+        subgraph FinalAdd["Final Addition"]
+            CPA["Han-Carlson Adder\nmath_adder_han_carlson"]
+        end
+    end
+
+    subgraph Outputs
+        PROD["ow_product[2N-1:0]"]
+    end
+
+    A --> PPGen
+    B --> PPGen
+    PPGen --> DaddaTree
+    S1 --> S2
+    S2 --> SN
+    DaddaTree --> FinalAdd
+    FinalAdd --> PROD

@@ -1,0 +1,42 @@
+%%{init: {'theme': 'neutral', 'themeVariables': { 'fontSize': '14px'}}}%%
+flowchart LR
+    subgraph Inputs
+        CLK[aclk]
+        RST[aresetn]
+        S_VALID[s_valid]
+        S_DATA["s_data[WIDTH-1:0]"]
+        M_READY[m_ready]
+    end
+
+    subgraph gaxi_skid_buffer["gaxi_skid_buffer"]
+        subgraph Main_Path["Main Data Path"]
+            MAIN["Direct path\n(when downstream ready)"]
+        end
+
+        subgraph Skid_Reg["Skid Register"]
+            SKID["Backup storage\n(when downstream stalls)"]
+        end
+
+        subgraph Control["Flow Control"]
+            MUX["Output Mux\n(main vs skid)"]
+            STATE["Ready generation\n(accept if skid empty)"]
+        end
+    end
+
+    subgraph Outputs
+        S_READY[s_ready]
+        M_VALID[m_valid]
+        M_DATA["m_data[WIDTH-1:0]"]
+    end
+
+    CLK --> Skid_Reg
+    RST --> Skid_Reg
+    S_VALID --> Control
+    S_DATA --> Main_Path
+    S_DATA --> Skid_Reg
+    M_READY --> Control
+    Main_Path --> MUX
+    Skid_Reg --> MUX
+    Control --> S_READY
+    MUX --> M_DATA
+    Control --> M_VALID

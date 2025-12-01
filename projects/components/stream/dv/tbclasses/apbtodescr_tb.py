@@ -252,7 +252,7 @@ class APBToDescrTB(TBBase):
         await self.wait_clocks(self.clk_name, 1)
 
     async def test_basic_write(self, channel):
-        """Test basic write to a single channel
+        """Test basic write to a single channel (TWO-WRITE SEQUENCE for 64-bit address)
 
         Args:
             channel: Channel ID (0-7)
@@ -262,31 +262,51 @@ class APBToDescrTB(TBBase):
         """
         self.log.info(f"Testing basic write to channel {channel}")
 
-        # Calculate address (channel offset only, no base address)
-        addr = channel * 4
-        data = 0x1000_0000 + (channel * 0x100)
+        # NEW: Two-write sequence for 64-bit descriptor address
+        # Address spacing: 8 bytes per channel (LOW at +0, HIGH at +4)
+        addr_low = channel * 8          # LOW register (bits [31:0])
+        addr_high = channel * 8 + 4     # HIGH register (bits [63:32])
 
-        # Perform write
-        success, error, cycles, kickoff_hit = await self.apb_write(addr, data)
+        # Example 64-bit descriptor address: 0x00010000 + (channel * 0x100000)
+        desc_addr_64 = 0x0001_0000 + (channel * 0x10_0000)
+        data_low = desc_addr_64 & 0xFFFF_FFFF          # [31:0]
+        data_high = (desc_addr_64 >> 32) & 0xFFFF_FFFF # [63:32]
+
+        # Write LOW register (should NOT trigger routing yet)
+        self.log.info(f"  Writing LOW: addr=0x{addr_low:02X}, data=0x{data_low:08X}")
+        success, error, cycles, kickoff_hit = await self.apb_write(addr_low, data_low)
 
         if not success:
-            self.log.error(f"Channel {channel} write failed with error={error}")
+            self.log.error(f"Channel {channel} LOW write failed with error={error}")
             return False
 
-        # Verify kickoff_hit was asserted (valid kick-off transaction)
+        # Verify kickoff_hit NOT asserted yet (LOW write only, waiting for HIGH)
+        if kickoff_hit:
+            self.log.error(f"Channel {channel} kickoff_hit asserted too early (after LOW write only)")
+            return False
+
+        # Write HIGH register (completes 64-bit address, triggers routing)
+        self.log.info(f"  Writing HIGH: addr=0x{addr_high:02X}, data=0x{data_high:08X}")
+        success, error, cycles, kickoff_hit = await self.apb_write(addr_high, data_high)
+
+        if not success:
+            self.log.error(f"Channel {channel} HIGH write failed with error={error}")
+            return False
+
+        # Verify kickoff_hit was asserted (valid kick-off transaction after HIGH write)
         if not kickoff_hit:
-            self.log.error(f"Channel {channel} kickoff_hit not asserted during transaction")
+            self.log.error(f"Channel {channel} kickoff_hit not asserted during HIGH write transaction")
             return False
 
         # Note: desc_apb_valid and desc_apb_addr are transient signals during ROUTE state
         # After transaction completes (RESPOND → IDLE), they are deasserted
         # The apb_descriptor_kickoff_hit signal confirms correct routing occurred
 
-        self.log.info(f"✓ Channel {channel} basic write passed (kickoff_hit confirmed)")
+        self.log.info(f"✓ Channel {channel} basic write passed (64-bit address: 0x{desc_addr_64:016X})")
         return True
 
     async def test_backpressure(self, channel, stall_cycles):
-        """Test write with descriptor engine back-pressure
+        """Test write with descriptor engine back-pressure (TWO-WRITE SEQUENCE)
 
         Args:
             channel: Channel ID (0-7)
@@ -297,16 +317,32 @@ class APBToDescrTB(TBBase):
         """
         self.log.info(f"Testing back-pressure on channel {channel} ({stall_cycles} cycles)")
 
-        # Make channel not ready
+        # NEW: Two-write sequence for 64-bit descriptor address
+        addr_low = channel * 8
+        addr_high = channel * 8 + 4
+        desc_addr_64 = 0x0002_0000 + (channel * 0x10_0000)
+        data_low = desc_addr_64 & 0xFFFF_FFFF
+        data_high = (desc_addr_64 >> 32) & 0xFFFF_FFFF
+
+        # Write LOW register (should succeed without back-pressure)
+        self.log.info(f"  Writing LOW: addr=0x{addr_low:02X}, data=0x{data_low:08X}")
+        success, error, cycles, kickoff_hit = await self.apb_write(addr_low, data_low)
+
+        if not success:
+            self.log.error(f"Channel {channel} LOW write failed")
+            return False
+
+        if kickoff_hit:
+            self.log.error(f"Channel {channel} kickoff_hit asserted after LOW write (should wait for HIGH)")
+            return False
+
+        # Make channel not ready (apply back-pressure)
         ready_mask = ((1 << self.NUM_CHANNELS) - 1) & ~(1 << channel)
         await self.set_desc_ready(ready_mask)
 
-        # Start write transaction in background
-        addr = channel * 4
-        data = 0x2000_0000 + (channel * 0x100)
-
-        # Start write (will block)
-        write_task = cocotb.start_soon(self.apb_write(addr, data))
+        # Start HIGH write transaction in background (will block due to back-pressure)
+        self.log.info(f"  Writing HIGH: addr=0x{addr_high:02X}, data=0x{data_high:08X} (with back-pressure)")
+        write_task = cocotb.start_soon(self.apb_write(addr_high, data_high))
 
         # Wait for stall cycles
         for i in range(stall_cycles):
@@ -316,14 +352,14 @@ class APBToDescrTB(TBBase):
                 self.log.error(f"Response arrived too early at cycle {i}")
                 return False
 
-        # Make channel ready
+        # Make channel ready (release back-pressure)
         await self.set_desc_ready((1 << self.NUM_CHANNELS) - 1)
 
         # Wait for write to complete
         success, error, total_cycles, kickoff_hit = await write_task
 
         if not success:
-            self.log.error(f"Channel {channel} write with back-pressure failed")
+            self.log.error(f"Channel {channel} HIGH write with back-pressure failed")
             return False
 
         # Verify kickoff_hit was asserted (valid kick-off transaction)
@@ -340,7 +376,7 @@ class APBToDescrTB(TBBase):
             return False
 
         self.log.info(f"✓ Channel {channel} back-pressure test passed ({total_cycles} cycles, "
-                     f"{total_cycles - 2} cycles stalled)")
+                     f"{total_cycles - 2} cycles stalled, 64-bit addr: 0x{desc_addr_64:016X})")
         return True
 
     async def test_out_of_range(self):
@@ -391,6 +427,150 @@ class APBToDescrTB(TBBase):
             return False
 
         self.log.info(f"✓ Read error test passed")
+        return True
+
+    async def test_high_write_first(self):
+        """Test HIGH write before LOW write (should error)
+
+        Returns:
+            True if test passed
+        """
+        self.log.info("Testing HIGH write before LOW write (error case)")
+
+        # Try to write HIGH register first (bit 2 = 1)
+        addr_high = 0x04  # CH0 HIGH register
+        data = 0x0000_0001
+
+        success, error, cycles, kickoff_hit = await self.apb_write(addr_high, data, expect_error=True)
+
+        if not success:
+            self.log.error(f"HIGH-before-LOW test failed: error flag not set")
+            return False
+
+        # Verify kickoff_hit was NOT asserted (error transaction)
+        if kickoff_hit:
+            self.log.error(f"HIGH-before-LOW: kickoff_hit should NOT be asserted for error transaction")
+            return False
+
+        self.log.info(f"✓ HIGH-before-LOW error test passed (error={error})")
+        return True
+
+    async def test_low_write_twice(self):
+        """Test LOW write twice in a row (should error on second)
+
+        Returns:
+            True if test passed
+        """
+        self.log.info("Testing LOW write twice in a row (error case)")
+
+        # Write LOW register (should succeed)
+        addr_low = 0x00  # CH0 LOW register
+        data_low1 = 0x1234_5678
+
+        success, error, cycles, kickoff_hit = await self.apb_write(addr_low, data_low1)
+
+        if not success:
+            self.log.error(f"First LOW write failed (should succeed)")
+            return False
+
+        if kickoff_hit:
+            self.log.error(f"kickoff_hit asserted after first LOW write (should wait for HIGH)")
+            return False
+
+        # Write LOW register AGAIN (should error - expecting HIGH)
+        data_low2 = 0x8765_4321
+
+        success, error, cycles, kickoff_hit = await self.apb_write(addr_low, data_low2, expect_error=True)
+
+        if not success:
+            self.log.error(f"Second LOW write test failed: error flag not set")
+            return False
+
+        # Verify kickoff_hit was NOT asserted (error transaction)
+        if kickoff_hit:
+            self.log.error(f"LOW-twice: kickoff_hit should NOT be asserted for error transaction")
+            return False
+
+        self.log.info(f"✓ LOW-write-twice error test passed (error={error})")
+        return True
+
+    async def test_different_channel_mid_sequence(self):
+        """Test write to different channel in middle of sequence (should error)
+
+        Returns:
+            True if test passed
+        """
+        self.log.info("Testing write to different channel mid-sequence (error case)")
+
+        # Write LOW register for CH0
+        addr_low_ch0 = 0x00  # CH0 LOW
+        data_low = 0xAAAA_AAAA
+
+        success, error, cycles, kickoff_hit = await self.apb_write(addr_low_ch0, data_low)
+
+        if not success:
+            self.log.error(f"CH0 LOW write failed (should succeed)")
+            return False
+
+        if kickoff_hit:
+            self.log.error(f"kickoff_hit asserted after CH0 LOW write (should wait for HIGH)")
+            return False
+
+        # Write HIGH register for CH1 (different channel!)
+        addr_high_ch1 = 0x08 + 0x04  # CH1 HIGH = 0x0C
+        data_high = 0xBBBB_BBBB
+
+        success, error, cycles, kickoff_hit = await self.apb_write(addr_high_ch1, data_high, expect_error=True)
+
+        if not success:
+            self.log.error(f"Different channel test failed: error flag not set")
+            return False
+
+        # Verify kickoff_hit was NOT asserted (error transaction)
+        if kickoff_hit:
+            self.log.error(f"Different channel: kickoff_hit should NOT be asserted for error transaction")
+            return False
+
+        self.log.info(f"✓ Different channel mid-sequence error test passed (error={error})")
+        return True
+
+    async def test_read_during_sequence(self):
+        """Test read during write sequence (should error)
+
+        Returns:
+            True if test passed
+        """
+        self.log.info("Testing read during write sequence (error case)")
+
+        # Write LOW register for CH0
+        addr_low = 0x00  # CH0 LOW
+        data_low = 0xCCCC_CCCC
+
+        success, error, cycles, kickoff_hit = await self.apb_write(addr_low, data_low)
+
+        if not success:
+            self.log.error(f"CH0 LOW write failed (should succeed)")
+            return False
+
+        if kickoff_hit:
+            self.log.error(f"kickoff_hit asserted after LOW write (should wait for HIGH)")
+            return False
+
+        # Try to read HIGH register (should error - read not supported during sequence)
+        addr_high = 0x04  # CH0 HIGH
+
+        error, cycles, kickoff_hit = await self.apb_read(addr_high)
+
+        if error != 1:
+            self.log.error(f"Read during sequence test failed: error flag not set (got {error})")
+            return False
+
+        # Verify kickoff_hit was NOT asserted (error transaction)
+        if kickoff_hit:
+            self.log.error(f"Read during sequence: kickoff_hit should NOT be asserted")
+            return False
+
+        self.log.info(f"✓ Read during sequence error test passed")
         return True
 
     async def test_all_channels(self):

@@ -1,0 +1,35 @@
+%%{init: {'theme': 'neutral', 'themeVariables': { 'fontSize': '14px'}}}%%
+flowchart TB
+    subgraph Inputs
+        DATA["i_data[DATA_WIDTH-1:0]"]
+    end
+
+    subgraph dataint_ecc_hamming_encode_secded["dataint_ecc_hamming_encode_secded"]
+        subgraph Parity_Calc["Parity Bit Calculation"]
+            P1["P1: XOR of positions\nwith bit 0 = 1"]
+            P2["P2: XOR of positions\nwith bit 1 = 1"]
+            P4["P4: XOR of positions\nwith bit 2 = 1"]
+            PN["Pn: Continue for\nall parity positions"]
+        end
+
+        subgraph Interleave["Data Interleaving"]
+            INT["Insert parity bits\nat power-of-2 positions"]
+        end
+
+        subgraph Overall["Overall Parity (SECDED)"]
+            PALL["P0: XOR of all bits\nfor double-error detect"]
+        end
+    end
+
+    subgraph Outputs
+        CODE["o_encoded[CODE_WIDTH-1:0]"]
+    end
+
+    DATA --> Parity_Calc
+    DATA --> Interleave
+    P1 --> Interleave
+    P2 --> Interleave
+    P4 --> Interleave
+    PN --> Interleave
+    Interleave --> Overall
+    Overall --> CODE

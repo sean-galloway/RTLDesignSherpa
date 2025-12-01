@@ -1,0 +1,39 @@
+%%{init: {'theme': 'neutral', 'themeVariables': { 'fontSize': '14px'}}}%%
+flowchart LR
+    subgraph Inputs
+        CLK[clk]
+        RST[rst_n]
+        EN[i_enable]
+        LD[i_load]
+        LVAL["i_load_value[WIDTH-1:0]"]
+    end
+
+    subgraph counter_bin_load["counter_bin_load"]
+        subgraph Mux["Load/Count Mux"]
+            MUX["load ? load_value :\ncount + 1"]
+        end
+
+        subgraph Register["Count Register"]
+            REG["r_count[WIDTH-1:0]"]
+        end
+
+        subgraph Compare["Overflow Detection"]
+            CMP["count == MAX_VALUE"]
+        end
+    end
+
+    subgraph Outputs
+        CNT["o_count[WIDTH-1:0]"]
+        OVF[o_overflow]
+    end
+
+    CLK --> Register
+    RST --> Register
+    EN --> Mux
+    LD --> Mux
+    LVAL --> Mux
+    Register --> Mux
+    Mux --> Register
+    Register --> Compare
+    Register --> CNT
+    Compare --> OVF

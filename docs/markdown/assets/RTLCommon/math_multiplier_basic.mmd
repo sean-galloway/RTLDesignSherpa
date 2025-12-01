@@ -1,0 +1,30 @@
+%%{init: {'theme': 'neutral', 'themeVariables': { 'fontSize': '14px'}}}%%
+flowchart TB
+    subgraph Inputs
+        A["i_a[WIDTH-1:0]"]
+        B["i_b[WIDTH-1:0]"]
+    end
+
+    subgraph math_multiplier_basic["math_multiplier_basic"]
+        subgraph PP_Gen["Partial Product Generation"]
+            PP["PP[i] = A & B[i]\n(AND each bit of B with A)"]
+        end
+
+        subgraph Shift["Shift Alignment"]
+            SH["PP[i] << i\n(shift by bit position)"]
+        end
+
+        subgraph Accumulate["Accumulation"]
+            ACC["Sum all shifted\npartial products"]
+        end
+    end
+
+    subgraph Outputs
+        PROD["o_product[2*WIDTH-1:0]"]
+    end
+
+    A --> PP_Gen
+    B --> PP_Gen
+    PP_Gen --> Shift
+    Shift --> Accumulate
+    Accumulate --> PROD

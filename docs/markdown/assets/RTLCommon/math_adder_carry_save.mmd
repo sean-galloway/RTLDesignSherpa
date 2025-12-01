@@ -1,0 +1,37 @@
+%%{init: {'theme': 'neutral', 'themeVariables': { 'fontSize': '14px'}}}%%
+flowchart TB
+    subgraph Inputs
+        A["i_a[WIDTH-1:0]"]
+        B["i_b[WIDTH-1:0]"]
+        C["i_c[WIDTH-1:0]"]
+    end
+
+    subgraph math_adder_carry_save["math_adder_carry_save"]
+        subgraph CSA_Array["CSA Array (3:2 Compressors)"]
+            direction LR
+            FA0["FA[0]"]
+            FA1["FA[1]"]
+            FAN["FA[N-1]"]
+        end
+
+        subgraph Sum_Vector["Sum Vector"]
+            SV["S = A ^ B ^ C\n(no carry chain)"]
+        end
+
+        subgraph Carry_Vector["Carry Vector"]
+            CV["C = (A&B)|(B&C)|(A&C)\n(shifted left by 1)"]
+        end
+    end
+
+    subgraph Outputs
+        SUM["o_sum[WIDTH-1:0]"]
+        CARRY["o_carry[WIDTH-1:0]"]
+    end
+
+    A --> CSA_Array
+    B --> CSA_Array
+    C --> CSA_Array
+    CSA_Array --> Sum_Vector
+    CSA_Array --> Carry_Vector
+    Sum_Vector --> SUM
+    Carry_Vector --> CARRY

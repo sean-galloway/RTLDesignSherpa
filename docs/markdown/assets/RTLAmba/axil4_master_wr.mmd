@@ -1,0 +1,38 @@
+%%{init: {'theme': 'neutral', 'themeVariables': { 'fontSize': '14px'}}}%%
+flowchart LR
+    subgraph FUB["FUB Interface (Input)"]
+        FUB_AW["fub_axi_aw*"]
+        FUB_W["fub_axi_w*"]
+        FUB_B["fub_axi_b*"]
+    end
+
+    subgraph axil4_master_wr["axil4_master_wr"]
+        subgraph AW_Buffer["AW Skid Buffer"]
+            AW_SKID["gaxi_skid_buffer"]
+        end
+
+        subgraph W_Buffer["W Skid Buffer"]
+            W_SKID["gaxi_skid_buffer"]
+        end
+
+        subgraph B_Buffer["B Skid Buffer"]
+            B_SKID["gaxi_skid_buffer"]
+        end
+
+        subgraph Status["Status"]
+            BUSY["busy signal"]
+        end
+    end
+
+    subgraph Master["Master AXIL (Output)"]
+        M_AW["m_axil_aw*"]
+        M_W["m_axil_w*"]
+        M_B["m_axil_b*"]
+    end
+
+    FUB_AW --> AW_Buffer
+    FUB_W --> W_Buffer
+    AW_Buffer --> M_AW
+    W_Buffer --> M_W
+    M_B --> B_Buffer
+    B_Buffer --> FUB_B

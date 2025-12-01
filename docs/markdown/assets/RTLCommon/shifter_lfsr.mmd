@@ -1,0 +1,44 @@
+%%{init: {'theme': 'neutral', 'themeVariables': { 'fontSize': '14px'}}}%%
+flowchart LR
+    subgraph Inputs
+        CLK[clk]
+        RST[rst_n]
+        EN[i_enable]
+        SEED["i_seed[WIDTH-1:0]"]
+        LOAD[i_load]
+    end
+
+    subgraph shifter_lfsr["shifter_lfsr"]
+        subgraph Taps["Feedback Taps"]
+            XOR["XOR selected bits\n(polynomial taps)"]
+        end
+
+        subgraph Shift["Shift Register"]
+            direction LR
+            FF0["FF[0]"]
+            FF1["FF[1]"]
+            FFN["FF[N-1]"]
+            FF0 --> FF1
+            FF1 --> FFN
+        end
+
+        subgraph Feedback["Feedback Path"]
+            FB["XOR result -> FF[0]\n(Fibonacci) or\ndistributed (Galois)"]
+        end
+    end
+
+    subgraph Outputs
+        LFSR["o_lfsr[WIDTH-1:0]"]
+        PRBS[o_prbs_bit]
+    end
+
+    CLK --> Shift
+    RST --> Shift
+    EN --> Shift
+    SEED --> Shift
+    LOAD --> Shift
+    Shift --> Taps
+    Taps --> Feedback
+    Feedback --> FF0
+    Shift --> LFSR
+    FFN --> PRBS

@@ -134,6 +134,10 @@ class IOAPICTB(TBBase):
         self.apb_addr_width = 12  # 4KB address window
         self.apb_master = None  # Will be created in setup_components()
 
+        # Captured interrupt info (set by wait_for_interrupt)
+        self._last_int_vector = None
+        self._last_int_dest = None
+
         self.log.info("IOAPIC testbench initialized")
         self.log.info(f"  Data width: {self.apb_data_width}")
         self.log.info(f"  Addr width: {self.apb_addr_width}")
@@ -217,8 +221,9 @@ class IOAPICTB(TBBase):
         # Initialize IRQ inputs to inactive (0 for edge-triggered, high/low depends on polarity)
         self.dut.irq_in.value = 0x000000
 
-        # Initialize interrupt delivery ready
-        self.dut.irq_out_ready.value = 1
+        # Initialize interrupt delivery NOT ready (TB controls delivery timing)
+        # This prevents the IOAPIC from completing delivery before TB is ready to observe it
+        self.dut.irq_out_ready.value = 0
 
         # Initialize EOI input
         self.dut.eoi_in.value = 0
@@ -483,6 +488,13 @@ class IOAPICTB(TBBase):
         for _ in range(timeout_cycles):
             if self.dut.irq_out_valid.value == 1:
                 self.log.info("Interrupt delivery asserted (irq_out_valid=1)")
+                # Capture interrupt info BEFORE acknowledging
+                self._last_int_vector = self.dut.irq_out_vector.value.integer
+                self._last_int_dest = self.dut.irq_out_dest.value.integer
+                # Acknowledge the interrupt to complete delivery
+                self.dut.irq_out_ready.value = 1
+                await self.wait_clocks('pclk', 1)
+                self.dut.irq_out_ready.value = 0
                 return True
             await self.wait_clocks('pclk', 1)
 
@@ -506,13 +518,69 @@ class IOAPICTB(TBBase):
 
     async def get_interrupt_delivery(self) -> Tuple[int, int, int]:
         """
-        Get current interrupt delivery information.
+        Get interrupt delivery information.
+
+        If an interrupt was captured by wait_for_interrupt(), returns the captured values.
+        Otherwise reads current signal values.
 
         Returns:
             Tuple of (valid, vector, dest)
         """
+        # If we captured interrupt info in wait_for_interrupt, return those values
+        if hasattr(self, '_last_int_vector') and self._last_int_vector is not None:
+            vector = self._last_int_vector
+            dest = self._last_int_dest
+            # Clear captured values
+            self._last_int_vector = None
+            self._last_int_dest = None
+            return 1, vector, dest
+
+        # Otherwise read current signal values
         valid = self.dut.irq_out_valid.value.integer
         vector = self.dut.irq_out_vector.value.integer
         dest = self.dut.irq_out_dest.value.integer
 
         return valid, vector, dest
+
+    async def drain_pending_interrupts(self, max_count: int = 10, timeout_per_int: int = 20) -> int:
+        """
+        Drain any pending interrupts from previous test operations.
+
+        This acknowledges and sends EOI for any pending interrupts to ensure
+        a clean state for subsequent tests.
+
+        Args:
+            max_count: Maximum number of interrupts to drain
+            timeout_per_int: Cycles to wait for each interrupt
+
+        Returns:
+            Number of interrupts drained
+        """
+        drained = 0
+        for _ in range(max_count):
+            # Check if there's a pending interrupt
+            if self.dut.irq_out_valid.value != 1:
+                # Wait a few cycles to see if one appears
+                for _ in range(timeout_per_int):
+                    if self.dut.irq_out_valid.value == 1:
+                        break
+                    await self.wait_clocks('pclk', 1)
+                else:
+                    # No interrupt appeared, we're done
+                    break
+
+            if self.dut.irq_out_valid.value == 1:
+                # Capture vector for EOI
+                vector = self.dut.irq_out_vector.value.integer
+                # Acknowledge the interrupt
+                self.dut.irq_out_ready.value = 1
+                await self.wait_clocks('pclk', 1)
+                self.dut.irq_out_ready.value = 0
+                # Send EOI to clear any level-triggered interrupts
+                await self.send_eoi(vector)
+                drained += 1
+                self.log.info(f"Drained pending interrupt: vector=0x{vector:02X}")
+
+        if drained > 0:
+            self.log.info(f"Drained {drained} pending interrupt(s)")
+        return drained

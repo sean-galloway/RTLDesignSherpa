@@ -1,0 +1,28 @@
+%%{init: {'theme': 'neutral', 'themeVariables': { 'fontSize': '14px'}}}%%
+flowchart LR
+    subgraph Inputs
+        CLK[clk]
+        RST[rst_n]
+        IN[i_signal]
+    end
+
+    subgraph clock_pulse["clock_pulse"]
+        subgraph Delay["Delay Register"]
+            DLY["r_delay\n(previous value)"]
+        end
+
+        subgraph Edge["Edge Detection"]
+            EDGE["pulse = signal & ~delay\n(rising edge)"]
+        end
+    end
+
+    subgraph Outputs
+        PULSE[o_pulse]
+    end
+
+    CLK --> Delay
+    RST --> Delay
+    IN --> Delay
+    IN --> Edge
+    Delay --> Edge
+    Edge --> PULSE

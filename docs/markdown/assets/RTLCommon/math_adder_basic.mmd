@@ -1,0 +1,37 @@
+%%{init: {'theme': 'neutral', 'themeVariables': { 'fontSize': '14px'}}}%%
+flowchart TB
+    subgraph math_adder_basic["math_adder_basic"]
+        subgraph Half_Adder["Half Adder"]
+            HA_IN["A, B"]
+            HA_SUM["Sum = A ^ B"]
+            HA_COUT["Cout = A & B"]
+        end
+
+        subgraph Full_Adder["Full Adder"]
+            FA_IN["A, B, Cin"]
+            FA_SUM["Sum = A ^ B ^ Cin"]
+            FA_COUT["Cout = (A&B) | (Cin&(A^B))"]
+        end
+    end
+
+    subgraph Half_IO["Half Adder I/O"]
+        HA_I["i_a, i_b"]
+        HA_O["o_sum, o_cout"]
+    end
+
+    subgraph Full_IO["Full Adder I/O"]
+        FA_I["i_a, i_b, i_cin"]
+        FA_O["o_sum, o_cout"]
+    end
+
+    HA_I --> HA_IN
+    HA_IN --> HA_SUM
+    HA_IN --> HA_COUT
+    HA_SUM --> HA_O
+    HA_COUT --> HA_O
+
+    FA_I --> FA_IN
+    FA_IN --> FA_SUM
+    FA_IN --> FA_COUT
+    FA_SUM --> FA_O
+    FA_COUT --> FA_O

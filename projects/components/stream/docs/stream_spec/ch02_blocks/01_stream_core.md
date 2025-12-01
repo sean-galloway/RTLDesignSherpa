@@ -3,7 +3,7 @@
 **Module:** `stream_core.sv`
 **Location:** `projects/components/stream/rtl/macro/`
 **Status:** Implemented
-**Last Updated:** 2025-11-21
+**Last Updated:** 2025-11-30
 
 ---
 
@@ -119,6 +119,17 @@ sequenceDiagram
 | `DATA_WIDTH` | int | 512 | Data bus width (must match memory interface) |
 | `AXI_ID_WIDTH` | int | 8 | AXI transaction ID width |
 | `FIFO_DEPTH` | int | 512 | Per-channel FIFO depth |
+
+### Monitor Control
+
+| Parameter | Type | Default | Description |
+|-----------|------|---------|-------------|
+| `USE_AXI_MONITORS` | int | 1 | Enable (1) or disable (0) AXI transaction monitors |
+
+**Note:** When `USE_AXI_MONITORS = 0`:
+- All monitor configuration inputs are tied off internally
+- MonBus output remains present but inactive (no packets generated)
+- Reduces resource usage for production systems
 
 ### Outstanding Transaction Limits
 
@@ -257,6 +268,12 @@ Each monitor has:
 | `cfg_perf_clear` | input | 1 | Clear profiler counters |
 
 ### Status Interface
+
+**System-Level Status:**
+
+| Signal | Direction | Width | Description |
+|--------|-----------|-------|-------------|
+| `system_idle` | output | 1 | All channels idle (AND of all scheduler_idle) |
 
 **Per-Channel Status:**
 
@@ -490,7 +507,7 @@ complete = scheduler_idle[ch] &&
 
 ## Testing
 
-**Test Location:** `projects/components/stream/dv/tests/macro/`
+**Test Location:** `projects/components/stream/dv/tests/top/`
 
 **Key Test Scenarios:**
 
@@ -584,13 +601,21 @@ stream_core #(
 
 ## Related Documentation
 
-- **Scheduler Group Array:** `12_scheduler_group_array.md` - Multi-channel scheduler integration
-- **Scheduler Group:** `11_scheduler_group.md` - Single channel scheduler + descriptor engine
-- **SRAM Controller:** `sram_controller.md` - Per-channel buffering
-- **AXI Read Engine:** `08_axi_read_engine.md` - Read datapath
-- **AXI Write Engine:** `10_axi_write_engine.md` - Write datapath
-- **Performance Profiler:** `05_perf_profiler.md` - Performance monitoring
+- **Scheduler Group Array:** `02_scheduler_group_array.md` - Multi-channel scheduler integration
+- **Scheduler Group:** `03_scheduler_group.md` - Single channel scheduler + descriptor engine
+- **Scheduler:** `04_scheduler.md` - Channel state machine and transfer coordination
+- **Descriptor Engine:** `05_descriptor_engine.md` - Descriptor fetch and parsing
+- **AXI Read Engine:** `06_axi_read_engine.md` - Read datapath
+- **Stream Alloc Ctrl:** `07_stream_alloc_ctrl.md` - Space allocation controller
+- **SRAM Controller:** `08_sram_controller.md` - Per-channel buffering
+- **SRAM Controller Unit:** `09_sram_controller_unit.md` - Single channel SRAM unit
+- **Stream Latency Bridge:** `10_stream_latency_bridge.md` - Timing bridge
+- **Stream Drain Ctrl:** `11_stream_drain_ctrl.md` - Drain flow controller
+- **AXI Write Engine:** `12_axi_write_engine.md` - Write datapath
+- **APB to Descriptor:** `13_apbtodescr.md` - APB configuration interface
+- **Performance Profiler:** `15_perf_profiler.md` - Performance monitoring
+- **MonBus AXI-Lite Group:** `16_monbus_axil_group.md` - Monitor bus arbitration
 
 ---
 
-**Last Updated:** 2025-11-21 (verified against RTL implementation)
+**Last Updated:** 2025-11-30 (verified against RTL implementation)

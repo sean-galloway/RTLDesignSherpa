@@ -1,0 +1,46 @@
+graph TB
+    subgraph "monbus_axil_group"
+        subgraph "Monitor Bus Input"
+            MON_IN[monbus_valid<br/>monbus_packet<br/>64-bit] --> PARSE[Packet Parser<br/>pkt_type, protocol<br/>event_code]
+        end
+
+        subgraph "Per-Protocol Filtering"
+            PARSE --> FILTER[Filter Logic]
+            AXI_MASK[cfg_axi_pkt_mask<br/>cfg_axi_err_select] --> FILTER
+            AXIS_MASK[cfg_axis_*_mask] --> FILTER
+            CORE_MASK[cfg_core_*_mask] --> FILTER
+        end
+
+        subgraph "Routing Decision"
+            FILTER --> DROP{Drop?<br/>pkt_mask bit set}
+            DROP --> |No| ERR_CHK{Error<br/>Select?}
+            DROP --> |Yes| DISCARD[Discard<br/>Packet]
+            ERR_CHK --> |Yes| ERR_PATH[Error Path]
+            ERR_CHK --> |No| WR_PATH[Write Path]
+        end
+
+        subgraph "Error/Interrupt Path"
+            ERR_PATH --> ERR_FIFO[Error FIFO<br/>Depth: 64]
+            ERR_FIFO --> AXIL_S[AXI-Lite Slave<br/>Read Interface]
+            ERR_FIFO --> IRQ[irq_out<br/>FIFO not empty]
+        end
+
+        subgraph "Master Write Path"
+            WR_PATH --> WR_FIFO[Write FIFO<br/>Depth: 32]
+            WR_FIFO --> ADDR_GEN[Address Generator<br/>Wrap: base→limit]
+            CFG_BASE[cfg_base_addr<br/>cfg_limit_addr] --> ADDR_GEN
+            ADDR_GEN --> AXIL_M[AXI-Lite Master<br/>Write Interface]
+        end
+    end
+
+    AXIL_S --> S_AR[s_axil_ar*]
+    AXIL_S --> S_R[s_axil_r*]
+    AXIL_M --> M_AW[m_axil_aw*]
+    AXIL_M --> M_W[m_axil_w*]
+    AXIL_M --> M_B[m_axil_b*]
+
+    style FILTER fill:#bbf,stroke:#333,stroke-width:2px
+    style ERR_FIFO fill:#fbb,stroke:#333,stroke-width:3px
+    style WR_FIFO fill:#bfb,stroke:#333,stroke-width:3px
+    style ADDR_GEN fill:#ffb,stroke:#333,stroke-width:2px
+    style IRQ fill:#f9f,stroke:#333,stroke-width:3px

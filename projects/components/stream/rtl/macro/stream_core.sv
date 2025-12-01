@@ -23,6 +23,15 @@
 //   4. Write engine: SRAM controller → Memory
 //   5. Skid buffers on all external AXI interfaces
 //
+// Monitor Control (USE_AXI_MONITORS parameter):
+//   - USE_AXI_MONITORS = 1: Enable AXI transaction monitors (default)
+//     * Monitor configuration inputs connected to scheduler_group_array
+//     * MonBus output provides transaction telemetry
+//   - USE_AXI_MONITORS = 0: Disable AXI transaction monitors
+//     * All monitor configurations tied off internally
+//     * MonBus output still present but inactive (no packets generated)
+//     * Reduces resource usage for production systems
+//
 // Documentation: projects/components/stream/PRD.md
 // Subsystem: stream_macro
 //
@@ -44,6 +53,9 @@ module stream_core #(
     parameter int FIFO_DEPTH = 512,
     parameter int AR_MAX_OUTSTANDING = 8,
     parameter int AW_MAX_OUTSTANDING = 8,
+
+    // Monitor Control
+    parameter int USE_AXI_MONITORS = 1,      // 1 = Enable monitors, 0 = Disable monitors
 
     // AXI skid buffer depths
     parameter int SKID_DEPTH_AR = 2,
@@ -412,6 +424,163 @@ module stream_core #(
     logic [63:0]                 schedgrp_mon_packet;
 
     //=========================================================================
+    // Internal Signals - Monitor Configuration (conditional based on USE_AXI_MONITORS)
+    //=========================================================================
+    // When USE_AXI_MONITORS=0, internal signals are tied off
+    logic                        int_cfg_desc_mon_enable;
+    logic                        int_cfg_desc_mon_err_enable;
+    logic                        int_cfg_desc_mon_perf_enable;
+    logic                        int_cfg_desc_mon_timeout_enable;
+    logic [31:0]                 int_cfg_desc_mon_timeout_cycles;
+    logic [31:0]                 int_cfg_desc_mon_latency_thresh;
+    logic [15:0]                 int_cfg_desc_mon_pkt_mask;
+    logic [3:0]                  int_cfg_desc_mon_err_select;
+    logic [7:0]                  int_cfg_desc_mon_err_mask;
+    logic [7:0]                  int_cfg_desc_mon_timeout_mask;
+    logic [7:0]                  int_cfg_desc_mon_compl_mask;
+    logic [7:0]                  int_cfg_desc_mon_thresh_mask;
+    logic [7:0]                  int_cfg_desc_mon_perf_mask;
+    logic [7:0]                  int_cfg_desc_mon_addr_mask;
+    logic [7:0]                  int_cfg_desc_mon_debug_mask;
+
+    logic                        int_cfg_rdeng_mon_enable;
+    logic                        int_cfg_rdeng_mon_err_enable;
+    logic                        int_cfg_rdeng_mon_perf_enable;
+    logic                        int_cfg_rdeng_mon_timeout_enable;
+    logic [31:0]                 int_cfg_rdeng_mon_timeout_cycles;
+    logic [31:0]                 int_cfg_rdeng_mon_latency_thresh;
+    logic [15:0]                 int_cfg_rdeng_mon_pkt_mask;
+    logic [3:0]                  int_cfg_rdeng_mon_err_select;
+    logic [7:0]                  int_cfg_rdeng_mon_err_mask;
+    logic [7:0]                  int_cfg_rdeng_mon_timeout_mask;
+    logic [7:0]                  int_cfg_rdeng_mon_compl_mask;
+    logic [7:0]                  int_cfg_rdeng_mon_thresh_mask;
+    logic [7:0]                  int_cfg_rdeng_mon_perf_mask;
+    logic [7:0]                  int_cfg_rdeng_mon_addr_mask;
+    logic [7:0]                  int_cfg_rdeng_mon_debug_mask;
+
+    logic                        int_cfg_wreng_mon_enable;
+    logic                        int_cfg_wreng_mon_err_enable;
+    logic                        int_cfg_wreng_mon_perf_enable;
+    logic                        int_cfg_wreng_mon_timeout_enable;
+    logic [31:0]                 int_cfg_wreng_mon_timeout_cycles;
+    logic [31:0]                 int_cfg_wreng_mon_latency_thresh;
+    logic [15:0]                 int_cfg_wreng_mon_pkt_mask;
+    logic [3:0]                  int_cfg_wreng_mon_err_select;
+    logic [7:0]                  int_cfg_wreng_mon_err_mask;
+    logic [7:0]                  int_cfg_wreng_mon_timeout_mask;
+    logic [7:0]                  int_cfg_wreng_mon_compl_mask;
+    logic [7:0]                  int_cfg_wreng_mon_thresh_mask;
+    logic [7:0]                  int_cfg_wreng_mon_perf_mask;
+    logic [7:0]                  int_cfg_wreng_mon_addr_mask;
+    logic [7:0]                  int_cfg_wreng_mon_debug_mask;
+
+    //=========================================================================
+    // Generate Block - Monitor Configuration Assignment
+    //=========================================================================
+    generate
+        if (USE_AXI_MONITORS == 1) begin : g_monitors_enabled
+            // Connect input ports to internal signals
+            assign int_cfg_desc_mon_enable = cfg_desc_mon_enable;
+            assign int_cfg_desc_mon_err_enable = cfg_desc_mon_err_enable;
+            assign int_cfg_desc_mon_perf_enable = cfg_desc_mon_perf_enable;
+            assign int_cfg_desc_mon_timeout_enable = cfg_desc_mon_timeout_enable;
+            assign int_cfg_desc_mon_timeout_cycles = cfg_desc_mon_timeout_cycles;
+            assign int_cfg_desc_mon_latency_thresh = cfg_desc_mon_latency_thresh;
+            assign int_cfg_desc_mon_pkt_mask = cfg_desc_mon_pkt_mask;
+            assign int_cfg_desc_mon_err_select = cfg_desc_mon_err_select;
+            assign int_cfg_desc_mon_err_mask = cfg_desc_mon_err_mask;
+            assign int_cfg_desc_mon_timeout_mask = cfg_desc_mon_timeout_mask;
+            assign int_cfg_desc_mon_compl_mask = cfg_desc_mon_compl_mask;
+            assign int_cfg_desc_mon_thresh_mask = cfg_desc_mon_thresh_mask;
+            assign int_cfg_desc_mon_perf_mask = cfg_desc_mon_perf_mask;
+            assign int_cfg_desc_mon_addr_mask = cfg_desc_mon_addr_mask;
+            assign int_cfg_desc_mon_debug_mask = cfg_desc_mon_debug_mask;
+
+            assign int_cfg_rdeng_mon_enable = cfg_rdeng_mon_enable;
+            assign int_cfg_rdeng_mon_err_enable = cfg_rdeng_mon_err_enable;
+            assign int_cfg_rdeng_mon_perf_enable = cfg_rdeng_mon_perf_enable;
+            assign int_cfg_rdeng_mon_timeout_enable = cfg_rdeng_mon_timeout_enable;
+            assign int_cfg_rdeng_mon_timeout_cycles = cfg_rdeng_mon_timeout_cycles;
+            assign int_cfg_rdeng_mon_latency_thresh = cfg_rdeng_mon_latency_thresh;
+            assign int_cfg_rdeng_mon_pkt_mask = cfg_rdeng_mon_pkt_mask;
+            assign int_cfg_rdeng_mon_err_select = cfg_rdeng_mon_err_select;
+            assign int_cfg_rdeng_mon_err_mask = cfg_rdeng_mon_err_mask;
+            assign int_cfg_rdeng_mon_timeout_mask = cfg_rdeng_mon_timeout_mask;
+            assign int_cfg_rdeng_mon_compl_mask = cfg_rdeng_mon_compl_mask;
+            assign int_cfg_rdeng_mon_thresh_mask = cfg_rdeng_mon_thresh_mask;
+            assign int_cfg_rdeng_mon_perf_mask = cfg_rdeng_mon_perf_mask;
+            assign int_cfg_rdeng_mon_addr_mask = cfg_rdeng_mon_addr_mask;
+            assign int_cfg_rdeng_mon_debug_mask = cfg_rdeng_mon_debug_mask;
+
+            assign int_cfg_wreng_mon_enable = cfg_wreng_mon_enable;
+            assign int_cfg_wreng_mon_err_enable = cfg_wreng_mon_err_enable;
+            assign int_cfg_wreng_mon_perf_enable = cfg_wreng_mon_perf_enable;
+            assign int_cfg_wreng_mon_timeout_enable = cfg_wreng_mon_timeout_enable;
+            assign int_cfg_wreng_mon_timeout_cycles = cfg_wreng_mon_timeout_cycles;
+            assign int_cfg_wreng_mon_latency_thresh = cfg_wreng_mon_latency_thresh;
+            assign int_cfg_wreng_mon_pkt_mask = cfg_wreng_mon_pkt_mask;
+            assign int_cfg_wreng_mon_err_select = cfg_wreng_mon_err_select;
+            assign int_cfg_wreng_mon_err_mask = cfg_wreng_mon_err_mask;
+            assign int_cfg_wreng_mon_timeout_mask = cfg_wreng_mon_timeout_mask;
+            assign int_cfg_wreng_mon_compl_mask = cfg_wreng_mon_compl_mask;
+            assign int_cfg_wreng_mon_thresh_mask = cfg_wreng_mon_thresh_mask;
+            assign int_cfg_wreng_mon_perf_mask = cfg_wreng_mon_perf_mask;
+            assign int_cfg_wreng_mon_addr_mask = cfg_wreng_mon_addr_mask;
+            assign int_cfg_wreng_mon_debug_mask = cfg_wreng_mon_debug_mask;
+        end else begin : g_monitors_disabled
+            // Tie off all monitor configurations to 0
+            assign int_cfg_desc_mon_enable = 1'b0;
+            assign int_cfg_desc_mon_err_enable = 1'b0;
+            assign int_cfg_desc_mon_perf_enable = 1'b0;
+            assign int_cfg_desc_mon_timeout_enable = 1'b0;
+            assign int_cfg_desc_mon_timeout_cycles = 32'h0;
+            assign int_cfg_desc_mon_latency_thresh = 32'h0;
+            assign int_cfg_desc_mon_pkt_mask = 16'h0;
+            assign int_cfg_desc_mon_err_select = 4'h0;
+            assign int_cfg_desc_mon_err_mask = 8'h0;
+            assign int_cfg_desc_mon_timeout_mask = 8'h0;
+            assign int_cfg_desc_mon_compl_mask = 8'h0;
+            assign int_cfg_desc_mon_thresh_mask = 8'h0;
+            assign int_cfg_desc_mon_perf_mask = 8'h0;
+            assign int_cfg_desc_mon_addr_mask = 8'h0;
+            assign int_cfg_desc_mon_debug_mask = 8'h0;
+
+            assign int_cfg_rdeng_mon_enable = 1'b0;
+            assign int_cfg_rdeng_mon_err_enable = 1'b0;
+            assign int_cfg_rdeng_mon_perf_enable = 1'b0;
+            assign int_cfg_rdeng_mon_timeout_enable = 1'b0;
+            assign int_cfg_rdeng_mon_timeout_cycles = 32'h0;
+            assign int_cfg_rdeng_mon_latency_thresh = 32'h0;
+            assign int_cfg_rdeng_mon_pkt_mask = 16'h0;
+            assign int_cfg_rdeng_mon_err_select = 4'h0;
+            assign int_cfg_rdeng_mon_err_mask = 8'h0;
+            assign int_cfg_rdeng_mon_timeout_mask = 8'h0;
+            assign int_cfg_rdeng_mon_compl_mask = 8'h0;
+            assign int_cfg_rdeng_mon_thresh_mask = 8'h0;
+            assign int_cfg_rdeng_mon_perf_mask = 8'h0;
+            assign int_cfg_rdeng_mon_addr_mask = 8'h0;
+            assign int_cfg_rdeng_mon_debug_mask = 8'h0;
+
+            assign int_cfg_wreng_mon_enable = 1'b0;
+            assign int_cfg_wreng_mon_err_enable = 1'b0;
+            assign int_cfg_wreng_mon_perf_enable = 1'b0;
+            assign int_cfg_wreng_mon_timeout_enable = 1'b0;
+            assign int_cfg_wreng_mon_timeout_cycles = 32'h0;
+            assign int_cfg_wreng_mon_latency_thresh = 32'h0;
+            assign int_cfg_wreng_mon_pkt_mask = 16'h0;
+            assign int_cfg_wreng_mon_err_select = 4'h0;
+            assign int_cfg_wreng_mon_err_mask = 8'h0;
+            assign int_cfg_wreng_mon_timeout_mask = 8'h0;
+            assign int_cfg_wreng_mon_compl_mask = 8'h0;
+            assign int_cfg_wreng_mon_thresh_mask = 8'h0;
+            assign int_cfg_wreng_mon_perf_mask = 8'h0;
+            assign int_cfg_wreng_mon_addr_mask = 8'h0;
+            assign int_cfg_wreng_mon_debug_mask = 8'h0;
+        end
+    endgenerate
+
+    //=========================================================================
     // Component Instantiation - Scheduler Group Array
     //=========================================================================
     scheduler_group_array #(
@@ -450,22 +619,22 @@ module stream_core #(
         .cfg_desceng_addr1_base (cfg_desceng_addr1_base),
         .cfg_desceng_addr1_limit(cfg_desceng_addr1_limit),
 
-        // Descriptor AXI Monitor Configuration
-        .cfg_desc_mon_enable        (cfg_desc_mon_enable),
-        .cfg_desc_mon_err_enable    (cfg_desc_mon_err_enable),
-        .cfg_desc_mon_perf_enable   (cfg_desc_mon_perf_enable),
-        .cfg_desc_mon_timeout_enable(cfg_desc_mon_timeout_enable),
-        .cfg_desc_mon_timeout_cycles(cfg_desc_mon_timeout_cycles),
-        .cfg_desc_mon_latency_thresh(cfg_desc_mon_latency_thresh),
-        .cfg_desc_mon_pkt_mask      (cfg_desc_mon_pkt_mask),
-        .cfg_desc_mon_err_select    (cfg_desc_mon_err_select),
-        .cfg_desc_mon_err_mask      (cfg_desc_mon_err_mask),
-        .cfg_desc_mon_timeout_mask  (cfg_desc_mon_timeout_mask),
-        .cfg_desc_mon_compl_mask    (cfg_desc_mon_compl_mask),
-        .cfg_desc_mon_thresh_mask   (cfg_desc_mon_thresh_mask),
-        .cfg_desc_mon_perf_mask     (cfg_desc_mon_perf_mask),
-        .cfg_desc_mon_addr_mask     (cfg_desc_mon_addr_mask),
-        .cfg_desc_mon_debug_mask    (cfg_desc_mon_debug_mask),
+        // Descriptor AXI Monitor Configuration (use internal signals)
+        .cfg_desc_mon_enable        (int_cfg_desc_mon_enable),
+        .cfg_desc_mon_err_enable    (int_cfg_desc_mon_err_enable),
+        .cfg_desc_mon_perf_enable   (int_cfg_desc_mon_perf_enable),
+        .cfg_desc_mon_timeout_enable(int_cfg_desc_mon_timeout_enable),
+        .cfg_desc_mon_timeout_cycles(int_cfg_desc_mon_timeout_cycles),
+        .cfg_desc_mon_latency_thresh(int_cfg_desc_mon_latency_thresh),
+        .cfg_desc_mon_pkt_mask      (int_cfg_desc_mon_pkt_mask),
+        .cfg_desc_mon_err_select    (int_cfg_desc_mon_err_select),
+        .cfg_desc_mon_err_mask      (int_cfg_desc_mon_err_mask),
+        .cfg_desc_mon_timeout_mask  (int_cfg_desc_mon_timeout_mask),
+        .cfg_desc_mon_compl_mask    (int_cfg_desc_mon_compl_mask),
+        .cfg_desc_mon_thresh_mask   (int_cfg_desc_mon_thresh_mask),
+        .cfg_desc_mon_perf_mask     (int_cfg_desc_mon_perf_mask),
+        .cfg_desc_mon_addr_mask     (int_cfg_desc_mon_addr_mask),
+        .cfg_desc_mon_debug_mask    (int_cfg_desc_mon_debug_mask),
 
         // Status
         .descriptor_engine_idle (descriptor_engine_idle),

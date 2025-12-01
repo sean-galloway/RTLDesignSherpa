@@ -1,0 +1,32 @@
+%%{init: {'theme': 'neutral', 'themeVariables': { 'fontSize': '14px'}}}%%
+flowchart LR
+    subgraph Inputs
+        REQ["i_request[WIDTH-1:0]"]
+        EN[i_enable]
+    end
+
+    subgraph encoder_priority_enable["encoder_priority_enable"]
+        subgraph Gate["Enable Gating"]
+            GATE["Mask requests\nwith enable"]
+        end
+
+        subgraph Priority["Priority Selection"]
+            PRI["Select highest\npriority request"]
+        end
+
+        subgraph Encode["Binary Encoding"]
+            ENC["Convert one-hot\nto binary"]
+        end
+    end
+
+    subgraph Outputs
+        CODE["o_code[$clog2(WIDTH)-1:0]"]
+        VALID[o_valid]
+    end
+
+    REQ --> Gate
+    EN --> Gate
+    Gate --> Priority
+    Priority --> Encode
+    Encode --> CODE
+    Priority --> VALID

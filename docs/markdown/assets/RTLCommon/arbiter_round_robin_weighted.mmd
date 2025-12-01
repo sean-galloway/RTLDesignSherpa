@@ -1,0 +1,66 @@
+%%{init: {'theme': 'neutral', 'themeVariables': { 'fontSize': '14px'}}}%%
+flowchart TB
+    subgraph Inputs
+        CLK[clk]
+        RST[rst_n]
+        BLK[block_arb]
+        THRESH["max_thresh[CXMTW-1:0]\nPacked weights"]
+        REQ["request[C-1:0]"]
+        ACK["grant_ack[C-1:0]"]
+    end
+
+    subgraph arbiter_round_robin_weighted["arbiter_round_robin_weighted"]
+        subgraph WeightFSM["Weight Change FSM"]
+            direction TB
+            IDLE["IDLE"]
+            BLOCK["BLOCK_ARB"]
+            DRAIN["DRAIN_PENDING"]
+            UPDATE["UPDATE_WEIGHTS"]
+            STAB["STABILIZE"]
+        end
+
+        subgraph CreditMgmt["Credit Management"]
+            CREDITS["r_credits[C-1:0]\nPer-client counters"]
+            DECR["Decrement\non Grant"]
+            REPLEN["Global\nReplenishment"]
+        end
+
+        subgraph EligCalc["Eligibility Calculation"]
+            ELIG["Eligible Requests\n(credit > 0)"]
+        end
+
+        subgraph RRArbiter["arbiter_round_robin"]
+            RR["Round-Robin\nAmong Eligible"]
+        end
+
+        subgraph GrantOut["Grant Output"]
+            GLOGIC["Grant Logic"]
+        end
+    end
+
+    subgraph Outputs
+        GV[grant_valid]
+        GR["grant[C-1:0]"]
+        GID["grant_id[N-1:0]"]
+    end
+
+    CLK --> WeightFSM
+    CLK --> CreditMgmt
+    RST --> WeightFSM
+    RST --> CreditMgmt
+    BLK --> WeightFSM
+    THRESH --> WeightFSM
+    REQ --> EligCalc
+    ACK --> GrantOut
+
+    WeightFSM --> CreditMgmt
+    CREDITS --> EligCalc
+    EligCalc --> RRArbiter
+    RRArbiter --> GrantOut
+    GrantOut --> DECR
+    DECR --> CREDITS
+    REPLEN --> CREDITS
+
+    GrantOut --> GV
+    GrantOut --> GR
+    GrantOut --> GID

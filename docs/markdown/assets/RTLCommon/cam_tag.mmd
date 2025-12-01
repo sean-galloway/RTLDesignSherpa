@@ -1,0 +1,48 @@
+%%{init: {'theme': 'neutral', 'themeVariables': { 'fontSize': '14px'}}}%%
+flowchart TB
+    subgraph Inputs
+        CLK[clk]
+        RST[rst_n]
+        TAG["tag[N-1:0]"]
+        MV[mark_valid]
+        MI[mark_invalid]
+    end
+
+    subgraph cam_tag["cam_tag"]
+        subgraph Storage["Tag Storage"]
+            TAGS["tags[DEPTH-1:0][N-1:0]"]
+            VALID["valid[DEPTH-1:0]"]
+        end
+
+        subgraph Lookup["Associative Lookup"]
+            MATCH["Parallel Compare\nall entries"]
+        end
+
+        subgraph Alloc["Allocation Logic"]
+            FIRST["Priority Encoder\nfind first free slot"]
+        end
+
+        subgraph Status["Status Generation"]
+            FULL["tags_full:\nall entries valid"]
+            EMPTY["tags_empty:\nno entries valid"]
+        end
+    end
+
+    subgraph Outputs
+        STAT[tag_status]
+        TF[tags_full]
+        TE[tags_empty]
+    end
+
+    CLK --> Storage
+    RST --> Storage
+    TAG --> Lookup
+    TAG --> Alloc
+    MV --> Alloc
+    MI --> Lookup
+    Storage --> Lookup
+    Lookup --> STAT
+    Storage --> Status
+    Status --> TF
+    Status --> TE
+    Alloc --> Storage

@@ -1,0 +1,62 @@
+%%{init: {'theme': 'neutral', 'themeVariables': { 'fontSize': '14px'}}}%%
+flowchart TB
+    subgraph Inputs
+        CLK[clk]
+        RST[rst_n]
+        BLK[block_arb]
+        REQ["request[N-1:0]"]
+        ACK["grant_ack[N-1:0]"]
+    end
+
+    subgraph arbiter_round_robin["arbiter_round_robin"]
+        subgraph MaskGen["Mask Generation"]
+            LAST[r_last_grant_id]
+            MASK["Mask Lookup Tables"]
+        end
+
+        subgraph ReqProc["Request Processing"]
+            MASKED["Masked Requests"]
+            UNMASKED["Unmasked Requests"]
+        end
+
+        subgraph PriEnc["arbiter_priority_encoder"]
+            PRIO["Priority Selection"]
+        end
+
+        subgraph GrantLogic["Grant Logic"]
+            DECIDE["Grant Decision"]
+            ONEHOT["One-Hot Encoder"]
+        end
+
+        subgraph StateReg["State Registers"]
+            STATE["r_last_grant_id\nr_pending_ack\nr_pending_client"]
+        end
+    end
+
+    subgraph Outputs
+        GV[grant_valid]
+        GR["grant[N-1:0]"]
+        GID["grant_id[W-1:0]"]
+        LG["last_grant[N-1:0]"]
+    end
+
+    CLK --> StateReg
+    RST --> StateReg
+    BLK --> ReqProc
+    REQ --> ReqProc
+    ACK --> GrantLogic
+
+    LAST --> MaskGen
+    MaskGen --> ReqProc
+    ReqProc --> MASKED
+    ReqProc --> UNMASKED
+    MASKED --> PriEnc
+    UNMASKED --> PriEnc
+    PriEnc --> GrantLogic
+    GrantLogic --> StateReg
+    StateReg --> LAST
+
+    GrantLogic --> GV
+    GrantLogic --> GR
+    GrantLogic --> GID
+    StateReg --> LG

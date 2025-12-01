@@ -1,0 +1,29 @@
+%%{init: {'theme': 'neutral', 'themeVariables': { 'fontSize': '14px'}}}%%
+flowchart LR
+    subgraph Inputs
+        DATA["data[WIDTH-1:0]"]
+    end
+
+    subgraph count_leading_zeros["count_leading_zeros"]
+        subgraph Scan["Scan Logic"]
+            direction TB
+            SCAN["Scan from MSB to LSB\nCount zeros until first 1"]
+        end
+
+        subgraph Function["CLZ Function"]
+            LOOP["For each bit position:\nif (data[i]) found = true\nelse clz++"]
+        end
+
+        subgraph Result["Result Encoding"]
+            ENC["Output: 0 to WIDTH\n(WIDTH = all zeros)"]
+        end
+    end
+
+    subgraph Outputs
+        CLZ["clz[$clog2(WIDTH):0]"]
+    end
+
+    DATA --> Scan
+    Scan --> Function
+    Function --> Result
+    Result --> CLZ

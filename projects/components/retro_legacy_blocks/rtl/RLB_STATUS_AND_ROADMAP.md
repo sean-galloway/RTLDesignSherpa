@@ -1,33 +1,71 @@
 # Retro Legacy Blocks (RLB) - Complete Status and Roadmap
 
-**Date:** 2025-11-16  
+**Date:** 2025-11-29
 **Purpose:** Track completion status and remaining work for all RLB modules
 
 ---
 
 ## Module Implementation Status
 
-### ✅ COMPLETE - With APB Wrappers
+### COMPLETE - With APB Wrappers
 
 | Module | RTL Complete | APB Wrapper | PeakRDL | CDC Support | Validation | Status |
 |--------|--------------|-------------|---------|-------------|------------|--------|
-| **HPET** | ✅ | ✅ apb_hpet.sv | ✅ | ✅ CDC_ENABLE | ✅ Has tests | 🟢 **REFERENCE** |
-| **PIT_8254** | ✅ | ✅ apb_pit_8254.sv | ✅ | ✅ CDC_ENABLE | ✅ Has tests | 🟢 **COMPLETE** |
-| **RTC** | ✅ | ✅ apb_rtc.sv | ✅ | ✅ | ✅ Has tests | 🟢 **COMPLETE** |
-| **PIC_8259** | ✅ | ✅ apb_pic_8259.sv | ✅ | ✅ | ⚠️ Basic only | 🟡 **NEEDS TESTS** |
-| **SMBus** | ✅ | ✅ apb_smbus.sv | ✅ | ✅ CDC_ENABLE | ⚠️ None yet | 🟡 **NEEDS TESTS** |
-| **PM_ACPI** | ✅ | ✅ apb_pm_acpi.sv | ✅ | ✅ CDC_ENABLE | ⚠️ None yet | 🟡 **NEEDS TESTS** |
-| **IOAPIC** | ✅ | ✅ apb_ioapic.sv | ✅ | ✅ CDC_ENABLE | ⚠️ None yet | 🟡 **NEEDS TESTS** |
+| **HPET** | Yes | apb_hpet.sv | Yes | CDC_ENABLE | Has tests | REFERENCE |
+| **PIT_8254** | Yes | apb_pit_8254.sv | Yes | CDC_ENABLE | Has tests | COMPLETE |
+| **RTC** | Yes | apb_rtc.sv | Yes | Yes | Has tests | COMPLETE |
+| **PIC_8259** | Yes | apb_pic_8259.sv | Yes | Yes | Basic only | NEEDS TESTS |
+| **SMBus** | Yes | apb_smbus.sv | Yes | CDC_ENABLE | None yet | NEEDS TESTS |
+| **PM_ACPI** | Yes | apb_pm_acpi.sv | Yes | CDC_ENABLE | 6 tests | COMPLETE |
+| **IOAPIC** | Yes | apb_ioapic.sv | Yes | CDC_ENABLE | None yet | NEEDS TESTS |
+| **GPIO** | Yes | apb_gpio.sv | Yes | CDC_ENABLE | 6 tests | COMPLETE |
 
-### 🔴 INCOMPLETE - Missing APB Wrappers or Core RTL
+### COMPLETE - With APB Wrappers (cont.)
+
+| Module | RTL Complete | APB Wrapper | PeakRDL | CDC Support | Validation | Status |
+|--------|--------------|-------------|---------|-------------|------------|--------|
+| **UART_16550** | Yes | apb_uart_16550.sv | Yes | CDC_ENABLE | TB Ready | PORT MISMATCH |
+
+**CRITICAL NOTE (2025-11-30):**
+GPIO and UART_16550 RTL modules have PORT NAME MISMATCHES with the actual
+apb_slave.sv and peakrdl_to_cmdrsp.sv infrastructure modules.
+
+**Issues:**
+1. apb_slave.sv uses `s_apb_PSEL` naming, RTL uses `psel`
+2. peakrdl_to_cmdrsp.sv uses `aclk`/`aresetn`, RTL uses `clk`/`rst_n`
+3. CMD/RSP port naming differs (e.g., `cmd_addr` vs `cmd_paddr`)
+
+**Resolution Required:**
+Either update GPIO/UART_16550 wrappers to match infrastructure port names,
+OR update infrastructure to provide consistent naming.
+
+**Test Infrastructure Status:**
+- UART 16550 testbench classes: COMPLETE (uart_16550_tb.py)
+- UART 16550 test suites: COMPLETE (basic, medium, full)
+- UART 16550 test runner: COMPLETE (test_apb_uart_16550.py)
+- Tests use UART BFM from CocoTBFramework/components/uart/
+
+### INCOMPLETE - Missing APB Wrappers or Core RTL
 
 | Module | Directory Exists | RTL Status | APB Wrapper | Priority |
 |--------|------------------|------------|-------------|----------|
-| **GPIO** | ❌ | ❌ | ❌ | 🔴 HIGH |
-| **UART_16550** | ❌ | ❌ | ❌ | 🔴 HIGH |
-| **DMA** | ❌ | ❌ | ❌ | 🟡 MEDIUM |
-| **PS2** | ❌ | ❌ | ❌ | 🟢 LOW |
-| **FDC** | ❌ | ❌ | ❌ | 🟢 LOW |
+| **DMA_8237** | No | No | No | LOW (use Stream DMA instead) |
+| **PS2** | No | No | No | LOW |
+| **FDC** | No | No | No | LOW |
+
+### EXTERNAL REFERENCE - Modern High-Performance Blocks
+
+For modern DMA functionality, use the Stream DMA project instead of 8237:
+
+| Module | Location | Description |
+|--------|----------|-------------|
+| **Stream DMA** | projects/components/stream/ | Modern AXI-based descriptor DMA engine |
+
+The Stream DMA provides:
+- Descriptor-based operation
+- AXI4 master read/write engines
+- Multi-channel support
+- High-performance streaming
 
 ### 🟣 SPECIAL - Integration/Support Modules
 

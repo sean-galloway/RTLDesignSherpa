@@ -1,0 +1,39 @@
+%%{init: {'theme': 'neutral', 'themeVariables': { 'fontSize': '14px'}}}%%
+flowchart TB
+    subgraph Config["Configuration"]
+        CFG_FREQ["cfg_freq_sel[3:0]"]
+        CFG_ADDR["cfg_addr_cnt[3:0]"]
+        CFG_DATA["cfg_data_cnt[3:0]"]
+        CFG_RESP["cfg_resp_cnt[3:0]"]
+    end
+
+    subgraph axi_monitor_timeout["axi_monitor_timeout"]
+        subgraph Timer["axi_monitor_timer"]
+            BASE["Base tick generator\nFrequency scaling"]
+        end
+
+        subgraph Phase_Timers["Per-Phase Timers"]
+            ADDR_TMO["Address phase\ntimeout counter"]
+            DATA_TMO["Data phase\ntimeout counter"]
+            RESP_TMO["Response phase\ntimeout counter"]
+        end
+
+        subgraph Detect["Timeout Detection"]
+            CMP["Compare counter\nvs threshold"]
+        end
+    end
+
+    subgraph Trans["Transaction State"]
+        STATE["Current phase\nTransaction active"]
+    end
+
+    subgraph Output["Timeout Events"]
+        TMO_EVT["timeout_event\ntimeout_id\ntimeout_phase"]
+    end
+
+    Config --> Timer
+    Config --> Phase_Timers
+    Timer --> Phase_Timers
+    Trans --> Phase_Timers
+    Phase_Timers --> Detect
+    Detect --> TMO_EVT

@@ -1,0 +1,39 @@
+%%{init: {'theme': 'neutral', 'themeVariables': { 'fontSize': '14px'}}}%%
+flowchart TB
+    subgraph Write_Domain["Write Domain (axi_wr_aclk)"]
+        WR_IN["wr_valid, wr_data"]
+        WR_PTR["wr_ptr (binary)"]
+        WR_GRAY["bin2gray\nwr_ptr (Gray)"]
+        WR_FULL["Full Logic\n(compare with rd_ptr_sync)"]
+    end
+
+    subgraph Memory["Dual-Port Memory"]
+        MEM["mem[DEPTH-1:0][WIDTH-1:0]"]
+    end
+
+    subgraph CDC["Gray Code CDC (N_FLOP_CROSS stages)"]
+        SYNC_WR["wr_ptr Gray\nsynchronizer"]
+        SYNC_RD["rd_ptr Gray\nsynchronizer"]
+    end
+
+    subgraph Read_Domain["Read Domain (axi_rd_aclk)"]
+        RD_PTR["rd_ptr (binary)"]
+        RD_GRAY["bin2gray\nrd_ptr (Gray)"]
+        RD_EMPTY["Empty Logic\n(compare with wr_ptr_sync)"]
+        RD_OUT["rd_valid, rd_data"]
+    end
+
+    WR_IN --> WR_PTR
+    WR_IN --> Memory
+    WR_PTR --> WR_GRAY
+    WR_GRAY --> SYNC_WR
+    SYNC_WR --> RD_EMPTY
+
+    RD_PTR --> RD_GRAY
+    RD_GRAY --> SYNC_RD
+    SYNC_RD --> WR_FULL
+
+    Memory --> RD_OUT
+    RD_PTR --> Memory
+    WR_FULL --> WR_IN
+    RD_EMPTY --> RD_OUT

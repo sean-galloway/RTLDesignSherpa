@@ -1,0 +1,49 @@
+graph TB
+    subgraph "stream_config_block"
+        subgraph "PeakRDL Register Inputs"
+            GLOBAL[reg_global_ctrl_*<br/>global_en, global_rst]
+            CH_EN[reg_channel_enable_*<br/>ch_en bits]
+            CH_RST[reg_channel_reset_*<br/>ch_rst bits]
+            SCHED[reg_sched_*<br/>timeout, enable flags]
+            DESC[reg_desceng_*<br/>prefetch, addr ranges]
+            MON[reg_*mon_*<br/>enable, masks, thresholds]
+            PERF[reg_perf_config_*<br/>perf_en, mode, clear]
+        end
+
+        subgraph "Processing Logic"
+            GATE[Global Enable<br/>Gating Logic]
+            RST_OR[Reset OR<br/>Logic]
+            ZERO_EXT[Address<br/>Zero Extension<br/>32b → 64b]
+        end
+
+        subgraph "Configuration Outputs"
+            CFG_CH[cfg_channel_enable<br/>cfg_channel_reset]
+            CFG_SCHED[cfg_sched_enable<br/>cfg_sched_timeout_cycles]
+            CFG_DESC[cfg_desceng_enable<br/>cfg_desceng_addr*_base/limit]
+            CFG_MON[cfg_*_mon_enable<br/>cfg_*_mon_mask*]
+            CFG_PERF[cfg_perf_enable<br/>cfg_perf_mode/clear]
+        end
+    end
+
+    GLOBAL --> GATE
+    CH_EN --> GATE
+    CH_RST --> RST_OR
+    GLOBAL --> RST_OR
+
+    SCHED --> GATE
+    DESC --> GATE
+    DESC --> ZERO_EXT
+    MON --> GATE
+    PERF --> GATE
+
+    GATE --> CFG_CH
+    RST_OR --> CFG_CH
+    GATE --> CFG_SCHED
+    GATE --> CFG_DESC
+    ZERO_EXT --> CFG_DESC
+    GATE --> CFG_MON
+    GATE --> CFG_PERF
+
+    style GATE fill:#f9f,stroke:#333,stroke-width:3px
+    style RST_OR fill:#fbb,stroke:#333,stroke-width:2px
+    style ZERO_EXT fill:#bbf,stroke:#333,stroke-width:2px

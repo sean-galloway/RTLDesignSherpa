@@ -1,0 +1,39 @@
+%%{init: {'theme': 'neutral', 'themeVariables': { 'fontSize': '14px'}}}%%
+flowchart TB
+    subgraph Inputs
+        A["i_multiplier[N-1:0]"]
+        B["i_multiplicand[N-1:0]"]
+    end
+
+    subgraph math_multiplier_dadda_tree["math_multiplier_dadda_tree_NNN"]
+        subgraph PPGen["Partial Product Generation"]
+            PP["PP[i][j] = A[i] AND B[j]\nN x N partial products"]
+        end
+
+        subgraph DaddaTree["Dadda Tree Reduction"]
+            direction TB
+            NOTE["Dadda sequence:\n2, 3, 4, 6, 9, 13, 19, 28, ..."]
+            S1["Stage 1: Reduce to d[k]\nheight per column"]
+            S2["Stage 2: Reduce to d[k-1]"]
+            S3["Stage 3: ..."]
+            SN["Final: 2 rows"]
+            CSA["3:2 Compressor (CSA)\nmath_adder_full"]
+        end
+
+        subgraph FinalAdd["Final Addition"]
+            CPA["Carry Propagate Adder"]
+        end
+    end
+
+    subgraph Outputs
+        PROD["ow_product[2N-1:0]"]
+    end
+
+    A --> PPGen
+    B --> PPGen
+    PPGen --> DaddaTree
+    S1 --> S2
+    S2 --> S3
+    S3 --> SN
+    DaddaTree --> FinalAdd
+    FinalAdd --> PROD

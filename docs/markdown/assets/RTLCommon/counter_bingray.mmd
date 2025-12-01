@@ -1,0 +1,36 @@
+%%{init: {'theme': 'neutral', 'themeVariables': { 'fontSize': '14px'}}}%%
+flowchart LR
+    subgraph Inputs
+        CLK[clk]
+        RST[rst_n]
+        EN[i_enable]
+    end
+
+    subgraph counter_bingray["counter_bingray"]
+        subgraph Binary["Binary Counter"]
+            BIN["r_bin[WIDTH-1:0]\ncount + 1"]
+        end
+
+        subgraph Convert["Gray Conversion"]
+            CONV["gray = bin ^ (bin >> 1)"]
+        end
+
+        subgraph GrayReg["Gray Register"]
+            GRAY["r_gray[WIDTH-1:0]"]
+        end
+    end
+
+    subgraph Outputs
+        BOUT["o_bin[WIDTH-1:0]"]
+        GOUT["o_gray[WIDTH-1:0]"]
+    end
+
+    CLK --> Binary
+    CLK --> GrayReg
+    RST --> Binary
+    RST --> GrayReg
+    EN --> Binary
+    Binary --> Convert
+    Convert --> GrayReg
+    Binary --> BOUT
+    GrayReg --> GOUT

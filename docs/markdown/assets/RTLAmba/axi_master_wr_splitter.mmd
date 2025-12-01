@@ -1,0 +1,47 @@
+%%{init: {'theme': 'neutral', 'themeVariables': { 'fontSize': '14px'}}}%%
+flowchart LR
+    subgraph Input["Single AXI Master"]
+        AW_IN["AW Channel\n(address)"]
+        W_IN["W Channel\n(data)"]
+        B_OUT["B Channel\n(response back)"]
+    end
+
+    subgraph axi_master_wr_splitter["axi_master_wr_splitter"]
+        subgraph Decode["Address Decode"]
+            DEC["Decode target\nfrom address range"]
+        end
+
+        subgraph Route_AW["AW Router"]
+            AW_RT["Route AW to\nselected slave"]
+        end
+
+        subgraph Route_W["W Router"]
+            W_RT["Route W data\nto same slave"]
+        end
+
+        subgraph Route_B["B Combiner"]
+            B_CMB["Combine B from\nall slaves"]
+        end
+
+        subgraph Track["Transaction Tracking"]
+            TRK["Track AW->W->B\nper transaction"]
+        end
+    end
+
+    subgraph Outputs["Multiple AXI Slaves"]
+        S0["Slave 0\nAW, W, B"]
+        S1["Slave 1\nAW, W, B"]
+    end
+
+    AW_IN --> Decode
+    W_IN --> Route_W
+    Decode --> Route_AW
+    Decode --> Track
+    Track --> Route_W
+    Route_AW --> S0
+    Route_AW --> S1
+    Route_W --> S0
+    Route_W --> S1
+    S0 --> Route_B
+    S1 --> Route_B
+    Route_B --> B_OUT

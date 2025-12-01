@@ -1,0 +1,37 @@
+%%{init: {'theme': 'neutral', 'themeVariables': { 'fontSize': '14px'}}}%%
+flowchart LR
+    subgraph Inputs
+        RM["requests_masked[N-1:0]"]
+        RU["requests_unmasked[N-1:0]"]
+        ANY[any_masked_requests]
+    end
+
+    subgraph arbiter_priority_encoder["arbiter_priority_encoder"]
+        subgraph Select["Request Selection"]
+            MUX["Select Masked\nor Unmasked"]
+        end
+
+        subgraph Priority["Priority Logic"]
+            direction TB
+            OPT["Optimized casez\n(4/8/16/32 clients)"]
+            GEN["Generic Loop\n(other sizes)"]
+        end
+
+        subgraph Valid["Valid Generation"]
+            OR["|requests"]
+        end
+    end
+
+    subgraph Outputs
+        WIN["winner[W-1:0]"]
+        WV[winner_valid]
+    end
+
+    RM --> Select
+    RU --> Select
+    ANY --> Select
+    Select --> Priority
+    Priority --> WIN
+    RM --> Valid
+    RU --> Valid
+    Valid --> WV

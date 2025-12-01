@@ -1,0 +1,41 @@
+%%{init: {'theme': 'neutral', 'themeVariables': { 'fontSize': '14px'}}}%%
+flowchart TB
+    subgraph Masters["AXI Masters"]
+        M0["Master 0"]
+        M1["Master 1"]
+    end
+
+    subgraph axi_split_combi["axi_split_combi"]
+        subgraph Master_Arb["Master Arbitration"]
+            ARB["Round-robin\nmaster selection"]
+        end
+
+        subgraph Splitter["Address Splitter"]
+            SPLIT["Route to slave\nby address decode"]
+        end
+
+        subgraph Combiner["Response Combiner"]
+            COMB["Route responses\nback to masters"]
+        end
+
+        subgraph ID_Mgmt["ID Management"]
+            ID["Prepend master ID\nto transaction ID"]
+        end
+    end
+
+    subgraph Slaves["AXI Slaves"]
+        S0["Slave 0"]
+        S1["Slave 1"]
+    end
+
+    M0 --> Master_Arb
+    M1 --> Master_Arb
+    Master_Arb --> ID_Mgmt
+    ID_Mgmt --> Splitter
+    Splitter --> S0
+    Splitter --> S1
+    S0 --> Combiner
+    S1 --> Combiner
+    Combiner --> ID_Mgmt
+    ID_Mgmt --> M0
+    ID_Mgmt --> M1
