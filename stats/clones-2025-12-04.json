@@ -1,5 +1,66 @@
 {
-  "message": "Resource not accessible by integration",
-  "documentation_url": "https://docs.github.com/rest/metrics/traffic#get-repository-clones",
-  "status": "403"
+  "count": 94,
+  "uniques": 45,
+  "clones": [
+    {
+      "timestamp": "2025-11-21T00:00:00Z",
+      "count": 3,
+      "uniques": 2
+    },
+    {
+      "timestamp": "2025-11-22T00:00:00Z",
+      "count": 1,
+      "uniques": 1
+    },
+    {
+      "timestamp": "2025-11-23T00:00:00Z",
+      "count": 7,
+      "uniques": 4
+    },
+    {
+      "timestamp": "2025-11-24T00:00:00Z",
+      "count": 7,
+      "uniques": 2
+    },
+    {
+      "timestamp": "2025-11-26T00:00:00Z",
+      "count": 6,
+      "uniques": 4
+    },
+    {
+      "timestamp": "2025-11-27T00:00:00Z",
+      "count": 2,
+      "uniques": 2
+    },
+    {
+      "timestamp": "2025-11-28T00:00:00Z",
+      "count": 1,
+      "uniques": 1
+    },
+    {
+      "timestamp": "2025-11-29T00:00:00Z",
+      "count": 1,
+      "uniques": 1
+    },
+    {
+      "timestamp": "2025-11-30T00:00:00Z",
+      "count": 5,
+      "uniques": 2
+    },
+    {
+      "timestamp": "2025-12-01T00:00:00Z",
+      "count": 21,
+      "uniques": 11
+    },
+    {
+      "timestamp": "2025-12-02T00:00:00Z",
+      "count": 13,
+      "uniques": 6
+    },
+    {
+      "timestamp": "2025-12-03T00:00:00Z",
+      "count": 27,
+      "uniques": 14
+    }
+  ]
 }
