@@ -5,18 +5,23 @@ set -euo pipefail
 # RLB (Retro Legacy Blocks) Specification PDF Generator
 # ============================================================
 # Usage:
-#   ./generate_pdf.sh [--rev <version>] [--help]
+#   ./generate_pdf.sh [--rev <version>] [--component <name>] [--help]
 #
 # Examples:
-#   ./generate_pdf.sh --rev 0.90
-#   ./generate_pdf.sh --rev 1.0
+#   ./generate_pdf.sh                     # All components, default version
+#   ./generate_pdf.sh --rev 1.0           # All components, version 1.0
+#   ./generate_pdf.sh --component gpio    # Only GPIO spec
+#   ./generate_pdf.sh --component uart_16550 --rev 1.0
 #
 # This script builds RLB component specification documents
 # (DOCX and PDF) from Markdown sources using md_to_docx.py.
 # ============================================================
 
 # Default revision
-REV="0.90"
+REV="1.0"
+
+# Component filter (empty = all)
+COMPONENT_FILTER=""
 
 # Detect repository root
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -30,30 +35,41 @@ show_help() {
 Usage: $0 [OPTIONS]
 
 Options:
-  -r, --rev <version>    Set document revision (default: ${REV})
-  -h, --help             Show this help message and exit
+  -r, --rev <version>       Set document revision (default: ${REV})
+  -c, --component <name>    Generate only specified component (default: all)
+  -h, --help                Show this help message and exit
 
 Examples:
-  $0 --rev 0.90
-  $0 --rev 1.0
+  $0                        # Generate all components
+  $0 --rev 1.0              # All components with version 1.0
+  $0 -c gpio                # Only GPIO specification
+  $0 -c uart_16550 -r 1.0   # UART 16550 spec, version 1.0
 
 Description:
   This script generates DOCX and PDF versions of RLB component specifications
   by invoking the md_to_docx.py converter. It processes all enabled components
   and stitches together Markdown chapters with proper asset references.
 
-Enabled Components:
-  Edit the COMPONENTS array below to enable/disable specific components.
-  Currently enabled: hpet, pit_8254
+Components (all enabled by default):
+  Timers:
+    - hpet        : High Precision Event Timer
+    - pit_8254    : Programmable Interval Timer 8254
 
-Available Components (see COMPONENTS array for full list):
-  - hpet      : High Precision Event Timer
-  - pit_8254  : Programmable Interval Timer 8254
-  - ioapic    : I/O Advanced Programmable Interrupt Controller
-  - pic_8259  : Programmable Interrupt Controller 8259
-  - rtc       : Real-Time Clock
-  - pm_acpi   : ACPI Power Management
-  - smbus     : SMBus/I2C Controller
+  Interrupt Controllers:
+    - ioapic      : I/O Advanced Programmable Interrupt Controller
+    - pic_8259    : Programmable Interrupt Controller 8259
+
+  Peripherals:
+    - gpio        : General Purpose I/O Controller
+    - uart_16550  : 16550-Compatible UART
+    - rtc         : Real-Time Clock
+    - smbus       : SMBus/I2C Controller
+    - pm_acpi     : ACPI Power Management
+
+Output Files:
+  For each component, generates:
+    - APB_<NAME>_Specification_v<REV>.docx
+    - APB_<NAME>_Specification_v<REV>.pdf
 EOF
 }
 
@@ -63,6 +79,14 @@ while [[ $# -gt 0 ]]; do
       REV="${2:-}"
       if [[ -z "$REV" ]]; then
         echo "Error: Missing value for --rev" >&2
+        exit 1
+      fi
+      shift 2
+      ;;
+    -c|--component)
+      COMPONENT_FILTER="${2:-}"
+      if [[ -z "$COMPONENT_FILTER" ]]; then
+        echo "Error: Missing value for --component" >&2
         exit 1
       fi
       shift 2
@@ -84,20 +108,23 @@ done
 # ============================================================
 # Format: "component_key:spec_dir:index_file:display_name:default_version"
 #
-# ACTIVE COMPONENTS (uncommented):
+# ALL RLB COMPONENTS:
 COMPONENTS=(
-  "hpet:hpet_spec:hpet_index.md:APB_HPET:0.90"
-  "pit_8254:pit_8254_spec:pit_8254_index.md:APB_PIT_8254:0.90"
-)
+  # Timers
+  "hpet:hpet_spec:hpet_index.md:APB_HPET:1.0"
+  "pit_8254:pit_8254_spec:pit_8254_index.md:APB_PIT_8254:1.0"
 
-# AVAILABLE COMPONENTS (commented out - uncomment to enable):
-# COMPONENTS+=(
-#   "ioapic:ioapic_spec:ioapic_index.md:APB_IOAPIC:0.90"
-#   "pic_8259:pic_8259_spec:pic_8259_index.md:APB_PIC_8259:0.90"
-#   "rtc:rtc_spec:rtc_index.md:APB_RTC:0.90"
-#   "pm_acpi:pm_acpi_spec:pm_acpi_index.md:APB_PM_ACPI:0.90"
-#   "smbus:smbus_spec:smbus_index.md:APB_SMBUS:0.90"
-# )
+  # Interrupt Controllers
+  "ioapic:ioapic_spec:ioapic_index.md:APB_IOAPIC:1.0"
+  "pic_8259:pic_8259_spec:pic_8259_index.md:APB_PIC_8259:1.0"
+
+  # Peripherals
+  "gpio:gpio_spec:gpio_index.md:APB_GPIO:1.0"
+  "uart_16550:uart_16550_spec:uart_16550_index.md:APB_UART_16550:1.0"
+  "rtc:rtc_spec:rtc_index.md:APB_RTC:1.0"
+  "smbus:smbus_spec:smbus_index.md:APB_SMBUS:1.0"
+  "pm_acpi:pm_acpi_spec:pm_acpi_index.md:APB_PM_ACPI:1.0"
+)
 
 # ============================================================
 # Generate single component
@@ -194,19 +221,32 @@ echo "============================================================"
 echo " RLB Specification PDF Generator"
 echo "============================================================"
 echo "  Revision:    ${REV}"
-echo "  Components:  ${#COMPONENTS[@]} enabled"
+if [[ -n "$COMPONENT_FILTER" ]]; then
+  echo "  Component:   ${COMPONENT_FILTER} (filtered)"
+else
+  echo "  Components:  ${#COMPONENTS[@]} available"
+fi
 echo "============================================================"
 echo
 
 # Track statistics
-total_components=${#COMPONENTS[@]}
+total_components=0
 success_count=0
 error_count=0
+skipped_count=0
 
 # Process each component
 for component_spec in "${COMPONENTS[@]}"; do
   # Parse component specification
   IFS=':' read -r component_key spec_dir index_file display_name default_version <<< "$component_spec"
+
+  # Check if we should process this component
+  if [[ -n "$COMPONENT_FILTER" && "$component_key" != "$COMPONENT_FILTER" ]]; then
+    skipped_count=$((skipped_count + 1))
+    continue
+  fi
+
+  total_components=$((total_components + 1))
 
   if generate_component "$component_key" "$spec_dir" "$index_file" "$display_name" "$default_version"; then
     success_count=$((success_count + 1))
@@ -214,6 +254,18 @@ for component_spec in "${COMPONENTS[@]}"; do
     error_count=$((error_count + 1))
   fi
 done
+
+# Check if component filter didn't match anything
+if [[ -n "$COMPONENT_FILTER" && $total_components -eq 0 ]]; then
+  echo "ERROR: Component '${COMPONENT_FILTER}' not found."
+  echo
+  echo "Available components:"
+  for component_spec in "${COMPONENTS[@]}"; do
+    IFS=':' read -r component_key _ _ display_name _ <<< "$component_spec"
+    echo "  - ${component_key} (${display_name})"
+  done
+  exit 1
+fi
 
 # Print summary
 echo "============================================================"
