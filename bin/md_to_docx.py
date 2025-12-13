@@ -2,7 +2,7 @@
 """
 md_to_docx.py — Convert Markdown (single file or expanded index) to DOCX/PDF via Pandoc.
 
-Features (no draw.io auto-fixes):
+Features:
 - --expand-index: parse an index.md and inline linked chapter .md files in order
 - --title-page [path]: prepend a title page (auto if no path given)
 - --assets-dir (repeatable): added to Pandoc --resource-path
@@ -11,6 +11,14 @@ Features (no draw.io auto-fixes):
 - Force a Unicode-friendly PDF engine (xelatex) by default
 - Wavedrom .json "images": render to SVG (python-wavedrom or wavedrom-cli) or degrade to links
 - Font controls for XeLaTeX/LuaLaTeX: --mainfont/--monofont/--sansfont/--mathfont
+- Embedded Mermaid diagrams: ```mermaid blocks rendered to SVG via mmdc CLI
+- Embedded Graphviz diagrams: ```graphviz or ```dot blocks rendered to SVG via dot CLI
+- Embedded PlantUML diagrams: ```plantuml blocks rendered to SVG via plantuml CLI
+
+Required tools for diagram rendering (install as needed):
+- Mermaid: npm install -g @mermaid-js/mermaid-cli (provides 'mmdc')
+- Graphviz: apt install graphviz / brew install graphviz (provides 'dot')
+- PlantUML: apt install plantuml / brew install plantuml (provides 'plantuml')
 """
 
 import argparse
@@ -29,6 +37,11 @@ from datetime import date
 MD_LINK_RE = re.compile(r"\[([^\]]+)\]\(([^)]+\.md)(#[^)]+)?\)", re.IGNORECASE)
 IMG_JSON_RE = re.compile(r'!\[([^\]]*)\]\(([^)]+\.json)\)')
 IMG_RE = re.compile(r'!\[([^\]]*)\]\(([^)]+)\)')
+
+# Fenced code block patterns for embedded diagrams
+MERMAID_BLOCK_RE = re.compile(r'```mermaid\s*\n(.*?)\n```', re.DOTALL | re.IGNORECASE)
+GRAPHVIZ_BLOCK_RE = re.compile(r'```(?:graphviz|dot)\s*\n(.*?)\n```', re.DOTALL | re.IGNORECASE)
+PLANTUML_BLOCK_RE = re.compile(r'```plantuml\s*\n(.*?)\n```', re.DOTALL | re.IGNORECASE)
 
 EMOJI_MAP = {
     "✅": "✓",
@@ -157,6 +170,346 @@ def rewrite_wavedrom_images(md_text: str, base_dir: pathlib.Path, tmp_img_dir: p
         return f"[{alt or 'diagram (wavedrom)'}]({rel})"
     return IMG_JSON_RE.sub(_sub, md_text)
 
+# ---- Mermaid handling ----
+
+def render_mermaid_block(code: str, tmp_img_dir: pathlib.Path, idx: int, quiet: bool = False) -> str:
+    """
+    Render a Mermaid diagram code block to PNG.
+    Returns markdown image reference or fallback code block.
+
+    Note: PNG is used instead of SVG because SVG output from headless Chrome
+    often has font/text rendering issues when fonts aren't installed in the
+    headless environment.
+    """
+    out_png = tmp_img_dir / f"mermaid_{idx}.png"
+
+    # Try mmdc CLI (mermaid-cli from npm)
+    mmdc = shutil.which("mmdc")
+    if mmdc:
+        tmp_mmd = tmp_img_dir / f"mermaid_{idx}.mmd"
+        write_text(tmp_mmd, code)
+
+        # Create puppeteer config to disable sandbox (required on Ubuntu 23.10+)
+        puppeteer_config = tmp_img_dir / "puppeteer-config.json"
+        if not puppeteer_config.exists():
+            write_text(puppeteer_config, '{"args": ["--no-sandbox", "--disable-setuid-sandbox"]}')
+
+        try:
+            # Use PNG output with high scale for quality, white background for better PDF embedding
+            cmd = [mmdc, "-i", str(tmp_mmd), "-o", str(out_png), "-b", "white",
+                   "-p", str(puppeteer_config), "-s", "2"]  # scale=2 for higher resolution
+            if quiet:
+                cmd.append("-q")
+            subprocess.run(cmd, check=True, capture_output=True, timeout=30)
+            if out_png.exists():
+                if not quiet:
+                    log(f"  Rendered mermaid_{idx}.png")
+                return f"![Mermaid diagram]({out_png.as_posix()})"
+        except (subprocess.CalledProcessError, subprocess.TimeoutExpired) as e:
+            if not quiet:
+                log(f"  Warning: Mermaid render failed for block {idx}: {e}")
+
+    # Fallback: keep as code block
+    if not quiet:
+        log(f"  Warning: mmdc not found, keeping mermaid block {idx} as code")
+    return f"```\n{code}\n```"
+
+def rewrite_mermaid_blocks(md_text: str, tmp_img_dir: pathlib.Path, quiet: bool = False) -> str:
+    """Replace all ```mermaid blocks with rendered SVG images."""
+    idx = [0]  # Use list to allow mutation in nested function
+
+    def _sub(m):
+        code = m.group(1).strip()
+        idx[0] += 1
+        return render_mermaid_block(code, tmp_img_dir, idx[0], quiet)
+
+    return MERMAID_BLOCK_RE.sub(_sub, md_text)
+
+# ---- Graphviz handling ----
+
+def render_graphviz_block(code: str, tmp_img_dir: pathlib.Path, idx: int, quiet: bool = False) -> str:
+    """
+    Render a Graphviz/DOT diagram code block to SVG.
+    Returns markdown image reference or fallback code block.
+    """
+    out_svg = tmp_img_dir / f"graphviz_{idx}.svg"
+
+    # Try dot CLI (from graphviz package)
+    dot = shutil.which("dot")
+    if dot:
+        try:
+            result = subprocess.run(
+                [dot, "-Tsvg"],
+                input=code.encode("utf-8"),
+                capture_output=True,
+                timeout=30,
+                check=True
+            )
+            out_svg.write_bytes(result.stdout)
+            if out_svg.exists():
+                if not quiet:
+                    log(f"  Rendered graphviz_{idx}.svg")
+                return f"![Graphviz diagram]({out_svg.as_posix()})"
+        except (subprocess.CalledProcessError, subprocess.TimeoutExpired) as e:
+            if not quiet:
+                log(f"  Warning: Graphviz render failed for block {idx}: {e}")
+
+    # Fallback: keep as code block
+    if not quiet:
+        log(f"  Warning: dot not found, keeping graphviz block {idx} as code")
+    return f"```dot\n{code}\n```"
+
+def rewrite_graphviz_blocks(md_text: str, tmp_img_dir: pathlib.Path, quiet: bool = False) -> str:
+    """Replace all ```graphviz or ```dot blocks with rendered SVG images."""
+    idx = [0]
+
+    def _sub(m):
+        code = m.group(1).strip()
+        idx[0] += 1
+        return render_graphviz_block(code, tmp_img_dir, idx[0], quiet)
+
+    return GRAPHVIZ_BLOCK_RE.sub(_sub, md_text)
+
+# ---- PlantUML handling ----
+
+def render_plantuml_block(code: str, tmp_img_dir: pathlib.Path, idx: int, quiet: bool = False) -> str:
+    """
+    Render a PlantUML diagram code block to SVG.
+    Returns markdown image reference or fallback code block.
+    """
+    out_svg = tmp_img_dir / f"plantuml_{idx}.svg"
+    tmp_puml = tmp_img_dir / f"plantuml_{idx}.puml"
+
+    # Ensure code has @startuml/@enduml wrapper
+    code_wrapped = code
+    if not code.strip().startswith("@start"):
+        code_wrapped = f"@startuml\n{code}\n@enduml"
+
+    write_text(tmp_puml, code_wrapped)
+
+    # Try plantuml CLI
+    plantuml = shutil.which("plantuml")
+    if plantuml:
+        try:
+            subprocess.run(
+                [plantuml, "-tsvg", "-o", str(tmp_img_dir), str(tmp_puml)],
+                capture_output=True,
+                timeout=30,
+                check=True
+            )
+            if out_svg.exists():
+                if not quiet:
+                    log(f"  Rendered plantuml_{idx}.svg")
+                return f"![PlantUML diagram]({out_svg.as_posix()})"
+        except (subprocess.CalledProcessError, subprocess.TimeoutExpired) as e:
+            if not quiet:
+                log(f"  Warning: PlantUML render failed for block {idx}: {e}")
+
+    # Try java -jar plantuml.jar if PLANTUML_JAR env var is set
+    import os
+    plantuml_jar = os.environ.get("PLANTUML_JAR")
+    if plantuml_jar and pathlib.Path(plantuml_jar).exists():
+        java = shutil.which("java")
+        if java:
+            try:
+                subprocess.run(
+                    [java, "-jar", plantuml_jar, "-tsvg", "-o", str(tmp_img_dir), str(tmp_puml)],
+                    capture_output=True,
+                    timeout=30,
+                    check=True
+                )
+                if out_svg.exists():
+                    if not quiet:
+                        log(f"  Rendered plantuml_{idx}.svg (via jar)")
+                    return f"![PlantUML diagram]({out_svg.as_posix()})"
+            except (subprocess.CalledProcessError, subprocess.TimeoutExpired) as e:
+                if not quiet:
+                    log(f"  Warning: PlantUML jar render failed for block {idx}: {e}")
+
+    # Fallback: keep as code block
+    if not quiet:
+        log(f"  Warning: plantuml not found, keeping plantuml block {idx} as code")
+    return f"```\n{code}\n```"
+
+def rewrite_plantuml_blocks(md_text: str, tmp_img_dir: pathlib.Path, quiet: bool = False) -> str:
+    """Replace all ```plantuml blocks with rendered SVG images."""
+    idx = [0]
+
+    def _sub(m):
+        code = m.group(1).strip()
+        idx[0] += 1
+        return render_plantuml_block(code, tmp_img_dir, idx[0], quiet)
+
+    return PLANTUML_BLOCK_RE.sub(_sub, md_text)
+
+# ---- Auto-detection of unfenced diagrams ----
+
+# Patterns that indicate Mermaid diagram content (at start of line or code block)
+MERMAID_INDICATORS = [
+    r'^graph\s+(TB|BT|LR|RL|TD)\b',      # graph TB, graph LR, etc.
+    r'^flowchart\s+(TB|BT|LR|RL|TD)\b',  # flowchart TD, etc.
+    r'^sequenceDiagram\b',
+    r'^classDiagram\b',
+    r'^stateDiagram\b',
+    r'^erDiagram\b',
+    r'^gantt\b',
+    r'^pie\b',
+    r'^journey\b',
+    r'^gitGraph\b',
+]
+MERMAID_INDICATOR_RE = re.compile('|'.join(MERMAID_INDICATORS), re.MULTILINE | re.IGNORECASE)
+
+# Patterns for Graphviz/DOT
+GRAPHVIZ_INDICATORS = [
+    r'^digraph\s+\w*\s*\{',
+    r'^graph\s+\w*\s*\{',
+    r'^strict\s+(di)?graph\s+',
+]
+GRAPHVIZ_INDICATOR_RE = re.compile('|'.join(GRAPHVIZ_INDICATORS), re.MULTILINE | re.IGNORECASE)
+
+# Pattern for generic fenced code blocks (``` without language)
+GENERIC_CODE_BLOCK_RE = re.compile(r'```\s*\n(.*?)\n```', re.DOTALL)
+
+def detect_and_tag_unfenced_diagrams(md_text: str, quiet: bool = False) -> str:
+    """
+    Auto-detect unfenced diagram blocks and add appropriate language tags.
+
+    This is a HEURISTIC - it guesses based on content patterns.
+    Warnings are emitted for each detection so users know what was auto-tagged.
+
+    Handles:
+    1. Generic ``` blocks containing Mermaid/Graphviz syntax
+    2. Bare diagram code outside of any code fence (less reliable)
+    """
+    detections = []
+
+    def _check_and_tag_block(m):
+        content = m.group(1).strip()
+        first_lines = content[:500]  # Check first 500 chars for indicators
+
+        # Check for Mermaid patterns
+        if MERMAID_INDICATOR_RE.search(first_lines):
+            # Extract the indicator for logging
+            indicator_match = MERMAID_INDICATOR_RE.search(first_lines)
+            indicator = indicator_match.group(0) if indicator_match else "mermaid pattern"
+            detections.append(('mermaid', indicator, content[:50].replace('\n', ' ')))
+            return f"```mermaid\n{content}\n```"
+
+        # Check for Graphviz patterns
+        if GRAPHVIZ_INDICATOR_RE.search(first_lines):
+            indicator_match = GRAPHVIZ_INDICATOR_RE.search(first_lines)
+            indicator = indicator_match.group(0) if indicator_match else "graphviz pattern"
+            detections.append(('graphviz', indicator, content[:50].replace('\n', ' ')))
+            return f"```graphviz\n{content}\n```"
+
+        # No match - keep as generic code block
+        return m.group(0)
+
+    # Process generic code blocks
+    result = GENERIC_CODE_BLOCK_RE.sub(_check_and_tag_block, md_text)
+
+    # Log detections
+    if detections and not quiet:
+        log(f"\n  ⚠️  AUTO-DETECTION: Found {len(detections)} unfenced diagram(s) - tagging as best guess:")
+        for dtype, indicator, preview in detections:
+            preview_clean = preview[:40] + "..." if len(preview) > 40 else preview
+            log(f"      • Detected '{dtype}' (saw '{indicator}'): {preview_clean}")
+        log(f"      ℹ️  These were generic ``` blocks. For reliable rendering, use ```mermaid or ```graphviz explicitly.\n")
+
+    return result
+
+def detect_bare_mermaid_lines(md_text: str, quiet: bool = False) -> str:
+    """
+    Attempt to detect bare Mermaid diagrams that aren't in any code fence.
+
+    This is VERY HEURISTIC and may have false positives.
+    Only handles simple cases where a Mermaid keyword starts a line outside code blocks.
+    """
+    # This is tricky because we need to avoid matching inside existing code blocks
+    # For now, we'll do a simple line-by-line scan and look for isolated Mermaid starts
+
+    lines = md_text.split('\n')
+    result_lines = []
+    in_code_block = False
+    i = 0
+    detections = 0
+
+    while i < len(lines):
+        line = lines[i]
+
+        # Track code block state
+        if line.strip().startswith('```'):
+            in_code_block = not in_code_block
+            result_lines.append(line)
+            i += 1
+            continue
+
+        # Skip if we're inside a code block
+        if in_code_block:
+            result_lines.append(line)
+            i += 1
+            continue
+
+        # Check if this line looks like a bare Mermaid start
+        stripped = line.strip()
+        if MERMAID_INDICATOR_RE.match(stripped):
+            # Found a potential bare Mermaid diagram
+            # Collect lines until we hit an empty line or another heading
+            diagram_lines = [line]
+            j = i + 1
+            while j < len(lines):
+                next_line = lines[j]
+                # Stop conditions: empty line, heading, or new code block
+                if (next_line.strip() == '' and j > i + 1) or \
+                   next_line.strip().startswith('#') or \
+                   next_line.strip().startswith('```'):
+                    break
+                diagram_lines.append(next_line)
+                j += 1
+
+            # Only wrap if we found multiple lines (single line is probably not a diagram)
+            if len(diagram_lines) > 1:
+                detections += 1
+                if not quiet:
+                    preview = stripped[:40] + "..." if len(stripped) > 40 else stripped
+                    log(f"  ⚠️  AUTO-DETECTION (BARE): Wrapping suspected bare Mermaid at line {i+1}: {preview}")
+                result_lines.append('```mermaid')
+                result_lines.extend(diagram_lines)
+                result_lines.append('```')
+                i = j
+                continue
+
+        result_lines.append(line)
+        i += 1
+
+    if detections > 0 and not quiet:
+        log(f"      ℹ️  Wrapped {detections} bare diagram(s). This is a GUESS - verify output is correct.\n")
+
+    return '\n'.join(result_lines)
+
+# ---- Combined diagram rendering ----
+
+def render_embedded_diagrams(md_text: str, tmp_img_dir: pathlib.Path, quiet: bool = False) -> str:
+    """
+    Render all embedded diagram code blocks (Mermaid, Graphviz, PlantUML) to SVG.
+
+    Processing order:
+    1. Auto-detect unfenced diagrams in generic ``` blocks (heuristic)
+    2. Attempt to detect bare Mermaid diagrams outside code fences (very heuristic)
+    3. Render properly-tagged ```mermaid blocks
+    4. Render properly-tagged ```graphviz/```dot blocks
+    5. Render properly-tagged ```plantuml blocks
+    """
+    # Step 1 & 2: Auto-detection (with warnings)
+    md_text = detect_and_tag_unfenced_diagrams(md_text, quiet)
+    md_text = detect_bare_mermaid_lines(md_text, quiet)
+
+    # Step 3-5: Render tagged blocks
+    md_text = rewrite_mermaid_blocks(md_text, tmp_img_dir, quiet)
+    md_text = rewrite_graphviz_blocks(md_text, tmp_img_dir, quiet)
+    md_text = rewrite_plantuml_blocks(md_text, tmp_img_dir, quiet)
+    return md_text
+
 # ---------------------------
 # Pandoc runners
 # ---------------------------
@@ -282,6 +635,7 @@ def main():
         merged = concat_markdown(files, args.pagebreak)
         merged = strip_or_map_emoji(merged)
         merged = rewrite_wavedrom_images(merged, in_path.parent, tmp_imgs)
+        merged = render_embedded_diagrams(merged, tmp_imgs, args.quiet)
 
         chunks.append(merged)
         final_md = ("\n".join(chunks)).strip() + "\n"
