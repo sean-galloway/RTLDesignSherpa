@@ -1,0 +1,649 @@
+{
+    "head": {
+        "text": "Datapath Write - Multi-Channel Streaming",
+        "tock": 1
+    },
+    "signal": [
+        {
+            "name": "datapath_wr_test.MAX_BURST_LEN[31:0]",
+            "wave": "x"
+        },
+        {
+            "name": "datapath_wr_test.NUM_CHANNELS[31:0]",
+            "wave": "=...................................................................................................",
+            "data": [
+                "4"
+            ],
+            "phase": 0
+        },
+        {
+            "name": "datapath_wr_test.PIPELINE[31:0]",
+            "wave": "=...................................................................................................",
+            "data": [
+                "1"
+            ],
+            "phase": 0
+        },
+        {
+            "name": "datapath_wr_test.SEG_SIZE[31:0]",
+            "wave": "=...................................................................................................",
+            "data": [
+                "100"
+            ],
+            "phase": 0
+        },
+        {
+            "name": "datapath_wr_test.SRAM_DEPTH[31:0]",
+            "wave": "=...................................................................................................",
+            "data": [
+                "400"
+            ],
+            "phase": 0
+        },
+        {
+            "name": "datapath_wr_test.NC[31:0]",
+            "wave": "=...................................................................................................",
+            "data": [
+                "4"
+            ],
+            "phase": 0
+        },
+        {
+            "name": "datapath_wr_test.clk",
+            "wave": "pppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppp",
+            "data": [],
+            "phase": 0,
+            "period": 1.0
+        },
+        {
+            "name": "datapath_wr_test.rst_n",
+            "wave": "1...................................................................................................",
+            "data": [],
+            "phase": 0
+        },
+        [
+            "scheduler",
+            {
+                "name": "datapath_wr_test.sched_wr_valid[0]",
+                "wave": "x"
+            },
+            {
+                "name": "datapath_wr_test.sched_wr_ready[0]",
+                "wave": "x"
+            },
+            {
+                "name": "datapath_wr_test.sched_wr_addr[63:0]",
+                "wave": "x"
+            },
+            {
+                "name": "datapath_wr_test.sched_wr_beats[31:0]",
+                "wave": "x"
+            },
+            {
+                "name": "datapath_wr_test.u_axi_write_engine.sched_wr_burst_len[7:0]",
+                "wave": "x"
+            },
+            {
+                "name": "datapath_wr_test.u_axi_write_engine.sched_wr_done_strobe[0]",
+                "wave": "x"
+            },
+            {
+                "name": "datapath_wr_test.u_axi_write_engine.sched_wr_beats_done[31:0]",
+                "wave": "x"
+            },
+            [
+                "i-wr-internals",
+                {
+                    "name": "datapath_wr_test.u_axi_write_engine.unnamedblk9.new_beats_written[31:0]",
+                    "wave": "x"
+                },
+                {
+                    "name": "datapath_wr_test.u_axi_write_engine.wr_drain_req[0]",
+                    "wave": "x"
+                },
+                {
+                    "name": "datapath_wr_test.u_axi_write_engine.wr_drain_size[7:0]",
+                    "wave": "x"
+                },
+                {
+                    "name": "datapath_wr_test.u_axi_write_engine.wr_drain_data_avail[8:0]",
+                    "wave": "x"
+                }
+            ]
+        ],
+        [
+            "m_axi_aw",
+            {
+                "name": "datapath_wr_test.u_axi_write_engine.m_axi_awvalid",
+                "wave": "0...............................................................................................1.0.",
+                "data": [],
+                "phase": 0
+            },
+            {
+                "name": "datapath_wr_test.u_axi_write_engine.m_axi_awready",
+                "wave": "0................................................................................................10.",
+                "data": [],
+                "phase": 0
+            },
+            {
+                "name": "datapath_wr_test.u_axi_write_engine.m_axi_awlen[7:0]",
+                "wave": "=...............................................................................................=...",
+                "data": [
+                    "0",
+                    "7"
+                ],
+                "phase": 0
+            },
+            {
+                "name": "datapath_wr_test.u_axi_write_engine.m_axi_awid[7:0]",
+                "wave": "=...................................................................................................",
+                "data": [
+                    "0"
+                ],
+                "phase": 0
+            },
+            {
+                "name": "datapath_wr_test.u_axi_write_engine.m_axi_awsize[2:0]",
+                "wave": "=...................................................................................................",
+                "data": [
+                    "5"
+                ],
+                "phase": 0
+            },
+            {
+                "name": "datapath_wr_test.u_axi_write_engine.cfg_axi_wr_xfer_beats[7:0]",
+                "wave": "=...................................................................................................",
+                "data": [
+                    "7"
+                ],
+                "phase": 0
+            },
+            {
+                "name": "datapath_wr_test.u_axi_write_engine.wr_drain_data_avail[8:0]",
+                "wave": "x"
+            },
+            {
+                "name": "datapath_wr_test.u_axi_write_engine.w_drain_req[0]",
+                "wave": "x"
+            },
+            {
+                "name": "datapath_wr_test.u_axi_write_engine.w_drain_size[7:0]",
+                "wave": "x"
+            },
+            {
+                "name": "datapath_wr_test.u_sram_controller.gen_channel_units[0].u_channel_unit.fifo_count[8:0]",
+                "wave": "=...................................................................................................",
+                "data": [
+                    "2C"
+                ],
+                "phase": 0
+            },
+            {
+                "name": "datapath_wr_test.u_sram_controller.gen_channel_units[0].u_channel_unit.bridge_occupancy[2:0]",
+                "wave": "=...................................................................................................",
+                "data": [
+                    "4"
+                ],
+                "phase": 0
+            },
+            {
+                "name": "(0)datapath_wr_test.u_sram_controller.gen_channel_units[0].u_channel_unit.bridge_occupancy[2:0]",
+                "wave": "x"
+            },
+            {
+                "name": "(1)datapath_wr_test.u_sram_controller.gen_channel_units[0].u_channel_unit.bridge_occupancy[2:0]",
+                "wave": "x"
+            },
+            {
+                "name": "(2)datapath_wr_test.u_sram_controller.gen_channel_units[0].u_channel_unit.bridge_occupancy[2:0]",
+                "wave": "x"
+            }
+        ],
+        [
+            "group_end",
+            {
+                "name": "datapath_wr_test.u_sram_controller.gen_channel_units[0].u_channel_unit.u_channel_fifo.count[8:0]",
+                "wave": "=...................................................................................................",
+                "data": [
+                    "2C"
+                ],
+                "phase": 0
+            }
+        ],
+        [
+            "m_axi_w",
+            {
+                "name": "datapath_wr_test.u_axi_write_engine.m_axi_wvalid",
+                "wave": "0..................................................................................................1",
+                "data": [],
+                "phase": 0
+            },
+            {
+                "name": "datapath_wr_test.u_axi_write_engine.m_axi_wready",
+                "wave": "0...................................................................................................",
+                "data": [],
+                "phase": 0
+            },
+            {
+                "name": "datapath_wr_test.u_axi_write_engine.m_axi_wlast",
+                "wave": "0...................................................................................................",
+                "data": [],
+                "phase": 0
+            },
+            {
+                "name": "datapath_wr_test.u_axi_write_engine.m_axi_wdata[255:0]",
+                "wave": "=...................................................................................................",
+                "data": [
+                    "10000001"
+                ],
+                "phase": 0
+            },
+            {
+                "name": "datapath_wr_test.u_axi_write_engine.m_axi_wlast",
+                "wave": "0...................................................................................................",
+                "data": [],
+                "phase": 0
+            },
+            {
+                "name": "datapath_wr_test.u_axi_write_engine.r_w_beats_remaining[7:0]",
+                "wave": "=..................................................................................................=",
+                "data": [
+                    "0",
+                    "8"
+                ],
+                "phase": 0
+            }
+        ],
+        [
+            "m_axi_b",
+            {
+                "name": "datapath_wr_test.u_axi_write_engine.m_axi_bvalid",
+                "wave": "0...................................................................................................",
+                "data": [],
+                "phase": 0
+            },
+            {
+                "name": "datapath_wr_test.u_axi_write_engine.m_axi_bready",
+                "wave": "1...................................................................................................",
+                "data": [],
+                "phase": 0
+            },
+            {
+                "name": "datapath_wr_test.u_axi_write_engine.m_axi_bid[7:0]",
+                "wave": "=...................................................................................................",
+                "data": [
+                    "0"
+                ],
+                "phase": 0
+            },
+            {
+                "name": "datapath_wr_test.u_axi_write_engine.m_axi_bresp[1:0]",
+                "wave": "=...................................................................................................",
+                "data": [
+                    "0"
+                ],
+                "phase": 0
+            }
+        ],
+        [
+            "axi_wr_sram",
+            {
+                "name": "datapath_wr_test.u_axi_write_engine.axi_wr_sram_valid[0]",
+                "wave": "x"
+            },
+            {
+                "name": "datapath_wr_test.u_axi_write_engine.axi_wr_sram_data[255:0]",
+                "wave": "=...................................................................................................",
+                "data": [
+                    "10000001"
+                ],
+                "phase": 0
+            }
+        ],
+        [
+            "sram_ctrl",
+            {
+                "name": "datapath_wr_test.u_sram_controller.axi_rd_sram_valid",
+                "wave": "1.......................................................................0...........................",
+                "data": [],
+                "phase": 0
+            },
+            {
+                "name": "datapath_wr_test.u_sram_controller.axi_rd_sram_ready",
+                "wave": "1...................................................................................................",
+                "data": [],
+                "phase": 0
+            },
+            {
+                "name": "datapath_wr_test.u_sram_controller.axi_rd_sram_id[0]",
+                "wave": "x"
+            },
+            {
+                "name": "datapath_wr_test.u_sram_controller.axi_rd_sram_data[255:0]",
+                "wave": "========================================================================............................",
+                "data": [
+                    "40000001",
+                    "40002002",
+                    "40004003",
+                    "40006004",
+                    "40008005",
+                    "4000A006",
+                    "4000C007",
+                    "4000E008",
+                    "40010001",
+                    "40012002",
+                    "40014003",
+                    "40016004",
+                    "40018005",
+                    "4001A006",
+                    "4001C007",
+                    "4001E008",
+                    "40020001",
+                    "40022002",
+                    "40024003",
+                    "40026004",
+                    "40028005",
+                    "4002A006",
+                    "4002C007",
+                    "4002E008",
+                    "40030001",
+                    "40032002",
+                    "40034003",
+                    "40036004",
+                    "40038005",
+                    "4003A006",
+                    "4003C007",
+                    "4003E008",
+                    "40040001",
+                    "40042002",
+                    "40044003",
+                    "40046004",
+                    "40048005",
+                    "4004A006",
+                    "4004C007",
+                    "4004E008",
+                    "40050001",
+                    "40052002",
+                    "40054003",
+                    "40056004",
+                    "40058005",
+                    "4005A006",
+                    "4005C007",
+                    "4005E008",
+                    "40060001",
+                    "40062002",
+                    "40064003",
+                    "40066004",
+                    "40068005",
+                    "4006A006",
+                    "4006C007",
+                    "4006E008",
+                    "40070001",
+                    "40072002",
+                    "40074003",
+                    "40076004",
+                    "40078005",
+                    "4007A006",
+                    "4007C007",
+                    "4007E008",
+                    "40080001",
+                    "40082002",
+                    "40084003",
+                    "40086004",
+                    "40088005",
+                    "4008A006",
+                    "4008C007",
+                    "4008E008"
+                ],
+                "phase": 0
+            },
+            {
+                "name": "datapath_wr_test.u_sram_controller.axi_wr_drain_req[0]",
+                "wave": "x"
+            },
+            {
+                "name": "datapath_wr_test.u_sram_controller.axi_wr_drain_size[7:0]",
+                "wave": "x"
+            },
+            {
+                "name": "datapath_wr_test.u_sram_controller.axi_wr_drain_data_avail[8:0]",
+                "wave": "x"
+            },
+            [
+                "ifo-sram",
+                {
+                    "name": "datapath_wr_test.u_sram_controller.gen_channel_units[0].u_channel_unit.u_channel_fifo.wr_valid",
+                    "wave": "0...................................................................................................",
+                    "data": [],
+                    "phase": 0
+                },
+                {
+                    "name": "datapath_wr_test.u_sram_controller.gen_channel_units[0].u_channel_unit.u_channel_fifo.wr_ready",
+                    "wave": "1...................................................................................................",
+                    "data": [],
+                    "phase": 0
+                },
+                {
+                    "name": "datapath_wr_test.u_sram_controller.gen_channel_units[0].u_channel_unit.u_channel_fifo.wr_data[255:0]",
+                    "wave": "========================================================================............................",
+                    "data": [
+                        "40000001",
+                        "40002002",
+                        "40004003",
+                        "40006004",
+                        "40008005",
+                        "4000A006",
+                        "4000C007",
+                        "4000E008",
+                        "40010001",
+                        "40012002",
+                        "40014003",
+                        "40016004",
+                        "40018005",
+                        "4001A006",
+                        "4001C007",
+                        "4001E008",
+                        "40020001",
+                        "40022002",
+                        "40024003",
+                        "40026004",
+                        "40028005",
+                        "4002A006",
+                        "4002C007",
+                        "4002E008",
+                        "40030001",
+                        "40032002",
+                        "40034003",
+                        "40036004",
+                        "40038005",
+                        "4003A006",
+                        "4003C007",
+                        "4003E008",
+                        "40040001",
+                        "40042002",
+                        "40044003",
+                        "40046004",
+                        "40048005",
+                        "4004A006",
+                        "4004C007",
+                        "4004E008",
+                        "40050001",
+                        "40052002",
+                        "40054003",
+                        "40056004",
+                        "40058005",
+                        "4005A006",
+                        "4005C007",
+                        "4005E008",
+                        "40060001",
+                        "40062002",
+                        "40064003",
+                        "40066004",
+                        "40068005",
+                        "4006A006",
+                        "4006C007",
+                        "4006E008",
+                        "40070001",
+                        "40072002",
+                        "40074003",
+                        "40076004",
+                        "40078005",
+                        "4007A006",
+                        "4007C007",
+                        "4007E008",
+                        "40080001",
+                        "40082002",
+                        "40084003",
+                        "40086004",
+                        "40088005",
+                        "4008A006",
+                        "4008C007",
+                        "4008E008"
+                    ],
+                    "phase": 0
+                },
+                {
+                    "name": "datapath_wr_test.u_sram_controller.gen_channel_units[0].u_channel_unit.u_channel_fifo.rd_valid",
+                    "wave": "1...................................................................................................",
+                    "data": [],
+                    "phase": 0
+                },
+                {
+                    "name": "datapath_wr_test.u_sram_controller.gen_channel_units[0].u_channel_unit.u_channel_fifo.rd_ready",
+                    "wave": "0...................................................................................................",
+                    "data": [],
+                    "phase": 0
+                },
+                {
+                    "name": "datapath_wr_test.u_sram_controller.gen_channel_units[0].u_channel_unit.u_channel_fifo.rd_data[255:0]",
+                    "wave": "=...................................................................................................",
+                    "data": [
+                        "10008005"
+                    ],
+                    "phase": 0
+                }
+            ],
+            [
+                "ifo-latency",
+                {
+                    "name": "datapath_wr_test.u_sram_controller.gen_channel_units[0].u_channel_unit.u_latency_bridge.skid_wr_valid",
+                    "wave": "0...................................................................................................",
+                    "data": [],
+                    "phase": 0
+                },
+                {
+                    "name": "datapath_wr_test.u_sram_controller.gen_channel_units[0].u_channel_unit.u_latency_bridge.skid_wr_ready",
+                    "wave": "0...................................................................................................",
+                    "data": [],
+                    "phase": 0
+                },
+                {
+                    "name": "datapath_wr_test.u_sram_controller.gen_channel_units[0].u_channel_unit.u_latency_bridge.skid_wr_data[255:0]",
+                    "wave": "=...................................................................................................",
+                    "data": [
+                        "10008005"
+                    ],
+                    "phase": 0
+                },
+                {
+                    "name": "datapath_wr_test.u_sram_controller.gen_channel_units[0].u_channel_unit.u_latency_bridge.s_valid",
+                    "wave": "1...................................................................................................",
+                    "data": [],
+                    "phase": 0
+                },
+                {
+                    "name": "datapath_wr_test.u_sram_controller.gen_channel_units[0].u_channel_unit.u_latency_bridge.s_ready",
+                    "wave": "0...................................................................................................",
+                    "data": [],
+                    "phase": 0
+                },
+                {
+                    "name": "datapath_wr_test.u_sram_controller.gen_channel_units[0].u_channel_unit.u_latency_bridge.s_data[255:0]",
+                    "wave": "=...................................................................................................",
+                    "data": [
+                        "10008005"
+                    ],
+                    "phase": 0
+                },
+                {
+                    "name": "datapath_wr_test.u_sram_controller.gen_channel_units[0].u_channel_unit.u_latency_bridge.m_valid",
+                    "wave": "1...................................................................................................",
+                    "data": [],
+                    "phase": 0
+                },
+                {
+                    "name": "datapath_wr_test.u_sram_controller.gen_channel_units[0].u_channel_unit.u_latency_bridge.m_ready",
+                    "wave": "0...................................................................................................",
+                    "data": [],
+                    "phase": 0
+                },
+                {
+                    "name": "datapath_wr_test.u_sram_controller.gen_channel_units[0].u_channel_unit.u_latency_bridge.m_data[255:0]",
+                    "wave": "=...................................................................................................",
+                    "data": [
+                        "10000001"
+                    ],
+                    "phase": 0
+                },
+                {
+                    "name": "datapath_wr_test.u_sram_controller.gen_channel_units[0].u_channel_unit.u_latency_bridge.occupancy[2:0]",
+                    "wave": "=...................................................................................................",
+                    "data": [
+                        "4"
+                    ],
+                    "phase": 0
+                },
+                {
+                    "name": "datapath_wr_test.u_sram_controller.gen_channel_units[0].u_channel_unit.u_latency_bridge.u_skid_buffer.gen_auto.mem[0][255:0]",
+                    "wave": "=...................................................................................................",
+                    "data": [
+                        "10000001"
+                    ],
+                    "phase": 0
+                },
+                {
+                    "name": "datapath_wr_test.u_sram_controller.gen_channel_units[0].u_channel_unit.u_latency_bridge.u_skid_buffer.gen_auto.mem[1][255:0]",
+                    "wave": "=...................................................................................................",
+                    "data": [
+                        "10002002"
+                    ],
+                    "phase": 0
+                },
+                {
+                    "name": "datapath_wr_test.u_sram_controller.gen_channel_units[0].u_channel_unit.u_latency_bridge.u_skid_buffer.gen_auto.mem[2][255:0]",
+                    "wave": "=...................................................................................................",
+                    "data": [
+                        "10004003"
+                    ],
+                    "phase": 0
+                },
+                {
+                    "name": "datapath_wr_test.u_sram_controller.gen_channel_units[0].u_channel_unit.u_latency_bridge.u_skid_buffer.gen_auto.mem[3][255:0]",
+                    "wave": "=...................................................................................................",
+                    "data": [
+                        "10006004"
+                    ],
+                    "phase": 0
+                }
+            ]
+        ],
+        [
+            "arbiter",
+            {
+                "name": "datapath_wr_test.u_axi_write_engine.w_data_ok[0]",
+                "wave": "x"
+            },
+            {
+                "name": "datapath_wr_test.u_axi_write_engine.r_outstanding[0]",
+                "wave": "x"
+            },
+            {
+                "name": "datapath_wr_test.u_axi_write_engine.w_no_outstanding[0]",
+                "wave": "x"
+            }
+        ]
+    ],
+    "config": {
+        "hscale": 1
+    }
+}

@@ -1,0 +1,89 @@
+{
+  "signal": [
+    {
+      "name": "clk",
+      "wave": "p............................",
+      "period": 1.0
+    },
+    {},
+    {
+      "name": "rst_n",
+      "wave": "1............................"
+    },
+    {},
+    [
+      "Config Write",
+      {
+        "name": "s_apb_PSEL",
+        "wave": "0.1......0...................",
+        "node": "..a........................"
+      },
+      {
+        "name": "s_apb_PADDR",
+        "wave": "x.2......x...................",
+        "data": ["CNT0"]
+      },
+      {
+        "name": "s_apb_PWDATA",
+        "wave": "x.2......x...................",
+        "data": ["0x05"]
+      }
+    ],
+    {},
+    [
+      "Counter",
+      {
+        "name": "gate0",
+        "wave": "1............................",
+        "node": "b............................"
+      },
+      {
+        "name": "r_counter0",
+        "wave": "x......=.=.=.=.=.=...........",
+        "data": ["5", "4", "3", "2", "1", "0"],
+        "node": ".......c.d.e.f.g.h..........."
+      },
+      {
+        "name": "counting",
+        "wave": "0......1...........0.........",
+        "node": ".......i...........j........."
+      }
+    ],
+    {},
+    [
+      "Output",
+      {
+        "name": "out0",
+        "wave": "0..............1.............",
+        "node": "...............k............."
+      }
+    ],
+    {},
+    [
+      "Interrupt",
+      {
+        "name": "irq",
+        "wave": "0..............1.............",
+        "node": "...............l............."
+      }
+    ]
+  ],
+  "head": {
+    "text": "PIT Mode 0: Terminal Count",
+    "tick": 0,
+    "every": 2
+  },
+  "foot": {
+    "text": "Counter loads 5, counts down to 0, OUT goes high (one-shot)"
+  },
+  "config": {
+    "hscale": 1.5
+  },
+  "edge": [
+    "a Count Write",
+    "b Gate=1",
+    "c~>h Countdown",
+    "h Terminal=0",
+    "h~>k OUT Assert"
+  ]
+}

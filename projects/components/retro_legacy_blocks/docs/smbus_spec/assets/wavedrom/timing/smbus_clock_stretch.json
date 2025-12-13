@@ -1,0 +1,87 @@
+{
+  "signal": [
+    {
+      "name": "clk",
+      "wave": "p............................",
+      "period": 1.0
+    },
+    {},
+    {
+      "name": "rst_n",
+      "wave": "1............................"
+    },
+    {},
+    [
+      "SMBus",
+      {
+        "name": "scl_master",
+        "wave": "0.1.0.1.0.......1.0.1........",
+        "node": "........a.......b............"
+      },
+      {
+        "name": "scl_slave",
+        "wave": "1.1.1.1.0.......1.1.1........",
+        "node": "........c.......d............"
+      },
+      {
+        "name": "scl (bus)",
+        "wave": "0.1.0.1.0.......1.0.1........",
+        "node": "........e.......f............"
+      },
+      {
+        "name": "sda",
+        "wave": "=.=.=.=.........=.=.=........",
+        "data": ["D7", "D6", "D5", "ACK", "D4", "D3"]
+      }
+    ],
+    {},
+    [
+      "Slave State",
+      {
+        "name": "slave_busy",
+        "wave": "0.......1.......0............",
+        "node": "........g.......h............"
+      },
+      {
+        "name": "stretch_scl",
+        "wave": "0.......1.......0............",
+        "node": "........i.......j............"
+      }
+    ],
+    {},
+    [
+      "Master State",
+      {
+        "name": "wait_scl_high",
+        "wave": "0.......1.......0............",
+        "node": "........k.......l............"
+      },
+      {
+        "name": "timeout_cnt",
+        "wave": "=.......=.=.=.=.=............",
+        "data": ["0", "1", "2", "3", "0"]
+      }
+    ]
+  ],
+  "head": {
+    "text": "SMBus Clock Stretching",
+    "tick": 0,
+    "every": 2
+  },
+  "foot": {
+    "text": "Slave holds SCL low when busy; Master waits for SCL high before continuing"
+  },
+  "config": {
+    "hscale": 1.5
+  },
+  "edge": [
+    "a Master releases SCL",
+    "c~>e Slave holds SCL low",
+    "g Slave Processing",
+    "i SCL Stretch",
+    "k Master Waits",
+    "j~>l Stretch Complete",
+    "d Slave releases",
+    "f SCL rises"
+  ]
+}

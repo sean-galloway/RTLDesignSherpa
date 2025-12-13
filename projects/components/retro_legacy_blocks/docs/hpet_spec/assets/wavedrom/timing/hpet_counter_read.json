@@ -1,0 +1,87 @@
+{
+  "signal": [
+    {
+      "name": "pclk",
+      "wave": "p................",
+      "period": 1.0
+    },
+    {
+      "name": "hpet_clk",
+      "wave": "p................",
+      "period": 0.5
+    },
+    {},
+    {
+      "name": "presetn",
+      "wave": "1................"
+    },
+    {},
+    [
+      "APB",
+      {
+        "name": "s_apb_PSEL",
+        "wave": "0.1......0.......",
+        "node": "..a......b......."
+      },
+      {
+        "name": "s_apb_PENABLE",
+        "wave": "0..1.....0.......",
+        "node": "...c............."
+      },
+      {
+        "name": "s_apb_PREADY",
+        "wave": "0.....1..0.......",
+        "node": "......d.........."
+      },
+      {
+        "name": "s_apb_PWRITE",
+        "wave": "0................"
+      },
+      {
+        "name": "s_apb_PADDR",
+        "wave": "x.2......x.......",
+        "data": ["0x010"]
+      },
+      {
+        "name": "s_apb_PRDATA",
+        "wave": "x.....2..x.......",
+        "data": ["0x0042"],
+        "node": "......e.........."
+      }
+    ],
+    {},
+    [
+      "Internal",
+      {
+        "name": "hpet_enable",
+        "wave": "1................"
+      },
+      {
+        "name": "r_main_counter",
+        "wave": "234567...........",
+        "data": ["0x40", "0x41", "0x42", "0x43", "0x44", "0x45"]
+      },
+      {
+        "name": "counter_rdata",
+        "wave": "x.....2..........",
+        "data": ["0x42"]
+      }
+    ]
+  ],
+  "head": {
+    "text": "HPET Counter Read - Read Main Counter",
+    "tick": 0,
+    "every": 2
+  },
+  "foot": {
+    "text": "APB read of HPET_COUNTER_LO captures current counter value"
+  },
+  "config": {
+    "hscale": 1.5
+  },
+  "edge": [
+    "a~>c Setup Phase",
+    "c~>d Access Phase",
+    "d~>e Data Valid"
+  ]
+}

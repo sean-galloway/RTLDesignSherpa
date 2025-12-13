@@ -1,0 +1,99 @@
+{
+  "signal": [
+    {
+      "name": "clk",
+      "wave": "p............................",
+      "period": 1.0
+    },
+    {},
+    {
+      "name": "rst_n",
+      "wave": "1............................"
+    },
+    {},
+    [
+      "Priority State",
+      {
+        "name": "lowest_priority",
+        "wave": "=.......=....................",
+        "data": ["IR7", "IR3"],
+        "node": "a.......b...................."
+      },
+      {
+        "name": "priority_order",
+        "wave": "=.......=....................",
+        "data": ["0,1,2,3,4,5,6,7", "4,5,6,7,0,1,2,3"]
+      }
+    ],
+    {},
+    [
+      "IRQ Inputs",
+      {
+        "name": "r_irr",
+        "wave": "=............................",
+        "data": ["0x0C"],
+        "node": "c............................"
+      }
+    ],
+    {},
+    [
+      "Before Rotation",
+      {
+        "name": "highest_before",
+        "wave": "=............................",
+        "data": ["IR2"],
+        "node": "d............................"
+      }
+    ],
+    {},
+    [
+      "Rotate EOI",
+      {
+        "name": "s_apb_PWDATA",
+        "wave": "x.2......x...................",
+        "data": ["0xA0"],
+        "node": "..e.........................."
+      },
+      {
+        "name": "rotate_on_eoi",
+        "wave": "0......1.0...................",
+        "node": ".......f....................."
+      }
+    ],
+    {},
+    [
+      "After Rotation",
+      {
+        "name": "highest_after",
+        "wave": "x.......=....................",
+        "data": ["IR3"],
+        "node": "........g...................."
+      },
+      {
+        "name": "int",
+        "wave": "1........1...................",
+        "node": ".........h..................."
+      }
+    ]
+  ],
+  "head": {
+    "text": "PIC Priority Rotation",
+    "tick": 0,
+    "every": 2
+  },
+  "foot": {
+    "text": "Rotate on EOI: Serviced IR becomes lowest priority, enables round-robin"
+  },
+  "config": {
+    "hscale": 1.5
+  },
+  "edge": [
+    "a Default: IR7 lowest",
+    "c IRR=0x0C (IR2,IR3)",
+    "d IR2 highest (lower #)",
+    "e 0xA0=Rotate EOI",
+    "f~>b IR3 now lowest",
+    "b~>g IR3 now highest",
+    "g~>h Service IR3"
+  ]
+}

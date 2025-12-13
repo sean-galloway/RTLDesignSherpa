@@ -111,6 +111,45 @@ The APB IOAPIC draws directly from the Intel 82093AA I/O APIC specification with
 - Modern SystemVerilog coding practices
 - Comprehensive validation framework
 
+#### Timing Diagrams
+
+##### Interrupt Delivery
+
+Shows the flow from IRQ input to message delivery to LAPIC.
+
+![IOAPIC Interrupt Delivery](../assets/wavedrom/timing/ioapic_interrupt_delivery.svg)
+
+When an IRQ edge is detected, the corresponding IRR bit sets. The redirection table entry (RTE) is consulted for vector, destination, and delivery mode. An interrupt message is sent to the target LAPIC.
+
+##### Redirection Table Write
+
+Indirect register access to configure an RTE.
+
+![IOAPIC RTE Write](../assets/wavedrom/timing/ioapic_rte_write.svg)
+
+Two APB transactions required:
+1. Write index to IOREGSEL (selects RTE low or high word)
+2. Write data to IOWIN (updates the selected RTE)
+
+##### Level-Triggered Interrupt
+
+Level mode with Remote IRR and EOI handling.
+
+![IOAPIC Level Triggered](../assets/wavedrom/timing/ioapic_level_triggered.svg)
+
+For level-triggered interrupts:
+- Remote IRR set on delivery, blocking re-delivery
+- EOI broadcast clears Remote IRR
+- If IRQ still asserted, re-delivery occurs
+
+##### Interrupt Masking
+
+Masked interrupts latch in IRR and deliver when unmasked.
+
+![IOAPIC Mask Interrupt](../assets/wavedrom/timing/ioapic_mask_interrupt.svg)
+
+When an IRQ arrives while masked, the IRR bit latches but delivery is blocked. Upon unmask, the IOAPIC checks for pending interrupts and delivers them.
+
 #### Performance Characteristics
 
 **Interrupt Latency:**

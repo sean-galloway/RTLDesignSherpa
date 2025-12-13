@@ -28,15 +28,64 @@ apb_hpet (Top Level)
 
 #### Timer Operation Waveforms
 
-**Timer Initialization Sequence:**
+##### Configuration Write
 
-![Timer Initialization](../assets/waves/timer_initialization.json)
+When software writes to HPET_CONFIG to enable the timer, the enable signal propagates through the register file to the core.
 
-**APB Configuration Register Writes:**
+![HPET Config Write](../assets/wavedrom/timing/hpet_config_write.svg)
 
-![Config Register Writes](../assets/waves/config_register_write.json)
+The APB write to address 0x004 (HPET_CONFIG) sets `hpet_enable`, which starts the main counter incrementing.
 
-*Note: Use [WaveDrom Editor](https://wavedrom.com/editor.html) to view/edit, or generate SVG with `wavedrom-cli`*
+##### Counter Read
+
+Reading the main counter returns the current 64-bit counter value.
+
+![HPET Counter Read](../assets/wavedrom/timing/hpet_counter_read.svg)
+
+The counter value is captured during the APB read transaction and returned on PRDATA.
+
+##### One-Shot Timer Fire
+
+In one-shot mode, the timer fires once when the counter reaches the comparator value.
+
+![HPET One-Shot Timer Fire](../assets/wavedrom/timing/hpet_timer_fire_oneshot.svg)
+
+When `r_main_counter` equals `r_timer_comparator[0]`, the match signal asserts, triggering `w_timer_fire[0]`. The interrupt output `timer_irq[0]` asserts and remains active until software clears it.
+
+##### Periodic Timer Fire
+
+In periodic mode, the timer fires repeatedly, automatically adding the period to the comparator.
+
+![HPET Periodic Timer Fire](../assets/wavedrom/timing/hpet_timer_fire_periodic.svg)
+
+After each fire event, the comparator is updated: `comparator += period`. This allows continuous periodic interrupts without software intervention.
+
+##### Interrupt Clear (W1C)
+
+Software clears timer interrupts by writing 1 to the corresponding bit in HPET_STATUS.
+
+![HPET Interrupt Clear](../assets/wavedrom/timing/hpet_interrupt_clear.svg)
+
+The W1C (Write-1-to-Clear) mechanism allows atomic clearing of individual timer interrupts.
+
+##### Timer Setup Sequence
+
+Configuring a timer requires multiple APB writes: config register, then comparator low/high words.
+
+![HPET Timer Setup](../assets/wavedrom/timing/hpet_timer_setup.svg)
+
+The sequence shows three consecutive writes:
+1. TIMER_CONFIG (0x100): Enable, interrupt enable, periodic mode
+2. TIMER_COMPARATOR_LO (0x104): Lower 32 bits of comparator
+3. TIMER_COMPARATOR_HI (0x108): Upper 32 bits of comparator
+
+##### Clock Domain Crossing (CDC Mode)
+
+When CDC_ENABLE=1, APB transactions cross from pclk to hpet_clk domain via 2-stage synchronizers.
+
+![HPET CDC Crossing](../assets/wavedrom/timing/hpet_cdc_crossing.svg)
+
+The diagram shows the latency introduced by CDC synchronization. Configuration changes in the APB domain take 2-3 hpet_clk cycles to affect the timer core
 
 ---
 

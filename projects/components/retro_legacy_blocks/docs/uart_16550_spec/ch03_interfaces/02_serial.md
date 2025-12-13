@@ -124,6 +124,25 @@ Detected when:
 - Start + all data + parity + stop = 0
 - Sets BI bit in LSR
 
+## Line Status Error Detection
+
+The following diagram shows framing error detection when a stop bit is sampled as 0.
+
+![UART Line Status](../assets/wavedrom/timing/uart_line_status.svg)
+
+Error detection sequence:
+1. RX frame received normally (start, data bits)
+2. Stop bit expected to be 1, but sampled as 0
+3. Framing error flag (`r_framing_error`) set
+4. LSR[3] (FE) updated
+5. Line status interrupt asserted
+
+Error types:
+- **Framing Error (FE)**: Stop bit not 1 - indicates baud rate mismatch or noise
+- **Parity Error (PE)**: Calculated vs received parity mismatch
+- **Overrun Error (OE)**: RX FIFO full when new character arrives
+- **Break Indicator (BI)**: All bits including stop are 0
+
 ---
 
 **Next:** [03_modem.md](03_modem.md) - Modem Interface

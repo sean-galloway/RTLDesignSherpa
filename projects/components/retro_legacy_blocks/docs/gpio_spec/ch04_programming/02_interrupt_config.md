@@ -1,5 +1,58 @@
 # APB GPIO - Interrupt Configuration
 
+## Interrupt Timing Diagrams
+
+The following diagrams illustrate GPIO interrupt detection and handling.
+
+### Rising Edge Interrupt
+
+Edge-triggered interrupts detect transitions on input pins.
+
+![GPIO Rising Edge Interrupt](../assets/wavedrom/timing/gpio_rising_edge_interrupt.svg)
+
+The detection sequence:
+1. External input `gpio_in[0]` transitions from 0 to 1
+2. 2-stage synchronizer captures the transition (`w_gpio_sync`)
+3. Edge detector compares current vs. delayed value (`r_gpio_sync_d`)
+4. Rising edge pulse (`w_rising_edge`) generated for one clock
+5. Raw interrupt latched in `r_raw_int[0]`
+6. Combined `irq` output asserts
+
+### Falling Edge Interrupt
+
+Falling edge detection uses inverted polarity configuration.
+
+![GPIO Falling Edge Interrupt](../assets/wavedrom/timing/gpio_falling_edge_interrupt.svg)
+
+With `cfg_int_type[0]=0` (edge mode) and `cfg_int_polarity[0]=0` (falling edge), the detector triggers on 1-to-0 transitions.
+
+### Level-Sensitive Interrupt
+
+Level-sensitive interrupts track the input state directly.
+
+![GPIO Level Interrupt](../assets/wavedrom/timing/gpio_level_interrupt.svg)
+
+Key differences from edge mode:
+- `irq` follows the input level (not latched)
+- No edge detection logic involved
+- Interrupt re-asserts if source not cleared before ISR exit
+
+### Interrupt Clear (W1C)
+
+Write-1-to-Clear mechanism clears latched interrupts.
+
+![GPIO Interrupt Clear](../assets/wavedrom/timing/gpio_interrupt_clear.svg)
+
+The clear sequence:
+1. `r_raw_int[0]` is active (edge was detected)
+2. Software writes 0x01 to INT_STATUS register
+3. W1C logic clears `r_int_status[0]`
+4. `irq` deasserts
+
+Note: For level-sensitive interrupts, the external source must be cleared first, otherwise the interrupt immediately re-asserts.
+
+---
+
 ## Interrupt Setup
 
 ### 1. Configure Interrupt Type

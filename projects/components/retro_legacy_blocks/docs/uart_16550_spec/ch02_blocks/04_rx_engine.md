@@ -31,6 +31,19 @@ RXD --> FF1 --> FF2 --> synced_rxd
 - Prevents metastability from asynchronous input
 - Adds 2 clock cycles latency
 
+### RX Byte Reception
+
+The following diagram shows the complete RX path from serial input to FIFO.
+
+![UART RX Byte](../assets/wavedrom/timing/uart_rx_byte.svg)
+
+The reception sequence:
+1. Start bit detected (falling edge on `rx_sync`)
+2. 16x oversampling locates bit center
+3. Data sampled at mid-bit on each baud tick
+4. After stop bit, byte written to RX FIFO
+5. `rx_data_ready` signals data available
+
 ## Start Bit Detection
 
 ### Detection Algorithm

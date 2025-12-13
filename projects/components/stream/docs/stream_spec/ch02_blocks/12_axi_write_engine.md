@@ -249,6 +249,61 @@ end
 
 ---
 
+## Timing Diagrams
+
+### Perfect Streaming - AXI Write Transaction
+
+The following timing diagram shows the AXI write engine operating at maximum throughput with **perfect streaming** - where both `wvalid` and `wready` remain HIGH for consecutive clock cycles, achieving one data beat per cycle.
+
+![AXI Write Engine - Perfect Streaming](../assets/wavedrom/datapath_wr_perfect_streaming.svg)
+
+**Transaction Flow:**
+
+1. **AW Channel Handshake (Address Phase)**
+   - `m_axi_awvalid` rises to initiate a write request
+   - `m_axi_awready` is already HIGH (slave ready)
+   - Address (`awaddr`), ID (`awid`), and length (`awlen=7` for 8 beats) are captured
+   - Handshake completes in a single cycle when both valid and ready are HIGH
+   - Simultaneously, `axi_wr_drain_req` reserves data from SRAM controller
+
+2. **W Channel Streaming (Data Phase)**
+   - After AW acceptance, the engine begins streaming data from SRAM
+   - `m_axi_wvalid` rises and **stays HIGH** for all 8 beats
+   - `m_axi_wready` remains HIGH throughout (no backpressure from AXI slave)
+   - **Perfect streaming**: One data beat transferred every clock cycle
+   - `m_axi_wlast` rises on the final beat (beat 7) to mark burst completion
+   - `wstrb` is all-ones (0xFF) indicating full data width valid
+
+3. **B Channel Response (Completion Phase)**
+   - After `wlast`, the AXI slave returns a write response
+   - `m_axi_bvalid` rises with `bid` matching the transaction ID
+   - `m_axi_bready` is HIGH (engine always ready for responses)
+   - `bresp=OKAY` indicates successful write
+   - Response triggers `sched_wr_done_strobe` to notify scheduler
+
+4. **Next Transaction**
+   - After B response, the engine can immediately issue the next AW request
+   - The cycle repeats for the next channel or next burst
+
+**Key Performance Indicators:**
+- **No bubbles**: `wvalid` and `wready` both HIGH during data phase
+- **Full bandwidth**: Data width (256/512 bits) x clock frequency
+- **Zero-wait states**: SRAM controller provides data at line rate
+- **Minimal latency**: B response arrives shortly after `wlast`
+
+### Multi-Channel Streaming
+
+For multi-channel operation showing channel switching while maintaining streaming performance, see:
+
+![Datapath Write - Multi-Channel](../assets/wavedrom/datapath_wr_multi_channel.svg)
+
+This diagram shows how the engine arbitrates between channels while maintaining high throughput. Note how:
+- Different channel IDs (`awid`) appear in sequence
+- W-phase FIFO preserves AW order for correct data association
+- B responses can arrive out-of-order (per AXI4 spec)
+
+---
+
 ## Integration Example
 
 ```systemverilog
@@ -332,4 +387,4 @@ axi_write_engine #(
 
 ---
 
-**Last Updated:** 2025-11-30 (verified against RTL implementation)
+**Last Updated:** 2025-12-13 (added timing diagrams)

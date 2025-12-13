@@ -1,0 +1,96 @@
+{
+  "signal": [
+    {
+      "name": "clk",
+      "wave": "p............................",
+      "period": 1.0
+    },
+    {},
+    {
+      "name": "rst_n",
+      "wave": "1............................"
+    },
+    {},
+    [
+      "SMBus Transfer",
+      {
+        "name": "byte_type",
+        "wave": "=...=...=...=...=............",
+        "data": ["ADDR+W", "CMD", "DATA", "PEC", "STOP"],
+        "node": "a...b...c...d...e............"
+      },
+      {
+        "name": "scl",
+        "wave": "p.p.p.p.p.p.p.p.p.p.p.p.1....",
+        "period": 0.5
+      },
+      {
+        "name": "sda",
+        "wave": "=...=...=...=...1............",
+        "data": ["0x50", "0x10", "0xA5", "0x7C"]
+      }
+    ],
+    {},
+    [
+      "PEC Calculation",
+      {
+        "name": "pec_enable",
+        "wave": "1............................",
+        "node": "f............................"
+      },
+      {
+        "name": "r_pec_accum",
+        "wave": "=...=...=...=................",
+        "data": ["0x00", "0xC1", "0x87", "0x7C"],
+        "node": "....g...h...i................"
+      },
+      {
+        "name": "pec_byte_in",
+        "wave": "=...=...=...=................",
+        "data": ["0x50", "0x10", "0xA5", "---"]
+      }
+    ],
+    {},
+    [
+      "PEC Check",
+      {
+        "name": "rx_pec_byte",
+        "wave": "x...........=................",
+        "data": ["0x7C"],
+        "node": "............j................"
+      },
+      {
+        "name": "pec_match",
+        "wave": "x............1...............",
+        "node": ".............k..............."
+      },
+      {
+        "name": "pec_error",
+        "wave": "0............................",
+        "node": "l............................"
+      }
+    ]
+  ],
+  "head": {
+    "text": "SMBus Packet Error Check (PEC)",
+    "tick": 0,
+    "every": 2
+  },
+  "foot": {
+    "text": "CRC-8 calculated over ADDR+CMD+DATA, transmitted as PEC byte, verified by receiver"
+  },
+  "config": {
+    "hscale": 1.5
+  },
+  "edge": [
+    "a Start+Addr",
+    "b Command",
+    "c Data",
+    "d PEC Byte",
+    "f PEC Enabled",
+    "g~>h~>i CRC Accumulate",
+    "j RX PEC",
+    "i~>k Compare",
+    "l No Error"
+  ]
+}

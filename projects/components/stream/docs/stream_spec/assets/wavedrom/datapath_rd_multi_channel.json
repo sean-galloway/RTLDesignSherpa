@@ -1,0 +1,1102 @@
+{
+    "head": {
+        "text": "Datapath Read - Multi-Channel Streaming",
+        "tock": 1
+    },
+    "signal": [
+        {
+            "name": "datapath_rd_test.SRAM_DEPTH[31:0]",
+            "wave": "=...................................................................................................",
+            "data": [
+                "400"
+            ],
+            "phase": 0
+        },
+        {
+            "name": "datapath_rd_test.MAX_BURST_LEN[31:0]",
+            "wave": "x"
+        },
+        {
+            "name": "datapath_rd_test.NUM_CHANNELS[31:0]",
+            "wave": "=...................................................................................................",
+            "data": [
+                "4"
+            ],
+            "phase": 0
+        },
+        {
+            "name": "datapath_rd_test.clk",
+            "wave": "pppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppp",
+            "data": [],
+            "phase": 0,
+            "period": 1.0
+        },
+        {
+            "name": "datapath_rd_test.rst_n",
+            "wave": "1...................................................................................................",
+            "data": [],
+            "phase": 0
+        },
+        {
+            "name": "datapath_rd_test.u_axi_read_engine.cfg_axi_rd_xfer_beats[7:0]",
+            "wave": "=...................................................................................................",
+            "data": [
+                "7"
+            ],
+            "phase": 0
+        },
+        [
+            "scheduler",
+            {
+                "name": "datapath_rd_test.sched_rd_valid[3:0]",
+                "wave": "=........=....=..............=....=..............=....=..............=....=.=..=....=....=..........",
+                "data": [
+                    "2",
+                    "0",
+                    "2",
+                    "0",
+                    "2",
+                    "0",
+                    "2",
+                    "0",
+                    "2",
+                    "6",
+                    "2",
+                    "6",
+                    "4"
+                ],
+                "phase": 0
+            },
+            {
+                "name": "datapath_rd_test.sched_rd_ready[3:0]",
+                "wave": "x"
+            },
+            {
+                "name": "datapath_rd_test.sched_rd_addr[255:0]",
+                "wave": "=.........=...................=...................=...................=.....=...=.........=.........",
+                "data": [
+                    "100A000000000000100800",
+                    "100B000000000000100800",
+                    "100C000000000000100800",
+                    "100D000000000000100800",
+                    "100E000000000000100800",
+                    "100F000000000000100E000000000000100800",
+                    "1010000000000000100E000000000000100800",
+                    "1010000000000000100F000000000000100800"
+                ],
+                "phase": 0
+            },
+            {
+                "name": "datapath_rd_test.sched_rd_beats[127:0]",
+                "wave": "=.........=...=...............=...=...............=...=...............=...=.=...=...=.....=.........",
+                "data": [
+                    "800000000",
+                    "0",
+                    "800000000",
+                    "0",
+                    "800000000",
+                    "0",
+                    "800000000",
+                    "0",
+                    "800000000",
+                    "80000000800000000",
+                    "800000000",
+                    "80000000800000000",
+                    "80000000000000000"
+                ],
+                "phase": 0
+            },
+            {
+                "name": "datapath_rd_test.sched_rd_channel_id[15:0]",
+                "wave": "x"
+            },
+            {
+                "name": "datapath_rd_test.sched_rd_done_strobe[3:0]",
+                "wave": "=........==..................==..................==..................==........==........==.........",
+                "data": [
+                    "0",
+                    "2",
+                    "0",
+                    "2",
+                    "0",
+                    "2",
+                    "0",
+                    "2",
+                    "0",
+                    "4",
+                    "0",
+                    "2",
+                    "0"
+                ],
+                "phase": 0
+            },
+            {
+                "name": "datapath_rd_test.sched_rd_beats_done[127:0]",
+                "wave": "=..............................................................................=....................",
+                "data": [
+                    "800000008",
+                    "80000000800000008"
+                ],
+                "phase": 0
+            },
+            [
+                "xi-ar",
+                {
+                    "name": "datapath_rd_test.m_axi_arvalid",
+                    "wave": "0......1.0.................1.0.................1.0.................1.0.......1.0.......1.0..........",
+                    "data": [],
+                    "phase": 0
+                },
+                {
+                    "name": "datapath_rd_test.m_axi_arready",
+                    "wave": "0.......10..................10..................10..................10........10........10..........",
+                    "data": [],
+                    "phase": 0
+                },
+                {
+                    "name": "datapath_rd_test.m_axi_araddr[63:0]",
+                    "wave": "=......=.=.................=.=.................=.=.................=.=.......=.=.......=.=..........",
+                    "data": [
+                        "100800",
+                        "100A00",
+                        "100800",
+                        "100B00",
+                        "100800",
+                        "100C00",
+                        "100800",
+                        "100D00",
+                        "100800",
+                        "100F00",
+                        "100800",
+                        "100E00",
+                        "100800"
+                    ],
+                    "phase": 0
+                },
+                {
+                    "name": "datapath_rd_test.m_axi_arid[7:0]",
+                    "wave": "=......=.=.................=.=.................=.=.................=.=.......=.=.......=.=..........",
+                    "data": [
+                        "0",
+                        "1",
+                        "0",
+                        "1",
+                        "0",
+                        "1",
+                        "0",
+                        "1",
+                        "0",
+                        "2",
+                        "0",
+                        "1",
+                        "0"
+                    ],
+                    "phase": 0
+                },
+                {
+                    "name": "datapath_rd_test.m_axi_arlen[7:0]",
+                    "wave": "=......=.=.................=.=.................=.=.................=.=.......=.=.......=.=..........",
+                    "data": [
+                        "FF",
+                        "7",
+                        "FF",
+                        "7",
+                        "FF",
+                        "7",
+                        "FF",
+                        "7",
+                        "FF",
+                        "7",
+                        "FF",
+                        "7",
+                        "FF"
+                    ],
+                    "phase": 0
+                }
+            ],
+            [
+                "xi-r",
+                {
+                    "name": "datapath_rd_test.m_axi_rvalid",
+                    "wave": "0101010....1010101010101010....1010101010101010....1010101010101010....10101010101010101010101010101",
+                    "data": [],
+                    "phase": 0
+                },
+                {
+                    "name": "datapath_rd_test.m_axi_rready",
+                    "wave": "1...................................................................................................",
+                    "data": [],
+                    "phase": 0
+                },
+                {
+                    "name": "datapath_rd_test.m_axi_rid[7:0]",
+                    "wave": "=======....================....================....================....=============================",
+                    "data": [
+                        "0",
+                        "1",
+                        "0",
+                        "1",
+                        "0",
+                        "1",
+                        "0",
+                        "1",
+                        "0",
+                        "1",
+                        "0",
+                        "1",
+                        "0",
+                        "1",
+                        "0",
+                        "1",
+                        "0",
+                        "1",
+                        "0",
+                        "1",
+                        "0",
+                        "1",
+                        "0",
+                        "1",
+                        "0",
+                        "1",
+                        "0",
+                        "1",
+                        "0",
+                        "1",
+                        "0",
+                        "1",
+                        "0",
+                        "1",
+                        "0",
+                        "1",
+                        "0",
+                        "1",
+                        "0",
+                        "1",
+                        "0",
+                        "1",
+                        "0",
+                        "1",
+                        "0",
+                        "1",
+                        "0",
+                        "1",
+                        "0",
+                        "1",
+                        "0",
+                        "1",
+                        "0",
+                        "1",
+                        "0",
+                        "1",
+                        "0",
+                        "1",
+                        "0",
+                        "1",
+                        "0",
+                        "1",
+                        "0",
+                        "1",
+                        "0",
+                        "1",
+                        "0",
+                        "1",
+                        "0",
+                        "1",
+                        "0",
+                        "2",
+                        "0",
+                        "2",
+                        "0",
+                        "2",
+                        "0",
+                        "2",
+                        "0",
+                        "2",
+                        "0",
+                        "2",
+                        "0",
+                        "2"
+                    ],
+                    "phase": 0
+                },
+                {
+                    "name": "datapath_rd_test.m_axi_rdata[255:0]",
+                    "wave": "=======....================....================....================....=============================",
+                    "data": [
+                        "0",
+                        "1009A006",
+                        "0",
+                        "1009C007",
+                        "0",
+                        "1009E008",
+                        "0",
+                        "100A0001",
+                        "0",
+                        "100A2002",
+                        "0",
+                        "100A4003",
+                        "0",
+                        "100A6004",
+                        "0",
+                        "100A8005",
+                        "0",
+                        "100AA006",
+                        "0",
+                        "100AC007",
+                        "0",
+                        "100AE008",
+                        "0",
+                        "100B0001",
+                        "0",
+                        "100B2002",
+                        "0",
+                        "100B4003",
+                        "0",
+                        "100B6004",
+                        "0",
+                        "100B8005",
+                        "0",
+                        "100BA006",
+                        "0",
+                        "100BC007",
+                        "0",
+                        "100BE008",
+                        "0",
+                        "100C0001",
+                        "0",
+                        "100C2002",
+                        "0",
+                        "100C4003",
+                        "0",
+                        "100C6004",
+                        "0",
+                        "100C8005",
+                        "0",
+                        "100CA006",
+                        "0",
+                        "100CC007",
+                        "0",
+                        "100CE008",
+                        "0",
+                        "100D0001",
+                        "0",
+                        "100D2002",
+                        "0",
+                        "100D4003",
+                        "0",
+                        "100D6004",
+                        "0",
+                        "100D8005",
+                        "0",
+                        "100DA006",
+                        "0",
+                        "100DC007",
+                        "0",
+                        "100DE008",
+                        "0",
+                        "100F0001",
+                        "0",
+                        "100F2002",
+                        "0",
+                        "100F4003",
+                        "0",
+                        "100F6004",
+                        "0",
+                        "100F8005",
+                        "0",
+                        "100FA006",
+                        "0",
+                        "100FC007"
+                    ],
+                    "phase": 0
+                },
+                {
+                    "name": "datapath_rd_test.u_axi_read_engine.m_axi_rlast",
+                    "wave": "0....10..................10..................10..................10..................10.............",
+                    "data": [],
+                    "phase": 0
+                },
+                [
+                    "i-rd-sram",
+                    {
+                        "name": "(1)datapath_rd_test.u_sram_controller.axi_rd_sram_ready_per_channel[3:0]",
+                        "wave": "x"
+                    },
+                    {
+                        "name": "datapath_rd_test.u_sram_controller.axi_rd_sram_ready_per_channel[3:0]",
+                        "wave": "=...................................................................................................",
+                        "data": [
+                            "F"
+                        ],
+                        "phase": 0
+                    },
+                    {
+                        "name": "(0)datapath_rd_test.u_sram_controller.axi_rd_sram_ready_per_channel[3:0]",
+                        "wave": "x"
+                    },
+                    {
+                        "name": "(2)datapath_rd_test.u_sram_controller.axi_rd_sram_ready_per_channel[3:0]",
+                        "wave": "x"
+                    },
+                    {
+                        "name": "(3)datapath_rd_test.u_sram_controller.axi_rd_sram_ready_per_channel[3:0]",
+                        "wave": "x"
+                    }
+                ]
+            ]
+        ],
+        [
+            "group_end",
+            {
+                "name": "datapath_rd_test.axi_rd_sram_valid",
+                "wave": "0101010....1010101010101010....1010101010101010....1010101010101010....10101010101010101010101010101",
+                "data": [],
+                "phase": 0
+            },
+            {
+                "name": "datapath_rd_test.axi_rd_sram_ready",
+                "wave": "1...................................................................................................",
+                "data": [],
+                "phase": 0
+            },
+            {
+                "name": "datapath_rd_test.axi_rd_sram_channel_id[1:0]",
+                "wave": "=======....================....================....================....=============================",
+                "data": [
+                    "0",
+                    "1",
+                    "0",
+                    "1",
+                    "0",
+                    "1",
+                    "0",
+                    "1",
+                    "0",
+                    "1",
+                    "0",
+                    "1",
+                    "0",
+                    "1",
+                    "0",
+                    "1",
+                    "0",
+                    "1",
+                    "0",
+                    "1",
+                    "0",
+                    "1",
+                    "0",
+                    "1",
+                    "0",
+                    "1",
+                    "0",
+                    "1",
+                    "0",
+                    "1",
+                    "0",
+                    "1",
+                    "0",
+                    "1",
+                    "0",
+                    "1",
+                    "0",
+                    "1",
+                    "0",
+                    "1",
+                    "0",
+                    "1",
+                    "0",
+                    "1",
+                    "0",
+                    "1",
+                    "0",
+                    "1",
+                    "0",
+                    "1",
+                    "0",
+                    "1",
+                    "0",
+                    "1",
+                    "0",
+                    "1",
+                    "0",
+                    "1",
+                    "0",
+                    "1",
+                    "0",
+                    "1",
+                    "0",
+                    "1",
+                    "0",
+                    "1",
+                    "0",
+                    "1",
+                    "0",
+                    "1",
+                    "0",
+                    "2",
+                    "0",
+                    "2",
+                    "0",
+                    "2",
+                    "0",
+                    "2",
+                    "0",
+                    "2",
+                    "0",
+                    "2",
+                    "0",
+                    "2"
+                ],
+                "phase": 0
+            },
+            {
+                "name": "datapath_rd_test.axi_rd_sram_data[255:0]",
+                "wave": "=======....================....================....================....=============================",
+                "data": [
+                    "0",
+                    "1009A006",
+                    "0",
+                    "1009C007",
+                    "0",
+                    "1009E008",
+                    "0",
+                    "100A0001",
+                    "0",
+                    "100A2002",
+                    "0",
+                    "100A4003",
+                    "0",
+                    "100A6004",
+                    "0",
+                    "100A8005",
+                    "0",
+                    "100AA006",
+                    "0",
+                    "100AC007",
+                    "0",
+                    "100AE008",
+                    "0",
+                    "100B0001",
+                    "0",
+                    "100B2002",
+                    "0",
+                    "100B4003",
+                    "0",
+                    "100B6004",
+                    "0",
+                    "100B8005",
+                    "0",
+                    "100BA006",
+                    "0",
+                    "100BC007",
+                    "0",
+                    "100BE008",
+                    "0",
+                    "100C0001",
+                    "0",
+                    "100C2002",
+                    "0",
+                    "100C4003",
+                    "0",
+                    "100C6004",
+                    "0",
+                    "100C8005",
+                    "0",
+                    "100CA006",
+                    "0",
+                    "100CC007",
+                    "0",
+                    "100CE008",
+                    "0",
+                    "100D0001",
+                    "0",
+                    "100D2002",
+                    "0",
+                    "100D4003",
+                    "0",
+                    "100D6004",
+                    "0",
+                    "100D8005",
+                    "0",
+                    "100DA006",
+                    "0",
+                    "100DC007",
+                    "0",
+                    "100DE008",
+                    "0",
+                    "100F0001",
+                    "0",
+                    "100F2002",
+                    "0",
+                    "100F4003",
+                    "0",
+                    "100F6004",
+                    "0",
+                    "100F8005",
+                    "0",
+                    "100FA006",
+                    "0",
+                    "100FC007"
+                ],
+                "phase": 0
+            },
+            {
+                "name": "datapath_rd_test.rd_space_free[31:0]",
+                "wave": "x"
+            },
+            {
+                "name": "(0)datapath_rd_test.rd_space_free[31:0]",
+                "wave": "x"
+            },
+            {
+                "name": "(1)datapath_rd_test.rd_space_free[31:0]",
+                "wave": "x"
+            },
+            {
+                "name": "(2)datapath_rd_test.rd_space_free[31:0]",
+                "wave": "x"
+            },
+            {
+                "name": "(3)datapath_rd_test.rd_space_free[31:0]",
+                "wave": "x"
+            },
+            {
+                "name": "(4)datapath_rd_test.rd_space_free[31:0]",
+                "wave": "x"
+            },
+            {
+                "name": "(5)datapath_rd_test.rd_space_free[31:0]",
+                "wave": "x"
+            },
+            {
+                "name": "(6)datapath_rd_test.rd_space_free[31:0]",
+                "wave": "x"
+            },
+            {
+                "name": "(7)datapath_rd_test.rd_space_free[31:0]",
+                "wave": "x"
+            },
+            {
+                "name": "(8)datapath_rd_test.rd_space_free[31:0]",
+                "wave": "x"
+            },
+            {
+                "name": "(9)datapath_rd_test.rd_space_free[31:0]",
+                "wave": "x"
+            },
+            {
+                "name": "(10)datapath_rd_test.rd_space_free[31:0]",
+                "wave": "x"
+            },
+            {
+                "name": "(11)datapath_rd_test.rd_space_free[31:0]",
+                "wave": "x"
+            },
+            {
+                "name": "(12)datapath_rd_test.rd_space_free[31:0]",
+                "wave": "x"
+            },
+            {
+                "name": "(13)datapath_rd_test.rd_space_free[31:0]",
+                "wave": "x"
+            },
+            {
+                "name": "(14)datapath_rd_test.rd_space_free[31:0]",
+                "wave": "x"
+            },
+            {
+                "name": "(15)datapath_rd_test.rd_space_free[31:0]",
+                "wave": "x"
+            },
+            {
+                "name": "(16)datapath_rd_test.rd_space_free[31:0]",
+                "wave": "x"
+            },
+            {
+                "name": "(17)datapath_rd_test.rd_space_free[31:0]",
+                "wave": "x"
+            },
+            {
+                "name": "(18)datapath_rd_test.rd_space_free[31:0]",
+                "wave": "x"
+            },
+            {
+                "name": "(19)datapath_rd_test.rd_space_free[31:0]",
+                "wave": "x"
+            },
+            {
+                "name": "(20)datapath_rd_test.rd_space_free[31:0]",
+                "wave": "x"
+            },
+            {
+                "name": "(21)datapath_rd_test.rd_space_free[31:0]",
+                "wave": "x"
+            },
+            {
+                "name": "(22)datapath_rd_test.rd_space_free[31:0]",
+                "wave": "x"
+            },
+            {
+                "name": "(23)datapath_rd_test.rd_space_free[31:0]",
+                "wave": "x"
+            },
+            {
+                "name": "(24)datapath_rd_test.rd_space_free[31:0]",
+                "wave": "x"
+            },
+            {
+                "name": "(25)datapath_rd_test.rd_space_free[31:0]",
+                "wave": "x"
+            },
+            {
+                "name": "(26)datapath_rd_test.rd_space_free[31:0]",
+                "wave": "x"
+            },
+            {
+                "name": "(27)datapath_rd_test.rd_space_free[31:0]",
+                "wave": "x"
+            },
+            {
+                "name": "(28)datapath_rd_test.rd_space_free[31:0]",
+                "wave": "x"
+            },
+            {
+                "name": "(29)datapath_rd_test.rd_space_free[31:0]",
+                "wave": "x"
+            },
+            {
+                "name": "(30)datapath_rd_test.rd_space_free[31:0]",
+                "wave": "x"
+            },
+            {
+                "name": "(31)datapath_rd_test.rd_space_free[31:0]",
+                "wave": "x"
+            }
+        ],
+        [
+            "group_end",
+            {
+                "name": "datapath_rd_test.u_axi_read_engine.w_space_ok[3:0]",
+                "wave": "=.........=...=...............=...=...............=...=...............=...=......=..=.....=.........",
+                "data": [
+                    "E",
+                    "C",
+                    "E",
+                    "C",
+                    "E",
+                    "C",
+                    "E",
+                    "C",
+                    "E",
+                    "A",
+                    "E",
+                    "C"
+                ],
+                "phase": 0
+            },
+            {
+                "name": "(0)datapath_rd_test.u_axi_read_engine.w_space_ok[3:0]",
+                "wave": "x"
+            },
+            {
+                "name": "(1)datapath_rd_test.u_axi_read_engine.w_space_ok[3:0]",
+                "wave": "x"
+            },
+            {
+                "name": "(2)datapath_rd_test.u_axi_read_engine.w_space_ok[3:0]",
+                "wave": "x"
+            },
+            {
+                "name": "(3)datapath_rd_test.u_axi_read_engine.w_space_ok[3:0]",
+                "wave": "x"
+            }
+        ],
+        [
+            "alloc",
+            {
+                "name": "datapath_rd_test.u_axi_read_engine.rd_alloc_req",
+                "wave": "x"
+            },
+            {
+                "name": "datapath_rd_test.u_axi_read_engine.rd_alloc_id[7:0]",
+                "wave": "x"
+            },
+            {
+                "name": "datapath_rd_test.u_axi_read_engine.rd_alloc_size[7:0]",
+                "wave": "x"
+            }
+        ],
+        [
+            "internals",
+            {
+                "name": "datapath_rd_test.u_axi_read_engine.w_arb_request[3:0]",
+                "wave": "=.....=..=................=..=................=..=................=..=......=..=......=..=..........",
+                "data": [
+                    "0",
+                    "2",
+                    "0",
+                    "2",
+                    "0",
+                    "2",
+                    "0",
+                    "2",
+                    "0",
+                    "4",
+                    "0",
+                    "2",
+                    "0"
+                ],
+                "phase": 0
+            },
+            {
+                "name": "datapath_rd_test.u_axi_read_engine.w_no_outstanding[3:0]",
+                "wave": "x"
+            },
+            {
+                "name": "datapath_rd_test.u_axi_read_engine.r_outstanding[3:0]",
+                "wave": "x"
+            },
+            {
+                "name": "datapath_rd_test.u_axi_read_engine.w_arb_grant_valid",
+                "wave": "0......1.0.................1.0.................1.0.................1.0.......1.0.......1.0..........",
+                "data": [],
+                "phase": 0
+            },
+            [
+                "ram-drain",
+                {
+                    "name": "datapath_rd_test.u_sram_controller.axi_wr_data_available[31:0]",
+                    "wave": "x"
+                },
+                {
+                    "name": "(0)datapath_rd_test.u_sram_controller.axi_wr_data_available[31:0]",
+                    "wave": "x"
+                },
+                {
+                    "name": "(1)datapath_rd_test.u_sram_controller.axi_wr_data_available[31:0]",
+                    "wave": "x"
+                },
+                {
+                    "name": "(2)datapath_rd_test.u_sram_controller.axi_wr_data_available[31:0]",
+                    "wave": "x"
+                },
+                {
+                    "name": "(3)datapath_rd_test.u_sram_controller.axi_wr_data_available[31:0]",
+                    "wave": "x"
+                },
+                {
+                    "name": "(4)datapath_rd_test.u_sram_controller.axi_wr_data_available[31:0]",
+                    "wave": "x"
+                },
+                {
+                    "name": "(5)datapath_rd_test.u_sram_controller.axi_wr_data_available[31:0]",
+                    "wave": "x"
+                },
+                {
+                    "name": "(6)datapath_rd_test.u_sram_controller.axi_wr_data_available[31:0]",
+                    "wave": "x"
+                },
+                {
+                    "name": "(7)datapath_rd_test.u_sram_controller.axi_wr_data_available[31:0]",
+                    "wave": "x"
+                },
+                {
+                    "name": "(8)datapath_rd_test.u_sram_controller.axi_wr_data_available[31:0]",
+                    "wave": "x"
+                },
+                {
+                    "name": "(9)datapath_rd_test.u_sram_controller.axi_wr_data_available[31:0]",
+                    "wave": "x"
+                },
+                {
+                    "name": "(10)datapath_rd_test.u_sram_controller.axi_wr_data_available[31:0]",
+                    "wave": "x"
+                },
+                {
+                    "name": "(11)datapath_rd_test.u_sram_controller.axi_wr_data_available[31:0]",
+                    "wave": "x"
+                },
+                {
+                    "name": "(12)datapath_rd_test.u_sram_controller.axi_wr_data_available[31:0]",
+                    "wave": "x"
+                },
+                {
+                    "name": "(13)datapath_rd_test.u_sram_controller.axi_wr_data_available[31:0]",
+                    "wave": "x"
+                },
+                {
+                    "name": "(14)datapath_rd_test.u_sram_controller.axi_wr_data_available[31:0]",
+                    "wave": "x"
+                },
+                {
+                    "name": "(15)datapath_rd_test.u_sram_controller.axi_wr_data_available[31:0]",
+                    "wave": "x"
+                },
+                {
+                    "name": "(16)datapath_rd_test.u_sram_controller.axi_wr_data_available[31:0]",
+                    "wave": "x"
+                },
+                {
+                    "name": "(17)datapath_rd_test.u_sram_controller.axi_wr_data_available[31:0]",
+                    "wave": "x"
+                },
+                {
+                    "name": "(18)datapath_rd_test.u_sram_controller.axi_wr_data_available[31:0]",
+                    "wave": "x"
+                },
+                {
+                    "name": "(19)datapath_rd_test.u_sram_controller.axi_wr_data_available[31:0]",
+                    "wave": "x"
+                },
+                {
+                    "name": "(20)datapath_rd_test.u_sram_controller.axi_wr_data_available[31:0]",
+                    "wave": "x"
+                },
+                {
+                    "name": "(21)datapath_rd_test.u_sram_controller.axi_wr_data_available[31:0]",
+                    "wave": "x"
+                },
+                {
+                    "name": "(22)datapath_rd_test.u_sram_controller.axi_wr_data_available[31:0]",
+                    "wave": "x"
+                },
+                {
+                    "name": "(23)datapath_rd_test.u_sram_controller.axi_wr_data_available[31:0]",
+                    "wave": "x"
+                },
+                {
+                    "name": "(24)datapath_rd_test.u_sram_controller.axi_wr_data_available[31:0]",
+                    "wave": "x"
+                },
+                {
+                    "name": "(25)datapath_rd_test.u_sram_controller.axi_wr_data_available[31:0]",
+                    "wave": "x"
+                },
+                {
+                    "name": "(26)datapath_rd_test.u_sram_controller.axi_wr_data_available[31:0]",
+                    "wave": "x"
+                },
+                {
+                    "name": "(27)datapath_rd_test.u_sram_controller.axi_wr_data_available[31:0]",
+                    "wave": "x"
+                },
+                {
+                    "name": "(28)datapath_rd_test.u_sram_controller.axi_wr_data_available[31:0]",
+                    "wave": "x"
+                },
+                {
+                    "name": "(29)datapath_rd_test.u_sram_controller.axi_wr_data_available[31:0]",
+                    "wave": "x"
+                },
+                {
+                    "name": "(30)datapath_rd_test.u_sram_controller.axi_wr_data_available[31:0]",
+                    "wave": "x"
+                },
+                {
+                    "name": "(31)datapath_rd_test.u_sram_controller.axi_wr_data_available[31:0]",
+                    "wave": "x"
+                }
+            ]
+        ],
+        [
+            "group_end",
+            {
+                "name": "datapath_rd_test.u_sram_controller.axi_wr_sram_drain",
+                "wave": "0...................................................................................................",
+                "data": [],
+                "phase": 0
+            },
+            {
+                "name": "datapath_rd_test.u_sram_controller.axi_wr_sram_id[1:0]",
+                "wave": "=...................................................................................................",
+                "data": [
+                    "0"
+                ],
+                "phase": 0
+            },
+            {
+                "name": "datapath_rd_test.sram_wr_drain_channel_id[1:0]",
+                "wave": "=...................................................................................................",
+                "data": [
+                    "0"
+                ],
+                "phase": 0
+            }
+        ],
+        [
+            "Counts",
+            {
+                "name": "datapath_rd_test.u_sram_controller.gen_channel_units[3].u_channel_unit.u_channel_fifo.DEPTH[31:0]",
+                "wave": "=...................................................................................................",
+                "data": [
+                    "100"
+                ],
+                "phase": 0
+            }
+        ],
+        [
+            "segment0",
+            {
+                "name": "datapath_rd_test.u_sram_controller.gen_channel_units[0].u_channel_unit.fifo_count[7:0]",
+                "wave": "x"
+            },
+            {
+                "name": "datapath_rd_test.u_sram_controller.gen_channel_units[0].u_channel_unit.alloc_space_free[7:0]",
+                "wave": "x"
+            },
+            {
+                "name": "datapath_rd_test.u_sram_controller.gen_channel_units[0].u_channel_unit.rd_space_free[7:0]",
+                "wave": "x"
+            }
+        ],
+        [
+            "segment1",
+            {
+                "name": "datapath_rd_test.u_sram_controller.gen_channel_units[1].u_channel_unit.fifo_count[7:0]",
+                "wave": "x"
+            },
+            {
+                "name": "datapath_rd_test.u_sram_controller.gen_channel_units[1].u_channel_unit.alloc_space_free[7:0]",
+                "wave": "x"
+            },
+            {
+                "name": "datapath_rd_test.u_sram_controller.gen_channel_units[1].u_channel_unit.rd_space_free[7:0]",
+                "wave": "x"
+            }
+        ],
+        [
+            "segment2",
+            {
+                "name": "datapath_rd_test.u_sram_controller.gen_channel_units[2].u_channel_unit.fifo_count[7:0]",
+                "wave": "x"
+            },
+            {
+                "name": "datapath_rd_test.u_sram_controller.gen_channel_units[2].u_channel_unit.rd_space_free[7:0]",
+                "wave": "x"
+            },
+            {
+                "name": "datapath_rd_test.u_sram_controller.gen_channel_units[2].u_channel_unit.rd_space_free[7:0]",
+                "wave": "x"
+            }
+        ],
+        [
+            "segment3",
+            {
+                "name": "datapath_rd_test.u_sram_controller.gen_channel_units[3].u_channel_unit.fifo_count[7:0]",
+                "wave": "x"
+            },
+            {
+                "name": "datapath_rd_test.u_sram_controller.gen_channel_units[3].u_channel_unit.alloc_space_free[7:0]",
+                "wave": "x"
+            },
+            {
+                "name": "datapath_rd_test.u_sram_controller.gen_channel_units[3].u_channel_unit.rd_space_free[7:0]",
+                "wave": "x"
+            }
+        ]
+    ],
+    "config": {
+        "hscale": 1
+    }
+}

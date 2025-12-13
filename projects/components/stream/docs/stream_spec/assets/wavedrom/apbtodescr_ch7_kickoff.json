@@ -1,0 +1,159 @@
+{
+    "head": {
+        "text": "APB to Descriptor - Channel 7 Kickoff",
+        "tock": 1
+    },
+    "signal": [
+        {
+            "name": "apbtodescr.NUM_CHANNELS[31:0]",
+            "wave": "=.....",
+            "data": [
+                "8"
+            ],
+            "phase": 0
+        },
+        {
+            "name": "apbtodescr.clk",
+            "wave": "pppppp",
+            "data": [],
+            "phase": 0,
+            "period": 1.0
+        },
+        {
+            "name": "apbtodescr.rst_n",
+            "wave": "1.....",
+            "data": [],
+            "phase": 0
+        },
+        [
+            "pb-interface",
+            {
+                "name": "apbtodescr.apb_descriptor_kickoff_hit",
+                "wave": "0...1.",
+                "data": [],
+                "phase": 0
+            },
+            {
+                "name": "apbtodescr.apb_cmd_valid",
+                "wave": "10.10.",
+                "data": [],
+                "phase": 0
+            },
+            {
+                "name": "apbtodescr.apb_cmd_ready",
+                "wave": "101.0.",
+                "data": [],
+                "phase": 0
+            },
+            {
+                "name": "apbtodescr.apb_cmd_write",
+                "wave": "1.....",
+                "data": [],
+                "phase": 0
+            },
+            {
+                "name": "apbtodescr.apb_cmd_addr[31:0]",
+                "wave": "=..=..",
+                "data": [
+                    "38",
+                    "3C"
+                ],
+                "phase": 0
+            },
+            {
+                "name": "apbtodescr.apb_cmd_wdata[31:0]",
+                "wave": "=..=..",
+                "data": [
+                    "710000",
+                    "0"
+                ],
+                "phase": 0
+            },
+            {
+                "name": "apbtodescr.apb_rsp_valid",
+                "wave": "010..1",
+                "data": [],
+                "phase": 0
+            },
+            {
+                "name": "apbtodescr.apb_rsp_ready",
+                "wave": "1.....",
+                "data": [],
+                "phase": 0
+            },
+            {
+                "name": "apbtodescr.apb_rsp_rdata[31:0]",
+                "wave": "=.....",
+                "data": [
+                    "0"
+                ],
+                "phase": 0
+            },
+            {
+                "name": "apbtodescr.apb_rsp_error",
+                "wave": "0.....",
+                "data": [],
+                "phase": 0
+            }
+        ],
+        [
+            "escriptor-interfface",
+            {
+                "name": "apbtodescr.desc_apb_valid[7:0]",
+                "wave": "=...==",
+                "data": [
+                    "0",
+                    "80",
+                    "0"
+                ],
+                "phase": 0
+            },
+            {
+                "name": "apbtodescr.desc_apb_ready[7:0]",
+                "wave": "=.....",
+                "data": [
+                    "FF"
+                ],
+                "phase": 0
+            },
+            {
+                "name": "apbtodescr.desc_apb_addr[511:0]",
+                "wave": "==....",
+                "data": [
+                    "6100000000000000610000000000000061000000000000006100000000000000610000000000000061000000000000006100000000000000610000",
+                    "7100000000000000710000000000000071000000000000007100000000000000710000000000000071000000000000007100000000000000710000"
+                ],
+                "phase": 0
+            }
+        ],
+        [
+            "internals",
+            {
+                "name": "apbtodescr.r_is_high_write",
+                "wave": "0..1..",
+                "data": [],
+                "phase": 0
+            },
+            {
+                "name": "apbtodescr.r_wdata_high[31:0]",
+                "wave": "=.....",
+                "data": [
+                    "0"
+                ],
+                "phase": 0
+            },
+            {
+                "name": "apbtodescr.r_wdata_low[31:0]",
+                "wave": "==....",
+                "data": [
+                    "610000",
+                    "710000"
+                ],
+                "phase": 0
+            }
+        ]
+    ],
+    "config": {
+        "hscale": 1
+    }
+}

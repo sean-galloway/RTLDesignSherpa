@@ -219,6 +219,48 @@ end
 
 ---
 
+## Timing Diagrams
+
+### Perfect Streaming - AXI Read Transaction
+
+The following timing diagram shows the AXI read engine operating at maximum throughput with **perfect streaming** - where both `rvalid` and `rready` remain HIGH for consecutive clock cycles, achieving one data beat per cycle.
+
+![AXI Read Engine - Perfect Streaming](../assets/wavedrom/datapath_rd_perfect_streaming.svg)
+
+**Transaction Flow:**
+
+1. **AR Channel Handshake (Address Phase)**
+   - `m_axi_arvalid` rises to initiate a read request
+   - `m_axi_arready` is already HIGH (slave ready)
+   - Address (`araddr`), ID (`arid`), and length (`arlen=7` for 8 beats) are captured
+   - Handshake completes in a single cycle when both valid and ready are HIGH
+
+2. **R Channel Streaming (Data Phase)**
+   - After AR acceptance, the AXI slave begins returning data
+   - `m_axi_rvalid` rises and **stays HIGH** for all 8 beats
+   - `m_axi_rready` remains HIGH throughout (no backpressure from SRAM controller)
+   - **Perfect streaming**: One data beat transferred every clock cycle
+   - `m_axi_rlast` rises on the final beat (beat 7) to mark burst completion
+
+3. **Next Transaction**
+   - After `rlast`, the engine can immediately issue the next AR request
+   - The cycle repeats for the next channel or next burst
+
+**Key Performance Indicators:**
+- **No bubbles**: `rvalid` and `rready` both HIGH during data phase
+- **Full bandwidth**: Data width (256/512 bits) x clock frequency
+- **Zero-wait states**: SRAM controller accepts data at line rate
+
+### Multi-Channel Streaming
+
+For multi-channel operation showing channel switching while maintaining streaming performance, see:
+
+![Datapath Read - Multi-Channel](../assets/wavedrom/datapath_rd_multi_channel.svg)
+
+This diagram shows how the engine arbitrates between channels while maintaining high throughput.
+
+---
+
 ## Integration Example
 
 ```systemverilog
@@ -293,4 +335,4 @@ axi_read_engine #(
 
 ---
 
-**Last Updated:** 2025-11-30 (verified against RTL implementation)
+**Last Updated:** 2025-12-13 (added timing diagrams)

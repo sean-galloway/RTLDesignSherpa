@@ -1,0 +1,79 @@
+{
+  "signal": [
+    {
+      "name": "clk",
+      "wave": "p............................",
+      "period": 1.0
+    },
+    {},
+    {
+      "name": "rst_n",
+      "wave": "1............................"
+    },
+    {},
+    [
+      "Initial State",
+      {
+        "name": "r_output_data",
+        "wave": "2.....3....4.....5...........",
+        "data": ["0x00", "0x01", "0x00", "0xFF"],
+        "node": "......a....b.....c..........."
+      }
+    ],
+    {},
+    [
+      "Atomic SET",
+      {
+        "name": "cfg_output_set",
+        "wave": "0..210.......................",
+        "data": ["0x01"],
+        "node": "...d........................."
+      }
+    ],
+    {},
+    [
+      "Atomic CLR",
+      {
+        "name": "cfg_output_clr",
+        "wave": "0........210.................",
+        "data": ["0x01"],
+        "node": ".........e..................."
+      }
+    ],
+    {},
+    [
+      "Atomic TGL",
+      {
+        "name": "cfg_output_tgl",
+        "wave": "0..............210...........",
+        "data": ["0xFF"],
+        "node": "...............f............."
+      }
+    ],
+    {},
+    [
+      "Output",
+      {
+        "name": "gpio_out",
+        "wave": "2.....3....4.....5...........",
+        "data": ["0x00", "0x01", "0x00", "0xFF"]
+      }
+    ]
+  ],
+  "head": {
+    "text": "GPIO Atomic Operations - SET, CLEAR, TOGGLE",
+    "tick": 0,
+    "every": 2
+  },
+  "foot": {
+    "text": "Priority: Toggle > Set > Clear. All operations are single-cycle pulses."
+  },
+  "config": {
+    "hscale": 1.5
+  },
+  "edge": [
+    "d~>a SET bit[0]",
+    "e~>b CLR bit[0]",
+    "f~>c TGL all bits"
+  ]
+}

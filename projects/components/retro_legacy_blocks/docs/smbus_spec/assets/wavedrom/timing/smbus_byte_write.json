@@ -1,0 +1,80 @@
+{
+  "signal": [
+    {
+      "name": "clk",
+      "wave": "p................................",
+      "period": 1.0
+    },
+    {},
+    {
+      "name": "rst_n",
+      "wave": "1................................"
+    },
+    {},
+    [
+      "SMBus",
+      {
+        "name": "scl",
+        "wave": "1.0.1.0.1.0.1.0.1.0.1.0.1.0.1.0.1",
+        "node": "..a.b.c.d.e.f.g.h.i.j.k.l.m.n.o.."
+      },
+      {
+        "name": "sda",
+        "wave": "1.0...=.=.=.=.=.=.=.0.0.1........",
+        "data": ["A6", "A5", "A4", "A3", "A2", "A1", "A0", "W"],
+        "node": "..p...q.............................."
+      }
+    ],
+    {},
+    [
+      "Master Control",
+      {
+        "name": "r_state",
+        "wave": "=.=.....................=........",
+        "data": ["IDLE", "START", "ADDR+W"]
+      },
+      {
+        "name": "r_bit_count",
+        "wave": "=.=.=.=.=.=.=.=.=.=..............",
+        "data": ["0", "1", "2", "3", "4", "5", "6", "7", "8"]
+      },
+      {
+        "name": "start_cond",
+        "wave": "0.1.0............................",
+        "node": "..r.............................."
+      }
+    ],
+    {},
+    [
+      "Slave Response",
+      {
+        "name": "addr_match",
+        "wave": "0...................1............",
+        "node": "....................s............"
+      },
+      {
+        "name": "sda_slave",
+        "wave": "z...................0.z..........",
+        "node": "....................t............"
+      }
+    ]
+  ],
+  "head": {
+    "text": "SMBus Byte Write - Start + Address",
+    "tick": 0,
+    "every": 2
+  },
+  "foot": {
+    "text": "START condition -> 7-bit address + W bit -> Slave ACK"
+  },
+  "config": {
+    "hscale": 1.5
+  },
+  "edge": [
+    "p START (SDA fall while SCL high)",
+    "r Start Detected",
+    "a~>o 9 SCL Cycles",
+    "s Address Match",
+    "t Slave ACK (SDA low)"
+  ]
+}

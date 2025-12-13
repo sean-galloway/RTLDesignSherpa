@@ -1,0 +1,103 @@
+{
+    "head": {
+        "text": "AXI Write Engine - Perfect Streaming (AW+W+B Handshake)",
+        "tock": 1
+    },
+    "signal": [
+        {
+            "name": "clk",
+            "wave": "P..............................",
+            "period": 1.0
+        },
+        {},
+        ["AW Channel",
+            {
+                "name": "m_axi_awvalid",
+                "wave": "0.1.0........................1.",
+                "node": "..a"
+            },
+            {
+                "name": "m_axi_awready",
+                "wave": "1..............................",
+                "node": "..b"
+            },
+            {
+                "name": "m_axi_awaddr",
+                "wave": "x.=........................x.=.",
+                "data": ["0x90000000", "0x90000100"]
+            },
+            {
+                "name": "m_axi_awid",
+                "wave": "x.=........................x.=.",
+                "data": ["Ch0", "Ch1"]
+            },
+            {
+                "name": "m_axi_awlen",
+                "wave": "x.=........................x.=.",
+                "data": ["7", "7"]
+            }
+        ],
+        {},
+        ["W Channel (Perfect Streaming)",
+            {
+                "name": "m_axi_wvalid",
+                "wave": "0...1.................0........",
+                "node": "....c"
+            },
+            {
+                "name": "m_axi_wready",
+                "wave": "1..............................",
+                "node": "....d"
+            },
+            {
+                "name": "m_axi_wdata",
+                "wave": "x...================x..........",
+                "data": ["D0", "D1", "D2", "D3", "D4", "D5", "D6", "D7"]
+            },
+            {
+                "name": "m_axi_wstrb",
+                "wave": "x...================x..........",
+                "data": ["FF", "FF", "FF", "FF", "FF", "FF", "FF", "FF"]
+            },
+            {
+                "name": "m_axi_wlast",
+                "wave": "0..................10..........",
+                "node": "...................e"
+            }
+        ],
+        {},
+        ["B Channel (Response)",
+            {
+                "name": "m_axi_bvalid",
+                "wave": "0....................1.0.......",
+                "node": ".....................f"
+            },
+            {
+                "name": "m_axi_bready",
+                "wave": "1..............................",
+                "node": ".....................g"
+            },
+            {
+                "name": "m_axi_bid",
+                "wave": "x....................=.x.......",
+                "data": ["0"]
+            },
+            {
+                "name": "m_axi_bresp",
+                "wave": "x....................=.x.......",
+                "data": ["OKAY"]
+            }
+        ]
+    ],
+    "edge": [
+        "a~>c AW accepted, data flows",
+        "e~>f wlast triggers B response",
+        "f~>a B response, ready for next"
+    ],
+    "config": {
+        "hscale": 1
+    },
+    "foot": {
+        "text": "Time window: 2940-3250ns | awvalid rises @2950ns, wvalid rises @2980ns | Perfect streaming: wvalid & wready both HIGH for 8 consecutive beats"
+    }
+}

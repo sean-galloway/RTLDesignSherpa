@@ -1,0 +1,99 @@
+{
+  "signal": [
+    {
+      "name": "clk",
+      "wave": "p............................",
+      "period": 1.0
+    },
+    {},
+    {
+      "name": "rst_n",
+      "wave": "1............................"
+    },
+    {},
+    [
+      "RX Input",
+      {
+        "name": "uart_rx",
+        "wave": "1..0.1.0.1.0.1.0.1.0.1.0.0...",
+        "node": "...a.......................b."
+      }
+    ],
+    {},
+    [
+      "Frame Check",
+      {
+        "name": "rx_done",
+        "wave": "0........................1.0.",
+        "node": ".........................c..."
+      },
+      {
+        "name": "stop_bit_sample",
+        "wave": "x........................2..x",
+        "data": ["0"],
+        "node": ".........................d..."
+      },
+      {
+        "name": "parity_calc",
+        "wave": "x........................2..x",
+        "data": ["OK"]
+      }
+    ],
+    {},
+    [
+      "Error Flags",
+      {
+        "name": "r_framing_error",
+        "wave": "0.........................1..",
+        "node": "..........................e.."
+      },
+      {
+        "name": "r_parity_error",
+        "wave": "0............................"
+      },
+      {
+        "name": "r_overrun_error",
+        "wave": "0............................"
+      }
+    ],
+    {},
+    [
+      "Status Register",
+      {
+        "name": "LSR[3:1]",
+        "wave": "=.........................=..",
+        "data": ["0x00", "0x08"],
+        "node": "..........................f.."
+      },
+      {
+        "name": "line_status_int",
+        "wave": "0.........................1..",
+        "node": "..........................g.."
+      },
+      {
+        "name": "irq",
+        "wave": "0.........................1..",
+        "node": "..........................h.."
+      }
+    ]
+  ],
+  "head": {
+    "text": "UART Line Status - Framing Error",
+    "tick": 0,
+    "every": 2
+  },
+  "foot": {
+    "text": "Stop bit sampled as 0 -> Framing error flag set -> LSR interrupt"
+  },
+  "config": {
+    "hscale": 1.5
+  },
+  "edge": [
+    "a Start Bit",
+    "b Stop=0 (Error)",
+    "c~>d Stop Sample",
+    "d~>e Frame Error",
+    "e~>f LSR Update",
+    "f~>g Line Status Int"
+  ]
+}

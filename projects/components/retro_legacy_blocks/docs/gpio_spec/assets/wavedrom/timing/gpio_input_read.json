@@ -1,0 +1,94 @@
+{
+  "signal": [
+    {
+      "name": "clk",
+      "wave": "p................",
+      "period": 1.0
+    },
+    {},
+    {
+      "name": "rst_n",
+      "wave": "1................"
+    },
+    {},
+    [
+      "GPIO Pins",
+      {
+        "name": "gpio_in",
+        "wave": "2................",
+        "data": ["0x00AA"]
+      }
+    ],
+    {},
+    [
+      "Sync Pipeline",
+      {
+        "name": "r_sync_stage[0]",
+        "wave": "2................",
+        "data": ["0x00AA"]
+      },
+      {
+        "name": "r_sync_stage[1]",
+        "wave": "x2...............",
+        "data": ["0x00AA"]
+      },
+      {
+        "name": "sts_input_data",
+        "wave": "x.2..............",
+        "data": ["0x00AA"],
+        "node": "..e.............."
+      }
+    ],
+    {},
+    [
+      "APB",
+      {
+        "name": "s_apb_PSEL",
+        "wave": "0...1......0.....",
+        "node": "....a......b....."
+      },
+      {
+        "name": "s_apb_PENABLE",
+        "wave": "0....1.....0.....",
+        "node": ".....c..........."
+      },
+      {
+        "name": "s_apb_PREADY",
+        "wave": "0.......1..0.....",
+        "node": "........d........"
+      },
+      {
+        "name": "s_apb_PWRITE",
+        "wave": "0................"
+      },
+      {
+        "name": "s_apb_PADDR",
+        "wave": "x...2......x.....",
+        "data": ["0x00C"]
+      },
+      {
+        "name": "s_apb_PRDATA",
+        "wave": "x.......2..x.....",
+        "data": ["0x00AA"],
+        "node": "........f........"
+      }
+    ]
+  ],
+  "head": {
+    "text": "GPIO Input Read - Synchronized Input Data",
+    "tick": 0,
+    "every": 2
+  },
+  "foot": {
+    "text": "APB read of GPIO_INPUT (0x00C) returns synchronized external pin values"
+  },
+  "config": {
+    "hscale": 1.5
+  },
+  "edge": [
+    "e Sync Complete",
+    "a~>c Setup Phase",
+    "c~>d Access Phase",
+    "e~>f Data Valid"
+  ]
+}

@@ -26,6 +26,48 @@ The APB PM/ACPI controller provides ACPI-compatible power management functionali
 
 ![PM/ACPI Block Diagram](../assets/svg/pm_acpi_top.svg)
 
+## Timing Diagrams
+
+### Sleep Entry (S3 Suspend)
+
+Software initiates sleep by writing to PM1_CNT.
+
+![PM Sleep Entry](../assets/wavedrom/timing/pm_sleep_entry.svg)
+
+The sequence:
+1. OS writes PM1_CNT with SLP_TYP (sleep type) and SLP_EN (enable)
+2. PM controller initiates cache flush
+3. Asserts SLP_S3# signal
+4. Power removed from non-essential components
+
+### Wake Event
+
+Power button or other source triggers wake from sleep.
+
+![PM Wake Event](../assets/wavedrom/timing/pm_wake_event.svg)
+
+Wake sequence:
+1. Wake source detected (power button, RTC alarm, LAN, etc.)
+2. Wake status latched
+3. SLP_Sx# deasserted
+4. Power restored, system resumes to S0
+
+### PM Timer
+
+ACPI timer for OS timing services.
+
+![PM Timer](../assets/wavedrom/timing/pm_timer.svg)
+
+The 24-bit (or 32-bit) free-running counter clocked at 3.579545 MHz provides high-resolution timing for the OS. Timer overflow generates TMR_STS if enabled.
+
+### General Purpose Event (GPE)
+
+External events trigger SCI interrupt to OS.
+
+![PM GPE Event](../assets/wavedrom/timing/pm_gpe_event.svg)
+
+GPE input edge sets status bit, which triggers SCI# if enabled. OS reads status, handles event, then writes 1-to-clear the status bit.
+
 ## Register Summary
 
 | Offset | Name | Description |

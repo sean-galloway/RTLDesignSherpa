@@ -1,11 +1,39 @@
-# HPET Register Layouts - WaveDrom Diagrams
+# HPET WaveDrom Diagrams
 
-This directory contains WaveDrom register layout diagrams for all HPET registers.
+This directory contains WaveDrom diagrams for HPET documentation.
 
-## Files
+## Directory Structure
 
-- **hpet_registers.json** - Complete register definitions in WaveDrom format
+```
+wavedrom/
+  ├── README.md              # This file
+  ├── hpet_registers.json    # Register bit-field layouts
+  ├── hpet_registers.html    # HTML viewer for registers
+  └── timing/                # Timing diagrams
+      ├── README.md          # Timing diagram documentation
+      ├── hpet_config_write.json
+      ├── hpet_counter_read.json
+      ├── hpet_timer_fire_oneshot.json
+      ├── hpet_timer_fire_periodic.json
+      ├── hpet_interrupt_clear.json
+      ├── hpet_timer_setup.json
+      └── hpet_cdc_crossing.json
+```
+
+## Diagram Types
+
+### Register Layouts (this directory)
+- **hpet_registers.json** - Complete register bit-field definitions
 - **hpet_registers.html** - Standalone HTML viewer for all registers
+
+### Timing Diagrams (timing/ subdirectory)
+- **hpet_config_write.json** - APB write to enable HPET
+- **hpet_counter_read.json** - APB read of main counter
+- **hpet_timer_fire_oneshot.json** - One-shot timer fire event
+- **hpet_timer_fire_periodic.json** - Periodic timer operation
+- **hpet_interrupt_clear.json** - W1C interrupt clearing
+- **hpet_timer_setup.json** - Timer configuration sequence
+- **hpet_cdc_crossing.json** - Clock domain crossing
 
 ## Viewing the Diagrams
 

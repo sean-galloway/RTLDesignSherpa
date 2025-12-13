@@ -1,5 +1,54 @@
 # APB GPIO - Basic Operations
 
+## Timing Diagrams
+
+The following diagrams show the internal signal flow for basic GPIO operations.
+
+### Direction Configuration
+
+When software writes to GPIO_DIRECTION, the direction register updates and controls the output enable for each pin.
+
+![GPIO Direction Write](../assets/wavedrom/timing/gpio_direction_write.svg)
+
+The APB write completes in a single cycle. The direction register (`r_gpio_direction`) updates on the clock edge following PREADY, and the output enable (`gpio_oe`) reflects the new configuration immediately.
+
+### Output Write
+
+Writing to GPIO_OUTPUT sets the output data register, which drives the external pins when direction is set to output.
+
+![GPIO Output Write](../assets/wavedrom/timing/gpio_output_write.svg)
+
+The write data flows through the APB interface to the output register. When `gpio_oe[n]` is high (output mode), `gpio_out[n]` drives the written value to the external pin.
+
+### Input Read
+
+Reading GPIO_INPUT returns the synchronized input values from external pins.
+
+![GPIO Input Read](../assets/wavedrom/timing/gpio_input_read.svg)
+
+External inputs pass through a 2-stage synchronizer before being captured. The synchronized value (`w_gpio_sync`) is returned on `s_apb_PRDATA` during the APB read transaction.
+
+### Input Synchronization
+
+All GPIO inputs pass through a 2-stage synchronizer to prevent metastability.
+
+![GPIO Input Sync](../assets/wavedrom/timing/gpio_input_sync.svg)
+
+The synchronizer adds 2 clock cycles of latency. External asynchronous transitions on `gpio_in` propagate through `sync_stage1` and `sync_stage2` before appearing on the internal synchronized signal `w_gpio_sync`.
+
+### Atomic Operations
+
+The SET, CLEAR, and TOGGLE registers provide atomic bit manipulation without read-modify-write races.
+
+![GPIO Atomic Operations](../assets/wavedrom/timing/gpio_atomic_operations.svg)
+
+Three consecutive APB writes demonstrate:
+1. **GPIO_SET**: Sets bits where write data is 1, leaves others unchanged
+2. **GPIO_CLEAR**: Clears bits where write data is 1, leaves others unchanged
+3. **GPIO_TOGGLE**: Inverts bits where write data is 1, leaves others unchanged
+
+---
+
 ## Initialization
 
 ### Reset State

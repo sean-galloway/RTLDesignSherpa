@@ -30,6 +30,19 @@ The UART includes 16-byte TX and RX FIFOs that buffer data between software and 
 | 10 | 8 bytes |
 | 11 | 14 bytes |
 
+### FIFO Trigger Timing
+
+The following diagram shows RX FIFO filling to the trigger threshold and generating an interrupt.
+
+![UART FIFO Threshold](../assets/wavedrom/timing/uart_fifo_threshold.svg)
+
+The interrupt sequence:
+1. RX data arrives, `rx_fifo_wr` pulses
+2. FIFO count increments with each byte
+3. When count reaches trigger level (8 in example), `rx_trigger_match` asserts
+4. RX Data Available interrupt (`rx_data_avail_int`) triggers
+5. CPU reads RBR to retrieve data, decrementing FIFO count
+
 ## TX FIFO
 
 ### Characteristics

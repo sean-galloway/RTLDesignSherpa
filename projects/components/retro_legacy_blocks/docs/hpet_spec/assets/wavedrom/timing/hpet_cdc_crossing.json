@@ -1,0 +1,106 @@
+{
+  "signal": [
+    {
+      "name": "pclk",
+      "wave": "p............................",
+      "period": 1.0
+    },
+    {
+      "name": "hpet_clk",
+      "wave": "p............................",
+      "period": 0.5
+    },
+    {},
+    {
+      "name": "presetn",
+      "wave": "1............................"
+    },
+    {
+      "name": "hpet_resetn",
+      "wave": "1............................"
+    },
+    {},
+    [
+      "APB Domain (pclk)",
+      {
+        "name": "s_apb_PSEL",
+        "wave": "0.1......0...................",
+        "node": "..a......b..................."
+      },
+      {
+        "name": "s_apb_PENABLE",
+        "wave": "0..1.....0...................",
+        "node": "...c......................."
+      },
+      {
+        "name": "s_apb_PREADY",
+        "wave": "0.....1..0...................",
+        "node": "......d...................."
+      },
+      {
+        "name": "s_apb_PWRITE",
+        "wave": "0.1......0..................."
+      },
+      {
+        "name": "s_apb_PADDR",
+        "wave": "x.2......x...................",
+        "data": ["0x004"]
+      },
+      {
+        "name": "s_apb_PWDATA",
+        "wave": "x.2......x...................",
+        "data": ["0x0001"]
+      }
+    ],
+    {},
+    [
+      "CDC Sync",
+      {
+        "name": "cfg_sync_stage1",
+        "wave": "0.....1......................",
+        "node": "......e...................."
+      },
+      {
+        "name": "cfg_sync_stage2",
+        "wave": "0......1.....................",
+        "node": ".......f..................."
+      }
+    ],
+    {},
+    [
+      "HPET Domain (hpet_clk)",
+      {
+        "name": "hpet_enable",
+        "wave": "0.......1....................",
+        "node": "........g.................."
+      },
+      {
+        "name": "r_main_counter",
+        "wave": "2........3456789=............",
+        "data": ["0x00", "0x01", "0x02", "0x03", "0x04", "0x05", "..."]
+      },
+      {
+        "name": "timer_irq[0]",
+        "wave": "0............................"
+      }
+    ]
+  ],
+  "head": {
+    "text": "HPET Clock Domain Crossing",
+    "tick": 0,
+    "every": 2
+  },
+  "foot": {
+    "text": "APB write in pclk domain crosses to hpet_clk domain via 2-stage sync"
+  },
+  "config": {
+    "hscale": 1.5
+  },
+  "edge": [
+    "a~>c APB Setup",
+    "c~>d APB Access",
+    "d~>e CDC Stage 1",
+    "e~>f CDC Stage 2",
+    "f~>g HPET Enable"
+  ]
+}

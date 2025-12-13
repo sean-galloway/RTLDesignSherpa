@@ -1,0 +1,258 @@
+{
+    "head": {
+        "text": "SRAM Controller - Write/Read Cycle",
+        "tock": 1
+    },
+    "signal": [
+        {
+            "name": "sram_controller.DW[31:0]",
+            "wave": "=...................",
+            "data": [
+                "200"
+            ],
+            "phase": 0
+        },
+        {
+            "name": "sram_controller.FIFO_DEPTH[31:0]",
+            "wave": "x"
+        },
+        {
+            "name": "sram_controller.NUM_CHANNELS[31:0]",
+            "wave": "=...................",
+            "data": [
+                "8"
+            ],
+            "phase": 0
+        },
+        {
+            "name": "sram_controller.clk",
+            "wave": "pppppppppppppppppppp",
+            "data": [],
+            "phase": 0,
+            "period": 1.0
+        },
+        {
+            "name": "sram_controller.rst_n",
+            "wave": "1...................",
+            "data": [],
+            "phase": 0
+        },
+        [
+            "i-rd-alloc",
+            {
+                "name": "sram_controller.axi_rd_alloc_req",
+                "wave": "0...................",
+                "data": [],
+                "phase": 0
+            },
+            {
+                "name": "sram_controller.axi_rd_alloc_id[1:0]",
+                "wave": "x"
+            },
+            {
+                "name": "sram_controller.axi_rd_alloc_size[7:0]",
+                "wave": "=...................",
+                "data": [
+                    "0"
+                ],
+                "phase": 0
+            }
+        ],
+        [
+            "i-rd-sram",
+            {
+                "name": "sram_controller.axi_rd_sram_valid",
+                "wave": "0............1010101",
+                "data": [],
+                "phase": 0
+            },
+            {
+                "name": "sram_controller.axi_rd_sram_ready",
+                "wave": "1...................",
+                "data": [],
+                "phase": 0
+            },
+            {
+                "name": "sram_controller.axi_rd_sram_id[1:0]",
+                "wave": "x"
+            },
+            {
+                "name": "sram_controller.axi_rd_sram_data[63:0]",
+                "wave": "x"
+            },
+            {
+                "name": "sram_controller.axi_rd_sram_ready_per_channel[3:0]",
+                "wave": "x"
+            }
+        ],
+        [
+            "i-wr-sram",
+            {
+                "name": "sram_controller.axi_wr_sram_valid[3:0]",
+                "wave": "x"
+            },
+            {
+                "name": "sram_controller.axi_wr_sram_drain",
+                "wave": "0...................",
+                "data": [],
+                "phase": 0
+            },
+            {
+                "name": "sram_controller.axi_wr_sram_id[1:0]",
+                "wave": "x"
+            },
+            {
+                "name": "sram_controller.axi_wr_sram_data[63:0]",
+                "wave": "x"
+            }
+        ],
+        [
+            "unit0",
+            [
+                "atency-bridge",
+                {
+                    "name": "sram_controller.gen_channel_units[0].u_channel_unit.u_latency_bridge.SKID_DEPTH[31:0]",
+                    "wave": "=...................",
+                    "data": [
+                        "4"
+                    ],
+                    "phase": 0
+                },
+                {
+                    "name": "sram_controller.gen_channel_units[0].u_channel_unit.u_latency_bridge.clk",
+                    "wave": "pppppppppppppppppppp",
+                    "data": [],
+                    "phase": 0,
+                    "period": 1.0
+                },
+                {
+                    "name": "sram_controller.gen_channel_units[0].u_channel_unit.u_latency_bridge.rst_n",
+                    "wave": "1...................",
+                    "data": [],
+                    "phase": 0
+                },
+                {
+                    "name": "sram_controller.gen_channel_units[0].u_channel_unit.u_latency_bridge.s_valid",
+                    "wave": "0..............10101",
+                    "data": [],
+                    "phase": 0
+                },
+                {
+                    "name": "sram_controller.gen_channel_units[0].u_channel_unit.u_latency_bridge.s_ready",
+                    "wave": "1...................",
+                    "data": [],
+                    "phase": 0
+                },
+                {
+                    "name": "sram_controller.gen_channel_units[0].u_channel_unit.u_latency_bridge.s_data[63:0]",
+                    "wave": "x"
+                },
+                {
+                    "name": "sram_controller.gen_channel_units[0].u_channel_unit.u_latency_bridge.m_valid",
+                    "wave": "0................1..",
+                    "data": [],
+                    "phase": 0
+                },
+                {
+                    "name": "sram_controller.gen_channel_units[0].u_channel_unit.u_latency_bridge.m_ready",
+                    "wave": "0...................",
+                    "data": [],
+                    "phase": 0
+                },
+                {
+                    "name": "sram_controller.gen_channel_units[0].u_channel_unit.u_latency_bridge.m_data[63:0]",
+                    "wave": "x"
+                },
+                {
+                    "name": "sram_controller.gen_channel_units[0].u_channel_unit.u_latency_bridge.skid_count[2:0]",
+                    "wave": "=...............=.=.",
+                    "data": [
+                        "0",
+                        "1",
+                        "2"
+                    ],
+                    "phase": 0
+                },
+                {
+                    "name": "sram_controller.gen_channel_units[0].u_channel_unit.u_latency_bridge.skid_wr_valid",
+                    "wave": "0...............1010",
+                    "data": [],
+                    "phase": 0
+                },
+                {
+                    "name": "sram_controller.gen_channel_units[0].u_channel_unit.u_latency_bridge.skid_wr_ready",
+                    "wave": "1...................",
+                    "data": [],
+                    "phase": 0
+                },
+                {
+                    "name": "sram_controller.gen_channel_units[0].u_channel_unit.u_latency_bridge.skid_wr_data[63:0]",
+                    "wave": "x"
+                }
+            ]
+        ],
+        [
+            "fifo",
+            {
+                "name": "sram_controller.gen_channel_units[0].u_channel_unit.u_channel_fifo.DEPTH[31:0]",
+                "wave": "=...................",
+                "data": [
+                    "400"
+                ],
+                "phase": 0
+            },
+            {
+                "name": "sram_controller.gen_channel_units[0].u_channel_unit.u_channel_fifo.axi_aclk",
+                "wave": "pppppppppppppppppppp",
+                "data": [],
+                "phase": 0,
+                "period": 1.0
+            },
+            {
+                "name": "sram_controller.gen_channel_units[0].u_channel_unit.u_channel_fifo.axi_aresetn",
+                "wave": "1...................",
+                "data": [],
+                "phase": 0
+            },
+            {
+                "name": "sram_controller.gen_channel_units[0].u_channel_unit.u_channel_fifo.wr_valid",
+                "wave": "0............1010101",
+                "data": [],
+                "phase": 0
+            },
+            {
+                "name": "sram_controller.gen_channel_units[0].u_channel_unit.u_channel_fifo.wr_ready",
+                "wave": "1...................",
+                "data": [],
+                "phase": 0
+            },
+            {
+                "name": "sram_controller.gen_channel_units[0].u_channel_unit.u_channel_fifo.wr_data[63:0]",
+                "wave": "x"
+            },
+            {
+                "name": "sram_controller.gen_channel_units[0].u_channel_unit.u_channel_fifo.rd_valid",
+                "wave": "0..............10101",
+                "data": [],
+                "phase": 0
+            },
+            {
+                "name": "sram_controller.gen_channel_units[0].u_channel_unit.u_channel_fifo.rd_ready",
+                "wave": "1...................",
+                "data": [],
+                "phase": 0
+            },
+            {
+                "name": "sram_controller.gen_channel_units[0].u_channel_unit.u_channel_fifo.rd_data[63:0]",
+                "wave": "x"
+            },
+            {
+                "name": "sram_controller.gen_channel_units[0].u_channel_unit.u_channel_fifo.count[8:0]",
+                "wave": "x"
+            }
+        ]
+    ],
+    "config": {
+        "hscale": 1
+    }
+}

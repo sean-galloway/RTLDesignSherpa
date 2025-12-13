@@ -119,6 +119,20 @@ cts_n --> FF1 --> FF2 --> synced_cts_n
          (clk)   (clk)
 ```
 
+### Modem Status Change Detection
+
+The following diagram shows how modem input changes are detected and reported.
+
+![UART Modem Status](../assets/wavedrom/timing/uart_modem_status.svg)
+
+The detection sequence:
+1. External CTS# falls (device ready to receive)
+2. 2-stage synchronizer captures the change
+3. Edge detector compares current vs. previous state
+4. Delta flag (`r_delta_cts`) latched
+5. Current state (`r_cts_state`) updated
+6. MSR updated, modem status interrupt asserted
+
 ## Interrupt Generation
 
 MSR delta bits can generate interrupt:

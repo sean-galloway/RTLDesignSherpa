@@ -1,0 +1,88 @@
+{
+  "signal": [
+    {
+      "name": "clk",
+      "wave": "p............................",
+      "period": 1.0
+    },
+    {},
+    {
+      "name": "rst_n",
+      "wave": "1............................"
+    },
+    {},
+    [
+      "APB",
+      {
+        "name": "s_apb_PSEL",
+        "wave": "0.1......0...................",
+        "node": "..a......b..................."
+      },
+      {
+        "name": "s_apb_PENABLE",
+        "wave": "0..1.....0...................",
+        "node": "...c......................."
+      },
+      {
+        "name": "s_apb_PREADY",
+        "wave": "0.....1..0...................",
+        "node": "......d...................."
+      },
+      {
+        "name": "s_apb_PWRITE",
+        "wave": "0.1......0..................."
+      },
+      {
+        "name": "s_apb_PADDR",
+        "wave": "x.2......x...................",
+        "data": ["INT_STATUS"]
+      },
+      {
+        "name": "s_apb_PWDATA",
+        "wave": "x.2......x...................",
+        "data": ["0x01"]
+      }
+    ],
+    {},
+    [
+      "Interrupt Status",
+      {
+        "name": "r_raw_int[0]",
+        "wave": "1............................",
+        "node": "e............................"
+      },
+      {
+        "name": "r_int_status[0]",
+        "wave": "1......0.....................",
+        "node": "f......g..................."
+      }
+    ],
+    {},
+    [
+      "Output",
+      {
+        "name": "irq",
+        "wave": "1......0.....................",
+        "node": "h......i..................."
+      }
+    ]
+  ],
+  "head": {
+    "text": "GPIO Interrupt Clear (W1C)",
+    "tick": 0,
+    "every": 2
+  },
+  "foot": {
+    "text": "Write-1-to-Clear: Writing 1 to INT_STATUS clears the latched interrupt"
+  },
+  "config": {
+    "hscale": 1.5
+  },
+  "edge": [
+    "a~>c APB Setup",
+    "c~>d APB Access",
+    "e Raw Int (still active)",
+    "d~>g W1C Clear",
+    "g~>i IRQ Deassert"
+  ]
+}

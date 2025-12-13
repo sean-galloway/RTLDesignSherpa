@@ -1,0 +1,81 @@
+{
+  "signal": [
+    {
+      "name": "clk",
+      "wave": "p................................",
+      "period": 1.0
+    },
+    {},
+    {
+      "name": "rst_n",
+      "wave": "1................................"
+    },
+    {},
+    [
+      "SMBus",
+      {
+        "name": "scl",
+        "wave": "1.0.1.0.1.0.1.0.1.0.1.0.1.0.1.0.1",
+        "node": "..a.b.c.d.e.f.g.h.i.j.k.l.m.n.o.."
+      },
+      {
+        "name": "sda_master",
+        "wave": "z...................1.z..........",
+        "node": "....................p............"
+      },
+      {
+        "name": "sda_slave",
+        "wave": "z.=.=.=.=.=.=.=.=.z..............",
+        "data": ["D7", "D6", "D5", "D4", "D3", "D2", "D1", "D0"],
+        "node": "..q.............................."
+      }
+    ],
+    {},
+    [
+      "Master",
+      {
+        "name": "r_state",
+        "wave": "=.......................=........",
+        "data": ["READ_DATA", "ACK/NACK"]
+      },
+      {
+        "name": "r_shift_reg",
+        "wave": "=.=.=.=.=.=.=.=.=................",
+        "data": ["--", "D7", "76", "765", "7654", "76543", "765432", "7654321", "0xA5"]
+      },
+      {
+        "name": "rx_data_valid",
+        "wave": "0...................1............",
+        "node": "....................r............"
+      }
+    ],
+    {},
+    [
+      "RX Buffer",
+      {
+        "name": "r_rx_data",
+        "wave": "x...................=............",
+        "data": ["0xA5"],
+        "node": "....................s............"
+      }
+    ]
+  ],
+  "head": {
+    "text": "SMBus Byte Read - Data from Slave",
+    "tick": 0,
+    "every": 2
+  },
+  "foot": {
+    "text": "Slave drives 8 data bits -> Master samples on SCL rising -> Master ACK/NACK"
+  },
+  "config": {
+    "hscale": 1.5
+  },
+  "edge": [
+    "a~>o 9 SCL Cycles",
+    "q Slave Data Bits",
+    "p Master NACK (last byte)",
+    "r Data Valid",
+    "r~>s Latch RX Data"
+  ]
+}

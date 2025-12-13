@@ -25,6 +25,48 @@ The APB PIC 8259 is an 8259A-compatible Programmable Interrupt Controller with a
 
 ![PIC 8259 Block Diagram](../assets/svg/pic_8259_top.svg)
 
+## Timing Diagrams
+
+### Interrupt Request
+
+Shows an IRQ input assertion triggering the interrupt process.
+
+![PIC Interrupt Request](../assets/wavedrom/timing/pic_interrupt_request.svg)
+
+When an IR pin asserts, the corresponding IRR bit is set. The priority resolver selects the highest priority unmasked interrupt and asserts INT to the CPU.
+
+### Interrupt Acknowledge Sequence
+
+The two-pulse INTA sequence from CPU to PIC.
+
+![PIC Interrupt Acknowledge](../assets/wavedrom/timing/pic_interrupt_acknowledge.svg)
+
+On the first INTA pulse, priority is frozen and IRR transfers to ISR. On the second INTA pulse, the PIC outputs the interrupt vector (base + IR number) on the data bus.
+
+### End-of-Interrupt (EOI)
+
+Software clears the in-service bit with an EOI command.
+
+![PIC EOI](../assets/wavedrom/timing/pic_eoi.svg)
+
+Non-specific EOI (0x20) clears the highest priority ISR bit. Specific EOI (0x60-0x67) clears a designated IR.
+
+### Cascade Mode
+
+Master-slave configuration for 15 IRQ sources.
+
+![PIC Cascade](../assets/wavedrom/timing/pic_cascade.svg)
+
+Slave INT connects to master IR2. During INTA, master outputs cascade select (CAS) lines. Slave with matching ID provides the interrupt vector.
+
+### Priority Rotation
+
+Automatic priority rotation for equal-service scheduling.
+
+![PIC Priority Rotation](../assets/wavedrom/timing/pic_priority_rotation.svg)
+
+Rotate-on-EOI (0xA0) makes the just-serviced IR the lowest priority, implementing round-robin scheduling among interrupt sources.
+
 ## Register Summary
 
 | Offset | A0 | Read | Write |

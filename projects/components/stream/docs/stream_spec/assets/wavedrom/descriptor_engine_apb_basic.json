@@ -1,0 +1,275 @@
+{
+    "head": {
+        "text": "Descriptor Engine - APB Request and Descriptor Output",
+        "tock": 1
+    },
+    "signal": [
+        {
+            "name": "descriptor_engine.ADDR_WIDTH[31:0]",
+            "wave": "=...........",
+            "data": [
+                "40"
+            ],
+            "phase": 0
+        },
+        {
+            "name": "descriptor_engine.FIFO_DEPTH[31:0]",
+            "wave": "=...........",
+            "data": [
+                "8"
+            ],
+            "phase": 0
+        },
+        {
+            "name": "descriptor_engine.TIMEOUT_CYCLES[31:0]",
+            "wave": "=...........",
+            "data": [
+                "3E8"
+            ],
+            "phase": 0
+        },
+        {
+            "name": "descriptor_engine.cfg_addr0_base[63:0]",
+            "wave": "=...........",
+            "data": [
+                "10000"
+            ],
+            "phase": 0
+        },
+        {
+            "name": "descriptor_engine.cfg_addr0_limit[63:0]",
+            "wave": "=...........",
+            "data": [
+                "4FFFF"
+            ],
+            "phase": 0
+        },
+        {
+            "name": "descriptor_engine.cfg_addr1_base[63:0]",
+            "wave": "=...........",
+            "data": [
+                "0"
+            ],
+            "phase": 0
+        },
+        {
+            "name": "descriptor_engine.cfg_addr1_limit[63:0]",
+            "wave": "=...........",
+            "data": [
+                "0"
+            ],
+            "phase": 0
+        },
+        {
+            "name": "descriptor_engine.cfg_channel_reset",
+            "wave": "0...........",
+            "data": [],
+            "phase": 0
+        },
+        {
+            "name": "descriptor_engine.cfg_prefetch_enable",
+            "wave": "0...........",
+            "data": [],
+            "phase": 0
+        },
+        {
+            "name": "descriptor_engine.clk",
+            "wave": "pppppppppppp",
+            "data": [],
+            "phase": 0,
+            "period": 1.0
+        },
+        {
+            "name": "descriptor_engine.rst_n",
+            "wave": "1...........",
+            "data": [],
+            "phase": 0
+        },
+        [
+            "pb-interface",
+            {
+                "name": "descriptor_engine.apb_valid",
+                "wave": "0.10........",
+                "data": [],
+                "phase": 0
+            },
+            {
+                "name": "descriptor_engine.apb_ready",
+                "wave": "1..0........",
+                "data": [],
+                "phase": 0
+            },
+            {
+                "name": "descriptor_engine.apb_addr[63:0]",
+                "wave": "=.==........",
+                "data": [
+                    "0",
+                    "10100",
+                    "0"
+                ],
+                "phase": 0
+            },
+            [
+                "i-desc-ar",
+                {
+                    "name": "descriptor_engine.ar_valid",
+                    "wave": "0....10...1.",
+                    "data": [],
+                    "phase": 0
+                },
+                {
+                    "name": "descriptor_engine.ar_ready",
+                    "wave": "0....10.....",
+                    "data": [],
+                    "phase": 0
+                },
+                {
+                    "name": "descriptor_engine.ar_addr[63:0]",
+                    "wave": "=....=....=.",
+                    "data": [
+                        "0",
+                        "10100",
+                        "10200"
+                    ],
+                    "phase": 0
+                },
+                {
+                    "name": "descriptor_engine.ar_id[7:0]",
+                    "wave": "=...........",
+                    "data": [
+                        "0"
+                    ],
+                    "phase": 0
+                },
+                {
+                    "name": "descriptor_engine.ar_len[7:0]",
+                    "wave": "=...........",
+                    "data": [
+                        "0"
+                    ],
+                    "phase": 0
+                }
+            ],
+            [
+                "i-desc-r",
+                {
+                    "name": "descriptor_engine.r_valid",
+                    "wave": "0......10...",
+                    "data": [],
+                    "phase": 0
+                },
+                {
+                    "name": "descriptor_engine.r_ready",
+                    "wave": "0......10...",
+                    "data": [],
+                    "phase": 0
+                },
+                {
+                    "name": "descriptor_engine.r_data[255:0]",
+                    "wave": "=......==...",
+                    "data": [
+                        "0",
+                        "1000102000000004000000000900000000000000080000000",
+                        "0"
+                    ],
+                    "phase": 0
+                },
+                {
+                    "name": "descriptor_engine.r_last",
+                    "wave": "0......10...",
+                    "data": [],
+                    "phase": 0
+                }
+            ]
+        ],
+        [
+            "descriptor",
+            {
+                "name": "descriptor_engine.descriptor_valid",
+                "wave": "0........10.",
+                "data": [],
+                "phase": 0
+            },
+            {
+                "name": "descriptor_engine.descriptor_ready",
+                "wave": "1...........",
+                "data": [],
+                "phase": 0
+            },
+            {
+                "name": "descriptor_engine.descriptor_packet[255:0]",
+                "wave": "=........==.",
+                "data": [
+                    "0",
+                    "1000102000000004000000000900000000000000080000000",
+                    "0"
+                ],
+                "phase": 0
+            },
+            {
+                "name": "descriptor_engine.descriptor_error",
+                "wave": "0...........",
+                "data": [],
+                "phase": 0
+            },
+            {
+                "name": "descriptor_engine.descriptor_engine_idle",
+                "wave": "1..0........",
+                "data": [],
+                "phase": 0
+            }
+        ],
+        [
+            "internals",
+            {
+                "name": "descriptor_engine.channel_idle",
+                "wave": "1...........",
+                "data": [],
+                "phase": 0
+            },
+            {
+                "name": "descriptor_engine.r_current_state[2:0]",
+                "wave": "=....==.===.",
+                "data": [
+                    "0",
+                    "1",
+                    "2",
+                    "3",
+                    "0",
+                    "1"
+                ],
+                "phase": 0
+            },
+            {
+                "name": "descriptor_engine.w_addr_range_valid",
+                "wave": "1...........",
+                "data": [],
+                "phase": 0
+            },
+            {
+                "name": "descriptor_engine.w_next_addr[31:0]",
+                "wave": "=.......=...",
+                "data": [
+                    "0",
+                    "10200"
+                ],
+                "phase": 0
+            },
+            {
+                "name": "descriptor_engine.w_next_addr_valid",
+                "wave": "1...........",
+                "data": [],
+                "phase": 0
+            },
+            {
+                "name": "descriptor_engine.w_should_chain",
+                "wave": "0.......1...",
+                "data": [],
+                "phase": 0
+            }
+        ]
+    ],
+    "config": {
+        "hscale": 1
+    }
+}

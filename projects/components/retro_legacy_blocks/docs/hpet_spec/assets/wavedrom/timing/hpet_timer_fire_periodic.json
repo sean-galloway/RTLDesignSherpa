@@ -1,0 +1,99 @@
+{
+  "signal": [
+    {
+      "name": "hpet_clk",
+      "wave": "p............................",
+      "period": 0.5
+    },
+    {},
+    {
+      "name": "hpet_resetn",
+      "wave": "1............................"
+    },
+    {},
+    [
+      "Counter",
+      {
+        "name": "hpet_enable",
+        "wave": "1............................"
+      },
+      {
+        "name": "r_main_counter",
+        "wave": "23456789=2345678=............",
+        "data": ["0x0FD", "0x0FE", "0x0FF", "0x100", "0x101", "0x102", "...", "0x107", "0x108", "0x109", "0x10A", "0x10B", "0x10C", "..."]
+      }
+    ],
+    {},
+    [
+      "Timer0",
+      {
+        "name": "timer_enable[0]",
+        "wave": "1............................"
+      },
+      {
+        "name": "timer_type[0]",
+        "wave": "1............................",
+        "node": "a............................"
+      },
+      {
+        "name": "r_timer_comparator[0]",
+        "wave": "2....3.......4...............",
+        "data": ["0x100", "0x108", "0x110"],
+        "node": ".....b.......c..............."
+      },
+      {
+        "name": "r_timer_period[0]",
+        "wave": "2............................",
+        "data": ["0x008"]
+      },
+      {
+        "name": "w_timer_match[0]",
+        "wave": "0...10......10...............",
+        "node": "....d.......e................"
+      },
+      {
+        "name": "w_timer_fire[0]",
+        "wave": "0...10......10...............",
+        "node": "....f.......g................"
+      }
+    ],
+    {},
+    [
+      "Interrupt",
+      {
+        "name": "r_interrupt_status[0]",
+        "wave": "0....1....0..1...............",
+        "node": ".....h....i..j..............."
+      },
+      {
+        "name": "timer_int_clear[0]",
+        "wave": "0.......10......0............",
+        "node": "........k...................."
+      },
+      {
+        "name": "timer_irq[0]",
+        "wave": "0....1....0..1...............",
+        "node": ".....l....m..n..............."
+      }
+    ]
+  ],
+  "head": {
+    "text": "HPET Periodic Timer Fire",
+    "tick": 0,
+    "every": 2
+  },
+  "foot": {
+    "text": "Periodic timer: comparator advances by period after each fire"
+  },
+  "config": {
+    "hscale": 1.5
+  },
+  "edge": [
+    "a Periodic Mode",
+    "d~>f First Fire",
+    "f~>b Comparator+Period",
+    "e~>g Second Fire",
+    "g~>c Comparator+Period",
+    "k~>i Clear IRQ"
+  ]
+}

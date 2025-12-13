@@ -6,6 +6,48 @@ The APB Programmable Interval Timer (PIT 8254) is an Intel 8254-compatible timer
 
 ![APB PIT 8254 Block Diagram](../assets/diagrams/apb_pit_8254_blocks.png)
 
+#### Timing Diagrams
+
+##### Mode 0: Terminal Count
+
+In Mode 0, the counter counts down from the loaded value and asserts OUT when reaching zero.
+
+![PIT Mode 0 Terminal Count](../assets/wavedrom/timing/pit_mode0_terminal_count.svg)
+
+The counter loads with the programmed value and decrements on each clock. When terminal count (0) is reached, OUT goes high and remains high until a new count is loaded.
+
+##### Mode 2: Rate Generator
+
+Mode 2 produces a divide-by-N clock output.
+
+![PIT Mode 2 Rate Generator](../assets/wavedrom/timing/pit_mode2_rate_generator.svg)
+
+OUT is normally high, going low for one clock when the counter reaches 1. The counter auto-reloads, creating a periodic pulse train.
+
+##### Mode 3: Square Wave Generator
+
+Mode 3 produces a 50% duty cycle square wave.
+
+![PIT Mode 3 Square Wave](../assets/wavedrom/timing/pit_mode3_square_wave.svg)
+
+OUT toggles every N/2 clocks, producing a symmetric square wave output.
+
+##### Gate Control
+
+The GATE input controls counter operation.
+
+![PIT Gate Control](../assets/wavedrom/timing/pit_gate_control.svg)
+
+When GATE goes low, counting suspends. When GATE returns high, counting resumes from the current value (not reloaded).
+
+##### Readback Command
+
+The readback command latches counter value and status while the counter continues running.
+
+![PIT Readback](../assets/wavedrom/timing/pit_readback.svg)
+
+This allows software to read a consistent counter value without stopping the timer.
+
 #### Key Features
 
 - **Three Independent Counters**: Three fully independent 16-bit down-counters

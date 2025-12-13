@@ -1,0 +1,95 @@
+{
+  "signal": [
+    {
+      "name": "clk",
+      "wave": "p............................",
+      "period": 1.0
+    },
+    {},
+    {
+      "name": "rst_n",
+      "wave": "1............................"
+    },
+    {},
+    [
+      "IRQ Input",
+      {
+        "name": "irq_in[2]",
+        "wave": "0.....1......................",
+        "node": "......a......................"
+      }
+    ],
+    {},
+    [
+      "RTE Mask",
+      {
+        "name": "rte[2].mask",
+        "wave": "1............................",
+        "node": "b............................"
+      }
+    ],
+    {},
+    [
+      "IRQ State",
+      {
+        "name": "irr[2]",
+        "wave": "0.......1....................",
+        "node": "........c...................."
+      },
+      {
+        "name": "delivery_blocked",
+        "wave": "0.......1....................",
+        "node": "........d...................."
+      }
+    ],
+    {},
+    [
+      "Unmask Sequence",
+      {
+        "name": "rte[2].mask",
+        "wave": "1...............0............",
+        "node": "................e............"
+      },
+      {
+        "name": "pending_check",
+        "wave": "0...............1.0..........",
+        "node": "................f.g.........."
+      },
+      {
+        "name": "delivery_pending",
+        "wave": "0................1...........",
+        "node": ".................h..........."
+      }
+    ],
+    {},
+    [
+      "Message",
+      {
+        "name": "msg_valid",
+        "wave": "0.................1.0........",
+        "node": "..................i.j........"
+      }
+    ]
+  ],
+  "head": {
+    "text": "IOAPIC Interrupt Masking",
+    "tick": 0,
+    "every": 2
+  },
+  "foot": {
+    "text": "Masked interrupt latches in IRR; delivered when unmasked"
+  },
+  "config": {
+    "hscale": 1.5
+  },
+  "edge": [
+    "a IRQ Edge",
+    "b Masked",
+    "a~>c IRR Latched",
+    "d Delivery Blocked",
+    "e Unmask Write",
+    "e~>f Check Pending",
+    "f~>h Start Delivery",
+    "h~>i Send Message"
+  ]
+}

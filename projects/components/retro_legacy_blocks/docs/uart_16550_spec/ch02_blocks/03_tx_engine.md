@@ -89,6 +89,41 @@ TXD  |0| D0 D1 D2 D3 D4 [D5 D6 D7] [P] |1|1|
 
 ## Timing
 
+### TX Byte Transmission
+
+The following diagram shows the complete TX path from APB write to serial output.
+
+![UART TX Byte](../assets/wavedrom/timing/uart_tx_byte.svg)
+
+The transmission sequence:
+1. APB write to THR (Transmit Holding Register)
+2. Data pushed to TX FIFO (`tx_fifo_wr`)
+3. When shift register ready, data loaded from FIFO (`tx_fifo_rd`, `tx_shift_load`)
+4. Baud tick shifts out bits: Start (0), Data (LSB first), Stop (1)
+5. TXD changes at each baud tick
+
+### Baud Rate Generation
+
+The baud generator divides the system clock to produce bit timing.
+
+![UART Baud Generator](../assets/wavedrom/timing/uart_baud_generator.svg)
+
+Key timing relationships:
+- `cfg_divisor` sets the baud rate (clock_freq / (16 * baud_rate))
+- `baud_tick` pulses once per bit period for TX
+- 16x oversampling counter provides mid-bit sampling for RX
+
+### Loopback Mode
+
+MCR[4] enables internal loopback for diagnostics.
+
+![UART Loopback](../assets/wavedrom/timing/uart_loopback.svg)
+
+In loopback mode:
+- TX shift register output routes to RX input
+- External TXD held high (idle)
+- Allows self-test without external connection
+
 ### Bit Timing
 
 Each bit takes 16 clocks of 16x baud clock:

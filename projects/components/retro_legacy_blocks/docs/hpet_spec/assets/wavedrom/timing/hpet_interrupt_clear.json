@@ -1,0 +1,89 @@
+{
+  "signal": [
+    {
+      "name": "pclk",
+      "wave": "p......................",
+      "period": 1.0
+    },
+    {
+      "name": "hpet_clk",
+      "wave": "p......................",
+      "period": 0.5
+    },
+    {},
+    {
+      "name": "presetn",
+      "wave": "1......................"
+    },
+    {},
+    [
+      "APB W1C Write",
+      {
+        "name": "s_apb_PSEL",
+        "wave": "0.......1......0.......",
+        "node": "........a......b......."
+      },
+      {
+        "name": "s_apb_PENABLE",
+        "wave": "0........1.....0.......",
+        "node": ".........c............."
+      },
+      {
+        "name": "s_apb_PREADY",
+        "wave": "0...........1..0.......",
+        "node": "............d.........."
+      },
+      {
+        "name": "s_apb_PWRITE",
+        "wave": "0.......1......0......."
+      },
+      {
+        "name": "s_apb_PADDR",
+        "wave": "x.......2......x.......",
+        "data": ["0x008"]
+      },
+      {
+        "name": "s_apb_PWDATA",
+        "wave": "x.......2......x.......",
+        "data": ["0x0001"]
+      }
+    ],
+    {},
+    [
+      "Timer0 Interrupt",
+      {
+        "name": "r_interrupt_status[0]",
+        "wave": "1..............0.......",
+        "node": "...............e......."
+      },
+      {
+        "name": "timer_int_clear[0]",
+        "wave": "0............1.0.......",
+        "node": ".............f........."
+      },
+      {
+        "name": "timer_irq[0]",
+        "wave": "1..............0.......",
+        "node": "...............g......."
+      }
+    ]
+  ],
+  "head": {
+    "text": "HPET Interrupt Clear (W1C)",
+    "tick": 0,
+    "every": 2
+  },
+  "foot": {
+    "text": "Write-1-to-Clear: APB write to STATUS with bit[0]=1 clears Timer0 interrupt"
+  },
+  "config": {
+    "hscale": 1.5
+  },
+  "edge": [
+    "a~>c Setup Phase",
+    "c~>d Access Phase",
+    "d~>f Clear Pulse",
+    "f~>e Status Clear",
+    "f~>g IRQ Deassert"
+  ]
+}

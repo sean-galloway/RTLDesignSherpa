@@ -1,0 +1,108 @@
+{
+  "signal": [
+    {
+      "name": "clk",
+      "wave": "p............................",
+      "period": 1.0
+    },
+    {},
+    {
+      "name": "rst_n",
+      "wave": "1............................"
+    },
+    {},
+    [
+      "Readback Cmd",
+      {
+        "name": "s_apb_PSEL",
+        "wave": "0.1......0...................",
+        "node": "..a......b..................."
+      },
+      {
+        "name": "s_apb_PADDR",
+        "wave": "x.2......x...................",
+        "data": ["CTRL"]
+      },
+      {
+        "name": "s_apb_PWDATA",
+        "wave": "x.2......x...................",
+        "data": ["0xC2"],
+        "node": "..c.........................."
+      }
+    ],
+    {},
+    [
+      "Counter Running",
+      {
+        "name": "r_counter0",
+        "wave": "=.=.=.=.=.=.=.=.=.=.=.=.=....",
+        "data": ["45", "44", "43", "42", "41", "40", "39", "38", "37", "36", "35", "34", "33"]
+      }
+    ],
+    {},
+    [
+      "Latch",
+      {
+        "name": "count_latched",
+        "wave": "0......1.....................",
+        "node": ".......d....................."
+      },
+      {
+        "name": "r_latch_value",
+        "wave": "x......=.....................",
+        "data": ["0x2A"],
+        "node": ".......e....................."
+      },
+      {
+        "name": "status_latched",
+        "wave": "0......1.....................",
+        "node": ".......f....................."
+      },
+      {
+        "name": "r_status_latch",
+        "wave": "x......=.....................",
+        "data": ["0x30"],
+        "node": ".......g....................."
+      }
+    ],
+    {},
+    [
+      "APB Read",
+      {
+        "name": "s_apb_PSEL",
+        "wave": "0.........1......0...........",
+        "node": "..........h......i..........."
+      },
+      {
+        "name": "s_apb_PADDR",
+        "wave": "x.........2......x...........",
+        "data": ["CNT0"]
+      },
+      {
+        "name": "s_apb_PRDATA",
+        "wave": "x............2...x...........",
+        "data": ["0x2A"],
+        "node": ".............j..............."
+      }
+    ]
+  ],
+  "head": {
+    "text": "PIT Readback Command",
+    "tick": 0,
+    "every": 2
+  },
+  "foot": {
+    "text": "Readback latches count/status while counter continues running"
+  },
+  "config": {
+    "hscale": 1.5
+  },
+  "edge": [
+    "a~>b Readback Write",
+    "c 0xC2: Latch CNT0",
+    "b~>d Latch Triggered",
+    "e Count=42 (0x2A)",
+    "g Status Latched",
+    "h~>j Read Latched Value"
+  ]
+}
