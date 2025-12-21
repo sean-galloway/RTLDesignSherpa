@@ -600,6 +600,123 @@ PROTOCOL_SIGNAL_CONFIGS = {
     },
 
     # ===========================================================================
+    # AXI5 PROTOCOL CONFIGURATIONS
+    # ===========================================================================
+    # AXI5 uses the same base signal names as AXI4 (arvalid, arready, etc.)
+    # The difference is in additional signals (NSAID, TRACE, MPAM, MECID, ATOP, etc.)
+    # which are handled via field_config, not in the base pattern matching.
+
+    'axi5_ar_master': {
+        'signal_map': {
+            'o_valid':    AXI4_BASE_PATTERNS['ar_valid_base'],  # Master drives arvalid
+            'i_ready':    AXI4_BASE_PATTERNS['ar_ready_base']   # Master reads arready
+        },
+        'optional_signal_map': {
+            'multi_sig_false': AXI4_BASE_PATTERNS['ar_pkt_base'],  # Packed AR packet for stubs
+            'multi_sig_true':  AXI4_BASE_PATTERNS['ar_field_base']
+        }
+    },
+
+    'axi5_ar_slave': {
+        'signal_map': {
+            'i_valid':    AXI4_BASE_PATTERNS['ar_valid_base'],  # Slave reads arvalid
+            'o_ready':    AXI4_BASE_PATTERNS['ar_ready_base']   # Slave drives arready
+        },
+        'optional_signal_map': {
+            'multi_sig_false': AXI4_BASE_PATTERNS['ar_pkt_base'],  # Packed AR packet for stubs
+            'multi_sig_true':  AXI4_BASE_PATTERNS['ar_field_base']
+        }
+    },
+
+    'axi5_r_master': {
+        'signal_map': {
+            'o_valid':    AXI4_BASE_PATTERNS['r_valid_base'],  # Master drives rvalid
+            'i_ready':    AXI4_BASE_PATTERNS['r_ready_base']   # Master reads rready
+        },
+        'optional_signal_map': {
+            'multi_sig_false': AXI4_BASE_PATTERNS['r_pkt_base'],  # Packed R packet for stubs
+            'multi_sig_true':  AXI4_BASE_PATTERNS['r_field_base']
+        }
+    },
+
+    'axi5_r_slave': {
+        'signal_map': {
+            'i_valid':    AXI4_BASE_PATTERNS['r_valid_base'],  # Slave reads rvalid
+            'o_ready':    AXI4_BASE_PATTERNS['r_ready_base']   # Slave drives rready
+        },
+        'optional_signal_map': {
+            'multi_sig_false': AXI4_BASE_PATTERNS['r_pkt_base'],  # Packed R packet for stubs
+            'multi_sig_true':  AXI4_BASE_PATTERNS['r_field_base']
+        }
+    },
+
+    'axi5_aw_master': {
+        'signal_map': {
+            'o_valid':    AXI4_BASE_PATTERNS['aw_valid_base'],  # Master drives awvalid
+            'i_ready':    AXI4_BASE_PATTERNS['aw_ready_base']   # Master reads awready
+        },
+        'optional_signal_map': {
+            'multi_sig_false': AXI4_BASE_PATTERNS['aw_pkt_base'],  # Packed AW packet for stubs
+            'multi_sig_true':  AXI4_BASE_PATTERNS['aw_field_base']
+        }
+    },
+
+    'axi5_aw_slave': {
+        'signal_map': {
+            'i_valid':    AXI4_BASE_PATTERNS['aw_valid_base'],  # Slave reads awvalid
+            'o_ready':    AXI4_BASE_PATTERNS['aw_ready_base']   # Slave drives awready
+        },
+        'optional_signal_map': {
+            'multi_sig_false': AXI4_BASE_PATTERNS['aw_pkt_base'],  # Packed AW packet for stubs
+            'multi_sig_true':  AXI4_BASE_PATTERNS['aw_field_base']
+        }
+    },
+
+    'axi5_w_master': {
+        'signal_map': {
+            'o_valid':    AXI4_BASE_PATTERNS['w_valid_base'],  # Master drives wvalid
+            'i_ready':    AXI4_BASE_PATTERNS['w_ready_base']   # Master reads wready
+        },
+        'optional_signal_map': {
+            'multi_sig_false': AXI4_BASE_PATTERNS['w_pkt_base'],  # Packed W packet for stubs
+            'multi_sig_true':  AXI4_BASE_PATTERNS['w_field_base']
+        }
+    },
+
+    'axi5_w_slave': {
+        'signal_map': {
+            'i_valid':    AXI4_BASE_PATTERNS['w_valid_base'],  # Slave reads wvalid
+            'o_ready':    AXI4_BASE_PATTERNS['w_ready_base']   # Slave drives wready
+        },
+        'optional_signal_map': {
+            'multi_sig_false': AXI4_BASE_PATTERNS['w_pkt_base'],  # Packed W packet for stubs
+            'multi_sig_true':  AXI4_BASE_PATTERNS['w_field_base']
+        }
+    },
+
+    'axi5_b_master': {
+        'signal_map': {
+            'o_valid':    AXI4_BASE_PATTERNS['b_valid_base'],  # Master drives bvalid
+            'i_ready':    AXI4_BASE_PATTERNS['b_ready_base']   # Master reads bready
+        },
+        'optional_signal_map': {
+            'multi_sig_false': AXI4_BASE_PATTERNS['b_pkt_base'],  # Packed B packet for stubs
+            'multi_sig_true':  AXI4_BASE_PATTERNS['b_field_base']
+        }
+    },
+
+    'axi5_b_slave': {
+        'signal_map': {
+            'i_valid':    AXI4_BASE_PATTERNS['b_valid_base'],  # Slave reads bvalid
+            'o_ready':    AXI4_BASE_PATTERNS['b_ready_base']   # Slave drives bready
+        },
+        'optional_signal_map': {
+            'multi_sig_false': AXI4_BASE_PATTERNS['b_pkt_base'],  # Packed B packet for stubs
+            'multi_sig_true':  AXI4_BASE_PATTERNS['b_field_base']
+        }
+    },
+
+    # ===========================================================================
     # AXIS PROTOCOL CONFIGURATIONS
     # ===========================================================================
 
@@ -1235,8 +1352,13 @@ class SignalResolver:
                                            'axi4_aw_master', 'axi4_aw_slave',
                                            'axi4_r_master', 'axi4_r_slave',
                                            'axi4_w_master', 'axi4_w_slave',
-                                           'axi4_b_master', 'axi4_b_slave']:
-                    # AXI4 channel protocols use packed signals in stub mode
+                                           'axi4_b_master', 'axi4_b_slave',
+                                           'axi5_ar_master', 'axi5_ar_slave',
+                                           'axi5_aw_master', 'axi5_aw_slave',
+                                           'axi5_r_master', 'axi5_r_slave',
+                                           'axi5_w_master', 'axi5_w_slave',
+                                           'axi5_b_master', 'axi5_b_slave']:
+                    # AXI4/AXI5 channel protocols use packed signals in stub mode
                     # Each channel has its own packet signal: ar_pkt, r_pkt, aw_pkt, w_pkt, b_pkt
                     signal_obj = self._find_signal_match('data_sig', patterns, required=False)
                     self.resolved_signals['data_sig'] = signal_obj

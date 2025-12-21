@@ -74,6 +74,8 @@ help:
 	@echo "  make run-axi4-parallel    Run AXI4 tests in parallel"
 	@echo "  make run-axil4            Run all AXI4-Lite protocol tests"
 	@echo "  make run-axil4-parallel   Run AXI4-Lite tests in parallel"
+	@echo "  make run-axi5             Run all AXI5 protocol tests"
+	@echo "  make run-axi5-parallel    Run AXI5 tests in parallel"
 	@echo "  make run-axis             Run all AXI-Stream protocol tests"
 	@echo "  make run-axis-parallel    Run AXI-Stream tests in parallel"
 	@echo "  make run-all              Run all AMBA tests"
@@ -179,10 +181,59 @@ help:
 	@echo "  make run-axil4-slave      Run AXI4-Lite slave tests (rd + wr)"
 	@echo "  make run-axil4-slave-parallel  Run AXI4-Lite slave tests in parallel"
 	@echo ""
+	@echo "  AXI5 Core Tests (rd+wr):"
+	@echo "  make run-axi5-master-gate       GATE: 4 tests (~4 min)"
+	@echo "  make run-axi5-master-func       FUNC: 16 tests (~30 min)"
+	@echo "  make run-axi5-master-full       FULL: 96 tests (~3 hr)"
+	@echo "  make run-axi5-slave-gate        GATE: 4 tests (~4 min)"
+	@echo "  make run-axi5-slave-func        FUNC: 16 tests (~30 min)"
+	@echo "  make run-axi5-slave-full        FULL: 96 tests (~3 hr)"
+	@echo ""
+	@echo "  ALL AXI5 Tests (core+monitors+CG):"
+	@echo "  make run-axi5-all-gate          GATE: ~20 tests (~15 min)"
+	@echo "  make run-axi5-all-func          FUNC: ~68 tests (~2 hr)"
+	@echo "  make run-axi5-all-full          FULL: ~300 tests (~10 hr)"
+	@echo "  make run-axi5-all-gate-parallel     GATE parallel (~8 min)"
+	@echo "  make run-axi5-all-func-parallel     FUNC parallel (~45 min)"
+	@echo "  make run-axi5-all-full-parallel     FULL parallel (~4 hr)"
+	@echo ""
+	@echo "  AXI5 Monitor Master Tests (rd+wr, base+CG):"
+	@echo "  make run-axi5-mon-master-gate       GATE: 4 tests (~5 min)"
+	@echo "  make run-axi5-mon-master-func       FUNC: 12 tests (~45 min)"
+	@echo "  make run-axi5-mon-master-full       FULL: 36 tests (~4 hr)"
+	@echo "  make run-axi5-mon-master-gate-parallel  GATE parallel (~2 min)"
+	@echo "  make run-axi5-mon-master-func-parallel  FUNC parallel (~18 min)"
+	@echo "  make run-axi5-mon-master-full-parallel  FULL parallel (~1.5 hr)"
+	@echo ""
+	@echo "  AXI5 Monitor Slave Tests (rd+wr, base+CG):"
+	@echo "  make run-axi5-mon-slave-gate        GATE: 4 tests (~5 min)"
+	@echo "  make run-axi5-mon-slave-func        FUNC: 12 tests (~45 min)"
+	@echo "  make run-axi5-mon-slave-full        FULL: 36 tests (~4 hr)"
+	@echo "  make run-axi5-mon-slave-gate-parallel   GATE parallel (~2 min)"
+	@echo "  make run-axi5-mon-slave-func-parallel   FUNC parallel (~18 min)"
+	@echo "  make run-axi5-mon-slave-full-parallel   FULL parallel (~1.5 hr)"
+	@echo ""
+	@echo "  ALL AXI5 Monitor Tests (master+slave, all 8 files):"
+	@echo "  make run-axi5-mon-all-gate          GATE: 8 tests (~10 min)"
+	@echo "  make run-axi5-mon-all-func          FUNC: 24 tests (~90 min)"
+	@echo "  make run-axi5-mon-all-full          FULL: 72 tests (~8 hr)"
+	@echo "  make run-axi5-mon-all-gate-parallel     GATE parallel (~4 min)"
+	@echo "  make run-axi5-mon-all-func-parallel     FUNC parallel (~35 min)"
+	@echo "  make run-axi5-mon-all-full-parallel     FULL parallel (~3 hr)"
+	@echo ""
+	@echo "  AXI5 Clock-Gated Tests (rd+wr, master+slave, no monitors):"
+	@echo "  make run-axi5-cg-gate               GATE: 4 tests (~5 min)"
+	@echo "  make run-axi5-cg-func               FUNC: 12 tests (~45 min)"
+	@echo "  make run-axi5-cg-full               FULL: 36 tests (~4 hr)"
+	@echo "  make run-axi5-cg-gate-parallel      GATE parallel (~2 min)"
+	@echo "  make run-axi5-cg-func-parallel      FUNC parallel (~18 min)"
+	@echo "  make run-axi5-cg-full-parallel      FULL parallel (~1.5 hr)"
+	@echo ""
 	@echo "COLLECTION TARGETS (verify tests, don't run):"
 	@echo "  make collect-apb          Collect APB tests"
 	@echo "  make collect-axi4         Collect AXI4 tests"
 	@echo "  make collect-axil4        Collect AXI4-Lite tests"
+	@echo "  make collect-axi5         Collect AXI5 tests"
 	@echo "  make collect-all          Collect all tests"
 	@echo ""
 	@echo "CLEAN TARGETS:"
@@ -1007,6 +1058,11 @@ collect-axis:
 	@echo "Collecting AMBA AXI-Stream tests..."
 	$(PYTEST) --collect-only test_axis_*.py
 
+.PHONY: collect-axi5
+collect-axi5:
+	@echo "Collecting AMBA AXI5 tests..."
+	$(PYTEST) --collect-only test_axi5_*.py
+
 .PHONY: collect-all
 collect-all:
 	@echo "Collecting ALL AMBA tests..."
@@ -1076,6 +1132,11 @@ list-axis:
 	@echo "AMBA AXI-Stream Test Modules:"
 	@ls test_axis_*.py 2>/dev/null | sort
 
+.PHONY: list-axi5
+list-axi5:
+	@echo "AMBA AXI5 Test Modules:"
+	@ls test_axi5_*.py 2>/dev/null | sort
+
 .PHONY: list-all
 list-all:
 	@echo "All AMBA Test Modules:"
@@ -1098,6 +1159,8 @@ status:
 	@ls test_axil4_*.py 2>/dev/null | wc -l
 	@echo -n "  AXI-Stream:  "
 	@ls test_axis_*.py 2>/dev/null | wc -l
+	@echo -n "  AXI5:        "
+	@ls test_axi5_*.py 2>/dev/null | wc -l
 	@echo -n "  Arbiters:    "
 	@ls test_arbiter_*.py 2>/dev/null | wc -l
 	@echo -n "  GAXI:        "
@@ -1117,6 +1180,457 @@ status:
 	@echo "  REPO_ROOT: $(REPO_ROOT)"
 	@echo "  Virtual env: $(REPO_ROOT)/env_python"
 	@echo "================================================================================"
+
+# =============================================================================
+# AXI5 Tests (Master + Slave, Read + Write)
+# =============================================================================
+# Test counts:
+#   Master (rd+wr): GATE=4, FUNC=16, FULL=96
+#   Slave (rd+wr):  GATE=4, FUNC=16, FULL=96
+#   ALL AXI5:       GATE=8, FUNC=32, FULL=192
+
+.PHONY: run-axi5
+run-axi5:
+	@echo "================================================================================"
+	@echo "Running AMBA AXI5 Protocol Tests"
+	@echo "================================================================================"
+	$(PYTEST) $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE) test_axi5_*.py
+
+.PHONY: run-axi5-parallel
+run-axi5-parallel:
+	@echo "================================================================================"
+	@echo "Running AMBA AXI5 Protocol Tests (Parallel)"
+	@echo "================================================================================"
+	$(PYTEST) $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE) $(PYTEST_XDIST) $(PYTEST_RERUNS) test_axi5_*.py
+
+# AXI5 Master Tests (Read + Write)
+.PHONY: run-axi5-master
+run-axi5-master:
+	@echo "Running AXI5 master tests (read + write)..."
+	$(PYTEST) $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE) test_axi5_master_*.py
+
+.PHONY: run-axi5-master-parallel
+run-axi5-master-parallel:
+	@echo "Running AXI5 master tests (Parallel)..."
+	$(PYTEST) $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE) $(PYTEST_XDIST) test_axi5_master_*.py
+
+.PHONY: run-axi5-master-gate
+run-axi5-master-gate:
+	@echo "================================================================================"
+	@echo "Running AXI5 Master Tests at GATE level (smoke test)"
+	@echo "Tests: test_axi5_master_rd, test_axi5_master_wr"
+	@echo "Expected: 4 tests (~4 min)"
+	@echo "================================================================================"
+	REG_LEVEL=GATE $(PYTEST) $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE) test_axi5_master_rd.py test_axi5_master_wr.py
+
+.PHONY: run-axi5-master-func
+run-axi5-master-func:
+	@echo "================================================================================"
+	@echo "Running AXI5 Master Tests at FUNC level (functional coverage)"
+	@echo "Tests: test_axi5_master_rd, test_axi5_master_wr"
+	@echo "Expected: 16 tests (~30 min)"
+	@echo "================================================================================"
+	REG_LEVEL=FUNC $(PYTEST) $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE) test_axi5_master_rd.py test_axi5_master_wr.py
+
+.PHONY: run-axi5-master-full
+run-axi5-master-full:
+	@echo "================================================================================"
+	@echo "Running AXI5 Master Tests at FULL level (comprehensive validation)"
+	@echo "Tests: test_axi5_master_rd, test_axi5_master_wr"
+	@echo "Expected: 96 tests (~3 hours)"
+	@echo "================================================================================"
+	REG_LEVEL=FULL $(PYTEST) $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE) test_axi5_master_rd.py test_axi5_master_wr.py
+
+.PHONY: run-axi5-master-gate-parallel
+run-axi5-master-gate-parallel:
+	@echo "================================================================================"
+	@echo "Running AXI5 Master Tests at GATE level (parallel)"
+	@echo "Tests: test_axi5_master_rd, test_axi5_master_wr"
+	@echo "Expected: 4 tests (~2 min with parallel execution)"
+	@echo "================================================================================"
+	REG_LEVEL=GATE $(PYTEST) $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE) $(PYTEST_XDIST) test_axi5_master_rd.py test_axi5_master_wr.py
+
+.PHONY: run-axi5-master-func-parallel
+run-axi5-master-func-parallel:
+	@echo "================================================================================"
+	@echo "Running AXI5 Master Tests at FUNC level (parallel)"
+	@echo "Tests: test_axi5_master_rd, test_axi5_master_wr"
+	@echo "Expected: 16 tests (~12 min with parallel execution)"
+	@echo "================================================================================"
+	REG_LEVEL=FUNC $(PYTEST) $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE) $(PYTEST_XDIST) test_axi5_master_rd.py test_axi5_master_wr.py
+
+.PHONY: run-axi5-master-full-parallel
+run-axi5-master-full-parallel:
+	@echo "================================================================================"
+	@echo "Running AXI5 Master Tests at FULL level (parallel)"
+	@echo "Tests: test_axi5_master_rd, test_axi5_master_wr"
+	@echo "Expected: 96 tests (~1 hour with parallel execution)"
+	@echo "================================================================================"
+	REG_LEVEL=FULL $(PYTEST) $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE) $(PYTEST_XDIST) test_axi5_master_rd.py test_axi5_master_wr.py
+
+# AXI5 Slave Tests (Read + Write)
+.PHONY: run-axi5-slave
+run-axi5-slave:
+	@echo "Running AXI5 slave tests (read + write)..."
+	$(PYTEST) $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE) test_axi5_slave_*.py
+
+.PHONY: run-axi5-slave-parallel
+run-axi5-slave-parallel:
+	@echo "Running AXI5 slave tests (Parallel)..."
+	$(PYTEST) $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE) $(PYTEST_XDIST) test_axi5_slave_*.py
+
+.PHONY: run-axi5-slave-gate
+run-axi5-slave-gate:
+	@echo "================================================================================"
+	@echo "Running AXI5 Slave Tests at GATE level (smoke test)"
+	@echo "Tests: test_axi5_slave_rd, test_axi5_slave_wr"
+	@echo "Expected: 4 tests (~4 min)"
+	@echo "================================================================================"
+	REG_LEVEL=GATE $(PYTEST) $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE) test_axi5_slave_rd.py test_axi5_slave_wr.py
+
+.PHONY: run-axi5-slave-func
+run-axi5-slave-func:
+	@echo "================================================================================"
+	@echo "Running AXI5 Slave Tests at FUNC level (functional coverage)"
+	@echo "Tests: test_axi5_slave_rd, test_axi5_slave_wr"
+	@echo "Expected: 16 tests (~30 min)"
+	@echo "================================================================================"
+	REG_LEVEL=FUNC $(PYTEST) $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE) test_axi5_slave_rd.py test_axi5_slave_wr.py
+
+.PHONY: run-axi5-slave-full
+run-axi5-slave-full:
+	@echo "================================================================================"
+	@echo "Running AXI5 Slave Tests at FULL level (comprehensive validation)"
+	@echo "Tests: test_axi5_slave_rd, test_axi5_slave_wr"
+	@echo "Expected: 96 tests (~3 hours)"
+	@echo "================================================================================"
+	REG_LEVEL=FULL $(PYTEST) $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE) test_axi5_slave_rd.py test_axi5_slave_wr.py
+
+.PHONY: run-axi5-slave-gate-parallel
+run-axi5-slave-gate-parallel:
+	@echo "================================================================================"
+	@echo "Running AXI5 Slave Tests at GATE level (parallel)"
+	@echo "Tests: test_axi5_slave_rd, test_axi5_slave_wr"
+	@echo "Expected: 4 tests (~2 min with parallel execution)"
+	@echo "================================================================================"
+	REG_LEVEL=GATE $(PYTEST) $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE) $(PYTEST_XDIST) test_axi5_slave_rd.py test_axi5_slave_wr.py
+
+.PHONY: run-axi5-slave-func-parallel
+run-axi5-slave-func-parallel:
+	@echo "================================================================================"
+	@echo "Running AXI5 Slave Tests at FUNC level (parallel)"
+	@echo "Tests: test_axi5_slave_rd, test_axi5_slave_wr"
+	@echo "Expected: 16 tests (~12 min with parallel execution)"
+	@echo "================================================================================"
+	REG_LEVEL=FUNC $(PYTEST) $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE) $(PYTEST_XDIST) test_axi5_slave_rd.py test_axi5_slave_wr.py
+
+.PHONY: run-axi5-slave-full-parallel
+run-axi5-slave-full-parallel:
+	@echo "================================================================================"
+	@echo "Running AXI5 Slave Tests at FULL level (parallel)"
+	@echo "Tests: test_axi5_slave_rd, test_axi5_slave_wr"
+	@echo "Expected: 96 tests (~1 hour with parallel execution)"
+	@echo "================================================================================"
+	REG_LEVEL=FULL $(PYTEST) $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE) $(PYTEST_XDIST) test_axi5_slave_rd.py test_axi5_slave_wr.py
+
+# ALL AXI5 Tests (Master + Slave, Read + Write)
+.PHONY: run-axi5-all-gate
+run-axi5-all-gate:
+	@echo "================================================================================"
+	@echo "Running ALL AXI5 Tests at GATE level (smoke test)"
+	@echo "Tests: master (rd+wr) + slave (rd+wr) + monitors + CG"
+	@echo "Expected: ~20 tests (~15 min)"
+	@echo "================================================================================"
+	REG_LEVEL=GATE $(PYTEST) $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE) test_axi5_*.py
+
+.PHONY: run-axi5-all-func
+run-axi5-all-func:
+	@echo "================================================================================"
+	@echo "Running ALL AXI5 Tests at FUNC level (functional coverage)"
+	@echo "Tests: master (rd+wr) + slave (rd+wr) + monitors + CG"
+	@echo "Expected: ~68 tests (~2 hr)"
+	@echo "================================================================================"
+	REG_LEVEL=FUNC $(PYTEST) $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE) test_axi5_*.py
+
+.PHONY: run-axi5-all-full
+run-axi5-all-full:
+	@echo "================================================================================"
+	@echo "Running ALL AXI5 Tests at FULL level (comprehensive validation)"
+	@echo "Tests: master (rd+wr) + slave (rd+wr) + monitors + CG"
+	@echo "Expected: ~300 tests (~10 hours)"
+	@echo "================================================================================"
+	REG_LEVEL=FULL $(PYTEST) $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE) test_axi5_*.py
+
+.PHONY: run-axi5-all-gate-parallel
+run-axi5-all-gate-parallel:
+	@echo "================================================================================"
+	@echo "Running ALL AXI5 Tests at GATE level (parallel)"
+	@echo "Tests: master (rd+wr) + slave (rd+wr) + monitors + CG"
+	@echo "Expected: ~20 tests (~8 min with parallel execution)"
+	@echo "================================================================================"
+	REG_LEVEL=GATE $(PYTEST) $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE) $(PYTEST_XDIST) test_axi5_*.py
+
+.PHONY: run-axi5-all-func-parallel
+run-axi5-all-func-parallel:
+	@echo "================================================================================"
+	@echo "Running ALL AXI5 Tests at FUNC level (parallel)"
+	@echo "Tests: master (rd+wr) + slave (rd+wr) + monitors + CG"
+	@echo "Expected: ~68 tests (~45 min with parallel execution)"
+	@echo "================================================================================"
+	REG_LEVEL=FUNC $(PYTEST) $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE) $(PYTEST_XDIST) test_axi5_*.py
+
+.PHONY: run-axi5-all-full-parallel
+run-axi5-all-full-parallel:
+	@echo "================================================================================"
+	@echo "Running ALL AXI5 Tests at FULL level (parallel)"
+	@echo "Tests: master (rd+wr) + slave (rd+wr) + monitors + CG"
+	@echo "Expected: ~300 tests (~4 hours with parallel execution)"
+	@echo "================================================================================"
+	REG_LEVEL=FULL $(PYTEST) $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE) $(PYTEST_XDIST) test_axi5_*.py
+
+# Individual AXI5 test targets
+.PHONY: run-axi5-master-rd
+run-axi5-master-rd:
+	@echo "Running AXI5 master read tests..."
+	$(PYTEST) $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE) test_axi5_master_rd.py
+
+.PHONY: run-axi5-master-wr
+run-axi5-master-wr:
+	@echo "Running AXI5 master write tests..."
+	$(PYTEST) $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE) test_axi5_master_wr.py
+
+.PHONY: run-axi5-slave-rd
+run-axi5-slave-rd:
+	@echo "Running AXI5 slave read tests..."
+	$(PYTEST) $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE) test_axi5_slave_rd.py
+
+.PHONY: run-axi5-slave-wr
+run-axi5-slave-wr:
+	@echo "Running AXI5 slave write tests..."
+	$(PYTEST) $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE) test_axi5_slave_wr.py
+
+# =============================================================================
+# AXI5 Monitor Tests (Master + Slave, Read + Write, base + CG versions)
+# =============================================================================
+# Test counts (8 monitor test files):
+#   Master (rd_mon+wr_mon+rd_mon_cg+wr_mon_cg): GATE=4, FUNC=12, FULL=36
+#   Slave (rd_mon+wr_mon+rd_mon_cg+wr_mon_cg):  GATE=4, FUNC=12, FULL=36
+#   ALL Monitors:                               GATE=8, FUNC=24, FULL=72
+
+# AXI5 Monitor Master Tests (Read + Write, base + CG)
+.PHONY: run-axi5-mon-master-gate
+run-axi5-mon-master-gate:
+	@echo "================================================================================"
+	@echo "Running AXI5 Master Monitor Tests at GATE level (smoke test)"
+	@echo "Tests: test_axi5_master_rd_mon, test_axi5_master_rd_mon_cg, test_axi5_master_wr_mon, test_axi5_master_wr_mon_cg"
+	@echo "Expected: 4 tests (~5 min)"
+	@echo "================================================================================"
+	REG_LEVEL=GATE $(PYTEST) $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE) test_axi5_master_rd_mon.py test_axi5_master_rd_mon_cg.py test_axi5_master_wr_mon.py test_axi5_master_wr_mon_cg.py
+
+.PHONY: run-axi5-mon-master-func
+run-axi5-mon-master-func:
+	@echo "================================================================================"
+	@echo "Running AXI5 Master Monitor Tests at FUNC level (functional coverage)"
+	@echo "Tests: test_axi5_master_rd_mon, test_axi5_master_rd_mon_cg, test_axi5_master_wr_mon, test_axi5_master_wr_mon_cg"
+	@echo "Expected: 12 tests (~45 min)"
+	@echo "================================================================================"
+	REG_LEVEL=FUNC $(PYTEST) $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE) test_axi5_master_rd_mon.py test_axi5_master_rd_mon_cg.py test_axi5_master_wr_mon.py test_axi5_master_wr_mon_cg.py
+
+.PHONY: run-axi5-mon-master-full
+run-axi5-mon-master-full:
+	@echo "================================================================================"
+	@echo "Running AXI5 Master Monitor Tests at FULL level (comprehensive validation)"
+	@echo "Tests: test_axi5_master_rd_mon, test_axi5_master_rd_mon_cg, test_axi5_master_wr_mon, test_axi5_master_wr_mon_cg"
+	@echo "Expected: 36 tests (~4 hours)"
+	@echo "================================================================================"
+	REG_LEVEL=FULL $(PYTEST) $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE) test_axi5_master_rd_mon.py test_axi5_master_rd_mon_cg.py test_axi5_master_wr_mon.py test_axi5_master_wr_mon_cg.py
+
+.PHONY: run-axi5-mon-master-gate-parallel
+run-axi5-mon-master-gate-parallel:
+	@echo "================================================================================"
+	@echo "Running AXI5 Master Monitor Tests at GATE level (parallel)"
+	@echo "Expected: 4 tests (~2 min with parallel execution)"
+	@echo "================================================================================"
+	REG_LEVEL=GATE $(PYTEST) $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE) $(PYTEST_XDIST) test_axi5_master_rd_mon.py test_axi5_master_rd_mon_cg.py test_axi5_master_wr_mon.py test_axi5_master_wr_mon_cg.py
+
+.PHONY: run-axi5-mon-master-func-parallel
+run-axi5-mon-master-func-parallel:
+	@echo "================================================================================"
+	@echo "Running AXI5 Master Monitor Tests at FUNC level (parallel)"
+	@echo "Expected: 12 tests (~18 min with parallel execution)"
+	@echo "================================================================================"
+	REG_LEVEL=FUNC $(PYTEST) $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE) $(PYTEST_XDIST) test_axi5_master_rd_mon.py test_axi5_master_rd_mon_cg.py test_axi5_master_wr_mon.py test_axi5_master_wr_mon_cg.py
+
+.PHONY: run-axi5-mon-master-full-parallel
+run-axi5-mon-master-full-parallel:
+	@echo "================================================================================"
+	@echo "Running AXI5 Master Monitor Tests at FULL level (parallel)"
+	@echo "Expected: 36 tests (~1.5 hours with parallel execution)"
+	@echo "================================================================================"
+	REG_LEVEL=FULL $(PYTEST) $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE) $(PYTEST_XDIST) test_axi5_master_rd_mon.py test_axi5_master_rd_mon_cg.py test_axi5_master_wr_mon.py test_axi5_master_wr_mon_cg.py
+
+# AXI5 Monitor Slave Tests (Read + Write, base + CG)
+.PHONY: run-axi5-mon-slave-gate
+run-axi5-mon-slave-gate:
+	@echo "================================================================================"
+	@echo "Running AXI5 Slave Monitor Tests at GATE level (smoke test)"
+	@echo "Tests: test_axi5_slave_rd_mon, test_axi5_slave_rd_mon_cg, test_axi5_slave_wr_mon, test_axi5_slave_wr_mon_cg"
+	@echo "Expected: 4 tests (~5 min)"
+	@echo "================================================================================"
+	REG_LEVEL=GATE $(PYTEST) $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE) test_axi5_slave_rd_mon.py test_axi5_slave_rd_mon_cg.py test_axi5_slave_wr_mon.py test_axi5_slave_wr_mon_cg.py
+
+.PHONY: run-axi5-mon-slave-func
+run-axi5-mon-slave-func:
+	@echo "================================================================================"
+	@echo "Running AXI5 Slave Monitor Tests at FUNC level (functional coverage)"
+	@echo "Tests: test_axi5_slave_rd_mon, test_axi5_slave_rd_mon_cg, test_axi5_slave_wr_mon, test_axi5_slave_wr_mon_cg"
+	@echo "Expected: 12 tests (~45 min)"
+	@echo "================================================================================"
+	REG_LEVEL=FUNC $(PYTEST) $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE) test_axi5_slave_rd_mon.py test_axi5_slave_rd_mon_cg.py test_axi5_slave_wr_mon.py test_axi5_slave_wr_mon_cg.py
+
+.PHONY: run-axi5-mon-slave-full
+run-axi5-mon-slave-full:
+	@echo "================================================================================"
+	@echo "Running AXI5 Slave Monitor Tests at FULL level (comprehensive validation)"
+	@echo "Tests: test_axi5_slave_rd_mon, test_axi5_slave_rd_mon_cg, test_axi5_slave_wr_mon, test_axi5_slave_wr_mon_cg"
+	@echo "Expected: 36 tests (~4 hours)"
+	@echo "================================================================================"
+	REG_LEVEL=FULL $(PYTEST) $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE) test_axi5_slave_rd_mon.py test_axi5_slave_rd_mon_cg.py test_axi5_slave_wr_mon.py test_axi5_slave_wr_mon_cg.py
+
+.PHONY: run-axi5-mon-slave-gate-parallel
+run-axi5-mon-slave-gate-parallel:
+	@echo "================================================================================"
+	@echo "Running AXI5 Slave Monitor Tests at GATE level (parallel)"
+	@echo "Expected: 4 tests (~2 min with parallel execution)"
+	@echo "================================================================================"
+	REG_LEVEL=GATE $(PYTEST) $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE) $(PYTEST_XDIST) test_axi5_slave_rd_mon.py test_axi5_slave_rd_mon_cg.py test_axi5_slave_wr_mon.py test_axi5_slave_wr_mon_cg.py
+
+.PHONY: run-axi5-mon-slave-func-parallel
+run-axi5-mon-slave-func-parallel:
+	@echo "================================================================================"
+	@echo "Running AXI5 Slave Monitor Tests at FUNC level (parallel)"
+	@echo "Expected: 12 tests (~18 min with parallel execution)"
+	@echo "================================================================================"
+	REG_LEVEL=FUNC $(PYTEST) $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE) $(PYTEST_XDIST) test_axi5_slave_rd_mon.py test_axi5_slave_rd_mon_cg.py test_axi5_slave_wr_mon.py test_axi5_slave_wr_mon_cg.py
+
+.PHONY: run-axi5-mon-slave-full-parallel
+run-axi5-mon-slave-full-parallel:
+	@echo "================================================================================"
+	@echo "Running AXI5 Slave Monitor Tests at FULL level (parallel)"
+	@echo "Expected: 36 tests (~1.5 hours with parallel execution)"
+	@echo "================================================================================"
+	REG_LEVEL=FULL $(PYTEST) $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE) $(PYTEST_XDIST) test_axi5_slave_rd_mon.py test_axi5_slave_rd_mon_cg.py test_axi5_slave_wr_mon.py test_axi5_slave_wr_mon_cg.py
+
+# ALL AXI5 Monitor Tests (Master + Slave, all 8 files)
+.PHONY: run-axi5-mon-all-gate
+run-axi5-mon-all-gate:
+	@echo "================================================================================"
+	@echo "Running ALL AXI5 Monitor Tests at GATE level (smoke test)"
+	@echo "Tests: master (rd_mon+wr_mon+rd_mon_cg+wr_mon_cg) + slave (rd_mon+wr_mon+rd_mon_cg+wr_mon_cg)"
+	@echo "Expected: 8 tests (~10 min)"
+	@echo "================================================================================"
+	REG_LEVEL=GATE $(PYTEST) $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE) test_axi5_master_rd_mon.py test_axi5_master_rd_mon_cg.py test_axi5_master_wr_mon.py test_axi5_master_wr_mon_cg.py test_axi5_slave_rd_mon.py test_axi5_slave_rd_mon_cg.py test_axi5_slave_wr_mon.py test_axi5_slave_wr_mon_cg.py
+
+.PHONY: run-axi5-mon-all-func
+run-axi5-mon-all-func:
+	@echo "================================================================================"
+	@echo "Running ALL AXI5 Monitor Tests at FUNC level (functional coverage)"
+	@echo "Tests: master (rd_mon+wr_mon+rd_mon_cg+wr_mon_cg) + slave (rd_mon+wr_mon+rd_mon_cg+wr_mon_cg)"
+	@echo "Expected: 24 tests (~90 min)"
+	@echo "================================================================================"
+	REG_LEVEL=FUNC $(PYTEST) $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE) test_axi5_master_rd_mon.py test_axi5_master_rd_mon_cg.py test_axi5_master_wr_mon.py test_axi5_master_wr_mon_cg.py test_axi5_slave_rd_mon.py test_axi5_slave_rd_mon_cg.py test_axi5_slave_wr_mon.py test_axi5_slave_wr_mon_cg.py
+
+.PHONY: run-axi5-mon-all-full
+run-axi5-mon-all-full:
+	@echo "================================================================================"
+	@echo "Running ALL AXI5 Monitor Tests at FULL level (comprehensive validation)"
+	@echo "Tests: master (rd_mon+wr_mon+rd_mon_cg+wr_mon_cg) + slave (rd_mon+wr_mon+rd_mon_cg+wr_mon_cg)"
+	@echo "Expected: 72 tests (~8 hours)"
+	@echo "================================================================================"
+	REG_LEVEL=FULL $(PYTEST) $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE) test_axi5_master_rd_mon.py test_axi5_master_rd_mon_cg.py test_axi5_master_wr_mon.py test_axi5_master_wr_mon_cg.py test_axi5_slave_rd_mon.py test_axi5_slave_rd_mon_cg.py test_axi5_slave_wr_mon.py test_axi5_slave_wr_mon_cg.py
+
+.PHONY: run-axi5-mon-all-gate-parallel
+run-axi5-mon-all-gate-parallel:
+	@echo "================================================================================"
+	@echo "Running ALL AXI5 Monitor Tests at GATE level (parallel)"
+	@echo "Expected: 8 tests (~4 min with parallel execution)"
+	@echo "================================================================================"
+	REG_LEVEL=GATE $(PYTEST) $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE) $(PYTEST_XDIST) test_axi5_master_rd_mon.py test_axi5_master_rd_mon_cg.py test_axi5_master_wr_mon.py test_axi5_master_wr_mon_cg.py test_axi5_slave_rd_mon.py test_axi5_slave_rd_mon_cg.py test_axi5_slave_wr_mon.py test_axi5_slave_wr_mon_cg.py
+
+.PHONY: run-axi5-mon-all-func-parallel
+run-axi5-mon-all-func-parallel:
+	@echo "================================================================================"
+	@echo "Running ALL AXI5 Monitor Tests at FUNC level (parallel)"
+	@echo "Expected: 24 tests (~35 min with parallel execution)"
+	@echo "================================================================================"
+	REG_LEVEL=FUNC $(PYTEST) $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE) $(PYTEST_XDIST) test_axi5_master_rd_mon.py test_axi5_master_rd_mon_cg.py test_axi5_master_wr_mon.py test_axi5_master_wr_mon_cg.py test_axi5_slave_rd_mon.py test_axi5_slave_rd_mon_cg.py test_axi5_slave_wr_mon.py test_axi5_slave_wr_mon_cg.py
+
+.PHONY: run-axi5-mon-all-full-parallel
+run-axi5-mon-all-full-parallel:
+	@echo "================================================================================"
+	@echo "Running ALL AXI5 Monitor Tests at FULL level (parallel)"
+	@echo "Expected: 72 tests (~3 hours with parallel execution)"
+	@echo "================================================================================"
+	REG_LEVEL=FULL $(PYTEST) $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE) $(PYTEST_XDIST) test_axi5_master_rd_mon.py test_axi5_master_rd_mon_cg.py test_axi5_master_wr_mon.py test_axi5_master_wr_mon_cg.py test_axi5_slave_rd_mon.py test_axi5_slave_rd_mon_cg.py test_axi5_slave_wr_mon.py test_axi5_slave_wr_mon_cg.py
+
+# =============================================================================
+# AXI5 Clock-Gated Tests (Master + Slave, Read + Write, no monitors)
+# =============================================================================
+# Test counts (4 CG test files without monitors):
+#   Master (rd_cg+wr_cg): GATE=2, FUNC=6, FULL=18
+#   Slave (rd_cg+wr_cg):  GATE=2, FUNC=6, FULL=18
+#   ALL CG:               GATE=4, FUNC=12, FULL=36
+
+.PHONY: run-axi5-cg-gate
+run-axi5-cg-gate:
+	@echo "================================================================================"
+	@echo "Running AXI5 Clock-Gated Tests at GATE level (smoke test)"
+	@echo "Tests: test_axi5_master_rd_cg, test_axi5_master_wr_cg, test_axi5_slave_rd_cg, test_axi5_slave_wr_cg"
+	@echo "Expected: 4 tests (~5 min)"
+	@echo "================================================================================"
+	REG_LEVEL=GATE $(PYTEST) $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE) test_axi5_master_rd_cg.py test_axi5_master_wr_cg.py test_axi5_slave_rd_cg.py test_axi5_slave_wr_cg.py
+
+.PHONY: run-axi5-cg-func
+run-axi5-cg-func:
+	@echo "================================================================================"
+	@echo "Running AXI5 Clock-Gated Tests at FUNC level (functional coverage)"
+	@echo "Tests: test_axi5_master_rd_cg, test_axi5_master_wr_cg, test_axi5_slave_rd_cg, test_axi5_slave_wr_cg"
+	@echo "Expected: 12 tests (~45 min)"
+	@echo "================================================================================"
+	REG_LEVEL=FUNC $(PYTEST) $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE) test_axi5_master_rd_cg.py test_axi5_master_wr_cg.py test_axi5_slave_rd_cg.py test_axi5_slave_wr_cg.py
+
+.PHONY: run-axi5-cg-full
+run-axi5-cg-full:
+	@echo "================================================================================"
+	@echo "Running AXI5 Clock-Gated Tests at FULL level (comprehensive validation)"
+	@echo "Tests: test_axi5_master_rd_cg, test_axi5_master_wr_cg, test_axi5_slave_rd_cg, test_axi5_slave_wr_cg"
+	@echo "Expected: 36 tests (~4 hours)"
+	@echo "================================================================================"
+	REG_LEVEL=FULL $(PYTEST) $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE) test_axi5_master_rd_cg.py test_axi5_master_wr_cg.py test_axi5_slave_rd_cg.py test_axi5_slave_wr_cg.py
+
+.PHONY: run-axi5-cg-gate-parallel
+run-axi5-cg-gate-parallel:
+	@echo "================================================================================"
+	@echo "Running AXI5 Clock-Gated Tests at GATE level (parallel)"
+	@echo "Expected: 4 tests (~2 min with parallel execution)"
+	@echo "================================================================================"
+	REG_LEVEL=GATE $(PYTEST) $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE) $(PYTEST_XDIST) test_axi5_master_rd_cg.py test_axi5_master_wr_cg.py test_axi5_slave_rd_cg.py test_axi5_slave_wr_cg.py
+
+.PHONY: run-axi5-cg-func-parallel
+run-axi5-cg-func-parallel:
+	@echo "================================================================================"
+	@echo "Running AXI5 Clock-Gated Tests at FUNC level (parallel)"
+	@echo "Expected: 12 tests (~18 min with parallel execution)"
+	@echo "================================================================================"
+	REG_LEVEL=FUNC $(PYTEST) $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE) $(PYTEST_XDIST) test_axi5_master_rd_cg.py test_axi5_master_wr_cg.py test_axi5_slave_rd_cg.py test_axi5_slave_wr_cg.py
+
+.PHONY: run-axi5-cg-full-parallel
+run-axi5-cg-full-parallel:
+	@echo "================================================================================"
+	@echo "Running AXI5 Clock-Gated Tests at FULL level (parallel)"
+	@echo "Expected: 36 tests (~1.5 hours with parallel execution)"
+	@echo "================================================================================"
+	REG_LEVEL=FULL $(PYTEST) $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE) $(PYTEST_XDIST) test_axi5_master_rd_cg.py test_axi5_master_wr_cg.py test_axi5_slave_rd_cg.py test_axi5_slave_wr_cg.py
 
 # ==============================================================================
 # Combined Targets (clean + run)
@@ -1149,6 +1663,9 @@ axil4: run-axil4
 
 .PHONY: axis
 axis: run-axis
+
+.PHONY: axi5
+axi5: run-axi5
 
 .PHONY: all
 all: run-all

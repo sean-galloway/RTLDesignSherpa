@@ -92,7 +92,7 @@ class GAXIComponentBase:
         self.memory_model = memory_model
         self.signal_map = signal_map  # NEW: Store signal map
 
-        # Validate protocol_type - allow GAXI, AXIS, and AXI4 protocol types
+        # Validate protocol_type - allow GAXI, AXIS, AXI4, and AXI5 protocol types
         valid_types = [
             'gaxi_master', 'gaxi_slave',
             'axis_master', 'axis_slave',
@@ -100,7 +100,12 @@ class GAXIComponentBase:
             'axi4_r_master', 'axi4_r_slave',
             'axi4_aw_master', 'axi4_aw_slave',
             'axi4_w_master', 'axi4_w_slave',
-            'axi4_b_master', 'axi4_b_slave'
+            'axi4_b_master', 'axi4_b_slave',
+            'axi5_ar_master', 'axi5_ar_slave',
+            'axi5_r_master', 'axi5_r_slave',
+            'axi5_aw_master', 'axi5_aw_slave',
+            'axi5_w_master', 'axi5_w_slave',
+            'axi5_b_master', 'axi5_b_slave'
         ]
         if protocol_type not in valid_types:
             raise ValueError(f"protocol_type must be one of {valid_types}, got: {protocol_type}")
