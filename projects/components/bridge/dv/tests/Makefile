@@ -255,6 +255,42 @@ run-parallel: run-all-parallel
 run-parallel-waves: run-all-parallel-waves
 
 # ==============================================================================
+# REG_LEVEL Targets (gate/func/full) - Required by master Makefile
+# ==============================================================================
+# Note: Bridge tests don't currently use REG_LEVEL since they're already
+# specialized per configuration. These targets just map to run-all variants.
+
+.PHONY: run-all-gate
+run-all-gate:
+	@echo "Running ALL bridge tests (GATE level - sequential for safety)..."
+	REG_LEVEL=GATE $(PYTEST) $(ALL_TESTS) $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE)
+
+.PHONY: run-all-func
+run-all-func:
+	@echo "Running ALL bridge tests (FUNC level - sequential for safety)..."
+	REG_LEVEL=FUNC $(PYTEST) $(ALL_TESTS) $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE)
+
+.PHONY: run-all-full
+run-all-full:
+	@echo "Running ALL bridge tests (FULL level - sequential for safety)..."
+	REG_LEVEL=FULL $(PYTEST) $(ALL_TESTS) $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE)
+
+.PHONY: run-all-gate-parallel
+run-all-gate-parallel:
+	@echo "Running ALL bridge tests (GATE level, parallel)..."
+	REG_LEVEL=GATE $(PYTEST) $(ALL_TESTS) $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE) $(PYTEST_XDIST) $(PYTEST_RERUNS)
+
+.PHONY: run-all-func-parallel
+run-all-func-parallel:
+	@echo "Running ALL bridge tests (FUNC level, parallel)..."
+	REG_LEVEL=FUNC $(PYTEST) $(ALL_TESTS) $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE) $(PYTEST_XDIST) $(PYTEST_RERUNS)
+
+.PHONY: run-all-full-parallel
+run-all-full-parallel:
+	@echo "Running ALL bridge tests (FULL level, parallel)..."
+	REG_LEVEL=FULL $(PYTEST) $(ALL_TESTS) $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE) $(PYTEST_XDIST) $(PYTEST_RERUNS)
+
+# ==============================================================================
 # Utility Targets
 # ==============================================================================
 
@@ -269,13 +305,20 @@ clean:
 	rm -rf __pycache__ .pytest_cache *.pyc
 
 .PHONY: clean-all
-clean-all: clean build-clean
-	@echo "Cleaning all test artifacts and generated files..."
+clean-all: clean
+	@echo "Cleaning all test artifacts..."
 	rm -rf logs local_sim_build sim_build sim_build_*
 	find . -name "*.vcd" -delete
 	find . -name "*.fst" -delete
 	find . -name "*.log" -delete
-	@echo "All test artifacts and generated files cleaned."
+	@echo "All test artifacts cleaned."
+	@echo ""
+	@echo "NOTE: Generated test files preserved. To delete them: make build-clean"
+
+.PHONY: clean-generated
+clean-generated: build-clean
+	@echo "All generated files (RTL + tests) deleted."
+	@echo "Run 'make regenerate-all' to regenerate them."
 
 # ==============================================================================
 # Build/Regeneration Targets
@@ -449,34 +492,76 @@ test-matching:
 .PHONY: test-mixed
 test-mixed:
 	@echo "================================================================================"
-	@echo "REGENERATING MIXED-WIDTH TESTS (4x4, 5x3, example)"
+	@echo "REGENERATING MIXED-WIDTH TESTS (1x3_rd, 1x3_wr)"
 	@echo "================================================================================"
-	@echo "Generating bridge_4x4_rw tests..."
+	@echo "Generating bridge_1x3_rd tests..."
 	cd $(BIN_DIR) && python3 bridge_generator.py \
-		--ports $(CONFIG_DIR)/bridge_4x4_rw.toml \
-		--name bridge_4x4_rw \
+		--ports $(CONFIG_DIR)/bridge_1x3_rd_mixed.toml \
+		--name bridge_1x3_rd \
 		--output-dir $(RTL_FROM_BIN) \
 		--generate-tests \
 		--output-tb $(TB_FROM_BIN) \
 		--output-test $(TEST_FROM_BIN)
-	@echo "Generating bridge_5x3_channels tests..."
+	@echo "Generating bridge_1x3_wr tests..."
 	cd $(BIN_DIR) && python3 bridge_generator.py \
-		--ports $(CONFIG_DIR)/bridge_5x3_channels.toml \
-		--name bridge_5x3_channels \
-		--output-dir $(RTL_FROM_BIN) \
-		--generate-tests \
-		--output-tb $(TB_FROM_BIN) \
-		--output-test $(TEST_FROM_BIN)
-	@echo "Generating bridge_example tests..."
-	cd $(BIN_DIR) && python3 bridge_generator.py \
-		--ports $(CONFIG_DIR)/bridge_example.toml \
-		--name bridge_example \
+		--ports $(CONFIG_DIR)/bridge_1x3_wr_mixed.toml \
+		--name bridge_1x3_wr \
 		--output-dir $(RTL_FROM_BIN) \
 		--generate-tests \
 		--output-tb $(TB_FROM_BIN) \
 		--output-test $(TEST_FROM_BIN)
 	@echo ""
 	@echo "✅ Mixed-width test files regenerated"
+	@echo "================================================================================"
+
+.PHONY: test-apb
+test-apb:
+	@echo "================================================================================"
+	@echo "REGENERATING APB PROTOCOL TESTS (1x4_rd, 1x4_wr)"
+	@echo "================================================================================"
+	@echo "Generating bridge_1x4_rd tests..."
+	cd $(BIN_DIR) && python3 bridge_generator.py \
+		--ports $(CONFIG_DIR)/bridge_1x4_rd_apb.toml \
+		--name bridge_1x4_rd \
+		--output-dir $(RTL_FROM_BIN) \
+		--generate-tests \
+		--output-tb $(TB_FROM_BIN) \
+		--output-test $(TEST_FROM_BIN)
+	@echo "Generating bridge_1x4_wr tests..."
+	cd $(BIN_DIR) && python3 bridge_generator.py \
+		--ports $(CONFIG_DIR)/bridge_1x4_wr_apb.toml \
+		--name bridge_1x4_wr \
+		--output-dir $(RTL_FROM_BIN) \
+		--generate-tests \
+		--output-tb $(TB_FROM_BIN) \
+		--output-test $(TEST_FROM_BIN)
+	@echo ""
+	@echo "✅ APB protocol test files regenerated"
+	@echo "================================================================================"
+
+.PHONY: test-axil
+test-axil:
+	@echo "================================================================================"
+	@echo "REGENERATING AXI-LITE PROTOCOL TESTS (1x5_rd, 1x5_wr)"
+	@echo "================================================================================"
+	@echo "Generating bridge_1x5_rd tests..."
+	cd $(BIN_DIR) && python3 bridge_generator.py \
+		--ports $(CONFIG_DIR)/bridge_1x5_rd_axil.toml \
+		--name bridge_1x5_rd \
+		--output-dir $(RTL_FROM_BIN) \
+		--generate-tests \
+		--output-tb $(TB_FROM_BIN) \
+		--output-test $(TEST_FROM_BIN)
+	@echo "Generating bridge_1x5_wr tests..."
+	cd $(BIN_DIR) && python3 bridge_generator.py \
+		--ports $(CONFIG_DIR)/bridge_1x5_wr_axil.toml \
+		--name bridge_1x5_wr \
+		--output-dir $(RTL_FROM_BIN) \
+		--generate-tests \
+		--output-tb $(TB_FROM_BIN) \
+		--output-test $(TEST_FROM_BIN)
+	@echo ""
+	@echo "✅ AXI-Lite protocol test files regenerated"
 	@echo "================================================================================"
 
 # Create default batch file if missing
@@ -488,15 +573,29 @@ $(BATCH_FILE):
 	@echo "  bridge_1x2_rd,../dv/bridge_csv/bridge_minimal_rd_1x2_ports.csv,../dv/bridge_csv/bridge_minimal_rd_1x2_connectivity.csv,../rtl,../dv/tbclasses,../dv/tests,false"
 	@exit 1
 
+.PHONY: regenerate-all
+regenerate-all: test-matching test-mixed test-apb test-axil
+	@echo "================================================================================"
+	@echo "✅ ALL TEST FILES REGENERATED"
+	@echo "================================================================================"
+	@echo "Generated tests:"
+	@echo "  - test_bridge_1x2_rd.py, test_bridge_1x2_wr.py (matching-width)"
+	@echo "  - test_bridge_2x2_rw.py (matching-width)"
+	@echo "  - test_bridge_1x3_rd.py, test_bridge_1x3_wr.py (mixed-width)"
+	@echo "  - test_bridge_1x4_rd.py, test_bridge_1x4_wr.py (APB protocol)"
+	@echo "  - test_bridge_1x5_rd.py, test_bridge_1x5_wr.py (AXI-Lite protocol)"
+	@echo "================================================================================"
+
 .PHONY: rebuild-all
-rebuild-all: build-clean test
+rebuild-all: build-clean regenerate-all
 	@echo "================================================================================"
 	@echo "✅ FULL REBUILD COMPLETE (RTL + TESTS)"
 	@echo "================================================================================"
-	@echo "Note: 'make test' generates both RTL and tests from unified batch file"
 	@echo ""
 	@echo "Next steps:"
-	@echo "  1. Run matching-width tests: make run-matching-parallel"
-	@echo "  2. Run mixed-width tests: make run-mixed-parallel"
-	@echo "  3. Or run all: make run-parallel"
+	@echo "  1. Run matching-width tests: make run-matching"
+	@echo "  2. Run mixed-width tests: make run-mixed"
+	@echo "  3. Run APB tests: make run-apb"
+	@echo "  4. Run AXI-Lite tests: make run-axil"
+	@echo "  5. Or run all: make run-all"
 	@echo "================================================================================"

@@ -116,10 +116,20 @@ class AXI5SlaveMonitorTB:
             self.log.error("Basic connectivity test FAILED!")
             raise RuntimeError("Basic connectivity failed")
 
-        await self.base_tb.wait_clocks('aclk', 50)  # Increased for monitor packet propagation
+        # Wait for monitor packets - use longer wait with polling
+        # The RTL monitor takes time to generate and output packets
+        max_wait_cycles = 100
+        wait_interval = 10
+        cycles_waited = 0
+
+        while cycles_waited < max_wait_cycles:
+            await self.base_tb.wait_clocks('aclk', wait_interval)
+            cycles_waited += wait_interval
+            if len(self.mon_slave.received_packets) > 0:
+                break
 
         packets = len(self.mon_slave.received_packets)
-        self.log.info(f"Monitor packets after basic test: {packets}")
+        self.log.info(f"Monitor packets after basic test: {packets} (waited {cycles_waited} cycles)")
 
         if packets == 0:
             self.log.error("No monitor packets generated!")

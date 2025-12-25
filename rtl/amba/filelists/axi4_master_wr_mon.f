@@ -14,6 +14,10 @@ $REPO_ROOT/rtl/amba/includes/reset_defs.svh
 $REPO_ROOT/rtl/amba/includes/fifo_defs.svh
 
 # Package files (MUST be compiled before modules that import them)
+$REPO_ROOT/rtl/amba/includes/monitor_common_pkg.sv
+$REPO_ROOT/rtl/amba/includes/monitor_arbiter_pkg.sv
+$REPO_ROOT/rtl/amba/includes/monitor_amba4_pkg.sv
+$REPO_ROOT/rtl/amba/includes/monitor_amba5_pkg.sv
 $REPO_ROOT/rtl/amba/includes/monitor_pkg.sv
 
 # Dependencies - Common utilities (used by monitor infrastructure)

@@ -76,10 +76,30 @@ help:
 	@echo "  make run-axil4-parallel   Run AXI4-Lite tests in parallel"
 	@echo "  make run-axi5             Run all AXI5 protocol tests"
 	@echo "  make run-axi5-parallel    Run AXI5 tests in parallel"
-	@echo "  make run-axis             Run all AXI-Stream protocol tests"
+	@echo "  make run-axis             Run all AXI-Stream (AXIS4) tests"
 	@echo "  make run-axis-parallel    Run AXI-Stream tests in parallel"
+	@echo "  make run-axis5            Run all AXIS5 protocol tests"
+	@echo "  make run-axis5-parallel   Run AXIS5 tests in parallel"
+	@echo "  make run-apb5             Run all APB5 protocol tests"
+	@echo "  make run-apb5-parallel    Run APB5 tests in parallel"
 	@echo "  make run-all              Run all AMBA tests"
 	@echo "  make run-all-parallel     Run all tests in parallel"
+	@echo ""
+	@echo "AMBA VERSION TARGETS (group by protocol version):"
+	@echo "  make run-amba4            Run all AMBA4 tests (APB+AXI4+AXIL4+AXIS)"
+	@echo "  make run-amba4-parallel   Run AMBA4 tests in parallel"
+	@echo "  make run-amba5            Run all AMBA5 tests (APB5+AXI5+AXIS5)"
+	@echo "  make run-amba5-parallel   Run AMBA5 tests in parallel"
+	@echo ""
+	@echo "  AMBA4 REG_LEVEL targets:"
+	@echo "    make run-amba4-gate / run-amba4-gate-parallel"
+	@echo "    make run-amba4-func / run-amba4-func-parallel"
+	@echo "    make run-amba4-full / run-amba4-full-parallel"
+	@echo ""
+	@echo "  AMBA5 REG_LEVEL targets:"
+	@echo "    make run-amba5-gate / run-amba5-gate-parallel"
+	@echo "    make run-amba5-func / run-amba5-func-parallel"
+	@echo "    make run-amba5-full / run-amba5-full-parallel"
 	@echo ""
 	@echo "REG_LEVEL TARGETS (configurable test depth for ALL tests):"
 	@echo "  GATE = Quick smoke tests, FUNC = Default, FULL = Comprehensive"
@@ -229,11 +249,33 @@ help:
 	@echo "  make run-axi5-cg-func-parallel      FUNC parallel (~18 min)"
 	@echo "  make run-axi5-cg-full-parallel      FULL parallel (~1.5 hr)"
 	@echo ""
+	@echo "  APB5 Tests (master+slave+monitor+CDC+CG+stubs):"
+	@echo "  make run-apb5                   Run all APB5 tests"
+	@echo "  make run-apb5-parallel          Run APB5 tests in parallel"
+	@echo "  make run-apb5-master            Run APB5 master tests"
+	@echo "  make run-apb5-slave             Run APB5 slave tests"
+	@echo "  make run-apb5-monitor           Run APB5 monitor tests"
+	@echo "  make run-apb5-cg                Run APB5 clock-gated tests"
+	@echo "  make run-apb5-cdc               Run APB5 CDC tests"
+	@echo "  make run-apb5-stub              Run APB5 stub tests"
+	@echo ""
+	@echo "  AXIS5 Tests (master+slave+CG):"
+	@echo "  make run-axis5                  Run all AXIS5 tests"
+	@echo "  make run-axis5-parallel         Run AXIS5 tests in parallel"
+	@echo "  make run-axis5-master           Run AXIS5 master tests"
+	@echo "  make run-axis5-slave            Run AXIS5 slave tests"
+	@echo "  make run-axis5-cg               Run AXIS5 clock-gated tests"
+	@echo ""
 	@echo "COLLECTION TARGETS (verify tests, don't run):"
-	@echo "  make collect-apb          Collect APB tests"
+	@echo "  make collect-apb          Collect APB (AMBA4) tests"
+	@echo "  make collect-apb5         Collect APB5 tests"
 	@echo "  make collect-axi4         Collect AXI4 tests"
 	@echo "  make collect-axil4        Collect AXI4-Lite tests"
 	@echo "  make collect-axi5         Collect AXI5 tests"
+	@echo "  make collect-axis         Collect AXIS (AMBA4) tests"
+	@echo "  make collect-axis5        Collect AXIS5 tests"
+	@echo "  make collect-amba4        Collect all AMBA4 tests"
+	@echo "  make collect-amba5        Collect all AMBA5 tests"
 	@echo "  make collect-all          Collect all tests"
 	@echo ""
 	@echo "CLEAN TARGETS:"
@@ -244,9 +286,15 @@ help:
 	@echo "  make clean-vcd            Remove VCD waveform files"
 	@echo ""
 	@echo "UTILITY TARGETS:"
-	@echo "  make list-apb             List all APB test modules"
+	@echo "  make list-apb             List all APB (AMBA4) test modules"
+	@echo "  make list-apb5            List all APB5 test modules"
 	@echo "  make list-axi4            List all AXI4 test modules"
 	@echo "  make list-axil4           List all AXI4-Lite test modules"
+	@echo "  make list-axi5            List all AXI5 test modules"
+	@echo "  make list-axis            List all AXIS (AMBA4) test modules"
+	@echo "  make list-axis5           List all AXIS5 test modules"
+	@echo "  make list-amba4           List all AMBA4 test modules"
+	@echo "  make list-amba5           List all AMBA5 test modules"
 	@echo "  make list-all             List all test modules"
 	@echo "  make status               Show test status and coverage"
 	@echo ""
@@ -314,6 +362,209 @@ run-axis-parallel:
 	@echo "Running AMBA AXI-Stream Protocol Tests (Parallel)"
 	@echo "================================================================================"
 	$(PYTEST) $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE) $(PYTEST_XDIST) $(PYTEST_RERUNS) test_axis_*.py
+
+# =============================================================================
+# AXIS5 Protocol Tests
+# =============================================================================
+
+.PHONY: run-axis5
+run-axis5:
+	@echo "================================================================================"
+	@echo "Running AMBA AXIS5 Protocol Tests"
+	@echo "================================================================================"
+	$(PYTEST) $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE) test_axis5_*.py
+
+.PHONY: run-axis5-parallel
+run-axis5-parallel:
+	@echo "================================================================================"
+	@echo "Running AMBA AXIS5 Protocol Tests (Parallel)"
+	@echo "================================================================================"
+	$(PYTEST) $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE) $(PYTEST_XDIST) $(PYTEST_RERUNS) test_axis5_*.py
+
+.PHONY: run-axis5-master
+run-axis5-master:
+	@echo "Running AXIS5 master tests..."
+	$(PYTEST) $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE) test_axis5_master*.py
+
+.PHONY: run-axis5-slave
+run-axis5-slave:
+	@echo "Running AXIS5 slave tests..."
+	$(PYTEST) $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE) test_axis5_slave*.py
+
+.PHONY: run-axis5-cg
+run-axis5-cg:
+	@echo "Running AXIS5 clock-gated tests..."
+	$(PYTEST) $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE) test_axis5_*_cg.py
+
+# =============================================================================
+# APB5 Protocol Tests
+# =============================================================================
+
+.PHONY: run-apb5
+run-apb5:
+	@echo "================================================================================"
+	@echo "Running AMBA APB5 Protocol Tests"
+	@echo "================================================================================"
+	$(PYTEST) $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE) test_apb5_*.py
+
+.PHONY: run-apb5-parallel
+run-apb5-parallel:
+	@echo "================================================================================"
+	@echo "Running AMBA APB5 Protocol Tests (Parallel)"
+	@echo "================================================================================"
+	$(PYTEST) $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE) $(PYTEST_XDIST) $(PYTEST_RERUNS) test_apb5_*.py
+
+.PHONY: run-apb5-master
+run-apb5-master:
+	@echo "Running APB5 master tests..."
+	$(PYTEST) $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE) test_apb5_master.py test_apb5_master_cg.py test_apb5_master_stub.py
+
+.PHONY: run-apb5-slave
+run-apb5-slave:
+	@echo "Running APB5 slave tests..."
+	$(PYTEST) $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE) test_apb5_slave.py test_apb5_slave_cg.py test_apb5_slave_cdc.py test_apb5_slave_cdc_cg.py test_apb5_slave_stub.py
+
+.PHONY: run-apb5-monitor
+run-apb5-monitor:
+	@echo "Running APB5 monitor tests..."
+	$(PYTEST) $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE) test_apb5_monitor.py
+
+.PHONY: run-apb5-cg
+run-apb5-cg:
+	@echo "Running APB5 clock-gated tests..."
+	$(PYTEST) $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE) test_apb5_master_cg.py test_apb5_slave_cg.py test_apb5_slave_cdc_cg.py
+
+.PHONY: run-apb5-cdc
+run-apb5-cdc:
+	@echo "Running APB5 CDC tests..."
+	$(PYTEST) $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE) test_apb5_slave_cdc.py test_apb5_slave_cdc_cg.py
+
+.PHONY: run-apb5-stub
+run-apb5-stub:
+	@echo "Running APB5 stub tests..."
+	$(PYTEST) $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE) test_apb5_master_stub.py test_apb5_slave_stub.py
+
+# =============================================================================
+# AMBA4 Combined Tests (APB + AXI4 + AXIL4 + AXIS)
+# =============================================================================
+
+.PHONY: run-amba4
+run-amba4:
+	@echo "================================================================================"
+	@echo "Running ALL AMBA4 Protocol Tests (APB + AXI4 + AXIL4 + AXIS)"
+	@echo "================================================================================"
+	$(PYTEST) $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE) test_apb_*.py test_axi4_*.py test_axil4_*.py test_axis_*.py
+
+.PHONY: run-amba4-parallel
+run-amba4-parallel:
+	@echo "================================================================================"
+	@echo "Running ALL AMBA4 Protocol Tests (Parallel)"
+	@echo "================================================================================"
+	$(PYTEST) $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE) $(PYTEST_XDIST) $(PYTEST_RERUNS) test_apb_*.py test_axi4_*.py test_axil4_*.py test_axis_*.py
+
+# AMBA4 REG_LEVEL Targets
+.PHONY: run-amba4-gate
+run-amba4-gate:
+	@echo "================================================================================"
+	@echo "Running AMBA4 Tests at GATE Level (APB + AXI4 + AXIL4 + AXIS)"
+	@echo "================================================================================"
+	REG_LEVEL=GATE $(PYTEST) $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE) test_apb_*.py test_axi4_*.py test_axil4_*.py test_axis_*.py
+
+.PHONY: run-amba4-func
+run-amba4-func:
+	@echo "================================================================================"
+	@echo "Running AMBA4 Tests at FUNC Level (APB + AXI4 + AXIL4 + AXIS)"
+	@echo "================================================================================"
+	REG_LEVEL=FUNC $(PYTEST) $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE) test_apb_*.py test_axi4_*.py test_axil4_*.py test_axis_*.py
+
+.PHONY: run-amba4-full
+run-amba4-full:
+	@echo "================================================================================"
+	@echo "Running AMBA4 Tests at FULL Level (APB + AXI4 + AXIL4 + AXIS)"
+	@echo "================================================================================"
+	REG_LEVEL=FULL $(PYTEST) $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE) test_apb_*.py test_axi4_*.py test_axil4_*.py test_axis_*.py
+
+.PHONY: run-amba4-gate-parallel
+run-amba4-gate-parallel:
+	@echo "================================================================================"
+	@echo "Running AMBA4 Tests at GATE Level (Parallel)"
+	@echo "================================================================================"
+	REG_LEVEL=GATE $(PYTEST) $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE) $(PYTEST_XDIST) $(PYTEST_RERUNS) test_apb_*.py test_axi4_*.py test_axil4_*.py test_axis_*.py
+
+.PHONY: run-amba4-func-parallel
+run-amba4-func-parallel:
+	@echo "================================================================================"
+	@echo "Running AMBA4 Tests at FUNC Level (Parallel)"
+	@echo "================================================================================"
+	REG_LEVEL=FUNC $(PYTEST) $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE) $(PYTEST_XDIST) $(PYTEST_RERUNS) test_apb_*.py test_axi4_*.py test_axil4_*.py test_axis_*.py
+
+.PHONY: run-amba4-full-parallel
+run-amba4-full-parallel:
+	@echo "================================================================================"
+	@echo "Running AMBA4 Tests at FULL Level (Parallel)"
+	@echo "================================================================================"
+	REG_LEVEL=FULL $(PYTEST) $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE) $(PYTEST_XDIST) $(PYTEST_RERUNS) test_apb_*.py test_axi4_*.py test_axil4_*.py test_axis_*.py
+
+# =============================================================================
+# AMBA5 Combined Tests (APB5 + AXI5 + AXIS5)
+# =============================================================================
+
+.PHONY: run-amba5
+run-amba5:
+	@echo "================================================================================"
+	@echo "Running ALL AMBA5 Protocol Tests (APB5 + AXI5 + AXIS5)"
+	@echo "================================================================================"
+	$(PYTEST) $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE) test_apb5_*.py test_axi5_*.py test_axis5_*.py
+
+.PHONY: run-amba5-parallel
+run-amba5-parallel:
+	@echo "================================================================================"
+	@echo "Running ALL AMBA5 Protocol Tests (Parallel)"
+	@echo "================================================================================"
+	$(PYTEST) $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE) $(PYTEST_XDIST) $(PYTEST_RERUNS) test_apb5_*.py test_axi5_*.py test_axis5_*.py
+
+# AMBA5 REG_LEVEL Targets
+.PHONY: run-amba5-gate
+run-amba5-gate:
+	@echo "================================================================================"
+	@echo "Running AMBA5 Tests at GATE Level (APB5 + AXI5 + AXIS5)"
+	@echo "================================================================================"
+	REG_LEVEL=GATE $(PYTEST) $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE) test_apb5_*.py test_axi5_*.py test_axis5_*.py
+
+.PHONY: run-amba5-func
+run-amba5-func:
+	@echo "================================================================================"
+	@echo "Running AMBA5 Tests at FUNC Level (APB5 + AXI5 + AXIS5)"
+	@echo "================================================================================"
+	REG_LEVEL=FUNC $(PYTEST) $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE) test_apb5_*.py test_axi5_*.py test_axis5_*.py
+
+.PHONY: run-amba5-full
+run-amba5-full:
+	@echo "================================================================================"
+	@echo "Running AMBA5 Tests at FULL Level (APB5 + AXI5 + AXIS5)"
+	@echo "================================================================================"
+	REG_LEVEL=FULL $(PYTEST) $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE) test_apb5_*.py test_axi5_*.py test_axis5_*.py
+
+.PHONY: run-amba5-gate-parallel
+run-amba5-gate-parallel:
+	@echo "================================================================================"
+	@echo "Running AMBA5 Tests at GATE Level (Parallel)"
+	@echo "================================================================================"
+	REG_LEVEL=GATE $(PYTEST) $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE) $(PYTEST_XDIST) $(PYTEST_RERUNS) test_apb5_*.py test_axi5_*.py test_axis5_*.py
+
+.PHONY: run-amba5-func-parallel
+run-amba5-func-parallel:
+	@echo "================================================================================"
+	@echo "Running AMBA5 Tests at FUNC Level (Parallel)"
+	@echo "================================================================================"
+	REG_LEVEL=FUNC $(PYTEST) $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE) $(PYTEST_XDIST) $(PYTEST_RERUNS) test_apb5_*.py test_axi5_*.py test_axis5_*.py
+
+.PHONY: run-amba5-full-parallel
+run-amba5-full-parallel:
+	@echo "================================================================================"
+	@echo "Running AMBA5 Tests at FULL Level (Parallel)"
+	@echo "================================================================================"
+	REG_LEVEL=FULL $(PYTEST) $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE) $(PYTEST_XDIST) $(PYTEST_RERUNS) test_apb5_*.py test_axi5_*.py test_axis5_*.py
 
 # =============================================================================
 # Master AMBA Regression Targets (GATE/FUNC/FULL)
@@ -1063,6 +1314,26 @@ collect-axi5:
 	@echo "Collecting AMBA AXI5 tests..."
 	$(PYTEST) --collect-only test_axi5_*.py
 
+.PHONY: collect-axis5
+collect-axis5:
+	@echo "Collecting AMBA AXIS5 tests..."
+	$(PYTEST) --collect-only test_axis5_*.py
+
+.PHONY: collect-apb5
+collect-apb5:
+	@echo "Collecting AMBA APB5 tests..."
+	$(PYTEST) --collect-only test_apb5_*.py
+
+.PHONY: collect-amba4
+collect-amba4:
+	@echo "Collecting ALL AMBA4 tests (APB + AXI4 + AXIL4 + AXIS)..."
+	$(PYTEST) --collect-only test_apb_*.py test_axi4_*.py test_axil4_*.py test_axis_*.py
+
+.PHONY: collect-amba5
+collect-amba5:
+	@echo "Collecting ALL AMBA5 tests (APB5 + AXI5 + AXIS5)..."
+	$(PYTEST) --collect-only test_apb5_*.py test_axi5_*.py test_axis5_*.py
+
 .PHONY: collect-all
 collect-all:
 	@echo "Collecting ALL AMBA tests..."
@@ -1137,6 +1408,26 @@ list-axi5:
 	@echo "AMBA AXI5 Test Modules:"
 	@ls test_axi5_*.py 2>/dev/null | sort
 
+.PHONY: list-axis5
+list-axis5:
+	@echo "AMBA AXIS5 Test Modules:"
+	@ls test_axis5_*.py 2>/dev/null | sort
+
+.PHONY: list-apb5
+list-apb5:
+	@echo "AMBA APB5 Test Modules:"
+	@ls test_apb5_*.py 2>/dev/null | sort
+
+.PHONY: list-amba4
+list-amba4:
+	@echo "ALL AMBA4 Test Modules (APB + AXI4 + AXIL4 + AXIS):"
+	@ls test_apb_*.py test_axi4_*.py test_axil4_*.py test_axis_*.py 2>/dev/null | sort
+
+.PHONY: list-amba5
+list-amba5:
+	@echo "ALL AMBA5 Test Modules (APB5 + AXI5 + AXIS5):"
+	@ls test_apb5_*.py test_axi5_*.py test_axis5_*.py 2>/dev/null | sort
+
 .PHONY: list-all
 list-all:
 	@echo "All AMBA Test Modules:"
@@ -1151,21 +1442,32 @@ status:
 	@echo "  Val/AMBA:    $(REPO_ROOT)/val/amba/"
 	@echo ""
 	@echo "Test modules found:"
-	@echo -n "  APB:         "
+	@echo ""
+	@echo "  AMBA4 Protocols:"
+	@echo -n "    APB:         "
 	@ls test_apb_*.py 2>/dev/null | wc -l
-	@echo -n "  AXI4:        "
+	@echo -n "    AXI4:        "
 	@ls test_axi4_*.py 2>/dev/null | wc -l
-	@echo -n "  AXI4-Lite:   "
+	@echo -n "    AXI4-Lite:   "
 	@ls test_axil4_*.py 2>/dev/null | wc -l
-	@echo -n "  AXI-Stream:  "
+	@echo -n "    AXIS:        "
 	@ls test_axis_*.py 2>/dev/null | wc -l
-	@echo -n "  AXI5:        "
+	@echo ""
+	@echo "  AMBA5 Protocols:"
+	@echo -n "    APB5:        "
+	@ls test_apb5_*.py 2>/dev/null | wc -l
+	@echo -n "    AXI5:        "
 	@ls test_axi5_*.py 2>/dev/null | wc -l
-	@echo -n "  Arbiters:    "
+	@echo -n "    AXIS5:       "
+	@ls test_axis5_*.py 2>/dev/null | wc -l
+	@echo ""
+	@echo "  Infrastructure:"
+	@echo -n "    Arbiters:    "
 	@ls test_arbiter_*.py 2>/dev/null | wc -l
-	@echo -n "  GAXI:        "
+	@echo -n "    GAXI:        "
 	@ls test_gaxi_*.py 2>/dev/null | wc -l
-	@echo -n "  Total:       "
+	@echo ""
+	@echo -n "  Total:         "
 	@ls test_*.py 2>/dev/null | wc -l
 	@echo ""
 	@echo "Build artifacts:"
@@ -1652,6 +1954,7 @@ fresh-all: clean-all run-all
 # Quick Aliases
 # ==============================================================================
 
+# AMBA4 Protocol Aliases
 .PHONY: apb
 apb: run-apb
 
@@ -1664,9 +1967,24 @@ axil4: run-axil4
 .PHONY: axis
 axis: run-axis
 
+# AMBA5 Protocol Aliases
+.PHONY: apb5
+apb5: run-apb5
+
 .PHONY: axi5
 axi5: run-axi5
 
+.PHONY: axis5
+axis5: run-axis5
+
+# Combined Version Aliases
+.PHONY: amba4
+amba4: run-amba4
+
+.PHONY: amba5
+amba5: run-amba5
+
+# General Aliases
 .PHONY: all
 all: run-all
 

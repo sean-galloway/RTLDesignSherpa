@@ -179,6 +179,11 @@ def test_axi4_master_wr_mon_cg(id_width, addr_width, data_width, user_width, wst
 
     # Verilog sources (includes axi4_master_wr_mon which the CG version instantiates)
     verilog_sources = [
+        # Monitor packages (must be compiled in order)
+        os.path.join(rtl_dict['rtl_includes'], "monitor_common_pkg.sv"),
+        os.path.join(rtl_dict['rtl_includes'], "monitor_amba4_pkg.sv"),
+        os.path.join(rtl_dict['rtl_includes'], "monitor_amba5_pkg.sv"),
+        os.path.join(rtl_dict['rtl_includes'], "monitor_arbiter_pkg.sv"),
         os.path.join(rtl_dict['rtl_includes'], "monitor_pkg.sv"),
         os.path.join(rtl_dict['rtl_common'], "counter_bin.sv"),
         os.path.join(rtl_dict['rtl_common'], "counter_load_clear.sv"),

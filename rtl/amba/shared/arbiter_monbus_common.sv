@@ -116,6 +116,9 @@ module arbiter_monbus_common #(
 );
 
     // Import monitor package for event types and helper functions
+    import monitor_common_pkg::*;
+    import monitor_amba4_pkg::*;
+    import monitor_arbiter_pkg::*;
     import monitor_pkg::*;
 
     // =========================================================================

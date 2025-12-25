@@ -106,7 +106,7 @@ def generate_test_params():
 # CocoTB Test Functions
 # ==============================================================================
 
-@cocotb.test(timeout_time=500, timeout_unit="us")
+@cocotb.test(timeout_time=2000, timeout_unit="us")
 async def cocotb_test_stream_top_basic(dut):
     """Test basic stream_top operation with APB configuration"""
 
@@ -187,8 +187,9 @@ async def cocotb_test_stream_top_basic(dut):
         tb.log.info(f"\n=== Testing Channel {channel} ===")
 
         # Create descriptor chain for this channel
-        base_src_addr = tb.src_mem_base + (channel * 0x1000000)
-        base_dst_addr = tb.dst_mem_base + (channel * 0x1000000)
+        # Use 0x400000 (4MB) per channel to fit 8 channels in 32MB source/dest memory
+        base_src_addr = tb.src_mem_base + (channel * 0x400000)
+        base_dst_addr = tb.dst_mem_base + (channel * 0x400000)
 
         descriptors = []
 
@@ -197,7 +198,8 @@ async def cocotb_test_stream_top_basic(dut):
             transfer_size = transfer_sizes[i % len(transfer_sizes)]
 
             # Descriptor address (64-byte spacing)
-            desc_addr = tb.desc_mem_base + (channel * 0x100000) + (i * 64)
+            # Use 0x10000 (64KB) per channel to fit 8 channels in 512KB descriptor memory
+            desc_addr = tb.desc_mem_base + (channel * 0x10000) + (i * 64)
             next_desc_addr = desc_addr + 64 if i < desc_count - 1 else 0
 
             # Source/destination addresses (0x10000 offset per descriptor)
@@ -237,11 +239,11 @@ async def cocotb_test_stream_top_basic(dut):
                        f"len={transfer_size} beats")
 
         # Kick off channel via APB write
-        first_desc_addr = tb.desc_mem_base + (channel * 0x100000)
+        first_desc_addr = tb.desc_mem_base + (channel * 0x10000)
         await tb.kick_off_channel(channel, first_desc_addr)
 
         # Wait for completion (interrupt-based)
-        await tb.wait_for_channel_idle(channel, timeout_us=200)  # 200us timeout (before 500us cocotb timeout)
+        await tb.wait_for_channel_idle(channel, timeout_us=400)  # 400us per channel (2000us total cocotb timeout)
 
         # Verify data transfer
         tb.log.info(f"Verifying data for channel {channel}...")

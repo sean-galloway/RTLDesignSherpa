@@ -24,8 +24,12 @@ ifndef REPO_ROOT
 $(error REPO_ROOT is not set. Please run: source $$REPO_ROOT/env_python)
 endif
 
-# Component list
-COMPONENTS = stream rapids bridge delta apb_hpet apb_xbar converters
+# Component list - only components with working dv/tests/Makefile
+# To add a component: 1) create dv/tests/Makefile with run-all-* targets, 2) add to this list
+COMPONENTS = stream rapids bridge apb_xbar converters retro_legacy_blocks
+
+# Components that exist but don't have test Makefiles yet (for reference):
+# - bch, delta, misc - have dv/tests dir but no Makefile
 
 # Colors for output (if supported)
 BOLD := $(shell tput bold 2>/dev/null)
@@ -52,9 +56,9 @@ help:
 	@echo "  make test-stream          Run STREAM tests"
 	@echo "  make test-rapids          Run RAPIDS tests"
 	@echo "  make test-bridge          Run Bridge tests"
-	@echo "  make test-delta           Run Delta tests"
-	@echo "  make test-apb_hpet        Run APB HPET tests"
 	@echo "  make test-apb_xbar        Run APB Crossbar tests"
+	@echo "  make test-converters      Run Converters tests"
+	@echo "  make test-retro_legacy_blocks  Run Retro Legacy Blocks tests"
 	@echo ""
 	@echo "REG_LEVEL TEST TARGETS (configurable test depth):"
 	@echo "  GATE = Quick smoke (~5 min/component), FUNC = Default (~30 min/component), FULL = Comprehensive (~4 hr/component)"
@@ -73,11 +77,9 @@ help:
 	@echo "  make lint-stream          Lint STREAM RTL"
 	@echo "  make lint-rapids          Lint RAPIDS RTL"
 	@echo "  make lint-bridge          Lint Bridge RTL"
-	@echo "  make lint-delta           Lint Delta RTL"
-	@echo "  make lint-apb_hpet        Lint APB HPET RTL"
 	@echo "  make lint-apb_xbar        Lint APB Crossbar RTL"
 	@echo "  make lint-converters      Lint Converters RTL"
-	@echo "  make lint-converters      Lint Converters RTL (data width + protocol)"
+	@echo "  make lint-retro_legacy_blocks  Lint Retro Legacy Blocks RTL"
 	@echo ""
 	@echo "STATUS TARGETS:"
 	@echo "  make status               Show status of all components"
@@ -95,6 +97,14 @@ help:
 	@echo "COMBINED TARGETS:"
 	@echo "  make all                  Run tests AND lint on all components"
 	@echo "  make ci                   CI/CD mode: gate tests + lint"
+	@echo ""
+	@echo "QUICK SHORTCUTS (run gate/func/full on all components):"
+	@echo "  make gate                 Quick smoke tests (parallel, ~5 min/component)"
+	@echo "  make func                 Functional coverage (parallel, ~30 min/component)"
+	@echo "  make full                 Comprehensive tests (parallel, ~4 hr/component)"
+	@echo "  make gate-serial          GATE tests, serial execution"
+	@echo "  make func-serial          FUNC tests, serial execution"
+	@echo "  make full-serial          FULL tests, serial execution"
 	@echo ""
 	@echo "================================================================================"
 	@echo "Prerequisites: source $(REPO_ROOT)/env_python"
@@ -422,6 +432,36 @@ lint: lint-all
 
 .PHONY: clean
 clean: clean-all
+
+# ==============================================================================
+# Shortcut Targets (gate/func/full)
+# ==============================================================================
+# These are convenient shortcuts for running all component tests at each level
+
+.PHONY: gate
+gate: test-all-gate-parallel
+	@echo "$(BOLD)$(GREEN)✓ GATE tests complete (all components)$(RESET)"
+
+.PHONY: func
+func: test-all-func-parallel
+	@echo "$(BOLD)$(GREEN)✓ FUNC tests complete (all components)$(RESET)"
+
+.PHONY: full
+full: test-all-full-parallel
+	@echo "$(BOLD)$(GREEN)✓ FULL tests complete (all components)$(RESET)"
+
+# Serial versions (if parallel causes issues)
+.PHONY: gate-serial
+gate-serial: test-all-gate
+	@echo "$(BOLD)$(GREEN)✓ GATE tests complete (serial)$(RESET)"
+
+.PHONY: func-serial
+func-serial: test-all-func
+	@echo "$(BOLD)$(GREEN)✓ FUNC tests complete (serial)$(RESET)"
+
+.PHONY: full-serial
+full-serial: test-all-full
+	@echo "$(BOLD)$(GREEN)✓ FULL tests complete (serial)$(RESET)"
 
 # ==============================================================================
 # End of Makefile

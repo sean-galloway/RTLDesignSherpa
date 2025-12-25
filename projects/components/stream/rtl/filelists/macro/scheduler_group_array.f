@@ -18,7 +18,8 @@ $REPO_ROOT/rtl/amba/includes/reset_defs.svh
 $REPO_ROOT/rtl/amba/includes/fifo_defs.svh
 
 # Package files
-$REPO_ROOT/rtl/amba/includes/monitor_pkg.sv
+$REPO_ROOT/rtl/amba/includes/monitor_common_pkg.sv
+$REPO_ROOT/rtl/amba/includes/monitor_arbiter_pkg.sv
 $STREAM_ROOT/rtl/includes/stream_pkg.sv
 
 # Dependencies - Arbiters (for shared descriptor AXI master access)

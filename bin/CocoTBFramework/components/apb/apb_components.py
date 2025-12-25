@@ -327,6 +327,8 @@ class APBMaster(BusDriver):
         if self.is_signal_present('PSTRB'):
             self.bus.PSTRB.setimmediatevalue(0)
         self.transmit_queue = deque()
+        self.transmit_coroutine = None
+        self.transfer_busy = False
 
     def set_randomizer(self, randomizer):
         self.randomizer = randomizer
@@ -339,7 +341,8 @@ class APBMaster(BusDriver):
     async def reset_bus(self):
         # initialise the transmit queue
         self.transmit_queue     = deque()
-        self.transmit_coroutine = 0
+        self.transmit_coroutine = None  # Use None, not 0, for proper Task checking
+        self.transfer_busy      = False
         self.bus.PSEL.value     = 0
         self.bus.PENABLE.value  = 0
         self.bus.PWRITE.value   = 0
@@ -371,12 +374,16 @@ class APBMaster(BusDriver):
         #   the coroutine isn't already running.
         #   If it is running it will just collect the transactions in the
         #   queue once it gets to them.
-        if not hold and not self.transmit_coroutine:
+        # Use .done() method to properly check if Task is complete (CocoTB 1.8+)
+        if not hold and (self.transmit_coroutine is None or self.transmit_coroutine.done()):
             self.transmit_coroutine = cocotb.start_soon(self._transmit_pipeline())
 
 
     async def _transmit_pipeline(self):
         """Internal function to transmit queued transactions."""
+        # Wait for clock edge to ensure we're not in a read-only phase
+        await RisingEdge(self.clock)
+
         # default values
         self.transfer_busy = True
 

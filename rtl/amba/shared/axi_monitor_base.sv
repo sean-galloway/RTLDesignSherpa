@@ -120,6 +120,8 @@ module axi_monitor_base
 );
 
     // Import standard monitor types and constants
+    import monitor_common_pkg::*;
+    import monitor_amba4_pkg::*;
     import monitor_pkg::*;
 
     // Transaction tracking table - Fixed: Use unpacked array consistently

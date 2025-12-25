@@ -135,7 +135,7 @@ module monbus_axil_group #(
     output logic [7:0]              write_fifo_count
 );
 
-    import monitor_pkg::*;
+    import monitor_common_pkg::*;
 
     // =======================================================================
     // Local Parameters
@@ -252,13 +252,13 @@ module monbus_axil_group #(
 
                     // Check individual event masking
                     case (pkt_type)
-                        monitor_pkg::PktTypeError:     pkt_event_masked = cfg_axi_error_mask[pkt_event_code];
-                        monitor_pkg::PktTypeTimeout:   pkt_event_masked = cfg_axi_timeout_mask[pkt_event_code];
-                        monitor_pkg::PktTypeCompletion: pkt_event_masked = cfg_axi_compl_mask[pkt_event_code];
-                        monitor_pkg::PktTypeThreshold: pkt_event_masked = cfg_axi_thresh_mask[pkt_event_code];
-                        monitor_pkg::PktTypePerf:      pkt_event_masked = cfg_axi_perf_mask[pkt_event_code];
-                        monitor_pkg::PktTypeAddrMatch: pkt_event_masked = cfg_axi_addr_mask[pkt_event_code];
-                        monitor_pkg::PktTypeDebug:     pkt_event_masked = cfg_axi_debug_mask[pkt_event_code];
+                        monitor_common_pkg::PktTypeError:     pkt_event_masked = cfg_axi_error_mask[pkt_event_code];
+                        monitor_common_pkg::PktTypeTimeout:   pkt_event_masked = cfg_axi_timeout_mask[pkt_event_code];
+                        monitor_common_pkg::PktTypeCompletion: pkt_event_masked = cfg_axi_compl_mask[pkt_event_code];
+                        monitor_common_pkg::PktTypeThreshold: pkt_event_masked = cfg_axi_thresh_mask[pkt_event_code];
+                        monitor_common_pkg::PktTypePerf:      pkt_event_masked = cfg_axi_perf_mask[pkt_event_code];
+                        monitor_common_pkg::PktTypeAddrMatch: pkt_event_masked = cfg_axi_addr_mask[pkt_event_code];
+                        monitor_common_pkg::PktTypeDebug:     pkt_event_masked = cfg_axi_debug_mask[pkt_event_code];
                         default:                       pkt_event_masked = 1'b0;
                     endcase
                 end
@@ -268,12 +268,12 @@ module monbus_axil_group #(
                     pkt_to_err_fifo = cfg_axis_err_select[pkt_type] && !pkt_drop;
 
                     case (pkt_type)
-                        monitor_pkg::PktTypeError:     pkt_event_masked = cfg_axis_error_mask[pkt_event_code];
-                        monitor_pkg::PktTypeTimeout:   pkt_event_masked = cfg_axis_timeout_mask[pkt_event_code];
-                        monitor_pkg::PktTypeCompletion: pkt_event_masked = cfg_axis_compl_mask[pkt_event_code];
-                        monitor_pkg::PktTypeCredit:    pkt_event_masked = cfg_axis_credit_mask[pkt_event_code];
-                        monitor_pkg::PktTypeChannel:   pkt_event_masked = cfg_axis_channel_mask[pkt_event_code];
-                        monitor_pkg::PktTypeStream:    pkt_event_masked = cfg_axis_stream_mask[pkt_event_code];
+                        monitor_common_pkg::PktTypeError:     pkt_event_masked = cfg_axis_error_mask[pkt_event_code];
+                        monitor_common_pkg::PktTypeTimeout:   pkt_event_masked = cfg_axis_timeout_mask[pkt_event_code];
+                        monitor_common_pkg::PktTypeCompletion: pkt_event_masked = cfg_axis_compl_mask[pkt_event_code];
+                        monitor_common_pkg::PktTypeCredit:    pkt_event_masked = cfg_axis_credit_mask[pkt_event_code];
+                        monitor_common_pkg::PktTypeChannel:   pkt_event_masked = cfg_axis_channel_mask[pkt_event_code];
+                        monitor_common_pkg::PktTypeStream:    pkt_event_masked = cfg_axis_stream_mask[pkt_event_code];
                         default:                       pkt_event_masked = 1'b0;
                     endcase
                 end
@@ -283,12 +283,12 @@ module monbus_axil_group #(
                     pkt_to_err_fifo = cfg_core_err_select[pkt_type] && !pkt_drop;
 
                     case (pkt_type)
-                        monitor_pkg::PktTypeError:     pkt_event_masked = cfg_core_error_mask[pkt_event_code];
-                        monitor_pkg::PktTypeTimeout:   pkt_event_masked = cfg_core_timeout_mask[pkt_event_code];
-                        monitor_pkg::PktTypeCompletion: pkt_event_masked = cfg_core_compl_mask[pkt_event_code];
-                        monitor_pkg::PktTypeThreshold: pkt_event_masked = cfg_core_thresh_mask[pkt_event_code];
-                        monitor_pkg::PktTypePerf:      pkt_event_masked = cfg_core_perf_mask[pkt_event_code];
-                        monitor_pkg::PktTypeDebug:     pkt_event_masked = cfg_core_debug_mask[pkt_event_code];
+                        monitor_common_pkg::PktTypeError:     pkt_event_masked = cfg_core_error_mask[pkt_event_code];
+                        monitor_common_pkg::PktTypeTimeout:   pkt_event_masked = cfg_core_timeout_mask[pkt_event_code];
+                        monitor_common_pkg::PktTypeCompletion: pkt_event_masked = cfg_core_compl_mask[pkt_event_code];
+                        monitor_common_pkg::PktTypeThreshold: pkt_event_masked = cfg_core_thresh_mask[pkt_event_code];
+                        monitor_common_pkg::PktTypePerf:      pkt_event_masked = cfg_core_perf_mask[pkt_event_code];
+                        monitor_common_pkg::PktTypeDebug:     pkt_event_masked = cfg_core_debug_mask[pkt_event_code];
                         default:                       pkt_event_masked = 1'b0;
                     endcase
                 end

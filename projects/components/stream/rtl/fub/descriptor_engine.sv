@@ -46,6 +46,8 @@
 `include "stream_imports.svh"
 `include "reset_defs.svh"
 
+// Import monitor arbiter package for CORE_COMPL_* and CORE_ERR_* constants
+import monitor_arbiter_pkg::*;
 
 module descriptor_engine #(
     parameter int CHANNEL_ID = 0,

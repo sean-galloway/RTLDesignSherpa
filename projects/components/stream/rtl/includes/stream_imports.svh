@@ -15,8 +15,8 @@
 
 `ifndef MONITOR_PKG_IMPORTED
 `define MONITOR_PKG_IMPORTED
-// Import monitor package once globally
-import monitor_pkg::*;
+// Import only the monitor packages STREAM needs (not the full monitor_pkg)
+import monitor_common_pkg::*;
 `endif // MONITOR_PKG_IMPORTED
 
 // Include guard for STREAM package

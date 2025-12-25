@@ -518,6 +518,11 @@ def test_axi4_monitor(iw, aw, max_transactions, is_read, is_axi4, test_mode):
     os.makedirs(log_dir, exist_ok=True)
 
     verilog_sources = [
+        # Monitor packages (must be compiled in order)
+        os.path.join(rtl_dict['rtl_amba_includes'], "monitor_common_pkg.sv"),
+        os.path.join(rtl_dict['rtl_amba_includes'], "monitor_amba4_pkg.sv"),
+        os.path.join(rtl_dict['rtl_amba_includes'], "monitor_amba5_pkg.sv"),
+        os.path.join(rtl_dict['rtl_amba_includes'], "monitor_arbiter_pkg.sv"),
         os.path.join(rtl_dict['rtl_amba_includes'], "monitor_pkg.sv"),
         os.path.join(rtl_dict['rtl_common'], "counter_bin.sv"),
         os.path.join(rtl_dict['rtl_common'], "counter_load_clear.sv"),

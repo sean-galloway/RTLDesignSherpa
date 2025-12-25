@@ -36,6 +36,8 @@
 
 `include "reset_defs.svh"
 module axi_monitor_filtered
+    import monitor_common_pkg::*;
+    import monitor_amba4_pkg::*;
     import monitor_pkg::*;
 #(
     // Monitor parameters (passed through to axi_monitor_base)

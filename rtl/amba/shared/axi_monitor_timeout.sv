@@ -26,6 +26,8 @@
 
 `include "reset_defs.svh"
 module axi_monitor_timeout
+    import monitor_common_pkg::*;
+    import monitor_amba4_pkg::*;
     import monitor_pkg::*;
 #(
     parameter int MAX_TRANSACTIONS   = 16,   // Maximum outstanding transactions

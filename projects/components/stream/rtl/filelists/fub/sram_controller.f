@@ -9,8 +9,8 @@
 $REPO_ROOT/rtl/amba/includes/reset_defs.svh
 $REPO_ROOT/rtl/amba/includes/fifo_defs.svh
 
-# Package files
-$REPO_ROOT/rtl/amba/includes/monitor_pkg.sv
+# Package files - STREAM only needs monitor_common_pkg (not the full monitor_pkg)
+$REPO_ROOT/rtl/amba/includes/monitor_common_pkg.sv
 $STREAM_ROOT/rtl/includes/stream_pkg.sv
 
 # Dependencies - GAXI FIFO and simple SRAM

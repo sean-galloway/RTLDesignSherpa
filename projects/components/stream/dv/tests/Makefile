@@ -35,9 +35,9 @@ endif
 # Repository root comes from environment (set by env_python)
 # No path calculation needed - works from any project location!
 
-# Test directories (flattened structure - all tests at top level)
-FUB_TESTS_DIR = fub_tests
-MACRO_TESTS_DIR = macro_tests
+# Test directories
+FUB_TESTS_DIR = fub
+MACRO_TESTS_DIR = macro
 
 # Pytest options
 PYTEST = python3 -m pytest
