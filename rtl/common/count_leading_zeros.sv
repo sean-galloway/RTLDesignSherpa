@@ -272,7 +272,6 @@ module count_leading_zeros #(
 
     always_comb begin
         clz = clz_func(data);
-        $display("CLZ: %h, %h, %t", data, clz, $time);
     end
 
 endmodule : count_leading_zeros
