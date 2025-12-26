@@ -1455,4 +1455,841 @@ class BF16AdderTB(TBBase):
                 self.log.error(f"  {i+1}. {f}")
             if len(failures) > 10:
                 self.log.error(f"  ... and {len(failures)-10} more")
-            assert self.fail_count == 0, f"Tests failed: {self.fail_count}"
+            assert self.fail_count == 0, f"Adder tests failed: {self.fail_count}"
+
+
+class BF16ComparatorTB(TBBase):
+    """Testbench for BF16 magnitude comparator (math_bf16_comparator).
+
+    Tests the BF16 comparator including:
+    - Magnitude comparison (absolute value)
+    - Special value handling (zero, infinity, NaN)
+    - Equal value detection
+    """
+
+    def __init__(self, dut):
+        """Initialize the BF16 comparator testbench.
+
+        Args:
+            dut: The cocotb design under test object
+        """
+        TBBase.__init__(self, dut)
+
+        self.test_level = os.environ.get('TEST_LEVEL', 'basic')
+        self.seed = self.convert_to_int(os.environ.get('SEED', '12345'))
+        random.seed(self.seed)
+
+        # Test statistics
+        self.test_count = 0
+        self.pass_count = 0
+        self.fail_count = 0
+
+        self.log.info(f"BF16 Comparator TB initialized, test_level={self.test_level}")
+
+    def _compute_expected_compare(self, a_bf16: int, b_bf16: int) -> Tuple[int, bool, bool]:
+        """Compute expected comparison result.
+
+        Returns:
+            Tuple of (max_value, a_greater, equal)
+        """
+        # Check for NaN - NaN is considered larger than any other value
+        a_is_nan = BF16Utils.bf16_is_nan(a_bf16)
+        b_is_nan = BF16Utils.bf16_is_nan(b_bf16)
+
+        if a_is_nan:
+            return a_bf16, True, False
+        if b_is_nan:
+            return b_bf16, False, False
+
+        # Get magnitudes (clear sign bit)
+        mag_a = a_bf16 & 0x7FFF
+        mag_b = b_bf16 & 0x7FFF
+
+        # Compare magnitudes
+        if mag_a > mag_b:
+            return a_bf16, True, False
+        elif mag_b > mag_a:
+            return b_bf16, False, False
+        else:
+            # Equal magnitudes - return a (tie-breaking)
+            return a_bf16, False, True
+
+    async def test_single_compare(self, a_bf16: int, b_bf16: int, desc: str = "") -> bool:
+        """Test a single comparison.
+
+        Args:
+            a_bf16: First BF16 operand
+            b_bf16: Second BF16 operand
+            desc: Test description
+
+        Returns:
+            True if test passed, False otherwise
+        """
+        # Apply inputs
+        self.dut.i_a.value = a_bf16
+        self.dut.i_b.value = b_bf16
+
+        # Wait for combinational logic
+        await self.wait_time(1, 'ns')
+
+        # Read outputs
+        result_max = int(self.dut.ow_max.value)
+        a_greater = int(self.dut.ow_a_greater.value)
+        equal = int(self.dut.ow_equal.value)
+
+        # Compute expected
+        exp_max, exp_a_greater, exp_equal = self._compute_expected_compare(a_bf16, b_bf16)
+
+        # Compare
+        self.test_count += 1
+
+        passed = (result_max == exp_max and
+                  a_greater == exp_a_greater and
+                  equal == exp_equal)
+
+        if passed:
+            self.pass_count += 1
+        else:
+            self.fail_count += 1
+            a_float = BF16Utils.bf16_to_float(a_bf16)
+            b_float = BF16Utils.bf16_to_float(b_bf16)
+            self.log.error(f"FAIL {desc}: compare({a_float}, {b_float})")
+            self.log.error(f"  a=0x{a_bf16:04X}, b=0x{b_bf16:04X}")
+            self.log.error(f"  Expected: max=0x{exp_max:04X}, "
+                          f"a_greater={exp_a_greater}, equal={exp_equal}")
+            self.log.error(f"  Actual:   max=0x{result_max:04X}, "
+                          f"a_greater={a_greater}, equal={equal}")
+
+        return passed
+
+    async def special_values_test(self) -> List[str]:
+        """Test special BF16 values: zero, infinity, NaN."""
+        self.log.info("Starting Special Values Test")
+        failures = []
+
+        # Special value bit patterns
+        pos_zero = 0x0000
+        neg_zero = 0x8000
+        pos_inf = 0x7F80
+        neg_inf = 0xFF80
+        pos_nan = 0x7FC0  # Quiet NaN
+        pos_one = 0x3F80   # 1.0
+        neg_one = 0xBF80   # -1.0
+        pos_two = 0x4000   # 2.0
+        neg_two = 0xC000   # -2.0
+
+        special_cases = [
+            # Zero cases
+            (pos_zero, pos_zero, "0 vs 0"),
+            (pos_zero, neg_zero, "0 vs -0"),
+            (neg_zero, pos_zero, "-0 vs 0"),
+            (pos_zero, pos_one, "0 vs 1"),
+            (pos_one, pos_zero, "1 vs 0"),
+
+            # Same magnitude, different signs
+            (pos_one, neg_one, "1 vs -1"),
+            (neg_one, pos_one, "-1 vs 1"),
+            (pos_two, neg_two, "2 vs -2"),
+
+            # Different magnitudes
+            (pos_one, pos_two, "1 vs 2"),
+            (pos_two, pos_one, "2 vs 1"),
+            (neg_one, neg_two, "-1 vs -2"),
+            (neg_two, neg_one, "-2 vs -1"),
+
+            # Infinity cases
+            (pos_inf, pos_one, "inf vs 1"),
+            (pos_one, pos_inf, "1 vs inf"),
+            (pos_inf, pos_inf, "inf vs inf"),
+            (pos_inf, neg_inf, "inf vs -inf"),
+            (neg_inf, pos_inf, "-inf vs inf"),
+
+            # NaN cases - NaN should win
+            (pos_nan, pos_one, "NaN vs 1"),
+            (pos_one, pos_nan, "1 vs NaN"),
+            (pos_nan, pos_nan, "NaN vs NaN"),
+            (pos_nan, pos_inf, "NaN vs inf"),
+            (pos_inf, pos_nan, "inf vs NaN"),
+        ]
+
+        for a, b, desc in special_cases:
+            if not await self.test_single_compare(a, b, desc):
+                failures.append(f"Special case failed: {desc}")
+
+        self.log.info(f"Special Values Test: {self.pass_count}/{self.test_count} passed")
+        return failures
+
+    async def corner_cases_test(self) -> List[str]:
+        """Test corner cases: max/min normal, etc."""
+        self.log.info("Starting Corner Cases Test")
+        failures = []
+
+        # Important BF16 values
+        max_normal = 0x7F7F  # Largest normal
+        min_normal = 0x0080  # Smallest positive normal
+        pos_one = 0x3F80    # 1.0
+        half = 0x3F00       # 0.5
+
+        corner_cases = [
+            (max_normal, min_normal, "max vs min"),
+            (min_normal, max_normal, "min vs max"),
+            (max_normal, max_normal, "max vs max"),
+            (min_normal, min_normal, "min vs min"),
+            (pos_one, half, "1.0 vs 0.5"),
+            (half, pos_one, "0.5 vs 1.0"),
+
+            # Negative versions
+            (max_normal | 0x8000, min_normal | 0x8000, "-max vs -min"),
+            (max_normal, max_normal | 0x8000, "max vs -max"),
+        ]
+
+        for a, b, desc in corner_cases:
+            if not await self.test_single_compare(a, b, desc):
+                failures.append(f"Corner case failed: {desc}")
+
+        self.log.info(f"Corner Cases Test: {self.pass_count}/{self.test_count} passed")
+        return failures
+
+    async def random_test(self, count: int = 100) -> List[str]:
+        """Random value testing."""
+        self.log.info(f"Starting Random Test with {count} cases")
+        failures = []
+
+        for i in range(count):
+            # Generate random BF16 values (avoid NaN/Inf for basic random test)
+            a = random.randint(0, 0x7F7F)  # Positive normal range
+            b = random.randint(0, 0x7F7F)
+
+            # Randomly negate
+            if random.random() < 0.5:
+                a |= 0x8000
+            if random.random() < 0.5:
+                b |= 0x8000
+
+            if not await self.test_single_compare(a, b, f"random_{i}"):
+                failures.append(f"Random test {i} failed: a=0x{a:04X}, b=0x{b:04X}")
+
+            if i % max(1, count // 10) == 0:
+                self.log.info(f"Random test progress: {i}/{count}")
+
+        self.log.info(f"Random Test: {self.pass_count}/{self.test_count} passed")
+        return failures
+
+    async def clear_interface(self) -> None:
+        """Clear the DUT interface."""
+        self.dut.i_a.value = 0
+        self.dut.i_b.value = 0
+        await self.wait_time(1, 'ns')
+
+    def print_settings(self) -> None:
+        """Print testbench settings."""
+        self.log.info('-------------------------------------------')
+        self.log.info('BF16 Comparator Testbench Settings:')
+        self.log.info(f'    Seed:  {self.seed}')
+        self.log.info(f'    Level: {self.test_level}')
+        self.log.info('-------------------------------------------')
+
+    async def run_comprehensive_tests(self) -> None:
+        """Run comprehensive test suite based on test_level."""
+        self.log.info(f"Running comprehensive tests at {self.test_level} level")
+        failures = []
+
+        await self.clear_interface()
+
+        # Always run special values
+        failures.extend(await self.special_values_test())
+
+        if self.test_level in ['basic', 'medium', 'full']:
+            failures.extend(await self.corner_cases_test())
+
+        # Random tests scale with level
+        if self.test_level == 'simple':
+            failures.extend(await self.random_test(20))
+        elif self.test_level == 'basic':
+            failures.extend(await self.random_test(50))
+        elif self.test_level == 'medium':
+            failures.extend(await self.random_test(200))
+        elif self.test_level == 'full':
+            failures.extend(await self.random_test(1000))
+
+        self.log.info(f"Comprehensive Test Summary: "
+                     f"{self.pass_count}/{self.test_count} passed, {self.fail_count} failed")
+
+        if failures:
+            self.log.error(f"Total failures: {len(failures)}")
+            for i, f in enumerate(failures[:10]):
+                self.log.error(f"  {i+1}. {f}")
+            if len(failures) > 10:
+                self.log.error(f"  ... and {len(failures)-10} more")
+            assert self.fail_count == 0, f"Comparator tests failed: {self.fail_count}"
+
+
+class BF16ToIntTB(TBBase):
+    """Testbench for BF16 to INT8 converter (math_bf16_to_int).
+
+    Tests the BF16 to INT8 conversion including:
+    - Normal conversion with rounding
+    - Saturation (overflow/underflow)
+    - Special value handling (zero, infinity, NaN)
+    """
+
+    def __init__(self, dut):
+        """Initialize the BF16 to INT8 testbench.
+
+        Args:
+            dut: The cocotb design under test object
+        """
+        TBBase.__init__(self, dut)
+
+        self.test_level = os.environ.get('TEST_LEVEL', 'basic')
+        self.seed = self.convert_to_int(os.environ.get('SEED', '12345'))
+        random.seed(self.seed)
+
+        # Test statistics
+        self.test_count = 0
+        self.pass_count = 0
+        self.fail_count = 0
+
+        self.log.info(f"BF16 to INT8 TB initialized, test_level={self.test_level}")
+
+    def _compute_expected_to_int(self, bf16: int) -> Tuple[int, bool, bool, bool]:
+        """Compute expected BF16 to INT8 conversion.
+
+        Returns:
+            Tuple of (int8_result, overflow, underflow, is_zero)
+        """
+        # Check special cases
+        is_zero = BF16Utils.bf16_is_zero(bf16) or BF16Utils.bf16_is_subnormal(bf16)
+        is_inf = BF16Utils.bf16_is_inf(bf16)
+        is_nan = BF16Utils.bf16_is_nan(bf16)
+        sign = (bf16 >> 15) & 1
+
+        if is_nan:
+            return 0, False, False, False
+
+        if is_inf:
+            if sign:
+                return 0x80, False, True, False  # -128
+            else:
+                return 0x7F, True, False, False  # +127
+
+        if is_zero:
+            return 0, False, False, True
+
+        # Normal conversion
+        float_val = BF16Utils.bf16_to_float(bf16)
+
+        # Round to nearest integer (RNE)
+        # Python's round() uses banker's rounding (RNE)
+        int_val = round(float_val)
+
+        # Saturate to INT8 range [-128, 127]
+        overflow = False
+        underflow = False
+
+        if int_val > 127:
+            int_val = 127
+            overflow = True
+        elif int_val < -128:
+            int_val = -128
+            underflow = True
+
+        # Convert to 8-bit two's complement
+        if int_val < 0:
+            result = int_val & 0xFF
+        else:
+            result = int_val
+
+        result_is_zero = (result == 0)
+
+        return result, overflow, underflow, result_is_zero
+
+    async def test_single_conversion(self, bf16: int, desc: str = "") -> bool:
+        """Test a single BF16 to INT8 conversion.
+
+        Args:
+            bf16: BF16 input value
+            desc: Test description
+
+        Returns:
+            True if test passed, False otherwise
+        """
+        # Apply input
+        self.dut.i_bf16.value = bf16
+
+        # Wait for combinational logic
+        await self.wait_time(1, 'ns')
+
+        # Read outputs
+        result = int(self.dut.ow_int8.value)
+        overflow = int(self.dut.ow_overflow.value)
+        underflow = int(self.dut.ow_underflow.value)
+        is_zero = int(self.dut.ow_is_zero.value)
+
+        # Compute expected
+        exp_result, exp_overflow, exp_underflow, exp_is_zero = \
+            self._compute_expected_to_int(bf16)
+
+        # Compare
+        self.test_count += 1
+
+        passed = (result == exp_result and
+                  overflow == exp_overflow and
+                  underflow == exp_underflow and
+                  is_zero == exp_is_zero)
+
+        if passed:
+            self.pass_count += 1
+        else:
+            self.fail_count += 1
+            float_val = BF16Utils.bf16_to_float(bf16)
+            # Convert result to signed for display
+            result_signed = result if result < 128 else result - 256
+            exp_result_signed = exp_result if exp_result < 128 else exp_result - 256
+            self.log.error(f"FAIL {desc}: bf16_to_int({float_val})")
+            self.log.error(f"  bf16=0x{bf16:04X}")
+            self.log.error(f"  Expected: int8={exp_result_signed}, "
+                          f"ovf={exp_overflow}, udf={exp_underflow}, zero={exp_is_zero}")
+            self.log.error(f"  Actual:   int8={result_signed}, "
+                          f"ovf={overflow}, udf={underflow}, zero={is_zero}")
+
+        return passed
+
+    async def special_values_test(self) -> List[str]:
+        """Test special BF16 values: zero, infinity, NaN."""
+        self.log.info("Starting Special Values Test")
+        failures = []
+
+        # Special value bit patterns
+        pos_zero = 0x0000
+        neg_zero = 0x8000
+        pos_inf = 0x7F80
+        neg_inf = 0xFF80
+        pos_nan = 0x7FC0  # Quiet NaN
+        subnormal = 0x0001  # Smallest subnormal
+
+        special_cases = [
+            (pos_zero, "positive zero"),
+            (neg_zero, "negative zero"),
+            (pos_inf, "positive infinity"),
+            (neg_inf, "negative infinity"),
+            (pos_nan, "NaN"),
+            (subnormal, "subnormal"),
+        ]
+
+        for bf16, desc in special_cases:
+            if not await self.test_single_conversion(bf16, desc):
+                failures.append(f"Special case failed: {desc}")
+
+        self.log.info(f"Special Values Test: {self.pass_count}/{self.test_count} passed")
+        return failures
+
+    async def boundary_values_test(self) -> List[str]:
+        """Test boundary values for INT8 conversion."""
+        self.log.info("Starting Boundary Values Test")
+        failures = []
+
+        # Key values for INT8 range [-128, 127]
+        boundary_values = [
+            (0x3F80, "1.0"),         # 1
+            (0xBF80, "-1.0"),        # -1
+            (0x4000, "2.0"),         # 2
+            (0xC000, "-2.0"),        # -2
+            (0x42FE, "127.0"),       # 127 (max positive)
+            (0xC2FE, "-127.0"),      # -127
+            (0x4300, "128.0"),       # 128 -> saturate to 127
+            (0xC300, "-128.0"),      # -128 (min negative)
+            (0x4302, "129.0"),       # 129 -> saturate to 127
+            (0xC340, "-192.0"),      # -192 -> saturate to -128
+            (0x3F00, "0.5"),         # 0.5 -> rounds to 0 (RNE)
+            (0xBF00, "-0.5"),        # -0.5 -> rounds to 0 (RNE)
+            (0x3F40, "0.75"),        # 0.75 -> rounds to 1
+            (0xBF40, "-0.75"),       # -0.75 -> rounds to -1
+            (0x3FC0, "1.5"),         # 1.5 -> rounds to 2 (RNE)
+            (0xBFC0, "-1.5"),        # -1.5 -> rounds to -2 (RNE)
+            (0x4040, "2.5"),         # 2.5 -> rounds to 2 (RNE)
+            (0xC040, "-2.5"),        # -2.5 -> rounds to -2 (RNE)
+            (0x4060, "3.5"),         # 3.5 -> rounds to 4 (RNE)
+            (0xC060, "-3.5"),        # -3.5 -> rounds to -4 (RNE)
+        ]
+
+        for bf16, desc in boundary_values:
+            if not await self.test_single_conversion(bf16, desc):
+                failures.append(f"Boundary value failed: {desc}")
+
+        self.log.info(f"Boundary Values Test: {self.pass_count}/{self.test_count} passed")
+        return failures
+
+    async def random_test(self, count: int = 100) -> List[str]:
+        """Random value testing."""
+        self.log.info(f"Starting Random Test with {count} cases")
+        failures = []
+
+        for i in range(count):
+            # Generate random BF16 values in INT8-representable range
+            # exp=127 to 133 covers 1.0 to ~127
+            exp = random.randint(120, 140)  # Some underflow, some overflow
+            mant = random.randint(0, 0x7F)
+            sign = random.randint(0, 1)
+
+            # Skip invalid exponents
+            if exp > 255:
+                exp = 255
+            if exp == 255 and mant != 0:
+                mant = 0  # Make it infinity, not NaN
+
+            bf16 = (sign << 15) | (exp << 7) | mant
+
+            if not await self.test_single_conversion(bf16, f"random_{i}"):
+                failures.append(f"Random test {i} failed: bf16=0x{bf16:04X}")
+
+            if i % max(1, count // 10) == 0:
+                self.log.info(f"Random test progress: {i}/{count}")
+
+        self.log.info(f"Random Test: {self.pass_count}/{self.test_count} passed")
+        return failures
+
+    async def clear_interface(self) -> None:
+        """Clear the DUT interface."""
+        self.dut.i_bf16.value = 0
+        await self.wait_time(1, 'ns')
+
+    def print_settings(self) -> None:
+        """Print testbench settings."""
+        self.log.info('-------------------------------------------')
+        self.log.info('BF16 to INT8 Testbench Settings:')
+        self.log.info(f'    Seed:  {self.seed}')
+        self.log.info(f'    Level: {self.test_level}')
+        self.log.info('-------------------------------------------')
+
+    async def run_comprehensive_tests(self) -> None:
+        """Run comprehensive test suite based on test_level."""
+        self.log.info(f"Running comprehensive tests at {self.test_level} level")
+        failures = []
+
+        await self.clear_interface()
+
+        # Always run special values
+        failures.extend(await self.special_values_test())
+
+        if self.test_level in ['basic', 'medium', 'full']:
+            failures.extend(await self.boundary_values_test())
+
+        # Random tests scale with level
+        if self.test_level == 'simple':
+            failures.extend(await self.random_test(20))
+        elif self.test_level == 'basic':
+            failures.extend(await self.random_test(50))
+        elif self.test_level == 'medium':
+            failures.extend(await self.random_test(200))
+        elif self.test_level == 'full':
+            failures.extend(await self.random_test(1000))
+
+        self.log.info(f"Comprehensive Test Summary: "
+                     f"{self.pass_count}/{self.test_count} passed, {self.fail_count} failed")
+
+        if failures:
+            self.log.error(f"Total failures: {len(failures)}")
+            for i, f in enumerate(failures[:10]):
+                self.log.error(f"  {i+1}. {f}")
+            if len(failures) > 10:
+                self.log.error(f"  ... and {len(failures)-10} more")
+            assert self.fail_count == 0, f"BF16 to INT8 tests failed: {self.fail_count}"
+
+
+class IntToBF16TB(TBBase):
+    """Testbench for signed integer to BF16 converter (math_int_to_bf16).
+
+    Tests the integer to BF16 conversion including:
+    - Normal conversion with rounding
+    - Zero handling
+    - Large integer overflow to infinity
+    - Parameterized integer width (8, 16, 32 bits)
+    """
+
+    def __init__(self, dut):
+        """Initialize the INT to BF16 testbench.
+
+        Args:
+            dut: The cocotb design under test object
+        """
+        TBBase.__init__(self, dut)
+
+        self.test_level = os.environ.get('TEST_LEVEL', 'basic')
+        self.seed = self.convert_to_int(os.environ.get('SEED', '12345'))
+        random.seed(self.seed)
+
+        # Get integer width from environment (default 32)
+        self.int_width = self.convert_to_int(os.environ.get('INT_WIDTH', '32'))
+
+        # Test statistics
+        self.test_count = 0
+        self.pass_count = 0
+        self.fail_count = 0
+
+        self.log.info(f"INT to BF16 TB initialized, test_level={self.test_level}, int_width={self.int_width}")
+
+    def _compute_expected_from_int(self, int_val: int) -> Tuple[int, bool]:
+        """Compute expected integer to BF16 conversion.
+
+        Args:
+            int_val: Signed integer value (two's complement)
+
+        Returns:
+            Tuple of (bf16_result, is_zero)
+        """
+        # Handle integer width - interpret as signed
+        max_val = (1 << (self.int_width - 1)) - 1
+        min_val = -(1 << (self.int_width - 1))
+
+        # Convert from unsigned to signed if needed
+        if int_val >= (1 << (self.int_width - 1)):
+            int_val = int_val - (1 << self.int_width)
+
+        # Zero case
+        if int_val == 0:
+            return 0x0000, True
+
+        # Determine sign and absolute value
+        sign = 1 if int_val < 0 else 0
+        abs_val = abs(int_val)
+
+        # Convert to float and then to BF16
+        float_val = float(int_val)
+
+        # Check for overflow (value too large for BF16)
+        # BF16 max is ~3.39e38, which is way larger than any 32-bit int
+        # So overflow only happens if abs_val > 2^128 approximately (not for 32-bit)
+        # For 32-bit int, max is 2^31-1 = 2.1e9, which fits easily in BF16
+
+        # Convert to BF16
+        bf16 = BF16Utils.float_to_bf16(float_val)
+
+        return bf16, False
+
+    async def test_single_conversion(self, int_val: int, desc: str = "") -> bool:
+        """Test a single integer to BF16 conversion.
+
+        Args:
+            int_val: Signed integer input value
+            desc: Test description
+
+        Returns:
+            True if test passed, False otherwise
+        """
+        # Apply input (as unsigned for DUT)
+        self.dut.i_int.value = int_val & ((1 << self.int_width) - 1)
+
+        # Wait for combinational logic
+        await self.wait_time(1, 'ns')
+
+        # Read outputs
+        result = int(self.dut.ow_bf16.value)
+        is_zero = int(self.dut.ow_is_zero.value)
+
+        # Compute expected
+        exp_result, exp_is_zero = self._compute_expected_from_int(int_val)
+
+        # Compare
+        self.test_count += 1
+
+        # Allow 1 ULP difference due to rounding differences
+        result_is_nan = BF16Utils.bf16_is_nan(result)
+        exp_is_nan = BF16Utils.bf16_is_nan(exp_result)
+
+        if result_is_nan and exp_is_nan:
+            passed = True
+        elif result == exp_result:
+            passed = True
+        else:
+            # Allow 1 ULP difference for rounding
+            ulp_diff = abs((result & 0x7FFF) - (exp_result & 0x7FFF))
+            sign_match = (result >> 15) == (exp_result >> 15)
+            passed = sign_match and ulp_diff <= 1
+
+        # Check is_zero flag
+        if is_zero != exp_is_zero:
+            passed = False
+
+        if passed:
+            self.pass_count += 1
+        else:
+            self.fail_count += 1
+            # Convert int to signed for display
+            if int_val >= (1 << (self.int_width - 1)):
+                int_val_signed = int_val - (1 << self.int_width)
+            else:
+                int_val_signed = int_val
+            result_float = BF16Utils.bf16_to_float(result)
+            exp_float = BF16Utils.bf16_to_float(exp_result)
+            self.log.error(f"FAIL {desc}: int_to_bf16({int_val_signed})")
+            self.log.error(f"  int=0x{int_val & ((1 << self.int_width) - 1):08X}")
+            self.log.error(f"  Expected: bf16=0x{exp_result:04X} ({exp_float}), zero={exp_is_zero}")
+            self.log.error(f"  Actual:   bf16=0x{result:04X} ({result_float}), zero={is_zero}")
+            if ulp_diff := abs((result & 0x7FFF) - (exp_result & 0x7FFF)):
+                self.log.error(f"  ULP diff: {ulp_diff}")
+
+        return passed
+
+    async def special_values_test(self) -> List[str]:
+        """Test special integer values: zero, powers of 2, etc."""
+        self.log.info("Starting Special Values Test")
+        failures = []
+
+        special_cases = [
+            (0, "zero"),
+            (1, "one"),
+            (-1, "negative one"),
+            (2, "two"),
+            (-2, "negative two"),
+            (127, "max_int8"),
+            (-128, "min_int8"),
+            (255, "max_uint8"),
+            (256, "256"),
+            (-256, "negative 256"),
+        ]
+
+        # Add width-specific cases
+        if self.int_width >= 16:
+            special_cases.extend([
+                (32767, "max_int16"),
+                (-32768, "min_int16"),
+                (65535, "max_uint16"),
+            ])
+
+        if self.int_width >= 32:
+            special_cases.extend([
+                (2147483647, "max_int32"),
+                (-2147483648, "min_int32"),
+            ])
+
+        for int_val, desc in special_cases:
+            # Check value fits in int_width
+            max_val = (1 << (self.int_width - 1)) - 1
+            min_val = -(1 << (self.int_width - 1))
+            if int_val < min_val or int_val > max_val:
+                continue
+
+            if not await self.test_single_conversion(int_val, desc):
+                failures.append(f"Special case failed: {desc}")
+
+        self.log.info(f"Special Values Test: {self.pass_count}/{self.test_count} passed")
+        return failures
+
+    async def powers_of_two_test(self) -> List[str]:
+        """Test powers of 2 (important for floating-point)."""
+        self.log.info("Starting Powers of Two Test")
+        failures = []
+
+        # Test positive powers of 2
+        for exp in range(self.int_width - 1):
+            val = 1 << exp
+            if not await self.test_single_conversion(val, f"2^{exp}"):
+                failures.append(f"Power of 2 failed: 2^{exp}")
+
+            # Also test negative
+            if exp < self.int_width - 1:  # -2^(n-1) is valid, but not -2^(n-1) - 1
+                neg_val = -(1 << exp)
+                if not await self.test_single_conversion(neg_val, f"-2^{exp}"):
+                    failures.append(f"Negative power of 2 failed: -2^{exp}")
+
+        # Test powers of 2 minus 1 (all ones pattern)
+        for exp in range(1, min(self.int_width - 1, 24)):  # Limit to BF16 precision
+            val = (1 << exp) - 1
+            if not await self.test_single_conversion(val, f"2^{exp}-1"):
+                failures.append(f"Power of 2 minus 1 failed: 2^{exp}-1")
+
+        self.log.info(f"Powers of Two Test: {self.pass_count}/{self.test_count} passed")
+        return failures
+
+    async def boundary_values_test(self) -> List[str]:
+        """Test boundary values near BF16 representable integers."""
+        self.log.info("Starting Boundary Values Test")
+        failures = []
+
+        # Test small integers that should convert exactly
+        for val in range(-128, 128):
+            if not await self.test_single_conversion(val, f"small_{val}"):
+                failures.append(f"Small integer failed: {val}")
+
+        # Test values near INT8 boundaries
+        boundary_vals = [126, 127, 128, 129, 130,
+                        -126, -127, -128, -129, -130]
+        for val in boundary_vals:
+            if not await self.test_single_conversion(val, f"boundary_{val}"):
+                failures.append(f"Boundary value failed: {val}")
+
+        self.log.info(f"Boundary Values Test: {self.pass_count}/{self.test_count} passed")
+        return failures
+
+    async def random_test(self, count: int = 100) -> List[str]:
+        """Random value testing."""
+        self.log.info(f"Starting Random Test with {count} cases")
+        failures = []
+
+        max_val = (1 << (self.int_width - 1)) - 1
+        min_val = -(1 << (self.int_width - 1))
+
+        for i in range(count):
+            # Generate random signed integer
+            int_val = random.randint(min_val, max_val)
+
+            if not await self.test_single_conversion(int_val, f"random_{i}"):
+                failures.append(f"Random test {i} failed: int={int_val}")
+
+            if i % max(1, count // 10) == 0:
+                self.log.info(f"Random test progress: {i}/{count}")
+
+        self.log.info(f"Random Test: {self.pass_count}/{self.test_count} passed")
+        return failures
+
+    async def clear_interface(self) -> None:
+        """Clear the DUT interface."""
+        self.dut.i_int.value = 0
+        await self.wait_time(1, 'ns')
+
+    def print_settings(self) -> None:
+        """Print testbench settings."""
+        self.log.info('-------------------------------------------')
+        self.log.info('INT to BF16 Testbench Settings:')
+        self.log.info(f'    Seed:      {self.seed}')
+        self.log.info(f'    Level:     {self.test_level}')
+        self.log.info(f'    INT_WIDTH: {self.int_width}')
+        self.log.info('-------------------------------------------')
+
+    async def run_comprehensive_tests(self) -> None:
+        """Run comprehensive test suite based on test_level."""
+        self.log.info(f"Running comprehensive tests at {self.test_level} level")
+        failures = []
+
+        await self.clear_interface()
+
+        # Always run special values
+        failures.extend(await self.special_values_test())
+
+        if self.test_level in ['basic', 'medium', 'full']:
+            failures.extend(await self.powers_of_two_test())
+
+        if self.test_level in ['medium', 'full']:
+            failures.extend(await self.boundary_values_test())
+
+        # Random tests scale with level
+        if self.test_level == 'simple':
+            failures.extend(await self.random_test(20))
+        elif self.test_level == 'basic':
+            failures.extend(await self.random_test(50))
+        elif self.test_level == 'medium':
+            failures.extend(await self.random_test(200))
+        elif self.test_level == 'full':
+            failures.extend(await self.random_test(1000))
+
+        self.log.info(f"Comprehensive Test Summary: "
+                     f"{self.pass_count}/{self.test_count} passed, {self.fail_count} failed")
+
+        if failures:
+            self.log.error(f"Total failures: {len(failures)}")
+            for i, f in enumerate(failures[:10]):
+                self.log.error(f"  {i+1}. {f}")
+            if len(failures) > 10:
+                self.log.error(f"  ... and {len(failures)-10} more")
+            assert self.fail_count == 0, f"INT to BF16 tests failed: {self.fail_count}"
