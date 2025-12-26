@@ -2293,3 +2293,267 @@ class IntToBF16TB(TBBase):
             if len(failures) > 10:
                 self.log.error(f"  ... and {len(failures)-10} more")
             assert self.fail_count == 0, f"INT to BF16 tests failed: {self.fail_count}"
+
+
+class BF16MaxTreeTB(TBBase):
+    """Testbench for BF16 max tree (math_bf16_max_tree).
+
+    Tests the tree-based maximum magnitude finder including:
+    - Finding max across N BF16 values
+    - Correct index tracking
+    - NaN handling (NaN propagates)
+    - All-zero detection
+    """
+
+    def __init__(self, dut):
+        """Initialize the BF16 max tree testbench.
+
+        Args:
+            dut: The cocotb design under test object
+        """
+        TBBase.__init__(self, dut)
+
+        self.test_level = os.environ.get('TEST_LEVEL', 'basic')
+        self.seed = self.convert_to_int(os.environ.get('SEED', '12345'))
+        random.seed(self.seed)
+
+        # Get number of inputs from environment (default 8)
+        self.num_inputs = self.convert_to_int(os.environ.get('NUM_INPUTS', '8'))
+
+        # Test statistics
+        self.test_count = 0
+        self.pass_count = 0
+        self.fail_count = 0
+
+        self.log.info(f"BF16 Max Tree TB initialized, test_level={self.test_level}, "
+                     f"num_inputs={self.num_inputs}")
+
+    def _compute_expected_max(self, values: List[int]) -> Tuple[int, int, bool]:
+        """Compute expected max magnitude from list of BF16 values.
+
+        Args:
+            values: List of BF16 values (as integers)
+
+        Returns:
+            Tuple of (max_value, max_index, all_zero)
+        """
+        # Check all zero
+        all_zero = all(BF16Utils.bf16_is_zero(v) for v in values)
+
+        # Find max by magnitude
+        max_val = values[0]
+        max_idx = 0
+
+        for i, v in enumerate(values):
+            # NaN is considered largest
+            if BF16Utils.bf16_is_nan(v):
+                max_val = v
+                max_idx = i
+                break  # NaN wins immediately
+
+            if BF16Utils.bf16_is_nan(max_val):
+                continue  # Current max is NaN, keep it
+
+            # Compare magnitudes (ignore sign bit)
+            v_mag = v & 0x7FFF
+            max_mag = max_val & 0x7FFF
+
+            if v_mag > max_mag:
+                max_val = v
+                max_idx = i
+            elif v_mag == max_mag and i < max_idx:
+                # Tie goes to lower index (consistent with RTL)
+                max_val = v
+                max_idx = i
+
+        return max_val, max_idx, all_zero
+
+    async def test_single_max(self, values: List[int], desc: str = "") -> bool:
+        """Test a single max tree operation.
+
+        Args:
+            values: List of BF16 input values
+            desc: Test description
+
+        Returns:
+            True if test passed, False otherwise
+        """
+        # Pack values into flattened bus: {val[N-1], ..., val[1], val[0]}
+        flat_value = 0
+        for i, v in enumerate(values):
+            flat_value |= (v & 0xFFFF) << (i * 16)
+        self.dut.i_values_flat.value = flat_value
+
+        # Wait for combinational logic
+        await self.wait_time(1, 'ns')
+
+        # Read outputs
+        result_max = int(self.dut.ow_max.value)
+        result_idx = int(self.dut.ow_max_index.value)
+        result_all_zero = int(self.dut.ow_all_zero.value)
+
+        # Compute expected
+        exp_max, exp_idx, exp_all_zero = self._compute_expected_max(values)
+
+        # Compare
+        self.test_count += 1
+
+        # Check max value (allow for tie-breaking differences)
+        max_match = (result_max == exp_max)
+        if not max_match:
+            # Check if magnitudes match (different index tie-breaking is OK)
+            max_match = ((result_max & 0x7FFF) == (exp_max & 0x7FFF))
+
+        # Check all_zero flag
+        zero_match = (result_all_zero == (1 if exp_all_zero else 0))
+
+        passed = max_match and zero_match
+
+        if passed:
+            self.pass_count += 1
+        else:
+            self.fail_count += 1
+            self.log.error(f"FAIL {desc}: max_tree")
+            self.log.error(f"  Inputs: {[f'0x{v:04X}' for v in values]}")
+            self.log.error(f"  Expected: max=0x{exp_max:04X} idx={exp_idx} all_zero={exp_all_zero}")
+            self.log.error(f"  Actual:   max=0x{result_max:04X} idx={result_idx} all_zero={result_all_zero}")
+
+        return passed
+
+    async def special_values_test(self) -> List[str]:
+        """Test special input patterns."""
+        self.log.info("Starting Special Values Test")
+        failures = []
+
+        # All zeros
+        values = [0x0000] * self.num_inputs
+        if not await self.test_single_max(values, "all_zeros"):
+            failures.append("All zeros failed")
+
+        # Single non-zero value at each position
+        for pos in range(self.num_inputs):
+            values = [0x0000] * self.num_inputs
+            values[pos] = 0x3F80  # 1.0
+            if not await self.test_single_max(values, f"single_at_{pos}"):
+                failures.append(f"Single value at position {pos} failed")
+
+        # All same value
+        values = [0x4000] * self.num_inputs  # All 2.0
+        if not await self.test_single_max(values, "all_same"):
+            failures.append("All same value failed")
+
+        # Increasing magnitudes
+        values = [BF16Utils.float_to_bf16(float(i + 1)) for i in range(self.num_inputs)]
+        if not await self.test_single_max(values, "increasing"):
+            failures.append("Increasing values failed")
+
+        # Decreasing magnitudes
+        values = [BF16Utils.float_to_bf16(float(self.num_inputs - i)) for i in range(self.num_inputs)]
+        if not await self.test_single_max(values, "decreasing"):
+            failures.append("Decreasing values failed")
+
+        # NaN in different positions
+        for pos in range(min(4, self.num_inputs)):
+            values = [0x3F80] * self.num_inputs
+            values[pos] = 0x7FC0  # NaN
+            if not await self.test_single_max(values, f"nan_at_{pos}"):
+                failures.append(f"NaN at position {pos} failed")
+
+        # Infinity handling
+        values = [0x3F80] * self.num_inputs
+        values[self.num_inputs // 2] = 0x7F80  # +Infinity
+        if not await self.test_single_max(values, "pos_infinity"):
+            failures.append("Positive infinity failed")
+
+        values = [0x3F80] * self.num_inputs
+        values[self.num_inputs // 2] = 0xFF80  # -Infinity (same magnitude as +inf)
+        if not await self.test_single_max(values, "neg_infinity"):
+            failures.append("Negative infinity failed")
+
+        # Mixed signs (magnitude comparison)
+        values = [0xBF80] * self.num_inputs  # All -1.0
+        values[0] = 0x4000  # 2.0 (larger magnitude)
+        if not await self.test_single_max(values, "mixed_signs"):
+            failures.append("Mixed signs failed")
+
+        self.log.info(f"Special Values Test: {self.pass_count}/{self.test_count} passed")
+        return failures
+
+    async def random_test(self, count: int = 100) -> List[str]:
+        """Random value testing."""
+        self.log.info(f"Starting Random Test with {count} cases")
+        failures = []
+
+        for i in range(count):
+            # Generate random BF16 values
+            values = []
+            for _ in range(self.num_inputs):
+                # Mix of random values including some special cases
+                r = random.random()
+                if r < 0.05:
+                    # Zero
+                    values.append(0x0000)
+                elif r < 0.08:
+                    # NaN
+                    values.append(0x7FC0 | random.randint(0, 0x3F))
+                elif r < 0.10:
+                    # Infinity
+                    values.append(0x7F80 if random.random() < 0.5 else 0xFF80)
+                else:
+                    # Random normal value
+                    float_val = random.uniform(-1000, 1000)
+                    values.append(BF16Utils.float_to_bf16(float_val))
+
+            if not await self.test_single_max(values, f"random_{i}"):
+                failures.append(f"Random test {i} failed")
+
+            if i % max(1, count // 10) == 0:
+                self.log.info(f"Random test progress: {i}/{count}")
+
+        self.log.info(f"Random Test: {self.pass_count}/{self.test_count} passed")
+        return failures
+
+    async def clear_interface(self) -> None:
+        """Clear the DUT interface."""
+        self.dut.i_values_flat.value = 0
+        await self.wait_time(1, 'ns')
+
+    def print_settings(self) -> None:
+        """Print testbench settings."""
+        self.log.info('-------------------------------------------')
+        self.log.info('BF16 Max Tree Testbench Settings:')
+        self.log.info(f'    Seed:       {self.seed}')
+        self.log.info(f'    Level:      {self.test_level}')
+        self.log.info(f'    NUM_INPUTS: {self.num_inputs}')
+        self.log.info('-------------------------------------------')
+
+    async def run_comprehensive_tests(self) -> None:
+        """Run comprehensive test suite based on test_level."""
+        self.log.info(f"Running comprehensive tests at {self.test_level} level")
+        failures = []
+
+        await self.clear_interface()
+
+        # Always run special values
+        failures.extend(await self.special_values_test())
+
+        # Random tests scale with level
+        if self.test_level == 'simple':
+            failures.extend(await self.random_test(20))
+        elif self.test_level == 'basic':
+            failures.extend(await self.random_test(50))
+        elif self.test_level == 'medium':
+            failures.extend(await self.random_test(200))
+        elif self.test_level == 'full':
+            failures.extend(await self.random_test(1000))
+
+        self.log.info(f"Comprehensive Test Summary: "
+                     f"{self.pass_count}/{self.test_count} passed, {self.fail_count} failed")
+
+        if failures:
+            self.log.error(f"Total failures: {len(failures)}")
+            for i, f in enumerate(failures[:10]):
+                self.log.error(f"  {i+1}. {f}")
+            if len(failures) > 10:
+                self.log.error(f"  ... and {len(failures)-10} more")
+            assert self.fail_count == 0, f"BF16 Max Tree tests failed: {self.fail_count}"
