@@ -1,8 +1,8 @@
-**[← Back to Main Index](../index.md)** | **[RTLAmba Index](index.md)**
+**[Back to Main Index](../index.md)** | **[RTLAmba Index](index.md)**
 
 # RTL AMBA Library Overview
 
-The RTL AMBA library provides a comprehensive implementation of ARM's Advanced Microcontroller Bus Architecture (AMBA) specifications, offering high-performance, synthesizable RTL modules for APB, AXI4, AXI4-Lite, and AXI4-Stream protocols with advanced features for modern SoC designs.
+The RTL AMBA library provides a comprehensive implementation of ARM's Advanced Microcontroller Bus Architecture (AMBA) specifications, offering high-performance, synthesizable RTL modules for both **AMBA 4** and **AMBA 5** protocols including APB, AXI4, AXI4-Lite, and AXI4-Stream with advanced features for modern SoC designs.
 
 ## Library Philosophy
 
@@ -10,7 +10,7 @@ The RTL AMBA library provides a comprehensive implementation of ARM's Advanced M
 
 The RTL AMBA library is built on the following core principles:
 
-**Standards Compliance**: Full adherence to ARM AMBA specifications (APB4/5, AXI4, AXI4-Lite, AXI4-Stream)
+**Standards Compliance**: Full adherence to ARM AMBA specifications (APB4/5, AXI4/5, AXI4-Lite, AXI4/5-Stream)
 **Performance Optimization**: Designed for high-frequency operation with minimal latency
 **Power Efficiency**: Comprehensive clock gating and power management features
 **Scalability**: Parameterizable configurations for diverse system requirements
@@ -24,39 +24,60 @@ The RTL AMBA library is built on the following core principles:
 - **Power Efficient**: Advanced power management with clock gating options
 - **Verification Complete**: Comprehensive testbenches and monitoring infrastructure
 
+---
+
 ## Architecture Overview
 
-### AMBA Protocol Hierarchy
+### AMBA Protocol Family
 
 ```
 AMBA Protocol Family
-├── APB (Advanced Peripheral Bus)
-│   ├── Simple register-oriented interface
-│   ├── Low power, low area implementation
-│   └── Suitable for control/status registers
-├── AXI4-Lite (Lightweight Memory-Mapped)
-│   ├── Single outstanding transaction
-│   ├── Register-oriented access patterns
-│   └── Simplified AXI4 for configuration
-├── AXI4-Full (High-Performance Memory-Mapped)
-│   ├── Multiple outstanding transactions
-│   ├── Burst transaction support
-│   └── High-throughput memory access
-└── AXI4-Stream (High-Throughput Streaming)
-    ├── Unidirectional data streaming
-    ├── Back-pressure flow control
-    └── Packet-based data transfer
+├── AMBA 4 (Established Standard)
+│   ├── APB4 (Advanced Peripheral Bus)
+│   │   ├── Simple register-oriented interface
+│   │   ├── Low power, low area implementation
+│   │   └── Suitable for control/status registers
+│   ├── AXI4-Lite (Lightweight Memory-Mapped)
+│   │   ├── Single outstanding transaction
+│   │   ├── Register-oriented access patterns
+│   │   └── Simplified AXI4 for configuration
+│   ├── AXI4-Full (High-Performance Memory-Mapped)
+│   │   ├── Multiple outstanding transactions (up to 16)
+│   │   ├── Burst transaction support
+│   │   └── High-throughput memory access
+│   └── AXI4-Stream (High-Throughput Streaming)
+│       ├── Unidirectional data streaming
+│       ├── Back-pressure flow control
+│       └── Packet-based data transfer
+│
+└── AMBA 5 (Next-Generation Features)
+    ├── APB5 (Enhanced Peripheral Bus)
+    │   ├── All APB4 features plus:
+    │   ├── PWAKEUP for low-power wake-up
+    │   ├── PNSE for TrustZone non-secure extension
+    │   └── User signals (PAUSER, PWUSER, etc.)
+    ├── AXI5 (Enhanced High-Performance)
+    │   ├── All AXI4 features plus:
+    │   ├── Atomic operations (AtomicStore, AtomicLoad, etc.)
+    │   ├── Memory tagging (AWMEMATTR, ARMEMATTR)
+    │   ├── Data poisoning (RPOISON, WPOISON)
+    │   └── Up to 256 outstanding transactions
+    └── AXI5-Stream (Enhanced Streaming)
+        ├── All AXI4-Stream features plus:
+        ├── TWAKEUP for low-power wake-up
+        └── TPOISON for error propagation
 ```
 
 ### Implementation Architecture
 
 ```
-RTL AMBA Library Architecture
-├── Protocol Implementations (66 modules)
-│   ├── APB (11 modules)
+RTL AMBA Library Architecture (86+ modules)
+├── AMBA 4 Protocol Implementations (47 modules)
+│   ├── APB4 (9 modules)
 │   │   ├── Masters & Slaves
 │   │   ├── Clock Gating Variants
-│   │   └── Interconnect (Crossbar)
+│   │   ├── Clock Domain Crossing
+│   │   └── Test Stubs
 │   ├── AXI4 (14 modules)
 │   │   ├── Read/Write Masters & Slaves
 │   │   ├── Clock Gating Variants
@@ -67,28 +88,81 @@ RTL AMBA Library Architecture
 │   └── AXI4-Stream (4 modules)
 │       ├── Masters & Slaves
 │       └── Clock Gating Variants
-├── Infrastructure (20 modules)
-│   ├── GAXI Generic Components
-│   ├── Monitoring & Debug
-│   ├── Clock Domain Crossing
-│   └── Arbitration Logic
-├── System Components (3 modules)
-│   └── HPET Timer Implementation
+│
+├── AMBA 5 Protocol Implementations (29 modules)
+│   ├── APB5 (9 modules)
+│   │   ├── Masters & Slaves
+│   │   ├── Clock Gating Variants
+│   │   ├── Clock Domain Crossing
+│   │   └── Test Stubs
+│   ├── AXI5 (16 modules)
+│   │   ├── Read/Write Masters & Slaves
+│   │   ├── Clock Gating Variants
+│   │   └── Integrated Monitor Variants
+│   └── AXI5-Stream (4 modules)
+│       ├── Masters & Slaves
+│       └── Clock Gating Variants
+│
+├── Shared Infrastructure (22 modules)
+│   ├── GAXI Generic Components (5 modules)
+│   ├── Monitoring & Debug (10 modules)
+│   ├── Clock Domain Crossing (2 modules)
+│   └── Arbitration Logic (5 modules)
+│
 └── Protocol Bridges (2 modules)
     └── AXI4 to APB Conversion
 ```
+
+---
+
+## AMBA 4 vs AMBA 5 Comparison
+
+### Feature Comparison Matrix
+
+| Feature | AMBA 4 | AMBA 5 |
+|---------|--------|--------|
+| **APB Protocol** | APB4 | APB5 |
+| Protection Signals | PPROT[2:0] | PPROT[2:0] + PNSE |
+| Wake-up Signaling | Not supported | PWAKEUP |
+| User Signals | Not supported | PAUSER, PWUSER, PRUSER, PBUSER |
+| **AXI Protocol** | AXI4 | AXI5 |
+| Outstanding Transactions | Up to 16 | Up to 256 |
+| Atomic Operations | Not supported | AtomicStore, AtomicLoad, AtomicSwap, AtomicCompare |
+| Memory Tagging | Not supported | AWMEMATTR, ARMEMATTR |
+| Data Poisoning | Not supported | RPOISON, WPOISON |
+| Chunking | Not supported | AWCHUNKEN |
+| Loop Support | Not supported | AWLOOP, ARLOOP |
+| **Stream Protocol** | AXI4-Stream | AXI5-Stream |
+| Wake-up Signaling | Not supported | TWAKEUP |
+| Data Poisoning | Not supported | TPOISON |
+
+### When to Use Which Version
+
+| Requirement | Recommendation |
+|-------------|----------------|
+| Proven, mature design | AMBA 4 |
+| Maximum compatibility | AMBA 4 |
+| Atomic operations needed | AMBA 5 (AXI5) |
+| Memory tagging (MTE) for security | AMBA 5 (AXI5) |
+| Power management wake-up | AMBA 5 (APB5, AXI5-Stream) |
+| TrustZone non-secure extension | AMBA 5 (APB5 PNSE) |
+| High outstanding count (>16) | AMBA 5 (AXI5) |
+| Error propagation in pipelines | AMBA 5 (POISON signals) |
+| Next-generation features | AMBA 5 |
+
+---
 
 ## Protocol Implementations
 
 ### 1. APB (Advanced Peripheral Bus)
 
-The APB implementation provides a complete solution for low-power peripheral access.
+The APB implementation provides complete solutions for low-power peripheral access in both AMBA 4 and AMBA 5 variants.
 
 #### Key Features
-- **APB4/APB5 Compliance**: Full support for latest APB specifications
+- **APB4/APB5 Compliance**: Full support for both specifications
 - **Power Optimization**: Clock gating variants for all components
 - **Flexible Configuration**: Parameterizable address and data widths
-- **System Integration**: Crossbar switch for multi-slave systems
+- **CDC Support**: Clock domain crossing for multi-clock systems
 
 #### Performance Characteristics
 - **Frequency**: Up to 200 MHz typical
@@ -96,17 +170,16 @@ The APB implementation provides a complete solution for low-power peripheral acc
 - **Throughput**: Up to 1.6 GB/s at 200 MHz with 32-bit data
 - **Power**: Ultra-low power with clock gating
 
-#### Components Architecture
+#### APB4 Example
 
 ```systemverilog
-// APB Master with command/response interface
+// APB4 Master with command/response interface
 apb_master #(
     .ADDR_WIDTH(32),
     .DATA_WIDTH(32),
-    .CMD_DEPTH(6),      // Command FIFO depth
-    .RSP_DEPTH(6)       // Response FIFO depth
+    .CMD_DEPTH(6),
+    .RSP_DEPTH(6)
 ) u_apb_master (
-    // APB interface
     .m_apb_PSEL     (psel),
     .m_apb_PENABLE  (penable),
     .m_apb_PADDR    (paddr),
@@ -117,79 +190,98 @@ apb_master #(
     .m_apb_PRDATA   (prdata),
     .m_apb_PSLVERR  (pslverr),
     .m_apb_PREADY   (pready),
-
-    // Command interface
-    .cmd_valid      (cmd_valid),
-    .cmd_ready      (cmd_ready),
-    .cmd_pwrite     (cmd_pwrite),
-    .cmd_paddr      (cmd_paddr),
-    .cmd_pwdata     (cmd_pwdata),
-
-    // Response interface
-    .rsp_valid      (rsp_valid),
-    .rsp_ready      (rsp_ready),
-    .rsp_prdata     (rsp_prdata),
-    .rsp_pslverr    (rsp_pslverr)
+    // Command/Response interfaces...
 );
 ```
 
-### 2. AXI4-Full (High-Performance Memory-Mapped)
+#### APB5 Example
 
-The AXI4 implementation provides maximum performance for memory-intensive applications.
+```systemverilog
+// APB5 Master with enhanced features
+apb5_master #(
+    .ADDR_WIDTH(32),
+    .DATA_WIDTH(32)
+) u_apb5_master (
+    // Standard APB signals
+    .m_apb_PSEL     (psel),
+    .m_apb_PENABLE  (penable),
+    .m_apb_PADDR    (paddr),
+    .m_apb_PWRITE   (pwrite),
+    .m_apb_PWDATA   (pwdata),
+    .m_apb_PSTRB    (pstrb),
+    .m_apb_PPROT    (pprot),
+    .m_apb_PRDATA   (prdata),
+    .m_apb_PSLVERR  (pslverr),
+    .m_apb_PREADY   (pready),
+    // APB5 enhanced signals
+    .m_apb_PWAKEUP  (pwakeup),
+    .m_apb_PNSE     (pnse),
+    .m_apb_PAUSER   (pauser),
+    .m_apb_PWUSER   (pwuser),
+    // ...
+);
+```
+
+---
+
+### 2. AXI4/AXI5 (High-Performance Memory-Mapped)
+
+The AXI implementation provides maximum performance for memory-intensive applications with full AMBA 4 and AMBA 5 support.
 
 #### Key Features
-- **AXI4 Compliance**: Full implementation of AXI4 specification
-- **Outstanding Transactions**: Support for multiple concurrent transactions
+- **AXI4/AXI5 Compliance**: Full implementation of both specifications
+- **Outstanding Transactions**: Up to 16 (AXI4) or 256 (AXI5) concurrent
 - **Burst Support**: INCR, FIXED, and WRAP burst types
-- **Advanced Features**: QoS, caching, and protection attributes
+- **Advanced Features**: QoS, caching, protection, atomic ops (AXI5)
 
 #### Performance Characteristics
 - **Frequency**: Up to 500 MHz typical
 - **Latency**: 1-2 clock cycles for simple transactions
 - **Throughput**: Up to 32 GB/s with 64-bit data at 500 MHz
-- **Outstanding**: Up to 16 concurrent transactions
+- **Outstanding**: Up to 16 (AXI4) or 256 (AXI5) concurrent transactions
 
-#### Implementation Details
+#### AXI4 Example
 
 ```systemverilog
 // AXI4 Read Master with skid buffers
 axi4_master_rd #(
-    .SKID_DEPTH_AR(2),      // Address channel skid buffer
-    .SKID_DEPTH_R(4),       // Read data channel skid buffer
+    .SKID_DEPTH_AR(2),
+    .SKID_DEPTH_R(4),
     .AXI_ID_WIDTH(8),
     .AXI_ADDR_WIDTH(32),
-    .AXI_DATA_WIDTH(64),
-    .AXI_USER_WIDTH(1)
+    .AXI_DATA_WIDTH(64)
 ) u_axi4_rd_master (
-    // AXI4 AR channel
     .fub_axi_arid      (arid),
     .fub_axi_araddr    (araddr),
     .fub_axi_arlen     (arlen),
     .fub_axi_arsize    (arsize),
     .fub_axi_arburst   (arburst),
-    .fub_axi_arlock    (arlock),
-    .fub_axi_arcache   (arcache),
-    .fub_axi_arprot    (arprot),
-    .fub_axi_arqos     (arqos),
-    .fub_axi_arregion  (arregion),
-    .fub_axi_aruser    (aruser),
-    .fub_axi_arvalid   (arvalid),
-    .fub_axi_arready   (arready),
-
-    // AXI4 R channel
-    .fub_axi_rid       (rid),
-    .fub_axi_rdata     (rdata),
-    .fub_axi_rresp     (rresp),
-    .fub_axi_rlast     (rlast),
-    .fub_axi_ruser     (ruser),
-    .fub_axi_rvalid    (rvalid),
-    .fub_axi_rready    (rready),
-
-    // Master AXI4 interface to memory controller
-    .m_axi_ar*         (mem_ar*),
-    .m_axi_r*          (mem_r*)
+    // ...
 );
 ```
+
+#### AXI5 Example with Integrated Monitor
+
+```systemverilog
+// AXI5 Read Master with integrated monitoring
+axi5_master_rd_mon #(
+    .AXI_ID_WIDTH(8),
+    .AXI_ADDR_WIDTH(64),
+    .AXI_DATA_WIDTH(128)
+) u_axi5_rd_master_mon (
+    .aclk               (clk),
+    .aresetn            (resetn),
+    // FUB and AXI interfaces
+    .fub_axi_ar*        (...),
+    .m_axi_ar*          (...),
+    // Monitor bus output
+    .mon_valid          (rd_mon_valid),
+    .mon_ready          (rd_mon_ready),
+    .mon_data           (rd_mon_data)
+);
+```
+
+---
 
 ### 3. AXI4-Lite (Register-Oriented Interface)
 
@@ -222,7 +314,6 @@ axil4_master_rd #(
     .fub_axi_arprot    (arprot),
     .fub_axi_arvalid   (arvalid),
     .fub_axi_arready   (arready),
-
     .fub_axi_rdata     (rdata),
     .fub_axi_rresp     (rresp),
     .fub_axi_rvalid    (rvalid),
@@ -230,15 +321,17 @@ axil4_master_rd #(
 );
 ```
 
-### 4. AXI4-Stream (High-Throughput Streaming)
+---
 
-The AXI4-Stream implementation provides maximum throughput for streaming data applications.
+### 4. AXI4/5-Stream (High-Throughput Streaming)
+
+The AXI-Stream implementation provides maximum throughput for streaming data applications in both AMBA 4 and AMBA 5 variants.
 
 #### Key Features
-- **AXI4-Stream Compliance**: Full streaming protocol implementation
+- **AXI4/5-Stream Compliance**: Full streaming protocol implementation
 - **Flow Control**: TVALID/TREADY handshaking with backpressure
 - **Packet Support**: TLAST for packet boundary indication
-- **Side-Band Signals**: TID, TDEST, TUSER, TSTRB, TKEEP support
+- **Enhanced Features**: TWAKEUP, TPOISON (AXI5-Stream)
 
 #### Performance Characteristics
 - **Frequency**: Up to 600 MHz typical
@@ -249,14 +342,12 @@ The AXI4-Stream implementation provides maximum throughput for streaming data ap
 #### Stream Processing Example
 
 ```systemverilog
-// AXI4-Stream data processing pipeline
-axis_master #(
+// AXI5-Stream data processing pipeline
+axis5_master #(
     .SKID_DEPTH_T(4),
     .AXIS_DATA_WIDTH(64),
-    .AXIS_ID_WIDTH(8),
-    .AXIS_DEST_WIDTH(4),
-    .AXIS_USER_WIDTH(1)
-) u_axis_master (
+    .AXIS_ID_WIDTH(8)
+) u_axis5_master (
     .m_axis_tdata    (tdata),
     .m_axis_tstrb    (tstrb),
     .m_axis_tkeep    (tkeep),
@@ -264,6 +355,7 @@ axis_master #(
     .m_axis_tid      (tid),
     .m_axis_tdest    (tdest),
     .m_axis_tuser    (tuser),
+    .m_axis_twakeup  (twakeup),  // AXI5 feature
     .m_axis_tvalid   (tvalid),
     .m_axis_tready   (tready)
 );
@@ -273,10 +365,12 @@ gaxi_fifo_async #(
     .DATA_WIDTH(64),
     .ADDR_WIDTH(4)
 ) u_cdc_fifo (
-    .s_axis_*(src_axis_*),   // Source clock domain
-    .m_axis_*(dst_axis_*)    // Destination clock domain
+    .s_axis_*(src_axis_*),
+    .m_axis_*(dst_axis_*)
 );
 ```
+
+---
 
 ## Advanced Features
 
@@ -292,19 +386,14 @@ Every major component has a clock-gated variant for power optimization.
 #### Implementation Example
 
 ```systemverilog
-// Clock-gated APB master
-apb_master_cg #(
+// Clock-gated APB5 master
+apb5_master_cg #(
     .ADDR_WIDTH(32),
     .DATA_WIDTH(32)
-) u_apb_master_cg (
-    // Standard APB interface
+) u_apb5_master_cg (
     .m_apb_*(apb_signals),
-
-    // Clock gating control
-    .cg_enable      (apb_active),      // Enable clock when active
-    .cg_test_enable (scan_test_mode),  // Test mode override
-
-    // Gated clock output (for external logic)
+    .cg_enable      (apb_active),
+    .cg_test_enable (scan_test_mode),
     .gated_clk      (apb_gated_clk)
 );
 ```
@@ -322,19 +411,15 @@ Comprehensive monitoring infrastructure for protocol compliance and performance 
 #### Monitor Integration
 
 ```systemverilog
-// AXI4 system with integrated monitoring
-axi4_master_rd u_master (...);
-axi4_slave_rd  u_slave  (...);
+// AXI5 system with integrated monitoring
+axi5_master_rd_mon u_master (...);  // Monitor built-in
 
-// Protocol monitor
+// Or standalone monitor
 axi_monitor_base #(
     .AXI_DATA_WIDTH(32),
     .AXI_ID_WIDTH(8)
 ) u_monitor (
-    // AXI interface connections (passive monitoring)
     .axi_*(shared_axi_signals),
-
-    // Monitoring outputs
     .transaction_count   (trans_count),
     .bandwidth_utilization (bandwidth),
     .protocol_violations (violations),
@@ -351,144 +436,30 @@ Shared infrastructure components for all AMBA protocols.
 - **FIFO Components**: Buffering and clock domain crossing
 - **Flow Control**: Advanced handshaking and backpressure management
 
-#### Skid Buffer Usage
-
-```systemverilog
-// Skid buffer for timing closure
-gaxi_skid_buffer #(
-    .DATA_WIDTH(32),
-    .BUFFER_DEPTH(2)
-) u_skid_buffer (
-    .clk            (clk),
-    .rst_n          (rst_n),
-
-    // Input interface
-    .s_valid        (upstream_valid),
-    .s_ready        (upstream_ready),
-    .s_data         (upstream_data),
-
-    // Output interface
-    .m_valid        (downstream_valid),
-    .m_ready        (downstream_ready),
-    .m_data         (downstream_data)
-);
-```
-
-### 4. System-Level Integration
-
-Complete system components and protocol bridges for complex SoC integration.
-
-#### AXI4 to APB Bridge
-
-```systemverilog
-// High-performance CPU to peripheral bridge
-axi4_to_apb_convert #(
-    .AXI_ADDR_WIDTH(32),
-    .AXI_DATA_WIDTH(32),
-    .APB_ADDR_WIDTH(32),
-    .APB_DATA_WIDTH(32)
-) u_axi2apb_bridge (
-    // AXI4-Lite slave interface (from CPU)
-    .s_axi_*(cpu_axi_*),
-
-    // APB master interface (to peripherals)
-    .m_apb_*(peripheral_apb_*),
-
-    // Configuration
-    .bridge_enable      (1'b1),
-    .timeout_cycles     (1000)
-);
-```
-
-#### HPET Timer System
-
-```systemverilog
-// High Precision Event Timer with APB interface
-// Note: HPET is now part of the Retro Legacy Blocks collection
-// See: projects/components/retro_legacy_blocks/docs/hpet_spec/
-apb_hpet #(
-    .NUM_TIMERS(8),
-    .TIMER_WIDTH(64),
-    .ADDR_WIDTH(32),
-    .DATA_WIDTH(32)
-) u_hpet (
-    // APB slave interface
-    .s_apb_*(apb_timer_interface),
-
-    // Timer outputs
-    .timer_interrupts   (hpet_interrupts),
-    .timer_outputs      (hpet_outputs),
-
-    // Configuration
-    .main_counter_freq  (main_counter_freq),
-    .enable_legacy_mode (legacy_mode_enable)
-);
-```
-
-## Performance Optimization
-
-### 1. Pipeline Architecture
-
-All components use advanced pipeline techniques for maximum performance.
-
-#### Pipeline Stages
-- **Input Stage**: Signal registration and validation
-- **Processing Stage**: Protocol logic and address decoding
-- **Output Stage**: Response generation and output registration
-
-#### Skid Buffer Integration
-
-Skid buffers provide:
-- **Timing Closure**: Break critical paths
-- **Performance**: Maintain full throughput
-- **Flexibility**: Configurable buffer depths
-
-### 2. Burst Optimization
-
-AXI4 components optimized for burst transaction performance.
-
-#### Burst Features
-- **Address Generation**: Automatic burst address calculation
-- **Data Alignment**: Proper alignment for all burst types
-- **Performance**: Single-cycle burst address generation
-
-### 3. Outstanding Transaction Management
-
-Advanced transaction tracking for maximum throughput.
-
-#### Features
-- **Transaction IDs**: Full ID width support
-- **Reordering**: Out-of-order completion support
-- **Resource Management**: Configurable outstanding limits
+---
 
 ## System Integration Patterns
 
-### 1. Hierarchical Bus Architecture
+### 1. AMBA 4 to AMBA 5 Migration
 
 ```systemverilog
-// CPU subsystem with hierarchical AMBA buses
-module cpu_subsystem (
-    input logic clk, rst_n,
-    // External memory interface
-    output axi4_if mem_axi,
-    // External peripheral interface
-    output apb_if periph_apb
+// Gradual migration - AMBA 5 core with AMBA 4 peripherals
+module mixed_amba_system (
+    input logic clk, rst_n
 );
 
-    // Internal AXI4 bus from CPU
-    axi4_if cpu_axi();
+    // AMBA 5 high-performance core
+    axi5_master_rd_mon u_cpu_rd_master (...);
+    axi5_master_wr_mon u_cpu_wr_master (...);
 
-    // AXI4 interconnect
-    axi4_interconnect u_interconnect (
-        .s_axi  (cpu_axi),
-        .m_axi  ({mem_axi, internal_axi})
-    );
-
-    // AXI4 to APB bridge for peripherals
+    // Bridge to AMBA 4 subsystem
     axi4_to_apb_convert u_bridge (
-        .s_axi  (internal_axi),
+        .s_axi  (cpu_axi),
         .m_apb  (periph_apb)
     );
+
+    // Legacy AMBA 4 peripherals
+    apb_slave u_legacy_periph (...);
 
 endmodule
 ```
@@ -502,50 +473,51 @@ module multi_clock_system (
     input logic rst_n
 );
 
-    // CPU domain (high frequency)
-    axi4_master_rd_cg #(.AXI_DATA_WIDTH(64)) u_cpu_master (
+    // CPU domain (high frequency) - AXI5
+    axi5_master_rd_cg u_cpu_master (
         .aclk(cpu_clk),
         .cg_enable(cpu_active),
         .*
     );
 
-    // Clock domain crossing to DDR
-    gaxi_fifo_async #(.DATA_WIDTH(64)) u_cpu_to_ddr_cdc (
+    // Clock domain crossing
+    gaxi_fifo_async u_cpu_to_ddr_cdc (
         .s_clk(cpu_clk),
         .m_clk(ddr_clk),
         .*
     );
 
-    // DDR domain (medium frequency)
-    axi4_slave_rd u_ddr_controller (
+    // DDR domain
+    axi5_slave_rd u_ddr_controller (
         .aclk(ddr_clk),
         .*
     );
 
-    // Peripheral domain (low frequency)
-    apb_xbar #(.NUM_SLAVES(8)) u_apb_xbar (
+    // Peripheral domain (low frequency) - APB5
+    apb5_slave_cdc u_periph_cdc (
         .pclk(periph_clk),
+        .aclk(cpu_clk),
         .*
     );
 
 endmodule
 ```
 
-### 3. Streaming Data Processing
+### 3. Streaming Data Pipeline
 
 ```systemverilog
-// High-throughput streaming data processor
+// High-throughput streaming processor with AXI5-Stream
 module stream_processor (
     input logic clk, rst_n,
-    axi4s_if.slave  s_axis,
-    axi4s_if.master m_axis
+    axi5s_if.slave  s_axis,
+    axi5s_if.master m_axis
 );
 
-    axi4s_if stage1_axis();
-    axi4s_if stage2_axis();
+    axi5s_if stage1_axis();
+    axi5s_if stage2_axis();
 
     // Input buffering with clock gating
-    axis_master_cg u_input_stage (
+    axis5_master_cg u_input_stage (
         .cg_enable(input_active),
         .s_axis(s_axis),
         .m_axis(stage1_axis)
@@ -558,7 +530,7 @@ module stream_processor (
     );
 
     // Output buffering
-    axis_slave u_output_stage (
+    axis5_slave u_output_stage (
         .s_axis(stage2_axis),
         .m_axis(m_axis)
     );
@@ -566,41 +538,11 @@ module stream_processor (
 endmodule
 ```
 
-## Verification and Validation
-
-### 1. Protocol Compliance Verification
-
-Each component includes comprehensive protocol compliance checking.
-
-#### Verification Features
-- **Assertion-Based**: SystemVerilog assertions for protocol rules
-- **Coverage-Driven**: Functional coverage for all protocol scenarios
-- **Constrained Random**: Advanced testbench with constrained random stimuli
-
-### 2. Performance Verification
-
-Performance validation across all operating conditions.
-
-#### Performance Metrics
-- **Throughput**: Maximum sustainable data rate
-- **Latency**: Transaction response time
-- **Utilization**: Bus efficiency measurement
-- **Power**: Dynamic and static power consumption
-
-### 3. Integration Verification
-
-System-level verification with multiple protocols.
-
-#### Integration Tests
-- **Multi-Protocol**: Mixed APB, AXI4, AXI4-Lite, AXI4-Stream
-- **Multi-Clock**: Various clock domain configurations
-- **Stress Testing**: Maximum load and corner case scenarios
+---
 
 ## Synthesis and Implementation
 
-### 1. Technology Optimization
-
-Optimized for modern ASIC and FPGA technologies.
+### Technology Optimization
 
 #### ASIC Optimization
 - **Library Mapping**: Optimized for standard cell libraries
@@ -614,24 +556,32 @@ Optimized for modern ASIC and FPGA technologies.
 - **DSP Integration**: Leveraging FPGA DSP blocks
 - **Block RAM**: Efficient memory utilization
 
-### 2. Timing Closure
+### Power Optimization
 
-Advanced timing optimization techniques.
-
-#### Timing Features
-- **Pipeline Stages**: Configurable pipeline depth
-- **Skid Buffers**: Automatic timing closure
-- **Clock Gating**: Reduced clock tree loading
-- **Critical Path**: Optimized critical path design
-
-### 3. Power Optimization
-
-Comprehensive power management strategies.
-
-#### Power Features
 - **Clock Gating**: Fine-grained clock control
 - **Power Islands**: Support for power domain isolation
 - **Dynamic Scaling**: Frequency and voltage scaling support
 - **Low-Power Modes**: Standby and sleep mode support
+- **Wake-up Signaling**: AMBA 5 PWAKEUP/TWAKEUP support
 
-The RTL AMBA library provides a complete, high-performance solution for AMBA-based system design, combining standards compliance with advanced optimization techniques for modern SoC implementations.
+---
+
+## Documentation Structure
+
+| Directory | Content |
+|-----------|---------|
+| `apb/` | APB4 module documentation |
+| `apb5/` | APB5 module documentation |
+| `axi4/` | AXI4 module documentation |
+| `axi5/` | AXI5 module documentation |
+| `axil4/` | AXI4-Lite module documentation |
+| `axis4/` | AXI4-Stream module documentation |
+| `axis5/` | AXI5-Stream module documentation |
+| `gaxi/` | Generic AXI infrastructure |
+| `shared/` | Shared utilities and monitors |
+| `shims/` | Protocol converters |
+| `includes/` | Package definitions |
+
+---
+
+The RTL AMBA library provides a complete, high-performance solution for AMBA-based system design, combining standards compliance with advanced optimization techniques for modern SoC implementations across both AMBA 4 and AMBA 5 specifications.
