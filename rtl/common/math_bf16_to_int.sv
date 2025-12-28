@@ -286,6 +286,12 @@ wire [8:0] w_magnitude_rounded = {1'b0, w_magnitude_raw} + {8'b0, w_round_up};
 // Determine if value is too large for INT8
 wire w_too_large_positive = ~w_sign & (w_magnitude_rounded > 9'd127);
 wire w_too_large_negative = w_sign & (w_magnitude_rounded > 9'd128);
+
+// When exp_overflow is true, the magnitude is definitely too large
+// Use exp_overflow to also determine which saturation direction
+wire w_exp_ovf_positive = w_exp_overflow & ~w_sign;
+wire w_exp_ovf_negative = w_exp_overflow & w_sign;
+
 wire w_any_overflow = w_too_large_positive | w_too_large_negative | w_exp_overflow;
 
 // Final magnitude after saturation
@@ -301,8 +307,8 @@ wire [7:0] w_result_signed = w_sign ? (~w_magnitude_sat + 8'd1) : w_magnitude_sa
 always_comb begin
     // Default: normal conversion
     ow_int8 = w_result_signed;
-    ow_overflow = w_too_large_positive & ~w_is_zero & ~w_is_nan;
-    ow_underflow = w_too_large_negative & ~w_is_zero & ~w_is_nan;
+    ow_overflow = (w_too_large_positive | w_exp_ovf_positive) & ~w_is_zero & ~w_is_nan;
+    ow_underflow = (w_too_large_negative | w_exp_ovf_negative) & ~w_is_zero & ~w_is_nan;
     ow_is_zero = 1'b0;
 
     // Special cases (highest priority)

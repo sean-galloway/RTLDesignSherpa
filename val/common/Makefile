@@ -101,7 +101,11 @@ help:
 	@echo "  Math:"
 	@echo "    make run-math-{gate|func|full}[-parallel]"
 	@echo "  BF16 Floating-Point:"
-	@echo "    make run-bf16-{gate|func|full}[-parallel]"
+	@echo "    make run-bf16-{gate|func|full}[-parallel][-waves]"
+	@echo "    Examples:"
+	@echo "      make run-bf16-full-parallel         (all 19 BF16 tests, full level)"
+	@echo "      make run-bf16-gate-waves            (quick test with waveforms)"
+	@echo "      make run-bf16-full-parallel-waves   (comprehensive with waves)"
 	@echo "  BF16 Adder (individual):"
 	@echo "    make run-bf16-adder[-gate|-func|-full][-parallel]"
 	@echo "    make run-bf16-adder-wave              (with waveforms)"
@@ -662,25 +666,25 @@ run-bf16:
 run-bf16-gate:
 	$(check_repo_root)
 	@echo "================================================================================"
-	@echo "Running BF16 Tests - GATE level (~5 tests, ~2 min)"
+	@echo "Running BF16 Tests - GATE level (~19 tests, ~2 min)"
 	@echo "================================================================================"
-	SIM=verilator REG_LEVEL=GATE $(PYTEST) $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE) test_math_bf16*.py
+	SIM=verilator TEST_LEVEL=simple $(PYTEST) $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE) test_math_bf16*.py
 
 .PHONY: run-bf16-func
 run-bf16-func:
 	$(check_repo_root)
 	@echo "================================================================================"
-	@echo "Running BF16 Tests - FUNC level (~5 tests, ~5 min)"
+	@echo "Running BF16 Tests - FUNC level (~19 tests, ~5 min)"
 	@echo "================================================================================"
-	SIM=verilator REG_LEVEL=FUNC $(PYTEST) $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE) test_math_bf16*.py
+	SIM=verilator TEST_LEVEL=basic $(PYTEST) $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE) test_math_bf16*.py
 
 .PHONY: run-bf16-full
 run-bf16-full:
 	$(check_repo_root)
 	@echo "================================================================================"
-	@echo "Running BF16 Tests - FULL level (~5 tests, ~10 min)"
+	@echo "Running BF16 Tests - FULL level (~19 tests, ~10 min)"
 	@echo "================================================================================"
-	SIM=verilator REG_LEVEL=FULL $(PYTEST) $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE) test_math_bf16*.py
+	SIM=verilator TEST_LEVEL=full $(PYTEST) $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE) test_math_bf16*.py
 
 .PHONY: run-bf16-parallel
 run-bf16-parallel:
@@ -694,25 +698,77 @@ run-bf16-parallel:
 run-bf16-gate-parallel:
 	$(check_repo_root)
 	@echo "================================================================================"
-	@echo "Running BF16 Tests - GATE level PARALLEL (~5 tests, ~1 min)"
+	@echo "Running BF16 Tests - GATE level PARALLEL (~19 tests, ~1 min)"
 	@echo "================================================================================"
-	SIM=verilator REG_LEVEL=GATE $(PYTEST) $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE) $(PYTEST_XDIST) $(PYTEST_RERUNS) test_math_bf16*.py
+	SIM=verilator TEST_LEVEL=simple $(PYTEST) $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE) $(PYTEST_XDIST) $(PYTEST_RERUNS) test_math_bf16*.py
 
 .PHONY: run-bf16-func-parallel
 run-bf16-func-parallel:
 	$(check_repo_root)
 	@echo "================================================================================"
-	@echo "Running BF16 Tests - FUNC level PARALLEL (~5 tests, ~2 min)"
+	@echo "Running BF16 Tests - FUNC level PARALLEL (~19 tests, ~2 min)"
 	@echo "================================================================================"
-	SIM=verilator REG_LEVEL=FUNC $(PYTEST) $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE) $(PYTEST_XDIST) $(PYTEST_RERUNS) test_math_bf16*.py
+	SIM=verilator TEST_LEVEL=basic $(PYTEST) $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE) $(PYTEST_XDIST) $(PYTEST_RERUNS) test_math_bf16*.py
 
 .PHONY: run-bf16-full-parallel
 run-bf16-full-parallel:
 	$(check_repo_root)
 	@echo "================================================================================"
-	@echo "Running BF16 Tests - FULL level PARALLEL (~5 tests, ~5 min)"
+	@echo "Running BF16 Tests - FULL level PARALLEL (~19 tests, ~5 min)"
 	@echo "================================================================================"
-	SIM=verilator REG_LEVEL=FULL $(PYTEST) $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE) $(PYTEST_XDIST) $(PYTEST_RERUNS) test_math_bf16*.py
+	SIM=verilator TEST_LEVEL=full $(PYTEST) $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE) $(PYTEST_XDIST) $(PYTEST_RERUNS) test_math_bf16*.py
+
+# ------------------------------------------------------------------------------
+# BF16 Tests with Waveforms
+# ------------------------------------------------------------------------------
+
+.PHONY: run-bf16-gate-waves
+run-bf16-gate-waves:
+	$(check_repo_root)
+	@echo "================================================================================"
+	@echo "Running BF16 Tests - GATE level with WAVES (~19 tests)"
+	@echo "================================================================================"
+	SIM=verilator TEST_LEVEL=simple WAVES=1 $(PYTEST) $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE) test_math_bf16*.py
+
+.PHONY: run-bf16-func-waves
+run-bf16-func-waves:
+	$(check_repo_root)
+	@echo "================================================================================"
+	@echo "Running BF16 Tests - FUNC level with WAVES (~19 tests)"
+	@echo "================================================================================"
+	SIM=verilator TEST_LEVEL=basic WAVES=1 $(PYTEST) $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE) test_math_bf16*.py
+
+.PHONY: run-bf16-full-waves
+run-bf16-full-waves:
+	$(check_repo_root)
+	@echo "================================================================================"
+	@echo "Running BF16 Tests - FULL level with WAVES (~19 tests)"
+	@echo "================================================================================"
+	SIM=verilator TEST_LEVEL=full WAVES=1 $(PYTEST) $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE) test_math_bf16*.py
+
+.PHONY: run-bf16-gate-parallel-waves
+run-bf16-gate-parallel-waves:
+	$(check_repo_root)
+	@echo "================================================================================"
+	@echo "Running BF16 Tests - GATE level PARALLEL with WAVES (~19 tests)"
+	@echo "================================================================================"
+	SIM=verilator TEST_LEVEL=simple WAVES=1 $(PYTEST) $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE) $(PYTEST_XDIST) $(PYTEST_RERUNS) test_math_bf16*.py
+
+.PHONY: run-bf16-func-parallel-waves
+run-bf16-func-parallel-waves:
+	$(check_repo_root)
+	@echo "================================================================================"
+	@echo "Running BF16 Tests - FUNC level PARALLEL with WAVES (~19 tests)"
+	@echo "================================================================================"
+	SIM=verilator TEST_LEVEL=basic WAVES=1 $(PYTEST) $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE) $(PYTEST_XDIST) $(PYTEST_RERUNS) test_math_bf16*.py
+
+.PHONY: run-bf16-full-parallel-waves
+run-bf16-full-parallel-waves:
+	$(check_repo_root)
+	@echo "================================================================================"
+	@echo "Running BF16 Tests - FULL level PARALLEL with WAVES (~19 tests)"
+	@echo "================================================================================"
+	SIM=verilator TEST_LEVEL=full WAVES=1 $(PYTEST) $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE) $(PYTEST_XDIST) $(PYTEST_RERUNS) test_math_bf16*.py
 
 # ------------------------------------------------------------------------------
 # BF16 Adder Specific Targets (with waveform support)
