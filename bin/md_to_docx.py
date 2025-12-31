@@ -15,11 +15,13 @@ Features:
 - Emoji mapping for PDF robustness
 - Force a Unicode-friendly PDF engine (xelatex) by default
 - Wavedrom .json "images": render to SVG (python-wavedrom or wavedrom-cli) or degrade to links
+- Wavedrom inline blocks: ```wavedrom JSON blocks rendered to SVG
 - Mermaid diagrams: ```mermaid blocks rendered to PNG via mmdc CLI
 - Font controls for XeLaTeX/LuaLaTeX: --mainfont/--monofont/--sansfont/--mathfont
 
 Required tools for diagram rendering:
 - Mermaid: npm install -g @mermaid-js/mermaid-cli (provides 'mmdc')
+- Wavedrom: pip install wavedrom OR npm install -g wavedrom-cli
 
 Note on DOCX TOC: Word may require updating the TOC (Ctrl+A, F9) to populate entries.
 """
@@ -44,6 +46,13 @@ IMG_RE = re.compile(r'!\[([^\]]*)\]\(([^)]+)\)')
 # Captures: (1) optional figure title line, (2) mermaid code content
 MERMAID_BLOCK_RE = re.compile(
     r'(#{2,4}\s+(?:Figure\s+\d+[:\s]+)?[^\n]+\n+)?```mermaid\s*\n(.*?)\n```',
+    re.DOTALL | re.IGNORECASE
+)
+
+# Fenced code block pattern for wavedrom diagrams (inline JSON)
+# Captures: (1) optional figure title line, (2) wavedrom JSON content
+WAVEDROM_BLOCK_RE = re.compile(
+    r'(#{2,4}\s+(?:Figure\s+\d+[:\s]+)?[^\n]+\n+)?```wavedrom\s*\n(.*?)\n```',
     re.DOTALL | re.IGNORECASE
 )
 
@@ -141,6 +150,64 @@ def rewrite_mermaid_blocks(md_text: str, tmp_img_dir: pathlib.Path, quiet: bool 
 
     return MERMAID_BLOCK_RE.sub(_sub, md_text)
 
+
+# ---- Inline Wavedrom handling (fenced code blocks) ----
+
+def render_wavedrom_inline(json_code: str, tmp_img_dir: pathlib.Path, idx: int, title: str = None, quiet: bool = False) -> str:
+    """
+    Render an inline WaveDrom JSON code block to SVG.
+    Returns markdown image reference or fallback code block.
+    """
+    import json as json_module
+    out_svg = tmp_img_dir / f"wavedrom_{idx}.svg"
+    alt_text = title if title else f"Waveform {idx}"
+
+    # Write JSON to temp file
+    tmp_json = tmp_img_dir / f"wavedrom_{idx}.json"
+    write_text(tmp_json, json_code)
+
+    # Try python-wavedrom first
+    svg_text = try_render_wavedrom_python(tmp_json)
+    if svg_text:
+        write_text(out_svg, svg_text)
+        if not quiet:
+            log(f"  Rendered wavedrom_{idx}.svg (python-wavedrom): {alt_text}")
+        return f"![{alt_text}]({out_svg.as_posix()})"
+
+    # Try wavedrom-cli
+    if try_render_wavedrom_cli(tmp_json, out_svg):
+        if not quiet:
+            log(f"  Rendered wavedrom_{idx}.svg (wavedrom-cli): {alt_text}")
+        return f"![{alt_text}]({out_svg.as_posix()})"
+
+    # Fallback: keep as code block
+    if not quiet:
+        log(f"  Warning: wavedrom render failed for block {idx}, keeping as code")
+    return f"```json\n{json_code}\n```"
+
+
+def rewrite_wavedrom_blocks(md_text: str, tmp_img_dir: pathlib.Path, quiet: bool = False) -> str:
+    """Replace all ```wavedrom blocks with rendered SVG images."""
+    idx = [0]  # Use list to allow mutation in nested function
+
+    def _sub(m):
+        title_line = m.group(1)  # Optional figure title line (e.g., "### Figure 1: Title\n")
+        code = m.group(2).strip()
+        idx[0] += 1
+
+        # Extract clean title from the heading line
+        title = None
+        if title_line:
+            # Remove markdown heading markers and clean up
+            title = re.sub(r'^#+\s*', '', title_line.strip())
+            # Remove "Figure N:" prefix since Pandoc adds its own
+            title = re.sub(r'^Figure\s+\d+[:\s]*', '', title)
+            title = title.rstrip(':').strip()
+
+        return render_wavedrom_inline(code, tmp_img_dir, idx[0], title, quiet)
+
+    return WAVEDROM_BLOCK_RE.sub(_sub, md_text)
+
 def collect_from_index(index_path: pathlib.Path, skip_index: bool = False) -> list[pathlib.Path]:
     """
     Scan the index markdown for links to .md files and return them in order.
@@ -213,8 +280,16 @@ def concat_markdown(files: list[pathlib.Path], pagebreak: bool) -> str:
 def try_render_wavedrom_python(json_path: pathlib.Path) -> str | None:
     try:
         import wavedrom
-        svg = wavedrom.render_file(str(json_path))  # returns SVG string in recent versions
-        return svg if isinstance(svg, str) else None
+        # Read JSON content from file
+        json_content = json_path.read_text()
+        # render() returns an svgwrite.Drawing object, not a string
+        drawing = wavedrom.render(json_content)
+        # Convert Drawing to SVG string
+        if hasattr(drawing, 'tostring'):
+            return drawing.tostring()
+        elif isinstance(drawing, str):
+            return drawing
+        return None
     except Exception:
         return None
 
@@ -369,6 +444,8 @@ def parse_args():
                 help="Save the merged markdown file for debugging (as output.build.md).")
     p.add_argument("--no-mermaid", action="store_true",
                 help="Skip mermaid rendering (leave as code blocks for faster generation).")
+    p.add_argument("--no-wavedrom", action="store_true",
+                help="Skip wavedrom rendering (leave as code blocks for faster generation).")
     p.add_argument("--narrow-margins", action="store_true",
                 help="Use narrow margins (0.75in) for more content per page.")
     p.add_argument("--section-breaks", action="store_true",
@@ -418,6 +495,8 @@ def main():
         merged = concat_markdown(files, args.pagebreak)
         merged = strip_or_map_emoji(merged)
         merged = rewrite_wavedrom_images(merged, in_path.parent, tmp_imgs)
+        if not args.no_wavedrom:
+            merged = rewrite_wavedrom_blocks(merged, tmp_imgs, args.quiet)
         if not args.no_mermaid:
             merged = rewrite_mermaid_blocks(merged, tmp_imgs, args.quiet)
 
