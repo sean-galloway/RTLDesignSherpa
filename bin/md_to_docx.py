@@ -153,10 +153,13 @@ def rewrite_mermaid_blocks(md_text: str, tmp_img_dir: pathlib.Path, quiet: bool 
 
 # ---- Inline Wavedrom handling (fenced code blocks) ----
 
-def render_wavedrom_inline(json_code: str, tmp_img_dir: pathlib.Path, idx: int, title: str = None, quiet: bool = False) -> str:
+def render_wavedrom_inline(json_code: str, tmp_img_dir: pathlib.Path, idx: int, title: str = None, quiet: bool = False, register_low: bool = False) -> str:
     """
     Render an inline WaveDrom JSON code block to SVG.
     Returns markdown image reference or fallback code block.
+
+    Args:
+        register_low: If True, use raw LaTeX (not figure) and add to List of Waveforms
     """
     import json as json_module
     out_svg = tmp_img_dir / f"wavedrom_{idx}.svg"
@@ -166,19 +169,49 @@ def render_wavedrom_inline(json_code: str, tmp_img_dir: pathlib.Path, idx: int, 
     tmp_json = tmp_img_dir / f"wavedrom_{idx}.json"
     write_text(tmp_json, json_code)
 
+    # Helper to build result - add LoW entry when register_low is True
+    def _build_result(svg_path: pathlib.Path) -> str:
+        if register_low:
+            # Convert SVG to PDF for better LaTeX compatibility
+            pdf_path = svg_path.with_suffix('.pdf')
+            try:
+                subprocess.run(
+                    ['inkscape', str(svg_path), '--export-filename=' + str(pdf_path)],
+                    check=True, capture_output=True
+                )
+            except (subprocess.CalledProcessError, FileNotFoundError):
+                # Fallback to SVG if inkscape fails
+                pdf_path = svg_path
+
+            escaped_title = alt_text.replace('\\', '\\\\').replace('{', '\\{').replace('}', '\\}')
+            img_path = pdf_path.as_posix()
+            return f"""
+```{{=latex}}
+\\begin{{center}}
+\\includegraphics[width=\\linewidth,keepaspectratio]{{{img_path}}}
+
+\\vspace{{0.5em}}
+\\textbf{{{escaped_title}}}
+\\addcontentsline{{low}}{{waveform}}{{{escaped_title}}}
+\\end{{center}}
+```
+"""
+        # Standard markdown image (will become figure in LaTeX)
+        return f"![{alt_text}]({svg_path.as_posix()})"
+
     # Try python-wavedrom first
     svg_text = try_render_wavedrom_python(tmp_json)
     if svg_text:
         write_text(out_svg, svg_text)
         if not quiet:
             log(f"  Rendered wavedrom_{idx}.svg (python-wavedrom): {alt_text}")
-        return f"![{alt_text}]({out_svg.as_posix()})"
+        return _build_result(out_svg)
 
     # Try wavedrom-cli
     if try_render_wavedrom_cli(tmp_json, out_svg):
         if not quiet:
             log(f"  Rendered wavedrom_{idx}.svg (wavedrom-cli): {alt_text}")
-        return f"![{alt_text}]({out_svg.as_posix()})"
+        return _build_result(out_svg)
 
     # Fallback: keep as code block
     if not quiet:
@@ -186,8 +219,12 @@ def render_wavedrom_inline(json_code: str, tmp_img_dir: pathlib.Path, idx: int, 
     return f"```json\n{json_code}\n```"
 
 
-def rewrite_wavedrom_blocks(md_text: str, tmp_img_dir: pathlib.Path, quiet: bool = False) -> str:
-    """Replace all ```wavedrom blocks with rendered SVG images."""
+def rewrite_wavedrom_blocks(md_text: str, tmp_img_dir: pathlib.Path, quiet: bool = False, register_low: bool = False) -> str:
+    """Replace all ```wavedrom blocks with rendered SVG images.
+
+    Args:
+        register_low: If True, add entries to List of Waveforms for titled diagrams
+    """
     idx = [0]  # Use list to allow mutation in nested function
 
     def _sub(m):
@@ -204,7 +241,7 @@ def rewrite_wavedrom_blocks(md_text: str, tmp_img_dir: pathlib.Path, quiet: bool
             title = re.sub(r'^Figure\s+\d+[:\s]*', '', title)
             title = title.rstrip(':').strip()
 
-        return render_wavedrom_inline(code, tmp_img_dir, idx[0], title, quiet)
+        return render_wavedrom_inline(code, tmp_img_dir, idx[0], title, quiet, register_low)
 
     return WAVEDROM_BLOCK_RE.sub(_sub, md_text)
 
@@ -294,12 +331,19 @@ def try_render_wavedrom_python(json_path: pathlib.Path) -> str | None:
         return None
 
 def try_render_wavedrom_cli(json_path: pathlib.Path, out_svg: pathlib.Path) -> bool:
-    if not shutil.which("wavedrom-cli"):
+    # Try direct wavedrom-cli first, then npx as fallback
+    cli_cmd = None
+    if shutil.which("wavedrom-cli"):
+        cli_cmd = ["wavedrom-cli"]
+    elif shutil.which("npx"):
+        cli_cmd = ["npx", "wavedrom-cli"]
+    else:
         return False
     try:
         subprocess.run(
-            ["wavedrom-cli", str(json_path), "-s", "-o", str(out_svg)],
-            check=True
+            cli_cmd + ["-i", str(json_path), "-s", str(out_svg)],
+            check=True,
+            capture_output=True
         )
         return out_svg.exists()
     except subprocess.CalledProcessError:
@@ -360,7 +404,7 @@ def run_pandoc_docx(md_path: pathlib.Path, out_docx: pathlib.Path, args):
         log(f"DOCX command: {' '.join(cmd)}")
     subprocess.run(cmd, check=True)
 
-def run_pandoc_pdf(md_path: pathlib.Path, out_pdf: pathlib.Path, args, tmp_dir: pathlib.Path = None):
+def run_pandoc_pdf(md_path: pathlib.Path, out_pdf: pathlib.Path, args, tmp_dir: pathlib.Path = None, title_page_tex: str = None):
     pandoc = shutil.which("pandoc")
     if not pandoc:
         raise RuntimeError("pandoc not found on PATH")
@@ -372,6 +416,13 @@ def run_pandoc_pdf(md_path: pathlib.Path, out_pdf: pathlib.Path, args, tmp_dir: 
         f"--pdf-engine={engine}",
         "--resource-path", build_resource_path(args, pathlib.Path(args.input)),
     ]
+
+    # Title page - use include-before-body to place BEFORE TOC
+    if title_page_tex and tmp_dir:
+        title_tex_file = tmp_dir / "title_page.tex"
+        write_text(title_tex_file, title_page_tex)
+        cmd += ["--include-before-body", str(title_tex_file)]
+
     if args.toc:
         cmd += ["--toc", "--toc-depth=3"]
     if args.number_sections:
@@ -412,6 +463,21 @@ def run_pandoc_pdf(md_path: pathlib.Path, out_pdf: pathlib.Path, args, tmp_dir: 
 """)
         cmd += ["--include-in-header", str(header_tex)]
 
+    # List of Waveforms - custom list type using tocloft package
+    # Also include svg package for direct SVG inclusion (requires inkscape)
+    if args.low and tmp_dir:
+        low_header_tex = tmp_dir / "list_of_waveforms.tex"
+        write_text(low_header_tex, r"""
+\usepackage{tocloft}
+\newlistof{waveform}{low}{List of Waveforms}
+\newcommand{\listofwaveforms}{\listofwaveform}
+\usepackage{svg}
+\svgsetup{inkscapelatex=false}
+""")
+        cmd += ["--include-in-header", str(low_header_tex)]
+        # svg package needs --shell-escape to call inkscape
+        cmd += ["--pdf-engine-opt=--shell-escape"]
+
     if not args.quiet:
         log(f"PDF command: {' '.join(cmd)}")
     subprocess.run(cmd, check=True)
@@ -450,6 +516,12 @@ def parse_args():
                 help="Use narrow margins (0.75in) for more content per page.")
     p.add_argument("--section-breaks", action="store_true",
                 help="Start each top-level section on a new page (PDF only).")
+    p.add_argument("--lot", action="store_true",
+                help="Include List of Tables after TOC (PDF only).")
+    p.add_argument("--lof", action="store_true",
+                help="Include List of Figures after TOC (PDF only).")
+    p.add_argument("--low", action="store_true",
+                help="Include List of Waveforms after TOC (PDF only).")
     p.add_argument("--pdf-engine", default=None,
                 help="Override PDF engine (default: xelatex).")
     # Font controls (XeLaTeX/LuaLaTeX)
@@ -466,6 +538,42 @@ def make_title_page(auto_token: str, primary_input: pathlib.Path) -> str:
     title = primary_input.stem.replace("_", " ").replace("-", " ").title()
     today = date.today().isoformat()
     return f"# {title}\n\n**Generated:** {today}\n\n"
+
+def extract_latex_from_title_page(title_content: str) -> tuple[str, str]:
+    """Extract raw LaTeX from title page content.
+
+    Returns:
+        tuple: (latex_content, remaining_markdown)
+        If the title page is raw LaTeX, returns (latex, "")
+        Otherwise returns ("", original_content)
+    """
+    # Check if the content is a raw LaTeX block
+    latex_match = re.match(r'```\{=latex\}\s*\n(.*?)\n```\s*$', title_content, re.DOTALL)
+    if latex_match:
+        return latex_match.group(1), ""
+    return "", title_content
+
+def make_front_matter_lists(args) -> str:
+    """Generate raw LaTeX commands for List of Tables/Figures/Waveforms.
+
+    These are placed after the title page and before the main content.
+    The TOC is auto-generated by Pandoc with --toc flag.
+    Each list starts on a new page.
+    """
+    lists = []
+    if args.lot:
+        lists.append(r"\clearpage")
+        lists.append(r"\listoftables")
+    if args.lof:
+        lists.append(r"\clearpage")
+        lists.append(r"\listoffigures")
+    if args.low:
+        lists.append(r"\clearpage")
+        lists.append(r"\listofwaveforms")
+    if not lists:
+        return ""
+    # Wrap in raw LaTeX block for Pandoc
+    return "\n```{=latex}\n" + "\n".join(lists) + "\n```\n\n"
 
 def main():
     args = parse_args()
@@ -489,14 +597,25 @@ def main():
 
         # Build merged markdown
         chunks = []
+        title_page_latex = None  # For PDF: title page as raw LaTeX
+
         if args.title_page:
-            chunks.append(make_title_page(args.title_page, in_path))
+            title_content = make_title_page(args.title_page, in_path)
+            # Extract LaTeX for PDF (title page before TOC)
+            title_page_latex, remaining_md = extract_latex_from_title_page(title_content)
+            if remaining_md:
+                chunks.append(remaining_md)
+
+        # Add List of Tables/Figures/Waveforms after title (appears after TOC in PDF)
+        front_lists = make_front_matter_lists(args)
+        if front_lists:
+            chunks.append(front_lists)
 
         merged = concat_markdown(files, args.pagebreak)
         merged = strip_or_map_emoji(merged)
         merged = rewrite_wavedrom_images(merged, in_path.parent, tmp_imgs)
         if not args.no_wavedrom:
-            merged = rewrite_wavedrom_blocks(merged, tmp_imgs, args.quiet)
+            merged = rewrite_wavedrom_blocks(merged, tmp_imgs, args.quiet, args.low)
         if not args.no_mermaid:
             merged = rewrite_mermaid_blocks(merged, tmp_imgs, args.quiet)
 
@@ -516,7 +635,7 @@ def main():
         # Optional PDF
         if args.pdf:
             try:
-                run_pandoc_pdf(build_md, out_pdf, args, tmp_dir)
+                run_pandoc_pdf(build_md, out_pdf, args, tmp_dir, title_page_latex)
             except subprocess.CalledProcessError:
                 # Fallback: LibreOffice convert from DOCX, if present
                 soffice = shutil.which("soffice")
