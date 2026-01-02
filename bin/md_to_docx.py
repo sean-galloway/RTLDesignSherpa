@@ -529,7 +529,539 @@ def parse_args():
     p.add_argument("--monofont", default=None, help="Monospace font (e.g., 'DejaVu Sans Mono', 'Noto Sans Mono').")
     p.add_argument("--sansfont", default=None, help="Sans-serif font (optional).")
     p.add_argument("--mathfont", default=None, help="Math font (optional).")
+    p.add_argument("--style", default=None,
+                help="YAML style config file for corporate DOCX styling (post-processes DOCX before PDF).")
     return p.parse_args()
+
+# ---------------------------
+# DOCX Corporate Styling
+# ---------------------------
+
+def add_title_page_to_docx(doc, config: dict, colors: dict) -> None:
+    """Add a title page to the beginning of a DOCX document.
+
+    Creates a left-aligned title page matching corporate style:
+    - Company name with split coloring (e.g., "Qernel" black + "AI" red)
+    - Title and subtitle
+    - Date
+    - Page break before TOC
+
+    Args:
+        doc: python-docx Document object
+        config: title_page config dict from YAML
+        colors: colors dict from YAML for resolving color references
+    """
+    from docx.shared import Pt, RGBColor, Inches
+    from docx.enum.text import WD_ALIGN_PARAGRAPH, WD_BREAK
+    from docx.oxml.ns import qn
+    from docx.oxml import OxmlElement
+
+    def hex_to_rgb(hex_color: str) -> RGBColor:
+        hex_color = hex_color.lstrip('#')
+        return RGBColor(int(hex_color[0:2], 16), int(hex_color[2:4], 16), int(hex_color[4:6], 16))
+
+    def resolve_color(color_name: str) -> str:
+        if color_name.startswith('#'):
+            return color_name
+        return colors.get(color_name, colors.get('black', '#000000'))
+
+    # Get title page content from config
+    company = config.get('company', 'QernelAI')
+    title = config.get('title', 'Document Title')
+    subtitle = config.get('subtitle', '')
+    date_str = config.get('date', '')
+    company_color = resolve_color(config.get('company_color', 'primary'))
+    title_color = resolve_color(config.get('title_color', 'secondary'))
+
+    # Find the very first element to insert before (skip any existing TOC heading)
+    body = doc.element.body
+    first_element = body[0] if len(body) > 0 else None
+
+    # We'll build paragraphs and insert them all at once at the beginning
+    # Create a list to hold paragraphs in order
+    title_paragraphs = []
+
+    # Spacer paragraph at top (creates vertical space ~1/3 down page)
+    spacer = doc.add_paragraph()
+    spacer.paragraph_format.space_before = Pt(200)  # Large space at top
+    title_paragraphs.append(spacer)
+
+    # Company name - special handling for "QernelAI" split coloring
+    # "Qernel" in black, "AI" in red (primary color) - 72pt
+    company_para = doc.add_paragraph()
+    company_para.alignment = WD_ALIGN_PARAGRAPH.LEFT
+    if company == "QernelAI":
+        # Split into "Qernel" (black) + "AI" (red)
+        run1 = company_para.add_run("Qernel")
+        run1.font.size = Pt(72)
+        run1.font.bold = True
+        run1.font.name = 'Calibri'
+        run1.font.color.rgb = hex_to_rgb('#000000')  # Black
+
+        run2 = company_para.add_run("AI")
+        run2.font.size = Pt(72)
+        run2.font.bold = True
+        run2.font.name = 'Calibri'
+        run2.font.color.rgb = hex_to_rgb(company_color)  # Red
+    else:
+        run = company_para.add_run(company)
+        run.font.size = Pt(72)
+        run.font.bold = True
+        run.font.name = 'Calibri'
+        run.font.color.rgb = hex_to_rgb(company_color)
+    title_paragraphs.append(company_para)
+
+    # Title line (combines title and subtitle if present) - 36pt
+    title_para = doc.add_paragraph()
+    title_para.alignment = WD_ALIGN_PARAGRAPH.LEFT
+    title_para.paragraph_format.space_before = Pt(20)
+    title_text = title
+    if subtitle:
+        title_text = f"{title} {subtitle}"
+    run = title_para.add_run(title_text)
+    run.font.size = Pt(36)
+    run.font.bold = True
+    run.font.name = 'Calibri'
+    run.font.color.rgb = hex_to_rgb('#000000')  # Black
+    title_paragraphs.append(title_para)
+
+    # Date - 36pt
+    if date_str:
+        date_para = doc.add_paragraph()
+        date_para.alignment = WD_ALIGN_PARAGRAPH.LEFT
+        date_para.paragraph_format.space_before = Pt(20)
+        run = date_para.add_run(date_str)
+        run.font.size = Pt(36)
+        run.font.bold = True
+        run.font.name = 'Calibri'
+        run.font.color.rgb = hex_to_rgb('#000000')
+        title_paragraphs.append(date_para)
+
+    # Page break after title page
+    break_para = doc.add_paragraph()
+    run = break_para.add_run()
+    run.add_break(WD_BREAK.PAGE)
+    title_paragraphs.append(break_para)
+
+    # Insert all title page paragraphs at the beginning of the document
+    # Insert in reverse order so they end up in correct order
+    for para in reversed(title_paragraphs):
+        if first_element is not None:
+            first_element.addprevious(para._p)
+        first_element = para._p
+
+
+def apply_docx_style(docx_path: pathlib.Path, style_config_path: pathlib.Path, quiet: bool = False) -> bool:
+    """Apply corporate styling to a DOCX file using a YAML config.
+
+    Returns True if styling was applied, False if dependencies missing.
+    """
+    try:
+        import yaml
+        from docx import Document
+        from docx.shared import Pt, RGBColor
+        from docx.enum.text import WD_ALIGN_PARAGRAPH
+        from docx.oxml.ns import qn
+        from docx.oxml import OxmlElement
+    except ImportError as e:
+        if not quiet:
+            log(f"  Warning: DOCX styling skipped (missing dependency: {e})")
+        return False
+
+    def hex_to_rgb(hex_color: str) -> RGBColor:
+        hex_color = hex_color.lstrip('#')
+        return RGBColor(int(hex_color[0:2], 16), int(hex_color[2:4], 16), int(hex_color[4:6], 16))
+
+    def resolve_color(color_name: str, colors: dict) -> str:
+        if color_name.startswith('#'):
+            return color_name
+        return colors.get(color_name, colors.get('black', '#000000'))
+
+    def add_shading(element, color_hex: str):
+        color_hex = color_hex.lstrip('#')
+        pPr = element.get_or_add_pPr() if hasattr(element, 'get_or_add_pPr') else element
+        for shd in pPr.findall(qn('w:shd')):
+            pPr.remove(shd)
+        shd = OxmlElement('w:shd')
+        shd.set(qn('w:val'), 'clear')
+        shd.set(qn('w:color'), 'auto')
+        shd.set(qn('w:fill'), color_hex)
+        pPr.append(shd)
+
+    def add_bottom_border(paragraph, color_hex: str, width: int = 12):
+        color_hex = color_hex.lstrip('#')
+        pPr = paragraph._p.get_or_add_pPr()
+        for pBdr in pPr.findall(qn('w:pBdr')):
+            pPr.remove(pBdr)
+        pBdr = OxmlElement('w:pBdr')
+        bottom = OxmlElement('w:bottom')
+        bottom.set(qn('w:val'), 'single')
+        bottom.set(qn('w:sz'), str(width))
+        bottom.set(qn('w:color'), color_hex)
+        pBdr.append(bottom)
+        pPr.append(pBdr)
+
+    def set_cell_shading(cell, color_hex: str):
+        color_hex = color_hex.lstrip('#')
+        tcPr = cell._tc.get_or_add_tcPr()
+        for shd in tcPr.findall(qn('w:shd')):
+            tcPr.remove(shd)
+        shd = OxmlElement('w:shd')
+        shd.set(qn('w:val'), 'clear')
+        shd.set(qn('w:color'), 'auto')
+        shd.set(qn('w:fill'), color_hex)
+        tcPr.append(shd)
+
+    def get_heading_level(para) -> int:
+        style_name = para.style.name if para.style else ''
+        if style_name.startswith('Heading'):
+            try:
+                return int(style_name.split()[-1])
+            except (ValueError, IndexError):
+                pass
+        return 0
+
+    # Load config
+    with open(style_config_path) as f:
+        config = yaml.safe_load(f)
+
+    colors = config.get('colors', {})
+    fonts = config.get('fonts', {})
+    headings = config.get('headings', {})
+    body_config = config.get('body', {})
+    table_config = config.get('tables', {})
+
+    # Open document
+    doc = Document(str(docx_path))
+
+    # Add title page if configured
+    title_page_config = config.get('title_page', {})
+    if title_page_config.get('enabled', False):
+        add_title_page_to_docx(doc, title_page_config, colors)
+        if not quiet:
+            log(f"  Added title page to DOCX")
+
+    # Process paragraphs
+    for para in doc.paragraphs:
+        level = get_heading_level(para)
+
+        if level > 0:
+            h_key = f'h{level}'
+            if h_key in headings:
+                h_cfg = headings[h_key]
+                # Apply font styling to runs
+                for run in para.runs:
+                    if 'font_size' in h_cfg:
+                        run.font.size = Pt(h_cfg['font_size'])
+                    if 'color' in h_cfg:
+                        color = resolve_color(h_cfg['color'], colors)
+                        run.font.color.rgb = hex_to_rgb(color)
+                    if h_cfg.get('bold'):
+                        run.font.bold = True
+                    if h_cfg.get('italic'):
+                        run.font.italic = True
+
+                # Paragraph formatting
+                pf = para.paragraph_format
+                if 'space_before' in h_cfg:
+                    pf.space_before = Pt(h_cfg['space_before'])
+                if 'space_after' in h_cfg:
+                    pf.space_after = Pt(h_cfg['space_after'])
+
+                # Background shading
+                if 'background' in h_cfg:
+                    bg_color = resolve_color(h_cfg['background'], colors)
+                    add_shading(para._p, bg_color)
+
+                # Underline border
+                if 'underline_color' in h_cfg:
+                    ul_color = resolve_color(h_cfg['underline_color'], colors)
+                    add_bottom_border(para, ul_color)
+
+        elif para.style and para.style.name in ['Normal', 'Body Text', 'First Paragraph']:
+            for run in para.runs:
+                if body_config.get('font_size'):
+                    run.font.size = Pt(body_config['font_size'])
+
+    # Process tables - style header row
+    header_config = table_config.get('header', {})
+    for table in doc.tables:
+        if table.rows:
+            for cell in table.rows[0].cells:
+                if header_config.get('background'):
+                    set_cell_shading(cell, header_config['background'])
+                for para in cell.paragraphs:
+                    for run in para.runs:
+                        if header_config.get('bold'):
+                            run.font.bold = True
+                        if header_config.get('font_size'):
+                            run.font.size = Pt(header_config['font_size'])
+
+    # Add footer with confidential text
+    hf_config = config.get('header_footer', {})
+    if hf_config.get('enabled', False):
+        company = config.get('company', {})
+        confidential = company.get('confidential_text', '')
+        for section in doc.sections:
+            footer = section.footer
+            footer.is_linked_to_previous = False
+            if footer.paragraphs:
+                para = footer.paragraphs[0]
+                para.clear()
+            else:
+                para = footer.add_paragraph()
+            para.text = confidential
+            para.alignment = WD_ALIGN_PARAGRAPH.CENTER
+            for run in para.runs:
+                run.font.size = Pt(hf_config.get('font_size', 8))
+
+    # Save
+    doc.save(str(docx_path))
+    if not quiet:
+        log(f"  Applied corporate styling from {style_config_path.name}")
+    return True
+
+def update_docx_toc(docx_path: pathlib.Path, soffice_path: str, quiet: bool = False) -> bool:
+    """Update Table of Contents in a DOCX file using LibreOffice UNO.
+
+    Uses LibreOffice's UNO API to open the document, refresh all indexes,
+    and save it. This populates the TOC with actual entries.
+
+    Args:
+        docx_path: Path to the DOCX file
+        soffice_path: Path to soffice/libreoffice executable
+        quiet: Suppress output messages
+
+    Returns:
+        True if TOC was updated successfully, False otherwise
+    """
+    abs_docx = str(docx_path.resolve())
+
+    # Create a standalone script that uses system Python (which has uno)
+    # This is needed because venv Python typically doesn't have access to uno
+    uno_script = f'''#!/usr/bin/env python3
+import sys
+import time
+import subprocess
+
+def main():
+    try:
+        import uno
+        from com.sun.star.beans import PropertyValue
+    except ImportError:
+        print("ERROR: uno module not available", file=sys.stderr)
+        return 1
+
+    soffice = "{soffice_path}"
+    docx_file = "{abs_docx}"
+
+    # Start LibreOffice in listening mode
+    proc = subprocess.Popen([
+        soffice,
+        "--headless",
+        "--invisible",
+        "--nofirststartwizard",
+        "--accept=socket,host=localhost,port=2002;urp;StarOffice.ServiceManager"
+    ], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+
+    time.sleep(3)  # Wait for LibreOffice to start
+
+    try:
+        local_context = uno.getComponentContext()
+        resolver = local_context.ServiceManager.createInstanceWithContext(
+            "com.sun.star.bridge.UnoUrlResolver", local_context)
+
+        # Try to connect (with retries)
+        ctx = None
+        for attempt in range(10):
+            try:
+                ctx = resolver.resolve(
+                    "uno:socket,host=localhost,port=2002;urp;StarOffice.ComponentContext")
+                break
+            except:
+                time.sleep(1)
+
+        if ctx is None:
+            print("ERROR: Could not connect to LibreOffice", file=sys.stderr)
+            proc.terminate()
+            return 1
+
+        smgr = ctx.ServiceManager
+        desktop = smgr.createInstanceWithContext("com.sun.star.frame.Desktop", ctx)
+
+        # Open document hidden
+        file_url = "file://" + docx_file
+        load_props = (PropertyValue(Name="Hidden", Value=True),)
+        doc = desktop.loadComponentFromURL(file_url, "_blank", 0, load_props)
+
+        if doc:
+            # Update all indexes
+            indexes = doc.getDocumentIndexes()
+            for i in range(indexes.getCount()):
+                indexes.getByIndex(i).update()
+
+            # Save
+            doc.store()
+            doc.close(True)
+            print("TOC updated successfully")
+
+        # Shutdown LibreOffice
+        desktop.terminate()
+        proc.wait(timeout=10)
+        return 0
+
+    except Exception as e:
+        print(f"ERROR: {{e}}", file=sys.stderr)
+        try:
+            proc.terminate()
+        except:
+            pass
+        return 1
+
+if __name__ == "__main__":
+    sys.exit(main())
+'''
+
+    # Write script to temp file and run with system Python
+    with tempfile.NamedTemporaryFile(mode='w', suffix='.py', delete=False) as f:
+        f.write(uno_script)
+        script_path = f.name
+
+    try:
+        # Use system Python which has uno module (not venv Python)
+        system_python = "/usr/bin/python3"
+        if not pathlib.Path(system_python).exists():
+            system_python = shutil.which("python3")
+
+        result = subprocess.run(
+            [system_python, script_path],
+            capture_output=True,
+            text=True,
+            timeout=120
+        )
+
+        if result.returncode == 0:
+            if not quiet:
+                log("  TOC updated successfully")
+            return True
+        else:
+            if not quiet:
+                stderr = result.stderr.strip() if result.stderr else "unknown error"
+                log(f"  Warning: TOC update failed: {stderr}")
+            return False
+
+    except subprocess.TimeoutExpired:
+        if not quiet:
+            log("  Warning: TOC update timed out")
+        return False
+    except Exception as e:
+        if not quiet:
+            log(f"  Warning: TOC update failed: {e}")
+        return False
+    finally:
+        # Clean up temp script
+        try:
+            pathlib.Path(script_path).unlink()
+        except:
+            pass
+
+
+def reapply_title_page_fonts(docx_path: pathlib.Path, style_config_path: pathlib.Path, quiet: bool = False) -> bool:
+    """Re-apply title page font sizes after LibreOffice TOC update.
+
+    LibreOffice may reset font sizes when updating the TOC. This function
+    finds the title page paragraphs and reapplies the correct font sizes.
+
+    Args:
+        docx_path: Path to the DOCX file
+        style_config_path: Path to the YAML style config
+        quiet: Suppress output messages
+
+    Returns:
+        True if successful, False otherwise
+    """
+    try:
+        import yaml
+        from docx import Document
+        from docx.shared import Pt, RGBColor
+    except ImportError:
+        return False
+
+    def hex_to_rgb(hex_color: str) -> RGBColor:
+        hex_color = hex_color.lstrip('#')
+        return RGBColor(int(hex_color[0:2], 16), int(hex_color[2:4], 16), int(hex_color[4:6], 16))
+
+    # Load config
+    with open(style_config_path) as f:
+        config = yaml.safe_load(f)
+
+    title_page_config = config.get('title_page', {})
+    if not title_page_config.get('enabled', False):
+        return True
+
+    colors = config.get('colors', {})
+    company = title_page_config.get('company', 'QernelAI')
+    company_color = colors.get(title_page_config.get('company_color', 'primary'), '#CC0000')
+
+    doc = Document(str(docx_path))
+
+    # Find title page paragraphs (before the first page break or TOC)
+    # Title page has: spacer, company name, title, date, page break
+    title_page_end = 0
+    for i, para in enumerate(doc.paragraphs):
+        # Check if this is a page break or TOC heading
+        if 'Table of Contents' in para.text or para.style.name.startswith('TOC'):
+            title_page_end = i
+            break
+        # Check for page break in runs
+        for run in para.runs:
+            if run._element.xml.find('w:br') != -1 and 'w:type="page"' in run._element.xml:
+                title_page_end = i + 1
+                break
+        if title_page_end > 0:
+            break
+
+    if title_page_end == 0:
+        title_page_end = min(5, len(doc.paragraphs))
+
+    # Apply font sizes to title page paragraphs
+    for i, para in enumerate(doc.paragraphs[:title_page_end]):
+        text = para.text.strip()
+        if not text:
+            continue
+
+        # Determine what this paragraph is based on content
+        if text == company or text == 'QernelAI':
+            # Company name - 72pt
+            for run in para.runs:
+                run.font.size = Pt(72)
+                run.font.bold = True
+                run.font.name = 'Calibri'
+                # Set color based on text content
+                if 'AI' in run.text:
+                    run.font.color.rgb = hex_to_rgb(company_color)
+                else:
+                    run.font.color.rgb = hex_to_rgb('#000000')
+        elif 'Engineering Specification' in text or 'Q32' in text:
+            # Title line - 36pt
+            for run in para.runs:
+                run.font.size = Pt(36)
+                run.font.bold = True
+                run.font.name = 'Calibri'
+                run.font.color.rgb = hex_to_rgb('#000000')
+        elif text.startswith('Dec') or text.startswith('Jan') or text.startswith('20'):
+            # Date - 36pt
+            for run in para.runs:
+                run.font.size = Pt(36)
+                run.font.bold = True
+                run.font.name = 'Calibri'
+                run.font.color.rgb = hex_to_rgb('#000000')
+
+    doc.save(str(docx_path))
+    if not quiet:
+        log("  Re-applied title page fonts")
+    return True
+
 
 def make_title_page(auto_token: str, primary_input: pathlib.Path) -> str:
     if auto_token != "__AUTO__":
@@ -632,19 +1164,52 @@ def main():
         # Generate DOCX
         run_pandoc_docx(build_md, out_docx, args)
 
+        # Apply corporate styling if --style specified
+        if args.style:
+            style_path = pathlib.Path(args.style)
+            if style_path.exists():
+                apply_docx_style(out_docx, style_path, args.quiet)
+            else:
+                log(f"  Warning: Style config not found: {args.style}")
+
         # Optional PDF
         if args.pdf:
-            try:
-                run_pandoc_pdf(build_md, out_pdf, args, tmp_dir, title_page_latex)
-            except subprocess.CalledProcessError:
-                # Fallback: LibreOffice convert from DOCX, if present
-                soffice = shutil.which("soffice")
+            if args.style:
+                # When --style is specified, generate PDF from styled DOCX using LibreOffice
+                # This ensures the PDF matches the DOCX styling exactly
+                soffice = shutil.which("soffice") or shutil.which("libreoffice")
                 if not soffice:
-                    raise
-                subprocess.run([
-                    soffice, "--headless", "--convert-to", "pdf",
-                    "--outdir", str(out_pdf.parent), str(out_docx)
-                ], check=True)
+                    log("  Warning: LibreOffice not found, falling back to Pandoc PDF")
+                    run_pandoc_pdf(build_md, out_pdf, args, tmp_dir, title_page_latex)
+                else:
+                    # Update TOC/indexes before converting to PDF
+                    if not args.quiet:
+                        log(f"  Updating Table of Contents...")
+                    update_docx_toc(out_docx, soffice, args.quiet)
+
+                    # Re-apply title page styling after TOC update (LibreOffice may reset fonts)
+                    if style_path.exists():
+                        reapply_title_page_fonts(out_docx, style_path, args.quiet)
+
+                    if not args.quiet:
+                        log(f"  Converting styled DOCX to PDF using LibreOffice...")
+                    subprocess.run([
+                        soffice, "--headless", "--convert-to", "pdf",
+                        "--outdir", str(out_pdf.parent), str(out_docx)
+                    ], check=True)
+            else:
+                # Standard Pandoc PDF generation (LaTeX-based)
+                try:
+                    run_pandoc_pdf(build_md, out_pdf, args, tmp_dir, title_page_latex)
+                except subprocess.CalledProcessError:
+                    # Fallback: LibreOffice convert from DOCX, if present
+                    soffice = shutil.which("soffice") or shutil.which("libreoffice")
+                    if not soffice:
+                        raise
+                    subprocess.run([
+                        soffice, "--headless", "--convert-to", "pdf",
+                        "--outdir", str(out_pdf.parent), str(out_docx)
+                    ], check=True)
 
     if not args.quiet:
         log(f"✓ Wrote {out_docx}")
