@@ -47,55 +47,94 @@ The CocoTBFramework is designed around the vision of **unified verification exce
 
 The CocoTBFramework follows a three-layer architecture that provides clear separation of concerns while enabling powerful integration capabilities:
 
-```
-┌─────────────────────────────────────────────────────────┐
-│                 ORCHESTRATION LAYER                    │
-│                    (TBClasses)                         │
-│                                                         │
-│  Complete Verification Environments & System Testing   │
-│                                                         │
-│  ┌─────────────────┐ ┌─────────────────┐ ┌───────────┐ │
-│  │   Protocol      │ │  Specialized    │ │   System  │ │
-│  │  Testbenches    │ │  Verification   │ │   Level   │ │
-│  │                 │ │                 │ │   Tests   │ │
-│  │ • APB TBs       │ │ • AMBA Utils    │ │ • Multi-  │ │
-│  │ • FIFO TBs      │ │ • AXI Splitter  │ │   Protocol│ │
-│  │ • GAXI TBs      │ │ • Common Tests  │ │ • Advanced│ │
-│  │ • Infrastructure│ │ • Power Mgmt    │ │   Monitor │ │
-│  └─────────────────┘ └─────────────────┘ └───────────┘ │
-└─────────────────────────────────────────────────────────┘
-┌─────────────────────────────────────────────────────────┐
-│                VERIFICATION LAYER                      │
-│                   (Scoreboards)                        │
-│                                                         │
-│  Transaction Verification & Cross-Protocol Analysis    │
-│                                                         │
-│  ┌─────────────────┐ ┌─────────────────┐ ┌───────────┐ │
-│  │   Protocol      │ │ Cross-Protocol  │ │   Base    │ │
-│  │  Scoreboards    │ │  Verification   │ │ Framework │ │
-│  │                 │ │                 │ │           │ │
-│  │ • APB SB        │ │ • APB-GAXI      │ │ • Base SB │ │
-│  │ • AXI4 SB       │ │   Bridge        │ │ • Protocol│ │
-│  │ • FIFO SB       │ │ • Transform     │ │   Transform│ │
-│  │ • GAXI SB       │ │ • Memory Adapt  │ │ • Stats   │ │
-│  └─────────────────┘ └─────────────────┘ └───────────┘ │
-└─────────────────────────────────────────────────────────┘
-┌─────────────────────────────────────────────────────────┐
-│                IMPLEMENTATION LAYER                    │
-│                   (Components)                         │
-│                                                         │
-│  Protocol Components & Shared Infrastructure           │
-│                                                         │
-│  ┌─────────────────┐ ┌─────────────────┐ ┌───────────┐ │
-│  │   Protocol      │ │  Specialized    │ │  Shared   │ │
-│  │  Components     │ │  Components     │ │   Infra   │ │
-│  │                 │ │                 │ │           │ │
-│  │ • APB M/S/Mon   │ │ • Misc Monitors │ │ • Packets │ │
-│  │ • FIFO M/S/Mon  │ │ • Arbiters      │ │ • Memory  │ │
-│  │ • GAXI M/S/Mon  │ │ • Spec. Logic   │ │ • Random  │ │
-│  │ • Factories     │ │                 │ │ • Stats   │ │
-│  └─────────────────┘ └─────────────────┘ └───────────┘ │
-└─────────────────────────────────────────────────────────┘
+```mermaid
+block-beta
+    columns 3
+
+    block:orch:3
+        columns 3
+        space:3
+        orchTitle["ORCHESTRATION LAYER (TBClasses)"]:3
+        orchDesc["Complete Verification Environments & System Testing"]:3
+        space:3
+        block:proto1
+            p1Title["Protocol Testbenches"]
+            p1a["APB TBs"]
+            p1b["FIFO TBs"]
+            p1c["GAXI TBs"]
+            p1d["Infrastructure"]
+        end
+        block:spec1
+            s1Title["Specialized Verification"]
+            s1a["AMBA Utils"]
+            s1b["AXI Splitter"]
+            s1c["Common Tests"]
+            s1d["Power Mgmt"]
+        end
+        block:sys1
+            y1Title["System Level Tests"]
+            y1a["Multi-Protocol"]
+            y1b["Advanced Monitor"]
+        end
+    end
+
+    block:verif:3
+        columns 3
+        space:3
+        verifTitle["VERIFICATION LAYER (Scoreboards)"]:3
+        verifDesc["Transaction Verification & Cross-Protocol Analysis"]:3
+        space:3
+        block:proto2
+            p2Title["Protocol Scoreboards"]
+            p2a["APB SB"]
+            p2b["AXI4 SB"]
+            p2c["FIFO SB"]
+            p2d["GAXI SB"]
+        end
+        block:cross
+            crTitle["Cross-Protocol Verification"]
+            cra["APB-GAXI Bridge"]
+            crb["Transform"]
+            crc["Memory Adapt"]
+        end
+        block:base
+            bTitle["Base Framework"]
+            ba["Base SB"]
+            bb["Protocol Transform"]
+            bc["Stats"]
+        end
+    end
+
+    block:impl:3
+        columns 3
+        space:3
+        implTitle["IMPLEMENTATION LAYER (Components)"]:3
+        implDesc["Protocol Components & Shared Infrastructure"]:3
+        space:3
+        block:proto3
+            p3Title["Protocol Components"]
+            p3a["APB M/S/Mon"]
+            p3b["FIFO M/S/Mon"]
+            p3c["GAXI M/S/Mon"]
+            p3d["Factories"]
+        end
+        block:spec2
+            s2Title["Specialized Components"]
+            s2a["Misc Monitors"]
+            s2b["Arbiters"]
+            s2c["Spec. Logic"]
+        end
+        block:shared
+            shTitle["Shared Infra"]
+            sha["Packets"]
+            shb["Memory"]
+            shc["Random"]
+            shd["Stats"]
+        end
+    end
+
+    orch --> verif
+    verif --> impl
 ```
 
 ### Cross-Layer Integration

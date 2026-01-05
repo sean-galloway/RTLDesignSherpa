@@ -41,38 +41,55 @@ The TBClasses framework is built around the principle of **comprehensive verific
 
 The TBClasses follow a four-tier architecture that provides increasing levels of abstraction and capability:
 
-```
-┌─────────────────────────────────────────────────────────┐
-│                 Application Tier                       │
-│                (Verification Tests)                    │
-│  • Test Scripts    • Test Sequences   • Scenarios     │
-│  • Regression      • Coverage         • CI/CD         │
-└─────────────────────────────────────────────────────────┘
-┌─────────────────────────────────────────────────────────┐
-│                Orchestration Tier                      │
-│              (TBClasses - This Layer)                  │
-│  ┌─────────────────┐ ┌─────────────────┐ ┌───────────┐ │
-│  │  Protocol       │ │  Specialized    │ │   System  │ │
-│  │  Testbenches    │ │  Verification   │ │   Level   │ │
-│  │                 │ │                 │ │           │ │
-│  │ • APB TBs       │ │ • AMBA Utils    │ │ • Multi   │ │
-│  │ • FIFO TBs      │ │ • AXI Splitter  │ │   Protocol│ │
-│  │ • GAXI TBs      │ │ • Common Tests  │ │ • Complex │ │
-│  │                 │ │                 │ │   Systems │ │
-│  └─────────────────┘ └─────────────────┘ └───────────┘ │
-└─────────────────────────────────────────────────────────┘
-┌─────────────────────────────────────────────────────────┐
-│                 Component Tier                         │
-│           (Protocol Components & Scoreboards)          │
-│  • Masters/Slaves  • Monitors        • Scoreboards    │
-│  • Packets         • Sequences       • Transformers   │
-└─────────────────────────────────────────────────────────┘
-┌─────────────────────────────────────────────────────────┐
-│               Infrastructure Tier                      │
-│                (Shared Components)                     │
-│  • Field Config   • Randomization    • Memory Models  │
-│  • Statistics     • Signal Mapping   • Utilities      │
-└─────────────────────────────────────────────────────────┘
+```mermaid
+graph TB
+    subgraph AppTier["Application Tier - Verification Tests"]
+        Scripts[Test Scripts]
+        Sequences[Test Sequences]
+        Scenarios[Scenarios]
+        Regression[Regression]
+        Coverage[Coverage]
+        CICD[CI/CD]
+    end
+
+    subgraph OrchTier["Orchestration Tier - TBClasses"]
+        subgraph ProtoTB["Protocol Testbenches"]
+            APB_TB[APB TBs]
+            FIFO_TB[FIFO TBs]
+            GAXI_TB[GAXI TBs]
+        end
+        subgraph SpecTB["Specialized Verification"]
+            AMBA_U[AMBA Utils]
+            AXI_Split[AXI Splitter]
+            Common[Common Tests]
+        end
+        subgraph SysTB["System Level"]
+            MultiProto[Multi-Protocol]
+            Complex[Complex Systems]
+        end
+    end
+
+    subgraph CompTier["Component Tier"]
+        Masters[Masters/Slaves]
+        Monitors[Monitors]
+        SBs[Scoreboards]
+        Packets[Packets]
+        SeqGen[Sequences]
+        Xforms[Transformers]
+    end
+
+    subgraph InfraTier["Infrastructure Tier"]
+        FieldCfg[Field Config]
+        Random[Randomization]
+        MemMdl[Memory Models]
+        Stats[Statistics]
+        SigMap[Signal Mapping]
+        Utils[Utilities]
+    end
+
+    AppTier --> OrchTier
+    OrchTier --> CompTier
+    CompTier --> InfraTier
 ```
 
 ## TBClasses Categories

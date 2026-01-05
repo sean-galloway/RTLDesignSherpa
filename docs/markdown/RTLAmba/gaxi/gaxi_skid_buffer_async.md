@@ -73,29 +73,23 @@ module gaxi_skid_buffer_async #(
 
 ## Architecture
 
-```
-Write Domain              |  Read Domain
-                         |
-┌─────────────────┐      |
-│  gaxi_skid_     │      |
-│  buffer         │      |
-│  (sync)         │      |
-│                 │      |
-│  wr → buffer → │──────┼──┐
-│                 │      |  │
-└─────────────────┘      |  │
-                         |  │
-                         |  │ CDC Interface
-                         |  │
-┌─────────────────┐      |  │
-│  gaxi_fifo_     │◄─────┼──┘
-│  async          │      |
-│                 │      |
-│  Gray Code CDC  │      |
-│  Synchronizers  │      |
-│                 │      |
-│         → rd_data──────┼──→ Read Domain
-└─────────────────┘      |
+```mermaid
+flowchart LR
+    subgraph WR["Write Domain"]
+        wr["wr_valid/data"] --> skid
+        subgraph skid["gaxi_skid_buffer<br/>(sync)"]
+            sb["Elastic Buffer"]
+        end
+    end
+
+    skid --> cdc
+
+    subgraph RD["Read Domain"]
+        subgraph cdc["gaxi_fifo_async"]
+            async["Gray Code CDC<br/>Synchronizers"]
+        end
+        cdc --> rd["rd_valid/data"]
+    end
 ```
 
 ### Internal Components

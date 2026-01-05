@@ -122,30 +122,24 @@ projects/components/{component_name}/
 
 **APB-Connected Component Example:**
 
-```
-┌─────────────────────────────────────────────────────┐
-│            {component}_top (Top Level)              │
-├─────────────────────────────────────────────────────┤
-│                                                     │
-│  ┌──────────────┐     ┌──────────────┐            │
-│  │  APB Slave   │────▶│ Config Regs  │            │
-│  │  (Optional   │     │ (PeakRDL)    │            │
-│  │   CDC)       │     │              │            │
-│  └──────────────┘     └──────────────┘            │
-│                              │                      │
-│                              ▼                      │
-│                    ┌──────────────┐                │
-│                    │ {component}  │                │
-│                    │     Core     │                │
-│                    │              │                │
-│                    │ - State      │                │
-│                    │ - Datapath   │                │
-│                    │ - Control    │                │
-│                    └──────────────┘                │
-│                              │                      │
-│                              ▼                      │
-│                    External Interfaces              │
-└─────────────────────────────────────────────────────┘
+```mermaid
+graph TB
+    subgraph TopLevel["{component}_top (Top Level)"]
+        subgraph InterfaceLayer["Interface Layer"]
+            APB["APB Slave<br/>(Optional CDC)"]
+            Regs["Config Regs<br/>(PeakRDL)"]
+        end
+
+        subgraph CoreLogic["Core Logic"]
+            Core["{component} Core<br/>- State<br/>- Datapath<br/>- Control"]
+        end
+
+        ExtIf["External Interfaces"]
+    end
+
+    APB --> Regs
+    Regs --> Core
+    Core --> ExtIf
 ```
 
 **Key Interfaces:**

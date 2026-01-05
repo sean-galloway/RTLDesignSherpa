@@ -48,29 +48,35 @@ The AXI4 Master Write Monitor module combines a functional AXI4 master write int
 
 ## Module Architecture
 
-```
-Frontend (fub_axi)    Master Core        Monitor        Monitor Bus
-                   ┌──────────────┐   ┌───────────┐
-  awid  ──────────►│              │   │           │
-  awaddr ─────────►│ axi4_master  │   │   axi     │   monbus_valid ──►
-  aw*   ──────────►│    _wr       │──►│  _monitor │   monbus_packet ─►
-  awvalid ────────►│  (buffered)  │   │ _filtered │   monbus_ready ◄──
-  awready ◄────────│              │   │           │
-                   │              │   │ •error    │
-  wdata ──────────►│              │   │ •timeout  │
-  w*    ──────────►│              │   │ •perf     │
-  wvalid ─────────►│              │   │ •config   │
-  wready ◄─────────│              │   │           │
-                   │              │   └───────────┘
-  bid   ◄──────────│              │
-  bresp ◄──────────│              │
-  b*    ◄──────────│              │
-  bvalid ◄─────────│              │
-  bready ──────────►│              │
-                   └──────────────┘
-                          │
-                          ▼
-                   Master (m_axi)
+```mermaid
+flowchart LR
+    subgraph FE["Frontend<br/>(fub_axi)"]
+        aw["aw* →"]
+        w["w* →"]
+        b["← b*"]
+    end
+
+    subgraph CORE["Master Core"]
+        mc["axi4_master_wr<br/>(buffered)"]
+    end
+
+    subgraph MON["Monitor"]
+        mf["axi_monitor<br/>_filtered"]
+        features["•error<br/>•timeout<br/>•perf"]
+    end
+
+    subgraph MB["Monitor Bus"]
+        mbv["monbus_valid"]
+        mbp["monbus_packet"]
+    end
+
+    aw --> mc
+    w --> mc
+    mc --> b
+    mc --> mf
+    mf --> mbv
+    mf --> mbp
+    mc --> maxi["Master (m_axi)"]
 ```
 
 The module instantiates two sub-modules:

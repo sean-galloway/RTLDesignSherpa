@@ -29,32 +29,30 @@ The misc directory in the tbclasses module contains essential infrastructure com
 
 The misc components follow a layered approach to testbench construction:
 
-```
-┌─────────────────────────────────────────────────────────┐
-│                  Test Implementation                   │
-│               (Your verification logic)                │
-└─────────────────────────────────────────────────────────┘
-┌─────────────────────────────────────────────────────────┐
-│                Advanced Capabilities                   │
-│        ┌─────────────────┐ ┌─────────────────┐         │
-│        │    Monitoring   │ │   Debug & Test  │         │
-│        │   & Analytics   │ │    Reporting    │         │
-│        └─────────────────┘ └─────────────────┘         │
-└─────────────────────────────────────────────────────────┘
-┌─────────────────────────────────────────────────────────┐
-│                  Protocol Abstraction                  │
-│        ┌─────────────────┐ ┌─────────────────┐         │
-│        │   Monitor Bus   │ │  Cross-Protocol │         │
-│        │  Event System   │ │   Integration   │         │
-│        └─────────────────┘ └─────────────────┘         │
-└─────────────────────────────────────────────────────────┘
-┌─────────────────────────────────────────────────────────┐
-│                 Infrastructure Layer                   │
-│        ┌─────────────────┐ ┌─────────────────┐         │
-│        │     TBBase      │ │    Utilities    │         │
-│        │   Foundation    │ │  & Environment  │         │
-│        └─────────────────┘ └─────────────────┘         │
-└─────────────────────────────────────────────────────────┘
+```mermaid
+graph TB
+    subgraph TestImpl["Test Implementation"]
+        Logic[Your verification logic]
+    end
+
+    subgraph Advanced["Advanced Capabilities"]
+        Monitoring[Monitoring & Analytics]
+        Debug[Debug & Test Reporting]
+    end
+
+    subgraph ProtoAbstract["Protocol Abstraction"]
+        MonBus[Monitor Bus Event System]
+        CrossProto[Cross-Protocol Integration]
+    end
+
+    subgraph Infra["Infrastructure Layer"]
+        TBBase[TBBase Foundation]
+        Utils[Utilities & Environment]
+    end
+
+    TestImpl --> Advanced
+    Advanced --> ProtoAbstract
+    ProtoAbstract --> Infra
 ```
 
 ## Component Ecosystem

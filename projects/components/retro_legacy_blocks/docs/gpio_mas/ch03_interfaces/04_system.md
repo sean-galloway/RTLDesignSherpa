@@ -83,23 +83,20 @@ Resets:
 
 ### Single Clock Domain (CDC_ENABLE = 0)
 
+```mermaid
+flowchart LR
+    A["pclk"] --> B["APB GPIO<br/>(all logic)"]
 ```
-            +------------------+
-pclk ------>| APB GPIO         |
-            | (all logic)      |
-            +------------------+
 
 gpio_clk: Tie to pclk or leave unconnected
-```
 
 ### Dual Clock Domain (CDC_ENABLE = 1)
 
-```
-            +------------------+
-pclk ------>| APB Interface    |
-            |     |CDC|        |
-gpio_clk -->| GPIO Core        |
-            +------------------+
+```mermaid
+flowchart LR
+    A["pclk"] --> B["APB Interface"]
+    B <-->|"CDC"| C["GPIO Core"]
+    D["gpio_clk"] --> C
 ```
 
 ## Reset Sequence

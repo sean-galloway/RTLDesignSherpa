@@ -49,32 +49,46 @@ While inheriting GAXI's power, AXI4 components are specifically optimized for me
 
 ## Core Components Architecture
 
-```
-┌─────────────────────────────────────────────────────────────────┐
-│                    AXI4 Component Ecosystem                    │
-├─────────────────────────────────────────────────────────────────┤
-│  ┌─────────────┐ ┌─────────────┐ ┌─────────────┐ ┌─────────────┐ │
-│  │AXI4MasterRd │ │AXI4MasterWr │ │AXI4SlaveRd  │ │AXI4SlaveWr  │ │
-│  │ (AR/R)      │ │ (AW/W/B)    │ │ (AR/R)      │ │ (AW/W/B)    │ │
-│  └─────────────┘ └─────────────┘ └─────────────┘ └─────────────┘ │
-│         │               │               │               │       │
-│  ┌─────────────────────────────────────────────────────────────┐ │
-│  │              AXI4 Field Configurations                     │ │
-│  │     AR Config │ R Config │ AW Config │ W Config │ B Config │ │
-│  └─────────────────────────────────────────────────────────────┘ │
-│         │               │               │               │       │
-│  ┌─────────────────────────────────────────────────────────────┐ │
-│  │              Advanced AXI4 Features                        │ │
-│  │  • Compliance   • Randomization  • Timing Config         │ │
-│  │  • Factories    • Packet Utils   • Transaction Support   │ │
-│  └─────────────────────────────────────────────────────────────┘ │
-│         │               │               │               │       │
-│  ┌─────────────────────────────────────────────────────────────┐ │
-│  │                GAXI Infrastructure                         │ │
-│  │  • Signal Resolution  • Memory Models  • Statistics       │ │
-│  │  • Field Handling     • Debug Support  • Configuration    │ │
-│  └─────────────────────────────────────────────────────────────┘ │
-└─────────────────────────────────────────────────────────────────┘
+```mermaid
+graph TB
+    subgraph Ecosystem["AXI4 Component Ecosystem"]
+        subgraph Components["Core Components"]
+            MasterRd["AXI4MasterRd<br/>(AR/R)"]
+            MasterWr["AXI4MasterWr<br/>(AW/W/B)"]
+            SlaveRd["AXI4SlaveRd<br/>(AR/R)"]
+            SlaveWr["AXI4SlaveWr<br/>(AW/W/B)"]
+        end
+
+        subgraph FieldConfig["AXI4 Field Configurations"]
+            AR[AR Config]
+            R[R Config]
+            AW[AW Config]
+            W[W Config]
+            B[B Config]
+        end
+
+        subgraph Advanced["Advanced AXI4 Features"]
+            Compliance[Compliance]
+            Random[Randomization]
+            Timing[Timing Config]
+            Factories[Factories]
+            PktUtils[Packet Utils]
+            TxnSupport[Transaction Support]
+        end
+
+        subgraph GAXI["GAXI Infrastructure"]
+            SigRes[Signal Resolution]
+            MemModels[Memory Models]
+            Stats[Statistics]
+            FieldHandle[Field Handling]
+            Debug[Debug Support]
+            Config[Configuration]
+        end
+    end
+
+    Components --> FieldConfig
+    FieldConfig --> Advanced
+    Advanced --> GAXI
 ```
 
 ## Component Capabilities

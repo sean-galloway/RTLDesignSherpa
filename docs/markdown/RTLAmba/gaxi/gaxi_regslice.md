@@ -90,19 +90,21 @@ module gaxi_regslice #(
 
 The register slice implements a single-entry elastic buffer with simultaneous push/pop capability:
 
-```
-                   ┌─────────────────────┐
-    wr_valid ─────>│                     │
-    wr_ready <─────│  1-Entry Storage    │
-    wr_data  ─────>│  - r_valid (1-bit)  │
-                   │  - r_data  (DW-bit) │
-                   │                     │────> rd_data (registered)
-                   │  Handshake Logic    │
-                   │  - Accept when      │
-    rd_ready ─────>│    empty OR pop     │
-    rd_valid <─────│                     │
-    count    <─────│  Status: 0 or 1     │
-                   └─────────────────────┘
+```mermaid
+flowchart LR
+    wrv["wr_valid"] --> rs
+    wrd["wr_data"] --> rs
+    rdr["rd_ready"] --> rs
+
+    subgraph rs["Register Slice"]
+        storage["1-Entry Storage<br/>- r_valid (1-bit)<br/>- r_data (DW-bit)"]
+        logic["Handshake Logic<br/>- Accept when<br/>  empty OR pop"]
+    end
+
+    rs --> wrr["wr_ready"]
+    rs --> rdd["rd_data<br/>(registered)"]
+    rs --> rdv["rd_valid"]
+    rs --> cnt["count<br/>(0 or 1)"]
 ```
 
 ### Ready/Valid Protocol

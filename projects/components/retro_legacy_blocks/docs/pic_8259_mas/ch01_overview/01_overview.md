@@ -46,11 +46,13 @@ The APB PIC 8259 is an 8259A-compatible Programmable Interrupt Controller with a
 
 ## Block Diagram
 
+### Figure 1.1: PIC 8259 Block Diagram
+
 ![PIC 8259 Block Diagram](../assets/svg/pic_8259_top.svg)
 
 ## Timing Diagrams
 
-### Interrupt Request
+### Waveform 1.1: Interrupt Request
 
 Shows an IRQ input assertion triggering the interrupt process.
 
@@ -58,7 +60,7 @@ Shows an IRQ input assertion triggering the interrupt process.
 
 When an IR pin asserts, the corresponding IRR bit is set. The priority resolver selects the highest priority unmasked interrupt and asserts INT to the CPU.
 
-### Interrupt Acknowledge Sequence
+### Waveform 1.2: Interrupt Acknowledge Sequence
 
 The two-pulse INTA sequence from CPU to PIC.
 
@@ -66,7 +68,7 @@ The two-pulse INTA sequence from CPU to PIC.
 
 On the first INTA pulse, priority is frozen and IRR transfers to ISR. On the second INTA pulse, the PIC outputs the interrupt vector (base + IR number) on the data bus.
 
-### End-of-Interrupt (EOI)
+### Waveform 1.3: End-of-Interrupt (EOI)
 
 Software clears the in-service bit with an EOI command.
 
@@ -74,7 +76,7 @@ Software clears the in-service bit with an EOI command.
 
 Non-specific EOI (0x20) clears the highest priority ISR bit. Specific EOI (0x60-0x67) clears a designated IR.
 
-### Cascade Mode
+### Waveform 1.4: Cascade Mode
 
 Master-slave configuration for 15 IRQ sources.
 
@@ -82,7 +84,7 @@ Master-slave configuration for 15 IRQ sources.
 
 Slave INT connects to master IR2. During INTA, master outputs cascade select (CAS) lines. Slave with matching ID provides the interrupt vector.
 
-### Priority Rotation
+### Waveform 1.5: Priority Rotation
 
 Automatic priority rotation for equal-service scheduling.
 

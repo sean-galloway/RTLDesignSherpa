@@ -92,26 +92,41 @@ module gaxi_fifo_async #(
 
 ### Clock Domain Crossing Architecture
 
-```
-Write Domain                      Read Domain
-┌──────────────┐                 ┌──────────────┐
-│ wr_ptr (bin) │                 │ rd_ptr (bin) │
-│      ↓       │                 │      ↓       │
-│ wr_ptr (Gray)│────┐       ┌────│ rd_ptr (Gray)│
-└──────────────┘    │       │    └──────────────┘
-                    │       │
-                ┌───▼───────▼───┐
-                │  Gray Code    │
-                │ Synchronizers │
-                │ (N_FLOP_CROSS)│
-                └───┬───────┬───┘
-                    │       │
-┌──────────────┐    │       │    ┌──────────────┐
-│ rd_ptr_sync  │◄───┘       └───►│ wr_ptr_sync  │
-│ (in wr_clk)  │                 │ (in rd_clk)  │
-│      ↓       │                 │      ↓       │
-│ Full Logic   │                 │ Empty Logic  │
-└──────────────┘                 └──────────────┘
+```mermaid
+flowchart TB
+    subgraph WriteDomain["Write Domain"]
+        wrbin["wr_ptr (bin)"]
+        wrgray["wr_ptr (Gray)"]
+        wrbin --> wrgray
+    end
+
+    subgraph ReadDomain["Read Domain"]
+        rdbin["rd_ptr (bin)"]
+        rdgray["rd_ptr (Gray)"]
+        rdbin --> rdgray
+    end
+
+    subgraph Sync["Gray Code Synchronizers<br/>(N_FLOP_CROSS)"]
+        sync["CDC Sync"]
+    end
+
+    wrgray --> sync
+    rdgray --> sync
+
+    subgraph WrLogic["Write Domain Logic"]
+        rdsync["rd_ptr_sync<br/>(in wr_clk)"]
+        full["Full Logic"]
+        rdsync --> full
+    end
+
+    subgraph RdLogic["Read Domain Logic"]
+        wrsync["wr_ptr_sync<br/>(in rd_clk)"]
+        empty["Empty Logic"]
+        wrsync --> empty
+    end
+
+    sync --> rdsync
+    sync --> wrsync
 ```
 
 ### Why Gray Code?

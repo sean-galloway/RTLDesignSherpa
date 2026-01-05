@@ -29,15 +29,18 @@ The TX engine handles transmit data buffering, serialization, and TXD signal gen
 
 ## Block Diagram
 
+### Figure 2.3: TX Engine Block
+
 ![TX Engine Block](../assets/svg/uart_tx_engine.svg)
 
 ## Data Path
 
-```
-THR Write --> TX FIFO --> TX Shift Register --> TXD
-                |
-                v
-            LSR Status (THRE, TEMT)
+```mermaid
+flowchart LR
+    A["THR Write"] --> B["TX FIFO"]
+    B --> C["TX Shift Register"]
+    C --> D["TXD"]
+    B --> E["LSR Status<br/>(THRE, TEMT)"]
 ```
 
 ## TX FIFO
@@ -82,37 +85,18 @@ TXD  |0| D0 D1 D2 D3 D4 [D5 D6 D7] [P] |1|1|
 
 ## State Machine
 
-```
-    +-------+
-    | IDLE  |<----------------+
-    +---+---+                 |
-        |                     |
-   FIFO not empty             |
-        |                     |
-        v                     |
-    +-------+                 |
-    | START |--- 1 bit -------+
-    +---+---+                 |
-        |                     |
-        v                     |
-    +-------+                 |
-    | DATA  |--- 5-8 bits ----+
-    +---+---+                 |
-        |                     |
-        v                     |
-    +-------+                 |
-    | PARITY|--- 0/1 bit -----+ (if enabled)
-    +---+---+                 |
-        |                     |
-        v                     |
-    +-------+                 |
-    | STOP  |--- 1-2 bits ----+
-    +-------+
+```mermaid
+flowchart TD
+    A["IDLE"] -->|"FIFO not empty"| B["START<br/>(1 bit)"]
+    B --> C["DATA<br/>(5-8 bits)"]
+    C --> D["PARITY<br/>(0/1 bit, if enabled)"]
+    D --> E["STOP<br/>(1-2 bits)"]
+    E --> A
 ```
 
 ## Timing
 
-### TX Byte Transmission
+### Waveform 2.1: TX Byte Transmission
 
 The following diagram shows the complete TX path from APB write to serial output.
 
@@ -125,7 +109,7 @@ The transmission sequence:
 4. Baud tick shifts out bits: Start (0), Data (LSB first), Stop (1)
 5. TXD changes at each baud tick
 
-### Baud Rate Generation
+### Waveform 2.2: Baud Rate Generation
 
 The baud generator divides the system clock to produce bit timing.
 
@@ -136,7 +120,7 @@ Key timing relationships:
 - `baud_tick` pulses once per bit period for TX
 - 16x oversampling counter provides mid-bit sampling for RX
 
-### Loopback Mode
+### Waveform 2.3: Loopback Mode
 
 MCR[4] enables internal loopback for diagnostics.
 

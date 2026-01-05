@@ -29,6 +29,8 @@ The register file implements the standard 16550 register set with PeakRDL genera
 
 ## Block Diagram
 
+### Figure 2.2: Register File Block
+
 ![Register File Block](../assets/svg/uart_register_file.svg)
 
 ## Register Organization

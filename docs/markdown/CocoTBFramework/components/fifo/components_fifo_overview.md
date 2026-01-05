@@ -31,31 +31,36 @@ The FIFO components directory provides a comprehensive verification framework fo
 
 The FIFO components are built on a unified architecture that eliminates code duplication while preserving exact timing behavior:
 
-```
-┌─────────────────────────────────────────────────────────┐
-│                 FIFO Components                         │
-│                                                         │
-│  ┌─────────────┐  ┌─────────────┐  ┌─────────────┐     │
-│  │   Master    │  │   Monitor   │  │   Slave     │     │
-│  │ (BusDriver) │  │(BusMonitor) │  │(BusMonitor) │     │
-│  └─────────────┘  └─────────────┘  └─────────────┘     │
-│          │               │               │             │
-│          └───────────────┼───────────────┘             │
-│                          │                             │
-│  ┌─────────────────────────────────────────────────────┐ │
-│  │          FIFOComponentBase                          │ │
-│  │  • Signal Resolution & Data Strategies             │ │
-│  │  • Unified Field Configuration                     │ │
-│  │  • Memory Model Integration                        │ │
-│  │  • Statistics & Performance Monitoring             │ │
-│  │  • Randomization Support                           │ │
-│  └─────────────────────────────────────────────────────┘ │
-└─────────────────────────────────────────────────────────┘
-┌─────────────────────────────────────────────────────────┐
-│                 Shared Components                       │
-│  SignalResolver • DataStrategies • FieldConfig         │
-│  FlexRandomizer • MemoryModel • Statistics             │
-└─────────────────────────────────────────────────────────┘
+```mermaid
+graph TB
+    subgraph FIFOComp["FIFO Components"]
+        Master["Master<br/>(BusDriver)"]
+        Monitor["Monitor<br/>(BusMonitor)"]
+        Slave["Slave<br/>(BusMonitor)"]
+
+        subgraph CompBase["FIFOComponentBase"]
+            SigRes[Signal Resolution & Data Strategies]
+            FieldCfg[Unified Field Configuration]
+            MemInt[Memory Model Integration]
+            Stats[Statistics & Performance Monitoring]
+            Random[Randomization Support]
+        end
+
+        Master --> CompBase
+        Monitor --> CompBase
+        Slave --> CompBase
+    end
+
+    subgraph Shared["Shared Components"]
+        SR[SignalResolver]
+        DS[DataStrategies]
+        FC[FieldConfig]
+        FR[FlexRandomizer]
+        MM[MemoryModel]
+        S[Statistics]
+    end
+
+    FIFOComp --> Shared
 ```
 
 ### Key Design Principles

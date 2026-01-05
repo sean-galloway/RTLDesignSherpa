@@ -112,40 +112,52 @@ This can be broken down as:
 
 ### Traditional Gate-Level View
 
-```
-     i_a ----┐
-             ├─── XOR ──┐
-     i_b ----┘          │
-                        ├─── XOR ─── ow_sum
-     i_c ---------------┘
+```mermaid
+flowchart LR
+    subgraph SumPath["Sum Path"]
+        a1["i_a"] --> xor1["XOR"]
+        b1["i_b"] --> xor1
+        xor1 --> xor2["XOR"]
+        c1["i_c"] --> xor2
+        xor2 --> sum["ow_sum"]
+    end
 
-     i_a ----┐
-             ├─── AND ──┐
-     i_b ----┘          │
-                        ├─── OR ─── ow_carry
-     i_a ----┐          │
-             ├─── XOR ──┤
-     i_b ----┘          │
-                 AND ───┘
-     i_c ────────┘
+    subgraph CarryPath["Carry Path"]
+        a2["i_a"] --> and1["AND"]
+        b2["i_b"] --> and1
+        and1 --> or1["OR"]
+        a3["i_a"] --> xor3["XOR"]
+        b3["i_b"] --> xor3
+        xor3 --> and2["AND"]
+        c2["i_c"] --> and2
+        and2 --> or1
+        or1 --> carry["ow_carry"]
+    end
 ```
 
 ### Optimized Implementation
 
 The actual implementation uses shared XOR logic for efficiency:
+
+```mermaid
+flowchart LR
+    a["i_a"] --> xor1["XOR<br/>(a^b)"]
+    b["i_b"] --> xor1
+    xor1 --> xor2["XOR"]
+    c["i_c"] --> xor2
+    xor2 --> sum["ow_sum"]
+
+    a --> and1["AND<br/>(a&b)"]
+    b --> and1
+    and1 --> or1["OR"]
+
+    xor1 --> and2["AND<br/>((a^b)&c)"]
+    c --> and2
+    and2 --> or1
+    or1 --> carry["ow_carry"]
 ```
-     i_a ┬─────────────────────────┐
-         │    ┌─── XOR ──┐          │
-     i_b ┼────┤         ├─── XOR ─── ow_sum
-         │    └─────────┘          │
-         │          │              │
-         │    ┌─── AND ──┐          │
-         └────┤         ├─── OR ──── ow_carry
-              └─────────┘     │
-     i_c ─┬──────────────────┘
-          │    ┌─── AND ──┘
-          └────┘
-```
+
+**Key optimization:** The `a^b` XOR result is shared between sum calculation and carry propagation.
 
 ## Timing Characteristics
 

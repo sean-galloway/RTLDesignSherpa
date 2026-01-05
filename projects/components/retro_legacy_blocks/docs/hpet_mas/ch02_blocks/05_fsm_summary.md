@@ -285,24 +285,15 @@ Note: Fire every 3 counts, comparator auto-increments by period
 
 #### Cross-Module State Dependencies
 
-```
-APB Transaction Flow:
-APB Slave FSM (pclk)
-    ↓ cmd_valid
-hpet_config_regs (combinational mapping)
-    ↓ timer_enable, timer_comparator_wr
-HPET Core Timer FSM (hpet_clk)
-    ↓ timer_fired
-hpet_config_regs (interrupt edge detection)
-    ↓ hwif_in.timer_int_status.hwset
-PeakRDL Registers (status latch)
-    ← software read HPET_STATUS
-    ← software write W1C to clear
-    ↓ hwif_out.timer_int_status.swmod
-hpet_config_regs (clear pulse generation)
-    ↓ timer_int_clear
-HPET Core Timer FSM
-    -> timer_fired clears
+```mermaid
+flowchart TD
+    A["APB Slave FSM<br/>(pclk)"] -->|"cmd_valid"| B["hpet_config_regs<br/>(combinational mapping)"]
+    B -->|"timer_enable,<br/>timer_comparator_wr"| C["HPET Core Timer FSM<br/>(hpet_clk)"]
+    C -->|"timer_fired"| D["hpet_config_regs<br/>(interrupt edge detection)"]
+    D -->|"hwif_in.timer_int_status.hwset"| E["PeakRDL Registers<br/>(status latch)"]
+    E -->|"software read HPET_STATUS<br/>software write W1C to clear"| F["hpet_config_regs<br/>(clear pulse generation)"]
+    F -->|"timer_int_clear"| G["HPET Core Timer FSM"]
+    G -->|"timer_fired clears"| H["Complete"]
 ```
 
 #### Clock Domain Considerations

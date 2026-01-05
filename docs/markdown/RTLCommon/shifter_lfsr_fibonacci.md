@@ -67,15 +67,24 @@ The `shifter_lfsr_fibonacci` module implements a Fibonacci Linear Feedback Shift
 - **Critical Path**: Through feedback XOR to MSB
 
 ### Implementation Comparison
-```
-Fibonacci (this module):     Galois LFSR:
-┌─────────────────────────┐   ┌─────────────────────────┐
-│ MSB ← XOR ← Tapped Bits │   │ XOR gates at tap points │
-│  ↓                      │   │ distributed throughout  │
-│ Shift Right             │   │ shift register          │
-│  ↓                      │   │                         │
-│ LSB                     │   │ LSB → feedback          │
-└─────────────────────────┘   └─────────────────────────┘
+
+```mermaid
+flowchart TB
+    subgraph Fibonacci["Fibonacci (this module)"]
+        direction TB
+        taps1["Tapped Bits"] --> xor1["XOR"]
+        xor1 --> msb1["MSB"]
+        msb1 --> shift1["Shift Right"]
+        shift1 --> lsb1["LSB"]
+    end
+
+    subgraph Galois["Galois LFSR"]
+        direction TB
+        xor2["XOR gates at<br/>tap points"]
+        dist["distributed<br/>throughout"]
+        sr["shift register"]
+        fb["LSB → feedback"]
+    end
 ```
 
 ## Implementation Details

@@ -29,6 +29,8 @@ The APB interface provides the connection between the system APB bus and the UAR
 
 ## Block Diagram
 
+### Figure 2.1: APB Interface Block
+
 ![APB Interface Block](../assets/svg/uart_apb_interface.svg)
 
 ## Interface Signals

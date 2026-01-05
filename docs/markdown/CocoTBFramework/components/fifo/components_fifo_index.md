@@ -92,12 +92,19 @@ scoreboard = components['scoreboard']
 ## Architecture Overview
 
 ### Component Hierarchy
-```
-FIFOComponentBase (shared functionality)
-├── FIFOMaster (BusDriver + base)
-├── FIFOMonitorBase (BusMonitor + base)
-│   ├── FIFOMonitor (pure monitoring)
-│   └── FIFOSlave (monitoring + read driving)
+
+```mermaid
+graph TB
+    Base["FIFOComponentBase<br/>(shared functionality)"]
+    Master["FIFOMaster<br/>(BusDriver + base)"]
+    MonBase["FIFOMonitorBase<br/>(BusMonitor + base)"]
+    Monitor["FIFOMonitor<br/>(pure monitoring)"]
+    Slave["FIFOSlave<br/>(monitoring + read driving)"]
+
+    Base --> Master
+    Base --> MonBase
+    MonBase --> Monitor
+    MonBase --> Slave
 ```
 
 ### Key Features

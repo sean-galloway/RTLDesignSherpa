@@ -29,20 +29,24 @@ The misc components directory contains specialized verification components that 
 
 The misc components follow the same design principles as other CocoTBFramework components:
 
-```
-┌─────────────────────────────────────────────────────────┐
-│                  Misc Components                       │
-│   ┌─────────────┐ ┌─────────────┐ ┌─────────────┐     │
-│   │   Arbiter   │ │   Future    │ │   Future    │     │
-│   │  Monitors   │ │ Components  │ │ Components  │     │
-│   └─────────────┘ └─────────────┘ └─────────────┘     │
-└─────────────────────────────────────────────────────────┘
-┌─────────────────────────────────────────────────────────┐
-│                  Shared Components                     │
-└─────────────────────────────────────────────────────────┘
-┌─────────────────────────────────────────────────────────┐
-│                     CocoTB Core                        │
-└─────────────────────────────────────────────────────────┘
+```mermaid
+graph TB
+    subgraph MiscComp["Misc Components"]
+        ArbMon[Arbiter Monitors]
+        Future1[Future Components]
+        Future2[Extensions]
+    end
+
+    subgraph Shared["Shared Components"]
+        SharedInfra[Shared Infrastructure]
+    end
+
+    subgraph Core["CocoTB Core"]
+        CocoTB[CocoTB Framework]
+    end
+
+    MiscComp --> Shared
+    Shared --> Core
 ```
 
 ## Current Components

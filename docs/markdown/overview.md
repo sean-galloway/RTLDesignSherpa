@@ -12,7 +12,8 @@
     <img src="https://img.shields.io/badge/Verilator-Simulation-ff6600?style=flat-square" alt="Verilator">
   </p>
   <p>
-    <img src="https://img.shields.io/badge/Modules-196+-blue?style=flat-square" alt="Modules">
+    <img src="https://img.shields.io/badge/RTL_Modules-350+-blue?style=flat-square" alt="RTL Modules">
+    <img src="https://img.shields.io/badge/Components-10+-orange?style=flat-square" alt="Components">
     <img src="https://img.shields.io/badge/License-MIT-green?style=flat-square" alt="License">
     <img src="https://img.shields.io/badge/Open_Source-Tools-purple?style=flat-square" alt="Open Source">
   </p>
@@ -22,7 +23,7 @@
 
 *A progressive learning framework for RTL development using open-source tools*
 
-**📚 [Documentation Index](../DOCUMENTATION_INDEX.md)** - Complete guide to all documentation, organized by type
+**📚 [Documentation Index](docs/DOCUMENTATION_INDEX.md)** - Complete guide to all documentation, organized by type
 
 ---
 
@@ -62,26 +63,18 @@ build understanding from the ground up.
 
 ### Learning Path
 
-```
-Level 1: Common Building Blocks (90 modules)
-    ↓
-    Learn: Counters, FIFOs, Arbiters, Math, Data Integrity
+```mermaid
+graph TD
+    L1[Level 1: Common Building Blocks<br/>224 modules] --> L2[Level 2: AMBA Protocol Infrastructure<br/>124 modules]
+    L2 --> L3[Level 3: Integration Examples]
+    L3 --> L4[Level 4: Production Components<br/>10+ components]
+    L4 --> L5[Level 5: Complete FPGA Projects]
 
-Level 2: AMBA Protocol Infrastructure (106 modules)
-    ↓
-    Apply: APB, AXI4, AXI4-Lite, AXI-Stream protocols
-
-Level 3: Integration Examples
-    ↓
-    Integrate: CDC Counter Display, APB Crossbar
-
-Level 4: Production Components (2+ components)
-    ↓
-    Build: Retro Legacy Peripherals (HPET, PIC, PIT, RTC), RAPIDS DMA Engine
-
-Level 5: Complete FPGA Projects
-    ↓
-    Deploy: Full SoC designs with verification
+    L1 -.- L1D[Counters, FIFOs, Arbiters<br/>Math, Floating-Point, Data Integrity]
+    L2 -.- L2D[APB, AXI4, AXI4-Lite<br/>AXI-Stream, AMBA5 protocols]
+    L3 -.- L3D[CDC Counter Display<br/>APB Crossbar, Bridges]
+    L4 -.- L4D[STREAM, RAPIDS, Bridge<br/>Converters, Retro Legacy Blocks]
+    L5 -.- L5D[NexysA7 FPGA Projects<br/>Full SoC designs]
 ```
 
 ---
@@ -89,32 +82,35 @@ Level 5: Complete FPGA Projects
 ## Quick Navigation
 
 ### 📚 Documentation
-- **[Component Projects](docs/markdown/projects/index.md)** - Production-ready peripherals: DMA Engines (STREAM, RAPIDS), Retro Legacy Blocks
-- **[Component Overview](docs/markdown/projects/overview.md)** - Component ecosystem and patterns
-- **[Retro Legacy Blocks](projects/components/retro_legacy_blocks/README.md)** - Legacy peripherals collection (HPET, PIC, PIT, RTC, etc.)
+- **[Component Projects Index](docs/markdown/projects/index.md)** - All production-ready components
+- **[Documentation Index](docs/DOCUMENTATION_INDEX.md)** - Complete documentation guide
 
-### 🏗️ RTL Source Code
-- **[Common Library](rtl/common/)** (90 modules) - [Documentation](rtl/common/PRD.md) - [AI Guide](rtl/common/CLAUDE.md)
-  - Fundamental building blocks: counters, FIFOs, arbiters, math, data integrity
-- **[AMBA Infrastructure](rtl/amba/)** (106 modules) - [Documentation](rtl/amba/PRD.md) - [AI Guide](rtl/amba/CLAUDE.md)
-  - APB, AXI4, AXI4-Lite, AXI-Stream protocols and infrastructure
-
-### 🧪 Integration Examples
-- **[Common Integration](rtl/integ_common/)** - Multi-module integration examples
-- **[AMBA Integration](rtl/integ_amba/)** - Protocol integration (crossbars, bridges)
+### 🏗️ RTL Building Blocks
+- **[Common Library](rtl/common/)** (224 modules) - [Documentation](docs/markdown/RTLCommon/index.md) - [AI Guide](rtl/common/CLAUDE.md)
+  - Counters, FIFOs, arbiters, integer math, floating-point (BF16/FP16/FP32/FP8), data integrity
+- **[AMBA Infrastructure](rtl/amba/)** (124 modules) - [Documentation](docs/markdown/RTLAmba/index.md) - [AI Guide](rtl/amba/CLAUDE.md)
+  - APB, AXI4, AXI4-Lite, AXI-Stream, AMBA5 protocols
 
 ### 🎯 Component Projects
-- **[Retro Legacy Blocks](projects/components/retro_legacy_blocks/)** - Legacy peripheral collection (HPET, PIC, PIT, RTC, etc.) - [PRD](projects/components/retro_legacy_blocks/PRD.md) | [Guide](projects/components/retro_legacy_blocks/CLAUDE.md) | [Overview](projects/components/retro_legacy_blocks/README.md)
-- **[RAPIDS DMA](projects/components/rapids/)** - Memory I/O Processor - [PRD](projects/components/rapids/PRD.md) | [Guide](projects/components/rapids/CLAUDE.md)
+| Component | Status | Description |
+|-----------|--------|-------------|
+| **[STREAM](projects/components/stream/)** | 🟡 Development | Tutorial DMA engine with scatter-gather |
+| **[RAPIDS](projects/components/rapids/)** | 🟢 Functional | Advanced DMA with network interfaces |
+| **[Bridge](projects/components/bridge/)** | 🟡 Development | AXI protocol bridges and converters |
+| **[Converters](projects/components/converters/)** | ✅ Ready | UART-to-AXI4-Lite, protocol conversion |
+| **[APB Crossbar](projects/components/apb_xbar/)** | ✅ Ready | M×N APB interconnect |
+| **[Retro Legacy](projects/components/retro_legacy_blocks/)** | ✅ Ready | HPET, PIC, PIT, RTC, UART, GPIO, etc. |
+| **[Delta](projects/components/delta/)** | 📋 Planned | Network-on-Chip mesh |
+| **[HIVE](projects/components/hive/)** | 📋 Planned | Distributed RISC-V control |
 
-### ✅ Verification
+### 🧪 Verification
 - **[Common Tests](val/common/)** - Unit tests for common modules
-- **[AMBA Tests](val/amba/)** - Protocol compliance and integration tests
+- **[AMBA Tests](val/amba/)** - Protocol compliance tests
 - **[CocoTB Framework](bin/CocoTBFramework/)** - Reusable testbench infrastructure
 
-### 🛠️ Tools and Automation
-- **[Code Generation](bin/)** - Math circuits, register files, documentation
-- **[Analysis Tools](bin/)** - Linting, dependency analysis, UML generation
+### 🛠️ Tools
+- **[RTL Generators](bin/rtl_generators/)** - Math circuits, floating-point modules
+- **[Documentation Tools](bin/)** - md_to_docx.py, header management
 
 ---
 
@@ -122,14 +118,22 @@ Level 5: Complete FPGA Projects
 
 ### Level 1: Common Building Blocks (Foundation)
 
-**Location:** [`rtl/common/`](rtl/common/) | **Documentation:** [PRD](rtl/common/PRD.md) | [CLAUDE Guide](rtl/common/CLAUDE.md)
+**Location:** [`rtl/common/`](rtl/common/) | **Documentation:** [Full Index](docs/markdown/RTLCommon/index.md) | [AI Guide](rtl/common/CLAUDE.md)
 
-Learn fundamental RTL design patterns through 90 reusable modules:
+Learn fundamental RTL design patterns through **224 reusable modules**:
 
-#### Arithmetic and Math
+#### Integer Arithmetic (44+ modules)
 - **Counters:** Binary, Gray code, Johnson, Ring, Load/Clear variants
-- **Adders:** Brent-Kung, Carry-lookahead, optimized implementations
+- **Adders:** Han-Carlson prefix adders (16/22/32/44/48/72-bit), Brent-Kung
+- **Multipliers:** Dadda 4:2 compressor trees (8/11/24-bit)
 - **Math:** Leading zeros, bit reversal, parity, CRC
+
+#### Floating-Point (120+ modules)
+- **BF16:** Adder, multiplier, FMA, reciprocal, division, square root
+- **FP16 (IEEE 754):** Complete arithmetic suite
+- **FP32 (IEEE 754):** Adder, multiplier, FMA
+- **FP8 (E4M3/E5M2):** ML-optimized formats
+- **Converters:** Cross-format conversion (FP32↔FP16↔BF16↔FP8)
 
 #### Data Structures
 - **FIFOs:** Synchronous, asynchronous, dual-clock domain
@@ -145,7 +149,6 @@ Learn fundamental RTL design patterns through 90 reusable modules:
 #### Data Integrity
 - **CRC Engines:** Generic CRC supporting 300+ standards
 - **ECC:** Hamming code (SECDED), parity checkers
-- **Checksums:** Various checksum algorithms
 
 **Example Module:** `counter_bin.sv`
 ```systemverilog
@@ -166,9 +169,9 @@ module counter_bin #(
 
 ### Level 2: AMBA Protocol Infrastructure
 
-**Location:** [`rtl/amba/`](rtl/amba/) | **Documentation:** [PRD](rtl/amba/PRD.md) | [CLAUDE Guide](rtl/amba/CLAUDE.md)
+**Location:** [`rtl/amba/`](rtl/amba/) | **Documentation:** [Full Index](docs/markdown/RTLAmba/index.md) | [AI Guide](rtl/amba/CLAUDE.md)
 
-Apply common building blocks to implement industry-standard protocols (106 modules):
+Apply common building blocks to implement industry-standard protocols (**124 modules**):
 
 #### APB (Advanced Peripheral Bus)
 - **[APB Masters](rtl/amba/apb/)** - Command/response interfaces with FIFO buffering
@@ -242,87 +245,52 @@ Clock Domain A (Fast)    Clock Domain B (Slow)
 
 ### Level 4: Production Components
 
-**Location:** [`projects/components/`](projects/components/) | **Documentation:** [Component Index](docs/markdown/projects/index.md) | [Overview](docs/markdown/projects/overview.md)
+**Location:** [`projects/components/`](projects/components/) | **Documentation:** [Component Index](docs/markdown/projects/index.md)
 
-Build complete, production-ready peripherals for FPGA deployment:
+Build complete, production-ready peripherals for FPGA deployment (**10+ components**):
 
-#### Retro Legacy Blocks - Historical Peripheral Collection
+#### DMA Engines
 
-**Status:** ✅ Stable (Collection of legacy/retro peripherals)
-**Location:** [`projects/components/retro_legacy_blocks/`](projects/components/retro_legacy_blocks/)
-**Documentation:** [PRD](projects/components/retro_legacy_blocks/PRD.md) | [AI Guide](projects/components/retro_legacy_blocks/CLAUDE.md) | [Collection Overview](projects/components/retro_legacy_blocks/README.md)
+| Component | Status | Description |
+|-----------|--------|-------------|
+| **[STREAM](projects/components/stream/)** | 🟡 Development | Tutorial DMA with 8 channels, scatter-gather, APB config |
+| **[RAPIDS](projects/components/rapids/)** | 🟢 Functional | Advanced DMA with alignment fixup, network TX/RX, credit flow |
 
-**Included Peripherals:**
-- **HPET** - High Precision Event Timer (APB interface)
-- **8259 PIC** - Programmable Interrupt Controller
-- **8254 PIT** - Programmable Interval Timer
-- **RTC** - Real-Time Clock
-- **SMBUS** - System Management Bus controller
-- **PM/ACPI** - Power Management / Advanced Configuration and Power Interface
-- **IOAPIC** - I/O Advanced Programmable Interrupt Controller
+#### Interconnect and Bridges
 
-#### Featured Block: HPET - High Precision Event Timer
+| Component | Status | Description |
+|-----------|--------|-------------|
+| **[APB Crossbar](projects/components/apb_xbar/)** | ✅ Ready | Parametric M×N APB interconnect with round-robin arbitration |
+| **[Bridge](projects/components/bridge/)** | 🟡 Development | AXI4 protocol bridges, width converters, CDC |
+| **[Converters](projects/components/converters/)** | ✅ Ready | UART-to-AXI4-Lite, protocol conversion bridges |
 
-**Features:**
-- **Configurable Timers:** 2, 3, or 8 independent hardware timers
-- **64-bit Resolution:** High-precision counter and comparators
-- **Dual Modes:** One-shot and periodic timer operation
-- **Clock Domain Crossing:** Optional async APB/timer clocks
-- **PeakRDL Registers:** Auto-generated register file from SystemRDL
-- **APB4 Interface:** Standard AMBA peripheral bus
+#### Retro Legacy Blocks
 
-**What You Learn:**
-- Multi-timer state machine design
-- 64-bit register access from 32-bit bus
-- PeakRDL register generation workflow
-- Optional CDC implementation
-- Comprehensive 3-level test hierarchy (12 tests/config)
-- Production component structure
+**Status:** ✅ Production Ready | **Location:** [`projects/components/retro_legacy_blocks/`](projects/components/retro_legacy_blocks/)
 
-**Example Use Cases:**
-- System tick generation for RTOS
-- Precise event timing
-- Watchdog timers
-- Performance profiling
-- Legacy OS compatibility (e.g., Intel HPET specification)
+Collection of 9 legacy/retro peripherals with full APB interfaces:
 
-**Architecture:**
-```
-APB Interface → Config Regs → HPET Core
-   (pclk)       (PeakRDL)    (64-bit counter + N timers)
-                                     ↓
-                              Per-Timer Interrupts
-```
+| Peripheral | Description |
+|------------|-------------|
+| **HPET** | High Precision Event Timer (2/3/8 timers, 64-bit) |
+| **GPIO** | General Purpose I/O with interrupts |
+| **UART 16550** | Full 16550-compatible UART |
+| **8259 PIC** | Programmable Interrupt Controller |
+| **8254 PIT** | Programmable Interval Timer |
+| **RTC** | Real-Time Clock |
+| **SMBUS** | System Management Bus controller |
+| **PM/ACPI** | Power Management / ACPI support |
+| **IOAPIC** | I/O Advanced PIC |
 
-**Documentation:** [HPET Specification](projects/components/retro_legacy_blocks/docs/hpet_spec/hpet_index.md)
+**Documentation:** [Block Status](projects/components/retro_legacy_blocks/BLOCK_STATUS.md) | [PRD](projects/components/retro_legacy_blocks/PRD.md)
 
-**Testing:** Comprehensive 3-level test hierarchy
-- Basic: Register access, simple operations
-- Medium: Periodic mode, multiple timers, 64-bit features
-- Full: Stress testing, CDC, edge cases
+#### Future Components
 
-**Other Legacy Blocks:** See [Retro Legacy Blocks README](projects/components/retro_legacy_blocks/README.md) for documentation on the complete collection
-
----
-
-#### RAPIDS DMA - Memory I/O Processor
-
-**Status:** 🚧 In Development
-**Location:** [`projects/components/rapids/`](projects/components/rapids/)
-**Documentation:** [PRD](projects/components/rapids/PRD.md) | [AI Guide](projects/components/rapids/CLAUDE.md)
-
-**Features:**
-- **DMA Engine:** Multi-channel direct memory access
-- **Scatter-Gather:** Descriptor-based transfers
-- **AXI Master:** High-performance memory interface
-- **Scheduler:** Task scheduling and prioritization
-
-**What You Learn:**
-- Complex state machine design
-- DMA descriptor processing
-- AXI4 master implementation
-- Performance optimization techniques
-- Large-scale verification
+| Component | Status | Description |
+|-----------|--------|-------------|
+| **[Delta](projects/components/delta/)** | 📋 Planned | 4×4 Network-on-Chip mesh with virtual channels |
+| **[HIVE](projects/components/hive/)** | 📋 Planned | Distributed RISC-V control (VexRiscv + 16 SERV monitors) |
+| **[BCH](projects/components/bch/)** | 📋 Planned | BCH error correction encoder/decoder |
 
 ---
 
@@ -451,75 +419,56 @@ pytest projects/components/retro_legacy_blocks/dv/tests/hpet/ -v
 
 ```
 rtldesignsherpa/
-├── rtl/                          # RTL source code
-│   ├── common/                   # 90 fundamental building blocks
-│   │   ├── PRD.md               # Product requirements
-│   │   ├── CLAUDE.md            # AI assistant guide
-│   │   └── *.sv                 # RTL modules
-│   │
-│   ├── amba/                     # 106 AMBA protocol modules
+├── rtl/                          # RTL source code (350+ modules)
+│   ├── common/                   # 224 building blocks (counters, math, FP, etc.)
+│   ├── amba/                     # 124 AMBA protocol modules
 │   │   ├── apb/                 # APB protocol
 │   │   ├── axi4/                # AXI4 full protocol
 │   │   ├── axil4/               # AXI4-Lite
 │   │   ├── axis/                # AXI4-Stream
+│   │   ├── axi5/                # AMBA5 components
+│   │   ├── apb5/                # APB5 protocol
 │   │   ├── gaxi/                # Generic AXI infrastructure
-│   │   ├── shared/              # Shared utilities (CDC, monitors)
-│   │   ├── adapters/            # Protocol bridges (PeakRDL adapter)
-│   │   ├── PRD.md               # AMBA documentation
-│   │   └── CLAUDE.md            # AI guide
-│   │
-│   ├── integ_common/            # Common module integration examples
-│   └── integ_amba/              # AMBA integration examples (crossbars)
+│   │   └── shared/              # Shared utilities (CDC, monitors)
+│   ├── integ_common/            # Common integration examples
+│   └── integ_amba/              # AMBA integration examples
 │
-├── projects/                     # Component projects
-│   └── components/              # Production-ready components
-│       ├── retro_legacy_blocks/ # Legacy peripheral collection
-│       │   ├── rtl/             # RTL source (organized by peripheral)
-│       │   │   ├── hpet/        # HPET RTL files
-│       │   │   ├── pic_8259/    # 8259 PIC RTL files
-│       │   │   └── ...          # Other legacy peripherals
-│       │   ├── dv/              # Design verification
-│       │   │   ├── tests/       # Test runners (organized by peripheral)
-│       │   │   │   ├── hpet/    # HPET tests
-│       │   │   │   └── ...      # Other peripheral tests
-│       │   │   ├── tbclasses/   # Testbench classes (by peripheral)
-│       │   │   └── scoreboards/ # Verification scoreboards
-│       │   ├── docs/            # Implementation docs
-│       │   │   ├── hpet_spec/   # HPET specification
-│       │   │   └── ...          # Other specifications
-│       │   ├── PRD.md           # Requirements
-│       │   ├── CLAUDE.md        # AI guide
-│       │   └── README.md        # Collection overview
-│       │
-│       └── rapids/              # RAPIDS DMA Engine (similar structure)
+├── projects/                     # Component projects (10+)
+│   ├── components/
+│   │   ├── stream/              # STREAM DMA engine
+│   │   ├── rapids/              # RAPIDS DMA engine
+│   │   ├── bridge/              # Protocol bridges
+│   │   ├── converters/          # UART-to-AXI4-Lite, etc.
+│   │   ├── apb_xbar/            # APB crossbar
+│   │   ├── retro_legacy_blocks/ # 9 legacy peripherals
+│   │   ├── delta/               # Network-on-Chip (planned)
+│   │   ├── hive/                # RISC-V control (planned)
+│   │   └── bch/                 # BCH ECC (planned)
+│   └── NexysA7/                 # FPGA projects
 │
 ├── val/                          # Validation/Test suites
 │   ├── common/                  # Common module tests
-│   ├── amba/                    # AMBA protocol tests
-│   └── integ_*/                 # Integration tests
+│   └── amba/                    # AMBA protocol tests
 │
 ├── bin/                          # Tools and automation
-│   ├── CocoTBFramework/         # Reusable testbench infrastructure
-│   │   ├── tbclasses/           # Testbench classes (by subsystem)
-│   │   ├── components/          # Protocol BFMs (drivers/monitors)
-│   │   └── scoreboards/         # Verification scoreboards
-│   │
-│   ├── math_generate.py         # Generate optimized math circuits
-│   ├── lint_wrap.py             # Code quality automation
-│   └── rtl_generators/          # Register file generators
+│   ├── CocoTBFramework/         # Testbench infrastructure (200+ files)
+│   ├── rtl_generators/          # RTL code generators
+│   │   ├── bf16/                # BF16 floating-point generators
+│   │   ├── ieee754/             # IEEE 754 FP generators
+│   │   └── verilog/             # Generic RTL generators
+│   ├── md_to_docx.py            # Documentation generator
+│   └── update_doc_headers.py    # Header management
 │
 ├── docs/                         # Documentation
 │   ├── markdown/                # Technical documentation
-│   │   └── projects/            # Component documentation
-│   │       ├── index.md         # Component index
-│   │       ├── overview.md      # Ecosystem overview
-│   │       └── apb_hpet.md      # HPET redirect to retro_legacy_blocks
-│   │
-│   └── reports/                 # Test reports and analysis
+│   │   ├── RTLCommon/           # Common library docs
+│   │   ├── RTLAmba/             # AMBA library docs
+│   │   ├── CocoTBFramework/     # Framework docs
+│   │   └── projects/            # Component docs
+│   └── DOCUMENTATION_INDEX.md   # Master doc index
 │
-├── PRD.md                        # Master requirements document
 ├── CLAUDE.md                     # Repository AI guide
-└── README.md                     # This file
+└── README.md → docs/markdown/overview.md  # This file (symlink)
 ```
 
 ---
@@ -714,10 +663,10 @@ pytest val/{subsystem}/test_my_module.py -v
 
 ### Module Counts
 
-- **90 Common Modules** - Fundamental building blocks
-- **106 AMBA Modules** - Protocol infrastructure
-- **2 Production Components** - APB HPET (complete), RAPIDS (in progress)
-- **Hundreds of Integration Examples** - Working multi-module systems
+- **224 Common Modules** - Counters, FIFOs, arbiters, math, floating-point
+- **124 AMBA Modules** - APB, AXI4, AXI4-Lite, AXI-Stream, AMBA5
+- **10+ Production Components** - DMA engines, bridges, legacy peripherals
+- **350+ Total RTL Modules** - Complete verification infrastructure
 
 ### Synthesis Results
 
@@ -772,22 +721,24 @@ We welcome contributions at all levels:
 
 ## Roadmap
 
-### Immediate (Current)
-- ✅ Complete APB HPET verification (5/6 configs at 100%)
-- 🚧 RAPIDS DMA Engine development
-- 📋 Additional integration examples
+### Current Focus
+- 🟢 **STREAM DMA** - Tutorial DMA engine completion
+- 🟢 **Bridge components** - AXI4 width converters, CDC bridges
+- 🟢 **Retro Legacy Blocks** - 9 peripherals with MAS documentation
+- 🟡 **RAPIDS DMA** - Advanced DMA refinement
+- 🟡 **Floating-Point** - FP32 FMA, additional converters
 
 ### Near-Term
-- PCIe endpoint controllers
-- Ethernet MAC implementations
-- USB 2.0/3.0 controllers
-- DDR3/DDR4 memory controllers
+- Delta Network-on-Chip mesh implementation
+- HIVE distributed RISC-V control
+- BCH error correction codec
+- NexysA7 FPGA integration examples
 
 ### Long-Term
 - Complete SoC reference designs
+- PCIe/Ethernet/USB controllers
 - Formal verification integration
-- Synthesis flow automation
-- FPGA implementation guides
+- ASIC synthesis flow examples
 
 ---
 

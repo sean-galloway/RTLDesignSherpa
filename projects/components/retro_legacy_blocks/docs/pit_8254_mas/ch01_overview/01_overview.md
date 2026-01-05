@@ -27,11 +27,13 @@
 
 The APB Programmable Interval Timer (PIT 8254) is an Intel 8254-compatible timer peripheral designed for precise interval timing and event generation in embedded systems. It provides 3 independent 16-bit hardware counters with Mode 0 (Interrupt on Terminal Count) operation, accessible via APB interface with optional clock domain crossing support.
 
+### Figure 1.1: APB PIT 8254 Block Diagram
+
 ![APB PIT 8254 Block Diagram](../assets/diagrams/apb_pit_8254_blocks.png)
 
 #### Timing Diagrams
 
-##### Mode 0: Terminal Count
+### Waveform 1.1: Mode 0 Terminal Count
 
 In Mode 0, the counter counts down from the loaded value and asserts OUT when reaching zero.
 
@@ -39,7 +41,7 @@ In Mode 0, the counter counts down from the loaded value and asserts OUT when re
 
 The counter loads with the programmed value and decrements on each clock. When terminal count (0) is reached, OUT goes high and remains high until a new count is loaded.
 
-##### Mode 2: Rate Generator
+### Waveform 1.2: Mode 2 Rate Generator
 
 Mode 2 produces a divide-by-N clock output.
 
@@ -47,7 +49,7 @@ Mode 2 produces a divide-by-N clock output.
 
 OUT is normally high, going low for one clock when the counter reaches 1. The counter auto-reloads, creating a periodic pulse train.
 
-##### Mode 3: Square Wave Generator
+### Waveform 1.3: Mode 3 Square Wave Generator
 
 Mode 3 produces a 50% duty cycle square wave.
 
@@ -55,7 +57,7 @@ Mode 3 produces a 50% duty cycle square wave.
 
 OUT toggles every N/2 clocks, producing a symmetric square wave output.
 
-##### Gate Control
+### Waveform 1.4: Gate Control
 
 The GATE input controls counter operation.
 
@@ -63,7 +65,7 @@ The GATE input controls counter operation.
 
 When GATE goes low, counting suspends. When GATE returns high, counting resumes from the current value (not reloaded).
 
-##### Readback Command
+### Waveform 1.5: Readback Command
 
 The readback command latches counter value and status while the counter continues running.
 

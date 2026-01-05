@@ -211,26 +211,29 @@ Mirrors the frontend interface but in the opposite direction (output on AW/W, in
 
 The AXI4 Master Write module uses three independent `gaxi_skid_buffer` instances to provide elastic buffering on each write channel:
 
-```
-Frontend (fub_axi_*)          Skid Buffers          Master (m_axi_*)
+```mermaid
+flowchart LR
+    subgraph FE["Frontend<br/>(fub_axi_*)"]
+        faw["aw*"]
+        fw["w*"]
+        fb["b*"]
+    end
 
-   awvalid ──────────►┌─────────────┐──────────► awvalid
-   awready ◄──────────┤  AW Buffer  │◄────────── awready
-   awaddr  ──────────►│  (depth=2)  │──────────► awaddr
-   aw*     ──────────►│             │──────────► aw*
-                      └─────────────┘
+    subgraph BUF["Skid Buffers"]
+        awb["AW Buffer<br/>(depth=2)"]
+        wb["W Buffer<br/>(depth=4)"]
+        bb["B Buffer<br/>(depth=2)"]
+    end
 
-   wvalid  ──────────►┌─────────────┐──────────► wvalid
-   wready  ◄──────────┤  W Buffer   │◄────────── wready
-   wdata   ──────────►│  (depth=4)  │──────────► wdata
-   w*      ──────────►│             │──────────► w*
-                      └─────────────┘
+    subgraph BE["Master<br/>(m_axi_*)"]
+        maw["aw*"]
+        mw["w*"]
+        mb["b*"]
+    end
 
-   bvalid  ◄──────────┌─────────────┐◄────────── bvalid
-   bready  ──────────►│  B Buffer   │──────────► bready
-   bresp   ◄──────────│  (depth=2)  │◄────────── bresp
-   b*      ◄──────────│             │◄────────── b*
-                      └─────────────┘
+    faw --> awb --> maw
+    fw --> wb --> mw
+    mb --> bb --> fb
 ```
 
 ### Channel Operations

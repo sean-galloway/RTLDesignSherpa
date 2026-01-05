@@ -136,7 +136,7 @@ The APB IOAPIC draws directly from the Intel 82093AA I/O APIC specification with
 
 #### Timing Diagrams
 
-##### Interrupt Delivery
+### Waveform 1.1: Interrupt Delivery
 
 Shows the flow from IRQ input to message delivery to LAPIC.
 
@@ -144,7 +144,7 @@ Shows the flow from IRQ input to message delivery to LAPIC.
 
 When an IRQ edge is detected, the corresponding IRR bit sets. The redirection table entry (RTE) is consulted for vector, destination, and delivery mode. An interrupt message is sent to the target LAPIC.
 
-##### Redirection Table Write
+### Waveform 1.2: Redirection Table Write
 
 Indirect register access to configure an RTE.
 
@@ -154,7 +154,7 @@ Two APB transactions required:
 1. Write index to IOREGSEL (selects RTE low or high word)
 2. Write data to IOWIN (updates the selected RTE)
 
-##### Level-Triggered Interrupt
+### Waveform 1.3: Level-Triggered Interrupt
 
 Level mode with Remote IRR and EOI handling.
 
@@ -165,7 +165,7 @@ For level-triggered interrupts:
 - EOI broadcast clears Remote IRR
 - If IRQ still asserted, re-delivery occurs
 
-##### Interrupt Masking
+### Waveform 1.4: Interrupt Masking
 
 Masked interrupts latch in IRR and deliver when unmasked.
 

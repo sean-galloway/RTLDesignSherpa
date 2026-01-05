@@ -77,53 +77,61 @@ Special values:
 
 ### Block Diagram
 
-```
-                    ┌─────────────────────────────────────────┐
-                    │         math_bf16_multiplier            │
-                    │                                         │
-    i_a[15:0] ──────┼──┬── sign_a ───────────────┐            │
-                    │  ├── exp_a[7:0] ──────┐    │            │
-                    │  └── mant_a[6:0] ───┐ │    │            │
-                    │                     │ │    │            │
-    i_b[15:0] ──────┼──┬── sign_b ────────┼─┼────┼── XOR ─┐   │
-                    │  ├── exp_b[7:0] ───┐│ │    │        │   │
-                    │  └── mant_b[6:0] ─┐││ │    │        │   │
-                    │                   │││ │    │        │   │
-                    │   ┌───────────────┼┼┼─┼────┼────────┼───┼── Special
-                    │   │ Special Case  │││ │    │        │   │   Case
-                    │   │   Detection   │││ │    │        │   │   Logic
-                    │   └───────────────┼┼┼─┼────┼────────┼───┤
-                    │                   │││ │    │        │   │
-                    │   ┌───────────────┴┴┴─┘    │        │   │
-                    │   │ math_bf16_mantissa_mult│        │   │
-                    │   │   - 8x8 Dadda multiply │        │   │
-                    │   │   - Normalization det. │        │   │
-                    │   │   - Round/sticky bits  │        │   │
-                    │   └────────────────────────┼────────┼───┤
-                    │                            │        │   │
-                    │   ┌────────────────────────┼────────┘   │
-                    │   │ math_bf16_exponent_adder            │
-                    │   │   - Bias subtraction   │            │
-                    │   │   - Overflow/underflow │            │
-                    │   └────────────────────────┼────────────┤
-                    │                            │            │
-                    │   ┌────────────────────────┼────────────┤
-                    │   │ Rounding (RNE)         │            │
-                    │   │   - Apply rounding     │            │
-                    │   │   - Handle overflow    │            │
-                    │   └────────────────────────┼────────────┤
-                    │                            │            │
-                    │   ┌────────────────────────┴────────────┤
-                    │   │ Result Assembly                     │
-                    │   │   - Special case priority           │
-                    │   │   - Final packing                   │
-                    │   └─────────────────────────────────────┤
-                    │                                         │
-    ow_result[15:0] ◄─────────────────────────────────────────┤
-    ow_overflow ◄─────────────────────────────────────────────┤
-    ow_underflow ◄────────────────────────────────────────────┤
-    ow_invalid ◄──────────────────────────────────────────────┤
-                    └─────────────────────────────────────────┘
+```mermaid
+flowchart TB
+    subgraph Inputs["Inputs"]
+        ia["i_a[15:0]"]
+        ib["i_b[15:0]"]
+    end
+
+    subgraph BF16Mult["math_bf16_multiplier"]
+        subgraph Extract["Field Extraction"]
+            ia --> signa["sign_a"]
+            ia --> expa["exp_a[7:0]"]
+            ia --> manta["mant_a[6:0]"]
+            ib --> signb["sign_b"]
+            ib --> expb["exp_b[7:0]"]
+            ib --> mantb["mant_b[6:0]"]
+        end
+
+        signa --> xor["XOR"]
+        signb --> xor
+
+        subgraph Special["Special Case Detection"]
+            scd["Zero, Subnormal,<br/>Infinity, NaN"]
+        end
+
+        subgraph MantMult["math_bf16_mantissa_mult"]
+            mm["8x8 Dadda multiply<br/>Normalization det.<br/>Round/sticky bits"]
+        end
+
+        subgraph ExpAdd["math_bf16_exponent_adder"]
+            ea["Bias subtraction<br/>Overflow/underflow"]
+        end
+
+        subgraph Round["Rounding (RNE)"]
+            rnd["Apply rounding<br/>Handle overflow"]
+        end
+
+        subgraph Assembly["Result Assembly"]
+            asm["Special case priority<br/>Final packing"]
+        end
+
+        manta --> mm
+        mantb --> mm
+        expa --> ea
+        expb --> ea
+        mm --> rnd
+        ea --> rnd
+        xor --> asm
+        rnd --> asm
+        Special --> asm
+    end
+
+    asm --> result["ow_result[15:0]"]
+    asm --> overflow["ow_overflow"]
+    asm --> underflow["ow_underflow"]
+    asm --> invalid["ow_invalid"]
 ```
 
 ### Processing Pipeline

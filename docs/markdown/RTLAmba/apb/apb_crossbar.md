@@ -77,20 +77,15 @@ This architecture provides:
 
 ### Block Diagram
 
-```
-┌─────────────────────────────────────────────────────────┐
-│                  APB Crossbar (MxN)                     │
-│                                                         │
-│  ┌─────────┐   ┌──────────────┐   ┌──────────┐       │
-│  │ Master  │   │   Address    │   │  Slave   │       │
-│  │  APB    │──▶│   Decode &   │──▶│   APB    │──▶    │
-│  │ Slaves  │   │  Arbitration │   │ Masters  │       │
-│  └─────────┘   └──────────────┘   └──────────┘       │
-│      ↑               ↑                   ↑            │
-│      │         cmd/rsp buses             │            │
-│      │                                   │            │
-│  APB Input                           APB Output       │
-└─────────────────────────────────────────────────────────┘
+```mermaid
+flowchart LR
+    subgraph xbar["APB Crossbar (MxN)"]
+        ms["Master APB<br/>Slaves"] --> dec["Address Decode<br/>& Arbitration"]
+        dec --> sm["Slave APB<br/>Masters"]
+    end
+
+    apbin["APB Input"] --> ms
+    sm --> apbout["APB Output"]
 ```
 
 ### Component Hierarchy
@@ -304,17 +299,12 @@ Slaves are assigned sequential 64KB address regions starting from BASE_ADDR:
 
 With `BASE_ADDR = 0x1000_0000` and 4 slaves:
 
-```
-0x1000_0000 ┌─────────────────┐
-            │   Slave 0       │  APB peripheral 0
-0x1000_FFFF ├─────────────────┤
-0x1001_0000 │   Slave 1       │  APB peripheral 1
-0x1001_FFFF ├─────────────────┤
-0x1002_0000 │   Slave 2       │  APB peripheral 2
-0x1002_FFFF ├─────────────────┤
-0x1003_0000 │   Slave 3       │  APB peripheral 3
-0x1003_FFFF └─────────────────┘
-```
+| Address Range | Region | Description |
+|---------------|--------|-------------|
+| 0x1000_0000 - 0x1000_FFFF | Slave 0 | APB peripheral 0 |
+| 0x1001_0000 - 0x1001_FFFF | Slave 1 | APB peripheral 1 |
+| 0x1002_0000 - 0x1002_FFFF | Slave 2 | APB peripheral 2 |
+| 0x1003_0000 - 0x1003_FFFF | Slave 3 | APB peripheral 3 |
 
 ### Custom Address Map
 

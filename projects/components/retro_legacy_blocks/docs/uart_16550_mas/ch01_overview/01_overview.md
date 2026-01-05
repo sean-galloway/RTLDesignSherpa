@@ -65,6 +65,8 @@ The APB UART 16550 is a 16550-compatible Universal Asynchronous Receiver/Transmi
 
 ## Block Diagram
 
+### Figure 1.1: UART 16550 Block Diagram
+
 ![UART 16550 Block Diagram](../assets/svg/uart_top.svg)
 
 ## Compatibility

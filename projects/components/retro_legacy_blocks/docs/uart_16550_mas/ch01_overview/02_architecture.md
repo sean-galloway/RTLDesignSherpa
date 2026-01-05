@@ -25,6 +25,8 @@
 
 ## High-Level Block Diagram
 
+### Figure 1.2: UART Architecture
+
 ![UART Architecture](../assets/svg/uart_top.svg)
 
 ## Module Hierarchy
@@ -62,76 +64,39 @@ apb_uart_16550 (Top Level)
 
 ### Transmit Path
 
-```
-1. Software Write to THR
-   |
-   v
-2. Data enters TX FIFO
-   |
-   v
-3. TX Engine reads from FIFO
-   |
-   v
-4. Serializer generates:
-   - Start bit (1 bit, low)
-   - Data bits (5-8 bits, LSB first)
-   - Parity bit (optional)
-   - Stop bit(s) (1, 1.5, or 2 bits, high)
-   |
-   v
-5. TXD output to external device
+```mermaid
+flowchart TD
+    A["1. Software Write to THR"] --> B["2. Data enters TX FIFO"]
+    B --> C["3. TX Engine reads from FIFO"]
+    C --> D["4. Serializer generates:<br/>- Start bit (1 bit, low)<br/>- Data bits (5-8 bits, LSB first)<br/>- Parity bit (optional)<br/>- Stop bit(s) (1, 1.5, or 2 bits, high)"]
+    D --> E["5. TXD output to external device"]
 ```
 
 ### Receive Path
 
-```
-1. RXD input from external device
-   |
-   v
-2. Start bit detection
-   - Sample at 16x baud rate
-   - Validate mid-bit
-   |
-   v
-3. Deserializer captures:
-   - Data bits (5-8 bits)
-   - Parity bit (if enabled)
-   - Stop bit(s)
-   |
-   v
-4. Error detection:
-   - Parity error
-   - Framing error
-   - Break detection
-   - Overrun error
-   |
-   v
-5. Data enters RX FIFO
-   |
-   v
-6. Software reads from RBR
+```mermaid
+flowchart TD
+    A["1. RXD input from external device"] --> B["2. Start bit detection<br/>- Sample at 16x baud rate<br/>- Validate mid-bit"]
+    B --> C["3. Deserializer captures:<br/>- Data bits (5-8 bits)<br/>- Parity bit (if enabled)<br/>- Stop bit(s)"]
+    C --> D["4. Error detection:<br/>- Parity error<br/>- Framing error<br/>- Break detection<br/>- Overrun error"]
+    D --> E["5. Data enters RX FIFO"]
+    E --> F["6. Software reads from RBR"]
 ```
 
 ### Interrupt Flow
 
-```
-1. Event Detection
-   |
-   +-- RX FIFO reaches trigger level
-   +-- TX FIFO empty
-   +-- Line status error
-   +-- Modem status change
-   |
-   v
-2. IIR Updated (priority encoded)
-   |
-   v
-3. IRQ Asserted (if enabled in IER)
-   |
-   v
-4. Software reads IIR
-   - Highest priority interrupt identified
-   - Some sources auto-clear on read
+```mermaid
+flowchart TD
+    A["1. Event Detection"] --> B["RX FIFO reaches trigger level"]
+    A --> C["TX FIFO empty"]
+    A --> D["Line status error"]
+    A --> E["Modem status change"]
+    B --> F["2. IIR Updated<br/>(priority encoded)"]
+    C --> F
+    D --> F
+    E --> F
+    F --> G["3. IRQ Asserted<br/>(if enabled in IER)"]
+    G --> H["4. Software reads IIR<br/>- Highest priority interrupt identified<br/>- Some sources auto-clear on read"]
 ```
 
 ## Baud Rate Generation
@@ -149,18 +114,11 @@ Examples (48 MHz input):
 
 ### Clock Generation
 
-```
-input_clk (48 MHz)
-      |
-      v
-  +--------+
-  | /DIV   |---> 16x_clk (baud x 16)
-  +--------+
-      |
-      v
-  +--------+
-  | /16    |---> bit_clk (actual baud rate)
-  +--------+
+```mermaid
+flowchart TD
+    A["input_clk<br/>(48 MHz)"] --> B["/DIV"]
+    B -->|"16x_clk<br/>(baud x 16)"| C["/16"]
+    C --> D["bit_clk<br/>(actual baud rate)"]
 ```
 
 ## FIFO Organization

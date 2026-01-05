@@ -101,32 +101,32 @@ scoreboard.add_master_transaction(transaction, master_id=0)
 ## Architecture Overview
 
 ### Scoreboard Hierarchy
-```
-┌─────────────────────────────────────────────────────────┐
-│                 Protocol Scoreboards                   │
-│   ┌─────────────┐ ┌─────────────┐ ┌─────────────┐     │
-│   │     APB     │ │    GAXI     │ │    FIFO     │     │
-│   │ Scoreboard  │ │ Scoreboard  │ │ Scoreboard  │     │
-│   └─────────────┘ └─────────────┘ └─────────────┘     │
-│   ┌─────────────┐ ┌─────────────┐ ┌─────────────┐     │
-│   │    AXI4     │ │ APB-GAXI    │ │   Future    │     │
-│   │ Scoreboard  │ │ Scoreboard  │ │ Scoreboards │     │
-│   └─────────────┘ └─────────────┘ └─────────────┘     │
-└─────────────────────────────────────────────────────────┘
-┌─────────────────────────────────────────────────────────┐
-│                 Cross-Protocol Support                 │
-│   ┌─────────────┐ ┌─────────────┐ ┌─────────────┐     │
-│   │ Protocol    │ │ Transform   │ │ Memory      │     │
-│   │Transformers │ │ Scoreboard  │ │ Adapters    │     │
-│   └─────────────┘ └─────────────┘ └─────────────┘     │
-└─────────────────────────────────────────────────────────┘
-┌─────────────────────────────────────────────────────────┐
-│                   Base Framework                       │
-│   ┌─────────────┐ ┌─────────────┐ ┌─────────────┐     │
-│   │    Base     │ │ Transaction │ │ Statistics  │     │
-│   │ Scoreboard  │ │   Queuing   │ │& Reporting  │     │
-│   └─────────────┘ └─────────────┘ └─────────────┘     │
-└─────────────────────────────────────────────────────────┘
+
+```mermaid
+graph TB
+    subgraph Protocol["Protocol Scoreboards"]
+        APB[APB Scoreboard]
+        GAXI[GAXI Scoreboard]
+        FIFO[FIFO Scoreboard]
+        AXI4[AXI4 Scoreboard]
+        APBGAXI[APB-GAXI Scoreboard]
+        Future[Future Scoreboards]
+    end
+
+    subgraph CrossProto["Cross-Protocol Support"]
+        Transformers[Protocol Transformers]
+        TransformSB[Transform Scoreboard]
+        MemAdapters[Memory Adapters]
+    end
+
+    subgraph Base["Base Framework"]
+        BaseSB[Base Scoreboard]
+        TxnQueue[Transaction Queuing]
+        Stats[Statistics & Reporting]
+    end
+
+    Protocol --> CrossProto
+    CrossProto --> Base
 ```
 
 ## Key Features

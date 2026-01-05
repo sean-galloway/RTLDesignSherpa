@@ -87,9 +87,9 @@ During reset:
 
 GPIO inputs are always synchronized regardless of CDC setting:
 
-```
-gpio_in[i] --> FF1 --> FF2 --> synchronized_input[i]
-              (clk)   (clk)
+```mermaid
+flowchart LR
+    A["gpio_in[i]"] --> B["FF1 (clk)"] --> C["FF2 (clk)"] --> D["synchronized_input[i]"]
 ```
 
 - SYNC_STAGES parameter controls depth (default: 2)

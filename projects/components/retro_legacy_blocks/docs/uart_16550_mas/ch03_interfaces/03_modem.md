@@ -142,7 +142,7 @@ cts_n --> FF1 --> FF2 --> synced_cts_n
          (clk)   (clk)
 ```
 
-### Modem Status Change Detection
+### Waveform 3.2: Modem Status Change Detection
 
 The following diagram shows how modem input changes are detected and reported.
 

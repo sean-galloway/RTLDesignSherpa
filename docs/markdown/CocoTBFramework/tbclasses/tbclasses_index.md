@@ -98,32 +98,34 @@ async def test_with_monitoring(dut):
 ## Architecture Overview
 
 ### Testbench Hierarchy
-```
-┌─────────────────────────────────────────────────────────┐
-│                Test Applications                        │
-│              (Your Verification Tests)                 │
-└─────────────────────────────────────────────────────────┘
-┌─────────────────────────────────────────────────────────┐
-│               Protocol Testbenches                     │
-│   ┌─────────────┐ ┌─────────────┐ ┌─────────────┐     │
-│   │     APB     │ │    FIFO     │ │    GAXI     │     │
-│   │ Testbenches │ │ Testbenches │ │ Testbenches │     │
-│   └─────────────┘ └─────────────┘ └─────────────┘     │
-└─────────────────────────────────────────────────────────┘
-┌─────────────────────────────────────────────────────────┐
-│              Specialized Testbenches                   │
-│   ┌─────────────┐ ┌─────────────┐ ┌─────────────┐     │
-│   │    AMBA     │ │ AXI Splitter│ │   Common    │     │
-│   │ Testbenches │ │ Testbenches │ │ Testbenches │     │
-│   └─────────────┘ └─────────────┘ └─────────────┘     │
-└─────────────────────────────────────────────────────────┘
-┌─────────────────────────────────────────────────────────┐
-│               Infrastructure Layer                     │
-│   ┌─────────────┐ ┌─────────────┐ ┌─────────────┐     │
-│   │   TBBase    │ │ Advanced    │ │ Utilities & │     │
-│   │Foundation   │ │ Monitoring  │ │   Debug     │     │
-│   └─────────────┘ └─────────────┘ └─────────────┘     │
-└─────────────────────────────────────────────────────────┘
+
+```mermaid
+graph TB
+    subgraph Apps["Test Applications"]
+        Tests[Your Verification Tests]
+    end
+
+    subgraph ProtoTB["Protocol Testbenches"]
+        APB[APB Testbenches]
+        FIFO[FIFO Testbenches]
+        GAXI[GAXI Testbenches]
+    end
+
+    subgraph SpecTB["Specialized Testbenches"]
+        AMBA[AMBA Testbenches]
+        AXISplit[AXI Splitter Testbenches]
+        Common[Common Testbenches]
+    end
+
+    subgraph Infra["Infrastructure Layer"]
+        TBBase[TBBase Foundation]
+        AdvMon[Advanced Monitoring]
+        Utils[Utilities & Debug]
+    end
+
+    Apps --> ProtoTB
+    ProtoTB --> SpecTB
+    SpecTB --> Infra
 ```
 
 ## Key Features

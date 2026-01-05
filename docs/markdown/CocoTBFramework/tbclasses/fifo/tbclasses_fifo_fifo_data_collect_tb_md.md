@@ -75,20 +75,28 @@ def __init__(self, dut, clock=None, reset=None, super_debug=True):
 
 ### Multi-Channel Input Architecture
 
-```
-┌─────────────┐    ┌─────────────────────┐    ┌─────────────┐
-│  Channel A  │───▶│                     │    │             │
-│   Master    │    │                     │    │             │
-├─────────────┤    │   Data Collection   │    │   Output    │
-│  Channel B  │───▶│      Module         │───▶│    FIFO     │
-│   Master    │    │    (DUT with        │    │             │
-├─────────────┤    │   Arbitration)      │    │             │
-│  Channel C  │───▶│                     │    │             │
-│   Master    │    │                     │    │             │
-├─────────────┤    │                     │    │             │
-│  Channel D  │───▶│                     │    │             │
-│   Master    │    └─────────────────────┘    └─────────────┘
-└─────────────┘
+```mermaid
+graph LR
+    subgraph Inputs["Input Channels"]
+        ChA["Channel A<br/>Master"]
+        ChB["Channel B<br/>Master"]
+        ChC["Channel C<br/>Master"]
+        ChD["Channel D<br/>Master"]
+    end
+
+    subgraph DUT["Data Collection Module"]
+        Arb["DUT with<br/>Arbitration"]
+    end
+
+    subgraph Output["Output"]
+        FIFO["Output<br/>FIFO"]
+    end
+
+    ChA --> Arb
+    ChB --> Arb
+    ChC --> Arb
+    ChD --> Arb
+    Arb --> FIFO
 ```
 
 ### Field Configuration

@@ -119,33 +119,27 @@ The AXIL4 Master Read module provides a buffered AXI4-Lite read interface for ma
 
 ## Module Architecture
 
-```
-Frontend                 AR Skid Buffer               Backend
-(CPU/Logic)             (Depth = 2^SKID_DEPTH_AR)    (Memory/Periph)
-    │                                                      │
-    │  fub_araddr                              m_axil_araddr
-    │  fub_arprot    ┌──────────────────────┐  m_axil_arprot
-    ├───────────────►│  gaxi_skid_buffer    ├──────────────►
-    │  fub_arvalid   │  (AR Channel)        │  m_axil_arvalid
-    │                │                      │
-    │◄───────────────┤  DEPTH = 2^2 (4)     │◄─────────────
-    │  fub_arready   │  ARSize = AW+3       │  m_axil_arready
-    │                └──────────────────────┘
-    │
-    │                 R Skid Buffer
-    │                (Depth = 2^SKID_DEPTH_R)
-    │                                                      │
-    │  fub_rdata                                m_axil_rdata
-    │  fub_rresp     ┌──────────────────────┐  m_axil_rresp
-    │◄───────────────┤  gaxi_skid_buffer    │◄─────────────
-    │  fub_rvalid    │  (R Channel)         │  m_axil_rvalid
-    │                │                      │
-    ├───────────────►│  DEPTH = 2^4 (16)    ├──────────────►
-    │  fub_rready    │  RSize = DW+2        │  m_axil_rready
-    │                └──────────────────────┘
-    │
-    │  busy          (int_ar_count > 0) || (int_r_count > 0)
-    └────────────────────────────────────────────────────►
+```mermaid
+flowchart LR
+    subgraph FE["Frontend<br/>(CPU/Logic)"]
+        far["fub_ar*"]
+        fr["fub_r*"]
+    end
+
+    subgraph BUF["AR/R Skid Buffers"]
+        ar["AR Channel<br/>gaxi_skid_buffer<br/>DEPTH=4"]
+        r["R Channel<br/>gaxi_skid_buffer<br/>DEPTH=16"]
+    end
+
+    subgraph BE["Backend<br/>(Memory/Periph)"]
+        mar["m_axil_ar*"]
+        mr["m_axil_r*"]
+    end
+
+    far --> ar --> mar
+    mr --> r --> fr
+
+    BUF --> busy["busy"]
 ```
 
 ---

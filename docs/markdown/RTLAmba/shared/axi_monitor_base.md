@@ -141,33 +141,19 @@ The `axi_monitor_base` module is the core building block for:
 
 ## Architecture
 
-```
-  Command     Data      Response
-  Channel    Channel    Channel
-     │          │          │
-     ▼          ▼          ▼
-┌────────────────────────────────┐
-│  Transaction Manager           │
-│  - ID-based tracking           │
-│  - Beat counting               │
-│  - Latency calculation         │
-└──────────┬─────────────────────┘
-           │
-┌──────────▼─────────────────────┐
-│  Timeout Monitor               │
-│  - Per-phase timeouts          │
-│  - Configurable thresholds     │
-└──────────┬─────────────────────┘
-           │
-┌──────────▼─────────────────────┐
-│  Reporter                      │
-│  - Packet formatting           │
-│  - Event queuing               │
-└──────────┬─────────────────────┘
-           │
-           ▼
-      Monitor Bus
-        (64-bit)
+```mermaid
+flowchart TB
+    cmd["Command<br/>Channel"] --> tm
+    data["Data<br/>Channel"] --> tm
+    resp["Response<br/>Channel"] --> tm
+
+    subgraph Monitor["AXI Monitor Base"]
+        tm["Transaction Manager<br/>- ID-based tracking<br/>- Beat counting<br/>- Latency calculation"]
+        tm --> to["Timeout Monitor<br/>- Per-phase timeouts<br/>- Configurable thresholds"]
+        to --> rpt["Reporter<br/>- Packet formatting<br/>- Event queuing"]
+    end
+
+    rpt --> bus["Monitor Bus<br/>(64-bit)"]
 ```
 
 The module coordinates four sub-components:

@@ -56,15 +56,17 @@ Implements an asynchronous FIFO for clock domain crossing that **works with any 
 
 The key innovation is the **hybrid pointer system**:
 
-```
-Write Domain                           Read Domain
-┌─────────────┐                       ┌─────────────┐
-│ Binary      │                       │ Binary      │
-│ Counter     │                       │ Counter     │
-│     +       │                       │     +       │
-│ Johnson ────┼──→ Johnson ───────────┼──→ Sync ────┼──→ Johnson2Bin │
-│ Counter     │   Code               │   Chain     │               │
-└─────────────┘                       └─────────────┘
+```mermaid
+flowchart LR
+    subgraph WriteDomain["Write Domain"]
+        BC1["Binary Counter<br/>+<br/>Johnson Counter"]
+    end
+    BC1 --> JC["Johnson<br/>Code"]
+    JC --> SC["Sync<br/>Chain"]
+    subgraph ReadDomain["Read Domain"]
+        BC2["Binary Counter<br/>+<br/>Johnson Counter"]
+        SC --> J2B["Johnson2Bin"]
+    end
 ```
 
 ## Johnson Counter Deep Dive

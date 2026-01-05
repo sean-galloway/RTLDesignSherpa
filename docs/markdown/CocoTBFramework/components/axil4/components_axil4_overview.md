@@ -49,34 +49,46 @@ While inheriting GAXI's power, AXIL4 components are specifically optimized for l
 
 ## Core Components Architecture
 
-```
-┌─────────────────────────────────────────────────────────────────┐
-│                   AXIL4 Component Ecosystem                    │
-├─────────────────────────────────────────────────────────────────┤
-│  ┌─────────────┐ ┌─────────────┐ ┌─────────────┐ ┌─────────────┐ │
-│  │AXIL4MstrRd  │ │AXIL4MstrWr  │ │AXIL4SlvRd   │ │AXIL4SlvWr   │ │
-│  │ (AR/R)      │ │ (AW/W/B)    │ │ (AR/R)      │ │ (AW/W/B)    │ │
-│  │ Single Txn  │ │ Single Txn  │ │ Single Txn  │ │ Single Txn  │ │
-│  └─────────────┘ └─────────────┘ └─────────────┘ └─────────────┘ │
-│         │               │               │               │       │
-│  ┌─────────────────────────────────────────────────────────────┐ │
-│  │           AXIL4 Field Configurations (Simplified)          │ │
-│  │     AR Config │ R Config │ AW Config │ W Config │ B Config │ │
-│  │   (No ID/User)│(No ID/User)│(No ID/User)│(No User)│(No ID/User)│ │
-│  └─────────────────────────────────────────────────────────────┘ │
-│         │               │               │               │       │
-│  ┌─────────────────────────────────────────────────────────────┐ │
-│  │            AXIL4 Specific Features                         │ │
-│  │  • Register API    • Single Outstanding  • Compliance     │ │
-│  │  • Packet Utils    • Simplified Timing   • Factories      │ │
-│  └─────────────────────────────────────────────────────────────┘ │
-│         │               │               │               │       │
-│  ┌─────────────────────────────────────────────────────────────┐ │
-│  │                GAXI Infrastructure                         │ │
-│  │  • Signal Resolution  • Memory Models  • Statistics       │ │
-│  │  • Field Handling     • Debug Support  • Configuration    │ │
-│  └─────────────────────────────────────────────────────────────┘ │
-└─────────────────────────────────────────────────────────────────┘
+```mermaid
+graph TB
+    subgraph Ecosystem["AXIL4 Component Ecosystem"]
+        subgraph Components["Core Components - Single Transaction"]
+            MstrRd["AXIL4MstrRd<br/>(AR/R)"]
+            MstrWr["AXIL4MstrWr<br/>(AW/W/B)"]
+            SlvRd["AXIL4SlvRd<br/>(AR/R)"]
+            SlvWr["AXIL4SlvWr<br/>(AW/W/B)"]
+        end
+
+        subgraph FieldCfg["AXIL4 Field Configs - Simplified"]
+            AR["AR Config<br/>(No ID/User)"]
+            R["R Config<br/>(No ID/User)"]
+            AW["AW Config<br/>(No ID/User)"]
+            W["W Config<br/>(No User)"]
+            B["B Config<br/>(No ID/User)"]
+        end
+
+        subgraph Features["AXIL4 Specific Features"]
+            RegAPI[Register API]
+            Single[Single Outstanding]
+            Compliance[Compliance]
+            PktUtils[Packet Utils]
+            Timing[Simplified Timing]
+            Factories[Factories]
+        end
+
+        subgraph GAXI["GAXI Infrastructure"]
+            SigRes[Signal Resolution]
+            MemMdl[Memory Models]
+            Stats[Statistics]
+            Fields[Field Handling]
+            Debug[Debug Support]
+            Config[Configuration]
+        end
+    end
+
+    Components --> FieldCfg
+    FieldCfg --> Features
+    Features --> GAXI
 ```
 
 ## Component Capabilities

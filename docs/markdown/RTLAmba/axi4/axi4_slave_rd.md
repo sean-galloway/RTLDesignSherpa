@@ -188,20 +188,25 @@ Mirrors the slave interface but in the opposite direction (output on AR, input o
 
 The AXI4 Slave Read module uses two independent `gaxi_skid_buffer` instances to provide elastic buffering on each read channel:
 
-```
-Slave (s_axi_*)           Skid Buffers          Backend (fub_axi_*)
+```mermaid
+flowchart LR
+    subgraph SL["Slave<br/>(s_axi_*)"]
+        sar["ar*"]
+        sr["r*"]
+    end
 
-   arvalid ──────────►┌─────────────┐──────────► arvalid
-   arready ◄──────────┤  AR Buffer  │◄────────── arready
-   araddr  ──────────►│  (depth=2)  │──────────► araddr
-   ar*     ──────────►│             │──────────► ar*
-                      └─────────────┘
+    subgraph BUF["Skid Buffers"]
+        arb["AR Buffer<br/>(depth=2)"]
+        rb["R Buffer<br/>(depth=4)"]
+    end
 
-   rvalid  ◄──────────┌─────────────┐◄────────── rvalid
-   rready  ──────────►│  R Buffer   │──────────► rready
-   rdata   ◄──────────│  (depth=4)  │◄────────── rdata
-   r*      ◄──────────│             │◄────────── r*
-                      └─────────────┘
+    subgraph BE["Backend<br/>(fub_axi_*)"]
+        bar["ar*"]
+        br["r*"]
+    end
+
+    sar --> arb --> bar
+    br --> rb --> sr
 ```
 
 ### Channel Operations

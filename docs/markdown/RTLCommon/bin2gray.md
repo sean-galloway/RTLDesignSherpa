@@ -129,16 +129,19 @@ The implementation creates a chain of XOR gates:
 
 ### Gate-Level Implementation
 For WIDTH = 4:
-```
-binary[3] ────────────────────────→ gray[3]
-binary[2] ────┬──────────────────→ gray[2]
-              │     
-binary[1] ────┼─────XOR──────────→ gray[1]  
-              │      │
-binary[0] ────┼──────┼───XOR─────→ gray[0]
-              │      │    │
-              └──────┘    └─ binary[1]
-                     └─ binary[2]
+
+```mermaid
+flowchart LR
+    b3["binary[3]"] --> g3["gray[3]"]
+    b2["binary[2]"] --> xor2["XOR"]
+    b3 --> xor2
+    xor2 --> g2["gray[2]"]
+    b1["binary[1]"] --> xor1["XOR"]
+    b2 --> xor1
+    xor1 --> g1["gray[1]"]
+    b0["binary[0]"] --> xor0["XOR"]
+    b1 --> xor0
+    xor0 --> g0["gray[0]"]
 ```
 
 ### Timing Characteristics

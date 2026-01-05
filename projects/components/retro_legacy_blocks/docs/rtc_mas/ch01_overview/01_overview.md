@@ -61,17 +61,19 @@ The APB RTC is a Real-Time Clock controller with an APB slave interface. It main
 
 ## Block Diagram
 
+### Figure 1.1: RTC Block Diagram
+
 ![RTC Block Diagram](../assets/svg/rtc_top.svg)
 
 ## Timing Diagrams
 
-### Time Register Read
+### Waveform 1.1: Time Register Read
 
 Reading the time registers returns the current time value.
 
 ![RTC Time Read](../assets/wavedrom/timing/rtc_time_read.svg)
 
-### Time Increment with Rollover
+### Waveform 1.2: Time Increment with Rollover
 
 Shows the cascade of time registers as seconds overflow to minutes, minutes to hours, etc.
 
@@ -79,7 +81,7 @@ Shows the cascade of time registers as seconds overflow to minutes, minutes to h
 
 The 1Hz tick from the 32.768kHz prescaler triggers the seconds counter. Each overflow cascades to the next register, demonstrating the 23:59:59 to 00:00:00 rollover.
 
-### Alarm Match
+### Waveform 1.3: Alarm Match
 
 When the current time matches the alarm setting, an interrupt is generated.
 
@@ -87,7 +89,7 @@ When the current time matches the alarm setting, an interrupt is generated.
 
 All configured alarm fields (seconds, minutes, hours) must match simultaneously for the alarm to trigger.
 
-### Periodic Interrupt
+### Waveform 1.4: Periodic Interrupt
 
 The RTC can generate periodic interrupts at a configurable rate.
 
@@ -95,7 +97,7 @@ The RTC can generate periodic interrupts at a configurable rate.
 
 The rate selector determines the interrupt frequency from the 32.768kHz oscillator.
 
-### Update-In-Progress (UIP)
+### Waveform 1.5: Update-In-Progress (UIP)
 
 Software should check UIP before reading time to avoid inconsistent values.
 

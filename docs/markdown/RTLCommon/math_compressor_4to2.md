@@ -66,14 +66,18 @@ module math_compressor_4to2 (
 
 The 4:2 compressor is implemented as two cascaded full adders:
 
-```
-         i_x1 ─┐
-               ├─ FA1 ─┬─ int_sum ─┐
-         i_x2 ─┤       │           ├─ FA2 ─┬─ ow_sum
-               │       │           │       │
-         i_x3 ─┘       │     i_x4 ─┤       └─ ow_carry
-                       │           │
-                       └─ ow_cout  └─ i_cin
+```mermaid
+flowchart LR
+    x1["i_x1"] --> FA1["FA1"]
+    x2["i_x2"] --> FA1
+    x3["i_x3"] --> FA1
+    FA1 --> isum["int_sum"]
+    FA1 --> cout["ow_cout"]
+    isum --> FA2["FA2"]
+    x4["i_x4"] --> FA2
+    cin["i_cin"] --> FA2
+    FA2 --> sum["ow_sum"]
+    FA2 --> carry["ow_carry"]
 ```
 
 **Stage 1 (FA1):** Compresses X1, X2, X3

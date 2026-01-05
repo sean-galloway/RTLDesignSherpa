@@ -29,29 +29,33 @@ The GAXI (Generic AXI) components provide a simplified, high-performance AXI-lik
 
 The GAXI component architecture follows a hierarchical design with shared base classes and unified infrastructure:
 
-```
-┌─────────────────────────────────────────────────────────┐
-│                    GAXI Components                      │
-│   ┌─────────────┐ ┌─────────────┐ ┌─────────────┐     │
-│   │ GAXIMaster  │ │ GAXISlave   │ │ GAXIMonitor │     │
-│   └─────────────┘ └─────────────┘ └─────────────┘     │
-│            │               │               │           │
-│   ┌─────────────────────────────────────────────────┐ │
-│   │          GAXIComponentBase                      │ │
-│   │          GAXIMonitorBase                        │ │
-│   └─────────────────────────────────────────────────┘ │
-└─────────────────────────────────────────────────────────┘
-┌─────────────────────────────────────────────────────────┐
-│                  Shared Infrastructure                  │
-│   ┌─────────────┐ ┌─────────────┐ ┌─────────────┐     │
-│   │   Signal    │ │    Data     │ │   Memory    │     │
-│   │  Resolver   │ │ Strategies  │ │   Model     │     │
-│   └─────────────┘ └─────────────┘ └─────────────┘     │
-│   ┌─────────────┐ ┌─────────────┐ ┌─────────────┐     │
-│   │   Packet    │ │    Field    │ │   Statistics│     │
-│   │  Factory    │ │   Config    │ │             │     │
-│   └─────────────┘ └─────────────┘ └─────────────┘     │
-└─────────────────────────────────────────────────────────┘
+```mermaid
+graph TB
+    subgraph GAXIComp["GAXI Components"]
+        Master[GAXIMaster]
+        Slave[GAXISlave]
+        Monitor[GAXIMonitor]
+
+        subgraph Base["Base Classes"]
+            CompBase[GAXIComponentBase]
+            MonBase[GAXIMonitorBase]
+        end
+
+        Master --> CompBase
+        Slave --> CompBase
+        Monitor --> MonBase
+    end
+
+    subgraph Shared["Shared Infrastructure"]
+        SigRes[Signal Resolver]
+        DataStrat[Data Strategies]
+        MemMdl[Memory Model]
+        PktFact[Packet Factory]
+        FieldCfg[Field Config]
+        Stats[Statistics]
+    end
+
+    GAXIComp --> Shared
 ```
 
 ## Key Design Principles
@@ -81,32 +85,45 @@ The GAXI component architecture follows a hierarchical design with shared base c
 
 ## Component Relationships
 
-### Master → Slave Communication
-```
-GAXIMaster                           GAXISlave
-    │                                    │
-    ├─ Pipeline Phases:                  ├─ Pipeline Phases:
-    │   ├─ Phase 1: Apply delays         │   ├─ Phase 1: Handle pending
-    │   ├─ Phase 2: Drive & handshake    │   ├─ Phase 2: Ready timing  
-    │   └─ Phase 3: Complete transfer    │   └─ Phase 3: Process transaction
-    │                                    │
-    └─ GAXI Bus (valid/ready/data) ─────┘
-                     │
-              ┌─────────────┐
-              │ GAXIMonitor │
-              │ (Observer)  │
-              └─────────────┘
+### Master - Slave Communication
+
+```mermaid
+graph LR
+    subgraph Master["GAXIMaster"]
+        M1["Phase 1: Apply delays"]
+        M2["Phase 2: Drive & handshake"]
+        M3["Phase 3: Complete transfer"]
+        M1 --> M2 --> M3
+    end
+
+    subgraph Slave["GAXISlave"]
+        S1["Phase 1: Handle pending"]
+        S2["Phase 2: Ready timing"]
+        S3["Phase 3: Process transaction"]
+        S1 --> S2 --> S3
+    end
+
+    Master <-->|"GAXI Bus<br/>valid/ready/data"| Slave
+    Master --> Monitor["GAXIMonitor<br/>(Observer)"]
+    Slave --> Monitor
 ```
 
 ### Data Flow Architecture
-```
-Test Sequence → GAXIPacket → GAXIMaster → GAXI Signals → GAXISlave → Memory Model
-                     │              │           │              │
-                     │              │           │              └─ Response Generation
-                     │              │           │
-                     │              │           └─ GAXIMonitor → Scoreboard
-                     │              │
-                     └─ Statistics  └─ Pipeline Debug
+
+```mermaid
+flowchart LR
+    TestSeq[Test Sequence] --> Packet[GAXIPacket]
+    Packet --> Master[GAXIMaster]
+    Master --> Signals[GAXI Signals]
+    Signals --> Slave[GAXISlave]
+    Slave --> MemMdl[Memory Model]
+    MemMdl --> Response[Response Generation]
+
+    Signals --> Monitor[GAXIMonitor]
+    Monitor --> SB[Scoreboard]
+
+    Packet --> Stats[Statistics]
+    Master --> Debug[Pipeline Debug]
 ```
 
 ## Signal Resolution System

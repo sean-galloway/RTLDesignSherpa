@@ -84,44 +84,34 @@ apb_ioapic (Top Level)
 #### Data Flow Between Blocks
 
 **Configuration Write Path:**
-```
-APB Write Request
-  ↓
-apb_slave[_cdc] (APB protocol handling)
-  ↓ CMD interface
-peakrdl_to_cmdrsp (protocol adapter)
-  ↓ Passthrough interface
-ioapic_regs (register storage, indirect access)
-  ↓ hwif_out
-ioapic_config_regs (signal mapping)
-  ↓ cfg_* signals
-ioapic_core (uses configuration)
+
+```mermaid
+flowchart TD
+    A["APB Write Request"] --> B["apb_slave[_cdc]<br/>(APB protocol handling)"]
+    B -->|"CMD interface"| C["peakrdl_to_cmdrsp<br/>(protocol adapter)"]
+    C -->|"Passthrough interface"| D["ioapic_regs<br/>(register storage, indirect access)"]
+    D -->|"hwif_out"| E["ioapic_config_regs<br/>(signal mapping)"]
+    E -->|"cfg_* signals"| F["ioapic_core<br/>(uses configuration)"]
 ```
 
 **Status Read Path:**
-```
-ioapic_core (generates status)
-  ↓ status_* signals
-ioapic_config_regs (signal mapping)
-  ↓ hwif_in
-ioapic_regs (register readback, indirect access)
-  ↓ RSP interface
-peakrdl_to_cmdrsp (protocol adapter)
-  ↓ APB response
-apb_slave[_cdc] (APB protocol)
-  ↓
-APB Read Data
+
+```mermaid
+flowchart TD
+    A["ioapic_core<br/>(generates status)"] -->|"status_* signals"| B["ioapic_config_regs<br/>(signal mapping)"]
+    B -->|"hwif_in"| C["ioapic_regs<br/>(register readback, indirect access)"]
+    C -->|"RSP interface"| D["peakrdl_to_cmdrsp<br/>(protocol adapter)"]
+    D -->|"APB response"| E["apb_slave[_cdc]<br/>(APB protocol)"]
+    E --> F["APB Read Data"]
 ```
 
 **Interrupt Delivery Path:**
-```
-External IRQ assertion
-  ↓
-ioapic_core (sync → polarity → detect → arbitrate → deliver)
-  ↓ irq_out_valid, irq_out_vector, irq_out_dest
-apb_ioapic (top-level signals)
-  ↓
-CPU/LAPIC
+
+```mermaid
+flowchart TD
+    A["External IRQ assertion"] --> B["ioapic_core<br/>(sync → polarity → detect → arbitrate → deliver)"]
+    B -->|"irq_out_valid, irq_out_vector, irq_out_dest"| C["apb_ioapic<br/>(top-level signals)"]
+    C --> D["CPU/LAPIC"]
 ```
 
 #### Interface Summary

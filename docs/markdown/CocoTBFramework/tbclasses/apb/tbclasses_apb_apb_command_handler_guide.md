@@ -51,24 +51,29 @@ The `apb_command_handler.py` module is essential for testing APB slaves with com
 
 ### Command/Response Flow
 
-```
-APB Slave DUT              Command Handler              Memory Model
-     │                           │                          │
-     ├─ o_cmd_valid ────────────►│                          │
-     ├─ o_cmd_pwrite ───────────►│                          │
-     ├─ o_cmd_paddr ────────────►│                          │
-     ├─ o_cmd_pwdata ───────────►│                          │
-     ├─ o_cmd_pstrb ────────────►│                          │
-     │                           │                          │
-     │◄──────────── i_cmd_ready ─┤                          │
-     │                           │                          │
-     │                           ├─ write/read ────────────►│
-     │                           │◄─────────── data ────────┤
-     │                           │                          │
-     │◄────────── i_rsp_valid ───┤                          │
-     │◄────────── i_rsp_prdata ──┤                          │
-     │◄────────── i_rsp_pslverr ─┤                          │
-     ├─ o_rsp_ready ────────────►│                          │
+```mermaid
+sequenceDiagram
+    participant DUT as APB Slave DUT
+    participant Handler as Command Handler
+    participant Mem as Memory Model
+
+    Note over DUT,Handler: Command Phase
+    DUT->>Handler: o_cmd_valid
+    DUT->>Handler: o_cmd_pwrite
+    DUT->>Handler: o_cmd_paddr
+    DUT->>Handler: o_cmd_pwdata
+    DUT->>Handler: o_cmd_pstrb
+    Handler->>DUT: i_cmd_ready
+
+    Note over Handler,Mem: Memory Access
+    Handler->>Mem: write/read
+    Mem->>Handler: data
+
+    Note over DUT,Handler: Response Phase
+    Handler->>DUT: i_rsp_valid
+    Handler->>DUT: i_rsp_prdata
+    Handler->>DUT: i_rsp_pslverr
+    DUT->>Handler: o_rsp_ready
 ```
 
 ### Constructor

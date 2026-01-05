@@ -50,11 +50,13 @@ The APB SMBus controller provides System Management Bus communication with APB i
 
 ## Block Diagram
 
+### Figure 1.1: SMBus Block Diagram
+
 ![SMBus Block Diagram](../assets/svg/smbus_top.svg)
 
 ## Timing Diagrams
 
-### Byte Write (Start + Address)
+### Waveform 1.1: Byte Write (Start + Address)
 
 Shows the START condition and 7-bit address transmission.
 
@@ -62,7 +64,7 @@ Shows the START condition and 7-bit address transmission.
 
 START condition is SDA falling while SCL is high. The 7-bit slave address plus R/W bit is clocked out, followed by slave ACK (SDA low during 9th clock).
 
-### Byte Read
+### Waveform 1.2: Byte Read
 
 Shows slave-to-master data transfer.
 
@@ -70,7 +72,7 @@ Shows slave-to-master data transfer.
 
 Slave drives 8 data bits while master clocks SCL. Master samples each bit on SCL rising edge, then provides ACK (more data) or NACK (last byte).
 
-### Clock Stretching
+### Waveform 1.3: Clock Stretching
 
 Slave flow control by holding SCL low.
 
@@ -78,7 +80,7 @@ Slave flow control by holding SCL low.
 
 When the slave needs processing time, it holds SCL low after the master releases it. Master waits for SCL to rise before continuing. This provides backpressure without data loss.
 
-### Multi-Master Arbitration
+### Waveform 1.4: Multi-Master Arbitration
 
 Collision detection when multiple masters start simultaneously.
 
@@ -86,7 +88,7 @@ Collision detection when multiple masters start simultaneously.
 
 Both masters monitor SDA while transmitting. If a master drives 1 but reads 0 (wired-AND bus), it loses arbitration and backs off. The winner continues the transaction.
 
-### Packet Error Check (PEC)
+### Waveform 1.5: Packet Error Check (PEC)
 
 CRC-8 error detection for data integrity.
 

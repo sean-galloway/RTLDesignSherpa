@@ -60,13 +60,21 @@ Setup Violation?      ↑ Potential metastability
 ## Multi-Stage Synchronizer Solution
 
 ### Architecture Overview
-```
-Source Domain    Destination Domain
-     │           ┌─────┐   ┌─────┐   ┌─────┐
-d ───┼──────────→│ FF1 │──→│ FF2 │──→│ FF3 │──→ q
-     │           └─────┘   └─────┘   └─────┘
-                     │         │         │
-                    clk       clk       clk
+
+```mermaid
+flowchart LR
+    subgraph Source["Source Domain"]
+        d["d"]
+    end
+    subgraph Dest["Destination Domain"]
+        d --> FF1["FF1"]
+        FF1 --> FF2["FF2"]
+        FF2 --> FF3["FF3"]
+        FF3 --> q["q"]
+        clk["clk"] -.-> FF1
+        clk -.-> FF2
+        clk -.-> FF3
+    end
 ```
 
 ### Stage-by-Stage Analysis

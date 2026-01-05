@@ -37,12 +37,11 @@
 
 ### Output Mode (direction[i] = 1)
 
-```
-                    +--------+
-gpio_output[i] ---->| Buffer |----> External Pin
-                    |        |
-gpio_oe[i] = 1 ---->| Enable |
-                    +--------+
+```mermaid
+flowchart LR
+    A["gpio_output[i]"] --> B["Output Buffer"]
+    C["gpio_oe[i] = 1"] --> B
+    B --> D["External Pin"]
 ```
 
 - gpio_oe[i] = 1 (output enabled)
@@ -51,14 +50,15 @@ gpio_oe[i] = 1 ---->| Enable |
 
 ### Input Mode (direction[i] = 0)
 
-```
-                    +--------+
-                    | Buffer |----> External Pin (Hi-Z)
-                    |        |
-gpio_oe[i] = 0 ---->| Enable |
-                    +--------+
-
-External Pin ----> Synchronizer ----> gpio_in[i]
+```mermaid
+flowchart LR
+    subgraph Output Path
+        A["gpio_oe[i] = 0"] --> B["Output Buffer"]
+        B --> C["External Pin (Hi-Z)"]
+    end
+    subgraph Input Path
+        D["External Pin"] --> E["Synchronizer"] --> F["gpio_in[i]"]
+    end
 ```
 
 - gpio_oe[i] = 0 (tri-state)
@@ -71,13 +71,11 @@ External Pin ----> Synchronizer ----> gpio_in[i]
 
 All inputs pass through dual flip-flop synchronizer:
 
-```
-          gpio_clk       gpio_clk
-             |              |
-             v              v
-          +-----+        +-----+
-gpio_in ->| FF1 |------->| FF2 |-----> synced_input
-          +-----+        +-----+
+```mermaid
+flowchart LR
+    A["gpio_in"] --> B["FF1<br/>(gpio_clk)"]
+    B --> C["FF2<br/>(gpio_clk)"]
+    C --> D["synced_input"]
 ```
 
 - SYNC_STAGES parameter controls depth (default: 2)

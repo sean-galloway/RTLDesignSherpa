@@ -211,26 +211,29 @@ Mirrors the slave interface but in the opposite direction (output on AW/W, input
 
 The AXI4 Slave Write module uses three independent `gaxi_skid_buffer` instances to provide elastic buffering on each write channel:
 
-```
-Slave (s_axi_*)           Skid Buffers          Backend (fub_axi_*)
+```mermaid
+flowchart LR
+    subgraph SL["Slave<br/>(s_axi_*)"]
+        saw["aw*"]
+        sw["w*"]
+        sb["b*"]
+    end
 
-   awvalid ──────────►┌─────────────┐──────────► awvalid
-   awready ◄──────────┤  AW Buffer  │◄────────── awready
-   awaddr  ──────────►│  (depth=2)  │──────────► awaddr
-   aw*     ──────────►│             │──────────► aw*
-                      └─────────────┘
+    subgraph BUF["Skid Buffers"]
+        awb["AW Buffer<br/>(depth=2)"]
+        wb["W Buffer<br/>(depth=4)"]
+        bb["B Buffer<br/>(depth=2)"]
+    end
 
-   wvalid  ──────────►┌─────────────┐──────────► wvalid
-   wready  ◄──────────┤  W Buffer   │◄────────── wready
-   wdata   ──────────►│  (depth=4)  │──────────► wdata
-   w*      ──────────►│             │──────────► w*
-                      └─────────────┘
+    subgraph BE["Backend<br/>(fub_axi_*)"]
+        baw["aw*"]
+        bw["w*"]
+        bb2["b*"]
+    end
 
-   bvalid  ◄──────────┌─────────────┐◄────────── bvalid
-   bready  ──────────►│  B Buffer   │──────────► bready
-   bresp   ◄──────────│  (depth=2)  │◄────────── bresp
-   b*      ◄──────────│             │◄────────── b*
-                      └─────────────┘
+    saw --> awb --> baw
+    sw --> wb --> bw
+    bb2 --> bb --> sb
 ```
 
 ### Channel Operations

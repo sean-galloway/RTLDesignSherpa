@@ -113,16 +113,13 @@ SignalResolver tries **multiple naming patterns** for each signal:
 
 When signals are discovered, you see a beautiful table:
 
-```
-Signal Mapping for GAXI WaveDrom (gaxi_wavedrom) - Automatic discovery
-┏━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━━━━━━┓
-┃ Logical Signal ┃ Matched Signal ┃ Cocotb Signal ┃ Status             ┃
-┡━━━━━━━━━━━━━━━━╇━━━━━━━━━━━━━━━━╇━━━━━━━━━━━━━━━╇━━━━━━━━━━━━━━━━━━━━┩
-│ valid          │ wr_valid       │ valid         │ ✓ Found            │
-│ ready          │ wr_ready       │ ready         │ ✓ Found            │
-│ data_sig       │ wr_data        │ data          │ ✓ Found (Optional) │
-└────────────────┴────────────────┴───────────────┴────────────────────┘
-```
+| Logical Signal | Matched Signal | Cocotb Signal | Status |
+|----------------|----------------|---------------|--------|
+| valid | wr_valid | valid | Found |
+| ready | wr_ready | ready | Found |
+| data_sig | wr_data | data | Found (Optional) |
+
+*Signal Mapping for GAXI WaveDrom (gaxi_wavedrom) - Automatic discovery*
 
 ---
 
@@ -296,18 +293,18 @@ This component REQUIRES a valid signal for proper operation.
 
 ### Component Stack
 
-```
-┌─────────────────────────────────────┐
-│   GAXIWaveDromTemplate / APB...     │  ← User-facing templates
-├─────────────────────────────────────┤
-│   TemporalConstraintSolver          │  ← Constraint solver
-│   - auto_bind_signals()             │
-├─────────────────────────────────────┤
-│   WavedromSignalBinder              │  ← Wavedrom-specific layer
-├─────────────────────────────────────┤
-│   SignalResolver                    │  ← Pattern matching engine
-│   - PROTOCOL_SIGNAL_CONFIGS         │
-└─────────────────────────────────────┘
+```mermaid
+graph TB
+    subgraph Stack["Architecture Stack"]
+        Templates["GAXIWaveDromTemplate / APB...<br/>(User-facing templates)"]
+        Solver["TemporalConstraintSolver<br/>- auto_bind_signals()"]
+        Binder["WavedromSignalBinder<br/>(Wavedrom-specific layer)"]
+        Resolver["SignalResolver<br/>- PROTOCOL_SIGNAL_CONFIGS<br/>(Pattern matching engine)"]
+    end
+
+    Templates --> Solver
+    Solver --> Binder
+    Binder --> Resolver
 ```
 
 ### Signal Flow

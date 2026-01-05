@@ -25,6 +25,8 @@
 
 ## High-Level Block Diagram
 
+### Figure 1.2: RTC Architecture
+
 ![RTC Architecture](../assets/svg/rtc_top.svg)
 
 ## Module Hierarchy
@@ -46,35 +48,22 @@ apb_rtc (Top Level)
 
 ### Time Update Flow
 
-```
-32.768 kHz Clock
-      |
-      v
-  +--------+
-  | Divider |---> 1 Hz pulse
-  +--------+
-      |
-      v
-  +--------+
-  | Seconds|---> Carry
-  +--------+
-      |
-      v
-  +--------+
-  | Minutes|---> Carry
-  +--------+
-      |
-      v
-  [Hours, Date, Month, Year...]
+```mermaid
+flowchart TD
+    A["32.768 kHz Clock"] --> B["Divider"]
+    B -->|"1 Hz pulse"| C["Seconds"]
+    C -->|"Carry"| D["Minutes"]
+    D -->|"Carry"| E["Hours, Date, Month, Year..."]
 ```
 
 ### Alarm Match Flow
 
-```
-Time Registers --> Comparator <-- Alarm Registers
-                       |
-                       v
-                  Match Signal --> IRQ (if enabled)
+```mermaid
+flowchart LR
+    A["Time Registers"] --> B["Comparator"]
+    C["Alarm Registers"] --> B
+    B --> D["Match Signal"]
+    D -->|"if enabled"| E["IRQ"]
 ```
 
 ## Clock Domains

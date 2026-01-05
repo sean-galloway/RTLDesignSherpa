@@ -48,24 +48,33 @@ The AXI4 Slave Read Monitor module combines a functional AXI4 slave read interfa
 
 ## Module Architecture
 
-```
-Slave (s_axi)         Slave Core         Monitor        Monitor Bus
-                   ┌──────────────┐   ┌───────────┐
-  arid  ──────────►│              │   │           │
-  araddr ─────────►│ axi4_slave   │   │   axi     │   monbus_valid ──►
-  ar*   ──────────►│    _rd       │──►│  _monitor │   monbus_packet ─►
-  arvalid ────────►│  (buffered)  │   │ _filtered │   monbus_ready ◄──
-  arready ◄────────│              │   │           │
-                   │              │   │ •error    │
-  rid   ◄──────────│              │   │ •timeout  │
-  rdata ◄──────────│              │   │ •perf     │
-  r*    ◄──────────│              │   │ •config   │
-  rvalid ◄─────────│              │   │           │
-  rready ──────────►│              │   └───────────┘
-                   └──────────────┘
-                          │
-                          ▼
-                   Backend (fub_axi)
+```mermaid
+flowchart LR
+    subgraph SL["Slave<br/>(s_axi)"]
+        ar["ar* →"]
+        r["← r*"]
+    end
+
+    subgraph CORE["Slave Core"]
+        sc["axi4_slave_rd<br/>(buffered)"]
+    end
+
+    subgraph MON["Monitor"]
+        mf["axi_monitor<br/>_filtered"]
+        features["•error<br/>•timeout<br/>•perf"]
+    end
+
+    subgraph MB["Monitor Bus"]
+        mbv["monbus_valid"]
+        mbp["monbus_packet"]
+    end
+
+    ar --> sc
+    sc --> r
+    sc --> mf
+    mf --> mbv
+    mf --> mbp
+    sc --> fub["Backend (fub_axi)"]
 ```
 
 The module instantiates two sub-modules:

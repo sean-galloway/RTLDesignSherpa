@@ -136,23 +136,31 @@ All FIFO testbenches support configuration through environment variables:
 
 All FIFO testbenches follow a common architecture pattern:
 
-```
-┌─────────────────┐    ┌─────────────────┐    ┌─────────────────┐
-│   FIFOMaster    │───▶│   DUT (FIFO)    │───▶│   FIFOSlave     │
-│   (Writer)      │    │                 │    │   (Reader)      │
-└─────────────────┘    └─────────────────┘    └─────────────────┘
-         │                       │                       │
-         ▼                       ▼                       ▼
-┌─────────────────┐    ┌─────────────────┐    ┌─────────────────┐
-│  Write Monitor  │    │  Memory Model   │    │  Read Monitor   │
-└─────────────────┘    └─────────────────┘    └─────────────────┘
-         │                       │                       │
-         └───────────────────────┼───────────────────────┘
-                                 ▼
-                    ┌─────────────────┐
-                    │   Scoreboard    │
-                    │  & Verification │
-                    └─────────────────┘
+```mermaid
+graph TB
+    subgraph DataPath["Data Path"]
+        Master["FIFOMaster<br/>(Writer)"]
+        DUT["DUT (FIFO)"]
+        Slave["FIFOSlave<br/>(Reader)"]
+        Master --> DUT --> Slave
+    end
+
+    subgraph Monitoring["Monitoring Layer"]
+        WrMon["Write Monitor"]
+        MemModel["Memory Model"]
+        RdMon["Read Monitor"]
+    end
+
+    subgraph Verification["Verification"]
+        Scoreboard["Scoreboard<br/>& Verification"]
+    end
+
+    Master --> WrMon
+    DUT --> MemModel
+    Slave --> RdMon
+    WrMon --> Scoreboard
+    MemModel --> Scoreboard
+    RdMon --> Scoreboard
 ```
 
 ## Features

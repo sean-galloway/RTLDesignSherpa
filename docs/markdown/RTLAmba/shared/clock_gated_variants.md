@@ -78,60 +78,38 @@ All CG variants add these parameters to their base module parameters:
 
 **For Monitor Modules (e.g., `axi4_master_rd_mon_cg`):**
 
-```
-┌──────────────────────────────────────┐
-│  Base Monitor                        │
-│  ┌────────────┐  ┌────────────┐     │
-│  │  Monitor   │  │  Reporter  │     │
-│  │  Logic     │  │  (Packets) │     │
-│  └──────┬─────┘  └──────┬─────┘     │
-│         │ CG            │ CG         │
-│  ┌──────▼─────┐  ┌──────▼─────┐     │
-│  │   ICG      │  │   ICG      │     │
-│  │  (Monitor) │  │ (Reporter) │     │
-│  └────────────┘  └────────────┘     │
-│                                      │
-│  ┌────────────┐                     │
-│  │   Timers   │                     │
-│  └──────┬─────┘                     │
-│         │ CG                        │
-│  ┌──────▼─────┐                     │
-│  │   ICG      │                     │
-│  │  (Timers)  │                     │
-│  └────────────┘                     │
-└──────────────────────────────────────┘
+```mermaid
+flowchart TB
+    subgraph base["Base Monitor"]
+        mon["Monitor<br/>Logic"] --> icg1["ICG<br/>(Monitor)"]
+        rep["Reporter<br/>(Packets)"] --> icg2["ICG<br/>(Reporter)"]
+        tim["Timers"] --> icg3["ICG<br/>(Timers)"]
+    end
 ```
 
 **For Interface Modules (e.g., `axi4_master_rd_cg`, `apb_slave_cg`):**
 
-```
-┌──────────────────────────────────────┐
-│  Base Interface                      │
-│  ┌────────────┐  ┌────────────┐     │
-│  │  Data Path │  │  Control   │     │
-│  │  (Buffers) │  │  (FSM)     │     │
-│  └──────┬─────┘  └──────┬─────┘     │
-│         │ CG            │ CG         │
-│  ┌──────▼─────┐  ┌──────▼─────┐     │
-│  │   ICG      │  │   ICG      │     │
-│  │ (Datapath) │  │ (Control)  │     │
-│  └────────────┘  └────────────┘     │
-└──────────────────────────────────────┘
+```mermaid
+flowchart TB
+    subgraph base["Base Interface"]
+        dp["Data Path<br/>(Buffers)"] --> icg1["ICG<br/>(Datapath)"]
+        ctrl["Control<br/>(FSM)"] --> icg2["ICG<br/>(Control)"]
+    end
 ```
 
 ### Gating State Machine
 
-```
-ACTIVE ───────► IDLE_COUNT ───────► GATED
-  ▲                                    │
-  │                                    │
-  └────────────────────────────────────┘
-        (Activity Detected)
+```mermaid
+stateDiagram-v2
+    [*] --> ACTIVE
+    ACTIVE --> IDLE_COUNT : No activity
+    IDLE_COUNT --> GATED : CG_IDLE_CYCLES elapsed
+    GATED --> ACTIVE : Activity detected
+    IDLE_COUNT --> ACTIVE : Activity detected
 
-States:
-- ACTIVE: Clocks enabled, monitoring activity
-- IDLE_COUNT: Counting CG_IDLE_CYCLES before gating
-- GATED: Clocks disabled, waiting for activity
+    note right of ACTIVE : Clocks enabled
+    note right of IDLE_COUNT : Counting idle cycles
+    note right of GATED : Clocks disabled
 ```
 
 ---

@@ -48,53 +48,46 @@ The AXI4 2x2 Interconnect provides a full crossbar connection between 2 AXI4 mas
 
 ## Module Architecture
 
-```
-Master 0          Master 1
-   │                 │
-   │                 │
-   ▼                 ▼
-┌─────────────────────────┐
-│  Address Decode Logic   │
-│  (S0/S1 routing)        │
-└──────────┬──────────────┘
-           │
-           ▼
-┌─────────────────────────┐
-│   2x2 Crossbar Switch   │
-│                         │
-│   M0 ──┬──► S0          │
-│        └──► S1          │
-│                         │
-│   M1 ──┬──► S0          │
-│        └──► S1          │
-└──────────┬──────────────┘
-           │
-           ▼
-      Slave 0  Slave 1
+```mermaid
+flowchart TB
+    m0["Master 0"] --> decode
+    m1["Master 1"] --> decode
+
+    subgraph decode["Address Decode Logic<br/>(S0/S1 routing)"]
+    end
+
+    decode --> xbar
+
+    subgraph xbar["2x2 Crossbar Switch"]
+        r1["M0 → S0/S1"]
+        r2["M1 → S0/S1"]
+    end
+
+    xbar --> s0["Slave 0"]
+    xbar --> s1["Slave 1"]
 ```
 
 ### Monitoring Architecture
 
-```
-┌─────────────────────────────────────┐
-│          Interconnect Core          │
-├─────────┬─────────┬─────────┬───────┤
-│  M0 Mon │  M1 Mon │  S0 Mon │ S1 Mon│
-│ (Rd+Wr) │ (Rd+Wr) │ (Rd+Wr) │(Rd+Wr)│
-└────┬────┴────┬────┴────┬────┴───┬───┘
-     │         │         │        │
-     └─────────┴─────────┴────────┘
-                 │
-                 ▼
-       ┌─────────────────────┐
-       │  Monitor Arbiter    │
-       │  (4:1 aggregation)  │
-       └──────────┬──────────┘
-                  │
-                  ▼
-          monbus_valid ──►
-          monbus_packet ─►
-          monbus_ready ◄──
+```mermaid
+flowchart TB
+    subgraph core["Interconnect Core"]
+        m0mon["M0 Mon<br/>(Rd+Wr)"]
+        m1mon["M1 Mon<br/>(Rd+Wr)"]
+        s0mon["S0 Mon<br/>(Rd+Wr)"]
+        s1mon["S1 Mon<br/>(Rd+Wr)"]
+    end
+
+    m0mon --> arb
+    m1mon --> arb
+    s0mon --> arb
+    s1mon --> arb
+
+    subgraph arb["Monitor Arbiter<br/>(4:1 aggregation)"]
+    end
+
+    arb --> mbv["monbus_valid"]
+    arb --> mbp["monbus_packet"]
 ```
 
 ---

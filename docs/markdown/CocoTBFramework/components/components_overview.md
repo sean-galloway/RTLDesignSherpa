@@ -41,53 +41,80 @@ The components framework is built on several key principles:
 
 The components follow a three-layer architecture that promotes reusability and maintainability:
 
-```
-┌─────────────────────────────────────────────────────────┐
-│                   Protocol Layer                       │
-│  ┌─────────────────┐ ┌─────────────────┐ ┌───────────┐ │
-│  │  APB Protocol   │ │ GAXI Protocol   │ │   FIFO    │ │
-│  │   Components    │ │   Components    │ │Components │ │
-│  │                 │ │                 │ │           │ │
-│  │ • APBMaster     │ │ • GAXIMaster    │ │• FIFOMaster│ │
-│  │ • APBSlave      │ │ • GAXISlave     │ │• FIFOSlave │ │
-│  │ • APBMonitor    │ │ • GAXIMonitor   │ │• FIFOMonitor│ │
-│  │ • APBPacket     │ │ • GAXIPacket    │ │• FIFOPacket│ │
-│  │ • APBSequence   │ │ • GAXISequence  │ │• FIFOSeq   │ │
-│  │ • APBFactories  │ │ • GAXIFactories │ │• FIFOFactory│ │
-│  └─────────────────┘ └─────────────────┘ └───────────┘ │
-└─────────────────────────────────────────────────────────┘
-┌─────────────────────────────────────────────────────────┐
-│                Specialized Components                  │
-│  ┌─────────────────┐ ┌─────────────────┐ ┌───────────┐ │
-│  │  Misc Protocol  │ │ Future Protocol │ │ Custom    │ │
-│  │   Components    │ │   Extensions    │ │ Components│ │
-│  │                 │ │                 │ │           │ │
-│  │ • ArbiterMonitor│ │ • Extensible    │ │• User     │ │
-│  │ • Future        │ │ • Framework     │ │• Defined  │ │
-│  │   Components    │ │ • Support       │ │• Additions│ │
-│  └─────────────────┘ └─────────────────┘ └───────────┘ │
-└─────────────────────────────────────────────────────────┘
-┌─────────────────────────────────────────────────────────┐
-│                  Shared Infrastructure                 │
-│  ┌─────────────────┐ ┌─────────────────┐ ┌───────────┐ │
-│  │     Packet      │ │  Randomization  │ │Statistics │ │
-│  │   Framework     │ │   & Config      │ │& Monitor  │ │
-│  │                 │ │                 │ │           │ │
-│  │ • Packet        │ │ • FlexRandomizer│ │• Master   │ │
-│  │ • PacketFactory │ │ • FlexConfigGen │ │ Statistics│ │
-│  │ • FieldConfig   │ │ • RandomConfig  │ │• Monitor  │ │
-│  │ • DataStrategies│ │ • FieldValidation│ │ Statistics│ │
-│  └─────────────────┘ └─────────────────┘ └───────────┘ │
-│  ┌─────────────────┐ ┌─────────────────┐ ┌───────────┐ │
-│  │     Memory      │ │     Signal      │ │ Utilities │ │
-│  │     Model       │ │    Mapping      │ │& Debugging│ │
-│  │                 │ │                 │ │           │ │
-│  │ • MemoryModel   │ │ • SignalResolver│ │• Debug    │ │
-│  │ • Access Track  │ │ • SignalMapping │ │ Object    │ │
-│  │ • Region Mgmt   │ │ • AutoDiscovery │ │• Protocol │ │
-│  │ • Coverage      │ │ • Manual Override│ │ Errors   │ │
-│  └─────────────────┘ └─────────────────┘ └───────────┘ │
-└─────────────────────────────────────────────────────────┘
+```mermaid
+graph TB
+    subgraph ProtocolLayer["Protocol Layer"]
+        subgraph APB["APB Protocol Components"]
+            APB_M[APBMaster]
+            APB_S[APBSlave]
+            APB_Mon[APBMonitor]
+            APB_P[APBPacket]
+            APB_Seq[APBSequence]
+        end
+        subgraph GAXI["GAXI Protocol Components"]
+            GAXI_M[GAXIMaster]
+            GAXI_S[GAXISlave]
+            GAXI_Mon[GAXIMonitor]
+            GAXI_P[GAXIPacket]
+            GAXI_Seq[GAXISequence]
+        end
+        subgraph FIFO["FIFO Components"]
+            FIFO_M[FIFOMaster]
+            FIFO_S[FIFOSlave]
+            FIFO_Mon[FIFOMonitor]
+            FIFO_P[FIFOPacket]
+        end
+    end
+
+    subgraph SpecializedLayer["Specialized Components"]
+        subgraph Misc["Misc Protocol Components"]
+            ArbMon[ArbiterMonitor]
+            Future1[Future Components]
+        end
+        subgraph Extend["Protocol Extensions"]
+            Ext1[Extensible]
+            Ext2[Framework Support]
+        end
+        subgraph Custom["Custom Components"]
+            User1[User Defined]
+            User2[Additions]
+        end
+    end
+
+    subgraph SharedLayer["Shared Infrastructure"]
+        subgraph Packet["Packet Framework"]
+            Pkt[Packet]
+            PktF[PacketFactory]
+            FC[FieldConfig]
+            DS[DataStrategies]
+        end
+        subgraph Random["Randomization & Config"]
+            FR[FlexRandomizer]
+            FCG[FlexConfigGen]
+            RC[RandomConfig]
+        end
+        subgraph Stats["Statistics & Monitor"]
+            MS[MasterStatistics]
+            MonS[MonitorStatistics]
+        end
+        subgraph Memory["Memory Model"]
+            MM[MemoryModel]
+            AT[Access Track]
+            RM[Region Mgmt]
+        end
+        subgraph Signal["Signal Mapping"]
+            SR[SignalResolver]
+            SM[SignalMapping]
+            AD[AutoDiscovery]
+        end
+        subgraph Utils["Utilities"]
+            DO[Debug Object]
+            PE[Protocol Errors]
+        end
+    end
+
+    ProtocolLayer --> SpecializedLayer
+    SpecializedLayer --> SharedLayer
 ```
 
 ## Protocol Components

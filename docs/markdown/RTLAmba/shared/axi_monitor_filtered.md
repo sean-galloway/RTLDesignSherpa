@@ -99,32 +99,15 @@ The `axi_monitor_filtered` module is the core building block for:
 
 ## Architecture
 
-```
-Monitor Packets
-      │
-      ▼
-┌─────────────────────────┐
-│  Level 1 Filter         │
-│  Packet Type Masks      │
-│  (ERROR/COMPL/etc.)     │
-└──────────┬──────────────┘
-           │
-           ▼
-┌─────────────────────────┐
-│  Level 2 Filter         │
-│  Error Routing          │
-│  (Critical vs Info)     │
-└──────────┬──────────────┘
-           │
-           ▼
-┌─────────────────────────┐
-│  Level 3 Filter         │
-│  Event Masking          │
-│  (Per-event control)    │
-└──────────┬──────────────┘
-           │
-           ▼
-   Filtered Packets
+```mermaid
+flowchart TB
+    in["Monitor Packets"] --> l1
+    subgraph Cascade["Three-Level Filter Cascade"]
+        l1["Level 1 Filter<br/>Packet Type Masks<br/>(ERROR/COMPL/etc.)"]
+        l1 --> l2["Level 2 Filter<br/>Error Routing<br/>(Critical vs Info)"]
+        l2 --> l3["Level 3 Filter<br/>Event Masking<br/>(Per-event control)"]
+    end
+    l3 --> out["Filtered Packets"]
 ```
 
 Three-level filtering cascade provides maximum flexibility while minimizing resource usage.

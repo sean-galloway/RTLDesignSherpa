@@ -86,26 +86,29 @@ Key interface groups:
 
 ## Architecture
 
-```
-Event Data ────┐
-Event Code ────┤
-Protocol   ────┤
-Unit ID    ────┤──► ┌──────────────┐      ┌────────┐
-Agent ID   ────┤    │   Packet     │      │  FIFO  │
-               │    │  Formatter   │──────│ Queue  │──► monbus_*
-               │    └──────────────┘      └────────┘
-               │
-Packet Type ───┘
+```mermaid
+flowchart LR
+    ed["Event Data"] --> fmt
+    ec["Event Code"] --> fmt
+    pr["Protocol"] --> fmt
+    uid["Unit ID"] --> fmt
+    aid["Agent ID"] --> fmt
+    pt["Packet Type"] --> fmt
 
-Format:
-[63:60] Packet Type
-[59:57] Protocol
-[56:53] Event Code
-[52:47] Channel ID / Unit ID
-[46:43] Reserved / Agent ID[7:4]
-[42:35] Agent ID[7:0]
-[34:0]  Event Data (address, latency, etc.)
+    fmt["Packet<br/>Formatter"] --> fifo["FIFO<br/>Queue"]
+    fifo --> out["monbus_*"]
 ```
+
+**Packet Format (64-bit):**
+| Bits | Field |
+|------|-------|
+| [63:60] | Packet Type |
+| [59:57] | Protocol |
+| [56:53] | Event Code |
+| [52:47] | Channel ID / Unit ID |
+| [46:43] | Reserved / Agent ID[7:4] |
+| [42:35] | Agent ID[7:0] |
+| [34:0] | Event Data (address, latency, etc.) |
 
 ---
 

@@ -110,49 +110,64 @@ async def test_gaxi_buffer(dut):
 ## Architecture Overview
 
 ### Three-Layer Framework Architecture
-```
-┌─────────────────────────────────────────────────────────┐
-│                   TBClasses Layer                      │
-│            (Complete Verification Environments)        │
-│                                                         │
-│  ┌─────────────────┐ ┌─────────────────┐ ┌───────────┐ │
-│  │  Protocol       │ │  Specialized    │ │   System  │ │
-│  │  Testbenches    │ │  Verification   │ │   Level   │ │
-│  │                 │ │                 │ │           │ │
-│  │ • APB TBs       │ │ • AMBA Utils    │ │ • Multi   │ │
-│  │ • FIFO TBs      │ │ • AXI Splitter  │ │   Protocol│ │
-│  │ • GAXI TBs      │ │ • Common Tests  │ │ • Advanced│ │
-│  │                 │ │                 │ │   Monitor │ │
-│  └─────────────────┘ └─────────────────┘ └───────────┘ │
-└─────────────────────────────────────────────────────────┘
-┌─────────────────────────────────────────────────────────┐
-│                 Scoreboards Layer                      │
-│              (Transaction Verification)                │
-│                                                         │
-│  ┌─────────────────┐ ┌─────────────────┐ ┌───────────┐ │
-│  │  Protocol       │ │ Cross-Protocol  │ │   Base    │ │
-│  │  Scoreboards    │ │  Verification   │ │Framework  │ │
-│  │                 │ │                 │ │           │ │
-│  │ • APB           │ │ • APB-GAXI      │ │ • Base    │ │
-│  │ • AXI4          │ │   Bridge        │ │   Board   │ │
-│  │ • FIFO          │ │ • Protocol      │ │ • Transform│ │
-│  │ • GAXI          │ │   Transform     │ │ • Stats   │ │
-│  └─────────────────┘ └─────────────────┘ └───────────┘ │
-└─────────────────────────────────────────────────────────┘
-┌─────────────────────────────────────────────────────────┐
-│                 Components Layer                       │
-│              (Protocol Implementation)                 │
-│                                                         │
-│  ┌─────────────────┐ ┌─────────────────┐ ┌───────────┐ │
-│  │  Protocol       │ │  Specialized    │ │  Shared   │ │
-│  │  Components     │ │  Components     │ │   Infra   │ │
-│  │                 │ │                 │ │           │ │
-│  │ • APB           │ │ • Misc          │ │ • Packets │ │
-│  │ • FIFO          │ │   Monitors      │ │ • Memory  │ │
-│  │ • GAXI          │ │ • Arbiters      │ │ • Random  │ │
-│  │                 │ │                 │ │ • Stats   │ │
-│  └─────────────────┘ └─────────────────┘ └───────────┘ │
-└─────────────────────────────────────────────────────────┘
+
+```mermaid
+graph TB
+    subgraph TBClasses["TBClasses Layer - Complete Verification Environments"]
+        subgraph TB_Proto["Protocol Testbenches"]
+            TB_APB[APB TBs]
+            TB_FIFO[FIFO TBs]
+            TB_GAXI[GAXI TBs]
+        end
+        subgraph TB_Spec["Specialized Verification"]
+            TB_AMBA[AMBA Utils]
+            TB_Split[AXI Splitter]
+            TB_Common[Common Tests]
+        end
+        subgraph TB_Sys["System Level"]
+            TB_Multi[Multi-Protocol]
+            TB_Adv[Advanced Monitor]
+        end
+    end
+
+    subgraph Scoreboards["Scoreboards Layer - Transaction Verification"]
+        subgraph SB_Proto["Protocol Scoreboards"]
+            SB_APB[APB]
+            SB_AXI[AXI4]
+            SB_FIFO[FIFO]
+            SB_GAXI[GAXI]
+        end
+        subgraph SB_Cross["Cross-Protocol Verification"]
+            SB_Bridge[APB-GAXI Bridge]
+            SB_Trans[Protocol Transform]
+        end
+        subgraph SB_Base["Base Framework"]
+            SB_Board[Base Board]
+            SB_Xform[Transform]
+            SB_Stats[Stats]
+        end
+    end
+
+    subgraph Components["Components Layer - Protocol Implementation"]
+        subgraph Comp_Proto["Protocol Components"]
+            C_APB[APB]
+            C_FIFO[FIFO]
+            C_GAXI[GAXI]
+        end
+        subgraph Comp_Spec["Specialized Components"]
+            C_Misc[Misc Monitors]
+            C_Arb[Arbiters]
+        end
+        subgraph Comp_Shared["Shared Infra"]
+            C_Pkt[Packets]
+            C_Mem[Memory]
+            C_Rand[Random]
+            C_Stat[Stats]
+        end
+    end
+
+    TBClasses --> Scoreboards
+    Scoreboards --> Components
 ```
 
 ## Key Features

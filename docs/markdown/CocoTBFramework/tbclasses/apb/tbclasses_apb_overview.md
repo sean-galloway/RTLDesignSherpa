@@ -29,26 +29,35 @@ The APB testbench classes provide high-level testbench functionality for APB pro
 
 The APB testbench classes follow a hierarchical approach for comprehensive verification:
 
-```
-┌─────────────────────────────────────────────────────────┐
-│                   Test Orchestration                   │
-│            (Test Sequences, Verification)              │
-└─────────────────────────────────────────────────────────┘
-┌─────────────────────────────────────────────────────────┐
-│                APB Testbench Classes                   │
-│   ┌─────────────┐ ┌─────────────┐ ┌─────────────┐     │
-│   │   Command   │ │ Config Mgmt │ │ Register    │     │
-│   │   Handler   │ │   Factory   │ │ Map Testing │     │
-│   └─────────────┘ └─────────────┘ └─────────────┘     │
-└─────────────────────────────────────────────────────────┘
-┌─────────────────────────────────────────────────────────┐
-│                  APB Protocol Layer                    │
-│         (Masters, Slaves, Monitors, Packets)          │
-└─────────────────────────────────────────────────────────┘
-┌─────────────────────────────────────────────────────────┐
-│                   Memory & Config                      │
-│      (Memory Model, Field Config, Randomization)      │
-└─────────────────────────────────────────────────────────┘
+```mermaid
+graph TB
+    subgraph Orch["Test Orchestration"]
+        TestSeq[Test Sequences]
+        Verif[Verification]
+    end
+
+    subgraph APBTBClasses["APB Testbench Classes"]
+        CmdHandler[Command Handler]
+        ConfigMgmt[Config Mgmt Factory]
+        RegMap[Register Map Testing]
+    end
+
+    subgraph APBProto["APB Protocol Layer"]
+        Masters[Masters]
+        Slaves[Slaves]
+        Monitors[Monitors]
+        Packets[Packets]
+    end
+
+    subgraph MemConfig["Memory & Config"]
+        MemModel[Memory Model]
+        FieldCfg[Field Config]
+        Random[Randomization]
+    end
+
+    Orch --> APBTBClasses
+    APBTBClasses --> APBProto
+    APBProto --> MemConfig
 ```
 
 ## Component Categories

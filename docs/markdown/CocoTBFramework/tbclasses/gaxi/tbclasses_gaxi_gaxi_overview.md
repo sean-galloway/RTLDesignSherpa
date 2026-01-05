@@ -39,13 +39,14 @@ The GAXI testbench framework is built on a unified infrastructure that promotes 
 
 ### Component Hierarchy
 
-```
-TBBase (Base Testbench Class)
-├── GaxiBufferTB (Basic Buffer Testing)
-├── GaxiFieldBufferTB (Field-Based Testing) 
-├── GaxiMultiBufferTB (Multi-Signal Testing)
-├── GaxiMultiSigMapBufferTB (Signal Mapping)
-└── GAXIDataCollectTB (Data Collection Testing)
+```mermaid
+graph TB
+    TBBase[TBBase - Base Testbench Class]
+    TBBase --> GaxiBufferTB[GaxiBufferTB - Basic Buffer Testing]
+    TBBase --> GaxiFieldBufferTB[GaxiFieldBufferTB - Field-Based Testing]
+    TBBase --> GaxiMultiBufferTB[GaxiMultiBufferTB - Multi-Signal Testing]
+    TBBase --> GaxiMultiSigMapBufferTB[GaxiMultiSigMapBufferTB - Signal Mapping]
+    TBBase --> GAXIDataCollectTB[GAXIDataCollectTB - Data Collection Testing]
 ```
 
 ## Core Components

@@ -103,21 +103,26 @@ All AXI4 modules in this subsystem have clock-gated (`_cg`) variants that add po
 
 ### State Machine
 
-```
-┌─────────┐  idle_count < threshold  ┌──────────┐
-│ RUNNING │◄─────────────────────────┤  IDLE    │
-│         │                          │ Counting │
-└────┬────┘                          └─────┬────┘
-     │                                     │
-     │ activity = 0                        │ count >= threshold
-     │ (no valid signals)                  │ && cg_enable
-     │                                     │
-     │                                     ▼
-     │                               ┌──────────┐
-     └──────────────────────────────►│  GATED   │
-       activity detected              │ (clock   │
-       (any valid signal)             │  stopped)│
-                                      └──────────┘
+```mermaid
+stateDiagram-v2
+    [*] --> RUNNING
+
+    RUNNING --> IDLE : activity = 0<br/>(no valid signals)
+    IDLE --> RUNNING : idle_count < threshold
+    IDLE --> GATED : count >= threshold<br/>&& cg_enable
+    GATED --> RUNNING : activity detected<br/>(any valid signal)
+
+    state RUNNING {
+        note right of RUNNING : Clock running normally
+    }
+
+    state IDLE {
+        note right of IDLE : Counting idle cycles
+    }
+
+    state GATED {
+        note right of GATED : Clock stopped
+    }
 ```
 
 ---

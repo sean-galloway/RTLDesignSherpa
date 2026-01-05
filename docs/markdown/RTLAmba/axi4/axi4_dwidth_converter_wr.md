@@ -50,41 +50,69 @@ The AXI4 Write Data Width Converter provides data width conversion for write-onl
 
 ### Upsize Mode (Narrow → Wide Writes)
 
+```mermaid
+flowchart LR
+    subgraph SL["Slave (Narrow)<br/>32-bit"]
+        aw["s_axi_aw* →"]
+        w["s_axi_w* →"]
+        b["← s_axi_b*"]
+    end
+
+    subgraph BUF["Address Converter"]
+        awb["AW Skid<br/>Buffer"]
+        wb["W Skid<br/>Buffer"]
+        bb["B Skid<br/>Buffer"]
+    end
+
+    subgraph CONV["Write Path<br/>Converter"]
+        up["WR Upsize<br/>- Pack 4→1<br/>- AWLEN/4<br/>- WSTRB"]
+    end
+
+    subgraph M["Master (Wide)<br/>128-bit"]
+        maw["→ m_axi_aw*"]
+        mw["→ m_axi_w*"]
+        mb["m_axi_b* →"]
+    end
+
+    aw --> awb --> up --> maw
+    w --> wb --> up --> mw
+    mb --> up --> bb --> b
 ```
-Slave (Narrow)      Address       Write Path         Master (Wide)
-   32-bit          Converter      Converter             128-bit
-                 ┌────────────┐  ┌────────────┐
-  s_axi_aw* ────►│ AW Skid    │  │            │
-                 │ Buffer     ├─►│ WR Upsize  ├───────► m_axi_aw*
-                 │            │  │            │
-  s_axi_w*  ────►│ W Skid     │  │ - Pack 4→1 │
-                 │ Buffer     ├─►│ - AWLEN/4  ├───────► m_axi_w*
-                 │            │  │ - WSTRB    │
-  s_axi_b*  ◄────│ B Skid     │  │            │
-                 │ Buffer     │◄─┤            │◄──────── m_axi_b*
-                 └────────────┘  └────────────┘
 
 Example: 16 narrow W beats (32-bit) → 4 wide W beats (128-bit)
-```
 
 ### Downsize Mode (Wide → Narrow Writes)
 
+```mermaid
+flowchart LR
+    subgraph SL["Slave (Wide)<br/>128-bit"]
+        aw["s_axi_aw* →"]
+        w["s_axi_w* →"]
+        b["← s_axi_b*"]
+    end
+
+    subgraph BUF["Address Converter"]
+        awb["AW Skid<br/>Buffer"]
+        wb["W Skid<br/>Buffer"]
+        bb["B Skid<br/>Buffer"]
+    end
+
+    subgraph CONV["Write Path<br/>Converter"]
+        down["WR Downsize<br/>- Unpack<br/>- AWLEN×4<br/>- WSTRB"]
+    end
+
+    subgraph M["Master (Narrow)<br/>32-bit"]
+        maw["→ m_axi_aw*"]
+        mw["→ m_axi_w*"]
+        mb["m_axi_b* →"]
+    end
+
+    aw --> awb --> down --> maw
+    w --> wb --> down --> mw
+    mb --> down --> bb --> b
 ```
-Slave (Wide)       Address       Write Path         Master (Narrow)
-   128-bit        Converter      Converter              32-bit
-                 ┌────────────┐  ┌────────────┐
-  s_axi_aw* ────►│ AW Skid    │  │            │
-                 │ Buffer     ├─►│ WR Downsize├───────► m_axi_aw*
-                 │            │  │            │
-  s_axi_w*  ────►│ W Skid     │  │ - Unpack   │
-                 │ Buffer     ├─►│ - AWLEN×4  ├───────► m_axi_w*
-                 │            │  │ - WSTRB    │
-  s_axi_b*  ◄────│ B Skid     │  │            │
-                 │ Buffer     │◄─┤            │◄──────── m_axi_b*
-                 └────────────┘  └────────────┘
 
 Example: 4 wide W beats (128-bit) → 16 narrow W beats (32-bit)
-```
 
 ---
 

@@ -48,29 +48,35 @@ The AXI4 Slave Write Monitor module combines a functional AXI4 slave write inter
 
 ## Module Architecture
 
-```
-Slave (s_axi)         Slave Core         Monitor        Monitor Bus
-                   ┌──────────────┐   ┌───────────┐
-  awid  ──────────►│              │   │           │
-  awaddr ─────────►│ axi4_slave   │   │   axi     │   monbus_valid ──►
-  aw*   ──────────►│    _wr       │──►│  _monitor │   monbus_packet ─►
-  awvalid ────────►│  (buffered)  │   │ _filtered │   monbus_ready ◄──
-  awready ◄────────│              │   │           │
-                   │              │   │ •error    │
-  wdata ──────────►│              │   │ •timeout  │
-  w*    ──────────►│              │   │ •perf     │
-  wvalid ─────────►│              │   │ •config   │
-  wready ◄─────────│              │   │           │
-                   │              │   └───────────┘
-  bid   ◄──────────│              │
-  bresp ◄──────────│              │
-  b*    ◄──────────│              │
-  bvalid ◄─────────│              │
-  bready ──────────►│              │
-                   └──────────────┘
-                          │
-                          ▼
-                   Backend (fub_axi)
+```mermaid
+flowchart LR
+    subgraph SL["Slave<br/>(s_axi)"]
+        aw["aw* →"]
+        w["w* →"]
+        b["← b*"]
+    end
+
+    subgraph CORE["Slave Core"]
+        sc["axi4_slave_wr<br/>(buffered)"]
+    end
+
+    subgraph MON["Monitor"]
+        mf["axi_monitor<br/>_filtered"]
+        features["•error<br/>•timeout<br/>•perf"]
+    end
+
+    subgraph MB["Monitor Bus"]
+        mbv["monbus_valid"]
+        mbp["monbus_packet"]
+    end
+
+    aw --> sc
+    w --> sc
+    sc --> b
+    sc --> mf
+    mf --> mbv
+    mf --> mbp
+    sc --> fub["Backend (fub_axi)"]
 ```
 
 The module instantiates two sub-modules:

@@ -134,30 +134,24 @@ Stage 5: Special case priority selection
 
 ### FP32 FMA Architecture
 
-```
-                 ┌─────────────────────────────────────────┐
-                 │         FP32 FMA (a*b + c)              │
-                 │                                         │
-    i_a[31:0] ───┼──► 24x24 Multiplier ──► 48-bit product │
-    i_b[31:0] ───┼──►                                     │
-                 │                                         │
-    i_c[31:0] ───┼──► Alignment Shifter ──► 72-bit aligned│
-                 │                                         │
-                 │   ┌───────────────────────────────────┐ │
-                 │   │ 72-bit Wide Adder                 │ │
-                 │   │ (Han-Carlson prefix adder)        │ │
-                 │   └───────────────────────────────────┘ │
-                 │                   │                     │
-                 │   ┌───────────────┴───────────────────┐ │
-                 │   │ 72-bit CLZ + Normalization        │ │
-                 │   └───────────────────────────────────┘ │
-                 │                   │                     │
-                 │   ┌───────────────┴───────────────────┐ │
-                 │   │ RNE Rounding to FP32              │ │
-                 │   └───────────────────────────────────┘ │
-                 │                   │                     │
- ow_result[31:0] ◄───────────────────┘                     │
-                 └─────────────────────────────────────────┘
+```mermaid
+flowchart TB
+    subgraph FMA["FP32 FMA (a*b + c)"]
+        ia["i_a[31:0]"] --> mult["24x24 Multiplier"]
+        ib["i_b[31:0]"] --> mult
+        mult --> prod["48-bit product"]
+
+        ic["i_c[31:0]"] --> align["Alignment Shifter"]
+        align --> aligned["72-bit aligned"]
+
+        prod --> adder["72-bit Wide Adder<br/>(Han-Carlson prefix adder)"]
+        aligned --> adder
+
+        adder --> norm["72-bit CLZ + Normalization"]
+        norm --> round["RNE Rounding to FP32"]
+    end
+
+    round --> result["ow_result[31:0]"]
 ```
 
 ## IEEE 754 Compliance

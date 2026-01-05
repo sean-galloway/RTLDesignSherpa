@@ -386,15 +386,22 @@ async def test_uart_slave(dut):
 ### UART 8N1 Protocol
 
 **Frame Format:**
-```
-┌───────┬────┬────┬────┬────┬────┬────┬────┬────┬─────────┐
-│ Start │ D0 │ D1 │ D2 │ D3 │ D4 │ D5 │ D6 │ D7 │  Stop   │
-│  (0)  │    │    │    │    │    │    │    │    │   (1)   │
-└───────┴────┴────┴────┴────┴────┴────┴────┴────┴─────────┘
-  1 bit   LSB                              MSB    1 bit
 
-Total: 10 bits per byte
+```wavedrom
+{ signal: [
+  { name: "UART Frame", wave: "x0.2345678.1x", data: ["Start","D0","D1","D2","D3","D4","D5","D6","D7","Stop"] }
+],
+  head: { text: "UART 8N1 Frame: Start (0) + 8 Data (LSB first) + Stop (1) = 10 bits" }
+}
 ```
+
+| Bit | Name | Description |
+|-----|------|-------------|
+| 1 | Start | Always 0 |
+| 2-9 | D0-D7 | Data (LSB first) |
+| 10 | Stop | Always 1 |
+
+*Total: 10 bits per byte*
 
 **Bit Timing:**
 ```

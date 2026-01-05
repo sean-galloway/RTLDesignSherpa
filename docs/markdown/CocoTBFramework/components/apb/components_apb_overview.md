@@ -29,29 +29,35 @@ The APB (Advanced Peripheral Bus) components provide a complete verification env
 
 The APB components follow a layered architecture for protocol verification:
 
-```
-┌─────────────────────────────────────────────────────────┐
-│                    Test Environment                     │
-│              (Sequences, Factories, Tests)             │
-└─────────────────────────────────────────────────────────┘
-┌─────────────────────────────────────────────────────────┐
-│                  APB Protocol Layer                    │
-│   ┌─────────────┐ ┌─────────────┐ ┌─────────────┐     │
-│   │ APB Master  │ │ APB Monitor │ │  APB Slave  │     │
-│   │  (Driver)   │ │ (Observer)  │ │(Responder)  │     │
-│   └─────────────┘ └─────────────┘ └─────────────┘     │
-└─────────────────────────────────────────────────────────┘
-┌─────────────────────────────────────────────────────────┐
-│                 Packet & Sequence Layer                │
-│   ┌─────────────┐ ┌─────────────┐ ┌─────────────┐     │
-│   │ APB Packet  │ │APB Sequence │ │ APB Factory │     │
-│   │ (Protocol)  │ │(Test Gen)   │ │(Creation)   │     │
-│   └─────────────┘ └─────────────┘ └─────────────┘     │
-└─────────────────────────────────────────────────────────┘
-┌─────────────────────────────────────────────────────────┐
-│                   Shared Components                    │
-│    (Memory Model, Randomization, Field Config)        │
-└─────────────────────────────────────────────────────────┘
+```mermaid
+graph TB
+    subgraph TestEnv["Test Environment"]
+        Seq[Sequences]
+        Fact[Factories]
+        Tests[Tests]
+    end
+
+    subgraph APBLayer["APB Protocol Layer"]
+        Master["APB Master<br/>(Driver)"]
+        Monitor["APB Monitor<br/>(Observer)"]
+        Slave["APB Slave<br/>(Responder)"]
+    end
+
+    subgraph PacketLayer["Packet & Sequence Layer"]
+        Packet["APB Packet<br/>(Protocol)"]
+        SeqGen["APB Sequence<br/>(Test Gen)"]
+        Factory["APB Factory<br/>(Creation)"]
+    end
+
+    subgraph Shared["Shared Components"]
+        MemModel[Memory Model]
+        Random[Randomization]
+        FieldCfg[Field Config]
+    end
+
+    TestEnv --> APBLayer
+    APBLayer --> PacketLayer
+    PacketLayer --> Shared
 ```
 
 ## Component Categories
@@ -115,19 +121,19 @@ Simplified component creation and configuration:
 - **Register Testing**: Walking patterns, field access, reset verification
 
 ### Signal Mapping
-```
-APB Master Signals:     APB Slave Signals:
-├── PSEL (out)         ├── PSEL (in)
-├── PENABLE (out)      ├── PENABLE (in)
-├── PWRITE (out)       ├── PWRITE (in)
-├── PADDR (out)        ├── PADDR (in)
-├── PWDATA (out)       ├── PWDATA (in)
-├── PSTRB (out)        ├── PSTRB (in)
-├── PPROT (out)        ├── PPROT (in)
-├── PRDATA (in)        ├── PRDATA (out)
-├── PREADY (in)        └── PREADY (out)
-└── PSLVERR (in)       └── PSLVERR (out)
-```
+
+| APB Master Signals | Direction | APB Slave Signals | Direction |
+|--------------------|-----------|-------------------|-----------|
+| PSEL | out | PSEL | in |
+| PENABLE | out | PENABLE | in |
+| PWRITE | out | PWRITE | in |
+| PADDR | out | PADDR | in |
+| PWDATA | out | PWDATA | in |
+| PSTRB | out | PSTRB | in |
+| PPROT | out | PPROT | in |
+| PRDATA | in | PRDATA | out |
+| PREADY | in | PREADY | out |
+| PSLVERR | in | PSLVERR | out |
 
 ## Design Principles
 

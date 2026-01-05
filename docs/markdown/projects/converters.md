@@ -57,26 +57,31 @@ Provides command-line memory access over UART for:
 
 ### Architecture
 
-```
-┌─────────────────────────────────────────────────────────┐
-│              uart_axil_bridge (Top Level)               │
-├─────────────────────────────────────────────────────────┤
-│                                                         │
-│  ┌──────────┐     ┌──────────────┐     ┌───────────┐  │
-│  │  UART RX │────▶│   Command    │────▶│  AXI4-Lite│  │
-│  │ (uart_rx)│     │    Parser    │     │   Master  │  │
-│  └──────────┘     │              │     │ (W + R)   │  │
-│                   │ - CMD_IDLE   │     └───────────┘  │
-│  ┌──────────┐     │ - READ_ADDR  │           │        │
-│  │  UART TX │◀────│ - READ_DATA  │           │        │
-│  │ (uart_tx)│     │ - EXECUTE    │     ┌─────▼─────┐  │
-│  └──────────┘     │ - RESPONSE   │     │Skid Buffers│  │
-│                   │              │     │(Timing Iso)│  │
-│                   └──────────────┘     └───────────┘  │
-│                                              │         │
-│                                        AXI4-Lite       │
-│                                        Master I/F      │
-└─────────────────────────────────────────────────────────┘
+```mermaid
+graph TB
+    subgraph Bridge["uart_axil_bridge (Top Level)"]
+        subgraph UartLayer["UART Layer"]
+            RX["UART RX<br/>(uart_rx)"]
+            TX["UART TX<br/>(uart_tx)"]
+        end
+
+        subgraph Parser["Command Parser"]
+            FSM["FSM States:<br/>- CMD_IDLE<br/>- READ_ADDR<br/>- READ_DATA<br/>- EXECUTE<br/>- RESPONSE"]
+        end
+
+        subgraph AxiLayer["AXI4-Lite Layer"]
+            Master["AXI4-Lite Master<br/>(W + R)"]
+            Skid["Skid Buffers<br/>(Timing Iso)"]
+        end
+
+        Output["AXI4-Lite Master I/F"]
+    end
+
+    RX --> FSM
+    FSM --> TX
+    FSM --> Master
+    Master --> Skid
+    Skid --> Output
 ```
 
 **Key Components:**

@@ -49,37 +49,61 @@ The AXI4 Read Data Width Converter provides data width conversion for read-only 
 
 ### Upsize Mode (Narrow → Wide Reads)
 
+```mermaid
+flowchart LR
+    subgraph SL["Slave (Narrow)<br/>32-bit"]
+        ar["s_axi_ar* →"]
+        r["← s_axi_r*"]
+    end
+
+    subgraph BUF["Address Converter"]
+        arb["AR FIFO"]
+        rb["R FIFO"]
+    end
+
+    subgraph CONV["Read Path<br/>Converter"]
+        up["RD Upsize<br/>- ARLEN/4<br/>- Unpack<br/>- RRESP"]
+    end
+
+    subgraph M["Master (Wide)<br/>128-bit"]
+        mar["→ m_axi_ar*"]
+        mr["m_axi_r* →"]
+    end
+
+    ar --> arb --> up --> mar
+    mr --> up --> rb --> r
 ```
-Slave (Narrow)      Address       Read Path          Master (Wide)
-   32-bit          Converter      Converter             128-bit
-                 ┌────────────┐  ┌────────────┐
-  s_axi_ar* ────►│ AR FIFO    │  │            │
-                 │            ├─►│ RD Upsize  ├───────► m_axi_ar*
-                 │            │  │            │
-                 │            │  │ - ARLEN/4  │
-  s_axi_r*  ◄────│ R FIFO     │  │ - Unpack   │
-                 │            │◄─┤ - RRESP    │◄──────── m_axi_r*
-                 └────────────┘  └────────────┘
 
 Example: 16 narrow R beats (32-bit) ← 4 wide R beats (128-bit)
-```
 
 ### Downsize Mode (Wide → Narrow Reads)
 
+```mermaid
+flowchart LR
+    subgraph SL["Slave (Wide)<br/>128-bit"]
+        ar["s_axi_ar* →"]
+        r["← s_axi_r*"]
+    end
+
+    subgraph BUF["Address Converter"]
+        arb["AR FIFO"]
+        rb["R FIFO"]
+    end
+
+    subgraph CONV["Read Path<br/>Converter"]
+        down["RD Downsize<br/>- ARLEN×4<br/>- Pack<br/>- RRESP"]
+    end
+
+    subgraph M["Master (Narrow)<br/>32-bit"]
+        mar["→ m_axi_ar*"]
+        mr["m_axi_r* →"]
+    end
+
+    ar --> arb --> down --> mar
+    mr --> down --> rb --> r
 ```
-Slave (Wide)       Address       Read Path          Master (Narrow)
-   128-bit        Converter      Converter              32-bit
-                 ┌────────────┐  ┌────────────┐
-  s_axi_ar* ────►│ AR FIFO    │  │            │
-                 │            ├─►│ RD Downsize├───────► m_axi_ar*
-                 │            │  │            │
-                 │            │  │ - ARLEN×4  │
-  s_axi_r*  ◄────│ R FIFO     │  │ - Pack     │
-                 │            │◄─┤ - RRESP    │◄──────── m_axi_r*
-                 └────────────┘  └────────────┘
 
 Example: 4 wide R beats (128-bit) ← 16 narrow R beats (32-bit)
-```
 
 ---
 

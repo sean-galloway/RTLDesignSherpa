@@ -128,27 +128,28 @@ await master.send(packet)
 
 ## Architecture Overview
 
-```
-┌─────────────────────────────────────────────────────────┐
-│                    Test Applications                    │
-│                 (Your specific tests)                  │
-└─────────────────────────────────────────────────────────┘
-┌─────────────────────────────────────────────────────────┐
-│                  Advanced Monitoring                   │
-│         (Profiling, Metrics, Debugging)                │
-└─────────────────────────────────────────────────────────┘
-┌─────────────────────────────────────────────────────────┐
-│                    Monitor Bus                         │
-│         (Cross-protocol event monitoring)              │
-└─────────────────────────────────────────────────────────┘
-┌─────────────────────────────────────────────────────────┐
-│                     TBBase                             │
-│          (Common testbench infrastructure)             │
-└─────────────────────────────────────────────────────────┘
-┌─────────────────────────────────────────────────────────┐
-│                    Utilities                           │
-│         (Environment, Paths, Tool Integration)         │
-└─────────────────────────────────────────────────────────┘
+```mermaid
+graph TB
+    subgraph TestApps["Test Applications"]
+        Apps[Your specific tests]
+    end
+    subgraph AdvMon["Advanced Monitoring"]
+        Profiling[Profiling, Metrics, Debugging]
+    end
+    subgraph MonBus["Monitor Bus"]
+        CrossProto[Cross-protocol event monitoring]
+    end
+    subgraph TBBaseLayer["TBBase"]
+        Infra[Common testbench infrastructure]
+    end
+    subgraph Utils["Utilities"]
+        Env[Environment, Paths, Tool Integration]
+    end
+
+    TestApps --> AdvMon
+    AdvMon --> MonBus
+    MonBus --> TBBaseLayer
+    TBBaseLayer --> Utils
 ```
 
 ## Integration Patterns

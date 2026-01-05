@@ -29,25 +29,30 @@ The shared components directory contains the foundational building blocks used a
 
 The shared components follow a layered architecture:
 
-```
-┌─────────────────────────────────────────────────────────┐
-│                    Protocol Layers                     │
-│              (GAXI, FIFO, APB, AXI4)                  │
-└─────────────────────────────────────────────────────────┘
-┌─────────────────────────────────────────────────────────┐
-│                  Shared Components                     │
-│   ┌─────────────┐ ┌─────────────┐ ┌─────────────┐     │
-│   │   Packet    │ │Randomization│ │ Statistics  │     │
-│   │ Management  │ │  & Config   │ │& Monitoring │     │
-│   └─────────────┘ └─────────────┘ └─────────────┘     │
-│   ┌─────────────┐ ┌─────────────┐ ┌─────────────┐     │
-│   │   Memory    │ │   Signal    │ │ Utilities & │     │
-│   │   Model     │ │  Mapping    │ │   Debug     │     │
-│   └─────────────┘ └─────────────┘ └─────────────┘     │
-└─────────────────────────────────────────────────────────┘
-┌─────────────────────────────────────────────────────────┐
-│                     CocoTB Core                        │
-└─────────────────────────────────────────────────────────┘
+```mermaid
+graph TB
+    subgraph Proto["Protocol Layers"]
+        GAXI[GAXI]
+        FIFO[FIFO]
+        APB[APB]
+        AXI4[AXI4]
+    end
+
+    subgraph Shared["Shared Components"]
+        Packet[Packet Management]
+        Random[Randomization & Config]
+        Stats[Statistics & Monitoring]
+        Memory[Memory Model]
+        Signal[Signal Mapping]
+        Utils[Utilities & Debug]
+    end
+
+    subgraph Core["CocoTB Core"]
+        CocoTB[CocoTB Framework]
+    end
+
+    Proto --> Shared
+    Shared --> Core
 ```
 
 ## Component Categories

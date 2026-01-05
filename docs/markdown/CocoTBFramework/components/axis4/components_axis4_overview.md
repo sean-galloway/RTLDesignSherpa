@@ -48,25 +48,32 @@ While inheriting GAXI's power, AXIS4 components are specifically optimized for s
 
 ## Core Components Architecture
 
-```
-┌─────────────────────────────────────────────────────────────────┐
-│                    AXIS4 Component Ecosystem                   │
-├─────────────────────────────────────────────────────────────────┤
-│  ┌─────────────┐ ┌─────────────┐ ┌─────────────┐ ┌─────────────┐ │
-│  │    AXIS     │ │    AXIS     │ │    AXIS     │ │    AXIS     │ │
-│  │   Master    │ │    Slave    │ │   Monitor   │ │   Packet    │ │
-│  └─────────────┘ └─────────────┘ └─────────────┘ └─────────────┘ │
-│         │               │               │               │       │
-│  ┌─────────────────────────────────────────────────────────────┐ │
-│  │              AXIS Field Configurations                     │ │
-│  └─────────────────────────────────────────────────────────────┘ │
-│         │               │               │               │       │
-│  ┌─────────────────────────────────────────────────────────────┐ │
-│  │                GAXI Infrastructure                         │ │
-│  │  • Signal Resolution  • Memory Models  • Statistics       │ │
-│  │  • Field Handling     • Debug Support  • Configuration    │ │
-│  └─────────────────────────────────────────────────────────────┘ │
-└─────────────────────────────────────────────────────────────────┘
+```mermaid
+graph TB
+    subgraph Ecosystem["AXIS4 Component Ecosystem"]
+        subgraph Components["Core Components"]
+            Master[AXIS Master]
+            Slave[AXIS Slave]
+            Monitor[AXIS Monitor]
+            Packet[AXIS Packet]
+        end
+
+        subgraph FieldCfg["AXIS Field Configurations"]
+            Cfg[Field Config System]
+        end
+
+        subgraph GAXI["GAXI Infrastructure"]
+            SigRes[Signal Resolution]
+            MemMdl[Memory Models]
+            Stats[Statistics]
+            FieldHandle[Field Handling]
+            Debug[Debug Support]
+            Config[Configuration]
+        end
+    end
+
+    Components --> FieldCfg
+    FieldCfg --> GAXI
 ```
 
 ## Component Capabilities

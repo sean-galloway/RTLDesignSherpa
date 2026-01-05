@@ -88,18 +88,18 @@ A - B = A + (~B) + 1
 
 ### Logic Diagram
 
-```
-i_c (control) ──┬─────────────────────────────┐
-                │                             │
-                │  ┌───┐                      ├──> carry_in
-i_b[i] ────────>│──┤XOR├──> w_ip[i] ────┐    │
-                └──┴───┘                 │    │
-                                     ┌───▼────▼───┐
-i_a[i] ──────────────────────────────┤            │
-                                     │ Full Adder ├──> ow_sum[i]
-                                     │            │
-carry[i-1] ──────────────────────────┤            ├──> carry[i]
-                                     └────────────┘
+```mermaid
+flowchart LR
+    ic["i_c<br/>(control)"] --> xor["XOR"]
+    ib["i_b[i]"] --> xor
+    xor --> wip["w_ip[i]"]
+    wip --> fa["Full Adder"]
+    ia["i_a[i]"] --> fa
+    ic --> cin["carry_in"]
+    cin --> fa
+    cprev["carry[i-1]"] --> fa
+    fa --> sum["ow_sum[i]"]
+    fa --> cout["carry[i]"]
 ```
 
 ### Implementation

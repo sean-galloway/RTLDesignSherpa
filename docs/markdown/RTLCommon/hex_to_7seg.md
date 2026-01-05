@@ -137,14 +137,11 @@ end
 ## Display Technology Integration
 
 ### Common Anode Connection
-```
-    VCC
-     │
-   ┌─┴─┐
-   │ a │ LED
-   └─┬─┘
-     │
-   Output A (from controller)
+
+```mermaid
+flowchart TB
+    VCC["VCC (+V)"] --> LED["LED<br/>segment a"]
+    LED --> Out["Output A<br/>(controller)"]
 ```
 
 ### Common Cathode Alternative

@@ -136,35 +136,31 @@ The AXIL4 Master Write module provides a buffered AXI4-Lite write interface for 
 
 ## Module Architecture
 
-```
-Frontend               AW/W/B Skid Buffers            Backend
-(CPU/Logic)           (Depth = 2^SKID_DEPTH_*)      (Memory/Periph)
-    │
-    │  AW Channel (Address)
-    │  fub_awaddr                              m_axil_awaddr
-    │  fub_awprot   ┌──────────────────────┐  m_axil_awprot
-    ├──────────────►│  gaxi_skid_buffer    ├──────────────►
-    │  fub_awvalid  │  DEPTH = 2^2 (4)     │  m_axil_awvalid
-    │◄──────────────┤  AWSize = AW+3       │◄──────────────
-    │  fub_awready  └──────────────────────┘  m_axil_awready
-    │
-    │  W Channel (Data)
-    │  fub_wdata                               m_axil_wdata
-    │  fub_wstrb    ┌──────────────────────┐  m_axil_wstrb
-    ├──────────────►│  gaxi_skid_buffer    ├──────────────►
-    │  fub_wvalid   │  DEPTH = 2^2 (4)     │  m_axil_wvalid
-    │◄──────────────┤  WSize = DW+(DW/8)   │◄──────────────
-    │  fub_wready   └──────────────────────┘  m_axil_wready
-    │
-    │  B Channel (Response)
-    │  fub_bresp                               m_axil_bresp
-    │◄──────────────┤  gaxi_skid_buffer    │◄──────────────
-    │  fub_bvalid   │  DEPTH = 2^2 (4)     │  m_axil_bvalid
-    ├──────────────►│  BSize = 2           ├──────────────►
-    │  fub_bready   └──────────────────────┘  m_axil_bready
-    │
-    │  busy = (aw_count>0) || (w_count>0) || (b_count>0)
-    └────────────────────────────────────────────────────►
+```mermaid
+flowchart LR
+    subgraph FE["Frontend<br/>(CPU/Logic)"]
+        faw["fub_aw*"]
+        fw["fub_w*"]
+        fb["fub_b*"]
+    end
+
+    subgraph BUF["AW/W/B Skid Buffers"]
+        aw["AW Channel<br/>gaxi_skid_buffer<br/>DEPTH=4"]
+        w["W Channel<br/>gaxi_skid_buffer<br/>DEPTH=4"]
+        b["B Channel<br/>gaxi_skid_buffer<br/>DEPTH=4"]
+    end
+
+    subgraph BE["Backend<br/>(Memory/Periph)"]
+        maw["m_axil_aw*"]
+        mw["m_axil_w*"]
+        mb["m_axil_b*"]
+    end
+
+    faw --> aw --> maw
+    fw --> w --> mw
+    mb --> b --> fb
+
+    BUF --> busy["busy"]
 ```
 
 ---

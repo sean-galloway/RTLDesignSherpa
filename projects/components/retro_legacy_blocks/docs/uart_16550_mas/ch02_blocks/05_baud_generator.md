@@ -29,22 +29,19 @@ The baud generator creates the 16x oversampled clock used by TX and RX engines f
 
 ## Block Diagram
 
+### Figure 2.5: Baud Generator Block
+
 ![Baud Generator Block](../assets/svg/uart_baud_gen.svg)
 
 ## Operation
 
 ### Clock Division
 
-```
-                         +-------------+
-input_clk (pclk) ------->| 16-bit      |-----> 16x_baud_clk
-                         | Divider     |
-                         +-------------+
-                               ^
-                               |
-                         +-----+-----+
-                         | {DLM,DLL} |
-                         +-----------+
+```mermaid
+flowchart LR
+    A["input_clk<br/>(pclk)"] --> B["16-bit<br/>Divider"]
+    C["{DLM,DLL}"] --> B
+    B --> D["16x_baud_clk"]
 ```
 
 ### Formula

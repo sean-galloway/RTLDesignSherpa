@@ -84,18 +84,27 @@ Key interface groups:
 
 ## Architecture
 
-```
-mon_valid[0] ──┐
-mon_data[0]  ──┤
-               │
-mon_valid[1] ──┤
-mon_data[1]  ──┤──► ┌─────────────┐      ┌─────────┐
-               │    │  Arbiter    │      │   Mux   │
-mon_valid[N] ──┤    │   Logic     │──────│         │──► agg_valid/data
-mon_data[N]  ──┘    └─────────────┘      └─────────┘
-                            │
-                            ▼
-                    mon_ready[0..N]
+```mermaid
+flowchart LR
+    subgraph Inputs["Monitor Inputs"]
+        v0["mon_valid[0]"]
+        d0["mon_data[0]"]
+        v1["mon_valid[1]"]
+        d1["mon_data[1]"]
+        vn["mon_valid[N]"]
+        dn["mon_data[N]"]
+    end
+
+    v0 --> arb["Arbiter<br/>Logic"]
+    d0 --> arb
+    v1 --> arb
+    d1 --> arb
+    vn --> arb
+    dn --> arb
+
+    arb --> mux["Mux"]
+    mux --> out["agg_valid/data"]
+    arb --> rdy["mon_ready[0..N]"]
 ```
 
 Arbitration policies supported:

@@ -149,6 +149,8 @@ Detected when:
 
 ## Line Status Error Detection
 
+### Waveform 3.1: Line Status Error Detection
+
 The following diagram shows framing error detection when a stop bit is sampled as 0.
 
 ![UART Line Status](../assets/wavedrom/timing/uart_line_status.svg)

@@ -29,32 +29,38 @@ The RX engine handles input synchronization, start bit detection, deserializatio
 
 ## Block Diagram
 
+### Figure 2.4: RX Engine Block
+
 ![RX Engine Block](../assets/svg/uart_rx_engine.svg)
 
 ## Data Path
 
-```
-RXD --> Synchronizer --> Start Detect --> Deserializer --> RX FIFO --> RBR
-                                              |
-                                              v
-                                         Error Flags
-                                         (PE, FE, BI, OE)
+```mermaid
+flowchart LR
+    A["RXD"] --> B["Synchronizer"]
+    B --> C["Start Detect"]
+    C --> D["Deserializer"]
+    D --> E["RX FIFO"]
+    E --> F["RBR"]
+    D --> G["Error Flags<br/>(PE, FE, BI, OE)"]
 ```
 
 ## Input Synchronizer
 
 ### Metastability Prevention
 
-```
-RXD --> FF1 --> FF2 --> synced_rxd
-       (clk)   (clk)
+```mermaid
+flowchart LR
+    A["RXD"] --> B["FF1<br/>(clk)"]
+    B --> C["FF2<br/>(clk)"]
+    C --> D["synced_rxd"]
 ```
 
 - Two-stage synchronizer
 - Prevents metastability from asynchronous input
 - Adds 2 clock cycles latency
 
-### RX Byte Reception
+### Waveform 2.4: RX Byte Reception
 
 The following diagram shows the complete RX path from serial input to FIFO.
 
@@ -91,12 +97,16 @@ Short pulses (< 4 clocks) rejected as noise.
 
 ### Frame Reception
 
-```
-State Machine:
-IDLE --> START --> DATA[0..n] --> PARITY --> STOP --> IDLE
-                       |              |         |
-                       v              v         v
-                   Shift data    Check parity  Check framing
+```mermaid
+flowchart LR
+    A["IDLE"] --> B["START"]
+    B --> C["DATA[0..n]"]
+    C --> D["PARITY"]
+    D --> E["STOP"]
+    E --> A
+    C -->|"Shift data"| F["Data Shift Register"]
+    D -->|"Check parity"| G["Parity Checker"]
+    E -->|"Check framing"| H["Frame Checker"]
 ```
 
 ## RX FIFO

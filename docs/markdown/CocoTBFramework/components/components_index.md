@@ -87,36 +87,35 @@ memory = MemoryModel(num_lines=256, bytes_per_line=4)
 ## Architecture Overview
 
 ### Component Hierarchy
-```
-┌─────────────────────────────────────────────────────────┐
-│                 Protocol Components                    │
-│   ┌─────────────┐ ┌─────────────┐ ┌─────────────┐     │
-│   │     APB     │ │    AXI4     │ │   AXIL4     │     │
-│   │ Components  │ │ Components  │ │ Components  │     │
-│   └─────────────┘ └─────────────┘ └─────────────┘     │
-│   ┌─────────────┐ ┌─────────────┐ ┌─────────────┐     │
-│   │   AXIS4     │ │    GAXI     │ │    FIFO     │     │
-│   │ Components  │ │ Components  │ │ Components  │     │
-│   └─────────────┘ └─────────────┘ └─────────────┘     │
-└─────────────────────────────────────────────────────────┘
-┌─────────────────────────────────────────────────────────┐
-│                 Specialized Components                 │
-│   ┌─────────────┐ ┌─────────────┐ ┌─────────────┐     │
-│   │    Misc     │ │   Future    │ │   Future    │     │
-│   │ Components  │ │ Components  │ │ Components  │     │
-│   └─────────────┘ └─────────────┘ └─────────────┘     │
-└─────────────────────────────────────────────────────────┘
-┌─────────────────────────────────────────────────────────┐
-│                  Shared Infrastructure                 │
-│  ┌─────────────┐ ┌─────────────┐ ┌─────────────┐     │
-│  │   Packet    │ │Randomization│ │ Statistics  │     │
-│  │ Management  │ │  & Config   │ │& Monitoring │     │
-│  └─────────────┘ └─────────────┘ └─────────────┘     │
-│  ┌─────────────┐ ┌─────────────┐ ┌─────────────┐     │
-│  │   Memory    │ │   Signal    │ │ Utilities & │     │
-│  │   Model     │ │  Mapping    │ │   Debug     │     │
-│  └─────────────┘ └─────────────┘ └─────────────┘     │
-└─────────────────────────────────────────────────────────┘
+
+```mermaid
+graph TB
+    subgraph Protocol["Protocol Components"]
+        APB[APB Components]
+        AXI4[AXI4 Components]
+        AXIL4[AXIL4 Components]
+        AXIS4[AXIS4 Components]
+        GAXI[GAXI Components]
+        FIFO[FIFO Components]
+    end
+
+    subgraph Specialized["Specialized Components"]
+        Misc[Misc Components]
+        Future1[Future Components]
+        Future2[Extensions]
+    end
+
+    subgraph Shared["Shared Infrastructure"]
+        Packet[Packet Management]
+        Random[Randomization & Config]
+        Stats[Statistics & Monitoring]
+        Memory[Memory Model]
+        Signal[Signal Mapping]
+        Utils[Utilities & Debug]
+    end
+
+    Protocol --> Specialized
+    Specialized --> Shared
 ```
 
 ## Key Features

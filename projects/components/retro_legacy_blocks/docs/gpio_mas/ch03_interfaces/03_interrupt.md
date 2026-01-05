@@ -55,19 +55,13 @@ Each GPIO pin can generate interrupts independently:
 
 ### Edge-Triggered
 
-```
 GPIO_INT_TYPE[i] = 0
 
-        synced_input
-              |
-              v
-         +----------+
-         | Edge     |
-         | Detect   |---> Set STATUS[i]
-         +----------+
-              ^
-              |
-    Polarity/Both Config
+```mermaid
+flowchart TD
+    A["synced_input"] --> B["Edge Detect"]
+    C["Polarity/Both Config"] --> B
+    B --> D["Set STATUS[i]"]
 ```
 
 - Captures transitions on synchronized input
@@ -76,19 +70,13 @@ GPIO_INT_TYPE[i] = 0
 
 ### Level-Sensitive
 
-```
 GPIO_INT_TYPE[i] = 1
 
-        synced_input
-              |
-              v
-         +----------+
-         | Level    |
-         | Compare  |---> STATUS[i]
-         +----------+
-              ^
-              |
-    Polarity Config
+```mermaid
+flowchart TD
+    A["synced_input"] --> B["Level Compare"]
+    C["Polarity Config"] --> B
+    B --> D["STATUS[i]"]
 ```
 
 - Continuously compares input to polarity
@@ -99,21 +87,26 @@ GPIO_INT_TYPE[i] = 1
 
 ### Edge-Triggered Latency
 
+```mermaid
+flowchart LR
+    A["External event"] -->|"2 cycles"| B["Synchronizer"]
+    B -->|"1 cycle"| C["Edge detect"]
+    C -->|"1 cycle"| D["STATUS set"]
+    D --> E["IRQ"]
 ```
-External event --> Synchronizer --> Edge detect --> STATUS set --> IRQ
-                   (2 cycles)      (1 cycle)       (1 cycle)
 
 Total: 4 clock cycles typical
-```
 
 ### Level-Sensitive Latency
 
+```mermaid
+flowchart LR
+    A["External level"] -->|"2 cycles"| B["Synchronizer"]
+    B -->|"1 cycle"| C["Level compare"]
+    C --> D["IRQ"]
 ```
-External level --> Synchronizer --> Level compare --> IRQ
-                   (2 cycles)       (1 cycle)
 
 Total: 3 clock cycles typical
-```
 
 ## Interrupt Handling
 

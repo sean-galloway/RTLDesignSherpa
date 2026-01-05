@@ -81,18 +81,27 @@ The sum computation uses the **original** single-bit propagate P[i], not the gro
 
 ### Visual Comparison
 
-```
-Black Cell:                    Gray Cell:
+```mermaid
+flowchart LR
+    subgraph BlackCell["Black Cell"]
+        ghi1["i_g_hi"] --> owg1["ow_g"]
+        phi1["i_p_hi"] --> and1["AND"]
+        glo1["i_g_lo"] --> and1
+        and1 --> or1["OR"]
+        or1 --> owg1
+        plo1["i_p_lo"] --> and2["AND"]
+        phi1 --> and2
+        and2 --> owp1["ow_p"]
+    end
 
- i_g_hi ─┬─────────── ow_g      i_g_hi ─┬─────────── ow_g
-         │                              │
- i_p_hi ─┼─ AND ─ OR ─┘          i_p_hi ─┼─ AND ─ OR ─┘
-         │         │                     │
- i_g_lo ─┴─────────┘             i_g_lo ─┘
-         │
- i_p_lo ─┼─ AND ───── ow_p      (no P output)
-         │
-         └─────────┘
+    subgraph GrayCell["Gray Cell"]
+        ghi2["i_g_hi"] --> owg2["ow_g"]
+        phi2["i_p_hi"] --> and3["AND"]
+        glo2["i_g_lo"] --> and3
+        and3 --> or2["OR"]
+        or2 --> owg2
+        nop["(no P output)"]
+    end
 ```
 
 ## Timing Characteristics

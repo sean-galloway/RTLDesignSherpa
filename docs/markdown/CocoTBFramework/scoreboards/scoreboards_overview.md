@@ -41,36 +41,37 @@ The scoreboard system is designed around the principles of **automated verificat
 
 The scoreboard system follows a layered architecture that separates protocol-specific logic from common verification infrastructure:
 
-```
-┌─────────────────────────────────────────────────────────┐
-│                 Application Layer                      │
-│              (Test Scripts & Sequences)                │
-└─────────────────────────────────────────────────────────┘
-┌─────────────────────────────────────────────────────────┐
-│              Protocol-Specific Layer                   │
-│   ┌─────────────┐ ┌─────────────┐ ┌─────────────┐     │
-│   │     APB     │ │    GAXI     │ │    FIFO     │     │
-│   │ Scoreboard  │ │ Scoreboard  │ │ Scoreboard  │     │
-│   └─────────────┘ └─────────────┘ └─────────────┘     │
-│   ┌─────────────┐ ┌─────────────┐ ┌─────────────┐     │
-│   │    AXI4     │ │ APB-GAXI    │ │   Custom    │     │
-│   │ Scoreboard  │ │   Bridge    │ │ Scoreboards │     │
-│   └─────────────┘ └─────────────┘ └─────────────┘     │
-└─────────────────────────────────────────────────────────┘
-┌─────────────────────────────────────────────────────────┐
-│              Cross-Protocol Layer                      │
-│   ┌─────────────┐ ┌─────────────┐ ┌─────────────┐     │
-│   │ Protocol    │ │ Transform   │ │ Memory      │     │
-│   │Transformers │ │ Scoreboards │ │ Adapters    │     │
-│   └─────────────┘ └─────────────┘ └─────────────┘     │
-└─────────────────────────────────────────────────────────┘
-┌─────────────────────────────────────────────────────────┐
-│                 Foundation Layer                       │
-│   ┌─────────────┐ ┌─────────────┐ ┌─────────────┐     │
-│   │    Base     │ │ Transaction │ │ Statistics  │     │
-│   │ Scoreboard  │ │   Queuing   │ │& Reporting  │     │
-│   └─────────────┘ └─────────────┘ └─────────────┘     │
-└─────────────────────────────────────────────────────────┘
+```mermaid
+graph TB
+    subgraph AppLayer["Application Layer"]
+        TestScripts[Test Scripts]
+        Sequences[Sequences]
+    end
+
+    subgraph ProtoLayer["Protocol-Specific Layer"]
+        APB_SB[APB Scoreboard]
+        GAXI_SB[GAXI Scoreboard]
+        FIFO_SB[FIFO Scoreboard]
+        AXI4_SB[AXI4 Scoreboard]
+        APBGAXI_SB[APB-GAXI Bridge]
+        Custom_SB[Custom Scoreboards]
+    end
+
+    subgraph CrossLayer["Cross-Protocol Layer"]
+        Transformers[Protocol Transformers]
+        TransformSB[Transform Scoreboards]
+        MemAdapters[Memory Adapters]
+    end
+
+    subgraph Foundation["Foundation Layer"]
+        BaseSB[Base Scoreboard]
+        TxnQueue[Transaction Queuing]
+        StatsReport[Statistics & Reporting]
+    end
+
+    AppLayer --> ProtoLayer
+    ProtoLayer --> CrossLayer
+    CrossLayer --> Foundation
 ```
 
 ## Core Framework Components

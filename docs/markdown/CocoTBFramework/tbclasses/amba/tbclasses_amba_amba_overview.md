@@ -53,18 +53,26 @@ These components work together to enable comprehensive verification of AMBA-base
 
 ## Architecture Overview
 
-```
-┌─────────────────────────────────────────────────────────┐
-│                 AMBA Testbench Layer                   │
-├─────────────────────────────────────────────────────────┤
-│  Clock Gating Control  │  Randomization Configurations │
-│  (amba_cg_ctrl.py)     │  (amba_random_configs.py)     │
-├─────────────────────────────────────────────────────────┤
-│              CocoTBFramework TBBase                     │
-├─────────────────────────────────────────────────────────┤
-│              Protocol Components                        │
-│         (APB, AXI4, GAXI, FIFO)                        │
-└─────────────────────────────────────────────────────────┘
+```mermaid
+graph TB
+    subgraph AMBALayer["AMBA Testbench Layer"]
+        CG["Clock Gating Control<br/>(amba_cg_ctrl.py)"]
+        Random["Randomization Configurations<br/>(amba_random_configs.py)"]
+    end
+
+    subgraph TBBase["CocoTBFramework TBBase"]
+        Base[Base Testbench Infrastructure]
+    end
+
+    subgraph Proto["Protocol Components"]
+        APB[APB]
+        AXI4[AXI4]
+        GAXI[GAXI]
+        FIFO[FIFO]
+    end
+
+    AMBALayer --> TBBase
+    TBBase --> Proto
 ```
 
 ## Key Components

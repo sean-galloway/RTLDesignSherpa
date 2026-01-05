@@ -50,47 +50,93 @@ The AXI4 Data Width Converter provides bidirectional data width conversion betwe
 
 ### Upsize Mode (Narrow → Wide)
 
-```
-Slave (Narrow)      Address       Write Path         Read Path       Master (Wide)
-   32-bit          Converter      Converter          Converter          128-bit
-                 ┌────────────┐  ┌────────────┐   ┌────────────┐
-  s_axi_aw* ────►│ AW FIFO    │  │            │   │            │
-                 │            ├─►│ WR Upsize  ├──►│            ├───► m_axi_aw*
-  s_axi_w*  ────►│ W FIFO     │  │ - Pack 4→1 │   │            │
-                 │            │  │ - AWLEN/4  │   │            ├───► m_axi_w*
-  s_axi_b*  ◄────│ B FIFO     │  │ - WSTRB    │   │            │
-                 └────────────┘  └────────────┘   │            ├◄─── m_axi_b*
-                                                  │            │
-  s_axi_ar* ────►│ AR FIFO    │                  │ RD Upsize  │
-                 │            ├─────────────────►│ - Unpack   ├───► m_axi_ar*
-  s_axi_r*  ◄────│ R FIFO     │                  │ - ARLEN/4  │
-                 └────────────┘                  └────────────┘◄──── m_axi_r*
+```mermaid
+flowchart LR
+    subgraph Slave["Slave (Narrow 32-bit)"]
+        saw["s_axi_aw*"]
+        sw["s_axi_w*"]
+        sb["s_axi_b*"]
+        sar["s_axi_ar*"]
+        sr["s_axi_r*"]
+    end
 
-WIDTH_RATIO = 4 (128/32)
-Burst: 16 beats @ 32-bit → 4 beats @ 128-bit
+    subgraph FIFO["Address FIFOs"]
+        awf["AW FIFO"]
+        wf["W FIFO"]
+        bf["B FIFO"]
+        arf["AR FIFO"]
+        rf["R FIFO"]
+    end
+
+    subgraph WrConv["Write Converter"]
+        wrup["WR Upsize<br/>- Pack 4→1<br/>- AWLEN/4<br/>- WSTRB"]
+    end
+
+    subgraph RdConv["Read Converter"]
+        rdup["RD Upsize<br/>- Unpack<br/>- ARLEN/4"]
+    end
+
+    subgraph Master["Master (Wide 128-bit)"]
+        maw["m_axi_aw*"]
+        mw["m_axi_w*"]
+        mb["m_axi_b*"]
+        mar["m_axi_ar*"]
+        mr["m_axi_r*"]
+    end
+
+    saw --> awf --> wrup --> maw
+    sw --> wf --> wrup --> mw
+    mb --> bf --> sb
+    sar --> arf --> rdup --> mar
+    mr --> rdup --> rf --> sr
 ```
+
+**WIDTH_RATIO = 4** (128/32): Burst 16 beats @ 32-bit → 4 beats @ 128-bit
 
 ### Downsize Mode (Wide → Narrow)
 
-```
-Slave (Wide)       Address       Write Path         Read Path       Master (Narrow)
-   128-bit        Converter      Converter          Converter           32-bit
-                 ┌────────────┐  ┌────────────┐   ┌────────────┐
-  s_axi_aw* ────►│ AW FIFO    │  │            │   │            │
-                 │            ├─►│ WR Downsize├──►│            ├───► m_axi_aw*
-  s_axi_w*  ────►│ W FIFO     │  │ - Unpack   │   │            │
-                 │            │  │ - AWLEN×4  │   │            ├───► m_axi_w*
-  s_axi_b*  ◄────│ B FIFO     │  │ - WSTRB    │   │            │
-                 └────────────┘  └────────────┘   │            ├◄─── m_axi_b*
-                                                  │            │
-  s_axi_ar* ────►│ AR FIFO    │                  │ RD Downsize│
-                 │            ├─────────────────►│ - Pack     ├───► m_axi_ar*
-  s_axi_r*  ◄────│ R FIFO     │                  │ - ARLEN×4  │
-                 └────────────┘                  └────────────┘◄──── m_axi_r*
+```mermaid
+flowchart LR
+    subgraph Slave["Slave (Wide 128-bit)"]
+        saw2["s_axi_aw*"]
+        sw2["s_axi_w*"]
+        sb2["s_axi_b*"]
+        sar2["s_axi_ar*"]
+        sr2["s_axi_r*"]
+    end
 
-WIDTH_RATIO = 4 (128/32)
-Burst: 4 beats @ 128-bit → 16 beats @ 32-bit
+    subgraph FIFO2["Address FIFOs"]
+        awf2["AW FIFO"]
+        wf2["W FIFO"]
+        bf2["B FIFO"]
+        arf2["AR FIFO"]
+        rf2["R FIFO"]
+    end
+
+    subgraph WrConv2["Write Converter"]
+        wrdn["WR Downsize<br/>- Unpack<br/>- AWLEN×4<br/>- WSTRB"]
+    end
+
+    subgraph RdConv2["Read Converter"]
+        rddn["RD Downsize<br/>- Pack<br/>- ARLEN×4"]
+    end
+
+    subgraph Master2["Master (Narrow 32-bit)"]
+        maw2["m_axi_aw*"]
+        mw2["m_axi_w*"]
+        mb2["m_axi_b*"]
+        mar2["m_axi_ar*"]
+        mr2["m_axi_r*"]
+    end
+
+    saw2 --> awf2 --> wrdn --> maw2
+    sw2 --> wf2 --> wrdn --> mw2
+    mb2 --> bf2 --> sb2
+    sar2 --> arf2 --> rddn --> mar2
+    mr2 --> rddn --> rf2 --> sr2
 ```
+
+**WIDTH_RATIO = 4** (128/32): Burst 4 beats @ 128-bit → 16 beats @ 32-bit
 
 ---
 

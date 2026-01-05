@@ -162,16 +162,17 @@ Stage:    0 -----> 1 -----> 2 -----> 3 -----> ... -----> NUM_VALS
 
 ### Signal Flow
 
-```
-data[...] ─────┐
-              ┌▼─────────────┐    ┌──────────────┐    ┌──────────────┐
-valid_in ────▶│   Stage 0    │───▶│   Stage 1    │───▶│   Stage 2    │───▶ ...
-              │ (Wire Logic) │    │ (Odd Pass)   │    │ (Even Pass)  │
-              └──────────────┘    └──────────────┘    └──────────────┘
-                                          │                   │
-                                          ▼                   ▼
-                                    r_stage_data[1]    r_stage_data[2]
-                                    r_stage_valid[1]   r_stage_valid[2]
+```mermaid
+flowchart LR
+    data["data[...]"] --> s0
+    valid["valid_in"] --> s0
+    subgraph Pipeline["Pipeline Stages"]
+        s0["Stage 0<br/>(Wire Logic)"] --> s1["Stage 1<br/>(Odd Pass)"]
+        s1 --> s2["Stage 2<br/>(Even Pass)"]
+        s2 --> more["..."]
+    end
+    s1 --> rd1["r_stage_data[1]<br/>r_stage_valid[1]"]
+    s2 --> rd2["r_stage_data[2]<br/>r_stage_valid[2]"]
 ```
 
 ### Naming Conventions

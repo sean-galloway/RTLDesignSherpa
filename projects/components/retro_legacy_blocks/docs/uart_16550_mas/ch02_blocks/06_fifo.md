@@ -29,6 +29,8 @@ The UART includes 16-byte TX and RX FIFOs that buffer data between software and 
 
 ## Block Diagram
 
+### Figure 2.6: FIFO Block
+
 ![FIFO Block](../assets/svg/uart_fifo.svg)
 
 ## FIFO Configuration
@@ -53,7 +55,7 @@ The UART includes 16-byte TX and RX FIFOs that buffer data between software and 
 | 10 | 8 bytes |
 | 11 | 14 bytes |
 
-### FIFO Trigger Timing
+### Waveform 2.5: FIFO Trigger Timing
 
 The following diagram shows RX FIFO filling to the trigger threshold and generating an interrupt.
 

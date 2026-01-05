@@ -48,55 +48,32 @@ apb_pit_8254 (Top Level)
 #### Dataflow Between Blocks
 
 **Write Path (Software → Hardware):**
-```
-APB Write Transaction
-    ↓
-APB Slave (or CDC variant)
-    ↓
-CMD Interface {addr, wdata, wen}
-    ↓
-peakrdl_to_cmdrsp Adapter
-    ↓
-PeakRDL cpuif_apb Interface
-    ↓
-pit_regs Register File
-    ↓
-hwif_out (register values)
-    ↓
-pit_config_regs Wrapper
-    ↓ (edge detection for writes)
-Control/Data Signals
-    ↓
-pit_core Counter Routing
-    ↓
-pit_counter (selected instance)
-    ↓
-Counter Logic (mode, counting, etc.)
+
+```mermaid
+flowchart TD
+    A["APB Write Transaction"] --> B["APB Slave<br/>(or CDC variant)"]
+    B -->|"CMD Interface<br/>{addr, wdata, wen}"| C["peakrdl_to_cmdrsp Adapter"]
+    C --> D["PeakRDL cpuif_apb Interface"]
+    D --> E["pit_regs Register File"]
+    E -->|"hwif_out<br/>(register values)"| F["pit_config_regs Wrapper"]
+    F -->|"edge detection for writes"| G["Control/Data Signals"]
+    G --> H["pit_core Counter Routing"]
+    H --> I["pit_counter<br/>(selected instance)"]
+    I --> J["Counter Logic<br/>(mode, counting, etc.)"]
 ```
 
 **Read Path (Hardware → Software):**
-```
-Counter Current Value
-    ↓
-count_reg_out signal
-    ↓
-pit_core Multiplexing
-    ↓
-pit_config_regs Wrapper
-    ↓
-hwif_in (readback values)
-    ↓
-pit_regs Register File
-    ↓
-PeakRDL cpuif_apb Interface
-    ↓
-peakrdl_to_cmdrsp Adapter
-    ↓
-RSP Interface {rdata, ready}
-    ↓
-APB Slave (or CDC variant)
-    ↓
-APB Read Data (prdata)
+
+```mermaid
+flowchart TD
+    A["Counter Current Value"] --> B["count_reg_out signal"]
+    B --> C["pit_core Multiplexing"]
+    C --> D["pit_config_regs Wrapper"]
+    D -->|"hwif_in<br/>(readback values)"| E["pit_regs Register File"]
+    E --> F["PeakRDL cpuif_apb Interface"]
+    F --> G["peakrdl_to_cmdrsp Adapter"]
+    G -->|"RSP Interface<br/>{rdata, ready}"| H["APB Slave<br/>(or CDC variant)"]
+    H --> I["APB Read Data<br/>(prdata)"]
 ```
 
 #### Block Responsibilities

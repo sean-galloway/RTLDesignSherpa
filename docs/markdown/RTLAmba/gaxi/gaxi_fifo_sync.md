@@ -99,19 +99,27 @@ module gaxi_fifo_sync #(
 
 ### Architecture
 
-```
-                   ┌────────────────────┐
-    wr_valid ─────>│                    │
-    wr_ready <─────│   Binary Counters  │
-    wr_data  ─────>│   (wr_ptr, rd_ptr) │
-                   │                    │
-                   │   Memory Array     │────> rd_data (mux or flop)
-                   │   [DEPTH-1:0]      │
-                   │                    │
-    rd_ready ─────>│   FIFO Control     │
-    rd_valid <─────│   (full/empty)     │
-    count    <─────│                    │
-                   └────────────────────┘
+```mermaid
+flowchart LR
+    subgraph Inputs["Write Interface"]
+        wrv["wr_valid"] --> fifo
+        wrd["wr_data"] --> fifo
+    end
+
+    subgraph fifo["Sync FIFO"]
+        ctr["Binary Counters<br/>(wr_ptr, rd_ptr)"]
+        mem["Memory Array<br/>[DEPTH-1:0]"]
+        ctrl["FIFO Control<br/>(full/empty)"]
+    end
+
+    subgraph Outputs["Read Interface"]
+        fifo --> rdd["rd_data<br/>(mux or flop)"]
+        fifo --> rdv["rd_valid"]
+        fifo --> cnt["count"]
+    end
+
+    fifo --> wrr["wr_ready"]
+    rdr["rd_ready"] --> fifo
 ```
 
 ### Dependencies

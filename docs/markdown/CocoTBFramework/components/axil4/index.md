@@ -103,23 +103,26 @@ await master_write.write_register(address=0x1000, data=0x12345678)
 
 AXI4-Lite implements a simplified 5-channel protocol without burst support:
 
-```
-┌─────────────────────────────────────────────────────────────────┐
-│                   AXI4-Lite Protocol Channels                  │
-├─────────────────────────────────────────────────────────────────┤
-│  ┌─────────────┐ ┌─────────────┐ ┌─────────────┐ ┌─────────────┐ │
-│  │  AR Channel │ │  R Channel  │ │ AW Channel  │ │  W Channel  │ │
-│  │ (Addr Read) │ │ (Read Data) │ │(Addr Write) │ │(Write Data) │ │
-│  │  No Bursts  │ │   Single    │ │  No Bursts  │ │   Single    │ │
-│  └─────────────┘ └─────────────┘ └─────────────┘ └─────────────┘ │
-│         │               │               │               │       │
-│         └───────────────┼───────────────┼───────────────┘       │
-│                         │               │                       │
-│                  ┌─────────────┐ ┌─────────────┐               │
-│                  │  B Channel  │ │Single Outst │               │
-│                  │(Write Resp) │ │Transaction  │               │
-│                  └─────────────┘ └─────────────┘               │
-└─────────────────────────────────────────────────────────────────┘
+```mermaid
+graph TB
+    subgraph Channels["AXI4-Lite Protocol Channels"]
+        subgraph Read["Read Path"]
+            AR["AR Channel<br/>(Addr Read)<br/>No Bursts"]
+            R["R Channel<br/>(Read Data)<br/>Single"]
+        end
+        subgraph Write["Write Path"]
+            AW["AW Channel<br/>(Addr Write)<br/>No Bursts"]
+            W["W Channel<br/>(Write Data)<br/>Single"]
+        end
+        B["B Channel<br/>(Write Resp)"]
+        Single["Single Outstanding<br/>Transaction"]
+    end
+
+    AR --> R
+    AW --> W
+    W --> B
+    AW --> Single
+    AR --> Single
 ```
 
 ## Key Differences from AXI4-Full

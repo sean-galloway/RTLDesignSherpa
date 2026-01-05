@@ -108,18 +108,21 @@ async def my_test(dut):
 
 ### Component Stack
 
-```
-┌─────────────────────────────────────────┐
-│  Template Classes (GAXIWaveDromTemplate) │ ← Easiest (One-line setup)
-├─────────────────────────────────────────┤
-│  Protocol Presets (GAXIPresets, etc.)   │ ← Pre-configured constraints
-├─────────────────────────────────────────┤
-│  Auto-Binding (SignalResolver)           │ ← Automatic signal discovery
-├─────────────────────────────────────────┤
-│  Constraint Solver (CP-SAT)              │ ← Pattern detection engine
-├─────────────────────────────────────────┤
-│  WaveJSON Generator                       │ ← Format conversion
-└─────────────────────────────────────────┘
+```mermaid
+graph TB
+    subgraph Stack["WaveDrom Component Stack"]
+        Templates["Template Classes<br/>(GAXIWaveDromTemplate)"]
+        Presets["Protocol Presets<br/>(GAXIPresets, etc.)"]
+        AutoBind["Auto-Binding<br/>(SignalResolver)"]
+        Solver["Constraint Solver<br/>(CP-SAT)"]
+        Generator["WaveJSON Generator"]
+    end
+
+    Templates -->|"Easiest (One-line setup)"| Presets
+    Presets -->|"Pre-configured constraints"| AutoBind
+    AutoBind -->|"Automatic signal discovery"| Solver
+    Solver -->|"Pattern detection engine"| Generator
+    Generator -->|"Format conversion"| Output["WaveJSON/PNG/SVG"]
 ```
 
 ### Workflow

@@ -83,12 +83,15 @@ The APB crossbar generator (`apb_xbar_generator.py`) creates scalable APB interc
 - Parameterizable address/data widths
 
 **Example: 2x4 Crossbar**
-```
-2 Masters ──┐
-            ├──▶ Crossbar ──┐
-            │                ├──▶ 4 Slaves
-            │                │
-            └────────────────┘
+
+```mermaid
+graph LR
+    M0["Master 0"] --> XB["Crossbar"]
+    M1["Master 1"] --> XB
+    XB --> S0["Slave 0"]
+    XB --> S1["Slave 1"]
+    XB --> S2["Slave 2"]
+    XB --> S3["Slave 3"]
 ```
 
 ---
@@ -178,49 +181,20 @@ pytest test_apb_xbar_1to1.py -v
 
 ### Generator Architecture
 
-```
-┌─────────────────────────────────────────┐
-│  apb_xbar_generator.py                  │
-│                                         │
-│  ┌───────────────────────────────────┐ │
-│  │ generate_apb_xbar(M, N, ...)      │ │
-│  │                                   │ │
-│  │  ┌─────────────────────────────┐ │ │
-│  │  │ 1. Generate Module Header   │ │ │
-│  │  │    - Parameters             │ │ │
-│  │  │    - Ports (M masters, N    │ │ │
-│  │  │      slaves)                │ │ │
-│  │  └─────────────────────────────┘ │ │
-│  │                                   │ │
-│  │  ┌─────────────────────────────┐ │ │
-│  │  │ 2. Generate Internal        │ │ │
-│  │  │    Signals                  │ │ │
-│  │  │    - cmd/rsp buses          │ │ │
-│  │  │    - Address decode         │ │ │
-│  │  │    - Arbitration            │ │ │
-│  │  └─────────────────────────────┘ │ │
-│  │                                   │ │
-│  │  ┌─────────────────────────────┐ │ │
-│  │  │ 3. Instantiate apb_slave    │ │ │
-│  │  │    modules (M instances)    │ │ │
-│  │  └─────────────────────────────┘ │ │
-│  │                                   │ │
-│  │  ┌─────────────────────────────┐ │ │
-│  │  │ 4. Generate Crossbar Logic  │ │ │
-│  │  │    - Address decode         │ │ │
-│  │  │    - Arbitration using      │ │ │
-│  │  │      arbiter_round_robin    │ │ │
-│  │  │    - Response routing       │ │ │
-│  │  └─────────────────────────────┘ │ │
-│  │                                   │ │
-│  │  ┌─────────────────────────────┐ │ │
-│  │  │ 5. Instantiate apb_master   │ │ │
-│  │  │    modules (N instances)    │ │ │
-│  │  └─────────────────────────────┘ │ │
-│  └───────────────────────────────────┘ │
-│                                         │
-│  Returns: Complete SystemVerilog code   │
-└─────────────────────────────────────────┘
+```mermaid
+graph TB
+    subgraph Generator["apb_xbar_generator.py"]
+        subgraph Function["generate_apb_xbar(M, N, ...)"]
+            Step1["1. Generate Module Header<br/>- Parameters<br/>- Ports (M masters, N slaves)"]
+            Step2["2. Generate Internal Signals<br/>- cmd/rsp buses<br/>- Address decode<br/>- Arbitration"]
+            Step3["3. Instantiate apb_slave<br/>modules (M instances)"]
+            Step4["4. Generate Crossbar Logic<br/>- Address decode<br/>- Arbitration using arbiter_round_robin<br/>- Response routing"]
+            Step5["5. Instantiate apb_master<br/>modules (N instances)"]
+        end
+        Output["Returns: Complete SystemVerilog code"]
+    end
+
+    Step1 --> Step2 --> Step3 --> Step4 --> Step5 --> Output
 ```
 
 ### Code Generation Strategy

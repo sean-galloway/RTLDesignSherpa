@@ -37,6 +37,8 @@ The APB UART 16550 module has the following external interfaces:
 
 ## Interface Summary Diagram
 
+### Figure 3.1: UART Interface Summary
+
 ![UART Interfaces](../assets/svg/uart_interfaces.svg)
 
 ## Chapter Contents

@@ -48,24 +48,33 @@ The AXI4 Master Read Monitor module combines a functional AXI4 master read inter
 
 ## Module Architecture
 
-```
-Frontend (fub_axi)    Master Core        Monitor        Monitor Bus
-                   ┌──────────────┐   ┌───────────┐
-  arid  ──────────►│              │   │           │
-  araddr ─────────►│ axi4_master  │   │   axi     │   monbus_valid ──►
-  ar*   ──────────►│    _rd       │──►│  _monitor │   monbus_packet ─►
-  arvalid ────────►│  (buffered)  │   │ _filtered │   monbus_ready ◄──
-  arready ◄────────│              │   │           │
-                   │              │   │ •error    │
-  rid   ◄──────────│              │   │ •timeout  │
-  rdata ◄──────────│              │   │ •perf     │
-  r*    ◄──────────│              │   │ •config   │
-  rvalid ◄─────────│              │   │           │
-  rready ──────────►│              │   └───────────┘
-                   └──────────────┘
-                          │
-                          ▼
-                   Master (m_axi)
+```mermaid
+flowchart LR
+    subgraph FE["Frontend<br/>(fub_axi)"]
+        ar["ar* →"]
+        r["← r*"]
+    end
+
+    subgraph CORE["Master Core"]
+        mc["axi4_master_rd<br/>(buffered)"]
+    end
+
+    subgraph MON["Monitor"]
+        mf["axi_monitor<br/>_filtered"]
+        features["•error<br/>•timeout<br/>•perf"]
+    end
+
+    subgraph MB["Monitor Bus"]
+        mbv["monbus_valid"]
+        mbp["monbus_packet"]
+    end
+
+    ar --> mc
+    mc --> r
+    mc --> mf
+    mf --> mbv
+    mf --> mbp
+    mc --> maxi["Master (m_axi)"]
 ```
 
 The module instantiates two sub-modules:

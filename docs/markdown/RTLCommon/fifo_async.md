@@ -57,13 +57,16 @@ Implements an asynchronous FIFO for safe clock domain crossing between different
 ### Clock Domain Crossing Strategy
 The FIFO uses **Gray code pointers** for safe clock domain crossing:
 
-```
-Write Domain                 Read Domain
-┌─────────────┐             ┌─────────────┐
-│ Binary      │             │ Binary      │
-│ Counter ────┼──→ Gray ────┼──→ Sync ────┼──→ Gray2Bin │
-│             │   Code      │   Chain     │             │
-└─────────────┘             └─────────────┘
+```mermaid
+flowchart LR
+    subgraph WriteDomain["Write Domain"]
+        BC["Binary<br/>Counter"]
+    end
+    BC --> GC["Gray<br/>Code"]
+    GC --> SC["Sync<br/>Chain"]
+    subgraph ReadDomain["Read Domain"]
+        SC --> G2B["Gray2Bin"]
+    end
 ```
 
 ### Core Components

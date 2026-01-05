@@ -85,25 +85,14 @@ Key interface groups:
 
 ## Architecture
 
-```
-Active Transactions
-        │
-        ▼
-┌──────────────────┐
-│ Timeout Counter  │
-│ Array [0..MAX-1] │
-│                  │
-│ [AR/AW] [R/W] [B]│
-└────────┬─────────┘
-         │
-         ▼
-┌──────────────────┐
-│ Threshold        │
-│ Comparator       │
-└────────┬─────────┘
-         │
-         ▼
-    Timeout Event
+```mermaid
+flowchart TB
+    tx["Active Transactions"] --> ctr
+    subgraph Counters["Timeout Counter Array [0..MAX-1]"]
+        ctr["[AR/AW] [R/W] [B]"]
+    end
+    ctr --> cmp["Threshold<br/>Comparator"]
+    cmp --> evt["Timeout Event"]
 ```
 
 Each transaction has 3 independent timeout counters for different phases.

@@ -122,22 +122,26 @@ await master_write.write_transaction(
 
 AXI4 implements a full 5-channel protocol:
 
-```
-┌─────────────────────────────────────────────────────────────────┐
-│                     AXI4 Protocol Channels                     │
-├─────────────────────────────────────────────────────────────────┤
-│  ┌─────────────┐ ┌─────────────┐ ┌─────────────┐ ┌─────────────┐ │
-│  │  AR Channel │ │  R Channel  │ │ AW Channel  │ │  W Channel  │ │
-│  │ (Addr Read) │ │ (Read Data) │ │(Addr Write) │ │(Write Data) │ │
-│  └─────────────┘ └─────────────┘ └─────────────┘ └─────────────┘ │
-│         │               │               │               │       │
-│         └───────────────┼───────────────┼───────────────┘       │
-│                         │               │                       │
-│                  ┌─────────────┐ ┌─────────────┐               │
-│                  │  B Channel  │ │   Master/   │               │
-│                  │(Write Resp) │ │Slave Logic  │               │
-│                  └─────────────┘ └─────────────┘               │
-└─────────────────────────────────────────────────────────────────┘
+```mermaid
+graph TB
+    subgraph Channels["AXI4 Protocol Channels"]
+        subgraph Read["Read Path"]
+            AR["AR Channel<br/>(Addr Read)"]
+            R["R Channel<br/>(Read Data)"]
+        end
+        subgraph Write["Write Path"]
+            AW["AW Channel<br/>(Addr Write)"]
+            W["W Channel<br/>(Write Data)"]
+        end
+        B["B Channel<br/>(Write Resp)"]
+        Logic["Master/Slave<br/>Logic"]
+    end
+
+    AR --> R
+    AW --> W
+    W --> B
+    AW --> Logic
+    AR --> Logic
 ```
 
 ## Documentation Structure

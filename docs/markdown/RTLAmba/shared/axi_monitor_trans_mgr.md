@@ -86,26 +86,13 @@ Key interface groups:
 
 ## Architecture
 
-```
-     cmd_valid/cmd_id
-            │
-            ▼
-    ┌──────────────┐
-    │ ID Lookup    │──► Table Index
-    └──────────────┘
-            │
-            ▼
-    ┌──────────────┐
-    │ Transaction  │
-    │   Table      │
-    │ [0..MAX-1]   │
-    └──────────────┘
-            │
-            ▼
-    ┌──────────────┐
-    │ Beat Counter │──► Transaction Complete
-    │ & Latency    │
-    └──────────────┘
+```mermaid
+flowchart TB
+    cmd["cmd_valid/cmd_id"] --> lookup["ID Lookup"]
+    lookup --> idx["Table Index"]
+    lookup --> tbl["Transaction Table<br/>[0..MAX-1]"]
+    tbl --> beat["Beat Counter<br/>& Latency"]
+    beat --> complete["Transaction Complete"]
 ```
 
 The transaction table stores:

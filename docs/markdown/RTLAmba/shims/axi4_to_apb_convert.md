@@ -356,41 +356,40 @@ axi4_to_apb_convert #(
 
 ### APB FSM
 
-```
-IDLE ──────────────────────────────────────┐
-  │                                          │
-  ├─ AWVALID & WVALID → WRITE               │
-  └─ ARVALID → READ                          │
-                                             │
-READ ─────────────────────────────────────┐ │
-  │                                         │ │
-  ├─ Generate APB read commands            │ │
-  ├─ Increment address per burst type      │ │
-  ├─ Decrement burst counter               │ │
-  └─ burst_count==0 & last APB beat → IDLE ┘ │
-                                               │
-WRITE ────────────────────────────────────┐   │
-  │                                        │   │
-  ├─ Generate APB write commands          │   │
-  ├─ Slice AXI data → APB data            │   │
-  ├─ Increment address per burst type     │   │
-  ├─ Decrement burst counter              │   │
-  └─ burst_count==0 & last APB beat → IDLE ┘
+```mermaid
+stateDiagram-v2
+    [*] --> IDLE
+    IDLE --> READ : ARVALID
+    IDLE --> WRITE : AWVALID & WVALID
+    READ --> IDLE : burst_count==0 & last APB beat
+    WRITE --> IDLE : burst_count==0 & last APB beat
+
+    note right of READ
+        Generate APB read commands
+        Increment address per burst type
+        Decrement burst counter
+    end note
+
+    note right of WRITE
+        Generate APB write commands
+        Slice AXI data to APB data
+        Increment address per burst type
+    end note
 ```
 
 ### Response FSM
 
-```
-RSP_IDLE ─────────────────────────────────┐
-  │                                        │
-  └─ rsp_valid & first → RSP_ACTIVE       │
-                                           │
-RSP_ACTIVE ───────────────────────────────┤
-  │                                        │
-  ├─ Accumulate APB read data             │
-  ├─ Accumulate errors                    │
-  ├─ Generate AXI R/B responses           │
-  └─ rsp_valid & last → RSP_IDLE ─────────┘
+```mermaid
+stateDiagram-v2
+    [*] --> RSP_IDLE
+    RSP_IDLE --> RSP_ACTIVE : rsp_valid & first
+    RSP_ACTIVE --> RSP_IDLE : rsp_valid & last
+
+    note right of RSP_ACTIVE
+        Accumulate APB read data
+        Accumulate errors
+        Generate AXI R/B responses
+    end note
 ```
 
 ---

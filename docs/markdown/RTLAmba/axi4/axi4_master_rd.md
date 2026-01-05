@@ -206,10 +206,25 @@ The module employs a dual skid buffer architecture:
 
 ### Data Flow
 
-```
-FUB AXI → AR Skid Buffer → Master AXI → Memory/Slave
-    ↑                                         ↓
-FUB AXI ← R Skid Buffer ← Master AXI ← Memory/Slave
+```mermaid
+flowchart LR
+    subgraph FE["FUB AXI"]
+        far["AR Channel"]
+        fr["R Channel"]
+    end
+
+    subgraph BUF["Skid Buffers"]
+        arb["AR Buffer"]
+        rb["R Buffer"]
+    end
+
+    subgraph BE["Master AXI → Memory"]
+        mar["AR Out"]
+        mr["R In"]
+    end
+
+    far --> arb --> mar
+    mr --> rb --> fr
 ```
 
 ### Key Features

@@ -37,9 +37,9 @@ The GPIO core handles input synchronization, output driving, and direction contr
 
 External inputs pass through a dual flip-flop synchronizer:
 
-```
-gpio_in[i] --> FF1 --> FF2 --> synced_input[i]
-              (clk)   (clk)
+```mermaid
+flowchart LR
+    A["gpio_in[i]"] --> B["FF1 (clk)"] --> C["FF2 (clk)"] --> D["synced_input[i]"]
 ```
 
 - Prevents metastability from asynchronous inputs

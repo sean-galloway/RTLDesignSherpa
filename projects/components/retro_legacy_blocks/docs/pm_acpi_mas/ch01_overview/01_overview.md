@@ -47,11 +47,13 @@ The APB PM/ACPI controller provides ACPI-compatible power management functionali
 
 ## Block Diagram
 
+### Figure 1.1: PM/ACPI Block Diagram
+
 ![PM/ACPI Block Diagram](../assets/svg/pm_acpi_top.svg)
 
 ## Timing Diagrams
 
-### Sleep Entry (S3 Suspend)
+### Waveform 1.1: Sleep Entry (S3 Suspend)
 
 Software initiates sleep by writing to PM1_CNT.
 
@@ -63,7 +65,7 @@ The sequence:
 3. Asserts SLP_S3# signal
 4. Power removed from non-essential components
 
-### Wake Event
+### Waveform 1.2: Wake Event
 
 Power button or other source triggers wake from sleep.
 
@@ -75,7 +77,7 @@ Wake sequence:
 3. SLP_Sx# deasserted
 4. Power restored, system resumes to S0
 
-### PM Timer
+### Waveform 1.3: PM Timer
 
 ACPI timer for OS timing services.
 
@@ -83,7 +85,7 @@ ACPI timer for OS timing services.
 
 The 24-bit (or 32-bit) free-running counter clocked at 3.579545 MHz provides high-resolution timing for the OS. Timer overflow generates TMR_STS if enabled.
 
-### General Purpose Event (GPE)
+### Waveform 1.4: General Purpose Event (GPE)
 
 External events trigger SCI interrupt to OS.
 

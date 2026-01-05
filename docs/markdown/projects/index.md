@@ -23,7 +23,7 @@
 
 # RTL Design Sherpa - Component Projects Index
 
-**Last Updated:** 2025-10-20
+**Last Updated:** 2026-01-04
 
 ---
 
@@ -249,8 +249,8 @@ pytest "projects/components/{name}/dv/tests/test_{name}.py::test_function[params
 - [Root CLAUDE.md](../../../CLAUDE.md) - AI assistance guide
 
 ### Building Blocks
-- [rtl/common/](../../../rtl/common/) - 86 reusable building blocks
-- [rtl/amba/](../../../rtl/amba/) - 72 AMBA protocol modules
+- [rtl/common/](../../../rtl/common/) - 224 reusable building blocks (counters, math, FP)
+- [rtl/amba/](../../../rtl/amba/) - 124 AMBA protocol modules (APB, AXI4, AMBA5)
 
 ### Verification Framework
 - [bin/CocoTBFramework/](../../../bin/CocoTBFramework/) - CocoTB testbench infrastructure
@@ -298,4 +298,4 @@ projects/components/{name}/
 ---
 
 **Maintained By:** RTL Design Sherpa Project
-**Last Review:** 2025-10-20
+**Last Review:** 2026-01-04
