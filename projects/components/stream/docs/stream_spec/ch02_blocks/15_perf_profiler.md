@@ -1,3 +1,26 @@
+<!-- RTL Design Sherpa Documentation Header -->
+<table>
+<tr>
+<td width="80">
+  <a href="https://github.com/sean-galloway/RTLDesignSherpa">
+    <img src="https://raw.githubusercontent.com/sean-galloway/RTLDesignSherpa/main/docs/logos/Logo_200px.png" alt="RTL Design Sherpa" width="70">
+  </a>
+</td>
+<td>
+  <strong>RTL Design Sherpa</strong> · <em>Learning Hardware Design Through Practice</em><br>
+  <sub>
+    <a href="https://github.com/sean-galloway/RTLDesignSherpa">GitHub</a> ·
+    <a href="https://github.com/sean-galloway/RTLDesignSherpa/blob/main/docs/DOCUMENTATION_INDEX.md">Documentation Index</a> ·
+    <a href="https://github.com/sean-galloway/RTLDesignSherpa/blob/main/LICENSE">MIT License</a>
+  </sub>
+</td>
+</tr>
+</table>
+
+---
+
+<!-- End Header -->
+
 # Performance Profiler
 
 **Module:** `perf_profiler.sv`
@@ -29,7 +52,9 @@ The `perf_profiler` module captures timing information for channel activity to e
 
 ### Block Diagram
 
-![Performance Profiler Block Diagram](../assets/mermaid/15_perf_profiler_block.svg)
+### Figure 2.15.1: Performance Profiler Block Diagram
+
+![Performance Profiler Block Diagram](../assets/mermaid/15_perf_profiler_block.png)
 
 **Source:** [15_perf_profiler_block.mmd](../assets/mermaid/15_perf_profiler_block.mmd)
 
@@ -70,6 +95,8 @@ Advantages:
 | [34:32] | channel_id | Source channel (0-7) |
 | [35] | event_type | 0=start, 1=end (timestamp mode) |
 
+: FIFO Entry Format
+
 ---
 
 ## Parameters
@@ -82,6 +109,8 @@ Advantages:
 | `FIFO_DEPTH` | int | 256 | Performance FIFO depth |
 | `FIFO_ADDR_WIDTH` | int | $clog2(FIFO_DEPTH) | FIFO address width |
 
+: Parameters
+
 ---
 
 ## Port List
@@ -93,11 +122,15 @@ Advantages:
 | `clk` | input | 1 | System clock |
 | `rst_n` | input | 1 | Active-low asynchronous reset |
 
+: Clock and Reset
+
 ### Channel Monitoring
 
 | Signal | Direction | Width | Description |
 |--------|-----------|-------|-------------|
 | `channel_idle` | input | NUM_CHANNELS | Per-channel idle signals |
+
+: Channel Monitoring
 
 ### Configuration Interface
 
@@ -106,6 +139,8 @@ Advantages:
 | `cfg_enable` | input | 1 | Enable profiling |
 | `cfg_mode` | input | 1 | 0=timestamp, 1=elapsed |
 | `cfg_clear` | input | 1 | Clear FIFO and counters |
+
+: Configuration Interface
 
 ### FIFO Read Interface
 
@@ -117,6 +152,8 @@ Advantages:
 | `perf_fifo_empty` | output | 1 | FIFO empty flag |
 | `perf_fifo_full` | output | 1 | FIFO full flag |
 | `perf_fifo_count` | output | 16 | Number of entries |
+
+: FIFO Read Interface
 
 ---
 
@@ -283,7 +320,17 @@ if (end_time < start_time)
 - **Parent:** `01_stream_core.md` - Top-level integration
 - **Data Source:** `04_scheduler.md` - Provides idle signals
 - **Configuration:** `14_apb_config.md` - Config register mapping
+---
+
+## Revision History
+
+| Version | Date | Author | Description |
+|---------|------|--------|-------------|
+| 0.90 | 2025-11-22 | seang | Initial block specification |
+| 0.91 | 2026-01-02 | seang | Added table captions and figure numbers |
+
+: Performance Profiler Revision History
 
 ---
 
-**Last Updated:** 2025-11-30 (verified against RTL implementation)
+**Last Updated:** 2026-01-02

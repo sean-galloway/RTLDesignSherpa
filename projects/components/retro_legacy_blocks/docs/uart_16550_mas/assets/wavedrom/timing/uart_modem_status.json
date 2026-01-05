@@ -1,0 +1,11 @@
+{
+  "signal": [
+    {"name": "pclk", "wave": "p........"},
+    {"name": "cts_n", "wave": "1..0....."},
+    {"name": "dsr_n", "wave": "1....0..."},
+    {"name": "dcd_n", "wave": "1......0."},
+    {"name": "msr", "wave": "x..2.3.4.", "data": ["DCTS", "DCTS|DDSR", "DCTS|DDSR|DDCD"]},
+    {"name": "msr_irq", "wave": "0..1....."}
+  ],
+  "head": {"text": "UART Modem Status Changes"}
+}

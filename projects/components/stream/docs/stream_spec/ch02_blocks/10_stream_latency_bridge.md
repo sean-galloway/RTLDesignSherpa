@@ -1,3 +1,26 @@
+<!-- RTL Design Sherpa Documentation Header -->
+<table>
+<tr>
+<td width="80">
+  <a href="https://github.com/sean-galloway/RTLDesignSherpa">
+    <img src="https://raw.githubusercontent.com/sean-galloway/RTLDesignSherpa/main/docs/logos/Logo_200px.png" alt="RTL Design Sherpa" width="70">
+  </a>
+</td>
+<td>
+  <strong>RTL Design Sherpa</strong> · <em>Learning Hardware Design Through Practice</em><br>
+  <sub>
+    <a href="https://github.com/sean-galloway/RTLDesignSherpa">GitHub</a> ·
+    <a href="https://github.com/sean-galloway/RTLDesignSherpa/blob/main/docs/DOCUMENTATION_INDEX.md">Documentation Index</a> ·
+    <a href="https://github.com/sean-galloway/RTLDesignSherpa/blob/main/LICENSE">MIT License</a>
+  </sub>
+</td>
+</tr>
+</table>
+
+---
+
+<!-- End Header -->
+
 # Stream Latency Bridge
 
 **Module:** `stream_latency_bridge.sv`
@@ -27,7 +50,9 @@ The `stream_latency_bridge` module is a simple latency-1 bridge that compensates
 
 ### Block Diagram
 
-![Stream Latency Bridge Block Diagram](../assets/mermaid/06_stream_latency_bridge_block.svg)
+### Figure 2.10.1: Stream Latency Bridge Block Diagram
+
+![Stream Latency Bridge Block Diagram](../assets/mermaid/06_stream_latency_bridge_block.png)
 
 **Source:** [06_stream_latency_bridge_block.mmd](../assets/mermaid/06_stream_latency_bridge_block.mmd)
 
@@ -44,6 +69,8 @@ Cycle N: Consumer drains skid buffer at its own pace
 ```
                     +-------------------+
                     |   Glue Logic      |
+
+: Component Diagram
    s_valid -------->|  (r_drain_ip)     |
    s_ready <--------|                   |
    s_data  -------->|                   |
@@ -54,6 +81,8 @@ Cycle N: Consumer drains skid buffer at its own pace
                     |   Skid Buffer     |
                     |  (gaxi_fifo_sync) |
                     |  Depth: 4         |
+
+: Component Diagram
                     +--------+----------+
                              |
                              v
@@ -90,11 +119,15 @@ count | wr_valid | wr_ready | stalled | pending | room | s_ready
 | `DATA_WIDTH` | int | 64 | Data width in bits |
 | `SKID_DEPTH` | int | 4 | Skid buffer depth (2-4 recommended) |
 
+: Parameters
+
 ### Derived Parameters
 
 | Parameter | Derivation | Description |
 |-----------|------------|-------------|
 | `DW` | DATA_WIDTH | Short alias |
+
+: Derived Parameters
 
 ---
 
@@ -107,6 +140,8 @@ count | wr_valid | wr_ready | stalled | pending | room | s_ready
 | `clk` | input | 1 | System clock |
 | `rst_n` | input | 1 | Active-low asynchronous reset |
 
+: Clock and Reset
+
 ### Upstream Interface (from registered FIFO)
 
 | Signal | Direction | Width | Description |
@@ -114,6 +149,8 @@ count | wr_valid | wr_ready | stalled | pending | room | s_ready
 | `s_valid` | input | 1 | Upstream valid (FIFO not empty) |
 | `s_ready` | output | 1 | Ready to accept from FIFO |
 | `s_data` | input | DW | Data from FIFO (valid 1 cycle after handshake) |
+
+: Upstream Interface
 
 ### Downstream Interface (to consumer)
 
@@ -123,11 +160,15 @@ count | wr_valid | wr_ready | stalled | pending | room | s_ready
 | `m_ready` | input | 1 | Consumer ready |
 | `m_data` | output | DW | Data to consumer |
 
+: Downstream Interface
+
 ### Status Interface
 
 | Signal | Direction | Width | Description |
 |--------|-----------|-------|-------------|
 | `occupancy` | output | 3 | Beats in bridge (0-5: 1 in flight + 4 in skid) |
+
+: Status Interface
 
 ### Debug Interface
 
@@ -135,6 +176,8 @@ count | wr_valid | wr_ready | stalled | pending | room | s_ready
 |--------|-----------|-------|-------------|
 | `dbg_r_pending` | output | 1 | Data in flight (r_drain_ip) |
 | `dbg_r_out_valid` | output | 1 | Output valid (m_valid) |
+
+: Debug Interface
 
 ---
 
@@ -175,6 +218,20 @@ A 4-deep `gaxi_fifo_sync` instance with:
 // Note: r_drain_ip not counted separately (conservative)
 assign occupancy = skid_count;
 ```
+
+---
+
+## Timing Diagrams
+
+### Backpressure Handling
+
+The following diagram shows how the latency bridge handles downstream backpressure:
+
+#### Waveform 2.10.1: Stream Latency Bridge Backpressure
+
+![Latency Bridge Backpressure](../assets/wavedrom/latency_bridge_backpressure.svg)
+
+**Source:** [latency_bridge_backpressure.json](../assets/wavedrom/latency_bridge_backpressure.json)
 
 ---
 
@@ -242,7 +299,17 @@ The skid buffer approach:
 - **Parent:** `09_sram_controller_unit.md` - Single-channel SRAM controller
 - **Consumer:** `12_axi_write_engine.md` - Receives bridge output
 - **Producer:** `06_axi_read_engine.md` - Feeds upstream FIFO
+---
+
+## Revision History
+
+| Version | Date | Author | Description |
+|---------|------|--------|-------------|
+| 0.90 | 2025-11-22 | seang | Initial block specification |
+| 0.91 | 2026-01-02 | seang | Added table captions and figure numbers |
+
+: Stream Latency Bridge Revision History
 
 ---
 
-**Last Updated:** 2025-11-30 (verified against RTL implementation)
+**Last Updated:** 2026-01-02

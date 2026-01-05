@@ -1,0 +1,11 @@
+{
+  "signal": [
+    {"name": "clk", "wave": "p............"},
+    {"name": "gate", "wave": "1............"},
+    {"name": "count", "wave": "23456723456..", "data": ["N", "N-1", "...", "2", "1", "N", "N-1", "...", "2", "1"]},
+    {"name": "out", "wave": "1...010...01."},
+    {},
+    ["note", "OUT pulses low for 1 clock every N clocks"]
+  ],
+  "head": {"text": "PIT Mode 2: Rate Generator"}
+}

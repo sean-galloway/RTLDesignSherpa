@@ -1,0 +1,9 @@
+{
+  "signal": [
+    {"name": "aclk", "wave": "p.........", "period": 1},
+    {"name": "aresetn", "wave": "0...1.....", "node": "....a....."},
+    {}
+  ],
+  "edge": ["a<->  Reset Release"],
+  "head": {"text": "Reset Timing"}
+}

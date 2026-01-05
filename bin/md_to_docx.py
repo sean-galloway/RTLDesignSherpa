@@ -537,19 +537,23 @@ def parse_args():
 # DOCX Corporate Styling
 # ---------------------------
 
-def add_title_page_to_docx(doc, config: dict, colors: dict) -> None:
+def add_title_page_to_docx(doc, config: dict, colors: dict, base_dir: pathlib.Path = None) -> None:
     """Add a title page to the beginning of a DOCX document.
 
-    Creates a left-aligned title page matching corporate style:
+    Creates a centered title page matching corporate style:
+    - Logo image (optional, centered at top)
     - Company name with split coloring (e.g., "Qernel" black + "AI" red)
     - Title and subtitle
     - Date
     - Page break before TOC
 
+    All elements are kept together on a single page using keep_with_next formatting.
+
     Args:
         doc: python-docx Document object
         config: title_page config dict from YAML
         colors: colors dict from YAML for resolving color references
+        base_dir: Base directory for resolving relative logo paths
     """
     from docx.shared import Pt, RGBColor, Inches
     from docx.enum.text import WD_ALIGN_PARAGRAPH, WD_BREAK
@@ -565,13 +569,25 @@ def add_title_page_to_docx(doc, config: dict, colors: dict) -> None:
             return color_name
         return colors.get(color_name, colors.get('black', '#000000'))
 
+    def set_keep_with_next(paragraph):
+        """Set keep_with_next property to prevent page break before next paragraph."""
+        pPr = paragraph._p.get_or_add_pPr()
+        keepNext = OxmlElement('w:keepNext')
+        keepNext.set(qn('w:val'), '1')
+        pPr.append(keepNext)
+
     # Get title page content from config
+    logo_path = config.get('logo', '')
+    logo_width = config.get('logo_width', 2.0)  # Default 2 inches
     company = config.get('company', 'QernelAI')
     title = config.get('title', 'Document Title')
     subtitle = config.get('subtitle', '')
     date_str = config.get('date', '')
     company_color = resolve_color(config.get('company_color', 'primary'))
     title_color = resolve_color(config.get('title_color', 'secondary'))
+    company_size = config.get('company_size', 72)  # Default 72pt, configurable
+    title_size = config.get('title_size', 36)  # Default 36pt, configurable
+    date_size = config.get('date_size', 36)    # Default 36pt, configurable
 
     # Find the very first element to insert before (skip any existing TOC heading)
     body = doc.element.body
@@ -581,60 +597,88 @@ def add_title_page_to_docx(doc, config: dict, colors: dict) -> None:
     # Create a list to hold paragraphs in order
     title_paragraphs = []
 
-    # Spacer paragraph at top (creates vertical space ~1/3 down page)
-    spacer = doc.add_paragraph()
-    spacer.paragraph_format.space_before = Pt(200)  # Large space at top
-    title_paragraphs.append(spacer)
+    # Logo at top center (if specified)
+    if logo_path:
+        # Resolve relative paths
+        if base_dir and not pathlib.Path(logo_path).is_absolute():
+            logo_full_path = base_dir / logo_path
+        else:
+            logo_full_path = pathlib.Path(logo_path)
+
+        if logo_full_path.exists():
+            logo_para = doc.add_paragraph()
+            logo_para.alignment = WD_ALIGN_PARAGRAPH.CENTER
+            logo_para.paragraph_format.space_before = Pt(40)
+            logo_para.paragraph_format.space_after = Pt(40)
+            run = logo_para.add_run()
+            run.add_picture(str(logo_full_path), width=Inches(logo_width))
+            set_keep_with_next(logo_para)  # Keep with next element
+            title_paragraphs.append(logo_para)
+        else:
+            # Add spacer if logo not found
+            spacer = doc.add_paragraph()
+            spacer.paragraph_format.space_before = Pt(100)
+            set_keep_with_next(spacer)  # Keep with next element
+            title_paragraphs.append(spacer)
+    else:
+        # Spacer paragraph at top (creates vertical space ~1/3 down page)
+        spacer = doc.add_paragraph()
+        spacer.paragraph_format.space_before = Pt(200)  # Large space at top
+        set_keep_with_next(spacer)  # Keep with next element
+        title_paragraphs.append(spacer)
 
     # Company name - special handling for "QernelAI" split coloring
-    # "Qernel" in black, "AI" in red (primary color) - 72pt
+    # Uses configurable company_size (default 72pt)
     company_para = doc.add_paragraph()
-    company_para.alignment = WD_ALIGN_PARAGRAPH.LEFT
+    company_para.alignment = WD_ALIGN_PARAGRAPH.CENTER
     if company == "QernelAI":
         # Split into "Qernel" (black) + "AI" (red)
         run1 = company_para.add_run("Qernel")
-        run1.font.size = Pt(72)
+        run1.font.size = Pt(company_size)
         run1.font.bold = True
         run1.font.name = 'Calibri'
         run1.font.color.rgb = hex_to_rgb('#000000')  # Black
 
         run2 = company_para.add_run("AI")
-        run2.font.size = Pt(72)
+        run2.font.size = Pt(company_size)
         run2.font.bold = True
         run2.font.name = 'Calibri'
         run2.font.color.rgb = hex_to_rgb(company_color)  # Red
     else:
         run = company_para.add_run(company)
-        run.font.size = Pt(72)
+        run.font.size = Pt(company_size)
         run.font.bold = True
         run.font.name = 'Calibri'
         run.font.color.rgb = hex_to_rgb(company_color)
+    set_keep_with_next(company_para)  # Keep with next element
     title_paragraphs.append(company_para)
 
-    # Title line (combines title and subtitle if present) - 36pt
+    # Title line (combines title and subtitle if present) - configurable size
     title_para = doc.add_paragraph()
-    title_para.alignment = WD_ALIGN_PARAGRAPH.LEFT
+    title_para.alignment = WD_ALIGN_PARAGRAPH.CENTER
     title_para.paragraph_format.space_before = Pt(20)
     title_text = title
     if subtitle:
         title_text = f"{title} {subtitle}"
     run = title_para.add_run(title_text)
-    run.font.size = Pt(36)
+    run.font.size = Pt(title_size)  # Use configurable title_size
     run.font.bold = True
     run.font.name = 'Calibri'
     run.font.color.rgb = hex_to_rgb('#000000')  # Black
+    set_keep_with_next(title_para)  # Keep with next element
     title_paragraphs.append(title_para)
 
-    # Date - 36pt
+    # Date - configurable size
     if date_str:
         date_para = doc.add_paragraph()
-        date_para.alignment = WD_ALIGN_PARAGRAPH.LEFT
+        date_para.alignment = WD_ALIGN_PARAGRAPH.CENTER
         date_para.paragraph_format.space_before = Pt(20)
         run = date_para.add_run(date_str)
-        run.font.size = Pt(36)
+        run.font.size = Pt(date_size)  # Use configurable date_size
         run.font.bold = True
         run.font.name = 'Calibri'
         run.font.color.rgb = hex_to_rgb('#000000')
+        set_keep_with_next(date_para)  # Keep with page break
         title_paragraphs.append(date_para)
 
     # Page break after title page
@@ -651,6 +695,353 @@ def add_title_page_to_docx(doc, config: dict, colors: dict) -> None:
         first_element = para._p
 
 
+def add_lists_to_docx(doc, config: dict, verbose: bool = False) -> None:
+    """Add List of Tables, Figures, and Waveforms to a DOCX document.
+
+    Creates clickable list entries matching TOC styling:
+    1. Adding bookmarks to figure/table/waveform headings
+    2. Creating hyperlinked list entries with dot leaders and right-aligned page numbers
+
+    Args:
+        doc: python-docx Document object
+        config: lists config dict with 'lot', 'lof', and 'low' boolean keys
+        verbose: Print status messages
+    """
+    import re
+    from docx.shared import Pt, Twips, RGBColor
+    from docx.enum.text import WD_ALIGN_PARAGRAPH, WD_BREAK, WD_TAB_ALIGNMENT, WD_TAB_LEADER
+    from docx.oxml.ns import qn
+    from docx.oxml import OxmlElement
+
+    def has_page_break(para) -> bool:
+        """Check if a paragraph contains a page break."""
+        xml_str = para._p.xml
+        return 'w:br' in xml_str and 'w:type="page"' in xml_str
+
+    def add_bookmark_to_paragraph(para, bookmark_name: str) -> None:
+        """Add a bookmark anchor to a paragraph."""
+        # Generate unique bookmark ID
+        bookmark_id = str(hash(bookmark_name) % 100000)
+
+        # Create bookmark start
+        bookmark_start = OxmlElement('w:bookmarkStart')
+        bookmark_start.set(qn('w:id'), bookmark_id)
+        bookmark_start.set(qn('w:name'), bookmark_name)
+
+        # Create bookmark end
+        bookmark_end = OxmlElement('w:bookmarkEnd')
+        bookmark_end.set(qn('w:id'), bookmark_id)
+
+        # Insert at start of paragraph
+        para._p.insert(0, bookmark_start)
+        para._p.append(bookmark_end)
+
+    def set_tab_stop_with_leader(para, position_twips: int, alignment=WD_TAB_ALIGNMENT.RIGHT, leader=WD_TAB_LEADER.DOTS):
+        """Set a tab stop with dot leader for TOC-style formatting."""
+        pPr = para._p.get_or_add_pPr()
+        tabs = pPr.find(qn('w:tabs'))
+        if tabs is None:
+            tabs = OxmlElement('w:tabs')
+            pPr.append(tabs)
+
+        tab = OxmlElement('w:tab')
+        tab.set(qn('w:val'), 'right')
+        tab.set(qn('w:leader'), 'dot')
+        tab.set(qn('w:pos'), str(position_twips))
+        tabs.append(tab)
+
+    def create_toc_style_entry(para, text: str, bookmark_name: str) -> None:
+        """Create a TOC-style entry with hyperlink, dot leader, and page number."""
+        # Set tab stop at right margin with dot leader (9360 twips = 6.5 inches)
+        set_tab_stop_with_leader(para, 9360)
+
+        # Create hyperlink element for the text
+        hyperlink = OxmlElement('w:hyperlink')
+        hyperlink.set(qn('w:anchor'), bookmark_name)
+
+        # Create run with text (no underline, black color - matching TOC style)
+        run_elem = OxmlElement('w:r')
+        run_props = OxmlElement('w:rPr')
+
+        # Font settings
+        run_font = OxmlElement('w:rFonts')
+        run_font.set(qn('w:ascii'), 'Cambria')
+        run_font.set(qn('w:hAnsi'), 'Cambria')
+        run_props.append(run_font)
+
+        font_size = OxmlElement('w:sz')
+        font_size.set(qn('w:val'), '24')  # 12pt = 24 half-points
+        run_props.append(font_size)
+
+        # Black color (matching TOC entries, not blue hyperlinks)
+        color = OxmlElement('w:color')
+        color.set(qn('w:val'), '000000')
+        run_props.append(color)
+
+        run_elem.append(run_props)
+
+        text_elem = OxmlElement('w:t')
+        text_elem.text = text
+        run_elem.append(text_elem)
+
+        hyperlink.append(run_elem)
+
+        # Add tab character inside hyperlink (for dot leader)
+        tab_run = OxmlElement('w:r')
+        tab_elem = OxmlElement('w:tab')
+        tab_run.append(tab_elem)
+        hyperlink.append(tab_run)
+
+        # Add PAGEREF field inside hyperlink
+        page_run = OxmlElement('w:r')
+        page_props = OxmlElement('w:rPr')
+        page_font = OxmlElement('w:rFonts')
+        page_font.set(qn('w:ascii'), 'Cambria')
+        page_font.set(qn('w:hAnsi'), 'Cambria')
+        page_props.append(page_font)
+        page_size = OxmlElement('w:sz')
+        page_size.set(qn('w:val'), '24')  # 12pt = 24 half-points
+        page_props.append(page_size)
+        page_run.append(page_props)
+
+        # Field start
+        fld_char_begin = OxmlElement('w:fldChar')
+        fld_char_begin.set(qn('w:fldCharType'), 'begin')
+        page_run.append(fld_char_begin)
+        hyperlink.append(page_run)
+
+        # Field instruction in separate run
+        instr_run = OxmlElement('w:r')
+        instr_text = OxmlElement('w:instrText')
+        instr_text.set(qn('xml:space'), 'preserve')
+        instr_text.text = f' PAGEREF {bookmark_name} \\h '
+        instr_run.append(instr_text)
+        hyperlink.append(instr_run)
+
+        # Field separator
+        sep_run = OxmlElement('w:r')
+        fld_char_sep = OxmlElement('w:fldChar')
+        fld_char_sep.set(qn('w:fldCharType'), 'separate')
+        sep_run.append(fld_char_sep)
+        hyperlink.append(sep_run)
+
+        # Placeholder text
+        placeholder_run = OxmlElement('w:r')
+        placeholder_text = OxmlElement('w:t')
+        placeholder_text.text = '?'
+        placeholder_run.append(placeholder_text)
+        hyperlink.append(placeholder_run)
+
+        # Field end
+        end_run = OxmlElement('w:r')
+        fld_char_end = OxmlElement('w:fldChar')
+        fld_char_end.set(qn('w:fldCharType'), 'end')
+        end_run.append(fld_char_end)
+        hyperlink.append(end_run)
+
+        para._p.append(hyperlink)
+
+    def create_list_heading(doc, title: str):
+        """Create a heading styled like TOC Heading."""
+        heading = doc.add_paragraph()
+        run = heading.add_run(title)
+        run.font.size = Pt(16)  # 16pt as requested
+        run.font.bold = False
+        run.font.name = 'Calibri Light'
+        run.font.color.rgb = RGBColor(0x2E, 0x74, 0xB5)  # Blue color matching TOC
+        heading.paragraph_format.space_before = Pt(0)
+        heading.paragraph_format.space_after = Pt(12)
+        return heading
+
+    # Patterns to find figures, waveforms, and wavedrom SVG images
+    # Allow for section numbers + tab at start (e.g., "1.2.3\tFigure 1.1.1: Title")
+    # Figure numbers can be simple (1) or hierarchical (1.1.1)
+    figure_pattern = re.compile(r'^(?:[\d.]+[\t\s]+)?Figure\s+([\d.]+)[:\s]+(.+)$', re.IGNORECASE)
+    waveform_pattern = re.compile(r'^(?:[\d.]+[\t\s]+)?Waveform\s+([\d.]+)[:\s]+(.+)$', re.IGNORECASE)
+
+    # Scan document for figures, tables, waveforms, and add bookmarks
+    figures = []
+    tables = []
+    waveforms = []
+    seen_figures = set()
+    table_count = 0
+    figure_bookmark_map = {}
+    table_bookmark_map = {}
+    waveform_bookmark_map = {}
+
+    for i, para in enumerate(doc.paragraphs):
+        text = para.text.strip()
+        style_name = para.style.name if para.style else ''
+
+        if not text:
+            continue
+
+        # Check for figure headings (must be in Heading styles, not Normal/list entries)
+        if style_name.startswith('Heading'):
+            match = figure_pattern.match(text)
+            if match:
+                fig_num = match.group(1)
+                fig_title = match.group(2).strip()
+                # Use composite key to allow same figure number in different chapters
+                fig_key = f"{fig_num}:{fig_title}"
+                if fig_key not in seen_figures:
+                    seen_figures.add(fig_key)
+                    # Create safe bookmark name
+                    bookmark_name = f"_Fig_{len(figures)+1}_{re.sub(r'[^a-zA-Z0-9]', '_', fig_title[:20])}"
+                    add_bookmark_to_paragraph(para, bookmark_name)
+                    figures.append((fig_num, fig_title, bookmark_name))
+                    figure_bookmark_map[fig_key] = bookmark_name
+                continue
+
+            # Check for waveform headings (also in Heading styles)
+            match = waveform_pattern.match(text)
+            if match:
+                wave_num = match.group(1)
+                wave_title = match.group(2).strip()
+                bookmark_name = f"_Wave_{wave_num.replace('.', '_')}_{re.sub(r'[^a-zA-Z0-9]', '_', wave_title[:20])}"
+                add_bookmark_to_paragraph(para, bookmark_name)
+                waveforms.append((wave_num, wave_title, bookmark_name))
+                continue
+
+        # Check for table captions - Pandoc uses "Table Caption" style
+        if style_name == 'Table Caption':
+            table_count += 1
+            bookmark_name = f"_Tab_{table_count}_{re.sub(r'[^a-zA-Z0-9]', '_', text[:20])}"
+            add_bookmark_to_paragraph(para, bookmark_name)
+            tables.append((str(table_count), text, bookmark_name))
+
+    if verbose:
+        log(f"  Found {len(figures)} figures, {len(tables)} tables, {len(waveforms)} waveforms")
+
+    # Find the title page's page break - this marks the end of the title page
+    title_page_end_index = None
+    for i, para in enumerate(doc.paragraphs):
+        if has_page_break(para):
+            title_page_end_index = i
+            break
+
+    # Fallback if no page break found
+    if title_page_end_index is None:
+        title_page_end_index = min(5, len(doc.paragraphs) - 1)
+
+    if verbose:
+        log(f"  Inserting lists after paragraph {title_page_end_index}")
+
+    # Create paragraphs for lists
+    list_paragraphs = []
+
+    # List of Figures
+    if config.get('lof', False):
+        # Page break before List of Figures
+        break_para = doc.add_paragraph()
+        run = break_para.add_run()
+        run.add_break(WD_BREAK.PAGE)
+        list_paragraphs.append(break_para)
+
+        # Heading (styled like TOC Heading)
+        lof_heading = create_list_heading(doc, 'List of Figures')
+        list_paragraphs.append(lof_heading)
+
+        # Add figure entries with TOC-style formatting
+        if figures:
+            for num, title, bookmark in figures:
+                entry = doc.add_paragraph()
+                entry.paragraph_format.space_after = Pt(0)
+                entry.paragraph_format.space_before = Pt(0)
+                create_toc_style_entry(entry, f"Figure {num}: {title}", bookmark)
+                list_paragraphs.append(entry)
+        else:
+            empty = doc.add_paragraph()
+            run = empty.add_run("No figures in this document.")
+            run.font.size = Pt(12)
+            run.font.italic = True
+            run.font.name = 'Cambria'
+            list_paragraphs.append(empty)
+
+        if verbose:
+            log(f"  Added List of Figures with {len(figures)} entries (TOC-style with dot leaders)")
+
+    # List of Tables
+    if config.get('lot', False):
+        # Page break before List of Tables
+        break_para = doc.add_paragraph()
+        run = break_para.add_run()
+        run.add_break(WD_BREAK.PAGE)
+        list_paragraphs.append(break_para)
+
+        # Heading (styled like TOC Heading)
+        lot_heading = create_list_heading(doc, 'List of Tables')
+        list_paragraphs.append(lot_heading)
+
+        # Add table entries with TOC-style formatting
+        if tables:
+            for num, title, bookmark in tables:
+                entry = doc.add_paragraph()
+                entry.paragraph_format.space_after = Pt(0)
+                entry.paragraph_format.space_before = Pt(0)
+                create_toc_style_entry(entry, f"Table {num}: {title}", bookmark)
+                list_paragraphs.append(entry)
+        else:
+            empty = doc.add_paragraph()
+            run = empty.add_run("No tables in this document.")
+            run.font.size = Pt(12)
+            run.font.italic = True
+            run.font.name = 'Cambria'
+            list_paragraphs.append(empty)
+
+        if verbose:
+            log(f"  Added List of Tables with {len(tables)} entries (TOC-style with dot leaders)")
+
+    # List of Waveforms
+    if config.get('low', False):
+        # Page break before List of Waveforms
+        break_para = doc.add_paragraph()
+        run = break_para.add_run()
+        run.add_break(WD_BREAK.PAGE)
+        list_paragraphs.append(break_para)
+
+        # Heading (styled like TOC Heading)
+        low_heading = create_list_heading(doc, 'List of Waveforms')
+        list_paragraphs.append(low_heading)
+
+        # Add waveform entries with TOC-style formatting
+        if waveforms:
+            for num, title, bookmark in waveforms:
+                entry = doc.add_paragraph()
+                entry.paragraph_format.space_after = Pt(0)
+                entry.paragraph_format.space_before = Pt(0)
+                create_toc_style_entry(entry, f"Waveform {num}: {title}", bookmark)
+                list_paragraphs.append(entry)
+        else:
+            empty = doc.add_paragraph()
+            run = empty.add_run("No waveforms in this document.")
+            run.font.size = Pt(12)
+            run.font.italic = True
+            run.font.name = 'Cambria'
+            list_paragraphs.append(empty)
+
+        if verbose:
+            log(f"  Added List of Waveforms with {len(waveforms)} entries (TOC-style with dot leaders)")
+
+    # Add page break after the last list (before content starts)
+    if list_paragraphs:
+        final_break = doc.add_paragraph()
+        run = final_break.add_run()
+        run.add_break(WD_BREAK.PAGE)
+        list_paragraphs.append(final_break)
+
+    # Move the list paragraphs to after the title page
+    if title_page_end_index + 1 < len(doc.paragraphs):
+        insert_before = doc.paragraphs[title_page_end_index + 1]._p
+    else:
+        insert_before = None
+
+    # Move paragraphs
+    for para in list_paragraphs:
+        if insert_before is not None:
+            insert_before.addprevious(para._p)
+
+
 def apply_docx_style(docx_path: pathlib.Path, style_config_path: pathlib.Path, quiet: bool = False) -> bool:
     """Apply corporate styling to a DOCX file using a YAML config.
 
@@ -659,7 +1050,7 @@ def apply_docx_style(docx_path: pathlib.Path, style_config_path: pathlib.Path, q
     try:
         import yaml
         from docx import Document
-        from docx.shared import Pt, RGBColor
+        from docx.shared import Pt, RGBColor, Inches
         from docx.enum.text import WD_ALIGN_PARAGRAPH
         from docx.oxml.ns import qn
         from docx.oxml import OxmlElement
@@ -737,9 +1128,16 @@ def apply_docx_style(docx_path: pathlib.Path, style_config_path: pathlib.Path, q
     # Add title page if configured
     title_page_config = config.get('title_page', {})
     if title_page_config.get('enabled', False):
-        add_title_page_to_docx(doc, title_page_config, colors)
+        # Use style config directory as base for resolving relative logo paths
+        base_dir = style_config_path.parent
+        add_title_page_to_docx(doc, title_page_config, colors, base_dir)
         if not quiet:
             log(f"  Added title page to DOCX")
+
+    # Add List of Tables and List of Figures after TOC
+    lists_config = config.get('lists', {})
+    if lists_config.get('lot', False) or lists_config.get('lof', False):
+        add_lists_to_docx(doc, lists_config, not quiet)
 
     # Process paragraphs
     for para in doc.paragraphs:
@@ -797,23 +1195,102 @@ def apply_docx_style(docx_path: pathlib.Path, style_config_path: pathlib.Path, q
                         if header_config.get('font_size'):
                             run.font.size = Pt(header_config['font_size'])
 
-    # Add footer with confidential text
+    # Add footer with confidential text and page numbers
     hf_config = config.get('header_footer', {})
     if hf_config.get('enabled', False):
-        company = config.get('company', {})
-        confidential = company.get('confidential_text', '')
+        company_config = config.get('company', {})
+        confidential = company_config.get('confidential_text', '')
+        font_size = hf_config.get('font_size', 8)
+
         for section in doc.sections:
             footer = section.footer
             footer.is_linked_to_previous = False
-            if footer.paragraphs:
-                para = footer.paragraphs[0]
+
+            # Clear existing footer content
+            for para in footer.paragraphs:
                 para.clear()
-            else:
-                para = footer.add_paragraph()
-            para.text = confidential
-            para.alignment = WD_ALIGN_PARAGRAPH.CENTER
-            for run in para.runs:
-                run.font.size = Pt(hf_config.get('font_size', 8))
+
+            # Create a table for left/center/right footer alignment
+            # This is the standard way to create multi-part footers in DOCX
+            table = footer.add_table(rows=1, cols=3, width=Inches(6.5))
+            table.autofit = True
+
+            # Remove table borders
+            tbl = table._tbl
+            tblPr = tbl.tblPr if tbl.tblPr is not None else OxmlElement('w:tblPr')
+            tblBorders = OxmlElement('w:tblBorders')
+            for border_name in ['top', 'left', 'bottom', 'right', 'insideH', 'insideV']:
+                border = OxmlElement(f'w:{border_name}')
+                border.set(qn('w:val'), 'nil')
+                tblBorders.append(border)
+            tblPr.append(tblBorders)
+            if tbl.tblPr is None:
+                tbl.insert(0, tblPr)
+
+            # Get cells
+            cells = table.rows[0].cells
+
+            # Left cell - Document title (optional)
+            left_para = cells[0].paragraphs[0]
+            left_para.alignment = WD_ALIGN_PARAGRAPH.LEFT
+            title_page_cfg = config.get('title_page', {})
+            left_text = title_page_cfg.get('title', '')
+            if title_page_cfg.get('subtitle'):
+                left_text += f" {title_page_cfg.get('subtitle')}"
+            if left_text:
+                run = left_para.add_run(left_text)
+                run.font.size = Pt(font_size)
+                run.font.name = 'Calibri'
+
+            # Center cell - Confidential text
+            center_para = cells[1].paragraphs[0]
+            center_para.alignment = WD_ALIGN_PARAGRAPH.CENTER
+            if confidential:
+                run = center_para.add_run(confidential)
+                run.font.size = Pt(font_size)
+                run.font.name = 'Calibri'
+
+            # Right cell - Page number
+            right_para = cells[2].paragraphs[0]
+            right_para.alignment = WD_ALIGN_PARAGRAPH.RIGHT
+            run = right_para.add_run("Page ")
+            run.font.size = Pt(font_size)
+            run.font.name = 'Calibri'
+
+            # Add PAGE field
+            fldChar1 = OxmlElement('w:fldChar')
+            fldChar1.set(qn('w:fldCharType'), 'begin')
+            instrText = OxmlElement('w:instrText')
+            instrText.text = "PAGE"
+            fldChar2 = OxmlElement('w:fldChar')
+            fldChar2.set(qn('w:fldCharType'), 'separate')
+            fldChar3 = OxmlElement('w:fldChar')
+            fldChar3.set(qn('w:fldCharType'), 'end')
+
+            run._r.append(fldChar1)
+            run._r.append(instrText)
+            run._r.append(fldChar2)
+            run._r.append(fldChar3)
+
+            # Add " of " text
+            run2 = right_para.add_run(" of ")
+            run2.font.size = Pt(font_size)
+            run2.font.name = 'Calibri'
+
+            # Add NUMPAGES field
+            fldChar4 = OxmlElement('w:fldChar')
+            fldChar4.set(qn('w:fldCharType'), 'begin')
+            instrText2 = OxmlElement('w:instrText')
+            instrText2.text = "NUMPAGES"
+            fldChar5 = OxmlElement('w:fldChar')
+            fldChar5.set(qn('w:fldCharType'), 'separate')
+            fldChar6 = OxmlElement('w:fldChar')
+            fldChar6.set(qn('w:fldCharType'), 'end')
+
+            run2._r.append(fldChar4)
+            run2._r.append(instrText2)
+            run2._r.append(fldChar5)
+            run2._r.append(fldChar6)
 
     # Save
     doc.save(str(docx_path))
@@ -1003,6 +1480,11 @@ def reapply_title_page_fonts(docx_path: pathlib.Path, style_config_path: pathlib
     company = title_page_config.get('company', 'QernelAI')
     company_color = colors.get(title_page_config.get('company_color', 'primary'), '#CC0000')
 
+    # Get configurable font sizes from title_page config
+    company_size = title_page_config.get('company_size', 72)  # Default 72pt for company name
+    title_size = title_page_config.get('title_size', 36)      # Default 36pt for title
+    date_size = title_page_config.get('date_size', 36)        # Default 36pt for date
+
     doc = Document(str(docx_path))
 
     # Find title page paragraphs (before the first page break or TOC)
@@ -1032,9 +1514,9 @@ def reapply_title_page_fonts(docx_path: pathlib.Path, style_config_path: pathlib
 
         # Determine what this paragraph is based on content
         if text == company or text == 'QernelAI':
-            # Company name - 72pt
+            # Company name - configurable size (default 72pt)
             for run in para.runs:
-                run.font.size = Pt(72)
+                run.font.size = Pt(company_size)
                 run.font.bold = True
                 run.font.name = 'Calibri'
                 # Set color based on text content
@@ -1042,20 +1524,36 @@ def reapply_title_page_fonts(docx_path: pathlib.Path, style_config_path: pathlib
                     run.font.color.rgb = hex_to_rgb(company_color)
                 else:
                     run.font.color.rgb = hex_to_rgb('#000000')
-        elif 'Engineering Specification' in text or 'Q32' in text:
-            # Title line - 36pt
+        elif 'Engineering Specification' in text or 'Q32' in text or 'Specification' in text or 'Micro-Architecture' in text:
+            # Title line - configurable size (default 36pt)
             for run in para.runs:
-                run.font.size = Pt(36)
+                run.font.size = Pt(title_size)
                 run.font.bold = True
                 run.font.name = 'Calibri'
                 run.font.color.rgb = hex_to_rgb('#000000')
         elif text.startswith('Dec') or text.startswith('Jan') or text.startswith('20'):
-            # Date - 36pt
+            # Date - configurable size (default 36pt)
             for run in para.runs:
-                run.font.size = Pt(36)
+                run.font.size = Pt(date_size)
                 run.font.bold = True
                 run.font.name = 'Calibri'
                 run.font.color.rgb = hex_to_rgb('#000000')
+
+    # Also fix list headings (List of Figures, List of Tables, List of Waveforms)
+    # These may also get reset by LibreOffice when updating TOC
+    lists_config = config.get('lists', {})
+    if lists_config.get('lot', False) or lists_config.get('lof', False) or lists_config.get('low', False):
+        for para in doc.paragraphs:
+            text = para.text.strip()
+            if text in ['List of Figures', 'List of Tables', 'List of Waveforms']:
+                for run in para.runs:
+                    run.font.size = Pt(16)
+                    run.font.bold = False
+                    run.font.name = 'Calibri Light'
+                    run.font.color.rgb = hex_to_rgb('#2E74B5')  # Blue color
+                # Also fix paragraph spacing
+                para.paragraph_format.space_before = Pt(0)
+                para.paragraph_format.space_after = Pt(12)
 
     doc.save(str(docx_path))
     if not quiet:

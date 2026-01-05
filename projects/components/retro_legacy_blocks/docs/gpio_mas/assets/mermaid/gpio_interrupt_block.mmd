@@ -1,0 +1,41 @@
+%%{init: {'theme': 'neutral'}}%%
+flowchart LR
+    subgraph INPUTS["GPIO Inputs"]
+        PIN["gpio_in[31:0]"]
+    end
+
+    subgraph SYNC["Input Synchronization"]
+        SYNC_FF["2-Stage FF"]
+    end
+
+    subgraph DETECT["Detection Logic"]
+        EDGE["Edge Detector"]
+        LEVEL["Level Detector"]
+        MUX["Type Mux"]
+    end
+
+    subgraph CONFIG["Configuration"]
+        TYPE["INT_TYPE"]
+        POL["INT_POLARITY"]
+        BOTH["INT_BOTH"]
+        EN["INT_ENABLE"]
+    end
+
+    subgraph STATUS["Interrupt Status"]
+        STAT["INT_STATUS<br/>(W1C)"]
+        OR["OR Gate"]
+    end
+
+    PIN --> SYNC_FF
+    SYNC_FF --> EDGE
+    SYNC_FF --> LEVEL
+    TYPE --> MUX
+    EDGE --> MUX
+    LEVEL --> MUX
+    POL --> EDGE
+    POL --> LEVEL
+    BOTH --> EDGE
+    MUX --> STAT
+    EN --> OR
+    STAT --> OR
+    OR --> IRQ["irq"]

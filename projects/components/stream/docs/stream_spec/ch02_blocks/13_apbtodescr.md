@@ -1,3 +1,26 @@
+<!-- RTL Design Sherpa Documentation Header -->
+<table>
+<tr>
+<td width="80">
+  <a href="https://github.com/sean-galloway/RTLDesignSherpa">
+    <img src="https://raw.githubusercontent.com/sean-galloway/RTLDesignSherpa/main/docs/logos/Logo_200px.png" alt="RTL Design Sherpa" width="70">
+  </a>
+</td>
+<td>
+  <strong>RTL Design Sherpa</strong> · <em>Learning Hardware Design Through Practice</em><br>
+  <sub>
+    <a href="https://github.com/sean-galloway/RTLDesignSherpa">GitHub</a> ·
+    <a href="https://github.com/sean-galloway/RTLDesignSherpa/blob/main/docs/DOCUMENTATION_INDEX.md">Documentation Index</a> ·
+    <a href="https://github.com/sean-galloway/RTLDesignSherpa/blob/main/LICENSE">MIT License</a>
+  </sub>
+</td>
+</tr>
+</table>
+
+---
+
+<!-- End Header -->
+
 # APB to Descriptor Router
 
 **Module:** `apbtodescr.sv`
@@ -40,13 +63,17 @@ Relative to BASE_ADDR:
 
 ### Block Diagram
 
-![APB to Descriptor Block Diagram](../assets/mermaid/02_apbtodescr_block.svg)
+### Figure 2.13.1: APB to Descriptor Block Diagram
+
+![APB to Descriptor Block Diagram](../assets/mermaid/02_apbtodescr_block.png)
 
 **Source:** [02_apbtodescr_block.mmd](../assets/mermaid/02_apbtodescr_block.mmd)
 
 ### FSM Diagram
 
-![APB to Descriptor FSM](../assets/mermaid/02_apbtodescr_fsm.svg)
+### Figure 2.13.2: APB to Descriptor FSM
+
+![APB to Descriptor FSM](../assets/mermaid/02_apbtodescr_fsm.png)
 
 **Source:** [02_apbtodescr_fsm.mmd](../assets/mermaid/02_apbtodescr_fsm.mmd)
 
@@ -86,6 +113,8 @@ typedef enum logic [2:0] {
 | `DATA_WIDTH` | int | 32 | APB data width |
 | `NUM_CHANNELS` | int | 8 | Number of DMA channels |
 
+: Parameters
+
 ---
 
 ## Port List
@@ -97,6 +126,8 @@ typedef enum logic [2:0] {
 | `clk` | input | 1 | System clock |
 | `rst_n` | input | 1 | Active-low asynchronous reset |
 
+: Clock and Reset
+
 ### APB Slave CMD Interface
 
 | Signal | Direction | Width | Description |
@@ -107,6 +138,8 @@ typedef enum logic [2:0] {
 | `apb_cmd_wdata` | input | DATA_WIDTH | Write data |
 | `apb_cmd_write` | input | 1 | Write enable (1=write, 0=read) |
 
+: APB Slave CMD Interface
+
 ### APB Slave RSP Interface
 
 | Signal | Direction | Width | Description |
@@ -116,6 +149,8 @@ typedef enum logic [2:0] {
 | `apb_rsp_rdata` | output | DATA_WIDTH | Read data (always 0) |
 | `apb_rsp_error` | output | 1 | Error flag |
 
+: APB Slave RSP Interface
+
 ### Descriptor Engine APB Ports
 
 | Signal | Direction | Width | Description |
@@ -124,11 +159,15 @@ typedef enum logic [2:0] {
 | `desc_apb_ready[ch]` | input | NUM_CHANNELS | Per-channel ready |
 | `desc_apb_addr[ch]` | output | NUM_CHANNELS x 64 | 64-bit descriptor addresses |
 
+: Descriptor Engine APB Ports
+
 ### Integration Control
 
 | Signal | Direction | Width | Description |
 |--------|-----------|-------|-------------|
 | `apb_descriptor_kickoff_hit` | output | 1 | Indicates kick-off in progress |
+
+: Integration Control
 
 ---
 
@@ -171,6 +210,54 @@ desc_apb_addr[ch] = {r_wdata_high, r_wdata_low};
 2. **Address Out of Range:** Beyond channel address space
 3. **HIGH Before LOW:** HIGH write without preceding LOW write
 4. **Wrong Channel:** HIGH write to different channel than LOW
+
+---
+
+## Timing Diagrams
+
+### Normal Write Sequence
+
+The following diagram shows the normal write flow where a LOW word followed by HIGH word kicks off a channel:
+
+#### Waveform 2.13.1: APB Normal Write Sequence
+
+![APB Normal Write](../assets/wavedrom/apbtodescr_normal_write.svg)
+
+**Source:** [apbtodescr_normal_write.json](../assets/wavedrom/apbtodescr_normal_write.json)
+
+### Backpressure Handling
+
+When the descriptor engine is busy, the APB response is delayed until the engine accepts the kick-off:
+
+#### Waveform 2.13.2: APB Write with Backpressure
+
+![APB Backpressure Write](../assets/wavedrom/apbtodescr_backpressure_write.svg)
+
+**Source:** [apbtodescr_backpressure_write.json](../assets/wavedrom/apbtodescr_backpressure_write.json)
+
+### Channel Kick-off Examples
+
+#### Waveform 2.13.3: Channel 0 Kick-off
+
+![Channel 0 Kick-off](../assets/wavedrom/apbtodescr_ch0_kickoff.svg)
+
+**Source:** [apbtodescr_ch0_kickoff.json](../assets/wavedrom/apbtodescr_ch0_kickoff.json)
+
+#### Waveform 2.13.4: Channel 7 Kick-off
+
+![Channel 7 Kick-off](../assets/wavedrom/apbtodescr_ch7_kickoff.svg)
+
+**Source:** [apbtodescr_ch7_kickoff.json](../assets/wavedrom/apbtodescr_ch7_kickoff.json)
+
+### Multi-Channel Operation
+
+The following diagram shows multiple channels being kicked off in sequence:
+
+#### Waveform 2.13.5: Multi-Channel Kick-off Sequence
+
+![Multi-Channel Kick-off](../assets/wavedrom/apbtodescr_multi_channel.svg)
+
+**Source:** [apbtodescr_multi_channel.json](../assets/wavedrom/apbtodescr_multi_channel.json)
 
 ---
 
@@ -237,7 +324,17 @@ apbtodescr #(
 - **Parent:** `01_stream_core.md` - Top-level integration
 - **Consumer:** `05_descriptor_engine.md` - Receives kick-off
 - **Register File:** PeakRDL-generated `stream_regs.sv`
+---
+
+## Revision History
+
+| Version | Date | Author | Description |
+|---------|------|--------|-------------|
+| 0.90 | 2025-11-22 | seang | Initial block specification |
+| 0.91 | 2026-01-02 | seang | Added table captions and figure numbers |
+
+: APB to Descriptor Router Revision History
 
 ---
 
-**Last Updated:** 2025-11-30 (verified against RTL implementation)
+**Last Updated:** 2026-01-02

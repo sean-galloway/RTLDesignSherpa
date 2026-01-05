@@ -21,8 +21,7 @@
 //==============================================================================
 // Description:
 //   Finds the maximum magnitude BF16 value from an array of N inputs using
-//   a tree-based reduction structure. Each level of the tree uses
-//   math_bf16_comparator modules to compare pairs and propagate winners.
+//   a tree-based reduction structure.
 //
 // Features:
 //   - Parameterized input count (must be power of 2)
@@ -96,18 +95,12 @@ localparam int NUM_LEVELS = $clog2(NUM_INPUTS);
 localparam int IDX_WIDTH = $clog2(NUM_INPUTS);
 
 // Total number of comparator nodes = NUM_INPUTS - 1
-// Flat array to store all intermediate values and indices
-// Node numbering: first NUM_INPUTS/2 nodes are level 0, next NUM_INPUTS/4 are level 1, etc.
 localparam int TOTAL_NODES = NUM_INPUTS - 1;
 
 // Flat wires for all tree nodes
-// Note: Verilator warns about UNOPTFLAT because it sees array indices
-// being read and written in the same generate block. This is a false positive
-// since each level only reads from lower-indexed nodes and writes to higher-indexed nodes.
 /* verilator lint_off UNOPTFLAT */
 logic [TOTAL_NODES-1:0][15:0] node_values;
 logic [TOTAL_NODES-1:0][IDX_WIDTH-1:0] node_indices;
-logic [TOTAL_NODES-1:0] node_a_greater;
 /* verilator lint_on UNOPTFLAT */
 
 // Zero detection for all inputs
@@ -120,113 +113,134 @@ generate
 endgenerate
 assign ow_all_zero = &input_is_zero;
 
-// Generate the tree structure with explicit node indices
-// Level 0: nodes 0 to NUM_INPUTS/2-1 (compare inputs pairwise)
-// Level 1: nodes NUM_INPUTS/2 to NUM_INPUTS/2+NUM_INPUTS/4-1
-// etc.
+// Helper function signals for max-with-NaN-propagation
+// NaN detection: exp=0xFF, mant!=0
 
+// Generate the tree structure
+// Level 0: compare adjacent inputs
 generate
-    // Level 0: compare adjacent inputs
     for (genvar n = 0; n < NUM_INPUTS/2; n++) begin : gen_level0
-        math_bf16_comparator u_cmp (
-            .i_a(i_values[2*n]),
-            .i_b(i_values[2*n + 1]),
-            .ow_max(node_values[n]),
-            .ow_a_greater(node_a_greater[n]),
-            .ow_equal()
-        );
-        assign node_indices[n] = node_a_greater[n] ? IDX_WIDTH'(2*n) : IDX_WIDTH'(2*n + 1);
+        // NaN detection
+        wire w_a_is_nan = (i_values[2*n][14:7] == 8'hFF) & (i_values[2*n][6:0] != 7'h0);
+        wire w_b_is_nan = (i_values[2*n + 1][14:7] == 8'hFF) & (i_values[2*n + 1][6:0] != 7'h0);
+
+        // Magnitude comparison (ignore sign)
+        wire [14:0] w_a_mag = i_values[2*n][14:0];
+        wire [14:0] w_b_mag = i_values[2*n + 1][14:0];
+
+        // A is selected if: A is NaN, or (B is not NaN and A_mag >= B_mag)
+        wire w_a_selected = w_a_is_nan | (~w_b_is_nan & (w_a_mag >= w_b_mag));
+
+        assign node_values[n] = w_a_selected ? i_values[2*n] : i_values[2*n + 1];
+        assign node_indices[n] = w_a_selected ? IDX_WIDTH'(2*n) : IDX_WIDTH'(2*n + 1);
     end
 
-    // Level 1 and beyond
+    // Level 1
     if (NUM_INPUTS >= 4) begin : gen_level1_plus
-        // Level 1: nodes NUM_INPUTS/2 to NUM_INPUTS/2 + NUM_INPUTS/4 - 1
         localparam int L1_START = NUM_INPUTS/2;
         localparam int L1_COUNT = NUM_INPUTS/4;
 
         for (genvar n = 0; n < L1_COUNT; n++) begin : gen_level1
-            localparam int SRC_BASE = 0;  // Level 0 starts at node 0
-            math_bf16_comparator u_cmp (
-                .i_a(node_values[SRC_BASE + 2*n]),
-                .i_b(node_values[SRC_BASE + 2*n + 1]),
-                .ow_max(node_values[L1_START + n]),
-                .ow_a_greater(node_a_greater[L1_START + n]),
-                .ow_equal()
-            );
-            assign node_indices[L1_START + n] = node_a_greater[L1_START + n] ?
+            localparam int SRC_BASE = 0;
+            wire w_a_is_nan = (node_values[SRC_BASE + 2*n][14:7] == 8'hFF) &
+                              (node_values[SRC_BASE + 2*n][6:0] != 7'h0);
+            wire w_b_is_nan = (node_values[SRC_BASE + 2*n + 1][14:7] == 8'hFF) &
+                              (node_values[SRC_BASE + 2*n + 1][6:0] != 7'h0);
+            wire [14:0] w_a_mag = node_values[SRC_BASE + 2*n][14:0];
+            wire [14:0] w_b_mag = node_values[SRC_BASE + 2*n + 1][14:0];
+            wire w_a_selected = w_a_is_nan | (~w_b_is_nan & (w_a_mag >= w_b_mag));
+
+            assign node_values[L1_START + n] = w_a_selected ?
+                node_values[SRC_BASE + 2*n] : node_values[SRC_BASE + 2*n + 1];
+            assign node_indices[L1_START + n] = w_a_selected ?
                 node_indices[SRC_BASE + 2*n] : node_indices[SRC_BASE + 2*n + 1];
         end
     end
 
+    // Level 2
     if (NUM_INPUTS >= 8) begin : gen_level2_plus
-        // Level 2: nodes start after level 1
         localparam int L2_START = NUM_INPUTS/2 + NUM_INPUTS/4;
         localparam int L2_COUNT = NUM_INPUTS/8;
         localparam int L1_START = NUM_INPUTS/2;
 
         for (genvar n = 0; n < L2_COUNT; n++) begin : gen_level2
-            math_bf16_comparator u_cmp (
-                .i_a(node_values[L1_START + 2*n]),
-                .i_b(node_values[L1_START + 2*n + 1]),
-                .ow_max(node_values[L2_START + n]),
-                .ow_a_greater(node_a_greater[L2_START + n]),
-                .ow_equal()
-            );
-            assign node_indices[L2_START + n] = node_a_greater[L2_START + n] ?
+            wire w_a_is_nan = (node_values[L1_START + 2*n][14:7] == 8'hFF) &
+                              (node_values[L1_START + 2*n][6:0] != 7'h0);
+            wire w_b_is_nan = (node_values[L1_START + 2*n + 1][14:7] == 8'hFF) &
+                              (node_values[L1_START + 2*n + 1][6:0] != 7'h0);
+            wire [14:0] w_a_mag = node_values[L1_START + 2*n][14:0];
+            wire [14:0] w_b_mag = node_values[L1_START + 2*n + 1][14:0];
+            wire w_a_selected = w_a_is_nan | (~w_b_is_nan & (w_a_mag >= w_b_mag));
+
+            assign node_values[L2_START + n] = w_a_selected ?
+                node_values[L1_START + 2*n] : node_values[L1_START + 2*n + 1];
+            assign node_indices[L2_START + n] = w_a_selected ?
                 node_indices[L1_START + 2*n] : node_indices[L1_START + 2*n + 1];
         end
     end
 
+    // Level 3
     if (NUM_INPUTS >= 16) begin : gen_level3_plus
         localparam int L3_START = NUM_INPUTS/2 + NUM_INPUTS/4 + NUM_INPUTS/8;
         localparam int L3_COUNT = NUM_INPUTS/16;
         localparam int L2_START = NUM_INPUTS/2 + NUM_INPUTS/4;
 
         for (genvar n = 0; n < L3_COUNT; n++) begin : gen_level3
-            math_bf16_comparator u_cmp (
-                .i_a(node_values[L2_START + 2*n]),
-                .i_b(node_values[L2_START + 2*n + 1]),
-                .ow_max(node_values[L3_START + n]),
-                .ow_a_greater(node_a_greater[L3_START + n]),
-                .ow_equal()
-            );
-            assign node_indices[L3_START + n] = node_a_greater[L3_START + n] ?
+            wire w_a_is_nan = (node_values[L2_START + 2*n][14:7] == 8'hFF) &
+                              (node_values[L2_START + 2*n][6:0] != 7'h0);
+            wire w_b_is_nan = (node_values[L2_START + 2*n + 1][14:7] == 8'hFF) &
+                              (node_values[L2_START + 2*n + 1][6:0] != 7'h0);
+            wire [14:0] w_a_mag = node_values[L2_START + 2*n][14:0];
+            wire [14:0] w_b_mag = node_values[L2_START + 2*n + 1][14:0];
+            wire w_a_selected = w_a_is_nan | (~w_b_is_nan & (w_a_mag >= w_b_mag));
+
+            assign node_values[L3_START + n] = w_a_selected ?
+                node_values[L2_START + 2*n] : node_values[L2_START + 2*n + 1];
+            assign node_indices[L3_START + n] = w_a_selected ?
                 node_indices[L2_START + 2*n] : node_indices[L2_START + 2*n + 1];
         end
     end
 
+    // Level 4
     if (NUM_INPUTS >= 32) begin : gen_level4_plus
         localparam int L4_START = NUM_INPUTS/2 + NUM_INPUTS/4 + NUM_INPUTS/8 + NUM_INPUTS/16;
         localparam int L4_COUNT = NUM_INPUTS/32;
         localparam int L3_START = NUM_INPUTS/2 + NUM_INPUTS/4 + NUM_INPUTS/8;
 
         for (genvar n = 0; n < L4_COUNT; n++) begin : gen_level4
-            math_bf16_comparator u_cmp (
-                .i_a(node_values[L3_START + 2*n]),
-                .i_b(node_values[L3_START + 2*n + 1]),
-                .ow_max(node_values[L4_START + n]),
-                .ow_a_greater(node_a_greater[L4_START + n]),
-                .ow_equal()
-            );
-            assign node_indices[L4_START + n] = node_a_greater[L4_START + n] ?
+            wire w_a_is_nan = (node_values[L3_START + 2*n][14:7] == 8'hFF) &
+                              (node_values[L3_START + 2*n][6:0] != 7'h0);
+            wire w_b_is_nan = (node_values[L3_START + 2*n + 1][14:7] == 8'hFF) &
+                              (node_values[L3_START + 2*n + 1][6:0] != 7'h0);
+            wire [14:0] w_a_mag = node_values[L3_START + 2*n][14:0];
+            wire [14:0] w_b_mag = node_values[L3_START + 2*n + 1][14:0];
+            wire w_a_selected = w_a_is_nan | (~w_b_is_nan & (w_a_mag >= w_b_mag));
+
+            assign node_values[L4_START + n] = w_a_selected ?
+                node_values[L3_START + 2*n] : node_values[L3_START + 2*n + 1];
+            assign node_indices[L4_START + n] = w_a_selected ?
                 node_indices[L3_START + 2*n] : node_indices[L3_START + 2*n + 1];
         end
     end
 
+    // Level 5
     if (NUM_INPUTS >= 64) begin : gen_level5_plus
-        localparam int L5_START = NUM_INPUTS - NUM_INPUTS/32 - 1;
+        localparam int L5_START = NUM_INPUTS/2 + NUM_INPUTS/4 + NUM_INPUTS/8 + NUM_INPUTS/16 + NUM_INPUTS/32;
         localparam int L5_COUNT = NUM_INPUTS/64;
         localparam int L4_START = NUM_INPUTS/2 + NUM_INPUTS/4 + NUM_INPUTS/8 + NUM_INPUTS/16;
 
         for (genvar n = 0; n < L5_COUNT; n++) begin : gen_level5
-            math_bf16_comparator u_cmp (
-                .i_a(node_values[L4_START + 2*n]),
-                .i_b(node_values[L4_START + 2*n + 1]),
-                .ow_max(node_values[L5_START + n]),
-                .ow_a_greater(node_a_greater[L5_START + n]),
-                .ow_equal()
-            );
-            assign node_indices[L5_START + n] = node_a_greater[L5_START + n] ?
+            wire w_a_is_nan = (node_values[L4_START + 2*n][14:7] == 8'hFF) &
+                              (node_values[L4_START + 2*n][6:0] != 7'h0);
+            wire w_b_is_nan = (node_values[L4_START + 2*n + 1][14:7] == 8'hFF) &
+                              (node_values[L4_START + 2*n + 1][6:0] != 7'h0);
+            wire [14:0] w_a_mag = node_values[L4_START + 2*n][14:0];
+            wire [14:0] w_b_mag = node_values[L4_START + 2*n + 1][14:0];
+            wire w_a_selected = w_a_is_nan | (~w_b_is_nan & (w_a_mag >= w_b_mag));
+
+            assign node_values[L5_START + n] = w_a_selected ?
+                node_values[L4_START + 2*n] : node_values[L4_START + 2*n + 1];
+            assign node_indices[L5_START + n] = w_a_selected ?
                 node_indices[L4_START + 2*n] : node_indices[L4_START + 2*n + 1];
         end
     end

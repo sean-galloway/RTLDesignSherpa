@@ -1,0 +1,12 @@
+{
+  "signal": [
+    {"name": "pclk", "wave": "p........"},
+    {"name": "irq_in[3]", "wave": "0.1...0.."},
+    {"name": "trigger_mode", "wave": "2........", "data": ["level"]},
+    {"name": "irr[3]", "wave": "0.1...0.."},
+    {"name": "int_out", "wave": "0.1...0.."},
+    {},
+    ["note", "IRR follows input level"]
+  ],
+  "head": {"text": "IOAPIC Level Triggered"}
+}

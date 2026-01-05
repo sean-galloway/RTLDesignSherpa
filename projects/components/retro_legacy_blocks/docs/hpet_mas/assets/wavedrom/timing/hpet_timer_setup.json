@@ -1,0 +1,14 @@
+{
+  "signal": [
+    {"name": "pclk", "wave": "p................"},
+    {"name": "psel", "wave": "01..0.1..0.1..0.1"},
+    {"name": "pwrite", "wave": "01..0.1..0.1..0.1"},
+    {"name": "paddr", "wave": "x2..x.3..x.4..x.5", "data": ["T0_CFG", "T0_CMP_LO", "T0_CMP_HI", "GEN_CFG"]},
+    {"name": "pwdata", "wave": "x2..x.3..x.4..x.5", "data": ["0x0C", "target_lo", "target_hi", "0x01"]},
+    {},
+    {"name": "timer0_cfg", "wave": "x...2............", "data": ["enabled"]},
+    {"name": "timer0_cmp", "wave": "x......2..3......", "data": ["lo", "full"]},
+    {"name": "hpet_enable", "wave": "0..............1."}
+  ],
+  "head": {"text": "HPET Timer Setup Sequence"}
+}

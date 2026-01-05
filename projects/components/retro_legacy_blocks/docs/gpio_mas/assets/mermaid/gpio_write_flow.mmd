@@ -1,0 +1,19 @@
+%%{init: {'theme': 'neutral'}}%%
+sequenceDiagram
+    participant Master as APB Master
+    participant Slave as APB Slave<br/>(or APB CDC)
+    participant CMDRSP as peakrdl_to_cmdrsp
+    participant Regs as gpio_regs<br/>(PeakRDL)
+    participant Config as gpio_config_regs
+    participant Core as gpio_core
+
+    Master->>Slave: Write Request
+    Note over Slave: Protocol handling<br/>Clock domain crossing (if enabled)
+    Slave->>CMDRSP: CMD/RSP
+    Note over CMDRSP: CMD/RSP to regblock<br/>conversion
+    CMDRSP->>Regs: Register Write
+    Note over Regs: Register decoding<br/>Field updates
+    Regs->>Config: hwif_out
+    Note over Config: Hardware interface<br/>mapping
+    Config->>Core: Control signals
+    Note over Core: Update output registers<br/>Update direction<br/>Process atomic ops

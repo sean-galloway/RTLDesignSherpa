@@ -1,0 +1,16 @@
+%%{init: {'theme': 'neutral'}}%%
+flowchart LR
+    subgraph WriteForward["Write Forward Path"]
+        direction LR
+        MAW["Master AW"] --> MA1["Master Adapter"] --> XB1["Crossbar"] --> SR1["Slave Router"] --> SAW["Slave AW"]
+    end
+
+    subgraph WriteData["Write Data Path"]
+        direction LR
+        MW["Master W"] --> MA2["Master Adapter"] --> XB2["Crossbar"] --> SR2["Slave Router"] --> SW["Slave W"]
+    end
+
+    subgraph WriteResponse["Write Response Path"]
+        direction RL
+        SB["Slave B"] --> SR3["Slave Router"] --> XB3["Crossbar"] --> MA3["Master Adapter"] --> MB["Master B"]
+    end

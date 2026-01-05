@@ -1,0 +1,12 @@
+{
+  "signal": [
+    {"name": "pclk", "wave": "p........"},
+    {"name": "irq_in[7]", "wave": "0.1......"},
+    {"name": "rte[7]_mask", "wave": "1........"},
+    {"name": "irr[7]", "wave": "0........"},
+    {"name": "int_out", "wave": "0........"},
+    {},
+    ["note", "Masked IRQ ignored"]
+  ],
+  "head": {"text": "IOAPIC Masked Interrupt"}
+}

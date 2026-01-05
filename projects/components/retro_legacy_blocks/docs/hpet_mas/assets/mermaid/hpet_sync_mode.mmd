@@ -1,0 +1,17 @@
+%%{init: {'theme': 'neutral'}}%%
+flowchart TB
+    subgraph PCLK["APB Clock Domain (pclk)"]
+        APB[apb_slave]
+        CFG[hpet_config_regs]
+        REGS[hpet_regs]
+        CORE[hpet_core]
+    end
+
+    APB --> CFG
+    CFG --> REGS
+    REGS --> CORE
+
+    NOTE["All modules use pclk<br/>No CDC required<br/>(pclk = hpet_clk)"]
+
+    style PCLK fill:#e1f5fe
+    style NOTE fill:#fff9c4

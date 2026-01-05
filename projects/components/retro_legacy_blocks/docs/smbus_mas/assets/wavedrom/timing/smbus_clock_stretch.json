@@ -1,0 +1,10 @@
+{
+  "signal": [
+    {"name": "master_scl", "wave": "1.0.1.0..1.0.1."},
+    {"name": "scl", "wave": "1.0.1.0..1.0.1."},
+    {"name": "slave_stretch", "wave": "0.....1..0....."},
+    {},
+    ["note", "Slave holds SCL low to slow master"]
+  ],
+  "head": {"text": "SMBus Clock Stretching"}
+}

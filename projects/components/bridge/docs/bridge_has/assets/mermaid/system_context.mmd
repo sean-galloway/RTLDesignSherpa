@@ -1,0 +1,30 @@
+%%{init: {'theme': 'neutral'}}%%
+flowchart TB
+    subgraph SoC["System-on-Chip"]
+        subgraph Masters["Masters"]
+            CPU["CPU<br/>Core"]
+            DMA["DMA<br/>Engine"]
+            GPU["GPU<br/>Engine"]
+            ACC["Accel<br/>Block"]
+        end
+
+        subgraph Bridge["Bridge<br/>(AXI4 Crossbar + Converters)"]
+            XB[" "]
+        end
+
+        subgraph Slaves["Slaves"]
+            DDR["DDR<br/>Ctrl"]
+            SRAM["SRAM<br/>Buffer"]
+            PERIPH["Periph<br/>Block"]
+            FLASH["Flash<br/>Ctrl"]
+        end
+
+        CPU -->|AXI4| Bridge
+        DMA -->|AXI4| Bridge
+        GPU -->|AXI4| Bridge
+        ACC -->|AXI4| Bridge
+        Bridge -->|AXI4| DDR
+        Bridge -->|AXI4| SRAM
+        Bridge -->|APB| PERIPH
+        Bridge -->|AXI4| FLASH
+    end

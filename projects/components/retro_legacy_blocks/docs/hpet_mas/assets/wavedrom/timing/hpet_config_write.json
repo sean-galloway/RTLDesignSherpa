@@ -1,0 +1,14 @@
+{
+  "signal": [
+    {"name": "pclk", "wave": "p........"},
+    {"name": "psel", "wave": "01......0"},
+    {"name": "penable", "wave": "0.1....0."},
+    {"name": "pwrite", "wave": "01......0"},
+    {"name": "paddr", "wave": "x2......x", "data": ["CFG"]},
+    {"name": "pwdata", "wave": "x2......x", "data": ["0x01"]},
+    {"name": "pready", "wave": "0.....1.0"},
+    {},
+    {"name": "hpet_enable", "wave": "0......1."}
+  ],
+  "head": {"text": "HPET Config Write (Enable)"}
+}

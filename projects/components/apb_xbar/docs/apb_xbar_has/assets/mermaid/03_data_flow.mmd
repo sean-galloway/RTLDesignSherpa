@@ -1,0 +1,26 @@
+sequenceDiagram
+    participant M0 as Master 0
+    participant APB_S as apb_slave
+    participant DEC as Address Decode
+    participant ARB as Arbiter
+    participant APB_M as apb_master
+    participant S2 as Slave 2
+
+    Note over M0,S2: Write Transaction to Slave 2
+
+    M0->>APB_S: PSEL, PADDR=0x10023456, PWRITE=1
+    APB_S->>DEC: cmd (addr, data, write)
+    DEC->>ARB: target = Slave 2
+
+    alt No Contention
+        ARB->>APB_M: Grant to Master 0
+    else Contention
+        ARB-->>M0: Wait (PREADY=0)
+        Note over ARB: Round-robin selection
+        ARB->>APB_M: Grant to Master 0
+    end
+
+    APB_M->>S2: PSEL, PENABLE, PADDR, PWDATA
+    S2->>APB_M: PREADY, PSLVERR
+    APB_M->>APB_S: Response (data, error)
+    APB_S->>M0: PREADY, PSLVERR

@@ -1,0 +1,20 @@
+%%{init: {'theme': 'neutral'}}%%
+flowchart LR
+    subgraph Master["Master Side"]
+        LITE[AXI4-Lite<br/>Master]
+        ADAPT[AXI4-Lite to<br/>AXI4 Adapter]
+    end
+
+    subgraph Crossbar["Crossbar"]
+        XB[Full AXI4<br/>Fabric]
+    end
+
+    subgraph Slave["Slave Side"]
+        CONV[AXI4 to APB<br/>Converter]
+        APB[APB<br/>Peripheral]
+    end
+
+    LITE -->|AXI4-Lite| ADAPT
+    ADAPT -->|Full AXI4| XB
+    XB -->|Full AXI4| CONV
+    CONV -->|APB| APB

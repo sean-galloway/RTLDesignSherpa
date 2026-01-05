@@ -1,0 +1,10 @@
+{
+  "signal": [
+    {"name": "pm_clk_3.58MHz", "wave": "p........"},
+    {"name": "timer_cnt", "wave": "23456789.", "data": ["N", "N+1", "N+2", "...", "N+5", "N+6", "N+7", "N+8"]},
+    {"name": "timer_24bit", "wave": "2........", "data": ["enabled"]},
+    {},
+    ["note", "Free-running 24-bit timer at 3.579545 MHz"]
+  ],
+  "head": {"text": "PM ACPI Timer"}
+}

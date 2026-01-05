@@ -1,0 +1,12 @@
+{
+  "signal": [
+    {"name": "pclk", "wave": "p........"},
+    {"name": "rotate_cmd", "wave": "010......"},
+    {"name": "priority[0]", "wave": "2.3......", "data": ["7", "0"]},
+    {"name": "priority[1]", "wave": "2.3......", "data": ["6", "7"]},
+    {"name": "priority[7]", "wave": "2.3......", "data": ["0", "1"]},
+    {},
+    ["note", "Lowest priority rotates to serviced IRQ"]
+  ],
+  "head": {"text": "PIC 8259 Priority Rotation"}
+}

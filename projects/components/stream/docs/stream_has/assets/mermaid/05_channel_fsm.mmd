@@ -1,0 +1,15 @@
+%%{init: {'theme': 'base', 'themeVariables': { 'primaryColor': '#e8f4e8', 'primaryTextColor': '#000', 'primaryBorderColor': '#228B22', 'lineColor': '#404040', 'secondaryColor': '#f5f5f5', 'tertiaryColor': '#fff'}}}%%
+stateDiagram-v2
+    [*] --> IDLE
+    IDLE --> FETCH: Kick-off
+    FETCH --> PARSE: Complete
+    PARSE --> ARB_READ: Valid
+    PARSE --> ERROR: Invalid
+    ARB_READ --> READ: Grant
+    READ --> ARB_WRITE: Complete
+    ARB_WRITE --> WRITE: Grant
+    WRITE --> CHAIN: Complete
+    CHAIN --> FETCH: Next
+    CHAIN --> COMPLETE: Last
+    COMPLETE --> IDLE: IRQ sent
+    ERROR --> IDLE: SW clear

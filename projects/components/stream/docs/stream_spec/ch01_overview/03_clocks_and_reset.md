@@ -1,3 +1,26 @@
+<!-- RTL Design Sherpa Documentation Header -->
+<table>
+<tr>
+<td width="80">
+  <a href="https://github.com/sean-galloway/RTLDesignSherpa">
+    <img src="https://raw.githubusercontent.com/sean-galloway/RTLDesignSherpa/main/docs/logos/Logo_200px.png" alt="RTL Design Sherpa" width="70">
+  </a>
+</td>
+<td>
+  <strong>RTL Design Sherpa</strong> · <em>Learning Hardware Design Through Practice</em><br>
+  <sub>
+    <a href="https://github.com/sean-galloway/RTLDesignSherpa">GitHub</a> ·
+    <a href="https://github.com/sean-galloway/RTLDesignSherpa/blob/main/docs/DOCUMENTATION_INDEX.md">Documentation Index</a> ·
+    <a href="https://github.com/sean-galloway/RTLDesignSherpa/blob/main/LICENSE">MIT License</a>
+  </sub>
+</td>
+</tr>
+</table>
+
+---
+
+<!-- End Header -->
+
 # Clocks and Reset Specification
 
 **Chapter:** 01
@@ -153,6 +176,8 @@ write_apb(ADDR_GLOBAL_CTRL, CHANNEL_0_RESET);  // Auto-clears after 1 cycle
 | 6+ | Ready for APB configuration |
 | 10+ | Ready for descriptor transfers |
 
+: Reset Recovery
+
 ---
 
 ## Clock Requirements by Module
@@ -167,6 +192,8 @@ write_apb(ADDR_GLOBAL_CTRL, CHANNEL_0_RESET);  // Auto-clears after 1 cycle
 | axi_write_engine | `aclk` | `aresetn` | 100-500 MHz | AXI master timing |
 | simple_sram | `aclk` | `aresetn` | 100-500 MHz | Synchronous SRAM |
 
+: Functional Unit Blocks
+
 ### Integration Blocks (MAC)
 
 | Module | Clock(s) | Reset(s) | Frequency | Notes |
@@ -175,6 +202,8 @@ write_apb(ADDR_GLOBAL_CTRL, CHANNEL_0_RESET);  // Auto-clears after 1 cycle
 | apb_config | `pclk`, (`aclk`) | `presetn`, (`aresetn`) | 50-200 MHz (APB) | CDC if async |
 | monbus_axil_group | `aclk` | `aresetn` | 100-500 MHz | AXIL timing |
 | stream_top | `aclk`, `pclk` | `aresetn`, `presetn` | Mixed | Top-level |
+
+: Integration Blocks
 
 ---
 
@@ -430,7 +459,17 @@ class StreamTB(TBBase):
 - **Scheduler FSM:** `fub_02_scheduler.md` - Reset behavior
 - **APB Config:** `mac_02_apb_config.md` - CDC implementation
 - **Top-Level:** `mac_04_stream_top.md` - Clock/reset integration
+---
+
+## Revision History
+
+| Version | Date | Author | Description |
+|---------|------|--------|-------------|
+| 0.90 | 2025-11-22 | seang | Initial block specification |
+| 0.91 | 2026-01-02 | seang | Added table captions and figure numbers |
+
+: Clocks and Reset Specification Revision History
 
 ---
 
-**Last Updated:** 2025-12-01
+**Last Updated:** 2026-01-02

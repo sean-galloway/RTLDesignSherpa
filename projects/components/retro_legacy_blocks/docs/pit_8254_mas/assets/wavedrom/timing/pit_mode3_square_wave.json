@@ -1,0 +1,11 @@
+{
+  "signal": [
+    {"name": "clk", "wave": "p.........."},
+    {"name": "gate", "wave": "1.........."},
+    {"name": "count", "wave": "234565432..", "data": ["N", "N-2", "...", "2", "N-1", "N-3", "...", "1"]},
+    {"name": "out", "wave": "1...0...1.."},
+    {},
+    ["note", "50% duty cycle square wave"]
+  ],
+  "head": {"text": "PIT Mode 3: Square Wave Generator"}
+}

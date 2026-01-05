@@ -1,0 +1,23 @@
+%%{init: {'theme': 'neutral'}}%%
+flowchart LR
+    subgraph APB_PIT["APB PIT 8254"]
+        APB["APB Slave"]
+        CFG["pit_8254_config_regs"]
+        REGS["pit_8254_regs<br/>(PeakRDL)"]
+
+        subgraph COUNTERS["Counter Array"]
+            CNT0["Counter 0<br/>(System Timer)"]
+            CNT1["Counter 1<br/>(DRAM Refresh)"]
+            CNT2["Counter 2<br/>(Speaker)"]
+        end
+    end
+
+    BUS["APB Bus"] --> APB
+    APB --> CFG
+    CFG --> REGS
+    CFG --> COUNTERS
+
+    CLK["1.193182 MHz"] --> COUNTERS
+    CNT0 --> OUT0["OUT0 (IRQ0)"]
+    CNT1 --> OUT1["OUT1"]
+    CNT2 --> OUT2["OUT2"]

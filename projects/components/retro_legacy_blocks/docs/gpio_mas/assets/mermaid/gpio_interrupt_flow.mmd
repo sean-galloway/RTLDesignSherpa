@@ -1,0 +1,19 @@
+%%{init: {'theme': 'neutral'}}%%
+sequenceDiagram
+    participant Pin as External Pin
+    participant Core as gpio_core
+    participant IntLogic as Interrupt Logic
+    participant Status as GPIO_INT_STATUS
+    participant IRQ as irq Output
+    participant SW as Software
+
+    Pin->>Core: Pin Change
+    Note over Core: Input synchronization<br/>(2-stage FF)<br/>Edge/level detection
+    Core->>IntLogic: Detected event
+    Note over IntLogic: Compare with INT_TYPE,<br/>INT_POLARITY, INT_BOTH<br/>Apply INT_ENABLE mask
+    IntLogic->>Status: Set bit (sticky)
+    Status->>IRQ: OR of all enabled sources
+    IRQ->>SW: Interrupt
+    SW->>Status: Read status
+    SW->>Status: Write 1 to clear (W1C)
+    Note over Status: Clear acknowledged bits

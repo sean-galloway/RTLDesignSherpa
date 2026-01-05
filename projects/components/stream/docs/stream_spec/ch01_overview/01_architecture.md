@@ -1,3 +1,26 @@
+<!-- RTL Design Sherpa Documentation Header -->
+<table>
+<tr>
+<td width="80">
+  <a href="https://github.com/sean-galloway/RTLDesignSherpa">
+    <img src="https://raw.githubusercontent.com/sean-galloway/RTLDesignSherpa/main/docs/logos/Logo_200px.png" alt="RTL Design Sherpa" width="70">
+  </a>
+</td>
+<td>
+  <strong>RTL Design Sherpa</strong> · <em>Learning Hardware Design Through Practice</em><br>
+  <sub>
+    <a href="https://github.com/sean-galloway/RTLDesignSherpa">GitHub</a> ·
+    <a href="https://github.com/sean-galloway/RTLDesignSherpa/blob/main/docs/DOCUMENTATION_INDEX.md">Documentation Index</a> ·
+    <a href="https://github.com/sean-galloway/RTLDesignSherpa/blob/main/LICENSE">MIT License</a>
+  </sub>
+</td>
+</tr>
+</table>
+
+---
+
+<!-- End Header -->
+
 # STREAM Architecture Overview
 
 **Component:** STREAM (Scatter-gather Transfer Rapid Engine for AXI Memory)
@@ -23,10 +46,13 @@ STREAM is a high-performance, multi-channel descriptor-based DMA engine designed
 
 ### High-Level Block Diagram
 
-![Diagram](../assets/mermaid/01_architecture_block.svg)
+### Figure 1.1.1: STREAM Architecture Overview
+
+![Diagram](../assets/mermaid/01_architecture_block.png)
 
 <!--
 Original Mermaid diagram (for editing):
+
 
 ```mermaid
 graph TB
@@ -189,10 +215,13 @@ Concurrent (CORRECT):
 
 ### Single Channel Transfer
 
-![Diagram](../assets/mermaid/01_architecture_sequence.svg)
+### Figure 1.1.2: Single Channel Transfer Sequence
+
+![Diagram](../assets/mermaid/01_architecture_sequence.png)
 
 <!--
 Original Mermaid diagram (for editing):
+
 
 ```mermaid
 sequenceDiagram
@@ -267,6 +296,8 @@ stream_top_ch8 (Top-Level Wrapper)
 
 ### Core DMA Engine (stream_core.sv)
 
+### Figure 1.1.3: Core DMA Engine Hierarchy
+
 ```mermaid
 graph TB
     CORE["stream_core<br/>(DMA engine)"]
@@ -323,11 +354,15 @@ graph TB
 | Monitor Write AXIL | Master | 32-bit | Write monitor data to memory |
 | IRQ | Output | 1-bit | Interrupt (error FIFO not empty) |
 
+: STREAM External Interfaces
+
 ### Internal MonBus Interface (stream_core.sv)
 
 | Interface | Type | Width | Purpose |
 |-----------|------|-------|---------|
 | MonBus | Output | 64-bit | Debug/trace event stream to monbus_axil_group |
+
+: STREAM Internal MonBus Interface
 
 ### Configuration Registers (APB)
 
@@ -368,6 +403,8 @@ graph TB
 | APB Config | 1 | ~400 | Register file |
 | MonBus Aggregator | 1 | ~200 | Small FIFO |
 | **Total** | - | **~10K LUTs** | **~512KB RAM** |
+
+: STREAM Resource Utilization Breakdown
 
 **Notes:**
 - SRAM depth configurable (typical: 512 entries × 512 bits × 8 channels = 512KB)
@@ -502,3 +539,17 @@ If extending STREAM for production use, consider:
 
 **Last Updated:** 2025-12-01
 **Document Version:** 0.91
+---
+
+## Revision History
+
+| Version | Date | Author | Description |
+|---------|------|--------|-------------|
+| 0.90 | 2025-11-22 | seang | Initial block specification |
+| 0.91 | 2026-01-02 | seang | Added table captions and figure numbers |
+
+: STREAM Architecture Overview Revision History
+
+---
+
+**Last Updated:** 2026-01-02

@@ -1,0 +1,31 @@
+%%{init: {'theme': 'neutral'}}%%
+flowchart LR
+    subgraph Input["Narrow Input"]
+        S_VALID[s_valid]
+        S_DATA[s_data<br/>64 bits]
+        S_SB[s_sideband<br/>WSTRB]
+        S_LAST[s_last]
+    end
+
+    subgraph Core["Upsize Core"]
+        ACC[Accumulator<br/>Buffer<br/>512 bits]
+        CNT[Beat<br/>Counter]
+        SB_PACK[Sideband<br/>Packer]
+    end
+
+    subgraph Output["Wide Output"]
+        M_VALID[m_valid]
+        M_DATA[m_data<br/>512 bits]
+        M_SB[m_sideband<br/>64-bit WSTRB]
+        M_LAST[m_last]
+    end
+
+    S_DATA --> ACC
+    S_SB --> SB_PACK
+    S_VALID --> CNT
+    S_LAST --> CNT
+
+    ACC --> M_DATA
+    SB_PACK --> M_SB
+    CNT --> M_VALID
+    CNT --> M_LAST

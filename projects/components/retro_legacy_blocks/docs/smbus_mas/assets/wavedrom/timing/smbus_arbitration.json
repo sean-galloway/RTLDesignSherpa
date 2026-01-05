@@ -1,0 +1,12 @@
+{
+  "signal": [
+    {"name": "scl", "wave": "1.0.1.0.1.0.1."},
+    {"name": "master_a_sda", "wave": "1.0.1.0.1....."},
+    {"name": "master_b_sda", "wave": "1.0.1.0.0....."},
+    {"name": "sda_bus", "wave": "1.0.1.0.0....."},
+    {"name": "arb_lost_a", "wave": "0.......1....."},
+    {},
+    ["note", "Master A loses arbitration on bit 4"]
+  ],
+  "head": {"text": "SMBus Arbitration"}
+}

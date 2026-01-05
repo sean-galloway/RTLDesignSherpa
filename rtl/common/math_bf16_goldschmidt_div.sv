@@ -108,6 +108,8 @@ module math_bf16_goldschmidt_div #(
     // =========================================================================
     logic [15:0] w_recip_b;       // Initial 1/b estimate
     logic        w_recip_zero, w_recip_inf, w_recip_nan;
+    logic        w_recip_underflow;  // 1/b underflowed (b very large)
+    logic [6:0]  w_recip_mant_approx; // Raw mantissa approximation (valid on underflow)
 
     math_bf16_fast_reciprocal #(
         .LUT_DEPTH(LUT_DEPTH)
@@ -116,7 +118,9 @@ module math_bf16_goldschmidt_div #(
         .ow_reciprocal (w_recip_b),
         .ow_is_zero    (w_recip_zero),
         .ow_is_inf     (w_recip_inf),
-        .ow_is_nan     (w_recip_nan)
+        .ow_is_nan     (w_recip_nan),
+        .ow_underflow  (w_recip_underflow),
+        .ow_mant_approx(w_recip_mant_approx)
     );
 
     // =========================================================================
@@ -228,7 +232,9 @@ module math_bf16_goldschmidt_div #(
                         r_d1 <= w_d1;
                         r_valid_s1 <= i_valid;
                         r_special_zero <= w_b_is_zero;
-                        r_special_inf <= (w_a_is_zero && !w_b_is_zero) || w_b_is_inf;
+                        // Zero result: a is zero, b is infinity, or prescale underflowed
+                        r_special_inf <= (w_a_is_zero && !w_b_is_zero) || w_b_is_inf ||
+                                        w_prescale_n_udf;
                         r_special_nan <= w_a_is_nan || w_b_is_nan ||
                                         (w_a_is_zero && w_b_is_zero) ||
                                         (w_a_is_inf && w_b_is_inf);
@@ -350,7 +356,9 @@ module math_bf16_goldschmidt_div #(
                 assign w_special_nan = w_a_is_nan || w_b_is_nan ||
                                       (w_a_is_zero && w_b_is_zero) ||
                                       (w_a_is_inf && w_b_is_inf);
-                assign w_special_zero = (w_a_is_zero && !w_b_is_zero) || w_b_is_inf;
+                // Zero result: a is zero, b is infinity, or prescale underflowed
+                assign w_special_zero = (w_a_is_zero && !w_b_is_zero) || w_b_is_inf ||
+                                       w_prescale_n_udf;
                 assign w_special_inf = w_b_is_zero || w_a_is_inf;
 
                 assign ow_quotient = w_special_nan  ? BF16_NAN :
@@ -369,9 +377,69 @@ module math_bf16_goldschmidt_div #(
             assign w_special_nan = w_a_is_nan || w_b_is_nan ||
                                   (w_a_is_zero && w_b_is_zero) ||
                                   (w_a_is_inf && w_b_is_inf);
-            // Zero result: input a is zero, OR b is infinity, OR prescale underflowed
+
+            // Estimate result exponent: a_exp - b_exp + 127
+            logic signed [9:0] w_true_exp_approx;
+            assign w_true_exp_approx = $signed({2'b0, w_a_exp}) -
+                                       $signed({2'b0, w_b_exp}) + 10'sd127;
+            logic w_true_underflow;
+            assign w_true_underflow = w_true_exp_approx < 10'sd1;
+
+            // =====================================================================
+            // Direct calculation fallback for when 1/b underflows but a/b is valid
+            // When b is very large (exp >= 253), 1/b underflows to zero due to FTZ.
+            // This causes N_0 = a * 0 = 0, breaking the algorithm.
+            // For these cases, compute a/b directly using the mantissa LUT.
+            // =====================================================================
+            logic w_use_direct_calc;
+            assign w_use_direct_calc = w_recip_underflow && !w_true_underflow &&
+                                      !w_special_nan && !w_b_is_zero &&
+                                      !w_a_is_zero && !w_b_is_inf;
+
+            // Mantissa calculation: (1.a_mant) / (1.b_mant) using reciprocal LUT
+            // The LUT gives w_recip_mant_approx ≈ (2/1.b_mant - 1) * 128
+            // So (1 + recip_mant/128) = 2/1.b_mant
+            // product = (1.a_mant) * (2/1.b_mant) in Q8.7 format
+            // product = (128 + a_mant) * (128 + recip_mant)
+            // quotient = product / 32768 represents (1.a)/(1.b)
+            logic [15:0] w_direct_product;
+            assign w_direct_product = (16'd128 + {9'd0, w_a_mant}) *
+                                      (16'd128 + {9'd0, w_recip_mant_approx});
+
+            // Check if quotient >= 1.0 (product >= 32768)
+            logic w_quot_ge_one;
+            assign w_quot_ge_one = w_direct_product >= 16'd32768;
+
+            // Exponent with normalization adjustment
+            logic signed [9:0] w_direct_exp_raw;
+            assign w_direct_exp_raw = w_true_exp_approx - (w_quot_ge_one ? 10'sd0 : 10'sd1);
+
+            // Final exponent (clamp to valid range)
+            logic [7:0] w_direct_exp;
+            assign w_direct_exp = (w_direct_exp_raw < 10'sd1) ? 8'd0 :
+                                  (w_direct_exp_raw > 10'sd254) ? 8'd254 :
+                                  w_direct_exp_raw[7:0];
+
+            // Mantissa extraction
+            // quot >= 1: mant = (product - 32768) / 256
+            // quot < 1:  mant = (product - 16384) / 128
+            logic [6:0] w_direct_mant;
+            assign w_direct_mant = w_quot_ge_one ?
+                ((w_direct_product - 16'd32768) >> 8) :
+                ((w_direct_product - 16'd16384) >> 7);
+
+            // Direct result for fallback path
+            logic [15:0] w_direct_result;
+            assign w_direct_result = {w_result_sign, w_direct_exp, w_direct_mant};
+
+            // Use effective underflow for zero detection (when NOT using direct calc)
+            logic w_effective_underflow;
+            assign w_effective_underflow = w_recip_underflow ? w_true_underflow :
+                                                              w_prescale_n_udf;
+
+            // Zero result: input a is zero, OR b is infinity, OR effective underflow
             assign w_special_zero = (w_a_is_zero && !w_b_is_zero) || w_b_is_inf ||
-                                   w_prescale_n_udf;
+                                   w_effective_underflow;
             assign w_special_inf = w_b_is_zero || w_a_is_inf;
 
             if (PIPELINED) begin : gen_pipe_single
@@ -396,6 +464,8 @@ module math_bf16_goldschmidt_div #(
                             r_quotient <= BF16_NAN;
                         else if (w_b_is_zero)
                             r_quotient <= w_result_sign ? BF16_NEG_INF : BF16_POS_INF;
+                        else if (w_use_direct_calc)
+                            r_quotient <= w_direct_result;  // Fallback path
                         else if (w_special_zero)
                             r_quotient <= {w_result_sign, 15'd0};  // Signed zero
                         else
@@ -410,10 +480,11 @@ module math_bf16_goldschmidt_div #(
                 assign ow_is_nan = r_is_nan;
 
             end else begin : gen_comb_single
-                assign ow_quotient = w_special_nan  ? BF16_NAN :
-                                     w_b_is_zero    ? (w_result_sign ? BF16_NEG_INF : BF16_POS_INF) :
-                                     w_special_zero ? BF16_ZERO :
-                                                      {w_result_sign, w_n1[14:0]};
+                assign ow_quotient = w_special_nan     ? BF16_NAN :
+                                     w_b_is_zero       ? (w_result_sign ? BF16_NEG_INF : BF16_POS_INF) :
+                                     w_use_direct_calc ? w_direct_result :  // Fallback path
+                                     w_special_zero    ? BF16_ZERO :
+                                                         {w_result_sign, w_n1[14:0]};
                 assign ow_valid = i_valid;
                 assign ow_div_by_zero = w_b_is_zero;
                 assign ow_is_inf = w_special_inf;

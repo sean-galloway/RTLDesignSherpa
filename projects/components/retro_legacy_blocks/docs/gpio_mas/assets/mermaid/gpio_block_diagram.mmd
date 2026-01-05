@@ -1,0 +1,22 @@
+%%{init: {'theme': 'neutral'}}%%
+flowchart LR
+    subgraph APB_GPIO["APB GPIO"]
+        APB["APB Slave<br/>(Optional CDC)"]
+        REGS["gpio_config_regs<br/>(PeakRDL)"]
+        CORE["gpio_core"]
+    end
+
+    BUS["APB Bus"] --> APB
+    APB --> REGS
+    REGS --> CORE
+
+    subgraph PINS["GPIO Pins"]
+        IN["gpio_in[31:0]"]
+        OUT["gpio_out[31:0]"]
+        OE["gpio_oe[31:0]"]
+    end
+
+    CORE --> IN
+    CORE --> OUT
+    CORE --> OE
+    CORE --> IRQ["irq"]

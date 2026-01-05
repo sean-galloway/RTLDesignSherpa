@@ -1,0 +1,30 @@
+%%{init: {'theme': 'neutral'}}%%
+stateDiagram-v2
+    [*] --> IDLE
+
+    IDLE --> APB_SETUP: AW or AR valid
+
+    APB_SETUP --> APB_ACCESS: always
+
+    APB_ACCESS --> AXI_RESP: PREADY
+
+    AXI_RESP --> BURST_NEXT: more beats
+    AXI_RESP --> IDLE: last beat
+
+    BURST_NEXT --> APB_SETUP: next address
+
+    note right of IDLE
+        Wait for AXI4
+        transaction
+    end note
+
+    note right of APB_SETUP
+        PSEL=1
+        PENABLE=0
+    end note
+
+    note right of APB_ACCESS
+        PSEL=1
+        PENABLE=1
+        Wait PREADY
+    end note

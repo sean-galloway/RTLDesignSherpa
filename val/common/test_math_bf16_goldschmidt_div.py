@@ -64,8 +64,10 @@ async def bf16_goldschmidt_div_test(dut):
     """Test the BF16 Goldschmidt division"""
     iterations = int(os.environ.get('ITERATIONS', '1'))
     pipelined = bool(int(os.environ.get('PIPELINED', '1')))
+    lut_depth = int(os.environ.get('LUT_DEPTH', '32'))
 
-    tb = BF16GoldschmidtDivTB(dut, iterations=iterations, pipelined=pipelined)
+    tb = BF16GoldschmidtDivTB(dut, iterations=iterations, pipelined=pipelined,
+                              lut_depth=lut_depth)
 
     # Use the seed for reproducibility
     seed = int(os.environ.get('SEED', '0'))

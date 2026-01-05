@@ -1,0 +1,39 @@
+flowchart LR
+    subgraph Address["Address Space"]
+        direction TB
+        A0["0x1000_0000<br/>Slave 0 Start"]
+        A1["0x1000_FFFF<br/>Slave 0 End"]
+        B0["0x1001_0000<br/>Slave 1 Start"]
+        B1["0x1001_FFFF<br/>Slave 1 End"]
+        C0["0x1002_0000<br/>Slave 2 Start"]
+        C1["0x1002_FFFF<br/>Slave 2 End"]
+        D0["0x1003_0000<br/>Slave 3 Start"]
+        D1["0x1003_FFFF<br/>Slave 3 End"]
+    end
+
+    subgraph Decode["Address Decode"]
+        DEC["offset = PADDR - BASE_ADDR<br/>slave_idx = offset[19:16]"]
+    end
+
+    subgraph Slaves["Slave Ports"]
+        S0["Slave 0<br/>(64KB)"]
+        S1["Slave 1<br/>(64KB)"]
+        S2["Slave 2<br/>(64KB)"]
+        S3["Slave 3<br/>(64KB)"]
+    end
+
+    A0 --> DEC
+    B0 --> DEC
+    C0 --> DEC
+    D0 --> DEC
+
+    DEC --> S0
+    DEC --> S1
+    DEC --> S2
+    DEC --> S3
+
+    style Decode fill:#228B22,color:#fff
+    style S0 fill:#808080,color:#fff
+    style S1 fill:#808080,color:#fff
+    style S2 fill:#808080,color:#fff
+    style S3 fill:#808080,color:#fff

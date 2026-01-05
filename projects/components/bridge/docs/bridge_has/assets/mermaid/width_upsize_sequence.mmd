@@ -1,0 +1,18 @@
+%%{init: {'theme': 'neutral'}}%%
+sequenceDiagram
+    participant M as 64-bit Master
+    participant C as Width Converter
+    participant S as 512-bit Slave
+
+    Note over M: AWLEN=7, AWSIZE=3<br/>(8 beats of 8 bytes)
+    M->>C: W beat 1 (64b)
+    M->>C: W beat 2 (64b)
+    M->>C: W beat 3 (64b)
+    M->>C: W beat 4 (64b)
+    M->>C: W beat 5 (64b)
+    M->>C: W beat 6 (64b)
+    M->>C: W beat 7 (64b)
+    M->>C: W beat 8 (64b)
+    Note over C: Pack 8x64b = 1x512b
+    C->>S: W (512b, AWLEN=0)
+    Note over S: AWLEN=0, AWSIZE=6<br/>(1 beat of 64 bytes)

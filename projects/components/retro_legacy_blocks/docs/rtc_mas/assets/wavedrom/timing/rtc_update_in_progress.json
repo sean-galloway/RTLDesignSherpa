@@ -1,0 +1,11 @@
+{
+  "signal": [
+    {"name": "rtc_clk_1hz", "wave": "0......1."},
+    {"name": "uip", "wave": "01.....0."},
+    {"name": "time_latch", "wave": "x2......x", "data": ["stable"]},
+    {"name": "read_safe", "wave": "10.....1."},
+    {},
+    ["note", "UIP high: time registers may change"]
+  ],
+  "head": {"text": "RTC Update In Progress"}
+}

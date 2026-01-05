@@ -1,0 +1,11 @@
+{
+  "signal": [
+    {"name": "pclk", "wave": "p........"},
+    {"name": "slp_typ", "wave": "x2.......x", "data": ["S3"]},
+    {"name": "slp_en", "wave": "0.1......"},
+    {"name": "sleep_sm", "wave": "234.......", "data": ["RUN", "PREP", "SLEEP"]},
+    {"name": "slp_en_ack", "wave": "0...1...."},
+    {"name": "pm_state", "wave": "2...3....", "data": ["S0", "S3"]}
+  ],
+  "head": {"text": "PM Sleep Entry (S3)"}
+}

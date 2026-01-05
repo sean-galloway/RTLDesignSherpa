@@ -1,0 +1,46 @@
+%%{init: {'theme': 'neutral'}}%%
+flowchart LR
+    subgraph Masters[" "]
+        direction TB
+        M0["Master 0<br/>(AXI4)"]
+        M1["Master 1<br/>(AXI4)"]
+        M2["Master 2<br/>(AXI4/wr)"]
+        M3["Master 3<br/>(AXI4/rd)"]
+    end
+
+    subgraph Bridge["Bridge NxM"]
+        direction LR
+        subgraph MA["Master Adapter"]
+            direction TB
+            SKID["Skid Buffer"]
+            IDEXT["ID Extension"]
+        end
+        subgraph XB["Crossbar Core"]
+            direction TB
+            XBCORE[" "]
+        end
+        subgraph SR["Slave Router"]
+            direction TB
+            ADDR["Address Decode"]
+            ARB["Arbitration"]
+            MUX["Mux"]
+        end
+        MA --> XB --> SR
+    end
+
+    subgraph Slaves[" "]
+        direction TB
+        S0["Slave 0<br/>(AXI4)"]
+        S1["Slave 1<br/>(AXI4)"]
+        S2["Slave 2<br/>(APB)"]
+        S3["Slave 3<br/>(AXI4-L)"]
+    end
+
+    M0 --> Bridge
+    M1 --> Bridge
+    M2 --> Bridge
+    M3 --> Bridge
+    Bridge --> S0
+    Bridge --> S1
+    Bridge --> S2
+    Bridge --> S3

@@ -1,0 +1,10 @@
+{
+  "signal": [
+    {"name": "pclk", "wave": "p........"},
+    {"name": "rx_fifo_cnt", "wave": "23456789.", "data": ["0", "1", "2", "3", "4", "5", "6", "7"]},
+    {"name": "rx_trigger", "wave": "2........", "data": ["4"]},
+    {"name": "rx_data_avail", "wave": "0...1...."},
+    {"name": "rx_irq", "wave": "0...1...."}
+  ],
+  "head": {"text": "UART FIFO Threshold Interrupt"}
+}

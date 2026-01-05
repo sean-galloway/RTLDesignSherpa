@@ -1,0 +1,18 @@
+%%{init: {'theme': 'neutral'}}%%
+stateDiagram-v2
+    [*] --> ACCUMULATE
+
+    ACCUMULATE --> ACCUMULATE: beat < RATIO-1
+    ACCUMULATE --> OUTPUT: beat == RATIO-1 or LAST
+
+    OUTPUT --> ACCUMULATE: m_ready
+
+    note right of ACCUMULATE
+        Collecting narrow beats
+        into buffer
+    end note
+
+    note right of OUTPUT
+        Buffer full
+        Output wide beat
+    end note

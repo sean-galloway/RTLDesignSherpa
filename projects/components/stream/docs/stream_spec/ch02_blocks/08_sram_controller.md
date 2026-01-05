@@ -1,3 +1,26 @@
+<!-- RTL Design Sherpa Documentation Header -->
+<table>
+<tr>
+<td width="80">
+  <a href="https://github.com/sean-galloway/RTLDesignSherpa">
+    <img src="https://raw.githubusercontent.com/sean-galloway/RTLDesignSherpa/main/docs/logos/Logo_200px.png" alt="RTL Design Sherpa" width="70">
+  </a>
+</td>
+<td>
+  <strong>RTL Design Sherpa</strong> · <em>Learning Hardware Design Through Practice</em><br>
+  <sub>
+    <a href="https://github.com/sean-galloway/RTLDesignSherpa">GitHub</a> ·
+    <a href="https://github.com/sean-galloway/RTLDesignSherpa/blob/main/docs/DOCUMENTATION_INDEX.md">Documentation Index</a> ·
+    <a href="https://github.com/sean-galloway/RTLDesignSherpa/blob/main/LICENSE">MIT License</a>
+  </sub>
+</td>
+</tr>
+</table>
+
+---
+
+<!-- End Header -->
+
 # SRAM Controller Specification
 
 **Module:** `sram_controller.sv`
@@ -45,7 +68,9 @@ The implementation uses **independent FIFOs** rather than a monolithic SRAM divi
 
 ### Block Diagram
 
-![Diagram](../assets/mermaid/05_sram_controller_block.svg)
+### Figure 2.8.1: SRAM Controller Block Diagram
+
+![Diagram](../assets/mermaid/05_sram_controller_block.png)
 
 **Source:** [05_sram_controller_block.mmd](../assets/mermaid/05_sram_controller_block.mmd)
 
@@ -99,6 +124,8 @@ parameter int CIW = (NC > 1) ? $clog2(NC) : 1;   // Channel ID width (min 1 bit)
 | `clk` | input | 1 | System clock |
 | `rst_n` | input | 1 | Active-low asynchronous reset |
 
+: Clock and Reset
+
 ### Allocation Interface
 
 **AXI Read Engine Flow Control (Space Reservation):**
@@ -109,6 +136,8 @@ parameter int CIW = (NC > 1) ? $clog2(NC) : 1;   // Channel ID width (min 1 bit)
 | `axi_rd_alloc_size` | input | 8 | Number of beats to allocate |
 | `axi_rd_alloc_id` | input | CIW | Channel ID for allocation |
 | `axi_rd_alloc_space_free[ch]` | output | NUM_CHANNELS × SEG_COUNT_WIDTH | Free space per channel FIFO |
+
+: Allocation Interface
 
 ### Write Interface
 
@@ -121,6 +150,8 @@ parameter int CIW = (NC > 1) ? $clog2(NC) : 1;   // Channel ID width (min 1 bit)
 | `axi_rd_sram_id` | input | CIW | Channel ID select for write |
 | `axi_rd_sram_data` | input | DATA_WIDTH | Write data (common bus) |
 
+: Write Interface
+
 ### Drain Interface
 
 **Write Engine Flow Control (Data Availability):**
@@ -130,6 +161,8 @@ parameter int CIW = (NC > 1) ? $clog2(NC) : 1;   // Channel ID width (min 1 bit)
 | `axi_wr_drain_data_avail[ch]` | output | NUM_CHANNELS × SEG_COUNT_WIDTH | Available data after reservations per channel |
 | `axi_wr_drain_req[ch]` | input | NUM_CHANNELS | Per-channel drain request |
 | `axi_wr_drain_size[ch]` | input | NUM_CHANNELS × 8 | Per-channel drain size (beats to reserve) |
+
+: Drain Interface
 
 ### Read Interface
 
@@ -142,12 +175,16 @@ parameter int CIW = (NC > 1) ? $clog2(NC) : 1;   // Channel ID width (min 1 bit)
 | `axi_wr_sram_id` | input | CIW | Channel ID select for read |
 | `axi_wr_sram_data` | output | DATA_WIDTH | Read data from selected channel (muxed) |
 
+: Read Interface
+
 ### Debug Interface
 
 | Signal | Direction | Width | Description |
 |--------|-----------|-------|-------------|
 | `dbg_bridge_pending[ch]` | output | NUM_CHANNELS | Latency bridge pending per channel |
 | `dbg_bridge_out_valid[ch]` | output | NUM_CHANNELS | Latency bridge output valid per channel |
+
+: Debug Interface
 
 ---
 
@@ -500,17 +537,31 @@ end
 
 ## Timing Diagrams
 
+### Combined Write and Read Timing
+
+The following diagram shows the complete SRAM controller write and read flow:
+
+#### Waveform 2.8.1: SRAM Controller Write/Read Operation
+
+![SRAM Controller Write/Read](../assets/wavedrom/sram_controller_wr_rd.svg)
+
+**Source:** [sram_controller_wr_rd.json](../assets/wavedrom/sram_controller_wr_rd.json)
+
 ### Write Path (R Data → FIFO)
 
 ```
 Cycle:  0    1    2    3    4    5
         |    |    |    |    |    |
+
+: Write Path
 Alloc:  [REQ][---grant---]
         (ch2, size=4)
 
 R Data:                [V][V][V][V]
 R ID:                  [2][2][2][2]
         |              |  |  |  |
+
+: Write Path
 Decode:                [1][1][1][1] (channel 2)
 FIFO:                  [W][W][W][W]
 Ready:  [1][1][1][1][1][1][1]...
@@ -526,12 +577,16 @@ Notes:
 ```
 Cycle:  0    1    2    3    4    5    6
         |    |    |    |    |    |    |
+
+: Read Path
 Drain:  [REQ][---reserve---]
         (ch2, size=2)
 
 Drain:            [D][D]
 Drain ID:         [2][2]
         |         |  |
+
+: Read Path
 Decode:           [1][1] (channel 2)
 Bridge:           [-][V][V] (1-cycle latency)
 W Data:               [D0][D1]
@@ -649,6 +704,8 @@ Notes:
 | 2025-11-16 | 1.0 | Updated to document per-channel FIFO implementation (actual RTL) |
 | 2025-11-21 | 1.5 | **Merged documentation:**<br>- Consolidated duplicate files<br>- Added design rationale section<br>- Enhanced allocation/drain explanations with examples<br>- Clarified per-channel FIFO architecture<br>- Added performance comparison<br>- Verified all content matches current RTL implementation |
 | 2025-11-30 | 1.6 | Updated related documentation references |
+
+: Revision History
 
 ---
 

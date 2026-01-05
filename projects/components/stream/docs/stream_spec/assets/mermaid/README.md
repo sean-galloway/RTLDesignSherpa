@@ -56,7 +56,7 @@ done
 Markdown files reference diagrams like this:
 
 ```markdown
-![Diagram](../assets/mermaid/08_axi_read_engine_L034.svg)
+![Diagram](../assets/mermaid/08_axi_read_engine_L034.png)
 
 **Source:** [08_axi_read_engine_block.mmd](../assets/mermaid/08_axi_read_engine_block.mmd)
 ```

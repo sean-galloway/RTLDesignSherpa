@@ -1,0 +1,24 @@
+%%{init: {'theme': 'neutral'}}%%
+flowchart LR
+    subgraph Slave["Slave Interface - 64-bit"]
+        S_AW[AW Channel]
+        S_W[W Channel]
+        S_B[B Channel]
+    end
+
+    subgraph Converter["Write Path Converter"]
+        AW_SKID[AW Skid<br/>Buffer]
+        LEN_ADJ[Burst Length<br/>Adjust]
+        UPSIZE[axi_data_upsize<br/>64→512]
+        B_PASS[B Passthrough]
+    end
+
+    subgraph Master["Master Interface - 512-bit"]
+        M_AW[AW Channel]
+        M_W[W Channel]
+        M_B[B Channel]
+    end
+
+    S_AW --> AW_SKID --> LEN_ADJ --> M_AW
+    S_W --> UPSIZE --> M_W
+    M_B --> B_PASS --> S_B

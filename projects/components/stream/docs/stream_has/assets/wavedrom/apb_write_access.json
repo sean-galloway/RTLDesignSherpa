@@ -1,0 +1,22 @@
+{
+  "signal": [
+    {"name": "PCLK", "wave": "p........"},
+    {},
+    {"name": "PSEL", "wave": "0.1....0."},
+    {"name": "PENABLE", "wave": "0..1...0."},
+    {"name": "PWRITE", "wave": "0.1....0."},
+    {"name": "PADDR", "wave": "x.2....x.", "data": ["ADDR"]},
+    {"name": "PWDATA", "wave": "x.2....x.", "data": ["DATA"]},
+    {"name": "PREADY", "wave": "0....1.0."},
+    {"name": "PSLVERR", "wave": "0........"}
+  ],
+  "head": {
+    "text": "APB Write Access Timing"
+  },
+  "foot": {
+    "text": "Setup | Access | Wait | Complete"
+  },
+  "config": {
+    "hscale": 1.5
+  }
+}

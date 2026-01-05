@@ -103,9 +103,8 @@ def test_math_bf16_max_tree(request, params):
 
     log_path = os.path.join(log_dir, f'{test_name_plus_params}.log')
 
-    # BF16 max tree depends on math_bf16_comparator
+    # BF16 max tree is self-contained with inline logic
     verilog_sources = [
-        os.path.join(rtl_dict['rtl_cmn'], "math_bf16_comparator.sv"),
         os.path.join(rtl_dict['rtl_cmn'], "math_bf16_max_tree.sv"),
     ]
 

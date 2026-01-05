@@ -63,6 +63,8 @@ module math_bf16_newton_raphson_recip #(
     logic        w_init_zero;
     logic        w_init_inf;
     logic        w_init_nan;
+    logic        w_init_underflow;    // Not used in Newton-Raphson
+    logic [6:0]  w_init_mant_approx;  // Not used in Newton-Raphson
 
     math_bf16_fast_reciprocal #(
         .LUT_DEPTH(LUT_DEPTH)
@@ -71,7 +73,9 @@ module math_bf16_newton_raphson_recip #(
         .ow_reciprocal (w_x0),
         .ow_is_zero    (w_init_zero),
         .ow_is_inf     (w_init_inf),
-        .ow_is_nan     (w_init_nan)
+        .ow_is_nan     (w_init_nan),
+        .ow_underflow  (w_init_underflow),
+        .ow_mant_approx(w_init_mant_approx)
     );
 
     // =========================================================================

@@ -1,0 +1,26 @@
+%%{init: {'theme': 'neutral'}}%%
+flowchart TB
+    subgraph Masters["Masters"]
+        DW["Descriptor Write<br/>Master<br/>(write-only)"]
+        SW["Sink Write<br/>Master<br/>(write-only)"]
+        SR["Source Read<br/>Master<br/>(read-only)"]
+        CPU["CPU<br/>Master<br/>(full r/w)"]
+    end
+
+    subgraph Bridge["Bridge 4x3"]
+        XB[" "]
+    end
+
+    subgraph Slaves["Slaves"]
+        DDR["DDR"]
+        APB["APB"]
+        SRAM["SRAM"]
+    end
+
+    DW --> Bridge
+    SW --> Bridge
+    SR --> Bridge
+    CPU --> Bridge
+    Bridge --> DDR
+    Bridge --> APB
+    Bridge --> SRAM

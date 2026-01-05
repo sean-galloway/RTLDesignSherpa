@@ -1,0 +1,11 @@
+{
+  "signal": [
+    {"name": "hpet_clk", "wave": "p........"},
+    {"name": "counter", "wave": "23456789.", "data": ["N-3", "N-2", "N-1", "N", "N+1", "N+2", "N+3", "N+4"]},
+    {"name": "comparator", "wave": "2........", "data": ["N"]},
+    {"name": "timer_en", "wave": "1........"},
+    {"name": "match", "wave": "0..10...."},
+    {"name": "timer_irq", "wave": "0...1...."}
+  ],
+  "head": {"text": "HPET One-Shot Timer Fire"}
+}

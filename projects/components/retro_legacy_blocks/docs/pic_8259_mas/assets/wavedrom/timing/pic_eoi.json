@@ -1,0 +1,13 @@
+{
+  "signal": [
+    {"name": "pclk", "wave": "p........"},
+    {"name": "psel", "wave": "01......0"},
+    {"name": "pwrite", "wave": "01......0"},
+    {"name": "paddr", "wave": "x2......x", "data": ["OCW2"]},
+    {"name": "pwdata", "wave": "x2......x", "data": ["0x20"]},
+    {},
+    {"name": "isr[highest]", "wave": "1.....0.."},
+    {"name": "int", "wave": "0........"}
+  ],
+  "head": {"text": "PIC 8259 EOI Command"}
+}

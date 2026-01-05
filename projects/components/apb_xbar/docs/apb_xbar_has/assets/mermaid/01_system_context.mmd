@@ -1,0 +1,29 @@
+flowchart TB
+    subgraph SoC["System on Chip"]
+        CPU["CPU<br/>(APB Master 0)"]
+        DMA["DMA<br/>(APB Master 1)"]
+
+        subgraph XBAR["APB Crossbar"]
+            ARBIT["Arbitration +<br/>Address Decode"]
+        end
+
+        UART["UART<br/>(Slave 0)"]
+        GPIO["GPIO<br/>(Slave 1)"]
+        TIMER["Timer<br/>(Slave 2)"]
+        SPI["SPI<br/>(Slave 3)"]
+    end
+
+    CPU --> XBAR
+    DMA --> XBAR
+    XBAR --> UART
+    XBAR --> GPIO
+    XBAR --> TIMER
+    XBAR --> SPI
+
+    style XBAR fill:#228B22,color:#fff
+    style CPU fill:#4a90d9,color:#fff
+    style DMA fill:#4a90d9,color:#fff
+    style UART fill:#808080,color:#fff
+    style GPIO fill:#808080,color:#fff
+    style TIMER fill:#808080,color:#fff
+    style SPI fill:#808080,color:#fff

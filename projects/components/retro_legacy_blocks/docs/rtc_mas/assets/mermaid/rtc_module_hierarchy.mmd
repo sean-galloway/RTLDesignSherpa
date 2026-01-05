@@ -1,0 +1,13 @@
+%%{init: {'theme': 'neutral'}}%%
+flowchart TB
+    TOP[apb_rtc<br/>Top Level]
+    TOP --> APB[apb_slave]
+
+    TOP --> CFG[rtc_config_regs<br/>Register Wrapper]
+    CFG --> REGS["rtc_regs<br/>(PeakRDL)"]
+
+    TOP --> CORE[rtc_core]
+    CORE --> TIME["Time Counter<br/>(seconds to century)"]
+    CORE --> ALARM["Alarm Comparator"]
+    CORE --> INT_GEN["Interrupt Generator"]
+    CORE --> BCD["BCD Logic"]

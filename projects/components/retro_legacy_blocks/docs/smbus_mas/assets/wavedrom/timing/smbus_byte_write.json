@@ -1,0 +1,9 @@
+{
+  "signal": [
+    {"name": "scl", "wave": "1.0.1.0.1.0.1."},
+    {"name": "sda", "wave": "1.0.23456789.."},
+    {},
+    {"name": "phase", "wave": "x.2.3.4.5.6.7.x", "data": ["START", "ADDR", "A/N", "CMD", "A/N", "DATA", "A/N", "STOP"]}
+  ],
+  "head": {"text": "SMBus Byte Write"}
+}

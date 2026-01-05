@@ -1,0 +1,27 @@
+%%{init: {'theme': 'neutral'}}%%
+flowchart TB
+    subgraph AXI4["AXI4 Write"]
+        AW["AWADDR<br/>AWLEN=3"]
+        W["WDATA<br/>WSTRB<br/>WLAST"]
+    end
+
+    subgraph Converter["APB Converter"]
+        SER["Serialize<br/>4 beats into<br/>4 APB xfers"]
+        GEN["Generate<br/>response"]
+    end
+
+    subgraph APB["APB Write"]
+        PA["PADDR<br/>PWRITE"]
+        PW["PWDATA<br/>PSTRB"]
+    end
+
+    subgraph Response["AXI4 Response"]
+        BR["BRESP<br/>BID"]
+    end
+
+    AW --> SER
+    W --> SER
+    SER --> PA
+    SER --> PW
+    SER --> GEN
+    GEN --> BR

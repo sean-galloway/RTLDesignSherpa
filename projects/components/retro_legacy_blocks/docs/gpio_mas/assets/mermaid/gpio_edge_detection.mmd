@@ -1,0 +1,10 @@
+%%{init: {'theme': 'neutral'}}%%
+flowchart TD
+    IN["synced_input[i]"]
+    IN --> DELAY["Delay Register"]
+    DELAY --> PREV["prev_input[i]"]
+    IN --> XOR["XOR Gate"]
+    PREV --> XOR
+    XOR --> EDGE["edge_detect[i]"]
+    EDGE --> QUAL["Qualify with<br/>Polarity"]
+    QUAL --> EVENT["edge_event[i]"]

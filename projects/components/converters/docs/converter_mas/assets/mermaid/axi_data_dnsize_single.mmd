@@ -1,0 +1,32 @@
+%%{init: {'theme': 'neutral'}}%%
+flowchart LR
+    subgraph Input["Wide Input"]
+        S_VALID[s_valid]
+        S_DATA[s_data<br/>512 bits]
+        S_SB[s_sideband]
+    end
+
+    subgraph Core["Downsize Core - Single Buffer"]
+        BUF[Data Buffer<br/>512 bits]
+        CNT[Beat<br/>Counter]
+        MUX[Output<br/>Mux]
+        SB_EXT[Sideband<br/>Extract/Broadcast]
+    end
+
+    subgraph Output["Narrow Output"]
+        M_VALID[m_valid]
+        M_DATA[m_data<br/>64 bits]
+        M_SB[m_sideband]
+        M_LAST[m_last]
+    end
+
+    S_DATA --> BUF
+    S_SB --> SB_EXT
+    S_VALID --> CNT
+
+    BUF --> MUX
+    CNT --> MUX
+    MUX --> M_DATA
+    SB_EXT --> M_SB
+    CNT --> M_VALID
+    CNT --> M_LAST

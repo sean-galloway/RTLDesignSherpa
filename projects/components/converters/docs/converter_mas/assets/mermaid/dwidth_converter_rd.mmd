@@ -1,0 +1,23 @@
+%%{init: {'theme': 'neutral'}}%%
+flowchart LR
+    subgraph Slave["Slave Interface - 64-bit"]
+        S_AR[AR Channel]
+        S_R[R Channel]
+    end
+
+    subgraph Converter["Read Path Converter"]
+        AR_SKID[AR Skid<br/>Buffer]
+        LEN_ADJ[Burst Length<br/>Adjust]
+        DNSIZE[axi_data_dnsize<br/>512→64]
+        BURST[Burst<br/>Tracker]
+    end
+
+    subgraph Master["Master Interface - 512-bit"]
+        M_AR[AR Channel]
+        M_R[R Channel]
+    end
+
+    S_AR --> AR_SKID --> LEN_ADJ --> M_AR
+    M_R --> DNSIZE --> S_R
+    AR_SKID --> BURST
+    BURST --> DNSIZE

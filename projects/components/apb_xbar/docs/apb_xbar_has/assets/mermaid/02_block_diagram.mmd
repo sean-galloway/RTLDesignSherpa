@@ -1,0 +1,46 @@
+flowchart TB
+    subgraph Masters["Master Side (APB Slaves)"]
+        M0["apb_slave[0]<br/>Master 0"]
+        M1["apb_slave[1]<br/>Master 1"]
+    end
+
+    subgraph Fabric["Internal Crossbar Fabric"]
+        DECODE["Address<br/>Decode"]
+        ARB0["Arbiter[0]"]
+        ARB1["Arbiter[1]"]
+        ARB2["Arbiter[2]"]
+        ARB3["Arbiter[3]"]
+        RESP["Response<br/>Routing"]
+    end
+
+    subgraph Slaves["Slave Side (APB Masters)"]
+        S0["apb_master[0]<br/>Slave 0"]
+        S1["apb_master[1]<br/>Slave 1"]
+        S2["apb_master[2]<br/>Slave 2"]
+        S3["apb_master[3]<br/>Slave 3"]
+    end
+
+    M0 --> DECODE
+    M1 --> DECODE
+
+    DECODE --> ARB0
+    DECODE --> ARB1
+    DECODE --> ARB2
+    DECODE --> ARB3
+
+    ARB0 --> S0
+    ARB1 --> S1
+    ARB2 --> S2
+    ARB3 --> S3
+
+    S0 --> RESP
+    S1 --> RESP
+    S2 --> RESP
+    S3 --> RESP
+
+    RESP --> M0
+    RESP --> M1
+
+    style Masters fill:#4a90d9,color:#fff
+    style Fabric fill:#228B22,color:#fff
+    style Slaves fill:#808080,color:#fff

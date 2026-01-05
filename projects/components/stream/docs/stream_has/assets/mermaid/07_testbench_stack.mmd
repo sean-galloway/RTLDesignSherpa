@@ -1,0 +1,22 @@
+%%{init: {'theme': 'base', 'themeVariables': { 'primaryColor': '#e8f4e8', 'primaryTextColor': '#000', 'primaryBorderColor': '#228B22', 'lineColor': '#404040', 'secondaryColor': '#f0f0f0', 'tertiaryColor': '#fff'}}}%%
+flowchart TB
+    subgraph TEST["Test Layer"]
+        pytest["Python Test<br/>(pytest + CocoTB)"]
+    end
+
+    subgraph BFM["BFM Layer"]
+        bfm_lib["BFM Library"]
+        apb_m["APB Master"]
+        axi_s["AXI Slave"]
+        mon_m["MonBus Monitor"]
+        bfm_lib --- apb_m
+        bfm_lib --- axi_s
+        bfm_lib --- mon_m
+    end
+
+    subgraph DUT["DUT Layer"]
+        stream["STREAM DUT<br/>(Verilator/Icarus)"]
+    end
+
+    pytest --> bfm_lib
+    bfm_lib --> stream

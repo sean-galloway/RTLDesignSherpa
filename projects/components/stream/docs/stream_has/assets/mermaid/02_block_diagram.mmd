@@ -1,0 +1,44 @@
+%%{init: {'theme': 'base', 'themeVariables': { 'primaryColor': '#e8f4e8', 'primaryTextColor': '#000', 'primaryBorderColor': '#228B22', 'lineColor': '#404040', 'secondaryColor': '#f0f0f0', 'tertiaryColor': '#fff'}}}%%
+flowchart TB
+    subgraph STREAM["STREAM Subsystem"]
+        subgraph CONFIG["Configuration"]
+            apb["APB Config<br/>Slave"]
+            irq["Interrupt<br/>Controller"]
+        end
+
+        subgraph SCHED["Scheduler Group"]
+            desc_eng["Descriptor<br/>Engine"]
+            scheduler["Scheduler<br/>(8-ch FSM)"]
+            arbiter["Channel<br/>Arbiter"]
+        end
+
+        subgraph DATA["Data Path"]
+            rd_eng["AXI Read<br/>Engine"]
+            sram["SRAM<br/>Buffer"]
+            wr_eng["AXI Write<br/>Engine"]
+        end
+
+        monbus["MonBus<br/>Reporter"]
+    end
+
+    subgraph EXT["External Interfaces"]
+        apb_if["s_apb_*<br/>(APB Slave)"]
+        desc_if["m_axi_desc_*<br/>(Desc Master)"]
+        rd_if["m_axi_rd_*<br/>(Read Master)"]
+        wr_if["m_axi_wr_*<br/>(Write Master)"]
+        mon_if["monbus_*<br/>(Monitor)"]
+    end
+
+    apb_if --> apb
+    apb --> desc_eng
+    apb --> irq
+    desc_eng --> scheduler
+    desc_eng --> desc_if
+    scheduler --> arbiter
+    arbiter --> rd_eng
+    arbiter --> wr_eng
+    rd_eng --> sram
+    sram --> wr_eng
+    rd_eng --> rd_if
+    wr_eng --> wr_if
+    monbus --> mon_if

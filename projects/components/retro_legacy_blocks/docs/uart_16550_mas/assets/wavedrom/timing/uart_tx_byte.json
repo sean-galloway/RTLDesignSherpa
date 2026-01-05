@@ -1,0 +1,10 @@
+{
+  "signal": [
+    {"name": "baud_clk", "wave": "p.........."},
+    {"name": "tx_start", "wave": "010........"},
+    {"name": "tx_data", "wave": "x2.........x", "data": ["0x55"]},
+    {"name": "tx_shift", "wave": "x.234567890.", "data": ["start", "D0", "D1", "D2", "D3", "D4", "D5", "D6", "D7", "stop"]},
+    {"name": "txd", "wave": "1.0101010101"}
+  ],
+  "head": {"text": "UART TX Byte (0x55)"}
+}

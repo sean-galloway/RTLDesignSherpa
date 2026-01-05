@@ -1,0 +1,11 @@
+{
+  "signal": [
+    {"name": "pclk", "wave": "p........"},
+    {"name": "ir[3]", "wave": "0.1......"},
+    {"name": "irr[3]", "wave": "0..1....."},
+    {"name": "imr[3]", "wave": "0........"},
+    {"name": "priority", "wave": "x..2....x", "data": ["3"]},
+    {"name": "int", "wave": "0..1....."}
+  ],
+  "head": {"text": "PIC 8259 Interrupt Request"}
+}

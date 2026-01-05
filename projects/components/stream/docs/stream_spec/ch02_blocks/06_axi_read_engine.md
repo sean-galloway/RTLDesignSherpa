@@ -1,3 +1,26 @@
+<!-- RTL Design Sherpa Documentation Header -->
+<table>
+<tr>
+<td width="80">
+  <a href="https://github.com/sean-galloway/RTLDesignSherpa">
+    <img src="https://raw.githubusercontent.com/sean-galloway/RTLDesignSherpa/main/docs/logos/Logo_200px.png" alt="RTL Design Sherpa" width="70">
+  </a>
+</td>
+<td>
+  <strong>RTL Design Sherpa</strong> · <em>Learning Hardware Design Through Practice</em><br>
+  <sub>
+    <a href="https://github.com/sean-galloway/RTLDesignSherpa">GitHub</a> ·
+    <a href="https://github.com/sean-galloway/RTLDesignSherpa/blob/main/docs/DOCUMENTATION_INDEX.md">Documentation Index</a> ·
+    <a href="https://github.com/sean-galloway/RTLDesignSherpa/blob/main/LICENSE">MIT License</a>
+  </sub>
+</td>
+</tr>
+</table>
+
+---
+
+<!-- End Header -->
+
 # AXI Read Engine
 
 **Module:** `axi_read_engine.sv`
@@ -71,6 +94,8 @@ When ALL channels complete their work (`w_arb_request == 0`), the engine becomes
 | `AR_MAX_OUTSTANDING` | int | 8 | Maximum outstanding AR requests (PIPELINE=1) |
 | `STROBE_EVERY_BEAT` | int | 0 | 0: strobe on last beat, 1: strobe every beat |
 
+: Parameters
+
 ### Derived Parameters
 
 | Parameter | Derivation | Description |
@@ -81,6 +106,8 @@ When ALL channels complete their work (`w_arb_request == 0`), the engine becomes
 | `IW` | ID_WIDTH | Short alias |
 | `SCW` | SEG_COUNT_WIDTH | Segment count width |
 | `CIW` | $clog2(NC) | Channel ID width (min 1 bit) |
+
+: Derived Parameters
 
 ---
 
@@ -93,11 +120,15 @@ When ALL channels complete their work (`w_arb_request == 0`), the engine becomes
 | `clk` | input | 1 | System clock |
 | `rst_n` | input | 1 | Active-low asynchronous reset |
 
+: Clock and Reset
+
 ### Configuration Interface
 
 | Signal | Direction | Width | Description |
 |--------|-----------|-------|-------------|
 | `cfg_axi_rd_xfer_beats` | input | 8 | Transfer size in beats (all channels) |
+
+: Configuration Interface
 
 ### Scheduler Interface (Per-Channel)
 
@@ -107,12 +138,16 @@ When ALL channels complete their work (`w_arb_request == 0`), the engine becomes
 | `sched_rd_addr[ch]` | input | NC x AW | Source addresses |
 | `sched_rd_beats[ch]` | input | NC x 32 | Beats remaining to read |
 
+: Scheduler Interface
+
 ### Completion Interface (Per-Channel)
 
 | Signal | Direction | Width | Description |
 |--------|-----------|-------|-------------|
 | `sched_rd_done_strobe[ch]` | output | NC | Burst completed (1 cycle pulse) |
 | `sched_rd_beats_done[ch]` | output | NC x 32 | Number of beats completed |
+
+: Completion Interface
 
 ### SRAM Allocation Interface
 
@@ -123,6 +158,8 @@ When ALL channels complete their work (`w_arb_request == 0`), the engine becomes
 | `axi_rd_alloc_id` | output | IW | Transaction ID (channel) |
 | `axi_rd_alloc_space_free[ch]` | input | NC x SCW | Free space per channel |
 
+: SRAM Allocation Interface
+
 ### SRAM Write Interface
 
 | Signal | Direction | Width | Description |
@@ -131,6 +168,8 @@ When ALL channels complete their work (`w_arb_request == 0`), the engine becomes
 | `axi_rd_sram_ready` | input | 1 | Ready to accept data |
 | `axi_rd_sram_id` | output | IW | Transaction ID (channel) |
 | `axi_rd_sram_data` | output | DW | Read data payload |
+
+: SRAM Write Interface
 
 ### AXI4 AR Channel
 
@@ -144,6 +183,8 @@ When ALL channels complete their work (`w_arb_request == 0`), the engine becomes
 | `m_axi_arsize` | output | 3 | Burst size (log2 bytes) |
 | `m_axi_arburst` | output | 2 | Burst type (INCR) |
 
+: AXI4 AR Channel
+
 ### AXI4 R Channel
 
 | Signal | Direction | Width | Description |
@@ -155,11 +196,15 @@ When ALL channels complete their work (`w_arb_request == 0`), the engine becomes
 | `m_axi_rresp` | input | 2 | Response |
 | `m_axi_rlast` | input | 1 | Last beat of burst |
 
+: AXI4 R Channel
+
 ### Error Interface
 
 | Signal | Direction | Width | Description |
 |--------|-----------|-------|-------------|
 | `sched_rd_error[ch]` | output | NC | Sticky error flag per channel |
+
+: Error Interface
 
 ### Debug Interface
 
@@ -169,6 +214,8 @@ When ALL channels complete their work (`w_arb_request == 0`), the engine becomes
 | `dbg_r_beats_rcvd` | output | 32 | Total R beats received |
 | `dbg_sram_writes` | output | 32 | Total writes to SRAM |
 | `dbg_arb_request[ch]` | output | NC | Arbiter request vector |
+
+: Debug Interface
 
 ---
 
@@ -225,6 +272,8 @@ end
 
 The following timing diagram shows the AXI read engine operating at maximum throughput with **perfect streaming** - where both `rvalid` and `rready` remain HIGH for consecutive clock cycles, achieving one data beat per cycle.
 
+#### Waveform 2.6.1: AXI Read Engine - Perfect Streaming
+
 ![AXI Read Engine - Perfect Streaming](../assets/wavedrom/datapath_rd_perfect_streaming.svg)
 
 **Transaction Flow:**
@@ -254,6 +303,8 @@ The following timing diagram shows the AXI read engine operating at maximum thro
 ### Multi-Channel Streaming
 
 For multi-channel operation showing channel switching while maintaining streaming performance, see:
+
+#### Waveform 2.6.2: Datapath Read - Multi-Channel
 
 ![Datapath Read - Multi-Channel](../assets/wavedrom/datapath_rd_multi_channel.svg)
 
@@ -332,7 +383,17 @@ axi_read_engine #(
 - **Allocation Controller:** `07_stream_alloc_ctrl.md` - Space tracking for read engine
 - **SRAM Controller:** `08_sram_controller.md` - Receives read data
 - **Write Engine:** `12_axi_write_engine.md` - Complementary write datapath
+---
+
+## Revision History
+
+| Version | Date | Author | Description |
+|---------|------|--------|-------------|
+| 0.90 | 2025-11-22 | seang | Initial block specification |
+| 0.91 | 2026-01-02 | seang | Added table captions and figure numbers |
+
+: AXI Read Engine Revision History
 
 ---
 
-**Last Updated:** 2025-12-13 (added timing diagrams)
+**Last Updated:** 2026-01-02

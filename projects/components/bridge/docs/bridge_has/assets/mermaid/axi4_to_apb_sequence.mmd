@@ -1,0 +1,11 @@
+%%{init: {'theme': 'neutral'}}%%
+sequenceDiagram
+    participant M as AXI4 Master
+    participant C as Bridge
+    participant S as APB Slave
+
+    M->>C: AW + W (write request)
+    C->>S: PSEL=1, PENABLE=0 (setup)
+    C->>S: PSEL=1, PENABLE=1 (access)
+    S->>C: PREADY=1 (complete)
+    C->>M: B (response)

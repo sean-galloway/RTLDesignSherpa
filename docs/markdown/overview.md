@@ -1,4 +1,24 @@
-# RTL Design Sherpa: Learning Hardware Design Through Practice
+<table>
+<tr>
+<td width="220">
+  <img src="https://raw.githubusercontent.com/sean-galloway/RTLDesignSherpa/main/docs/logos/Logo_200px.png" alt="RTL Design Sherpa Logo" width="200">
+</td>
+<td>
+  <h1>RTL Design Sherpa</h1>
+  <p><em>Learning Hardware Design Through Practice</em></p>
+  <p>
+    <img src="https://img.shields.io/badge/SystemVerilog-RTL_Design-0066cc?style=flat-square&logo=v&logoColor=white" alt="SystemVerilog">
+    <img src="https://img.shields.io/badge/CocoTB-Verification-00aa55?style=flat-square&logo=python&logoColor=white" alt="CocoTB">
+    <img src="https://img.shields.io/badge/Verilator-Simulation-ff6600?style=flat-square" alt="Verilator">
+  </p>
+  <p>
+    <img src="https://img.shields.io/badge/Modules-196+-blue?style=flat-square" alt="Modules">
+    <img src="https://img.shields.io/badge/License-MIT-green?style=flat-square" alt="License">
+    <img src="https://img.shields.io/badge/Open_Source-Tools-purple?style=flat-square" alt="Open Source">
+  </p>
+</td>
+</tr>
+</table>
 
 *A progressive learning framework for RTL development using open-source tools*
 

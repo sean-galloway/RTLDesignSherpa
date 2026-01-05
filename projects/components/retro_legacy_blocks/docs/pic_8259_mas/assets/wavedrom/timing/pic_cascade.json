@@ -1,0 +1,12 @@
+{
+  "signal": [
+    {"name": "pclk", "wave": "p........"},
+    {"name": "slave_ir[2]", "wave": "0.1......"},
+    {"name": "slave_int", "wave": "0..1....."},
+    {"name": "master_ir[2]", "wave": "0..1....."},
+    {"name": "master_int", "wave": "0...1...."},
+    {"name": "cascade_sel", "wave": "x...2...x", "data": ["slave"]},
+    {"name": "vector", "wave": "x...2...x", "data": ["slave_vec"]}
+  ],
+  "head": {"text": "PIC 8259 Cascade Mode"}
+}

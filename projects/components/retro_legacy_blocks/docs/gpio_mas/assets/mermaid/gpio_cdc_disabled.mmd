@@ -1,0 +1,14 @@
+%%{init: {'theme': 'neutral'}}%%
+flowchart TB
+    subgraph PCLK["pclk Domain (Single Clock)"]
+        APB["APB Interface"]
+        REG["Register File"]
+        CORE["GPIO Core"]
+        INT["Interrupt Logic"]
+    end
+
+    APB --> REG
+    REG --> CORE
+    CORE --> INT
+
+    style PCLK fill:#e1f5fe

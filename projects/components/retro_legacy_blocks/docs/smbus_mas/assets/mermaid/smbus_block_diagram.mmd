@@ -1,0 +1,24 @@
+%%{init: {'theme': 'neutral'}}%%
+flowchart LR
+    subgraph APB_SMBUS["APB SMBus"]
+        APB["APB Slave"]
+        CFG["smbus_config_regs"]
+        REGS["smbus_regs<br/>(PeakRDL)"]
+
+        subgraph CORE["smbus_core"]
+            CTRL["SMBus Controller"]
+            ARB["Bus Arbitration"]
+            TX["TX Logic"]
+            RX["RX Logic"]
+        end
+    end
+
+    BUS["APB Bus"] --> APB
+    APB --> CFG
+    CFG --> REGS
+    CFG --> CORE
+
+    CORE --> SDA["SDA (bidirectional)"]
+    CORE --> SCL["SCL (bidirectional)"]
+    CORE --> SMBALERT["SMBALERT#"]
+    CORE --> IRQ["IRQ"]

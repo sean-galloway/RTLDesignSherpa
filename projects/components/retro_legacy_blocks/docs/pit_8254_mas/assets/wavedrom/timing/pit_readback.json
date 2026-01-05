@@ -1,0 +1,13 @@
+{
+  "signal": [
+    {"name": "pclk", "wave": "p.........."},
+    {"name": "psel", "wave": "01..0.1..0."},
+    {"name": "pwrite", "wave": "01..0......"},
+    {"name": "paddr", "wave": "x2..x.3..x.", "data": ["CW", "CNT0"]},
+    {"name": "pwdata", "wave": "x2..x......", "data": ["0xC2"]},
+    {"name": "prdata", "wave": "x.....2..x.", "data": ["latch"]},
+    {},
+    {"name": "count_latch", "wave": "x...2.....x", "data": ["captured"]}
+  ],
+  "head": {"text": "PIT Readback Command"}
+}

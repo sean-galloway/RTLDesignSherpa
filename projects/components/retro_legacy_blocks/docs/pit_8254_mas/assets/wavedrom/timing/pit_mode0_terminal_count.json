@@ -1,0 +1,11 @@
+{
+  "signal": [
+    {"name": "clk", "wave": "p........"},
+    {"name": "gate", "wave": "1........"},
+    {"name": "count", "wave": "23456789.", "data": ["N", "N-1", "N-2", "...", "2", "1", "0", "0"]},
+    {"name": "out", "wave": "0......1."},
+    {},
+    ["note", "OUT goes high when count reaches 0"]
+  ],
+  "head": {"text": "PIT Mode 0: Terminal Count"}
+}

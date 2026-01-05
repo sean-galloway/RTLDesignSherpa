@@ -1,0 +1,5 @@
+%%{init: {'theme': 'neutral'}}%%
+stateDiagram-v2
+    [*] --> IDLE
+    IDLE --> WRITING : AW handshake<br/>(AWVALID && AWREADY)
+    WRITING --> IDLE : W complete<br/>(WVALID && WREADY && WLAST)

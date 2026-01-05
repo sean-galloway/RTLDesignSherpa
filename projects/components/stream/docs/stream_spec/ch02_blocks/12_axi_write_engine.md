@@ -1,3 +1,26 @@
+<!-- RTL Design Sherpa Documentation Header -->
+<table>
+<tr>
+<td width="80">
+  <a href="https://github.com/sean-galloway/RTLDesignSherpa">
+    <img src="https://raw.githubusercontent.com/sean-galloway/RTLDesignSherpa/main/docs/logos/Logo_200px.png" alt="RTL Design Sherpa" width="70">
+  </a>
+</td>
+<td>
+  <strong>RTL Design Sherpa</strong> · <em>Learning Hardware Design Through Practice</em><br>
+  <sub>
+    <a href="https://github.com/sean-galloway/RTLDesignSherpa">GitHub</a> ·
+    <a href="https://github.com/sean-galloway/RTLDesignSherpa/blob/main/docs/DOCUMENTATION_INDEX.md">Documentation Index</a> ·
+    <a href="https://github.com/sean-galloway/RTLDesignSherpa/blob/main/LICENSE">MIT License</a>
+  </sub>
+</td>
+</tr>
+</table>
+
+---
+
+<!-- End Header -->
+
 # AXI Write Engine
 
 **Module:** `axi_write_engine.sv`
@@ -29,7 +52,9 @@ The `axi_write_engine` module is a high-performance multi-channel AXI4 write eng
 
 ### Block Diagram
 
-![AXI Write Engine Block Diagram](../assets/mermaid/10_axi_write_engine_block.svg)
+### Figure 2.12.1: AXI Write Engine Block Diagram
+
+![AXI Write Engine Block Diagram](../assets/mermaid/10_axi_write_engine_block.png)
 
 **Source:** [10_axi_write_engine_block.mmd](../assets/mermaid/10_axi_write_engine_block.mmd)
 
@@ -74,6 +99,8 @@ The write engine drives `axi_wr_sram_id` to select which channel's data to drain
 | `W_PHASE_FIFO_DEPTH` | int | 64 | W-phase transaction FIFO depth |
 | `B_PHASE_FIFO_DEPTH` | int | 16 | B-phase transaction FIFO depth per channel |
 
+: Parameters
+
 ### Derived Parameters
 
 | Parameter | Derivation | Description |
@@ -87,6 +114,8 @@ The write engine drives `axi_wr_sram_id` to select which channel's data to drain
 | `CIW` | $clog2(NC) | Channel ID width (min 1 bit) |
 | `AXSIZE` | $clog2(DW/8) | AXI burst size |
 
+: Derived Parameters
+
 ---
 
 ## Port List
@@ -98,11 +127,15 @@ The write engine drives `axi_wr_sram_id` to select which channel's data to drain
 | `clk` | input | 1 | System clock |
 | `rst_n` | input | 1 | Active-low asynchronous reset |
 
+: Clock and Reset
+
 ### Configuration Interface
 
 | Signal | Direction | Width | Description |
 |--------|-----------|-------|-------------|
 | `cfg_axi_wr_xfer_beats` | input | 8 | Transfer size in beats (all channels) |
+
+: Configuration Interface
 
 ### Scheduler Interface (Per-Channel)
 
@@ -114,12 +147,16 @@ The write engine drives `axi_wr_sram_id` to select which channel's data to drain
 | `sched_wr_beats[ch]` | input | NC x 32 | Beats remaining to write |
 | `sched_wr_burst_len[ch]` | input | NC x 8 | Requested burst length |
 
+: Scheduler Interface
+
 ### Completion Interface (Per-Channel)
 
 | Signal | Direction | Width | Description |
 |--------|-----------|-------|-------------|
 | `sched_wr_done_strobe[ch]` | output | NC | Burst completed (1 cycle pulse) |
 | `sched_wr_beats_done[ch]` | output | NC x 32 | Number of beats completed |
+
+: Completion Interface
 
 ### SRAM Drain Interface
 
@@ -129,6 +166,8 @@ The write engine drives `axi_wr_sram_id` to select which channel's data to drain
 | `axi_wr_drain_size[ch]` | output | NC x 8 | Beats to reserve |
 | `axi_wr_drain_data_avail[ch]` | input | NC x SCW | Data available per channel |
 
+: SRAM Drain Interface
+
 ### SRAM Read Interface
 
 | Signal | Direction | Width | Description |
@@ -137,6 +176,8 @@ The write engine drives `axi_wr_sram_id` to select which channel's data to drain
 | `axi_wr_sram_drain` | output | 1 | Drain request |
 | `axi_wr_sram_id` | output | CIW | Channel ID select |
 | `axi_wr_sram_data` | input | DW | Muxed data from selected channel |
+
+: SRAM Read Interface
 
 ### AXI4 AW Channel
 
@@ -150,6 +191,8 @@ The write engine drives `axi_wr_sram_id` to select which channel's data to drain
 | `m_axi_awsize` | output | 3 | Burst size (log2 bytes) |
 | `m_axi_awburst` | output | 2 | Burst type (INCR) |
 
+: AXI4 AW Channel
+
 ### AXI4 W Channel
 
 | Signal | Direction | Width | Description |
@@ -161,6 +204,8 @@ The write engine drives `axi_wr_sram_id` to select which channel's data to drain
 | `m_axi_wlast` | output | 1 | Last beat of burst |
 | `m_axi_wuser` | output | UW | Channel ID for tracking |
 
+: AXI4 W Channel
+
 ### AXI4 B Channel
 
 | Signal | Direction | Width | Description |
@@ -170,11 +215,15 @@ The write engine drives `axi_wr_sram_id` to select which channel's data to drain
 | `m_axi_bid` | input | IW | Transaction ID |
 | `m_axi_bresp` | input | 2 | Response |
 
+: AXI4 B Channel
+
 ### Error Interface
 
 | Signal | Direction | Width | Description |
 |--------|-----------|-------|-------------|
 | `sched_wr_error[ch]` | output | NC | Sticky error flag per channel |
+
+: Error Interface
 
 ### Debug Interface
 
@@ -183,6 +232,8 @@ The write engine drives `axi_wr_sram_id` to select which channel's data to drain
 | `dbg_wr_all_complete[ch]` | output | NC | All writes complete |
 | `dbg_aw_transactions` | output | 32 | Total AW transactions issued |
 | `dbg_w_beats` | output | 32 | Total W beats written to AXI |
+
+: Debug Interface
 
 ---
 
@@ -255,6 +306,8 @@ end
 
 The following timing diagram shows the AXI write engine operating at maximum throughput with **perfect streaming** - where both `wvalid` and `wready` remain HIGH for consecutive clock cycles, achieving one data beat per cycle.
 
+#### Waveform 2.12.1: AXI Write Engine - Perfect Streaming
+
 ![AXI Write Engine - Perfect Streaming](../assets/wavedrom/datapath_wr_perfect_streaming.svg)
 
 **Transaction Flow:**
@@ -294,6 +347,8 @@ The following timing diagram shows the AXI write engine operating at maximum thr
 ### Multi-Channel Streaming
 
 For multi-channel operation showing channel switching while maintaining streaming performance, see:
+
+#### Waveform 2.12.2: Datapath Write - Multi-Channel
 
 ![Datapath Write - Multi-Channel](../assets/wavedrom/datapath_wr_multi_channel.svg)
 
@@ -384,7 +439,17 @@ axi_write_engine #(
 - **SRAM Controller:** `08_sram_controller.md` - Data source
 - **Drain Controller:** `11_stream_drain_ctrl.md` - Data availability tracking
 - **Read Engine:** `06_axi_read_engine.md` - Complementary read datapath
+---
+
+## Revision History
+
+| Version | Date | Author | Description |
+|---------|------|--------|-------------|
+| 0.90 | 2025-11-22 | seang | Initial block specification |
+| 0.91 | 2026-01-02 | seang | Added table captions and figure numbers |
+
+: AXI Write Engine Revision History
 
 ---
 
-**Last Updated:** 2025-12-13 (added timing diagrams)
+**Last Updated:** 2026-01-02

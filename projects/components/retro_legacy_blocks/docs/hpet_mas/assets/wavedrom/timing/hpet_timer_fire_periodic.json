@@ -1,0 +1,11 @@
+{
+  "signal": [
+    {"name": "hpet_clk", "wave": "p............"},
+    {"name": "counter", "wave": "234567890123.", "data": ["N-1", "N", "N+1", "N+2", "N+3", "2N-1", "2N", "2N+1", "2N+2", "2N+3", "3N-1", "3N"]},
+    {"name": "comparator", "wave": "2....2....2..", "data": ["N", "2N", "3N"]},
+    {"name": "periodic", "wave": "1............"},
+    {"name": "match", "wave": "010..010..01."},
+    {"name": "timer_irq", "wave": "0.10..10..1.."}
+  ],
+  "head": {"text": "HPET Periodic Timer Fire"}
+}

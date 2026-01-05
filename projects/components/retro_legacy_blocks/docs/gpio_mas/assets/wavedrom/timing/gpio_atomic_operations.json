@@ -1,0 +1,15 @@
+{
+  "signal": [
+    {"name": "pclk", "wave": "p.........."},
+    {"name": "psel", "wave": "01........0"},
+    {"name": "penable", "wave": "0.1......0."},
+    {"name": "pwrite", "wave": "01........0"},
+    {"name": "paddr", "wave": "x2........x", "data": ["SET"]},
+    {"name": "pwdata", "wave": "x2........x", "data": ["0x0F"]},
+    {"name": "pready", "wave": "0.......1.0"},
+    {},
+    {"name": "gpio_out[prev]", "wave": "2..........", "data": ["0xF0"]},
+    {"name": "gpio_out[new]", "wave": "x........2x", "data": ["0xFF"]}
+  ],
+  "head": {"text": "GPIO Atomic Set Operation"}
+}

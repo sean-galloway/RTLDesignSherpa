@@ -1,0 +1,17 @@
+#!/bin/bash
+# Build STREAM Specification document
+# Usage: ./cmd [version]
+# Example: ./cmd 0.91
+
+VERSION="${1:-0.90}"
+OUTPUT_BASE="stream_spec_v${VERSION}"
+
+python3 /mnt/data/github/rtldesignsherpa/bin/md_to_docx.py \
+    stream_index.md "${OUTPUT_BASE}.docx" \
+    --expand-index --pdf --pagebreak --toc --number-sections \
+    --skip-index-content --narrow-margins \
+    --title-page title.md \
+    --style stream_styles.yaml \
+    --assets-dir assets/images \
+    --assets-dir assets/mermaid \
+    --assets-dir assets/wavedrom

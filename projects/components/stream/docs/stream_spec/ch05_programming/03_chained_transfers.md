@@ -1,3 +1,26 @@
+<!-- RTL Design Sherpa Documentation Header -->
+<table>
+<tr>
+<td width="80">
+  <a href="https://github.com/sean-galloway/RTLDesignSherpa">
+    <img src="https://raw.githubusercontent.com/sean-galloway/RTLDesignSherpa/main/docs/logos/Logo_200px.png" alt="RTL Design Sherpa" width="70">
+  </a>
+</td>
+<td>
+  <strong>RTL Design Sherpa</strong> · <em>Learning Hardware Design Through Practice</em><br>
+  <sub>
+    <a href="https://github.com/sean-galloway/RTLDesignSherpa">GitHub</a> ·
+    <a href="https://github.com/sean-galloway/RTLDesignSherpa/blob/main/docs/DOCUMENTATION_INDEX.md">Documentation Index</a> ·
+    <a href="https://github.com/sean-galloway/RTLDesignSherpa/blob/main/LICENSE">MIT License</a>
+  </sub>
+</td>
+</tr>
+</table>
+
+---
+
+<!-- End Header -->
+
 # Chained Descriptor Transfers
 
 **Chapter:** 05.03
@@ -294,6 +317,8 @@ write32(STREAM_BASE + 0x220, 0x00000083);  // enable + prefetch + thresh=8
 | 1-2 descriptors | ~5% | Single transfers, low latency |
 | 4-8 descriptors | ~2% | Typical scatter-gather |
 | 16+ descriptors | <1% | Large file transfers |
+
+: Optimal Chain Length
 
 **Note:** Very long chains (100+) may cause timeout issues. Consider breaking into multiple chains.
 

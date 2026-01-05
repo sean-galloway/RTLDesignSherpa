@@ -1,0 +1,29 @@
+%%{init: {'theme': 'neutral'}}%%
+flowchart LR
+    subgraph AXI4["AXI4 Master"]
+        AXI_AR[AR: ARLEN=3]
+        AXI_R[R: 4 beats]
+        AXI_AW[AW: AWLEN=3]
+        AXI_W[W: 4 beats]
+        AXI_B[B: 1 response]
+    end
+
+    subgraph Conv["axi4_to_axil4"]
+        RD[Read Path<br/>Decompose]
+        WR[Write Path<br/>Decompose]
+        RSP[Response<br/>Aggregate]
+    end
+
+    subgraph AXIL["AXI4-Lite Slave"]
+        AXIL_AR[AR x4]
+        AXIL_R[R x4]
+        AXIL_AW[AW x4]
+        AXIL_W[W x4]
+        AXIL_B[B x4]
+    end
+
+    AXI_AR --> RD --> AXIL_AR
+    AXIL_R --> RD --> AXI_R
+    AXI_AW --> WR --> AXIL_AW
+    AXI_W --> WR --> AXIL_W
+    AXIL_B --> RSP --> AXI_B

@@ -1,0 +1,11 @@
+%%{init: {'theme': 'neutral'}}%%
+flowchart TB
+    APB[apb_gpio]
+    APB --> APBIF["APB Interface<br/>(apb_slave integration)"]
+    APB --> REGF["Register File<br/>(PeakRDL generated)"]
+    APB --> CORE[GPIO Core]
+    CORE --> SYNC[Input Synchronizer]
+    CORE --> OUT[Output Control]
+    CORE --> DIR[Direction Control]
+    CORE --> INT[Interrupt Logic]
+    APB --> CDC["CDC Logic<br/>(optional)"]

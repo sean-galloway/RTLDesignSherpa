@@ -1,0 +1,11 @@
+{
+  "signal": [
+    {"name": "pclk", "wave": "p........"},
+    {"name": "pm_state", "wave": "2........", "data": ["S3"]},
+    {"name": "wake_event", "wave": "0.1......"},
+    {"name": "wak_sts", "wave": "0..1....."},
+    {"name": "sleep_sm", "wave": "2..34....", "data": ["SLEEP", "WAKE", "RUN"]},
+    {"name": "pm_state", "wave": "2...3....", "data": ["S3", "S0"]}
+  ],
+  "head": {"text": "PM Wake Event"}
+}

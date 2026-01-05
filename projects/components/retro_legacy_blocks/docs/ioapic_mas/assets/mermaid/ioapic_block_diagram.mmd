@@ -1,0 +1,20 @@
+%%{init: {'theme': 'neutral'}}%%
+flowchart LR
+    subgraph APB_IOAPIC["APB I/O APIC"]
+        APB["APB Slave"]
+        CFG["ioapic_config_regs"]
+        REGS["ioapic_regs<br/>(PeakRDL)"]
+        CORE["ioapic_core"]
+        REDIR["Redirection Table<br/>(24 entries)"]
+        ROUTE["IRQ Router"]
+    end
+
+    BUS["APB Bus"] --> APB
+    APB --> CFG
+    CFG --> REGS
+    CFG --> CORE
+    CORE --> REDIR
+    CORE --> ROUTE
+
+    IRQ_IN["IRQ Inputs<br/>[23:0]"] --> CORE
+    ROUTE --> INT_OUT["INT Output"]

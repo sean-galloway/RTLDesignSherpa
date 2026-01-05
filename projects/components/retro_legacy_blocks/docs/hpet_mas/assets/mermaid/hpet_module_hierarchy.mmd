@@ -1,0 +1,19 @@
+%%{init: {'theme': 'neutral'}}%%
+flowchart TB
+    TOP[apb_hpet<br/>Top Level]
+    TOP --> APB["APB Slave Interface"]
+    APB --> APB_S["apb_slave.sv<br/>(CDC_ENABLE=0)"]
+    APB --> APB_CDC["apb_slave_cdc.sv<br/>(CDC_ENABLE=1)"]
+
+    TOP --> CFG["hpet_config_regs<br/>Register Wrapper"]
+    CFG --> REGS["hpet_regs<br/>(PeakRDL)"]
+    CFG --> MAP["Mapping Logic"]
+    MAP --> PERBUS["Per-Timer Data Buses"]
+    MAP --> EDGE["Edge Detection"]
+    MAP --> CAPTURE["Counter Write Capture"]
+
+    TOP --> CORE["hpet_core<br/>Timer Logic"]
+    CORE --> CNT["64-bit Counter"]
+    CORE --> COMP["Comparators [N]"]
+    CORE --> FIRE["Fire Detection [N]"]
+    CORE --> IRQ_GEN["Interrupt Gen [N]"]

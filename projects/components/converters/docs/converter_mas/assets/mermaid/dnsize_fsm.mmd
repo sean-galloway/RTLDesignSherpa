@@ -1,0 +1,20 @@
+%%{init: {'theme': 'neutral'}}%%
+stateDiagram-v2
+    [*] --> IDLE
+
+    IDLE --> LOAD: s_valid
+
+    LOAD --> OUTPUT: always
+
+    OUTPUT --> OUTPUT: beat < RATIO-1
+    OUTPUT --> IDLE: beat == RATIO-1
+
+    note right of IDLE
+        Waiting for
+        wide input
+    end note
+
+    note right of OUTPUT
+        Outputting
+        narrow beats
+    end note

@@ -1,3 +1,26 @@
+<!-- RTL Design Sherpa Documentation Header -->
+<table>
+<tr>
+<td width="80">
+  <a href="https://github.com/sean-galloway/RTLDesignSherpa">
+    <img src="https://raw.githubusercontent.com/sean-galloway/RTLDesignSherpa/main/docs/logos/Logo_200px.png" alt="RTL Design Sherpa" width="70">
+  </a>
+</td>
+<td>
+  <strong>RTL Design Sherpa</strong> · <em>Learning Hardware Design Through Practice</em><br>
+  <sub>
+    <a href="https://github.com/sean-galloway/RTLDesignSherpa">GitHub</a> ·
+    <a href="https://github.com/sean-galloway/RTLDesignSherpa/blob/main/docs/DOCUMENTATION_INDEX.md">Documentation Index</a> ·
+    <a href="https://github.com/sean-galloway/RTLDesignSherpa/blob/main/LICENSE">MIT License</a>
+  </sub>
+</td>
+</tr>
+</table>
+
+---
+
+<!-- End Header -->
+
 # Scheduler Specification
 
 **Module:** `scheduler.sv`
@@ -23,7 +46,9 @@ The Scheduler coordinates descriptor-based memory-to-memory DMA transfers for a 
 
 ### Block Diagram
 
-![Diagram](../assets/mermaid/02_scheduler_block.svg)
+### Figure 2.4.1: Scheduler Block Diagram
+
+![Diagram](../assets/mermaid/02_scheduler_block.png)
 
 **Source:** [02_scheduler_block.mmd](../assets/mermaid/02_scheduler_block.mmd)
 
@@ -91,6 +116,8 @@ if (DESC_WIDTH != 256)
 | `clk` | input | 1 | System clock |
 | `rst_n` | input | 1 | Active-low asynchronous reset |
 
+: Clock and Reset
+
 ### Configuration Interface
 
 | Signal | Direction | Width | Description |
@@ -100,12 +127,16 @@ if (DESC_WIDTH != 256)
 | `cfg_sched_timeout_cycles` | input | 16 | Timeout threshold in clock cycles (runtime config) |
 | `cfg_sched_timeout_enable` | input | 1 | Enable timeout detection |
 
+: Configuration Interface
+
 ### Status Interface
 
 | Signal | Direction | Width | Description |
 |--------|-----------|-------|-------------|
 | `scheduler_idle` | output | 1 | Scheduler idle flag |
 | `scheduler_state` | output | 7 | Current FSM state (one-hot encoding) |
+
+: Status Interface
 
 ### Descriptor Engine Interface
 
@@ -115,6 +146,8 @@ if (DESC_WIDTH != 256)
 | `descriptor_ready` | output | 1 | Scheduler ready to accept descriptor |
 | `descriptor_packet` | input | 256 | 256-bit STREAM descriptor (see format below) |
 | `descriptor_error` | input | 1 | Error signal from descriptor engine |
+
+: Descriptor Engine Interface
 
 ### Data Read Interface
 
@@ -126,6 +159,8 @@ if (DESC_WIDTH != 256)
 | `sched_rd_addr` | output | ADDR_WIDTH | Source address (aligned, static during burst) |
 | `sched_rd_beats` | output | 32 | Beats remaining to read |
 
+: Data Read Interface
+
 **Completion from Read Engine:**
 
 | Signal | Direction | Width | Description |
@@ -133,6 +168,8 @@ if (DESC_WIDTH != 256)
 | `sched_rd_done_strobe` | input | 1 | Read burst completed (1-cycle pulse) |
 | `sched_rd_beats_done` | input | 32 | Number of beats completed in burst |
 | `sched_rd_error` | input | 1 | Read engine error (sticky) |
+
+: Data Read Interface
 
 ### Data Write Interface
 
@@ -145,6 +182,8 @@ if (DESC_WIDTH != 256)
 | `sched_wr_addr` | output | ADDR_WIDTH | Destination address (aligned, static during burst) |
 | `sched_wr_beats` | output | 32 | Beats remaining to write |
 
+: Data Write Interface
+
 **Completion from Write Engine:**
 
 | Signal | Direction | Width | Description |
@@ -153,11 +192,15 @@ if (DESC_WIDTH != 256)
 | `sched_wr_beats_done` | input | 32 | Number of beats completed in burst |
 | `sched_wr_error` | input | 1 | Write engine error (sticky) |
 
+: Data Write Interface
+
 ### Error Signals
 
 | Signal | Direction | Width | Description |
 |--------|-----------|-------|-------------|
 | `sched_error` | output | 1 | Scheduler error output (aggregates rd/wr errors, sticky) |
+
+: Error Signals
 
 ### Monitor Bus Interface
 
@@ -166,6 +209,8 @@ if (DESC_WIDTH != 256)
 | `mon_valid` | output | 1 | Monitor packet valid |
 | `mon_ready` | input | 1 | Monitor bus ready |
 | `mon_packet` | output | 64 | 64-bit monitor bus packet |
+
+: Monitor Bus Interface
 
 ---
 
@@ -372,7 +417,9 @@ CH_ERROR       - Error condition
 
 **FSM Flow:**
 
-![Diagram](../assets/mermaid/02_scheduler_fsm.svg)
+### Figure 2.4.2: Scheduler FSM
+
+![Diagram](../assets/mermaid/02_scheduler_fsm.png)
 
 **Source:** [02_scheduler_block.mmd](../assets/mermaid/02_scheduler_block.mmd)
 
@@ -715,7 +762,9 @@ Descriptor 1 @ 0x1040:
 
 ### Normal Transfer (No Chaining)
 
-![Scheduler Normal Transfer Timing](../assets/mermaid/04_scheduler_normal_transfer.svg)
+### Figure 2.4.3: Scheduler Normal Transfer Timing
+
+![Scheduler Normal Transfer Timing](../assets/mermaid/04_scheduler_normal_transfer.png)
 
 **Source:** [04_scheduler_normal_transfer.mmd](../assets/mermaid/04_scheduler_normal_transfer.mmd)
 
@@ -725,7 +774,9 @@ Descriptor 1 @ 0x1040:
 
 ### Descriptor Chaining
 
-![Scheduler Descriptor Chaining Timing](../assets/mermaid/04_scheduler_chaining.svg)
+### Figure 2.4.4: Scheduler Descriptor Chaining Timing
+
+![Scheduler Descriptor Chaining Timing](../assets/mermaid/04_scheduler_chaining.png)
 
 **Source:** [04_scheduler_chaining.mmd](../assets/mermaid/04_scheduler_chaining.mmd)
 
@@ -844,6 +895,8 @@ Cycle  State        Descriptor  sched_wr_beats  Notes
 | 2025-11-16 | 1.5 | Enhanced documentation with detailed sections |
 | 2025-11-21 | 2.0 | **Merged documentation:**<br>- Updated all signal names (sched_rd_*, sched_wr_*)<br>- Added runtime timeout configuration (cfg_sched_timeout_cycles/enable)<br>- Registered ready signal timing clarification<br>- Added multiple requests per descriptor section<br>- Enhanced beat tracking and error handling details<br>- Updated all code examples and timing diagrams<br>- Added timing examples for chained descriptors<br>- Combined best content from multiple documentation sources |
 | 2025-11-30 | 2.1 | **RTL Sync Update:**<br>- CH_ERROR is now STICKY (requires reset to recover)<br>- scheduler_idle asserts in CH_ERROR state<br>- Updated related documentation references |
+
+: Revision History
 
 ---
 

@@ -1,0 +1,13 @@
+%%{init: {'theme': 'base', 'themeVariables': { 'primaryColor': '#e8f4e8', 'primaryTextColor': '#000', 'primaryBorderColor': '#228B22', 'lineColor': '#404040', 'secondaryColor': '#f0f0f0', 'tertiaryColor': '#fff'}}}%%
+flowchart TB
+    aclk["aclk<br/>(Primary Clock)"]
+
+    subgraph INTERFACES["All Interfaces Synchronous"]
+        apb["APB<br/>Slave"]
+        axi["AXI<br/>Masters"]
+        mon["MonBus<br/>Output"]
+    end
+
+    aclk --> apb
+    aclk --> axi
+    aclk --> mon

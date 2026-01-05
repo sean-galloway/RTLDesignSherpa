@@ -1,3 +1,26 @@
+<!-- RTL Design Sherpa Documentation Header -->
+<table>
+<tr>
+<td width="80">
+  <a href="https://github.com/sean-galloway/RTLDesignSherpa">
+    <img src="https://raw.githubusercontent.com/sean-galloway/RTLDesignSherpa/main/docs/logos/Logo_200px.png" alt="RTL Design Sherpa" width="70">
+  </a>
+</td>
+<td>
+  <strong>RTL Design Sherpa</strong> · <em>Learning Hardware Design Through Practice</em><br>
+  <sub>
+    <a href="https://github.com/sean-galloway/RTLDesignSherpa">GitHub</a> ·
+    <a href="https://github.com/sean-galloway/RTLDesignSherpa/blob/main/docs/DOCUMENTATION_INDEX.md">Documentation Index</a> ·
+    <a href="https://github.com/sean-galloway/RTLDesignSherpa/blob/main/LICENSE">MIT License</a>
+  </sub>
+</td>
+</tr>
+</table>
+
+---
+
+<!-- End Header -->
+
 # Monitor Bus Architecture and Event Code Organization
 
 ## STREAM-Specific Context
@@ -38,6 +61,8 @@ The Monitor Bus architecture provides a unified, scalable framework for monitori
 | `AGENT_ID_WIDTH` | Agent identifier width | 8 | 8 |
 | `EVENT_DATA_WIDTH` | Event data width | 35 | 35 |
 
+: Interface Parameters
+
 ## Core Design Assumptions
 
 ### Assumption 1: Hierarchical Event Organization
@@ -49,6 +74,8 @@ The Monitor Bus architecture provides a unified, scalable framework for monitori
 | **Mapping** | 1:1 mapping between packet types and event codes |
 | **Rationale** | Provides clear, scalable event organization |
 
+: Assumption 1: Hierarchical Event Organization
+
 ### Assumption 2: Protocol Isolation
 
 | Aspect | Requirement |
@@ -57,6 +84,8 @@ The Monitor Bus architecture provides a unified, scalable framework for monitori
 | **Conflict Prevention** | No cross-protocol event conflicts |
 | **Independent Evolution** | Protocols can evolve independently |
 | **Rationale** | Prevents interference and enables protocol-specific optimization |
+
+: Assumption 2: Protocol Isolation
 
 ### Assumption 3: Two-Tier Memory Architecture
 
@@ -67,6 +96,8 @@ The Monitor Bus architecture provides a unified, scalable framework for monitori
 | **Routing Decision** | Based on packet type configuration |
 | **Rationale** | Balances immediate access with bulk storage needs |
 
+: Assumption 3: Two-Tier Memory Architecture
+
 ### Assumption 4: Configurable Packet Routing
 
 | Aspect | Requirement |
@@ -75,6 +106,8 @@ The Monitor Bus architecture provides a unified, scalable framework for monitori
 | **Configuration** | Base/limit registers define routing per packet type |
 | **Priority Support** | Configurable priority levels per packet type |
 | **Rationale** | Enables flexible memory allocation and access patterns |
+
+: Assumption 4: Configurable Packet Routing
 
 ## Interface Signal Specification
 
@@ -86,6 +119,8 @@ The Monitor Bus architecture provides a unified, scalable framework for monitori
 | `mon_valid` | 1 | Monitor→System | Packet valid signal |
 | `mon_ready` | 1 | System→Monitor | Ready to accept packet |
 | `mon_error` | 1 | Monitor→System | Monitor error condition |
+
+: Monitor Bus Output Interface
 
 ### Protocol Input Interfaces
 
@@ -107,6 +142,8 @@ The Monitor Bus architecture provides a unified, scalable framework for monitori
 | `core_event_valid` | 1 | CORE Monitor→Bus | CORE event valid |
 | `core_event_ready` | 1 | Bus→CORE Monitor | Ready for CORE event |
 
+: Protocol Input Interfaces
+
 ### Control and Status Signals
 
 | Signal | Width | Direction | Description |
@@ -117,6 +154,8 @@ The Monitor Bus architecture provides a unified, scalable framework for monitori
 | `packet_type_enables` | 16 | Input | Per-type enable bits |
 | `local_memory_full` | 1 | Output | Local memory full flag |
 | `external_memory_error` | 1 | Output | External memory error |
+
+: Control and Status Signals
 
 ## Packet Format and Field Allocation
 
@@ -131,6 +170,8 @@ The Monitor Bus architecture provides a unified, scalable framework for monitori
 | **Unit ID** | [46:43] | 4 | Subsystem identifier |
 | **Agent ID** | [42:35] | 8 | Module identifier |
 | **Event Data** | [34:0] | 35 | Event-specific payload |
+
+: 64-bit Monitor Bus Packet Structure
 
 ### Packet Type Definitions
 
@@ -148,6 +189,8 @@ The Monitor Bus architecture provides a unified, scalable framework for monitori
 | **0x9** | APB Specific | APB protocol events | APB only |
 | **0xA-0xE** | Reserved | Future expansion | - |
 | **0xF** | Debug | Debug and trace events | All |
+
+: Packet Type Definitions
 
 ## Protocol-Specific Event Codes
 
@@ -174,6 +217,8 @@ The Monitor Bus architecture provides a unified, scalable framework for monitori
 | **0xE** | AXI_ERR_RESERVED_E | Reserved |
 | **0xF** | AXI_ERR_USER_DEFINED | User-defined error |
 
+: Error Events
+
 #### Timeout Events (PktTypeTimeout + PROTOCOL_AXI)
 
 | Code | Event Name | Description |
@@ -186,6 +231,8 @@ The Monitor Bus architecture provides a unified, scalable framework for monitori
 | **0x5** | AXI_TIMEOUT_EXCLUSIVE | Exclusive access timeout |
 | **0x6-0xE** | Reserved | Future expansion |
 | **0xF** | AXI_TIMEOUT_USER_DEFINED | User-defined timeout |
+
+: Timeout Events
 
 #### Performance Events (PktTypePerf + PROTOCOL_AXI)
 
@@ -204,6 +251,8 @@ The Monitor Bus architecture provides a unified, scalable framework for monitori
 | **0xA-0xE** | Reserved | Future expansion |
 | **0xF** | AXI_PERF_USER_DEFINED | User-defined performance |
 
+: Performance Events
+
 ### APB Protocol Events
 
 #### Error Events (PktTypeError + PROTOCOL_APB)
@@ -221,6 +270,8 @@ The Monitor Bus architecture provides a unified, scalable framework for monitori
 | **0x8-0xE** | Reserved | Future expansion |
 | **0xF** | APB_ERR_USER_DEFINED | User-defined error |
 
+: Error Events
+
 #### Timeout Events (PktTypeTimeout + PROTOCOL_APB)
 
 | Code | Event Name | Description |
@@ -233,6 +284,8 @@ The Monitor Bus architecture provides a unified, scalable framework for monitori
 | **0x5-0xE** | Reserved | Future expansion |
 | **0xF** | APB_TIMEOUT_USER_DEFINED | User-defined timeout |
 
+: Timeout Events
+
 #### Completion Events (PktTypeCompletion + PROTOCOL_APB)
 
 | Code | Event Name | Description |
@@ -242,6 +295,8 @@ The Monitor Bus architecture provides a unified, scalable framework for monitori
 | **0x2** | APB_COMPL_WRITE_COMPLETE | Write transaction complete |
 | **0x3-0xE** | Reserved | Future expansion |
 | **0xF** | APB_COMPL_USER_DEFINED | User-defined completion |
+
+: Completion Events
 
 #### Threshold Events (PktTypeThreshold + PROTOCOL_APB)
 
@@ -253,6 +308,8 @@ The Monitor Bus architecture provides a unified, scalable framework for monitori
 | **0x3** | APB_THRESH_BANDWIDTH | Bandwidth threshold |
 | **0x4-0xE** | Reserved | Future expansion |
 | **0xF** | APB_THRESH_USER_DEFINED | User-defined threshold |
+
+: Threshold Events
 
 #### Performance Events (PktTypePerf + PROTOCOL_APB)
 
@@ -266,6 +323,8 @@ The Monitor Bus architecture provides a unified, scalable framework for monitori
 | **0x5** | APB_PERF_COMPLETED_COUNT | Completed transaction count |
 | **0x6-0xE** | Reserved | Future expansion |
 | **0xF** | APB_PERF_USER_DEFINED | User-defined performance |
+
+: Performance Events
 
 #### Debug Events (PktTypeDebug + PROTOCOL_APB)
 
@@ -282,6 +341,8 @@ The Monitor Bus architecture provides a unified, scalable framework for monitori
 | **0x8** | APB_DEBUG_PSTRB_TRACE | PSTRB trace |
 | **0x9-0xE** | Reserved | Future expansion |
 | **0xF** | APB_DEBUG_USER_DEFINED | User-defined debug |
+
+: Debug Events
 
 ### MNOC Protocol Events
 
@@ -303,6 +364,8 @@ The Monitor Bus architecture provides a unified, scalable framework for monitori
 | **0xB-0xE** | Reserved | Future expansion |
 | **0xF** | MNOC_ERR_USER_DEFINED | User-defined error |
 
+: Error Events
+
 #### Credit Events (PktTypeCredit + PROTOCOL_MNOC)
 
 | Code | Event Name | Description |
@@ -319,6 +382,8 @@ The Monitor Bus architecture provides a unified, scalable framework for monitori
 | **0x9-0xE** | Reserved | Future expansion |
 | **0xF** | MNOC_CREDIT_USER_DEFINED | User-defined credit event |
 
+: Credit Events
+
 #### Channel Events (PktTypeChannel + PROTOCOL_MNOC)
 
 | Code | Event Name | Description |
@@ -332,6 +397,8 @@ The Monitor Bus architecture provides a unified, scalable framework for monitori
 | **0x6-0xE** | Reserved | Future expansion |
 | **0xF** | MNOC_CHANNEL_USER_DEFINED | User-defined channel event |
 
+: Channel Events
+
 #### Stream Events (PktTypeStream + PROTOCOL_MNOC)
 
 | Code | Event Name | Description |
@@ -344,6 +411,8 @@ The Monitor Bus architecture provides a unified, scalable framework for monitori
 | **0x5** | MNOC_STREAM_UNDERFLOW | Stream buffer underflow |
 | **0x6-0xE** | Reserved | Future expansion |
 | **0xF** | MNOC_STREAM_USER_DEFINED | User-defined stream event |
+
+: Stream Events
 
 ### ARB Protocol Events
 
@@ -367,6 +436,8 @@ The Monitor Bus architecture provides a unified, scalable framework for monitori
 | **0xD-0xE** | Reserved | Future expansion |
 | **0xF** | ARB_ERR_USER_DEFINED | User-defined error |
 
+: Error Events
+
 #### Timeout Events (PktTypeTimeout + PROTOCOL_ARB)
 
 | Code | Event Name | Description |
@@ -379,6 +450,8 @@ The Monitor Bus architecture provides a unified, scalable framework for monitori
 | **0x5** | ARB_TIMEOUT_STATE_CHANGE | State machine timeout |
 | **0x6-0xE** | Reserved | Future expansion |
 | **0xF** | ARB_TIMEOUT_USER_DEFINED | User-defined timeout |
+
+: Timeout Events
 
 #### Completion Events (PktTypeCompletion + PROTOCOL_ARB)
 
@@ -393,6 +466,8 @@ The Monitor Bus architecture provides a unified, scalable framework for monitori
 | **0x6** | ARB_COMPL_BLOCK_PERIOD | Block period completed |
 | **0x7-0xE** | Reserved | Future expansion |
 | **0xF** | ARB_COMPL_USER_DEFINED | User-defined completion |
+
+: Completion Events
 
 #### Threshold Events (PktTypeThreshold + PROTOCOL_ARB)
 
@@ -409,6 +484,8 @@ The Monitor Bus architecture provides a unified, scalable framework for monitori
 | **0x8** | ARB_THRESH_STARVATION_TIME | Starvation time threshold |
 | **0x9-0xE** | Reserved | Future expansion |
 | **0xF** | ARB_THRESH_USER_DEFINED | User-defined threshold |
+
+: Threshold Events
 
 #### Performance Events (PktTypePerf + PROTOCOL_ARB)
 
@@ -428,6 +505,8 @@ The Monitor Bus architecture provides a unified, scalable framework for monitori
 | **0xB-0xE** | Reserved | Future expansion |
 | **0xF** | ARB_PERF_USER_DEFINED | User-defined performance |
 
+: Performance Events
+
 #### Debug Events (PktTypeDebug + PROTOCOL_ARB)
 
 | Code | Event Name | Description |
@@ -446,6 +525,8 @@ The Monitor Bus architecture provides a unified, scalable framework for monitori
 | **0xB** | ARB_DEBUG_ACK_STATE | ACK protocol state |
 | **0xC-0xE** | Reserved | Future expansion |
 | **0xF** | ARB_DEBUG_USER_DEFINED | User-defined debug |
+
+: Debug Events
 
 ### CORE Protocol Events
 
@@ -468,6 +549,8 @@ The Monitor Bus architecture provides a unified, scalable framework for monitori
 | **0xC-0xE** | Reserved | Future expansion |
 | **0xF** | CORE_ERR_USER_DEFINED | User-defined error |
 
+: Error Events
+
 #### Timeout Events (PktTypeTimeout + PROTOCOL_CORE)
 
 | Code | Event Name | Description |
@@ -482,6 +565,8 @@ The Monitor Bus architecture provides a unified, scalable framework for monitori
 | **0x7** | CORE_TIMEOUT_STATE_TRANSITION | FSM state transition timeout |
 | **0x8-0xE** | Reserved | Future expansion |
 | **0xF** | CORE_TIMEOUT_USER_DEFINED | User-defined timeout |
+
+: Timeout Events
 
 #### Completion Events (PktTypeCompletion + PROTOCOL_CORE)
 
@@ -498,6 +583,8 @@ The Monitor Bus architecture provides a unified, scalable framework for monitori
 | **0x8-0xE** | Reserved | Future expansion |
 | **0xF** | CORE_COMPL_USER_DEFINED | User-defined completion |
 
+: Completion Events
+
 #### Threshold Events (PktTypeThreshold + PROTOCOL_CORE)
 
 | Code | Event Name | Description |
@@ -513,6 +600,8 @@ The Monitor Bus architecture provides a unified, scalable framework for monitori
 | **0x8** | CORE_THRESH_DATA_RATE | Data transfer rate threshold |
 | **0x9-0xE** | Reserved | Future expansion |
 | **0xF** | CORE_THRESH_USER_DEFINED | User-defined threshold |
+
+: Threshold Events
 
 #### Performance Events (PktTypePerf + PROTOCOL_CORE)
 
@@ -534,6 +623,8 @@ The Monitor Bus architecture provides a unified, scalable framework for monitori
 | **0xD-0xE** | Reserved | Future expansion |
 | **0xF** | CORE_PERF_USER_DEFINED | User-defined performance |
 
+: Performance Events
+
 #### Debug Events (PktTypeDebug + PROTOCOL_CORE)
 
 | Code | Event Name | Description |
@@ -552,6 +643,8 @@ The Monitor Bus architecture provides a unified, scalable framework for monitori
 | **0xB-0xE** | Reserved | Future expansion |
 | **0xF** | CORE_DEBUG_USER_DEFINED | User-defined debug |
 
+: Debug Events
+
 ## Memory Architecture and Packet Routing
 
 ### Two-Tier Memory Architecture
@@ -566,6 +659,8 @@ The Monitor Bus architecture provides a unified, scalable framework for monitori
 | **Priority** | Critical events requiring immediate attention |
 | **Indexing** | Fast search and retrieval mechanisms |
 
+: Local Error/Interrupt Memory
+
 #### Configurable External Memory
 
 | Characteristic | Description |
@@ -575,6 +670,8 @@ The Monitor Bus architecture provides a unified, scalable framework for monitori
 | **Capacity** | Bulk storage for non-critical events |
 | **DMA Support** | Can be accessed via DMA for efficient transfer |
 | **Time Stamping** | 32-bit timestamp appended when routing externally |
+
+: Configurable External Memory
 
 ### Routing Configuration
 
@@ -587,6 +684,8 @@ The Monitor Bus architecture provides a unified, scalable framework for monitori
 | **Performance Config** | Type 0x4 routing | base_addr, limit_addr, enable, priority |
 | **Debug Config** | Type 0xF routing | base_addr, limit_addr, enable, priority |
 
+: Base and Limit Registers
+
 #### Routing Decision Logic
 
 | Packet Type | Destination | Address Calculation |
@@ -596,6 +695,8 @@ The Monitor Bus architecture provides a unified, scalable framework for monitori
 | **Completion (0x1)** | External Memory | completion_config.base_addr + offset |
 | **Performance (0x4)** | External Memory | performance_config.base_addr + offset |
 | **Debug (0xF)** | External Memory | debug_config.base_addr + offset |
+
+: Routing Decision Logic
 
 ### Address Space Management
 
@@ -607,6 +708,8 @@ The Monitor Bus architecture provides a unified, scalable framework for monitori
 | **0x2000_0000 - 0x2001_FFFF** | Performance Packets | External bulk storage |
 | **0x2010_0000 - 0x2011_FFFF** | Completion Packets | External bulk storage |
 | **0x2020_0000 - 0x202F_FFFF** | Debug Packets | External bulk storage |
+
+: Memory Layout Example
 
 ### Transaction State and Bus Transaction Structure
 
@@ -623,6 +726,8 @@ The Monitor Bus architecture provides a unified, scalable framework for monitori
 | **TRANS_ORPHANED** | 3'b110 | Orphaned transaction | Missing components |
 | **TRANS_CREDIT_STALL** | 3'b111 | Credit stall (MNOC only) | MNOC-specific stall |
 
+: Transaction State Enumeration
+
 #### Enhanced Transaction Structure
 
 | Field | Width | Description | Protocol Usage |
@@ -636,6 +741,8 @@ The Monitor Bus architecture provides a unified, scalable framework for monitori
 | **size** | 3 | Access size (AXI) / Reserved (MNOC) / Transfer size (APB) | AXI, APB |
 | **burst** | 2 | Burst type (AXI) / Payload type (MNOC) / PPROT[1:0] (APB) | All protocols |
 
+: Enhanced Transaction Structure
+
 #### Phase Completion Flags
 
 | Flag | Description | Protocol Usage |
@@ -644,6 +751,8 @@ The Monitor Bus architecture provides a unified, scalable framework for monitori
 | **data_started** | Data phase started / ACK expected / Access phase | All protocols |
 | **data_completed** | Data phase completed / ACK received / Enable phase | All protocols |
 | **resp_received** | Response received / Final ACK / PREADY asserted | All protocols |
+
+: Phase Completion Flags
 
 #### Protocol-Specific Tracking Fields
 
@@ -665,6 +774,8 @@ The Monitor Bus architecture provides a unified, scalable framework for monitori
 | **core_fsm_state** | 3 | Current CORE FSM state | CORE only |
 | **core_channel_id** | 6 | CORE channel identifier | CORE only |
 
+: Protocol-Specific Tracking Fields
+
 ### APB Transaction Phases
 
 | Phase | Value | Description |
@@ -673,6 +784,8 @@ The Monitor Bus architecture provides a unified, scalable framework for monitori
 | **APB_PHASE_SETUP** | 2'b01 | Setup phase (PSEL asserted) |
 | **APB_PHASE_ACCESS** | 2'b10 | Access phase (PENABLE asserted) |
 | **APB_PHASE_ENABLE** | 2'b11 | Enable phase (waiting for PREADY) |
+
+: APB Transaction Phases
 
 ### APB Protection Types
 
@@ -683,6 +796,8 @@ The Monitor Bus architecture provides a unified, scalable framework for monitori
 | **APB_PROT_SECURE** | 3'b010 | Secure access |
 | **APB_PROT_INSTRUCTION** | 3'b100 | Instruction access |
 
+: APB Protection Types
+
 ### MNOC Payload Types
 
 | Payload | Value | Description |
@@ -692,6 +807,8 @@ The Monitor Bus architecture provides a unified, scalable framework for monitori
 | **MNOC_PAYLOAD_RDA** | 2'b10 | RDA_PKT |
 | **MNOC_PAYLOAD_RAW** | 2'b11 | RAW_PKT |
 
+: MNOC Payload Types
+
 ### MNOC ACK Types
 
 | ACK Type | Value | Description |
@@ -700,6 +817,8 @@ The Monitor Bus architecture provides a unified, scalable framework for monitori
 | **MNOC_ACK_START** | 2'b01 | MSAP_START |
 | **MNOC_ACK_CREDIT_ON** | 2'b10 | MSAP_CREDIT_ON |
 | **MNOC_ACK_STOP_AT_EOS** | 2'b11 | MSAP_STOP_AT_EOS |
+
+: MNOC ACK Types
 
 ### ARB State Types
 
@@ -712,6 +831,8 @@ The Monitor Bus architecture provides a unified, scalable framework for monitori
 | **ARB_STATE_WEIGHT_UPD** | 3'b100 | Weight update in progress |
 | **ARB_STATE_ERROR** | 3'b101 | Error state |
 
+: ARB State Types
+
 ### CORE State Types
 
 | State | Value | Description |
@@ -723,6 +844,8 @@ The Monitor Bus architecture provides a unified, scalable framework for monitori
 | **CORE_STATE_DATA_TRANSFER** | 3'b100 | Transferring data |
 | **CORE_STATE_CREDIT_WAIT** | 3'b101 | Waiting for credits |
 | **CORE_STATE_ERROR** | 3'b110 | Error state |
+
+: CORE State Types
 
 ## Configuration and Control
 
@@ -739,6 +862,8 @@ The Monitor Bus architecture provides a unified, scalable framework for monitori
 | **agent_id** | 8 | Agent identifier |
 | **packet_type_enables** | 16 | Per-type enable bits |
 
+: Global Configuration
+
 #### Packet Type Enable Mapping
 
 | Bit | Enable | Description |
@@ -754,6 +879,8 @@ The Monitor Bus architecture provides a unified, scalable framework for monitori
 | **8** | PKT_ENABLE_ADDR_MATCH | Enable address match (AXI) |
 | **9** | PKT_ENABLE_APB | Enable APB packets |
 | **15** | PKT_ENABLE_DEBUG | Enable debug packets |
+
+: Packet Type Enable Mapping
 
 ### Protocol-Specific Configuration
 
@@ -773,6 +900,8 @@ The Monitor Bus architecture provides a unified, scalable framework for monitori
 | **data_addr_match_base** | 64 | Data address match base |
 | **data_addr_match_mask** | 64 | Data address match mask |
 
+: AXI Monitor Configuration
+
 #### MNOC Monitor Configuration
 
 | Field | Width | Description |
@@ -784,6 +913,8 @@ The Monitor Bus architecture provides a unified, scalable framework for monitori
 | **enable_deadlock_detect** | 1 | Enable deadlock detection |
 | **deadlock_timeout** | 4 | Deadlock detection timeout |
 
+: MNOC Monitor Configuration
+
 #### ARB Monitor Configuration
 
 | Field | Width | Description |
@@ -793,6 +924,8 @@ The Monitor Bus architecture provides a unified, scalable framework for monitori
 | **weight_update_enable** | 1 | Enable weight tracking |
 | **starvation_threshold** | 16 | Starvation detection threshold |
 | **efficiency_threshold** | 8 | Grant efficiency threshold |
+
+: ARB Monitor Configuration
 
 #### CORE Monitor Configuration
 
@@ -804,6 +937,8 @@ The Monitor Bus architecture provides a unified, scalable framework for monitori
 | **processing_timeout_cnt** | 32 | Processing timeout count |
 | **enable_descriptor_trace** | 1 | Enable descriptor content tracing |
 | **enable_fsm_trace** | 1 | Enable FSM state tracing |
+
+: CORE Monitor Configuration
 
 ## Validation Requirements
 
@@ -818,6 +953,8 @@ The Monitor Bus architecture provides a unified, scalable framework for monitori
 | **Memory Management** | Verify local and external memory operations |
 | **Configuration** | Verify register configuration and enable controls |
 
+: Functional Validation
+
 ### Performance Validation
 
 | Validation Area | Requirements |
@@ -827,6 +964,8 @@ The Monitor Bus architecture provides a unified, scalable framework for monitori
 | **Memory Efficiency** | Verify efficient memory usage patterns |
 | **Power Consumption** | Verify power-efficient operation |
 
+: Performance Validation
+
 ### Error Handling Validation
 
 | Validation Area | Requirements |
@@ -835,6 +974,8 @@ The Monitor Bus architecture provides a unified, scalable framework for monitori
 | **Overflow Handling** | Verify behavior when memories fill |
 | **Configuration Errors** | Verify invalid configuration detection |
 | **Recovery Mechanisms** | Verify error recovery procedures |
+
+: Error Handling Validation
 
 ## Usage Examples
 
@@ -848,6 +989,8 @@ The Monitor Bus architecture provides a unified, scalable framework for monitori
 | **ARB Threshold** | Protocol=ARB, Type=Threshold, Code=ARB_THRESH_FAIRNESS_DEV |
 | **CORE Completion** | Protocol=CORE, Type=Completion, Code=CORE_COMPL_DESCRIPTOR_LOADED |
 
+: Creating Monitor Packets
+
 ### Packet Decoding
 
 | Decoding Step | Method |
@@ -857,6 +1000,8 @@ The Monitor Bus architecture provides a unified, scalable framework for monitori
 | **Extract Event Code** | packet[56:53] |
 | **Extract Channel ID** | packet[52:47] |
 | **Extract Event Data** | packet[34:0] |
+
+: Packet Decoding
 
 ### Monitor Bus Packet Helper Functions
 
@@ -872,11 +1017,15 @@ The Monitor Bus architecture provides a unified, scalable framework for monitori
 | **get_agent_id(pkt)** | logic [7:0] | Extract agent ID [42:35] |
 | **get_event_data(pkt)** | logic [34:0] | Extract event data [34:0] |
 
+: Packet Field Extraction
+
 #### Packet Creation Function
 
 | Function | Parameters | Description |
 |----------|------------|-------------|
 | **create_monitor_packet()** | packet_type, protocol, event_code, channel_id, unit_id, agent_id, event_data | Create complete 64-bit packet |
+
+: Packet Creation Function
 
 #### Event Code Creation Functions
 
@@ -911,11 +1060,15 @@ The Monitor Bus architecture provides a unified, scalable framework for monitori
 | **create_core_performance_event()** | core_performance_code_t | Create CORE performance event code |
 | **create_core_debug_event()** | core_debug_code_t | Create CORE debug event code |
 
+: Event Code Creation Functions
+
 #### Validation Functions
 
 | Function | Parameters | Description |
 |----------|------------|-------------|
 | **is_valid_event_for_packet_type()** | packet_type, protocol, event_code | Validate event code for packet type and protocol |
+
+: Validation Functions
 
 #### String Functions for Debugging
 
@@ -927,6 +1080,8 @@ The Monitor Bus architecture provides a unified, scalable framework for monitori
 | **get_packet_type_name()** | logic [3:0] | Get packet type name string |
 | **get_protocol_name()** | protocol_type_t | Get protocol name string |
 | **get_event_name()** | packet_type, protocol, event_code | Get comprehensive event name |
+
+: String Functions for Debugging
 
 ## Debug and Monitoring Signals
 
@@ -940,6 +1095,8 @@ The Monitor Bus architecture provides a unified, scalable framework for monitori
 | **debug_local_memory_level** | 16 | Local memory usage level |
 | **debug_external_memory_level** | 16 | External memory usage level |
 
+: Essential Debug Signals
+
 ### Performance Counters
 
 | Counter | Width | Purpose |
@@ -948,6 +1105,8 @@ The Monitor Bus architecture provides a unified, scalable framework for monitori
 | **packets_dropped** | 32 | Packets dropped due to overflow |
 | **routing_errors** | 32 | Routing configuration errors |
 | **memory_full_events** | 32 | Memory full occurrences |
+
+: Performance Counters
 
 ## Protocol Coverage Summary
 
@@ -961,4 +1120,20 @@ The Monitor Bus architecture provides a unified, scalable framework for monitori
 | **ARB** | YES 16 | YES 16 | YES 16 | YES 16 | YES 16 | YES 16 | None |
 | **CORE** | YES 16 | YES 16 | YES 16 | YES 16 | YES 16 | YES 16 | None |
 
+: Complete Protocol Event Matrix
+
 **Total Event Codes**: 544 defined across all protocols and packet types.
+---
+
+## Revision History
+
+| Version | Date | Author | Description |
+|---------|------|--------|-------------|
+| 0.90 | 2025-11-22 | seang | Initial block specification |
+| 0.91 | 2026-01-02 | seang | Added table captions and figure numbers |
+
+: Monitor Bus Architecture and Event Code Organization Revision History
+
+---
+
+**Last Updated:** 2026-01-02

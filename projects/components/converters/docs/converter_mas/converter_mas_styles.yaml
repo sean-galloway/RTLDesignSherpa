@@ -1,0 +1,120 @@
+# RTL Design Sherpa Corporate Document Styles
+# Converters Micro-Architecture Specification
+
+company:
+  name: "RTL Design Sherpa"
+  confidential_text: "Open Source - Apache 2.0 License"
+
+colors:
+  primary: "#228B22"      # Forest green
+  secondary: "#404040"    # Dark gray
+  light_gray: "#808080"   # Light gray for captions
+  white: "#FFFFFF"
+  black: "#000000"
+
+fonts:
+  main: "Calibri"
+  mono: "Consolas"
+  heading: "Calibri"
+
+# Heading styles
+headings:
+  h1:
+    font_size: 16
+    color: white
+    background: secondary    # Uses colors.secondary
+    bold: true
+    space_before: 18
+    space_after: 6
+
+  h2:
+    font_size: 14
+    color: primary           # Uses colors.primary (forest green)
+    bold: true
+    underline_color: primary
+    space_before: 14
+    space_after: 4
+
+  h3:
+    font_size: 12
+    color: secondary
+    bold: true
+    space_before: 10
+    space_after: 4
+
+  h4:
+    font_size: 11
+    color: secondary
+    bold: true
+    italic: true
+    space_before: 8
+    space_after: 4
+
+# Body text styles
+body:
+  font_size: 10
+  line_spacing: 1.15
+  space_after: 6
+
+# Table styles
+tables:
+  header:
+    background: "#E0E0E0"   # Light gray header
+    color: black
+    bold: true
+    font_size: 10
+  body:
+    font_size: 10
+    alternate_rows: false   # Set true for zebra striping
+    alternate_color: "#F5F5F5"
+
+# Caption styles
+captions:
+  table:
+    font_size: 9
+    italic: true
+    color: light_gray
+    prefix: "Table"
+  figure:
+    font_size: 9
+    italic: true
+    color: light_gray
+    prefix: "Figure"
+
+# Header and footer
+header_footer:
+  enabled: true
+  header_text: ""           # Leave empty for no header text
+  footer_left: "{title} {version}"
+  footer_center: "{confidential}"
+  footer_right: "{page}"
+  font_size: 8
+
+# Page margins (inches)
+margins:
+  top: 1.0
+  bottom: 1.0
+  left: 0.75
+  right: 0.75
+
+# List of Tables/Figures (inserted after TOC)
+lists:
+  lot: true    # List of Tables
+  lof: true    # List of Figures
+  low: false   # List of Waveforms
+
+# Title page configuration
+title_page:
+  enabled: true
+  logo: "assets/images/logo.png"
+  logo_width: 2.5
+  company: "RTL Design Sherpa"
+  title: "Converters"
+  subtitle: "Micro-Architecture Specification 1.0"
+  date: "January 4, 2026"
+  # Colors reference the colors section above
+  company_color: primary
+  title_color: secondary
+  company_size: 20
+  title_size: 20
+  date_size: 16

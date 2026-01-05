@@ -1,0 +1,14 @@
+{
+  "signal": [
+    {"name": "pclk", "wave": "p........"},
+    {"name": "int_status", "wave": "1........"},
+    {"name": "pwrite", "wave": "0.1....0."},
+    {"name": "paddr", "wave": "x.2....x.", "data": ["INT_CLR"]},
+    {"name": "pwdata", "wave": "x.2....x.", "data": ["0x01"]},
+    {"name": "pready", "wave": "0....1.0."},
+    {},
+    {"name": "int_status[clr]", "wave": "1.....0.."},
+    {"name": "irq", "wave": "1.....0.."}
+  ],
+  "head": {"text": "GPIO Interrupt Clear (W1C)"}
+}

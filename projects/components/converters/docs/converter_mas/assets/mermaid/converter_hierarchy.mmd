@@ -1,0 +1,20 @@
+%%{init: {'theme': 'neutral'}}%%
+flowchart TB
+    subgraph Converters["Converters Component"]
+        subgraph Width["Data Width Converters"]
+            UPSIZE[axi_data_upsize<br/>Narrow→Wide]
+            DNSIZE[axi_data_dnsize<br/>Wide→Narrow]
+            WR_CONV[axi4_dwidth_converter_wr<br/>Full Write Path]
+            RD_CONV[axi4_dwidth_converter_rd<br/>Full Read Path]
+        end
+
+        subgraph Protocol["Protocol Converters"]
+            AXI_AXIL[axi4_to_axil4<br/>Burst Decomposition]
+            AXIL_AXI[axil4_to_axi4<br/>Protocol Upgrade]
+            AXI_APB[axi4_to_apb_convert<br/>AXI4→APB Bridge]
+            PEAKRDL[peakrdl_to_cmdrsp<br/>Register Adapter]
+        end
+    end
+
+    WR_CONV --> UPSIZE
+    RD_CONV --> DNSIZE

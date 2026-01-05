@@ -1,3 +1,26 @@
+<!-- RTL Design Sherpa Documentation Header -->
+<table>
+<tr>
+<td width="80">
+  <a href="https://github.com/sean-galloway/RTLDesignSherpa">
+    <img src="https://raw.githubusercontent.com/sean-galloway/RTLDesignSherpa/main/docs/logos/Logo_200px.png" alt="RTL Design Sherpa" width="70">
+  </a>
+</td>
+<td>
+  <strong>RTL Design Sherpa</strong> · <em>Learning Hardware Design Through Practice</em><br>
+  <sub>
+    <a href="https://github.com/sean-galloway/RTLDesignSherpa">GitHub</a> ·
+    <a href="https://github.com/sean-galloway/RTLDesignSherpa/blob/main/docs/DOCUMENTATION_INDEX.md">Documentation Index</a> ·
+    <a href="https://github.com/sean-galloway/RTLDesignSherpa/blob/main/LICENSE">MIT License</a>
+  </sub>
+</td>
+</tr>
+</table>
+
+---
+
+<!-- End Header -->
+
 # APB Programming Interface Specification for STREAM
 
 ## Overview
@@ -20,6 +43,8 @@ STREAM provides a **simplified per-channel descriptor programming interface**:
 |--------------|---------------------|----------|---------|
 | **Programming** | `apb_valid[ch]`, `apb_ready[ch]`, `apb_addr[ch]` | Valid/Ready handshake | Descriptor address input |
 
+: STREAM Programming Interface
+
 **Note:** Despite the "apb_" prefix, this is NOT a full AMBA APB interface. It's a simplified programming interface using APB naming convention for historical reasons.
 
 ### Interface Parameters
@@ -31,6 +56,8 @@ STREAM provides a **simplified per-channel descriptor programming interface**:
 | `STRB_WIDTH` | Write strobe width (APB4 only) | `DATA_WIDTH/8` | 4 |
 | `NUM_SLAVES` | Number of peripheral slaves | 1-32 | 1 |
 | `DEPTH` | Internal buffer depth | 2+ | 2 |
+
+: Interface Parameters
 
 ## Core Protocol Assumptions
 
@@ -56,6 +83,8 @@ APB protocol inherently provides the following constraints:
 | **32-bit transfers** | 4-byte aligned (PADDR[1:0] = 2'b00) |
 | **Rationale** | Simplifies peripheral decode logic and ensures efficient access |
 
+: Assumption 1: Word-Aligned Access Only
+
 #### Assumption 2: Standard Transfer Sizes
 
 | Bus Width | Supported Transfer Sizes | Rationale |
@@ -63,6 +92,8 @@ APB protocol inherently provides the following constraints:
 | **32-bit bus** | 8-bit, 16-bit, 32-bit | Covers typical register access patterns |
 | **16-bit bus** | 8-bit, 16-bit | Keeps decode logic simple |
 | **8-bit bus** | 8-bit only | Minimal complexity |
+
+: Assumption 2: Standard Transfer Sizes
 
 #### Assumption 3: Single-Cycle Default Operation
 
@@ -73,6 +104,8 @@ APB protocol inherently provides the following constraints:
 | **Exception** | Complex peripherals may use PREADY for wait states |
 | **Rationale** | Minimizes latency for control register access |
 
+: Assumption 3: Single-Cycle Default Operation
+
 ## Interface Signal Specification
 
 ### Clock and Reset Signals
@@ -82,6 +115,8 @@ APB protocol inherently provides the following constraints:
 | `src_clk` | I | Source APB clock signal |
 | `snk_rdata[31:0]` | I | Read data |
 | `src_wdata[31:0]` | O | Write data |
+
+: Clock and Reset Signals
 ### Address and Control Signals
 
 | Signal | Width | Direction | Required Values | Description |
@@ -95,6 +130,8 @@ APB protocol inherently provides the following constraints:
 | `snk_enable` | 1 | Master→Slave | 0 or 1 | Enable signal |
 | `snk_write` | 1 | Master→Slave | 0 or 1 | Write enable (1=write, 0=read) |
 
+: Address and Control Signals
+
 ### Data Signals
 
 | Signal | Width | Direction | Description |
@@ -104,6 +141,8 @@ APB protocol inherently provides the following constraints:
 | `snk_wdata` | 32 | Master→Slave | Write data |
 | `snk_rdata` | 32 | Slave→Master | Read data |
 
+: Data Signals
+
 ### Response Signals
 
 | Signal | Width | Direction | Description |
@@ -112,6 +151,8 @@ APB protocol inherently provides the following constraints:
 | `src_slverr` | 1 | Slave→Master | Slave error |
 | `snk_ready` | 1 | Slave→Master | Transfer ready |
 | `snk_slverr` | 1 | Slave→Master | Slave error |
+
+: Response Signals
 
 ## Address Space Configuration
 
@@ -124,6 +165,8 @@ APB protocol inherently provides the following constraints:
 | **Register Alignment** | 32-bit aligned (4-byte boundaries) | Address constraints |
 | **Usable Addresses** | 0x000 to 0x7FF | Valid address range |
 
+: Address Range Specification
+
 ### Address Decode Implementation
 
 | Register | Address Bits | Address Value | Description |
@@ -132,6 +175,8 @@ APB protocol inherently provides the following constraints:
 | **reg1** | src_addr[10:2] == 9'h001 | 0x004 | Second register |
 | **reg2** | src_addr[10:2] == 9'h002 | 0x008 | Third register |
 | **...** | ... | ... | Up to 512 32-bit registers |
+
+: Address Decode Implementation
 
 ## Transaction Protocol
 
@@ -143,6 +188,8 @@ APB protocol inherently provides the following constraints:
 | **Access (T2+)** | ACCESS | 1+ clock cycles | src_sel=1, src_enable=1, wait for src_ready |
 | **Idle** | IDLE | Variable | src_sel=0, src_enable=0 |
 
+: 2-Phase Transaction States
+
 ### State Transitions
 
 | Current State | Next State | Condition | Description |
@@ -152,6 +199,8 @@ APB protocol inherently provides the following constraints:
 | **ACCESS** | IDLE | src_ready=1 | Transaction completes |
 | **ACCESS** | ACCESS | src_ready=0 | Wait state continues |
 
+: State Transitions
+
 ### Transaction Timing Requirements
 
 | Timing Parameter | Requirement | Description |
@@ -159,6 +208,8 @@ APB protocol inherently provides the following constraints:
 | **Setup Time** | All master signals stable before rising src_clk | Signal stability |
 | **Hold Time** | All master signals held after rising src_clk | Signal stability |
 | **Output Delay** | Slave outputs valid after rising src_clk | Response timing |
+
+: Transaction Timing Requirements
 
 ## Advanced Features
 
@@ -172,6 +223,8 @@ APB protocol inherently provides the following constraints:
 | **Graceful Handoff** | Ready signals forced to zero during gating | Protocol compliance |
 | **Activity Detection** | Monitors valid signals across interfaces | Intelligent gating control |
 
+: Dynamic Clock Gating
+
 ### Clock Domain Crossing (CDC) Handshaking
 
 | Feature | Description | Benefit |
@@ -182,6 +235,8 @@ APB protocol inherently provides the following constraints:
 | **Skid Buffer Integration** | Internal buffering prevents backpressure | Smooth operation |
 | **Deterministic Latency** | Predictable timing characteristics | System predictability |
 
+: Clock Domain Crossing (CDC) Handshaking
+
 ### Buffering and Flow Control
 
 | Feature | Description | Benefit |
@@ -190,6 +245,8 @@ APB protocol inherently provides the following constraints:
 | **Backpressure Handling** | Proper ready/valid handshaking | Flow control |
 | **Command Pipelining** | Backend processes while APB handles responses | Efficiency |
 | **Response Queuing** | Responses buffered for varying latencies | Latency tolerance |
+
+: Buffering and Flow Control
 
 ## Error Handling
 
@@ -202,6 +259,8 @@ APB protocol inherently provides the following constraints:
 | **Protection violation** | 1 | Insufficient privilege |
 | **Backend error** | 1 | Downstream error condition |
 
+: Error Response Specification
+
 ### Error Response Timing
 
 | Timing Requirement | Description |
@@ -209,6 +268,8 @@ APB protocol inherently provides the following constraints:
 | **src_slverr Validity** | Must be valid when src_ready is asserted |
 | **Error Completion** | Error response completes transaction normally |
 | **Master Responsibility** | Master must check src_slverr status |
+
+: Error Response Timing
 
 ## Reset Behavior
 
@@ -220,6 +281,8 @@ APB protocol inherently provides the following constraints:
 | **Reset Deassertion** | src_sel=0, src_enable=0 in first cycle | Clean startup |
 | **Reset Values** | src_ready=0, src_slverr=0, src_rdata=0 | Default states |
 
+: Reset Requirements
+
 ## Implementation Variants
 
 ### Available Implementations
@@ -229,6 +292,8 @@ APB protocol inherently provides the following constraints:
 | **Basic APB Slave** | Single clock domain, internal buffering | Simple peripherals |
 | **CDC-Enabled APB Slave** | Dual clock domain (PCLK/ACLK) | Mixed-frequency systems |
 | **Power-Optimized APB Slave** | Dynamic clock gating | Power-sensitive designs |
+
+: Available Implementations
 
 ## Performance Characteristics
 
@@ -241,6 +306,8 @@ APB protocol inherently provides the following constraints:
 | **CDC Additional Latency** | 2-6 clock cycles | Depends on clock relationships |
 | **Buffer Latency** | Minimal | Skid buffer design |
 
+: Latency Specifications
+
 ### Throughput Specifications
 
 | Metric | Value | Description |
@@ -249,6 +316,8 @@ APB protocol inherently provides the following constraints:
 | **Back-to-back Transactions** | Limited by src_ready | Depends on peripheral |
 | **CDC Throughput** | Maintained across domains | Proper buffering |
 
+: Throughput Specifications
+
 ### Power Consumption
 
 | Power Category | Characteristics | Description |
@@ -256,6 +325,8 @@ APB protocol inherently provides the following constraints:
 | **Active Power** | Standard CMOS logic | Normal operation |
 | **Idle Power** | Significantly reduced with clock gating | Power optimization |
 | **Gating Overhead** | Minimal additional logic | Efficient implementation |
+
+: Power Consumption
 
 ## Validation Requirements
 
@@ -271,6 +342,8 @@ APB protocol inherently provides the following constraints:
 | **Clock Gating** | Verify power management behavior |
 | **Buffer Operation** | Verify skid buffer and flow control |
 
+: Functional Validation
+
 ### Timing Validation
 
 | Validation Area | Requirements |
@@ -279,6 +352,8 @@ APB protocol inherently provides the following constraints:
 | **Reset Sequence** | Verify proper reset behavior |
 | **Multi-Clock** | Verify CDC timing across frequency ranges |
 | **Gating Transitions** | Verify clock enable/disable timing |
+
+: Timing Validation
 
 ## Example Transactions
 
@@ -290,6 +365,8 @@ APB protocol inherently provides the following constraints:
 | 2 | 1 | 1 | 1 | 0x100 | 0xABCD | 1 | Access |
 | 3 | 0 | 0 | - | - | - | 0 | Idle |
 
+: 32-bit Register Write
+
 ### 32-bit Register Read with Wait State
 
 | Clock Cycle | src_sel | src_enable | src_write | src_addr | src_rdata | src_ready | Phase |
@@ -298,3 +375,19 @@ APB protocol inherently provides the following constraints:
 | 2 | 1 | 1 | 0 | 0x104 | - | 0 | Access |
 | 3 | 1 | 1 | 0 | 0x104 | 0x1234 | 1 | Complete |
 | 4 | 0 | 0 | - | - | - | 0 | Idle |
+
+: 32-bit Register Read with Wait State
+---
+
+## Revision History
+
+| Version | Date | Author | Description |
+|---------|------|--------|-------------|
+| 0.90 | 2025-11-22 | seang | Initial block specification |
+| 0.91 | 2026-01-02 | seang | Added table captions and figure numbers |
+
+: APB Programming Interface Specification for STREAM Revision History
+
+---
+
+**Last Updated:** 2026-01-02

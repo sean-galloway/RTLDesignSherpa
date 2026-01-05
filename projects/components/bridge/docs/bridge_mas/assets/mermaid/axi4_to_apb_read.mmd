@@ -1,0 +1,24 @@
+%%{init: {'theme': 'neutral'}}%%
+flowchart TB
+    subgraph AXI4Req["AXI4 Read Request"]
+        AR["ARADDR<br/>ARLEN=3"]
+    end
+
+    subgraph Converter["APB Converter"]
+        GEN["Generate<br/>4 APB<br/>reads"]
+        COL["Collect<br/>responses"]
+    end
+
+    subgraph APB["APB Read"]
+        PA["PADDR<br/>PWRITE=0"]
+        PR["PRDATA<br/>PREADY"]
+    end
+
+    subgraph AXI4Resp["AXI4 Read Response"]
+        RD["RDATA<br/>RLAST"]
+    end
+
+    AR --> GEN
+    GEN --> PA
+    PR --> COL
+    COL --> RD

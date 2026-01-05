@@ -1,0 +1,23 @@
+%%{init: {'theme': 'neutral'}}%%
+flowchart LR
+    subgraph APB_PM["APB PM/ACPI"]
+        APB["APB Slave"]
+        CFG["pm_acpi_config_regs"]
+        REGS["pm_acpi_regs<br/>(PeakRDL)"]
+
+        subgraph CORE["pm_acpi_core"]
+            PM1["PM1 Status/Enable"]
+            TMR["ACPI Timer<br/>(24-bit)"]
+            GPE["GPE Registers"]
+            PWRBTN["Power Button Logic"]
+        end
+    end
+
+    BUS["APB Bus"] --> APB
+    APB --> CFG
+    CFG --> REGS
+    CFG --> CORE
+
+    CORE --> SCI["SCI Interrupt"]
+    PWRBTN --> PWRIN["PWR_BTN#"]
+    CORE --> SLPSTS["Sleep State"]

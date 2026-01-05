@@ -1,0 +1,12 @@
+{
+  "signal": [
+    {"name": "pclk", "wave": "p.........."},
+    {"name": "psel", "wave": "01..0.1..0."},
+    {"name": "pwrite", "wave": "01..0.1..0."},
+    {"name": "paddr", "wave": "x2..x.3..x.", "data": ["IOREGSEL", "IOWIN"]},
+    {"name": "pwdata", "wave": "x2..x.3..x.", "data": ["0x10", "rte_lo"]},
+    {},
+    {"name": "rte[0]_lo", "wave": "x.......2..", "data": ["new"]}
+  ],
+  "head": {"text": "IOAPIC RTE Write"}
+}

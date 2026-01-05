@@ -1,0 +1,26 @@
+%%{init: {'theme': 'base', 'themeVariables': { 'primaryColor': '#e8f4e8', 'primaryTextColor': '#000', 'primaryBorderColor': '#228B22', 'lineColor': '#404040', 'secondaryColor': '#f0f0f0', 'tertiaryColor': '#fff'}}}%%
+flowchart TB
+    subgraph CHANNELS["Independent Channels"]
+        ch0["Channel 0"]
+        ch1["Channel 1"]
+        ch2["Channel 2"]
+        ch3["..."]
+        ch7["Channel 7"]
+    end
+
+    subgraph ARB["Arbitration"]
+        arbiter["Channel Arbiter<br/>(Priority-based)"]
+    end
+
+    subgraph SHARED["Shared Resources"]
+        desc["Shared<br/>Desc Fetch"]
+        data["Shared<br/>Data Path"]
+    end
+
+    ch0 --> arbiter
+    ch1 --> arbiter
+    ch2 --> arbiter
+    ch3 --> arbiter
+    ch7 --> arbiter
+    arbiter --> desc
+    arbiter --> data

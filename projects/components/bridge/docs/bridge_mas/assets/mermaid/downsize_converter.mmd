@@ -1,0 +1,15 @@
+%%{init: {'theme': 'neutral'}}%%
+flowchart LR
+    subgraph Master["Master (512-bit)"]
+        M1["AWLEN=0<br/>AWSIZE=6<br/>(1 beat)"]
+    end
+
+    subgraph Converter["Downsize Converter"]
+        C1["Split 1x512b<br/>into 8x64b"]
+    end
+
+    subgraph Slave["Slave (64-bit)"]
+        S1["AWLEN=7<br/>AWSIZE=3<br/>(8 beats)"]
+    end
+
+    M1 --> C1 --> S1

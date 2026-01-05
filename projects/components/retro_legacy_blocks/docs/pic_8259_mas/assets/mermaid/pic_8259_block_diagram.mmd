@@ -1,0 +1,25 @@
+%%{init: {'theme': 'neutral'}}%%
+flowchart LR
+    subgraph APB_PIC["APB PIC 8259"]
+        APB["APB Slave"]
+        CFG["pic_8259_config_regs"]
+        REGS["pic_8259_regs<br/>(PeakRDL)"]
+        CORE["pic_8259_core"]
+        IRR["Interrupt Request<br/>Register (IRR)"]
+        ISR["In-Service<br/>Register (ISR)"]
+        IMR["Interrupt Mask<br/>Register (IMR)"]
+        PRIO["Priority Resolver"]
+    end
+
+    BUS["APB Bus"] --> APB
+    APB --> CFG
+    CFG --> REGS
+    CFG --> CORE
+    CORE --> IRR
+    CORE --> ISR
+    CORE --> IMR
+    CORE --> PRIO
+
+    IRQ_IN["IRQ Inputs<br/>[7:0]"] --> CORE
+    PRIO --> INT["INT"]
+    PRIO --> INTA["INTA"]

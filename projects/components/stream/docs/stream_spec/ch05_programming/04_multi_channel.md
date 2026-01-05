@@ -1,3 +1,26 @@
+<!-- RTL Design Sherpa Documentation Header -->
+<table>
+<tr>
+<td width="80">
+  <a href="https://github.com/sean-galloway/RTLDesignSherpa">
+    <img src="https://raw.githubusercontent.com/sean-galloway/RTLDesignSherpa/main/docs/logos/Logo_200px.png" alt="RTL Design Sherpa" width="70">
+  </a>
+</td>
+<td>
+  <strong>RTL Design Sherpa</strong> · <em>Learning Hardware Design Through Practice</em><br>
+  <sub>
+    <a href="https://github.com/sean-galloway/RTLDesignSherpa">GitHub</a> ·
+    <a href="https://github.com/sean-galloway/RTLDesignSherpa/blob/main/docs/DOCUMENTATION_INDEX.md">Documentation Index</a> ·
+    <a href="https://github.com/sean-galloway/RTLDesignSherpa/blob/main/LICENSE">MIT License</a>
+  </sub>
+</td>
+</tr>
+</table>
+
+---
+
+<!-- End Header -->
+
 # Multi-Channel Operations
 
 **Chapter:** 05.04
@@ -25,6 +48,8 @@ All 8 channels share the following resources:
 | Data Write AXI Master | 512-bit (configurable) | Shared bandwidth for destination writes |
 | SRAM Buffer | Configurable depth | Shared storage for in-flight data |
 | MonBus Reporter | 64-bit packets | Shared monitoring infrastructure |
+
+: Shared Resources
 
 ### Channel Independence
 
@@ -387,6 +412,8 @@ With shared AXI masters, bandwidth is divided among active channels:
 | 4 | ~25% each |
 | 8 | ~12.5% each |
 
+: Bandwidth Sharing
+
 **Note:** Actual bandwidth depends on memory latency, burst sizes, and priority settings.
 
 ### Optimal Channel Usage
@@ -397,6 +424,8 @@ With shared AXI masters, bandwidth is divided among active channels:
 | Multiple independent transfers | 4-8 | Hide memory latency |
 | Mixed size transfers | 2-4 | Balance throughput and latency |
 | Real-time + background | 2 + 6 | Dedicate channels by priority |
+
+: Optimal Channel Usage
 
 ### SRAM Buffer Sizing
 

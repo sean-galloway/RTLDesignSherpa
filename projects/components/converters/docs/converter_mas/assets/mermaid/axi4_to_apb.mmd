@@ -1,0 +1,39 @@
+%%{init: {'theme': 'neutral'}}%%
+flowchart LR
+    subgraph AXI4["AXI4 Master"]
+        AXI_AW[AW Channel]
+        AXI_W[W Channel]
+        AXI_B[B Channel]
+        AXI_AR[AR Channel]
+        AXI_R[R Channel]
+    end
+
+    subgraph Conv["axi4_to_apb_convert"]
+        FSM[Protocol<br/>FSM]
+        ADDR[Address<br/>Truncate]
+        ERR[Error<br/>Map]
+    end
+
+    subgraph APB["APB Slave"]
+        PSEL[PSEL]
+        PENABLE[PENABLE]
+        PADDR[PADDR]
+        PWDATA[PWDATA]
+        PRDATA[PRDATA]
+        PREADY[PREADY]
+        PSLVERR[PSLVERR]
+    end
+
+    AXI_AW --> FSM
+    AXI_W --> FSM
+    AXI_AR --> FSM
+
+    FSM --> PSEL
+    FSM --> PENABLE
+    FSM --> ADDR --> PADDR
+    FSM --> PWDATA
+
+    PRDATA --> FSM --> AXI_R
+    PREADY --> FSM
+    PSLVERR --> ERR --> AXI_B
+    ERR --> AXI_R

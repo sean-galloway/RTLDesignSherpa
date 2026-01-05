@@ -1,0 +1,24 @@
+%%{init: {'theme': 'neutral'}}%%
+flowchart LR
+    subgraph PCLK["pclk Domain"]
+        APB["APB Interface"]
+        REG["Register File"]
+    end
+
+    subgraph CDC["CDC"]
+        SYNC["Synchronizers"]
+    end
+
+    subgraph GPIO_CLK["gpio_clk Domain"]
+        CORE["GPIO Core"]
+        INT["Interrupt Logic"]
+    end
+
+    APB --> REG
+    REG <--> SYNC
+    SYNC <--> CORE
+    CORE --> INT
+
+    style PCLK fill:#e1f5fe
+    style GPIO_CLK fill:#e8f5e9
+    style CDC fill:#fff3e0

@@ -1,0 +1,11 @@
+{
+  "signal": [
+    {"name": "pclk", "wave": "p........"},
+    {"name": "int", "wave": "1........"},
+    {"name": "inta_n", "wave": "1.0..1..."},
+    {"name": "irr[3]", "wave": "1.0......"},
+    {"name": "isr[3]", "wave": "0.1......"},
+    {"name": "vector", "wave": "x.2.....x", "data": ["0x0B"]}
+  ],
+  "head": {"text": "PIC 8259 Interrupt Acknowledge"}
+}

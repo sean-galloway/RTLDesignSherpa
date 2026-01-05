@@ -1,3 +1,26 @@
+<!-- RTL Design Sherpa Documentation Header -->
+<table>
+<tr>
+<td width="80">
+  <a href="https://github.com/sean-galloway/RTLDesignSherpa">
+    <img src="https://raw.githubusercontent.com/sean-galloway/RTLDesignSherpa/main/docs/logos/Logo_200px.png" alt="RTL Design Sherpa" width="70">
+  </a>
+</td>
+<td>
+  <strong>RTL Design Sherpa</strong> · <em>Learning Hardware Design Through Practice</em><br>
+  <sub>
+    <a href="https://github.com/sean-galloway/RTLDesignSherpa">GitHub</a> ·
+    <a href="https://github.com/sean-galloway/RTLDesignSherpa/blob/main/docs/DOCUMENTATION_INDEX.md">Documentation Index</a> ·
+    <a href="https://github.com/sean-galloway/RTLDesignSherpa/blob/main/LICENSE">MIT License</a>
+  </sub>
+</td>
+</tr>
+</table>
+
+---
+
+<!-- End Header -->
+
 # Chapter 6: Configuration Reference
 
 **Version:** 0.90
@@ -21,6 +44,8 @@ STREAM provides comprehensive runtime configuration through APB registers and co
 | **AXI Transfer** | 2 | Burst configuration |
 | **Performance** | 3 | Profiling and metrics |
 | **Total** | **65 configuration signals** | Full system control |
+
+: Configuration Categories
 
 ---
 
@@ -937,6 +962,8 @@ Example for DDR4 (8KB page), FIFO depth 512 entries:
 | 0x280-0x29F | WRMON_* | Write engine monitor (15 signals) | 4.3 |
 | 0x2A0 | AXI_XFER_CFG | rd_xfer_beats, wr_xfer_beats | 5 |
 | 0x2B0 | PERF_CTRL | perf_enable, perf_mode, perf_clear | 6 |
+
+: 9. Configuration Register Map Summary
 
 **Total Address Space:** 0x000-0x3FF (1KB)
 

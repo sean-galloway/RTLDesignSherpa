@@ -1,3 +1,26 @@
+<!-- RTL Design Sherpa Documentation Header -->
+<table>
+<tr>
+<td width="80">
+  <a href="https://github.com/sean-galloway/RTLDesignSherpa">
+    <img src="https://raw.githubusercontent.com/sean-galloway/RTLDesignSherpa/main/docs/logos/Logo_200px.png" alt="RTL Design Sherpa" width="70">
+  </a>
+</td>
+<td>
+  <strong>RTL Design Sherpa</strong> · <em>Learning Hardware Design Through Practice</em><br>
+  <sub>
+    <a href="https://github.com/sean-galloway/RTLDesignSherpa">GitHub</a> ·
+    <a href="https://github.com/sean-galloway/RTLDesignSherpa/blob/main/docs/DOCUMENTATION_INDEX.md">Documentation Index</a> ·
+    <a href="https://github.com/sean-galloway/RTLDesignSherpa/blob/main/LICENSE">MIT License</a>
+  </sub>
+</td>
+</tr>
+</table>
+
+---
+
+<!-- End Header -->
+
 # MonBus AXI-Lite Group
 
 **Module:** `monbus_axil_group.sv`
@@ -33,7 +56,9 @@ RAPIDS has source + sink data paths requiring TWO monitor buses. STREAM has memo
 
 ### Block Diagram
 
-![MonBus AXI-Lite Group Block Diagram](../assets/mermaid/16_monbus_axil_group_block.svg)
+### Figure 2.16.1: MonBus AXI-Lite Group Block Diagram
+
+![MonBus AXI-Lite Group Block Diagram](../assets/mermaid/16_monbus_axil_group_block.png)
 
 **Source:** [16_monbus_axil_group_block.mmd](../assets/mermaid/16_monbus_axil_group_block.mmd)
 
@@ -64,6 +89,8 @@ For each incoming packet:
 | `DATA_WIDTH` | int | 32 | AXI data width |
 | `NUM_PROTOCOLS` | int | 3 | AXI, AXIS, CORE |
 
+: Parameters
+
 ---
 
 ## Port List
@@ -75,6 +102,8 @@ For each incoming packet:
 | `axi_aclk` | input | 1 | AXI clock |
 | `axi_aresetn` | input | 1 | AXI active-low reset |
 
+: Clock and Reset
+
 ### Monitor Bus Input
 
 | Signal | Direction | Width | Description |
@@ -82,6 +111,8 @@ For each incoming packet:
 | `monbus_valid` | input | 1 | Packet valid |
 | `monbus_ready` | output | 1 | Ready to accept |
 | `monbus_packet` | input | 64 | 64-bit monitor packet |
+
+: Monitor Bus Input
 
 ### AXI-Lite Slave Read Interface
 
@@ -95,6 +126,8 @@ For each incoming packet:
 | `s_axil_rready` | input | 1 | Read data ready |
 | `s_axil_rdata` | output | DATA_WIDTH | Read data |
 | `s_axil_rresp` | output | 2 | Read response |
+
+: AXI-Lite Slave Read Interface
 
 ### AXI-Lite Master Write Interface
 
@@ -112,11 +145,15 @@ For each incoming packet:
 | `m_axil_bready` | output | 1 | Write response ready |
 | `m_axil_bresp` | input | 2 | Write response |
 
+: AXI-Lite Master Write Interface
+
 ### Interrupt Output
 
 | Signal | Direction | Width | Description |
 |--------|-----------|-------|-------------|
 | `irq_out` | output | 1 | Interrupt (error FIFO not empty) |
+
+: Interrupt Output
 
 ### Configuration Interface
 
@@ -124,6 +161,8 @@ For each incoming packet:
 |--------|-----------|-------|-------------|
 | `cfg_base_addr` | input | ADDR_WIDTH | Base for master writes |
 | `cfg_limit_addr` | input | ADDR_WIDTH | Limit for master writes |
+
+: Configuration Interface
 
 ### Protocol Configuration (per protocol)
 
@@ -135,6 +174,8 @@ For each incoming packet:
 | `cfg_axi_err_select` | input | 16 | Error FIFO select |
 | `cfg_axi_*_mask` | input | 16 | Per-event-type masks |
 
+: Protocol Configuration
+
 **AXIS Protocol:**
 
 | Signal | Direction | Width | Description |
@@ -142,6 +183,8 @@ For each incoming packet:
 | `cfg_axis_pkt_mask` | input | 16 | Drop mask |
 | `cfg_axis_err_select` | input | 16 | Error FIFO select |
 | `cfg_axis_*_mask` | input | 16 | Per-event-type masks |
+
+: Protocol Configuration
 
 **CORE Protocol:**
 
@@ -151,6 +194,8 @@ For each incoming packet:
 | `cfg_core_err_select` | input | 16 | Error FIFO select |
 | `cfg_core_*_mask` | input | 16 | Per-event-type masks |
 
+: Protocol Configuration
+
 ### Debug/Status
 
 | Signal | Direction | Width | Description |
@@ -159,6 +204,8 @@ For each incoming packet:
 | `write_fifo_full` | output | 1 | Write FIFO full |
 | `err_fifo_count` | output | 8 | Error FIFO count |
 | `write_fifo_count` | output | 8 | Write FIFO count |
+
+: Debug/Status
 
 ---
 
@@ -283,7 +330,17 @@ monbus_axil_group #(
 - **Parent:** `01_stream_core.md` - Provides monitor bus packets
 - **Packet Format:** Monitor Bus Protocol documentation
 - **Configuration:** `14_apb_config.md` - Register mapping
+---
+
+## Revision History
+
+| Version | Date | Author | Description |
+|---------|------|--------|-------------|
+| 0.90 | 2025-11-22 | seang | Initial block specification |
+| 0.91 | 2026-01-02 | seang | Added table captions and figure numbers |
+
+: MonBus AXI-Lite Group Revision History
 
 ---
 
-**Last Updated:** 2025-11-30 (verified against RTL implementation)
+**Last Updated:** 2026-01-02

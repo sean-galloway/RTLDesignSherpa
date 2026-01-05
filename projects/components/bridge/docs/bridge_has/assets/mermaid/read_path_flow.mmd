@@ -1,0 +1,11 @@
+%%{init: {'theme': 'neutral'}}%%
+flowchart LR
+    subgraph ReadForward["Read Forward Path"]
+        direction LR
+        MAR["Master AR"] --> MA1["Master Adapter"] --> XB1["Crossbar"] --> SR1["Slave Router"] --> SAR["Slave AR"]
+    end
+
+    subgraph ReadResponse["Read Response Path"]
+        direction RL
+        SR["Slave R"] --> SR2["Slave Router"] --> XB2["Crossbar"] --> MA2["Master Adapter"] --> MR["Master R"]
+    end

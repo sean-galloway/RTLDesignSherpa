@@ -5,17 +5,17 @@
 // https://github.com/sean-galloway/RTLDesignSherpa
 //
 // Module: math_adder_han_carlson_048
-// Purpose: Han-Carlson 48-bit prefix adder for BF16 final CPA
+// Purpose: Han-Carlson 48-bit prefix adder for IEEE 754-2008 FP32
 //
-// Documentation: BF16_ARCHITECTURE.md
+// Documentation: IEEE754_ARCHITECTURE.md
 // Subsystem: common
 //
 // Author: sean galloway
-// Created: 2025-11-25
+// Created: 2026-01-03
 //
 // AUTO-GENERATED FILE - DO NOT EDIT MANUALLY
-// Generator: bin/rtl_generators/bf16/han_carlson_adder.py
-// Regenerate: PYTHONPATH=bin:$PYTHONPATH python3 bin/rtl_generators/bf16/generate_all.py rtl/common
+// Generator: bin/rtl_generators/ieee754/han_carlson_adder.py
+// Regenerate: PYTHONPATH=bin:$PYTHONPATH python3 bin/rtl_generators/ieee754/generate_all.py rtl/common
 //
 
 `timescale 1ns / 1ps

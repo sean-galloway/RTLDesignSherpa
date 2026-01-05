@@ -1,0 +1,32 @@
+%%{init: {'theme': 'neutral'}}%%
+flowchart TB
+    APB_GPIO["apb_gpio<br/>(Top Level)"]
+
+    subgraph APB_SLAVE["apb_slave / apb_slave_cdc"]
+        APB_PROTO["APB protocol handling"]
+        CMD_RSP["CMD/RSP interface conversion"]
+        CDC_OPT["Optional clock domain crossing"]
+    end
+
+    PEAKRDL["peakrdl_to_cmdrsp<br/>CMD/RSP to PeakRDL adapter"]
+
+    subgraph CONFIG_REGS["gpio_config_regs"]
+        subgraph GPIO_REGS["gpio_regs (PeakRDL)"]
+            CTRL["GPIO_CONTROL"]
+            DIR["GPIO_DIRECTION"]
+            OUT["GPIO_OUTPUT"]
+            IN["GPIO_INPUT (RO)"]
+            INT["GPIO_INT_* registers"]
+            ATOMIC["GPIO_OUTPUT_SET/CLR/TGL (WO)"]
+        end
+        subgraph GPIO_CORE["gpio_core (I/O Logic)"]
+            SYNC["Input synchronization"]
+            DRV["Output drivers"]
+            INT_DET["Interrupt detection"]
+            ATOM_OP["Atomic operations"]
+        end
+    end
+
+    APB_GPIO --> APB_SLAVE
+    APB_SLAVE --> PEAKRDL
+    PEAKRDL --> CONFIG_REGS

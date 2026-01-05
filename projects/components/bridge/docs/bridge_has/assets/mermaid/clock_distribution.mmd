@@ -1,0 +1,5 @@
+%%{init: {'theme': 'neutral'}}%%
+flowchart LR
+    CLK["aclk"] --> Bridge["Bridge"]
+    Masters["Masters"] --> Bridge
+    Bridge --> Slaves["To Slaves"]

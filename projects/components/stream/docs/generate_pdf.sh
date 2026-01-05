@@ -87,7 +87,18 @@ echo "  Repo Root:   ${REPO_ROOT}"
 echo "------------------------------------------------------------"
 
 python3 "${REPO_ROOT}/bin/md_to_docx.py" \
-  --expand-index --toc --pagebreak --title-page --pdf \
+  "${SPEC_INDEX}" "${OUTPUT_DOCX}" \
+  --style "stream_spec/stream_styles.yaml" \
+  --expand-index \
+  --skip-index-content \
+  --toc \
+  --number-sections \
+  --title-page \
+  --pdf \
+  --lof \
+  --lot \
+  --pagebreak \
+  --narrow-margins \
   --pdf-engine=lualatex \
   --mainfont "Noto Serif" \
   --monofont "Noto Sans Mono" \
@@ -98,7 +109,7 @@ python3 "${REPO_ROOT}/bin/md_to_docx.py" \
   --assets-dir "${ASSETS}/puml" \
   --assets-dir "${ASSETS}/draw.io" \
   --assets-dir "${ASSETS}/mermaid" \
-  "${SPEC_INDEX}" "${OUTPUT_DOCX}"
+  --quiet
 
 
 echo

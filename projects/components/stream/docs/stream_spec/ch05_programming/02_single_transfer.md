@@ -1,3 +1,26 @@
+<!-- RTL Design Sherpa Documentation Header -->
+<table>
+<tr>
+<td width="80">
+  <a href="https://github.com/sean-galloway/RTLDesignSherpa">
+    <img src="https://raw.githubusercontent.com/sean-galloway/RTLDesignSherpa/main/docs/logos/Logo_200px.png" alt="RTL Design Sherpa" width="70">
+  </a>
+</td>
+<td>
+  <strong>RTL Design Sherpa</strong> · <em>Learning Hardware Design Through Practice</em><br>
+  <sub>
+    <a href="https://github.com/sean-galloway/RTLDesignSherpa">GitHub</a> ·
+    <a href="https://github.com/sean-galloway/RTLDesignSherpa/blob/main/docs/DOCUMENTATION_INDEX.md">Documentation Index</a> ·
+    <a href="https://github.com/sean-galloway/RTLDesignSherpa/blob/main/LICENSE">MIT License</a>
+  </sub>
+</td>
+</tr>
+</table>
+
+---
+
+<!-- End Header -->
+
 # Single Transfer Programming
 
 **Chapter:** 05.02
@@ -20,12 +43,20 @@ STREAM uses 256-bit (32-byte) descriptors:
 Descriptor Memory Layout (256 bits = 32 bytes):
 +--------+--------+--------+--------+--------+--------+--------+--------+
 | Byte 0 |   1    |   2    |   3    |   4    |   5    |   6    |   7    |  src_addr [63:0]
+
+: Descriptor Format
 +--------+--------+--------+--------+--------+--------+--------+--------+
 | Byte 8 |   9    |  10    |  11    |  12    |  13    |  14    |  15    |  dst_addr [63:0]
+
+: Descriptor Format
 +--------+--------+--------+--------+--------+--------+--------+--------+
 | Byte 16|  17    |  18    |  19    |  20    |  21    |  22    |  23    |  length [31:0] | next_ptr [31:0]
+
+: Descriptor Format
 +--------+--------+--------+--------+--------+--------+--------+--------+
 | Byte 24|  25    |  26    |  27    |  28    |  29    |  30    |  31    |  control [63:0]
+
+: Descriptor Format
 +--------+--------+--------+--------+--------+--------+--------+--------+
 
 Control Field Bits:
@@ -53,6 +84,8 @@ Each channel has two APB registers for the 64-bit descriptor address:
 | 5 | 0x028 | 0x02C | Channel 5 kick-off |
 | 6 | 0x030 | 0x034 | Channel 6 kick-off |
 | 7 | 0x038 | 0x03C | Channel 7 kick-off |
+
+: Kick-Off Address Map
 
 **Write Sequence:** Write LOW first, then HIGH. Transfer starts after HIGH write completes.
 
@@ -238,6 +271,8 @@ int example_4kb_copy(uint64_t src_phys, uint64_t dst_phys) {
 | Source address | 64 bytes | 512-bit data width |
 | Destination address | 64 bytes | 512-bit data width |
 | Transfer length | N/A | Any number of beats |
+
+: Alignment Requirements
 
 **Note:** STREAM requires aligned addresses. Unaligned transfers are not supported (see RAPIDS for alignment fixup).
 

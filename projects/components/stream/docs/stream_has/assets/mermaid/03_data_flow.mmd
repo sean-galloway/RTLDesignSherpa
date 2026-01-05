@@ -1,0 +1,23 @@
+%%{init: {'theme': 'base', 'themeVariables': { 'primaryColor': '#e8f4e8', 'primaryTextColor': '#000', 'primaryBorderColor': '#228B22', 'lineColor': '#404040', 'secondaryColor': '#f0f0f0', 'tertiaryColor': '#fff'}}}%%
+flowchart TD
+    SW["Software"]
+    KICK["1. Write Descriptor Addr<br/>to Channel Register"]
+    FETCH["2. Descriptor Fetch<br/>(AXI Read 256-bit)"]
+    PARSE["3. Descriptor Parse<br/>Extract fields"]
+    ARB["4. Arbitration<br/>Request data path"]
+    READ["5. Read Phase<br/>Source -> SRAM"]
+    WRITE["6. Write Phase<br/>SRAM -> Destination"]
+    CHAIN{"7. Chain Check<br/>next_ptr != 0?"}
+    NEXT["Fetch Next<br/>Descriptor"]
+    DONE["Complete<br/>(Interrupt)"]
+
+    SW --> KICK
+    KICK --> FETCH
+    FETCH --> PARSE
+    PARSE --> ARB
+    ARB --> READ
+    READ --> WRITE
+    WRITE --> CHAIN
+    CHAIN -->|"Yes"| NEXT
+    CHAIN -->|"No"| DONE
+    NEXT --> FETCH

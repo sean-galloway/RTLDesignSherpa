@@ -1,0 +1,10 @@
+{
+  "signal": [
+    {"name": "baud_clk", "wave": "p.........."},
+    {"name": "rxd", "wave": "1.0101010101"},
+    {"name": "rx_sample", "wave": "0..2345678.9", "data": ["start", "D0", "D1", "D2", "D3", "D4", "D5", "D6", "D7", "stop"]},
+    {"name": "rx_data", "wave": "x..........2", "data": ["0x55"]},
+    {"name": "rx_valid", "wave": "0..........1"}
+  ],
+  "head": {"text": "UART RX Byte"}
+}

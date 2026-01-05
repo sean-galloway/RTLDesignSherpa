@@ -1,0 +1,11 @@
+{
+  "signal": [
+    {"name": "clk", "wave": "p........"},
+    {"name": "gate", "wave": "1.0..1..."},
+    {"name": "count_en", "wave": "1.0..1..."},
+    {"name": "count", "wave": "234..56.."},
+    {},
+    ["note", "GATE low suspends counting"]
+  ],
+  "head": {"text": "PIT Gate Control"}
+}

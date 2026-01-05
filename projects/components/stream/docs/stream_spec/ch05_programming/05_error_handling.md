@@ -1,3 +1,26 @@
+<!-- RTL Design Sherpa Documentation Header -->
+<table>
+<tr>
+<td width="80">
+  <a href="https://github.com/sean-galloway/RTLDesignSherpa">
+    <img src="https://raw.githubusercontent.com/sean-galloway/RTLDesignSherpa/main/docs/logos/Logo_200px.png" alt="RTL Design Sherpa" width="70">
+  </a>
+</td>
+<td>
+  <strong>RTL Design Sherpa</strong> · <em>Learning Hardware Design Through Practice</em><br>
+  <sub>
+    <a href="https://github.com/sean-galloway/RTLDesignSherpa">GitHub</a> ·
+    <a href="https://github.com/sean-galloway/RTLDesignSherpa/blob/main/docs/DOCUMENTATION_INDEX.md">Documentation Index</a> ·
+    <a href="https://github.com/sean-galloway/RTLDesignSherpa/blob/main/LICENSE">MIT License</a>
+  </sub>
+</td>
+</tr>
+</table>
+
+---
+
+<!-- End Header -->
+
 # Error Handling and Recovery
 
 **Chapter:** 05.05
@@ -21,6 +44,8 @@ This guide covers error detection, reporting, and recovery procedures for the ST
 | SLVERR (2'b10) | Slave error | Memory protection violation, invalid address |
 | DECERR (2'b11) | Decode error | Address not mapped to any slave |
 
+: AXI Protocol Errors
+
 ### Timeout Errors
 
 | Error | Trigger | Detection |
@@ -29,6 +54,8 @@ This guide covers error detection, reporting, and recovery procedures for the ST
 | Read data timeout | AR → RLAST exceeds threshold | RDMON packet |
 | Write response timeout | AW → B exceeds threshold | WRMON packet |
 
+: Timeout Errors
+
 ### Internal Errors
 
 | Error | Description | Detection |
@@ -36,6 +63,8 @@ This guide covers error detection, reporting, and recovery procedures for the ST
 | Invalid descriptor | Valid bit not set | Channel enters ERROR state |
 | FIFO overflow | Internal FIFO full | MON_FIFO_STATUS register |
 | ID conflict | Transaction ID reused | Monitor status registers |
+
+: Internal Errors
 
 ---
 

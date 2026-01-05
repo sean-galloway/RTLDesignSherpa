@@ -1,0 +1,13 @@
+{
+  "signal": [
+    {"name": "pclk", "wave": "p........"},
+    {"name": "irq_in[5]", "wave": "0.1......"},
+    {"name": "rte[5]_mask", "wave": "0........"},
+    {"name": "trigger_mode", "wave": "2........", "data": ["edge"]},
+    {"name": "edge_detect", "wave": "0.10....."},
+    {"name": "irr[5]", "wave": "0..1....."},
+    {"name": "int_out", "wave": "0..1....."},
+    {"name": "vector", "wave": "x..2....x", "data": ["0x35"]}
+  ],
+  "head": {"text": "IOAPIC Interrupt Delivery"}
+}

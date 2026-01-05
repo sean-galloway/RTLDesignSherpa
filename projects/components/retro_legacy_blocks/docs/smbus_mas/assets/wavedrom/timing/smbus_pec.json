@@ -1,0 +1,10 @@
+{
+  "signal": [
+    {"name": "scl", "wave": "1.0.1.0.1.0.1.0.1."},
+    {"name": "sda", "wave": "1.0.234.5.6.7.8..."},
+    {},
+    {"name": "phase", "wave": "x.2.3.4.5.6.7.8.9.x", "data": ["START", "ADDR", "A/N", "CMD", "A/N", "DATA", "A/N", "PEC", "A/N", "STOP"]},
+    {"name": "crc", "wave": "x.2.3.4.5.6.7.8..x", "data": ["init", "addr", "cmd", "data", "final"]}
+  ],
+  "head": {"text": "SMBus PEC (Packet Error Check)"}
+}

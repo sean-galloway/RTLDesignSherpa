@@ -1,0 +1,22 @@
+%%{init: {'theme': 'neutral'}}%%
+flowchart LR
+    subgraph APB_RTC["APB RTC"]
+        APB["APB Slave"]
+        CFG["rtc_config_regs"]
+        REGS["rtc_regs<br/>(PeakRDL)"]
+
+        subgraph CORE["rtc_core"]
+            TIME["Time Counter"]
+            ALARM["Alarm Comparator"]
+            INT_GEN["Interrupt Generator"]
+            BCD["BCD Logic"]
+        end
+    end
+
+    BUS["APB Bus"] --> APB
+    APB --> CFG
+    CFG --> REGS
+    REGS --> CORE
+
+    CLK["32.768 kHz"] --> CORE
+    CORE --> IRQ["IRQ"]

@@ -1,0 +1,28 @@
+%%{init: {'theme': 'neutral'}}%%
+flowchart LR
+    subgraph Input["Wide Input"]
+        S_VALID[s_valid]
+        S_DATA[s_data<br/>512 bits]
+    end
+
+    subgraph Core["Downsize Core - Dual Buffer"]
+        direction TB
+        BUF_A[Buffer A<br/>512 bits]
+        BUF_B[Buffer B<br/>512 bits]
+        ARB[Output<br/>Arbiter]
+        MUX[Output<br/>Mux]
+    end
+
+    subgraph Output["Narrow Output"]
+        M_VALID[m_valid]
+        M_DATA[m_data<br/>64 bits]
+    end
+
+    S_DATA --> BUF_A
+    S_DATA --> BUF_B
+
+    BUF_A --> ARB
+    BUF_B --> ARB
+    ARB --> MUX
+    MUX --> M_DATA
+    ARB --> M_VALID

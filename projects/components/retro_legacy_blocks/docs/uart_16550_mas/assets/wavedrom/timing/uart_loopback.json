@@ -1,0 +1,12 @@
+{
+  "signal": [
+    {"name": "pclk", "wave": "p........"},
+    {"name": "loopback_en", "wave": "1........"},
+    {"name": "tx_data", "wave": "x2.......x", "data": ["0xAA"]},
+    {"name": "tx_shift", "wave": "x.234567.."},
+    {"name": "internal_txd", "wave": "1.0.1.0.1."},
+    {"name": "rx_shift", "wave": "x..234567."},
+    {"name": "rx_data", "wave": "x.......2x", "data": ["0xAA"]}
+  ],
+  "head": {"text": "UART Loopback Mode"}
+}

@@ -1,0 +1,32 @@
+%%{init: {'theme': 'neutral'}}%%
+flowchart LR
+    subgraph Reg["PeakRDL Interface"]
+        REG_ADDR[reg_addr]
+        REG_WDATA[reg_wdata]
+        REG_WRITE[reg_write]
+        REG_READ[reg_read]
+        REG_RDATA[reg_rdata]
+        REG_ACK[reg_ack]
+    end
+
+    subgraph Adapter["peakrdl_to_cmdrsp"]
+        FSM[Protocol<br/>FSM]
+    end
+
+    subgraph Cmd["Command/Response"]
+        CMD_VALID[cmd_valid]
+        CMD_READY[cmd_ready]
+        CMD_ADDR[cmd_addr]
+        CMD_WDATA[cmd_wdata]
+        RSP_VALID[rsp_valid]
+        RSP_RDATA[rsp_rdata]
+    end
+
+    REG_ADDR --> FSM --> CMD_ADDR
+    REG_WDATA --> FSM --> CMD_WDATA
+    REG_WRITE --> FSM --> CMD_VALID
+    REG_READ --> FSM
+
+    CMD_READY --> FSM
+    RSP_VALID --> FSM --> REG_ACK
+    RSP_RDATA --> FSM --> REG_RDATA

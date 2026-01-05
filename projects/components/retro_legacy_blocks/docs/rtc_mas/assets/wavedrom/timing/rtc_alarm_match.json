@@ -1,0 +1,10 @@
+{
+  "signal": [
+    {"name": "rtc_clk_1hz", "wave": "0...10..."},
+    {"name": "seconds", "wave": "234567890", "data": ["27", "28", "29", "30", "31", "32", "33", "34", "35"]},
+    {"name": "alarm_sec", "wave": "2........", "data": ["30"]},
+    {"name": "sec_match", "wave": "0..10...."},
+    {"name": "alarm_irq", "wave": "0...1...."}
+  ],
+  "head": {"text": "RTC Alarm Match"}
+}

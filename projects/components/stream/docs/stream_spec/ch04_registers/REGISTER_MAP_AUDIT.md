@@ -1,3 +1,26 @@
+<!-- RTL Design Sherpa Documentation Header -->
+<table>
+<tr>
+<td width="80">
+  <a href="https://github.com/sean-galloway/RTLDesignSherpa">
+    <img src="https://raw.githubusercontent.com/sean-galloway/RTLDesignSherpa/main/docs/logos/Logo_200px.png" alt="RTL Design Sherpa" width="70">
+  </a>
+</td>
+<td>
+  <strong>RTL Design Sherpa</strong> · <em>Learning Hardware Design Through Practice</em><br>
+  <sub>
+    <a href="https://github.com/sean-galloway/RTLDesignSherpa">GitHub</a> ·
+    <a href="https://github.com/sean-galloway/RTLDesignSherpa/blob/main/docs/DOCUMENTATION_INDEX.md">Documentation Index</a> ·
+    <a href="https://github.com/sean-galloway/RTLDesignSherpa/blob/main/LICENSE">MIT License</a>
+  </sub>
+</td>
+</tr>
+</table>
+
+---
+
+<!-- End Header -->
+
 # register_map.md Documentation Audit
 
 **Date:** 2025-11-22
@@ -24,6 +47,8 @@ Comprehensive audit of [register_map.md](register_map.md) against the RDL source
 **Documentation showed (WRONG):**
 ```
 | 0x150  | CH0_STATE  | 3:0   | STATE    | RO   | Channel 0 scheduler state      |
+
+: Problem
 
 State Encoding:
 0x0 = CH_IDLE       - Idle, waiting for descriptor
@@ -82,12 +107,16 @@ typedef enum logic [6:0] {
 ```
 | 15:8   | MAJOR         | RO   | 0x01  | Major version (1)                  |
 | 7:0    | MINOR         | RO   | 0x00  | Minor version (0)                  |
+
+: Problem
 ```
 
 **RDL actually has:**
 ```
 | 15:8   | MAJOR         | RO   | 0x00  | Major version (0)                  |
 | 7:0    | MINOR         | RO   | 0x5A  | Minor version (90 decimal = 0.90)  |
+
+: Problem
 ```
 
 **Impact:** Minor - software version checking would see wrong version
@@ -189,6 +218,8 @@ if (state & 0x20) {  // CH_ERROR (bit 5)
 | Monitor addresses (21 missing regs) | 🔴 CRITICAL | ❌ TODO | Cannot configure monitors |
 | Code example: Idle polling | 🔴 CRITICAL | ✅ FIXED | Software hangs |
 | Code example: Error detection | 🔴 CRITICAL | ✅ FIXED | Errors not detected |
+
+: Summary
 
 **Progress:** 4 of 5 errors fixed (80% complete)
 

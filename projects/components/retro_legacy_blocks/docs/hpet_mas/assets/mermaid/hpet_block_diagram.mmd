@@ -1,0 +1,19 @@
+%%{init: {'theme': 'neutral'}}%%
+flowchart LR
+    subgraph APB_HPET["APB HPET"]
+        APB["APB Slave<br/>(Optional CDC)"]
+        CFG["hpet_config_regs<br/>(PeakRDL Wrapper)"]
+        CORE["hpet_core"]
+
+        subgraph CORE_INT["Core Internals"]
+            CNT["64-bit Counter"]
+            TIM["Timer Array [N-1:0]"]
+        end
+    end
+
+    BUS["APB Bus"] --> APB
+    APB --> CFG
+    CFG --> CORE
+    CORE --> CNT
+    CORE --> TIM
+    TIM --> IRQ["timer_irq[N-1:0]"]

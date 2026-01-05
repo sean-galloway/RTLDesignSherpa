@@ -1,0 +1,37 @@
+%%{init: {'theme': 'neutral'}}%%
+flowchart LR
+    subgraph APB_UART["APB UART 16550"]
+        APB["APB Slave"]
+        CFG["uart_16550_config_regs"]
+
+        subgraph REGS["uart_16550_regs (PeakRDL)"]
+            THR["THR/RBR"]
+            IER["IER/DLM"]
+            FCR["IIR/FCR"]
+            LCR["LCR/MCR/LSR"]
+        end
+
+        subgraph TX["TX Engine"]
+            TXFIFO["TX FIFO<br/>(16 bytes)"]
+            SER["Serializer"]
+        end
+
+        subgraph RX["RX Engine"]
+            RXFIFO["RX FIFO<br/>(16 bytes)"]
+            DESER["Deserializer"]
+        end
+
+        BAUD["Baud Generator"]
+    end
+
+    BUS["APB Bus"] --> APB
+    APB --> CFG
+    CFG --> REGS
+    CFG --> BAUD
+    CFG --> TX
+    CFG --> RX
+
+    SER --> TXD["TXD"]
+    RXD["RXD"] --> DESER
+    TX --> IRQ["IRQ"]
+    RX --> IRQ

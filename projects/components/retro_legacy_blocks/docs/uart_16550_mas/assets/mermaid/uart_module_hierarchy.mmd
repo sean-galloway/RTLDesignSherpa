@@ -1,0 +1,28 @@
+%%{init: {'theme': 'neutral'}}%%
+flowchart TB
+    TOP[apb_uart_16550<br/>Top Level]
+    TOP --> APB[apb_slave]
+    APB --> PROTO["APB protocol handling"]
+    APB --> CMD["CMD/RSP interface"]
+
+    TOP --> CFG[uart_16550_config_regs<br/>Register Wrapper]
+    CFG --> REGS["uart_16550_regs<br/>(PeakRDL)"]
+    REGS --> R1["RBR/THR/DLL"]
+    REGS --> R2["IER/DLM"]
+    REGS --> R3["IIR/FCR"]
+    REGS --> R4["LCR/MCR/LSR/MSR/SCR"]
+
+    CFG --> BAUD["Baud Rate Generator"]
+    BAUD --> DIV["Divisor latch"]
+    BAUD --> CLK16["16x clock generation"]
+
+    CFG --> TX["TX Engine"]
+    TX --> TXFIFO["TX FIFO (16 bytes)"]
+    TX --> SER["Serializer"]
+    TX --> START["Start/Stop/Parity gen"]
+
+    CFG --> RX["RX Engine"]
+    RX --> RXFIFO["RX FIFO (16 bytes)"]
+    RX --> DESER["Deserializer"]
+    RX --> DETECT["Start detection"]
+    RX --> ERR["Error detection"]

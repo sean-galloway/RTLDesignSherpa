@@ -1,0 +1,14 @@
+{
+  "signal": [
+    {"name": "pclk", "wave": "p........"},
+    {"name": "psel", "wave": "01......0"},
+    {"name": "penable", "wave": "0.1....0."},
+    {"name": "pwrite", "wave": "0........"},
+    {"name": "paddr", "wave": "x2......x", "data": ["CNT_LO"]},
+    {"name": "pready", "wave": "0.....1.0"},
+    {"name": "prdata", "wave": "x.....2.x", "data": ["count"]},
+    {},
+    {"name": "counter", "wave": "2345678..", "data": ["N", "N+1", "N+2", "N+3", "N+4", "N+5", "N+6"]}
+  ],
+  "head": {"text": "HPET Counter Read"}
+}

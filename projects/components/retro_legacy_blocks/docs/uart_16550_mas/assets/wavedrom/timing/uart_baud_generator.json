@@ -1,0 +1,9 @@
+{
+  "signal": [
+    {"name": "pclk", "wave": "p........"},
+    {"name": "divisor", "wave": "2........", "data": ["13"]},
+    {"name": "counter", "wave": "234567890.", "data": ["0", "1", "2", "...", "12", "0", "1", "2", "3"]},
+    {"name": "baud_tick", "wave": "0....10..."}
+  ],
+  "head": {"text": "UART Baud Generator"}
+}

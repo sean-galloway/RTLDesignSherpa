@@ -1,0 +1,35 @@
+%%{init: {'theme': 'base', 'themeVariables': { 'primaryColor': '#e8f4e8', 'primaryTextColor': '#000', 'primaryBorderColor': '#228B22', 'lineColor': '#404040', 'secondaryColor': '#f0f0f0', 'tertiaryColor': '#fff'}}}%%
+flowchart TB
+    subgraph CPU["System CPU"]
+        cpu_core["CPU Core"]
+    end
+
+    subgraph APB_IC["APB Interconnect"]
+        apb_bus["APB Bus"]
+    end
+
+    subgraph STREAM["STREAM Subsystem"]
+        stream_core["STREAM<br/>DMA Engine"]
+    end
+
+    subgraph AXI_IC["AXI Interconnect"]
+        axi_bus["AXI Bus"]
+    end
+
+    subgraph MEM["Memory System"]
+        mc0["Memory<br/>Controller 0"]
+        mc1["Memory<br/>Controller 1"]
+    end
+
+    subgraph MON["Monitoring"]
+        monbus["MonBus<br/>Consumer"]
+    end
+
+    cpu_core --> |"APB"| apb_bus
+    apb_bus --> |"APB Slave"| stream_core
+    stream_core --> |"Desc Fetch<br/>(256-bit)"| axi_bus
+    stream_core --> |"Data Read<br/>(512-bit)"| axi_bus
+    stream_core --> |"Data Write<br/>(512-bit)"| axi_bus
+    stream_core -.-> |"MonBus<br/>(64-bit)"| monbus
+    axi_bus --> mc0
+    axi_bus --> mc1

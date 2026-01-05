@@ -1,3 +1,26 @@
+<!-- RTL Design Sherpa Documentation Header -->
+<table>
+<tr>
+<td width="80">
+  <a href="https://github.com/sean-galloway/RTLDesignSherpa">
+    <img src="https://raw.githubusercontent.com/sean-galloway/RTLDesignSherpa/main/docs/logos/Logo_200px.png" alt="RTL Design Sherpa" width="70">
+  </a>
+</td>
+<td>
+  <strong>RTL Design Sherpa</strong> · <em>Learning Hardware Design Through Practice</em><br>
+  <sub>
+    <a href="https://github.com/sean-galloway/RTLDesignSherpa">GitHub</a> ·
+    <a href="https://github.com/sean-galloway/RTLDesignSherpa/blob/main/docs/DOCUMENTATION_INDEX.md">Documentation Index</a> ·
+    <a href="https://github.com/sean-galloway/RTLDesignSherpa/blob/main/LICENSE">MIT License</a>
+  </sub>
+</td>
+</tr>
+</table>
+
+---
+
+<!-- End Header -->
+
 # Stream Allocation Controller
 
 **Module:** `stream_alloc_ctrl.sv`
@@ -65,7 +88,9 @@ Cycle 15: AXI read data arrives, enters FIFO
 
 ### Two-Pointer System
 
-![Diagram](../assets/mermaid/07_stream_alloc_ctrl_block.svg)
+### Figure 2.7.1: Stream Allocation Controller Block Diagram
+
+![Diagram](../assets/mermaid/07_stream_alloc_ctrl_block.png)
 
 -->
 
@@ -94,11 +119,15 @@ space_free = DEPTH - (wr_ptr - rd_ptr)
 | `wr_*` | Write data → Consumes space → space_free decreases |
 | `rd_*` | Read data → Frees space → space_free increases |
 
+: CRITICAL: Confusing Naming Convention
+
 **Allocation Controller:**
 | Signal | Meaning |
 |--------|---------|
 | `wr_*` | **ALLOCATE** space → Reserves space → space_free **decreases** |
 | `rd_*` | **RELEASE** space → Data exits controller → space_free **increases** |
+
+: CRITICAL: Confusing Naming Convention
 
 **Why This Matters:**
 ```systemverilog
@@ -123,6 +152,8 @@ space_free = DEPTH - (wr_ptr - rd_ptr)
 | `ALMOST_RD_MARGIN` | int | 1 | Almost empty threshold |
 | `REGISTERED` | int | 1 | Register outputs for timing |
 
+: Parameters
+
 ---
 
 ## Port List
@@ -134,6 +165,8 @@ space_free = DEPTH - (wr_ptr - rd_ptr)
 | `axi_aclk` | input | 1 | System clock |
 | `axi_aresetn` | input | 1 | Active-low asynchronous reset |
 
+: Clock and Reset
+
 ### Write Interface (Allocation Requests)
 
 | Signal | Direction | Width | Description |
@@ -142,12 +175,16 @@ space_free = DEPTH - (wr_ptr - rd_ptr)
 | `wr_size` | input | 8 | Number of entries to allocate |
 | `wr_ready` | output | 1 | Space available (!wr_full) |
 
+: Write Interface
+
 ### Read Interface (Actual Data Written)
 
 | Signal | Direction | Width | Description |
 |--------|-----------|-------|-------------|
 | `rd_valid` | input | 1 | Data exits controller (release space) |
 | `rd_ready` | output | 1 | Not empty (!rd_empty) |
+
+: Read Interface
 
 ### Status Outputs
 
@@ -158,6 +195,8 @@ space_free = DEPTH - (wr_ptr - rd_ptr)
 | `wr_almost_full` | output | 1 | Almost full flag |
 | `rd_empty` | output | 1 | Empty flag (no allocations) |
 | `rd_almost_empty` | output | 1 | Almost empty flag |
+
+: Status Outputs
 
 ---
 
@@ -170,6 +209,8 @@ space_free = DEPTH - (wr_ptr - rd_ptr)
 | `wr_valid` | Input | 1 | Allocate space |
 | `wr_size` | Input | 8 | Number of entries to allocate |
 | `wr_ready` | Output | 1 | Space available (!wr_full) |
+
+: Write Interface
 
 **Usage:**
 ```systemverilog
@@ -184,6 +225,8 @@ rd_alloc_size = cfg_axi_rd_xfer_beats;
 |--------|-----------|-------|-------------|
 | `rd_valid` | Input | 1 | Data exits controller |
 | `rd_ready` | Output | 1 | Not empty (!rd_empty) |
+
+: Read Interface
 
 **Usage:**
 ```systemverilog
@@ -200,6 +243,8 @@ assign rd_valid = (axi_wr_sram_valid && axi_wr_sram_ready);
 | `wr_almost_full` | Output | 1 | Almost full |
 | `rd_empty` | Output | 1 | No allocations pending |
 | `rd_almost_empty` | Output | 1 | Almost empty |
+
+: Status Outputs
 
 **Note:** `space_free` is the most important output - used by read engine for space checking.
 
@@ -444,6 +489,8 @@ logic [AW:0] r_wr_ptr_bin;     // AW+1 bits (for full detection)
 | **Naming** | OPPOSITE of normal FIFO | SAME as normal FIFO |
 | **Output** | `space_free` | `data_available` |
 
+: Comparison with Drain Controller
+
 ## Resource Utilization
 
 **Per Instance:**
@@ -471,7 +518,17 @@ logic [AW:0] r_wr_ptr_bin;     // AW+1 bits (for full detection)
 - **SRAM Controller Unit:** `09_sram_controller_unit.md`
 - **SRAM Controller:** `08_sram_controller.md`
 - **AXI Read Engine:** `06_axi_read_engine.md`
+---
+
+## Revision History
+
+| Version | Date | Author | Description |
+|---------|------|--------|-------------|
+| 0.90 | 2025-11-22 | seang | Initial block specification |
+| 0.91 | 2026-01-02 | seang | Added table captions and figure numbers |
+
+: Stream Allocation Controller Revision History
 
 ---
 
-**Last Updated:** 2025-11-30 (verified against RTL implementation)
+**Last Updated:** 2026-01-02

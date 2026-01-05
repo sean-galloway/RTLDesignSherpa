@@ -1,0 +1,17 @@
+{
+  "signal": [
+    {"name": "pclk", "wave": "p........."},
+    {"name": "hpet_clk", "wave": "P........."},
+    {},
+    {"name": "pwrite_req", "wave": "0.1......."},
+    {"name": "sync_ff1", "wave": "0..1......"},
+    {"name": "sync_ff2", "wave": "0...1....."},
+    {"name": "hpet_wr", "wave": "0....1...."},
+    {},
+    {"name": "hpet_ack", "wave": "0.....1..."},
+    {"name": "ack_ff1", "wave": "0......1.."},
+    {"name": "ack_ff2", "wave": "0.......1."},
+    {"name": "pready", "wave": "0........1"}
+  ],
+  "head": {"text": "HPET CDC Crossing (Dual-Clock)"}
+}

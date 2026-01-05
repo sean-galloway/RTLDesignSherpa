@@ -1,0 +1,10 @@
+%%{init: {'theme': 'neutral'}}%%
+flowchart TB
+    subgraph Table["Slave 0 ID Table"]
+        H["Index | Transaction ID | Master | Valid"]
+        R0["0 | 6'b00_0101 | 0 | 1"]
+        R1["1 | 6'b01_0011 | 1 | 1"]
+        R2["2 | 6'b10_1010 | 2 | 0"]
+        R3["3 | 6'b11_0001 | 3 | 1"]
+        RN["... | ... | ... | ..."]
+    end

@@ -1,0 +1,17 @@
+%%{init: {'theme': 'neutral'}}%%
+sequenceDiagram
+    participant Master as APB Master
+    participant Slave as APB Slave<br/>(or APB CDC)
+    participant CMDRSP as peakrdl_to_cmdrsp
+    participant Regs as gpio_regs<br/>(PeakRDL)
+    participant Core as gpio_core
+
+    Master->>Slave: Read Request
+    Slave->>CMDRSP: CMD
+    CMDRSP->>Regs: Address decode
+    Core-->>Regs: hwif_in (live GPIO state)
+    Note over Core: Provide synchronized input<br/>Provide current output state
+    Regs-->>CMDRSP: Read data
+    Note over Regs: Multiplex read data
+    CMDRSP-->>Slave: RSP
+    Slave-->>Master: PRDATA

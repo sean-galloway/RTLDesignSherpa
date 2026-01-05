@@ -1,3 +1,26 @@
+<!-- RTL Design Sherpa Documentation Header -->
+<table>
+<tr>
+<td width="80">
+  <a href="https://github.com/sean-galloway/RTLDesignSherpa">
+    <img src="https://raw.githubusercontent.com/sean-galloway/RTLDesignSherpa/main/docs/logos/Logo_200px.png" alt="RTL Design Sherpa" width="70">
+  </a>
+</td>
+<td>
+  <strong>RTL Design Sherpa</strong> · <em>Learning Hardware Design Through Practice</em><br>
+  <sub>
+    <a href="https://github.com/sean-galloway/RTLDesignSherpa">GitHub</a> ·
+    <a href="https://github.com/sean-galloway/RTLDesignSherpa/blob/main/docs/DOCUMENTATION_INDEX.md">Documentation Index</a> ·
+    <a href="https://github.com/sean-galloway/RTLDesignSherpa/blob/main/LICENSE">MIT License</a>
+  </sub>
+</td>
+</tr>
+</table>
+
+---
+
+<!-- End Header -->
+
 # AXI4-Lite Interface Specification and Assumptions
 
 ## Overview
@@ -19,6 +42,8 @@ This document defines the formal specification and assumptions for an AXI4-Lite 
 | `ADDR_WIDTH` | AXI address bus width in bits | 32, 64 | 37 |
 | `STRB_WIDTH` | Write strobe width | `DATA_WIDTH/8` | 8 |
 
+: Interface Parameters
+
 ## Core Protocol Assumptions
 
 ### Inherent AXI4-Lite Simplifications
@@ -32,6 +57,8 @@ AXI4-Lite protocol inherently provides the following constraints:
 | **Fixed Transfer Size** | Always uses full data bus width |
 | **No User Signals** | Simplified interface without user-defined extensions |
 
+: Inherent AXI4-Lite Simplifications
+
 ### Implementation Assumptions
 
 #### Assumption 1: Address Alignment to Data Bus Width
@@ -44,6 +71,8 @@ AXI4-Lite protocol inherently provides the following constraints:
 | **Rationale** | Maximizes bus efficiency and eliminates unaligned access complexity |
 | **Benefit** | Simplifies address decode and data steering logic |
 
+: Assumption 1: Address Alignment to Data Bus Width
+
 #### Assumption 2: Fixed Transfer Size
 
 | Aspect | Requirement |
@@ -54,6 +83,8 @@ AXI4-Lite protocol inherently provides the following constraints:
 | **Rationale** | Maximizes bus utilization and simplifies control logic |
 | **Benefit** | No size decode logic required |
 
+: Assumption 2: Fixed Transfer Size
+
 #### Assumption 3: No Address Wraparound
 
 | Aspect | Requirement |
@@ -62,6 +93,8 @@ AXI4-Lite protocol inherently provides the following constraints:
 | **Rationale** | Control register accesses never require wraparound behavior |
 | **Benefit** | Simplified address boundary checking |
 
+: Assumption 3: No Address Wraparound
+
 #### Assumption 4: Standard Protection Attributes
 
 | Access Type | AxPROT Value | Description |
@@ -69,6 +102,8 @@ AXI4-Lite protocol inherently provides the following constraints:
 | **Normal Access** | 3'b000 | Data, secure, unprivileged |
 | **Privileged Access** | 3'b001 | Data, secure, privileged |
 | **Rationale** | | Covers the majority of control register access patterns |
+
+: Assumption 4: Standard Protection Attributes
 
 ## Master Read Interface Specification
 
@@ -81,6 +116,8 @@ AXI4-Lite protocol inherently provides the following constraints:
 | `ar_valid` | 1 | Master→Slave | 0 or 1 | Address valid |
 | `ar_ready` | 1 | Slave→Master | 0 or 1 | Address ready |
 
+: Read Address Channel
+
 ### Read Data Channel (R)
 
 | Signal | Width | Direction | Description |
@@ -89,6 +126,8 @@ AXI4-Lite protocol inherently provides the following constraints:
 | `r_resp` | 2 | Slave→Master | Read response |
 | `r_valid` | 1 | Slave→Master | Read data valid |
 | `r_ready` | 1 | Master→Slave | Read data ready |
+
+: Read Data Channel
 
 ### AXI4-Lite Simplifications (Read)
 
@@ -107,6 +146,8 @@ AXI4-Lite protocol inherently provides the following constraints:
 | **r_last** | Last transfer | Single transfers only |
 | **r_user** | User-defined | Simplified interface |
 
+: AXI4-Lite Simplifications
+
 ## Master Write Interface Specification
 
 ### Write Address Channel (AW)
@@ -118,6 +159,8 @@ AXI4-Lite protocol inherently provides the following constraints:
 | `aw_valid` | 1 | Master→Slave | 0 or 1 | Address valid |
 | `aw_ready` | 1 | Slave→Master | 0 or 1 | Address ready |
 
+: Write Address Channel
+
 ### Write Data Channel (W)
 
 | Signal | Width | Direction | Description |
@@ -127,6 +170,8 @@ AXI4-Lite protocol inherently provides the following constraints:
 | `w_valid` | 1 | Master→Slave | Write data valid |
 | `w_ready` | 1 | Slave→Master | Write data ready |
 
+: Write Data Channel
+
 ### Write Response Channel (B)
 
 | Signal | Width | Direction | Description |
@@ -134,6 +179,8 @@ AXI4-Lite protocol inherently provides the following constraints:
 | `b_resp` | 2 | Slave→Master | Write response |
 | `b_valid` | 1 | Slave→Master | Response valid |
 | `b_ready` | 1 | Master→Slave | Response ready |
+
+: Write Response Channel
 
 ### AXI4-Lite Simplifications (Write)
 
@@ -153,6 +200,8 @@ AXI4-Lite protocol inherently provides the following constraints:
 | **b_id** | Transaction ID | No transaction IDs needed |
 | **b_user** | User-defined | Simplified interface |
 
+: AXI4-Lite Simplifications
+
 ## Address Requirements
 
 ### Address Alignment Rules
@@ -162,12 +211,16 @@ AXI4-Lite protocol inherently provides the following constraints:
 | **Valid Address** | (Address % 4) == 0 | Must be 8-byte aligned |
 | **Mandatory Alignment** | Address[2:0] must be 3'b000 | Per Assumption 1 |
 
+: Address Alignment Rules
+
 ### Address Validation Examples
 
 | Address Category | Examples | Status |
 |------------------|----------|--------|
 | **Valid (84byte aligned)** | 0x1000, 0x1004, 0x1008, 0x100C | Accepted |
 | **Invalid (unaligned)** | 0x1001, 0x1002, 0x1003 | DECERR response |
+
+: Address Validation Examples
 
 ## Response Codes
 
@@ -180,6 +233,8 @@ AXI4-Lite protocol inherently provides the following constraints:
 | **2'b10** | SLVERR | Slave error | Invalid register access |
 | **2'b11** | DECERR | Decode error | **Address decode failure or misalignment** |
 
+: Response Code Specification
+
 ### Response Usage Guidelines
 
 | Response Type | Usage | Description |
@@ -188,6 +243,8 @@ AXI4-Lite protocol inherently provides the following constraints:
 | **EXOKAY** | Not applicable | AXI4-Lite doesn't support exclusive accesses |
 | **SLVERR** | Register error | Invalid register operation |
 | **DECERR** | Address error | Misalignment or decode failure per Assumption 1 |
+
+: Response Usage Guidelines
 
 ## Protection Signal Usage
 
@@ -199,6 +256,8 @@ AXI4-Lite protocol inherently provides the following constraints:
 | **[1]** | Non-secure | 0=Secure, 1=Non-secure | Set based on security domain |
 | **[2]** | Instruction | 0=Data, 1=Instruction | Always 0 for control registers |
 
+: Protection Signal Encoding
+
 ### Common Protection Patterns
 
 | Pattern | AxPROT Value | Description |
@@ -207,6 +266,8 @@ AXI4-Lite protocol inherently provides the following constraints:
 | **Privileged Data Access** | 3'b001 | Privileged register access |
 | **Debug Access** | 3'b010 | Debug register access |
 | **Privileged Debug** | 3'b011 | Privileged debug access |
+
+: Common Protection Patterns
 
 ## Implementation Benefits
 
@@ -220,6 +281,8 @@ AXI4-Lite protocol inherently provides the following constraints:
 | **Response Generation** | Simple OKAY/SLVERR/DECERR responses | Minimal response logic |
 | **Size Handling** | Fixed 64-bit transfers only | No size decode needed |
 
+: Simplified Control Register Interface
+
 ### Address Decode Implementation
 
 | Implementation Aspect | Method | Benefit |
@@ -227,6 +290,8 @@ AXI4-Lite protocol inherently provides the following constraints:
 | **4-byte Alignment Check** | addr[1:0] == 2'b00 | Simple bit masking |
 | **Address Range Check** | addr >= base && addr <= limit | Simple comparisons |
 | **Combined Check** | alignment_ok && range_ok | Single decode decision |
+
+: Address Decode Implementation
 
 ### Error Generation Logic
 
@@ -236,6 +301,8 @@ AXI4-Lite protocol inherently provides the following constraints:
 | **Address Out of Range** | !addr_in_range(addr) | Generate DECERR |
 | **Register Error** | register_error_condition | Generate SLVERR |
 | **Normal Access** | All checks pass | Generate OKAY |
+
+: Error Generation Logic
 
 ## Timing Requirements
 
@@ -248,6 +315,8 @@ AXI4-Lite protocol inherently provides the following constraints:
 | **Ready Dependency** | READY can depend on VALID state | Slave controls ready |
 | **Signal Stability** | Once VALID asserted, all signals stable until READY | Data integrity |
 
+: Handshake Protocol
+
 ### Channel Dependencies
 
 | Dependency | Requirement | Description |
@@ -257,6 +326,8 @@ AXI4-Lite protocol inherently provides the following constraints:
 | **Read Channels** | R channel waits for AR channel completion | Response dependency |
 | **Transaction Ordering** | Multiple outstanding transactions not supported | Inherent AXI4-Lite limitation |
 
+: Channel Dependencies
+
 ### Reset Behavior
 
 | Reset Phase | Requirement | Description |
@@ -264,6 +335,8 @@ AXI4-Lite protocol inherently provides the following constraints:
 | **Active Reset** | aresetn is active-low reset signal | Standard AXI reset |
 | **Reset Requirements** | All VALID signals deasserted during reset | Clean reset state |
 | **Reset Recovery** | All VALID signals low after reset deassertion | Proper startup |
+
+: Reset Behavior
 
 ## Validation Requirements
 
@@ -278,6 +351,8 @@ AXI4-Lite protocol inherently provides the following constraints:
 | **Register Behavior** | Verify read/write register functionality |
 | **No Wraparound** | Verify no address wraparound scenarios per Assumption 3 |
 
+: Functional Validation
+
 ### Timing Validation
 
 | Validation Area | Requirements |
@@ -286,6 +361,8 @@ AXI4-Lite protocol inherently provides the following constraints:
 | **Reset Behavior** | Verify proper reset sequence |
 | **Back-pressure** | Verify ready signal behavior under load |
 
+: Timing Validation
+
 ### Error Injection Testing
 
 | Test Type | Injection Method | Expected Response |
@@ -293,6 +370,8 @@ AXI4-Lite protocol inherently provides the following constraints:
 | **Misaligned Address** | Inject addresses with addr[2:0] != 0 | DECERR response |
 | **Out of Range** | Inject addresses outside valid range | DECERR response |
 | **Register Errors** | Inject register-specific errors | SLVERR response |
+
+: Error Injection Testing
 
 ## Example Transactions
 
@@ -305,6 +384,8 @@ AXI4-Lite protocol inherently provides the following constraints:
 | **Write Data** | 0xDEADBEEFCAFEBABE | 64-bit data value |
 | **Required Settings** | aw_addr=0x1000, aw_prot=3'b000, w_data=0xDEADBEEFCAFEBABE, w_strb=8'b11111111 | Transaction configuration |
 
+: 64-bit Register Write
+
 ### AW Transaction Flow
 
 | Step | Action | Signal States |
@@ -315,6 +396,8 @@ AXI4-Lite protocol inherently provides the following constraints:
 | **4** | Wait for response | b_valid=1, b_resp=OKAY |
 | **5** | Complete transaction | b_ready=1 |
 
+: AW Transaction Flow
+
 ### 64-bit Register Read
 
 | Parameter | Value | Description |
@@ -322,6 +405,8 @@ AXI4-Lite protocol inherently provides the following constraints:
 | **Bus Width** | 64 bits (8 bytes) | Data bus configuration |
 | **Target Address** | 0x1008 (8-byte aligned) | Valid aligned address |
 | **Required Settings** | ar_addr=0x1008, ar_prot=3'b000 | Transaction configuration |
+
+: 64-bit Register Read
 
 ### AR Transaction Flow
 
@@ -333,6 +418,8 @@ AXI4-Lite protocol inherently provides the following constraints:
 | **4** | Complete transaction | r_ready=1 |
 | **5** | Capture data | r_data (64 bits) |
 
+: AR Transaction Flow
+
 ### Misaligned Address Example
 
 | Parameter | Value | Description |
@@ -340,6 +427,8 @@ AXI4-Lite protocol inherently provides the following constraints:
 | **Bus Width** | 64 bits (8 bytes) | Data bus configuration |
 | **Target Address** | 0x1004 (misaligned) | Invalid address |
 | **Expected Behavior** | Address decode detects misalignment → DECERR response → No register access | Error handling |
+
+: Misaligned Address Example
 
 ## Common Use Cases
 
@@ -353,6 +442,8 @@ AXI4-Lite protocol inherently provides the following constraints:
 | **Configuration Space** | PCIe configuration space access |
 | **Performance Counters** | 64-bit performance monitoring registers |
 
+: Typical Applications
+
 ### Performance Considerations
 
 | Consideration | Impact | Description |
@@ -360,3 +451,19 @@ AXI4-Lite protocol inherently provides the following constraints:
 | **Latency** | Single-cycle responses preferred | Simple registers |
 | **Throughput** | Limited by single outstanding transaction | AXI4-Lite constraint |
 | **Efficiency** | 64-bit transfers maximize data efficiency | Modern system optimization |
+
+: Performance Considerations
+---
+
+## Revision History
+
+| Version | Date | Author | Description |
+|---------|------|--------|-------------|
+| 0.90 | 2025-11-22 | seang | Initial block specification |
+| 0.91 | 2026-01-02 | seang | Added table captions and figure numbers |
+
+: AXI4-Lite Interface Specification and Assumptions Revision History
+
+---
+
+**Last Updated:** 2026-01-02

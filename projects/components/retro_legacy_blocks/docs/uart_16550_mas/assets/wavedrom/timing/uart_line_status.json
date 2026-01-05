@@ -1,0 +1,11 @@
+{
+  "signal": [
+    {"name": "pclk", "wave": "p........"},
+    {"name": "rx_frame_err", "wave": "0...1...."},
+    {"name": "rx_parity_err", "wave": "0.....1.."},
+    {"name": "rx_overrun", "wave": "0.......1"},
+    {"name": "lsr", "wave": "x...2.3.4", "data": ["FE", "FE|PE", "FE|PE|OE"]},
+    {"name": "lsr_irq", "wave": "0...1...."}
+  ],
+  "head": {"text": "UART Line Status Events"}
+}

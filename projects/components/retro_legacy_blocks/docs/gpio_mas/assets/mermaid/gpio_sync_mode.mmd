@@ -1,0 +1,19 @@
+%%{init: {'theme': 'neutral'}}%%
+flowchart TB
+    subgraph APB_CLK["APB Clock Domain (pclk)"]
+        APB[apb_slave]
+        P2C[peakrdl_to_cmdrsp]
+        CFG[gpio_config_regs]
+        REGS[gpio_regs]
+        CORE[gpio_core]
+    end
+
+    APB --> P2C
+    P2C --> CFG
+    CFG --> REGS
+    REGS --> CORE
+
+    NOTE["All modules use pclk<br/>Input synchronization still active<br/>for external pins"]
+
+    style APB_CLK fill:#e1f5fe
+    style NOTE fill:#fff9c4

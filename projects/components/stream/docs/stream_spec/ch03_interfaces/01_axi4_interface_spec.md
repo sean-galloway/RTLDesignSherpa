@@ -1,3 +1,26 @@
+<!-- RTL Design Sherpa Documentation Header -->
+<table>
+<tr>
+<td width="80">
+  <a href="https://github.com/sean-galloway/RTLDesignSherpa">
+    <img src="https://raw.githubusercontent.com/sean-galloway/RTLDesignSherpa/main/docs/logos/Logo_200px.png" alt="RTL Design Sherpa" width="70">
+  </a>
+</td>
+<td>
+  <strong>RTL Design Sherpa</strong> · <em>Learning Hardware Design Through Practice</em><br>
+  <sub>
+    <a href="https://github.com/sean-galloway/RTLDesignSherpa">GitHub</a> ·
+    <a href="https://github.com/sean-galloway/RTLDesignSherpa/blob/main/docs/DOCUMENTATION_INDEX.md">Documentation Index</a> ·
+    <a href="https://github.com/sean-galloway/RTLDesignSherpa/blob/main/LICENSE">MIT License</a>
+  </sub>
+</td>
+</tr>
+</table>
+
+---
+
+<!-- End Header -->
+
 # AXI4 Interface Specification for STREAM
 
 ## Overview
@@ -24,6 +47,8 @@ STREAM implements **3 AXI4 Master Interfaces**:
 | **Data Read** | Master Read | 512-bit (param) | AR, R | Read source data to SRAM |
 | **Data Write** | Master Write | 512-bit (param) | AW, W, B | Write SRAM data to destination |
 
+: Number of Interfaces
+
 ### Interface Parameters
 
 | Parameter | Description | Valid Values | Default |
@@ -32,6 +57,8 @@ STREAM implements **3 AXI4 Master Interfaces**:
 | `ADDR_WIDTH` | AXI address bus width in bits | 32, 64 | 37 |
 | `ID_WIDTH` | AXI ID tag width in bits | 1-16 | 8 |
 | `USER_WIDTH` | AXI user signal width in bits (optional) | 0-16 | 1 |
+
+: Interface Parameters
 
 ### Interface Types and Transfer Modes
 
@@ -42,6 +69,8 @@ STREAM implements **3 AXI4 Master Interfaces**:
 | **AXI4 Master Read** | AR, R | **Simplified** | Bus-width | No | Yes | Control interfaces, fully aligned |
 | **AXI4 Master Write**  | AW, W, B | **Simplified** | Bus-width | Yes | Yes | Control interfaces, fully aligned |
 
+: Interface Types and Transfer Modes
+
 ### Interface Group Parameter Settings
 
 | Interface Group | Data Width | Address Width | ID Width | User Width | Transfer Mode |
@@ -50,6 +79,8 @@ STREAM implements **3 AXI4 Master Interfaces**:
 | **AXI4 Master Write-Split**  | 512 bits | 37 bits | 8 bits | 1 bit | **Flexible** |
 | **AXI4 Master Read** | 32 bits | 37 bits | 8 bits | 1 bit | **Simplified** |
 | **AXI4 Master Write** | 32 bits | 37 bits | 8 bits | 1 bit | **Simplified** |
+
+: Interface Group Parameter Settings
 
 ### Interface Configuration Summary
 
@@ -63,6 +94,8 @@ STREAM implements **3 AXI4 Master Interfaces**:
 | **Program Source** | **AXI4 Master Write** | **Simplified** | 32-bit aligned | Control interface |
 | **Flag Sink** | **AXI4 Master Read** | **Simplified** | 32-bit aligned | Control interface |
 | **Flag Source** | **AXI4 Master Read** | **Simplified** | 32-bit aligned | Control interface |
+
+: Interface Configuration Summary
 
 ## Transfer Mode Specifications
 
@@ -81,6 +114,8 @@ Used for control interfaces (descriptors, programs, flags) that prioritize simpl
 | **Burst Type** | Incrementing bursts only (AxBURST = 2'b01) |
 | **Transfer Complexity** | Maximum simplicity for predictable operation |
 
+: **Simplified Mode Assumptions**
+
 ### Mode 2: Flexible Transfer Mode (Data Interfaces)
 
 Used for high-bandwidth data interfaces that need to handle arbitrary address alignment while maintaining efficiency.
@@ -93,6 +128,8 @@ Used for high-bandwidth data interfaces that need to handle arbitrary address al
 | **Transfer Sizes** | Multiple sizes supported: 4, 8, 16, 32, 64 bytes |
 | **Burst Type** | Incrementing bursts only (AxBURST = 2'b01) |
 | **Alignment Strategy** | Progressive alignment to optimize bus utilization |
+
+: **Flexible Mode Assumptions**
 
 ---
 
@@ -111,6 +148,8 @@ Used for high-bandwidth data interfaces that need to handle arbitrary address al
 | **1024-bit bus (128 bytes)** | Address[6:0] must be 7'b0000000 |
 | **Rationale** | Maximizes bus efficiency and eliminates unaligned access complexity |
 
+: Assumption 1: Address Alignment to Data Bus Width
+
 ### Assumption 2: Fixed Transfer Size
 
 | Aspect | Requirement |
@@ -123,6 +162,8 @@ Used for high-bandwidth data interfaces that need to handle arbitrary address al
 | **512-bit bus** | AxSIZE = 3'b110 (64 bytes) |
 | **1024-bit bus** | AxSIZE = 3'b111 (128 bytes) |
 | **Rationale** | Maximizes bus utilization and simplifies address alignment |
+
+: Assumption 2: Fixed Transfer Size
 
 ---
 
@@ -137,6 +178,8 @@ Used for high-bandwidth data interfaces that need to handle arbitrary address al
 | **Rationale** | Balances flexibility with AXI protocol requirements |
 | **Benefit** | Supports arbitrary data placement while maintaining AXI compliance |
 
+: Assumption 1: 4-Byte Address Alignment
+
 ### Assumption 2: Multiple Transfer Sizes
 
 | Transfer Size | AxSIZE Value | Use Case |
@@ -148,6 +191,8 @@ Used for high-bandwidth data interfaces that need to handle arbitrary address al
 | **64 bytes** | 3'b110 | Optimal full-width transfers |
 | **128 bytes** | 3'b111 | Maximum efficiency (1024-bit bus) |
 
+: Assumption 2: Multiple Transfer Sizes
+
 ### Assumption 3: Progressive Alignment Strategy
 
 | Aspect | Requirement |
@@ -157,6 +202,8 @@ Used for high-bandwidth data interfaces that need to handle arbitrary address al
 | **Optimization** | Choose largest possible transfer size at each step |
 | **Example** | Address 0x1004: 4-byte transfer → aligned to 0x1008, then larger transfers |
 
+: Assumption 3: Progressive Alignment Strategy
+
 ### Assumption 4: Chunk Enable Support
 
 | Aspect | Requirement |
@@ -165,6 +212,8 @@ Used for high-bandwidth data interfaces that need to handle arbitrary address al
 | **Write Strobes** | Generated from chunk enables for precise byte control |
 | **Alignment Transfers** | Chunk patterns optimized for alignment sequences |
 | **Benefits** | Precise data validity, optimal memory utilization |
+
+: Assumption 4: Chunk Enable Support
 
 ---
 
@@ -179,6 +228,8 @@ Used for high-bandwidth data interfaces that need to handle arbitrary address al
 | **Rationale** | Simplifies address generation logic and covers most use cases |
 | **Benefit** | Eliminates wrap boundary calculations and fixed address handling |
 
+: Assumption 1: Incrementing Bursts Only
+
 ### Assumption 2: No Address Wraparound
 
 | Aspect | Requirement |
@@ -187,6 +238,8 @@ Used for high-bandwidth data interfaces that need to handle arbitrary address al
 | **Example** | No 0xFFFFFFFF → 0x00000000 transitions |
 | **Rationale** | Real systems never allow this due to memory layout |
 | **Benefit** | Dramatically simplified boundary crossing detection logic |
+
+: Assumption 2: No Address Wraparound
 
 ---
 
@@ -204,6 +257,8 @@ Used for high-bandwidth data interfaces that need to handle arbitrary address al
 | 4 | 0x1020 | 32 bytes | 3'b101 | 1 beat | 32 | Progressive alignment |
 | 5 | 0x1040 | **64 bytes** | 3'b110 | N beats | 64×N | **Optimal transfers** |
 
+: Progressive Alignment Examples
+
 **Example 2: Address 0x1010 → 0x1040 (64-byte boundary)**
 
 | Step | Address | Size | AxSIZE | Length | Bytes Transferred | Notes |
@@ -211,6 +266,8 @@ Used for high-bandwidth data interfaces that need to handle arbitrary address al
 | 1 | 0x1010 | 16 bytes | 3'b100 | 1 beat | 16 | Optimal initial size |
 | 2 | 0x1020 | 32 bytes | 3'b101 | 1 beat | 32 | Progressive alignment |
 | 3 | 0x1040 | **64 bytes** | 3'b110 | N beats | 64×N | **Optimal transfers** |
+
+: Progressive Alignment Examples
 
 ### Chunk Enable Pattern Examples
 
@@ -223,6 +280,8 @@ Used for high-bandwidth data interfaces that need to handle arbitrary address al
 | **16 bytes** | 0x10 | 16'h00F0 | Chunks 4-7 |
 | **32 bytes** | 0x20 | 16'hFF00 | Chunks 8-15 |
 | **64 bytes** | 0x00 | 16'hFFFF | All chunks |
+
+: Chunk Enable Pattern Examples
 
 ---
 
@@ -246,6 +305,8 @@ Used for high-bandwidth data interfaces that need to handle arbitrary address al
 | `ar_valid` | 1 | Master→Slave | 0 or 1 | 0 or 1 | Address valid |
 | `ar_ready` | 1 | Slave→Master | 0 or 1 | 0 or 1 | Address ready |
 
+: Read Address Channel
+
 ### Read Data Channel (R)
 
 | Signal | Width | Direction | Description |
@@ -257,6 +318,8 @@ Used for high-bandwidth data interfaces that need to handle arbitrary address al
 | `r_user` | `USER_WIDTH` | Slave→Master | User-defined (optional) |
 | `r_valid` | 1 | Slave→Master | Read data valid |
 | `r_ready` | 1 | Master→Slave | Read data ready |
+
+: Read Data Channel
 
 ---
 
@@ -280,6 +343,8 @@ Used for high-bandwidth data interfaces that need to handle arbitrary address al
 | `aw_valid` | 1 | Master→Slave | 0 or 1 | 0 or 1 | Address valid |
 | `aw_ready` | 1 | Slave→Master | 0 or 1 | 0 or 1 | Address ready |
 
+: Write Address Channel
+
 ### Write Data Channel (W)
 
 | Signal | Width | Direction | Simplified Mode | Flexible Mode | Description |
@@ -291,6 +356,8 @@ Used for high-bandwidth data interfaces that need to handle arbitrary address al
 | `w_valid` | 1 | Master→Slave | 0 or 1 | 0 or 1 | Write data valid |
 | `w_ready` | 1 | Slave→Master | 0 or 1 | 0 or 1 | Write data ready |
 
+: Write Data Channel
+
 ### Write Response Channel (B)
 
 | Signal | Width | Direction | Description |
@@ -300,6 +367,8 @@ Used for high-bandwidth data interfaces that need to handle arbitrary address al
 | `b_user` | `USER_WIDTH` | Slave→Master | User-defined (optional) |
 | `b_valid` | 1 | Slave→Master | Response valid |
 | `b_ready` | 1 | Master→Slave | Response ready |
+
+: Write Response Channel
 
 ---
 
@@ -313,6 +382,8 @@ Used for high-bandwidth data interfaces that need to handle arbitrary address al
 | **Address N** | First_Address + (N × Bus_Width_Bytes) | Address for beat N |
 | **Alignment Check** | (Address % Bus_Width_Bytes) == 0 | Must always be true |
 
+: Simplified Mode Address Generation
+
 ### Flexible Mode Address Generation
 
 | Parameter | Formula | Description |
@@ -322,6 +393,8 @@ Used for high-bandwidth data interfaces that need to handle arbitrary address al
 | **Alignment Check** | (Address % 4) == 0 | Must always be true |
 | **Progressive Alignment** | Choose largest size ≤ bytes_to_boundary | Optimization strategy |
 
+: Flexible Mode Address Generation
+
 ### 4KB Boundary Considerations (Both Modes)
 
 | Validation Rule | Formula | Description |
@@ -329,6 +402,8 @@ Used for high-bandwidth data interfaces that need to handle arbitrary address al
 | **4KB Boundary** | Bursts cannot cross 4KB (0x1000) boundaries | AXI specification |
 | **Max Burst Calculation** | Max_Beats = (4KB - (Start_Address % 4KB)) / Transfer_Size | Burst limit |
 | **Boundary Check** | Verify no 4KB crossings in burst | Mandatory validation |
+
+: 4KB Boundary Considerations
 
 ---
 
@@ -340,6 +415,8 @@ Used for high-bandwidth data interfaces that need to handle arbitrary address al
 |-----------|----------------|-------------|
 | **32-bit** | 4'b1111 | All bytes valid |
 | **512-bit** | 64'hFFFFFFFFFFFFFFFF | All bytes valid |
+
+: Simplified Mode Strobe Generation
 
 ### Flexible Mode Strobe Generation
 
@@ -363,6 +440,8 @@ end
 | **32 bytes** | 16'h00FF | 64'h0000000000FFFFFF | First 32 bytes |
 | **64 bytes** | 16'hFFFF | 64'hFFFFFFFFFFFFFFFF | All 64 bytes |
 
+: Flexible Mode Strobe Generation
+
 ---
 
 ## Response Codes
@@ -375,6 +454,8 @@ end
 | **2'b01** | EXOKAY | Exclusive access success | Bus-width aligned exclusive | 4-byte aligned exclusive |
 | **2'b10** | SLVERR | Slave error | Slave-specific error | Slave-specific error |
 | **2'b11** | DECERR | Decode error | **Bus-width misalignment** | **4-byte misalignment** |
+
+: Response Code Specification
 
 ---
 
@@ -389,6 +470,8 @@ end
 | **Strobe Generation** | All strobes always high | Trivial implementation |
 | **Timing** | Predictable single-size transfers | Optimal timing closure |
 
+: Simplified Mode Benefits
+
 ### Flexible Mode Benefits
 
 | Benefit Area | Capability | Impact |
@@ -397,6 +480,8 @@ end
 | **Bus Utilization** | Progressive alignment optimization | High efficiency achieved |
 | **Chunk Control** | Precise byte-level validity | Optimal memory utilization |
 | **Alignment Strategy** | Automatic alignment to boundaries | Performance optimization |
+
+: Flexible Mode Benefits
 
 ### Mode Selection Guidelines
 
@@ -407,6 +492,8 @@ end
 | **Descriptors** | **Simplified** | Fixed-size structures, simple implementation |
 | **Programs** | **Simplified** | Single-word writes, minimal overhead |
 | **Flags** | **Simplified** | Fixed-size status, predictable behavior |
+
+: Mode Selection Guidelines
 
 ---
 
@@ -421,6 +508,8 @@ end
 | **Full Strobes** | Verify w_strb is always all 1's |
 | **Burst Type** | Verify AxBURST is always 2'b01 |
 
+: Simplified Mode Validation
+
 ### Flexible Mode Validation
 
 | Validation Area | Requirements |
@@ -432,6 +521,8 @@ end
 | **Progressive Alignment** | Verify alignment strategy optimization |
 | **Boundary Checking** | Verify no 4KB boundary crossings |
 
+: Flexible Mode Validation
+
 ### Common Validation
 
 | Validation Area | Requirements |
@@ -440,6 +531,8 @@ end
 | **Incrementing Only** | Verify AxBURST is always 2'b01 |
 | **Response Handling** | Verify proper response generation |
 | **Error Conditions** | Verify alignment violation responses |
+
+: Common Validation
 
 ---
 
@@ -454,6 +547,8 @@ end
 | **Efficiency** | 100% | Perfect bus utilization |
 | **Complexity** | Minimal | Simple implementation |
 
+: Simplified Mode Performance
+
 ### Flexible Mode Performance
 
 | Metric | Alignment Phase | Optimized Phase | Description |
@@ -462,6 +557,8 @@ end
 | **Throughput** | Variable | 1 transfer per clock | Depends on alignment pattern |
 | **Efficiency** | 25-100% | 100% | Improves with alignment |
 | **Complexity** | Moderate | Minimal | Progressive optimization |
+
+: Flexible Mode Performance
 
 ### Performance Optimization Strategy
 
@@ -472,3 +569,17 @@ end
 4. **Result**: Achieve maximum efficiency while handling arbitrary starting addresses
 
 This dual-mode approach provides the best of both worlds: simplified, predictable operation for control interfaces and flexible, high-performance operation for data interfaces.
+---
+
+## Revision History
+
+| Version | Date | Author | Description |
+|---------|------|--------|-------------|
+| 0.90 | 2025-11-22 | seang | Initial block specification |
+| 0.91 | 2026-01-02 | seang | Added table captions and figure numbers |
+
+: AXI4 Interface Specification for STREAM Revision History
+
+---
+
+**Last Updated:** 2026-01-02

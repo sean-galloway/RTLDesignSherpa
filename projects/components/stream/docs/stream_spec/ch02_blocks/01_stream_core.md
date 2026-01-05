@@ -1,3 +1,26 @@
+<!-- RTL Design Sherpa Documentation Header -->
+<table>
+<tr>
+<td width="80">
+  <a href="https://github.com/sean-galloway/RTLDesignSherpa">
+    <img src="https://raw.githubusercontent.com/sean-galloway/RTLDesignSherpa/main/docs/logos/Logo_200px.png" alt="RTL Design Sherpa" width="70">
+  </a>
+</td>
+<td>
+  <strong>RTL Design Sherpa</strong> · <em>Learning Hardware Design Through Practice</em><br>
+  <sub>
+    <a href="https://github.com/sean-galloway/RTLDesignSherpa">GitHub</a> ·
+    <a href="https://github.com/sean-galloway/RTLDesignSherpa/blob/main/docs/DOCUMENTATION_INDEX.md">Documentation Index</a> ·
+    <a href="https://github.com/sean-galloway/RTLDesignSherpa/blob/main/LICENSE">MIT License</a>
+  </sub>
+</td>
+</tr>
+</table>
+
+---
+
+<!-- End Header -->
+
 # STREAM Core Specification
 
 **Module:** `stream_core.sv`
@@ -27,7 +50,9 @@ The STREAM Core is the top-level integration module that combines all STREAM com
 
 The STREAM Core integrates the following major components:
 
-![STREAM Core Block Diagram](../assets/mermaid/01_stream_core_block.svg)
+### Figure 2.1.1: STREAM Core Block Diagram
+
+![STREAM Core Block Diagram](../assets/mermaid/01_stream_core_block.png)
 
 **Source:** [01_stream_core_block.mmd](../assets/mermaid/01_stream_core_block.mmd)
 
@@ -71,6 +96,8 @@ The STREAM Core integrates the following major components:
 
 **Descriptor Fetch Flow:**
 
+### Figure 2.1.2: Descriptor Fetch Flow
+
 ```mermaid
 sequenceDiagram
     participant APB as APB Write
@@ -86,6 +113,8 @@ sequenceDiagram
 ```
 
 **Data Transfer Flow:**
+
+### Figure 2.1.3: Data Transfer Flow
 
 ```mermaid
 sequenceDiagram
@@ -120,11 +149,15 @@ sequenceDiagram
 | `AXI_ID_WIDTH` | int | 8 | AXI transaction ID width |
 | `FIFO_DEPTH` | int | 512 | Per-channel FIFO depth |
 
+: Primary Configuration
+
 ### Monitor Control
 
 | Parameter | Type | Default | Description |
 |-----------|------|---------|-------------|
 | `USE_AXI_MONITORS` | int | 1 | Enable (1) or disable (0) AXI transaction monitors |
+
+: Monitor Control
 
 **Note:** When `USE_AXI_MONITORS = 0`:
 - All monitor configuration inputs are tied off internally
@@ -138,6 +171,8 @@ sequenceDiagram
 | `AR_MAX_OUTSTANDING` | 8 | Maximum concurrent read address requests |
 | `AW_MAX_OUTSTANDING` | 8 | Maximum concurrent write address requests |
 
+: Outstanding Transaction Limits
+
 ### AXI Skid Buffer Depths
 
 | Parameter | Default | Purpose |
@@ -147,6 +182,8 @@ sequenceDiagram
 | `SKID_DEPTH_AW` | 2 | AW channel timing closure |
 | `SKID_DEPTH_W` | 4 | W channel timing closure |
 | `SKID_DEPTH_B` | 2 | B channel timing closure |
+
+: AXI Skid Buffer Depths
 
 **Note:** Deeper buffers on data channels (R/W) improve throughput.
 
@@ -159,6 +196,8 @@ sequenceDiagram
 | `DESC_AXI_MON_AGENT_ID` | 8 (0x08) | Descriptor AXI master monitor |
 | `MON_UNIT_ID` | 1 (0x1) | Unit ID for all STREAM events |
 
+: MonBus Agent IDs
+
 ---
 
 ## Port List
@@ -170,6 +209,8 @@ sequenceDiagram
 | `clk` | input | 1 | System clock |
 | `rst_n` | input | 1 | Active-low asynchronous reset |
 
+: Clock and Reset
+
 ### APB Programming Interface
 
 Per-channel descriptor kick-off interface:
@@ -179,6 +220,8 @@ Per-channel descriptor kick-off interface:
 | `apb_valid[ch]` | input | NUM_CHANNELS | Channel descriptor address valid |
 | `apb_ready[ch]` | output | NUM_CHANNELS | Channel ready to accept descriptor address |
 | `apb_addr[ch]` | input | NUM_CHANNELS × ADDR_WIDTH | Descriptor address per channel |
+
+: APB Programming Interface
 
 **Usage:**
 ```systemverilog
@@ -199,6 +242,8 @@ apb_valid[0] = 1'b0;
 | `cfg_channel_enable[ch]` | input | NUM_CHANNELS | Enable channel |
 | `cfg_channel_reset[ch]` | input | NUM_CHANNELS | Soft reset channel (FSM → IDLE) |
 
+: Configuration Interface
+
 **Global Scheduler Configuration:**
 
 | Signal | Direction | Width | Description |
@@ -209,6 +254,8 @@ apb_valid[0] = 1'b0;
 | `cfg_sched_err_enable` | input | 1 | Enable error event reporting |
 | `cfg_sched_compl_enable` | input | 1 | Enable completion event reporting |
 | `cfg_sched_perf_enable` | input | 1 | Enable performance event reporting |
+
+: Configuration Interface
 
 **Descriptor Engine Configuration:**
 
@@ -222,6 +269,8 @@ apb_valid[0] = 1'b0;
 | `cfg_desceng_addr1_base` | input | ADDR_WIDTH | Base address limit 1 |
 | `cfg_desceng_addr1_limit` | input | ADDR_WIDTH | Limit address limit 1 |
 
+: Configuration Interface
+
 **AXI Monitor Configuration:**
 
 Three identical sets of monitor config signals (descriptor, read, write):
@@ -231,6 +280,8 @@ Three identical sets of monitor config signals (descriptor, read, write):
 | `cfg_desc_mon_*` | Descriptor AXI | Descriptor fetch monitoring |
 | `cfg_rdeng_mon_*` | Read AXI | Data read monitoring |
 | `cfg_wreng_mon_*` | Write AXI | Data write monitoring |
+
+: Configuration Interface
 
 Each monitor has:
 
@@ -275,6 +326,8 @@ Each monitor has:
 |--------|-----------|-------|-------------|
 | `system_idle` | output | 1 | All channels idle (AND of all scheduler_idle) |
 
+: Status Interface
+
 **Per-Channel Status:**
 
 | Signal | Direction | Width | Description |
@@ -286,6 +339,8 @@ Each monitor has:
 | `axi_rd_all_complete[ch]` | output | NUM_CHANNELS | All read transactions complete |
 | `axi_wr_all_complete[ch]` | output | NUM_CHANNELS | All write transactions complete |
 
+: Status Interface
+
 **Performance Profiler Status:**
 
 | Signal | Direction | Width | Description |
@@ -296,6 +351,8 @@ Each monitor has:
 | `perf_fifo_rd` | input | 1 | Read profiler entry |
 | `perf_fifo_data_low` | output | 32 | Profiler data [31:0] |
 | `perf_fifo_data_high` | output | 32 | Profiler data [63:32] |
+
+: Status Interface
 
 ### AXI4 Master - Descriptor Fetch (256-bit)
 
@@ -317,6 +374,8 @@ Each monitor has:
 | `m_axi_desc_arvalid` | output | 1 | Address valid |
 | `m_axi_desc_arready` | input | 1 | Address ready |
 
+: AXI4 Master - Descriptor Fetch
+
 **R Channel:**
 
 | Signal | Direction | Width | Description |
@@ -328,6 +387,8 @@ Each monitor has:
 | `m_axi_desc_ruser` | input | CHAN_WIDTH | User signal (channel ID) |
 | `m_axi_desc_rvalid` | input | 1 | Read data valid |
 | `m_axi_desc_rready` | output | 1 | Read data ready |
+
+: AXI4 Master - Descriptor Fetch
 
 ### AXI4 Master - Data Read (Parameterizable Width)
 
@@ -349,6 +410,8 @@ Each monitor has:
 | `m_axi_rd_arvalid` | output | 1 | Address valid |
 | `m_axi_rd_arready` | input | 1 | Address ready |
 
+: AXI4 Master - Data Read
+
 **R Channel:**
 
 | Signal | Direction | Width | Description |
@@ -360,6 +423,8 @@ Each monitor has:
 | `m_axi_rd_ruser` | input | CHAN_WIDTH | User signal (channel ID) |
 | `m_axi_rd_rvalid` | input | 1 | Read data valid |
 | `m_axi_rd_rready` | output | 1 | Read data ready |
+
+: AXI4 Master - Data Read
 
 ### AXI4 Master - Data Write (Parameterizable Width)
 
@@ -381,6 +446,8 @@ Each monitor has:
 | `m_axi_wr_awvalid` | output | 1 | Address valid |
 | `m_axi_wr_awready` | input | 1 | Address ready |
 
+: AXI4 Master - Data Write
+
 **W Channel:**
 
 | Signal | Direction | Width | Description |
@@ -392,6 +459,8 @@ Each monitor has:
 | `m_axi_wr_wvalid` | output | 1 | Write data valid |
 | `m_axi_wr_wready` | input | 1 | Write data ready |
 
+: AXI4 Master - Data Write
+
 **B Channel:**
 
 | Signal | Direction | Width | Description |
@@ -401,6 +470,8 @@ Each monitor has:
 | `m_axi_wr_buser` | input | CHAN_WIDTH | User signal (channel ID) |
 | `m_axi_wr_bvalid` | input | 1 | Response valid |
 | `m_axi_wr_bready` | output | 1 | Response ready |
+
+: AXI4 Master - Data Write
 
 ### Status/Debug Outputs
 
@@ -414,6 +485,8 @@ Each monitor has:
 | `cfg_sts_desc_mon_txn_count` | output | 32 | Total transaction count |
 | `cfg_sts_desc_mon_conflict_error` | output | 1 | ID conflict detected |
 
+: Status/Debug Outputs
+
 **Read Engine AXI Monitor:**
 
 | Signal | Direction | Width | Description |
@@ -423,6 +496,8 @@ Each monitor has:
 | `cfg_sts_rdeng_mon_error_count` | output | 16 | Error count |
 | `cfg_sts_rdeng_mon_txn_count` | output | 32 | Total transaction count |
 | `cfg_sts_rdeng_mon_conflict_error` | output | 1 | ID conflict detected |
+
+: Status/Debug Outputs
 
 **Write Engine AXI Monitor:**
 
@@ -434,6 +509,8 @@ Each monitor has:
 | `cfg_sts_wreng_mon_txn_count` | output | 32 | Total transaction count |
 | `cfg_sts_wreng_mon_conflict_error` | output | 1 | ID conflict detected |
 
+: Status/Debug Outputs
+
 ### Unified Monitor Bus Interface
 
 | Signal | Direction | Width | Description |
@@ -441,6 +518,8 @@ Each monitor has:
 | `mon_valid` | output | 1 | Monitor packet valid |
 | `mon_ready` | input | 1 | Monitor packet ready |
 | `mon_packet` | output | 64 | Monitor packet data |
+
+: Unified Monitor Bus Interface
 
 **MonBus Sources:**
 - Descriptor engines (8 sources, agent IDs 16-23)
@@ -505,6 +584,20 @@ complete = scheduler_idle[ch] &&
 
 ---
 
+## Timing Diagrams
+
+### Complete Data Flow Timing
+
+The following diagram shows the complete data flow through the STREAM core, from descriptor kick-off through data transfer completion:
+
+#### Waveform 2.1.1: STREAM Core Data Flow
+
+![STREAM Core Data Flow](../assets/wavedrom/stream_core_data_flow.svg)
+
+**Source:** [stream_core_data_flow.json](../assets/wavedrom/stream_core_data_flow.json)
+
+---
+
 ## Testing
 
 **Test Location:** `projects/components/stream/dv/tests/top/`
@@ -544,6 +637,8 @@ cfg_axi_wr_xfer_beats = 16
 | Skid Buffers | 3 sets | ~2000 FFs |
 | Monitors | 3 | 3 × ~1000 FFs |
 | **Total** | | ~20K FFs + 256KB SRAM |
+
+: Resource Utilization
 
 **Critical Paths:**
 - AXI handshake paths (improved by skid buffers)
@@ -615,7 +710,17 @@ stream_core #(
 - **APB to Descriptor:** `13_apbtodescr.md` - APB configuration interface
 - **Performance Profiler:** `15_perf_profiler.md` - Performance monitoring
 - **MonBus AXI-Lite Group:** `16_monbus_axil_group.md` - Monitor bus arbitration
+---
+
+## Revision History
+
+| Version | Date | Author | Description |
+|---------|------|--------|-------------|
+| 0.90 | 2025-11-22 | seang | Initial block specification |
+| 0.91 | 2026-01-02 | seang | Added table captions and figure numbers |
+
+: STREAM Core Specification Revision History
 
 ---
 
-**Last Updated:** 2025-11-30 (verified against RTL implementation)
+**Last Updated:** 2026-01-02

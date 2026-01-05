@@ -1,3 +1,26 @@
+<!-- RTL Design Sherpa Documentation Header -->
+<table>
+<tr>
+<td width="80">
+  <a href="https://github.com/sean-galloway/RTLDesignSherpa">
+    <img src="https://raw.githubusercontent.com/sean-galloway/RTLDesignSherpa/main/docs/logos/Logo_200px.png" alt="RTL Design Sherpa" width="70">
+  </a>
+</td>
+<td>
+  <strong>RTL Design Sherpa</strong> · <em>Learning Hardware Design Through Practice</em><br>
+  <sub>
+    <a href="https://github.com/sean-galloway/RTLDesignSherpa">GitHub</a> ·
+    <a href="https://github.com/sean-galloway/RTLDesignSherpa/blob/main/docs/DOCUMENTATION_INDEX.md">Documentation Index</a> ·
+    <a href="https://github.com/sean-galloway/RTLDesignSherpa/blob/main/LICENSE">MIT License</a>
+  </sub>
+</td>
+</tr>
+</table>
+
+---
+
+<!-- End Header -->
+
 # STREAM Register Map
 
 ## Overview
@@ -74,6 +97,8 @@ These registers are **NOT** traditional registers. Writes are routed directly to
 | 0x038  | CH7_CTRL_LOW   | WO   | N/A   | Channel 7 descriptor address [31:0]            |
 | 0x03C  | CH7_CTRL_HIGH  | WO   | N/A   | Channel 7 descriptor address [63:32]           |
 
+: Channel Kick-off Registers
+
 **Write Behavior:**
 - Descriptor address is 64-bit, split across LOW and HIGH registers
 - Write to HIGH register triggers descriptor engine kick-off
@@ -112,6 +137,8 @@ Master control register for entire STREAM engine.
 | 1     | GLOBAL_RST  | RW   | 0     | Global reset (self-clearing)             |
 | 0     | GLOBAL_EN   | RW   | 0     | Global enable (1=enabled, 0=disabled)    |
 
+: GLOBAL_CTRL
+
 **Usage:**
 ```c
 // Enable STREAM engine
@@ -131,6 +158,8 @@ Overall system status.
 | 31:1  | Reserved      | RO   | Reserved                                 |
 | 0     | SYSTEM_IDLE   | RO   | System idle (all channels idle)          |
 
+: GLOBAL_STATUS
+
 #### VERSION (0x108)
 
 Version and configuration information (read-only).
@@ -141,6 +170,8 @@ Version and configuration information (read-only).
 | 23:16  | NUM_CHANNELS  | RO   | 0x08  | Number of channels (8)             |
 | 15:8   | MAJOR         | RO   | 0x00  | Major version (0)                  |
 | 7:0    | MINOR         | RO   | 0x5A  | Minor version (90 decimal = 0.90)  |
+
+: VERSION
 
 ---
 
@@ -154,6 +185,8 @@ Per-channel enable control (bit vector).
 |-------|-------------|------|-------|------------------------------------------|
 | 31:8  | Reserved    | RO   | 0x0   | Reserved                                 |
 | 7:0   | CH_EN       | RW   | 0x00  | Channel enable [7:0] (1=enabled)         |
+
+: CHANNEL_ENABLE
 
 **Usage:**
 ```c
@@ -175,6 +208,8 @@ Per-channel reset control (bit vector, self-clearing).
 | 31:8  | Reserved    | RO   | 0x0   | Reserved                                 |
 | 7:0   | CH_RST      | RW   | 0x00  | Channel reset [7:0] (write 1 to reset)   |
 
+: CHANNEL_RESET
+
 **Usage:**
 ```c
 // Reset channels 0 and 3
@@ -191,6 +226,8 @@ Per-channel idle status (bit vector, read-only).
 | 31:8  | Reserved    | RO   | Reserved                                 |
 | 7:0   | CH_IDLE     | RO   | Channel idle [7:0] (1=idle, 0=active)    |
 
+: CHANNEL_IDLE
+
 #### DESC_ENGINE_IDLE (0x144)
 
 Per-channel descriptor engine idle status.
@@ -200,6 +237,8 @@ Per-channel descriptor engine idle status.
 | 31:8  | Reserved    | RO   | Reserved                                        |
 | 7:0   | DESC_IDLE   | RO   | Descriptor engine idle [7:0] (1=idle, 0=active) |
 
+: DESC_ENGINE_IDLE
+
 #### SCHEDULER_IDLE (0x148)
 
 Per-channel scheduler idle status.
@@ -208,6 +247,8 @@ Per-channel scheduler idle status.
 |-------|-------------|------|-----------------------------------------------|
 | 31:8  | Reserved    | RO   | Reserved                                      |
 | 7:0   | SCHED_IDLE  | RO   | Scheduler idle [7:0] (1=idle, 0=active)       |
+
+: SCHEDULER_IDLE
 
 #### CH_STATE[0..7] (0x150 - 0x16C)
 
@@ -224,6 +265,8 @@ Per-channel scheduler FSM state (8 registers, stride 0x4).
 | 0x164  | CH5_STATE  | 6:0   | STATE    | RO   | Channel 5 scheduler state (one-hot) |
 | 0x168  | CH6_STATE  | 6:0   | STATE    | RO   | Channel 6 scheduler state (one-hot) |
 | 0x16C  | CH7_STATE  | 6:0   | STATE    | RO   | Channel 7 scheduler state (one-hot) |
+
+: CH_STATE[0..7]
 
 **State Encoding (One-Hot):**
 ```
@@ -251,6 +294,8 @@ Per-channel scheduler error flags.
 | 31:8  | Reserved   | RO   | Reserved                                        |
 | 7:0   | SCHED_ERR  | RO   | Scheduler error bits [7:0] (1=error, 0=no error) |
 
+: SCHED_ERROR
+
 #### AXI_RD_COMPLETE (0x174)
 
 Per-channel AXI read engine completion status.
@@ -260,6 +305,8 @@ Per-channel AXI read engine completion status.
 | 31:8  | Reserved    | RO   | Reserved                                           |
 | 7:0   | RD_COMPLETE | RO   | Read completion bits [7:0] (1=complete, 0=pending) |
 
+: AXI_RD_COMPLETE
+
 #### AXI_WR_COMPLETE (0x178)
 
 Per-channel AXI write engine completion status.
@@ -268,6 +315,8 @@ Per-channel AXI write engine completion status.
 |-------|-------------|------|-----------------------------------------------------|
 | 31:8  | Reserved    | RO   | Reserved                                            |
 | 7:0   | WR_COMPLETE | RO   | Write completion bits [7:0] (1=complete, 0=pending) |
+
+: AXI_WR_COMPLETE
 
 ---
 
@@ -287,6 +336,8 @@ Monitor bus FIFO status indicators.
 | 1     | MON_FIFO_EMPTY | RO   | FIFO empty (1=empty, 0=data available)|
 | 0     | MON_FIFO_FULL  | RO   | FIFO full (1=full, 0=space available) |
 
+: MON_FIFO_STATUS
+
 #### MON_FIFO_COUNT (0x184)
 
 Monitor bus FIFO entry count.
@@ -295,6 +346,8 @@ Monitor bus FIFO entry count.
 |--------|------------|------|------------------------------------|
 | 31:16  | Reserved   | RO   | Reserved                           |
 | 15:0   | FIFO_COUNT | RO   | Number of entries in FIFO [15:0]   |
+
+: MON_FIFO_COUNT
 
 ---
 
@@ -309,6 +362,8 @@ Timeout threshold for scheduler (global for all channels).
 | 31:16  | Reserved        | RO   | 0x0   | Reserved                             |
 | 15:0   | TIMEOUT_CYCLES  | RW   | 1000  | Timeout in clock cycles              |
 
+: SCHED_TIMEOUT_CYCLES
+
 #### SCHED_CONFIG (0x204)
 
 Scheduler feature enables (global for all channels).
@@ -321,6 +376,8 @@ Scheduler feature enables (global for all channels).
 | 2     | ERR_EN      | RW   | 1     | Error reporting enable                   |
 | 1     | TIMEOUT_EN  | RW   | 1     | Timeout detection enable                 |
 | 0     | SCHED_EN    | RW   | 1     | Scheduler enable                         |
+
+: SCHED_CONFIG
 
 ---
 
@@ -337,6 +394,8 @@ Descriptor engine feature enables (global for all channels).
 | 1     | PREFETCH_EN   | RW   | 0     | Prefetch enable                          |
 | 0     | DESCENG_EN    | RW   | 1     | Descriptor engine enable                 |
 
+: DESCENG_CONFIG
+
 #### DESCENG_ADDR0_BASE (0x224)
 
 Base address for descriptor address range 0 (lower 32 bits).
@@ -344,6 +403,8 @@ Base address for descriptor address range 0 (lower 32 bits).
 | Bits   | Field       | Type | Reset      | Description                          |
 |--------|-------------|------|------------|--------------------------------------|
 | 31:0   | ADDR0_BASE  | RW   | 0x00000000 | Address range 0 base                 |
+
+: DESCENG_ADDR0_BASE
 
 #### DESCENG_ADDR0_LIMIT (0x228)
 
@@ -353,6 +414,8 @@ Limit address for descriptor address range 0 (lower 32 bits).
 |--------|--------------|------|------------|--------------------------------------|
 | 31:0   | ADDR0_LIMIT  | RW   | 0xFFFFFFFF | Address range 0 limit                |
 
+: DESCENG_ADDR0_LIMIT
+
 #### DESCENG_ADDR1_BASE (0x22C)
 
 Base address for descriptor address range 1 (lower 32 bits).
@@ -361,6 +424,8 @@ Base address for descriptor address range 1 (lower 32 bits).
 |--------|-------------|------|------------|--------------------------------------|
 | 31:0   | ADDR1_BASE  | RW   | 0x00000000 | Address range 1 base                 |
 
+: DESCENG_ADDR1_BASE
+
 #### DESCENG_ADDR1_LIMIT (0x230)
 
 Limit address for descriptor address range 1 (lower 32 bits).
@@ -368,6 +433,8 @@ Limit address for descriptor address range 1 (lower 32 bits).
 | Bits   | Field        | Type | Reset      | Description                          |
 |--------|--------------|------|------------|--------------------------------------|
 | 31:0   | ADDR1_LIMIT  | RW   | 0xFFFFFFFF | Address range 1 limit                |
+
+: DESCENG_ADDR1_LIMIT
 
 ---
 
@@ -386,6 +453,8 @@ Descriptor AXI master monitor enable controls.
 | 1     | ERR_EN      | RW   | 1     | Error detection enable                   |
 | 0     | MON_EN      | RW   | 1     | Master enable for descriptor monitor     |
 
+: DAXMON_ENABLE
+
 #### DAXMON_TIMEOUT (0x244)
 
 Descriptor AXI monitor timeout threshold.
@@ -393,6 +462,8 @@ Descriptor AXI monitor timeout threshold.
 | Bits   | Field           | Type | Reset  | Description                          |
 |--------|-----------------|------|--------|--------------------------------------|
 | 31:0   | TIMEOUT_CYCLES  | RW   | 10000  | Timeout in clock cycles              |
+
+: DAXMON_TIMEOUT
 
 #### DAXMON_LATENCY_THRESH (0x248)
 
@@ -402,6 +473,8 @@ Descriptor AXI monitor latency threshold.
 |--------|----------------|------|-------|---------------------------------------|
 | 31:0   | LATENCY_THRESH | RW   | 5000  | Latency threshold in clock cycles     |
 
+: DAXMON_LATENCY_THRESH
+
 #### DAXMON_PKT_MASK (0x24C)
 
 Descriptor AXI monitor packet type filtering.
@@ -410,6 +483,8 @@ Descriptor AXI monitor packet type filtering.
 |--------|-----------|------|--------|------------------------------------------|
 | 31:16  | Reserved  | RO   | 0x0    | Reserved                                 |
 | 15:0   | PKT_MASK  | RW   | 0xFFFF | Packet type mask (1=enable, 0=disable)   |
+
+: DAXMON_PKT_MASK
 
 #### DAXMON_ERR_CFG (0x250)
 
@@ -422,6 +497,8 @@ Descriptor AXI monitor error selection and filtering.
 | 7:4    | Reserved   | RO   | 0x0   | Reserved                                 |
 | 3:0    | ERR_SELECT | RW   | 0x0   | Error type selection                     |
 
+: DAXMON_ERR_CFG
+
 #### DAXMON_MASK1 (0x254)
 
 Descriptor AXI monitor timeout and completion masks.
@@ -431,6 +508,8 @@ Descriptor AXI monitor timeout and completion masks.
 | 31:16  | Reserved     | RO   | 0x0   | Reserved                       |
 | 15:8   | COMPL_MASK   | RW   | 0x00  | Completion mask                |
 | 7:0    | TIMEOUT_MASK | RW   | 0xFF  | Timeout mask                   |
+
+: DAXMON_MASK1
 
 #### DAXMON_MASK2 (0x258)
 
@@ -442,6 +521,8 @@ Descriptor AXI monitor threshold and performance masks.
 | 15:8   | PERF_MASK   | RW   | 0x00  | Performance mask               |
 | 7:0    | THRESH_MASK | RW   | 0xFF  | Threshold mask                 |
 
+: DAXMON_MASK2
+
 #### DAXMON_MASK3 (0x25C)
 
 Descriptor AXI monitor address and debug masks.
@@ -451,6 +532,8 @@ Descriptor AXI monitor address and debug masks.
 | 31:16  | Reserved   | RO   | 0x0   | Reserved                       |
 | 15:8   | DEBUG_MASK | RW   | 0x00  | Debug mask                     |
 | 7:0    | ADDR_MASK  | RW   | 0xFF  | Address mask                   |
+
+: DAXMON_MASK3
 
 ---
 
@@ -469,6 +552,8 @@ Read engine AXI master monitor enable controls.
 | 1     | ERR_EN      | RW   | 1     | Error detection enable                   |
 | 0     | MON_EN      | RW   | 1     | Master enable for read monitor           |
 
+: RDMON_ENABLE
+
 #### RDMON_TIMEOUT (0x264)
 
 Read engine AXI monitor timeout threshold.
@@ -476,6 +561,8 @@ Read engine AXI monitor timeout threshold.
 | Bits   | Field           | Type | Reset  | Description                          |
 |--------|-----------------|------|--------|--------------------------------------|
 | 31:0   | TIMEOUT_CYCLES  | RW   | 10000  | Timeout in clock cycles              |
+
+: RDMON_TIMEOUT
 
 #### RDMON_LATENCY_THRESH (0x268)
 
@@ -485,6 +572,8 @@ Read engine AXI monitor latency threshold.
 |--------|----------------|------|-------|---------------------------------------|
 | 31:0   | LATENCY_THRESH | RW   | 5000  | Latency threshold in clock cycles     |
 
+: RDMON_LATENCY_THRESH
+
 #### RDMON_PKT_MASK (0x26C)
 
 Read engine AXI monitor packet type filtering.
@@ -493,6 +582,8 @@ Read engine AXI monitor packet type filtering.
 |--------|-----------|------|--------|------------------------------------------|
 | 31:16  | Reserved  | RO   | 0x0    | Reserved                                 |
 | 15:0   | PKT_MASK  | RW   | 0xFFFF | Packet type mask (1=enable, 0=disable)   |
+
+: RDMON_PKT_MASK
 
 #### RDMON_ERR_CFG (0x270)
 
@@ -505,6 +596,8 @@ Read engine AXI monitor error selection and filtering.
 | 7:4    | Reserved   | RO   | 0x0   | Reserved                                 |
 | 3:0    | ERR_SELECT | RW   | 0x0   | Error type selection                     |
 
+: RDMON_ERR_CFG
+
 #### RDMON_MASK1 (0x274)
 
 Read engine AXI monitor timeout and completion masks.
@@ -514,6 +607,8 @@ Read engine AXI monitor timeout and completion masks.
 | 31:16  | Reserved     | RO   | 0x0   | Reserved                       |
 | 15:8   | COMPL_MASK   | RW   | 0x00  | Completion mask                |
 | 7:0    | TIMEOUT_MASK | RW   | 0xFF  | Timeout mask                   |
+
+: RDMON_MASK1
 
 #### RDMON_MASK2 (0x278)
 
@@ -525,6 +620,8 @@ Read engine AXI monitor threshold and performance masks.
 | 15:8   | PERF_MASK   | RW   | 0x00  | Performance mask               |
 | 7:0    | THRESH_MASK | RW   | 0xFF  | Threshold mask                 |
 
+: RDMON_MASK2
+
 #### RDMON_MASK3 (0x27C)
 
 Read engine AXI monitor address and debug masks.
@@ -534,6 +631,8 @@ Read engine AXI monitor address and debug masks.
 | 31:16  | Reserved   | RO   | 0x0   | Reserved                       |
 | 15:8   | DEBUG_MASK | RW   | 0x00  | Debug mask                     |
 | 7:0    | ADDR_MASK  | RW   | 0xFF  | Address mask                   |
+
+: RDMON_MASK3
 
 ---
 
@@ -552,6 +651,8 @@ Write engine AXI master monitor enable controls.
 | 1     | ERR_EN      | RW   | 1     | Error detection enable                   |
 | 0     | MON_EN      | RW   | 1     | Master enable for write monitor          |
 
+: WRMON_ENABLE
+
 #### WRMON_TIMEOUT (0x284)
 
 Write engine AXI monitor timeout threshold.
@@ -559,6 +660,8 @@ Write engine AXI monitor timeout threshold.
 | Bits   | Field           | Type | Reset  | Description                          |
 |--------|-----------------|------|--------|--------------------------------------|
 | 31:0   | TIMEOUT_CYCLES  | RW   | 10000  | Timeout in clock cycles              |
+
+: WRMON_TIMEOUT
 
 #### WRMON_LATENCY_THRESH (0x288)
 
@@ -568,6 +671,8 @@ Write engine AXI monitor latency threshold.
 |--------|----------------|------|-------|---------------------------------------|
 | 31:0   | LATENCY_THRESH | RW   | 5000  | Latency threshold in clock cycles     |
 
+: WRMON_LATENCY_THRESH
+
 #### WRMON_PKT_MASK (0x28C)
 
 Write engine AXI monitor packet type filtering.
@@ -576,6 +681,8 @@ Write engine AXI monitor packet type filtering.
 |--------|-----------|------|--------|------------------------------------------|
 | 31:16  | Reserved  | RO   | 0x0    | Reserved                                 |
 | 15:0   | PKT_MASK  | RW   | 0xFFFF | Packet type mask (1=enable, 0=disable)   |
+
+: WRMON_PKT_MASK
 
 #### WRMON_ERR_CFG (0x290)
 
@@ -588,6 +695,8 @@ Write engine AXI monitor error selection and filtering.
 | 7:4    | Reserved   | RO   | 0x0   | Reserved                                 |
 | 3:0    | ERR_SELECT | RW   | 0x0   | Error type selection                     |
 
+: WRMON_ERR_CFG
+
 #### WRMON_MASK1 (0x294)
 
 Write engine AXI monitor timeout and completion masks.
@@ -597,6 +706,8 @@ Write engine AXI monitor timeout and completion masks.
 | 31:16  | Reserved     | RO   | 0x0   | Reserved                       |
 | 15:8   | COMPL_MASK   | RW   | 0x00  | Completion mask                |
 | 7:0    | TIMEOUT_MASK | RW   | 0xFF  | Timeout mask                   |
+
+: WRMON_MASK1
 
 #### WRMON_MASK2 (0x298)
 
@@ -608,6 +719,8 @@ Write engine AXI monitor threshold and performance masks.
 | 15:8   | PERF_MASK   | RW   | 0x00  | Performance mask               |
 | 7:0    | THRESH_MASK | RW   | 0xFF  | Threshold mask                 |
 
+: WRMON_MASK2
+
 #### WRMON_MASK3 (0x29C)
 
 Write engine AXI monitor address and debug masks.
@@ -617,6 +730,8 @@ Write engine AXI monitor address and debug masks.
 | 31:16  | Reserved   | RO   | 0x0   | Reserved                       |
 | 15:8   | DEBUG_MASK | RW   | 0x00  | Debug mask                     |
 | 7:0    | ADDR_MASK  | RW   | 0xFF  | Address mask                   |
+
+: WRMON_MASK3
 
 ---
 
@@ -631,6 +746,8 @@ AXI read and write transfer burst sizes.
 | 31:16  | Reserved       | RO   | 0x0   | Reserved                                        |
 | 15:8   | WR_XFER_BEATS  | RW   | 15    | AXI write transfer beats (AWLEN: 0-255 = 1-256) |
 | 7:0    | RD_XFER_BEATS  | RW   | 15    | AXI read transfer beats (ARLEN: 0-255 = 1-256)  |
+
+: AXI_XFER_CONFIG
 
 **Usage:**
 ```c
@@ -658,6 +775,8 @@ Performance profiler enable and mode controls.
 | 2      | PERF_CLEAR  | RW   | 0     | Clear counters (write 1, self-clearing)  |
 | 1      | PERF_MODE   | RW   | 0     | Mode: 0=count, 1=histogram               |
 | 0      | PERF_EN     | RW   | 0     | Performance profiler enable              |
+
+: PERF_CONFIG
 
 **Usage:**
 ```c
@@ -757,6 +876,8 @@ for (int ch = 0; ch < 8; ch++) {
 | 0x2A0-0x2AF  | AXI transfer configuration            | 1     | RW            |
 | 0x2B0-0x2BF  | Performance profiler configuration    | 1     | RW            |
 
+: Register Summary Table
+
 **Total:** 70 registers (16 kick-off + 54 config/status)
 
 ---
@@ -786,3 +907,5 @@ This generates:
 |         |            |                | Added monitor FIFO status (0x180)                |
 |         |            |                | Added AXI transfer config (0x2A0)                |
 |         |            |                | Added performance profiler config (0x2B0)        |
+
+: PeakRDL Generation

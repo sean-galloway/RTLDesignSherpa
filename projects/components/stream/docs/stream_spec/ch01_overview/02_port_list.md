@@ -1,3 +1,26 @@
+<!-- RTL Design Sherpa Documentation Header -->
+<table>
+<tr>
+<td width="80">
+  <a href="https://github.com/sean-galloway/RTLDesignSherpa">
+    <img src="https://raw.githubusercontent.com/sean-galloway/RTLDesignSherpa/main/docs/logos/Logo_200px.png" alt="RTL Design Sherpa" width="70">
+  </a>
+</td>
+<td>
+  <strong>RTL Design Sherpa</strong> · <em>Learning Hardware Design Through Practice</em><br>
+  <sub>
+    <a href="https://github.com/sean-galloway/RTLDesignSherpa">GitHub</a> ·
+    <a href="https://github.com/sean-galloway/RTLDesignSherpa/blob/main/docs/DOCUMENTATION_INDEX.md">Documentation Index</a> ·
+    <a href="https://github.com/sean-galloway/RTLDesignSherpa/blob/main/LICENSE">MIT License</a>
+  </sub>
+</td>
+</tr>
+</table>
+
+---
+
+<!-- End Header -->
+
 # STREAM Top-Level Port List
 
 **Module:** `stream_core.sv`
@@ -38,6 +61,8 @@ For top-level integration, see the [Architecture Overview](01_architecture.md).
 | `clk` | input | 1 | System clock (100-500 MHz typical) |
 | `rst_n` | input | 1 | Active-low asynchronous reset |
 
+: Clock and Reset Signals
+
 **Notes:**
 - All STREAM logic operates in the `clk` domain
 - Reset is asynchronous assert, synchronous deassert
@@ -54,6 +79,8 @@ Per-channel descriptor kick-off interface. Each channel has independent valid/re
 | `apb_valid[ch]` | input | NUM_CHANNELS | Channel descriptor address valid |
 | `apb_ready[ch]` | output | NUM_CHANNELS | Channel ready to accept descriptor address |
 | `apb_addr[ch]` | input | NUM_CHANNELS × ADDR_WIDTH | Descriptor address per channel (64-bit default) |
+
+: APB Programming Interface Signals
 
 **Usage Pattern:**
 ```systemverilog
@@ -82,6 +109,8 @@ apb_valid[0] = 1'b0;
 | `cfg_channel_enable[ch]` | input | NUM_CHANNELS | Enable channel (0=disabled, 1=enabled) |
 | `cfg_channel_reset[ch]` | input | NUM_CHANNELS | Soft reset channel (FSM → IDLE state) |
 
+: Per-Channel Configuration Signals
+
 **Notes:**
 - Channel must be enabled before accepting descriptors
 - Soft reset clears channel FSM but preserves config
@@ -96,6 +125,8 @@ apb_valid[0] = 1'b0;
 | `cfg_sched_err_enable` | input | 1 | Enable error event reporting |
 | `cfg_sched_compl_enable` | input | 1 | Enable completion event reporting |
 | `cfg_sched_perf_enable` | input | 1 | Enable performance event reporting |
+
+: Global Scheduler Configuration Signals
 
 **Notes:**
 - `cfg_sched_enable` is master enable for all schedulers
@@ -114,6 +145,8 @@ apb_valid[0] = 1'b0;
 | `cfg_desceng_addr1_base` | input | ADDR_WIDTH | Address range 1 base (protection) |
 | `cfg_desceng_addr1_limit` | input | ADDR_WIDTH | Address range 1 limit (protection) |
 
+: Descriptor Engine Configuration Signals
+
 **Notes:**
 - Descriptor engine shared across all channels
 - Prefetch improves latency for chained descriptors
@@ -128,6 +161,8 @@ Three identical sets of monitor config signals for descriptor, read, and write A
 | `cfg_desc_mon_*` | Descriptor AXI | Descriptor fetch monitoring |
 | `cfg_rdeng_mon_*` | Read AXI | Data read monitoring |
 | `cfg_wreng_mon_*` | Write AXI | Data write monitoring |
+
+: AXI Monitor Signal Prefixes
 
 Each monitor has the following configuration signals:
 
@@ -149,6 +184,8 @@ Each monitor has the following configuration signals:
 | `_addr_mask` | 8 | Address event mask |
 | `_debug_mask` | 8 | Debug event mask |
 
+: AXI Monitor Configuration Signal Suffixes
+
 **Example Signals:**
 ```
 cfg_desc_mon_enable          // Descriptor monitor enable
@@ -169,6 +206,8 @@ cfg_wreng_mon_perf_enable    // Write engine perf reporting enable
 | `cfg_axi_rd_xfer_beats` | input | 8 | Read burst size (beats, 1-256) |
 | `cfg_axi_wr_xfer_beats` | input | 8 | Write burst size (beats, 1-256) |
 
+: AXI Transfer Configuration Signals
+
 **Notes:**
 - Configures AXI burst length for read/write engines
 - Larger bursts improve bandwidth but increase latency
@@ -181,6 +220,8 @@ cfg_wreng_mon_perf_enable    // Write engine perf reporting enable
 | `cfg_perf_enable` | input | 1 | Enable profiler |
 | `cfg_perf_mode` | input | 1 | Profiler mode (0=timestamp, 1=elapsed) |
 | `cfg_perf_clear` | input | 1 | Clear profiler counters and FIFO |
+
+: Performance Profiler Configuration Signals
 
 **Notes:**
 - Timestamp mode: Records start/end timestamps (software calculates elapsed)
@@ -201,6 +242,8 @@ cfg_wreng_mon_perf_enable    // Write engine perf reporting enable
 | `sched_error[ch]` | output | NUM_CHANNELS | Scheduler error flag (sticky, cleared by reset) |
 | `axi_rd_all_complete[ch]` | output | NUM_CHANNELS | All read transactions complete for channel |
 | `axi_wr_all_complete[ch]` | output | NUM_CHANNELS | All write transactions complete for channel |
+
+: Per-Channel Status Signals
 
 **Scheduler State Encoding (ONE-HOT):**
 ```systemverilog
@@ -232,6 +275,8 @@ channel_complete = scheduler_idle[ch] &&
 | `perf_fifo_rd` | input | 1 | Read profiler entry (pop FIFO) |
 | `perf_fifo_data_low` | output | 32 | Profiler data [31:0] (timestamp or elapsed) |
 | `perf_fifo_data_high` | output | 32 | Profiler data [63:32] (metadata) |
+
+: Performance Profiler Interface Signals
 
 **FIFO Entry Format:**
 
@@ -285,6 +330,8 @@ Fixed 256-bit width AXI4 master for descriptor fetch from memory.
 | `m_axi_desc_arvalid` | output | 1 | Address valid |
 | `m_axi_desc_arready` | input | 1 | Address ready |
 
+: Descriptor AXI Master AR Channel Signals
+
 ### R Channel (Read Data)
 
 | Signal | Direction | Width | Description |
@@ -296,6 +343,8 @@ Fixed 256-bit width AXI4 master for descriptor fetch from memory.
 | `m_axi_desc_ruser` | input | CHAN_WIDTH | User signal (channel ID) |
 | `m_axi_desc_rvalid` | input | 1 | Read data valid |
 | `m_axi_desc_rready` | output | 1 | Read data ready |
+
+: R Channel
 
 **Notes:**
 - Data width is FIXED at 256 bits (descriptor size)
@@ -327,6 +376,8 @@ Parameterizable width AXI4 master for reading source data from memory. Default 5
 | `m_axi_rd_arvalid` | output | 1 | Address valid |
 | `m_axi_rd_arready` | input | 1 | Address ready |
 
+: AR Channel
+
 ### R Channel (Read Data)
 
 | Signal | Direction | Width | Description |
@@ -338,6 +389,8 @@ Parameterizable width AXI4 master for reading source data from memory. Default 5
 | `m_axi_rd_ruser` | input | CHAN_WIDTH | User signal (channel ID) |
 | `m_axi_rd_rvalid` | input | 1 | Read data valid |
 | `m_axi_rd_rready` | output | 1 | Read data ready |
+
+: R Channel
 
 **Notes:**
 - Data width configurable via DATA_WIDTH parameter (default 512)
@@ -369,6 +422,8 @@ Parameterizable width AXI4 master for writing destination data to memory. Defaul
 | `m_axi_wr_awvalid` | output | 1 | Address valid |
 | `m_axi_wr_awready` | input | 1 | Address ready |
 
+: AW Channel
+
 ### W Channel (Write Data)
 
 | Signal | Direction | Width | Description |
@@ -380,6 +435,8 @@ Parameterizable width AXI4 master for writing destination data to memory. Defaul
 | `m_axi_wr_wvalid` | output | 1 | Write data valid |
 | `m_axi_wr_wready` | input | 1 | Write data ready |
 
+: W Channel
+
 ### B Channel (Write Response)
 
 | Signal | Direction | Width | Description |
@@ -389,6 +446,8 @@ Parameterizable width AXI4 master for writing destination data to memory. Defaul
 | `m_axi_wr_buser` | input | CHAN_WIDTH | User signal (channel ID) |
 | `m_axi_wr_bvalid` | input | 1 | Response valid |
 | `m_axi_wr_bready` | output | 1 | Response ready |
+
+: B Channel
 
 **Notes:**
 - Data width configurable via DATA_WIDTH parameter (default 512)
@@ -411,6 +470,8 @@ Parameterizable width AXI4 master for writing destination data to memory. Defaul
 | `cfg_sts_desc_mon_txn_count` | output | 32 | Total transaction count |
 | `cfg_sts_desc_mon_conflict_error` | output | 1 | ID conflict detected (sticky) |
 
+: Descriptor AXI Monitor Status
+
 ### Read Engine AXI Monitor Status
 
 | Signal | Direction | Width | Description |
@@ -421,6 +482,8 @@ Parameterizable width AXI4 master for writing destination data to memory. Defaul
 | `cfg_sts_rdeng_mon_txn_count` | output | 32 | Total transaction count |
 | `cfg_sts_rdeng_mon_conflict_error` | output | 1 | ID conflict detected (sticky) |
 
+: Read Engine AXI Monitor Status
+
 ### Write Engine AXI Monitor Status
 
 | Signal | Direction | Width | Description |
@@ -430,6 +493,8 @@ Parameterizable width AXI4 master for writing destination data to memory. Defaul
 | `cfg_sts_wreng_mon_error_count` | output | 16 | Cumulative error count |
 | `cfg_sts_wreng_mon_txn_count` | output | 32 | Total transaction count |
 | `cfg_sts_wreng_mon_conflict_error` | output | 1 | ID conflict detected (sticky) |
+
+: Write Engine AXI Monitor Status
 
 **Notes:**
 - Status signals for debug and performance analysis
@@ -448,6 +513,8 @@ Single output interface for all STREAM monitoring events.
 | `mon_valid` | output | 1 | Monitor packet valid |
 | `mon_ready` | input | 1 | Monitor packet ready (from downstream consumer) |
 | `mon_packet` | output | 64 | Monitor packet data (64-bit standard format) |
+
+: Unified Monitor Bus Interface
 
 **MonBus Packet Format (64-bit):**
 ```
@@ -503,6 +570,8 @@ gaxi_fifo_sync #(
 | AXI Write Master | 10 | 19 | 0 |
 | MonBus | 1 | 2 | 0 |
 
+: Port Count Summary
+
 **Approximate Total:** ~350 ports (varies with NUM_CHANNELS and ADDR_WIDTH/DATA_WIDTH)
 
 ---
@@ -520,6 +589,8 @@ gaxi_fifo_sync #(
 | `AR_MAX_OUTSTANDING` | 8 | Max concurrent read requests |
 | `AW_MAX_OUTSTANDING` | 8 | Max concurrent write requests |
 
+: Default Parameter Values
+
 ---
 
 ## Related Documentation
@@ -532,3 +603,17 @@ gaxi_fifo_sync #(
 
 **Last Updated:** 2025-12-01
 **Maintained By:** STREAM Architecture Team
+---
+
+## Revision History
+
+| Version | Date | Author | Description |
+|---------|------|--------|-------------|
+| 0.90 | 2025-11-22 | seang | Initial block specification |
+| 0.91 | 2026-01-02 | seang | Added table captions and figure numbers |
+
+: STREAM Top-Level Port List Revision History
+
+---
+
+**Last Updated:** 2026-01-02

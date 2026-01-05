@@ -1,3 +1,26 @@
+<!-- RTL Design Sherpa Documentation Header -->
+<table>
+<tr>
+<td width="80">
+  <a href="https://github.com/sean-galloway/RTLDesignSherpa">
+    <img src="https://raw.githubusercontent.com/sean-galloway/RTLDesignSherpa/main/docs/logos/Logo_200px.png" alt="RTL Design Sherpa" width="70">
+  </a>
+</td>
+<td>
+  <strong>RTL Design Sherpa</strong> · <em>Learning Hardware Design Through Practice</em><br>
+  <sub>
+    <a href="https://github.com/sean-galloway/RTLDesignSherpa">GitHub</a> ·
+    <a href="https://github.com/sean-galloway/RTLDesignSherpa/blob/main/docs/DOCUMENTATION_INDEX.md">Documentation Index</a> ·
+    <a href="https://github.com/sean-galloway/RTLDesignSherpa/blob/main/LICENSE">MIT License</a>
+  </sub>
+</td>
+</tr>
+</table>
+
+---
+
+<!-- End Header -->
+
 # Descriptor Engine
 
 **Module:** `descriptor_engine.sv`
@@ -69,6 +92,8 @@ typedef enum logic [2:0] {
 | [207:200] | priority | Descriptor priority |
 | [255:208] | reserved | Reserved for future use |
 
+: Descriptor Format
+
 ---
 
 ## Parameters
@@ -84,6 +109,8 @@ typedef enum logic [2:0] {
 | `DESC_ADDR_FIFO_DEPTH` | int | 2 | Descriptor address FIFO depth |
 | `TIMEOUT_CYCLES` | int | 1000 | AXI timeout threshold |
 
+: Parameters
+
 ### Monitor Bus Parameters
 
 | Parameter | Type | Default | Description |
@@ -91,6 +118,8 @@ typedef enum logic [2:0] {
 | `MON_AGENT_ID` | 8-bit | 0x10 | Descriptor Engine Agent ID |
 | `MON_UNIT_ID` | 4-bit | 0x1 | Unit identifier |
 | `MON_CHANNEL_ID` | 6-bit | 0x0 | Base channel ID |
+
+: Monitor Bus Parameters
 
 ---
 
@@ -103,6 +132,8 @@ typedef enum logic [2:0] {
 | `clk` | input | 1 | System clock |
 | `rst_n` | input | 1 | Active-low asynchronous reset |
 
+: Clock and Reset
+
 ### APB Programming Interface
 
 | Signal | Direction | Width | Description |
@@ -110,6 +141,8 @@ typedef enum logic [2:0] {
 | `apb_valid` | input | 1 | Descriptor address valid |
 | `apb_ready` | output | 1 | Ready to accept address |
 | `apb_addr` | input | ADDR_WIDTH | Descriptor address |
+
+: APB Programming Interface
 
 ### Scheduler Interface
 
@@ -121,6 +154,8 @@ typedef enum logic [2:0] {
 | `descriptor_packet` | output | 256 | FIXED 256-bit descriptor |
 | `descriptor_error` | output | 1 | Fetch error flag |
 
+: Scheduler Interface
+
 ### Enhanced Control Outputs
 
 | Signal | Direction | Width | Description |
@@ -129,6 +164,8 @@ typedef enum logic [2:0] {
 | `descriptor_eol` | output | 1 | End of Line (future use) |
 | `descriptor_eod` | output | 1 | End of Data (future use) |
 | `descriptor_type` | output | 2 | Packet type (future use) |
+
+: Enhanced Control Outputs
 
 ### AXI4 AR Channel
 
@@ -147,6 +184,8 @@ typedef enum logic [2:0] {
 | `ar_qos` | output | 4 | QoS value |
 | `ar_region` | output | 4 | Region identifier |
 
+: AXI4 AR Channel
+
 ### AXI4 R Channel (FIXED 256-bit)
 
 | Signal | Direction | Width | Description |
@@ -157,6 +196,8 @@ typedef enum logic [2:0] {
 | `r_resp` | input | 2 | Response |
 | `r_last` | input | 1 | Last beat |
 | `r_id` | input | AXI_ID_WIDTH | Transaction ID |
+
+: AXI4 R Channel
 
 ### Configuration Interface
 
@@ -170,11 +211,15 @@ typedef enum logic [2:0] {
 | `cfg_addr1_limit` | input | ADDR_WIDTH | Address range 1 limit |
 | `cfg_channel_reset` | input | 1 | Channel reset |
 
+: Configuration Interface
+
 ### Status Interface
 
 | Signal | Direction | Width | Description |
 |--------|-----------|-------|-------------|
 | `descriptor_engine_idle` | output | 1 | Engine idle |
+
+: Status Interface
 
 ### Monitor Bus Interface
 
@@ -183,6 +228,8 @@ typedef enum logic [2:0] {
 | `mon_valid` | output | 1 | Monitor packet valid |
 | `mon_ready` | input | 1 | Monitor packet ready |
 | `mon_packet` | output | 64 | Monitor packet data |
+
+: Monitor Bus Interface
 
 ---
 
@@ -223,6 +270,20 @@ ar_id = {{padding}, CHANNEL_ID};  // Channel ID in lower bits
 ar_cache = 4'b0010;       // Normal non-cacheable bufferable
 ar_prot = 3'b000;         // Data, secure, unprivileged
 ```
+
+---
+
+## Timing Diagrams
+
+### APB Kick-off Sequence
+
+The following diagram shows the APB-initiated descriptor kick-off sequence:
+
+#### Waveform 2.5.1: Descriptor Engine APB Basic Kick-off
+
+![Descriptor Engine APB Basic](../assets/wavedrom/descriptor_engine_apb_basic.svg)
+
+**Source:** [descriptor_engine_apb_basic.json](../assets/wavedrom/descriptor_engine_apb_basic.json)
 
 ---
 
@@ -311,7 +372,17 @@ descriptor_engine #(
 - **Consumer:** `04_scheduler.md` - Scheduler that receives descriptors
 - **Arbiter:** `02_scheduler_group_array.md` - Descriptor AXI arbitration
 - **APB Interface:** `13_apbtodescr.md` - APB to descriptor kick-off
+---
+
+## Revision History
+
+| Version | Date | Author | Description |
+|---------|------|--------|-------------|
+| 0.90 | 2025-11-22 | seang | Initial block specification |
+| 0.91 | 2026-01-02 | seang | Added table captions and figure numbers |
+
+: Descriptor Engine Revision History
 
 ---
 
-**Last Updated:** 2025-11-30 (verified against RTL implementation)
+**Last Updated:** 2026-01-02

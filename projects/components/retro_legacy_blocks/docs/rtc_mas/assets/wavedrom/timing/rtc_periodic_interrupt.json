@@ -1,0 +1,10 @@
+{
+  "signal": [
+    {"name": "rtc_osc", "wave": "p........"},
+    {"name": "divider", "wave": "234567890", "data": ["0", "1", "2", "...", "N-1", "0", "1", "2", "3"]},
+    {"name": "periodic_sel", "wave": "2........", "data": ["1kHz"]},
+    {"name": "periodic_tick", "wave": "0....10.."},
+    {"name": "periodic_irq", "wave": "0....10.."}
+  ],
+  "head": {"text": "RTC Periodic Interrupt"}
+}

@@ -1,0 +1,6 @@
+%%{init: {'theme': 'neutral'}}%%
+flowchart LR
+    M["Master<br/>clk_a"] --> CDC1["CDC"]
+    CDC1 --> Bridge["Bridge<br/>aclk"]
+    Bridge --> CDC2["CDC"]
+    CDC2 --> S["Slave<br/>clk_b"]

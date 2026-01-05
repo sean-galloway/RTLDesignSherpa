@@ -1,0 +1,14 @@
+{
+  "signal": [
+    {"name": "pclk", "wave": "p........"},
+    {"name": "psel", "wave": "01......0"},
+    {"name": "penable", "wave": "0.1....0."},
+    {"name": "pwrite", "wave": "0........"},
+    {"name": "paddr", "wave": "x2......x", "data": ["SEC"]},
+    {"name": "pready", "wave": "0.....1.0"},
+    {"name": "prdata", "wave": "x.....2.x", "data": ["seconds"]},
+    {},
+    {"name": "sec_reg", "wave": "2........", "data": ["45"]}
+  ],
+  "head": {"text": "RTC Time Read"}
+}

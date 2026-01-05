@@ -1,0 +1,11 @@
+{
+  "signal": [
+    {"name": "pclk", "wave": "p........"},
+    {"name": "gpio_in", "wave": "1...0...."},
+    {"name": "gpio_in_prev", "wave": "1....0..."},
+    {"name": "edge_detect", "wave": "0....10.."},
+    {"name": "int_status", "wave": "0.....1.."},
+    {"name": "irq", "wave": "0.....1.."}
+  ],
+  "head": {"text": "GPIO Falling Edge Interrupt"}
+}

@@ -1,0 +1,11 @@
+{
+  "signal": [
+    {"name": "pclk", "wave": "p........"},
+    {"name": "gpio_in_ext", "wave": "0.1......"},
+    {"name": "sync_ff1", "wave": "0..1....."},
+    {"name": "sync_ff2", "wave": "0...1...."},
+    {"name": "gpio_in", "wave": "0....1..."}
+  ],
+  "head": {"text": "GPIO Input Synchronization (2-FF)"},
+  "edge": ["sync_ff1<->sync_ff2 metastability window"]
+}

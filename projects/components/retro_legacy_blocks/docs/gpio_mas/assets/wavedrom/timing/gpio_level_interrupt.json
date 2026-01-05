@@ -1,0 +1,10 @@
+{
+  "signal": [
+    {"name": "pclk", "wave": "p........"},
+    {"name": "gpio_in", "wave": "0..1..0.."},
+    {"name": "level_cfg", "wave": "1........", "data": ["HIGH"]},
+    {"name": "int_status", "wave": "0..1..0.."},
+    {"name": "irq", "wave": "0..1..0.."}
+  ],
+  "head": {"text": "GPIO Level-Sensitive Interrupt"}
+}

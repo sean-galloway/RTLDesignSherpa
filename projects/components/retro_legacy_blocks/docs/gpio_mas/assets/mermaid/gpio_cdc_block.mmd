@@ -1,0 +1,25 @@
+%%{init: {'theme': 'neutral'}}%%
+flowchart LR
+    subgraph PCLK["pclk Domain"]
+        APB["APB Interface"]
+        REGS["Register File"]
+    end
+
+    subgraph CDC["CDC Crossing"]
+        CTRL_SYNC["Control Sync<br/>(2-stage FF)"]
+        DATA_SYNC["Data Sync<br/>(Skid Buffer)"]
+    end
+
+    subgraph GPIO_CLK["gpio_clk Domain"]
+        CORE["GPIO Core"]
+        INT_LOGIC["Interrupt Logic"]
+        IO["GPIO I/O"]
+    end
+
+    APB --> REGS
+    REGS --> CTRL_SYNC
+    CTRL_SYNC --> CORE
+    CORE --> DATA_SYNC
+    DATA_SYNC --> REGS
+    CORE --> INT_LOGIC
+    CORE <--> IO
