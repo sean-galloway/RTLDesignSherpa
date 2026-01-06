@@ -401,7 +401,7 @@ Master 0 → Address 0x00001000 → Slave 0
 - Framework: `bin/CocoTBFramework/components/axi4/`
 
 ### Documentation
-- Configuration Guide: [AXI_Monitor_Configuration_Guide.md](../../AXI_Monitor_Configuration_Guide.md)
+- Configuration Guide: [AXI Monitor Base](../shared/axi_monitor_base.md)
 - Architecture: [RTLAmba Overview](../overview.md)
 - AXI4 Index: [README.md](README.md)
 
@@ -414,5 +414,5 @@ Master 0 → Address 0x00001000 → Slave 0
 ## Navigation
 
 - **[← Back to AXI4 Index](README.md)**
-- **[← Back to RTLAmba Index](../README.md)**
+- **[← Back to RTLAmba Index](../index.md)**
 - **[← Back to Main Documentation Index](../../index.md)**

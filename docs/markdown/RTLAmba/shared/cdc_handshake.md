@@ -583,4 +583,4 @@ cdc_handshake #(.WIDTH(8)) u_ctrl_cdc (...);
 ## Navigation
 
 - [Back to Shared Infrastructure Index](README.md)
-- [Back to RTLAmba Index](../README.md)
+- [Back to RTLAmba Index](../index.md)

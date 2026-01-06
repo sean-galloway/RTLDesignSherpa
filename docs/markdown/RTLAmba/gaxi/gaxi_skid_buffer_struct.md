@@ -413,4 +413,4 @@ Same as **gaxi_skid_buffer** with equivalent DATA_WIDTH:
 ## Navigation
 
 - **[← Back to GAXI Index](README.md)**
-- **[← Back to RTLAmba Index](../README.md)**
+- **[← Back to RTLAmba Index](../index.md)**

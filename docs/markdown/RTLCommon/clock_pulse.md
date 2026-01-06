@@ -977,4 +977,4 @@ The clock pulse generator provides a simple, reliable solution for periodic timi
 ## Navigation
 
 - **[← Back to RTLCommon Index](index.md)**
-- **[← Back to Main Documentation Index](../../index.md)**
+- **[← Back to Main Documentation Index](../index.md)**

@@ -385,4 +385,4 @@ When WAIT_GNT_ACK=1, the arbiter waits for grant_ack before issuing next grant. 
 ## Navigation
 
 - [Back to Shared Infrastructure Index](README.md)
-- [Back to RTLAmba Index](../README.md)
+- [Back to RTLAmba Index](../index.md)

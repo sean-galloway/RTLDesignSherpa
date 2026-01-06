@@ -190,4 +190,4 @@ encoder_priority_enable #(.WIDTH(4)) error_encoder (
 ## Navigation
 
 - **[← Back to RTLCommon Index](index.md)**
-- **[← Back to Main Documentation Index](../../index.md)**
+- **[← Back to Main Documentation Index](../index.md)**

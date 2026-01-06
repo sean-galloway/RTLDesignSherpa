@@ -36,18 +36,18 @@ CocoTBFramework/tbclasses/amba/
 ```
 
 ## Overview
-- [**Overview**](overview.md) - Complete overview of the AMBA testbench utilities
+- [**Overview**](tbclasses_amba_amba_overview.md) - Complete overview of the AMBA testbench utilities
 
 ## Component Documentation
 
 ### Clock Gating Management
-- [**amba_cg_ctrl.py**](amba_cg_ctrl.md) - AXI Clock Gate Controller for managing clock gating based on protocol activity
+- [**amba_cg_ctrl.py**](tbclasses_amba_amba_cg_ctrl.md) - AXI Clock Gate Controller for managing clock gating based on protocol activity
 
 ### Randomization Configuration
-- [**amba_random_configs.py**](amba_random_configs.md) - Predefined randomization configurations for APB, AXI, and other AMBA protocols
+- [**amba_random_configs.py**](tbclasses_amba_amba_random_configs.md) - Predefined randomization configurations for APB, AXI, and other AMBA protocols
 
 ### Clock Domain Crossing Verification
-- [**cdc_handshake.py**](cdc_handshake.md) - CDC Handshake Testbench for cross-domain protocol verification with sophisticated randomization
+- [**cdc_handshake.py**](tbclasses_amba_cdc_handshake.md) - CDC Handshake Testbench for cross-domain protocol verification with sophisticated randomization
 
 ## Quick Start
 
@@ -217,5 +217,5 @@ power_config = {'idle_count': 4}  # Aggressive power gating
 ```
 
 ## Navigation
-- [**Back to tbclasses**](../index.md) - Return to main tbclasses index
+- [**Back to tbclasses**](../tbclasses_index.md) - Return to main tbclasses index
 - [**Back to CocoTBFramework**](../../index.md) - Return to main framework index

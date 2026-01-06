@@ -226,4 +226,4 @@ The same polynomial can be used for both Fibonacci and Galois LFSRs, but they wi
 ## Navigation
 
 - **[← Back to RTLCommon Index](index.md)**
-- **[← Back to Main Documentation Index](../../index.md)**
+- **[← Back to Main Documentation Index](../index.md)**

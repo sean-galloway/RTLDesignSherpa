@@ -49,7 +49,7 @@ The WaveDrom infrastructure provides automated timing diagram generation for dig
 ### Getting Started
 - **[Quick Start Guide](wavedrom_quick_start.md)** - Get running in 5 minutes
 - **[Protocol Presets](wavedrom_protocol_presets.md)** - GAXI, APB, AXI4, AXIL4, AXIS examples
-- **[GAXI Tutorial](../../TestTutorial/wavedrom_gaxi_example.md)** - Complete walkthrough with 6 scenarios
+- **Wavedrom GAXI Example *(see TestTutorial)*** - Complete walkthrough with 6 scenarios
 
 ### Core Concepts
 - **[Auto-Binding Guide](wavedrom_auto_binding.md)** - SignalResolver integration
@@ -57,8 +57,8 @@ The WaveDrom infrastructure provides automated timing diagram generation for dig
 - **[Requirements & Best Practices](wavedrom_requirements.md)** - Design rules for quality diagrams
 
 ### Advanced Topics
-- **[Troubleshooting](wavedrom_troubleshooting.md)** - Common issues and solutions
-- **[VCD Conversion](../../Scripts/vcd2wavedrom2.md)** - Convert VCD files to WaveJSON
+- **Wavedrom Troubleshooting *(documentation planned)*** - Common issues and solutions
+- **vcd2wavedrom2 Script *(see Scripts)*** - Convert VCD files to WaveJSON
 
 ---
 
@@ -163,9 +163,9 @@ graph TB
 ## Next Steps
 
 1. **New Users**: Start with [Quick Start Guide](wavedrom_quick_start.md)
-2. **GAXI Users**: Follow [GAXI Tutorial](../../TestTutorial/wavedrom_gaxi_example.md)
+2. **GAXI Users**: Follow Wavedrom GAXI Example *(see TestTutorial)*
 3. **Other Protocols**: See [Protocol Presets](wavedrom_protocol_presets.md)
-4. **Troubleshooting**: Check [Troubleshooting Guide](wavedrom_troubleshooting.md)
+4. **Troubleshooting**: Check Wavedrom Troubleshooting *(documentation planned)*
 
 ---
 
@@ -183,4 +183,4 @@ graph TB
 - [CocoTB Framework Overview](../components_overview.md)
 - [Field Configuration](../shared/components_shared_field_config.md)
 - [Signal Mapping Helper](../shared/components_shared_signal_mapping_helper.md)
-- [Test Tutorial Index](../../TestTutorial/index.md)
+- TestTutorial Index *(documentation planned)*

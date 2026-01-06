@@ -36,17 +36,17 @@ CocoTBFramework/tbclasses/misc/
 ```
 
 ## Overview
-- [**Overview**](overview.md) - Complete overview of the misc utilities directory
+- [**Overview**](tbclasses_misc_overview.md) - Complete overview of the misc utilities directory
 
 ## Component Documentation
 
 ### Core Testbench Infrastructure
-- [**tbbase.py**](tbbase.md) - Base testbench class providing common infrastructure and utilities for all testbenches
-- [**utilities.py**](utilities.md) - Common utilities for path management, environment setup, and waveform viewing
+- [**tbbase.py**](tbclasses_misc_tbbase.md) - Base testbench class providing common infrastructure and utilities for all testbenches
+- [**utilities.py**](tbclasses_misc_utilities.md) - Common utilities for path management, environment setup, and waveform viewing
 
 ### Advanced Monitoring and Analysis
-- [**advanced_monitoring.py**](advanced_monitoring.md) - Advanced monitoring capabilities with profiling, debugging, and comprehensive reporting
-- [**monbus_components.py**](monbus_components.md) - Monitor bus components for protocol-agnostic monitoring and event tracking
+- [**advanced_monitoring.py**](tbclasses_misc_advanced_monitoring.md) - Advanced monitoring capabilities with profiling, debugging, and comprehensive reporting
+- [**monbus_components.py**](tbclasses_misc_monbus_components.md) - Monitor bus components for protocol-agnostic monitoring and event tracking
 
 ## Quick Start
 
@@ -182,5 +182,5 @@ class ComprehensiveTestbench(TBBase):
 ```
 
 ## Navigation
-- [**Back to tbclasses**](../index.md) - Return to main tbclasses index
+- [**Back to tbclasses**](../tbclasses_index.md) - Return to main tbclasses index
 - [**Back to CocoTBFramework**](../../index.md) - Return to main framework index

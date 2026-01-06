@@ -319,5 +319,5 @@ See [apb_monitor.md](apb_monitor.md) for detailed packet format.
 
 ## Navigation
 
-- **[← Back to RTLAmba Index](../README.md)**
+- **[← Back to RTLAmba Index](../index.md)**
 - **[← Back to Main Documentation Index](../../index.md)**

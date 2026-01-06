@@ -69,7 +69,7 @@ done
 # ------------------------------------------------------------
 # Build filenames dynamically
 # ------------------------------------------------------------
-OUTPUT_BASENAME="STREAM_Specification_v${REV}"
+OUTPUT_BASENAME="STREAM_MAS_v${REV}"
 OUTPUT_DOCX="${OUTPUT_BASENAME}.docx"
 OUTPUT_PDF="${OUTPUT_BASENAME}.pdf"
 

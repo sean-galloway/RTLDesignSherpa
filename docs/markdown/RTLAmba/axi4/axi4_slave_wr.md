@@ -520,5 +520,5 @@ On `aresetn` assertion (active-low):
 ## Navigation
 
 - **[← Back to AXI4 Index](README.md)**
-- **[← Back to RTLAmba Index](../README.md)**
+- **[← Back to RTLAmba Index](../index.md)**
 - **[← Back to Main Documentation Index](../../index.md)**

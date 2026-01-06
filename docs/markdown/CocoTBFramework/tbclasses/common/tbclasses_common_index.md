@@ -83,10 +83,10 @@ async def test_adder(dut):
 
 ## Documentation
 
-- [Overview](overview.md) - Detailed framework overview
-- [Adder Testing](adder_testing.md) - Adder testbench documentation
-- [CAM Testing](cam_testing.md) - CAM testbench documentation  
-- [CRC Testing](crc_testing.md) - CRC testbench documentation
-- [Divider Testing](divider_testing.md) - Divider testbench documentation
-- [Multiplier Testing](multiplier_testing.md) - Multiplier testbench documentation
-- [Subtractor Testing](subtractor_testing.md) - Subtractor testbench documentation
+- [Overview](tbclasses_common_overview.md) - Detailed framework overview
+- [Adder Testing](tbclasses_common_adder_testing.md) - Adder testbench documentation
+- [CAM Testing](tbclasses_common_cam_testing.md) - CAM testbench documentation  
+- [CRC Testing](tbclasses_common_crc_testing.md) - CRC testbench documentation
+- [Divider Testing](tbclasses_common_divider_testing.md) - Divider testbench documentation
+- [Multiplier Testing](tbclasses_common_multiplier_testing.md) - Multiplier testbench documentation
+- [Subtractor Testing](tbclasses_common_subtractor_testing.md) - Subtractor testbench documentation

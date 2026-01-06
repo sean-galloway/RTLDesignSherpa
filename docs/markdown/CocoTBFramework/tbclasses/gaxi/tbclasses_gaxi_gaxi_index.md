@@ -39,22 +39,22 @@ CocoTBFramework/tbclasses/gaxi/
 ```
 
 ## Overview
-- [**Overview**](overview.md) - Complete overview of GAXI testbench components
+- [**Overview**](tbclasses_gaxi_gaxi_overview.md) - Complete overview of GAXI testbench components
 
 ## Component Documentation
 
 ### Core Buffer Testbenches
-- [**gaxi_buffer.py**](gaxi_buffer.md) - Basic GAXI buffer testbench with FlexConfigGen integration
-- [**gaxi_buffer_field.py**](gaxi_buffer_field.md) - Field-based GAXI buffer testbench for multi-field testing
-- [**gaxi_buffer_multi.py**](gaxi_buffer_multi.md) - Multi-signal GAXI buffer testbench with enhanced timing
-- [**gaxi_buffer_multi_sigmap.py**](gaxi_buffer_multi_sigmap.md) - Multi-signal GAXI buffer testbench with signal mapping
+- [**gaxi_buffer.py**](tbclasses_gaxi_gaxi_buffer.md) - Basic GAXI buffer testbench with FlexConfigGen integration
+- [**gaxi_buffer_field.py**](tbclasses_gaxi_gaxi_buffer_field.md) - Field-based GAXI buffer testbench for multi-field testing
+- [**gaxi_buffer_multi.py**](tbclasses_gaxi_gaxi_buffer_multi.md) - Multi-signal GAXI buffer testbench with enhanced timing
+- [**gaxi_buffer_multi_sigmap.py**](tbclasses_gaxi_gaxi_buffer_multi_sigmap.md) - Multi-signal GAXI buffer testbench with signal mapping
 
 ### Configuration and Sequences
-- [**gaxi_buffer_configs.py**](gaxi_buffer_configs.md) - Shared field configurations for GAXI buffer tests
-- [**gaxi_buffer_seq.py**](gaxi_buffer_seq.md) - Extended sequence generators for GAXI buffer testing
+- [**gaxi_buffer_configs.py**](tbclasses_gaxi_gaxi_buffer_configs.md) - Shared field configurations for GAXI buffer tests
+- [**gaxi_buffer_seq.py**](tbclasses_gaxi_gaxi_buffer_seq.md) - Extended sequence generators for GAXI buffer testing
 
 ### Specialized Testbenches
-- [**gaxi_data_collect_tb.py**](gaxi_data_collect_tb.md) - Enhanced testbench for GAXI data collection modules
+- [**gaxi_data_collect_tb.py**](tbclasses_gaxi_gaxi_data_collect_tb.md) - Enhanced testbench for GAXI data collection modules
 
 ## Quick Start
 

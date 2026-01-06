@@ -544,4 +544,4 @@ The module enforces several critical assumptions for correct operation:
 ## Navigation
 
 - [Back to Shared Infrastructure Index](README.md)
-- [Back to RTLAmba Index](../README.md)
+- [Back to RTLAmba Index](../index.md)

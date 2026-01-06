@@ -39,19 +39,19 @@ CocoTBFramework/tbclasses/axi_splitter/
 ```
 
 ## Overview
-- [**Overview**](overview.md) - Complete overview of the AXI splitter testbench framework
+- [**Overview**](tbclasses_axi_splitter_overview.md) - Complete overview of the AXI splitter testbench framework
 
 ## Component Documentation
 
 ### AXI Read Splitter Components
-- [**axi_read_splitter_packets.py**](axi_read_splitter_packets.md) - Packet definitions and field configurations for AXI read transactions
-- [**axi_read_splitter_scoreboard.py**](axi_read_splitter_scoreboard.md) - Scoreboard for tracking and verifying AXI read transaction splits
-- [**axi_read_splitter_tb.py**](axi_read_splitter_tb.md) - Main testbench for AXI read splitter verification
+- [**axi_read_splitter_packets.py**](tbclasses_axi_splitter_axi_read_splitter_packets.md) - Packet definitions and field configurations for AXI read transactions
+- [**axi_read_splitter_scoreboard.py**](tbclasses_axi_splitter_axi_read_splitter_scoreboard.md) - Scoreboard for tracking and verifying AXI read transaction splits
+- [**axi_read_splitter_tb.py**](tbclasses_axi_splitter_axi_read_splitter_tb.md) - Main testbench for AXI read splitter verification
 
 ### AXI Write Splitter Components  
-- [**axi_write_splitter_packets.py**](axi_write_splitter_packets.md) - Packet definitions and field configurations for AXI write transactions
-- [**axi_write_splitter_scoreboard.py**](axi_write_splitter_scoreboard.md) - Scoreboard for tracking and verifying AXI write transaction splits
-- [**axi_write_splitter_tb.py**](axi_write_splitter_tb.md) - Main testbench for AXI write splitter verification
+- [**axi_write_splitter_packets.py**](tbclasses_axi_splitter_axi_write_splitter_packets.md) - Packet definitions and field configurations for AXI write transactions
+- [**axi_write_splitter_scoreboard.py**](tbclasses_axi_splitter_axi_write_splitter_scoreboard.md) - Scoreboard for tracking and verifying AXI write transaction splits
+- [**axi_write_splitter_tb.py**](tbclasses_axi_splitter_axi_write_splitter_tb.md) - Main testbench for AXI write splitter verification
 
 ## Quick Start
 

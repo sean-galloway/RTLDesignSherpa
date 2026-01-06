@@ -26,24 +26,24 @@
 This directory contains testbench classes that provide high-level testbench functionality and specialized verification environments for the CocoTBFramework. These classes operate at the testbench orchestration level, managing complex verification scenarios and providing comprehensive testing capabilities.
 
 ## Overview
-- [**Overview**](overview.md) - Complete overview of the tbclasses directory and testbench architecture
+- [**Overview**](tbclasses_overview.md) - Complete overview of the tbclasses directory and testbench architecture
 
 ## Testbench Categories
 
 ### Protocol-Specific Testbenches
-- [**APB Testbenches**](apb/index.md) - APB protocol testbench classes for command handling, configuration management, and register testing
-- [**FIFO Testbenches**](fifo/index.md) - FIFO protocol testbench classes for buffer verification with comprehensive field and signal support
-- [**GAXI Testbenches**](gaxi/index.md) - GAXI protocol testbench classes for Generic AXI-like buffer components and data collection
+- [**APB Testbenches**](apb/tbclasses_apb_index.md) - APB protocol testbench classes for command handling, configuration management, and register testing
+- [**FIFO Testbenches**](fifo/tbclasses_fifo_fifo_testbench_index.md) - FIFO protocol testbench classes for buffer verification with comprehensive field and signal support
+- [**GAXI Testbenches**](gaxi/tbclasses_gaxi_gaxi_index.md) - GAXI protocol testbench classes for Generic AXI-like buffer components and data collection
 
 ### Specialized Verification
-- [**AMBA Testbenches**](amba/index.md) - AMBA protocol utilities including clock gating control, randomization configurations, and CDC verification
-- [**AXI Splitter**](axi_splitter/index.md) - Specialized testbenches for verifying AXI transaction splitting functionality across memory boundaries
+- [**AMBA Testbenches**](amba/tbclasses_amba_amba_index.md) - AMBA protocol utilities including clock gating control, randomization configurations, and CDC verification
+- [**AXI Splitter**](axi_splitter/tbclasses_axi_splitter_index.md) - Specialized testbenches for verifying AXI transaction splitting functionality across memory boundaries
 
 ### Common Testing Modules
-- [**Common Testbenches**](common/index.md) - Comprehensive testing modules for digital circuit components including arithmetic, memory, and protocol testing
+- [**Common Testbenches**](common/tbclasses_common_index.md) - Comprehensive testing modules for digital circuit components including arithmetic, memory, and protocol testing
 
 ### Infrastructure & Utilities
-- [**Misc Utilities**](misc/index.md) - Essential testbench infrastructure including base classes, advanced monitoring, and protocol-agnostic utilities
+- [**Misc Utilities**](misc/tbclasses_misc_index.md) - Essential testbench infrastructure including base classes, advanced monitoring, and protocol-agnostic utilities
 
 ## Quick Start
 

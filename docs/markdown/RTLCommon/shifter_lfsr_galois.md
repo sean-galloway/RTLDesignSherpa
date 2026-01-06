@@ -266,4 +266,4 @@ For a polynomial P(x) = x^n + x^a + x^b + ... + 1:
 ## Navigation
 
 - **[← Back to RTLCommon Index](index.md)**
-- **[← Back to Main Documentation Index](../../index.md)**
+- **[← Back to Main Documentation Index](../index.md)**

@@ -519,4 +519,4 @@ set_max_delay -from [get_pins */cdc_handshake/src_*] \
 ## Navigation
 
 - **[← Back to Shims Index](README.md)**
-- **[← Back to RTLAmba Index](../README.md)**
+- **[← Back to RTLAmba Index](../index.md)**

@@ -168,7 +168,7 @@ Each documentation file should follow this structure (see axi_monitor_base.md as
 ## Navigation
 
 - [Back to Shared Infrastructure Index](README.md)
-- [Back to RTLAmba Index](../README.md)
+- [Back to RTLAmba Index](../index.md)
 ```
 
 ---

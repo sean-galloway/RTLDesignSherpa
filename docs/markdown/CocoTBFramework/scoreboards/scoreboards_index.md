@@ -26,22 +26,22 @@
 This directory contains scoreboard implementations for verifying transactions across different protocols in the CocoTBFramework. Scoreboards provide automated comparison between expected and actual transactions, protocol compliance checking, and comprehensive reporting.
 
 ## Overview
-- [**Overview**](overview.md) - Complete overview of the scoreboards directory and verification architecture
+- [**Overview**](scoreboards_overview.md) - Complete overview of the scoreboards directory and verification architecture
 
 ## Core Documentation
 
 ### Base Framework
-- [**base_scoreboard.py**](base_scoreboard.md) - Base scoreboard class and protocol transformer framework providing common functionality for all scoreboards
+- [**base_scoreboard.py**](scoreboards_base_scoreboard.md) - Base scoreboard class and protocol transformer framework providing common functionality for all scoreboards
 
 ### Protocol-Specific Scoreboards
-- [**apb_scoreboard.py**](apb_scoreboard.md) - APB (Advanced Peripheral Bus) transaction verification with multi-slave support
-- [**axi4_scoreboard.py**](axi4_scoreboard.md) - AXI4 protocol transaction verification with ID tracking and channel separation
-- [**fifo_scoreboard.py**](fifo_scoreboard.md) - FIFO protocol transaction verification with memory integration
-- [**gaxi_scoreboard.py**](gaxi_scoreboard.md) - GAXI (Generic AXI) protocol transaction verification with field-based comparison
+- [**apb_scoreboard.py**](scoreboards_apb_scoreboard.md) - APB (Advanced Peripheral Bus) transaction verification with multi-slave support
+- [**axi4_scoreboard.py**](scoreboards_axi4_scoreboard.md) - AXI4 protocol transaction verification with ID tracking and channel separation
+- [**fifo_scoreboard.py**](scoreboards_fifo_scoreboard.md) - FIFO protocol transaction verification with memory integration
+- [**gaxi_scoreboard.py**](scoreboards_gaxi_scoreboard.md) - GAXI (Generic AXI) protocol transaction verification with field-based comparison
 
 ### Cross-Protocol Verification
-- [**apb_gaxi_scoreboard.py**](apb_gaxi_scoreboard.md) - APB-GAXI protocol bridge verification with three-phase matching
-- [**apb_gaxi_transformer.py**](apb_gaxi_transformer.md) - Bidirectional protocol transformation between APB and GAXI
+- [**apb_gaxi_scoreboard.py**](scoreboards_apb_gaxi_scoreboard.md) - APB-GAXI protocol bridge verification with three-phase matching
+- [**apb_gaxi_transformer.py**](scoreboards_apb_gaxi_transformer.md) - Bidirectional protocol transformation between APB and GAXI
 
 ## Quick Start
 

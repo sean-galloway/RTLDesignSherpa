@@ -269,4 +269,4 @@ find_first_set #(.WIDTH(NUM_RULES)) rule_matcher (
 ## Navigation
 
 - **[← Back to RTLCommon Index](index.md)**
-- **[← Back to Main Documentation Index](../../index.md)**
+- **[← Back to Main Documentation Index](../index.md)**

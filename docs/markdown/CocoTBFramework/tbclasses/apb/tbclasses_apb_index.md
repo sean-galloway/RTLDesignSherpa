@@ -35,16 +35,16 @@ CocoTBFramework/tbclasses/apb/
 ```
 
 ## Overview
-- [**Overview**](overview.md) - Complete overview of the APB testbench classes directory
+- [**Overview**](tbclasses_apb_overview.md) - Complete overview of the APB testbench classes directory
 
 ## Core Components
 
 ### Command and Control
-- [**apb_command_handler.py**](apb_command_handler.md) - APB slave command/response interface handler
-- [**apbgaxiconfig.py**](apbgaxiconfig.md) - APB-GAXI configuration factory with field configurations
+- [**apb_command_handler.py**](tbclasses_apb_apb_command_handler_guide.md) - APB slave command/response interface handler
+- [**apbgaxiconfig.py**](tbclasses_apb_apbgaxiconfig_guide.md) - APB-GAXI configuration factory with field configurations
 
 ### Register Management
-- [**register_map.py**](register_map.md) - Register information handling and transaction generation
+- [**register_map.py**](tbclasses_apb_register_map_guide.md) - Register information handling and transaction generation
 
 ## Quick Start
 
@@ -94,5 +94,5 @@ write_transactions = reg_map.generate_write_even_transactions()
 ```
 
 ## Navigation
-- [**Back to tbclasses**](../index.md) - Return to tbclasses index
+- [**Back to tbclasses**](../tbclasses_index.md) - Return to tbclasses index
 - [**Back to CocoTBFramework**](../../index.md) - Return to main framework index

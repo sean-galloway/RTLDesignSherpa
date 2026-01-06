@@ -33,24 +33,24 @@ The AXI4 component ecosystem includes specialized interfaces and utilities for c
 
 ### Core Interface Components
 
-- **[AXI4MasterRead](axi4_master_read.md)** - Master read interface (AR/R channels)
-- **[AXI4MasterWrite](axi4_master_write.md)** - Master write interface (AW/W/B channels)
-- **[AXI4SlaveRead](axi4_slave_read.md)** - Slave read interface (AR/R channels)
-- **[AXI4SlaveWrite](axi4_slave_write.md)** - Slave write interface (AW/W/B channels)
+- **AXI4MasterRead** - Master read interface (AR/R channels)
+- **AXI4MasterWrite** - Master write interface (AW/W/B channels)
+- **AXI4SlaveRead** - Slave read interface (AR/R channels)
+- **AXI4SlaveWrite** - Slave write interface (AW/W/B channels)
 
 ### Data Structure and Configuration
 
-- **[AXI4Packet](axi4_packet.md)** - Transaction packet management
-- **[AXI4FieldConfigs](axi4_field_configs.md)** - Protocol field configuration system
-- **[AXI4Transaction](axi4_transaction.md)** - High-level transaction representation
+- **AXI4Packet** - Transaction packet management
+- **AXI4FieldConfigs** - Protocol field configuration system
+- **AXI4Transaction** - High-level transaction representation
 
 ### Advanced Features
 
-- **[AXI4ComplianceChecker](axi4_compliance_checker.md)** - Protocol compliance verification
-- **[AXI4Factories](axi4_factories.md)** - Component factory methods
-- **[AXI4PacketUtils](axi4_packet_utils.md)** - Packet manipulation utilities
-- **[AXI4RandomizationConfig](axi4_randomization_config.md)** - Randomization configuration
-- **[AXI4TimingConfig](axi4_timing_config.md)** - Timing constraint configuration
+- **AXI4ComplianceChecker** - Protocol compliance verification
+- **AXI4Factories** - Component factory methods
+- **AXI4PacketUtils** - Packet manipulation utilities
+- **AXI4RandomizationConfig** - Randomization configuration
+- **AXI4TimingConfig** - Timing constraint configuration
 
 ## Key Features
 
@@ -148,9 +148,9 @@ graph TB
 
 - **[Overview](components_axi4_overview.md)** - Comprehensive component architecture and capabilities
 - **Interface References** - Detailed documentation for each AXI4 interface class
-- **[Usage Examples](axi4_examples.md)** - Practical implementation patterns and scenarios
-- **[Configuration Guide](axi4_configuration.md)** - Field configuration and customization options
-- **[Compliance Guide](axi4_compliance.md)** - Protocol compliance checking and verification
+- **Usage Examples** - See code examples above
+- **Configuration Guide** - Field configuration and customization options
+- **Compliance Guide** - Protocol compliance checking and verification
 
 ## Advanced Use Cases
 

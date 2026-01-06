@@ -327,7 +327,7 @@ setup_gaxi_constraints_with_boundaries(
 
 ## Next Steps
 
-- **Full Tutorial**: [GAXI WaveDrom Example](../../TestTutorial/wavedrom_gaxi_example.md)
+- **Full Tutorial**: Wavedrom GAXI Example *(see TestTutorial)*
 - **Protocol Presets**: [All Supported Protocols](wavedrom_protocol_presets.md)
 - **Auto-Binding Details**: [Auto-Binding Guide](wavedrom_auto_binding.md)
 - **Advanced Techniques**: [Segmented Capture](wavedrom_segmented_capture.md)

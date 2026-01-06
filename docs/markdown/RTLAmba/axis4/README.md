@@ -519,5 +519,5 @@ Clock-gated variants (`*_cg`) add power management:
 
 ## Navigation
 
-- **[← Back to RTLAmba Index](../README.md)**
+- **[← Back to RTLAmba Index](../index.md)**
 - **[← Back to Main Documentation Index](../../index.md)**

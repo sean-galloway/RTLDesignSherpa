@@ -536,5 +536,5 @@ gaxi_fifo_async #(
 
 ## Navigation
 
-- **[← Back to RTLAmba Index](../README.md)**
+- **[← Back to RTLAmba Index](../index.md)**
 - **[← Back to Main Documentation Index](../../index.md)**

@@ -26,7 +26,7 @@
 This directory contains the APB (Advanced Peripheral Bus) protocol components for the CocoTBFramework. These components provide comprehensive support for APB protocol verification with masters, slaves, monitors, and testing utilities.
 
 ## Overview
-- [**Overview**](overview.md) - Complete overview of the APB components directory
+- [**Overview**](components_apb_overview.md) - Complete overview of the APB components directory
 
 ## Core Components
 
@@ -36,8 +36,8 @@ This directory contains the APB (Advanced Peripheral Bus) protocol components fo
 - [**apb_sequence.py**](components_apb_apb_sequence.md) - APB test sequence generation and management
 
 ### Factory Functions & Utilities
-- [**apb_factories.py**](components_apb_apb_factories.md) - Factory functions for creating and configuring APB components
+- **apb_factories.py** - Factory functions for creating and configuring APB components *(documentation planned)*
 
 ## Navigation
 - [**Back to Components**](../components_index.md) - Return to main components index
-- [**Back to CocoTBFramework**](../../index.md) - Return to main framework index
+- [**Back to CocoTBFramework**](../components_index.md) - Return to main framework index

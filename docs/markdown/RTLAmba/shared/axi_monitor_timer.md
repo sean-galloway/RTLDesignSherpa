@@ -469,7 +469,7 @@ Use shared timer unless monitors operate at different frequencies or in differen
 - Tests: `val/amba/test_axi4_master_rd_mon.py` (integration)
 
 ### Configuration Guides
-- `docs/AXI_Monitor_Configuration_Guide.md` - Timeout configuration
+- [Monitor Base Configuration](./axi_monitor_base.md) - Timeout configuration
 - `rtl/amba/PRD.md` - Subsystem requirements
 
 ---
@@ -483,4 +483,4 @@ Use shared timer unless monitors operate at different frequencies or in differen
 - [Back to axi_monitor_base](axi_monitor_base.md)
 - [Previous: axi_monitor_timeout](axi_monitor_timeout.md)
 - [Back to Shared Infrastructure Index](README.md)
-- [Back to RTLAmba Index](../README.md)
+- [Back to RTLAmba Index](../index.md)

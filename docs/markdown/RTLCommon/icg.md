@@ -318,4 +318,4 @@ The `icg` module provides a fundamental building block for power-efficient digit
 ## Navigation
 
 - **[← Back to RTLCommon Index](index.md)**
-- **[← Back to Main Documentation Index](../../index.md)**
+- **[← Back to Main Documentation Index](../index.md)**

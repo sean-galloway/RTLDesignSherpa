@@ -33,21 +33,21 @@ The AXIL4 component ecosystem includes specialized interfaces for simplified AXI
 
 ### Core Interface Components
 
-- **[AXIL4MasterRead](axil4_master_read.md)** - Master read interface (AR/R channels)
-- **[AXIL4MasterWrite](axil4_master_write.md)** - Master write interface (AW/W/B channels)
-- **[AXIL4SlaveRead](axil4_slave_read.md)** - Slave read interface (AR/R channels)
-- **[AXIL4SlaveWrite](axil4_slave_write.md)** - Slave write interface (AW/W/B channels)
+- **AXIL4MasterRead** - Master read interface (AR/R channels)
+- **AXIL4MasterWrite** - Master write interface (AW/W/B channels)
+- **AXIL4SlaveRead** - Slave read interface (AR/R channels)
+- **AXIL4SlaveWrite** - Slave write interface (AW/W/B channels)
 
 ### Data Structure and Configuration
 
-- **[AXIL4Packet](axil4_packet.md)** - Transaction packet management
-- **[AXIL4FieldConfigs](axil4_field_configs.md)** - Protocol field configuration system
-- **[AXIL4PacketUtils](axil4_packet_utils.md)** - Packet manipulation utilities
+- **AXIL4Packet** - Transaction packet management
+- **AXIL4FieldConfigs** - Protocol field configuration system
+- **AXIL4PacketUtils** - Packet manipulation utilities
 
 ### Advanced Features
 
-- **[AXIL4ComplianceChecker](axil4_compliance_checker.md)** - Protocol compliance verification
-- **[AXIL4Factories](axil4_factories.md)** - Component factory methods
+- **AXIL4ComplianceChecker** - Protocol compliance verification
+- **AXIL4Factories** - Component factory methods
 
 ## Key Features
 
@@ -148,9 +148,9 @@ await master_write.write_register(0x108, 0xFF, strobe=0x1)  # Write byte 0 only
 
 - **[Overview](components_axil4_overview.md)** - Comprehensive component architecture and capabilities
 - **Interface References** - Detailed documentation for each AXIL4 interface class
-- **[Usage Examples](axil4_examples.md)** - Practical implementation patterns for register access
-- **[Configuration Guide](axil4_configuration.md)** - Field configuration and customization options
-- **[Compliance Guide](axil4_compliance.md)** - Protocol compliance checking and verification
+- **Usage Examples** - See code examples above
+- **Configuration Guide** - Field configuration and customization options
+- **Compliance Guide** - Protocol compliance checking and verification
 
 ## Common Use Cases
 

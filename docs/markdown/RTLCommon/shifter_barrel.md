@@ -199,4 +199,4 @@ Output: 8'b10110110  (bits wrap around)
 ## Navigation
 
 - **[← Back to RTLCommon Index](index.md)**
-- **[← Back to Main Documentation Index](../../index.md)**
+- **[← Back to Main Documentation Index](../index.md)**

@@ -780,4 +780,4 @@ The Binary-to-Gray converter is a fundamental building block in digital design, 
 ## Navigation
 
 - **[← Back to RTLCommon Index](index.md)**
-- **[← Back to Main Documentation Index](../../index.md)**
+- **[← Back to Main Documentation Index](../index.md)**

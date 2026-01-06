@@ -188,4 +188,4 @@ This module is purely combinational for zero latency:
 ## Navigation
 
 - [Back to Shared Infrastructure Index](README.md)
-- [Back to RTLAmba Index](../README.md)
+- [Back to RTLAmba Index](../index.md)

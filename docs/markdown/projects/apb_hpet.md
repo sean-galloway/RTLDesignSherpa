@@ -39,18 +39,18 @@ The APB HPET is now part of the **Retro Legacy Blocks** collection, which consol
 
 The complete APB HPET documentation is now maintained in the retro_legacy_blocks project directory:
 
-📖 **[HPET Complete Specification](../../../projects/components/retro_legacy_blocks/docs/hpet_spec/hpet_index.md)**
+📖 **[HPET Complete Specification](../../../projects/components/retro_legacy_blocks/docs/hpet_mas/hpet_mas_index.md)**
 
 ---
 
 ## Quick Links
 
 ### Component Documentation
-- **Specification Index:** [hpet_spec/hpet_index.md](../../../projects/components/retro_legacy_blocks/docs/hpet_spec/hpet_index.md)
-- **Overview:** [ch01_overview/01_overview.md](../../../projects/components/retro_legacy_blocks/docs/hpet_spec/ch01_overview/01_overview.md)
-- **Architecture:** [ch01_overview/02_architecture.md](../../../projects/components/retro_legacy_blocks/docs/hpet_spec/ch01_overview/02_architecture.md)
+- **Specification Index:** [hpet_mas/hpet_mas_index.md](../../../projects/components/retro_legacy_blocks/docs/hpet_mas/hpet_mas_index.md)
+- **Overview:** [ch01_overview/01_overview.md](../../../projects/components/retro_legacy_blocks/docs/hpet_mas/ch01_overview/01_overview.md)
+- **Architecture:** [ch01_overview/02_architecture.md](../../../projects/components/retro_legacy_blocks/docs/hpet_mas/ch01_overview/02_architecture.md)
 - **Block Descriptions:** [ch02_blocks/](../../../projects/components/retro_legacy_blocks/docs/hpet_spec/ch02_blocks/)
-- **Register Map:** [ch05_registers/01_register_map.md](../../../projects/components/retro_legacy_blocks/docs/hpet_spec/ch05_registers/01_register_map.md)
+- **Register Map:** [ch05_registers/01_register_map.md](../../../projects/components/retro_legacy_blocks/docs/hpet_mas/ch05_registers/01_register_map.md)
 
 ### Project Files
 - **Product Requirements:** [PRD.md](../../../projects/components/retro_legacy_blocks/PRD.md)
@@ -100,7 +100,7 @@ Multi-timer peripheral with 64-bit counter, one-shot/periodic modes, and optiona
 ---
 
 **For complete documentation, please visit:**
-**[projects/components/retro_legacy_blocks/docs/hpet_spec/hpet_index.md](../../../projects/components/retro_legacy_blocks/docs/hpet_spec/hpet_index.md)**
+**[projects/components/retro_legacy_blocks/docs/hpet_mas/hpet_mas_index.md](../../../projects/components/retro_legacy_blocks/docs/hpet_mas/hpet_mas_index.md)**
 
 ---
 

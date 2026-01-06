@@ -462,7 +462,7 @@ env WAVES=1 REG_LEVEL=GATE pytest test_uart_axil_bridge.py -v
 
 **Internal:**
 - [Projects Overview](overview.md)
-- [CocoTB Framework - UART Components](../CocoTBFramework/components/uart.md)
+- [CocoTB Framework - UART Components](../CocoTBFramework/components/uart/uart_components.md)
 - [AXI4-Lite Master Components](../RTLAmba/axil4/axil4_master_wr.md)
 
 **External:**

@@ -26,7 +26,7 @@
 This directory contains the core verification components for the CocoTBFramework. These components provide protocol-specific implementations for masters, slaves, monitors, and supporting utilities across multiple bus protocols.
 
 ## Overview
-- [**Overview**](overview.md) - Complete overview of the components directory and architecture
+- [**Overview**](components_overview.md) - Complete overview of the components directory and architecture
 
 ## Protocol Components
 
@@ -195,4 +195,4 @@ All protocol components provide factory functions for easy creation:
 Each component directory includes comprehensive documentation with examples, API references, and best practices for integration into verification environments.
 
 ## Navigation
-- [**Back to CocoTBFramework**](../index.md) - Return to main framework index
+- [**Back to CocoTBFramework**](components_index.md) - Return to main framework index

@@ -302,4 +302,4 @@ This extracts only the original data bits from the corrected encoded word.
 ## Navigation
 
 - **[← Back to RTLCommon Index](index.md)**
-- **[← Back to Main Documentation Index](../../index.md)**
+- **[← Back to Main Documentation Index](../index.md)**

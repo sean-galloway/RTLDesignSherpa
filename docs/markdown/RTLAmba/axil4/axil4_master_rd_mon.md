@@ -197,7 +197,7 @@ axil4_master_rd_mon #(
 ### Monitor Infrastructure
 - **[AXI4 Master Read Mon](../axi4/axi4_master_rd_mon.md)** - Full AXI4 monitoring (detailed reference)
 - **axi_monitor_filtered** - Core monitor engine (rtl/amba/shared/)
-- **[Monitor Configuration Guide](../../AXI_Monitor_Configuration_Guide.md)** - Configuration strategies
+- **[Monitor Configuration Guide](../shared/axi_monitor_base.md)** - Configuration strategies
 
 ### Related Modules
 - **[axil4_master_wr_mon](axil4_master_wr_mon.md)** - Master write with monitoring
@@ -212,4 +212,4 @@ axil4_master_rd_mon #(
 ## Navigation
 
 - **[← Back to AXIL4 Index](README.md)**
-- **[← Back to RTLAmba Index](../README.md)**
+- **[← Back to RTLAmba Index](../index.md)**

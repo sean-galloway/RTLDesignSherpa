@@ -425,5 +425,5 @@ fub_wvalid  = 1'b1;
 ## Navigation
 
 - **[← Back to AXIL4 Index](README.md)**
-- **[← Back to RTLAmba Index](../README.md)**
+- **[← Back to RTLAmba Index](../index.md)**
 - **[← Back to Main Documentation Index](../../index.md)**

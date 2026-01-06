@@ -50,11 +50,12 @@ For common tasks, check out the [Cheat Sheet](./cheat_sheet.md) which covers the
 ### RTL Generation and Math
 
 * **[Math Generate](math_generate.md)** - Generate optimized adder and multiplier RTL
-* **[ECC Generate](ecc_generate.md)** - Generate Hamming encoder/decoder RTL
+* **ECC Generate** - Generate Hamming encoder/decoder RTL *(script not yet implemented)*
 
 ### Documentation and Visualization
 
 * **[VCD to Wavedrom 2](vcd2wavedrom2.md)** - Convert VCD simulation data to Wavedrom diagrams
+* **[WaveDrom Troubleshooting](wavedrom_troubleshooting.md)** - Comprehensive troubleshooting guide for WaveDrom issues
 * **[Markdown Filename Massage](md_filename_massage.md)** - Batch process markdown file names and paths
 * **[Markdown to DOCX](md_to_docx.md)** - Convert markdown documentation to Word format
 * **[PyTree](pytree.md)** - Generate directory tree visualizations

@@ -216,4 +216,4 @@ scrambled_data = input_data ^ lfsr_out;
 ## Navigation
 
 - **[← Back to RTLCommon Index](index.md)**
-- **[← Back to Main Documentation Index](../../index.md)**
+- **[← Back to Main Documentation Index](../index.md)**

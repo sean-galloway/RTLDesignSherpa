@@ -462,5 +462,5 @@ See [axi4_dwidth_converter](axi4_dwidth_converter.md) for detailed examples.
 ## Navigation
 
 - **[← Back to AXI4 Index](README.md)**
-- **[← Back to RTLAmba Index](../README.md)**
+- **[← Back to RTLAmba Index](../index.md)**
 - **[← Back to Main Documentation Index](../../index.md)**

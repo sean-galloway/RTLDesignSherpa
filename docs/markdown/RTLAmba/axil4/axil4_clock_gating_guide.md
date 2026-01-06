@@ -233,5 +233,5 @@ axil4_master_rd_cg #(
 ## Navigation
 
 - **[← Back to AXIL4 Index](README.md)**
-- **[← Back to RTLAmba Index](../README.md)**
+- **[← Back to RTLAmba Index](../index.md)**
 - **[← Back to Main Documentation Index](../../index.md)**

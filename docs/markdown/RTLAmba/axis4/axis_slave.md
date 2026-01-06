@@ -185,4 +185,4 @@ axis_slave #(
 ## Navigation
 
 - **[← Back to AXIS4 Index](README.md)**
-- **[← Back to RTLAmba Index](../README.md)**
+- **[← Back to RTLAmba Index](../index.md)**

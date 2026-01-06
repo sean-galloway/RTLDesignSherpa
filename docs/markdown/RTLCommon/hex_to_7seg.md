@@ -325,4 +325,4 @@ assert(all_segments_used == 7'b1111111);  // All segments used somewhere
 ## Navigation
 
 - **[← Back to RTLCommon Index](index.md)**
-- **[← Back to Main Documentation Index](../../index.md)**
+- **[← Back to Main Documentation Index](../index.md)**

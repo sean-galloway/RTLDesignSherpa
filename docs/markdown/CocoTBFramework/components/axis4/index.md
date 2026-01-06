@@ -21,7 +21,7 @@
 
 <!-- End Header -->
 
-**[← Back to Components Index](../components_index.md)** | **[CocoTBFramework Index](../../index.md)** | **[Main Index](../../../index.md)**
+**[← Back to Components Index](../components_index.md)** | **[CocoTBFramework Index](../components_index.md)** | **[Main Index](../components_index.md)**
 
 # AXIS4 Components
 
@@ -35,7 +35,7 @@ The AXIS4 component ecosystem includes specialized classes for comprehensive str
 
 - **[AXISMaster](axis_master.md)** - Stream data generation and transmission
 - **[AXISSlave](axis_slave.md)** - Stream data reception and validation
-- **[AXISMonitor](axis_monitor.md)** - Protocol compliance monitoring and analysis
+- **AXISMonitor *(documentation planned)*** - Protocol compliance monitoring and analysis
 - **[AXISPacket](axis_packet.md)** - Data structure management and field access
 
 ### Configuration System
@@ -86,7 +86,7 @@ await master.send_packet(packet)
 
 - **[Overview](components_axis4_overview.md)** - Comprehensive component architecture and capabilities
 - **Component References** - Detailed documentation for each AXIS4 class
-- **[Usage Examples](axis_examples.md)** - Practical implementation patterns and scenarios
-- **[Configuration Guide](axis_configuration.md)** - Field configuration and customization options
+- **Usage Examples *(documentation planned)*** - Practical implementation patterns and scenarios
+- **Configuration Guide *(documentation planned)*** - Field configuration and customization options
 
 The AXIS4 components provide a complete solution for AXI4-Stream protocol verification, combining the power and flexibility of the GAXI infrastructure with stream-specific optimizations and advanced features for comprehensive testing scenarios.

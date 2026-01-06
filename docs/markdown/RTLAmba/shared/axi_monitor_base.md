@@ -266,7 +266,7 @@ axi4_master_rd_mon #(...) u_mon (...);
 ## See Also
 
 - **Monitor Architecture:** `docs/markdown/RTLAmba/overview.md`
-- **Monitor Configuration Guide:** `docs/AXI_Monitor_Configuration_Guide.md`
+- **Monitor Configuration Guide:** [Monitor Base Configuration](./axi_monitor_base.md)
 - **Packet Format Specification:** `docs/markdown/RTLAmba/includes/monitor_package_spec.md`
 
 ---

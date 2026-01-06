@@ -28,19 +28,19 @@ This directory contains the GAXI (Generic AXI) protocol components for the CocoT
 ## Directory Structure
 
 ### Core Components
-- [**gaxi_component_base.py**](gaxi_component_base.md) - Unified base class for all GAXI components
-- [**gaxi_master.py**](gaxi_master.md) - GAXI Master with integrated structured pipeline
-- [**gaxi_slave.py**](gaxi_slave.md) - GAXI Slave with integrated structured pipeline
-- [**gaxi_monitor.py**](gaxi_monitor.md) - GAXI Monitor implementation
-- [**gaxi_monitor_base.py**](gaxi_monitor_base.md) - Base class for GAXI monitoring functionality
+- [**gaxi_component_base.py**](components_gaxi_gaxi_component_base.md) - Unified base class for all GAXI components
+- [**gaxi_master.py**](components_gaxi_gaxi_master.md) - GAXI Master with integrated structured pipeline
+- [**gaxi_slave.py**](components_gaxi_gaxi_slave.md) - GAXI Slave with integrated structured pipeline
+- [**gaxi_monitor.py**](components_gaxi_gaxi_monitor.md) - GAXI Monitor implementation
+- [**gaxi_monitor_base.py**](components_gaxi_gaxi_monitor_base.md) - Base class for GAXI monitoring functionality
 
 ### Data and Protocol Support
-- [**gaxi_packet.py**](gaxi_packet.md) - GAXI Packet class with protocol-specific extensions
-- [**gaxi_sequence.py**](gaxi_sequence.md) - GAXI sequence generator for test patterns
-- [**gaxi_command_handler.py**](gaxi_command_handler.md) - Enhanced command handler for transactions
+- [**gaxi_packet.py**](components_gaxi_gaxi_packet.md) - GAXI Packet class with protocol-specific extensions
+- [**gaxi_sequence.py**](components_gaxi_gaxi_sequence.md) - GAXI sequence generator for test patterns
+- [**gaxi_command_handler.py**](components_gaxi_gaxi_command_handler.md) - Enhanced command handler for transactions
 
 ### Factory and Utilities
-- [**gaxi_factories.py**](gaxi_factories.md) - Factory functions for creating GAXI components
+- [**gaxi_factories.py**](components_gaxi_gaxi_factories.md) - Factory functions for creating GAXI components
 
 ## Quick Start
 
@@ -135,6 +135,6 @@ The GAXI components integrate seamlessly with:
 - **CocoTB**: Standard BusDriver/BusMonitor interfaces
 
 ## Navigation
-- [**Overview**](overview.md) - Detailed component overview and architecture
-- [**Back to Components**](../index.md) - Return to components index
-- [**Back to CocoTBFramework**](../../index.md) - Return to main framework index
+- [**Overview**](components_gaxi_overview.md) - Detailed component overview and architecture
+- [**Back to Components**](../components_index.md) - Return to components index
+- [**Back to CocoTBFramework**](../components_index.md) - Return to main framework index

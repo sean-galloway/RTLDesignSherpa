@@ -156,7 +156,7 @@ Configuration is typically handled at the top-level monitor instantiation.
 ## See Also
 
 - **Monitor Architecture:** `docs/markdown/RTLAmba/overview.md`
-- **Monitor Configuration Guide:** `docs/AXI_Monitor_Configuration_Guide.md`
+- **Monitor Configuration Guide:** [Monitor Base Configuration](./axi_monitor_base.md)
 - **Packet Format Specification:** `docs/markdown/RTLAmba/includes/monitor_package_spec.md`
 
 ---

@@ -474,4 +474,4 @@ Dynamic Power Saving ≈ Gating Efficiency × Clock Tree Power
 ## Navigation
 
 - [Back to Shared Infrastructure Index](README.md)
-- [Back to RTLAmba Index](../README.md)
+- [Back to RTLAmba Index](../index.md)

@@ -600,5 +600,5 @@ The `axi4_master_rd` module provides a complete, high-performance solution for A
 ## Navigation
 
 - **[← Back to AXI4 Index](README.md)**
-- **[← Back to RTLAmba Index](../README.md)**
+- **[← Back to RTLAmba Index](../index.md)**
 - **[← Back to Main Documentation Index](../../index.md)**

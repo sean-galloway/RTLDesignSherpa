@@ -553,5 +553,5 @@ axi4_to_apb_shim u_bridge (
 
 ## Navigation
 
-- **[← Back to RTLAmba Index](../README.md)**
+- **[← Back to RTLAmba Index](../index.md)**
 - **[← Back to Main Documentation Index](../../index.md)**

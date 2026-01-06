@@ -44,19 +44,19 @@ CocoTBFramework/components/fifo/
 ## Component Documentation
 
 ### Core Components
-- [**fifo_component_base.py**](fifo_component_base.md) - Unified base class for all FIFO components
-- [**fifo_master.py**](fifo_master.md) - FIFO Master (writer) component for driving transactions
-- [**fifo_slave.py**](fifo_slave.md) - FIFO Slave (reader) component for consuming transactions
-- [**fifo_monitor.py**](fifo_monitor.md) - FIFO Monitor for observing transactions
-- [**fifo_monitor_base.py**](fifo_monitor_base.md) - Base class for monitoring components
+- [**fifo_component_base.py**](components_fifo_fifo_component_base.md) - Unified base class for all FIFO components
+- [**fifo_master.py**](components_fifo_fifo_master.md) - FIFO Master (writer) component for driving transactions
+- [**fifo_slave.py**](components_fifo_fifo_slave.md) - FIFO Slave (reader) component for consuming transactions
+- [**fifo_monitor.py**](components_fifo_fifo_monitor.md) - FIFO Monitor for observing transactions
+- [**fifo_monitor_base.py**](components_fifo_fifo_monitor_base.md) - Base class for monitoring components
 
 ### Data and Configuration
-- [**fifo_packet.py**](fifo_packet.md) - FIFO packet class for transaction data
-- [**fifo_sequence.py**](fifo_sequence.md) - Sequence generator for test patterns
+- [**fifo_packet.py**](components_fifo_fifo_packet.md) - FIFO packet class for transaction data
+- [**fifo_sequence.py**](components_fifo_fifo_sequence.md) - Sequence generator for test patterns
 
 ### Utilities and Factories
-- [**fifo_factories.py**](fifo_factories.md) - Factory functions for creating FIFO components
-- [**fifo_command_handler.py**](fifo_command_handler.md) - Command handler for sequence processing
+- **fifo_factories.py** - Factory functions for creating FIFO components
+- **fifo_command_handler.py** - Command handler for sequence processing
 
 ## Quick Start
 
@@ -212,5 +212,5 @@ async def fifo_test(dut):
 ```
 
 ## Navigation
-- [**Back to Components**](../index.md) - Return to components directory
+- [**Back to Components**](../components_index.md) - Return to components directory
 - [**Framework Overview**](../../index.md) - Return to main framework

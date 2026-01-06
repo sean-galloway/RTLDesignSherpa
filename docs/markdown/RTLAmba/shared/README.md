@@ -900,5 +900,5 @@ Most users interact with higher-level protocol modules (axi4_master_rd_mon, etc.
 
 ## Navigation
 
-- **[← Back to RTLAmba Index](../README.md)**
+- **[← Back to RTLAmba Index](../index.md)**
 - **[← Back to Main Documentation Index](../../index.md)**

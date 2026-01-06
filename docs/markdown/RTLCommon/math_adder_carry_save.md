@@ -486,4 +486,4 @@ assign result = {1'b0, sum_vec} + {1'b0, carry_vec};
 ## Navigation
 
 - **[← Back to RTLCommon Index](index.md)**
-- **[← Back to Main Documentation Index](../../index.md)**
+- **[← Back to Main Documentation Index](../index.md)**

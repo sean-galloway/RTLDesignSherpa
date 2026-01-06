@@ -41,16 +41,16 @@ CocoTBFramework/tbclasses/fifo/
 ## Testbench Documentation
 
 ### Core FIFO Testbenches
-- [**fifo_buffer.py**](fifo_buffer.md) - Basic FIFO buffer testbench with single signal interface
-- [**fifo_buffer_field.py**](fifo_buffer_field.md) - Multi-field FIFO testbench for complex data structures
-- [**fifo_buffer_multi.py**](fifo_buffer_multi.md) - Multi-signal FIFO testbench for parallel data paths
-- [**fifo_buffer_multi_sigmap.py**](fifo_buffer_multi_sigmap.md) - Multi-signal FIFO testbench with signal mapping capabilities
+- [**fifo_buffer.py**](tbclasses_fifo_fifo_buffer_md.md) - Basic FIFO buffer testbench with single signal interface
+- [**fifo_buffer_field.py**](tbclasses_fifo_fifo_buffer_field_md.md) - Multi-field FIFO testbench for complex data structures
+- [**fifo_buffer_multi.py**](tbclasses_fifo_fifo_buffer_multi_md.md) - Multi-signal FIFO testbench for parallel data paths
+- [**fifo_buffer_multi_sigmap.py**](tbclasses_fifo_fifo_buffer_multi_sigmap_md.md) - Multi-signal FIFO testbench with signal mapping capabilities
 
 ### Specialized Testbenches
-- [**fifo_data_collect_tb.py**](fifo_data_collect_tb.md) - Data collection FIFO testbench with multiple input channels and arbitration
+- [**fifo_data_collect_tb.py**](tbclasses_fifo_fifo_data_collect_tb_md.md) - Data collection FIFO testbench with multiple input channels and arbitration
 
 ### Configuration Files
-- [**fifo_buffer_configs.py**](fifo_buffer_configs.md) - Configuration definitions for FIFO testbench field configurations
+- [**fifo_buffer_configs.py**]*(documentation planned)* - Configuration definitions for FIFO testbench field configurations
 
 ## Quick Start
 

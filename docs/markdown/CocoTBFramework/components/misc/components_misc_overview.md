@@ -181,4 +181,4 @@ Each component includes comprehensive documentation with examples, API reference
 
 ## Component Documentation
 
-- [**arbiter_monitor.py**](arbiter_monitor.md): Complete API reference and usage examples for arbiter monitoring components
+- [**arbiter_monitor.py**](components_misc_arbiter_monitor.md): Complete API reference and usage examples for arbiter monitoring components

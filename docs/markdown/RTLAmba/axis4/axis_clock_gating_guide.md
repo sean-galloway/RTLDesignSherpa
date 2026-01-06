@@ -218,4 +218,4 @@ axis_master_cg #(
 ## Navigation
 
 - **[← Back to AXIS4 Index](README.md)**
-- **[← Back to RTLAmba Index](../README.md)**
+- **[← Back to RTLAmba Index](../index.md)**

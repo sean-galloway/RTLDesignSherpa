@@ -21,7 +21,7 @@
 
 <!-- End Header -->
 
-**[← Back to Components Index](../components_index.md)** | **[Main Index](../../index.md)**
+**[← Back to Components Index](../components_index.md)** | **[Main Index](../components_index.md)**
 
 # UART BFM Components
 
@@ -592,9 +592,9 @@ None currently documented.
 ## References
 
 **Internal:**
-- [UART to AXIL Bridge](../../projects/converters.md) - Usage example
+- Converters Project - Usage example
 - [CocoTB Framework Overview](../components_overview.md)
-- [TBBase Documentation](../../tbclasses/tbbase.md)
+- TBBase *(see tbclasses/misc)*
 
 **External:**
 - [UART Wikipedia](https://en.wikipedia.org/wiki/Universal_asynchronous_receiver-transmitter)

@@ -60,7 +60,7 @@ Beginner-friendly descriptor-based DMA engine for memory-to-memory transfers.
 - 📖 [Complete Specification](../../../projects/components/stream/docs/stream_spec/stream_index.md)
 - 📋 [Product Requirements](../../../projects/components/stream/PRD.md)
 - 🤖 [AI Guide](../../../projects/components/stream/CLAUDE.md)
-- 📝 [Architectural Notes](../../../projects/components/stream/docs/ARCHITECTURAL_NOTES.md)
+- 📝 Architectural Notes *(documentation planned)*
 
 ---
 
@@ -100,7 +100,7 @@ Parametric MxN APB interconnect connecting multiple masters to multiple slaves w
 - RTL generator for custom configurations
 
 **Documentation:**
-- 📖 [Complete Specification](../../../projects/components/apb_xbar/docs/apb_xbar_spec/apb_xbar_index.md)
+- 📖 [Complete Specification](../../../projects/components/apb_xbar/docs/apb_xbar_has/apb_xbar_has_index.md)
 - 📋 [Product Requirements](../../../projects/components/apb_xbar/PRD.md)
 - 🤖 [AI Guide](../../../projects/components/apb_xbar/CLAUDE.md)
 
@@ -155,7 +155,7 @@ Collection of legacy and retro-computing peripherals for historical SoC designs.
 
 **Documentation:**
 - 📋 [Collection Overview](../../../projects/components/retro_legacy_blocks/README.md)
-- 📖 [HPET Specification](../../../projects/components/retro_legacy_blocks/docs/hpet_spec/hpet_index.md)
+- 📖 [HPET Specification](../../../projects/components/retro_legacy_blocks/docs/hpet_mas/hpet_mas_index.md)
 - 📋 [Requirements](../../../projects/components/retro_legacy_blocks/PRD.md)
 - 🤖 [AI Guide](../../../projects/components/retro_legacy_blocks/CLAUDE.md)
 - 📊 [Block Status](../../../projects/components/retro_legacy_blocks/BLOCK_STATUS.md)

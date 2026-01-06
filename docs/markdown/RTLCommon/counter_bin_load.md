@@ -548,4 +548,4 @@ assign mem_addr = wr_ptr[WIDTH-2:0];  // Exclude MSB
 ## Navigation
 
 - **[← Back to RTLCommon Index](index.md)**
-- **[← Back to Main Documentation Index](../../index.md)**
+- **[← Back to Main Documentation Index](../index.md)**

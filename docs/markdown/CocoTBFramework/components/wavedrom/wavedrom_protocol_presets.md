@@ -505,6 +505,6 @@ for name, constraint in my_constraints.items():
 ## Next Steps
 
 - **Try it out**: [Quick Start Guide](wavedrom_quick_start.md)
-- **Full example**: [GAXI Tutorial](../../TestTutorial/wavedrom_gaxi_example.md)
-- **Troubleshooting**: [Troubleshooting Guide](wavedrom_troubleshooting.md)
+- **Full example**: Wavedrom GAXI Example *(see TestTutorial)*
+- **Troubleshooting**: Wavedrom Troubleshooting *(documentation planned)*
 - **Auto-binding**: [Auto-Binding Guide](wavedrom_auto_binding.md)

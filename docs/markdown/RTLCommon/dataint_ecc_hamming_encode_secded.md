@@ -242,4 +242,4 @@ dataint_ecc_hamming_encode_secded #(
 ## Navigation
 
 - **[← Back to RTLCommon Index](index.md)**
-- **[← Back to Main Documentation Index](../../index.md)**
+- **[← Back to Main Documentation Index](../index.md)**

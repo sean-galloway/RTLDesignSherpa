@@ -499,4 +499,4 @@ pytest "val/integ_amba/test_axi2apb_shim.py::test_width[64-32]" -v
 ## Navigation
 
 - **[← Back to Shims Index](README.md)**
-- **[← Back to RTLAmba Index](../README.md)**
+- **[← Back to RTLAmba Index](../index.md)**

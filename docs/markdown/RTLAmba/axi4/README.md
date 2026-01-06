@@ -328,7 +328,7 @@ Clock-gated variants (`*_cg`) add power management:
 - **[GAXI Modules](../gaxi/README.md)** - Generic AXI utilities (buffers, FIFOs)
 
 ### Configuration and Integration
-- **[AXI Monitor Configuration Guide](../../AXI_Monitor_Configuration_Guide.md)** - Monitor setup strategies
+- **[AXI Monitor Configuration Guide](../shared/axi_monitor_base.md)** - Monitor setup strategies
 - **[Monitor Packet Specification](../includes/monitor_package_spec.md)** - 64-bit packet format
 
 ### Source Code
@@ -381,5 +381,5 @@ Optimize burst parameters for efficiency:
 
 ## Navigation
 
-- **[← Back to RTLAmba Index](../README.md)**
+- **[← Back to RTLAmba Index](../index.md)**
 - **[← Back to Main Documentation Index](../../index.md)**

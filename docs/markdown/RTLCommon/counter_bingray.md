@@ -497,4 +497,4 @@ pytest val/common/test_counter_bingray_wavedrom.py -v
 ## Navigation
 
 - **[← Back to RTLCommon Index](index.md)**
-- **[← Back to Main Documentation Index](../../index.md)**
+- **[← Back to Main Documentation Index](../index.md)**

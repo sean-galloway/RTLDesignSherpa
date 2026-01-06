@@ -531,4 +531,4 @@ gtkwave peakrdl.vcd
 ## Navigation
 
 - **[← Back to Shims Index](README.md)**
-- **[← Back to RTLAmba Index](../README.md)**
+- **[← Back to RTLAmba Index](../index.md)**

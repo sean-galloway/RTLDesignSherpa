@@ -1140,4 +1140,4 @@ The clock gate controller provides an essential power management capability, ena
 ## Navigation
 
 - **[← Back to RTLCommon Index](index.md)**
-- **[← Back to Main Documentation Index](../../index.md)**
+- **[← Back to Main Documentation Index](../index.md)**

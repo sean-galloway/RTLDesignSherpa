@@ -379,7 +379,7 @@ Same as [axi4_slave_rd](axi4_slave_rd.md):
 - Framework: `bin/CocoTBFramework/components/axi4/`
 
 ### Documentation
-- Configuration Guide: [AXI_Monitor_Configuration_Guide.md](../../AXI_Monitor_Configuration_Guide.md)
+- Configuration Guide: [AXI Monitor Base](../shared/axi_monitor_base.md)
 - Architecture: [RTLAmba Overview](../overview.md)
 - AXI4 Index: [README.md](README.md)
 
@@ -392,5 +392,5 @@ Same as [axi4_slave_rd](axi4_slave_rd.md):
 ## Navigation
 
 - **[← Back to AXI4 Index](README.md)**
-- **[← Back to RTLAmba Index](../README.md)**
+- **[← Back to RTLAmba Index](../index.md)**
 - **[← Back to Main Documentation Index](../../index.md)**

@@ -559,4 +559,4 @@ Both use CSA trees but differ in reduction strategy:
 ## Navigation
 
 - **[← Back to RTLCommon Index](index.md)**
-- **[← Back to Main Documentation Index](../../index.md)**
+- **[← Back to Main Documentation Index](../index.md)**
