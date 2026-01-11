@@ -97,6 +97,15 @@ help:
 	@echo "  make run-full-parallel          Run FUB tests at FULL level in parallel"
 	@echo "  make run-full-parallel-waves    Run FUB tests at FULL level parallel + waves"
 	@echo ""
+	@echo "COVERAGE TARGETS:"
+	@echo "  make run-coverage           Run all FUB tests with coverage"
+	@echo "  make run-coverage-parallel  Run FUB tests with coverage (parallel)"
+	@echo "  make run-coverage-full      Run FUB tests at FULL level with coverage (parallel)"
+	@echo "  make coverage-report        Generate report with legal coverage filtering"
+	@echo "  make clean-coverage         Clean coverage data"
+	@echo "  make fresh-coverage         Clean + run + report (default level)"
+	@echo "  make fresh-coverage-full    Clean + run FULL + report (recommended)"
+	@echo ""
 	@echo "UTILITY TARGETS:"
 	@echo "  make ptw                  Run pytest-watch (auto-rerun on changes)"
 	@echo "  make collect              Collect (don't run) tests"
@@ -387,3 +396,41 @@ clean-all: clean
 	find . -name "*.fst" -delete
 	find . -name "results_*.xml" -delete
 	@echo "All test artifacts cleaned (GTKW preserved)."
+
+# ==============================================================================
+# Coverage Targets
+# ==============================================================================
+
+.PHONY: run-coverage
+run-coverage:
+	@echo "Running STREAM FUB tests with coverage..."
+	SIM=verilator COVERAGE=1 $(PYTEST) test_*.py $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE)
+
+.PHONY: run-coverage-parallel
+run-coverage-parallel:
+	@echo "Running STREAM FUB tests with coverage (parallel)..."
+	SIM=verilator COVERAGE=1 $(PYTEST) test_*.py $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE) $(PYTEST_XDIST) $(PYTEST_RERUNS)
+
+.PHONY: run-coverage-full
+run-coverage-full:
+	@echo "Running STREAM FUB tests with coverage at FULL level (parallel)..."
+	SIM=verilator COVERAGE=1 TEST_LEVEL=full $(PYTEST) test_*.py $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE) $(PYTEST_XDIST) $(PYTEST_RERUNS)
+
+.PHONY: coverage-report
+coverage-report:
+	@echo "Generating coverage report (with legal coverage analysis)..."
+	python3 $(REPO_ROOT)/projects/components/stream/bin/generate_coverage_report.py --coverage-dir coverage_data --legal
+
+.PHONY: clean-coverage
+clean-coverage:
+	@echo "Cleaning coverage data..."
+	rm -rf coverage_data
+	@echo "Coverage data cleaned."
+
+.PHONY: fresh-coverage
+fresh-coverage: clean-coverage run-coverage coverage-report
+	@echo "Fresh coverage run complete."
+
+.PHONY: fresh-coverage-full
+fresh-coverage-full: clean-coverage run-coverage-full coverage-report
+	@echo "Fresh full coverage run complete."

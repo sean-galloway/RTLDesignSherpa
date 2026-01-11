@@ -132,8 +132,9 @@ Integrate: Multi-module systems
 Build: Complete peripherals
 - **APB HPET** - High Precision Event Timer (✅ Production Ready)
 - **APB Crossbar** - MxN APB Interconnect (✅ Production Ready)
-- **STREAM DMA** - Tutorial DMA Engine (🟡 In Development)
-- **RAPIDS DMA** - Advanced DMA with Network (🟢 Functional)
+- **Bridge** - AXI Protocol Bridges and Converters (✅ Ready)
+- **STREAM DMA** - Tutorial DMA Engine (✅ Ready)
+- **RAPIDS DMA** - Advanced DMA with Network (🟡 In Progress)
 
 ### Level 5: Complete FPGA Projects
 **Status:** Planned

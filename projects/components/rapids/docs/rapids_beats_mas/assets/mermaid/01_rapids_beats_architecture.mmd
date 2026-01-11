@@ -1,0 +1,40 @@
+%%{init: {'theme': 'base', 'themeVariables': { 'primaryColor': '#e1f5fe', 'primaryBorderColor': '#0288d1'}}}%%
+flowchart TB
+    subgraph rapids_core_beats["RAPIDS Core Beats"]
+        subgraph sched_array["Scheduler Group Array"]
+            direction TB
+            subgraph sg0["scheduler_group[0]"]
+                sched0[scheduler]
+                desc0[descriptor_engine]
+            end
+            subgraph sg7["scheduler_group[7]"]
+                sched7[scheduler]
+                desc7[descriptor_engine]
+            end
+            sg0 -.-> sg7
+        end
+
+        subgraph sink_path["Sink Data Path"]
+            snk_sram[snk_sram_controller]
+            axi_wr[axi_write_engine]
+        end
+
+        subgraph source_path["Source Data Path"]
+            src_sram[src_sram_controller]
+            axi_rd[axi_read_engine]
+        end
+
+        sched_array --> |sched_wr| sink_path
+        sched_array --> |sched_rd| source_path
+    end
+
+    %% External interfaces
+    APB[APB Kick-off] --> sched_array
+    DESC_MEM[(Descriptor Memory)] <--> |Desc AXI| sched_array
+    SYS_MEM[(System Memory)] <--> |Sink AXI Write| sink_path
+    SYS_MEM <--> |Source AXI Read| source_path
+
+    NETWORK_IN[Network Ingress] --> |Fill| sink_path
+    source_path --> |Drain| NETWORK_OUT[Network Egress]
+
+    rapids_core_beats --> |MonBus| MON[Monitor Output]

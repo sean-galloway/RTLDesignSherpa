@@ -3,8 +3,10 @@
 # Purpose: Scheduler Group (integrates scheduler, descriptor_engine, program_engine)
 
 # Include FUB-level file lists (automatically pulls in packages and dependencies)
--f $REPO_ROOT/projects/components/rapids/rtl/filelists/fub/scheduler.f
--f $REPO_ROOT/projects/components/rapids/rtl/filelists/fub/descriptor_engine.f
+# Beats-specific FUBs (STREAM-based scheduler and descriptor engine)
+-f $REPO_ROOT/projects/components/rapids/rtl/filelists/fub_beats/scheduler_beats.f
+-f $REPO_ROOT/projects/components/rapids/rtl/filelists/fub_beats/descriptor_engine_beats.f
+# Chunk-based FUBs (original RAPIDS control engines)
 -f $REPO_ROOT/projects/components/rapids/rtl/filelists/fub/ctrlrd_engine.f
 -f $REPO_ROOT/projects/components/rapids/rtl/filelists/fub/ctrlwr_engine.f
 
@@ -21,4 +23,4 @@ $REPO_ROOT/rtl/common/arbiter_priority_encoder.sv
 $REPO_ROOT/rtl/common/clock_gate_ctrl.sv
 
 # DUT module
-$REPO_ROOT/projects/components/rapids/rtl/rapids_macro/scheduler_group.sv
+$REPO_ROOT/projects/components/rapids/rtl/macro/scheduler_group.sv

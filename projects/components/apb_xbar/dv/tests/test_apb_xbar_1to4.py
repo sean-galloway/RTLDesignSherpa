@@ -31,11 +31,13 @@ from cocotb.clock import Clock
 from cocotb.triggers import RisingEdge, Timer
 from cocotb_test.simulator import run
 
-# Add CocoTB framework to path
-repo_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '../../../../..'))
-sys.path.insert(0, os.path.join(repo_root, 'bin'))
-
+# Import framework utilities (PYTHONPATH includes bin/)
+from CocoTBFramework.tbclasses.shared.utilities import get_repo_root
 from CocoTBFramework.tbclasses.shared.filelist_utils import get_sources_from_filelist
+
+# Add repo root to Python path using robust git-based method
+repo_root = get_repo_root()
+sys.path.insert(0, repo_root)
 
 
 @cocotb.test(timeout_time=120, timeout_unit='us')

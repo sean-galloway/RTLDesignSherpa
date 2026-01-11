@@ -16,11 +16,13 @@ from cocotb.triggers import RisingEdge, ReadOnly
 import sys
 import os
 
-# Add repository root to path
-repo_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '../../../../..'))
-sys.path.insert(0, repo_root)
-
+# Import framework utilities (PYTHONPATH includes bin/)
+from CocoTBFramework.tbclasses.shared.utilities import get_repo_root
 from CocoTBFramework.tbclasses.shared.tbbase import TBBase
+
+# Add repo root to Python path using robust git-based method
+repo_root = get_repo_root()
+sys.path.insert(0, repo_root)
 from CocoTBFramework.components.shared.memory_model import MemoryModel
 from CocoTBFramework.components.axi4.axi4_factories import create_axi4_slave_rd, create_axi4_slave_wr
 from projects.components.stream.dv.tbclasses.descriptor_packet_builder import DescriptorPacketBuilder

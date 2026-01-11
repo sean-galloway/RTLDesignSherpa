@@ -564,16 +564,19 @@ Test runners MUST:
 4. Include conftest.py for pytest configuration
 
 ```python
-# Add repo root to Python path
+# Import framework utilities (PYTHONPATH includes bin/)
 import os, sys
-repo_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '../../../../../..'))
+from CocoTBFramework.tbclasses.shared.utilities import get_repo_root
+from CocoTBFramework.tbclasses.shared.tbbase import TBBase
+
+# Add repo root to Python path using robust git-based method
+repo_root = get_repo_root()
 sys.path.insert(0, repo_root)
 
 # Import from project area
 from projects.components.stream.dv.tbclasses.scheduler_tb import SchedulerTB
 
-# Import shared framework
-from CocoTBFramework.tbclasses.shared.tbbase import TBBase
+# Import shared framework components
 from CocoTBFramework.components.axi4.axi4_master import AXI4Master
 
 @cocotb.test()

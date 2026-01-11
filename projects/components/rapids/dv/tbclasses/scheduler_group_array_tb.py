@@ -30,7 +30,7 @@ This testbench extends the SchedulerGroupTB pattern to handle:
 
 Key Differences from SchedulerGroupTB:
 - Tests multiple channels simultaneously (up to 32)
-- Verifies AXI arbitration behavior across 3 AXI masters (desc, ctrlrd, ctrlwr)
+- Verifies AXI arbitration behavior for shared descriptor AXI master
 - Validates MonBus aggregation from 35 sources (32 groups + 3 AXI masters)
 - Tests channel independence with shared resources
 """
@@ -95,6 +95,9 @@ class SchedulerGroupArrayTB(TBBase):
         self.MAX_DATA = (2**self.TEST_DATA_WIDTH) - 1
         self.MAX_CREDIT = (2**self.TEST_CREDIT_WIDTH) - 1
 
+        # Create masks for flattened array access
+        self.addr_mask = (1 << self.TEST_ADDR_WIDTH) - 1  # Mask for one address element
+
         # Test configuration
         self.test_config = {
             'channel_count': self.CHANNEL_COUNT,
@@ -108,14 +111,11 @@ class SchedulerGroupArrayTB(TBBase):
 
         # Component interfaces (initialized in setup)
         self.desc_axi_slave = None       # Shared descriptor AXI read interface
-        self.ctrlrd_axi_slave = None     # Shared control read AXI read interface
-        self.ctrlwr_axi_slave = None     # Shared control write AXI write interface
+        # Note: This module only has desc_axi_* - no separate ctrlrd/ctrlwr interfaces
         self.monitor_slave = None        # Aggregated monitor bus interface
 
         # Memory models
         self.descriptor_memory = None
-        self.ctrlrd_memory = None
-        self.ctrlwr_memory = None
 
         # Per-channel state tracking
         self.channel_states = {}
@@ -146,21 +146,17 @@ class SchedulerGroupArrayTB(TBBase):
             },
             'arbitration': {
                 'descriptor_arbitrations': 0,
-                'ctrlrd_arbitrations': 0,
-                'ctrlwr_arbitrations': 0,
                 'arbitration_latency_samples': [],
                 'channel_fairness': {}  # Track operations per channel
             },
             'axi': {
                 'descriptor_reads': 0,
-                'ctrlrd_reads': 0,
-                'ctrlwr_writes': 0,
                 'axi_conflicts': 0,
                 'axi_stalls': 0
             },
             'monitor': {
                 'monitor_events': 0,
-                'events_per_source': {}  # Track events from each of 35 sources (32 groups + 3 AXI masters)
+                'events_per_source': {}  # Track events from each source
             },
             'performance': {
                 'operations_per_second': 0.0,
@@ -201,11 +197,6 @@ class SchedulerGroupArrayTB(TBBase):
                 for ch in range(self.CHANNEL_COUNT):
                     self.dut.cfg_initial_credit[ch].value = 4  # 2^4 = 16 credits (exponential encoding)
 
-            # cfg_ctrlrd_max_try is unpacked array [CHANNEL_COUNT] - set each element
-            if hasattr(self.dut, 'cfg_ctrlrd_max_try'):
-                for ch in range(self.CHANNEL_COUNT):
-                    self.dut.cfg_ctrlrd_max_try[ch].value = 3  # Max 3 retries for control reads
-
             # Perform reset sequence
             await self.assert_reset()
             await self.wait_clocks(self.clk_name, 10)  # Hold reset
@@ -228,6 +219,29 @@ class SchedulerGroupArrayTB(TBBase):
         self.rst_n.value = 1
         self.log.debug("Reset deasserted")
 
+    def set_flattened_array_element(self, signal, channel: int, value: int, element_width: int):
+        """Set a specific element in a flattened 2D array.
+
+        Args:
+            signal: The cocotb signal handle for the flattened array
+            channel: Channel index (0 to NUM_CHANNELS-1)
+            value: Value to set (will be masked to element_width bits)
+            element_width: Width in bits of each array element
+        """
+        # Read current full vector
+        current_val = int(signal.value)
+
+        # Calculate bit positions for this channel
+        low_bit = channel * element_width
+        high_bit = (channel + 1) * element_width
+
+        # Create mask for this channel's bits
+        element_mask = ((1 << element_width) - 1) << low_bit
+
+        # Clear channel's bits, then set new value
+        new_val = (current_val & ~element_mask) | ((value & ((1 << element_width) - 1)) << low_bit)
+        signal.value = new_val
+
     async def setup_interfaces(self):
         """Setup all component interfaces."""
         try:
@@ -235,27 +249,15 @@ class SchedulerGroupArrayTB(TBBase):
 
             # Shared descriptor AXI read interface
             self.desc_axi_slave = create_axi4_slave_rd(
-                self.dut, self.clk, prefix="m_axi_desc_", log=self.log,
+                self.dut, self.clk, prefix="desc_axi_", log=self.log,
                 data_width=self.TEST_DATA_WIDTH,
                 addr_width=self.TEST_ADDR_WIDTH,
                 id_width=self.TEST_AXI_ID_WIDTH
             )
 
-            # Shared control read AXI read interface
-            self.ctrlrd_axi_slave = create_axi4_slave_rd(
-                self.dut, self.clk, prefix="m_axi_ctrlrd_", log=self.log,
-                data_width=32,  # Control read engine uses 32-bit data
-                addr_width=self.TEST_ADDR_WIDTH,
-                id_width=self.TEST_AXI_ID_WIDTH
-            )
-
-            # Shared control write AXI write interface
-            self.ctrlwr_axi_slave = create_axi4_slave_wr(
-                self.dut, self.clk, prefix="m_axi_ctrlwr_", log=self.log,
-                data_width=32,  # Control write engine uses 32-bit data
-                addr_width=self.TEST_ADDR_WIDTH,
-                id_width=self.TEST_AXI_ID_WIDTH
-            )
+            # Note: This module only has desc_axi_* for descriptor fetches
+            # The sched_rd_*/sched_wr_* are simple valid/ready/addr/beats interfaces
+            # to downstream datapaths, not full AXI interfaces
 
             # Aggregated monitor bus interface
             self.monitor_slave = create_gaxi_slave(
@@ -272,27 +274,9 @@ class SchedulerGroupArrayTB(TBBase):
                 log=self.log
             )
 
-            self.ctrlrd_memory = MemoryModel(
-                num_lines=1024,
-                bytes_per_line=4,   # 32-bit control read words
-                log=self.log
-            )
-
-            self.ctrlwr_memory = MemoryModel(
-                num_lines=1024,
-                bytes_per_line=4,   # 32-bit control write words
-                log=self.log
-            )
-
-            # Connect memory models to AXI slaves
+            # Connect memory model to AXI slave for descriptor fetches
             if self.desc_axi_slave and 'interface' in self.desc_axi_slave:
                 self.desc_axi_slave['interface'].memory_model = self.descriptor_memory
-
-            if self.ctrlrd_axi_slave and 'interface' in self.ctrlrd_axi_slave:
-                self.ctrlrd_axi_slave['interface'].memory_model = self.ctrlrd_memory
-
-            if self.ctrlwr_axi_slave and 'interface' in self.ctrlwr_axi_slave:
-                self.ctrlwr_axi_slave['interface'].memory_model = self.ctrlwr_memory
 
             self.log.info("✅ All scheduler array interfaces setup complete")
 
@@ -347,31 +331,21 @@ class SchedulerGroupArrayTB(TBBase):
             if hasattr(self.dut, 'data_alignment_ready'):
                 self.dut.data_alignment_ready.value = (1 << self.CHANNEL_COUNT) - 1  # All channels ready
 
-            # Unpacked arrays - set each element individually
-            for ch in range(self.CHANNEL_COUNT):
-                if hasattr(self.dut, 'apb_addr'):
-                    self.dut.apb_addr[ch].value = 0
-                if hasattr(self.dut, 'rda_packet'):
-                    self.dut.rda_packet[ch].value = 0
-                if hasattr(self.dut, 'rda_channel'):
-                    self.dut.rda_channel[ch].value = ch
-                if hasattr(self.dut, 'eos_completion_channel'):
-                    self.dut.eos_completion_channel[ch].value = ch
-                if hasattr(self.dut, 'data_transfer_length'):
-                    self.dut.data_transfer_length[ch].value = 0
-                if hasattr(self.dut, 'rda_complete_channel'):
-                    self.dut.rda_complete_channel[ch].value = ch
-                # Address and limit configuration
-                if hasattr(self.dut, 'cfg_addr0_base'):
-                    self.dut.cfg_addr0_base[ch].value = 0
-                if hasattr(self.dut, 'cfg_addr0_limit'):
-                    self.dut.cfg_addr0_limit[ch].value = self.MAX_ADDR
-                if hasattr(self.dut, 'cfg_addr1_base'):
-                    self.dut.cfg_addr1_base[ch].value = 0
-                if hasattr(self.dut, 'cfg_addr1_limit'):
-                    self.dut.cfg_addr1_limit[ch].value = self.MAX_ADDR
-                if hasattr(self.dut, 'cfg_fifo_threshold'):
-                    self.dut.cfg_fifo_threshold[ch].value = 8
+            # Packed multi-dimensional arrays (Verilator flattens these)
+            # Set entire flattened vector to 0 for arrays we can't index into
+            packed_arrays = ['apb_addr', 'rda_packet', 'rda_channel',
+                             'eos_completion_channel', 'data_transfer_length',
+                             'rda_complete_channel', 'cfg_addr0_base',
+                             'cfg_addr0_limit', 'cfg_addr1_base', 'cfg_addr1_limit',
+                             'cfg_fifo_threshold']
+            for arr_name in packed_arrays:
+                if hasattr(self.dut, arr_name):
+                    try:
+                        # Try to set the entire flattened vector to 0
+                        getattr(self.dut, arr_name).value = 0
+                    except Exception:
+                        # Silently ignore if we can't set it
+                        pass
 
             # Monitor bus ready (single aggregated output)
             if hasattr(self.dut, 'mon_ready'):
@@ -404,11 +378,6 @@ class SchedulerGroupArrayTB(TBBase):
             # Clear memory models
             if self.descriptor_memory:
                 self.descriptor_memory.reset()
-            if self.ctrlrd_memory:
-                self.ctrlrd_memory.reset()
-            if self.ctrlwr_memory:
-                self.ctrlwr_memory.reset()
-
             # Wait for all to settle
             await self.wait_clocks(self.clk_name, 10)
             self.log.info("All interfaces cleared")
@@ -465,8 +434,8 @@ class SchedulerGroupArrayTB(TBBase):
             current_valid = int(self.dut.apb_valid.value)
             self.dut.apb_valid.value = current_valid | (1 << channel)
 
-            # APB address (unpacked array)
-            self.dut.apb_addr[channel].value = addr
+            # APB address (flattened 2D array - use helper to set specific channel)
+            self.set_flattened_array_element(self.dut.apb_addr, channel, addr, self.TEST_ADDR_WIDTH)
 
             await self.wait_clocks(self.clk_name, 1)
 
@@ -607,9 +576,7 @@ class SchedulerGroupArrayTB(TBBase):
                 'error_count': error_count,
                 'success_rate': success_rate,
                 'monbus_packets': 0,  # TODO: collect from monitor
-                'desc_axi_transactions': self.test_stats['axi']['descriptor_reads'],
-                'ctrlrd_axi_transactions': self.test_stats['axi']['ctrlrd_reads'],
-                'ctrlwr_axi_transactions': self.test_stats['axi']['ctrlwr_writes']
+                'desc_axi_transactions': self.test_stats['axi']['descriptor_reads']
             }
 
             return success_count == total_operations, stats
@@ -822,13 +789,9 @@ class SchedulerGroupArrayTB(TBBase):
 
         # Arbitration
         self.log.info(f"\nDescriptor Arbitrations: {stats['arbitration']['descriptor_arbitrations']}")
-        self.log.info(f"Control Read Arbitrations: {stats['arbitration']['ctrlrd_arbitrations']}")
-        self.log.info(f"Control Write Arbitrations: {stats['arbitration']['ctrlwr_arbitrations']}")
 
         # AXI
         self.log.info(f"\nDescriptor Reads: {stats['axi']['descriptor_reads']}")
-        self.log.info(f"Control Reads: {stats['axi']['ctrlrd_reads']}")
-        self.log.info(f"Control Writes: {stats['axi']['ctrlwr_writes']}")
 
         # Monitor
         self.log.info(f"\nMonitor Events: {stats['monitor']['monitor_events']}")

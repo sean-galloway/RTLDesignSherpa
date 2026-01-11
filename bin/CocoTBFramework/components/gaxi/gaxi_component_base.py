@@ -41,8 +41,9 @@ class GAXIComponentBase:
 
     FIXED: Data strategies now receive resolved signals directly from SignalResolver
     instead of doing their own signal discovery.
-    
+
     ADDED: Optional signal_map parameter for manual signal override.
+    ADDED: Coverage hooks for automatic transaction sampling.
     """
 
     def __init__(self, dut, title, prefix, clock, field_config,
@@ -146,6 +147,11 @@ class GAXIComponentBase:
 
         # Store additional kwargs for subclass use
         self._component_kwargs = kwargs
+
+        # Coverage hooks - list of callables that receive transaction info
+        # Each hook is called with: (component, transaction, direction, interface)
+        # where direction is 'tx' (transmit) or 'rx' (receive)
+        self._coverage_hooks = []
 
     def _normalize_field_config(self, field_config):
         """
@@ -357,3 +363,70 @@ class GAXIComponentBase:
         self.randomizer = randomizer
         if self.log:
             self.log.info(f"GAXIComponentBase '{self.title}': Set new randomizer")
+
+    # =========================================================================
+    # Coverage Hook Infrastructure
+    # =========================================================================
+
+    def add_coverage_hook(self, hook):
+        """
+        Register a coverage hook to be called on transactions.
+
+        The hook will be called with:
+            hook(component, transaction, direction, interface)
+
+        Where:
+            - component: This GAXIComponentBase instance
+            - transaction: The GAXIPacket being transmitted/received
+            - direction: 'tx' for transmit, 'rx' for receive
+            - interface: Interface name (from bus_name or title)
+
+        Args:
+            hook: Callable that receives coverage data
+        """
+        if hook not in self._coverage_hooks:
+            self._coverage_hooks.append(hook)
+            if self.log:
+                self.log.debug(f"GAXIComponentBase '{self.title}': Added coverage hook")
+
+    def remove_coverage_hook(self, hook):
+        """
+        Remove a previously registered coverage hook.
+
+        Args:
+            hook: The hook to remove
+        """
+        if hook in self._coverage_hooks:
+            self._coverage_hooks.remove(hook)
+            if self.log:
+                self.log.debug(f"GAXIComponentBase '{self.title}': Removed coverage hook")
+
+    def clear_coverage_hooks(self):
+        """Remove all coverage hooks."""
+        self._coverage_hooks.clear()
+        if self.log:
+            self.log.debug(f"GAXIComponentBase '{self.title}': Cleared all coverage hooks")
+
+    def _trigger_coverage_hooks(self, transaction, direction):
+        """
+        Trigger all registered coverage hooks.
+
+        This is called by Master/Slave/Monitor subclasses when transactions complete.
+
+        Args:
+            transaction: The completed transaction (GAXIPacket)
+            direction: 'tx' for transmit (master->slave), 'rx' for receive (slave->master)
+        """
+        if not self._coverage_hooks:
+            return
+
+        # Determine interface name from bus_name or title
+        interface = self.bus_name if self.bus_name else self.title
+
+        for hook in self._coverage_hooks:
+            try:
+                hook(self, transaction, direction, interface)
+            except Exception as e:
+                if self.log:
+                    self.log.warning(f"GAXIComponentBase '{self.title}': "
+                                   f"Coverage hook raised exception: {e}")

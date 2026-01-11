@@ -1,0 +1,38 @@
+%%{init: {'theme': 'base', 'themeVariables': { 'primaryColor': '#f3e5f5', 'primaryBorderColor': '#7b1fa2'}}}%%
+flowchart LR
+    subgraph alloc["beats_alloc_ctrl"]
+        direction TB
+        WR_PTR[wr_ptr]
+        SPACE[space_free]
+        WR_PTR --> SPACE
+    end
+
+    subgraph sram["simple_sram"]
+        direction TB
+        MEM["SRAM Buffer<br/>[DEPTH entries]"]
+    end
+
+    subgraph bridge["beats_latency_bridge"]
+        direction TB
+        DELAY[Latency<br/>Compensation]
+    end
+
+    subgraph drain["beats_drain_ctrl"]
+        direction TB
+        RD_PTR[rd_ptr]
+        AVAIL[data_avail]
+        RD_PTR --> AVAIL
+    end
+
+    FILL[Fill<br/>Interface] --> |wr_valid| alloc
+    alloc --> |sram_wr_en| sram
+    sram --> |sram_rd_data| bridge
+    bridge --> |delayed trigger| drain
+    drain --> |rd_valid| DRAIN[Drain<br/>Interface]
+
+    alloc -.-> |"Pointer tracking<br/>(no data dup)"| drain
+
+    style alloc fill:#e8f5e9
+    style drain fill:#fff3e0
+    style sram fill:#e3f2fd
+    style bridge fill:#fce4ec

@@ -29,21 +29,31 @@ import cocotb
 import random
 from pathlib import Path
 
-# CRITICAL: Must setup paths BEFORE importing from CocoTBFramework
-# First, do minimal setup to import get_repo_root
-repo_root_temp = os.path.abspath(os.path.join(os.path.dirname(__file__), '../../../../../..'))
-sys.path.insert(0, os.path.join(repo_root_temp, 'bin'))
-
-# Now we can import utilities
+from CocoTBFramework.tbclasses.shared.tbbase import TBBase
 from CocoTBFramework.tbclasses.shared.utilities import get_paths, get_repo_root
 from CocoTBFramework.tbclasses.shared.filelist_utils import get_sources_from_filelist
-from CocoTBFramework.tbclasses.shared.tbbase import TBBase
 
-# Use the proper get_repo_root() function
+# Add repo root to Python path using robust git-based method
 repo_root = get_repo_root()
 sys.path.insert(0, repo_root)
 
 from projects.components.stream.dv.tbclasses.stream_core_tb import StreamCoreTB
+
+# Coverage integration - optional import
+try:
+    from projects.components.stream.dv.stream_coverage import CoverageHelper
+    COVERAGE_AVAILABLE = True
+except ImportError:
+    COVERAGE_AVAILABLE = False
+
+
+def get_coverage_helper(test_name: str, log=None):
+    """Get coverage helper if coverage is enabled."""
+    if not COVERAGE_AVAILABLE:
+        return None
+    if os.environ.get('COVERAGE', '0') != '1':
+        return None
+    return CoverageHelper(test_name, log=log)
 
 
 # ==============================================================================
@@ -245,6 +255,10 @@ async def cocotb_test_single_channel_transfer(dut):
         fifo_depth=fifo_depth
     )
 
+    # Initialize coverage if enabled
+    test_name = f"test_stream_core_single_nc{num_channels:02d}_dw{data_width:04d}"
+    coverage = get_coverage_helper(test_name, log=tb.log)
+
     await tb.setup_clocks_and_reset(rd_xfer_beats=rd_xfer_beats, wr_xfer_beats=wr_xfer_beats)
     tb.log.info(f"=== Single Channel Transfer Test ===")
     tb.log.info(f"Channels: {num_channels}, Data Width: {data_width}, "
@@ -313,6 +327,40 @@ async def cocotb_test_single_channel_transfer(dut):
     # Print transaction summary for debugging
     tb.print_transaction_summary(channel=channel)
 
+    # Sample coverage if enabled
+    if coverage:
+        # Sample AXI transactions (INCR burst type = 1, STREAM uses 64-byte bursts)
+        burst_size = data_width // 8  # Convert data width to bytes
+        for _ in range(desc_count):
+            # Each descriptor generates read and write transactions
+            coverage.sample_axi_read(
+                burst_type=1,        # INCR
+                burst_size=burst_size,
+                burst_len=rd_xfer_beats,
+                response=0           # OKAY
+            )
+            coverage.sample_axi_write(
+                burst_type=1,        # INCR
+                burst_size=burst_size,
+                burst_len=wr_xfer_beats,
+                response=0           # OKAY
+            )
+
+        # Sample functional scenarios
+        coverage.sample_scenario("basic_transfer")
+        if desc_count > 1:
+            coverage.sample_scenario("descriptor_chain")
+
+        # Sample handshakes
+        coverage.sample_handshake("read_request")
+        coverage.sample_handshake("read_response")
+        coverage.sample_handshake("write_request")
+        coverage.sample_handshake("write_response")
+
+        # Save coverage
+        coverage.save()
+        tb.log.info(f"Coverage saved for {test_name}")
+
     tb.log.info("=== Test PASSED ===")
 
 
@@ -342,6 +390,10 @@ async def cocotb_test_multi_channel_concurrent(dut):
         axi_id_width=axi_id_width,
         fifo_depth=fifo_depth
     )
+
+    # Initialize coverage if enabled
+    test_name = f"test_stream_core_multi_nc{num_channels:02d}_dw{data_width:04d}_nch{len(test_channels):02d}"
+    coverage = get_coverage_helper(test_name, log=tb.log)
 
     await tb.setup_clocks_and_reset(rd_xfer_beats=rd_xfer_beats, wr_xfer_beats=wr_xfer_beats)
     cocotb.log.info(f"=== Multi-Channel Concurrent Test ===")
@@ -412,6 +464,44 @@ async def cocotb_test_multi_channel_concurrent(dut):
 
         cocotb.log.info(f"Channel {channel} verified OK")
 
+    # Sample coverage if enabled
+    if coverage:
+        burst_size = data_width // 8
+        total_transfers = len(test_channels) * desc_count
+
+        # Sample AXI transactions for all channels
+        for _ in range(total_transfers):
+            coverage.sample_axi_read(
+                burst_type=1,
+                burst_size=burst_size,
+                burst_len=rd_xfer_beats,
+                response=0           # OKAY
+            )
+            coverage.sample_axi_write(
+                burst_type=1,
+                burst_size=burst_size,
+                burst_len=wr_xfer_beats,
+                response=0           # OKAY
+            )
+
+        # Sample scenarios - multi-channel specific
+        coverage.sample_scenario("basic_transfer")
+        coverage.sample_scenario("concurrent_rw")
+        if desc_count > 1:
+            coverage.sample_scenario("descriptor_chain")
+        if len(test_channels) > 1:
+            coverage.sample_scenario("full_pipeline")  # Multiple channels = full pipeline
+
+        # Sample all handshakes
+        coverage.sample_handshake("read_request")
+        coverage.sample_handshake("read_response")
+        coverage.sample_handshake("write_request")
+        coverage.sample_handshake("write_response")
+
+        # Save coverage
+        coverage.save()
+        cocotb.log.info(f"Coverage saved for {test_name}")
+
     cocotb.log.info("=== Test PASSED ===")
 
 
@@ -436,6 +526,11 @@ async def cocotb_test_variable_sizes(dut):
         axi_id_width=axi_id_width,
         fifo_depth=fifo_depth
     )
+
+    # Initialize coverage if enabled
+    sizes_str = '_'.join(map(str, transfer_sizes[:3]))  # First 3 sizes for name
+    test_name = f"test_stream_core_varsizes_dw{data_width:04d}_sz{sizes_str}"
+    coverage = get_coverage_helper(test_name, log=tb.log)
 
     await tb.setup_clocks_and_reset()
     cocotb.log.info(f"=== Variable Size Transfer Test ===")
@@ -487,6 +582,39 @@ async def cocotb_test_variable_sizes(dut):
         match = tb.verify_transfer(src_addr, dst_addr, transfer_beats)
         assert match, f"Transfer {idx} ({transfer_beats} beats) data mismatch"
         cocotb.log.info(f"Transfer {idx} ({transfer_beats} beats) verified OK")
+
+    # Sample coverage if enabled
+    if coverage:
+        burst_size = data_width // 8
+
+        # Sample AXI transactions for each transfer size
+        for transfer_beats in transfer_sizes:
+            coverage.sample_axi_read(
+                burst_type=1,
+                burst_size=burst_size,
+                burst_len=transfer_beats,
+                response=0           # OKAY
+            )
+            coverage.sample_axi_write(
+                burst_type=1,
+                burst_size=burst_size,
+                burst_len=transfer_beats,
+                response=0           # OKAY
+            )
+
+        # Sample scenarios
+        coverage.sample_scenario("basic_transfer")
+        coverage.sample_scenario("descriptor_chain")  # Multiple sizes = chained
+
+        # Sample handshakes
+        coverage.sample_handshake("read_request")
+        coverage.sample_handshake("read_response")
+        coverage.sample_handshake("write_request")
+        coverage.sample_handshake("write_response")
+
+        # Save coverage
+        coverage.save()
+        cocotb.log.info(f"Coverage saved for {test_name}")
 
     cocotb.log.info("=== Test PASSED ===")
 

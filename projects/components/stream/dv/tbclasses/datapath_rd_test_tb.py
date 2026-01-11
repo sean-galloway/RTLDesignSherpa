@@ -14,12 +14,13 @@ from cocotb.clock import Clock
 import os
 import sys
 
-# Add repo root to path
-repo_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '../../../../../'))
-if os.path.join(repo_root, 'bin') not in sys.path:
-    sys.path.insert(0, os.path.join(repo_root, 'bin'))
-
+# Import framework utilities (PYTHONPATH includes bin/)
+from CocoTBFramework.tbclasses.shared.utilities import get_repo_root
 from CocoTBFramework.tbclasses.shared.tbbase import TBBase
+
+# Add repo root to Python path using robust git-based method
+repo_root = get_repo_root()
+sys.path.insert(0, repo_root)
 from CocoTBFramework.components.axi4.axi4_interfaces import AXI4SlaveRead
 from CocoTBFramework.components.shared.memory_model import MemoryModel
 from CocoTBFramework.components.shared.flex_randomizer import FlexRandomizer

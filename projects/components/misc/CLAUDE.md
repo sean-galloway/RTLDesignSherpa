@@ -349,11 +349,14 @@ import cocotb
 from cocotb.triggers import RisingEdge, ReadOnly
 from cocotb.clock import Clock
 
-# Add repo to path
-repo_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '../../../../../..'))
+# Import framework utilities (PYTHONPATH includes bin/)
+from CocoTBFramework.tbclasses.shared.utilities import get_repo_root
+from CocoTBFramework.tbclasses.shared.tbbase import TBBase
+
+# Add repo root to Python path using robust git-based method
+repo_root = get_repo_root()
 sys.path.insert(0, repo_root)
 
-from CocoTBFramework.tbclasses.shared.tbbase import TBBase
 from CocoTBFramework.components.axi4.axi4_master import AXI4Master
 
 class AXIRomTB(TBBase):
@@ -427,8 +430,11 @@ import pytest
 import cocotb
 from cocotb_test.simulator import run
 
-# Add repo to path
-repo_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '../../../../../..'))
+# Import framework utilities (PYTHONPATH includes bin/)
+from CocoTBFramework.tbclasses.shared.utilities import get_repo_root
+
+# Add repo root to Python path using robust git-based method
+repo_root = get_repo_root()
 sys.path.insert(0, repo_root)
 
 from projects.components.misc.dv.tbclasses.axi_rom_tb import AXIRomTB

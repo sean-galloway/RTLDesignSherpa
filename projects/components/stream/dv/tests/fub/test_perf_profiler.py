@@ -37,31 +37,21 @@ STRUCTURE FOLLOWS REPOSITORY STANDARD:
 import os
 import sys
 import random
-
-# Setup Python path BEFORE any other imports
-# First, do minimal setup to import get_repo_root
-repo_root_temp = os.path.abspath(os.path.join(os.path.dirname(__file__), '../../../../../..'))
-sys.path.insert(0, os.path.join(repo_root_temp, 'bin'))
-
-# Now import utilities to get proper repo root
-from CocoTBFramework.tbclasses.shared.utilities import get_repo_root
-
-# Use the proper get_repo_root() function
-repo_root = get_repo_root()
-sys.path.insert(0, repo_root)
-
 import pytest
 import cocotb
 from cocotb.triggers import RisingEdge, ClockCycles
 from cocotb_test.simulator import run
 
+from CocoTBFramework.tbclasses.shared.tbbase import TBBase
+from CocoTBFramework.tbclasses.shared.utilities import get_paths, create_view_cmd, get_repo_root
+from CocoTBFramework.tbclasses.shared.filelist_utils import get_sources_from_filelist
+
+# Add repo root to Python path using robust git-based method
+repo_root = get_repo_root()
+sys.path.insert(0, repo_root)
+
 # Import REUSABLE testbench class from PROJECT AREA (NOT framework!)
 from projects.components.stream.dv.tbclasses.perf_profiler_tb import PerfProfilerTB
-
-# Shared framework utilities
-from CocoTBFramework.tbclasses.shared.utilities import get_paths, create_view_cmd
-from CocoTBFramework.tbclasses.shared.tbbase import TBBase
-from CocoTBFramework.tbclasses.shared.filelist_utils import get_sources_from_filelist
 
 
 # ===========================================================================

@@ -26,22 +26,15 @@ import os
 import sys
 import json
 from pathlib import Path
-
-# CRITICAL: Must setup paths BEFORE importing from CocoTBFramework
-# First, do minimal setup to import get_repo_root
-repo_root_temp = os.path.abspath(os.path.join(os.path.dirname(__file__), '../../../../../..'))
-sys.path.insert(0, os.path.join(repo_root_temp, 'bin'))
-
 from cocotb_test.simulator import run
 import cocotb
 from cocotb.triggers import ClockCycles, RisingEdge, Timer
 from cocotb.clock import Clock
 
-# Now we can import utilities
 from CocoTBFramework.tbclasses.shared.utilities import get_repo_root, get_paths
 from CocoTBFramework.tbclasses.shared.filelist_utils import get_sources_from_filelist
 
-# Use the proper get_repo_root() function
+# Add repo root to Python path using robust git-based method
 repo_root = get_repo_root()
 sys.path.insert(0, repo_root)
 
@@ -212,8 +205,8 @@ async def cocotb_test_performance_profile(dut):
             # Rotate through transfer sizes
             transfer_size = config['transfer_sizes'][i % len(config['transfer_sizes'])]
 
-            # Descriptor address (64-byte spacing like working test)
-            desc_addr = tb.desc_mem_base + (channel * 0x100000) + (i * 64)
+            # Descriptor address (4KB per channel, 64-byte spacing like working test)
+            desc_addr = tb.desc_mem_base + (channel * 0x1000) + (i * 64)
             next_desc_addr = desc_addr + 64 if i < config['desc_count'] - 1 else 0
 
             # Source/destination addresses (0x10000 offset per descriptor)
@@ -252,7 +245,7 @@ async def cocotb_test_performance_profile(dut):
         start_time = cocotb.utils.get_sim_time('ns')
 
         # Kick off channel
-        first_desc_addr = tb.desc_mem_base + (channel * 0x100000)
+        first_desc_addr = tb.desc_mem_base + (channel * 0x1000)
         await tb.kick_off_channel(channel, first_desc_addr)
 
         # Wait for completion (correct method name)

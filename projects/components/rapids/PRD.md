@@ -175,17 +175,20 @@ projects/components/rapids/
 
 **✅ CORRECT - Import from Project Area:**
 ```python
-# Add repo root to Python path
+# Import framework utilities (PYTHONPATH includes bin/)
 import os, sys
-repo_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '../../../../../..'))
+from CocoTBFramework.tbclasses.shared.utilities import get_repo_root
+from CocoTBFramework.tbclasses.shared.tbbase import TBBase
+
+# Add repo root to Python path using robust git-based method
+repo_root = get_repo_root()
 sys.path.insert(0, repo_root)
 
 # Import RAPIDS TB classes from PROJECT AREA
 from projects.components.rapids.dv.tbclasses.scheduler_tb import SchedulerTB
 from projects.components.rapids.dv.tbclasses.descriptor_engine_tb import DescriptorEngineTB
 
-# Shared framework infrastructure
-from CocoTBFramework.tbclasses.shared.tbbase import TBBase
+# Shared framework components
 from CocoTBFramework.components.axi4.axi4_master import AXI4Master
 ```
 

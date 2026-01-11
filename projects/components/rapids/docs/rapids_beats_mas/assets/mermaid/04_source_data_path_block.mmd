@@ -1,0 +1,36 @@
+%%{init: {'theme': 'base', 'themeVariables': { 'primaryColor': '#e8eaf6', 'primaryBorderColor': '#3949ab'}}}%%
+flowchart TB
+    subgraph source_data_path["Source Data Path"]
+        direction TB
+
+        SCHED[Scheduler] --> |sched_rd_valid| AXI_RD
+
+        subgraph AXI_RD["axi_read_engine"]
+            AR[AR Channel]
+            R[R Channel]
+        end
+
+        AXI_RD --> |fill_valid/data| SRAM_CTRL
+
+        subgraph SRAM_CTRL["src_sram_controller"]
+            direction LR
+            subgraph units["Controller Units"]
+                U0[unit 0]
+                U1[unit 1]
+                U7[unit 7]
+                U0 -.-> U1 -.-> U7
+            end
+            ARB[Channel Arbiter]
+            units --> ARB
+        end
+
+        SRAM_CTRL --> |drain_valid/data| DRAIN
+        AXI_RD --> |sched_rd_done| SCHED
+    end
+
+    MEM[(System Memory)] --> |m_axi_ar/r| AXI_RD
+    DRAIN[Drain Interface] --> NETWORK[Network Egress]
+
+    style DRAIN fill:#c8e6c9
+    style SCHED fill:#e3f2fd
+    style MEM fill:#fce4ec

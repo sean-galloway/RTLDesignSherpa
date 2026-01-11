@@ -94,9 +94,9 @@ graph TD
 ### 🎯 Component Projects
 | Component | Status | Description |
 |-----------|--------|-------------|
-| **[STREAM](projects/components/stream/)** | 🟡 Development | Tutorial DMA engine with scatter-gather |
-| **[RAPIDS](projects/components/rapids/)** | 🟢 Functional | Advanced DMA with network interfaces |
-| **[Bridge](projects/components/bridge/)** | 🟡 Development | AXI protocol bridges and converters |
+| **[STREAM](projects/components/stream/)** | ✅ Ready | Tutorial DMA engine with scatter-gather |
+| **[RAPIDS](projects/components/rapids/)** | 🟡 In Progress | Advanced DMA with network interfaces |
+| **[Bridge](projects/components/bridge/)** | ✅ Ready | AXI protocol bridges and converters |
 | **[Converters](projects/components/converters/)** | ✅ Ready | UART-to-AXI4-Lite, protocol conversion |
 | **[APB Crossbar](projects/components/apb_xbar/)** | ✅ Ready | M×N APB interconnect |
 | **[Retro Legacy](projects/components/retro_legacy_blocks/)** | ✅ Ready | HPET, PIC, PIT, RTC, UART, GPIO, etc. |
@@ -253,15 +253,15 @@ Build complete, production-ready peripherals for FPGA deployment (**10+ componen
 
 | Component | Status | Description |
 |-----------|--------|-------------|
-| **[STREAM](projects/components/stream/)** | 🟡 Development | Tutorial DMA with 8 channels, scatter-gather, APB config |
-| **[RAPIDS](projects/components/rapids/)** | 🟢 Functional | Advanced DMA with alignment fixup, network TX/RX, credit flow |
+| **[STREAM](projects/components/stream/)** | ✅ Ready | Tutorial DMA with 8 channels, scatter-gather, APB config |
+| **[RAPIDS](projects/components/rapids/)** | 🟡 In Progress | Advanced DMA with alignment fixup, network TX/RX, credit flow |
 
 #### Interconnect and Bridges
 
 | Component | Status | Description |
 |-----------|--------|-------------|
 | **[APB Crossbar](projects/components/apb_xbar/)** | ✅ Ready | Parametric M×N APB interconnect with round-robin arbitration |
-| **[Bridge](projects/components/bridge/)** | 🟡 Development | AXI4 protocol bridges, width converters, CDC |
+| **[Bridge](projects/components/bridge/)** | ✅ Ready | AXI4 protocol bridges, width converters, CDC |
 | **[Converters](projects/components/converters/)** | ✅ Ready | UART-to-AXI4-Lite, protocol conversion bridges |
 
 #### Retro Legacy Blocks
@@ -722,10 +722,10 @@ We welcome contributions at all levels:
 ## Roadmap
 
 ### Current Focus
-- 🟢 **STREAM DMA** - Tutorial DMA engine completion
-- 🟢 **Bridge components** - AXI4 width converters, CDC bridges
-- 🟢 **Retro Legacy Blocks** - 9 peripherals with MAS documentation
-- 🟡 **RAPIDS DMA** - Advanced DMA refinement
+- ✅ **STREAM DMA** - Tutorial DMA engine complete
+- ✅ **Bridge components** - AXI4 width converters, CDC bridges complete
+- ✅ **Retro Legacy Blocks** - 9 peripherals with MAS documentation
+- 🟡 **RAPIDS DMA** - Advanced DMA in progress
 - 🟡 **Floating-Point** - FP32 FMA, additional converters
 
 ### Near-Term

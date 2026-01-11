@@ -7,10 +7,7 @@
 import sys
 import os
 
-# Add rtl_generators to path
-repo_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '../../../../../..'))
-sys.path.insert(0, os.path.join(repo_root, 'bin'))
-
+# Import rtl_generators (PYTHONPATH includes bin/)
 from rtl_generators.verilog.module import Module
 
 

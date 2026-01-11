@@ -6,7 +6,12 @@
 +incdir+$REPO_ROOT/rtl/amba/includes
 +incdir+$REPO_ROOT/rtl/common/includes
 
-# Package files (MUST be first)
+# Package files (MUST be first, in dependency order)
+# Monitor packages - common first, then protocol-specific, then unified
+$REPO_ROOT/rtl/amba/includes/monitor_common_pkg.sv
+$REPO_ROOT/rtl/amba/includes/monitor_amba4_pkg.sv
+$REPO_ROOT/rtl/amba/includes/monitor_amba5_pkg.sv
+$REPO_ROOT/rtl/amba/includes/monitor_arbiter_pkg.sv
 $REPO_ROOT/rtl/amba/includes/monitor_pkg.sv
 $REPO_ROOT/projects/components/rapids/rtl/includes/rapids_pkg.sv
 
@@ -29,4 +34,4 @@ $REPO_ROOT/rtl/common/arbiter_round_robin.sv
 $REPO_ROOT/rtl/common/arbiter_priority_encoder.sv
 
 # DUT module
-$REPO_ROOT/projects/components/rapids/rtl/rapids_macro/monbus_axil_group.sv
+$REPO_ROOT/projects/components/rapids/rtl/macro/monbus_axil_group.sv

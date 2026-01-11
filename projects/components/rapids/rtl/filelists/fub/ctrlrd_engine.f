@@ -12,12 +12,16 @@
 +incdir+$REPO_ROOT/rtl/amba/includes
 +incdir+$REPO_ROOT/rtl/common/includes
 
-# Package files (MUST be first)
+# Package files (MUST be first, in dependency order)
+$REPO_ROOT/rtl/amba/includes/monitor_common_pkg.sv
+$REPO_ROOT/rtl/amba/includes/monitor_amba4_pkg.sv
+$REPO_ROOT/rtl/amba/includes/monitor_amba5_pkg.sv
+$REPO_ROOT/rtl/amba/includes/monitor_arbiter_pkg.sv
 $REPO_ROOT/rtl/amba/includes/monitor_pkg.sv
 $REPO_ROOT/projects/components/rapids/rtl/includes/rapids_pkg.sv
 
-# Main module
-$REPO_ROOT/projects/components/rapids/rtl/rapids_fub/ctrlrd_engine.sv
-
 # Dependencies
 $REPO_ROOT/rtl/amba/gaxi/gaxi_skid_buffer.sv
+
+# DUT module
+$REPO_ROOT/projects/components/rapids/rtl/fub/ctrlrd_engine.sv

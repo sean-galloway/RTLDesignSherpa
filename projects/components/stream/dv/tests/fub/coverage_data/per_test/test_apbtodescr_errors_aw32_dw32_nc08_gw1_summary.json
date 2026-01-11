@@ -1,0 +1,1922 @@
+{
+  "test_name": "test_apbtodescr_errors_aw32_dw32_nc08_gw1",
+  "protocol_coverage": {
+    "name": "test_apbtodescr_errors_aw32_dw32_nc08_gw1_protocol",
+    "overall_coverage_pct": 5.88235294117647,
+    "groups": {
+      "axi_read_burst_type": {
+        "name": "axi_read_burst_type",
+        "description": "AXI burst type coverage",
+        "coverage_pct": 0.0,
+        "covered": 0,
+        "total": 3,
+        "points": {
+          "FIXED": {
+            "name": "Burst type FIXED",
+            "description": "",
+            "hits": 0,
+            "goal": 1
+          },
+          "INCR": {
+            "name": "Burst type INCR",
+            "description": "",
+            "hits": 0,
+            "goal": 1
+          },
+          "WRAP": {
+            "name": "Burst type WRAP",
+            "description": "",
+            "hits": 0,
+            "goal": 1
+          }
+        }
+      },
+      "axi_write_burst_type": {
+        "name": "axi_write_burst_type",
+        "description": "AXI burst type coverage",
+        "coverage_pct": 0.0,
+        "covered": 0,
+        "total": 3,
+        "points": {
+          "FIXED": {
+            "name": "Burst type FIXED",
+            "description": "",
+            "hits": 0,
+            "goal": 1
+          },
+          "INCR": {
+            "name": "Burst type INCR",
+            "description": "",
+            "hits": 0,
+            "goal": 1
+          },
+          "WRAP": {
+            "name": "Burst type WRAP",
+            "description": "",
+            "hits": 0,
+            "goal": 1
+          }
+        }
+      },
+      "axi_read_burst_size": {
+        "name": "axi_read_burst_size",
+        "description": "AXI burst size coverage",
+        "coverage_pct": 0.0,
+        "covered": 0,
+        "total": 8,
+        "points": {
+          "size_1": {
+            "name": "1-byte transfers",
+            "description": "",
+            "hits": 0,
+            "goal": 1
+          },
+          "size_2": {
+            "name": "2-byte transfers",
+            "description": "",
+            "hits": 0,
+            "goal": 1
+          },
+          "size_4": {
+            "name": "4-byte transfers",
+            "description": "",
+            "hits": 0,
+            "goal": 1
+          },
+          "size_8": {
+            "name": "8-byte transfers",
+            "description": "",
+            "hits": 0,
+            "goal": 1
+          },
+          "size_16": {
+            "name": "16-byte transfers",
+            "description": "",
+            "hits": 0,
+            "goal": 1
+          },
+          "size_32": {
+            "name": "32-byte transfers",
+            "description": "",
+            "hits": 0,
+            "goal": 1
+          },
+          "size_64": {
+            "name": "64-byte transfers",
+            "description": "",
+            "hits": 0,
+            "goal": 1
+          },
+          "size_128": {
+            "name": "128-byte transfers",
+            "description": "",
+            "hits": 0,
+            "goal": 1
+          }
+        }
+      },
+      "axi_write_burst_size": {
+        "name": "axi_write_burst_size",
+        "description": "AXI burst size coverage",
+        "coverage_pct": 0.0,
+        "covered": 0,
+        "total": 8,
+        "points": {
+          "size_1": {
+            "name": "1-byte transfers",
+            "description": "",
+            "hits": 0,
+            "goal": 1
+          },
+          "size_2": {
+            "name": "2-byte transfers",
+            "description": "",
+            "hits": 0,
+            "goal": 1
+          },
+          "size_4": {
+            "name": "4-byte transfers",
+            "description": "",
+            "hits": 0,
+            "goal": 1
+          },
+          "size_8": {
+            "name": "8-byte transfers",
+            "description": "",
+            "hits": 0,
+            "goal": 1
+          },
+          "size_16": {
+            "name": "16-byte transfers",
+            "description": "",
+            "hits": 0,
+            "goal": 1
+          },
+          "size_32": {
+            "name": "32-byte transfers",
+            "description": "",
+            "hits": 0,
+            "goal": 1
+          },
+          "size_64": {
+            "name": "64-byte transfers",
+            "description": "",
+            "hits": 0,
+            "goal": 1
+          },
+          "size_128": {
+            "name": "128-byte transfers",
+            "description": "",
+            "hits": 0,
+            "goal": 1
+          }
+        }
+      },
+      "axi_read_burst_length": {
+        "name": "axi_read_burst_length",
+        "description": "AXI burst length coverage",
+        "coverage_pct": 0.0,
+        "covered": 0,
+        "total": 5,
+        "points": {
+          "len_1": {
+            "name": "Single beat (len=0)",
+            "description": "",
+            "hits": 0,
+            "goal": 1
+          },
+          "len_2_4": {
+            "name": "Short burst (len=1-3)",
+            "description": "",
+            "hits": 0,
+            "goal": 1
+          },
+          "len_5_8": {
+            "name": "Medium burst (len=4-7)",
+            "description": "",
+            "hits": 0,
+            "goal": 1
+          },
+          "len_9_16": {
+            "name": "Long burst (len=8-15)",
+            "description": "",
+            "hits": 0,
+            "goal": 1
+          },
+          "len_17_256": {
+            "name": "Very long burst (len=16-255)",
+            "description": "",
+            "hits": 0,
+            "goal": 1
+          }
+        }
+      },
+      "axi_write_burst_length": {
+        "name": "axi_write_burst_length",
+        "description": "AXI burst length coverage",
+        "coverage_pct": 0.0,
+        "covered": 0,
+        "total": 5,
+        "points": {
+          "len_1": {
+            "name": "Single beat (len=0)",
+            "description": "",
+            "hits": 0,
+            "goal": 1
+          },
+          "len_2_4": {
+            "name": "Short burst (len=1-3)",
+            "description": "",
+            "hits": 0,
+            "goal": 1
+          },
+          "len_5_8": {
+            "name": "Medium burst (len=4-7)",
+            "description": "",
+            "hits": 0,
+            "goal": 1
+          },
+          "len_9_16": {
+            "name": "Long burst (len=8-15)",
+            "description": "",
+            "hits": 0,
+            "goal": 1
+          },
+          "len_17_256": {
+            "name": "Very long burst (len=16-255)",
+            "description": "",
+            "hits": 0,
+            "goal": 1
+          }
+        }
+      },
+      "axi_read_response": {
+        "name": "axi_read_response",
+        "description": "AXI response type coverage",
+        "coverage_pct": 0.0,
+        "covered": 0,
+        "total": 4,
+        "points": {
+          "OKAY": {
+            "name": "Response OKAY",
+            "description": "",
+            "hits": 0,
+            "goal": 1
+          },
+          "EXOKAY": {
+            "name": "Response EXOKAY",
+            "description": "",
+            "hits": 0,
+            "goal": 1
+          },
+          "SLVERR": {
+            "name": "Response SLVERR",
+            "description": "",
+            "hits": 0,
+            "goal": 1
+          },
+          "DECERR": {
+            "name": "Response DECERR",
+            "description": "",
+            "hits": 0,
+            "goal": 1
+          }
+        }
+      },
+      "axi_write_response": {
+        "name": "axi_write_response",
+        "description": "AXI response type coverage",
+        "coverage_pct": 0.0,
+        "covered": 0,
+        "total": 4,
+        "points": {
+          "OKAY": {
+            "name": "Response OKAY",
+            "description": "",
+            "hits": 0,
+            "goal": 1
+          },
+          "EXOKAY": {
+            "name": "Response EXOKAY",
+            "description": "",
+            "hits": 0,
+            "goal": 1
+          },
+          "SLVERR": {
+            "name": "Response SLVERR",
+            "description": "",
+            "hits": 0,
+            "goal": 1
+          },
+          "DECERR": {
+            "name": "Response DECERR",
+            "description": "",
+            "hits": 0,
+            "goal": 1
+          }
+        }
+      },
+      "apb_transactions": {
+        "name": "apb_transactions",
+        "description": "APB transaction coverage",
+        "coverage_pct": 50.0,
+        "covered": 2,
+        "total": 4,
+        "points": {
+          "read_okay": {
+            "name": "APB read with OKAY response",
+            "description": "",
+            "hits": 0,
+            "goal": 1
+          },
+          "read_error": {
+            "name": "APB read with ERROR response",
+            "description": "",
+            "hits": 2,
+            "goal": 1
+          },
+          "write_okay": {
+            "name": "APB write with OKAY response",
+            "description": "",
+            "hits": 0,
+            "goal": 1
+          },
+          "write_error": {
+            "name": "APB write with ERROR response",
+            "description": "",
+            "hits": 4,
+            "goal": 1
+          }
+        }
+      },
+      "address_alignment": {
+        "name": "address_alignment",
+        "description": "Address alignment coverage",
+        "coverage_pct": 0.0,
+        "covered": 0,
+        "total": 6,
+        "points": {
+          "unaligned": {
+            "name": "Unaligned address",
+            "description": "",
+            "hits": 0,
+            "goal": 1
+          },
+          "halfword": {
+            "name": "Halfword aligned (2-byte)",
+            "description": "",
+            "hits": 0,
+            "goal": 1
+          },
+          "word": {
+            "name": "Word aligned (4-byte)",
+            "description": "",
+            "hits": 0,
+            "goal": 1
+          },
+          "dword": {
+            "name": "Doubleword aligned (8-byte)",
+            "description": "",
+            "hits": 0,
+            "goal": 1
+          },
+          "qword": {
+            "name": "Quadword aligned (16-byte)",
+            "description": "",
+            "hits": 0,
+            "goal": 1
+          },
+          "cache_line": {
+            "name": "Cache line aligned (64-byte)",
+            "description": "",
+            "hits": 0,
+            "goal": 1
+          }
+        }
+      },
+      "handshakes": {
+        "name": "handshakes",
+        "description": "Valid/Ready interface coverage",
+        "coverage_pct": 0.0,
+        "covered": 0,
+        "total": 12,
+        "points": {
+          "desc_valid_ready": {
+            "name": "Descriptor valid/ready handshake",
+            "description": "",
+            "hits": 0,
+            "goal": 1
+          },
+          "desc_done": {
+            "name": "Descriptor done signal",
+            "description": "",
+            "hits": 0,
+            "goal": 1
+          },
+          "network_tx_valid_ready": {
+            "name": "Network TX valid/ready",
+            "description": "",
+            "hits": 0,
+            "goal": 1
+          },
+          "network_rx_valid_ready": {
+            "name": "Network RX valid/ready",
+            "description": "",
+            "hits": 0,
+            "goal": 1
+          },
+          "mem_cmd_valid_ready": {
+            "name": "Memory command valid/ready",
+            "description": "",
+            "hits": 0,
+            "goal": 1
+          },
+          "mem_data_valid_ready": {
+            "name": "Memory data valid/ready",
+            "description": "",
+            "hits": 0,
+            "goal": 1
+          },
+          "scheduler_to_read_engine": {
+            "name": "Scheduler to read engine handshake",
+            "description": "",
+            "hits": 0,
+            "goal": 1
+          },
+          "scheduler_to_write_engine": {
+            "name": "Scheduler to write engine handshake",
+            "description": "",
+            "hits": 0,
+            "goal": 1
+          },
+          "read_engine_complete": {
+            "name": "Read engine completion",
+            "description": "",
+            "hits": 0,
+            "goal": 1
+          },
+          "write_engine_complete": {
+            "name": "Write engine completion",
+            "description": "",
+            "hits": 0,
+            "goal": 1
+          },
+          "backpressure_stall": {
+            "name": "Backpressure causing stall",
+            "description": "",
+            "hits": 0,
+            "goal": 1
+          },
+          "pipeline_bubble": {
+            "name": "Pipeline bubble (valid low)",
+            "description": "",
+            "hits": 0,
+            "goal": 1
+          }
+        }
+      },
+      "scenarios": {
+        "name": "scenarios",
+        "description": "Functional scenarios",
+        "coverage_pct": 8.333333333333332,
+        "covered": 1,
+        "total": 12,
+        "points": {
+          "single_desc": {
+            "name": "Single descriptor operation",
+            "description": "",
+            "hits": 0,
+            "goal": 1
+          },
+          "chained_desc": {
+            "name": "Chained descriptor operation",
+            "description": "",
+            "hits": 0,
+            "goal": 1
+          },
+          "concurrent_rw": {
+            "name": "Concurrent read and write",
+            "description": "",
+            "hits": 0,
+            "goal": 1
+          },
+          "back_to_back": {
+            "name": "Back-to-back transactions",
+            "description": "",
+            "hits": 0,
+            "goal": 1
+          },
+          "error_handling": {
+            "name": "Error injection and handling",
+            "description": "",
+            "hits": 1,
+            "goal": 1
+          },
+          "timeout_recovery": {
+            "name": "Timeout detection and recovery",
+            "description": "",
+            "hits": 0,
+            "goal": 1
+          },
+          "full_pipeline": {
+            "name": "Full pipeline active",
+            "description": "",
+            "hits": 0,
+            "goal": 1
+          },
+          "backpressure": {
+            "name": "Backpressure handling",
+            "description": "",
+            "hits": 0,
+            "goal": 1
+          },
+          "max_outstanding": {
+            "name": "Maximum outstanding transactions",
+            "description": "",
+            "hits": 0,
+            "goal": 1
+          },
+          "empty_desc": {
+            "name": "Empty descriptor handling",
+            "description": "",
+            "hits": 0,
+            "goal": 1
+          },
+          "wrap_burst": {
+            "name": "WRAP burst boundary handling",
+            "description": "",
+            "hits": 0,
+            "goal": 1
+          },
+          "narrow_transfer": {
+            "name": "Narrow transfer (strobe != all 1s)",
+            "description": "",
+            "hits": 0,
+            "goal": 1
+          }
+        }
+      },
+      "burst_type_x_size": {
+        "name": "burst_type_x_size",
+        "description": "Cross: burst type x burst size",
+        "coverage_pct": 0.0,
+        "covered": 0,
+        "total": 12,
+        "points": {
+          "FIXED_size1": {
+            "name": "FIXED burst with 1-byte size",
+            "description": "",
+            "hits": 0,
+            "goal": 1
+          },
+          "FIXED_size2": {
+            "name": "FIXED burst with 2-byte size",
+            "description": "",
+            "hits": 0,
+            "goal": 1
+          },
+          "FIXED_size4": {
+            "name": "FIXED burst with 4-byte size",
+            "description": "",
+            "hits": 0,
+            "goal": 1
+          },
+          "FIXED_size8": {
+            "name": "FIXED burst with 8-byte size",
+            "description": "",
+            "hits": 0,
+            "goal": 1
+          },
+          "INCR_size1": {
+            "name": "INCR burst with 1-byte size",
+            "description": "",
+            "hits": 0,
+            "goal": 1
+          },
+          "INCR_size2": {
+            "name": "INCR burst with 2-byte size",
+            "description": "",
+            "hits": 0,
+            "goal": 1
+          },
+          "INCR_size4": {
+            "name": "INCR burst with 4-byte size",
+            "description": "",
+            "hits": 0,
+            "goal": 1
+          },
+          "INCR_size8": {
+            "name": "INCR burst with 8-byte size",
+            "description": "",
+            "hits": 0,
+            "goal": 1
+          },
+          "WRAP_size1": {
+            "name": "WRAP burst with 1-byte size",
+            "description": "",
+            "hits": 0,
+            "goal": 1
+          },
+          "WRAP_size2": {
+            "name": "WRAP burst with 2-byte size",
+            "description": "",
+            "hits": 0,
+            "goal": 1
+          },
+          "WRAP_size4": {
+            "name": "WRAP burst with 4-byte size",
+            "description": "",
+            "hits": 0,
+            "goal": 1
+          },
+          "WRAP_size8": {
+            "name": "WRAP burst with 8-byte size",
+            "description": "",
+            "hits": 0,
+            "goal": 1
+          }
+        }
+      }
+    },
+    "interfaces": {
+      "desc": {
+        "read_burst_type": {
+          "name": "desc_read_burst_type",
+          "description": "AXI burst type coverage",
+          "coverage_pct": 0.0,
+          "covered": 0,
+          "total": 3,
+          "points": {
+            "FIXED": {
+              "name": "Burst type FIXED",
+              "description": "",
+              "hits": 0,
+              "goal": 1
+            },
+            "INCR": {
+              "name": "Burst type INCR",
+              "description": "",
+              "hits": 0,
+              "goal": 1
+            },
+            "WRAP": {
+              "name": "Burst type WRAP",
+              "description": "",
+              "hits": 0,
+              "goal": 1
+            }
+          }
+        },
+        "read_burst_size": {
+          "name": "desc_read_burst_size",
+          "description": "AXI burst size coverage",
+          "coverage_pct": 0.0,
+          "covered": 0,
+          "total": 8,
+          "points": {
+            "size_1": {
+              "name": "1-byte transfers",
+              "description": "",
+              "hits": 0,
+              "goal": 1
+            },
+            "size_2": {
+              "name": "2-byte transfers",
+              "description": "",
+              "hits": 0,
+              "goal": 1
+            },
+            "size_4": {
+              "name": "4-byte transfers",
+              "description": "",
+              "hits": 0,
+              "goal": 1
+            },
+            "size_8": {
+              "name": "8-byte transfers",
+              "description": "",
+              "hits": 0,
+              "goal": 1
+            },
+            "size_16": {
+              "name": "16-byte transfers",
+              "description": "",
+              "hits": 0,
+              "goal": 1
+            },
+            "size_32": {
+              "name": "32-byte transfers",
+              "description": "",
+              "hits": 0,
+              "goal": 1
+            },
+            "size_64": {
+              "name": "64-byte transfers",
+              "description": "",
+              "hits": 0,
+              "goal": 1
+            },
+            "size_128": {
+              "name": "128-byte transfers",
+              "description": "",
+              "hits": 0,
+              "goal": 1
+            }
+          }
+        },
+        "read_burst_length": {
+          "name": "desc_read_burst_length",
+          "description": "AXI burst length coverage",
+          "coverage_pct": 0.0,
+          "covered": 0,
+          "total": 5,
+          "points": {
+            "len_1": {
+              "name": "Single beat (len=0)",
+              "description": "",
+              "hits": 0,
+              "goal": 1
+            },
+            "len_2_4": {
+              "name": "Short burst (len=1-3)",
+              "description": "",
+              "hits": 0,
+              "goal": 1
+            },
+            "len_5_8": {
+              "name": "Medium burst (len=4-7)",
+              "description": "",
+              "hits": 0,
+              "goal": 1
+            },
+            "len_9_16": {
+              "name": "Long burst (len=8-15)",
+              "description": "",
+              "hits": 0,
+              "goal": 1
+            },
+            "len_17_256": {
+              "name": "Very long burst (len=16-255)",
+              "description": "",
+              "hits": 0,
+              "goal": 1
+            }
+          }
+        },
+        "read_response": {
+          "name": "desc_read_response",
+          "description": "AXI response type coverage",
+          "coverage_pct": 0.0,
+          "covered": 0,
+          "total": 4,
+          "points": {
+            "OKAY": {
+              "name": "Response OKAY",
+              "description": "",
+              "hits": 0,
+              "goal": 1
+            },
+            "EXOKAY": {
+              "name": "Response EXOKAY",
+              "description": "",
+              "hits": 0,
+              "goal": 1
+            },
+            "SLVERR": {
+              "name": "Response SLVERR",
+              "description": "",
+              "hits": 0,
+              "goal": 1
+            },
+            "DECERR": {
+              "name": "Response DECERR",
+              "description": "",
+              "hits": 0,
+              "goal": 1
+            }
+          }
+        },
+        "write_burst_type": {
+          "name": "desc_write_burst_type",
+          "description": "AXI burst type coverage",
+          "coverage_pct": 0.0,
+          "covered": 0,
+          "total": 3,
+          "points": {
+            "FIXED": {
+              "name": "Burst type FIXED",
+              "description": "",
+              "hits": 0,
+              "goal": 1
+            },
+            "INCR": {
+              "name": "Burst type INCR",
+              "description": "",
+              "hits": 0,
+              "goal": 1
+            },
+            "WRAP": {
+              "name": "Burst type WRAP",
+              "description": "",
+              "hits": 0,
+              "goal": 1
+            }
+          }
+        },
+        "write_burst_size": {
+          "name": "desc_write_burst_size",
+          "description": "AXI burst size coverage",
+          "coverage_pct": 0.0,
+          "covered": 0,
+          "total": 8,
+          "points": {
+            "size_1": {
+              "name": "1-byte transfers",
+              "description": "",
+              "hits": 0,
+              "goal": 1
+            },
+            "size_2": {
+              "name": "2-byte transfers",
+              "description": "",
+              "hits": 0,
+              "goal": 1
+            },
+            "size_4": {
+              "name": "4-byte transfers",
+              "description": "",
+              "hits": 0,
+              "goal": 1
+            },
+            "size_8": {
+              "name": "8-byte transfers",
+              "description": "",
+              "hits": 0,
+              "goal": 1
+            },
+            "size_16": {
+              "name": "16-byte transfers",
+              "description": "",
+              "hits": 0,
+              "goal": 1
+            },
+            "size_32": {
+              "name": "32-byte transfers",
+              "description": "",
+              "hits": 0,
+              "goal": 1
+            },
+            "size_64": {
+              "name": "64-byte transfers",
+              "description": "",
+              "hits": 0,
+              "goal": 1
+            },
+            "size_128": {
+              "name": "128-byte transfers",
+              "description": "",
+              "hits": 0,
+              "goal": 1
+            }
+          }
+        },
+        "write_burst_length": {
+          "name": "desc_write_burst_length",
+          "description": "AXI burst length coverage",
+          "coverage_pct": 0.0,
+          "covered": 0,
+          "total": 5,
+          "points": {
+            "len_1": {
+              "name": "Single beat (len=0)",
+              "description": "",
+              "hits": 0,
+              "goal": 1
+            },
+            "len_2_4": {
+              "name": "Short burst (len=1-3)",
+              "description": "",
+              "hits": 0,
+              "goal": 1
+            },
+            "len_5_8": {
+              "name": "Medium burst (len=4-7)",
+              "description": "",
+              "hits": 0,
+              "goal": 1
+            },
+            "len_9_16": {
+              "name": "Long burst (len=8-15)",
+              "description": "",
+              "hits": 0,
+              "goal": 1
+            },
+            "len_17_256": {
+              "name": "Very long burst (len=16-255)",
+              "description": "",
+              "hits": 0,
+              "goal": 1
+            }
+          }
+        },
+        "write_response": {
+          "name": "desc_write_response",
+          "description": "AXI response type coverage",
+          "coverage_pct": 0.0,
+          "covered": 0,
+          "total": 4,
+          "points": {
+            "OKAY": {
+              "name": "Response OKAY",
+              "description": "",
+              "hits": 0,
+              "goal": 1
+            },
+            "EXOKAY": {
+              "name": "Response EXOKAY",
+              "description": "",
+              "hits": 0,
+              "goal": 1
+            },
+            "SLVERR": {
+              "name": "Response SLVERR",
+              "description": "",
+              "hits": 0,
+              "goal": 1
+            },
+            "DECERR": {
+              "name": "Response DECERR",
+              "description": "",
+              "hits": 0,
+              "goal": 1
+            }
+          }
+        }
+      },
+      "axi_mem": {
+        "read_burst_type": {
+          "name": "axi_mem_read_burst_type",
+          "description": "AXI burst type coverage",
+          "coverage_pct": 0.0,
+          "covered": 0,
+          "total": 3,
+          "points": {
+            "FIXED": {
+              "name": "Burst type FIXED",
+              "description": "",
+              "hits": 0,
+              "goal": 1
+            },
+            "INCR": {
+              "name": "Burst type INCR",
+              "description": "",
+              "hits": 0,
+              "goal": 1
+            },
+            "WRAP": {
+              "name": "Burst type WRAP",
+              "description": "",
+              "hits": 0,
+              "goal": 1
+            }
+          }
+        },
+        "read_burst_size": {
+          "name": "axi_mem_read_burst_size",
+          "description": "AXI burst size coverage",
+          "coverage_pct": 0.0,
+          "covered": 0,
+          "total": 8,
+          "points": {
+            "size_1": {
+              "name": "1-byte transfers",
+              "description": "",
+              "hits": 0,
+              "goal": 1
+            },
+            "size_2": {
+              "name": "2-byte transfers",
+              "description": "",
+              "hits": 0,
+              "goal": 1
+            },
+            "size_4": {
+              "name": "4-byte transfers",
+              "description": "",
+              "hits": 0,
+              "goal": 1
+            },
+            "size_8": {
+              "name": "8-byte transfers",
+              "description": "",
+              "hits": 0,
+              "goal": 1
+            },
+            "size_16": {
+              "name": "16-byte transfers",
+              "description": "",
+              "hits": 0,
+              "goal": 1
+            },
+            "size_32": {
+              "name": "32-byte transfers",
+              "description": "",
+              "hits": 0,
+              "goal": 1
+            },
+            "size_64": {
+              "name": "64-byte transfers",
+              "description": "",
+              "hits": 0,
+              "goal": 1
+            },
+            "size_128": {
+              "name": "128-byte transfers",
+              "description": "",
+              "hits": 0,
+              "goal": 1
+            }
+          }
+        },
+        "read_burst_length": {
+          "name": "axi_mem_read_burst_length",
+          "description": "AXI burst length coverage",
+          "coverage_pct": 0.0,
+          "covered": 0,
+          "total": 5,
+          "points": {
+            "len_1": {
+              "name": "Single beat (len=0)",
+              "description": "",
+              "hits": 0,
+              "goal": 1
+            },
+            "len_2_4": {
+              "name": "Short burst (len=1-3)",
+              "description": "",
+              "hits": 0,
+              "goal": 1
+            },
+            "len_5_8": {
+              "name": "Medium burst (len=4-7)",
+              "description": "",
+              "hits": 0,
+              "goal": 1
+            },
+            "len_9_16": {
+              "name": "Long burst (len=8-15)",
+              "description": "",
+              "hits": 0,
+              "goal": 1
+            },
+            "len_17_256": {
+              "name": "Very long burst (len=16-255)",
+              "description": "",
+              "hits": 0,
+              "goal": 1
+            }
+          }
+        },
+        "read_response": {
+          "name": "axi_mem_read_response",
+          "description": "AXI response type coverage",
+          "coverage_pct": 0.0,
+          "covered": 0,
+          "total": 4,
+          "points": {
+            "OKAY": {
+              "name": "Response OKAY",
+              "description": "",
+              "hits": 0,
+              "goal": 1
+            },
+            "EXOKAY": {
+              "name": "Response EXOKAY",
+              "description": "",
+              "hits": 0,
+              "goal": 1
+            },
+            "SLVERR": {
+              "name": "Response SLVERR",
+              "description": "",
+              "hits": 0,
+              "goal": 1
+            },
+            "DECERR": {
+              "name": "Response DECERR",
+              "description": "",
+              "hits": 0,
+              "goal": 1
+            }
+          }
+        },
+        "write_burst_type": {
+          "name": "axi_mem_write_burst_type",
+          "description": "AXI burst type coverage",
+          "coverage_pct": 0.0,
+          "covered": 0,
+          "total": 3,
+          "points": {
+            "FIXED": {
+              "name": "Burst type FIXED",
+              "description": "",
+              "hits": 0,
+              "goal": 1
+            },
+            "INCR": {
+              "name": "Burst type INCR",
+              "description": "",
+              "hits": 0,
+              "goal": 1
+            },
+            "WRAP": {
+              "name": "Burst type WRAP",
+              "description": "",
+              "hits": 0,
+              "goal": 1
+            }
+          }
+        },
+        "write_burst_size": {
+          "name": "axi_mem_write_burst_size",
+          "description": "AXI burst size coverage",
+          "coverage_pct": 0.0,
+          "covered": 0,
+          "total": 8,
+          "points": {
+            "size_1": {
+              "name": "1-byte transfers",
+              "description": "",
+              "hits": 0,
+              "goal": 1
+            },
+            "size_2": {
+              "name": "2-byte transfers",
+              "description": "",
+              "hits": 0,
+              "goal": 1
+            },
+            "size_4": {
+              "name": "4-byte transfers",
+              "description": "",
+              "hits": 0,
+              "goal": 1
+            },
+            "size_8": {
+              "name": "8-byte transfers",
+              "description": "",
+              "hits": 0,
+              "goal": 1
+            },
+            "size_16": {
+              "name": "16-byte transfers",
+              "description": "",
+              "hits": 0,
+              "goal": 1
+            },
+            "size_32": {
+              "name": "32-byte transfers",
+              "description": "",
+              "hits": 0,
+              "goal": 1
+            },
+            "size_64": {
+              "name": "64-byte transfers",
+              "description": "",
+              "hits": 0,
+              "goal": 1
+            },
+            "size_128": {
+              "name": "128-byte transfers",
+              "description": "",
+              "hits": 0,
+              "goal": 1
+            }
+          }
+        },
+        "write_burst_length": {
+          "name": "axi_mem_write_burst_length",
+          "description": "AXI burst length coverage",
+          "coverage_pct": 0.0,
+          "covered": 0,
+          "total": 5,
+          "points": {
+            "len_1": {
+              "name": "Single beat (len=0)",
+              "description": "",
+              "hits": 0,
+              "goal": 1
+            },
+            "len_2_4": {
+              "name": "Short burst (len=1-3)",
+              "description": "",
+              "hits": 0,
+              "goal": 1
+            },
+            "len_5_8": {
+              "name": "Medium burst (len=4-7)",
+              "description": "",
+              "hits": 0,
+              "goal": 1
+            },
+            "len_9_16": {
+              "name": "Long burst (len=8-15)",
+              "description": "",
+              "hits": 0,
+              "goal": 1
+            },
+            "len_17_256": {
+              "name": "Very long burst (len=16-255)",
+              "description": "",
+              "hits": 0,
+              "goal": 1
+            }
+          }
+        },
+        "write_response": {
+          "name": "axi_mem_write_response",
+          "description": "AXI response type coverage",
+          "coverage_pct": 0.0,
+          "covered": 0,
+          "total": 4,
+          "points": {
+            "OKAY": {
+              "name": "Response OKAY",
+              "description": "",
+              "hits": 0,
+              "goal": 1
+            },
+            "EXOKAY": {
+              "name": "Response EXOKAY",
+              "description": "",
+              "hits": 0,
+              "goal": 1
+            },
+            "SLVERR": {
+              "name": "Response SLVERR",
+              "description": "",
+              "hits": 0,
+              "goal": 1
+            },
+            "DECERR": {
+              "name": "Response DECERR",
+              "description": "",
+              "hits": 0,
+              "goal": 1
+            }
+          }
+        }
+      },
+      "network": {
+        "read_burst_type": {
+          "name": "network_read_burst_type",
+          "description": "AXI burst type coverage",
+          "coverage_pct": 0.0,
+          "covered": 0,
+          "total": 3,
+          "points": {
+            "FIXED": {
+              "name": "Burst type FIXED",
+              "description": "",
+              "hits": 0,
+              "goal": 1
+            },
+            "INCR": {
+              "name": "Burst type INCR",
+              "description": "",
+              "hits": 0,
+              "goal": 1
+            },
+            "WRAP": {
+              "name": "Burst type WRAP",
+              "description": "",
+              "hits": 0,
+              "goal": 1
+            }
+          }
+        },
+        "read_burst_size": {
+          "name": "network_read_burst_size",
+          "description": "AXI burst size coverage",
+          "coverage_pct": 0.0,
+          "covered": 0,
+          "total": 8,
+          "points": {
+            "size_1": {
+              "name": "1-byte transfers",
+              "description": "",
+              "hits": 0,
+              "goal": 1
+            },
+            "size_2": {
+              "name": "2-byte transfers",
+              "description": "",
+              "hits": 0,
+              "goal": 1
+            },
+            "size_4": {
+              "name": "4-byte transfers",
+              "description": "",
+              "hits": 0,
+              "goal": 1
+            },
+            "size_8": {
+              "name": "8-byte transfers",
+              "description": "",
+              "hits": 0,
+              "goal": 1
+            },
+            "size_16": {
+              "name": "16-byte transfers",
+              "description": "",
+              "hits": 0,
+              "goal": 1
+            },
+            "size_32": {
+              "name": "32-byte transfers",
+              "description": "",
+              "hits": 0,
+              "goal": 1
+            },
+            "size_64": {
+              "name": "64-byte transfers",
+              "description": "",
+              "hits": 0,
+              "goal": 1
+            },
+            "size_128": {
+              "name": "128-byte transfers",
+              "description": "",
+              "hits": 0,
+              "goal": 1
+            }
+          }
+        },
+        "read_burst_length": {
+          "name": "network_read_burst_length",
+          "description": "AXI burst length coverage",
+          "coverage_pct": 0.0,
+          "covered": 0,
+          "total": 5,
+          "points": {
+            "len_1": {
+              "name": "Single beat (len=0)",
+              "description": "",
+              "hits": 0,
+              "goal": 1
+            },
+            "len_2_4": {
+              "name": "Short burst (len=1-3)",
+              "description": "",
+              "hits": 0,
+              "goal": 1
+            },
+            "len_5_8": {
+              "name": "Medium burst (len=4-7)",
+              "description": "",
+              "hits": 0,
+              "goal": 1
+            },
+            "len_9_16": {
+              "name": "Long burst (len=8-15)",
+              "description": "",
+              "hits": 0,
+              "goal": 1
+            },
+            "len_17_256": {
+              "name": "Very long burst (len=16-255)",
+              "description": "",
+              "hits": 0,
+              "goal": 1
+            }
+          }
+        },
+        "read_response": {
+          "name": "network_read_response",
+          "description": "AXI response type coverage",
+          "coverage_pct": 0.0,
+          "covered": 0,
+          "total": 4,
+          "points": {
+            "OKAY": {
+              "name": "Response OKAY",
+              "description": "",
+              "hits": 0,
+              "goal": 1
+            },
+            "EXOKAY": {
+              "name": "Response EXOKAY",
+              "description": "",
+              "hits": 0,
+              "goal": 1
+            },
+            "SLVERR": {
+              "name": "Response SLVERR",
+              "description": "",
+              "hits": 0,
+              "goal": 1
+            },
+            "DECERR": {
+              "name": "Response DECERR",
+              "description": "",
+              "hits": 0,
+              "goal": 1
+            }
+          }
+        },
+        "write_burst_type": {
+          "name": "network_write_burst_type",
+          "description": "AXI burst type coverage",
+          "coverage_pct": 0.0,
+          "covered": 0,
+          "total": 3,
+          "points": {
+            "FIXED": {
+              "name": "Burst type FIXED",
+              "description": "",
+              "hits": 0,
+              "goal": 1
+            },
+            "INCR": {
+              "name": "Burst type INCR",
+              "description": "",
+              "hits": 0,
+              "goal": 1
+            },
+            "WRAP": {
+              "name": "Burst type WRAP",
+              "description": "",
+              "hits": 0,
+              "goal": 1
+            }
+          }
+        },
+        "write_burst_size": {
+          "name": "network_write_burst_size",
+          "description": "AXI burst size coverage",
+          "coverage_pct": 0.0,
+          "covered": 0,
+          "total": 8,
+          "points": {
+            "size_1": {
+              "name": "1-byte transfers",
+              "description": "",
+              "hits": 0,
+              "goal": 1
+            },
+            "size_2": {
+              "name": "2-byte transfers",
+              "description": "",
+              "hits": 0,
+              "goal": 1
+            },
+            "size_4": {
+              "name": "4-byte transfers",
+              "description": "",
+              "hits": 0,
+              "goal": 1
+            },
+            "size_8": {
+              "name": "8-byte transfers",
+              "description": "",
+              "hits": 0,
+              "goal": 1
+            },
+            "size_16": {
+              "name": "16-byte transfers",
+              "description": "",
+              "hits": 0,
+              "goal": 1
+            },
+            "size_32": {
+              "name": "32-byte transfers",
+              "description": "",
+              "hits": 0,
+              "goal": 1
+            },
+            "size_64": {
+              "name": "64-byte transfers",
+              "description": "",
+              "hits": 0,
+              "goal": 1
+            },
+            "size_128": {
+              "name": "128-byte transfers",
+              "description": "",
+              "hits": 0,
+              "goal": 1
+            }
+          }
+        },
+        "write_burst_length": {
+          "name": "network_write_burst_length",
+          "description": "AXI burst length coverage",
+          "coverage_pct": 0.0,
+          "covered": 0,
+          "total": 5,
+          "points": {
+            "len_1": {
+              "name": "Single beat (len=0)",
+              "description": "",
+              "hits": 0,
+              "goal": 1
+            },
+            "len_2_4": {
+              "name": "Short burst (len=1-3)",
+              "description": "",
+              "hits": 0,
+              "goal": 1
+            },
+            "len_5_8": {
+              "name": "Medium burst (len=4-7)",
+              "description": "",
+              "hits": 0,
+              "goal": 1
+            },
+            "len_9_16": {
+              "name": "Long burst (len=8-15)",
+              "description": "",
+              "hits": 0,
+              "goal": 1
+            },
+            "len_17_256": {
+              "name": "Very long burst (len=16-255)",
+              "description": "",
+              "hits": 0,
+              "goal": 1
+            }
+          }
+        },
+        "write_response": {
+          "name": "network_write_response",
+          "description": "AXI response type coverage",
+          "coverage_pct": 0.0,
+          "covered": 0,
+          "total": 4,
+          "points": {
+            "OKAY": {
+              "name": "Response OKAY",
+              "description": "",
+              "hits": 0,
+              "goal": 1
+            },
+            "EXOKAY": {
+              "name": "Response EXOKAY",
+              "description": "",
+              "hits": 0,
+              "goal": 1
+            },
+            "SLVERR": {
+              "name": "Response SLVERR",
+              "description": "",
+              "hits": 0,
+              "goal": 1
+            },
+            "DECERR": {
+              "name": "Response DECERR",
+              "description": "",
+              "hits": 0,
+              "goal": 1
+            }
+          }
+        }
+      },
+      "generic": {
+        "read_burst_type": {
+          "name": "generic_read_burst_type",
+          "description": "AXI burst type coverage",
+          "coverage_pct": 0.0,
+          "covered": 0,
+          "total": 3,
+          "points": {
+            "FIXED": {
+              "name": "Burst type FIXED",
+              "description": "",
+              "hits": 0,
+              "goal": 1
+            },
+            "INCR": {
+              "name": "Burst type INCR",
+              "description": "",
+              "hits": 0,
+              "goal": 1
+            },
+            "WRAP": {
+              "name": "Burst type WRAP",
+              "description": "",
+              "hits": 0,
+              "goal": 1
+            }
+          }
+        },
+        "read_burst_size": {
+          "name": "generic_read_burst_size",
+          "description": "AXI burst size coverage",
+          "coverage_pct": 0.0,
+          "covered": 0,
+          "total": 8,
+          "points": {
+            "size_1": {
+              "name": "1-byte transfers",
+              "description": "",
+              "hits": 0,
+              "goal": 1
+            },
+            "size_2": {
+              "name": "2-byte transfers",
+              "description": "",
+              "hits": 0,
+              "goal": 1
+            },
+            "size_4": {
+              "name": "4-byte transfers",
+              "description": "",
+              "hits": 0,
+              "goal": 1
+            },
+            "size_8": {
+              "name": "8-byte transfers",
+              "description": "",
+              "hits": 0,
+              "goal": 1
+            },
+            "size_16": {
+              "name": "16-byte transfers",
+              "description": "",
+              "hits": 0,
+              "goal": 1
+            },
+            "size_32": {
+              "name": "32-byte transfers",
+              "description": "",
+              "hits": 0,
+              "goal": 1
+            },
+            "size_64": {
+              "name": "64-byte transfers",
+              "description": "",
+              "hits": 0,
+              "goal": 1
+            },
+            "size_128": {
+              "name": "128-byte transfers",
+              "description": "",
+              "hits": 0,
+              "goal": 1
+            }
+          }
+        },
+        "read_burst_length": {
+          "name": "generic_read_burst_length",
+          "description": "AXI burst length coverage",
+          "coverage_pct": 0.0,
+          "covered": 0,
+          "total": 5,
+          "points": {
+            "len_1": {
+              "name": "Single beat (len=0)",
+              "description": "",
+              "hits": 0,
+              "goal": 1
+            },
+            "len_2_4": {
+              "name": "Short burst (len=1-3)",
+              "description": "",
+              "hits": 0,
+              "goal": 1
+            },
+            "len_5_8": {
+              "name": "Medium burst (len=4-7)",
+              "description": "",
+              "hits": 0,
+              "goal": 1
+            },
+            "len_9_16": {
+              "name": "Long burst (len=8-15)",
+              "description": "",
+              "hits": 0,
+              "goal": 1
+            },
+            "len_17_256": {
+              "name": "Very long burst (len=16-255)",
+              "description": "",
+              "hits": 0,
+              "goal": 1
+            }
+          }
+        },
+        "read_response": {
+          "name": "generic_read_response",
+          "description": "AXI response type coverage",
+          "coverage_pct": 0.0,
+          "covered": 0,
+          "total": 4,
+          "points": {
+            "OKAY": {
+              "name": "Response OKAY",
+              "description": "",
+              "hits": 0,
+              "goal": 1
+            },
+            "EXOKAY": {
+              "name": "Response EXOKAY",
+              "description": "",
+              "hits": 0,
+              "goal": 1
+            },
+            "SLVERR": {
+              "name": "Response SLVERR",
+              "description": "",
+              "hits": 0,
+              "goal": 1
+            },
+            "DECERR": {
+              "name": "Response DECERR",
+              "description": "",
+              "hits": 0,
+              "goal": 1
+            }
+          }
+        },
+        "write_burst_type": {
+          "name": "generic_write_burst_type",
+          "description": "AXI burst type coverage",
+          "coverage_pct": 0.0,
+          "covered": 0,
+          "total": 3,
+          "points": {
+            "FIXED": {
+              "name": "Burst type FIXED",
+              "description": "",
+              "hits": 0,
+              "goal": 1
+            },
+            "INCR": {
+              "name": "Burst type INCR",
+              "description": "",
+              "hits": 0,
+              "goal": 1
+            },
+            "WRAP": {
+              "name": "Burst type WRAP",
+              "description": "",
+              "hits": 0,
+              "goal": 1
+            }
+          }
+        },
+        "write_burst_size": {
+          "name": "generic_write_burst_size",
+          "description": "AXI burst size coverage",
+          "coverage_pct": 0.0,
+          "covered": 0,
+          "total": 8,
+          "points": {
+            "size_1": {
+              "name": "1-byte transfers",
+              "description": "",
+              "hits": 0,
+              "goal": 1
+            },
+            "size_2": {
+              "name": "2-byte transfers",
+              "description": "",
+              "hits": 0,
+              "goal": 1
+            },
+            "size_4": {
+              "name": "4-byte transfers",
+              "description": "",
+              "hits": 0,
+              "goal": 1
+            },
+            "size_8": {
+              "name": "8-byte transfers",
+              "description": "",
+              "hits": 0,
+              "goal": 1
+            },
+            "size_16": {
+              "name": "16-byte transfers",
+              "description": "",
+              "hits": 0,
+              "goal": 1
+            },
+            "size_32": {
+              "name": "32-byte transfers",
+              "description": "",
+              "hits": 0,
+              "goal": 1
+            },
+            "size_64": {
+              "name": "64-byte transfers",
+              "description": "",
+              "hits": 0,
+              "goal": 1
+            },
+            "size_128": {
+              "name": "128-byte transfers",
+              "description": "",
+              "hits": 0,
+              "goal": 1
+            }
+          }
+        },
+        "write_burst_length": {
+          "name": "generic_write_burst_length",
+          "description": "AXI burst length coverage",
+          "coverage_pct": 0.0,
+          "covered": 0,
+          "total": 5,
+          "points": {
+            "len_1": {
+              "name": "Single beat (len=0)",
+              "description": "",
+              "hits": 0,
+              "goal": 1
+            },
+            "len_2_4": {
+              "name": "Short burst (len=1-3)",
+              "description": "",
+              "hits": 0,
+              "goal": 1
+            },
+            "len_5_8": {
+              "name": "Medium burst (len=4-7)",
+              "description": "",
+              "hits": 0,
+              "goal": 1
+            },
+            "len_9_16": {
+              "name": "Long burst (len=8-15)",
+              "description": "",
+              "hits": 0,
+              "goal": 1
+            },
+            "len_17_256": {
+              "name": "Very long burst (len=16-255)",
+              "description": "",
+              "hits": 0,
+              "goal": 1
+            }
+          }
+        },
+        "write_response": {
+          "name": "generic_write_response",
+          "description": "AXI response type coverage",
+          "coverage_pct": 0.0,
+          "covered": 0,
+          "total": 4,
+          "points": {
+            "OKAY": {
+              "name": "Response OKAY",
+              "description": "",
+              "hits": 0,
+              "goal": 1
+            },
+            "EXOKAY": {
+              "name": "Response EXOKAY",
+              "description": "",
+              "hits": 0,
+              "goal": 1
+            },
+            "SLVERR": {
+              "name": "Response SLVERR",
+              "description": "",
+              "hits": 0,
+              "goal": 1
+            },
+            "DECERR": {
+              "name": "Response DECERR",
+              "description": "",
+              "hits": 0,
+              "goal": 1
+            }
+          }
+        }
+      }
+    }
+  },
+  "code_coverage": {
+    "line": {
+      "covered": 0,
+      "total": 0,
+      "pct": 0.0
+    },
+    "toggle": {
+      "covered": 0,
+      "total": 0,
+      "pct": 0.0
+    },
+    "branch": {
+      "covered": 0,
+      "total": 0,
+      "pct": 0.0
+    }
+  },
+  "overall": {
+    "protocol_pct": 5.88235294117647,
+    "line_pct": 0.0,
+    "toggle_pct": 0.0
+  }
+}

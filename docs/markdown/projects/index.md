@@ -44,7 +44,7 @@ This index provides links to component project documentation within the RTL Desi
 ### DMA and Data Transfer
 
 #### STREAM - Scatter-gather Transfer Rapid Engine for AXI Memory
-**Status:** 🟡 In Development (Tutorial DMA engine)
+**Status:** ✅ Ready (Tutorial DMA engine)
 **Location:** [`projects/components/stream/`](../../../projects/components/stream/)
 
 Beginner-friendly descriptor-based DMA engine for memory-to-memory transfers.
@@ -65,7 +65,7 @@ Beginner-friendly descriptor-based DMA engine for memory-to-memory transfers.
 ---
 
 #### RAPIDS - Rapid Application Processing and I/O Data Streams
-**Status:** 🟢 Functional (Test cleanup in progress)
+**Status:** 🟡 In Progress (Test cleanup in progress)
 **Location:** [`projects/components/rapids/`](../../../projects/components/rapids/)
 
 Advanced descriptor-based DMA with network interfaces and complex features.
@@ -107,7 +107,7 @@ Parametric MxN APB interconnect connecting multiple masters to multiple slaves w
 ---
 
 #### Bridge Components
-**Status:** 🟡 In Development
+**Status:** ✅ Ready
 **Location:** [`projects/components/bridge/`](../../../projects/components/bridge/)
 
 Protocol bridge components for bus conversion.

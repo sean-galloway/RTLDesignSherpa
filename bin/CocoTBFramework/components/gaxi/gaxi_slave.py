@@ -380,6 +380,9 @@ class GAXISlave(GAXIMonitorBase):
                 # Record transaction processed (using MonitorStatistics interface)
                 self.stats.transactions_observed += 1
 
+                # Trigger coverage hooks for received transaction
+                self._trigger_coverage_hooks(packet, 'rx')
+
                 # Handle memory operations if memory model available
                 if self.memory_model:
                     if self.pipeline_debug:

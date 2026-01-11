@@ -170,6 +170,9 @@ class GAXIMonitor(GAXIMonitorBase):
                     data_dict = self._get_data_dict()
                     # CLEAN: Use inherited _finish_packet() - unified implementation!
                     self._finish_packet(current_time, pending_packet, data_dict)
+                    # Trigger coverage hooks for observed transaction
+                    direction = 'rx' if self.is_slave else 'tx'
+                    self._trigger_coverage_hooks(pending_packet, direction)
                     pending_capture = False
                     pending_packet = None
 
@@ -201,6 +204,9 @@ class GAXIMonitor(GAXIMonitorBase):
                         data_dict = self._get_data_dict()
                         # CLEAN: Use inherited _finish_packet() - unified implementation!
                         self._finish_packet(current_time, packet, data_dict)
+                        # Trigger coverage hooks for observed transaction
+                        direction = 'rx' if self.is_slave else 'tx'
+                        self._trigger_coverage_hooks(packet, direction)
 
                 # Wait a bit to avoid oversampling - EXACT WORKING TIMING
                 await Timer(1, units='ps')

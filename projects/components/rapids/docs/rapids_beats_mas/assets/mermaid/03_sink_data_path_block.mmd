@@ -1,0 +1,36 @@
+%%{init: {'theme': 'base', 'themeVariables': { 'primaryColor': '#fff3e0', 'primaryBorderColor': '#ef6c00'}}}%%
+flowchart TB
+    subgraph sink_data_path["Sink Data Path"]
+        direction TB
+
+        FILL[Fill Interface] --> |snk_fill_valid/data| SRAM_CTRL
+
+        subgraph SRAM_CTRL["snk_sram_controller"]
+            direction LR
+            subgraph units["Controller Units"]
+                U0[unit 0]
+                U1[unit 1]
+                U7[unit 7]
+                U0 -.-> U1 -.-> U7
+            end
+            ARB[Channel Arbiter]
+            units --> ARB
+        end
+
+        SRAM_CTRL --> |sram_rd_data| AXI_WR
+
+        subgraph AXI_WR["axi_write_engine"]
+            AW[AW Channel]
+            W[W Channel]
+            B[B Channel]
+        end
+
+        SCHED[Scheduler] --> |sched_wr_valid| AXI_WR
+        AXI_WR --> |sched_wr_done| SCHED
+    end
+
+    AXI_WR --> |m_axi_aw/w/b| MEM[(System Memory)]
+
+    style FILL fill:#c8e6c9
+    style SCHED fill:#e3f2fd
+    style MEM fill:#fce4ec

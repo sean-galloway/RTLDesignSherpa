@@ -23,4 +23,4 @@ $REPO_ROOT/rtl/amba/axi4/axi4_master_rd_mon_cg.sv
 $REPO_ROOT/rtl/amba/axi4/axi4_master_wr_mon_cg.sv
 
 # DUT module
-$REPO_ROOT/projects/components/rapids/rtl/rapids_macro/scheduler_group_array.sv
+$REPO_ROOT/projects/components/rapids/rtl/macro/scheduler_group_array.sv

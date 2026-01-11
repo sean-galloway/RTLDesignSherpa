@@ -1,0 +1,24 @@
+%%{init: {'theme': 'base', 'themeVariables': { 'primaryColor': '#e8f5e9', 'primaryBorderColor': '#43a047'}}}%%
+stateDiagram-v2
+    [*] --> IDLE: Reset
+
+    IDLE --> PARSE: descriptor_valid
+    IDLE --> IDLE: !descriptor_valid
+
+    PARSE --> CH_WAIT_DATA: Need source data
+    PARSE --> CH_XFER_DATA: Have sink data
+
+    CH_WAIT_DATA --> CH_XFER_DATA: data_avail
+
+    CH_XFER_DATA --> CH_WR_WAIT: Sink transfer
+    CH_XFER_DATA --> CH_RD_WAIT: Source transfer
+
+    CH_WR_WAIT --> DONE: sched_wr_done_strobe
+    CH_RD_WAIT --> DONE: sched_rd_done_strobe
+
+    DONE --> IDLE: Transfer complete
+
+    note right of IDLE: Wait for descriptor
+    note right of PARSE: Extract descriptor fields
+    note right of CH_XFER_DATA: Issue read/write request
+    note right of DONE: Report completion

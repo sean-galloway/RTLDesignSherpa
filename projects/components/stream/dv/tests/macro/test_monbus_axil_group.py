@@ -46,17 +46,11 @@ import pytest
 import cocotb
 from cocotb_test.simulator import run
 
-# CRITICAL: Must setup paths BEFORE importing from CocoTBFramework
-# First, do minimal setup to import get_repo_root
-repo_root_temp = os.path.abspath(os.path.join(os.path.dirname(__file__), '../../../../../..'))
-sys.path.insert(0, os.path.join(repo_root_temp, 'bin'))
-
-# Now we can import utilities
-from CocoTBFramework.tbclasses.shared.utilities import get_paths, create_view_cmd, get_repo_root
 from CocoTBFramework.tbclasses.shared.tbbase import TBBase
+from CocoTBFramework.tbclasses.shared.utilities import get_paths, create_view_cmd, get_repo_root
 from CocoTBFramework.tbclasses.shared.filelist_utils import get_sources_from_filelist
 
-# Use the proper get_repo_root() function
+# Add repo root to Python path using robust git-based method
 repo_root = get_repo_root()
 sys.path.insert(0, repo_root)
 
@@ -191,7 +185,7 @@ def test_monbus_axil_group(request, test_type, fifo_depth_err, fifo_depth_write,
 
     # Build args conditionally based on waves
     waves_enabled = False
-    compile_args = ["-Wno-TIMESCALEMOD", "-Wno-SELRANGE"]
+    compile_args = ["-Wno-TIMESCALEMOD", "-Wno-SELRANGE", "-Wno-WIDTHEXPAND", "-Wno-WIDTH"]
     sim_args = []
     plusargs = []
     if waves_enabled:

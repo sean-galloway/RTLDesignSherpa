@@ -1,0 +1,45 @@
+%%{init: {'theme': 'base', 'themeVariables': { 'primaryColor': '#e0f2f1', 'primaryBorderColor': '#00897b'}}}%%
+flowchart TB
+    subgraph level0["Level 0: Sources"]
+        direction TB
+        S0[Scheduler 0]
+        D0[DescEngine 0]
+        S7[Scheduler 7]
+        D7[DescEngine 7]
+        SNK[Sink SRAM 0-7]
+        SRC[Source SRAM 0-7]
+        AXI[AXI Engines]
+    end
+
+    subgraph level1["Level 1: Group Arbitration"]
+        direction TB
+        SG0[sched_group 0<br/>2:1 arbiter]
+        SG7[sched_group 7<br/>2:1 arbiter]
+        SGA[scheduler_group_array<br/>9:1 arbiter]
+        SNK_ARB[snk_sram_group<br/>8:1 arbiter]
+        SRC_ARB[src_sram_group<br/>8:1 arbiter]
+    end
+
+    subgraph level2["Level 2: Top Aggregation"]
+        TOP[rapids_core_beats<br/>MonBus Arbiter]
+    end
+
+    S0 --> SG0
+    D0 --> SG0
+    S7 --> SG7
+    D7 --> SG7
+
+    SG0 --> SGA
+    SG7 --> SGA
+
+    SNK --> SNK_ARB
+    SRC --> SRC_ARB
+    AXI --> level2
+
+    SGA --> TOP
+    SNK_ARB --> TOP
+    SRC_ARB --> TOP
+
+    TOP --> OUT[monbus_pkt_valid/data]
+
+    style OUT fill:#c8e6c9

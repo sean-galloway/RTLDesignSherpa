@@ -417,6 +417,9 @@ class GAXIMaster(GAXIComponentBase, BusDriver):
 
         self.sent_queue.append(transaction)
 
+        # Trigger coverage hooks for completed transaction
+        self._trigger_coverage_hooks(transaction, 'tx')
+
         # PERFORMANCE: Only deassert valid if queue is empty (zero-bubble operation)
         # If more beats are queued, keep valid=1 for back-to-back transmission
         if not len(self.transmit_queue):

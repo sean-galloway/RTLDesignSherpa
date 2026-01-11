@@ -27,20 +27,19 @@ Tests UART command parsing (W/R commands) and AXI4-Lite transaction generation.
 import os
 import random
 import sys
-
-# Setup Python path BEFORE any other imports
-repo_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '../../../../../..'))
-bin_path = os.path.join(repo_root, 'bin')
-sys.path.insert(0, repo_root)
-sys.path.insert(0, bin_path)
-
 import pytest
 import cocotb
 from cocotb_test.simulator import run
 
+# Import framework utilities (PYTHONPATH includes bin/)
+from CocoTBFramework.tbclasses.shared.utilities import get_repo_root, get_paths, create_view_cmd
+
+# Add repo root to Python path using robust git-based method
+repo_root = get_repo_root()
+sys.path.insert(0, repo_root)
+
 # Import TB class from project area
 from projects.components.converters.dv.tbclasses.uart_axil_bridge_tb import UARTAXILBridgeTB
-from CocoTBFramework.tbclasses.shared.utilities import get_paths, create_view_cmd
 from CocoTBFramework.tbclasses.shared.filelist_utils import get_sources_from_filelist
 
 

@@ -38,6 +38,73 @@ package rapids_pkg;
     parameter int RAPIDS_MAX_TRANSFER_BYTES = 32'hFFFF_FFFF;
 
     //=========================================================================
+    // Descriptor Structure (256-bit - same as STREAM for Phase 1)
+    //=========================================================================
+    // Format: 256-bit descriptor (4 x 64-bit words)
+    //   [63:0]    - src_addr: Source address (64-bit, must be aligned to data width)
+    //   [127:64]  - dst_addr: Destination address (64-bit, must be aligned to data width)
+    //   [159:128] - length: Transfer length in BEATS (not bytes)
+    //   [191:160] - next_descriptor_ptr: Address of next descriptor (0 = last)
+    //   [255:192] - control: Control bits
+
+    typedef struct packed {
+        logic [63:0]  reserved;              // [255:192] Reserved
+        logic [7:0]   desc_priority;         // [207:200] Transfer priority
+        logic [3:0]   channel_id;            // [199:196] Channel ID (informational only)
+        logic         error;                 // [195] Error flag
+        logic         last;                  // [194] Last in chain
+        logic         gen_irq;               // [193] Generate interrupt
+        logic         valid;                 // [192] Valid descriptor
+        logic [31:0]  next_descriptor_ptr;   // [191:160] Next descriptor address
+        logic [31:0]  length;                // [159:128] Length in BEATS
+        logic [63:0]  dst_addr;              // [127:64] Destination address
+        logic [63:0]  src_addr;              // [63:0] Source address
+    } descriptor_t;
+
+    //=========================================================================
+    // Channel State Enumeration (ONE-HOT ENCODED - for Phase 1 scheduler)
+    //=========================================================================
+    // CRITICAL: CH_XFER_DATA runs read and write engines CONCURRENTLY
+    //           to prevent deadlock when transfer size > SRAM buffer size
+    typedef enum logic [6:0] {
+        CH_IDLE         = 7'b0000001,  // [0] Channel idle, waiting for descriptor
+        CH_FETCH_DESC   = 7'b0000010,  // [1] Fetching descriptor from memory
+        CH_XFER_DATA    = 7'b0000100,  // [2] Concurrent read AND write transfer
+        CH_COMPLETE     = 7'b0001000,  // [3] Transfer complete
+        CH_NEXT_DESC    = 7'b0010000,  // [4] Fetching next chained descriptor
+        CH_ERROR        = 7'b0100000,  // [5] Error state
+        CH_RESERVED     = 7'b1000000   // [6] Reserved for future use
+    } channel_state_t;
+
+    //=========================================================================
+    // Descriptor Fetch FSM States (for descriptor_engine)
+    //=========================================================================
+    // Used by descriptor_engine to fetch descriptors via AXI read
+    typedef enum logic [2:0] {
+        RD_IDLE       = 3'b000,  // Waiting for descriptor address in FIFO
+        RD_ISSUE_ADDR = 3'b001,  // Issue AXI AR transaction
+        RD_WAIT_DATA  = 3'b010,  // Wait for AXI R response
+        RD_COMPLETE   = 3'b011,  // Descriptor fetched successfully
+        RD_ERROR      = 3'b100   // AXI response error
+    } desc_fetch_state_t;
+
+    //=========================================================================
+    // MonBus Event Types (RAPIDS-specific)
+    //=========================================================================
+    // NOTE: PktType* and PROTOCOL_* constants are imported from monitor_common_pkg
+    // via rapids_imports.svh. Do NOT redefine them here to avoid conflicts.
+    // Uses standard 64-bit MonBus format from monitor_pkg
+    parameter logic [3:0] RAPIDS_EVENT_DESC_START     = 4'h0;  // Descriptor started
+    parameter logic [3:0] RAPIDS_EVENT_DESC_COMPLETE  = 4'h1;  // Descriptor completed
+    parameter logic [3:0] RAPIDS_EVENT_READ_START     = 4'h2;  // Read phase started
+    parameter logic [3:0] RAPIDS_EVENT_READ_COMPLETE  = 4'h3;  // Read phase completed
+    parameter logic [3:0] RAPIDS_EVENT_WRITE_START    = 4'h4;  // Write phase started
+    parameter logic [3:0] RAPIDS_EVENT_WRITE_COMPLETE = 4'h5;  // Write phase completed
+    parameter logic [3:0] RAPIDS_EVENT_CHAIN_FETCH    = 4'h6;  // Chained descriptor fetch
+    parameter logic [3:0] RAPIDS_EVENT_IRQ            = 4'h7;  // Interrupt request generated
+    parameter logic [3:0] RAPIDS_EVENT_ERROR          = 4'hF;  // Error occurred
+
+    //=========================================================================
     // Transfer Phase Enumeration
     //=========================================================================
 

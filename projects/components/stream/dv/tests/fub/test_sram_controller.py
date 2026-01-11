@@ -25,31 +25,22 @@ Updated: 2025-11-07 - Refactored to standard pattern
 """
 
 import os
-import random  # For SEED generation
+import sys
+import random
 import pytest
 import cocotb
 from cocotb_test.simulator import run
 
-# Setup Python path BEFORE any other imports
-import sys
-# First, do minimal setup to import get_repo_root
-repo_root_temp = os.path.abspath(os.path.join(os.path.dirname(__file__), '../../../../../..'))
-sys.path.insert(0, os.path.join(repo_root_temp, 'bin'))
+from CocoTBFramework.tbclasses.shared.tbbase import TBBase
+from CocoTBFramework.tbclasses.shared.utilities import get_paths, create_view_cmd, get_repo_root
+from CocoTBFramework.tbclasses.shared.filelist_utils import get_sources_from_filelist
 
-# Now import utilities to get proper repo root
-from CocoTBFramework.tbclasses.shared.utilities import get_repo_root
-
-# Use the proper get_repo_root() function
+# Add repo root to Python path using robust git-based method
 repo_root = get_repo_root()
 sys.path.insert(0, repo_root)
 
 # Import REUSABLE testbench class from PROJECT AREA
 from projects.components.stream.dv.tbclasses.sram_controller_tb import SRAMControllerTB
-
-# Shared framework utilities
-from CocoTBFramework.tbclasses.shared.utilities import get_paths, create_view_cmd
-from CocoTBFramework.tbclasses.shared.tbbase import TBBase
-from CocoTBFramework.tbclasses.shared.filelist_utils import get_sources_from_filelist
 
 # ===========================================================================
 # COCOTB TEST FUNCTION - Single test that handles all variants

@@ -151,18 +151,18 @@ projects/components/retro_legacy_blocks/dv/
 
 **Import Pattern (CORRECT):**
 ```python
-# Add repo root to Python path
+# Import framework utilities (PYTHONPATH includes bin/)
 import os, sys
-repo_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '../../../../../..'))
+from CocoTBFramework.tbclasses.shared.utilities import get_repo_root, get_paths, create_view_cmd
+from CocoTBFramework.tbclasses.shared.tbbase import TBBase
+
+# Add repo root to Python path using robust git-based method
+repo_root = get_repo_root()
 sys.path.insert(0, repo_root)
 
 # Import from PROJECT AREA (not framework!)
 from projects.components.retro_legacy_blocks.dv.tbclasses.{block}.{block}_tb import {Block}TB
 from projects.components.retro_legacy_blocks.dv.tbclasses.{block}.{block}_tests_basic import {Block}BasicTests
-
-# Shared framework utilities
-from CocoTBFramework.tbclasses.shared.tbbase import TBBase
-from CocoTBFramework.tbclasses.shared.utilities import get_paths, create_view_cmd
 ```
 
 **Why This Matters:**
@@ -380,7 +380,12 @@ class {Block}BasicTests:
 ```python
 # dv/tests/{block}/test_apb_{block}.py
 import os, sys
-repo_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '../../../../../..'))
+
+# Import framework utilities (PYTHONPATH includes bin/)
+from CocoTBFramework.tbclasses.shared.utilities import get_repo_root
+
+# Add repo root to Python path using robust git-based method
+repo_root = get_repo_root()
 sys.path.insert(0, repo_root)
 
 from projects.components.retro_legacy_blocks.dv.tbclasses.{block}.{block}_tb import {Block}TB

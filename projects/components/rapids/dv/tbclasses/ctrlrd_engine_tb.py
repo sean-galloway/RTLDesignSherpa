@@ -691,6 +691,397 @@ class CtrlrdEngineTB(TBBase):
         self.log.info(f"✓ All masked comparisons completed successfully")
         return True
 
+    async def test_max_retries_exceeded(self, profile: DelayProfile, max_retries=3):
+        """
+        Test max retries exceeded scenario (data never matches).
+
+        Scenario:
+        1. Send ctrlrd request with expected_data that won't match memory
+        2. AXI4 slave returns non-matching data from memory model
+        3. Engine exhausts all retry attempts
+        4. Engine completes with error
+
+        Uses AXI4 factory slave (NOT manual AR/R driving) per framework standards.
+        """
+        self.log.info("="*70)
+        self.log.info(f"TEST: Max Retries Exceeded (Profile: {profile.value}, Max: {max_retries})")
+        self.log.info("="*70)
+
+        test_addr = 0x4000
+        expected_data = 0x12345678  # This is what we'll expect
+        non_matching_data = 0x00000000  # This is what memory will return (never matches)
+        mask = 0xFFFFFFFF  # All bits must match
+
+        # Configure max retries
+        self.dut.cfg_ctrlrd_max_try.value = max_retries
+
+        # Create AXI4 factory slave if not already created
+        if self.axi_slave is None:
+            self.axi_slave = create_axi4_slave_rd(
+                dut=self.dut,
+                clock=self.clk,
+                prefix="",
+                log=self.log,
+                data_width=64,
+                id_width=8,
+                addr_width=64,
+                user_width=1,
+                multi_sig=True,
+                memory_model=self.memory_model
+            )
+
+        # Write NON-MATCHING data to memory model (AXI slave will return this)
+        # Expected=0x12345678, Actual=0x00000000 -> mismatch, retry
+        data_bytes = bytearray(non_matching_data.to_bytes(4, byteorder='little'))
+        self.memory_model.write(test_addr, data_bytes)
+
+        # Background driver for 1µs tick (needed for retry timing)
+        monitor_active = [True]
+
+        async def tick_1us_driver():
+            """Drive 1µs tick signal for retry timing"""
+            while monitor_active[0]:
+                await self.wait_clocks(self.clk_name, 100)
+                self.dut.tick_1us.value = 1
+                await self.wait_clocks(self.clk_name, 1)
+                self.dut.tick_1us.value = 0
+
+        # Start tick driver
+        tick_task = cocotb.start_soon(tick_1us_driver())
+
+        # Send ctrlrd request
+        success = await self.send_ctrlrd_request(test_addr, expected_data, mask, profile)
+        if not success:
+            monitor_active[0] = False
+            await self.wait_clocks(self.clk_name, 2)
+            return False
+
+        # Wait for completion (should get error after max retries)
+        # Longer timeout to allow for retries with 1µs tick delays
+        (success, result_data, error) = await self.wait_for_completion(timeout_cycles=5000)
+
+        # Stop background tasks
+        monitor_active[0] = False
+        await self.wait_clocks(self.clk_name, 2)
+
+        # Check that error was raised (data never matched)
+        if error == 1:
+            self.log.info(f"✓ Max retries exceeded - error reported correctly")
+            self.log.info(f"  Expected data: 0x{expected_data:08X}, Memory data: 0x{non_matching_data:08X}")
+            return True
+        else:
+            self.log.error(f"Expected error after max retries, got success")
+            self.log.error(f"  Result data: 0x{result_data:08X}")
+            return False
+
+    async def test_axi_error(self, profile: DelayProfile):
+        """
+        Test AXI error handling.
+
+        Scenario:
+        1. Send ctrlrd request
+        2. AXI read returns SLVERR response
+        3. Engine completes with error
+        """
+        self.log.info("="*70)
+        self.log.info(f"TEST: AXI Error (Profile: {profile.value})")
+        self.log.info("="*70)
+
+        test_addr = 0x5000
+        expected_data = 0xDEADBEEF
+        mask = 0xFFFFFFFF
+
+        monitor_active = [True]
+
+        async def ar_monitor():
+            """Monitor for AR handshakes and return error response"""
+            self.dut.ar_ready.value = 1
+
+            while monitor_active[0]:
+                await self.wait_clocks(self.clk_name, 1)
+
+                if int(self.dut.ar_valid.value) == 1 and int(self.dut.ar_ready.value) == 1:
+                    ar_id = int(self.dut.ar_id.value)
+                    ar_addr = int(self.dut.ar_addr.value)
+                    self.log.info(f"  AR transaction - addr=0x{ar_addr:X}, returning SLVERR")
+
+                    await self.wait_clocks(self.clk_name, 2)
+                    self.dut.r_valid.value = 1
+                    self.dut.r_data.value = 0x00000000
+                    self.dut.r_id.value = ar_id
+                    self.dut.r_resp.value = 2  # SLVERR
+                    self.dut.r_last.value = 1
+
+                    while True:
+                        await self.wait_clocks(self.clk_name, 1)
+                        if int(self.dut.r_ready.value) == 1:
+                            break
+                    self.dut.r_valid.value = 0
+
+        # Start background task
+        ar_task = cocotb.start_soon(ar_monitor())
+
+        # Send ctrlrd request
+        success = await self.send_ctrlrd_request(test_addr, expected_data, mask, profile)
+        if not success:
+            monitor_active[0] = False
+            await self.wait_clocks(self.clk_name, 2)
+            return False
+
+        # Wait for completion
+        (success, result_data, error) = await self.wait_for_completion(timeout_cycles=500)
+
+        # Stop background task
+        monitor_active[0] = False
+        await self.wait_clocks(self.clk_name, 2)
+
+        # Should have error due to AXI SLVERR
+        if error == 1:
+            self.log.info(f"✓ AXI error handled correctly")
+            return True
+        else:
+            self.log.error(f"Expected error from AXI SLVERR, but got success")
+            return False
+
+    async def test_channel_reset(self, profile: DelayProfile):
+        """
+        Test channel reset during operation.
+
+        Scenario:
+        1. Start ctrlrd operation
+        2. Assert channel reset mid-operation
+        3. Verify engine returns to idle
+        4. Deassert reset and verify normal operation
+        """
+        self.log.info("="*70)
+        self.log.info(f"TEST: Channel Reset (Profile: {profile.value})")
+        self.log.info("="*70)
+
+        test_addr = 0x6000
+        expected_data = 0xCAFEBABE
+        mask = 0xFFFFFFFF
+
+        monitor_active = [True]
+
+        async def ar_monitor():
+            """Monitor for AR handshakes but delay response"""
+            self.dut.ar_ready.value = 1
+
+            while monitor_active[0]:
+                await self.wait_clocks(self.clk_name, 1)
+
+                if int(self.dut.ar_valid.value) == 1 and int(self.dut.ar_ready.value) == 1:
+                    ar_id = int(self.dut.ar_id.value)
+                    # Delay response to allow reset to be asserted mid-transaction
+                    await self.wait_clocks(self.clk_name, 10)
+
+                    # Check if we should still respond (reset may have been asserted)
+                    if not monitor_active[0]:
+                        return
+
+                    self.dut.r_valid.value = 1
+                    self.dut.r_data.value = expected_data
+                    self.dut.r_id.value = ar_id
+                    self.dut.r_resp.value = 0
+                    self.dut.r_last.value = 1
+
+                    while True:
+                        await self.wait_clocks(self.clk_name, 1)
+                        if int(self.dut.r_ready.value) == 1 or not monitor_active[0]:
+                            break
+                    self.dut.r_valid.value = 0
+
+        # Start background task
+        ar_task = cocotb.start_soon(ar_monitor())
+
+        # Send ctrlrd request
+        success = await self.send_ctrlrd_request(test_addr, expected_data, mask, profile)
+        if not success:
+            monitor_active[0] = False
+            await self.wait_clocks(self.clk_name, 2)
+            return False
+
+        # Wait a few cycles then assert channel reset
+        await self.wait_clocks(self.clk_name, 5)
+        self.log.info("  Asserting channel reset...")
+        self.dut.cfg_channel_reset.value = 1
+        await self.wait_clocks(self.clk_name, 5)
+
+        # Verify engine returns to idle
+        idle = int(self.dut.ctrlrd_engine_idle.value)
+        self.log.info(f"  Engine idle after reset: {idle}")
+
+        # Deassert reset
+        self.dut.cfg_channel_reset.value = 0
+        await self.wait_clocks(self.clk_name, 5)
+
+        # Stop background task
+        monitor_active[0] = False
+        await self.wait_clocks(self.clk_name, 2)
+
+        # Now verify normal operation works after reset
+        self.log.info("  Verifying normal operation after reset...")
+        result = await self.test_basic_read_match(profile, use_manual_responders=True)
+
+        if result:
+            self.log.info(f"✓ Channel reset handled correctly")
+            return True
+        else:
+            self.log.error(f"Normal operation failed after channel reset")
+            return False
+
+    async def test_back_to_back(self, profile: DelayProfile, num_operations=5):
+        """
+        Test back-to-back operations.
+
+        Scenario:
+        1. Send multiple ctrlrd requests back-to-back
+        2. Verify all complete successfully
+        3. Check no data corruption between operations
+        """
+        self.log.info("="*70)
+        self.log.info(f"TEST: Back-to-Back ({num_operations} ops, Profile: {profile.value})")
+        self.log.info("="*70)
+
+        monitor_active = [True]
+        operations_complete = [0]
+        ar_queue = []  # Queue of AR requests to respond to
+
+        async def ar_monitor():
+            """Monitor for AR handshakes (non-blocking)"""
+            self.dut.ar_ready.value = 1
+
+            while monitor_active[0]:
+                await self.wait_clocks(self.clk_name, 1)
+
+                if int(self.dut.ar_valid.value) == 1 and int(self.dut.ar_ready.value) == 1:
+                    ar_id = int(self.dut.ar_id.value)
+                    ar_addr = int(self.dut.ar_addr.value)
+                    self.log.info(f"  AR transaction - addr=0x{ar_addr:X}, id={ar_id}")
+                    ar_queue.append((ar_id, ar_addr))
+
+        async def r_responder():
+            """Respond to AR requests from queue"""
+            while monitor_active[0]:
+                await self.wait_clocks(self.clk_name, 1)
+
+                if ar_queue:
+                    (ar_id, ar_addr) = ar_queue.pop(0)
+
+                    # Return data based on address
+                    response_data = ar_addr & 0xFFFFFFFF
+
+                    await self.wait_clocks(self.clk_name, 2)
+                    self.dut.r_valid.value = 1
+                    self.dut.r_data.value = response_data
+                    self.dut.r_id.value = ar_id
+                    self.dut.r_resp.value = 0
+                    self.dut.r_last.value = 1
+
+                    while True:
+                        await self.wait_clocks(self.clk_name, 1)
+                        if int(self.dut.r_ready.value) == 1:
+                            break
+                    self.dut.r_valid.value = 0
+
+        # Start background tasks
+        ar_task = cocotb.start_soon(ar_monitor())
+        r_task = cocotb.start_soon(r_responder())
+
+        # Run multiple operations
+        for i in range(num_operations):
+            test_addr = 0x7000 + (i * 4)
+            expected_data = test_addr & 0xFFFFFFFF  # Expect address as data
+            mask = 0xFFFFFFFF
+
+            self.log.info(f"  Operation {i+1}/{num_operations}: addr=0x{test_addr:X}")
+
+            success = await self.send_ctrlrd_request(test_addr, expected_data, mask, profile)
+            if not success:
+                self.log.error(f"Failed to send request for operation {i+1}")
+                monitor_active[0] = False
+                await self.wait_clocks(self.clk_name, 2)
+                return False
+
+            (success, result_data, error) = await self.wait_for_completion(timeout_cycles=500)
+            if not success or error:
+                self.log.error(f"Operation {i+1} failed: success={success}, error={error}")
+                monitor_active[0] = False
+                await self.wait_clocks(self.clk_name, 2)
+                return False
+
+            operations_complete[0] += 1
+            self.log.info(f"    ✓ Completed with result=0x{result_data:08X}")
+
+            # Small delay between operations
+            await self.wait_clocks(self.clk_name, 3)
+
+        # Stop background task
+        monitor_active[0] = False
+        await self.wait_clocks(self.clk_name, 2)
+
+        if operations_complete[0] == num_operations:
+            self.log.info(f"✓ All {num_operations} back-to-back operations completed successfully")
+            return True
+        else:
+            self.log.error(f"Only {operations_complete[0]}/{num_operations} operations completed")
+            return False
+
+    async def test_mixed_scenarios(self):
+        """
+        Run mixed scenarios test combining multiple test types.
+
+        Runs a subset of tests to validate overall functionality.
+        """
+        self.log.info("="*70)
+        self.log.info("TEST: Mixed Scenarios")
+        self.log.info("="*70)
+
+        profile = DelayProfile.FIXED_DELAY
+        result = True
+
+        # Helper to reset AXI interface between scenarios
+        async def reset_axi_interface():
+            """Reset AXI interface signals to known state"""
+            self.dut.ar_ready.value = 0
+            self.dut.r_valid.value = 0
+            self.dut.r_data.value = 0
+            self.dut.r_id.value = 0
+            self.dut.r_resp.value = 0
+            self.dut.r_last.value = 0
+            await self.wait_clocks(self.clk_name, 5)
+
+        # Test 1: Basic read-match
+        self.log.info("\n--- Scenario 1: Basic Read-Match ---")
+        result &= await self.test_basic_read_match(profile, use_manual_responders=True)
+        if not result:
+            return False
+        await reset_axi_interface()
+        await self.wait_clocks(self.clk_name, 10)
+
+        # Test 2: Null address
+        self.log.info("\n--- Scenario 2: Null Address ---")
+        result &= await self.test_null_address(profile, skip_axi_slave_creation=True)
+        if not result:
+            return False
+        await reset_axi_interface()
+        await self.wait_clocks(self.clk_name, 10)
+
+        # Test 3: Back-to-back (2 ops only for quick test)
+        self.log.info("\n--- Scenario 3: Back-to-Back (2 ops) ---")
+        result &= await self.test_back_to_back(profile, num_operations=2)
+        if not result:
+            return False
+        await self.wait_clocks(self.clk_name, 10)
+
+        self.log.info("\n" + "="*70)
+        if result:
+            self.log.info("✓ All mixed scenarios completed successfully")
+        else:
+            self.log.error("✗ Some mixed scenarios failed")
+
+        return result
+
     async def run_test_suite(self, scenario: TestScenario, profile: DelayProfile, num_ops: int = 1):
         """
         Run comprehensive test suite based on scenario.

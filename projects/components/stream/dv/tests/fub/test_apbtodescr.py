@@ -33,30 +33,27 @@ STRUCTURE FOLLOWS REPOSITORY STANDARD:
 import os
 import sys
 import random
-
-# Setup Python path BEFORE any other imports
-# First, do minimal setup to import get_repo_root
-repo_root_temp = os.path.abspath(os.path.join(os.path.dirname(__file__), '../../../../../..'))
-sys.path.insert(0, os.path.join(repo_root_temp, 'bin'))
-
-# Now import utilities to get proper repo root
-from CocoTBFramework.tbclasses.shared.utilities import get_repo_root
-
-# Use the proper get_repo_root() function
-repo_root = get_repo_root()
-sys.path.insert(0, repo_root)
-
 import pytest
 import cocotb
 from cocotb_test.simulator import run
 
+from CocoTBFramework.tbclasses.shared.tbbase import TBBase
+from CocoTBFramework.tbclasses.shared.utilities import get_paths, create_view_cmd, get_repo_root
+from CocoTBFramework.tbclasses.shared.filelist_utils import get_sources_from_filelist
+
+# Add repo root to Python path using robust git-based method
+repo_root = get_repo_root()
+sys.path.insert(0, repo_root)
+
 # Import REUSABLE testbench class from PROJECT AREA (NOT framework!)
 from projects.components.stream.dv.tbclasses.apbtodescr_tb import APBToDescrTB
 
-# Shared framework utilities
-from CocoTBFramework.tbclasses.shared.filelist_utils import get_sources_from_filelist
-from CocoTBFramework.tbclasses.shared.utilities import get_paths, create_view_cmd
-from CocoTBFramework.tbclasses.shared.tbbase import TBBase
+# Coverage support
+from projects.components.stream.dv.stream_coverage import (
+    CoverageHelper,
+    get_coverage_compile_args,
+    get_coverage_env,
+)
 
 # ===========================================================================
 # COCOTB TEST FUNCTION - Single test that handles all variants
@@ -72,22 +69,39 @@ async def cocotb_test_apbtodescr(dut):
     - 'backpressure_multiple': Test multiple channels with varying back-pressure
     - 'errors': Test error cases (out-of-range, read)
     - 'rapid_fire': Test rapid sequential writes to different channels
+
+    Coverage Support:
+    - Set COVERAGE=1 to enable APB coverage collection
     """
     test_type = os.environ.get('TEST_TYPE', 'basic_all_channels')
+    test_name = os.environ.get('COVERAGE_TEST_NAME', f'apbtodescr_{test_type}')
+
+    # Initialize coverage collector
+    coverage = CoverageHelper(test_name)
+
     tb = APBToDescrTB(dut)
     await tb.setup_clocks_and_reset()
 
     # Branch on test type
     if test_type == 'basic_all_channels':
         result = await tb.test_all_channels()
+        # Sample APB coverage - 8 channels x 2 writes each = 16 successful writes
+        for _ in range(16):
+            coverage.sample_apb_write(is_error=False)
+        coverage.sample_scenario("single_desc")
         assert result, "All channels test failed"
-        tb.log.info("✓ All channels basic test PASSED")
+        tb.log.info("All channels basic test PASSED")
 
     elif test_type == 'backpressure_single':
         # Test channel 0 with 5 cycle stall
         result = await tb.test_backpressure(channel=0, stall_cycles=5)
+        # Sample APB writes with backpressure scenario
+        coverage.sample_apb_write(is_error=False)
+        coverage.sample_apb_write(is_error=False)
+        coverage.sample_scenario("backpressure")
+        coverage.sample_handshake("backpressure_stall")
         assert result, "Back-pressure test failed"
-        tb.log.info("✓ Back-pressure test PASSED")
+        tb.log.info("Back-pressure test PASSED")
 
     elif test_type == 'backpressure_multiple':
         # Test channels 0, 3, 7 with different stalls
@@ -99,42 +113,54 @@ async def cocotb_test_apbtodescr(dut):
 
         for channel, stall_cycles in test_cases:
             result = await tb.test_backpressure(channel, stall_cycles)
+            # Sample APB writes for each channel
+            coverage.sample_apb_write(is_error=False)
+            coverage.sample_apb_write(is_error=False)
             assert result, f"Back-pressure test failed for channel {channel}"
             await tb.wait_clocks(tb.clk_name, 2)
 
-        tb.log.info("✓ Multiple back-pressure test PASSED")
+        coverage.sample_scenario("backpressure")
+        coverage.sample_handshake("backpressure_stall")
+        tb.log.info("Multiple back-pressure test PASSED")
 
     elif test_type == 'errors':
         # Test out-of-range address
         result1 = await tb.test_out_of_range()
+        coverage.sample_apb_write(is_error=True)
         assert result1, "Out-of-range test failed"
         await tb.wait_clocks(tb.clk_name, 5)
 
         # Test read request (not supported)
         result2 = await tb.test_read_error()
+        coverage.sample_apb_read(is_error=True)
         assert result2, "Read error test failed"
         await tb.wait_clocks(tb.clk_name, 5)
 
         # Test HIGH write before LOW write (two-write sequence violation)
         result3 = await tb.test_high_write_first()
+        coverage.sample_apb_write(is_error=True)
         assert result3, "HIGH-before-LOW test failed"
         await tb.wait_clocks(tb.clk_name, 5)
 
         # Test LOW write twice in a row (expecting HIGH, got LOW)
         result4 = await tb.test_low_write_twice()
+        coverage.sample_apb_write(is_error=True)
         assert result4, "LOW-write-twice test failed"
         await tb.wait_clocks(tb.clk_name, 5)
 
         # Test write to different channel mid-sequence
         result5 = await tb.test_different_channel_mid_sequence()
+        coverage.sample_apb_write(is_error=True)
         assert result5, "Different channel mid-sequence test failed"
         await tb.wait_clocks(tb.clk_name, 5)
 
         # Test read during write sequence
         result6 = await tb.test_read_during_sequence()
+        coverage.sample_apb_read(is_error=True)
         assert result6, "Read during sequence test failed"
 
-        tb.log.info("✓ All error tests PASSED (6 error cases verified)")
+        coverage.sample_scenario("error_handling")
+        tb.log.info("All error tests PASSED (6 error cases verified)")
 
     elif test_type == 'rapid_fire':
         tb.log.info("Testing rapid-fire writes to multiple channels (TWO-WRITE SEQUENCE)")
@@ -150,6 +176,7 @@ async def cocotb_test_apbtodescr(dut):
 
             # Write LOW register
             success, error, cycles, kickoff_hit = await tb.apb_write(addr_low, data_low)
+            coverage.sample_apb_write(is_error=False)
             assert success, f"Rapid-fire LOW write to channel {ch} failed"
             assert not kickoff_hit, f"kickoff_hit asserted after LOW write (should wait for HIGH)"
 
@@ -158,16 +185,21 @@ async def cocotb_test_apbtodescr(dut):
 
             # Write HIGH register (completes 64-bit address, triggers routing)
             success, error, cycles, kickoff_hit = await tb.apb_write(addr_high, data_high)
+            coverage.sample_apb_write(is_error=False)
             assert success, f"Rapid-fire HIGH write to channel {ch} failed"
             assert kickoff_hit, f"kickoff_hit not asserted for channel {ch} after HIGH write"
 
             # Minimal delay between channels
             await tb.wait_clocks(tb.clk_name, 1)
 
-        tb.log.info("✓ Rapid-fire test PASSED (4 channels, 8 writes total)")
+        coverage.sample_scenario("back_to_back")
+        tb.log.info("Rapid-fire test PASSED (4 channels, 8 writes total)")
 
     else:
         raise ValueError(f"Unknown TEST_TYPE: {test_type}")
+
+    # Save coverage at end of test
+    coverage.save()
 
 # ===========================================================================
 # PARAMETER GENERATION
@@ -249,6 +281,10 @@ def test_apbtodescr(request, test_type, addr_width, data_width, num_channels, te
         'TEST_DEBUG': '0',
     }
 
+    # Add coverage environment variables if coverage is enabled
+    coverage_env = get_coverage_env(test_name_plus_params, sim_build=sim_build)
+    extra_env.update(coverage_env)
+
     # WAVES support - conditionally set COCOTB_TRACE_FILE for VCD generation
     enable_waves = bool(int(os.environ.get('WAVES', '0')))
     if enable_waves:
@@ -257,6 +293,11 @@ def test_apbtodescr(request, test_type, addr_width, data_width, num_channels, te
     cmd_filename = create_view_cmd(log_dir, log_path, sim_build, module, test_name_plus_params)
 
     compile_args = ["-Wno-TIMESCALEMOD"]
+
+    # Add coverage compile args if COVERAGE=1
+    coverage_compile_args = get_coverage_compile_args()
+    compile_args.extend(coverage_compile_args)
+
     if enable_waves:
         compile_args.extend(["--trace", "--trace-depth", "99"])
 

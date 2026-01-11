@@ -10,11 +10,13 @@ from cocotb.triggers import RisingEdge, Timer
 from cocotb.clock import Clock
 import random
 
-# Add framework to path
-repo_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '../../../../..'))
-sys.path.insert(0, os.path.join(repo_root, 'bin'))
-
+# Import framework utilities (PYTHONPATH includes bin/)
+from CocoTBFramework.tbclasses.shared.utilities import get_repo_root
 from CocoTBFramework.tbclasses.shared.tbbase import TBBase
+
+# Add repo root to Python path using robust git-based method
+repo_root = get_repo_root()
+sys.path.insert(0, repo_root)
 from CocoTBFramework.components.gaxi.gaxi_master import GAXIMaster
 from CocoTBFramework.components.gaxi.gaxi_slave import GAXISlave
 from CocoTBFramework.components.shared.field_config import FieldConfig, FieldDefinition

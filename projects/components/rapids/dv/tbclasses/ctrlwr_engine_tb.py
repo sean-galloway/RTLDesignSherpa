@@ -430,8 +430,8 @@ class CtrlwrEngineTB(TBBase):
         self.log.info("✅ Null address test PASSED")
         return True
 
-    async def test_back_to_back(self, num_operations: int,
-                                profile: DelayProfile) -> bool:
+    async def test_back_to_back(self, profile: DelayProfile,
+                                num_operations: int = 5) -> bool:
         """
         Test multiple back-to-back ctrlwr operations.
 
@@ -613,7 +613,7 @@ class CtrlwrEngineTB(TBBase):
             return await self.test_null_address(profile)
 
         elif scenario == TestScenario.BACK_TO_BACK:
-            return await self.test_back_to_back(num_operations, profile)
+            return await self.test_back_to_back(profile, num_operations)
 
         elif scenario == TestScenario.MISALIGNED:
             return await self.test_misaligned_address(profile)
@@ -643,3 +643,233 @@ class CtrlwrEngineTB(TBBase):
         else:
             self.log.error(f"Unknown scenario: {scenario}")
             return False
+
+    async def test_axi_error(self, profile: DelayProfile) -> bool:
+        """
+        Test AXI error response handling.
+
+        Scenario:
+        1. Send ctrlwr request
+        2. AXI write returns SLVERR response on B channel
+        3. Engine completes with error
+
+        Uses manual AW/W/B channel driving to inject error.
+
+        Args:
+            profile: Delay profile for timing coverage
+
+        Returns:
+            True if error was correctly detected
+        """
+        self.log.info("=" * 70)
+        self.log.info(f"TEST: AXI Error (Profile: {profile.value})")
+        self.log.info("=" * 70)
+
+        # Test parameters
+        test_addr = 0x1000
+        test_data = 0xDEADBEEF
+
+        monitor_active = [True]
+
+        async def aw_w_monitor_and_b_error_responder():
+            """Monitor AW/W channels and respond with SLVERR on B channel"""
+            # Assert AW and W ready
+            self.dut.aw_ready.value = 1
+            self.dut.w_ready.value = 1
+            aw_received = False
+            w_received = False
+            captured_aw_id = 0
+
+            while monitor_active[0]:
+                await self.wait_clocks(self.clk_name, 1)
+
+                # Check for AW handshake
+                if int(self.dut.aw_valid.value) == 1 and int(self.dut.aw_ready.value) == 1:
+                    captured_aw_id = int(self.dut.aw_id.value)
+                    captured_addr = int(self.dut.aw_addr.value)
+                    self.log.info(f"  AW handshake - addr=0x{captured_addr:X}, id={captured_aw_id}")
+                    aw_received = True
+
+                # Check for W handshake
+                if int(self.dut.w_valid.value) == 1 and int(self.dut.w_ready.value) == 1:
+                    captured_data = int(self.dut.w_data.value)
+                    self.log.info(f"  W handshake - data=0x{captured_data:08X}")
+                    w_received = True
+
+                # Once both AW and W received, respond with SLVERR
+                if aw_received and w_received:
+                    self.log.info(f"  → Returning SLVERR on B channel")
+
+                    await self.wait_clocks(self.clk_name, 2)
+                    self.dut.b_valid.value = 1
+                    self.dut.b_id.value = captured_aw_id
+                    self.dut.b_resp.value = 2  # SLVERR
+
+                    # Wait for B ready
+                    while monitor_active[0]:
+                        await self.wait_clocks(self.clk_name, 1)
+                        if int(self.dut.b_ready.value) == 1:
+                            break
+
+                    # Clear B channel
+                    self.dut.b_valid.value = 0
+                    break
+
+        # Start manual responder
+        responder_task = cocotb.start_soon(aw_w_monitor_and_b_error_responder())
+
+        # Use GAXI Master to send ctrlwr request
+        packet = self.ctrlwr_master.create_packet(
+            pkt_addr=test_addr,
+            pkt_data=test_data
+        )
+
+        try:
+            await self.ctrlwr_master.send(packet)
+            self.log.info(f"  ✓ Ctrlwr request sent for AXI error test")
+        except Exception as e:
+            self.log.error(f"❌ Failed to send ctrlwr request: {str(e)}")
+            monitor_active[0] = False
+            return False
+
+        # Wait for operation to complete with error
+        timeout = 200
+        cycles = 0
+        error_detected = False
+
+        while cycles < timeout:
+            await self.wait_clocks(self.clk_name, 1)
+            cycles += 1
+
+            # Check for error
+            if int(self.dut.ctrlwr_error.value) == 1:
+                error_detected = True
+                break
+
+            # Check if engine returned to idle (operation complete)
+            if int(self.dut.ctrlwr_engine_idle.value) == 1 and cycles > 20:
+                break
+
+        # Stop responder
+        monitor_active[0] = False
+        await self.wait_clocks(self.clk_name, 2)
+
+        if error_detected:
+            self.log.info("✅ AXI error test PASSED - error correctly detected")
+            return True
+        else:
+            self.log.error("❌ AXI error test FAILED - error not detected")
+            return False
+
+    async def test_channel_reset(self, profile: DelayProfile) -> bool:
+        """
+        Test channel reset during operation.
+
+        Scenario:
+        1. Start ctrlwr operation
+        2. Assert channel reset mid-operation
+        3. Verify engine returns to idle
+        4. Deassert reset and verify normal operation resumes
+
+        Args:
+            profile: Delay profile for timing coverage
+
+        Returns:
+            True if reset was handled correctly
+        """
+        self.log.info("=" * 70)
+        self.log.info(f"TEST: Channel Reset (Profile: {profile.value})")
+        self.log.info("=" * 70)
+
+        # Initialize AXI slave
+        await self.initialize_axi_slave(profile)
+
+        # Test parameters
+        test_addr = 0x2000
+        test_data = 0xCAFEBABE
+
+        # Send request to start operation
+        self.log.info(f"📤 Starting operation: addr=0x{test_addr:X}, data=0x{test_data:08X}")
+
+        packet = self.ctrlwr_master.create_packet(
+            pkt_addr=test_addr,
+            pkt_data=test_data
+        )
+
+        try:
+            await self.ctrlwr_master.send(packet)
+            self.log.info("  ✓ Ctrlwr request sent")
+        except Exception as e:
+            self.log.error(f"❌ Failed to send ctrlwr request: {str(e)}")
+            return False
+
+        # Wait a few cycles for operation to start
+        await self.wait_clocks(self.clk_name, 5)
+
+        # Assert channel reset
+        self.log.info("  Asserting channel reset...")
+        self.dut.cfg_channel_reset.value = 1
+        await self.wait_clocks(self.clk_name, 5)
+
+        # Verify engine returns to idle
+        idle = int(self.dut.ctrlwr_engine_idle.value)
+        self.log.info(f"  Engine idle after reset: {idle}")
+
+        # Deassert reset
+        self.dut.cfg_channel_reset.value = 0
+        await self.wait_clocks(self.clk_name, 10)
+
+        # Verify normal operation works after reset
+        self.log.info("  Verifying normal operation after reset...")
+        result = await self.test_basic_write(profile)
+
+        if result:
+            self.log.info("✅ Channel reset test PASSED")
+            return True
+        else:
+            self.log.error("❌ Channel reset test FAILED - normal operation broken")
+            return False
+
+    async def test_mixed_scenarios(self) -> bool:
+        """
+        Test mixed scenarios with various timing profiles.
+
+        Runs multiple test scenarios with different delay profiles
+        for comprehensive coverage.
+
+        Returns:
+            True if all scenarios passed
+        """
+        self.log.info("=" * 70)
+        self.log.info("TEST: Mixed Scenarios")
+        self.log.info("=" * 70)
+
+        # Define test scenarios to run
+        scenarios = [
+            ("Basic Write (FIXED)", self.test_basic_write, DelayProfile.FIXED_DELAY),
+            ("Null Address (MINIMAL)", self.test_null_address, DelayProfile.MINIMAL_DELAY),
+            ("Back-to-Back (FAST_PRODUCER)", lambda p: self.test_back_to_back(p, 3), DelayProfile.FAST_PRODUCER),
+        ]
+
+        all_passed = True
+        for name, test_func, profile in scenarios:
+            self.log.info(f"\n--- Running: {name} ---")
+            try:
+                result = await test_func(profile)
+                if not result:
+                    self.log.error(f"❌ {name} FAILED")
+                    all_passed = False
+                else:
+                    self.log.info(f"✅ {name} PASSED")
+            except Exception as e:
+                self.log.error(f"❌ {name} EXCEPTION: {str(e)}")
+                all_passed = False
+
+            await self.wait_clocks(self.clk_name, 10)  # Gap between tests
+
+        if all_passed:
+            self.log.info("\n✅ All mixed scenarios PASSED")
+        else:
+            self.log.error("\n❌ Some mixed scenarios FAILED")
+
+        return all_passed

@@ -32,20 +32,32 @@ import sys
 import pytest
 import cocotb
 
-# CRITICAL: Must setup paths BEFORE importing from CocoTBFramework
-repo_root_temp = os.path.abspath(os.path.join(os.path.dirname(__file__), '../../../../../..'))
-sys.path.insert(0, os.path.join(repo_root_temp, 'bin'))
-
 # Import utilities
+from CocoTBFramework.tbclasses.shared.tbbase import TBBase
 from CocoTBFramework.tbclasses.shared.utilities import get_paths, get_repo_root, create_view_cmd
 from CocoTBFramework.tbclasses.shared.filelist_utils import get_sources_from_filelist
-from CocoTBFramework.tbclasses.shared.tbbase import TBBase
 
-# Use proper get_repo_root() function
+# Add repo root to Python path using robust git-based method
 repo_root = get_repo_root()
 sys.path.insert(0, repo_root)
 
 from projects.components.stream.dv.tbclasses.stream_core_tb import StreamCoreTB, StreamRegisterMap
+
+# Coverage integration - optional import
+try:
+    from projects.components.stream.dv.stream_coverage import CoverageHelper
+    COVERAGE_AVAILABLE = True
+except ImportError:
+    COVERAGE_AVAILABLE = False
+
+
+def get_coverage_helper(test_name: str, log=None):
+    """Get coverage helper if coverage is enabled."""
+    if not COVERAGE_AVAILABLE:
+        return None
+    if os.environ.get('COVERAGE', '0') != '1':
+        return None
+    return CoverageHelper(test_name, log=log)
 
 
 # ==============================================================================
@@ -140,6 +152,10 @@ async def cocotb_test_stream_top_basic(dut):
         apb_addr_width=apb_addr_width,
         apb_data_width=apb_data_width
     )
+
+    # Initialize coverage if enabled
+    test_name = f"test_stream_top_nc{num_channels:02d}_dw{data_width:04d}_nch{len(test_channels):02d}"
+    coverage = get_coverage_helper(test_name, log=tb.log)
 
     await tb.setup_clocks_and_reset(rd_xfer_beats=rd_xfer_beats, wr_xfer_beats=wr_xfer_beats)
 
@@ -266,6 +282,56 @@ async def cocotb_test_stream_top_basic(dut):
         stats = tb.get_performance_stats(channel)
         if stats:
             tb.log.info(f"Channel {channel} performance: {stats['duration_ns']}ns")
+
+    # Sample coverage if enabled
+    if coverage:
+        burst_size = data_width // 8
+
+        # Sample APB transactions - configuration writes and status reads
+        coverage.sample_apb_write(is_error=False)  # Global enable
+        coverage.sample_apb_write(is_error=False)  # Channel enable
+        coverage.sample_apb_write(is_error=False)  # Transfer beats config
+        coverage.sample_apb_read(is_error=False)   # Version read
+        coverage.sample_apb_read(is_error=False)   # Status reads
+
+        # Sample AXI transactions for all channels/descriptors
+        for channel in test_channels:
+            for i in range(desc_count):
+                transfer_size = transfer_sizes[i % len(transfer_sizes)]
+                coverage.sample_axi_read(
+                    burst_type=1,
+                    burst_size=burst_size,
+                    burst_len=rd_xfer_beats,
+                    response=0           # OKAY
+                )
+                coverage.sample_axi_write(
+                    burst_type=1,
+                    burst_size=burst_size,
+                    burst_len=wr_xfer_beats,
+                    response=0           # OKAY
+                )
+
+        # Sample functional scenarios
+        coverage.sample_scenario("basic_transfer")
+        if desc_count > 1:
+            coverage.sample_scenario("descriptor_chain")
+        if len(test_channels) > 1:
+            coverage.sample_scenario("concurrent_rw")
+            coverage.sample_scenario("full_pipeline")
+
+        # Sample handshakes
+        coverage.sample_handshake("read_request")
+        coverage.sample_handshake("read_response")
+        coverage.sample_handshake("write_request")
+        coverage.sample_handshake("write_response")
+        coverage.sample_handshake("apb_transfer")
+
+        # Sample IRQ scenario (we use interrupt on last descriptor)
+        coverage.sample_scenario("irq")
+
+        # Save coverage
+        coverage.save()
+        tb.log.info(f"Coverage saved for {test_name}")
 
     tb.log.info("\n=== Test Complete - All channels verified ===")
 

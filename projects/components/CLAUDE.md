@@ -203,16 +203,19 @@ endmodule
 **Projects/Components-Specific Import Pattern:**
 
 ```python
-# Standard path setup for project tests
+# Import framework utilities (PYTHONPATH includes bin/)
 import os, sys
-repo_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '../../../../../..'))
+from CocoTBFramework.tbclasses.shared.utilities import get_repo_root
+from CocoTBFramework.tbclasses.shared.tbbase import TBBase
+
+# Add repo root to Python path using robust git-based method
+repo_root = get_repo_root()
 sys.path.insert(0, repo_root)
 
 # Import from PROJECT AREA (not framework!)
 from projects.components.stream.dv.tbclasses.scheduler_tb import SchedulerTB
 
-# Shared utilities from framework
-from CocoTBFramework.tbclasses.shared.tbbase import TBBase
+# Shared framework components
 from CocoTBFramework.components.axi4.axi4_master import AXI4Master
 ```
 
