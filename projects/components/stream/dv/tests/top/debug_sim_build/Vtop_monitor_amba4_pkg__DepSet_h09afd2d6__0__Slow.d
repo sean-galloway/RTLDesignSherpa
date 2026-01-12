@@ -1,3 +1,0 @@
-Vtop_monitor_amba4_pkg__DepSet_h09afd2d6__0__Slow.o: \
- Vtop_monitor_amba4_pkg__DepSet_h09afd2d6__0__Slow.cpp Vtop__pch.h \
- Vtop_monitor_amba4_pkg.h
