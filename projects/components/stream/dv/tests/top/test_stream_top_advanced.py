@@ -957,15 +957,9 @@ def create_pytest_wrapper(test_name, cocotb_testcase, default_params=None):
 # Pytest Wrappers
 # ==============================================================================
 
-# NOTE: These tests are marked xfail due to APB register readback path issues
-# in stream_top_ch8. The VERSION register and other registers return 0 on read.
-# This is an RTL integration bug that needs investigation.
-# The tests were added as part of coverage infrastructure but exposed this issue.
-
 # Test 1: Multi-Channel Concurrent
 # Tests: Channel arbitration, resource sharing, concurrent data integrity
 # Scales: basic=2ch, medium=4ch, full=8ch
-@pytest.mark.xfail(reason="APB register readback returns 0 - RTL integration bug")
 def test_stream_top_multi_channel(request):
     return create_pytest_wrapper(
         'multi_channel_concurrent',
@@ -975,7 +969,6 @@ def test_stream_top_multi_channel(request):
 # Test 2: Long Descriptor Chain
 # Tests: Descriptor chain following, next pointer handling
 # Scales: basic=4 desc, medium=8 desc, full=16 desc
-@pytest.mark.xfail(reason="APB register readback returns 0 - RTL integration bug")
 def test_stream_top_long_chain(request):
     return create_pytest_wrapper(
         'long_descriptor_chain',
@@ -985,7 +978,6 @@ def test_stream_top_long_chain(request):
 # Test 3: Variable Transfer Sizes
 # Tests: Edge cases (1 beat, boundary-1, boundary+1, max)
 # Scales: basic=3 sizes, medium=6 sizes, full=16 sizes
-@pytest.mark.xfail(reason="APB register readback returns 0 - RTL integration bug")
 def test_stream_top_variable_sizes(request):
     return create_pytest_wrapper(
         'variable_transfer_sizes',
@@ -995,7 +987,6 @@ def test_stream_top_variable_sizes(request):
 # Test 4: Stress Test - Multiple Channels
 # Tests: Maximum resource contention, throughput under load
 # Scales: basic=4ch, medium=6ch, full=8ch
-@pytest.mark.xfail(reason="APB register readback returns 0 - RTL integration bug")
 def test_stream_top_stress(request):
     return create_pytest_wrapper(
         'stress_all_channels',
@@ -1005,7 +996,6 @@ def test_stream_top_stress(request):
 # Test 5: Register Access Validation
 # Tests: APB register read/write for all registers
 # Scales: basic=3 patterns, medium=6 patterns, full=9 patterns
-@pytest.mark.xfail(reason="APB register readback returns 0 - RTL integration bug")
 def test_stream_top_registers(request):
     return create_pytest_wrapper(
         'register_access',
@@ -1015,7 +1005,6 @@ def test_stream_top_registers(request):
 # Test 6: Back-to-Back Transfers
 # Tests: Channel re-use, state machine reset, resource leaks
 # Scales: basic=3 iter, medium=5 iter, full=10 iter
-@pytest.mark.xfail(reason="APB register readback returns 0 - RTL integration bug")
 def test_stream_top_back_to_back(request):
     return create_pytest_wrapper(
         'back_to_back_transfers',

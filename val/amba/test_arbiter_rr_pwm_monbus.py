@@ -429,7 +429,11 @@ def test_arbiter_rr_pwm_monbus(request, clients, wait_gnt_ack, agent_id, unit_id
 
     # RTL sources - all components needed for integration
     verilog_sources = [
-        # Monitor package and dependencies
+        # Monitor packages (must be compiled in dependency order)
+        os.path.join(rtl_dict['rtl_amba_includes'], "monitor_common_pkg.sv"),
+        os.path.join(rtl_dict['rtl_amba_includes'], "monitor_arbiter_pkg.sv"),
+        os.path.join(rtl_dict['rtl_amba_includes'], "monitor_amba4_pkg.sv"),
+        os.path.join(rtl_dict['rtl_amba_includes'], "monitor_amba5_pkg.sv"),
         os.path.join(rtl_dict['rtl_amba_includes'], "monitor_pkg.sv"),
 
         # Common components (include all arbiter dependencies)
@@ -564,7 +568,11 @@ if __name__ == "__main__":
 
     # RTL sources - all components needed for integration
     verilog_sources = [
-        # Monitor package and dependencies
+        # Monitor packages (must be compiled in dependency order)
+        os.path.join(rtl_dict['rtl_amba_includes'], "monitor_common_pkg.sv"),
+        os.path.join(rtl_dict['rtl_amba_includes'], "monitor_arbiter_pkg.sv"),
+        os.path.join(rtl_dict['rtl_amba_includes'], "monitor_amba4_pkg.sv"),
+        os.path.join(rtl_dict['rtl_amba_includes'], "monitor_amba5_pkg.sv"),
         os.path.join(rtl_dict['rtl_amba_includes'], "monitor_pkg.sv"),
 
         # Common components (include all arbiter dependencies)

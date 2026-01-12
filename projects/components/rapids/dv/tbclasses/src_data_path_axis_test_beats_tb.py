@@ -37,6 +37,7 @@ import os
 import random
 from typing import Dict, Any, Tuple, List
 import time
+import cocotb
 
 # Framework imports
 from CocoTBFramework.tbclasses.shared.tbbase import TBBase
@@ -47,7 +48,7 @@ from CocoTBFramework.components.shared.flex_randomizer import FlexRandomizer
 from CocoTBFramework.components.gaxi.gaxi_factories import create_gaxi_master
 
 # AXIS for stream interface (slave to monitor output)
-from CocoTBFramework.components.axis4.axis4_factories import create_axis4_slave
+from CocoTBFramework.components.axis4.axis_factories import create_axis_slave
 
 # AXI4 for memory interface (slave for reads)
 from CocoTBFramework.components.axi4.axi4_factories import create_axi4_slave_rd
@@ -94,10 +95,11 @@ class SrcDataPathAxisTestBeatsTB(TBBase):
         self.axis_slave = None        # AXIS slave to monitor output
 
         # Memory model with pre-loaded data
+        bytes_per_line = self.DATA_WIDTH // 8
+        num_lines = (32 * self.CHANNEL_OFFSET) // bytes_per_line
         self.memory_model = MemoryModel(
-            size_bytes=32 * self.CHANNEL_OFFSET,
-            base_address=self.BASE_ADDRESS,
-            data_width_bytes=self.DATA_WIDTH // 8
+            num_lines=num_lines,
+            bytes_per_line=bytes_per_line
         )
 
         # Expected data for verification
@@ -137,7 +139,10 @@ class SrcDataPathAxisTestBeatsTB(TBBase):
 
         # Set configuration signals before reset
         self.dut.cfg_axi_rd_xfer_beats.value = 8
-        self.dut.cfg_drain_size.value = 16
+        # cfg_drain_size: minimum beats in SRAM before arbiter activates
+        # Set to 1 so arbiter activates as soon as any data is available
+        # (Higher values cause backpressure when small transfers are queued)
+        self.dut.cfg_drain_size.value = 1
 
         # Reset sequence
         await self.assert_reset()
@@ -167,22 +172,24 @@ class SrcDataPathAxisTestBeatsTB(TBBase):
         self.log.info("Setting up interfaces...")
 
         # Create 8 GAXI masters for descriptor interfaces
+        # Signal naming: descriptor_N_valid, descriptor_N_ready, descriptor_N_packet, descriptor_N_error
         for i in range(self.NUM_CHANNELS):
             desc_master = create_gaxi_master(
                 dut=self.dut,
-                clock=self.clk,
+                title=f"desc_ch{i}",
                 prefix=f"descriptor_{i}_",
+                clock=self.clk,
                 log=self.log,
-                data_width=self.DESC_WIDTH,
                 multi_sig=True,
                 field_config={
-                    'packet': self.DESC_WIDTH,
-                    'error': 1,
+                    'packet': {'bits': self.DESC_WIDTH},
+                    'error': {'bits': 1},
                 }
             )
             self.descriptor_masters.append(desc_master)
 
         # AXI4 read slave to respond to m_axi_ar*/r* signals
+        # base_addr translates system addresses (0x10000000+) to 0-based memory model offsets
         self.axi_read_slave = create_axi4_slave_rd(
             dut=self.dut,
             clock=self.clk,
@@ -193,11 +200,12 @@ class SrcDataPathAxisTestBeatsTB(TBBase):
             addr_width=self.ADDR_WIDTH,
             user_width=1,
             multi_sig=True,
-            memory_model=self.memory_model
+            memory_model=self.memory_model,
+            base_addr=self.BASE_ADDRESS,
         )
 
         # AXIS slave to monitor m_axis_* output
-        self.axis_slave = create_axis4_slave(
+        self.axis_slave = create_axis_slave(
             dut=self.dut,
             clock=self.clk,
             prefix="m_axis_",
@@ -206,7 +214,6 @@ class SrcDataPathAxisTestBeatsTB(TBBase):
             id_width=8,
             dest_width=4,
             user_width=1,
-            multi_sig=True,
         )
 
         self.log.info("Interface setup complete")
@@ -222,21 +229,84 @@ class SrcDataPathAxisTestBeatsTB(TBBase):
         # Pre-load memory with test data
         await self._preload_memory()
 
+        # Start AXIS output monitoring (drives tready, captures packets)
+        self._axis_monitor_active = True
+        self._axis_monitor_task = cocotb.start_soon(self._axis_output_monitor())
+
         self.log.info("Test initialization complete")
 
+    async def _axis_output_monitor(self):
+        """Background task to monitor AXIS output and drive tready.
+
+        This task drives m_axis_tready high and captures output packets.
+        Without this, the datapath will stall due to backpressure.
+        """
+        self.log.info("AXIS output monitor started")
+
+        # Drive tready high to accept data
+        self.dut.m_axis_tready.value = 1
+
+        while self._axis_monitor_active:
+            await self.wait_clocks(self.clk_name, 1)
+
+            # Check for valid handshake
+            if (int(self.dut.m_axis_tvalid.value) == 1 and
+                int(self.dut.m_axis_tready.value) == 1):
+                # Capture packet data
+                packet_data = {
+                    'tdata': int(self.dut.m_axis_tdata.value),
+                    'tstrb': int(self.dut.m_axis_tstrb.value),
+                    'tlast': int(self.dut.m_axis_tlast.value),
+                    'tid': int(self.dut.m_axis_tid.value),
+                    'tdest': int(self.dut.m_axis_tdest.value),
+                }
+                self.received_packets.append(packet_data)
+                self.test_stats['axis_packets_received'] += 1
+
+                if packet_data['tlast']:
+                    self.log.debug(f"AXIS packet complete: tid={packet_data['tid']}, "
+                                   f"tdest={packet_data['tdest']}")
+
+        self.log.info(f"AXIS output monitor stopped, received {len(self.received_packets)} beats")
+
+    def stop_axis_monitor(self):
+        """Stop the AXIS output monitor"""
+        self._axis_monitor_active = False
+
     async def _preload_memory(self):
-        """Pre-load memory with test data"""
+        """Pre-load memory with test data using base_addr-relative addressing.
+
+        The memory model uses 0-based addressing. System addresses are translated
+        to memory model offsets by subtracting BASE_ADDRESS via the AXI slave's
+        base_addr parameter.
+
+        Memory layout matches system address layout (offset = sys_addr - BASE_ADDRESS):
+          Channel 0: offsets 0x000000 to 0x000FFF (sys 0x10000000-0x10000FFF)
+          Channel 1: offsets 0x100000 to 0x100FFF (sys 0x10100000-0x10100FFF)
+          etc.
+        """
         self.log.info("Pre-loading memory...")
+        bytes_per_line = self.DATA_WIDTH // 8
 
         for ch in range(self.NUM_CHANNELS):
-            base = self.BASE_ADDRESS + ch * self.CHANNEL_OFFSET
             for i in range(64):
-                addr = base + i * (self.DATA_WIDTH // 8)
-                # Create deterministic test pattern
-                data = ((ch << 56) | (i << 48) | (0xCAFE0000 + ch * 0x100 + i))
-                data = data & ((1 << self.DATA_WIDTH) - 1)  # Mask to data width
-                self.memory_model.write(addr, data)
-                self.expected_data[addr] = data
+                # Memory offset = system address - BASE_ADDRESS
+                # This matches what the AXI slave will calculate
+                mem_offset = ch * self.CHANNEL_OFFSET + i * bytes_per_line
+
+                # System address (used in descriptors and verification)
+                sys_addr = self.BASE_ADDRESS + mem_offset
+
+                # Create deterministic test pattern as integer
+                data_int = ((ch << 56) | (i << 48) | (0xCAFE0000 + ch * 0x100 + i))
+                data_int = data_int & ((1 << self.DATA_WIDTH) - 1)  # Mask to data width
+
+                # Convert integer to bytearray (little-endian)
+                data_bytes = bytearray(data_int.to_bytes(bytes_per_line, 'little'))
+                self.memory_model.write(mem_offset, data_bytes)
+
+                # Store expected data keyed by system address for verification
+                self.expected_data[sys_addr] = data_int
 
         self.log.info(f"Pre-loaded {self.NUM_CHANNELS * 64} memory locations")
 
@@ -283,18 +353,35 @@ class SrcDataPathAxisTestBeatsTB(TBBase):
     def create_read_descriptor(self, channel: int, addr: int, beats: int, eos: bool = False) -> int:
         """Create a RAPIDS read descriptor (256 bits)
 
-        Descriptor format (simplified):
-        - [63:0]   : Base address
-        - [95:64]  : Transfer beats
-        - [127:96] : Control flags (bit 0 = eos, bit 1 = read direction)
-        - [255:128]: Reserved
+        Descriptor format (from scheduler_beats.sv):
+        - [63:0]    : src_addr - Source address (where to read FROM)
+        - [127:64]  : dst_addr - Destination address (not used for source path test)
+        - [159:128] : length - Transfer length in BEATS (32 bits)
+        - [191:160] : next_descriptor_ptr - Address of next descriptor (0 = last)
+        - [192]     : valid - Descriptor valid flag
+        - [193]     : gen_irq - Generate interrupt on completion
+        - [194]     : last - Last descriptor in chain flag
+        - [199:196] : channel_id
+        - [207:200] : desc_priority
+        - [255:208] : reserved
         """
         desc = 0
-        desc |= (addr & ((1 << 64) - 1))  # Address in bits [63:0]
-        desc |= ((beats & 0xFFFFFFFF) << 64)  # Beats in bits [95:64]
-        desc |= (1 << 97)  # Read direction flag in bit 97
+        # Source address (where to read from)
+        desc |= (addr & ((1 << 64) - 1))  # bits [63:0]
+        # Destination address (not relevant for source path read, use 0)
+        desc |= (0 << 64)  # bits [127:64]
+        # Transfer length in beats
+        desc |= ((beats & 0xFFFFFFFF) << 128)  # bits [159:128]
+        # Next descriptor pointer (0 = no chaining)
+        desc |= (0 << 160)  # bits [191:160]
+        # Valid flag (must be set for scheduler to process)
+        desc |= (1 << 192)  # bit 192
+        # gen_irq = 0
+        # last flag
         if eos:
-            desc |= (1 << 96)  # EOS flag in bit 96
+            desc |= (1 << 194)  # bit 194 = last descriptor in chain
+        # Channel ID (informational)
+        desc |= ((channel & 0xF) << 196)  # bits [199:196]
         return desc
 
     async def send_descriptor(self, channel: int, addr: int, beats: int, eos: bool = False):
@@ -304,12 +391,10 @@ class SrcDataPathAxisTestBeatsTB(TBBase):
 
         desc = self.create_read_descriptor(channel, addr, beats, eos)
 
-        # Send via GAXI master
+        # Send via GAXI master (factory returns GAXIMaster directly, not a dict)
         master = self.descriptor_masters[channel]
-        await master['interface'].write({
-            'packet': desc,
-            'error': 0
-        })
+        packet = master.create_packet(packet=desc, error=0)
+        await master.send(packet)
 
         self.test_stats['descriptors_sent'] += 1
         self.test_stats['channel_operations'][channel] += 1
@@ -348,7 +433,7 @@ class SrcDataPathAxisTestBeatsTB(TBBase):
                     successful += 1
                     self.test_stats['successful_operations'] += 1
 
-                delay = self.timing_config.get_value('inter_op_delay')
+                delay = self.timing_config.next()['inter_op_delay']
                 await self.wait_clocks(self.clk_name, delay)
 
             except Exception as e:
@@ -483,7 +568,7 @@ class SrcDataPathAxisTestBeatsTB(TBBase):
                     failed += 1
                     self.test_stats['failed_operations'] += 1
 
-                delay = self.timing_config.get_value('axi_delay')
+                delay = self.timing_config.next()['axi_delay']
                 await self.wait_clocks(self.clk_name, delay)
 
             except Exception as e:
@@ -520,20 +605,36 @@ class SrcDataPathAxisTestBeatsTB(TBBase):
                 # Send descriptor
                 await self.send_descriptor(channel, addr, beats, eos=(i == num_transfers - 1))
 
-                # Wait for completion
-                await self.wait_clocks(self.clk_name, 200)
+                # Wait for AXIS output with polling (up to 400 clocks)
+                max_wait = 400
+                waited = 0
+                current_axis_beats = int(self.dut.dbg_axis_beats_sent.value)
+                while current_axis_beats <= initial_axis_beats and waited < max_wait:
+                    await self.wait_clocks(self.clk_name, 10)
+                    waited += 10
+                    current_axis_beats = int(self.dut.dbg_axis_beats_sent.value)
 
                 # Check AXIS output
-                current_axis_beats = int(self.dut.dbg_axis_beats_sent.value)
                 if current_axis_beats > initial_axis_beats:
                     successful += 1
                     self.test_stats['successful_operations'] += 1
                     initial_axis_beats = current_axis_beats
-                    self.log.debug(f"E2E transfer {i} successful: ch{channel}")
+                    self.log.debug(f"E2E transfer {i} successful: ch{channel} (waited {waited} clks)")
                 else:
                     failed += 1
                     self.test_stats['failed_operations'] += 1
-                    self.log.warning(f"E2E transfer {i} failed: no AXIS output")
+                    # Debug: log scheduler and datapath state
+                    sched_idle = int(self.dut.sched_idle.value)
+                    sched_state = int(self.dut.sched_state.value)
+                    arb_request = int(self.dut.dbg_arb_request.value)
+                    r_beats = int(self.dut.dbg_r_beats_rcvd.value)
+                    sram_writes = int(self.dut.dbg_sram_writes.value)
+                    sram_pending = int(self.dut.dbg_sram_bridge_pending.value)
+                    sram_out_valid = int(self.dut.dbg_sram_bridge_out_valid.value)
+                    self.log.warning(f"E2E transfer {i} failed: ch{channel}, no AXIS output after {waited} clks")
+                    self.log.warning(f"  DEBUG: sched_idle={sched_idle:08b} sched_state[{channel}]={sched_state >> (channel*7) & 0x7F:02x}")
+                    self.log.warning(f"  DEBUG: arb_request={arb_request:08b} r_beats={r_beats} sram_writes={sram_writes}")
+                    self.log.warning(f"  DEBUG: sram_pending={sram_pending:08b} sram_out_valid={sram_out_valid:08b}")
 
             except Exception as e:
                 self.log.error(f"E2E transfer {i} failed: {e}")

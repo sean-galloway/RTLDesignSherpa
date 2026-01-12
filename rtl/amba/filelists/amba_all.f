@@ -14,11 +14,18 @@
 # ==============================================================================
 
 # =============================================================================
-# PACKAGES (MUST BE FIRST)
+# PACKAGES (MUST BE FIRST - ORDER MATTERS FOR DEPENDENCIES)
 # =============================================================================
+# Monitor packages - must be in dependency order
+$REPO_ROOT/rtl/amba/includes/monitor_common_pkg.sv
+$REPO_ROOT/rtl/amba/includes/monitor_arbiter_pkg.sv
+$REPO_ROOT/rtl/amba/includes/monitor_amba4_pkg.sv
+$REPO_ROOT/rtl/amba/includes/monitor_amba5_pkg.sv
 $REPO_ROOT/rtl/amba/includes/monitor_pkg.sv
+# Protocol packages
 $REPO_ROOT/rtl/amba/includes/axi_pkg.sv
 $REPO_ROOT/rtl/amba/includes/apb_pkg.sv
+$REPO_ROOT/rtl/amba/includes/apb5_pkg.sv
 
 # =============================================================================
 # SHARED INFRASTRUCTURE (Base modules used by multiple protocols)

@@ -215,11 +215,15 @@ class StreamTopTB(TBBase):
         )
 
         # Create APB master BFM using factory
+        # IMPORTANT: When CDC_ENABLE=0, the RTL connects apb_slave to aclk internally,
+        # NOT the external pclk port. So the APBMaster must use the same clock (aclk).
+        # For CDC testing (CDC_ENABLE=1), use pclk instead.
+        apb_clock = self.aclk  # Use aclk for CDC_ENABLE=0 (default test config)
         self.apb_master = create_apb_master(
             dut=self.dut,
             title="APB Master",
             prefix="s_apb",
-            clock=self.pclk,
+            clock=apb_clock,
             addr_width=self.apb_addr_width,
             data_width=self.apb_data_width,
             log=self.log
@@ -328,8 +332,12 @@ class StreamTopTB(TBBase):
             strb_width=4  # 4-byte strobe width
         )
 
-        # Send packet via APB master
-        await self.apb_master.send(pkt)
+        # Send packet via APB master and wait for completion
+        # IMPORTANT: Use busy_send() to wait for transaction to complete!
+        await self.apb_master.busy_send(pkt)
+
+        # Wait one more clock for APBMaster to finish bus cleanup
+        await RisingEdge(self.aclk)
 
         # Extract error status from packet after transaction completes
         error = pkt.fields.get('pslverr', 0)
@@ -365,8 +373,14 @@ class StreamTopTB(TBBase):
             strb_width=4  # 4-byte strobe width
         )
 
-        # Send packet via APB master
-        await self.apb_master.send(pkt)
+        # Send packet via APB master and wait for completion
+        # IMPORTANT: Use busy_send() to wait for transaction to complete!
+        # send() is non-blocking and just queues the transaction.
+        await self.apb_master.busy_send(pkt)
+
+        # Wait one more clock for APBMaster to finish bus cleanup
+        # This avoids race conditions with background monitors
+        await RisingEdge(self.aclk)
 
         # Extract read data and error status from packet after transaction completes
         data = pkt.fields.get('prdata', 0)

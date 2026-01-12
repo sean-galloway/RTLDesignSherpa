@@ -172,6 +172,7 @@ cmds.f
 sim.vvp
 .vscode/
 *.bkp
+*.bak
 *.dtmp
 reports/common/lint/
 known_good/
@@ -182,6 +183,13 @@ bin/OLD_SCRIPTS/
 val/common_level0_HOLD/*
 regression/*
 docs/mark_down/scripts/OLD/*
+
+# Lint and build artifacts
+lint_reports/
+UPDATED/
+local_sim_files/
+*_synth.rpt
+synthesis_reports/
 
 # Jekyll
 _site/
@@ -204,6 +212,7 @@ logs/
 rtl/axi/REWORK/*
 val/unit_axi/FIX_TESTS*
 HOLD/
+coverage_data/
 .obsidian
 status.txt
 
@@ -211,13 +220,18 @@ status.txt
 # PRD.md - Product Requirements Documents
 # TASKS.md - Task tracking
 # CLAUDE.md - AI assistance guides
-# But block local scratch files
+# .claude/skills/ - Claude skills (commit these!)
+# But block local scratch files and user-specific settings
 PNG
 SVG
 *_LOCAL.md
 *_SCRATCH.md
 *_TEMP.md
 generated/
+
+# Claude Code user-specific settings (DO NOT COMMIT)
+.claude/settings.local.json
+.claude/*.local.json
 
 # Scratch/temporary test files (keep in scratch/ directory instead)
 /cocotb_*.py
@@ -228,3 +242,6 @@ generated/
 scratch/
 sandbox/
 temp/
+*.swp
+*.swo
+

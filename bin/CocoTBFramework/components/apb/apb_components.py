@@ -376,6 +376,9 @@ class APBMaster(BusDriver):
         #   queue once it gets to them.
         # Use .done() method to properly check if Task is complete (CocoTB 1.8+)
         if not hold and (self.transmit_coroutine is None or self.transmit_coroutine.done()):
+            # Set transfer_busy BEFORE starting pipeline to avoid race condition
+            # with busy_send() checking the flag
+            self.transfer_busy = True
             self.transmit_coroutine = cocotb.start_soon(self._transmit_pipeline())
 
 
@@ -454,6 +457,9 @@ class APBMaster(BusDriver):
 
         while not self.bus.PREADY.value:
             await FallingEdge(self.clock)
+
+        # Wait for signal values to settle before sampling (matches APBMonitor/APBSlave timing)
+        await Timer(200, units='ps')
 
         # check if the slave is asserting an error
         if self.is_signal_present('PSLVERR') and self.bus.PSLVERR.value:

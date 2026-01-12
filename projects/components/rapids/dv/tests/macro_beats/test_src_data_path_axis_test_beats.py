@@ -61,7 +61,7 @@ sys.path.insert(0, repo_root)
 @cocotb.test(timeout_time=500, timeout_unit="ms")
 async def cocotb_test_basic_descriptor_flow(dut):
     """Test basic descriptor flow through schedulers to source data path"""
-    from tbclasses.src_data_path_axis_test_beats_tb import SrcDataPathAxisTestBeatsTB
+    from projects.components.rapids.dv.tbclasses.src_data_path_axis_test_beats_tb import SrcDataPathAxisTestBeatsTB
 
     tb = SrcDataPathAxisTestBeatsTB(dut, clk=dut.clk, rst_n=dut.rst_n)
     await tb.setup_clocks_and_reset()
@@ -75,7 +75,7 @@ async def cocotb_test_basic_descriptor_flow(dut):
 @cocotb.test(timeout_time=500, timeout_unit="ms")
 async def cocotb_test_multi_channel_operation(dut):
     """Test multi-channel operation with concurrent descriptors"""
-    from tbclasses.src_data_path_axis_test_beats_tb import SrcDataPathAxisTestBeatsTB
+    from projects.components.rapids.dv.tbclasses.src_data_path_axis_test_beats_tb import SrcDataPathAxisTestBeatsTB
 
     tb = SrcDataPathAxisTestBeatsTB(dut, clk=dut.clk, rst_n=dut.rst_n)
     await tb.setup_clocks_and_reset()
@@ -89,7 +89,7 @@ async def cocotb_test_multi_channel_operation(dut):
 @cocotb.test(timeout_time=600, timeout_unit="ms")
 async def cocotb_test_axi_read_operations(dut):
     """Test AXI4 read operations from memory"""
-    from tbclasses.src_data_path_axis_test_beats_tb import SrcDataPathAxisTestBeatsTB
+    from projects.components.rapids.dv.tbclasses.src_data_path_axis_test_beats_tb import SrcDataPathAxisTestBeatsTB
 
     tb = SrcDataPathAxisTestBeatsTB(dut, clk=dut.clk, rst_n=dut.rst_n)
     await tb.setup_clocks_and_reset()
@@ -103,7 +103,7 @@ async def cocotb_test_axi_read_operations(dut):
 @cocotb.test(timeout_time=600, timeout_unit="ms")
 async def cocotb_test_axis_transmission(dut):
     """Test AXIS data transmission"""
-    from tbclasses.src_data_path_axis_test_beats_tb import SrcDataPathAxisTestBeatsTB
+    from projects.components.rapids.dv.tbclasses.src_data_path_axis_test_beats_tb import SrcDataPathAxisTestBeatsTB
 
     tb = SrcDataPathAxisTestBeatsTB(dut, clk=dut.clk, rst_n=dut.rst_n)
     await tb.setup_clocks_and_reset()
@@ -117,7 +117,7 @@ async def cocotb_test_axis_transmission(dut):
 @cocotb.test(timeout_time=800, timeout_unit="ms")
 async def cocotb_test_end_to_end(dut):
     """Test end-to-end data flow: Descriptor -> AXI Read -> AXIS Master"""
-    from tbclasses.src_data_path_axis_test_beats_tb import SrcDataPathAxisTestBeatsTB
+    from projects.components.rapids.dv.tbclasses.src_data_path_axis_test_beats_tb import SrcDataPathAxisTestBeatsTB
 
     tb = SrcDataPathAxisTestBeatsTB(dut, clk=dut.clk, rst_n=dut.rst_n)
     await tb.setup_clocks_and_reset()
@@ -131,7 +131,7 @@ async def cocotb_test_end_to_end(dut):
 @cocotb.test(timeout_time=1000, timeout_unit="ms")
 async def cocotb_test_stress(dut):
     """Stress test with high throughput"""
-    from tbclasses.src_data_path_axis_test_beats_tb import SrcDataPathAxisTestBeatsTB
+    from projects.components.rapids.dv.tbclasses.src_data_path_axis_test_beats_tb import SrcDataPathAxisTestBeatsTB
 
     tb = SrcDataPathAxisTestBeatsTB(dut, clk=dut.clk, rst_n=dut.rst_n)
     await tb.setup_clocks_and_reset()

@@ -29,6 +29,8 @@
 `include "reset_defs.svh"
 module apb_monitor
     import monitor_pkg::*;
+    import monitor_common_pkg::*;  // For PROTOCOL_APB, PktType*, transaction states
+    import monitor_amba4_pkg::*;   // For APB_ERR_*, APB_TIMEOUT_*, etc.
 #(
     parameter int ADDR_WIDTH          = 32,
     parameter int DATA_WIDTH          = 32,

@@ -532,7 +532,11 @@ def test_arbiter_monbus_common(request, clients, wait_gnt_ack, weighted_mode, fi
 
     # Verilog sources
     verilog_sources = [
-        # package
+        # Monitor packages (must be compiled in dependency order)
+        os.path.join(rtl_dict['rtl_amba_includes'], "monitor_common_pkg.sv"),
+        os.path.join(rtl_dict['rtl_amba_includes'], "monitor_arbiter_pkg.sv"),
+        os.path.join(rtl_dict['rtl_amba_includes'], "monitor_amba4_pkg.sv"),
+        os.path.join(rtl_dict['rtl_amba_includes'], "monitor_amba5_pkg.sv"),
         os.path.join(rtl_dict['rtl_amba_includes'], "monitor_pkg.sv"),
 
         # Fifo components

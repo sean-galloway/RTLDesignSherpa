@@ -555,6 +555,187 @@ status:
 	@echo "================================================================================"
 
 # ==============================================================================
+# Coverage Targets
+# ==============================================================================
+
+# Coverage environment variables
+COVERAGE_ENV = SIM=verilator WAVES=0 COVERAGE=1 COVERAGE_LEGAL=1
+
+# Coverage reports directory
+COVERAGE_REPORTS_DIR = coverage_reports
+
+.PHONY: coverage-fub-beats
+coverage-fub-beats:
+	@echo "================================================================================"
+	@echo "Running RAPIDS FUB-Beats Tests with Coverage"
+	@echo "================================================================================"
+	@cd $(FUB_BEATS_DIR) && \
+	PYTHONPATH=$(REPO_ROOT)/bin:$(REPO_ROOT):$$PYTHONPATH \
+	$(COVERAGE_ENV) \
+	TEST_LEVEL=func \
+	timeout 900 $(PYTEST) test_*.py $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE)
+
+.PHONY: coverage-macro-beats
+coverage-macro-beats:
+	@echo "================================================================================"
+	@echo "Running RAPIDS Macro-Beats Tests with Coverage"
+	@echo "================================================================================"
+	@cd $(MACRO_BEATS_DIR) && \
+	PYTHONPATH=$(REPO_ROOT)/bin:$(REPO_ROOT):$$PYTHONPATH \
+	$(COVERAGE_ENV) \
+	TEST_LEVEL=func \
+	timeout 900 $(PYTEST) test_*.py $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE)
+
+.PHONY: coverage-beats
+coverage-beats: coverage-fub-beats coverage-macro-beats
+	@echo "================================================================================"
+	@echo "All RAPIDS Beats Coverage Runs Complete"
+	@echo "================================================================================"
+
+.PHONY: coverage-fub-beats-gate
+coverage-fub-beats-gate:
+	@cd $(FUB_BEATS_DIR) && \
+	PYTHONPATH=$(REPO_ROOT)/bin:$(REPO_ROOT):$$PYTHONPATH \
+	$(COVERAGE_ENV) \
+	TEST_LEVEL=gate \
+	timeout 600 $(PYTEST) test_*.py $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE)
+
+.PHONY: coverage-fub-beats-func
+coverage-fub-beats-func:
+	@cd $(FUB_BEATS_DIR) && \
+	PYTHONPATH=$(REPO_ROOT)/bin:$(REPO_ROOT):$$PYTHONPATH \
+	$(COVERAGE_ENV) \
+	TEST_LEVEL=func \
+	timeout 900 $(PYTEST) test_*.py $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE)
+
+.PHONY: coverage-fub-beats-full
+coverage-fub-beats-full:
+	@cd $(FUB_BEATS_DIR) && \
+	PYTHONPATH=$(REPO_ROOT)/bin:$(REPO_ROOT):$$PYTHONPATH \
+	$(COVERAGE_ENV) \
+	TEST_LEVEL=full \
+	timeout 1800 $(PYTEST) test_*.py $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE)
+
+.PHONY: coverage-macro-beats-gate
+coverage-macro-beats-gate:
+	@cd $(MACRO_BEATS_DIR) && \
+	PYTHONPATH=$(REPO_ROOT)/bin:$(REPO_ROOT):$$PYTHONPATH \
+	$(COVERAGE_ENV) \
+	TEST_LEVEL=gate \
+	timeout 600 $(PYTEST) test_*.py $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE)
+
+.PHONY: coverage-macro-beats-func
+coverage-macro-beats-func:
+	@cd $(MACRO_BEATS_DIR) && \
+	PYTHONPATH=$(REPO_ROOT)/bin:$(REPO_ROOT):$$PYTHONPATH \
+	$(COVERAGE_ENV) \
+	TEST_LEVEL=func \
+	timeout 900 $(PYTEST) test_*.py $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE)
+
+.PHONY: coverage-macro-beats-full
+coverage-macro-beats-full:
+	@cd $(MACRO_BEATS_DIR) && \
+	PYTHONPATH=$(REPO_ROOT)/bin:$(REPO_ROOT):$$PYTHONPATH \
+	$(COVERAGE_ENV) \
+	TEST_LEVEL=full \
+	timeout 1800 $(PYTEST) test_*.py $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE)
+
+.PHONY: coverage-beats-gate
+coverage-beats-gate: coverage-fub-beats-gate coverage-macro-beats-gate
+	@echo "All RAPIDS Beats Coverage Complete - GATE level"
+
+.PHONY: coverage-beats-func
+coverage-beats-func: coverage-fub-beats-func coverage-macro-beats-func
+	@echo "All RAPIDS Beats Coverage Complete - FUNC level"
+
+.PHONY: coverage-beats-full
+coverage-beats-full: coverage-fub-beats-full coverage-macro-beats-full
+	@echo "All RAPIDS Beats Coverage Complete - FULL level"
+
+.PHONY: coverage-report
+coverage-report:
+	@echo "================================================================================"
+	@echo "Generating RAPIDS Combined Coverage Report"
+	@echo "================================================================================"
+	@mkdir -p $(COVERAGE_REPORTS_DIR)
+	@python3 -c " \
+import os, json, glob; \
+from datetime import datetime; \
+\
+levels = [('fub_beats', 'FUB-Beats'), ('macro_beats', 'Macro-Beats')]; \
+combined = {'levels': {}, 'totals': {'protocol': 0, 'line': 0, 'count': 0}}; \
+\
+for level_dir, level_name in levels: \
+    json_path = f'{level_dir}/coverage_data/merged/latest_merged_coverage.json'; \
+    if os.path.exists(json_path): \
+        with open(json_path) as f: \
+            data = json.load(f); \
+            combined['levels'][level_name] = data; \
+            for r in data.get('tests', []): \
+                combined['totals']['protocol'] += r.get('protocol_pct', 0); \
+                combined['totals']['line'] += r.get('line_pct', 0); \
+                combined['totals']['count'] += 1; \
+\
+if combined['totals']['count'] > 0: \
+    avg_protocol = combined['totals']['protocol'] / combined['totals']['count']; \
+    avg_line = combined['totals']['line'] / combined['totals']['count']; \
+else: \
+    avg_protocol = avg_line = 0; \
+\
+lines = ['# RAPIDS Beats Coverage Report', '', f'Generated: {datetime.now()}', '']; \
+lines.append('## Overall Summary'); \
+lines.append(f'- **Average Protocol Coverage:** {avg_protocol:.1f}%'); \
+lines.append(f'- **Average Line Coverage:** {avg_line:.1f}%'); \
+lines.append(f'- **Total Tests:** {combined[\"totals\"][\"count\"]}'); \
+lines.append(''); \
+\
+for level_name in [l[1] for l in levels]: \
+    if level_name in combined['levels']: \
+        data = combined['levels'][level_name]; \
+        test_count = len(data.get('tests', [])); \
+        lines.append(f'## {level_name} Level ({test_count} tests)'); \
+        lines.append('| Test | Protocol % | Line % |'); \
+        lines.append('|------|------------|--------|'); \
+        for r in data.get('tests', []): \
+            lines.append(f'| {r[\"name\"]} | {r[\"protocol_pct\"]:.1f}% | {r[\"line_pct\"]:.1f}% |'); \
+        lines.append(''); \
+\
+with open('$(COVERAGE_REPORTS_DIR)/combined_coverage_report.md', 'w') as f: \
+    f.write('\n'.join(lines)); \
+print('Report written to: $(COVERAGE_REPORTS_DIR)/combined_coverage_report.md'); \
+"
+
+.PHONY: coverage-full-report
+coverage-full-report: clean-coverage coverage-beats-func coverage-report
+	@echo "================================================================================"
+	@echo "RAPIDS Full Coverage Report Complete"
+	@echo "================================================================================"
+
+.PHONY: clean-coverage
+clean-coverage:
+	@echo "Cleaning RAPIDS coverage data..."
+	rm -rf $(FUB_BEATS_DIR)/coverage_data
+	rm -rf $(MACRO_BEATS_DIR)/coverage_data
+	rm -rf $(COVERAGE_REPORTS_DIR)
+	@echo "Coverage data cleaned"
+
+.PHONY: coverage-status
+coverage-status:
+	@echo "================================================================================"
+	@echo "RAPIDS Coverage Data Status"
+	@echo "================================================================================"
+	@for level in fub_beats macro_beats; do \
+		echo ""; \
+		echo "$$level level:"; \
+		if [ -d "$$level/coverage_data/per_test" ]; then \
+			count=$$(ls -1 $$level/coverage_data/per_test/*_summary.json 2>/dev/null | wc -l); \
+			echo "  - $$count test coverage files"; \
+		else \
+			echo "  - No coverage data"; \
+		fi; \
+	done
+
+# ==============================================================================
 # Combined Targets (clean + run)
 # ==============================================================================
 

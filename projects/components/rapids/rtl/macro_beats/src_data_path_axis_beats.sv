@@ -171,14 +171,24 @@ module src_data_path_axis_beats #(
     end
 
     // Round-robin arbiter state machine
+    // Arbiter advances when:
+    // 1. No active grant (!r_arb_active)
+    // 2. Current drain complete (r_drain_remaining == 0 && m_axis_tvalid && m_axis_tready)
+    // 3. Current channel has no more data (r_arb_active && drain_data_avail[r_arb_grant_id] == 0)
+    //    This prevents arbiter from getting stuck waiting for handshake on empty channel
+    logic w_arb_should_advance;
+    assign w_arb_should_advance = !r_arb_active ||
+                                  (r_drain_remaining == 0 && m_axis_tvalid && m_axis_tready) ||
+                                  (r_arb_active && drain_data_avail[r_arb_grant_id] == 0);
+
     `ALWAYS_FF_RST(clk, rst_n,
         if (`RST_ASSERTED(rst_n)) begin
             r_arb_grant_id <= '0;
             r_arb_active <= 1'b0;
             r_drain_remaining <= '0;
         end else begin
-            if (!r_arb_active || (r_drain_remaining == 0 && m_axis_tvalid && m_axis_tready)) begin
-                // No active grant or current drain complete - find next channel
+            if (w_arb_should_advance) begin
+                // No active grant, current drain complete, or current channel empty - find next channel
                 r_arb_active <= 1'b0;
                 for (int ch = 0; ch < NC; ch++) begin
                     // Start search from channel after current grant (round-robin)

@@ -485,6 +485,9 @@ class APB5Master(BusDriver):
             if self.bus.PREADY.value.integer:
                 break
 
+        # Wait for signal values to settle before sampling (matches APB5Monitor timing)
+        await Timer(200, units='ps')
+
         # Capture response
         if not transaction.fields['pwrite']:
             transaction.fields['prdata'] = self.bus.PRDATA.value.integer

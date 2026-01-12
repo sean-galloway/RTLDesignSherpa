@@ -550,7 +550,12 @@ def test_apb_monitor():
     os.makedirs(log_dir, exist_ok=True)
 
     # RTL sources (validated from compilation test)
+    # NOTE: Monitor packages must be in dependency order!
     verilog_sources = [
+        os.path.join(rtl_dict['rtl_amba_includes'], "monitor_common_pkg.sv"),
+        os.path.join(rtl_dict['rtl_amba_includes'], "monitor_arbiter_pkg.sv"),
+        os.path.join(rtl_dict['rtl_amba_includes'], "monitor_amba4_pkg.sv"),
+        os.path.join(rtl_dict['rtl_amba_includes'], "monitor_amba5_pkg.sv"),
         os.path.join(rtl_dict['rtl_amba_includes'], "monitor_pkg.sv"),
         os.path.join(rtl_dict['rtl_cmn'], "counter_bin.sv"),
         os.path.join(rtl_dict['rtl_cmn'], "counter_load_clear.sv"),

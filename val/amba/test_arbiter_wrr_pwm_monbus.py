@@ -480,7 +480,11 @@ def test_arbiter_wrr_pwm_monbus(request, clients, max_levels, wait_gnt_ack, agen
 
     # RTL sources - all components needed for weighted integration
     verilog_sources = [
-        # Monitor package and dependencies
+        # Monitor packages (must be compiled in dependency order)
+        os.path.join(rtl_dict['rtl_amba_includes'], "monitor_common_pkg.sv"),
+        os.path.join(rtl_dict['rtl_amba_includes'], "monitor_arbiter_pkg.sv"),
+        os.path.join(rtl_dict['rtl_amba_includes'], "monitor_amba4_pkg.sv"),
+        os.path.join(rtl_dict['rtl_amba_includes'], "monitor_amba5_pkg.sv"),
         os.path.join(rtl_dict['rtl_amba_includes'], "monitor_pkg.sv"),
 
         # Common components (include all weighted arbiter dependencies)
@@ -619,7 +623,11 @@ if __name__ == "__main__":
 
     # RTL sources - all components needed for weighted integration
     verilog_sources = [
-        # Monitor package and dependencies
+        # Monitor packages (must be compiled in dependency order)
+        os.path.join(rtl_dict['rtl_amba_includes'], "monitor_common_pkg.sv"),
+        os.path.join(rtl_dict['rtl_amba_includes'], "monitor_arbiter_pkg.sv"),
+        os.path.join(rtl_dict['rtl_amba_includes'], "monitor_amba4_pkg.sv"),
+        os.path.join(rtl_dict['rtl_amba_includes'], "monitor_amba5_pkg.sv"),
         os.path.join(rtl_dict['rtl_amba_includes'], "monitor_pkg.sv"),
 
         # Common components (include all weighted arbiter dependencies)
