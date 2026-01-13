@@ -224,6 +224,8 @@ async def cocotb_test_timeout_simple(dut):
 @pytest.mark.timeout
 def test_timeout_simple(request):
     """Pytest wrapper for simple timeout test"""
+    # Check if coverage collection is enabled via environment variable
+    coverage_enabled = os.environ.get('COVERAGE', '0') == '1'
 
     module, repo_root, tests_dir, log_dir, rtl_dict = get_paths({})
 
@@ -262,6 +264,15 @@ def test_timeout_simple(request):
 
     cmd_filename = create_view_cmd(log_dir, log_path, sim_build, module, test_name)
 
+    # Build compile args - add coverage if enabled
+    compile_args = ["-Wno-TIMESCALEMOD", "-Wno-WIDTH", "-Wno-UNOPTFLAT"]
+    if coverage_enabled:
+        compile_args.extend([
+            "--coverage-line",
+            "--coverage-toggle",
+            "--coverage-underscore",
+        ])
+
     try:
         run(
             python_search=[tests_dir],
@@ -276,7 +287,7 @@ def test_timeout_simple(request):
             extra_env=extra_env,
             waves=False,
             keep_files=True,
-            compile_args=["-Wno-TIMESCALEMOD", "-Wno-WIDTH", "-Wno-UNOPTFLAT"],
+            compile_args=compile_args,
         )
         print(f"✓ Test completed! Logs: {log_path}")
         if os.path.exists(cmd_filename):

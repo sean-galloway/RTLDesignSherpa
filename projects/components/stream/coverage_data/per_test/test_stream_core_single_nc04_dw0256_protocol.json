@@ -18,7 +18,7 @@
         "INCR": {
           "name": "Burst type INCR",
           "description": "",
-          "hits": 2,
+          "hits": 16,
           "goal": 1
         },
         "WRAP": {
@@ -45,7 +45,7 @@
         "INCR": {
           "name": "Burst type INCR",
           "description": "",
-          "hits": 2,
+          "hits": 16,
           "goal": 1
         },
         "WRAP": {
@@ -114,7 +114,7 @@
         "size_4294967296": {
           "name": "size_4294967296",
           "description": "",
-          "hits": 2,
+          "hits": 16,
           "goal": 1
         }
       }
@@ -177,7 +177,7 @@
         "size_4294967296": {
           "name": "size_4294967296",
           "description": "",
-          "hits": 2,
+          "hits": 16,
           "goal": 1
         }
       }
@@ -216,7 +216,7 @@
         "len_17_256": {
           "name": "Very long burst (len=16-255)",
           "description": "",
-          "hits": 2,
+          "hits": 16,
           "goal": 1
         }
       }
@@ -255,7 +255,7 @@
         "len_17_256": {
           "name": "Very long burst (len=16-255)",
           "description": "",
-          "hits": 2,
+          "hits": 16,
           "goal": 1
         }
       }
@@ -270,7 +270,7 @@
         "OKAY": {
           "name": "Response OKAY",
           "description": "",
-          "hits": 2,
+          "hits": 16,
           "goal": 1
         },
         "EXOKAY": {
@@ -303,7 +303,7 @@
         "OKAY": {
           "name": "Response OKAY",
           "description": "",
-          "hits": 2,
+          "hits": 16,
           "goal": 1
         },
         "EXOKAY": {
@@ -399,7 +399,7 @@
         "cache_line": {
           "name": "Cache line aligned (64-byte)",
           "description": "",
-          "hits": 4,
+          "hits": 32,
           "goal": 1
         }
       }

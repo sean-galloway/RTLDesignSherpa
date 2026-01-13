@@ -156,6 +156,25 @@ sys.path.insert(0, repo_root)
 
 from projects.components.stream.dv.tbclasses.stream_core_tb import StreamCoreTB, StreamRegisterMap
 
+# Coverage integration - optional import
+try:
+    from projects.components.stream.dv.stream_coverage import (
+        CoverageHelper,
+        get_coverage_compile_args,
+        get_coverage_env
+    )
+    COVERAGE_AVAILABLE = True
+except ImportError:
+    COVERAGE_AVAILABLE = False
+
+    def get_coverage_compile_args():
+        """Stub when coverage not available."""
+        return []
+
+    def get_coverage_env(test_name, sim_build=None):
+        """Stub when coverage not available."""
+        return {}
+
 
 # ==============================================================================
 # Common Test Infrastructure
@@ -910,6 +929,10 @@ def create_pytest_wrapper(test_name, cocotb_testcase, default_params=None):
         for key, value in default_params.items():
             extra_env[key] = str(value)
 
+        # Add coverage environment variables if coverage is enabled
+        coverage_env = get_coverage_env(test_name_plus_params, sim_build=sim_build)
+        extra_env.update(coverage_env)
+
         enable_waves = bool(int(os.environ.get('WAVES', '0')))
         if enable_waves:
             extra_env['COCOTB_TRACE_FILE'] = os.path.join(sim_build, 'dump.vcd')
@@ -923,6 +946,10 @@ def create_pytest_wrapper(test_name, cocotb_testcase, default_params=None):
             "-Wno-WIDTH", "-Wno-CASEINCOMPLETE", "-Wno-TIMESCALEMOD",
             "-Wno-SELRANGE", "-Wno-UNUSEDSIGNAL", "-Wno-UNDRIVEN", "-Wno-MULTIDRIVEN",
         ])
+
+        # Add coverage compile args if COVERAGE=1
+        coverage_compile_args = get_coverage_compile_args()
+        compile_args.extend(coverage_compile_args)
 
         create_view_cmd(log_dir, log_path, sim_build, module, test_name_plus_params)
 

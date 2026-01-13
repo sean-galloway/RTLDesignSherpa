@@ -308,14 +308,23 @@ def get_coverage_env(test_name: str, sim_build: str = None) -> dict:
     if os.environ.get('COVERAGE', '0') != '1':
         return {}
 
+    # Determine test type (fub or top) from sim_build path if available
+    test_type = 'fub'  # default
+    if sim_build:
+        sim_build_abs = os.path.abspath(sim_build)
+        if '/tests/top/' in sim_build_abs or '/tests/top' in sim_build_abs:
+            test_type = 'top'
+        elif '/tests/macro/' in sim_build_abs or '/tests/macro' in sim_build_abs:
+            test_type = 'macro'
+
     # Compute the absolute path to coverage output directory
     # This ensures the cocotb subprocess knows exactly where to save data
     # Walk up from current file to find stream component root
     current = os.path.dirname(os.path.abspath(__file__))
     coverage_output_dir = None
     while current != '/':
-        if os.path.exists(os.path.join(current, 'dv', 'tests', 'fub')):
-            coverage_output_dir = os.path.join(current, 'dv', 'tests', 'fub', 'coverage_data', 'per_test')
+        if os.path.exists(os.path.join(current, 'dv', 'tests', test_type)):
+            coverage_output_dir = os.path.join(current, 'dv', 'tests', test_type, 'coverage_data', 'per_test')
             break
         current = os.path.dirname(current)
 

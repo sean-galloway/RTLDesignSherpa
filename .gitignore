@@ -205,7 +205,6 @@ bin_OLD/
 profile.txt
 sim_build/
 local_sim_build/
-debug_sim_build/
 regression/
 junk_*
 logs/

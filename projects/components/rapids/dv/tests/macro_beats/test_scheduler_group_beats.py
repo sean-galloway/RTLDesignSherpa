@@ -180,6 +180,9 @@ def _run_beats_scheduler_group_test(request, testcase_name, channel_id, addr_wid
         data_width: Data width
         axi_id_width: AXI ID width
     """
+    # Check if coverage collection is enabled via environment variable
+    coverage_enabled = os.environ.get('COVERAGE', '0') == '1'
+
     module, repo_root, tests_dir, log_dir, rtl_dict = get_paths({
         'rtl_macro_beats': '../../rtl/macro_beats'
     })
@@ -235,6 +238,15 @@ def _run_beats_scheduler_group_test(request, testcase_name, channel_id, addr_wid
 
     cmd_filename = create_view_cmd(log_dir, log_path, sim_build, module, test_name_plus_params)
 
+    # Build compile args - add coverage if enabled
+    compile_args = ["-Wno-TIMESCALEMOD", "-Wno-WIDTH", "-Wno-UNOPTFLAT"]
+    if coverage_enabled:
+        compile_args.extend([
+            "--coverage-line",
+            "--coverage-toggle",
+            "--coverage-underscore",
+        ])
+
     try:
         run(
             python_search=[tests_dir],
@@ -249,7 +261,7 @@ def _run_beats_scheduler_group_test(request, testcase_name, channel_id, addr_wid
             extra_env=extra_env,
             waves=os.environ.get('ENABLE_WAVEDUMP', '0') == '1',
             keep_files=True,
-            compile_args=["-Wno-TIMESCALEMOD", "-Wno-WIDTH", "-Wno-UNOPTFLAT"],
+            compile_args=compile_args,
         )
         print(f"Test completed! Logs: {log_path}")
         if os.path.exists(cmd_filename):

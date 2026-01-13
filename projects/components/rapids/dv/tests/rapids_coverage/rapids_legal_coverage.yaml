@@ -1,0 +1,226 @@
+# RAPIDS Legal Coverage Configuration
+#
+# This file defines what AXI/APB protocol variations RAPIDS actually supports.
+# Coverage collection focuses on "legal" variations - the subset of the full
+# protocol that RAPIDS hardware can actually exercise.
+#
+# Philosophy: Measure what CAN happen, not what theoretically could happen.
+# This gives meaningful coverage percentages that reflect true design coverage.
+#
+# Organization:
+#   - legal: Variations that RAPIDS actively uses (MUST be covered)
+#   - illegal: Variations that RAPIDS cannot generate (coverage = 0 expected)
+#   - optional: Edge cases that may or may not occur (bonus coverage)
+
+version: "1.0"
+component: "rapids_beats"
+description: "RAPIDS Phase 1 beats architecture - legal coverage points"
+
+# =============================================================================
+# AXI Burst Types
+# =============================================================================
+# RAPIDS uses INCR bursts exclusively for all memory operations.
+# Both axi_read_engine_beats and axi_write_engine_beats hardcode arburst=2'b01.
+
+axi_burst_types:
+  legal:
+    - INCR           # Incrementing burst - used for all memory transfers
+  illegal:
+    - FIXED          # Not supported - hardcoded to INCR
+    - WRAP           # Not supported - hardcoded to INCR
+
+# =============================================================================
+# AXI Burst Sizes
+# =============================================================================
+# RAPIDS uses full-width transfers matching DATA_WIDTH parameter.
+# Default is 512-bit (64 bytes). Other sizes are configurable but typically unused.
+
+axi_burst_sizes:
+  legal:
+    - size_64        # 64-byte transfers (DATA_WIDTH=512, $clog2(64)=6)
+  illegal:
+    - size_1         # Not used - below datapath width
+    - size_2         # Not used - below datapath width
+    - size_4         # Not used - below datapath width
+    - size_8         # Not used - below datapath width
+    - size_16        # Not used - below datapath width
+    - size_32        # Not used - below datapath width
+    - size_128       # Not used - above typical datapath width
+  optional:
+    - size_32        # 32-byte transfers (if DATA_WIDTH=256)
+
+# =============================================================================
+# AXI Burst Lengths
+# =============================================================================
+# RAPIDS burst lengths are configurable via cfg_axi_rd_xfer_beats / cfg_axi_wr_xfer_beats.
+# Descriptor engine always uses single-beat (len_1) for 256-bit descriptors.
+# Data engines use configurable lengths - typical values are 1-8 beats.
+
+axi_burst_lengths:
+  legal:
+    - len_1          # Single beat - descriptor engine
+    - len_2          # 2 beats (xb2) - minimal data burst
+    - len_4          # 4 beats (xb4) - common data burst
+    - len_8          # 8 beats (xb8) - typical data burst
+  optional:
+    - len_16         # 16 beats - for larger transfers
+    - len_32         # 32 beats - for very large transfers
+  illegal:
+    - len_256        # Maximum AXI4 - not typically used
+
+# =============================================================================
+# AXI Responses
+# =============================================================================
+# RAPIDS expects OKAY responses for normal operation.
+# Error responses trigger sticky error flags.
+
+axi_responses:
+  legal:
+    - OKAY           # Normal response (bresp/rresp = 00)
+    - SLVERR         # Slave error (bresp/rresp = 10) - handled via error flags
+  optional:
+    - DECERR         # Decode error (bresp/rresp = 11) - possible but rare
+  illegal:
+    - EXOKAY         # Exclusive OK - RAPIDS doesn't use exclusive access
+
+# =============================================================================
+# APB Transactions
+# =============================================================================
+# APB is used for descriptor engine kick-off (apb_valid/apb_addr).
+
+apb_transactions:
+  legal:
+    - write_kick_off # APB write to start descriptor fetch
+    - write_okay     # Successful APB write
+  optional:
+    - write_rejected # APB write rejected (channel busy, reset active)
+  illegal:
+    - read           # No APB read support in descriptor engine
+
+# =============================================================================
+# Address Alignment
+# =============================================================================
+# RAPIDS Phase 1 requires aligned addresses (no fixup logic).
+# Addresses must be aligned to DATA_WIDTH.
+
+address_alignment:
+  legal:
+    - cache_line_aligned    # 64-byte aligned (512-bit boundary)
+    - dword_aligned         # 4-byte aligned (minimum)
+  optional:
+    - word_aligned          # 2-byte aligned
+  illegal:
+    - unaligned             # Not supported in Phase 1
+
+# =============================================================================
+# Handshake Interfaces
+# =============================================================================
+# Critical valid/ready handshakes that must be exercised.
+
+handshakes:
+  descriptor_interfaces:
+    - desc_valid_ready       # descriptor_valid/descriptor_ready
+    - apb_valid_ready        # apb_valid/apb_ready for kick-off
+    - ar_valid_ready         # AXI AR channel for descriptor fetch
+    - r_valid_ready          # AXI R channel for descriptor data
+
+  data_engine_interfaces:
+    - sched_rd_valid_start   # Scheduler requests read
+    - sched_wr_valid_start   # Scheduler requests write
+    - rd_done_strobe         # Read engine completion
+    - wr_done_strobe         # Write engine completion
+
+  axi_interfaces:
+    - ar_handshake           # AXI read address channel
+    - r_handshake            # AXI read data channel
+    - aw_handshake           # AXI write address channel
+    - w_handshake            # AXI write data channel
+    - b_handshake            # AXI write response channel
+
+  sram_interfaces:
+    - alloc_req              # SRAM allocation request
+    - drain_req              # SRAM drain request
+    - sram_wr_valid_ready    # SRAM write handshake
+    - sram_rd_valid_ready    # SRAM read handshake
+
+  backpressure:
+    - ar_wait                # AR channel backpressure
+    - r_wait                 # R channel backpressure
+    - aw_wait                # AW channel backpressure
+    - w_wait                 # W channel backpressure
+    - sram_full              # SRAM buffer full
+    - sram_empty             # SRAM buffer empty
+
+# =============================================================================
+# Scheduler State Coverage
+# =============================================================================
+# Scheduler FSM states that should be visited.
+
+scheduler_states:
+  legal:
+    - CH_IDLE                # Waiting for descriptor
+    - CH_FETCH_DESC          # Fetching descriptor
+    - CH_XFER_DATA           # Concurrent read/write
+    - CH_COMPLETE            # Transfer complete
+    - CH_NEXT_DESC           # Chaining to next descriptor
+  optional:
+    - CH_ERROR               # Error state (rare but should test)
+
+# =============================================================================
+# Descriptor Engine States
+# =============================================================================
+# Descriptor fetch FSM states.
+
+descriptor_engine_states:
+  legal:
+    - RD_IDLE                # Waiting for fetch request
+    - RD_ISSUE_ADDR          # Issuing AXI AR
+    - RD_WAIT_DATA           # Waiting for AXI R
+    - RD_COMPLETE            # Fetch complete
+  optional:
+    - RD_ERROR               # Fetch error
+
+# =============================================================================
+# Scenarios
+# =============================================================================
+# High-level test scenarios organized by importance.
+
+scenarios:
+  critical:
+    - single_descriptor_complete         # Basic single descriptor flow
+    - chained_descriptor_complete        # Autonomous chaining
+    - concurrent_read_write              # Concurrent RD/WR in XFER_DATA
+    - backpressure_handling              # SRAM full/empty recovery
+
+  important:
+    - multi_channel_arbitration          # Round-robin arbitration
+    - burst_size_variations              # Different cfg_axi_xfer_beats
+    - error_flag_propagation             # Error from AXI response
+    - descriptor_valid_invalid           # Valid bit checking
+
+  optional:
+    - timeout_detection                  # Watchdog timeout
+    - channel_reset_recovery             # Reset mid-operation
+    - very_large_transfer                # Transfer > SRAM size
+    - descriptor_chain_exhaustion        # Long chain completion
+
+# =============================================================================
+# Cross Coverage
+# =============================================================================
+# Important parameter combinations.
+
+cross_coverage:
+  burst_combinations:
+    - INCR_size64_len1       # Descriptor fetch
+    - INCR_size64_len2       # Short data burst
+    - INCR_size64_len4       # Medium data burst
+    - INCR_size64_len8       # Full data burst
+
+  channel_combinations:
+    - nc1_basic              # Single channel
+    - nc4_basic              # 4 channels
+    - nc8_concurrent         # 8 channels concurrent
+
+  datapath_combinations:
+    - dw256_basic            # 256-bit datapath
+    - dw512_basic            # 512-bit datapath (default)

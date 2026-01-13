@@ -303,6 +303,8 @@ params = generate_params()
 @pytest.mark.parametrize("test_type, data_width", params)
 def test_beats_latency_bridge(request, test_type, data_width):
     """Pytest wrapper for beats latency bridge tests - handles all test types."""
+    # Check if coverage collection is enabled via environment variable
+    coverage_enabled = os.environ.get('COVERAGE', '0') == '1'
 
     module, repo_root, tests_dir, log_dir, rtl_dict = get_paths({
         'rtl_fub_beats': '../../rtl/fub_beats',
@@ -343,6 +345,14 @@ def test_beats_latency_bridge(request, test_type, data_width):
     }
 
     compile_args = ['-Wno-TIMESCALEMOD', '-Wno-WIDTHEXPAND', '-Wno-WIDTHTRUNC']
+
+    # Add coverage options if enabled
+    if coverage_enabled:
+        compile_args.extend([
+            "--coverage-line",
+            "--coverage-toggle",
+            "--coverage-underscore",
+        ])
 
     # Enable VCD waveforms if WAVES=1 (not FST, which has Verilator bugs)
     # We need to temporarily unset WAVES to prevent cocotb-test from auto-adding FST
