@@ -25,7 +25,7 @@
 
 The Memory Input/Output Processor (RAPIDS) is a high-performance data streaming engine operating at 2.5 GHz, designed to provide reliable, low-latency data transfer between external DRAM and processing cores through the Network network. The architecture features dual independent data paths with sophisticated multi-channel support for up to 32 concurrent streams, implementing pure pipeline architectures that eliminate traditional FSM overhead to achieve sustained throughput exceeding 1.2 Tbps per path.
 
-![RAPIDS/Network/MSAP](draw.io/png/miop_blocks.png)
+![RAPIDS/Network/MSAP](../assets/mermaid/miop_blocks.png)
 
 ### Scheduler Group
 

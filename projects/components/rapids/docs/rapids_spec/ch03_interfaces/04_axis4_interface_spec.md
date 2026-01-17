@@ -647,7 +647,7 @@ Delta Network (routes to tile 16)
     ↓ 128-bit AXIS
 RAPIDS AXIS Data Input (S2MM)
     ↓ Packet type validation (TUSER=2'b00)
-    ↓ TID → Channel routing (TID[3:0] = channel ID)
+    ↓ TID -> Channel routing (TID[3:0] = channel ID)
 S2MM Channel FIFO (per-channel buffering)
     ↓ Internal 512-bit datapath
 Sink SRAM Control (buffering)

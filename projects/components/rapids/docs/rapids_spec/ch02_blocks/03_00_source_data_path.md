@@ -31,7 +31,7 @@ The Source Data Path provides a complete integrated data transmission pipeline t
 
 The wrapper implements sophisticated address alignment processing and stream boundary management to ensure optimal AXI read performance and reliable AXIS packet delivery with zero packet loss guarantees.
 
-![source data path](draw.io/png/source_data_path.png)
+![source data path](../assets/mermaid/source_data_path.png)
 
 #### Key Features
 

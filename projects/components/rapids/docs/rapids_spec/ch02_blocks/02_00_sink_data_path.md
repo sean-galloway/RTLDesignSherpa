@@ -31,7 +31,7 @@ The Sink Data Path provides a complete integrated data reception and processing 
 
 The wrapper implements sophisticated TLAST (End of Stream) flow control where packet-level TLAST is managed by SRAM control and descriptor-level EOS completion is coordinated with the scheduler, ensuring proper stream boundary handling throughout the pipeline.
 
-![sink data path](draw.io/png/sink_data_path.png)
+![sink data path](../assets/mermaid/sink_data_path.png)
 
 #### Key Features
 

@@ -33,7 +33,7 @@ The Descriptor Engine manages descriptor fetching and buffering operations with 
 - **Priority Processing:** CDA packets processed with higher priority than APB requests for low-latency descriptor delivery
 - **Packet Type Validation:** CDA packets validated for TUSER=2'b01 before descriptor extraction
 
-![descriptor engine](draw.io/png/descriptor_engine.png)
+![descriptor engine](../assets/mermaid/descriptor_engine.png)
 
 #### Key Features
 

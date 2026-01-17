@@ -27,7 +27,7 @@
 
 The Ctrlwr Engine manages post-processing write operations for each virtual channel after descriptor completion. The module implements a four-state state machine that handles ctrlwr address writes with configurable data values to support notification, control, and cleanup operations with comprehensive timeout mechanisms and robust error handling.
 
-![descriptor engine](draw.io/png/ctrlwr_engine.png)
+![ctrlwr engine](../assets/mermaid/ctrlwr_engine.png)
 
 #### Key Features
 

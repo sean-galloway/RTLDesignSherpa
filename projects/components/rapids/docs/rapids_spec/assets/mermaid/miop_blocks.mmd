@@ -1,0 +1,81 @@
+graph TB
+    subgraph "External Interfaces"
+        AXIL[AXI4-Lite Config<br/>Software Control]
+        DESC_MEM[Descriptor Memory<br/>512-bit AXI Read]
+        SYS_MEM_RD[System Memory<br/>AXI Read]
+        SYS_MEM_WR[System Memory<br/>AXI Write]
+        NET_RX[Network RX<br/>AXIS Slave]
+        NET_TX[Network TX<br/>AXIS Master]
+        MON_OUT[MonBus Output<br/>Debug/Trace]
+    end
+
+    subgraph "RAPIDS Core"
+        subgraph "Scheduler Group (32 Channels)"
+            DESC_ENG[Descriptor Engine<br/>APB + RDA Paths]
+            SCHED[Scheduler<br/>Dual FSM]
+            CTRLRD[Control Read Engine<br/>Read-and-Compare]
+            CTRLWR[Control Write Engine<br/>Post-Descriptor Writes]
+        end
+
+        subgraph "Source Data Path (Memory to Network)"
+            SRC_AXI[AXI Read Engine<br/>Multi-Channel Arb]
+            SRC_SRAM[Source SRAM Control<br/>32 Channel Buffers]
+            NET_MASTER[Network Master<br/>AXIS TX]
+        end
+
+        subgraph "Sink Data Path (Network to Memory)"
+            NET_SLAVE[Network Slave<br/>AXIS RX + ACK]
+            SNK_SRAM[Sink SRAM Control<br/>32 Channel Buffers]
+            SNK_AXI[AXI Write Engine<br/>Multi-Channel Arb]
+        end
+
+        subgraph "Monitor Bus AXIL Group"
+            MON_AGG[MonBus Aggregator<br/>Round-Robin Arb]
+            AXIL_SLAVE[AXIL Slave<br/>Config Registers]
+        end
+    end
+
+    AXIL --> AXIL_SLAVE
+    AXIL_SLAVE --> |config| DESC_ENG
+    AXIL_SLAVE --> |config| SCHED
+
+    DESC_ENG --> |desc_ar| DESC_MEM
+    DESC_MEM --> |desc_r| DESC_ENG
+    DESC_ENG --> |descriptor| SCHED
+
+    SCHED --> |ctrlrd_req| CTRLRD
+    CTRLRD --> |ctrlrd_done| SCHED
+    SCHED --> |ctrlwr_req| CTRLWR
+    CTRLWR --> |ctrlwr_done| SCHED
+
+    SCHED --> |data_valid/addr| SRC_AXI
+    SRC_AXI --> |ar| SYS_MEM_RD
+    SYS_MEM_RD --> |r| SRC_AXI
+    SRC_AXI --> |rd_data| SRC_SRAM
+    SRC_SRAM --> |tx_data| NET_MASTER
+    NET_MASTER --> NET_TX
+    SRC_AXI --> |done_strobe| SCHED
+
+    NET_RX --> NET_SLAVE
+    NET_SLAVE --> |rx_data| SNK_SRAM
+    SNK_SRAM --> |wr_data| SNK_AXI
+    SNK_AXI --> |aw/w| SYS_MEM_WR
+    SYS_MEM_WR --> |b| SNK_AXI
+    SCHED --> |data_valid/addr| SNK_AXI
+    SNK_AXI --> |done_strobe| SCHED
+
+    DESC_ENG --> |mon_events| MON_AGG
+    SCHED --> |mon_events| MON_AGG
+    SRC_AXI --> |mon_events| MON_AGG
+    SRC_SRAM --> |mon_events| MON_AGG
+    NET_MASTER --> |mon_events| MON_AGG
+    NET_SLAVE --> |mon_events| MON_AGG
+    SNK_SRAM --> |mon_events| MON_AGG
+    SNK_AXI --> |mon_events| MON_AGG
+    MON_AGG --> MON_OUT
+
+    style DESC_ENG fill:#bbf,stroke:#333,stroke-width:2px
+    style SCHED fill:#f9f,stroke:#333,stroke-width:3px
+    style MON_AGG fill:#bfb,stroke:#333,stroke-width:2px
+    style SRC_SRAM fill:#ffb,stroke:#333,stroke-width:2px
+    style SNK_SRAM fill:#ffb,stroke:#333,stroke-width:2px

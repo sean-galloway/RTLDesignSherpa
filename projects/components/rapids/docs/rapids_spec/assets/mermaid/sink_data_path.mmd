@@ -1,0 +1,59 @@
+graph TB
+    subgraph "Sink Data Path (Network to Memory)"
+        subgraph "AXIS Slave Interface"
+            AXIS_RX[AXIS RX<br/>tdata/tstrb/tlast<br/>tvalid/tready] --> PKT_CLASS[Packet Classifier]
+            PKT_CLASS --> |data_packets| SNK_SRAM
+            PKT_CLASS --> |rda_src_packets| RDA_SRC[RDA Source Output]
+            PKT_CLASS --> |rda_snk_packets| RDA_SNK[RDA Sink Output]
+            PKT_CLASS --> |mon_events| MON_AGG
+        end
+
+        subgraph "Sink SRAM Control"
+            SNK_SRAM[SRAM Controller<br/>32 Channels] --> |wr_data| SRAM[Multi-Channel SRAM<br/>Per-Channel Buffers]
+            SRAM --> |rd_data| WR_MUX[Write Data Mux]
+
+            subgraph "Per-Channel Management"
+                WR_PTR[Write Pointers<br/>32 channels] --> SNK_SRAM
+                RD_PTR[Read Pointers<br/>32 channels] --> SNK_SRAM
+                LEVEL[Level Counters<br/>32 channels] --> |flow_control| FLOW[Backpressure Gen]
+            end
+
+            FLOW --> |tready| AXIS_RX
+            SNK_SRAM --> |eos_completion| EOS_OUT[EOS to Scheduler]
+            SNK_SRAM --> |mon_events| MON_AGG
+        end
+
+        subgraph "AXI Write Engine"
+            subgraph "Channel Arbitration"
+                SCHED_IN[Scheduler Interface<br/>data_valid/addr/len<br/>per channel] --> ARB_REQ[Arbiter Request]
+                SPACE_CHK[SRAM Level Check] --> ARB_REQ
+                ARB_REQ --> ARB[Round-Robin Arbiter]
+                ARB --> |grant_id| AW_MUX[AW Channel Mux]
+            end
+
+            subgraph "AW/W Channel"
+                AW_MUX --> |aw_valid/addr/len| AW_CH[AW Channel]
+                WR_MUX --> |w_valid/data/strb/last| W_CH[W Channel]
+            end
+
+            subgraph "B Channel"
+                B_CH[B Channel<br/>b_valid/resp] --> RESP_TRACK[Response Tracker]
+                RESP_TRACK --> |done_strobe| DONE_GEN[Done Generator]
+                DONE_GEN --> |per_channel| SCHED_OUT[To Scheduler]
+            end
+
+            AW_CH --> MEM[System Memory]
+            W_CH --> MEM
+            MEM --> B_CH
+            ARB --> |mon_events| MON_AGG
+        end
+
+        subgraph "Monitor Aggregation"
+            MON_AGG[MonBus Arbiter<br/>3 Sources] --> MON_OUT[MonBus Output]
+        end
+    end
+
+    style SNK_SRAM fill:#ffb,stroke:#333,stroke-width:2px
+    style ARB fill:#f9f,stroke:#333,stroke-width:3px
+    style PKT_CLASS fill:#bbf,stroke:#333,stroke-width:2px
+    style MON_AGG fill:#bfb,stroke:#333,stroke-width:2px

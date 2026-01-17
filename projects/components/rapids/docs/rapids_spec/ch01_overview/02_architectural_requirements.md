@@ -118,7 +118,7 @@ RAPIDS **shall** provide an AXIS slave interface accepting only PKT_DATA packets
 **Signals:**
 - TDATA: 128 bits
 - TUSER: 2 bits (must be 2'b00)
-- TID: 4 bits (source tile ID 0-15) ← **Used for channel routing**
+- TID: 4 bits (source tile ID 0-15) <- **Used for channel routing**
 - TDEST: 4 bits (must be 16 for RAPIDS)
 - TLAST: 1 bit
 - TKEEP: 16 bits

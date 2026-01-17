@@ -81,7 +81,7 @@ RAPIDS operates within a multi-clock domain system due to its integration with D
              ▼                ▼                 ▼
     ┌────────────────┐  ┌─────────────┐  ┌─────────────┐
     │ AXI4 Memory    │  │  CDC FIFO   │  │  CDC FIFO   │
-    │   Interface    │  │  MM2S→AXIS  │  │  AXIS→S2MM  │
+    │   Interface    │  │  MM2S->AXIS  │  │  AXIS->S2MM  │
     │ (aclk domain)  │  └──────┬──────┘  └──────┬──────┘
     └────────┬───────┘         │ CDC            │ CDC
              │                 ▼                 ▼
@@ -101,22 +101,22 @@ RAPIDS operates within a multi-clock domain system due to its integration with D
 
 RAPIDS requires CDC for these interface crossings:
 
-**1. APB ↔ Core (Optional)**
+**1. APB <-> Core (Optional)**
 - **When:** If HIVE-C APB clock differs from RAPIDS core clock
 - **Method:** APB slave CDC (handshake synchronization)
 - **Latency Impact:** 4-6 clock cycles for register access
 - **Parameter:** `CDC_ENABLE` (0=synchronous, 1=async)
 
-**2. Core ↔ Delta Network (Typical)**
-- **Crossing:** `aclk` (memory) ↔ `network_clk` (Delta Network)
+**2. Core <-> Delta Network (Typical)**
+- **Crossing:** `aclk` (memory) <-> `network_clk` (Delta Network)
 - **Method:** Asynchronous FIFOs with gray-coded pointers
 - **Locations:**
-  - MM2S data FIFO (memory → network)
-  - S2MM data FIFOs (network → memory, per-channel)
-  - CDA descriptor FIFO (network → core)
+  - MM2S data FIFO (memory -> network)
+  - S2MM data FIFOs (network -> memory, per-channel)
+  - CDA descriptor FIFO (network -> core)
 - **Depth:** Minimum 32 entries to absorb clock ratio variations
 
-**3. Core ↔ Memory (Synchronous)**
+**3. Core <-> Memory (Synchronous)**
 - **Assumption:** RAPIDS core runs at memory clock (`aclk`)
 - **No CDC Required:** Direct AXI4 connection
 - **Benefit:** Lowest latency for memory access
@@ -216,20 +216,20 @@ Recommended power-on reset sequence:
 **RI-4: Initialization State**
 
 After reset deassertion, RAPIDS guarantees:
-- ✅ All FIFOs empty
-- ✅ All engines disabled (MM2S, S2MM channels)
-- ✅ All error flags cleared
-- ✅ Performance counters reset to 0
-- ✅ Descriptor queue empty
-- ✅ AXI4 interfaces idle
+- [x] All FIFOs empty
+- [x] All engines disabled (MM2S, S2MM channels)
+- [x] All error flags cleared
+- [x] Performance counters reset to 0
+- [x] Descriptor queue empty
+- [x] AXI4 interfaces idle
 
 ## 1.3.4 Clock Constraints
 
 ### Frequency Relationships
 
 **Minimum Ratios:**
-- `network_clk` : `aclk` ≥ 1:1 (network can be slower, same, or faster)
-- `aclk` : `pclk` ≥ 2:1 (core typically 2-4× faster than APB)
+- `network_clk` : `aclk` >= 1:1 (network can be slower, same, or faster)
+- `aclk` : `pclk` >= 2:1 (core typically 2-4× faster than APB)
 
 **Recommended:**
 - `pclk` = 50-100 MHz (APB control)

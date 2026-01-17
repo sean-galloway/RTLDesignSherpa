@@ -27,7 +27,7 @@
 
 The Ctrlrd Engine manages pre-processing read operations for each virtual channel before descriptor execution. The module implements a retry-capable read-and-compare mechanism that polls a control address until the read value matches an expected value, or a maximum retry count is exceeded. This enables synchronization, flag polling, and pre-condition validation before data operations begin.
 
-![ctrlrd engine](draw.io/png/ctrlrd_engine.png)
+![ctrlrd engine](../assets/mermaid/ctrlrd_engine.png)
 
 #### Key Features
 

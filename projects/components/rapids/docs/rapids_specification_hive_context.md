@@ -526,7 +526,7 @@ void rapids_irq_handler(void) {
 3. DELTA routes to RAPIDS (based on TUSER)
 
 4. RAPIDS receives descriptor:
-   - Validates TUSER == PKT_DESC ✓
+   - Validates TUSER == PKT_DESC [x]
    - Queues in descriptor FIFO
    - Scheduler selects based on priority
 

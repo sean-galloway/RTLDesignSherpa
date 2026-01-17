@@ -54,8 +54,8 @@ RAPIDS serves as the critical bridge between the memory subsystem and the Delta 
               │   Routes packets   │
               │   based on TUSER   │
               └────────┬───────────┘
-                       │ CDA → RAPIDS (tile 16)
-                       │ PKT_DATA → Compute Tiles (0-15)
+                       │ CDA -> RAPIDS (tile 16)
+                       │ PKT_DATA -> Compute Tiles (0-15)
                        ▼
 ┌──────────────────────────────────────────────────────────────┐
 │                      RAPIDS DMA Engine                       │
@@ -84,7 +84,7 @@ RAPIDS serves as the critical bridge between the memory subsystem and the Delta 
 │  │  AXIS Data Output (Master)                          │    │
 │  │  - Sends: PKT_DATA only                             │    │
 │  │  - Never sends: CDA, PKT_CONFIG, PKT_STATUS         │    │
-│  │  - Routes to: Delta Network → Compute Tiles         │    │
+│  │  - Routes to: Delta Network -> Compute Tiles         │    │
 │  └──────────────────┬──────────────────────────────────┘    │
 └────────────────────┼────────────────────────────────────────┘
                      │
@@ -174,11 +174,11 @@ RAPIDS implements **16 independent S2MM channels**, one per compute tile:
 1. HIVE-C pre-programs S2MM descriptors (one per active tile)
 2. Compute tiles generate results, send as PKT_DATA with:
    - TUSER = PKT_DATA (2'b00)
-   - TID = source tile ID (0-15)  ← CRITICAL for channel routing
+   - TID = source tile ID (0-15)  <- CRITICAL for channel routing
    - TDEST = 16 (RAPIDS virtual tile)
 3. Delta Network routes to RAPIDS
 4. RAPIDS S2MM channel router:
-   channel_id = TID[3:0]  // Direct mapping: TID → Channel
+   channel_id = TID[3:0]  // Direct mapping: TID -> Channel
 5. Selected S2MM channel:
    a. Validates TUSER == PKT_DATA
    b. Buffers in per-channel FIFO
@@ -191,7 +191,7 @@ RAPIDS implements **16 independent S2MM channels**, one per compute tile:
 - **Concurrent writes:** Multiple tiles write simultaneously
 - **Independent addressing:** Each tile's data goes to different DDR region
 - **Per-tile flow control:** Backpressure on one tile doesn't affect others
-- **Simplified routing:** Direct TID → Channel mapping (no lookup table)
+- **Simplified routing:** Direct TID -> Channel mapping (no lookup table)
 
 ## 1.1.7 CDA Packet Format
 

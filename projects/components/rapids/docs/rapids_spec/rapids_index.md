@@ -35,12 +35,13 @@
 
 - [Overview](ch02_blocks/00_overview.md)
 
-### Scheduler Group 
+### Scheduler Group
 
 - [Scheduler Group](ch02_blocks/01_00_scheduler_group.md)
 - [Scheduler](ch02_blocks/01_01_scheduler.md)
 - [Descriptor Engine](ch02_blocks/01_02_descriptor_engine.md)
-- [Program Write Engine](ch02_blocks/01_03_program_write_engine.md)
+- [Control Write Engine](ch02_blocks/01_03_ctrlwr_engine.md)
+- [Control Read Engine](ch02_blocks/01_04_ctrlrd_engine.md)
 
 ### Sink Data Path
 

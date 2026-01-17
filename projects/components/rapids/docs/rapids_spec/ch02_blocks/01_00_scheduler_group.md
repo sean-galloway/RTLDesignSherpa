@@ -31,7 +31,7 @@ The Scheduler Group provides a complete integrated channel processing unit that 
 
 The wrapper implements coordinated reset handling across all components, enhanced data interface with alignment bus support using RAPIDS package types, and unified monitor bus aggregation for comprehensive system visibility.
 
-![scheduler_group](draw.io/png/scheduler_group.png)
+![scheduler_group](../assets/mermaid/scheduler_group.png)
 
 #### Key Features
 

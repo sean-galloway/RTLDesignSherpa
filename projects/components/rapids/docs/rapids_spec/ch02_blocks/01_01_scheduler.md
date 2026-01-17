@@ -27,7 +27,7 @@
 
 The Scheduler orchestrates data movement operations by managing descriptor execution, coordinating with data engines, and controlling program sequences. The module implements two sophisticated state machines: a main scheduler FSM for descriptor execution and an address alignment FSM that runs in parallel to pre-calculate optimal transfer parameters for maximum AXI performance.
 
-![scheduler](draw.io/png/scheduler.png)
+![scheduler](../assets/mermaid/scheduler.png)
 
 #### Key Features
 
