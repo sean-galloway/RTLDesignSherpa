@@ -287,8 +287,6 @@ When contributing to STREAM, remember:
 
 ## License
 
-Copyright (c) 2025 Cornami, Inc. All rights reserved.
-
 ---
 
 ## Questions?
