@@ -1,0 +1,52 @@
+graph TB
+    subgraph External["External Interfaces"]
+        DESC_AXI[("Descriptor<br/>AXI Master")]
+        SINK_AXI[("Sink<br/>AXI Master")]
+        SRC_AXI[("Source<br/>AXI Master")]
+        SINK_AXIS[("Sink<br/>AXIS Slave")]
+        SRC_AXIS[("Source<br/>AXIS Master")]
+        APB[("APB<br/>Config")]
+        MONBUS[("MonBus<br/>Output")]
+    end
+
+    subgraph SchedulerGroup["Scheduler Group (x8 channels)"]
+        SCHED["Scheduler<br/>FSM"]
+        DESC_ENG["Descriptor<br/>Engine"]
+    end
+
+    subgraph SinkPath["Sink Data Path"]
+        SINK_SRAM["Sink<br/>SRAM"]
+        SINK_CTRL["Sink<br/>Control"]
+        SINK_WR["AXI Write<br/>Engine"]
+    end
+
+    subgraph SourcePath["Source Data Path"]
+        SRC_RD["AXI Read<br/>Engine"]
+        SRC_CTRL["Source<br/>Control"]
+        SRC_SRAM["Source<br/>SRAM"]
+    end
+
+    APB --> SCHED
+    SCHED --> DESC_ENG
+    DESC_ENG --> DESC_AXI
+
+    SINK_AXIS --> SINK_CTRL
+    SINK_CTRL --> SINK_SRAM
+    SINK_SRAM --> SINK_WR
+    SINK_WR --> SINK_AXI
+
+    SRC_AXI --> SRC_RD
+    SRC_RD --> SRC_SRAM
+    SRC_SRAM --> SRC_CTRL
+    SRC_CTRL --> SRC_AXIS
+
+    SCHED --> SINK_CTRL
+    SCHED --> SRC_CTRL
+
+    SchedulerGroup --> MONBUS
+    SinkPath --> MONBUS
+    SourcePath --> MONBUS
+
+    style SchedulerGroup fill:#e8f5e9
+    style SinkPath fill:#e3f2fd
+    style SourcePath fill:#fff3e0

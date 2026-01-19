@@ -1,0 +1,139 @@
+# Testplan for encoder
+# Auto-generated on 2026-01-18 01:27:07
+# EDIT: Add functional scenarios to improve implied coverage
+
+module: encoder
+rtl_file: rtl/common/encoder.sv
+test_file: val/common/test_encoder.py
+
+# Raw Verilator coverage: 6/6 (100.0%)
+
+
+# Coverage points
+coverage_points:
+  - line: 238
+    type: input_port
+    covered: True
+    hit_count: 10
+    content: "input  logic [        N-1:0] decoded,"
+
+  - line: 239
+    type: output_port
+    covered: True
+    hit_count: 7
+    content: "output logic [$clog2(N)-1:0] data"
+
+  - line: 241
+    type: always_comb
+    covered: True
+    hit_count: 726
+    content: "always_comb begin"
+
+  - line: 242
+    type: other
+    covered: True
+    hit_count: 726
+    content: "data = 0;"
+
+  - line: 243
+    type: other
+    covered: True
+    hit_count: 726
+    content: "for (int i = 0; i < N; i++) begin"
+
+  - line: 244
+    type: if_statement
+    covered: True
+    hit_count: 6458
+    content: "if (decoded[i]) data = $clog2(N)'(i);"
+
+
+# Functional scenarios
+# Map test scenarios to coverage points from encoder test
+functional_scenarios:
+  - id: ENC-01
+    name: "Zero input"
+    description: "Test encoder with all input bits zero (no bits set)"
+    test_function: "test_zero_input"
+    covers_lines: [238, 239, 241, 242, 243, 244]
+    priority: high
+    status: verified
+
+  - id: ENC-02
+    name: "One-hot encoding"
+    description: "Test encoder with single bit set for each position (1-hot inputs)"
+    test_function: "test_one_hot_encoding"
+    covers_lines: [238, 239, 241, 242, 243, 244]
+    priority: high
+    status: verified
+
+  - id: ENC-03
+    name: "Priority encoding"
+    description: "Test encoder with multiple bits set (priority/highest bit selection)"
+    test_function: "test_priority_encoding"
+    covers_lines: [238, 239, 241, 242, 243, 244]
+    priority: high
+    status: verified
+
+  - id: ENC-04
+    name: "Boundary conditions"
+    description: "Test edge cases: LSB only, MSB only, all bits, MSB+LSB"
+    test_function: "test_boundary_conditions"
+    covers_lines: [238, 239, 241, 242, 243, 244]
+    priority: high
+    status: verified
+
+  - id: ENC-05
+    name: "Walking patterns"
+    description: "Test walking ones and walking zeros to cover all branch combinations"
+    test_function: "test_walking_patterns"
+    covers_lines: [238, 239, 241, 242, 243, 244]
+    priority: high
+    status: verified
+
+# Implied coverage calculation
+implied_coverage:
+  total_points: 6
+  verilator_covered: 6
+  scenario_covered: 6
+  implied_percentage: 100.0
+
+notes: |
+  The encoder module implements a priority encoder using a for loop:
+    for (int i = 0; i < N; i++) begin
+      if (decoded[i]) data = $clog2(N)'(i);
+    end
+
+  This gives priority to higher bit positions (last iteration wins).
+
+  Verilator unrolls the for loop and creates 2*N branches (TRUE/FALSE for each bit).
+  To achieve 100% branch coverage, the test strategy is:
+
+  1. test_zero_input: All bits FALSE (covers all FALSE branches simultaneously)
+  2. test_one_hot_encoding: Each bit TRUE individually (covers TRUE branch per bit)
+  3. test_walking_patterns:
+     - Walking ones: Each bit TRUE individually (redundant with one_hot but verifies)
+     - Walking zeros: Each bit FALSE while others TRUE (critical for coverage!)
+  4. test_priority_encoding: Multiple bits TRUE (verifies priority logic)
+  5. test_boundary_conditions: Edge cases (LSB, MSB, all bits, etc.)
+
+  The walking zeros test is CRITICAL for coverage because it ensures that when
+  a bit[i] is FALSE (while others are TRUE), the encoder correctly skips that
+  bit and finds the highest remaining bit.
+
+  Coverage: 100.0% (6/6 lines)
+  - Line 238: decoded input port
+  - Line 239: data output port
+  - Line 241: always_comb block
+  - Line 242: data initialization to 0
+  - Line 243: for loop over all N input bits
+  - Line 244: conditional assignment for each bit position
+
+  All test scenarios comprehensively exercise the encoder logic with:
+  - Zero input (default case)
+  - One-hot inputs (each bit individually)
+  - Multi-bit inputs (priority selection)
+  - Boundary values (extreme cases)
+  - Walking patterns (systematic TRUE/FALSE coverage)
+
+  Functional coverage: 100% - all encoder behaviors verified.

@@ -43,6 +43,7 @@ import cocotb
 from cocotb.clock import Clock
 from cocotb.triggers import RisingEdge, Timer, ClockCycles
 from cocotb_test.simulator import run
+from conftest import get_coverage_compile_args
 import pytest
 import math
 

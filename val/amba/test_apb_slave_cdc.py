@@ -22,6 +22,7 @@ import cocotb
 from cocotb.utils import get_sim_time
 from cocotb.triggers import RisingEdge, Timer
 from cocotb_test.simulator import run
+from conftest import get_coverage_compile_args
 
 from CocoTBFramework.components.shared.memory_model import MemoryModel
 from CocoTBFramework.components.shared.flex_randomizer import FlexRandomizer
@@ -1396,6 +1397,12 @@ def test_apb_slave_cdc_robust(request, addr_width, data_width, depth):
         "--trace-max-array", "1024",
     ]
 
+
+    # Add coverage compile args if COVERAGE=1
+
+    compile_args.extend(get_coverage_compile_args())
+
+
     sim_args = [
         "--trace",
         
@@ -1503,6 +1510,12 @@ def generate_apb_slave_cdc_wavedrom_params():
         "--trace-depth", "99",
         "--trace-max-array", "1024",
     ]
+
+
+    # Add coverage compile args if COVERAGE=1
+
+    compile_args.extend(get_coverage_compile_args())
+
 
     sim_args = [
         "--trace",
@@ -1615,8 +1628,17 @@ def test_apb_slave_cdc_wavedrom(request, addr_width, data_width, rsp_depth, cmd_
     # Trace compilation always enabled (minimal overhead)
     # Set WAVES=1 to enable VCD dumping for debugging
     compile_args = [
-        "-Wno-TIMESCALEMOD",
+        "--trace",
+        
+        "--trace-depth", "99",
+        "--trace-max-array", "1024",
     ]
+
+
+    # Add coverage compile args if COVERAGE=1
+
+    compile_args.extend(get_coverage_compile_args())
+
 
     sim_args = []
 

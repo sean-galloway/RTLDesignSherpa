@@ -1,0 +1,179 @@
+# Testplan for apb_pic_8259
+# Maps functional test scenarios to verification coverage
+# NOTE: Currently only basic tests implemented - medium and full tests needed
+
+module: apb_pic_8259
+rtl_file: projects/components/retro_legacy_blocks/rtl/pic_8259/apb_pic_8259.sv
+test_file: projects/components/retro_legacy_blocks/dv/tests/test_apb_pic_8259.py
+
+# Module description:
+# APB interface to Intel 8259-compatible Programmable Interrupt Controller (PIC)
+# with 8 interrupt sources, priority encoding, masking, edge/level triggering,
+# and cascade support for multi-PIC configurations.
+
+parameters:
+  - name: CASCADE_MODE
+    default: 0
+    description: 1=master/slave cascade, 0=standalone
+  - name: CDC_ENABLE
+    default: 0
+    description: 1=async clocks, 0=same clock
+  - name: SKID_DEPTH
+    default: 2
+    description: CDC skid buffer depth
+
+# Functional scenarios
+functional_scenarios:
+  - id: PIC-01
+    name: "Register Access"
+    description: Basic read/write to PIC control registers
+    test_function: "test_register_access (basic)"
+    test_level: basic
+    priority: high
+    status: verified
+
+  - id: PIC-02
+    name: "Interrupt Request (IRQ)"
+    description: Single IRQ request and acknowledgment
+    test_function: "test_single_irq (basic)"
+    test_level: basic
+    priority: high
+    status: verified
+
+  - id: PIC-03
+    name: "Interrupt Masking (IMR)"
+    description: Verify interrupt mask register functionality
+    test_function: "test_interrupt_masking (basic)"
+    test_level: basic
+    priority: high
+    status: verified
+
+  - id: PIC-04
+    name: "Priority Resolution"
+    description: Verify fixed priority resolution (IRQ0 highest)
+    test_function: "test_priority_resolution (basic)"
+    test_level: basic
+    priority: high
+    status: verified
+
+  - id: PIC-05
+    name: "End-of-Interrupt (EOI)"
+    description: Verify EOI command clears in-service register
+    test_function: "test_eoi_command (basic)"
+    test_level: basic
+    priority: high
+    status: verified
+
+  - id: PIC-06
+    name: "Multiple IRQ Handling"
+    description: Handle multiple simultaneous IRQ requests
+    test_function: "test_multiple_irqs (medium - NOT IMPLEMENTED)"
+    test_level: medium
+    priority: high
+    status: not_implemented
+
+  - id: PIC-07
+    name: "Specific EOI"
+    description: Verify specific EOI to clear individual IRQ
+    test_function: "test_specific_eoi (medium - NOT IMPLEMENTED)"
+    test_level: medium
+    priority: high
+    status: not_implemented
+
+  - id: PIC-08
+    name: "Edge vs Level Triggering"
+    description: Test edge-triggered and level-triggered IRQ modes
+    test_function: "test_edge_level_triggering (medium - NOT IMPLEMENTED)"
+    test_level: medium
+    priority: high
+    status: not_implemented
+
+  - id: PIC-09
+    name: "Rotating Priority Mode"
+    description: Verify automatic priority rotation after EOI
+    test_function: "test_rotating_priority (medium - NOT IMPLEMENTED)"
+    test_level: medium
+    priority: medium
+    status: not_implemented
+
+  - id: PIC-10
+    name: "Cascade Mode Operation"
+    description: Verify master/slave PIC cascade configuration
+    test_function: "test_cascade_mode (full - NOT IMPLEMENTED)"
+    test_level: full
+    priority: high
+    status: not_implemented
+
+  - id: PIC-11
+    name: "All IRQs Stress Test"
+    description: Stress test with all 8 IRQ lines active
+    test_function: "test_all_irqs_stress (full - NOT IMPLEMENTED)"
+    test_level: full
+    priority: medium
+    status: not_implemented
+
+# Test level coverage
+test_level_coverage:
+  basic:
+    implemented: true
+    test_count: 5
+    coverage_percentage: 100
+    status: "Basic scenarios verified (register access, single IRQ, masking, priority, EOI)"
+
+  medium:
+    implemented: false
+    test_count: 0
+    coverage_percentage: 0
+    status: "NEEDS IMPLEMENTATION - multiple IRQs, specific EOI, edge/level, rotation"
+
+  full:
+    implemented: false
+    test_count: 0
+    coverage_percentage: 0
+    status: "NEEDS IMPLEMENTATION - cascade mode, stress tests"
+
+# Parameter combinations tested
+parameter_coverage:
+  - CASCADE_MODE: 0
+    CDC_ENABLE: 0
+    test_level: basic
+    status: verified
+
+  - CASCADE_MODE: 0
+    CDC_ENABLE: 1
+    test_level: basic
+    status: verified
+
+  - CASCADE_MODE: 1
+    CDC_ENABLE: 0
+    test_level: full
+    status: not_implemented
+
+# Implied coverage calculation
+implied_coverage:
+  total_pic_features: 11
+  basic_features_covered: 5
+  medium_features_covered: 0
+  full_features_covered: 0
+  basic_percentage: 45
+  overall_percentage: 45
+
+notes: |
+  8259 PIC implements classic Intel programmable interrupt controller with
+  8 IRQ sources, fixed/rotating priority, and cascade support for 15 IRQs.
+
+  Current Status:
+  - Basic tests: 100% complete (5/5 tests passing)
+  - Medium tests: NOT IMPLEMENTED (need multiple IRQs, specific EOI, edge/level)
+  - Full tests: NOT IMPLEMENTED (need cascade mode, stress tests)
+
+  Key Missing Tests:
+  1. Multiple simultaneous IRQ handling
+  2. Specific EOI command
+  3. Edge vs level triggering modes
+  4. Rotating priority mode
+  5. Cascade mode (master/slave configuration)
+  6. All IRQ sources stress test
+
+  Basic tests cover single IRQ flow and basic priority, but advanced
+  features (specific EOI, rotation, cascade) require medium/full tests.

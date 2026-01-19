@@ -1,0 +1,414 @@
+# Testplan for arbiter
+# Auto-generated on 2026-01-18 01:27:07
+# EDIT: Add functional scenarios to improve implied coverage
+
+module: arbiter
+rtl_file: rtl/common/arbiter.sv
+test_file: val/common/test_arbiter.py
+
+# Raw Verilator coverage: 43/46 (93.5%)
+
+# Coverage gaps by type:
+#   signal_decl: 3 uncovered lines
+
+# Coverage points
+coverage_points:
+  - line: 294
+    type: input_port
+    covered: True
+    hit_count: 18
+    content: "input  logic              rst_n,"
+
+  - line: 295
+    type: input_port
+    covered: True
+    hit_count: 36
+    content: "input  logic              block_arb,"
+
+  - line: 296
+    type: input_port
+    covered: True
+    hit_count: 8
+    content: "input  logic [CXMTW-1:0]  max_thresh,"
+
+  - line: 298
+    type: input_port
+    covered: True
+    hit_count: 3835
+    content: "input  logic [C-1:0]      request,"
+
+  - line: 299
+    type: input_port
+    covered: True
+    hit_count: 1634
+    content: "input  logic [C-1:0]      grant_ack,"
+
+  - line: 301
+    type: output_port
+    covered: True
+    hit_count: 166757
+    content: "output logic              grant_valid,"
+
+  - line: 302
+    type: output_port
+    covered: True
+    hit_count: 2418
+    content: "output logic [C-1:0]      grant,"
+
+  - line: 303
+    type: output_port
+    covered: True
+    hit_count: 5034
+    content: "output logic [N-1:0]      grant_id"
+
+  - line: 334
+    type: other
+    covered: True
+    hit_count: 964
+    content: "weight_fsm_t r_weight_state;"
+
+  - line: 335
+    type: signal_decl
+    covered: True
+    hit_count: 34
+    content: "logic [3:0]  r_weight_timer;  // Timer for state transitions"
+
+  - line: 341
+    type: signal_decl
+    covered: True
+    hit_count: 12
+    content: "logic [CXMTW-1:0] r_safe_max_thresh;     // Active weights (shadow register)"
+
+  - line: 342
+    type: signal_decl
+    covered: True
+    hit_count: 964
+    content: "logic             w_weight_change_req;   // Weight change requested"
+
+  - line: 343
+    type: signal_decl
+    covered: True
+    hit_count: 525061
+    content: "logic             w_pending_grants;      // Any grants pending completion"
+
+  - line: 414
+    type: other
+    covered: True
+    hit_count: 10
+    content: ")"
+
+  - line: 421
+    type: signal_decl
+    covered: True
+    hit_count: 12
+    content: "logic [MTW-1:0] client_weight [C];           // Per-client weights (for easier a"
+
+  - line: 422
+    type: signal_decl
+    covered: True
+    hit_count: 982
+    content: "logic           w_normal_operation;          // Normal operation state"
+
+  - line: 423
+    type: signal_decl
+    covered: True
+    hit_count: 10
+    content: "logic [C-1:0]   w_valid_clients;             // Clients with non-zero weights"
+
+  - line: 424
+    type: signal_decl
+    covered: True
+    hit_count: 12
+    content: "logic [C-1:0]   w_invalid_clients;           // Clients with zero weights"
+
+  - line: 425
+    type: signal_decl
+    covered: True
+    hit_count: 3701
+    content: "logic [C-1:0]   w_req_post;                  // Post-block requests"
+
+  - line: 444
+    type: signal_decl
+    covered: False
+    hit_count: 0
+    content: "logic [MTW-1:0] r_credit_counter [C];        // Credit counters"
+
+  - line: 445
+    type: signal_decl
+    covered: True
+    hit_count: 1638
+    content: "logic [C-1:0]   w_has_crd;                   // Credit availability"
+
+  - line: 446
+    type: signal_decl
+    covered: True
+    hit_count: 123432
+    content: "logic           w_global_replenish;"
+
+  - line: 452
+    type: signal_decl
+    covered: False
+    hit_count: 0
+    content: "logic [MTW-1:0] w_credit_counter [C];        // Next credit counter values"
+
+  - line: 453
+    type: signal_decl
+    covered: True
+    hit_count: 2418
+    content: "logic [C-1:0]   w_grant_completed;           // Grant completion per client"
+
+  - line: 465
+    type: other
+    covered: True
+    hit_count: 8448
+    content: "for (genvar i = 0; i < CLIENTS; i++) begin : gen_credit_combo_logic"
+
+  - line: 482
+    type: other
+    covered: True
+    hit_count: 111808
+    content: "WEIGHT_STABILIZE: begin"
+
+  - line: 484
+    type: if_statement
+    covered: True
+    hit_count: 8448
+    content: "if (client_weight[i] > 0) begin"
+
+  - line: 485
+    type: other
+    covered: True
+    hit_count: 103360
+    content: "w_credit_counter[i] = client_weight[i];  // Set to new weight"
+
+  - line: 486
+    type: other
+    covered: True
+    hit_count: 8448
+    content: "end else begin"
+
+  - line: 487
+    type: other
+    covered: True
+    hit_count: 8448
+    content: "w_credit_counter[i] = MTW'(0);  // Disable client"
+
+  - line: 491
+    type: case_branch
+    covered: True
+    hit_count: 160648
+    content: "default: begin"
+
+  - line: 493
+    type: other
+    covered: True
+    hit_count: 160648
+    content: "w_credit_counter[i] = r_credit_counter[i];"
+
+  - line: 505
+    type: signal_decl
+    covered: True
+    hit_count: 1609
+    content: "logic [C-1:0] w_has_one_credit;      // Which clients have exactly 1 credit"
+
+  - line: 506
+    type: signal_decl
+    covered: True
+    hit_count: 1576
+    content: "logic [C-1:0] w_has_any_credits;     // Which clients have any credits (> 0)"
+
+  - line: 507
+    type: signal_decl
+    covered: True
+    hit_count: 108556
+    content: "logic         w_last_credit;         // Only ONE client has exactly 1 credit lef"
+
+  - line: 510
+    type: other
+    covered: True
+    hit_count: 2112
+    content: "for (genvar i = 0; i < CLIENTS; i++) begin : gen_credit_registers"
+
+  - line: 528
+    type: other
+    covered: True
+    hit_count: 2112
+    content: ")"
+
+  - line: 540
+    type: signal_decl
+    covered: True
+    hit_count: 133677
+    content: "logic w_requesting_clients_with_credits;"
+
+  - line: 559
+    type: signal_decl
+    covered: True
+    hit_count: 4280
+    content: "logic [C-1:0]   w_mask_req;               // Filtered requests to sub-arbiter"
+
+  - line: 560
+    type: signal_decl
+    covered: True
+    hit_count: 4280
+    content: "logic [C-1:0]   w_mask_multi_req;"
+
+  - line: 561
+    type: signal_decl
+    covered: False
+    hit_count: 0
+    content: "logic [C-1:0]   w_mask_last_client;"
+
+  - line: 562
+    type: signal_decl
+    covered: True
+    hit_count: 3507
+    content: "logic [C-1:0]   w_requesting_eligible;    // Clients eligible for grants"
+
+  - line: 563
+    type: signal_decl
+    covered: True
+    hit_count: 2418
+    content: "logic [C-1:0]   r_last_grant;             // Last grant from sub-arbiter"
+
+  - line: 566
+    type: signal_decl
+    covered: True
+    hit_count: 3507
+    content: "logic [C-1:0]   w_clients_with_credits_count;"
+
+  - line: 567
+    type: signal_decl
+    covered: True
+    hit_count: 79823
+    content: "logic           w_multiple_eligible;      // Multiple clients eligible (need fai"
+
+  - line: 608
+    type: signal_decl
+    covered: True
+    hit_count: 1000
+    content: "logic w_sub_block_arb;  // Block signal for sub-arbiter"
+
+
+# Functional scenarios
+# Map test scenarios to coverage points from arbiter_round_robin_weighted test
+functional_scenarios:
+  - id: ARB-01
+    name: "Basic grant signals"
+    description: "Verify grant signals are correctly generated for requesting clients"
+    test_function: "test_grant_signals"
+    covers_lines: [294, 295, 298, 299, 301, 302, 303, 334, 421, 422, 423, 424, 425, 445, 446, 453, 559, 560, 562, 563, 566, 567, 608]
+    priority: high
+    status: verified
+
+  - id: ARB-02
+    name: "Threshold operation"
+    description: "Test max_thresh weight change mechanism and safe update"
+    test_function: "test_threshold_operation"
+    covers_lines: [296, 335, 341, 342, 343, 414, 465, 482, 484, 485, 486, 487, 491, 493, 505, 506, 507, 528]
+    priority: high
+    status: verified
+
+  - id: ARB-03
+    name: "Basic weighted arbitration"
+    description: "Verify weighted round-robin arbitration over many cycles"
+    test_function: "run_basic_arbitration_test"
+    covers_lines: [294, 295, 298, 299, 301, 302, 303, 334, 421, 422, 423, 424, 425, 445, 446, 453, 540, 559, 560, 562, 563, 566, 567, 573, 608]
+    priority: high
+    status: verified
+
+  - id: ARB-04
+    name: "Weighted fairness"
+    description: "Verify clients receive grants proportional to their weights"
+    test_function: "test_weighted_fairness"
+    covers_lines: [335, 341, 342, 343, 421, 445, 446, 453, 465, 482, 484, 485, 486, 487, 491, 493, 505, 506, 507, 528, 540, 559, 560, 562, 563, 566, 567]
+    priority: high
+    status: verified
+
+  - id: ARB-05
+    name: "Weight changes"
+    description: "Test dynamic weight changes during operation"
+    test_function: "test_weight_changes"
+    covers_lines: [296, 335, 341, 342, 343, 414, 421, 465, 482, 484, 485, 486, 487, 491, 493, 505, 506, 507, 528]
+    priority: high
+    status: verified
+
+  - id: ARB-06
+    name: "Single client saturation"
+    description: "Test behavior when only one client requests continuously"
+    test_function: "test_single_client_saturation"
+    covers_lines: [298, 299, 301, 302, 303, 421, 422, 423, 424, 425, 445, 446, 453, 540, 559, 560, 562, 563, 566, 567, 573, 608]
+    priority: high
+    status: verified
+
+  - id: ARB-07
+    name: "Walking requests"
+    description: "Test round-robin behavior with walking request patterns"
+    test_function: "test_walking_requests"
+    covers_lines: [294, 295, 298, 299, 301, 302, 303, 421, 422, 423, 424, 425, 445, 446, 453, 540, 559, 560, 562, 563, 566, 567, 608]
+    priority: medium
+    status: verified
+
+  - id: ARB-08
+    name: "Block arbitration"
+    description: "Test block_arb signal prevents grants"
+    test_function: "test_block_arb"
+    covers_lines: [295, 301, 302, 303, 422, 425, 540, 559, 560, 562, 608]
+    priority: high
+    status: verified
+
+  - id: ARB-09
+    name: "Bursty traffic"
+    description: "Test arbiter under bursty request traffic patterns"
+    test_function: "test_bursty_traffic_pattern"
+    covers_lines: [294, 295, 298, 299, 301, 302, 303, 421, 422, 423, 424, 425, 445, 446, 453, 540, 559, 560, 562, 563, 566, 567, 573, 608]
+    priority: medium
+    status: verified
+
+  - id: ARB-10
+    name: "Rapid request changes"
+    description: "Test arbiter with rapidly changing request patterns"
+    test_function: "test_rapid_request_changes"
+    covers_lines: [294, 295, 298, 299, 301, 302, 303, 421, 422, 423, 424, 425, 445, 446, 453, 540, 559, 560, 562, 563, 566, 567, 573, 608]
+    priority: medium
+    status: verified
+
+  - id: ARB-11
+    name: "ACK mode edge cases"
+    description: "Test grant acknowledgment mode edge cases and timing"
+    test_function: "test_ack_mode_edge_cases"
+    covers_lines: [299, 301, 302, 303, 343, 422, 425, 453, 540, 559, 560, 562, 563, 573, 608]
+    priority: high
+    status: verified
+
+  - id: ARB-12
+    name: "Dynamic arbitration liveness"
+    description: "Verify arbiter maintains liveness under dynamic conditions"
+    test_function: "test_dynamic_arbitration_liveness"
+    covers_lines: [294, 295, 298, 299, 301, 302, 303, 334, 421, 422, 423, 424, 425, 445, 446, 453, 540, 559, 560, 562, 563, 566, 567, 573, 608]
+    priority: high
+    status: verified
+
+# NOTE: Uncovered lines 444, 452, 561 are signal declarations for unused credit counter features
+# These are part of the weighted arbiter's credit system that may not be exercised in current tests
+
+# Implied coverage calculation
+implied_coverage:
+  total_points: 46
+  verilator_covered: 43
+  scenario_covered: 43
+  implied_percentage: 93.5
+
+notes: |
+  The weighted round-robin arbiter uses a credit-based scheduling system with
+  FSM-controlled weight updates. All major functional paths are tested including:
+  - Basic grant generation and round-robin scheduling
+  - Weighted fairness enforcement
+  - Dynamic weight changes with safe update mechanism
+  - Credit counter management and replenishment
+  - Block arbitration and grant acknowledgment modes
+
+  The 3 uncovered lines (444, 452, 561) are signal declarations for credit
+  counter features that may require specific test scenarios to exercise.
+
+  Implied coverage matches Verilator coverage at 93.5% (43/46 lines).

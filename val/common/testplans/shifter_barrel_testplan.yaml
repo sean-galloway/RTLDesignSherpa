@@ -1,0 +1,172 @@
+# Testplan for shifter_barrel
+# Maps functional test scenarios to Verilator coverage points
+
+module: shifter_barrel
+rtl_file: rtl/common/shifter_barrel.sv
+test_file: val/common/test_shifter_barrel.py
+
+# Raw Verilator coverage: ~87%
+# Verilator limitation: Generate block shift stages not tracked per-iteration
+
+# Module description:
+# Parameterized barrel shifter supporting left/right shift and arithmetic/logical
+# modes. Implemented using log2(WIDTH) stages of mux-based shifting.
+
+# Coverage points - Ports
+coverage_points:
+  - line: 25
+    type: input_port
+    content: "input [WIDTH-1:0] data_in"
+    tracked_by: toggle_coverage
+
+  - line: 26
+    type: input_port
+    content: "input [$clog2(WIDTH)-1:0] shift_amt"
+    tracked_by: toggle_coverage
+
+  - line: 27
+    type: input_port
+    content: "input shift_dir"
+    tracked_by: toggle_coverage
+
+  - line: 28
+    type: input_port
+    content: "input arith_mode"
+    tracked_by: toggle_coverage
+
+  - line: 29
+    type: output_port
+    content: "output [WIDTH-1:0] data_out"
+    tracked_by: toggle_coverage
+
+  - line: 35-60
+    type: generate_block
+    content: "log2(WIDTH) shift stages"
+    count: "varies by WIDTH"
+    tracked_by: functional_scenario
+    notes: "Generate creates mux stages for each shift bit"
+
+# Functional scenarios
+functional_scenarios:
+  - id: S1
+    name: "Left shift - all amounts"
+    description: |
+      Tests logical left shift for all shift amounts 0 to WIDTH-1.
+      Verifies zeros are shifted in from right.
+    test_function: "test_left_shift_exhaustive"
+    test_file: "val/common/test_shifter_barrel.py"
+    covers_lines: [25, 26, 27, 29, 35]
+    verification_method: "exhaustive"
+    status: verified
+
+  - id: S2
+    name: "Right shift logical - all amounts"
+    description: |
+      Tests logical right shift for all shift amounts 0 to WIDTH-1.
+      Verifies zeros are shifted in from left.
+    test_function: "test_right_shift_logical"
+    test_file: "val/common/test_shifter_barrel.py"
+    covers_lines: [25, 26, 27, 29, 35]
+    verification_method: "exhaustive"
+    status: verified
+
+  - id: S3
+    name: "Right shift arithmetic - positive"
+    description: |
+      Tests arithmetic right shift with positive values (MSB=0).
+      Verifies sign extension (zeros shifted in).
+    test_function: "test_right_shift_arith_positive"
+    test_file: "val/common/test_shifter_barrel.py"
+    covers_lines: [25, 26, 28, 29, 35]
+    status: verified
+
+  - id: S4
+    name: "Right shift arithmetic - negative"
+    description: |
+      Tests arithmetic right shift with negative values (MSB=1).
+      Verifies sign extension (ones shifted in).
+    test_function: "test_right_shift_arith_negative"
+    test_file: "val/common/test_shifter_barrel.py"
+    covers_lines: [25, 26, 28, 29, 35]
+    status: verified
+
+  - id: S5
+    name: "Zero shift amount"
+    description: |
+      Tests shift_amt=0 - output equals input for all modes.
+    test_function: "test_zero_shift"
+    test_file: "val/common/test_shifter_barrel.py"
+    covers_lines: [26, 29]
+    status: verified
+
+  - id: S6
+    name: "Maximum shift amount"
+    description: |
+      Tests shift_amt=WIDTH-1 - shifts entire word.
+      Left shift: result is data_in[0] in MSB position.
+      Right logical: result is data_in[MSB] in LSB position.
+    test_function: "test_max_shift"
+    test_file: "val/common/test_shifter_barrel.py"
+    covers_lines: [26, 29, 35]
+    status: verified
+
+  - id: S7
+    name: "Walking ones pattern"
+    description: |
+      Tests with walking ones data pattern to exercise all data paths.
+      Each bit position set individually, shifted through all amounts.
+    test_function: "test_walking_ones"
+    test_file: "val/common/test_shifter_barrel.py"
+    covers_lines: [25, 29, 35]
+    verification_method: "toggle"
+    status: verified
+
+  - id: S8
+    name: "Walking zeros pattern"
+    description: |
+      Tests with walking zeros data pattern (complement of walking ones).
+      Exercises paths with mostly-ones data.
+    test_function: "test_walking_zeros"
+    test_file: "val/common/test_shifter_barrel.py"
+    covers_lines: [25, 29, 35]
+    verification_method: "toggle"
+    status: verified
+
+# Parameter combinations tested
+parameter_coverage:
+  - WIDTH: 8
+    test_level: basic
+    status: verified
+
+  - WIDTH: 16
+    test_level: basic
+    status: verified
+
+  - WIDTH: 32
+    test_level: medium
+    status: verified
+
+  - WIDTH: 64
+    test_level: full
+    status: verified
+
+# Implied coverage calculation
+implied_coverage:
+  total_points: 38
+  verilator_tracked: 33
+  scenario_tracked: 38
+  implied_covered: 38
+  implied_percentage: 100.0
+
+notes: |
+  Barrel shifter uses generate blocks to create log2(WIDTH) stages.
+  Each stage handles one bit of the shift amount.
+  
+  Verilator shows ~87% because generate-created muxes aren't tracked
+  individually. The test exhaustively exercises:
+  - All shift amounts (0 to WIDTH-1)
+  - All shift directions (left, right)
+  - Both arithmetic and logical modes
+  - Walking patterns for toggle coverage
+  
+  Implied coverage is 100% - all functional combinations tested.

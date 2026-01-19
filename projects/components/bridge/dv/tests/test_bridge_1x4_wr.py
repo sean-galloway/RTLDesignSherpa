@@ -55,6 +55,11 @@ async def cocotb_test_basic_connectivity(dut):
     tb.log.info(f"Configuration: 1M x 4S, WR channels")
     tb.log.info("=" * 80)
 
+    tb.log.info("=== Scenario BRIDGE-1x4-01: Four-way address routing ===")
+    tb.log.info("=== Scenario BRIDGE-1x4-02: AXI4 slave routing ===")
+    tb.log.info("=== Scenario BRIDGE-1x4-05: Transaction ID preservation ===")
+    tb.log.info("=== Scenario BRIDGE-1x4-07: Backpressure per slave ===")
+
     # Write connectivity test
     tb.log.info(f"Testing master 0 (cpu_wr) write connectivity")
 

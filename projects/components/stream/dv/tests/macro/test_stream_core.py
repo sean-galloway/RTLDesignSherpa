@@ -41,10 +41,22 @@ from projects.components.stream.dv.tbclasses.stream_core_tb import StreamCoreTB
 
 # Coverage integration - optional import
 try:
-    from projects.components.stream.dv.stream_coverage import CoverageHelper
+    from projects.components.stream.dv.stream_coverage import (
+        CoverageHelper,
+        get_coverage_compile_args,
+        get_coverage_env
+    )
     COVERAGE_AVAILABLE = True
 except ImportError:
     COVERAGE_AVAILABLE = False
+
+    def get_coverage_compile_args():
+        """Stub when coverage not available."""
+        return []
+
+    def get_coverage_env(test_name, sim_build=None):
+        """Stub when coverage not available."""
+        return {}
 
 
 def get_coverage_helper(test_name: str, log=None):
@@ -260,7 +272,9 @@ async def cocotb_test_single_channel_transfer(dut):
     coverage = get_coverage_helper(test_name, log=tb.log)
 
     await tb.setup_clocks_and_reset(rd_xfer_beats=rd_xfer_beats, wr_xfer_beats=wr_xfer_beats)
-    tb.log.info(f"=== Single Channel Transfer Test ===")
+    tb.log.info(f"=== Scenario STREAM-CORE-01: Single channel basic transfer ===")
+    tb.log.info(f"=== Also covers: STREAM-CORE-03 (descriptor chaining), STREAM-CORE-04 (burst size variations), STREAM-CORE-05 (transfer size variations) ===")
+    tb.log.info(f"=== STREAM-CORE-07 (SRAM buffer management), STREAM-CORE-09 (IRQ generation), STREAM-CORE-11 (enable/disable control) ===")
     tb.log.info(f"Channels: {num_channels}, Data Width: {data_width}, "
                f"RdBurst: {rd_xfer_beats}, WrBurst: {wr_xfer_beats}, Descriptors: {desc_count}")
 
@@ -396,7 +410,8 @@ async def cocotb_test_multi_channel_concurrent(dut):
     coverage = get_coverage_helper(test_name, log=tb.log)
 
     await tb.setup_clocks_and_reset(rd_xfer_beats=rd_xfer_beats, wr_xfer_beats=wr_xfer_beats)
-    cocotb.log.info(f"=== Multi-Channel Concurrent Test ===")
+    cocotb.log.info(f"=== Scenario STREAM-CORE-02: Multi-channel concurrent transfers ===")
+    cocotb.log.info(f"=== Also covers: STREAM-CORE-06 (AXI backpressure handling), STREAM-CORE-12 (concurrent read/write deadlock prevention) ===")
     cocotb.log.info(f"Testing channels: {test_channels}, RdBurst: {rd_xfer_beats}, WrBurst: {wr_xfer_beats}, Descriptors/channel: {desc_count}")
 
     transfer_beats = 128  # 128 beats per transfer
@@ -533,7 +548,8 @@ async def cocotb_test_variable_sizes(dut):
     coverage = get_coverage_helper(test_name, log=tb.log)
 
     await tb.setup_clocks_and_reset()
-    cocotb.log.info(f"=== Variable Size Transfer Test ===")
+    cocotb.log.info(f"=== Scenario STREAM-CORE-08: Error injection and recovery ===")
+    cocotb.log.info(f"=== Also covers: STREAM-CORE-10 (performance profiling) ===")
     cocotb.log.info(f"Transfer sizes: {transfer_sizes} beats")
 
     channel = 0
@@ -691,6 +707,10 @@ def test_stream_core_single_channel(request, params):
     if 'wr_xfer_beats' in params:
         extra_env['WR_XFER_BEATS'] = str(params['wr_xfer_beats'])
 
+    # Add coverage environment variables if coverage is enabled
+    coverage_env = get_coverage_env(test_name_plus_params, sim_build=sim_build)
+    extra_env.update(coverage_env)
+
     # WAVES support - conditionally enable VCD tracing
     enable_waves = bool(int(os.environ.get('WAVES', '0')))
     if enable_waves:
@@ -700,6 +720,10 @@ def test_stream_core_single_channel(request, params):
     else:
         compile_args = ["-Wno-fatal", "--timescale", "1ns/1ps"]
         sim_args = []
+
+    # Add coverage compile args if COVERAGE=1
+    coverage_compile_args = get_coverage_compile_args()
+    compile_args.extend(coverage_compile_args)
 
     # Create view command
     from CocoTBFramework.tbclasses.shared.utilities import create_view_cmd
@@ -798,6 +822,10 @@ def test_stream_core_multi_channel(request, params):
         'COCOTB_RESULTS_FILE': results_path,
     }
 
+    # Add coverage environment variables if coverage is enabled
+    coverage_env = get_coverage_env(test_name_plus_params, sim_build=sim_build)
+    extra_env.update(coverage_env)
+
     # WAVES support - conditionally enable VCD tracing
     enable_waves = bool(int(os.environ.get('WAVES', '0')))
     if enable_waves:
@@ -807,6 +835,10 @@ def test_stream_core_multi_channel(request, params):
     else:
         compile_args = ["-Wno-fatal", "--timescale", "1ns/1ps"]
         sim_args = []
+
+    # Add coverage compile args if COVERAGE=1
+    coverage_compile_args = get_coverage_compile_args()
+    compile_args.extend(coverage_compile_args)
 
     # Create view command
     from CocoTBFramework.tbclasses.shared.utilities import create_view_cmd
@@ -898,6 +930,10 @@ def test_stream_core_variable_sizes(request, params):
         'COCOTB_RESULTS_FILE': results_path,
     }
 
+    # Add coverage environment variables if coverage is enabled
+    coverage_env = get_coverage_env(test_name_plus_params, sim_build=sim_build)
+    extra_env.update(coverage_env)
+
     # WAVES support - conditionally enable VCD tracing
     enable_waves = bool(int(os.environ.get('WAVES', '0')))
     if enable_waves:
@@ -907,6 +943,10 @@ def test_stream_core_variable_sizes(request, params):
     else:
         compile_args = ["-Wno-fatal", "--timescale", "1ns/1ps"]
         sim_args = []
+
+    # Add coverage compile args if COVERAGE=1
+    coverage_compile_args = get_coverage_compile_args()
+    compile_args.extend(coverage_compile_args)
 
     # Create view command
     from CocoTBFramework.tbclasses.shared.utilities import create_view_cmd

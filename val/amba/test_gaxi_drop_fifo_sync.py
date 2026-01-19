@@ -51,6 +51,7 @@ from CocoTBFramework.tbclasses.gaxi.gaxi_drop_fifo_sync_tb import GaxiDropFifoSy
 
 # Import run function for pytest
 from cocotb_test.simulator import run
+from conftest import get_coverage_compile_args
 
 # Import path utilities
 from CocoTBFramework.tbclasses.shared.utilities import get_paths, create_view_cmd
@@ -244,6 +245,12 @@ def test_gaxi_drop_fifo_sync(request, data_width, depth, registered, test_id):
         "--trace-depth", "99",
         "--Wno-UNOPTFLAT",
     ]
+
+
+    # Add coverage compile args if COVERAGE=1
+
+    compile_args.extend(get_coverage_compile_args())
+
 
     sim_args = [
         "--trace",

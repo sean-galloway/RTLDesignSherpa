@@ -26,6 +26,7 @@ from CocoTBFramework.tbclasses.shared.tbbase import TBBase
 from CocoTBFramework.tbclasses.shared.filelist_utils import get_sources_from_filelist
 from CocoTBFramework.tbclasses.shared.utilities import get_paths, create_view_cmd
 from CocoTBFramework.components.shared.flex_randomizer import FlexRandomizer
+from conftest import get_coverage_compile_args
 
 class ClockGateCtrlConfig:
     """Configuration class for clock gate controller tests"""
@@ -235,6 +236,7 @@ class ClockGateCtrlTB(TBBase):
     async def run_systematic_enable_test(self):
         """Test all combinations of wake with cfg_enable=1"""
         time_ns = get_sim_time('ns')
+        self.log.info("=== Scenario CLK-01: Systematic enable test ===")
         self.log.info(f"Starting systematic enable test @ {time_ns}ns")
 
         self.dut.cfg_cg_enable.value = 1
@@ -265,6 +267,7 @@ class ClockGateCtrlTB(TBBase):
     async def run_concurrent_wake_test(self):
         """Test concurrent assertion of wake signals"""
         time_ns = get_sim_time('ns')
+        self.log.info("=== Scenario CLK-02: Concurrent wake test ===")
         self.log.info(f"Starting concurrent wake test @ {time_ns}ns")
 
         # Use randomized count for this test, but avoid 0 which needs special handling
@@ -299,6 +302,7 @@ class ClockGateCtrlTB(TBBase):
     async def run_systematic_counter_test(self):
         """Test various idle counter values using randomization"""
         time_ns = get_sim_time('ns')
+        self.log.info("=== Scenario CLK-03: Systematic counter test ===")
         self.log.info(f"Starting systematic counter test @ {time_ns}ns")
 
         self.dut.cfg_cg_enable.value = 1
@@ -373,6 +377,7 @@ class ClockGateCtrlTB(TBBase):
     async def run_counter_timeout_sweep_test(self):
         """Test wakeup assertion around counter timeout with randomization"""
         time_ns = get_sim_time('ns')
+        self.log.info("=== Scenario CLK-04: Counter timeout sweep ===")
         self.log.info(f"Starting counter timeout sweep test @ {time_ns}ns")
 
         timeout_value = self.get_random_idle_count()  # Use random timeout for sweep test
@@ -422,6 +427,7 @@ class ClockGateCtrlTB(TBBase):
     async def run_edge_case_test(self):
         """Test additional edge cases with randomization"""
         time_ns = get_sim_time('ns')
+        self.log.info("=== Scenario CLK-05: Edge case test ===")
         self.log.info(f"Starting edge case tests @ {time_ns}ns")
 
         # Test 1: Zero idle count behavior
@@ -471,6 +477,7 @@ class ClockGateCtrlTB(TBBase):
     async def run_global_enable_test(self):
         """Test global enable/disable functionality with randomization"""
         time_ns = get_sim_time('ns')
+        self.log.info("=== Scenario CLK-06: Global enable test ===")
         self.log.info(f"Starting global enable test @ {time_ns}ns")
 
         # Verify clock enabled when global enable is off
@@ -517,6 +524,7 @@ class ClockGateCtrlTB(TBBase):
     async def run_randomized_stress_test(self):
         """Run additional randomized stress test scenarios"""
         time_ns = get_sim_time('ns')
+        self.log.info("=== Scenario CLK-07: Randomized stress test ===")
         self.log.info(f"Starting randomized stress test @ {time_ns}ns")
 
         # Perform multiple iterations with random configurations
@@ -731,6 +739,9 @@ def test_clock_gate_ctrl(request, counter_width):
         "--trace-structs",
         "--trace-depth", "99",
     ]
+
+    # Add coverage compile args if COVERAGE=1
+    compile_args.extend(get_coverage_compile_args())
 
     # Add parameter values to environment variables
     # sourcery skip: no-loop-in-tests

@@ -1,0 +1,177 @@
+# Testplan for stream_latency_bridge
+# Maps functional test scenarios to Verilator coverage points
+
+module: stream_latency_bridge
+rtl_file: projects/components/stream/rtl/fub/stream_latency_bridge.sv
+test_file: projects/components/stream/dv/tests/fub/test_stream_latency_bridge.py
+
+# Module description:
+# Latency compensation bridge for streaming interfaces. Provides buffering
+# and flow control to handle variable latency in datapath.
+
+parameters:
+  - name: DATA_WIDTH
+    default: 512
+    description: Data bus width
+  - name: DEPTH
+    default: 16
+    description: Bridge buffer depth
+
+# Coverage points
+coverage_points:
+  - line: 20
+    type: input_port
+    content: "input clk"
+    covered: true
+
+  - line: 21
+    type: input_port
+    content: "input rst_n"
+    covered: true
+
+  - line: 24
+    type: input_port
+    content: "input s_valid"
+    covered: true
+
+  - line: 25
+    type: output_port
+    content: "output s_ready"
+    covered: true
+
+  - line: 26
+    type: input_port
+    content: "input s_data"
+    covered: true
+
+  - line: 29
+    type: output_port
+    content: "output m_valid"
+    covered: true
+
+  - line: 30
+    type: input_port
+    content: "input m_ready"
+    covered: true
+
+  - line: 31
+    type: output_port
+    content: "output m_data"
+    covered: true
+
+  - line: 34
+    type: output_port
+    content: "output almost_full"
+    covered: true
+
+  - line: 35
+    type: output_port
+    content: "output almost_empty"
+    covered: true
+
+# Functional scenarios
+functional_scenarios:
+  - id: LATENCY-BRIDGE-01
+    name: "Basic streaming transfer"
+    description: Stream data through bridge without stalls
+    test_function: "test_stream_latency_bridge (basic_stream)"
+    covers_lines: [24, 25, 26, 29, 30, 31]
+    priority: high
+    status: verified
+
+  - id: LATENCY-BRIDGE-02
+    name: "Upstream backpressure"
+    description: Downstream not ready (m_ready = 0), verify upstream backpressure (s_ready = 0)
+    test_function: "test_stream_latency_bridge (upstream_backpressure)"
+    covers_lines: [24, 25, 30, 34]
+    priority: high
+    status: verified
+
+  - id: LATENCY-BRIDGE-03
+    name: "Downstream stall"
+    description: Downstream intermittent ready, verify bridge buffering
+    test_function: "test_stream_latency_bridge (downstream_stall)"
+    covers_lines: [29, 30, 34, 35]
+    priority: high
+    status: verified
+
+  - id: LATENCY-BRIDGE-04
+    name: "Buffer full condition"
+    description: Fill buffer to capacity, verify almost_full flag
+    test_function: "test_stream_latency_bridge (buffer_full)"
+    covers_lines: [24, 25, 34]
+    priority: high
+    status: verified
+
+  - id: LATENCY-BRIDGE-05
+    name: "Buffer empty condition"
+    description: Drain buffer completely, verify almost_empty flag
+    test_function: "test_stream_latency_bridge (buffer_empty)"
+    covers_lines: [29, 30, 35]
+    priority: high
+    status: verified
+
+  - id: LATENCY-BRIDGE-06
+    name: "Burst transfer"
+    description: Back-to-back transfers filling bridge buffer
+    test_function: "test_stream_latency_bridge (burst_transfer)"
+    covers_lines: [24, 25, 29, 30]
+    priority: medium
+    status: verified
+
+  - id: LATENCY-BRIDGE-07
+    name: "Variable latency compensation"
+    description: Varying upstream and downstream timing, verify latency hiding
+    test_function: "test_stream_latency_bridge (variable_latency)"
+    covers_lines: [24, 25, 29, 30, 34, 35]
+    priority: high
+    status: verified
+
+  - id: LATENCY-BRIDGE-08
+    name: "Data integrity"
+    description: Verify data passes through bridge without corruption
+    test_function: "test_stream_latency_bridge (data_integrity)"
+    covers_lines: [26, 31]
+    priority: high
+    status: verified
+
+  - id: LATENCY-BRIDGE-09
+    name: "Reset during transfer"
+    description: Reset during active streaming
+    test_function: "test_stream_latency_bridge (reset)"
+    covers_lines: [21]
+    priority: high
+    status: verified
+
+# Parameter combinations tested
+parameter_coverage:
+  - DATA_WIDTH: 512
+    DEPTH: 16
+    test_level: basic
+    status: verified
+
+  - DATA_WIDTH: 256
+    DEPTH: 32
+    test_level: medium
+    status: verified
+
+# Implied coverage calculation
+implied_coverage:
+  total_points: 11
+  verilator_tracked: 4
+  scenario_tracked: 11
+  implied_covered: 11
+  implied_percentage: 100.0
+
+notes: |
+  Stream latency bridge provides buffering for streaming datapaths.
+  Compensates for variable latency between source and destination.
+
+  Key features:
+  - Valid/ready handshaking on both interfaces
+  - Configurable depth for latency tolerance
+  - Almost full/empty flags for flow control
+  - Zero-latency bypass when buffer empty
+
+  All 9 functional scenarios exercise buffering, backpressure,
+  and latency compensation. Implied coverage is 100%.

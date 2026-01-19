@@ -1,0 +1,385 @@
+# Testplan for axi4_to_apb (covers convert and shim modules)
+# Maps functional test scenarios to Verilator coverage points
+
+module: axi4_to_apb
+rtl_files:
+  - projects/components/converters/rtl/axi4_to_apb_convert.sv
+  - projects/components/converters/rtl/axi4_to_apb_shim.sv
+test_files:
+  - projects/components/converters/dv/tests/test_axi2apb_shim.py
+
+# Raw Verilator coverage: ~35% (convert module only, shim not tested)
+# Verilator limitation: FSM logic and data width conversion not fully tracked
+
+# Module description:
+# AXI4 to APB Protocol Converter. Two-module design:
+# 1. axi4_to_apb_convert: Core conversion logic with FSM, burst handling, width conversion
+# 2. axi4_to_apb_shim: Wrapper that instantiates convert module and APB master
+
+# CRITICAL GAPS:
+# - axi4_to_apb_convert.sv: NO STANDALONE TEST
+# - axi4_to_apb_shim.sv: MINIMAL TESTING (only basic scenarios)
+# - Integration testing via shim only covers simple cases
+# - Complex width conversion scenarios NOT TESTED
+
+parameters:
+  - name: AXI_ID_WIDTH
+    default: 8
+    description: Transaction ID width (1-16)
+  - name: AXI_ADDR_WIDTH
+    default: 32
+    description: AXI address bus width (12-64)
+  - name: AXI_DATA_WIDTH
+    default: 32
+    description: AXI data bus width (32, 64, 128, 256)
+  - name: APB_ADDR_WIDTH
+    default: 32
+    description: APB address bus width (12-32)
+  - name: APB_DATA_WIDTH
+    default: 32
+    description: APB data bus width (32 typically)
+  - name: SIDE_DEPTH
+    default: 6
+    description: Side queue depth for tracking
+
+# Coverage points - CONVERT MODULE (axi4_to_apb_convert.sv)
+coverage_points_convert:
+  - line: 50
+    type: input_port
+    content: "input aclk"
+    covered: false
+    note: "No standalone test for convert module"
+
+  - line: 51
+    type: input_port
+    content: "input aresetn"
+    covered: false
+
+  - line: 54
+    type: input_port
+    content: "input r_s_axi_aw_pkt"
+    covered: false
+
+  - line: 56
+    type: input_port
+    content: "input r_s_axi_awvalid"
+    covered: false
+
+  - line: 59
+    type: input_port
+    content: "input r_s_axi_w_pkt"
+    covered: false
+
+  - line: 60
+    type: input_port
+    content: "input r_s_axi_wvalid"
+    covered: false
+
+  - line: 67
+    type: input_port
+    content: "input r_s_axi_ar_pkt"
+    covered: false
+
+  - line: 69
+    type: input_port
+    content: "input r_s_axi_arvalid"
+    covered: false
+
+  - line: 77
+    type: output_port
+    content: "output w_cmd_valid"
+    covered: false
+
+  - line: 81
+    type: input_port
+    content: "input r_rsp_valid"
+    covered: false
+
+  - line: 190
+    type: state_machine
+    content: "APB FSM (IDLE, READ, WRITE)"
+    covered: false
+
+  - line: 198
+    type: state_machine
+    content: "Response FSM (RSP_IDLE, RSP_ACTIVE)"
+    covered: false
+
+# Coverage points - SHIM MODULE (axi4_to_apb_shim.sv)
+coverage_points_shim:
+  - line: 35
+    type: input_port
+    content: "input aclk"
+    covered: true
+    note: "Tested via shim integration test"
+
+  - line: 36
+    type: input_port
+    content: "input aresetn"
+    covered: true
+
+  - line: 40
+    type: input_port
+    content: "input s_axi_awvalid"
+    covered: true
+
+  - line: 45
+    type: input_port
+    content: "input s_axi_wvalid"
+    covered: true
+
+  - line: 51
+    type: input_port
+    content: "input s_axi_arvalid"
+    covered: true
+
+  - line: 58
+    type: output_port
+    content: "output m_apb_psel"
+    covered: true
+
+  - line: 59
+    type: output_port
+    content: "output m_apb_penable"
+    covered: true
+
+  - line: 60
+    type: output_port
+    content: "output m_apb_pwrite"
+    covered: true
+
+  - line: 63
+    type: input_port
+    content: "input m_apb_pready"
+    covered: true
+
+# Functional scenarios - TESTED (via shim)
+functional_scenarios_tested:
+  - id: AXI2APB-01
+    name: "Single AXI write"
+    description: Single AXI write converted to single APB write
+    test_function: "test_axi2apb_shim (basic)"
+    covers_lines: [40, 45, 58, 59, 60]
+    priority: high
+    status: verified
+    module: shim
+
+  - id: AXI2APB-02
+    name: "Single AXI read"
+    description: Single AXI read converted to single APB read
+    test_function: "test_axi2apb_shim (basic)"
+    covers_lines: [51, 58, 59, 63]
+    priority: high
+    status: verified
+    module: shim
+
+  - id: AXI2APB-03
+    name: "APB handshake"
+    description: PSEL, PENABLE, PREADY handshake protocol
+    test_function: "test_axi2apb_shim (medium)"
+    covers_lines: [58, 59, 63]
+    priority: high
+    status: verified
+    module: shim
+
+  - id: AXI2APB-04
+    name: "PWRITE control"
+    description: PWRITE correctly set for read/write operations
+    test_function: "test_axi2apb_shim (medium)"
+    covers_lines: [60]
+    priority: high
+    status: verified
+    module: shim
+
+# Functional scenarios - NOT TESTED (convert module gaps)
+functional_scenarios_not_tested:
+  - id: AXI2APB-GAP-01
+    name: "AXI burst decomposition"
+    description: Multi-beat AXI burst decomposed into APB transactions
+    test_function: "NONE - NOT TESTED"
+    covers_lines: [190, 387, 401]
+    priority: high
+    status: not_tested
+    module: convert
+    gap_reason: "No test for convert module FSM"
+
+  - id: AXI2APB-GAP-02
+    name: "Width conversion (AXI > APB)"
+    description: Wider AXI data split into multiple APB transactions
+    test_function: "NONE - NOT TESTED"
+    covers_lines: [170, 308, 314]
+    priority: high
+    status: not_tested
+    module: convert
+    gap_reason: "Width conversion logic not exercised"
+
+  - id: AXI2APB-GAP-03
+    name: "Width conversion (AXI < APB)"
+    description: Narrower AXI data accumulated for APB transaction
+    test_function: "NONE - NOT TESTED"
+    covers_lines: [170, 280, 283]
+    priority: medium
+    status: not_tested
+    module: convert
+    gap_reason: "Width conversion logic not exercised"
+
+  - id: AXI2APB-GAP-04
+    name: "ID preservation"
+    description: AXI transaction ID tracked through conversion
+    test_function: "NONE - NOT TESTED"
+    covers_lines: [205, 207, 213]
+    priority: high
+    status: not_tested
+    module: convert
+    gap_reason: "Side queue tracking not tested"
+
+  - id: AXI2APB-GAP-05
+    name: "Response FSM"
+    description: Response collection and propagation
+    test_function: "NONE - NOT TESTED"
+    covers_lines: [198, 355, 383]
+    priority: high
+    status: not_tested
+    module: convert
+    gap_reason: "Response FSM not covered"
+
+  - id: AXI2APB-GAP-06
+    name: "PSLVERR handling"
+    description: APB slave error propagated to AXI BRESP/RRESP
+    test_function: "NONE - NOT TESTED"
+    covers_lines: [218, 219, 277]
+    priority: high
+    status: not_tested
+    module: convert
+    gap_reason: "Error scenarios not tested"
+
+  - id: AXI2APB-GAP-07
+    name: "Address increment"
+    description: Address calculation for multi-beat bursts
+    test_function: "NONE - NOT TESTED"
+    covers_lines: [237, 305]
+    priority: high
+    status: not_tested
+    module: convert
+    gap_reason: "axi_gen_addr module usage not tested"
+
+  - id: AXI2APB-GAP-08
+    name: "First/last markers"
+    description: APB command packet first/last flags
+    test_function: "NONE - NOT TESTED"
+    covers_lines: [411, 414, 441, 445]
+    priority: medium
+    status: not_tested
+    module: convert
+    gap_reason: "Packet markers not verified"
+
+  - id: AXI2APB-GAP-09
+    name: "Side FIFO operation"
+    description: Side queue for ID/last tracking
+    test_function: "NONE - NOT TESTED"
+    covers_lines: [471]
+    priority: medium
+    status: not_tested
+    module: convert
+    gap_reason: "FIFO instantiation not tested"
+
+  - id: AXI2APB-GAP-10
+    name: "Reset behavior"
+    description: FSM reset to IDLE states
+    test_function: "NONE - NOT TESTED"
+    covers_lines: [255, 257, 258, 259]
+    priority: high
+    status: not_tested
+    module: convert
+    gap_reason: "Reset scenarios not tested"
+
+# Parameter combinations tested
+parameter_coverage:
+  - AXI_DATA_WIDTH: 32
+    APB_DATA_WIDTH: 32
+    test_level: basic
+    status: verified
+    note: "1:1 width ratio only"
+
+  - AXI_DATA_WIDTH: 32
+    APB_DATA_WIDTH: 32
+    test_level: medium
+    status: verified
+    note: "1:1 width ratio only"
+
+# Gap Summary
+gap_summary:
+  total_scenarios: 14
+  tested_scenarios: 4
+  not_tested_scenarios: 10
+  tested_percentage: 28.6
+  coverage_notes: |
+    CRITICAL GAPS IN TESTING:
+
+    1. CONVERT MODULE (axi4_to_apb_convert.sv):
+       - NO standalone test exists
+       - All FSM logic UNTESTED
+       - Width conversion UNTESTED
+       - Burst decomposition UNTESTED
+       - Side queue tracking UNTESTED
+
+    2. SHIM MODULE (axi4_to_apb_shim.sv):
+       - Only basic single transactions tested
+       - Integration coverage incomplete
+
+    3. RECOMMENDED ACTIONS:
+       - Create test_axi4_to_apb_convert.py for standalone convert testing
+       - Expand test_axi2apb_shim.py to cover complex scenarios
+       - Add width conversion test cases (64→32, 128→32)
+       - Add burst decomposition tests
+       - Add error injection tests
+
+# Implied coverage calculation
+implied_coverage:
+  total_points: 23
+  verilator_tracked: 8
+  scenario_tracked: 4
+  implied_covered: 4
+  implied_percentage: 17.4
+  notes: "VERY LOW - Most functionality untested"
+
+notes: |
+  AXI4 to APB Protocol Converter has SIGNIFICANT TESTING GAPS.
+
+  TWO-MODULE DESIGN:
+  1. axi4_to_apb_convert.sv - Core conversion logic (486 lines)
+     - FSM for read/write operations
+     - Width conversion (AXI to APB data width ratio)
+     - Burst decomposition
+     - Side queue for ID/last tracking
+     - STATUS: UNTESTED - No standalone test
+
+  2. axi4_to_apb_shim.sv - Wrapper module
+     - Instantiates convert + apb_master
+     - STATUS: MINIMALLY TESTED - Only basic scenarios
+
+  VERILATOR COVERAGE: ~35% (only shim tested)
+
+  TESTED SCENARIOS (4):
+  - Single write transaction
+  - Single read transaction
+  - Basic APB handshake
+  - PWRITE control
+
+  UNTESTED SCENARIOS (10):
+  - Burst decomposition FSM
+  - Width conversion (all ratios)
+  - ID preservation and side queue
+  - Response FSM and error handling
+  - Address increment logic
+  - First/last packet markers
+  - Reset behavior
+  - Complex multi-beat bursts
+  - PSLVERR propagation
+  - Side FIFO operation
+
+  RECOMMENDATION:
+  Create comprehensive test suite for axi4_to_apb_convert.sv to close gaps.
+  This is a HIGH PRIORITY issue - core functionality is untested.
+
+  Integration testing via shim is insufficient - need direct convert module tests.

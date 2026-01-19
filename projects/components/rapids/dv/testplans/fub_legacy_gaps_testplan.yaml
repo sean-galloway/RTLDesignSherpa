@@ -1,0 +1,147 @@
+# Testplan for FUB Legacy Modules - Testing Gaps
+# Documents untested FUB Legacy modules requiring test development
+
+module_group: fub_legacy_untested
+rtl_files:
+  - projects/components/rapids/rtl/fub/sink_axi_write_engine.sv
+  - projects/components/rapids/rtl/fub/sink_sram_control.sv
+  - projects/components/rapids/rtl/fub/source_axi_read_engine.sv
+  - projects/components/rapids/rtl/fub/source_sram_control.sv
+test_files: none (TESTING GAP)
+
+# Module descriptions:
+
+# 1. sink_axi_write_engine.sv
+# Sink AXI Write Engine - Writes received network data to system memory via AXI4.
+# Generates AXI write bursts based on buffer availability and alignment constraints.
+
+# 2. sink_sram_control.sv
+# Sink SRAM Control - Manages SRAM buffer for incoming network data.
+# Coordinates write pointer management and buffer overflow detection.
+
+# 3. source_axi_read_engine.sv
+# Source AXI Read Engine - Reads data from system memory for network transmission.
+# Generates AXI read bursts to fill SRAM buffer for outgoing packets.
+
+# 4. source_sram_control.sv
+# Source SRAM Control - Manages SRAM buffer for outgoing network data.
+# Coordinates read pointer management and buffer underflow detection.
+
+# Testing gaps analysis
+testing_gaps:
+  - module: sink_axi_write_engine
+    rtl_file: projects/components/rapids/rtl/fub/sink_axi_write_engine.sv
+    test_status: untested
+    gap_type: fub_legacy_datapath
+    priority: P2
+    notes: |
+      Legacy FUB module replaced by beats generation.
+      Integration testing occurs at macro_beats level (snk_data_path_axis_beats).
+      FUB-level unit test recommended but not critical.
+
+  - module: sink_sram_control
+    rtl_file: projects/components/rapids/rtl/fub/sink_sram_control.sv
+    test_status: untested
+    gap_type: fub_legacy_datapath
+    priority: P2
+    notes: |
+      Legacy FUB module replaced by beats generation.
+      Integration testing via snk_sram_controller_beats.
+      FUB-level unit test recommended but not critical.
+
+  - module: source_axi_read_engine
+    rtl_file: projects/components/rapids/rtl/fub/source_axi_read_engine.sv
+    test_status: untested
+    gap_type: fub_legacy_datapath
+    priority: P2
+    notes: |
+      Legacy FUB module replaced by beats generation.
+      Integration testing occurs at macro_beats level (src_data_path_axis_beats).
+      FUB-level unit test recommended but not critical.
+
+  - module: source_sram_control
+    rtl_file: projects/components/rapids/rtl/fub/source_sram_control.sv
+    test_status: untested
+    gap_type: fub_legacy_datapath
+    priority: P2
+    notes: |
+      Legacy FUB module replaced by beats generation.
+      Integration testing via src_sram_controller_beats.
+      FUB-level unit test recommended but not critical.
+
+# Recommended test scenarios (if FUB-level tests created)
+recommended_scenarios:
+  sink_axi_write_engine:
+    - Basic write burst generation
+    - Alignment handling
+    - Backpressure from AXI interface
+    - Buffer overflow detection
+    - Error response handling
+
+  sink_sram_control:
+    - Write pointer management
+    - Full/empty flag generation
+    - Wrap-around handling
+    - Buffer depth configuration
+
+  source_axi_read_engine:
+    - Basic read burst generation
+    - Alignment handling
+    - Backpressure from buffer
+    - Buffer underflow detection
+    - Error response handling
+
+  source_sram_control:
+    - Read pointer management
+    - Full/empty flag generation
+    - Wrap-around handling
+    - Buffer depth configuration
+
+# Coverage analysis
+coverage_analysis:
+  fub_legacy_total: 6
+  fub_legacy_tested: 2
+  fub_legacy_untested: 4
+  fub_legacy_coverage_percentage: 33.3
+  mitigation: Integration testing at macro_beats level provides functional coverage
+
+# Migration status
+migration_status:
+  beats_generation: complete
+  beats_testing: 100%
+  legacy_deprecation: planned_future
+  notes: |
+    FUB Legacy modules are first-generation RAPIDS implementation.
+    Beats generation (second generation) provides improved architecture:
+    - Better modularity
+    - Enhanced testability
+    - Cleaner interfaces
+
+    Legacy modules remain for reference and backwards compatibility.
+    Future work may deprecate legacy FUB modules entirely.
+
+implied_coverage:
+  total_points: 4
+  fub_tested: 0
+  macro_tested: 4
+  implied_percentage: 0.0 (FUB-level), 100.0 (macro-level)
+
+notes: |
+  FUB Legacy modules have testing gaps at FUB-level but are integration-tested
+  via macro_beats components.
+
+  Test Coverage by Generation:
+  - FUB Legacy: 33% (2/6 modules - ctrlrd/ctrlwr engines tested)
+  - FUB Beats: 100% (7/7 modules - all beats modules tested)
+  - MACRO Beats: 100% (13/13 modules - all macro beats tested)
+
+  Recommendation:
+  - Priority P2: Create FUB-level tests for untested legacy modules
+  - Alternative: Accept integration-level testing as sufficient
+  - Future: Deprecate legacy FUB modules in favor of beats generation
+
+  Integration test coverage via macro_beats components:
+  - sink_axi_write_engine → snk_data_path_axis_beats (TESTED)
+  - sink_sram_control → snk_sram_controller_beats (TESTED)
+  - source_axi_read_engine → src_data_path_axis_beats (TESTED)
+  - source_sram_control → src_sram_controller_beats (TESTED)

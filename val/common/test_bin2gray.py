@@ -55,6 +55,7 @@ from cocotb_test.simulator import run
 from CocoTBFramework.tbclasses.shared.tbbase import TBBase
 from CocoTBFramework.tbclasses.shared.filelist_utils import get_sources_from_filelist
 from CocoTBFramework.tbclasses.shared.utilities import get_paths, create_view_cmd
+from conftest import get_coverage_compile_args
 
 class Bin2GrayTB(TBBase):
     """Testbench for Binary to Gray Code Converter module"""
@@ -480,6 +481,10 @@ def test_bin2gray(request, width, test_level):
         "--trace-structs",
         "--trace-depth", "99",
     ]
+
+    # Add coverage compile args if COVERAGE=1
+    compile_args.extend(get_coverage_compile_args())
+
     sim_args = [
         "--trace",  # VCD waveform format
         "--trace-structs",

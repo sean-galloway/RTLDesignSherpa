@@ -1,0 +1,218 @@
+# Testplan for apb_smbus
+# Maps functional test scenarios to verification coverage
+# NOTE: Currently only basic tests implemented - medium and full tests needed
+
+module: apb_smbus
+rtl_file: projects/components/retro_legacy_blocks/rtl/smbus/apb_smbus.sv
+test_file: projects/components/retro_legacy_blocks/dv/tests/test_apb_smbus.py
+
+# Module description:
+# APB SMBus (System Management Bus) controller with master/slave modes,
+# PEC (Packet Error Code) generation/checking, command protocols, and
+# TX/RX FIFOs for efficient data transfer.
+
+parameters:
+  - name: FIFO_DEPTH
+    default: 16
+    description: TX/RX FIFO depth
+  - name: PEC_ENABLE
+    default: 1
+    description: 1=enable PEC support, 0=disable
+  - name: CDC_ENABLE
+    default: 0
+    description: 1=async clocks, 0=same clock
+  - name: SKID_DEPTH
+    default: 2
+    description: CDC skid buffer depth
+
+# Functional scenarios
+functional_scenarios:
+  - id: SMBUS-01
+    name: "Register Access"
+    description: Basic read/write to SMBus registers
+    test_function: "test_register_access (basic)"
+    test_level: basic
+    priority: high
+    status: verified
+
+  - id: SMBUS-02
+    name: "Quick Command"
+    description: Send SMBus Quick Command (no data)
+    test_function: "test_quick_command (basic)"
+    test_level: basic
+    priority: high
+    status: verified
+
+  - id: SMBUS-03
+    name: "Send Byte"
+    description: Send single byte without register address
+    test_function: "test_send_byte (basic)"
+    test_level: basic
+    priority: high
+    status: verified
+
+  - id: SMBUS-04
+    name: "Receive Byte"
+    description: Receive single byte from slave
+    test_function: "test_receive_byte (basic)"
+    test_level: basic
+    priority: high
+    status: verified
+
+  - id: SMBUS-05
+    name: "Write Byte/Word"
+    description: Write byte/word to slave register
+    test_function: "test_write_byte_word (basic)"
+    test_level: basic
+    priority: high
+    status: verified
+
+  - id: SMBUS-06
+    name: "Read Byte/Word"
+    description: Read byte/word from slave register
+    test_function: "test_read_byte_word (basic)"
+    test_level: basic
+    priority: high
+    status: verified
+
+  - id: SMBUS-07
+    name: "Block Write"
+    description: Write multiple bytes using block protocol
+    test_function: "test_block_write (medium - NOT IMPLEMENTED)"
+    test_level: medium
+    priority: high
+    status: not_implemented
+
+  - id: SMBUS-08
+    name: "Block Read"
+    description: Read multiple bytes using block protocol
+    test_function: "test_block_read (medium - NOT IMPLEMENTED)"
+    test_level: medium
+    priority: high
+    status: not_implemented
+
+  - id: SMBUS-09
+    name: "PEC Generation"
+    description: Verify PEC (CRC-8) generation for transmitted packets
+    test_function: "test_pec_generation (medium - NOT IMPLEMENTED)"
+    test_level: medium
+    priority: high
+    status: not_implemented
+
+  - id: SMBUS-10
+    name: "PEC Verification"
+    description: Verify PEC checking for received packets
+    test_function: "test_pec_verification (medium - NOT IMPLEMENTED)"
+    test_level: medium
+    priority: high
+    status: not_implemented
+
+  - id: SMBUS-11
+    name: "FIFO Operation"
+    description: Verify TX/RX FIFO functionality
+    test_function: "test_fifo_operation (medium - NOT IMPLEMENTED)"
+    test_level: medium
+    priority: medium
+    status: not_implemented
+
+  - id: SMBUS-12
+    name: "Process Call"
+    description: Write word and read word in single transaction
+    test_function: "test_process_call (medium - NOT IMPLEMENTED)"
+    test_level: medium
+    priority: medium
+    status: not_implemented
+
+  - id: SMBUS-13
+    name: "All Protocols Stress Test"
+    description: Stress test cycling through all SMBus protocols
+    test_function: "test_all_protocols_stress (full - NOT IMPLEMENTED)"
+    test_level: full
+    priority: high
+    status: not_implemented
+
+  - id: SMBUS-14
+    name: "Multi-Master Arbitration"
+    description: Verify arbitration when multiple masters on bus
+    test_function: "test_multi_master (full - NOT IMPLEMENTED)"
+    test_level: full
+    priority: medium
+    status: not_implemented
+
+  - id: SMBUS-15
+    name: "Clock Stretching"
+    description: Verify slave clock stretching support
+    test_function: "test_clock_stretching (full - NOT IMPLEMENTED)"
+    test_level: full
+    priority: medium
+    status: not_implemented
+
+# Test level coverage
+test_level_coverage:
+  basic:
+    implemented: true
+    test_count: 6
+    coverage_percentage: 100
+    status: "Basic scenarios verified (register access, quick/byte/word commands)"
+
+  medium:
+    implemented: false
+    test_count: 0
+    coverage_percentage: 0
+    status: "NEEDS IMPLEMENTATION - block transfers, PEC, FIFO, process call"
+
+  full:
+    implemented: false
+    test_count: 0
+    coverage_percentage: 0
+    status: "NEEDS IMPLEMENTATION - stress tests, multi-master, clock stretching"
+
+# Parameter combinations tested
+parameter_coverage:
+  - FIFO_DEPTH: 16
+    PEC_ENABLE: 1
+    CDC_ENABLE: 0
+    test_level: basic
+    status: verified
+
+  - FIFO_DEPTH: 16
+    PEC_ENABLE: 1
+    CDC_ENABLE: 1
+    test_level: basic
+    status: verified
+
+  - FIFO_DEPTH: 16
+    PEC_ENABLE: 0
+    CDC_ENABLE: 0
+    test_level: medium
+    status: not_implemented
+
+# Implied coverage calculation
+implied_coverage:
+  total_smbus_features: 15
+  basic_features_covered: 6
+  medium_features_covered: 0
+  full_features_covered: 0
+  basic_percentage: 40
+  overall_percentage: 40
+
+notes: |
+  SMBus controller implements System Management Bus protocol with master
+  mode, multiple command types, PEC support, and TX/RX FIFOs.
+
+  Current Status:
+  - Basic tests: 100% complete (6/6 tests passing)
+  - Medium tests: NOT IMPLEMENTED (need block transfers, PEC, FIFO)
+  - Full tests: NOT IMPLEMENTED (need stress tests, multi-master)
+
+  Key Missing Tests:
+  1. Block write/read protocols
+  2. PEC generation and verification
+  3. TX/RX FIFO operation
+  4. Process call protocol
+  5. All protocols stress test
+  6. Multi-master arbitration
+  7. Clock stretching support
+
+  Basic tests cover simple byte/word operations, but advanced features
+  (block transfers, PEC, multi-master) require medium/full test levels.

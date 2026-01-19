@@ -347,7 +347,10 @@ module axi_master_rd_splitter
                     end
                 end
 
+                // verilator coverage_off
+                // DEFENSIVE: Illegal FSM state recovery
                 default: r_split_state <= IDLE;
+                // verilator coverage_on
             endcase
         end
     )

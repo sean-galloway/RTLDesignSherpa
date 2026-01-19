@@ -94,6 +94,7 @@ class RTCBasicTests:
 
     async def test_time_setting(self) -> bool:
         """Test time setting and reading."""
+        self.log.info("=== Scenario RTC-01: Register Access ===")
         self.log.info("Testing time setting...")
 
         try:
@@ -548,6 +549,7 @@ class RTCBasicTests:
 
     async def test_leap_year_feb29(self) -> bool:
         """Test 12: Leap Year February 29 - tests leap year handling."""
+        self.log.info("=== Scenario RTC-02: Time Counting ===")
         self.log.info("Testing leap year February 29...")
 
         try:

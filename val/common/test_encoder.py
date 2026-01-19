@@ -36,7 +36,26 @@ Environment Variables:
     SEED: Set random seed for reproducibility
     TEST_INPUT_WIDTH: Input width for encoder
 
-Note: The encoder has a bug in the original code - 'out' should be 'data'
+COVERAGE STRATEGY:
+    The encoder RTL uses a for loop with a conditional:
+        for (int i = 0; i < N; i++) begin
+            if (decoded[i]) data = $clog2(N)'(i);
+        end
+
+    Verilator unrolls this and creates 2*N branches (TRUE/FALSE for each bit).
+    For 100% coverage, we must exercise BOTH branches for EACH bit position:
+
+    1. test_zero_input: All bits FALSE (covers all FALSE branches simultaneously)
+    2. test_one_hot_encoding: Each bit TRUE individually (covers TRUE branch per bit)
+    3. test_walking_patterns:
+       - Walking ones: Redundant with one_hot but good for verification
+       - Walking zeros: Each bit FALSE while others TRUE (critical for coverage!)
+    4. test_priority_encoding: Multiple bits TRUE (priority logic verification)
+    5. test_boundary_conditions: Edge cases (LSB, MSB, all bits, etc.)
+
+    The walking zeros test is CRITICAL for coverage because it ensures that
+    when a bit[i] is FALSE (while others are TRUE), the encoder correctly
+    skips that bit and finds the highest remaining bit.
 """
 
 import os
@@ -52,6 +71,7 @@ from cocotb_test.simulator import run
 from CocoTBFramework.tbclasses.shared.tbbase import TBBase
 from CocoTBFramework.tbclasses.shared.filelist_utils import get_sources_from_filelist
 from CocoTBFramework.tbclasses.shared.utilities import get_paths, create_view_cmd
+from conftest import get_coverage_compile_args
 
 class EncoderTB(TBBase):
     """Testbench for Generic Encoder module"""
@@ -293,10 +313,6 @@ class EncoderTB(TBBase):
 
     async def test_boundary_conditions(self):
         """Test boundary conditions and edge cases"""
-        if self.TEST_LEVEL == 'basic':
-            self.log.info("Skipping boundary condition tests for basic level")
-            return True
-
         self.log.info("Testing boundary conditions")
 
         all_passed = True
@@ -313,7 +329,7 @@ class EncoderTB(TBBase):
         for input_val in boundary_values:
             if input_val == 0:
                 continue  # Already tested in zero_input
-                
+
             expected_output = self._calculate_expected_output(input_val)
 
             # Drive input
@@ -335,15 +351,12 @@ class EncoderTB(TBBase):
 
     async def test_walking_patterns(self):
         """Test walking bit patterns"""
-        if self.TEST_LEVEL != 'full':
-            self.log.info("Skipping walking patterns test")
-            return True
-
+        # Enable for all test levels to ensure coverage
         self.log.info("Testing walking bit patterns")
 
         all_passed = True
 
-        # Walking ones pattern
+        # Walking ones pattern (tests TRUE branch for each bit position)
         for i in range(self.INPUT_WIDTH):
             input_val = 1 << i
             expected_output = i
@@ -362,12 +375,14 @@ class EncoderTB(TBBase):
                 all_passed = False
                 break
 
-        # Walking zeros pattern (all bits set except one)
+        # Walking zeros pattern (tests FALSE branch for each bit position)
+        # This is critical for coverage - ensures each loop iteration's if(decoded[i])
+        # is exercised in both TRUE and FALSE states
         if all_passed:
             for i in range(self.INPUT_WIDTH):
                 input_val = self.MAX_INPUT ^ (1 << i)  # All bits except bit i
                 expected_output = self.INPUT_WIDTH - 1  # Highest bit position
-                
+
                 # Find the actual highest bit
                 for j in range(self.INPUT_WIDTH - 1, -1, -1):
                     if (input_val >> j) & 1:
@@ -592,6 +607,10 @@ def test_encoder(request, input_width, test_level):
         "--trace-structs",
         "--trace-depth", "99",
     ]
+
+    # Add coverage compile args if COVERAGE=1
+    compile_args.extend(get_coverage_compile_args())
+
     sim_args = [
         "--trace",  # VCD waveform format
         "--trace-structs",

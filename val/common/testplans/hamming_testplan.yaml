@@ -1,0 +1,274 @@
+# Testplan for hamming
+# Auto-generated on 2026-01-18 01:27:07
+# EDIT: Add functional scenarios to improve implied coverage
+
+module: hamming
+rtl_file: rtl/common/hamming.sv
+test_file: val/common/test_hamming.py
+
+# Raw Verilator coverage: 29/33 (87.9%)
+
+# Coverage gaps by type:
+#   if_statement: 3 uncovered lines
+#   signal_decl: 1 uncovered lines
+
+# Coverage points
+coverage_points:
+  - line: 147
+    type: input_port
+    covered: True
+    hit_count: 118
+    content: "input  logic [     WIDTH-1:0] data,"
+
+  - line: 148
+    type: output_port
+    covered: True
+    hit_count: 118
+    content: "output logic [TotalWidth-1:0] encoded_data"
+
+  - line: 154
+    type: signal_decl
+    covered: True
+    hit_count: 118
+    content: "logic [TotalWidth-1:0] w_data_with_parity;"
+
+  - line: 158
+    type: other
+    covered: True
+    hit_count: 45788
+    content: "function automatic integer bit_position(input integer k);"
+
+  - line: 160
+    type: other
+    covered: True
+    hit_count: 45788
+    content: "begin"
+
+  - line: 161
+    type: other
+    covered: True
+    hit_count: 45788
+    content: "pos = k + 1;  // Start at k+1 to account for the parity bit at position 0"
+
+  - line: 162
+    type: other
+    covered: True
+    hit_count: 45788
+    content: "for (j = 0; j < ParityBits; j++) begin"
+
+  - line: 163
+    type: if_statement
+    covered: True
+    hit_count: 41855
+    content: "if (pos >= (2 ** j)) pos = pos + 1;"
+
+  - line: 165
+    type: other
+    covered: True
+    hit_count: 45788
+    content: "bit_position = pos - 1;  // Convert back to 0-based index"
+
+  - line: 167
+    type: if_statement
+    covered: False
+    hit_count: 0
+    content: "if (DEBUG != 0) $display("bit_position for data bit %d is %d", k, bit_position);"
+
+  - line: 172
+    type: other
+    covered: True
+    hit_count: 8305
+    content: "function automatic [TotalWidth-1:0] get_covered_bits(input integer parity_bit);"
+
+  - line: 174
+    type: other
+    covered: True
+    hit_count: 8305
+    content: "begin"
+
+  - line: 175
+    type: other
+    covered: True
+    hit_count: 8305
+    content: "get_covered_bits = 'b0;"
+
+  - line: 176
+    type: other
+    covered: True
+    hit_count: 8305
+    content: "for (j = 0; j < TotalWidth; j++) begin"
+
+  - line: 177
+    type: if_statement
+    covered: True
+    hit_count: 69904
+    content: "if (|(((j + 1) >> parity_bit) & 1)) get_covered_bits[j] = 1'b1;"
+
+  - line: 180
+    type: if_statement
+    covered: False
+    hit_count: 0
+    content: "if (DEBUG != 0)"
+
+  - line: 181
+    type: other
+    covered: True
+    hit_count: 8305
+    content: "$display("get_covered_bits for parity bit %d is %b", parity_bit, get_covered_bit"
+
+  - line: 189
+    type: signal_decl
+    covered: False
+    hit_count: 0
+    content: "logic [TotalWidth-1:0] w_covered_bits;"
+
+  - line: 190
+    type: always_comb
+    covered: True
+    hit_count: 1823
+    content: "always_comb begin"
+
+  - line: 192
+    type: other
+    covered: True
+    hit_count: 1823
+    content: "w_data_with_parity = {TotalWidth{1'b0}};"
+
+  - line: 195
+    type: other
+    covered: True
+    hit_count: 1823
+    content: "for (i = 0; i < WIDTH; i++) begin"
+
+  - line: 197
+    type: other
+    covered: True
+    hit_count: 23100
+    content: "w_data_with_parity[bit_position(i)] = data[i];"
+
+  - line: 202
+    type: other
+    covered: True
+    hit_count: 1823
+    content: "for (i = 0; i < ParityBits; i++) begin"
+
+  - line: 203
+    type: other
+    covered: True
+    hit_count: 8305
+    content: "parity_pos = (2 ** i) - 1;"
+
+  - line: 204
+    type: if_statement
+    covered: False
+    hit_count: 0
+    content: "if (DEBUG != 0) $display("Calculate Parity Bits, parity bit position: %d", parit"
+
+  - line: 205
+    type: other
+    covered: True
+    hit_count: 8305
+    content: "w_data_with_parity[parity_pos] = 1'b0;  // Initialize to 0"
+
+  - line: 206
+    type: other
+    covered: True
+    hit_count: 8305
+    content: "w_covered_bits = get_covered_bits(i);"
+
+  - line: 207
+    type: other
+    covered: True
+    hit_count: 8305
+    content: "for (bit_index = 0; bit_index < TotalWidth; bit_index = bit_index + 1) begin"
+
+  - line: 208
+    type: if_statement
+    covered: True
+    hit_count: 69904
+    content: "if (w_covered_bits[bit_index]) begin"
+
+  - line: 209
+    type: other
+    covered: True
+    hit_count: 69904
+    content: "w_data_with_parity[parity_pos] ="
+
+  - line: 210
+    type: other
+    covered: True
+    hit_count: 69904
+    content: "w_data_with_parity[parity_pos] ^ w_data_with_parity[bit_index];"
+
+  - line: 216
+    type: other
+    covered: True
+    hit_count: 1823
+    content: "w_data_with_parity[TotalWidth-1] = ^w_data_with_parity[TotalWidth-2:0];"
+
+  - line: 219
+    type: other
+    covered: True
+    hit_count: 1823
+    content: "encoded_data = w_data_with_parity;"
+
+
+# Functional scenarios - ADD YOUR SCENARIOS HERE
+# Map test scenarios to coverage points
+functional_scenarios:
+  - id: HAM-01
+    name: "Basic encoding"
+    description: "Test Hamming code generation for various data patterns"
+    test_function: "test_basic_encoding"
+    covers_lines: [147, 148, 154, 158, 160, 161, 162, 163, 165, 172, 174, 175, 176, 177, 189, 190, 192, 195, 197, 202, 203, 205, 206, 207, 208, 209, 210, 216, 219]
+    priority: high
+    status: verified
+
+  - id: HAM-02
+    name: "Parity bit calculation"
+    description: "Verify correct parity bit positions and values"
+    test_function: "test_parity_bits"
+    covers_lines: [147, 148, 154, 158, 160, 161, 162, 163, 165, 172, 174, 175, 176, 177, 189, 190, 192, 195, 202, 203, 205, 206, 207, 208, 209, 210, 216, 219]
+    priority: high
+    status: verified
+
+  - id: HAM-03
+    name: "Data bit positioning"
+    description: "Verify data bits placed at correct positions"
+    test_function: "test_data_positioning"
+    covers_lines: [147, 148, 154, 158, 160, 161, 162, 163, 165, 190, 192, 195, 197, 219]
+    priority: high
+    status: verified
+
+  - id: HAM-04
+    name: "Corner cases"
+    description: "Test boundary values (all zeros, all ones)"
+    test_function: "test_corner_cases"
+    covers_lines: [147, 148, 154, 158, 160, 161, 162, 163, 165, 172, 174, 175, 176, 177, 189, 190, 192, 195, 197, 202, 203, 205, 206, 207, 208, 209, 210, 216, 219]
+    priority: medium
+    status: verified
+
+  - id: HAM-05
+    name: "Random patterns"
+    description: "Test random data input patterns"
+    test_function: "test_random_patterns"
+    covers_lines: [147, 148, 154, 158, 160, 161, 162, 163, 165, 172, 174, 175, 176, 177, 189, 190, 192, 195, 197, 202, 203, 205, 206, 207, 208, 209, 210, 216, 219]
+    priority: medium
+    status: verified
+
+# Implied coverage calculation (auto-computed)
+implied_coverage:
+  total_points: 33
+  verilator_covered: 29
+  scenario_covered: 29
+  implied_percentage: 87.9
+
+notes: |
+  Hamming encoder module generates error correction codes.
+  Verilator shows 87.9% due to:
+  - Debug statements (lines 167, 180, 204) not executed (DEBUG=0)
+  - Internal covered_bits signal (line 189) not tracked
+
+  All functional encoding paths verified through test scenarios.
+  Debug code intentionally not covered (requires DEBUG=1).
+  Implied coverage for functional paths: 100%.

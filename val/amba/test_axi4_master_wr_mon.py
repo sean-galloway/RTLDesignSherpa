@@ -25,6 +25,7 @@ import random
 import pytest
 import cocotb
 from cocotb_test.simulator import run
+from conftest import get_coverage_compile_args
 
 from CocoTBFramework.tbclasses.axi4.monitor.axi4_master_monitor_tb import AXI4MasterMonitorTB
 from CocoTBFramework.tbclasses.shared.utilities import get_paths
@@ -386,6 +387,9 @@ def test_axi4_master_wr_mon(id_width, addr_width, data_width, user_width, wstrb_
         "-Wno-UNDRIVEN", "-Wno-WIDTHEXPAND", "-Wno-WIDTHTRUNC",
         "-Wno-SELRANGE", "-Wno-CASEINCOMPLETE", "-Wno-TIMESCALEMOD",
     ]
+
+    # Add coverage compile args if COVERAGE=1
+    compile_args.extend(get_coverage_compile_args())
 
     print(f"\n{'='*80}")
     print(f"AXI4 Master Write Monitor Integration Test")

@@ -24,6 +24,7 @@ import pytest
 import cocotb
 from cocotb.triggers import Timer
 from cocotb_test.simulator import run
+from conftest import get_coverage_compile_args
 
 from CocoTBFramework.tbclasses.shared.utilities import get_paths, create_view_cmd
 from CocoTBFramework.tbclasses.shared.tbbase import TBBase
@@ -155,7 +156,7 @@ class DaddaMultiplierTB(TBBase):
         assert self.fail_count == 0, f"Test failures: {self.fail_count}"
 
 
-@cocotb.test(timeout_time=60, timeout_unit="ms")
+@cocotb.test(timeout_time=300, timeout_unit="ms")
 async def dadda_multiplier_test(dut):
     """Test the Dadda 4:2 multiplier"""
     tb = DaddaMultiplierTB(dut)
@@ -183,9 +184,9 @@ def get_multiplier_params():
         return [
             {'width': 8, 'test_level': 'basic'},
         ]
-    else:  # FULL
+    else:  # FULL - exhaustive testing for 100% coverage
         return [
-            {'width': 8, 'test_level': 'medium'},
+            {'width': 8, 'test_level': 'full'},
         ]
 
 
@@ -245,6 +246,10 @@ def test_math_multiplier_dadda_4to2(request, params):
         "--trace-structs",
         "--trace-depth", "99",
     ]
+
+    # Add coverage compile args if COVERAGE=1
+    compile_args.extend(get_coverage_compile_args())
+
     sim_args = [
         "--trace",
         "--trace-structs",

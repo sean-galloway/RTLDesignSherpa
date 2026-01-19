@@ -34,6 +34,7 @@ import cocotb
 from cocotb.triggers import RisingEdge, Timer, FallingEdge
 from cocotb.utils import get_sim_time
 from cocotb_test.simulator import run
+from conftest import get_coverage_compile_args
 import pytest
 
 from CocoTBFramework.tbclasses.shared.tbbase import TBBase
@@ -574,6 +575,9 @@ def test_axi4_monitor(iw, aw, max_transactions, is_read, is_axi4, test_mode):
         "-Wno-UNDRIVEN", "-Wno-WIDTHEXPAND", "-Wno-WIDTHTRUNC",
         "-Wno-SELRANGE", "-Wno-CASEINCOMPLETE", "-Wno-TIMESCALEMOD",
     ]
+
+    # Add coverage compile args if COVERAGE=1
+    compile_args.extend(get_coverage_compile_args())
 
     print(f"\n{'='*80}")
     print(f"AXI4 Monitor Test: {test_mode}")

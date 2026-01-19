@@ -25,6 +25,7 @@ import random
 import pytest
 import cocotb
 from cocotb_test.simulator import run
+from conftest import get_coverage_compile_args
 
 from CocoTBFramework.tbclasses.axil4.monitor.axil4_slave_monitor_tb import AXIL4SlaveMonitorTB
 from CocoTBFramework.tbclasses.shared.utilities import get_paths
@@ -151,6 +152,16 @@ def test_axil4_slave_rd_mon(test_level):
         'TEST_LEVEL': test_level,
     }
 
+    compile_args = ["-Wno-WIDTH",
+            "-Wno-SELRANGE",
+            "-Wno-CASEINCOMPLETE",
+            "-Wno-BLKANDNBLK",
+            "--timescale", "1ns/1ps",
+    ]
+
+    # Add coverage compile args if COVERAGE=1
+    compile_args.extend(get_coverage_compile_args())
+
     run(
         verilog_sources=verilog_sources,
         toplevel=dut_name,
@@ -162,13 +173,7 @@ def test_axil4_slave_rd_mon(test_level):
         waves=False,  # VCD controlled by compile_args, not cocotb-test
         timescale='1ns/1ps',
         verilator_trace=False,
-        compile_args=[
-            "-Wno-WIDTH",
-            "-Wno-SELRANGE",
-            "-Wno-CASEINCOMPLETE",
-            "-Wno-BLKANDNBLK",
-            "--timescale", "1ns/1ps",
-        ],
+        compile_args=compile_args,
         includes=[rtl_dict['rtl_amba_includes']]
     )
 

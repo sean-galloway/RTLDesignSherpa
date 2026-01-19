@@ -48,6 +48,7 @@ from CocoTBFramework.tbclasses.shared.tbbase import TBBase
 from CocoTBFramework.tbclasses.shared.filelist_utils import get_sources_from_filelist
 from CocoTBFramework.tbclasses.fifo.fifo_buffer import FifoBufferTB
 from CocoTBFramework.tbclasses.shared.utilities import get_paths, create_view_cmd
+from conftest import get_coverage_compile_args
 
 @cocotb.test(timeout_time=3, timeout_unit="ms")  # Increased timeout for comprehensive testing
 async def fifo_test(dut):
@@ -311,6 +312,9 @@ def test_fifo_buffer(request, data_width, depth, wr_clk_period, rd_clk_period, r
         "--trace-structs",
         "--trace-depth", "99",
     ]
+
+    # Add coverage compile args if COVERAGE=1
+    compile_args.extend(get_coverage_compile_args())
 
     if vendor_flag:
         compile_args.append(vendor_flag)

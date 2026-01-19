@@ -1,0 +1,332 @@
+# Testplan for apb_xbar_thin
+# Maps functional test scenarios to Verilator coverage points
+
+module: apb_xbar_thin
+rtl_file: projects/components/apb_xbar/rtl/apb_xbar_thin.sv
+test_file: N/A (GAP - no dedicated test)
+
+# Raw Verilator coverage: TBD
+# Note: This module currently has no dedicated test file.
+
+# Module description:
+# Thin APB crossbar - Minimal overhead parameterized crossbar (MxN).
+# Supports arbitrary number of masters (M) and slaves (S).
+# Address decode based on configurable slave address ranges.
+# Weighted round-robin arbitration per slave.
+
+parameters:
+  - name: M
+    default: 2
+    description: Number of APB masters
+  - name: S
+    default: 4
+    description: Number of APB slaves
+  - name: ADDR_WIDTH
+    default: 32
+    description: Address bus width
+  - name: DATA_WIDTH
+    default: 32
+    description: Data bus width
+  - name: STRB_WIDTH
+    default: DATA_WIDTH/8
+    description: Write strobe width (derived from DATA_WIDTH)
+  - name: MAX_THRESH
+    default: 16
+    description: Maximum threshold for weighted arbiter
+
+# Coverage points
+coverage_points:
+  - line: 39
+    type: input_port
+    content: "input pclk"
+    covered: false
+    hit_count: 0
+
+  - line: 40
+    type: input_port
+    content: "input presetn"
+    covered: false
+    hit_count: 0
+
+  - line: 43
+    type: input_port
+    content: "input SLAVE_ENABLE [S-1:0]"
+    covered: false
+    hit_count: 0
+
+  - line: 45
+    type: input_port
+    content: "input SLAVE_ADDR_BASE [S-1:0][ADDR_WIDTH-1:0]"
+    covered: false
+    hit_count: 0
+
+  - line: 47
+    type: input_port
+    content: "input SLAVE_ADDR_LIMIT [S-1:0][ADDR_WIDTH-1:0]"
+    covered: false
+    hit_count: 0
+
+  - line: 49
+    type: input_port
+    content: "input THRESHOLDS [MXMTW-1:0]"
+    covered: false
+    hit_count: 0
+
+  - line: 52
+    type: input_port
+    content: "input m_apb_psel [M-1:0]"
+    covered: false
+    hit_count: 0
+
+  - line: 53
+    type: input_port
+    content: "input m_apb_penable [M-1:0]"
+    covered: false
+    hit_count: 0
+
+  - line: 54
+    type: input_port
+    content: "input m_apb_pwrite [M-1:0]"
+    covered: false
+    hit_count: 0
+
+  - line: 55
+    type: input_port
+    content: "input m_apb_pprot [M-1:0][2:0]"
+    covered: false
+    hit_count: 0
+
+  - line: 56
+    type: input_port
+    content: "input m_apb_paddr [M-1:0][ADDR_WIDTH-1:0]"
+    covered: false
+    hit_count: 0
+
+  - line: 57
+    type: input_port
+    content: "input m_apb_pwdata [M-1:0][DATA_WIDTH-1:0]"
+    covered: false
+    hit_count: 0
+
+  - line: 58
+    type: input_port
+    content: "input m_apb_pstrb [M-1:0][STRB_WIDTH-1:0]"
+    covered: false
+    hit_count: 0
+
+  - line: 59
+    type: output_port
+    content: "output m_apb_pready [M-1:0]"
+    covered: false
+    hit_count: 0
+
+  - line: 60
+    type: output_port
+    content: "output m_apb_prdata [M-1:0][DATA_WIDTH-1:0]"
+    covered: false
+    hit_count: 0
+
+  - line: 61
+    type: output_port
+    content: "output m_apb_pslverr [M-1:0]"
+    covered: false
+    hit_count: 0
+
+  - line: 64
+    type: output_port
+    content: "output s_apb_psel [S-1:0]"
+    covered: false
+    hit_count: 0
+
+  - line: 65
+    type: output_port
+    content: "output s_apb_penable [S-1:0]"
+    covered: false
+    hit_count: 0
+
+  - line: 66
+    type: output_port
+    content: "output s_apb_pwrite [S-1:0]"
+    covered: false
+    hit_count: 0
+
+  - line: 67
+    type: output_port
+    content: "output s_apb_pprot [S-1:0][2:0]"
+    covered: false
+    hit_count: 0
+
+  - line: 68
+    type: output_port
+    content: "output s_apb_paddr [S-1:0][ADDR_WIDTH-1:0]"
+    covered: false
+    hit_count: 0
+
+  - line: 69
+    type: output_port
+    content: "output s_apb_pwdata [S-1:0][DATA_WIDTH-1:0]"
+    covered: false
+    hit_count: 0
+
+  - line: 70
+    type: output_port
+    content: "output s_apb_pstrb [S-1:0][STRB_WIDTH-1:0]"
+    covered: false
+    hit_count: 0
+
+  - line: 71
+    type: input_port
+    content: "input s_apb_pready [S-1:0]"
+    covered: false
+    hit_count: 0
+
+  - line: 72
+    type: input_port
+    content: "input s_apb_prdata [S-1:0][DATA_WIDTH-1:0]"
+    covered: false
+    hit_count: 0
+
+  - line: 73
+    type: input_port
+    content: "input s_apb_pslverr [S-1:0]"
+    covered: false
+    hit_count: 0
+
+# Functional scenarios (NOT YET VERIFIED - NO TEST FILE)
+functional_scenarios:
+  - id: APB-THIN-01
+    name: "Single master single slave"
+    description: Basic passthrough with M=1, S=1
+    test_function: "N/A"
+    covers_lines: [52, 53, 56, 64, 65, 68]
+    priority: high
+    status: not_verified
+
+  - id: APB-THIN-02
+    name: "Address decode"
+    description: Master selects correct slave based on address
+    test_function: "N/A"
+    covers_lines: [43, 45, 47, 56, 64]
+    priority: high
+    status: not_verified
+
+  - id: APB-THIN-03
+    name: "Weighted round-robin arbitration"
+    description: Multiple masters compete with weighted thresholds
+    test_function: "N/A"
+    covers_lines: [49, 52, 59, 64]
+    priority: high
+    status: not_verified
+
+  - id: APB-THIN-04
+    name: "Slave enable/disable"
+    description: SLAVE_ENABLE masks unused slaves
+    test_function: "N/A"
+    covers_lines: [43, 64]
+    priority: medium
+    status: not_verified
+
+  - id: APB-THIN-05
+    name: "Configurable address ranges"
+    description: SLAVE_ADDR_BASE and LIMIT set per-slave ranges
+    test_function: "N/A"
+    covers_lines: [45, 47, 56]
+    priority: high
+    status: not_verified
+
+  - id: APB-THIN-06
+    name: "Backpressure handling"
+    description: Slave PREADY=0 delays transaction
+    test_function: "N/A"
+    covers_lines: [59, 71]
+    priority: high
+    status: not_verified
+
+  - id: APB-THIN-07
+    name: "Error propagation"
+    description: PSLVERR from slave to master
+    test_function: "N/A"
+    covers_lines: [61, 73]
+    priority: high
+    status: not_verified
+
+  - id: APB-THIN-08
+    name: "Data integrity"
+    description: PRDATA routed correctly from slave to master
+    test_function: "N/A"
+    covers_lines: [60, 72]
+    priority: high
+    status: not_verified
+
+  - id: APB-THIN-09
+    name: "PSTRB and PPROT propagation"
+    description: Write strobes and protection bits passed through
+    test_function: "N/A"
+    covers_lines: [55, 58, 67, 70]
+    priority: medium
+    status: not_verified
+
+  - id: APB-THIN-10
+    name: "Reset handling"
+    description: Reset clears arbiter and decode state
+    test_function: "N/A"
+    covers_lines: [40]
+    priority: high
+    status: not_verified
+
+# Parameter combinations (not tested yet)
+parameter_coverage:
+  - M: 2
+    S: 4
+    ADDR_WIDTH: 32
+    DATA_WIDTH: 32
+    MAX_THRESH: 16
+    test_level: basic
+    status: not_verified
+
+  - M: 10
+    S: 10
+    ADDR_WIDTH: 32
+    DATA_WIDTH: 32
+    MAX_THRESH: 16
+    test_level: medium
+    status: not_verified
+
+# Implied coverage calculation
+implied_coverage:
+  total_points: 26
+  verilator_tracked: 0
+  scenario_tracked: 0
+  implied_covered: 0
+  implied_percentage: 0.0
+
+notes: |
+  GAP: apb_xbar_thin currently has NO dedicated test file.
+
+  This is the minimal-overhead variant of the APB crossbar with:
+  - Parameterized MxN configuration
+  - Configurable per-slave address ranges (SLAVE_ADDR_BASE/LIMIT)
+  - Weighted round-robin arbitration (THRESHOLDS parameter)
+  - Slave enable/disable (SLAVE_ENABLE)
+
+  Key differences from standard crossbars:
+  - Packed array interfaces ([M-1:0], [S-1:0])
+  - Configurable address decode (not fixed 64KB offsets)
+  - Weighted arbitration (not simple round-robin)
+  - Lower resource usage (~30% reduction)
+
+  Wrappers using this core:
+  - apb_xbar_thin_wrap_m10_s10.sv (10x10 configuration)
+
+  Testing recommendations:
+  1. Create test_apb_xbar_thin.py
+  2. Test M=1,S=1 (passthrough)
+  3. Test M=2,S=1 (arbitration)
+  4. Test M=1,S=4 (address decode)
+  5. Test M=2,S=4 (full crossbar)
+  6. Test M=10,S=10 (large configuration)
+  7. Test weighted arbitration thresholds
+  8. Test configurable address ranges
+  9. Test slave enable/disable
+
+  Until testing is complete, implied coverage is 0%.

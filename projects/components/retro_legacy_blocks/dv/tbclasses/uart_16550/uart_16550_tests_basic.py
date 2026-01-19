@@ -41,6 +41,7 @@ class UART16550BasicTests:
 
     async def test_register_access(self) -> bool:
         """Test basic register read/write access."""
+        self.log.info("=== Scenario UART-01: Register Access ===")
         self.log.info("Testing register access...")
         passed = True
 
@@ -104,6 +105,7 @@ class UART16550BasicTests:
 
     async def test_baud_divisor(self) -> bool:
         """Test baud rate divisor configuration."""
+        self.log.info("=== Scenario UART-02: Baud Rate Configuration ===")
         self.log.info("Testing baud divisor configuration...")
         passed = True
 
@@ -144,6 +146,7 @@ class UART16550BasicTests:
 
     async def test_line_control(self) -> bool:
         """Test line control configuration."""
+        self.log.info("=== Scenario UART-10: Data Bits Configuration ===")
         self.log.info("Testing line control configuration...")
         passed = True
 
@@ -183,6 +186,7 @@ class UART16550BasicTests:
 
     async def test_fifo_enable(self) -> bool:
         """Test FIFO enable and reset."""
+        self.log.info("=== Scenario UART-05: FIFO Enable ===")
         self.log.info("Testing FIFO enable...")
         passed = True
 
@@ -222,6 +226,7 @@ class UART16550BasicTests:
 
     async def test_loopback_mode(self) -> bool:
         """Test internal loopback mode."""
+        self.log.info("=== Scenario UART-06: Loopback Mode ===")
         self.log.info("Testing loopback mode...")
         passed = True
 
@@ -322,6 +327,7 @@ class UART16550BasicTests:
 
     async def test_modem_control(self) -> bool:
         """Test modem control register outputs."""
+        self.log.info("=== Scenario UART-12: Modem Control ===")
         self.log.info("Testing modem control outputs...")
         passed = True
 
@@ -375,6 +381,7 @@ class UART16550BasicTests:
 
     async def test_line_status(self) -> bool:
         """Test line status register."""
+        self.log.info("=== Scenario UART-13: Line Status Register ===")
         self.log.info("Testing line status register...")
         passed = True
 

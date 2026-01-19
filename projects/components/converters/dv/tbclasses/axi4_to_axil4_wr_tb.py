@@ -293,6 +293,7 @@ class AXI4ToAXIL4WriteTB(TBBase):
         self.log.info("=" * 80)
         self.log.info("BASIC WRITE BURST TEST SUITE")
         self.log.info("=" * 80)
+        self.log.info("=== Scenarios AXI2AXIL-WR-01,02,03: Single write passthrough, burst decomposition, ID preservation ===")
 
         success = True
 
@@ -315,6 +316,7 @@ class AXI4ToAXIL4WriteTB(TBBase):
         self.log.info("=" * 80)
         self.log.info("MEDIUM WRITE BURST TEST SUITE")
         self.log.info("=" * 80)
+        self.log.info("=== Scenarios AXI2AXIL-WR-04,05,06,08,09: WSTRB, BRESP, AW/W coordination, FIXED/INCR bursts ===")
 
         success = True
 
@@ -335,6 +337,7 @@ class AXI4ToAXIL4WriteTB(TBBase):
         self.log.info("=" * 80)
         self.log.info("FULL WRITE BURST TEST SUITE")
         self.log.info("=" * 80)
+        self.log.info("=== Scenario AXI2AXIL-WR-07: Write state machine comprehensive coverage ===")
 
         success = True
 

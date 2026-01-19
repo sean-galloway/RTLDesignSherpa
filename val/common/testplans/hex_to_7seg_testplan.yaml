@@ -1,0 +1,218 @@
+# Testplan for hex_to_7seg
+# Maps functional test scenarios to Verilator coverage points
+
+module: hex_to_7seg
+rtl_file: rtl/common/hex_to_7seg.sv
+test_file: val/common/test_hex_to_7seg.py
+
+# Raw Verilator coverage: 2/21 (9.5%)
+# Verilator limitation: always_comb case statements not tracked
+
+# Coverage points from annotated file
+# Note: Lines 36-54 (case branches) show %000000 due to Verilator limitation
+coverage_points:
+  - line: 21
+    type: input_port
+    content: "input [3:0] hex"
+    tracked_by: toggle_coverage
+
+  - line: 22
+    type: output_port
+    content: "output logic [6:0] seg"
+    tracked_by: toggle_coverage
+
+  - line: 36
+    type: always_comb
+    content: "always_comb begin"
+    tracked_by: functional_scenario
+
+  - line: 37
+    type: case_statement
+    content: "casez (hex)"
+    tracked_by: functional_scenario
+
+  # Case branches - Verilator doesn't track these
+  - line: 38
+    type: case_branch
+    content: "4'h0: seg = 7'b1000000"
+    tracked_by: functional_scenario
+
+  - line: 39
+    type: case_branch
+    content: "4'h1: seg = 7'b1111001"
+    tracked_by: functional_scenario
+
+  - line: 40
+    type: case_branch
+    content: "4'h2: seg = 7'b0100100"
+    tracked_by: functional_scenario
+
+  - line: 41
+    type: case_branch
+    content: "4'h3: seg = 7'b0110000"
+    tracked_by: functional_scenario
+
+  - line: 42
+    type: case_branch
+    content: "4'h4: seg = 7'b0011001"
+    tracked_by: functional_scenario
+
+  - line: 43
+    type: case_branch
+    content: "4'h5: seg = 7'b0010010"
+    tracked_by: functional_scenario
+
+  - line: 44
+    type: case_branch
+    content: "4'h6: seg = 7'b0000010"
+    tracked_by: functional_scenario
+
+  - line: 45
+    type: case_branch
+    content: "4'h7: seg = 7'b1111000"
+    tracked_by: functional_scenario
+
+  - line: 46
+    type: case_branch
+    content: "4'h8: seg = 7'b0000000"
+    tracked_by: functional_scenario
+
+  - line: 47
+    type: case_branch
+    content: "4'h9: seg = 7'b0011000"
+    tracked_by: functional_scenario
+
+  - line: 48
+    type: case_branch
+    content: "4'ha: seg = 7'b0001000"
+    tracked_by: functional_scenario
+
+  - line: 49
+    type: case_branch
+    content: "4'hb: seg = 7'b0000011"
+    tracked_by: functional_scenario
+
+  - line: 50
+    type: case_branch
+    content: "4'hc: seg = 7'b1000110"
+    tracked_by: functional_scenario
+
+  - line: 51
+    type: case_branch
+    content: "4'hd: seg = 7'b0100001"
+    tracked_by: functional_scenario
+
+  - line: 52
+    type: case_branch
+    content: "4'he: seg = 7'b0000110"
+    tracked_by: functional_scenario
+
+  - line: 53
+    type: case_branch
+    content: "4'hf: seg = 7'b0001110"
+    tracked_by: functional_scenario
+
+  - line: 54
+    type: case_branch
+    content: "default: seg = 7'bxxxxxxx"
+    tracked_by: functional_scenario
+
+# Functional scenarios that exercise the coverage points
+functional_scenarios:
+  - id: S1
+    name: "Test all 16 hex digits"
+    description: |
+      Tests all hex input values 0x0 through 0xF exhaustively.
+      Each input value is checked against expected 7-segment pattern.
+      This exercises ALL 16 case branches.
+    test_function: "test_all_hex_values"
+    test_file: "val/common/test_hex_to_7seg.py"
+    covers_lines: [36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52, 53]
+    verification_method: "exhaustive"
+    status: verified
+
+  - id: S2
+    name: "Input toggle coverage"
+    description: |
+      All 4 input bits toggle from 0 to 1 and 1 to 0 during S1.
+      Values tested include: 0x0, 0x5, 0xA, 0xF which cover all bit patterns.
+    test_function: "test_all_hex_values"
+    test_file: "val/common/test_hex_to_7seg.py"
+    covers_lines: [21]
+    verification_method: "toggle"
+    status: verified
+
+  - id: S3
+    name: "Output toggle coverage"
+    description: |
+      All 7 output segment bits toggle during S1.
+      - Segment a: toggles between 0x0 (on) and 0x1 (off)
+      - Segment b: toggles between 0x0 (on) and 0x5 (off)
+      - All segments: 0x8 turns all on, patterns vary
+    test_function: "test_all_hex_values"
+    test_file: "val/common/test_hex_to_7seg.py"
+    covers_lines: [22]
+    verification_method: "toggle"
+    status: verified
+
+  - id: S4
+    name: "Default case handling"
+    description: |
+      Tests behavior for invalid inputs. However, with 4-bit input,
+      all values 0x0-0xF are valid. The default case is unreachable
+      with a 4-bit input signal.
+    test_function: "N/A"
+    covers_lines: [54]
+    verification_method: "code_analysis"
+    status: not_applicable
+    notes: "Default case unreachable with 4-bit input - all values valid"
+
+  - id: S5
+    name: "Repeated input consistency"
+    description: |
+      Tests that repeated inputs produce consistent outputs.
+      Each hex value is tested multiple times to verify
+      combinational logic stability.
+    test_function: "test_repeated_inputs"
+    test_file: "val/common/test_hex_to_7seg.py"
+    covers_lines: [36, 37]
+    verification_method: "consistency"
+    status: verified
+
+  - id: S6
+    name: "Timing characteristics"
+    description: |
+      Tests rapid input changes and verifies output settles correctly.
+      Exercises combinational path timing.
+    test_function: "test_timing_characteristics"
+    test_file: "val/common/test_hex_to_7seg.py"
+    covers_lines: [36, 37]
+    verification_method: "timing"
+    status: verified
+    test_level_required: "full"
+
+# Implied coverage calculation
+implied_coverage:
+  total_points: 21
+  verilator_tracked: 2        # Only ports (toggle coverage)
+  scenario_tracked: 19        # Case branches via functional scenarios
+  not_applicable: 1           # Default case unreachable
+  implied_covered: 20         # Total implied covered
+  implied_percentage: 95.2    # 20/21
+
+# Coverage analysis notes
+notes: |
+  This module demonstrates the Verilator coverage limitation with
+  combinational always_comb blocks. Verilator shows only 9.5% coverage
+  (2/21 lines) because it cannot track case statement branches in
+  combinational logic.
+
+  However, the test_all_hex_values test EXHAUSTIVELY tests all 16
+  hex input values, verifying each case branch produces the correct
+  7-segment output pattern. This functional coverage is 100%.
+
+  The default case (line 54) is marked not_applicable because with
+  a 4-bit input, all values 0-15 are valid hex digits - there are
+  no invalid inputs that would trigger the default case.
+
+  Implied coverage: 95.2% (20/21 points covered, 1 not applicable)

@@ -48,6 +48,7 @@ from cocotb_test.simulator import run
 
 # Add repo root to path for CocoTBFramework imports
 from CocoTBFramework.tbclasses.shared.tbbase import TBBase
+from conftest import get_coverage_compile_args
 from CocoTBFramework.tbclasses.shared.filelist_utils import get_sources_from_filelist
 from CocoTBFramework.tbclasses.shared.utilities import get_paths, create_view_cmd
 
@@ -658,15 +659,29 @@ class CounterFreqInvariantTB(TBBase):
         """
         self.log.info("=== Testing frequency sweep (microsecond timing) ===")
 
-        # Test a representative set of frequencies
-        test_frequencies = [
-            0,   # 100MHz
-            15,  # 200MHz
-            31,  # 500MHz
-            47,  # 1000MHz (1GHz)
-            57,  # 1500MHz
-            67,  # 2000MHz (2GHz)
-        ]
+        # Determine test level from environment
+        test_level = os.environ.get('TEST_LEVEL', 'basic').lower()
+
+        # Select frequencies based on test level
+        if test_level == 'full' or test_level == 'exhaustive':
+            # FULL/EXHAUSTIVE: Test all 68 frequencies for 100% coverage
+            test_frequencies = list(range(68))
+            self.log.info(f"FULL level: testing all {len(test_frequencies)} frequencies")
+        elif test_level == 'medium':
+            # MEDIUM: Test every 4th frequency (17 frequencies)
+            test_frequencies = list(range(0, 68, 4))
+            self.log.info(f"MEDIUM level: testing {len(test_frequencies)} frequencies")
+        else:
+            # BASIC/GATE: Test representative set of frequencies
+            test_frequencies = [
+                0,   # 100MHz
+                15,  # 200MHz
+                31,  # 500MHz
+                47,  # 1000MHz (1GHz)
+                57,  # 1500MHz
+                67,  # 2000MHz (2GHz)
+            ]
+            self.log.info(f"BASIC level: testing {len(test_frequencies)} frequencies")
 
         all_passed = True
 
@@ -909,11 +924,16 @@ def test_counter_freq_invariant_enhanced(request, counter_width):
         "PRESCALER_MAX": "2048"  # Support up to 2GHz
     }
 
+    # Determine test level based on REG_LEVEL
+    test_level_map = {'GATE': 'basic', 'FUNC': 'basic', 'FULL': 'full'}
+    test_level = test_level_map.get(reg_level, 'basic')
+
     # Environment variables
     extra_env = {
         'TRACE_FILE': f"{sim_build}/dump.vcd",
         'VERILATOR_TRACE': '1',  # Enable tracing
         'TEST_COUNTER_WIDTH': str(counter_width),
+        'TEST_LEVEL': test_level,
         'DUT': dut_name,
         'LOG_PATH': log_path,
         'COCOTB_LOG_LEVEL': 'INFO',
@@ -929,6 +949,9 @@ def test_counter_freq_invariant_enhanced(request, counter_width):
         "--trace-structs",
         "--trace-depth", "99",
     ]
+
+    # Add coverage compile args if COVERAGE=1
+    compile_args.extend(get_coverage_compile_args())
     sim_args = [
         "--trace",  # VCD waveform format
         "--trace-structs",

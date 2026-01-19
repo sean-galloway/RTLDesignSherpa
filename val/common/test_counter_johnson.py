@@ -63,6 +63,7 @@ from cocotb_test.simulator import run
 
 # Add repo root to path for CocoTBFramework imports
 from CocoTBFramework.tbclasses.shared.tbbase import TBBase
+from conftest import get_coverage_compile_args
 from CocoTBFramework.tbclasses.shared.filelist_utils import get_sources_from_filelist
 from CocoTBFramework.tbclasses.shared.utilities import get_paths, create_view_cmd
 
@@ -761,6 +762,9 @@ def test_counter_johnson(request, width, test_level):
         "--trace-structs",
         "--trace-depth", "99",
     ]
+
+    # Add coverage compile args if COVERAGE=1
+    compile_args.extend(get_coverage_compile_args())
     sim_args = [
         "--trace",  # VCD waveform format
         "--trace-structs",

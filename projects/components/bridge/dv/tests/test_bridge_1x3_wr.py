@@ -55,6 +55,14 @@ async def cocotb_test_basic_connectivity(dut):
     tb.log.info(f"Configuration: 1M x 3S, WR channels")
     tb.log.info("=" * 80)
 
+    tb.log.info("=== Scenario BRIDGE-1x3-01: Three-way address routing ===")
+    tb.log.info("=== Scenario BRIDGE-1x3-02: Write channel routing ===")
+    tb.log.info("=== Scenario BRIDGE-1x3-03: Transaction ID preservation ===")
+    tb.log.info("=== Scenario BRIDGE-1x3-04: Sequential slave access ===")
+    tb.log.info("=== Scenario BRIDGE-1x3-06: Backpressure per slave ===")
+    tb.log.info("=== Scenario BRIDGE-1x3-07: Response codes from all slaves ===")
+    tb.log.info("=== Scenario BRIDGE-1x3-08: Burst transactions to all slaves ===")
+
     # Write connectivity test
     tb.log.info(f"Testing master 0 (cpu_wr) write connectivity")
 
@@ -167,7 +175,11 @@ async def cocotb_test_address_decode(dut):
 
     tb.log.info("=" * 80)
     tb.log.info("Starting address decode test")
-    tb.log.info("=" * 80)    # Master 0: cpu_wr
+    tb.log.info("=" * 80)
+
+    tb.log.info("=== Scenario BRIDGE-1x3-05: Address decode boundaries ===")
+
+    # Master 0: cpu_wr
     tb.log.info(f"Testing master 0 address decode")
     # Slave 0: periph_wr
     # Range: 0x00000000 - 0x0fffffff

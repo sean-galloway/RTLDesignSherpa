@@ -1,0 +1,368 @@
+module: gaxi_skid_buffer
+rtl_file: rtl/amba/gaxi/gaxi_skid_buffer.sv
+test_file: val/amba/test_gaxi_skid_buffer.py
+parameters:
+- name: DATA_WIDTH
+  default: 32
+  description: Payload width in bits
+- name: DEPTH
+  default: 2
+  description: Buffer depth (1-16)
+- name: INSTANCE_NAME
+  default: SKID
+  description: Debug identifier string
+functional_scenarios:
+- id: SKID-01
+  name: Passthrough
+  description: rd_ready always high - zero latency operation
+  test_function: test_passthrough
+  covers_lines:
+  - 60
+  - 61
+  - 62
+  - 63
+  - 64
+  - 65
+  priority: high
+  status: verified
+- id: SKID-02
+  name: Buffer fill
+  description: rd_ready low - buffer fills up
+  test_function: test_buffer_fill
+  covers_lines:
+  - 60
+  - 61
+  - 62
+  - 63
+  - 64
+  - 65
+  - 70
+  - 71
+  priority: high
+  status: verified
+- id: SKID-03
+  name: Buffer drain
+  description: wr_valid low - buffer drains down
+  test_function: test_buffer_drain
+  covers_lines:
+  - 60
+  - 61
+  - 62
+  - 63
+  - 64
+  - 65
+  - 70
+  - 71
+  priority: high
+  status: verified
+- id: SKID-04
+  name: Simultaneous
+  description: Write and read same cycle
+  test_function: test_simultaneous
+  covers_lines:
+  - 60
+  - 61
+  - 62
+  - 63
+  - 64
+  - 65
+  priority: high
+  status: verified
+- id: SKID-05
+  name: Full buffer
+  description: Fill to DEPTH capacity
+  test_function: test_full_buffer
+  covers_lines:
+  - 60
+  - 61
+  - 62
+  - 70
+  - 71
+  - 75
+  priority: high
+  status: verified
+- id: SKID-06
+  name: Empty buffer
+  description: Drain to 0 entries
+  test_function: test_empty_buffer
+  covers_lines:
+  - 60
+  - 61
+  - 62
+  - 70
+  - 71
+  - 76
+  priority: high
+  status: verified
+- id: SKID-10
+  name: wr_valid waits
+  description: Valid asserted before ready
+  test_function: test_wr_valid_waits
+  covers_lines:
+  - 60
+  - 61
+  - 62
+  priority: high
+  status: verified
+- id: SKID-11
+  name: wr_ready waits
+  description: Ready asserted before valid
+  test_function: test_wr_ready_waits
+  covers_lines:
+  - 60
+  - 61
+  - 62
+  priority: high
+  status: verified
+- id: SKID-12
+  name: rd_valid waits
+  description: Valid waits for ready on output
+  test_function: test_rd_valid_waits
+  covers_lines:
+  - 63
+  - 64
+  - 65
+  priority: high
+  status: verified
+- id: SKID-13
+  name: rd_ready toggle
+  description: Bursty consumption with ready toggling
+  test_function: test_rd_ready_toggle
+  covers_lines:
+  - 63
+  - 64
+  - 65
+  priority: high
+  status: verified
+- id: SKID-14
+  name: Back-to-back
+  description: No idle cycles - continuous transfers
+  test_function: test_back_to_back
+  covers_lines:
+  - 60
+  - 61
+  - 62
+  - 63
+  - 64
+  - 65
+  priority: high
+  status: verified
+- id: SKID-20
+  name: DEPTH=1
+  description: Minimum depth configuration
+  test_function: test_depth_1
+  covers_lines:
+  - 60
+  - 61
+  - 62
+  - 70
+  - 71
+  - 75
+  priority: high
+  status: verified
+- id: SKID-21
+  name: DEPTH=2
+  description: Default depth configuration
+  test_function: test_depth_2
+  covers_lines:
+  - 60
+  - 61
+  - 62
+  - 70
+  - 71
+  - 75
+  priority: high
+  status: verified
+- id: SKID-22
+  name: DEPTH=4
+  description: Moderate depth configuration
+  test_function: test_depth_4
+  covers_lines:
+  - 60
+  - 61
+  - 62
+  - 70
+  - 71
+  - 75
+  priority: medium
+  status: verified
+- id: SKID-23
+  name: DEPTH=8
+  description: Large depth configuration
+  test_function: test_depth_8
+  covers_lines:
+  - 60
+  - 61
+  - 62
+  - 70
+  - 71
+  - 75
+  priority: medium
+  status: verified
+- id: SKID-24
+  name: Count accuracy
+  description: Verify count signal reflects fill level
+  test_function: test_count_accuracy
+  covers_lines:
+  - 70
+  - 71
+  priority: high
+  status: verified
+- id: SKID-30
+  name: Reset during full
+  description: Reset asserted when buffer is full
+  test_function: test_reset_during_full
+  covers_lines:
+  - 60
+  - 70
+  - 75
+  priority: high
+  status: verified
+- id: SKID-31
+  name: Reset during transfer
+  description: Reset mid-transaction
+  test_function: test_reset_during_transfer
+  covers_lines:
+  - 60
+  - 61
+  - 70
+  priority: high
+  status: verified
+- id: SKID-32
+  name: Overflow attempt
+  description: Write when buffer full (should block)
+  test_function: test_overflow_attempt
+  covers_lines:
+  - 60
+  - 61
+  - 75
+  priority: high
+  status: verified
+- id: SKID-33
+  name: Underflow attempt
+  description: Read when buffer empty (should block)
+  test_function: test_underflow_attempt
+  covers_lines:
+  - 63
+  - 64
+  - 76
+  priority: high
+  status: verified
+- id: SKID-34
+  name: Rapid toggle
+  description: Fast valid/ready signal changes
+  test_function: test_rapid_toggle
+  covers_lines:
+  - 60
+  - 61
+  - 62
+  - 63
+  - 64
+  - 65
+  priority: medium
+  status: verified
+- id: SKID-40
+  name: Data integrity
+  description: Verify data unchanged through buffer
+  test_function: test_data_integrity
+  covers_lines:
+  - 62
+  - 65
+  priority: high
+  status: verified
+- id: SKID-41
+  name: Wide data
+  description: DATA_WIDTH=128 or larger
+  test_function: test_wide_data
+  covers_lines:
+  - 62
+  - 65
+  priority: medium
+  status: verified
+- id: SKID-42
+  name: Narrow data
+  description: DATA_WIDTH=8 or smaller
+  test_function: test_narrow_data
+  covers_lines:
+  - 62
+  - 65
+  priority: medium
+  status: verified
+- id: SKID-50
+  name: Random pattern
+  description: Random valid/ready patterns
+  test_function: test_random_pattern
+  covers_lines:
+  - 60
+  - 61
+  - 62
+  - 63
+  - 64
+  - 65
+  - 70
+  - 71
+  priority: medium
+  status: verified
+- id: SKID-51
+  name: Long burst
+  description: Extended burst transfer (1000+ beats)
+  test_function: test_long_burst
+  covers_lines:
+  - 60
+  - 61
+  - 62
+  - 63
+  - 64
+  - 65
+  priority: medium
+  status: verified
+- id: SKID-52
+  name: Cyclic fill/drain
+  description: Repeated fill and drain cycles
+  test_function: test_cyclic_fill_drain
+  covers_lines:
+  - 60
+  - 61
+  - 62
+  - 63
+  - 64
+  - 65
+  - 70
+  - 71
+  - 75
+  - 76
+  priority: medium
+  status: verified
+parameter_coverage:
+- DATA_WIDTH: 32
+  DEPTH: 2
+  test_level: basic
+  status: verified
+- DATA_WIDTH: 128
+  DEPTH: 2
+  test_level: medium
+  status: verified
+- DATA_WIDTH: 32
+  DEPTH: 8
+  test_level: medium
+  status: verified
+- DATA_WIDTH: 8
+  DEPTH: 1
+  test_level: basic
+  status: verified
+- DATA_WIDTH: 64
+  DEPTH: 4
+  test_level: medium
+  status: verified
+- DATA_WIDTH: 512
+  DEPTH: 16
+  test_level: full
+  status: verified
+notes: "gaxi_skid_buffer is the most critical GAXI utility module.\nUsed throughout AMBA infrastructure for pipelining and\
+  \ buffering.\n\nArchitecture:\n  wr_valid/wr_ready/wr_data -> [BUFFER] -> rd_valid/rd_ready/rd_data\n                  \
+  \                 |\n                                count (fill level)\n\nKey features:\n- Configurable depth (1-16 entries)\n\
+  - Zero-latency passthrough when rd_ready high\n- Accurate count signal for monitoring\n- Full/empty detection\n- Data integrity\
+  \ preservation\n\nAll master/slave modules instantiate this, so achieving 95% coverage\non gaxi_skid_buffer provides foundational\
+  \ coverage for entire AMBA subsystem.\n\nCritical paths verified:\n- Passthrough (zero latency)\n- Buffering (backpressure\
+  \ handling)\n- Full/empty conditions\n- Simultaneous read/write\n- Data integrity across all widths\n- Reset behavior in\
+  \ all states\n"

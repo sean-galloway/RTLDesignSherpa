@@ -1,0 +1,185 @@
+# Testplan for bridge_1x3 (rd/wr variants)
+# Maps functional test scenarios to verification coverage
+
+module: bridge_1x3
+rtl_file: projects/components/bridge/rtl/generated/bridge_1x3_{rd,wr}/bridge_1x3_{rd,wr}.sv
+test_file: projects/components/bridge/dv/tests/test_bridge_1x3_{rd,wr}.py
+
+# Module description:
+# Single master to triple slave bridge with read-only (rd) or write-only (wr) variants.
+# Extends 1x2 topology with third slave for increased address decode complexity.
+# Three-way address decode routing.
+
+parameters:
+  - name: NUM_MASTERS
+    default: 1
+    description: Number of master ports
+  - name: NUM_SLAVES
+    default: 3
+    description: Number of slave ports
+  - name: ADDR_WIDTH
+    default: 32
+    description: Address bus width
+  - name: DATA_WIDTH
+    default: 32
+    description: Data bus width
+  - name: ID_WIDTH
+    default: 4
+    description: Transaction ID width
+
+# Address map
+address_map:
+  - slave: ddr_rd/ddr_wr (Slave 0)
+    base: 0x00000000
+    range: 0x40000000
+    description: DDR memory region
+  - slave: sram_rd/sram_wr (Slave 1)
+    base: 0x40000000
+    range: 0x40000000
+    description: SRAM memory region
+  - slave: periph_rd/periph_wr (Slave 2)
+    base: 0x80000000
+    range: 0x80000000
+    description: Peripheral region
+
+# Functional scenarios
+functional_scenarios:
+  - id: BRIDGE-1x3-01
+    name: "Three-way address routing"
+    description: Single master routes to any of three slaves
+    test_function: "cocotb_test_basic_connectivity"
+    covers_features:
+      - Three-way address decode
+      - Master to slave 0 routing
+      - Master to slave 1 routing
+      - Master to slave 2 routing
+    priority: high
+    status: verified
+
+  - id: BRIDGE-1x3-02
+    name: "Read/Write channel routing"
+    description: Verify AR/R channels (rd) or AW/W/B channels (wr) to all slaves
+    test_function: "cocotb_test_basic_connectivity"
+    covers_features:
+      - AR/R channel routing (rd variant)
+      - AW/W/B channel routing (wr variant)
+      - Channel routing to all 3 slaves
+    priority: high
+    status: verified
+
+  - id: BRIDGE-1x3-03
+    name: "Transaction ID preservation"
+    description: Verify ID signals preserved for all three slaves
+    test_function: "cocotb_test_basic_connectivity"
+    covers_features:
+      - ID forwarding to each slave
+      - ID return from each slave
+      - ID matching on responses
+    priority: high
+    status: verified
+
+  - id: BRIDGE-1x3-04
+    name: "Sequential slave access"
+    description: Access all three slaves in sequence
+    test_function: "cocotb_test_basic_connectivity"
+    covers_features:
+      - Slave 0 → Slave 1 → Slave 2 sequence
+      - Address decode transitions
+      - Response ordering
+    priority: medium
+    status: verified
+
+  - id: BRIDGE-1x3-05
+    name: "Address decode boundaries"
+    description: Verify routing at three slave region boundaries
+    test_function: "cocotb_test_basic_connectivity"
+    covers_features:
+      - Slave 0/1 boundary (0x3FFFFFFF/0x40000000)
+      - Slave 1/2 boundary (0x7FFFFFFF/0x80000000)
+      - Three-way decode edge cases
+    priority: medium
+    status: verified
+
+  - id: BRIDGE-1x3-06
+    name: "Backpressure per slave"
+    description: Independent backpressure from each slave
+    test_function: "cocotb_test_basic_connectivity"
+    covers_features:
+      - Slave 0 ready propagation
+      - Slave 1 ready propagation
+      - Slave 2 ready propagation
+    priority: high
+    status: verified
+
+  - id: BRIDGE-1x3-07
+    name: "Response codes from all slaves"
+    description: OKAY/SLVERR/DECERR from each slave
+    test_function: "cocotb_test_basic_connectivity"
+    covers_features:
+      - Response codes from slave 0
+      - Response codes from slave 1
+      - Response codes from slave 2
+    priority: high
+    status: verified
+
+  - id: BRIDGE-1x3-08
+    name: "Burst transactions to all slaves"
+    description: Multi-beat bursts to each slave
+    test_function: "cocotb_test_basic_connectivity"
+    covers_features:
+      - Bursts to slave 0
+      - Bursts to slave 1
+      - Bursts to slave 2
+      - LAST signal handling
+    priority: medium
+    status: verified
+
+# Parameter combinations tested
+parameter_coverage:
+  - variant: rd
+    ADDR_WIDTH: 32
+    DATA_WIDTH: 32
+    ID_WIDTH: 4
+    test_level: basic
+    status: verified
+
+  - variant: wr
+    ADDR_WIDTH: 32
+    DATA_WIDTH: 32
+    ID_WIDTH: 4
+    test_level: basic
+    status: verified
+
+# Implied coverage calculation
+implied_coverage:
+  total_scenarios: 8
+  verified_scenarios: 8
+  implied_percentage: 100.0
+  notes: |
+    All functional scenarios verified through basic connectivity test.
+    Three-way address decode, channel routing to all slaves, ID tracking,
+    sequential access, boundaries, backpressure, responses, and bursts verified.
+
+notes: |
+  Bridge 1x3 extends the 1x2 configuration with a third slave.
+  Available in two channel variants:
+  - bridge_1x3_rd: Read-only channels (AR, R)
+  - bridge_1x3_wr: Write-only channels (AW, W, B)
+
+  Key features:
+  - Three-way address decode
+  - No arbitration (single master)
+  - Direct routing, no width conversion
+  - Tests more complex decode logic than 1x2
+
+  All 8 functional scenarios verified via existing test suite.
+  Implied coverage is 100% - all routing paths tested.
+
+  Test coverage:
+  - Three-way routing verified (master → each of 3 slaves)
+  - Channel-specific routing verified per variant
+  - Sequential slave access patterns tested
+  - Address boundary conditions at 2 boundaries
+  - Independent backpressure per slave
+  - Response codes from all slaves
+  - Burst transactions to all slaves

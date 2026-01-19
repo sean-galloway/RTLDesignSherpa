@@ -24,6 +24,25 @@ sys.path.insert(0, repo_root)
 
 from projects.components.stream.dv.tbclasses.datapath_wr_test_tb import DatapathWrTestTB
 
+# Coverage integration - optional import
+try:
+    from projects.components.stream.dv.stream_coverage import (
+        CoverageHelper,
+        get_coverage_compile_args,
+        get_coverage_env
+    )
+    COVERAGE_AVAILABLE = True
+except ImportError:
+    COVERAGE_AVAILABLE = False
+
+    def get_coverage_compile_args():
+        """Stub when coverage not available."""
+        return []
+
+    def get_coverage_env(test_name, sim_build=None):
+        """Stub when coverage not available."""
+        return {}
+
 
 #=============================================================================
 # CocoTB Test Function - Single test that handles all variants
@@ -727,6 +746,10 @@ def test_datapath_wr(request, test_type, data_width, num_channels, sram_depth, t
         'NOSTRESS_MODE': '1' if test_type == 'nostress' else '0',  # Enable nostress mode for nostress test
     }
 
+    # Add coverage environment variables if coverage is enabled
+    coverage_env = get_coverage_env(test_name_plus_params, sim_build=sim_build)
+    extra_env.update(coverage_env)
+
     # WAVES support
     enable_waves = bool(int(os.environ.get('WAVES', '0')))
     if enable_waves:
@@ -738,6 +761,10 @@ def test_datapath_wr(request, test_type, data_width, num_channels, sram_depth, t
         compile_args = []
         sim_args = []
         plusargs = []
+
+    # Add coverage compile args if COVERAGE=1
+    coverage_compile_args = get_coverage_compile_args()
+    compile_args.extend(coverage_compile_args)
 
     cmd_filename = create_view_cmd(log_dir, log_path, sim_build, module, test_name_plus_params)
 

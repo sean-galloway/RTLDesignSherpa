@@ -25,6 +25,7 @@ import pytest
 import cocotb
 from cocotb.triggers import Timer, RisingEdge
 from cocotb_test.simulator import run
+from conftest import get_coverage_compile_args
 
 from CocoTBFramework.tbclasses.shared.tbbase import TBBase
 from CocoTBFramework.tbclasses.shared.utilities import get_paths, create_view_cmd
@@ -188,6 +189,9 @@ def test_axis5_master_cg(request, skid_depth, data_width, enable_wakeup, enable_
         "-Wno-WIDTHTRUNC",
         "-Wno-WIDTHEXPAND",
     ]
+
+    # Add coverage compile args if COVERAGE=1
+    compile_args.extend(get_coverage_compile_args())
 
     cmd_filename = create_view_cmd(log_dir, log_path, sim_build, module, test_name_plus_params)
 

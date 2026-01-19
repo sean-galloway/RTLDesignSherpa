@@ -1,0 +1,19 @@
+graph TB
+    subgraph Host["Host System"]
+        CPU["CPU"]
+        DDR["DDR Memory"]
+    end
+
+    subgraph RAPIDS["RAPIDS Beats DMA"]
+        ENGINE["DMA Engine"]
+    end
+
+    subgraph Network["Network Domain"]
+        NIC["Network Interface"]
+    end
+
+    CPU -->|Configuration| RAPIDS
+    RAPIDS <-->|AXI4| DDR
+    RAPIDS <-->|AXIS| NIC
+
+    style RAPIDS fill:#e3f2fd

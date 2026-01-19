@@ -1,0 +1,258 @@
+# Testplan for apb_xbar large configurations (10x10 wrappers)
+# Maps functional test scenarios to Verilator coverage points
+
+module: apb_xbar_wrap_m10_s10 and apb_xbar_thin_wrap_m10_s10
+rtl_file: projects/components/apb_xbar/rtl/wrappers/apb_xbar_wrap_m10_s10.sv
+          projects/components/apb_xbar/rtl/wrappers/apb_xbar_thin_wrap_m10_s10.sv
+test_file: N/A (GAP - no dedicated test)
+
+# Raw Verilator coverage: TBD
+# Note: These wrapper modules currently have no dedicated test files.
+
+# Module description:
+# Large APB crossbar wrappers - Pre-configured 10x10 crossbars.
+# - apb_xbar_wrap_m10_s10: Generic wrapper with fixed 64KB per slave
+# - apb_xbar_thin_wrap_m10_s10: Thin variant with configurable ranges
+# Both connect 10 masters to 10 slaves.
+
+parameters:
+  - name: ADDR_WIDTH
+    default: 32
+    description: Address bus width
+  - name: DATA_WIDTH
+    default: 32
+    description: Data bus width (apb_xbar_wrap only)
+  - name: STRB_WIDTH
+    default: DATA_WIDTH/8
+    description: Write strobe width (derived from DATA_WIDTH)
+
+# Coverage points (representative, actual depends on wrapper implementation)
+coverage_points:
+  - line: N/A
+    type: input_port
+    content: "input pclk"
+    covered: false
+    hit_count: 0
+
+  - line: N/A
+    type: input_port
+    content: "input presetn"
+    covered: false
+    hit_count: 0
+
+  - line: N/A
+    type: input_port
+    content: "input m0_apb_PSEL ... m9_apb_PSEL"
+    covered: false
+    hit_count: 0
+
+  - line: N/A
+    type: output_port
+    content: "output s0_apb_PSEL ... s9_apb_PSEL"
+    covered: false
+    hit_count: 0
+
+# Functional scenarios (NOT YET VERIFIED - NO TEST FILE)
+functional_scenarios:
+  - id: APB-LARGE-01
+    name: "All masters to slave 0"
+    description: All 10 masters compete for slave 0 access
+    test_function: "N/A"
+    covers_lines: [N/A]
+    priority: high
+    status: not_verified
+
+  - id: APB-LARGE-02
+    name: "Master 0 to all slaves"
+    description: Master 0 accesses all 10 slaves sequentially
+    test_function: "N/A"
+    covers_lines: [N/A]
+    priority: high
+    status: not_verified
+
+  - id: APB-LARGE-03
+    name: "Parallel access different slaves"
+    description: All masters active, each accessing different slave
+    test_function: "N/A"
+    covers_lines: [N/A]
+    priority: high
+    status: not_verified
+
+  - id: APB-LARGE-04
+    name: "Multiple masters per slave"
+    description: Distribute 10 masters across 10 slaves with contention
+    test_function: "N/A"
+    covers_lines: [N/A]
+    priority: high
+    status: not_verified
+
+  - id: APB-LARGE-05
+    name: "Address decode all slaves"
+    description: Verify address decode for all 10 slaves
+    test_function: "N/A"
+    covers_lines: [N/A]
+    priority: high
+    status: not_verified
+
+  - id: APB-LARGE-06
+    name: "Round-robin arbitration per slave"
+    description: Verify fair arbitration at each of 10 slaves
+    test_function: "N/A"
+    covers_lines: [N/A]
+    priority: high
+    status: not_verified
+
+  - id: APB-LARGE-07
+    name: "Grant persistence"
+    description: Granted master holds slave until response
+    test_function: "N/A"
+    covers_lines: [N/A]
+    priority: high
+    status: not_verified
+
+  - id: APB-LARGE-08
+    name: "Slave backpressure"
+    description: Each slave can delay with PREADY=0
+    test_function: "N/A"
+    covers_lines: [N/A]
+    priority: high
+    status: not_verified
+
+  - id: APB-LARGE-09
+    name: "Error propagation"
+    description: PSLVERR from any slave to requesting master
+    test_function: "N/A"
+    covers_lines: [N/A]
+    priority: high
+    status: not_verified
+
+  - id: APB-LARGE-10
+    name: "Data integrity"
+    description: PRDATA routed correctly in 10x10 matrix
+    test_function: "N/A"
+    covers_lines: [N/A]
+    priority: high
+    status: not_verified
+
+  - id: APB-LARGE-11
+    name: "PSTRB and PPROT propagation"
+    description: All masters' strobes/protection bits passed correctly
+    test_function: "N/A"
+    covers_lines: [N/A]
+    priority: medium
+    status: not_verified
+
+  - id: APB-LARGE-12
+    name: "Full stress test"
+    description: Random access from all masters to all slaves
+    test_function: "N/A"
+    covers_lines: [N/A]
+    priority: high
+    status: not_verified
+
+  - id: APB-LARGE-13
+    name: "Sparse access pattern"
+    description: Subset of masters active, subset of slaves targeted
+    test_function: "N/A"
+    covers_lines: [N/A]
+    priority: medium
+    status: not_verified
+
+  - id: APB-LARGE-14
+    name: "Sequential master activation"
+    description: Masters activate sequentially (0-9), each accesses all slaves
+    test_function: "N/A"
+    covers_lines: [N/A]
+    priority: medium
+    status: not_verified
+
+  - id: APB-LARGE-15
+    name: "Reset during complex transactions"
+    description: Reset clears all 10 arbiters and decode state
+    test_function: "N/A"
+    covers_lines: [N/A]
+    priority: high
+    status: not_verified
+
+# Parameter combinations (not tested yet)
+parameter_coverage:
+  - module: apb_xbar_wrap_m10_s10
+    ADDR_WIDTH: 32
+    DATA_WIDTH: 32
+    test_level: basic
+    status: not_verified
+
+  - module: apb_xbar_wrap_m10_s10
+    ADDR_WIDTH: 32
+    DATA_WIDTH: 64
+    test_level: medium
+    status: not_verified
+
+  - module: apb_xbar_thin_wrap_m10_s10
+    ADDR_WIDTH: 32
+    DATA_WIDTH: 32
+    test_level: basic
+    status: not_verified
+
+# Implied coverage calculation
+implied_coverage:
+  total_points: 100
+  verilator_tracked: 0
+  scenario_tracked: 0
+  implied_covered: 0
+  implied_percentage: 0.0
+
+notes: |
+  GAP: Large 10x10 wrapper configurations currently have NO dedicated tests.
+
+  Two variants exist:
+
+  1. apb_xbar_wrap_m10_s10.sv
+     - Uses generic apb_xbar_wrap with M=10, S=10
+     - Fixed 64KB per slave address ranges
+     - Simple round-robin arbitration
+     - Standard overhead
+
+  2. apb_xbar_thin_wrap_m10_s10.sv
+     - Uses apb_xbar_thin with M=10, S=10
+     - Configurable address ranges (SLAVE_ADDR_BASE/LIMIT)
+     - Weighted round-robin arbitration
+     - Minimal overhead (~30% resource reduction)
+
+  Address Map (apb_xbar_wrap_m10_s10):
+    Slave 0: [BASE_ADDR + 0x00000, BASE_ADDR + 0x0FFFF]
+    Slave 1: [BASE_ADDR + 0x10000, BASE_ADDR + 0x1FFFF]
+    Slave 2: [BASE_ADDR + 0x20000, BASE_ADDR + 0x2FFFF]
+    ...
+    Slave 9: [BASE_ADDR + 0x90000, BASE_ADDR + 0x9FFFF]
+
+  Address Map (apb_xbar_thin_wrap_m10_s10):
+    Configurable via SLAVE_ADDR_BASE and SLAVE_ADDR_LIMIT parameters
+
+  Arbitration:
+  - 10 independent arbiters (one per slave)
+  - Each arbiter handles up to 10 competing masters
+  - Round-robin (or weighted) fairness
+  - Grant persistence until response complete
+
+  Testing recommendations:
+  1. Create test_apb_xbar_wrap_m10_s10.py
+  2. Test all-to-one scenarios (10 masters to 1 slave)
+  3. Test one-to-all scenarios (1 master to 10 slaves)
+  4. Test parallel scenarios (all masters to different slaves)
+  5. Test contention scenarios (multiple masters per slave)
+  6. Test stress scenarios (random access patterns)
+  7. Verify arbitration fairness at scale
+  8. Verify address decode for all 10 slaves
+  9. Performance testing (throughput, latency)
+  10. Resource utilization comparison (wrap vs thin)
+
+  For apb_xbar_thin_wrap_m10_s10 specifically:
+  11. Test configurable address ranges
+  12. Test weighted arbitration thresholds
+  13. Test slave enable/disable
+
+  Until testing is complete, implied coverage is 0%.
+
+  Priority: HIGH - These are the largest configurations and most likely
+  to expose corner cases in arbitration and routing logic.

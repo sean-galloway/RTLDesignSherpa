@@ -16,8 +16,8 @@ set -euo pipefail
 
 # Default values
 REV="0.90"
-ASSETS="stream_spec/assets"
-SPEC_INDEX="stream_spec/stream_index.md"
+ASSETS="stream_mas/assets"
+SPEC_INDEX="stream_mas/stream_index.md"
 
 # Detect repository root (go up from docs/ to project root)
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -88,7 +88,7 @@ echo "------------------------------------------------------------"
 
 python3 "${REPO_ROOT}/bin/md_to_docx.py" \
   "${SPEC_INDEX}" "${OUTPUT_DOCX}" \
-  --style "stream_spec/stream_styles.yaml" \
+  --style "stream_mas/stream_styles.yaml" \
   --expand-index \
   --skip-index-content \
   --toc \

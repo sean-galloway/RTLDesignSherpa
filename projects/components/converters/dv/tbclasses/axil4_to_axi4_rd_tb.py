@@ -245,6 +245,7 @@ class AXIL4ToAXI4ReadTB(TBBase):
         self.log.info("=" * 80)
         self.log.info("BASIC READ TEST SUITE")
         self.log.info("=" * 80)
+        self.log.info("=== Scenarios AXIL2AXI-RD-01,02,03,05: Single read passthrough, default ID/LEN/BURST ===")
 
         success = True
 
@@ -262,6 +263,7 @@ class AXIL4ToAXI4ReadTB(TBBase):
         self.log.info("=" * 80)
         self.log.info("MEDIUM READ TEST SUITE")
         self.log.info("=" * 80)
+        self.log.info("=== Scenarios AXIL2AXI-RD-04,06,09: ARSIZE calculation, ARPROT passthrough, default QOS/REGION ===")
 
         success = True
 
@@ -280,6 +282,7 @@ class AXIL4ToAXI4ReadTB(TBBase):
         self.log.info("=" * 80)
         self.log.info("FULL READ TEST SUITE")
         self.log.info("=" * 80)
+        self.log.info("=== Scenarios AXIL2AXI-RD-07,08: RDATA/RRESP passthrough comprehensive coverage ===")
 
         success = True
 

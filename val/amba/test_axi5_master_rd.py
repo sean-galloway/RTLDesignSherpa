@@ -42,6 +42,7 @@ from itertools import product
 import pytest
 import cocotb
 from cocotb_test.simulator import run
+from conftest import get_coverage_compile_args
 from CocoTBFramework.tbclasses.shared.tbbase import TBBase
 from CocoTBFramework.tbclasses.shared.utilities import get_paths, create_view_cmd
 
@@ -430,6 +431,10 @@ def test_axi5_read_master(request, stub, id_width, addr_width, data_width, user_
         "-Wno-DECLFILENAME",
         "-Wno-PINMISSING",
     ]
+
+    # Add coverage compile args if COVERAGE=1
+    compile_args.extend(get_coverage_compile_args())
+
     sim_args = ["--trace", "--trace-depth", "99"]
     plusargs = ["--trace"]
 

@@ -25,6 +25,7 @@ import pytest
 import cocotb
 from cocotb.triggers import Timer
 from cocotb_test.simulator import run
+from conftest import get_coverage_compile_args
 
 from CocoTBFramework.tbclasses.shared.utilities import get_paths, create_view_cmd
 from CocoTBFramework.tbclasses.shared.tbbase import TBBase
@@ -160,15 +161,6 @@ class BF16MantissaMultTB(TBBase):
         """Run comprehensive test suite based on test level."""
         test_level = self.test_level.lower()
 
-        if test_level == 'simple':
-            num_random = 20
-        elif test_level == 'basic':
-            num_random = 100
-        elif test_level == 'medium':
-            num_random = 500
-        else:  # full
-            num_random = 2000
-
         # Edge cases - normalized x normalized
         self.log.info("Testing edge cases (normalized x normalized)...")
         norm_edge_cases = [
@@ -222,26 +214,47 @@ class BF16MantissaMultTB(TBBase):
 
         self.log.info(f"Normalization cases: {self.pass_count}/{self.test_count} passed")
 
-        # Random tests with all combinations of normal flags
-        self.log.info(f"Running {num_random} random tests...")
-        for i in range(num_random):
-            mant_a = random.randint(0, 0x7F)
-            mant_b = random.randint(0, 0x7F)
-            a_norm = random.randint(0, 1)
-            b_norm = random.randint(0, 1)
+        # Exhaustive or random tests based on test level
+        if test_level in ['full', 'exhaustive']:
+            # FULL: Exhaustive 128x128x4 = 65536 tests for complete coverage
+            self.log.info("Running exhaustive tests (128 x 128 x 4 = 65536 cases)...")
+            for mant_a in range(0x80):  # 7-bit mantissa: 0-127
+                for mant_b in range(0x80):
+                    for norm_combo in [(0, 0), (0, 1), (1, 0), (1, 1)]:
+                        a_norm, b_norm = norm_combo
+                        passed = await self.test_single_mult(mant_a, mant_b, a_norm, b_norm)
+                        if not passed:
+                            assert False, f"Exhaustive test failed: mant_a=0x{mant_a:02X}, mant_b=0x{mant_b:02X}"
+                if mant_a % 16 == 0:
+                    self.log.info(f"Exhaustive progress: {mant_a}/128")
+        else:
+            # Random tests with configured count
+            if test_level == 'simple':
+                num_random = 20
+            elif test_level == 'basic':
+                num_random = 100
+            else:  # medium
+                num_random = 500
 
-            passed = await self.test_single_mult(mant_a, mant_b, a_norm, b_norm)
-            if not passed:
-                assert False, f"Random test {i} failed"
+            self.log.info(f"Running {num_random} random tests...")
+            for i in range(num_random):
+                mant_a = random.randint(0, 0x7F)
+                mant_b = random.randint(0, 0x7F)
+                a_norm = random.randint(0, 1)
+                b_norm = random.randint(0, 1)
 
-            if i % max(1, num_random // 10) == 0:
-                self.log.info(f"Progress: {i}/{num_random}")
+                passed = await self.test_single_mult(mant_a, mant_b, a_norm, b_norm)
+                if not passed:
+                    assert False, f"Random test {i} failed"
+
+                if i % max(1, num_random // 10) == 0:
+                    self.log.info(f"Progress: {i}/{num_random}")
 
         self.log.info(f"Final: {self.pass_count}/{self.test_count} passed, {self.fail_count} failed")
         assert self.fail_count == 0, f"Test failures: {self.fail_count}"
 
 
-@cocotb.test(timeout_time=60, timeout_unit="ms")
+@cocotb.test(timeout_time=300, timeout_unit="ms")
 async def bf16_mantissa_mult_test(dut):
     """Test the BF16 mantissa multiplier"""
     tb = BF16MantissaMultTB(dut)
@@ -265,8 +278,8 @@ def get_test_params():
         return [{'test_level': 'simple'}]
     elif reg_level == 'FUNC':
         return [{'test_level': 'basic'}]
-    else:  # FULL
-        return [{'test_level': 'medium'}]
+    else:  # FULL - exhaustive testing for 100% coverage
+        return [{'test_level': 'full'}]
 
 
 @pytest.mark.parametrize("params", get_test_params())
@@ -324,6 +337,10 @@ def test_math_bf16_mantissa_mult(request, params):
         "--trace-structs",
         "--trace-depth", "99",
     ]
+
+    # Add coverage compile args if COVERAGE=1
+    compile_args.extend(get_coverage_compile_args())
+
     sim_args = [
         "--trace",
         "--trace-structs",

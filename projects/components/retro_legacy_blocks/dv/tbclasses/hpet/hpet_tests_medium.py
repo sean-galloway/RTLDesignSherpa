@@ -192,6 +192,7 @@ class HPETMediumTests:
         """Test 64-bit counter functionality."""
         # Counter is always 64-bit in the RTL
 
+        self.log.info("=== Scenario HPET-05: Single Timer Periodic ===")
         self.log.info("=== Testing 64-bit Counter Functionality ===")
         self.tb.test_phase = "COUNTER_64BIT"
 
@@ -408,6 +409,9 @@ class HPETMediumTests:
         if timer_id >= self.tb.NUM_TIMERS:
             return True
 
+        self.log.info("=== Scenario HPET-11: 64-bit Comparator Operation ===")
+        self.log.info("=== Scenario HPET-10: 64-bit Counter Operation ===")
+        self.log.info("=== Scenario HPET-08: Multiple Timers Simultaneous ===")
         self.log.info(f"=== Testing Timer {timer_id} Mode Switching ===")
         self.tb.test_phase = f"TIMER_{timer_id}_MODE_SWITCH"
 

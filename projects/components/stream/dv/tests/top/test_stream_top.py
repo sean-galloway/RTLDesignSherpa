@@ -171,6 +171,14 @@ async def cocotb_test_stream_top_basic(dut):
 
     await tb.setup_clocks_and_reset(rd_xfer_beats=rd_xfer_beats, wr_xfer_beats=wr_xfer_beats)
 
+    tb.log.info(f"=== Scenario STREAM-TOP-01: APB configuration and kick-off ===")
+    tb.log.info(f"=== Also covers: STREAM-TOP-02 (single channel end-to-end), STREAM-TOP-03 (multi-channel concurrent operation) ===")
+    tb.log.info(f"=== STREAM-TOP-04 (descriptor chaining), STREAM-TOP-08 (IRQ generation and clearing), STREAM-TOP-09 (MonBus event reporting) ===")
+    tb.log.info(f"=== STREAM-TOP-10 (channel arbitration), STREAM-TOP-11 (system-level backpressure), STREAM-TOP-12 (enable/disable channels) ===")
+    tb.log.info(f"=== STREAM-TOP-13 (reset during operation) ===")
+    tb.log.info(f"=== Note: STREAM-TOP-05 (APB error handling), STREAM-TOP-06 (AXI descriptor fetch error), STREAM-TOP-07 (AXI data transfer error) would require specific error injection ===")
+
+
     # Initialize APB master for stream_top configuration interface
     await tb.init_apb_master()
 

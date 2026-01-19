@@ -1,0 +1,456 @@
+# Testplan for uart_axil_bridge (covers uart_rx, uart_tx, and bridge)
+# Maps functional test scenarios to Verilator coverage points
+
+module: uart_axil_bridge
+rtl_files:
+  - projects/components/converters/rtl/uart_axil_bridge.sv
+  - projects/components/converters/rtl/uart_rx.sv
+  - projects/components/converters/rtl/uart_tx.sv
+test_files:
+  - projects/components/converters/dv/tests/test_uart_axil_bridge.py
+
+# Raw Verilator coverage: ~45% (bridge tested, uart_rx/tx indirectly covered)
+# Verilator limitation: UART bit-level FSMs not fully tracked
+
+# Module description:
+# UART to AXI4-Lite Bridge. Three-module design:
+# 1. uart_rx.sv - UART receiver (8N1 protocol, 115200 baud default)
+# 2. uart_tx.sv - UART transmitter (8N1 protocol, 115200 baud default)
+# 3. uart_axil_bridge.sv - Command parser and AXI4-Lite master
+#
+# Command format:
+# - Write: "W <hex_addr> <hex_data>\n" -> Response: "OK\n"
+# - Read:  "R <hex_addr>\n" -> Response: "<hex_data>\n"
+
+# GAPS:
+# - uart_rx.sv: NO STANDALONE TEST (tested indirectly via bridge)
+# - uart_tx.sv: NO STANDALONE TEST (tested indirectly via bridge)
+# - Complex error scenarios NOT FULLY TESTED
+
+parameters:
+  - name: CLK_FREQ
+    default: 100_000_000
+    description: System clock frequency in Hz
+  - name: BAUD_RATE
+    default: 115200
+    description: UART baud rate (bits per second)
+  - name: ADDR_WIDTH
+    default: 32
+    description: AXI4-Lite address width
+  - name: DATA_WIDTH
+    default: 32
+    description: AXI4-Lite data width
+
+# Coverage points - BRIDGE MODULE (uart_axil_bridge.sv)
+coverage_points_bridge:
+  - line: 55
+    type: input_port
+    content: "input clk"
+    covered: true
+
+  - line: 56
+    type: input_port
+    content: "input rst_n"
+    covered: true
+
+  - line: 59
+    type: input_port
+    content: "input uart_rx"
+    covered: true
+
+  - line: 62
+    type: output_port
+    content: "output uart_tx"
+    covered: true
+
+  - line: 67
+    type: output_port
+    content: "output m_axil_awvalid"
+    covered: true
+
+  - line: 68
+    type: input_port
+    content: "input m_axil_awready"
+    covered: true
+
+  - line: 73
+    type: output_port
+    content: "output m_axil_wvalid"
+    covered: true
+
+  - line: 74
+    type: input_port
+    content: "input m_axil_wready"
+    covered: true
+
+  - line: 77
+    type: input_port
+    content: "input m_axil_bvalid"
+    covered: true
+
+  - line: 78
+    type: output_port
+    content: "output m_axil_bready"
+    covered: true
+
+  - line: 82
+    type: output_port
+    content: "output m_axil_arvalid"
+    covered: true
+
+  - line: 83
+    type: input_port
+    content: "input m_axil_arready"
+    covered: true
+
+  - line: 86
+    type: input_port
+    content: "input m_axil_rvalid"
+    covered: true
+
+  - line: 87
+    type: output_port
+    content: "output m_axil_rready"
+    covered: true
+
+  - line: 120
+    type: state_machine
+    content: "Command parser FSM (IDLE, CMD, ADDR, DATA, WAIT_AXIL, RESPOND)"
+    covered: true
+
+# Coverage points - UART_RX MODULE (uart_rx.sv)
+coverage_points_uart_rx:
+  - line: 30
+    type: input_port
+    content: "input clk"
+    covered: indirect
+    note: "No standalone test - covered via bridge integration"
+
+  - line: 31
+    type: input_port
+    content: "input rst_n"
+    covered: indirect
+
+  - line: 32
+    type: input_port
+    content: "input rx"
+    covered: indirect
+
+  - line: 33
+    type: output_port
+    content: "output rx_valid"
+    covered: indirect
+
+  - line: 34
+    type: output_port
+    content: "output [7:0] rx_data"
+    covered: indirect
+
+  - line: 50
+    type: state_machine
+    content: "RX FSM (IDLE, START, DATA, STOP)"
+    covered: indirect
+    note: "Bit-level FSM tested indirectly"
+
+# Coverage points - UART_TX MODULE (uart_tx.sv)
+coverage_points_uart_tx:
+  - line: 30
+    type: input_port
+    content: "input clk"
+    covered: indirect
+    note: "No standalone test - covered via bridge integration"
+
+  - line: 31
+    type: input_port
+    content: "input rst_n"
+    covered: indirect
+
+  - line: 32
+    type: input_port
+    content: "input tx_valid"
+    covered: indirect
+
+  - line: 33
+    type: input_port
+    content: "input [7:0] tx_data"
+    covered: indirect
+
+  - line: 34
+    type: output_port
+    content: "output tx_ready"
+    covered: indirect
+
+  - line: 35
+    type: output_port
+    content: "output tx"
+    covered: indirect
+
+  - line: 50
+    type: state_machine
+    content: "TX FSM (IDLE, START, DATA, STOP)"
+    covered: indirect
+    note: "Bit-level FSM tested indirectly"
+
+# Functional scenarios - TESTED (via bridge)
+functional_scenarios_tested:
+  - id: UART-BRIDGE-01
+    name: "Write command parsing"
+    description: Parse "W <addr> <data>" and generate AXI write
+    test_function: "test_uart_axil_bridge (basic)"
+    covers_lines: [120, 67, 73]
+    priority: high
+    status: verified
+    module: bridge
+
+  - id: UART-BRIDGE-02
+    name: "Read command parsing"
+    description: Parse "R <addr>" and generate AXI read
+    test_function: "test_uart_axil_bridge (basic)"
+    covers_lines: [120, 82, 86]
+    priority: high
+    status: verified
+    module: bridge
+
+  - id: UART-BRIDGE-03
+    name: "Write response"
+    description: Send "OK\n" after successful write
+    test_function: "test_uart_axil_bridge (medium)"
+    covers_lines: [62, 77]
+    priority: high
+    status: verified
+    module: bridge
+
+  - id: UART-BRIDGE-04
+    name: "Read response"
+    description: Send hex data response after read
+    test_function: "test_uart_axil_bridge (medium)"
+    covers_lines: [62, 86]
+    priority: high
+    status: verified
+    module: bridge
+
+  - id: UART-BRIDGE-05
+    name: "Hex parsing"
+    description: Parse hexadecimal address and data
+    test_function: "test_uart_axil_bridge (full)"
+    covers_lines: [120]
+    priority: high
+    status: verified
+    module: bridge
+
+  - id: UART-BRIDGE-06
+    name: "AXI write transaction"
+    description: AW and W channels coordinated for write
+    test_function: "test_uart_axil_bridge (full)"
+    covers_lines: [67, 68, 73, 74, 77, 78]
+    priority: high
+    status: verified
+    module: bridge
+
+  - id: UART-BRIDGE-07
+    name: "AXI read transaction"
+    description: AR and R channels handled correctly
+    test_function: "test_uart_axil_bridge (full)"
+    covers_lines: [82, 83, 86, 87]
+    priority: high
+    status: verified
+    module: bridge
+
+  - id: UART-BRIDGE-08
+    name: "UART RX operation"
+    description: UART receiver captures incoming bytes
+    test_function: "test_uart_axil_bridge (medium)"
+    covers_lines: [30, 32, 33, 34, 50]
+    priority: high
+    status: verified
+    module: uart_rx
+    note: "Indirect testing via bridge"
+
+  - id: UART-BRIDGE-09
+    name: "UART TX operation"
+    description: UART transmitter sends outgoing bytes
+    test_function: "test_uart_axil_bridge (medium)"
+    covers_lines: [30, 32, 33, 34, 35, 50]
+    priority: high
+    status: verified
+    module: uart_tx
+    note: "Indirect testing via bridge"
+
+  - id: UART-BRIDGE-10
+    name: "Multiple commands"
+    description: Sequential read/write commands processed
+    test_function: "test_uart_axil_bridge (full)"
+    covers_lines: [120]
+    priority: high
+    status: verified
+    module: bridge
+
+# Functional scenarios - GAPS
+functional_scenarios_not_tested:
+  - id: UART-GAP-01
+    name: "UART RX framing errors"
+    description: Invalid start/stop bits handling
+    test_function: "NONE - NOT TESTED"
+    covers_lines: [50]
+    priority: medium
+    status: not_tested
+    module: uart_rx
+    gap_reason: "No error injection in test"
+
+  - id: UART-GAP-02
+    name: "UART RX parity (if enabled)"
+    description: Parity checking (8N1 = no parity, but code may support)
+    test_function: "NONE - NOT TESTED"
+    covers_lines: [50]
+    priority: low
+    status: not_tested
+    module: uart_rx
+    gap_reason: "8N1 mode only, parity N/A"
+
+  - id: UART-GAP-03
+    name: "UART TX backpressure"
+    description: TX FIFO full scenarios
+    test_function: "NONE - NOT TESTED"
+    covers_lines: [34, 50]
+    priority: medium
+    status: not_tested
+    module: uart_tx
+    gap_reason: "No TX stall scenarios tested"
+
+  - id: UART-GAP-04
+    name: "Invalid command format"
+    description: Malformed commands, unexpected characters
+    test_function: "NONE - NOT TESTED"
+    covers_lines: [120]
+    priority: medium
+    status: not_tested
+    module: bridge
+    gap_reason: "Only valid commands tested"
+
+  - id: UART-GAP-05
+    name: "AXI error responses"
+    description: BRESP/RRESP error handling
+    test_function: "NONE - NOT TESTED"
+    covers_lines: [77, 86]
+    priority: medium
+    status: not_tested
+    module: bridge
+    gap_reason: "Only OKAY responses tested"
+
+  - id: UART-GAP-06
+    name: "Baud rate edge cases"
+    description: Different baud rates, timing edge cases
+    test_function: "NONE - NOT TESTED"
+    covers_lines: [30]
+    priority: low
+    status: not_tested
+    module: uart_rx/uart_tx
+    gap_reason: "Only 115200 baud tested"
+
+# Parameter combinations tested
+parameter_coverage:
+  - CLK_FREQ: 100_000_000
+    BAUD_RATE: 115200
+    DATA_WIDTH: 32
+    test_level: basic
+    status: verified
+
+  - CLK_FREQ: 100_000_000
+    BAUD_RATE: 115200
+    DATA_WIDTH: 32
+    test_level: medium
+    status: verified
+
+  - CLK_FREQ: 100_000_000
+    BAUD_RATE: 115200
+    DATA_WIDTH: 32
+    test_level: full
+    status: verified
+
+# Gap Summary
+gap_summary:
+  total_scenarios: 16
+  tested_scenarios: 10
+  not_tested_scenarios: 6
+  tested_percentage: 62.5
+  coverage_notes: |
+    MODERATE GAPS IN TESTING:
+
+    1. UART_RX MODULE (uart_rx.sv):
+       - NO standalone test (only integration via bridge)
+       - Framing error scenarios NOT TESTED
+       - Parity modes N/A (8N1 only)
+
+    2. UART_TX MODULE (uart_tx.sv):
+       - NO standalone test (only integration via bridge)
+       - Backpressure scenarios NOT TESTED
+       - Baud rate variations NOT TESTED
+
+    3. BRIDGE MODULE (uart_axil_bridge.sv):
+       - Invalid command handling NOT TESTED
+       - AXI error responses NOT TESTED
+       - Good coverage for happy path
+
+    4. RECOMMENDED ACTIONS:
+       - Consider standalone tests for uart_rx.sv and uart_tx.sv
+       - Add error injection tests (malformed commands, AXI errors)
+       - Add baud rate sweep tests
+       - Add TX FIFO backpressure tests
+
+# Implied coverage calculation
+implied_coverage:
+  total_points: 28
+  verilator_tracked: 13
+  scenario_tracked: 10
+  implied_covered: 10
+  implied_percentage: 35.7
+  notes: "Moderate coverage - happy path well tested, error paths missing"
+
+notes: |
+  UART to AXI4-Lite Bridge has MODERATE testing coverage.
+
+  THREE-MODULE DESIGN:
+  1. uart_rx.sv - UART receiver
+     - 8N1 protocol (8 data bits, no parity, 1 stop bit)
+     - Configurable baud rate
+     - STATUS: INDIRECTLY TESTED via bridge integration
+     - GAP: No standalone test, no error injection
+
+  2. uart_tx.sv - UART transmitter
+     - 8N1 protocol
+     - Configurable baud rate
+     - STATUS: INDIRECTLY TESTED via bridge integration
+     - GAP: No standalone test, no backpressure scenarios
+
+  3. uart_axil_bridge.sv - Command parser and AXI master
+     - Command format: "W <addr> <data>\n" or "R <addr>\n"
+     - Response format: "OK\n" or "<hex_data>\n"
+     - STATUS: WELL TESTED for happy path
+     - GAP: Invalid command and AXI error handling not tested
+
+  VERILATOR COVERAGE: ~45% (bridge FSM and UART integration)
+
+  TESTED SCENARIOS (10):
+  - Write/read command parsing
+  - Hex address/data parsing
+  - AXI write/read transaction generation
+  - UART RX/TX operation (indirect)
+  - Response formatting
+  - Multiple sequential commands
+
+  UNTESTED SCENARIOS (6):
+  - UART framing errors
+  - UART TX backpressure
+  - Invalid command formats
+  - AXI error responses (SLVERR, DECERR)
+  - Baud rate variations
+  - Parity modes (N/A for 8N1)
+
+  RECOMMENDATION:
+  Current testing is adequate for happy path validation.
+  Consider adding error injection tests for production use.
+  Standalone UART RX/TX tests would improve confidence but are lower priority
+  since integration testing provides good coverage.
+
+  Integration testing via bridge is a valid approach for UART modules,
+  but lacks granular error scenario coverage.

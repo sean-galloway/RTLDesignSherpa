@@ -28,6 +28,7 @@ from itertools import product
 import pytest
 import cocotb
 from cocotb_test.simulator import run
+from conftest import get_coverage_compile_args
 from cocotb.triggers import RisingEdge, Timer
 
 from CocoTBFramework.tbclasses.shared.tbbase import TBBase
@@ -357,6 +358,10 @@ def test_axis_slave_cg(skid_depth, data_width, id_width, dest_width, user_width,
         "-Wno-DECLFILENAME",
         "-Wno-PINMISSING",  # Allow unconnected pins
     ]
+
+    # Add coverage compile args if COVERAGE=1
+    compile_args.extend(get_coverage_compile_args())
+
     sim_args = ["--trace", "--trace-depth", "99"]
     plusargs = ["--trace"]
 

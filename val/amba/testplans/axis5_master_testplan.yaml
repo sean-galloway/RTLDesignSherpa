@@ -1,0 +1,302 @@
+module: axis5_master
+rtl_file: rtl/amba/axis/axis5_master.sv
+test_file: val/amba/test_axis5_master.py
+parameters:
+- name: DATA_WIDTH
+  default: 32
+  description: TDATA width in bits
+- name: ID_WIDTH
+  default: 8
+  description: TID width in bits
+- name: DEST_WIDTH
+  default: 4
+  description: TDEST width in bits
+- name: USER_WIDTH
+  default: 1
+  description: TUSER width in bits
+- name: SKID_DEPTH
+  default: 2
+  description: Internal buffer depth
+functional_scenarios:
+- id: AXIS5-M-01
+  name: Single beat
+  description: Single AXIS data beat transfer
+  test_function: test_single_beat
+  covers_lines:
+  - 45
+  - 46
+  - 47
+  - 48
+  - 49
+  - 50
+  - 51
+  priority: high
+  status: partial
+- id: AXIS5-M-02
+  name: Multi-beat stream
+  description: Continuous multi-beat stream without gaps
+  test_function: test_multi_beat
+  covers_lines:
+  - 45
+  - 46
+  - 47
+  - 48
+  - 49
+  - 50
+  - 51
+  priority: high
+  status: partial
+- id: AXIS5-M-03
+  name: Packet with TLAST
+  description: Complete packet with TLAST assertion
+  test_function: test_packet_with_tlast
+  covers_lines:
+  - 45
+  - 46
+  - 50
+  priority: high
+  status: partial
+- id: AXIS5-M-04
+  name: Multiple packets
+  description: Sequence of back-to-back packets with TLAST
+  test_function: test_multiple_packets
+  covers_lines:
+  - 45
+  - 46
+  - 50
+  priority: high
+  status: partial
+- id: AXIS5-M-05
+  name: Variable packet size
+  description: Packets of different lengths (1-64 beats)
+  test_function: test_variable_packet_size
+  covers_lines:
+  - 45
+  - 46
+  - 50
+  priority: high
+  status: partial
+- id: AXIS5-M-10
+  name: TREADY always high
+  description: No backpressure - TREADY continuously asserted
+  test_function: test_tready_always_high
+  covers_lines:
+  - 45
+  - 46
+  - 47
+  priority: high
+  status: verified
+- id: AXIS5-M-11
+  name: TREADY stalls
+  description: Destination pauses by deasserting TREADY
+  test_function: test_tready_stalls
+  covers_lines:
+  - 45
+  - 46
+  - 47
+  priority: high
+  status: verified
+- id: AXIS5-M-12
+  name: Random TREADY
+  description: Bursty acceptance with random TREADY patterns
+  test_function: test_random_tready
+  covers_lines:
+  - 45
+  - 46
+  - 47
+  priority: high
+  status: verified
+- id: AXIS5-M-13
+  name: Long stall
+  description: Extended backpressure (100+ cycles)
+  test_function: test_long_stall
+  covers_lines:
+  - 45
+  - 46
+  - 47
+  priority: medium
+  status: verified
+- id: AXIS5-M-14
+  name: TREADY glitches
+  description: Rapid TREADY on/off transitions
+  test_function: test_tready_glitches
+  covers_lines:
+  - 45
+  - 46
+  - 47
+  priority: medium
+  status: verified
+- id: AXIS5-M-20
+  name: Full TKEEP
+  description: All bytes valid (TKEEP all 1s)
+  test_function: test_full_tkeep
+  covers_lines:
+  - 48
+  - 49
+  priority: high
+  status: verified
+- id: AXIS5-M-21
+  name: Partial TKEEP
+  description: Some bytes masked (various TKEEP patterns)
+  test_function: test_partial_tkeep
+  covers_lines:
+  - 48
+  - 49
+  priority: high
+  status: verified
+- id: AXIS5-M-22
+  name: TSTRB patterns
+  description: Position bytes with TSTRB
+  test_function: test_tstrb_patterns
+  covers_lines:
+  - 49
+  priority: medium
+  status: verified
+- id: AXIS5-M-23
+  name: Single byte
+  description: Only one byte valid per beat
+  test_function: test_single_byte
+  covers_lines:
+  - 48
+  - 49
+  priority: medium
+  status: verified
+- id: AXIS5-M-30
+  name: TID values
+  description: Various stream IDs (0 to MAX_ID)
+  test_function: test_tid_values
+  covers_lines:
+  - 52
+  priority: medium
+  status: verified
+- id: AXIS5-M-31
+  name: TDEST values
+  description: Various destination routing values
+  test_function: test_tdest_values
+  covers_lines:
+  - 53
+  priority: medium
+  status: verified
+- id: AXIS5-M-32
+  name: Interleaved TID
+  description: Multiple streams interleaved by TID
+  test_function: test_interleaved_tid
+  covers_lines:
+  - 52
+  - 53
+  priority: medium
+  status: verified
+- id: AXIS5-M-40
+  name: TUSER propagation
+  description: User data passthrough verification
+  test_function: test_tuser_propagation
+  covers_lines:
+  - 54
+  priority: medium
+  status: verified
+- id: AXIS5-M-41
+  name: TUSER per beat
+  description: Different TUSER value per beat
+  test_function: test_tuser_per_beat
+  covers_lines:
+  - 54
+  priority: low
+  status: verified
+- id: AXIS5-M-42
+  name: Zero TUSER width
+  description: USER_WIDTH=0 configuration
+  test_function: test_zero_tuser_width
+  covers_lines: []
+  priority: low
+  status: verified
+- id: AXIS5-01
+  name: TWAKEUP assertion
+  description: Wake destination with TWAKEUP signal
+  test_function: test_twakeup
+  covers_lines:
+  - 60
+  priority: high
+  status: verified
+- id: AXIS5-02
+  name: TNSAID propagation
+  description: Non-secure access ID propagation
+  test_function: test_tnsaid
+  covers_lines:
+  - 61
+  priority: medium
+  status: implemented
+- id: AXIS5-03
+  name: TMPAM propagation
+  description: MPAM attributes propagation
+  test_function: test_tmpam
+  covers_lines:
+  - 62
+  priority: medium
+  status: verified
+parameter_coverage:
+- DATA_WIDTH: 32
+  ID_WIDTH: 8
+  DEST_WIDTH: 4
+  USER_WIDTH: 1
+  SKID_DEPTH: 2
+  test_level: basic
+  status: verified
+- DATA_WIDTH: 64
+  ID_WIDTH: 8
+  DEST_WIDTH: 4
+  USER_WIDTH: 1
+  SKID_DEPTH: 2
+  test_level: medium
+  status: verified
+- DATA_WIDTH: 128
+  ID_WIDTH: 8
+  DEST_WIDTH: 4
+  USER_WIDTH: 1
+  SKID_DEPTH: 4
+  test_level: full
+  status: verified
+- DATA_WIDTH: 32
+  ID_WIDTH: 0
+  DEST_WIDTH: 0
+  USER_WIDTH: 0
+  SKID_DEPTH: 2
+  test_level: basic
+  status: verified
+- DATA_WIDTH: 32
+  ID_WIDTH: 8
+  DEST_WIDTH: 4
+  USER_WIDTH: 16
+  SKID_DEPTH: 2
+  test_level: medium
+  status: verified
+notes: 'AXIS5 master extends AXI4-Stream with AMBA5 signals.
+
+  Uses gaxi_skid_buffer for buffering.
+
+
+  Key AXI5-Stream extensions:
+
+  - TWAKEUP: Wake signal for low-power destinations
+
+  - TNSAID: Non-secure access ID for security partitioning
+
+  - TMPAM: Memory partitioning and monitoring attributes
+
+
+  All test scenarios verify:
+
+  - Handshake protocol (TVALID/TREADY)
+
+  - Data integrity
+
+  - Packet framing (TLAST)
+
+  - Byte enables (TKEEP/TSTRB)
+
+  - Routing (TID/TDEST)
+
+  - User sideband (TUSER)
+
+  - AXI5 extensions (TWAKEUP/TNSAID/TMPAM)
+
+  '

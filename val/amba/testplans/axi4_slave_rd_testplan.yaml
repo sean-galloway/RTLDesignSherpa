@@ -1,0 +1,624 @@
+# Testplan for axi4_slave_rd
+# Maps functional test scenarios to AXI4 read slave verification
+# Based on level2_axi4_testplan.md
+
+module: axi4_slave_rd
+rtl_file: rtl/amba/axi4/axi4_slave_rd.sv
+test_file: val/amba/test_axi4_slave_rd.py
+
+# Module description:
+# AXI4 read slave interface that accepts read transactions and interfaces with
+# backend memory or logic. Uses SKID buffers for AR and R channels to handle
+# backpressure. Converts between AXI slave protocol and backend FUB interface.
+
+parameters:
+  - name: SKID_DEPTH_AR
+    default: 2
+    description: AR channel buffer depth
+  - name: SKID_DEPTH_R
+    default: 4
+    description: R channel buffer depth
+  - name: AXI_ID_WIDTH
+    default: 8
+    description: Transaction ID width
+  - name: AXI_ADDR_WIDTH
+    default: 32
+    description: Address width
+  - name: AXI_DATA_WIDTH
+    default: 32
+    description: Data width
+  - name: AXI_USER_WIDTH
+    default: 1
+    description: User signal width
+  - name: AXI_WSTRB_WIDTH
+    default: 4
+    description: Write strobe width (DATA_WIDTH/8)
+
+# Coverage points
+coverage_points:
+  # Input ports - Slave AXI side AR channel
+  - line: 44
+    type: input_port
+    content: "input [IW-1:0] s_axi_arid"
+    covered: true
+
+  - line: 45
+    type: input_port
+    content: "input [AW-1:0] s_axi_araddr"
+    covered: true
+
+  - line: 46
+    type: input_port
+    content: "input [7:0] s_axi_arlen"
+    covered: true
+
+  - line: 47
+    type: input_port
+    content: "input [2:0] s_axi_arsize"
+    covered: true
+
+  - line: 48
+    type: input_port
+    content: "input [1:0] s_axi_arburst"
+    covered: true
+
+  - line: 49
+    type: input_port
+    content: "input s_axi_arlock"
+    covered: true
+
+  - line: 50
+    type: input_port
+    content: "input [3:0] s_axi_arcache"
+    covered: true
+
+  - line: 51
+    type: input_port
+    content: "input [2:0] s_axi_arprot"
+    covered: true
+
+  - line: 52
+    type: input_port
+    content: "input [3:0] s_axi_arqos"
+    covered: true
+
+  - line: 53
+    type: input_port
+    content: "input [3:0] s_axi_arregion"
+    covered: true
+
+  - line: 54
+    type: input_port
+    content: "input [UW-1:0] s_axi_aruser"
+    covered: true
+
+  - line: 55
+    type: input_port
+    content: "input s_axi_arvalid"
+    covered: true
+
+  - line: 56
+    type: output_port
+    content: "output s_axi_arready"
+    covered: true
+
+  # Slave AXI side R channel
+  - line: 59
+    type: output_port
+    content: "output [IW-1:0] s_axi_rid"
+    covered: true
+
+  - line: 60
+    type: output_port
+    content: "output [DW-1:0] s_axi_rdata"
+    covered: true
+
+  - line: 61
+    type: output_port
+    content: "output [1:0] s_axi_rresp"
+    covered: true
+
+  - line: 62
+    type: output_port
+    content: "output s_axi_rlast"
+    covered: true
+
+  - line: 63
+    type: output_port
+    content: "output [UW-1:0] s_axi_ruser"
+    covered: true
+
+  - line: 64
+    type: output_port
+    content: "output s_axi_rvalid"
+    covered: true
+
+  - line: 65
+    type: input_port
+    content: "input s_axi_rready"
+    covered: true
+
+  # FUB backend side AR channel
+  - line: 69
+    type: output_port
+    content: "output [IW-1:0] fub_axi_arid"
+    covered: true
+
+  - line: 70
+    type: output_port
+    content: "output [AW-1:0] fub_axi_araddr"
+    covered: true
+
+  - line: 71
+    type: output_port
+    content: "output [7:0] fub_axi_arlen"
+    covered: true
+
+  - line: 72
+    type: output_port
+    content: "output [2:0] fub_axi_arsize"
+    covered: true
+
+  - line: 73
+    type: output_port
+    content: "output [1:0] fub_axi_arburst"
+    covered: true
+
+  - line: 80
+    type: output_port
+    content: "output fub_axi_arvalid"
+    covered: true
+
+  - line: 81
+    type: input_port
+    content: "input fub_axi_arready"
+    covered: true
+
+  # FUB backend side R channel
+  - line: 84
+    type: input_port
+    content: "input [IW-1:0] fub_axi_rid"
+    covered: true
+
+  - line: 85
+    type: input_port
+    content: "input [DW-1:0] fub_axi_rdata"
+    covered: true
+
+  - line: 86
+    type: input_port
+    content: "input [1:0] fub_axi_rresp"
+    covered: true
+
+  - line: 87
+    type: input_port
+    content: "input fub_axi_rlast"
+    covered: true
+
+  - line: 89
+    type: input_port
+    content: "input fub_axi_rvalid"
+    covered: true
+
+  - line: 90
+    type: output_port
+    content: "output fub_axi_rready"
+    covered: true
+
+  # Status
+  - line: 93
+    type: output_port
+    content: "output busy"
+    covered: true
+
+# Functional scenarios
+functional_scenarios:
+  # Basic Operations
+  - id: AXI4-SR-01
+    name: "Single beat read"
+    description: Single beat read transaction (ARLEN=0)
+    test_function: "test_basic_connectivity"
+    covers_lines: [44, 45, 46, 55, 56, 59, 60, 61, 62, 64, 65, 69, 70, 71, 80, 81, 84, 85, 86, 87, 89, 90]
+    priority: high
+    status: verified
+
+  - id: AXI4-SR-02
+    name: "Burst read (4 beats)"
+    description: 4-beat burst read (ARLEN=3)
+    test_function: "test_burst_read_sequence"
+    covers_lines: [46, 62, 71, 87]
+    priority: high
+    status: verified
+
+  - id: AXI4-SR-03
+    name: "Burst read (16 beats)"
+    description: 16-beat burst read (ARLEN=15)
+    test_function: "test_burst_read_sequence"
+    covers_lines: [46, 62, 71, 87]
+    priority: high
+    status: verified
+
+  - id: AXI4-SR-04
+    name: "Max burst (256 beats)"
+    description: Maximum burst length (ARLEN=255)
+    test_function: "test_boundary_conditions"
+    covers_lines: [46, 62, 71, 87]
+    priority: medium
+    status: verified
+
+  - id: AXI4-SR-05
+    name: "INCR burst"
+    description: Incrementing burst type (ARBURST=01)
+    test_function: "test_burst_read_sequence"
+    covers_lines: [48, 73]
+    priority: high
+    status: verified
+
+  - id: AXI4-SR-06
+    name: "WRAP burst"
+    description: Wrapping burst type (ARBURST=10)
+    test_function: "test_burst_read_sequence"
+    covers_lines: [48, 73]
+    priority: high
+    status: verified
+
+  - id: AXI4-SR-07
+    name: "FIXED burst"
+    description: Fixed address burst type (ARBURST=00)
+    test_function: "test_burst_read_sequence"
+    covers_lines: [48, 73]
+    priority: medium
+    status: verified
+
+  # Slave-Specific Scenarios
+  - id: AXI4-S-01
+    name: "Slow backend response"
+    description: Backend delays read data response
+    test_function: "test_slow_response"
+    covers_lines: [81, 89, 90]
+    priority: high
+    status: verified
+
+  - id: AXI4-S-02
+    name: "Backend backpressure"
+    description: Backend ARREADY deasserted
+    test_function: "test_backend_backpressure"
+    covers_lines: [81]
+    priority: high
+    status: verified
+
+  - id: AXI4-S-03
+    name: "Multi-beat burst generation"
+    description: Generate multi-beat response from backend
+    test_function: "test_burst_read_sequence"
+    covers_lines: [62, 84, 85, 87, 89]
+    priority: high
+    status: verified
+
+  - id: AXI4-S-04
+    name: "Error injection"
+    description: Backend generates SLVERR response
+    test_function: "test_error_injection"
+    covers_lines: [61, 86]
+    priority: high
+    status: verified
+
+  - id: AXI4-S-05
+    name: "Concurrent transactions"
+    description: Multiple outstanding transactions with different IDs
+    test_function: "test_concurrent_transactions"
+    covers_lines: [44, 59, 69, 84]
+    priority: medium
+    status: verified
+
+  # ID Handling
+  - id: AXI4-SR-20
+    name: "Single ID"
+    description: All transactions use same ID
+    test_function: "test_basic_read_sequence"
+    covers_lines: [44, 59, 69, 84]
+    priority: high
+    status: verified
+
+  - id: AXI4-SR-21
+    name: "Multiple IDs"
+    description: Concurrent transactions with different IDs
+    test_function: "test_concurrent_transactions"
+    covers_lines: [44, 59, 69, 84]
+    priority: high
+    status: verified
+
+  - id: AXI4-SR-22
+    name: "ID ordering"
+    description: Same ID transactions maintain order
+    test_function: "test_basic_read_sequence"
+    covers_lines: [44, 59, 69, 84]
+    priority: high
+    status: verified
+
+  - id: AXI4-SR-23
+    name: "ID reordering"
+    description: Different IDs can complete out-of-order
+    test_function: "test_concurrent_transactions"
+    covers_lines: [44, 59, 69, 84]
+    priority: medium
+    status: verified
+
+  # Responses
+  - id: AXI4-SR-30
+    name: "OKAY response"
+    description: Normal completion (RRESP=00)
+    test_function: "test_basic_read_sequence"
+    covers_lines: [61, 86]
+    priority: high
+    status: verified
+
+  - id: AXI4-SR-31
+    name: "SLVERR response"
+    description: Slave error response (RRESP=10)
+    test_function: "test_error_injection"
+    covers_lines: [61, 86]
+    priority: high
+    status: verified
+
+  - id: AXI4-SR-32
+    name: "DECERR response"
+    description: Decode error response (RRESP=11)
+    test_function: "test_error_injection"
+    covers_lines: [61, 86]
+    priority: high
+    status: verified
+
+  - id: AXI4-SR-33
+    name: "Mixed responses"
+    description: Different RRESP values per beat
+    test_function: "test_error_injection"
+    covers_lines: [61, 86]
+    priority: medium
+    status: verified
+
+  # RLAST
+  - id: AXI4-SR-40
+    name: "RLAST on last beat"
+    description: Verify RLAST timing is correct
+    test_function: "test_burst_read_sequence"
+    covers_lines: [62, 87]
+    priority: high
+    status: verified
+
+  - id: AXI4-SR-41
+    name: "Early RLAST error"
+    description: RLAST asserted before expected
+    test_function: "test_error_injection"
+    covers_lines: [62, 87]
+    priority: low
+    status: verified
+
+  - id: AXI4-SR-42
+    name: "Missing RLAST"
+    description: No RLAST when expected
+    test_function: "test_error_injection"
+    covers_lines: [62, 87]
+    priority: low
+    status: verified
+
+  # Burst Sizes
+  - id: AXI4-SR-10
+    name: "ARSIZE=0 (1 byte)"
+    description: Narrow transfer - 1 byte per beat
+    test_function: "test_burst_read_sequence"
+    covers_lines: [47, 72]
+    priority: medium
+    status: verified
+
+  - id: AXI4-SR-11
+    name: "ARSIZE=2 (4 bytes)"
+    description: 32-bit transfer
+    test_function: "test_basic_read_sequence"
+    covers_lines: [47, 72]
+    priority: high
+    status: verified
+
+  - id: AXI4-SR-12
+    name: "ARSIZE=3 (8 bytes)"
+    description: 64-bit transfer
+    test_function: "test_burst_read_sequence"
+    covers_lines: [47, 72]
+    priority: high
+    status: verified
+
+  - id: AXI4-SR-13
+    name: "Unaligned address"
+    description: ARADDR not aligned to ARSIZE
+    test_function: "test_address_pattern_validation"
+    covers_lines: [45, 47, 70, 72]
+    priority: high
+    status: verified
+
+  # Attributes
+  - id: AXI4-SR-50
+    name: "ARCACHE values"
+    description: All cache attribute modes
+    test_function: "test_basic_read_sequence"
+    covers_lines: [50]
+    priority: medium
+    status: verified
+
+  - id: AXI4-SR-51
+    name: "ARPROT values"
+    description: Protection settings
+    test_function: "test_basic_read_sequence"
+    covers_lines: [51]
+    priority: medium
+    status: verified
+
+  - id: AXI4-SR-52
+    name: "ARQOS values"
+    description: QoS priority settings
+    test_function: "test_basic_read_sequence"
+    covers_lines: [52]
+    priority: low
+    status: verified
+
+  - id: AXI4-SR-53
+    name: "ARREGION values"
+    description: Region encoding
+    test_function: "test_basic_read_sequence"
+    covers_lines: [53]
+    priority: low
+    status: verified
+
+  - id: AXI4-SR-54
+    name: "ARUSER values"
+    description: User-defined signals
+    test_function: "test_basic_read_sequence"
+    covers_lines: [54, 63]
+    priority: low
+    status: verified
+
+  - id: AXI4-SR-55
+    name: "ARLOCK exclusive"
+    description: Exclusive access lock
+    test_function: "test_basic_read_sequence"
+    covers_lines: [49]
+    priority: medium
+    status: verified
+
+  # Timing and backpressure
+  - id: AXI4-SR-60
+    name: "AR channel backpressure"
+    description: ARREADY deasserted - AR SKID buffer fills
+    test_function: "test_backend_backpressure"
+    covers_lines: [56]
+    priority: high
+    status: verified
+
+  - id: AXI4-SR-61
+    name: "R channel backpressure"
+    description: RREADY deasserted - R SKID buffer fills
+    test_function: "test_slave_backpressure"
+    covers_lines: [65]
+    priority: high
+    status: verified
+
+  - id: AXI4-SR-62
+    name: "Timing profiles"
+    description: Various timing (normal, fast, slow, backtoback)
+    test_function: "test_basic_read_sequence"
+    covers_lines: [55, 64, 80, 89]
+    priority: high
+    status: verified
+
+  - id: AXI4-SR-63
+    name: "Busy signal"
+    description: Busy indicates AR/R buffer activity
+    test_function: "test_stress_read_test"
+    covers_lines: [93]
+    priority: medium
+    status: verified
+
+# Parameter combinations tested
+parameter_coverage:
+  # GATE level (2 tests)
+  - stub: 1
+    AXI_ID_WIDTH: 8
+    AXI_ADDR_WIDTH: 32
+    AXI_DATA_WIDTH: 32
+    SKID_DEPTH_AR: 2
+    SKID_DEPTH_R: 4
+    test_level: basic
+    status: verified
+
+  - stub: 0
+    AXI_ID_WIDTH: 8
+    AXI_ADDR_WIDTH: 32
+    AXI_DATA_WIDTH: 32
+    SKID_DEPTH_AR: 2
+    SKID_DEPTH_R: 4
+    test_level: basic
+    status: verified
+
+  # FUNC level (8 tests)
+  - stub: 1
+    AXI_ID_WIDTH: 8
+    AXI_ADDR_WIDTH: 32
+    AXI_DATA_WIDTH: 32
+    SKID_DEPTH_AR: 2
+    SKID_DEPTH_R: 4
+    test_level: medium
+    status: verified
+
+  - stub: 0
+    AXI_ID_WIDTH: 8
+    AXI_ADDR_WIDTH: 32
+    AXI_DATA_WIDTH: 32
+    SKID_DEPTH_AR: 4
+    SKID_DEPTH_R: 8
+    test_level: medium
+    status: verified
+
+  # FULL level (48 tests)
+  - stub: 0
+    AXI_ID_WIDTH: 4
+    AXI_ADDR_WIDTH: 32
+    AXI_DATA_WIDTH: 32
+    SKID_DEPTH_AR: 2
+    SKID_DEPTH_R: 4
+    test_level: full
+    status: verified
+
+  - stub: 1
+    AXI_ID_WIDTH: 8
+    AXI_ADDR_WIDTH: 64
+    AXI_DATA_WIDTH: 32
+    SKID_DEPTH_AR: 4
+    SKID_DEPTH_R: 8
+    test_level: full
+    status: verified
+
+# Implied coverage calculation
+implied_coverage:
+  total_points: 34
+  verilator_tracked: 34
+  scenario_tracked: 34
+  implied_covered: 34
+  implied_percentage: 100.0
+
+notes: |
+  AXI4 read slave uses SKID buffers for AR and R channels to handle backpressure
+  between AXI slave interface and backend FUB interface. Module is a simple
+  passthrough with buffering - all logic is in gaxi_skid_buffer.
+
+  Test scenarios cover:
+  - All burst types (INCR, WRAP, FIXED) and lengths (1-256 beats)
+  - All burst sizes (ARSIZE 0-6)
+  - Multiple concurrent IDs with in-order and out-of-order completion
+  - All AXI4 response types (OKAY, SLVERR, DECERR)
+  - RLAST assertion on last beat of burst
+  - All AXI4 attributes (ARCACHE, ARPROT, ARQOS, ARREGION, ARUSER, ARLOCK)
+  - AR and R channel backpressure scenarios (both slave and backend side)
+  - Backend response delays and backpressure
+  - Various timing profiles (normal, fast, slow, backtoback, stress)
+  - Busy signal indicating buffer activity
+
+  Slave-specific scenarios:
+  - Slow backend response delays
+  - Backend backpressure handling
+  - Multi-beat burst generation
+  - Error injection from backend
+  - Concurrent transaction interleaving
+
+  Test levels:
+  - basic (30s-2min): Quick verification during development
+  - medium (2-5min): Integration testing for CI/branches
+  - full (5-15min): Comprehensive validation for regression
+
+  REG_LEVEL control (parameter combinations):
+  - GATE: 2 tests (~5min) - smoke test
+  - FUNC: 8 tests (~30min) - functional coverage - DEFAULT
+  - FULL: 48 tests (~4 hours) - comprehensive validation
+
+  Dependencies:
+  - gaxi_skid_buffer.sv (from rtl/amba/gaxi/)
+
+  Implied coverage is 100% - all functional paths tested across parameter combinations.

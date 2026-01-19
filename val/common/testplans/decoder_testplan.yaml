@@ -1,0 +1,162 @@
+# Testplan for decoder
+# Maps functional test scenarios to Verilator coverage points
+
+module: decoder
+rtl_file: rtl/common/decoder.sv
+test_file: val/common/test_decoder.py
+
+# Raw Verilator coverage: 1/2 (50%)
+# Verilator limitation: generate block assigns not tracked as line coverage
+
+# Coverage points from annotated file
+coverage_points:
+  - line: 225
+    type: input_port
+    content: "input [M-1:0] encoded"
+    tracked_by: toggle_coverage
+
+  - line: 226
+    type: output_port
+    content: "output [N-1:0] data"
+    tracked_by: toggle_coverage
+
+  - line: 229
+    type: continuous_assign
+    content: "assign data = 0"
+    tracked_by: verilator_line
+    notes: "Initialization assign"
+
+  - line: 234
+    type: generate_assign
+    content: "assign data[i] = (encoded == i)"
+    tracked_by: functional_scenario
+    notes: "Generate block - creates N parallel comparators"
+
+# Functional scenarios
+functional_scenarios:
+  - id: S1
+    name: "Exhaustive input test"
+    description: |
+      Tests all 2^M input values exhaustively for small M.
+      For M=4: tests all 16 values (0-15)
+      For M=5: tests all 32 values (0-31)
+      Verifies exactly one output bit is set for each input.
+    test_function: "test_exhaustive_all_inputs"
+    test_file: "val/common/test_decoder.py"
+    covers_lines: [229, 234]
+    verification_method: "exhaustive"
+    parameter_coverage:
+      M=2: all_4_values
+      M=3: all_8_values
+      M=4: all_16_values
+      M=5: all_32_values
+      M=6: all_64_values
+    status: verified
+
+  - id: S2
+    name: "One-hot output verification"
+    description: |
+      Verifies output is always one-hot (exactly one bit set).
+      Checks popcount(data) == 1 for all inputs.
+    test_function: "test_one_hot_property"
+    test_file: "val/common/test_decoder.py"
+    covers_lines: [234]
+    verification_method: "property"
+    status: verified
+
+  - id: S3
+    name: "Bit position correctness"
+    description: |
+      Verifies output bit position matches input value.
+      For input N, data[N] should be 1, all others 0.
+    test_function: "test_bit_position"
+    test_file: "val/common/test_decoder.py"
+    covers_lines: [234]
+    verification_method: "property"
+    status: verified
+
+  - id: S4
+    name: "Input toggle coverage"
+    description: |
+      All M input bits toggle 0->1 and 1->0.
+      Achieved by testing all 2^M values.
+    test_function: "test_exhaustive_all_inputs"
+    test_file: "val/common/test_decoder.py"
+    covers_lines: [225]
+    verification_method: "toggle"
+    status: verified
+
+  - id: S5
+    name: "Output toggle coverage"
+    description: |
+      All N=2^M output bits toggle.
+      Each bit is asserted exactly once during exhaustive test.
+    test_function: "test_exhaustive_all_inputs"
+    test_file: "val/common/test_decoder.py"
+    covers_lines: [226]
+    verification_method: "toggle"
+    status: verified
+
+  - id: S6
+    name: "Encode-decode round trip"
+    description: |
+      Tests encoder(decoder(x)) == x property.
+      Verifies decoder is inverse of encoder.
+    test_function: "test_encode_decode_roundtrip"
+    test_file: "val/common/test_decoder.py"
+    covers_lines: [234]
+    verification_method: "property"
+    status: verified
+
+# Parameter combinations tested
+parameter_coverage:
+  - M: 2
+    N: 4
+    test_level: basic
+    status: verified
+
+  - M: 3
+    N: 8
+    test_level: basic
+    status: verified
+
+  - M: 4
+    N: 16
+    test_level: basic
+    status: verified
+
+  - M: 5
+    N: 32
+    test_level: medium
+    status: verified
+
+  - M: 6
+    N: 64
+    test_level: full
+    status: verified
+
+# Implied coverage calculation
+implied_coverage:
+  total_points: 4
+  verilator_tracked: 1        # Line 229 (assign data = 0)
+  scenario_tracked: 3         # Ports + generate block
+  not_applicable: 0
+  implied_covered: 4
+  implied_percentage: 100.0
+
+# Coverage analysis notes
+notes: |
+  This module is purely combinational using a generate block to create
+  N parallel comparators. Verilator line coverage shows 50% (1/2) because:
+  - Line 229 (assign data = 0) is tracked
+  - Line 234 (generate assign) is not tracked per-iteration
+
+  The test exercises ALL 2^M input values exhaustively for tested widths,
+  verifying every comparator produces correct output. This is 100%
+  functional coverage.
+
+  The generate block creates N instances of the comparison logic. Each
+  instance is exercised exactly once during exhaustive testing (when
+  encoded == i for that instance).
+
+  Implied coverage: 100% (all functionality verified)

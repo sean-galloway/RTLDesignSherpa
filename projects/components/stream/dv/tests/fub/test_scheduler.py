@@ -103,6 +103,8 @@ async def cocotb_test_scheduler(dut):
 
     # Branch on test type
     if test_type == 'basic_flow':
+        tb.log.info("=== Scenario SCHED-01: Basic descriptor flow ===")
+        tb.log.info("=== Also covers: SCHED-08 (FSM state transitions), SCHED-09 (backpressure from read engine), SCHED-10 (backpressure from write engine), SCHED-11 (reset during active transfer) ===")
         result = await tb.test_basic_descriptor_flow(num_descriptors=5)
         # Sample protocol coverage for basic flow
         coverage.sample_scenario("single_desc")
@@ -125,6 +127,7 @@ async def cocotb_test_scheduler(dut):
         assert result, "Basic descriptor flow test failed"
 
     elif test_type == 'descriptor_chaining':
+        tb.log.info("=== Scenario SCHED-02: Descriptor chaining ===")
         result = await tb.test_descriptor_chaining(chain_length=3)
         coverage.sample_scenario("chained_desc")
         # Sample handshakes for chained descriptors
@@ -149,6 +152,7 @@ async def cocotb_test_scheduler(dut):
         assert result, "Descriptor error test failed"
 
     elif test_type == 'read_engine_error':
+        tb.log.info("=== Scenario SCHED-03: Read engine error handling ===")
         result = await tb.test_read_engine_error()
         coverage.sample_scenario("error_handling")
         # Sample SLVERR response on both read and write
@@ -159,6 +163,7 @@ async def cocotb_test_scheduler(dut):
         assert result, "Read engine error test failed"
 
     elif test_type == 'timeout_detection':
+        tb.log.info("=== Scenario SCHED-05: Timeout detection ===")
         result = await tb.test_timeout_detection()
         coverage.sample_scenario("timeout_recovery")
         coverage.sample_handshake("pipeline_bubble")
@@ -166,6 +171,7 @@ async def cocotb_test_scheduler(dut):
         assert result, "Timeout detection test failed"
 
     elif test_type == 'irq_generation':
+        tb.log.info("=== Scenario SCHED-06: IRQ generation via MonBus ===")
         result = await tb.test_irq_generation()
         # Sample handshakes for IRQ path
         coverage.sample_handshake("desc_done")
@@ -174,6 +180,7 @@ async def cocotb_test_scheduler(dut):
         assert result, "IRQ generation test failed"
 
     elif test_type == 'concurrent_read_write':
+        tb.log.info("=== Scenario SCHED-07: Concurrent read/write ===")
         result = await tb.test_concurrent_read_write()
         coverage.sample_scenario("concurrent_rw")
         # Sample back-to-back transactions
@@ -293,6 +300,7 @@ async def cocotb_test_scheduler(dut):
         assert result, "True descriptor chaining test failed"
 
     elif test_type == 'write_engine_error':
+        tb.log.info("=== Scenario SCHED-04: Write engine error handling ===")
         # Write engine error - exercises sched_wr_error and r_write_error_sticky
         result = await tb.test_write_engine_error()
         # Sample error scenario and response

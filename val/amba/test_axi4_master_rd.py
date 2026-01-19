@@ -46,6 +46,7 @@ from itertools import product
 import pytest
 import cocotb
 from cocotb_test.simulator import run
+from conftest import get_coverage_compile_args
 from CocoTBFramework.tbclasses.shared.tbbase import TBBase
 from CocoTBFramework.tbclasses.shared.utilities import get_paths, create_view_cmd
 
@@ -104,6 +105,7 @@ async def axi4_read_master_test(dut):
     tb.log.info(f"Testing with timing profiles: {timing_profiles}")
 
     # Test 1: Basic connectivity test
+    tb.log.info("=== Scenario AXI4-MR-01: Single beat read ===")
     tb.log.info("=== Test 1: Basic Connectivity ===")
     tb.set_timing_profile('normal')
 
@@ -130,6 +132,9 @@ async def axi4_read_master_test(dut):
             tb.log.info(f"✓ Single read sequence passed with '{profile}' timing")
 
     # Test 3: Burst read sequences
+    tb.log.info("=== Scenario AXI4-MR-02: Burst read (4 beats) ===")
+    tb.log.info("=== Scenario AXI4-MR-03: Burst read (16 beats) ===")
+    tb.log.info("=== Scenario AXI4-MR-05: INCR burst ===")
     tb.log.info("=== Test 3: Burst Read Sequences ===")
 
     for i, (profile, lengths) in enumerate(zip(timing_profiles, burst_lengths)):
@@ -169,6 +174,7 @@ async def axi4_read_master_test(dut):
         tb.log.info(f"Mixed patterns result: {mixed_success}/{mixed_total} successful")
 
     # Test 5: Address pattern validation
+    tb.log.info("=== Scenario AXI4-MR-14: Unaligned address ===")
     tb.log.info("=== Test 5: Address Pattern Validation ===")
 
     # Test reads from different memory regions
@@ -188,6 +194,10 @@ async def axi4_read_master_test(dut):
 
     # Test 6: Stress testing (medium and full levels)
     if test_level in ['medium', 'full']:
+        tb.log.info("=== Scenario AXI4-MR-21: Multiple IDs ===")
+        tb.log.info("=== Scenario AXI4-MR-23: ID reordering ===")
+        tb.log.info("=== Scenario AXI4-MR-60: AR channel backpressure ===")
+        tb.log.info("=== Scenario AXI4-MR-61: R channel backpressure ===")
         tb.log.info("=== Test 6: Stress Testing ===")
 
         result = await tb.stress_read_test(stress_count)
@@ -198,6 +208,9 @@ async def axi4_read_master_test(dut):
 
     # Test 7: Boundary conditions (full level)
     if test_level == 'full':
+        tb.log.info("=== Scenario AXI4-MR-04: Max burst (256 beats) ===")
+        tb.log.info("=== Scenario AXI4-MR-30: OKAY response ===")
+        tb.log.info("=== Scenario AXI4-MR-31: SLVERR response ===")
         tb.log.info("=== Test 7: Boundary Conditions ===")
 
         # Test maximum burst length
@@ -442,6 +455,10 @@ def test_axi4_read_master(request, stub, id_width, addr_width, data_width, user_
         "-Wno-DECLFILENAME",
         "-Wno-PINMISSING",  # Allow unconnected pins for stub testing
     ]
+
+    # Add coverage compile args if COVERAGE=1
+    compile_args.extend(get_coverage_compile_args())
+
     sim_args = ["--trace", "--trace-depth", "99"]
     plusargs = ["--trace"]
 

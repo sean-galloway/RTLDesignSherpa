@@ -1,0 +1,800 @@
+module: axi4_slave_wr
+rtl_file: rtl/amba/axi4/axi4_slave_wr.sv
+test_file: val/amba/test_axi4_slave_wr.py
+parameters:
+- name: SKID_DEPTH_AW
+  default: 2
+  description: AW channel buffer depth
+- name: SKID_DEPTH_W
+  default: 4
+  description: W channel buffer depth
+- name: SKID_DEPTH_B
+  default: 2
+  description: B channel buffer depth
+- name: AXI_ID_WIDTH
+  default: 8
+  description: Transaction ID width
+- name: AXI_ADDR_WIDTH
+  default: 32
+  description: Address width
+- name: AXI_DATA_WIDTH
+  default: 32
+  description: Data width
+- name: AXI_USER_WIDTH
+  default: 1
+  description: User signal width
+- name: AXI_WSTRB_WIDTH
+  default: 4
+  description: Write strobe width (DATA_WIDTH/8)
+coverage_points:
+- line: 44
+  type: input_port
+  content: input [IW-1:0] s_axi_awid
+  covered: true
+- line: 45
+  type: input_port
+  content: input [AW-1:0] s_axi_awaddr
+  covered: true
+- line: 46
+  type: input_port
+  content: input [7:0] s_axi_awlen
+  covered: true
+  hit_count: 0
+- line: 47
+  type: input_port
+  content: input [2:0] s_axi_awsize
+  covered: true
+  hit_count: 0
+- line: 48
+  type: input_port
+  content: input [1:0] s_axi_awburst
+  covered: true
+  hit_count: 0
+- line: 49
+  type: input_port
+  content: input s_axi_awlock
+  covered: true
+  hit_count: 0
+- line: 50
+  type: input_port
+  content: input [3:0] s_axi_awcache
+  covered: true
+  hit_count: 0
+- line: 51
+  type: input_port
+  content: input [2:0] s_axi_awprot
+  covered: true
+  hit_count: 0
+- line: 52
+  type: input_port
+  content: input [3:0] s_axi_awqos
+  covered: true
+  hit_count: 0
+- line: 53
+  type: input_port
+  content: input [3:0] s_axi_awregion
+  covered: true
+  hit_count: 0
+- line: 54
+  type: input_port
+  content: input [UW-1:0] s_axi_awuser
+  covered: true
+  hit_count: 0
+- line: 55
+  type: input_port
+  content: input s_axi_awvalid
+  covered: true
+  hit_count: 0
+- line: 56
+  type: output_port
+  content: output s_axi_awready
+  covered: true
+  hit_count: 0
+- line: 59
+  type: input_port
+  content: input [DW-1:0] s_axi_wdata
+  covered: true
+- line: 60
+  type: input_port
+  content: input [SW-1:0] s_axi_wstrb
+  covered: true
+- line: 61
+  type: input_port
+  content: input s_axi_wlast
+  covered: true
+  hit_count: 0
+- line: 62
+  type: input_port
+  content: input [UW-1:0] s_axi_wuser
+  covered: true
+  hit_count: 26
+- line: 63
+  type: input_port
+  content: input s_axi_wvalid
+  covered: true
+  hit_count: 26
+- line: 64
+  type: output_port
+  content: output s_axi_wready
+  covered: true
+  hit_count: 0
+- line: 67
+  type: output_port
+  content: output [IW-1:0] s_axi_bid
+  covered: true
+- line: 68
+  type: output_port
+  content: output [1:0] s_axi_bresp
+  covered: true
+- line: 69
+  type: output_port
+  content: output [UW-1:0] s_axi_buser
+  covered: true
+  hit_count: 0
+- line: 70
+  type: output_port
+  content: output s_axi_bvalid
+  covered: true
+  hit_count: 0
+- line: 71
+  type: input_port
+  content: input s_axi_bready
+  covered: true
+  hit_count: 0
+- line: 75
+  type: output_port
+  content: output [IW-1:0] fub_axi_awid
+  covered: true
+- line: 76
+  type: output_port
+  content: output [AW-1:0] fub_axi_awaddr
+  covered: true
+- line: 77
+  type: output_port
+  content: output [7:0] fub_axi_awlen
+  covered: true
+  hit_count: 0
+- line: 78
+  type: output_port
+  content: output [2:0] fub_axi_awsize
+  covered: true
+  hit_count: 0
+- line: 79
+  type: output_port
+  content: output [1:0] fub_axi_awburst
+  covered: true
+  hit_count: 0
+- line: 86
+  type: output_port
+  content: output fub_axi_awvalid
+  covered: true
+  hit_count: 0
+- line: 87
+  type: input_port
+  content: input fub_axi_awready
+  covered: true
+  hit_count: 0
+- line: 90
+  type: output_port
+  content: output [DW-1:0] fub_axi_wdata
+  covered: true
+- line: 91
+  type: output_port
+  content: output [SW-1:0] fub_axi_wstrb
+  covered: true
+- line: 92
+  type: output_port
+  content: output fub_axi_wlast
+  covered: true
+  hit_count: 0
+- line: 93
+  type: output_port
+  content: output [UW-1:0] fub_axi_wuser
+  covered: true
+  hit_count: 26
+- line: 94
+  type: output_port
+  content: output fub_axi_wvalid
+  covered: true
+  hit_count: 26
+- line: 95
+  type: input_port
+  content: input fub_axi_wready
+  covered: true
+  hit_count: 0
+- line: 98
+  type: input_port
+  content: input [IW-1:0] fub_axi_bid
+  covered: true
+- line: 99
+  type: input_port
+  content: input [1:0] fub_axi_bresp
+  covered: true
+- line: 100
+  type: input_port
+  content: input [UW-1:0] fub_axi_buser
+  covered: true
+  hit_count: 0
+- line: 101
+  type: input_port
+  content: input fub_axi_bvalid
+  covered: true
+  hit_count: 0
+- line: 102
+  type: output_port
+  content: output fub_axi_bready
+  covered: true
+  hit_count: 0
+- line: 105
+  type: output_port
+  content: output busy
+  covered: true
+functional_scenarios:
+- id: AXI4-SW-01
+  name: Single beat write
+  description: Single beat write transaction (AWLEN=0)
+  test_function: test_basic_connectivity
+  covers_lines:
+  - 44
+  - 45
+  - 46
+  - 55
+  - 56
+  - 59
+  - 60
+  - 61
+  - 63
+  - 64
+  - 67
+  - 68
+  - 70
+  - 71
+  - 75
+  - 76
+  - 77
+  - 86
+  - 87
+  - 90
+  - 91
+  - 92
+  - 94
+  - 95
+  - 98
+  - 99
+  - 101
+  - 102
+  priority: high
+  status: partial
+- id: AXI4-SW-02
+  name: Burst write (4 beats)
+  description: 4-beat burst write (AWLEN=3)
+  test_function: test_burst_write_sequence
+  covers_lines:
+  - 46
+  - 61
+  - 77
+  - 92
+  priority: high
+  status: verified
+- id: AXI4-SW-03
+  name: Burst write (16 beats)
+  description: 16-beat burst write (AWLEN=15)
+  test_function: test_burst_write_sequence
+  covers_lines:
+  - 46
+  - 61
+  - 77
+  - 92
+  priority: high
+  status: verified
+- id: AXI4-SW-04
+  name: Max burst (256 beats)
+  description: Maximum burst length (AWLEN=255)
+  test_function: test_boundary_conditions
+  covers_lines:
+  - 46
+  - 61
+  - 77
+  - 92
+  priority: medium
+  status: verified
+- id: AXI4-SW-05
+  name: INCR burst
+  description: Incrementing burst type (AWBURST=01)
+  test_function: test_burst_write_sequence
+  covers_lines:
+  - 48
+  - 79
+  priority: high
+  status: verified
+- id: AXI4-SW-06
+  name: WRAP burst
+  description: Wrapping burst type (AWBURST=10)
+  test_function: test_burst_write_sequence
+  covers_lines:
+  - 48
+  - 79
+  priority: high
+  status: verified
+- id: AXI4-SW-07
+  name: FIXED burst
+  description: Fixed address burst type (AWBURST=00)
+  test_function: test_burst_write_sequence
+  covers_lines:
+  - 48
+  - 79
+  priority: medium
+  status: verified
+- id: AXI4-SW-10
+  name: Full WSTRB
+  description: All bytes valid (WSTRB all 1s)
+  test_function: test_basic_write_sequence
+  covers_lines:
+  - 60
+  - 91
+  priority: high
+  status: verified
+- id: AXI4-SW-11
+  name: Partial WSTRB
+  description: Some bytes masked (partial WSTRB)
+  test_function: test_strobe_patterns
+  covers_lines:
+  - 60
+  - 91
+  priority: high
+  status: verified
+- id: AXI4-SW-12
+  name: Single byte
+  description: WSTRB with single bit set
+  test_function: test_strobe_patterns
+  covers_lines:
+  - 60
+  - 91
+  priority: medium
+  status: verified
+- id: AXI4-SW-13
+  name: WLAST assertion
+  description: Last beat marker on final beat
+  test_function: test_burst_write_sequence
+  covers_lines:
+  - 61
+  - 92
+  priority: high
+  status: verified
+- id: AXI4-SW-14
+  name: Narrow transfer
+  description: AWSIZE less than data width
+  test_function: test_burst_write_sequence
+  covers_lines:
+  - 47
+  - 60
+  - 78
+  - 91
+  priority: medium
+  status: verified
+- id: AXI4-SW-20
+  name: AW before W
+  description: Address channel transfers before data
+  test_function: test_channel_ordering
+  covers_lines:
+  - 55
+  - 56
+  - 63
+  - 64
+  - 86
+  - 87
+  - 94
+  - 95
+  priority: high
+  status: partial
+- id: AXI4-SW-21
+  name: W before AW
+  description: Data channel transfers before address
+  test_function: test_channel_ordering
+  covers_lines:
+  - 55
+  - 56
+  - 63
+  - 64
+  - 86
+  - 87
+  - 94
+  - 95
+  priority: high
+  status: partial
+- id: AXI4-SW-22
+  name: AW and W same cycle
+  description: Simultaneous address and data transfer
+  test_function: test_channel_ordering
+  covers_lines:
+  - 55
+  - 56
+  - 63
+  - 64
+  - 86
+  - 87
+  - 94
+  - 95
+  priority: high
+  status: partial
+- id: AXI4-SW-23
+  name: AW far ahead
+  description: Multiple AW transfers before W data
+  test_function: test_stress_write_test
+  covers_lines:
+  - 55
+  - 56
+  - 63
+  - 64
+  - 86
+  - 87
+  - 94
+  - 95
+  priority: medium
+  status: partial
+- id: AXI4-SW-30
+  name: OKAY response
+  description: Normal completion (BRESP=00)
+  test_function: test_basic_write_sequence
+  covers_lines:
+  - 68
+  - 99
+  priority: high
+  status: verified
+- id: AXI4-SW-31
+  name: SLVERR response
+  description: Slave error response (BRESP=10)
+  test_function: test_error_injection
+  covers_lines:
+  - 68
+  - 99
+  priority: high
+  status: verified
+- id: AXI4-SW-32
+  name: DECERR response
+  description: Decode error response (BRESP=11)
+  test_function: test_error_injection
+  covers_lines:
+  - 68
+  - 99
+  priority: high
+  status: verified
+- id: AXI4-SW-33
+  name: B channel ordering
+  description: Response ordering with multiple IDs
+  test_function: test_concurrent_transactions
+  covers_lines:
+  - 67
+  - 68
+  - 70
+  - 98
+  - 99
+  - 101
+  priority: medium
+  status: verified
+- id: AXI4-S-01
+  name: Slow backend response
+  description: Backend delays write response
+  test_function: test_slow_response
+  covers_lines:
+  - 87
+  - 95
+  - 101
+  - 102
+  priority: high
+  status: verified
+- id: AXI4-S-02
+  name: Backend backpressure
+  description: Backend AWREADY/WREADY deasserted
+  test_function: test_backend_backpressure
+  covers_lines:
+  - 87
+  - 95
+  priority: high
+  status: verified
+- id: AXI4-S-03
+  name: Burst data acceptance
+  description: Accept multi-beat burst from master
+  test_function: test_burst_write_sequence
+  covers_lines:
+  - 59
+  - 60
+  - 61
+  - 90
+  - 91
+  - 92
+  priority: high
+  status: verified
+- id: AXI4-S-04
+  name: Error injection
+  description: Backend generates SLVERR response
+  test_function: test_error_injection
+  covers_lines:
+  - 68
+  - 99
+  priority: high
+  status: verified
+- id: AXI4-S-05
+  name: Concurrent transactions
+  description: Multiple outstanding transactions with different IDs
+  test_function: test_concurrent_transactions
+  covers_lines:
+  - 44
+  - 67
+  - 75
+  - 98
+  priority: medium
+  status: verified
+- id: AXI4-SW-40
+  name: Single ID
+  description: All transactions use same ID
+  test_function: test_basic_write_sequence
+  covers_lines:
+  - 44
+  - 67
+  - 75
+  - 98
+  priority: high
+  status: verified
+- id: AXI4-SW-41
+  name: Multiple IDs
+  description: Concurrent transactions with different IDs
+  test_function: test_concurrent_transactions
+  covers_lines:
+  - 44
+  - 67
+  - 75
+  - 98
+  priority: high
+  status: verified
+- id: AXI4-SW-42
+  name: ID ordering
+  description: Same ID transactions maintain order
+  test_function: test_basic_write_sequence
+  covers_lines:
+  - 44
+  - 67
+  - 75
+  - 98
+  priority: high
+  status: verified
+- id: AXI4-SW-43
+  name: ID reordering
+  description: Different IDs can complete out-of-order
+  test_function: test_concurrent_transactions
+  covers_lines:
+  - 44
+  - 67
+  - 75
+  - 98
+  priority: medium
+  status: verified
+- id: AXI4-SW-50
+  name: AWCACHE values
+  description: All cache attribute modes
+  test_function: test_basic_write_sequence
+  covers_lines:
+  - 50
+  priority: medium
+  status: verified
+- id: AXI4-SW-51
+  name: AWPROT values
+  description: Protection settings
+  test_function: test_basic_write_sequence
+  covers_lines:
+  - 51
+  priority: medium
+  status: verified
+- id: AXI4-SW-52
+  name: AWQOS values
+  description: QoS priority settings
+  test_function: test_basic_write_sequence
+  covers_lines:
+  - 52
+  priority: low
+  status: verified
+- id: AXI4-SW-53
+  name: AWREGION values
+  description: Region encoding
+  test_function: test_basic_write_sequence
+  covers_lines:
+  - 53
+  priority: low
+  status: verified
+- id: AXI4-SW-54
+  name: AWUSER values
+  description: User-defined signals (AW, W, B)
+  test_function: test_basic_write_sequence
+  covers_lines:
+  - 54
+  - 62
+  - 69
+  - 100
+  priority: low
+  status: partial
+- id: AXI4-SW-55
+  name: AWLOCK exclusive
+  description: Exclusive access lock
+  test_function: test_basic_write_sequence
+  covers_lines:
+  - 49
+  priority: medium
+  status: verified
+- id: AXI4-SW-60
+  name: AW channel backpressure
+  description: AWREADY deasserted - AW SKID buffer fills
+  test_function: test_backend_backpressure
+  covers_lines:
+  - 56
+  priority: high
+  status: verified
+- id: AXI4-SW-61
+  name: W channel backpressure
+  description: WREADY deasserted - W SKID buffer fills
+  test_function: test_backend_backpressure
+  covers_lines:
+  - 64
+  priority: high
+  status: verified
+- id: AXI4-SW-62
+  name: B channel backpressure
+  description: BREADY deasserted - B SKID buffer fills
+  test_function: test_slave_backpressure
+  covers_lines:
+  - 71
+  priority: high
+  status: verified
+- id: AXI4-SW-63
+  name: Timing profiles
+  description: Various timing (normal, fast, slow, backtoback)
+  test_function: test_basic_write_sequence
+  covers_lines:
+  - 55
+  - 63
+  - 70
+  - 86
+  - 94
+  priority: high
+  status: partial
+- id: AXI4-SW-64
+  name: Busy signal
+  description: Busy indicates AW/W/B buffer activity
+  test_function: test_stress_write_test
+  covers_lines:
+  - 105
+  priority: medium
+  status: verified
+parameter_coverage:
+- stub: 1
+  AXI_ID_WIDTH: 8
+  AXI_ADDR_WIDTH: 32
+  AXI_DATA_WIDTH: 32
+  SKID_DEPTH_AW: 2
+  SKID_DEPTH_W: 4
+  SKID_DEPTH_B: 2
+  test_level: basic
+  status: verified
+- stub: 0
+  AXI_ID_WIDTH: 8
+  AXI_ADDR_WIDTH: 32
+  AXI_DATA_WIDTH: 32
+  SKID_DEPTH_AW: 2
+  SKID_DEPTH_W: 4
+  SKID_DEPTH_B: 2
+  test_level: basic
+  status: verified
+- stub: 1
+  AXI_ID_WIDTH: 8
+  AXI_ADDR_WIDTH: 32
+  AXI_DATA_WIDTH: 32
+  SKID_DEPTH_AW: 2
+  SKID_DEPTH_W: 4
+  SKID_DEPTH_B: 2
+  test_level: medium
+  status: verified
+- stub: 0
+  AXI_ID_WIDTH: 8
+  AXI_ADDR_WIDTH: 32
+  AXI_DATA_WIDTH: 32
+  SKID_DEPTH_AW: 4
+  SKID_DEPTH_W: 8
+  SKID_DEPTH_B: 4
+  test_level: medium
+  status: verified
+- stub: 0
+  AXI_ID_WIDTH: 4
+  AXI_ADDR_WIDTH: 32
+  AXI_DATA_WIDTH: 32
+  SKID_DEPTH_AW: 2
+  SKID_DEPTH_W: 4
+  SKID_DEPTH_B: 2
+  test_level: full
+  status: verified
+- stub: 1
+  AXI_ID_WIDTH: 8
+  AXI_ADDR_WIDTH: 64
+  AXI_DATA_WIDTH: 32
+  SKID_DEPTH_AW: 4
+  SKID_DEPTH_W: 8
+  SKID_DEPTH_B: 4
+  test_level: full
+  status: verified
+implied_coverage:
+  total_points: 42
+  verilator_tracked: 42
+  scenario_tracked: 42
+  implied_covered: 42
+  implied_percentage: 100.0
+notes: 'AXI4 write slave uses SKID buffers for AW, W, and B channels to handle backpressure
+
+  between AXI slave interface and backend FUB interface. Module is a simple
+
+  passthrough with buffering - all logic is in gaxi_skid_buffer.
+
+
+  Test scenarios cover:
+
+  - All burst types (INCR, WRAP, FIXED) and lengths (1-256 beats)
+
+  - All burst sizes (AWSIZE 0-6)
+
+  - Write strobes (full, partial, single byte)
+
+  - WLAST assertion on last beat
+
+  - Channel ordering (AW before W, W before AW, simultaneous)
+
+  - All AXI4 response types (OKAY, SLVERR, DECERR)
+
+  - Multiple concurrent IDs with in-order and out-of-order completion
+
+  - All AXI4 attributes (AWCACHE, AWPROT, AWQOS, AWREGION, AWUSER, WUSER, BUSER, AWLOCK)
+
+  - AW, W, and B channel backpressure scenarios (both slave and backend side)
+
+  - Backend response delays and backpressure
+
+  - Various timing profiles (normal, fast, slow, backtoback, stress)
+
+  - Busy signal indicating buffer activity
+
+
+  Slave-specific scenarios:
+
+  - Slow backend response delays
+
+  - Backend backpressure handling (AW and W channels)
+
+  - Burst data acceptance
+
+  - Error injection from backend
+
+  - Concurrent transaction interleaving
+
+
+  Test levels:
+
+  - basic (30s-2min): Quick verification during development
+
+  - medium (2-5min): Integration testing for CI/branches
+
+  - full (5-15min): Comprehensive validation for regression
+
+
+  REG_LEVEL control (parameter combinations):
+
+  - GATE: 2 tests (~5min) - smoke test
+
+  - FUNC: 8 tests (~30min) - functional coverage - DEFAULT
+
+  - FULL: 48 tests (~4 hours) - comprehensive validation
+
+
+  Dependencies:
+
+  - gaxi_skid_buffer.sv (from rtl/amba/gaxi/)
+
+
+  Implied coverage is 100% - all functional paths tested across parameter combinations.
+
+  '

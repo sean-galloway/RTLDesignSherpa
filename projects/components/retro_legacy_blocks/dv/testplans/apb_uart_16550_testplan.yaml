@@ -1,0 +1,254 @@
+# Testplan for apb_uart_16550
+# Maps functional test scenarios to verification coverage
+# STATUS: 100% COMPLETE - All test levels implemented and passing
+
+module: apb_uart_16550
+rtl_file: projects/components/retro_legacy_blocks/rtl/uart_16550/apb_uart_16550.sv
+test_file: projects/components/retro_legacy_blocks/dv/tests/test_apb_uart_16550.py
+
+# Module description:
+# APB interface to 16550-compatible UART with 16-byte TX/RX FIFOs, programmable
+# baud rate, parity/stop bit configuration, modem control, loopback mode, and
+# interrupt generation.
+
+parameters:
+  - name: FIFO_DEPTH
+    default: 16
+    description: TX/RX FIFO depth (16 for 16550 compatibility)
+  - name: CDC_ENABLE
+    default: 0
+    description: 1=async clocks, 0=same clock
+  - name: SKID_DEPTH
+    default: 2
+    description: CDC skid buffer depth
+
+# Functional scenarios
+functional_scenarios:
+  - id: UART-01
+    name: "Register Access"
+    description: Basic read/write to all UART registers
+    test_function: "test_register_access (basic)"
+    test_level: basic
+    priority: high
+    status: verified
+
+  - id: UART-02
+    name: "Baud Rate Configuration"
+    description: Set divisor latch and verify baud rate
+    test_function: "test_baud_rate_config (basic)"
+    test_level: basic
+    priority: high
+    status: verified
+
+  - id: UART-03
+    name: "Transmit Single Byte"
+    description: Transmit single byte without FIFO
+    test_function: "test_transmit_byte (basic)"
+    test_level: basic
+    priority: high
+    status: verified
+
+  - id: UART-04
+    name: "Receive Single Byte"
+    description: Receive single byte without FIFO
+    test_function: "test_receive_byte (basic)"
+    test_level: basic
+    priority: high
+    status: verified
+
+  - id: UART-05
+    name: "FIFO Enable"
+    description: Enable TX/RX FIFOs via FCR register
+    test_function: "test_fifo_enable (basic)"
+    test_level: basic
+    priority: high
+    status: verified
+
+  - id: UART-06
+    name: "Loopback Mode"
+    description: Enable loopback and verify TX->RX path
+    test_function: "test_loopback_mode (basic)"
+    test_level: basic
+    priority: high
+    status: verified
+
+  - id: UART-07
+    name: "Interrupt Enable"
+    description: Configure and verify interrupt enable flags
+    test_function: "test_interrupt_enable (basic)"
+    test_level: basic
+    priority: high
+    status: verified
+
+  - id: UART-08
+    name: "Parity Configuration"
+    description: Test even/odd/none parity modes
+    test_function: "test_parity_configuration (medium)"
+    test_level: medium
+    priority: high
+    status: verified
+
+  - id: UART-09
+    name: "Stop Bits Configuration"
+    description: Test 1/1.5/2 stop bit modes
+    test_function: "test_stop_bits_configuration (medium)"
+    test_level: medium
+    priority: high
+    status: verified
+
+  - id: UART-10
+    name: "Data Bits Configuration"
+    description: Test 5/6/7/8 data bit modes
+    test_function: "test_data_bits_configuration (medium)"
+    test_level: medium
+    priority: medium
+    status: verified
+
+  - id: UART-11
+    name: "FIFO Operation"
+    description: Fill/empty TX/RX FIFOs and verify flags
+    test_function: "test_fifo_operation (medium)"
+    test_level: medium
+    priority: high
+    status: verified
+
+  - id: UART-12
+    name: "Modem Control"
+    description: Test RTS/DTR/OUT1/OUT2 modem control signals
+    test_function: "test_modem_control (medium)"
+    test_level: medium
+    priority: medium
+    status: verified
+
+  - id: UART-13
+    name: "Line Status Register"
+    description: Verify LSR flags (DR, OE, PE, FE, BI, THRE, TEMT)
+    test_function: "test_line_status (medium)"
+    test_level: medium
+    priority: high
+    status: verified
+
+  - id: UART-14
+    name: "Modem Status Register"
+    description: Verify MSR flags (CTS, DSR, RI, DCD changes)
+    test_function: "test_modem_status (medium)"
+    test_level: medium
+    priority: medium
+    status: verified
+
+  - id: UART-15
+    name: "Full FIFO Stress Test"
+    description: Continuously fill/empty FIFOs at max rate
+    test_function: "test_fifo_stress (full)"
+    test_level: full
+    priority: high
+    status: verified
+
+  - id: UART-16
+    name: "All Baud Rates Stress"
+    description: Test all standard baud rates (300-115200)
+    test_function: "test_all_baud_rates (full)"
+    test_level: full
+    priority: medium
+    status: verified
+
+  - id: UART-17
+    name: "Break Detection"
+    description: Verify break condition detection
+    test_function: "test_break_detection (full)"
+    test_level: full
+    priority: medium
+    status: verified
+
+  - id: UART-18
+    name: "Error Injection Stress"
+    description: Inject parity/framing/overrun errors
+    test_function: "test_error_injection (full)"
+    test_level: full
+    priority: medium
+    status: verified
+
+  - id: UART-19
+    name: "CDC Mode Stress"
+    description: Verify CDC operation with async clocks
+    test_function: "test_cdc_stress (full, CDC_ENABLE=1)"
+    test_level: full
+    priority: medium
+    status: verified
+
+# Test level coverage
+test_level_coverage:
+  basic:
+    implemented: true
+    test_count: 7
+    coverage_percentage: 100
+    status: "All basic scenarios verified - 100% pass rate"
+
+  medium:
+    implemented: true
+    test_count: 7
+    coverage_percentage: 100
+    status: "All medium scenarios verified - 100% pass rate"
+
+  full:
+    implemented: true
+    test_count: 5
+    coverage_percentage: 100
+    status: "All full scenarios verified - 100% pass rate"
+
+# Parameter combinations tested
+parameter_coverage:
+  - FIFO_DEPTH: 16
+    CDC_ENABLE: 0
+    test_level: full
+    status: verified
+
+  - FIFO_DEPTH: 16
+    CDC_ENABLE: 1
+    test_level: full
+    status: verified
+
+# Implied coverage calculation
+implied_coverage:
+  total_uart_features: 19
+  basic_features_covered: 7
+  medium_features_covered: 7
+  full_features_covered: 5
+  basic_percentage: 100
+  medium_percentage: 100
+  full_percentage: 100
+  overall_percentage: 100
+
+notes: |
+  UART 16550 is production ready with 100% test coverage across all three
+  test levels. Third block (after HPET and PM_ACPI) to achieve full verification.
+
+  Current Status:
+  - Basic tests: 100% complete (7/7 tests passing)
+  - Medium tests: 100% complete (7/7 tests passing)
+  - Full tests: 100% complete (5/5 tests passing)
+
+  All Configurations Tested:
+  - 16-byte TX/RX FIFOs
+  - CDC_ENABLE=0 (sync clocks)
+  - CDC_ENABLE=1 (async clocks)
+
+  Key Features Verified:
+  1. Programmable baud rate (divisor latch)
+  2. TX/RX with and without FIFOs
+  3. Loopback mode for self-test
+  4. Parity configuration (even/odd/none)
+  5. Stop bits (1/1.5/2)
+  6. Data bits (5/6/7/8)
+  7. FIFO operation and threshold flags
+  8. Modem control (RTS/DTR/OUT1/OUT2)
+  9. Line status (DR, OE, PE, FE, BI, THRE, TEMT)
+  10. Modem status (CTS, DSR, RI, DCD)
+  11. Interrupt generation for all sources
+  12. Break detection
+  13. Error injection (parity/framing/overrun)
+  14. CDC operation with dual clock domains
+  15. Stress testing at all baud rates
+
+  UART 16550 provides complete NS16550-compatible serial communication
+  suitable for console, debug, and communication interfaces.

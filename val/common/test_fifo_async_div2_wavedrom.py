@@ -47,6 +47,7 @@ import pytest
 import cocotb
 from cocotb.triggers import RisingEdge
 from cocotb_test.simulator import run
+from conftest import get_coverage_compile_args
 
 # Add repo root to path for CocoTBFramework imports
 from CocoTBFramework.tbclasses.shared.tbbase import TBBase

@@ -28,6 +28,7 @@ from cocotb_test.simulator import run
 from CocoTBFramework.tbclasses.shared.tbbase import TBBase
 from CocoTBFramework.tbclasses.shared.filelist_utils import get_sources_from_filelist
 from CocoTBFramework.tbclasses.shared.utilities import get_paths, create_view_cmd
+from conftest import get_coverage_compile_args
 
 class ShifterBarrelConfig:
     """Configuration class for Barrel Shifter tests"""
@@ -414,9 +415,6 @@ class ShifterBarrelTB(TBBase):
         """
         self.log.info("Testing various shift amounts")
 
-        # Test single data pattern with different shift amounts
-        data = 0xA5 & self.MAX_DATA
-
         # Test shift amounts
         shift_amounts = [0]  # No shift
 
@@ -428,18 +426,35 @@ class ShifterBarrelTB(TBBase):
         else:  # full
             shift_amounts.extend(list(range(1, self.WIDTH + 8)))  # Include beyond width
 
+        # Data patterns: use more patterns for full coverage
+        if self.TEST_LEVEL == 'full':
+            # Strategic patterns for comprehensive coverage
+            data_patterns = [
+                0x00,                        # All zeros
+                self.MAX_DATA,               # All ones
+                0xA5 & self.MAX_DATA,        # Alternating 10100101
+                0x5A & self.MAX_DATA,        # Alternating 01011010
+                0x01,                        # Single bit low
+                (1 << (self.WIDTH - 1)) & self.MAX_DATA,  # Single bit high (MSB)
+                0x0F & self.MAX_DATA,        # Low nibble
+                (0xF0 << max(0, self.WIDTH - 8)) & self.MAX_DATA,  # High nibble
+            ]
+        else:
+            data_patterns = [0xA5 & self.MAX_DATA]  # Single pattern for basic/medium
+
         all_passed = True
 
         for ctrl in [self.CTRL_RIGHT_SHIFT, self.CTRL_ARITH_RIGHT_SHIFT,
                         self.CTRL_RIGHT_SHIFT_WRAP, self.CTRL_LEFT_SHIFT,
                         self.CTRL_LEFT_SHIFT_WRAP]:
-            for shift in shift_amounts:
-                test_passed = await self.drive_and_check(data, ctrl, shift)
+            for data in data_patterns:
+                for shift in shift_amounts:
+                    test_passed = await self.drive_and_check(data, ctrl, shift)
 
-                if not test_passed:
-                    all_passed = False
-                    if self.TEST_LEVEL == 'basic':
-                        return False
+                    if not test_passed:
+                        all_passed = False
+                        if self.TEST_LEVEL == 'basic':
+                            return False
 
         return all_passed
 
@@ -710,6 +725,10 @@ def test_shifter_barrel(request, params):
         "--trace-structs",
         "--trace-depth", "99",
     ]
+
+    # Add coverage compile args if COVERAGE=1
+    compile_args.extend(get_coverage_compile_args())
+
     sim_args = [
         "--trace",  # VCD waveform format
         "--trace-structs",

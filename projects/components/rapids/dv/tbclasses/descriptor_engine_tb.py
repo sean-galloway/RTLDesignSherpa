@@ -354,6 +354,9 @@ class DescriptorEngineTB(TBBase):
 
     async def test_basic_descriptor_flow(self, num_descriptors=5):
         """Test basic APB → AXI → Descriptor output flow."""
+        self.log.info("=== Scenario DESC-01: APB descriptor submission ===")
+        self.log.info("=== Scenario DESC-02: AXI descriptor fetch ===")
+        self.log.info("=== Scenario DESC-03: FIFO buffering ===")
         self.log.info(f"=== Basic Descriptor Flow Test: {num_descriptors} descriptors ===")
 
         results = []
@@ -419,6 +422,8 @@ class DescriptorEngineTB(TBBase):
 
     async def test_descriptor_chaining(self, chain_length=3):
         """Test autonomous descriptor chaining via next_descriptor_ptr."""
+        self.log.info("=== Scenario DESC-04: Backpressure handling ===")
+        self.log.info("=== Scenario DESC-06: Mixed APB/AXI operations ===")
         self.log.info(f"=== Descriptor Chaining Test: chain_length={chain_length} ===")
 
         # Create chain of descriptors in memory
@@ -483,6 +488,7 @@ class DescriptorEngineTB(TBBase):
 
     async def test_address_range_validation(self):
         """Test address range validation (rejects addresses outside configured ranges)."""
+        self.log.info("=== Scenario DESC-05: Error handling ===")
         self.log.info("=== Address Range Validation Test ===")
 
         # Valid address (in range 0: 0x10000-0x1FFFF)
@@ -529,6 +535,7 @@ class DescriptorEngineTB(TBBase):
 
     async def test_channel_reset(self):
         """Test channel reset functionality."""
+        self.log.info("=== Scenario DESC-04: Backpressure handling ===")
         self.log.info("=== Channel Reset Test ===")
 
         # Setup a descriptor
@@ -565,6 +572,7 @@ class DescriptorEngineTB(TBBase):
 
     async def test_monitor_bus_events(self):
         """Test monitor bus event generation."""
+        self.log.info("=== Scenario DESC-07: Rapid descriptor submission ===")
         self.log.info("=== Monitor Bus Events Test ===")
 
         mon_packets = []
@@ -609,6 +617,7 @@ class DescriptorEngineTB(TBBase):
 
     async def test_invalid_descriptor(self):
         """Test handling of invalid descriptor (valid bit = 0)."""
+        self.log.info("=== Scenario DESC-05: Error handling ===")
         self.log.info("=== Invalid Descriptor Test ===")
 
         mem_addr = 0x10400

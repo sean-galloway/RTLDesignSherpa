@@ -1,0 +1,290 @@
+# Testplan for fifo
+# Auto-generated on 2026-01-18 01:27:07
+# EDIT: Add functional scenarios to improve implied coverage
+
+module: fifo
+rtl_file: rtl/common/fifo.sv
+test_file: val/common/test_fifo.py
+
+# Raw Verilator coverage: 23/31 (74.2%)
+
+# Coverage gaps by type:
+#   if_statement: 3 uncovered lines
+#   other: 5 uncovered lines
+
+# Coverage points
+coverage_points:
+  - line: 632
+    type: other
+    covered: True
+    hit_count: 2744
+    content: "wr_rst_n,"
+
+  - line: 634
+    type: other
+    covered: True
+    hit_count: 2744
+    content: "rd_rst_n,"
+
+  - line: 637
+    type: input_port
+    covered: True
+    hit_count: 191328
+    content: "input  logic                    write,"
+
+  - line: 638
+    type: input_port
+    covered: True
+    hit_count: 20330
+    content: "input  logic [DATA_WIDTH-1:0]   wr_data,"
+
+  - line: 639
+    type: output_port
+    covered: True
+    hit_count: 6410
+    content: "output logic                    wr_full,"
+
+  - line: 640
+    type: output_port
+    covered: True
+    hit_count: 9592
+    content: "output logic                    wr_almost_full,"
+
+  - line: 643
+    type: input_port
+    covered: True
+    hit_count: 162768
+    content: "input  logic                    read,"
+
+  - line: 644
+    type: output_port
+    covered: True
+    hit_count: 4919
+    content: "output logic [DATA_WIDTH-1:0]   rd_data,"
+
+  - line: 645
+    type: output_port
+    covered: True
+    hit_count: 116826
+    content: "output logic                    rd_empty,"
+
+  - line: 646
+    type: output_port
+    covered: True
+    hit_count: 30164
+    content: "output logic                    rd_almost_empty"
+
+  - line: 657
+    type: signal_decl
+    covered: True
+    hit_count: 5940
+    content: "logic [AW-1:0] r_wr_addr, r_rd_addr;"
+
+  - line: 658
+    type: signal_decl
+    covered: True
+    hit_count: 2972
+    content: "logic [AW:0]   r_wr_ptr_gray, r_wdom_rd_ptr_gray;"
+
+  - line: 659
+    type: signal_decl
+    covered: True
+    hit_count: 2972
+    content: "logic [AW:0]   r_rd_ptr_gray, r_rdom_wr_ptr_gray;"
+
+  - line: 660
+    type: signal_decl
+    covered: True
+    hit_count: 2972
+    content: "logic [AW:0]   r_wr_ptr_bin,  r_rd_ptr_bin;"
+
+  - line: 661
+    type: signal_decl
+    covered: True
+    hit_count: 2972
+    content: "logic [AW:0]   w_wdom_rd_ptr_bin, w_rdom_wr_ptr_bin;"
+
+  - line: 662
+    type: signal_decl
+    covered: True
+    hit_count: 4560
+    content: "logic [AW:0]   w_wr_ptr_bin_next, w_rd_ptr_bin_next;"
+
+  - line: 665
+    type: signal_decl
+    covered: True
+    hit_count: 4919
+    content: "logic [DW-1:0] w_rd_data;"
+
+  - line: 850
+    type: always_ff
+    covered: True
+    hit_count: 998657
+    content: "always_ff @(posedge wr_clk) begin"
+
+  - line: 851
+    type: if_statement
+    covered: True
+    hit_count: 95664
+    content: "if (write && !wr_full) begin"
+
+  - line: 852
+    type: other
+    covered: True
+    hit_count: 95664
+    content: "mem[r_wr_addr] <= wr_data;"
+
+  - line: 861
+    type: other
+    covered: True
+    hit_count: 12088
+    content: ")"
+
+  - line: 865
+    type: always_comb
+    covered: True
+    hit_count: 28
+    content: "always_comb w_rd_data = mem[r_rd_addr];"
+
+  - line: 887
+    type: always_ff
+    covered: True
+    hit_count: 998657
+    content: "always_ff @(posedge wr_clk) begin"
+
+  - line: 888
+    type: if_statement
+    covered: False
+    hit_count: 0
+    content: "if (write && wr_full) begin"
+
+  - line: 889
+    type: other
+    covered: False
+    hit_count: 0
+    content: "$timeformat(-9, 3, " ns", 10);"
+
+  - line: 890
+    type: other
+    covered: False
+    hit_count: 0
+    content: "$display("Error: %s write while fifo full, %t", INSTANCE_NAME, $time);"
+
+  - line: 895
+    type: if_statement
+    covered: False
+    hit_count: 0
+    content: "if (read && rd_empty) begin"
+
+  - line: 896
+    type: other
+    covered: False
+    hit_count: 0
+    content: "$timeformat(-9, 3, " ns", 10);"
+
+  - line: 897
+    type: if_statement
+    covered: False
+    hit_count: 0
+    content: "if (REGISTERED == 1)"
+
+  - line: 898
+    type: other
+    covered: False
+    hit_count: 0
+    content: "$display("Error: %s read while fifo empty (flop mode), %t", INSTANCE_NAME, $time"
+
+  - line: 900
+    type: other
+    covered: False
+    hit_count: 0
+    content: "$display("Error: %s read while fifo empty (mux mode), %t", INSTANCE_NAME, $time)"
+
+
+# Functional scenarios
+# Map test scenarios to coverage points based on test_fifo_async_wavedrom.py
+functional_scenarios:
+  - id: FIFO-01
+    name: "Basic write operation"
+    description: "Write data to FIFO, verify write pointer advancement and full flag generation"
+    test_function: "FifoAsyncWaveDromTB (write phase)"
+    covers_lines: [632, 634, 637, 638, 639, 640, 850, 851, 852, 861, 887]
+    priority: high
+    status: verified
+
+  - id: FIFO-02
+    name: "Basic read operation"
+    description: "Read data from FIFO, verify read pointer advancement and empty flag generation"
+    test_function: "FifoAsyncWaveDromTB (read phase)"
+    covers_lines: [632, 634, 643, 644, 645, 646, 865]
+    priority: high
+    status: verified
+
+  - id: FIFO-03
+    name: "Gray code pointer synchronization"
+    description: "Verify Gray code encoding for CDC-safe pointer synchronization across clock domains"
+    test_function: "FifoAsyncWaveDromTB (cross-domain sync)"
+    covers_lines: [657, 658, 659, 660, 661, 662, 887]
+    priority: high
+    status: verified
+
+  - id: FIFO-04
+    name: "Almost-full/almost-empty thresholds"
+    description: "Test programmable almost-full and almost-empty flag generation for flow control"
+    test_function: "FifoAsyncWaveDromTB (threshold testing)"
+    covers_lines: [640, 646]
+    priority: high
+    status: verified
+
+  - id: FIFO-05
+    name: "FIFO fill and drain"
+    description: "Fill FIFO to full capacity, then drain to empty, verify flag transitions"
+    test_function: "FifoAsyncWaveDromTB (fill-drain cycle)"
+    covers_lines: [637, 638, 639, 643, 644, 645, 850, 851, 852, 865]
+    priority: high
+    status: verified
+
+  - id: FIFO-06
+    name: "Dual clock domain operation"
+    description: "Independent write and read clock domains with different frequencies"
+    test_function: "FifoAsyncWaveDromTB (async clocks)"
+    covers_lines: [632, 634, 850, 887]
+    priority: high
+    status: verified
+
+  - id: FIFO-07
+    name: "Memory storage and retrieval"
+    description: "Verify correct data storage in dual-port RAM and retrieval"
+    test_function: "FifoAsyncWaveDromTB (data integrity)"
+    covers_lines: [657, 660, 661, 662, 665, 850, 851, 852, 861, 865]
+    priority: high
+    status: verified
+
+  - id: FIFO-08
+    name: "Write when full (error case)"
+    description: "Attempt to write to full FIFO - should trigger overflow detection"
+    test_function: "Error case testing (manual verification needed)"
+    covers_lines: [888, 889, 890]
+    priority: medium
+    status: not_applicable
+    notes: "Simulation-only error detection - not covered by normal test flow"
+
+  - id: FIFO-09
+    name: "Read when empty (error case)"
+    description: "Attempt to read from empty FIFO - should trigger underflow detection"
+    test_function: "Error case testing (manual verification needed)"
+    covers_lines: [895, 896, 897, 898, 900]
+    priority: medium
+    status: not_applicable
+    notes: "Simulation-only error detection - not covered by normal test flow"
+
+# Implied coverage calculation
+implied_coverage:
+  total_points: 31
+  verilator_covered: 23
+  scenario_covered: 23  # Scenarios cover all Verilator-tracked lines
+  implied_percentage: 74.2  # 23/31 * 100 (matches Verilator coverage)
+  notes: |
+    Error detection lines (888-890, 895-898, 900) are simulation-only assertions
+    not exercised during normal operation. They trigger $display on protocol violations.
+    These are intentionally not covered in functional tests as they represent illegal states.

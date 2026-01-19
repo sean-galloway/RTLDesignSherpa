@@ -1,0 +1,113 @@
+# Testplan for ctrlwr_engine
+# Maps functional test scenarios to RTL coverage
+
+module: ctrlwr_engine
+rtl_file: projects/components/rapids/rtl/fub/ctrlwr_engine.sv
+test_file: projects/components/rapids/dv/tests/fub/test_ctrlwr_engine.py
+
+# Module description:
+# Control Write Engine - Pre-descriptor control write operations.
+# Performs AXI4 write operations with configurable byte enables.
+# Supports masked writes for register field updates.
+
+parameters:
+  - name: CHANNEL_ID
+    default: 0
+    description: Channel identifier within multi-channel system
+  - name: NUM_CHANNELS
+    default: 32
+    description: Total number of channels
+  - name: CHAN_WIDTH
+    default: clog2(NUM_CHANNELS)
+    description: Channel ID width in bits
+  - name: ADDR_WIDTH
+    default: 64
+    description: Address bus width
+  - name: AXI_DATA_WIDTH
+    default: 64
+    description: AXI data width
+  - name: AXI_ID_WIDTH
+    default: 8
+    description: AXI ID width
+  - name: MON_AGENT_ID
+    default: 0x31
+    description: Monitor bus agent identifier
+
+# Functional scenarios
+functional_scenarios:
+  - id: CTRLWR-01
+    name: "Basic write"
+    description: Single control write operation
+    test_function: "test_ctrlwr_basic_write"
+    priority: high
+    status: verified
+
+  - id: CTRLWR-02
+    name: "Null address handling"
+    description: Null address (0x0) triggers immediate success
+    test_function: "test_ctrlwr_null_address"
+    priority: high
+    status: verified
+
+  - id: CTRLWR-03
+    name: "Byte enable patterns"
+    description: Various byte enable patterns (partial writes)
+    test_function: "test_ctrlwr_byte_enables"
+    priority: high
+    status: verified
+
+  - id: CTRLWR-04
+    name: "AXI error handling"
+    description: Handle AXI write errors (SLVERR/DECERR)
+    test_function: "test_ctrlwr_axi_error"
+    priority: high
+    status: verified
+
+  - id: CTRLWR-05
+    name: "Channel reset"
+    description: Channel reset during operation
+    test_function: "test_ctrlwr_channel_reset"
+    priority: high
+    status: verified
+
+  - id: CTRLWR-06
+    name: "Back-to-back operations"
+    description: Multiple consecutive control write operations
+    test_function: "test_ctrlwr_back_to_back"
+    priority: medium
+    status: verified
+
+  - id: CTRLWR-07
+    name: "Mixed scenarios"
+    description: Combination of success and failure cases
+    test_function: "test_ctrlwr_mixed_scenarios"
+    priority: medium
+    status: verified
+
+# Parameter combinations tested
+parameter_coverage:
+  - CHANNEL_ID: 0
+    NUM_CHANNELS: 8
+    ADDR_WIDTH: 64
+    AXI_DATA_WIDTH: 64
+    test_level: comprehensive
+    status: verified
+
+# Implied coverage calculation
+implied_coverage:
+  total_points: 7
+  scenario_tracked: 7
+  implied_covered: 7
+  implied_percentage: 100.0
+
+notes: |
+  Control Write Engine handles pre-descriptor write operations.
+  FUB Legacy module with 100% test coverage (7/7 scenarios passing).
+
+  Key features:
+  - Null address handling (immediate success)
+  - Byte enable support for partial writes
+  - AXI error detection and reporting
+  - Channel reset support
+
+  All functional scenarios verified. Complete datapath coverage achieved.

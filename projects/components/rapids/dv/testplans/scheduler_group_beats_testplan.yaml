@@ -1,0 +1,97 @@
+# Testplan for scheduler_group_beats
+# Maps functional test scenarios to RTL coverage
+
+module: scheduler_group_beats
+rtl_file: projects/components/rapids/rtl/macro_beats/scheduler_group_beats.sv
+test_file: projects/components/rapids/dv/tests/macro_beats/test_scheduler_group_beats.py
+
+# Module description:
+# Scheduler Group (Beats) - Integrated scheduler and descriptor engine.
+# Wraps descriptor engine, scheduler, and MonBus arbiter.
+# Provides complete task coordination for RAPIDS operations.
+
+parameters:
+  - name: CHANNEL_ID
+    default: 0
+    description: Channel identifier
+  - name: ADDR_WIDTH
+    default: 64
+    description: Address bus width
+  - name: DATA_WIDTH
+    default: 512
+    description: Data path width
+  - name: AXI_ID_WIDTH
+    default: 8
+    description: AXI ID width
+
+# Functional scenarios
+functional_scenarios:
+  - id: SGRP-01
+    name: "Idle state"
+    description: System starts in idle state after reset
+    test_function: "test_idle_state"
+    priority: high
+    status: verified
+
+  - id: SGRP-02
+    name: "Configuration interface"
+    description: Configuration register access
+    test_function: "test_config_interface"
+    priority: high
+    status: verified
+
+  - id: SGRP-03
+    name: "Basic descriptor flow"
+    description: Descriptor fetch and scheduling
+    test_function: "test_basic_descriptor_flow"
+    priority: high
+    status: verified
+
+  - id: SGRP-04
+    name: "MonBus events"
+    description: Monitor bus event generation
+    test_function: "test_monbus_events"
+    priority: high
+    status: verified
+
+# Parameter combinations tested
+parameter_coverage:
+  - CHANNEL_ID: 0
+    ADDR_WIDTH: 64
+    DATA_WIDTH: 512
+    AXI_ID_WIDTH: 8
+    test_level: comprehensive
+    status: verified
+
+  - CHANNEL_ID: 3
+    ADDR_WIDTH: 64
+    DATA_WIDTH: 512
+    AXI_ID_WIDTH: 8
+    test_level: basic
+    status: verified
+
+  - CHANNEL_ID: 0
+    ADDR_WIDTH: 64
+    DATA_WIDTH: 256
+    AXI_ID_WIDTH: 8
+    test_level: medium
+    status: verified
+
+# Implied coverage calculation
+implied_coverage:
+  total_points: 4
+  scenario_tracked: 4
+  implied_covered: 4
+  implied_percentage: 100.0
+
+notes: |
+  Scheduler Group integrates descriptor engine and scheduler.
+  MACRO Beats generation with 100% test coverage (4/4 scenarios passing).
+
+  Key features:
+  - Integrated descriptor fetch and scheduling
+  - MonBus arbiter for event aggregation
+  - APB descriptor kick-off interface
+  - Configuration interface
+
+  All functional scenarios verified. Beats generation at 100% coverage.

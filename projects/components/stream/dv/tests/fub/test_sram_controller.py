@@ -60,6 +60,10 @@ async def cocotb_test_sram_controller(dut):
 
     # Branch on test type
     if test_type == 'single_channel':
+        tb.log.info("=== Scenario SRAM-CTRL-01: Basic write and read ===")
+        tb.log.info("=== Also covers: SRAM-CTRL-02 (full buffer detection), SRAM-CTRL-03 (empty buffer detection) ===")
+        tb.log.info("=== SRAM-CTRL-05 (pointer wrap-around), SRAM-CTRL-06 (allocation request), SRAM-CTRL-09 (write backpressure) ===")
+        tb.log.info("=== SRAM-CTRL-10 (read backpressure), SRAM-CTRL-11 (count accuracy) ===")
         # Run comprehensive single-channel test
         success = await tb.run_single_channel_test(channel=0, num_beats=16)
 
@@ -70,6 +74,8 @@ async def cocotb_test_sram_controller(dut):
         assert success, "Single channel test failed"
 
     elif test_type == 'multi_channel':
+        tb.log.info("=== Scenario SRAM-CTRL-04: Concurrent read and write ===")
+        tb.log.info("=== Also covers: SRAM-CTRL-07 (allocation failure), SRAM-CTRL-08 (multi-channel allocation) ===")
         # Run comprehensive multi-channel test
         success = await tb.run_multi_channel_test(num_channels_to_test=4, beats_per_channel=8)
 

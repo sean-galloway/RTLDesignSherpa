@@ -1,0 +1,20 @@
+# Coverage exclusions for higher-level tests
+# These modules are verified in val/common with high implied coverage
+# Exclude them from coverage calculations in projects/components/* tests
+
+# Format: one glob pattern per line
+# Use with: verilator_coverage --annotate-min 1 --exclude-file coverage_exclusions.txt
+
+# All common modules (verified in val/common)
+rtl/common/*.sv
+
+# Specific high-coverage modules that may be instantiated
+rtl/common/counter_*.sv
+rtl/common/arbiter_*.sv
+rtl/common/fifo_*.sv
+rtl/common/encoder*.sv
+rtl/common/decoder*.sv
+rtl/common/math_*.sv
+rtl/common/clock_*.sv
+rtl/common/dataint_*.sv
+rtl/common/shifter_*.sv

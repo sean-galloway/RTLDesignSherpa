@@ -41,6 +41,7 @@ class HPETBasicTests:
 
     async def test_register_access(self) -> bool:
         """Test basic register read/write access."""
+        self.log.info("=== Scenario HPET-01: Register Access ===")
         self.log.info(f"=== Testing HPET Register Access ({self.tb.NUM_TIMERS} timers) ===")
         self.tb.test_phase = "REGISTER_ACCESS"
 
@@ -93,6 +94,8 @@ class HPETBasicTests:
 
     async def test_counter_functionality(self) -> bool:
         """Test main counter functionality."""
+        self.log.info("=== Scenario HPET-02: Counter Enable/Disable ===")
+        self.log.info("=== Scenario HPET-03: Counter Increment ===")
         self.log.info("=== Testing HPET Counter Functionality ===")
         self.tb.test_phase = "COUNTER_TEST"
 
@@ -152,6 +155,7 @@ class HPETBasicTests:
             self.log.warning(f"Timer {timer_id} not available (only {self.tb.NUM_TIMERS} timers)")
             return True  # Skip test, don't fail
 
+        self.log.info("=== Scenario HPET-04: Single Timer One-Shot ===")
         self.log.info(f"=== Testing Timer {timer_id} One-Shot Mode{self.tb.get_time_ns_str()} ===")
         self.tb.test_phase = f"TIMER_{timer_id}_ONE_SHOT"
 
@@ -227,6 +231,8 @@ class HPETBasicTests:
 
     async def test_interrupt_clearing(self) -> bool:
         """Test interrupt status and clearing mechanisms."""
+        self.log.info("=== Scenario HPET-06: Interrupt Status Read ===")
+        self.log.info("=== Scenario HPET-07: Interrupt Clear (W1C) ===")
         self.log.info("=== Testing Interrupt Clearing ===")
         self.tb.test_phase = "INTERRUPT_CLEARING"
 
@@ -285,6 +291,9 @@ class HPETBasicTests:
 
     async def run_all_basic_tests(self) -> bool:
         """Run all basic tests."""
+        self.log.info("=== Scenario HPET-07: Interrupt Clear (W1C) ===")
+        self.log.info("=== Scenario HPET-04: Single Timer One-Shot ===")
+        self.log.info("=== Scenario HPET-02: Counter Enable/Disable ===")
         self.log.info(f"=== Running All Basic HPET Tests ({self.tb.NUM_TIMERS} timers) ===")
 
         tests = [

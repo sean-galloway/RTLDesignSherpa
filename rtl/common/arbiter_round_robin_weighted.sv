@@ -401,10 +401,13 @@ module arbiter_round_robin_weighted #(
                     end
                 end
 
+                // verilator coverage_off
+                // DEFENSIVE: Illegal FSM state recovery
                 default: begin
                     r_weight_state <= WEIGHT_IDLE;
                     r_weight_timer <= 4'h0;
                 end
+                // verilator coverage_on
             endcase
         end
     )

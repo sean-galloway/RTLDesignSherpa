@@ -1,0 +1,204 @@
+# Testplan for counter_freq_invariant
+# Maps functional test scenarios to Verilator coverage points
+
+module: counter_freq_invariant
+rtl_file: rtl/common/counter_freq_invariant.sv
+test_file: val/common/test_counter_freq_invariant.py
+
+# Raw Verilator coverage: 10/82 (12.2%)
+# Verilator limitation: 68 case branches in always_comb not tracked
+
+# Module description:
+# Frequency-invariant timer that generates 1MHz ticks regardless of input
+# clock frequency. Uses a 68-entry lookup table (freq_sel 0-67) to configure
+# the prescaler division factor for clock frequencies from 100MHz to 2GHz.
+
+# Coverage points - Sequential logic (Verilator tracks these)
+sequential_coverage_points:
+  - line: 176
+    type: input_port
+    content: "input logic clk"
+    tracked_by: toggle_coverage
+
+  - line: 177
+    type: input_port
+    content: "input logic rst_n"
+    tracked_by: toggle_coverage
+
+  - line: 178
+    type: input_port
+    content: "input logic sync_reset_n"
+    tracked_by: toggle_coverage
+
+  - line: 179
+    type: input_port
+    content: "input logic [6:0] freq_sel"
+    tracked_by: toggle_coverage
+
+  - line: 180
+    type: output_port
+    content: "output logic [COUNTER_WIDTH-1:0] o_counter"
+    tracked_by: toggle_coverage
+
+  - line: 181
+    type: output_port
+    content: "output logic tick"
+    tracked_by: toggle_coverage
+
+  - line: 186
+    type: signal_decl
+    content: "logic [6:0] r_prev_freq_sel"
+    tracked_by: toggle_coverage
+
+  - line: 187
+    type: signal_decl
+    content: "logic r_clear_pulse"
+    tracked_by: sequential
+
+  - line: 188
+    type: signal_decl
+    content: "logic w_prescaler_done"
+    tracked_by: sequential
+
+# Coverage points - Combinational lookup table (Verilator doesn't track)
+combinational_coverage_points:
+  - lines: [192-259]
+    type: case_branch
+    content: "freq_sel case 0-67"
+    count: 68
+    tracked_by: functional_scenario
+    notes: "68 frequency selection cases (100MHz to 2GHz)"
+
+# Functional scenarios
+functional_scenarios:
+  - id: S1
+    name: "Basic tick generation"
+    description: |
+      Verifies microsecond tick generation at default frequency (freq_sel=0, 100MHz).
+      Checks tick occurs every division_factor clock cycles.
+    test_function: "test_basic_tick_generation"
+    test_file: "val/common/test_counter_freq_invariant.py"
+    covers_lines: [177, 178, 181, 187, 188]
+    freq_sel_values: [0]
+    status: verified
+
+  - id: S2
+    name: "Counter increment verification"
+    description: |
+      Verifies o_counter increments on each tick.
+      Tests counter sequence is monotonically increasing.
+    test_function: "test_counter_sequence"
+    test_file: "val/common/test_counter_freq_invariant.py"
+    covers_lines: [180]
+    status: verified
+
+  - id: S3
+    name: "Reset functionality"
+    description: |
+      Tests rst_n (async reset) and sync_reset_n (sync reset).
+      Verifies counter and prescaler reset to 0.
+    test_function: "test_reset_functionality"
+    test_file: "val/common/test_counter_freq_invariant.py"
+    covers_lines: [177, 178, 187]
+    status: verified
+
+  - id: S4
+    name: "Programming model"
+    description: |
+      Tests the programming model: sync_reset_n=0, set freq_sel, sync_reset_n=1.
+      Verifies proper initialization sequence.
+    test_function: "test_programming_model"
+    test_file: "val/common/test_counter_freq_invariant.py"
+    covers_lines: [178, 179, 186, 187]
+    status: verified
+
+  - id: S5
+    name: "Frequency selection - all 68 frequencies"
+    description: |
+      At FULL level, tests all 68 freq_sel values (0-67) covering:
+      - 0-15: 100MHz to 200MHz range
+      - 16-31: 200MHz to 500MHz range
+      - 32-47: 500MHz to 1GHz range
+      - 48-67: 1GHz to 2GHz range
+      Verifies correct division factors for each selection.
+    test_function: "test_frequency_verification"
+    test_file: "val/common/test_counter_freq_invariant.py"
+    covers_lines: [192, 193, 194, 195, 196, 197, 198, 199, 200, 201, 202, 203, 204, 205, 206, 207, 208, 209, 210, 211, 212, 213, 214, 215, 216, 217, 218, 219, 220, 221, 222, 223, 224, 225, 226, 227, 228, 229, 230, 231, 232, 233, 234, 235, 236, 237, 238, 239, 240, 241, 242, 243, 244, 245, 246, 247, 248, 249, 250, 251, 252, 253, 254, 255, 256, 257, 258, 259]
+    freq_sel_values: "all 68 values (0-67) at FULL level"
+    status: verified
+    notes: "FULL level tests all 68 frequencies; basic/medium test subset"
+
+  - id: S9
+    name: "Frequency change detection"
+    description: |
+      Tests that changing freq_sel triggers clear pulse and
+      reloads prescaler with new division factor.
+    test_function: "test_freq_change_detection"
+    test_file: "val/common/test_counter_freq_invariant.py"
+    covers_lines: [186, 187]
+    status: verified
+
+  - id: S10
+    name: "Invalid freq_sel handling"
+    description: |
+      Tests freq_sel values 68-127 (should default to 1GHz/1000 cycles).
+      The default case handles these invalid selections.
+    test_function: "test_invalid_freq_sel"
+    test_file: "val/common/test_counter_freq_invariant.py"
+    covers_lines: [260]  # default case
+    status: not_tested
+    notes: "Default case not explicitly tested"
+
+# Parameter combinations
+parameter_coverage:
+  - COUNTER_WIDTH: 8
+    PRESCALER_MAX: 2048
+    test_level: basic
+    status: verified
+
+  - COUNTER_WIDTH: 16
+    PRESCALER_MAX: 2048
+    test_level: medium
+    status: verified
+
+  - COUNTER_WIDTH: 24
+    PRESCALER_MAX: 2048
+    test_level: full
+    status: verified
+
+# Implied coverage calculation
+implied_coverage:
+  total_points: 82
+  verilator_tracked: 10       # Sequential logic, ports
+  scenario_verified: 80       # S1-S5, S9 verified (includes all 68 freq_sel at FULL)
+  scenario_not_tested: 2      # S10 (invalid freq_sel) not tested
+  implied_covered: 80         # All scenarios except invalid freq_sel
+  implied_percentage: 97.6    # At FULL level
+
+# Test improvement recommendations
+improvements_needed:
+  - id: IMP1
+    priority: low
+    description: "Add invalid freq_sel test (68-127)"
+    effort: "Add scenario for default case testing"
+    expected_coverage_gain: 2
+
+  - id: IMP2
+    priority: low
+    description: "Add tick accuracy measurement"
+    effort: "Measure actual tick period vs expected"
+    expected_coverage_gain: 0  # Verification improvement, not coverage
+
+notes: |
+  This module has 68 frequency selection cases in an always_comb block.
+  Verilator cannot track individual case branch execution, showing only
+  12.2% line coverage.
+
+  At FULL test level, the test iterates through ALL 68 freq_sel values
+  (0-67), exercising every case branch in the lookup table. This achieves
+  ~98% implied coverage.
+
+  The only untested path is the default case (freq_sel 68-127), which
+  handles invalid inputs by defaulting to 1GHz (1000 cycles).
+
+  Implied coverage at FULL level: 97.6% (80/82 points)

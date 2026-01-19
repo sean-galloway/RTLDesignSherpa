@@ -1,0 +1,26 @@
+{
+  "signal": [
+    {"name": "clk", "wave": "p.........|........."},
+    {},
+    ["Network Input",
+      {"name": "s_axis_tvalid", "wave": "0.1...1...|0........"},
+      {"name": "s_axis_tready", "wave": "1.........|........."},
+      {"name": "s_axis_tdata", "wave": "x.=...=...|x........", "data": ["D0","D1-D3"]},
+      {"name": "s_axis_tlast", "wave": "0.....1...|0........"}
+    ],
+    {},
+    ["SRAM Buffer",
+      {"name": "sram_wr_en", "wave": "0.1...1...|0........"},
+      {"name": "sram_fill_level", "wave": "=.=.=.=.=.|=........", "data": ["0","1","2","3","4","0"]}
+    ],
+    {},
+    ["Memory Write",
+      {"name": "m_axi_awvalid", "wave": "0.....1.0.|........."},
+      {"name": "m_axi_wvalid", "wave": "0......1..|1.0......"},
+      {"name": "m_axi_wlast", "wave": "0.........|1.0......"},
+      {"name": "m_axi_bvalid", "wave": "0.........|..1.0...."}
+    ]
+  ],
+  "config": {"hscale": 1.5},
+  "head": {"text": "Sink Path: 4-Beat Network to Memory Transfer"}
+}

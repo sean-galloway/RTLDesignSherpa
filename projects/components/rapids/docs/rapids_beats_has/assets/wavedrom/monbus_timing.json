@@ -1,0 +1,17 @@
+{
+  "signal": [
+    {"name": "clk", "wave": "p.........."},
+    {},
+    {"name": "monbus_pkt_valid", "wave": "0.1.0.1.0.."},
+    {"name": "monbus_pkt_ready", "wave": "1.........."},
+    {"name": "monbus_pkt_data", "wave": "x.=.x.=.x..", "data": ["PKT1","PKT2"]},
+    {},
+    ["Decoded",
+      {"name": "packet_type", "wave": "x.=.x.=.x..", "data": ["COMPL","DEBUG"]},
+      {"name": "agent_id", "wave": "x.=.x.=.x..", "data": ["0x30","0x30"]},
+      {"name": "event_code", "wave": "x.=.x.=.x..", "data": ["0x0","0x4"]}
+    ]
+  ],
+  "config": {"hscale": 1.5},
+  "head": {"text": "MonBus Packet Sequence"}
+}

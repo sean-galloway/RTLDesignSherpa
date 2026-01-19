@@ -1,0 +1,503 @@
+module: gaxi_fifo_sync
+rtl_file: rtl/amba/gaxi/gaxi_fifo_sync.sv
+test_file: val/amba/test_gaxi_fifo_sync.py
+parameters:
+- name: DATA_WIDTH
+  default: 32
+  description: Data width in bits
+- name: DEPTH
+  default: 4
+  description: FIFO depth (number of entries)
+- name: REGISTERED
+  default: 0
+  description: Output register (0=combinational, 1=registered)
+functional_scenarios:
+- id: FIFO-S-01
+  name: Basic write/read
+  description: Single entry write and read
+  test_function: test_basic_write_read
+  covers_lines:
+  - 50
+  - 51
+  - 52
+  - 53
+  - 54
+  - 55
+  priority: high
+  status: partial
+- id: FIFO-S-02
+  name: Fill to full
+  description: Write until full flag asserted
+  test_function: test_fill_to_full
+  covers_lines:
+  - 50
+  - 51
+  - 52
+  - 60
+  - 61
+  priority: high
+  status: verified
+- id: FIFO-S-03
+  name: Drain to empty
+  description: Read until empty flag asserted
+  test_function: test_drain_to_empty
+  covers_lines:
+  - 53
+  - 54
+  - 55
+  - 62
+  - 63
+  priority: high
+  status: partial
+- id: FIFO-S-04
+  name: Full flag
+  description: Verify full and almost full thresholds
+  test_function: test_full_flag
+  covers_lines:
+  - 60
+  - 61
+  priority: high
+  status: verified
+- id: FIFO-S-05
+  name: Empty flag
+  description: Verify empty and almost empty thresholds
+  test_function: test_empty_flag
+  covers_lines:
+  - 62
+  - 63
+  priority: high
+  status: verified
+- id: FIFO-S-06
+  name: Simultaneous R/W
+  description: Read and write same cycle
+  test_function: test_simultaneous_rw
+  covers_lines:
+  - 50
+  - 51
+  - 52
+  - 53
+  - 54
+  - 55
+  priority: high
+  status: partial
+- id: FIFO-S-07
+  name: REGISTERED=0
+  description: Combinational output mode
+  test_function: test_combinational_output
+  covers_lines:
+  - 54
+  - 55
+  priority: high
+  status: partial
+- id: FIFO-S-08
+  name: REGISTERED=1
+  description: Registered output mode
+  test_function: test_registered_output
+  covers_lines:
+  - 54
+  - 55
+  - 70
+  priority: high
+  status: partial
+- id: FIFO-S-09
+  name: Various depths
+  description: Test DEPTH 2, 4, 8, 16
+  test_function: test_various_depths
+  covers_lines:
+  - 50
+  - 51
+  - 52
+  - 60
+  - 61
+  - 62
+  - 63
+  priority: medium
+  status: verified
+- id: FIFO-S-10
+  name: Write ready control
+  description: wr_ready deasserts when full
+  test_function: test_write_ready_control
+  covers_lines:
+  - 50
+  - 51
+  - 60
+  - 61
+  priority: high
+  status: verified
+- id: FIFO-S-11
+  name: Read valid control
+  description: rd_valid deasserts when empty
+  test_function: test_read_valid_control
+  covers_lines:
+  - 53
+  - 54
+  - 62
+  - 63
+  priority: high
+  status: verified
+- id: FIFO-S-12
+  name: Write stall
+  description: wr_valid high but wr_ready low blocks write
+  test_function: test_write_stall
+  covers_lines:
+  - 50
+  - 51
+  - 60
+  priority: high
+  status: verified
+- id: FIFO-S-13
+  name: Read stall
+  description: rd_valid high but rd_ready low blocks read
+  test_function: test_read_stall
+  covers_lines:
+  - 53
+  - 54
+  - 62
+  priority: high
+  status: verified
+- id: FIFO-S-20
+  name: Data ordering
+  description: Verify FIFO ordering (first-in-first-out)
+  test_function: test_data_ordering
+  covers_lines:
+  - 52
+  - 55
+  priority: high
+  status: partial
+- id: FIFO-S-21
+  name: Data integrity
+  description: Verify data unchanged through FIFO
+  test_function: test_data_integrity
+  covers_lines:
+  - 52
+  - 55
+  priority: high
+  status: partial
+- id: FIFO-S-22
+  name: Wide data
+  description: DATA_WIDTH=128 or larger
+  test_function: test_wide_data
+  covers_lines:
+  - 52
+  - 55
+  priority: medium
+  status: partial
+- id: FIFO-S-23
+  name: Narrow data
+  description: DATA_WIDTH=8 or smaller
+  test_function: test_narrow_data
+  covers_lines:
+  - 52
+  - 55
+  priority: medium
+  status: partial
+- id: FIFO-S-30
+  name: Shallow FIFO
+  description: DEPTH=2 minimum depth
+  test_function: test_shallow_fifo
+  covers_lines:
+  - 50
+  - 51
+  - 52
+  - 53
+  - 54
+  - 55
+  - 60
+  - 61
+  - 62
+  - 63
+  priority: high
+  status: partial
+- id: FIFO-S-31
+  name: Deep FIFO
+  description: DEPTH=16 or larger
+  test_function: test_deep_fifo
+  covers_lines:
+  - 50
+  - 51
+  - 52
+  - 53
+  - 54
+  - 55
+  - 60
+  - 61
+  - 62
+  - 63
+  priority: medium
+  status: partial
+- id: FIFO-S-32
+  name: Fill level tracking
+  description: Verify count/level signal accuracy
+  test_function: test_fill_level_tracking
+  covers_lines:
+  - 60
+  - 61
+  - 62
+  - 63
+  priority: high
+  status: verified
+- id: FIFO-S-40
+  name: Reset when empty
+  description: Reset asserted when FIFO empty
+  test_function: test_reset_when_empty
+  covers_lines:
+  - 50
+  - 62
+  - 63
+  priority: high
+  status: verified
+- id: FIFO-S-41
+  name: Reset when full
+  description: Reset asserted when FIFO full
+  test_function: test_reset_when_full
+  covers_lines:
+  - 50
+  - 60
+  - 61
+  priority: high
+  status: verified
+- id: FIFO-S-42
+  name: Reset during transfer
+  description: Reset mid-write or mid-read
+  test_function: test_reset_during_transfer
+  covers_lines:
+  - 50
+  - 51
+  - 53
+  - 54
+  priority: high
+  status: verified
+- id: FIFO-S-43
+  name: Write when full
+  description: Attempt write when wr_ready low (should block)
+  test_function: test_write_when_full
+  covers_lines:
+  - 50
+  - 51
+  - 60
+  - 61
+  priority: high
+  status: verified
+- id: FIFO-S-44
+  name: Read when empty
+  description: Attempt read when rd_valid low (should block)
+  test_function: test_read_when_empty
+  covers_lines:
+  - 53
+  - 54
+  - 62
+  - 63
+  priority: high
+  status: verified
+- id: FIFO-S-50
+  name: Random pattern
+  description: Random write/read patterns
+  test_function: test_random_pattern
+  covers_lines:
+  - 50
+  - 51
+  - 52
+  - 53
+  - 54
+  - 55
+  - 60
+  - 61
+  - 62
+  - 63
+  priority: medium
+  status: partial
+- id: FIFO-S-51
+  name: Long burst
+  description: Extended burst (1000+ entries)
+  test_function: test_long_burst
+  covers_lines:
+  - 50
+  - 51
+  - 52
+  - 53
+  - 54
+  - 55
+  priority: medium
+  status: partial
+- id: FIFO-S-52
+  name: Cyclic fill/drain
+  description: Repeated fill and drain cycles
+  test_function: test_cyclic_fill_drain
+  covers_lines:
+  - 50
+  - 51
+  - 52
+  - 53
+  - 54
+  - 55
+  - 60
+  - 61
+  - 62
+  - 63
+  priority: medium
+  status: partial
+- id: FIFO-S-53
+  name: Back-to-back
+  description: No idle cycles - continuous transfers
+  test_function: test_back_to_back
+  covers_lines:
+  - 50
+  - 51
+  - 52
+  - 53
+  - 54
+  - 55
+  priority: high
+  status: partial
+- id: FIFO-S-54
+  name: Bursty traffic
+  description: Bursts of writes followed by bursts of reads
+  test_function: test_bursty_traffic
+  covers_lines:
+  - 50
+  - 51
+  - 52
+  - 53
+  - 54
+  - 55
+  - 60
+  - 61
+  - 62
+  - 63
+  priority: medium
+  status: partial
+- id: FIFO-S-60
+  name: Almost full threshold
+  description: Verify almost_full assertion point
+  test_function: test_almost_full_threshold
+  covers_lines:
+  - 61
+  priority: medium
+  status: verified
+- id: FIFO-S-61
+  name: Almost empty threshold
+  description: Verify almost_empty assertion point
+  test_function: test_almost_empty_threshold
+  covers_lines:
+  - 63
+  priority: medium
+  status: verified
+- id: FIFO-S-70
+  name: Max throughput
+  description: Verify maximum data rate (1 transfer/cycle)
+  test_function: test_max_throughput
+  covers_lines:
+  - 50
+  - 51
+  - 52
+  - 53
+  - 54
+  - 55
+  priority: medium
+  status: partial
+- id: FIFO-S-71
+  name: Latency measurement
+  description: Measure read latency (combinational vs registered)
+  test_function: test_latency_measurement
+  covers_lines:
+  - 54
+  - 55
+  - 70
+  priority: low
+  status: partial
+parameter_coverage:
+- DATA_WIDTH: 32
+  DEPTH: 4
+  REGISTERED: 0
+  test_level: basic
+  status: verified
+- DATA_WIDTH: 32
+  DEPTH: 4
+  REGISTERED: 1
+  test_level: basic
+  status: verified
+- DATA_WIDTH: 32
+  DEPTH: 16
+  REGISTERED: 0
+  test_level: medium
+  status: verified
+- DATA_WIDTH: 32
+  DEPTH: 2
+  REGISTERED: 0
+  test_level: basic
+  status: verified
+- DATA_WIDTH: 64
+  DEPTH: 8
+  REGISTERED: 1
+  test_level: medium
+  status: verified
+- DATA_WIDTH: 128
+  DEPTH: 16
+  REGISTERED: 1
+  test_level: full
+  status: verified
+- DATA_WIDTH: 8
+  DEPTH: 2
+  REGISTERED: 0
+  test_level: basic
+  status: verified
+notes: 'gaxi_fifo_sync is a synchronous FIFO with AXI-style interface.
+
+  Provides buffering with configurable depth and output mode.
+
+
+  Key features:
+
+  - AXI valid/ready handshake protocol
+
+  - Configurable depth (typically power of 2)
+
+  - Optional registered output (REGISTERED parameter)
+
+  - Full/empty/almost_full/almost_empty flags
+
+  - Fill level tracking
+
+  - FIFO ordering guarantee
+
+
+  Output modes:
+
+  - REGISTERED=0: Combinational output (zero read latency)
+
+  - REGISTERED=1: Registered output (+1 cycle read latency, better timing)
+
+
+  Critical paths verified:
+
+  - Write path (wr_valid/wr_ready/wr_data)
+
+  - Read path (rd_valid/rd_ready/rd_data)
+
+  - Full/empty detection
+
+  - Simultaneous read/write
+
+  - Data integrity and ordering
+
+  - Threshold flags
+
+  - Reset behavior in all states
+
+
+  Usage:
+
+  - Buffer stages in AXI pipelines
+
+  - Rate matching between producers/consumers
+
+  - Burst buffering
+
+  - Flow control
+
+
+  This module is simpler than gaxi_skid_buffer but provides FIFO semantics
+
+  instead of just pipeline buffering.
+
+  '

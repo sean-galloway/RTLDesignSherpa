@@ -230,12 +230,18 @@ async def cocotb_test_stream_latency_bridge(dut):
 
     # Branch on test type
     if test_type == 'occupancy':
+        tb.log.info("=== Scenario LATENCY-BRIDGE-05: Buffer empty condition ===")
+        tb.log.info("=== Also covers: LATENCY-BRIDGE-04 (buffer full condition), LATENCY-BRIDGE-09 (reset during transfer) ===")
         await run_occupancy_test(tb)
 
     elif test_type == 'streaming':
+        tb.log.info("=== Scenario LATENCY-BRIDGE-01: Basic streaming transfer ===")
+        tb.log.info("=== Also covers: LATENCY-BRIDGE-06 (burst transfer), LATENCY-BRIDGE-07 (variable latency compensation), LATENCY-BRIDGE-08 (data integrity) ===")
         await run_streaming_test(tb)
 
     elif test_type == 'backpressure':
+        tb.log.info("=== Scenario LATENCY-BRIDGE-02: Upstream backpressure ===")
+        tb.log.info("=== Also covers: LATENCY-BRIDGE-03 (downstream stall) ===")
         await run_backpressure_test(tb)
 
     else:

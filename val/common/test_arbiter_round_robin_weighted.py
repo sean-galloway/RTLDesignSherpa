@@ -32,6 +32,7 @@ from CocoTBFramework.tbclasses.shared.tbbase import TBBase
 from CocoTBFramework.tbclasses.shared.filelist_utils import get_sources_from_filelist
 from CocoTBFramework.tbclasses.shared.utilities import get_paths, create_view_cmd
 from CocoTBFramework.tbclasses.common.arbiter_round_robin_weighted_tb import WeightedRoundRobinTB
+from conftest import get_coverage_compile_args
 
 @cocotb.test(timeout_time=20, timeout_unit="ms")  # Increased timeout for weight testing
 async def arbiter_round_robin_weighted_test(dut):
@@ -53,30 +54,40 @@ async def arbiter_round_robin_weighted_test(dut):
         # Phase 1: Basic functionality tests
         time_ns = get_sim_time('ns')
         tb.log.info(f"=== Phase 1: Basic Functionality @ {time_ns}ns ===")
+        tb.log.info("=== Scenario ARB-01: Basic grant signals ===")
         await tb.test_grant_signals()
+        tb.log.info("=== Scenario ARB-02: Threshold operation ===")
         await tb.test_threshold_operation()
         await tb.handle_test_transition_ack_cleanup()
 
         # Phase 2: Basic weighted arbitration
         time_ns = get_sim_time('ns')
         tb.log.info(f"=== Phase 2: Basic Weighted Arbitration @ {time_ns}ns ===")
+        tb.log.info("=== Scenario ARB-03: Basic weighted arbitration ===")
         await tb.run_basic_arbitration_test(800)
         await tb.handle_test_transition_ack_cleanup()
 
         # Phase 3: Weight-specific tests
         time_ns = get_sim_time('ns')
         tb.log.info(f"=== Phase 3: Weight-Specific Tests @ {time_ns}ns ===")
+        tb.log.info("=== Scenario ARB-04: Weighted fairness ===")
         await tb.test_weighted_fairness()
+        tb.log.info("=== Scenario ARB-05: Weight changes ===")
         await tb.test_weight_changes()
+        tb.log.info("=== Scenario ARB-06: Single client saturation ===")
         await tb.test_single_client_saturation()
         await tb.handle_test_transition_ack_cleanup()
 
         # Phase 4: Pattern and stress tests
         time_ns = get_sim_time('ns')
         tb.log.info(f"=== Phase 4: Pattern and Stress Tests @ {time_ns}ns ===")
+        tb.log.info("=== Scenario ARB-07: Walking requests ===")
         await tb.test_walking_requests()
+        tb.log.info("=== Scenario ARB-08: Block arbitration ===")
         await tb.test_block_arb()
+        tb.log.info("=== Scenario ARB-09: Bursty traffic ===")
         await tb.test_bursty_traffic_pattern()
+        tb.log.info("=== Scenario ARB-10: Rapid request changes ===")
         await tb.test_rapid_request_changes()
         await tb.handle_test_transition_ack_cleanup()
 
@@ -89,12 +100,14 @@ async def arbiter_round_robin_weighted_test(dut):
             tb.clear_interface()
             await tb.wait_clocks('clk', 30)  # Longer stabilization for weight changes
 
+            tb.log.info("=== Scenario ARB-11: ACK mode edge cases ===")
             await tb.test_ack_mode_edge_cases()
             await tb.handle_test_transition_ack_cleanup()
 
         # Phase 6: Dynamic arbitration liveness
         time_ns = get_sim_time('ns')
         tb.log.info(f"=== Phase 6: Dynamic Arbitration Liveness @ {time_ns}ns ===")
+        tb.log.info("=== Scenario ARB-12: Dynamic arbitration liveness ===")
         await tb.test_dynamic_arbitration_liveness()
         await tb.handle_test_transition_ack_cleanup()
 
@@ -249,6 +262,9 @@ def test_arbiter_round_robin_weighted(request, clients, max_levels, wait_ack):
         "--trace-structs",
         "--trace-depth", "99",
     ]
+
+    # Add coverage compile args if COVERAGE=1
+    compile_args.extend(get_coverage_compile_args())
     sim_args = [
         "--trace",  # VCD waveform format
         "--trace-structs",

@@ -54,6 +54,7 @@ from cocotb_test.simulator import run
 from CocoTBFramework.tbclasses.shared.tbbase import TBBase
 from CocoTBFramework.tbclasses.shared.filelist_utils import get_sources_from_filelist
 from CocoTBFramework.tbclasses.shared.utilities import get_paths, create_view_cmd
+from conftest import get_coverage_compile_args
 
 class EncoderPriorityEnableTB(TBBase):
     """Testbench for Priority Encoder with Enable module"""
@@ -153,6 +154,7 @@ class EncoderPriorityEnableTB(TBBase):
 
     async def test_enable_functionality(self):
         """Test enable/disable functionality"""
+        self.log.info("=== Scenario ENC-01: Zero input ===")
         self.log.info("Testing enable/disable functionality")
 
         # Test with enable = 0 (disabled)
@@ -201,6 +203,7 @@ class EncoderPriorityEnableTB(TBBase):
 
     async def test_one_hot_encoding(self):
         """Test encoder with one-hot inputs (enabled)"""
+        self.log.info("=== Scenario ENC-02: One-hot encoding ===")
         self.log.info("Testing one-hot encoding (enabled)")
 
         one_hot_values = self._generate_one_hot_values()
@@ -247,6 +250,7 @@ class EncoderPriorityEnableTB(TBBase):
 
     async def test_priority_encoding(self):
         """Test encoder with multiple bits set (priority encoding)"""
+        self.log.info("=== Scenario ENC-03: Priority encoding ===")
         self.log.info("Testing priority encoding")
 
         # Define test data based on level
@@ -407,6 +411,7 @@ class EncoderPriorityEnableTB(TBBase):
             self.log.info("Skipping boundary condition tests for basic level")
             return True
 
+        self.log.info("=== Scenario ENC-04: Boundary conditions ===")
         self.log.info("Testing boundary conditions")
 
         all_passed = True
@@ -454,6 +459,7 @@ class EncoderPriorityEnableTB(TBBase):
             self.log.info("Skipping walking patterns test")
             return True
 
+        self.log.info("=== Scenario ENC-05: Walking patterns ===")
         self.log.info("Testing walking bit patterns")
 
         all_passed = True
@@ -766,6 +772,10 @@ def test_encoder_priority_enable(request, input_width, test_level):
         "--trace-structs",
         "--trace-depth", "99",
     ]
+
+    # Add coverage compile args if COVERAGE=1
+    compile_args.extend(get_coverage_compile_args())
+
     sim_args = [
         "--trace",  # VCD waveform format
         "--trace-structs",

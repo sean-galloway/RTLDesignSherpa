@@ -155,6 +155,7 @@ class UART16550FullTests:
 
     async def test_baud_rate_variations(self) -> bool:
         """Test various baud rate settings with loopback."""
+        self.log.info("=== Scenario UART-15: Full FIFO Stress Test ===")
         self.log.info("Testing baud rate variations...")
         passed = True
 

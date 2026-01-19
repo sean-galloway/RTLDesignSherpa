@@ -26,6 +26,7 @@ from CocoTBFramework.tbclasses.shared.tbbase import TBBase
 from CocoTBFramework.tbclasses.shared.filelist_utils import get_sources_from_filelist
 from CocoTBFramework.tbclasses.shared.utilities import get_paths, create_view_cmd
 from CocoTBFramework.tbclasses.common.cam_testing import CamTB
+from conftest import get_coverage_compile_args
 
 class CamTagConfig:
     """Configuration class for CAM tag tests"""
@@ -396,6 +397,10 @@ def test_cam_tag(request, n, depth):
         "--trace-structs",
         "--trace-depth", "99",
     ]
+
+    # Add coverage compile args if COVERAGE=1
+    compile_args.extend(get_coverage_compile_args())
+
     sim_args = [
         "--trace",  # Tell Verilator to use vcd
         "--trace-structs",

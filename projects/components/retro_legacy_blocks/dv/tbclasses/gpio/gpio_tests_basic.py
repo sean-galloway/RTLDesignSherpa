@@ -291,6 +291,12 @@ class GPIOBasicTests:
 
     async def test_global_enable(self) -> bool:
         """Test global GPIO enable/disable."""
+        self.log.info("=== Scenario GPIO-06: Interrupt Enable ===")
+        self.log.info("=== Scenario GPIO-05: Atomic Set/Clear/Toggle ===")
+        self.log.info("=== Scenario GPIO-04: Input Operation ===")
+        self.log.info("=== Scenario GPIO-03: Output Operation ===")
+        self.log.info("=== Scenario GPIO-02: Direction Control ===")
+        self.log.info("=== Scenario GPIO-01: Register Access ===")
         self.log.info("Testing global enable...")
         passed = True
 

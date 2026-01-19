@@ -40,6 +40,12 @@ from .coverage_mixin import (
     get_coverage_env,
     register_bfm_coverage
 )
+from .combine_coverage import (
+    merge_coverage_data,
+    generate_combined_report,
+    collect_coverage_files,
+    find_tests_dir
+)
 
 __all__ = [
     'CoverageCollector',
@@ -51,4 +57,9 @@ __all__ = [
     'get_coverage_compile_args',
     'get_coverage_env',
     'register_bfm_coverage',
+    # Combined coverage
+    'merge_coverage_data',
+    'generate_combined_report',
+    'collect_coverage_files',
+    'find_tests_dir',
 ]

@@ -70,22 +70,29 @@ async def cocotb_test_descriptor_engine(dut):
 
     # Branch on test type
     if test_type == 'apb_basic':
+        tb.log.info("=== Scenario DESC-ENG-01: Single descriptor fetch ===")
+        tb.log.info("=== Also covers: DESC-ENG-08 (descriptor field extraction), DESC-ENG-10 (reset during fetch) ===")
         result = await tb.run_apb_basic_test(num_requests=5)
         report_pass = tb.generate_final_report()
         assert result and report_pass, "APB basic test failed"
 
     elif test_type == 'apb_with_delays':
+        tb.log.info("=== Scenario DESC-ENG-02: Descriptor chain fetch ===")
+        tb.log.info("=== Also covers: DESC-ENG-03 (last descriptor detection), DESC-ENG-06 (AXI AR channel stall), DESC-ENG-07 (AXI R channel stall) ===")
         # Test with minimal delay profile
         result = await tb.run_test_with_profile(num_packets=10, profile=DelayProfile.MINIMAL_DELAY)
         report_pass = tb.generate_final_report()
         assert result and report_pass, "APB minimal delay test failed"
 
     elif test_type == 'apb_fast_producer':
+        tb.log.info("=== Scenario DESC-ENG-09: Rapid descriptor requests ===")
         result = await tb.run_test_with_profile(num_packets=8, profile=DelayProfile.FAST_PRODUCER)
         report_pass = tb.generate_final_report()
         assert result and report_pass, "APB fast producer test failed"
 
     elif test_type == 'apb_backpressure':
+        tb.log.info("=== Scenario DESC-ENG-05: Backpressure from scheduler ===")
+        tb.log.info("=== Also covers: DESC-ENG-04 (AXI read error handling) ===")
         result = await tb.run_test_with_profile(num_packets=8, profile=DelayProfile.BACKPRESSURE)
         report_pass = tb.generate_final_report()
         assert result and report_pass, "APB backpressure test failed"

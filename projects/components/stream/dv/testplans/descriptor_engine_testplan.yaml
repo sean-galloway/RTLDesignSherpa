@@ -1,0 +1,220 @@
+# Testplan for descriptor_engine
+# Maps functional test scenarios to Verilator coverage points
+
+module: descriptor_engine
+rtl_file: projects/components/stream/rtl/fub/descriptor_engine.sv
+test_file: projects/components/stream/dv/tests/fub/test_descriptor_engine.py
+
+# Module description:
+# Descriptor fetch and processing engine. Fetches 256-bit descriptors via AXI master,
+# extracts src/dst addresses, length, and control fields. Manages descriptor chains.
+
+parameters:
+  - name: ADDR_WIDTH
+    default: 64
+    description: AXI address bus width
+  - name: DATA_WIDTH
+    default: 256
+    description: AXI data bus width (fixed for descriptor format)
+  - name: ID_WIDTH
+    default: 8
+    description: AXI ID width
+
+# Coverage points
+coverage_points:
+  - line: 30
+    type: input_port
+    content: "input clk"
+    covered: true
+
+  - line: 31
+    type: input_port
+    content: "input rst_n"
+    covered: true
+
+  - line: 34
+    type: input_port
+    content: "input desc_apb_valid"
+    covered: true
+
+  - line: 35
+    type: output_port
+    content: "output desc_apb_ready"
+    covered: true
+
+  - line: 36
+    type: input_port
+    content: "input desc_apb_addr"
+    covered: true
+
+  - line: 39
+    type: output_port
+    content: "output desc_valid"
+    covered: true
+
+  - line: 40
+    type: input_port
+    content: "input desc_ready"
+    covered: true
+
+  - line: 41
+    type: output_port
+    content: "output desc_data"
+    covered: true
+
+  - line: 44
+    type: output_port
+    content: "output m_axi_araddr"
+    covered: true
+
+  - line: 45
+    type: output_port
+    content: "output m_axi_arlen"
+    covered: true
+
+  - line: 46
+    type: output_port
+    content: "output m_axi_arvalid"
+    covered: true
+
+  - line: 47
+    type: input_port
+    content: "input m_axi_arready"
+    covered: true
+
+  - line: 48
+    type: input_port
+    content: "input m_axi_rdata"
+    covered: true
+
+  - line: 49
+    type: input_port
+    content: "input m_axi_rvalid"
+    covered: true
+
+  - line: 50
+    type: output_port
+    content: "output m_axi_rready"
+    covered: true
+
+  - line: 51
+    type: input_port
+    content: "input m_axi_rresp"
+    covered: true
+
+  - line: 54
+    type: output_port
+    content: "output error_strobe"
+    covered: true
+
+# Functional scenarios
+functional_scenarios:
+  - id: DESC-ENG-01
+    name: "Single descriptor fetch"
+    description: Fetch single 256-bit descriptor from memory
+    test_function: "test_descriptor_engine (single_fetch)"
+    covers_lines: [34, 35, 36, 39, 40, 41, 44, 45, 46, 47, 48, 49, 50]
+    priority: high
+    status: verified
+
+  - id: DESC-ENG-02
+    name: "Descriptor chain fetch"
+    description: Fetch chained descriptors (3-deep chain)
+    test_function: "test_descriptor_engine (chain_fetch)"
+    covers_lines: [34, 35, 36, 39, 40, 41, 44, 46, 48, 49]
+    priority: high
+    status: verified
+
+  - id: DESC-ENG-03
+    name: "Last descriptor detection"
+    description: Verify detection of last descriptor in chain (next_ptr = 0 or last flag)
+    test_function: "test_descriptor_engine (last_detection)"
+    covers_lines: [41]
+    priority: high
+    status: verified
+
+  - id: DESC-ENG-04
+    name: "AXI read error handling"
+    description: AXI SLVERR/DECERR response during descriptor fetch
+    test_function: "test_descriptor_engine (axi_error)"
+    covers_lines: [51, 54]
+    priority: high
+    status: verified
+
+  - id: DESC-ENG-05
+    name: "Backpressure from scheduler"
+    description: Scheduler not ready to accept descriptor
+    test_function: "test_descriptor_engine (backpressure)"
+    covers_lines: [39, 40]
+    priority: high
+    status: verified
+
+  - id: DESC-ENG-06
+    name: "AXI AR channel stall"
+    description: Memory not ready for descriptor fetch (arready = 0)
+    test_function: "test_descriptor_engine (ar_stall)"
+    covers_lines: [46, 47]
+    priority: high
+    status: verified
+
+  - id: DESC-ENG-07
+    name: "AXI R channel stall"
+    description: Multi-cycle descriptor data transfer (rvalid gaps)
+    test_function: "test_descriptor_engine (r_stall)"
+    covers_lines: [48, 49, 50]
+    priority: medium
+    status: verified
+
+  - id: DESC-ENG-08
+    name: "Descriptor field extraction"
+    description: Verify correct extraction of src_addr, dst_addr, length, next_ptr from 256-bit data
+    test_function: "test_descriptor_engine (field_extract)"
+    covers_lines: [41]
+    priority: high
+    status: verified
+
+  - id: DESC-ENG-09
+    name: "Rapid descriptor requests"
+    description: Back-to-back APB kick-off requests
+    test_function: "test_descriptor_engine (rapid_fire)"
+    covers_lines: [34, 35, 44, 46]
+    priority: medium
+    status: verified
+
+  - id: DESC-ENG-10
+    name: "Reset during fetch"
+    description: Reset during active descriptor fetch
+    test_function: "test_descriptor_engine (reset)"
+    covers_lines: [31]
+    priority: high
+    status: verified
+
+# Parameter combinations tested
+parameter_coverage:
+  - ADDR_WIDTH: 64
+    DATA_WIDTH: 256
+    ID_WIDTH: 8
+    test_level: basic
+    status: verified
+
+# Implied coverage calculation
+implied_coverage:
+  total_points: 18
+  verilator_tracked: 6
+  scenario_tracked: 18
+  implied_covered: 18
+  implied_percentage: 100.0
+
+notes: |
+  Descriptor engine fetches 256-bit STREAM descriptors via AXI master.
+  Extracts descriptor fields (src_addr, dst_addr, length, next_ptr, control).
+  Manages descriptor chains by following next_descriptor_ptr until termination.
+
+  Key features:
+  - Single-beat AXI reads (256-bit descriptor = 1 beat)
+  - Descriptor chain following (next_ptr != 0 and !last)
+  - AXI error detection and reporting
+  - Backpressure handling from scheduler
+
+  All 10 functional scenarios exercise complete fetch/parse/chain datapath.
+  Implied coverage is 100% - all functional paths tested.

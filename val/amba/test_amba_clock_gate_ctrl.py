@@ -23,6 +23,7 @@ import cocotb
 from cocotb.utils import get_sim_time
 from cocotb.triggers import RisingEdge, Timer
 from cocotb_test.simulator import run
+from conftest import get_coverage_compile_args
 
 from CocoTBFramework.tbclasses.shared.tbbase import TBBase
 from CocoTBFramework.tbclasses.amba.amba_cg_ctrl import AxiClockGateCtrl
@@ -853,6 +854,12 @@ def test_amba_clock_gate_ctrl(request, params):
             
             "--trace-depth", "99",
     ]
+
+
+    # Add coverage compile args if COVERAGE=1
+
+    compile_args.extend(get_coverage_compile_args())
+
 
     sim_args = [
             "--trace",  # Tell Verilator to use VCD

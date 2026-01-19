@@ -477,6 +477,7 @@ class SchedulerTB(TBBase):
         Returns:
             True if all descriptors processed successfully
         """
+        self.log.info("=== Scenario SCHED-01: Basic descriptor flow ===")
         self.log.info(f"=== Testing Basic Descriptor Flow: {num_descriptors} descriptors ===")
 
         completed = 0
@@ -518,6 +519,7 @@ class SchedulerTB(TBBase):
         Returns:
             True if concurrent operation works correctly
         """
+        self.log.info("=== Scenario SCHED-02: Concurrent transfer ===")
         self.log.info("=== Testing Concurrent Read/Write Transfer ===")
 
         # Clear state history for this test
@@ -580,6 +582,7 @@ class SchedulerTB(TBBase):
         Returns:
             True if all chained descriptors processed
         """
+        self.log.info("=== Scenario SCHED-03: Descriptor chaining ===")
         self.log.info(f"=== Testing Descriptor Chaining: {chain_length} descriptors ===")
 
         completed = 0
@@ -624,6 +627,7 @@ class SchedulerTB(TBBase):
         Returns:
             True if IRQ event was generated
         """
+        self.log.info("=== Scenario SCHED-04: IRQ generation ===")
         self.log.info("=== Testing IRQ Generation ===")
 
         # Clear monitor packet history
@@ -677,6 +681,7 @@ class SchedulerTB(TBBase):
         Returns:
             True if error was detected and handled
         """
+        self.log.info("=== Scenario SCHED-05: Descriptor error injection ===")
         self.log.info("=== Testing Descriptor Error Injection ===")
 
         # Clear history
@@ -706,6 +711,7 @@ class SchedulerTB(TBBase):
         Returns:
             True if error was detected
         """
+        self.log.info("=== Scenario SCHED-06: Read engine error ===")
         self.log.info("=== Testing Read Engine Error ===")
 
         # Clear history
@@ -743,6 +749,7 @@ class SchedulerTB(TBBase):
         Returns:
             True if error was detected
         """
+        self.log.info("=== Scenario SCHED-07: Write engine error ===")
         self.log.info("=== Testing Write Engine Error ===")
 
         # Clear history
@@ -780,6 +787,7 @@ class SchedulerTB(TBBase):
         Returns:
             True if channel reset works correctly
         """
+        self.log.info("=== Scenario SCHED-08: Channel reset ===")
         self.log.info("=== Testing Channel Reset ===")
 
         # Start a transfer
@@ -818,6 +826,7 @@ class SchedulerTB(TBBase):
         Returns:
             True if all descriptors completed
         """
+        self.log.info("=== Scenario SCHED-09: Back-to-back descriptors ===")
         self.log.info(f"=== Testing Back-to-Back Descriptors: {count} ===")
 
         completed = 0
@@ -849,6 +858,7 @@ class SchedulerTB(TBBase):
         Returns:
             True if all sizes handled correctly
         """
+        self.log.info("=== Scenario SCHED-10: Varying transfer sizes ===")
         self.log.info("=== Testing Varying Transfer Sizes ===")
 
         test_sizes = [1, 4, 16, 64, 128, 256]
@@ -892,6 +902,7 @@ class SchedulerTB(TBBase):
         Returns:
             True if expected transitions observed
         """
+        self.log.info("=== Scenario SCHED-11: FSM state transitions ===")
         self.log.info("=== Testing FSM State Transitions ===")
 
         # Clear state history

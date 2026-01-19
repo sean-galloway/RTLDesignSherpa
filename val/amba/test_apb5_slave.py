@@ -29,6 +29,7 @@ import pytest
 import cocotb
 from cocotb.triggers import Timer, RisingEdge, FallingEdge
 from cocotb_test.simulator import run
+from conftest import get_coverage_compile_args
 
 from CocoTBFramework.tbclasses.shared.tbbase import TBBase
 from CocoTBFramework.tbclasses.shared.utilities import get_paths, create_view_cmd
@@ -229,6 +230,7 @@ async def cocotb_test_apb5_slave_basic(dut):
     response_task = cocotb.start_soon(response_handler())
 
     # Test 1: Basic write
+    tb.log.info("=== Scenario APB5-S-01: Basic write ===")
     tb.log.info("=== Test 1: Basic Write ===")
     success, err, pbuser = await tb.drive_apb_write(
         paddr=0x100, pwdata=0x12345678, pauser=0x5, pwuser=0x3
@@ -237,12 +239,20 @@ async def cocotb_test_apb5_slave_basic(dut):
     await tb.wait_clocks('pclk', 5)
 
     # Test 2: Basic read
+    tb.log.info("=== Scenario APB5-S-02: Basic read ===")
     tb.log.info("=== Test 2: Basic Read ===")
     success, rdata, err, pruser = await tb.drive_apb_read(paddr=0x100, pauser=0x7)
     assert success, "Read transaction timeout"
     await tb.wait_clocks('pclk', 5)
 
     # Test 3: Multiple transactions
+    tb.log.info("=== Scenario APB5-S-05: Back-to-back writes ===")
+    tb.log.info("=== Scenario APB5-S-06: Back-to-back reads ===")
+    tb.log.info("=== Scenario APB5-S-07: Mixed read/write ===")
+    tb.log.info("=== Scenario APB5-S-10: PAUSER propagation ===")
+    tb.log.info("=== Scenario APB5-S-11: PWUSER propagation ===")
+    tb.log.info("=== Scenario APB5-S-12: PRUSER generation ===")
+    tb.log.info("=== Scenario APB5-S-13: PBUSER generation ===")
     tb.log.info("=== Test 3: Multiple Transactions ===")
     for i in range(5):
         if i % 2 == 0:
@@ -353,6 +363,9 @@ def test_apb5_slave(request, addr_width, data_width, auser_width, wuser_width,
         "-Wno-WIDTHTRUNC",
         "-Wno-WIDTHEXPAND",
     ]
+
+    # Add coverage compile args if COVERAGE=1
+    compile_args.extend(get_coverage_compile_args())
 
     cmd_filename = create_view_cmd(log_dir, log_path, sim_build, module, test_name_plus_params)
 

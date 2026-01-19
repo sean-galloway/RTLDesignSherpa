@@ -56,6 +56,7 @@ import cocotb
 from cocotb.clock import Clock
 from cocotb.triggers import RisingEdge, Timer, FallingEdge
 from cocotb_test.simulator import run
+from conftest import get_coverage_compile_args
 
 # Add repo root to path for CocoTBFramework imports
 from CocoTBFramework.tbclasses.shared.tbbase import TBBase
@@ -679,6 +680,10 @@ def test_grayj2bin(request, jcw, width, test_level):
         "--trace-structs",
         "--trace-depth", "99",
     ]
+
+    # Add coverage compile args if COVERAGE=1
+    compile_args.extend(get_coverage_compile_args())
+
     sim_args = [
         "--trace",  # VCD waveform format
         "--trace-structs",

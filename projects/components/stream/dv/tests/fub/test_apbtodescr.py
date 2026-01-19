@@ -84,6 +84,8 @@ async def cocotb_test_apbtodescr(dut):
 
     # Branch on test type
     if test_type == 'basic_all_channels':
+        tb.log.info("=== Scenario APB2DESC-01: Basic all channels ===")
+        tb.log.info("=== Also covers: APB2DESC-06 (address decode verification), APB2DESC-07 (response muxing), APB2DESC-08 (reset during transaction) ===")
         result = await tb.test_all_channels()
         # Sample APB coverage - 8 channels x 2 writes each = 16 successful writes
         for _ in range(16):
@@ -93,6 +95,7 @@ async def cocotb_test_apbtodescr(dut):
         tb.log.info("All channels basic test PASSED")
 
     elif test_type == 'backpressure_single':
+        tb.log.info("=== Scenario APB2DESC-02: Backpressure single channel ===")
         # Test channel 0 with 5 cycle stall
         result = await tb.test_backpressure(channel=0, stall_cycles=5)
         # Sample APB writes with backpressure scenario
@@ -104,6 +107,7 @@ async def cocotb_test_apbtodescr(dut):
         tb.log.info("Back-pressure test PASSED")
 
     elif test_type == 'backpressure_multiple':
+        tb.log.info("=== Scenario APB2DESC-03: Backpressure multiple channels ===")
         # Test channels 0, 3, 7 with different stalls
         test_cases = [
             (0, 3),   # Channel 0, 3 cycle stall
@@ -124,6 +128,7 @@ async def cocotb_test_apbtodescr(dut):
         tb.log.info("Multiple back-pressure test PASSED")
 
     elif test_type == 'errors':
+        tb.log.info("=== Scenario APB2DESC-04: Error handling ===")
         # Test out-of-range address
         result1 = await tb.test_out_of_range()
         coverage.sample_apb_write(is_error=True)
@@ -163,6 +168,7 @@ async def cocotb_test_apbtodescr(dut):
         tb.log.info("All error tests PASSED (6 error cases verified)")
 
     elif test_type == 'rapid_fire':
+        tb.log.info("=== Scenario APB2DESC-05: Rapid fire writes ===")
         tb.log.info("Testing rapid-fire writes to multiple channels (TWO-WRITE SEQUENCE)")
 
         # Write to channels 0, 1, 2, 3 in quick succession

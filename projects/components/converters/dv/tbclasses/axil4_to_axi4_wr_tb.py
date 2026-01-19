@@ -258,6 +258,7 @@ class AXIL4ToAXI4WriteTB(TBBase):
         self.log.info("=" * 80)
         self.log.info("BASIC WRITE TEST SUITE")
         self.log.info("=" * 80)
+        self.log.info("=== Scenarios AXIL2AXI-WR-01,02,03: Single write passthrough, default ID/LEN/SIZE ===")
 
         success = True
 
@@ -281,6 +282,7 @@ class AXIL4ToAXI4WriteTB(TBBase):
         self.log.info("=" * 80)
         self.log.info("MEDIUM WRITE TEST SUITE")
         self.log.info("=" * 80)
+        self.log.info("=== Scenarios AXIL2AXI-WR-04,07,09: AWSIZE calculation, WLAST=1 generation, AWPROT ===")
 
         success = True
 
@@ -300,6 +302,7 @@ class AXIL4ToAXI4WriteTB(TBBase):
         self.log.info("=" * 80)
         self.log.info("FULL WRITE TEST SUITE")
         self.log.info("=" * 80)
+        self.log.info("=== Scenarios AXIL2AXI-WR-05,06,08: WSTRB/WDATA passthrough, BRESP comprehensive coverage ===")
 
         success = True
 

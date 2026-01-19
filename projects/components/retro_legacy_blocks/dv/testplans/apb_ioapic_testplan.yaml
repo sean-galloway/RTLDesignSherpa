@@ -1,0 +1,185 @@
+# Testplan for apb_ioapic
+# Maps functional test scenarios to verification coverage
+# NOTE: Currently only basic tests implemented - medium and full tests needed
+
+module: apb_ioapic
+rtl_file: projects/components/retro_legacy_blocks/rtl/ioapic/apb_ioapic.sv
+test_file: projects/components/retro_legacy_blocks/dv/tests/test_apb_ioapic.py
+
+# Module description:
+# APB I/O Advanced Programmable Interrupt Controller (IOAPIC) with multiple
+# interrupt sources, priority levels, masking, edge/level triggering, and
+# destination routing.
+
+parameters:
+  - name: NUM_IRQS
+    default: 24
+    description: Number of interrupt sources (8-24)
+  - name: CDC_ENABLE
+    default: 0
+    description: 1=async clocks, 0=same clock
+  - name: SKID_DEPTH
+    default: 2
+    description: CDC skid buffer depth
+
+# Functional scenarios
+functional_scenarios:
+  - id: IOAPIC-01
+    name: "Register Access"
+    description: Basic read/write to IOAPIC registers
+    test_function: "test_register_access (basic)"
+    test_level: basic
+    priority: high
+    status: verified
+
+  - id: IOAPIC-02
+    name: "Interrupt Enable/Disable"
+    description: Configure interrupt enable/disable per source
+    test_function: "test_interrupt_enable (basic)"
+    test_level: basic
+    priority: high
+    status: verified
+
+  - id: IOAPIC-03
+    name: "Single Interrupt Routing"
+    description: Route single interrupt to output
+    test_function: "test_single_interrupt (basic)"
+    test_level: basic
+    priority: high
+    status: verified
+
+  - id: IOAPIC-04
+    name: "Interrupt Masking"
+    description: Verify interrupt mask functionality
+    test_function: "test_interrupt_masking (basic)"
+    test_level: basic
+    priority: high
+    status: verified
+
+  - id: IOAPIC-05
+    name: "Global Enable"
+    description: Test global IOAPIC enable/disable
+    test_function: "test_global_enable (basic)"
+    test_level: basic
+    priority: high
+    status: verified
+
+  - id: IOAPIC-06
+    name: "Multiple Interrupt Sources"
+    description: Handle multiple simultaneous interrupts
+    test_function: "test_multiple_interrupts (medium - NOT IMPLEMENTED)"
+    test_level: medium
+    priority: high
+    status: not_implemented
+
+  - id: IOAPIC-07
+    name: "Interrupt Priority Handling"
+    description: Verify priority-based interrupt arbitration
+    test_function: "test_priority_handling (medium - NOT IMPLEMENTED)"
+    test_level: medium
+    priority: high
+    status: not_implemented
+
+  - id: IOAPIC-08
+    name: "Edge vs Level Triggering"
+    description: Test edge-triggered and level-triggered interrupts
+    test_function: "test_edge_level_triggering (medium - NOT IMPLEMENTED)"
+    test_level: medium
+    priority: high
+    status: not_implemented
+
+  - id: IOAPIC-09
+    name: "Destination Routing"
+    description: Verify interrupt routing to multiple destinations
+    test_function: "test_destination_routing (medium - NOT IMPLEMENTED)"
+    test_level: medium
+    priority: medium
+    status: not_implemented
+
+  - id: IOAPIC-10
+    name: "All IRQs Stress Test"
+    description: Stress test with all 24 IRQ sources active
+    test_function: "test_all_irqs_stress (full - NOT IMPLEMENTED)"
+    test_level: full
+    priority: high
+    status: not_implemented
+
+  - id: IOAPIC-11
+    name: "CDC Mode Stress"
+    description: Verify CDC operation with rapid interrupt events
+    test_function: "test_cdc_stress (full - NOT IMPLEMENTED)"
+    test_level: full
+    priority: medium
+    status: not_implemented
+
+# Test level coverage
+test_level_coverage:
+  basic:
+    implemented: true
+    test_count: 5
+    coverage_percentage: 100
+    status: "Basic scenarios verified (register access, enable, masking)"
+
+  medium:
+    implemented: false
+    test_count: 0
+    coverage_percentage: 0
+    status: "NEEDS IMPLEMENTATION - priority, edge/level, routing"
+
+  full:
+    implemented: false
+    test_count: 0
+    coverage_percentage: 0
+    status: "NEEDS IMPLEMENTATION - stress tests, CDC corner cases"
+
+# Parameter combinations tested
+parameter_coverage:
+  - NUM_IRQS: 24
+    CDC_ENABLE: 0
+    test_level: basic
+    status: verified
+
+  - NUM_IRQS: 24
+    CDC_ENABLE: 1
+    test_level: basic
+    status: verified
+
+  - NUM_IRQS: 24
+    CDC_ENABLE: 0
+    test_level: medium
+    status: not_implemented
+
+  - NUM_IRQS: 24
+    CDC_ENABLE: 1
+    test_level: medium
+    status: not_implemented
+
+# Implied coverage calculation
+implied_coverage:
+  total_ioapic_features: 11
+  basic_features_covered: 5
+  medium_features_covered: 0
+  full_features_covered: 0
+  basic_percentage: 45
+  overall_percentage: 45
+
+notes: |
+  IOAPIC implements advanced interrupt controller with priority-based
+  arbitration, edge/level triggering, and destination routing.
+
+  Current Status:
+  - Basic tests: 100% complete (5/5 tests passing)
+  - Medium tests: NOT IMPLEMENTED (need priority, edge/level, routing)
+  - Full tests: NOT IMPLEMENTED (need stress tests, CDC corner cases)
+
+  Key Missing Tests:
+  1. Multiple interrupt source handling
+  2. Priority-based arbitration
+  3. Edge vs level triggering modes
+  4. Destination routing verification
+  5. All IRQ sources stress test
+  6. CDC stress with rapid interrupt events
+
+  Basic tests cover register access and single interrupt routing, but
+  advanced features (priority, edge/level, multi-source) require
+  medium/full test levels.

@@ -5,7 +5,7 @@
 
 # Set the root of the git repo as REPO_ROOT
 # export REPO_ROOT=$(git rev-parse --show-toplevel)
-export REPO_ROOT=/home/seang/github/RTLDesignSherpa/
+export REPO_ROOT=/mnt/data/github/rtldesignsherpa/
 
 export APB_XBAR_ROOT=$REPO_ROOT/projects/components/apb_xbar
 export BCH_ROOT=$REPO_ROOT/projects/components/bch

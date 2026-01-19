@@ -484,6 +484,12 @@ class PMACPIBasicTests:
         NOTE: Button status detection has architectural limitations.
         This test verifies PM1 enable register with various patterns.
         """
+        self.log.info("=== Scenario PMACPI-06: Power Domain Control ===")
+        self.log.info("=== Scenario PMACPI-05: Clock Gate Control ===")
+        self.log.info("=== Scenario PMACPI-04: GPE Event Detection ===")
+        self.log.info("=== Scenario PMACPI-03: PM Timer Disable ===")
+        self.log.info("=== Scenario PMACPI-02: PM Timer Counting ===")
+        self.log.info("=== Scenario PMACPI-01: Register Access ===")
         self.log.info("Testing PM1 enable patterns...")
 
         try:
@@ -731,6 +737,8 @@ class PMACPIBasicTests:
         NOTE: Wake status detection has architectural limitations.
         This test verifies ACPI status register read functionality.
         """
+        self.log.info("=== Scenario PMACPI-08: Interrupt Enable ===")
+        self.log.info("=== Scenario PMACPI-07: Initial Power State ===")
         self.log.info("Testing ACPI status configuration...")
 
         try:

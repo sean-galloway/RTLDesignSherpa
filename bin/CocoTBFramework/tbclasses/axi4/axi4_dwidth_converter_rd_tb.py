@@ -410,6 +410,12 @@ class AXI4DWidthConverterReadTB(TBBase):
         """
         self.log.info("=== Running Basic Smoke Test ===")
 
+        # Scenario marker for testplan traceability
+        if self.UPSIZE:
+            self.log.info("=== Scenario DWIDTH-RD-01: Upsize single read ===")
+        else:
+            self.log.info("=== Scenario DWIDTH-RD-02: Downsize single read ===")
+
         # Write test - use unique data per beat to detect misalignment
         addr = 0x1000
 
@@ -583,6 +589,10 @@ class AXI4DWidthConverterReadTB(TBBase):
             True if all tests pass, False otherwise
         """
         self.log.info("=== Running Medium Test Suite ===")
+        if self.UPSIZE:
+            self.log.info("=== Scenarios DWIDTH-RD-03,05,06,09,10: Burst upsize, ID/RLAST generation, buffers ===")
+        else:
+            self.log.info("=== Scenarios DWIDTH-RD-04,05,06,09,10: Burst downsize, ID/RLAST generation, buffers ===")
 
         all_success = True
         num_transactions = 10
@@ -674,6 +684,7 @@ class AXI4DWidthConverterReadTB(TBBase):
             True if all tests pass, False otherwise
         """
         self.log.info("=== Running Full Test Suite ===")
+        self.log.info("=== Scenarios DWIDTH-RD-07,08,11,12,13,14,15: RRESP/backpressure/burst/addr/reset/data ===")
 
         all_success = True
 

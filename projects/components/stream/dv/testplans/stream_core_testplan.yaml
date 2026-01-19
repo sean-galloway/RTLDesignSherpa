@@ -1,0 +1,345 @@
+# Testplan for stream_core
+# Maps functional test scenarios to Verilator coverage points
+
+module: stream_core
+rtl_file: projects/components/stream/rtl/macro/stream_core.sv
+test_file: projects/components/stream/dv/tests/macro/test_stream_core.py
+
+# Module description:
+# Complete STREAM DMA engine integration. Combines scheduler_group_array,
+# axi_read_engine, axi_write_engine, sram_controller, and perf_profiler.
+
+parameters:
+  - name: NUM_CHANNELS
+    default: 4
+    description: Number of DMA channels
+  - name: DATA_WIDTH
+    default: 512
+    description: Data path width
+  - name: ADDR_WIDTH
+    default: 64
+    description: Address bus width
+  - name: FIFO_DEPTH
+    default: 128
+    description: SRAM buffer depth per channel
+  - name: AXI_ID_WIDTH
+    default: 8
+    description: AXI ID width
+
+# Coverage points
+coverage_points:
+  - line: 40
+    type: input_port
+    content: "input clk"
+    covered: true
+
+  - line: 41
+    type: input_port
+    content: "input rst_n"
+    covered: true
+
+  - line: 44
+    type: input_port
+    content: "input cfg_enable"
+    covered: true
+
+  - line: 47
+    type: input_port
+    content: "input desc_apb_valid"
+    covered: true
+
+  - line: 48
+    type: output_port
+    content: "output desc_apb_ready"
+    covered: true
+
+  - line: 49
+    type: input_port
+    content: "input desc_apb_addr"
+    covered: true
+
+  - line: 52
+    type: output_port
+    content: "output m_axi_desc_araddr"
+    covered: true
+
+  - line: 53
+    type: output_port
+    content: "output m_axi_desc_arvalid"
+    covered: true
+
+  - line: 54
+    type: input_port
+    content: "input m_axi_desc_arready"
+    covered: true
+
+  - line: 55
+    type: input_port
+    content: "input m_axi_desc_rdata"
+    covered: true
+
+  - line: 56
+    type: input_port
+    content: "input m_axi_desc_rvalid"
+    covered: true
+
+  - line: 57
+    type: output_port
+    content: "output m_axi_desc_rready"
+    covered: true
+
+  - line: 60
+    type: output_port
+    content: "output m_axi_rd_araddr"
+    covered: true
+
+  - line: 61
+    type: output_port
+    content: "output m_axi_rd_arlen"
+    covered: true
+
+  - line: 62
+    type: output_port
+    content: "output m_axi_rd_arvalid"
+    covered: true
+
+  - line: 63
+    type: input_port
+    content: "input m_axi_rd_arready"
+    covered: true
+
+  - line: 64
+    type: input_port
+    content: "input m_axi_rd_rdata"
+    covered: true
+
+  - line: 65
+    type: input_port
+    content: "input m_axi_rd_rvalid"
+    covered: true
+
+  - line: 66
+    type: output_port
+    content: "output m_axi_rd_rready"
+    covered: true
+
+  - line: 69
+    type: output_port
+    content: "output m_axi_wr_awaddr"
+    covered: true
+
+  - line: 70
+    type: output_port
+    content: "output m_axi_wr_awlen"
+    covered: true
+
+  - line: 71
+    type: output_port
+    content: "output m_axi_wr_awvalid"
+    covered: true
+
+  - line: 72
+    type: input_port
+    content: "input m_axi_wr_awready"
+    covered: true
+
+  - line: 73
+    type: output_port
+    content: "output m_axi_wr_wdata"
+    covered: true
+
+  - line: 74
+    type: output_port
+    content: "output m_axi_wr_wvalid"
+    covered: true
+
+  - line: 75
+    type: input_port
+    content: "input m_axi_wr_wready"
+    covered: true
+
+  - line: 76
+    type: input_port
+    content: "input m_axi_wr_bresp"
+    covered: true
+
+  - line: 77
+    type: input_port
+    content: "input m_axi_wr_bvalid"
+    covered: true
+
+  - line: 78
+    type: output_port
+    content: "output m_axi_wr_bready"
+    covered: true
+
+  - line: 81
+    type: output_port
+    content: "output irq"
+    covered: true
+
+  - line: 84
+    type: output_port
+    content: "output perf_events"
+    covered: true
+
+# Functional scenarios
+functional_scenarios:
+  - id: STREAM-CORE-01
+    name: "Single channel basic transfer"
+    description: Single descriptor, single channel, complete DMA transfer
+    test_function: "test_stream_core (gate level)"
+    covers_lines: [44, 47, 48, 49, 52, 53, 54, 55, 56, 57, 60, 61, 62, 63, 64, 65, 66, 69, 70, 71, 72, 73, 74, 75, 76, 77, 78, 81]
+    priority: high
+    status: verified
+
+  - id: STREAM-CORE-02
+    name: "Multi-channel concurrent transfers"
+    description: Multiple channels operating simultaneously (2-4 channels)
+    test_function: "test_stream_core (func level)"
+    covers_lines: [47, 48, 60, 62, 69, 71]
+    priority: high
+    status: verified
+
+  - id: STREAM-CORE-03
+    name: "Descriptor chaining"
+    description: Process chained descriptors (next_descriptor_ptr != 0)
+    test_function: "test_stream_core (func level)"
+    covers_lines: [47, 48, 52, 53, 54, 55, 56, 57]
+    priority: high
+    status: verified
+
+  - id: STREAM-CORE-04
+    name: "Burst size variations"
+    description: Test various read/write burst combinations (8, 16, 32 beats)
+    test_function: "test_stream_core (burst level)"
+    covers_lines: [61, 70]
+    priority: high
+    status: verified
+
+  - id: STREAM-CORE-05
+    name: "Transfer size variations"
+    description: Various transfer sizes (64, 128, 256, 512, 768 beats)
+    test_function: "test_stream_core (full level)"
+    covers_lines: [60, 61, 69, 70]
+    priority: medium
+    status: verified
+
+  - id: STREAM-CORE-06
+    name: "AXI backpressure handling"
+    description: Memory introduces backpressure (arready/wready = 0)
+    test_function: "test_stream_core (medium/full)"
+    covers_lines: [62, 63, 71, 72, 74, 75]
+    priority: high
+    status: verified
+
+  - id: STREAM-CORE-07
+    name: "SRAM buffer management"
+    description: SRAM allocation and deallocation per channel
+    test_function: "test_stream_core (full level)"
+    covers_lines: [64, 65, 66, 73, 74, 75]
+    priority: high
+    status: verified
+
+  - id: STREAM-CORE-08
+    name: "Error injection and recovery"
+    description: AXI SLVERR/DECERR responses
+    test_function: "test_stream_core (error_injection)"
+    covers_lines: [76, 77, 81]
+    priority: high
+    status: verified
+
+  - id: STREAM-CORE-09
+    name: "IRQ generation"
+    description: Interrupt on descriptor completion
+    test_function: "test_stream_core (func/full)"
+    covers_lines: [81]
+    priority: medium
+    status: verified
+
+  - id: STREAM-CORE-10
+    name: "Performance profiling"
+    description: Performance event generation and monitoring
+    test_function: "test_stream_core (full level)"
+    covers_lines: [84]
+    priority: low
+    status: verified
+
+  - id: STREAM-CORE-11
+    name: "Enable/disable control"
+    description: cfg_enable controls engine operation
+    test_function: "test_stream_core (gate/func)"
+    covers_lines: [44]
+    priority: medium
+    status: verified
+
+  - id: STREAM-CORE-12
+    name: "Concurrent read/write deadlock prevention"
+    description: Verify read and write can proceed concurrently without deadlock
+    test_function: "test_stream_core (concurrent)"
+    covers_lines: [62, 63, 71, 72]
+    priority: high
+    status: verified
+
+# Parameter combinations tested
+parameter_coverage:
+  - NUM_CHANNELS: 4
+    DATA_WIDTH: 128
+    FIFO_DEPTH: 128
+    AXI_ID_WIDTH: 8
+    test_level: gate
+    status: verified
+
+  - NUM_CHANNELS: 4
+    DATA_WIDTH: 256
+    FIFO_DEPTH: 128
+    AXI_ID_WIDTH: 8
+    test_level: func
+    status: verified
+
+  - NUM_CHANNELS: 4
+    DATA_WIDTH: 512
+    FIFO_DEPTH: 128
+    AXI_ID_WIDTH: 8
+    test_level: full
+    status: verified
+
+  - NUM_CHANNELS: 4
+    DATA_WIDTH: 128/256/512
+    FIFO_DEPTH: 64/128/256
+    AXI_ID_WIDTH: 8
+    test_level: burst
+    burst_combinations: "rd×wr: 8×8, 8×16, 16×8, 16×16, 16×32, 32×16, 32×32"
+    status: verified
+
+# Implied coverage calculation
+implied_coverage:
+  total_points: 29
+  verilator_tracked: 9
+  scenario_tracked: 29
+  implied_covered: 29
+  implied_percentage: 100.0
+
+notes: |
+  stream_core is the complete STREAM DMA engine integration.
+  Combines all FUB blocks into functional multi-channel DMA controller.
+
+  Integration includes:
+  - scheduler_group_array (task scheduling, 4 channels)
+  - axi_read_engine (AXI master read)
+  - axi_write_engine (AXI master write)
+  - sram_controller (internal buffering)
+  - perf_profiler (performance monitoring)
+  - axi4_master_rd/wr (skid buffers)
+
+  Test Levels:
+  - gate: Quick smoke (2 descriptors, 1 channel, ~30s)
+  - func: Functional coverage (4 descriptors, 2 channels, ~90s)
+  - full: Comprehensive (16 descriptors, 4 channels, ~180s)
+  - burst: Burst matrix (6 descriptors, burst combinations, ~120s)
+
+  All 12 functional scenarios exercise complete DMA flow including
+  multi-channel operation, burst management, error handling, and
+  concurrent read/write deadlock prevention.
+
+  Implied coverage is 100% - all functional paths tested.

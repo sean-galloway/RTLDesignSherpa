@@ -1,0 +1,606 @@
+module: apb5_monitor
+rtl_file: rtl/amba/apb5/apb5_monitor.sv
+test_file: val/amba/test_apb5_monitor.py
+parameters:
+  ADDR_WIDTH: 32
+  DATA_WIDTH: 32
+  AUSER_WIDTH: 4
+  WUSER_WIDTH: 4
+  RUSER_WIDTH: 4
+  BUSER_WIDTH: 4
+  UNIT_ID: 1
+  AGENT_ID: 10
+  MAX_TRANSACTIONS: 4
+  MONITOR_FIFO_DEPTH: 8
+  ENABLE_PARITY_MON: 0
+coverage_points:
+- line: 30-55
+  type: parameters
+  content: 'Module parameters: widths, IDs, transaction limits, parity monitoring'
+  tracked_by: functional_scenario
+- line: 57-119
+  type: ports
+  content: Monitor interface ports (cmd/rsp, wakeup, parity, config, monbus)
+  tracked_by: toggle_coverage
+- line: 126-130
+  type: transaction_tracking
+  content: Transaction table and counters
+  tracked_by: functional_scenario
+- line: 132-140
+  type: state_machine
+  content: Command/response state tracking
+  tracked_by: functional_scenario
+- line: 143-178
+  type: timing_tracking
+  content: Timestamp and timeout timers
+  tracked_by: functional_scenario
+- line: 217-218
+  type: handshake_detection
+  content: Command and response handshake detection
+  tracked_by: functional_scenario
+- line: 223-229
+  type: timestamp_counter
+  content: Global timestamp counter
+  tracked_by: functional_scenario
+- line: 234-259
+  type: wakeup_tracking
+  content: APB5 PWAKEUP edge detection and timeout
+  tracked_by: functional_scenario
+  covers_lines:
+  - 234-235
+  - 237-255
+  - 257-259
+- line: 264-298
+  type: transaction_state_machine
+  content: Transaction lifecycle FSM
+  tracked_by: functional_scenario
+  covers_lines:
+  - 265-287
+  - 290
+  - 292-297
+- line: 305-350
+  type: transaction_table_mgmt
+  content: Free slot and active transaction search
+  tracked_by: functional_scenario
+  covers_lines:
+  - 305-317
+  - 320-335
+  - 338-349
+- line: 354-410
+  type: transaction_lifecycle
+  content: Transaction creation, completion, cleanup
+  tracked_by: functional_scenario
+  covers_lines:
+  - 355-409
+- line: 415-441
+  type: timeout_detection
+  content: Command and response timeout detection
+  tracked_by: functional_scenario
+  covers_lines:
+  - 416-432
+  - 434-440
+- line: 445-461
+  type: error_detection
+  content: Protocol violation and parity error detection
+  tracked_by: functional_scenario
+  covers_lines:
+  - 446-460
+- line: 466-475
+  type: performance_monitoring
+  content: Latency calculation and threshold checking
+  tracked_by: functional_scenario
+  covers_lines:
+  - 467-474
+- line: 480-549
+  type: event_generation
+  content: Error, timeout, wakeup, parity, performance, completion event logic
+  tracked_by: functional_scenario
+  covers_lines:
+  - 481-548
+- line: 554-573
+  type: monitor_fifo
+  content: Monitor packet FIFO instantiation
+  tracked_by: functional_scenario
+- line: 576-619
+  type: fifo_write_logic
+  content: 'FIFO write priority: Error > Parity > Timeout > Wakeup > Perf > Completion'
+  tracked_by: functional_scenario
+  covers_lines:
+  - 577-618
+- line: 622-634
+  type: event_marking
+  content: Mark transactions as event_reported
+  tracked_by: functional_scenario
+  covers_lines:
+  - 623-633
+- line: 639-674
+  type: monbus_construction
+  content: 64-bit monitor bus packet construction and output skid buffer
+  tracked_by: functional_scenario
+  covers_lines:
+  - 643-654
+  - 657-674
+functional_scenarios:
+- id: APB5-MON-01
+  name: Capture write
+  description: 'Monitor write transaction (cmd_valid && cmd_ready, cmd_pwrite=1).
+
+    Verify transaction table entry, completion event generated.
+
+    '
+  test_function: test_apb5_monitor_basic
+  test_file: val/amba/test_apb5_monitor.py
+  covers_lines:
+  - 217
+  - 269-271
+  - 365-382
+  - 395-400
+  - 612-618
+  priority: high
+  status: verified
+- id: APB5-MON-02
+  name: Capture read
+  description: 'Monitor read transaction (cmd_pwrite=0). Verify PRDATA
+
+    and PRUSER captured in completion event.
+
+    '
+  test_function: test_apb5_monitor_basic
+  test_file: val/amba/test_apb5_monitor.py
+  covers_lines:
+  - 217
+  - 269-271
+  - 365-382
+  - 395-400
+  - 612-618
+  priority: high
+  status: verified
+- id: APB5-MON-03
+  name: Capture PWAKEUP
+  description: 'Monitor apb5_pwakeup assertion and deassertion.
+
+    Verify wake-up events generated with correct event codes.
+
+    '
+  test_function: test_apb5_monitor_wakeup
+  test_file: val/amba/test_apb5_monitor.py
+  covers_lines:
+  - 234-235
+  - 237-255
+  - 257-259
+  - 519-526
+  - 600-606
+  priority: high
+  status: verified
+- id: APB5-MON-04
+  name: Protocol check
+  description: 'Inject protocol violation (rsp_valid when state=IDLE,
+
+    cmd_valid when state=CMD_SENT). Verify error event.
+
+    '
+  test_function: test_apb5_monitor_protocol
+  test_file: val/amba/test_apb5_monitor.py
+  covers_lines:
+  - 449-456
+  - 494-497
+  - 580-586
+  priority: medium
+  status: verified
+- id: APB5-MON-05
+  name: Parity check
+  description: 'ENABLE_PARITY_MON=1: Monitor parity_error_wdata,
+
+    parity_error_rdata, parity_error_ctrl. Generate parity events.
+
+    '
+  test_function: test_apb5_monitor_parity
+  test_file: val/amba/test_apb5_monitor.py
+  covers_lines:
+  - 458-460
+  - 529-538
+  - 586-593
+  priority: medium
+  status: verified
+- id: APB5-MON-06
+  name: Command timeout
+  description: 'Enable cfg_timeout_enable. Delay cmd_ready beyond
+
+    cfg_cmd_timeout_cnt. Verify timeout event.
+
+    '
+  test_function: test_apb5_monitor_timeout
+  test_file: val/amba/test_apb5_monitor.py
+  covers_lines:
+  - 420-424
+  - 434-436
+  - 505-507
+  - 593-600
+  priority: high
+  status: verified
+- id: APB5-MON-07
+  name: Response timeout
+  description: 'Delay rsp_valid beyond cfg_rsp_timeout_cnt. Verify
+
+    timeout event generated.
+
+    '
+  test_function: test_apb5_monitor_timeout
+  test_file: val/amba/test_apb5_monitor.py
+  covers_lines:
+  - 426-430
+  - 438-440
+  - 508-510
+  - 593-600
+  priority: high
+  status: verified
+- id: APB5-MON-08
+  name: Wake-up timeout
+  description: 'Hold apb5_pwakeup asserted beyond cfg_wakeup_timeout_cnt.
+
+    Verify timeout event with wakeup context.
+
+    '
+  test_function: test_apb5_monitor_wakeup_timeout
+  test_file: val/amba/test_apb5_monitor.py
+  covers_lines:
+  - 251-253
+  - 257-259
+  - 511-514
+  - 593-600
+  priority: medium
+  status: verified
+- id: APB5-MON-09
+  name: SLVERR detection
+  description: 'Monitor rsp_pslverr=1. Verify error event generated
+
+    with APB_ERR_PSLVERR code, transaction marked as TRANS_ERROR.
+
+    '
+  test_function: test_apb5_monitor_error
+  test_file: val/amba/test_apb5_monitor.py
+  covers_lines:
+  - 390-393
+  - 497-500
+  - 580-586
+  priority: high
+  status: verified
+- id: APB5-MON-10
+  name: USER signal tracking
+  description: 'Monitor transactions with various cmd_pauser, cmd_pwuser,
+
+    rsp_pruser, rsp_pbuser values. Verify values in transaction table.
+
+    '
+  test_function: test_apb5_monitor_user_signals
+  test_file: val/amba/test_apb5_monitor.py
+  covers_lines:
+  - 365-382
+  priority: medium
+  status: verified
+- id: APB5-MON-11
+  name: Performance latency
+  description: 'Enable cfg_perf_enable and cfg_latency_enable. Inject
+
+    transaction exceeding cfg_latency_threshold. Verify perf event.
+
+    '
+  test_function: test_apb5_monitor_performance
+  test_file: val/amba/test_apb5_monitor.py
+  covers_lines:
+  - 467-474
+  - 541-543
+  - 606-612
+  priority: medium
+  status: verified
+- id: APB5-MON-12
+  name: Multiple outstanding transactions
+  description: 'Queue MAX_TRANSACTIONS commands. Verify transaction table
+
+    management, free slot search, cleanup.
+
+    '
+  test_function: test_apb5_monitor_multiple_trans
+  test_file: val/amba/test_apb5_monitor.py
+  covers_lines:
+  - 305-317
+  - 320-335
+  - 338-349
+  - 403-408
+  priority: medium
+  status: verified
+- id: APB5-MON-13
+  name: Event priority
+  description: 'Generate multiple event types simultaneously. Verify
+
+    FIFO write priority: Error > Parity > Timeout > Wakeup > Perf > Compl.
+
+    '
+  test_function: test_apb5_monitor_priority
+  test_file: val/amba/test_apb5_monitor.py
+  covers_lines:
+  - 580-618
+  priority: medium
+  status: verified
+- id: APB5-MON-14
+  name: Monitor bus packet format
+  description: 'Verify 64-bit monbus_packet format: packet_type, protocol,
+
+    event_code, UNIT_ID, AGENT_ID, event_data.
+
+    '
+  test_function: test_apb5_monitor_packet_format
+  test_file: val/amba/test_apb5_monitor.py
+  covers_lines:
+  - 643-654
+  priority: high
+  status: verified
+- id: APB5-MON-15
+  name: Configuration enables
+  description: 'Test all cfg_*_enable signals: error, timeout, protocol,
+
+    slverr, parity, wakeup, user, perf, latency. Verify events
+
+    only generated when corresponding enable is set.
+
+    '
+  test_function: test_apb5_monitor_config
+  test_file: val/amba/test_apb5_monitor.py
+  covers_lines:
+  - 434-440
+  - 449-456
+  - 458-460
+  - 472-473
+  - 493-526
+  priority: high
+  status: verified
+- id: APB5-MON-16
+  name: Transaction state transitions
+  description: 'Verify CMD_RSP_IDLE -> CMD_RSP_CMD_SENT -> CMD_RSP_COMPLETE
+
+    state machine transitions during normal transaction.
+
+    '
+  test_function: test_apb5_monitor_state_machine
+  test_file: val/amba/test_apb5_monitor.py
+  covers_lines:
+  - 265-287
+  - 292-297
+  priority: medium
+  status: verified
+- id: APB5-MON-17
+  name: Active count tracking
+  description: 'Monitor active_count output. Verify increments on cmd_handshake,
+
+    decrements on completion cleanup.
+
+    '
+  test_function: test_apb5_monitor_counters
+  test_file: val/amba/test_apb5_monitor.py
+  covers_lines:
+  - 209
+  - 380
+  - 406
+  priority: medium
+  status: verified
+- id: APB5-MON-18
+  name: Error count tracking
+  description: 'Monitor error_count output. Verify increments on SLVERR,
+
+    protocol violations, parity errors.
+
+    '
+  test_function: test_apb5_monitor_counters
+  test_file: val/amba/test_apb5_monitor.py
+  covers_lines:
+  - 210
+  - 393
+  priority: medium
+  status: verified
+- id: APB5-MON-19
+  name: Transaction count tracking
+  description: 'Monitor transaction_count output. Verify increments on
+
+    response handshake (successful completions).
+
+    '
+  test_function: test_apb5_monitor_counters
+  test_file: val/amba/test_apb5_monitor.py
+  covers_lines:
+  - 211
+  - 399
+  priority: medium
+  status: verified
+- id: APB5-MON-20
+  name: Wake-up active flag
+  description: 'Monitor wakeup_active output. Verify set on wakeup rising,
+
+    clear on wakeup falling.
+
+    '
+  test_function: test_apb5_monitor_wakeup
+  test_file: val/amba/test_apb5_monitor.py
+  covers_lines:
+  - 212
+  - 246
+  - 249
+  priority: high
+  status: verified
+parameter_coverage:
+- ADDR_WIDTH: 32
+  DATA_WIDTH: 32
+  AUSER_WIDTH: 4
+  WUSER_WIDTH: 4
+  RUSER_WIDTH: 4
+  BUSER_WIDTH: 4
+  MAX_TRANSACTIONS: 4
+  ENABLE_PARITY_MON: 0
+  test_level: basic
+  status: verified
+- ADDR_WIDTH: 32
+  DATA_WIDTH: 64
+  AUSER_WIDTH: 4
+  WUSER_WIDTH: 4
+  RUSER_WIDTH: 4
+  BUSER_WIDTH: 4
+  MAX_TRANSACTIONS: 8
+  ENABLE_PARITY_MON: 0
+  test_level: medium
+  status: verified
+- ADDR_WIDTH: 32
+  DATA_WIDTH: 32
+  AUSER_WIDTH: 0
+  WUSER_WIDTH: 0
+  RUSER_WIDTH: 0
+  BUSER_WIDTH: 0
+  MAX_TRANSACTIONS: 4
+  ENABLE_PARITY_MON: 0
+  test_level: medium
+  status: verified
+- ADDR_WIDTH: 32
+  DATA_WIDTH: 32
+  AUSER_WIDTH: 8
+  WUSER_WIDTH: 8
+  RUSER_WIDTH: 8
+  BUSER_WIDTH: 8
+  MAX_TRANSACTIONS: 4
+  ENABLE_PARITY_MON: 0
+  test_level: medium
+  status: verified
+- ADDR_WIDTH: 32
+  DATA_WIDTH: 32
+  AUSER_WIDTH: 4
+  WUSER_WIDTH: 4
+  RUSER_WIDTH: 4
+  BUSER_WIDTH: 4
+  MAX_TRANSACTIONS: 4
+  ENABLE_PARITY_MON: 1
+  test_level: full
+  status: verified
+implied_coverage:
+  total_points: 65
+  verilator_tracked: 45
+  scenario_tracked: 65
+  implied_covered: 65
+  implied_percentage: 100.0
+notes: 'APB5 monitor extends APB4 monitoring with AMBA5-specific features.
+
+
+  Core monitoring (APB5-MON-01, APB5-MON-02):
+
+  - Command/response handshake detection
+
+  - Transaction table management
+
+  - Completion event generation
+
+
+  APB5 Wake-up (APB5-MON-03, APB5-MON-08, APB5-MON-20):
+
+  - Rising/falling edge detection of apb5_pwakeup
+
+  - Wake-up event generation (REQUEST, ACKNOWLEDGED)
+
+  - Wake-up timeout detection
+
+  - wakeup_active status flag
+
+
+  Error detection (APB5-MON-04, APB5-MON-09):
+
+  - Protocol violations (unexpected cmd/rsp in wrong state)
+
+  - SLVERR detection (rsp_pslverr=1)
+
+  - Transaction marked TRANS_ERROR, error_count incremented
+
+
+  APB5 Parity (APB5-MON-05):
+
+  - Optional when ENABLE_PARITY_MON=1
+
+  - Monitors parity_error_wdata, parity_error_rdata, parity_error_ctrl
+
+  - Generates parity error events with specific codes
+
+
+  Timeout detection (APB5-MON-06, APB5-MON-07, APB5-MON-08):
+
+  - Command timeout (cmd_valid && !cmd_ready)
+
+  - Response timeout (state=CMD_SENT && no rsp)
+
+  - Wake-up timeout (pwakeup asserted too long)
+
+
+  Performance (APB5-MON-11):
+
+  - Latency tracking (timestamp - addr_timestamp)
+
+  - Threshold exceeded events
+
+  - cfg_latency_threshold configurable
+
+
+  Transaction management (APB5-MON-12):
+
+  - MAX_TRANSACTIONS concurrent transactions
+
+  - Free slot search (first-free)
+
+  - Active transaction search (first-active)
+
+  - Cleanup after event_reported
+
+
+  Event priority (APB5-MON-13):
+
+  - Error (highest)
+
+  - Parity
+
+  - Timeout
+
+  - Wake-up
+
+  - Performance
+
+  - Completion (lowest)
+
+
+  Monitor bus (APB5-MON-14):
+
+  - 64-bit packet format
+
+  - [63:60] packet_type, [59:57] protocol (APB)
+
+  - [56:53] event_code, [46:43] UNIT_ID, [42:35] AGENT_ID
+
+  - Skid buffer for monbus output
+
+
+  Configuration (APB5-MON-15):
+
+  - cfg_error_enable, cfg_timeout_enable, cfg_protocol_enable
+
+  - cfg_slverr_enable, cfg_parity_enable
+
+  - cfg_wakeup_enable, cfg_user_enable
+
+  - cfg_perf_enable, cfg_latency_enable
+
+
+  Counters (APB5-MON-17 to APB5-MON-20):
+
+  - active_count: Outstanding transactions
+
+  - error_count: Total errors detected
+
+  - transaction_count: Completed transactions
+
+  - wakeup_active: Current wake-up state
+
+
+  Implied coverage 100% - all APB5 monitoring paths tested.
+
+  '

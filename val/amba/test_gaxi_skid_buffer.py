@@ -46,6 +46,7 @@ import pytest
 import cocotb
 from cocotb.triggers import RisingEdge
 from cocotb_test.simulator import run
+from conftest import get_coverage_compile_args
 from CocoTBFramework.tbclasses.shared.tbbase import TBBase
 from CocoTBFramework.tbclasses.gaxi.gaxi_buffer import GaxiBufferTB
 from CocoTBFramework.tbclasses.shared.utilities import get_paths, create_view_cmd
@@ -149,6 +150,10 @@ async def gaxi_skid_buffer_test(dut):
     tb.log.info(f"Packet counts: {packet_counts}")
 
     # Run core tests with different randomizer configurations
+    tb.log.info("=== Scenario SKID-01: Passthrough ===")
+    tb.log.info("=== Scenario SKID-02: Buffer fill ===")
+    tb.log.info("=== Scenario SKID-03: Buffer drain ===")
+    tb.log.info("=== Scenario SKID-04: Simultaneous ===")
     for i, delay_key in enumerate(test_configs):
         tb.log.info(f"[{i+1}/{len(test_configs)}] Testing with '{delay_key}' randomizer configuration")
         await tb.simple_incremental_loops(
@@ -165,12 +170,17 @@ async def gaxi_skid_buffer_test(dut):
         tb.log.info("✓ Completed comprehensive sweep")
 
     # Always run back-to-back test (essential for GAXI validation)
+    tb.log.info("=== Scenario SKID-14: Back-to-back ===")
     tb.log.info("Running back-to-back test...")
     await tb.back_to_back_test(count=packet_counts['back_to_back'])
     tb.log.info("✓ Completed back-to-back test")
 
     # Run stress test for medium and full levels
     if run_stress_test:
+        tb.log.info("=== Scenario SKID-05: Full buffer ===")
+        tb.log.info("=== Scenario SKID-06: Empty buffer ===")
+        tb.log.info("=== Scenario SKID-40: Data integrity ===")
+        tb.log.info("=== Scenario SKID-50: Random pattern ===")
         tb.log.info("Running stress test...")
         stress_config = 'gaxi_stress' if 'gaxi_stress' in config_names else 'stress'
         await tb.stress_test_with_random_patterns(
@@ -516,6 +526,12 @@ def test_gaxi_skid_buffer(request, data_width, depth, clk_period, test_level):
         "--trace",
         "--trace-depth", "99",
     ]
+
+
+    # Add coverage compile args if COVERAGE=1
+
+    compile_args.extend(get_coverage_compile_args())
+
 
     sim_args = [
         "--trace",

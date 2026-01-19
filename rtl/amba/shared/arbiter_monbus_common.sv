@@ -472,7 +472,10 @@ module arbiter_monbus_common #(
                     end
                 end
 
+                // verilator coverage_off
+                // DEFENSIVE: Illegal FSM state recovery
                 default: r_monitor_state <= MON_IDLE;
+                // verilator coverage_on
             endcase
         end
     )

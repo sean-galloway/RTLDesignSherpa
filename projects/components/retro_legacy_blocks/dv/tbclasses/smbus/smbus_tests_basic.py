@@ -140,6 +140,7 @@ class SMBusBasicTests:
 
     async def test_clock_configuration(self) -> bool:
         """Test clock divider configuration."""
+        self.log.info("=== Scenario SMBUS-01: Register Access ===")
         self.log.info("Testing clock configuration...")
 
         try:

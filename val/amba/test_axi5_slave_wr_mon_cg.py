@@ -24,6 +24,7 @@ import random
 import pytest
 import cocotb
 from cocotb_test.simulator import run
+from conftest import get_coverage_compile_args
 
 from CocoTBFramework.tbclasses.axi5.monitor.axi5_slave_monitor_tb import AXI5SlaveMonitorTB
 from CocoTBFramework.tbclasses.shared.utilities import get_paths
@@ -154,6 +155,9 @@ def test_axi5_slave_wr_mon_cg(id_width, addr_width, data_width, user_width, max_
         "-Wno-UNDRIVEN", "-Wno-WIDTHEXPAND", "-Wno-WIDTHTRUNC",
         "-Wno-SELRANGE", "-Wno-CASEINCOMPLETE", "-Wno-TIMESCALEMOD",
     ]
+
+    # Add coverage compile args if COVERAGE=1
+    compile_args.extend(get_coverage_compile_args())
 
     print(f"\n{'='*80}")
     print(f"AXI5 Slave Write Monitor CG Integration Test")

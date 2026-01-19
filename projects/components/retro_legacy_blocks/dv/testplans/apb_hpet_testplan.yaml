@@ -1,0 +1,258 @@
+# Testplan for apb_hpet
+# Maps functional test scenarios to verification coverage
+# STATUS: 100% COMPLETE - All test levels implemented and passing
+
+module: apb_hpet
+rtl_file: projects/components/retro_legacy_blocks/rtl/hpet/apb_hpet.sv
+test_file: projects/components/retro_legacy_blocks/dv/tests/test_apb_hpet.py
+
+# Module description:
+# APB High Precision Event Timer (HPET) with configurable timers, 64-bit counter,
+# one-shot and periodic modes, dual clock domain support, and interrupt generation.
+
+parameters:
+  - name: NUM_TIMERS
+    default: 3
+    description: Number of timers (2-8)
+  - name: VENDOR_ID
+    default: 0x8086
+    description: Vendor identification
+  - name: REVISION_ID
+    default: 0x01
+    description: Revision identification
+  - name: CDC_ENABLE
+    default: 0
+    description: 1=async clocks, 0=same clock
+
+# Functional scenarios
+functional_scenarios:
+  - id: HPET-01
+    name: "Register Access"
+    description: Basic read/write to all HPET registers including capabilities
+    test_function: "test_register_access (basic)"
+    test_level: basic
+    priority: high
+    status: verified
+
+  - id: HPET-02
+    name: "Counter Enable/Disable"
+    description: Verify main counter starts/stops via HPET_CONFIG
+    test_function: "test_counter_enable_disable (basic)"
+    test_level: basic
+    priority: high
+    status: verified
+
+  - id: HPET-03
+    name: "Counter Increment"
+    description: Verify main counter increments at expected rate
+    test_function: "test_counter_increment (basic)"
+    test_level: basic
+    priority: high
+    status: verified
+
+  - id: HPET-04
+    name: "Single Timer One-Shot"
+    description: Configure one timer in one-shot mode and verify interrupt
+    test_function: "test_single_timer_oneshot (basic)"
+    test_level: basic
+    priority: high
+    status: verified
+
+  - id: HPET-05
+    name: "Single Timer Periodic"
+    description: Configure one timer in periodic mode and verify multiple interrupts
+    test_function: "test_single_timer_periodic (basic)"
+    test_level: basic
+    priority: high
+    status: verified
+
+  - id: HPET-06
+    name: "Interrupt Status Read"
+    description: Verify interrupt status register reflects timer states
+    test_function: "test_interrupt_status (basic)"
+    test_level: basic
+    priority: high
+    status: verified
+
+  - id: HPET-07
+    name: "Interrupt Clear (W1C)"
+    description: Verify write-1-to-clear for interrupt status bits
+    test_function: "test_interrupt_clear (basic)"
+    test_level: basic
+    priority: high
+    status: verified
+
+  - id: HPET-08
+    name: "Multiple Timers Simultaneous"
+    description: Run multiple timers with different periods concurrently
+    test_function: "test_multiple_timers_oneshot (medium)"
+    test_level: medium
+    priority: high
+    status: verified
+
+  - id: HPET-09
+    name: "Timer Mode Switching"
+    description: Switch timer between one-shot and periodic modes
+    test_function: "test_timer_mode_switching (medium)"
+    test_level: medium
+    priority: high
+    status: verified
+
+  - id: HPET-10
+    name: "64-bit Counter Operation"
+    description: Verify 64-bit counter rollover and high/low register access
+    test_function: "test_64bit_counter (medium)"
+    test_level: medium
+    priority: high
+    status: verified
+
+  - id: HPET-11
+    name: "64-bit Comparator Operation"
+    description: Verify 64-bit comparator values and timer firing
+    test_function: "test_64bit_comparator (medium)"
+    test_level: medium
+    priority: high
+    status: verified
+
+  - id: HPET-12
+    name: "Timer Reconfiguration"
+    description: Reconfigure running timer parameters
+    test_function: "test_timer_reconfiguration (medium)"
+    test_level: medium
+    priority: high
+    status: verified
+
+  - id: HPET-13
+    name: "All Timers Stress Test"
+    description: Run all timers (2/3/8) simultaneously with varied periods
+    test_function: "test_all_timers_stress (full)"
+    test_level: full
+    priority: high
+    status: verified
+
+  - id: HPET-14
+    name: "Timer Wraparound Handling"
+    description: Verify correct behavior when counter wraps from max to 0
+    test_function: "test_timer_wraparound (full)"
+    test_level: full
+    priority: high
+    status: verified
+
+  - id: HPET-15
+    name: "Rapid Enable/Disable Cycling"
+    description: Rapidly toggle HPET enable and verify stability
+    test_function: "test_rapid_enable_disable (full)"
+    test_level: full
+    priority: medium
+    status: verified
+
+  - id: HPET-16
+    name: "CDC Mode Stress"
+    description: Verify CDC operation with async APB/HPET clocks
+    test_function: "test_cdc_stress (full, CDC_ENABLE=1)"
+    test_level: full
+    priority: medium
+    status: verified
+
+# Test level coverage
+test_level_coverage:
+  basic:
+    implemented: true
+    test_count: 7
+    coverage_percentage: 100
+    status: "All basic scenarios verified - 100% pass rate"
+
+  medium:
+    implemented: true
+    test_count: 5
+    coverage_percentage: 100
+    status: "All medium scenarios verified - 100% pass rate"
+
+  full:
+    implemented: true
+    test_count: 4
+    coverage_percentage: 100
+    status: "All full scenarios verified - 100% pass rate"
+
+# Parameter combinations tested
+parameter_coverage:
+  - NUM_TIMERS: 2
+    VENDOR_ID: 0x8086
+    REVISION_ID: 0x01
+    CDC_ENABLE: 0
+    test_level: full
+    status: verified
+
+  - NUM_TIMERS: 3
+    VENDOR_ID: 0x1022
+    REVISION_ID: 0x02
+    CDC_ENABLE: 0
+    test_level: full
+    status: verified
+
+  - NUM_TIMERS: 8
+    VENDOR_ID: 0xABCD
+    REVISION_ID: 0x10
+    CDC_ENABLE: 0
+    test_level: full
+    status: verified
+
+  - NUM_TIMERS: 2
+    VENDOR_ID: 0x8086
+    REVISION_ID: 0x01
+    CDC_ENABLE: 1
+    test_level: full
+    status: verified
+
+  - NUM_TIMERS: 3
+    VENDOR_ID: 0x1022
+    REVISION_ID: 0x02
+    CDC_ENABLE: 1
+    test_level: full
+    status: verified
+
+  - NUM_TIMERS: 8
+    VENDOR_ID: 0xABCD
+    REVISION_ID: 0x10
+    CDC_ENABLE: 1
+    test_level: full
+    status: verified
+
+# Implied coverage calculation
+implied_coverage:
+  total_hpet_features: 16
+  basic_features_covered: 7
+  medium_features_covered: 5
+  full_features_covered: 4
+  basic_percentage: 100
+  medium_percentage: 100
+  full_percentage: 100
+  overall_percentage: 100
+
+notes: |
+  HPET is the most mature block in retro_legacy_blocks - production ready
+  with 100% test coverage across all three test levels.
+
+  Current Status:
+  - Basic tests: 100% complete (7/7 tests passing)
+  - Medium tests: 100% complete (5/5 tests passing)
+  - Full tests: 100% complete (4/4 tests passing)
+
+  All Configurations Tested:
+  - 2/3/8 timer variants
+  - CDC_ENABLE=0 (sync clocks)
+  - CDC_ENABLE=1 (async clocks)
+  - Multiple vendor/revision IDs
+
+  Key Features Verified:
+  1. 64-bit main counter with enable/disable
+  2. One-shot and periodic timer modes
+  3. Multiple simultaneous timers
+  4. Interrupt generation and W1C clearing
+  5. 64-bit comparator support
+  6. Timer reconfiguration
+  7. CDC operation with dual clock domains
+  8. Counter wraparound handling
+  9. Stress testing with all timers active
+
+  HPET serves as the reference implementation for other retro_legacy_blocks.

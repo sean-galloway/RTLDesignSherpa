@@ -1,0 +1,342 @@
+module: axis5_slave
+rtl_file: rtl/amba/axis/axis5_slave.sv
+test_file: val/amba/test_axis5_slave.py
+parameters:
+- name: DATA_WIDTH
+  default: 32
+  description: TDATA width in bits
+- name: ID_WIDTH
+  default: 8
+  description: TID width in bits
+- name: DEST_WIDTH
+  default: 4
+  description: TDEST width in bits
+- name: USER_WIDTH
+  default: 1
+  description: TUSER width in bits
+- name: SKID_DEPTH
+  default: 2
+  description: Internal buffer depth
+functional_scenarios:
+- id: AXIS5-S-01
+  name: Accept single beat
+  description: Receive single AXIS data beat
+  test_function: test_accept_data
+  covers_lines:
+  - 45
+  - 46
+  - 47
+  - 48
+  - 49
+  - 50
+  - 51
+  priority: high
+  status: partial
+- id: AXIS5-S-02
+  name: Generate backpressure
+  description: Deassert TREADY when buffer full
+  test_function: test_backpressure
+  covers_lines:
+  - 45
+  - 46
+  - 47
+  priority: high
+  status: verified
+- id: AXIS5-S-03
+  name: Packet reception
+  description: Complete packet reception with TLAST
+  test_function: test_packet_reception
+  covers_lines:
+  - 45
+  - 46
+  - 50
+  priority: high
+  status: partial
+- id: AXIS5-S-04
+  name: Buffer fill
+  description: Fill internal skid buffer to capacity
+  test_function: test_buffer_fill
+  covers_lines:
+  - 45
+  - 46
+  - 47
+  priority: high
+  status: verified
+- id: AXIS5-S-05
+  name: Attribute capture
+  description: Capture TID, TDEST, TUSER correctly
+  test_function: test_attribute_capture
+  covers_lines:
+  - 52
+  - 53
+  - 54
+  priority: high
+  status: verified
+- id: AXIS5-S-10
+  name: Continuous reception
+  description: Accept stream without pauses (TREADY always high)
+  test_function: test_continuous_reception
+  covers_lines:
+  - 45
+  - 46
+  - 47
+  priority: high
+  status: verified
+- id: AXIS5-S-11
+  name: Random backpressure
+  description: Random TREADY assertion pattern
+  test_function: test_random_backpressure
+  covers_lines:
+  - 45
+  - 46
+  - 47
+  priority: high
+  status: verified
+- id: AXIS5-S-12
+  name: Buffer drain
+  description: Drain buffer while receiving new data
+  test_function: test_buffer_drain
+  covers_lines:
+  - 45
+  - 46
+  - 47
+  priority: high
+  status: verified
+- id: AXIS5-S-13
+  name: Long stall
+  description: Hold TREADY low for extended period
+  test_function: test_long_stall
+  covers_lines:
+  - 45
+  - 46
+  - 47
+  priority: medium
+  status: verified
+- id: AXIS5-S-20
+  name: Full TKEEP reception
+  description: All bytes valid (TKEEP all 1s)
+  test_function: test_full_tkeep
+  covers_lines:
+  - 48
+  - 49
+  priority: high
+  status: verified
+- id: AXIS5-S-21
+  name: Partial TKEEP reception
+  description: Some bytes masked (various TKEEP patterns)
+  test_function: test_partial_tkeep
+  covers_lines:
+  - 48
+  - 49
+  priority: high
+  status: verified
+- id: AXIS5-S-22
+  name: TSTRB handling
+  description: Verify TSTRB byte positioning
+  test_function: test_tstrb_handling
+  covers_lines:
+  - 49
+  priority: medium
+  status: verified
+- id: AXIS5-S-23
+  name: Single byte reception
+  description: Only one byte valid per beat
+  test_function: test_single_byte
+  covers_lines:
+  - 48
+  - 49
+  priority: medium
+  status: verified
+- id: AXIS5-S-24
+  name: Partial last beat
+  description: TLAST with partial TKEEP
+  test_function: test_partial_last_beat
+  covers_lines:
+  - 48
+  - 49
+  - 50
+  priority: medium
+  status: partial
+- id: AXIS5-S-30
+  name: TID capture
+  description: Capture various stream IDs
+  test_function: test_tid_capture
+  covers_lines:
+  - 52
+  priority: medium
+  status: verified
+- id: AXIS5-S-31
+  name: TDEST capture
+  description: Capture destination routing values
+  test_function: test_tdest_capture
+  covers_lines:
+  - 53
+  priority: medium
+  status: verified
+- id: AXIS5-S-32
+  name: Interleaved streams
+  description: Receive multiple interleaved TID streams
+  test_function: test_interleaved_streams
+  covers_lines:
+  - 52
+  - 53
+  priority: medium
+  status: verified
+- id: AXIS5-S-40
+  name: TUSER capture
+  description: Capture user sideband data
+  test_function: test_tuser_capture
+  covers_lines:
+  - 54
+  priority: medium
+  status: verified
+- id: AXIS5-S-41
+  name: TUSER per beat
+  description: Different TUSER value per beat
+  test_function: test_tuser_per_beat
+  covers_lines:
+  - 54
+  priority: low
+  status: verified
+- id: AXIS5-S-50
+  name: Multiple packets
+  description: Receive sequence of back-to-back packets
+  test_function: test_multiple_packets
+  covers_lines:
+  - 45
+  - 46
+  - 50
+  priority: high
+  status: partial
+- id: AXIS5-S-51
+  name: Variable packet size
+  description: Packets of different lengths
+  test_function: test_variable_packet_size
+  covers_lines:
+  - 45
+  - 46
+  - 50
+  priority: high
+  status: partial
+- id: AXIS5-S-52
+  name: Empty packets
+  description: Zero data bytes between TLAST beats
+  test_function: test_empty_packets
+  covers_lines:
+  - 48
+  - 49
+  - 50
+  priority: low
+  status: partial
+- id: AXIS5-S-EXT-01
+  name: TWAKEUP reception
+  description: Respond to TWAKEUP signal
+  test_function: test_twakeup
+  covers_lines:
+  - 60
+  priority: high
+  status: verified
+- id: AXIS5-S-EXT-02
+  name: TNSAID capture
+  description: Capture non-secure access ID
+  test_function: test_tnsaid
+  covers_lines:
+  - 61
+  priority: medium
+  status: implemented
+- id: AXIS5-S-EXT-03
+  name: TMPAM capture
+  description: Capture MPAM attributes
+  test_function: test_tmpam
+  covers_lines:
+  - 62
+  priority: medium
+  status: verified
+- id: AXIS5-S-60
+  name: Reset during transfer
+  description: Reset asserted mid-transaction
+  test_function: test_reset_during_transfer
+  covers_lines:
+  - 45
+  - 46
+  priority: high
+  status: verified
+- id: AXIS5-S-61
+  name: Reset during packet
+  description: Reset within multi-beat packet
+  test_function: test_reset_during_packet
+  covers_lines:
+  - 45
+  - 46
+  - 50
+  priority: medium
+  status: partial
+parameter_coverage:
+- DATA_WIDTH: 32
+  ID_WIDTH: 8
+  DEST_WIDTH: 4
+  USER_WIDTH: 1
+  SKID_DEPTH: 2
+  test_level: basic
+  status: verified
+- DATA_WIDTH: 64
+  ID_WIDTH: 8
+  DEST_WIDTH: 4
+  USER_WIDTH: 1
+  SKID_DEPTH: 2
+  test_level: medium
+  status: verified
+- DATA_WIDTH: 128
+  ID_WIDTH: 8
+  DEST_WIDTH: 4
+  USER_WIDTH: 1
+  SKID_DEPTH: 4
+  test_level: full
+  status: verified
+- DATA_WIDTH: 32
+  ID_WIDTH: 0
+  DEST_WIDTH: 0
+  USER_WIDTH: 0
+  SKID_DEPTH: 2
+  test_level: basic
+  status: verified
+- DATA_WIDTH: 32
+  ID_WIDTH: 8
+  DEST_WIDTH: 4
+  USER_WIDTH: 16
+  SKID_DEPTH: 2
+  test_level: medium
+  status: verified
+notes: 'AXIS5 slave receives AXI5-Stream transactions and buffers to FUB interface.
+
+  Uses gaxi_skid_buffer for internal buffering.
+
+
+  Key AXI5-Stream extensions:
+
+  - TWAKEUP: Wake signal response for low-power modes
+
+  - TNSAID: Non-secure access ID capture
+
+  - TMPAM: Memory partitioning attributes capture
+
+
+  All test scenarios verify:
+
+  - Handshake protocol (TVALID/TREADY)
+
+  - Data integrity
+
+  - Backpressure generation
+
+  - Packet framing (TLAST)
+
+  - Byte enables (TKEEP/TSTRB)
+
+  - Attribute capture (TID/TDEST/TUSER)
+
+  - AXI5 extensions (TWAKEUP/TNSAID/TMPAM)
+
+  - Buffer management
+
+  '

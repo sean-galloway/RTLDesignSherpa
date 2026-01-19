@@ -1,0 +1,15 @@
+stateDiagram-v2
+    [*] --> IDLE: Reset
+
+    IDLE --> WAIT_DESC: Software kick
+    WAIT_DESC --> PARSE_DESC: Descriptor fetched
+    PARSE_DESC --> XFER_DATA: Valid descriptor
+
+    XFER_DATA --> CHECK_NEXT: Transfer complete
+    CHECK_NEXT --> WAIT_DESC: More descriptors
+    CHECK_NEXT --> COMPLETE: Chain done
+
+    COMPLETE --> IDLE: Interrupt sent
+
+    XFER_DATA --> ERROR: AXI error
+    ERROR --> IDLE: Error cleared

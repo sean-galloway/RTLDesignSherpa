@@ -1,0 +1,128 @@
+# Testplan for count
+# Auto-generated on 2026-01-18 01:27:07
+# EDIT: Add functional scenarios to improve implied coverage
+
+module: count
+rtl_file: rtl/common/count.sv
+test_file: val/common/test_count.py
+
+# Raw Verilator coverage: 11/11 (100.0%)
+
+
+# Coverage points
+coverage_points:
+  - line: 251
+    type: input_port
+    covered: True
+    hit_count: 243
+    content: "input  logic [      WIDTH-1:0] data,"
+
+  - line: 252
+    type: output_port
+    covered: True
+    hit_count: 4
+    content: "output logic [$clog2(WIDTH):0] clz"
+
+  - line: 257
+    type: other
+    covered: True
+    hit_count: 269741
+    content: "function automatic [$clog2(WIDTH):0] clz_func;"
+
+  - line: 260
+    type: other
+    covered: True
+    hit_count: 269741
+    content: "begin"
+
+  - line: 261
+    type: other
+    covered: True
+    hit_count: 269741
+    content: "clz_func = 0;  // Initialize to zero"
+
+  - line: 262
+    type: other
+    covered: True
+    hit_count: 269741
+    content: "found = 1'b0;"
+
+  - line: 263
+    type: other
+    covered: True
+    hit_count: 269741
+    content: "for (int i = 0; i < WIDTH; i++) begin"
+
+  - line: 264
+    type: if_statement
+    covered: True
+    hit_count: 275762
+    content: "if (!input_data[i] && !found) begin"
+
+  - line: 265
+    type: other
+    covered: True
+    hit_count: 275762
+    content: "clz_func += 1;"
+
+  - line: 274
+    type: always_comb
+    covered: True
+    hit_count: 269741
+    content: "always_comb begin"
+
+  - line: 275
+    type: other
+    covered: True
+    hit_count: 269741
+    content: "clz = clz_func(data);"
+
+
+# Functional scenarios - ADD YOUR SCENARIOS HERE
+# Map test scenarios to coverage points
+functional_scenarios:
+  - id: COUNT-01
+    name: "Basic patterns"
+    description: "Test basic bit patterns for count leading zeros"
+    test_function: "test_basic_patterns"
+    covers_lines: [251, 252, 257, 260, 261, 262, 263, 264, 265, 274, 275]
+    priority: high
+    status: verified
+
+  - id: COUNT-02
+    name: "Corner cases"
+    description: "Test boundary values (all zeros, all ones, single bits)"
+    test_function: "test_corner_cases"
+    covers_lines: [251, 252, 257, 260, 261, 262, 263, 264, 265, 274, 275]
+    priority: high
+    status: verified
+
+  - id: COUNT-03
+    name: "Bit position sweep"
+    description: "Test each bit position for leading zero count"
+    test_function: "test_bit_positions"
+    covers_lines: [251, 252, 257, 260, 261, 262, 263, 264, 265, 274, 275]
+    priority: high
+    status: verified
+
+  - id: COUNT-04
+    name: "Random patterns"
+    description: "Test random input values"
+    test_function: "test_random_patterns"
+    covers_lines: [251, 252, 257, 260, 261, 262, 263, 264, 265, 274, 275]
+    priority: medium
+    status: verified
+
+# Implied coverage calculation (auto-computed)
+implied_coverage:
+  total_points: 11
+  verilator_covered: 11
+  scenario_covered: 11
+  implied_percentage: 100.0
+
+notes: |
+  Count leading zeros module using combinational function.
+  Verilator shows 100% coverage - all functional paths tracked.
+
+  All bit patterns and positions tested.
+  Implied coverage is 100% - complete verification.

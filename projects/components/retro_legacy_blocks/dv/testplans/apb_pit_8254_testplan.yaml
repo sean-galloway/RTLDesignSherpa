@@ -1,0 +1,193 @@
+# Testplan for apb_pit_8254
+# Maps functional test scenarios to verification coverage
+# NOTE: Currently only basic tests implemented - medium and full tests needed
+
+module: apb_pit_8254
+rtl_file: projects/components/retro_legacy_blocks/rtl/pit_8254/apb_pit_8254.sv
+test_file: projects/components/retro_legacy_blocks/dv/tests/test_apb_pit_8254.py
+
+# Module description:
+# APB interface to Intel 8254-compatible Programmable Interval Timer (PIT)
+# with 3 independent 16-bit counters, 6 operating modes, and configurable
+# clock sources.
+
+parameters:
+  - name: NUM_COUNTERS
+    default: 3
+    description: Number of timer counters (fixed at 3 for 8254 compatibility)
+  - name: CDC_ENABLE
+    default: 0
+    description: 1=async clocks, 0=same clock
+  - name: SKID_DEPTH
+    default: 2
+    description: CDC skid buffer depth
+
+# Functional scenarios
+functional_scenarios:
+  - id: PIT-01
+    name: "Register Access"
+    description: Basic read/write to PIT control and counter registers
+    test_function: "test_register_access (basic)"
+    test_level: basic
+    priority: high
+    status: verified
+
+  - id: PIT-02
+    name: "Counter Load"
+    description: Load initial count value to counter
+    test_function: "test_counter_load (basic)"
+    test_level: basic
+    priority: high
+    status: verified
+
+  - id: PIT-03
+    name: "Mode 0 - Interrupt on Terminal Count"
+    description: Verify mode 0 operation and interrupt generation
+    test_function: "test_mode0_interrupt (basic)"
+    test_level: basic
+    priority: high
+    status: verified
+
+  - id: PIT-04
+    name: "Mode 2 - Rate Generator"
+    description: Verify mode 2 periodic rate generation
+    test_function: "test_mode2_rate_generator (basic)"
+    test_level: basic
+    priority: high
+    status: verified
+
+  - id: PIT-05
+    name: "Counter Read-Back"
+    description: Verify counter latch and read-back command
+    test_function: "test_counter_readback (basic)"
+    test_level: basic
+    priority: high
+    status: verified
+
+  - id: PIT-06
+    name: "Mode 1 - Hardware Retriggerable One-Shot"
+    description: Verify mode 1 operation with gate signal
+    test_function: "test_mode1_oneshot (medium - NOT IMPLEMENTED)"
+    test_level: medium
+    priority: high
+    status: not_implemented
+
+  - id: PIT-07
+    name: "Mode 3 - Square Wave Generator"
+    description: Verify mode 3 square wave output
+    test_function: "test_mode3_square_wave (medium - NOT IMPLEMENTED)"
+    test_level: medium
+    priority: high
+    status: not_implemented
+
+  - id: PIT-08
+    name: "Mode 4 - Software Triggered Strobe"
+    description: Verify mode 4 operation
+    test_function: "test_mode4_strobe (medium - NOT IMPLEMENTED)"
+    test_level: medium
+    priority: medium
+    status: not_implemented
+
+  - id: PIT-09
+    name: "Mode 5 - Hardware Triggered Strobe"
+    description: Verify mode 5 operation with gate signal
+    test_function: "test_mode5_strobe (medium - NOT IMPLEMENTED)"
+    test_level: medium
+    priority: medium
+    status: not_implemented
+
+  - id: PIT-10
+    name: "Multiple Counter Operation"
+    description: Run all 3 counters simultaneously with different modes
+    test_function: "test_multiple_counters (medium - NOT IMPLEMENTED)"
+    test_level: medium
+    priority: high
+    status: not_implemented
+
+  - id: PIT-11
+    name: "All Modes Stress Test"
+    description: Stress test cycling through all 6 modes
+    test_function: "test_all_modes_stress (full - NOT IMPLEMENTED)"
+    test_level: full
+    priority: high
+    status: not_implemented
+
+  - id: PIT-12
+    name: "BCD vs Binary Counting"
+    description: Verify both BCD and binary counting modes
+    test_function: "test_bcd_binary_counting (full - NOT IMPLEMENTED)"
+    test_level: full
+    priority: medium
+    status: not_implemented
+
+# Test level coverage
+test_level_coverage:
+  basic:
+    implemented: true
+    test_count: 5
+    coverage_percentage: 100
+    status: "Basic scenarios verified (register access, load, mode 0/2, readback)"
+
+  medium:
+    implemented: false
+    test_count: 0
+    coverage_percentage: 0
+    status: "NEEDS IMPLEMENTATION - modes 1/3/4/5, multiple counters"
+
+  full:
+    implemented: false
+    test_count: 0
+    coverage_percentage: 0
+    status: "NEEDS IMPLEMENTATION - all modes stress, BCD counting"
+
+# Parameter combinations tested
+parameter_coverage:
+  - NUM_COUNTERS: 3
+    CDC_ENABLE: 0
+    test_level: basic
+    status: verified
+
+  - NUM_COUNTERS: 3
+    CDC_ENABLE: 1
+    test_level: basic
+    status: verified
+
+  - NUM_COUNTERS: 3
+    CDC_ENABLE: 0
+    test_level: medium
+    status: not_implemented
+
+  - NUM_COUNTERS: 3
+    CDC_ENABLE: 1
+    test_level: medium
+    status: not_implemented
+
+# Implied coverage calculation
+implied_coverage:
+  total_pit_features: 12
+  basic_features_covered: 5
+  medium_features_covered: 0
+  full_features_covered: 0
+  basic_percentage: 42
+  overall_percentage: 42
+
+notes: |
+  8254 PIT implements classic Intel programmable interval timer with 3
+  independent 16-bit counters and 6 operating modes.
+
+  Current Status:
+  - Basic tests: 100% complete (5/5 tests passing)
+  - Medium tests: NOT IMPLEMENTED (need modes 1/3/4/5, multiple counters)
+  - Full tests: NOT IMPLEMENTED (need all modes stress, BCD counting)
+
+  Key Missing Tests:
+  1. Mode 1 - Hardware retriggerable one-shot
+  2. Mode 3 - Square wave generator
+  3. Mode 4 - Software triggered strobe
+  4. Mode 5 - Hardware triggered strobe
+  5. Multiple counter simultaneous operation
+  6. All 6 modes stress test
+  7. BCD vs binary counting modes
+
+  Basic tests cover modes 0 and 2 (most common), but complete 8254
+  compatibility requires testing all 6 modes in medium/full tests.

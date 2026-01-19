@@ -60,6 +60,7 @@ from cocotb_test.simulator import run
 
 # Add repo root to path for CocoTBFramework imports
 from CocoTBFramework.tbclasses.shared.tbbase import TBBase
+from conftest import get_coverage_compile_args
 from CocoTBFramework.tbclasses.shared.filelist_utils import get_sources_from_filelist
 from CocoTBFramework.tbclasses.shared.utilities import get_paths, create_view_cmd
 
@@ -135,6 +136,7 @@ class CounterTB(TBBase):
 
     async def test_basic_counting(self):
         """Test basic counting functionality"""
+        self.log.info("=== Scenario CTR-01: Basic counting ===")
         self.log.info(f"Testing basic counting{self.get_time_ns_str()}")
 
         await self.setup_clock()
@@ -195,6 +197,7 @@ class CounterTB(TBBase):
 
     async def test_reset_behavior(self):
         """Test reset behavior"""
+        self.log.info("=== Scenario CTR-02: Reset behavior ===")
         self.log.info(f"Testing reset behavior{self.get_time_ns_str()}")
 
         await self.setup_clock()
@@ -250,6 +253,7 @@ class CounterTB(TBBase):
             self.log.info(f"Skipping continuous operation test{self.get_time_ns_str()}")
             return True
 
+        self.log.info("=== Scenario CTR-03: Continuous operation ===")
         self.log.info(f"Testing continuous operation{self.get_time_ns_str()}")
 
         await self.setup_clock()
@@ -302,6 +306,7 @@ class CounterTB(TBBase):
             self.log.info(f"Skipping edge case tests{self.get_time_ns_str()}")
             return True
 
+        self.log.info("=== Scenario CTR-04: Edge cases ===")
         self.log.info(f"Testing edge cases{self.get_time_ns_str()}")
 
         await self.setup_clock()
@@ -543,6 +548,9 @@ def test_counter(request, max_value, test_level):
         "--trace-structs",
         "--trace-depth", "99",
     ]
+
+    # Add coverage compile args if COVERAGE=1
+    compile_args.extend(get_coverage_compile_args())
     sim_args = [
         "--trace",  # VCD waveform format
         "--trace-structs",

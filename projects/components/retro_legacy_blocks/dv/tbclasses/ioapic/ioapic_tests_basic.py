@@ -727,6 +727,8 @@ class IOAPICBasicTests:
         Returns:
             True if test passed, False otherwise
         """
+        self.log.info("=== Scenario IOAPIC-04: Interrupt Masking ===")
+        self.log.info("=== Scenario IOAPIC-01: Register Access ===")
         self.log.info("TEST 11: Fixed Delivery Mode")
 
         try:

@@ -1,0 +1,27 @@
+{
+  "signal": [
+    {"name": "clk", "wave": "p..........|........."},
+    {},
+    ["APB Kick",
+      {"name": "apb_psel", "wave": "01..0......|........."},
+      {"name": "apb_penable", "wave": "0.1.0......|........."},
+      {"name": "apb_pwdata", "wave": "x=..x......|.........", "data": ["KICK"]}
+    ],
+    {},
+    ["Descriptor Fetch",
+      {"name": "desc_axi_arvalid", "wave": "0...1.0....|........."},
+      {"name": "desc_axi_arready", "wave": "1..........|........."},
+      {"name": "desc_axi_araddr", "wave": "x...=.x....|.........", "data": ["DESC_PTR"]},
+      {"name": "desc_axi_rvalid", "wave": "0.....1.0..|........."},
+      {"name": "desc_axi_rdata", "wave": "x.....=.x..|.........", "data": ["DESC[255:0]"]}
+    ],
+    {},
+    ["Scheduler",
+      {"name": "state", "wave": "=...=.=.=..|.........", "data": ["IDLE","WAIT","FETCH","PARSE"]},
+      {"name": "desc_valid", "wave": "0......1.0.|........."},
+      {"name": "transfer_start", "wave": "0.......1.0|........."}
+    ]
+  ],
+  "config": {"hscale": 1.5},
+  "head": {"text": "Descriptor Fetch Sequence"}
+}

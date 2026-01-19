@@ -41,6 +41,26 @@ sys.path.insert(0, repo_root)
 # Import testbench
 from projects.components.stream.dv.tbclasses.stream_core_tb import StreamCoreTB
 
+# Coverage integration - optional import
+try:
+    from projects.components.stream.dv.stream_coverage import (
+        CoverageHelper,
+        get_coverage_compile_args,
+        get_coverage_env
+    )
+    COVERAGE_AVAILABLE = True
+except ImportError:
+    COVERAGE_AVAILABLE = False
+
+    def get_coverage_compile_args():
+        """Stub when coverage not available."""
+        return []
+
+    def get_coverage_env(test_name, sim_build=None):
+        """Stub when coverage not available."""
+        return {}
+
+
 # ============================================================================
 # Performance Test Configurations
 # ============================================================================
@@ -349,6 +369,7 @@ def test_stream_performance_profile(request, config):
 
     # Create unique sim_build directory for this config
     sim_build = f"local_sim_build/perf_{config['name']}"
+    test_name_plus_params = f"test_stream_perf_{config['name']}"
 
     # Build extra_args conditionally based on WAVES
     waves_enabled = int(os.environ.get('WAVES', 0))
@@ -360,6 +381,13 @@ def test_stream_performance_profile(request, config):
     ]
     if waves_enabled:
         extra_args.extend(["--trace-fst", "--trace-structs"])
+
+    # Add coverage compile args if COVERAGE=1
+    coverage_compile_args = get_coverage_compile_args()
+    extra_args.extend(coverage_compile_args)
+
+    # Get coverage environment variables
+    coverage_env = get_coverage_env(test_name_plus_params, sim_build=sim_build)
 
     # Build and run
     run(
@@ -374,6 +402,7 @@ def test_stream_performance_profile(request, config):
         sim_build=sim_build,
         waves=waves_enabled,
         extra_args=extra_args,
+        extra_env=coverage_env,
         compile_args=[
             "-j", "4",
         ],

@@ -28,6 +28,7 @@ from itertools import product
 import pytest
 import cocotb
 from cocotb_test.simulator import run
+from conftest import get_coverage_compile_args
 from CocoTBFramework.tbclasses.shared.tbbase import TBBase
 from CocoTBFramework.tbclasses.shared.utilities import get_paths, create_view_cmd
 
@@ -82,6 +83,7 @@ async def axil4_read_master_test(dut):
     tb.log.info(f"Testing with timing profiles: {timing_profiles}")
 
     # Test 1: Basic connectivity test
+    tb.log.info("=== Scenario AXIL-MR-01: Single read ===")
     tb.log.info("=== Test 1: Basic Connectivity ===")
     tb.set_timing_profile('normal')
 
@@ -94,6 +96,7 @@ async def axil4_read_master_test(dut):
     tb.log.info(f"Basic connectivity test passed: data=0x{data:08X}")
 
     # Test 2: Register read sequences with different timing profiles
+    tb.log.info("=== Scenario AXIL-MR-02: Back-to-back reads ===")
     tb.log.info("=== Test 2: Register Read Sequences ===")
 
     for i, (profile, count) in enumerate(zip(timing_profiles, single_read_counts)):
@@ -121,6 +124,7 @@ async def axil4_read_master_test(dut):
             tb.log.info(f"Interface method test passed with '{profile}' timing")
 
     # Test 4: Address pattern validation
+    tb.log.info("=== Scenario AXIL-MR-11: Address sweep ===")
     tb.log.info("=== Test 4: Address Pattern Validation ===")
 
     # Test reads from different memory regions
@@ -150,6 +154,9 @@ async def axil4_read_master_test(dut):
 
     # Test 6: Stress testing (medium and full levels)
     if test_level in ['medium', 'full']:
+        tb.log.info("=== Scenario AXIL-MR-06: Slow AR accept ===")
+        tb.log.info("=== Scenario AXIL-MR-07: Slow R valid ===")
+        tb.log.info("=== Scenario AXIL-MR-09: Backpressure ===")
         tb.log.info("=== Test 6: Stress Testing ===")
 
         result = await tb.stress_read_test(stress_count)
@@ -160,6 +167,7 @@ async def axil4_read_master_test(dut):
 
     # Test 7: Protection field testing (full level)
     if test_level == 'full':
+        tb.log.info("=== Scenario AXIL-MR-10: Various ARPROT ===")
         tb.log.info("=== Test 7: Protection Field Testing ===")
 
         # Test different PROT field values
@@ -339,6 +347,10 @@ def test_axil4_read_master(request, addr_width, data_width, ar_depth, r_depth, t
         "-Wno-DECLFILENAME",
         "-Wno-PINMISSING",  # Allow unconnected pins
     ]
+
+    # Add coverage compile args if COVERAGE=1
+    compile_args.extend(get_coverage_compile_args())
+
     sim_args = ["--trace", "--trace-depth", "99"]
     plusargs = ["--trace"]
 
@@ -474,6 +486,10 @@ def test_axil4_read_master(request, addr_width, data_width, ar_depth, r_depth, t
         "-Wno-DECLFILENAME",
         "-Wno-PINMISSING",  # Allow unconnected pins
     ]
+
+    # Add coverage compile args if COVERAGE=1
+    compile_args.extend(get_coverage_compile_args())
+
     sim_args = ["--trace", "--trace-depth", "99"]
     plusargs = ["--trace"]
 

@@ -551,6 +551,8 @@ class PIC8259BasicTests:
         Returns:
             True if test passed, False otherwise
         """
+        self.log.info("=== Scenario PIC-02: Interrupt Request (IRQ) ===")
+        self.log.info("=== Scenario PIC-01: Register Access ===")
         self.log.info("TEST 10: IRQ Stress Test")
 
         try:

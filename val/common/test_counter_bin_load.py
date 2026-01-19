@@ -52,6 +52,7 @@ from cocotb_test.simulator import run
 # Import path utilities
 from CocoTBFramework.tbclasses.shared.utilities import get_paths, create_view_cmd
 from CocoTBFramework.tbclasses.shared.filelist_utils import get_sources_from_filelist
+from conftest import get_coverage_compile_args
 
 ##############################################################################
 # CocoTB Test Functions
@@ -376,6 +377,9 @@ def test_counter_bin_load(request, width, max_value, test_id):
         "--trace-structs",
         "--trace-depth", "99",
     ]
+
+    # Add coverage compile args if COVERAGE=1
+    compile_args.extend(get_coverage_compile_args())
     sim_args = [
         "--trace",  # VCD waveform format
         "--trace-structs",

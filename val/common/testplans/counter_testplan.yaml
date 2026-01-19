@@ -1,0 +1,272 @@
+# Testplan for counter
+# Auto-generated on 2026-01-18 01:27:07
+# EDIT: Add functional scenarios to improve implied coverage
+
+module: counter
+rtl_file: rtl/common/counter.sv
+test_file: val/common/test_counter.py
+
+# Raw Verilator coverage: 18/28 (64.3%)
+
+# Coverage gaps by type:
+#   if_statement: 1 uncovered lines
+#   input_port: 3 uncovered lines
+#   other: 5 uncovered lines
+#   signal_decl: 1 uncovered lines
+
+# Coverage points
+coverage_points:
+  - line: 124
+    type: input_port
+    covered: True
+    hit_count: 2313
+    content: "input  logic             clk,"
+
+  - line: 125
+    type: input_port
+    covered: True
+    hit_count: 117
+    content: "input  logic             rst_n,"
+
+  - line: 126
+    type: input_port
+    covered: True
+    hit_count: 78
+    content: "input  logic             enable,"
+
+  - line: 127
+    type: input_port
+    covered: False
+    hit_count: 0
+    content: "input  logic             add_enable,"
+
+  - line: 128
+    type: input_port
+    covered: False
+    hit_count: 0
+    content: "input  logic [WIDTH-1:0] add_value,"
+
+  - line: 129
+    type: input_port
+    covered: True
+    hit_count: 182
+    content: "input  logic             load,"
+
+  - line: 130
+    type: input_port
+    covered: False
+    hit_count: 0
+    content: "input  logic [WIDTH-1:0] load_value,"
+
+  - line: 131
+    type: output_port
+    covered: True
+    hit_count: 4
+    content: "output logic [WIDTH-1:0] counter_bin_curr,"
+
+  - line: 132
+    type: output_port
+    covered: True
+    hit_count: 4
+    content: "output logic [WIDTH-1:0] counter_bin_next"
+
+  - line: 139
+    type: signal_decl
+    covered: True
+    hit_count: 1
+    content: "logic [WIDTH-2:0] w_max_val;"
+
+  - line: 143
+    type: signal_decl
+    covered: False
+    hit_count: 0
+    content: "logic [WIDTH:0] w_sum_ext;"
+
+  - line: 146
+    type: always_comb
+    covered: True
+    hit_count: 6244
+    content: "always_comb begin"
+
+  - line: 147
+    type: case_branch
+    covered: True
+    hit_count: 6244
+    content: "counter_bin_next = counter_bin_curr;  // Default: hold"
+
+  - line: 148
+    type: other
+    covered: True
+    hit_count: 6244
+    content: "w_sum_ext = '0;  // Default assignment to prevent latch"
+
+  - line: 150
+    type: if_statement
+    covered: True
+    hit_count: 546
+    content: "if (load) begin"
+
+  - line: 152
+    type: other
+    covered: True
+    hit_count: 546
+    content: "counter_bin_next = load_value;"
+
+  - line: 154
+    type: other
+    covered: False
+    hit_count: 0
+    content: "end else if (add_enable) begin"
+
+  - line: 157
+    type: other
+    covered: False
+    hit_count: 0
+    content: "w_sum_ext = {1'b0, counter_bin_curr} + {1'b0, add_value};"
+
+  - line: 159
+    type: if_statement
+    covered: False
+    hit_count: 0
+    content: "if (w_sum_ext >= (WIDTH+1)'(WRAP_BOUNDARY)) begin"
+
+  - line: 161
+    type: other
+    covered: False
+    hit_count: 0
+    content: "counter_bin_next = w_sum_ext[WIDTH-1:0] - WIDTH'(WRAP_BOUNDARY);"
+
+  - line: 162
+    type: other
+    covered: False
+    hit_count: 0
+    content: "end else begin"
+
+  - line: 164
+    type: other
+    covered: False
+    hit_count: 0
+    content: "counter_bin_next = w_sum_ext[WIDTH-1:0];"
+
+  - line: 167
+    type: other
+    covered: True
+    hit_count: 2188
+    content: "end else if (enable) begin"
+
+  - line: 170
+    type: if_statement
+    covered: True
+    hit_count: 255
+    content: "if (counter_bin_curr[WIDTH-2:0] == w_max_val) begin"
+
+  - line: 172
+    type: other
+    covered: True
+    hit_count: 255
+    content: "counter_bin_next = {~counter_bin_curr[WIDTH-1], {(WIDTH - 1){1'b0}}};"
+
+  - line: 173
+    type: other
+    covered: True
+    hit_count: 1933
+    content: "end else begin"
+
+  - line: 175
+    type: other
+    covered: True
+    hit_count: 1933
+    content: "counter_bin_next = counter_bin_curr + 1;"
+
+  - line: 187
+    type: other
+    covered: True
+    hit_count: 325
+    content: ")"
+
+
+# Functional scenarios
+# Map test scenarios to coverage points from counter test
+functional_scenarios:
+  - id: CTR-01
+    name: "Basic counting"
+    description: "Verify counter increments from 0 to MAX and generates tick"
+    test_function: "test_basic_counting"
+    covers_lines: [124, 125, 126, 129, 131, 132, 139, 146, 147, 148, 150, 152, 167, 170, 172, 173, 175, 187]
+    priority: high
+    status: verified
+
+  - id: CTR-02
+    name: "Reset behavior"
+    description: "Test reset clears counter and restarts counting from 0"
+    test_function: "test_reset_behavior"
+    covers_lines: [124, 125, 129, 131, 132, 139, 146, 147, 148, 150, 152, 167, 170, 172, 173, 175, 187]
+    priority: high
+    status: verified
+
+  - id: CTR-03
+    name: "Continuous operation"
+    description: "Verify counter operates correctly over multiple complete cycles"
+    test_function: "test_continuous_operation"
+    covers_lines: [124, 125, 126, 129, 131, 132, 139, 146, 147, 148, 150, 152, 167, 170, 172, 173, 175, 187]
+    priority: high
+    status: verified
+
+  - id: CTR-04
+    name: "Edge cases"
+    description: "Test boundary conditions and rapid reset scenarios"
+    test_function: "test_edge_cases"
+    covers_lines: [124, 125, 126, 129, 131, 132, 139, 146, 147, 148, 150, 152, 167, 170, 172, 173, 175, 187]
+    priority: medium
+    status: verified
+
+  - id: CTR-05
+    name: "Enable signal"
+    description: "Verify enable signal controls counter increment"
+    test_function: "test_basic_counting"
+    covers_lines: [126, 146, 147, 148, 167, 170, 172, 173, 175]
+    priority: high
+    status: verified
+
+  - id: CTR-06
+    name: "Load operation"
+    description: "Test load signal and load_value input"
+    test_function: "test_basic_counting"
+    covers_lines: [129, 150, 152]
+    priority: high
+    status: verified
+
+# NOTE: Uncovered add_enable feature (lines 127, 128, 130, 143, 154, 157, 159, 161, 162, 164)
+# These lines implement an optional add_value feature that allows adding arbitrary values to counter
+# Current tests focus on basic increment-by-1 counting functionality
+# To achieve 100% coverage, add test scenarios for:
+#   CTR-07: "Add value operation" - Test add_enable and add_value inputs with various values
+#   CTR-08: "Add with wraparound" - Test add_value causing wraparound at WRAP_BOUNDARY
+
+# Implied coverage calculation
+implied_coverage:
+  total_points: 28
+  verilator_covered: 18
+  scenario_covered: 18
+  implied_percentage: 64.3
+
+notes: |
+  The counter module supports two counting modes:
+  1. Basic increment mode (enable signal) - TESTED
+  2. Add arbitrary value mode (add_enable, add_value) - NOT TESTED
+
+  Current tests achieve 64.3% coverage (18/28 lines) by thoroughly testing:
+  - Basic increment counting with enable signal
+  - Reset behavior and restart from 0
+  - Load operation for setting counter value
+  - Continuous multi-cycle operation
+  - Edge cases and boundary conditions
+
+  To achieve higher coverage, add test scenarios for the add_value feature:
+  - Line 127-128: add_enable and add_value inputs
+  - Line 130: load_value input (used but could be more thoroughly tested)
+  - Line 143: w_sum_ext signal for addition with overflow detection
+  - Lines 154-164: Add value logic with wrap boundary checking
+
+  The untested add_value feature represents a parameterized enhancement
+  that may not be used in typical counter applications.

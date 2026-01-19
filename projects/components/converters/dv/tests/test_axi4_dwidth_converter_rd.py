@@ -283,6 +283,14 @@ def test_axi4_dwidth_converter_rd(request, params):
         "--trace",
     ]
 
+    # Add coverage flags if COVERAGE=1
+    if bool(int(os.environ.get('COVERAGE', '0'))):
+        compile_args.extend([
+            "--coverage-line",
+            "--coverage-toggle",
+        ])
+        sim_args.append("--coverage")
+
     # Conditionally set COCOTB_TRACE_FILE for VCD generation
     if bool(int(os.environ.get('WAVES', '0'))):
         extra_env['COCOTB_TRACE_FILE'] = os.path.join(sim_build, 'dump.vcd')

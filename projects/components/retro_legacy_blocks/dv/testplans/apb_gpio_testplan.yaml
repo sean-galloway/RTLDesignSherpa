@@ -1,0 +1,197 @@
+# Testplan for apb_gpio
+# Maps functional test scenarios to verification coverage
+# NOTE: Currently only basic tests implemented - medium and full tests needed
+
+module: apb_gpio
+rtl_file: projects/components/retro_legacy_blocks/rtl/gpio/apb_gpio.sv
+test_file: projects/components/retro_legacy_blocks/dv/tests/test_apb_gpio.py
+
+# Module description:
+# APB-accessible GPIO controller with 32-bit port, per-bit direction control,
+# edge and level interrupt support, atomic set/clear/toggle operations, and
+# optional CDC for async pin domains.
+
+parameters:
+  - name: GPIO_WIDTH
+    default: 32
+    description: GPIO port width
+  - name: SYNC_STAGES
+    default: 2
+    description: Input synchronizer stages
+  - name: CDC_ENABLE
+    default: 0
+    description: 1=async clocks, 0=same clock
+  - name: SKID_DEPTH
+    default: 2
+    description: CDC skid buffer depth
+
+# Functional scenarios
+functional_scenarios:
+  - id: GPIO-01
+    name: "Register Access"
+    description: Basic read/write to all GPIO registers
+    test_function: "test_register_access (basic)"
+    test_level: basic
+    priority: high
+    status: verified
+
+  - id: GPIO-02
+    name: "Direction Control"
+    description: Configure GPIO pins as input/output via direction register
+    test_function: "test_direction_control (basic)"
+    test_level: basic
+    priority: high
+    status: verified
+
+  - id: GPIO-03
+    name: "Output Operation"
+    description: Write to GPIO output register and verify pin values
+    test_function: "test_output_operation (basic)"
+    test_level: basic
+    priority: high
+    status: verified
+
+  - id: GPIO-04
+    name: "Input Operation"
+    description: Read external pin values via GPIO input register
+    test_function: "test_input_operation (basic)"
+    test_level: basic
+    priority: high
+    status: verified
+
+  - id: GPIO-05
+    name: "Atomic Set/Clear/Toggle"
+    description: Test atomic bit operations without read-modify-write
+    test_function: "test_atomic_set_clear_toggle (basic)"
+    test_level: basic
+    priority: high
+    status: verified
+
+  - id: GPIO-06
+    name: "Interrupt Enable"
+    description: Configure and verify interrupt enable per pin
+    test_function: "test_interrupt_enable (basic)"
+    test_level: basic
+    priority: high
+    status: verified
+
+  - id: GPIO-07
+    name: "Global Enable"
+    description: Test global GPIO enable/disable functionality
+    test_function: "test_global_enable (basic)"
+    test_level: basic
+    priority: high
+    status: verified
+
+  - id: GPIO-08
+    name: "Edge Interrupts"
+    description: Verify rising/falling edge interrupt detection
+    test_function: "test_edge_interrupts (medium - NOT IMPLEMENTED)"
+    test_level: medium
+    priority: high
+    status: not_implemented
+
+  - id: GPIO-09
+    name: "Level Interrupts"
+    description: Verify high/low level interrupt detection
+    test_function: "test_level_interrupts (medium - NOT IMPLEMENTED)"
+    test_level: medium
+    priority: high
+    status: not_implemented
+
+  - id: GPIO-10
+    name: "Mixed Mode Operation"
+    description: Test simultaneous input/output/interrupt configurations
+    test_function: "test_mixed_mode (medium - NOT IMPLEMENTED)"
+    test_level: medium
+    priority: medium
+    status: not_implemented
+
+  - id: GPIO-11
+    name: "CDC Mode Stress Test"
+    description: Verify CDC operation under rapid APB/GPIO clock transitions
+    test_function: "test_cdc_stress (full - NOT IMPLEMENTED)"
+    test_level: full
+    priority: medium
+    status: not_implemented
+
+# Test level coverage
+test_level_coverage:
+  basic:
+    implemented: true
+    test_count: 7
+    coverage_percentage: 100
+    status: "All basic scenarios verified (register access, direction, I/O, atomic ops, interrupts)"
+
+  medium:
+    implemented: false
+    test_count: 0
+    coverage_percentage: 0
+    status: "NEEDS IMPLEMENTATION - edge/level interrupts, mixed mode"
+
+  full:
+    implemented: false
+    test_count: 0
+    coverage_percentage: 0
+    status: "NEEDS IMPLEMENTATION - CDC stress, corner cases"
+
+# Parameter combinations tested
+parameter_coverage:
+  - GPIO_WIDTH: 32
+    CDC_ENABLE: 0
+    test_level: basic
+    status: verified
+
+  - GPIO_WIDTH: 32
+    CDC_ENABLE: 1
+    test_level: basic
+    status: verified
+
+  - GPIO_WIDTH: 32
+    CDC_ENABLE: 0
+    test_level: medium
+    status: not_implemented
+
+  - GPIO_WIDTH: 32
+    CDC_ENABLE: 1
+    test_level: medium
+    status: not_implemented
+
+  - GPIO_WIDTH: 32
+    CDC_ENABLE: 0
+    test_level: full
+    status: not_implemented
+
+  - GPIO_WIDTH: 32
+    CDC_ENABLE: 1
+    test_level: full
+    status: not_implemented
+
+# Implied coverage calculation
+implied_coverage:
+  total_gpio_features: 11
+  basic_features_covered: 7
+  medium_features_covered: 0
+  full_features_covered: 0
+  basic_percentage: 64
+  overall_percentage: 64
+
+notes: |
+  GPIO controller implements standard 32-bit GPIO with per-pin direction
+  control and interrupt support. Optional CDC enables async clock domains
+  between APB interface and GPIO pins.
+
+  Current Status:
+  - Basic tests: 100% complete (7/7 tests passing)
+  - Medium tests: NOT IMPLEMENTED (need edge/level interrupts, mixed mode)
+  - Full tests: NOT IMPLEMENTED (need CDC stress, corner cases)
+
+  Key Missing Tests:
+  1. Edge interrupt detection (rising/falling)
+  2. Level interrupt detection (high/low)
+  3. Mixed mode operation (simultaneous I/O/interrupts)
+  4. CDC stress testing with rapid clock transitions
+  5. Corner cases (all pins input, all output, rapid toggling)
+
+  All module features are accessible via basic tests, but interrupt
+  edge cases and CDC stress testing require medium/full test levels.

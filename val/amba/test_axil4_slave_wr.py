@@ -33,6 +33,7 @@ from itertools import product
 import pytest
 import cocotb
 from cocotb_test.simulator import run
+from conftest import get_coverage_compile_args
 from CocoTBFramework.tbclasses.shared.tbbase import TBBase
 from CocoTBFramework.tbclasses.shared.utilities import get_paths, create_view_cmd
 
@@ -110,6 +111,7 @@ async def axil4_slave_write_test(dut):
 
     try:
         # Test 1: Basic connectivity test
+        tb.log.info("=== Scenario AXIL-SW-01: Single write ===")
         tb.log.info("=== Test 1: Basic AXIL4 Slave Write Connectivity ===")
         total_tests += 1
         tb.set_timing_profile('normal')
@@ -125,6 +127,7 @@ async def axil4_slave_write_test(dut):
 
         # Test 2: Register write sequences with different timing profiles
         for profile in timing_profiles:
+            tb.log.info("=== Scenario AXIL-SW-02: Back-to-back writes ===")
             tb.log.info(f"=== Test 2: Register Write Sequences ({profile.upper()}) ===")
             total_tests += 1
             tb.set_timing_profile(profile)
@@ -142,6 +145,8 @@ async def axil4_slave_write_test(dut):
 
         # Test 3: Write strobe pattern validation
         if run_strobe_tests:
+            tb.log.info("=== Scenario AXIL-SW-08: WSTRB propagation ===")
+            tb.log.info("=== Scenario AXIL-SW-11: All WSTRB values ===")
             tb.log.info("=== Test 3: Write Strobe Pattern Validation ===")
             total_tests += 1
             tb.set_timing_profile('normal')
@@ -200,6 +205,8 @@ async def axil4_slave_write_test(dut):
                     tests_passed += 1  # Count as success with warning
 
         # Test 7: Stress testing
+        tb.log.info("=== Scenario AXIL-SW-09: Backend delay ===")
+        tb.log.info("=== Scenario AXIL-SW-10: BREADY stall ===")
         tb.log.info("=== Test 7: AXIL4 Slave Write Stress Testing ===")
         total_tests += 1
         tb.set_timing_profile('stress')
@@ -452,6 +459,10 @@ def test_axil4_slave_write(request, addr_width, data_width, aw_depth, w_depth, b
         "-Wno-DECLFILENAME",
         "-Wno-PINMISSING",  # Allow unconnected pins
     ]
+
+    # Add coverage compile args if COVERAGE=1
+    compile_args.extend(get_coverage_compile_args())
+
     sim_args = ["--trace", "--trace-depth", "99"]
     plusargs = ["--trace"]
 
@@ -589,6 +600,10 @@ if __name__ == "__main__":
         "-Wno-DECLFILENAME",
         "-Wno-PINMISSING",  # Allow unconnected pins
     ]
+
+    # Add coverage compile args if COVERAGE=1
+    compile_args.extend(get_coverage_compile_args())
+
     sim_args = ["--trace", "--trace-depth", "99"]
     plusargs = ["--trace"]
 

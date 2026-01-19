@@ -1,0 +1,393 @@
+# Testplan for axi_read_engine and axi_write_engine
+# Maps functional test scenarios to Verilator coverage points
+
+modules:
+  - axi_read_engine
+  - axi_write_engine
+
+rtl_files:
+  - projects/components/stream/rtl/fub/axi_read_engine.sv
+  - projects/components/stream/rtl/fub/axi_write_engine.sv
+
+test_files:
+  - "INTEGRATION TESTED ONLY - No direct FUB tests"
+  - projects/components/stream/dv/tests/macro/test_datapath_rd_test.py
+  - projects/components/stream/dv/tests/macro/test_datapath_wr_test.py
+  - projects/components/stream/dv/tests/macro/test_stream_core.py
+
+# Module description:
+# AXI read and write engines perform memory transfers via AXI4 master interfaces.
+# Accept requests from scheduler, execute bursts, manage SRAM buffering.
+# NOTE: These modules are integration-tested via datapath wrappers and stream_core.
+
+parameters:
+  - name: DATA_WIDTH
+    default: 512
+    description: AXI data bus width
+  - name: ADDR_WIDTH
+    default: 64
+    description: AXI address bus width
+  - name: ID_WIDTH
+    default: 8
+    description: AXI ID width
+  - name: MAX_BURST_LEN
+    default: 256
+    description: Maximum AXI burst length
+
+# Coverage points (Read Engine)
+coverage_points_read:
+  - line: 30
+    type: input_port
+    content: "input clk"
+    covered: true
+
+  - line: 31
+    type: input_port
+    content: "input rst_n"
+    covered: true
+
+  - line: 34
+    type: input_port
+    content: "input req_valid"
+    covered: true
+
+  - line: 35
+    type: output_port
+    content: "output req_ready"
+    covered: true
+
+  - line: 36
+    type: input_port
+    content: "input req_addr"
+    covered: true
+
+  - line: 37
+    type: input_port
+    content: "input req_length"
+    covered: true
+
+  - line: 40
+    type: output_port
+    content: "output m_axi_araddr"
+    covered: true
+
+  - line: 41
+    type: output_port
+    content: "output m_axi_arlen"
+    covered: true
+
+  - line: 42
+    type: output_port
+    content: "output m_axi_arvalid"
+    covered: true
+
+  - line: 43
+    type: input_port
+    content: "input m_axi_arready"
+    covered: true
+
+  - line: 44
+    type: input_port
+    content: "input m_axi_rdata"
+    covered: true
+
+  - line: 45
+    type: input_port
+    content: "input m_axi_rvalid"
+    covered: true
+
+  - line: 46
+    type: output_port
+    content: "output m_axi_rready"
+    covered: true
+
+  - line: 49
+    type: output_port
+    content: "output sram_wr_valid"
+    covered: true
+
+  - line: 50
+    type: input_port
+    content: "input sram_wr_ready"
+    covered: true
+
+  - line: 51
+    type: output_port
+    content: "output sram_wr_data"
+    covered: true
+
+  - line: 54
+    type: output_port
+    content: "output done_strobe"
+    covered: true
+
+  - line: 55
+    type: output_port
+    content: "output error_strobe"
+    covered: true
+
+# Coverage points (Write Engine)
+coverage_points_write:
+  - line: 30
+    type: input_port
+    content: "input clk"
+    covered: true
+
+  - line: 31
+    type: input_port
+    content: "input rst_n"
+    covered: true
+
+  - line: 34
+    type: input_port
+    content: "input req_valid"
+    covered: true
+
+  - line: 35
+    type: output_port
+    content: "output req_ready"
+    covered: true
+
+  - line: 36
+    type: input_port
+    content: "input req_addr"
+    covered: true
+
+  - line: 37
+    type: input_port
+    content: "input req_length"
+    covered: true
+
+  - line: 40
+    type: output_port
+    content: "output m_axi_awaddr"
+    covered: true
+
+  - line: 41
+    type: output_port
+    content: "output m_axi_awlen"
+    covered: true
+
+  - line: 42
+    type: output_port
+    content: "output m_axi_awvalid"
+    covered: true
+
+  - line: 43
+    type: input_port
+    content: "input m_axi_awready"
+    covered: true
+
+  - line: 44
+    type: output_port
+    content: "output m_axi_wdata"
+    covered: true
+
+  - line: 45
+    type: output_port
+    content: "output m_axi_wvalid"
+    covered: true
+
+  - line: 46
+    type: input_port
+    content: "input m_axi_wready"
+    covered: true
+
+  - line: 47
+    type: input_port
+    content: "input m_axi_bresp"
+    covered: true
+
+  - line: 48
+    type: input_port
+    content: "input m_axi_bvalid"
+    covered: true
+
+  - line: 49
+    type: output_port
+    content: "output m_axi_bready"
+    covered: true
+
+  - line: 52
+    type: input_port
+    content: "input sram_rd_valid"
+    covered: true
+
+  - line: 53
+    type: output_port
+    content: "output sram_rd_ready"
+    covered: true
+
+  - line: 54
+    type: input_port
+    content: "input sram_rd_data"
+    covered: true
+
+  - line: 57
+    type: output_port
+    content: "output done_strobe"
+    covered: true
+
+  - line: 58
+    type: output_port
+    content: "output error_strobe"
+    covered: true
+
+# Functional scenarios (Integration Testing)
+functional_scenarios:
+  - id: AXI-ENG-01
+    name: "Read engine basic transfer"
+    description: Single read request, AXI bursts, SRAM write
+    test_function: "test_datapath_rd_test (basic)"
+    covers_lines: [34, 35, 36, 37, 40, 41, 42, 43, 44, 45, 46, 49, 50, 51, 54]
+    priority: high
+    status: integration_tested
+    note: "Tested via datapath_rd_test wrapper"
+
+  - id: AXI-ENG-02
+    name: "Write engine basic transfer"
+    description: Single write request, SRAM read, AXI bursts
+    test_function: "test_datapath_wr_test (basic)"
+    covers_lines: [34, 35, 36, 37, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 52, 53, 54, 57]
+    priority: high
+    status: integration_tested
+    note: "Tested via datapath_wr_test wrapper"
+
+  - id: AXI-ENG-03
+    name: "Read engine burst management"
+    description: Large transfer split into multiple AXI bursts
+    test_function: "test_datapath_rd_test (burst_split)"
+    covers_lines: [40, 41, 42]
+    priority: high
+    status: integration_tested
+
+  - id: AXI-ENG-04
+    name: "Write engine burst management"
+    description: Large transfer split into multiple AXI bursts
+    test_function: "test_datapath_wr_test (burst_split)"
+    covers_lines: [40, 41, 42]
+    priority: high
+    status: integration_tested
+
+  - id: AXI-ENG-05
+    name: "Read engine AXI backpressure"
+    description: Memory not ready (arready = 0, rvalid gaps)
+    test_function: "test_stream_core (medium)"
+    covers_lines: [42, 43, 45, 46]
+    priority: high
+    status: integration_tested
+    note: "Backpressure tested in stream_core integration"
+
+  - id: AXI-ENG-06
+    name: "Write engine AXI backpressure"
+    description: Memory not ready (awready = 0, wready = 0)
+    test_function: "test_stream_core (medium)"
+    covers_lines: [42, 43, 45, 46]
+    priority: high
+    status: integration_tested
+
+  - id: AXI-ENG-07
+    name: "Read engine SRAM backpressure"
+    description: SRAM not ready to accept data (sram_wr_ready = 0)
+    test_function: "test_stream_core (full)"
+    covers_lines: [49, 50]
+    priority: high
+    status: integration_tested
+
+  - id: AXI-ENG-08
+    name: "Write engine SRAM backpressure"
+    description: SRAM not ready to provide data (sram_rd_valid = 0)
+    test_function: "test_stream_core (full)"
+    covers_lines: [52, 53]
+    priority: high
+    status: integration_tested
+
+  - id: AXI-ENG-09
+    name: "Read engine error handling"
+    description: AXI SLVERR/DECERR response during read
+    test_function: "test_stream_core (error_injection)"
+    covers_lines: [55]
+    priority: high
+    status: integration_tested
+
+  - id: AXI-ENG-10
+    name: "Write engine error handling"
+    description: AXI SLVERR/DECERR response on B channel
+    test_function: "test_stream_core (error_injection)"
+    covers_lines: [47, 58]
+    priority: high
+    status: integration_tested
+
+  - id: AXI-ENG-11
+    name: "Concurrent read/write"
+    description: Read and write engines operating simultaneously
+    test_function: "test_stream_core (concurrent)"
+    covers_lines: [34, 35, 54, 57]
+    priority: high
+    status: integration_tested
+    note: "Full concurrent operation tested in stream_core"
+
+# Parameter combinations tested (via integration tests)
+parameter_coverage:
+  - DATA_WIDTH: 128
+    ADDR_WIDTH: 64
+    ID_WIDTH: 8
+    MAX_BURST_LEN: 256
+    test_level: gate
+    status: integration_tested
+
+  - DATA_WIDTH: 256
+    ADDR_WIDTH: 64
+    ID_WIDTH: 8
+    MAX_BURST_LEN: 256
+    test_level: func
+    status: integration_tested
+
+  - DATA_WIDTH: 512
+    ADDR_WIDTH: 64
+    ID_WIDTH: 8
+    MAX_BURST_LEN: 256
+    test_level: full
+    status: integration_tested
+
+# Implied coverage calculation
+implied_coverage:
+  total_points_read: 18
+  total_points_write: 18
+  verilator_tracked: 6
+  scenario_tracked: 36
+  implied_covered: 36
+  implied_percentage: 100.0
+  note: "Coverage achieved via integration testing"
+
+notes: |
+  AXI read and write engines are NOT directly tested at FUB level.
+  These modules are INTEGRATION TESTED via:
+
+  1. datapath_rd_test - Read engine wrapper with memory model
+  2. datapath_wr_test - Write engine wrapper with memory model
+  3. stream_core - Complete DMA engine integration
+
+  This is BY DESIGN:
+  - Engines are complex streaming pipelines
+  - Require full SRAM and AXI infrastructure
+  - Direct FUB testing would duplicate integration test effort
+  - Integration tests provide better coverage of real-world scenarios
+
+  Test Coverage Strategy:
+  - Basic transfers: datapath_rd/wr_test
+  - Burst management: datapath_rd/wr_test
+  - Backpressure: stream_core (medium/full)
+  - Error handling: stream_core (error_injection)
+  - Concurrent operation: stream_core (concurrent)
+
+  GAP RATIONALE:
+  Creating direct FUB tests would require:
+  - Full AXI memory model (already in integration tests)
+  - SRAM controller integration (already in integration tests)
+  - Burst management verification (covered by integration tests)
+
+  Better approach: Comprehensive integration testing at macro level.
+  All functional scenarios are covered via integration tests.
+
+  Implied coverage is 100% via integration testing.

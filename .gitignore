@@ -213,7 +213,9 @@ logs/
 rtl/axi/REWORK/*
 val/unit_axi/FIX_TESTS*
 HOLD/
-coverage_data/
+# coverage_data/ - KEEP coverage reports for tracking
+# Individual test coverage.dat files are in local_sim_build/ (ignored)
+# Merged coverage reports in coverage_data/merged/ should be committed
 .obsidian
 status.txt
 

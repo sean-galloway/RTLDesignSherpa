@@ -1,0 +1,92 @@
+# Testplan for reverse
+# Auto-generated on 2026-01-18 01:27:07
+# EDIT: Add functional scenarios to improve implied coverage
+
+module: reverse
+rtl_file: rtl/common/reverse.sv
+test_file: val/common/test_reverse.py
+
+# Raw Verilator coverage: 5/5 (100.0%)
+
+
+# Coverage points
+coverage_points:
+  - line: 22
+    type: input_port
+    covered: True
+    hit_count: 235
+    content: "input        [WIDTH-1:0] vector_in,"
+
+  - line: 23
+    type: output_port
+    covered: True
+    hit_count: 244
+    content: "output logic [WIDTH-1:0] vector_rev"
+
+  - line: 26
+    type: always_comb
+    covered: True
+    hit_count: 4
+    content: "always_comb begin"
+
+  - line: 27
+    type: other
+    covered: True
+    hit_count: 4
+    content: "for (integer i = 0; i < WIDTH; i++) begin"
+
+  - line: 28
+    type: other
+    covered: True
+    hit_count: 120
+    content: "vector_rev[(WIDTH-1)-i] = vector_in[i];"
+
+
+# Functional scenarios - ADD YOUR SCENARIOS HERE
+# Map test scenarios to coverage points
+functional_scenarios:
+  - id: REV-01
+    name: "Basic patterns"
+    description: "Test basic bit pattern reversal (zeros, ones, alternating)"
+    test_function: "test_basic_patterns"
+    covers_lines: [22, 23, 26, 27, 28]
+    priority: high
+    status: verified
+
+  - id: REV-02
+    name: "Symmetry test"
+    description: "Verify double reversal returns original value"
+    test_function: "test_symmetry"
+    covers_lines: [22, 23, 26, 27, 28]
+    priority: high
+    status: verified
+
+  - id: REV-03
+    name: "Bit position mapping"
+    description: "Verify each bit position maps correctly"
+    test_function: "test_bit_positions"
+    covers_lines: [22, 23, 26, 27, 28]
+    priority: high
+    status: verified
+
+  - id: REV-04
+    name: "Random patterns"
+    description: "Test random input patterns"
+    test_function: "test_random_patterns"
+    covers_lines: [22, 23, 26, 27, 28]
+    priority: medium
+    status: verified
+
+# Implied coverage calculation (auto-computed)
+implied_coverage:
+  total_points: 5
+  verilator_covered: 5
+  scenario_covered: 5
+  implied_percentage: 100.0
+
+notes: |
+  Reverse vector module performs bit-order reversal.
+  Verilator shows 100% coverage - all functional paths tracked.
+
+  All bit reversal operations verified including symmetry property.
+  Implied coverage is 100% - complete verification.

@@ -2,22 +2,20 @@
 set -euo pipefail
 
 # ------------------------------------------------------------
-# RAPIDS Specification PDF Generator
+# RAPIDS Beats HAS/MAS PDF Generator
 # ------------------------------------------------------------
 # Usage:
 #   ./generate_pdf.sh [--rev <version>] [--help]
 #
 # Example:
-#   ./generate_pdf.sh --rev 0.25
+#   ./generate_pdf.sh --rev 1.0
 #
-# This script builds the RAPIDS specification document
+# This script builds both the RAPIDS Beats HAS and MAS documents
 # (DOCX and PDF) from Markdown sources using md_to_docx.py.
 # ------------------------------------------------------------
 
 # Default values
-REV="0.25"
-ASSETS="rapids_spec/assets"
-SPEC_INDEX="rapids_spec/rapids_index.md"
+REV="0.5"
 
 # Detect repository root (go up from docs/ to project root)
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -35,12 +33,12 @@ Options:
   -h, --help             Show this help message and exit
 
 Example:
-  $0 --rev 0.30
+  $0 --rev 1.1
 
 Description:
-  This script generates a DOCX and PDF version of the RAPIDS specification
-  by invoking the md_to_docx.py converter. It stitches together the Markdown
-  chapters, applies page breaks, and includes assets for images and diagrams.
+  This script generates DOCX and PDF versions of both the RAPIDS Beats
+  HAS (Hardware Architecture Specification) and MAS (Module Architecture
+  Specification) by invoking the md_to_docx.py converter.
 EOF
 }
 
@@ -67,39 +65,89 @@ while [[ $# -gt 0 ]]; do
 done
 
 # ------------------------------------------------------------
-# Build filenames dynamically
+# Common converter options
 # ------------------------------------------------------------
-OUTPUT_BASENAME="RAPIDS_Specification_v${REV}"
-OUTPUT_DOCX="${OUTPUT_BASENAME}.docx"
-OUTPUT_PDF="${OUTPUT_BASENAME}.pdf"
+COMMON_OPTS=(
+  --expand-index
+  --skip-index-content
+  --toc
+  --number-sections
+  --title-page
+  --pdf
+  --lof
+  --lot
+  --pagebreak
+  --narrow-margins
+  --pdf-engine=lualatex
+  --mainfont "Noto Serif"
+  --monofont "Noto Sans Mono"
+  --sansfont "Noto Sans"
+  --mathfont "Noto Serif"
+  --quiet
+)
 
 # ------------------------------------------------------------
-# Run converter
+# Generate HAS
 # ------------------------------------------------------------
-echo "------------------------------------------------------------"
-echo " Generating RAPIDS Specification"
-echo "------------------------------------------------------------"
-echo "  Version:     ${REV}"
-echo "  Input:       ${SPEC_INDEX}"
-echo "  Assets:      ${ASSETS}"
-echo "  Output:      ${OUTPUT_DOCX} (and ${OUTPUT_PDF})"
-echo "  Repo Root:   ${REPO_ROOT}"
-echo "------------------------------------------------------------"
+HAS_INDEX="rapids_beats_has/rapids_beats_has_index.md"
+HAS_ASSETS="rapids_beats_has/assets"
+HAS_DOCX="RAPIDS_Beats_HAS_v${REV}.docx"
+HAS_PDF="RAPIDS_Beats_HAS_v${REV}.pdf"
 
-python3 "${REPO_ROOT}/bin/md_to_docx.py" \
-  --expand-index --toc --pagebreak --title-page --pdf \
-  --pdf-engine=lualatex \
-  --mainfont "Noto Serif" \
-  --monofont "Noto Sans Mono" \
-  --sansfont "Noto Sans" \
-  --mathfont "Noto Serif" \
-  --assets-dir "${ASSETS}" \
-  --assets-dir "${ASSETS}/images" \
-  --assets-dir "${ASSETS}/puml" \
-  --assets-dir "${ASSETS}/mermaid" \
-  --assets-dir "${ASSETS}/waves" \
-  "${SPEC_INDEX}" "${OUTPUT_DOCX}"
+if [[ -f "${HAS_INDEX}" ]]; then
+  echo "------------------------------------------------------------"
+  echo " Generating RAPIDS Beats HAS (Hardware Architecture Spec)"
+  echo "------------------------------------------------------------"
+  echo "  Version:     ${REV}"
+  echo "  Input:       ${HAS_INDEX}"
+  echo "  Output:      ${HAS_DOCX} / ${HAS_PDF}"
+  echo "------------------------------------------------------------"
 
+  python3 "${REPO_ROOT}/bin/md_to_docx.py" \
+    "${HAS_INDEX}" "${HAS_DOCX}" \
+    "${COMMON_OPTS[@]}" \
+    --assets-dir "${HAS_ASSETS}" \
+    --assets-dir "${HAS_ASSETS}/mermaid" \
+    --assets-dir "${HAS_ASSETS}/wavedrom"
 
-echo
-echo "Done: Generated ${OUTPUT_DOCX} and ${OUTPUT_PDF}"
+  echo "  Done: ${HAS_DOCX} and ${HAS_PDF}"
+  echo
+else
+  echo "Skipping HAS: ${HAS_INDEX} not found"
+  echo
+fi
+
+# ------------------------------------------------------------
+# Generate MAS
+# ------------------------------------------------------------
+MAS_INDEX="rapids_beats_mas/rapids_beats_mas_index.md"
+MAS_ASSETS="rapids_beats_mas/assets"
+MAS_DOCX="RAPIDS_Beats_MAS_v${REV}.docx"
+MAS_PDF="RAPIDS_Beats_MAS_v${REV}.pdf"
+
+if [[ -f "${MAS_INDEX}" ]]; then
+  echo "------------------------------------------------------------"
+  echo " Generating RAPIDS Beats MAS (Module Architecture Spec)"
+  echo "------------------------------------------------------------"
+  echo "  Version:     ${REV}"
+  echo "  Input:       ${MAS_INDEX}"
+  echo "  Output:      ${MAS_DOCX} / ${MAS_PDF}"
+  echo "------------------------------------------------------------"
+
+  python3 "${REPO_ROOT}/bin/md_to_docx.py" \
+    "${MAS_INDEX}" "${MAS_DOCX}" \
+    "${COMMON_OPTS[@]}" \
+    --assets-dir "${MAS_ASSETS}" \
+    --assets-dir "${MAS_ASSETS}/mermaid" \
+    --assets-dir "${MAS_ASSETS}/wavedrom"
+
+  echo "  Done: ${MAS_DOCX} and ${MAS_PDF}"
+  echo
+else
+  echo "Skipping MAS: ${MAS_INDEX} not found"
+  echo
+fi
+
+echo "============================================================"
+echo " PDF Generation Complete"
+echo "============================================================"

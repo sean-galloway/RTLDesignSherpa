@@ -383,6 +383,12 @@ class AXI4DWidthConverterWriteTB(TBBase):
         """
         self.log.info("=== Running Basic Smoke Test ===")
 
+        # Scenario marker for testplan traceability
+        if self.UPSIZE:
+            self.log.info("=== Scenario DWIDTH-WR-01: Upsize single write ===")
+        else:
+            self.log.info("=== Scenario DWIDTH-WR-02: Downsize single write ===")
+
         # Write test - use unique data per beat to detect misalignment
         addr = 0x1000
 
@@ -597,6 +603,10 @@ class AXI4DWidthConverterWriteTB(TBBase):
             True if all tests pass, False otherwise
         """
         self.log.info("=== Running Medium Test Suite ===")
+        if self.UPSIZE:
+            self.log.info("=== Scenarios DWIDTH-WR-03,05,06,10,11,12: Burst upsize, ID/WLAST, skid buffers ===")
+        else:
+            self.log.info("=== Scenarios DWIDTH-WR-04,05,06,10,11,12: Burst downsize, ID/WLAST, skid buffers ===")
 
         all_success = True
         num_transactions = 10
@@ -691,6 +701,7 @@ class AXI4DWidthConverterWriteTB(TBBase):
             True if all tests pass, False otherwise
         """
         self.log.info("=== Running Full Test Suite ===")
+        self.log.info("=== Scenarios DWIDTH-WR-07,08,09,13,14,15,16: BRESP/WSTRB/backpressure/burst/reset/data ===")
 
         all_success = True
 

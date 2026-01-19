@@ -1,0 +1,752 @@
+{
+  "timestamp": "2026-01-17T06:32:08.324838",
+  "test_count": 121,
+  "tests": [
+    {
+      "name": "test_scheduler_beats_concurrent_transfer_cid00_nc08_dw0512",
+      "protocol_pct": 0.0,
+      "line_pct": 15.753424657534246,
+      "toggle_pct": 11.921097770154374
+    },
+    {
+      "name": "test_descriptor_engine_beats_basic_descriptor_flow_cid00_nc32_iw08",
+      "protocol_pct": 0.0,
+      "line_pct": 22.413793103448278,
+      "toggle_pct": 12.656364974245768
+    },
+    {
+      "name": "test_descriptor_engine_beats_long_chain_cid00_nc32_iw08",
+      "protocol_pct": 0.0,
+      "line_pct": 22.413793103448278,
+      "toggle_pct": 13.502575423105224
+    },
+    {
+      "name": "test_drain_ctrl_beats_stress_rapid_operations_d0256_aw04_ar04",
+      "protocol_pct": 0.0,
+      "line_pct": 100.0,
+      "toggle_pct": 70.58823529411765
+    },
+    {
+      "name": "test_descriptor_engine_beats_rapid_descriptors_cid00_nc32_iw08",
+      "protocol_pct": 0.0,
+      "line_pct": 22.413793103448278,
+      "toggle_pct": 14.937454010301693
+    },
+    {
+      "name": "test_scheduler_beats_write_engine_error_cid00_nc08_dw0512",
+      "protocol_pct": 0.0,
+      "line_pct": 16.43835616438356,
+      "toggle_pct": 10.4631217838765
+    },
+    {
+      "name": "test_alloc_ctrl_beats_basic_alloc_drain_d0128_aw01_ar01",
+      "protocol_pct": 0.0,
+      "line_pct": 100.0,
+      "toggle_pct": 66.32124352331607
+    },
+    {
+      "name": "test_descriptor_engine_beats_channel_reset_cid00_nc16_iw08",
+      "protocol_pct": 0.0,
+      "line_pct": 20.114942528735632,
+      "toggle_pct": 6.73289183222958
+    },
+    {
+      "name": "test_drain_ctrl_beats_variable_size_drain_d0512_aw01_ar01",
+      "protocol_pct": 0.0,
+      "line_pct": 100.0,
+      "toggle_pct": 70.12448132780082
+    },
+    {
+      "name": "test_drain_ctrl_beats_variable_size_drain_d0256_aw04_ar04",
+      "protocol_pct": 0.0,
+      "line_pct": 100.0,
+      "toggle_pct": 76.01809954751131
+    },
+    {
+      "name": "test_alloc_ctrl_beats_basic_alloc_drain_d0512_aw01_ar01",
+      "protocol_pct": 0.0,
+      "line_pct": 100.0,
+      "toggle_pct": 57.14285714285714
+    },
+    {
+      "name": "test_alloc_ctrl_beats_full_detection_d0256_aw04_ar04",
+      "protocol_pct": 0.0,
+      "line_pct": 100.0,
+      "toggle_pct": 59.905660377358494
+    },
+    {
+      "name": "test_scheduler_beats_fsm_state_transitions_cid00_nc08_dw0512",
+      "protocol_pct": 0.0,
+      "line_pct": 15.753424657534246,
+      "toggle_pct": 9.605488850771868
+    },
+    {
+      "name": "test_descriptor_engine_beats_rapid_descriptors_cid00_nc08_iw08",
+      "protocol_pct": 0.0,
+      "line_pct": 22.413793103448278,
+      "toggle_pct": 14.937454010301693
+    },
+    {
+      "name": "test_scheduler_beats_irq_generation_cid00_nc08_dw0512",
+      "protocol_pct": 0.0,
+      "line_pct": 15.753424657534246,
+      "toggle_pct": 9.005145797598628
+    },
+    {
+      "name": "test_drain_ctrl_beats_stress_rapid_operations_d0128_aw01_ar01",
+      "protocol_pct": 0.0,
+      "line_pct": 100.0,
+      "toggle_pct": 75.62189054726367
+    },
+    {
+      "name": "test_alloc_ctrl_beats_variable_size_alloc_d0256_aw04_ar04",
+      "protocol_pct": 0.0,
+      "line_pct": 100.0,
+      "toggle_pct": 81.13207547169812
+    },
+    {
+      "name": "test_alloc_ctrl_beats_stress_rapid_operations_d0256_aw04_ar04",
+      "protocol_pct": 0.0,
+      "line_pct": 100.0,
+      "toggle_pct": 98.58490566037736
+    },
+    {
+      "name": "test_drain_ctrl_beats_empty_detection_d0256_aw04_ar04",
+      "protocol_pct": 0.0,
+      "line_pct": 100.0,
+      "toggle_pct": 35.294117647058826
+    },
+    {
+      "name": "test_alloc_ctrl_beats_variable_size_alloc_d0128_aw01_ar01",
+      "protocol_pct": 0.0,
+      "line_pct": 100.0,
+      "toggle_pct": 90.15544041450777
+    },
+    {
+      "name": "test_descriptor_engine_beats_descriptor_chaining_cid00_nc16_iw08",
+      "protocol_pct": 0.0,
+      "line_pct": 22.413793103448278,
+      "toggle_pct": 12.141280353200882
+    },
+    {
+      "name": "test_alloc_ctrl_beats_full_detection_d0128_aw01_ar01",
+      "protocol_pct": 0.0,
+      "line_pct": 100.0,
+      "toggle_pct": 59.067357512953365
+    },
+    {
+      "name": "test_latency_bridge_backpressure_dw0256",
+      "protocol_pct": 0.0,
+      "line_pct": 100.0,
+      "toggle_pct": 8.666666666666668
+    },
+    {
+      "name": "test_drain_ctrl_beats_basic_write_drain_d0128_aw01_ar01",
+      "protocol_pct": 0.0,
+      "line_pct": 100.0,
+      "toggle_pct": 61.19402985074627
+    },
+    {
+      "name": "test_descriptor_engine_beats_channel_reset_cid00_nc08_iw08",
+      "protocol_pct": 0.0,
+      "line_pct": 20.114942528735632,
+      "toggle_pct": 6.73289183222958
+    },
+    {
+      "name": "test_alloc_ctrl_beats_basic_alloc_drain_d0256_aw04_ar04",
+      "protocol_pct": 0.0,
+      "line_pct": 100.0,
+      "toggle_pct": 61.32075471698113
+    },
+    {
+      "name": "test_descriptor_engine_beats_monitor_bus_events_cid00_nc08_iw08",
+      "protocol_pct": 0.0,
+      "line_pct": 22.413793103448278,
+      "toggle_pct": 9.63944076526858
+    },
+    {
+      "name": "test_scheduler_beats_descriptor_error_injection_cid00_nc08_dw0512",
+      "protocol_pct": 0.0,
+      "line_pct": 10.95890410958904,
+      "toggle_pct": 5.145797598627787
+    },
+    {
+      "name": "test_descriptor_engine_beats_address_range_validation_cid00_nc08_iw08",
+      "protocol_pct": 0.0,
+      "line_pct": 22.413793103448278,
+      "toggle_pct": 11.000735835172922
+    },
+    {
+      "name": "test_alloc_ctrl_beats_empty_detection_d0128_aw01_ar01",
+      "protocol_pct": 0.0,
+      "line_pct": 100.0,
+      "toggle_pct": 44.559585492227974
+    },
+    {
+      "name": "test_scheduler_beats_basic_descriptor_flow_cid00_nc08_dw0512",
+      "protocol_pct": 0.0,
+      "line_pct": 15.753424657534246,
+      "toggle_pct": 14.322469982847341
+    },
+    {
+      "name": "test_scheduler_beats_varying_transfer_sizes_cid00_nc08_dw0512",
+      "protocol_pct": 0.0,
+      "line_pct": 15.753424657534246,
+      "toggle_pct": 15.608919382504288
+    },
+    {
+      "name": "test_descriptor_engine_beats_invalid_descriptor_cid00_nc08_iw08",
+      "protocol_pct": 0.0,
+      "line_pct": 22.413793103448278,
+      "toggle_pct": 9.013980868285504
+    },
+    {
+      "name": "test_drain_ctrl_beats_full_detection_d0512_aw01_ar01",
+      "protocol_pct": 0.0,
+      "line_pct": 100.0,
+      "toggle_pct": 79.25311203319502
+    },
+    {
+      "name": "test_descriptor_engine_beats_address_range_validation_cid00_nc32_iw08",
+      "protocol_pct": 0.0,
+      "line_pct": 22.413793103448278,
+      "toggle_pct": 11.000735835172922
+    },
+    {
+      "name": "test_drain_ctrl_beats_full_detection_d0256_aw04_ar04",
+      "protocol_pct": 0.0,
+      "line_pct": 100.0,
+      "toggle_pct": 79.63800904977376
+    },
+    {
+      "name": "test_descriptor_engine_beats_invalid_descriptor_cid00_nc32_iw08",
+      "protocol_pct": 0.0,
+      "line_pct": 22.413793103448278,
+      "toggle_pct": 9.013980868285504
+    },
+    {
+      "name": "test_drain_ctrl_beats_basic_write_drain_d0512_aw01_ar01",
+      "protocol_pct": 0.0,
+      "line_pct": 100.0,
+      "toggle_pct": 51.867219917012456
+    },
+    {
+      "name": "test_alloc_ctrl_beats_empty_detection_d0256_aw04_ar04",
+      "protocol_pct": 0.0,
+      "line_pct": 100.0,
+      "toggle_pct": 41.509433962264154
+    },
+    {
+      "name": "test_descriptor_engine_beats_monitor_bus_events_cid00_nc32_iw08",
+      "protocol_pct": 0.0,
+      "line_pct": 22.413793103448278,
+      "toggle_pct": 9.63944076526858
+    },
+    {
+      "name": "test_scheduler_beats_descriptor_chaining_cid00_nc08_dw0512",
+      "protocol_pct": 0.0,
+      "line_pct": 16.43835616438356,
+      "toggle_pct": 12.006861063464838
+    },
+    {
+      "name": "test_alloc_ctrl_beats_stress_rapid_operations_d0512_aw01_ar01",
+      "protocol_pct": 0.0,
+      "line_pct": 100.0,
+      "toggle_pct": 99.13419913419914
+    },
+    {
+      "name": "test_scheduler_beats_channel_reset_cid00_nc08_dw0512",
+      "protocol_pct": 0.0,
+      "line_pct": 15.753424657534246,
+      "toggle_pct": 12.0926243567753
+    },
+    {
+      "name": "test_latency_bridge_streaming_dw0256",
+      "protocol_pct": 0.0,
+      "line_pct": 100.0,
+      "toggle_pct": 7.090909090909091
+    },
+    {
+      "name": "test_scheduler_beats_read_engine_error_cid00_nc08_dw0512",
+      "protocol_pct": 0.0,
+      "line_pct": 16.43835616438356,
+      "toggle_pct": 10.120068610634648
+    },
+    {
+      "name": "test_descriptor_engine_beats_invalid_descriptor_cid00_nc16_iw08",
+      "protocol_pct": 0.0,
+      "line_pct": 22.413793103448278,
+      "toggle_pct": 9.013980868285504
+    },
+    {
+      "name": "test_alloc_ctrl_beats_variable_size_alloc_d0512_aw01_ar01",
+      "protocol_pct": 0.0,
+      "line_pct": 100.0,
+      "toggle_pct": 75.32467532467533
+    },
+    {
+      "name": "test_drain_ctrl_beats_basic_write_drain_d0256_aw04_ar04",
+      "protocol_pct": 0.0,
+      "line_pct": 100.0,
+      "toggle_pct": 56.10859728506787
+    },
+    {
+      "name": "test_descriptor_engine_beats_long_chain_cid00_nc16_iw08",
+      "protocol_pct": 0.0,
+      "line_pct": 22.413793103448278,
+      "toggle_pct": 13.502575423105224
+    },
+    {
+      "name": "test_latency_bridge_backpressure_dw0512",
+      "protocol_pct": 0.0,
+      "line_pct": 100.0,
+      "toggle_pct": 99.12280701754386
+    },
+    {
+      "name": "test_latency_bridge_occupancy_dw0512",
+      "protocol_pct": 0.0,
+      "line_pct": 100.0,
+      "toggle_pct": 95.6140350877193
+    },
+    {
+      "name": "test_scheduler_timeout_simple",
+      "protocol_pct": 0.0,
+      "line_pct": 15.068493150684931,
+      "toggle_pct": 7.632933104631218
+    },
+    {
+      "name": "test_descriptor_engine_beats_rapid_descriptors_cid00_nc16_iw08",
+      "protocol_pct": 0.0,
+      "line_pct": 22.413793103448278,
+      "toggle_pct": 14.937454010301693
+    },
+    {
+      "name": "test_latency_bridge_occupancy_dw0256",
+      "protocol_pct": 0.0,
+      "line_pct": 100.0,
+      "toggle_pct": 8.06060606060606
+    },
+    {
+      "name": "test_latency_bridge_streaming_dw0512",
+      "protocol_pct": 0.0,
+      "line_pct": 100.0,
+      "toggle_pct": 76.31578947368422
+    },
+    {
+      "name": "test_descriptor_engine_beats_basic_descriptor_flow_cid00_nc16_iw08",
+      "protocol_pct": 0.0,
+      "line_pct": 22.413793103448278,
+      "toggle_pct": 12.656364974245768
+    },
+    {
+      "name": "test_descriptor_engine_beats_basic_descriptor_flow_cid00_nc08_iw08",
+      "protocol_pct": 0.0,
+      "line_pct": 22.413793103448278,
+      "toggle_pct": 12.656364974245768
+    },
+    {
+      "name": "test_descriptor_engine_beats_monitor_bus_events_cid00_nc16_iw08",
+      "protocol_pct": 0.0,
+      "line_pct": 22.413793103448278,
+      "toggle_pct": 9.63944076526858
+    },
+    {
+      "name": "test_drain_ctrl_beats_empty_detection_d0512_aw01_ar01",
+      "protocol_pct": 0.0,
+      "line_pct": 100.0,
+      "toggle_pct": 32.780082987551864
+    },
+    {
+      "name": "test_scheduler_beats_back_to_back_descriptors_cid00_nc08_dw0512",
+      "protocol_pct": 0.0,
+      "line_pct": 15.753424657534246,
+      "toggle_pct": 13.550600343053173
+    },
+    {
+      "name": "test_alloc_ctrl_beats_stress_rapid_operations_d0128_aw01_ar01",
+      "protocol_pct": 0.0,
+      "line_pct": 100.0,
+      "toggle_pct": 98.44559585492227
+    },
+    {
+      "name": "test_descriptor_engine_beats_channel_reset_cid00_nc32_iw08",
+      "protocol_pct": 0.0,
+      "line_pct": 20.114942528735632,
+      "toggle_pct": 6.73289183222958
+    },
+    {
+      "name": "test_descriptor_engine_beats_descriptor_chaining_cid00_nc08_iw08",
+      "protocol_pct": 0.0,
+      "line_pct": 22.413793103448278,
+      "toggle_pct": 12.141280353200882
+    },
+    {
+      "name": "test_alloc_ctrl_beats_full_detection_d0512_aw01_ar01",
+      "protocol_pct": 0.0,
+      "line_pct": 100.0,
+      "toggle_pct": 60.60606060606061
+    },
+    {
+      "name": "test_alloc_ctrl_beats_empty_detection_d0512_aw01_ar01",
+      "protocol_pct": 0.0,
+      "line_pct": 100.0,
+      "toggle_pct": 38.961038961038966
+    },
+    {
+      "name": "test_drain_ctrl_beats_variable_size_drain_d0128_aw01_ar01",
+      "protocol_pct": 0.0,
+      "line_pct": 100.0,
+      "toggle_pct": 84.07960199004975
+    },
+    {
+      "name": "test_drain_ctrl_beats_stress_rapid_operations_d0512_aw01_ar01",
+      "protocol_pct": 0.0,
+      "line_pct": 100.0,
+      "toggle_pct": 66.39004149377593
+    },
+    {
+      "name": "test_descriptor_engine_beats_long_chain_cid00_nc08_iw08",
+      "protocol_pct": 0.0,
+      "line_pct": 22.413793103448278,
+      "toggle_pct": 13.502575423105224
+    },
+    {
+      "name": "test_drain_ctrl_beats_full_detection_d0128_aw01_ar01",
+      "protocol_pct": 0.0,
+      "line_pct": 100.0,
+      "toggle_pct": 80.09950248756219
+    },
+    {
+      "name": "test_descriptor_engine_beats_address_range_validation_cid00_nc16_iw08",
+      "protocol_pct": 0.0,
+      "line_pct": 22.413793103448278,
+      "toggle_pct": 11.000735835172922
+    },
+    {
+      "name": "test_descriptor_engine_beats_descriptor_chaining_cid00_nc32_iw08",
+      "protocol_pct": 0.0,
+      "line_pct": 22.413793103448278,
+      "toggle_pct": 12.141280353200882
+    },
+    {
+      "name": "test_drain_ctrl_beats_empty_detection_d0128_aw01_ar01",
+      "protocol_pct": 0.0,
+      "line_pct": 100.0,
+      "toggle_pct": 38.308457711442784
+    },
+    {
+      "name": "test_snk_data_path_axis_test_beats_axis_reception_nc08_aw64_dw512_id08_sd4096",
+      "protocol_pct": 0.0,
+      "line_pct": 62.4390243902439,
+      "toggle_pct": 19.151309150778058
+    },
+    {
+      "name": "test_snk_data_path_axis_test_beats_multi_channel_operation_nc08_aw64_dw256_id08_sd4096",
+      "protocol_pct": 0.0,
+      "line_pct": 50.48780487804878,
+      "toggle_pct": 5.770550018159073
+    },
+    {
+      "name": "test_scheduler_group_beats_monbus_events_ch00_aw64_dw256_id08",
+      "protocol_pct": 0.0,
+      "line_pct": 30.672268907563026,
+      "toggle_pct": 5.024168741760656
+    },
+    {
+      "name": "test_snk_sram_controller_beats_multi_channel_nc04_dw512_sd0256",
+      "protocol_pct": 0.0,
+      "line_pct": 100.0,
+      "toggle_pct": 52.78551532033426
+    },
+    {
+      "name": "test_scheduler_group_beats_basic_descriptor_flow_ch03_aw64_dw512_id08",
+      "protocol_pct": 0.0,
+      "line_pct": 39.075630252100844,
+      "toggle_pct": 17.738391680093745
+    },
+    {
+      "name": "test_scheduler_group_array_beats_stress_nc08_aw64_dw256_id08",
+      "protocol_pct": 0.0,
+      "line_pct": 55.55555555555556,
+      "toggle_pct": 18.062407132243685
+    },
+    {
+      "name": "test_scheduler_group_array_beats_axi_arbitration_nc08_aw64_dw256_id08",
+      "protocol_pct": 0.0,
+      "line_pct": 55.55555555555556,
+      "toggle_pct": 17.170876671619613
+    },
+    {
+      "name": "test_src_sram_controller_beats_basic_fill_drain_nc08_dw256_sd0512",
+      "protocol_pct": 0.0,
+      "line_pct": 100.0,
+      "toggle_pct": 10.723025583982203
+    },
+    {
+      "name": "test_scheduler_group_array_beats_multi_channel_concurrent_nc08_aw64_dw512_id08",
+      "protocol_pct": 0.0,
+      "line_pct": 50.44444444444445,
+      "toggle_pct": 14.668647845468053
+    },
+    {
+      "name": "test_src_sram_controller_beats_basic_fill_drain_nc08_dw512_sd0512",
+      "protocol_pct": 0.0,
+      "line_pct": 100.0,
+      "toggle_pct": 46.76180021953897
+    },
+    {
+      "name": "test_scheduler_group_array_beats_all_channels_sequential_nc08_aw64_dw512_id08",
+      "protocol_pct": 0.0,
+      "line_pct": 58.22222222222222,
+      "toggle_pct": 18.688459633481923
+    },
+    {
+      "name": "test_scheduler_group_beats_config_interface_ch03_aw64_dw512_id08",
+      "protocol_pct": 0.0,
+      "line_pct": 28.15126050420168,
+      "toggle_pct": 4.423612128314048
+    },
+    {
+      "name": "test_scheduler_group_beats_config_interface_ch00_aw64_dw512_id08",
+      "protocol_pct": 0.0,
+      "line_pct": 28.15126050420168,
+      "toggle_pct": 4.365021239197304
+    },
+    {
+      "name": "test_scheduler_group_beats_monbus_events_ch00_aw64_dw512_id08",
+      "protocol_pct": 0.0,
+      "line_pct": 30.672268907563026,
+      "toggle_pct": 5.024168741760656
+    },
+    {
+      "name": "test_src_sram_controller_beats_space_tracking_nc04_dw512_sd0256",
+      "protocol_pct": 0.0,
+      "line_pct": 100.0,
+      "toggle_pct": 55.98885793871866
+    },
+    {
+      "name": "test_src_sram_controller_beats_space_tracking_nc08_dw256_sd0512",
+      "protocol_pct": 0.0,
+      "line_pct": 100.0,
+      "toggle_pct": 10.723025583982203
+    },
+    {
+      "name": "test_src_sram_controller_beats_multi_channel_nc08_dw256_sd0512",
+      "protocol_pct": 0.0,
+      "line_pct": 100.0,
+      "toggle_pct": 16.618464961067854
+    },
+    {
+      "name": "test_snk_sram_controller_beats_multi_channel_nc08_dw256_sd0512",
+      "protocol_pct": 0.0,
+      "line_pct": 100.0,
+      "toggle_pct": 16.618464961067854
+    },
+    {
+      "name": "test_scheduler_group_beats_monbus_events_ch03_aw64_dw512_id08",
+      "protocol_pct": 0.0,
+      "line_pct": 30.672268907563026,
+      "toggle_pct": 5.082759630877399
+    },
+    {
+      "name": "test_scheduler_group_beats_config_interface_ch00_aw64_dw256_id08",
+      "protocol_pct": 0.0,
+      "line_pct": 28.15126050420168,
+      "toggle_pct": 4.365021239197304
+    },
+    {
+      "name": "test_scheduler_group_array_beats_axi_arbitration_nc08_aw64_dw512_id08",
+      "protocol_pct": 0.0,
+      "line_pct": 55.55555555555556,
+      "toggle_pct": 17.170876671619613
+    },
+    {
+      "name": "test_snk_data_path_axis_test_beats_basic_descriptor_flow_nc08_aw64_dw512_id08_sd2048",
+      "protocol_pct": 0.0,
+      "line_pct": 56.34146341463414,
+      "toggle_pct": 12.852798378061141
+    },
+    {
+      "name": "test_snk_data_path_axis_test_beats_multi_channel_operation_nc08_aw64_dw512_id08_sd4096",
+      "protocol_pct": 0.0,
+      "line_pct": 50.48780487804878,
+      "toggle_pct": 8.274470232088799
+    },
+    {
+      "name": "test_scheduler_group_beats_idle_state_ch00_aw64_dw512_id08",
+      "protocol_pct": 0.0,
+      "line_pct": 28.15126050420168,
+      "toggle_pct": 4.3064303500805625
+    },
+    {
+      "name": "test_snk_sram_controller_beats_basic_fill_drain_nc08_dw512_sd0512",
+      "protocol_pct": 0.0,
+      "line_pct": 100.0,
+      "toggle_pct": 46.76180021953897
+    },
+    {
+      "name": "test_src_sram_controller_beats_multi_channel_nc04_dw512_sd0256",
+      "protocol_pct": 0.0,
+      "line_pct": 100.0,
+      "toggle_pct": 52.78551532033426
+    },
+    {
+      "name": "test_snk_data_path_axis_test_beats_basic_descriptor_flow_nc08_aw64_dw512_id08_sd4096",
+      "protocol_pct": 0.0,
+      "line_pct": 56.34146341463414,
+      "toggle_pct": 12.815338042381432
+    },
+    {
+      "name": "test_scheduler_group_array_beats_monbus_aggregation_nc08_aw64_dw512_id08",
+      "protocol_pct": 0.0,
+      "line_pct": 50.44444444444445,
+      "toggle_pct": 14.68449727587915
+    },
+    {
+      "name": "test_src_sram_controller_beats_basic_fill_drain_nc04_dw512_sd0256",
+      "protocol_pct": 0.0,
+      "line_pct": 100.0,
+      "toggle_pct": 55.98885793871866
+    },
+    {
+      "name": "test_scheduler_group_array_beats_monbus_aggregation_nc08_aw64_dw256_id08",
+      "protocol_pct": 0.0,
+      "line_pct": 50.44444444444445,
+      "toggle_pct": 14.696384348687468
+    },
+    {
+      "name": "test_snk_sram_controller_beats_space_tracking_nc08_dw256_sd0512",
+      "protocol_pct": 0.0,
+      "line_pct": 100.0,
+      "toggle_pct": 10.723025583982203
+    },
+    {
+      "name": "test_scheduler_group_array_beats_multi_channel_concurrent_nc08_aw64_dw256_id08",
+      "protocol_pct": 0.0,
+      "line_pct": 50.44444444444445,
+      "toggle_pct": 14.680534918276376
+    },
+    {
+      "name": "test_scheduler_group_array_beats_stress_nc08_aw64_dw512_id08",
+      "protocol_pct": 0.0,
+      "line_pct": 55.55555555555556,
+      "toggle_pct": 18.062407132243685
+    },
+    {
+      "name": "test_snk_sram_controller_beats_basic_fill_drain_nc08_dw256_sd0512",
+      "protocol_pct": 0.0,
+      "line_pct": 100.0,
+      "toggle_pct": 10.723025583982203
+    },
+    {
+      "name": "test_scheduler_group_array_beats_single_channel_nc08_aw64_dw256_id08",
+      "protocol_pct": 0.0,
+      "line_pct": 44.333333333333336,
+      "toggle_pct": 10.337790985636454
+    },
+    {
+      "name": "test_scheduler_group_beats_basic_descriptor_flow_ch00_aw64_dw256_id08",
+      "protocol_pct": 0.0,
+      "line_pct": 39.075630252100844,
+      "toggle_pct": 17.665153068697816
+    },
+    {
+      "name": "test_snk_sram_controller_beats_multi_channel_nc08_dw512_sd0512",
+      "protocol_pct": 0.0,
+      "line_pct": 100.0,
+      "toggle_pct": 52.79912184412733
+    },
+    {
+      "name": "test_snk_data_path_axis_test_beats_multi_channel_operation_nc08_aw64_dw512_id08_sd2048",
+      "protocol_pct": 0.0,
+      "line_pct": 50.48780487804878,
+      "toggle_pct": 8.29109534226111
+    },
+    {
+      "name": "test_scheduler_group_beats_idle_state_ch00_aw64_dw256_id08",
+      "protocol_pct": 0.0,
+      "line_pct": 28.15126050420168,
+      "toggle_pct": 4.3064303500805625
+    },
+    {
+      "name": "test_src_sram_controller_beats_multi_channel_nc08_dw512_sd0512",
+      "protocol_pct": 0.0,
+      "line_pct": 100.0,
+      "toggle_pct": 52.79912184412733
+    },
+    {
+      "name": "test_snk_sram_controller_beats_space_tracking_nc04_dw512_sd0256",
+      "protocol_pct": 0.0,
+      "line_pct": 100.0,
+      "toggle_pct": 55.98885793871866
+    },
+    {
+      "name": "test_scheduler_group_array_beats_single_channel_nc08_aw64_dw512_id08",
+      "protocol_pct": 0.0,
+      "line_pct": 44.333333333333336,
+      "toggle_pct": 10.337790985636454
+    },
+    {
+      "name": "test_src_sram_controller_beats_space_tracking_nc08_dw512_sd0512",
+      "protocol_pct": 0.0,
+      "line_pct": 100.0,
+      "toggle_pct": 46.76180021953897
+    },
+    {
+      "name": "test_snk_sram_controller_beats_basic_fill_drain_nc04_dw512_sd0256",
+      "protocol_pct": 0.0,
+      "line_pct": 100.0,
+      "toggle_pct": 55.98885793871866
+    },
+    {
+      "name": "test_scheduler_group_beats_idle_state_ch03_aw64_dw512_id08",
+      "protocol_pct": 0.0,
+      "line_pct": 28.15126050420168,
+      "toggle_pct": 4.365021239197304
+    },
+    {
+      "name": "test_snk_sram_controller_beats_space_tracking_nc08_dw512_sd0512",
+      "protocol_pct": 0.0,
+      "line_pct": 100.0,
+      "toggle_pct": 46.76180021953897
+    },
+    {
+      "name": "test_snk_data_path_axis_test_beats_basic_descriptor_flow_nc08_aw64_dw256_id08_sd4096",
+      "protocol_pct": 0.0,
+      "line_pct": 56.34146341463414,
+      "toggle_pct": 9.220773980065372
+    },
+    {
+      "name": "test_scheduler_group_array_beats_all_channels_sequential_nc08_aw64_dw256_id08",
+      "protocol_pct": 0.0,
+      "line_pct": 58.22222222222222,
+      "toggle_pct": 18.712233779098565
+    },
+    {
+      "name": "test_scheduler_group_beats_basic_descriptor_flow_ch00_aw64_dw512_id08",
+      "protocol_pct": 0.0,
+      "line_pct": 39.075630252100844,
+      "toggle_pct": 17.62120990186026
+    }
+  ],
+  "protocol_groups": {},
+  "code_coverage": {
+    "line": {
+      "covered": 843,
+      "total": 2185
+    },
+    "toggle": {
+      "covered": 138506,
+      "total": 958914
+    },
+    "branch": {
+      "covered": 14419,
+      "total": 23240
+    }
+  },
+  "overall": {
+    "protocol_pct": 0.0,
+    "line_pct": 38.0,
+    "toggle_pct": 30.917306178575945
+  }
+}

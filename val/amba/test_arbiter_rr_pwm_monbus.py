@@ -37,6 +37,7 @@ from itertools import product
 import pytest
 import cocotb
 from cocotb_test.simulator import run
+from conftest import get_coverage_compile_args
 from cocotb.triggers import RisingEdge, Timer, ClockCycles
 from cocotb.clock import Clock
 from CocoTBFramework.tbclasses.shared.tbbase import TBBase
@@ -499,6 +500,12 @@ def test_arbiter_rr_pwm_monbus(request, clients, wait_gnt_ack, agent_id, unit_id
         "--trace-depth", "99",
     ]
 
+
+    # Add coverage compile args if COVERAGE=1
+
+    compile_args.extend(get_coverage_compile_args())
+
+
     sim_args = [
         "--trace",
         
@@ -637,6 +644,12 @@ if __name__ == "__main__":
         
         "--trace-depth", "99",
     ]
+
+
+    # Add coverage compile args if COVERAGE=1
+
+    compile_args.extend(get_coverage_compile_args())
+
 
     sim_args = [
         "--trace",

@@ -31,6 +31,7 @@ from itertools import product
 import pytest
 import cocotb
 from cocotb_test.simulator import run
+from conftest import get_coverage_compile_args
 from CocoTBFramework.tbclasses.shared.tbbase import TBBase
 from CocoTBFramework.tbclasses.shared.utilities import get_paths, create_view_cmd
 
@@ -228,6 +229,12 @@ def test_axis_slave(request, skid_depth, data_width, id_width, dest_width, user_
         "--trace-depth", "99",
     ]
 
+
+    # Add coverage compile args if COVERAGE=1
+
+    compile_args.extend(get_coverage_compile_args())
+
+
     sim_args = [
         "--trace",  # Tell Verilator to use VCD
         
@@ -346,6 +353,12 @@ def test_axis_slave(request, skid_depth, data_width, id_width, dest_width, user_
         
         "--trace-depth", "99",
     ]
+
+
+    # Add coverage compile args if COVERAGE=1
+
+    compile_args.extend(get_coverage_compile_args())
+
 
     sim_args = [
         "--trace",  # Tell Verilator to use VCD

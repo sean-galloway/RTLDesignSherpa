@@ -1,0 +1,362 @@
+{
+  "timestamp": "2026-01-17T06:32:01.111999",
+  "test_count": 56,
+  "tests": [
+    {
+      "name": "test_stream_top_ch8_back_to_back_transfers_full_gw5",
+      "protocol_pct": 0.0,
+      "line_pct": 58.033573141486805,
+      "toggle_pct": 13.119399994274755
+    },
+    {
+      "name": "test_stream_top_ch8_variable_transfer_sizes_basic",
+      "protocol_pct": 0.0,
+      "line_pct": 57.95363709032774,
+      "toggle_pct": 12.559757249592076
+    },
+    {
+      "name": "test_stream_top_ch8_register_access_full_gw4",
+      "protocol_pct": 0.0,
+      "line_pct": 53.23741007194245,
+      "toggle_pct": 8.709529671084649
+    },
+    {
+      "name": "test_stream_top_ch8_nc08_dw0512_fd4096_dc08_apb_config_mixed_gw6",
+      "protocol_pct": 0.0,
+      "line_pct": 62.66986410871303,
+      "toggle_pct": 18.204849282913006
+    },
+    {
+      "name": "test_stream_top_ch8_long_descriptor_chain_full_gw1",
+      "protocol_pct": 0.0,
+      "line_pct": 58.27338129496403,
+      "toggle_pct": 13.472933902041051
+    },
+    {
+      "name": "test_stream_top_ch8_stress_all_channels_basic",
+      "protocol_pct": 0.0,
+      "line_pct": 62.589928057553955,
+      "toggle_pct": 16.407122205364555
+    },
+    {
+      "name": "test_stream_top_ch8_back_to_back_transfers_basic",
+      "protocol_pct": 0.0,
+      "line_pct": 57.95363709032774,
+      "toggle_pct": 11.6981078063722
+    },
+    {
+      "name": "test_stream_top_ch8_register_access_basic",
+      "protocol_pct": 0.0,
+      "line_pct": 53.23741007194245,
+      "toggle_pct": 8.695216557409898
+    },
+    {
+      "name": "test_stream_top_ch8_long_descriptor_chain_basic",
+      "protocol_pct": 0.0,
+      "line_pct": 58.113509192645886,
+      "toggle_pct": 11.91566713422838
+    },
+    {
+      "name": "test_stream_top_ch8_multi_channel_concurrent_basic",
+      "protocol_pct": 0.0,
+      "line_pct": 59.47242206235012,
+      "toggle_pct": 13.69335585263218
+    },
+    {
+      "name": "test_stream_top_ch8_stress_all_channels_full_gw3",
+      "protocol_pct": 0.0,
+      "line_pct": 68.9048760991207,
+      "toggle_pct": 23.879998854950905
+    },
+    {
+      "name": "test_stream_top_ch8_nc08_dw0512_fd4096_dc02_apb_config_fast",
+      "protocol_pct": 0.0,
+      "line_pct": 58.27338129496403,
+      "toggle_pct": 12.287808089771849
+    },
+    {
+      "name": "test_stream_top_ch8_multi_channel_concurrent_full_gw0",
+      "protocol_pct": 0.0,
+      "line_pct": 68.9048760991207,
+      "toggle_pct": 23.897174591360603
+    },
+    {
+      "name": "test_stream_top_ch8_variable_transfer_sizes_full_gw2",
+      "protocol_pct": 0.0,
+      "line_pct": 58.033573141486805,
+      "toggle_pct": 14.054046317235851
+    },
+    {
+      "name": "test_apbtodescr_backpressure_multiple_aw32_dw32_nc08_gw1",
+      "protocol_pct": 0.0,
+      "line_pct": 22.413793103448278,
+      "toggle_pct": 22.5
+    },
+    {
+      "name": "test_scheduler_descriptor_error_cid00_nc08_aw064_dw0512_tc01000_gw10",
+      "protocol_pct": 0.0,
+      "line_pct": 31.666666666666664,
+      "toggle_pct": 5.74614065180103
+    },
+    {
+      "name": "test_scheduler_backpressure_stress_cid00_nc08_aw064_dw0512_tc01000_gw12",
+      "protocol_pct": 0.0,
+      "line_pct": 38.333333333333336,
+      "toggle_pct": 18.782161234991424
+    },
+    {
+      "name": "test_scheduler_basic_flow_cid00_nc08_aw064_dw0512_tc01000",
+      "protocol_pct": 0.0,
+      "line_pct": 38.333333333333336,
+      "toggle_pct": 13.379073756432247
+    },
+    {
+      "name": "test_scheduler_read_engine_error_cid00_nc08_aw064_dw0512_tc01000",
+      "protocol_pct": 0.0,
+      "line_pct": 40.0,
+      "toggle_pct": 9.777015437392796
+    },
+    {
+      "name": "test_scheduler_irq_generation_cid00_nc08_aw064_dw0512_tc01000_gw11",
+      "protocol_pct": 0.0,
+      "line_pct": 38.333333333333336,
+      "toggle_pct": 12.264150943396226
+    },
+    {
+      "name": "test_scheduler_timeout_detection_cid00_nc08_aw064_dw0512_tc01000_gw11",
+      "protocol_pct": 0.0,
+      "line_pct": 36.666666666666664,
+      "toggle_pct": 9.605488850771868
+    },
+    {
+      "name": "test_apbtodescr_errors_aw32_dw32_nc08",
+      "protocol_pct": 0.0,
+      "line_pct": 32.758620689655174,
+      "toggle_pct": 44.5
+    },
+    {
+      "name": "test_scheduler_read_engine_error_cid00_nc08_aw064_dw0512_tc01000_gw10",
+      "protocol_pct": 0.0,
+      "line_pct": 40.0,
+      "toggle_pct": 9.777015437392796
+    },
+    {
+      "name": "test_apbtodescr_errors_aw32_dw32_nc08_gw1",
+      "protocol_pct": 0.0,
+      "line_pct": 32.758620689655174,
+      "toggle_pct": 44.5
+    },
+    {
+      "name": "test_apbtodescr_backpressure_single_aw32_dw32_nc08_gw0",
+      "protocol_pct": 0.0,
+      "line_pct": 22.413793103448278,
+      "toggle_pct": 14.000000000000002
+    },
+    {
+      "name": "test_scheduler_varying_lengths_cid00_nc08_aw064_dw0512_tc01000",
+      "protocol_pct": 0.0,
+      "line_pct": 38.333333333333336,
+      "toggle_pct": 20.497427101200685
+    },
+    {
+      "name": "test_scheduler_stress_random_cid00_nc08_aw064_dw0512_tc01000",
+      "protocol_pct": 0.0,
+      "line_pct": 38.333333333333336,
+      "toggle_pct": 30.360205831903947
+    },
+    {
+      "name": "test_scheduler_write_engine_error_cid00_nc08_aw064_dw0512_tc01000_gw14",
+      "protocol_pct": 0.0,
+      "line_pct": 40.0,
+      "toggle_pct": 10.891938250428817
+    },
+    {
+      "name": "test_scheduler_beats_feedback_cid00_nc08_aw064_dw0512_tc01000",
+      "protocol_pct": 0.0,
+      "line_pct": 38.333333333333336,
+      "toggle_pct": 7.804459691252144
+    },
+    {
+      "name": "test_apbtodescr_backpressure_multiple_aw32_dw32_nc08",
+      "protocol_pct": 0.0,
+      "line_pct": 22.413793103448278,
+      "toggle_pct": 22.5
+    },
+    {
+      "name": "test_scheduler_rapid_descriptors_cid00_nc08_aw064_dw0512_tc01000",
+      "protocol_pct": 0.0,
+      "line_pct": 38.333333333333336,
+      "toggle_pct": 14.065180102915953
+    },
+    {
+      "name": "test_scheduler_basic_flow_cid00_nc08_aw064_dw0512_tc01000_gw8",
+      "protocol_pct": 0.0,
+      "line_pct": 38.333333333333336,
+      "toggle_pct": 13.379073756432247
+    },
+    {
+      "name": "test_scheduler_concurrent_read_write_cid00_nc08_aw064_dw0512_tc01000_gw9",
+      "protocol_pct": 0.0,
+      "line_pct": 38.333333333333336,
+      "toggle_pct": 13.379073756432247
+    },
+    {
+      "name": "test_scheduler_descriptor_chaining_cid00_nc08_aw064_dw0512_tc01000_gw8",
+      "protocol_pct": 0.0,
+      "line_pct": 38.333333333333336,
+      "toggle_pct": 9.519725557461406
+    },
+    {
+      "name": "test_apbtodescr_rapid_fire_aw32_dw32_nc08_gw2",
+      "protocol_pct": 0.0,
+      "line_pct": 22.413793103448278,
+      "toggle_pct": 21.5
+    },
+    {
+      "name": "test_apbtodescr_basic_all_channels_aw32_dw32_nc08",
+      "protocol_pct": 0.0,
+      "line_pct": 22.413793103448278,
+      "toggle_pct": 25.0
+    },
+    {
+      "name": "test_scheduler_stress_random_cid00_nc08_aw064_dw0512_tc01000_gw9",
+      "protocol_pct": 0.0,
+      "line_pct": 38.333333333333336,
+      "toggle_pct": 30.360205831903947
+    },
+    {
+      "name": "test_scheduler_true_chaining_cid00_nc08_aw064_dw0512_tc01000_gw14",
+      "protocol_pct": 0.0,
+      "line_pct": 40.0,
+      "toggle_pct": 11.063464837049743
+    },
+    {
+      "name": "test_scheduler_descriptor_chaining_cid00_nc08_aw064_dw0512_tc01000",
+      "protocol_pct": 0.0,
+      "line_pct": 38.333333333333336,
+      "toggle_pct": 9.519725557461406
+    },
+    {
+      "name": "test_scheduler_channel_reset_cid00_nc08_aw064_dw0512_tc01000_gw13",
+      "protocol_pct": 0.0,
+      "line_pct": 38.333333333333336,
+      "toggle_pct": 9.948542024013722
+    },
+    {
+      "name": "test_apbtodescr_rapid_fire_aw32_dw32_nc08",
+      "protocol_pct": 0.0,
+      "line_pct": 22.413793103448278,
+      "toggle_pct": 21.5
+    },
+    {
+      "name": "test_scheduler_monbus_packet_cid00_nc08_aw064_dw0512_tc01000_gw15",
+      "protocol_pct": 0.0,
+      "line_pct": 38.333333333333336,
+      "toggle_pct": 8.319039451114923
+    },
+    {
+      "name": "test_scheduler_backpressure_stress_cid00_nc08_aw064_dw0512_tc01000",
+      "protocol_pct": 0.0,
+      "line_pct": 38.333333333333336,
+      "toggle_pct": 18.782161234991424
+    },
+    {
+      "name": "test_scheduler_rapid_descriptors_cid00_nc08_aw064_dw0512_tc01000_gw12",
+      "protocol_pct": 0.0,
+      "line_pct": 38.333333333333336,
+      "toggle_pct": 14.065180102915953
+    },
+    {
+      "name": "test_scheduler_concurrent_read_write_cid00_nc08_aw064_dw0512_tc01000",
+      "protocol_pct": 0.0,
+      "line_pct": 38.333333333333336,
+      "toggle_pct": 13.379073756432247
+    },
+    {
+      "name": "test_scheduler_true_chaining_cid00_nc08_aw064_dw0512_tc01000",
+      "protocol_pct": 0.0,
+      "line_pct": 40.0,
+      "toggle_pct": 10.205831903945112
+    },
+    {
+      "name": "test_scheduler_monbus_packet_cid00_nc08_aw064_dw0512_tc01000",
+      "protocol_pct": 0.0,
+      "line_pct": 38.333333333333336,
+      "toggle_pct": 8.319039451114923
+    },
+    {
+      "name": "test_apbtodescr_basic_all_channels_aw32_dw32_nc08_gw0",
+      "protocol_pct": 0.0,
+      "line_pct": 22.413793103448278,
+      "toggle_pct": 25.0
+    },
+    {
+      "name": "test_scheduler_timeout_detection_cid00_nc08_aw064_dw0512_tc01000",
+      "protocol_pct": 0.0,
+      "line_pct": 36.666666666666664,
+      "toggle_pct": 9.605488850771868
+    },
+    {
+      "name": "test_scheduler_varying_lengths_cid00_nc08_aw064_dw0512_tc01000_gw13",
+      "protocol_pct": 0.0,
+      "line_pct": 38.333333333333336,
+      "toggle_pct": 20.497427101200685
+    },
+    {
+      "name": "test_scheduler_descriptor_error_cid00_nc08_aw064_dw0512_tc01000",
+      "protocol_pct": 0.0,
+      "line_pct": 31.666666666666664,
+      "toggle_pct": 5.74614065180103
+    },
+    {
+      "name": "test_scheduler_beats_feedback_cid00_nc08_aw064_dw0512_tc01000_gw15",
+      "protocol_pct": 0.0,
+      "line_pct": 38.333333333333336,
+      "toggle_pct": 7.804459691252144
+    },
+    {
+      "name": "test_apbtodescr_backpressure_single_aw32_dw32_nc08",
+      "protocol_pct": 0.0,
+      "line_pct": 22.413793103448278,
+      "toggle_pct": 14.000000000000002
+    },
+    {
+      "name": "test_scheduler_irq_generation_cid00_nc08_aw064_dw0512_tc01000",
+      "protocol_pct": 0.0,
+      "line_pct": 38.333333333333336,
+      "toggle_pct": 12.264150943396226
+    },
+    {
+      "name": "test_scheduler_write_engine_error_cid00_nc08_aw064_dw0512_tc01000",
+      "protocol_pct": 0.0,
+      "line_pct": 40.0,
+      "toggle_pct": 10.891938250428817
+    },
+    {
+      "name": "test_scheduler_channel_reset_cid00_nc08_aw064_dw0512_tc01000",
+      "protocol_pct": 0.0,
+      "line_pct": 38.333333333333336,
+      "toggle_pct": 9.948542024013722
+    }
+  ],
+  "protocol_groups": {},
+  "code_coverage": {
+    "line": {
+      "covered": 2066,
+      "total": 4149
+    },
+    "toggle": {
+      "covered": 146835,
+      "total": 1017436
+    },
+    "branch": {
+      "covered": 16883,
+      "total": 26764
+    }
+  },
+  "overall": {
+    "protocol_pct": 0.0,
+    "line_pct": 49.0,
+    "toggle_pct": 15.49184838452224
+  }
+}

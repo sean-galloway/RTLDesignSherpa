@@ -1,0 +1,184 @@
+# Testplan for apb_rtc
+# Maps functional test scenarios to verification coverage
+# NOTE: Currently only basic tests implemented - medium and full tests needed
+
+module: apb_rtc
+rtl_file: projects/components/retro_legacy_blocks/rtl/rtc/apb_rtc.sv
+test_file: projects/components/retro_legacy_blocks/dv/tests/test_apb_rtc.py
+
+# Module description:
+# APB Real-Time Clock (RTC) with seconds/minutes/hours/day/month/year counters,
+# alarm functionality, 12/24-hour mode, battery backup simulation, and
+# periodic interrupt generation.
+
+parameters:
+  - name: BATTERY_BACKUP
+    default: 1
+    description: 1=simulate battery backup, 0=no backup
+  - name: CDC_ENABLE
+    default: 0
+    description: 1=async clocks, 0=same clock
+  - name: SKID_DEPTH
+    default: 2
+    description: CDC skid buffer depth
+
+# Functional scenarios
+functional_scenarios:
+  - id: RTC-01
+    name: "Register Access"
+    description: Basic read/write to RTC registers
+    test_function: "test_register_access (basic)"
+    test_level: basic
+    priority: high
+    status: verified
+
+  - id: RTC-02
+    name: "Time Counting"
+    description: Verify seconds counter increments at 1 Hz
+    test_function: "test_time_counting (basic)"
+    test_level: basic
+    priority: high
+    status: verified
+
+  - id: RTC-03
+    name: "Time Set/Get"
+    description: Set time registers and verify readback
+    test_function: "test_time_set_get (basic)"
+    test_level: basic
+    priority: high
+    status: verified
+
+  - id: RTC-04
+    name: "12-Hour Mode"
+    description: Verify 12-hour mode with AM/PM indication
+    test_function: "test_12hour_mode (basic)"
+    test_level: basic
+    priority: high
+    status: verified
+
+  - id: RTC-05
+    name: "24-Hour Mode"
+    description: Verify 24-hour mode operation
+    test_function: "test_24hour_mode (basic)"
+    test_level: basic
+    priority: high
+    status: verified
+
+  - id: RTC-06
+    name: "Alarm Set/Trigger"
+    description: Set alarm time and verify interrupt generation
+    test_function: "test_alarm_trigger (medium - NOT IMPLEMENTED)"
+    test_level: medium
+    priority: high
+    status: not_implemented
+
+  - id: RTC-07
+    name: "Date Rollover"
+    description: Verify day/month/year rollover at boundaries
+    test_function: "test_date_rollover (medium - NOT IMPLEMENTED)"
+    test_level: medium
+    priority: high
+    status: not_implemented
+
+  - id: RTC-08
+    name: "Leap Year Handling"
+    description: Verify February 29 in leap years
+    test_function: "test_leap_year (medium - NOT IMPLEMENTED)"
+    test_level: medium
+    priority: high
+    status: not_implemented
+
+  - id: RTC-09
+    name: "Periodic Interrupt"
+    description: Verify periodic interrupt generation (1Hz, 2Hz, etc.)
+    test_function: "test_periodic_interrupt (medium - NOT IMPLEMENTED)"
+    test_level: medium
+    priority: medium
+    status: not_implemented
+
+  - id: RTC-10
+    name: "Battery Backup Simulation"
+    description: Verify time keeps running during power loss simulation
+    test_function: "test_battery_backup (full - NOT IMPLEMENTED)"
+    test_level: full
+    priority: high
+    status: not_implemented
+
+  - id: RTC-11
+    name: "All Time Boundaries Stress"
+    description: Stress test with rapid time changes across boundaries
+    test_function: "test_time_boundaries_stress (full - NOT IMPLEMENTED)"
+    test_level: full
+    priority: medium
+    status: not_implemented
+
+# Test level coverage
+test_level_coverage:
+  basic:
+    implemented: true
+    test_count: 5
+    coverage_percentage: 100
+    status: "Basic scenarios verified (register access, counting, time set/get, 12/24hr)"
+
+  medium:
+    implemented: false
+    test_count: 0
+    coverage_percentage: 0
+    status: "NEEDS IMPLEMENTATION - alarm, date rollover, leap year, periodic interrupt"
+
+  full:
+    implemented: false
+    test_count: 0
+    coverage_percentage: 0
+    status: "NEEDS IMPLEMENTATION - battery backup, boundary stress tests"
+
+# Parameter combinations tested
+parameter_coverage:
+  - BATTERY_BACKUP: 1
+    CDC_ENABLE: 0
+    test_level: basic
+    status: verified
+
+  - BATTERY_BACKUP: 1
+    CDC_ENABLE: 1
+    test_level: basic
+    status: verified
+
+  - BATTERY_BACKUP: 1
+    CDC_ENABLE: 0
+    test_level: medium
+    status: not_implemented
+
+  - BATTERY_BACKUP: 0
+    CDC_ENABLE: 0
+    test_level: full
+    status: not_implemented
+
+# Implied coverage calculation
+implied_coverage:
+  total_rtc_features: 11
+  basic_features_covered: 5
+  medium_features_covered: 0
+  full_features_covered: 0
+  basic_percentage: 45
+  overall_percentage: 45
+
+notes: |
+  RTC implements real-time clock with time/date counters, alarm, and
+  battery backup simulation for power-loss scenarios.
+
+  Current Status:
+  - Basic tests: 100% complete (5/5 tests passing)
+  - Medium tests: NOT IMPLEMENTED (need alarm, date rollover, leap year)
+  - Full tests: NOT IMPLEMENTED (need battery backup, boundary stress)
+
+  Key Missing Tests:
+  1. Alarm set and interrupt trigger
+  2. Date rollover (end of month, end of year)
+  3. Leap year handling (February 29)
+  4. Periodic interrupt generation
+  5. Battery backup simulation (time keeps during power loss)
+  6. Time boundary stress tests
+
+  Basic tests cover time counting and 12/24-hour modes, but date
+  handling and alarm features require medium/full test levels.

@@ -1,0 +1,283 @@
+# Testplan for bridge_5x3_channels
+# Maps functional test scenarios to verification coverage
+
+module: bridge_5x3_channels
+rtl_file: projects/components/bridge/rtl/generated/bridge_5x3_channels/bridge_5x3_channels.sv
+test_file: projects/components/bridge/dv/tests/test_bridge_5x3_channels.py (DOES NOT EXIST - GAP)
+
+# Module description:
+# Five master to three slave bridge with mixed channel configurations.
+# Masters have channel-specific capabilities (wr-only, rd-only, rw).
+# Demonstrates channel-optimized bridge generation (resource savings).
+# **WARNING: NO TEST EXISTS - Generated RTL but untested!**
+
+parameters:
+  - name: NUM_MASTERS
+    default: 5
+    description: Number of master ports with mixed channel configs
+  - name: NUM_SLAVES
+    default: 3
+    description: Number of slave ports
+  - name: ADDR_WIDTH
+    default: 32
+    description: Address bus width (may vary per port)
+  - name: DATA_WIDTH
+    default: 32
+    description: Data bus width (may vary per port)
+  - name: ID_WIDTH
+    default: 4
+    description: Transaction ID width per master
+
+# Master channel configurations (from design spec)
+master_channels:
+  - master: rapids_descr (M0)
+    channels: wr
+    description: Write-only descriptor master (AW, W, B channels only)
+  - master: rapids_sink (M1)
+    channels: wr
+    description: Write-only sink data master (AW, W, B channels only)
+  - master: rapids_src (M2)
+    channels: rd
+    description: Read-only source data master (AR, R channels only)
+  - master: dma (M3)
+    channels: rw
+    description: Full duplex DMA master (AW, W, B, AR, R channels)
+  - master: cpu (M4)
+    channels: rw
+    description: Full duplex CPU master (AW, W, B, AR, R channels)
+
+# Address map (from generated RTL)
+address_map:
+  - slave: ddr (Slave 0 - AXI4)
+    base: 0x00000000
+    range: 0x80000000
+    description: DDR memory - all masters connect
+  - slave: sram (Slave 1 - AXI4)
+    base: 0x80000000
+    range: 0x40000000
+    description: SRAM memory - most masters connect
+  - slave: periph (Slave 2 - AXI4)
+    base: 0xC0000000
+    range: 0x40000000
+    description: Peripherals - likely CPU and DMA only
+
+# Functional scenarios
+functional_scenarios:
+  - id: BRIDGE-5x3-01
+    name: "Channel-specific routing"
+    description: Masters only route on their configured channels
+    test_function: "NOT IMPLEMENTED"
+    covers_features:
+      - rapids_descr (wr) routes write transactions only
+      - rapids_sink (wr) routes write transactions only
+      - rapids_src (rd) routes read transactions only
+      - dma (rw) routes both read and write
+      - cpu (rw) routes both read and write
+    priority: high
+    status: not_tested
+    notes: Core channel optimization feature - untested
+
+  - id: BRIDGE-5x3-02
+    name: "Write-only master arbitration"
+    description: Two write-only masters contend for same slave
+    test_function: "NOT IMPLEMENTED"
+    covers_features:
+      - rapids_descr vs rapids_sink arbitration
+      - Write channel arbitration (AW/W/B)
+      - No read channel conflict
+    priority: high
+    status: not_tested
+    notes: Demonstrates channel-specific arbitration - untested
+
+  - id: BRIDGE-5x3-03
+    name: "Read-only vs full duplex"
+    description: Read-only master vs rw master on read channels
+    test_function: "NOT IMPLEMENTED"
+    covers_features:
+      - rapids_src vs dma/cpu arbitration on AR/R
+      - Read channel arbitration only
+      - Write channels unaffected
+    priority: high
+    status: not_tested
+    notes: Mixed channel arbitration - untested
+
+  - id: BRIDGE-5x3-04
+    name: "Full duplex concurrent operation"
+    description: dma and cpu both operate full duplex
+    test_function: "NOT IMPLEMENTED"
+    covers_features:
+      - dma + cpu simultaneous read and write
+      - Independent read/write arbitration
+      - Maximum throughput for rw masters
+    priority: high
+    status: not_tested
+    notes: Full duplex stress - untested
+
+  - id: BRIDGE-5x3-05
+    name: "Channel-optimized resource usage"
+    description: Verify only needed channels instantiated
+    test_function: "NOT IMPLEMENTED"
+    covers_features:
+      - rapids_descr has no AR/R channels
+      - rapids_sink has no AR/R channels
+      - rapids_src has no AW/W/B channels
+      - Resource savings vs 5× full rw masters
+    priority: medium
+    status: not_tested
+    notes: Structural verification - untested
+
+  - id: BRIDGE-5x3-06
+    name: "Mixed arbitration scenarios"
+    description: wr, rd, and rw masters all accessing same slave
+    test_function: "NOT IMPLEMENTED"
+    covers_features:
+      - 5-way write arbitration (2 wr-only + 2 rw)
+      - 3-way read arbitration (1 rd-only + 2 rw)
+      - Independent read/write arbitration
+    priority: high
+    status: not_tested
+    notes: Complex mixed channel arbitration - untested
+
+  - id: BRIDGE-5x3-07
+    name: "ID tracking with mixed channels"
+    description: ID tracking for wr, rd, and rw masters
+    test_function: "NOT IMPLEMENTED"
+    covers_features:
+      - ID tracking for write-only masters (B responses)
+      - ID tracking for read-only master (R responses)
+      - ID tracking for full duplex masters (B and R)
+      - CAM capacity planning
+    priority: high
+    status: not_tested
+    notes: Complex ID management - untested
+
+  - id: BRIDGE-5x3-08
+    name: "Burst transactions per channel type"
+    description: Bursts on wr, rd, and rw channels
+    test_function: "NOT IMPLEMENTED"
+    covers_features:
+      - Write bursts from wr-only masters
+      - Read bursts from rd-only master
+      - Concurrent read/write bursts from rw masters
+      - Grant locking per channel type
+    priority: medium
+    status: not_tested
+    notes: Channel-specific burst handling - untested
+
+  - id: BRIDGE-5x3-09
+    name: "Backpressure isolation per channel"
+    description: Channel-specific backpressure propagation
+    test_function: "NOT IMPLEMENTED"
+    covers_features:
+      - Write channel backpressure (wr-only masters)
+      - Read channel backpressure (rd-only master)
+      - Independent read/write backpressure (rw masters)
+    priority: high
+    status: not_tested
+    notes: Complex backpressure fanout - untested
+
+  - id: BRIDGE-5x3-10
+    name: "Response routing per channel type"
+    description: B responses to wr masters, R to rd/rw masters
+    test_function: "NOT IMPLEMENTED"
+    covers_features:
+      - B response routing (wr-only masters)
+      - R response routing (rd-only master)
+      - B and R response routing (rw masters)
+      - No crosstalk between channel types
+    priority: high
+    status: not_tested
+    notes: Channel-specific response demux - untested
+
+  - id: BRIDGE-5x3-11
+    name: "Fairness with mixed channels"
+    description: Round-robin fairness across channel types
+    test_function: "NOT IMPLEMENTED"
+    covers_features:
+      - Fair write arbitration (2 wr + 2 rw)
+      - Fair read arbitration (1 rd + 2 rw)
+      - No starvation of any master type
+    priority: medium
+    status: not_tested
+    notes: Fairness with asymmetric channel configs - untested
+
+# Parameter combinations tested
+parameter_coverage:
+  - ADDR_WIDTH: 32
+    DATA_WIDTH: 32
+    ID_WIDTH: 4
+    test_level: none
+    status: not_tested
+    notes: Generated RTL exists but NO TEST FILE
+
+# Implied coverage calculation
+implied_coverage:
+  total_scenarios: 11
+  verified_scenarios: 0
+  not_tested_scenarios: 11
+  implied_percentage: 0.0
+  notes: |
+    **CRITICAL GAP: NO TEST EXISTS FOR THIS CONFIGURATION**
+    Generated RTL is UNTESTED and may contain bugs.
+    All 11 functional scenarios require test implementation.
+    Channel-optimized architecture is UNVERIFIED.
+
+notes: |
+  Bridge 5x3_channels demonstrates channel-optimized bridge generation.
+  Mixed channel configurations: wr-only, rd-only, and rw (full duplex).
+
+  **⚠️ CRITICAL STATUS: UNTESTED - NO TEST FILE EXISTS ⚠️**
+
+  Generated RTL exists at:
+  - projects/components/bridge/rtl/generated/bridge_5x3_channels/bridge_5x3_channels.sv
+
+  Expected test location (DOES NOT EXIST):
+  - projects/components/bridge/dv/tests/test_bridge_5x3_channels.py
+
+  Key features (UNTESTED):
+  - Channel-specific master capabilities
+  - Resource optimization (only needed channels instantiated)
+  - Mixed channel arbitration (wr vs rd vs rw)
+  - Independent read/write arbitration per slave
+  - CAM-based ID tracking for all channel types
+
+  Channel configuration benefits (UNVERIFIED):
+  - rapids_descr (wr): 40-60% fewer ports vs rw
+  - rapids_sink (wr): 40-60% fewer ports vs rw
+  - rapids_src (rd): 40-60% fewer ports vs rw
+  - Total resource savings: Significant vs 5× rw masters
+
+  Complexity factors:
+  - 5 masters with mixed channel configs
+  - 3-way vs 5-way arbitration depending on channel
+  - Channel-specific ID tracking
+  - Complex backpressure fanout
+  - Channel-specific response routing
+
+  **REQUIRED ACTIONS:**
+  1. Create test_bridge_5x3_channels.py
+  2. Verify channel-specific routing (wr/rd/rw)
+  3. Test mixed channel arbitration scenarios
+  4. Verify resource optimization (structural check)
+  5. Test ID tracking for all channel types
+  6. Verify independent read/write arbitration
+  7. Test backpressure isolation per channel
+  8. Verify response routing per channel type
+  9. Test fairness with asymmetric channels
+  10. Verify burst handling per channel type
+  11. Stress test with all masters active
+
+  **RISK ASSESSMENT:**
+  - HIGH: Generated RTL is completely untested
+  - HIGH: Channel optimization may have bugs
+  - HIGH: Mixed arbitration may fail
+  - HIGH: ID tracking may be incorrect
+  - HIGH: Response routing may have errors
+  - MEDIUM: Fairness may not work with mixed channels
+  - MEDIUM: Resource savings may not be realized
+
+  **RECOMMENDATION:**
+  This is the most complex bridge configuration (5 masters, mixed channels).
+  Create comprehensive test immediately before using in any design.
+  Verify channel optimization actually reduces resource usage.
+  Do not assume RTL correctness without verification.

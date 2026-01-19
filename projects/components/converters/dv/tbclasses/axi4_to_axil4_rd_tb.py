@@ -269,6 +269,7 @@ class AXI4ToAXIL4ReadTB(TBBase):
         self.log.info("=" * 80)
         self.log.info("BASIC READ BURST TEST SUITE")
         self.log.info("=" * 80)
+        self.log.info("=== Scenarios AXI2AXIL-RD-01,02,03: Single read passthrough, burst decomposition, ID preservation ===")
 
         success = True
 
@@ -291,6 +292,7 @@ class AXI4ToAXIL4ReadTB(TBBase):
         self.log.info("=" * 80)
         self.log.info("MEDIUM READ BURST TEST SUITE")
         self.log.info("=" * 80)
+        self.log.info("=== Scenarios AXI2AXIL-RD-04,05,06,07,08: Address increment, RLAST, RRESP, FIXED/INCR bursts ===")
 
         success = True
 
@@ -310,6 +312,7 @@ class AXI4ToAXIL4ReadTB(TBBase):
         self.log.info("=" * 80)
         self.log.info("FULL READ BURST TEST SUITE")
         self.log.info("=" * 80)
+        self.log.info("=== Scenario AXI2AXIL-RD-09: Read state machine comprehensive coverage ===")
 
         success = True
 

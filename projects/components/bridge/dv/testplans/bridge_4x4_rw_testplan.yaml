@@ -1,0 +1,240 @@
+# Testplan for bridge_4x4_rw
+# Maps functional test scenarios to verification coverage
+
+module: bridge_4x4_rw
+rtl_file: projects/components/bridge/rtl/generated/bridge_4x4_rw/bridge_4x4_rw.sv
+test_file: projects/components/bridge/dv/tests/test_bridge_4x4_rw.py (DOES NOT EXIST - GAP)
+
+# Module description:
+# Quad master to quad slave bridge with full read/write channels.
+# Complex multi-master configuration with high arbitration contention.
+# All masters support full duplex operation (rw channels: AW, W, B, AR, R).
+# **WARNING: NO TEST EXISTS - Generated RTL but untested!**
+
+parameters:
+  - name: NUM_MASTERS
+    default: 4
+    description: Number of master ports (cpu, dma0, dma1, gpu)
+  - name: NUM_SLAVES
+    default: 4
+    description: Number of slave ports (ddr0, sram, periph, gpu_mem)
+  - name: ADDR_WIDTH
+    default: 32
+    description: Address bus width
+  - name: DATA_WIDTH
+    default: 32
+    description: Data bus width (may vary per port)
+  - name: ID_WIDTH
+    default: 4
+    description: Transaction ID width per master
+
+# Address map (from generated RTL)
+address_map:
+  - slave: ddr0 (Slave 0 - AXI4)
+    base: 0x00000000
+    range: 0x40000000
+    description: Primary DDR memory
+  - slave: sram (Slave 1 - AXI4)
+    base: 0x40000000
+    range: 0x40000000
+    description: SRAM memory
+  - slave: periph (Slave 2 - AXI4)
+    base: 0x80000000
+    range: 0x40000000
+    description: Peripheral region
+  - slave: gpu_mem (Slave 3 - AXI4)
+    base: 0xC0000000
+    range: 0x40000000
+    description: GPU-dedicated memory
+
+# Functional scenarios
+functional_scenarios:
+  - id: BRIDGE-4x4-01
+    name: "Multi-master address routing"
+    description: Four masters independently route to correct slaves
+    test_function: "NOT IMPLEMENTED"
+    covers_features:
+      - All 4 masters to all 4 slaves routing
+      - 16 unique master-slave paths
+      - Independent address decode per master
+    priority: high
+    status: not_tested
+    notes: No test exists - requires test creation
+
+  - id: BRIDGE-4x4-02
+    name: "High contention arbitration"
+    description: Four-way arbitration when all masters access same slave
+    test_function: "NOT IMPLEMENTED"
+    covers_features:
+      - 4-way round-robin per slave
+      - Arbitration fairness under high contention
+      - Grant locking during bursts
+      - Starvation prevention
+    priority: high
+    status: not_tested
+    notes: Critical scenario for 4-master design - untested
+
+  - id: BRIDGE-4x4-03
+    name: "Concurrent multi-slave access"
+    description: All 4 masters to different slaves simultaneously
+    test_function: "NOT IMPLEMENTED"
+    covers_features:
+      - Maximum bandwidth utilization
+      - No arbitration contention
+      - Concurrent independent transactions
+    priority: high
+    status: not_tested
+    notes: Best-case scenario - untested
+
+  - id: BRIDGE-4x4-04
+    name: "Partial contention scenarios"
+    description: Some masters same slave, others different slaves
+    test_function: "NOT IMPLEMENTED"
+    covers_features:
+      - Mixed arbitration and non-arbitration
+      - 2 masters on S0, 2 masters on S1 (example)
+      - Concurrent arbitration on multiple slaves
+    priority: high
+    status: not_tested
+    notes: Common scenario - untested
+
+  - id: BRIDGE-4x4-05
+    name: "Complex ID tracking"
+    description: ID tracking with 4 masters and out-of-order responses
+    test_function: "NOT IMPLEMENTED"
+    covers_features:
+      - CAM with 4x capacity
+      - ID allocation per master
+      - Out-of-order response routing
+      - CAM overflow handling
+    priority: high
+    status: not_tested
+    notes: Complex ID management - untested
+
+  - id: BRIDGE-4x4-06
+    name: "Full duplex all masters"
+    description: Read and write channels active on all masters
+    test_function: "NOT IMPLEMENTED"
+    covers_features:
+      - 4 masters × 2 channels (rd/wr) = 8 active channels
+      - Independent read/write arbitration per slave
+      - Maximum system throughput
+    priority: high
+    status: not_tested
+    notes: Stress scenario - untested
+
+  - id: BRIDGE-4x4-07
+    name: "Burst grant locking under contention"
+    description: Burst locking with multiple waiting masters
+    test_function: "NOT IMPLEMENTED"
+    covers_features:
+      - Grant locked during burst
+      - 3 other masters blocked
+      - Round-robin after burst completes
+    priority: high
+    status: not_tested
+    notes: Complex arbitration state - untested
+
+  - id: BRIDGE-4x4-08
+    name: "Backpressure propagation"
+    description: Slave backpressure with 4 masters
+    test_function: "NOT IMPLEMENTED"
+    covers_features:
+      - Granted master sees ready
+      - 3 non-granted masters see not ready
+      - Backpressure isolation
+    priority: high
+    status: not_tested
+    notes: Backpressure fanout - untested
+
+  - id: BRIDGE-4x4-09
+    name: "Response routing under contention"
+    description: Responses routed correctly with 4 masters
+    test_function: "NOT IMPLEMENTED"
+    covers_features:
+      - RRESP/BRESP routing via ID
+      - Correct master receives response
+      - No crosstalk between masters
+    priority: high
+    status: not_tested
+    notes: Response demux complexity - untested
+
+  - id: BRIDGE-4x4-10
+    name: "Fairness with 4 masters"
+    description: Round-robin prevents starvation with 4 contenders
+    test_function: "NOT IMPLEMENTED"
+    covers_features:
+      - 4-way round-robin
+      - Fair scheduling under sustained contention
+      - All masters get access
+    priority: medium
+    status: not_tested
+    notes: Fairness at scale - untested
+
+# Parameter combinations tested
+parameter_coverage:
+  - ADDR_WIDTH: 32
+    DATA_WIDTH: 32
+    ID_WIDTH: 4
+    test_level: none
+    status: not_tested
+    notes: Generated RTL exists but NO TEST FILE
+
+# Implied coverage calculation
+implied_coverage:
+  total_scenarios: 10
+  verified_scenarios: 0
+  not_tested_scenarios: 10
+  implied_percentage: 0.0
+  notes: |
+    **CRITICAL GAP: NO TEST EXISTS FOR THIS CONFIGURATION**
+    Generated RTL is UNTESTED and may contain bugs.
+    All 10 functional scenarios require test implementation.
+
+notes: |
+  Bridge 4x4_rw is a complex multi-master configuration.
+  Full duplex channels (rw): AW, W, B, AR, R
+
+  **⚠️ CRITICAL STATUS: UNTESTED - NO TEST FILE EXISTS ⚠️**
+
+  Generated RTL exists at:
+  - projects/components/bridge/rtl/generated/bridge_4x4_rw/bridge_4x4_rw.sv
+
+  Expected test location (DOES NOT EXIST):
+  - projects/components/bridge/dv/tests/test_bridge_4x4_rw.py
+
+  Key features (UNTESTED):
+  - 4-way round-robin arbitration per slave
+  - CAM-based ID tracking (larger capacity)
+  - Grant locking during bursts
+  - Out-of-order response support
+  - Independent read/write channel arbitration
+  - 16 unique master-slave routing paths
+
+  Complexity factors:
+  - 4-way arbitration (higher contention than 2x2)
+  - Larger ID tracking CAM
+  - More complex backpressure fanout
+  - Higher response routing complexity
+  - Fairness at scale
+
+  **REQUIRED ACTIONS:**
+  1. Create test_bridge_4x4_rw.py following 2x2 pattern
+  2. Implement all 10 functional scenarios
+  3. Verify arbitration fairness with 4 masters
+  4. Test high contention scenarios
+  5. Verify ID tracking at scale
+  6. Test concurrent multi-slave access
+  7. Verify response routing correctness
+
+  **RISK ASSESSMENT:**
+  - HIGH: Generated RTL is completely untested
+  - HIGH: Arbitration bugs may exist
+  - HIGH: ID tracking may overflow under stress
+  - HIGH: Response routing may have errors
+  - MEDIUM: Fairness may degrade with 4 masters
+  - MEDIUM: Timing may not meet targets
+
+  **RECOMMENDATION:**
+  Create test file immediately before using this bridge in any design.
+  Do not assume RTL correctness without verification.

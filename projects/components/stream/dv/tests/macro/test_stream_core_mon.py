@@ -39,6 +39,25 @@ sys.path.insert(0, repo_root)
 
 from projects.components.stream.dv.tbclasses.stream_core_tb import StreamCoreTB
 
+# Coverage integration - optional import
+try:
+    from projects.components.stream.dv.stream_coverage import (
+        CoverageHelper,
+        get_coverage_compile_args,
+        get_coverage_env
+    )
+    COVERAGE_AVAILABLE = True
+except ImportError:
+    COVERAGE_AVAILABLE = False
+
+    def get_coverage_compile_args():
+        """Stub when coverage not available."""
+        return []
+
+    def get_coverage_env(test_name, sim_build=None):
+        """Stub when coverage not available."""
+        return {}
+
 
 # ==============================================================================
 # Test Parameters
@@ -557,6 +576,10 @@ def test_stream_core_mon_single_channel(request, params):
     if 'wr_xfer_beats' in params:
         extra_env['WR_XFER_BEATS'] = str(params['wr_xfer_beats'])
 
+    # Add coverage environment variables if coverage is enabled
+    coverage_env = get_coverage_env(test_name_plus_params, sim_build=sim_build)
+    extra_env.update(coverage_env)
+
     # WAVES support - conditionally enable VCD tracing
     enable_waves = bool(int(os.environ.get('WAVES', '0')))
     if enable_waves:
@@ -566,6 +589,10 @@ def test_stream_core_mon_single_channel(request, params):
     else:
         compile_args = ["-Wno-fatal", "--timescale", "1ns/1ps"]
         sim_args = []
+
+    # Add coverage compile args if COVERAGE=1
+    coverage_compile_args = get_coverage_compile_args()
+    compile_args.extend(coverage_compile_args)
 
     # Create view command
     from CocoTBFramework.tbclasses.shared.utilities import create_view_cmd
@@ -670,6 +697,10 @@ def test_stream_core_mon_multi_channel(request, params):
     if 'wr_xfer_beats' in params:
         extra_env['WR_XFER_BEATS'] = str(params['wr_xfer_beats'])
 
+    # Add coverage environment variables if coverage is enabled
+    coverage_env = get_coverage_env(test_name_plus_params, sim_build=sim_build)
+    extra_env.update(coverage_env)
+
     # WAVES support - conditionally enable VCD tracing
     enable_waves = bool(int(os.environ.get('WAVES', '0')))
     if enable_waves:
@@ -679,6 +710,10 @@ def test_stream_core_mon_multi_channel(request, params):
     else:
         compile_args = ["-Wno-fatal", "--timescale", "1ns/1ps"]
         sim_args = []
+
+    # Add coverage compile args if COVERAGE=1
+    coverage_compile_args = get_coverage_compile_args()
+    compile_args.extend(coverage_compile_args)
 
     # Create view command
     from CocoTBFramework.tbclasses.shared.utilities import create_view_cmd
@@ -770,6 +805,10 @@ def test_stream_core_variable_sizes(request, params):
         'COCOTB_RESULTS_FILE': results_path,
     }
 
+    # Add coverage environment variables if coverage is enabled
+    coverage_env = get_coverage_env(test_name_plus_params, sim_build=sim_build)
+    extra_env.update(coverage_env)
+
     # WAVES support - conditionally enable VCD tracing
     enable_waves = bool(int(os.environ.get('WAVES', '0')))
     if enable_waves:
@@ -779,6 +818,10 @@ def test_stream_core_variable_sizes(request, params):
     else:
         compile_args = ["-Wno-fatal", "--timescale", "1ns/1ps"]
         sim_args = []
+
+    # Add coverage compile args if COVERAGE=1
+    coverage_compile_args = get_coverage_compile_args()
+    compile_args.extend(coverage_compile_args)
 
     # Create view command
     from CocoTBFramework.tbclasses.shared.utilities import create_view_cmd

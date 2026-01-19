@@ -181,9 +181,12 @@ module bin_to_bcd #(
                     r_fsm_main <= IDLE;
                 end
 
+                // verilator coverage_off
+                // DEFENSIVE: Handles illegal FSM state (SEU recovery, not functionally reachable)
                 default: begin
                     r_fsm_main <= IDLE;
                 end
+                // verilator coverage_on
             endcase
         end
     )

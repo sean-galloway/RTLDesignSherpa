@@ -29,6 +29,7 @@ import pytest
 import cocotb
 from cocotb.utils import get_sim_time
 from cocotb_test.simulator import run
+from conftest import get_coverage_compile_args
 
 from CocoTBFramework.components.shared.memory_model import MemoryModel
 from CocoTBFramework.components.shared.flex_randomizer import FlexRandomizer
@@ -998,6 +999,10 @@ def test_comprehensive_apb_slave(request, addr_width, data_width, depth):
     # Trace compilation always enabled (minimal overhead)
     # Set WAVES=1 to enable VCD dumping for debugging
     compile_args = []
+
+    # Add coverage compile args if COVERAGE=1
+    compile_args.extend(get_coverage_compile_args())
+
     sim_args = []
     plusargs = []
 
@@ -1075,6 +1080,10 @@ def test_comprehensive_apb_slave(request, addr_width, data_width, depth):
     # Trace compilation always enabled (minimal overhead)
     # Set WAVES=1 to enable VCD dumping for debugging
     compile_args = []
+
+    # Add coverage compile args if COVERAGE=1
+    compile_args.extend(get_coverage_compile_args())
+
     sim_args = []
     plusargs = []
 

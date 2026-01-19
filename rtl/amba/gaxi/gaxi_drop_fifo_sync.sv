@@ -252,7 +252,10 @@ module gaxi_drop_fifo_sync #(
                 if (!drop_valid)
                     w_drop_state_next = IDLE;
             end
+            // verilator coverage_off
+            // DEFENSIVE: Illegal FSM state recovery
             default: w_drop_state_next = IDLE;
+            // verilator coverage_on
         endcase
     end
 

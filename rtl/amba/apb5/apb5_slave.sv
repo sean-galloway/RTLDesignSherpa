@@ -274,7 +274,10 @@ module apb5_slave #(
 
                 WAIT: r_apb_state <= IDLE;
 
+                // verilator coverage_off
+                // DEFENSIVE: Illegal FSM state recovery
                 default: r_apb_state <= IDLE;
+                // verilator coverage_on
 
             endcase
         end

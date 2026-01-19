@@ -1,0 +1,451 @@
+module: apb5_slave
+rtl_file: rtl/amba/apb5/apb5_slave.sv
+test_file: val/amba/test_apb5_slave.py
+parameters:
+  ADDR_WIDTH: 32
+  DATA_WIDTH: 32
+  STRB_WIDTH: 4
+  PROT_WIDTH: 3
+  AUSER_WIDTH: 4
+  WUSER_WIDTH: 4
+  RUSER_WIDTH: 4
+  BUSER_WIDTH: 4
+  DEPTH: 2
+  ENABLE_PARITY: 0
+coverage_points:
+- line: 28-50
+  type: parameters
+  content: 'Module parameters: widths, depth, parity enable'
+  tracked_by: functional_scenario
+- line: 53-106
+  type: ports
+  content: APB5 interface ports (PSEL, PENABLE, PADDR, PWDATA, USER signals)
+  tracked_by: toggle_coverage
+- line: 108-136
+  type: skid_buffer
+  content: Command skid buffer instantiation
+  tracked_by: functional_scenario
+  covers_lines:
+  - 115-118
+  - 120-136
+- line: 138-168
+  type: skid_buffer
+  content: Response skid buffer instantiation
+  tracked_by: functional_scenario
+  covers_lines:
+  - 149-150
+  - 152-168
+- line: 171-175
+  type: fsm_definition
+  content: APB5 FSM states (IDLE, BUSY, WAIT)
+  tracked_by: functional_scenario
+- line: 183-191
+  type: wakeup_logic
+  content: PWAKEUP signal handling
+  tracked_by: functional_scenario
+  covers_lines:
+  - 184-189
+  - 191
+- line: 194-230
+  type: parity_logic
+  content: Parity generation and checking (ENABLE_PARITY=1)
+  tracked_by: functional_scenario
+  covers_lines:
+  - 195-229
+- line: 233-284
+  type: fsm_logic
+  content: Main APB5 state machine
+  tracked_by: functional_scenario
+  covers_lines:
+  - 234-283
+- line: 255-261
+  type: idle_state
+  content: 'IDLE state: capture on rising edge of PENABLE'
+  tracked_by: functional_scenario
+- line: 263-273
+  type: busy_state
+  content: 'BUSY state: wait for response'
+  tracked_by: functional_scenario
+- line: 275
+  type: wait_state
+  content: 'WAIT state: return to IDLE'
+  tracked_by: functional_scenario
+functional_scenarios:
+- id: APB5-S-01
+  name: Basic write
+  description: 'Single APB5 write transaction. Verifies SETUP->ACCESS phases,
+
+    command packet generation, response handling.
+
+    '
+  test_function: test_apb5_slave_basic
+  test_file: val/amba/test_apb5_slave.py
+  covers_lines:
+  - 115
+  - 149
+  - 255-261
+  - 263-273
+  - 275
+  priority: high
+  status: verified
+- id: APB5-S-02
+  name: Basic read
+  description: 'Single APB5 read transaction. Verifies PWRITE=0 path,
+
+    PRDATA capture from response interface.
+
+    '
+  test_function: test_apb5_slave_basic
+  test_file: val/amba/test_apb5_slave.py
+  covers_lines:
+  - 115
+  - 149
+  - 255-261
+  - 263-273
+  priority: high
+  status: verified
+- id: APB5-S-03
+  name: Write with PSLVERR
+  description: 'Write transaction that returns slave error. Verifies
+
+    error propagation through response interface.
+
+    '
+  test_function: test_apb5_slave_error
+  test_file: val/amba/test_apb5_slave.py
+  covers_lines:
+  - 149
+  - 263-273
+  priority: high
+  status: verified
+- id: APB5-S-04
+  name: Read with PSLVERR
+  description: 'Read transaction that returns slave error.
+
+    '
+  test_function: test_apb5_slave_error
+  test_file: val/amba/test_apb5_slave.py
+  covers_lines:
+  - 149
+  - 263-273
+  priority: high
+  status: verified
+- id: APB5-S-05
+  name: Back-to-back writes
+  description: 'Consecutive write transactions without idle cycles.
+
+    Tests skid buffer depth and throughput.
+
+    '
+  test_function: test_apb5_slave_burst
+  test_file: val/amba/test_apb5_slave.py
+  covers_lines:
+  - 120-136
+  - 255-273
+  - 275
+  priority: high
+  status: verified
+- id: APB5-S-06
+  name: Back-to-back reads
+  description: 'Consecutive read transactions. Verifies response
+
+    skid buffer operation.
+
+    '
+  test_function: test_apb5_slave_burst
+  test_file: val/amba/test_apb5_slave.py
+  covers_lines:
+  - 152-168
+  - 255-273
+  - 275
+  priority: high
+  status: verified
+- id: APB5-S-07
+  name: Mixed read/write
+  description: 'Alternating read and write transactions. Tests
+
+    FSM transitions and data path switching.
+
+    '
+  test_function: test_apb5_slave_mixed
+  test_file: val/amba/test_apb5_slave.py
+  covers_lines:
+  - 115
+  - 149
+  - 255-275
+  priority: medium
+  status: verified
+- id: APB5-S-08
+  name: Slow response
+  description: 'Backend delays response (rsp_valid delayed).
+
+    Verifies BUSY state wait behavior.
+
+    '
+  test_function: test_apb5_slave_slow_response
+  test_file: val/amba/test_apb5_slave.py
+  covers_lines:
+  - 263-273
+  priority: high
+  status: verified
+- id: APB5-S-10
+  name: PAUSER propagation
+  description: 'Verify PAUSER (address phase user) reaches backend
+
+    command interface correctly.
+
+    '
+  test_function: test_apb5_slave_user_signals
+  test_file: val/amba/test_apb5_slave.py
+  covers_lines:
+  - 115-118
+  priority: high
+  status: verified
+- id: APB5-S-11
+  name: PWUSER propagation
+  description: 'Verify PWUSER (write data user) reaches backend
+
+    command interface correctly.
+
+    '
+  test_function: test_apb5_slave_user_signals
+  test_file: val/amba/test_apb5_slave.py
+  covers_lines:
+  - 115-118
+  priority: high
+  status: verified
+- id: APB5-S-12
+  name: PRUSER generation
+  description: 'Backend sets PRUSER in response, verify it appears
+
+    on APB5 s_apb_PRUSER output.
+
+    '
+  test_function: test_apb5_slave_user_signals
+  test_file: val/amba/test_apb5_slave.py
+  covers_lines:
+  - 149-150
+  - 268-269
+  priority: high
+  status: verified
+- id: APB5-S-13
+  name: PBUSER generation
+  description: 'Backend sets PBUSER in response, verify it appears
+
+    on APB5 s_apb_PBUSER output.
+
+    '
+  test_function: test_apb5_slave_user_signals
+  test_file: val/amba/test_apb5_slave.py
+  covers_lines:
+  - 149-150
+  - 268-269
+  priority: high
+  status: verified
+- id: APB5-S-14
+  name: All USER widths
+  description: 'Test with various USER signal widths (0, 4, 8).
+
+    Parameter sweep of AUSER_WIDTH, WUSER_WIDTH, etc.
+
+    '
+  test_function: test_apb5_slave_user_widths
+  test_file: val/amba/test_apb5_slave.py
+  covers_lines:
+  - 115-118
+  - 149-150
+  priority: medium
+  status: verified
+- id: APB5-S-20
+  name: PWAKEUP assert
+  description: 'Backend asserts wakeup_request, verify s_apb_PWAKEUP
+
+    is driven to master.
+
+    '
+  test_function: test_apb5_slave_wakeup
+  test_file: val/amba/test_apb5_slave.py
+  covers_lines:
+  - 184-189
+  - 191
+  priority: high
+  status: verified
+- id: APB5-S-21
+  name: PWAKEUP deassert
+  description: 'Backend deasserts wakeup_request, verify s_apb_PWAKEUP
+
+    clears correctly.
+
+    '
+  test_function: test_apb5_slave_wakeup
+  test_file: val/amba/test_apb5_slave.py
+  covers_lines:
+  - 184-189
+  - 191
+  priority: high
+  status: verified
+- id: APB5-S-30
+  name: Write data parity
+  description: 'ENABLE_PARITY=1: Verify PWDATAPARITY checking.
+
+    Inject correct/incorrect parity.
+
+    '
+  test_function: test_apb5_slave_parity
+  test_file: val/amba/test_apb5_slave.py
+  covers_lines:
+  - 196-203
+  priority: high
+  status: verified
+- id: APB5-S-31
+  name: Read data parity
+  description: 'ENABLE_PARITY=1: Verify PRDATAPARITY generation.
+
+    '
+  test_function: test_apb5_slave_parity
+  test_file: val/amba/test_apb5_slave.py
+  covers_lines:
+  - 216-218
+  priority: high
+  status: verified
+- id: APB5-S-32
+  name: Address parity
+  description: 'ENABLE_PARITY=1: Verify PADDRPARITY checking.
+
+    '
+  test_function: test_apb5_slave_parity
+  test_file: val/amba/test_apb5_slave.py
+  covers_lines:
+  - 206-213
+  priority: high
+  status: verified
+- id: APB5-S-33
+  name: Control parity
+  description: 'ENABLE_PARITY=1: Verify PCTRLPARITY checking.
+
+    '
+  test_function: test_apb5_slave_parity
+  test_file: val/amba/test_apb5_slave.py
+  covers_lines:
+  - 206-213
+  priority: high
+  status: verified
+- id: APB5-S-34
+  name: Parity error
+  description: 'Inject parity error, verify parity_error_wdata or
+
+    parity_error_ctrl flags asserted.
+
+    '
+  test_function: test_apb5_slave_parity_error
+  test_file: val/amba/test_apb5_slave.py
+  covers_lines:
+  - 202-203
+  - 211-213
+  priority: high
+  status: verified
+parameter_coverage:
+- ADDR_WIDTH: 32
+  DATA_WIDTH: 32
+  AUSER_WIDTH: 4
+  WUSER_WIDTH: 4
+  RUSER_WIDTH: 4
+  BUSER_WIDTH: 4
+  ENABLE_PARITY: 0
+  test_level: basic
+  status: verified
+- ADDR_WIDTH: 32
+  DATA_WIDTH: 64
+  AUSER_WIDTH: 4
+  WUSER_WIDTH: 4
+  RUSER_WIDTH: 4
+  BUSER_WIDTH: 4
+  ENABLE_PARITY: 0
+  test_level: medium
+  status: verified
+- ADDR_WIDTH: 32
+  DATA_WIDTH: 32
+  AUSER_WIDTH: 0
+  WUSER_WIDTH: 0
+  RUSER_WIDTH: 0
+  BUSER_WIDTH: 0
+  ENABLE_PARITY: 0
+  test_level: medium
+  status: verified
+- ADDR_WIDTH: 32
+  DATA_WIDTH: 32
+  AUSER_WIDTH: 8
+  WUSER_WIDTH: 8
+  RUSER_WIDTH: 8
+  BUSER_WIDTH: 8
+  ENABLE_PARITY: 0
+  test_level: medium
+  status: verified
+- ADDR_WIDTH: 32
+  DATA_WIDTH: 32
+  AUSER_WIDTH: 4
+  WUSER_WIDTH: 4
+  RUSER_WIDTH: 4
+  BUSER_WIDTH: 4
+  ENABLE_PARITY: 1
+  test_level: full
+  status: verified
+implied_coverage:
+  total_points: 45
+  verilator_tracked: 30
+  scenario_tracked: 45
+  implied_covered: 45
+  implied_percentage: 100.0
+notes: 'APB5 slave extends APB4 with AMBA5 user signals and wake-up.
+
+
+  Core functionality (APB5-S-01 to APB5-S-08):
+
+  - Basic read/write transactions
+
+  - Error response handling
+
+  - Back-to-back transfers
+
+  - Slow backend response
+
+
+  APB5 User Attributes (APB5-S-10 to APB5-S-14):
+
+  - PAUSER: Address phase user attributes (master to slave)
+
+  - PWUSER: Write data user attributes (master to slave)
+
+  - PRUSER: Read data user attributes (slave to master)
+
+  - PBUSER: Response user attributes (slave to master)
+
+
+  APB5 Wake-up (APB5-S-20, APB5-S-21):
+
+  - PWAKEUP signal from slave to master
+
+  - Registered in wakeup_request -> s_apb_PWAKEUP path
+
+
+  APB5 Parity (APB5-S-30 to APB5-S-34):
+
+  - Optional when ENABLE_PARITY=1
+
+  - Per-byte write data parity
+
+  - Address and control signal parity
+
+  - Read data parity generation
+
+  - Parity error detection flags
+
+
+  Skid buffers provide depth=2 for command and response paths,
+
+  allowing pipelining and throughput optimization.
+
+
+  Implied coverage 100% - all APB5 extensions and core paths tested.
+
+  '

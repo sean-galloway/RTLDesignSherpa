@@ -1,6 +1,6 @@
 {
   "name": "test_stream_core_varsizes_dw0128_sz64_protocol",
-  "overall_coverage_pct": 9.803921568627452,
+  "overall_coverage_pct": 15.957446808510639,
   "groups": {
     "axi_read_burst_type": {
       "name": "axi_read_burst_type",

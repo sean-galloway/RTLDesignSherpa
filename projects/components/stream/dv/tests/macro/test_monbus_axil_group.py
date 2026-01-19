@@ -57,6 +57,25 @@ sys.path.insert(0, repo_root)
 # Import from project area
 from projects.components.stream.dv.tbclasses.monbus_axil_group_tb import MonbusAxilGroupTB
 
+# Coverage integration - optional import
+try:
+    from projects.components.stream.dv.stream_coverage import (
+        CoverageHelper,
+        get_coverage_compile_args,
+        get_coverage_env
+    )
+    COVERAGE_AVAILABLE = True
+except ImportError:
+    COVERAGE_AVAILABLE = False
+
+    def get_coverage_compile_args():
+        """Stub when coverage not available."""
+        return []
+
+    def get_coverage_env(test_name, sim_build=None):
+        """Stub when coverage not available."""
+        return {}
+
 
 # ===========================================================================
 # COCOTB TEST FUNCTION - Single test that handles all variants
@@ -181,6 +200,10 @@ def test_monbus_axil_group(request, test_type, fifo_depth_err, fifo_depth_write,
         'TEST_NUM_PROTOCOLS': str(num_protocols),
     }
 
+    # Add coverage environment variables if coverage is enabled
+    coverage_env = get_coverage_env(test_name_plus_params, sim_build=sim_build)
+    extra_env.update(coverage_env)
+
     cmd_filename = create_view_cmd(log_dir, log_path, sim_build, 'test_monbus_axil_group', test_name_plus_params)
 
     # Build args conditionally based on waves
@@ -192,6 +215,10 @@ def test_monbus_axil_group(request, test_type, fifo_depth_err, fifo_depth_write,
         compile_args.extend(["--trace", "--trace-structs", "--trace-depth", "99"])
         sim_args.extend(["--trace", "--trace-structs", "--trace-depth", "99"])
         plusargs.append("--trace")
+
+    # Add coverage compile args if COVERAGE=1
+    coverage_compile_args = get_coverage_compile_args()
+    compile_args.extend(coverage_compile_args)
 
     try:
         run(

@@ -1,0 +1,230 @@
+# Testplan for apb_pm_acpi
+# Maps functional test scenarios to verification coverage
+# STATUS: 100% COMPLETE - All test levels implemented and passing
+
+module: apb_pm_acpi
+rtl_file: projects/components/retro_legacy_blocks/rtl/pm_acpi/apb_pm_acpi.sv
+test_file: projects/components/retro_legacy_blocks/dv/tests/test_apb_pm_acpi.py
+
+# Module description:
+# APB Power Management ACPI controller with PM Timer, GPE (General Purpose Event)
+# handling, power state management, clock gating control, and interrupt generation.
+
+parameters:
+  - name: PM_TIMER_WIDTH
+    default: 24
+    description: PM Timer width (24 or 32 bits)
+  - name: NUM_GPE_BITS
+    default: 16
+    description: Number of GPE event bits
+  - name: CDC_ENABLE
+    default: 0
+    description: 1=async clocks, 0=same clock
+  - name: SKID_DEPTH
+    default: 2
+    description: CDC skid buffer depth
+
+# Functional scenarios
+functional_scenarios:
+  - id: PMACPI-01
+    name: "Register Access"
+    description: Basic read/write to all PM_ACPI registers
+    test_function: "test_register_access (basic)"
+    test_level: basic
+    priority: high
+    status: verified
+
+  - id: PMACPI-02
+    name: "PM Timer Counting"
+    description: Verify PM Timer increments at 3.579545 MHz rate
+    test_function: "test_pm_timer_counting (basic)"
+    test_level: basic
+    priority: high
+    status: verified
+
+  - id: PMACPI-03
+    name: "PM Timer Disable"
+    description: Verify PM Timer stops when disabled
+    test_function: "test_pm_timer_disable (basic)"
+    test_level: basic
+    priority: high
+    status: verified
+
+  - id: PMACPI-04
+    name: "GPE Event Detection"
+    description: Verify GPE event detection and status register
+    test_function: "test_gpe_event_detection (basic)"
+    test_level: basic
+    priority: high
+    status: verified
+
+  - id: PMACPI-05
+    name: "Clock Gate Control"
+    description: Test clock gating enable/disable per domain
+    test_function: "test_clock_gate_control (basic)"
+    test_level: basic
+    priority: high
+    status: verified
+
+  - id: PMACPI-06
+    name: "Power Domain Control"
+    description: Verify power domain on/off control
+    test_function: "test_power_domain_control (basic)"
+    test_level: basic
+    priority: high
+    status: verified
+
+  - id: PMACPI-07
+    name: "Initial Power State"
+    description: Verify correct power-on state
+    test_function: "test_initial_power_state (basic)"
+    test_level: basic
+    priority: high
+    status: verified
+
+  - id: PMACPI-08
+    name: "Interrupt Enable"
+    description: Configure and verify interrupt enable per event
+    test_function: "test_interrupt_enable (basic)"
+    test_level: basic
+    priority: high
+    status: verified
+
+  - id: PMACPI-09
+    name: "Multiple GPE Events"
+    description: Handle multiple simultaneous GPE events
+    test_function: "test_multiple_gpe_events (medium)"
+    test_level: medium
+    priority: high
+    status: verified
+
+  - id: PMACPI-10
+    name: "PM Timer Rollover"
+    description: Verify PM Timer rollover from max to 0
+    test_function: "test_pm_timer_rollover (medium)"
+    test_level: medium
+    priority: high
+    status: verified
+
+  - id: PMACPI-11
+    name: "Power State Transitions"
+    description: Test transitions between power states (S0/S1/S3/S4/S5)
+    test_function: "test_power_state_transitions (medium)"
+    test_level: medium
+    priority: high
+    status: verified
+
+  - id: PMACPI-12
+    name: "Clock Gating During Operation"
+    description: Toggle clock gates while PM Timer running
+    test_function: "test_clock_gating_during_operation (medium)"
+    test_level: medium
+    priority: medium
+    status: verified
+
+  - id: PMACPI-13
+    name: "GPE Wake Events"
+    description: Verify GPE events can wake from low power states
+    test_function: "test_gpe_wake_events (medium)"
+    test_level: medium
+    priority: high
+    status: verified
+
+  - id: PMACPI-14
+    name: "All GPE Stress Test"
+    description: Stress test with all 16 GPE events active
+    test_function: "test_all_gpe_stress (full)"
+    test_level: full
+    priority: high
+    status: verified
+
+  - id: PMACPI-15
+    name: "Rapid Power State Changes"
+    description: Rapidly cycle through power states
+    test_function: "test_rapid_power_state_changes (full)"
+    test_level: full
+    priority: medium
+    status: verified
+
+  - id: PMACPI-16
+    name: "CDC Mode Stress"
+    description: Verify CDC operation with async clocks
+    test_function: "test_cdc_stress (full, CDC_ENABLE=1)"
+    test_level: full
+    priority: medium
+    status: verified
+
+# Test level coverage
+test_level_coverage:
+  basic:
+    implemented: true
+    test_count: 8
+    coverage_percentage: 100
+    status: "All basic scenarios verified - 100% pass rate"
+
+  medium:
+    implemented: true
+    test_count: 5
+    coverage_percentage: 100
+    status: "All medium scenarios verified - 100% pass rate"
+
+  full:
+    implemented: true
+    test_count: 3
+    coverage_percentage: 100
+    status: "All full scenarios verified - 100% pass rate"
+
+# Parameter combinations tested
+parameter_coverage:
+  - PM_TIMER_WIDTH: 24
+    NUM_GPE_BITS: 16
+    CDC_ENABLE: 0
+    test_level: full
+    status: verified
+
+  - PM_TIMER_WIDTH: 24
+    NUM_GPE_BITS: 16
+    CDC_ENABLE: 1
+    test_level: full
+    status: verified
+
+# Implied coverage calculation
+implied_coverage:
+  total_pmacpi_features: 16
+  basic_features_covered: 8
+  medium_features_covered: 5
+  full_features_covered: 3
+  basic_percentage: 100
+  medium_percentage: 100
+  full_percentage: 100
+  overall_percentage: 100
+
+notes: |
+  PM_ACPI is production ready with 100% test coverage across all three
+  test levels. Second block (after HPET) to achieve full verification.
+
+  Current Status:
+  - Basic tests: 100% complete (8/8 tests passing)
+  - Medium tests: 100% complete (5/5 tests passing)
+  - Full tests: 100% complete (3/3 tests passing)
+
+  All Configurations Tested:
+  - 24-bit PM Timer
+  - 16 GPE event bits
+  - CDC_ENABLE=0 (sync clocks)
+  - CDC_ENABLE=1 (async clocks)
+
+  Key Features Verified:
+  1. PM Timer with 3.579545 MHz counting rate
+  2. GPE event detection and status
+  3. Clock gating control per domain
+  4. Power domain on/off control
+  5. Power state transitions (S0/S1/S3/S4/S5)
+  6. Multiple simultaneous GPE events
+  7. PM Timer rollover handling
+  8. GPE wake events from low power
+  9. CDC operation with dual clock domains
+  10. Stress testing with all GPE bits active
+
+  PM_ACPI demonstrates comprehensive power management functionality
+  suitable for ACPI-compatible systems.

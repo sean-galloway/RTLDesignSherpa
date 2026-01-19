@@ -309,7 +309,10 @@ module apb5_master #(
                 end
             end
 
+            // verilator coverage_off
+            // DEFENSIVE: Illegal FSM state recovery
             default: w_apb_next_state = IDLE;
+            // verilator coverage_on
         endcase
     end
 

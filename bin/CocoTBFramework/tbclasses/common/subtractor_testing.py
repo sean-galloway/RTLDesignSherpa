@@ -61,11 +61,57 @@ class SubtractorTB(TBBase):
         self.dut_type = os.environ.get('DUT', 'unknown')
         self.log.info(f"Testing {self.dut_type} with N={self.N}")
 
+    def _generate_strategic_test_vectors(self) -> list:
+        """Generate strategic test vectors for larger bit widths (>8 bits).
+
+        For bit widths > 8, exhaustive testing is impractical. Instead, use:
+        - All powers of 2 (log2 values)
+        - Powers of 2 ± 1 (boundary values)
+        - Walking 0s and walking 1s patterns
+        - Edge cases (0, max, alternating patterns)
+
+        Returns:
+            List of test values covering critical bit patterns
+        """
+        values = set()
+
+        # Edge cases
+        values.add(0)
+        values.add(self.mask)  # All 1s
+
+        # Powers of 2 and ±1 (log2 values)
+        for i in range(self.N):
+            pow2 = 1 << i
+            values.add(pow2 & self.mask)
+            values.add((pow2 - 1) & self.mask)
+            values.add((pow2 + 1) & self.mask)
+
+        # Walking 1s: single bit set at each position
+        for i in range(self.N):
+            values.add(1 << i)
+
+        # Walking 0s: all bits set except one at each position
+        for i in range(self.N):
+            values.add(self.mask ^ (1 << i))
+
+        # Alternating patterns
+        pattern1 = 0
+        pattern2 = 0
+        for i in range(self.N):
+            if i % 2 == 0:
+                pattern1 |= (1 << i)
+            else:
+                pattern2 |= (1 << i)
+        values.add(pattern1)  # 0101...
+        values.add(pattern2)  # 1010...
+
+        return sorted(list(values))
+
     async def main_loop(self, count: int = 256) -> None:
         """Main test loop for standard subtractors.
 
-        Tests all combinations of inputs up to max_val or randomly samples
-        if max_val is larger than count.
+        Tests all combinations of inputs up to max_val or uses strategic
+        sampling for larger bit widths.
 
         Args:
             count: Number of test vectors to generate if random sampling
@@ -73,20 +119,30 @@ class SubtractorTB(TBBase):
         self.log.info("Starting Main Test")
         b_list = [0, 1]  # Borrow input values to test
 
-        # Determine if we need to test all possible values or random sampling
-        if self.max_val < count:
-            self.log.info(f"Testing all {self.max_val} possible values")
+        # Determine test strategy based on bit width
+        # Only use Cartesian product for very small widths (N <= 4, max 512 tests)
+        if self.N <= 4:
+            # Exhaustive testing for very small bit widths (N <= 4)
+            self.log.info(f"Exhaustive testing: all {self.max_val}x{self.max_val}x2 combinations")
             a_list = list(range(self.max_val))
             b_list_vals = list(range(self.max_val))
+            test_pairs = list(itertools.product(a_list, b_list_vals))
+        elif self.N > 8:
+            # Strategic coverage for larger bit widths
+            strategic_values = self._generate_strategic_test_vectors()
+            self.log.info(f"Strategic coverage: {len(strategic_values)} values for {self.N}-bit subtractor")
+            test_pairs = list(itertools.product(strategic_values, strategic_values))
+            self.log.info(f"Testing {len(test_pairs)} strategic value pairs")
         else:
-            self.log.info(f"Random sampling with {count} test vectors")
-            a_list = [random.randint(0, self.mask) for _ in range(count)]
-            b_list_vals = [random.randint(0, self.mask) for _ in range(count)]
+            # Random sampling with paired vectors (NOT Cartesian product)
+            self.log.info(f"Random sampling with {count} paired test vectors")
+            test_pairs = [(random.randint(0, self.mask), random.randint(0, self.mask))
+                          for _ in range(count)]
 
-        total_tests = len(a_list) * len(b_list_vals) * len(b_list)
+        total_tests = len(test_pairs) * len(b_list)
         self.log.info(f"Will run {total_tests} total test cases")
 
-        for test_idx, (a, b, b_in) in enumerate(itertools.product(a_list, b_list_vals, b_list)):
+        for test_idx, ((a, b), b_in) in enumerate(itertools.product(test_pairs, b_list)):
             # Log progress periodically
             if test_idx % max(1, total_tests // 10) == 0:
                 self.log.info(f"Progress: {test_idx}/{total_tests} tests completed")

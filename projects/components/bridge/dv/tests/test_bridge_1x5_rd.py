@@ -54,6 +54,11 @@ async def cocotb_test_basic_connectivity(dut):
     tb.log.info(f"Configuration: 1M x 5S, RD channels")
     tb.log.info("=" * 80)
 
+    tb.log.info("=== Scenario BRIDGE-1x5-01: Five-way address routing ===")
+    tb.log.info("=== Scenario BRIDGE-1x5-02: AXI4 slave routing ===")
+    tb.log.info("=== Scenario BRIDGE-1x5-06: Transaction ID preservation ===")
+    tb.log.info("=== Scenario BRIDGE-1x5-08: Backpressure per slave ===")
+
     # Read connectivity test    tb.log.info(f"Testing master 0 (cpu_rd) read connectivity")
     # Master 0 → Slave 0 (periph_rd)
     test_addr = 0x00000100

@@ -2,7 +2,7 @@
   "test_name": "test_stream_core_varsizes_dw0512_sz64",
   "protocol_coverage": {
     "name": "test_stream_core_varsizes_dw0512_sz64_protocol",
-    "overall_coverage_pct": 9.803921568627452,
+    "overall_coverage_pct": 15.957446808510639,
     "groups": {
       "axi_read_burst_type": {
         "name": "axi_read_burst_type",
@@ -1963,7 +1963,7 @@
     }
   },
   "overall": {
-    "protocol_pct": 9.803921568627452,
+    "protocol_pct": 15.957446808510639,
     "line_pct": 0.0,
     "toggle_pct": 0.0
   }

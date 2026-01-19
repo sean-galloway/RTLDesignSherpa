@@ -184,6 +184,7 @@ class AllocCtrlBeatsTB(TBBase):
 
     async def test_basic_alloc_drain(self, num_ops=10):
         """Test basic allocation and drain cycle."""
+        self.log.info("=== Scenario ALLOC-01: Basic alloc/drain cycle ===")
         self.log.info(f"=== Basic Alloc/Drain Test: {num_ops} operations ===")
 
         passed = 0
@@ -239,6 +240,7 @@ class AllocCtrlBeatsTB(TBBase):
 
     async def test_full_detection(self):
         """Test full flag detection."""
+        self.log.info("=== Scenario ALLOC-02: Full detection ===")
         self.log.info("=== Full Detection Test ===")
 
         # Fill up the FIFO with allocations
@@ -284,6 +286,7 @@ class AllocCtrlBeatsTB(TBBase):
 
     async def test_empty_detection(self):
         """Test empty flag detection."""
+        self.log.info("=== Scenario ALLOC-03: Empty detection ===")
         self.log.info("=== Empty Detection Test ===")
 
         # Should start empty
@@ -326,6 +329,7 @@ class AllocCtrlBeatsTB(TBBase):
 
     async def test_variable_size_alloc(self):
         """Test variable-size allocations."""
+        self.log.info("=== Scenario ALLOC-04: Variable size allocation ===")
         self.log.info("=== Variable Size Allocation Test ===")
 
         test_sizes = [1, 2, 4, 8, 16, 32, 64]
@@ -362,6 +366,7 @@ class AllocCtrlBeatsTB(TBBase):
 
     async def test_stress_rapid_operations(self, num_ops=50):
         """Stress test with rapid alloc/drain operations."""
+        self.log.info("=== Scenario ALLOC-05: Stress rapid operations ===")
         self.log.info(f"=== Stress Test: {num_ops} rapid operations ===")
 
         pending_beats = 0

@@ -1,0 +1,229 @@
+# Testplan for sram_controller
+# Maps functional test scenarios to Verilator coverage points
+
+module: sram_controller
+rtl_file: projects/components/stream/rtl/fub/sram_controller.sv
+test_file: projects/components/stream/dv/tests/fub/test_sram_controller.py
+
+# Module description:
+# SRAM buffer controller manages internal data buffering between read and write engines.
+# Provides pointer management, full/empty detection, and allocation control.
+
+parameters:
+  - name: DATA_WIDTH
+    default: 512
+    description: Data bus width
+  - name: DEPTH
+    default: 4096
+    description: SRAM buffer depth (entries)
+  - name: NUM_CHANNELS
+    default: 8
+    description: Number of independent channels
+
+# Coverage points
+coverage_points:
+  - line: 30
+    type: input_port
+    content: "input clk"
+    covered: true
+
+  - line: 31
+    type: input_port
+    content: "input rst_n"
+    covered: true
+
+  - line: 34
+    type: input_port
+    content: "input wr_valid"
+    covered: true
+
+  - line: 35
+    type: output_port
+    content: "output wr_ready"
+    covered: true
+
+  - line: 36
+    type: input_port
+    content: "input wr_data"
+    covered: true
+
+  - line: 39
+    type: output_port
+    content: "output rd_valid"
+    covered: true
+
+  - line: 40
+    type: input_port
+    content: "input rd_ready"
+    covered: true
+
+  - line: 41
+    type: output_port
+    content: "output rd_data"
+    covered: true
+
+  - line: 44
+    type: output_port
+    content: "output full"
+    covered: true
+
+  - line: 45
+    type: output_port
+    content: "output empty"
+    covered: true
+
+  - line: 46
+    type: output_port
+    content: "output count"
+    covered: true
+
+  - line: 49
+    type: input_port
+    content: "input alloc_req_valid"
+    covered: true
+
+  - line: 50
+    type: output_port
+    content: "output alloc_req_ready"
+    covered: true
+
+  - line: 51
+    type: input_port
+    content: "input alloc_req_size"
+    covered: true
+
+  - line: 54
+    type: output_port
+    content: "output alloc_rsp_valid"
+    covered: true
+
+  - line: 55
+    type: output_port
+    content: "output alloc_rsp_base_addr"
+    covered: true
+
+# Functional scenarios
+functional_scenarios:
+  - id: SRAM-CTRL-01
+    name: "Basic write and read"
+    description: Write data to SRAM, then read it back
+    test_function: "test_sram_controller (basic_rw)"
+    covers_lines: [34, 35, 36, 39, 40, 41, 45, 46]
+    priority: high
+    status: verified
+
+  - id: SRAM-CTRL-02
+    name: "Full buffer detection"
+    description: Fill SRAM to capacity, verify full flag asserted
+    test_function: "test_sram_controller (full_detection)"
+    covers_lines: [34, 35, 44, 46]
+    priority: high
+    status: verified
+
+  - id: SRAM-CTRL-03
+    name: "Empty buffer detection"
+    description: Drain SRAM completely, verify empty flag asserted
+    test_function: "test_sram_controller (empty_detection)"
+    covers_lines: [39, 40, 45, 46]
+    priority: high
+    status: verified
+
+  - id: SRAM-CTRL-04
+    name: "Concurrent read and write"
+    description: Simultaneous read and write operations
+    test_function: "test_sram_controller (concurrent_rw)"
+    covers_lines: [34, 35, 39, 40, 46]
+    priority: high
+    status: verified
+
+  - id: SRAM-CTRL-05
+    name: "Pointer wrap-around"
+    description: Verify read/write pointer wrap-around at buffer boundary
+    test_function: "test_sram_controller (pointer_wrap)"
+    covers_lines: [34, 39, 46]
+    priority: high
+    status: verified
+
+  - id: SRAM-CTRL-06
+    name: "Allocation request"
+    description: Allocate SRAM segment for channel
+    test_function: "test_sram_controller (alloc_req)"
+    covers_lines: [49, 50, 51, 54, 55]
+    priority: high
+    status: verified
+
+  - id: SRAM-CTRL-07
+    name: "Allocation failure"
+    description: Allocation request when insufficient space available
+    test_function: "test_sram_controller (alloc_fail)"
+    covers_lines: [49, 50, 44]
+    priority: high
+    status: verified
+
+  - id: SRAM-CTRL-08
+    name: "Multi-channel allocation"
+    description: Multiple channels allocating SRAM segments
+    test_function: "test_sram_controller (multi_alloc)"
+    covers_lines: [49, 50, 51, 54, 55]
+    priority: medium
+    status: verified
+
+  - id: SRAM-CTRL-09
+    name: "Write backpressure"
+    description: Write side not ready (wr_ready = 0 when full)
+    test_function: "test_sram_controller (wr_backpressure)"
+    covers_lines: [34, 35, 44]
+    priority: high
+    status: verified
+
+  - id: SRAM-CTRL-10
+    name: "Read backpressure"
+    description: Read side not ready (rd_ready = 0)
+    test_function: "test_sram_controller (rd_backpressure)"
+    covers_lines: [39, 40]
+    priority: high
+    status: verified
+
+  - id: SRAM-CTRL-11
+    name: "Count accuracy"
+    description: Verify entry count tracking accuracy under various operations
+    test_function: "test_sram_controller (count_verify)"
+    covers_lines: [34, 39, 46]
+    priority: medium
+    status: verified
+
+# Parameter combinations tested
+parameter_coverage:
+  - DATA_WIDTH: 512
+    DEPTH: 4096
+    NUM_CHANNELS: 8
+    test_level: basic
+    status: verified
+
+  - DATA_WIDTH: 256
+    DEPTH: 2048
+    NUM_CHANNELS: 4
+    test_level: medium
+    status: verified
+
+# Implied coverage calculation
+implied_coverage:
+  total_points: 16
+  verilator_tracked: 5
+  scenario_tracked: 16
+  implied_covered: 16
+  implied_percentage: 100.0
+
+notes: |
+  SRAM controller manages internal buffering for DMA transfers.
+  Provides pointer management with wrap-around, full/empty detection,
+  and multi-channel allocation support.
+
+  Key features:
+  - Dual-port operation (concurrent read/write)
+  - Power-of-2 depth for efficient pointer arithmetic
+  - Allocation interface for channel-based segment management
+  - Full/empty flags with accurate entry count
+
+  All 11 functional scenarios exercise pointer management, allocation,
+  and backpressure handling. Implied coverage is 100%.

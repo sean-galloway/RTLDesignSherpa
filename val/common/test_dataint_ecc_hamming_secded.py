@@ -40,6 +40,7 @@ import sys
 import pytest
 import cocotb
 from cocotb_test.simulator import run
+from conftest import get_coverage_compile_args
 
 # Add repo root to path for CocoTBFramework imports
 from CocoTBFramework.tbclasses.dataint_ecc_hamming_secded_tb import DataintEccHammingSecDedTB

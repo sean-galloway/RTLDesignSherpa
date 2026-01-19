@@ -29,6 +29,7 @@ from itertools import product
 import pytest
 import cocotb
 from cocotb_test.simulator import run
+from conftest import get_coverage_compile_args
 from cocotb.triggers import RisingEdge, Timer
 
 from CocoTBFramework.tbclasses.shared.tbbase import TBBase
@@ -506,6 +507,10 @@ def test_axil4_slave_read_cg(addr_width, data_width, ar_depth, r_depth, test_lev
         "-Wno-DECLFILENAME",
         "-Wno-PINMISSING",
     ]
+
+    # Add coverage compile args if COVERAGE=1
+    compile_args.extend(get_coverage_compile_args())
+
     sim_args = ["--trace", "--trace-depth", "99"]
     plusargs = ["--trace"]
 

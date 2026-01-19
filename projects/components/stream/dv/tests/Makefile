@@ -130,8 +130,10 @@ help:
 	@echo "  make coverage-all-func          Run all tests with coverage (FUNC)"
 	@echo "  make coverage-all-full          Run all tests with coverage (FULL)"
 	@echo "  make coverage-report            Generate merged coverage report"
+	@echo "  make coverage-combined          Generate combined coverage report (deduplicated)"
 	@echo "  make coverage-per-file          Generate per-file line coverage breakdown"
 	@echo "  make coverage-full-report       Clean + run all + generate report"
+	@echo "  make coverage-full-combined     Clean + run all FULL + combined report"
 	@echo ""
 	@echo "PARALLEL COVERAGE TARGETS (24 workers, 5 retries for coverage overhead):"
 	@echo "  make coverage-fub-parallel             Run FUB tests with coverage (parallel)"
@@ -947,6 +949,23 @@ print(f'  OK (>=80%%): {ok_files} files'); \
 \
 os.unlink(merged_dat); \
 "
+
+.PHONY: coverage-combined
+coverage-combined:
+	@echo "================================================================================"
+	@echo "Generating Combined Coverage Report (Deduplicated)"
+	@echo "================================================================================"
+	@echo "This merges coverage from fub/macro/top with deduplication."
+	@echo "A coverage point hit in ANY environment counts only once."
+	@echo ""
+	@python3 ../stream_coverage/combine_coverage.py
+
+.PHONY: coverage-full-combined
+coverage-full-combined: clean-coverage coverage-all-full-parallel coverage-combined
+	@echo "================================================================================"
+	@echo "Full Combined Coverage Run Complete"
+	@echo "================================================================================"
+	@echo "Report: combined_coverage/combined_report_latest.md"
 
 # ==============================================================================
 # Individual Test Modules

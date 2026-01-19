@@ -49,6 +49,7 @@ from CocoTBFramework.tbclasses.shared.tbbase import TBBase
 from CocoTBFramework.tbclasses.shared.filelist_utils import get_sources_from_filelist
 from CocoTBFramework.tbclasses.fifo.fifo_buffer import FifoBufferTB
 from CocoTBFramework.tbclasses.shared.utilities import get_paths, create_view_cmd
+from conftest import get_coverage_compile_args
 
 @cocotb.test(timeout_time=4, timeout_unit="ms")  # Increased timeout for async complexity
 async def fifo_async_test(dut):
@@ -145,6 +146,9 @@ async def fifo_async_test(dut):
     tb.log.info(f"Packet counts: {packet_counts}")
 
     # Run core tests with different randomizer configurations - SAME AS SYNC
+    tb.log.info("=== Scenario FIFO-01: Basic write operation ===")
+    tb.log.info("=== Scenario FIFO-02: Basic read operation ===")
+    tb.log.info("=== Scenario FIFO-03: Gray code pointer synchronization ===")
     for i, delay_key in enumerate(test_configs):
         tb.log.info(f"[{i+1}/{len(test_configs)}] Testing with '{delay_key}' randomizer configuration")
         await tb.simple_incremental_loops(
@@ -156,17 +160,21 @@ async def fifo_async_test(dut):
 
     # Run comprehensive sweep for medium and full levels
     if run_comprehensive_sweep:
+        tb.log.info("=== Scenario FIFO-04: Almost-full/almost-empty thresholds ===")
         tb.log.info("Running comprehensive randomizer sweep...")
         await tb.comprehensive_randomizer_sweep(packets_per_config=comprehensive_packets)
         tb.log.info("✓ Completed comprehensive sweep")
 
     # Always run back-to-back test (essential for FIFO validation)
+    tb.log.info("=== Scenario FIFO-05: FIFO fill and drain ===")
     tb.log.info("Running back-to-back test...")
     await tb.back_to_back_test(count=packet_counts['back_to_back'])
     tb.log.info("✓ Completed back-to-back test")
 
     # Run stress test for medium and full levels
     if run_stress_test:
+        tb.log.info("=== Scenario FIFO-06: Dual clock domain operation ===")
+        tb.log.info("=== Scenario FIFO-07: Memory storage and retrieval ===")
         tb.log.info("Running stress test...")
         stress_config = 'fifo_stress' if 'fifo_stress' in config_names else 'stress'
         await tb.stress_test_with_random_patterns(
@@ -321,6 +329,10 @@ def test_fifo_async(request, data_width, depth, wr_clk_period, rd_clk_period, re
         "--trace-structs",
         "--trace-depth", "99",
     ]
+
+    # Add coverage compile args if COVERAGE=1
+    compile_args.extend(get_coverage_compile_args())
+
     sim_args = [
         "--trace",  # VCD waveform format
         "--trace-structs",

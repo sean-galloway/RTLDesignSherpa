@@ -171,6 +171,7 @@ class HPETFullTests:
 
     async def test_clock_domain_crossing(self) -> bool:
         """Test clock domain crossing functionality."""
+        self.log.info("=== Scenario HPET-13: All Timers Stress Test ===")
         self.log.info("=== Testing Clock Domain Crossing ===")
         self.tb.test_phase = "CDC_TEST"
 

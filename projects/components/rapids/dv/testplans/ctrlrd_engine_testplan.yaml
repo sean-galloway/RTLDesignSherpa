@@ -1,0 +1,128 @@
+# Testplan for ctrlrd_engine
+# Maps functional test scenarios to RTL coverage
+
+module: ctrlrd_engine
+rtl_file: projects/components/rapids/rtl/fub/ctrlrd_engine.sv
+test_file: projects/components/rapids/dv/tests/fub/test_ctrlrd_engine.py
+
+# Module description:
+# Control Read Engine - Pre-descriptor control read operations with retry mechanism.
+# Performs AXI4 read operations with comparison against expected values.
+# Supports retry mechanism for polling operations with configurable max attempts.
+
+parameters:
+  - name: CHANNEL_ID
+    default: 0
+    description: Channel identifier within multi-channel system
+  - name: NUM_CHANNELS
+    default: 32
+    description: Total number of channels
+  - name: CHAN_WIDTH
+    default: clog2(NUM_CHANNELS)
+    description: Channel ID width in bits
+  - name: ADDR_WIDTH
+    default: 64
+    description: Address bus width
+  - name: AXI_DATA_WIDTH
+    default: 64
+    description: AXI data width
+  - name: AXI_ID_WIDTH
+    default: 8
+    description: AXI ID width
+  - name: MON_AGENT_ID
+    default: 0x30
+    description: Monitor bus agent identifier
+
+# Functional scenarios
+functional_scenarios:
+  - id: CTRLRD-01
+    name: "Basic read-match"
+    description: Single control read with immediate match
+    test_function: "test_ctrlrd_basic_read_match"
+    priority: high
+    status: verified
+
+  - id: CTRLRD-02
+    name: "Null address handling"
+    description: Null address (0x0) triggers immediate success
+    test_function: "test_ctrlrd_null_address"
+    priority: high
+    status: verified
+
+  - id: CTRLRD-03
+    name: "Read-retry-match"
+    description: Multiple retries before match succeeds
+    test_function: "test_ctrlrd_read_retry_match"
+    priority: high
+    status: verified
+
+  - id: CTRLRD-04
+    name: "Max retries exceeded"
+    description: Failure after exceeding max retry count
+    test_function: "test_ctrlrd_max_retries_exceeded"
+    priority: high
+    status: verified
+
+  - id: CTRLRD-05
+    name: "Masked comparison"
+    description: Comparison with bit mask (ignore don't-care bits)
+    test_function: "test_ctrlrd_masked_comparison"
+    priority: high
+    status: verified
+
+  - id: CTRLRD-06
+    name: "AXI error handling"
+    description: Handle AXI read errors (SLVERR/DECERR)
+    test_function: "test_ctrlrd_axi_error"
+    priority: high
+    status: verified
+
+  - id: CTRLRD-07
+    name: "Channel reset"
+    description: Channel reset during operation
+    test_function: "test_ctrlrd_channel_reset"
+    priority: high
+    status: verified
+
+  - id: CTRLRD-08
+    name: "Back-to-back operations"
+    description: Multiple consecutive control read operations
+    test_function: "test_ctrlrd_back_to_back"
+    priority: medium
+    status: verified
+
+  - id: CTRLRD-09
+    name: "Mixed scenarios"
+    description: Combination of success, retry, and failure cases
+    test_function: "test_ctrlrd_mixed_scenarios"
+    priority: medium
+    status: verified
+
+# Parameter combinations tested
+parameter_coverage:
+  - CHANNEL_ID: 0
+    NUM_CHANNELS: 8
+    ADDR_WIDTH: 64
+    AXI_DATA_WIDTH: 64
+    test_level: comprehensive
+    status: verified
+
+# Implied coverage calculation
+implied_coverage:
+  total_points: 9
+  scenario_tracked: 9
+  implied_covered: 9
+  implied_percentage: 100.0
+
+notes: |
+  Control Read Engine handles pre-descriptor operations with retry mechanism.
+  FUB Legacy module with 100% test coverage (9/9 scenarios passing).
+
+  Key features:
+  - Null address handling (immediate success)
+  - Configurable retry mechanism (cfg_ctrlrd_max_try)
+  - Masked comparison for polling operations
+  - AXI error detection and reporting
+  - Channel reset support
+
+  All functional scenarios verified. Complete datapath coverage achieved.

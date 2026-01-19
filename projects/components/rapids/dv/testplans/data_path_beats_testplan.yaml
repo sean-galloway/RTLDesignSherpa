@@ -1,0 +1,181 @@
+# Testplan for data_path_beats (sink and source)
+# Maps functional test scenarios to RTL coverage
+
+module_group: data_path_beats
+rtl_files:
+  - projects/components/rapids/rtl/macro_beats/snk_data_path_axis_beats.sv
+  - projects/components/rapids/rtl/macro_beats/src_data_path_axis_beats.sv
+  - projects/components/rapids/rtl/macro_beats/snk_sram_controller_beats.sv
+  - projects/components/rapids/rtl/macro_beats/src_sram_controller_beats.sv
+test_files:
+  - projects/components/rapids/dv/tests/macro_beats/test_snk_data_path_axis_test_beats.py
+  - projects/components/rapids/dv/tests/macro_beats/test_src_data_path_axis_test_beats.py
+  - projects/components/rapids/dv/tests/macro_beats/test_snk_sram_controller_beats.py
+  - projects/components/rapids/dv/tests/macro_beats/test_src_sram_controller_beats.py
+
+# Module descriptions:
+
+# 1. snk_data_path_axis_beats.sv
+# Sink Data Path - Network to memory data movement.
+# Receives data via AXIS interface, buffers in SRAM, writes to memory via AXI4.
+
+# 2. src_data_path_axis_beats.sv
+# Source Data Path - Memory to network data movement.
+# Reads from memory via AXI4, buffers in SRAM, transmits via AXIS interface.
+
+# 3. snk_sram_controller_beats.sv
+# Sink SRAM Controller - Manages sink buffer.
+# Coordinates write pointer, overflow detection, buffer status.
+
+# 4. src_sram_controller_beats.sv
+# Source SRAM Controller - Manages source buffer.
+# Coordinates read pointer, underflow detection, buffer status.
+
+# Functional scenarios (Sink Data Path)
+sink_functional_scenarios:
+  - id: SNK-01
+    name: "Basic AXIS to AXI transfer"
+    description: AXIS ingress to AXI4 memory write
+    test_function: "test_snk_basic_transfer"
+    priority: high
+    status: verified
+
+  - id: SNK-02
+    name: "SRAM buffering"
+    description: SRAM buffer management during transfer
+    test_function: "test_snk_sram_buffering"
+    priority: high
+    status: verified
+
+  - id: SNK-03
+    name: "Backpressure from memory"
+    description: AXI4 backpressure handling
+    test_function: "test_snk_backpressure"
+    priority: high
+    status: verified
+
+  - id: SNK-04
+    name: "Buffer overflow detection"
+    description: Overflow detection and prevention
+    test_function: "test_snk_overflow"
+    priority: high
+    status: verified
+
+  - id: SNK-05
+    name: "Burst optimization"
+    description: AXI4 burst generation optimization
+    test_function: "test_snk_burst_opt"
+    priority: medium
+    status: verified
+
+# Functional scenarios (Source Data Path)
+source_functional_scenarios:
+  - id: SRC-01
+    name: "Basic AXI to AXIS transfer"
+    description: AXI4 memory read to AXIS egress
+    test_function: "test_src_basic_transfer"
+    priority: high
+    status: verified
+
+  - id: SRC-02
+    name: "SRAM buffering"
+    description: SRAM buffer management during transfer
+    test_function: "test_src_sram_buffering"
+    priority: high
+    status: verified
+
+  - id: SRC-03
+    name: "Backpressure from network"
+    description: AXIS backpressure handling
+    test_function: "test_src_backpressure"
+    priority: high
+    status: verified
+
+  - id: SRC-04
+    name: "Buffer underflow detection"
+    description: Underflow detection and prevention
+    test_function: "test_src_underflow"
+    priority: high
+    status: verified
+
+  - id: SRC-05
+    name: "Burst optimization"
+    description: AXI4 burst generation optimization
+    test_function: "test_src_burst_opt"
+    priority: medium
+    status: verified
+
+# Functional scenarios (SRAM Controllers)
+sram_functional_scenarios:
+  - id: SRAM-01
+    name: "Pointer management"
+    description: Read/write pointer coordination
+    test_function: "test_sram_pointers"
+    priority: high
+    status: verified
+
+  - id: SRAM-02
+    name: "Full/empty detection"
+    description: Full and empty flag generation
+    test_function: "test_sram_flags"
+    priority: high
+    status: verified
+
+  - id: SRAM-03
+    name: "Wrap-around handling"
+    description: Pointer wrap-around at buffer boundary
+    test_function: "test_sram_wraparound"
+    priority: high
+    status: verified
+
+  - id: SRAM-04
+    name: "Almost full/empty"
+    description: Early warning flags for flow control
+    test_function: "test_sram_almost_flags"
+    priority: medium
+    status: verified
+
+# Parameter combinations tested
+parameter_coverage:
+  - DATA_WIDTH: 512
+    SRAM_DEPTH: 4096
+    ADDR_WIDTH: 64
+    test_level: comprehensive
+    status: verified
+
+  - DATA_WIDTH: 256
+    SRAM_DEPTH: 2048
+    ADDR_WIDTH: 64
+    test_level: medium
+    status: verified
+
+# Implied coverage calculation
+implied_coverage:
+  total_points: 14
+  scenario_tracked: 14
+  implied_covered: 14
+  implied_percentage: 100.0
+
+notes: |
+  Data Path modules handle network-to-memory and memory-to-network transfers.
+  MACRO Beats generation with 100% test coverage (14/14 scenarios passing).
+
+  Sink Data Path (Network → Memory):
+  - AXIS ingress interface
+  - SRAM buffering
+  - AXI4 memory write
+  - Overflow prevention
+
+  Source Data Path (Memory → Network):
+  - AXI4 memory read
+  - SRAM buffering
+  - AXIS egress interface
+  - Underflow prevention
+
+  SRAM Controllers:
+  - Pointer management (read/write)
+  - Full/empty detection
+  - Almost-full/almost-empty early warning
+  - Wrap-around handling
+
+  All functional scenarios verified. Beats generation at 100% coverage.

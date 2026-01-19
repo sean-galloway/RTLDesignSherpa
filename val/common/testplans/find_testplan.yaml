@@ -1,0 +1,123 @@
+# Testplan for find
+# Auto-generated on 2026-01-18 01:27:07
+# EDIT: Add functional scenarios to improve implied coverage
+
+module: find
+rtl_file: rtl/common/find.sv
+test_file: val/common/test_find.py
+
+# Raw Verilator coverage: 10/10 (100.0%)
+
+
+# Coverage points
+coverage_points:
+  - line: 67
+    type: input_port
+    covered: True
+    hit_count: 4
+    content: "input  logic [WIDTH-1:0] data,"
+
+  - line: 68
+    type: output_port
+    covered: True
+    hit_count: 512
+    content: "output logic [$clog2(WIDTH)-1:0] index  // Changed to match arbiter's N"
+
+  - line: 71
+    type: signal_decl
+    covered: True
+    hit_count: 3
+    content: "logic w_found;"
+
+  - line: 73
+    type: always_comb
+    covered: True
+    hit_count: 132307
+    content: "always_comb begin"
+
+  - line: 74
+    type: other
+    covered: True
+    hit_count: 132307
+    content: "index = {N{1'b0}}; // Default value if no bit is set"
+
+  - line: 75
+    type: other
+    covered: True
+    hit_count: 132307
+    content: "w_found = 1'b0;"
+
+  - line: 77
+    type: other
+    covered: True
+    hit_count: 132307
+    content: "for (int i = 0; i < WIDTH; i++) begin"
+
+  - line: 78
+    type: if_statement
+    covered: True
+    hit_count: 132295
+    content: "if (data[i] && !w_found) begin"
+
+  - line: 79
+    type: other
+    covered: True
+    hit_count: 132295
+    content: "index = i[N-1:0]; // Ensure correct bit width"
+
+  - line: 80
+    type: other
+    covered: True
+    hit_count: 132295
+    content: "w_found = 1'b1;"
+
+
+# Functional scenarios - ADD YOUR SCENARIOS HERE
+# Map test scenarios to coverage points
+functional_scenarios:
+  - id: FIND-01
+    name: "Exhaustive test"
+    description: "Test all possible input values for find first set"
+    test_function: "test_exhaustive"
+    covers_lines: [67, 68, 71, 73, 74, 75, 77, 78, 79, 80]
+    priority: high
+    status: verified
+
+  - id: FIND-02
+    name: "Corner cases"
+    description: "Test boundary values (all zeros, all ones, single bits)"
+    test_function: "test_corner_cases"
+    covers_lines: [67, 68, 71, 73, 74, 75, 77, 78, 79, 80]
+    priority: high
+    status: verified
+
+  - id: FIND-03
+    name: "Random values"
+    description: "Test random input patterns"
+    test_function: "test_random_values"
+    covers_lines: [67, 68, 71, 73, 74, 75, 77, 78, 79, 80]
+    priority: medium
+    status: verified
+
+  - id: FIND-04
+    name: "Bit position patterns"
+    description: "Test each bit position individually"
+    test_function: "test_bit_positions"
+    covers_lines: [67, 68, 71, 73, 74, 75, 77, 78, 79, 80]
+    priority: medium
+    status: verified
+
+# Implied coverage calculation (auto-computed)
+implied_coverage:
+  total_points: 10
+  verilator_covered: 10
+  scenario_covered: 10
+  implied_percentage: 100.0
+
+notes: |
+  Find first set module identifies the position of the least significant set bit.
+  Verilator shows 100% coverage - all functional paths tracked.
+
+  Exhaustive testing for small widths (8, 16).
+  Random sampling for larger widths (32, 64).
+  Implied coverage is 100% - complete verification.

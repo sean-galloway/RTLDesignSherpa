@@ -42,6 +42,7 @@ import sys
 import pytest
 import cocotb
 from cocotb_test.simulator import run
+from conftest import get_coverage_compile_args
 
 # Add repo root to path for CocoTBFramework imports
 from CocoTBFramework.tbclasses.glitch_free_n_dff_arn_tb import GlitchFreeNDffArnTB

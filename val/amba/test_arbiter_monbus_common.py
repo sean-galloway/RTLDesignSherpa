@@ -25,6 +25,7 @@ from cocotb.triggers import RisingEdge, ClockCycles
 from cocotb.utils import get_sim_time
 from cocotb.clock import Clock
 from cocotb_test.simulator import run
+from conftest import get_coverage_compile_args
 import pytest
 
 from CocoTBFramework.tbclasses.shared.tbbase import TBBase
@@ -606,6 +607,12 @@ def test_arbiter_monbus_common(request, clients, wait_gnt_ack, weighted_mode, fi
         
         "--trace-depth", "99",
     ]
+
+
+    # Add coverage compile args if COVERAGE=1
+
+    compile_args.extend(get_coverage_compile_args())
+
 
     sim_args = [
         "--trace",

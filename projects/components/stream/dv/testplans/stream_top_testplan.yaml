@@ -1,0 +1,362 @@
+# Testplan for stream_top_ch8
+# Maps functional test scenarios to Verilator coverage points
+
+module: stream_top_ch8
+rtl_file: projects/components/stream/rtl/top/stream_top_ch8.sv
+test_file: projects/components/stream/dv/tests/top/test_stream_top.py
+
+# Module description:
+# Complete STREAM top-level integration with 8 channels, APB configuration,
+# AXI masters, and MonBus reporting. Production-ready DMA controller.
+
+parameters:
+  - name: NUM_CHANNELS
+    default: 8
+    description: Number of DMA channels (fixed at 8)
+  - name: DATA_WIDTH
+    default: 512
+    description: Data path width
+  - name: ADDR_WIDTH
+    default: 64
+    description: Address bus width
+  - name: APB_ADDR_WIDTH
+    default: 32
+    description: APB address width
+  - name: APB_DATA_WIDTH
+    default: 32
+    description: APB data width
+
+# Coverage points
+coverage_points:
+  - line: 40
+    type: input_port
+    content: "input clk"
+    covered: true
+
+  - line: 41
+    type: input_port
+    content: "input rst_n"
+    covered: true
+
+  - line: 44
+    type: input_port
+    content: "input s_apb_psel"
+    covered: true
+
+  - line: 45
+    type: input_port
+    content: "input s_apb_penable"
+    covered: true
+
+  - line: 46
+    type: input_port
+    content: "input s_apb_pwrite"
+    covered: true
+
+  - line: 47
+    type: input_port
+    content: "input s_apb_paddr"
+    covered: true
+
+  - line: 48
+    type: input_port
+    content: "input s_apb_pwdata"
+    covered: true
+
+  - line: 49
+    type: output_port
+    content: "output s_apb_pready"
+    covered: true
+
+  - line: 50
+    type: output_port
+    content: "output s_apb_prdata"
+    covered: true
+
+  - line: 51
+    type: output_port
+    content: "output s_apb_pslverr"
+    covered: true
+
+  - line: 54
+    type: output_port
+    content: "output m_axi_desc_araddr"
+    covered: true
+
+  - line: 55
+    type: output_port
+    content: "output m_axi_desc_arvalid"
+    covered: true
+
+  - line: 56
+    type: input_port
+    content: "input m_axi_desc_arready"
+    covered: true
+
+  - line: 57
+    type: input_port
+    content: "input m_axi_desc_rdata"
+    covered: true
+
+  - line: 58
+    type: input_port
+    content: "input m_axi_desc_rvalid"
+    covered: true
+
+  - line: 59
+    type: output_port
+    content: "output m_axi_desc_rready"
+    covered: true
+
+  - line: 62
+    type: output_port
+    content: "output m_axi_rd_araddr"
+    covered: true
+
+  - line: 63
+    type: output_port
+    content: "output m_axi_rd_arlen"
+    covered: true
+
+  - line: 64
+    type: output_port
+    content: "output m_axi_rd_arvalid"
+    covered: true
+
+  - line: 65
+    type: input_port
+    content: "input m_axi_rd_arready"
+    covered: true
+
+  - line: 66
+    type: input_port
+    content: "input m_axi_rd_rdata"
+    covered: true
+
+  - line: 67
+    type: input_port
+    content: "input m_axi_rd_rvalid"
+    covered: true
+
+  - line: 68
+    type: output_port
+    content: "output m_axi_rd_rready"
+    covered: true
+
+  - line: 71
+    type: output_port
+    content: "output m_axi_wr_awaddr"
+    covered: true
+
+  - line: 72
+    type: output_port
+    content: "output m_axi_wr_awlen"
+    covered: true
+
+  - line: 73
+    type: output_port
+    content: "output m_axi_wr_awvalid"
+    covered: true
+
+  - line: 74
+    type: input_port
+    content: "input m_axi_wr_awready"
+    covered: true
+
+  - line: 75
+    type: output_port
+    content: "output m_axi_wr_wdata"
+    covered: true
+
+  - line: 76
+    type: output_port
+    content: "output m_axi_wr_wvalid"
+    covered: true
+
+  - line: 77
+    type: input_port
+    content: "input m_axi_wr_wready"
+    covered: true
+
+  - line: 78
+    type: input_port
+    content: "input m_axi_wr_bresp"
+    covered: true
+
+  - line: 79
+    type: input_port
+    content: "input m_axi_wr_bvalid"
+    covered: true
+
+  - line: 80
+    type: output_port
+    content: "output m_axi_wr_bready"
+    covered: true
+
+  - line: 83
+    type: output_port
+    content: "output irq"
+    covered: true
+
+  - line: 86
+    type: output_port
+    content: "output monbus_valid"
+    covered: true
+
+  - line: 87
+    type: input_port
+    content: "input monbus_ready"
+    covered: true
+
+  - line: 88
+    type: output_port
+    content: "output monbus_data"
+    covered: true
+
+# Functional scenarios
+functional_scenarios:
+  - id: STREAM-TOP-01
+    name: "APB configuration and kick-off"
+    description: Configure registers via APB, kick off transfer on all 8 channels
+    test_function: "test_stream_top (basic)"
+    covers_lines: [44, 45, 46, 47, 48, 49, 50, 54, 55, 56, 57, 58, 59]
+    priority: high
+    status: verified
+
+  - id: STREAM-TOP-02
+    name: "Single channel end-to-end"
+    description: Complete DMA transfer on single channel (APB → desc fetch → read → write → complete)
+    test_function: "test_stream_top (single_channel)"
+    covers_lines: [44, 47, 48, 54, 55, 62, 63, 64, 71, 72, 73, 83, 86, 87, 88]
+    priority: high
+    status: verified
+
+  - id: STREAM-TOP-03
+    name: "Multi-channel concurrent operation"
+    description: All 8 channels operating simultaneously
+    test_function: "test_stream_top (multi_channel)"
+    covers_lines: [44, 47, 48, 54, 62, 64, 71, 73, 86, 87, 88]
+    priority: high
+    status: verified
+
+  - id: STREAM-TOP-04
+    name: "Descriptor chaining"
+    description: Process chained descriptors on multiple channels
+    test_function: "test_stream_top (chained)"
+    covers_lines: [54, 55, 56, 57, 58, 59, 86, 87, 88]
+    priority: high
+    status: verified
+
+  - id: STREAM-TOP-05
+    name: "APB error handling"
+    description: APB errors (invalid address, invalid operation)
+    test_function: "test_stream_top (apb_error)"
+    covers_lines: [44, 45, 46, 47, 51]
+    priority: high
+    status: verified
+
+  - id: STREAM-TOP-06
+    name: "AXI descriptor fetch error"
+    description: AXI SLVERR/DECERR during descriptor fetch
+    test_function: "test_stream_top (desc_error)"
+    covers_lines: [54, 55, 56, 57, 58, 59, 83, 86, 87, 88]
+    priority: high
+    status: verified
+
+  - id: STREAM-TOP-07
+    name: "AXI data transfer error"
+    description: AXI SLVERR/DECERR during read or write
+    test_function: "test_stream_top (data_error)"
+    covers_lines: [62, 64, 65, 66, 67, 68, 71, 73, 74, 78, 79, 80, 83, 86, 87, 88]
+    priority: high
+    status: verified
+
+  - id: STREAM-TOP-08
+    name: "IRQ generation and clearing"
+    description: IRQ on completion, clear via APB
+    test_function: "test_stream_top (irq)"
+    covers_lines: [44, 47, 48, 83]
+    priority: medium
+    status: verified
+
+  - id: STREAM-TOP-09
+    name: "MonBus event reporting"
+    description: Monitor bus packets for descriptor fetch, transfers, completions
+    test_function: "test_stream_top (monbus)"
+    covers_lines: [86, 87, 88]
+    priority: medium
+    status: verified
+
+  - id: STREAM-TOP-10
+    name: "Channel arbitration"
+    description: Verify fair arbitration when multiple channels request resources
+    test_function: "test_stream_top (arbitration)"
+    covers_lines: [54, 55, 62, 64, 71, 73]
+    priority: high
+    status: verified
+
+  - id: STREAM-TOP-11
+    name: "System-level backpressure"
+    description: External memory introduces backpressure on all AXI masters
+    test_function: "test_stream_top (backpressure)"
+    covers_lines: [55, 56, 64, 65, 73, 74, 76, 77, 79, 80]
+    priority: high
+    status: verified
+
+  - id: STREAM-TOP-12
+    name: "Enable/disable channels"
+    description: APB enable/disable individual channels
+    test_function: "test_stream_top (enable_disable)"
+    covers_lines: [44, 47, 48]
+    priority: medium
+    status: verified
+
+  - id: STREAM-TOP-13
+    name: "Reset during operation"
+    description: System reset during active transfers
+    test_function: "test_stream_top (reset)"
+    covers_lines: [41]
+    priority: high
+    status: verified
+
+# Parameter combinations tested
+parameter_coverage:
+  - NUM_CHANNELS: 8
+    DATA_WIDTH: 512
+    ADDR_WIDTH: 64
+    APB_ADDR_WIDTH: 32
+    APB_DATA_WIDTH: 32
+    test_level: basic
+    status: verified
+
+# Implied coverage calculation
+implied_coverage:
+  total_points: 37
+  verilator_tracked: 11
+  scenario_tracked: 37
+  implied_covered: 37
+  implied_percentage: 100.0
+
+notes: |
+  stream_top_ch8 is the complete production STREAM DMA controller.
+  Integration of all subsystems with 8 independent DMA channels.
+
+  Integration includes:
+  - APB configuration interface (PeakRDL-generated)
+  - 8-channel scheduler group array
+  - Shared AXI masters (descriptor, read, write)
+  - SRAM controller with channel allocation
+  - MonBus reporter for system monitoring
+  - IRQ generation and management
+
+  All 13 functional scenarios exercise complete system integration:
+  - APB configuration and control
+  - Multi-channel concurrent operation
+  - Resource arbitration
+  - Error handling and recovery
+  - Monitoring and debug
+
+  This is the production integration tested via test_stream_top.py
+  with comprehensive coverage of all 8 channels and shared resources.
+
+  Implied coverage is 100% - all functional paths tested.

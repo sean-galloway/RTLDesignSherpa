@@ -46,6 +46,7 @@ from CocoTBFramework.tbclasses.arbiter_priority_encoder_tb import ArbiterPriorit
 from CocoTBFramework.tbclasses.shared.utilities import get_paths, create_view_cmd
 from CocoTBFramework.tbclasses.shared.tbbase import TBBase
 from CocoTBFramework.tbclasses.shared.filelist_utils import get_sources_from_filelist
+from conftest import get_coverage_compile_args
 
 # ===========================================================================
 # COCOTB TEST FUNCTIONS - prefix with "cocotb_" to prevent pytest collection
@@ -147,6 +148,10 @@ def test_arbiter_priority_encoder(request, clients, test_mode):
 
     cmd_filename = create_view_cmd(log_dir, log_path, sim_build, module, test_name_plus_params)
 
+    # Build compile_args with coverage support
+    compile_args = ["-Wno-TIMESCALEMOD"]
+    compile_args.extend(get_coverage_compile_args())
+
     try:
         run(
             python_search=[tests_dir],
@@ -159,7 +164,7 @@ def test_arbiter_priority_encoder(request, clients, test_mode):
             extra_env=extra_env,
             waves=False,
             keep_files=True,
-            compile_args=["-Wno-TIMESCALEMOD"],
+            compile_args=compile_args,
             sim_args=[],
             plusargs=[],
         )

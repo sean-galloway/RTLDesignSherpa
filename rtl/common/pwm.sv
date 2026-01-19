@@ -347,7 +347,10 @@ module pwm #(
                             end
                         end
 
+                        // verilator coverage_off
+                        // DEFENSIVE: Illegal FSM state recovery
                         default: r_state <= IDLE;
+                        // verilator coverage_on
                     endcase
                 end
             )
@@ -379,7 +382,10 @@ module pwm #(
                             end
                         end
 
+                        // verilator coverage_off
+                        // DEFENSIVE: Illegal FSM state recovery
                         default: r_count <= '0;
+                        // verilator coverage_on
                     endcase
                 end
             )
@@ -409,7 +415,10 @@ module pwm #(
                             end
                         end
 
+                        // verilator coverage_off
+                        // DEFENSIVE: Illegal FSM state recovery
                         default: r_repeat_value <= '0;
+                        // verilator coverage_on
                     endcase
                 end
             )
