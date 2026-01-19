@@ -97,6 +97,18 @@ class TBBase:
         """
         self.dut = dut
 
+        # Setup logging FIRST (needed by other init methods)
+        self.log_path = os.environ.get('LOG_PATH')
+        if not self.log_path:
+            log_dir = os.path.join(os.getcwd(), 'logs')
+            os.makedirs(log_dir, exist_ok=True)
+            self.log_path = os.path.join(log_dir, 'default_cocotb.log')
+            print(f"WARNING: LOG_PATH not specified. Using default: {self.log_path}")
+
+        self.dut_name = os.environ.get('DUT', 'unknown_dut')
+        self.log_count = 0
+        self.log = self.configure_logging(level=TBBase.default_log_level)
+
         # Merge safety limits with defaults
         self.safety_limits = self.DEFAULT_SAFETY_LIMITS.copy()
         if safety_limits:
@@ -121,18 +133,6 @@ class TBBase:
         # Threading for non-async safety monitoring
         self.safety_lock = threading.RLock()
         self.safety_thread = None
-
-        # Setup logging
-        self.log_path = os.environ.get('LOG_PATH')
-        if not self.log_path:
-            log_dir = os.path.join(os.getcwd(), 'logs')
-            os.makedirs(log_dir, exist_ok=True)
-            self.log_path = os.path.join(log_dir, 'default_cocotb.log')
-            print(f"WARNING: LOG_PATH not specified. Using default: {self.log_path}")
-
-        self.dut_name = os.environ.get('DUT', 'unknown_dut')
-        self.log_count = 0
-        self.log = self.configure_logging(level=TBBase.default_log_level)
 
         # Initialize signal monitors
         self._signal_monitors = {}

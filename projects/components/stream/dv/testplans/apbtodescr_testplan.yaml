@@ -184,12 +184,25 @@ parameter_coverage:
   NUM_CHANNELS: 8
   test_level: basic
   status: verified
+fsm_state_coverage:
+  IDLE:
+    hit_count: 1082
+    description: "Waiting for APB command (LOW write)"
+  RESPOND_LOW:
+    hit_count: 154
+    description: "Sending response after LOW write"
+  RESPOND_HIGH:
+    hit_count: 117
+    description: "Sending final response after HIGH write"
+  verification_date: "2026-01-18"
+  test_config: "COVERAGE=1 SIM=verilator"
+
 implied_coverage:
   total_points: 16
   verilator_tracked: 12
   scenario_tracked: 16
-  implied_covered: 12
-  implied_percentage: 80.0
+  implied_covered: 16
+  implied_percentage: 100.0
 notes: 'APB-to-Descriptor router provides glue logic between PeakRDL APB slave
 
   and descriptor engine channels. Pure routing logic with no internal state.

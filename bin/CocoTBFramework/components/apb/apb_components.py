@@ -254,7 +254,11 @@ class APBSlave(BusMonitor):
 
     def _finish_recv(self, slv_error):
         address    =  self.bus.PADDR.value.integer
-        word_index =  (address & ~self.addr_mask)
+        # Calculate word index by masking address to memory model size and dividing by bytes per word
+        # This ensures we don't try to allocate memory for huge addresses (e.g., 0x80000000)
+        addr_bits_needed = (self.num_lines * self.strb_bits - 1).bit_length()
+        memory_addr_mask = (1 << addr_bits_needed) - 1
+        word_index = (address & memory_addr_mask) >> (self.strb_bits.bit_length() - 1)
         pprot      =  self.bus.PPROT.value.integer if self.is_signal_present('PPROT') else 0
         self.count += 1
 
@@ -278,10 +282,10 @@ class APBSlave(BusMonitor):
             strobes   = self.bus.PSTRB.value.integer if self.is_signal_present('PSTRB') else (1 << self.strb_bits) - 1
             pwdata    = self.bus.PWDATA.value.integer
             pwdata_ba = self.mem.integer_to_bytearray(pwdata, self.strb_bits)
-            self.mem.write(address & 0xFFF, pwdata_ba, strobes)
+            self.mem.write(address & memory_addr_mask, pwdata_ba, strobes)
 
         else:  # Read transaction
-            prdata_ba = self.mem.read(address & 0xFFF, self.strb_bits)
+            prdata_ba = self.mem.read(address & memory_addr_mask, self.strb_bits)
             prdata = self.mem.bytearray_to_integer(prdata_ba)
             self.bus.PRDATA.value = prdata
 

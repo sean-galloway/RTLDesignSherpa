@@ -1,0 +1,522 @@
+{
+  "test_count": 6,
+  "tests": [
+    {
+      "name": "test_stream_core_single_nc04_dw0128",
+      "protocol_pct": 15.957446808510639,
+      "line_pct": 54.78374836173001
+    },
+    {
+      "name": "test_stream_core_varsizes_dw0256_sz64",
+      "protocol_pct": 15.957446808510639,
+      "line_pct": 0.0
+    },
+    {
+      "name": "test_stream_core_varsizes_dw0128_sz64",
+      "protocol_pct": 15.957446808510639,
+      "line_pct": 0.0
+    },
+    {
+      "name": "test_stream_core_single_nc04_dw0512",
+      "protocol_pct": 15.957446808510639,
+      "line_pct": 0.0
+    },
+    {
+      "name": "test_stream_core_varsizes_dw0512_sz64",
+      "protocol_pct": 15.957446808510639,
+      "line_pct": 0.0
+    },
+    {
+      "name": "test_stream_core_single_nc04_dw0256",
+      "protocol_pct": 15.957446808510639,
+      "line_pct": 54.78374836173001
+    }
+  ],
+  "groups": {
+    "axi_read_burst_type": {
+      "covered": 1,
+      "total": 3,
+      "points": {
+        "FIXED": {
+          "hits": 0,
+          "goal": 1
+        },
+        "INCR": {
+          "hits": 9,
+          "goal": 1
+        },
+        "WRAP": {
+          "hits": 0,
+          "goal": 1
+        }
+      },
+      "coverage_pct": 33.33333333333333
+    },
+    "axi_write_burst_type": {
+      "covered": 1,
+      "total": 3,
+      "points": {
+        "FIXED": {
+          "hits": 0,
+          "goal": 1
+        },
+        "INCR": {
+          "hits": 9,
+          "goal": 1
+        },
+        "WRAP": {
+          "hits": 0,
+          "goal": 1
+        }
+      },
+      "coverage_pct": 33.33333333333333
+    },
+    "axi_read_burst_size": {
+      "covered": 3,
+      "total": 11,
+      "points": {
+        "size_1": {
+          "hits": 0,
+          "goal": 1
+        },
+        "size_2": {
+          "hits": 0,
+          "goal": 1
+        },
+        "size_4": {
+          "hits": 0,
+          "goal": 1
+        },
+        "size_8": {
+          "hits": 0,
+          "goal": 1
+        },
+        "size_16": {
+          "hits": 0,
+          "goal": 1
+        },
+        "size_32": {
+          "hits": 0,
+          "goal": 1
+        },
+        "size_64": {
+          "hits": 0,
+          "goal": 1
+        },
+        "size_128": {
+          "hits": 0,
+          "goal": 1
+        },
+        "size_65536": {
+          "hits": 3,
+          "goal": 1
+        },
+        "size_4294967296": {
+          "hits": 3,
+          "goal": 1
+        },
+        "size_18446744073709551616": {
+          "hits": 3,
+          "goal": 1
+        }
+      },
+      "coverage_pct": 27.27272727272727
+    },
+    "axi_write_burst_size": {
+      "covered": 3,
+      "total": 11,
+      "points": {
+        "size_1": {
+          "hits": 0,
+          "goal": 1
+        },
+        "size_2": {
+          "hits": 0,
+          "goal": 1
+        },
+        "size_4": {
+          "hits": 0,
+          "goal": 1
+        },
+        "size_8": {
+          "hits": 0,
+          "goal": 1
+        },
+        "size_16": {
+          "hits": 0,
+          "goal": 1
+        },
+        "size_32": {
+          "hits": 0,
+          "goal": 1
+        },
+        "size_64": {
+          "hits": 0,
+          "goal": 1
+        },
+        "size_128": {
+          "hits": 0,
+          "goal": 1
+        },
+        "size_65536": {
+          "hits": 3,
+          "goal": 1
+        },
+        "size_4294967296": {
+          "hits": 3,
+          "goal": 1
+        },
+        "size_18446744073709551616": {
+          "hits": 3,
+          "goal": 1
+        }
+      },
+      "coverage_pct": 27.27272727272727
+    },
+    "axi_read_burst_length": {
+      "covered": 1,
+      "total": 5,
+      "points": {
+        "len_1": {
+          "hits": 0,
+          "goal": 1
+        },
+        "len_2_4": {
+          "hits": 0,
+          "goal": 1
+        },
+        "len_5_8": {
+          "hits": 0,
+          "goal": 1
+        },
+        "len_9_16": {
+          "hits": 0,
+          "goal": 1
+        },
+        "len_17_256": {
+          "hits": 9,
+          "goal": 1
+        }
+      },
+      "coverage_pct": 20.0
+    },
+    "axi_write_burst_length": {
+      "covered": 1,
+      "total": 5,
+      "points": {
+        "len_1": {
+          "hits": 0,
+          "goal": 1
+        },
+        "len_2_4": {
+          "hits": 0,
+          "goal": 1
+        },
+        "len_5_8": {
+          "hits": 0,
+          "goal": 1
+        },
+        "len_9_16": {
+          "hits": 0,
+          "goal": 1
+        },
+        "len_17_256": {
+          "hits": 9,
+          "goal": 1
+        }
+      },
+      "coverage_pct": 20.0
+    },
+    "axi_read_response": {
+      "covered": 1,
+      "total": 4,
+      "points": {
+        "OKAY": {
+          "hits": 9,
+          "goal": 1
+        },
+        "EXOKAY": {
+          "hits": 0,
+          "goal": 1
+        },
+        "SLVERR": {
+          "hits": 0,
+          "goal": 1
+        },
+        "DECERR": {
+          "hits": 0,
+          "goal": 1
+        }
+      },
+      "coverage_pct": 25.0
+    },
+    "axi_write_response": {
+      "covered": 1,
+      "total": 4,
+      "points": {
+        "OKAY": {
+          "hits": 9,
+          "goal": 1
+        },
+        "EXOKAY": {
+          "hits": 0,
+          "goal": 1
+        },
+        "SLVERR": {
+          "hits": 0,
+          "goal": 1
+        },
+        "DECERR": {
+          "hits": 0,
+          "goal": 1
+        }
+      },
+      "coverage_pct": 25.0
+    },
+    "apb_transactions": {
+      "covered": 0,
+      "total": 4,
+      "points": {
+        "read_okay": {
+          "hits": 0,
+          "goal": 1
+        },
+        "read_error": {
+          "hits": 0,
+          "goal": 1
+        },
+        "write_okay": {
+          "hits": 0,
+          "goal": 1
+        },
+        "write_error": {
+          "hits": 0,
+          "goal": 1
+        }
+      },
+      "coverage_pct": 0.0
+    },
+    "address_alignment": {
+      "covered": 1,
+      "total": 6,
+      "points": {
+        "unaligned": {
+          "hits": 0,
+          "goal": 1
+        },
+        "halfword": {
+          "hits": 0,
+          "goal": 1
+        },
+        "word": {
+          "hits": 0,
+          "goal": 1
+        },
+        "dword": {
+          "hits": 0,
+          "goal": 1
+        },
+        "qword": {
+          "hits": 0,
+          "goal": 1
+        },
+        "cache_line": {
+          "hits": 18,
+          "goal": 1
+        }
+      },
+      "coverage_pct": 16.666666666666664
+    },
+    "handshakes": {
+      "covered": 4,
+      "total": 16,
+      "points": {
+        "desc_valid_ready": {
+          "hits": 0,
+          "goal": 1
+        },
+        "desc_done": {
+          "hits": 0,
+          "goal": 1
+        },
+        "network_tx_valid_ready": {
+          "hits": 0,
+          "goal": 1
+        },
+        "network_rx_valid_ready": {
+          "hits": 0,
+          "goal": 1
+        },
+        "mem_cmd_valid_ready": {
+          "hits": 0,
+          "goal": 1
+        },
+        "mem_data_valid_ready": {
+          "hits": 0,
+          "goal": 1
+        },
+        "scheduler_to_read_engine": {
+          "hits": 0,
+          "goal": 1
+        },
+        "scheduler_to_write_engine": {
+          "hits": 0,
+          "goal": 1
+        },
+        "read_engine_complete": {
+          "hits": 0,
+          "goal": 1
+        },
+        "write_engine_complete": {
+          "hits": 0,
+          "goal": 1
+        },
+        "backpressure_stall": {
+          "hits": 0,
+          "goal": 1
+        },
+        "pipeline_bubble": {
+          "hits": 0,
+          "goal": 1
+        },
+        "read_request": {
+          "hits": 6,
+          "goal": 1
+        },
+        "read_response": {
+          "hits": 6,
+          "goal": 1
+        },
+        "write_request": {
+          "hits": 6,
+          "goal": 1
+        },
+        "write_response": {
+          "hits": 6,
+          "goal": 1
+        }
+      },
+      "coverage_pct": 25.0
+    },
+    "scenarios": {
+      "covered": 2,
+      "total": 14,
+      "points": {
+        "single_desc": {
+          "hits": 0,
+          "goal": 1
+        },
+        "chained_desc": {
+          "hits": 0,
+          "goal": 1
+        },
+        "concurrent_rw": {
+          "hits": 0,
+          "goal": 1
+        },
+        "back_to_back": {
+          "hits": 0,
+          "goal": 1
+        },
+        "error_handling": {
+          "hits": 0,
+          "goal": 1
+        },
+        "timeout_recovery": {
+          "hits": 0,
+          "goal": 1
+        },
+        "full_pipeline": {
+          "hits": 0,
+          "goal": 1
+        },
+        "backpressure": {
+          "hits": 0,
+          "goal": 1
+        },
+        "max_outstanding": {
+          "hits": 0,
+          "goal": 1
+        },
+        "empty_desc": {
+          "hits": 0,
+          "goal": 1
+        },
+        "wrap_burst": {
+          "hits": 0,
+          "goal": 1
+        },
+        "narrow_transfer": {
+          "hits": 0,
+          "goal": 1
+        },
+        "basic_transfer": {
+          "hits": 6,
+          "goal": 1
+        },
+        "descriptor_chain": {
+          "hits": 6,
+          "goal": 1
+        }
+      },
+      "coverage_pct": 14.285714285714285
+    },
+    "burst_type_x_size": {
+      "covered": 0,
+      "total": 12,
+      "points": {
+        "FIXED_size1": {
+          "hits": 0,
+          "goal": 1
+        },
+        "FIXED_size2": {
+          "hits": 0,
+          "goal": 1
+        },
+        "FIXED_size4": {
+          "hits": 0,
+          "goal": 1
+        },
+        "FIXED_size8": {
+          "hits": 0,
+          "goal": 1
+        },
+        "INCR_size1": {
+          "hits": 0,
+          "goal": 1
+        },
+        "INCR_size2": {
+          "hits": 0,
+          "goal": 1
+        },
+        "INCR_size4": {
+          "hits": 0,
+          "goal": 1
+        },
+        "INCR_size8": {
+          "hits": 0,
+          "goal": 1
+        },
+        "WRAP_size1": {
+          "hits": 0,
+          "goal": 1
+        },
+        "WRAP_size2": {
+          "hits": 0,
+          "goal": 1
+        },
+        "WRAP_size4": {
+          "hits": 0,
+          "goal": 1
+        },
+        "WRAP_size8": {
+          "hits": 0,
+          "goal": 1
+        }
+      },
+      "coverage_pct": 0.0
+    }
+  },
+  "overall_protocol_pct": 15.957446808510639,
+  "overall_line_pct": 18.261249453910004
+}

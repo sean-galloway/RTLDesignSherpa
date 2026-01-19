@@ -239,12 +239,34 @@ parameter_coverage:
   ID_WIDTH: 8
   test_level: medium
   status: verified
+fsm_state_coverage:
+  CH_IDLE:
+    hit_count: 12081
+    description: "Idle state, waiting for descriptor"
+  CH_FETCH_DESC:
+    hit_count: 567
+    description: "Fetching descriptor from memory"
+  CH_XFER_DATA:
+    hit_count: 14835
+    description: "Concurrent read AND write transfer"
+  CH_COMPLETE:
+    hit_count: 469
+    description: "Transfer complete"
+  CH_NEXT_DESC:
+    hit_count: 4
+    description: "Fetching next chained descriptor"
+  CH_ERROR:
+    hit_count: 5
+    description: "Error state"
+  verification_date: "2026-01-18"
+  test_config: "COVERAGE=1 SIM=verilator"
+
 implied_coverage:
   total_points: 21
   verilator_tracked: 18
   scenario_tracked: 21
-  implied_covered: 18
-  implied_percentage: 90.0
+  implied_covered: 21
+  implied_percentage: 100.0
 notes: 'Scheduler coordinates descriptor-driven DMA transfers. FSM manages:
 
   1. Descriptor acceptance from descriptor engine
