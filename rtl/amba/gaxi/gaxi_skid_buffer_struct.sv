@@ -146,15 +146,15 @@ module gaxi_skid_buffer_struct #(
         end
     end
 
-    // Structural checks
+    // Structural checks and instance report
     initial begin
+        // Instance report (grep for FIFO_INSTANCE)
+        $display("FIFO_INSTANCE: gaxi_skid_buffer_struct %m %s W=%0d D=%0d", INSTANCE_NAME, STRUCT_WIDTH, DEPTH);
+
         if (DEPTH < 2 || DEPTH > 8 || (DEPTH % 2) != 0) begin
             $error("STRUCT_SKID_BUFFER[%s]: Invalid DEPTH=%0d. Must be one of {2, 4, 6, 8}",
                     INSTANCE_NAME, DEPTH);
         end
-
-        $display("STRUCT_SKID_BUFFER[%s]: Initialized with STRUCT_WIDTH=%0d bits, DEPTH=%0d",
-                    INSTANCE_NAME, STRUCT_WIDTH, DEPTH);
     end
 
     // synopsys translate_on

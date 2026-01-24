@@ -310,6 +310,15 @@ module gaxi_fifo_async #(
     assign rd_data = w_rd_data;
 
     /////////////////////////////////////////////////////////////////////////
+    // Simulation-only: Instance report (grep for FIFO_INSTANCE)
+    /////////////////////////////////////////////////////////////////////////
+    // synopsys translate_off
+    initial begin
+        $display("FIFO_INSTANCE: gaxi_fifo_async %m %s W=%0d D=%0d MEM=%s REG=%0d CDC=%0d", INSTANCE_NAME, DW, D, MEM_STYLE.name(), REGISTERED, N);
+    end
+    // synopsys translate_on
+
+    /////////////////////////////////////////////////////////////////////////
     // Simulation-only error checks
     /////////////////////////////////////////////////////////////////////////
     // synopsys translate_off

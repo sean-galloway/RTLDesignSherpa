@@ -468,6 +468,15 @@ module gaxi_drop_fifo_sync #(
     endgenerate
 
     /////////////////////////////////////////////////////////////////////////
+    // Simulation-only: Instance report (grep for FIFO_INSTANCE)
+    /////////////////////////////////////////////////////////////////////////
+    // synopsys translate_off
+    initial begin
+        $display("FIFO_INSTANCE: gaxi_drop_fifo_sync %m %s W=%0d D=%0d MEM=%s REG=%0d", INSTANCE_NAME, DW, D, MEM_STYLE.name(), REGISTERED);
+    end
+    // synopsys translate_on
+
+    /////////////////////////////////////////////////////////////////////////
     // Error checking
     // synopsys translate_off
     // Note: flat_mem_* signals for waveform viewing are generated inside
