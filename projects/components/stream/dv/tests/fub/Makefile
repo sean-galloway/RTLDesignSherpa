@@ -348,13 +348,13 @@ run-full-waves:
 
 .PHONY: run-full-parallel
 run-full-parallel:
-	@echo "Running STREAM FUB tests at FULL level in parallel..."
-	REG_LEVEL=FULL $(PYTEST) test_*.py $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE) $(PYTEST_XDIST) $(PYTEST_RERUNS)
+	@echo "Running STREAM FUB tests at FULL level in parallel with coverage..."
+	SIM=verilator COVERAGE=1 REG_LEVEL=FULL $(PYTEST) test_*.py $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE) $(PYTEST_XDIST) $(PYTEST_RERUNS)
 
 .PHONY: run-full-parallel-waves
 run-full-parallel-waves:
-	@echo "Running STREAM FUB tests at FULL level in parallel with waveforms..."
-	WAVES=1 REG_LEVEL=FULL $(PYTEST) test_*.py $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE) $(PYTEST_XDIST) $(PYTEST_RERUNS)
+	@echo "Running STREAM FUB tests at FULL level in parallel with waveforms and coverage..."
+	SIM=verilator COVERAGE=1 WAVES=1 REG_LEVEL=FULL $(PYTEST) test_*.py $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE) $(PYTEST_XDIST) $(PYTEST_RERUNS)
 
 # ==============================================================================
 # Development Targets

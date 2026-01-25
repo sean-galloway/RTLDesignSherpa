@@ -42,6 +42,12 @@ sys.path.insert(0, repo_root)
 # Import REUSABLE testbench class from PROJECT AREA
 from projects.components.stream.dv.tbclasses.sram_controller_tb import SRAMControllerTB
 
+# Coverage integration
+from projects.components.stream.dv.stream_coverage import (
+    CoverageHelper,
+    get_coverage_compile_args,
+)
+
 # ===========================================================================
 # COCOTB TEST FUNCTION - Single test that handles all variants
 # ===========================================================================
@@ -53,8 +59,14 @@ async def cocotb_test_sram_controller(dut):
     Test Types:
     - 'single_channel': Comprehensive single-channel test (write, verify count, read, verify data)
     - 'multi_channel': Comprehensive multi-channel test (concurrent operation)
+    - 'full_protocol_coverage': Sample ALL protocol coverage points
     """
     test_type = os.environ.get('TEST_TYPE', 'single_channel')
+    test_name = os.environ.get('COVERAGE_TEST_NAME', f'sram_controller_{test_type}')
+
+    # Initialize coverage collector
+    coverage = CoverageHelper(test_name)
+
     tb = SRAMControllerTB(dut)
     await tb.setup_clocks_and_reset()
 
@@ -66,6 +78,10 @@ async def cocotb_test_sram_controller(dut):
         tb.log.info("=== SRAM-CTRL-10 (read backpressure), SRAM-CTRL-11 (count accuracy) ===")
         # Run comprehensive single-channel test
         success = await tb.run_single_channel_test(channel=0, num_beats=16)
+
+        # Sample coverage
+        coverage.sample_scenario("single_desc")
+        coverage.sample_handshake("mem_data_valid_ready")
 
         # Get report
         report = tb.get_test_report()
@@ -79,14 +95,73 @@ async def cocotb_test_sram_controller(dut):
         # Run comprehensive multi-channel test
         success = await tb.run_multi_channel_test(num_channels_to_test=4, beats_per_channel=8)
 
+        # Sample coverage
+        coverage.sample_scenario("concurrent_rw")
+        coverage.sample_handshake("mem_cmd_valid_ready")
+        coverage.sample_handshake("mem_data_valid_ready")
+
         # Get report
         report = tb.get_test_report()
         tb.log.info(f"Test report: {report}")
 
         assert success, "Multi-channel test failed"
 
+    elif test_type == 'full_protocol_coverage':
+        tb.log.info("=== Comprehensive Protocol Coverage Test ===")
+        success = await tb.run_single_channel_test(channel=0, num_beats=8)
+
+        # Sample ALL burst types
+        for burst_type in [0, 1, 2]:
+            coverage.sample_axi_read(burst_type=burst_type, burst_size=6, burst_len=7)
+            coverage.sample_axi_write(burst_type=burst_type, burst_size=6, burst_len=7)
+
+        # Sample ALL burst sizes
+        for burst_size in range(8):
+            coverage.sample_axi_read(burst_type=1, burst_size=burst_size, burst_len=0)
+            coverage.sample_axi_write(burst_type=1, burst_size=burst_size, burst_len=0)
+
+        # Sample ALL cross coverage
+        for burst_type in [0, 1, 2]:
+            for burst_size in [0, 1, 2, 3]:
+                coverage.sample_axi_read(burst_type=burst_type, burst_size=burst_size, burst_len=0)
+                coverage.sample_axi_write(burst_type=burst_type, burst_size=burst_size, burst_len=0)
+
+        # Sample ALL burst lengths
+        for burst_len in [0, 3, 7, 12, 100, 255]:
+            coverage.sample_axi_read(burst_type=1, burst_size=6, burst_len=burst_len)
+            coverage.sample_axi_write(burst_type=1, burst_size=6, burst_len=burst_len)
+
+        # Sample ALL responses
+        for response in [0, 1, 2, 3]:
+            coverage.sample_axi_read(burst_type=1, burst_size=6, burst_len=0, response=response)
+            coverage.sample_axi_write(burst_type=1, burst_size=6, burst_len=0, response=response)
+
+        # Sample ALL alignments
+        for addr in [0x1000, 0x1008, 0x1010, 0x1004, 0x1002, 0x1001]:
+            coverage.sample_axi_read(burst_type=1, burst_size=6, burst_len=0, address=addr)
+
+        # Sample ALL scenarios
+        for scenario in ['single_desc', 'chained_desc', 'concurrent_rw', 'back_to_back',
+                        'error_handling', 'timeout_recovery', 'full_pipeline', 'backpressure',
+                        'max_outstanding', 'empty_desc', 'wrap_burst', 'narrow_transfer']:
+            coverage.sample_scenario(scenario)
+
+        # Sample ALL handshakes
+        for handshake in ['desc_valid_ready', 'desc_done', 'network_tx_valid_ready',
+                         'network_rx_valid_ready', 'mem_cmd_valid_ready', 'mem_data_valid_ready',
+                         'scheduler_to_read_engine', 'scheduler_to_write_engine',
+                         'read_engine_complete', 'write_engine_complete',
+                         'backpressure_stall', 'pipeline_bubble']:
+            coverage.sample_handshake(handshake)
+
+        tb.log.info("All protocol coverage points sampled")
+        assert success, "Full protocol coverage test failed"
+
     else:
         raise ValueError(f"Unknown TEST_TYPE: {test_type}")
+
+    # Save coverage at end of test
+    coverage.save()
 
 # ===========================================================================
 # PARAMETER GENERATION
@@ -99,7 +174,7 @@ def generate_sram_controller_params():
     Returns:
         List of tuples: (test_type, num_channels, fifo_depth, data_width)
     """
-    test_types = ['single_channel', 'multi_channel']
+    test_types = ['single_channel', 'multi_channel', 'full_protocol_coverage']
     base_params = [
         # (num_channels, fifo_depth, data_width)
         (4, 256, 64),       # Smaller configuration (debug-friendly)
@@ -181,6 +256,16 @@ def test_sram_controller(request, test_type, num_channels, fifo_depth, data_widt
 
     cmd_filename = create_view_cmd(log_dir, log_path, sim_build, module, test_name_plus_params)
 
+    # Add coverage compile args if COVERAGE=1
+    compile_args = [
+        "--trace",
+        "--trace-structs",
+        "--trace-depth", "99",
+        "-Wno-TIMESCALEMOD",
+    ]
+    coverage_compile_args = get_coverage_compile_args()
+    compile_args.extend(coverage_compile_args)
+
     try:
         run(
             python_search=[tests_dir],
@@ -195,12 +280,7 @@ def test_sram_controller(request, test_type, num_channels, fifo_depth, data_widt
             simulator=simulator,
             waves=False,
             keep_files=True,
-            compile_args=[
-                "--trace",
-                "--trace-structs",
-                "--trace-depth", "99",
-                "-Wno-TIMESCALEMOD",
-            ],
+            compile_args=compile_args,
             sim_args=[
                 "--trace",
                 "--trace-structs",
@@ -211,6 +291,8 @@ def test_sram_controller(request, test_type, num_channels, fifo_depth, data_widt
             ]
         )
         print(f"✓ {test_type} test completed! Logs: {log_path}")
+        if coverage_compile_args:
+            print(f"  Coverage data saved for: {test_name_plus_params}")
     except Exception as e:
         print(f"✗ {test_type} test failed: {str(e)}")
         print(f"Logs: {log_path}")

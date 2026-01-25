@@ -1,0 +1,1043 @@
+{
+  "timestamp": "2026-01-24T08:49:27.480492",
+  "test_count": 46,
+  "tests": [
+    {
+      "name": "test_scheduler_stress_random_cid00_nc08_aw064_dw0512_tc01000",
+      "protocol_pct": 26.136363636363637,
+      "line_pct": 38.333333333333336,
+      "toggle_pct": 30.360205831903947
+    },
+    {
+      "name": "test_apbtodescr_rapid_fire_aw32_dw32_nc08",
+      "protocol_pct": 2.3255813953488373,
+      "line_pct": 22.413793103448278,
+      "toggle_pct": 21.5
+    },
+    {
+      "name": "test_scheduler_stress_random_cid00_nc08_aw064_dw0512_tc01000_gw26",
+      "protocol_pct": 26.136363636363637,
+      "line_pct": 38.333333333333336,
+      "toggle_pct": 30.360205831903947
+    },
+    {
+      "name": "test_scheduler_varying_lengths_cid00_nc08_aw064_dw0512_tc01000_gw30",
+      "protocol_pct": 28.40909090909091,
+      "line_pct": 38.333333333333336,
+      "toggle_pct": 20.497427101200685
+    },
+    {
+      "name": "test_scheduler_rapid_descriptors_cid00_nc08_aw064_dw0512_tc01000_gw28",
+      "protocol_pct": 20.454545454545457,
+      "line_pct": 38.333333333333336,
+      "toggle_pct": 14.065180102915953
+    },
+    {
+      "name": "test_scheduler_full_protocol_coverage_cid00_nc08_aw064_dw0512_tc01000",
+      "protocol_pct": 100.0,
+      "line_pct": 38.333333333333336,
+      "toggle_pct": 11.749571183533448
+    },
+    {
+      "name": "test_scheduler_channel_reset_cid00_nc08_aw064_dw0512_tc01000",
+      "protocol_pct": 10.227272727272728,
+      "line_pct": 38.333333333333336,
+      "toggle_pct": 9.948542024013722
+    },
+    {
+      "name": "test_apbtodescr_errors_aw32_dw32_nc08",
+      "protocol_pct": 3.488372093023256,
+      "line_pct": 32.758620689655174,
+      "toggle_pct": 44.5
+    },
+    {
+      "name": "test_scheduler_concurrent_read_write_cid00_nc08_aw064_dw0512_tc01000",
+      "protocol_pct": 25.0,
+      "line_pct": 38.333333333333336,
+      "toggle_pct": 13.379073756432247
+    },
+    {
+      "name": "test_scheduler_backpressure_stress_cid00_nc08_aw064_dw0512_tc01000",
+      "protocol_pct": 17.045454545454543,
+      "line_pct": 38.333333333333336,
+      "toggle_pct": 18.782161234991424
+    },
+    {
+      "name": "test_apbtodescr_backpressure_single_aw32_dw32_nc08_gw1",
+      "protocol_pct": 3.488372093023256,
+      "line_pct": 22.413793103448278,
+      "toggle_pct": 14.000000000000002
+    },
+    {
+      "name": "test_scheduler_descriptor_error_cid00_nc08_aw064_dw0512_tc01000_gw21",
+      "protocol_pct": 15.909090909090908,
+      "line_pct": 31.666666666666664,
+      "toggle_pct": 5.74614065180103
+    },
+    {
+      "name": "test_apbtodescr_backpressure_single_aw32_dw32_nc08",
+      "protocol_pct": 3.488372093023256,
+      "line_pct": 22.413793103448278,
+      "toggle_pct": 14.000000000000002
+    },
+    {
+      "name": "test_apbtodescr_basic_all_channels_aw32_dw32_nc08",
+      "protocol_pct": 2.3255813953488373,
+      "line_pct": 22.413793103448278,
+      "toggle_pct": 25.0
+    },
+    {
+      "name": "test_apbtodescr_backpressure_multiple_aw32_dw32_nc08_gw2",
+      "protocol_pct": 3.488372093023256,
+      "line_pct": 22.413793103448278,
+      "toggle_pct": 22.5
+    },
+    {
+      "name": "test_scheduler_read_engine_error_cid00_nc08_aw064_dw0512_tc01000",
+      "protocol_pct": 17.045454545454543,
+      "line_pct": 40.0,
+      "toggle_pct": 9.777015437392796
+    },
+    {
+      "name": "test_scheduler_full_protocol_coverage_cid00_nc08_aw064_dw0512_tc01000_gw35",
+      "protocol_pct": 100.0,
+      "line_pct": 38.333333333333336,
+      "toggle_pct": 11.749571183533448
+    },
+    {
+      "name": "test_scheduler_descriptor_chaining_cid00_nc08_aw064_dw0512_tc01000",
+      "protocol_pct": 19.318181818181817,
+      "line_pct": 38.333333333333336,
+      "toggle_pct": 9.519725557461406
+    },
+    {
+      "name": "test_apbtodescr_full_protocol_coverage_aw32_dw32_nc08_gw5",
+      "protocol_pct": 100.0,
+      "line_pct": 22.413793103448278,
+      "toggle_pct": 25.0
+    },
+    {
+      "name": "test_scheduler_basic_flow_cid00_nc08_aw064_dw0512_tc01000",
+      "protocol_pct": 22.727272727272727,
+      "line_pct": 38.333333333333336,
+      "toggle_pct": 13.379073756432247
+    },
+    {
+      "name": "test_apbtodescr_full_protocol_coverage_aw32_dw32_nc08",
+      "protocol_pct": 100.0,
+      "line_pct": 0.0,
+      "toggle_pct": 0.0
+    },
+    {
+      "name": "test_apbtodescr_backpressure_multiple_aw32_dw32_nc08",
+      "protocol_pct": 3.488372093023256,
+      "line_pct": 22.413793103448278,
+      "toggle_pct": 22.5
+    },
+    {
+      "name": "test_apbtodescr_basic_all_channels_aw32_dw32_nc08_gw0",
+      "protocol_pct": 2.3255813953488373,
+      "line_pct": 22.413793103448278,
+      "toggle_pct": 25.0
+    },
+    {
+      "name": "test_scheduler_descriptor_error_cid00_nc08_aw064_dw0512_tc01000",
+      "protocol_pct": 15.909090909090908,
+      "line_pct": 31.666666666666664,
+      "toggle_pct": 5.74614065180103
+    },
+    {
+      "name": "test_scheduler_timeout_detection_cid00_nc08_aw064_dw0512_tc01000_gw24",
+      "protocol_pct": 10.227272727272728,
+      "line_pct": 36.666666666666664,
+      "toggle_pct": 9.605488850771868
+    },
+    {
+      "name": "test_scheduler_descriptor_chaining_cid00_nc08_aw064_dw0512_tc01000_gw19",
+      "protocol_pct": 19.318181818181817,
+      "line_pct": 38.333333333333336,
+      "toggle_pct": 9.519725557461406
+    },
+    {
+      "name": "test_scheduler_true_chaining_cid00_nc08_aw064_dw0512_tc01000_gw32",
+      "protocol_pct": 16.853932584269664,
+      "line_pct": 40.0,
+      "toggle_pct": 10.205831903945112
+    },
+    {
+      "name": "test_scheduler_rapid_descriptors_cid00_nc08_aw064_dw0512_tc01000",
+      "protocol_pct": 20.454545454545457,
+      "line_pct": 38.333333333333336,
+      "toggle_pct": 14.065180102915953
+    },
+    {
+      "name": "test_scheduler_write_engine_error_cid00_nc08_aw064_dw0512_tc01000",
+      "protocol_pct": 12.359550561797752,
+      "line_pct": 40.0,
+      "toggle_pct": 10.891938250428817
+    },
+    {
+      "name": "test_scheduler_irq_generation_cid00_nc08_aw064_dw0512_tc01000_gw23",
+      "protocol_pct": 10.227272727272728,
+      "line_pct": 38.333333333333336,
+      "toggle_pct": 12.264150943396226
+    },
+    {
+      "name": "test_scheduler_true_chaining_cid00_nc08_aw064_dw0512_tc01000",
+      "protocol_pct": 16.853932584269664,
+      "line_pct": 40.0,
+      "toggle_pct": 10.205831903945112
+    },
+    {
+      "name": "test_scheduler_write_engine_error_cid00_nc08_aw064_dw0512_tc01000_gw31",
+      "protocol_pct": 12.359550561797752,
+      "line_pct": 40.0,
+      "toggle_pct": 10.891938250428817
+    },
+    {
+      "name": "test_apbtodescr_errors_aw32_dw32_nc08_gw3",
+      "protocol_pct": 3.488372093023256,
+      "line_pct": 32.758620689655174,
+      "toggle_pct": 44.5
+    },
+    {
+      "name": "test_scheduler_beats_feedback_cid00_nc08_aw064_dw0512_tc01000",
+      "protocol_pct": 14.772727272727273,
+      "line_pct": 38.333333333333336,
+      "toggle_pct": 7.804459691252144
+    },
+    {
+      "name": "test_scheduler_concurrent_read_write_cid00_nc08_aw064_dw0512_tc01000_gw25",
+      "protocol_pct": 25.0,
+      "line_pct": 38.333333333333336,
+      "toggle_pct": 13.379073756432247
+    },
+    {
+      "name": "test_scheduler_varying_lengths_cid00_nc08_aw064_dw0512_tc01000",
+      "protocol_pct": 28.40909090909091,
+      "line_pct": 38.333333333333336,
+      "toggle_pct": 20.497427101200685
+    },
+    {
+      "name": "test_apbtodescr_rapid_fire_aw32_dw32_nc08_gw4",
+      "protocol_pct": 2.3255813953488373,
+      "line_pct": 22.413793103448278,
+      "toggle_pct": 21.5
+    },
+    {
+      "name": "test_scheduler_monbus_packet_cid00_nc08_aw064_dw0512_tc01000_gw33",
+      "protocol_pct": 17.045454545454543,
+      "line_pct": 38.333333333333336,
+      "toggle_pct": 8.319039451114923
+    },
+    {
+      "name": "test_scheduler_monbus_packet_cid00_nc08_aw064_dw0512_tc01000",
+      "protocol_pct": 17.045454545454543,
+      "line_pct": 38.333333333333336,
+      "toggle_pct": 8.319039451114923
+    },
+    {
+      "name": "test_scheduler_timeout_detection_cid00_nc08_aw064_dw0512_tc01000",
+      "protocol_pct": 10.227272727272728,
+      "line_pct": 36.666666666666664,
+      "toggle_pct": 9.605488850771868
+    },
+    {
+      "name": "test_scheduler_irq_generation_cid00_nc08_aw064_dw0512_tc01000",
+      "protocol_pct": 10.227272727272728,
+      "line_pct": 38.333333333333336,
+      "toggle_pct": 12.264150943396226
+    },
+    {
+      "name": "test_scheduler_beats_feedback_cid00_nc08_aw064_dw0512_tc01000_gw34",
+      "protocol_pct": 14.772727272727273,
+      "line_pct": 38.333333333333336,
+      "toggle_pct": 7.804459691252144
+    },
+    {
+      "name": "test_scheduler_read_engine_error_cid00_nc08_aw064_dw0512_tc01000_gw22",
+      "protocol_pct": 17.045454545454543,
+      "line_pct": 40.0,
+      "toggle_pct": 9.777015437392796
+    },
+    {
+      "name": "test_scheduler_channel_reset_cid00_nc08_aw064_dw0512_tc01000_gw29",
+      "protocol_pct": 10.227272727272728,
+      "line_pct": 38.333333333333336,
+      "toggle_pct": 9.948542024013722
+    },
+    {
+      "name": "test_scheduler_backpressure_stress_cid00_nc08_aw064_dw0512_tc01000_gw27",
+      "protocol_pct": 17.045454545454543,
+      "line_pct": 38.333333333333336,
+      "toggle_pct": 18.782161234991424
+    },
+    {
+      "name": "test_scheduler_basic_flow_cid00_nc08_aw064_dw0512_tc01000_gw20",
+      "protocol_pct": 22.727272727272727,
+      "line_pct": 38.333333333333336,
+      "toggle_pct": 13.379073756432247
+    }
+  ],
+  "protocol_groups": {
+    "axi_read_burst_type": {
+      "description": "AXI burst type coverage",
+      "points": {
+        "FIXED": {
+          "name": "Burst type FIXED",
+          "description": "",
+          "hits": 20,
+          "goal": 1
+        },
+        "INCR": {
+          "name": "Burst type INCR",
+          "description": "",
+          "hits": 176,
+          "goal": 1
+        },
+        "WRAP": {
+          "name": "Burst type WRAP",
+          "description": "",
+          "hits": 20,
+          "goal": 1
+        }
+      },
+      "covered": 3,
+      "total": 3,
+      "coverage_pct": 100.0
+    },
+    "axi_write_burst_type": {
+      "description": "AXI burst type coverage",
+      "points": {
+        "FIXED": {
+          "name": "Burst type FIXED",
+          "description": "",
+          "hits": 20,
+          "goal": 1
+        },
+        "INCR": {
+          "name": "Burst type INCR",
+          "description": "",
+          "hits": 314,
+          "goal": 1
+        },
+        "WRAP": {
+          "name": "Burst type WRAP",
+          "description": "",
+          "hits": 20,
+          "goal": 1
+        }
+      },
+      "covered": 3,
+      "total": 3,
+      "coverage_pct": 100.0
+    },
+    "axi_read_burst_size": {
+      "description": "AXI burst size coverage",
+      "points": {
+        "size_1": {
+          "name": "1-byte transfers",
+          "description": "",
+          "hits": 16,
+          "goal": 1
+        },
+        "size_2": {
+          "name": "2-byte transfers",
+          "description": "",
+          "hits": 16,
+          "goal": 1
+        },
+        "size_4": {
+          "name": "4-byte transfers",
+          "description": "",
+          "hits": 16,
+          "goal": 1
+        },
+        "size_8": {
+          "name": "8-byte transfers",
+          "description": "",
+          "hits": 16,
+          "goal": 1
+        },
+        "size_16": {
+          "name": "16-byte transfers",
+          "description": "",
+          "hits": 4,
+          "goal": 1
+        },
+        "size_32": {
+          "name": "32-byte transfers",
+          "description": "",
+          "hits": 4,
+          "goal": 1
+        },
+        "size_64": {
+          "name": "64-byte transfers",
+          "description": "",
+          "hits": 140,
+          "goal": 1
+        },
+        "size_128": {
+          "name": "128-byte transfers",
+          "description": "",
+          "hits": 4,
+          "goal": 1
+        }
+      },
+      "covered": 8,
+      "total": 8,
+      "coverage_pct": 100.0
+    },
+    "axi_write_burst_size": {
+      "description": "AXI burst size coverage",
+      "points": {
+        "size_1": {
+          "name": "1-byte transfers",
+          "description": "",
+          "hits": 16,
+          "goal": 1
+        },
+        "size_2": {
+          "name": "2-byte transfers",
+          "description": "",
+          "hits": 16,
+          "goal": 1
+        },
+        "size_4": {
+          "name": "4-byte transfers",
+          "description": "",
+          "hits": 16,
+          "goal": 1
+        },
+        "size_8": {
+          "name": "8-byte transfers",
+          "description": "",
+          "hits": 16,
+          "goal": 1
+        },
+        "size_16": {
+          "name": "16-byte transfers",
+          "description": "",
+          "hits": 4,
+          "goal": 1
+        },
+        "size_32": {
+          "name": "32-byte transfers",
+          "description": "",
+          "hits": 4,
+          "goal": 1
+        },
+        "size_64": {
+          "name": "64-byte transfers",
+          "description": "",
+          "hits": 278,
+          "goal": 1
+        },
+        "size_128": {
+          "name": "128-byte transfers",
+          "description": "",
+          "hits": 4,
+          "goal": 1
+        }
+      },
+      "covered": 8,
+      "total": 8,
+      "coverage_pct": 100.0
+    },
+    "axi_read_burst_length": {
+      "description": "AXI burst length coverage",
+      "points": {
+        "len_1": {
+          "name": "Single beat (len=0)",
+          "description": "",
+          "hits": 142,
+          "goal": 1
+        },
+        "len_2_4": {
+          "name": "Short burst (len=1-3)",
+          "description": "",
+          "hits": 12,
+          "goal": 1
+        },
+        "len_5_8": {
+          "name": "Medium burst (len=4-7)",
+          "description": "",
+          "hits": 38,
+          "goal": 1
+        },
+        "len_9_16": {
+          "name": "Long burst (len=8-15)",
+          "description": "",
+          "hits": 12,
+          "goal": 1
+        },
+        "len_17_256": {
+          "name": "Very long burst (len=16-255)",
+          "description": "",
+          "hits": 12,
+          "goal": 1
+        }
+      },
+      "covered": 5,
+      "total": 5,
+      "coverage_pct": 100.0
+    },
+    "axi_write_burst_length": {
+      "description": "AXI burst length coverage",
+      "points": {
+        "len_1": {
+          "name": "Single beat (len=0)",
+          "description": "",
+          "hits": 278,
+          "goal": 1
+        },
+        "len_2_4": {
+          "name": "Short burst (len=1-3)",
+          "description": "",
+          "hits": 12,
+          "goal": 1
+        },
+        "len_5_8": {
+          "name": "Medium burst (len=4-7)",
+          "description": "",
+          "hits": 40,
+          "goal": 1
+        },
+        "len_9_16": {
+          "name": "Long burst (len=8-15)",
+          "description": "",
+          "hits": 12,
+          "goal": 1
+        },
+        "len_17_256": {
+          "name": "Very long burst (len=16-255)",
+          "description": "",
+          "hits": 12,
+          "goal": 1
+        }
+      },
+      "covered": 5,
+      "total": 5,
+      "coverage_pct": 100.0
+    },
+    "axi_read_response": {
+      "description": "AXI response type coverage",
+      "points": {
+        "OKAY": {
+          "name": "Response OKAY",
+          "description": "",
+          "hits": 200,
+          "goal": 1
+        },
+        "EXOKAY": {
+          "name": "Response EXOKAY",
+          "description": "",
+          "hits": 4,
+          "goal": 1
+        },
+        "SLVERR": {
+          "name": "Response SLVERR",
+          "description": "",
+          "hits": 6,
+          "goal": 1
+        },
+        "DECERR": {
+          "name": "Response DECERR",
+          "description": "",
+          "hits": 6,
+          "goal": 1
+        }
+      },
+      "covered": 4,
+      "total": 4,
+      "coverage_pct": 100.0
+    },
+    "axi_write_response": {
+      "description": "AXI response type coverage",
+      "points": {
+        "OKAY": {
+          "name": "Response OKAY",
+          "description": "",
+          "hits": 336,
+          "goal": 1
+        },
+        "EXOKAY": {
+          "name": "Response EXOKAY",
+          "description": "",
+          "hits": 4,
+          "goal": 1
+        },
+        "SLVERR": {
+          "name": "Response SLVERR",
+          "description": "",
+          "hits": 8,
+          "goal": 1
+        },
+        "DECERR": {
+          "name": "Response DECERR",
+          "description": "",
+          "hits": 6,
+          "goal": 1
+        }
+      },
+      "covered": 4,
+      "total": 4,
+      "coverage_pct": 100.0
+    },
+    "apb_transactions": {
+      "description": "APB transaction coverage",
+      "points": {
+        "read_okay": {
+          "name": "APB read with OKAY response",
+          "description": "",
+          "hits": 6,
+          "goal": 1
+        },
+        "read_error": {
+          "name": "APB read with ERROR response",
+          "description": "",
+          "hits": 8,
+          "goal": 1
+        },
+        "write_okay": {
+          "name": "APB write with OKAY response",
+          "description": "",
+          "hits": 70,
+          "goal": 1
+        },
+        "write_error": {
+          "name": "APB write with ERROR response",
+          "description": "",
+          "hits": 12,
+          "goal": 1
+        }
+      },
+      "covered": 4,
+      "total": 4,
+      "coverage_pct": 100.0
+    },
+    "address_alignment": {
+      "description": "Address alignment coverage",
+      "points": {
+        "unaligned": {
+          "name": "Unaligned address",
+          "description": "",
+          "hits": 4,
+          "goal": 1
+        },
+        "halfword": {
+          "name": "Halfword aligned (2-byte)",
+          "description": "",
+          "hits": 4,
+          "goal": 1
+        },
+        "word": {
+          "name": "Word aligned (4-byte)",
+          "description": "",
+          "hits": 6,
+          "goal": 1
+        },
+        "dword": {
+          "name": "Doubleword aligned (8-byte)",
+          "description": "",
+          "hits": 6,
+          "goal": 1
+        },
+        "qword": {
+          "name": "Quadword aligned (16-byte)",
+          "description": "",
+          "hits": 6,
+          "goal": 1
+        },
+        "cache_line": {
+          "name": "Cache line aligned (64-byte)",
+          "description": "",
+          "hits": 544,
+          "goal": 1
+        }
+      },
+      "covered": 6,
+      "total": 6,
+      "coverage_pct": 100.0
+    },
+    "handshakes": {
+      "description": "Valid/Ready interface coverage",
+      "points": {
+        "desc_valid_ready": {
+          "name": "Descriptor valid/ready handshake",
+          "description": "",
+          "hits": 18,
+          "goal": 1
+        },
+        "desc_done": {
+          "name": "Descriptor done signal",
+          "description": "",
+          "hits": 20,
+          "goal": 1
+        },
+        "network_tx_valid_ready": {
+          "name": "Network TX valid/ready",
+          "description": "",
+          "hits": 6,
+          "goal": 1
+        },
+        "network_rx_valid_ready": {
+          "name": "Network RX valid/ready",
+          "description": "",
+          "hits": 6,
+          "goal": 1
+        },
+        "mem_cmd_valid_ready": {
+          "name": "Memory command valid/ready",
+          "description": "",
+          "hits": 10,
+          "goal": 1
+        },
+        "mem_data_valid_ready": {
+          "name": "Memory data valid/ready",
+          "description": "",
+          "hits": 12,
+          "goal": 1
+        },
+        "scheduler_to_read_engine": {
+          "name": "Scheduler to read engine handshake",
+          "description": "",
+          "hits": 6,
+          "goal": 1
+        },
+        "scheduler_to_write_engine": {
+          "name": "Scheduler to write engine handshake",
+          "description": "",
+          "hits": 6,
+          "goal": 1
+        },
+        "read_engine_complete": {
+          "name": "Read engine completion",
+          "description": "",
+          "hits": 6,
+          "goal": 1
+        },
+        "write_engine_complete": {
+          "name": "Write engine completion",
+          "description": "",
+          "hits": 8,
+          "goal": 1
+        },
+        "backpressure_stall": {
+          "name": "Backpressure causing stall",
+          "description": "",
+          "hits": 10,
+          "goal": 1
+        },
+        "pipeline_bubble": {
+          "name": "Pipeline bubble (valid low)",
+          "description": "",
+          "hits": 8,
+          "goal": 1
+        },
+        "DescriptorMaster_tx_handshake": {
+          "name": "DescriptorMaster_tx_handshake",
+          "description": "",
+          "hits": 168,
+          "goal": 1
+        },
+        "write_engine_error": {
+          "name": "write_engine_error",
+          "description": "",
+          "hits": 2,
+          "goal": 1
+        }
+      },
+      "covered": 14,
+      "total": 14,
+      "coverage_pct": 100.0
+    },
+    "scenarios": {
+      "description": "Functional scenarios",
+      "points": {
+        "single_desc": {
+          "name": "Single descriptor operation",
+          "description": "",
+          "hits": 10,
+          "goal": 1
+        },
+        "chained_desc": {
+          "name": "Chained descriptor operation",
+          "description": "",
+          "hits": 6,
+          "goal": 1
+        },
+        "concurrent_rw": {
+          "name": "Concurrent read and write",
+          "description": "",
+          "hits": 6,
+          "goal": 1
+        },
+        "back_to_back": {
+          "name": "Back-to-back transactions",
+          "description": "",
+          "hits": 10,
+          "goal": 1
+        },
+        "error_handling": {
+          "name": "Error injection and handling",
+          "description": "",
+          "hits": 14,
+          "goal": 1
+        },
+        "timeout_recovery": {
+          "name": "Timeout detection and recovery",
+          "description": "",
+          "hits": 6,
+          "goal": 1
+        },
+        "full_pipeline": {
+          "name": "Full pipeline active",
+          "description": "",
+          "hits": 6,
+          "goal": 1
+        },
+        "backpressure": {
+          "name": "Backpressure handling",
+          "description": "",
+          "hits": 10,
+          "goal": 1
+        },
+        "max_outstanding": {
+          "name": "Maximum outstanding transactions",
+          "description": "",
+          "hits": 6,
+          "goal": 1
+        },
+        "empty_desc": {
+          "name": "Empty descriptor handling",
+          "description": "",
+          "hits": 6,
+          "goal": 1
+        },
+        "wrap_burst": {
+          "name": "WRAP burst boundary handling",
+          "description": "",
+          "hits": 6,
+          "goal": 1
+        },
+        "narrow_transfer": {
+          "name": "Narrow transfer (strobe != all 1s)",
+          "description": "",
+          "hits": 6,
+          "goal": 1
+        },
+        "stress-random": {
+          "name": "stress-random",
+          "description": "",
+          "hits": 2,
+          "goal": 1
+        },
+        "varying-lengths": {
+          "name": "varying-lengths",
+          "description": "",
+          "hits": 2,
+          "goal": 1
+        },
+        "rapid-descriptors": {
+          "name": "rapid-descriptors",
+          "description": "",
+          "hits": 2,
+          "goal": 1
+        },
+        "full-protocol-coverage": {
+          "name": "full-protocol-coverage",
+          "description": "",
+          "hits": 2,
+          "goal": 1
+        },
+        "channel-reset": {
+          "name": "channel-reset",
+          "description": "",
+          "hits": 2,
+          "goal": 1
+        },
+        "concurrent-read-write": {
+          "name": "concurrent-read-write",
+          "description": "",
+          "hits": 2,
+          "goal": 1
+        },
+        "backpressure-stress": {
+          "name": "backpressure-stress",
+          "description": "",
+          "hits": 2,
+          "goal": 1
+        },
+        "descriptor-error": {
+          "name": "descriptor-error",
+          "description": "",
+          "hits": 2,
+          "goal": 1
+        },
+        "read-engine-error": {
+          "name": "read-engine-error",
+          "description": "",
+          "hits": 2,
+          "goal": 1
+        },
+        "descriptor-chaining": {
+          "name": "descriptor-chaining",
+          "description": "",
+          "hits": 2,
+          "goal": 1
+        },
+        "basic-flow": {
+          "name": "basic-flow",
+          "description": "",
+          "hits": 2,
+          "goal": 1
+        },
+        "timeout-detection": {
+          "name": "timeout-detection",
+          "description": "",
+          "hits": 2,
+          "goal": 1
+        },
+        "true-chaining": {
+          "name": "true-chaining",
+          "description": "",
+          "hits": 2,
+          "goal": 1
+        },
+        "descriptor_chaining": {
+          "name": "descriptor_chaining",
+          "description": "",
+          "hits": 2,
+          "goal": 1
+        },
+        "write-engine-error": {
+          "name": "write-engine-error",
+          "description": "",
+          "hits": 2,
+          "goal": 1
+        },
+        "irq-generation": {
+          "name": "irq-generation",
+          "description": "",
+          "hits": 2,
+          "goal": 1
+        },
+        "beats-feedback": {
+          "name": "beats-feedback",
+          "description": "",
+          "hits": 2,
+          "goal": 1
+        },
+        "monbus-packet": {
+          "name": "monbus-packet",
+          "description": "",
+          "hits": 2,
+          "goal": 1
+        }
+      },
+      "covered": 30,
+      "total": 30,
+      "coverage_pct": 100.0
+    },
+    "burst_type_x_size": {
+      "description": "Cross: burst type x burst size",
+      "points": {
+        "FIXED_size1": {
+          "name": "FIXED burst with 1-byte size",
+          "description": "",
+          "hits": 8,
+          "goal": 1
+        },
+        "FIXED_size2": {
+          "name": "FIXED burst with 2-byte size",
+          "description": "",
+          "hits": 8,
+          "goal": 1
+        },
+        "FIXED_size4": {
+          "name": "FIXED burst with 4-byte size",
+          "description": "",
+          "hits": 8,
+          "goal": 1
+        },
+        "FIXED_size8": {
+          "name": "FIXED burst with 8-byte size",
+          "description": "",
+          "hits": 8,
+          "goal": 1
+        },
+        "INCR_size1": {
+          "name": "INCR burst with 1-byte size",
+          "description": "",
+          "hits": 16,
+          "goal": 1
+        },
+        "INCR_size2": {
+          "name": "INCR burst with 2-byte size",
+          "description": "",
+          "hits": 16,
+          "goal": 1
+        },
+        "INCR_size4": {
+          "name": "INCR burst with 4-byte size",
+          "description": "",
+          "hits": 16,
+          "goal": 1
+        },
+        "INCR_size8": {
+          "name": "INCR burst with 8-byte size",
+          "description": "",
+          "hits": 16,
+          "goal": 1
+        },
+        "WRAP_size1": {
+          "name": "WRAP burst with 1-byte size",
+          "description": "",
+          "hits": 8,
+          "goal": 1
+        },
+        "WRAP_size2": {
+          "name": "WRAP burst with 2-byte size",
+          "description": "",
+          "hits": 8,
+          "goal": 1
+        },
+        "WRAP_size4": {
+          "name": "WRAP burst with 4-byte size",
+          "description": "",
+          "hits": 8,
+          "goal": 1
+        },
+        "WRAP_size8": {
+          "name": "WRAP burst with 8-byte size",
+          "description": "",
+          "hits": 8,
+          "goal": 1
+        }
+      },
+      "covered": 12,
+      "total": 12,
+      "coverage_pct": 100.0
+    }
+  },
+  "code_coverage": {
+    "line": {
+      "covered": 330,
+      "total": 726
+    },
+    "toggle": {
+      "covered": 8381,
+      "total": 62666
+    },
+    "branch": {
+      "covered": 2036,
+      "total": 2762
+    }
+  },
+  "overall": {
+    "protocol_pct": 21.690226815708233,
+    "line_pct": 45.0,
+    "toggle_pct": 15.491088075173396
+  }
+}

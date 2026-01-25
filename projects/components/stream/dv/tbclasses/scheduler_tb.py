@@ -430,8 +430,15 @@ class SchedulerTB(TBBase):
     # =========================================================================
 
     async def test_basic_descriptor_flow(self, num_descriptors=5):
-        """Test basic descriptor processing flow"""
-        self.log.info(f"=== Testing Basic Descriptor Flow: {num_descriptors} descriptors ===")
+        """Test basic descriptor processing flow
+
+        Covers testplan scenarios:
+        - SCHED-01: Basic descriptor flow
+        - SCHED-08: FSM state transitions
+        """
+        self.log.info("=== Scenario SCHED-01: Basic descriptor flow ===")
+        self.log.info("=== Scenario SCHED-08: FSM state transitions ===")
+        self.log.info(f"  Testing {num_descriptors} descriptors")
 
         completed = 0
 
@@ -460,13 +467,16 @@ class SchedulerTB(TBBase):
     async def test_descriptor_chaining(self, chain_length=3):
         """Test sequential descriptor processing (NOT true chaining - that's integration test)
 
+        Covers testplan scenario: SCHED-02: Descriptor chaining
+
         NOTE: This tests the scheduler's ability to process multiple independent
         descriptors sequentially. True autonomous descriptor chaining (where the
         descriptor engine follows next_descriptor_ptr) is tested at integration level.
 
         For FUB-level scheduler test, we mark all descriptors as independent (last=True).
         """
-        self.log.info(f"=== Testing Sequential Descriptor Processing: {chain_length} descriptors ===")
+        self.log.info("=== Scenario SCHED-02: Descriptor chaining ===")
+        self.log.info(f"  Sequential processing of {chain_length} descriptors")
 
         completed = 0
 
@@ -507,8 +517,11 @@ class SchedulerTB(TBBase):
     # =========================================================================
 
     async def test_descriptor_error(self):
-        """Test descriptor error handling - exercises multiple error paths"""
-        self.log.info("=== Testing Descriptor Error Handling ===")
+        """Test descriptor error handling - exercises multiple error paths
+
+        Covers testplan scenarios: SCHED-03, SCHED-04 (partial)
+        """
+        self.log.info("=== Scenario SCHED-03/04: Descriptor error handling ===")
 
         error_tests_passed = 0
 
@@ -561,8 +574,11 @@ class SchedulerTB(TBBase):
         return result
 
     async def test_read_engine_error(self):
-        """Test read engine error handling"""
-        self.log.info("=== Testing Read Engine Error ===")
+        """Test read engine error handling
+
+        Covers testplan scenario: SCHED-03: Read engine error handling
+        """
+        self.log.info("=== Scenario SCHED-03: Read engine error handling ===")
 
         descriptor = self.create_descriptor(
             src_addr=0x50000,
@@ -589,8 +605,11 @@ class SchedulerTB(TBBase):
             return False
 
     async def test_timeout_detection(self):
-        """Test timeout detection"""
-        self.log.info("=== Testing Timeout Detection ===")
+        """Test timeout detection
+
+        Covers testplan scenario: SCHED-05: Timeout detection
+        """
+        self.log.info("=== Scenario SCHED-05: Timeout detection ===")
 
         # CRITICAL: Reconfigure timeout to short value for this test
         # (Default was set to 65535 in configure_scheduler to disable for other tests)
@@ -656,9 +675,11 @@ class SchedulerTB(TBBase):
     async def test_irq_generation(self, num_descriptors=3):
         """Test IRQ generation via MonBus
 
+        Covers testplan scenario: SCHED-06: IRQ generation via MonBus
+
         Send descriptors with gen_irq flag and verify STREAM_EVENT_IRQ appears on MonBus.
         """
-        self.log.info("=== Testing IRQ Generation via MonBus ===")
+        self.log.info("=== Scenario SCHED-06: IRQ generation via MonBus ===")
 
         # STREAM_EVENT_IRQ = 0x7 (from stream_pkg.sv)
         STREAM_EVENT_IRQ = 0x7
@@ -742,14 +763,16 @@ class SchedulerTB(TBBase):
     async def test_concurrent_read_write(self, num_descriptors=5):
         """Test concurrent read/write operation in XFER_DATA state
 
+        Covers testplan scenario: SCHED-07: Concurrent read/write
+
         This validates the deadlock fix: scheduler should enter XFER_DATA and
         both sched_rd_valid and sched_wr_valid should be high simultaneously.
 
         Tests that the scheduler doesn't get stuck when transfer size exceeds
         SRAM buffer capacity (the original deadlock bug scenario).
         """
-        self.log.info("=== Testing Concurrent Read/Write Operation ===")
-        self.log.info("Validating XFER_DATA state with concurrent sched_rd/sched_wr activity")
+        self.log.info("=== Scenario SCHED-07: Concurrent read/write ===")
+        self.log.info("  Validating XFER_DATA state with concurrent sched_rd/sched_wr activity")
 
         xfer_state_count = 0
         concurrent_valid_count = 0
@@ -901,6 +924,8 @@ class SchedulerTB(TBBase):
         Returns:
             True if test passed
         """
+        self.log.info("=== Scenario SCHED-09: Backpressure from read engine ===")
+        self.log.info("=== Scenario SCHED-10: Backpressure from write engine ===")
         self.log.info(f"=== Backpressure Stress Test: {num_descriptors} descriptors ===")
 
         completed = 0
@@ -979,12 +1004,14 @@ class SchedulerTB(TBBase):
     async def test_channel_reset(self):
         """Test channel reset functionality
 
+        Covers testplan scenario: SCHED-11: Reset during active transfer
+
         Exercises the cfg_channel_reset path which is often uncovered.
 
         Returns:
             True if reset was handled correctly
         """
-        self.log.info("=== Testing Channel Reset ===")
+        self.log.info("=== Scenario SCHED-11: Reset during active transfer ===")
 
         # Send a descriptor to start activity
         descriptor = self.create_descriptor(
@@ -1140,13 +1167,15 @@ class SchedulerTB(TBBase):
     async def test_write_engine_error(self):
         """Test write engine error handling - exercises sched_wr_error path
 
+        Covers testplan scenario: SCHED-04: Write engine error handling
+
         Injects sched_wr_error signal to exercise the write error sticky
         and error state machine paths.
 
         Returns:
             True if write error was handled correctly
         """
-        self.log.info("=== Testing Write Engine Error Handling ===")
+        self.log.info("=== Scenario SCHED-04: Write engine error handling ===")
 
         # Send a normal descriptor first
         descriptor = self.create_descriptor(

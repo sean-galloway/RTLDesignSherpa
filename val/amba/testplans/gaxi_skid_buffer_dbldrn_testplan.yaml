@@ -1,0 +1,339 @@
+module: gaxi_skid_buffer_dbldrn
+rtl_file: rtl/amba/gaxi/gaxi_skid_buffer_dbldrn.sv
+test_file: val/amba/test_gaxi_skid_buffer_dbldrn.py
+tb_class: bin/CocoTBFramework/tbclasses/gaxi/gaxi_buffer_dbldrn.py
+parameters:
+- name: DATA_WIDTH
+  default: 32
+  description: Payload width in bits
+- name: DEPTH
+  default: 4
+  description: Buffer depth (must be one of 2, 4, 6, 8)
+- name: INSTANCE_NAME
+  default: DBLDRN
+  description: Debug identifier string
+functional_scenarios:
+- id: DBLDRN-01
+  name: Single drain basic
+  description: Standard single-item drain (rd_ready=1, rd_ready2=0)
+  test_function: test_single_drain
+  covers_lines:
+  - 60
+  - 74
+  - 75
+  - 76
+  priority: high
+  status: verified
+- id: DBLDRN-02
+  name: Double drain basic
+  description: Double-item drain (rd_ready=1, rd_ready2=1, count>=2)
+  test_function: test_double_drain
+  covers_lines:
+  - 61
+  - 78
+  - 79
+  - 80
+  priority: high
+  status: verified
+- id: DBLDRN-03
+  name: Count decrement single
+  description: Verify count decrements by 1 for single drain
+  test_function: test_count_single_decrement
+  covers_lines:
+  - 76
+  priority: high
+  status: verified
+- id: DBLDRN-04
+  name: Count decrement double
+  description: Verify count decrements by 2 for double drain
+  test_function: test_count_double_decrement
+  covers_lines:
+  - 80
+  priority: high
+  status: verified
+- id: DBLDRN-05
+  name: rd_data2 correctness
+  description: Verify rd_data2 outputs second item correctly
+  test_function: test_rd_data2_correctness
+  covers_lines:
+  - 119
+  priority: high
+  status: verified
+- id: DBLDRN-06
+  name: Mixed drain patterns
+  description: Alternating single and double drains
+  test_function: test_mixed_drain_patterns
+  covers_lines:
+  - 74
+  - 75
+  - 76
+  - 78
+  - 79
+  - 80
+  priority: high
+  status: verified
+- id: DBLDRN-07
+  name: Write + single drain
+  description: Simultaneous write and single read
+  test_function: test_write_plus_single_drain
+  covers_lines:
+  - 82
+  - 83
+  - 84
+  - 85
+  priority: high
+  status: verified
+- id: DBLDRN-08
+  name: Write + double drain
+  description: Simultaneous write and double read
+  test_function: test_write_plus_double_drain
+  covers_lines:
+  - 87
+  - 88
+  - 89
+  - 90
+  priority: high
+  status: verified
+- id: DBLDRN-09
+  name: Full buffer double drain
+  description: Double drain from full buffer
+  test_function: test_full_buffer_double_drain
+  covers_lines:
+  - 78
+  - 79
+  - 80
+  - 106
+  - 107
+  - 108
+  priority: high
+  status: verified
+- id: DBLDRN-10
+  name: Back-to-back double drain
+  description: Consecutive double drains without idle
+  test_function: test_back_to_back_double_drain
+  covers_lines:
+  - 61
+  - 78
+  - 79
+  - 80
+  priority: high
+  status: verified
+- id: DBLDRN-11
+  name: Random stress test
+  description: Random mix of writes, single drains, and double drains
+  test_function: test_random_stress
+  covers_lines:
+  - 70
+  - 71
+  - 72
+  - 74
+  - 75
+  - 76
+  - 78
+  - 79
+  - 80
+  - 82
+  - 83
+  - 84
+  - 87
+  - 88
+  - 89
+  - 90
+  priority: medium
+  status: verified
+- id: DBLDRN-12
+  name: Write only
+  description: Fill buffer without draining
+  test_function: test_write_only
+  covers_lines:
+  - 70
+  - 71
+  - 72
+  priority: high
+  status: verified
+- id: DBLDRN-13
+  name: Passthrough
+  description: rd_ready always high - verify passthrough behavior
+  test_function: test_passthrough
+  covers_lines:
+  - 60
+  - 74
+  - 118
+  priority: high
+  status: verified
+- id: DBLDRN-14
+  name: Reset behavior
+  description: Reset clears buffer and count
+  test_function: test_reset_behavior
+  covers_lines:
+  - 64
+  - 65
+  - 66
+  - 101
+  - 102
+  - 103
+  priority: high
+  status: verified
+- id: DBLDRN-15
+  name: Illegal rd_ready2 assertion
+  description: Verify assertion fires when rd_ready2 asserted with count < 2
+  test_function: test_illegal_rd_ready2
+  covers_lines:
+  - 132
+  - 133
+  - 134
+  priority: high
+  status: verified
+- id: DBLDRN-16
+  name: Wide data
+  description: DATA_WIDTH=64 verification
+  test_function: test_wide_data
+  covers_lines:
+  - 118
+  - 119
+  priority: medium
+  status: verified
+- id: DBLDRN-17
+  name: Depth configurations
+  description: Test different DEPTH values (4, 6, 8)
+  test_function: test_depth_configs
+  covers_lines:
+  - 70
+  - 71
+  - 72
+  - 78
+  - 79
+  - 80
+  priority: medium
+  status: verified
+- id: DBLDRN-18
+  name: rd_valid correctness
+  description: Verify rd_valid reflects available data
+  test_function: test_rd_valid_correctness
+  covers_lines:
+  - 111
+  - 112
+  - 113
+  priority: high
+  status: verified
+- id: DBLDRN-19
+  name: wr_ready correctness
+  description: Verify wr_ready reflects available space
+  test_function: test_wr_ready_correctness
+  covers_lines:
+  - 106
+  - 107
+  - 108
+  priority: high
+  status: verified
+- id: DBLDRN-20
+  name: Data integrity
+  description: Verify data unchanged through buffer
+  test_function: test_data_integrity
+  covers_lines:
+  - 71
+  - 84
+  - 89
+  - 118
+  - 119
+  priority: high
+  status: verified
+parameter_coverage:
+- DATA_WIDTH: 8
+  DEPTH: 4
+  test_level: basic
+  status: verified
+- DATA_WIDTH: 32
+  DEPTH: 4
+  test_level: basic
+  status: verified
+- DATA_WIDTH: 8
+  DEPTH: 4
+  test_level: medium
+  status: verified
+- DATA_WIDTH: 32
+  DEPTH: 4
+  test_level: medium
+  status: verified
+- DATA_WIDTH: 8
+  DEPTH: 4
+  test_level: full
+  status: verified
+- DATA_WIDTH: 16
+  DEPTH: 4
+  test_level: full
+  status: verified
+- DATA_WIDTH: 32
+  DEPTH: 4
+  test_level: full
+  status: verified
+- DATA_WIDTH: 64
+  DEPTH: 4
+  test_level: full
+  status: verified
+- DATA_WIDTH: 8
+  DEPTH: 6
+  test_level: full
+  status: verified
+- DATA_WIDTH: 16
+  DEPTH: 6
+  test_level: full
+  status: verified
+- DATA_WIDTH: 32
+  DEPTH: 6
+  test_level: full
+  status: verified
+- DATA_WIDTH: 64
+  DEPTH: 6
+  test_level: full
+  status: verified
+- DATA_WIDTH: 8
+  DEPTH: 8
+  test_level: full
+  status: verified
+- DATA_WIDTH: 16
+  DEPTH: 8
+  test_level: full
+  status: verified
+- DATA_WIDTH: 32
+  DEPTH: 8
+  test_level: full
+  status: verified
+- DATA_WIDTH: 64
+  DEPTH: 8
+  test_level: full
+  status: verified
+notes: |
+  gaxi_skid_buffer_dbldrn extends the standard skid buffer with double-drain
+  capability. When rd_ready2 is asserted (only legal when rd_count >= 2),
+  two items are drained simultaneously via rd_data and rd_data2.
+
+  Architecture:
+    wr_valid/wr_ready/wr_data -> [BUFFER] -> rd_valid/rd_ready/rd_data
+                                         -> rd_ready2/rd_data2 (double drain)
+                                   |
+                                 count (fill level)
+
+  Key features:
+  - Double-drain capability for high-throughput scenarios
+  - rd_data outputs first item (lowest position)
+  - rd_data2 outputs second item (next position)
+  - Single drain: count -= 1
+  - Double drain: count -= 2
+  - Write + single drain: count unchanged
+  - Write + double drain: count -= 1
+
+  Protocol rules:
+  - rd_ready2 ONLY legal when rd_count >= 2
+  - Simulation assertion catches illegal rd_ready2 usage
+  - rd_ready=1, rd_ready2=0: Single drain
+  - rd_ready=1, rd_ready2=1, count>=2: Double drain
+
+  Critical paths verified:
+  - Single drain (standard operation)
+  - Double drain (enhanced throughput)
+  - Simultaneous write + single/double drain
+  - Full/empty conditions
+  - Data integrity for both outputs
+  - Reset behavior
+  - Protocol assertion checking

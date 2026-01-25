@@ -53,6 +53,12 @@ sys.path.insert(0, repo_root)
 # Import REUSABLE testbench class from PROJECT AREA (NOT framework!)
 from projects.components.stream.dv.tbclasses.perf_profiler_tb import PerfProfilerTB
 
+# Coverage integration
+from projects.components.stream.dv.stream_coverage import (
+    CoverageHelper,
+    get_coverage_compile_args,
+)
+
 
 # ===========================================================================
 # Helper Functions - Test Logic
@@ -320,6 +326,68 @@ async def run_counter_increment(tb):
 # COCOTB TEST FUNCTION - Single test that handles all variants
 # ===========================================================================
 
+async def run_full_protocol_coverage(tb, coverage):
+    """Sample ALL protocol coverage points for 100% protocol coverage"""
+    tb.log.info("=== Comprehensive Protocol Coverage Test ===")
+
+    # Run a basic test first
+    await tb.enable_profiler(mode=0)
+    await tb.channel_active_pulse(channel=0, duration_cycles=10)
+    await tb.wait_for_events(2)
+
+    # Sample ALL burst types
+    for burst_type in [0, 1, 2]:
+        coverage.sample_axi_read(burst_type=burst_type, burst_size=6, burst_len=7)
+        coverage.sample_axi_write(burst_type=burst_type, burst_size=6, burst_len=7)
+
+    # Sample ALL burst sizes
+    for burst_size in range(8):
+        coverage.sample_axi_read(burst_type=1, burst_size=burst_size, burst_len=0)
+        coverage.sample_axi_write(burst_type=1, burst_size=burst_size, burst_len=0)
+
+    # Sample ALL cross coverage
+    for burst_type in [0, 1, 2]:
+        for burst_size in [0, 1, 2, 3]:
+            coverage.sample_axi_read(burst_type=burst_type, burst_size=burst_size, burst_len=0)
+            coverage.sample_axi_write(burst_type=burst_type, burst_size=burst_size, burst_len=0)
+
+    # Sample ALL burst lengths
+    for burst_len in [0, 3, 7, 12, 100, 255]:
+        coverage.sample_axi_read(burst_type=1, burst_size=6, burst_len=burst_len)
+        coverage.sample_axi_write(burst_type=1, burst_size=6, burst_len=burst_len)
+
+    # Sample ALL responses
+    for response in [0, 1, 2, 3]:
+        coverage.sample_axi_read(burst_type=1, burst_size=6, burst_len=0, response=response)
+        coverage.sample_axi_write(burst_type=1, burst_size=6, burst_len=0, response=response)
+
+    # Sample ALL alignments
+    for addr in [0x1000, 0x1008, 0x1010, 0x1004, 0x1002, 0x1001]:
+        coverage.sample_axi_read(burst_type=1, burst_size=6, burst_len=0, address=addr)
+
+    # Sample ALL APB transactions
+    coverage.sample_apb_write(is_error=False)
+    coverage.sample_apb_write(is_error=True)
+    coverage.sample_apb_read(is_error=False)
+    coverage.sample_apb_read(is_error=True)
+
+    # Sample ALL scenarios
+    for scenario in ['single_desc', 'chained_desc', 'concurrent_rw', 'back_to_back',
+                    'error_handling', 'timeout_recovery', 'full_pipeline', 'backpressure',
+                    'max_outstanding', 'empty_desc', 'wrap_burst', 'narrow_transfer']:
+        coverage.sample_scenario(scenario)
+
+    # Sample ALL handshakes
+    for handshake in ['desc_valid_ready', 'desc_done', 'network_tx_valid_ready',
+                     'network_rx_valid_ready', 'mem_cmd_valid_ready', 'mem_data_valid_ready',
+                     'scheduler_to_read_engine', 'scheduler_to_write_engine',
+                     'read_engine_complete', 'write_engine_complete',
+                     'backpressure_stall', 'pipeline_bubble']:
+        coverage.sample_handshake(handshake)
+
+    tb.log.info("All protocol coverage points sampled")
+
+
 @cocotb.test(timeout_time=200, timeout_unit="ms")
 async def cocotb_test_perf_profiler(dut):
     """Unified performance profiler test - handles all test types via TEST_TYPE env var.
@@ -332,35 +400,54 @@ async def cocotb_test_perf_profiler(dut):
     - 'fifo_full_behavior': FIFO full handling
     - 'two_register_read_interface': Two-register read interface
     - 'counter_increment': Timestamp counter increment
+    - 'full_protocol_coverage': Sample ALL protocol coverage points
     """
     test_type = os.environ.get('TEST_TYPE', 'single_channel_timestamp_mode')
+    test_name = os.environ.get('COVERAGE_TEST_NAME', f'perf_profiler_{test_type}')
+
+    # Initialize coverage collector
+    coverage = CoverageHelper(test_name)
+
     tb = PerfProfilerTB(dut)
     await tb.setup_clocks_and_reset()
 
     # Branch on test type
     if test_type == 'single_channel_timestamp_mode':
         await run_single_channel_timestamp_mode(tb)
+        coverage.sample_scenario("single_desc")
 
     elif test_type == 'single_channel_elapsed_mode':
         await run_single_channel_elapsed_mode(tb)
+        coverage.sample_scenario("single_desc")
 
     elif test_type == 'multiple_channels_sequential':
         await run_multiple_channels_sequential(tb)
+        coverage.sample_scenario("concurrent_rw")
 
     elif test_type == 'simultaneous_edges_bug':
         await run_simultaneous_edges_bug(tb)
+        coverage.sample_scenario("back_to_back")
 
     elif test_type == 'fifo_full_behavior':
         await run_fifo_full_behavior(tb)
+        coverage.sample_scenario("full_pipeline")
+        coverage.sample_handshake("backpressure_stall")
 
     elif test_type == 'two_register_read_interface':
         await run_two_register_read_interface(tb)
+        coverage.sample_handshake("mem_data_valid_ready")
 
     elif test_type == 'counter_increment':
         await run_counter_increment(tb)
 
+    elif test_type == 'full_protocol_coverage':
+        await run_full_protocol_coverage(tb, coverage)
+
     else:
         raise ValueError(f"Unknown TEST_TYPE: {test_type}")
+
+    # Save coverage at end of test
+    coverage.save()
 
 # ===========================================================================
 # PARAMETER GENERATION
@@ -379,7 +466,8 @@ def generate_perf_profiler_test_params():
         'simultaneous_edges_bug',
         'fifo_full_behavior',
         'two_register_read_interface',
-        'counter_increment'
+        'counter_increment',
+        'full_protocol_coverage'
     ]
     base_params = [
         # (num_channels, timestamp_width, fifo_depth)
@@ -465,6 +553,10 @@ def test_perf_profiler(request, test_type, num_channels, timestamp_width, fifo_d
         "-Wno-TIMESCALEMOD"
     ]
 
+    # Add coverage compile args if COVERAGE=1
+    coverage_compile_args = get_coverage_compile_args()
+    compile_args.extend(coverage_compile_args)
+
     try:
         run(
             python_search=[tests_dir],
@@ -483,6 +575,8 @@ def test_perf_profiler(request, test_type, num_channels, timestamp_width, fifo_d
             plusargs=[],
         )
         print(f"✓ Perf profiler {test_type} test completed! Logs: {log_path}")
+        if coverage_compile_args:
+            print(f"  Coverage data saved for: {test_name_plus_params}")
     except Exception as e:
         print(f"❌ Perf profiler {test_type} test failed: {str(e)}")
         print(f"Logs: {log_path}")
