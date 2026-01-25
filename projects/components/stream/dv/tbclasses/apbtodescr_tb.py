@@ -254,13 +254,16 @@ class APBToDescrTB(TBBase):
     async def test_basic_write(self, channel):
         """Test basic write to a single channel (TWO-WRITE SEQUENCE for 64-bit address)
 
+        Covers testplan scenario: APB2DESC-01: Basic all channels
+
         Args:
             channel: Channel ID (0-7)
 
         Returns:
             True if test passed
         """
-        self.log.info(f"Testing basic write to channel {channel}")
+        self.log.info("=== Scenario APB2DESC-01: Basic all channels ===")
+        self.log.info(f"  Testing basic write to channel {channel}")
 
         # NEW: Two-write sequence for 64-bit descriptor address
         # Address spacing: 8 bytes per channel (LOW at +0, HIGH at +4)
@@ -308,6 +311,10 @@ class APBToDescrTB(TBBase):
     async def test_backpressure(self, channel, stall_cycles):
         """Test write with descriptor engine back-pressure (TWO-WRITE SEQUENCE)
 
+        Covers testplan scenarios:
+        - APB2DESC-02: Backpressure single channel
+        - APB2DESC-03: Backpressure multiple channels
+
         Args:
             channel: Channel ID (0-7)
             stall_cycles: Number of cycles to stall
@@ -315,7 +322,8 @@ class APBToDescrTB(TBBase):
         Returns:
             True if test passed
         """
-        self.log.info(f"Testing back-pressure on channel {channel} ({stall_cycles} cycles)")
+        self.log.info("=== Scenario APB2DESC-02/03: Backpressure handling ===")
+        self.log.info(f"  Testing back-pressure on channel {channel} ({stall_cycles} cycles)")
 
         # NEW: Two-write sequence for 64-bit descriptor address
         addr_low = channel * 8
@@ -382,10 +390,13 @@ class APBToDescrTB(TBBase):
     async def test_out_of_range(self):
         """Test write to out-of-range address (should error)
 
+        Covers testplan scenario: APB2DESC-04: Error handling
+
         Returns:
             True if test passed
         """
-        self.log.info("Testing out-of-range address")
+        self.log.info("=== Scenario APB2DESC-04: Error handling (out-of-range) ===")
+        self.log.info("  Testing out-of-range address")
 
         # Try address beyond last channel (0x100 is beyond 0x1C)
         addr = 0x100  # Way beyond CH7
@@ -408,10 +419,13 @@ class APBToDescrTB(TBBase):
     async def test_read_error(self):
         """Test read request (should return error)
 
+        Covers testplan scenario: APB2DESC-04: Error handling
+
         Returns:
             True if test passed
         """
-        self.log.info("Testing read request (not supported)")
+        self.log.info("=== Scenario APB2DESC-04: Error handling (read request) ===")
+        self.log.info("  Testing read request (not supported)")
 
         addr = 0x00  # CH0
 
@@ -576,10 +590,16 @@ class APBToDescrTB(TBBase):
     async def test_all_channels(self):
         """Test writes to all 8 channels sequentially
 
+        Covers testplan scenarios:
+        - APB2DESC-05: Rapid fire writes
+        - APB2DESC-06: Address decode verification
+        - APB2DESC-07: Response muxing
+
         Returns:
             True if all passed
         """
-        self.log.info("Testing all channels sequentially")
+        self.log.info("=== Scenario APB2DESC-05/06/07: All channels test ===")
+        self.log.info("  Testing all channels sequentially")
 
         for ch in range(self.NUM_CHANNELS):
             if not await self.test_basic_write(ch):

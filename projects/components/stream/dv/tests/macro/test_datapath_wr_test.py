@@ -606,38 +606,56 @@ def generate_params():
         timing_profiles = ['fixed']
         test_types = ['basic']  # Only basic test for smoke
     elif reg_level == 'FUNC':
-        # Functional coverage: 128/256/512-bit × PIPELINE=0/1 × 2 timing profiles × basic test only
+        # Functional coverage: 128/256/512-bit × 1/4/8 channels × PIPELINE=0/1 × 2 timing profiles × basic test only
         base_params = [
             # 128-bit data width (16 bytes per beat, 256 beats/ch = 4KB/ch)
             (128, 1, calc_sram_depth(128, 1), 'basic', 0, 16),  # 1 ch, no-pipe, 256B
             (128, 1, calc_sram_depth(128, 1), 'basic', 1, 16),  # 1 ch, pipe, 256B
+            (128, 4, calc_sram_depth(128, 4), 'basic', 1, 16),  # 4 ch, pipe, 256B
+            (128, 8, calc_sram_depth(128, 8), 'basic', 1, 16),  # 8 ch, pipe, 256B - exercises channels 4-7
             # 256-bit data width (32 bytes per beat, 256 beats/ch = 8KB/ch)
             (256, 1, calc_sram_depth(256, 1), 'basic', 0, 8),   # 1 ch, no-pipe, 256B
             (256, 1, calc_sram_depth(256, 1), 'basic', 1, 8),   # 1 ch, pipe, 256B
+            (256, 4, calc_sram_depth(256, 4), 'basic', 1, 8),   # 4 ch, pipe, 256B
+            (256, 8, calc_sram_depth(256, 8), 'basic', 1, 8),   # 8 ch, pipe, 256B - exercises channels 4-7
             # 512-bit data width (64 bytes per beat, 256 beats/ch = 16KB/ch)
             (512, 1, calc_sram_depth(512, 1), 'basic', 0, 4),   # 1 ch, no-pipe, 256B
             (512, 1, calc_sram_depth(512, 1), 'basic', 1, 4),   # 1 ch, pipe, 256B
+            (512, 4, calc_sram_depth(512, 4), 'basic', 1, 4),   # 4 ch, pipe, 256B
+            (512, 8, calc_sram_depth(512, 8), 'basic', 1, 4),   # 8 ch, pipe, 256B - exercises channels 4-7
         ]
         timing_profiles = ['fixed', 'fast']  # 2 profiles
         test_types = ['basic']  # Only basic test for functional level
     else:  # FULL
-        # Comprehensive - test all data widths × PIPELINE=0/1 × varying xfer_beats × 4 timing profiles × 3 test types
+        # Comprehensive - test all data widths × 1/4/8 channels × PIPELINE=0/1 × varying xfer_beats × 4 timing profiles × 3 test types
         base_params = [
             # 128-bit: 1 channel (both pipeline modes)
             (128, 1, calc_sram_depth(128, 1), 'basic', 0, 16),  # 1 ch, no-pipe, 256B
             (128, 1, calc_sram_depth(128, 1), 'basic', 1, 16),  # 1 ch, pipe, 256B
             (128, 1, calc_sram_depth(128, 1), 'basic', 0, 8),   # 1 ch, no-pipe, 128B
             (128, 1, calc_sram_depth(128, 1), 'basic', 1, 8),   # 1 ch, pipe, 128B
+            # 128-bit: 4 and 8 channels
+            (128, 4, calc_sram_depth(128, 4), 'basic', 1, 16),  # 4 ch, pipe, 256B
+            (128, 8, calc_sram_depth(128, 8), 'basic', 1, 16),  # 8 ch, pipe, 256B - exercises channels 4-7
+            (128, 8, calc_sram_depth(128, 8), 'basic', 0, 16),  # 8 ch, no-pipe, 256B
             # 256-bit: 1 channel
             (256, 1, calc_sram_depth(256, 1), 'basic', 0, 8),   # 1 ch, no-pipe, 256B
             (256, 1, calc_sram_depth(256, 1), 'basic', 1, 8),   # 1 ch, pipe, 256B
             (256, 1, calc_sram_depth(256, 1), 'basic', 0, 4),   # 1 ch, no-pipe, 128B
             (256, 1, calc_sram_depth(256, 1), 'basic', 1, 4),   # 1 ch, pipe, 128B
+            # 256-bit: 4 and 8 channels
+            (256, 4, calc_sram_depth(256, 4), 'basic', 1, 8),   # 4 ch, pipe, 256B
+            (256, 8, calc_sram_depth(256, 8), 'basic', 1, 8),   # 8 ch, pipe, 256B - exercises channels 4-7
+            (256, 8, calc_sram_depth(256, 8), 'basic', 0, 8),   # 8 ch, no-pipe, 256B
             # 512-bit: 1 channel
             (512, 1, calc_sram_depth(512, 1), 'basic', 0, 4),   # 1 ch, no-pipe, 256B
             (512, 1, calc_sram_depth(512, 1), 'basic', 1, 4),   # 1 ch, pipe, 256B
             (512, 1, calc_sram_depth(512, 1), 'basic', 0, 2),   # 1 ch, no-pipe, 128B
             (512, 1, calc_sram_depth(512, 1), 'basic', 1, 2),   # 1 ch, pipe, 128B
+            # 512-bit: 4 and 8 channels
+            (512, 4, calc_sram_depth(512, 4), 'basic', 1, 4),   # 4 ch, pipe, 256B
+            (512, 8, calc_sram_depth(512, 8), 'basic', 1, 4),   # 8 ch, pipe, 256B - exercises channels 4-7
+            (512, 8, calc_sram_depth(512, 8), 'basic', 0, 4),   # 8 ch, no-pipe, 256B
         ]
         timing_profiles = ['fixed', 'fast', 'constrained', 'slow_producer']  # 4 profiles
         test_types = ['basic', 'nostress', 'per_channel_sequential']  # All test types
@@ -675,21 +693,29 @@ def generate_params():
     # These tests stress multi-channel W-phase FIFO refactoring with back-to-back requests
     # Test format: (test_type, data_width, num_channels, sram_depth, test_level, enable_pipeline, xfer_beats, timing_profile)
     if reg_level == 'FUNC':
-        # FUNC: 2 b2b_multi_channel tests (128/256-bit, 4 channels, fixed timing)
+        # FUNC: 4 b2b_multi_channel tests (128/256-bit, 4/8 channels, fixed timing)
         b2b_params = [
             ('b2b_multi_channel', 128, 4, calc_sram_depth(128, 4), 'basic', 1, 16, 'fixed'),  # 128-bit, 4 ch, pipe
             ('b2b_multi_channel', 256, 4, calc_sram_depth(256, 4), 'basic', 1, 8, 'fixed'),   # 256-bit, 4 ch, pipe
+            ('b2b_multi_channel', 128, 8, calc_sram_depth(128, 8), 'basic', 1, 16, 'fixed'),  # 128-bit, 8 ch, pipe - exercises channels 4-7
+            ('b2b_multi_channel', 256, 8, calc_sram_depth(256, 8), 'basic', 1, 8, 'fixed'),   # 256-bit, 8 ch, pipe - exercises channels 4-7
         ]
         params.extend(b2b_params)
     elif reg_level == 'FULL':
-        # FULL: 6 b2b_multi_channel tests (128/256/512-bit, 4 channels, 2 timing profiles: fixed, fast)
+        # FULL: 12 b2b_multi_channel tests (128/256/512-bit, 4/8 channels, 2 timing profiles: fixed, fast)
         b2b_params = [
             ('b2b_multi_channel', 128, 4, calc_sram_depth(128, 4), 'basic', 1, 16, 'fixed'),  # 128-bit, 4 ch, pipe, fixed
             ('b2b_multi_channel', 128, 4, calc_sram_depth(128, 4), 'basic', 1, 16, 'fast'),   # 128-bit, 4 ch, pipe, fast
+            ('b2b_multi_channel', 128, 8, calc_sram_depth(128, 8), 'basic', 1, 16, 'fixed'),  # 128-bit, 8 ch, pipe, fixed
+            ('b2b_multi_channel', 128, 8, calc_sram_depth(128, 8), 'basic', 1, 16, 'fast'),   # 128-bit, 8 ch, pipe, fast
             ('b2b_multi_channel', 256, 4, calc_sram_depth(256, 4), 'basic', 1, 8, 'fixed'),   # 256-bit, 4 ch, pipe, fixed
             ('b2b_multi_channel', 256, 4, calc_sram_depth(256, 4), 'basic', 1, 8, 'fast'),    # 256-bit, 4 ch, pipe, fast
+            ('b2b_multi_channel', 256, 8, calc_sram_depth(256, 8), 'basic', 1, 8, 'fixed'),   # 256-bit, 8 ch, pipe, fixed
+            ('b2b_multi_channel', 256, 8, calc_sram_depth(256, 8), 'basic', 1, 8, 'fast'),    # 256-bit, 8 ch, pipe, fast
             ('b2b_multi_channel', 512, 4, calc_sram_depth(512, 4), 'basic', 1, 4, 'fixed'),   # 512-bit, 4 ch, pipe, fixed
             ('b2b_multi_channel', 512, 4, calc_sram_depth(512, 4), 'basic', 1, 4, 'fast'),    # 512-bit, 4 ch, pipe, fast
+            ('b2b_multi_channel', 512, 8, calc_sram_depth(512, 8), 'basic', 1, 4, 'fixed'),   # 512-bit, 8 ch, pipe, fixed
+            ('b2b_multi_channel', 512, 8, calc_sram_depth(512, 8), 'basic', 1, 4, 'fast'),    # 512-bit, 8 ch, pipe, fast
         ]
         params.extend(b2b_params)
 

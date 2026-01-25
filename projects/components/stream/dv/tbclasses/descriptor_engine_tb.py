@@ -285,8 +285,19 @@ class DescriptorEngineTB(TBBase):
     # ========================================================================
 
     async def run_apb_basic_test(self, num_requests=5):
-        """Test APB→AXI→Descriptor flow with chained descriptors"""
-        self.log.info(f"=== APB Basic Test: {num_requests} chained descriptors ===")
+        """Test APB→AXI→Descriptor flow with chained descriptors
+
+        Covers testplan scenarios:
+        - DESC-ENG-01: Single descriptor fetch
+        - DESC-ENG-02: Descriptor chain fetch
+        - DESC-ENG-03: Last descriptor detection
+        - DESC-ENG-08: Descriptor field extraction
+        """
+        self.log.info("=== Scenario DESC-ENG-01: Single descriptor fetch ===")
+        self.log.info("=== Scenario DESC-ENG-02: Descriptor chain fetch ===")
+        self.log.info("=== Scenario DESC-ENG-03: Last descriptor detection ===")
+        self.log.info("=== Scenario DESC-ENG-08: Descriptor field extraction ===")
+        self.log.info(f"  APB Basic Test: {num_requests} chained descriptors")
 
         descriptors_received = 0
 
@@ -365,8 +376,16 @@ class DescriptorEngineTB(TBBase):
         return descriptors_received == num_requests
 
     async def run_test_with_profile(self, num_packets: int, profile: DelayProfile):
-        """Run test with specific delay profile - tests autonomous chaining"""
-        self.log.info(f"Testing with {profile.value} delay profile: {num_packets} chained packets")
+        """Run test with specific delay profile - tests autonomous chaining
+
+        Covers testplan scenarios:
+        - DESC-ENG-05: Backpressure from scheduler (BACKPRESSURE profile)
+        - DESC-ENG-06: AXI AR channel stall (timing variations)
+        - DESC-ENG-07: AXI R channel stall (timing variations)
+        - DESC-ENG-09: Rapid descriptor requests (MINIMAL_DELAY profile)
+        """
+        self.log.info("=== Scenario DESC-ENG-05/06/07/09: Delay profile test ===")
+        self.log.info(f"  Testing with {profile.value} delay profile: {num_packets} chained packets")
 
         params = self.delay_params[profile]
         descriptors_collected = []

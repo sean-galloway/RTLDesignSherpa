@@ -82,11 +82,17 @@ class StreamLatencyBridgeTB(TBBase):
         """
         Verify occupancy correctly tracks pipeline state.
 
+        Covers testplan scenarios:
+        - LATENCY-BRIDGE-02: Upstream backpressure
+        - LATENCY-BRIDGE-03: Downstream stall
+        - LATENCY-BRIDGE-04: Buffer full condition
+        - LATENCY-BRIDGE-05: Buffer empty condition
+
         Key insight: occupancy = r_pending + r_out_valid
         - Occupancy 2 occurs when pending capture completes while output is full
         - This is a transient state that lasts 1 cycle
         """
-        self.log.info("=== Testing Occupancy Tracking ===")
+        self.log.info("=== Scenario LATENCY-BRIDGE-02/03/04/05: Occupancy tracking ===")
 
         # Initial state: occupancy = 0
         occ = self.get_occupancy()
@@ -149,8 +155,15 @@ class StreamLatencyBridgeTB(TBBase):
         """
         Verify occupancy during continuous streaming:
         Write and read simultaneously
+
+        Covers testplan scenarios:
+        - LATENCY-BRIDGE-01: Basic streaming transfer
+        - LATENCY-BRIDGE-06: Burst transfer
+        - LATENCY-BRIDGE-07: Variable latency compensation
+        - LATENCY-BRIDGE-08: Data integrity
         """
-        self.log.info(f"=== Testing Streaming Flow ({num_beats} beats) ===")
+        self.log.info("=== Scenario LATENCY-BRIDGE-01/06/07/08: Streaming flow ===")
+        self.log.info(f"  {num_beats} beats")
 
         occupancies = []
 

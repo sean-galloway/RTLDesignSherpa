@@ -1899,24 +1899,24 @@
   },
   "code_coverage": {
     "line": {
-      "covered": 0,
-      "total": 0,
-      "pct": 0.0
+      "covered": 38,
+      "total": 116,
+      "pct": 32.758620689655174
     },
     "toggle": {
-      "covered": 0,
-      "total": 0,
-      "pct": 0.0
+      "covered": 178,
+      "total": 400,
+      "pct": 44.5
     },
     "branch": {
-      "covered": 0,
-      "total": 0,
-      "pct": 0.0
+      "covered": 40,
+      "total": 52,
+      "pct": 76.92307692307693
     }
   },
   "overall": {
     "protocol_pct": 3.488372093023256,
-    "line_pct": 0.0,
-    "toggle_pct": 0.0
+    "line_pct": 32.758620689655174,
+    "toggle_pct": 44.5
   }
 }

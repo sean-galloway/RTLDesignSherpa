@@ -1911,24 +1911,24 @@
   },
   "code_coverage": {
     "line": {
-      "covered": 0,
-      "total": 0,
-      "pct": 0.0
+      "covered": 44,
+      "total": 120,
+      "pct": 36.666666666666664
     },
     "toggle": {
-      "covered": 0,
-      "total": 0,
-      "pct": 0.0
+      "covered": 224,
+      "total": 2332,
+      "pct": 9.605488850771868
     },
     "branch": {
-      "covered": 0,
-      "total": 0,
-      "pct": 0.0
+      "covered": 64,
+      "total": 92,
+      "pct": 69.56521739130434
     }
   },
   "overall": {
     "protocol_pct": 10.227272727272728,
-    "line_pct": 0.0,
-    "toggle_pct": 0.0
+    "line_pct": 36.666666666666664,
+    "toggle_pct": 9.605488850771868
   }
 }

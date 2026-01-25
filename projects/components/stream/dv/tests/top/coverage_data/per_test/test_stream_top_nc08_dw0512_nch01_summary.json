@@ -1959,24 +1959,24 @@
   },
   "code_coverage": {
     "line": {
-      "covered": 0,
-      "total": 0,
-      "pct": 0.0
+      "covered": 1456,
+      "total": 2500,
+      "pct": 58.24
     },
     "toggle": {
-      "covered": 0,
-      "total": 0,
-      "pct": 0.0
+      "covered": 17134,
+      "total": 139732,
+      "pct": 12.262044485157302
     },
     "branch": {
-      "covered": 0,
-      "total": 0,
-      "pct": 0.0
+      "covered": 2186,
+      "total": 3576,
+      "pct": 61.12975391498882
     }
   },
   "overall": {
     "protocol_pct": 19.791666666666664,
-    "line_pct": 0.0,
-    "toggle_pct": 0.0
+    "line_pct": 58.24,
+    "toggle_pct": 12.262044485157302
   }
 }

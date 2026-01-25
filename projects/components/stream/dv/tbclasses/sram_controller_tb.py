@@ -431,6 +431,12 @@ class SRAMControllerTB(TBBase):
         """
         Comprehensive single-channel test: write, verify count, read, verify data
 
+        Covers testplan scenarios:
+        - SRAM-CTRL-01: Basic write and read
+        - SRAM-CTRL-02: Full buffer detection (when num_beats fills FIFO)
+        - SRAM-CTRL-03: Empty buffer detection (after drain)
+        - SRAM-CTRL-11: Count accuracy
+
         Args:
             channel: Channel to test
             num_beats: Number of beats to transfer (None = use TEST_LEVEL config)
@@ -441,7 +447,8 @@ class SRAMControllerTB(TBBase):
         # Use TEST_LEVEL config if num_beats not specified
         if num_beats is None:
             num_beats = self.config['single_channel_beats']
-        self.log.info(f"=== Single Channel Test: channel={channel}, beats={num_beats} ==={self.get_time_ns_str()}")
+        self.log.info("=== Scenario SRAM-CTRL-01/02/03/11: Single channel test ===")
+        self.log.info(f"  channel={channel}, beats={num_beats}{self.get_time_ns_str()}")
 
         # Phase 1: Check initial space
         initial_space = await self.get_space_free(channel)
@@ -535,6 +542,11 @@ class SRAMControllerTB(TBBase):
         """
         Comprehensive multi-channel test: write to all, verify counts, read from all, verify data
 
+        Covers testplan scenarios:
+        - SRAM-CTRL-04: Concurrent read and write
+        - SRAM-CTRL-05: Pointer wrap-around (when enough beats transferred)
+        - SRAM-CTRL-08: Multi-channel allocation
+
         Args:
             num_channels_to_test: Number of channels to use (None = use TEST_LEVEL config)
             beats_per_channel: Beats per channel (None = use TEST_LEVEL config)
@@ -547,7 +559,8 @@ class SRAMControllerTB(TBBase):
             num_channels_to_test = self.config['multi_channel_channels']
         if beats_per_channel is None:
             beats_per_channel = self.config['multi_channel_beats']
-        self.log.info(f"=== Multi-Channel Test: channels={num_channels_to_test}, beats={beats_per_channel} ==={self.get_time_ns_str()}")
+        self.log.info("=== Scenario SRAM-CTRL-04/05/08: Multi-channel test ===")
+        self.log.info(f"  channels={num_channels_to_test}, beats={beats_per_channel}{self.get_time_ns_str()}")
 
         # Phase 1: Check initial space for all channels
         self.log.info(f"Phase 1: Checking initial space for {num_channels_to_test} channels{self.get_time_ns_str()}")
@@ -654,6 +667,12 @@ class SRAMControllerTB(TBBase):
         """
         Realistic allocation test: Pre-allocate, then write data, verify timing
 
+        Covers testplan scenarios:
+        - SRAM-CTRL-06: Allocation request
+        - SRAM-CTRL-09: Write backpressure (when allocation limit reached)
+        - SRAM-CTRL-10: Read backpressure (during readback phase)
+        - SRAM-CTRL-11: Count accuracy
+
         This models real AXI read engine behavior:
         1. Pre-allocate N beats (reserve space before data arrives)
         2. Watch rd_space_free decrease
@@ -667,7 +686,8 @@ class SRAMControllerTB(TBBase):
         Returns:
             bool: True if test passed
         """
-        self.log.info(f"=== Allocation Test: channel={channel}, beats={num_beats} ==={self.get_time_ns_str()}")
+        self.log.info("=== Scenario SRAM-CTRL-06/09/10/11: Allocation test ===")
+        self.log.info(f"  channel={channel}, beats={num_beats}{self.get_time_ns_str()}")
 
         # Phase 1: Check initial space
         initial_space = await self.get_space_free(channel)
@@ -740,6 +760,11 @@ class SRAMControllerTB(TBBase):
         """
         Fill FIFO completely via allocation, then write data
 
+        Covers testplan scenarios:
+        - SRAM-CTRL-02: Full buffer detection
+        - SRAM-CTRL-07: Allocation failure (when insufficient space)
+        - SRAM-CTRL-09: Write backpressure (when FIFO full)
+
         This tests:
         1. Allocating until rd_space_free drops to 0
         2. Writing data to completely fill the FIFO
@@ -751,7 +776,8 @@ class SRAMControllerTB(TBBase):
         Returns:
             bool: True if test passed
         """
-        self.log.info(f"=== Full Allocation Test: channel={channel} ==={self.get_time_ns_str()}")
+        self.log.info("=== Scenario SRAM-CTRL-02/07/09: Full allocation test ===")
+        self.log.info(f"  channel={channel}{self.get_time_ns_str()}")
 
         # Get maximum allocatable space (limited by FIFO depth and saturation)
         initial_space = await self.get_space_free(channel)

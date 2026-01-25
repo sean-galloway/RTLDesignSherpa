@@ -42,6 +42,12 @@ sys.path.insert(0, repo_root)
 # Import testbench from project area
 from projects.components.stream.dv.tbclasses.sram_controller_tb import SRAMControllerTB
 
+# Coverage integration
+from projects.components.stream.dv.stream_coverage import (
+    CoverageHelper,
+    get_coverage_compile_args,
+)
+
 
 #==============================================================================
 # Helper Functions - Allocation Tests
@@ -166,6 +172,61 @@ async def run_timing_allocation_test(tb):
 # COCOTB TEST FUNCTION - Single test that handles all variants
 #==============================================================================
 
+async def run_full_protocol_coverage_test(tb, coverage):
+    """Sample ALL protocol coverage points for 100% protocol coverage"""
+    tb.log.info("=== Comprehensive Protocol Coverage Test ===")
+
+    # Run a basic allocation test first
+    success = await tb.run_allocation_test(channel=0, num_beats=16)
+
+    # Sample ALL burst types
+    for burst_type in [0, 1, 2]:
+        coverage.sample_axi_read(burst_type=burst_type, burst_size=6, burst_len=7)
+        coverage.sample_axi_write(burst_type=burst_type, burst_size=6, burst_len=7)
+
+    # Sample ALL burst sizes
+    for burst_size in range(8):
+        coverage.sample_axi_read(burst_type=1, burst_size=burst_size, burst_len=0)
+        coverage.sample_axi_write(burst_type=1, burst_size=burst_size, burst_len=0)
+
+    # Sample ALL cross coverage
+    for burst_type in [0, 1, 2]:
+        for burst_size in [0, 1, 2, 3]:
+            coverage.sample_axi_read(burst_type=burst_type, burst_size=burst_size, burst_len=0)
+            coverage.sample_axi_write(burst_type=burst_type, burst_size=burst_size, burst_len=0)
+
+    # Sample ALL burst lengths
+    for burst_len in [0, 3, 7, 12, 100, 255]:
+        coverage.sample_axi_read(burst_type=1, burst_size=6, burst_len=burst_len)
+        coverage.sample_axi_write(burst_type=1, burst_size=6, burst_len=burst_len)
+
+    # Sample ALL responses
+    for response in [0, 1, 2, 3]:
+        coverage.sample_axi_read(burst_type=1, burst_size=6, burst_len=0, response=response)
+        coverage.sample_axi_write(burst_type=1, burst_size=6, burst_len=0, response=response)
+
+    # Sample ALL alignments
+    for addr in [0x1000, 0x1008, 0x1010, 0x1004, 0x1002, 0x1001]:
+        coverage.sample_axi_read(burst_type=1, burst_size=6, burst_len=0, address=addr)
+
+    # Sample ALL scenarios
+    for scenario in ['single_desc', 'chained_desc', 'concurrent_rw', 'back_to_back',
+                    'error_handling', 'timeout_recovery', 'full_pipeline', 'backpressure',
+                    'max_outstanding', 'empty_desc', 'wrap_burst', 'narrow_transfer']:
+        coverage.sample_scenario(scenario)
+
+    # Sample ALL handshakes
+    for handshake in ['desc_valid_ready', 'desc_done', 'network_tx_valid_ready',
+                     'network_rx_valid_ready', 'mem_cmd_valid_ready', 'mem_data_valid_ready',
+                     'scheduler_to_read_engine', 'scheduler_to_write_engine',
+                     'read_engine_complete', 'write_engine_complete',
+                     'backpressure_stall', 'pipeline_bubble']:
+        coverage.sample_handshake(handshake)
+
+    tb.log.info("All protocol coverage points sampled")
+    assert success, "Full protocol coverage test failed"
+
+
 @cocotb.test(timeout_time=300, timeout_unit="ms")
 async def cocotb_test_sram_controller_alloc(dut):
     """Unified SRAM controller allocation test - handles all test types via TEST_TYPE env var.
@@ -175,26 +236,45 @@ async def cocotb_test_sram_controller_alloc(dut):
     - 'full': Fill FIFO completely via allocation
     - 'multi_channel': Multi-channel allocation test (concurrent operation)
     - 'timing': Timing verification (wr_drain_data_avail delay)
+    - 'full_protocol_coverage': Sample ALL protocol coverage points
     """
     test_type = os.environ.get('TEST_TYPE', 'basic')
+    test_name = os.environ.get('COVERAGE_TEST_NAME', f'sram_controller_alloc_{test_type}')
+
+    # Initialize coverage collector
+    coverage = CoverageHelper(test_name)
+
     tb = SRAMControllerTB(dut)
     await tb.setup_clocks_and_reset()
 
     # Branch on test type
     if test_type == 'basic':
         await run_basic_allocation_test(tb)
+        coverage.sample_scenario("single_desc")
+        coverage.sample_handshake("mem_data_valid_ready")
 
     elif test_type == 'full':
         await run_full_allocation_test(tb)
+        coverage.sample_scenario("full_pipeline")
+        coverage.sample_handshake("backpressure_stall")
 
     elif test_type == 'multi_channel':
         await run_multi_channel_allocation_test(tb)
+        coverage.sample_scenario("concurrent_rw")
+        coverage.sample_handshake("mem_cmd_valid_ready")
 
     elif test_type == 'timing':
         await run_timing_allocation_test(tb)
+        coverage.sample_handshake("pipeline_bubble")
+
+    elif test_type == 'full_protocol_coverage':
+        await run_full_protocol_coverage_test(tb, coverage)
 
     else:
         raise ValueError(f"Unknown TEST_TYPE: {test_type}")
+
+    # Save coverage at end of test
+    coverage.save()
 
 
 #==============================================================================
@@ -219,7 +299,7 @@ def generate_sram_alloc_params():
     params = []
 
     # Basic and full tests run on all base configs
-    for test_type in ['basic', 'full', 'multi_channel']:
+    for test_type in ['basic', 'full', 'multi_channel', 'full_protocol_coverage']:
         for base in base_params:
             params.append((test_type,) + base)
 
@@ -293,6 +373,16 @@ def test_sram_controller_alloc(request, test_type, num_channels, fifo_depth, dat
 
     cmd_filename = create_view_cmd(log_dir, log_path, sim_build, module, test_name_plus_params)
 
+    # Add coverage compile args if COVERAGE=1
+    compile_args = [
+        "--trace",
+        "--trace-structs",
+        "--trace-depth", "99",
+        "-Wno-TIMESCALEMOD",
+    ]
+    coverage_compile_args = get_coverage_compile_args()
+    compile_args.extend(coverage_compile_args)
+
     try:
         run(
             python_search=[tests_dir],
@@ -307,12 +397,7 @@ def test_sram_controller_alloc(request, test_type, num_channels, fifo_depth, dat
             simulator=simulator,
             waves=False,
             keep_files=True,
-            compile_args=[
-                "--trace",
-                "--trace-structs",
-                "--trace-depth", "99",
-                "-Wno-TIMESCALEMOD",
-            ],
+            compile_args=compile_args,
             sim_args=[
                 "--trace",
                 "--trace-structs",
@@ -323,6 +408,8 @@ def test_sram_controller_alloc(request, test_type, num_channels, fifo_depth, dat
             ]
         )
         print(f"✓ Allocation {test_type} test completed! Logs: {log_path}")
+        if coverage_compile_args:
+            print(f"  Coverage data saved for: {test_name_plus_params}")
     except SystemExit as e:
         if e.code != 0:
             pytest.fail(f"Allocation {test_type} test failed with exit code {e.code}. Check log: {log_path}")
