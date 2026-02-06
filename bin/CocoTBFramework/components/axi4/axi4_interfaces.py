@@ -813,6 +813,7 @@ class AXI4SlaveWrite:
 
     def __init__(self, dut, clock, prefix="", log=None, ifc_name="", **kwargs):
         """Initialize AXI4 Slave Write interface with compliance checking."""
+        self.super_debug = kwargs.get('super_debug', False)
         self.clock = clock
         self.log = log
         self.ifc_name = f"_{ifc_name}" if ifc_name else ""
@@ -862,6 +863,7 @@ class AXI4SlaveWrite:
             pkt_prefix="aw",
             multi_sig=self.multi_sig,
             protocol_type='axi4_aw_slave',  # Use AXI4-specific patterns
+            super_debug=self.super_debug,
             log=log,
         )
 
@@ -877,6 +879,7 @@ class AXI4SlaveWrite:
             pkt_prefix="w",
             multi_sig=self.multi_sig,
             protocol_type='axi4_w_slave',  # Use AXI4-specific patterns
+            super_debug=self.super_debug,
             log=log,
         )
 
@@ -892,6 +895,7 @@ class AXI4SlaveWrite:
             pkt_prefix="b",
             multi_sig=self.multi_sig,
             protocol_type='axi4_b_master',  # Use AXI4-specific patterns
+            super_debug=self.super_debug,
             log=log,
         )
 
