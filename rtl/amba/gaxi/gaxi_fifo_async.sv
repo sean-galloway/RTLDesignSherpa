@@ -28,7 +28,9 @@ module gaxi_fifo_async #(
     parameter int        N_FLOP_CROSS     = 2,
     parameter int        ALMOST_WR_MARGIN = 1,
     parameter int        ALMOST_RD_MARGIN = 1,
+    // synopsys translate_off
     parameter string     INSTANCE_NAME    = "DEADF1F0",  // verilog_lint: waive explicit-parameter-storage-type
+    // synopsys translate_on
     parameter int        DW = DATA_WIDTH,
     parameter int        D  = DEPTH,
     parameter int        AW = $clog2(DEPTH),
@@ -268,12 +270,14 @@ module gaxi_fifo_async #(
             end
             // synopsys translate_on
 
+            // synopsys translate_off
             initial begin
                 if (REGISTERED == 0) begin
                     $display("NOTE: %s BRAM style uses synchronous read; +1 cycle latency in rd domain.",
                             INSTANCE_NAME);
                 end
             end
+            // synopsys translate_on
         end
         else begin : gen_auto
             // Let the tool decide (LUTRAM vs BRAM). Allow comb read in sim when REGISTERED==0.

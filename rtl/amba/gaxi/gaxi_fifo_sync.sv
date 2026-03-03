@@ -32,7 +32,9 @@ module gaxi_fifo_sync #(
     parameter int  DEPTH             = 4,
     parameter int  ALMOST_WR_MARGIN  = 1,
     parameter int  ALMOST_RD_MARGIN  = 1,
+    // synopsys translate_off
     parameter string INSTANCE_NAME   = "DEADF1F0", // for $display debug
+    // synopsys translate_on
     parameter int  DW = DATA_WIDTH,
     parameter int  D  = DEPTH,
     parameter int  AW = $clog2(DEPTH)
@@ -194,11 +196,13 @@ module gaxi_fifo_sync #(
             end
             // synopsys translate_on
 
+            // synopsys translate_off
             initial begin
                 if (REGISTERED == 0)
                     $display("NOTE: %s BRAM style uses synchronous read (+1 cycle latency)",
                             INSTANCE_NAME);
             end
+            // synopsys translate_on
         end
         else begin : gen_auto
             logic [DATA_WIDTH-1:0] mem [DEPTH];

@@ -66,7 +66,9 @@
 //==============================================================================
 module leading_one_trailing_one #(
     parameter int WIDTH = 8,
+    // synopsys translate_off
     parameter string INSTANCE_NAME = ""
+    // synopsys translate_on
 ) (
     input  logic [WIDTH-1:0]     data,
     output logic [$clog2(WIDTH)-1:0] leadingone,       // Changed to match arbiter's N

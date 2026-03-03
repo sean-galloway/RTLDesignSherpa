@@ -466,7 +466,9 @@ module fifo_async_div2 #(
     parameter int    N_FLOP_CROSS      = 2,
     parameter int    ALMOST_WR_MARGIN  = 1,
     parameter int    ALMOST_RD_MARGIN  = 1,
+    // synopsys translate_off
     parameter string INSTANCE_NAME     = "DEADF1F0"  // verilog_lint: waive explicit-parameter-storage-type
+    // synopsys translate_on
 ) (
     // clocks and resets
     input  logic wr_clk,
@@ -707,12 +709,14 @@ module fifo_async_div2 #(
             // synopsys translate_on
 
             // Optional notice if user expected mux behavior
+            // synopsys translate_off
             initial begin
                 if (REGISTERED == 0) begin
                     $display("NOTE: %s BRAM style uses synchronous read; +1 cycle latency in rd domain.",
                             INSTANCE_NAME);
                 end
             end
+            // synopsys translate_on
         end
         else begin : gen_auto
             // Let tool decide (LUTRAM vs BRAM). Allow comb read when REGISTERED==0.

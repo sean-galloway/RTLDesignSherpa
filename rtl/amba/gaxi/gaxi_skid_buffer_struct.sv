@@ -53,9 +53,11 @@ module gaxi_skid_buffer_struct #(
     STRUCT_TYPE            struct_zeros;
 
     // Initialize struct to zeros
+    // synopsys translate_off
     initial begin
         struct_zeros = '0;
     end
+    // synopsys translate_on
 
     assign w_wr_xfer = wr_valid & wr_ready;
     assign w_rd_xfer = rd_valid & rd_ready;

@@ -209,10 +209,12 @@ module axi_master_wr_splitter
     //===========================================================================
     // Parameter Validation
     //===========================================================================
+    // synopsys translate_off
     initial begin
         assert (DW inside {32, 64, 128, 256, 512, 1024}) else
             $fatal(1, "AXI_DATA_WIDTH must be power of 2 between 32 and 1024 bits");
     end
+    // synopsys translate_on
 
     //===========================================================================
     // State definitions

@@ -239,7 +239,9 @@
 
 `include "reset_defs.svh"
 module dataint_crc #(
+    // synopsys translate_off
     parameter string ALGO_NAME = "DEADF1F0",  // verilog_lint: waive explicit-parameter-storage-type
+    // synopsys translate_on
     parameter int DATA_WIDTH = 64,     // Adjustable data width
     parameter int CRC_WIDTH = 64,      // CRC polynomial width
     parameter int REFIN = 1,

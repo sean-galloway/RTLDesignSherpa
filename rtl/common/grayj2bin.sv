@@ -298,7 +298,9 @@
 module grayj2bin #(
     parameter int    JCW = 10,
     parameter int    WIDTH = 4,
+    // synopsys translate_off
     parameter string INSTANCE_NAME = ""
+    // synopsys translate_on
 ) (
     input  logic              clk,
     input  logic              rst_n,

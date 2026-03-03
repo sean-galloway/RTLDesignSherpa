@@ -276,6 +276,7 @@ module clock_divider #(
     // Parameter validation: Verify PO_WIDTH can hold COUNTER_WIDTH value without truncation
     // PO_WIDTH must be > $clog2(COUNTER_WIDTH) to prevent truncation when comparing
     // w_pickoff_raw < w_counter_width_sized (lines 289-291)
+    // synopsys translate_off
     initial begin
         if (PO_WIDTH <= $clog2(COUNTER_WIDTH)) begin
             $error("clock_divider: Invalid parameter combination!");
@@ -286,6 +287,7 @@ module clock_divider #(
             $fatal(1, "Simulation cannot continue with invalid parameters");
         end
     end
+    // synopsys translate_on
 
     `ALWAYS_FF_RST(clk, rst_n,
         if (!rst_n) r_divider_counters <= 0;

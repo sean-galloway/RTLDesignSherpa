@@ -624,7 +624,9 @@ module fifo_async #(
     parameter int  N_FLOP_CROSS    = 2,
     parameter int  ALMOST_WR_MARGIN= 1,
     parameter int  ALMOST_RD_MARGIN= 1,
+    // synopsys translate_off
     parameter string INSTANCE_NAME = "DEADF1F0"
+    // synopsys translate_on
 ) (
     // clocks and resets
     input  logic wr_clk,
@@ -834,12 +836,14 @@ module fifo_async #(
             // synopsys translate_on
 
             // Optional: warn if user asked for mux-mode but BRAM forces sync read
+            // synopsys translate_off
             initial begin
                 if (REGISTERED == 0) begin
                     $display("NOTE: %s BRAM style forces synchronous read; effective +1 cycle latency.",
                             INSTANCE_NAME);
                 end
             end
+            // synopsys translate_on
         end
         else begin : gen_auto
             // Tool chooses resource; allow async read when REGISTERED==0
