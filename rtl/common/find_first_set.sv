@@ -60,10 +60,10 @@
 //
 //==============================================================================
 module find_first_set #(
-    parameter int WIDTH = 32,
     // synopsys translate_off
-    parameter string INSTANCE_NAME = "FFS"
+    parameter string INSTANCE_NAME = "FFS",
     // synopsys translate_on
+    parameter int WIDTH = 32
 ) (
     input  logic [WIDTH-1:0] data,
     output logic [$clog2(WIDTH)-1:0] index  // Changed to match arbiter's N

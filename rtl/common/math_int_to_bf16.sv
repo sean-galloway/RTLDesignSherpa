@@ -124,8 +124,11 @@ endgenerate
 wire [CLZ_WIDTH-1:0] w_clz;
 
 count_leading_zeros #(
-    .WIDTH(INT_WIDTH),
+    .WIDTH(INT_WIDTH)
+    // synopsys translate_off
+    ,
     .INSTANCE_NAME("INT_TO_BF16_CLZ")
+    // synopsys translate_on
 ) u_clz (
     .data(w_abs_reversed),
     .clz(w_clz)

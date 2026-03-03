@@ -71,8 +71,12 @@ module gaxi_skid_buffer_async #(
         .DEPTH           (DEPTH),
         .N_FLOP_CROSS    (N_FLOP_CROSS),
         .ALMOST_WR_MARGIN(1),
-        .ALMOST_RD_MARGIN(1),
-        .INSTANCE_NAME   (INSTANCE_NAME),
+        .ALMOST_RD_MARGIN(1)
+        // synopsys translate_off
+        ,
+        .INSTANCE_NAME   (INSTANCE_NAME)
+        // synopsys translate_on
+        ,
         .REGISTERED      (REGISTERED)
     ) inst_gaxi_fifo_async (
         .axi_wr_aclk   (axi_wr_aclk),

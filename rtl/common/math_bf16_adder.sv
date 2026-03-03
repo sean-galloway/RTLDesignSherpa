@@ -462,8 +462,11 @@ module math_bf16_adder #(
     endgenerate
 
     count_leading_zeros #(
-        .WIDTH(12),
+        .WIDTH(12)
+        // synopsys translate_off
+        ,
         .INSTANCE_NAME("BF16_ADD_CLZ")
+        // synopsys translate_on
     ) u_clz (
         .data(w_mant_for_clz),
         .clz (w_lzc)

@@ -60,8 +60,9 @@
 //
 //==============================================================================
 module find_last_set #(
-    parameter int WIDTH = 32,
+    parameter int WIDTH = 32
     // synopsys translate_off
+    ,
     parameter string INSTANCE_NAME = "FLS"
     // synopsys translate_on
 ) (

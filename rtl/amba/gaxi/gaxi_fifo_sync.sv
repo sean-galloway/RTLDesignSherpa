@@ -31,10 +31,12 @@ module gaxi_fifo_sync #(
     parameter int  DATA_WIDTH        = 4,
     parameter int  DEPTH             = 4,
     parameter int  ALMOST_WR_MARGIN  = 1,
-    parameter int  ALMOST_RD_MARGIN  = 1,
+    parameter int  ALMOST_RD_MARGIN  = 1
     // synopsys translate_off
-    parameter string INSTANCE_NAME   = "DEADF1F0", // for $display debug
+    ,
+    parameter string INSTANCE_NAME   = "DEADF1F0" // for $display debug
     // synopsys translate_on
+    ,
     parameter int  DW = DATA_WIDTH,
     parameter int  D  = DEPTH,
     parameter int  AW = $clog2(DEPTH)

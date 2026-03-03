@@ -27,10 +27,12 @@ module gaxi_fifo_async #(
     parameter int        DEPTH            = 10,
     parameter int        N_FLOP_CROSS     = 2,
     parameter int        ALMOST_WR_MARGIN = 1,
-    parameter int        ALMOST_RD_MARGIN = 1,
+    parameter int        ALMOST_RD_MARGIN = 1
     // synopsys translate_off
-    parameter string     INSTANCE_NAME    = "DEADF1F0",  // verilog_lint: waive explicit-parameter-storage-type
+    ,
+    parameter string     INSTANCE_NAME    = "DEADF1F0"  // verilog_lint: waive explicit-parameter-storage-type
     // synopsys translate_on
+    ,
     parameter int        DW = DATA_WIDTH,
     parameter int        D  = DEPTH,
     parameter int        AW = $clog2(DEPTH),
@@ -135,8 +137,11 @@ module gaxi_fifo_async #(
 
     grayj2bin #(
         .JCW           (JCW),
-        .WIDTH         (AW + 1),
+        .WIDTH         (AW + 1)
+        // synopsys translate_off
+        ,
         .INSTANCE_NAME ("rd_ptr_johnson2bin_inst")
+        // synopsys translate_on
     ) rd_ptr_gray2bin_inst(
         .binary (w_wdom_rd_ptr_bin),
         .gray   (r_wdom_rd_ptr_gray),
@@ -156,8 +161,11 @@ module gaxi_fifo_async #(
 
     grayj2bin #(
         .JCW           (JCW),
-        .WIDTH         (AW + 1),
+        .WIDTH         (AW + 1)
+        // synopsys translate_off
+        ,
         .INSTANCE_NAME ("wr_ptr_gray2bin_inst")
+        // synopsys translate_on
     ) wr_ptr_gray2bin_inst(
         .binary (w_rdom_wr_ptr_bin),
         .gray   (r_rdom_wr_ptr_gray),

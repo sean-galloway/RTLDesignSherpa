@@ -425,8 +425,11 @@ module math_ieee754_2008_fp32_adder #(
     endgenerate
 
     count_leading_zeros #(
-        .WIDTH(28),
+        .WIDTH(28)
+        // synopsys translate_off
+        ,
         .INSTANCE_NAME("FP32_ADD_CLZ")
+        // synopsys translate_on
     ) u_clz (
         .data(w_mant_for_clz),
         .clz (w_lzc)

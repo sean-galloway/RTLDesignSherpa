@@ -623,8 +623,9 @@ module fifo_async #(
     parameter int  DEPTH           = 16,
     parameter int  N_FLOP_CROSS    = 2,
     parameter int  ALMOST_WR_MARGIN= 1,
-    parameter int  ALMOST_RD_MARGIN= 1,
+    parameter int  ALMOST_RD_MARGIN= 1
     // synopsys translate_off
+    ,
     parameter string INSTANCE_NAME = "DEADF1F0"
     // synopsys translate_on
 ) (

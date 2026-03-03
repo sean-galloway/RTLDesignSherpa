@@ -316,8 +316,9 @@ module fifo_sync
     parameter int    DATA_WIDTH = 4,
     parameter int    DEPTH = 4,
     parameter int    ALMOST_WR_MARGIN = 1,
-    parameter int    ALMOST_RD_MARGIN = 1,
+    parameter int    ALMOST_RD_MARGIN = 1
     // synopsys translate_off
+    ,
     parameter string INSTANCE_NAME = "DEADF1F0"  // verilog_lint: waive explicit-parameter-storage-type
     // synopsys translate_on
 ) (

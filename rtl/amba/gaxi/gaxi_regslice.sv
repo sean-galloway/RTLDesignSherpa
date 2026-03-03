@@ -13,10 +13,12 @@
 `include "reset_defs.svh"
 
 module gaxi_regslice #(
-    parameter int    DATA_WIDTH   = 32,
+    parameter int    DATA_WIDTH   = 32
     // synopsys translate_off
-    parameter string INSTANCE_NAME = "REGSL1D",
+    ,
+    parameter string INSTANCE_NAME = "REGSL1D"
     // synopsys translate_on
+    ,
     // Derived (kept for parity with your style)
     parameter int    DW          = DATA_WIDTH
 ) (

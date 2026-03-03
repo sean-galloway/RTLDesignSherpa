@@ -38,6 +38,18 @@ logic [AW-1:0] wrap_mask;
 logic [AW-1:0] aligned_addr;
 logic [AW-1:0] wrap_addr;
 
+// For WRAP bursts, len+1 is always power of 2: 2, 4, 8, 16
+// Compute $clog2(len+1) via lookup (synthesis-friendly)
+logic [3:0] len_log2;
+always_comb begin
+    case (len[3:0])
+        4'h1:    len_log2 = 4'd1;  // 2 beats  -> clog2(2)  = 1
+        4'h3:    len_log2 = 4'd2;  // 4 beats  -> clog2(4)  = 2
+        4'h7:    len_log2 = 4'd3;  // 8 beats  -> clog2(8)  = 3
+        4'hF:    len_log2 = 4'd4;  // 16 beats -> clog2(16) = 4
+        default: len_log2 = 4'd0;  // Invalid for WRAP, but safe default
+    endcase
+end
 
 always_comb begin
     // calculate the increment; scale the increment if there is a difference between the two data widths
@@ -49,7 +61,7 @@ always_comb begin
     end
 
     // Calculate the wrap mask based on size and len
-    wrap_mask = (1 << (32'(size) + $clog2(len + 1))) - 1;
+    wrap_mask = (1 << (32'(size) + len_log2)) - 1;
 
     // Calculate the aligned address
     aligned_addr = (curr_addr + increment) & ~(increment - 1);

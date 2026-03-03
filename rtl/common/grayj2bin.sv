@@ -297,8 +297,9 @@
 //==============================================================================
 module grayj2bin #(
     parameter int    JCW = 10,
-    parameter int    WIDTH = 4,
+    parameter int    WIDTH = 4
     // synopsys translate_off
+    ,
     parameter string INSTANCE_NAME = ""
     // synopsys translate_on
 ) (
@@ -320,8 +321,11 @@ module grayj2bin #(
 
     // Leading/trailing detection
     leading_one_trailing_one #(
-        .WIDTH(JCW),
+        .WIDTH(JCW)
+        // synopsys translate_off
+        ,
         .INSTANCE_NAME(INSTANCE_NAME)
+        // synopsys translate_on
     ) u_leading_one_trailing_one (
         .data              (gray),
         .leadingone        (w_leading_one),
