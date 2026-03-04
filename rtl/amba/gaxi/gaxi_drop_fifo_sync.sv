@@ -448,8 +448,15 @@ module gaxi_drop_fifo_sync #(
 
     // Debug: Track memory reads (outside generate block)
     // synopsys translate_off
+    // Runtime debug control: +SIM_DEBUG=1 enables output
+    int sim_debug;
+    initial begin
+        sim_debug = 0;
+        void'($value$plusargs("SIM_DEBUG=%d", sim_debug));
+    end
+
     always @(posedge axi_aclk) begin
-        if (rd_valid && rd_ready) begin
+        if (sim_debug && rd_valid && rd_ready) begin
             $display("DEBUG %t: READ - rd_addr=%0d, w_rd_data=0x%02X, r_rd_ptr_bin=%0d, w_rd_ptr_selected=%0d",
                      $time, r_rd_addr, w_rd_data, r_rd_ptr_bin, w_rd_ptr_selected);
         end
@@ -475,10 +482,14 @@ module gaxi_drop_fifo_sync #(
 
     /////////////////////////////////////////////////////////////////////////
     // Simulation-only: Instance report (grep for FIFO_INSTANCE)
+    // Note: sim_debug variable is declared earlier in the file
     /////////////////////////////////////////////////////////////////////////
     // synopsys translate_off
     initial begin
-        $display("FIFO_INSTANCE: gaxi_drop_fifo_sync %m %s W=%0d D=%0d MEM=%s REG=%0d", INSTANCE_NAME, DW, D, MEM_STYLE.name(), REGISTERED);
+        // Wait for sim_debug to be initialized (same initial block timing)
+        #0;
+        if (sim_debug)
+            $display("FIFO_INSTANCE: gaxi_drop_fifo_sync %m %s W=%0d D=%0d MEM=%s REG=%0d", INSTANCE_NAME, DW, D, MEM_STYLE.name(), REGISTERED);
     end
     // synopsys translate_on
 
@@ -514,9 +525,9 @@ module gaxi_drop_fifo_sync #(
     end
     */
 
-    // Debug: Track drop operations
+    // Debug: Track drop operations (controlled by +SIM_DEBUG=1)
     always @(posedge axi_aclk) begin
-        if (drop_valid) begin
+        if (sim_debug && drop_valid) begin
             $timeformat(-9, 3, " ns", 10);
             $display("DEBUG %t: DROP initiated - drop_all=%0d, drop_count=%0d, count=%0d",
                      $time, drop_all, drop_count, count);
@@ -526,7 +537,7 @@ module gaxi_drop_fifo_sync #(
     end
 
     always @(posedge axi_aclk) begin
-        if (r_drop_state == DROP_ACTIVE) begin
+        if (sim_debug && r_drop_state == DROP_ACTIVE) begin
             $timeformat(-9, 3, " ns", 10);
             $display("DEBUG %t: DROP_ACTIVE - rd_ptr_next=%0d",
                      $time, w_rd_ptr_bin_next);
@@ -536,7 +547,7 @@ module gaxi_drop_fifo_sync #(
     end
 
     always @(posedge axi_aclk) begin
-        if (r_drop_state == DROP_SETTLE) begin
+        if (sim_debug && r_drop_state == DROP_SETTLE) begin
             $timeformat(-9, 3, " ns", 10);
             $display("DEBUG %t: DROP_SETTLE - r_rd_ptr_bin=%0d, r_wr_ptr_bin=%0d",
                      $time, r_rd_ptr_bin, r_wr_ptr_bin);
@@ -546,7 +557,7 @@ module gaxi_drop_fifo_sync #(
     end
 
     always @(posedge axi_aclk) begin
-        if (r_drop_state == DROP_DONE) begin
+        if (sim_debug && r_drop_state == DROP_DONE) begin
             $timeformat(-9, 3, " ns", 10);
             $display("DEBUG %t: DROP_DONE - drop_ready asserted", $time);
             $display("  Final: r_rd_ptr_bin=%0d, r_wr_ptr_bin=%0d, count=%0d",

@@ -515,18 +515,19 @@ module fifo_sync
     assign rd_data = w_rd_data;
 
     // -----------------------------------------------------------------------
-    // Simulation-only: Instance report (grep for FIFO_INSTANCE)
+    // Simulation-only: Instance report and error checking
     // -----------------------------------------------------------------------
     // synopsys translate_off
+    // Runtime debug control: +SIM_DEBUG=1 enables output
+    int sim_debug;
     initial begin
-        $display("FIFO_INSTANCE: fifo_sync %m %s W=%0d D=%0d MEM=%s REG=%0d", INSTANCE_NAME, DW, D, MEM_STYLE.name(), REGISTERED);
+        sim_debug = 0;
+        void'($value$plusargs("SIM_DEBUG=%d", sim_debug));
+        if (sim_debug)
+            $display("FIFO_INSTANCE: fifo_sync %m %s W=%0d D=%0d MEM=%s REG=%0d", INSTANCE_NAME, DW, D, MEM_STYLE.name(), REGISTERED);
     end
-    // synopsys translate_on
 
-    // -----------------------------------------------------------------------
-    // Simulation-only error checks
-    // -----------------------------------------------------------------------
-    // synopsys translate_off
+    // Overflow/underflow error messages (always enabled)
     always_ff @(posedge clk) begin
         if (write && wr_full) begin
             $timeformat(-9, 3, " ns", 10);
