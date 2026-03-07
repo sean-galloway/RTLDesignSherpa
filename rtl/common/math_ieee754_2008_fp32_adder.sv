@@ -24,7 +24,12 @@ module math_ieee754_2008_fp32_adder #(
     parameter bit PIPE_STAGE_1 = 1'b0,  // After exponent diff + swap
     parameter bit PIPE_STAGE_2 = 1'b0,  // After alignment shifter
     parameter bit PIPE_STAGE_3 = 1'b0,  // After mantissa add/sub
-    parameter bit PIPE_STAGE_4 = 1'b0   // After normalize
+    parameter bit PIPE_STAGE_4 = 1'b0,  // After normalize
+    parameter int MANT_WIDTH = 23,          // Explicit mantissa bits
+    parameter int EXP_WIDTH = 8,            // Exponent bits
+    parameter int EXT_MANT_WIDTH = 27,      // Extended: 1.mmmmmmmmmmmmmmmmmmmmmmm + GRS bits
+    parameter int CLZ_WIDTH = $clog2(EXT_MANT_WIDTH) + 1,
+    parameter int SHIFT_AMT_WIDTH = $clog2(EXT_MANT_WIDTH)
 ) (
     input  logic        i_clk,
     input  logic        i_rst_n,
@@ -39,12 +44,8 @@ module math_ieee754_2008_fp32_adder #(
 );
 
     // =========================================================================
-    // Local Parameters
+    // Local Parameters (non $clog2)
     // =========================================================================
-    localparam int MANT_WIDTH = 23;          // Explicit mantissa bits
-    localparam int EXP_WIDTH = 8;            // Exponent bits
-    localparam int EXT_MANT_WIDTH = 27;      // Extended: 1.mmmmmmmmmmmmmmmmmmmmmmm + GRS bits
-    localparam int CLZ_WIDTH = $clog2(EXT_MANT_WIDTH) + 1;
     localparam logic [7:0] EXT_MANT_WIDTH_8 = 8'd27;  // Sized for comparison with 8-bit exp_diff
 
     // Shifter control codes (from shifter_barrel)
@@ -207,11 +208,11 @@ module math_ieee754_2008_fp32_adder #(
 
     // Alignment: right-shift smaller mantissa by exponent difference
     wire [26:0] w_mant_s_aligned;
-    wire [$clog2(EXT_MANT_WIDTH):0] w_shift_amt;
+    wire [SHIFT_AMT_WIDTH:0] w_shift_amt;
 
     assign w_shift_amt = (r1_exp_diff > EXT_MANT_WIDTH_8) ?
-                         EXT_MANT_WIDTH[$clog2(EXT_MANT_WIDTH):0] :
-                         r1_exp_diff[$clog2(EXT_MANT_WIDTH):0];
+                         EXT_MANT_WIDTH[SHIFT_AMT_WIDTH:0] :
+                         r1_exp_diff[SHIFT_AMT_WIDTH:0];
 
     shifter_barrel #(
         .WIDTH(EXT_MANT_WIDTH)
@@ -458,8 +459,8 @@ module math_ieee754_2008_fp32_adder #(
 
     // Apply normalization shift
     wire [26:0] w_mant_normalized;
-    wire [$clog2(EXT_MANT_WIDTH):0] w_norm_shift_amt_ext;
-    assign w_norm_shift_amt_ext = {1'b0, w_norm_shift_amt[$clog2(EXT_MANT_WIDTH)-1:0]};
+    wire [SHIFT_AMT_WIDTH:0] w_norm_shift_amt_ext;
+    assign w_norm_shift_amt_ext = {1'b0, w_norm_shift_amt[SHIFT_AMT_WIDTH-1:0]};
 
     shifter_barrel #(
         .WIDTH(EXT_MANT_WIDTH)

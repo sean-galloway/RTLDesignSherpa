@@ -245,15 +245,14 @@
 //==============================================================================
 module count_leading_zeros #(
     parameter int WIDTH         = 32,
-    parameter     INSTANCE_NAME = "CLZ"  // verilog_lint: waive explicit-parameter-storage-type
+    parameter     INSTANCE_NAME = "CLZ",  // verilog_lint: waive explicit-parameter-storage-type
+    parameter int N             = $clog2(WIDTH) + 1
 ) (
-    input  logic [      WIDTH-1:0] data,
-    output logic [$clog2(WIDTH):0] clz
+    input  logic [WIDTH-1:0] data,
+    output logic [N-1:0]     clz
 );
 
-    localparam int N = $clog2(WIDTH) + 1;
-
-    function automatic [$clog2(WIDTH):0] clz_func;
+    function automatic [N-1:0] clz_func;
         input [WIDTH-1:0] input_data;
         logic found;
         begin

@@ -60,12 +60,12 @@
 //
 //==============================================================================
 module find_first_set #(
-    parameter int WIDTH = 32
+    parameter int WIDTH = 32,
+    parameter int N = $clog2(WIDTH)
 ) (
     input  logic [WIDTH-1:0] data,
-    output logic [$clog2(WIDTH)-1:0] index  // Changed to match arbiter's N
+    output logic [N-1:0] index
 );
-    localparam int N = $clog2(WIDTH);  // Changed to match arbiter's definition
     logic w_found;
 
     always_comb begin

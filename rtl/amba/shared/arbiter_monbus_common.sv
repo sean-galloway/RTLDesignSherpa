@@ -74,7 +74,8 @@ module arbiter_monbus_common #(
     parameter int MAX_LEVELS = 16,
     parameter int MAX_LEVELS_WIDTH = $clog2(MAX_LEVELS),
     parameter int MTW = MAX_LEVELS_WIDTH,
-    parameter int CXMTW = CLIENTS*MAX_LEVELS_WIDTH
+    parameter int CXMTW = CLIENTS*MAX_LEVELS_WIDTH,
+    parameter int ACTIVE_COUNT_WIDTH = $clog2(CLIENTS+1)
 ) (
     input  logic                          clk,
     input  logic                          rst_n,
@@ -105,7 +106,7 @@ module arbiter_monbus_common #(
     output logic [63:0]                   monbus_packet,
 
     // Enhanced debug outputs for silicon debug
-    output logic [$clog2(MON_FIFO_DEPTH):0] debug_fifo_count,
+    output logic [MON_FIFO_COUNT_WIDTH-1:0] debug_fifo_count,
     output logic [15:0]                     debug_packet_count,
     output logic [CLIENTS-1:0]              debug_ack_timeout,         // Per-client ACK timeout status
     output logic [15:0]                     debug_protocol_violations, // Protocol violation count
@@ -124,7 +125,6 @@ module arbiter_monbus_common #(
     // =========================================================================
     // ALL WIRE AND SIGNAL DECLARATIONS - DECLARED FIRST BEFORE ANY USAGE
     // =========================================================================
-    localparam int ACTIVE_COUNT_WIDTH = $clog2(CLIENTS+1);
 
     // Event detection combinational logic wires
     logic                           w_starvation_detected;
@@ -132,7 +132,7 @@ module arbiter_monbus_common #(
     logic                           w_latency_threshold_detected;
     logic [N-1:0]                   w_latency_threshold_client;
     logic                           w_active_threshold_detected;
-    logic [$clog2(CLIENTS+1)-1:0]   w_active_request_count;
+    logic [ACTIVE_COUNT_WIDTH-1:0]  w_active_request_count;
     logic                           w_grant_event_detected;
     logic [N-1:0]                   w_grant_client_id;
     logic                           w_ack_timeout_event_detected;
@@ -157,7 +157,7 @@ module arbiter_monbus_common #(
     logic                            w_fifo_rd_valid;
     logic                            w_fifo_write_transfer;
     logic                            w_fifo_read_transfer;
-    logic [$clog2(MON_FIFO_DEPTH):0] w_fifo_count;
+    logic [MON_FIFO_COUNT_WIDTH-1:0] w_fifo_count;
     logic [63:0]                     w_fifo_data_out;
 
     // Raw debug wires for packet fields - w_packet_* prefix
@@ -302,7 +302,7 @@ module arbiter_monbus_common #(
 
     // Active request threshold detection
     assign w_active_request_count = $countones(request);
-    assign w_active_threshold_detected = cfg_mon_enable && (w_active_request_count >= cfg_mon_active_thresh[$clog2(CLIENTS+1)-1:0]);
+    assign w_active_threshold_detected = cfg_mon_enable && (w_active_request_count >= cfg_mon_active_thresh[ACTIVE_COUNT_WIDTH-1:0]);
 
     // Grant event detection
     assign w_grant_event_detected = cfg_mon_enable && grant_valid && (|grant);

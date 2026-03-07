@@ -36,7 +36,9 @@ module axi_monitor_reporter
     parameter int AGENT_ID            = 99,   // Agent identifier (8 bits used)
     parameter bit IS_READ             = 1'b1,    // 1 for read, 0 for write
     parameter bit ENABLE_PERF_PACKETS = 1'b0,    // Enable performance metrics tracking
-    parameter int INTR_FIFO_DEPTH     = 8     // interrupt fifo depth
+    parameter int INTR_FIFO_DEPTH     = 8,    // interrupt fifo depth
+    parameter int FIFO_COUNT_WIDTH    = $clog2(INTR_FIFO_DEPTH) + 1,
+    parameter int IDX_WIDTH           = $clog2(MAX_TRANSACTIONS)
 )
 (
     // Global Clock and Reset
@@ -132,7 +134,7 @@ module axi_monitor_reporter
     logic                                 w_fifo_rd_valid;
     logic                                 w_fifo_rd_ready;
     monbus_entry_t                        w_fifo_rd_data;
-    logic [$clog2(INTR_FIFO_DEPTH):0]     w_fifo_count;  // Proper width calculation
+    logic [FIFO_COUNT_WIDTH-1:0]          w_fifo_count;  // Proper width calculation
 
     // Use gaxi_fifo_sync for the interrupt packet FIFO
     gaxi_fifo_sync #(
@@ -164,9 +166,9 @@ module axi_monitor_reporter
     logic [MAX_TRANSACTIONS-1:0] w_error_events_detected;
     logic [MAX_TRANSACTIONS-1:0] w_timeout_events_detected;
     logic [MAX_TRANSACTIONS-1:0] w_completion_events_detected;
-    logic [$clog2(MAX_TRANSACTIONS)-1:0] w_selected_error_idx;
-    logic [$clog2(MAX_TRANSACTIONS)-1:0] w_selected_timeout_idx;
-    logic [$clog2(MAX_TRANSACTIONS)-1:0] w_selected_completion_idx;
+    logic [IDX_WIDTH-1:0] w_selected_error_idx;
+    logic [IDX_WIDTH-1:0] w_selected_timeout_idx;
+    logic [IDX_WIDTH-1:0] w_selected_completion_idx;
     logic w_has_error_event;
     logic w_has_timeout_event;
     logic w_has_completion_event;
@@ -182,7 +184,7 @@ module axi_monitor_reporter
 
     // Latency threshold detection signals (combinational)
     logic [MAX_TRANSACTIONS-1:0] w_latency_threshold_events;
-    logic [$clog2(MAX_TRANSACTIONS)-1:0] w_selected_latency_idx;
+    logic [IDX_WIDTH-1:0] w_selected_latency_idx;
     logic w_has_latency_event;
 
     // Pre-declare latency calculation variables to avoid latch inference
@@ -214,7 +216,7 @@ module axi_monitor_reporter
         for (int idx = 0; idx < MAX_TRANSACTIONS; idx++) begin
             if (w_error_events_detected[idx] && !w_has_error_event) begin
                 /* verilator lint_off WIDTHTRUNC */
-                w_selected_error_idx = idx[$clog2(MAX_TRANSACTIONS)-1:0];
+                w_selected_error_idx = idx[IDX_WIDTH-1:0];
                 /* verilator lint_on WIDTHTRUNC */
                 w_has_error_event = 1'b1;
             end
@@ -241,7 +243,7 @@ module axi_monitor_reporter
         for (int idx = 0; idx < MAX_TRANSACTIONS; idx++) begin
             if (w_timeout_events_detected[idx] && !w_has_timeout_event) begin
                 /* verilator lint_off WIDTHTRUNC */
-                w_selected_timeout_idx = idx[$clog2(MAX_TRANSACTIONS)-1:0];
+                w_selected_timeout_idx = idx[IDX_WIDTH-1:0];
                 /* verilator lint_on WIDTHTRUNC */
                 w_has_timeout_event = 1'b1;
             end
@@ -266,7 +268,7 @@ module axi_monitor_reporter
         for (int idx = 0; idx < MAX_TRANSACTIONS; idx++) begin
             if (w_completion_events_detected[idx] && !w_has_completion_event) begin
                 /* verilator lint_off WIDTHTRUNC */
-                w_selected_completion_idx = idx[$clog2(MAX_TRANSACTIONS)-1:0];
+                w_selected_completion_idx = idx[IDX_WIDTH-1:0];
                 /* verilator lint_on WIDTHTRUNC */
                 w_has_completion_event = 1'b1;
             end
@@ -375,7 +377,7 @@ module axi_monitor_reporter
             for (int idx = 0; idx < MAX_TRANSACTIONS; idx++) begin
                 if (w_latency_threshold_events[idx] && !w_has_latency_event) begin
                     /* verilator lint_off WIDTHTRUNC */
-                    w_selected_latency_idx = idx[$clog2(MAX_TRANSACTIONS)-1:0];
+                    w_selected_latency_idx = idx[IDX_WIDTH-1:0];
                     /* verilator lint_on WIDTHTRUNC */
                     w_has_latency_event = 1'b1;
                 end

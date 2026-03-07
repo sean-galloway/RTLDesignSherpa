@@ -93,15 +93,13 @@
 //
 //==============================================================================
 module math_int_to_bf16 #(
-    parameter int INT_WIDTH = 32
+    parameter int INT_WIDTH = 32,
+    parameter int CLZ_WIDTH = $clog2(INT_WIDTH) + 1
 ) (
     input  logic signed [INT_WIDTH-1:0] i_int,
     output logic [15:0]                 ow_bf16,
     output logic                        ow_is_zero
 );
-
-// Compute CLZ output width
-localparam int CLZ_WIDTH = $clog2(INT_WIDTH) + 1;
 
 // Extract sign and compute absolute value
 wire w_sign = i_int[INT_WIDTH-1];

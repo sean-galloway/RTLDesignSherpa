@@ -297,7 +297,8 @@
 //==============================================================================
 module grayj2bin #(
     parameter int    JCW = 10,
-    parameter int    WIDTH = 4
+    parameter int    WIDTH = 4,
+    parameter int    N = $clog2(JCW)
 ) (
     input  logic              clk,
     input  logic              rst_n,
@@ -305,7 +306,6 @@ module grayj2bin #(
     output logic  [WIDTH-1:0] binary
 );
 
-    localparam int N = $clog2(JCW);
     localparam int PAD_WIDTH = (WIDTH > N+1) ? WIDTH-N-1 : 0;
 
     logic [N-1:0]     w_leading_one;

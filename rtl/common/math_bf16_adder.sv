@@ -39,7 +39,12 @@ module math_bf16_adder #(
     parameter int PIPE_STAGE_1 = 0,  // After exponent diff + swap
     parameter int PIPE_STAGE_2 = 0,  // After alignment shifter
     parameter int PIPE_STAGE_3 = 0,  // After mantissa add/sub
-    parameter int PIPE_STAGE_4 = 0   // After normalize
+    parameter int PIPE_STAGE_4 = 0,  // After normalize
+    parameter int MANT_WIDTH = 7,           // Explicit mantissa bits
+    parameter int EXP_WIDTH = 8,            // Exponent bits
+    parameter int EXT_MANT_WIDTH = 11,      // Extended: 1.mmmmmmm + GRS bits
+    parameter int CLZ_WIDTH = $clog2(EXT_MANT_WIDTH) + 1,
+    parameter int SHIFT_AMT_WIDTH = $clog2(EXT_MANT_WIDTH)
 ) (
     input  logic        i_clk,
     input  logic        i_rst_n,
@@ -54,12 +59,8 @@ module math_bf16_adder #(
 );
 
     // =========================================================================
-    // Local Parameters
+    // Local Parameters (non $clog2)
     // =========================================================================
-    localparam int MANT_WIDTH = 7;           // Explicit mantissa bits
-    localparam int EXP_WIDTH = 8;            // Exponent bits
-    localparam int EXT_MANT_WIDTH = 11;      // Extended: 1.mmmmmmm + GRS bits
-    localparam int CLZ_WIDTH = $clog2(EXT_MANT_WIDTH) + 1;
 
     // Shifter control codes (from shifter_barrel)
     localparam logic [2:0] SHIFT_NONE        = 3'b000;
@@ -227,12 +228,12 @@ module math_bf16_adder #(
     // Alignment: right-shift smaller mantissa by exponent difference
     // Use shifter_barrel in logical right shift mode
     wire [10:0] w_mant_s_aligned;
-    wire [$clog2(EXT_MANT_WIDTH):0] w_shift_amt;
+    wire [SHIFT_AMT_WIDTH:0] w_shift_amt;
 
     // Clamp shift amount to mantissa width (shifts beyond this produce zero + sticky)
-    assign w_shift_amt = (r1_exp_diff > EXT_MANT_WIDTH) ? 
-                         EXT_MANT_WIDTH[$clog2(EXT_MANT_WIDTH):0] : 
-                         r1_exp_diff[$clog2(EXT_MANT_WIDTH):0];
+    assign w_shift_amt = (r1_exp_diff > EXT_MANT_WIDTH) ?
+                         EXT_MANT_WIDTH[SHIFT_AMT_WIDTH:0] :
+                         r1_exp_diff[SHIFT_AMT_WIDTH:0];
 
     shifter_barrel #(
         .WIDTH(EXT_MANT_WIDTH)
@@ -512,8 +513,8 @@ module math_bf16_adder #(
 
     // Apply normalization shift using shifter_barrel
     wire [10:0] w_mant_normalized;
-    wire [$clog2(EXT_MANT_WIDTH):0] w_norm_shift_amt_ext;
-    assign w_norm_shift_amt_ext = {1'b0, w_norm_shift_amt[$clog2(EXT_MANT_WIDTH)-1:0]};
+    wire [SHIFT_AMT_WIDTH:0] w_norm_shift_amt_ext;
+    assign w_norm_shift_amt_ext = {1'b0, w_norm_shift_amt[SHIFT_AMT_WIDTH-1:0]};
 
     shifter_barrel #(
         .WIDTH(EXT_MANT_WIDTH)

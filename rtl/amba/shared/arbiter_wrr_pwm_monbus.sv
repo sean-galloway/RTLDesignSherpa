@@ -93,7 +93,8 @@ module arbiter_wrr_pwm_monbus #(
     // Calculated parameters
     parameter int MAX_LEVELS_WIDTH = $clog2(MAX_LEVELS),
     parameter int N = $clog2(CLIENTS),
-    parameter int CXMTW = CLIENTS * MAX_LEVELS_WIDTH
+    parameter int CXMTW = CLIENTS * MAX_LEVELS_WIDTH,
+    parameter int MON_FIFO_COUNT_WIDTH = $clog2(MON_FIFO_DEPTH) + 1
 ) (
     input  logic                          clk,
     input  logic                          rst_n,
@@ -132,7 +133,7 @@ module arbiter_wrr_pwm_monbus #(
     output logic [63:0]                   monbus_packet,
 
     // Enhanced debug outputs for silicon debug (matching modern interface)
-    output logic [$clog2(MON_FIFO_DEPTH):0] debug_fifo_count,
+    output logic [MON_FIFO_COUNT_WIDTH-1:0] debug_fifo_count,
     output logic [15:0]                     debug_packet_count,
     output logic [CLIENTS-1:0]              debug_ack_timeout,
     output logic [15:0]                     debug_protocol_violations,

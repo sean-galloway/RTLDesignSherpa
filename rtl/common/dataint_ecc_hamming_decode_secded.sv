@@ -237,7 +237,10 @@
 `include "reset_defs.svh"
 module dataint_ecc_hamming_decode_secded #(
     parameter int WIDTH = 4,
-    parameter int DEBUG = 0
+    parameter int DEBUG = 0,
+    parameter int WIDTH_LOG = $clog2(WIDTH),
+    parameter int ParityBits = $clog2(WIDTH + WIDTH_LOG + 1),
+    parameter int TotalWidth = WIDTH + ParityBits + 1
 ) (
     input  logic                      clk,
     rst_n,
@@ -247,8 +250,6 @@ module dataint_ecc_hamming_decode_secded #(
     output logic                      error_detected,
     output logic                      double_error_detected
 );
-    localparam int ParityBits = $clog2(WIDTH + $clog2(WIDTH) + 1);
-    localparam int TotalWidth = WIDTH + ParityBits + 1;
 
     // local wires
     logic [ParityBits-1:0] w_syndrome;

@@ -287,7 +287,12 @@
 module arbiter_round_robin_weighted #(
     parameter int MAX_LEVELS = 16,
     parameter int CLIENTS = 4,
-    parameter int WAIT_GNT_ACK = 0
+    parameter int WAIT_GNT_ACK = 0,
+    parameter int MAX_LEVELS_WIDTH = $clog2(MAX_LEVELS),  // Credit counter width
+    parameter int N = $clog2(CLIENTS),                     // Client ID width
+    parameter int C = CLIENTS,                             // Convenience alias for port widths
+    parameter int MTW = MAX_LEVELS_WIDTH,                  // Convenience alias for weight width
+    parameter int CXMTW = CLIENTS * MAX_LEVELS_WIDTH       // Total packed weight array width
 ) (
     input  logic              clk,
     input  logic              rst_n,
@@ -301,15 +306,6 @@ module arbiter_round_robin_weighted #(
     output logic [C-1:0]      grant,
     output logic [N-1:0]      grant_id
 );
-
-    // =======================================================================
-    // Derived Parameters (computed from parameters)
-    // =======================================================================
-    localparam int MAX_LEVELS_WIDTH = $clog2(MAX_LEVELS);  // Credit counter width
-    localparam int N = $clog2(CLIENTS);                     // Client ID width
-    localparam int C = CLIENTS;                             // Convenience alias for port widths
-    localparam int MTW = MAX_LEVELS_WIDTH;                  // Convenience alias for weight width
-    localparam int CXMTW = CLIENTS * MAX_LEVELS_WIDTH;      // Total packed weight array width
 
     // =======================================================================
     // Local Parameters for Magic Numbers

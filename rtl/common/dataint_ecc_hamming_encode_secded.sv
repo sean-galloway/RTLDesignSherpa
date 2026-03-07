@@ -141,13 +141,14 @@
 //==============================================================================
 module dataint_ecc_hamming_encode_secded #(
     parameter int WIDTH = 4,
-    parameter int DEBUG = 0
+    parameter int DEBUG = 0,
+    parameter int WIDTH_LOG = $clog2(WIDTH),
+    parameter int ParityBits = $clog2(WIDTH + WIDTH_LOG + 1),
+    parameter int TotalWidth = WIDTH + ParityBits + 1  // Including the SECDED bit
 ) (
     input  logic [     WIDTH-1:0] data,
     output logic [TotalWidth-1:0] encoded_data
 );
-    localparam int ParityBits = $clog2(WIDTH + $clog2(WIDTH) + 1);
-    localparam int TotalWidth = WIDTH + ParityBits + 1;  // Including the SECDED bit
 
     // local wires
     logic [TotalWidth-1:0] w_data_with_parity;

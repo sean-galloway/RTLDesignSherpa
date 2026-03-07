@@ -465,7 +465,8 @@ module fifo_async_div2 #(
     parameter int    DEPTH             = 10,
     parameter int    N_FLOP_CROSS      = 2,
     parameter int    ALMOST_WR_MARGIN  = 1,
-    parameter int    ALMOST_RD_MARGIN  = 1
+    parameter int    ALMOST_RD_MARGIN  = 1,
+    parameter int    AW                = $clog2(DEPTH)
 ) (
     // clocks and resets
     input  logic wr_clk,
@@ -491,7 +492,6 @@ module fifo_async_div2 #(
     // -----------------------------------------------------------------------
     localparam int DW  = DATA_WIDTH;
     localparam int D   = DEPTH;
-    localparam int AW  = $clog2(DEPTH);
     localparam int JCW = D;                 // Johnson counter width (one-hot-ish)
     localparam int N   = N_FLOP_CROSS;
 

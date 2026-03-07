@@ -192,19 +192,20 @@
 `include "reset_defs.svh"
 
 module counter_load_clear #(
-    parameter int MAX = 32'd32  // Maximum count value (determines width)
+    parameter int MAX = 32'd32,  // Maximum count value (determines width)
+    parameter int COUNT_WIDTH = $clog2(MAX)
 ) (
     input logic                     clk,
     input logic                     rst_n,
     input logic                     clear,
     input logic                     increment,
     input logic                     load,
-    input logic [$clog2(MAX)-1:0]   loadval,
-    output logic [$clog2(MAX)-1:0]  count,
+    input logic [COUNT_WIDTH-1:0]   loadval,
+    output logic [COUNT_WIDTH-1:0]  count,
     output logic                    done
 );
     // Match value register (runtime programmable)
-    logic [$clog2(MAX)-1:0] r_match_val;
+    logic [COUNT_WIDTH-1:0] r_match_val;
 
     // Main counter register and match value update
     `ALWAYS_FF_RST(clk, rst_n,

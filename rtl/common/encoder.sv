@@ -232,15 +232,16 @@
 //
 //==============================================================================
 module encoder #(
-    parameter int N = 8
+    parameter int N = 8,
+    parameter int ENCODE_WIDTH = $clog2(N)
 ) (
     input  logic [        N-1:0] decoded,
-    output logic [$clog2(N)-1:0] data
+    output logic [ENCODE_WIDTH-1:0] data
 );
     always_comb begin
         data = 0;
         for (int i = 0; i < N; i++) begin
-            if (decoded[i]) data = $clog2(N)'(i);
+            if (decoded[i]) data = ENCODE_WIDTH'(i);
         end
     end
 endmodule : encoder

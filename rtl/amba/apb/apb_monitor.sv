@@ -42,7 +42,8 @@ module apb_monitor
     // Short params
     parameter int AW                  = ADDR_WIDTH,
     parameter int DW                  = DATA_WIDTH,
-    parameter int SW                  = DW/8
+    parameter int SW                  = DW/8,
+    parameter int IDX_WIDTH           = $clog2(MAX_TRANSACTIONS)
 )
 (
     // Clock and Reset (aclk domain - matches cmd/rsp interfaces)
@@ -126,10 +127,10 @@ module apb_monitor
 
     // Transaction management
     logic [MAX_TRANSACTIONS-1:0] w_free_slot;
-    logic [$clog2(MAX_TRANSACTIONS)-1:0] w_free_idx;
+    logic [IDX_WIDTH-1:0] w_free_idx;
     logic w_has_free_slot;
     logic [MAX_TRANSACTIONS-1:0] w_active_trans;
-    logic [$clog2(MAX_TRANSACTIONS)-1:0] w_active_idx;
+    logic [IDX_WIDTH-1:0] w_active_idx;
     logic w_has_active_trans;
     logic [MAX_TRANSACTIONS-1:0] w_completed_trans;
 
@@ -251,7 +252,7 @@ module apb_monitor
         for (int i = 0; i < MAX_TRANSACTIONS; i++) begin
             if (!r_trans_table[i].valid && !w_has_free_slot) begin
                 w_free_slot[i] = 1'b1;
-                w_free_idx = i[$clog2(MAX_TRANSACTIONS)-1:0];
+                w_free_idx = i[IDX_WIDTH-1:0];
                 w_has_free_slot = 1'b1;
             end
         end
@@ -269,7 +270,7 @@ module apb_monitor
                     r_trans_table[i].state == TRANS_DATA_PHASE) &&
                 !w_has_active_trans) begin
                 w_active_trans[i] = 1'b1;
-                w_active_idx = i[$clog2(MAX_TRANSACTIONS)-1:0];
+                w_active_idx = i[IDX_WIDTH-1:0];
                 w_has_active_trans = 1'b1;
             end
         end

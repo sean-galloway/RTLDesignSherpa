@@ -16,11 +16,12 @@
 `timescale 1ns / 1ps
 
 module encoder_priority_enable #(
-    parameter int WIDTH = 8
+    parameter int WIDTH = 8,
+    parameter int ENCODE_WIDTH = $clog2(WIDTH)
 ) (
     input  logic [        WIDTH-1:0] priority_in,
     input  logic                     enable,
-    output logic [$clog2(WIDTH)-1:0] encode
+    output logic [ENCODE_WIDTH-1:0] encode
 );
 
     logic found;
@@ -34,7 +35,7 @@ module encoder_priority_enable #(
             // Find the highest priority bit using found flag to prevent overwrites
             for (int i = WIDTH-1; i >= 0; i--) begin
                 if (priority_in[i] == 1'b1 && !found) begin
-                    encode = $clog2(WIDTH)'(i);
+                    encode = ENCODE_WIDTH'(i);
                     found = 1'b1;
                 end
             end

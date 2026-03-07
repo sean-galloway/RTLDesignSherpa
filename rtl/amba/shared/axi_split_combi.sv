@@ -41,7 +41,9 @@
 
 module axi_split_combi #(
     parameter int AW = 32,
-    parameter int DW = 32  // Data width in bits
+    parameter int DW = 32,  // Data width in bits
+    parameter int BYTES_PER_BEAT = DW / 8,
+    parameter int LOG2_BYTES_PER_BEAT = $clog2(BYTES_PER_BEAT)
 ) (
     // Clock for assertions only
     input  logic            aclk,
@@ -70,8 +72,6 @@ module axi_split_combi #(
     //===========================================================================
 
     // Calculate constants based on data width
-    localparam int BYTES_PER_BEAT = DW / 8;
-    localparam int LOG2_BYTES_PER_BEAT = $clog2(BYTES_PER_BEAT);
     localparam int EXPECTED_AX_SIZE = LOG2_BYTES_PER_BEAT;
     localparam logic [AW-1:0] ADDR_ALIGN_MASK = AW'(BYTES_PER_BEAT - 1);
 

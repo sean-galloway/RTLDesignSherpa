@@ -18,20 +18,21 @@
 `include "reset_defs.svh"
 
 module counter #(
-    parameter int MAX = 32767
+    parameter int MAX = 32767,
+    parameter int COUNT_WIDTH = $clog2(MAX+1)
 ) (
     input  logic clk,
     rst_n,
     output logic tick
 );
 
-    logic [$clog2(MAX+1)-1:0] r_count;
+    logic [COUNT_WIDTH-1:0] r_count;
 
     `ALWAYS_FF_RST(clk, rst_n,
         if (`RST_ASSERTED(rst_n)) begin
             r_count <= '0;
         end else begin
-            if (r_count == MAX[$clog2(MAX+1)-1:0]) begin
+            if (r_count == MAX[COUNT_WIDTH-1:0]) begin
                 r_count <= '0;
             end else begin
                 r_count <= r_count + 1'b1;
@@ -40,6 +41,6 @@ module counter #(
     )
 
 
-    assign tick = (r_count == MAX[$clog2(MAX+1)-1:0]);
+    assign tick = (r_count == MAX[COUNT_WIDTH-1:0]);
 
 endmodule : counter

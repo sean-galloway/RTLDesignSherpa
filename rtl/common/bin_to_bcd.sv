@@ -68,7 +68,9 @@
 `include "reset_defs.svh"
 module bin_to_bcd #(
     parameter int WIDTH  = 8,
-    parameter int DIGITS = 3
+    parameter int DIGITS = 3,
+    parameter int DIGIT_INDEX_WIDTH = $clog2(DIGITS),
+    parameter int LOOP_COUNT_WIDTH = $clog2(WIDTH + 1)
 ) (
     input  logic                clk,     // Clock signal
     input  logic                rst_n,   // Active-low reset signal
@@ -96,12 +98,10 @@ module bin_to_bcd #(
     logic [WIDTH-1:0] r_binary;
 
     // Keeps track of which Decimal Digit we are indexing
-    localparam int DIGIT_INDEX_WIDTH = $clog2(DIGITS);
     logic [DIGIT_INDEX_WIDTH-1:0] r_digit_index;
 
     // Keeps track of which loop iteration we are on.
     // Number of loops performed = WIDTH
-    localparam int LOOP_COUNT_WIDTH = $clog2(WIDTH + 1);
     logic [LOOP_COUNT_WIDTH-1:0] r_loop_count;
 
     logic [3:0] w_bcd_digit;

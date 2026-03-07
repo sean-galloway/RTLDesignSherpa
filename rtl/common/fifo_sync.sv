@@ -314,7 +314,8 @@ module fifo_sync
     parameter int    DATA_WIDTH = 4,
     parameter int    DEPTH = 4,
     parameter int    ALMOST_WR_MARGIN = 1,
-    parameter int    ALMOST_RD_MARGIN = 1
+    parameter int    ALMOST_RD_MARGIN = 1,
+    parameter int    AW = $clog2(DEPTH)
 ) (
     input  logic                    clk,
                                     rst_n,
@@ -333,7 +334,6 @@ module fifo_sync
     // -----------------------------------------------------------------------
     localparam int DW = DATA_WIDTH;
     localparam int D  = DEPTH;
-    localparam int AW = $clog2(DEPTH);
 
     logic [AW-1:0] r_wr_addr, r_rd_addr;
     logic [AW:0]   r_wr_ptr_bin, r_rd_ptr_bin;

@@ -65,18 +65,18 @@
 //
 //==============================================================================
 module leading_one_trailing_one #(
-    parameter int WIDTH = 8
+    parameter int WIDTH = 8,
+    parameter int N = $clog2(WIDTH)
 ) (
     input  logic [WIDTH-1:0]     data,
-    output logic [$clog2(WIDTH)-1:0] leadingone,       // Changed to match arbiter's N
+    output logic [N-1:0]         leadingone,
     output logic [WIDTH-1:0]     leadingone_vector,
-    output logic [$clog2(WIDTH)-1:0] trailingone,      // Changed to match arbiter's N
+    output logic [N-1:0]         trailingone,
     output logic [WIDTH-1:0]     trailingone_vector,
     output logic                 all_zeroes,
     output logic                 all_ones,
     output logic                 valid
 );
-    localparam int N = $clog2(WIDTH);  // Changed to match arbiter's definition
 
     find_last_set #(
         .WIDTH         (WIDTH)

@@ -88,7 +88,8 @@ module arbiter_rr_pwm_monbus #(
     localparam int MIN_GRANTS_FOR_FAIRNESS = 64,    // Minimum grants for fairness calc (standardized)
 
     // Calculated parameters
-    parameter int N = $clog2(CLIENTS)
+    parameter int N = $clog2(CLIENTS),
+    parameter int MON_FIFO_COUNT_WIDTH = $clog2(MON_FIFO_DEPTH+1)
 ) (
     input  logic                          clk,
     input  logic                          rst_n,
@@ -124,7 +125,7 @@ module arbiter_rr_pwm_monbus #(
     output logic [63:0]                   monbus_packet,
 
     // Optional debug outputs (sized for standardized FIFO depth)
-    output logic [$clog2(MON_FIFO_DEPTH+1)-1:0] debug_fifo_count,
+    output logic [MON_FIFO_COUNT_WIDTH-1:0] debug_fifo_count,
     output logic [15:0]                   debug_packet_count
 );
 

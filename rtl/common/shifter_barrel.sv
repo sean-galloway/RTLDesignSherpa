@@ -16,7 +16,9 @@
 `timescale 1ns / 1ps
 
 module shifter_barrel #(
-    parameter int WIDTH = 8
+    parameter int WIDTH = 8,
+    parameter int SHIFT_WIDTH = $clog2(WIDTH) + 1,
+    parameter int SHIFT_MOD_WIDTH = $clog2(WIDTH)
 ) (
     input  logic         [WIDTH-1:0] data,          // Input data
     input  logic               [2:0] ctrl,          // Control signal (3-bit)
@@ -26,7 +28,7 @@ module shifter_barrel #(
                                                       // 011 Logical Right Shift (wrap)
                                                       // 100 Logical Left Shift (no wrap)
                                                       // 110 Logical Left Shift (wrap)
-    input  logic [($clog2(WIDTH)):0] shift_amount,  // Shift amount (number of positions to shift)
+    input  logic    [SHIFT_WIDTH-1:0] shift_amount,  // Shift amount (number of positions to shift)
     output logic         [WIDTH-1:0] data_out      // Output data
 );
 
@@ -39,8 +41,8 @@ module shifter_barrel #(
     assign w_data_double = {data, data};
 
     // Clamp shift amount modulo WIDTH
-    logic [$clog2(WIDTH)-1:0] shift_amount_mod;
-    assign shift_amount_mod = shift_amount[$clog2(WIDTH)-1:0];
+    logic [SHIFT_MOD_WIDTH-1:0] shift_amount_mod;
+    assign shift_amount_mod = shift_amount[SHIFT_MOD_WIDTH-1:0];
 
     // Generate lookup values for rotating shifts
     genvar i;

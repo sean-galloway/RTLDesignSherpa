@@ -623,7 +623,8 @@ module fifo_async #(
     parameter int  DEPTH           = 16,
     parameter int  N_FLOP_CROSS    = 2,
     parameter int  ALMOST_WR_MARGIN= 1,
-    parameter int  ALMOST_RD_MARGIN= 1
+    parameter int  ALMOST_RD_MARGIN= 1,
+    parameter int  AW              = $clog2(DEPTH)
 ) (
     // clocks and resets
     input  logic wr_clk,
@@ -649,7 +650,6 @@ module fifo_async #(
     // -----------------------------------------------------------------------
     localparam int DW = DATA_WIDTH;
     localparam int D  = DEPTH;
-    localparam int AW = $clog2(DEPTH);
     localparam int N  = N_FLOP_CROSS;
 
     logic [AW-1:0] r_wr_addr, r_rd_addr;

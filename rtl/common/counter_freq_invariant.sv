@@ -237,7 +237,8 @@
 module counter_freq_invariant
 #(
     parameter int COUNTER_WIDTH = 16,     // Width of the output counter (default 16-bit = ~65ms rollover)
-    parameter int PRESCALER_MAX = 2048    // Maximum value of the pre-scaler (supports up to 2GHz)
+    parameter int PRESCALER_MAX = 2048,   // Maximum value of the pre-scaler (supports up to 2GHz)
+    parameter int PRESCALER_WIDTH = $clog2(PRESCALER_MAX)  // Width of prescaler counter
 ) (
     input  logic                        clk,         // Input clock (100MHz to 2GHz)
     input  logic                        rst_n,       // Active low reset
@@ -371,7 +372,7 @@ module counter_freq_invariant
         .clear          (r_clear_pulse),         // Clear when frequency changes or sync reset
         .increment      (1'b1),                  // Always increment
         .load           (1'b1),                  // Always load the division factor
-        .loadval        (w_division_factor[$clog2(PRESCALER_MAX)-1:0] - 1'b1), // Load cycles-1 for proper timing
+        .loadval        (w_division_factor[PRESCALER_WIDTH-1:0] - 1'b1), // Load cycles-1 for proper timing
         .done           (w_prescaler_done),
         /* verilator lint_off PINCONNECTEMPTY */
         .count          ()                       // Internal count not needed

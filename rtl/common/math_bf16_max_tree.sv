@@ -74,11 +74,13 @@
 //
 //==============================================================================
 module math_bf16_max_tree #(
-    parameter int NUM_INPUTS = 8
+    parameter int NUM_INPUTS = 8,
+    parameter int NUM_LEVELS = $clog2(NUM_INPUTS),
+    parameter int IDX_WIDTH = $clog2(NUM_INPUTS)
 ) (
     input  logic [NUM_INPUTS*16-1:0]    i_values_flat,  // Flattened: {val[N-1], ..., val[1], val[0]}
     output logic [15:0]                 ow_max,
-    output logic [$clog2(NUM_INPUTS)-1:0] ow_max_index,
+    output logic [IDX_WIDTH-1:0]        ow_max_index,
     output logic                        ow_all_zero
 );
 
@@ -89,10 +91,6 @@ generate
         assign i_values[i] = i_values_flat[i*16 +: 16];
     end
 endgenerate
-
-// Number of tree levels
-localparam int NUM_LEVELS = $clog2(NUM_INPUTS);
-localparam int IDX_WIDTH = $clog2(NUM_INPUTS);
 
 // Total number of comparator nodes = NUM_INPUTS - 1
 localparam int TOTAL_NODES = NUM_INPUTS - 1;

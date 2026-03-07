@@ -260,7 +260,8 @@
 module clock_divider #(
     parameter int N             = 4,  // Number of output clocks
     parameter int PO_WIDTH      = 8,  // Width of the Pick off registers
-    parameter int COUNTER_WIDTH = 64  // Width of the counter
+    parameter int COUNTER_WIDTH = 64,  // Width of the counter
+    parameter int ADDR_WIDTH    = $clog2(COUNTER_WIDTH)
 ) (
     input  logic                    clk,             // Input clock signal
     input  logic                    rst_n,           // Active low reset signal
@@ -269,9 +270,6 @@ module clock_divider #(
 );
 
     logic [COUNTER_WIDTH-1:0] r_divider_counters;  // Counter for all input clocks
-
-    // Calculate the width needed to address all counter bits
-    localparam int ADDR_WIDTH = $clog2(COUNTER_WIDTH);
 
     `ALWAYS_FF_RST(clk, rst_n,
         if (!rst_n) r_divider_counters <= 0;
