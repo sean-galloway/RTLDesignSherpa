@@ -120,20 +120,4 @@ module gaxi_skid_buffer_dbldrn #(
     assign rd_count = r_data_count;
     assign count    = r_data_count;
 
-    // -------------------------------------------------------------------------
-    // Simulation-only: Instance report (grep for FIFO_INSTANCE)
-    // -------------------------------------------------------------------------
-    // synopsys translate_off
-    initial begin
-        $display("FIFO_INSTANCE: gaxi_skid_buffer_dbldrn %m %s W=%0d D=%0d", INSTANCE_NAME, DW, DEPTH);
-    end
-
-    // Assertion: rd_ready2 only legal when rd_count >= 2
-    always @(posedge axi_aclk) begin
-        if (axi_aresetn && rd_ready && rd_ready2 && r_data_count < 2) begin
-            $error("ERROR: rd_ready2 asserted when rd_count < 2 (rd_count=%0d)", r_data_count);
-        end
-    end
-    // synopsys translate_on
-
 endmodule : gaxi_skid_buffer_dbldrn

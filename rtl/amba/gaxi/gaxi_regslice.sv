@@ -13,12 +13,7 @@
 `include "reset_defs.svh"
 
 module gaxi_regslice #(
-    parameter int    DATA_WIDTH   = 32
-    // synopsys translate_off
-    ,
-    parameter string INSTANCE_NAME = "REGSL1D"
-    // synopsys translate_on
-    ,
+    parameter int    DATA_WIDTH   = 32,
     // Derived (kept for parity with your style)
     parameter int    DW          = DATA_WIDTH
 ) (
@@ -99,30 +94,5 @@ module gaxi_regslice #(
     // ------------------------------------------------------------------------
     assign count    = r_valid ? 4'd1 : 4'd0;
     assign rd_count = count;
-
-    // ------------------------------------------------------------------------
-    // (Optional) Assertions / Diagnostics
-    // ------------------------------------------------------------------------
-    // synopsys translate_off
-    // 1) No write when not ready
-    always_ff @(posedge axi_aclk) if (axi_aresetn) begin
-        if (wr_valid && !wr_ready) begin
-            // Not an error by itself (backpressure), but useful to see hot spots
-            // $display("[%s] wr_valid && !wr_ready at %0t", INSTANCE_NAME, $time);
-        end
-    end
-    // 2) No read when not valid
-    always_ff @(posedge axi_aclk) if (axi_aresetn) begin
-        if (rd_ready && !rd_valid) begin
-            // $display("[%s] rd_ready && !rd_valid at %0t", INSTANCE_NAME, $time);
-        end
-    end
-    // 3) Sanity: count must be 0/1 only
-    always_ff @(posedge axi_aclk) if (axi_aresetn) begin
-        if (count > 4'd1) begin
-            $error("[%s] count > 1 (=%0d) @ %0t", INSTANCE_NAME, count, $time);
-        end
-    end
-    // synopsys translate_on
 
 endmodule

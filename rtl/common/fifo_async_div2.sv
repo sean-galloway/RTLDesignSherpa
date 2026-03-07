@@ -466,10 +466,6 @@ module fifo_async_div2 #(
     parameter int    N_FLOP_CROSS      = 2,
     parameter int    ALMOST_WR_MARGIN  = 1,
     parameter int    ALMOST_RD_MARGIN  = 1
-    // synopsys translate_off
-    ,
-    parameter string INSTANCE_NAME     = "DEADF1F0"  // verilog_lint: waive explicit-parameter-storage-type
-    // synopsys translate_on
 ) (
     // clocks and resets
     input  logic wr_clk,
@@ -576,10 +572,6 @@ module fifo_async_div2 #(
     grayj2bin #(
         .JCW           (JCW),
         .WIDTH         (AW + 1)
-        // synopsys translate_off
-        ,
-        .INSTANCE_NAME ("rd_ptr_johnson2bin_inst")
-        // synopsys translate_on
     ) rd_ptr_gray2bin_inst (
         .binary (w_wdom_rd_ptr_bin),
         .gray   (r_wdom_rd_ptr_gray),
@@ -600,10 +592,6 @@ module fifo_async_div2 #(
     grayj2bin #(
         .JCW           (JCW),
         .WIDTH         (AW + 1)
-        // synopsys translate_off
-        ,
-        .INSTANCE_NAME ("wr_ptr_gray2bin_inst")
-        // synopsys translate_on
     ) wr_ptr_gray2bin_inst (
         .binary (w_rdom_wr_ptr_bin),
         .gray   (r_rdom_wr_ptr_gray),
@@ -676,14 +664,6 @@ module fifo_async_div2 #(
             end else begin : g_mux
                 always_comb w_rd_data = mem[r_rd_addr];
             end
-
-            // synopsys translate_off
-            logic [(DW*DEPTH)-1:0] flat_mem_srl;
-            genvar i_srl;
-            for (i_srl = 0; i_srl < DEPTH; i_srl++) begin : gen_flatten_srl
-                assign flat_mem_srl[i_srl*DW+:DW] = mem[i_srl];
-            end
-            // synopsys translate_on
         end
         else if (MEM_STYLE == FIFO_BRAM) begin : gen_bram
             `ifdef XILINX
@@ -705,25 +685,6 @@ module fifo_async_div2 #(
                 if (!rd_rst_n) w_rd_data <= '0;
                 else           w_rd_data <= mem[r_rd_addr];
             )
-
-
-            // synopsys translate_off
-            logic [(DW*DEPTH)-1:0] flat_mem_bram;
-            genvar i_bram;
-            for (i_bram = 0; i_bram < DEPTH; i_bram++) begin : gen_flatten_bram
-                assign flat_mem_bram[i_bram*DW+:DW] = mem[i_bram];
-            end
-            // synopsys translate_on
-
-            // Optional notice if user expected mux behavior
-            // synopsys translate_off
-            initial begin
-                if (REGISTERED == 0) begin
-                    $display("NOTE: %s BRAM style uses synchronous read; +1 cycle latency in rd domain.",
-                            INSTANCE_NAME);
-                end
-            end
-            // synopsys translate_on
         end
         else begin : gen_auto
             // Let tool decide (LUTRAM vs BRAM). Allow comb read when REGISTERED==0.
@@ -745,14 +706,6 @@ module fifo_async_div2 #(
             end else begin : g_mux
                 always_comb w_rd_data = mem[r_rd_addr];
             end
-
-            // synopsys translate_off
-            logic [(DW*DEPTH)-1:0] flat_mem_auto;
-            genvar i_auto;
-            for (i_auto = 0; i_auto < DEPTH; i_auto++) begin : gen_flatten_auto
-                assign flat_mem_auto[i_auto*DW+:DW] = mem[i_auto];
-            end
-            // synopsys translate_on
         end
     endgenerate
 
@@ -760,37 +713,5 @@ module fifo_async_div2 #(
     // Output connect (common)
     // -----------------------------------------------------------------------
     assign rd_data = w_rd_data;
-
-    // -----------------------------------------------------------------------
-    // Simulation-only: Instance report and error checking
-    // -----------------------------------------------------------------------
-    // synopsys translate_off
-    // Runtime debug control: +SIM_DEBUG=1 enables output
-    int sim_debug;
-    initial begin
-        sim_debug = 0;
-        void'($value$plusargs("SIM_DEBUG=%d", sim_debug));
-        if (sim_debug)
-            $display("FIFO_INSTANCE: fifo_async_div2 %m %s W=%0d D=%0d REG=%0d", INSTANCE_NAME, DATA_WIDTH, DEPTH, REGISTERED);
-    end
-
-    // Overflow/underflow error messages (always enabled)
-    always_ff @(posedge wr_clk) begin
-        if (write && wr_full) begin
-            $timeformat(-9, 3, " ns", 10);
-            $display("Error: %s write while fifo full, %t", INSTANCE_NAME, $time);
-        end
-    end
-
-    always_ff @(posedge rd_clk) begin
-        if (read && rd_empty) begin
-            $timeformat(-9, 3, " ns", 10);
-            if (REGISTERED == 1)
-                $display("Error: %s read while fifo empty (flop mode), %t", INSTANCE_NAME, $time);
-            else
-                $display("Error: %s read while fifo empty (mux mode), %t", INSTANCE_NAME, $time);
-        end
-    end
-    // synopsys translate_on
 
 endmodule : fifo_async_div2

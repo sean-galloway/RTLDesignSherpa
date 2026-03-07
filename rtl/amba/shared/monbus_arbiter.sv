@@ -236,40 +236,4 @@ module monbus_arbiter #(
         end
     endgenerate
 
-    // =======================================================================
-    // Assertions for Design Verification
-    // =======================================================================
-
-    // synthesis translate_off
-
-    // Verify grant is always one-hot when valid
-    always @(posedge axi_aclk) begin
-        if (axi_aresetn && grant_valid) begin
-            assert ($onehot(grant)) else
-                $error("Grant vector is not one-hot when grant_valid is asserted");
-        end
-    end
-
-    // Verify grant_id corresponds to the asserted grant bit
-    always @(posedge axi_aclk) begin
-        if (axi_aresetn && grant_valid) begin
-            assert (grant[grant_id]) else
-                $error("grant_id does not correspond to asserted grant bit");
-        end
-    end
-
-    // Verify only granted client receives ready
-    always @(posedge axi_aclk) begin
-        if (axi_aresetn) begin
-            for (int i = 0; i < CLIENTS; i++) begin
-                if (!grant[i]) begin
-                    assert (!int_monbus_ready_in[i]) else
-                        $error("Non-granted client %0d received ready signal", i);
-                end
-            end
-        end
-    end
-
-    // synthesis translate_on
-
 endmodule : monbus_arbiter

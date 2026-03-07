@@ -178,12 +178,7 @@ module gaxi_drop_fifo_sync #(
     parameter int DATA_WIDTH = 4,
     parameter int DEPTH = 4,
     parameter int ALMOST_WR_MARGIN = 1,
-    parameter int ALMOST_RD_MARGIN = 1
-    // synopsys translate_off
-    ,
-    parameter string INSTANCE_NAME = "DEADF1F0"
-    // synopsys translate_on
-    ,
+    parameter int ALMOST_RD_MARGIN = 1,
     parameter int DW = DATA_WIDTH,
     parameter int D = DEPTH,
     parameter int AW = $clog2(DEPTH)
@@ -376,14 +371,6 @@ module gaxi_drop_fifo_sync #(
 
             // Read path - combinational for drop FIFO (always mux mode for memory)
             always_comb w_rd_data = mem[r_rd_addr];
-
-            // synopsys translate_off
-            logic [(DW*DEPTH)-1:0] flat_mem_srl;
-            genvar i_srl;
-            for (i_srl = 0; i_srl < DEPTH; i_srl++) begin : gen_flatten_srl
-                assign flat_mem_srl[i_srl*DW+:DW] = mem[i_srl];
-            end
-            // synopsys translate_on
         end
         else if (MEM_STYLE == FIFO_BRAM) begin : gen_bram
             `ifdef XILINX
@@ -406,21 +393,6 @@ module gaxi_drop_fifo_sync #(
                 else              w_rd_data <= mem[r_rd_addr];
             )
 
-            // synopsys translate_off
-            logic [(DW*DEPTH)-1:0] flat_mem_bram;
-            genvar i_bram;
-            for (i_bram = 0; i_bram < DEPTH; i_bram++) begin : gen_flatten_bram
-                assign flat_mem_bram[i_bram*DW+:DW] = mem[i_bram];
-            end
-            // synopsys translate_on
-
-            // synopsys translate_off
-            initial begin
-                if (REGISTERED == 0)
-                    $display("NOTE: %s BRAM style uses synchronous read (+1 cycle latency)",
-                            INSTANCE_NAME);
-            end
-            // synopsys translate_on
         end
         else begin : gen_auto
             // Let tool decide (LUTRAM vs BRAM). Allow comb read for drop logic.
@@ -435,33 +407,8 @@ module gaxi_drop_fifo_sync #(
 
             // Read path - combinational
             always_comb w_rd_data = mem[r_rd_addr];
-
-            // synopsys translate_off
-            logic [(DW*DEPTH)-1:0] flat_mem_auto;
-            genvar i_auto;
-            for (i_auto = 0; i_auto < DEPTH; i_auto++) begin : gen_flatten_auto
-                assign flat_mem_auto[i_auto*DW+:DW] = mem[i_auto];
-            end
-            // synopsys translate_on
         end
     endgenerate
-
-    // Debug: Track memory reads (outside generate block)
-    // synopsys translate_off
-    // Runtime debug control: +SIM_DEBUG=1 enables output
-    int sim_debug;
-    initial begin
-        sim_debug = 0;
-        void'($value$plusargs("SIM_DEBUG=%d", sim_debug));
-    end
-
-    always @(posedge axi_aclk) begin
-        if (sim_debug && rd_valid && rd_ready) begin
-            $display("DEBUG %t: READ - rd_addr=%0d, w_rd_data=0x%02X, r_rd_ptr_bin=%0d, w_rd_ptr_selected=%0d",
-                     $time, r_rd_addr, w_rd_data, r_rd_ptr_bin, w_rd_ptr_selected);
-        end
-    end
-    // synopsys translate_on
 
     /////////////////////////////////////////////////////////////////////////
     // Read Port (final output register)
@@ -479,122 +426,5 @@ module gaxi_drop_fifo_sync #(
             assign rd_data = w_rd_data;
         end
     endgenerate
-
-    /////////////////////////////////////////////////////////////////////////
-    // Simulation-only: Instance report (grep for FIFO_INSTANCE)
-    // Note: sim_debug variable is declared earlier in the file
-    /////////////////////////////////////////////////////////////////////////
-    // synopsys translate_off
-    initial begin
-        // Wait for sim_debug to be initialized (same initial block timing)
-        #0;
-        if (sim_debug)
-            $display("FIFO_INSTANCE: gaxi_drop_fifo_sync %m %s W=%0d D=%0d MEM=%s REG=%0d", INSTANCE_NAME, DW, D, MEM_STYLE.name(), REGISTERED);
-    end
-    // synopsys translate_on
-
-    /////////////////////////////////////////////////////////////////////////
-    // Error checking
-    // synopsys translate_off
-    // Note: flat_mem_* signals for waveform viewing are generated inside
-    //       each MEM_STYLE branch above (flat_mem_srl, flat_mem_bram, flat_mem_auto)
-
-    // Protocol violation check: drop_valid must stay asserted until drop_ready
-    // DISABLED: This checker was overly strict and caused false positives due to
-    // CocoTB timing. The testbench properly waits for drop_ready before deasserting
-    // drop_valid, but the signal change happens in the reactive region which can
-    // trigger the checker due to delta cycles.
-    // TODO: Revisit if a proper timing-aware checker is needed.
-    /*
-    logic r_drop_valid_seen;
-    `ALWAYS_FF_RST(axi_aclk, axi_aresetn,
-        if (!axi_aresetn)
-            r_drop_valid_seen <= 1'b0;
-        else if (drop_valid && !drop_ready)
-            r_drop_valid_seen <= 1'b1;
-        else if (drop_ready)
-            r_drop_valid_seen <= 1'b0;
-    )
-
-
-    always @(posedge axi_aclk) begin
-        if (r_drop_valid_seen && !drop_valid && !drop_ready) begin
-            $error("FATAL: drop_valid deasserted before drop_ready - handshake violation!");
-            $fatal(1, "Drop interface protocol violation");
-        end
-    end
-    */
-
-    // Debug: Track drop operations (controlled by +SIM_DEBUG=1)
-    always @(posedge axi_aclk) begin
-        if (sim_debug && drop_valid) begin
-            $timeformat(-9, 3, " ns", 10);
-            $display("DEBUG %t: DROP initiated - drop_all=%0d, drop_count=%0d, count=%0d",
-                     $time, drop_all, drop_count, count);
-            $display("  Before: r_rd_ptr_bin=%0d, r_wr_ptr_bin=%0d",
-                     r_rd_ptr_bin, r_wr_ptr_bin);
-        end
-    end
-
-    always @(posedge axi_aclk) begin
-        if (sim_debug && r_drop_state == DROP_ACTIVE) begin
-            $timeformat(-9, 3, " ns", 10);
-            $display("DEBUG %t: DROP_ACTIVE - rd_ptr_next=%0d",
-                     $time, w_rd_ptr_bin_next);
-            $display("  Pointers to fifo_control: rd_ptr=%0d, wr_ptr=%0d",
-                     w_rd_ptr_selected, w_wr_ptr_bin_next);
-        end
-    end
-
-    always @(posedge axi_aclk) begin
-        if (sim_debug && r_drop_state == DROP_SETTLE) begin
-            $timeformat(-9, 3, " ns", 10);
-            $display("DEBUG %t: DROP_SETTLE - r_rd_ptr_bin=%0d, r_wr_ptr_bin=%0d",
-                     $time, r_rd_ptr_bin, r_wr_ptr_bin);
-            $display("  Flags: rd_empty=%0d, rd_valid=%0d, count=%0d",
-                     r_rd_empty, rd_valid, count);
-        end
-    end
-
-    always @(posedge axi_aclk) begin
-        if (sim_debug && r_drop_state == DROP_DONE) begin
-            $timeformat(-9, 3, " ns", 10);
-            $display("DEBUG %t: DROP_DONE - drop_ready asserted", $time);
-            $display("  Final: r_rd_ptr_bin=%0d, r_wr_ptr_bin=%0d, count=%0d",
-                     r_rd_ptr_bin, r_wr_ptr_bin, count);
-            $display("  Flags: rd_empty=%0d, rd_valid=%0d", r_rd_empty, rd_valid);
-        end
-    end
-
-    always @(posedge axi_aclk) begin
-        if ((w_write && r_wr_full) == 1'b1) begin
-            $timeformat(-9, 3, " ns", 10);
-            $display("Error: %s write while fifo full, %t", INSTANCE_NAME, $time);
-        end
-    end
-
-    always @(posedge axi_aclk) begin
-        if ((w_read && r_rd_empty) == 1'b1) begin
-            $timeformat(-9, 3, " ns", 10);
-            $display("Error: %s read while fifo empty, %t", INSTANCE_NAME, $time);
-        end
-    end
-
-    always @(posedge axi_aclk) begin
-        if (drop_valid && !drop_all && (drop_count > count)) begin
-            $timeformat(-9, 3, " ns", 10);
-            $display("Error: %s drop_count (%0d) exceeds current count (%0d), %t",
-                     INSTANCE_NAME, drop_count, count, $time);
-        end
-    end
-
-    always @(posedge axi_aclk) begin
-        if (drop_valid && (r_drop_state != IDLE)) begin
-            $timeformat(-9, 3, " ns", 10);
-            $display("Error: %s drop_valid asserted while drop already in progress, %t",
-                     INSTANCE_NAME, $time);
-        end
-    end
-    // synopsys translate_on
 
 endmodule : gaxi_drop_fifo_sync

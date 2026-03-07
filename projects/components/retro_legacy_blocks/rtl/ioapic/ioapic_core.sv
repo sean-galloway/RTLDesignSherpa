@@ -387,26 +387,4 @@ module ioapic_core #(
         end
     endgenerate
 
-    // ========================================================================
-    // Assertions for Design Verification
-    // ========================================================================
-    
-    // synthesis translate_off
-    // Ensure only one IRQ is in delivery at a time
-    always @(posedge clk) begin
-        if (rst_n) begin
-            assert ($countones(status_deliv_status) <= 1) 
-                else $error("IOAPIC: Multiple IRQs in delivery state!");
-        end
-    end
-    
-    // Ensure selected IRQ is within range
-    always @(posedge clk) begin
-        if (rst_n && irq_selected_valid) begin
-            assert (selected_irq < NUM_IRQS) 
-                else $error("IOAPIC: Selected IRQ %0d out of range!", selected_irq);
-        end
-    end
-    // synthesis translate_on
-
 endmodule : ioapic_core

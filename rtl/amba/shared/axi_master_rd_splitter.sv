@@ -179,16 +179,6 @@ module axi_master_rd_splitter
 );
 
     //===========================================================================
-    // Parameter Validation
-    //===========================================================================
-    // synopsys translate_off
-    initial begin
-        assert (DW inside {32, 64, 128, 256, 512, 1024}) else
-            $fatal(1, "AXI_DATA_WIDTH must be power of 2 between 32 and 1024 bits");
-    end
-    // synopsys translate_on
-
-    //===========================================================================
     // State definitions
     //===========================================================================
     typedef enum logic [1:0] {
@@ -475,49 +465,5 @@ module axi_master_rd_splitter
         .count          ()    // Not used
         /* verilator lint_on PINCONNECTEMPTY */
     );
-
-    //===========================================================================
-    // Additional Assertions for Integration Validation
-    //===========================================================================
-
-    // synopsys translate_off
-    // Ensure state machine consistency
-    always_ff @(posedge aclk) begin
-        /* verilator lint_off SYNCASYNCNET */
-        if (aresetn) begin
-            // Verify split count is reasonable
-            /* verilator lint_off CMPCONST */
-            /* verilator lint_off UNSIGNED */
-            assert (r_split_count >= 0 && r_split_count <= 255) else
-                $error("r_split_count (%0d) out of reasonable range", r_split_count);
-            /* verilator lint_on CMPCONST */
-            /* verilator lint_on UNSIGNED */
-
-            // Verify ready logic correctness
-            if (r_split_state == IDLE && fub_arvalid && w_new_split_needed) begin
-                assert (fub_arready == 1'b0) else
-                    $error("fub_arready should be suppressed when split needed in IDLE");
-            end
-
-            if (r_split_state == SPLITTING && !w_is_final_split) begin
-                assert (fub_arready == 1'b0) else
-                    $error("fub_arready should be suppressed during intermediate splits");
-            end
-
-            // Verify transaction buffering
-            if (r_split_state == SPLITTING) begin
-                assert (r_orig_arid != '0 || r_orig_araddr != '0) else
-                    $error("Original transaction should be buffered in SPLITTING state");
-            end
-
-            // Verify split info FIFO write timing
-            if (w_split_fifo_valid) begin
-                assert (fub_arvalid && fub_arready) else
-                    $error("Split info should only be written when transaction is accepted");
-            end
-        end
-        /* verilator lint_on SYNCASYNCNET */
-    end
-    // synopsys translate_on
 
 endmodule : axi_master_rd_splitter

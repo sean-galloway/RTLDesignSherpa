@@ -239,10 +239,6 @@
 
 `include "reset_defs.svh"
 module dataint_crc #(
-    // synopsys translate_off
-    parameter string ALGO_NAME = "DEADF1F0"  // verilog_lint: waive explicit-parameter-storage-type
-    // synopsys translate_on
-    ,
     parameter int DATA_WIDTH = 64,     // Adjustable data width
     parameter int CRC_WIDTH = 64,      // CRC polynomial width
     parameter int REFIN = 1,
@@ -358,25 +354,5 @@ module dataint_crc #(
         else if (load_crc_start) crc <= POLY_INIT;  // Reset the CRC to the initial value
         else crc <= w_result_xor;
     )
-
-
-    /////////////////////////////////////////////////////////////////////////
-    // error checking
-    // synopsys translate_off
-    // Generate a version of the memory for waveforms
-    logic [(CH*8)-1:0] flat_w_block_data;
-    generate
-        for (i = 0; i < CH; i++) begin : gen_flatten_w_block_data
-            assign flat_w_block_data[i*8+:8] = w_block_data[i];
-        end
-    endgenerate
-
-    logic [(CW*CH)-1:0] flat_w_cascade;
-    generate
-        for (i = 0; i < CH; i++) begin : gen_flatten_w_cascade
-            assign flat_w_cascade[i*CW+:CW] = w_cascade[i];
-        end
-    endgenerate
-    // synopsys translate_on
 
 endmodule : dataint_crc

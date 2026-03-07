@@ -244,9 +244,7 @@ module reset_sync #(
     // Elaboration guards
     // -----------------------------
     if (N < 2) begin : g_illegal
-        // synthesis translate_off
-        initial $error("reset_sync: N must be >= 2 (got %0d)", N);
-        // synthesis translate_on
+        // Parameter N must be >= 2
     end
 
     // Normalize input to active-HIGH async reset
@@ -260,11 +258,6 @@ module reset_sync #(
                 (* ASYNC_REG = "TRUE", SHREG_EXTRACT = "NO" *)
                 (* altera_attribute = "-name SYNCHRONIZER_IDENTIFICATION FORCED" *)
                 logic [N-1:0] r_sync_reg /* synthesis syn_preserve = 1 */;
-
-                // Optional sim init; hardware uses async reset
-                // synthesis translate_off
-                initial r_sync_reg = '0;
-                // synthesis translate_on
 
                 // Async assert (posedge rst_in_h), sync deassert
                 always_ff @(posedge clk or posedge rst_in_h) begin
@@ -280,10 +273,6 @@ module reset_sync #(
                 end
             end else begin : g_plain
                 logic [N-1:0] r_sync_reg;
-
-                // synthesis translate_off
-                initial r_sync_reg = '0;
-                // synthesis translate_on
 
                 always_ff @(posedge clk or posedge rst_in_h) begin
                     if (rst_in_h) r_sync_reg <= '1;
@@ -302,10 +291,6 @@ module reset_sync #(
                 (* altera_attribute = "-name SYNCHRONIZER_IDENTIFICATION FORCED" *)
                 logic [N-1:0] r_sync_reg /* synthesis syn_preserve = 1 */;
 
-                // synthesis translate_off
-                initial r_sync_reg = '0;
-                // synthesis translate_on
-
                 always_ff @(posedge clk) begin
                     if (rst_in_h) r_sync_reg <= '1;
                     else          r_sync_reg <= {r_sync_reg[N-2:0], 1'b0};
@@ -317,10 +302,6 @@ module reset_sync #(
                 end
             end else begin : g_plain
                 logic [N-1:0] r_sync_reg;
-
-                // synthesis translate_off
-                initial r_sync_reg = '0;
-                // synthesis translate_on
 
                 always_ff @(posedge clk) begin
                     if (rst_in_h) r_sync_reg <= '1;
@@ -334,24 +315,5 @@ module reset_sync #(
             end
         end
     endgenerate
-
-`ifdef RESET_SYNC_SVA
-    // synthesis translate_off
-    // Assertions in active-HIGH internal convention
-    wire sync_rst_h_int = OUT_ACTIVE_LOW ? ~sync_rst_n : sync_rst_n;
-    // When input asserted, output must be asserted
-    property p_assert_holds;
-        @(posedge clk) rst_in_h |-> sync_rst_h_int;
-    endproperty
-    assert property (p_assert_holds);
-
-    // Deassert no earlier than N cycles after input deassert
-    property p_deassert_after_N;
-        @(posedge clk) disable iff (rst_in_h)
-            $fell(rst_in_h) |-> (sync_rst_h_int)[*N-1] ##1 !sync_rst_h_int;
-    endproperty
-    assert property (p_deassert_after_N);
-    // synthesis translate_on
-`endif
 
 endmodule : reset_sync

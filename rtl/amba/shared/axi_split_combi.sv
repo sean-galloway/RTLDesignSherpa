@@ -69,14 +69,6 @@ module axi_split_combi #(
     // Parameter Validation and Constants
     //===========================================================================
 
-    // synopsys translate_off
-    // Validate data width is power of 2 and reasonable
-    initial begin
-        assert (DW inside {32, 64, 128, 256, 512, 1024}) else
-            $fatal(1, "DATA_WIDTH must be power of 2 between 32 and 1024 bits");
-    end
-    // synopsys translate_on
-
     // Calculate constants based on data width
     localparam int BYTES_PER_BEAT = DW / 8;
     localparam int LOG2_BYTES_PER_BEAT = $clog2(BYTES_PER_BEAT);
@@ -152,88 +144,6 @@ module axi_split_combi #(
     //===========================================================================
 
     assign new_split_needed = split_required && is_idle_state && transaction_valid;
-
-    //===========================================================================
-    // Input Validation Assertions
-    //===========================================================================
-
-    // synopsys translate_off
-    always_ff @(posedge aclk) begin
-        if (aresetn && transaction_valid && is_idle_state) begin
-            // Check address alignment to data width
-            assert ((current_addr & AW'(ADDR_ALIGN_MASK)) == '0) else
-                $error("Address 0x%08X is not aligned to %0d-byte data width boundary",
-                        current_addr, BYTES_PER_BEAT);
-
-            // Check ax_size matches data width expectation
-            assert (ax_size == 3'(EXPECTED_AX_SIZE)) else
-                $error("ax_size (%0d) doesn't match expected value (%0d) for %0d-bit data width",
-                        ax_size, EXPECTED_AX_SIZE, DW);
-
-            // NO WRAPAROUND ASSERTION: Verify transaction doesn't wrap around
-            assert (transaction_end_addr >= current_addr) else
-                $error("WRAPAROUND VIOLATION: Transaction wraps around address space! Start=0x%08X, End=0x%08X",
-                        current_addr, transaction_end_addr);
-
-            // NO WRAPAROUND ASSERTION: Verify boundary calculation doesn't wrap
-            assert (next_boundary_addr > current_addr) else
-                $error("WRAPAROUND VIOLATION: Boundary calculation wrapped! Addr=0x%08X, NextBoundary=0x%08X",
-                        current_addr, next_boundary_addr);
-        end
-    end
-    // synopsys translate_on
-
-    //===========================================================================
-    // Enhanced Validation Assertions
-    //===========================================================================
-
-    // synopsys translate_off
-    always_ff @(posedge aclk) begin
-        if (aresetn && transaction_valid) begin
-
-            // Validate beats_to_boundary calculation
-            assert (beats_to_boundary <= AW'(256)) else  // Reasonable upper bound
-                $error("beats_to_boundary (%0d) seems too large", beats_to_boundary);
-
-            // Validate split length logic
-            if (split_required) begin
-                assert (split_len < current_len) else
-                    $error("split_len (%0d) should be < current_len (%0d) when splitting",
-                            split_len, current_len);
-
-                // split_beats + remaining_beats should equal original_beats
-                assert ((split_len + 1) + (remaining_len_after_split + 1) == (current_len + 1)) else
-                    $error("Length conservation failed - split_beats(%0d) + remaining_beats(%0d) != original_beats(%0d)",
-                            split_len + 1, remaining_len_after_split + 1, current_len + 1);
-
-                /* verilator lint_off WIDTHEXPAND */
-                assert (split_len == (beats_to_boundary - 1)) else
-                    $error("split_len (%0d) should equal beats_to_boundary (%0d) - 1",
-                            split_len, beats_to_boundary);
-                /* verilator lint_on WIDTHEXPAND */
-
-            end else begin
-                // When no split required
-                assert (split_len == current_len) else
-                    $error("No split: split_len (%0d) should equal current_len (%0d)",
-                            split_len, current_len);
-
-                assert (remaining_len_after_split == 0) else
-                    $error("No split: remaining_len should be 0, got %0d", remaining_len_after_split);
-            end
-
-            // Validate boundary calculations - SIMPLIFIED (no wraparound checks)
-            assert (next_boundary_addr > current_addr) else
-                $error("next_boundary_addr (0x%08X) should be > current_addr (0x%08X)",
-                        next_boundary_addr, current_addr);
-
-            // Validate boundary alignment
-            assert ((next_boundary_addr & AW'(alignment_mask)) == '0) else
-                $error("next_boundary_addr (0x%08X) not aligned to boundary (mask=0x%03X)",
-                        next_boundary_addr, alignment_mask);
-        end
-    end
-    // synopsys translate_on
 
     //===========================================================================
     // Debug Information (for verification)

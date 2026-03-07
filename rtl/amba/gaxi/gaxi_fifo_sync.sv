@@ -31,12 +31,7 @@ module gaxi_fifo_sync #(
     parameter int  DATA_WIDTH        = 4,
     parameter int  DEPTH             = 4,
     parameter int  ALMOST_WR_MARGIN  = 1,
-    parameter int  ALMOST_RD_MARGIN  = 1
-    // synopsys translate_off
-    ,
-    parameter string INSTANCE_NAME   = "DEADF1F0" // for $display debug
-    // synopsys translate_on
-    ,
+    parameter int  ALMOST_RD_MARGIN  = 1,
     parameter int  DW = DATA_WIDTH,
     parameter int  D  = DEPTH,
     parameter int  AW = $clog2(DEPTH)
@@ -160,13 +155,6 @@ module gaxi_fifo_sync #(
                 always_comb w_rd_data = mem[r_rd_addr];
             end
 
-            // synopsys translate_off
-            logic [(DW*DEPTH)-1:0] flat_mem_srl;
-            genvar i_srl;
-            for (i_srl = 0; i_srl < DEPTH; i_srl++) begin : gen_flatten_srl
-                assign flat_mem_srl[i_srl*DW+:DW] = mem[i_srl];
-            end
-            // synopsys translate_on
         end
         else if (MEM_STYLE == FIFO_BRAM) begin : gen_bram
             `ifdef XILINX
@@ -190,21 +178,6 @@ module gaxi_fifo_sync #(
             )
 
 
-            // synopsys translate_off
-            logic [(DW*DEPTH)-1:0] flat_mem_bram;
-            genvar i_bram;
-            for (i_bram = 0; i_bram < DEPTH; i_bram++) begin : gen_flatten_bram
-                assign flat_mem_bram[i_bram*DW+:DW] = mem[i_bram];
-            end
-            // synopsys translate_on
-
-            // synopsys translate_off
-            initial begin
-                if (REGISTERED == 0)
-                    $display("NOTE: %s BRAM style uses synchronous read (+1 cycle latency)",
-                            INSTANCE_NAME);
-            end
-            // synopsys translate_on
         end
         else begin : gen_auto
             logic [DATA_WIDTH-1:0] mem [DEPTH];
@@ -233,32 +206,6 @@ module gaxi_fifo_sync #(
     endgenerate
 
     assign rd_data = w_rd_data;
-
-    // ---------------------------------------------------------------------
-    // Simulation-only: Instance report and error checking
-    // ---------------------------------------------------------------------
-    // synopsys translate_off
-    // Runtime debug control: +SIM_DEBUG=1 enables output
-    int sim_debug;
-    initial begin
-        sim_debug = 0;
-        void'($value$plusargs("SIM_DEBUG=%d", sim_debug));
-        if (sim_debug)
-            $display("FIFO_INSTANCE: gaxi_fifo_sync %m %s W=%0d D=%0d MEM=%s REG=%0d", INSTANCE_NAME, DW, D, MEM_STYLE.name(), REGISTERED);
-    end
-
-    // Overflow/underflow error messages (always enabled)
-    always_ff @(posedge axi_aclk) begin
-        if (w_write && r_wr_full) begin
-            $timeformat(-9, 3, " ns", 10);
-            $display("Error: %s write while fifo full, %t", INSTANCE_NAME, $time);
-        end
-        if (w_read && r_rd_empty) begin
-            $timeformat(-9, 3, " ns", 10);
-            $display("Error: %s read while fifo empty, %t", INSTANCE_NAME, $time);
-        end
-    end
-    // synopsys translate_on
 
 endmodule : gaxi_fifo_sync
 

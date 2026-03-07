@@ -258,14 +258,6 @@ module dataint_ecc_hamming_decode_secded #(
     logic                  w_overall_parity;
     logic                  w_overall_parity_in;
 
-    // synopsys translate_off
-    initial begin
-        if (DEBUG != 0) begin
-            // Debug initialization if needed
-        end
-    end
-    // synopsys translate_on
-
     ////////////////////////////////////////////////////////////////////////////
     // Function to calculate the bit position for data extraction
     function automatic integer bit_position(input integer k);

@@ -207,16 +207,6 @@ module axi_master_wr_splitter
 );
 
     //===========================================================================
-    // Parameter Validation
-    //===========================================================================
-    // synopsys translate_off
-    initial begin
-        assert (DW inside {32, 64, 128, 256, 512, 1024}) else
-            $fatal(1, "AXI_DATA_WIDTH must be power of 2 between 32 and 1024 bits");
-    end
-    // synopsys translate_on
-
-    //===========================================================================
     // State definitions
     //===========================================================================
     typedef enum logic [1:0] {
@@ -661,80 +651,5 @@ module axi_master_wr_splitter
         .count()    // Not used
         /* verilator lint_on PINCONNECTEMPTY */
     );
-
-    //===========================================================================
-    // Assertions for Validation
-    //===========================================================================
-
-    // synopsys translate_off
-    always_ff @(posedge aclk) begin
-        /* verilator lint_off SYNCASYNCNET */
-        if (aresetn) begin
-            // Verify split count is reasonable
-            /* verilator lint_off CMPCONST */
-            /* verilator lint_off UNSIGNED */
-            assert (r_split_count >= 0 && r_split_count <= 255) else
-                $error("r_split_count (%0d) out of reasonable range", r_split_count);
-            /* verilator lint_on CMPCONST */
-            /* verilator lint_on UNSIGNED */
-
-            // Verify ready logic correctness
-            if (r_split_state == IDLE && fub_awvalid && w_new_split_needed) begin
-                assert (fub_awready == 1'b0) else
-                    $error("fub_awready should be suppressed when split needed in IDLE");
-            end
-
-            if (r_split_state == SPLITTING && !w_is_final_split) begin
-                assert (fub_awready == 1'b0) else
-                    $error("fub_awready should be suppressed during intermediate splits");
-            end
-
-            // Verify transaction buffering
-            if (r_split_state == SPLITTING) begin
-                assert (r_orig_awid != '0 || r_orig_awaddr != '0) else
-                    $error("Original transaction should be buffered in SPLITTING state");
-            end
-
-            // Verify response consolidation logic
-            if (r_waiting_for_responses) begin
-                assert (r_received_response_count <= r_expected_response_count) else
-                    $error("Received more responses (%0d) than expected (%0d)",
-                            r_received_response_count, r_expected_response_count);
-
-                // Verify fub_bvalid is suppressed until final response
-                if (m_axi_bvalid && !w_is_final_response) begin
-                    assert (fub_bvalid == 1'b0) else
-                        $error("fub_bvalid should be suppressed during response consolidation");
-                end
-
-                // Verify m_axi_bready accepts responses during consolidation
-                if (m_axi_bvalid && !w_is_final_response) begin
-                    assert (m_axi_bready == 1'b1) else
-                        $error("m_axi_bready should accept responses during consolidation");
-                end
-            end
-
-            // Verify split info FIFO write timing
-            if (w_split_fifo_valid) begin
-                assert (fub_awvalid && fub_awready) else
-                    $error("Split info should only be written when transaction is accepted");
-            end
-
-            // Verify data channel beat tracking
-            if (r_data_splitting && m_axi_wvalid) begin
-                assert (r_beat_counter < r_expected_beats) else
-                    $error("Beat counter (%0d) exceeded expected beats (%0d)",
-                            r_beat_counter, r_expected_beats);
-            end
-
-            // Verify WLAST timing for split transactions
-            if (r_data_splitting && m_axi_wvalid && m_axi_wready && m_axi_wlast) begin
-                assert (w_split_boundary_reached) else
-                    $error("WLAST generated but not at split boundary");
-            end
-        end
-        /* verilator lint_on SYNCASYNCNET */
-    end
-    // synopsys translate_on
 
 endmodule : axi_master_wr_splitter

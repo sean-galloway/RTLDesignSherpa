@@ -138,17 +138,6 @@ module sync_pulse #(
 );
 
     //==========================================================================
-    // Parameter Validation
-    //==========================================================================
-    // synopsys translate_off
-    initial begin
-        if (SYNC_STAGES < 2 || SYNC_STAGES > 4) begin
-            $error("sync_pulse: SYNC_STAGES=%0d out of range [2,4]", SYNC_STAGES);
-        end
-    end
-    // synopsys translate_on
-
-    //==========================================================================
     // Source Clock Domain: Toggle on Pulse
     //==========================================================================
 

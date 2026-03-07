@@ -23,12 +23,7 @@ module fifo_sync_multi #(
     parameter int DATA_WIDTH = 4,
     parameter int DEPTH = 4,
     parameter int ALMOST_WR_MARGIN = 1,
-    parameter int ALMOST_RD_MARGIN = 1
-    // synopsys translate_off
-    ,
-    parameter INSTANCE_NAME = "DEADF1F0"  // verilog_lint: waive explicit-parameter-storage-type
-    // synopsys translate_on
-    ,
+    parameter int ALMOST_RD_MARGIN = 1,
     parameter int AW = ADDR_WIDTH,
     parameter int CW = CTRL_WIDTH,
     parameter int DW = DATA_WIDTH,
@@ -59,10 +54,6 @@ module fifo_sync_multi #(
         .DEPTH             (DEPTH),
         .ALMOST_WR_MARGIN  (ALMOST_WR_MARGIN),
         .ALMOST_RD_MARGIN  (ALMOST_RD_MARGIN)
-        // synopsys translate_off
-        ,
-        .INSTANCE_NAME     ("fifo_multi")
-        // synopsys translate_on
     ) u_fifo_sync (
         // Clocks & Reset
         .clk              (clk),

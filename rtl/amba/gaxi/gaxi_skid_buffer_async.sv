@@ -71,12 +71,7 @@ module gaxi_skid_buffer_async #(
         .DEPTH           (DEPTH),
         .N_FLOP_CROSS    (N_FLOP_CROSS),
         .ALMOST_WR_MARGIN(1),
-        .ALMOST_RD_MARGIN(1)
-        // synopsys translate_off
-        ,
-        .INSTANCE_NAME   (INSTANCE_NAME)
-        // synopsys translate_on
-        ,
+        .ALMOST_RD_MARGIN(1),
         .REGISTERED      (REGISTERED)
     ) inst_gaxi_fifo_async (
         .axi_wr_aclk   (axi_wr_aclk),
@@ -90,14 +85,5 @@ module gaxi_skid_buffer_async #(
         .rd_valid      (rd_valid),
         .rd_data       (rd_data)
     );
-
-    // -------------------------------------------------------------------------
-    // Simulation-only: Instance report (grep for FIFO_INSTANCE)
-    // -------------------------------------------------------------------------
-    // synopsys translate_off
-    initial begin
-        $display("FIFO_INSTANCE: gaxi_skid_buffer_async %m %s W=%0d D=%0d CDC=%0d", INSTANCE_NAME, DW, DEPTH, N_FLOP_CROSS);
-    end
-    // synopsys translate_on
 
 endmodule : gaxi_skid_buffer_async
