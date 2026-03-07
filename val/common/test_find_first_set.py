@@ -518,9 +518,9 @@ def test_find_first_set(request, width, test_level):
     results_path = os.path.join(log_dir, f'results_{test_name_plus_params}.xml')
 
     # RTL parameters
+    # Note: INSTANCE_NAME was removed during debug code cleanup (Phase 1)
     parameters = {
-        'WIDTH': str(width),
-        'INSTANCE_NAME': f'"FFS_W{width}"'
+        'WIDTH': str(width)
     }
 
     # Adjust timeout based on test level and width

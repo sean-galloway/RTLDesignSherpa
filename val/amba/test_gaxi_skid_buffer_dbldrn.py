@@ -174,8 +174,8 @@ def test_gaxi_skid_buffer_dbldrn(request, data_width, depth, clk_period, test_le
     # RTL parameters
     rtl_parameters = {
         'DATA_WIDTH': str(data_width),
-        'DEPTH': str(depth),
-        'INSTANCE_NAME': f'"dbldrn_{test_level}"'
+        'DEPTH': str(depth)
+        # Note: INSTANCE_NAME was removed during debug code cleanup (Phase 1)
     }
 
     # Adjust timeout based on test level

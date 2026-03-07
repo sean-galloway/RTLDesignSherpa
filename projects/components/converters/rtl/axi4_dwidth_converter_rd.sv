@@ -55,6 +55,8 @@ module axi4_dwidth_converter_rd #(
     localparam bit UPSIZE       = (S_AXI_DATA_WIDTH < M_AXI_DATA_WIDTH) ? 1'b1 : 1'b0,
     localparam bit DOWNSIZE     = (S_AXI_DATA_WIDTH > M_AXI_DATA_WIDTH) ? 1'b1 : 1'b0,
     localparam int PTR_WIDTH    = $clog2(WIDTH_RATIO),
+    localparam int MASTER_SIZE  = $clog2(M_STRB_WIDTH),  // Master AXI size encoding
+    localparam int ALIGN_BITS   = $clog2(M_STRB_WIDTH),  // Address alignment bits
 
     // Skid buffer packed widths
     localparam int AR_WIDTH = AXI_ID_WIDTH + AXI_ADDR_WIDTH + 8 + 3 + 2 + 1 + 4 + 3 + 4 + 4 + AXI_USER_WIDTH,
@@ -236,7 +238,7 @@ module axi4_dwidth_converter_rd #(
         if (DOWNSIZE) begin : gen_ar_downsize
             // Downsize: Wide→Narrow
             // Multiply burst length by ratio
-            localparam int MASTER_SIZE = $clog2(M_STRB_WIDTH);
+            // Note: MASTER_SIZE moved to parameter section
 
             assign m_axi_arid     = int_arid;
             assign m_axi_araddr   = int_araddr;
@@ -255,8 +257,7 @@ module axi4_dwidth_converter_rd #(
         end else begin : gen_ar_upsize
             // Upsize: Narrow→Wide
             // Divide burst length by ratio, align address
-            localparam int MASTER_SIZE = $clog2(M_STRB_WIDTH);
-            localparam int ALIGN_BITS  = $clog2(M_STRB_WIDTH);
+            // Note: MASTER_SIZE and ALIGN_BITS moved to parameter section
 
             logic [7:0] master_arlen;
             logic [AXI_ADDR_WIDTH-1:0] aligned_araddr;

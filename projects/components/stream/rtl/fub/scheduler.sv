@@ -68,6 +68,8 @@ module scheduler #(
     parameter int CHAN_WIDTH = $clog2(NUM_CHANNELS),
     parameter int ADDR_WIDTH = 64,
     parameter int DATA_WIDTH = 512,
+    // Calculated Parameters
+    parameter int BYTE_SHIFT = $clog2(DATA_WIDTH/8),  // log2 of bytes per beat for address increment
     // Monitor Bus Parameters
     parameter logic [7:0] MON_AGENT_ID = 8'h40,      // STREAM Scheduler Agent ID
     parameter logic [3:0] MON_UNIT_ID = 4'h1,        // Unit identifier
@@ -440,8 +442,8 @@ module scheduler #(
                                                 (r_read_beats_remaining - sched_rd_beats_done) : 32'h0;
 
                         // Increment source address by bytes transferred
-                        // Address increment = beats_done << AXSIZE (where AXSIZE = log2(DATA_WIDTH/8))
-                        r_src_addr <= r_src_addr + (ADDR_WIDTH'(sched_rd_beats_done) << $clog2(DATA_WIDTH/8));
+                        // Address increment = beats_done << BYTE_SHIFT (where BYTE_SHIFT = log2(DATA_WIDTH/8))
+                        r_src_addr <= r_src_addr + (ADDR_WIDTH'(sched_rd_beats_done) << BYTE_SHIFT);
                     end
 
                     // Write progress: SRAM → Destination (independent from read!)
@@ -452,8 +454,8 @@ module scheduler #(
                                                 (r_write_beats_remaining - sched_wr_beats_done) : 32'h0;
 
                         // Increment destination address by bytes transferred
-                        // Address increment = beats_done << AXSIZE (where AXSIZE = log2(DATA_WIDTH/8))
-                        r_dst_addr <= r_dst_addr + (ADDR_WIDTH'(sched_wr_beats_done) << $clog2(DATA_WIDTH/8));
+                        // Address increment = beats_done << BYTE_SHIFT (where BYTE_SHIFT = log2(DATA_WIDTH/8))
+                        r_dst_addr <= r_dst_addr + (ADDR_WIDTH'(sched_wr_beats_done) << BYTE_SHIFT);
                     end
                 end
 

@@ -268,8 +268,7 @@ def test_fifo_buffer(request, data_width, depth, wr_clk_period, rd_clk_period, r
         if param_name in locals():
             rtl_parameters[param_name.upper()] = str(locals()[param_name])
 
-    # Add string parameter with quotes for Verilator
-    rtl_parameters['INSTANCE_NAME'] = f'"{mode}_{test_level}"'  # Include test level in instance name
+    # Note: INSTANCE_NAME was removed during debug code cleanup (Phase 1)
 
     # Adjust timeout based on test level
     timeout_multipliers = {'basic': 1, 'medium': 2, 'full': 4}

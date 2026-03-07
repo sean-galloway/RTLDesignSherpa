@@ -32,8 +32,16 @@ module sink_sram_control #(
     parameter int MON_CHANNEL_ID = 6'h1,
     // FIFO depths (DATA_CONSUMED_FIFO removed for AXIS - direct passthrough)
     parameter int EOS_COMPLETION_FIFO_DEPTH = 8,
-    parameter int MONITOR_FIFO_DEPTH = 16
+    parameter int MONITOR_FIFO_DEPTH = 16,
     /* verilator lint_on UNUSEDPARAM */
+    // Calculated Parameters
+    localparam int ADDR_BITS = $clog2(CHANNELS * LINES_PER_CHANNEL),
+    localparam int TOTAL_SRAM_DEPTH = CHANNELS * LINES_PER_CHANNEL,
+    localparam int EXTENDED_SRAM_WIDTH = 2 + NUM_CHUNKS + DATA_WIDTH,
+    localparam int CHANNEL_ADDR_WIDTH = $clog2(CHANNELS),
+    localparam int PTR_ADDR_WIDTH = PTR_BITS - 1,
+    localparam int EOS_FIFO_COUNT_WIDTH = $clog2(EOS_COMPLETION_FIFO_DEPTH+1),
+    localparam int MON_FIFO_COUNT_WIDTH = $clog2(MONITOR_FIFO_DEPTH+1)
 ) (
     // Clock and Reset
     input  logic                                    clk,
@@ -85,17 +93,8 @@ module sink_sram_control #(
     //=========================================================================
     // Local Parameters and CORRECTED SRAM Width (EOS/EOL/EOD removed)
     //=========================================================================
-
-    localparam int ADDR_BITS = $clog2(CHANNELS * LINES_PER_CHANNEL);
-    localparam int TOTAL_SRAM_DEPTH = CHANNELS * LINES_PER_CHANNEL;
-
-    // CORRECTED SRAM width: Only data + type + chunk enables (NO EOS/EOL/EOD)
-    // {TYPE[1:0], CHUNK_VALID[15:0], DATA[511:0]} = 530 bits total (2 + 16 + 512)
-    localparam int EXTENDED_SRAM_WIDTH = 2 + NUM_CHUNKS + DATA_WIDTH;
-
-    // FIXED: Address calculation helper parameters
-    localparam int CHANNEL_ADDR_WIDTH = $clog2(CHANNELS);
-    localparam int PTR_ADDR_WIDTH = PTR_BITS - 1;  // Remove wrap bit for address calculation
+    // Note: ADDR_BITS, TOTAL_SRAM_DEPTH, EXTENDED_SRAM_WIDTH, CHANNEL_ADDR_WIDTH,
+    // PTR_ADDR_WIDTH moved to parameter section
 
     // Monitor packet format constants
     localparam logic [3:0] PktTypeError = 4'h0;
@@ -144,7 +143,7 @@ module sink_sram_control #(
     logic w_eos_completion_fifo_rd_ready;
     logic [CHAN_BITS-1:0] w_eos_completion_fifo_wr_data;
     logic [CHAN_BITS-1:0] w_eos_completion_fifo_rd_data;
-    logic [$clog2(EOS_COMPLETION_FIFO_DEPTH+1)-1:0] w_eos_completion_fifo_count;
+    logic [EOS_FIFO_COUNT_WIDTH-1:0] w_eos_completion_fifo_count;
 
     // Monitor FIFO signals
     logic w_monitor_fifo_wr_valid;
@@ -153,7 +152,7 @@ module sink_sram_control #(
     logic w_monitor_fifo_rd_ready;
     logic [63:0] w_monitor_fifo_wr_data;
     logic [63:0] w_monitor_fifo_rd_data;
-    logic [$clog2(MONITOR_FIFO_DEPTH+1)-1:0] w_monitor_fifo_count;
+    logic [MON_FIFO_COUNT_WIDTH-1:0] w_monitor_fifo_count;
 
     // Monitor event generation signals
     logic w_monitor_overflow_event;

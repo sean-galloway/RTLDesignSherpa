@@ -31,7 +31,9 @@
 
 module uart_16550_core #(
     parameter int FIFO_DEPTH = 16,   // FIFO depth (16 for 16550)
-    parameter int SYNC_STAGES = 2    // RX synchronizer stages
+    parameter int SYNC_STAGES = 2,   // RX synchronizer stages
+    // Calculated Parameters
+    localparam int FIFO_ADDR_WIDTH = $clog2(FIFO_DEPTH)
 ) (
     // Clock and Reset
     input  logic        clk,
@@ -122,7 +124,7 @@ module uart_16550_core #(
     // ========================================================================
     // Local Parameters
     // ========================================================================
-    localparam int FIFO_ADDR_WIDTH = $clog2(FIFO_DEPTH);
+    // Note: FIFO_ADDR_WIDTH moved to parameter section
 
     // RX Trigger levels (1, 4, 8, 14 bytes)
     localparam logic [3:0] RX_TRIGGER_1  = 4'd1;

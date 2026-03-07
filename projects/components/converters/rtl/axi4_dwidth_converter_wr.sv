@@ -57,6 +57,7 @@ module axi4_dwidth_converter_wr #(
     localparam bit UPSIZE       = (S_AXI_DATA_WIDTH < M_AXI_DATA_WIDTH) ? 1'b1 : 1'b0,
     localparam bit DOWNSIZE     = (S_AXI_DATA_WIDTH > M_AXI_DATA_WIDTH) ? 1'b1 : 1'b0,
     localparam int PTR_WIDTH    = $clog2(WIDTH_RATIO),
+    localparam int MASTER_SIZE  = $clog2(M_STRB_WIDTH),  // Master AXI size encoding
 
     // Skid buffer packed widths
     localparam int AW_WIDTH = AXI_ID_WIDTH + AXI_ADDR_WIDTH + 8 + 3 + 2 + 1 + 4 + 3 + 4 + 4 + AXI_USER_WIDTH,
@@ -288,7 +289,7 @@ module axi4_dwidth_converter_wr #(
         if (DOWNSIZE) begin : gen_aw_downsize
             // Downsize: Wide→Narrow
             // Multiply burst length by ratio
-            localparam int MASTER_SIZE = $clog2(M_STRB_WIDTH);
+            // Note: MASTER_SIZE moved to parameter section
 
             assign m_axi_awid     = int_awid;
             assign m_axi_awaddr   = int_awaddr;
@@ -307,7 +308,7 @@ module axi4_dwidth_converter_wr #(
         end else begin : gen_aw_upsize
             // Upsize: Narrow→Wide
             // Divide burst length by ratio (rounding up for partial bursts)
-            localparam int MASTER_SIZE = $clog2(M_STRB_WIDTH);
+            // Note: MASTER_SIZE moved to parameter section
 
             assign m_axi_awid     = int_awid;
             assign m_axi_awaddr   = int_awaddr;

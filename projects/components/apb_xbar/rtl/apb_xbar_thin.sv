@@ -34,7 +34,8 @@ module apb_xbar_thin #(
     parameter int AW    = ADDR_WIDTH,
     parameter int SW    = STRB_WIDTH,
     parameter int MTW   = $clog2(MAX_THRESH),
-    parameter int MXMTW = M * MTW
+    parameter int MXMTW = M * MTW,
+    parameter int MW    = (M > 1) ? $clog2(M) : 1  // Master ID width (min 1 bit)
 ) (
     input  logic                         pclk,
     input  logic                         presetn,
@@ -98,8 +99,8 @@ module apb_xbar_thin #(
     logic [S-1:0][M-1:0]         arb_gnt;
 
     // Fix: Ensure the size of arb_gnt_id matches the arbiter module's output width
-    // Using $clog2(M) instead of $clog2(M):0
-    logic [S-1:0][$clog2(M)-1:0] arb_gnt_id;
+    // Using MW parameter instead of $clog2(M)
+    logic [S-1:0][MW-1:0] arb_gnt_id;
 
     // Generate per-slave, per-master ACK signals
     logic [S-1:0][M-1:0] arb_gnt_ack;
@@ -153,7 +154,7 @@ module apb_xbar_thin #(
         for (genvar s_mux = 0; s_mux < S; s_mux++) begin : gen_slave_mux
             always_comb begin
                 // Fix: Ensure proper width for mst_id to match array indexing
-                logic [$clog2(M)-1:0] mst_id;
+                logic [MW-1:0] mst_id;
                 mst_id = arb_gnt_id[s_mux];
 
                 s_apb_psel[s_mux]    = arb_gnt_valid[s_mux] ? m_apb_psel[mst_id] : 1'b0;

@@ -33,7 +33,11 @@ module source_sram_control #(
     // Monitor Bus Parameters
     parameter logic [7:0] MON_AGENT_ID = 8'h21,      // SRAM Control Agent ID
     parameter logic [3:0] MON_UNIT_ID = 4'h3,        // Unit identifier
-    parameter logic [5:0] MON_CHANNEL_ID = 6'h0      // Base channel ID
+    parameter logic [5:0] MON_CHANNEL_ID = 6'h0,     // Base channel ID
+    // Calculated Parameters
+    localparam int SRAM_WIDTH = DATA_WIDTH + NUM_CHUNKS + 3,  // 512 + 16 + 3 = 531 bits
+    localparam int TOTAL_LINES = CHANNELS * LINES_PER_CHANNEL,
+    localparam int SRAM_ADDR_WIDTH = $clog2(TOTAL_LINES)
 ) (
     // Clock and Reset
     input  logic                        clk,
@@ -98,12 +102,8 @@ module source_sram_control #(
     //=========================================================================
     // UPDATED: SRAM Configuration (531 bits total - removed EOL/EOD)
     //=========================================================================
-
-    // UPDATED: Reduced SRAM width - removed EOL/EOD
+    // Note: SRAM_WIDTH, TOTAL_LINES, SRAM_ADDR_WIDTH moved to parameter section
     // Format: {EOS[1], TYPE[2], CHUNK_VALID[16], DATA[512]}
-    localparam int SRAM_WIDTH = DATA_WIDTH + NUM_CHUNKS + 3;  // 512 + 16 + 3 = 531 bits
-    localparam int TOTAL_LINES = CHANNELS * LINES_PER_CHANNEL;
-    localparam int SRAM_ADDR_WIDTH = $clog2(TOTAL_LINES);
 
     //=========================================================================
     // Internal Signals

@@ -17,7 +17,9 @@
 
 module simple_fifo #(
     parameter int DATA_WIDTH = 8,
-    parameter int DEPTH = 32
+    parameter int DEPTH = 32,
+    // Calculated Parameters
+    localparam int COUNT_WIDTH = $clog2(DEPTH) + 1
 ) (
     input  logic                    clk,
     input  logic                    rst,        // Active-high reset
@@ -33,14 +35,14 @@ module simple_fifo #(
     // Status
     output logic                    full,
     output logic                    empty,
-    output logic [$clog2(DEPTH):0]  count
+    output logic [COUNT_WIDTH-1:0]  count
 );
 
     //========================================================================
     // Local Parameters
     //========================================================================
-    localparam int COUNT_WIDTH = $clog2(DEPTH) + 1;
-    
+    // Note: COUNT_WIDTH moved to parameter section
+
     //========================================================================
     // Internal Signals
     //========================================================================

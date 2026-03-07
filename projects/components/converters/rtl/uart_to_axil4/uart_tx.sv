@@ -14,7 +14,9 @@
 `include "reset_defs.svh"
 
 module uart_tx #(
-    parameter int CLKS_PER_BIT = 868  // 100MHz / 115200 baud
+    parameter int CLKS_PER_BIT = 868,  // 100MHz / 115200 baud
+    // Calculated Parameters
+    localparam int COUNT_WIDTH = $clog2(CLKS_PER_BIT)
 )(
     input  logic       i_clk,
     input  logic       i_rst_n,
@@ -31,7 +33,7 @@ module uart_tx #(
         STOP
     } state_t;
 
-    localparam int COUNT_WIDTH = $clog2(CLKS_PER_BIT);
+    // Note: COUNT_WIDTH moved to parameter section
 
     state_t r_state, w_next_state;
     logic [COUNT_WIDTH-1:0] r_clk_count, w_clk_count_next;

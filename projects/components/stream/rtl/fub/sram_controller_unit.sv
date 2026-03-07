@@ -37,7 +37,8 @@ module sram_controller_unit #(
     // Short aliases (for internal use)
     parameter int DW = DATA_WIDTH,
     parameter int SD = SRAM_DEPTH,
-    parameter int SCW = SEG_COUNT_WIDTH          // Segment count width
+    parameter int SCW = SEG_COUNT_WIDTH,         // Segment count width
+    parameter int ADDR_WIDTH = $clog2(SD)        // SRAM address width
 ) (
     input  logic          clk,
     input  logic          rst_n,
@@ -71,7 +72,7 @@ module sram_controller_unit #(
     // Local Parameters
     //==========================================================================
 
-    localparam int ADDR_WIDTH = $clog2(SD);
+    // ADDR_WIDTH moved to parameter section
 
     // Debug: Check parameter values
     initial begin

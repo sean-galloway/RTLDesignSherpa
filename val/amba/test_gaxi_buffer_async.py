@@ -554,8 +554,7 @@ def test_gaxi_buffer_async_wavedrom(request, data_width, depth, wr_clk_period, r
     # Add async-specific parameters
     rtl_parameters['N_FLOP_CROSS'] = '3'  # Standard 3-flop synchronizer
 
-    # Add string parameter with quotes for Verilator
-    rtl_parameters['INSTANCE_NAME'] = f'"{mode}_async_wavedrom"'
+    # Note: INSTANCE_NAME was removed during debug code cleanup (Phase 1)
     if 'fifo' in mode:
         rtl_parameters['REGISTERED'] = str(1) if mode == 'fifo_flop' else str(0)
 
@@ -763,8 +762,7 @@ def test_gaxi_buffer_async(request, data_width, depth, wr_clk_period, rd_clk_per
     # Add async-specific parameters
     rtl_parameters['N_FLOP_CROSS'] = '3'  # Standard 3-flop synchronizer
 
-    # Add string parameter with quotes for Verilator
-    rtl_parameters['INSTANCE_NAME'] = f'"{mode}_async_{test_level}"'
+    # Note: INSTANCE_NAME was removed during debug code cleanup (Phase 1)
     if 'fifo' in mode:
         rtl_parameters['REGISTERED'] = str(1) if mode == 'fifo_flop' else str(0)
 

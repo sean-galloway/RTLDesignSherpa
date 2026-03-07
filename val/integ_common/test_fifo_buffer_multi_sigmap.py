@@ -281,8 +281,7 @@ def test_fifo_buffer_multi_sigmap(request, addr_width, ctrl_width, data_width, d
     rtl_parameters['DEPTH'] = str(depth)
     rtl_parameters['REGISTERED'] = str(registered)
 
-    # Add string parameter with quotes for Verilator
-    rtl_parameters['INSTANCE_NAME'] = f'"multi_{mode}_{test_level}"'  # Include test level in instance name
+    # Note: INSTANCE_NAME was removed during debug code cleanup (Phase 1)
 
     # Adjust timeout based on test level
     timeout_multipliers = {'basic': 2, 'medium': 4, 'full': 8}

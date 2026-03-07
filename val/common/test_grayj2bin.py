@@ -646,8 +646,8 @@ def test_grayj2bin(request, jcw, width, test_level):
     # RTL parameters
     parameters = {
         'JCW': str(jcw),
-        'WIDTH': str(width),
-        'INSTANCE_NAME': f'"GRAYJ2BIN_J{jcw}_W{width}"'
+        'WIDTH': str(width)
+        # Note: INSTANCE_NAME was removed during debug code cleanup (Phase 1)
     }
 
     # Adjust timeout based on test level and complexity

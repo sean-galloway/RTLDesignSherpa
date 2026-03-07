@@ -17,12 +17,17 @@
 
 `include "reset_defs.svh"
 
-module delta_axis_flat_4x16 #(parameter int  DATA_WIDTH = 64,
-parameter int  DEST_WIDTH = 4,
-parameter int  ID_WIDTH = 2,
-parameter int  USER_WIDTH = 1,
-parameter int  NUM_MASTERS = 4,
-parameter int  NUM_SLAVES = 16 )(
+module delta_axis_flat_4x16 #(
+    parameter int  DATA_WIDTH = 64,
+    parameter int  DEST_WIDTH = 4,
+    parameter int  ID_WIDTH = 2,
+    parameter int  USER_WIDTH = 1,
+    parameter int  NUM_MASTERS = 4,
+    parameter int  NUM_SLAVES = 16,
+    // Calculated Parameters
+    localparam int MASTER_WIDTH = $clog2(NUM_MASTERS),
+    localparam int SLAVE_WIDTH = $clog2(NUM_SLAVES + 1)
+)(
     input  logic                  aclk,
     input  logic                  aresetn,
     input  logic [DATA_WIDTH-1:0] s_axis_tdata  [NUM_MASTERS],
@@ -86,7 +91,7 @@ always_comb begin
 
     // Generate requests based on TDEST
     for (int m = 0; m < NUM_MASTERS; m++) begin
-        if (s_axis_tvalid[m] && (s_axis_tdest[m] < NUM_SLAVES[$clog2(NUM_SLAVES+1)-1:0])) begin
+        if (s_axis_tvalid[m] && (s_axis_tdest[m] < NUM_SLAVES[SLAVE_WIDTH-1:0])) begin
             // Direct decode: TDEST is slave index
             request_matrix[s_axis_tdest[m]][m] = 1'b1;
         end
@@ -105,7 +110,7 @@ end
 // ==========================================================================
 
 logic [NUM_MASTERS-1:0] grant_matrix [NUM_SLAVES];
-logic [$clog2(NUM_MASTERS)-1:0] last_grant [NUM_SLAVES];
+logic [MASTER_WIDTH-1:0] last_grant [NUM_SLAVES];
 logic packet_active [NUM_SLAVES];  // NEW vs APB: Track packet in progress
 
 // Arbitration logic for each slave
@@ -131,7 +136,7 @@ generate
                         m = (last_grant[s] + 1 + i) % NUM_MASTERS;
                         if (request_matrix[s][m] && grant_matrix[s] == '0) begin
                             grant_matrix[s][m] = 1'b1;
-                            last_grant[s] = m[$clog2(NUM_MASTERS)-1:0];
+                            last_grant[s] = m[MASTER_WIDTH-1:0];
                             packet_active[s] = 1'b1;
                         end
                     end

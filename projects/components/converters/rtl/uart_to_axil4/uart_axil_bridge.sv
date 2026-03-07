@@ -25,7 +25,12 @@ module uart_axil_bridge #(
     parameter int SKID_DEPTH_R    = 4,
     parameter int SKID_DEPTH_AW   = 2,
     parameter int SKID_DEPTH_W    = 4,
-    parameter int SKID_DEPTH_B    = 2
+    parameter int SKID_DEPTH_B    = 2,
+    // Calculated Parameters
+    localparam int ADDR_HEX_DIGITS = (AXIL_ADDR_WIDTH + 3) / 4,  // Round up to nibbles
+    localparam int DATA_HEX_DIGITS = (AXIL_DATA_WIDTH + 3) / 4,  // Round up to nibbles
+    localparam int MAX_RESPONSE_LEN = 2 + DATA_HEX_DIGITS + 1,   // "0x" + hex digits + "\n"
+    localparam int RESPONSE_INDEX_WIDTH = $clog2(MAX_RESPONSE_LEN + 1)  // Width for index
 )(
     input  logic                         aclk,
     input  logic                         aresetn,
@@ -131,11 +136,8 @@ module uart_axil_bridge #(
 
     cmd_state_t r_cmd_state, w_cmd_state_next;
 
-    // Calculate maximum hex digits needed for address and data
-    localparam int ADDR_HEX_DIGITS = (AXIL_ADDR_WIDTH + 3) / 4;  // Round up to nibbles
-    localparam int DATA_HEX_DIGITS = (AXIL_DATA_WIDTH + 3) / 4;  // Round up to nibbles
-    localparam int MAX_RESPONSE_LEN = 2 + DATA_HEX_DIGITS + 1;   // "0x" + hex digits + "\n"
-    localparam int RESPONSE_INDEX_WIDTH = $clog2(MAX_RESPONSE_LEN + 1);  // Width for index
+    // Note: ADDR_HEX_DIGITS, DATA_HEX_DIGITS, MAX_RESPONSE_LEN, RESPONSE_INDEX_WIDTH
+    // moved to parameter section
 
     // Command buffer (parameterized for data width)
     logic [7:0]  r_cmd_type;

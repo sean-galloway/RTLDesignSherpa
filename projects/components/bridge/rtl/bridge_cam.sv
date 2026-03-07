@@ -48,7 +48,8 @@ module bridge_cam #(
     parameter int DATA_WIDTH = 8,          // Master index width
     parameter int DEPTH = 16,              // Number of CAM entries
     parameter int ALLOW_DUPLICATES = 0,    // 0=Mode 1, 1=Mode 2
-    parameter int PIPELINE_EVICT = 0       // 0=Comb, 1=Pipelined (for timing)
+    parameter int PIPELINE_EVICT = 0,      // 0=Comb, 1=Pipelined (for timing)
+    parameter int COUNT_WIDTH = $clog2(DEPTH) + 1  // Width for count signals
 ) (
     input  logic                        clk,
     input  logic                        rst_n,
@@ -78,7 +79,7 @@ module bridge_cam #(
     // Internal Storage Arrays
     //==========================================================================
 
-    localparam int COUNT_WIDTH = $clog2(DEPTH) + 1;
+    // Note: COUNT_WIDTH moved to parameter section
 
     // Tag array: Stores transaction IDs
     `ifdef XILINX

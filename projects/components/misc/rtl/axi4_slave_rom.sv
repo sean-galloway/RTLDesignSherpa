@@ -40,7 +40,12 @@ module axi4_slave_rom
     parameter int AXI_ADDR_WIDTH    = 32,                   // AXI address width
     parameter int AXI_DATA_WIDTH    = 64,                   // AXI data width
     parameter int AXI_USER_WIDTH    = 1,                    // AXI user width
-    parameter string ROM_INIT_FILE  = "none"                // ROM initialization file
+    parameter string ROM_INIT_FILE  = "none",               // ROM initialization file
+
+    // Calculated Parameters
+    localparam int BYTES_PER_WORD = AXI_DATA_WIDTH / 8,
+    localparam int BYTE_OFFSET_BITS = $clog2(BYTES_PER_WORD),  // Bits for byte offset within word
+    localparam int ROM_ADDR_WIDTH = AXI_ADDR_WIDTH - BYTE_OFFSET_BITS
 )
 (
     // Global Clock and Reset
@@ -80,8 +85,7 @@ module axi4_slave_rom
     // Local Parameters
     //==========================================================================
 
-    localparam int BYTES_PER_WORD = AXI_DATA_WIDTH / 8;
-    localparam int ROM_ADDR_WIDTH = AXI_ADDR_WIDTH - $clog2(BYTES_PER_WORD);
+    // Note: BYTES_PER_WORD and ROM_ADDR_WIDTH moved to parameter section
 
     //==========================================================================
     // Internal Signals - FUB (Functional Unit Backend) Interface
@@ -116,7 +120,7 @@ module axi4_slave_rom
 
     // Convert byte-aligned AXI address to word-aligned ROM address
     logic [ROM_ADDR_WIDTH-1:0] rom_addr;
-    assign rom_addr = fub_axi_araddr[AXI_ADDR_WIDTH-1:$clog2(BYTES_PER_WORD)];
+    assign rom_addr = fub_axi_araddr[AXI_ADDR_WIDTH-1:BYTE_OFFSET_BITS];
 
     // ROM enable: active when valid address transaction
     logic rom_en;

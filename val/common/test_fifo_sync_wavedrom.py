@@ -396,8 +396,8 @@ def test_fifo_sync_wavedrom(request, data_width, depth, clk_period):
     rtl_parameters = {
         'DATA_WIDTH': str(data_width),
         'DEPTH': str(depth),
-        'REGISTERED': '0',
-        'INSTANCE_NAME': '"wavedrom_fifo"'
+        'REGISTERED': '0'
+        # Note: INSTANCE_NAME was removed during debug code cleanup (Phase 1)
     }
 
     extra_env = {

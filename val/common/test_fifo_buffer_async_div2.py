@@ -284,8 +284,7 @@ def test_fifo_async(request, data_width, depth, wr_clk_period, rd_clk_period, re
         if param_name in locals():
             rtl_parameters[param_name.upper()] = str(locals()[param_name])
 
-    # Add string parameter with quotes for Verilator (matches sync/async versions)
-    rtl_parameters['INSTANCE_NAME'] = f'"{mode}_{test_level}"'  # Include test level in instance name
+    # Note: INSTANCE_NAME was removed during debug code cleanup (Phase 1)
 
     # Adjust timeout based on test level (slightly longer than sync due to async complexity)
     timeout_multipliers = {'basic': 1, 'medium': 2, 'full': 4}

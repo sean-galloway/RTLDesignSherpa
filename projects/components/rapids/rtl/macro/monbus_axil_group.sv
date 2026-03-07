@@ -49,7 +49,9 @@ module monbus_axil_group #(
     parameter int FIFO_DEPTH_WRITE  = 32,   // Master write FIFO depth
     parameter int ADDR_WIDTH        = 32,   // AXI address width
     parameter int DATA_WIDTH        = 32,   // AXI data width (for master write)
-    parameter int NUM_PROTOCOLS     = 3     // AXI, Network, CORE
+    parameter int NUM_PROTOCOLS     = 3,    // AXI, Network, CORE
+    parameter int ERR_FIFO_ADDR_WIDTH = $clog2(FIFO_DEPTH_ERR),
+    parameter int WRITE_FIFO_ADDR_WIDTH = $clog2(FIFO_DEPTH_WRITE)
 ) (
     // Clock and Reset
     input  logic                    axi_aclk,
@@ -142,8 +144,7 @@ module monbus_axil_group #(
     // Local Parameters
     // =======================================================================
 
-    localparam int ERR_FIFO_ADDR_WIDTH = $clog2(FIFO_DEPTH_ERR);
-    localparam int WRITE_FIFO_ADDR_WIDTH = $clog2(FIFO_DEPTH_WRITE);
+    // ERR_FIFO_ADDR_WIDTH and WRITE_FIFO_ADDR_WIDTH moved to parameter section
 
     // =======================================================================
     // Internal Signals

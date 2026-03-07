@@ -508,8 +508,8 @@ def test_fifo_async_div2_wavedrom(request, data_width, depth, wr_clk_period, rd_
     rtl_parameters = {
         'DATA_WIDTH': str(data_width),
         'DEPTH': str(depth),
-        'REGISTERED': '0',  # Mux mode for WaveDrom
-        'INSTANCE_NAME': '"wavedrom_fifo"'
+        'REGISTERED': '0'  # Mux mode for WaveDrom
+        # Note: INSTANCE_NAME was removed during debug code cleanup (Phase 1)
     }
 
     # Environment variables

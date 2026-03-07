@@ -67,7 +67,8 @@ module stream_core_mon #(
     parameter int AW = ADDR_WIDTH,
     parameter int DW = DATA_WIDTH,
     parameter int IW = AXI_ID_WIDTH,
-    parameter int UW = (NUM_CHANNELS > 1) ? $clog2(NUM_CHANNELS) : 1  // AXI user width = channel ID width
+    parameter int UW = (NUM_CHANNELS > 1) ? $clog2(NUM_CHANNELS) : 1,  // AXI user width = channel ID width
+    parameter int FIFO_COUNT_WIDTH = $clog2(FIFO_DEPTH) + 1  // Width for FIFO count signals
 ) (
     // Clock and Reset
     input  logic                        clk,
@@ -404,7 +405,7 @@ module stream_core_mon #(
     logic                        axi_rd_alloc_req;
     logic [7:0]                  axi_rd_alloc_size;
     logic [IW-1:0]               axi_rd_alloc_id;
-    logic [NC-1:0][$clog2(FIFO_DEPTH)+1-1:0] axi_rd_space_free;  // SRAM → read engine
+    logic [NC-1:0][FIFO_COUNT_WIDTH-1:0] axi_rd_space_free;  // SRAM → read engine
 
     logic                        axi_rd_sram_valid;
     logic                        axi_rd_sram_ready;
@@ -415,7 +416,7 @@ module stream_core_mon #(
     // Direct connection - both use ID-based interface
     logic [NC-1:0]               axi_wr_drain_req;
     logic [NC-1:0][7:0]          axi_wr_drain_size;
-    logic [NC-1:0][$clog2(FIFO_DEPTH)+1-1:0] axi_wr_drain_data_avail;  // SRAM → write engine
+    logic [NC-1:0][FIFO_COUNT_WIDTH-1:0] axi_wr_drain_data_avail;  // SRAM → write engine
 
     logic [NC-1:0]               axi_wr_sram_valid;           // Per-channel valid from SRAM
     logic                        axi_wr_sram_drain;           // Drain signal from write engine
@@ -577,7 +578,7 @@ module stream_core_mon #(
         .ADDR_WIDTH             (AW),
         .DATA_WIDTH             (DW),
         .ID_WIDTH               (IW),
-        .SEG_COUNT_WIDTH        ($clog2(FIFO_DEPTH)+1),  // Match SRAM controller width
+        .SEG_COUNT_WIDTH        (FIFO_COUNT_WIDTH),  // Match SRAM controller width
         .PIPELINE               (1),
         .AR_MAX_OUTSTANDING     (AR_MAX_OUTSTANDING),
         .STROBE_EVERY_BEAT      (0)
@@ -648,7 +649,7 @@ module stream_core_mon #(
         .DATA_WIDTH             (DW),
         .ID_WIDTH               (IW),
         .USER_WIDTH             (UW),
-        .SEG_COUNT_WIDTH        ($clog2(FIFO_DEPTH)+1),  // Match SRAM controller width
+        .SEG_COUNT_WIDTH        (FIFO_COUNT_WIDTH),  // Match SRAM controller width
         .PIPELINE               (1),
         .AW_MAX_OUTSTANDING     (AW_MAX_OUTSTANDING)
     ) u_axi_write_engine (

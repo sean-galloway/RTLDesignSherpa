@@ -76,7 +76,10 @@ module axi_read_engine #(
     parameter int DW = DATA_WIDTH,
     parameter int IW = ID_WIDTH,
     parameter int SCW = SEG_COUNT_WIDTH,            // Segment count width (matches sram_controller naming)
-    parameter int CIW = (NC > 1) ? $clog2(NC) : 1   // Channel ID width (min 1 bit)
+    parameter int CIW = (NC > 1) ? $clog2(NC) : 1,   // Channel ID width (min 1 bit)
+    parameter int BYTES_PER_BEAT = DW / 8,           // Bytes per data beat
+    parameter int AXSIZE = $clog2(BYTES_PER_BEAT),   // AXI size encoding
+    parameter int MOW = $clog2(AR_MAX_OUTSTANDING + 1)  // Max Outstanding Width
 ) (
     // Clock and Reset
     input  logic                        clk,
@@ -158,10 +161,7 @@ module axi_read_engine #(
     // Local Parameters
     //=========================================================================
 
-    localparam int CW = (NC > 1) ? $clog2(NC) : 1;  // Minimum 1 bit for single channel
-    localparam int BYTES_PER_BEAT = DW / 8;
-    localparam int AXSIZE = $clog2(BYTES_PER_BEAT);
-    localparam int MOW = $clog2(AR_MAX_OUTSTANDING + 1);  // Max Outstanding Width (bits needed for 0..AR_MAX_OUTSTANDING)
+    localparam int CW = CIW;  // Alias for channel width (use parameter CIW)
 
     //=========================================================================
     // Outstanding Transaction Tracking

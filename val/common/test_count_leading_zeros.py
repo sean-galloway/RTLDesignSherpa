@@ -503,9 +503,9 @@ def test_count_leading_zeros(request, width, test_level):
     results_path = os.path.join(log_dir, f'results_{test_name_plus_params}.xml')
 
     # RTL parameters
+    # Note: INSTANCE_NAME was removed during debug code cleanup (Phase 1)
     parameters = {
-        'WIDTH': str(width),
-        'INSTANCE_NAME': '"CLZ_TEST"'
+        'WIDTH': str(width)
     }
 
     # Adjust timeout based on test level and width

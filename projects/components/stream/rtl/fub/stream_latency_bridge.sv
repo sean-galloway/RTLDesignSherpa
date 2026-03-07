@@ -44,7 +44,8 @@ module stream_latency_bridge #(
     parameter int SKID_DEPTH = 4,  // Skid buffer depth (2-4 recommended)
 
     // Short aliases (for internal use)
-    parameter int DW = DATA_WIDTH
+    parameter int DW = DATA_WIDTH,
+    parameter int SKID_COUNT_WIDTH = $clog2(SKID_DEPTH) + 1  // Width for skid buffer count
 ) (
     // Clock and Reset
     input  logic          clk,
@@ -89,7 +90,7 @@ module stream_latency_bridge #(
     logic                 skid_wr_valid;
     logic                 skid_wr_ready;
     logic [DW-1:0]        skid_wr_data;
-    logic [$clog2(SKID_DEPTH):0] skid_count;
+    logic [SKID_COUNT_WIDTH-1:0] skid_count;
 
     //=========================================================================
     // Simple Glue Logic

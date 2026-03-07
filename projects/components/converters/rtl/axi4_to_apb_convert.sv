@@ -44,7 +44,9 @@ module axi4_to_apb_convert #(
     parameter int RSize             = IW + DW + 2 + 1 + UW,
     parameter int APBCmdWidth       = APBAW + APBDW + APBSW + 3 + 1 + 1 + 1,
     parameter int APBRspWidth       = APBDW + 1 + 1 + 1,
-    parameter int SideSize          = 1 + IW + 1 + UW
+    parameter int SideSize          = 1 + IW + 1 + UW,
+    // Use max(1, $clog2(AXI2APBRATIO)) to avoid 0-width signals
+    localparam int PTR_WIDTH        = $clog2(AXI2APBRATIO == 1 ? 2 : AXI2APBRATIO)
 ) (
     // Clock and Reset
     input  logic                    aclk,
@@ -164,10 +166,9 @@ module axi4_to_apb_convert #(
     logic                          r_apb_rsp_pkt_first;
     logic                          r_apb_rsp_pkt_last;
 
-    // Data shift register and pointer - Fix for $clog2(1) = 0 issue
+    // Data shift register and pointer
+    // Note: PTR_WIDTH moved to parameter section
     logic [DW-1:0]                   r_axi_data_shift, w_axi_data_shift;
-    // Use max(1, $clog2(AXI2APBRATIO)) to avoid 0-width signals
-    localparam int PTR_WIDTH = $clog2(AXI2APBRATIO == 1 ? 2 : AXI2APBRATIO);
     logic [PTR_WIDTH-1:0] r_axi_rd_data_pointer, w_axi_rd_data_pointer;
     logic [PTR_WIDTH-1:0] r_axi_wr_data_pointer, w_axi_wr_data_pointer;
     logic [PTR_WIDTH-1:0] r_axi_rsp_data_pointer, w_axi_rsp_data_pointer;

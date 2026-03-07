@@ -491,8 +491,8 @@ def test_gaxi_skid_buffer(request, data_width, depth, clk_period, test_level):
     # RTL parameters
     rtl_parameters = {
         'DATA_WIDTH': str(data_width),
-        'DEPTH': str(depth),
-        'INSTANCE_NAME': f'"skid_{test_level}"'
+        'DEPTH': str(depth)
+        # Note: INSTANCE_NAME was removed during debug code cleanup (Phase 1)
     }
 
     # Adjust timeout based on test level
@@ -600,8 +600,8 @@ def test_gaxi_skid_buffer_wavedrom(request, data_width, depth, clk_period):
 
     rtl_parameters = {
         'DATA_WIDTH': str(data_width),
-        'DEPTH': str(depth),
-        'INSTANCE_NAME': '"skid_wd"'
+        'DEPTH': str(depth)
+        # Note: INSTANCE_NAME was removed during debug code cleanup (Phase 1)
     }
 
     extra_env = {
