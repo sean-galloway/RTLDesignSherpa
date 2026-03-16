@@ -2,12 +2,13 @@
 # RTL Design Sherpa - Master Makefile
 # ==============================================================================
 #
-# PREREQUISITES:
-#   Must be run with sourced environment:
-#     source env_python  # Sets $REPO_ROOT and activates venv
-#     make <target>
+# Bootstrap (no env_python needed):
+#   make install        - Create venv and install all Python dependencies
+#   make doctor         - Check that all required tools are available
+#   make count          - LOC / file counts for RTL, tests, framework
 #
-# Quick start:
+# After setup:
+#   source env_python   - Activate venv and set REPO_ROOT
 #   make help           - Show all available targets
 #   make test-all       - Run all tests (validation + projects)
 #   make lint-all       - Run all lint (RTL + projects)
@@ -19,9 +20,84 @@
 # Force bash shell
 SHELL := /bin/bash
 
-# Check if REPO_ROOT is set (from env_python)
+# Repo root for bootstrap targets (works without env_python)
+MAKEFILE_DIR := $(dir $(abspath $(lastword $(MAKEFILE_LIST))))
+
+# ==============================================================================
+# Bootstrap Targets (no env_python required)
+# ==============================================================================
+
+.PHONY: install
+install:
+	@echo "================================================================================"
+	@echo "Installing RTL Design Sherpa Python environment"
+	@echo "================================================================================"
+	@if [ ! -d "$(MAKEFILE_DIR)venv" ]; then \
+		echo "Creating virtual environment..."; \
+		python3 -m venv "$(MAKEFILE_DIR)venv"; \
+	else \
+		echo "Virtual environment already exists at $(MAKEFILE_DIR)venv"; \
+	fi
+	@echo "Upgrading pip..."
+	@"$(MAKEFILE_DIR)venv/bin/pip" install --upgrade pip
+	@echo "Installing requirements..."
+	@"$(MAKEFILE_DIR)venv/bin/pip" install -r "$(MAKEFILE_DIR)requirements.txt"
+	@echo ""
+	@echo "================================================================================"
+	@echo "Done. Next steps:"
+	@echo "  source env_python      # activate venv + set paths"
+	@echo "  make doctor            # verify all tools"
+	@echo "  make test-all          # run full test suite"
+	@echo "================================================================================"
+
+.PHONY: doctor
+doctor:
+	@echo "================================================================================"
+	@echo "RTL Design Sherpa - Tool Check"
+	@echo "================================================================================"
+	@echo ""
+	@printf "  %-22s " "Python 3:" && (python3 --version 2>/dev/null || echo "MISSING")
+	@printf "  %-22s " "Verilator:" && (verilator --version 2>/dev/null | head -1 || echo "MISSING")
+	@printf "  %-22s " "Verible:" && (verible-verilog-lint --version 2>/dev/null | head -1 || echo "MISSING (add to PATH)")
+	@printf "  %-22s " "GTKWave:" && (which gtkwave 2>/dev/null && echo "OK" || echo "MISSING (optional)")
+	@printf "  %-22s " "Yosys:" && (yosys --version 2>/dev/null | head -1 || echo "MISSING (optional)")
+	@printf "  %-22s " "Venv:" && (test -f "$(MAKEFILE_DIR)venv/bin/python3" && echo "OK ($(MAKEFILE_DIR)venv)" || echo "MISSING (run: make install)")
+	@printf "  %-22s " "CocoTB:" && ("$(MAKEFILE_DIR)venv/bin/python3" -c "import cocotb; print(cocotb.__version__)" 2>/dev/null || echo "MISSING (run: make install)")
+	@printf "  %-22s " "REPO_ROOT:" && (test -n "$$REPO_ROOT" && echo "$$REPO_ROOT" || echo "NOT SET (run: source env_python)")
+	@echo ""
+	@echo "================================================================================"
+
+.PHONY: count
+count:
+	@echo "================================================================================"
+	@echo "RTL Design Sherpa - Codebase Stats"
+	@echo "================================================================================"
+	@echo ""
+	@printf "  %-35s " "RTL (*.sv):" && find "$(MAKEFILE_DIR)rtl" -name "*.sv" 2>/dev/null | wc -l | xargs printf "%s files, " && find "$(MAKEFILE_DIR)rtl" -name "*.sv" -exec cat {} + 2>/dev/null | wc -l | xargs printf "%s lines\n"
+	@printf "  %-35s " "Project RTL (*.sv):" && find "$(MAKEFILE_DIR)projects" -name "*.sv" 2>/dev/null | wc -l | xargs printf "%s files, " && find "$(MAKEFILE_DIR)projects" -name "*.sv" -exec cat {} + 2>/dev/null | wc -l | xargs printf "%s lines\n"
+	@printf "  %-35s " "Tests (test_*.py):" && find "$(MAKEFILE_DIR)val" "$(MAKEFILE_DIR)projects" -name "test_*.py" 2>/dev/null | wc -l | xargs printf "%s files, " && find "$(MAKEFILE_DIR)val" "$(MAKEFILE_DIR)projects" -name "test_*.py" -exec cat {} + 2>/dev/null | wc -l | xargs printf "%s lines\n"
+	@printf "  %-35s " "CocoTBFramework (*.py):" && find "$(MAKEFILE_DIR)bin/CocoTBFramework" -name "*.py" 2>/dev/null | wc -l | xargs printf "%s files, " && find "$(MAKEFILE_DIR)bin/CocoTBFramework" -name "*.py" -exec cat {} + 2>/dev/null | wc -l | xargs printf "%s lines\n"
+	@printf "  %-35s " "Documentation (*.md):" && find "$(MAKEFILE_DIR)docs" -name "*.md" 2>/dev/null | wc -l | xargs printf "%s files\n"
+	@echo ""
+	@echo "================================================================================"
+
+# ==============================================================================
+# Environment Check (required for all targets below this point)
+# ==============================================================================
+
+# Only enforce REPO_ROOT for non-bootstrap targets
+BOOTSTRAP_TARGETS := install doctor count
+ifneq ($(filter-out $(BOOTSTRAP_TARGETS),$(MAKECMDGOALS)),)
 ifndef REPO_ROOT
 $(error REPO_ROOT is not set. Please run: source env_python)
+endif
+endif
+
+# Also require REPO_ROOT when no target is specified (default = help)
+ifeq ($(MAKECMDGOALS),)
+ifndef REPO_ROOT
+$(error REPO_ROOT is not set. Run 'make install' or 'source env_python && make help')
+endif
 endif
 
 # Directories
