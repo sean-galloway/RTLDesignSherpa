@@ -300,60 +300,103 @@ endmodule
 // Simple Parameterized FIFO
 // Childishly simple, but now with configurable depth
 module SyncFIFO #(
-    parameter int DEPTH = 8,           // Depth of the FIFO (must be power of 2)
-    parameter int DATA_WIDTH = 8       // Data width
+    parameter int DEPTH = 8,
+    parameter int DATA_WIDTH = 8
 ) (
-    input  logic                  clk,        // Clock input
-    input  logic                  reset_n,    // Reset input
-    input  logic                  write_en,   // Write enable input
-    input  logic [DATA_WIDTH-1:0] data_in,    // Data input
-    input  logic                  read_en,    // Read enable input
-    output logic [DATA_WIDTH-1:0] data_out,   // Data output
-    output logic                  empty,      // Empty flag (FIFO is empty)
-    output logic                  full        // Full flag (FIFO is full)
+    input  logic                  clk,
+    input  logic                  reset_n,
+    input  logic                  write_en,
+    input  logic [DATA_WIDTH-1:0] data_in,
+    input  logic                  read_en,
+    output logic [DATA_WIDTH-1:0] data_out,
+    output logic                  empty,
+    output logic                  full
 );
+    localparam int PW = $clog2(DEPTH) + 1;
+    
+    logic [DATA_WIDTH-1:0] mem [DEPTH];
+    logic [PW-1:0] wp, rp;
+    
+    wire do_wr = write_en && !full;
+    wire do_rd = read_en  && !empty;
+    
+    assign empty    = (wp == rp);
+    assign full     = (wp[PW-1] != rp[PW-1]) && (wp[PW-2:0] == rp[PW-2:0]);
+    assign data_out = do_rd ? mem[rp[$clog2(DEPTH)-1:0]] : '0;
 
-    // Calculate pointer widths based on DEPTH
-    localparam int PTR_WIDTH = $clog2(DEPTH) + 1;  // +1 bit for full/empty detection
-    localparam int ADDR_WIDTH = $clog2(DEPTH);      // Address bits for memory indexing
-
-    // Memory array
-    logic [DATA_WIDTH-1:0] memory [DEPTH];
-
-    // Pointers
-    logic [PTR_WIDTH-1:0] write_ptr, read_ptr;
-
-    // Status flags
-    logic fifo_empty, fifo_full;
-
-    // Empty: All bits of pointers match
-    assign fifo_empty = (write_ptr == read_ptr);
-
-    // Full: MSB differs (wrap-around), but lower bits match
-    assign fifo_full = (write_ptr[PTR_WIDTH-1] != read_ptr[PTR_WIDTH-1]) && 
-                        (write_ptr[PTR_WIDTH-2:0] == read_ptr[PTR_WIDTH-2:0]);
-
-    // Pointer update logic
     always_ff @(posedge clk or negedge reset_n) begin
         if (!reset_n) begin
-            write_ptr <= '0;
-            read_ptr  <= '0;
+            wp <= '0;
+            rp <= '0;
         end else begin
-            write_ptr <= (write_en && !fifo_full)  ? (write_ptr + 1'b1) : write_ptr;
-            read_ptr  <= (read_en  && !fifo_empty) ? (read_ptr  + 1'b1) : read_ptr;
+            wp <= wp + PW'(do_wr);
+            rp <= rp + PW'(do_rd);
         end
     end
 
-    // Write to FIFO
-    always_ff @(posedge clk) begin
-        if (write_en && !fifo_full) begin
-            memory[write_ptr[ADDR_WIDTH-1:0]] <= data_in;
+    always_ff @(posedge clk)
+        if (do_wr) mem[wp[$clog2(DEPTH)-1:0]] <= data_in;
+
+endmodule
+
+module SyncFIFO #(
+    parameter int DEPTH = 8,
+    parameter int DATA_WIDTH = 8
+) (
+    input  logic                  clk,
+    input  logic                  reset_n,
+    // Write interface
+    input  logic                  wr_valid,
+    output logic                  wr_ready,
+    input  logic [DATA_WIDTH-1:0] wr_data,
+    // Read interface
+    output logic                  rd_valid,
+    input  logic                  rd_ready,
+    output logic [DATA_WIDTH-1:0] rd_data
+);
+    localparam int PW = $clog2(DEPTH) + 1;
+    
+    logic [DATA_WIDTH-1:0] mem [DEPTH];
+    logic [PW-1:0] wp, rp;
+    
+    wire wr_hsk = wr_valid && wr_ready;
+    wire rd_hsk = rd_valid && rd_ready;
+    
+    assign wr_ready = (wp[PW-1] == rp[PW-1]) || (wp[PW-2:0] != rp[PW-2:0]);
+    assign rd_valid = (wp != rp);
+    assign rd_data  = mem[rp[$clog2(DEPTH)-1:0]];
+
+    always_ff @(posedge clk or negedge reset_n) begin
+        if (!reset_n) begin
+            wp <= '0;
+            rp <= '0;
+        end else begin
+            wp <= wp + PW'(wr_hsk);
+            rp <= rp + PW'(rd_hsk);
         end
     end
 
-    // Output assignments
-    assign empty    = fifo_empty;
-    assign full     = fifo_full;
-    assign data_out = (read_en && !fifo_empty) ? memory[read_ptr[ADDR_WIDTH-1:0]] : '0;
+    always_ff @(posedge clk)
+        if (wr_hsk) mem[wp[$clog2(DEPTH)-1:0]] <= wr_data;
 
-endmodule : SyncFIFO
+endmodule
+
+// arbiter
+module rr_arbiter #(N=4) (
+    input  logic         clk, rst_n,
+    input  logic [N-1:0] req,
+    output logic [N-1:0] gnt);
+
+    logic [N-1:0] mask;  // rotates after each grant
+    logic [N-1:0] gnt_masked, gnt_unmasked;
+
+    // Priority encoder helper (lowest set bit after mask)
+    assign gnt_masked   = req & mask & ~(req & mask - 1);  // simplified
+    assign gnt_unmasked = req & ~(req - 1);
+    assign gnt = |gnt_masked ? gnt_masked : gnt_unmasked;
+
+    always_ff @(posedge clk or negedge rst_n)
+        if (!rst_n) mask <= '1;
+        else if (|gnt) mask <= {gnt[N-2:0], gnt[N-1]}; // rotate left
+
+endmodule : rr_arbiter
