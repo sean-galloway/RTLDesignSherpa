@@ -111,8 +111,7 @@ module axi4_master_rd
     // Instantiate AR Skid Buffer
     gaxi_skid_buffer #(
         .DEPTH(SKID_DEPTH_AR),
-        .DATA_WIDTH(ARSize),
-        .INSTANCE_NAME("AR_SKID")
+        .DATA_WIDTH(ARSize)
     ) ar_channel (
         .axi_aclk               (aclk),
         .axi_aresetn            (aresetn),
@@ -140,8 +139,7 @@ module axi4_master_rd
     // Instantiate R channel for read data back
     gaxi_skid_buffer #(
         .DEPTH(SKID_DEPTH_R),
-        .DATA_WIDTH(RSize),
-        .INSTANCE_NAME("R_SKID")
+        .DATA_WIDTH(RSize)
     ) r_channel (
         .axi_aclk               (aclk),
         .axi_aresetn            (aresetn),

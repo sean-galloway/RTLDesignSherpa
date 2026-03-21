@@ -22,7 +22,6 @@ module gaxi_skid_buffer_async_multi #(
     parameter integer DATA_WIDTH = 8,
     parameter integer DEPTH         = 2,
     parameter integer N_FLOP_CROSS  = 2,
-    parameter         INSTANCE_NAME = "DEADF1F0",  // verilog_lint: waive explicit-parameter-storage-type
     parameter integer AW = ADDR_WIDTH,
     parameter integer CW = CTRL_WIDTH,
     parameter integer DW = DATA_WIDTH
@@ -80,8 +79,7 @@ module gaxi_skid_buffer_async_multi #(
         .DEPTH(DEPTH),
         .N_FLOP_CROSS(N_FLOP_CROSS),
         .ALMOST_WR_MARGIN(1),
-        .ALMOST_RD_MARGIN(1),
-        .INSTANCE_NAME(INSTANCE_NAME)
+        .ALMOST_RD_MARGIN(1)
     ) inst_gaxi_fifo_async (
         .axi_wr_aclk   (axi_wr_aclk),
         .axi_wr_aresetn(axi_wr_aresetn),

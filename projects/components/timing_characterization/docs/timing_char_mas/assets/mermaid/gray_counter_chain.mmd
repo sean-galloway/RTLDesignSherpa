@@ -1,0 +1,27 @@
+%%{init: {'theme': 'neutral'}}%%
+flowchart TB
+    subgraph BinaryCounter["Binary Counter"]
+        direction LR
+        EN["i_enable"] --> CNT["Binary<br/>Counter<br/>(WIDTH bits)"]
+    end
+
+    subgraph Conversion["Binary-to-Gray Conversion"]
+        direction LR
+        BIN["Binary[W-1:0]"]
+        XOR1["gray[W-1] = bin[W-1]"]
+        XOR2["gray[i] = bin[i+1] XOR bin[i]"]
+    end
+
+    subgraph DualPath["Two Competing Critical Paths"]
+        direction TB
+        PATH_A["Path A: Carry Chain<br/>(Binary increment)<br/>Grows O(W) with<br/>dedicated carry"]
+        PATH_B["Path B: XOR Tree<br/>(Gray conversion)<br/>Grows O(log W)<br/>via LUT packing"]
+    end
+
+    CNT --> Conversion
+    Conversion --> OUTFF["r_output<br/>(Gray Code)"]
+
+    BinaryCounter --> PATH_A
+    Conversion --> PATH_B
+
+    CROSS["Crossover: XOR dominates<br/>at large WIDTH values"]

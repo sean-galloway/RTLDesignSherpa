@@ -1,0 +1,17 @@
+%%{init: {'theme': 'neutral'}}%%
+flowchart TB
+    EN["i_enable[8:0]"]
+
+    subgraph GenBlocks["Conditional Generate Blocks"]
+        direction TB
+        G0{"EN[0]?"} -->|"1"| FUB0["nand_chain<br/>instance"]
+        G0 -->|"0"| TIE0["o_nand_chain = 0"]
+        G1{"EN[1]?"} -->|"1"| FUB1["inverter_chain<br/>instance"]
+        G1 -->|"0"| TIE1["o_inverter_chain = 0"]
+        G2{"EN[2]?"} -->|"1"| FUB2["xor_tree<br/>instance"]
+        G2 -->|"0"| TIE2["o_xor_tree = 0"]
+    end
+
+    EN --> GenBlocks
+
+    NOTE["... same pattern for all 9 FUBs ...<br/>Disabled FUBs tie outputs to zero<br/>to prevent floating signals"]

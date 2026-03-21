@@ -182,8 +182,7 @@ module axi4_dwidth_converter_rd #(
 
     gaxi_skid_buffer #(
         .DEPTH(SKID_DEPTH_AR),
-        .DATA_WIDTH(AR_WIDTH),
-        .INSTANCE_NAME("AR_SKID")
+        .DATA_WIDTH(AR_WIDTH)
     ) ar_skid (
         .axi_aclk   (aclk),
         .axi_aresetn(aresetn),
@@ -210,8 +209,7 @@ module axi4_dwidth_converter_rd #(
 
     gaxi_skid_buffer #(
         .DEPTH(SKID_DEPTH_R),
-        .DATA_WIDTH(R_WIDTH),
-        .INSTANCE_NAME("R_SKID")
+        .DATA_WIDTH(R_WIDTH)
     ) r_skid (
         .axi_aclk   (aclk),
         .axi_aresetn(aresetn),

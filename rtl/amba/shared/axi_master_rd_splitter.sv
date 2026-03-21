@@ -181,12 +181,10 @@ module axi_master_rd_splitter
     //===========================================================================
     // Parameter Validation
     //===========================================================================
-    // synopsys translate_off
     initial begin
         assert (DW inside {32, 64, 128, 256, 512, 1024}) else
             $fatal(1, "AXI_DATA_WIDTH must be power of 2 between 32 and 1024 bits");
     end
-    // synopsys translate_on
 
     //===========================================================================
     // State definitions
@@ -460,8 +458,7 @@ module axi_master_rd_splitter
     gaxi_fifo_sync #(
         .REGISTERED        (0), // muxed output mode
         .DATA_WIDTH        (AW + IW + 8),
-        .DEPTH             (SPLIT_FIFO_DEPTH),
-        .INSTANCE_NAME     ("SPLIT_FIFO")
+        .DEPTH             (SPLIT_FIFO_DEPTH)
     ) inst_split_info_fifo(
         .axi_aclk        (aclk),
         .axi_aresetn     (aresetn),
@@ -480,7 +477,6 @@ module axi_master_rd_splitter
     // Additional Assertions for Integration Validation
     //===========================================================================
 
-    // synopsys translate_off
     // Ensure state machine consistency
     always_ff @(posedge aclk) begin
         /* verilator lint_off SYNCASYNCNET */
@@ -518,6 +514,5 @@ module axi_master_rd_splitter
         end
         /* verilator lint_on SYNCASYNCNET */
     end
-    // synopsys translate_on
 
 endmodule : axi_master_rd_splitter

@@ -38,12 +38,6 @@
 //------------------------------------------------------------------------------
 // Parameters:
 //------------------------------------------------------------------------------
-//   ALGO_NAME:
-//     Description: Algorithm name for debug/identification
-//     Type: string
-//     Default: "DEADF1F0"
-//     Constraints: Used for waveform/debug identification only
-//
 //   DATA_WIDTH:
 //     Description: Input data bus width (bits)
 //     Type: int
@@ -156,7 +150,6 @@
 //------------------------------------------------------------------------------
 //   // CRC-32 (Ethernet) - Most common configuration
 //   dataint_crc #(
-//       .ALGO_NAME("CRC32_ETHERNET"),
 //       .DATA_WIDTH(64),      // Process 8 bytes/cycle
 //       .CRC_WIDTH(32),
 //       .REFIN(1),            // LSB-first input
@@ -176,7 +169,6 @@
 //
 //   // CRC-16-CCITT (X.25, HDLC)
 //   dataint_crc #(
-//       .ALGO_NAME("CRC16_CCITT"),
 //       .DATA_WIDTH(32),
 //       .CRC_WIDTH(16),
 //       .REFIN(0),
@@ -239,10 +231,6 @@
 
 `include "reset_defs.svh"
 module dataint_crc #(
-    // synopsys translate_off
-    parameter string ALGO_NAME = "DEADF1F0"  // verilog_lint: waive explicit-parameter-storage-type
-    // synopsys translate_on
-    ,
     parameter int DATA_WIDTH = 64,     // Adjustable data width
     parameter int CRC_WIDTH = 64,      // CRC polynomial width
     parameter int REFIN = 1,
@@ -360,23 +348,5 @@ module dataint_crc #(
     )
 
 
-    /////////////////////////////////////////////////////////////////////////
-    // error checking
-    // synopsys translate_off
-    // Generate a version of the memory for waveforms
-    logic [(CH*8)-1:0] flat_w_block_data;
-    generate
-        for (i = 0; i < CH; i++) begin : gen_flatten_w_block_data
-            assign flat_w_block_data[i*8+:8] = w_block_data[i];
-        end
-    endgenerate
-
-    logic [(CW*CH)-1:0] flat_w_cascade;
-    generate
-        for (i = 0; i < CH; i++) begin : gen_flatten_w_cascade
-            assign flat_w_cascade[i*CW+:CW] = w_cascade[i];
-        end
-    endgenerate
-    // synopsys translate_on
 
 endmodule : dataint_crc

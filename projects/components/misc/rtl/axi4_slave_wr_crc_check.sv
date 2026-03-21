@@ -207,7 +207,6 @@ module axi4_slave_wr_crc_check #(
     assign crc_cascade_sel = 4'b1000;
 
     dataint_crc #(
-        .ALGO_NAME("CRC32_WRITE_CHECK"),
         .DATA_WIDTH(CRC_DATA_WIDTH),  // 32-bit input
         .CRC_WIDTH(CRC_WIDTH),        // 32-bit output
         .REFIN(CRC_REFIN),

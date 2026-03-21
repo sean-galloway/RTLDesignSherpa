@@ -1,0 +1,34 @@
+%%{init: {'theme': 'neutral'}}%%
+flowchart TB
+    PARAM["MULT_TYPE Parameter"]
+
+    subgraph Type0["Type 0: Inferred (*)"]
+        direction TB
+        T0["a * b<br/>Tool chooses: DSP or LUT"]
+    end
+
+    subgraph Type1["Type 1: Shift-Add"]
+        direction TB
+        T1["for each bit of b:<br/>  if b[i]: acc += a << i"]
+    end
+
+    subgraph Type2["Type 2: Booth Radix-2"]
+        direction TB
+        T2["Booth recoding<br/>of multiplier bits<br/>Partial product reduction"]
+    end
+
+    subgraph Type3["Type 3: Wallace Tree"]
+        direction TB
+        T3["Partial products<br/>3:2 CSA reduction tree<br/>Final CPA"]
+    end
+
+    subgraph Type4["Type 4: Dadda Tree"]
+        direction TB
+        T4["Partial products<br/>Minimum-height CSA<br/>Final CPA"]
+    end
+
+    PARAM -->|"0"| Type0
+    PARAM -->|"1"| Type1
+    PARAM -->|"2"| Type2
+    PARAM -->|"3"| Type3
+    PARAM -->|"4"| Type4

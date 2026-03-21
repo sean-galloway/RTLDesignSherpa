@@ -78,12 +78,6 @@
 //     Default: 1
 //     Constraints: rd_almost_empty asserts when count ≤ MARGIN
 //
-//   INSTANCE_NAME:
-//     Description: Debug name for error messages
-//     Type: string
-//     Default: "DEADF1F0"
-//     Constraints: Used in $display for overflow/underflow warnings
-//
 //   Derived Parameters (localparam - computed automatically):
 //     DW: Alias for DATA_WIDTH (convenience for internal declarations)
 //     D: Alias for DEPTH (convenience for internal declarations)
@@ -202,8 +196,7 @@
 //       .DATA_WIDTH(32),       // 32-bit data
 //       .DEPTH(16),            // 16-entry FIFO
 //       .ALMOST_WR_MARGIN(2),  // Almost-full at 14 entries
-//       .ALMOST_RD_MARGIN(2),  // Almost-empty at 2 entries
-//       .INSTANCE_NAME("PKT_FIFO")
+//       .ALMOST_RD_MARGIN(2)   // Almost-empty at 2 entries
 //   ) u_pkt_fifo (
 //       .clk              (clk),
 //       .rst_n            (rst_n),
@@ -222,8 +215,7 @@
 //   fifo_sync #(
 //       .REGISTERED(1),        // Flop mode (+1 cycle latency)
 //       .DATA_WIDTH(64),
-//       .DEPTH(32),
-//       .INSTANCE_NAME("PIPELINE_FIFO")
+//       .DEPTH(32)
 //   ) u_pipe_fifo (
 //       .clk              (core_clk),
 //       .rst_n            (rst_n),
@@ -273,8 +265,6 @@
 //   - **Memory implementation:** Inferred RAM (synthesizer chooses BRAM/LUT)
 //   - For small FIFOs: Likely synthesizes to registers/LUTs
 //   - For large FIFOs: Likely synthesizes to block RAM
-//   - flat_mem is debug-only (synthesis ignored via translate_off)
-//   - INSTANCE_NAME used for error messages (helps debug multi-FIFO designs)
 //   - **Resource usage:** DEPTH × DATA_WIDTH bits of memory + control logic
 //   - **Critical path (mux):** mem read → mux → rd_data (can be long)
 //   - **Critical path (flop):** mem read → FF (shorter, better for timing)
@@ -317,10 +307,6 @@ module fifo_sync
     parameter int    DEPTH = 4,
     parameter int    ALMOST_WR_MARGIN = 1,
     parameter int    ALMOST_RD_MARGIN = 1
-    // synopsys translate_off
-    ,
-    parameter string INSTANCE_NAME = "DEADF1F0"  // verilog_lint: waive explicit-parameter-storage-type
-    // synopsys translate_on
 ) (
     input  logic                    clk,
                                     rst_n,
@@ -435,13 +421,6 @@ module fifo_sync
                 always_comb w_rd_data = mem[r_rd_addr];
             end
 
-            // synopsys translate_off
-            logic [(DW*DEPTH)-1:0] flat_mem_srl;
-            genvar i_srl;
-            for (i_srl = 0; i_srl < DEPTH; i_srl++) begin : gen_flatten_srl
-                assign flat_mem_srl[i_srl*DW+:DW] = mem[i_srl];
-            end
-            // synopsys translate_on
         end
         else if (MEM_STYLE == FIFO_BRAM) begin : gen_bram
             `ifdef XILINX
@@ -469,13 +448,6 @@ module fifo_sync
                 always_comb w_rd_data = mem[r_rd_addr];
             end
 
-            // synopsys translate_off
-            logic [(DW*DEPTH)-1:0] flat_mem_bram;
-            genvar i_bram;
-            for (i_bram = 0; i_bram < DEPTH; i_bram++) begin : gen_flatten_bram
-                assign flat_mem_bram[i_bram*DW+:DW] = mem[i_bram];
-            end
-            // synopsys translate_on
         end
         else begin : gen_auto
             // No vendor hint; allow tool to infer LUT/BRAM
@@ -499,13 +471,6 @@ module fifo_sync
                 always_comb w_rd_data = mem[r_rd_addr];
             end
 
-            // synopsys translate_off
-            logic [(DW*DEPTH)-1:0] flat_mem_auto;
-            genvar i_auto;
-            for (i_auto = 0; i_auto < DEPTH; i_auto++) begin : gen_flatten_auto
-                assign flat_mem_auto[i_auto*DW+:DW] = mem[i_auto];
-            end
-            // synopsys translate_on
         end
     endgenerate
 
@@ -515,23 +480,12 @@ module fifo_sync
     assign rd_data = w_rd_data;
 
     // -----------------------------------------------------------------------
-    // Simulation-only: Instance report and error checking
+    // Overflow/underflow error checking
     // -----------------------------------------------------------------------
-    // synopsys translate_off
-    // Runtime debug control: +SIM_DEBUG=1 enables output
-    int sim_debug;
-    initial begin
-        sim_debug = 0;
-        void'($value$plusargs("SIM_DEBUG=%d", sim_debug));
-        if (sim_debug)
-            $display("FIFO_INSTANCE: fifo_sync %m %s W=%0d D=%0d MEM=%s REG=%0d", INSTANCE_NAME, DW, D, MEM_STYLE.name(), REGISTERED);
-    end
-
-    // Overflow/underflow error messages (always enabled)
     always_ff @(posedge clk) begin
         if (write && wr_full) begin
             $timeformat(-9, 3, " ns", 10);
-            $display("Error: %s write while fifo full, %t", INSTANCE_NAME, $time);
+            $display("Error: %m write while fifo full, %t", $time);
         end
     end
 
@@ -539,11 +493,10 @@ module fifo_sync
         if (read && rd_empty) begin
             $timeformat(-9, 3, " ns", 10);
             if (REGISTERED == 1)
-                $display("Error: %s read while fifo empty (flop mode), %t", INSTANCE_NAME, $time);
+                $display("Error: %m read while fifo empty (flop mode), %t", $time);
             else
-                $display("Error: %s read while fifo empty (mux mode), %t", INSTANCE_NAME, $time);
+                $display("Error: %m read while fifo empty (mux mode), %t", $time);
         end
     end
-    // synopsys translate_on
 
 endmodule : fifo_sync

@@ -66,10 +66,6 @@
 //==============================================================================
 module leading_one_trailing_one #(
     parameter int WIDTH = 8
-    // synopsys translate_off
-    ,
-    parameter string INSTANCE_NAME = ""
-    // synopsys translate_on
 ) (
     input  logic [WIDTH-1:0]     data,
     output logic [$clog2(WIDTH)-1:0] leadingone,       // Changed to match arbiter's N
@@ -84,10 +80,6 @@ module leading_one_trailing_one #(
 
     find_last_set #(
         .WIDTH         (WIDTH)
-        // synopsys translate_off
-        ,
-        .INSTANCE_NAME (INSTANCE_NAME)
-        // synopsys translate_on
     ) u_find_last_set(
         .data          (data),
         .index         (leadingone)
@@ -95,10 +87,6 @@ module leading_one_trailing_one #(
 
     find_first_set #(
         .WIDTH         (WIDTH)
-        // synopsys translate_off
-        ,
-        .INSTANCE_NAME (INSTANCE_NAME)
-        // synopsys translate_on
     ) u_find_first_set(
         .data          (data),
         .index         (trailingone)

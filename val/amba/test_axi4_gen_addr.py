@@ -717,6 +717,7 @@ def test_axi_gen_addr(request, params):
             toplevel=toplevel,
             module=module,
             parameters=rtl_parameters,
+            simulator="verilator",
             sim_build=sim_build,
             extra_env=extra_env,
             waves=False,  # VCD controlled by compile_args, not cocotb-test

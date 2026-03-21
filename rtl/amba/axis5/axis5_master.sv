@@ -118,8 +118,7 @@ module axis5_master
     // Instantiate T Skid Buffer
     gaxi_skid_buffer #(
         .DEPTH(SKID_DEPTH),
-        .DATA_WIDTH(TSize),
-        .INSTANCE_NAME("AXIS5_T_SKID")
+        .DATA_WIDTH(TSize)
     ) t_channel (
         .axi_aclk               (aclk),
         .axi_aresetn            (aresetn),

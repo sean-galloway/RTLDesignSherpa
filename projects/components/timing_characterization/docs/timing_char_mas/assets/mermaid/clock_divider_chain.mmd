@@ -1,0 +1,36 @@
+%%{init: {'theme': 'neutral'}}%%
+flowchart LR
+    CLK["clk"]
+
+    subgraph Stage1["Stage 1"]
+        direction TB
+        CNT1["Counter<br/>(modulo N)"]
+        DIV1["Divided<br/>Clock 1"]
+    end
+
+    subgraph Stage2["Stage 2"]
+        direction TB
+        CNT2["Counter<br/>(modulo N)"]
+        DIV2["Divided<br/>Clock 2"]
+    end
+
+    subgraph Stage3["Stage 3"]
+        direction TB
+        CNT3["Counter<br/>(modulo N)"]
+        DIV3["Divided<br/>Clock 3"]
+    end
+
+    CLK --> Stage1
+    DIV1 -->|"Pickoff"| Stage2
+    DIV2 -->|"Pickoff"| Stage3
+
+    subgraph Output["Output"]
+        direction TB
+        MUX["Stage Select<br/>Mux"]
+        OUTFF["r_output"]
+    end
+
+    DIV1 --> MUX
+    DIV2 --> MUX
+    DIV3 --> MUX
+    MUX --> OUTFF

@@ -1,0 +1,35 @@
+%%{init: {'theme': 'neutral'}}%%
+flowchart TB
+    subgraph SoC["System-on-Chip / FPGA"]
+        direction TB
+        subgraph Harness["Timing Characterization Harness"]
+            direction LR
+            LFSR["32-bit Galois LFSR<br/>(Shared Stimulus)"]
+            subgraph FUBs["Functional Unit Blocks"]
+                direction TB
+                F1["nand_chain"]
+                F2["inverter_chain"]
+                F3["xor_tree"]
+                F4["carry_chain"]
+                F5["multiplier_tree"]
+                F6["mux_tree"]
+                F7["queue_depth"]
+                F8["clock_divider_chain"]
+                F9["gray_counter_chain"]
+            end
+            LFSR --> FUBs
+        end
+        CLK["Clock Source"] --> Harness
+        RST["Reset"] --> Harness
+    end
+
+    subgraph Tools["EDA Tool Flow"]
+        direction LR
+        SYN["Synthesis Tool<br/>(Vivado / Quartus / DC)"]
+        STA["Static Timing Analysis"]
+        RPT["Timing Reports"]
+        SYN --> STA --> RPT
+    end
+
+    Harness -->|"SDC constraints"| SYN
+    RPT -->|"Delay per FUB"| ANALYSIS["Cross-Technology<br/>Comparison"]

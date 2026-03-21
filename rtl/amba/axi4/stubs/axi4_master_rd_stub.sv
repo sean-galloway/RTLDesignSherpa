@@ -78,7 +78,7 @@ module axi4_master_rd_stub
 
     ///////////////////////////////////////////////////////////////////////////////////////////
     // Read address channel (AR)
-    gaxi_skid_buffer #(.DEPTH(SKID_DEPTH_AR), .DATA_WIDTH(ARSize), .INSTANCE_NAME("AR-Phase")) inst_ar_phase (
+    gaxi_skid_buffer #(.DEPTH(SKID_DEPTH_AR), .DATA_WIDTH(ARSize)) inst_ar_phase (
         .axi_aclk               (aclk),
         .axi_aresetn            (aresetn),
         .wr_valid               (fub_axi_arvalid),
@@ -97,7 +97,7 @@ module axi4_master_rd_stub
 
     ///////////////////////////////////////////////////////////////////////////////////////////
     // Read data channel (R)
-    gaxi_skid_buffer #(.DEPTH(SKID_DEPTH_R), .DATA_WIDTH(RSize), .INSTANCE_NAME("R-Phase")) inst_r_phase (
+    gaxi_skid_buffer #(.DEPTH(SKID_DEPTH_R), .DATA_WIDTH(RSize)) inst_r_phase (
         .axi_aclk               (aclk),
         .axi_aresetn            (aresetn),
         .wr_valid               (m_axi_rvalid),

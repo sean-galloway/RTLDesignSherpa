@@ -178,8 +178,7 @@ module ctrlwr_engine #(
 
     gaxi_skid_buffer #(
         .DATA_WIDTH(ADDR_WIDTH + 32),
-        .DEPTH(2),
-        .INSTANCE_NAME("CTRLWR_REQ_SKID")
+        .DEPTH(2)
     ) i_ctrlwr_req_skid_buffer (
         .axi_aclk(clk),
         .axi_aresetn(rst_n),

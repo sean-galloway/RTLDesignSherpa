@@ -1,0 +1,28 @@
+%%{init: {'theme': 'neutral'}}%%
+flowchart LR
+    subgraph RTL["Shared RTL"]
+        direction TB
+        CHAR["char_top.sv<br/>+ 9 FUBs"]
+        SDC["char_top.sdc<br/>(Multi-flow)"]
+    end
+
+    subgraph Targets["Technology Targets"]
+        direction TB
+        VIV["Vivado<br/>(7-series, UltraScale)"]
+        QUA["Quartus<br/>(Cyclone V, Stratix 10)"]
+        DC["Design Compiler<br/>(ASIC 28nm, 7nm)"]
+    end
+
+    subgraph Results["Comparison Matrix"]
+        direction TB
+        R1["Delay vs. Width<br/>per FUB per Tech"]
+        R2["Area vs. Width<br/>per FUB per Tech"]
+        R3["Cross-Tech<br/>Ranking"]
+    end
+
+    RTL -->|"FLOW=vivado"| VIV
+    RTL -->|"FLOW=quartus"| QUA
+    RTL -->|"FLOW=asic"| DC
+    VIV --> Results
+    QUA --> Results
+    DC --> Results

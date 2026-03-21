@@ -147,17 +147,5 @@ module cam_tag #(
     assign tags_empty = ~|r_valid;
     assign tags_full  =  &r_valid;
 
-    /////////////////////////////////////////////////////////////////////////
-    // error checking
-    // synopsys translate_off
-    // Generate a version of the tag array for waveforms
-    logic [(N*DEPTH)-1:0] flat_r_tag_array;
-    genvar j;
-    generate
-        for (j = 0; j < DEPTH; j++) begin : gen_flatten_memory
-            assign flat_r_tag_array[j*N+:N] = r_tag_array[j];
-        end
-    endgenerate
-    // synopsys translate_on
 
 endmodule : cam_tag

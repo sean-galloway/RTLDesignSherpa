@@ -313,13 +313,13 @@ module SyncFIFO #(
     output logic                  full
 );
     localparam int PW = $clog2(DEPTH) + 1;
-    
+
     logic [DATA_WIDTH-1:0] mem [DEPTH];
     logic [PW-1:0] wp, rp;
-    
+
     wire do_wr = write_en && !full;
     wire do_rd = read_en  && !empty;
-    
+
     assign empty    = (wp == rp);
     assign full     = (wp[PW-1] != rp[PW-1]) && (wp[PW-2:0] == rp[PW-2:0]);
     assign data_out = do_rd ? mem[rp[$clog2(DEPTH)-1:0]] : '0;
@@ -355,13 +355,13 @@ module SyncFIFO #(
     output logic [DATA_WIDTH-1:0] rd_data
 );
     localparam int PW = $clog2(DEPTH) + 1;
-    
+
     logic [DATA_WIDTH-1:0] mem [DEPTH];
     logic [PW-1:0] wp, rp;
-    
+
     wire wr_hsk = wr_valid && wr_ready;
     wire rd_hsk = rd_valid && rd_ready;
-    
+
     assign wr_ready = (wp[PW-1] == rp[PW-1]) || (wp[PW-2:0] != rp[PW-2:0]);
     assign rd_valid = (wp != rp);
     assign rd_data  = mem[rp[$clog2(DEPTH)-1:0]];

@@ -249,29 +249,12 @@ module arbiter_wrr_pwm_monbus #(
     // Assertions For Parameter Validation
     // =========================================================================
 
-    // synopsys translate_off
     initial begin
         assert (CLIENTS > 0) else $fatal(1, "CLIENTS must be > 0");
         assert (CLIENTS <= 64) else $fatal(1, "CLIENTS should be <= 64 for reasonable resource usage");
         assert (MAX_LEVELS > 0) else $fatal(1, "MAX_LEVELS must be > 0");
         assert (MAX_LEVELS <= 64) else $fatal(1, "MAX_LEVELS should be <= 64 for reasonable resource usage");
         assert (WAIT_GNT_ACK == 0 || WAIT_GNT_ACK == 1) else $fatal(1, "WAIT_GNT_ACK must be 0 or 1");
-
-        // Display standardized configuration for verification
-        $display("=== WEIGHTED ARBITER STANDARDIZED FIXED CONFIGURATION ===");
-        $display("PWM_WIDTH: %0d bits", PWM_WIDTH);
-        $display("MON_FIFO_DEPTH: %0d entries", MON_FIFO_DEPTH);
-        $display("MON_FIFO_ALMOST_MARGIN: %0d", MON_FIFO_ALMOST_MARGIN);
-        $display("FAIRNESS_REPORT_CYCLES: %0d", FAIRNESS_REPORT_CYCLES);
-        $display("MIN_GRANTS_FOR_FAIRNESS: %0d", MIN_GRANTS_FOR_FAIRNESS);
-        $display("=== USER CONFIGURATION ===");
-        $display("MAX_LEVELS: %0d", MAX_LEVELS);
-        $display("CLIENTS: %0d", CLIENTS);
-        $display("WAIT_GNT_ACK: %0d", WAIT_GNT_ACK);
-        $display("MON_AGENT_ID: 8'h%02X", MON_AGENT_ID);
-        $display("MON_UNIT_ID: 4'h%01X", MON_UNIT_ID);
-        $display("========================================");
     end
-    // synopsys translate_on
 
 endmodule : arbiter_wrr_pwm_monbus

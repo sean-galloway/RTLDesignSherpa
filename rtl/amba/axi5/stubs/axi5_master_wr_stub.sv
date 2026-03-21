@@ -128,7 +128,7 @@ module axi5_master_wr_stub
 
     ///////////////////////////////////////////////////////////////////////////////////////////
     // Write address channel (AW)
-    gaxi_skid_buffer #(.DEPTH(SKID_DEPTH_AW), .DATA_WIDTH(AWSize), .INSTANCE_NAME("AW-Phase")) inst_aw_phase (
+    gaxi_skid_buffer #(.DEPTH(SKID_DEPTH_AW), .DATA_WIDTH(AWSize)) inst_aw_phase (
         .axi_aclk               (aclk),
         .axi_aresetn            (aresetn),
         .wr_valid               (fub_axi_awvalid),
@@ -148,7 +148,7 @@ module axi5_master_wr_stub
 
     ///////////////////////////////////////////////////////////////////////////////////////////
     // Write data channel (W)
-    gaxi_skid_buffer #(.DEPTH(SKID_DEPTH_W), .DATA_WIDTH(WSize), .INSTANCE_NAME("W-Phase")) inst_w_phase (
+    gaxi_skid_buffer #(.DEPTH(SKID_DEPTH_W), .DATA_WIDTH(WSize)) inst_w_phase (
         .axi_aclk               (aclk),
         .axi_aresetn            (aresetn),
         .wr_valid               (fub_axi_wvalid),
@@ -166,7 +166,7 @@ module axi5_master_wr_stub
 
     ///////////////////////////////////////////////////////////////////////////////////////////
     // Write response channel (B)
-    gaxi_skid_buffer #(.DEPTH(SKID_DEPTH_B), .DATA_WIDTH(BSize), .INSTANCE_NAME("B-Phase")) inst_b_phase (
+    gaxi_skid_buffer #(.DEPTH(SKID_DEPTH_B), .DATA_WIDTH(BSize)) inst_b_phase (
         .axi_aclk               (aclk),
         .axi_aresetn            (aresetn),
         .wr_valid               (m_axi_bvalid),

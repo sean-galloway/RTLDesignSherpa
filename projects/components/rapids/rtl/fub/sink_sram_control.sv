@@ -401,8 +401,7 @@ module sink_sram_control #(
     gaxi_fifo_sync #(
         .DATA_WIDTH     (CHAN_BITS),
         .DEPTH          (EOS_COMPLETION_FIFO_DEPTH),
-        .REGISTERED     (0),
-        .INSTANCE_NAME  ("EOS_COMPLETION_FIFO")
+        .REGISTERED     (0)
     ) eos_completion_fifo_inst (
         .axi_aclk       (clk),
         .axi_aresetn    (rst_n),
@@ -565,8 +564,7 @@ module sink_sram_control #(
     gaxi_fifo_sync #(
         .DATA_WIDTH     (64),
         .DEPTH          (MONITOR_FIFO_DEPTH),
-        .REGISTERED     (0),
-        .INSTANCE_NAME  ("MONITOR_FIFO")
+        .REGISTERED     (0)
     ) monitor_fifo_inst (
         .axi_aclk       (clk),
         .axi_aresetn    (rst_n),

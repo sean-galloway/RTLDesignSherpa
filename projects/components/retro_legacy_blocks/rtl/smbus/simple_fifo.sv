@@ -67,8 +67,7 @@ module simple_fifo #(
         .DATA_WIDTH(DATA_WIDTH),
         .DEPTH(DEPTH),
         .ALMOST_WR_MARGIN(1),
-        .ALMOST_RD_MARGIN(1),
-        .INSTANCE_NAME("SMBUS_FIFO")
+        .ALMOST_RD_MARGIN(1)
     ) u_fifo_sync (
         .clk             (clk),
         .rst_n           (w_rst_n),

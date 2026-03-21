@@ -1,0 +1,50 @@
+%%{init: {'theme': 'neutral'}}%%
+flowchart TB
+    subgraph InputReg["Input Register"]
+        direction LR
+        R0["r_in[0]"]
+        R1["r_in[1]"]
+        R2["r_in[2]"]
+        R3["r_in[3]"]
+        R4["r_in[4]"]
+        R5["r_in[5]"]
+        R6["r_in[6]"]
+        R7["r_in[7]"]
+    end
+
+    subgraph Level1["Level 1 (Leaf XOR Gates)"]
+        direction LR
+        X1["XOR"]
+        X2["XOR"]
+        X3["XOR"]
+        X4["XOR"]
+    end
+
+    subgraph Level2["Level 2"]
+        direction LR
+        X5["XOR"]
+        X6["XOR"]
+    end
+
+    subgraph Level3["Level 3 (Root)"]
+        X7["XOR"]
+    end
+
+    R0 --> X1
+    R1 --> X1
+    R2 --> X2
+    R3 --> X2
+    R4 --> X3
+    R5 --> X3
+    R6 --> X4
+    R7 --> X4
+
+    X1 --> X5
+    X2 --> X5
+    X3 --> X6
+    X4 --> X6
+
+    X5 --> X7
+    X6 --> X7
+
+    X7 --> OUTFF["r_output<br/>(Output FF)"]

@@ -446,8 +446,7 @@ module axi5_slave_rd
 
     gaxi_skid_buffer #(
         .DEPTH(SKID_DEPTH_AR),
-        .DATA_WIDTH(ARSize),
-        .INSTANCE_NAME("AR_SKID")
+        .DATA_WIDTH(ARSize)
     ) i_ar_channel (
         .axi_aclk               (aclk),
         .axi_aresetn            (aresetn),
@@ -472,8 +471,7 @@ module axi5_slave_rd
 
     gaxi_skid_buffer #(
         .DEPTH(SKID_DEPTH_R),
-        .DATA_WIDTH(RSize),
-        .INSTANCE_NAME("R_SKID")
+        .DATA_WIDTH(RSize)
     ) i_r_channel (
         .axi_aclk               (aclk),
         .axi_aresetn            (aresetn),

@@ -1,0 +1,33 @@
+%%{init: {'theme': 'neutral'}}%%
+flowchart TB
+    LFSR["r_lfsr[31:0]"]
+
+    subgraph OperandA["Operand A (Direct Mapping)"]
+        direction LR
+        A0["a[0] = r_lfsr[0]"]
+        A1["a[1] = r_lfsr[1]"]
+        A2["a[2] = r_lfsr[2]"]
+        ADOTS["..."]
+        AW["a[W-1] = r_lfsr[W-1]"]
+    end
+
+    subgraph OperandB["Operand B (16-bit Shifted Mapping)"]
+        direction LR
+        B0["b[0] = r_lfsr[16]"]
+        B1["b[1] = r_lfsr[17]"]
+        B2["b[2] = r_lfsr[18]"]
+        BDOTS["..."]
+        BW["b[W-1] = r_lfsr[(W-1+16)%32]"]
+    end
+
+    LFSR -->|"bits [W-1:0]"| OperandA
+    LFSR -->|"bits [(W+15)%32 : 16]"| OperandB
+
+    subgraph Why["Why Decorrelate?"]
+        direction TB
+        W1["Without shift: a == b"]
+        W2["Tool exploits: a+a = a<<1"]
+        W3["Tool exploits: a*a = a^2"]
+        W4["With 16-bit shift: a != b"]
+        W5["Full adder/multiplier preserved"]
+    end

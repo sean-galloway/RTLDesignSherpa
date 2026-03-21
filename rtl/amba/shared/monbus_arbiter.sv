@@ -111,8 +111,7 @@ module monbus_arbiter #(
             if (INPUT_SKID_EN == 1'b1) begin : gen_input_skid_enabled
                 gaxi_skid_buffer #(
                     .DATA_WIDTH   (64),
-                    .DEPTH        (INPUT_SKID_DEPTH),
-                    .INSTANCE_NAME($sformatf("INPUT_SKID_%0d", i))
+                    .DEPTH        (INPUT_SKID_DEPTH)
                 ) u_input_skid (
                     .axi_aclk     (axi_aclk),
                     .axi_aresetn  (axi_aresetn),
@@ -212,8 +211,7 @@ module monbus_arbiter #(
         if (OUTPUT_SKID_EN == 1'b1) begin : gen_output_skid_enabled
             gaxi_skid_buffer #(
                 .DATA_WIDTH   (64),
-                .DEPTH        (OUTPUT_SKID_DEPTH),
-                .INSTANCE_NAME("OUTPUT_SKID")
+                .DEPTH        (OUTPUT_SKID_DEPTH)
             ) u_output_skid (
                 .axi_aclk     (axi_aclk),
                 .axi_aresetn  (axi_aresetn),
@@ -239,8 +237,6 @@ module monbus_arbiter #(
     // =======================================================================
     // Assertions for Design Verification
     // =======================================================================
-
-    // synthesis translate_off
 
     // Verify grant is always one-hot when valid
     always @(posedge axi_aclk) begin
@@ -269,7 +265,5 @@ module monbus_arbiter #(
             end
         end
     end
-
-    // synthesis translate_on
 
 endmodule : monbus_arbiter

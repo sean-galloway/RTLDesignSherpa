@@ -1,0 +1,41 @@
+%%{init: {'theme': 'neutral'}}%%
+flowchart TB
+    subgraph Framework["Shared Infrastructure"]
+        direction LR
+        TBBASE["TBBase<br/>(CocoTBFramework)"]
+        TCTB["TimingCharTB<br/>(project tbclasses)"]
+        LFSR_REF["LFSR Reference<br/>Model"]
+        TBBASE --> TCTB
+        LFSR_REF --> TCTB
+    end
+
+    subgraph Tier1["Tier 1: FUB Tests (dv/tests/fub/)"]
+        direction LR
+        T_NC["test_nand_chain"]
+        T_IC["test_inverter_chain"]
+        T_XT["test_xor_tree"]
+        T_CC["test_carry_chain"]
+        T_MT["test_multiplier_tree"]
+        T_MX["test_mux_tree"]
+        T_QD["test_queue_depth"]
+        T_CD["test_clock_divider"]
+        T_GC["test_gray_counter"]
+    end
+
+    subgraph Tier2["Tier 2: Integration Test (dv/tests/top/)"]
+        direction TB
+        T_TOP["test_char_top<br/>11 enable-mix configs"]
+    end
+
+    TCTB --> Tier1
+    TCTB --> Tier2
+
+    subgraph Checks["Verification Checks"]
+        direction TB
+        CHK1["Output toggles<br/>(not stuck)"]
+        CHK2["Exact values<br/>(deterministic FUBs)"]
+        CHK3["LFSR pipeline<br/>alignment (C-2)"]
+    end
+
+    Tier1 --> Checks
+    Tier2 --> Checks

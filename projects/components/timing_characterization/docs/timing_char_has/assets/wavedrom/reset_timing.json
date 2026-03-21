@@ -1,0 +1,17 @@
+{
+  "signal": [
+    {"name": "clk",         "wave": "p...........", "period": 1},
+    {"name": "rst_n",       "wave": "0.....1.....", "node": "......a....."},
+    {"name": "i_load_seed", "wave": "0.10........"},
+    {"name": "i_seed[31:0]","wave": "x.=.x.......", "data": ["0xDEADBEEF"]},
+    {},
+    {"name": "r_lfsr",      "wave": "x.....=.=.=.", "data": ["SEED", "S1", "S2"]},
+    {"name": "r_input",     "wave": "x.......=.=.", "data": ["SEED", "S1"]},
+    {"name": "r_output",    "wave": "x.........=.", "data": ["f(SEED)"]},
+    {},
+    {"name": "FUB outputs", "wave": "0.........=.", "data": ["Valid"]}
+  ],
+  "edge": ["a Reset Release"],
+  "head": {"text": "Reset and Seed Loading Sequence", "tick": 0},
+  "config": {"hscale": 1.3}
+}

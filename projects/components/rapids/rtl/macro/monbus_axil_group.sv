@@ -348,8 +348,7 @@ module monbus_axil_group #(
     gaxi_fifo_sync #(
         .REGISTERED     (0),
         .DATA_WIDTH     (64),
-        .DEPTH          (FIFO_DEPTH_ERR),
-        .INSTANCE_NAME  ("ERROR_INTERRUPT_FIFO")
+        .DEPTH          (FIFO_DEPTH_ERR)
     ) u_err_fifo (
         .axi_aclk       (axi_aclk),
         .axi_aresetn    (axi_aresetn),
@@ -378,8 +377,7 @@ module monbus_axil_group #(
     gaxi_fifo_sync #(
         .REGISTERED     (0),
         .DATA_WIDTH     (64),
-        .DEPTH          (FIFO_DEPTH_WRITE),
-        .INSTANCE_NAME  ("MASTER_WRITE_FIFO")
+        .DEPTH          (FIFO_DEPTH_WRITE)
     ) u_write_fifo (
         .axi_aclk       (axi_aclk),
         .axi_aresetn    (axi_aresetn),

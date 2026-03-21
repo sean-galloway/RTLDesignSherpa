@@ -217,6 +217,15 @@ coverage_data/
 coverage_summary/
 coverage_merged/
 
+# Verilator coverage artifacts (generated from test runs)
+# Final coverage report .md files are kept - only raw data is excluded
+*.dat
+*.info
+annotate/
+annotate2/
+merged_coverage*/
+coverage_report/
+
 .obsidian
 status.txt
 

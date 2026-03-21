@@ -20,9 +20,6 @@
 module gaxi_skid_buffer #(
     parameter int DATA_WIDTH = 32,
     parameter int DEPTH = 2, // Must be one of {2, 4, 6, 8}
-    /* verilator lint_off UNUSEDPARAM */
-    parameter     INSTANCE_NAME = "DEADF1F0",  // verilog_lint: waive explicit-parameter-storage-type
-    /* verilator lint_on UNUSEDPARAM */
     parameter int DW = DATA_WIDTH,
     parameter int BUF_WIDTH = DATA_WIDTH * DEPTH,
     parameter int BW = BUF_WIDTH
@@ -99,14 +96,5 @@ module gaxi_skid_buffer #(
     assign rd_data  = r_data[DW-1:0];
     assign rd_count = r_data_count;
     assign count   = r_data_count;
-
-    // -------------------------------------------------------------------------
-    // Simulation-only: Instance report (grep for FIFO_INSTANCE)
-    // -------------------------------------------------------------------------
-    // synopsys translate_off
-    initial begin
-        $display("FIFO_INSTANCE: gaxi_skid_buffer %m %s W=%0d D=%0d", INSTANCE_NAME, DW, DEPTH);
-    end
-    // synopsys translate_on
 
 endmodule : gaxi_skid_buffer

@@ -41,12 +41,6 @@
 //     Default: 4
 //     Constraints: Must be $clog2(JCW) + 1 to represent full count range
 //
-//   INSTANCE_NAME:
-//     Description: Instance name for debug/waveform identification
-//     Type: string
-//     Default: ""
-//     Constraints: String identifier (debugging only)
-//
 //   Derived Parameters (localparam - computed automatically):
 //     N: Bit width for leading/trailing one position ($clog2(JCW))
 //     PAD_WIDTH: Zero-padding width for output alignment
@@ -298,10 +292,6 @@
 module grayj2bin #(
     parameter int    JCW = 10,
     parameter int    WIDTH = 4
-    // synopsys translate_off
-    ,
-    parameter string INSTANCE_NAME = ""
-    // synopsys translate_on
 ) (
     input  logic              clk,
     input  logic              rst_n,
@@ -322,10 +312,6 @@ module grayj2bin #(
     // Leading/trailing detection
     leading_one_trailing_one #(
         .WIDTH(JCW)
-        // synopsys translate_off
-        ,
-        .INSTANCE_NAME(INSTANCE_NAME)
-        // synopsys translate_on
     ) u_leading_one_trailing_one (
         .data              (gray),
         .leadingone        (w_leading_one),

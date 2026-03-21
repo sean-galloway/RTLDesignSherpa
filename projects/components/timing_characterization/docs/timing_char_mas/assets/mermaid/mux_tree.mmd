@@ -1,0 +1,56 @@
+%%{init: {'theme': 'neutral'}}%%
+flowchart TB
+    subgraph Inputs["Data Inputs (2^LEVELS)"]
+        direction LR
+        D0["d[0]"]
+        D1["d[1]"]
+        D2["d[2]"]
+        D3["d[3]"]
+        D4["d[4]"]
+        D5["d[5]"]
+        D6["d[6]"]
+        D7["d[7]"]
+    end
+
+    subgraph Level1["Level 1: sel[0]"]
+        direction LR
+        M1["2:1<br/>MUX"]
+        M2["2:1<br/>MUX"]
+        M3["2:1<br/>MUX"]
+        M4["2:1<br/>MUX"]
+    end
+
+    subgraph Level2["Level 2: sel[1]"]
+        direction LR
+        M5["2:1<br/>MUX"]
+        M6["2:1<br/>MUX"]
+    end
+
+    subgraph Level3["Level 3: sel[2]"]
+        M7["2:1<br/>MUX"]
+    end
+
+    SEL["i_sel from LFSR"]
+
+    D0 --> M1
+    D1 --> M1
+    D2 --> M2
+    D3 --> M2
+    D4 --> M3
+    D5 --> M3
+    D6 --> M4
+    D7 --> M4
+
+    M1 --> M5
+    M2 --> M5
+    M3 --> M6
+    M4 --> M6
+
+    M5 --> M7
+    M6 --> M7
+
+    SEL -->|"sel[0]"| Level1
+    SEL -->|"sel[1]"| Level2
+    SEL -->|"sel[2]"| Level3
+
+    M7 --> OUTFF["r_output"]

@@ -1,0 +1,41 @@
+%%{init: {'theme': 'neutral'}}%%
+flowchart LR
+    subgraph LFSR["32-bit Left-Shift Galois LFSR"]
+        direction LR
+        B31["bit 31"]
+        B30["bit 30"]
+        DOTS1["..."]
+        B22["bit 22"]
+        DOTS2["..."]
+        B2["bit 2"]
+        B1["bit 1"]
+        B0["bit 0"]
+
+        B0 --> B1
+        B1 --> B2
+        B2 --> DOTS2
+        DOTS2 --> B22
+        B22 --> DOTS1
+        DOTS1 --> B30
+        B30 --> B31
+    end
+
+    subgraph Feedback["XOR Feedback (Polynomial Taps)"]
+        direction TB
+        FB["MSB (bit 31)"]
+        XOR0["XOR @ bit 0"]
+        XOR1["XOR @ bit 1"]
+        XOR2["XOR @ bit 2"]
+        XOR22["XOR @ bit 22"]
+    end
+
+    B31 -->|"Feedback"| FB
+    FB --> XOR0
+    FB --> XOR1
+    FB --> XOR2
+    FB --> XOR22
+
+    subgraph Poly["Polynomial: x^32 + x^22 + x^2 + x + 1"]
+        direction TB
+        CONST["Tap constant: 0x0040_0007<br/>Period: 2^32 - 1 cycles<br/>Default seed: 0xDEAD_BEEF"]
+    end

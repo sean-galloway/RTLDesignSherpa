@@ -1,0 +1,11 @@
+%%{init: {'theme': 'neutral'}}%%
+flowchart TB
+    START["Select FUB + Parameter"] --> SYNTH["Run Synthesis<br/>(set FLOW, TARGET_FREQ_MHZ)"]
+    SYNTH --> STA["Static Timing Analysis"]
+    STA --> PASS{"Timing<br/>Met?"}
+    PASS -->|"Yes"| RECORD["Record: Freq, Slack,<br/>Area, Power"]
+    PASS -->|"No"| INCREASE["Increase Period<br/>(Lower Frequency)"]
+    INCREASE --> SYNTH
+    RECORD --> NEXT{"More<br/>Parameters?"}
+    NEXT -->|"Yes"| START
+    NEXT -->|"No"| REPORT["Generate Delay<br/>vs. Parameter Report"]

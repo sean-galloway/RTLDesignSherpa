@@ -1,0 +1,18 @@
+%%{init: {'theme': 'neutral'}}%%
+flowchart LR
+    subgraph Stage1["Stage 1: Input Register"]
+        direction TB
+        LFSR["r_lfsr[31:0]"] --> INFF["r_input<br/>(Input FF)"]
+    end
+
+    subgraph Stage2["Stage 2: Combinational Logic Under Test"]
+        direction TB
+        COMB["Combinational<br/>Chain / Tree / Adder<br/>(dont_touch)"]
+    end
+
+    subgraph Stage3["Stage 3: Output Register"]
+        direction TB
+        OUTFF["r_output<br/>(Output FF)"] --> PORT["o_data<br/>(Top Port)"]
+    end
+
+    INFF -->|"Critical Path"| COMB -->|"Critical Path"| OUTFF

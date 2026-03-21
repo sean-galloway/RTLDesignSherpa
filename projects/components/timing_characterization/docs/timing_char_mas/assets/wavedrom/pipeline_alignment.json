@@ -1,0 +1,23 @@
+{
+  "signal": [
+    {"name": "clk",       "wave": "p...............", "period": 1},
+    {"name": "cycle",     "wave": "=.=.=.=.=.=.=.=.", "data": ["0", "1", "2", "3", "4", "5", "6", "7"]},
+    {},
+    ["Edge N: LFSR Updates",
+      {"name": "r_lfsr",  "wave": "=.=.=.=.=.=.=.=.", "data": ["S0", "S1", "S2", "S3", "S4", "S5", "S6", "S7"]}
+    ],
+    {},
+    ["Edge N+1: Input FF Captures",
+      {"name": "r_input", "wave": "x.=.=.=.=.=.=.=.", "data": ["S0", "S1", "S2", "S3", "S4", "S5", "S6"]}
+    ],
+    {},
+    ["Edge N+2: Output FF Captures",
+      {"name": "r_output", "wave": "x...=.=.=.=.=.=.", "data": ["f(S0)", "f(S1)", "f(S2)", "f(S3)", "f(S4)", "f(S5)"], "node": "....a..........."}
+    ],
+    {},
+    {"name": "Verification", "wave": "x...=.=.=.=.=.=.", "data": ["idx=0", "idx=1", "idx=2", "idx=3", "idx=4", "idx=5"]}
+  ],
+  "edge": ["a First valid output"],
+  "head": {"text": "Pipeline Alignment: output[C] = f(lfsr[C-2])", "tick": 0},
+  "config": {"hscale": 1.2}
+}

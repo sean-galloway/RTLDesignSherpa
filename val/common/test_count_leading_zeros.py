@@ -505,7 +505,6 @@ def test_count_leading_zeros(request, width, test_level):
     # RTL parameters
     parameters = {
         'WIDTH': str(width),
-        'INSTANCE_NAME': '"CLZ_TEST"'
     }
 
     # Adjust timeout based on test level and width

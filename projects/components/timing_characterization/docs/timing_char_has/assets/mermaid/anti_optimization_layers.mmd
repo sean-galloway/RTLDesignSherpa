@@ -1,0 +1,26 @@
+%%{init: {'theme': 'neutral'}}%%
+flowchart LR
+    subgraph Attacks["Synthesis Optimizations"]
+        direction TB
+        A1["Constant<br/>Propagation"]
+        A2["Dead Code<br/>Elimination"]
+        A3["Logic<br/>Restructuring"]
+        A4["Common<br/>Subexpression"]
+        A5["Gate<br/>Cancellation"]
+    end
+
+    subgraph Defenses["Defense Layers"]
+        direction TB
+        D1["Layer 1<br/>LFSR-Driven<br/>Inputs"]
+        D2["Layer 2<br/>Output Port<br/>Routing"]
+        D3["Layer 3<br/>Synthesis<br/>Attributes"]
+        D4["Layer 4<br/>SDC<br/>Reinforcement"]
+    end
+
+    A1 -.->|"Blocked by"| D1
+    A2 -.->|"Blocked by"| D2
+    A3 -.->|"Blocked by"| D3
+    A4 -.->|"Blocked by"| D1
+    A5 -.->|"Blocked by"| D3
+    A3 -.->|"Backup"| D4
+    A5 -.->|"Backup"| D4

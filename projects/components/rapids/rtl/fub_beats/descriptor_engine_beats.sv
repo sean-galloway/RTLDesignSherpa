@@ -300,8 +300,7 @@ module descriptor_engine_beats #(
 
     gaxi_skid_buffer #(
         .DATA_WIDTH(ADDR_WIDTH),
-        .DEPTH(2),
-        .INSTANCE_NAME("APB_ADDR_SKID")
+        .DEPTH(2)
     ) i_apb_skid_buffer (
         .axi_aclk(clk),
         .axi_aresetn(rst_n),
@@ -332,8 +331,7 @@ module descriptor_engine_beats #(
 
     gaxi_fifo_sync #(
         .DATA_WIDTH(ADDR_WIDTH),
-        .DEPTH(DESC_ADDR_FIFO_DEPTH),
-        .INSTANCE_NAME("DESC_ADDR_FIFO")
+        .DEPTH(DESC_ADDR_FIFO_DEPTH)
     ) i_desc_addr_fifo (
         .axi_aclk(clk),
         .axi_aresetn(rst_n),
@@ -429,8 +427,7 @@ module descriptor_engine_beats #(
 
     gaxi_fifo_sync #(
         .DATA_WIDTH($bits(enhanced_descriptor_t)),
-        .DEPTH(FIFO_DEPTH),
-        .INSTANCE_NAME("DESC_FIFO")
+        .DEPTH(FIFO_DEPTH)
     ) i_descriptor_fifo (
         .axi_aclk(clk),
         .axi_aresetn(rst_n),

@@ -1,0 +1,33 @@
+%%{init: {'theme': 'neutral'}}%%
+flowchart LR
+    subgraph WritePort["Write Side"]
+        direction TB
+        WR_EN["i_wr_en<br/>(from LFSR)"]
+        WR_DATA["i_wr_data<br/>(from LFSR)"]
+    end
+
+    subgraph FIFO["FIFO (DEPTH parameter)"]
+        direction TB
+        WR_PTR["Write Pointer"]
+        MEM["Memory Array<br/>(DEPTH entries)"]
+        RD_PTR["Read Pointer"]
+        FLAGS["Full / Empty<br/>Flags"]
+    end
+
+    subgraph ReadPort["Read Side"]
+        direction TB
+        RD_EN["i_rd_en<br/>(from LFSR)"]
+        RD_DATA["o_data<br/>(to output port)"]
+    end
+
+    WR_EN --> FIFO
+    WR_DATA --> FIFO
+    RD_EN --> FIFO
+    FIFO --> RD_DATA
+
+    subgraph Inference["Memory Inference Boundaries"]
+        direction TB
+        LUT["DEPTH <= 32:<br/>LUTRAM / Registers"]
+        BRAM["32 < DEPTH <= 4K:<br/>Block RAM"]
+        URAM["DEPTH > 4K:<br/>UltraRAM (if available)"]
+    end

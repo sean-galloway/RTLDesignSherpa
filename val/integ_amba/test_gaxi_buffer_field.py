@@ -152,7 +152,6 @@ def test_gaxi_buffer_field(request, addr_width, ctrl_width, data_width, depth, m
     rtl_parameters = {
         'DATA_WIDTH': str(total_width),
         'DEPTH': str(depth),
-        'INSTANCE_NAME': f'"FIELD_{mode.upper()}_{test_level.upper()}"',
     }
     if 'fifo' in mode:
         rtl_parameters['REGISTERED'] = str(1) if mode == 'fifo_flop' else str(0)

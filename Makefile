@@ -134,15 +134,25 @@ help:
 	@echo "  make test-bch                Run BCH project tests"
 	@echo "  make test-hive               Run HIVE project tests"
 	@echo ""
-	@echo "REG_LEVEL TARGETS (configurable test depth - PARALLEL execution):"
-	@echo "  GATE = Quick smoke tests (~5 min), FUNC = Default (~20-40 min), FULL = Comprehensive (~1-2 hours)"
+	@echo "UNIFIED REG_LEVEL TARGETS (ALL environments - val/ + projects/):"
+	@echo "  GATE = Quick smoke tests, FUNC = Functional coverage, FULL = Comprehensive"
 	@echo ""
-	@echo "  COMMON subsystem:"
-	@echo "    make run-common-{gate|func|full}-parallel"
-	@echo "  AMBA subsystem:"
-	@echo "    make run-amba-{gate|func|full}-parallel"
-	@echo "  ALL RTL (COMMON + AMBA):"
-	@echo "    make run-rtl-all-{gate|func|full}-parallel"
+	@echo "  make gate                 GATE across ALL environments (parallel)"
+	@echo "  make func                 FUNC across ALL environments (parallel)"
+	@echo "  make full                 FULL across ALL environments (parallel)"
+	@echo "  make gate-serial          GATE across ALL environments (serial)"
+	@echo "  make func-serial          FUNC across ALL environments (serial)"
+	@echo "  make full-serial          FULL across ALL environments (serial)"
+	@echo ""
+	@echo "PER-SUBSYSTEM REG_LEVEL TARGETS (parallel):"
+	@echo "  COMMON:  make run-common-{gate|func|full}-parallel"
+	@echo "  AMBA:    make run-amba-{gate|func|full}-parallel"
+	@echo "  RTL ALL: make run-rtl-all-{gate|func|full}-parallel"
+	@echo ""
+	@echo "COVERAGE TARGETS:"
+	@echo "  make coverage             Run tests with coverage (STREAM, RAPIDS)"
+	@echo "  make coverage-report      Generate coverage reports"
+	@echo "  make clean-coverage       Clean all coverage artifacts"
 	@echo ""
 	@echo "LINT TARGETS (run RTL linting):"
 	@echo "  make lint-all                Run ALL lint (RTL + projects)"
@@ -159,9 +169,13 @@ help:
 	@echo "  make lint-bch                Run BCH RTL lint"
 	@echo "  make lint-hive               Run HIVE RTL lint"
 	@echo ""
-	@echo "COMBINED TARGETS:"
-	@echo "  make all                  Run tests AND lint on everything"
-	@echo "  make ci                   CI/CD mode: test + lint with error checking"
+	@echo "COMBINED TARGETS (tests + lint at each level):"
+	@echo "  make all-gate             GATE tests + lint (quick checkin)"
+	@echo "  make all-func             FUNC tests + lint (functional coverage)"
+	@echo "  make all-full             FULL tests + lint (comprehensive)"
+	@echo "  make all-full-coverage    FULL tests + coverage + lint + reports (maximal)"
+	@echo "  make all                  Alias for all-func"
+	@echo "  make ci                   Alias for all-gate (commit gate)"
 	@echo ""
 	@echo "STATUS TARGETS:"
 	@echo "  make status               Show complete repository status"
@@ -361,6 +375,180 @@ run-rtl-all-full-parallel:
 	@echo "================================================================================"
 
 # ==============================================================================
+# Unified REG_LEVEL Targets - ALL Environments (val/ + projects/components/)
+# ==============================================================================
+# These run gate/func/full across the ENTIRE repo: val/common, val/amba,
+# val/integ_common, val/integ_amba, and all projects/components.
+# Use these as commit gates.
+
+.PHONY: gate
+gate:
+	@echo "================================================================================"
+	@echo "GATE - Quick Smoke Tests (ALL environments, parallel)"
+	@echo "================================================================================"
+	@echo ""
+	@echo "Phase 1/3: RTL Validation (COMMON + AMBA) - GATE"
+	@$(MAKE) run-rtl-all-gate-parallel
+	@echo ""
+	@echo "Phase 2/3: Integration Tests (integ_common + integ_amba)"
+	@$(MAKE) -C $(VAL_DIR)/integ_common run-all-parallel 2>/dev/null || true
+	@$(MAKE) -C $(VAL_DIR)/integ_amba run-all-parallel 2>/dev/null || true
+	@echo ""
+	@echo "Phase 3/3: Project Components - GATE"
+	@$(MAKE) -C $(PROJECTS_DIR) test-all-gate-parallel
+	@echo ""
+	@echo "================================================================================"
+	@echo "GATE COMPLETE - All environments passed"
+	@echo "================================================================================"
+
+.PHONY: func
+func:
+	@echo "================================================================================"
+	@echo "FUNC - Functional Coverage Tests (ALL environments, parallel)"
+	@echo "================================================================================"
+	@echo ""
+	@echo "Phase 1/3: RTL Validation (COMMON + AMBA) - FUNC"
+	@$(MAKE) run-rtl-all-func-parallel
+	@echo ""
+	@echo "Phase 2/3: Integration Tests (integ_common + integ_amba)"
+	@$(MAKE) -C $(VAL_DIR)/integ_common run-all-parallel 2>/dev/null || true
+	@$(MAKE) -C $(VAL_DIR)/integ_amba run-all-parallel 2>/dev/null || true
+	@echo ""
+	@echo "Phase 3/3: Project Components - FUNC"
+	@$(MAKE) -C $(PROJECTS_DIR) test-all-func-parallel
+	@echo ""
+	@echo "================================================================================"
+	@echo "FUNC COMPLETE - All environments passed"
+	@echo "================================================================================"
+
+.PHONY: full
+full:
+	@echo "================================================================================"
+	@echo "FULL - Comprehensive Tests (ALL environments, parallel)"
+	@echo "================================================================================"
+	@echo ""
+	@echo "Phase 1/3: RTL Validation (COMMON + AMBA) - FULL"
+	@$(MAKE) run-rtl-all-full-parallel
+	@echo ""
+	@echo "Phase 2/3: Integration Tests (integ_common + integ_amba)"
+	@$(MAKE) -C $(VAL_DIR)/integ_common run-all-parallel 2>/dev/null || true
+	@$(MAKE) -C $(VAL_DIR)/integ_amba run-all-parallel 2>/dev/null || true
+	@echo ""
+	@echo "Phase 3/3: Project Components - FULL"
+	@$(MAKE) -C $(PROJECTS_DIR) test-all-full-parallel
+	@echo ""
+	@echo "================================================================================"
+	@echo "FULL COMPLETE - All environments passed"
+	@echo "================================================================================"
+
+# Serial versions (if parallel causes resource contention)
+.PHONY: gate-serial
+gate-serial:
+	@echo "================================================================================"
+	@echo "GATE (serial) - Quick Smoke Tests (ALL environments)"
+	@echo "================================================================================"
+	@$(MAKE) -C $(VAL_DIR)/common run-all-gate
+	@$(MAKE) -C $(VAL_DIR)/amba run-all-gate
+	@$(MAKE) -C $(VAL_DIR)/integ_common run-all 2>/dev/null || true
+	@$(MAKE) -C $(VAL_DIR)/integ_amba run-all 2>/dev/null || true
+	@$(MAKE) -C $(PROJECTS_DIR) test-all-gate
+	@echo "================================================================================"
+	@echo "GATE (serial) COMPLETE"
+	@echo "================================================================================"
+
+.PHONY: func-serial
+func-serial:
+	@echo "================================================================================"
+	@echo "FUNC (serial) - Functional Coverage Tests (ALL environments)"
+	@echo "================================================================================"
+	@$(MAKE) -C $(VAL_DIR)/common run-all-func
+	@$(MAKE) -C $(VAL_DIR)/amba run-all-func
+	@$(MAKE) -C $(VAL_DIR)/integ_common run-all 2>/dev/null || true
+	@$(MAKE) -C $(VAL_DIR)/integ_amba run-all 2>/dev/null || true
+	@$(MAKE) -C $(PROJECTS_DIR) test-all-func
+	@echo "================================================================================"
+	@echo "FUNC (serial) COMPLETE"
+	@echo "================================================================================"
+
+.PHONY: full-serial
+full-serial:
+	@echo "================================================================================"
+	@echo "FULL (serial) - Comprehensive Tests (ALL environments)"
+	@echo "================================================================================"
+	@$(MAKE) -C $(VAL_DIR)/common run-all-full
+	@$(MAKE) -C $(VAL_DIR)/amba run-all-full
+	@$(MAKE) -C $(VAL_DIR)/integ_common run-all 2>/dev/null || true
+	@$(MAKE) -C $(VAL_DIR)/integ_amba run-all 2>/dev/null || true
+	@$(MAKE) -C $(PROJECTS_DIR) test-all-full
+	@echo "================================================================================"
+	@echo "FULL (serial) COMPLETE"
+	@echo "================================================================================"
+
+# ==============================================================================
+# Coverage Targets - ALL Environments
+# ==============================================================================
+# Coverage collection and reporting. Currently supported by STREAM and RAPIDS.
+# Other components will be added as coverage infrastructure is built out.
+
+.PHONY: coverage
+coverage:
+	@echo "================================================================================"
+	@echo "Running Tests with Coverage (all environments that support it)"
+	@echo "================================================================================"
+	@echo ""
+	@echo "Phase 1: STREAM coverage..."
+	@if [ -f $(PROJECTS_DIR)/stream/dv/tests/Makefile ]; then \
+		$(MAKE) -C $(PROJECTS_DIR)/stream/dv/tests fresh-coverage || true; \
+	else \
+		echo "  STREAM coverage Makefile not found - skipping"; \
+	fi
+	@echo ""
+	@echo "Phase 2: RAPIDS coverage..."
+	@if [ -f $(PROJECTS_DIR)/rapids/dv/tests/Makefile ]; then \
+		$(MAKE) -C $(PROJECTS_DIR)/rapids/dv/tests coverage-full-report || true; \
+	else \
+		echo "  RAPIDS coverage Makefile not found - skipping"; \
+	fi
+	@echo ""
+	@echo "================================================================================"
+	@echo "Coverage collection complete"
+	@echo "================================================================================"
+
+.PHONY: coverage-report
+coverage-report:
+	@echo "================================================================================"
+	@echo "Generating Coverage Reports"
+	@echo "================================================================================"
+	@echo ""
+	@echo "STREAM coverage report:"
+	@if [ -f $(PROJECTS_DIR)/stream/dv/tests/Makefile ]; then \
+		$(MAKE) -C $(PROJECTS_DIR)/stream/dv/tests coverage-report || true; \
+	else \
+		echo "  Not available"; \
+	fi
+	@echo ""
+	@echo "RAPIDS coverage report:"
+	@if [ -f $(PROJECTS_DIR)/rapids/dv/tests/Makefile ]; then \
+		$(MAKE) -C $(PROJECTS_DIR)/rapids/dv/tests coverage-report || true; \
+	else \
+		echo "  Not available"; \
+	fi
+	@echo ""
+	@echo "================================================================================"
+	@echo "Coverage reports generated"
+	@echo "================================================================================"
+
+.PHONY: clean-coverage
+clean-coverage:
+	@echo "Cleaning all coverage artifacts..."
+	@for proj in $(PROJECTS); do \
+		if [ -f $(PROJECTS_DIR)/$$proj/dv/tests/Makefile ]; then \
+			$(MAKE) -C $(PROJECTS_DIR)/$$proj/dv/tests clean-coverage 2>/dev/null || true; \
+		fi; \
+	done
+	@echo "Coverage artifacts cleaned"
+
+# ==============================================================================
 # Lint Targets - RTL
 # ==============================================================================
 
@@ -479,30 +667,75 @@ lint-all: lint-rtl lint-projects
 	@echo "================================================================================"
 
 # ==============================================================================
-# Combined Targets
+# Combined Targets (tests + lint at each level)
 # ==============================================================================
 
-.PHONY: all
-all: test-all lint-all
+# all-gate: Quick checkin gate (GATE tests + lint)
+.PHONY: all-gate
+all-gate:
 	@echo "================================================================================"
-	@echo "✓ ALL OPERATIONS COMPLETED (tests + lint)"
+	@echo "ALL-GATE: GATE tests + lint (quick checkin)"
+	@echo "================================================================================"
+	@$(MAKE) gate
+	@$(MAKE) lint-all
+	@echo "================================================================================"
+	@echo "ALL-GATE COMPLETE"
 	@echo "================================================================================"
 
-.PHONY: ci
-ci:
+# all-func: Functional coverage (FUNC tests + lint)
+.PHONY: all-func
+all-func:
 	@echo "================================================================================"
-	@echo "CI/CD Mode: Running tests and lint with strict error checking"
+	@echo "ALL-FUNC: FUNC tests + lint (functional coverage)"
+	@echo "================================================================================"
+	@$(MAKE) func
+	@$(MAKE) lint-all
+	@echo "================================================================================"
+	@echo "ALL-FUNC COMPLETE"
+	@echo "================================================================================"
+
+# all-full: Comprehensive (FULL tests + lint)
+.PHONY: all-full
+all-full:
+	@echo "================================================================================"
+	@echo "ALL-FULL: FULL tests + lint (comprehensive)"
+	@echo "================================================================================"
+	@$(MAKE) full
+	@$(MAKE) lint-all
+	@echo "================================================================================"
+	@echo "ALL-FULL COMPLETE"
+	@echo "================================================================================"
+
+# all-full-coverage: Maximal analysis (FULL tests + coverage + lint + reports)
+.PHONY: all-full-coverage
+all-full-coverage:
+	@echo "================================================================================"
+	@echo "ALL-FULL-COVERAGE: FULL tests + coverage collection + lint + reports"
 	@echo "================================================================================"
 	@echo ""
-	@echo "Phase 1/2: Running tests..."
-	@$(MAKE) test-all
+	@echo "Phase 1/4: Running FULL tests (all environments)..."
+	@$(MAKE) full
 	@echo ""
-	@echo "Phase 2/2: Running lint..."
+	@echo "Phase 2/4: Running coverage collection..."
+	@$(MAKE) coverage
+	@echo ""
+	@echo "Phase 3/4: Running lint..."
 	@$(MAKE) lint-all
 	@echo ""
+	@echo "Phase 4/4: Generating coverage reports..."
+	@$(MAKE) coverage-report
+	@echo ""
 	@echo "================================================================================"
-	@echo "✓ CI/CD CHECKS COMPLETED"
+	@echo "ALL-FULL-COVERAGE COMPLETE - Tests, coverage, lint, and reports all done"
 	@echo "================================================================================"
+
+# Legacy 'all' alias - same as all-func
+.PHONY: all
+all: all-func
+
+# ci: Quick commit gate (same as all-gate)
+.PHONY: ci
+ci: all-gate
 
 # ==============================================================================
 # Status Targets

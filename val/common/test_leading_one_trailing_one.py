@@ -681,7 +681,6 @@ def test_leading_one_trailing_one(request, width, test_level):
     # RTL parameters
     parameters = {
         'WIDTH': str(width),
-        'INSTANCE_NAME': '"LOTO_TEST"'
     }
 
     # Adjust timeout based on test level and width

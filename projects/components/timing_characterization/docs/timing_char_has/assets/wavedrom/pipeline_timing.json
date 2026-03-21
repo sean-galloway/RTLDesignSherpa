@@ -1,0 +1,21 @@
+{
+  "signal": [
+    {"name": "clk",       "wave": "p.........", "period": 1},
+    {"name": "rst_n",     "wave": "0.1......."},
+    {},
+    ["LFSR",
+      {"name": "r_lfsr",    "wave": "x.=.=.=.=.", "data": ["S0", "S1", "S2", "S3"]}
+    ],
+    {},
+    ["FUB Pipeline",
+      {"name": "r_input",   "wave": "x...=.=.=.", "data": ["S0", "S1", "S2"]},
+      {"name": "w_comb",    "wave": "x...=.=.=.", "data": ["f(S0)", "f(S1)", "f(S2)"]},
+      {"name": "r_output",  "wave": "x.....=.=.", "data": ["f(S0)", "f(S1)"]}
+    ],
+    {},
+    {"name": "o_data",    "wave": "x.....=.=.", "data": ["f(S0)", "f(S1)"], "node": "......a.b."}
+  ],
+  "edge": ["a<->b 1 cycle latency"],
+  "head": {"text": "3-Edge Pipeline: LFSR -> Input FF -> Combinational -> Output FF", "tick": 0},
+  "config": {"hscale": 1.5}
+}

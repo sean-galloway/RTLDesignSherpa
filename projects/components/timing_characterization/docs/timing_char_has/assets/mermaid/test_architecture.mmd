@@ -1,0 +1,31 @@
+%%{init: {'theme': 'neutral'}}%%
+flowchart TB
+    subgraph Tier1["Tier 1: FUB Tests (34 tests)"]
+        direction LR
+        T1["test_nand_chain<br/>LEVELS: 2,4,6,8"]
+        T2["test_inverter_chain<br/>COUNT: 4,8,16,32,64"]
+        T3["test_xor_tree<br/>LEVELS: 2,4,6,8"]
+        T4["test_carry_chain<br/>WIDTH: 4,8,16,32"]
+        T5["test_multiplier_tree<br/>WIDTH x TYPE"]
+        T6["test_mux_tree<br/>LEVELS: 2,4,6"]
+        T7["test_queue_depth<br/>DEPTH: 4,8,16"]
+        T8["test_clock_divider<br/>STAGES: 1,2,3"]
+        T9["test_gray_counter<br/>WIDTH: 4,8,16"]
+    end
+
+    subgraph Tier2["Tier 2: Integration Test (11 configs)"]
+        direction LR
+        I1["Config 1<br/>All 9 FUBs"]
+        I2["Configs 2-9<br/>Individual FUBs"]
+        I3["Config 10<br/>Arithmetic Group"]
+        I4["Config 11<br/>LFSR Seed Test"]
+    end
+
+    subgraph TB_Class["Shared Infrastructure"]
+        direction TB
+        TBTB["TimingCharTB<br/>(TBBase)"]
+        LFSR["lfsr_step()<br/>lfsr_sequence()<br/>bit()"]
+    end
+
+    TB_Class --> Tier1
+    TB_Class --> Tier2

@@ -24,7 +24,6 @@ module gaxi_fifo_async_multi #(
     parameter int N_FLOP_CROSS = 2,
     parameter int ALMOST_WR_MARGIN = 1,
     parameter int ALMOST_RD_MARGIN = 1,
-    parameter INSTANCE_NAME = "DEADF1F0",  // verilog_lint: waive explicit-parameter-storage-type
     parameter int AW = ADDR_WIDTH,
     parameter int CW = CTRL_WIDTH,
     parameter int DW = DATA_WIDTH,
@@ -63,7 +62,6 @@ module gaxi_fifo_async_multi #(
         .N_FLOP_CROSS      (2),                // Number of flop crossings
         .ALMOST_WR_MARGIN  (1),                // Almost write margin
         .ALMOST_RD_MARGIN  (1),                // Almost read margin
-        .INSTANCE_NAME     ("DEADF1F0"),       // Instance name
         .DW                (AW+CW+DW+DW),       // Data width alias
         .D                 (DEPTH),            // Depth alias
         .AW                ($clog2(DEPTH)),    // Address width

@@ -1,0 +1,25 @@
+%%{init: {'theme': 'neutral'}}%%
+flowchart LR
+    subgraph InputRegs["Input Registers"]
+        direction TB
+        RA["r_a[W-1:0]<br/>Operand A"]
+        RB["r_b[W-1:0]<br/>Operand B<br/>(16-bit shifted)"]
+    end
+
+    subgraph Adder["Ripple-Carry Adder (dont_touch)"]
+        direction LR
+        FA0["FA<br/>bit 0"]
+        FA1["FA<br/>bit 1"]
+        FA2["FA<br/>bit 2"]
+        DOTS["..."]
+        FAN["FA<br/>bit W-1"]
+    end
+
+    subgraph Output["Output Register"]
+        OUTFF["r_output[W:0]<br/>(Sum + Carry)"]
+    end
+
+    RA --> Adder
+    RB --> Adder
+    FA0 -->|"carry"| FA1 -->|"carry"| FA2 -->|"carry"| DOTS -->|"carry"| FAN
+    FAN --> OUTFF

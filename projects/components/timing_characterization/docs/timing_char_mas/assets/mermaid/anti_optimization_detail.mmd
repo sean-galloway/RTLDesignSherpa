@@ -1,0 +1,29 @@
+%%{init: {'theme': 'neutral'}}%%
+flowchart TB
+    subgraph Layer1["Layer 1: LFSR-Driven Inputs"]
+        direction LR
+        L1_IN["Every FUB input driven<br/>by LFSR taps"]
+        L1_EFF["Prevents constant<br/>propagation and<br/>common subexpression"]
+    end
+
+    subgraph Layer2["Layer 2: Output Port Routing"]
+        direction LR
+        L2_IN["Every FUB output<br/>routed to top-level port"]
+        L2_EFF["Prevents dead code<br/>elimination"]
+    end
+
+    subgraph Layer3["Layer 3: Synthesis Attributes"]
+        direction LR
+        L3_IN["dont_touch (Xilinx)<br/>preserve (Intel)<br/>on chain signals"]
+        L3_EFF["Prevents logic<br/>restructuring and<br/>gate cancellation"]
+    end
+
+    subgraph Layer4["Layer 4: SDC Reinforcement"]
+        direction LR
+        L4_IN["set_dont_touch on<br/>hierarchical nets"]
+        L4_EFF["Backup if RTL<br/>attributes stripped<br/>during elaboration"]
+    end
+
+    Layer1 --> Layer2 --> Layer3 --> Layer4
+
+    RESULT["Result: Synthesis tool builds<br/>exact structure specified in RTL"]

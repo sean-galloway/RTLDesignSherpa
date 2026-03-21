@@ -1,0 +1,39 @@
+%%{init: {'theme': 'neutral'}}%%
+flowchart TB
+    subgraph SectionA["Section A: Tool-Agnostic Constraints"]
+        direction TB
+        A1["Clock Definition<br/>create_clock -period ..."]
+        A2["Reset False Path<br/>set_false_path -from rst_n"]
+        A3["Input Delay<br/>80% of period"]
+        A4["Output Delay<br/>20% of period"]
+    end
+
+    subgraph SectionB["Section B: Tool-Specific"]
+        direction LR
+        subgraph ASIC["FLOW = asic"]
+            direction TB
+            B1A["group_path -name fub_paths"]
+            B2A["set_dont_touch (active)"]
+        end
+        subgraph Vivado["FLOW = vivado"]
+            direction TB
+            B1V["set_load on outputs"]
+            B2V["DONT_TOUCH (commented)"]
+        end
+        subgraph Quartus["FLOW = quartus"]
+            direction TB
+            B1Q["set_load on outputs"]
+            B2Q["PRESERVE (commented)"]
+        end
+    end
+
+    subgraph SectionC["Section C: Reporting Helpers"]
+        direction TB
+        C1["report_timing -max_paths"]
+        C2["report_utilization"]
+    end
+
+    PARAMS["Overridable Parameters:<br/>FLOW, TARGET_FREQ_MHZ,<br/>INPUT_DELAY_FRACTION,<br/>OUTPUT_DELAY_FRACTION,<br/>CLK_UNCERTAINTY_NS"]
+
+    PARAMS --> SectionA
+    SectionA --> SectionB --> SectionC

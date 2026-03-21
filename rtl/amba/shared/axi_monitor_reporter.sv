@@ -140,8 +140,7 @@ module axi_monitor_reporter
         .DATA_WIDTH      ($bits(monbus_entry_t)),
         .DEPTH           (INTR_FIFO_DEPTH),
         .ALMOST_WR_MARGIN(1),
-        .ALMOST_RD_MARGIN(1),
-        .INSTANCE_NAME   ("INTR_FIFO")
+        .ALMOST_RD_MARGIN(1)
     ) intr_fifo(
         .axi_aclk      (aclk),
         .axi_aresetn   (aresetn),

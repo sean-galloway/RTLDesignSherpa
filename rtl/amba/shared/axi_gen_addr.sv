@@ -38,16 +38,39 @@ logic [AW-1:0] wrap_mask;
 logic [AW-1:0] aligned_addr;
 logic [AW-1:0] wrap_addr;
 
-// For WRAP bursts, len+1 is always power of 2: 2, 4, 8, 16
-// Compute $clog2(len+1) via lookup (synthesis-friendly)
-logic [3:0] len_log2;
+// Compute clog2(len+1) for WRAP burst wrap-mask calculation.
+// Standard AXI WRAP lengths are 2, 4, 8, 16 beats (len=1,3,7,15),
+// but we support the full LEN-bit range for generality.
+//
+// Implementation: find the position of the highest set bit in (len+1)
+// using a casez priority mux. The fixed 17-bit vector ensures all
+// bit indices are valid; bits above LEN are structurally zero and
+// the corresponding arms are optimized away in synthesis.
+logic [16:0] len_plus1;
+logic [4:0]  len_log2;
+
+assign len_plus1 = 17'({1'b0, len}) + 17'd1;
+
 always_comb begin
-    case (len[3:0])
-        4'h1:    len_log2 = 4'd1;  // 2 beats  -> clog2(2)  = 1
-        4'h3:    len_log2 = 4'd2;  // 4 beats  -> clog2(4)  = 2
-        4'h7:    len_log2 = 4'd3;  // 8 beats  -> clog2(8)  = 3
-        4'hF:    len_log2 = 4'd4;  // 16 beats -> clog2(16) = 4
-        default: len_log2 = 4'd0;  // Invalid for WRAP, but safe default
+    casez (len_plus1)
+        17'b1_????_????_????_????: len_log2 = 5'd16;
+        17'b0_1???_????_????_????: len_log2 = 5'd15;
+        17'b0_01??_????_????_????: len_log2 = 5'd14;
+        17'b0_001?_????_????_????: len_log2 = 5'd13;
+        17'b0_0001_????_????_????: len_log2 = 5'd12;
+        17'b0_0000_1???_????_????: len_log2 = 5'd11;
+        17'b0_0000_01??_????_????: len_log2 = 5'd10;
+        17'b0_0000_001?_????_????: len_log2 = 5'd9;
+        17'b0_0000_0001_????_????: len_log2 = 5'd8;
+        17'b0_0000_0000_1???_????: len_log2 = 5'd7;
+        17'b0_0000_0000_01??_????: len_log2 = 5'd6;
+        17'b0_0000_0000_001?_????: len_log2 = 5'd5;
+        17'b0_0000_0000_0001_????: len_log2 = 5'd4;
+        17'b0_0000_0000_0000_1???: len_log2 = 5'd3;
+        17'b0_0000_0000_0000_01??: len_log2 = 5'd2;
+        17'b0_0000_0000_0000_001?: len_log2 = 5'd1;
+        17'b0_0000_0000_0000_0001: len_log2 = 5'd0;
+        default:                   len_log2 = 5'd0;
     endcase
 end
 
@@ -61,7 +84,7 @@ always_comb begin
     end
 
     // Calculate the wrap mask based on size and len
-    wrap_mask = (1 << (32'(size) + len_log2)) - 1;
+    wrap_mask = (1 << (32'(size) + 32'(len_log2))) - 1;
 
     // Calculate the aligned address
     aligned_addr = (curr_addr + increment) & ~(increment - 1);

@@ -101,8 +101,7 @@ module axil4_master_wr
     // Instantiate AW Skid Buffer
     gaxi_skid_buffer #(
         .DEPTH(SKID_DEPTH_AW),
-        .DATA_WIDTH(AWSize),
-        .INSTANCE_NAME("AXIL_AW_SKID")
+        .DATA_WIDTH(AWSize)
     ) aw_channel (
         .axi_aclk               (aclk),
         .axi_aresetn            (aresetn),
@@ -126,8 +125,7 @@ module axil4_master_wr
     // Instantiate W Skid Buffer
     gaxi_skid_buffer #(
         .DEPTH(SKID_DEPTH_W),
-        .DATA_WIDTH(WSize),
-        .INSTANCE_NAME("AXIL_W_SKID")
+        .DATA_WIDTH(WSize)
     ) w_channel (
         .axi_aclk               (aclk),
         .axi_aresetn            (aresetn),
@@ -151,8 +149,7 @@ module axil4_master_wr
     // Instantiate B channel for write response back
     gaxi_skid_buffer #(
         .DEPTH(SKID_DEPTH_B),
-        .DATA_WIDTH(BSize),
-        .INSTANCE_NAME("AXIL_B_SKID")
+        .DATA_WIDTH(BSize)
     ) b_channel (
         .axi_aclk               (aclk),
         .axi_aresetn            (aresetn),

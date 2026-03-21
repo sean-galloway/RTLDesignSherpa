@@ -518,8 +518,7 @@ module axi5_master_wr
 
     gaxi_skid_buffer #(
         .DEPTH(SKID_DEPTH_AW),
-        .DATA_WIDTH(AWSize),
-        .INSTANCE_NAME("AW_SKID")
+        .DATA_WIDTH(AWSize)
     ) aw_channel (
         .axi_aclk               (aclk),
         .axi_aresetn            (aresetn),
@@ -544,8 +543,7 @@ module axi5_master_wr
 
     gaxi_skid_buffer #(
         .DEPTH(SKID_DEPTH_W),
-        .DATA_WIDTH(WSize),
-        .INSTANCE_NAME("W_SKID")
+        .DATA_WIDTH(WSize)
     ) w_channel (
         .axi_aclk               (aclk),
         .axi_aresetn            (aresetn),
@@ -570,8 +568,7 @@ module axi5_master_wr
 
     gaxi_skid_buffer #(
         .DEPTH(SKID_DEPTH_B),
-        .DATA_WIDTH(BSize),
-        .INSTANCE_NAME("B_SKID")
+        .DATA_WIDTH(BSize)
     ) b_channel (
         .axi_aclk               (aclk),
         .axi_aresetn            (aresetn),

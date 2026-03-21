@@ -1,0 +1,21 @@
+{
+  "signal": [
+    {"name": "clk",       "wave": "p.........", "period": 1},
+    {},
+    {"name": "r_lfsr",    "wave": "=.=.=.=.=.", "data": ["S0", "S1", "S2", "S3", "S4"]},
+    {},
+    ["Left-Shift Operation",
+      {"name": "msb (bit 31)",  "wave": "x.=.=.=.=.", "data": ["S0[30]", "S1[30]", "S2[30]", "S3[30]"]},
+      {"name": "feedback",      "wave": "x.=.=.=.=.", "data": ["S0[31]", "S1[31]", "S2[31]", "S3[31]"]},
+      {"name": "bit 0 (new)",   "wave": "x.=.=.=.=.", "data": ["S0[31]", "S1[31]", "S2[31]", "S3[31]"]}
+    ],
+    {},
+    ["XOR Taps",
+      {"name": "bit 1 XOR",   "wave": "x.=.=.=.=.", "data": ["S0[0]^fb", "S1[0]^fb", "S2[0]^fb", "S3[0]^fb"]},
+      {"name": "bit 2 XOR",   "wave": "x.=.=.=.=.", "data": ["S0[1]^fb", "S1[1]^fb", "S2[1]^fb", "S3[1]^fb"]},
+      {"name": "bit 22 XOR",  "wave": "x.=.=.=.=.", "data": ["S0[21]^fb", "S1[21]^fb", "S2[21]^fb", "S3[21]^fb"]}
+    ]
+  ],
+  "head": {"text": "Left-Shift Galois LFSR Operation (poly 0x0040_0007)", "tick": 0},
+  "config": {"hscale": 1.5}
+}

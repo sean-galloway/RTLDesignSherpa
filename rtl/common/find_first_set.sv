@@ -60,9 +60,6 @@
 //
 //==============================================================================
 module find_first_set #(
-    // synopsys translate_off
-    parameter string INSTANCE_NAME = "FFS",
-    // synopsys translate_on
     parameter int WIDTH = 32
 ) (
     input  logic [WIDTH-1:0] data,

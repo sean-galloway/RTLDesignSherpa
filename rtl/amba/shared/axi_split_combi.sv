@@ -69,13 +69,11 @@ module axi_split_combi #(
     // Parameter Validation and Constants
     //===========================================================================
 
-    // synopsys translate_off
     // Validate data width is power of 2 and reasonable
     initial begin
         assert (DW inside {32, 64, 128, 256, 512, 1024}) else
             $fatal(1, "DATA_WIDTH must be power of 2 between 32 and 1024 bits");
     end
-    // synopsys translate_on
 
     // Calculate constants based on data width
     localparam int BYTES_PER_BEAT = DW / 8;
@@ -157,7 +155,6 @@ module axi_split_combi #(
     // Input Validation Assertions
     //===========================================================================
 
-    // synopsys translate_off
     always_ff @(posedge aclk) begin
         if (aresetn && transaction_valid && is_idle_state) begin
             // Check address alignment to data width
@@ -181,13 +178,11 @@ module axi_split_combi #(
                         current_addr, next_boundary_addr);
         end
     end
-    // synopsys translate_on
 
     //===========================================================================
     // Enhanced Validation Assertions
     //===========================================================================
 
-    // synopsys translate_off
     always_ff @(posedge aclk) begin
         if (aresetn && transaction_valid) begin
 
@@ -233,7 +228,6 @@ module axi_split_combi #(
                         next_boundary_addr, alignment_mask);
         end
     end
-    // synopsys translate_on
 
     //===========================================================================
     // Debug Information (for verification)

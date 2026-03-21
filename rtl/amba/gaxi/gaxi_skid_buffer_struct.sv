@@ -20,7 +20,6 @@
 module gaxi_skid_buffer_struct #(
     parameter type STRUCT_TYPE = logic [31:0], // Generic struct type parameter
     parameter int  DEPTH = 2,                  // Must be one of {2, 4, 6, 8}
-    parameter      INSTANCE_NAME = "DEADF1F0", // verilog_lint: waive explicit-parameter-storage-type
 
     // Derived parameters - calculate struct width automatically
     localparam int STRUCT_WIDTH = $bits(STRUCT_TYPE),
@@ -50,14 +49,7 @@ module gaxi_skid_buffer_struct #(
     logic [3:0]            r_data_count;
     logic                  w_wr_xfer;
     logic                  w_rd_xfer;
-    STRUCT_TYPE            struct_zeros;
-
-    // Initialize struct to zeros
-    // synopsys translate_off
-    initial begin
-        struct_zeros = '0;
-    end
-    // synopsys translate_on
+    STRUCT_TYPE            struct_zeros = '0;
 
     assign w_wr_xfer = wr_valid & wr_ready;
     assign w_rd_xfer = rd_valid & rd_ready;
@@ -119,46 +111,13 @@ module gaxi_skid_buffer_struct #(
     assign count    = r_data_count;
 
     // =======================================================================
-    // Debug and Monitoring (synthesis translate_off)
+    // Structural checks
     // =======================================================================
-
-    // synopsys translate_off
-
-    // Debug display for struct contents (optional - useful for debugging)
-    always @(posedge axi_aclk) begin
-        if (axi_aresetn) begin
-            if (w_wr_xfer) begin
-                $display("STRUCT_SKID_BUFFER[%s] WR at %0t: count=%0d, data=0x%h",
-                            INSTANCE_NAME, $time, r_data_count, wr_data);
-            end
-            if (w_rd_xfer) begin
-                $display("STRUCT_SKID_BUFFER[%s] RD at %0t: count=%0d, data=0x%h",
-                            INSTANCE_NAME, $time, r_data_count, rd_data);
-            end
-
-            // Warning for potential issues
-            if (wr_valid && !wr_ready) begin
-                $display("STRUCT_SKID_BUFFER[%s] WARNING: Write stall at %0t (count=%0d)",
-                            INSTANCE_NAME, $time, r_data_count);
-            end
-            if (!rd_valid && rd_ready) begin
-                $display("STRUCT_SKID_BUFFER[%s] WARNING: Read underrun at %0t (count=%0d)",
-                            INSTANCE_NAME, $time, r_data_count);
-            end
-        end
-    end
-
-    // Structural checks and instance report
     initial begin
-        // Instance report (grep for FIFO_INSTANCE)
-        $display("FIFO_INSTANCE: gaxi_skid_buffer_struct %m %s W=%0d D=%0d", INSTANCE_NAME, STRUCT_WIDTH, DEPTH);
-
         if (DEPTH < 2 || DEPTH > 8 || (DEPTH % 2) != 0) begin
-            $error("STRUCT_SKID_BUFFER[%s]: Invalid DEPTH=%0d. Must be one of {2, 4, 6, 8}",
-                    INSTANCE_NAME, DEPTH);
+            $error("STRUCT_SKID_BUFFER[%m]: Invalid DEPTH=%0d. Must be one of {2, 4, 6, 8}",
+                    DEPTH);
         end
     end
-
-    // synopsys translate_on
 
 endmodule : gaxi_skid_buffer_struct

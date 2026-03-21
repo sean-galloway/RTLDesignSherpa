@@ -509,7 +509,6 @@ def test_gaxi_fifo_sync(request, data_width, depth, registered, clk_period, test
         'DATA_WIDTH': str(data_width),
         'DEPTH': str(depth),
         'REGISTERED': str(registered),
-        'INSTANCE_NAME': f'"fifo_{mode_name}_{test_level}"'
     }
 
     # Adjust timeout based on test level
@@ -635,7 +634,6 @@ def test_gaxi_fifo_sync_wavedrom(request, data_width, depth, registered, clk_per
         'DATA_WIDTH': str(data_width),
         'DEPTH': str(depth),
         'REGISTERED': str(registered),
-        'INSTANCE_NAME': f'"fifo_{mode_name}_wd"'
     }
 
     extra_env = {

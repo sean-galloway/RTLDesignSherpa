@@ -1,0 +1,50 @@
+%%{init: {'theme': 'neutral'}}%%
+flowchart TB
+    subgraph InputReg["Input Register"]
+        direction LR
+        R0["r_input[0]"]
+        R1["r_input[1]"]
+        R2["r_input[2]"]
+        R3["r_input[3]"]
+        R4["r_input[4]"]
+        R5["r_input[5]"]
+        R6["r_input[6]"]
+        R7["r_input[7]"]
+    end
+
+    subgraph Level1["Level 1 (Leaf NAND Gates)"]
+        direction LR
+        N1["NAND"]
+        N2["NAND"]
+        N3["NAND"]
+        N4["NAND"]
+    end
+
+    subgraph Level2["Level 2"]
+        direction LR
+        N5["NAND"]
+        N6["NAND"]
+    end
+
+    subgraph Level3["Level 3 (Root)"]
+        N7["NAND"]
+    end
+
+    R0 --> N1
+    R1 --> N1
+    R2 --> N2
+    R3 --> N2
+    R4 --> N3
+    R5 --> N3
+    R6 --> N4
+    R7 --> N4
+
+    N1 --> N5
+    N2 --> N5
+    N3 --> N6
+    N4 --> N6
+
+    N5 --> N7
+    N6 --> N7
+
+    N7 --> OUTFF["r_output<br/>(Output FF)"]

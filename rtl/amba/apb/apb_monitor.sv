@@ -505,8 +505,7 @@ module apb_monitor
         .DATA_WIDTH      ($bits(monitor_entry_t)),
         .DEPTH           (MONITOR_FIFO_DEPTH),
         .ALMOST_WR_MARGIN(1),
-        .ALMOST_RD_MARGIN(1),
-        .INSTANCE_NAME   ("APB_MONITOR_FIFO")
+        .ALMOST_RD_MARGIN(1)
     ) monitor_fifo (
         .axi_aclk      (aclk),
         .axi_aresetn   (aresetn),
@@ -602,8 +601,7 @@ module apb_monitor
     // Monitor bus output skid buffer
     gaxi_skid_buffer #(
         .DATA_WIDTH    (64),
-        .DEPTH         (2),
-        .INSTANCE_NAME ("APB_MONITOR_MONBUS_SKB")
+        .DEPTH         (2)
     ) monbus_skid_buffer (
         .axi_aclk      (aclk),
         .axi_aresetn   (aresetn),

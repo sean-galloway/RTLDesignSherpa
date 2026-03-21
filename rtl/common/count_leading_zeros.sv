@@ -44,13 +44,6 @@
 //     Constraints: Output width = $clog2(WIDTH) + 1
 //                  For WIDTH=32: output is 6 bits [5:0] (represents 0-32)
 //
-//   INSTANCE_NAME:
-//     Description: Instance name for debug display
-//     Type: string
-//     Default: "CLZ"
-//     Constraints: Used only for $display during simulation
-//                  No synthesis impact
-//
 //------------------------------------------------------------------------------
 // Ports:
 //------------------------------------------------------------------------------
@@ -155,8 +148,7 @@
 //   logic [5:0] highest_bit_pos;
 //
 //   count_leading_zeros #(
-//       .WIDTH(32),
-//       .INSTANCE_NAME("MAIN_CLZ")
+//       .WIDTH(32)
 //   ) u_clz (
 //       .data(data),
 //       .clz (leading_zeros)
@@ -244,8 +236,7 @@
 //
 //==============================================================================
 module count_leading_zeros #(
-    parameter int WIDTH         = 32,
-    parameter     INSTANCE_NAME = "CLZ"  // verilog_lint: waive explicit-parameter-storage-type
+    parameter int WIDTH         = 32
 ) (
     input  logic [      WIDTH-1:0] data,
     output logic [$clog2(WIDTH):0] clz

@@ -397,7 +397,6 @@ def test_fifo_sync_wavedrom(request, data_width, depth, clk_period):
         'DATA_WIDTH': str(data_width),
         'DEPTH': str(depth),
         'REGISTERED': '0',
-        'INSTANCE_NAME': '"wavedrom_fifo"'
     }
 
     extra_env = {

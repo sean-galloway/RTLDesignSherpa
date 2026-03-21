@@ -584,7 +584,6 @@ def test_find_last_set(request, width, test_level):
     # RTL parameters
     parameters = {
         'WIDTH': str(width),
-        'INSTANCE_NAME': f'"FLS_W{width}"'
     }
 
     # Adjust timeout based on test level and width

@@ -1,0 +1,55 @@
+%%{init: {'theme': 'neutral'}}%%
+flowchart LR
+    subgraph Inputs[" "]
+        direction TB
+        CLK["clk"]
+        RST["rst_n"]
+        SEED["i_seed[31:0]"]
+        LOAD["i_load_seed"]
+        EN["i_enable[8:0]"]
+    end
+
+    subgraph CharTop["char_top"]
+        direction LR
+        subgraph LFSR["Shared LFSR"]
+            direction TB
+            LFSRREG["r_lfsr[31:0]<br/>Left-shift Galois<br/>x^32+x^22+x^2+x+1"]
+        end
+        subgraph FUBArray["FUB Array (9 blocks)"]
+            direction TB
+            NC["nand_chain<br/>EN[0]"]
+            IC["inverter_chain<br/>EN[1]"]
+            XT["xor_tree<br/>EN[2]"]
+            CC["carry_chain<br/>EN[3]"]
+            MT["multiplier_tree<br/>EN[4]"]
+            MX["mux_tree<br/>EN[5]"]
+            QD["queue_depth<br/>EN[6]"]
+            CD["clock_divider_chain<br/>EN[7]"]
+            GC["gray_counter_chain<br/>EN[8]"]
+        end
+        LFSR -->|"LFSR taps"| FUBArray
+    end
+
+    subgraph Outputs[" "]
+        direction TB
+        O_NC["o_nand_chain"]
+        O_IC["o_inverter_chain"]
+        O_XT["o_xor_tree"]
+        O_CC["o_carry_chain"]
+        O_MT["o_multiplier_tree"]
+        O_MX["o_mux_tree"]
+        O_QD["o_queue_depth"]
+        O_CD["o_clock_divider_chain"]
+        O_GC["o_gray_counter_chain"]
+    end
+
+    Inputs --> CharTop
+    NC --> O_NC
+    IC --> O_IC
+    XT --> O_XT
+    CC --> O_CC
+    MT --> O_MT
+    MX --> O_MX
+    QD --> O_QD
+    CD --> O_CD
+    GC --> O_GC

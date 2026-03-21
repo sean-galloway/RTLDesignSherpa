@@ -882,8 +882,7 @@ module arbiter_monbus_common #(
         .DATA_WIDTH         (64),                   // 64-bit monitor packets
         .DEPTH              (MON_FIFO_DEPTH),       // Configurable FIFO depth
         .ALMOST_WR_MARGIN   (MON_FIFO_ALMOST_MARGIN),
-        .ALMOST_RD_MARGIN   (MON_FIFO_ALMOST_MARGIN),
-        .INSTANCE_NAME      ("MONBUS_EVENT_FIFO")
+        .ALMOST_RD_MARGIN   (MON_FIFO_ALMOST_MARGIN)
     ) u_event_fifo (
         .axi_aclk           (clk),
         .axi_aresetn        (rst_n),

@@ -1,0 +1,13 @@
+%%{init: {'theme': 'neutral'}}%%
+flowchart LR
+    INFF["r_input<br/>(Input FF)"]
+    INV1["INV<br/>#1"]
+    INV2["INV<br/>#2"]
+    INV3["INV<br/>#3"]
+    DOTS["..."]
+    INVN["INV<br/>#N"]
+    OUTFF["r_output<br/>(Output FF)"]
+
+    INFF --> INV1 --> INV2 --> INV3 --> DOTS --> INVN --> OUTFF
+
+    NOTE["Linear chain: delay grows O(N)<br/>dont_touch on w_chain array<br/>N = INVERTER_COUNT parameter"]

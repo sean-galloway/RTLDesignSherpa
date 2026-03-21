@@ -273,9 +273,6 @@ def test_fifo_buffer_field(request, addr_width, ctrl_width, data_width, depth, w
     rtl_parameters['DEPTH'] = str(depth)
     rtl_parameters['REGISTERED'] = str(registered)
 
-    # Add string parameter with quotes for Verilator
-    rtl_parameters['INSTANCE_NAME'] = f'"field_{mode}_{test_level}"'  # Include test level in instance name
-
     # Adjust timeout based on test level
     timeout_multipliers = {'basic': 1.5, 'medium': 3, 'full': 6}
     base_timeout = 3000  # 3 seconds base for field testing

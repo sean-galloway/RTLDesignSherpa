@@ -1,0 +1,28 @@
+%%{init: {'theme': 'neutral'}}%%
+flowchart TB
+    LFSR["r_lfsr[31:0]<br/>32-bit Galois LFSR"]
+
+    subgraph SingleInput["Single-Input FUBs"]
+        direction TB
+        NC["nand_chain<br/>i_data = r_lfsr[N-1:0]"]
+        IC["inverter_chain<br/>i_data = r_lfsr[0]"]
+        XT["xor_tree<br/>i_data = r_lfsr[N-1:0]"]
+        MX["mux_tree<br/>i_data + i_sel from r_lfsr"]
+        CD["clock_divider_chain<br/>i_enable = r_lfsr[0]"]
+        GC["gray_counter_chain<br/>i_enable = r_lfsr[0]"]
+    end
+
+    subgraph DualInput["Dual-Input FUBs (Decorrelated)"]
+        direction TB
+        CC["carry_chain<br/>i_a = r_lfsr[W-1:0]<br/>i_b = r_lfsr[(b+16)%32]"]
+        MT["multiplier_tree<br/>i_a = r_lfsr[W-1:0]<br/>i_b = r_lfsr[(b+16)%32]"]
+    end
+
+    subgraph ControlInput["Control FUBs"]
+        direction TB
+        QD["queue_depth<br/>i_wr_data = r_lfsr[W-1:0]<br/>i_wr_en = r_lfsr[0]<br/>i_rd_en = r_lfsr[1]"]
+    end
+
+    LFSR -->|"Direct mapping"| SingleInput
+    LFSR -->|"16-bit shifted<br/>second operand"| DualInput
+    LFSR -->|"Mixed control<br/>+ data"| ControlInput

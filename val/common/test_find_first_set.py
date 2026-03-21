@@ -520,7 +520,6 @@ def test_find_first_set(request, width, test_level):
     # RTL parameters
     parameters = {
         'WIDTH': str(width),
-        'INSTANCE_NAME': f'"FFS_W{width}"'
     }
 
     # Adjust timeout based on test level and width
