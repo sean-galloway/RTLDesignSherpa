@@ -972,6 +972,29 @@ run-all-full-parallel-waves:
 
 
 # ==============================================================================
+# Standardized Aggregation Targets (used by bin/aggregate_test_results.py)
+# Maps gate->basic, func->medium, full->full for RLB naming convention.
+# ==============================================================================
+
+.PHONY: run-all-gate-parallel run-all-gate-parallel-waves \
+        run-all-func-parallel run-all-func-parallel-waves \
+        run-all-gate run-all-gate-waves \
+        run-all-func run-all-func-waves \
+        run-all-gate-serial run-all-func-serial run-all-full-serial
+
+run-all-gate-parallel: run-all-basic-parallel
+run-all-gate-parallel-waves: run-all-basic-parallel-waves
+run-all-func-parallel: run-all-medium-parallel
+run-all-func-parallel-waves: run-all-medium-parallel-waves
+run-all-gate: run-all-basic
+run-all-gate-waves: run-all-basic-waves
+run-all-func: run-all-medium
+run-all-func-waves: run-all-medium-waves
+run-all-gate-serial: run-all-basic
+run-all-func-serial: run-all-medium
+run-all-full-serial: run-all-full
+
+# ==============================================================================
 # Utility Targets
 # ==============================================================================
 

@@ -357,6 +357,49 @@ run-full-parallel-waves:
 	SIM=verilator COVERAGE=1 WAVES=1 REG_LEVEL=FULL $(PYTEST) test_*.py $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE) $(PYTEST_XDIST) $(PYTEST_RERUNS)
 
 # ==============================================================================
+# run-all-* Alias Targets (standardized naming convention)
+# ==============================================================================
+
+.PHONY: run-all
+run-all: run-gate
+
+.PHONY: run-all-gate
+run-all-gate: run-gate
+
+.PHONY: run-all-gate-waves
+run-all-gate-waves: run-gate-waves
+
+.PHONY: run-all-gate-parallel
+run-all-gate-parallel: run-gate-parallel
+
+.PHONY: run-all-gate-parallel-waves
+run-all-gate-parallel-waves: run-gate-parallel-waves
+
+.PHONY: run-all-func
+run-all-func: run-func
+
+.PHONY: run-all-func-waves
+run-all-func-waves: run-func-waves
+
+.PHONY: run-all-func-parallel
+run-all-func-parallel: run-func-parallel
+
+.PHONY: run-all-func-parallel-waves
+run-all-func-parallel-waves: run-func-parallel-waves
+
+.PHONY: run-all-full
+run-all-full: run-full
+
+.PHONY: run-all-full-waves
+run-all-full-waves: run-full-waves
+
+.PHONY: run-all-full-parallel
+run-all-full-parallel: run-full-parallel
+
+.PHONY: run-all-full-parallel-waves
+run-all-full-parallel-waves: run-full-parallel-waves
+
+# ==============================================================================
 # Development Targets
 # ==============================================================================
 

@@ -66,6 +66,7 @@ from .protocol_coverage_base import (
 from .verilator_coverage import (
     parse_verilator_coverage_file,
     get_merged_verilator_coverage,
+    get_merged_coverage_breakdown,
     parse_coverage_stats,
 )
 from .report_generator import (
@@ -143,6 +144,7 @@ __all__ = [
     # Verilator utilities
     'parse_verilator_coverage_file',
     'get_merged_verilator_coverage',
+    'get_merged_coverage_breakdown',
     'parse_coverage_stats',
     # Report generation
     'ReportGenerator',

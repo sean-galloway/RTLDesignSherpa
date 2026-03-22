@@ -1,0 +1,23 @@
+[tasks]
+prove
+cover
+
+[options]
+prove: mode bmc
+prove: depth 15
+cover: mode cover
+cover: depth 20
+
+[engines]
+prove: smtbmc z3
+cover: smtbmc z3
+
+[script]
+read -formal -sv -Iincludes glitch_free_n_dff_arn.sv
+read -formal -sv -Iincludes formal_glitch_free.sv
+prep -top formal_glitch_free
+
+[files]
+glitch_free_n_dff_arn.sv ../../../rtl/common/glitch_free_n_dff_arn.sv
+formal_glitch_free.sv
+includes/reset_defs.svh ../../../rtl/amba/includes/reset_defs.svh

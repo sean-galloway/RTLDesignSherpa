@@ -685,6 +685,52 @@ run-all-full-parallel:
 	REG_LEVEL=FULL $(PYTEST) $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE) $(PYTEST_XDIST) $(PYTEST_RERUNS) test_*.py
 
 # ==============================================================================
+# REG_LEVEL + WAVES Variants (run all tests with waveform dumping)
+# ==============================================================================
+
+.PHONY: run-all-gate-waves
+run-all-gate-waves:
+	@echo "================================================================================"
+	@echo "Running ALL AMBA Tests - GATE level with WAVES"
+	@echo "================================================================================"
+	REG_LEVEL=GATE WAVES=1 $(PYTEST) $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE) test_*.py
+
+.PHONY: run-all-gate-parallel-waves
+run-all-gate-parallel-waves:
+	@echo "================================================================================"
+	@echo "Running ALL AMBA Tests - GATE level PARALLEL with WAVES"
+	@echo "================================================================================"
+	REG_LEVEL=GATE WAVES=1 $(PYTEST) $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE) $(PYTEST_XDIST) $(PYTEST_RERUNS) test_*.py
+
+.PHONY: run-all-func-waves
+run-all-func-waves:
+	@echo "================================================================================"
+	@echo "Running ALL AMBA Tests - FUNC level with WAVES"
+	@echo "================================================================================"
+	REG_LEVEL=FUNC WAVES=1 $(PYTEST) $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE) test_*.py
+
+.PHONY: run-all-func-parallel-waves
+run-all-func-parallel-waves:
+	@echo "================================================================================"
+	@echo "Running ALL AMBA Tests - FUNC level PARALLEL with WAVES"
+	@echo "================================================================================"
+	REG_LEVEL=FUNC WAVES=1 $(PYTEST) $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE) $(PYTEST_XDIST) $(PYTEST_RERUNS) test_*.py
+
+.PHONY: run-all-full-waves
+run-all-full-waves:
+	@echo "================================================================================"
+	@echo "Running ALL AMBA Tests - FULL level with WAVES"
+	@echo "================================================================================"
+	REG_LEVEL=FULL WAVES=1 $(PYTEST) $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE) test_*.py
+
+.PHONY: run-all-full-parallel-waves
+run-all-full-parallel-waves:
+	@echo "================================================================================"
+	@echo "Running ALL AMBA Tests - FULL level PARALLEL with WAVES"
+	@echo "================================================================================"
+	REG_LEVEL=FULL WAVES=1 $(PYTEST) $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE) $(PYTEST_XDIST) $(PYTEST_RERUNS) test_*.py
+
+# ==============================================================================
 # Run Targets - By Function
 # ==============================================================================
 

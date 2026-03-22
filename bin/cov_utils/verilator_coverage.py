@@ -212,6 +212,78 @@ def get_merged_verilator_coverage(coverage_files: List[str]) -> Tuple[float, int
     return (0.0, 0, 0)
 
 
+def get_merged_coverage_breakdown(coverage_files: List[str]) -> Dict[str, Dict[str, any]]:
+    """Merge coverage files and return separate line, branch, and toggle breakdowns.
+
+    Uses verilator_coverage to merge .dat files, then parses the merged result
+    with parse_verilator_coverage_file() to get per-type coverage counts.
+
+    Args:
+        coverage_files: List of paths to coverage.dat files
+
+    Returns:
+        Dict with separate breakdowns per coverage type:
+        {
+            'line':    {'covered': N, 'total': N, 'pct': N.N},
+            'branch':  {'covered': N, 'total': N, 'pct': N.N},
+            'toggle':  {'covered': N, 'total': N, 'pct': N.N},
+            'overall': {'covered': N, 'total': N, 'pct': N.N},
+        }
+    """
+    empty = {
+        'line':    {'covered': 0, 'total': 0, 'pct': 0.0},
+        'branch':  {'covered': 0, 'total': 0, 'pct': 0.0},
+        'toggle':  {'covered': 0, 'total': 0, 'pct': 0.0},
+        'overall': {'covered': 0, 'total': 0, 'pct': 0.0},
+    }
+
+    if not coverage_files:
+        return empty
+
+    # Filter to only coverage.dat files (not verFiles.dat)
+    dat_files = [f for f in coverage_files if 'verFiles.dat' not in f and f.endswith('.dat')]
+
+    if not dat_files:
+        return empty
+
+    try:
+        # Create temp file for merged output
+        with tempfile.NamedTemporaryFile(suffix='.dat', delete=False) as tmp:
+            merged_dat = tmp.name
+
+        try:
+            # Run verilator_coverage to merge all files
+            cmd = ['verilator_coverage', '--write', merged_dat] + dat_files
+            result = subprocess.run(cmd, capture_output=True, text=True, timeout=60)
+
+            if result.returncode != 0:
+                print(f"Warning: verilator_coverage merge failed: {result.stderr}")
+                return empty
+
+            # Parse the merged file to get per-type coverage
+            stats = parse_verilator_coverage_file(merged_dat)
+        finally:
+            os.unlink(merged_dat)
+
+    except Exception as e:
+        print(f"Warning: Failed to get merged coverage breakdown: {e}")
+        return empty
+
+    # Build the breakdown dict from CoverageStats
+    total_covered = stats.line_covered + stats.branch_covered + stats.toggle_covered
+    total_points = stats.line_total + stats.branch_total + stats.toggle_total
+    overall_pct = (total_covered / total_points * 100) if total_points > 0 else 0.0
+
+    breakdown = stats.to_dict()
+    breakdown['overall'] = {
+        'covered': total_covered,
+        'total': total_points,
+        'pct': round(overall_pct, 2),
+    }
+
+    return breakdown
+
+
 def find_coverage_files(base_dir: str, pattern: str = "coverage.dat") -> List[str]:
     """Find all coverage.dat files in a directory tree.
 

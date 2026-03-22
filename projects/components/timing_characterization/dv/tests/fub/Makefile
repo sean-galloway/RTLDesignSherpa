@@ -256,6 +256,34 @@ run-full-parallel-waves:
 	TEST_LEVEL=full WAVES=1 $(PYTEST) $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE) $(PYTEST_XDIST) $(PYTEST_RERUNS)
 
 # ==============================================================================
+# Standardized Aggregation Targets (used by bin/aggregate_test_results.py)
+# ==============================================================================
+
+.PHONY: run-all-gate-parallel run-all-gate-parallel-waves \
+        run-all-func-parallel run-all-func-parallel-waves \
+        run-all-full-parallel run-all-full-parallel-waves \
+        run-all-gate run-all-gate-waves \
+        run-all-func run-all-func-waves \
+        run-all-full run-all-full-waves \
+        run-all-gate-serial run-all-func-serial run-all-full-serial
+
+run-all-gate-parallel: run-gate-parallel
+run-all-gate-parallel-waves: run-gate-parallel-waves
+run-all-func-parallel: run-func-parallel
+run-all-func-parallel-waves: run-func-parallel-waves
+run-all-full-parallel: run-full-parallel
+run-all-full-parallel-waves: run-full-parallel-waves
+run-all-gate: run-gate
+run-all-gate-waves: run-gate-waves
+run-all-func: run-func
+run-all-func-waves: run-func-waves
+run-all-full: run-full
+run-all-full-waves: run-full-waves
+run-all-gate-serial: run-gate
+run-all-func-serial: run-func
+run-all-full-serial: run-full
+
+# ==============================================================================
 # Utility Targets
 # ==============================================================================
 

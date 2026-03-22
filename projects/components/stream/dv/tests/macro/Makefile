@@ -177,9 +177,7 @@ run-core:
 	TEST_LEVEL=FUNC $(PYTEST) test_stream_core.py $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE)
 
 .PHONY: run-all
-run-all:
-	@echo "Running all tests: datapath_rd, datapath_wr, and stream_core (FUNC level)..."
-	TEST_LEVEL=FUNC $(PYTEST) test_datapath_rd_test.py test_datapath_wr_test.py test_stream_core.py $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE)
+run-all: run-all-gate
 
 # ==============================================================================
 # Read Datapath Targets (test_datapath_rd_test.py)
@@ -559,6 +557,17 @@ run-all-full-parallel:
 run-all-full-parallel-waves:
 	@echo "Running ALL tests at FULL level in parallel with waveforms..."
 	WAVES=1 TEST_LEVEL=FULL $(PYTEST) test_datapath_rd_test.py test_datapath_wr_test.py test_stream_core.py test_stream_core_mon.py $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE) $(PYTEST_XDIST) $(PYTEST_RERUNS)
+
+# Missing run-all-* aliases for standardized naming convention
+.PHONY: run-all-gate-parallel-waves
+run-all-gate-parallel-waves:
+	@echo "Running all tests at GATE level in parallel with waveforms..."
+	WAVES=1 TEST_LEVEL=GATE $(PYTEST) test_datapath_rd_test.py test_datapath_wr_test.py test_stream_core.py test_stream_core_mon.py $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE) $(PYTEST_XDIST) $(PYTEST_RERUNS)
+
+.PHONY: run-all-func-parallel-waves
+run-all-func-parallel-waves:
+	@echo "Running all tests at FUNC level in parallel with waveforms..."
+	WAVES=1 TEST_LEVEL=FUNC $(PYTEST) test_datapath_rd_test.py test_datapath_wr_test.py test_stream_core.py test_stream_core_mon.py $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE) $(PYTEST_XDIST) $(PYTEST_RERUNS)
 
 # ==============================================================================
 # Utility Targets

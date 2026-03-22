@@ -245,6 +245,37 @@ run-peakrdl-cmdrsp-full:
 	REG_LEVEL=FULL $(PYTEST) $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE) test_peakrdl_to_cmdrsp.py
 
 # ==============================================================================
+# Coverage Targets
+# ==============================================================================
+
+COVERAGE_DIR = coverage_data
+
+.PHONY: run-coverage
+run-coverage:
+	@echo "Running converter tests with coverage..."
+	COVERAGE=1 REG_LEVEL=FUNC $(PYTEST) $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE) test_*.py
+
+.PHONY: run-coverage-parallel
+run-coverage-parallel:
+	@echo "Running converter tests with coverage (parallel)..."
+	COVERAGE=1 REG_LEVEL=FUNC $(PYTEST) $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE) $(PYTEST_XDIST) $(PYTEST_RERUNS) test_*.py
+
+.PHONY: coverage-report
+coverage-report:
+	@echo "Generating converter coverage report..."
+	python3 $(REPO_ROOT)/bin/cov_utils/generate_coverage_report.py --component converters
+
+.PHONY: fresh-coverage
+fresh-coverage: clean-coverage run-coverage coverage-report
+	@echo "Fresh converter coverage complete"
+
+.PHONY: clean-coverage
+clean-coverage:
+	@echo "Cleaning converter coverage artifacts..."
+	rm -rf $(COVERAGE_DIR) coverage_html
+	@echo "Coverage artifacts cleaned"
+
+# ==============================================================================
 # Legacy Run Targets (backwards compatibility)
 # ==============================================================================
 
@@ -310,6 +341,7 @@ clean-build:
 	@echo "Cleaning simulation build directories..."
 	rm -rf local_sim_build/
 	rm -rf sim_build/
+	rm -rf coverage_data
 	find . -type d -name "local_sim_build" -exec rm -rf {} + 2>/dev/null || true
 	find . -type d -name "sim_build" -exec rm -rf {} + 2>/dev/null || true
 	@echo "✓ Build directories cleaned"

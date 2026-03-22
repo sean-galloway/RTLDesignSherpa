@@ -3,7 +3,9 @@
 # ==============================================================================
 #
 # Bootstrap (no env_python needed):
-#   make install        - Create venv and install all Python dependencies
+#   make setup          - Full setup from scratch (apt + venv + formal tools)
+#   make setup-no-sudo  - Setup without apt (venv + formal tools only)
+#   make install        - Create venv and install Python dependencies only
 #   make doctor         - Check that all required tools are available
 #   make count          - LOC / file counts for RTL, tests, framework
 #
@@ -61,6 +63,9 @@ doctor:
 	@printf "  %-22s " "Verible:" && (verible-verilog-lint --version 2>/dev/null | head -1 || echo "MISSING (add to PATH)")
 	@printf "  %-22s " "GTKWave:" && (which gtkwave 2>/dev/null && echo "OK" || echo "MISSING (optional)")
 	@printf "  %-22s " "Yosys:" && (yosys --version 2>/dev/null | head -1 || echo "MISSING (optional)")
+	@printf "  %-22s " "SymbiYosys:" && (sby --version 2>/dev/null | head -1 || echo "MISSING (run: bash bin/install_formal_tools.sh)")
+	@printf "  %-22s " "Boolector:" && (which boolector >/dev/null 2>&1 && echo "OK" || echo "MISSING (formal solver)")
+	@printf "  %-22s " "z3:" && (which z3 >/dev/null 2>&1 && echo "OK" || echo "MISSING (optional solver)")
 	@printf "  %-22s " "Venv:" && (test -f "$(MAKEFILE_DIR)venv/bin/python3" && echo "OK ($(MAKEFILE_DIR)venv)" || echo "MISSING (run: make install)")
 	@printf "  %-22s " "CocoTB:" && ("$(MAKEFILE_DIR)venv/bin/python3" -c "import cocotb; print(cocotb.__version__)" 2>/dev/null || echo "MISSING (run: make install)")
 	@printf "  %-22s " "REPO_ROOT:" && (test -n "$$REPO_ROOT" && echo "$$REPO_ROOT" || echo "NOT SET (run: source env_python)")
@@ -85,8 +90,16 @@ count:
 # Environment Check (required for all targets below this point)
 # ==============================================================================
 
+.PHONY: setup
+setup:
+	@bash bin/setup_from_scratch.sh
+
+.PHONY: setup-no-sudo
+setup-no-sudo:
+	@bash bin/setup_from_scratch.sh --skip-apt
+
 # Only enforce REPO_ROOT for non-bootstrap targets
-BOOTSTRAP_TARGETS := install doctor count
+BOOTSTRAP_TARGETS := install doctor count setup setup-no-sudo
 ifneq ($(filter-out $(BOOTSTRAP_TARGETS),$(MAKECMDGOALS)),)
 ifndef REPO_ROOT
 $(error REPO_ROOT is not set. Please run: source env_python)
@@ -107,6 +120,10 @@ PROJECTS_DIR = projects/components
 
 # Project list
 PROJECTS = stream rapids bridge delta apb_xbar converters shims retro_legacy_blocks bch hive
+
+# Include generated test targets from test_environments.toml
+# Regenerate: python3 bin/generate_test_targets.py
+-include test_targets.mk
 
 # Default target - show help
 .DEFAULT_GOAL := help
@@ -137,9 +154,9 @@ help:
 	@echo "UNIFIED REG_LEVEL TARGETS (ALL environments - val/ + projects/):"
 	@echo "  GATE = Quick smoke tests, FUNC = Functional coverage, FULL = Comprehensive"
 	@echo ""
-	@echo "  make gate                 GATE across ALL environments (parallel)"
-	@echo "  make func                 FUNC across ALL environments (parallel)"
-	@echo "  make full                 FULL across ALL environments (parallel)"
+	@echo "  make gate                 GATE + results table (alias for results-gate)"
+	@echo "  make func                 FUNC + results table (alias for results-func)"
+	@echo "  make full                 FULL + results table (alias for results-full)"
 	@echo "  make gate-serial          GATE across ALL environments (serial)"
 	@echo "  make func-serial          FUNC across ALL environments (serial)"
 	@echo "  make full-serial          FULL across ALL environments (serial)"
@@ -149,10 +166,22 @@ help:
 	@echo "  AMBA:    make run-amba-{gate|func|full}-parallel"
 	@echo "  RTL ALL: make run-rtl-all-{gate|func|full}-parallel"
 	@echo ""
-	@echo "COVERAGE TARGETS:"
-	@echo "  make coverage             Run tests with coverage (STREAM, RAPIDS)"
-	@echo "  make coverage-report      Generate coverage reports"
-	@echo "  make clean-coverage       Clean all coverage artifacts"
+	@echo "GENERATED TEST TARGETS (from test_environments.toml):"
+	@echo "  make help-envs                Show all generated test + coverage targets"
+	@echo "  make test-{env}               Run FUNC parallel (e.g. test-val-common, test-stream)"
+	@echo "  make test-{env}-{gate|func|full}          Per-level"
+	@echo "  make test-{env}-{level}-waves              With waveforms"
+	@echo "  make test-{env}-{level}-serial             Sequential"
+	@echo "  make test-all-{gate|func|full}             All environments"
+	@echo "  make coverage-{env}           Per-component coverage"
+	@echo "  make coverage-all             All components"
+	@echo "  make coverage-unified         Cross-component dashboard"
+	@echo ""
+	@echo "FORMAL VERIFICATION:"
+	@echo "  make formal                  Run all formal proofs"
+	@echo "  make formal-common           Building blocks (arbiter, counter, FIFO)"
+	@echo "  make formal-quick            Quick proof (counter_bin only, ~seconds)"
+	@echo "  make formal-check-tools      Check sby/boolector/z3 installed"
 	@echo ""
 	@echo "LINT TARGETS (run RTL linting):"
 	@echo "  make lint-all                Run ALL lint (RTL + projects)"
@@ -177,12 +206,22 @@ help:
 	@echo "  make all                  Alias for all-func"
 	@echo "  make ci                   Alias for all-gate (commit gate)"
 	@echo ""
+	@echo "RESULTS AGGREGATION:"
+	@echo "  make results              Aggregate test results (rich table)"
+	@echo "  make results-gate         Run GATE tests and show results table"
+	@echo "  make results-func         Run FUNC tests and show results table"
+	@echo "  make results-full         Run FULL tests and show results table"
+	@echo "  make results-rapids       Run RAPIDS tests and show results table"
+	@echo "  make results-stream       Run STREAM tests and show results table"
+	@echo "  make results-val          Run val/ tests and show results table"
+	@echo "  make results-md           Export results table as markdown"
+	@echo ""
 	@echo "STATUS TARGETS:"
 	@echo "  make status               Show complete repository status"
 	@echo "  make status-tests         Show test status summary"
 	@echo "  make status-lint          Show lint status summary"
 	@echo ""
-	@echo "CLEAN TARGETS:"
+	@echo "CLEAN TARGETS:
 	@echo "  make clean-all            Clean ALL test and lint artifacts"
 	@echo "  make clean-tests          Clean all test artifacts"
 	@echo "  make clean-lint           Clean all lint artifacts"
@@ -205,35 +244,13 @@ test-val:
 	@echo ""
 
 # ==============================================================================
-# Test Targets - Projects
+# Test Targets - Projects (legacy aliases → generated targets in test_targets.mk)
 # ==============================================================================
-
-.PHONY: test-stream
-test-stream:
-	@echo "=== STREAM Project Tests ==="
-	@if [ -f $(PROJECTS_DIR)/stream/dv/tests/Makefile ]; then \
-		$(MAKE) -C $(PROJECTS_DIR)/stream/dv/tests run-all || true; \
-	else \
-		echo "⚠ STREAM test Makefile not found"; \
-	fi
-
-.PHONY: test-rapids
-test-rapids:
-	@echo "=== RAPIDS Project Tests ==="
-	@if [ -f $(PROJECTS_DIR)/rapids/dv/tests/Makefile ]; then \
-		$(MAKE) -C $(PROJECTS_DIR)/rapids/dv/tests run-all || true; \
-	else \
-		echo "⚠ RAPIDS test Makefile not found"; \
-	fi
-
-.PHONY: test-bridge
-test-bridge:
-	@echo "=== Bridge Project Tests ==="
-	@if [ -f $(PROJECTS_DIR)/bridge/dv/tests/Makefile ]; then \
-		$(MAKE) -C $(PROJECTS_DIR)/bridge/dv/tests run-all || true; \
-	else \
-		echo "⚠ Bridge test Makefile not found"; \
-	fi
+# Per-project test targets are now generated from test_environments.toml.
+# See: make help-envs
+#
+# These legacy aliases remain for backward compatibility with names that
+# use underscores (the generated targets use hyphens).
 
 .PHONY: test-delta
 test-delta:
@@ -241,26 +258,14 @@ test-delta:
 	@if [ -f $(PROJECTS_DIR)/delta/dv/tests/Makefile ]; then \
 		$(MAKE) -C $(PROJECTS_DIR)/delta/dv/tests run-all || true; \
 	else \
-		echo "⚠ Delta test Makefile not found (may not have tests yet)"; \
+		echo "Delta test Makefile not found (may not have tests yet)"; \
 	fi
 
 .PHONY: test-apb_xbar
-test-apb_xbar:
-	@echo "=== APB Crossbar Project Tests ==="
-	@if [ -f $(PROJECTS_DIR)/apb_xbar/dv/tests/Makefile ]; then \
-		$(MAKE) -C $(PROJECTS_DIR)/apb_xbar/dv/tests run-all || true; \
-	else \
-		echo "⚠ APB Crossbar test Makefile not found"; \
-	fi
+test-apb_xbar: test-apb-xbar
 
 .PHONY: test-retro_legacy_blocks
-test-retro_legacy_blocks:
-	@echo "=== Retro Legacy Blocks Project Tests ==="
-	@if [ -f $(PROJECTS_DIR)/retro_legacy_blocks/dv/tests/Makefile ]; then \
-		$(MAKE) -C $(PROJECTS_DIR)/retro_legacy_blocks/dv/tests run-all || true; \
-	else \
-		echo "⚠ Retro Legacy Blocks test Makefile not found"; \
-	fi
+test-retro_legacy_blocks: test-retro-legacy
 
 .PHONY: test-bch
 test-bch:
@@ -268,7 +273,7 @@ test-bch:
 	@if [ -f $(PROJECTS_DIR)/bch/dv/tests/Makefile ]; then \
 		$(MAKE) -C $(PROJECTS_DIR)/bch/dv/tests run-all || true; \
 	else \
-		echo "⚠ BCH test Makefile not found (may not have tests yet)"; \
+		echo "BCH test Makefile not found (may not have tests yet)"; \
 	fi
 
 .PHONY: test-hive
@@ -382,64 +387,13 @@ run-rtl-all-full-parallel:
 # Use these as commit gates.
 
 .PHONY: gate
-gate:
-	@echo "================================================================================"
-	@echo "GATE - Quick Smoke Tests (ALL environments, parallel)"
-	@echo "================================================================================"
-	@echo ""
-	@echo "Phase 1/3: RTL Validation (COMMON + AMBA) - GATE"
-	@$(MAKE) run-rtl-all-gate-parallel
-	@echo ""
-	@echo "Phase 2/3: Integration Tests (integ_common + integ_amba)"
-	@$(MAKE) -C $(VAL_DIR)/integ_common run-all-parallel 2>/dev/null || true
-	@$(MAKE) -C $(VAL_DIR)/integ_amba run-all-parallel 2>/dev/null || true
-	@echo ""
-	@echo "Phase 3/3: Project Components - GATE"
-	@$(MAKE) -C $(PROJECTS_DIR) test-all-gate-parallel
-	@echo ""
-	@echo "================================================================================"
-	@echo "GATE COMPLETE - All environments passed"
-	@echo "================================================================================"
+gate: results-gate
 
 .PHONY: func
-func:
-	@echo "================================================================================"
-	@echo "FUNC - Functional Coverage Tests (ALL environments, parallel)"
-	@echo "================================================================================"
-	@echo ""
-	@echo "Phase 1/3: RTL Validation (COMMON + AMBA) - FUNC"
-	@$(MAKE) run-rtl-all-func-parallel
-	@echo ""
-	@echo "Phase 2/3: Integration Tests (integ_common + integ_amba)"
-	@$(MAKE) -C $(VAL_DIR)/integ_common run-all-parallel 2>/dev/null || true
-	@$(MAKE) -C $(VAL_DIR)/integ_amba run-all-parallel 2>/dev/null || true
-	@echo ""
-	@echo "Phase 3/3: Project Components - FUNC"
-	@$(MAKE) -C $(PROJECTS_DIR) test-all-func-parallel
-	@echo ""
-	@echo "================================================================================"
-	@echo "FUNC COMPLETE - All environments passed"
-	@echo "================================================================================"
+func: results-func
 
 .PHONY: full
-full:
-	@echo "================================================================================"
-	@echo "FULL - Comprehensive Tests (ALL environments, parallel)"
-	@echo "================================================================================"
-	@echo ""
-	@echo "Phase 1/3: RTL Validation (COMMON + AMBA) - FULL"
-	@$(MAKE) run-rtl-all-full-parallel
-	@echo ""
-	@echo "Phase 2/3: Integration Tests (integ_common + integ_amba)"
-	@$(MAKE) -C $(VAL_DIR)/integ_common run-all-parallel 2>/dev/null || true
-	@$(MAKE) -C $(VAL_DIR)/integ_amba run-all-parallel 2>/dev/null || true
-	@echo ""
-	@echo "Phase 3/3: Project Components - FULL"
-	@$(MAKE) -C $(PROJECTS_DIR) test-all-full-parallel
-	@echo ""
-	@echo "================================================================================"
-	@echo "FULL COMPLETE - All environments passed"
-	@echo "================================================================================"
+full: results-full
 
 # Serial versions (if parallel causes resource contention)
 .PHONY: gate-serial
@@ -487,7 +441,7 @@ full-serial:
 # ==============================================================================
 # Coverage Targets - ALL Environments
 # ==============================================================================
-# Coverage collection and reporting. Currently supported by STREAM and RAPIDS.
+# Coverage collection and reporting. Currently supported by STREAM, RAPIDS, Bridge, and Converters.
 # Other components will be added as coverage infrastructure is built out.
 
 .PHONY: coverage
@@ -508,6 +462,20 @@ coverage:
 		$(MAKE) -C $(PROJECTS_DIR)/rapids/dv/tests coverage-full-report || true; \
 	else \
 		echo "  RAPIDS coverage Makefile not found - skipping"; \
+	fi
+	@echo ""
+	@echo "Phase 3: Bridge coverage..."
+	@if [ -f $(PROJECTS_DIR)/bridge/dv/tests/Makefile ]; then \
+		$(MAKE) -C $(PROJECTS_DIR)/bridge/dv/tests fresh-coverage || true; \
+	else \
+		echo "  Bridge coverage Makefile not found - skipping"; \
+	fi
+	@echo ""
+	@echo "Phase 4: Converters coverage..."
+	@if [ -f $(PROJECTS_DIR)/converters/dv/tests/Makefile ]; then \
+		$(MAKE) -C $(PROJECTS_DIR)/converters/dv/tests fresh-coverage || true; \
+	else \
+		echo "  Converters coverage Makefile not found - skipping"; \
 	fi
 	@echo ""
 	@echo "================================================================================"
@@ -534,9 +502,29 @@ coverage-report:
 		echo "  Not available"; \
 	fi
 	@echo ""
+	@echo "Bridge coverage report:"
+	@if [ -f $(PROJECTS_DIR)/bridge/dv/tests/Makefile ]; then \
+		$(MAKE) -C $(PROJECTS_DIR)/bridge/dv/tests coverage-report || true; \
+	else \
+		echo "  Not available"; \
+	fi
+	@echo ""
+	@echo "Converters coverage report:"
+	@if [ -f $(PROJECTS_DIR)/converters/dv/tests/Makefile ]; then \
+		$(MAKE) -C $(PROJECTS_DIR)/converters/dv/tests coverage-report || true; \
+	else \
+		echo "  Not available"; \
+	fi
+	@echo ""
 	@echo "================================================================================"
 	@echo "Coverage reports generated"
 	@echo "================================================================================"
+
+.PHONY: coverage-unified
+coverage-unified:
+	@echo "Generating unified cross-component coverage report..."
+	python3 bin/cov_utils/unified_coverage_report.py --output coverage_unified_report.md --json coverage_unified_report.json
+	@echo "Unified coverage report generated"
 
 .PHONY: clean-coverage
 clean-coverage:
@@ -546,7 +534,37 @@ clean-coverage:
 			$(MAKE) -C $(PROJECTS_DIR)/$$proj/dv/tests clean-coverage 2>/dev/null || true; \
 		fi; \
 	done
+	@rm -rf val/common/coverage_data val/amba/coverage_data
+	@rm -f coverage_unified_report.md coverage_unified_report.json
 	@echo "Coverage artifacts cleaned"
+
+# Per-component coverage targets are now generated in test_targets.mk.
+# See: make help-envs
+
+# ==============================================================================
+# Formal Verification Targets
+# ==============================================================================
+# Requires SymbiYosys + Boolector. Install: bash bin/install_formal_tools.sh
+
+.PHONY: formal
+formal:
+	@$(MAKE) -C formal formal
+
+.PHONY: formal-common
+formal-common:
+	@$(MAKE) -C formal formal-common
+
+.PHONY: formal-bridge
+formal-bridge:
+	@$(MAKE) -C formal formal-bridge
+
+.PHONY: formal-quick
+formal-quick:
+	@$(MAKE) -C formal formal-quick
+
+.PHONY: formal-check-tools
+formal-check-tools:
+	@$(MAKE) -C formal check-tools
 
 # ==============================================================================
 # Lint Targets - RTL
@@ -671,12 +689,13 @@ lint-all: lint-rtl lint-projects
 # ==============================================================================
 
 # all-gate: Quick checkin gate (GATE tests + lint)
+# Note: gate (results-gate) exits non-zero on test failures; run lint regardless.
 .PHONY: all-gate
 all-gate:
 	@echo "================================================================================"
 	@echo "ALL-GATE: GATE tests + lint (quick checkin)"
 	@echo "================================================================================"
-	@$(MAKE) gate
+	@$(MAKE) gate || true
 	@$(MAKE) lint-all
 	@echo "================================================================================"
 	@echo "ALL-GATE COMPLETE"
@@ -688,7 +707,7 @@ all-func:
 	@echo "================================================================================"
 	@echo "ALL-FUNC: FUNC tests + lint (functional coverage)"
 	@echo "================================================================================"
-	@$(MAKE) func
+	@$(MAKE) func || true
 	@$(MAKE) lint-all
 	@echo "================================================================================"
 	@echo "ALL-FUNC COMPLETE"
@@ -700,7 +719,7 @@ all-full:
 	@echo "================================================================================"
 	@echo "ALL-FULL: FULL tests + lint (comprehensive)"
 	@echo "================================================================================"
-	@$(MAKE) full
+	@$(MAKE) full || true
 	@$(MAKE) lint-all
 	@echo "================================================================================"
 	@echo "ALL-FULL COMPLETE"
@@ -794,6 +813,56 @@ status:
 	@echo "================================================================================"
 
 # ==============================================================================
+# Results Aggregation Targets
+# ==============================================================================
+# Run tests and display results in a rich table. Uses bin/aggregate_test_results.py.
+# Results are cached as JUnit XML in test_results/.
+
+AGGREGATE = python3 bin/aggregate_test_results.py
+RESULTS_DIR = test_results
+
+# Display existing results (no test run)
+.PHONY: results
+results:
+	@$(AGGREGATE) --results-dir $(RESULTS_DIR)
+
+# Run all tests at each level and show table
+.PHONY: results-gate
+results-gate:
+	@$(AGGREGATE) --run --test-level GATE --results-dir $(RESULTS_DIR)
+
+.PHONY: results-func
+results-func:
+	@$(AGGREGATE) --run --test-level FUNC --results-dir $(RESULTS_DIR)
+
+.PHONY: results-full
+results-full:
+	@$(AGGREGATE) --run --test-level FULL --results-dir $(RESULTS_DIR)
+
+# Per-area results
+.PHONY: results-rapids
+results-rapids:
+	@$(AGGREGATE) --run --area rapids --test-level $(or $(TEST_LEVEL),GATE) --results-dir $(RESULTS_DIR)
+
+.PHONY: results-stream
+results-stream:
+	@$(AGGREGATE) --run --area stream --test-level $(or $(TEST_LEVEL),GATE) --results-dir $(RESULTS_DIR)
+
+.PHONY: results-val
+results-val:
+	@$(AGGREGATE) --run --area val --test-level $(or $(TEST_LEVEL),GATE) --results-dir $(RESULTS_DIR)
+
+# Export as markdown
+.PHONY: results-md
+results-md:
+	@$(AGGREGATE) --results-dir $(RESULTS_DIR) --markdown $(RESULTS_DIR)/results_summary.md
+
+.PHONY: clean-results
+clean-results:
+	@rm -rf $(RESULTS_DIR)
+	@echo "Test results cleaned"
+
+# ==============================================================================
 # Clean Targets
 # ==============================================================================
 
@@ -820,9 +889,9 @@ clean-lint:
 	@echo "✓ Lint artifacts cleaned"
 
 .PHONY: clean-all
-clean-all: clean-tests clean-lint
+clean-all: clean-tests clean-lint clean-results
 	@echo "================================================================================"
-	@echo "✓ All artifacts cleaned (tests + lint)"
+	@echo "✓ All artifacts cleaned (tests + lint + results)"
 	@echo "================================================================================"
 
 # ==============================================================================

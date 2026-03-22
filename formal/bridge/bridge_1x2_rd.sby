@@ -1,0 +1,20 @@
+[tasks]
+prove
+cover
+
+[options]
+prove: mode bmc
+prove: depth 20
+cover: mode cover
+cover: depth 30
+
+[engines]
+prove: smtbmc z3
+cover: smtbmc z3
+
+[script]
+read -formal -sv formal_bridge_1x2_rd.sv
+prep -top formal_bridge_1x2_rd
+
+[files]
+formal_bridge_1x2_rd.sv

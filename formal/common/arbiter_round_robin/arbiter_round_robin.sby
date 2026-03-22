@@ -1,0 +1,25 @@
+[tasks]
+prove
+cover
+
+[options]
+prove: mode bmc
+prove: depth 25
+cover: mode cover
+cover: depth 50
+
+[engines]
+prove: smtbmc z3
+cover: smtbmc z3
+
+[script]
+read -formal -sv -Iincludes arbiter_priority_encoder.sv
+read -formal -sv -Iincludes arbiter_round_robin.sv
+read -formal -sv formal_arbiter_rr.sv
+prep -top formal_arbiter_rr
+
+[files]
+arbiter_round_robin.sv ../../../rtl/common/arbiter_round_robin.sv
+arbiter_priority_encoder.sv ../../../rtl/common/arbiter_priority_encoder.sv
+formal_arbiter_rr.sv
+includes/reset_defs.svh ../../../rtl/amba/includes/reset_defs.svh

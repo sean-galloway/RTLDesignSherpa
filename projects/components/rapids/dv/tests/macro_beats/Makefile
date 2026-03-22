@@ -163,9 +163,11 @@ help:
 	@echo "  make run-all-gate               Run all tests at GATE level"
 	@echo "  make run-all-gate-waves         Run all tests at GATE level with waveforms"
 	@echo "  make run-all-gate-parallel      Run all tests at GATE level in parallel"
+	@echo "  make run-all-gate-parallel-waves Run all tests at GATE level parallel + waves"
 	@echo "  make run-all-func               Run all tests at FUNC level"
 	@echo "  make run-all-func-waves         Run all tests at FUNC level with waveforms"
 	@echo "  make run-all-func-parallel      Run all tests at FUNC level in parallel"
+	@echo "  make run-all-func-parallel-waves Run all tests at FUNC level parallel + waves"
 	@echo "  make run-all-full               Run all tests at FULL level"
 	@echo "  make run-all-full-waves         Run all tests at FULL level with waveforms"
 	@echo "  make run-all-full-parallel      Run all tests at FULL level in parallel"
@@ -735,6 +737,11 @@ run-all-gate-parallel:
 	@echo "Running all tests at GATE level in parallel..."
 	TEST_LEVEL=GATE $(PYTEST) $(ALL_TESTS) $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE) $(PYTEST_XDIST) $(PYTEST_RERUNS)
 
+.PHONY: run-all-gate-parallel-waves
+run-all-gate-parallel-waves:
+	@echo "Running all tests at GATE level in parallel with waveforms..."
+	WAVES=1 TEST_LEVEL=GATE $(PYTEST) $(ALL_TESTS) $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE) $(PYTEST_XDIST) $(PYTEST_RERUNS)
+
 # FUNC level
 .PHONY: run-all-func
 run-all-func:
@@ -750,6 +757,11 @@ run-all-func-waves:
 run-all-func-parallel:
 	@echo "Running all tests at FUNC level in parallel..."
 	TEST_LEVEL=FUNC $(PYTEST) $(ALL_TESTS) $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE) $(PYTEST_XDIST) $(PYTEST_RERUNS)
+
+.PHONY: run-all-func-parallel-waves
+run-all-func-parallel-waves:
+	@echo "Running all tests at FUNC level in parallel with waveforms..."
+	WAVES=1 TEST_LEVEL=FUNC $(PYTEST) $(ALL_TESTS) $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE) $(PYTEST_XDIST) $(PYTEST_RERUNS)
 
 # FULL level
 .PHONY: run-all-full
@@ -815,6 +827,34 @@ collect-snk-sram:
 collect-src-sram:
 	@echo "Collecting src_sram_controller tests..."
 	$(PYTEST) test_src_sram_controller_beats.py --collect-only
+
+# ==============================================================================
+# Alias Targets (for parent Makefile compatibility)
+# ==============================================================================
+# The parent rapids/dv/tests/Makefile calls: run, run-parallel, run-waves,
+# run-gate, run-func, run-full. These aliases map to the full target names.
+
+.PHONY: run
+run: run-all
+
+.PHONY: run-parallel
+run-parallel: run-all-gate-parallel
+
+.PHONY: run-waves
+run-waves: run-all-gate-waves
+
+.PHONY: run-gate
+run-gate: run-all-gate
+
+.PHONY: run-func
+run-func: run-all-func
+
+.PHONY: run-full
+run-full: run-all-full
+
+# ==============================================================================
+# Clean Targets
+# ==============================================================================
 
 .PHONY: clean
 clean:

@@ -1,0 +1,22 @@
+[tasks]
+prove
+cover
+
+[options]
+prove: mode bmc
+prove: depth 2
+cover: mode cover
+cover: depth 2
+
+[engines]
+prove: smtbmc z3
+cover: smtbmc z3
+
+[script]
+read -formal -sv axi_gen_addr.sv
+read -formal -sv formal_axi_gen_addr.sv
+prep -top formal_axi_gen_addr
+
+[files]
+axi_gen_addr.sv ../../../rtl/amba/shared/axi_gen_addr.sv
+formal_axi_gen_addr.sv

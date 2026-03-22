@@ -1,0 +1,24 @@
+[tasks]
+prove
+cover
+
+[options]
+prove: mode bmc
+prove: depth 2
+cover: mode cover
+cover: depth 5
+
+[engines]
+prove: smtbmc z3
+cover: smtbmc z3
+
+[script]
+read -formal -sv bin2gray.sv
+read -formal -sv gray2bin.sv
+read -formal -sv formal_gray2bin.sv
+prep -top formal_gray2bin
+
+[files]
+bin2gray.sv ../../../rtl/common/bin2gray.sv
+gray2bin.sv ../../../rtl/common/gray2bin.sv
+formal_gray2bin.sv

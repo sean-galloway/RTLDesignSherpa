@@ -20,14 +20,100 @@ import sys
 import argparse
 import yaml
 import glob
+import xml.etree.ElementTree as ET
 from pathlib import Path
 from datetime import datetime
+
+
+# Cache parsed JUnit XML results per directory to avoid re-parsing
+_junit_cache = {}
 
 
 def load_testplan(filepath):
     """Load a testplan YAML file."""
     with open(filepath, 'r') as f:
         return yaml.safe_load(f)
+
+
+def _parse_junit_xml(xml_path):
+    """
+    Parse a JUnit XML file and return a dict mapping test_name -> status.
+
+    Handles both pytest-style and standard JUnit XML formats.
+    Status values: 'passed', 'failed', 'skipped', 'error'
+
+    JUnit XML structure:
+      <testsuites>
+        <testsuite>
+          <testcase name="test_name" classname="...">
+            <!-- no children = passed -->
+            <failure .../>    <!-- failed -->
+            <skipped .../>    <!-- skipped -->
+            <error .../>      <!-- error -->
+          </testcase>
+        </testsuite>
+      </testsuites>
+    """
+    results = {}
+    try:
+        tree = ET.parse(xml_path)
+        root = tree.getroot()
+
+        # Handle both <testsuites> wrapper and direct <testsuite>
+        if root.tag == 'testsuites':
+            testsuites = root.findall('testsuite')
+        elif root.tag == 'testsuite':
+            testsuites = [root]
+        else:
+            return results
+
+        for testsuite in testsuites:
+            for testcase in testsuite.findall('testcase'):
+                name = testcase.get('name', '')
+                classname = testcase.get('classname', '')
+
+                # Determine status from child elements
+                if testcase.find('failure') is not None:
+                    status = 'failed'
+                elif testcase.find('error') is not None:
+                    status = 'error'
+                elif testcase.find('skipped') is not None:
+                    status = 'skipped'
+                else:
+                    status = 'passed'
+
+                # Store by test name (bare name)
+                results[name] = status
+
+                # Also store by classname.name for more specific matching
+                if classname:
+                    results[f"{classname}.{name}"] = status
+
+    except (ET.ParseError, OSError) as e:
+        print(f"Warning: Failed to parse {xml_path}: {e}", file=sys.stderr)
+
+    return results
+
+
+def _get_junit_results(test_results_dir):
+    """
+    Get cached JUnit XML results for a directory.
+
+    Parses all *.xml files in the directory on first call, then
+    returns cached results on subsequent calls for the same directory.
+    """
+    test_results_dir = os.path.abspath(test_results_dir)
+    if test_results_dir in _junit_cache:
+        return _junit_cache[test_results_dir]
+
+    combined = {}
+    xml_files = glob.glob(os.path.join(test_results_dir, '*.xml'))
+    for xml_path in xml_files:
+        parsed = _parse_junit_xml(xml_path)
+        combined.update(parsed)
+
+    _junit_cache[test_results_dir] = combined
+    return combined
 
 
 def check_scenario_status(scenario, test_results_dir=None):
@@ -42,8 +128,43 @@ def check_scenario_status(scenario, test_results_dir=None):
     if status in ['verified', 'not_applicable']:
         return status
 
-    # TODO: Auto-check from pytest results XML
-    # For now, trust the manual status in the testplan
+    # Auto-check from pytest JUnit XML results
+    if test_results_dir and os.path.isdir(test_results_dir):
+        test_function = scenario.get('test_function')
+        test_module = scenario.get('test_module')
+
+        if test_function or test_module:
+            results = _get_junit_results(test_results_dir)
+
+            if test_function:
+                # Try exact match on test function name
+                xml_status = results.get(test_function)
+
+                # If no exact match, search for partial match
+                # (handles pytest parametrized names like "test_foo[param1-param2]")
+                if xml_status is None:
+                    for result_name, result_status in results.items():
+                        if result_name == test_function or result_name.startswith(test_function + '['):
+                            xml_status = result_status
+                            break
+
+            elif test_module:
+                # Match any test in the module (classname contains test_module)
+                xml_status = None
+                for result_name, result_status in results.items():
+                    if test_module in result_name:
+                        # If any test in the module failed, consider it not covered
+                        if result_status in ('failed', 'error'):
+                            xml_status = 'failed'
+                            break
+                        elif result_status == 'passed':
+                            xml_status = 'passed'
+
+            if xml_status == 'passed':
+                return 'verified'
+            elif xml_status in ('failed', 'error'):
+                return 'not_tested'
+            # If not found in XML, fall through to manual status
 
     return status
 
@@ -106,7 +227,7 @@ def compute_implied_coverage(testplan, test_results_dir=None):
     }
 
 
-def generate_report(testplans, output_format='text'):
+def generate_report(testplans, output_format='text', test_results_dir=None):
     """Generate coverage report for multiple testplans."""
     results = []
 
@@ -114,7 +235,7 @@ def generate_report(testplans, output_format='text'):
         try:
             testplan = load_testplan(tp_path)
             module = testplan.get('module', Path(tp_path).stem)
-            coverage = compute_implied_coverage(testplan)
+            coverage = compute_implied_coverage(testplan, test_results_dir)
             results.append({
                 'module': module,
                 'testplan': tp_path,
@@ -246,7 +367,7 @@ def main():
         sys.exit(1)
 
     if args.report:
-        report = generate_report(testplans, args.format)
+        report = generate_report(testplans, args.format, args.results_dir)
         if args.output:
             with open(args.output, 'w') as f:
                 f.write(report)

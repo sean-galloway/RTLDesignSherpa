@@ -1,0 +1,137 @@
+# ==============================================================================
+# RTL Design Sherpa - Test Environment Configuration
+# ==============================================================================
+#
+# This file defines all test environments for unified Makefile target generation
+# and test result aggregation.
+#
+# Consumers:
+#   bin/generate_test_targets.py  - Generates test_targets.mk for root Makefile
+#   bin/aggregate_test_results.py - Runs tests and collects JUnit XML results
+#
+# Regenerate Makefile targets after editing:
+#   python3 bin/generate_test_targets.py
+#
+# Generated targets per environment:
+#   make test-{name}                    FUNC, parallel (default)
+#   make test-{name}-gate               GATE, parallel
+#   make test-{name}-func               FUNC, parallel
+#   make test-{name}-full               FULL, parallel
+#   make test-{name}-gate-waves         GATE, parallel, WAVES=1
+#   make test-{name}-func-waves         FUNC, parallel, WAVES=1
+#   make test-{name}-full-waves         FULL, parallel, WAVES=1
+#   make test-{name}-gate-serial        GATE, serial
+#   make test-{name}-func-serial        FUNC, serial
+#   make test-{name}-full-serial        FULL, serial
+#   make coverage-{name}                Coverage run
+#   make coverage-report-{name}         Coverage report only
+#
+# ==============================================================================
+
+# Global defaults — environments inherit these unless overridden.
+[defaults]
+parallel_workers = 48
+reruns = 3
+reruns_delay = 1
+pytest_flags = "-v --tb=short"
+reg_level_var = "REG_LEVEL"          # env var name for test depth
+coverage_workers = 24                 # reduced workers during coverage
+coverage_reruns = 5
+coverage_reruns_delay = 2
+test_pattern = "test_*.py"
+make_target = "run-all-{level}-parallel"  # default make target for aggregation
+
+# ==============================================================================
+# val/ environments — core RTL validation
+# ==============================================================================
+
+[env.val-common]
+description = "RTL common modules (counters, arbiters, FIFOs, math, etc.)"
+directory = "val/common"
+coverage = true
+
+[env.val-amba]
+description = "AMBA protocol modules (AXI4, APB, AXIS monitors)"
+directory = "val/amba"
+coverage = true
+
+[env.val-integ-common]
+description = "Integration tests for common modules"
+directory = "val/integ_common"
+coverage = true
+
+[env.val-integ-amba]
+description = "Integration tests for AMBA modules"
+directory = "val/integ_amba"
+coverage = true
+
+# ==============================================================================
+# projects/components/ environments
+# ==============================================================================
+
+# --- STREAM ---
+# Root Makefile delegates to fub/, macro/, top/ sub-areas.
+# sub_areas lists each sub-directory for per-sub-area aggregation results.
+[env.stream]
+description = "STREAM scatter-gather DMA engine"
+directory = "projects/components/stream/dv/tests"
+reg_level_var = "TEST_LEVEL"
+# STREAM uses lowercase gate/func/full for TEST_LEVEL
+reg_level_values = { gate = "gate", func = "func", full = "full" }
+coverage = true
+coverage_extra_env = { COVERAGE_LEGAL = "1", SIM = "verilator", WAVES = "0" }
+# STREAM has its own fresh-coverage target that handles fub/macro/top
+coverage_target = "fresh-coverage"
+coverage_report_target = "coverage-report"
+sub_areas = ["fub", "macro", "top"]
+
+# --- RAPIDS ---
+# Root Makefile delegates to fub/, fub_beats/, macro/, macro_beats/, macro_beats_tests/.
+[env.rapids]
+description = "RAPIDS descriptor-driven accelerator"
+directory = "projects/components/rapids/dv/tests"
+coverage = true
+coverage_extra_env = { COVERAGE_LEGAL = "1" }
+coverage_target = "coverage-full-report"
+coverage_report_target = "coverage-report"
+sub_areas = ["fub", "fub_beats", "macro", "macro_beats", "macro_beats_tests"]
+
+# --- Bridge ---
+[env.bridge]
+description = "AXI4 crossbar bridge (sequential only — ~1GB per test)"
+directory = "projects/components/bridge/dv/tests"
+parallel_workers = 0                  # 0 = serial only (memory safety)
+reruns = 0
+coverage = true
+coverage_target = "fresh-coverage"
+coverage_report_target = "coverage-report"
+
+# --- Converters ---
+[env.converters]
+description = "Data width and protocol converters"
+directory = "projects/components/converters/dv/tests"
+reruns = 0
+coverage = true
+coverage_target = "fresh-coverage"
+coverage_report_target = "coverage-report"
+
+# --- APB Crossbar ---
+[env.apb-xbar]
+description = "APB crossbar"
+directory = "projects/components/apb_xbar/dv/tests"
+coverage = true
+
+# --- Retro Legacy Blocks ---
+[env.retro-legacy]
+description = "Retro legacy blocks"
+directory = "projects/components/retro_legacy_blocks/dv/tests"
+reruns = 0
+coverage = false
+
+# --- Timing Characterization ---
+# No root Makefile; only fub/ and top/ sub-areas.
+[env.timing-char]
+description = "Timing characterization"
+directory = "projects/components/timing_characterization/dv/tests"
+coverage = false
+sub_areas = ["fub", "top"]

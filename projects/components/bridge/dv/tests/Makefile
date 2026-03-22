@@ -247,6 +247,37 @@ run-all-parallel-waves:
 	@echo "Running ALL bridge tests in parallel with waveforms..."
 	WAVES=1 $(PYTEST) $(ALL_TESTS) $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE) $(PYTEST_XDIST) $(PYTEST_RERUNS)
 
+# ==============================================================================
+# Coverage Targets
+# ==============================================================================
+
+COVERAGE_DIR = coverage_data
+
+.PHONY: run-coverage
+run-coverage:
+	@echo "Running bridge tests with coverage (sequential for safety)..."
+	COVERAGE=1 $(PYTEST) $(ALL_TESTS) $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE)
+
+.PHONY: run-coverage-func
+run-coverage-func:
+	@echo "Running bridge tests with coverage (FUNC level)..."
+	COVERAGE=1 REG_LEVEL=FUNC $(PYTEST) $(ALL_TESTS) $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE)
+
+.PHONY: coverage-report
+coverage-report:
+	@echo "Generating bridge coverage report..."
+	python3 $(REPO_ROOT)/bin/cov_utils/generate_coverage_report.py --component bridge
+
+.PHONY: fresh-coverage
+fresh-coverage: clean-coverage run-coverage coverage-report
+	@echo "Fresh bridge coverage complete"
+
+.PHONY: clean-coverage
+clean-coverage:
+	@echo "Cleaning bridge coverage artifacts..."
+	rm -rf $(COVERAGE_DIR) coverage_html
+	@echo "Coverage artifacts cleaned"
+
 # Legacy aliases for backward compatibility
 .PHONY: run run-waves run-parallel run-parallel-waves
 run: run-all
@@ -307,7 +338,7 @@ clean:
 .PHONY: clean-all
 clean-all: clean
 	@echo "Cleaning all test artifacts..."
-	rm -rf logs local_sim_build sim_build sim_build_*
+	rm -rf logs local_sim_build sim_build sim_build_* coverage_data
 	find . -name "*.vcd" -delete
 	find . -name "*.fst" -delete
 	find . -name "*.log" -delete

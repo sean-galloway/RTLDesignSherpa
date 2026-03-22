@@ -177,6 +177,63 @@ run-full-waves:
 	WAVES=1 REG_LEVEL=FULL $(PYTEST) test_*.py $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE)
 
 # ==============================================================================
+# Standardized run-all-* Targets
+# ==============================================================================
+# Standard naming: run-all-{gate|func|full}[-parallel][-waves]
+# These alias the existing run-* targets for cross-area consistency.
+
+.PHONY: run-all
+run-all: run-gate
+
+.PHONY: run-all-gate
+run-all-gate: run-gate
+
+.PHONY: run-all-gate-waves
+run-all-gate-waves: run-gate-waves
+
+.PHONY: run-all-gate-parallel
+run-all-gate-parallel:
+	@echo "Running RAPIDS FUB tests at GATE level in parallel..."
+	REG_LEVEL=GATE $(PYTEST) test_*.py $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE) $(PYTEST_XDIST) $(PYTEST_RERUNS)
+
+.PHONY: run-all-gate-parallel-waves
+run-all-gate-parallel-waves:
+	@echo "Running RAPIDS FUB tests at GATE level in parallel with waveforms..."
+	WAVES=1 REG_LEVEL=GATE $(PYTEST) test_*.py $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE) $(PYTEST_XDIST) $(PYTEST_RERUNS)
+
+.PHONY: run-all-func
+run-all-func: run-func
+
+.PHONY: run-all-func-waves
+run-all-func-waves: run-func-waves
+
+.PHONY: run-all-func-parallel
+run-all-func-parallel:
+	@echo "Running RAPIDS FUB tests at FUNC level in parallel..."
+	REG_LEVEL=FUNC $(PYTEST) test_*.py $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE) $(PYTEST_XDIST) $(PYTEST_RERUNS)
+
+.PHONY: run-all-func-parallel-waves
+run-all-func-parallel-waves:
+	@echo "Running RAPIDS FUB tests at FUNC level in parallel with waveforms..."
+	WAVES=1 REG_LEVEL=FUNC $(PYTEST) test_*.py $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE) $(PYTEST_XDIST) $(PYTEST_RERUNS)
+
+.PHONY: run-all-full
+run-all-full: run-full
+
+.PHONY: run-all-full-waves
+run-all-full-waves: run-full-waves
+
+.PHONY: run-all-full-parallel
+run-all-full-parallel:
+	@echo "Running RAPIDS FUB tests at FULL level in parallel..."
+	REG_LEVEL=FULL $(PYTEST) test_*.py $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE) $(PYTEST_XDIST) $(PYTEST_RERUNS)
+
+.PHONY: run-all-full-parallel-waves
+run-all-full-parallel-waves:
+	@echo "Running RAPIDS FUB tests at FULL level in parallel with waveforms..."
+	WAVES=1 REG_LEVEL=FULL $(PYTEST) test_*.py $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE) $(PYTEST_XDIST) $(PYTEST_RERUNS)
+
+# ==============================================================================
 # Development Targets
 # ==============================================================================
 

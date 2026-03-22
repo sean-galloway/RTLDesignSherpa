@@ -463,6 +463,57 @@ run-full-parallel-waves:
 	fi
 
 # ==============================================================================
+# Standardized Aggregation Targets (used by bin/aggregate_test_results.py)
+# ==============================================================================
+
+.PHONY: run-all-gate-parallel run-all-gate-parallel-waves \
+        run-all-func-parallel run-all-func-parallel-waves \
+        run-all-full-parallel run-all-full-parallel-waves \
+        run-all-gate run-all-gate-waves \
+        run-all-func run-all-func-waves \
+        run-all-full run-all-full-waves \
+        run-all-gate-serial run-all-func-serial run-all-full-serial
+
+run-all-gate-parallel:
+	@echo "Running all tests at GATE level in parallel..."
+	@if ls test_*.py 1> /dev/null 2>&1; then \
+		SIM=$(SIM) TEST_LEVEL=gate $(PYTEST) test_*.py $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE) $(PYTEST_XDIST) $(PYTEST_RERUNS); \
+	else \
+		echo "No test files found."; \
+	fi
+
+run-all-gate-parallel-waves:
+	@echo "Running all tests at GATE level in parallel with waveforms..."
+	@if ls test_*.py 1> /dev/null 2>&1; then \
+		SIM=$(SIM) WAVES=1 TEST_LEVEL=gate $(PYTEST) test_*.py $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE) $(PYTEST_XDIST) $(PYTEST_RERUNS); \
+	else \
+		echo "No test files found."; \
+	fi
+
+run-all-func-parallel: run-parallel
+
+run-all-func-parallel-waves:
+	@echo "Running all tests at FUNC level in parallel with waveforms..."
+	@if ls test_*.py 1> /dev/null 2>&1; then \
+		SIM=$(SIM) WAVES=1 TEST_LEVEL=func $(PYTEST) test_*.py $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE) $(PYTEST_XDIST) $(PYTEST_RERUNS); \
+	else \
+		echo "No test files found."; \
+	fi
+
+run-all-full-parallel: run-full-parallel
+run-all-full-parallel-waves: run-full-parallel-waves
+
+run-all-gate: run-gate
+run-all-gate-waves: run-gate-waves
+run-all-func: run-func
+run-all-func-waves: run-func-waves
+run-all-full: run-full
+run-all-full-waves: run-full-waves
+run-all-gate-serial: run-gate
+run-all-func-serial: run-func
+run-all-full-serial: run-full
+
+# ==============================================================================
 # Coverage Targets (Verilator)
 # ==============================================================================
 

@@ -129,6 +129,34 @@ run-lfsr:
 	$(PYTEST) test_char_top.py::test_char_top_lfsr_seed $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE)
 
 # ==============================================================================
+# Standardized Aggregation Targets (used by bin/aggregate_test_results.py)
+# ==============================================================================
+
+.PHONY: run-all-gate-parallel run-all-gate-parallel-waves \
+        run-all-func-parallel run-all-func-parallel-waves \
+        run-all-full-parallel run-all-full-parallel-waves \
+        run-all-gate run-all-gate-waves \
+        run-all-func run-all-func-waves \
+        run-all-full run-all-full-waves \
+        run-all-gate-serial run-all-func-serial run-all-full-serial
+
+run-all-gate-parallel: run-parallel
+run-all-gate-parallel-waves: run-parallel-waves
+run-all-func-parallel: run-parallel
+run-all-func-parallel-waves: run-parallel-waves
+run-all-full-parallel: run-parallel
+run-all-full-parallel-waves: run-parallel-waves
+run-all-gate: run
+run-all-gate-waves: run-waves
+run-all-func: run
+run-all-func-waves: run-waves
+run-all-full: run
+run-all-full-waves: run-waves
+run-all-gate-serial: run
+run-all-func-serial: run
+run-all-full-serial: run
+
+# ==============================================================================
 # Utility Targets
 # ==============================================================================
 

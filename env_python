@@ -50,6 +50,11 @@ export PYTHONPATH="$REPO_ROOT/projects/components/rapids/dv:$PYTHONPATH"
 export PYTHONPATH="$REPO_ROOT/projects/components/retro_legacy_blocks/dv:$PYTHONPATH"
 export PYTHONPATH="$REPO_ROOT/projects/components/stream/dv:$PYTHONPATH"
 
+# OSS CAD Suite (yosys 0.62+, SymbiYosys, solvers) — formal verification
+if [ -d "/mnt/data/tools/oss-cad-suite/bin" ]; then
+    export PATH="/mnt/data/tools/oss-cad-suite/bin:$PATH"
+fi
+
 # Set default simulation tool
 export SIM=verilator
 

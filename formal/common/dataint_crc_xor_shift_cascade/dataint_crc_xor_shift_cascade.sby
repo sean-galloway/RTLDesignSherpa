@@ -1,0 +1,24 @@
+[tasks]
+prove
+cover
+
+[options]
+prove: mode bmc
+prove: depth 2
+cover: mode cover
+cover: depth 2
+
+[engines]
+prove: smtbmc z3
+cover: smtbmc z3
+
+[script]
+read -formal -sv dataint_crc_xor_shift.sv
+read -formal -sv dataint_crc_xor_shift_cascade.sv
+read -formal -sv formal_crc_cascade.sv
+prep -top formal_crc_cascade
+
+[files]
+dataint_crc_xor_shift.sv ../../../rtl/common/dataint_crc_xor_shift.sv
+dataint_crc_xor_shift_cascade.sv ../../../rtl/common/dataint_crc_xor_shift_cascade.sv
+formal_crc_cascade.sv

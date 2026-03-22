@@ -94,6 +94,47 @@ run-all-parallel:
 	@echo "================================================================================"
 	$(PYTEST) $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE) $(PYTEST_XDIST) test_*.py
 
+# ==============================================================================
+# Standardized REG_LEVEL Targets (aliases for cross-area consistency)
+# ==============================================================================
+# integ_amba tests do not use REG_LEVEL or WAVES, so these are aliases.
+
+.PHONY: run-all-gate
+run-all-gate: run-all
+
+.PHONY: run-all-gate-waves
+run-all-gate-waves: run-all
+
+.PHONY: run-all-gate-parallel
+run-all-gate-parallel: run-all-parallel
+
+.PHONY: run-all-gate-parallel-waves
+run-all-gate-parallel-waves: run-all-parallel
+
+.PHONY: run-all-func
+run-all-func: run-all
+
+.PHONY: run-all-func-waves
+run-all-func-waves: run-all
+
+.PHONY: run-all-func-parallel
+run-all-func-parallel: run-all-parallel
+
+.PHONY: run-all-func-parallel-waves
+run-all-func-parallel-waves: run-all-parallel
+
+.PHONY: run-all-full
+run-all-full: run-all
+
+.PHONY: run-all-full-waves
+run-all-full-waves: run-all
+
+.PHONY: run-all-full-parallel
+run-all-full-parallel: run-all-parallel
+
+.PHONY: run-all-full-parallel-waves
+run-all-full-parallel-waves: run-all-parallel
+
 .PHONY: run-gaxi
 run-gaxi:
 	@echo "Running GAXI buffer integration tests..."

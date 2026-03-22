@@ -1,0 +1,470 @@
+# =============================================================================
+# Coverage Waivers - Per-Exclusion Rationale
+# =============================================================================
+#
+# This file tracks structured rationale for all coverage exclusions in the
+# RTLDesignSherpa repository. Each waiver documents why specific code is
+# excluded from coverage calculations, who reviewed the exclusion, and
+# its current status.
+#
+# Companion file: coverage_exclusions.txt (glob patterns for verilator_coverage)
+# Guidelines:     /rtl_coverage_guidelines.md
+#
+# -----------------------------------------------------------------------------
+# Review Checklist (apply before adding or renewing any waiver):
+# -----------------------------------------------------------------------------
+#   1. Is the exclusion truly unreachable, or just untested?
+#   2. Can a test be written to cover this path instead of waiving it?
+#   3. Is the exclusion due to a design issue that should be fixed?
+#   4. Has the exclusion been reviewed by someone other than the author?
+#   5. Is the reason documented clearly for future maintainers?
+#   6. Does this waiver have an expiration date or review trigger?
+#   7. Are there open tasks that might make this waiver obsolete?
+# =============================================================================
+
+metadata:
+  version: "1.0"
+  last_updated: "2025-01-15"
+  description: >
+    Per-exclusion rationale for RTL coverage waivers. Each entry documents
+    why specific code or modules are excluded from coverage calculations,
+    the review status, and the category of exclusion. This file is the
+    single source of truth for all coverage waiver justifications.
+  maintainer: "sean galloway"
+  coverage_targets:
+    line: 95
+    branch: 90
+    toggle: 85
+    fsm_states: 100
+    fsm_transitions: 100
+  categories:
+    - building_blocks      # Verified elsewhere with high implied coverage
+    - defensive_code       # Unreachable defensive default cases in FSMs
+    - parameter_dead_code  # Code unreachable due to parameter configuration
+    - debug_only           # Assertion/debug/simulation-only logic
+    - vendor_specific      # Vendor-specific primitives and attributes
+  statuses:
+    - active               # Currently in effect
+    - expired              # No longer applicable (kept for audit trail)
+    - pending_review       # Needs re-review before next milestone
+
+# =============================================================================
+# Category: building_blocks
+# =============================================================================
+# These modules are verified independently in val/common/ with high implied
+# coverage. When instantiated in higher-level tests (projects/components/*),
+# re-measuring their coverage dilutes the DUT-specific coverage numbers.
+# Excluding them ensures that projects/components/* coverage reflects the
+# design-under-test rather than reusable building blocks.
+# =============================================================================
+
+waivers:
+
+  # ---------------------------------------------------------------------------
+  # Building Blocks - All rtl/common/ modules
+  # ---------------------------------------------------------------------------
+
+  - id: BB-001
+    pattern: "rtl/common/*.sv"
+    type: all
+    category: building_blocks
+    reason: >
+      All rtl/common/ modules are independently verified in val/common/
+      with dedicated test suites targeting 95%+ line coverage. Excluding
+      them from projects/components/* coverage calculations prevents
+      double-counting and ensures higher-level coverage numbers reflect
+      only the design-under-test.
+    reviewer: "sean galloway"
+    date: "2025-01-15"
+    status: active
+    verified_by_tests: "val/common/"
+    reference: "bin/cov_utils/calc_coverage_excluding_building_blocks.py"
+
+  - id: BB-002
+    pattern: "rtl/common/counter_*.sv"
+    type: all
+    category: building_blocks
+    reason: >
+      Counter modules (counter_bin, counter_load_clear, counter_freq_invariant,
+      etc.) are verified in val/common/ with parameterized test sweeps. They
+      are frequently instantiated in higher-level designs as utility components
+      and should not inflate or deflate DUT coverage.
+    reviewer: "sean galloway"
+    date: "2025-01-15"
+    status: active
+    verified_by_tests: "val/common/test_counter_*.py"
+
+  - id: BB-003
+    pattern: "rtl/common/arbiter_*.sv"
+    type: all
+    category: building_blocks
+    reason: >
+      Arbiter modules (arbiter_round_robin, arbiter_round_robin_weighted, etc.)
+      are verified in val/common/ with multi-requester test scenarios and
+      fairness checks. Excluding from higher-level tests avoids coverage
+      dilution in bridge and crossbar integration tests.
+    reviewer: "sean galloway"
+    date: "2025-01-15"
+    status: active
+    verified_by_tests: "val/common/test_arbiter_*.py"
+
+  - id: BB-004
+    pattern: "rtl/common/fifo_*.sv"
+    type: all
+    category: building_blocks
+    reason: >
+      FIFO modules are verified in val/common/ with fill/drain, concurrent
+      read-write, and edge-case tests. They appear as sub-components in
+      most datapath designs and are well-covered by their own test suite.
+    reviewer: "sean galloway"
+    date: "2025-01-15"
+    status: active
+    verified_by_tests: "val/common/test_fifo_*.py"
+
+  - id: BB-005
+    pattern: "rtl/common/encoder*.sv"
+    type: all
+    category: building_blocks
+    reason: >
+      Encoder and priority encoder modules are combinational logic verified
+      exhaustively in val/common/. No benefit to re-measuring in higher-level
+      integration tests.
+    reviewer: "sean galloway"
+    date: "2025-01-15"
+    status: active
+    verified_by_tests: "val/common/test_encoder*.py"
+
+  - id: BB-006
+    pattern: "rtl/common/decoder*.sv"
+    type: all
+    category: building_blocks
+    reason: >
+      Decoder modules are combinational logic verified exhaustively in
+      val/common/. Excluding from higher-level coverage avoids noise in
+      address decode path coverage.
+    reviewer: "sean galloway"
+    date: "2025-01-15"
+    status: active
+    verified_by_tests: "val/common/test_decoder*.py"
+
+  - id: BB-007
+    pattern: "rtl/common/math_*.sv"
+    type: all
+    category: building_blocks
+    reason: >
+      Math utility modules (math_adder_*, math_multiplier_*, etc.) are
+      verified in val/common/ with boundary value analysis and operand
+      sweeps. These are leaf-level components with no state.
+    reviewer: "sean galloway"
+    date: "2025-01-15"
+    status: active
+    verified_by_tests: "val/common/test_math_*.py"
+
+  - id: BB-008
+    pattern: "rtl/common/clock_*.sv"
+    type: all
+    category: building_blocks
+    reason: >
+      Clock utility modules (clock_divider, clock_gate_ctrl, clock_pulse)
+      are verified in val/common/ with timing-sensitive tests. These are
+      infrastructure components that should not be re-measured in design
+      tests.
+    reviewer: "sean galloway"
+    date: "2025-01-15"
+    status: active
+    verified_by_tests: "val/common/test_clock_*.py"
+
+  - id: BB-009
+    pattern: "rtl/common/dataint_*.sv"
+    type: all
+    category: building_blocks
+    reason: >
+      Data integrity modules (dataint_crc, dataint_ecc_*, dataint_parity)
+      are verified in val/common/ with known-answer tests and error
+      injection. Algorithmic correctness is the primary concern, verified
+      at the unit level.
+    reviewer: "sean galloway"
+    date: "2025-01-15"
+    status: active
+    verified_by_tests: "val/common/test_dataint_*.py"
+
+  - id: BB-010
+    pattern: "rtl/common/shifter_*.sv"
+    type: all
+    category: building_blocks
+    reason: >
+      Shifter modules are combinational/sequential building blocks verified
+      in val/common/ with direction and width parameter sweeps.
+    reviewer: "sean galloway"
+    date: "2025-01-15"
+    status: active
+    verified_by_tests: "val/common/test_shifter_*.py"
+
+  # ---------------------------------------------------------------------------
+  # Defensive Code - Unreachable FSM default cases
+  # ---------------------------------------------------------------------------
+  # These waivers cover defensive default cases in FSM case statements.
+  # All legal states are explicitly enumerated, making the default branch
+  # unreachable under correct operation. The default exists as synthesis
+  # guard against state corruption (e.g., from SEU in radiation environments
+  # or uninitialized state in FPGA).
+  # ---------------------------------------------------------------------------
+
+  - id: DC-001
+    pattern: "rtl/amba/shared/axi_monitor_base.sv"
+    lines: "142-148"
+    type: branch
+    category: defensive_code
+    reason: >
+      Default case in monitor FSM is unreachable. All valid states
+      (IDLE, ADDR_PHASE, DATA_PHASE, RESP_PHASE) are explicitly
+      enumerated. The default branch recovers to IDLE as a synthesis
+      safety net against state register corruption. Cannot be tested
+      without injecting bit-flips into the state register.
+    reviewer: "sean galloway"
+    date: "2025-01-15"
+    status: active
+    pragma: "/* verilator coverage_off */ ... /* verilator coverage_on */"
+    design_justification: >
+      Industry best practice for synthesizable FSMs. Ensures recovery
+      from illegal states without requiring explicit error injection
+      infrastructure in the RTL.
+
+  - id: DC-002
+    pattern: "rtl/common/arbiter_round_robin.sv"
+    lines: "default case in grant FSM"
+    type: branch
+    category: defensive_code
+    reason: >
+      Default case in round-robin grant state machine. All grant states
+      are enumerated based on NUM_REQUESTERS parameter. The default
+      branch resets to grant[0] as a safety recovery. Unreachable
+      under correct operation.
+    reviewer: "sean galloway"
+    date: "2025-01-15"
+    status: active
+    pragma: "/* verilator coverage_off */ ... /* verilator coverage_on */"
+
+  - id: DC-003
+    pattern: "rtl/rapids/rapids_fub/scheduler.sv"
+    lines: "default case in scheduler FSM"
+    type: branch
+    category: defensive_code
+    reason: >
+      Default case in scheduler FSM covering states IDLE, FETCH,
+      DISPATCH, WAIT_COMPLETE, DONE. The default recovers to IDLE.
+      All legal transitions are covered by existing test levels
+      (basic, medium, full). Default is unreachable without
+      external state corruption.
+    reviewer: "sean galloway"
+    date: "2025-01-15"
+    status: active
+    pragma: "/* verilator coverage_off */ ... /* verilator coverage_on */"
+
+  # ---------------------------------------------------------------------------
+  # Parameter-Dependent Dead Code
+  # ---------------------------------------------------------------------------
+  # These waivers cover code that is structurally unreachable for a given
+  # parameter configuration. The code exists to support other configurations
+  # but cannot be exercised with the parameters used in the current test.
+  # ---------------------------------------------------------------------------
+
+  - id: PD-001
+    pattern: "rtl/common/fifo_sync.sv"
+    lines: "generate block for DEPTH < 16"
+    type: line
+    category: parameter_dead_code
+    reason: >
+      When FIFO is instantiated with DEPTH >= 16, the generate branch
+      for shallow FIFO optimization (DEPTH < 16) is not elaborated.
+      The shallow path uses shift-register implementation while the
+      deep path uses RAM. Only one branch is active per instantiation.
+      Both paths are covered across the full val/common/ test parameter
+      sweep.
+    reviewer: "sean galloway"
+    date: "2025-01-15"
+    status: active
+    pragma: "/* verilator coverage_off */ ... /* verilator coverage_on */"
+    note: >
+      This is inherent to parameterized RTL. Each configuration tests
+      one generate branch. Full coverage requires merging coverage data
+      from multiple parameter configurations.
+
+  - id: PD-002
+    pattern: "rtl/amba/axi4/axi4_dwidth_converter_*.sv"
+    lines: "generate block for upsize vs downsize paths"
+    type: line
+    category: parameter_dead_code
+    reason: >
+      Width converter has mutually exclusive generate blocks for
+      upsizing (M_DATA_WIDTH > S_DATA_WIDTH) and downsizing
+      (M_DATA_WIDTH < S_DATA_WIDTH). Only one path is elaborated
+      per instantiation. Both paths are verified in separate test
+      configurations in val/amba/.
+    reviewer: "sean galloway"
+    date: "2025-01-15"
+    status: active
+    pragma: "/* verilator coverage_off */ ... /* verilator coverage_on */"
+
+  - id: PD-003
+    pattern: "rtl/common/dataint_ecc_hamming.sv"
+    lines: "unused upper parity bits for narrow DATA_WIDTH"
+    type: toggle
+    category: parameter_dead_code
+    reason: >
+      ECC parity bit count is calculated from DATA_WIDTH. When
+      DATA_WIDTH is small (e.g., 8), higher parity bit positions
+      are structurally tied to zero and never toggle. These bits
+      exist in the parameterized logic but have no functional role
+      for the given width.
+    reviewer: "sean galloway"
+    date: "2025-01-15"
+    status: active
+    pragma: "// verilator coverage_off_toggle"
+
+  # ---------------------------------------------------------------------------
+  # Debug-Only Logic
+  # ---------------------------------------------------------------------------
+  # These waivers cover logic that exists solely for simulation debugging
+  # or assertion checking. This code is typically gated behind `ifdef
+  # SIMULATION` or `ifdef DEBUG` and is stripped during synthesis. It does
+  # not contribute to functional coverage of the design.
+  # ---------------------------------------------------------------------------
+
+  - id: DB-001
+    pattern: "rtl/amba/shared/axi_monitor_base.sv"
+    lines: "ifdef SIMULATION assertion block"
+    type: all
+    category: debug_only
+    reason: >
+      Protocol violation assertions guarded by ifdef SIMULATION.
+      These assertions check AXI protocol compliance (e.g., stable
+      signals during handshake, valid ID ranges) but are not part
+      of the synthesizable design. Coverage of assertion logic is
+      not meaningful for RTL verification.
+    reviewer: "sean galloway"
+    date: "2025-01-15"
+    status: active
+    pragma: "/* verilator coverage_off */ ... /* verilator coverage_on */"
+
+  - id: DB-002
+    pattern: "rtl/rapids/rapids_macro/scheduler_group.sv"
+    lines: "debug monitor signals (dbg_*)"
+    type: toggle
+    category: debug_only
+    reason: >
+      Debug monitoring signals (dbg_state, dbg_credit_count,
+      dbg_active_descriptors, etc.) are output ports intended for
+      waveform analysis and post-silicon debug. They mirror internal
+      state and do not affect functional behavior. Toggle coverage
+      on these signals is redundant with the internal signals they
+      shadow.
+    reviewer: "sean galloway"
+    date: "2025-01-15"
+    status: active
+    pragma: "// verilator coverage_off_toggle"
+
+  - id: DB-003
+    pattern: "rtl/amba/axi4/*_mon*.sv"
+    lines: "performance counter and statistics logic"
+    type: line
+    category: debug_only
+    reason: >
+      AXI monitor performance counters (transaction counts, latency
+      accumulators, bandwidth trackers) are observability-only logic.
+      They do not affect protocol behavior. Line coverage of counter
+      increment logic is not meaningful for verifying monitor
+      correctness.
+    reviewer: "sean galloway"
+    date: "2025-01-15"
+    status: active
+    pragma: "/* verilator coverage_off */ ... /* verilator coverage_on */"
+
+  # ---------------------------------------------------------------------------
+  # Vendor-Specific Code
+  # ---------------------------------------------------------------------------
+  # These waivers cover vendor-specific primitives and synthesis attributes
+  # that are only active for specific FPGA targets. In simulation, only one
+  # vendor path (or the generic path) is elaborated.
+  # ---------------------------------------------------------------------------
+
+  - id: VS-001
+    pattern: "rtl/xilinx/*.sv"
+    type: all
+    category: vendor_specific
+    reason: >
+      Xilinx-specific primitives (BUFG, MMCM, BRAM, DSP48E2 wrappers)
+      are not simulated in Verilator. These modules provide FPGA-specific
+      implementations that are replaced by behavioral models in simulation.
+      Coverage is not applicable.
+    reviewer: "sean galloway"
+    date: "2025-01-15"
+    status: active
+    note: >
+      Vendor-specific modules are verified on target hardware during
+      FPGA prototyping. Simulation uses behavioral equivalents from
+      rtl/common/.
+
+  - id: VS-002
+    pattern: "rtl/common/simple_sram.sv"
+    lines: "ifdef XILINX / elsif INTEL attribute blocks"
+    type: line
+    category: vendor_specific
+    reason: >
+      FPGA synthesis attributes (ram_style, ramstyle) are gated behind
+      ifdef XILINX / elsif INTEL preprocessor guards. In Verilator
+      simulation, neither vendor define is active, so these attribute
+      blocks are not elaborated. The underlying memory array is still
+      fully simulated and covered.
+    reviewer: "sean galloway"
+    date: "2025-01-15"
+    status: active
+    pragma: "ifdef XILINX / elsif INTEL guards"
+
+  # ---------------------------------------------------------------------------
+  # Reset-Only Toggle Paths
+  # ---------------------------------------------------------------------------
+  # These waivers cover signals in asynchronous reset paths where toggle
+  # coverage is not meaningful. The reset value is driven once at power-on
+  # or reset assertion, and the functional value is driven during normal
+  # operation. Toggle coverage tools may flag these as missing one direction
+  # of transition (e.g., 1->0 on a reset-to-zero register).
+  # ---------------------------------------------------------------------------
+
+  - id: RT-001
+    pattern: "rtl/amba/shared/axi_monitor_base.sv"
+    lines: "async reset path for state and counter registers"
+    type: toggle
+    category: defensive_code
+    reason: >
+      Asynchronous reset path sets state registers and counters to zero.
+      Toggle coverage flags the reset-to-zero transition as untested for
+      the 1-to-0 direction on signals that initialize to 0. This is
+      inherent to async reset design and not a coverage gap. The reset
+      path is functionally verified by the setup_clocks_and_reset()
+      testbench method.
+    reviewer: "sean galloway"
+    date: "2025-01-15"
+    status: active
+    pragma: "/* verilator coverage_off */ ... /* verilator coverage_on */"
+    note: >
+      All testbenches exercise reset via the mandatory three-method
+      pattern (setup_clocks_and_reset, assert_reset, deassert_reset).
+      The reset path is functionally verified even though toggle
+      coverage is waived.
+
+  - id: RT-002
+    pattern: "rtl/rapids/rapids_fub/descriptor_engine.sv"
+    lines: "reset initialization of descriptor pipeline registers"
+    type: toggle
+    category: defensive_code
+    reason: >
+      Descriptor pipeline registers are reset to zero on aresetn
+      assertion. Wide data registers (256-512 bits) have many bits
+      that only toggle in one direction during reset. Functional
+      toggle coverage is achieved during normal descriptor processing
+      operations; the reset-path toggle direction is not meaningful.
+    reviewer: "sean galloway"
+    date: "2025-01-15"
+    status: active
+    pragma: "/* verilator coverage_off */ ... /* verilator coverage_on */"
