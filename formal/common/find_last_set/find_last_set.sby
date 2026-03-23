@@ -1,0 +1,22 @@
+[tasks]
+prove
+cover
+
+[options]
+prove: mode bmc
+prove: depth 2
+cover: mode cover
+cover: depth 5
+
+[engines]
+prove: smtbmc z3
+cover: smtbmc z3
+
+[script]
+read -formal -sv find_last_set.sv
+read -formal -sv formal_find_last_set.sv
+prep -top formal_find_last_set
+
+[files]
+find_last_set.sv ../../../rtl/common/find_last_set.sv
+formal_find_last_set.sv

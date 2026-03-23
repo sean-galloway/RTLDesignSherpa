@@ -1,0 +1,23 @@
+[tasks]
+prove
+cover
+
+[options]
+prove: mode bmc
+prove: depth 15
+cover: mode cover
+cover: depth 15
+
+[engines]
+prove: smtbmc z3
+cover: smtbmc z3
+
+[script]
+read -formal -sv -Iincludes cam_tag.sv
+read -formal -sv -Iincludes formal_cam_tag.sv
+prep -top formal_cam_tag
+
+[files]
+cam_tag.sv ../../../rtl/common/cam_tag.sv
+formal_cam_tag.sv
+includes/reset_defs.svh ../../../rtl/amba/includes/reset_defs.svh

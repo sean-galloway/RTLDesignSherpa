@@ -1,0 +1,25 @@
+[tasks]
+prove
+cover
+
+[options]
+prove: mode bmc
+prove: depth 20
+cover: mode cover
+cover: depth 20
+
+[engines]
+prove: smtbmc z3
+cover: smtbmc z3
+
+[script]
+read -formal -sv -Iincludes clock_gate_ctrl.sv
+read -formal -sv icg.sv
+read -formal -sv -Iincludes formal_clock_gate_ctrl.sv
+prep -top formal_clock_gate_ctrl
+
+[files]
+clock_gate_ctrl.sv ../../../rtl/common/clock_gate_ctrl.sv
+icg.sv ../../../rtl/common/icg.sv
+formal_clock_gate_ctrl.sv
+includes/reset_defs.svh ../../../rtl/amba/includes/reset_defs.svh
