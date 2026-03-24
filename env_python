@@ -52,7 +52,15 @@ export PYTHONPATH="$REPO_ROOT/projects/components/stream/dv:$PYTHONPATH"
 
 # OSS CAD Suite (yosys 0.62+, SymbiYosys, solvers) — formal verification
 if [ -d "/mnt/data/tools/oss-cad-suite/bin" ]; then
+# sv2v (SystemVerilog to Verilog transpiler) — formal verification preprocessing
+if [ -f "/mnt/data/tools/sv2v" ]; then
+    export PATH="/mnt/data/tools:$PATH"
+fi
     export PATH="/mnt/data/tools/oss-cad-suite/bin:$PATH"
+# sv2v (SystemVerilog to Verilog transpiler) — formal verification preprocessing
+if [ -f "/mnt/data/tools/sv2v" ]; then
+    export PATH="/mnt/data/tools:$PATH"
+fi
 fi
 
 # Set default simulation tool

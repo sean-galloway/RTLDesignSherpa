@@ -1,0 +1,22 @@
+[tasks]
+prove
+cover
+
+[options]
+prove: mode bmc
+prove: depth 25
+cover: mode cover
+cover: depth 40
+
+[engines]
+prove: smtbmc z3
+cover: smtbmc z3
+
+[script]
+read_verilog -formal axi_write_engine_beats_flat.v
+read -formal -sv formal_axi_write_engine_beats.sv
+prep -top formal_axi_write_engine_beats
+
+[files]
+formal_axi_write_engine_beats.sv
+axi_write_engine_beats_flat.v

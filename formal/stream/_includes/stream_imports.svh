@@ -1,0 +1,3 @@
+`ifndef STREAM_FORMAL_IMPORTS
+`define STREAM_FORMAL_IMPORTS
+`endif
