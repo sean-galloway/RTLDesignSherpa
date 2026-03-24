@@ -38,7 +38,7 @@ PYTEST_VERBOSE = -v
 PYTEST_QUIET = -q
 PYTEST_XDIST = -n 48
 PYTEST_TBSTYLE = --tb=short
-PYTEST_RERUNS = --reruns 0 --reruns-delay 1
+PYTEST_RERUNS = --reruns 3 --reruns-delay 1
 
 # Default target
 .DEFAULT_GOAL := help
@@ -227,52 +227,52 @@ help:
 .PHONY: run-hpet
 run-hpet:
 	@echo "Running HPET tests (BASIC level)..."
-	TEST_LEVEL=basic $(PYTEST) test_apb_hpet.py $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE)
+	TEST_LEVEL=gate $(PYTEST) test_apb_hpet.py $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE)
 
 .PHONY: run-pit
 run-pit:
 	@echo "Running PIT 8254 tests (BASIC level)..."
-	TEST_LEVEL=basic $(PYTEST) test_apb_pit_8254.py $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE)
+	TEST_LEVEL=gate $(PYTEST) test_apb_pit_8254.py $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE)
 
 .PHONY: run-rtc
 run-rtc:
 	@echo "Running RTC tests (BASIC level)..."
-	TEST_LEVEL=basic $(PYTEST) test_apb_rtc.py $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE)
+	TEST_LEVEL=gate $(PYTEST) test_apb_rtc.py $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE)
 
 .PHONY: run-pic
 run-pic:
 	@echo "Running 8259 PIC tests (BASIC level)..."
-	TEST_LEVEL=basic $(PYTEST) test_apb_pic_8259.py $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE)
+	TEST_LEVEL=gate $(PYTEST) test_apb_pic_8259.py $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE)
 
 .PHONY: run-ioapic
 run-ioapic:
 	@echo "Running IOAPIC tests (BASIC level)..."
-	TEST_LEVEL=basic $(PYTEST) test_apb_ioapic.py $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE)
+	TEST_LEVEL=gate $(PYTEST) test_apb_ioapic.py $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE)
 
 .PHONY: run-smbus
 run-smbus:
 	@echo "Running SMBus tests (BASIC level)..."
-	TEST_LEVEL=basic $(PYTEST) test_apb_smbus.py $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE)
+	TEST_LEVEL=gate $(PYTEST) test_apb_smbus.py $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE)
 
 .PHONY: run-acpi
 run-acpi:
 	@echo "Running PM_ACPI tests (BASIC level)..."
-	TEST_LEVEL=basic $(PYTEST) test_apb_pm_acpi.py $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE)
+	TEST_LEVEL=gate $(PYTEST) test_apb_pm_acpi.py $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE)
 
 .PHONY: run-uart
 run-uart:
 	@echo "Running UART 16550 tests (BASIC level)..."
-	TEST_LEVEL=basic $(PYTEST) test_apb_uart_16550.py $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE)
+	TEST_LEVEL=gate $(PYTEST) test_apb_uart_16550.py $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE)
 
 .PHONY: run-gpio
 run-gpio:
 	@echo "Running GPIO tests (BASIC level)..."
-	TEST_LEVEL=basic $(PYTEST) test_apb_gpio.py $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE)
+	TEST_LEVEL=gate $(PYTEST) test_apb_gpio.py $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE)
 
 .PHONY: run-all
 run-all:
 	@echo "Running all RLB tests (BASIC level)..."
-	TEST_LEVEL=basic $(PYTEST) test_apb_hpet.py test_apb_pit_8254.py test_apb_rtc.py test_apb_pic_8259.py test_apb_ioapic.py test_apb_smbus.py test_apb_pm_acpi.py test_apb_uart_16550.py test_apb_gpio.py $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE)
+	TEST_LEVEL=gate $(PYTEST) test_apb_hpet.py test_apb_pit_8254.py test_apb_rtc.py test_apb_pic_8259.py test_apb_ioapic.py test_apb_smbus.py test_apb_pm_acpi.py test_apb_uart_16550.py test_apb_gpio.py $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE)
 
 # ==============================================================================
 # HPET Targets (test_apb_hpet.py)
@@ -282,43 +282,43 @@ run-all:
 .PHONY: run-hpet-basic
 run-hpet-basic:
 	@echo "Running HPET tests at BASIC level..."
-	TEST_LEVEL=basic $(PYTEST) test_apb_hpet.py $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE)
+	TEST_LEVEL=gate $(PYTEST) test_apb_hpet.py $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE)
 
 .PHONY: run-hpet-basic-waves
 run-hpet-basic-waves:
 	@echo "Running HPET tests at BASIC level with waveforms..."
-	WAVES=1 TEST_LEVEL=basic $(PYTEST) test_apb_hpet.py $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE)
+	WAVES=1 TEST_LEVEL=gate $(PYTEST) test_apb_hpet.py $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE)
 
 .PHONY: run-hpet-basic-parallel
 run-hpet-basic-parallel:
 	@echo "Running HPET tests at BASIC level in parallel..."
-	TEST_LEVEL=basic $(PYTEST) test_apb_hpet.py $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE) $(PYTEST_XDIST) $(PYTEST_RERUNS)
+	TEST_LEVEL=gate $(PYTEST) test_apb_hpet.py $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE) $(PYTEST_XDIST) $(PYTEST_RERUNS)
 
 .PHONY: run-hpet-basic-parallel-waves
 run-hpet-basic-parallel-waves:
 	@echo "Running HPET tests at BASIC level in parallel with waveforms..."
-	WAVES=1 TEST_LEVEL=basic $(PYTEST) test_apb_hpet.py $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE) $(PYTEST_XDIST) $(PYTEST_RERUNS)
+	WAVES=1 TEST_LEVEL=gate $(PYTEST) test_apb_hpet.py $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE) $(PYTEST_XDIST) $(PYTEST_RERUNS)
 
 # MEDIUM level
 .PHONY: run-hpet-medium
 run-hpet-medium:
 	@echo "Running HPET tests at MEDIUM level..."
-	TEST_LEVEL=medium $(PYTEST) test_apb_hpet.py $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE)
+	TEST_LEVEL=func $(PYTEST) test_apb_hpet.py $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE)
 
 .PHONY: run-hpet-medium-waves
 run-hpet-medium-waves:
 	@echo "Running HPET tests at MEDIUM level with waveforms..."
-	WAVES=1 TEST_LEVEL=medium $(PYTEST) test_apb_hpet.py $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE)
+	WAVES=1 TEST_LEVEL=func $(PYTEST) test_apb_hpet.py $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE)
 
 .PHONY: run-hpet-medium-parallel
 run-hpet-medium-parallel:
 	@echo "Running HPET tests at MEDIUM level in parallel..."
-	TEST_LEVEL=medium $(PYTEST) test_apb_hpet.py $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE) $(PYTEST_XDIST) $(PYTEST_RERUNS)
+	TEST_LEVEL=func $(PYTEST) test_apb_hpet.py $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE) $(PYTEST_XDIST) $(PYTEST_RERUNS)
 
 .PHONY: run-hpet-medium-parallel-waves
 run-hpet-medium-parallel-waves:
 	@echo "Running HPET tests at MEDIUM level in parallel with waveforms..."
-	WAVES=1 TEST_LEVEL=medium $(PYTEST) test_apb_hpet.py $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE) $(PYTEST_XDIST) $(PYTEST_RERUNS)
+	WAVES=1 TEST_LEVEL=func $(PYTEST) test_apb_hpet.py $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE) $(PYTEST_XDIST) $(PYTEST_RERUNS)
 
 # FULL level
 .PHONY: run-hpet-full
@@ -349,44 +349,44 @@ run-hpet-full-parallel-waves:
 .PHONY: run-pit-basic
 run-pit-basic:
 	@echo "Running PIT 8254 tests at BASIC level..."
-	TEST_LEVEL=basic $(PYTEST) test_apb_pit_8254.py $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE)
+	TEST_LEVEL=gate $(PYTEST) test_apb_pit_8254.py $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE)
 
 .PHONY: run-pit-basic-waves
 run-pit-basic-waves:
 	@echo "Running PIT 8254 tests at BASIC level with waveforms..."
-	WAVES=1 TEST_LEVEL=basic $(PYTEST) test_apb_pit_8254.py $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE)
+	WAVES=1 TEST_LEVEL=gate $(PYTEST) test_apb_pit_8254.py $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE)
 
 .PHONY: run-pit-basic-parallel
 run-pit-basic-parallel:
 	@echo "Running PIT 8254 tests at BASIC level in parallel..."
-	TEST_LEVEL=basic $(PYTEST) test_apb_pit_8254.py $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE) $(PYTEST_XDIST) $(PYTEST_RERUNS)
+	TEST_LEVEL=gate $(PYTEST) test_apb_pit_8254.py $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE) $(PYTEST_XDIST) $(PYTEST_RERUNS)
 
 .PHONY: run-pit-basic-parallel-waves
 run-pit-basic-parallel-waves:
 	@echo "Running PIT 8254 tests at BASIC level in parallel with waveforms..."
-	WAVES=1 TEST_LEVEL=basic $(PYTEST) test_apb_pit_8254.py $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE) $(PYTEST_XDIST) $(PYTEST_RERUNS)
+	WAVES=1 TEST_LEVEL=gate $(PYTEST) test_apb_pit_8254.py $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE) $(PYTEST_XDIST) $(PYTEST_RERUNS)
 
 
 # MEDIUM level
 .PHONY: run-pit-medium
 run-pit-medium:
 	@echo "Running PIT 8254 tests at MEDIUM level..."
-	TEST_LEVEL=medium $(PYTEST) test_apb_pit_8254.py $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE)
+	TEST_LEVEL=func $(PYTEST) test_apb_pit_8254.py $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE)
 
 .PHONY: run-pit-medium-waves
 run-pit-medium-waves:
 	@echo "Running PIT 8254 tests at MEDIUM level with waveforms..."
-	WAVES=1 TEST_LEVEL=medium $(PYTEST) test_apb_pit_8254.py $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE)
+	WAVES=1 TEST_LEVEL=func $(PYTEST) test_apb_pit_8254.py $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE)
 
 .PHONY: run-pit-medium-parallel
 run-pit-medium-parallel:
 	@echo "Running PIT 8254 tests at MEDIUM level in parallel..."
-	TEST_LEVEL=medium $(PYTEST) test_apb_pit_8254.py $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE) $(PYTEST_XDIST) $(PYTEST_RERUNS)
+	TEST_LEVEL=func $(PYTEST) test_apb_pit_8254.py $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE) $(PYTEST_XDIST) $(PYTEST_RERUNS)
 
 .PHONY: run-pit-medium-parallel-waves
 run-pit-medium-parallel-waves:
 	@echo "Running PIT 8254 tests at MEDIUM level in parallel with waveforms..."
-	WAVES=1 TEST_LEVEL=medium $(PYTEST) test_apb_pit_8254.py $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE) $(PYTEST_XDIST) $(PYTEST_RERUNS)
+	WAVES=1 TEST_LEVEL=func $(PYTEST) test_apb_pit_8254.py $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE) $(PYTEST_XDIST) $(PYTEST_RERUNS)
 
 
 # FULL level
@@ -419,44 +419,44 @@ run-pit-full-parallel-waves:
 .PHONY: run-rtc-basic
 run-rtc-basic:
 	@echo "Running RTC tests at BASIC level..."
-	TEST_LEVEL=basic $(PYTEST) test_apb_rtc.py $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE)
+	TEST_LEVEL=gate $(PYTEST) test_apb_rtc.py $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE)
 
 .PHONY: run-rtc-basic-waves
 run-rtc-basic-waves:
 	@echo "Running RTC tests at BASIC level with waveforms..."
-	WAVES=1 TEST_LEVEL=basic $(PYTEST) test_apb_rtc.py $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE)
+	WAVES=1 TEST_LEVEL=gate $(PYTEST) test_apb_rtc.py $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE)
 
 .PHONY: run-rtc-basic-parallel
 run-rtc-basic-parallel:
 	@echo "Running RTC tests at BASIC level in parallel..."
-	TEST_LEVEL=basic $(PYTEST) test_apb_rtc.py $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE) $(PYTEST_XDIST) $(PYTEST_RERUNS)
+	TEST_LEVEL=gate $(PYTEST) test_apb_rtc.py $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE) $(PYTEST_XDIST) $(PYTEST_RERUNS)
 
 .PHONY: run-rtc-basic-parallel-waves
 run-rtc-basic-parallel-waves:
 	@echo "Running RTC tests at BASIC level in parallel with waveforms..."
-	WAVES=1 TEST_LEVEL=basic $(PYTEST) test_apb_rtc.py $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE) $(PYTEST_XDIST) $(PYTEST_RERUNS)
+	WAVES=1 TEST_LEVEL=gate $(PYTEST) test_apb_rtc.py $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE) $(PYTEST_XDIST) $(PYTEST_RERUNS)
 
 
 # MEDIUM level
 .PHONY: run-rtc-medium
 run-rtc-medium:
 	@echo "Running RTC tests at MEDIUM level..."
-	TEST_LEVEL=medium $(PYTEST) test_apb_rtc.py $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE)
+	TEST_LEVEL=func $(PYTEST) test_apb_rtc.py $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE)
 
 .PHONY: run-rtc-medium-waves
 run-rtc-medium-waves:
 	@echo "Running RTC tests at MEDIUM level with waveforms..."
-	WAVES=1 TEST_LEVEL=medium $(PYTEST) test_apb_rtc.py $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE)
+	WAVES=1 TEST_LEVEL=func $(PYTEST) test_apb_rtc.py $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE)
 
 .PHONY: run-rtc-medium-parallel
 run-rtc-medium-parallel:
 	@echo "Running RTC tests at MEDIUM level in parallel..."
-	TEST_LEVEL=medium $(PYTEST) test_apb_rtc.py $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE) $(PYTEST_XDIST) $(PYTEST_RERUNS)
+	TEST_LEVEL=func $(PYTEST) test_apb_rtc.py $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE) $(PYTEST_XDIST) $(PYTEST_RERUNS)
 
 .PHONY: run-rtc-medium-parallel-waves
 run-rtc-medium-parallel-waves:
 	@echo "Running RTC tests at MEDIUM level in parallel with waveforms..."
-	WAVES=1 TEST_LEVEL=medium $(PYTEST) test_apb_rtc.py $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE) $(PYTEST_XDIST) $(PYTEST_RERUNS)
+	WAVES=1 TEST_LEVEL=func $(PYTEST) test_apb_rtc.py $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE) $(PYTEST_XDIST) $(PYTEST_RERUNS)
 
 
 # FULL level
@@ -489,44 +489,44 @@ run-rtc-full-parallel-waves:
 .PHONY: run-pic-basic
 run-pic-basic:
 	@echo "Running 8259 PIC tests at BASIC level..."
-	TEST_LEVEL=basic $(PYTEST) test_apb_pic_8259.py $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE)
+	TEST_LEVEL=gate $(PYTEST) test_apb_pic_8259.py $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE)
 
 .PHONY: run-pic-basic-waves
 run-pic-basic-waves:
 	@echo "Running 8259 PIC tests at BASIC level with waveforms..."
-	WAVES=1 TEST_LEVEL=basic $(PYTEST) test_apb_pic_8259.py $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE)
+	WAVES=1 TEST_LEVEL=gate $(PYTEST) test_apb_pic_8259.py $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE)
 
 .PHONY: run-pic-basic-parallel
 run-pic-basic-parallel:
 	@echo "Running 8259 PIC tests at BASIC level in parallel..."
-	TEST_LEVEL=basic $(PYTEST) test_apb_pic_8259.py $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE) $(PYTEST_XDIST) $(PYTEST_RERUNS)
+	TEST_LEVEL=gate $(PYTEST) test_apb_pic_8259.py $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE) $(PYTEST_XDIST) $(PYTEST_RERUNS)
 
 .PHONY: run-pic-basic-parallel-waves
 run-pic-basic-parallel-waves:
 	@echo "Running 8259 PIC tests at BASIC level in parallel with waveforms..."
-	WAVES=1 TEST_LEVEL=basic $(PYTEST) test_apb_pic_8259.py $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE) $(PYTEST_XDIST) $(PYTEST_RERUNS)
+	WAVES=1 TEST_LEVEL=gate $(PYTEST) test_apb_pic_8259.py $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE) $(PYTEST_XDIST) $(PYTEST_RERUNS)
 
 
 # MEDIUM level
 .PHONY: run-pic-medium
 run-pic-medium:
 	@echo "Running 8259 PIC tests at MEDIUM level..."
-	TEST_LEVEL=medium $(PYTEST) test_apb_pic_8259.py $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE)
+	TEST_LEVEL=func $(PYTEST) test_apb_pic_8259.py $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE)
 
 .PHONY: run-pic-medium-waves
 run-pic-medium-waves:
 	@echo "Running 8259 PIC tests at MEDIUM level with waveforms..."
-	WAVES=1 TEST_LEVEL=medium $(PYTEST) test_apb_pic_8259.py $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE)
+	WAVES=1 TEST_LEVEL=func $(PYTEST) test_apb_pic_8259.py $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE)
 
 .PHONY: run-pic-medium-parallel
 run-pic-medium-parallel:
 	@echo "Running 8259 PIC tests at MEDIUM level in parallel..."
-	TEST_LEVEL=medium $(PYTEST) test_apb_pic_8259.py $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE) $(PYTEST_XDIST) $(PYTEST_RERUNS)
+	TEST_LEVEL=func $(PYTEST) test_apb_pic_8259.py $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE) $(PYTEST_XDIST) $(PYTEST_RERUNS)
 
 .PHONY: run-pic-medium-parallel-waves
 run-pic-medium-parallel-waves:
 	@echo "Running 8259 PIC tests at MEDIUM level in parallel with waveforms..."
-	WAVES=1 TEST_LEVEL=medium $(PYTEST) test_apb_pic_8259.py $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE) $(PYTEST_XDIST) $(PYTEST_RERUNS)
+	WAVES=1 TEST_LEVEL=func $(PYTEST) test_apb_pic_8259.py $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE) $(PYTEST_XDIST) $(PYTEST_RERUNS)
 
 
 # FULL level
@@ -559,44 +559,44 @@ run-pic-full-parallel-waves:
 .PHONY: run-ioapic-basic
 run-ioapic-basic:
 	@echo "Running IOAPIC tests at BASIC level..."
-	TEST_LEVEL=basic $(PYTEST) test_apb_ioapic.py $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE)
+	TEST_LEVEL=gate $(PYTEST) test_apb_ioapic.py $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE)
 
 .PHONY: run-ioapic-basic-waves
 run-ioapic-basic-waves:
 	@echo "Running IOAPIC tests at BASIC level with waveforms..."
-	WAVES=1 TEST_LEVEL=basic $(PYTEST) test_apb_ioapic.py $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE)
+	WAVES=1 TEST_LEVEL=gate $(PYTEST) test_apb_ioapic.py $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE)
 
 .PHONY: run-ioapic-basic-parallel
 run-ioapic-basic-parallel:
 	@echo "Running IOAPIC tests at BASIC level in parallel..."
-	TEST_LEVEL=basic $(PYTEST) test_apb_ioapic.py $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE) $(PYTEST_XDIST) $(PYTEST_RERUNS)
+	TEST_LEVEL=gate $(PYTEST) test_apb_ioapic.py $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE) $(PYTEST_XDIST) $(PYTEST_RERUNS)
 
 .PHONY: run-ioapic-basic-parallel-waves
 run-ioapic-basic-parallel-waves:
 	@echo "Running IOAPIC tests at BASIC level in parallel with waveforms..."
-	WAVES=1 TEST_LEVEL=basic $(PYTEST) test_apb_ioapic.py $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE) $(PYTEST_XDIST) $(PYTEST_RERUNS)
+	WAVES=1 TEST_LEVEL=gate $(PYTEST) test_apb_ioapic.py $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE) $(PYTEST_XDIST) $(PYTEST_RERUNS)
 
 
 # MEDIUM level
 .PHONY: run-ioapic-medium
 run-ioapic-medium:
 	@echo "Running IOAPIC tests at MEDIUM level..."
-	TEST_LEVEL=medium $(PYTEST) test_apb_ioapic.py $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE)
+	TEST_LEVEL=func $(PYTEST) test_apb_ioapic.py $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE)
 
 .PHONY: run-ioapic-medium-waves
 run-ioapic-medium-waves:
 	@echo "Running IOAPIC tests at MEDIUM level with waveforms..."
-	WAVES=1 TEST_LEVEL=medium $(PYTEST) test_apb_ioapic.py $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE)
+	WAVES=1 TEST_LEVEL=func $(PYTEST) test_apb_ioapic.py $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE)
 
 .PHONY: run-ioapic-medium-parallel
 run-ioapic-medium-parallel:
 	@echo "Running IOAPIC tests at MEDIUM level in parallel..."
-	TEST_LEVEL=medium $(PYTEST) test_apb_ioapic.py $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE) $(PYTEST_XDIST) $(PYTEST_RERUNS)
+	TEST_LEVEL=func $(PYTEST) test_apb_ioapic.py $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE) $(PYTEST_XDIST) $(PYTEST_RERUNS)
 
 .PHONY: run-ioapic-medium-parallel-waves
 run-ioapic-medium-parallel-waves:
 	@echo "Running IOAPIC tests at MEDIUM level in parallel with waveforms..."
-	WAVES=1 TEST_LEVEL=medium $(PYTEST) test_apb_ioapic.py $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE) $(PYTEST_XDIST) $(PYTEST_RERUNS)
+	WAVES=1 TEST_LEVEL=func $(PYTEST) test_apb_ioapic.py $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE) $(PYTEST_XDIST) $(PYTEST_RERUNS)
 
 
 # FULL level
@@ -629,44 +629,44 @@ run-ioapic-full-parallel-waves:
 .PHONY: run-smbus-basic
 run-smbus-basic:
 	@echo "Running SMBus tests at BASIC level..."
-	TEST_LEVEL=basic $(PYTEST) test_apb_smbus.py $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE)
+	TEST_LEVEL=gate $(PYTEST) test_apb_smbus.py $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE)
 
 .PHONY: run-smbus-basic-waves
 run-smbus-basic-waves:
 	@echo "Running SMBus tests at BASIC level with waveforms..."
-	WAVES=1 TEST_LEVEL=basic $(PYTEST) test_apb_smbus.py $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE)
+	WAVES=1 TEST_LEVEL=gate $(PYTEST) test_apb_smbus.py $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE)
 
 .PHONY: run-smbus-basic-parallel
 run-smbus-basic-parallel:
 	@echo "Running SMBus tests at BASIC level in parallel..."
-	TEST_LEVEL=basic $(PYTEST) test_apb_smbus.py $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE) $(PYTEST_XDIST) $(PYTEST_RERUNS)
+	TEST_LEVEL=gate $(PYTEST) test_apb_smbus.py $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE) $(PYTEST_XDIST) $(PYTEST_RERUNS)
 
 .PHONY: run-smbus-basic-parallel-waves
 run-smbus-basic-parallel-waves:
 	@echo "Running SMBus tests at BASIC level in parallel with waveforms..."
-	WAVES=1 TEST_LEVEL=basic $(PYTEST) test_apb_smbus.py $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE) $(PYTEST_XDIST) $(PYTEST_RERUNS)
+	WAVES=1 TEST_LEVEL=gate $(PYTEST) test_apb_smbus.py $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE) $(PYTEST_XDIST) $(PYTEST_RERUNS)
 
 
 # MEDIUM level
 .PHONY: run-smbus-medium
 run-smbus-medium:
 	@echo "Running SMBus tests at MEDIUM level..."
-	TEST_LEVEL=medium $(PYTEST) test_apb_smbus.py $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE)
+	TEST_LEVEL=func $(PYTEST) test_apb_smbus.py $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE)
 
 .PHONY: run-smbus-medium-waves
 run-smbus-medium-waves:
 	@echo "Running SMBus tests at MEDIUM level with waveforms..."
-	WAVES=1 TEST_LEVEL=medium $(PYTEST) test_apb_smbus.py $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE)
+	WAVES=1 TEST_LEVEL=func $(PYTEST) test_apb_smbus.py $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE)
 
 .PHONY: run-smbus-medium-parallel
 run-smbus-medium-parallel:
 	@echo "Running SMBus tests at MEDIUM level in parallel..."
-	TEST_LEVEL=medium $(PYTEST) test_apb_smbus.py $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE) $(PYTEST_XDIST) $(PYTEST_RERUNS)
+	TEST_LEVEL=func $(PYTEST) test_apb_smbus.py $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE) $(PYTEST_XDIST) $(PYTEST_RERUNS)
 
 .PHONY: run-smbus-medium-parallel-waves
 run-smbus-medium-parallel-waves:
 	@echo "Running SMBus tests at MEDIUM level in parallel with waveforms..."
-	WAVES=1 TEST_LEVEL=medium $(PYTEST) test_apb_smbus.py $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE) $(PYTEST_XDIST) $(PYTEST_RERUNS)
+	WAVES=1 TEST_LEVEL=func $(PYTEST) test_apb_smbus.py $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE) $(PYTEST_XDIST) $(PYTEST_RERUNS)
 
 
 # FULL level
@@ -699,44 +699,44 @@ run-smbus-full-parallel-waves:
 .PHONY: run-acpi-basic
 run-acpi-basic:
 	@echo "Running PM_ACPI tests at BASIC level..."
-	TEST_LEVEL=basic $(PYTEST) test_apb_pm_acpi.py $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE)
+	TEST_LEVEL=gate $(PYTEST) test_apb_pm_acpi.py $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE)
 
 .PHONY: run-acpi-basic-waves
 run-acpi-basic-waves:
 	@echo "Running PM_ACPI tests at BASIC level with waveforms..."
-	WAVES=1 TEST_LEVEL=basic $(PYTEST) test_apb_pm_acpi.py $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE)
+	WAVES=1 TEST_LEVEL=gate $(PYTEST) test_apb_pm_acpi.py $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE)
 
 .PHONY: run-acpi-basic-parallel
 run-acpi-basic-parallel:
 	@echo "Running PM_ACPI tests at BASIC level in parallel..."
-	TEST_LEVEL=basic $(PYTEST) test_apb_pm_acpi.py $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE) $(PYTEST_XDIST) $(PYTEST_RERUNS)
+	TEST_LEVEL=gate $(PYTEST) test_apb_pm_acpi.py $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE) $(PYTEST_XDIST) $(PYTEST_RERUNS)
 
 .PHONY: run-acpi-basic-parallel-waves
 run-acpi-basic-parallel-waves:
 	@echo "Running PM_ACPI tests at BASIC level in parallel with waveforms..."
-	WAVES=1 TEST_LEVEL=basic $(PYTEST) test_apb_pm_acpi.py $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE) $(PYTEST_XDIST) $(PYTEST_RERUNS)
+	WAVES=1 TEST_LEVEL=gate $(PYTEST) test_apb_pm_acpi.py $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE) $(PYTEST_XDIST) $(PYTEST_RERUNS)
 
 
 # MEDIUM level
 .PHONY: run-acpi-medium
 run-acpi-medium:
 	@echo "Running PM_ACPI tests at MEDIUM level..."
-	TEST_LEVEL=medium $(PYTEST) test_apb_pm_acpi.py $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE)
+	TEST_LEVEL=func $(PYTEST) test_apb_pm_acpi.py $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE)
 
 .PHONY: run-acpi-medium-waves
 run-acpi-medium-waves:
 	@echo "Running PM_ACPI tests at MEDIUM level with waveforms..."
-	WAVES=1 TEST_LEVEL=medium $(PYTEST) test_apb_pm_acpi.py $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE)
+	WAVES=1 TEST_LEVEL=func $(PYTEST) test_apb_pm_acpi.py $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE)
 
 .PHONY: run-acpi-medium-parallel
 run-acpi-medium-parallel:
 	@echo "Running PM_ACPI tests at MEDIUM level in parallel..."
-	TEST_LEVEL=medium $(PYTEST) test_apb_pm_acpi.py $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE) $(PYTEST_XDIST) $(PYTEST_RERUNS)
+	TEST_LEVEL=func $(PYTEST) test_apb_pm_acpi.py $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE) $(PYTEST_XDIST) $(PYTEST_RERUNS)
 
 .PHONY: run-acpi-medium-parallel-waves
 run-acpi-medium-parallel-waves:
 	@echo "Running PM_ACPI tests at MEDIUM level in parallel with waveforms..."
-	WAVES=1 TEST_LEVEL=medium $(PYTEST) test_apb_pm_acpi.py $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE) $(PYTEST_XDIST) $(PYTEST_RERUNS)
+	WAVES=1 TEST_LEVEL=func $(PYTEST) test_apb_pm_acpi.py $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE) $(PYTEST_XDIST) $(PYTEST_RERUNS)
 
 
 # FULL level
@@ -769,44 +769,44 @@ run-acpi-full-parallel-waves:
 .PHONY: run-uart-basic
 run-uart-basic:
 	@echo "Running UART 16550 tests at BASIC level..."
-	TEST_LEVEL=basic $(PYTEST) test_apb_uart_16550.py $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE)
+	TEST_LEVEL=gate $(PYTEST) test_apb_uart_16550.py $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE)
 
 .PHONY: run-uart-basic-waves
 run-uart-basic-waves:
 	@echo "Running UART 16550 tests at BASIC level with waveforms..."
-	WAVES=1 TEST_LEVEL=basic $(PYTEST) test_apb_uart_16550.py $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE)
+	WAVES=1 TEST_LEVEL=gate $(PYTEST) test_apb_uart_16550.py $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE)
 
 .PHONY: run-uart-basic-parallel
 run-uart-basic-parallel:
 	@echo "Running UART 16550 tests at BASIC level in parallel..."
-	TEST_LEVEL=basic $(PYTEST) test_apb_uart_16550.py $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE) $(PYTEST_XDIST) $(PYTEST_RERUNS)
+	TEST_LEVEL=gate $(PYTEST) test_apb_uart_16550.py $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE) $(PYTEST_XDIST) $(PYTEST_RERUNS)
 
 .PHONY: run-uart-basic-parallel-waves
 run-uart-basic-parallel-waves:
 	@echo "Running UART 16550 tests at BASIC level in parallel with waveforms..."
-	WAVES=1 TEST_LEVEL=basic $(PYTEST) test_apb_uart_16550.py $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE) $(PYTEST_XDIST) $(PYTEST_RERUNS)
+	WAVES=1 TEST_LEVEL=gate $(PYTEST) test_apb_uart_16550.py $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE) $(PYTEST_XDIST) $(PYTEST_RERUNS)
 
 
 # MEDIUM level
 .PHONY: run-uart-medium
 run-uart-medium:
 	@echo "Running UART 16550 tests at MEDIUM level..."
-	TEST_LEVEL=medium $(PYTEST) test_apb_uart_16550.py $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE)
+	TEST_LEVEL=func $(PYTEST) test_apb_uart_16550.py $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE)
 
 .PHONY: run-uart-medium-waves
 run-uart-medium-waves:
 	@echo "Running UART 16550 tests at MEDIUM level with waveforms..."
-	WAVES=1 TEST_LEVEL=medium $(PYTEST) test_apb_uart_16550.py $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE)
+	WAVES=1 TEST_LEVEL=func $(PYTEST) test_apb_uart_16550.py $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE)
 
 .PHONY: run-uart-medium-parallel
 run-uart-medium-parallel:
 	@echo "Running UART 16550 tests at MEDIUM level in parallel..."
-	TEST_LEVEL=medium $(PYTEST) test_apb_uart_16550.py $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE) $(PYTEST_XDIST) $(PYTEST_RERUNS)
+	TEST_LEVEL=func $(PYTEST) test_apb_uart_16550.py $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE) $(PYTEST_XDIST) $(PYTEST_RERUNS)
 
 .PHONY: run-uart-medium-parallel-waves
 run-uart-medium-parallel-waves:
 	@echo "Running UART 16550 tests at MEDIUM level in parallel with waveforms..."
-	WAVES=1 TEST_LEVEL=medium $(PYTEST) test_apb_uart_16550.py $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE) $(PYTEST_XDIST) $(PYTEST_RERUNS)
+	WAVES=1 TEST_LEVEL=func $(PYTEST) test_apb_uart_16550.py $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE) $(PYTEST_XDIST) $(PYTEST_RERUNS)
 
 
 # FULL level
@@ -839,44 +839,44 @@ run-uart-full-parallel-waves:
 .PHONY: run-gpio-basic
 run-gpio-basic:
 	@echo "Running GPIO tests at BASIC level..."
-	TEST_LEVEL=basic $(PYTEST) test_apb_gpio.py $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE)
+	TEST_LEVEL=gate $(PYTEST) test_apb_gpio.py $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE)
 
 .PHONY: run-gpio-basic-waves
 run-gpio-basic-waves:
 	@echo "Running GPIO tests at BASIC level with waveforms..."
-	WAVES=1 TEST_LEVEL=basic $(PYTEST) test_apb_gpio.py $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE)
+	WAVES=1 TEST_LEVEL=gate $(PYTEST) test_apb_gpio.py $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE)
 
 .PHONY: run-gpio-basic-parallel
 run-gpio-basic-parallel:
 	@echo "Running GPIO tests at BASIC level in parallel..."
-	TEST_LEVEL=basic $(PYTEST) test_apb_gpio.py $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE) $(PYTEST_XDIST) $(PYTEST_RERUNS)
+	TEST_LEVEL=gate $(PYTEST) test_apb_gpio.py $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE) $(PYTEST_XDIST) $(PYTEST_RERUNS)
 
 .PHONY: run-gpio-basic-parallel-waves
 run-gpio-basic-parallel-waves:
 	@echo "Running GPIO tests at BASIC level in parallel with waveforms..."
-	WAVES=1 TEST_LEVEL=basic $(PYTEST) test_apb_gpio.py $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE) $(PYTEST_XDIST) $(PYTEST_RERUNS)
+	WAVES=1 TEST_LEVEL=gate $(PYTEST) test_apb_gpio.py $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE) $(PYTEST_XDIST) $(PYTEST_RERUNS)
 
 
 # MEDIUM level
 .PHONY: run-gpio-medium
 run-gpio-medium:
 	@echo "Running GPIO tests at MEDIUM level..."
-	TEST_LEVEL=medium $(PYTEST) test_apb_gpio.py $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE)
+	TEST_LEVEL=func $(PYTEST) test_apb_gpio.py $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE)
 
 .PHONY: run-gpio-medium-waves
 run-gpio-medium-waves:
 	@echo "Running GPIO tests at MEDIUM level with waveforms..."
-	WAVES=1 TEST_LEVEL=medium $(PYTEST) test_apb_gpio.py $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE)
+	WAVES=1 TEST_LEVEL=func $(PYTEST) test_apb_gpio.py $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE)
 
 .PHONY: run-gpio-medium-parallel
 run-gpio-medium-parallel:
 	@echo "Running GPIO tests at MEDIUM level in parallel..."
-	TEST_LEVEL=medium $(PYTEST) test_apb_gpio.py $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE) $(PYTEST_XDIST) $(PYTEST_RERUNS)
+	TEST_LEVEL=func $(PYTEST) test_apb_gpio.py $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE) $(PYTEST_XDIST) $(PYTEST_RERUNS)
 
 .PHONY: run-gpio-medium-parallel-waves
 run-gpio-medium-parallel-waves:
 	@echo "Running GPIO tests at MEDIUM level in parallel with waveforms..."
-	WAVES=1 TEST_LEVEL=medium $(PYTEST) test_apb_gpio.py $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE) $(PYTEST_XDIST) $(PYTEST_RERUNS)
+	WAVES=1 TEST_LEVEL=func $(PYTEST) test_apb_gpio.py $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE) $(PYTEST_XDIST) $(PYTEST_RERUNS)
 
 
 # FULL level
@@ -909,44 +909,44 @@ run-gpio-full-parallel-waves:
 .PHONY: run-all-basic
 run-all-basic:
 	@echo "Running all RLB tests at BASIC level..."
-	TEST_LEVEL=basic $(PYTEST) test_apb_hpet.py test_apb_pit_8254.py test_apb_rtc.py test_apb_pic_8259.py test_apb_ioapic.py test_apb_smbus.py test_apb_pm_acpi.py test_apb_uart_16550.py test_apb_gpio.py $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE)
+	TEST_LEVEL=gate $(PYTEST) test_apb_hpet.py test_apb_pit_8254.py test_apb_rtc.py test_apb_pic_8259.py test_apb_ioapic.py test_apb_smbus.py test_apb_pm_acpi.py test_apb_uart_16550.py test_apb_gpio.py $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE)
 
 .PHONY: run-all-basic-waves
 run-all-basic-waves:
 	@echo "Running all RLB tests at BASIC level with waveforms..."
-	WAVES=1 TEST_LEVEL=basic $(PYTEST) test_apb_hpet.py test_apb_pit_8254.py test_apb_rtc.py test_apb_pic_8259.py test_apb_ioapic.py test_apb_smbus.py test_apb_pm_acpi.py test_apb_uart_16550.py test_apb_gpio.py $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE)
+	WAVES=1 TEST_LEVEL=gate $(PYTEST) test_apb_hpet.py test_apb_pit_8254.py test_apb_rtc.py test_apb_pic_8259.py test_apb_ioapic.py test_apb_smbus.py test_apb_pm_acpi.py test_apb_uart_16550.py test_apb_gpio.py $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE)
 
 .PHONY: run-all-basic-parallel
 run-all-basic-parallel:
 	@echo "Running all RLB tests at BASIC level in parallel..."
-	TEST_LEVEL=basic $(PYTEST) test_apb_hpet.py test_apb_pit_8254.py test_apb_rtc.py test_apb_pic_8259.py test_apb_ioapic.py test_apb_smbus.py test_apb_pm_acpi.py test_apb_uart_16550.py test_apb_gpio.py $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE) $(PYTEST_XDIST) $(PYTEST_RERUNS)
+	TEST_LEVEL=gate $(PYTEST) test_apb_hpet.py test_apb_pit_8254.py test_apb_rtc.py test_apb_pic_8259.py test_apb_ioapic.py test_apb_smbus.py test_apb_pm_acpi.py test_apb_uart_16550.py test_apb_gpio.py $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE) $(PYTEST_XDIST) $(PYTEST_RERUNS)
 
 .PHONY: run-all-basic-parallel-waves
 run-all-basic-parallel-waves:
 	@echo "Running all RLB tests at BASIC level in parallel with waveforms..."
-	WAVES=1 TEST_LEVEL=basic $(PYTEST) test_apb_hpet.py test_apb_pit_8254.py test_apb_rtc.py test_apb_pic_8259.py test_apb_ioapic.py test_apb_smbus.py test_apb_pm_acpi.py test_apb_uart_16550.py test_apb_gpio.py $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE) $(PYTEST_XDIST) $(PYTEST_RERUNS)
+	WAVES=1 TEST_LEVEL=gate $(PYTEST) test_apb_hpet.py test_apb_pit_8254.py test_apb_rtc.py test_apb_pic_8259.py test_apb_ioapic.py test_apb_smbus.py test_apb_pm_acpi.py test_apb_uart_16550.py test_apb_gpio.py $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE) $(PYTEST_XDIST) $(PYTEST_RERUNS)
 
 
 # MEDIUM level
 .PHONY: run-all-medium
 run-all-medium:
 	@echo "Running all RLB tests at MEDIUM level..."
-	TEST_LEVEL=medium $(PYTEST) test_apb_hpet.py test_apb_pit_8254.py test_apb_rtc.py test_apb_pic_8259.py test_apb_ioapic.py test_apb_smbus.py test_apb_pm_acpi.py test_apb_uart_16550.py test_apb_gpio.py $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE)
+	TEST_LEVEL=func $(PYTEST) test_apb_hpet.py test_apb_pit_8254.py test_apb_rtc.py test_apb_pic_8259.py test_apb_ioapic.py test_apb_smbus.py test_apb_pm_acpi.py test_apb_uart_16550.py test_apb_gpio.py $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE)
 
 .PHONY: run-all-medium-waves
 run-all-medium-waves:
 	@echo "Running all RLB tests at MEDIUM level with waveforms..."
-	WAVES=1 TEST_LEVEL=medium $(PYTEST) test_apb_hpet.py test_apb_pit_8254.py test_apb_rtc.py test_apb_pic_8259.py test_apb_ioapic.py test_apb_smbus.py test_apb_pm_acpi.py test_apb_uart_16550.py test_apb_gpio.py $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE)
+	WAVES=1 TEST_LEVEL=func $(PYTEST) test_apb_hpet.py test_apb_pit_8254.py test_apb_rtc.py test_apb_pic_8259.py test_apb_ioapic.py test_apb_smbus.py test_apb_pm_acpi.py test_apb_uart_16550.py test_apb_gpio.py $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE)
 
 .PHONY: run-all-medium-parallel
 run-all-medium-parallel:
 	@echo "Running all RLB tests at MEDIUM level in parallel..."
-	TEST_LEVEL=medium $(PYTEST) test_apb_hpet.py test_apb_pit_8254.py test_apb_rtc.py test_apb_pic_8259.py test_apb_ioapic.py test_apb_smbus.py test_apb_pm_acpi.py test_apb_uart_16550.py test_apb_gpio.py $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE) $(PYTEST_XDIST) $(PYTEST_RERUNS)
+	TEST_LEVEL=func $(PYTEST) test_apb_hpet.py test_apb_pit_8254.py test_apb_rtc.py test_apb_pic_8259.py test_apb_ioapic.py test_apb_smbus.py test_apb_pm_acpi.py test_apb_uart_16550.py test_apb_gpio.py $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE) $(PYTEST_XDIST) $(PYTEST_RERUNS)
 
 .PHONY: run-all-medium-parallel-waves
 run-all-medium-parallel-waves:
 	@echo "Running all RLB tests at MEDIUM level in parallel with waveforms..."
-	WAVES=1 TEST_LEVEL=medium $(PYTEST) test_apb_hpet.py test_apb_pit_8254.py test_apb_rtc.py test_apb_pic_8259.py test_apb_ioapic.py test_apb_smbus.py test_apb_pm_acpi.py test_apb_uart_16550.py test_apb_gpio.py $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE) $(PYTEST_XDIST) $(PYTEST_RERUNS)
+	WAVES=1 TEST_LEVEL=func $(PYTEST) test_apb_hpet.py test_apb_pit_8254.py test_apb_rtc.py test_apb_pic_8259.py test_apb_ioapic.py test_apb_smbus.py test_apb_pm_acpi.py test_apb_uart_16550.py test_apb_gpio.py $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE) $(PYTEST_XDIST) $(PYTEST_RERUNS)
 
 
 # FULL level

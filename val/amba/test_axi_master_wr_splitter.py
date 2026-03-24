@@ -53,12 +53,12 @@ async def axi_write_splitter_test(dut):
     tb.log.info(f'AXI Write Splitter test with seed: {seed}')
 
     # Get test parameters from environment
-    test_level = os.environ.get('TEST_LEVEL', 'basic').lower()
+    test_level = os.environ.get('TEST_LEVEL', 'gate').lower()
 
-    valid_levels = ['basic', 'medium', 'full']
+    valid_levels = ['gate', 'func', 'full']
     if test_level not in valid_levels:
-        tb.log.warning(f"Invalid TEST_LEVEL '{test_level}', using 'basic'. Valid: {valid_levels}")
-        test_level = 'basic'
+        tb.log.warning(f"Invalid TEST_LEVEL '{test_level}', using 'gate'. Valid: {valid_levels}")
+        test_level = 'gate'
 
     # Setup clocks and reset
     await tb.setup_clocks_and_reset()
@@ -156,7 +156,7 @@ def test_axi_write_splitter(request, iw, aw, dw, uw, fifo_depth, alignment_mask,
     }
 
     # Calculate timeout based on test complexity
-    timeout_multipliers = {'basic': 1, 'medium': 2, 'full': 4}
+    timeout_multipliers = {'gate': 1, 'func': 2, 'full': 4}
     complexity_factor = timeout_multipliers.get(test_level, 1)
 
     # Additional complexity factors
@@ -310,7 +310,7 @@ def test_axi_write_splitter(request, iw, aw, dw, uw, fifo_depth, alignment_mask,
     }
 
     # Calculate timeout based on test complexity
-    timeout_multipliers = {'basic': 1, 'medium': 2, 'full': 4}
+    timeout_multipliers = {'gate': 1, 'func': 2, 'full': 4}
     complexity_factor = timeout_multipliers.get(test_level, 1)
 
     # Additional complexity factors

@@ -60,7 +60,7 @@ class ShifterBarrelTB(TBBase):
 
         # Get test parameters from environment variables
         self.SEED = self.convert_to_int(os.environ.get('SEED', '12345'))
-        self.TEST_LEVEL = os.environ.get('TEST_LEVEL', 'basic')
+        self.TEST_LEVEL = os.environ.get('TEST_LEVEL', 'gate').lower()
         self.WIDTH = self.convert_to_int(os.environ.get('TEST_WIDTH', '8'))
 
         # Calculate maximum data value based on width
@@ -243,7 +243,7 @@ class ShifterBarrelTB(TBBase):
 
                 if not test_passed:
                     all_passed = False
-                    if self.TEST_LEVEL == 'basic':
+                    if self.TEST_LEVEL == 'gate':
                         return False
 
         return all_passed
@@ -275,7 +275,7 @@ class ShifterBarrelTB(TBBase):
 
             if not test_passed:
                 all_passed = False
-                if self.TEST_LEVEL == 'basic':
+                if self.TEST_LEVEL == 'gate':
                     return False
 
         return all_passed
@@ -305,7 +305,7 @@ class ShifterBarrelTB(TBBase):
 
             if not test_passed:
                 all_passed = False
-                if self.TEST_LEVEL == 'basic':
+                if self.TEST_LEVEL == 'gate':
                     return False
 
         return all_passed
@@ -337,7 +337,7 @@ class ShifterBarrelTB(TBBase):
 
             if not test_passed:
                 all_passed = False
-                if self.TEST_LEVEL == 'basic':
+                if self.TEST_LEVEL == 'gate':
                     return False
 
         return all_passed
@@ -369,7 +369,7 @@ class ShifterBarrelTB(TBBase):
 
             if not test_passed:
                 all_passed = False
-                if self.TEST_LEVEL == 'basic':
+                if self.TEST_LEVEL == 'gate':
                     return False
 
         return all_passed
@@ -401,7 +401,7 @@ class ShifterBarrelTB(TBBase):
 
             if not test_passed:
                 all_passed = False
-                if self.TEST_LEVEL == 'basic':
+                if self.TEST_LEVEL == 'gate':
                     return False
 
         return all_passed
@@ -419,9 +419,9 @@ class ShifterBarrelTB(TBBase):
         shift_amounts = [0]  # No shift
 
         # Include more shift amounts based on test level
-        if self.TEST_LEVEL == 'basic':
+        if self.TEST_LEVEL == 'gate':
             shift_amounts.extend([1, self.WIDTH // 2, self.WIDTH - 1])
-        elif self.TEST_LEVEL == 'medium':
+        elif self.TEST_LEVEL == 'func':
             shift_amounts.extend(list(range(1, min(self.WIDTH, 16))))
         else:  # full
             shift_amounts.extend(list(range(1, self.WIDTH + 8)))  # Include beyond width
@@ -453,7 +453,7 @@ class ShifterBarrelTB(TBBase):
 
                     if not test_passed:
                         all_passed = False
-                        if self.TEST_LEVEL == 'basic':
+                        if self.TEST_LEVEL == 'gate':
                             return False
 
         return all_passed
@@ -465,14 +465,14 @@ class ShifterBarrelTB(TBBase):
         Returns:
             True if all tests passed
         """
-        if self.TEST_LEVEL == 'basic':
-            self.log.info("Skipping random pattern tests in basic mode")
+        if self.TEST_LEVEL == 'gate':
+            self.log.info("Skipping random pattern tests in gate mode")
             return True
 
         self.log.info("Testing random data patterns")
 
         # Determine number of tests based on test level
-        num_tests = 10 if self.TEST_LEVEL == 'medium' else 50
+        num_tests = 10 if self.TEST_LEVEL == 'func' else 50
 
         all_passed = True
 
@@ -487,7 +487,7 @@ class ShifterBarrelTB(TBBase):
 
             if not test_passed:
                 all_passed = False
-                if self.TEST_LEVEL == 'medium':
+                if self.TEST_LEVEL == 'func':
                     return False
 
         return all_passed
@@ -510,7 +510,7 @@ class ShifterBarrelTB(TBBase):
         if not no_shift_passed:
             self.log.error("No shift test failed")
             all_passed = False
-            if self.TEST_LEVEL == 'basic':
+            if self.TEST_LEVEL == 'gate':
                 return all_passed
 
         # 2. Logical right shift test
@@ -519,7 +519,7 @@ class ShifterBarrelTB(TBBase):
         if not right_shift_passed:
             self.log.error("Logical right shift test failed")
             all_passed = False
-            if self.TEST_LEVEL == 'basic':
+            if self.TEST_LEVEL == 'gate':
                 return all_passed
 
         # 3. Arithmetic right shift test
@@ -528,7 +528,7 @@ class ShifterBarrelTB(TBBase):
         if not arith_shift_passed:
             self.log.error("Arithmetic right shift test failed")
             all_passed = False
-            if self.TEST_LEVEL == 'basic':
+            if self.TEST_LEVEL == 'gate':
                 return all_passed
 
         # 4. Right shift with wrap test
@@ -537,7 +537,7 @@ class ShifterBarrelTB(TBBase):
         if not right_wrap_passed:
             self.log.error("Right shift wrap test failed")
             all_passed = False
-            if self.TEST_LEVEL == 'basic':
+            if self.TEST_LEVEL == 'gate':
                 return all_passed
 
         # 5. Left shift test
@@ -546,7 +546,7 @@ class ShifterBarrelTB(TBBase):
         if not left_shift_passed:
             self.log.error("Left shift test failed")
             all_passed = False
-            if self.TEST_LEVEL == 'basic':
+            if self.TEST_LEVEL == 'gate':
                 return all_passed
 
         # 6. Left shift with wrap test
@@ -555,7 +555,7 @@ class ShifterBarrelTB(TBBase):
         if not left_wrap_passed:
             self.log.error("Left shift wrap test failed")
             all_passed = False
-            if self.TEST_LEVEL == 'basic':
+            if self.TEST_LEVEL == 'gate':
                 return all_passed
 
         # 7. Shift amount test
@@ -564,11 +564,11 @@ class ShifterBarrelTB(TBBase):
         if not shift_amount_passed:
             self.log.error("Shift amount test failed")
             all_passed = False
-            if self.TEST_LEVEL == 'basic':
+            if self.TEST_LEVEL == 'gate':
                 return all_passed
 
-        # 8. Random pattern test (medium and full only)
-        if self.TEST_LEVEL != 'basic':
+        # 8. Random pattern test (func and full only)
+        if self.TEST_LEVEL != 'gate':
             self.log.info("8. Testing random patterns")
             random_passed = await self.test_random_patterns()
             if not random_passed:
@@ -591,7 +591,7 @@ class ShifterBarrelTB(TBBase):
         self.log.info("="*50)
 
         # Print detailed results based on test level
-        if self.TEST_LEVEL != 'basic' and passed_tests < total_tests:
+        if self.TEST_LEVEL != 'gate' and passed_tests < total_tests:
             self.log.info("Failed tests:")
             for i, result in enumerate(self.test_results):
                 if not result['match']:
@@ -615,7 +615,7 @@ def generate_test_params():
     """
     Generate test parameters based on REG_LEVEL.
 
-    REG_LEVEL=GATE: 2 tests (8-bit, basic+medium)
+    REG_LEVEL=GATE: 2 tests (8-bit, gate+func)
     REG_LEVEL=FUNC: 3 tests (8-bit all levels) - default
     REG_LEVEL=FULL: 6 tests (8-bit all levels + 4, 16, 32-bit)
 
@@ -627,23 +627,23 @@ def generate_test_params():
 
     if reg_level == 'GATE':
         return [
-            {'WIDTH': 8, 'test_level': 'basic'},
-            {'WIDTH': 8, 'test_level': 'medium'},
+            {'WIDTH': 8, 'test_level': 'gate'},
+            {'WIDTH': 8, 'test_level': 'func'},
         ]
     elif reg_level == 'FUNC':
         return [
-            {'WIDTH': 8, 'test_level': 'basic'},
-            {'WIDTH': 8, 'test_level': 'medium'},
+            {'WIDTH': 8, 'test_level': 'gate'},
+            {'WIDTH': 8, 'test_level': 'func'},
             {'WIDTH': 8, 'test_level': 'full'},
         ]
     else:  # FULL
         return [
-            {'WIDTH': 8, 'test_level': 'basic'},
-            {'WIDTH': 8, 'test_level': 'medium'},
+            {'WIDTH': 8, 'test_level': 'gate'},
+            {'WIDTH': 8, 'test_level': 'func'},
             {'WIDTH': 8, 'test_level': 'full'},
-            {'WIDTH':  4, 'test_level': 'medium'},
-            {'WIDTH': 16, 'test_level': 'medium'},
-            {'WIDTH': 32, 'test_level': 'medium'},
+            {'WIDTH':  4, 'test_level': 'func'},
+            {'WIDTH': 16, 'test_level': 'func'},
+            {'WIDTH': 32, 'test_level': 'func'},
         ]
 
 @pytest.mark.parametrize("params", generate_test_params())
@@ -710,7 +710,7 @@ def test_shifter_barrel(request, params):
     # Calculate timeout based on test complexity
     complexity_factor = 1.0
     # sourcery skip: no-conditionals-in-tests
-    if params['test_level'] == 'medium':
+    if params['test_level'] == 'func':
         complexity_factor = 2.0
     elif params['test_level'] == 'full':
         complexity_factor = 5.0

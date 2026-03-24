@@ -23,8 +23,8 @@ CONFIGURATION:
     DIGITS: Number of BCD digits output (3, 4, 5)
 
 TEST LEVELS:
-    basic (1-2 min):   Quick verification during development
-    medium (5-10 min): Integration testing for CI/branches
+    gate (1-2 min):   Quick verification during development
+    func (5-10 min): Integration testing for CI/branches
     full (15-30 min):  Comprehensive validation for regression
 
 PARAMETER COMBINATIONS:
@@ -33,7 +33,7 @@ PARAMETER COMBINATIONS:
     - (WIDTH=16, DIGITS=5): 0-65535 -> 00000-65535
 
 Environment Variables:
-    TEST_LEVEL: Set test level in cocotb (basic/medium/full)
+    TEST_LEVEL: Set test level in cocotb (gate/func/full)
     SEED: Set random seed for reproducibility
     TEST_WIDTH: Binary input width
     TEST_DIGITS: BCD output digits
@@ -69,7 +69,7 @@ class BinToBcdTB(TBBase):
 
         # Get test parameters from environment
         self.SEED = self.convert_to_int(os.environ.get('SEED', '12345'))
-        self.TEST_LEVEL = os.environ.get('TEST_LEVEL', 'basic').lower()
+        self.TEST_LEVEL = os.environ.get('TEST_LEVEL', 'gate').lower()
         self.WIDTH = self.convert_to_int(os.environ.get('TEST_WIDTH', '8'))
         self.DIGITS = self.convert_to_int(os.environ.get('TEST_DIGITS', '3'))
         self.DEBUG = self.convert_to_int(os.environ.get('TEST_DEBUG', '0'))
@@ -78,10 +78,10 @@ class BinToBcdTB(TBBase):
         random.seed(self.SEED)
 
         # Validate test level
-        valid_levels = ['basic', 'medium', 'full']
+        valid_levels = ['gate', 'func', 'full']
         if self.TEST_LEVEL not in valid_levels:
-            self.log.warning(f"Invalid TEST_LEVEL '{self.TEST_LEVEL}', using 'basic'. Valid: {valid_levels}")
-            self.TEST_LEVEL = 'basic'
+            self.log.warning(f"Invalid TEST_LEVEL '{self.TEST_LEVEL}', using 'gate'. Valid: {valid_levels}")
+            self.TEST_LEVEL = 'gate'
 
         # Log configuration
         self.log.info(f"BinToBcd TB initialized{self.get_time_ns_str()}")
@@ -288,9 +288,9 @@ class BinToBcdTB(TBBase):
         await self.reset_dut()
 
         # Determine number of tests based on level and range
-        if self.TEST_LEVEL == 'basic':
+        if self.TEST_LEVEL == 'gate':
             num_tests = min(20, self.max_binary + 1)
-        elif self.TEST_LEVEL == 'medium':
+        elif self.TEST_LEVEL == 'func':
             num_tests = min(100, self.max_binary + 1)
         else:  # full
             num_tests = min(500, self.max_binary + 1)
@@ -328,7 +328,7 @@ class BinToBcdTB(TBBase):
                 self.test_failures.append(result)
 
                 # Stop early for basic tests
-                if self.TEST_LEVEL == 'basic' and failed_count >= 5:
+                if self.TEST_LEVEL == 'gate' and failed_count >= 5:
                     break
 
         # Store summary result
@@ -349,7 +349,7 @@ class BinToBcdTB(TBBase):
 
     async def test_sequential_values(self):
         """Test sequential values (useful for small ranges)"""
-        if self.TEST_LEVEL == 'basic':
+        if self.TEST_LEVEL == 'gate':
             self.log.info(f"Skipping sequential values test")
             return True
 
@@ -369,7 +369,7 @@ class BinToBcdTB(TBBase):
         total_cycles = 0
 
         # Test every value in range (for small ranges only)
-        test_limit = min(max_test_val + 1, 200 if self.TEST_LEVEL == 'medium' else 500)
+        test_limit = min(max_test_val + 1, 200 if self.TEST_LEVEL == 'func' else 500)
 
         for binary_val in range(test_limit):
             success, actual, expected, cycles = await self.check_conversion(binary_val)
@@ -684,7 +684,7 @@ def test_bin_to_bcd(request, width, digits, test_level):
     }
 
     # Adjust timeout based on test level and complexity
-    timeout_multipliers = {'basic': 1, 'medium': 5, 'full': 10}
+    timeout_multipliers = {'gate': 1, 'func': 5, 'full': 10}
     # BCD conversion is sequential and can take many cycles
     complexity_factor = (2 ** width) / 1000.0 if width <= 12 else width / 2.0
     base_timeout = 10000  # 10 seconds base

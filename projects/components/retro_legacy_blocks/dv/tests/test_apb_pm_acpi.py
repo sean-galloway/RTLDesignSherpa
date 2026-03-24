@@ -63,12 +63,12 @@ async def pm_acpi_test(dut):
     tb.log.info(f'PM_ACPI test with seed: {seed}')
 
     # Get test level from environment
-    test_level = os.environ.get('TEST_LEVEL', 'basic').lower()
+    test_level = os.environ.get('TEST_LEVEL', 'gate').lower()
 
-    valid_levels = ['basic', 'medium', 'full']
+    valid_levels = ['gate', 'func', 'full']
     if test_level not in valid_levels:
-        tb.log.warning(f"Invalid TEST_LEVEL '{test_level}', using 'basic'. Valid: {valid_levels}")
-        test_level = 'basic'
+        tb.log.warning(f"Invalid TEST_LEVEL '{test_level}', using 'gate'. Valid: {valid_levels}")
+        test_level = 'gate'
 
     # Setup clocks and reset
     await tb.setup_clocks_and_reset()
@@ -82,11 +82,11 @@ async def pm_acpi_test(dut):
     # Create test suites based on level
     passed = False
 
-    if test_level == 'basic':
+    if test_level == 'gate':
         basic_tests = PMACPIBasicTests(tb)
         passed = await run_basic_tests(basic_tests, tb)
 
-    elif test_level == 'medium':
+    elif test_level == 'func':
         # Run basic tests first
         basic_tests = PMACPIBasicTests(tb)
         basic_passed = await run_basic_tests(basic_tests, tb)
@@ -189,13 +189,13 @@ def generate_test_params():
     return [
         # (cdc_enable, test_level, description)
         # Non-CDC configurations (CDC_ENABLE=0, same clock domain)
-        (0, 'basic', "PM_ACPI basic (no CDC)"),
-        (0, 'medium', "PM_ACPI medium (no CDC)"),
+        (0, 'gate', "PM_ACPI gate (no CDC)"),
+        (0, 'func', "PM_ACPI func (no CDC)"),
         (0, 'full', "PM_ACPI full (no CDC)"),
 
         # CDC configurations (CDC_ENABLE=1, async clock domains)
-        (1, 'basic', "PM_ACPI basic CDC"),
-        (1, 'medium', "PM_ACPI medium CDC"),
+        (1, 'gate', "PM_ACPI gate CDC"),
+        (1, 'func', "PM_ACPI func CDC"),
         (1, 'full', "PM_ACPI full CDC"),
     ]
 
@@ -232,7 +232,7 @@ def test_pm_acpi(request, cdc_enable, test_level, description):
     }
 
     # Calculate timeout based on test complexity
-    timeout_multipliers = {'basic': 1, 'medium': 3, 'full': 8}
+    timeout_multipliers = {'gate': 1, 'func': 3, 'full': 8}
     complexity_factor = timeout_multipliers.get(test_level, 1)
     # CDC adds some complexity due to synchronization delays
     cdc_factor = 1.5 if cdc_enable else 1.0

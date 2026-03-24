@@ -60,11 +60,11 @@ async def fifo_field_test(dut):
     tb.log.info(msg)
 
     # Get test level from environment (default: basic)
-    test_level = os.environ.get('TEST_LEVEL', 'basic').lower()
-    valid_levels = ['basic', 'medium', 'full']
+    test_level = os.environ.get('TEST_LEVEL', 'gate').lower()
+    valid_levels = ['gate', 'func', 'full']
     if test_level not in valid_levels:
-        tb.log.warning(f"Invalid TEST_LEVEL '{test_level}', using 'basic'. Valid: {valid_levels}")
-        test_level = 'basic'
+        tb.log.warning(f"Invalid TEST_LEVEL '{test_level}', using 'gate'. Valid: {valid_levels}")
+        test_level = 'gate'
 
     tb.log.info(f"Running field test level: {test_level.upper()}")
 
@@ -80,7 +80,7 @@ async def fifo_field_test(dut):
     tb.log.info(f"Available field randomizer configs: {config_names}")
 
     # Define test configurations based on test level
-    if test_level == 'basic':
+    if test_level == 'gate':
         # Minimal testing for quick verification
         test_configs = ['backtoback', 'fast', 'constrained', 'field_realistic']
         packet_counts = {
@@ -92,7 +92,7 @@ async def fifo_field_test(dut):
         run_dependency_test = False
         run_field_pattern_tests = ['incremental']
 
-    elif test_level == 'medium':
+    elif test_level == 'func':
         # Moderate testing for development
         test_configs = [
             'backtoback', 'fast', 'constrained', 'bursty',
@@ -179,10 +179,10 @@ def generate_params():
     
     Examples for quick debugging:
         # Single test case:
-        return [(4, 5, 8, 4, 10, 10, 0, 'basic')]
+        return [(4, 5, 8, 4, 10, 10, 0, 'gate')]
         
         # Just test one mode:
-        return [(4, 5, 8, 4, 10, 10, 0, 'basic'), (4, 5, 8, 4, 10, 10, 1, 'basic')]
+        return [(4, 5, 8, 4, 10, 10, 0, 'gate'), (4, 5, 8, 4, 10, 10, 1, 'gate')]
         
         # Test only basic level:
         addr_widths = [4]
@@ -192,7 +192,7 @@ def generate_params():
         wr_clk_periods = [10]
         rd_clk_periods = [10]
         registered = [0, 1]
-        test_levels = ['basic']  # Only basic
+        test_levels = ['gate']  # Only basic
         return list(product(addr_widths, ctrl_widths, data_widths, depths, wr_clk_periods, rd_clk_periods, registered, test_levels))
     """
     addr_widths = [4, 6, 8]
@@ -203,7 +203,7 @@ def generate_params():
     wr_clk_periods = [10]
     rd_clk_periods = [10]
     registered = [0, 1]
-    # test_levels = ['basic', 'medium', 'full']  # All test levels
+    # test_levels = ['gate', 'func', 'full']  # All test levels
     test_levels = ['full']  # For initial testing
     return [(4, 5, 8, 4, 10, 10, 0, 'full')]
     # return list(product(addr_widths, ctrl_widths, data_widths, depths, wr_clk_periods, rd_clk_periods, registered, test_levels))
@@ -274,7 +274,7 @@ def test_fifo_buffer_field(request, addr_width, ctrl_width, data_width, depth, w
     rtl_parameters['REGISTERED'] = str(registered)
 
     # Adjust timeout based on test level
-    timeout_multipliers = {'basic': 1.5, 'medium': 3, 'full': 6}
+    timeout_multipliers = {'gate': 1.5, 'func': 3, 'full': 6}
     base_timeout = 3000  # 3 seconds base for field testing
     timeout_ms = base_timeout * timeout_multipliers.get(test_level, 1)
 

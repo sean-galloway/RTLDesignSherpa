@@ -22,16 +22,16 @@ CONFIGURATION:
     WIDTH: Bit width of the input vector (8, 16, 32, 64)
 
 TEST LEVELS:
-    basic (1-2 min):   Quick verification during development
-    medium (3-5 min):  Integration testing for CI/branches
+    gate (1-2 min):   Quick verification during development
+    func (3-5 min):  Integration testing for CI/branches
     full (8-15 min):   Comprehensive validation for regression
 
 PARAMETER COMBINATIONS:
     - WIDTH: [8, 16, 32, 64]
-    - test_level: [basic, medium, full]
+    - test_level: [gate, func, full]
 
 Environment Variables:
-    TEST_LEVEL: Set test level in cocotb (basic/medium/full)
+    TEST_LEVEL: Set test level in cocotb (gate/func/full)
     SEED: Set random seed for reproducibility
     TEST_WIDTH: Bit width for input vector
 
@@ -66,7 +66,7 @@ class FindLastSetTB(TBBase):
 
         # Get test parameters from environment
         self.SEED = self.convert_to_int(os.environ.get('SEED', '12345'))
-        self.TEST_LEVEL = os.environ.get('TEST_LEVEL', 'basic').lower()
+        self.TEST_LEVEL = os.environ.get('TEST_LEVEL', 'gate').lower()
         self.WIDTH = self.convert_to_int(os.environ.get('TEST_WIDTH', '8'))
         self.DEBUG = self.convert_to_int(os.environ.get('TEST_DEBUG', '0'))
 
@@ -74,10 +74,10 @@ class FindLastSetTB(TBBase):
         random.seed(self.SEED)
 
         # Validate test level
-        valid_levels = ['basic', 'medium', 'full']
+        valid_levels = ['gate', 'func', 'full']
         if self.TEST_LEVEL not in valid_levels:
-            self.log.warning(f"Invalid TEST_LEVEL '{self.TEST_LEVEL}', using 'basic'. Valid: {valid_levels}")
-            self.TEST_LEVEL = 'basic'
+            self.log.warning(f"Invalid TEST_LEVEL '{self.TEST_LEVEL}', using 'gate'. Valid: {valid_levels}")
+            self.TEST_LEVEL = 'gate'
 
         # Log configuration
         self.log.info(f"FindLastSet TB initialized{self.get_time_ns_str()}")
@@ -158,7 +158,7 @@ class FindLastSetTB(TBBase):
                 self.test_failures.append(result)
 
                 # Stop early for basic tests
-                if self.TEST_LEVEL == 'basic' and failed_count >= 5:
+                if self.TEST_LEVEL == 'gate' and failed_count >= 5:
                     break
 
         # Store summary result
@@ -180,9 +180,9 @@ class FindLastSetTB(TBBase):
         self.log.info(f"Testing random find last set for WIDTH={self.WIDTH}")
 
         # Determine number of tests based on level
-        if self.TEST_LEVEL == 'basic':
+        if self.TEST_LEVEL == 'gate':
             num_tests = min(100, self.max_value + 1)
-        elif self.TEST_LEVEL == 'medium':
+        elif self.TEST_LEVEL == 'func':
             num_tests = min(1000, self.max_value + 1)
         else:  # full
             num_tests = min(10000, self.max_value + 1)
@@ -237,7 +237,7 @@ class FindLastSetTB(TBBase):
                 self.test_failures.append(result)
 
                 # Stop early for basic tests
-                if self.TEST_LEVEL == 'basic' and failed_count >= 10:
+                if self.TEST_LEVEL == 'gate' and failed_count >= 10:
                     break
 
         # Store summary result
@@ -258,7 +258,7 @@ class FindLastSetTB(TBBase):
 
     async def test_single_bit_patterns(self):
         """Test single bit patterns specifically"""
-        if self.TEST_LEVEL == 'basic':
+        if self.TEST_LEVEL == 'gate':
             self.log.info(f"Skipping single bit pattern test")
             return True
 
@@ -455,7 +455,7 @@ class FindLastSetTB(TBBase):
         else:
             test_functions.append((self.test_random_values, "Random value find last set"))
 
-        if self.TEST_LEVEL in ['medium', 'full']:
+        if self.TEST_LEVEL in ['func', 'full']:
             test_functions.append((self.test_single_bit_patterns, "Single bit patterns"))
 
         if self.TEST_LEVEL == 'full':
@@ -587,7 +587,7 @@ def test_find_last_set(request, width, test_level):
     }
 
     # Adjust timeout based on test level and width
-    timeout_multipliers = {'basic': 1, 'medium': 3, 'full': 6}
+    timeout_multipliers = {'gate': 1, 'func': 3, 'full': 6}
     width_factor = max(1.0, (1 << width) / 100000.0) if width <= 20 else max(1.0, width / 16.0)
     base_timeout = 5000  # 5 seconds base
     timeout_ms = int(base_timeout * timeout_multipliers.get(test_level, 1) * width_factor)

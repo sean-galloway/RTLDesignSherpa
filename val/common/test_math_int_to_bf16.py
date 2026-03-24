@@ -42,17 +42,17 @@ def get_int_to_bf16_params():
 
     if reg_level == 'GATE':
         return [
-            {'test_level': 'simple', 'int_width': 32},  # GATE: Minimal test
+            {'test_level': 'gate', 'int_width': 32},  # GATE: Minimal test
         ]
     elif reg_level == 'FUNC':
         return [
-            {'test_level': 'basic', 'int_width': 32},  # FUNC: Basic coverage
+            {'test_level': 'func', 'int_width': 32},  # FUNC: Basic coverage
         ]
     else:  # FULL
         return [
-            {'test_level': 'simple', 'int_width': 8},
-            {'test_level': 'basic', 'int_width': 16},
-            {'test_level': 'medium', 'int_width': 32},
+            {'test_level': 'gate', 'int_width': 8},
+            {'test_level': 'func', 'int_width': 16},
+            {'test_level': 'func', 'int_width': 32},
             {'test_level': 'full', 'int_width': 32},
         ]
 

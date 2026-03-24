@@ -58,7 +58,7 @@ class ChecksumTB(TBBase):
 
         # Get test parameters from environment variables
         self.SEED = self.convert_to_int(os.environ.get('SEED', '12345'))
-        self.TEST_LEVEL = os.environ.get('TEST_LEVEL', 'basic')
+        self.TEST_LEVEL = os.environ.get('TEST_LEVEL', 'gate').lower()
         self.WIDTH = self.convert_to_int(os.environ.get('TEST_WIDTH', '8'))
 
         # Calculate maximum data value based on width
@@ -241,7 +241,7 @@ class ChecksumTB(TBBase):
             if not result['all_match']:
                 self.log.error(f"Test vector {i+1} failed")
                 all_passed = False
-                if self.TEST_LEVEL == 'basic':
+                if self.TEST_LEVEL == 'gate':
                     break
 
         return all_passed
@@ -332,8 +332,8 @@ class ChecksumTB(TBBase):
 
         self.log.info("Overflow test passed")
 
-        # Test multiple overflows if not in basic mode
-        if self.TEST_LEVEL != 'basic':
+        # Test multiple overflows if not in gate mode
+        if self.TEST_LEVEL != 'gate':
             self.log.info("Testing multiple overflows")
 
             # Create a test vector with multiple overflows
@@ -367,10 +367,10 @@ class ChecksumTB(TBBase):
         self.log.info("Testing with random data")
 
         # Determine number of tests based on test level
-        if self.TEST_LEVEL == 'basic':
+        if self.TEST_LEVEL == 'gate':
             num_tests = 2
             max_length = 10
-        elif self.TEST_LEVEL == 'medium':
+        elif self.TEST_LEVEL == 'func':
             num_tests = 5
             max_length = 20
         else:  # full
@@ -393,7 +393,7 @@ class ChecksumTB(TBBase):
             if not result['all_match']:
                 self.log.error(f"Random test {test_num+1} failed")
                 all_passed = False
-                if self.TEST_LEVEL == 'basic':
+                if self.TEST_LEVEL == 'gate':
                     break
 
         return all_passed
@@ -415,7 +415,7 @@ class ChecksumTB(TBBase):
         if not basic_passed:
             self.log.error("Basic operation test failed")
             all_passed = False
-            if self.TEST_LEVEL == 'basic':
+            if self.TEST_LEVEL == 'gate':
                 return all_passed
 
         # 2. Reset functionality test
@@ -424,7 +424,7 @@ class ChecksumTB(TBBase):
         if not reset_passed:
             self.log.error("Reset functionality test failed")
             all_passed = False
-            if self.TEST_LEVEL == 'basic':
+            if self.TEST_LEVEL == 'gate':
                 return all_passed
 
         # 3. Overflow behavior test
@@ -433,11 +433,11 @@ class ChecksumTB(TBBase):
         if not overflow_passed:
             self.log.error("Overflow behavior test failed")
             all_passed = False
-            if self.TEST_LEVEL == 'basic':
+            if self.TEST_LEVEL == 'gate':
                 return all_passed
 
-        # Skip random data test in basic mode
-        if self.TEST_LEVEL != 'basic':
+        # Skip random data test in gate mode
+        if self.TEST_LEVEL != 'gate':
             # 4. Random data test
             self.log.info("4. Testing with random data")
             random_passed = await self.test_random_data()
@@ -461,7 +461,7 @@ class ChecksumTB(TBBase):
         self.log.info("="*50)
 
         # Print detailed results based on test level
-        if self.TEST_LEVEL != 'basic' and passed_tests < total_tests:
+        if self.TEST_LEVEL != 'gate' and passed_tests < total_tests:
             self.log.info("Failed tests:")
             for i, result in enumerate(self.test_results):
                 if not result['all_match']:
@@ -492,7 +492,7 @@ def generate_test_params():
     """
     Generate test parameter combinations based on REG_LEVEL.
 
-    REG_LEVEL=GATE: 2 tests (8-bit, basic+medium)
+    REG_LEVEL=GATE: 2 tests (8-bit, gate+func)
     REG_LEVEL=FUNC: 4 tests (varied widths, medium) - default
     REG_LEVEL=FULL: 6 tests (all combinations)
 
@@ -503,24 +503,24 @@ def generate_test_params():
 
     if reg_level == 'GATE':
         return [
-            {'WIDTH': 8, 'test_level': 'basic'},
-            {'WIDTH': 8, 'test_level': 'medium'},
+            {'WIDTH': 8, 'test_level': 'gate'},
+            {'WIDTH': 8, 'test_level': 'func'},
         ]
     elif reg_level == 'FUNC':
         return [
-            {'WIDTH':  4, 'test_level': 'medium'},
-            {'WIDTH':  8, 'test_level': 'medium'},
-            {'WIDTH': 16, 'test_level': 'medium'},
-            {'WIDTH': 32, 'test_level': 'medium'},
+            {'WIDTH':  4, 'test_level': 'func'},
+            {'WIDTH':  8, 'test_level': 'func'},
+            {'WIDTH': 16, 'test_level': 'func'},
+            {'WIDTH': 32, 'test_level': 'func'},
         ]
     else:  # FULL
         return [
-            {'WIDTH': 8, 'test_level': 'basic'},
-            {'WIDTH': 8, 'test_level': 'medium'},
+            {'WIDTH': 8, 'test_level': 'gate'},
+            {'WIDTH': 8, 'test_level': 'func'},
             {'WIDTH': 8, 'test_level': 'full'},
-            {'WIDTH':  4, 'test_level': 'medium'},
-            {'WIDTH': 16, 'test_level': 'medium'},
-            {'WIDTH': 32, 'test_level': 'medium'},
+            {'WIDTH':  4, 'test_level': 'func'},
+            {'WIDTH': 16, 'test_level': 'func'},
+            {'WIDTH': 32, 'test_level': 'func'},
         ]
 
 @pytest.mark.parametrize("params", generate_test_params())
@@ -583,7 +583,7 @@ def test_dataint_checksum(request, params): # sourcery skip: no-conditionals-in-
 
     # Calculate timeout based on test complexity
     complexity_factor = 1.0
-    if params['test_level'] == 'medium':
+    if params['test_level'] == 'func':
         complexity_factor = 2.0
     elif params['test_level'] == 'full':
         complexity_factor = 5.0

@@ -23,17 +23,17 @@ CONFIGURATION:
     channels:    Number of PWM channels (1, 2, 4)
 
 TEST LEVELS:
-    basic (1-2 min):   Quick verification during development
-    medium (3-5 min):  Integration testing for CI/branches
+    gate (1-2 min):   Quick verification during development
+    func (3-5 min):  Integration testing for CI/branches
     full (8-15 min):   Comprehensive validation for regression
 
 PARAMETER COMBINATIONS:
     - width: [8, 12, 16]
     - channels: [1, 2, 4]
-    - test_level: [basic, medium, full]
+    - test_level: [gate, func, full]
 
 Environment Variables:
-    TEST_LEVEL: Set test level in cocotb (basic/medium/full)
+    TEST_LEVEL: Set test level in cocotb (gate/func/full)
     SEED: Set random seed for reproducibility
     TEST_WIDTH: Counter width
     TEST_CHANNELS: Number of PWM channels
@@ -64,7 +64,7 @@ class PWMTB(TBBase):
 
         # Get test parameters from environment
         self.SEED = self.convert_to_int(os.environ.get('SEED', '12345'))
-        self.TEST_LEVEL = os.environ.get('TEST_LEVEL', 'basic').lower()
+        self.TEST_LEVEL = os.environ.get('TEST_LEVEL', 'gate').lower()
         self.WIDTH = self.convert_to_int(os.environ.get('TEST_WIDTH', '8'))
         self.CHANNELS = self.convert_to_int(os.environ.get('TEST_CHANNELS', '4'))
         self.DEBUG = self.convert_to_int(os.environ.get('TEST_DEBUG', '0'))
@@ -76,10 +76,10 @@ class PWMTB(TBBase):
         random.seed(self.SEED)
 
         # Validate test level
-        valid_levels = ['basic', 'medium', 'full']
+        valid_levels = ['gate', 'func', 'full']
         if self.TEST_LEVEL not in valid_levels:
-            self.log.warning(f"Invalid TEST_LEVEL '{self.TEST_LEVEL}', using 'basic'. Valid: {valid_levels}")
-            self.TEST_LEVEL = 'basic'
+            self.log.warning(f"Invalid TEST_LEVEL '{self.TEST_LEVEL}', using 'gate'. Valid: {valid_levels}")
+            self.TEST_LEVEL = 'gate'
 
         # Log configuration
         self.log.info(f"PWM TB initialized")
@@ -311,9 +311,9 @@ class PWMTB(TBBase):
         all_passed = True
 
         # Test different duty cycles based on level
-        if self.TEST_LEVEL == 'basic':
+        if self.TEST_LEVEL == 'gate':
             test_cases = [(10, 20, 1), (5, 10, 1)]  # (duty, period, repeat)
-        elif self.TEST_LEVEL == 'medium':
+        elif self.TEST_LEVEL == 'func':
             test_cases = [(10, 20, 1), (5, 10, 1), (15, 30, 2), (8, 16, 1)]
         else:  # full
             test_cases = [
@@ -325,7 +325,7 @@ class PWMTB(TBBase):
         test_cases = [(d, p, r) for d, p, r in test_cases if p <= self.MAX_COUNT and d <= self.MAX_COUNT]
 
         for duty_val, period_val, repeat_val in test_cases:
-            if not all_passed and self.TEST_LEVEL == 'basic':
+            if not all_passed and self.TEST_LEVEL == 'gate':
                 break
 
             self.log.debug(f"Testing duty={duty_val}, period={period_val}, repeat={repeat_val}{self.get_time_ns_str()}")
@@ -408,7 +408,7 @@ class PWMTB(TBBase):
 
     async def test_multiple_channels(self):
         """Test multiple PWM channels"""
-        if self.TEST_LEVEL == 'basic' or self.CHANNELS == 1:
+        if self.TEST_LEVEL == 'gate' or self.CHANNELS == 1:
             self.log.info("Skipping multiple channel tests")
             return True
 
@@ -483,7 +483,7 @@ class PWMTB(TBBase):
 
     async def test_repeat_functionality(self):
         """Test repeat count functionality"""
-        if self.TEST_LEVEL == 'basic':
+        if self.TEST_LEVEL == 'gate':
             self.log.info("Skipping repeat functionality tests")
             return True
 
@@ -697,7 +697,7 @@ class PWMTB(TBBase):
 
     async def test_start_stop_control(self):
         """Test start/stop control"""
-        if self.TEST_LEVEL == 'basic':
+        if self.TEST_LEVEL == 'gate':
             self.log.info("Skipping start/stop control tests")
             return True
 
@@ -844,7 +844,7 @@ def generate_params():
         valid_params.append((width, channels, test_level))
 
     # For debugging, uncomment one of these:
-    # return [(8, 1, 'basic')]  # Single test
+    # return [(8, 1, 'gate')]  # Single test
     # return [(8, 2, 'full')]  # Just specific configurations
 
     return valid_params
@@ -895,7 +895,7 @@ def test_pwm(request, width, channels, test_level):
     }
 
     # Adjust timeout based on test level and width
-    timeout_multipliers = {'basic': 1, 'medium': 2, 'full': 4}
+    timeout_multipliers = {'gate': 1, 'func': 2, 'full': 4}
     width_factor = max(1.0, width / 12.0)  # Larger widths take more time
     base_timeout = 3000  # 3 seconds base
     timeout_ms = int(base_timeout * timeout_multipliers.get(test_level, 1) * width_factor)

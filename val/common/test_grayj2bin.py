@@ -23,8 +23,8 @@ CONFIGURATION:
     WIDTH: Binary output width (4, 5, 6, 8)
 
 TEST LEVELS:
-    basic (1-2 min):   Quick verification during development
-    medium (3-5 min):  Integration testing for CI/branches
+    gate (1-2 min):   Quick verification during development
+    func (3-5 min):  Integration testing for CI/branches
     full (8-15 min):   Comprehensive validation for regression
 
 PARAMETER COMBINATIONS:
@@ -34,7 +34,7 @@ PARAMETER COMBINATIONS:
     - (JCW=20, WIDTH=8): Johnson counter 20 bits -> 8-bit binary
 
 Environment Variables:
-    TEST_LEVEL: Set test level in cocotb (basic/medium/full)
+    TEST_LEVEL: Set test level in cocotb (gate/func/full)
     SEED: Set random seed for reproducibility
     TEST_JCW: Johnson Counter Width
     TEST_WIDTH: Binary output width
@@ -71,7 +71,7 @@ class GrayJ2BinTB(TBBase):
 
         # Get test parameters from environment
         self.SEED = self.convert_to_int(os.environ.get('SEED', '12345'))
-        self.TEST_LEVEL = os.environ.get('TEST_LEVEL', 'basic').lower()
+        self.TEST_LEVEL = os.environ.get('TEST_LEVEL', 'gate').lower()
         self.JCW = self.convert_to_int(os.environ.get('TEST_JCW', '10'))
         self.WIDTH = self.convert_to_int(os.environ.get('TEST_WIDTH', '4'))
         self.DEBUG = self.convert_to_int(os.environ.get('TEST_DEBUG', '0'))
@@ -80,10 +80,10 @@ class GrayJ2BinTB(TBBase):
         random.seed(self.SEED)
 
         # Validate test level
-        valid_levels = ['basic', 'medium', 'full']
+        valid_levels = ['gate', 'func', 'full']
         if self.TEST_LEVEL not in valid_levels:
-            self.log.warning(f"Invalid TEST_LEVEL '{self.TEST_LEVEL}', using 'basic'. Valid: {valid_levels}")
-            self.TEST_LEVEL = 'basic'
+            self.log.warning(f"Invalid TEST_LEVEL '{self.TEST_LEVEL}', using 'gate'. Valid: {valid_levels}")
+            self.TEST_LEVEL = 'gate'
 
         # Log configuration
         self.log.info(f"GrayJ2Bin TB initialized{self.get_time_ns_str()}")
@@ -262,7 +262,7 @@ class GrayJ2BinTB(TBBase):
                 self.test_failures.append(result)
 
                 # Stop early for basic tests
-                if self.TEST_LEVEL == 'basic' and failed_count >= 5:
+                if self.TEST_LEVEL == 'gate' and failed_count >= 5:
                     break
 
         # Store summary result
@@ -346,7 +346,7 @@ class GrayJ2BinTB(TBBase):
 
     async def test_random_values(self):
         """Test random Gray values"""
-        if self.TEST_LEVEL == 'basic':
+        if self.TEST_LEVEL == 'gate':
             self.log.info(f"Skipping random values test")
             return True
 
@@ -356,7 +356,7 @@ class GrayJ2BinTB(TBBase):
         await self.reset_dut()
 
         # Determine number of tests based on level
-        if self.TEST_LEVEL == 'medium':
+        if self.TEST_LEVEL == 'func':
             num_tests = min(100, self.max_gray + 1)
         else:  # full
             num_tests = min(500, self.max_gray + 1)
@@ -598,7 +598,7 @@ def generate_params():
 
     # For debugging, uncomment one of these:
     # return [(10, 5, 'full')]  # Single test
-    # return [(10, 4, 'medium'), (12, 5, 'medium')]  # Specific configurations
+    # return [(10, 4, 'func'), (12, 5, 'func')]  # Specific configurations
 
     return valid_params
 
@@ -650,7 +650,7 @@ def test_grayj2bin(request, jcw, width, test_level):
     }
 
     # Adjust timeout based on test level and complexity
-    timeout_multipliers = {'basic': 1, 'medium': 3, 'full': 6}
+    timeout_multipliers = {'gate': 1, 'func': 3, 'full': 6}
     complexity_factor = max(1.0, jcw / 10.0)
     base_timeout = 8000  # 8 seconds base
     timeout_ms = int(base_timeout * timeout_multipliers.get(test_level, 1) * complexity_factor)

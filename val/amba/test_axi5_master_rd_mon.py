@@ -36,7 +36,7 @@ async def axi5_master_rd_mon_test(dut):
     """AXI5 master read monitor integration test"""
 
     # Get test level
-    test_level = os.environ.get('TEST_LEVEL', 'basic').lower()
+    test_level = os.environ.get('TEST_LEVEL', 'gate').lower()
 
     # Create testbench (is_write=False for read master)
     tb = AXI5MasterMonitorTB(dut, is_write=False, aclk=dut.aclk, aresetn=dut.aresetn)
@@ -63,16 +63,16 @@ def generate_axi5_monitor_params():
 
     if reg_level == 'GATE':
         params = [
-            (8, 32, 32, 1, 16, 2, 4, 'basic'),
+            (8, 32, 32, 1, 16, 2, 4, 'gate'),
         ]
     elif reg_level == 'FUNC':
         params = [
-            (8, 32, 32, 1, 16, 2, 4, 'basic'),
-            (8, 32, 32, 1, 16, 4, 8, 'medium'),
-            (8, 32, 32, 1, 32, 2, 4, 'medium'),
+            (8, 32, 32, 1, 16, 2, 4, 'gate'),
+            (8, 32, 32, 1, 16, 4, 8, 'func'),
+            (8, 32, 32, 1, 32, 2, 4, 'func'),
         ]
     else:  # FULL
-        test_levels = ['basic', 'medium', 'full']
+        test_levels = ['gate', 'func', 'full']
         configs = [
             (8, 32, 32, 1, 16, 2, 4),
             (8, 32, 32, 1, 16, 4, 8),

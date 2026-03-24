@@ -17,8 +17,8 @@ Test runner for AXIL4→AXI4 WRITE protocol upgrade converter (AW, W, B channels
 Imports testbench class from projects/components/converters/dv/tbclasses/axil4_to_axi4_wr_tb.py
 
 Test Levels:
-- basic: Quick smoke test (5 single-beat write transactions)
-- medium: Multiple write transactions with different addresses (20 writes)
+- gate: Quick smoke test (5 single-beat write transactions)
+- func: Multiple write transactions with different addresses (20 writes)
 - full: Comprehensive write coverage (50 writes, various parameters)
 
 Tests ONLY the write path. For read path, see test_axil4_to_axi4_rd.py.
@@ -59,11 +59,11 @@ async def axil4_to_axi4_wr_test(dut):
     tb.log.info(f"Using seed: {seed}")
 
     # Get test level from environment
-    test_level = os.environ.get('TEST_LEVEL', 'basic').lower()
-    valid_levels = ['basic', 'medium', 'full']
+    test_level = os.environ.get('TEST_LEVEL', 'gate').lower()
+    valid_levels = ['gate', 'func', 'full']
     if test_level not in valid_levels:
-        tb.log.warning(f"Invalid TEST_LEVEL '{test_level}', using 'basic'. Valid: {valid_levels}")
-        test_level = 'basic'
+        tb.log.warning(f"Invalid TEST_LEVEL '{test_level}', using 'gate'. Valid: {valid_levels}")
+        test_level = 'gate'
 
     tb.log.info(f"Running {test_level.upper()} AXIL4→AXI4 Write Converter test suite")
 
@@ -75,9 +75,9 @@ async def axil4_to_axi4_wr_test(dut):
 
     try:
         # Run appropriate test suite based on test level
-        if test_level == 'basic':
+        if test_level == 'gate':
             success = await tb.run_basic_test()
-        elif test_level == 'medium':
+        elif test_level == 'func':
             success = await tb.run_medium_test()
         else:  # full
             success = await tb.run_full_test()
@@ -131,17 +131,17 @@ def generate_test_params():
     # All parameters with embedded test_level
     all_params = [
         # GATE level: Basic configurations
-        {'data_width': 32, 'addr_width': 32, 'id_width': 8, 'test_level': 'basic'},
-        {'data_width': 64, 'addr_width': 32, 'id_width': 8, 'test_level': 'basic'},
-        {'data_width': 128, 'addr_width': 32, 'id_width': 8, 'test_level': 'basic'},
+        {'data_width': 32, 'addr_width': 32, 'id_width': 8, 'test_level': 'gate'},
+        {'data_width': 64, 'addr_width': 32, 'id_width': 8, 'test_level': 'gate'},
+        {'data_width': 128, 'addr_width': 32, 'id_width': 8, 'test_level': 'gate'},
 
         # FUNC level: Additional widths
-        {'data_width': 32, 'addr_width': 32, 'id_width': 4, 'test_level': 'basic'},
-        {'data_width': 32, 'addr_width': 32, 'id_width': 16, 'test_level': 'basic'},
+        {'data_width': 32, 'addr_width': 32, 'id_width': 4, 'test_level': 'gate'},
+        {'data_width': 32, 'addr_width': 32, 'id_width': 16, 'test_level': 'gate'},
 
         # FUNC level: Medium test depth
-        {'data_width': 32, 'addr_width': 32, 'id_width': 8, 'test_level': 'medium'},
-        {'data_width': 64, 'addr_width': 32, 'id_width': 8, 'test_level': 'medium'},
+        {'data_width': 32, 'addr_width': 32, 'id_width': 8, 'test_level': 'func'},
+        {'data_width': 64, 'addr_width': 32, 'id_width': 8, 'test_level': 'func'},
 
         # FULL level: Comprehensive validation
         {'data_width': 32, 'addr_width': 32, 'id_width': 8, 'test_level': 'full'},
@@ -152,10 +152,10 @@ def generate_test_params():
     # Filter based on REG_LEVEL
     if reg_level == 'GATE':
         # Only basic tests, limited configurations
-        params = [p for p in all_params if p['test_level'] == 'basic' and p['data_width'] in [32, 64]]
+        params = [p for p in all_params if p['test_level'] == 'gate' and p['data_width'] in [32, 64]]
     elif reg_level == 'FUNC':
         # Basic and medium tests
-        params = [p for p in all_params if p['test_level'] in ['basic', 'medium']]
+        params = [p for p in all_params if p['test_level'] in ['gate', 'func']]
     else:  # FULL
         # All tests
         params = all_params
@@ -221,7 +221,7 @@ def test_axil4_to_axi4_wr(request, params):
     }
 
     # Calculate timeout based on test level
-    base_timeout_ms = {'basic': 5000, 'medium': 15000, 'full': 45000}
+    base_timeout_ms = {'gate': 5000, 'func': 15000, 'full': 45000}
     timeout_ms = base_timeout_ms[test_level]
 
     # Environment variables

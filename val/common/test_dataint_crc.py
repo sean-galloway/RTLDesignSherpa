@@ -57,7 +57,7 @@ async def crc_basic_test(dut):
 #         'refin': crc_parameters[0][5],
 #         'refout': crc_parameters[0][6],
 #         'xorout': crc_parameters[0][7],
-#         'test_level': 'basic'
+#         'test_level': 'gate'
 #     }
 # ])
 def generate_test_params():
@@ -93,7 +93,7 @@ def generate_test_params():
             'refin': entry[5],
             'refout': entry[6],
             'xorout': entry[7],
-            'test_level': 'basic'
+            'test_level': 'gate'
         } for entry in selected
     ]
 

@@ -134,8 +134,8 @@ def bridge_config(request):
 
 @pytest.fixture(scope="module", params=[
     # Test levels: (level, transaction_count, timeout_factor)
-    ('basic', 10, 1.0),
-    ('medium', 50, 1.5),
+    ('gate', 10, 1.0),
+    ('func', 50, 1.5),
     ('full', 200, 2.0),
 ])
 def bridge_test_level(request):
@@ -144,7 +144,7 @@ def bridge_test_level(request):
 
     # Override from environment if specified
     env_level = os.environ.get('TEST_LEVEL', level).lower()
-    if env_level in ['basic', 'medium', 'full']:
+    if env_level in ['gate', 'func', 'full']:
         level = env_level
 
     return {
@@ -162,7 +162,7 @@ def get_bridge_env_config():
         'DATA_WIDTH': int(os.environ.get('BRIDGE_DATA_WIDTH', '32')),
         'ADDR_WIDTH': int(os.environ.get('BRIDGE_ADDR_WIDTH', '32')),
         'ID_WIDTH': int(os.environ.get('BRIDGE_ID_WIDTH', '4')),
-        'TEST_LEVEL': os.environ.get('TEST_LEVEL', 'basic').lower(),
+        'TEST_LEVEL': os.environ.get('TEST_LEVEL', 'gate').lower(),
         'ENABLE_WAVEDUMP': os.environ.get('ENABLE_WAVEDUMP', '1') == '1',
     }
 
@@ -193,4 +193,4 @@ def coverage_enabled():
 @pytest.fixture(scope="function")
 def test_level():
     """Test level fixture - can be overridden by TEST_LEVEL environment variable"""
-    return os.environ.get('TEST_LEVEL', 'basic')
+    return os.environ.get('TEST_LEVEL', 'gate')

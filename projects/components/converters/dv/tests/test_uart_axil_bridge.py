@@ -17,8 +17,8 @@ Test runner for UART command parser to AXI4-Lite master bridge.
 Imports testbench class from projects/components/converters/dv/tbclasses/uart_axil_bridge_tb.py
 
 Test Levels:
-- basic: Quick smoke test (4 write/read pairs)
-- medium: Functional coverage (10 write/read operations)
+- gate: Quick smoke test (4 write/read pairs)
+- func: Functional coverage (10 write/read operations)
 - full: Comprehensive validation (30 operations, various patterns)
 
 Tests UART command parsing (W/R commands) and AXI4-Lite transaction generation.
@@ -57,8 +57,8 @@ async def uart_axil_bridge_test(dut):
     Test intelligence resides here, infrastructure in TB class.
 
     Timeout: 500ms simulation time (UART is slow!)
-    - basic: ~50ms sim time (4 operations)
-    - medium: ~125ms sim time (10 operations)
+    - gate: ~50ms sim time (4 operations)
+    - func: ~125ms sim time (10 operations)
     - full: ~375ms sim time (30 operations)
     """
     tb = UARTAXILBridgeTB(dut)
@@ -69,11 +69,11 @@ async def uart_axil_bridge_test(dut):
     tb.log.info(f"Using seed: {seed}")
 
     # Get test level from environment
-    test_level = os.environ.get('TEST_LEVEL', 'basic').lower()
-    valid_levels = ['basic', 'medium', 'full']
+    test_level = os.environ.get('TEST_LEVEL', 'gate').lower()
+    valid_levels = ['gate', 'func', 'full']
     if test_level not in valid_levels:
-        tb.log.warning(f"Invalid TEST_LEVEL '{test_level}', using 'basic'. Valid: {valid_levels}")
-        test_level = 'basic'
+        tb.log.warning(f"Invalid TEST_LEVEL '{test_level}', using 'gate'. Valid: {valid_levels}")
+        test_level = 'gate'
 
     tb.log.info(f"Running {test_level.upper()} UART→AXIL Bridge test suite")
 
@@ -82,9 +82,9 @@ async def uart_axil_bridge_test(dut):
 
     try:
         # Run appropriate test suite based on test level
-        if test_level == 'basic':
+        if test_level == 'gate':
             success = await tb.run_basic_test()
-        elif test_level == 'medium':
+        elif test_level == 'func':
             success = await tb.run_medium_test()
         else:  # full
             success = await tb.run_full_test()
@@ -137,16 +137,16 @@ def generate_test_params():
     # All parameters with embedded test_level
     all_params = [
         # GATE level: Basic configuration
-        {'axil_data_width': 32, 'axil_addr_width': 32, 'clks_per_bit': 868, 'test_level': 'basic'},
+        {'axil_data_width': 32, 'axil_addr_width': 32, 'clks_per_bit': 868, 'test_level': 'gate'},
 
         # FUNC level: Different data widths
-        {'axil_data_width': 64, 'axil_addr_width': 32, 'clks_per_bit': 868, 'test_level': 'basic'},
+        {'axil_data_width': 64, 'axil_addr_width': 32, 'clks_per_bit': 868, 'test_level': 'gate'},
 
         # FUNC level: Different baud rates
-        {'axil_data_width': 32, 'axil_addr_width': 32, 'clks_per_bit': 434, 'test_level': 'basic'},  # 50MHz/115200
+        {'axil_data_width': 32, 'axil_addr_width': 32, 'clks_per_bit': 434, 'test_level': 'gate'},  # 50MHz/115200
 
         # FUNC level: Medium test depth
-        {'axil_data_width': 32, 'axil_addr_width': 32, 'clks_per_bit': 868, 'test_level': 'medium'},
+        {'axil_data_width': 32, 'axil_addr_width': 32, 'clks_per_bit': 868, 'test_level': 'func'},
 
         # FULL level: Comprehensive validation
         {'axil_data_width': 32, 'axil_addr_width': 32, 'clks_per_bit': 868, 'test_level': 'full'},
@@ -156,10 +156,10 @@ def generate_test_params():
     # Filter based on REG_LEVEL
     if reg_level == 'GATE':
         # Only basic test, single configuration
-        params = [p for p in all_params if p['test_level'] == 'basic' and p['axil_data_width'] == 32 and p['clks_per_bit'] == 868]
+        params = [p for p in all_params if p['test_level'] == 'gate' and p['axil_data_width'] == 32 and p['clks_per_bit'] == 868]
     elif reg_level == 'FUNC':
         # Basic and medium tests
-        params = [p for p in all_params if p['test_level'] in ['basic', 'medium']]
+        params = [p for p in all_params if p['test_level'] in ['gate', 'func']]
     else:  # FULL
         # All tests
         params = all_params
@@ -222,7 +222,7 @@ def test_uart_axil_bridge(request, params):
     }
 
     # Calculate timeout based on test level (UART is slow!)
-    base_timeout_ms = {'basic': 30000, 'medium': 60000, 'full': 180000}
+    base_timeout_ms = {'gate': 30000, 'func': 60000, 'full': 180000}
     timeout_ms = base_timeout_ms[test_level]
 
     # Environment variables

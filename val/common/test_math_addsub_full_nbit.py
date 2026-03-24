@@ -44,7 +44,7 @@ class AddSubTB(TBBase):
         self.N = self.convert_to_int(os.environ.get('PARAM_N', '1'))
         self.max_val = 2**self.N
         self.mask = self.max_val - 1
-        self.test_level = os.environ.get('TEST_LEVEL', 'basic')
+        self.test_level = os.environ.get('TEST_LEVEL', 'gate').lower()
         self.seed = self.convert_to_int(os.environ.get('SEED', '12345'))
 
         # Initialize the random generator
@@ -230,7 +230,7 @@ def test_math_addsub_full_nbit(request, n):
 
     # Set up environment variables
     seed = random.randint(0, 100000)
-    test_level = os.environ.get('TEST_LEVEL', 'basic')  # Can be basic, medium, or full
+    test_level = os.environ.get('TEST_LEVEL', 'gate').lower()  # Can be gate, func, or full
 
     extra_env = {
         'TRACE_FILE': f"{sim_build}/dump.vcd",

@@ -19,8 +19,8 @@ Binary Counter Test with Parameterized Test Levels and Configuration
 This test uses WIDTH and MAX as parameters for maximum flexibility:
 
 TEST LEVELS (per-test depth):
-    basic (30s-2min):  Quick verification during development
-    medium (2-5 min):  Integration testing for CI/branches
+    gate (30s-2min):  Quick verification during development
+    func (2-5 min):  Integration testing for CI/branches
     full (5-15 min):   Comprehensive validation for regression
 
 REG_LEVEL Control (parameter combinations):
@@ -30,12 +30,12 @@ REG_LEVEL Control (parameter combinations):
 
 PARAMETER COMBINATIONS:
     GATE: 2 configs (small + large) × 1 level = 2 tests
-    FUNC: 3 widths × 3 max_vals × 1 level = 9 tests (basic level only)
+    FUNC: 3 widths × 3 max_vals × 1 level = 9 tests (gate level only)
     FULL: 3 widths × 3 max_vals × 3 levels = 27 tests
 
 Environment Variables:
     REG_LEVEL: GATE|FUNC|FULL - controls parameter combinations (default: FUNC)
-    TEST_LEVEL: basic|medium|full - controls per-test depth (set by REG_LEVEL)
+    TEST_LEVEL: gate|func|full - controls per-test depth (set by REG_LEVEL)
     SEED: Set random seed for reproducibility
 
 COUNTER_BIN BEHAVIOR:
@@ -70,7 +70,7 @@ class CounterBinTB(TBBase):
 
         # Get test parameters from environment
         self.SEED = self.convert_to_int(os.environ.get('SEED', '12345'))
-        self.TEST_LEVEL = os.environ.get('TEST_LEVEL', 'basic').lower()
+        self.TEST_LEVEL = os.environ.get('TEST_LEVEL', 'gate').lower()
         self.WIDTH = self.convert_to_int(os.environ.get('TEST_WIDTH', '5'))
         self.MAX = self.convert_to_int(os.environ.get('TEST_MAX', '10'))
         self.DEBUG = self.convert_to_int(os.environ.get('TEST_DEBUG', '0'))
@@ -79,10 +79,10 @@ class CounterBinTB(TBBase):
         random.seed(self.SEED)
 
         # Validate test level
-        valid_levels = ['basic', 'medium', 'full']
+        valid_levels = ['gate', 'func', 'full']
         if self.TEST_LEVEL not in valid_levels:
-            self.log.warning(f"Invalid TEST_LEVEL '{self.TEST_LEVEL}', using 'basic'. Valid: {valid_levels}{self.get_time_ns_str()}")
-            self.TEST_LEVEL = 'basic'
+            self.log.warning(f"Invalid TEST_LEVEL '{self.TEST_LEVEL}', using 'gate'. Valid: {valid_levels}{self.get_time_ns_str()}")
+            self.TEST_LEVEL = 'gate'
 
         # Log configuration
         self.log.info(f"Counter Bin TB initialized{self.get_time_ns_str()}")
@@ -165,9 +165,9 @@ class CounterBinTB(TBBase):
         await self.reset_dut()
 
         # Test based on level
-        if self.TEST_LEVEL == 'basic':
+        if self.TEST_LEVEL == 'gate':
             num_cycles = min(20, len(self.expected_sequence))  # Test first 20 cycles
-        elif self.TEST_LEVEL == 'medium':
+        elif self.TEST_LEVEL == 'func':
             num_cycles = min(len(self.expected_sequence), 100)  # Test up to full sequence
         else:  # full
             num_cycles = len(self.expected_sequence) * 2  # Test two complete sequences
@@ -182,7 +182,7 @@ class CounterBinTB(TBBase):
 
             if not await self.check_counter_value(expected_value, cycle):
                 all_passed = False
-                if self.TEST_LEVEL == 'basic':
+                if self.TEST_LEVEL == 'gate':
                     break
 
             # Store result
@@ -324,8 +324,8 @@ class CounterBinTB(TBBase):
 
     async def test_wrap_behavior(self):
         """Test wrap-around behavior"""
-        if self.TEST_LEVEL == 'basic':
-            self.log.info(f"Skipping wrap behavior test for basic level{self.get_time_ns_str()}")
+        if self.TEST_LEVEL == 'gate':
+            self.log.info(f"Skipping wrap behavior test for gate level{self.get_time_ns_str()}")
             return True
 
         self.log.info(f"Testing wrap behavior{self.get_time_ns_str()}")
@@ -524,18 +524,18 @@ def generate_params():
 
     if reg_level == 'GATE':
         # Minimal - just prove basic functionality
-        # 2 tests: small counter + large counter, basic level only
+        # 2 tests: small counter + large counter, gate level only
         params = [
-            (5, 10, 'basic'),   # Small counter (5 bits, max 10)
-            (8, 128, 'basic'),  # Larger counter (8 bits, max 128)
+            (5, 10, 'gate'),   # Small counter (5 bits, max 10)
+            (8, 128, 'gate'),  # Larger counter (8 bits, max 128)
         ]
 
     elif reg_level == 'FUNC':
-        # Functional coverage - test variety of widths/maxs with basic level
+        # Functional coverage - test variety of widths/maxs with gate level
         # 3 widths × 3 maxs × 1 level = 9 tests
         widths = [4, 5, 8]
         maxs = [8, 10, 16]
-        test_levels = ['basic']  # Keep tests fast for functional check
+        test_levels = ['gate']  # Keep tests fast for functional check
 
         params = []
         for width, max_val in product(widths, maxs):
@@ -549,7 +549,7 @@ def generate_params():
         # 3 widths × 3 maxs × 3 levels = 27 tests
         widths = [4, 5, 8]
         maxs = [8, 10, 16]
-        test_levels = ['basic', 'medium', 'full']
+        test_levels = ['gate', 'func', 'full']
 
         params = []
         for width, max_val, level in product(widths, maxs, test_levels):
@@ -567,8 +567,8 @@ def test_counter_bin(request, width, max_val, test_level):
     Parameterized Binary Counter test with configurable width, max value and test level.
 
     Test level controls the depth and breadth of testing:
-    - basic: Quick verification (1-2 min)
-    - medium: Integration testing (3-5 min)
+    - gate: Quick verification (1-2 min)
+    - func: Integration testing (3-5 min)
     - full: Comprehensive validation (8-15 min)
 
     Counter behavior: Binary counter with special wrap (toggle MSB, clear others)
@@ -603,7 +603,7 @@ def test_counter_bin(request, width, max_val, test_level):
     }
 
     # Adjust timeout based on test level and max value
-    timeout_multipliers = {'basic': 1, 'medium': 3, 'full': 6}
+    timeout_multipliers = {'gate': 1, 'func': 3, 'full': 6}
     max_factor = max(1.0, max_val / 100.0)  # Larger max values take more time
     base_timeout = 5000  # 5 seconds base
     timeout_ms = int(base_timeout * timeout_multipliers.get(test_level, 1) * max_factor)

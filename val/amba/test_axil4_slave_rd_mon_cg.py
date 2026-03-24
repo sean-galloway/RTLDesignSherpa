@@ -37,7 +37,7 @@ async def axil4_slave_rd_mon_cg_test(dut):
     """AXIL4 slave read monitor CG integration test"""
 
     # Get test level
-    test_level = os.environ.get('TEST_LEVEL', 'basic').lower()
+    test_level = os.environ.get('TEST_LEVEL', 'gate').lower()
 
     # Create testbench (is_write=False for read slave)
     tb = AXIL4SlaveMonitorTB(dut, is_write=False, aclk=dut.aclk, aresetn=dut.aresetn)
@@ -79,9 +79,9 @@ def generate_axil4_monitor_cg_params():
     reg_level = os.environ.get('REG_LEVEL', 'FUNC').upper()
 
     if reg_level == 'GATE':
-        return ['basic']
+        return ['gate']
     else:  # FUNC or FULL
-        return ['basic', 'medium', 'full']
+        return ['gate', 'func', 'full']
 
 
 @pytest.mark.parametrize("test_level", generate_axil4_monitor_cg_params())

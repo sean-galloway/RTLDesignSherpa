@@ -402,7 +402,7 @@ class CounterFreqInvariantTB(TBBase):
         if expected_division_factor <= 200:
             tolerance = 0.05  # 5% for low frequencies
         elif expected_division_factor <= 500:
-            tolerance = 0.08  # 8% for medium frequencies
+            tolerance = 0.08  # 8% for func frequencies
         elif expected_division_factor <= 1000:
             tolerance = 0.10  # 10% for high frequencies
         else:
@@ -660,19 +660,19 @@ class CounterFreqInvariantTB(TBBase):
         self.log.info("=== Testing frequency sweep (microsecond timing) ===")
 
         # Determine test level from environment
-        test_level = os.environ.get('TEST_LEVEL', 'basic').lower()
+        test_level = os.environ.get('TEST_LEVEL', 'gate').lower()
 
         # Select frequencies based on test level
         if test_level == 'full' or test_level == 'exhaustive':
             # FULL/EXHAUSTIVE: Test all 68 frequencies for 100% coverage
             test_frequencies = list(range(68))
             self.log.info(f"FULL level: testing all {len(test_frequencies)} frequencies")
-        elif test_level == 'medium':
-            # MEDIUM: Test every 4th frequency (17 frequencies)
+        elif test_level == 'func':
+            # FUNC: Test every 4th frequency (17 frequencies)
             test_frequencies = list(range(0, 68, 4))
-            self.log.info(f"MEDIUM level: testing {len(test_frequencies)} frequencies")
+            self.log.info(f"FUNC level: testing {len(test_frequencies)} frequencies")
         else:
-            # BASIC/GATE: Test representative set of frequencies
+            # GATE: Test representative set of frequencies
             test_frequencies = [
                 0,   # 100MHz
                 15,  # 200MHz
@@ -681,7 +681,7 @@ class CounterFreqInvariantTB(TBBase):
                 57,  # 1500MHz
                 67,  # 2000MHz (2GHz)
             ]
-            self.log.info(f"BASIC level: testing {len(test_frequencies)} frequencies")
+            self.log.info(f"GATE level: testing {len(test_frequencies)} frequencies")
 
         all_passed = True
 
@@ -925,8 +925,8 @@ def test_counter_freq_invariant_enhanced(request, counter_width):
     }
 
     # Determine test level based on REG_LEVEL
-    test_level_map = {'GATE': 'basic', 'FUNC': 'basic', 'FULL': 'full'}
-    test_level = test_level_map.get(reg_level, 'basic')
+    test_level_map = {'GATE': 'gate', 'FUNC': 'gate', 'FULL': 'full'}
+    test_level = test_level_map.get(reg_level, 'gate')
 
     # Environment variables
     extra_env = {

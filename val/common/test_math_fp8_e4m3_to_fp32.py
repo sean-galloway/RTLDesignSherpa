@@ -32,11 +32,11 @@ from CocoTBFramework.tbclasses.common.fp_testing import (
 def get_fp8_e4m3_to_fp32_params():
     reg_level = os.environ.get('REG_LEVEL', 'FUNC').upper()
     if reg_level == 'GATE':
-        return [{'test_level': 'simple'}]
+        return [{'test_level': 'gate'}]
     elif reg_level == 'FUNC':
-        return [{'test_level': 'basic'}]
+        return [{'test_level': 'func'}]
     else:
-        return [{'test_level': 'simple'}, {'test_level': 'basic'}, {'test_level': 'medium'}, {'test_level': 'full'}]
+        return [{'test_level': 'gate'}, {'test_level': 'func'}, {'test_level': 'full'}]
 
 
 @cocotb.test(timeout_time=60, timeout_unit="ms")

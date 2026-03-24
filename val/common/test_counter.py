@@ -22,23 +22,23 @@ CONFIGURATION:
     max_value:   Maximum count value (32, 255, 1023, 32767)
 
 TEST LEVELS (per-test depth):
-    basic (1-2 min):   Quick verification during development
-    medium (3-5 min):  Integration testing for CI/branches
+    gate (1-2 min):   Quick verification during development
+    func (3-5 min):  Integration testing for CI/branches
     full (8-15 min):   Comprehensive validation for regression
 
 REG_LEVEL Control (parameter combinations):
-    GATE: 1 test (~2 min) - smoke test (max=32, basic)
+    GATE: 1 test (~2 min) - smoke test (max=32, gate)
     FUNC: 4 tests (~8 min) - functional coverage - DEFAULT
     FULL: 12 tests (~2 hours) - comprehensive validation
 
 PARAMETER COMBINATIONS:
     GATE: 1 max_value × 1 level = 1 test
-    FUNC: 4 max_values × 1 level = 4 tests (all max_values, basic only)
+    FUNC: 4 max_values × 1 level = 4 tests (all max_values, gate only)
     FULL: 4 max_values × 3 levels = 12 tests
 
 Environment Variables:
     REG_LEVEL: Control parameter combinations (GATE/FUNC/FULL)
-    TEST_LEVEL: Set test level in cocotb (basic/medium/full)
+    TEST_LEVEL: Set test level in cocotb (gate/func/full)
     SEED: Set random seed for reproducibility
     TEST_MAX_VALUE: Maximum count value for counter
 
@@ -72,7 +72,7 @@ class CounterTB(TBBase):
 
         # Get test parameters from environment
         self.SEED = self.convert_to_int(os.environ.get('SEED', '12345'))
-        self.TEST_LEVEL = os.environ.get('TEST_LEVEL', 'basic').lower()
+        self.TEST_LEVEL = os.environ.get('TEST_LEVEL', 'gate').lower()
         self.MAX_VALUE = self.convert_to_int(os.environ.get('TEST_MAX_VALUE', '32767'))
         self.DEBUG = self.convert_to_int(os.environ.get('TEST_DEBUG', '0'))
 
@@ -80,10 +80,10 @@ class CounterTB(TBBase):
         random.seed(self.SEED)
 
         # Validate test level
-        valid_levels = ['basic', 'medium', 'full']
+        valid_levels = ['gate', 'func', 'full']
         if self.TEST_LEVEL not in valid_levels:
-            self.log.warning(f"Invalid TEST_LEVEL '{self.TEST_LEVEL}', using 'basic'. Valid: {valid_levels}")
-            self.TEST_LEVEL = 'basic'
+            self.log.warning(f"Invalid TEST_LEVEL '{self.TEST_LEVEL}', using 'gate'. Valid: {valid_levels}")
+            self.TEST_LEVEL = 'gate'
 
         # Log configuration
         self.log.info(f"Counter TB initialized{self.get_time_ns_str()}")
@@ -143,9 +143,9 @@ class CounterTB(TBBase):
         await self.reset_dut()
 
         # Test based on level
-        if self.TEST_LEVEL == 'basic':
+        if self.TEST_LEVEL == 'gate':
             num_cycles = 2  # Test 2 complete cycles
-        elif self.TEST_LEVEL == 'medium':
+        elif self.TEST_LEVEL == 'func':
             num_cycles = 5  # Test 5 complete cycles
         else:  # full
             num_cycles = 10  # Test 10 complete cycles
@@ -163,7 +163,7 @@ class CounterTB(TBBase):
                 if cycles_to_tick != expected_cycles:
                     self.log.error(f"Cycle {cycle + 1}: Expected {expected_cycles} cycles, got {cycles_to_tick}")
                     all_passed = False
-                    if self.TEST_LEVEL == 'basic':
+                    if self.TEST_LEVEL == 'gate':
                         break
                 else:
                     self.log.debug(f"Cycle {cycle + 1}: Correct timing - {cycles_to_tick} cycles{self.get_time_ns_str()}")
@@ -173,7 +173,7 @@ class CounterTB(TBBase):
                 if self.tick.value != 0:
                     self.log.error(f"Cycle {cycle + 1}: Tick should be low after one cycle")
                     all_passed = False
-                    if self.TEST_LEVEL == 'basic':
+                    if self.TEST_LEVEL == 'gate':
                         break
 
             except TimeoutError as e:
@@ -249,7 +249,7 @@ class CounterTB(TBBase):
 
     async def test_continuous_operation(self):
         """Test continuous operation over multiple cycles"""
-        if self.TEST_LEVEL == 'basic':
+        if self.TEST_LEVEL == 'gate':
             self.log.info(f"Skipping continuous operation test{self.get_time_ns_str()}")
             return True
 
@@ -260,7 +260,7 @@ class CounterTB(TBBase):
         await self.reset_dut()
 
         # Test multiple cycles
-        if self.TEST_LEVEL == 'medium':
+        if self.TEST_LEVEL == 'func':
             num_cycles = 3
         else:  # full
             num_cycles = 5
@@ -447,8 +447,8 @@ def generate_params():
     """
     Generate test parameter combinations based on REG_LEVEL.
 
-    REG_LEVEL=GATE: 1 test (max=32, basic level)
-    REG_LEVEL=FUNC: 4 tests (all max_values, basic level) - default
+    REG_LEVEL=GATE: 1 test (max=32, gate level)
+    REG_LEVEL=FUNC: 4 tests (all max_values, gate level) - default
     REG_LEVEL=FULL: 12 tests (all max_values, all test levels)
 
     Returns:
@@ -457,15 +457,15 @@ def generate_params():
     reg_level = os.environ.get('REG_LEVEL', 'FUNC').upper()
 
     max_values = [32, 255, 1023, 32767]  # Different maximum count values
-    test_levels = ['basic', 'medium', 'full']  # Test levels
+    test_levels = ['gate', 'func', 'full']  # Test levels
 
     if reg_level == 'GATE':
-        # Quick smoke test: max=32, basic only
-        params = [(32, 'basic')]
+        # Quick smoke test: max=32, gate only
+        params = [(32, 'gate')]
 
     elif reg_level == 'FUNC':
-        # Functional coverage: all max_values, basic level only
-        params = [(max_val, 'basic') for max_val in max_values]
+        # Functional coverage: all max_values, gate level only
+        params = [(max_val, 'gate') for max_val in max_values]
 
     else:  # FULL
         # Comprehensive: all combinations
@@ -483,8 +483,8 @@ def test_counter(request, max_value, test_level):
     Parameterized Generic Counter test with configurable max value and test level.
 
     Test level controls the depth and breadth of testing:
-    - basic: Quick verification (1-2 min)
-    - medium: Integration testing (3-5 min)
+    - gate: Quick verification (1-2 min)
+    - func: Integration testing (3-5 min)
     - full: Comprehensive validation (8-15 min)
     
     Counter behavior: For MAX=N, counter counts 0→1→2→...→N, tick occurs when count==N
@@ -520,7 +520,7 @@ def test_counter(request, max_value, test_level):
     }
 
     # Adjust timeout based on test level and max value
-    timeout_multipliers = {'basic': 1, 'medium': 3, 'full': 6}
+    timeout_multipliers = {'gate': 1, 'func': 3, 'full': 6}
     max_factor = max(1.0, max_value / 1000.0)  # Larger max values take more time
     base_timeout = 5000  # 5 seconds base
     timeout_ms = int(base_timeout * timeout_multipliers.get(test_level, 1) * max_factor)

@@ -14,8 +14,8 @@ Tests the full integration of:
 - axi4_master_rd/wr (skid buffers)
 
 Test Levels:
-- basic: Quick smoke test (1-2 descriptors per channel, ~30s)
-- medium: Moderate coverage (4-8 descriptors, ~90s)
+- gate: Quick smoke test (1-2 descriptors per channel, ~30s)
+- func: Moderate coverage (4-8 descriptors, ~90s)
 - full: Comprehensive validation (16+ descriptors, ~180s)
 
 Author: RTL Design Sherpa

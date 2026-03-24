@@ -109,7 +109,7 @@ def test_math_adder_brent_kung(request, n):
 
     # Set up environment variables
     seed = random.randint(0, 100000)
-    test_level = os.environ.get('TEST_LEVEL', 'basic')  # Can be basic, medium, or full
+    test_level = os.environ.get('TEST_LEVEL', 'gate').lower()  # Can be gate, func, or full
 
     extra_env = {
         'TRACE_FILE': f"{sim_build}/dump.vcd",

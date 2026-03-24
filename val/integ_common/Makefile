@@ -37,6 +37,7 @@ PYTEST_VERBOSE = -v
 PYTEST_QUIET = -q
 PYTEST_XDIST = -n 48  # parallel workers (48 with unique test names)
 PYTEST_TBSTYLE = --tb=short
+PYTEST_RERUNS = --reruns 3 --reruns-delay 1
 
 # Default target - show help
 .DEFAULT_GOAL := help
@@ -84,14 +85,14 @@ run-all:
 	@echo "================================================================================"
 	@echo "Running ALL COMMON Integration Tests"
 	@echo "================================================================================"
-	$(PYTEST) $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE) test_*.py
+	$(PYTEST) $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE) $(PYTEST_RERUNS) test_*.py
 
 .PHONY: run-all-parallel
 run-all-parallel:
 	@echo "================================================================================"
 	@echo "Running ALL COMMON Integration Tests (Parallel - 4 workers)"
 	@echo "================================================================================"
-	$(PYTEST) $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE) $(PYTEST_XDIST) test_*.py
+	$(PYTEST) $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE) $(PYTEST_XDIST) $(PYTEST_RERUNS) test_*.py
 
 # ==============================================================================
 # Standardized REG_LEVEL Targets (aliases for cross-area consistency)

@@ -17,8 +17,8 @@ Test runner for AXI4→AXIL4 WRITE protocol downgrade converter with burst decom
 Imports testbench class from projects/components/converters/dv/tbclasses/axi4_to_axil4_wr_tb.py
 
 Test Levels:
-- basic: Quick smoke test (4 simple write bursts)
-- medium: Multiple write bursts with varying lengths (10 bursts, len 1-16)
+- gate: Quick smoke test (4 simple write bursts)
+- func: Multiple write bursts with varying lengths (10 bursts, len 1-16)
 - full: Comprehensive write coverage (30 bursts, len 1-32, various burst types)
 
 Tests ONLY the write path with burst decomposition. For read path, see test_axi4_to_axil4_rd.py.
@@ -64,11 +64,11 @@ async def axi4_to_axil4_wr_test(dut):
     tb.log.info(f"Using seed: {seed}")
 
     # Get test level from environment
-    test_level = os.environ.get('TEST_LEVEL', 'basic').lower()
-    valid_levels = ['basic', 'medium', 'full']
+    test_level = os.environ.get('TEST_LEVEL', 'gate').lower()
+    valid_levels = ['gate', 'func', 'full']
     if test_level not in valid_levels:
-        tb.log.warning(f"Invalid TEST_LEVEL '{test_level}', using 'basic'. Valid: {valid_levels}")
-        test_level = 'basic'
+        tb.log.warning(f"Invalid TEST_LEVEL '{test_level}', using 'gate'. Valid: {valid_levels}")
+        test_level = 'gate'
 
     tb.log.info(f"Running {test_level.upper()} AXI4→AXIL4 Write Converter test suite")
 
@@ -80,9 +80,9 @@ async def axi4_to_axil4_wr_test(dut):
 
     try:
         # Run appropriate test suite based on test level
-        if test_level == 'basic':
+        if test_level == 'gate':
             success = await tb.run_basic_test()
-        elif test_level == 'medium':
+        elif test_level == 'func':
             success = await tb.run_medium_test()
         else:  # full
             success = await tb.run_full_test()
@@ -139,17 +139,17 @@ def generate_test_params():
     # All parameters with embedded test_level
     all_params = [
         # GATE level: Basic configurations
-        {'data_width': 32, 'addr_width': 32, 'id_width': 8, 'test_level': 'basic'},
-        {'data_width': 64, 'addr_width': 32, 'id_width': 8, 'test_level': 'basic'},
-        {'data_width': 128, 'addr_width': 32, 'id_width': 8, 'test_level': 'basic'},
+        {'data_width': 32, 'addr_width': 32, 'id_width': 8, 'test_level': 'gate'},
+        {'data_width': 64, 'addr_width': 32, 'id_width': 8, 'test_level': 'gate'},
+        {'data_width': 128, 'addr_width': 32, 'id_width': 8, 'test_level': 'gate'},
 
         # FUNC level: Additional widths
-        {'data_width': 32, 'addr_width': 32, 'id_width': 4, 'test_level': 'basic'},
-        {'data_width': 32, 'addr_width': 32, 'id_width': 16, 'test_level': 'basic'},
+        {'data_width': 32, 'addr_width': 32, 'id_width': 4, 'test_level': 'gate'},
+        {'data_width': 32, 'addr_width': 32, 'id_width': 16, 'test_level': 'gate'},
 
         # FUNC level: Medium test depth (more bursts, longer lengths)
-        {'data_width': 32, 'addr_width': 32, 'id_width': 8, 'test_level': 'medium'},
-        {'data_width': 64, 'addr_width': 32, 'id_width': 8, 'test_level': 'medium'},
+        {'data_width': 32, 'addr_width': 32, 'id_width': 8, 'test_level': 'func'},
+        {'data_width': 64, 'addr_width': 32, 'id_width': 8, 'test_level': 'func'},
 
         # FULL level: Comprehensive validation (maximum bursts, all burst types)
         {'data_width': 32, 'addr_width': 32, 'id_width': 8, 'test_level': 'full'},
@@ -160,10 +160,10 @@ def generate_test_params():
     # Filter based on REG_LEVEL
     if reg_level == 'GATE':
         # Only basic tests, limited configurations
-        params = [p for p in all_params if p['test_level'] == 'basic' and p['data_width'] in [32, 64]]
+        params = [p for p in all_params if p['test_level'] == 'gate' and p['data_width'] in [32, 64]]
     elif reg_level == 'FUNC':
         # Basic and medium tests
-        params = [p for p in all_params if p['test_level'] in ['basic', 'medium']]
+        params = [p for p in all_params if p['test_level'] in ['gate', 'func']]
     else:  # FULL
         # All tests
         params = all_params
@@ -228,7 +228,7 @@ def test_axi4_to_axil4_wr(request, params):
     }
 
     # Calculate timeout based on test level
-    base_timeout_ms = {'basic': 10000, 'medium': 30000, 'full': 90000}
+    base_timeout_ms = {'gate': 10000, 'func': 30000, 'full': 90000}
     timeout_ms = base_timeout_ms[test_level]
 
     # Environment variables

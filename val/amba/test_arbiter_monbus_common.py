@@ -491,14 +491,14 @@ def generate_params():
     fifo_depths = [16, 32, 64, 128]
     agent_ids = [0x10, 0x20, 0x30, 0x40]
     unit_ids = [0x0, 0x1, 0x2, 0x3]
-    test_levels = ['basic', 'medium', 'full']
+    test_levels = ['gate', 'func', 'full']
     test_levels = ['full']
 
     # For quick debugging, uncomment this:
     return [(8, 0, 0, 32, 0x20, 0x2, 'full')]
 
     # For development, test a smaller subset:
-    # return [(8, 32, 0x20, 0x2, 'basic'), (8, 32, 0x20, 0x2, 'medium')]
+    # return [(8, 32, 0x20, 0x2, 'gate'), (8, 32, 0x20, 0x2, 'func')]
 
     # Full test suite - generate all combinations
     return list(product(clients, wait_gnt_ack, weighted_mode, fifo_depths, agent_ids, unit_ids, test_levels))

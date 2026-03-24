@@ -49,12 +49,12 @@ async def axil4_read_master_test(dut):
     tb.log.info(f'AXIL4 read master test with seed: {seed}')
 
     # Get test parameters from environment
-    test_level = os.environ.get('TEST_LEVEL', 'basic').lower()
+    test_level = os.environ.get('TEST_LEVEL', 'gate').lower()
 
-    valid_levels = ['basic', 'medium', 'full']
+    valid_levels = ['gate', 'func', 'full']
     if test_level not in valid_levels:
-        tb.log.warning(f"Invalid TEST_LEVEL '{test_level}', using 'basic'. Valid: {valid_levels}")
-        test_level = 'basic'
+        tb.log.warning(f"Invalid TEST_LEVEL '{test_level}', using 'gate'. Valid: {valid_levels}")
+        test_level = 'gate'
 
     # Start clock and reset sequence
     await tb.start_clock('aclk', tb.TEST_CLK_PERIOD, 'ns')
@@ -67,11 +67,11 @@ async def axil4_read_master_test(dut):
     tb.log.info(f"AXIL4 widths: ADDR={tb.TEST_ADDR_WIDTH}, DATA={tb.TEST_DATA_WIDTH}")
 
     # Define test configurations based on test level
-    if test_level == 'basic':
+    if test_level == 'gate':
         timing_profiles = ['normal', 'fast']
         single_read_counts = [10, 20]
         stress_count = 25
-    elif test_level == 'medium':
+    elif test_level == 'func':
         timing_profiles = ['normal', 'fast', 'slow', 'backtoback']
         single_read_counts = [20, 40, 30]
         stress_count = 50
@@ -143,7 +143,7 @@ async def axil4_read_master_test(dut):
             tb.log.warning(f"{description} failed")
 
     # Test 5: Address alignment validation (medium and full levels)
-    if test_level in ['medium', 'full']:
+    if test_level in ['func', 'full']:
         tb.log.info("=== Test 5: Address Alignment Validation ===")
         
         alignment_result = await tb.address_alignment_test()
@@ -153,7 +153,7 @@ async def axil4_read_master_test(dut):
             tb.log.warning("Address alignment test had issues")
 
     # Test 6: Stress testing (medium and full levels)
-    if test_level in ['medium', 'full']:
+    if test_level in ['func', 'full']:
         tb.log.info("=== Scenario AXIL-MR-06: Slow AR accept ===")
         tb.log.info("=== Scenario AXIL-MR-07: Slow R valid ===")
         tb.log.info("=== Scenario AXIL-MR-09: Backpressure ===")
@@ -234,11 +234,11 @@ def generate_axil4_params():
     reg_level = os.environ.get('REG_LEVEL', 'FUNC').upper()
 
     if reg_level == 'GATE':
-        params = [(32, 32, 4, 4, 'basic')]
+        params = [(32, 32, 4, 4, 'gate')]
     elif reg_level == 'FUNC':
-        params = [(32, 32, 4, 4, 'basic'), (32, 32, 4, 8, 'medium'), (64, 64, 4, 4, 'medium')]
+        params = [(32, 32, 4, 4, 'gate'), (32, 32, 4, 8, 'func'), (64, 64, 4, 4, 'func')]
     else:  # FULL
-        test_levels = ['basic', 'medium', 'full']
+        test_levels = ['gate', 'func', 'full']
         configs = [(32, 32, 4, 4), (32, 32, 4, 8), (64, 64, 4, 4), (32, 64, 2, 4), (64, 32, 8, 4), (64, 64, 8, 8)]
         params = [(aw, dw, ar, r, level) for (aw, dw, ar, r) in configs for level in test_levels]
 
@@ -305,7 +305,7 @@ def test_axil4_read_master(request, addr_width, data_width, ar_depth, r_depth, t
     }
 
     # Calculate timeout based on complexity
-    timeout_multipliers = {'basic': 1, 'medium': 2, 'full': 4}
+    timeout_multipliers = {'gate': 1, 'func': 2, 'full': 4}
     complexity_factor = (data_width + addr_width) / 100.0
     timeout_ms = int(5000 * timeout_multipliers.get(test_level, 1) * max(1.0, complexity_factor))
 
@@ -444,7 +444,7 @@ def test_axil4_read_master(request, addr_width, data_width, ar_depth, r_depth, t
     }
 
     # Calculate timeout based on complexity
-    timeout_multipliers = {'basic': 1, 'medium': 2, 'full': 4}
+    timeout_multipliers = {'gate': 1, 'func': 2, 'full': 4}
     complexity_factor = (data_width + addr_width) / 100.0
     timeout_ms = int(5000 * timeout_multipliers.get(test_level, 1) * max(1.0, complexity_factor))
 

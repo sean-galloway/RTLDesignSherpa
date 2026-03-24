@@ -220,13 +220,13 @@ async def axi4_master_read_cg_test(dut):
     tb.log.info(f'AXI4 master read CG test with seed: {seed}')
 
     # Get test parameters
-    test_level = os.environ.get('TEST_LEVEL', 'basic').lower()
+    test_level = os.environ.get('TEST_LEVEL', 'gate').lower()
     cg_test_mode = os.environ.get('CG_TEST_MODE', 'comprehensive').lower()  # comprehensive, basic, efficiency
     
-    valid_levels = ['basic', 'medium', 'full']
+    valid_levels = ['gate', 'func', 'full']
     if test_level not in valid_levels:
-        tb.log.warning(f"Invalid TEST_LEVEL '{test_level}', using 'basic'")
-        test_level = 'basic'
+        tb.log.warning(f"Invalid TEST_LEVEL '{test_level}', using 'gate'")
+        test_level = 'gate'
 
     # Start clock and reset
     await tb.start_clock('aclk', tb.TEST_CLK_PERIOD, 'ns')
@@ -243,11 +243,11 @@ async def axi4_master_read_cg_test(dut):
 
     try:
         # Test configurations based on test level
-        if test_level == 'basic':
+        if test_level == 'gate':
             idle_counts = [4, 8]
             test_transactions = 10
             power_measurement_cycles = 500
-        elif test_level == 'medium':
+        elif test_level == 'func':
             idle_counts = [2, 4, 8, 16]
             test_transactions = 25
             power_measurement_cycles = 1000
@@ -421,7 +421,7 @@ def generate_axi4_cg_params():
     user_widths = [1]
     ar_depths = [2, 4]
     r_depths = [2, 4]
-    test_levels = ['basic', 'medium', 'full']
+    test_levels = ['gate', 'func', 'full']
     cg_test_modes = ['comprehensive', 'efficiency']
     
     # Debug mode for quick testing
@@ -429,7 +429,7 @@ def generate_axi4_cg_params():
     if debug_mode:
         return [
             (8, 32, 32, 1, 2, 4, 'full', 'comprehensive'),
-            # (8, 32, 32, 1, 2, 4, 'basic', 'efficiency'),
+            # (8, 32, 32, 1, 2, 4, 'gate', 'efficiency'),
         ]
     
     return list(product(id_widths, addr_widths, data_widths, user_widths,
@@ -496,7 +496,7 @@ def test_axi4_master_read_cg(id_width, addr_width, data_width, user_width, ar_de
     }
 
     # Calculate timeout based on complexity
-    timeout_multipliers = {'basic': 1, 'medium': 2, 'full': 4}
+    timeout_multipliers = {'gate': 1, 'func': 2, 'full': 4}
     complexity_factor = (data_width + addr_width + id_width) / 100.0
     timeout_ms = int(5000 * timeout_multipliers.get(test_level, 1) * max(1.0, complexity_factor))
 

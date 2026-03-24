@@ -84,11 +84,11 @@ async def gaxi_fifo_sync_test(dut):
     mode_name = 'mux' if registered == 0 else 'flop'
 
     # Get test level from environment (default: basic)
-    test_level = os.environ.get('TEST_LEVEL', 'basic').lower()
-    valid_levels = ['basic', 'medium', 'full']
+    test_level = os.environ.get('TEST_LEVEL', 'gate').lower()
+    valid_levels = ['gate', 'func', 'full']
     if test_level not in valid_levels:
-        tb.log.warning(f"Invalid TEST_LEVEL '{test_level}', using 'basic'. Valid: {valid_levels}")
-        test_level = 'basic'
+        tb.log.warning(f"Invalid TEST_LEVEL '{test_level}', using 'gate'. Valid: {valid_levels}")
+        test_level = 'gate'
 
     tb.log.info(f"Running test level: {test_level.upper()}")
     tb.log.info(f"FIFO mode: {mode_name} (REGISTERED={registered})")
@@ -105,7 +105,7 @@ async def gaxi_fifo_sync_test(dut):
     tb.log.info(f"Available randomizer configs: {config_names}")
 
     # Define test configurations based on test level
-    if test_level == 'basic':
+    if test_level == 'gate':
         # Minimal testing for quick verification
         test_configs = ['backtoback', 'fast', 'constrained']
         packet_counts = {
@@ -116,7 +116,7 @@ async def gaxi_fifo_sync_test(dut):
         run_comprehensive_sweep = False
         run_stress_test = False
 
-    elif test_level == 'medium':
+    elif test_level == 'func':
         # Moderate testing for development
         test_configs = [
             'backtoback', 'fast', 'constrained', 'bursty',
@@ -411,8 +411,8 @@ def generate_test_params():
     if reg_level == 'GATE':
         # Minimal smoke test - test each mode once
         return [
-            (8, 4, 0, 10, 'basic'),  # Mux mode
-            (8, 4, 1, 10, 'basic'),  # Flop mode
+            (8, 4, 0, 10, 'gate'),  # Mux mode
+            (8, 4, 1, 10, 'gate'),  # Flop mode
         ]
 
     elif reg_level == 'FUNC':
@@ -421,7 +421,7 @@ def generate_test_params():
         depths = [4]
         registered = [0, 1]  # Both modes
         clk_periods = [10]
-        test_levels = ['basic', 'medium']
+        test_levels = ['gate', 'func']
 
         return list(product(widths, depths, registered, clk_periods, test_levels))
         # Result: 2 widths × 1 depth × 2 modes × 2 levels = 8 tests
@@ -432,7 +432,7 @@ def generate_test_params():
         depths = [2, 4, 8]
         registered = [0, 1]  # Both modes
         clk_periods = [10]
-        test_levels = ['basic', 'medium', 'full']
+        test_levels = ['gate', 'func', 'full']
 
         return list(product(widths, depths, registered, clk_periods, test_levels))
         # Result: 4 widths × 3 depths × 2 modes × 3 levels = 72 tests
@@ -512,7 +512,7 @@ def test_gaxi_fifo_sync(request, data_width, depth, registered, clk_period, test
     }
 
     # Adjust timeout based on test level
-    timeout_multipliers = {'basic': 1, 'medium': 2, 'full': 4}
+    timeout_multipliers = {'gate': 1, 'func': 2, 'full': 4}
     base_timeout = 2000  # 2 seconds base
     timeout_ms = base_timeout * timeout_multipliers.get(test_level, 1)
 
@@ -675,4 +675,4 @@ def test_gaxi_fifo_sync_wavedrom(request, data_width, depth, registered, clk_per
 
 if __name__ == "__main__":
     # Run basic test by default (mux mode)
-    test_gaxi_fifo_sync(None, 8, 4, 0, 10, 'basic')
+    test_gaxi_fifo_sync(None, 8, 4, 0, 10, 'gate')

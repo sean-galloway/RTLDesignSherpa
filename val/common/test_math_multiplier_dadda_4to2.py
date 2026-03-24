@@ -46,7 +46,7 @@ class DaddaMultiplierTB(TBBase):
         self.max_val = 2**self.N
         self.mask = self.max_val - 1
         self.product_mask = (2**(2*self.N)) - 1
-        self.test_level = os.environ.get('TEST_LEVEL', 'basic')
+        self.test_level = os.environ.get('TEST_LEVEL', 'gate').lower()
         self.seed = self.convert_to_int(os.environ.get('SEED', '12345'))
 
         random.seed(self.seed)
@@ -95,12 +95,10 @@ class DaddaMultiplierTB(TBBase):
         """Run comprehensive test suite based on test level."""
         test_level = self.test_level.lower()
 
-        if test_level == 'simple':
+        if test_level == 'gate':
             num_random = 20
-        elif test_level == 'basic':
+        elif test_level == 'func':
             num_random = 100
-        elif test_level == 'medium':
-            num_random = 500
         else:  # full
             num_random = 1000
 
@@ -130,7 +128,7 @@ class DaddaMultiplierTB(TBBase):
         self.log.info(f"Edge cases: {self.pass_count}/{self.test_count} passed")
 
         # Exhaustive test for small multipliers (if test level allows)
-        if test_level in ['medium', 'full'] and self.N <= 8:
+        if test_level == 'full' and self.N <= 8:
             self.log.info(f"Running exhaustive test ({self.max_val}x{self.max_val} = {self.max_val**2} cases)...")
             for a in range(self.max_val):
                 for b in range(self.max_val):
@@ -178,11 +176,11 @@ def get_multiplier_params():
 
     if reg_level == 'GATE':
         return [
-            {'width': 8, 'test_level': 'simple'},
+            {'width': 8, 'test_level': 'gate'},
         ]
     elif reg_level == 'FUNC':
         return [
-            {'width': 8, 'test_level': 'basic'},
+            {'width': 8, 'test_level': 'func'},
         ]
     else:  # FULL - exhaustive testing for 100% coverage
         return [

@@ -49,12 +49,12 @@ async def axil4_write_master_test(dut):
     tb.log.info(f'AXIL4 write master test with seed: {seed}')
 
     # Get test parameters from environment
-    test_level = os.environ.get('TEST_LEVEL', 'basic').lower()
+    test_level = os.environ.get('TEST_LEVEL', 'gate').lower()
 
-    valid_levels = ['basic', 'medium', 'full']
+    valid_levels = ['gate', 'func', 'full']
     if test_level not in valid_levels:
-        tb.log.warning(f"Invalid TEST_LEVEL '{test_level}', using 'basic'. Valid: {valid_levels}")
-        test_level = 'basic'
+        tb.log.warning(f"Invalid TEST_LEVEL '{test_level}', using 'gate'. Valid: {valid_levels}")
+        test_level = 'gate'
 
     # Start clock and reset sequence
     await tb.start_clock('aclk', tb.TEST_CLK_PERIOD, 'ns')
@@ -67,12 +67,12 @@ async def axil4_write_master_test(dut):
     tb.log.info(f"AXIL4 widths: ADDR={tb.TEST_ADDR_WIDTH}, DATA={tb.TEST_DATA_WIDTH}")
 
     # Define test configurations based on test level
-    if test_level == 'basic':
+    if test_level == 'gate':
         timing_profiles = ['normal', 'fast']
         single_write_counts = [10, 20]
         stress_count = 25
         run_error_tests = False
-    elif test_level == 'medium':
+    elif test_level == 'func':
         timing_profiles = ['normal', 'fast', 'slow', 'backtoback']
         single_write_counts = [20, 40, 30]
         stress_count = 50
@@ -181,7 +181,7 @@ async def axil4_write_master_test(dut):
         tb.log.info("Data pattern testing completed")
 
         # Test 6: Write strobe testing (medium and full levels)
-        if test_level in ['medium', 'full']:
+        if test_level in ['func', 'full']:
             tb.log.info("=== Test 6: Write Strobe Testing ===")
             
             strobe_result = await tb.strobe_pattern_test()
@@ -208,7 +208,7 @@ async def axil4_write_master_test(dut):
                     tb.log.warning(f"PROT={prot}: FAILED")
 
         # Test 8: Stress testing (medium and full levels)
-        if test_level in ['medium', 'full']:
+        if test_level in ['func', 'full']:
             tb.log.info("=== Test 8: Stress Testing ===")
 
             result = await tb.stress_write_test(stress_count)
@@ -306,11 +306,11 @@ def generate_axil4_params():
     reg_level = os.environ.get('REG_LEVEL', 'FUNC').upper()
 
     if reg_level == 'GATE':
-        params = [(32, 32, 2, 4, 2, 'basic')]
+        params = [(32, 32, 2, 4, 2, 'gate')]
     elif reg_level == 'FUNC':
-        params = [(32, 32, 2, 4, 2, 'basic'), (32, 32, 4, 4, 4, 'medium'), (64, 64, 2, 4, 2, 'medium')]
+        params = [(32, 32, 2, 4, 2, 'gate'), (32, 32, 4, 4, 4, 'func'), (64, 64, 2, 4, 2, 'func')]
     else:  # FULL
-        test_levels = ['basic', 'medium', 'full']
+        test_levels = ['gate', 'func', 'full']
         configs = [(32, 32, 2, 4, 2), (32, 32, 4, 4, 4), (64, 64, 2, 4, 2), (32, 64, 2, 8, 2), (64, 32, 4, 4, 2), (64, 64, 4, 8, 4)]
         params = [(aw, dw, awd, wd, bd, level) for (aw, dw, awd, wd, bd) in configs for level in test_levels]
 
@@ -382,7 +382,7 @@ def test_axil4_write_master(request, addr_width, data_width, aw_depth, w_depth, 
     }
 
     # Calculate timeout based on complexity
-    timeout_multipliers = {'basic': 1, 'medium': 2, 'full': 4}
+    timeout_multipliers = {'gate': 1, 'func': 2, 'full': 4}
     complexity_factor = (data_width + addr_width) / 100.0
     timeout_ms = int(5000 * timeout_multipliers.get(test_level, 1) * max(1.0, complexity_factor))
 
@@ -527,7 +527,7 @@ def test_axil4_write_master(request, addr_width, data_width, aw_depth, w_depth, 
     }
 
     # Calculate timeout based on complexity
-    timeout_multipliers = {'basic': 1, 'medium': 2, 'full': 4}
+    timeout_multipliers = {'gate': 1, 'func': 2, 'full': 4}
     complexity_factor = (data_width + addr_width) / 100.0
     timeout_ms = int(5000 * timeout_multipliers.get(test_level, 1) * max(1.0, complexity_factor))
 

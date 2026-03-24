@@ -49,7 +49,7 @@ class HanCarlsonAdderTB(TBBase):
         self.N = self.convert_to_int(os.environ.get('PARAM_N', '16'))
         self.max_val = 2**self.N
         self.mask = self.max_val - 1
-        self.test_level = os.environ.get('TEST_LEVEL', 'basic')
+        self.test_level = os.environ.get('TEST_LEVEL', 'gate').lower()
         self.seed = self.convert_to_int(os.environ.get('SEED', '12345'))
 
         random.seed(self.seed)
@@ -105,11 +105,11 @@ class HanCarlsonAdderTB(TBBase):
         """Run comprehensive test suite based on test level."""
         test_level = self.test_level.lower()
 
-        if test_level == 'simple':
+        if test_level == 'gate':
             num_random = 10
-        elif test_level == 'basic':
+        elif test_level == 'gate':
             num_random = 100
-        elif test_level == 'medium':
+        elif test_level == 'func':
             num_random = 500
         else:  # full
             num_random = 1000
@@ -175,17 +175,17 @@ def get_adder_params():
 
     if reg_level == 'GATE':
         return [
-            {'width': 16, 'test_level': 'simple'},
+            {'width': 16, 'test_level': 'gate'},
         ]
     elif reg_level == 'FUNC':
         return [
-            {'width': 16, 'test_level': 'basic'},
-            {'width': 48, 'test_level': 'basic'},
+            {'width': 16, 'test_level': 'gate'},
+            {'width': 48, 'test_level': 'gate'},
         ]
     else:  # FULL
         return [
-            {'width': 16, 'test_level': 'medium'},
-            {'width': 48, 'test_level': 'medium'},
+            {'width': 16, 'test_level': 'func'},
+            {'width': 48, 'test_level': 'func'},
         ]
 
 

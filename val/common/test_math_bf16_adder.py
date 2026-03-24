@@ -55,27 +55,27 @@ def get_bf16_adder_params():
 
     if reg_level == 'GATE':
         return [
-            {'test_level': 'simple', 'pipe_stages': [0, 0, 0, 0]},  # GATE: Minimal test, combinational
+            {'test_level': 'gate', 'pipe_stages': [0, 0, 0, 0]},  # GATE: Minimal test, combinational
         ]
     elif reg_level == 'FUNC':
         return [
             # Combinational variant with basic coverage
-            {'test_level': 'basic', 'pipe_stages': [0, 0, 0, 0]},
+            {'test_level': 'func', 'pipe_stages': [0, 0, 0, 0]},
             # Pipelined variant - tests pipeline handshaking
-            {'test_level': 'basic', 'pipe_stages': [1, 1, 1, 1]},
+            {'test_level': 'func', 'pipe_stages': [1, 1, 1, 1]},
         ]
     else:  # FULL
         return [
             # Combinational variants at all test levels
-            {'test_level': 'simple', 'pipe_stages': [0, 0, 0, 0]},
-            {'test_level': 'basic', 'pipe_stages': [0, 0, 0, 0]},
-            {'test_level': 'medium', 'pipe_stages': [0, 0, 0, 0]},
+            {'test_level': 'gate', 'pipe_stages': [0, 0, 0, 0]},
+            {'test_level': 'func', 'pipe_stages': [0, 0, 0, 0]},
+            {'test_level': 'func', 'pipe_stages': [0, 0, 0, 0]},
             {'test_level': 'full', 'pipe_stages': [0, 0, 0, 0]},
             # Pipelined variants
-            {'test_level': 'basic', 'pipe_stages': [1, 0, 0, 0]},  # 1-stage at input
-            {'test_level': 'basic', 'pipe_stages': [0, 0, 0, 1]},  # 1-stage at output
-            {'test_level': 'basic', 'pipe_stages': [1, 1, 1, 1]},  # 4-stage pipeline
-            {'test_level': 'medium', 'pipe_stages': [1, 1, 1, 1]}, # 4-stage with more coverage
+            {'test_level': 'func', 'pipe_stages': [1, 0, 0, 0]},  # 1-stage at input
+            {'test_level': 'func', 'pipe_stages': [0, 0, 0, 1]},  # 1-stage at output
+            {'test_level': 'func', 'pipe_stages': [1, 1, 1, 1]},  # 4-stage pipeline
+            {'test_level': 'func', 'pipe_stages': [1, 1, 1, 1]}, # 4-stage with more coverage
         ]
 
 

@@ -54,7 +54,7 @@ class BF16ExponentAdderTB(TBBase):
     def __init__(self, dut):
         """Initialize the testbench with design under test."""
         TBBase.__init__(self, dut)
-        self.test_level = os.environ.get('TEST_LEVEL', 'basic')
+        self.test_level = os.environ.get('TEST_LEVEL', 'gate').lower()
         self.seed = self.convert_to_int(os.environ.get('SEED', '12345'))
 
         random.seed(self.seed)
@@ -188,12 +188,10 @@ class BF16ExponentAdderTB(TBBase):
         """Run comprehensive test suite based on test level."""
         test_level = self.test_level.lower()
 
-        if test_level == 'simple':
+        if test_level == 'gate':
             num_random = 20
-        elif test_level == 'basic':
+        elif test_level == 'func':
             num_random = 200
-        elif test_level == 'medium':
-            num_random = 1000
         else:  # full
             num_random = 5000
 
@@ -338,11 +336,11 @@ def get_test_params():
     reg_level = os.environ.get('REG_LEVEL', 'FUNC').upper()
 
     if reg_level == 'GATE':
-        return [{'test_level': 'simple'}]
+        return [{'test_level': 'gate'}]
     elif reg_level == 'FUNC':
-        return [{'test_level': 'basic'}]
+        return [{'test_level': 'func'}]
     else:  # FULL
-        return [{'test_level': 'medium'}]
+        return [{'test_level': 'full'}]
 
 
 @pytest.mark.parametrize("params", get_test_params())

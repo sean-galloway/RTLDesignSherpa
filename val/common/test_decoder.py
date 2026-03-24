@@ -23,16 +23,16 @@ CONFIGURATION:
     output_width: Number of output bits (2^input_width)
 
 TEST LEVELS:
-    basic (1-2 min):   Quick verification during development
-    medium (3-5 min):  Integration testing for CI/branches
+    gate (1-2 min):   Quick verification during development
+    func (3-5 min):  Integration testing for CI/branches
     full (8-15 min):   Comprehensive validation for regression
 
 PARAMETER COMBINATIONS:
     - input_width: [2, 3, 4, 5, 6]
-    - test_level: [basic, medium, full]
+    - test_level: [gate, func, full]
 
 Environment Variables:
-    TEST_LEVEL: Set test level in cocotb (basic/medium/full)
+    TEST_LEVEL: Set test level in cocotb (gate/func/full)
     SEED: Set random seed for reproducibility
     TEST_INPUT_WIDTH: Input width for decoder
 """
@@ -60,7 +60,7 @@ class DecoderTB(TBBase):
 
         # Get test parameters from environment
         self.SEED = self.convert_to_int(os.environ.get('SEED', '12345'))
-        self.TEST_LEVEL = os.environ.get('TEST_LEVEL', 'basic').lower()
+        self.TEST_LEVEL = os.environ.get('TEST_LEVEL', 'gate').lower()
         self.INPUT_WIDTH = self.convert_to_int(os.environ.get('TEST_INPUT_WIDTH', '4'))
         self.OUTPUT_WIDTH = 2 ** self.INPUT_WIDTH
         self.DEBUG = self.convert_to_int(os.environ.get('TEST_DEBUG', '0'))
@@ -73,10 +73,10 @@ class DecoderTB(TBBase):
         random.seed(self.SEED)
 
         # Validate test level
-        valid_levels = ['basic', 'medium', 'full']
+        valid_levels = ['gate', 'func', 'full']
         if self.TEST_LEVEL not in valid_levels:
-            self.log.warning(f"Invalid TEST_LEVEL '{self.TEST_LEVEL}', using 'basic'. Valid: {valid_levels}")
-            self.TEST_LEVEL = 'basic'
+            self.log.warning(f"Invalid TEST_LEVEL '{self.TEST_LEVEL}', using 'gate'. Valid: {valid_levels}")
+            self.TEST_LEVEL = 'gate'
 
         # Log configuration
         self.log.info(f"Decoder TB initialized")
@@ -106,11 +106,11 @@ class DecoderTB(TBBase):
         self.log.info("Testing basic decoder functionality")
 
         # Define test data based on level
-        if self.TEST_LEVEL == 'basic':
-            # Test all possible inputs for basic level (should be fast for small widths)
+        if self.TEST_LEVEL == 'gate':
+            # Test all possible inputs for gate level (should be fast for small widths)
             test_values = list(range(min(self.OUTPUT_WIDTH, 16)))
-        elif self.TEST_LEVEL == 'medium':
-            # Test all inputs for medium widths, sample for large widths
+        elif self.TEST_LEVEL == 'func':
+            # Test all inputs for func widths, sample for large widths
             if self.INPUT_WIDTH <= 4:
                 test_values = list(range(self.OUTPUT_WIDTH))
             else:
@@ -157,7 +157,7 @@ class DecoderTB(TBBase):
                              f"actual=0x{actual_output:0{(self.OUTPUT_WIDTH+3)//4}x}")
                 await self._dump_debug_info(input_val, expected_output, actual_output)
                 all_passed = False
-                if self.TEST_LEVEL == 'basic':
+                if self.TEST_LEVEL == 'gate':
                     break
 
             # Store result
@@ -176,14 +176,14 @@ class DecoderTB(TBBase):
 
     async def test_one_hot_property(self):
         """Test that output is always one-hot (exactly one bit set)"""
-        if self.TEST_LEVEL == 'basic':
-            self.log.info("Skipping one-hot property test for basic level")
+        if self.TEST_LEVEL == 'gate':
+            self.log.info("Skipping one-hot property test for gate level")
             return True
 
         self.log.info("Testing one-hot property")
 
         # Test data based on level
-        if self.TEST_LEVEL == 'medium':
+        if self.TEST_LEVEL == 'func':
             test_values = [random.randint(0, self.MAX_INPUT) for _ in range(16)]
             test_values.extend([0, 1, self.MAX_INPUT >> 1, self.MAX_INPUT])
         else:  # full
@@ -218,7 +218,7 @@ class DecoderTB(TBBase):
                 self.log.error(f"FAIL: encoded=0x{input_val:x}, output=0x{actual_output:x}, " +
                              f"bits_set={bits_set} (should be 1)")
                 all_passed = False
-                if self.TEST_LEVEL == 'medium':
+                if self.TEST_LEVEL == 'func':
                     break
 
             # Store result
@@ -237,8 +237,8 @@ class DecoderTB(TBBase):
 
     async def test_boundary_conditions(self):
         """Test boundary conditions and edge cases"""
-        if self.TEST_LEVEL == 'basic':
-            self.log.info("Skipping boundary condition tests for basic level")
+        if self.TEST_LEVEL == 'gate':
+            self.log.info("Skipping boundary condition tests for gate level")
             return True
 
         self.log.info("Testing boundary conditions")
@@ -412,8 +412,8 @@ def test_decoder(request, input_width, test_level):
     - etc.
 
     Test level controls the depth and breadth of testing:
-    - basic: Quick verification (1-2 min)
-    - medium: Integration testing (3-5 min)
+    - gate: Quick verification (1-2 min)
+    - func: Integration testing (3-5 min)
     - full: Comprehensive validation (8-15 min)
     """
     # Get directory and module information
@@ -455,7 +455,7 @@ def test_decoder(request, input_width, test_level):
     }
 
     # Adjust timeout based on test level and input width
-    timeout_multipliers = {'basic': 1, 'medium': 2, 'full': 4}
+    timeout_multipliers = {'gate': 1, 'func': 2, 'full': 4}
     width_factor = max(1.0, output_width / 16.0)  # Larger outputs take more time
     base_timeout = 1000  # 1 second base
     timeout_ms = int(base_timeout * timeout_multipliers.get(test_level, 1) * width_factor)

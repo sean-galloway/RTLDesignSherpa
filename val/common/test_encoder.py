@@ -23,16 +23,16 @@ CONFIGURATION:
     output_width: Number of output bits (log2(input_width))
 
 TEST LEVELS:
-    basic (1-2 min):   Quick verification during development
-    medium (3-5 min):  Integration testing for CI/branches
+    gate (1-2 min):   Quick verification during development
+    func (3-5 min):  Integration testing for CI/branches
     full (8-15 min):   Comprehensive validation for regression
 
 PARAMETER COMBINATIONS:
     - input_width: [4, 8, 16, 32]
-    - test_level: [basic, medium, full]
+    - test_level: [gate, func, full]
 
 Environment Variables:
-    TEST_LEVEL: Set test level in cocotb (basic/medium/full)
+    TEST_LEVEL: Set test level in cocotb (gate/func/full)
     SEED: Set random seed for reproducibility
     TEST_INPUT_WIDTH: Input width for encoder
 
@@ -81,7 +81,7 @@ class EncoderTB(TBBase):
 
         # Get test parameters from environment
         self.SEED = self.convert_to_int(os.environ.get('SEED', '12345'))
-        self.TEST_LEVEL = os.environ.get('TEST_LEVEL', 'basic').lower()
+        self.TEST_LEVEL = os.environ.get('TEST_LEVEL', 'gate').lower()
         self.INPUT_WIDTH = self.convert_to_int(os.environ.get('TEST_INPUT_WIDTH', '8'))
         self.OUTPUT_WIDTH = int(math.log2(self.INPUT_WIDTH))
         self.DEBUG = self.convert_to_int(os.environ.get('TEST_DEBUG', '0'))
@@ -94,10 +94,10 @@ class EncoderTB(TBBase):
         random.seed(self.SEED)
 
         # Validate test level
-        valid_levels = ['basic', 'medium', 'full']
+        valid_levels = ['gate', 'func', 'full']
         if self.TEST_LEVEL not in valid_levels:
-            self.log.warning(f"Invalid TEST_LEVEL '{self.TEST_LEVEL}', using 'basic'. Valid: {valid_levels}")
-            self.TEST_LEVEL = 'basic'
+            self.log.warning(f"Invalid TEST_LEVEL '{self.TEST_LEVEL}', using 'gate'. Valid: {valid_levels}")
+            self.TEST_LEVEL = 'gate'
 
         # Validate input width (must be power of 2)
         if not (self.INPUT_WIDTH & (self.INPUT_WIDTH - 1)) == 0:
@@ -192,7 +192,7 @@ class EncoderTB(TBBase):
                              f"expected={expected_output}, actual={actual_output}")
                 await self._dump_debug_info(input_val, expected_output, actual_output)
                 all_passed = False
-                if self.TEST_LEVEL == 'basic':
+                if self.TEST_LEVEL == 'gate':
                     break
 
             # Store result
@@ -214,9 +214,9 @@ class EncoderTB(TBBase):
         self.log.info("Testing priority encoding")
 
         # Define test data based on level
-        if self.TEST_LEVEL == 'basic':
+        if self.TEST_LEVEL == 'gate':
             test_values = self._generate_multi_bit_values()[:8]  # Limited set
-        elif self.TEST_LEVEL == 'medium':
+        elif self.TEST_LEVEL == 'func':
             test_values = self._generate_multi_bit_values()
             # Add some random multi-bit values
             for _ in range(16):
@@ -260,7 +260,7 @@ class EncoderTB(TBBase):
                              f"expected={expected_output}, actual={actual_output}")
                 await self._dump_debug_info(input_val, expected_output, actual_output)
                 all_passed = False
-                if self.TEST_LEVEL == 'basic':
+                if self.TEST_LEVEL == 'gate':
                     break
 
             # Store result
@@ -537,8 +537,8 @@ def test_encoder(request, input_width, test_level):
     - 32: 32-to-5 encoder
 
     Test level controls the depth and breadth of testing:
-    - basic: Quick verification (1-2 min)
-    - medium: Integration testing (3-5 min)
+    - gate: Quick verification (1-2 min)
+    - func: Integration testing (3-5 min)
     - full: Comprehensive validation (8-15 min)
     """
     # Get directory and module information
@@ -579,7 +579,7 @@ def test_encoder(request, input_width, test_level):
     }
 
     # Adjust timeout based on test level and input width
-    timeout_multipliers = {'basic': 1, 'medium': 2, 'full': 4}
+    timeout_multipliers = {'gate': 1, 'func': 2, 'full': 4}
     width_factor = max(1.0, input_width / 16.0)  # Larger inputs take more time
     base_timeout = 1000  # 1 second base
     timeout_ms = int(base_timeout * timeout_multipliers.get(test_level, 1) * width_factor)

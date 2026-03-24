@@ -71,20 +71,20 @@ def generate_axi4_monitor_params():
     if reg_level == 'GATE':
         # Quick smoke test - basic configuration
         params = [
-            (8, 32, 32, 1, 16, 2, 4, 'basic'),
+            (8, 32, 32, 1, 16, 2, 4, 'gate'),
         ]
 
     elif reg_level == 'FUNC':
         # Functional validation - variations in depth and test_level
         params = [
-            (8, 32, 32, 1, 16, 2, 4, 'basic'),   # Standard config
-            (8, 32, 32, 1, 16, 4, 8, 'medium'),  # Deeper skid buffers
-            (8, 32, 32, 1, 32, 2, 4, 'medium'),  # More transactions
+            (8, 32, 32, 1, 16, 2, 4, 'gate'),   # Standard config
+            (8, 32, 32, 1, 16, 4, 8, 'func'),  # Deeper skid buffers
+            (8, 32, 32, 1, 32, 2, 4, 'func'),  # More transactions
         ]
 
     else:  # FULL
         # Comprehensive testing - all test_levels × configurations
-        test_levels = ['basic', 'medium', 'full']
+        test_levels = ['gate', 'func', 'full']
         configs = [
             (8, 32, 32, 1, 16, 2, 4),  # Standard
             (8, 32, 32, 1, 16, 4, 8),  # Deep skid
@@ -113,7 +113,7 @@ async def axi4_slave_rd_mon_test(dut):
     """AXI4 slave read monitor integration test"""
 
     # Get test level
-    test_level = os.environ.get('TEST_LEVEL', 'basic').lower()
+    test_level = os.environ.get('TEST_LEVEL', 'gate').lower()
 
     # Create testbench (is_write=False for read slave)
     tb = AXI4SlaveMonitorTB(dut, is_write=False, aclk=dut.aclk, aresetn=dut.aresetn)

@@ -22,16 +22,16 @@ CONFIGURATION:
     width:       Data width (8, 16, 32, 64)
 
 TEST LEVELS:
-    basic (1-2 min):   Quick verification during development
-    medium (3-5 min):  Integration testing for CI/branches
+    gate (1-2 min):   Quick verification during development
+    func (3-5 min):  Integration testing for CI/branches
     full (8-15 min):   Comprehensive validation for regression
 
 PARAMETER COMBINATIONS:
     - width: [8, 16, 32, 64]
-    - test_level: [basic, medium, full]
+    - test_level: [gate, func, full]
 
 Environment Variables:
-    TEST_LEVEL: Set test level in cocotb (basic/medium/full)
+    TEST_LEVEL: Set test level in cocotb (gate/func/full)
     SEED: Set random seed for reproducibility
     TEST_WIDTH: Data width
 """
@@ -60,7 +60,7 @@ class LeadingOneTrailingOneTB(TBBase):
 
         # Get test parameters from environment
         self.SEED = self.convert_to_int(os.environ.get('SEED', '12345'))
-        self.TEST_LEVEL = os.environ.get('TEST_LEVEL', 'basic').lower()
+        self.TEST_LEVEL = os.environ.get('TEST_LEVEL', 'gate').lower()
         self.WIDTH = self.convert_to_int(os.environ.get('TEST_WIDTH', '8'))
         self.DEBUG = self.convert_to_int(os.environ.get('TEST_DEBUG', '0'))
 
@@ -72,10 +72,10 @@ class LeadingOneTrailingOneTB(TBBase):
         random.seed(self.SEED)
 
         # Validate test level
-        valid_levels = ['basic', 'medium', 'full']
+        valid_levels = ['gate', 'func', 'full']
         if self.TEST_LEVEL not in valid_levels:
-            self.log.warning(f"Invalid TEST_LEVEL '{self.TEST_LEVEL}', using 'basic'. Valid: {valid_levels}")
-            self.TEST_LEVEL = 'basic'
+            self.log.warning(f"Invalid TEST_LEVEL '{self.TEST_LEVEL}', using 'gate'. Valid: {valid_levels}")
+            self.TEST_LEVEL = 'gate'
 
         # Log configuration
         self.log.info(f"Leading One Trailing One TB initialized")
@@ -151,10 +151,10 @@ class LeadingOneTrailingOneTB(TBBase):
         test_patterns.extend([0, self.MAX_DATA])
         
         # Single bit patterns
-        if self.TEST_LEVEL == 'basic':
+        if self.TEST_LEVEL == 'gate':
             # Test a few single bits
             bit_positions = [0, 1, self.WIDTH - 1] if self.WIDTH > 2 else [0, 1]
-        elif self.TEST_LEVEL == 'medium':
+        elif self.TEST_LEVEL == 'func':
             # Test more single bits
             bit_positions = [0, 1, 2, self.WIDTH // 2, self.WIDTH - 2, self.WIDTH - 1]
         else:  # full
@@ -167,7 +167,7 @@ class LeadingOneTrailingOneTB(TBBase):
                 test_patterns.append(1 << pos)
 
         # Add some multi-bit patterns
-        if self.TEST_LEVEL != 'basic':
+        if self.TEST_LEVEL != 'gate':
             # Add patterns with multiple bits set
             if self.WIDTH >= 8:
                 test_patterns.extend([0x55555555 & self.MAX_DATA, 0xAAAAAAAA & self.MAX_DATA])
@@ -218,7 +218,7 @@ class LeadingOneTrailingOneTB(TBBase):
                 self.log.error(f"FAIL: data=0x{data:0{(self.WIDTH+3)//4}x} ({data:0{self.WIDTH}b})")
                 await self._dump_debug_info(data, expected, actual)
                 all_passed = False
-                if self.TEST_LEVEL == 'basic':
+                if self.TEST_LEVEL == 'gate':
                     break
 
             # Store result
@@ -237,14 +237,14 @@ class LeadingOneTrailingOneTB(TBBase):
 
     async def test_random_patterns(self):
         """Test random bit patterns"""
-        if self.TEST_LEVEL == 'basic':
+        if self.TEST_LEVEL == 'gate':
             self.log.info("Skipping random pattern tests")
             return True
 
         self.log.info("Testing random patterns")
 
         # Determine number of random tests based on level
-        if self.TEST_LEVEL == 'medium':
+        if self.TEST_LEVEL == 'func':
             num_tests = min(100, 2 ** min(self.WIDTH, 10))
         else:  # full
             num_tests = min(500, 2 ** min(self.WIDTH, 12))
@@ -283,7 +283,7 @@ class LeadingOneTrailingOneTB(TBBase):
                 self.log.error(f"Random {test_num}: FAIL data=0x{data:0{(self.WIDTH+3)//4}x}")
                 await self._dump_debug_info(data, expected, actual)
                 all_passed = False
-                if self.TEST_LEVEL == 'medium':
+                if self.TEST_LEVEL == 'func':
                     break
 
             # Store result (sample for large tests)
@@ -361,7 +361,7 @@ class LeadingOneTrailingOneTB(TBBase):
 
     async def test_boundary_conditions(self):
         """Test boundary conditions and edge cases"""
-        if self.TEST_LEVEL == 'basic':
+        if self.TEST_LEVEL == 'gate':
             self.log.info("Skipping boundary condition tests")
             return True
 
@@ -636,7 +636,7 @@ def generate_params():
 
     # For debugging, uncomment one of these:
     # return [(8, 'full')]  # Single test
-    # return [(16, 'medium')]  # Just specific configurations
+    # return [(16, 'func')]  # Just specific configurations
 
     return valid_params
 
@@ -684,7 +684,7 @@ def test_leading_one_trailing_one(request, width, test_level):
     }
 
     # Adjust timeout based on test level and width
-    timeout_multipliers = {'basic': 1, 'medium': 2, 'full': 4}
+    timeout_multipliers = {'gate': 1, 'func': 2, 'full': 4}
     width_factor = max(1.0, width / 32.0)  # Larger widths may take more time
     base_timeout = 3000  # 3 seconds base
     timeout_ms = int(base_timeout * timeout_multipliers.get(test_level, 1) * width_factor)

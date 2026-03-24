@@ -22,12 +22,12 @@ CONFIGURATION:
     Fixed 4-bit hex input, 7-bit segment output
 
 TEST LEVELS:
-    basic (1-2 min):   Quick verification during development
-    medium (3-5 min):  Integration testing for CI/branches
+    gate (1-2 min):   Quick verification during development
+    func (3-5 min):  Integration testing for CI/branches
     full (8-15 min):   Comprehensive validation for regression
 
 Environment Variables:
-    TEST_LEVEL: Set test level in cocotb (basic/medium/full)
+    TEST_LEVEL: Set test level in cocotb (gate/func/full)
     SEED: Set random seed for reproducibility
 
 7-SEGMENT DISPLAY BEHAVIOR:
@@ -66,17 +66,17 @@ class HexTo7SegTB(TBBase):
 
         # Get test parameters from environment
         self.SEED = self.convert_to_int(os.environ.get('SEED', '12345'))
-        self.TEST_LEVEL = os.environ.get('TEST_LEVEL', 'basic').lower()
+        self.TEST_LEVEL = os.environ.get('TEST_LEVEL', 'gate').lower()
         self.DEBUG = self.convert_to_int(os.environ.get('TEST_DEBUG', '0'))
 
         # Initialize random generator
         random.seed(self.SEED)
 
         # Validate test level
-        valid_levels = ['basic', 'medium', 'full']
+        valid_levels = ['gate', 'func', 'full']
         if self.TEST_LEVEL not in valid_levels:
-            self.log.warning(f"Invalid TEST_LEVEL '{self.TEST_LEVEL}', using 'basic'. Valid: {valid_levels}")
-            self.TEST_LEVEL = 'basic'
+            self.log.warning(f"Invalid TEST_LEVEL '{self.TEST_LEVEL}', using 'gate'. Valid: {valid_levels}")
+            self.TEST_LEVEL = 'gate'
 
         # Log configuration
         self.log.info(f"HexTo7Seg TB initialized{self.get_time_ns_str()}")
@@ -192,7 +192,7 @@ class HexTo7SegTB(TBBase):
 
     async def test_invalid_inputs(self):
         """Test behavior with invalid inputs (should not occur in practice)"""
-        if self.TEST_LEVEL == 'basic':
+        if self.TEST_LEVEL == 'gate':
             self.log.info(f"Skipping invalid input test")
             return True
 
@@ -286,7 +286,7 @@ class HexTo7SegTB(TBBase):
 
     async def test_repeated_inputs(self):
         """Test that repeated inputs give consistent outputs"""
-        if self.TEST_LEVEL == 'basic':
+        if self.TEST_LEVEL == 'gate':
             self.log.info(f"Skipping repeated input test")
             return True
 
@@ -296,7 +296,7 @@ class HexTo7SegTB(TBBase):
         failed_count = 0
         
         # Test each hex value multiple times
-        num_repeats = 5 if self.TEST_LEVEL == 'medium' else 10
+        num_repeats = 5 if self.TEST_LEVEL == 'func' else 10
         
         for hex_val in range(16):
             first_result = None
@@ -526,7 +526,7 @@ def test_hex_to_7seg(request, test_level):
     parameters = {}
 
     # Adjust timeout based on test level
-    timeout_multipliers = {'basic': 1, 'medium': 2, 'full': 3}
+    timeout_multipliers = {'gate': 1, 'func': 2, 'full': 3}
     base_timeout = 3000  # 3 seconds base
     timeout_ms = int(base_timeout * timeout_multipliers.get(test_level, 1))
 

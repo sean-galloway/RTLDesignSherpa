@@ -66,7 +66,7 @@ class AxiGenAddrTB(TBBase):
 
         # Get test parameters from environment variables
         self.SEED = self.convert_to_int(os.environ.get('SEED', '12345'))
-        self.TEST_LEVEL = os.environ.get('TEST_LEVEL', 'basic')
+        self.TEST_LEVEL = os.environ.get('TEST_LEVEL', 'gate')
         self.AW = self.convert_to_int(os.environ.get('TEST_AW', '32'))
         self.DW = self.convert_to_int(os.environ.get('TEST_DW', '32'))
         self.ODW = self.convert_to_int(os.environ.get('TEST_ODW', '32'))
@@ -240,7 +240,7 @@ class AxiGenAddrTB(TBBase):
         addrs = [addr & self.MAX_ADDR for addr in [0x00000000, 0x12345678, 0xFFFFFFFC]]
         lengths = [0, 1, 15]
 
-        if self.TEST_LEVEL != 'basic':
+        if self.TEST_LEVEL != 'gate':
             # Add more test cases for higher test levels
             sizes.extend([4, 5, 6, 7])
             addrs.extend([0x55555555, 0xAAAAAAAA])
@@ -256,7 +256,7 @@ class AxiGenAddrTB(TBBase):
 
                     if not test_passed:
                         all_passed = False
-                        if self.TEST_LEVEL == 'basic':
+                        if self.TEST_LEVEL == 'gate':
                             # Stop on first failure in basic mode
                             return False
 
@@ -281,7 +281,7 @@ class AxiGenAddrTB(TBBase):
             (0x12345678, 3, 15),  # doubleword transfers, complex address, 16 transfers
         ]
 
-        if self.TEST_LEVEL != 'basic':
+        if self.TEST_LEVEL != 'gate':
             # Add more test cases for higher test levels
             test_cases.extend([
                 (0xFFFFFFFC, 2, 1),      # word transfers near address wrap, 2 transfers
@@ -299,13 +299,13 @@ class AxiGenAddrTB(TBBase):
 
             if not test_passed:
                 all_passed = False
-                if self.TEST_LEVEL == 'basic':
+                if self.TEST_LEVEL == 'gate':
                     # Stop on first failure in basic mode
                     return False
 
         # Also test random cases for incr burst if not in basic mode
-        if self.TEST_LEVEL != 'basic':
-            num_random_tests = 10 if self.TEST_LEVEL == 'medium' else 50
+        if self.TEST_LEVEL != 'gate':
+            num_random_tests = 10 if self.TEST_LEVEL == 'func' else 50
 
             for _ in range(num_random_tests):
                 addr = random.randint(0, self.MAX_ADDR)
@@ -316,7 +316,7 @@ class AxiGenAddrTB(TBBase):
 
                 if not test_passed:
                     all_passed = False
-                    if self.TEST_LEVEL == 'medium':
+                    if self.TEST_LEVEL == 'func':
                         # Stop on first failure in medium mode
                         return False
 
@@ -343,7 +343,7 @@ class AxiGenAddrTB(TBBase):
             (0x12345678, 2, 3),   # 16-byte wrap with complex address
         ]
 
-        if self.TEST_LEVEL != 'basic':
+        if self.TEST_LEVEL != 'gate':
             # Add more test cases for higher test levels
             test_cases.extend([
                 (0xFFFFFFFC, 2, 1),      # word transfers near address space limit
@@ -361,13 +361,13 @@ class AxiGenAddrTB(TBBase):
 
             if not test_passed:
                 all_passed = False
-                if self.TEST_LEVEL == 'basic':
+                if self.TEST_LEVEL == 'gate':
                     # Stop on first failure in basic mode
                     return False
 
         # Also test random cases for wrap burst if not in basic mode
-        if self.TEST_LEVEL != 'basic':
-            num_random_tests = 10 if self.TEST_LEVEL == 'medium' else 50
+        if self.TEST_LEVEL != 'gate':
+            num_random_tests = 10 if self.TEST_LEVEL == 'func' else 50
 
             for _ in range(num_random_tests):
                 addr = random.randint(0, self.MAX_ADDR)
@@ -380,7 +380,7 @@ class AxiGenAddrTB(TBBase):
 
                 if not test_passed:
                     all_passed = False
-                    if self.TEST_LEVEL == 'medium':
+                    if self.TEST_LEVEL == 'func':
                         # Stop on first failure in medium mode
                         return False
 
@@ -427,7 +427,7 @@ class AxiGenAddrTB(TBBase):
 
             if not test_passed:
                 all_passed = False
-                if self.TEST_LEVEL == 'basic':
+                if self.TEST_LEVEL == 'gate':
                     # Stop on first failure in basic mode
                     return False
 
@@ -456,7 +456,7 @@ class AxiGenAddrTB(TBBase):
             (0x0000000D, 3, 1, 0),  # Unaligned doubleword
         ]
 
-        if self.TEST_LEVEL != 'basic':
+        if self.TEST_LEVEL != 'gate':
             # Add more test cases for higher test levels
             test_cases.extend([
                 (0xFFFFFFFC, 2, 1, 0),  # Word near address space limit
@@ -476,7 +476,7 @@ class AxiGenAddrTB(TBBase):
 
             if not test_passed:
                 all_passed = False
-                if self.TEST_LEVEL == 'basic':
+                if self.TEST_LEVEL == 'gate':
                     # Stop on first failure in basic mode
                     return False
 
@@ -499,7 +499,7 @@ class AxiGenAddrTB(TBBase):
         if not fixed_burst_passed:
             self.log.error("Fixed burst tests failed")
             all_passed = False
-            if self.TEST_LEVEL == 'basic':
+            if self.TEST_LEVEL == 'gate':
                 return all_passed
 
         self.log.info("2. Testing incremental burst")
@@ -507,7 +507,7 @@ class AxiGenAddrTB(TBBase):
         if not incr_burst_passed:
             self.log.error("Incremental burst tests failed")
             all_passed = False
-            if self.TEST_LEVEL == 'basic':
+            if self.TEST_LEVEL == 'gate':
                 return all_passed
 
         self.log.info("3. Testing wrap burst")
@@ -515,7 +515,7 @@ class AxiGenAddrTB(TBBase):
         if not wrap_burst_passed:
             self.log.error("Wrap burst tests failed")
             all_passed = False
-            if self.TEST_LEVEL == 'basic':
+            if self.TEST_LEVEL == 'gate':
                 return all_passed
 
         # Test alignment functionality
@@ -524,7 +524,7 @@ class AxiGenAddrTB(TBBase):
         if not alignment_passed:
             self.log.error("Alignment tests failed")
             all_passed = False
-            if self.TEST_LEVEL == 'basic':
+            if self.TEST_LEVEL == 'gate':
                 return all_passed
 
         # Test data width difference handling
@@ -550,7 +550,7 @@ class AxiGenAddrTB(TBBase):
         self.log.info("="*50)
 
         # Print detailed results based on test level
-        if self.TEST_LEVEL != 'basic' and passed_tests < total_tests:
+        if self.TEST_LEVEL != 'gate' and passed_tests < total_tests:
             self.log.info("Failed tests:")
             for i, result in enumerate(self.test_results):
                 if not (result['next_match'] and result['align_match']):
@@ -582,8 +582,8 @@ async def comprehensive_test(dut):
 
 @pytest.mark.parametrize("params", [
     # Test with standard configurations
-    # {'AW': 32, 'DW': 32, 'ODW': 32, 'LEN': 8, 'test_level': 'basic'},
-    # {'AW': 32, 'DW': 32, 'ODW': 32, 'LEN': 8, 'test_level': 'medium'},
+    # {'AW': 32, 'DW': 32, 'ODW': 32, 'LEN': 8, 'test_level': 'gate'},
+    # {'AW': 32, 'DW': 32, 'ODW': 32, 'LEN': 8, 'test_level': 'func'},
     {'AW': 32, 'DW': 32, 'ODW': 32, 'LEN': 8, 'test_level': 'full'},
 
     # Test with different data widths
@@ -591,12 +591,12 @@ async def comprehensive_test(dut):
     {'AW': 32, 'DW': 32, 'ODW': 64, 'LEN': 8, 'test_level': 'full'},  # DW < ODW
 
     # Test with different address widths
-    {'AW': 24, 'DW': 32, 'ODW': 32, 'LEN': 8, 'test_level': 'basic'},
-    {'AW': 64, 'DW': 32, 'ODW': 32, 'LEN': 8, 'test_level': 'basic'},
+    {'AW': 24, 'DW': 32, 'ODW': 32, 'LEN': 8, 'test_level': 'gate'},
+    {'AW': 64, 'DW': 32, 'ODW': 32, 'LEN': 8, 'test_level': 'gate'},
 
     # Test with different length parameter
-    {'AW': 32, 'DW': 32, 'ODW': 32, 'LEN': 4, 'test_level': 'basic'},
-    {'AW': 32, 'DW': 32, 'ODW': 32, 'LEN': 16, 'test_level': 'basic'},
+    {'AW': 32, 'DW': 32, 'ODW': 32, 'LEN': 4, 'test_level': 'gate'},
+    {'AW': 32, 'DW': 32, 'ODW': 32, 'LEN': 16, 'test_level': 'gate'},
 ])
 def test_axi_gen_addr(request, params):
     """Run the test with pytest and configurable parameters"""
@@ -674,7 +674,7 @@ def test_axi_gen_addr(request, params):
 
     # Calculate timeout based on test complexity
     complexity_factor = 1.0
-    if params['test_level'] == 'medium':
+    if params['test_level'] == 'func':
         complexity_factor = 2.0
     elif params['test_level'] == 'full':
         complexity_factor = 5.0

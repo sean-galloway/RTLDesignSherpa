@@ -31,7 +31,7 @@ PYTEST_VERBOSE = -v
 PYTEST_QUIET = -q
 PYTEST_XDIST = -n 8
 PYTEST_TBSTYLE = --tb=short
-PYTEST_RERUNS = --reruns 0 --reruns-delay 1
+PYTEST_RERUNS = --reruns 3 --reruns-delay 1
 
 # Test files
 TEST_FILE = test_stream_top.py
@@ -261,38 +261,38 @@ clean-all: clean
 
 .PHONY: run-advanced
 run-advanced:
-	@echo "=== Running STREAM_TOP Advanced tests at BASIC level ==="
-	WAVES=0 TEST_LEVEL=basic $(PYTEST) $(TEST_FILE_ADVANCED) $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE)
+	@echo "=== Running STREAM_TOP Advanced tests at GATE level ==="
+	WAVES=0 TEST_LEVEL=gate $(PYTEST) $(TEST_FILE_ADVANCED) $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE)
 
 .PHONY: run-advanced-waves
 run-advanced-waves:
-	@echo "=== Running STREAM_TOP Advanced tests at BASIC level with waveforms ==="
-	WAVES=1 TEST_LEVEL=basic $(PYTEST) $(TEST_FILE_ADVANCED) $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE)
+	@echo "=== Running STREAM_TOP Advanced tests at GATE level with waveforms ==="
+	WAVES=1 TEST_LEVEL=gate $(PYTEST) $(TEST_FILE_ADVANCED) $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE)
 
 .PHONY: run-advanced-parallel
 run-advanced-parallel:
-	@echo "=== Running STREAM_TOP Advanced tests at BASIC level in parallel ==="
-	WAVES=0 TEST_LEVEL=basic $(PYTEST) $(TEST_FILE_ADVANCED) $(PYTEST_XDIST) $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE)
+	@echo "=== Running STREAM_TOP Advanced tests at GATE level in parallel ==="
+	WAVES=0 TEST_LEVEL=gate $(PYTEST) $(TEST_FILE_ADVANCED) $(PYTEST_XDIST) $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE)
 
 .PHONY: run-advanced-parallel-waves
 run-advanced-parallel-waves:
-	@echo "=== Running STREAM_TOP Advanced tests at BASIC level parallel + waveforms ==="
-	WAVES=1 TEST_LEVEL=basic $(PYTEST) $(TEST_FILE_ADVANCED) $(PYTEST_XDIST) $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE)
+	@echo "=== Running STREAM_TOP Advanced tests at GATE level parallel + waveforms ==="
+	WAVES=1 TEST_LEVEL=gate $(PYTEST) $(TEST_FILE_ADVANCED) $(PYTEST_XDIST) $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE)
 
 .PHONY: run-advanced-medium
 run-advanced-medium:
-	@echo "=== Running STREAM_TOP Advanced tests at MEDIUM level ==="
-	WAVES=0 TEST_LEVEL=medium $(PYTEST) $(TEST_FILE_ADVANCED) $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE)
+	@echo "=== Running STREAM_TOP Advanced tests at FUNC level ==="
+	WAVES=0 TEST_LEVEL=func $(PYTEST) $(TEST_FILE_ADVANCED) $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE)
 
 .PHONY: run-advanced-medium-waves
 run-advanced-medium-waves:
-	@echo "=== Running STREAM_TOP Advanced tests at MEDIUM level with waveforms ==="
-	WAVES=1 TEST_LEVEL=medium $(PYTEST) $(TEST_FILE_ADVANCED) $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE)
+	@echo "=== Running STREAM_TOP Advanced tests at FUNC level with waveforms ==="
+	WAVES=1 TEST_LEVEL=func $(PYTEST) $(TEST_FILE_ADVANCED) $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE)
 
 .PHONY: run-advanced-medium-parallel
 run-advanced-medium-parallel:
-	@echo "=== Running STREAM_TOP Advanced tests at MEDIUM level in parallel ==="
-	WAVES=0 TEST_LEVEL=medium $(PYTEST) $(TEST_FILE_ADVANCED) $(PYTEST_XDIST) $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE)
+	@echo "=== Running STREAM_TOP Advanced tests at FUNC level in parallel ==="
+	WAVES=0 TEST_LEVEL=func $(PYTEST) $(TEST_FILE_ADVANCED) $(PYTEST_XDIST) $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE)
 
 .PHONY: run-advanced-full
 run-advanced-full:

@@ -67,12 +67,12 @@ async def axi4_write_master_test(dut):
     tb.log.info(f'AXI4 write master test with seed: {seed}')
 
     # Get test parameters from environment
-    test_level = os.environ.get('TEST_LEVEL', 'basic').lower()
+    test_level = os.environ.get('TEST_LEVEL', 'gate').lower()
 
-    valid_levels = ['basic', 'medium', 'full']
+    valid_levels = ['gate', 'func', 'full']
     if test_level not in valid_levels:
-        tb.log.warning(f"Invalid TEST_LEVEL '{test_level}', using 'basic'. Valid: {valid_levels}")
-        test_level = 'basic'
+        tb.log.warning(f"Invalid TEST_LEVEL '{test_level}', using 'gate'. Valid: {valid_levels}")
+        test_level = 'gate'
 
     # Start clock and reset sequence
     await tb.start_clock('aclk', tb.TEST_CLK_PERIOD, 'ns')
@@ -85,13 +85,13 @@ async def axi4_write_master_test(dut):
     tb.log.info(f"AXI4 widths: ID={tb.TEST_ID_WIDTH}, ADDR={tb.TEST_ADDR_WIDTH}, DATA={tb.TEST_DATA_WIDTH}")
 
     # Define test configurations based on test level
-    if test_level == 'basic':
+    if test_level == 'gate':
         timing_profiles = ['normal', 'fast']
         single_write_counts = [10, 20]
         burst_lengths = [[2, 4], [4, 8]]
         stress_count = 25
         run_error_tests = False
-    elif test_level == 'medium':
+    elif test_level == 'func':
         timing_profiles = ['normal', 'fast', 'slow', 'backtoback']
         single_write_counts = [20, 40, 30]
         burst_lengths = [[2, 4, 8], [4, 8, 16], [1, 2, 4, 8]]
@@ -261,7 +261,7 @@ async def axi4_write_master_test(dut):
         # =================================================================
         # Test 9: Outstanding transaction testing
         # =================================================================
-        if test_level in ['medium', 'full']:
+        if test_level in ['func', 'full']:
             tb.log.info("=== Test 9: Outstanding Transaction Testing ===")
             tb.set_timing_profile('backtoback')
 
@@ -344,8 +344,8 @@ def generate_axi4_params():
         # Minimal - just prove both stub and non-stub compile and work
         # 2 tests: 1 stub + 1 non-stub, basic level
         params = [
-            (1, 8, 32, 32, 1, 2, 4, 2, 'basic'),  # Stub version
-            (0, 8, 32, 32, 1, 2, 4, 2, 'basic'),  # Non-stub version
+            (1, 8, 32, 32, 1, 2, 4, 2, 'gate'),  # Stub version
+            (0, 8, 32, 32, 1, 2, 4, 2, 'gate'),  # Non-stub version
         ]
         return validate_axi4_params(params)
 
@@ -358,7 +358,7 @@ def generate_axi4_params():
             (8, 32, 32, 1, 2, 4, 2),   # Standard config
             (8, 32, 32, 1, 4, 4, 4),   # Deeper buffers
         ]
-        test_levels = ['basic', 'medium']
+        test_levels = ['gate', 'func']
 
         params = []
         for stub in stubs:
@@ -378,7 +378,7 @@ def generate_axi4_params():
         data_width = 32  # Fixed to 32-bit (64-bit has RTL issues on write path)
         user_width = 1
         depth_sets = [(2, 4, 2), (4, 4, 4)]  # (aw_depth, w_depth, b_depth) tuples
-        test_levels = ['basic', 'medium', 'full']
+        test_levels = ['gate', 'func', 'full']
 
         params = []
         for stub, id_w, addr_w, (aw_d, w_d, b_d), level in product(
@@ -460,7 +460,7 @@ def test_axi4_write_master(stub, id_width, addr_width, data_width, user_width, a
     }
 
     # Test timeout based on complexity
-    timeout_ms = 5000 if test_level == 'basic' else 10000 if test_level == 'medium' else 20000
+    timeout_ms = 5000 if test_level == 'gate' else 10000 if test_level == 'func' else 20000
 
     # Set up test module
     module = "test_axi4_master_wr"

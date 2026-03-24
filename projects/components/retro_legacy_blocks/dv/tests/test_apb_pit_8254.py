@@ -59,12 +59,12 @@ async def pit_test(dut):
     tb.log.info(f'PIT test with seed: {seed}')
 
     # Get test level from environment
-    test_level = os.environ.get('TEST_LEVEL', 'basic').lower()
+    test_level = os.environ.get('TEST_LEVEL', 'gate').lower()
 
-    valid_levels = ['basic', 'medium', 'full']
+    valid_levels = ['gate', 'func', 'full']
     if test_level not in valid_levels:
-        tb.log.warning(f"Invalid TEST_LEVEL '{test_level}', using 'basic'. Valid: {valid_levels}")
-        test_level = 'basic'
+        tb.log.warning(f"Invalid TEST_LEVEL '{test_level}', using 'gate'. Valid: {valid_levels}")
+        test_level = 'gate'
 
     # Setup clocks and reset
     await tb.setup_clocks_and_reset()
@@ -117,9 +117,9 @@ async def pit_test(dut):
     ]
 
     # Select test methods based on level
-    if test_level == 'basic':
+    if test_level == 'gate':
         test_methods = basic_test_methods
-    elif test_level == 'medium':
+    elif test_level == 'func':
         test_methods = basic_test_methods + medium_test_methods
     else:  # full
         test_methods = basic_test_methods + medium_test_methods + full_test_methods
@@ -165,13 +165,13 @@ def generate_test_params():
     return [
         # (cdc_enable, test_level, description)
         # Standard 3-counter configurations (like original 8254)
-        (0, 'basic', "3-counter standard PIT basic"),
-        (0, 'medium', "3-counter standard PIT medium"),
+        (0, 'gate', "3-counter standard PIT gate"),
+        (0, 'func', "3-counter standard PIT func"),
         (0, 'full', "3-counter standard PIT full"),
 
         # CDC configurations (async clock domains)
-        (1, 'basic', "3-counter PIT with CDC basic"),
-        (1, 'medium', "3-counter PIT with CDC medium"),
+        (1, 'gate', "3-counter PIT with CDC gate"),
+        (1, 'func', "3-counter PIT with CDC func"),
         (1, 'full', "3-counter PIT with CDC full"),
     ]
 

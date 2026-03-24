@@ -33,11 +33,11 @@ def get_bf16_min_params():
     """Generate test parameters based on REG_LEVEL."""
     reg_level = os.environ.get('REG_LEVEL', 'FUNC').upper()
     if reg_level == 'GATE':
-        return [{'test_level': 'simple'}]
+        return [{'test_level': 'gate'}]
     elif reg_level == 'FUNC':
-        return [{'test_level': 'basic'}]
+        return [{'test_level': 'func'}]
     else:
-        return [{'test_level': 'simple'}, {'test_level': 'basic'}, {'test_level': 'medium'}, {'test_level': 'full'}]
+        return [{'test_level': 'gate'}, {'test_level': 'func'}, {'test_level': 'full'}]
 
 
 @cocotb.test(timeout_time=60, timeout_unit="ms")

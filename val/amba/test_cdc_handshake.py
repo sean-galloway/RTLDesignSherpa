@@ -44,11 +44,11 @@ async def cdc_handshake_test(dut):
     tb.log.info(f"Using seed: {seed}")
 
     # Get test level from environment
-    test_level = os.environ.get('TEST_LEVEL', 'basic').lower()
-    valid_levels = ['basic', 'medium', 'full']
+    test_level = os.environ.get('TEST_LEVEL', 'gate').lower()
+    valid_levels = ['gate', 'func', 'full']
     if test_level not in valid_levels:
-        tb.log.warning(f"Invalid TEST_LEVEL '{test_level}', using 'basic'. Valid: {valid_levels}")
-        test_level = 'basic'
+        tb.log.warning(f"Invalid TEST_LEVEL '{test_level}', using 'gate'. Valid: {valid_levels}")
+        test_level = 'gate'
 
     tb.log.info(f"Running {test_level.upper()} CDC test suite")
 
@@ -61,9 +61,9 @@ async def cdc_handshake_test(dut):
 
     try:
         # Run appropriate test suite based on test level
-        if test_level == 'basic':
+        if test_level == 'gate':
             success = await tb.run_basic_tests()
-        elif test_level == 'medium':
+        elif test_level == 'func':
             success = await tb.run_medium_tests()
         else:  # full
             success = await tb.run_full_tests()
@@ -126,45 +126,45 @@ def generate_cdc_test_params():
 
     Examples:
         # Single test case:
-        return [{'clk_src_period_ns': 15, 'clk_dst_period_ns': 10, 'test_level': 'basic'}]
+        return [{'clk_src_period_ns': 15, 'clk_dst_period_ns': 10, 'test_level': 'gate'}]
 
         # Only basic tests:
         params = []
         for src_p in [10, 15, 20, 50]:
             for dst_p in [10, 15, 20]:
                 if src_p != dst_p:  # Skip same frequency
-                    params.append({'clk_src_period_ns': src_p, 'clk_dst_period_ns': dst_p, 'test_level': 'basic'})
+                    params.append({'clk_src_period_ns': src_p, 'clk_dst_period_ns': dst_p, 'test_level': 'gate'})
         return params
     """
 
     # Comprehensive CDC frequency combinations
     src_periods = [10, 15, 20, 25, 50, 100]  # Source clock periods (ns)
     dst_periods = [10, 15, 20, 25, 50]       # Destination clock periods (ns)
-    test_levels = ['basic', 'medium', 'full']
+    test_levels = ['gate', 'func', 'full']
 
     params = []
 
     # Generate combinations focusing on interesting CDC scenarios
     for src_period, dst_period, test_level in product(src_periods, dst_periods, test_levels):
         # Skip same frequency for medium/full (not interesting for CDC)
-        if src_period == dst_period and test_level != 'basic':
+        if src_period == dst_period and test_level != 'gate':
             continue
 
         # Limit very slow combinations to basic level only
-        if (src_period >= 100 or dst_period >= 50) and test_level != 'basic':
+        if (src_period >= 100 or dst_period >= 50) and test_level != 'gate':
             continue
 
         ratio = dst_period / src_period
 
         # Include all combinations for basic level
-        if test_level == 'basic':
+        if test_level == 'gate':
             params.append({
                 'clk_src_period_ns': src_period,
                 'clk_dst_period_ns': dst_period,
                 'test_level': test_level
             })
         # For medium level, focus on common ratios
-        elif test_level == 'medium' and (
+        elif test_level == 'func' and (
             0.4 <= ratio <= 2.5 or  # Common ratios
             abs(ratio - 1.0) < 0.1 or  # Near same frequency
             abs(ratio - 2.0) < 0.1 or  # 2:1 ratio
@@ -260,7 +260,7 @@ def test_cdc_handshake(request, params):
     }
 
     # Calculate timeouts based on test level and clock speeds
-    base_timeout_ms = {'basic': 5000, 'medium': 15000, 'full': 45000}
+    base_timeout_ms = {'gate': 5000, 'func': 15000, 'full': 45000}
     max_period = max(src_period, dst_period)
     slow_factor = max(1, max_period / 10)
     timeout_ms = int(base_timeout_ms[test_level] * slow_factor)

@@ -61,7 +61,7 @@ class AmbaClockGateCtrlTB(TBBase):
 
         # Get test parameters from environment variables
         self.SEED = self.convert_to_int(os.environ.get('SEED', '12345'))
-        self.TEST_LEVEL = os.environ.get('TEST_LEVEL', 'basic')
+        self.TEST_LEVEL = os.environ.get('TEST_LEVEL', 'gate')
         self.CLK_PERIOD_NS = self.convert_to_int(os.environ.get('CLK_PERIOD_NS', '10'))
         self.CG_IDLE_COUNT_WIDTH = self.convert_to_int(os.environ.get('TEST_ICW', '4'))
 
@@ -290,7 +290,7 @@ class AmbaClockGateCtrlTB(TBBase):
             (False, 8, [1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0], 'user'),
         ]
 
-        if self.TEST_LEVEL != 'basic':
+        if self.TEST_LEVEL != 'gate':
             # Add more complex test cases for higher test levels
             test_cases.extend([
                 (True, 8, [1, 0, 1, 0, 1, 0, 0, 0, 0, 0, 0, 0], 'both'),
@@ -320,7 +320,7 @@ class AmbaClockGateCtrlTB(TBBase):
             if not passed:
                 self.log.error(f"Test case {i+1} failed")
                 all_passed = False
-                if self.TEST_LEVEL == 'basic':
+                if self.TEST_LEVEL == 'gate':
                     break  # Stop on first failure in basic mode
 
         return all_passed
@@ -404,12 +404,12 @@ class AmbaClockGateCtrlTB(TBBase):
         self.log.info("Running realistic workload test")
 
         # Define more complex patterns based on test level
-        if self.TEST_LEVEL == 'basic':
+        if self.TEST_LEVEL == 'gate':
             # Burst followed by idle
             patterns = [
                 [1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
             ]
-        elif self.TEST_LEVEL == 'medium':
+        elif self.TEST_LEVEL == 'func':
             # More varied patterns
             patterns = [
                 [1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
@@ -447,7 +447,7 @@ class AmbaClockGateCtrlTB(TBBase):
             if not passed:
                 self.log.error(f"Workload pattern {i+1} failed")
                 all_passed = False
-                if self.TEST_LEVEL == 'basic':
+                if self.TEST_LEVEL == 'gate':
                     break  # Stop on first failure in basic mode
 
         return all_passed
@@ -464,10 +464,10 @@ class AmbaClockGateCtrlTB(TBBase):
         # Set up idle counts to test based on test level and max value
         max_count = self.MAX_IDLE_COUNT
 
-        if self.TEST_LEVEL == 'basic':
+        if self.TEST_LEVEL == 'gate':
             # Use a small and medium value for basic testing
             idle_counts = [2, min(8, max_count)]
-        elif self.TEST_LEVEL == 'medium':
+        elif self.TEST_LEVEL == 'func':
             # More extensive testing for medium level
             idle_counts = [1, min(4, max_count), min(8, max_count)]
             # Add the max value if it's not already included
@@ -511,7 +511,7 @@ class AmbaClockGateCtrlTB(TBBase):
             if not passed:
                 self.log.error(f"Idle count {idle_count} test failed")
                 all_passed = False
-                if self.TEST_LEVEL == 'basic':
+                if self.TEST_LEVEL == 'gate':
                     break  # Stop on first failure in basic mode
 
         return all_passed
@@ -523,7 +523,7 @@ class AmbaClockGateCtrlTB(TBBase):
         Returns:
             True if test passed
         """
-        if self.TEST_LEVEL == 'basic':
+        if self.TEST_LEVEL == 'gate':
             self.log.info("Skipping forced wakeup test in basic mode")
             return True
 
@@ -580,7 +580,7 @@ class AmbaClockGateCtrlTB(TBBase):
         Returns:
             True if test passed
         """
-        if self.TEST_LEVEL == 'basic':
+        if self.TEST_LEVEL == 'gate':
             self.log.info("Skipping wait_for_gating test in basic mode")
             return True
 
@@ -671,7 +671,7 @@ class AmbaClockGateCtrlTB(TBBase):
             return False
 
         # For higher test levels, verify the stats more carefully
-        if self.TEST_LEVEL != 'basic':
+        if self.TEST_LEVEL != 'gate':
             # We should have some active cycles (user + axi)
             if stats['active_cycles'] < 5:
                 self.log.error(f"Too few active cycles: {stats['active_cycles']}")
@@ -707,7 +707,7 @@ class AmbaClockGateCtrlTB(TBBase):
         if not basic_test_passed:
             self.log.error("Basic operation test failed")
             all_passed = False
-            if self.TEST_LEVEL == 'basic':
+            if self.TEST_LEVEL == 'gate':
                 return all_passed
 
         # 2. Realistic workload test
@@ -716,7 +716,7 @@ class AmbaClockGateCtrlTB(TBBase):
         if not workload_test_passed:
             self.log.error("Realistic workload test failed")
             all_passed = False
-            if self.TEST_LEVEL == 'basic':
+            if self.TEST_LEVEL == 'gate':
                 return all_passed
 
         # 3. Idle count sweep test
@@ -725,11 +725,11 @@ class AmbaClockGateCtrlTB(TBBase):
         if not idle_count_test_passed:
             self.log.error("Idle count sweep test failed")
             all_passed = False
-            if self.TEST_LEVEL == 'basic':
+            if self.TEST_LEVEL == 'gate':
                 return all_passed
 
         # Skip the following tests in basic mode
-        if self.TEST_LEVEL == 'basic':
+        if self.TEST_LEVEL == 'gate':
             return all_passed
 
         # 4. Forced wakeup test
@@ -738,7 +738,7 @@ class AmbaClockGateCtrlTB(TBBase):
         if not wakeup_test_passed:
             self.log.error("Forced wakeup test failed")
             all_passed = False
-            if self.TEST_LEVEL == 'medium':
+            if self.TEST_LEVEL == 'func':
                 return all_passed
 
         # 5. Wait for gating test
@@ -747,7 +747,7 @@ class AmbaClockGateCtrlTB(TBBase):
         if not wait_test_passed:
             self.log.error("Wait for gating test failed")
             all_passed = False
-            if self.TEST_LEVEL == 'medium':
+            if self.TEST_LEVEL == 'func':
                 return all_passed
 
         # 6. Monitor activity test
@@ -778,13 +778,13 @@ async def comprehensive_test(dut):
 
 @pytest.mark.parametrize("params", [
     # Test with different configurations
-    {'CG_IDLE_COUNT_WIDTH':  4, 'clk_period_ns': 10, 'test_level': 'basic'},
-    # {'CG_IDLE_COUNT_WIDTH':  8, 'clk_period_ns': 10, 'test_level': 'medium'},
+    {'CG_IDLE_COUNT_WIDTH':  4, 'clk_period_ns': 10, 'test_level': 'gate'},
+    # {'CG_IDLE_COUNT_WIDTH':  8, 'clk_period_ns': 10, 'test_level': 'func'},
     # {'CG_IDLE_COUNT_WIDTH': 16, 'clk_period_ns': 10, 'test_level': 'full'},
     # # Different clock frequencies
-    # {'CG_IDLE_COUNT_WIDTH':  4, 'clk_period_ns': 5,  'test_level': 'basic'},
-    # {'CG_IDLE_COUNT_WIDTH':  8, 'clk_period_ns': 20, 'test_level': 'basic'},
-    # {'CG_IDLE_COUNT_WIDTH': 16, 'clk_period_ns': 50, 'test_level': 'basic'},
+    # {'CG_IDLE_COUNT_WIDTH':  4, 'clk_period_ns': 5,  'test_level': 'gate'},
+    # {'CG_IDLE_COUNT_WIDTH':  8, 'clk_period_ns': 20, 'test_level': 'gate'},
+    # {'CG_IDLE_COUNT_WIDTH': 16, 'clk_period_ns': 50, 'test_level': 'gate'},
 ])
 def test_amba_clock_gate_ctrl(request, params):
     """Run the test with pytest and configurable parameters"""

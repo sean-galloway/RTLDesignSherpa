@@ -43,18 +43,18 @@ def get_bf16_newton_raphson_params():
 
     if reg_level == 'GATE':
         return [
-            {'test_level': 'simple', 'iterations': 1, 'lut_depth': 32},
+            {'test_level': 'gate', 'iterations': 1, 'lut_depth': 32},
         ]
     elif reg_level == 'FUNC':
         return [
-            {'test_level': 'basic', 'iterations': 1, 'lut_depth': 32},
+            {'test_level': 'func', 'iterations': 1, 'lut_depth': 32},
         ]
     else:  # FULL
         return [
-            {'test_level': 'basic', 'iterations': 1, 'lut_depth': 32},
-            {'test_level': 'basic', 'iterations': 2, 'lut_depth': 32},
-            {'test_level': 'medium', 'iterations': 1, 'lut_depth': 64},
-            {'test_level': 'medium', 'iterations': 2, 'lut_depth': 64},
+            {'test_level': 'func', 'iterations': 1, 'lut_depth': 32},
+            {'test_level': 'func', 'iterations': 2, 'lut_depth': 32},
+            {'test_level': 'func', 'iterations': 1, 'lut_depth': 64},
+            {'test_level': 'func', 'iterations': 2, 'lut_depth': 64},
             {'test_level': 'full', 'iterations': 1, 'lut_depth': 32},
         ]
 

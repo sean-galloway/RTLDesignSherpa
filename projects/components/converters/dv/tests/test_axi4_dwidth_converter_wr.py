@@ -17,8 +17,8 @@ Test runner for AXI4 WRITE data width converter (AW, W, B channels only).
 Imports testbench class from bin/CocoTBFramework/tbclasses/axi4/axi4_dwidth_converter_tb.py
 
 Test Levels:
-- basic: Quick smoke test (single write transaction)
-- medium: Multiple write transactions with different patterns
+- gate: Quick smoke test (single write transaction)
+- func: Multiple write transactions with different patterns
 - full: Comprehensive write coverage (all burst types, strobes, errors)
 
 Tests ONLY the write path. For read path, see test_axi4_dwidth_converter_rd.py.
@@ -51,11 +51,11 @@ async def axi4_dwidth_converter_wr_test(dut):
     tb.log.info(f"Using seed: {seed}")
 
     # Get test level from environment
-    test_level = os.environ.get('TEST_LEVEL', 'basic').lower()
-    valid_levels = ['basic', 'medium', 'full']
+    test_level = os.environ.get('TEST_LEVEL', 'gate').lower()
+    valid_levels = ['gate', 'func', 'full']
     if test_level not in valid_levels:
-        tb.log.warning(f"Invalid TEST_LEVEL '{test_level}', using 'basic'. Valid: {valid_levels}")
-        test_level = 'basic'
+        tb.log.warning(f"Invalid TEST_LEVEL '{test_level}', using 'gate'. Valid: {valid_levels}")
+        test_level = 'gate'
 
     tb.log.info(f"Running {test_level.upper()} AXI4 Data Width Converter test suite")
 
@@ -64,9 +64,9 @@ async def axi4_dwidth_converter_wr_test(dut):
 
     try:
         # Run appropriate test suite based on test level
-        if test_level == 'basic':
+        if test_level == 'gate':
             success = await tb.run_basic_test()
-        elif test_level == 'medium':
+        elif test_level == 'func':
             success = await tb.run_medium_test()
         else:  # full
             success = await tb.run_full_test()
@@ -117,31 +117,31 @@ def generate_test_params():
     # Phase 1-3: Upsize scenarios
     params = [
         # Upsize: 32-bit → 128-bit (4:1 ratio)
-        {'s_data_width': 32, 'm_data_width': 128, 'test_level': 'basic'},
+        {'s_data_width': 32, 'm_data_width': 128, 'test_level': 'gate'},
 
         # Upsize: 64-bit → 256-bit (4:1 ratio)
-        {'s_data_width': 64, 'm_data_width': 256, 'test_level': 'basic'},
+        {'s_data_width': 64, 'm_data_width': 256, 'test_level': 'gate'},
 
         # Upsize: 32-bit → 64-bit (2:1 ratio)
-        {'s_data_width': 32, 'm_data_width': 64, 'test_level': 'basic'},
+        {'s_data_width': 32, 'm_data_width': 64, 'test_level': 'gate'},
 
         # Upsize: 64-bit → 128-bit (2:1 ratio)
-        {'s_data_width': 64, 'm_data_width': 128, 'test_level': 'basic'},
+        {'s_data_width': 64, 'm_data_width': 128, 'test_level': 'gate'},
     ]
 
     # Phase 4: Downsize scenarios
     params.extend([
         # Downsize: 128-bit → 32-bit (4:1 ratio)
-        {'s_data_width': 128, 'm_data_width': 32, 'test_level': 'basic'},
+        {'s_data_width': 128, 'm_data_width': 32, 'test_level': 'gate'},
 
         # Downsize: 256-bit → 64-bit (4:1 ratio)
-        {'s_data_width': 256, 'm_data_width': 64, 'test_level': 'basic'},
+        {'s_data_width': 256, 'm_data_width': 64, 'test_level': 'gate'},
 
         # Downsize: 64-bit → 32-bit (2:1 ratio)
-        {'s_data_width': 64, 'm_data_width': 32, 'test_level': 'basic'},
+        {'s_data_width': 64, 'm_data_width': 32, 'test_level': 'gate'},
 
         # Downsize: 128-bit → 64-bit (2:1 ratio)
-        {'s_data_width': 128, 'm_data_width': 64, 'test_level': 'basic'},
+        {'s_data_width': 128, 'm_data_width': 64, 'test_level': 'gate'},
     ])
 
     # Phase 6: Medium and Full test levels (select width pairs)
@@ -152,14 +152,14 @@ def generate_test_params():
     ]
 
     for (narrow, wide) in medium_full_pairs:
-        for level in ['medium', 'full']:
+        for level in ['func', 'full']:
             # Upsize
             params.append({'s_data_width': narrow, 'm_data_width': wide, 'test_level': level})
             # Downsize
             params.append({'s_data_width': wide, 'm_data_width': narrow, 'test_level': level})
 
     # Comprehensive coverage (uncomment for exhaustive testing)
-    # test_levels = ['basic', 'medium', 'full']
+    # test_levels = ['gate', 'func', 'full']
     # width_pairs = [
     #     (32, 64), (32, 128), (32, 256),
     #     (64, 128), (64, 256),
@@ -245,7 +245,7 @@ def test_axi4_dwidth_converter_wr(request, params):
     }
 
     # Calculate timeout based on test level
-    base_timeout_ms = {'basic': 5000, 'medium': 15000, 'full': 45000}
+    base_timeout_ms = {'gate': 5000, 'func': 15000, 'full': 45000}
     timeout_ms = base_timeout_ms[test_level]
 
     # Environment variables

@@ -67,11 +67,11 @@ async def gaxi_regslice_test(dut):
     tb.log.info(f'Seed: {seed}')
 
     # Get test level from environment (default: basic)
-    test_level = os.environ.get('TEST_LEVEL', 'basic').lower()
-    valid_levels = ['basic', 'medium', 'full']
+    test_level = os.environ.get('TEST_LEVEL', 'gate').lower()
+    valid_levels = ['gate', 'func', 'full']
     if test_level not in valid_levels:
-        tb.log.warning(f"Invalid TEST_LEVEL '{test_level}', using 'basic'. Valid: {valid_levels}")
-        test_level = 'basic'
+        tb.log.warning(f"Invalid TEST_LEVEL '{test_level}', using 'gate'. Valid: {valid_levels}")
+        test_level = 'gate'
 
     tb.log.info(f"Running test level: {test_level.upper()}")
 
@@ -88,7 +88,7 @@ async def gaxi_regslice_test(dut):
 
     # Define test configurations based on test level
     # Regslice is simpler than skid buffer (fixed 1-deep), so reduce counts
-    if test_level == 'basic':
+    if test_level == 'gate':
         # Minimal testing for quick verification
         test_configs = ['backtoback', 'fast']
         packet_counts = {
@@ -98,7 +98,7 @@ async def gaxi_regslice_test(dut):
         }
         run_comprehensive_sweep = False
         run_stress_test = False
-    elif test_level == 'medium':
+    elif test_level == 'func':
         # Moderate testing for CI
         test_configs = [
             'backtoback', 'fast', 'constrained', 'bursty',
@@ -188,14 +188,14 @@ def generate_test_params():
         # Minimal - just prove it works
         # 1 test: 8-bit width, basic level
         return [
-            (8, 10, 'basic'),
+            (8, 10, 'gate'),
         ]
 
     elif reg_level == 'FUNC':
         # Functional coverage - key combinations
         # 2 widths × 2 levels = 4 tests
         data_widths = [8, 32]
-        test_levels = ['basic', 'medium']
+        test_levels = ['gate', 'func']
 
         return list(product(data_widths, clk_periods, test_levels))
 
@@ -203,7 +203,7 @@ def generate_test_params():
         # Comprehensive testing
         # 5 widths × 3 levels = 15 tests
         data_widths = [8, 16, 32, 64, 128]
-        test_levels = ['basic', 'medium', 'full']
+        test_levels = ['gate', 'func', 'full']
 
         return list(product(data_widths, clk_periods, test_levels))
 
@@ -248,8 +248,8 @@ def test_gaxi_regslice(request, data_width, clk_period, test_level):
 
     # Test level message
     duration_msg = {
-        'basic': '30s-1min',
-        'medium': '2-3 min',
+        'gate': '30s-1min',
+        'func': '2-3 min',
         'full': '5-8 min'
     }
 
@@ -322,4 +322,4 @@ def test_gaxi_regslice(request, data_width, clk_period, test_level):
 
 if __name__ == "__main__":
     # Run basic test by default
-    test_gaxi_regslice(None, 32, 10, 'basic')
+    test_gaxi_regslice(None, 32, 10, 'gate')

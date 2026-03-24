@@ -49,7 +49,7 @@ class BF16MantissaMultTB(TBBase):
     def __init__(self, dut):
         """Initialize the testbench with design under test."""
         TBBase.__init__(self, dut)
-        self.test_level = os.environ.get('TEST_LEVEL', 'basic')
+        self.test_level = os.environ.get('TEST_LEVEL', 'gate').lower()
         self.seed = self.convert_to_int(os.environ.get('SEED', '12345'))
 
         random.seed(self.seed)
@@ -229,12 +229,10 @@ class BF16MantissaMultTB(TBBase):
                     self.log.info(f"Exhaustive progress: {mant_a}/128")
         else:
             # Random tests with configured count
-            if test_level == 'simple':
+            if test_level == 'gate':
                 num_random = 20
-            elif test_level == 'basic':
+            else:  # func
                 num_random = 100
-            else:  # medium
-                num_random = 500
 
             self.log.info(f"Running {num_random} random tests...")
             for i in range(num_random):
@@ -275,9 +273,9 @@ def get_test_params():
     reg_level = os.environ.get('REG_LEVEL', 'FUNC').upper()
 
     if reg_level == 'GATE':
-        return [{'test_level': 'simple'}]
+        return [{'test_level': 'gate'}]
     elif reg_level == 'FUNC':
-        return [{'test_level': 'basic'}]
+        return [{'test_level': 'func'}]
     else:  # FULL - exhaustive testing for 100% coverage
         return [{'test_level': 'full'}]
 

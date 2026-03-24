@@ -70,11 +70,11 @@ def generate_axi4_write_monitor_cg_params():
     reg_level = os.environ.get('REG_LEVEL', 'FUNC').upper()
 
     if reg_level == 'GATE':
-        params = [(8, 32, 32, 1, 4, 16, 2, 4, 2, 'basic')]
+        params = [(8, 32, 32, 1, 4, 16, 2, 4, 2, 'gate')]
     elif reg_level == 'FUNC':
-        params = [(8, 32, 32, 1, 4, 16, 2, 4, 2, 'basic'), (8, 32, 32, 1, 4, 16, 4, 8, 4, 'medium'), (8, 32, 32, 1, 4, 32, 2, 4, 2, 'medium')]
+        params = [(8, 32, 32, 1, 4, 16, 2, 4, 2, 'gate'), (8, 32, 32, 1, 4, 16, 4, 8, 4, 'func'), (8, 32, 32, 1, 4, 32, 2, 4, 2, 'func')]
     else:  # FULL
-        test_levels = ['basic', 'medium', 'full']
+        test_levels = ['gate', 'func', 'full']
         configs = [(8, 32, 32, 1, 4, 16, 2, 4, 2), (8, 32, 32, 1, 4, 16, 4, 8, 4), (8, 32, 32, 1, 4, 32, 2, 4, 2)]
         params = [(id_w, addr_w, data_w, user_w, wstrb_w, max_t, skid_aw, skid_w, skid_b, level) for (id_w, addr_w, data_w, user_w, wstrb_w, max_t, skid_aw, skid_w, skid_b) in configs for level in test_levels]
 
@@ -91,7 +91,7 @@ async def axi4_slave_wr_mon_cg_test(dut):
     """AXI4 slave write monitor CG integration test"""
 
     # Get test level
-    test_level = os.environ.get('TEST_LEVEL', 'basic').lower()
+    test_level = os.environ.get('TEST_LEVEL', 'gate').lower()
 
     # Create testbench (is_write=True for write slave)
     tb = AXI4SlaveMonitorTB(dut, is_write=True, aclk=dut.aclk, aresetn=dut.aresetn)

@@ -24,18 +24,18 @@ CONFIGURATION:
     parity_type: Even (1) or Odd (0) parity
 
 TEST LEVELS:
-    basic (1-2 min):   Quick verification during development
-    medium (3-5 min):  Integration testing for CI/branches
+    gate (1-2 min):   Quick verification during development
+    func (3-5 min):  Integration testing for CI/branches
     full (8-15 min):   Comprehensive validation for regression
 
 PARAMETER COMBINATIONS:
     - chunks: [1, 2, 4, 8]
     - width: [8, 16, 32, 64]
     - parity_type: [0, 1] (odd, even)
-    - test_level: [basic, medium, full]
+    - test_level: [gate, func, full]
 
 Environment Variables:
-    TEST_LEVEL: Set test level in cocotb (basic/medium/full)
+    TEST_LEVEL: Set test level in cocotb (gate/func/full)
     SEED: Set random seed for reproducibility
     TEST_WIDTH: Data width for parity calculation
     TEST_CHUNKS: Number of parity chunks
@@ -65,7 +65,7 @@ class ParityTB(TBBase):
 
         # Get test parameters from environment
         self.SEED = self.convert_to_int(os.environ.get('SEED', '12345'))
-        self.TEST_LEVEL = os.environ.get('TEST_LEVEL', 'basic').lower()
+        self.TEST_LEVEL = os.environ.get('TEST_LEVEL', 'gate').lower()
         self.WIDTH = self.convert_to_int(os.environ.get('TEST_WIDTH', '32'))
         self.CHUNKS = self.convert_to_int(os.environ.get('TEST_CHUNKS', '4'))
         self.PARITY_TYPE = self.convert_to_int(os.environ.get('TEST_PARITY_TYPE', '1'))
@@ -80,10 +80,10 @@ class ParityTB(TBBase):
         random.seed(self.SEED)
 
         # Validate test level
-        valid_levels = ['basic', 'medium', 'full']
+        valid_levels = ['gate', 'func', 'full']
         if self.TEST_LEVEL not in valid_levels:
-            self.log.warning(f"Invalid TEST_LEVEL '{self.TEST_LEVEL}', using 'basic'. Valid: {valid_levels}")
-            self.TEST_LEVEL = 'basic'
+            self.log.warning(f"Invalid TEST_LEVEL '{self.TEST_LEVEL}', using 'gate'. Valid: {valid_levels}")
+            self.TEST_LEVEL = 'gate'
 
         # Validate configuration
         if self.WIDTH % self.CHUNKS != 0 and self.CHUNKS > 1:
@@ -161,14 +161,14 @@ class ParityTB(TBBase):
         self.log.info("Testing parity generation")
 
         # Define test data based on level
-        if self.TEST_LEVEL == 'basic':
+        if self.TEST_LEVEL == 'gate':
             test_values = [0, 1, self.MAX_DATA >> 1, self.MAX_DATA]
             # Add some chunk-specific patterns
             for chunk_idx in range(self.CHUNKS):
                 lower_bound, upper_bound = self._get_chunk_bounds(chunk_idx)
                 chunk_mask = ((1 << (upper_bound - lower_bound + 1)) - 1) << lower_bound
                 test_values.extend([chunk_mask, chunk_mask >> 1])
-        elif self.TEST_LEVEL == 'medium':
+        elif self.TEST_LEVEL == 'func':
             test_values = []
             # Add systematic patterns
             test_values.extend([0, 1, self.MAX_DATA >> 1, self.MAX_DATA])
@@ -227,7 +227,7 @@ class ParityTB(TBBase):
                              f"expected_parity=0x{expected_parity:x}, actual_parity=0x{actual_parity:x}")
                 await self._dump_parity_debug_info(data, expected_parity, actual_parity)
                 all_passed = False
-                if self.TEST_LEVEL == 'basic':
+                if self.TEST_LEVEL == 'gate':
                     break
 
             # Store result
@@ -249,9 +249,9 @@ class ParityTB(TBBase):
         self.log.info("Testing parity checking")
 
         # Define test data based on level
-        if self.TEST_LEVEL == 'basic':
+        if self.TEST_LEVEL == 'gate':
             test_values = [0, 1, self.MAX_DATA >> 1, self.MAX_DATA]
-        elif self.TEST_LEVEL == 'medium':
+        elif self.TEST_LEVEL == 'func':
             test_values = [random.randint(0, self.MAX_DATA) for _ in range(16)]
             test_values.extend([0, 1, self.MAX_DATA >> 1, self.MAX_DATA])
         else:  # full
@@ -274,22 +274,22 @@ class ParityTB(TBBase):
             success1 = await self._test_parity_check(data, correct_parity, 0)
             if not success1:
                 all_passed = False
-                if self.TEST_LEVEL == 'basic':
+                if self.TEST_LEVEL == 'gate':
                     break
 
             # Test with incorrect parity (should show errors)
-            if self.TEST_LEVEL != 'basic':
+            if self.TEST_LEVEL != 'gate':
                 # Test each chunk with wrong parity
-                for chunk_idx in range(min(self.CHUNKS, 4 if self.TEST_LEVEL == 'medium' else self.CHUNKS)):
+                for chunk_idx in range(min(self.CHUNKS, 4 if self.TEST_LEVEL == 'func' else self.CHUNKS)):
                     wrong_parity = correct_parity ^ (1 << chunk_idx)
                     expected_error = 1 << chunk_idx
                     success2 = await self._test_parity_check(data, wrong_parity, expected_error)
                     if not success2:
                         all_passed = False
-                        if self.TEST_LEVEL == 'medium':
+                        if self.TEST_LEVEL == 'func':
                             break
 
-                if not all_passed and self.TEST_LEVEL == 'medium':
+                if not all_passed and self.TEST_LEVEL == 'func':
                     break
 
         return all_passed
@@ -405,7 +405,7 @@ class ParityTB(TBBase):
 
     async def test_boundary_conditions(self):
         """Test boundary conditions and edge cases"""
-        if self.TEST_LEVEL == 'basic':
+        if self.TEST_LEVEL == 'gate':
             self.log.info("Skipping boundary condition tests")
             return True
 
@@ -526,8 +526,8 @@ def generate_params():
     """
     Generate test parameter combinations based on REG_LEVEL.
 
-    REG_LEVEL=GATE: 4 tests (16/32-bit, 1/2 chunks, even parity, basic)
-    REG_LEVEL=FUNC: ~20 tests (varied configs, basic) - default
+    REG_LEVEL=GATE: 4 tests (16/32-bit, 1/2 chunks, even parity, gate)
+    REG_LEVEL=FUNC: ~20 tests (varied configs, gate) - default
     REG_LEVEL=FULL: ~60 tests (all valid combinations, all levels)
 
     Returns:
@@ -538,23 +538,23 @@ def generate_params():
     widths = [8, 16, 32, 64]      # Different data widths
     chunks_list = [1, 2, 4, 8]    # Different chunk counts
     parity_types = [0, 1]         # Odd and Even parity
-    test_levels = ['basic', 'medium', 'full']
+    test_levels = ['gate', 'func', 'full']
 
     if reg_level == 'GATE':
-        # Quick smoke test: 16/32-bit, simple chunks, even parity, basic
+        # Quick smoke test: 16/32-bit, simple chunks, even parity, gate
         return [
-            (16, 1, 1, 'basic'),
-            (16, 2, 1, 'basic'),
-            (32, 1, 1, 'basic'),
-            (32, 2, 1, 'basic'),
+            (16, 1, 1, 'gate'),
+            (16, 2, 1, 'gate'),
+            (32, 1, 1, 'gate'),
+            (32, 2, 1, 'gate'),
         ]
 
     elif reg_level == 'FUNC':
-        # Functional coverage: varied configs, basic level, even parity only
+        # Functional coverage: varied configs, gate level, even parity only
         valid_params = []
         for width, chunks in product(widths, chunks_list):
             if chunks <= width:
-                valid_params.append((width, chunks, 1, 'basic'))  # even parity only
+                valid_params.append((width, chunks, 1, 'gate'))  # even parity only
         return valid_params
 
     else:  # FULL
@@ -581,8 +581,8 @@ def test_dataint_parity(request, data_width, chunks, parity_type, test_level):
     - 1: Even parity (XOR)
 
     Test level controls the depth and breadth of testing:
-    - basic: Quick verification (1-2 min)
-    - medium: Integration testing (3-5 min)
+    - gate: Quick verification (1-2 min)
+    - func: Integration testing (3-5 min)
     - full: Comprehensive validation (8-15 min)
     """
     # Get directory and module information
@@ -624,7 +624,7 @@ def test_dataint_parity(request, data_width, chunks, parity_type, test_level):
     }
 
     # Adjust timeout based on test level and data width
-    timeout_multipliers = {'basic': 1, 'medium': 2, 'full': 4}
+    timeout_multipliers = {'gate': 1, 'func': 2, 'full': 4}
     width_factor = max(1.0, data_width / 32.0)  # Larger widths take more time
     chunks_factor = max(1.0, chunks / 4.0)      # More chunks take more time
     base_timeout = 1500  # 1.5 seconds base

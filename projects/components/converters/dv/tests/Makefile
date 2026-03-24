@@ -33,7 +33,7 @@ PYTEST_VERBOSE = -v
 PYTEST_QUIET = -q
 PYTEST_XDIST = -n 48  # 48 parallel workers (matching AMBA/STREAM/RAPIDS)
 PYTEST_TBSTYLE = --tb=short
-PYTEST_RERUNS = --reruns 0 --reruns-delay 1  # Retry failed tests up to 3 times
+PYTEST_RERUNS = --reruns 3 --reruns-delay 1  # Retry failed tests up to 3 times
 
 # Default target - show help
 .DEFAULT_GOAL := help

@@ -58,12 +58,12 @@ async def pic_8259_test(dut):
     tb.log.info(f'PIC 8259 test with seed: {seed}')
 
     # Get test level from environment
-    test_level = os.environ.get('TEST_LEVEL', 'basic').lower()
+    test_level = os.environ.get('TEST_LEVEL', 'gate').lower()
 
-    valid_levels = ['basic', 'medium', 'full']
+    valid_levels = ['gate', 'func', 'full']
     if test_level not in valid_levels:
-        tb.log.warning(f"Invalid TEST_LEVEL '{test_level}', using 'basic'. Valid: {valid_levels}")
-        test_level = 'basic'
+        tb.log.warning(f"Invalid TEST_LEVEL '{test_level}', using 'gate'. Valid: {valid_levels}")
+        test_level = 'gate'
 
     # Setup clocks and reset
     await tb.setup_clocks_and_reset()
@@ -114,9 +114,9 @@ async def pic_8259_test(dut):
     ]
 
     # Select test methods based on level
-    if test_level == 'basic':
+    if test_level == 'gate':
         test_methods = basic_test_methods
-    elif test_level == 'medium':
+    elif test_level == 'func':
         test_methods = basic_test_methods + medium_test_methods
     else:  # full
         test_methods = basic_test_methods + medium_test_methods + full_test_methods
@@ -158,8 +158,8 @@ def generate_test_params():
     return [
         # (test_level, description)
         # PIC 8259 has no RTL parameters to vary, so test levels provide coverage
-        ('basic', "PIC 8259 basic test"),
-        ('medium', "PIC 8259 medium test"),
+        ('gate', "PIC 8259 gate test"),
+        ('func', "PIC 8259 func test"),
         ('full', "PIC 8259 full test"),
     ]
 

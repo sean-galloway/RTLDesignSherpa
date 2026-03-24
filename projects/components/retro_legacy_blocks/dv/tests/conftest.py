@@ -306,8 +306,8 @@ def hpet_cdc_config(request):
 
 @pytest.fixture(scope="module", params=[
     # Test levels: (level, description, test_count, timeout_factor)
-    ('basic', 'Basic functionality', 4, 1.0),
-    ('medium', 'Medium stress testing', 5, 1.5),
+    ('gate', 'Gate smoke test', 4, 1.0),
+    ('func', 'Functional coverage', 5, 1.5),
     ('full', 'Full comprehensive testing', 3, 2.0),
 ])
 def hpet_test_level(request):
@@ -316,7 +316,7 @@ def hpet_test_level(request):
 
     # Override from environment if specified
     env_level = os.environ.get('TEST_LEVEL', level).lower()
-    if env_level in ['basic', 'medium', 'full']:
+    if env_level in ['gate', 'func', 'full']:
         level = env_level
 
     return {
@@ -349,7 +349,7 @@ def get_hpet_env_config():
         'VENDOR_ID': int(os.environ.get('HPET_VENDOR_ID', '0x8086')),
         'REVISION_ID': int(os.environ.get('HPET_REVISION_ID', '1')),
         'CDC_ENABLE': int(os.environ.get('HPET_CDC_ENABLE', '0')),
-        'TEST_LEVEL': os.environ.get('TEST_LEVEL', 'basic').lower(),
+        'TEST_LEVEL': os.environ.get('TEST_LEVEL', 'gate').lower(),
         'ENABLE_COVERAGE': os.environ.get('ENABLE_COVERAGE', '0') == '1',
         'ENABLE_WAVEDUMP': os.environ.get('ENABLE_WAVEDUMP', '1') == '1',
     }
@@ -413,4 +413,4 @@ def coverage_enabled():
 @pytest.fixture(scope="function")
 def test_level():
     """Test level fixture - can be overridden by TEST_LEVEL environment variable"""
-    return os.environ.get('TEST_LEVEL', 'basic')
+    return os.environ.get('TEST_LEVEL', 'gate')

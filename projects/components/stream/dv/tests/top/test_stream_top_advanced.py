@@ -14,8 +14,8 @@ Test Suite Contents:
 6. test_back_to_back_transfers - Multiple sequential transfers per channel
 
 Test Level Control (TEST_LEVEL environment variable):
-- basic:  Quick smoke tests (~30s each) - minimal iterations, small transfers
-- medium: Moderate coverage (~60-90s each) - standard iterations, medium transfers
+- gate:  Quick smoke tests (~30s each) - minimal iterations, small transfers
+- func: Moderate coverage (~60-90s each) - standard iterations, medium transfers
 - full:   Comprehensive validation (~180s each) - maximum iterations, all edge cases
 
 Usage:
@@ -57,10 +57,10 @@ def get_test_level_config():
 
     Returns dict with level-specific parameters for all tests.
     """
-    level = os.environ.get('TEST_LEVEL', 'basic').lower()
+    level = os.environ.get('TEST_LEVEL', 'gate').lower()
 
     configs = {
-        'basic': {
+        'gate': {
             # Quick smoke tests (~30s each)
             'multi_channel': {
                 'channels': [0, 1],
@@ -87,7 +87,7 @@ def get_test_level_config():
                 'transfer_size': 16,
             },
         },
-        'medium': {
+        'func': {
             # Moderate coverage (~60-90s each)
             'multi_channel': {
                 'channels': [0, 1, 2, 3],
@@ -143,7 +143,7 @@ def get_test_level_config():
         },
     }
 
-    return configs.get(level, configs['basic'])
+    return configs.get(level, configs['gate'])
 
 # Import utilities
 from CocoTBFramework.tbclasses.shared.tbbase import TBBase
@@ -289,8 +289,8 @@ async def cocotb_test_multi_channel_concurrent(dut):
     - Concurrent data integrity
 
     Scales with TEST_LEVEL:
-    - basic:  2 channels, 2 descriptors each
-    - medium: 4 channels, 4 descriptors each
+    - gate:  2 channels, 2 descriptors each
+    - func: 4 channels, 4 descriptors each
     - full:   8 channels, 6 descriptors each
     """
     tb = await setup_stream_testbench(dut)
@@ -298,7 +298,7 @@ async def cocotb_test_multi_channel_concurrent(dut):
     # Get level-based configuration
     level_config = get_test_level_config()
     test_config = level_config['multi_channel']
-    test_level = os.environ.get('TEST_LEVEL', 'basic')
+    test_level = os.environ.get('TEST_LEVEL', 'gate')
 
     test_channels = test_config['channels']
     desc_count = test_config['desc_count']
@@ -372,8 +372,8 @@ async def cocotb_test_long_descriptor_chain(dut):
     - Long-running transfers
 
     Scales with TEST_LEVEL:
-    - basic:  4 descriptors, 16 beats each
-    - medium: 8 descriptors, 32 beats each
+    - gate:  4 descriptors, 16 beats each
+    - func: 8 descriptors, 32 beats each
     - full:   16 descriptors, 48 beats each
     """
     tb = await setup_stream_testbench(dut)
@@ -381,7 +381,7 @@ async def cocotb_test_long_descriptor_chain(dut):
     # Get level-based configuration
     level_config = get_test_level_config()
     test_config = level_config['long_chain']
-    test_level = os.environ.get('TEST_LEVEL', 'basic')
+    test_level = os.environ.get('TEST_LEVEL', 'gate')
 
     channel = 0  # Always use channel 0 for this test
     chain_length = test_config['chain_length']
@@ -445,8 +445,8 @@ async def cocotb_test_variable_transfer_sizes(dut):
     - Large transfers
 
     Scales with TEST_LEVEL:
-    - basic:  3 sizes (1, 16, 64)
-    - medium: 6 sizes (1, 4, 16, 32, 64, 128)
+    - gate:  3 sizes (1, 16, 64)
+    - func: 6 sizes (1, 4, 16, 32, 64, 128)
     - full:   16 sizes (all edge cases including boundary-1 and boundary+1)
     """
     tb = await setup_stream_testbench(dut)
@@ -454,7 +454,7 @@ async def cocotb_test_variable_transfer_sizes(dut):
     # Get level-based configuration
     level_config = get_test_level_config()
     test_config = level_config['variable_sizes']
-    test_level = os.environ.get('TEST_LEVEL', 'basic')
+    test_level = os.environ.get('TEST_LEVEL', 'gate')
 
     channel = 0  # Always use channel 0 for this test
     transfer_sizes = test_config['transfer_sizes']
@@ -538,8 +538,8 @@ async def cocotb_test_stress_all_channels(dut):
     - System throughput under load
 
     Scales with TEST_LEVEL:
-    - basic:  4 channels, 2 descriptors each
-    - medium: 6 channels, 3 descriptors each
+    - gate:  4 channels, 2 descriptors each
+    - func: 6 channels, 3 descriptors each
     - full:   8 channels, 6 descriptors each
     """
     tb = await setup_stream_testbench(dut)
@@ -547,7 +547,7 @@ async def cocotb_test_stress_all_channels(dut):
     # Get level-based configuration
     level_config = get_test_level_config()
     test_config = level_config['stress']
-    test_level = os.environ.get('TEST_LEVEL', 'basic')
+    test_level = os.environ.get('TEST_LEVEL', 'gate')
 
     num_channels = test_config['channels']
     desc_per_channel = test_config['desc_count']
@@ -644,8 +644,8 @@ async def cocotb_test_register_access(dut):
     - DESCENG_ADDR registers
 
     Scales with TEST_LEVEL:
-    - basic:  3 test patterns per register
-    - medium: 6 test patterns per register
+    - gate:  3 test patterns per register
+    - func: 6 test patterns per register
     - full:   9 test patterns per register
     """
     tb = await setup_stream_testbench(dut)
@@ -653,7 +653,7 @@ async def cocotb_test_register_access(dut):
     # Get level-based configuration
     level_config = get_test_level_config()
     test_config = level_config['registers']
-    test_level = os.environ.get('TEST_LEVEL', 'basic')
+    test_level = os.environ.get('TEST_LEVEL', 'gate')
 
     test_patterns = test_config['test_patterns']
 
@@ -786,8 +786,8 @@ async def cocotb_test_back_to_back_transfers(dut):
     - No resource leaks
 
     Scales with TEST_LEVEL:
-    - basic:  3 iterations, 16 beats each
-    - medium: 5 iterations, 32 beats each
+    - gate:  3 iterations, 16 beats each
+    - func: 5 iterations, 32 beats each
     - full:   10 iterations, 64 beats each
     """
     tb = await setup_stream_testbench(dut)
@@ -795,7 +795,7 @@ async def cocotb_test_back_to_back_transfers(dut):
     # Get level-based configuration
     level_config = get_test_level_config()
     test_config = level_config['back_to_back']
-    test_level = os.environ.get('TEST_LEVEL', 'basic')
+    test_level = os.environ.get('TEST_LEVEL', 'gate')
 
     channel = 0  # Always use channel 0 for this test
     num_iterations = test_config['iterations']
@@ -898,7 +898,7 @@ def create_pytest_wrapper(test_name, cocotb_testcase, default_params=None):
         }
 
         # Get test level from environment (default: basic)
-        test_level = os.environ.get('TEST_LEVEL', 'basic')
+        test_level = os.environ.get('TEST_LEVEL', 'gate')
         test_name_plus_params = f"test_{dut_name}_{test_name}_{test_level}"
 
         worker_id = os.environ.get('PYTEST_XDIST_WORKER', '')

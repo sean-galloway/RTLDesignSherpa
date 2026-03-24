@@ -145,7 +145,7 @@ class ShifterLFSRGaloisTB(TBBase):
 
         # Get test parameters from environment variables
         self.SEED = self.convert_to_int(os.environ.get('SEED', '12345'))
-        self.TEST_LEVEL = os.environ.get('TEST_LEVEL', 'basic')
+        self.TEST_LEVEL = os.environ.get('TEST_LEVEL', 'gate').lower()
         self.WIDTH = self.convert_to_int(os.environ.get('TEST_WIDTH', '8'))
         self.TAP_INDEX_WIDTH = self.convert_to_int(os.environ.get('TEST_TAP_INDEX_WIDTH', '12'))
         self.TAP_COUNT = self.convert_to_int(os.environ.get('TEST_TAP_COUNT', '4'))
@@ -521,7 +521,7 @@ class ShifterLFSRGaloisTB(TBBase):
         await self.load_seed(seed)
 
         # Generate expected sequence using software model
-        num_cycles = 20 if self.TEST_LEVEL == 'basic' else 50
+        num_cycles = 20 if self.TEST_LEVEL == 'gate' else 50
         expected_sequence = self.simulate_galois_lfsr(seed, taps, num_cycles)
 
         # Print expected sequence details
@@ -588,7 +588,7 @@ class ShifterLFSRGaloisTB(TBBase):
 
             if not result['all_match']:
                 all_passed = False
-                if self.TEST_LEVEL == 'basic':
+                if self.TEST_LEVEL == 'gate':
                     break
 
         return all_passed
@@ -617,8 +617,8 @@ class ShifterLFSRGaloisTB(TBBase):
         # For full testing, we'd need to run 2^WIDTH-1 cycles,
         # but that's impractical for larger widths
         max_cycles = {
-            'basic': 32,
-            'medium': min(256, 2**self.WIDTH - 1),
+            'gate': 32,
+            'func': min(256, 2**self.WIDTH - 1),
             'full': min(1024, 2**self.WIDTH - 1)
         }
 
@@ -689,8 +689,8 @@ class ShifterLFSRGaloisTB(TBBase):
         Returns:
             True if all tests passed
         """
-        if self.TEST_LEVEL == 'basic':
-            self.log.info("Skipping tap configuration tests in basic mode")
+        if self.TEST_LEVEL == 'gate':
+            self.log.info("Skipping tap configuration tests in gate mode")
             return True
 
         self.log.info(f"Testing different tap configurations{self.get_time_ns_str()}")
@@ -727,7 +727,7 @@ class ShifterLFSRGaloisTB(TBBase):
                                                                                for i in range(1, self.TAP_COUNT)]])
 
         # Select tap configurations based on test level
-        if self.TEST_LEVEL == 'medium':
+        if self.TEST_LEVEL == 'func':
             configs_for_test = configs_for_test[:1]  # Use only first config
 
         all_passed = True
@@ -758,7 +758,7 @@ class ShifterLFSRGaloisTB(TBBase):
 
             if not result['all_match']:
                 all_passed = False
-                if self.TEST_LEVEL == 'medium':
+                if self.TEST_LEVEL == 'func':
                     break
 
         return all_passed
@@ -781,7 +781,7 @@ class ShifterLFSRGaloisTB(TBBase):
         if not basic_passed:
             self.log.error("Basic operation test failed")
             all_passed = False
-            if self.TEST_LEVEL == 'basic':
+            if self.TEST_LEVEL == 'gate':
                 return all_passed
 
         # 2. Seed loading test
@@ -790,7 +790,7 @@ class ShifterLFSRGaloisTB(TBBase):
         if not seed_passed:
             self.log.error("Seed loading test failed")
             all_passed = False
-            if self.TEST_LEVEL == 'basic':
+            if self.TEST_LEVEL == 'gate':
                 return all_passed
 
         # 3. Cycle detection test
@@ -799,11 +799,11 @@ class ShifterLFSRGaloisTB(TBBase):
         if not cycle_passed:
             self.log.error("Cycle detection test failed")
             all_passed = False
-            if self.TEST_LEVEL == 'basic':
+            if self.TEST_LEVEL == 'gate':
                 return all_passed
 
-        # 4. Different taps test (medium and full only)
-        if self.TEST_LEVEL != 'basic':
+        # 4. Different taps test (func and full only)
+        if self.TEST_LEVEL != 'gate':
             self.log.info("4. Testing different tap configurations")
             taps_passed = await self.test_different_taps()
             if not taps_passed:
@@ -826,7 +826,7 @@ class ShifterLFSRGaloisTB(TBBase):
         self.log.info("="*50)
 
         # Print detailed results based on test level
-        if self.TEST_LEVEL != 'basic' and passed_tests < total_tests:
+        if self.TEST_LEVEL != 'gate' and passed_tests < total_tests:
             self.log.info("Failed tests:")
             for i, result in enumerate(self.test_results):
                 if not result.get('all_match', True):
@@ -867,7 +867,7 @@ def generate_test_params():
     """
     Generate test parameters based on REG_LEVEL.
 
-    REG_LEVEL=GATE: 2 tests (8-bit, basic+medium)
+    REG_LEVEL=GATE: 2 tests (8-bit, gate+func)
     REG_LEVEL=FUNC: 6 tests (8-bit all levels, plus 16, 32, 64-bit) - default
     REG_LEVEL=FULL: 11 tests (all widths including 4, 96, 128-bit + tap configs)
 
@@ -879,32 +879,32 @@ def generate_test_params():
 
     if reg_level == 'GATE':
         return [
-            {'WIDTH': 8, 'TAP_INDEX_WIDTH': 12, 'TAP_COUNT': 4, 'test_level': 'basic'},
-            {'WIDTH': 8, 'TAP_INDEX_WIDTH': 12, 'TAP_COUNT': 4, 'test_level': 'medium'},
+            {'WIDTH': 8, 'TAP_INDEX_WIDTH': 12, 'TAP_COUNT': 4, 'test_level': 'gate'},
+            {'WIDTH': 8, 'TAP_INDEX_WIDTH': 12, 'TAP_COUNT': 4, 'test_level': 'func'},
         ]
     elif reg_level == 'FUNC':
         return [
-            {'WIDTH':  8, 'TAP_INDEX_WIDTH': 12, 'TAP_COUNT': 4, 'test_level': 'basic'},
-            {'WIDTH':  8, 'TAP_INDEX_WIDTH': 12, 'TAP_COUNT': 4, 'test_level': 'medium'},
+            {'WIDTH':  8, 'TAP_INDEX_WIDTH': 12, 'TAP_COUNT': 4, 'test_level': 'gate'},
+            {'WIDTH':  8, 'TAP_INDEX_WIDTH': 12, 'TAP_COUNT': 4, 'test_level': 'func'},
             {'WIDTH':  8, 'TAP_INDEX_WIDTH': 12, 'TAP_COUNT': 4, 'test_level': 'full'},
-            {'WIDTH': 16, 'TAP_INDEX_WIDTH': 12, 'TAP_COUNT': 4, 'test_level': 'medium'},
-            {'WIDTH': 32, 'TAP_INDEX_WIDTH': 12, 'TAP_COUNT': 4, 'test_level': 'medium'},
-            {'WIDTH': 64, 'TAP_INDEX_WIDTH': 12, 'TAP_COUNT': 4, 'test_level': 'medium'},
+            {'WIDTH': 16, 'TAP_INDEX_WIDTH': 12, 'TAP_COUNT': 4, 'test_level': 'func'},
+            {'WIDTH': 32, 'TAP_INDEX_WIDTH': 12, 'TAP_COUNT': 4, 'test_level': 'func'},
+            {'WIDTH': 64, 'TAP_INDEX_WIDTH': 12, 'TAP_COUNT': 4, 'test_level': 'func'},
         ]
     else:  # FULL
         return [
-            {'WIDTH':  8, 'TAP_INDEX_WIDTH': 12, 'TAP_COUNT': 4, 'test_level': 'basic'},
-            {'WIDTH':  8, 'TAP_INDEX_WIDTH': 12, 'TAP_COUNT': 4, 'test_level': 'medium'},
+            {'WIDTH':  8, 'TAP_INDEX_WIDTH': 12, 'TAP_COUNT': 4, 'test_level': 'gate'},
+            {'WIDTH':  8, 'TAP_INDEX_WIDTH': 12, 'TAP_COUNT': 4, 'test_level': 'func'},
             {'WIDTH':  8, 'TAP_INDEX_WIDTH': 12, 'TAP_COUNT': 4, 'test_level': 'full'},
-            {'WIDTH':  4, 'TAP_INDEX_WIDTH': 12, 'TAP_COUNT': 4, 'test_level': 'medium'},
-            {'WIDTH': 16, 'TAP_INDEX_WIDTH': 12, 'TAP_COUNT': 4, 'test_level': 'medium'},
-            {'WIDTH': 32, 'TAP_INDEX_WIDTH': 12, 'TAP_COUNT': 4, 'test_level': 'medium'},
-            {'WIDTH': 64, 'TAP_INDEX_WIDTH': 12, 'TAP_COUNT': 4, 'test_level': 'medium'},
-            {'WIDTH': 96, 'TAP_INDEX_WIDTH': 12, 'TAP_COUNT': 4, 'test_level': 'medium'},
-            {'WIDTH': 128, 'TAP_INDEX_WIDTH': 12, 'TAP_COUNT': 4, 'test_level': 'medium'},
+            {'WIDTH':  4, 'TAP_INDEX_WIDTH': 12, 'TAP_COUNT': 4, 'test_level': 'func'},
+            {'WIDTH': 16, 'TAP_INDEX_WIDTH': 12, 'TAP_COUNT': 4, 'test_level': 'func'},
+            {'WIDTH': 32, 'TAP_INDEX_WIDTH': 12, 'TAP_COUNT': 4, 'test_level': 'func'},
+            {'WIDTH': 64, 'TAP_INDEX_WIDTH': 12, 'TAP_COUNT': 4, 'test_level': 'func'},
+            {'WIDTH': 96, 'TAP_INDEX_WIDTH': 12, 'TAP_COUNT': 4, 'test_level': 'func'},
+            {'WIDTH': 128, 'TAP_INDEX_WIDTH': 12, 'TAP_COUNT': 4, 'test_level': 'func'},
             # Different tap configurations
-            {'WIDTH':  8, 'TAP_INDEX_WIDTH':  8, 'TAP_COUNT': 2, 'test_level': 'medium'},
-            {'WIDTH':  8, 'TAP_INDEX_WIDTH': 16, 'TAP_COUNT': 6, 'test_level': 'medium'},
+            {'WIDTH':  8, 'TAP_INDEX_WIDTH':  8, 'TAP_COUNT': 2, 'test_level': 'func'},
+            {'WIDTH':  8, 'TAP_INDEX_WIDTH': 16, 'TAP_COUNT': 6, 'test_level': 'func'},
         ]
 
 @pytest.mark.parametrize("params", generate_test_params())
@@ -972,7 +972,7 @@ def test_shifter_lfsr_galois(request, params):
     # Calculate timeout based on test complexity
     complexity_factor = 1.0
     # sourcery skip: no-conditionals-in-tests
-    if params['test_level'] == 'medium':
+    if params['test_level'] == 'func':
         complexity_factor = 2.0
     elif params['test_level'] == 'full':
         complexity_factor = 5.0

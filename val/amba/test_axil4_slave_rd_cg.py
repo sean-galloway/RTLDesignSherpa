@@ -185,13 +185,13 @@ async def axil4_slave_read_cg_test(dut):
     tb.log.info(f'AXIL4 slave read CG test with seed: {seed}')
 
     # Get test parameters
-    test_level = os.environ.get('TEST_LEVEL', 'basic').lower()
+    test_level = os.environ.get('TEST_LEVEL', 'gate').lower()
     cg_test_mode = os.environ.get('CG_TEST_MODE', 'comprehensive').lower()
     
-    valid_levels = ['basic', 'medium', 'full']
+    valid_levels = ['gate', 'func', 'full']
     if test_level not in valid_levels:
-        tb.log.warning(f"Invalid TEST_LEVEL '{test_level}', using 'basic'")
-        test_level = 'basic'
+        tb.log.warning(f"Invalid TEST_LEVEL '{test_level}', using 'gate'")
+        test_level = 'gate'
 
     # Start clock and reset
     await tb.start_clock('aclk', tb.TEST_CLK_PERIOD, 'ns')
@@ -208,11 +208,11 @@ async def axil4_slave_read_cg_test(dut):
 
     try:
         # Test configurations based on test level
-        if test_level == 'basic':
+        if test_level == 'gate':
             idle_counts = [4, 8]
             test_transactions = 10
             power_measurement_cycles = 500
-        elif test_level == 'medium':
+        elif test_level == 'func':
             idle_counts = [2, 4, 8, 16]
             test_transactions = 25
             power_measurement_cycles = 1000
@@ -319,7 +319,7 @@ async def axil4_slave_read_cg_test(dut):
                 tb.log.warning(f"⚠️ AXIL4 extended efficiency: {efficiency_result['power_efficiency_percent']:.1f}%")
 
         # Test 4: Register Access with Clock Gating (medium and full levels)
-        if test_level in ['medium', 'full']:
+        if test_level in ['func', 'full']:
             tb.log.info("=== Test 4: AXIL4 Register Access with Clock Gating ===")
             
             success, success_count, total_count = await tb.register_access_with_gating_test(
@@ -392,7 +392,7 @@ def generate_axil4_cg_params():
     data_widths = [32, 64]
     ar_depths = [2, 4]
     r_depths = [2, 4]
-    test_levels = ['basic', 'medium', 'full']
+    test_levels = ['gate', 'func', 'full']
     cg_test_modes = ['comprehensive', 'efficiency']
     
     # Debug mode for quick testing
@@ -466,7 +466,7 @@ def test_axil4_slave_read_cg(addr_width, data_width, ar_depth, r_depth, test_lev
     }
 
     # Calculate timeout based on complexity
-    timeout_multipliers = {'basic': 1, 'medium': 2, 'full': 4}
+    timeout_multipliers = {'gate': 1, 'func': 2, 'full': 4}
     complexity_factor = (data_width + addr_width) / 100.0
     timeout_ms = int(8000 * timeout_multipliers.get(test_level, 1) * max(1.0, complexity_factor))
 

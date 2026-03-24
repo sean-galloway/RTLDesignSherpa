@@ -101,7 +101,6 @@ sub_areas = ["fub", "fub_beats", "macro", "macro_beats", "macro_beats_tests"]
 description = "AXI4 crossbar bridge (sequential only — ~1GB per test)"
 directory = "projects/components/bridge/dv/tests"
 parallel_workers = 0                  # 0 = serial only (memory safety)
-reruns = 0
 coverage = true
 coverage_target = "fresh-coverage"
 coverage_report_target = "coverage-report"
@@ -110,7 +109,6 @@ coverage_report_target = "coverage-report"
 [env.converters]
 description = "Data width and protocol converters"
 directory = "projects/components/converters/dv/tests"
-reruns = 0
 coverage = true
 coverage_target = "fresh-coverage"
 coverage_report_target = "coverage-report"
@@ -125,7 +123,6 @@ coverage = true
 [env.retro-legacy]
 description = "Retro legacy blocks"
 directory = "projects/components/retro_legacy_blocks/dv/tests"
-reruns = 0
 coverage = false
 
 # --- Timing Characterization ---

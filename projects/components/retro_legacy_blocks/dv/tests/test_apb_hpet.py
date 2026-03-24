@@ -64,12 +64,12 @@ async def hpet_test(dut):
     tb.log.info(f'HPET test with seed: {seed}')
 
     # Get test parameters from environment
-    test_level = os.environ.get('TEST_LEVEL', 'basic').lower()
+    test_level = os.environ.get('TEST_LEVEL', 'gate').lower()
 
-    valid_levels = ['basic', 'medium', 'full']
+    valid_levels = ['gate', 'func', 'full']
     if test_level not in valid_levels:
-        tb.log.warning(f"Invalid TEST_LEVEL '{test_level}', using 'basic'. Valid: {valid_levels}")
-        test_level = 'basic'
+        tb.log.warning(f"Invalid TEST_LEVEL '{test_level}', using 'gate'. Valid: {valid_levels}")
+        test_level = 'gate'
 
     # Setup clocks and reset (dual domain)
     await tb.setup_clocks_and_reset()
@@ -86,11 +86,11 @@ async def hpet_test(dut):
     # Create test suite based on level
     passed = False
 
-    if test_level == 'basic':
+    if test_level == 'gate':
         basic_tests = HPETBasicTests(tb)
         passed = await basic_tests.run_all_basic_tests()
 
-    elif test_level == 'medium':
+    elif test_level == 'func':
         # Run basic tests first
         basic_tests = HPETBasicTests(tb)
         basic_passed = await basic_tests.run_all_basic_tests()
@@ -221,7 +221,7 @@ def test_hpet(request, num_timers, vendor_id, revision_id, cdc_enable, test_leve
     }
 
     # Calculate timeout based on test complexity and timer count
-    timeout_multipliers = {'basic': 1, 'medium': 3, 'full': 8}
+    timeout_multipliers = {'gate': 1, 'func': 3, 'full': 8}
     complexity_factor = timeout_multipliers.get(test_level, 1)
     data_complexity = max(1.0, dw / 32.0)
     timer_complexity = max(1.0, num_timers / 2.0)  # Scale with timer count
@@ -328,9 +328,9 @@ if __name__ == "__main__":
     test_config = os.environ.get('HPET_TEST_CONFIG', '2timer').lower()
 
     config_map = {
-        '2timer': (2, 0x8086, 0x01, 'basic'),  # Intel-like
-        '3timer': (3, 0x1022, 0x02, 'basic'),  # AMD-like
-        '8timer': (8, 0xABCD, 0x10, 'basic'),  # Custom
+        '2timer': (2, 0x8086, 0x01, 'gate'),  # Intel-like
+        '3timer': (3, 0x1022, 0x02, 'gate'),  # AMD-like
+        '8timer': (8, 0xABCD, 0x10, 'gate'),  # Custom
     }
 
     if test_config not in config_map:

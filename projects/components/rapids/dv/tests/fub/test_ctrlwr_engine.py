@@ -178,7 +178,6 @@ def test_ctrlwr_back_to_back(request, channel_id, num_channels, addr_width):
 @pytest.mark.fub
 @pytest.mark.ctrlwr
 @pytest.mark.error
-@pytest.mark.xfail(reason="RTL bug: w_axi_response_error checks r_write_resp (old value) before b_resp is latched")
 @pytest.mark.parametrize("channel_id, num_channels, addr_width", ctrlwr_params)
 def test_ctrlwr_axi_error(request, channel_id, num_channels, addr_width):
     """Pytest: Test AXI error handling"""

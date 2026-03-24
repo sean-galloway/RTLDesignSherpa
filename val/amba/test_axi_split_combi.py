@@ -55,7 +55,7 @@ class RealisticAxiSplitTB(TBBase):
 
         # Get test parameters
         self.SEED = self.convert_to_int(os.environ.get('SEED', '12345'))
-        self.TEST_LEVEL = os.environ.get('TEST_LEVEL', 'basic')
+        self.TEST_LEVEL = os.environ.get('TEST_LEVEL', 'gate')
         self.TEST_MODE = os.environ.get('TEST_MODE', 'sequence')
         self.AW = self.convert_to_int(os.environ.get('TEST_AW', '32'))
         self.DW = self.convert_to_int(os.environ.get('TEST_DW', '32'))
@@ -374,7 +374,7 @@ class RealisticAxiSplitTB(TBBase):
                         "REALISTIC EDGE" in test_desc or
                         "Multi-boundary" in test_desc or
                         self.test_count % 25 == 0 or
-                        self.TEST_LEVEL == 'basic')
+                        self.TEST_LEVEL == 'gate')
 
         if should_log:
             self.log.info("─" * 80)
@@ -487,7 +487,7 @@ class RealisticAxiSplitTB(TBBase):
                 passed = await self.test_case(test_desc, addr, length, self.EXPECTED_AX_SIZE, mask)
                 if not passed:
                     all_passed = False
-                    if self.TEST_LEVEL == 'basic':
+                    if self.TEST_LEVEL == 'gate':
                         return all_passed
 
         return all_passed
@@ -754,7 +754,7 @@ class RealisticAxiSplitTB(TBBase):
                 if not multi_split_passed:
                     all_passed = False
 
-            if self.TEST_LEVEL == 'basic' and not all_passed:
+            if self.TEST_LEVEL == 'gate' and not all_passed:
                 break
 
         return all_passed
@@ -775,7 +775,7 @@ class RealisticAxiSplitTB(TBBase):
         edge_cases_passed = await self.test_realistic_edge_cases()
         if not edge_cases_passed:
             overall_passed = False
-            if self.TEST_LEVEL == 'basic':
+            if self.TEST_LEVEL == 'gate':
                 self.print_final_summary()
                 return overall_passed
 
@@ -788,7 +788,7 @@ class RealisticAxiSplitTB(TBBase):
             if not mask_passed:
                 self.log.error(f"❌ MASK 0x{mask:03X} tests failed")
                 overall_passed = False
-                if self.TEST_LEVEL == 'basic':
+                if self.TEST_LEVEL == 'gate':
                     break
             else:
                 self.log.info(f"✅ MASK 0x{mask:03X} tests passed")
@@ -833,7 +833,7 @@ def generate_realistic_test_params():
     """Generate test parameters for realistic testing"""
     aw = [32]  # Focus on 32-bit for realistic scenarios
     dw = [32, 64, 128, 512]  # Full data width range
-    test_levels = ['basic', 'full']
+    test_levels = ['gate', 'full']
     test_modes = ['basic', 'sequence']
 
     return [

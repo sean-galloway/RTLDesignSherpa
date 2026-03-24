@@ -209,10 +209,10 @@ async def cocotb_test_scheduler(dut):
         tb.log.info("=== Scenario SCHED-STRESS: Random stress test ===")
         tb.log.info("  Random descriptor parameters to increase line coverage")
         # Get num_descriptors based on test level
-        test_level = os.environ.get('TEST_LEVEL', 'basic').lower()
+        test_level = os.environ.get('TEST_LEVEL', 'gate').lower()
         if test_level == 'full':
             num_desc = 50
-        elif test_level == 'medium':
+        elif test_level == 'func':
             num_desc = 25
         else:
             num_desc = 15
@@ -303,7 +303,7 @@ async def cocotb_test_scheduler(dut):
         tb.log.info("=== Scenario SCHED-02-EXT: True descriptor chaining ===")
         tb.log.info("  Exercises CH_NEXT_DESC state machine path")
         # True descriptor chaining - exercises CH_NEXT_DESC state
-        test_level = os.environ.get('TEST_LEVEL', 'basic').lower()
+        test_level = os.environ.get('TEST_LEVEL', 'gate').lower()
         chain_len = 5 if test_level == 'full' else 3
         result = await tb.test_true_descriptor_chaining(chain_length=chain_len)
         # Sample chained descriptor scenario

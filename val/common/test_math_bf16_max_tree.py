@@ -42,17 +42,17 @@ def get_bf16_max_tree_params():
 
     if reg_level == 'GATE':
         return [
-            {'test_level': 'simple', 'num_inputs': 8},  # GATE: Minimal test
+            {'test_level': 'gate', 'num_inputs': 8},  # GATE: Minimal test
         ]
     elif reg_level == 'FUNC':
         return [
-            {'test_level': 'basic', 'num_inputs': 8},  # FUNC: Basic coverage
+            {'test_level': 'func', 'num_inputs': 8},  # FUNC: Basic coverage
         ]
     else:  # FULL
         return [
-            {'test_level': 'simple', 'num_inputs': 4},
-            {'test_level': 'basic', 'num_inputs': 8},
-            {'test_level': 'medium', 'num_inputs': 16},
+            {'test_level': 'gate', 'num_inputs': 4},
+            {'test_level': 'func', 'num_inputs': 8},
+            {'test_level': 'func', 'num_inputs': 16},
             {'test_level': 'full', 'num_inputs': 32},
         ]
 

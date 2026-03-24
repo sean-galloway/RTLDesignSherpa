@@ -12,7 +12,7 @@ Coverage Features:
 Environment Variables:
 - COVERAGE=1: Enable coverage collection
 - REG_LEVEL: GATE|FUNC|FULL - controls parameter combinations
-- TEST_LEVEL: basic|medium|full - controls per-test depth
+- TEST_LEVEL: gate|func|full - controls per-test depth
 """
 
 import os
@@ -124,7 +124,7 @@ def pytest_ignore_collect(collection_path, config):
 @pytest.fixture(scope="function")
 def test_level():
     """Test level fixture - can be overridden by TEST_LEVEL environment variable."""
-    return os.environ.get('TEST_LEVEL', 'basic')
+    return os.environ.get('TEST_LEVEL', 'gate')
 
 
 # Coverage fixtures

@@ -204,8 +204,10 @@ module ctrlwr_engine #(
     // Address validation (must be 4-byte aligned for 32-bit writes)
     assign w_address_error = (r_ctrlwr_addr[1:0] != 2'b00) && !w_null_address;
 
-    // AXI response validation
-    assign w_axi_response_error = (r_write_resp != 2'b00); // Not OKAY
+    // AXI response validation - check b_resp directly (combinational) so
+    // the error is visible on the same cycle the response arrives.
+    // Previously checked r_write_resp which is the OLD latched value.
+    assign w_axi_response_error = (b_resp != 2'b00) && b_valid && w_our_axi_response;
 
     // Transaction tracking
     assign w_both_phases_issued = r_addr_issued && r_data_issued;
@@ -422,8 +424,9 @@ module ctrlwr_engine #(
                             MON_AGENT_ID,
                             r_ctrlwr_addr[34:0]
                         );
-                    end else if (w_axi_response_error) begin
-                        // Log AXI response error
+                    end else if (r_ctrlwr_error) begin
+                        // Log AXI response error (use registered flag since
+                        // b_resp/b_valid are no longer asserted in this state)
                         r_mon_valid <= 1'b1;
                         r_mon_packet <= create_monitor_packet(
                             PktTypeError,

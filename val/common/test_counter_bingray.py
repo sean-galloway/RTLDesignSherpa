@@ -19,8 +19,8 @@ Binary-Gray Counter Test with Parameterized Test Levels and Configuration
 This test uses WIDTH as parameter for maximum flexibility:
 
 TEST LEVELS (per-test depth):
-    basic (30s-2min):  Quick verification during development
-    medium (2-5 min):  Integration testing for CI/branches
+    gate (30s-2min):  Quick verification during development
+    func (2-5 min):  Integration testing for CI/branches
     full (5-15 min):   Comprehensive validation for regression
 
 REG_LEVEL Control (parameter combinations):
@@ -30,12 +30,12 @@ REG_LEVEL Control (parameter combinations):
 
 PARAMETER COMBINATIONS:
     GATE: 2 widths × 1 level = 2 tests
-    FUNC: 4 widths × 1 level = 4 tests (basic level only)
+    FUNC: 4 widths × 1 level = 4 tests (gate level only)
     FULL: 4 widths × 3 levels = 12 tests
 
 Environment Variables:
     REG_LEVEL: GATE|FUNC|FULL - controls parameter combinations (default: FUNC)
-    TEST_LEVEL: basic|medium|full - controls per-test depth (set by REG_LEVEL)
+    TEST_LEVEL: gate|func|full - controls per-test depth (set by REG_LEVEL)
     SEED: Set random seed for reproducibility
 
 COUNTER_BINGRAY BEHAVIOR:
@@ -70,7 +70,7 @@ class CounterBinGrayTB(TBBase):
 
         # Get test parameters from environment
         self.SEED = self.convert_to_int(os.environ.get('SEED', '12345'))
-        self.TEST_LEVEL = os.environ.get('TEST_LEVEL', 'basic').lower()
+        self.TEST_LEVEL = os.environ.get('TEST_LEVEL', 'gate').lower()
         self.WIDTH = self.convert_to_int(os.environ.get('TEST_WIDTH', '4'))
         self.DEBUG = self.convert_to_int(os.environ.get('TEST_DEBUG', '0'))
 
@@ -78,10 +78,10 @@ class CounterBinGrayTB(TBBase):
         random.seed(self.SEED)
 
         # Validate test level
-        valid_levels = ['basic', 'medium', 'full']
+        valid_levels = ['gate', 'func', 'full']
         if self.TEST_LEVEL not in valid_levels:
-            self.log.warning(f"Invalid TEST_LEVEL '{self.TEST_LEVEL}', using 'basic'. Valid: {valid_levels}{self.get_time_ns_str()}")
-            self.TEST_LEVEL = 'basic'
+            self.log.warning(f"Invalid TEST_LEVEL '{self.TEST_LEVEL}', using 'gate'. Valid: {valid_levels}{self.get_time_ns_str()}")
+            self.TEST_LEVEL = 'gate'
 
         # Calculate max value
         self.MAX_VALUE = (1 << self.WIDTH) - 1
@@ -188,9 +188,9 @@ class CounterBinGrayTB(TBBase):
         await self.reset_dut()
 
         # Test based on level
-        if self.TEST_LEVEL == 'basic':
+        if self.TEST_LEVEL == 'gate':
             num_cycles = min(32, len(self.expected_bin_sequence))  # Test first 32 cycles
-        elif self.TEST_LEVEL == 'medium':
+        elif self.TEST_LEVEL == 'func':
             num_cycles = min(len(self.expected_bin_sequence), 200)  # Test up to full sequence
         else:  # full
             num_cycles = len(self.expected_bin_sequence) * 2  # Test two complete sequences
@@ -206,7 +206,7 @@ class CounterBinGrayTB(TBBase):
             
             if not await self.check_counter_values(expected_bin, expected_gray, cycle):
                 all_passed = False
-                if self.TEST_LEVEL == 'basic':
+                if self.TEST_LEVEL == 'gate':
                     break
 
             # Check next value (when enabled)
@@ -214,7 +214,7 @@ class CounterBinGrayTB(TBBase):
             expected_next_bin = self.expected_bin_sequence[next_cycle]
             if not await self.check_next_value(expected_next_bin, cycle):
                 all_passed = False
-                if self.TEST_LEVEL == 'basic':
+                if self.TEST_LEVEL == 'gate':
                     break
 
             # Store result
@@ -378,8 +378,8 @@ class CounterBinGrayTB(TBBase):
 
     async def test_gray_code_properties(self):
         """Test Gray code properties (adjacent values differ by only 1 bit)"""
-        if self.TEST_LEVEL == 'basic':
-            self.log.info(f"Skipping Gray code properties test for basic level{self.get_time_ns_str()}")
+        if self.TEST_LEVEL == 'gate':
+            self.log.info(f"Skipping Gray code properties test for gate level{self.get_time_ns_str()}")
             return True
 
         self.log.info(f"Testing Gray code properties{self.get_time_ns_str()}")
@@ -391,7 +391,7 @@ class CounterBinGrayTB(TBBase):
         self.enable.value = 1
 
         # Test a reasonable number of transitions
-        test_cycles = min(len(self.expected_gray_sequence), 100 if self.TEST_LEVEL == 'medium' else len(self.expected_gray_sequence))
+        test_cycles = min(len(self.expected_gray_sequence), 100 if self.TEST_LEVEL == 'func' else len(self.expected_gray_sequence))
         
         prev_gray = 0  # Start with reset value
         
@@ -408,7 +408,7 @@ class CounterBinGrayTB(TBBase):
                 if bit_count != 1:
                     self.log.error(f"Cycle {cycle}: Gray code violation - 0x{prev_gray:X} -> 0x{current_gray:X} differs by {bit_count} bits{self.get_time_ns_str()}")
                     all_passed = False
-                    if self.TEST_LEVEL == 'medium':
+                    if self.TEST_LEVEL == 'func':
                         break
                 elif self.DEBUG and cycle % 20 == 0:
                     self.log.debug(f"Cycle {cycle}: Gray transition OK - 0x{prev_gray:X} -> 0x{current_gray:X}{self.get_time_ns_str()}")
@@ -629,17 +629,17 @@ def generate_params():
 
     if reg_level == 'GATE':
         # Minimal - just prove basic functionality
-        # 2 tests: small + large counter, basic level only
+        # 2 tests: small + large counter, gate level only
         params = [
-            (4, 'basic'),    # Small counter (4 bits)
-            (8, 'basic'),    # Larger counter (8 bits)
+            (4, 'gate'),    # Small counter (4 bits)
+            (8, 'gate'),    # Larger counter (8 bits)
         ]
 
     elif reg_level == 'FUNC':
-        # Functional coverage - test variety of widths with basic level
+        # Functional coverage - test variety of widths with gate level
         # 4 widths × 1 level = 4 tests
         widths = [4, 5, 8, 12]
-        test_levels = ['basic']  # Keep tests fast for functional check
+        test_levels = ['gate']  # Keep tests fast for functional check
 
         params = []
         for width in widths:
@@ -650,7 +650,7 @@ def generate_params():
         # Comprehensive testing - multiple widths and all test levels
         # 4 widths × 3 levels = 12 tests
         widths = [4, 5, 8, 12]
-        test_levels = ['basic', 'medium', 'full']
+        test_levels = ['gate', 'func', 'full']
 
         params = []
         for width, level in product(widths, test_levels):
@@ -666,8 +666,8 @@ def test_counter_bingray(request, width, test_level):
     Parameterized Binary-Gray Counter test with configurable width and test level.
 
     Test level controls the depth and breadth of testing:
-    - basic: Quick verification (1-2 min)
-    - medium: Integration testing (3-5 min)
+    - gate: Quick verification (1-2 min)
+    - func: Integration testing (3-5 min)
     - full: Comprehensive validation (8-15 min)
     
     Counter behavior: Binary counter with Gray code output
@@ -701,7 +701,7 @@ def test_counter_bingray(request, width, test_level):
     }
 
     # Adjust timeout based on test level and width
-    timeout_multipliers = {'basic': 1, 'medium': 3, 'full': 6}
+    timeout_multipliers = {'gate': 1, 'func': 3, 'full': 6}
     width_factor = max(1.0, (1 << width) / 256.0)  # Larger widths take more time
     base_timeout = 5000  # 5 seconds base
     timeout_ms = int(base_timeout * timeout_multipliers.get(test_level, 1) * width_factor)

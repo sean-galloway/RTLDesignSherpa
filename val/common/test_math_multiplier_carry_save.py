@@ -38,23 +38,23 @@ def get_multiplier_params():
 
     if reg_level == 'GATE':
         return [
-            {'WIDTH': 8, 'test_level': 'basic'},  # GATE: Minimal - just 8-bit basic
+            {'WIDTH': 8, 'test_level': 'func'},  # GATE: Minimal - just 8-bit basic
         ]
     elif reg_level == 'FUNC':
         return [
-            {'WIDTH': 8, 'test_level': 'basic'},  # FUNC: Small and medium widths
-            {'WIDTH': 16, 'test_level': 'basic'},
+            {'WIDTH': 8, 'test_level': 'func'},  # FUNC: Small and medium widths
+            {'WIDTH': 16, 'test_level': 'func'},
         ]
     else:  # FULL
         return [
             # Basic tests with different widths
-            {'WIDTH':  8, 'test_level': 'basic'},
-            {'WIDTH': 16, 'test_level': 'basic'},
-            {'WIDTH': 32, 'test_level': 'basic'},
+            {'WIDTH':  8, 'test_level': 'func'},
+            {'WIDTH': 16, 'test_level': 'func'},
+            {'WIDTH': 32, 'test_level': 'func'},
             # More comprehensive testing
-            {'WIDTH':  8, 'test_level': 'medium'},
-            {'WIDTH': 16, 'test_level': 'medium'},
-            {'WIDTH': 32, 'test_level': 'medium'},
+            {'WIDTH':  8, 'test_level': 'func'},
+            {'WIDTH': 16, 'test_level': 'func'},
+            {'WIDTH': 32, 'test_level': 'func'},
             # Full test suite
             {'WIDTH': 16, 'test_level': 'full'},
         ]

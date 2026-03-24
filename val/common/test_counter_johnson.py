@@ -22,23 +22,23 @@ CONFIGURATION:
     WIDTH: Counter width in bits (4, 5, 8, 12)
 
 TEST LEVELS (per-test depth):
-    basic (1-2 min):   Quick verification during development
-    medium (3-5 min):  Integration testing for CI/branches
+    gate (1-2 min):   Quick verification during development
+    func (3-5 min):  Integration testing for CI/branches
     full (8-15 min):   Comprehensive validation for regression
 
 REG_LEVEL Control (parameter combinations):
-    GATE: 1 test (~2 min) - smoke test (4-bit, basic)
+    GATE: 1 test (~2 min) - smoke test (4-bit, gate)
     FUNC: 4 tests (~8 min) - functional coverage - DEFAULT
     FULL: 12 tests (~2 hours) - comprehensive validation
 
 PARAMETER COMBINATIONS:
     GATE: 1 width × 1 level = 1 test
-    FUNC: 4 widths × 1 level = 4 tests (all widths, basic only)
+    FUNC: 4 widths × 1 level = 4 tests (all widths, gate only)
     FULL: 4 widths × 3 levels = 12 tests
 
 Environment Variables:
     REG_LEVEL: Control parameter combinations (GATE/FUNC/FULL)
-    TEST_LEVEL: Set test level in cocotb (basic/medium/full)
+    TEST_LEVEL: Set test level in cocotb (gate/func/full)
     SEED: Set random seed for reproducibility
     TEST_WIDTH: Counter width in bits
 
@@ -75,7 +75,7 @@ class CounterJohnsonTB(TBBase):
 
         # Get test parameters from environment
         self.SEED = self.convert_to_int(os.environ.get('SEED', '12345'))
-        self.TEST_LEVEL = os.environ.get('TEST_LEVEL', 'basic').lower()
+        self.TEST_LEVEL = os.environ.get('TEST_LEVEL', 'gate').lower()
         self.WIDTH = self.convert_to_int(os.environ.get('TEST_WIDTH', '4'))
         self.DEBUG = self.convert_to_int(os.environ.get('TEST_DEBUG', '0'))
 
@@ -83,10 +83,10 @@ class CounterJohnsonTB(TBBase):
         random.seed(self.SEED)
 
         # Validate test level
-        valid_levels = ['basic', 'medium', 'full']
+        valid_levels = ['gate', 'func', 'full']
         if self.TEST_LEVEL not in valid_levels:
-            self.log.warning(f"Invalid TEST_LEVEL '{self.TEST_LEVEL}', using 'basic'. Valid: {valid_levels}{self.get_time_ns_str()}")
-            self.TEST_LEVEL = 'basic'
+            self.log.warning(f"Invalid TEST_LEVEL '{self.TEST_LEVEL}', using 'gate'. Valid: {valid_levels}{self.get_time_ns_str()}")
+            self.TEST_LEVEL = 'gate'
 
         # Calculate sequence properties
         self.SEQUENCE_LENGTH = 2 * self.WIDTH
@@ -204,9 +204,9 @@ class CounterJohnsonTB(TBBase):
         await self.reset_dut()
 
         # Test based on level
-        if self.TEST_LEVEL == 'basic':
+        if self.TEST_LEVEL == 'gate':
             num_cycles = min(self.SEQUENCE_LENGTH, 20)  # Test partial sequence
-        elif self.TEST_LEVEL == 'medium':
+        elif self.TEST_LEVEL == 'func':
             num_cycles = self.SEQUENCE_LENGTH * 2  # Test two complete sequences
         else:  # full
             num_cycles = self.SEQUENCE_LENGTH * 3  # Test three complete sequences
@@ -223,7 +223,7 @@ class CounterJohnsonTB(TBBase):
 
             if not await self.check_counter_value(expected_value, cycle):
                 all_passed = False
-                if self.TEST_LEVEL == 'basic':
+                if self.TEST_LEVEL == 'gate':
                     break
 
             # Store result
@@ -376,8 +376,8 @@ class CounterJohnsonTB(TBBase):
 
     async def test_sequence_properties(self):
         """Test Johnson counter sequence properties"""
-        if self.TEST_LEVEL == 'basic':
-            self.log.info(f"Skipping sequence properties test for basic level{self.get_time_ns_str()}")
+        if self.TEST_LEVEL == 'gate':
+            self.log.info(f"Skipping sequence properties test for gate level{self.get_time_ns_str()}")
             return True
 
         self.log.info(f"Testing sequence properties{self.get_time_ns_str()}")
@@ -663,8 +663,8 @@ def generate_params():
     """
     Generate test parameter combinations based on REG_LEVEL.
 
-    REG_LEVEL=GATE: 1 test (4-bit, basic level)
-    REG_LEVEL=FUNC: 4 tests (all widths, basic level) - default
+    REG_LEVEL=GATE: 1 test (4-bit, gate level)
+    REG_LEVEL=FUNC: 4 tests (all widths, gate level) - default
     REG_LEVEL=FULL: 12 tests (all widths, all test levels)
 
     Returns:
@@ -673,15 +673,15 @@ def generate_params():
     reg_level = os.environ.get('REG_LEVEL', 'FUNC').upper()
 
     widths = [4, 5, 8, 12]  # Different counter widths
-    test_levels = ['basic', 'medium', 'full']  # Test levels
+    test_levels = ['gate', 'func', 'full']  # Test levels
 
     if reg_level == 'GATE':
-        # Quick smoke test: 4-bit, basic only
-        params = [(4, 'basic')]
+        # Quick smoke test: 4-bit, gate only
+        params = [(4, 'gate')]
 
     elif reg_level == 'FUNC':
-        # Functional coverage: all widths, basic level only
-        params = [(width, 'basic') for width in widths]
+        # Functional coverage: all widths, gate level only
+        params = [(width, 'gate') for width in widths]
 
     else:  # FULL
         # Comprehensive: all combinations
@@ -699,8 +699,8 @@ def test_counter_johnson(request, width, test_level):
     Parameterized Johnson Counter test with configurable width and test level.
 
     Test level controls the depth and breadth of testing:
-    - basic: Quick verification (1-2 min)
-    - medium: Integration testing (3-5 min)
+    - gate: Quick verification (1-2 min)
+    - func: Integration testing (3-5 min)
     - full: Comprehensive validation (8-15 min)
 
     Counter behavior: Johnson counter (twisted ring) with sequence length 2*WIDTH
@@ -734,7 +734,7 @@ def test_counter_johnson(request, width, test_level):
     }
 
     # Adjust timeout based on test level and width
-    timeout_multipliers = {'basic': 1, 'medium': 3, 'full': 6}
+    timeout_multipliers = {'gate': 1, 'func': 3, 'full': 6}
     width_factor = max(1.0, width / 8.0)  # Larger widths take more time
     base_timeout = 5000  # 5 seconds base
     timeout_ms = int(base_timeout * timeout_multipliers.get(test_level, 1) * width_factor)

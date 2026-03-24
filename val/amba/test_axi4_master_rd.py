@@ -68,12 +68,12 @@ async def axi4_read_master_test(dut):
     tb.log.info(f'AXI4 read master test with seed: {seed}')
 
     # Get test parameters from environment
-    test_level = os.environ.get('TEST_LEVEL', 'basic').lower()
+    test_level = os.environ.get('TEST_LEVEL', 'gate').lower()
 
-    valid_levels = ['basic', 'medium', 'full']
+    valid_levels = ['gate', 'func', 'full']
     if test_level not in valid_levels:
-        tb.log.warning(f"Invalid TEST_LEVEL '{test_level}', using 'basic'. Valid: {valid_levels}")
-        test_level = 'basic'
+        tb.log.warning(f"Invalid TEST_LEVEL '{test_level}', using 'gate'. Valid: {valid_levels}")
+        test_level = 'gate'
 
     # Start clock and reset sequence
     await tb.start_clock('aclk', tb.TEST_CLK_PERIOD, 'ns')
@@ -86,12 +86,12 @@ async def axi4_read_master_test(dut):
     tb.log.info(f"AXI4 widths: ID={tb.TEST_ID_WIDTH}, ADDR={tb.TEST_ADDR_WIDTH}, DATA={tb.TEST_DATA_WIDTH}")
 
     # Define test configurations based on test level
-    if test_level == 'basic':
+    if test_level == 'gate':
         timing_profiles = ['normal', 'fast']
         single_read_counts = [10, 20]
         burst_lengths = [[2, 4], [4, 8]]
         stress_count = 25
-    elif test_level == 'medium':
+    elif test_level == 'func':
         timing_profiles = ['normal', 'fast', 'slow', 'backtoback']
         single_read_counts = [20, 40, 30]
         burst_lengths = [[2, 4, 8], [4, 8, 16], [1, 2, 4, 8]]
@@ -148,7 +148,7 @@ async def axi4_read_master_test(dut):
             tb.log.info(f"✓ Burst read sequence passed with '{profile}' timing")
 
     # Test 4: Mixed read patterns (medium and full levels)
-    if test_level in ['medium', 'full']:
+    if test_level in ['func', 'full']:
         tb.log.info("=== Test 4: Mixed Read Patterns ===")
 
         # Alternating single and burst reads
@@ -193,7 +193,7 @@ async def axi4_read_master_test(dut):
             tb.log.warning(f"⚠ {description} failed")
 
     # Test 6: Stress testing (medium and full levels)
-    if test_level in ['medium', 'full']:
+    if test_level in ['func', 'full']:
         tb.log.info("=== Scenario AXI4-MR-21: Multiple IDs ===")
         tb.log.info("=== Scenario AXI4-MR-23: ID reordering ===")
         tb.log.info("=== Scenario AXI4-MR-60: AR channel backpressure ===")
@@ -292,8 +292,8 @@ def generate_axi4_params():
         # Minimal - just prove both stub and non-stub compile and work
         # 2 tests: 1 stub + 1 non-stub, basic level
         params = [
-            (1, 8, 32, 32, 1, 2, 4, 'basic'),  # Stub version
-            (0, 8, 32, 32, 1, 2, 4, 'basic'),  # Non-stub version
+            (1, 8, 32, 32, 1, 2, 4, 'gate'),  # Stub version
+            (0, 8, 32, 32, 1, 2, 4, 'gate'),  # Non-stub version
         ]
         return validate_axi4_params(params)
 
@@ -306,7 +306,7 @@ def generate_axi4_params():
             (8, 32, 32, 1, 2, 4),   # Standard config
             (8, 32, 32, 1, 4, 8),   # Deeper buffers
         ]
-        test_levels = ['basic', 'medium']
+        test_levels = ['gate', 'func']
 
         params = []
         for stub in stubs:
@@ -326,7 +326,7 @@ def generate_axi4_params():
         data_width = 32  # Fixed to 32-bit for consistency
         user_width = 1
         ar_r_depths = [(2, 4), (4, 8)]  # (ar_depth, r_depth) pairs
-        test_levels = ['basic', 'medium', 'full']
+        test_levels = ['gate', 'func', 'full']
 
         params = []
         for stub, id_w, addr_w, (ar_d, r_d), level in product(
@@ -410,7 +410,7 @@ def test_axi4_read_master(request, stub, id_width, addr_width, data_width, user_
     }
 
     # Calculate timeout based on complexity
-    timeout_multipliers = {'basic': 1, 'medium': 2, 'full': 4}
+    timeout_multipliers = {'gate': 1, 'func': 2, 'full': 4}
     complexity_factor = (data_width + addr_width + id_width) / 100.0
     timeout_ms = int(5000 * timeout_multipliers.get(test_level, 1) * max(1.0, complexity_factor))
 

@@ -44,19 +44,19 @@ def get_bf16_fast_reciprocal_params():
 
     if reg_level == 'GATE':
         return [
-            {'test_level': 'simple', 'lut_depth': 32},  # GATE: Minimal test
+            {'test_level': 'gate', 'lut_depth': 32},  # GATE: Minimal test
         ]
     elif reg_level == 'FUNC':
         return [
-            {'test_level': 'basic', 'lut_depth': 32},  # FUNC: Basic coverage
+            {'test_level': 'func', 'lut_depth': 32},  # FUNC: Basic coverage
         ]
     else:  # FULL
         return [
-            {'test_level': 'simple', 'lut_depth': 32},
-            {'test_level': 'basic', 'lut_depth': 32},
-            {'test_level': 'medium', 'lut_depth': 32},
-            {'test_level': 'basic', 'lut_depth': 64},
-            {'test_level': 'basic', 'lut_depth': 128},
+            {'test_level': 'gate', 'lut_depth': 32},
+            {'test_level': 'func', 'lut_depth': 32},
+            {'test_level': 'func', 'lut_depth': 32},
+            {'test_level': 'func', 'lut_depth': 64},
+            {'test_level': 'func', 'lut_depth': 128},
             {'test_level': 'full', 'lut_depth': 32},
         ]
 

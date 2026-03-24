@@ -23,17 +23,17 @@ MODULE TYPES:
     decoder:  Test only the decoder module (sequential)
 
 TEST LEVELS:
-    basic (1-2 min):   Quick verification during development
-    medium (3-5 min):  Integration testing for CI/branches
+    gate (1-2 min):   Quick verification during development
+    func (3-5 min):  Integration testing for CI/branches
     full (8-15 min):   Comprehensive validation for regression
 
 PARAMETER COMBINATIONS:
     - data_width: [4, 8, 16, 32]
     - module_type: [encoder, decoder]
-    - test_level: [basic, medium, full]
+    - test_level: [gate, func, full]
 
 Environment Variables:
-    TEST_LEVEL: Set test level in cocotb (basic/medium/full)
+    TEST_LEVEL: Set test level in cocotb (gate/func/full)
     SEED: Set random seed for reproducibility
     TEST_WIDTH: Data width for ECC calculation
     TEST_MODULE: Module type (encoder/decoder/both)
@@ -62,7 +62,7 @@ class HammingECCTB(TBBase):
 
         # Get test parameters from environment
         self.SEED = self.convert_to_int(os.environ.get('SEED', '12345'))
-        self.TEST_LEVEL = os.environ.get('TEST_LEVEL', 'basic').lower()
+        self.TEST_LEVEL = os.environ.get('TEST_LEVEL', 'gate').lower()
         self.WIDTH = self.convert_to_int(os.environ.get('TEST_WIDTH', '4'))
         self.MODULE_TYPE = os.environ.get('TEST_MODULE', 'encoder').lower()
         self.DEBUG = self.convert_to_int(os.environ.get('TEST_DEBUG', '0'))
@@ -76,10 +76,10 @@ class HammingECCTB(TBBase):
         random.seed(self.SEED)
 
         # Validate test level
-        valid_levels = ['basic', 'medium', 'full']
+        valid_levels = ['gate', 'func', 'full']
         if self.TEST_LEVEL not in valid_levels:
-            self.log.warning(f"Invalid TEST_LEVEL '{self.TEST_LEVEL}', using 'basic'. Valid: {valid_levels}")
-            self.TEST_LEVEL = 'basic'
+            self.log.warning(f"Invalid TEST_LEVEL '{self.TEST_LEVEL}', using 'gate'. Valid: {valid_levels}")
+            self.TEST_LEVEL = 'gate'
 
         # Log configuration
         self.log.info(f"Hamming ECC TB initialized - Module: {self.MODULE_TYPE.upper()}")
@@ -184,9 +184,9 @@ class HammingECCTB(TBBase):
         self.log.info("Testing encoder basic functionality")
 
         # Define test data based on level
-        if self.TEST_LEVEL == 'basic':
+        if self.TEST_LEVEL == 'gate':
             test_values = [0, 1, self.MAX_DATA >> 1, self.MAX_DATA]
-        elif self.TEST_LEVEL == 'medium':
+        elif self.TEST_LEVEL == 'func':
             test_values = list(range(min(16, self.MAX_DATA + 1)))
             if self.MAX_DATA >= 16:
                 test_values.extend([random.randint(0, self.MAX_DATA) for _ in range(16)])
@@ -215,7 +215,7 @@ class HammingECCTB(TBBase):
             else:
                 self.log.error(f"FAIL: data=0x{data:x}, expected=0x{expected:x}, actual=0x{actual:x}")
                 all_passed = False
-                if self.TEST_LEVEL == 'basic':
+                if self.TEST_LEVEL == 'gate':
                     break
 
             # Store result
@@ -241,9 +241,9 @@ class HammingECCTB(TBBase):
         await self.reset_decoder()
 
         # Define test data
-        if self.TEST_LEVEL == 'basic':
+        if self.TEST_LEVEL == 'gate':
             test_values = [0, 1, self.MAX_DATA >> 1, self.MAX_DATA]
-        elif self.TEST_LEVEL == 'medium':
+        elif self.TEST_LEVEL == 'func':
             test_values = list(range(min(32, self.MAX_DATA + 1)))
         else:  # full
             if self.WIDTH <= 6:
@@ -263,14 +263,14 @@ class HammingECCTB(TBBase):
             success = await self._test_decode(encoded, data, False, False)
             if not success:
                 all_passed = False
-                if self.TEST_LEVEL == 'basic':
+                if self.TEST_LEVEL == 'gate':
                     break
 
         return all_passed
 
     async def test_single_bit_errors(self):
         """Test single-bit error detection and correction"""
-        if self.MODULE_TYPE == 'encoder' or self.TEST_LEVEL == 'basic':
+        if self.MODULE_TYPE == 'encoder' or self.TEST_LEVEL == 'gate':
             self.log.info("Skipping single-bit error tests")
             return True
 
@@ -299,10 +299,10 @@ class HammingECCTB(TBBase):
                 success = await self._test_decode(corrupted_data, test_data, True, False)
                 if not success:
                     all_passed = False
-                    if self.TEST_LEVEL == 'medium':
+                    if self.TEST_LEVEL == 'func':
                         break
 
-            if not all_passed and self.TEST_LEVEL == 'medium':
+            if not all_passed and self.TEST_LEVEL == 'func':
                 break
 
         return all_passed
@@ -613,8 +613,8 @@ def generate_params():
     """
     Generate test parameter combinations based on REG_LEVEL.
 
-    REG_LEVEL=GATE: 2 tests (4-bit, both modules, basic)
-    REG_LEVEL=FUNC: 6 tests (all widths, both modules, basic) - default
+    REG_LEVEL=GATE: 2 tests (4-bit, both modules, gate)
+    REG_LEVEL=FUNC: 6 tests (all widths, both modules, gate) - default
     REG_LEVEL=FULL: 18 tests (all combinations)
 
     Returns:
@@ -624,15 +624,15 @@ def generate_params():
 
     widths = [4, 8, 16]  # Different data widths
     modules = ['encoder', 'decoder']  # Module types
-    test_levels = ['basic', 'medium', 'full']
+    test_levels = ['gate', 'func', 'full']
 
     if reg_level == 'GATE':
-        # Quick smoke test: 4-bit, both modules, basic level
-        return [(4, 'encoder', 'basic'), (4, 'decoder', 'basic')]
+        # Quick smoke test: 4-bit, both modules, gate level
+        return [(4, 'encoder', 'gate'), (4, 'decoder', 'gate')]
 
     elif reg_level == 'FUNC':
-        # Functional coverage: all widths, both modules, basic level only
-        return list(product(widths, modules, ['basic']))
+        # Functional coverage: all widths, both modules, gate level only
+        return list(product(widths, modules, ['gate']))
 
     else:  # FULL
         # Comprehensive: all combinations
@@ -650,8 +650,8 @@ def test_dataint_ecc(request, data_width, module_type, test_level):
     - decoder: Test only the decoder module (sequential)
 
     Test level controls the depth and breadth of testing:
-    - basic: Quick verification (1-2 min)
-    - medium: Integration testing (3-5 min)
+    - gate: Quick verification (1-2 min)
+    - func: Integration testing (3-5 min)
     - full: Comprehensive validation (8-15 min)
     """
     # Get directory and module information
@@ -700,7 +700,7 @@ def test_dataint_ecc(request, data_width, module_type, test_level):
     }
 
     # Adjust timeout based on test level and data width
-    timeout_multipliers = {'basic': 1, 'medium': 2, 'full': 4}
+    timeout_multipliers = {'gate': 1, 'func': 2, 'full': 4}
     width_factor = max(1.0, data_width / 8.0)  # Larger widths take more time
     base_timeout = 2000  # 2 seconds base
     timeout_ms = int(base_timeout * timeout_multipliers.get(test_level, 1) * width_factor)

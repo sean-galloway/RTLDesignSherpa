@@ -19,8 +19,8 @@ Asynchronous FIFO Buffer Test with Parameterized Test Levels
 This test uses test_level as a parameter for maximum flexibility, matching the sync version:
 
 TEST LEVELS:
-    basic (2-3 min):   Quick verification during development
-    medium (5-8 min):  Integration testing for CI/branches
+    gate (2-3 min):   Quick verification during development
+    func (5-8 min):  Integration testing for CI/branches
     full (15-25 min):  Comprehensive validation for regression
 
 PARAMETER COMBINATIONS:
@@ -29,10 +29,10 @@ PARAMETER COMBINATIONS:
     - wr_clk_periods: [10]
     - rd_clk_periods: [8, 12] (different to test async behavior)
     - registered: [0=mux, 1=flop] (ADDED - matches sync version)
-    - test_level: [basic, medium, full]
+    - test_level: [gate, func, full]
 
 Environment Variables:
-    TEST_LEVEL: Set test level in cocotb (basic/medium/full)
+    TEST_LEVEL: Set test level in cocotb (gate/func/full)
     SEED: Set random seed for reproducibility
 """
 
@@ -69,12 +69,12 @@ async def fifo_async_test(dut):
     msg = f'seed changed to {seed}'
     tb.log.info(msg)
 
-    # Get test level from environment (default: basic)
-    test_level = os.environ.get('TEST_LEVEL', 'basic').lower()
-    valid_levels = ['basic', 'medium', 'full']
+    # Get test level from environment (default: gate)
+    test_level = os.environ.get('TEST_LEVEL', 'gate').lower()
+    valid_levels = ['gate', 'func', 'full']
     if test_level not in valid_levels:
-        tb.log.warning(f"Invalid TEST_LEVEL '{test_level}', using 'basic'. Valid: {valid_levels}")
-        test_level = 'basic'
+        tb.log.warning(f"Invalid TEST_LEVEL '{test_level}', using 'gate'. Valid: {valid_levels}")
+        test_level = 'gate'
 
     tb.log.info(f"Running async test level: {test_level.upper()}")
 
@@ -94,7 +94,7 @@ async def fifo_async_test(dut):
     tb.log.info(f"Available randomizer configs: {config_names}")
 
     # Define test configurations based on test level - SAME AS SYNC
-    if test_level == 'basic':
+    if test_level == 'gate':
         # Minimal testing for quick verification
         test_configs = ['backtoback', 'fast', 'constrained']
         packet_counts = {
@@ -105,7 +105,7 @@ async def fifo_async_test(dut):
         run_comprehensive_sweep = False
         run_stress_test = False
 
-    elif test_level == 'medium':
+    elif test_level == 'func':
         # Moderate testing for development
         test_configs = [
             'backtoback', 'fast', 'constrained', 'bursty',
@@ -158,7 +158,7 @@ async def fifo_async_test(dut):
         )
         tb.log.info(f"✓ Completed '{delay_key}' configuration")
 
-    # Run comprehensive sweep for medium and full levels
+    # Run comprehensive sweep for func and full levels
     if run_comprehensive_sweep:
         tb.log.info("=== Scenario FIFO-04: Almost-full/almost-empty thresholds ===")
         tb.log.info("Running comprehensive randomizer sweep...")
@@ -171,7 +171,7 @@ async def fifo_async_test(dut):
     await tb.back_to_back_test(count=packet_counts['back_to_back'])
     tb.log.info("✓ Completed back-to-back test")
 
-    # Run stress test for medium and full levels
+    # Run stress test for func and full levels
     if run_stress_test:
         tb.log.info("=== Scenario FIFO-06: Dual clock domain operation ===")
         tb.log.info("=== Scenario FIFO-07: Memory storage and retrieval ===")
@@ -189,13 +189,13 @@ def generate_params():
     """
     Generate test parameters based on REG_LEVEL.
 
-    REG_LEVEL=GATE: 2 tests (depth 4, both clocks, both modes, basic)
-    REG_LEVEL=FUNC: ~8 tests (depths 4, 8, both clocks, both modes, basic+medium) - default
+    REG_LEVEL=GATE: 2 tests (depth 4, both clocks, both modes, gate)
+    REG_LEVEL=FUNC: ~8 tests (depths 4, 8, both clocks, both modes, gate+func) - default
     REG_LEVEL=FULL: ~36 tests (depths 4, 8, 16, both clocks, both modes, all levels)
 
     Examples for quick debugging:
         # Single test case:
-        return [(8, 4, 10, 8, 0, 'basic')]
+        return [(8, 4, 10, 8, 0, 'gate')]
     """
     import os
     reg_level = os.environ.get('REG_LEVEL', 'FUNC').upper()
@@ -208,19 +208,19 @@ def generate_params():
         depths = [4]  # Power of 2
         rd_clk_periods = [8, 12]  # Different clocks to test async
         registered = [0, 1]
-        test_levels = ['basic']
+        test_levels = ['gate']
     elif reg_level == 'FUNC':
         # Functional coverage (default)
         depths = [4, 8]  # Power of 2 depths for Gray counters
         rd_clk_periods = [8, 12]
         registered = [0, 1]
-        test_levels = ['basic', 'medium']
+        test_levels = ['gate', 'func']
     else:  # FULL
         # Comprehensive validation
         depths = [4, 8, 16]  # Power of 2 depths for standard async FIFOs
         rd_clk_periods = [8, 12]
         registered = [0, 1]
-        test_levels = ['basic', 'medium', 'full']
+        test_levels = ['gate', 'func', 'full']
 
     return list(product(widths, depths, wr_clk_periods, rd_clk_periods, registered, test_levels))
 
@@ -232,8 +232,8 @@ def test_fifo_async(request, data_width, depth, wr_clk_period, rd_clk_period, re
     Parameterized asynchronous FIFO buffer test with configurable test levels.
 
     Test level controls the depth and breadth of testing:
-    - basic: Quick verification (2-3 min)
-    - medium: Integration testing (5-8 min)  
+    - gate: Quick verification (2-3 min)
+    - func: Integration testing (5-8 min)  
     - full: Comprehensive validation (15-25 min)
 
     For quick debugging: Modify generate_params() function to return only specific combinations
@@ -292,7 +292,7 @@ def test_fifo_async(request, data_width, depth, wr_clk_period, rd_clk_period, re
             rtl_parameters[param_name.upper()] = str(locals()[param_name])
 
     # Adjust timeout based on test level (slightly longer than sync due to async complexity)
-    timeout_multipliers = {'basic': 1, 'medium': 2, 'full': 4}
+    timeout_multipliers = {'gate': 1, 'func': 2, 'full': 4}
     base_timeout = 3000  # 3 seconds base for async (longer than sync's 2 seconds)
     timeout_ms = base_timeout * timeout_multipliers.get(test_level, 1)
 

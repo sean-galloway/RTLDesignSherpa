@@ -52,12 +52,12 @@ async def axis_master_test(dut):
     tb.log.info(f'AXIS master test with seed: {seed}')
 
     # Get test parameters from environment
-    test_level = os.environ.get('TEST_LEVEL', 'basic').lower()
+    test_level = os.environ.get('TEST_LEVEL', 'gate').lower()
 
-    valid_levels = ['basic', 'medium', 'full']
+    valid_levels = ['gate', 'func', 'full']
     if test_level not in valid_levels:
-        tb.log.warning(f"Invalid TEST_LEVEL '{test_level}', using 'basic'. Valid: {valid_levels}")
-        test_level = 'basic'
+        tb.log.warning(f"Invalid TEST_LEVEL '{test_level}', using 'gate'. Valid: {valid_levels}")
+        test_level = 'gate'
 
     # Start clock and reset sequence
     await tb.start_clock('aclk', tb.TEST_CLK_PERIOD, 'ns')
@@ -73,17 +73,17 @@ async def axis_master_test(dut):
     try:
         # Phase 1: Basic functionality tests
         tb.log.info("=== Phase 1: Basic Transfer Test ===")
-        if test_level in ['basic', 'medium', 'full']:
+        if test_level in ['gate', 'func', 'full']:
             await tb.run_basic_transfer_test(num_packets=10)
 
         # Phase 2: Frame transfer tests
         tb.log.info("=== Phase 2: Frame Transfer Test ===")
-        if test_level in ['medium', 'full']:
+        if test_level in ['func', 'full']:
             await tb.run_frame_transfer_test(num_frames=5, frame_size=4)
 
         # Phase 3: Backpressure tests
         tb.log.info("=== Phase 3: Backpressure Test ===")
-        if test_level in ['medium', 'full']:
+        if test_level in ['func', 'full']:
             await tb.run_backpressure_test(num_packets=20)
 
         # Phase 4: Skid buffer stress tests
@@ -207,7 +207,7 @@ def test_axis_master(request, skid_depth, data_width, id_width, dest_width, user
         'TEST_ID_WIDTH': str(id_width),
         'TEST_DEST_WIDTH': str(dest_width),
         'TEST_USER_WIDTH': str(user_width),
-        'TEST_LEVEL': os.environ.get('TEST_LEVEL', 'basic')
+        'TEST_LEVEL': os.environ.get('TEST_LEVEL', 'gate')
     }
 
     # VCD waveform generation support via WAVES environment variable
@@ -331,7 +331,7 @@ def test_axis_master(request, skid_depth, data_width, id_width, dest_width, user
         'TEST_ID_WIDTH': str(id_width),
         'TEST_DEST_WIDTH': str(dest_width),
         'TEST_USER_WIDTH': str(user_width),
-        'TEST_LEVEL': os.environ.get('TEST_LEVEL', 'basic')
+        'TEST_LEVEL': os.environ.get('TEST_LEVEL', 'gate')
     }
 
     # VCD waveform generation support via WAVES environment variable

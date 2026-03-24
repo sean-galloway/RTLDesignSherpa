@@ -22,23 +22,23 @@ CONFIGURATION:
     WIDTH:    Width of the ring counter (2, 4, 8, 16)
 
 TEST LEVELS (per-test depth):
-    basic (1-2 min):   Quick verification during development
-    medium (3-5 min):  Integration testing for CI/branches
+    gate (1-2 min):   Quick verification during development
+    func (3-5 min):  Integration testing for CI/branches
     full (8-15 min):   Comprehensive validation for regression
 
 REG_LEVEL Control (parameter combinations):
-    GATE: 1 test (~2 min) - smoke test (4-bit, basic)
+    GATE: 1 test (~2 min) - smoke test (4-bit, gate)
     FUNC: 4 tests (~8 min) - functional coverage - DEFAULT
     FULL: 12 tests (~2 hours) - comprehensive validation
 
 PARAMETER COMBINATIONS:
     GATE: 1 width × 1 level = 1 test
-    FUNC: 4 widths × 1 level = 4 tests (all widths, basic only)
+    FUNC: 4 widths × 1 level = 4 tests (all widths, gate only)
     FULL: 4 widths × 3 levels = 12 tests
 
 Environment Variables:
     REG_LEVEL: Control parameter combinations (GATE/FUNC/FULL)
-    TEST_LEVEL: Set test level in cocotb (basic/medium/full)
+    TEST_LEVEL: Set test level in cocotb (gate/func/full)
     SEED: Set random seed for reproducibility
     TEST_WIDTH: Width of the ring counter
 """
@@ -67,7 +67,7 @@ class CounterRingTB(TBBase):
 
         # Get test parameters from environment
         self.SEED = self.convert_to_int(os.environ.get('SEED', '12345'))
-        self.TEST_LEVEL = os.environ.get('TEST_LEVEL', 'basic').lower()
+        self.TEST_LEVEL = os.environ.get('TEST_LEVEL', 'gate').lower()
         self.WIDTH = self.convert_to_int(os.environ.get('TEST_WIDTH', '4'))
         self.DEBUG = self.convert_to_int(os.environ.get('TEST_DEBUG', '0'))
 
@@ -78,10 +78,10 @@ class CounterRingTB(TBBase):
         random.seed(self.SEED)
 
         # Validate test level
-        valid_levels = ['basic', 'medium', 'full']
+        valid_levels = ['gate', 'func', 'full']
         if self.TEST_LEVEL not in valid_levels:
-            self.log.warning(f"Invalid TEST_LEVEL '{self.TEST_LEVEL}', using 'basic'. Valid: {valid_levels}")
-            self.TEST_LEVEL = 'basic'
+            self.log.warning(f"Invalid TEST_LEVEL '{self.TEST_LEVEL}', using 'gate'. Valid: {valid_levels}")
+            self.TEST_LEVEL = 'gate'
 
         # Log configuration
         self.log.info(f"Ring Counter TB initialized")
@@ -316,7 +316,7 @@ class CounterRingTB(TBBase):
 
     async def test_multiple_cycles(self):
         """Test multiple complete cycles"""
-        if self.TEST_LEVEL == 'basic':
+        if self.TEST_LEVEL == 'gate':
             self.log.info("Skipping multiple cycles test")
             return True
 
@@ -326,7 +326,7 @@ class CounterRingTB(TBBase):
         self.enable.value = 1
 
         # Test multiple complete cycles
-        cycles_to_test = 3 if self.TEST_LEVEL == 'medium' else 5
+        cycles_to_test = 3 if self.TEST_LEVEL == 'func' else 5
         total_steps = cycles_to_test * self.WIDTH
         
         sequence = []
@@ -385,7 +385,7 @@ class CounterRingTB(TBBase):
 
     async def test_reset_during_operation(self):
         """Test reset during operation"""
-        if self.TEST_LEVEL == 'basic':
+        if self.TEST_LEVEL == 'gate':
             self.log.info("Skipping reset during operation test")
             return True
 
@@ -448,7 +448,7 @@ class CounterRingTB(TBBase):
 
     async def test_enable_toggle(self):
         """Test toggling enable during operation"""
-        if self.TEST_LEVEL == 'basic':
+        if self.TEST_LEVEL == 'gate':
             self.log.info("Skipping enable toggle test")
             return True
 
@@ -651,8 +651,8 @@ def generate_params():
     """
     Generate test parameter combinations based on REG_LEVEL.
 
-    REG_LEVEL=GATE: 1 test (4-bit, basic level)
-    REG_LEVEL=FUNC: 4 tests (all widths, basic level) - default
+    REG_LEVEL=GATE: 1 test (4-bit, gate level)
+    REG_LEVEL=FUNC: 4 tests (all widths, gate level) - default
     REG_LEVEL=FULL: 12 tests (all widths, all test levels)
 
     Returns:
@@ -661,15 +661,15 @@ def generate_params():
     reg_level = os.environ.get('REG_LEVEL', 'FUNC').upper()
 
     width_values = [2, 4, 8, 16]       # Different ring counter widths
-    test_levels = ['basic', 'medium', 'full']  # Test levels
+    test_levels = ['gate', 'func', 'full']  # Test levels
 
     if reg_level == 'GATE':
-        # Quick smoke test: 4-bit, basic only
-        params = [(4, 'basic')]
+        # Quick smoke test: 4-bit, gate only
+        params = [(4, 'gate')]
 
     elif reg_level == 'FUNC':
-        # Functional coverage: all widths, basic level only
-        params = [(width, 'basic') for width in width_values]
+        # Functional coverage: all widths, gate level only
+        params = [(width, 'gate') for width in width_values]
 
     else:  # FULL
         # Comprehensive: all combinations
@@ -719,7 +719,7 @@ def test_counter_ring(request, width, test_level):
     }
 
     # Adjust timeout based on test level and width
-    timeout_multipliers = {'basic': 1, 'medium': 2, 'full': 4}
+    timeout_multipliers = {'gate': 1, 'func': 2, 'full': 4}
     width_factor = max(1.0, width / 8.0)  # Larger widths take more time
     base_timeout = 1500  # 1.5 seconds base
     timeout_ms = int(base_timeout * timeout_multipliers.get(test_level, 1) * width_factor)

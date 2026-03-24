@@ -64,12 +64,12 @@ async def axi5_write_master_test(dut):
     tb.log.info(f'AXI5 write master test with seed: {seed}')
 
     # Get test parameters from environment
-    test_level = os.environ.get('TEST_LEVEL', 'basic').lower()
+    test_level = os.environ.get('TEST_LEVEL', 'gate').lower()
 
-    valid_levels = ['basic', 'medium', 'full']
+    valid_levels = ['gate', 'func', 'full']
     if test_level not in valid_levels:
-        tb.log.warning(f"Invalid TEST_LEVEL '{test_level}', using 'basic'. Valid: {valid_levels}")
-        test_level = 'basic'
+        tb.log.warning(f"Invalid TEST_LEVEL '{test_level}', using 'gate'. Valid: {valid_levels}")
+        test_level = 'gate'
 
     # Start clock and reset sequence
     await tb.start_clock('aclk', tb.TEST_CLK_PERIOD, 'ns')
@@ -83,14 +83,14 @@ async def axi5_write_master_test(dut):
                f"DATA={tb.TEST_DATA_WIDTH}, ATOP={tb.TEST_ATOP_WIDTH}")
 
     # Define test configurations based on test level
-    if test_level == 'basic':
+    if test_level == 'gate':
         timing_profiles = ['normal', 'fast']
         single_write_counts = [10, 20]
         burst_lengths = [[2, 4], [4, 8]]
         axi5_feature_count = 10
         atomic_count = 3
         stress_count = 25
-    elif test_level == 'medium':
+    elif test_level == 'func':
         timing_profiles = ['normal', 'fast', 'slow', 'backtoback']
         single_write_counts = [20, 40, 30]
         burst_lengths = [[2, 4, 8], [4, 8, 16], [1, 2, 4, 8]]
@@ -155,7 +155,7 @@ async def axi5_write_master_test(dut):
         tb.log.warning(f"AXI5 feature tests had issues ({axi5_feature_count} tests)")
 
     # Test 5: Atomic Operations (medium and full levels)
-    if test_level in ['medium', 'full']:
+    if test_level in ['func', 'full']:
         tb.log.info("=== Test 5: Atomic Operations ===")
 
         result = await tb.atomic_operation_test(atomic_count)
@@ -165,7 +165,7 @@ async def axi5_write_master_test(dut):
             tb.log.warning(f"Atomic operation tests had issues ({atomic_count} tests)")
 
     # Test 6: Mixed write patterns (medium and full levels)
-    if test_level in ['medium', 'full']:
+    if test_level in ['func', 'full']:
         tb.log.info("=== Test 6: Mixed Write Patterns ===")
 
         tb.set_timing_profile('normal')
@@ -193,7 +193,7 @@ async def axi5_write_master_test(dut):
         tb.log.info(f"Mixed patterns result: {mixed_success}/{mixed_total} successful")
 
     # Test 7: Stress testing (medium and full levels)
-    if test_level in ['medium', 'full']:
+    if test_level in ['func', 'full']:
         tb.log.info("=== Test 7: Stress Testing ===")
 
         result = await tb.stress_write_test(stress_count)
@@ -284,8 +284,8 @@ def generate_axi5_params():
 
     if reg_level == 'GATE':
         params = [
-            (1, 8, 32, 32, 1, 2, 4, 2, 'basic'),  # Stub version
-            (0, 8, 32, 32, 1, 2, 4, 2, 'basic'),  # Non-stub version
+            (1, 8, 32, 32, 1, 2, 4, 2, 'gate'),  # Stub version
+            (0, 8, 32, 32, 1, 2, 4, 2, 'gate'),  # Non-stub version
         ]
         return validate_axi5_params(params)
 
@@ -295,7 +295,7 @@ def generate_axi5_params():
             (8, 32, 32, 1, 2, 4, 2),
             (8, 32, 32, 1, 4, 8, 4),
         ]
-        test_levels = ['basic', 'medium']
+        test_levels = ['gate', 'func']
 
         params = []
         for stub in stubs:
@@ -312,7 +312,7 @@ def generate_axi5_params():
         data_width = 32
         user_width = 1
         depths = [(2, 4, 2), (4, 8, 4)]
-        test_levels = ['basic', 'medium', 'full']
+        test_levels = ['gate', 'func', 'full']
 
         params = []
         for stub, id_w, addr_w, (aw_d, w_d, b_d), level in product(
@@ -413,7 +413,7 @@ def test_axi5_write_master(request, stub, id_width, addr_width, data_width, user
         'BSize': str(b_size),
     }
 
-    timeout_multipliers = {'basic': 1, 'medium': 2, 'full': 4}
+    timeout_multipliers = {'gate': 1, 'func': 2, 'full': 4}
     complexity_factor = (data_width + addr_width + id_width) / 100.0
     timeout_ms = int(7500 * timeout_multipliers.get(test_level, 1) * max(1.0, complexity_factor))
 

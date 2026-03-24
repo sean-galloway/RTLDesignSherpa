@@ -128,8 +128,8 @@ def width_config(request):
 
 @pytest.fixture(scope="module", params=[
     # Test levels: (level, transaction_count, timeout_factor)
-    ('basic', 10, 1.0),
-    ('medium', 50, 1.5),
+    ('gate', 10, 1.0),
+    ('func', 50, 1.5),
     ('full', 200, 2.0),
 ])
 def converter_test_level(request):
@@ -138,7 +138,7 @@ def converter_test_level(request):
 
     # Override from environment if specified
     env_level = os.environ.get('TEST_LEVEL', level).lower()
-    if env_level in ['basic', 'medium', 'full']:
+    if env_level in ['gate', 'func', 'full']:
         level = env_level
 
     return {
@@ -155,7 +155,7 @@ def get_converter_env_config():
         'DST_WIDTH': int(os.environ.get('CONV_DST_WIDTH', '128')),
         'ADDR_WIDTH': int(os.environ.get('CONV_ADDR_WIDTH', '32')),
         'ID_WIDTH': int(os.environ.get('CONV_ID_WIDTH', '4')),
-        'TEST_LEVEL': os.environ.get('TEST_LEVEL', 'basic').lower(),
+        'TEST_LEVEL': os.environ.get('TEST_LEVEL', 'gate').lower(),
         'ENABLE_WAVEDUMP': os.environ.get('ENABLE_WAVEDUMP', '1') == '1',
     }
 
@@ -185,4 +185,4 @@ def coverage_enabled():
 @pytest.fixture(scope="function")
 def test_level():
     """Test level fixture - can be overridden by TEST_LEVEL environment variable"""
-    return os.environ.get('TEST_LEVEL', 'basic')
+    return os.environ.get('TEST_LEVEL', 'gate')

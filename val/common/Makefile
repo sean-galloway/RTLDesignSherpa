@@ -668,7 +668,7 @@ run-bf16-gate:
 	@echo "================================================================================"
 	@echo "Running BF16 Tests - GATE level (~19 tests, ~2 min)"
 	@echo "================================================================================"
-	SIM=verilator TEST_LEVEL=simple $(PYTEST) $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE) test_math_bf16*.py
+	SIM=verilator TEST_LEVEL=gate $(PYTEST) $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE) test_math_bf16*.py
 
 .PHONY: run-bf16-func
 run-bf16-func:
@@ -676,7 +676,7 @@ run-bf16-func:
 	@echo "================================================================================"
 	@echo "Running BF16 Tests - FUNC level (~19 tests, ~5 min)"
 	@echo "================================================================================"
-	SIM=verilator TEST_LEVEL=basic $(PYTEST) $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE) test_math_bf16*.py
+	SIM=verilator TEST_LEVEL=func $(PYTEST) $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE) test_math_bf16*.py
 
 .PHONY: run-bf16-full
 run-bf16-full:
@@ -700,7 +700,7 @@ run-bf16-gate-parallel:
 	@echo "================================================================================"
 	@echo "Running BF16 Tests - GATE level PARALLEL (~19 tests, ~1 min)"
 	@echo "================================================================================"
-	SIM=verilator TEST_LEVEL=simple $(PYTEST) $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE) $(PYTEST_XDIST) $(PYTEST_RERUNS) test_math_bf16*.py
+	SIM=verilator TEST_LEVEL=gate $(PYTEST) $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE) $(PYTEST_XDIST) $(PYTEST_RERUNS) test_math_bf16*.py
 
 .PHONY: run-bf16-func-parallel
 run-bf16-func-parallel:
@@ -708,7 +708,7 @@ run-bf16-func-parallel:
 	@echo "================================================================================"
 	@echo "Running BF16 Tests - FUNC level PARALLEL (~19 tests, ~2 min)"
 	@echo "================================================================================"
-	SIM=verilator TEST_LEVEL=basic $(PYTEST) $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE) $(PYTEST_XDIST) $(PYTEST_RERUNS) test_math_bf16*.py
+	SIM=verilator TEST_LEVEL=func $(PYTEST) $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE) $(PYTEST_XDIST) $(PYTEST_RERUNS) test_math_bf16*.py
 
 .PHONY: run-bf16-full-parallel
 run-bf16-full-parallel:
@@ -728,7 +728,7 @@ run-bf16-gate-waves:
 	@echo "================================================================================"
 	@echo "Running BF16 Tests - GATE level with WAVES (~19 tests)"
 	@echo "================================================================================"
-	SIM=verilator TEST_LEVEL=simple WAVES=1 $(PYTEST) $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE) test_math_bf16*.py
+	SIM=verilator TEST_LEVEL=gate WAVES=1 $(PYTEST) $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE) test_math_bf16*.py
 
 .PHONY: run-bf16-func-waves
 run-bf16-func-waves:
@@ -736,7 +736,7 @@ run-bf16-func-waves:
 	@echo "================================================================================"
 	@echo "Running BF16 Tests - FUNC level with WAVES (~19 tests)"
 	@echo "================================================================================"
-	SIM=verilator TEST_LEVEL=basic WAVES=1 $(PYTEST) $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE) test_math_bf16*.py
+	SIM=verilator TEST_LEVEL=func WAVES=1 $(PYTEST) $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE) test_math_bf16*.py
 
 .PHONY: run-bf16-full-waves
 run-bf16-full-waves:
@@ -752,7 +752,7 @@ run-bf16-gate-parallel-waves:
 	@echo "================================================================================"
 	@echo "Running BF16 Tests - GATE level PARALLEL with WAVES (~19 tests)"
 	@echo "================================================================================"
-	SIM=verilator TEST_LEVEL=simple WAVES=1 $(PYTEST) $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE) $(PYTEST_XDIST) $(PYTEST_RERUNS) test_math_bf16*.py
+	SIM=verilator TEST_LEVEL=gate WAVES=1 $(PYTEST) $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE) $(PYTEST_XDIST) $(PYTEST_RERUNS) test_math_bf16*.py
 
 .PHONY: run-bf16-func-parallel-waves
 run-bf16-func-parallel-waves:
@@ -760,7 +760,7 @@ run-bf16-func-parallel-waves:
 	@echo "================================================================================"
 	@echo "Running BF16 Tests - FUNC level PARALLEL with WAVES (~19 tests)"
 	@echo "================================================================================"
-	SIM=verilator TEST_LEVEL=basic WAVES=1 $(PYTEST) $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE) $(PYTEST_XDIST) $(PYTEST_RERUNS) test_math_bf16*.py
+	SIM=verilator TEST_LEVEL=func WAVES=1 $(PYTEST) $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE) $(PYTEST_XDIST) $(PYTEST_RERUNS) test_math_bf16*.py
 
 .PHONY: run-bf16-full-parallel-waves
 run-bf16-full-parallel-waves:

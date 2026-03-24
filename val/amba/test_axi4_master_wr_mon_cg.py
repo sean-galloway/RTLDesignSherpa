@@ -72,20 +72,20 @@ def generate_axi4_write_monitor_cg_params():
     if reg_level == 'GATE':
         # Quick smoke test - basic configuration
         params = [
-            (8, 32, 32, 1, 4, 16, 2, 4, 2, 'basic'),
+            (8, 32, 32, 1, 4, 16, 2, 4, 2, 'gate'),
         ]
 
     elif reg_level == 'FUNC':
         # Functional validation - variations in depth and test_level
         params = [
-            (8, 32, 32, 1, 4, 16, 2, 4, 2, 'basic'),   # Standard config
-            (8, 32, 32, 1, 4, 16, 4, 8, 4, 'medium'),  # Deeper skid buffers
-            (8, 32, 32, 1, 4, 32, 2, 4, 2, 'medium'),  # More transactions
+            (8, 32, 32, 1, 4, 16, 2, 4, 2, 'gate'),   # Standard config
+            (8, 32, 32, 1, 4, 16, 4, 8, 4, 'func'),  # Deeper skid buffers
+            (8, 32, 32, 1, 4, 32, 2, 4, 2, 'func'),  # More transactions
         ]
 
     else:  # FULL
         # Comprehensive testing - all test_levels × configurations
-        test_levels = ['basic', 'medium', 'full']
+        test_levels = ['gate', 'func', 'full']
         configs = [
             (8, 32, 32, 1, 4, 16, 2, 4, 2),  # Standard
             (8, 32, 32, 1, 4, 16, 4, 8, 4),  # Deep skid
@@ -114,7 +114,7 @@ async def axi4_master_wr_mon_cg_test(dut):
     """AXI4 master write monitor CG integration test"""
 
     # Get test level
-    test_level = os.environ.get('TEST_LEVEL', 'basic').lower()
+    test_level = os.environ.get('TEST_LEVEL', 'gate').lower()
 
     # Create testbench (is_write=True for write master)
     tb = AXI4MasterMonitorTB(dut, is_write=True, aclk=dut.aclk, aresetn=dut.aresetn)

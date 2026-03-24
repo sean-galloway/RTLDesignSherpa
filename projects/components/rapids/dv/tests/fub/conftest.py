@@ -76,8 +76,8 @@ def rapids_fub_config(request):
 
 @pytest.fixture(scope="module", params=[
     # Test levels: (level, description, transaction_count, timeout_factor)
-    ('basic', 'Basic functionality', 10, 1.0),
-    ('medium', 'Medium stress testing', 50, 1.5),
+    ('gate', 'Gate smoke test', 10, 1.0),
+    ('func', 'Functional coverage', 50, 1.5),
     ('full', 'Full comprehensive testing', 200, 2.0),
 ])
 def rapids_test_level(request):
@@ -86,7 +86,7 @@ def rapids_test_level(request):
 
     # Override from environment if specified
     env_level = os.environ.get('TEST_LEVEL', level).lower()
-    if env_level in ['basic', 'medium', 'full']:
+    if env_level in ['gate', 'func', 'full']:
         level = env_level
 
     return {
@@ -105,7 +105,7 @@ def get_rapids_fub_env_config():
         'ADDR_WIDTH': int(os.environ.get('RAPIDS_ADDR_WIDTH', '64')),
         'AXI_ID_WIDTH': int(os.environ.get('RAPIDS_AXI_ID_WIDTH', '8')),
         'AXI_DATA_WIDTH': int(os.environ.get('RAPIDS_AXI_DATA_WIDTH', '64')),
-        'TEST_LEVEL': os.environ.get('TEST_LEVEL', 'basic').lower(),
+        'TEST_LEVEL': os.environ.get('TEST_LEVEL', 'gate').lower(),
         'ENABLE_COVERAGE': os.environ.get('ENABLE_COVERAGE', '0') == '1',
         'ENABLE_WAVEDUMP': os.environ.get('ENABLE_WAVEDUMP', '1') == '1',
     }

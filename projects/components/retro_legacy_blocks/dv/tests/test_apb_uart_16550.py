@@ -71,12 +71,12 @@ async def uart_16550_test(dut):
     tb.log.info(f'UART 16550 test with seed: {seed}')
 
     # Get test level from environment
-    test_level = os.environ.get('TEST_LEVEL', 'basic').lower()
+    test_level = os.environ.get('TEST_LEVEL', 'gate').lower()
 
-    valid_levels = ['basic', 'medium', 'full']
+    valid_levels = ['gate', 'func', 'full']
     if test_level not in valid_levels:
-        tb.log.warning(f"Invalid TEST_LEVEL '{test_level}', using 'basic'. Valid: {valid_levels}")
-        test_level = 'basic'
+        tb.log.warning(f"Invalid TEST_LEVEL '{test_level}', using 'gate'. Valid: {valid_levels}")
+        test_level = 'gate'
 
     # Setup clocks and reset
     await tb.setup_clocks_and_reset()
@@ -90,11 +90,11 @@ async def uart_16550_test(dut):
     # Create test suites based on level
     passed = False
 
-    if test_level == 'basic':
+    if test_level == 'gate':
         basic_tests = UART16550BasicTests(tb)
         passed = await basic_tests.run_all_basic_tests()
 
-    elif test_level == 'medium':
+    elif test_level == 'func':
         # Run basic tests first
         basic_tests = UART16550BasicTests(tb)
         basic_passed = await basic_tests.run_all_basic_tests()
@@ -150,13 +150,13 @@ def generate_test_params():
     return [
         # (cdc_enable, test_level, description)
         # Non-CDC configurations (CDC_ENABLE=0, same clock domain)
-        (0, 'basic', "UART 16550 basic (no CDC)"),
-        (0, 'medium', "UART 16550 medium (no CDC)"),
+        (0, 'gate', "UART 16550 gate (no CDC)"),
+        (0, 'func', "UART 16550 func (no CDC)"),
         (0, 'full', "UART 16550 full (no CDC)"),
 
         # CDC configurations (CDC_ENABLE=1, async clock domains)
-        (1, 'basic', "UART 16550 basic CDC"),
-        (1, 'medium', "UART 16550 medium CDC"),
+        (1, 'gate', "UART 16550 gate CDC"),
+        (1, 'func', "UART 16550 func CDC"),
         (1, 'full', "UART 16550 full CDC"),
     ]
 
@@ -194,7 +194,7 @@ def test_uart_16550(request, cdc_enable, test_level, description):
 
     # Calculate timeout based on test complexity
     # UART tests take longer due to serial timing
-    timeout_multipliers = {'basic': 2, 'medium': 5, 'full': 15}
+    timeout_multipliers = {'gate': 2, 'func': 5, 'full': 15}
     complexity_factor = timeout_multipliers.get(test_level, 2)
     # CDC adds some complexity due to synchronization delays
     cdc_factor = 1.5 if cdc_enable else 1.0

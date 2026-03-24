@@ -78,11 +78,11 @@ async def gaxi_skid_buffer_test(dut):
     tb.log.info(msg)
 
     # Get test level from environment (default: basic)
-    test_level = os.environ.get('TEST_LEVEL', 'basic').lower()
-    valid_levels = ['basic', 'medium', 'full']
+    test_level = os.environ.get('TEST_LEVEL', 'gate').lower()
+    valid_levels = ['gate', 'func', 'full']
     if test_level not in valid_levels:
-        tb.log.warning(f"Invalid TEST_LEVEL '{test_level}', using 'basic'. Valid: {valid_levels}")
-        test_level = 'basic'
+        tb.log.warning(f"Invalid TEST_LEVEL '{test_level}', using 'gate'. Valid: {valid_levels}")
+        test_level = 'gate'
 
     tb.log.info(f"Running test level: {test_level.upper()}")
 
@@ -98,7 +98,7 @@ async def gaxi_skid_buffer_test(dut):
     tb.log.info(f"Available randomizer configs: {config_names}")
 
     # Define test configurations based on test level
-    if test_level == 'basic':
+    if test_level == 'gate':
         # Minimal testing for quick verification
         test_configs = ['backtoback', 'fast', 'constrained']
         packet_counts = {
@@ -109,7 +109,7 @@ async def gaxi_skid_buffer_test(dut):
         run_comprehensive_sweep = False
         run_stress_test = False
 
-    elif test_level == 'medium':
+    elif test_level == 'func':
         # Moderate testing for development
         test_configs = [
             'backtoback', 'fast', 'constrained', 'bursty',
@@ -407,7 +407,7 @@ def generate_test_params():
     if reg_level == 'GATE':
         # Minimal smoke test - just prove it works
         return [
-            (8, 4, 10, 'basic'),  # One basic configuration
+            (8, 4, 10, 'gate'),  # One basic configuration
         ]
 
     elif reg_level == 'FUNC':
@@ -415,7 +415,7 @@ def generate_test_params():
         widths = [8, 32]
         depths = [4]
         clk_periods = [10]
-        test_levels = ['basic', 'medium']
+        test_levels = ['gate', 'func']
 
         return list(product(widths, depths, clk_periods, test_levels))
         # Result: 2 widths × 1 depth × 2 levels = 4 tests
@@ -425,7 +425,7 @@ def generate_test_params():
         widths = [8, 16, 32, 64]
         depths = [2, 4, 8]
         clk_periods = [10]
-        test_levels = ['basic', 'medium', 'full']
+        test_levels = ['gate', 'func', 'full']
 
         return list(product(widths, depths, clk_periods, test_levels))
         # Result: 4 widths × 3 depths × 3 levels = 36 tests
@@ -495,7 +495,7 @@ def test_gaxi_skid_buffer(request, data_width, depth, clk_period, test_level):
     }
 
     # Adjust timeout based on test level
-    timeout_multipliers = {'basic': 1, 'medium': 2, 'full': 4}
+    timeout_multipliers = {'gate': 1, 'func': 2, 'full': 4}
     base_timeout = 2000  # 2 seconds base
     timeout_ms = base_timeout * timeout_multipliers.get(test_level, 1)
 
@@ -640,4 +640,4 @@ def test_gaxi_skid_buffer_wavedrom(request, data_width, depth, clk_period):
 
 if __name__ == "__main__":
     # Run basic test by default
-    test_gaxi_skid_buffer(None, 8, 4, 10, 'basic')
+    test_gaxi_skid_buffer(None, 8, 4, 10, 'gate')

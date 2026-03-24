@@ -58,12 +58,12 @@ async def rtc_test(dut):
     tb.log.info(f'RTC test with seed: {seed}')
 
     # Get test level from environment
-    test_level = os.environ.get('TEST_LEVEL', 'basic').lower()
+    test_level = os.environ.get('TEST_LEVEL', 'gate').lower()
 
-    valid_levels = ['basic', 'medium', 'full']
+    valid_levels = ['gate', 'func', 'full']
     if test_level not in valid_levels:
-        tb.log.warning(f"Invalid TEST_LEVEL '{test_level}', using 'basic'. Valid: {valid_levels}")
-        test_level = 'basic'
+        tb.log.warning(f"Invalid TEST_LEVEL '{test_level}', using 'gate'. Valid: {valid_levels}")
+        test_level = 'gate'
 
     # Setup clocks and reset
     await tb.setup_clocks_and_reset()
@@ -120,9 +120,9 @@ async def rtc_test(dut):
     ]
 
     # Select test methods based on level
-    if test_level == 'basic':
+    if test_level == 'gate':
         test_methods = basic_test_methods
-    elif test_level == 'medium':
+    elif test_level == 'func':
         test_methods = basic_test_methods + medium_test_methods
     else:  # full
         test_methods = basic_test_methods + medium_test_methods + full_test_methods
@@ -164,8 +164,8 @@ def generate_test_params():
     return [
         # (test_level, description)
         # RTC has no RTL parameters to vary, so test levels provide coverage
-        ('basic', "RTC basic test"),
-        ('medium', "RTC medium test"),
+        ('gate', "RTC gate test"),
+        ('func', "RTC func test"),
         ('full', "RTC full test"),
     ]
 

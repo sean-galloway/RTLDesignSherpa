@@ -89,11 +89,11 @@ async def gaxi_async_test(dut):
     tb.log.info(msg)
 
     # Get test level from environment (default: basic)
-    test_level = os.environ.get('TEST_LEVEL', 'basic').lower()
-    valid_levels = ['basic', 'medium', 'full']
+    test_level = os.environ.get('TEST_LEVEL', 'gate').lower()
+    valid_levels = ['gate', 'func', 'full']
     if test_level not in valid_levels:
-        tb.log.warning(f"Invalid TEST_LEVEL '{test_level}', using 'basic'. Valid: {valid_levels}")
-        test_level = 'basic'
+        tb.log.warning(f"Invalid TEST_LEVEL '{test_level}', using 'gate'. Valid: {valid_levels}")
+        test_level = 'gate'
 
     tb.log.info(f"Running ASYNC test level: {test_level.upper()}")
 
@@ -120,7 +120,7 @@ async def gaxi_async_test(dut):
     tb.log.info(f"Available randomizer configs: {config_names}")
 
     # Define test configurations based on test level
-    if test_level == 'basic':
+    if test_level == 'gate':
         # Minimal testing for quick verification
         test_configs = ['backtoback', 'fast', 'constrained']
         packet_counts = {
@@ -131,7 +131,7 @@ async def gaxi_async_test(dut):
         run_comprehensive_sweep = False
         run_stress_test = False
 
-    elif test_level == 'medium':
+    elif test_level == 'func':
         # Moderate testing for development
         test_configs = [
             'backtoback', 'fast', 'constrained', 'bursty',
@@ -209,7 +209,7 @@ async def gaxi_async_test(dut):
         tb.log.info("✓ Completed stress test")
 
     # Async-specific test: Clock domain crossing stress test
-    if test_level in ['medium', 'full']:
+    if test_level in ['func', 'full']:
         tb.log.info("Running async clock domain crossing test...")
         await tb.stress_test_with_random_patterns(
             count=packet_counts['stress_test'] // 2,
@@ -636,14 +636,14 @@ def generate_params():
         # Minimal - just prove it works with one clock ratio
         # 1 test: skid mode, 1.2x ratio (10:12), basic level
         return [
-            (8, 4, 10, 12, 'skid', 'basic'),
+            (8, 4, 10, 12, 'skid', 'gate'),
         ]
 
     elif reg_level == 'FUNC':
         # Functional coverage - all modes with one clock ratio at all test levels
         # 3 modes × 3 levels = 9 tests
         modes = ['skid', 'fifo_mux', 'fifo_flop']
-        test_levels = ['basic', 'medium', 'full']
+        test_levels = ['gate', 'func', 'full']
 
         # Use 1.2x ratio (10:12) - typical async scenario
         return list(product([8], [4], [10], [12], modes, test_levels))
@@ -765,7 +765,7 @@ def test_gaxi_buffer_async(request, data_width, depth, wr_clk_period, rd_clk_per
         rtl_parameters['REGISTERED'] = str(1) if mode == 'fifo_flop' else str(0)
 
     # Adjust timeout based on test level and clock ratio
-    timeout_multipliers = {'basic': 1.5, 'medium': 3, 'full': 6}  # Higher for async
+    timeout_multipliers = {'gate': 1.5, 'func': 3, 'full': 6}  # Higher for async
     base_timeout = 3000  # 3 seconds base for async
     timeout_ms = int(base_timeout * timeout_multipliers.get(test_level, 1) * clk_ratio)
 

@@ -57,7 +57,7 @@ class ShifterUniversalTB(TBBase):
 
         # Get test parameters from environment variables
         self.SEED = self.convert_to_int(os.environ.get('SEED', '12345'))
-        self.TEST_LEVEL = os.environ.get('TEST_LEVEL', 'basic')
+        self.TEST_LEVEL = os.environ.get('TEST_LEVEL', 'gate').lower()
         self.WIDTH = self.convert_to_int(os.environ.get('TEST_WIDTH', '4'))
 
         # Calculate maximum data value based on width
@@ -284,7 +284,7 @@ class ShifterUniversalTB(TBBase):
 
             if not test_passed:
                 all_passed = False
-                if self.TEST_LEVEL == 'basic':
+                if self.TEST_LEVEL == 'gate':
                     break
 
         return all_passed
@@ -311,7 +311,7 @@ class ShifterUniversalTB(TBBase):
         test_passed = await self.drive_and_check(0, self.SEL_RIGHT_SHIFT, 0, 0)
         if not test_passed:
             all_passed = False
-            if self.TEST_LEVEL == 'basic':
+            if self.TEST_LEVEL == 'gate':
                 return False
 
         # Test right shift with 1 serial input
@@ -343,7 +343,7 @@ class ShifterUniversalTB(TBBase):
         test_passed = await self.drive_and_check(0, self.SEL_LEFT_SHIFT, 0, 0)
         if not test_passed:
             all_passed = False
-            if self.TEST_LEVEL == 'basic':
+            if self.TEST_LEVEL == 'gate':
                 return False
 
         # Test left shift with 1 serial input
@@ -381,7 +381,7 @@ class ShifterUniversalTB(TBBase):
 
             if not test_passed:
                 all_passed = False
-                if self.TEST_LEVEL == 'basic':
+                if self.TEST_LEVEL == 'gate':
                     break
 
         return all_passed
@@ -395,9 +395,9 @@ class ShifterUniversalTB(TBBase):
         """
         self.log.info("Testing serial I/O functionality")
 
-        # Skip in basic mode
-        if self.TEST_LEVEL == 'basic':
-            self.log.info("Skipping detailed serial I/O tests in basic mode")
+        # Skip in gate mode
+        if self.TEST_LEVEL == 'gate':
+            self.log.info("Skipping detailed serial I/O tests in gate mode")
             return True
 
         # Reset DUT
@@ -426,12 +426,12 @@ class ShifterUniversalTB(TBBase):
                 self.log.error(f"Right shift bit {i}: expected bit out={expected_bit_out}, " +
                               f"actual bit out={actual_bit_out}")
                 all_passed = False
-                if self.TEST_LEVEL == 'medium':
+                if self.TEST_LEVEL == 'func':
                     break
 
             curr_data = curr_data >> 1  # Update for next iteration
 
-        if not all_passed and self.TEST_LEVEL == 'medium':
+        if not all_passed and self.TEST_LEVEL == 'func':
             return False
 
         # Reset and test shifting data out to the left
@@ -455,7 +455,7 @@ class ShifterUniversalTB(TBBase):
                 self.log.error(f"Left shift bit {i}: expected bit out={expected_bit_out}, " +
                               f"actual bit out={actual_bit_out}")
                 all_passed = False
-                if self.TEST_LEVEL == 'medium':
+                if self.TEST_LEVEL == 'func':
                     break
 
             curr_data = (curr_data << 1) & self.MAX_DATA  # Update for next iteration
@@ -475,9 +475,9 @@ class ShifterUniversalTB(TBBase):
         await self.reset_dut()
 
         # Define patterns to shift in
-        if self.TEST_LEVEL == 'basic':
+        if self.TEST_LEVEL == 'gate':
             pattern = [1, 0, 1, 0][:self.WIDTH]
-        elif self.TEST_LEVEL == 'medium':
+        elif self.TEST_LEVEL == 'func':
             pattern = [1, 1, 0, 1, 0, 1, 0, 0][:self.WIDTH]
         else:  # full
             pattern = [random.randint(0, 1) for _ in range(self.WIDTH)]
@@ -501,14 +501,14 @@ class ShifterUniversalTB(TBBase):
             
             if not test_passed:
                 all_passed = False
-                if self.TEST_LEVEL == 'basic':
+                if self.TEST_LEVEL == 'gate':
                     break
                     
             # Log current state for debugging
             current_data = self.test_results[-1]['actual_pdata']
             self.log.debug(f"After shift {i+1}: data=0x{current_data:x}")
 
-        if not all_passed and self.TEST_LEVEL == 'basic':
+        if not all_passed and self.TEST_LEVEL == 'gate':
             return False
 
         # Clear and shift in from the left
@@ -520,7 +520,7 @@ class ShifterUniversalTB(TBBase):
             
             if not test_passed:
                 all_passed = False
-                if self.TEST_LEVEL == 'basic':
+                if self.TEST_LEVEL == 'gate':
                     break
                     
             # Log current state for debugging
@@ -540,7 +540,7 @@ class ShifterUniversalTB(TBBase):
 
         # Define test functions and their conditions based on test level
         test_functions = [
-            # (function, name, run_in_basic, run_in_medium, run_in_full)
+            # (function, name, run_in_gate, run_in_func, run_in_full)
             (self.test_hold_operation, "Hold operation", True, True, True),
             (self.test_right_shift_operation, "Right shift operation", True, True, True),
             (self.test_left_shift_operation, "Left shift operation", True, True, True),
@@ -558,10 +558,10 @@ class ShifterUniversalTB(TBBase):
         self.test_failures = []
 
         # Run tests based on the test level
-        for test_func, test_name, run_in_basic, run_in_medium, run_in_full in test_functions:
+        for test_func, test_name, run_in_gate, run_in_func, run_in_full in test_functions:
             should_run = (
-                (self.TEST_LEVEL == 'basic' and run_in_basic)
-                or (self.TEST_LEVEL == 'medium' and run_in_medium)
+                (self.TEST_LEVEL == 'gate' and run_in_gate)
+                or (self.TEST_LEVEL == 'func' and run_in_func)
                 or (self.TEST_LEVEL == 'full' and run_in_full)
             )
             
@@ -671,7 +671,7 @@ def generate_test_params():
     """
     Generate test parameters based on REG_LEVEL.
 
-    REG_LEVEL=GATE: 1 test (8-bit, basic)
+    REG_LEVEL=GATE: 1 test (8-bit, gate)
     REG_LEVEL=FUNC: 1 test (8-bit, full) - default
     REG_LEVEL=FULL: 3 tests (8, 16, 32-bit, full)
 
@@ -683,7 +683,7 @@ def generate_test_params():
 
     if reg_level == 'GATE':
         return [
-            {'WIDTH': 8, 'test_level': 'basic'},
+            {'WIDTH': 8, 'test_level': 'gate'},
         ]
     elif reg_level == 'FUNC':
         return [
@@ -753,7 +753,7 @@ def test_shifter_universal(request, params):
 
     # Calculate timeout based on test complexity
     complexity_factor = 1.0
-    if params['test_level'] == 'medium':
+    if params['test_level'] == 'func':
         complexity_factor = 2.0
     elif params['test_level'] == 'full':
         complexity_factor = 5.0

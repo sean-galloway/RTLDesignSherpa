@@ -24,18 +24,18 @@ CONFIGURATION:
     COUNTER_WIDTH:  Width of the counter (16, 32, 64)
 
 TEST LEVELS:
-    basic (1-2 min):   Quick verification during development
-    medium (3-5 min):  Integration testing for CI/branches
+    gate (1-2 min):   Quick verification during development
+    func (3-5 min):  Integration testing for CI/branches
     full (8-15 min):   Comprehensive validation for regression
 
 PARAMETER COMBINATIONS:
     - N: [1, 2, 4, 8]
     - PO_WIDTH: [4, 6, 8]
     - COUNTER_WIDTH: [16, 32, 64]
-    - test_level: [basic, medium, full]
+    - test_level: [gate, func, full]
 
 Environment Variables:
-    TEST_LEVEL: Set test level in cocotb (basic/medium/full)
+    TEST_LEVEL: Set test level in cocotb (gate/func/full)
     SEED: Set random seed for reproducibility
     TEST_N: Number of output clocks
     TEST_PO_WIDTH: Width of pickoff point registers
@@ -66,7 +66,7 @@ class ClockDividerTB(TBBase):
 
         # Get test parameters from environment
         self.SEED = self.convert_to_int(os.environ.get('SEED', '12345'))
-        self.TEST_LEVEL = os.environ.get('TEST_LEVEL', 'basic').lower()
+        self.TEST_LEVEL = os.environ.get('TEST_LEVEL', 'gate').lower()
         self.N = self.convert_to_int(os.environ.get('TEST_N', '4'))
         self.PO_WIDTH = self.convert_to_int(os.environ.get('TEST_PO_WIDTH', '8'))
         self.COUNTER_WIDTH = self.convert_to_int(os.environ.get('TEST_COUNTER_WIDTH', '64'))
@@ -80,10 +80,10 @@ class ClockDividerTB(TBBase):
         random.seed(self.SEED)
 
         # Validate test level
-        valid_levels = ['basic', 'medium', 'full']
+        valid_levels = ['gate', 'func', 'full']
         if self.TEST_LEVEL not in valid_levels:
-            self.log.warning(f"Invalid TEST_LEVEL '{self.TEST_LEVEL}', using 'basic'. Valid: {valid_levels}")
-            self.TEST_LEVEL = 'basic'
+            self.log.warning(f"Invalid TEST_LEVEL '{self.TEST_LEVEL}', using 'gate'. Valid: {valid_levels}")
+            self.TEST_LEVEL = 'gate'
 
         # Log configuration
         self.log.info(f"Clock Divider TB initialized")
@@ -260,12 +260,12 @@ class ClockDividerTB(TBBase):
         self.log.info("Testing pickoff point functionality")
 
         # Define test pickoff points based on test level
-        if self.TEST_LEVEL == 'basic':
+        if self.TEST_LEVEL == 'gate':
             test_cases = [
                 [i for i in range(self.N)],  # [0, 1, 2, ..., N-1]
                 [i+1 for i in range(self.N)]  # [1, 2, 3, ..., N]
             ]
-        elif self.TEST_LEVEL == 'medium':
+        elif self.TEST_LEVEL == 'func':
             test_cases = [
                 [i for i in range(self.N)],  # [0, 1, 2, ..., N-1]
                 [i+1 for i in range(self.N)],  # [1, 2, 3, ..., N]
@@ -335,7 +335,7 @@ class ClockDividerTB(TBBase):
             else:
                 self.log.error(f"FAIL: Pickoff test {test_case} - changes: {output_changes}")
                 all_passed = False
-                if self.TEST_LEVEL == 'basic':
+                if self.TEST_LEVEL == 'gate':
                     break
 
             result = {
@@ -353,7 +353,7 @@ class ClockDividerTB(TBBase):
 
     async def test_boundary_conditions(self):
         """Test boundary conditions and edge cases"""
-        if self.TEST_LEVEL == 'basic':
+        if self.TEST_LEVEL == 'gate':
             self.log.info("Skipping boundary condition tests")
             return True
 
@@ -491,8 +491,8 @@ def generate_params():
     """
     Generate test parameter combinations based on REG_LEVEL.
 
-    REG_LEVEL=GATE: 3 tests (quick smoke at basic level)
-    REG_LEVEL=FUNC: ~12 tests (all valid configs, basic level) - default
+    REG_LEVEL=GATE: 3 tests (quick smoke at gate level)
+    REG_LEVEL=FUNC: ~12 tests (all valid configs, gate level) - default
     REG_LEVEL=FULL: ~36 tests (all valid configs, all levels)
 
     Returns:
@@ -513,7 +513,7 @@ def generate_params():
     n_values = [1, 2, 4, 8]           # Number of output clocks
     po_width_values = [4, 6, 8]       # Width of pickoff registers
     counter_width_values = [16, 32, 64]  # Width of counter
-    test_levels = ['basic', 'medium', 'full']
+    test_levels = ['gate', 'func', 'full']
 
     # Generate valid combinations respecting RTL constraint
     valid_configs = []
@@ -526,14 +526,14 @@ def generate_params():
             valid_configs.append((n, po_width, counter_width))
 
     if reg_level == 'GATE':
-        # Quick smoke test: 3 different configs at basic level
-        return [(valid_configs[0] + ('basic',)),
-                (valid_configs[len(valid_configs)//2] + ('basic',)),
-                (valid_configs[-1] + ('basic',))]
+        # Quick smoke test: 3 different configs at gate level
+        return [(valid_configs[0] + ('gate',)),
+                (valid_configs[len(valid_configs)//2] + ('gate',)),
+                (valid_configs[-1] + ('gate',))]
 
     elif reg_level == 'FUNC':
-        # All valid configs at basic level only
-        return [(n, po, cw, 'basic') for n, po, cw in valid_configs]
+        # All valid configs at gate level only
+        return [(n, po, cw, 'gate') for n, po, cw in valid_configs]
 
     else:  # FULL
         # All valid configs at all test levels
@@ -593,7 +593,7 @@ def test_clock_divider(request, n, po_width, counter_width, test_level):
     }
 
     # Adjust timeout based on test level and parameters
-    timeout_multipliers = {'basic': 1, 'medium': 2, 'full': 4}
+    timeout_multipliers = {'gate': 1, 'func': 2, 'full': 4}
     param_factor = max(1.0, (n * counter_width) / 128.0)  # More complex configs take more time
     base_timeout = 2000  # 2 seconds base
     timeout_ms = int(base_timeout * timeout_multipliers.get(test_level, 1) * param_factor)

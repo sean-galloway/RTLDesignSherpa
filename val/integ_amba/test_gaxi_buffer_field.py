@@ -96,7 +96,7 @@ def generate_field_params():
     data_widths = [8, 16, 24, 32]
     depths = [2, 4, 6, 8]
     modes = ['skid', 'fifo_mux', 'fifo_flop']
-    test_levels = ['full'] # ['basic', 'medium', 'full']
+    test_levels = ['full'] # ['gate', 'func', 'full']
     
     # For debugging/quick testing, return a smaller subset:
     debug_mode = True
@@ -157,7 +157,7 @@ def test_gaxi_buffer_field(request, addr_width, ctrl_width, data_width, depth, m
         rtl_parameters['REGISTERED'] = str(1) if mode == 'fifo_flop' else str(0)
 
     # Calculate timeout based on field complexity
-    timeout_multipliers = {'basic': 1, 'medium': 2, 'full': 4}
+    timeout_multipliers = {'gate': 1, 'func': 2, 'full': 4}
     field_complexity = (addr_width + ctrl_width + data_width) / 30.0  # Normalize complexity
     timeout_ms = int(2500 * timeout_multipliers.get(test_level, 1) * max(1.0, field_complexity))
 

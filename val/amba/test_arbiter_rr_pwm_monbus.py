@@ -53,7 +53,7 @@ async def arbiter_rr_pwm_monbus_test(dut):
     test_wait_gnt_ack = int(os.environ.get('TEST_WAIT_GNT_ACK', '0'))
     test_agent_id = int(os.environ.get('TEST_AGENT_ID', '0x10'), 0)
     test_unit_id = int(os.environ.get('TEST_UNIT_ID', '0x0'), 0)
-    test_level = os.environ.get('TEST_LEVEL', 'basic').lower()
+    test_level = os.environ.get('TEST_LEVEL', 'gate').lower()
 
     # Use the seed for reproducibility
     seed = int(os.environ.get('SEED', '0'))
@@ -263,7 +263,7 @@ async def arbiter_rr_pwm_monbus_test(dut):
     # =========================================================================
     # Phase 5: Full Integration Test (All Components Active)
     # =========================================================================
-    if test_level in ['medium', 'full']:
+    if test_level in ['func', 'full']:
         print("🔄 Phase 5: Full Integration Test (Arbiter + PWM + Monitor)...")
 
         # Configure PWM for moderate blocking
@@ -398,14 +398,14 @@ async def arbiter_rr_pwm_monbus_test(dut):
 
 @pytest.mark.parametrize("clients, wait_gnt_ack, agent_id, unit_id, test_level", [
     # Basic integration configurations
-    (4, 0, 0x10, 0, 'basic'),      # 4 clients, no ACK, basic test
-    (4, 1, 0x10, 0, 'basic'),      # 4 clients, with ACK, basic test
-    (8, 0, 0x20, 1, 'basic'),      # 8 clients, no ACK, different IDs
+    (4, 0, 0x10, 0, 'gate'),      # 4 clients, no ACK, basic test
+    (4, 1, 0x10, 0, 'gate'),      # 4 clients, with ACK, basic test
+    (8, 0, 0x20, 1, 'gate'),      # 8 clients, no ACK, different IDs
 
     # Medium integration configurations
-    (2, 0, 0x15, 2, 'medium'),     # Minimal clients
-    (6, 1, 0x25, 3, 'medium'),     # Medium clients with ACK
-    (16, 0, 0x30, 0, 'medium'),    # More clients
+    (2, 0, 0x15, 2, 'func'),     # Minimal clients
+    (6, 1, 0x25, 3, 'func'),     # Medium clients with ACK
+    (16, 0, 0x30, 0, 'func'),    # More clients
 
     # Full integration configurations (comprehensive test)
     (8, 1, 0x40, 1, 'full'),       # Full test with ACK

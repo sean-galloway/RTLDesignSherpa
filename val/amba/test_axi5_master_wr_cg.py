@@ -148,7 +148,7 @@ async def axi5_master_write_cg_test(dut):
     random.seed(seed)
     tb.log.info(f'AXI5 master write CG test with seed: {seed}')
 
-    test_level = os.environ.get('TEST_LEVEL', 'basic').lower()
+    test_level = os.environ.get('TEST_LEVEL', 'gate').lower()
 
     await tb.start_clock('aclk', tb.TEST_CLK_PERIOD, 'ns')
     await tb.assert_reset()
@@ -161,10 +161,10 @@ async def axi5_master_write_cg_test(dut):
     tb.log.info("=" * 80)
 
     try:
-        if test_level == 'basic':
+        if test_level == 'gate':
             idle_counts = [4, 8]
             test_transactions = 10
-        elif test_level == 'medium':
+        elif test_level == 'func':
             idle_counts = [2, 4, 8, 16]
             test_transactions = 25
         else:
@@ -238,15 +238,15 @@ def generate_axi5_cg_params():
     reg_level = os.environ.get('REG_LEVEL', 'FUNC').upper()
 
     if reg_level == 'GATE':
-        params = [(8, 32, 32, 1, 2, 4, 2, 'basic')]
+        params = [(8, 32, 32, 1, 2, 4, 2, 'gate')]
     elif reg_level == 'FUNC':
         params = [
-            (8, 32, 32, 1, 2, 4, 2, 'basic'),
-            (8, 32, 32, 1, 4, 8, 4, 'medium'),
-            (8, 64, 64, 1, 2, 4, 2, 'medium'),
+            (8, 32, 32, 1, 2, 4, 2, 'gate'),
+            (8, 32, 32, 1, 4, 8, 4, 'func'),
+            (8, 64, 64, 1, 2, 4, 2, 'func'),
         ]
     else:  # FULL
-        test_levels = ['basic', 'medium', 'full']
+        test_levels = ['gate', 'func', 'full']
         configs = [(8, 32, 32, 1, 2, 4, 2), (8, 32, 32, 1, 4, 8, 4), (8, 64, 64, 1, 2, 4, 2)]
         params = [
             (id_w, addr_w, data_w, user_w, aw_d, w_d, b_d, level)

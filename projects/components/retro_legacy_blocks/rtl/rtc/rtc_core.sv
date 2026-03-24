@@ -282,7 +282,10 @@ module rtc_core (
                             next_hours = {~r_hours[7], 7'h01};  // Toggle AM/PM, go to 1
                             carry_day = r_hours[7];  // Carry at 11:59:59 PM -> 12:00:00 AM
                         end else begin
-                            next_hours = {r_hours[7], bcd_increment(r_hours[6:0], 7'h12)[6:0]};
+                            // Use a temporary for the BCD increment result to avoid
+                            // bit-selecting a function return value directly.
+                            automatic logic [7:0] bcd_hr_inc = bcd_increment(r_hours[6:0], 7'h12);
+                            next_hours = {r_hours[7], bcd_hr_inc[6:0]};
                             carry_day = 1'b0;
                         end
                     end else begin

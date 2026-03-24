@@ -24,12 +24,12 @@ CONFIGURATION:
     pressed_state:   State when button is pressed (0=NC, 1=NO)
 
 TEST LEVELS:
-    basic (1-2 min):   Quick verification during development
-    medium (3-5 min):  Integration testing for CI/branches
+    gate (1-2 min):   Quick verification during development
+    func (3-5 min):  Integration testing for CI/branches
     full (8-15 min):   Comprehensive validation for regression
 
 Environment Variables:
-    TEST_LEVEL: Set test level in cocotb (basic/medium/full)
+    TEST_LEVEL: Set test level in cocotb (gate/func/full)
     SEED: Set random seed for reproducibility
     TEST_NUM_BUTTONS: Number of button inputs
     TEST_DEBOUNCE_DELAY: Debounce delay in cycles
@@ -61,7 +61,7 @@ class DebounceTB(TBBase):
 
         # Get test parameters from environment
         self.SEED = self.convert_to_int(os.environ.get('SEED', '12345'))
-        self.TEST_LEVEL = os.environ.get('TEST_LEVEL', 'basic').lower()
+        self.TEST_LEVEL = os.environ.get('TEST_LEVEL', 'gate').lower()
         self.NUM_BUTTONS = self.convert_to_int(os.environ.get('TEST_NUM_BUTTONS', '4'))
         self.DEBOUNCE_DELAY = self.convert_to_int(os.environ.get('TEST_DEBOUNCE_DELAY', '4'))
         self.PRESSED_STATE = self.convert_to_int(os.environ.get('TEST_PRESSED_STATE', '1'))
@@ -71,10 +71,10 @@ class DebounceTB(TBBase):
         random.seed(self.SEED)
 
         # Validate test level
-        valid_levels = ['basic', 'medium', 'full']
+        valid_levels = ['gate', 'func', 'full']
         if self.TEST_LEVEL not in valid_levels:
-            self.log.warning(f"Invalid TEST_LEVEL '{self.TEST_LEVEL}', using 'basic'. Valid: {valid_levels}")
-            self.TEST_LEVEL = 'basic'
+            self.log.warning(f"Invalid TEST_LEVEL '{self.TEST_LEVEL}', using 'gate'. Valid: {valid_levels}")
+            self.TEST_LEVEL = 'gate'
 
         # Log configuration
         self.log.info(f"Debounce TB initialized{self.get_time_ns_str()}")
@@ -155,9 +155,9 @@ class DebounceTB(TBBase):
         all_passed = True
 
         # Test each button individually based on test level
-        if self.TEST_LEVEL == 'basic':
+        if self.TEST_LEVEL == 'gate':
             test_buttons = [0] if self.NUM_BUTTONS > 0 else []
-        elif self.TEST_LEVEL == 'medium':
+        elif self.TEST_LEVEL == 'func':
             test_buttons = list(range(min(2, self.NUM_BUTTONS)))
         else:  # full
             test_buttons = list(range(self.NUM_BUTTONS))
@@ -182,7 +182,7 @@ class DebounceTB(TBBase):
             if initial_output != 0:
                 self.log.error(f"Initial state not clear: output=0x{initial_output:x}, expected=0x0{self.get_time_ns_str()}")
                 all_passed = False
-                if self.TEST_LEVEL == 'basic':
+                if self.TEST_LEVEL == 'gate':
                     break
 
             # Test button press
@@ -207,7 +207,7 @@ class DebounceTB(TBBase):
             if (output_after_press & button_mask) != expected_press_output:
                 self.log.error(f"Button {button_idx} press: output=0x{output_after_press:x}, expected bit {button_idx} set{self.get_time_ns_str()}")
                 all_passed = False
-                if self.TEST_LEVEL == 'basic':
+                if self.TEST_LEVEL == 'gate':
                     break
 
             # Test button release
@@ -222,7 +222,7 @@ class DebounceTB(TBBase):
             if (output_after_release & button_mask) != 0:
                 self.log.error(f"Button {button_idx} release: output=0x{output_after_release:x}, expected bit {button_idx} clear{self.get_time_ns_str()}")
                 all_passed = False
-                if self.TEST_LEVEL == 'basic':
+                if self.TEST_LEVEL == 'gate':
                     break
 
             self.log.debug(f"Button {button_idx} test passed: press=0x{output_after_press:x}, release=0x{output_after_release:x}{self.get_time_ns_str()}")
@@ -239,7 +239,7 @@ class DebounceTB(TBBase):
 
     async def test_bouncing_signals(self):
         """Test rejection of bouncing signals"""
-        if self.TEST_LEVEL == 'basic':
+        if self.TEST_LEVEL == 'gate':
             self.log.info(f"Skipping bouncing signal tests{self.get_time_ns_str()}")
             return True
 
@@ -317,7 +317,7 @@ class DebounceTB(TBBase):
 
     async def test_multiple_buttons(self):
         """Test multiple buttons simultaneously"""
-        if self.TEST_LEVEL == 'basic' or self.NUM_BUTTONS == 1:
+        if self.TEST_LEVEL == 'gate' or self.NUM_BUTTONS == 1:
             self.log.info(f"Skipping multiple button tests{self.get_time_ns_str()}")
             return True
 
@@ -599,8 +599,8 @@ def generate_params():
         valid_params.append((num_buttons, debounce_delay, pressed_state, test_level))
 
     # For debugging, uncomment one of these:
-    # return [(4, 4, 1, 'basic')]  # Single test
-    # return [(2, 4, 1, 'medium')]  # Just specific configurations
+    # return [(4, 4, 1, 'gate')]  # Single test
+    # return [(2, 4, 1, 'func')]  # Just specific configurations
 
     return valid_params
 
@@ -652,7 +652,7 @@ def test_debounce(request, num_buttons, debounce_delay, pressed_state, test_leve
     }
 
     # Adjust timeout based on test level
-    timeout_multipliers = {'basic': 1, 'medium': 2, 'full': 4}
+    timeout_multipliers = {'gate': 1, 'func': 2, 'full': 4}
     base_timeout = 2000  # 2 seconds base
     timeout_ms = int(base_timeout * timeout_multipliers.get(test_level, 1))
 

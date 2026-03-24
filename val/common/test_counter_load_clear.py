@@ -22,23 +22,23 @@ CONFIGURATION:
     max_value:   Maximum count value (32, 255, 1023)
 
 TEST LEVELS (per-test depth):
-    basic (1-2 min):   Quick verification during development
-    medium (3-5 min):  Integration testing for CI/branches
+    gate (1-2 min):   Quick verification during development
+    func (3-5 min):  Integration testing for CI/branches
     full (8-15 min):   Comprehensive validation for regression
 
 REG_LEVEL Control (parameter combinations):
-    GATE: 1 test (~2 min) - smoke test (max=32, basic)
+    GATE: 1 test (~2 min) - smoke test (max=32, gate)
     FUNC: 3 tests (~6 min) - functional coverage - DEFAULT
     FULL: 9 tests (~1 hour) - comprehensive validation
 
 PARAMETER COMBINATIONS:
     GATE: 1 max_value × 1 level = 1 test
-    FUNC: 3 max_values × 1 level = 3 tests (all max_values, basic only)
+    FUNC: 3 max_values × 1 level = 3 tests (all max_values, gate only)
     FULL: 3 max_values × 3 levels = 9 tests
 
 Environment Variables:
     REG_LEVEL: Control parameter combinations (GATE/FUNC/FULL)
-    TEST_LEVEL: Set test level in cocotb (basic/medium/full)
+    TEST_LEVEL: Set test level in cocotb (gate/func/full)
     SEED: Set random seed for reproducibility
     TEST_MAX_VALUE: Maximum count value for counter
 """
@@ -68,7 +68,7 @@ class CounterLoadClearTB(TBBase):
 
         # Get test parameters from environment
         self.SEED = self.convert_to_int(os.environ.get('SEED', '12345'))
-        self.TEST_LEVEL = os.environ.get('TEST_LEVEL', 'basic').lower()
+        self.TEST_LEVEL = os.environ.get('TEST_LEVEL', 'gate').lower()
         self.MAX_VALUE = self.convert_to_int(os.environ.get('TEST_MAX_VALUE', '32'))
         self.DEBUG = self.convert_to_int(os.environ.get('TEST_DEBUG', '0'))
 
@@ -80,10 +80,10 @@ class CounterLoadClearTB(TBBase):
         random.seed(self.SEED)
 
         # Validate test level
-        valid_levels = ['basic', 'medium', 'full']
+        valid_levels = ['gate', 'func', 'full']
         if self.TEST_LEVEL not in valid_levels:
-            self.log.warning(f"Invalid TEST_LEVEL '{self.TEST_LEVEL}', using 'basic'. Valid: {valid_levels}")
-            self.TEST_LEVEL = 'basic'
+            self.log.warning(f"Invalid TEST_LEVEL '{self.TEST_LEVEL}', using 'gate'. Valid: {valid_levels}")
+            self.TEST_LEVEL = 'gate'
 
         # Log configuration
         self.log.info(f"Counter Load Clear TB initialized{self.get_time_ns_str()}")
@@ -178,9 +178,9 @@ class CounterLoadClearTB(TBBase):
         await self.reset_dut()
 
         # Test different match values based on level
-        if self.TEST_LEVEL == 'basic':
+        if self.TEST_LEVEL == 'gate':
             test_values = [1, 5, min(10, self.MAX_VALUE - 1)]
-        elif self.TEST_LEVEL == 'medium':
+        elif self.TEST_LEVEL == 'func':
             test_values = [1, 3, 5, 10, min(20, self.MAX_VALUE - 1), self.MAX_VALUE - 1]
         else:  # full
             test_values = [1, 2, 3, 5, 8, 10, 15, 20, min(50, self.MAX_VALUE - 1), self.MAX_VALUE - 1]
@@ -202,14 +202,14 @@ class CounterLoadClearTB(TBBase):
             if int(self.count.value) != 0:
                 self.log.error(f"Initial count not zero: {int(self.count.value)}{self.get_time_ns_str()}")
                 all_passed = False
-                if self.TEST_LEVEL == 'basic':
+                if self.TEST_LEVEL == 'gate':
                     break
                 continue
 
             if int(self.done.value) != (1 if match_value == 0 else 0):
                 self.log.error(f"Initial done state incorrect for match_value {match_value}{self.get_time_ns_str()}")
                 all_passed = False
-                if self.TEST_LEVEL == 'basic':
+                if self.TEST_LEVEL == 'gate':
                     break
                 continue
 
@@ -224,13 +224,13 @@ class CounterLoadClearTB(TBBase):
                 if final_count != match_value:
                     self.log.error(f"Match {match_value}: Final count {final_count} != expected {match_value}{self.get_time_ns_str()}")
                     all_passed = False
-                    if self.TEST_LEVEL == 'basic':
+                    if self.TEST_LEVEL == 'gate':
                         break
 
                 if cycles_to_done != match_value:
                     self.log.error(f"Match {match_value}: Cycles {cycles_to_done} != expected {match_value}{self.get_time_ns_str()}")
                     all_passed = False
-                    if self.TEST_LEVEL == 'basic':
+                    if self.TEST_LEVEL == 'gate':
                         break
 
                 self.log.debug(f"Match {match_value}: SUCCESS - {cycles_to_done} cycles, final count {final_count}{self.get_time_ns_str()}")
@@ -238,7 +238,7 @@ class CounterLoadClearTB(TBBase):
             except TimeoutError as e:
                 self.log.error(f"Match {match_value}: {str(e)}{self.get_time_ns_str()}")
                 all_passed = False
-                if self.TEST_LEVEL == 'basic':
+                if self.TEST_LEVEL == 'gate':
                     break
 
             # Store result
@@ -340,9 +340,9 @@ class CounterLoadClearTB(TBBase):
         all_passed = True
 
         # Test different load values
-        if self.TEST_LEVEL == 'basic':
+        if self.TEST_LEVEL == 'gate':
             test_values = [1, 5]
-        elif self.TEST_LEVEL == 'medium':
+        elif self.TEST_LEVEL == 'func':
             test_values = [1, 3, 5, 10, 15]
         else:  # full
             test_values = [1, 2, 3, 5, 8, 10, 15, 20, 50]
@@ -368,7 +368,7 @@ class CounterLoadClearTB(TBBase):
             if current_count != 2:
                 self.log.error(f"Count changed after load: {current_count} != 2{self.get_time_ns_str()}")
                 all_passed = False
-                if self.TEST_LEVEL == 'basic':
+                if self.TEST_LEVEL == 'gate':
                     break
 
             # Continue counting to new target
@@ -403,7 +403,7 @@ class CounterLoadClearTB(TBBase):
                     self.log.error(f"Load test failed: {str(e)}{self.get_time_ns_str()}")
                     all_passed = False
 
-            if not all_passed and self.TEST_LEVEL == 'basic':
+            if not all_passed and self.TEST_LEVEL == 'gate':
                 break
 
             # Reset for next test
@@ -422,7 +422,7 @@ class CounterLoadClearTB(TBBase):
 
     async def test_increment_control(self):
         """Test increment control"""
-        if self.TEST_LEVEL == 'basic':
+        if self.TEST_LEVEL == 'gate':
             self.log.info(f"Skipping increment control test{self.get_time_ns_str()}")
             return True
 
@@ -662,8 +662,8 @@ def generate_params():
     """
     Generate test parameter combinations based on REG_LEVEL.
 
-    REG_LEVEL=GATE: 1 test (max=32, basic level)
-    REG_LEVEL=FUNC: 3 tests (all max_values, basic level) - default
+    REG_LEVEL=GATE: 1 test (max=32, gate level)
+    REG_LEVEL=FUNC: 3 tests (all max_values, gate level) - default
     REG_LEVEL=FULL: 9 tests (all max_values, all test levels)
 
     Returns:
@@ -672,15 +672,15 @@ def generate_params():
     reg_level = os.environ.get('REG_LEVEL', 'FUNC').upper()
 
     max_values = [32, 255, 1023]  # Different maximum count values
-    test_levels = ['basic', 'medium', 'full']  # Test levels
+    test_levels = ['gate', 'func', 'full']  # Test levels
 
     if reg_level == 'GATE':
-        # Quick smoke test: max=32, basic only
-        params = [(32, 'basic')]
+        # Quick smoke test: max=32, gate only
+        params = [(32, 'gate')]
 
     elif reg_level == 'FUNC':
-        # Functional coverage: all max_values, basic level only
-        params = [(max_val, 'basic') for max_val in max_values]
+        # Functional coverage: all max_values, gate level only
+        params = [(max_val, 'gate') for max_val in max_values]
 
     else:  # FULL
         # Comprehensive: all combinations
@@ -727,7 +727,7 @@ def test_counter_load_clear(request, max_value, test_level):
     }
 
     # Adjust timeout based on test level and max value
-    timeout_multipliers = {'basic': 1, 'medium': 2, 'full': 4}
+    timeout_multipliers = {'gate': 1, 'func': 2, 'full': 4}
     max_factor = max(1.0, max_value / 1000.0)
     base_timeout = 3000  # 3 seconds base
     timeout_ms = int(base_timeout * timeout_multipliers.get(test_level, 1) * max_factor)

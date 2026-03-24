@@ -100,11 +100,22 @@ def find_repo_root() -> Path:
         return Path.cwd()
 
 
-def load_test_areas(repo_root: Path) -> list[tuple[str, str, str, str]]:
+@dataclass
+class AreaConfig:
+    """Configuration for a single test area (possibly a sub-area)."""
+    area: str
+    sub_area: str
+    test_dir: str
+    make_target_fmt: str
+    reg_level_var: str        # env var name for test level (e.g. REG_LEVEL, TEST_LEVEL)
+    reg_level_values: dict    # mapping: {gate: val, func: val, full: val} or empty
+
+
+def load_test_areas(repo_root: Path) -> list[AreaConfig]:
     """Load test areas from test_environments.toml.
 
-    Returns a list of (area, sub_area, test_dir, make_target_fmt) tuples,
-    expanding sub_areas into individual entries for per-sub-area results.
+    Returns a list of AreaConfig, expanding sub_areas into individual entries
+    for per-sub-area results.
 
     For environments with sub_areas: each sub-area gets its own entry with
     the test_dir pointing to the sub-directory.
@@ -123,20 +134,34 @@ def load_test_areas(repo_root: Path) -> list[tuple[str, str, str, str]]:
     defaults = config.get("defaults", {})
     envs = config.get("env", {})
 
+    default_reg_level_var = defaults.get("reg_level_var", "REG_LEVEL")
+
     areas = []
     for env_name, env_cfg in envs.items():
         directory = env_cfg["directory"]
         make_target_fmt = env_cfg.get(
             "make_target", defaults.get("make_target", "run-all-{level}")
         )
+        reg_level_var = env_cfg.get("reg_level_var", default_reg_level_var)
+        reg_level_values = env_cfg.get("reg_level_values", {})
         sub_areas = env_cfg.get("sub_areas")
 
         if sub_areas:
             for sub in sub_areas:
                 sub_dir = f"{directory}/{sub}"
-                areas.append((env_name, sub, sub_dir, make_target_fmt))
+                areas.append(AreaConfig(
+                    area=env_name, sub_area=sub, test_dir=sub_dir,
+                    make_target_fmt=make_target_fmt,
+                    reg_level_var=reg_level_var,
+                    reg_level_values=reg_level_values,
+                ))
         else:
-            areas.append((env_name, "", directory, make_target_fmt))
+            areas.append(AreaConfig(
+                area=env_name, sub_area="", test_dir=directory,
+                make_target_fmt=make_target_fmt,
+                reg_level_var=reg_level_var,
+                reg_level_values=reg_level_values,
+            ))
 
     return areas
 
@@ -180,12 +205,13 @@ def parse_junit_xml(xml_path: str) -> TestSuiteResult:
 
 
 def run_tests_for_area(
-    repo_root: Path, area: str, sub_area: str, test_dir: str,
-    make_target_fmt: str, results_dir: Path, test_level: str,
-    timeout: int
+    repo_root: Path, area_cfg: AreaConfig, results_dir: Path,
+    test_level: str, timeout: int
 ) -> TestSuiteResult:
     """Run tests via the area's own Makefile, injecting --junitxml."""
-    full_test_dir = repo_root / test_dir
+    area = area_cfg.area
+    sub_area = area_cfg.sub_area
+    full_test_dir = repo_root / area_cfg.test_dir
     result_name = f"{area}/{sub_area}" if sub_area else area
     result = TestSuiteResult(name=result_name, area=area)
 
@@ -199,31 +225,69 @@ def run_tests_for_area(
         return result
 
     xml_filename = f"{area}_{sub_area}_results.xml" if sub_area else f"{area}_results.xml"
-    xml_file = results_dir / xml_filename
+    xml_file = (results_dir / xml_filename).resolve()
     result.xml_path = str(xml_file)
 
     # Resolve the make target for this level
     level_lower = test_level.lower()
-    make_target = make_target_fmt.format(level=level_lower)
+    make_target = area_cfg.make_target_fmt.format(level=level_lower)
 
     # Inject --junitxml via PYTEST_ADDOPTS so the existing Makefile pytest
     # invocations pick it up automatically.
     env = os.environ.copy()
-    env["TEST_LEVEL"] = test_level
+
+    # Strip MAKEFLAGS to prevent the parent make's jobserver from leaking
+    # into child make processes.  When `make all-func` invokes $(MAKE) func,
+    # GNU make propagates --jobserver-auth in MAKEFLAGS.  The aggregator
+    # (a Python process) doesn't participate in the jobserver protocol, so
+    # the child `make run-all-func-parallel` inherits stale jobserver FDs
+    # it cannot read.  Child make then falls back to a small number of jobs
+    # instead of letting pytest-xdist use the full -n 48 worker pool.
+    env.pop("MAKEFLAGS", None)
+    env.pop("MAKELEVEL", None)
+    env.pop("MFLAGS", None)
+
+    # Set the correct test-level variable for this environment.
+    # Use reg_level_values mapping if provided (e.g. STREAM uses lowercase),
+    # otherwise use the test_level as-is (uppercase: GATE, FUNC, FULL).
+    reg_var = area_cfg.reg_level_var
+    if area_cfg.reg_level_values:
+        level_value = area_cfg.reg_level_values.get(level_lower, level_lower)
+    else:
+        level_value = test_level
+    env[reg_var] = level_value
+
+    # Remove any stale TEST_LEVEL / REG_LEVEL that might leak from parent env
+    # if this environment uses a different variable name.
+    for var in ("TEST_LEVEL", "REG_LEVEL"):
+        if var != reg_var and var in env:
+            del env[var]
+
     existing_addopts = env.get("PYTEST_ADDOPTS", "")
     env["PYTEST_ADDOPTS"] = f"{existing_addopts} --junitxml={xml_file} --override-ini=junit_family=xunit2".strip()
 
     cmd = ["make", make_target]
 
+    # Write stdout/stderr to log files instead of capturing into pipes.
+    # capture_output=True buffers everything in memory and only reads after
+    # the process exits.  With pytest-xdist running dozens of parallel
+    # workers, the 64 KB pipe buffer fills up and writers BLOCK, serialising
+    # what should be parallel execution.  Writing to a file avoids this.
+    log_stem = f"{area}_{sub_area}" if sub_area else area
+    stdout_log = results_dir / f"{log_stem}_stdout.log"
+    stderr_log = results_dir / f"{log_stem}_stderr.log"
+
     try:
         run_kwargs = dict(
-            capture_output=True, text=True,
             cwd=str(full_test_dir), env=env
         )
         if timeout > 0:
             run_kwargs["timeout"] = timeout
 
-        proc = subprocess.run(cmd, **run_kwargs)
+        with open(stdout_log, "w") as fout, open(stderr_log, "w") as ferr:
+            run_kwargs["stdout"] = fout
+            run_kwargs["stderr"] = ferr
+            proc = subprocess.run(cmd, **run_kwargs)
 
         if xml_file.exists():
             parsed = parse_junit_xml(str(xml_file))
@@ -236,9 +300,16 @@ def run_tests_for_area(
             # make ran but no XML produced — check for make-level error
             result.run_error = "No XML output"
             if proc.returncode != 0:
-                stderr_lines = (proc.stderr or proc.stdout or "").strip().split("\n")
-                last_lines = [l for l in stderr_lines[-5:] if l.strip()]
-                result.run_error = "; ".join(last_lines)[:120] or f"exit {proc.returncode}"
+                # Read last few lines from the stderr log for diagnostics
+                try:
+                    stderr_text = stderr_log.read_text()
+                    if not stderr_text.strip():
+                        stderr_text = stdout_log.read_text()
+                    stderr_lines = stderr_text.strip().split("\n")
+                    last_lines = [l for l in stderr_lines[-5:] if l.strip()]
+                    result.run_error = "; ".join(last_lines)[:120] or f"exit {proc.returncode}"
+                except Exception:
+                    result.run_error = f"exit {proc.returncode}"
 
     except subprocess.TimeoutExpired:
         result.run_error = f"Timeout ({timeout}s)"
@@ -446,16 +517,16 @@ def main():
     test_areas = load_test_areas(repo_root)
 
     if args.list:
-        print(f"{'Area':<20s} {'Sub-Area':<20s} {'Directory':<55s} {'Target'}")
-        print("-" * 110)
-        for area, sub_area, test_dir, make_target_fmt in test_areas:
-            print(f"{area:<20s} {sub_area:<20s} {test_dir:<55s} {make_target_fmt}")
+        print(f"{'Area':<20s} {'Sub-Area':<20s} {'Directory':<55s} {'LevelVar':<15s} {'Target'}")
+        print("-" * 125)
+        for ac in test_areas:
+            print(f"{ac.area:<20s} {ac.sub_area:<20s} {ac.test_dir:<55s} {ac.reg_level_var:<15s} {ac.make_target_fmt}")
         print(f"\n{len(test_areas)} test areas total")
         return
 
     test_level = args.test_level or os.environ.get("TEST_LEVEL", "GATE")
 
-    results_dir = Path(args.results_dir) if args.results_dir else repo_root / "test_results"
+    results_dir = (Path(args.results_dir) if args.results_dir else repo_root / "test_results").resolve()
     results_dir.mkdir(parents=True, exist_ok=True)
 
     results = []
@@ -484,18 +555,17 @@ def main():
         # Run mode: delegate to each area's Makefile
         areas_to_run = test_areas
         if args.areas:
-            areas_to_run = [a for a in test_areas if a[0] in args.areas]
+            areas_to_run = [a for a in test_areas if a.area in args.areas]
 
-        title = f"Test Results (TEST_LEVEL={test_level})"
+        title = f"Test Results (level={test_level})"
         print(f"Running tests across {len(areas_to_run)} environments (level={test_level})...")
         print()
 
-        for area, sub_area, test_dir, make_target_fmt in areas_to_run:
-            label = f"{area}/{sub_area}" if sub_area else area
+        for ac in areas_to_run:
+            label = f"{ac.area}/{ac.sub_area}" if ac.sub_area else ac.area
             print(f"  Running {label}...", end=" ", flush=True)
             r = run_tests_for_area(
-                repo_root, area, sub_area, test_dir, make_target_fmt,
-                results_dir, test_level, args.timeout
+                repo_root, ac, results_dir, test_level, args.timeout
             )
             r.name = label
             results.append(r)
@@ -524,13 +594,13 @@ def main():
             sys.exit(1)
 
         title = "Test Results (from existing XML)"
-        for area, sub_area, test_dir, make_target_fmt in test_areas:
-            xml_filename = f"{area}_{sub_area}_results.xml" if sub_area else f"{area}_results.xml"
+        for ac in test_areas:
+            xml_filename = f"{ac.area}_{ac.sub_area}_results.xml" if ac.sub_area else f"{ac.area}_results.xml"
             xml_file = results_dir / xml_filename
             if xml_file.exists():
                 parsed = parse_junit_xml(str(xml_file))
-                parsed.name = f"{area}/{sub_area}" if sub_area else area
-                parsed.area = area
+                parsed.name = f"{ac.area}/{ac.sub_area}" if ac.sub_area else ac.area
+                parsed.area = ac.area
                 results.append(parsed)
 
     if not results:
