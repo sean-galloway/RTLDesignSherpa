@@ -460,24 +460,6 @@ module axi_write_engine_beats #(
     assign sched_wr_ready = r_sched_ready;
 
     // Debug: Track sched_wr_ready assertions
-    `ifndef SYNTHESIS
-    always @(posedge clk) begin
-        if (m_axi_bvalid && m_axi_bready) begin
-            automatic logic [CIW-1:0] ch_id = m_axi_bid[CIW-1:0];
-            automatic logic [31:0] new_beats = r_beats_written[ch_id] + {24'h0, b_phase_txn_fifo_dout[ch_id].beats};
-            $display("AXI_WR_ENG @%t: B response ch=%0d, r_beats_written=%0d, new=%0d, sched_wr_beats=%0d, last=%b, ready_will_assert=%b",
-                    $time, ch_id, r_beats_written[ch_id], new_beats, sched_wr_beats[ch_id],
-                    b_phase_txn_fifo_dout[ch_id].last, b_phase_txn_fifo_dout[ch_id].last);
-        end
-
-        for (int i = 0; i < NC; i++) begin
-            if (r_sched_ready[i]) begin
-                $display("AXI_WR_ENG @%t: sched_wr_ready[%0d] ASSERTED (valid=%b, beats=%0d)",
-                        $time, i, sched_wr_valid[i], sched_wr_beats[i]);
-            end
-        end
-    end
-    `endif
 
     //=========================================================================
     // W Channel Management - FIFO-Based Tracking (No FSM!)
@@ -741,9 +723,6 @@ module axi_write_engine_beats #(
                 r_wr_error[ch_id] <= 1'b1;
 
                 // Debug display for error detection
-                `ifndef SYNTHESIS
-                $display("AXI_WR_ENG @%t: ERROR on channel %0d, BRESP=%2b", $time, ch_id, m_axi_bresp);
-                `endif
             end
             // Note: Error flags are NOT auto-cleared - must be cleared by external logic
             // Scheduler can clear on channel reset or descriptor completion

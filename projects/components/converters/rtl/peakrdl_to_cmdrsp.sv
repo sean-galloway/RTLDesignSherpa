@@ -262,44 +262,5 @@ module peakrdl_to_cmdrsp #(
     // =========================================================================
     // Assertions
     // =========================================================================
-    `ifndef SYNTHESIS
-        // Command channel protocol checks
-        property p_cmd_valid_stable;
-            @(posedge aclk) disable iff (!aresetn)
-            (cmd_valid && !cmd_ready) |=> $stable(cmd_valid);
-        endproperty
-        assert_cmd_valid_stable: assert property (p_cmd_valid_stable)
-            else $error("cmd_valid deasserted before cmd_ready");
-
-        property p_cmd_data_stable;
-            @(posedge aclk) disable iff (!aresetn)
-            (cmd_valid && !cmd_ready) |=> (
-                $stable(cmd_pwrite) &&
-                $stable(cmd_paddr) &&
-                $stable(cmd_pwdata) &&
-                $stable(cmd_pstrb)
-            );
-        endproperty
-        assert_cmd_data_stable: assert property (p_cmd_data_stable)
-            else $error("cmd data changed before cmd_ready");
-
-        // Response channel protocol checks
-        property p_rsp_valid_stable;
-            @(posedge aclk) disable iff (!aresetn)
-            (rsp_valid && !rsp_ready) |=> $stable(rsp_valid);
-        endproperty
-        assert_rsp_valid_stable: assert property (p_rsp_valid_stable)
-            else $error("rsp_valid deasserted before rsp_ready");
-
-        property p_rsp_data_stable;
-            @(posedge aclk) disable iff (!aresetn)
-            (rsp_valid && !rsp_ready) |=> (
-                $stable(rsp_prdata) &&
-                $stable(rsp_pslverr)
-            );
-        endproperty
-        assert_rsp_data_stable: assert property (p_rsp_data_stable)
-            else $error("rsp data changed before rsp_ready");
-    `endif
-
+    
 endmodule

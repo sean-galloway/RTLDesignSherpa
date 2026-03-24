@@ -59,7 +59,6 @@ module alloc_ctrl_beats #(
     // Debug: Check parameter values
     // ---------------------------------------------------------------------
     initial begin
-        $display("beats_alloc_ctrl: DEPTH=%0d, ADDR_WIDTH=%0d", D, AW);
     end
 
     // ---------------------------------------------------------------------
@@ -88,7 +87,6 @@ module alloc_ctrl_beats #(
                 r_wr_ptr_bin <= r_wr_ptr_bin + (AW+1)'(wr_size);
                 // Debug: Monitor allocations
                 /* verilator lint_off WIDTHEXPAND */
-                $display("ALLOC @ %t: allocated %0d beats, wr_ptr: %0d -> %0d, space_free will be %0d",
                         $time, wr_size, r_wr_ptr_bin, r_wr_ptr_bin + (AW+1)'(wr_size),
                         D - (r_wr_ptr_bin + (AW+1)'(wr_size) - r_rd_ptr_bin));
                 /* verilator lint_on WIDTHEXPAND */
@@ -116,7 +114,6 @@ module alloc_ctrl_beats #(
     always_ff @(posedge axi_aclk) begin
         if (axi_aresetn && w_read && !r_rd_empty) begin
             /* verilator lint_off WIDTHEXPAND */
-            $display("DRAIN @ %t: drained 1 beat, rd_ptr: %0d -> %0d, space_free will be %0d",
                     $time, r_rd_ptr_bin, w_rd_ptr_bin_next,
                     D - (r_wr_ptr_bin - w_rd_ptr_bin_next));
             /* verilator lint_on WIDTHEXPAND */

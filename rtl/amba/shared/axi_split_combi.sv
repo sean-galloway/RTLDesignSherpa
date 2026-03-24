@@ -236,21 +236,7 @@ module axi_split_combi #(
     `ifdef DEBUG_AXI_SPLIT
     always_ff @(posedge aclk) begin
         if (aresetn && transaction_valid && is_idle_state) begin
-            $display("=== AXI SPLIT DEBUG (NO WRAPAROUND) ===");
-            $display("current_addr = 0x%08X", current_addr);
-            $display("current_len = %0d (total beats = %0d)", current_len, current_len + 1);
-            $display("ax_size = %0d (bytes_per_beat = %0d)", ax_size, 1 << ax_size);
-            $display("alignment_mask = 0x%03X", alignment_mask);
-            $display("transaction_end_addr = 0x%08X", transaction_end_addr);
-            $display("next_boundary_addr = 0x%08X", next_boundary_addr);
-            $display("bytes_to_boundary = %0d", bytes_to_boundary);
-            $display("beats_to_boundary = %0d", beats_to_boundary);
-            $display("crosses_boundary = %0d", crosses_boundary);
-            $display("split_required = %0d", split_required);
-            $display("split_len = %0d (split beats = %0d)", split_len, split_len + 1);
-            $display("remaining_len_after_split = %0d (remaining beats = %0d)",
                         remaining_len_after_split, remaining_len_after_split + 1);
-            $display("=======================================");
         end
     end
     `endif

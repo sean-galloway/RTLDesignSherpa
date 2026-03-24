@@ -135,13 +135,6 @@ module axi4_dwidth_converter_rd #(
         if (!UPSIZE && !DOWNSIZE)
             $error("Must be either UPSIZE or DOWNSIZE mode");
 
-        $display("======================================");
-        $display("AXI4 Read Data Width Converter");
-        $display("Mode: %s", UPSIZE ? "UPSIZE" : "DOWNSIZE");
-        $display("Slave Width: %0d bits", S_AXI_DATA_WIDTH);
-        $display("Master Width: %0d bits", M_AXI_DATA_WIDTH);
-        $display("Width Ratio: %0d", WIDTH_RATIO);
-        $display("======================================");
     end
 
     //==========================================================================

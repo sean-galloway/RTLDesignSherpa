@@ -260,7 +260,6 @@ module hpet_core #(
     // ============================================================================
     `ifdef SIMULATION
         initial begin
-            $display("HPET Core instantiated with 64-bit counter, NUM_TIMERS=%0d", NUM_TIMERS);
 
             // Validate parameters
             if (NUM_TIMERS < 1 || NUM_TIMERS > 8) begin
@@ -271,7 +270,6 @@ module hpet_core #(
         // Monitor counter overflow
         always @(posedge clk) begin
             if (hpet_enable && &r_main_counter) begin
-                $display("HPET main counter overflow at time %0t", $time);
             end
         end
     `endif

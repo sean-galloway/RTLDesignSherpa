@@ -75,7 +75,6 @@ module sram_controller_unit #(
 
     // Debug: Check parameter values
     initial begin
-        $display("sram_controller_unit: SRAM_DEPTH=%0d, ADDR_WIDTH=%0d", SD, ADDR_WIDTH);
     end
 
     //==========================================================================
@@ -272,22 +271,6 @@ module sram_controller_unit #(
     //==========================================================================
 
     // Debug: Monitor data flow
-    `ifndef SYNTHESIS
-    always @(posedge clk) begin
-        if (axi_rd_sram_valid && axi_rd_sram_ready) begin
-            $display("CH_UNIT @%t: FIFO WRITE, fifo_count will be %0d -> %0d, bridge_occ=%0d, axi_wr_drain_data_avail=%0d",
-                    $time, fifo_count, fifo_count+1, bridge_occupancy, axi_wr_drain_data_avail);
-        end
-        if (fifo_rd_valid_internal && fifo_rd_ready_internal) begin
-            $display("CH_UNIT @%t: FIFO DRAIN, fifo_count will be %0d -> %0d, bridge_occ=%0d, axi_wr_drain_data_avail=%0d",
-                    $time, fifo_count, fifo_count-1, bridge_occupancy, axi_wr_drain_data_avail);
-        end
-        if (axi_wr_sram_valid && axi_wr_sram_ready) begin
-            $display("CH_UNIT @%t: OUTPUT DRAIN, fifo_count=%0d, bridge_occ=%0d, axi_wr_drain_data_avail=%0d",
-                    $time, fifo_count, bridge_occupancy, axi_wr_drain_data_avail);
-        end
-    end
-    `endif
 
     // Total data available = drain controller data + latency bridge occupancy
     // The drain controller tracks FIFO only; we must add bridge buffered data

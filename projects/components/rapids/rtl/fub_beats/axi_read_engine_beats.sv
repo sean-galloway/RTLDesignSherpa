@@ -450,9 +450,6 @@ module axi_read_engine_beats #(
                 r_rd_error[ch_id] <= 1'b1;
 
                 // Debug display for error detection
-                `ifndef SYNTHESIS
-                $display("AXI_RD_ENG @%t: ERROR on channel %0d, RRESP=%2b", $time, ch_id, m_axi_rresp);
-                `endif
             end
             // Note: Error flags are NOT auto-cleared - must be cleared by external logic
             // Scheduler can clear on channel reset or descriptor completion

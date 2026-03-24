@@ -163,7 +163,6 @@ module dataint_ecc_hamming_encode_secded #(
             end
             bit_position = pos - 1;  // Convert back to 0-based index
         end
-        if (DEBUG != 0) $display("bit_position for data bit %d is %d", k, bit_position);
     endfunction
 
     ////////////////////////////////////////////////////////////////////////////
@@ -176,8 +175,6 @@ module dataint_ecc_hamming_encode_secded #(
                 if (|(((j + 1) >> parity_bit) & 1)) get_covered_bits[j] = 1'b1;
             end
         end
-        if (DEBUG != 0)
-            $display("get_covered_bits for parity bit %d is %b", parity_bit, get_covered_bits);
     endfunction
 
     ////////////////////////////////////////////////////////////////////////////
@@ -200,7 +197,6 @@ module dataint_ecc_hamming_encode_secded #(
         // Calculate parity bits
         for (i = 0; i < ParityBits; i++) begin
             parity_pos = (2 ** i) - 1;
-            if (DEBUG != 0) $display("Calculate Parity Bits, parity bit position: %d", parity_pos);
             w_data_with_parity[parity_pos] = 1'b0;  // Initialize to 0
             w_covered_bits = get_covered_bits(i);
             for (bit_index = 0; bit_index < TotalWidth; bit_index = bit_index + 1) begin

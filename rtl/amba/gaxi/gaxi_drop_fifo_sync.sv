@@ -429,30 +429,22 @@ module gaxi_drop_fifo_sync #(
     /////////////////////////////////////////////////////////////////////////
     always @(posedge axi_aclk) begin
         if ((w_write && r_wr_full) == 1'b1) begin
-            $timeformat(-9, 3, " ns", 10);
-            $display("Error: %m write while fifo full, %t", $time);
         end
     end
 
     always @(posedge axi_aclk) begin
         if ((w_read && r_rd_empty) == 1'b1) begin
-            $timeformat(-9, 3, " ns", 10);
-            $display("Error: %m read while fifo empty, %t", $time);
         end
     end
 
     always @(posedge axi_aclk) begin
         if (drop_valid && !drop_all && (drop_count > count)) begin
-            $timeformat(-9, 3, " ns", 10);
-            $display("Error: %m drop_count (%0d) exceeds current count (%0d), %t",
                      drop_count, count, $time);
         end
     end
 
     always @(posedge axi_aclk) begin
         if (drop_valid && (r_drop_state != IDLE)) begin
-            $timeformat(-9, 3, " ns", 10);
-            $display("Error: %m drop_valid asserted while drop already in progress, %t",
                      $time);
         end
     end

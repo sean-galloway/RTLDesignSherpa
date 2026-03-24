@@ -59,7 +59,6 @@ module stream_drain_ctrl #(
     // Debug: Check parameter values
     // ---------------------------------------------------------------------
     initial begin
-        $display("stream_drain_ctrl: DEPTH=%0d, ADDR_WIDTH=%0d", D, AW);
     end
 
     // ---------------------------------------------------------------------
@@ -96,7 +95,6 @@ module stream_drain_ctrl #(
     always_ff @(posedge axi_aclk) begin
         if (axi_aresetn && w_write && !r_wr_full) begin
             /* verilator lint_off WIDTHEXPAND */
-            $display("DRAIN_CTRL @ %t: data written, wr_ptr: %0d -> %0d, data_available will be %0d",
                     $time, r_wr_ptr_bin, w_wr_ptr_bin_next,
                     w_wr_ptr_bin_next - r_rd_ptr_bin);
             /* verilator lint_on WIDTHEXPAND */

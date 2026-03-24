@@ -90,15 +90,6 @@ module axi_data_dnsize #(
         if (WIDTH_RATIO < 2)
             $error("WIDTH_RATIO must be >= 2");
 
-        $display("======================================");
-        $display("AXI Data Dnsize (Splitter)");
-        $display("Wide Width: %0d bits", WIDE_WIDTH);
-        $display("Narrow Width: %0d bits", NARROW_WIDTH);
-        $display("Width Ratio: %0d", WIDTH_RATIO);
-        $display("Sideband Mode: %s", (SB_BROADCAST != 0) ? "BROADCAST" : "SLICE");
-        $display("Burst Tracking: %s", (TRACK_BURSTS != 0) ? "ENABLED" : "DISABLED");
-        $display("Buffer Mode: %s", (DUAL_BUFFER != 0) ? "DUAL (100%% throughput)" : "SINGLE (80%% throughput)");
-        $display("======================================");
     end
 
     //==========================================================================

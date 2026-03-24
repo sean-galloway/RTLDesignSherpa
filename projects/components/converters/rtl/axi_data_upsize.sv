@@ -81,13 +81,6 @@ module axi_data_upsize #(
         if (WIDTH_RATIO < 2)
             $error("WIDTH_RATIO must be >= 2");
 
-        $display("======================================");
-        $display("AXI Data Upsize (Accumulator)");
-        $display("Narrow Width: %0d bits", NARROW_WIDTH);
-        $display("Wide Width: %0d bits", WIDE_WIDTH);
-        $display("Width Ratio: %0d", WIDTH_RATIO);
-        $display("Sideband Mode: %s", (SB_OR_MODE != 0) ? "OR" : "CONCATENATE");
-        $display("======================================");
     end
 
     //==========================================================================

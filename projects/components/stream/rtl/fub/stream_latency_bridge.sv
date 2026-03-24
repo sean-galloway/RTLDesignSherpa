@@ -185,22 +185,6 @@ module stream_latency_bridge #(
     assign occupancy = skid_count;
 
     // Debug: Track occupancy changes and backpressure decisions
-    `ifndef SYNTHESIS
-    logic [2:0] r_prev_occupancy;
-    always @(posedge clk) begin
-        r_prev_occupancy <= occupancy;
-        if (occupancy != r_prev_occupancy) begin
-            $display("BRIDGE @%t: occupancy %0d -> %0d (r_drain_ip=%0d, skid_count=%0d, s_valid=%0d, s_ready=%0d, m_valid=%0d, m_ready=%0d)",
-                    $time, r_prev_occupancy, occupancy, r_drain_ip, skid_count, s_valid, s_ready, m_valid, m_ready);
-        end
-
-        // Debug backpressure calculation when trying to write
-        if (s_valid) begin
-            $display("BRIDGE @%t: BACKPRESSURE CHECK: s_valid=%b s_ready=%b skid_count=%0d r_drain_ip=%b skid_wr_ready=%b skid_wr_valid=%b stalled=%b pending=%0d room=%b",
-                    $time, s_valid, s_ready, skid_count, r_drain_ip, skid_wr_ready, skid_wr_valid, w_write_stalled, pending_count, w_room_available);
-        end
-    end
-    `endif
 
     //=========================================================================
     // Debug Outputs (for backward compatibility)

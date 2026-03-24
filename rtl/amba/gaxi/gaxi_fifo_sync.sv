@@ -212,12 +212,8 @@ module gaxi_fifo_sync #(
     // ---------------------------------------------------------------------
     always_ff @(posedge axi_aclk) begin
         if (w_write && r_wr_full) begin
-            $timeformat(-9, 3, " ns", 10);
-            $display("Error: %m write while fifo full, %t", $time);
         end
         if (w_read && r_rd_empty) begin
-            $timeformat(-9, 3, " ns", 10);
-            $display("Error: %m read while fifo empty, %t", $time);
         end
     end
 

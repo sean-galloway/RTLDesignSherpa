@@ -62,14 +62,12 @@ module simple_rom #(
     initial begin
         if (INIT_FILE != "none" && INIT_FILE != "") begin
             $readmemh(INIT_FILE, rom_mem);
-            $display("[%t] ROM: Loaded initialization file '%s' (%0d entries)",
                      $time, INIT_FILE, ROM_DEPTH);
         end else begin
             // Initialize to zeros if no file specified
             for (int i = 0; i < ROM_DEPTH; i++) begin
                 rom_mem[i] = '0;
             end
-            $display("[%t] ROM: Initialized to zeros (%0d entries)", $time, ROM_DEPTH);
         end
     end
 

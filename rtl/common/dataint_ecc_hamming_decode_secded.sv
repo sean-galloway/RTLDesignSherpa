@@ -289,8 +289,6 @@ module dataint_ecc_hamming_decode_secded #(
                 if (|(((j + 1) >> parity_bit) & 1)) get_covered_bits[j] = 1'b1;
             end
         end
-        if (DEBUG != 0)
-            $display("get_covered_bits for parity bit %d is %b", parity_bit, get_covered_bits);
     endfunction
 
     ////////////////////////////////////////////////////////////////////////////
@@ -348,8 +346,6 @@ module dataint_ecc_hamming_decode_secded #(
                    r_data_with_parity      <= hamming_data;
                    error_detected        <= 'b0;
                    double_error_detected <= 'b0;
-                   if (DEBUG != 0)
-                       $display(
                            "w_overall_parity, w_overall_parity_in, w_syndrome %b %b %b",
                            w_overall_parity,
                            w_overall_parity_in,
@@ -365,25 +361,19 @@ module dataint_ecc_hamming_decode_secded #(
                            // Non-zero syndrome: single-bit error in Hamming data
                            // Correct the error using the syndrome
                            r_data_with_parity[w_syndrome_0_based] <= ~hamming_data[w_syndrome_0_based];
-                           if (DEBUG != 0)
-                               $display(
                                    "Single-bit error detected and corrected at position: %d",
                                    w_syndrome_0_based
                                );
                        end else begin
                            // Zero syndrome with parity mismatch: single-bit error in SECDED bit
                            // No correction needed for SECDED bit errors (they don't affect data)
-                           if (DEBUG != 0)
-                               $display("Single-bit error detected in SECDED bit (position %d)", TotalWidth-1);
                        end
                    end else if (w_syndrome != {ParityBits{1'b0}}) begin
                        // Parity matches but syndrome is non-zero: double-bit error
                        error_detected <= 1'b1;
                        double_error_detected <= 1'b1;
-                       if (DEBUG != 0) $display("Double-bit error detected.");
                    end else begin
                        // No error detected
-                       if (DEBUG != 0) $display("No error detected.");
                    end
                end
     )

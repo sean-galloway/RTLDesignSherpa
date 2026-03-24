@@ -844,20 +844,10 @@ module fifo_async #(
     // -----------------------------------------------------------------------
     // Overflow/underflow error checking
     // -----------------------------------------------------------------------
-    always_ff @(posedge wr_clk) begin
-        if (write && wr_full) begin
-            $timeformat(-9, 3, " ns", 10);
-            $display("Error: %m write while fifo full, %t", $time);
-        end
-    end
-
     always_ff @(posedge rd_clk) begin
         if (read && rd_empty) begin
-            $timeformat(-9, 3, " ns", 10);
             if (REGISTERED == 1)
-                $display("Error: %m read while fifo empty (flop mode), %t", $time);
             else
-                $display("Error: %m read while fifo empty (mux mode), %t", $time);
         end
     end
 

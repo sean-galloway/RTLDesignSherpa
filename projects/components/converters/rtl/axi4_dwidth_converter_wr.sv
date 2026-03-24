@@ -150,13 +150,6 @@ module axi4_dwidth_converter_wr #(
         if (!UPSIZE && !DOWNSIZE)
             $error("Must be either UPSIZE or DOWNSIZE mode");
 
-        $display("=== AXI4 Write Data Width Converter ===");
-        $display("Mode: %s", UPSIZE ? "UPSIZE" : "DOWNSIZE");
-        $display("Slave Width: %0d bits", S_AXI_DATA_WIDTH);
-        $display("Master Width: %0d bits", M_AXI_DATA_WIDTH);
-        $display("Width Ratio: %0d", WIDTH_RATIO);
-        $display("Skid Depths: AW=%0d W=%0d B=%0d", SKID_DEPTH_AW, SKID_DEPTH_W, SKID_DEPTH_B);
-        $display("=======================================");
     end
 
     //==========================================================================
