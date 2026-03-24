@@ -43,11 +43,11 @@ peakrdl-regblock==1.1.1
 peakrdl-systemrdl==1.0.0
 peakrdl-uvm==2.3.0
 peakrdl_markdown==1.0.2
-pillow==12.0.0
+pillow==12.1.1
 Pint==0.25
 platformdirs==4.5.0
 pluggy==1.6.0
-protobuf==5.29.5
+protobuf==5.29.6
 psutil==5.9.8
 py-markdown-table==0.3.3
 py2puml==0.10.0
@@ -68,7 +68,7 @@ pytz==2025.2
 PyYAML==6.0.3
 rich==14.2.0
 seaborn==0.13.2
-setuptools==65.5.1
+setuptools==65.7.0
 simpy==4.1.1
 six==1.17.0
 smmap==5.0.2
