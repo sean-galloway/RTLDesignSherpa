@@ -479,14 +479,4 @@ module fifo_sync
     // -----------------------------------------------------------------------
     assign rd_data = w_rd_data;
 
-    // -----------------------------------------------------------------------
-    // Overflow/underflow error checking
-    // -----------------------------------------------------------------------
-    always_ff @(posedge clk) begin
-        if (read && rd_empty) begin
-            if (REGISTERED == 1)
-            else
-        end
-    end
-
 endmodule : fifo_sync
