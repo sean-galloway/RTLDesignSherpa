@@ -85,11 +85,6 @@ module stream_alloc_ctrl #(
         end else begin
             if (w_write && !r_wr_full) begin
                 r_wr_ptr_bin <= r_wr_ptr_bin + (AW+1)'(wr_size);
-                // Debug: Monitor allocations
-                /* verilator lint_off WIDTHEXPAND */
-                        $time, wr_size, r_wr_ptr_bin, r_wr_ptr_bin + (AW+1)'(wr_size),
-                        D - (r_wr_ptr_bin + (AW+1)'(wr_size) - r_rd_ptr_bin));
-                /* verilator lint_on WIDTHEXPAND */
             end
         end
     )
@@ -110,15 +105,6 @@ module stream_alloc_ctrl #(
         .counter_bin_next (w_rd_ptr_bin_next)
     );
 
-    // Debug: Monitor drains
-    always_ff @(posedge axi_aclk) begin
-        if (axi_aresetn && w_read && !r_rd_empty) begin
-            /* verilator lint_off WIDTHEXPAND */
-                    $time, r_rd_ptr_bin, w_rd_ptr_bin_next,
-                    D - (r_wr_ptr_bin - w_rd_ptr_bin_next));
-            /* verilator lint_on WIDTHEXPAND */
-        end
-    end
 
     // ---------------------------------------------------------------------
     // Control block (full/empty, almost flags, count)

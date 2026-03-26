@@ -841,14 +841,4 @@ module fifo_async #(
     // -----------------------------------------------------------------------
     assign rd_data = w_rd_data;
 
-    // -----------------------------------------------------------------------
-    // Overflow/underflow error checking
-    // -----------------------------------------------------------------------
-    always_ff @(posedge rd_clk) begin
-        if (read && rd_empty) begin
-            if (REGISTERED == 1)
-            else
-        end
-    end
-
 endmodule : fifo_async

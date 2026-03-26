@@ -62,7 +62,6 @@ module simple_rom #(
     initial begin
         if (INIT_FILE != "none" && INIT_FILE != "") begin
             $readmemh(INIT_FILE, rom_mem);
-                     $time, INIT_FILE, ROM_DEPTH);
         end else begin
             // Initialize to zeros if no file specified
             for (int i = 0; i < ROM_DEPTH; i++) begin

@@ -346,11 +346,6 @@ module dataint_ecc_hamming_decode_secded #(
                    r_data_with_parity      <= hamming_data;
                    error_detected        <= 'b0;
                    double_error_detected <= 'b0;
-                           "w_overall_parity, w_overall_parity_in, w_syndrome %b %b %b",
-                           w_overall_parity,
-                           w_overall_parity_in,
-                           w_syndrome
-                       );
 
                    // FIXED: Proper SECDED error detection logic
                    if (w_overall_parity != w_overall_parity_in) begin
@@ -361,9 +356,6 @@ module dataint_ecc_hamming_decode_secded #(
                            // Non-zero syndrome: single-bit error in Hamming data
                            // Correct the error using the syndrome
                            r_data_with_parity[w_syndrome_0_based] <= ~hamming_data[w_syndrome_0_based];
-                                   "Single-bit error detected and corrected at position: %d",
-                                   w_syndrome_0_based
-                               );
                        end else begin
                            // Zero syndrome with parity mismatch: single-bit error in SECDED bit
                            // No correction needed for SECDED bit errors (they don't affect data)
