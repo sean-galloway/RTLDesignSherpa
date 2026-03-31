@@ -253,7 +253,7 @@ pytest "projects/components/{name}/dv/tests/test_{name}.py::test_function[params
 - [rtl/amba/](../../../rtl/amba/) - 124 AMBA protocol modules (APB, AXI4, AMBA5)
 
 ### Verification Framework
-- [bin/CocoTBFramework/](../../../bin/CocoTBFramework/) - CocoTB testbench infrastructure
+- [bin/TBClasses/](../../../bin/TBClasses/) - CocoTB testbench infrastructure
 - [CocoTB Documentation](https://docs.cocotb.org/) - External reference
 
 ### External Standards

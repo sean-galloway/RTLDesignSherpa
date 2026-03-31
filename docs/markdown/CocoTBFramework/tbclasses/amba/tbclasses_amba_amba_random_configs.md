@@ -264,7 +264,7 @@ Optimized for maximum AXI throughput.
 ### Basic Configuration Application
 
 ```python
-from CocoTBFramework.tbclasses.amba.amba_random_configs import (
+from TBClasses.amba.amba_random_configs import (
     APB_MASTER_RANDOMIZER_CONFIGS,
     APB_SLAVE_RANDOMIZER_CONFIGS,
     AXI_RANDOMIZER_CONFIGS
@@ -364,7 +364,7 @@ async def run_configuration_sweep(self, protocols=['APB', 'AXI']):
 ### Integration with Clock Gating
 
 ```python
-from CocoTBFramework.tbclasses.amba.amba_cg_ctrl import AxiClockGateCtrl
+from TBClasses.amba.amba_cg_ctrl import AxiClockGateCtrl
 
 class PowerAwareRandomTest(TBBase):
     def __init__(self, dut):

@@ -192,7 +192,7 @@ for a, b, borrow_in in itertools.product([pattern1, pattern2], [pattern1, patter
 ### Basic Subtractor Test
 ```python
 import cocotb
-from CocoTBFramework.tbclasses.common.subtractor_testing import SubtractorTB
+from TBClasses.common.subtractor_testing import SubtractorTB
 
 @cocotb.test()
 async def test_full_subtractor(dut):

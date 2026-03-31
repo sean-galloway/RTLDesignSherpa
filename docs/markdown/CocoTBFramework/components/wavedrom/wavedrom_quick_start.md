@@ -47,7 +47,7 @@ wavedrom-cli --version
 import cocotb
 from cocotb.clock import Clock
 from cocotb.triggers import RisingEdge
-from CocoTBFramework.tbclasses.wavedrom_user.gaxi import GAXIWaveDromTemplate
+from TBClasses.wavedrom_user.gaxi import GAXIWaveDromTemplate
 
 @cocotb.test()
 async def gaxi_test(dut):
@@ -89,7 +89,7 @@ async def gaxi_test(dut):
 ### APB Protocol
 
 ```python
-from CocoTBFramework.tbclasses.wavedrom_user.apb import APBWaveDromTemplate
+from TBClasses.wavedrom_user.apb import APBWaveDromTemplate
 
 @cocotb.test()
 async def apb_test(dut):
@@ -115,7 +115,7 @@ async def apb_test(dut):
 ### Step 1: Create Field Config
 
 ```python
-from CocoTBFramework.tbclasses.wavedrom_user.gaxi import get_gaxi_field_config
+from TBClasses.wavedrom_user.gaxi import get_gaxi_field_config
 
 # Define data fields
 field_config = get_gaxi_field_config(
@@ -128,7 +128,7 @@ field_config = get_gaxi_field_config(
 ### Step 2: Create WaveJSON Generator
 
 ```python
-from CocoTBFramework.tbclasses.wavedrom_user.gaxi import create_gaxi_wavejson_generator
+from TBClasses.wavedrom_user.gaxi import create_gaxi_wavejson_generator
 
 wave_generator = create_gaxi_wavejson_generator(
     field_config=field_config,
@@ -167,7 +167,7 @@ wave_solver.auto_bind_signals(
 ### Step 5: Setup Constraints
 
 ```python
-from CocoTBFramework.tbclasses.wavedrom_user.gaxi import setup_gaxi_constraints_with_boundaries
+from TBClasses.wavedrom_user.gaxi import setup_gaxi_constraints_with_boundaries
 
 setup_gaxi_constraints_with_boundaries(
     wave_solver=wave_solver,

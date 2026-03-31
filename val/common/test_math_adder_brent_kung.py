@@ -25,11 +25,11 @@ import cocotb
 from cocotb_test.simulator import run
 
 # Add repo root to path for CocoTBFramework imports
-from CocoTBFramework.tbclasses.shared.utilities import get_paths, create_view_cmd
+from TBClasses.shared.utilities import get_paths, create_view_cmd
 from conftest import get_coverage_compile_args
 
 # Import the base AdderTB class
-from CocoTBFramework.tbclasses.common.adder_testing import AdderTB
+from TBClasses.common.adder_testing import AdderTB
 
 def get_width_params():
     """Generate width parameters based on REG_LEVEL."""
@@ -132,6 +132,7 @@ def test_math_adder_brent_kung(request, n):
         "--trace",
         "--trace-structs",
         "--trace-depth", "99",
+        "-Wno-UNOPTFLAT",
     ]
 
     # Add coverage compile args if COVERAGE=1

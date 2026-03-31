@@ -966,7 +966,7 @@ When adding new components or modifying existing ones:
 ### Internal Documentation
 - `/PRD.md` - Master product requirements
 - `/CLAUDE.md` - Repository-wide guidance
-- `bin/CocoTBFramework/` - Reusable verification infrastructure
+- `bin/TBClasses/` - Reusable verification infrastructure
 - `docs/` - Design guides and reports
 
 ### External Standards
@@ -1057,4 +1057,4 @@ make help                        # Show all available targets
 - **← Back to Root:** [`/README.md`](../../README.md)
 - **Master PRD:** [`/PRD.md`](../../PRD.md)
 - **Repository Guide:** [`/CLAUDE.md`](../../CLAUDE.md)
-- **CocoTB Framework:** [`bin/CocoTBFramework/`](../../bin/CocoTBFramework/)
+- **CocoTB Framework:** [`bin/TBClasses/`](../../bin/TBClasses/)

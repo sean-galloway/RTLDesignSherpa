@@ -451,7 +451,7 @@ gaxi_fifo_async #(
 
 - RTL: `rtl/amba/gaxi/`
 - Tests: `val/amba/test_gaxi*.py`
-- Framework: `bin/CocoTBFramework/components/gaxi/`
+- Framework: `bin/TBClasses/components/gaxi/`
 
 ---
 

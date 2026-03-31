@@ -86,7 +86,7 @@ coverage_report_target = "coverage-report"
 sub_areas = ["fub", "macro", "top"]
 
 # --- RAPIDS ---
-# Root Makefile delegates to fub/, fub_beats/, macro/, macro_beats/, macro_beats_tests/.
+# Root Makefile delegates to fub/, fub_beats/, macro/, macro_beats/.
 [env.rapids]
 description = "RAPIDS descriptor-driven accelerator"
 directory = "projects/components/rapids/dv/tests"
@@ -94,7 +94,7 @@ coverage = true
 coverage_extra_env = { COVERAGE_LEGAL = "1" }
 coverage_target = "coverage-full-report"
 coverage_report_target = "coverage-report"
-sub_areas = ["fub", "fub_beats", "macro", "macro_beats", "macro_beats_tests"]
+sub_areas = ["fub", "fub_beats", "macro", "macro_beats"]
 
 # --- Bridge ---
 [env.bridge]

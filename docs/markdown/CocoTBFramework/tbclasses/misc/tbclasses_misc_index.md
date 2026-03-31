@@ -52,8 +52,8 @@ CocoTBFramework/tbclasses/misc/
 
 ### Basic Testbench Setup
 ```python
-from CocoTBFramework.tbclasses.misc.tbbase import TBBase
-from CocoTBFramework.tbclasses.misc.utilities import get_paths
+from TBClasses.misc.tbbase import TBBase
+from TBClasses.misc.utilities import get_paths
 
 # Set up paths and create testbench
 module, repo_root, tests_dir, log_dir, paths = get_paths({
@@ -69,7 +69,7 @@ class MyTestbench(TBBase):
 
 ### Advanced Monitoring Integration
 ```python
-from CocoTBFramework.tbclasses.misc.advanced_monitoring import advanced_monitoring
+from TBClasses.misc.advanced_monitoring import advanced_monitoring
 
 @cocotb.test()
 async def test_with_monitoring(dut):
@@ -83,7 +83,7 @@ async def test_with_monitoring(dut):
 
 ### Monitor Bus Setup
 ```python
-from CocoTBFramework.tbclasses.misc.monbus_components import create_monbus_master, create_monbus_slave
+from TBClasses.misc.monbus_components import create_monbus_master, create_monbus_slave
 
 # Create monitor bus components
 master = create_monbus_master(dut, unit_id=9, agent_id=99)
@@ -156,7 +156,7 @@ graph TB
 
 ### Complete Testbench Integration
 ```python
-from CocoTBFramework.tbclasses.misc import TBBase, advanced_monitoring, create_monbus_master
+from TBClasses.misc import TBBase, advanced_monitoring, create_monbus_master
 
 class ComprehensiveTestbench(TBBase):
     def __init__(self, dut):

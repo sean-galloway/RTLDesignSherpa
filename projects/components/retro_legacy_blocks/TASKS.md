@@ -62,7 +62,7 @@ Fixed Timer 2 and higher-numbered timers not firing in multi-timer configuration
 The 64-bit Counter test (hpet_tests_medium.py:176-230) writes test values to counter (0xDEADBEEF, 0xFFFFFFF0) but didn't reset counter to 0 at end of test. Subsequent Multiple Timers test started with counter at 0xFFFFFFF0DEADBEEF instead of 0, causing Timer 2 (period=700) to never reach its fire condition.
 
 **Location:**
-- File: `bin/CocoTBFramework/tbclasses/amba/apb_hpet/hpet_tests_medium.py`
+- File: `bin/TBClasses/amba/apb_hpet/hpet_tests_medium.py`
 - Lines: 220-222 (counter cleanup added)
 - Lines: 356 (timeout increased)
 
@@ -87,7 +87,7 @@ timeout = 20000  # 20us timeout - Timer 2 needs 7000ns, allow extra margin
 - ✅ Test passes reliably with 20µs timeout
 
 **Related Files:**
-- ✅ Fixed: `bin/CocoTBFramework/tbclasses/amba/apb_hpet/hpet_tests_medium.py`
+- ✅ Fixed: `bin/TBClasses/amba/apb_hpet/hpet_tests_medium.py`
 - ✅ Updated: `projects/components/apb_hpet/docs/IMPLEMENTATION_STATUS.md`
 - ✅ Documented: `projects/components/apb_hpet/CLAUDE.md` (Rule #1: Timer Cleanup is MANDATORY)
 
@@ -117,7 +117,7 @@ timeout = 20000  # 20us timeout - Timer 2 needs 7000ns, allow extra margin
 Fix minor timeout issue in 8-timer non-CDC "All Timers Stress" test. Timer 6 and Timer 7 need more time to fire due to later periods. Same issue pattern as TASK-001, same solution.
 
 **Location:**
-- File: `bin/CocoTBFramework/tbclasses/amba/apb_hpet/hpet_tests_full.py`
+- File: `bin/TBClasses/amba/apb_hpet/hpet_tests_full.py`
 - Test: `test_all_timers_stress`
 - Issue: Timeout insufficient for Timer 6 and Timer 7
 
@@ -147,7 +147,7 @@ timeout = 100000  # 100us timeout - allow time for all 8 timers
 4. Update: IMPLEMENTATION_STATUS.md with new results
 
 **Related Files:**
-- Update: `bin/CocoTBFramework/tbclasses/amba/apb_hpet/hpet_tests_full.py`
+- Update: `bin/TBClasses/amba/apb_hpet/hpet_tests_full.py`
 - Update: `projects/components/apb_hpet/docs/IMPLEMENTATION_STATUS.md`
 
 **Dependencies:** None
@@ -210,7 +210,7 @@ field comparator_lo {
 **Related Files:**
 - Modify: `rtl/peakrdl/hpet_regs.rdl`
 - Regenerate: `rtl/hpet_regs.sv`, `rtl/hpet_regs_pkg.sv`
-- Update: `bin/CocoTBFramework/tbclasses/amba/apb_hpet/hpet_tests_basic.py`
+- Update: `bin/TBClasses/amba/apb_hpet/hpet_tests_basic.py`
 
 **Dependencies:** None
 
@@ -273,7 +273,7 @@ assign legacy_irq8 = cfg_legacy_mapping ? timer_irq[1] : 1'b0;
 **Related Files:**
 - Modify: `rtl/hpet_core.sv`
 - Update: `rtl/peakrdl/hpet_regs.rdl`
-- Create: `bin/CocoTBFramework/tbclasses/amba/apb_hpet/hpet_tests_legacy.py`
+- Create: `bin/TBClasses/amba/apb_hpet/hpet_tests_legacy.py`
 
 **Dependencies:** None
 
@@ -348,7 +348,7 @@ assign hwif.hpet_counter_hi.value = r_counter_latched ?
 
 **Related Files:**
 - Modify: `rtl/hpet_config_regs.sv`
-- Create: Test in `bin/CocoTBFramework/tbclasses/amba/apb_hpet/hpet_tests_medium.py`
+- Create: Test in `bin/TBClasses/amba/apb_hpet/hpet_tests_medium.py`
 
 **Dependencies:** None
 

@@ -14,7 +14,7 @@ sys.path.insert(0, repo_root)
 
 import cocotb
 from cocotb.triggers import RisingEdge, ClockCycles
-from CocoTBFramework.tbclasses.shared.tbbase import TBBase
+from TBClasses.shared.tbbase import TBBase
 from CocoTBFramework.components.gaxi.gaxi_master import GAXIMaster
 from CocoTBFramework.components.gaxi.gaxi_slave import GAXISlave
 from CocoTBFramework.components.axi4.axi4_field_configs import AXI4FieldConfigHelper

@@ -90,5 +90,5 @@ Legend: S=Start, Sr=Repeated Start, A=ACK, N=NACK, P=Stop
 
 - **SMBus RTL:** `rtl/smbus/apb_smbus.sv`
 - **SMBus Testbench:** `dv/tbclasses/smbus/smbus_tb.py`
-- **Constraint Class:** `bin/CocoTBFramework/tbclasses/wavedrom_user/smbus.py`
+- **Constraint Class:** `bin/TBClasses/wavedrom_user/smbus.py`
 - **SMBus Spec:** System Management Bus (SMBus) Specification Version 3.0

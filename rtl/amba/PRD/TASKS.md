@@ -142,7 +142,7 @@ Run comprehensive validation of all four AXI4 monitor wrappers to ensure proper 
 
 **Completed Work:**
 ✅ All 4 AXI4 monitors have comprehensive validation via reusable testbench classes
-✅ Test infrastructure in `bin/CocoTBFramework/tbclasses/axi4/monitor/`:
+✅ Test infrastructure in `bin/TBClasses/axi4/monitor/`:
   - `AXI4MasterMonitorTB` - Reusable master monitor testbench
   - `AXI4SlaveMonitorTB` - Reusable slave monitor testbench
 
@@ -361,8 +361,8 @@ Comprehensive validation of all AXI4-Lite monitor wrappers using the same proven
 
 **Completed Work:**
 ✅ **Test Infrastructure Created:**
-  - Created `AXIL4MasterMonitorTB` in `bin/CocoTBFramework/tbclasses/axil4/monitor/axil4_master_monitor_tb.py`
-  - Created `AXIL4SlaveMonitorTB` in `bin/CocoTBFramework/tbclasses/axil4/monitor/axil4_slave_monitor_tb.py`
+  - Created `AXIL4MasterMonitorTB` in `bin/TBClasses/axil4/monitor/axil4_master_monitor_tb.py`
+  - Created `AXIL4SlaveMonitorTB` in `bin/TBClasses/axil4/monitor/axil4_slave_monitor_tb.py`
   - Both classes follow proven AXI4 monitor pattern with AXIL simplifications
   - Integrated MonbusSlave for packet collection and validation
   - Used existing AXIL4 BFM infrastructure via factory functions
@@ -397,9 +397,9 @@ Comprehensive validation of all AXI4-Lite monitor wrappers using the same proven
 - ✅ Faster test execution (~3-5µs vs AXI4's longer burst tests)
 
 **Files Created:**
-- `bin/CocoTBFramework/tbclasses/axil4/monitor/axil4_master_monitor_tb.py` (368 lines)
-- `bin/CocoTBFramework/tbclasses/axil4/monitor/axil4_slave_monitor_tb.py` (368 lines)
-- `bin/CocoTBFramework/tbclasses/axil4/monitor/__init__.py` (module init)
+- `bin/TBClasses/axil4/monitor/axil4_master_monitor_tb.py` (368 lines)
+- `bin/TBClasses/axil4/monitor/axil4_slave_monitor_tb.py` (368 lines)
+- `bin/TBClasses/axil4/monitor/__init__.py` (module init)
 - `val/amba/test_axil4_master_rd_mon.py` (thin test runner)
 - `val/amba/test_axil4_master_wr_mon.py` (thin test runner)
 - `val/amba/test_axil4_slave_rd_mon.py` (thin test runner)
@@ -838,7 +838,7 @@ module ...
 **Resources:**
 - **Waveform Pattern:** docs/markdown/RTLAmba/apb/apb_slave.md (reference)
 - **Test Pattern:** val/amba/test_apb_slave_wavedrom.py
-- **Constraint Pattern:** bin/CocoTBFramework/tbclasses/wavedrom_user/apb.py
+- **Constraint Pattern:** bin/TBClasses/wavedrom_user/apb.py
 - **Existing Waveforms:** docs/markdown/assets/WAVES/
 
 **Priority Justification:**
@@ -1100,7 +1100,7 @@ APB monitor is **fully functional** and ready for WaveDrom integration (TASK-017
 Add minimal WaveDrom timing diagram generation to APB monitor tests, following the GAXI pattern. Generate clean waveforms showing key APB protocol scenarios.
 
 **Completed Work:**
-- ✅ Created APB constraints file (bin/CocoTBFramework/tbclasses/wavedrom_user/apb.py) with comprehensive protocol support
+- ✅ Created APB constraints file (bin/TBClasses/wavedrom_user/apb.py) with comprehensive protocol support
 - ✅ Added WaveDrom test functions to test_apb_master.py, test_apb_slave.py, test_apb_slave_cdc.py
 - ✅ Generated 17 WaveJSON files across 3 APB test types
 - ✅ Created documentation (docs/markdown/assets/WAVES/*/README.md)

@@ -50,8 +50,8 @@ from cocotb.triggers import RisingEdge, ClockCycles
 from cocotb_test.simulator import run
 
 # Import path utilities
-from CocoTBFramework.tbclasses.shared.utilities import get_paths, create_view_cmd
-from CocoTBFramework.tbclasses.shared.filelist_utils import get_sources_from_filelist
+from TBClasses.shared.utilities import get_paths, create_view_cmd
+from TBClasses.shared.filelist_utils import get_sources_from_filelist
 from conftest import get_coverage_compile_args
 
 ##############################################################################

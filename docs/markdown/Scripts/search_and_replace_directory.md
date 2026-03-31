@@ -110,7 +110,7 @@ Update import statements across Python test files:
 python3 bin/search_and_replace_directory.py \
     val/amba \
     "from tbclasses\.(\w+) import" \
-    "from CocoTBFramework.tbclasses.\1 import" \
+    "from TBClasses.\1 import" \
     --file-extensions .py
 ```
 
@@ -302,7 +302,7 @@ Update Python import paths after reorganization:
 python3 bin/search_and_replace_directory.py \
     val \
     "from tbclasses import" \
-    "from CocoTBFramework.tbclasses import" \
+    "from TBClasses import" \
     --file-extensions .py
 ```
 

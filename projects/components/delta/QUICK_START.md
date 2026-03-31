@@ -211,7 +211,7 @@ verilator --lint-only rtl/delta_axis_flat_4x16.sv
 # ... synthesis script ...
 
 # Create CocoTB testbench
-# (following patterns in bin/CocoTBFramework/)
+# (following patterns in bin/TBClasses/)
 ```
 
 **Timeline:** Immediate RTL, 1-2 days for verification

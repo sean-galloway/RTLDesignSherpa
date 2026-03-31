@@ -26,11 +26,11 @@ from cocotb_test.simulator import run
 from conftest import get_coverage_compile_args
 
 # Add repo root to path for CocoTBFramework imports
-from CocoTBFramework.tbclasses.shared.utilities import get_paths, create_view_cmd
-from CocoTBFramework.tbclasses.shared.filelist_utils import get_sources_from_filelist
+from TBClasses.shared.utilities import get_paths, create_view_cmd
+from TBClasses.shared.filelist_utils import get_sources_from_filelist
 
 # Import the base SubtractorTB class
-from CocoTBFramework.tbclasses.common.subtractor_testing import SubtractorTB
+from TBClasses.common.subtractor_testing import SubtractorTB
 
 def get_width_params():
     """Generate width parameters based on REG_LEVEL."""

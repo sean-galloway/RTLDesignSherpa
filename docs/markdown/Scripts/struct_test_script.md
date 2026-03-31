@@ -448,7 +448,7 @@ python3 ../../bin/struct_test_script.py rtl/include/structs.sv my_struct
 
 - **Python 3.6+**: For pathlib and type hints
 - **CocoTBFramework**: Must be in Python path (../../bin)
-- **Struct utilities module**: CocoTBFramework.tbclasses.misc.utilities
+- **Struct utilities module**: TBClasses.misc.utilities
 
 ### Standard Library
 
@@ -521,7 +521,7 @@ This test script validates the infrastructure used by CocoTB testbenches:
 Example testbench usage after validation:
 ```python
 # In testbench code (after running struct_test_script.py to verify)
-from CocoTBFramework.tbclasses.misc.utilities import extract_struct_for_test
+from TBClasses.misc.utilities import extract_struct_for_test
 
 struct_info = extract_struct_for_test(
     struct_file='rtl/amba/testcode/include/buffer_field_struct.sv',

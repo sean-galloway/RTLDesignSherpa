@@ -15,7 +15,7 @@ This document consolidates all **MANDATORY** requirements found across repositor
 - `projects/components/CLAUDE.md`
 - `projects/components/rapids/CLAUDE.md`
 - `projects/components/stream/CLAUDE.md`
-- `bin/CocoTBFramework/CLAUDE.md`
+- `bin/TBClasses/CLAUDE.md`
 - `rtl/amba/CLAUDE.md`
 - `rtl/common/CLAUDE.md`
 
@@ -157,7 +157,7 @@ module simple_sram #(
 projects/components/{name}/dv/tbclasses/{module}_tb.py
 
 ❌ WRONG:
-bin/CocoTBFramework/tbclasses/{name}/{module}_tb.py
+bin/TBClasses/{name}/{module}_tb.py
 ```
 
 **Import Pattern:**
@@ -171,7 +171,7 @@ sys.path.insert(0, repo_root)
 from projects.components.rapids.dv.tbclasses.scheduler_tb import SchedulerTB
 
 # Shared framework utilities
-from CocoTBFramework.tbclasses.shared.tbbase import TBBase
+from TBClasses.shared.tbbase import TBBase
 from CocoTBFramework.components.axi4.axi4_master import AXI4Master
 ```
 
@@ -226,7 +226,7 @@ class MyModuleTB(TBBase):
 
 **Pattern:**
 ```python
-from CocoTBFramework.tbclasses.shared.tbbase import TBBase
+from TBClasses.shared.tbbase import TBBase
 
 class MyModuleTB(TBBase):
     def __init__(self, dut):
@@ -258,7 +258,7 @@ class MyModuleTB(TBBase):
    - Base test methods
    - NO verification logic
 
-2. **Scoreboard:** `bin/CocoTBFramework/scoreboards/{protocol}/{module}_scoreboard.py`
+2. **Scoreboard:** `bin/TBClasses/scoreboards/{protocol}/{module}_scoreboard.py`
    - Verification logic
    - Expected vs actual comparison
    - Coverage collection
@@ -448,10 +448,10 @@ self.log.info(f"Beat {i} completed")
 find rtl/{subsystem}/ -name "*.sv" | xargs grep -l "keyword"
 
 # Search for existing BFMs
-find bin/CocoTBFramework/components/ -name "*.py" | xargs grep -l "class.*BFM"
+find bin/TBClasses/components/ -name "*.py" | xargs grep -l "class.*BFM"
 
 # Search for existing TB classes
-find bin/CocoTBFramework/tbclasses/ -name "*_tb.py"
+find bin/TBClasses/ -name "*_tb.py"
 ```
 
 **Decision Tree:**
@@ -470,10 +470,10 @@ find bin/CocoTBFramework/tbclasses/ -name "*_tb.py"
 **Requirement:** MUST use framework BFMs for all protocol interfaces
 
 **BFM Selection:**
-- **Custom valid/ready:** GAXI Master/Slave (`bin/CocoTBFramework/components/gaxi/`)
-- **AXI4:** AXI4 Master/Slave (`bin/CocoTBFramework/components/axi4/`)
-- **APB:** APB drivers (`bin/CocoTBFramework/components/apb/`)
-- **AXI-Stream:** AXIS drivers (`bin/CocoTBFramework/components/axis4/`)
+- **Custom valid/ready:** GAXI Master/Slave (`bin/TBClasses/components/gaxi/`)
+- **AXI4:** AXI4 Master/Slave (`bin/TBClasses/components/axi4/`)
+- **APB:** APB drivers (`bin/TBClasses/components/apb/`)
+- **AXI-Stream:** AXIS drivers (`bin/TBClasses/components/axis4/`)
 
 **NEVER:**
 - ❌ Manually drive valid/ready handshakes
@@ -659,7 +659,7 @@ Use this checklist when creating new RTL or testbenches:
 - `/CLAUDE.md` - Repository-wide guidance
 - `/PRD.md` - Master requirements
 - `projects/components/CLAUDE.md` - Project area standards
-- `bin/CocoTBFramework/CLAUDE.md` - Framework patterns
+- `bin/TBClasses/CLAUDE.md` - Framework patterns
 
 **Subsystem Documentation:**
 - `projects/components/rapids/CLAUDE.md` - RAPIDS guidance

@@ -236,7 +236,7 @@ Stress testing with intensive multi-signal patterns.
 ```python
 import cocotb
 import os
-from CocoTBFramework.tbclasses.fifo.fifo_buffer_multi import FifoMultiBufferTB
+from TBClasses.fifo.fifo_buffer_multi import FifoMultiBufferTB
 
 @cocotb.test()
 async def test_multi_signal_fifo(dut):

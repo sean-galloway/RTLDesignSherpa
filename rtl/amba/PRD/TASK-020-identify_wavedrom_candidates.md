@@ -272,8 +272,8 @@ val/integ_amba/   # Integration tests
 - `val/integ_amba/` - Integration tests
 
 **Framework:**
-- `bin/CocoTBFramework/components/wavedrom/`
-- `bin/CocoTBFramework/tbclasses/wavedrom_user/`
+- `bin/TBClasses/components/wavedrom/`
+- `bin/TBClasses/wavedrom_user/`
 
 ## Related Tasks
 

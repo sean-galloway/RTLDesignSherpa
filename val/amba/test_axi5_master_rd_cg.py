@@ -29,10 +29,10 @@ from cocotb_test.simulator import run
 from conftest import get_coverage_compile_args
 from cocotb.triggers import RisingEdge, Timer
 
-from CocoTBFramework.tbclasses.shared.tbbase import TBBase
-from CocoTBFramework.tbclasses.shared.utilities import get_paths, create_view_cmd
-from CocoTBFramework.tbclasses.amba.amba_cg_ctrl import AxiClockGateCtrl
-from CocoTBFramework.tbclasses.axi5.axi5_master_read_tb import AXI5MasterReadTB
+from TBClasses.shared.tbbase import TBBase
+from TBClasses.shared.utilities import get_paths, create_view_cmd
+from TBClasses.amba.amba_cg_ctrl import AxiClockGateCtrl
+from TBClasses.axi5.axi5_master_read_tb import AXI5MasterReadTB
 
 
 class AXI5MasterReadCGTB(AXI5MasterReadTB):

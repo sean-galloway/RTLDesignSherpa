@@ -61,14 +61,14 @@ Custom Verification IP Architecture:
 │ Custom Components (BFMs, Drivers, Monitors)         │
 │   - Protocol-specific implementations               │
 │   - Extend GAXI base classes                        │
-│   - Located in bin/CocoTBFramework/components/      │
+│   - Located in bin/TBClasses/components/      │
 └─────────────────────────────────────────────────────┘
                          ↓
 ┌─────────────────────────────────────────────────────┐
 │ Framework Base Classes                              │
 │   - TBBase (testbench utilities)                    │
 │   - GAXI components (protocol infrastructure)       │
-│   - Located in bin/CocoTBFramework/tbclasses/shared/│
+│   - Located in bin/TBClasses/shared/│
 └─────────────────────────────────────────────────────┘
 ```
 
@@ -89,7 +89,7 @@ All custom testbench classes should inherit from `TBBase`, which provides clock 
 ### Basic TBBase Extension
 
 ```python
-from CocoTBFramework.tbclasses.shared.tbbase import TBBase
+from TBClasses.shared.tbbase import TBBase
 import cocotb
 from cocotb.triggers import RisingEdge
 
@@ -582,7 +582,7 @@ class CustomProtocolMaster:
 @cocotb.test()
 async def test_custom_protocol(dut):
     """Test custom protocol driver."""
-    from CocoTBFramework.tbclasses.shared.tbbase import TBBase
+    from TBClasses.shared.tbbase import TBBase
 
     tb = TBBase(dut)
     await tb.start_clock('clk', freq=10, units='ns')
@@ -763,7 +763,7 @@ class CustomPacketDriver:
 @cocotb.test()
 async def test_custom_packets(dut):
     """Test custom packet transmission."""
-    from CocoTBFramework.tbclasses.shared.tbbase import TBBase
+    from TBClasses.shared.tbbase import TBBase
     from CocoTBFramework.components.axis4.axis4_master import AXIS4Master
     from CocoTBFramework.components.axis4.axis4_slave import AXIS4Slave
 
@@ -1016,7 +1016,7 @@ class TransactionMonitor:
 @cocotb.test()
 async def test_with_monitor(dut):
     """Test with transaction monitoring."""
-    from CocoTBFramework.tbclasses.shared.tbbase import TBBase
+    from TBClasses.shared.tbbase import TBBase
 
     tb = TBBase(dut)
     await tb.start_clock('clk', freq=10, units='ns')
@@ -1165,7 +1165,7 @@ class QueueScoreboard:
 @cocotb.test()
 async def test_with_scoreboard(dut):
     """Test with scoreboard verification."""
-    from CocoTBFramework.tbclasses.shared.tbbase import TBBase
+    from TBClasses.shared.tbbase import TBBase
 
     tb = TBBase(dut)
     await tb.start_clock('clk', freq=10, units='ns')
@@ -1320,7 +1320,7 @@ class ComponentFactory:
 @cocotb.test()
 async def test_with_factory(dut):
     """Test using component factory."""
-    from CocoTBFramework.tbclasses.shared.tbbase import TBBase
+    from TBClasses.shared.tbbase import TBBase
 
     tb = TBBase(dut)
     await tb.start_clock('aclk', freq=10, units='ns')

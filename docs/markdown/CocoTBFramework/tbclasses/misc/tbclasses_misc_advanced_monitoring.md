@@ -281,7 +281,7 @@ Primary interface providing context manager for easy test monitoring integration
 **Returns:** Monitor context object with checkpoint and metrics methods
 
 ```python
-from CocoTBFramework.tbclasses.misc.advanced_monitoring import advanced_monitoring
+from TBClasses.misc.advanced_monitoring import advanced_monitoring
 
 @cocotb.test()
 async def monitored_test(dut):
@@ -361,8 +361,8 @@ with advanced_monitoring("test") as monitor:
 Example integration showing how to combine advanced monitoring with TBBase infrastructure.
 
 ```python
-from CocoTBFramework.tbclasses.misc.tbbase import TBBase
-from CocoTBFramework.tbclasses.misc.advanced_monitoring import advanced_monitoring
+from TBClasses.misc.tbbase import TBBase
+from TBClasses.misc.advanced_monitoring import advanced_monitoring
 
 class MonitoringTBBase(TBBase):
     """Testbench base class with integrated advanced monitoring"""
@@ -411,7 +411,7 @@ class MonitoringTBBase(TBBase):
 
 ```python
 import cocotb
-from CocoTBFramework.tbclasses.misc.advanced_monitoring import advanced_monitoring
+from TBClasses.misc.advanced_monitoring import advanced_monitoring
 
 @cocotb.test()
 async def basic_monitored_test(dut):

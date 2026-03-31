@@ -45,8 +45,8 @@ from conftest import get_coverage_compile_args
 import pytest
 
 # Add repo root to path for CocoTBFramework imports
-from CocoTBFramework.tbclasses.shared.tbbase import TBBase
-from CocoTBFramework.tbclasses.shared.utilities import get_paths, create_view_cmd
+from TBClasses.shared.tbbase import TBBase
+from TBClasses.shared.utilities import get_paths, create_view_cmd
 
 # Import WaveDrom components
 from CocoTBFramework.components.wavedrom.constraint_solver import (

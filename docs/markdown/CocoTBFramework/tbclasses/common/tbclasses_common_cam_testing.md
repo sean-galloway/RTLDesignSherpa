@@ -196,7 +196,7 @@ async def cleanup_cam(self):
 ### Basic CAM Test
 ```python
 import cocotb
-from CocoTBFramework.tbclasses.common.cam_testing import CamTB
+from TBClasses.common.cam_testing import CamTB
 
 @cocotb.test()
 async def test_cam_basic(dut):

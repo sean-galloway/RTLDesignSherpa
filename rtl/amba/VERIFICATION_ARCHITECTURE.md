@@ -16,7 +16,7 @@ This code will be instantiated in **DOZENS** of places. Embedding TB logic in te
 ## Required File Structure
 
 ```
-bin/CocoTBFramework/tbclasses/
+bin/TBClasses/
 ├── axi4/
 │   ├── axi4_master_read_tb.py      ← REUSABLE TB CLASS
 │   ├── axi4_master_write_tb.py     ← REUSABLE TB CLASS
@@ -49,7 +49,7 @@ val/amba/
 
 ### Test Runner (val/amba/test_*.py) - ONLY DOES:
 
-1. ✅ Import testbench class from `bin/CocoTBFramework/tbclasses/`
+1. ✅ Import testbench class from `bin/TBClasses/`
 2. ✅ Define pytest parameter matrix
 3. ✅ Configure RTL sources list
 4. ✅ Set RTL parameters
@@ -57,7 +57,7 @@ val/amba/
 
 **THAT'S IT. NOTHING ELSE.**
 
-### Testbench Class (bin/CocoTBFramework/tbclasses/) - DOES:
+### Testbench Class (bin/TBClasses/) - DOES:
 
 1. ✅ DUT signal initialization
 2. ✅ Clock and reset management
@@ -74,9 +74,9 @@ val/amba/
 ### Testbench Class (REUSABLE)
 
 ```python
-# bin/CocoTBFramework/tbclasses/axi4/axi4_master_read_tb.py
+# bin/TBClasses/axi4/axi4_master_read_tb.py
 
-from CocoTBFramework.tbclasses.shared.tbbase import TBBase
+from TBClasses.shared.tbbase import TBBase
 from cocotb.triggers import RisingEdge
 import os
 
@@ -143,7 +143,7 @@ import cocotb
 from cocotb_test.simulator import run
 
 # IMPORT THE REUSABLE TB CLASS
-from CocoTBFramework.tbclasses.axi4.axi4_master_read_tb import AXI4MasterReadTB
+from TBClasses.axi4.axi4_master_read_tb import AXI4MasterReadTB
 
 @cocotb.test()
 async def axi4_master_read_test(dut):
@@ -233,25 +233,25 @@ async def axi4_monitor_test(dut):
 
 1. **Unit Testing** (`val/amba/test_*.py`)
    ```python
-   from CocoTBFramework.tbclasses.axi4.axi4_master_read_tb import AXI4MasterReadTB
+   from TBClasses.axi4.axi4_master_read_tb import AXI4MasterReadTB
    tb = AXI4MasterReadTB(dut)
    ```
 
 2. **Integration Testing** (`val/system/test_interconnect.py`)
    ```python
-   from CocoTBFramework.tbclasses.axi4.axi4_master_read_tb import AXI4MasterReadTB
+   from TBClasses.axi4.axi4_master_read_tb import AXI4MasterReadTB
    master_tb = AXI4MasterReadTB(dut.master0)
    ```
 
 3. **System Testing** (`val/soc/test_full_soc.py`)
    ```python
-   from CocoTBFramework.tbclasses.axi4.axi4_master_read_tb import AXI4MasterReadTB
+   from TBClasses.axi4.axi4_master_read_tb import AXI4MasterReadTB
    cpu_master = AXI4MasterReadTB(dut.soc.cpu.m_axi)
    ```
 
 4. **Composition** (Extending TBs)
    ```python
-   from CocoTBFramework.tbclasses.axi4.axi4_master_read_tb import AXI4MasterReadTB
+   from TBClasses.axi4.axi4_master_read_tb import AXI4MasterReadTB
 
    class AXI4MasterReadCGTB(AXI4MasterReadTB):
        """Adds clock gating support to base TB"""
@@ -263,7 +263,7 @@ async def axi4_monitor_test(dut):
 5. **External Projects**
    ```python
    # User's project imports your TB
-   from rtldesignsherpa.CocoTBFramework.tbclasses.axi4 import AXI4MasterReadTB
+   from rtldesignsherpa.TBClasses.axi4 import AXI4MasterReadTB
    ```
 
 **If TB is in test file, NONE of these work!**
@@ -274,13 +274,13 @@ async def axi4_monitor_test(dut):
 
 Before ANY test submission:
 
-- [ ] Testbench class exists in `bin/CocoTBFramework/tbclasses/[protocol]/`
+- [ ] Testbench class exists in `bin/TBClasses/[protocol]/`
 - [ ] Test file imports TB (not defines it inline)
 - [ ] TB class inherits from `TBBase`
 - [ ] TB has no test-specific hardcoded parameters
 - [ ] TB reads config from environment variables or kwargs
 - [ ] Test runner only has pytest params and `run()` call
-- [ ] TB can be imported: `from CocoTBFramework.tbclasses... import ...`
+- [ ] TB can be imported: `from TBClasses... import ...`
 
 ---
 
@@ -288,10 +288,10 @@ Before ANY test submission:
 
 **Working examples to copy:**
 
-- `bin/CocoTBFramework/tbclasses/axi4/axi4_master_read_tb.py`
-- `bin/CocoTBFramework/tbclasses/axi4/axi4_master_write_tb.py`
-- `bin/CocoTBFramework/tbclasses/apb_monitor/apb_monitor_core_tb.py`
-- `bin/CocoTBFramework/tbclasses/axi4/monitor/axi_monitor_config_tb.py`
+- `bin/TBClasses/axi4/axi4_master_read_tb.py`
+- `bin/TBClasses/axi4/axi4_master_write_tb.py`
+- `bin/TBClasses/apb_monitor/apb_monitor_core_tb.py`
+- `bin/TBClasses/axi4/monitor/axi_monitor_config_tb.py`
 
 **Working test runners:**
 
@@ -305,12 +305,12 @@ Before ANY test submission:
 
 **If you have embedded TB in test file:**
 
-1. Create new file: `bin/CocoTBFramework/tbclasses/[protocol]/[module]_tb.py`
+1. Create new file: `bin/TBClasses/[protocol]/[module]_tb.py`
 2. Move TB class to new file
 3. Add `__init__.py` if needed
-4. Update test file to import TB: `from CocoTBFramework.tbclasses... import ...`
+4. Update test file to import TB: `from TBClasses... import ...`
 5. Remove old TB class definition from test file
-6. Test import works: `python -c "from CocoTBFramework.tbclasses... import ..."`
+6. Test import works: `python -c "from TBClasses... import ..."`
 7. Run tests to verify
 
 ---
@@ -336,7 +336,7 @@ If testbench is embedded in test file:
 See:
 - `CLAUDE.md` Rule #0 - AI assistance guidance
 - `PRD.md` Section 6.1 - Verification architecture requirements
-- Working examples in `bin/CocoTBFramework/tbclasses/`
+- Working examples in `bin/TBClasses/`
 
 **No exceptions to this rule.**
 

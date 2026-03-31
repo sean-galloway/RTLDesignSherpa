@@ -70,7 +70,7 @@ APBGAXIConfig(addr_width=32, data_width=32, strb_width=None)
 
 **Basic Creation**:
 ```python
-from CocoTBFramework.tbclasses.apb.apbgaxiconfig import APBGAXIConfig
+from TBClasses.apb.apbgaxiconfig import APBGAXIConfig
 
 # Default 32-bit configuration
 config = APBGAXIConfig()
@@ -172,7 +172,7 @@ The response interface configuration typically includes:
 ### Basic Configuration Setup
 
 ```python
-from CocoTBFramework.tbclasses.apb.apbgaxiconfig import APBGAXIConfig
+from TBClasses.apb.apbgaxiconfig import APBGAXIConfig
 
 @cocotb.test()
 async def basic_apb_gaxi_test(dut):

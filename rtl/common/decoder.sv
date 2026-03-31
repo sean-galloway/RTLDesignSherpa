@@ -226,8 +226,6 @@ module decoder #(
     output [N-1:0] data
 );
 
-    assign data = 0;  // Initialize the output
-
     genvar i;
     generate
         for (i = 0; i < N; i++) begin : gen_DECODER_LOOP

@@ -64,7 +64,7 @@ rtldesignsherpa/
 │   ├── amba/              # AMBA protocol modules
 │   └── ...
 ├── val/                    # Validation tests (pytest + CocoTB)
-├── bin/CocoTBFramework/   # Verification infrastructure
+├── bin/TBClasses/   # Verification infrastructure
 ├── projects/components/   # Production-ready components
 └── docs/                   # Documentation
 ```
@@ -91,7 +91,7 @@ New or improved SystemVerilog modules for `rtl/common/` or `rtl/amba/`.
 
 ### 2. Testbench Components
 
-New verification components for `bin/CocoTBFramework/`.
+New verification components for `bin/TBClasses/`.
 
 **Requirements:**
 - Python 3.10+ compatible

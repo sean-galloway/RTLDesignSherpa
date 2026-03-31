@@ -187,7 +187,7 @@ Test `scheduler_group` as part of larger integration (e.g., within `scheduler_gr
 ## References
 
 - RTL: `projects/components/rapids/rtl/rapids_macro/scheduler_group.sv` (lines 81-189)
-- Testbench: `bin/CocoTBFramework/tbclasses/rapids/scheduler_group_tb.py` (lines 238-271)
+- Testbench: `bin/TBClasses/rapids/scheduler_group_tb.py` (lines 238-271)
 - Tests: `projects/components/rapids/dv/tests/integration_tests/test_scheduler_group_integration.py`
 
 ---

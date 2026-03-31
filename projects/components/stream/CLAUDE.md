@@ -51,7 +51,7 @@ All mandatory requirements are consolidated in the global requirements document:
 This CLAUDE.md provides STREAM-specific guidance. Also review:
 - Root `/CLAUDE.md` - Repository-wide patterns
 - `projects/components/CLAUDE.md` - Project area standards (reset macros, FPGA attributes)
-- `bin/CocoTBFramework/CLAUDE.md` - Framework usage patterns
+- `bin/TBClasses/CLAUDE.md` - Framework usage patterns
 
 ---
 
@@ -109,7 +109,7 @@ projects/components/stream/dv/
 from projects.components.stream.dv.tbclasses.scheduler_tb import StreamSchedulerTB
 
 # Shared utilities from framework
-from CocoTBFramework.tbclasses.shared.tbbase import TBBase
+from TBClasses.shared.tbbase import TBBase
 ```
 
 **📖 Complete Pattern:** `projects/components/rapids/CLAUDE.md` Rule #0.1
@@ -665,7 +665,7 @@ find projects/components/stream/rtl/ -name "*.sv" -exec grep -H "^module" {} \;
 5. ⛓️ **Chained descriptors** - No circular buffers
 6. 🎯 **8 channels** - Shared resources, arbitration required
 7. 🔍 **MonBus standard** - Same format as AMBA/RAPIDS
-8. 🏗️ **Testbench reuse** - Always create TB classes in `bin/CocoTBFramework/tbclasses/stream/`
+8. 🏗️ **Testbench reuse** - Always create TB classes in `bin/TBClasses/stream/`
 
 ---
 

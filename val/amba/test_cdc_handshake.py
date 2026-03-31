@@ -27,8 +27,8 @@ import pytest
 import cocotb
 from cocotb_test.simulator import run
 from conftest import get_coverage_compile_args
-from CocoTBFramework.tbclasses.amba.cdc_handshake import CDCHandshakeTB
-from CocoTBFramework.tbclasses.shared.utilities import get_paths, create_view_cmd
+from TBClasses.amba.cdc_handshake import CDCHandshakeTB
+from TBClasses.shared.utilities import get_paths, create_view_cmd
 
 
 @cocotb.test(timeout_time=30, timeout_unit="ms")

@@ -36,7 +36,7 @@ from typing import Dict, List, Tuple, Any, Optional
 from cocotb.triggers import RisingEdge
 
 # Framework imports
-from CocoTBFramework.tbclasses.shared.tbbase import TBBase
+from TBClasses.shared.tbbase import TBBase
 
 
 class SnkSRAMControllerTB(TBBase):

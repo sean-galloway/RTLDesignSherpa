@@ -95,4 +95,4 @@ Status byte format:
 
 - **PIT RTL:** `rtl/pit/apb_pit_8254.sv`
 - **PIT Testbench:** `dv/tbclasses/pit/pit_tb.py`
-- **Constraint Class:** `bin/CocoTBFramework/tbclasses/wavedrom_user/pit.py`
+- **Constraint Class:** `bin/TBClasses/wavedrom_user/pit.py`

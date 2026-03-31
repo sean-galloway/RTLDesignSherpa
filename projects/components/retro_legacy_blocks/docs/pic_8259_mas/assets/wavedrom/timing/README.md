@@ -95,4 +95,4 @@ Shows automatic priority rotation (OCW2 = 0xA0). After EOI, serviced IR becomes 
 
 - **PIC RTL:** `rtl/pic/apb_pic_8259.sv`
 - **PIC Testbench:** `dv/tbclasses/pic/pic_tb.py`
-- **Constraint Class:** `bin/CocoTBFramework/tbclasses/wavedrom_user/pic.py`
+- **Constraint Class:** `bin/TBClasses/wavedrom_user/pic.py`

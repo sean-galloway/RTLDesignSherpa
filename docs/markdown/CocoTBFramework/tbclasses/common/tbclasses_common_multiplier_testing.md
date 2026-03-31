@@ -195,7 +195,7 @@ booth_special = [
 ### Basic Multiplier Test
 ```python
 import cocotb
-from CocoTBFramework.tbclasses.common.multiplier_testing import MultiplierTB
+from TBClasses.common.multiplier_testing import MultiplierTB
 
 @cocotb.test()
 async def test_multiplier_basic(dut):

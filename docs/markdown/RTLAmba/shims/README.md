@@ -431,7 +431,7 @@ set_max_fanout 16 [get_pins */data_shift_reg*]
 
 - RTL: `rtl/amba/shims/`
 - Tests: `val/amba/test_peakrdl*.py`, `val/integ_amba/test_axi2apb*.py`
-- Framework: `bin/CocoTBFramework/components/`
+- Framework: `bin/TBClasses/components/`
 
 ---
 

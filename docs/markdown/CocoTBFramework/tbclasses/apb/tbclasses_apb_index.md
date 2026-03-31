@@ -50,7 +50,7 @@ CocoTBFramework/tbclasses/apb/
 
 ### Basic Command Handler Setup
 ```python
-from CocoTBFramework.tbclasses.apb.apb_command_handler import APBCommandHandler
+from TBClasses.apb.apb_command_handler import APBCommandHandler
 
 # Create command handler for APB slave
 handler = APBCommandHandler(
@@ -65,7 +65,7 @@ await handler.start()
 
 ### Configuration Management
 ```python
-from CocoTBFramework.tbclasses.apb.apbgaxiconfig import APBGAXIConfig
+from TBClasses.apb.apbgaxiconfig import APBGAXIConfig
 
 # Create configuration with custom widths
 config = APBGAXIConfig(addr_width=32, data_width=64)
@@ -77,7 +77,7 @@ rsp_config = config.create_rsp_field_config()
 
 ### Register Map Testing
 ```python
-from CocoTBFramework.tbclasses.apb.register_map import RegisterMap
+from TBClasses.apb.register_map import RegisterMap
 
 # Load register map from file
 reg_map = RegisterMap(

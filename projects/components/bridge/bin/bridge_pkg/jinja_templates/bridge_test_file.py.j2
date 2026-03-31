@@ -16,7 +16,7 @@ import pytest
 import logging
 
 # Import framework utilities (PYTHONPATH includes bin/)
-from CocoTBFramework.tbclasses.shared.utilities import get_repo_root
+from TBClasses.shared.utilities import get_repo_root
 
 # Add repo root to Python path using robust git-based method
 repo_root = get_repo_root()
@@ -25,8 +25,8 @@ sys.path.insert(0, repo_root)
 import cocotb
 from cocotb.triggers import RisingEdge, ClockCycles
 from cocotb_test.simulator import run
-from CocoTBFramework.tbclasses.shared.utilities import get_paths
-from CocoTBFramework.tbclasses.shared.filelist_utils import get_sources_from_filelist
+from TBClasses.shared.utilities import get_paths
+from TBClasses.shared.filelist_utils import get_sources_from_filelist
 
 # Import generated testbench class
 from projects.components.bridge.dv.tbclasses.{{ tb_class_module }} import {{ tb_class_name }}

@@ -31,15 +31,15 @@ from CocoTBFramework.components.apb.apb_sequence import APBSequence
 from CocoTBFramework.components.apb.apb_factories import create_apb_master, create_apb_monitor
 from CocoTBFramework.components.gaxi.gaxi_factories import create_gaxi_master, create_gaxi_slave, create_gaxi_monitor
 from CocoTBFramework.components.gaxi.gaxi_command_handler import GAXICommandHandler
-from CocoTBFramework.tbclasses.apb.apbgaxiconfig import APBGAXIConfig
+from TBClasses.apb.apbgaxiconfig import APBGAXIConfig
 from CocoTBFramework.scoreboards.apb_gaxi_scoreboard import APBGAXIScoreboard
-from CocoTBFramework.tbclasses.shared.tbbase import TBBase
-from CocoTBFramework.tbclasses.amba.amba_random_configs import (
+from TBClasses.shared.tbbase import TBBase
+from TBClasses.amba.amba_random_configs import (
     APB_MASTER_RANDOMIZER_CONFIGS,
     APB_SLAVE_RANDOMIZER_CONFIGS,
     AXI_RANDOMIZER_CONFIGS
 )
-from CocoTBFramework.tbclasses.shared.utilities import get_paths, create_view_cmd
+from TBClasses.shared.utilities import get_paths, create_view_cmd
 
 # WaveDrom support
 from CocoTBFramework.components.wavedrom.constraint_solver import (
@@ -51,7 +51,7 @@ from CocoTBFramework.components.wavedrom.constraint_solver import (
 )
 from CocoTBFramework.components.wavedrom.wavejson_gen import create_apb_wavejson_generator
 from CocoTBFramework.components.wavedrom.utility import get_apb_field_config
-from CocoTBFramework.tbclasses.wavedrom_user.apb import setup_apb_constraints_with_boundaries
+from TBClasses.wavedrom_user.apb import setup_apb_constraints_with_boundaries
 
 
 class APBGAXIDebugTB(TBBase):

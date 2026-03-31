@@ -22,9 +22,9 @@ import cocotb
 from cocotb_test.simulator import run
 
 # Add repo root to path for CocoTBFramework imports
-from CocoTBFramework.tbclasses.common.crc_testing import CRCTB, crc_parameters
-from CocoTBFramework.tbclasses.shared.utilities import get_paths, create_view_cmd
-from CocoTBFramework.tbclasses.shared.filelist_utils import get_sources_from_filelist
+from TBClasses.common.crc_testing import CRCTB, crc_parameters
+from TBClasses.shared.utilities import get_paths, create_view_cmd
+from TBClasses.shared.filelist_utils import get_sources_from_filelist
 from conftest import get_coverage_compile_args
 
 @cocotb.test(timeout_time=1, timeout_unit="ms")
@@ -181,6 +181,7 @@ def test_dataint_crc(request, params):
         "--trace",
         "--trace-structs",
         "--trace-depth", "99",
+        "-Wno-UNOPTFLAT",
     ]
 
     # Add coverage compile args if COVERAGE=1

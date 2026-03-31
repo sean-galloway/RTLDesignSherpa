@@ -15,7 +15,7 @@
       "Bash(python3 -c \"import CocoTBFramework; print\\(CocoTBFramework.__file__\\)\")",
       "Bash(pip show CocoTBFramework)",
       "Bash(pip show cocotb-framework)",
-      "Bash(PYTHONPATH=bin:$PYTHONPATH python3 -c \"from CocoTBFramework.tbclasses.shared.tbbase import TBBase; print\\(''OK''\\)\")",
+      "Bash(PYTHONPATH=bin:$PYTHONPATH python3 -c \"from TBClasses.shared.tbbase import TBBase; print\\(''OK''\\)\")",
       "Bash(python3 -m pytest fub/test_simple_sram.py -v --co)",
       "Bash(python3 -m pytest fub/ --co)",
       "Bash(PYTHONPATH=/mnt/data/github/RTLDesignSherpa/bin:$PYTHONPATH TEST_LEVEL=gate python3 -m pytest top/test_stream_top.py -k \"nc08_dw0512_fd4096_dc02_nch01_apb_config_fast\" -v --tb=long)",

@@ -182,7 +182,7 @@ pytest val/amba/test_axil4_master_rd_mon.py -v
 
 **Testbench Pattern:**
 ```python
-# bin/CocoTBFramework/tbclasses/axil4/monitor/axil4_master_monitor_tb.py
+# bin/TBClasses/axil4/monitor/axil4_master_monitor_tb.py
 class AXIL4MasterMonitorTB:
     def __init__(self, dut, is_write=False):
         # Wrap existing AXIL4MasterReadTB or AXIL4MasterWriteTB
@@ -258,7 +258,7 @@ val/amba/
 ├── test_axil4_master_rd_mon_cg.py   # Enhance for CG validation (pending)
 └── ... (similar for wr, slave_rd, slave_wr)
 
-bin/CocoTBFramework/tbclasses/axil4/monitor/
+bin/TBClasses/axil4/monitor/
 ├── axil4_master_monitor_tb.py       # NEW - Monitor TB wrapper (pending)
 └── axil4_slave_monitor_tb.py        # NEW - Monitor TB wrapper (pending)
 ```
@@ -287,7 +287,7 @@ bin/CocoTBFramework/tbclasses/axil4/monitor/
 **AXI4 Templates:**
 - `rtl/amba/axi4/axi4_master_rd_mon.sv` - Base monitor template
 - `rtl/amba/axi4/axi4_master_rd_mon_cg.sv` - CG wrapper template
-- `bin/CocoTBFramework/tbclasses/axi4/monitor/axi4_master_monitor_tb.py` - Test TB template
+- `bin/TBClasses/axi4/monitor/axi4_master_monitor_tb.py` - Test TB template
 
 **Documentation:**
 - `rtl/amba/PRD/TASKS.md` - Task tracking

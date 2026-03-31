@@ -48,7 +48,7 @@ from cocotb_test.simulator import run
 from conftest import get_coverage_compile_args
 
 # Import GAXI wavedrom support
-from CocoTBFramework.tbclasses.wavedrom_user.gaxi import (
+from TBClasses.wavedrom_user.gaxi import (
     get_gaxi_field_config,
     create_gaxi_wavejson_generator,
 )
@@ -59,7 +59,7 @@ from CocoTBFramework.components.wavedrom.constraint_solver import (
     SignalTransition,
     TemporalRelation
 )
-from CocoTBFramework.tbclasses.shared.utilities import get_paths
+from TBClasses.shared.utilities import get_paths
 
 
 async def run_basic_functional_test(dut):

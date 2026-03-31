@@ -56,8 +56,8 @@ Test files should import from project area using the robust git-based repo root 
 import os, sys
 
 # Import framework utilities (PYTHONPATH includes bin/)
-from CocoTBFramework.tbclasses.shared.utilities import get_repo_root
-from CocoTBFramework.tbclasses.shared.tbbase import TBBase
+from TBClasses.shared.utilities import get_repo_root
+from TBClasses.shared.tbbase import TBBase
 
 # Add repo root to Python path using robust git-based method
 repo_root = get_repo_root()

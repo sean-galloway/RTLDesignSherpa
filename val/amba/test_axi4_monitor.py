@@ -37,10 +37,10 @@ from cocotb_test.simulator import run
 from conftest import get_coverage_compile_args
 import pytest
 
-from CocoTBFramework.tbclasses.shared.tbbase import TBBase
-from CocoTBFramework.tbclasses.shared.utilities import get_paths, create_view_cmd
-from CocoTBFramework.tbclasses.monbus.monbus_slave import MonbusSlave
-from CocoTBFramework.tbclasses.monbus.monbus_types import (
+from TBClasses.shared.tbbase import TBBase
+from TBClasses.shared.utilities import get_paths, create_view_cmd
+from TBClasses.monbus.monbus_slave import MonbusSlave
+from TBClasses.monbus.monbus_types import (
     MonitorPacket, PktType, ProtocolType, AXIErrorCode, AXITimeoutCode
 )
 

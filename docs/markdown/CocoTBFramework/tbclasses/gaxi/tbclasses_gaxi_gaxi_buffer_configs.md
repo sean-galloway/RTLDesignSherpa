@@ -234,7 +234,7 @@ def create_field_config(mode='field'):
 ### Basic Configuration Usage
 
 ```python
-from CocoTBFramework.tbclasses.gaxi.gaxi_buffer_configs import FIELD_CONFIGS
+from TBClasses.gaxi.gaxi_buffer_configs import FIELD_CONFIGS
 
 # Get standard configuration
 standard_config = FIELD_CONFIGS['standard']
@@ -250,7 +250,7 @@ print(f"Control width: {field_config['ctrl']['bits']} bits")
 
 ```python
 import os
-from CocoTBFramework.tbclasses.gaxi.gaxi_buffer_configs import FIELD_CONFIGS
+from TBClasses.gaxi.gaxi_buffer_configs import FIELD_CONFIGS
 
 class GaxiFieldBufferTB(TBBase):
     def __init__(self, dut, **kwargs):

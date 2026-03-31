@@ -292,7 +292,7 @@ class BridgeAXI4FlatTB(TBBase):  # ✅ CORRECT LOCATION!
     """Reusable TB class - used across all bridge tests"""
 ```
 
-**CRITICAL:** TB classes are PROJECT-SPECIFIC and MUST be in the project area (`projects/components/{name}/dv/tbclasses/`), NOT in the framework (`bin/CocoTBFramework/`).
+**CRITICAL:** TB classes are PROJECT-SPECIFIC and MUST be in the project area (`projects/components/{name}/dv/tbclasses/`), NOT in the framework (`bin/TBClasses/`).
 
 ### Test File Pattern (MANDATORY)
 
@@ -310,8 +310,8 @@ from cocotb_test.simulator import run
 import sys
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '../../../..'))
 from projects.components.bridge.dv.tbclasses.bridge_axi4_flat_tb import BridgeAXI4FlatTB
-from CocoTBFramework.tbclasses.shared.utilities import get_paths, create_view_cmd
-from CocoTBFramework.tbclasses.shared.tbbase import TBBase
+from TBClasses.shared.utilities import get_paths, create_view_cmd
+from TBClasses.shared.tbbase import TBBase
 
 # ===========================================================================
 # COCOTB TEST FUNCTIONS - Prefix with "cocotb_" to prevent pytest collection
@@ -437,7 +437,7 @@ projects/components/bridge/
 **Every testbench class MUST inherit from TBBase:**
 
 ```python
-from CocoTBFramework.tbclasses.shared.tbbase import TBBase
+from TBClasses.shared.tbbase import TBBase
 
 class BridgeAXI4FlatTB(TBBase):
     """Testbench for Bridge crossbar - inherits base functionality"""

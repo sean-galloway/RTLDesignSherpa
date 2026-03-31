@@ -516,7 +516,7 @@ Master: AWLEN=15, AWSIZE=2 (4 bytes)  → 16 beats × 4 bytes = 64 bytes
 ### Source Code
 - RTL: `rtl/amba/axi4/axi4_dwidth_converter.sv`
 - Tests: `val/amba/test_axi4_dwidth_converter.py`
-- Framework: `bin/CocoTBFramework/components/axi4/`
+- Framework: `bin/TBClasses/components/axi4/`
 
 ### Documentation
 - Architecture: [RTLAmba Overview](../overview.md)

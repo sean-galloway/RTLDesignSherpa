@@ -81,7 +81,7 @@ count:
 	@printf "  %-35s " "RTL (*.sv):" && find "$(MAKEFILE_DIR)rtl" -name "*.sv" 2>/dev/null | wc -l | xargs printf "%s files, " && find "$(MAKEFILE_DIR)rtl" -name "*.sv" -exec cat {} + 2>/dev/null | wc -l | xargs printf "%s lines\n"
 	@printf "  %-35s " "Project RTL (*.sv):" && find "$(MAKEFILE_DIR)projects" -name "*.sv" 2>/dev/null | wc -l | xargs printf "%s files, " && find "$(MAKEFILE_DIR)projects" -name "*.sv" -exec cat {} + 2>/dev/null | wc -l | xargs printf "%s lines\n"
 	@printf "  %-35s " "Tests (test_*.py):" && find "$(MAKEFILE_DIR)val" "$(MAKEFILE_DIR)projects" -name "test_*.py" 2>/dev/null | wc -l | xargs printf "%s files, " && find "$(MAKEFILE_DIR)val" "$(MAKEFILE_DIR)projects" -name "test_*.py" -exec cat {} + 2>/dev/null | wc -l | xargs printf "%s lines\n"
-	@printf "  %-35s " "CocoTBFramework (*.py):" && find "$(MAKEFILE_DIR)bin/CocoTBFramework" -name "*.py" 2>/dev/null | wc -l | xargs printf "%s files, " && find "$(MAKEFILE_DIR)bin/CocoTBFramework" -name "*.py" -exec cat {} + 2>/dev/null | wc -l | xargs printf "%s lines\n"
+	@printf "  %-35s " "CocoTBFramework (*.py):" && find "$(MAKEFILE_DIR)bin/TBClasses" -name "*.py" 2>/dev/null | wc -l | xargs printf "%s files, " && find "$(MAKEFILE_DIR)bin/TBClasses" -name "*.py" -exec cat {} + 2>/dev/null | wc -l | xargs printf "%s lines\n"
 	@printf "  %-35s " "Documentation (*.md):" && find "$(MAKEFILE_DIR)docs" -name "*.md" 2>/dev/null | wc -l | xargs printf "%s files\n"
 	@echo ""
 	@echo "================================================================================"
@@ -154,12 +154,15 @@ help:
 	@echo "UNIFIED REG_LEVEL TARGETS (ALL environments - val/ + projects/):"
 	@echo "  GATE = Quick smoke tests, FUNC = Functional coverage, FULL = Comprehensive"
 	@echo ""
-	@echo "  make gate                 GATE + results table (alias for results-gate)"
-	@echo "  make func                 FUNC + results table (alias for results-func)"
-	@echo "  make full                 FULL + results table (alias for results-full)"
-	@echo "  make gate-serial          GATE across ALL environments (serial)"
-	@echo "  make func-serial          FUNC across ALL environments (serial)"
-	@echo "  make full-serial          FULL across ALL environments (serial)"
+	@echo "  make gate                 GATE + results table (serial across envs)"
+	@echo "  make func                 FUNC + results table (serial across envs)"
+	@echo "  make full                 FULL + results table (serial across envs)"
+	@echo "  make gate-parallel        GATE - ALL environments concurrently"
+	@echo "  make func-parallel        FUNC - ALL environments concurrently"
+	@echo "  make full-parallel        FULL - ALL environments concurrently"
+	@echo "  make gate-serial          GATE across ALL environments (serial, no xdist)"
+	@echo "  make func-serial          FUNC across ALL environments (serial, no xdist)"
+	@echo "  make full-serial          FULL across ALL environments (serial, no xdist)"
 	@echo ""
 	@echo "PER-SUBSYSTEM REG_LEVEL TARGETS (parallel):"
 	@echo "  COMMON:  make run-common-{gate|func|full}-parallel"
@@ -394,6 +397,16 @@ func: results-func
 
 .PHONY: full
 full: results-full
+
+# Parallel versions (run ALL environments concurrently)
+.PHONY: gate-parallel
+gate-parallel: results-gate-parallel
+
+.PHONY: func-parallel
+func-parallel: results-func-parallel
+
+.PHONY: full-parallel
+full-parallel: results-full-parallel
 
 # Serial versions (if parallel causes resource contention)
 .PHONY: gate-serial
@@ -826,7 +839,7 @@ RESULTS_DIR = test_results
 results:
 	@$(AGGREGATE) --results-dir $(RESULTS_DIR)
 
-# Run all tests at each level and show table
+# Run all tests at each level and show table (serial across environments)
 .PHONY: results-gate
 results-gate:
 	@$(AGGREGATE) --run --test-level GATE --results-dir $(RESULTS_DIR)
@@ -838,6 +851,19 @@ results-func:
 .PHONY: results-full
 results-full:
 	@$(AGGREGATE) --run --test-level FULL --results-dir $(RESULTS_DIR)
+
+# Run all tests at each level in parallel (concurrent across environments)
+.PHONY: results-gate-parallel
+results-gate-parallel:
+	@$(AGGREGATE) --run --parallel --test-level GATE --results-dir $(RESULTS_DIR)
+
+.PHONY: results-func-parallel
+results-func-parallel:
+	@$(AGGREGATE) --run --parallel --test-level FUNC --results-dir $(RESULTS_DIR)
+
+.PHONY: results-full-parallel
+results-full-parallel:
+	@$(AGGREGATE) --run --parallel --test-level FULL --results-dir $(RESULTS_DIR)
 
 # Per-area results
 .PHONY: results-rapids

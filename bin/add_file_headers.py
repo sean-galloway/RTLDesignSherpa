@@ -170,7 +170,7 @@ def determine_subsystem(filepath: Path, repo_root: Path) -> str:
             idx = parts.index('components')
             if idx + 1 < len(parts):
                 return parts[idx + 1]  # e.g., projects/components/rapids -> rapids
-    elif 'bin/CocoTBFramework' in str(rel_path):
+    elif 'bin/TBClasses' in str(rel_path):
         return 'framework'
     elif 'val' in parts or 'dv' in parts:
         return 'tests'
@@ -192,7 +192,7 @@ def determine_doc_path(filepath: Path, repo_root: Path, subsystem: str) -> str:
 
     # Framework files
     if 'CocoTBFramework' in str(rel_path):
-        return "bin/CocoTBFramework/README.md"
+        return "cocotb-framework PyPI package"
 
     # Default to root PRD
     return "PRD.md"

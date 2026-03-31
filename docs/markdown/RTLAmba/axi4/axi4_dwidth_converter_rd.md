@@ -447,7 +447,7 @@ See [axi4_dwidth_converter](axi4_dwidth_converter.md) for detailed examples.
 ### Source Code
 - RTL: `rtl/amba/axi4/axi4_dwidth_converter_rd.sv`
 - Tests: `val/amba/test_axi4_dwidth_converter_rd.py`
-- Framework: `bin/CocoTBFramework/components/axi4/`
+- Framework: `bin/TBClasses/components/axi4/`
 
 ### Documentation
 - Architecture: [RTLAmba Overview](../overview.md)

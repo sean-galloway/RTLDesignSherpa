@@ -169,7 +169,7 @@ When adding new projects:
 
 - [rtldesignsherpa README](../README.md) - Repository overview
 - [Common Library Guide](../rtl/common/CLAUDE.md) - Module reference
-- [CocoTB Framework](../bin/CocoTBFramework/README.md) - Testbench infrastructure
+- [CocoTB Framework](../bin/TBClasses/README.md) - Testbench infrastructure
 
 ---
 

@@ -106,7 +106,7 @@ graph TD
 ### 🧪 Verification
 - **[Common Tests](val/common/)** - Unit tests for common modules
 - **[AMBA Tests](val/amba/)** - Protocol compliance tests
-- **[CocoTB Framework](bin/CocoTBFramework/)** - Reusable testbench infrastructure
+- **[CocoTB Framework](bin/TBClasses/)** - Reusable testbench infrastructure
 
 ### 🛠️ Tools
 - **[RTL Generators](bin/rtl_generators/)** - Math circuits, floating-point modules
@@ -313,7 +313,7 @@ Every module demonstrates professional verification practices:
 
 **Test Structure:**
 ```python
-# Reusable testbench class (in bin/CocoTBFramework/tbclasses/)
+# Reusable testbench class (in bin/TBClasses/)
 class ModuleTB(TBBase):
     def __init__(self, dut):
         super().__init__(dut)
@@ -600,7 +600,7 @@ module my_module #(
 
 **2. Create Testbench:**
 ```python
-# bin/CocoTBFramework/tbclasses/{subsystem}/my_module_tb.py
+# bin/TBClasses/{subsystem}/my_module_tb.py
 class MyModuleTB(TBBase):
     def __init__(self, dut):
         super().__init__(dut)
@@ -609,7 +609,7 @@ class MyModuleTB(TBBase):
         # Clock and reset initialization
         pass
 
-# bin/CocoTBFramework/tbclasses/{subsystem}/my_module_tests_basic.py
+# bin/TBClasses/{subsystem}/my_module_tests_basic.py
 class MyModuleBasicTests:
     async def test_basic_functionality(self):
         # Test implementation
@@ -623,8 +623,8 @@ import cocotb
 import pytest
 from cocotb_test.simulator import run
 
-from CocoTBFramework.tbclasses.{subsystem}.my_module_tb import MyModuleTB
-from CocoTBFramework.tbclasses.{subsystem}.my_module_tests_basic import MyModuleBasicTests
+from TBClasses.{subsystem}.my_module_tb import MyModuleTB
+from TBClasses.{subsystem}.my_module_tests_basic import MyModuleBasicTests
 
 @cocotb.test()
 async def my_module_test(dut):

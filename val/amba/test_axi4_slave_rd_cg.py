@@ -31,12 +31,12 @@ from cocotb_test.simulator import run
 from conftest import get_coverage_compile_args
 from cocotb.triggers import RisingEdge, Timer
 
-from CocoTBFramework.tbclasses.shared.tbbase import TBBase
-from CocoTBFramework.tbclasses.shared.utilities import get_paths, create_view_cmd
-from CocoTBFramework.tbclasses.amba.amba_cg_ctrl import AxiClockGateCtrl
+from TBClasses.shared.tbbase import TBBase
+from TBClasses.shared.utilities import get_paths, create_view_cmd
+from TBClasses.amba.amba_cg_ctrl import AxiClockGateCtrl
 
 # Import the base testbench (we'll extend it for CG testing)  
-from CocoTBFramework.tbclasses.axi4.axi4_slave_read_tb import AXI4SlaveReadTB
+from TBClasses.axi4.axi4_slave_read_tb import AXI4SlaveReadTB
 
 
 class AXI4SlaveReadCGTB(AXI4SlaveReadTB):

@@ -475,7 +475,7 @@ def record_verification_error(self, sent_packet, received_packet, error_details)
 ```python
 import cocotb
 import os
-from CocoTBFramework.tbclasses.gaxi.gaxi_buffer_field import GaxiFieldBufferTB
+from TBClasses.gaxi.gaxi_buffer_field import GaxiFieldBufferTB
 
 @cocotb.test()
 async def test_field_buffer_basic(dut):

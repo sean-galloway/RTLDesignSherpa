@@ -690,7 +690,7 @@ dv/tests/pit_8254/
 **pit_8254_tb.py** (following hpet_tb.py pattern):
 
 ```python
-from CocoTBFramework.tbclasses.shared.tbbase import TBBase
+from TBClasses.shared.tbbase import TBBase
 from CocoTBFramework.components.apb.apb_master import APBMaster
 
 class PIT8254TB(TBBase):

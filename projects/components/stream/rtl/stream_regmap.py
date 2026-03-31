@@ -6,7 +6,7 @@
 #
 # Complete register map for STREAM DMA engine
 # Matches stream_regs.rdl + apbtodescr channel kick-off registers
-# Compatible with: bin/CocoTBFramework/tbclasses/apb/register_map.py
+# Compatible with: bin/TBClasses/apb/register_map.py
 
 """
 STREAM DMA Engine Register Map

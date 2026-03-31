@@ -33,7 +33,7 @@ Example Usage:
 """
 
 from typing import List
-from CocoTBFramework.tbclasses.apb.register_map import RegisterMap
+from TBClasses.apb.register_map import RegisterMap
 from CocoTBFramework.components.apb.apb_packet import APBPacket
 
 

@@ -31,11 +31,11 @@ from cocotb_test.simulator import run
 from conftest import get_coverage_compile_args
 from cocotb.triggers import RisingEdge, Timer
 
-from CocoTBFramework.tbclasses.shared.tbbase import TBBase
-from CocoTBFramework.tbclasses.shared.utilities import get_paths, create_view_cmd
+from TBClasses.shared.tbbase import TBBase
+from TBClasses.shared.utilities import get_paths, create_view_cmd
 
 # Import the clock gated testbench
-from CocoTBFramework.tbclasses.axis4.axis_slave_cg_tb import AXISSlaveCGTB
+from TBClasses.axis4.axis_slave_cg_tb import AXISSlaveCGTB
 
 
 @cocotb.test(timeout_time=30, timeout_unit="ms")

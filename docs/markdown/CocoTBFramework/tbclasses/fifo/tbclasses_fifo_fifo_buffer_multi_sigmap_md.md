@@ -230,7 +230,7 @@ await tb.test_isolation_patterns(packet_count=300)
 ```python
 import cocotb
 import os
-from CocoTBFramework.tbclasses.fifo.fifo_buffer_multi_sigmap import FifoMultiSigMapBufferTB
+from TBClasses.fifo.fifo_buffer_multi_sigmap import FifoMultiSigMapBufferTB
 
 @cocotb.test()
 async def test_sigmap_fifo(dut):

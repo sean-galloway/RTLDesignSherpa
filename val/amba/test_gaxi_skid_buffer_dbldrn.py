@@ -48,9 +48,9 @@ import pytest
 import cocotb
 from cocotb_test.simulator import run
 from conftest import get_coverage_compile_args
-from CocoTBFramework.tbclasses.shared.tbbase import TBBase
-from CocoTBFramework.tbclasses.gaxi.gaxi_buffer_dbldrn import GaxiBufferDblDrnTB
-from CocoTBFramework.tbclasses.shared.utilities import get_paths, create_view_cmd
+from TBClasses.shared.tbbase import TBBase
+from TBClasses.gaxi.gaxi_buffer_dbldrn import GaxiBufferDblDrnTB
+from TBClasses.shared.utilities import get_paths, create_view_cmd
 
 
 @cocotb.test(timeout_time=10, timeout_unit="ms")

@@ -52,9 +52,9 @@ from cocotb.triggers import Timer
 from cocotb_test.simulator import run
 
 # Add repo root to path for CocoTBFramework imports
-from CocoTBFramework.tbclasses.shared.tbbase import TBBase
-from CocoTBFramework.tbclasses.shared.filelist_utils import get_sources_from_filelist
-from CocoTBFramework.tbclasses.shared.utilities import get_paths, create_view_cmd
+from TBClasses.shared.tbbase import TBBase
+from TBClasses.shared.filelist_utils import get_sources_from_filelist
+from TBClasses.shared.utilities import get_paths, create_view_cmd
 from conftest import get_coverage_compile_args
 
 class Bin2GrayTB(TBBase):

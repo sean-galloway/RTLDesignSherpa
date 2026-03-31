@@ -27,7 +27,7 @@ All mandatory requirements are consolidated in the global requirements document:
 
 This CLAUDE.md provides AMBA-specific guidance. Also review:
 - Root `/CLAUDE.md` - Repository-wide patterns
-- `bin/CocoTBFramework/CLAUDE.md` - Framework usage patterns
+- `bin/TBClasses/CLAUDE.md` - Framework usage patterns
 - `docs/VERIFICATION_ARCHITECTURE_GUIDE.md` - Complete verification patterns
 
 ---
@@ -41,7 +41,7 @@ This CLAUDE.md provides AMBA-specific guidance. Also review:
 **AMBA-Specific Structure:**
 
 ```
-bin/CocoTBFramework/tbclasses/amba/
+bin/TBClasses/amba/
 ├── axi4/
 │   ├── axi4_master_read_tb.py      # AXI4 master read TB
 │   └── monitor/axi_monitor_tb.py   # AXI monitor TB
@@ -56,7 +56,7 @@ val/amba/
 **AMBA Import Pattern:**
 ```python
 # val/amba/test_axi4_master_rd.py
-from CocoTBFramework.tbclasses.amba.axi4.axi4_master_read_tb import AXI4MasterReadTB
+from TBClasses.amba.axi4.axi4_master_read_tb import AXI4MasterReadTB
 
 @cocotb.test()
 async def axi4_test(dut):
@@ -66,8 +66,8 @@ async def axi4_test(dut):
 ```
 
 **AMBA Three-Layer Pattern:**
-1. **TB Class:** `bin/CocoTBFramework/tbclasses/amba/` - Infrastructure + BFMs
-2. **Scoreboard:** `bin/CocoTBFramework/scoreboards/amba/` - Verification logic
+1. **TB Class:** `bin/TBClasses/amba/` - Infrastructure + BFMs
+2. **Scoreboard:** `bin/TBClasses/scoreboards/amba/` - Verification logic
 3. **Test Runner:** `val/amba/` - Test intelligence
 
 **Verification Method Selection for AMBA:**

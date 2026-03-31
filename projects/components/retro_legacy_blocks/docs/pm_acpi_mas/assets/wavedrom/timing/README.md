@@ -121,5 +121,5 @@ Shows General Purpose Event handling:
 
 - **PM RTL:** `rtl/pm/apb_pm_acpi.sv`
 - **PM Testbench:** `dv/tbclasses/pm/pm_tb.py`
-- **Constraint Class:** `bin/CocoTBFramework/tbclasses/wavedrom_user/pm.py`
+- **Constraint Class:** `bin/TBClasses/wavedrom_user/pm.py`
 - **ACPI Spec:** Advanced Configuration and Power Interface Specification

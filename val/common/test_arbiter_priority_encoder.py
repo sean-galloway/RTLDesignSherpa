@@ -42,10 +42,10 @@ import cocotb
 from cocotb_test.simulator import run
 
 # Add repo root to path for CocoTBFramework imports
-from CocoTBFramework.tbclasses.arbiter_priority_encoder_tb import ArbiterPriorityEncoderTB
-from CocoTBFramework.tbclasses.shared.utilities import get_paths, create_view_cmd
-from CocoTBFramework.tbclasses.shared.tbbase import TBBase
-from CocoTBFramework.tbclasses.shared.filelist_utils import get_sources_from_filelist
+from TBClasses.arbiter_priority_encoder_tb import ArbiterPriorityEncoderTB
+from TBClasses.shared.utilities import get_paths, create_view_cmd
+from TBClasses.shared.tbbase import TBBase
+from TBClasses.shared.filelist_utils import get_sources_from_filelist
 from conftest import get_coverage_compile_args
 
 # ===========================================================================

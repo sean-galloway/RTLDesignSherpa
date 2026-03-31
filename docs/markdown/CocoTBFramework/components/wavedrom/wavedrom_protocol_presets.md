@@ -41,7 +41,7 @@ Protocol presets provide pre-configured temporal constraints for standard bus pr
 | **AXI4-Lite** | `axil4.py` | *(manual setup)* | ✅ Ready |
 | **AXI-Stream** | `axis.py` | *(manual setup)* | ✅ Ready |
 
-*Location: `bin/CocoTBFramework/tbclasses/wavedrom_user/`*
+*Location: `bin/TBClasses/wavedrom_user/`*
 
 ---
 
@@ -58,7 +58,7 @@ Protocol presets provide pre-configured temporal constraints for standard bus pr
 **Use Case:** Quick verification that transactions occur
 
 ```python
-from CocoTBFramework.tbclasses.wavedrom_user.gaxi import GAXIWaveDromTemplate
+from TBClasses.wavedrom_user.gaxi import GAXIWaveDromTemplate
 
 gaxi_wave = GAXIWaveDromTemplate(
     dut=dut,
@@ -108,7 +108,7 @@ preset="debug"
 ### Field Configuration
 
 ```python
-from CocoTBFramework.tbclasses.wavedrom_user.gaxi import get_gaxi_field_config
+from TBClasses.wavedrom_user.gaxi import get_gaxi_field_config
 
 # Simple data-only
 config = get_gaxi_field_config(data_width=32)
@@ -141,7 +141,7 @@ config = get_gaxi_field_config(
 **Use Case:** Basic read/write verification
 
 ```python
-from CocoTBFramework.tbclasses.wavedrom_user.apb import APBWaveDromTemplate
+from TBClasses.wavedrom_user.apb import APBWaveDromTemplate
 
 apb_wave = APBWaveDromTemplate(
     dut=dut,
@@ -237,7 +237,7 @@ config = get_apb_field_config(
 **Use Case:** Write transaction verification
 
 ```python
-from CocoTBFramework.tbclasses.wavedrom_user.axi4 import setup_axi4_constraints_with_boundaries
+from TBClasses.wavedrom_user.axi4 import setup_axi4_constraints_with_boundaries
 
 setup_axi4_constraints_with_boundaries(
     wave_solver=wave_solver,
@@ -304,7 +304,7 @@ w_config = field_configs['W']
 
 ```python
 from CocoTBFramework.components.wavedrom.constraint_solver import TemporalConstraintSolver
-from CocoTBFramework.tbclasses.wavedrom_user.axi4 import setup_axi4_constraints_with_boundaries
+from TBClasses.wavedrom_user.axi4 import setup_axi4_constraints_with_boundaries
 
 wave_solver = TemporalConstraintSolver(dut=dut, log=dut._log)
 wave_solver.add_clock_group('default', dut.axi_aclk)
@@ -344,7 +344,7 @@ Same as AXI4: `write_basic`, `read_basic`, `comprehensive`, `debug`
 ### Field Configuration
 
 ```python
-from CocoTBFramework.tbclasses.wavedrom_user.axil4 import get_axil4_channel_field_config
+from TBClasses.wavedrom_user.axil4 import get_axil4_channel_field_config
 
 aw_config = get_axil4_channel_field_config('AW', addr_width=32, data_width=32)
 w_config = get_axil4_channel_field_config('W', addr_width=32, data_width=32)
@@ -356,7 +356,7 @@ r_config = get_axil4_channel_field_config('R', addr_width=32, data_width=32)
 ### Setup Function
 
 ```python
-from CocoTBFramework.tbclasses.wavedrom_user.axil4 import setup_axil4_constraints_with_boundaries
+from TBClasses.wavedrom_user.axil4 import setup_axil4_constraints_with_boundaries
 
 setup_axil4_constraints_with_boundaries(
     wave_solver=wave_solver,
@@ -382,7 +382,7 @@ setup_axil4_constraints_with_boundaries(
 **Use Case:** Verify stream is flowing
 
 ```python
-from CocoTBFramework.tbclasses.wavedrom_user.axis import setup_axis_constraints_with_boundaries
+from TBClasses.wavedrom_user.axis import setup_axis_constraints_with_boundaries
 
 setup_axis_constraints_with_boundaries(
     wave_solver=wave_solver,
@@ -434,7 +434,7 @@ preset_name="debug"
 ### Field Configuration
 
 ```python
-from CocoTBFramework.tbclasses.wavedrom_user.axis import get_axis_field_config
+from TBClasses.wavedrom_user.axis import get_axis_field_config
 
 # Simple stream
 config = get_axis_field_config(
@@ -476,7 +476,7 @@ config = get_axis_field_config(
 ### Example: Custom GAXI Preset
 
 ```python
-from CocoTBFramework.tbclasses.wavedrom_user.gaxi import (
+from TBClasses.wavedrom_user.gaxi import (
     create_gaxi_handshake_constraint,
     create_gaxi_stall_constraint
 )

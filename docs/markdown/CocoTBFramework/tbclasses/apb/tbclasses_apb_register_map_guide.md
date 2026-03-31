@@ -66,7 +66,7 @@ RegisterMap(filename, apb_data_width, apb_addr_width, start_address, log)
 
 **Basic Creation**:
 ```python
-from CocoTBFramework.tbclasses.apb.register_map import RegisterMap
+from TBClasses.apb.register_map import RegisterMap
 
 # Create register map for 32-bit APB interface
 reg_map = RegisterMap(

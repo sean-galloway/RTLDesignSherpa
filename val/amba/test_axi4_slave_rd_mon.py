@@ -17,7 +17,7 @@
 AXI4 Slave Read Monitor Integration Test
 
 Thin wrapper that uses the reusable AXI4SlaveMonitorTB testbench class.
-All test logic is in bin/CocoTBFramework/tbclasses/axi4/monitor/axi4_slave_monitor_tb.py
+All test logic is in bin/TBClasses/axi4/monitor/axi4_slave_monitor_tb.py
 """
 
 import os
@@ -27,8 +27,8 @@ import cocotb
 from cocotb_test.simulator import run
 from conftest import get_coverage_compile_args
 
-from CocoTBFramework.tbclasses.axi4.monitor.axi4_slave_monitor_tb import AXI4SlaveMonitorTB
-from CocoTBFramework.tbclasses.shared.utilities import get_paths
+from TBClasses.axi4.monitor.axi4_slave_monitor_tb import AXI4SlaveMonitorTB
+from TBClasses.shared.utilities import get_paths
 
 
 def validate_addr_width(addr_width):

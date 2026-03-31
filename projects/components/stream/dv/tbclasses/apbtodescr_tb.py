@@ -16,7 +16,7 @@ import os
 # Add framework to path
 sys.path.append(os.path.join(os.path.dirname(__file__), '../../../../bin'))
 
-from CocoTBFramework.tbclasses.shared.tbbase import TBBase
+from TBClasses.shared.tbbase import TBBase
 
 
 class APBToDescrTB(TBBase):

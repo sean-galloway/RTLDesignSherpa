@@ -35,7 +35,7 @@ Add minimal WaveDrom timing diagram generation to APB monitor tests, following t
 
 ### 1. APB Protocol Field Configuration
 
-**File:** `bin/CocoTBFramework/tbclasses/wavedrom_user/apb.py` (create if needed)
+**File:** `bin/TBClasses/wavedrom_user/apb.py` (create if needed)
 
 **Functions to Create:**
 ```python
@@ -66,7 +66,7 @@ def create_apb_wavejson_generator(field_config, signal_prefix=""):
 
 **Add Imports:**
 ```python
-from CocoTBFramework.tbclasses.wavedrom_user.apb import (
+from TBClasses.wavedrom_user.apb import (
     get_apb_field_config,
     create_apb_wavejson_generator,
 )
@@ -224,7 +224,7 @@ done
 ## References
 
 - **Pattern:** `val/amba/test_gaxi_buffer_sync.py` (reference implementation)
-- **Framework:** `bin/CocoTBFramework/components/wavedrom/`
+- **Framework:** `bin/TBClasses/components/wavedrom/`
 - **Summary:** `val/amba/WAVEDROM_INTEGRATION_SUMMARY.md`
 - **APB Spec:** ARM IHI0024 (APB Protocol Specification)
 

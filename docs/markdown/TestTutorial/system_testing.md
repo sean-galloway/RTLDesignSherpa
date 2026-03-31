@@ -59,7 +59,7 @@ System-level testing validates the complete RTL design by verifying interactions
 The RTL Design Sherpa framework provides system-level testing infrastructure:
 
 ```
-bin/CocoTBFramework/
+bin/TBClasses/
 ├── components/           # Protocol BFMs (AXI4, APB, AXIS, etc.)
 ├── tbclasses/           # Reusable testbenches
 │   └── shared/          # TBBase and utilities
@@ -130,7 +130,7 @@ Real systems use multiple protocols simultaneously. System tests must verify the
 ```python
 import cocotb
 from cocotb.triggers import RisingEdge, Timer
-from CocoTBFramework.tbclasses.shared.tbbase import TBBase
+from TBClasses.shared.tbbase import TBBase
 from CocoTBFramework.components.axi4.axi4_interfaces import (
     AXI4MasterWrite, AXI4MasterRead
 )

@@ -186,7 +186,7 @@ def verify_configuration(self):
 ### Basic CRC Test
 ```python
 import cocotb
-from CocoTBFramework.tbclasses.common.crc_testing import CRCTB
+from TBClasses.common.crc_testing import CRCTB
 
 @cocotb.test()
 async def test_crc_basic(dut):

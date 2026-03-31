@@ -232,7 +232,7 @@ grep -r "Severity.*High" projects/components/rapids/known_issues/active/
 **Test Infrastructure:**
 - `projects/components/rapids/dv/tests/fub_tests/` - Individual FUB tests
 - `projects/components/rapids/dv/tests/integration_tests/` - Multi-block integration tests
-- `bin/CocoTBFramework/tbclasses/rapids/` - Reusable testbench classes
+- `bin/TBClasses/rapids/` - Reusable testbench classes
 
 ---
 

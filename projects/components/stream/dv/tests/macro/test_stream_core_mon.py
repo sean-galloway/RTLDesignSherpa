@@ -29,9 +29,9 @@ import cocotb
 import random
 from pathlib import Path
 
-from CocoTBFramework.tbclasses.shared.tbbase import TBBase
-from CocoTBFramework.tbclasses.shared.utilities import get_paths, get_repo_root
-from CocoTBFramework.tbclasses.shared.filelist_utils import get_sources_from_filelist
+from TBClasses.shared.tbbase import TBBase
+from TBClasses.shared.utilities import get_paths, get_repo_root
+from TBClasses.shared.filelist_utils import get_sources_from_filelist
 
 # Add repo root to Python path using robust git-based method
 repo_root = get_repo_root()
@@ -595,7 +595,7 @@ def test_stream_core_mon_single_channel(request, params):
     compile_args.extend(coverage_compile_args)
 
     # Create view command
-    from CocoTBFramework.tbclasses.shared.utilities import create_view_cmd
+    from TBClasses.shared.utilities import create_view_cmd
     cmd_filename = create_view_cmd(log_dir, log_path, sim_build, module, test_name_plus_params)
 
     # Import here to avoid issues
@@ -716,7 +716,7 @@ def test_stream_core_mon_multi_channel(request, params):
     compile_args.extend(coverage_compile_args)
 
     # Create view command
-    from CocoTBFramework.tbclasses.shared.utilities import create_view_cmd
+    from TBClasses.shared.utilities import create_view_cmd
     cmd_filename = create_view_cmd(log_dir, log_path, sim_build, module, test_name_plus_params)
 
     from cocotb_test.simulator import run
@@ -824,7 +824,7 @@ def test_stream_core_variable_sizes(request, params):
     compile_args.extend(coverage_compile_args)
 
     # Create view command
-    from CocoTBFramework.tbclasses.shared.utilities import create_view_cmd
+    from TBClasses.shared.utilities import create_view_cmd
     cmd_filename = create_view_cmd(log_dir, log_path, sim_build, module, test_name_plus_params)
 
     from cocotb_test.simulator import run

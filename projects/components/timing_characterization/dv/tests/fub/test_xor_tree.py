@@ -12,9 +12,9 @@ import cocotb
 from cocotb.triggers import ClockCycles
 from cocotb_test.simulator import run
 
-from CocoTBFramework.tbclasses.shared.tbbase import TBBase
-from CocoTBFramework.tbclasses.shared.utilities import get_paths, create_view_cmd, get_repo_root
-from CocoTBFramework.tbclasses.shared.filelist_utils import get_sources_from_filelist
+from TBClasses.shared.tbbase import TBBase
+from TBClasses.shared.utilities import get_paths, create_view_cmd, get_repo_root
+from TBClasses.shared.filelist_utils import get_sources_from_filelist
 
 repo_root = get_repo_root()
 sys.path.insert(0, repo_root)

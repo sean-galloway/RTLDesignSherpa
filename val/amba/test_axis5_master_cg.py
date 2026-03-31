@@ -27,8 +27,8 @@ from cocotb.triggers import Timer, RisingEdge
 from cocotb_test.simulator import run
 from conftest import get_coverage_compile_args
 
-from CocoTBFramework.tbclasses.shared.tbbase import TBBase
-from CocoTBFramework.tbclasses.shared.utilities import get_paths, create_view_cmd
+from TBClasses.shared.tbbase import TBBase
+from TBClasses.shared.utilities import get_paths, create_view_cmd
 
 
 class AXIS5MasterCGBasicTB(TBBase):

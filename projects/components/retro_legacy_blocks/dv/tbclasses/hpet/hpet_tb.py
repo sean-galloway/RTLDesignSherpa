@@ -53,8 +53,8 @@ from CocoTBFramework.components.shared.flex_randomizer import FlexRandomizer
 from CocoTBFramework.components.apb.apb_packet import APBPacket
 from CocoTBFramework.components.apb.apb_components import APBMaster
 from CocoTBFramework.components.apb.apb_factories import create_apb_monitor
-from CocoTBFramework.tbclasses.shared.tbbase import TBBase
-from CocoTBFramework.tbclasses.amba.amba_random_configs import APB_MASTER_RANDOMIZER_CONFIGS
+from TBClasses.shared.tbbase import TBBase
+from TBClasses.amba.amba_random_configs import APB_MASTER_RANDOMIZER_CONFIGS
 
 
 class HPETRegisterMap:

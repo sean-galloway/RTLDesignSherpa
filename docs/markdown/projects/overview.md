@@ -68,7 +68,7 @@ The RTL Design Sherpa component projects represent production-ready, fully-verif
    - PeakRDL register generation
 
 3. **Reusable Infrastructure**
-   - Testbenches in `bin/CocoTBFramework/`
+   - Testbenches in `bin/TBClasses/`
    - Consistent documentation structure
    - Parametrized test suites
    - Pytest configuration (conftest.py)
@@ -97,7 +97,7 @@ projects/components/{component_name}/
 │   ├── tests/              # Test runners
 │   │   ├── conftest.py     # Pytest configuration (MANDATORY)
 │   │   └── test_*.py       # Test files
-│   ├── tbclasses/          # → bin/CocoTBFramework/tbclasses/
+│   ├── tbclasses/          # → bin/TBClasses/
 │   ├── components/         # BFMs (if component-specific)
 │   └── scoreboards/        # Verification scoreboards
 │
@@ -233,7 +233,7 @@ All components follow a 3-level test hierarchy:
 
 ### Test Organization
 
-**Testbench Classes** (`bin/CocoTBFramework/tbclasses/`)
+**Testbench Classes** (`bin/TBClasses/`)
 ```python
 # Reusable testbench (shared across all test levels)
 class ComponentTB(TBBase):

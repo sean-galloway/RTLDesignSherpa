@@ -570,7 +570,7 @@ Monitors up to `MAX_TRANSACTIONS` concurrent transactions:
 ### Source Code
 - RTL: `rtl/amba/axi4/axi4_master_rd_mon.sv`
 - Tests: `val/amba/test_axi4_master_rd_mon.py`
-- Framework: `bin/CocoTBFramework/components/axi4/`
+- Framework: `bin/TBClasses/components/axi4/`
 
 ### Documentation
 - Configuration Guide: [AXI Monitor Base](../shared/axi_monitor_base.md)

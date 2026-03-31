@@ -221,7 +221,7 @@ def get_performance_stats(self):
 ```python
 import cocotb
 import os
-from CocoTBFramework.tbclasses.gaxi.gaxi_buffer import GaxiBufferTB
+from TBClasses.gaxi.gaxi_buffer import GaxiBufferTB
 
 @cocotb.test()
 async def test_basic_buffer(dut):

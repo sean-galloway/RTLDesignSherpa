@@ -17,7 +17,7 @@ in char_top.sv (polynomial x^32 + x^22 + x^2 + x + 1, constant 0x0040_0007).
 import cocotb
 from cocotb.triggers import RisingEdge, ClockCycles
 
-from CocoTBFramework.tbclasses.shared.tbbase import TBBase
+from TBClasses.shared.tbbase import TBBase
 
 
 # =========================================================================

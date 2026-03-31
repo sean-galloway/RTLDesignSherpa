@@ -144,7 +144,7 @@ Position N-1: 1000_0000
 ### Basic Usage
 ```python
 import cocotb
-from CocoTBFramework.tbclasses.common.adder_testing import AdderTB
+from TBClasses.common.adder_testing import AdderTB
 
 @cocotb.test()
 async def test_full_adder(dut):

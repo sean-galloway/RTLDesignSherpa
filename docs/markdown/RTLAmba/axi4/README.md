@@ -334,7 +334,7 @@ Clock-gated variants (`*_cg`) add power management:
 ### Source Code
 - RTL: `rtl/amba/axi4/`
 - Tests: `val/amba/test_axi4*.py`
-- Framework: `bin/CocoTBFramework/components/axi4/`
+- Framework: `bin/TBClasses/components/axi4/`
 - Shared Infrastructure: `rtl/amba/shared/` (monitor base, transaction manager)
 
 ---

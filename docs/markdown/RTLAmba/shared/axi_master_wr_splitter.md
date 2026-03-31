@@ -584,7 +584,7 @@ Worst error wins → System sees most severe failure
 ### Source Code
 - RTL: `rtl/amba/shared/axi_master_wr_splitter.sv`
 - Tests: `val/amba/test_axi_master_wr_splitter.py`
-- Testbench: `bin/CocoTBFramework/tbclasses/amba/axi_master_wr_splitter_tb.py`
+- Testbench: `bin/TBClasses/amba/axi_master_wr_splitter_tb.py`
 
 ### Documentation
 - Architecture: `docs/markdown/RTLAmba/shared/README.md`

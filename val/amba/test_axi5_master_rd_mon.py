@@ -17,7 +17,7 @@
 AXI5 Master Read Monitor Integration Test
 
 Thin wrapper that uses the reusable AXI5MasterMonitorTB testbench class.
-All test logic is in bin/CocoTBFramework/tbclasses/axi5/monitor/axi5_master_monitor_tb.py
+All test logic is in bin/TBClasses/axi5/monitor/axi5_master_monitor_tb.py
 """
 
 import os
@@ -27,8 +27,8 @@ import cocotb
 from cocotb_test.simulator import run
 from conftest import get_coverage_compile_args
 
-from CocoTBFramework.tbclasses.axi5.monitor.axi5_master_monitor_tb import AXI5MasterMonitorTB
-from CocoTBFramework.tbclasses.shared.utilities import get_paths
+from TBClasses.axi5.monitor.axi5_master_monitor_tb import AXI5MasterMonitorTB
+from TBClasses.shared.utilities import get_paths
 
 
 @cocotb.test(timeout_time=30, timeout_unit="sec")

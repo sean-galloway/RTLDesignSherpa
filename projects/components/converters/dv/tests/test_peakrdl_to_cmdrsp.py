@@ -32,9 +32,9 @@ import os
 import sys
 
 # Import utilities (PYTHONPATH configured in env_python)
-from CocoTBFramework.tbclasses.shared.utilities import get_paths
+from TBClasses.shared.utilities import get_paths
 from cocotb_test.simulator import run
-from CocoTBFramework.tbclasses.shared.filelist_utils import get_sources_from_filelist
+from TBClasses.shared.filelist_utils import get_sources_from_filelist
 
 
 class PeakRDLAdapterTB:

@@ -121,5 +121,5 @@ Shows masked interrupt behavior:
 
 - **IOAPIC RTL:** `rtl/ioapic/apb_ioapic.sv`
 - **IOAPIC Testbench:** `dv/tbclasses/ioapic/ioapic_tb.py`
-- **Constraint Class:** `bin/CocoTBFramework/tbclasses/wavedrom_user/ioapic.py`
+- **Constraint Class:** `bin/TBClasses/wavedrom_user/ioapic.py`
 - **Intel IOAPIC Spec:** 82093AA I/O APIC Datasheet

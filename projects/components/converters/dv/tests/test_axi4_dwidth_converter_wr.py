@@ -14,7 +14,7 @@
 AXI4 Write Data Width Converter Test Runner - WRITE-ONLY
 
 Test runner for AXI4 WRITE data width converter (AW, W, B channels only).
-Imports testbench class from bin/CocoTBFramework/tbclasses/axi4/axi4_dwidth_converter_tb.py
+Imports testbench class from bin/TBClasses/axi4/axi4_dwidth_converter_tb.py
 
 Test Levels:
 - gate: Quick smoke test (single write transaction)
@@ -30,9 +30,9 @@ from itertools import product
 import pytest
 import cocotb
 from cocotb_test.simulator import run
-from CocoTBFramework.tbclasses.axi4.axi4_dwidth_converter_wr_tb import AXI4DWidthConverterWriteTB
-from CocoTBFramework.tbclasses.shared.utilities import get_paths, create_view_cmd
-from CocoTBFramework.tbclasses.shared.filelist_utils import get_sources_from_filelist
+from TBClasses.axi4.axi4_dwidth_converter_wr_tb import AXI4DWidthConverterWriteTB
+from TBClasses.shared.utilities import get_paths, create_view_cmd
+from TBClasses.shared.filelist_utils import get_sources_from_filelist
 
 
 @cocotb.test(timeout_time=30, timeout_unit="ms")

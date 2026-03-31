@@ -321,7 +321,7 @@ Clock-gated variants (`*_cg`) add power management:
 ### Source Code
 - RTL: `rtl/amba/axil4/`
 - Tests: `val/amba/test_axil4*.py`
-- Framework: `bin/CocoTBFramework/components/axil4/`
+- Framework: `bin/TBClasses/components/axil4/`
 - Shared Infrastructure: `rtl/amba/shared/` (monitor base, gaxi_skid_buffer)
 
 ---

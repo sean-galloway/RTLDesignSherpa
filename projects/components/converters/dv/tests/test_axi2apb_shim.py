@@ -33,9 +33,9 @@ from CocoTBFramework.components.apb.apb_factories import \
 from CocoTBFramework.components.axi4.axi4_factories import create_axi4_master_wr, create_axi4_master_rd
 from CocoTBFramework.components.shared.memory_model import MemoryModel
 
-from CocoTBFramework.tbclasses.shared.tbbase import TBBase
-from CocoTBFramework.tbclasses.shared.utilities import get_paths, create_view_cmd
-from CocoTBFramework.tbclasses.shared.filelist_utils import get_sources_from_filelist
+from TBClasses.shared.tbbase import TBBase
+from TBClasses.shared.utilities import get_paths, create_view_cmd
+from TBClasses.shared.filelist_utils import get_sources_from_filelist
 
 
 class Axi2ApbTB(TBBase):

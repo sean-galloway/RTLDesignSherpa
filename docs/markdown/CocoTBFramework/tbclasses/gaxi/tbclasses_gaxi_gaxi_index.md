@@ -60,7 +60,7 @@ CocoTBFramework/tbclasses/gaxi/
 
 ### Basic GAXI Buffer Testing
 ```python
-from CocoTBFramework.tbclasses.gaxi.gaxi_buffer import GaxiBufferTB
+from TBClasses.gaxi.gaxi_buffer import GaxiBufferTB
 
 @cocotb.test()
 async def test_basic_buffer(dut):
@@ -79,7 +79,7 @@ async def test_basic_buffer(dut):
 
 ### Field-Based Testing
 ```python
-from CocoTBFramework.tbclasses.gaxi.gaxi_buffer_field import GaxiFieldBufferTB
+from TBClasses.gaxi.gaxi_buffer_field import GaxiFieldBufferTB
 
 @cocotb.test()
 async def test_field_buffer(dut):
@@ -98,7 +98,7 @@ async def test_field_buffer(dut):
 
 ### Multi-Signal Buffer Testing
 ```python
-from CocoTBFramework.tbclasses.gaxi.gaxi_buffer_multi import GaxiMultiBufferTB
+from TBClasses.gaxi.gaxi_buffer_multi import GaxiMultiBufferTB
 
 @cocotb.test()
 async def test_multi_buffer(dut):

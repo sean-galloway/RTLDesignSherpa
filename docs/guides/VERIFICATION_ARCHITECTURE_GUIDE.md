@@ -20,7 +20,7 @@ This guide defines the mandatory three-layer verification architecture used acro
 
 ### Layer 1: Testbench Class (TB)
 
-**Location:** `bin/CocoTBFramework/tbclasses/{subsystem}/{module}_tb.py`
+**Location:** `bin/TBClasses/{subsystem}/{module}_tb.py`
 
 **Purpose:** Reusable infrastructure and base methods
 
@@ -34,8 +34,8 @@ This guide defines the mandatory three-layer verification architecture used acro
 
 **Example:**
 ```python
-# bin/CocoTBFramework/tbclasses/rapids/scheduler_tb.py
-from CocoTBFramework.tbclasses.shared.tbbase import TBBase
+# bin/TBClasses/rapids/scheduler_tb.py
+from TBClasses.shared.tbbase import TBBase
 
 class SchedulerTB(TBBase):
     """Reusable testbench for RAPIDS Scheduler"""
@@ -87,7 +87,7 @@ class SchedulerTB(TBBase):
 **Example:**
 ```python
 # val/rapids/fub_tests/scheduler/test_scheduler.py
-from CocoTBFramework.tbclasses.rapids.scheduler_tb import SchedulerTB
+from TBClasses.rapids.scheduler_tb import SchedulerTB
 
 @cocotb.test()
 async def cocotb_test_basic_flow(dut):
@@ -105,7 +105,7 @@ def test_basic_flow(num_ops, ...):
 
 ### Layer 3: Scoreboard
 
-**Location:** `bin/CocoTBFramework/scoreboards/{subsystem}/{module}_scoreboard.py`
+**Location:** `bin/TBClasses/scoreboards/{subsystem}/{module}_scoreboard.py`
 
 **Purpose:** Transaction verification and checking
 
@@ -120,7 +120,7 @@ def test_basic_flow(num_ops, ...):
 
 **Example:**
 ```python
-# bin/CocoTBFramework/scoreboards/rapids/program_engine_scoreboard.py
+# bin/TBClasses/scoreboards/rapids/program_engine_scoreboard.py
 class ProgramEngineScoreboard:
     """Scoreboard for program engine verification
 
@@ -314,7 +314,7 @@ Need to verify transactions?
 - Contains all BFMs and hardware interface code
 - Provides reusable methods
 - Used across multiple test scenarios
-- Lives in `bin/CocoTBFramework/tbclasses/`
+- Lives in `bin/TBClasses/`
 
 **Test = Intelligence:**
 - Scenario-specific logic
@@ -326,7 +326,7 @@ Need to verify transactions?
 - Separate from TB and Test
 - Chooses appropriate verification method (queue or memory)
 - Independent verification logic
-- Lives in `bin/CocoTBFramework/scoreboards/`
+- Lives in `bin/TBClasses/scoreboards/`
 
 ### 2. Use the Simplest Method That Works
 
@@ -385,7 +385,7 @@ When creating a new testbench, follow this checklist:
 - [ ] Implements `assert_reset()` and `deassert_reset()`
 - [ ] Provides base test methods (e.g., `run_basic_test()`)
 - [ ] Does NOT contain verification logic
-- [ ] Located in `bin/CocoTBFramework/tbclasses/`
+- [ ] Located in `bin/TBClasses/`
 
 ### Scoreboard (`scoreboards/{subsystem}/{module}_scoreboard.py`)
 - [ ] Separate class in scoreboards directory
@@ -396,10 +396,10 @@ When creating a new testbench, follow this checklist:
 - [ ] Has `expect_*()` methods to record expectations
 - [ ] Has `verify_*()` methods to check results
 - [ ] Has `clear_queues()` or `reset()` for state management
-- [ ] Located in `bin/CocoTBFramework/scoreboards/`
+- [ ] Located in `bin/TBClasses/scoreboards/`
 
 ### Test Runner (`val/{subsystem}/test_{module}.py`)
-- [ ] Imports TB from `CocoTBFramework.tbclasses`
+- [ ] Imports TB from `TBClasses`
 - [ ] Has CocoTB test functions (prefixed `cocotb_`)
 - [ ] Has pytest wrappers with parametrization
 - [ ] Calls TB methods (does NOT implement infrastructure)
@@ -413,7 +413,7 @@ When creating a new testbench, follow this checklist:
 
 **Simple FIFO verification (queue access):**
 ```python
-# bin/CocoTBFramework/scoreboards/common/fifo_scoreboard.py
+# bin/TBClasses/scoreboards/common/fifo_scoreboard.py
 class FIFOScoreboard:
     """Simple FIFO verification using queue access"""
 
@@ -439,7 +439,7 @@ class FIFOScoreboard:
 
 **APB monitor verification (queue access):**
 ```python
-# bin/CocoTBFramework/scoreboards/amba/apb_scoreboard.py
+# bin/TBClasses/scoreboards/amba/apb_scoreboard.py
 class APBScoreboard:
     """APB transaction verification using queue access"""
 
@@ -470,7 +470,7 @@ class APBScoreboard:
 
 **Data path verification (memory model):**
 ```python
-# bin/CocoTBFramework/scoreboards/rapids/sink_data_path_scoreboard.py
+# bin/TBClasses/scoreboards/rapids/sink_data_path_scoreboard.py
 class SinkDataPathScoreboard:
     """Sink data path verification using memory model
 
@@ -565,10 +565,10 @@ Evaluate each verification point:
 
 ```bash
 # Create scoreboard directory if needed
-mkdir -p bin/CocoTBFramework/scoreboards/{subsystem}/
+mkdir -p bin/TBClasses/scoreboards/{subsystem}/
 
 # Move scoreboard class to separate file
-# bin/CocoTBFramework/scoreboards/{subsystem}/{module}_scoreboard.py
+# bin/TBClasses/scoreboards/{subsystem}/{module}_scoreboard.py
 ```
 
 #### Step 4: Update TB to Use Scoreboard

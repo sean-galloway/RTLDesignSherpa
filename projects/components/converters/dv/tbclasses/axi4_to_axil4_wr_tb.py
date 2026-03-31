@@ -31,8 +31,8 @@ from cocotb.clock import Clock
 import random
 
 # Import framework utilities (PYTHONPATH includes bin/)
-from CocoTBFramework.tbclasses.shared.utilities import get_repo_root
-from CocoTBFramework.tbclasses.shared.tbbase import TBBase
+from TBClasses.shared.utilities import get_repo_root
+from TBClasses.shared.tbbase import TBBase
 
 # Add repo root to Python path using robust git-based method
 repo_root = get_repo_root()

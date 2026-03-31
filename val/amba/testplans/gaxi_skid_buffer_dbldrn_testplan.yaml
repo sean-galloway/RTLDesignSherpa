@@ -1,7 +1,7 @@
 module: gaxi_skid_buffer_dbldrn
 rtl_file: rtl/amba/gaxi/gaxi_skid_buffer_dbldrn.sv
 test_file: val/amba/test_gaxi_skid_buffer_dbldrn.py
-tb_class: bin/CocoTBFramework/tbclasses/gaxi/gaxi_buffer_dbldrn.py
+tb_class: bin/TBClasses/gaxi/gaxi_buffer_dbldrn.py
 parameters:
 - name: DATA_WIDTH
   default: 32

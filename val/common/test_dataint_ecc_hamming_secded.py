@@ -43,9 +43,9 @@ from cocotb_test.simulator import run
 from conftest import get_coverage_compile_args
 
 # Add repo root to path for CocoTBFramework imports
-from CocoTBFramework.tbclasses.dataint_ecc_hamming_secded_tb import DataintEccHammingSecDedTB
-from CocoTBFramework.tbclasses.shared.utilities import get_paths, create_view_cmd
-from CocoTBFramework.tbclasses.shared.tbbase import TBBase
+from TBClasses.dataint_ecc_hamming_secded_tb import DataintEccHammingSecDedTB
+from TBClasses.shared.utilities import get_paths, create_view_cmd
+from TBClasses.shared.tbbase import TBBase
 
 # ===========================================================================
 # COCOTB TEST FUNCTIONS - prefix with "cocotb_" to prevent pytest collection

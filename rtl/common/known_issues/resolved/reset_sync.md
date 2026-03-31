@@ -96,7 +96,7 @@ test_reset_sync.py::test_reset_sync[5-max]      PASSED
 
 - ✅ `rtl/common/reset_sync.sv` (fix applied line 16)
 - ✅ `val/common/test_reset_sync.py` (new test file created)
-- ✅ `bin/CocoTBFramework/tbclasses/reset_sync_tb.py` (new testbench class)
+- ✅ `bin/TBClasses/reset_sync_tb.py` (new testbench class)
 - ✅ `docs/markdown/RTLCommon/reset_sync.md` (updated)
 - ✅ `rtl/common/TASKS.md` (task completed, progress tracked)
 

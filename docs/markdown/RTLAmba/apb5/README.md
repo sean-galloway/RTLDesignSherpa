@@ -295,7 +295,7 @@ APB5 modules are backward compatible with APB4 systems:
 ### Source Code
 - RTL: `rtl/amba/apb5/`
 - Tests: `val/amba/test_apb5*.py`
-- Framework: `bin/CocoTBFramework/components/apb/`
+- Framework: `bin/TBClasses/components/apb/`
 
 ---
 

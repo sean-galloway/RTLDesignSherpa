@@ -89,7 +89,7 @@ APBCommandHandler(dut, memory_model, log=None)
 
 **Basic Creation**:
 ```python
-from CocoTBFramework.tbclasses.apb.apb_command_handler import APBCommandHandler
+from TBClasses.apb.apb_command_handler import APBCommandHandler
 from CocoTBFramework.components.shared.memory_model import MemoryModel
 
 # Create memory model
@@ -418,7 +418,7 @@ cmd_handler = APBCommandHandler(dut, large_memory, logger)
 
 ```python
 # Can be used with register map testing
-from CocoTBFramework.tbclasses.apb.register_map import RegisterMap
+from TBClasses.apb.register_map import RegisterMap
 
 reg_map = RegisterMap("registers.py", 32, 24, 0x1000000, logger)
 memory_model = MemoryModel(num_lines=1024, bytes_per_line=4)

@@ -43,7 +43,7 @@ from typing import Dict, List, Tuple, Any, Optional
 from cocotb.triggers import RisingEdge, Timer
 
 # Framework imports
-from CocoTBFramework.tbclasses.shared.tbbase import TBBase
+from TBClasses.shared.tbbase import TBBase
 from CocoTBFramework.components.shared.memory_model import MemoryModel
 
 

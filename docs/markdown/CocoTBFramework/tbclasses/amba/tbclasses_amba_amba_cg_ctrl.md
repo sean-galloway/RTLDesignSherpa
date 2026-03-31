@@ -268,7 +268,7 @@ clock_gate.restore_signals(original)
 
 ```python
 import cocotb
-from CocoTBFramework.tbclasses.amba.amba_cg_ctrl import AxiClockGateCtrl
+from TBClasses.amba.amba_cg_ctrl import AxiClockGateCtrl
 
 @cocotb.test()
 async def test_power_efficiency(dut):
@@ -348,7 +348,7 @@ class PowerAnalysisTestbench(TBBase):
 ### Integration with Randomization
 
 ```python
-from CocoTBFramework.tbclasses.amba.amba_random_configs import AXI_RANDOMIZER_CONFIGS
+from TBClasses.amba.amba_random_configs import AXI_RANDOMIZER_CONFIGS
 
 class PowerAwareRandomTest(TBBase):
     def __init__(self, dut):

@@ -564,7 +564,7 @@ grep -r "module_name" rtl/
 
 - **`rtl/amba/`** - AMBA protocol infrastructure (AXI, APB, AXIS monitors)
 - **`rtl/rapids/`** - Rapid AXI Programmable In-band Descriptor System (example accelerator)
-- **`bin/CocoTBFramework/`** - Verification infrastructure
+- **`bin/TBClasses/`** - Verification infrastructure
 
 ### Create Your Own Modules
 

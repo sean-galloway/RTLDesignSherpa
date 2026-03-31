@@ -74,7 +74,7 @@ def test_struct_utilities(struct_file_path, struct_name):
     # Test 2: Try importing utilities
     print_section("2. Import CocoTB Utilities")
     try:
-        from CocoTBFramework.tbclasses.misc.utilities import (
+        from TBClasses.misc.utilities import (
             extract_struct_for_test, 
             extract_struct_for_test_simple,
             setup_struct_environment,

@@ -716,7 +716,7 @@ Create `val/integ_amba/test_apb_xbar_2to4.py`:
 ```python
 import cocotb
 from cocotb.triggers import RisingEdge, Timer
-from CocoTBFramework.tbclasses.apb_master.apb_master_tb import APBMasterTB
+from TBClasses.apb_master.apb_master_tb import APBMasterTB
 
 @cocotb.test()
 async def apb_xbar_2to4_test(dut):
@@ -1204,7 +1204,7 @@ gtkwave local_sim_build/test_apb_xbar_2to1_aw032_dw032/dump.vcd
 
 ### Future: WaveDrom Integration
 
-**Note:** The repository includes infrastructure for automated WaveDrom generation (`bin/CocoTBFramework/tbclasses/wavedrom_user/apb.py`), but crossbar-specific integration is pending. Future enhancement will provide:
+**Note:** The repository includes infrastructure for automated WaveDrom generation (`bin/TBClasses/wavedrom_user/apb.py`), but crossbar-specific integration is pending. Future enhancement will provide:
 - Automated JSON generation from tests
 - Protocol-aware signal grouping
 - Cycle-accurate timing diagrams

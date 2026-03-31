@@ -165,11 +165,11 @@ projects/components/rapids/
 
 | Code Type | ✅ CORRECT Location | ❌ WRONG Location |
 |-----------|---------------------|-------------------|
-| **RAPIDS TB Classes** | `projects/components/rapids/dv/tbclasses/` | `bin/CocoTBFramework/tbclasses/rapids/` |
-| **RAPIDS-Specific BFMs** | `projects/components/rapids/dv/components/` | `bin/CocoTBFramework/components/rapids/` |
-| **RAPIDS Scoreboards** | `projects/components/rapids/dv/scoreboards/` | `bin/CocoTBFramework/scoreboards/rapids/` |
+| **RAPIDS TB Classes** | `projects/components/rapids/dv/tbclasses/` | `bin/TBClasses/rapids/` |
+| **RAPIDS-Specific BFMs** | `projects/components/rapids/dv/components/` | `bin/TBClasses/components/rapids/` |
+| **RAPIDS Scoreboards** | `projects/components/rapids/dv/scoreboards/` | `bin/TBClasses/scoreboards/rapids/` |
 | **Test Runners** | `projects/components/rapids/dv/tests/` | Anywhere else |
-| **Shared AXI4/APB BFMs** | `bin/CocoTBFramework/components/{protocol}/` | Project area |
+| **Shared AXI4/APB BFMs** | `bin/TBClasses/components/{protocol}/` | Project area |
 
 ### Import Pattern for RAPIDS Tests
 
@@ -177,8 +177,8 @@ projects/components/rapids/
 ```python
 # Import framework utilities (PYTHONPATH includes bin/)
 import os, sys
-from CocoTBFramework.tbclasses.shared.utilities import get_repo_root
-from CocoTBFramework.tbclasses.shared.tbbase import TBBase
+from TBClasses.shared.utilities import get_repo_root
+from TBClasses.shared.tbbase import TBBase
 
 # Add repo root to Python path using robust git-based method
 repo_root = get_repo_root()
@@ -195,7 +195,7 @@ from CocoTBFramework.components.axi4.axi4_master import AXI4Master
 **❌ WRONG - Don't Import from Framework:**
 ```python
 # DON'T DO THIS!
-from CocoTBFramework.tbclasses.rapids.scheduler_tb import SchedulerTB  # ❌ WRONG!
+from TBClasses.rapids.scheduler_tb import SchedulerTB  # ❌ WRONG!
 ```
 
 ### Benefits of This Organization
@@ -211,7 +211,7 @@ from CocoTBFramework.tbclasses.rapids.scheduler_tb import SchedulerTB  # ❌ WRO
 ✅ **RAPIDS is now compliant** - All TB classes moved to project area as of 2025-10-18
 
 **Migration History:**
-- **Before:** TB classes incorrectly in `bin/CocoTBFramework/tbclasses/rapids/`
+- **Before:** TB classes incorrectly in `bin/TBClasses/rapids/`
 - **After:** TB classes correctly in `projects/components/rapids/dv/tbclasses/`
 - **Test Imports:** Updated to import from project area
 
@@ -637,7 +637,7 @@ projects/components/rapids/dv/tests/
 
 ### 12.2 CocoTB Framework
 
-**Location:** `bin/CocoTBFramework/tbclasses/rapids/`
+**Location:** `bin/TBClasses/rapids/`
 
 **Components:**
 - RAPIDS-specific drivers
@@ -657,13 +657,13 @@ projects/components/rapids/dv/tests/
 
 | Interface Type | Framework Location | BFM Component |
 |----------------|-------------------|---------------|
-| **Custom valid/ready** | `bin/CocoTBFramework/components/gaxi/` | GAXI Master/Slave |
-| **AXI4** | `bin/CocoTBFramework/components/axi4/` | AXI4 Master/Slave |
-| **AXI4-Lite (AXIL)** | `bin/CocoTBFramework/components/axil4/` | AXIL Master/Slave |
-| **APB** | `bin/CocoTBFramework/components/apb/` | APB Master/Slave |
-| **AXI-Stream (AXIS)** | `bin/CocoTBFramework/components/axis4/` | AXIS Master/Slave |
-| **Network** | `bin/CocoTBFramework/components/network/` | Network Master/Slave |
-| **MonBus** | `bin/CocoTBFramework/components/monbus/` | MonBus drivers |
+| **Custom valid/ready** | `bin/TBClasses/components/gaxi/` | GAXI Master/Slave |
+| **AXI4** | `bin/TBClasses/components/axi4/` | AXI4 Master/Slave |
+| **AXI4-Lite (AXIL)** | `bin/TBClasses/components/axil4/` | AXIL Master/Slave |
+| **APB** | `bin/TBClasses/components/apb/` | APB Master/Slave |
+| **AXI-Stream (AXIS)** | `bin/TBClasses/components/axis4/` | AXIS Master/Slave |
+| **Network** | `bin/TBClasses/components/network/` | Network Master/Slave |
+| **MonBus** | `bin/TBClasses/components/monbus/` | MonBus drivers |
 
 **Rationale:**
 1. **Consistency**: All tests use standardized handshake protocols
@@ -702,8 +702,8 @@ class ProgramEngineTB(TBBase):
 
 **📖 See:**
 - `projects/components/rapids/CLAUDE.md` - Rule #1 for complete BFM usage guidelines
-- `bin/CocoTBFramework/components/gaxi/README.md` - GAXI BFM documentation
-- `bin/CocoTBFramework/components/axi4/README.md` - AXI4 BFM documentation
+- `bin/TBClasses/components/gaxi/README.md` - GAXI BFM documentation
+- `bin/TBClasses/components/axi4/README.md` - AXI4 BFM documentation
 
 ### 12.3 Test File Structure (Standard Pattern)
 
@@ -720,9 +720,9 @@ import cocotb
 from cocotb_test.simulator import run
 
 # Import REUSABLE testbench class (NOT defined in this file!)
-from CocoTBFramework.tbclasses.rapids.scheduler_tb import SchedulerTB
-from CocoTBFramework.tbclasses.shared.utilities import get_paths, create_view_cmd
-from CocoTBFramework.tbclasses.shared.tbbase import TBBase
+from TBClasses.rapids.scheduler_tb import SchedulerTB
+from TBClasses.shared.utilities import get_paths, create_view_cmd
+from TBClasses.shared.tbbase import TBBase
 
 # ===========================================================================
 # COCOTB TEST FUNCTIONS - prefix with "cocotb_" to prevent pytest collection
@@ -855,7 +855,7 @@ def test_basic_flow(request, channel_id, num_channels, data_width, credit_width)
 **Key Structure Requirements:**
 
 1. **Testbench Class Location:**
-   - ALWAYS in `bin/CocoTBFramework/tbclasses/rapids/`
+   - ALWAYS in `bin/TBClasses/rapids/`
    - NEVER inline in test file
    - Reusable across multiple test files
 
@@ -1108,7 +1108,7 @@ The shell script will automatically:
 
 - **AMBA:** `rtl/amba/` - Monitor infrastructure used in RAPIDS
 - **Common:** `rtl/common/` - Building blocks (counters, FIFOs, etc.)
-- **CocoTB Framework:** `bin/CocoTBFramework/tbclasses/rapids/`
+- **CocoTB Framework:** `bin/TBClasses/rapids/`
 
 ### 16.3 External References
 

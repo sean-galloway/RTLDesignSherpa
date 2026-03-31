@@ -25,7 +25,7 @@
 
 # UART BFM Components
 
-**Package:** `bin/CocoTBFramework/components/uart/`
+**Package:** `bin/TBClasses/components/uart/`
 **Last Updated:** 2025-11-09
 
 ---
@@ -436,7 +436,7 @@ Common Baud Rates:
 ### Complete UART Bridge Testbench
 
 ```python
-from CocoTBFramework.tbclasses.shared.tbbase import TBBase
+from TBClasses.shared.tbbase import TBBase
 from CocoTBFramework.components.uart import UARTMaster, UARTMonitor
 
 class UARTBridgeTB(TBBase):
@@ -513,7 +513,7 @@ class UARTBridgeTB(TBBase):
 
 ### Unit Tests
 
-Located in: `bin/CocoTBFramework/components/uart/test_uart_components.py`
+Located in: `bin/TBClasses/components/uart/test_uart_components.py`
 
 **Test Coverage:**
 - Byte transmission accuracy
@@ -526,7 +526,7 @@ Located in: `bin/CocoTBFramework/components/uart/test_uart_components.py`
 ### Running Tests
 
 ```bash
-cd bin/CocoTBFramework/components/uart
+cd bin/TBClasses/components/uart
 pytest test_uart_components.py -v
 ```
 

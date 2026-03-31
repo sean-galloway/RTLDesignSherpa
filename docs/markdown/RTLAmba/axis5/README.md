@@ -324,7 +324,7 @@ axis5_slave u_output (
 ### Source Code
 - RTL: `rtl/amba/axis5/`
 - Tests: `val/amba/test_axis5*.py`
-- Framework: `bin/CocoTBFramework/components/axis4/`
+- Framework: `bin/TBClasses/components/axis4/`
 
 ---
 

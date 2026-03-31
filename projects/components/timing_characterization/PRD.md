@@ -401,7 +401,7 @@ to keep the synthesis filelist self-contained:
 
 ### 8.2 Verification Framework
 
-- `CocoTBFramework.tbclasses.shared.tbbase.TBBase` -- base testbench class
+- `TBClasses.shared.tbbase.TBBase` -- base testbench class
 - CocoTB + cocotb-test -- simulation runner
 - pytest -- test collection and parameterization
 

@@ -355,7 +355,7 @@ rtldesignsherpa/
 │   │   └── fub_tests/
 │   └── ...
 │
-└── bin/CocoTBFramework/        # Shared testbench infrastructure
+└── bin/TBClasses/        # Shared testbench infrastructure
     ├── components/             # Protocol drivers (AXI, APB, etc.)
     ├── tbclasses/              # Reusable testbench classes
     └── scoreboards/            # Transaction checkers
@@ -381,7 +381,7 @@ projects/components/stream/dv/tbclasses/scheduler_tb.py
 projects/components/rapids/dv/tbclasses/descriptor_engine_tb.py
 
 ❌ WRONG:
-bin/CocoTBFramework/tbclasses/stream/scheduler_tb.py  # Don't put in framework!
+bin/TBClasses/stream/scheduler_tb.py  # Don't put in framework!
 ```
 
 **Framework is only for truly shared code (AXI drivers, APB monitors, etc.)**
@@ -411,7 +411,7 @@ import sys
 repo_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '../../../../../..'))
 sys.path.insert(0, repo_root)
 
-from CocoTBFramework.tbclasses.shared.tbbase import TBBase
+from TBClasses.shared.tbbase import TBBase
 
 
 class MyModuleTB(TBBase):

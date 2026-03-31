@@ -123,18 +123,18 @@ Understanding what is global (framework/shared) vs local (component-specific) is
 
 ### Global Scripts (Shared Framework)
 
-Location: `bin/CocoTBFramework/` and `bin/`
+Location: `bin/TBClasses/` and `bin/`
 
 These are **SHARED** across all components and should **NOT** be modified for component-specific needs:
 
 | Script/Module | Location | Purpose |
 |---------------|----------|---------|
-| `TBBase` | `bin/CocoTBFramework/tbclasses/shared/tbbase.py` | Base testbench class |
-| `FlexConfigBase` | `bin/CocoTBFramework/tbclasses/flex_config_base.py` | Configuration utilities |
-| GAXI BFMs | `bin/CocoTBFramework/components/gaxi/` | Generic AXI bus functional models |
-| AXI4 Factories | `bin/CocoTBFramework/tbclasses/axi4_factories.py` | AXI4 interface creation |
-| `get_paths()` | `bin/CocoTBFramework/tbclasses/common/pytest_cocotb_utils.py` | Path utilities |
-| `get_sources_from_filelist()` | `bin/CocoTBFramework/tbclasses/common/pytest_cocotb_utils.py` | Filelist parsing |
+| `TBBase` | `bin/TBClasses/shared/tbbase.py` | Base testbench class |
+| `FlexConfigBase` | `bin/TBClasses/flex_config_base.py` | Configuration utilities |
+| GAXI BFMs | `bin/TBClasses/components/gaxi/` | Generic AXI bus functional models |
+| AXI4 Factories | `bin/TBClasses/axi4_factories.py` | AXI4 interface creation |
+| `get_paths()` | `bin/TBClasses/common/pytest_cocotb_utils.py` | Path utilities |
+| `get_sources_from_filelist()` | `bin/TBClasses/common/pytest_cocotb_utils.py` | Filelist parsing |
 
 ### Local Scripts (Component-Specific)
 

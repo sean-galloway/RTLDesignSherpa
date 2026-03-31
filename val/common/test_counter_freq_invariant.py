@@ -47,10 +47,10 @@ from cocotb.triggers import RisingEdge
 from cocotb_test.simulator import run
 
 # Add repo root to path for CocoTBFramework imports
-from CocoTBFramework.tbclasses.shared.tbbase import TBBase
+from TBClasses.shared.tbbase import TBBase
 from conftest import get_coverage_compile_args
-from CocoTBFramework.tbclasses.shared.filelist_utils import get_sources_from_filelist
-from CocoTBFramework.tbclasses.shared.utilities import get_paths, create_view_cmd
+from TBClasses.shared.filelist_utils import get_sources_from_filelist
+from TBClasses.shared.utilities import get_paths, create_view_cmd
 
 # Division factor mapping for each frequency selection value (microsecond-based)
 # Each value represents clock cycles needed for 1 microsecond

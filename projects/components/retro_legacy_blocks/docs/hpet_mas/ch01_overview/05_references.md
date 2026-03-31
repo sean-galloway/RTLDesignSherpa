@@ -104,9 +104,9 @@
 - `/CLAUDE.md` - Repository-wide AI guidance
 
 **Framework Documentation:**
-- `bin/CocoTBFramework/README.md` - Testbench framework overview
-- `bin/CocoTBFramework/CLAUDE.md` - Framework usage guide
-- `bin/CocoTBFramework/components/apb/README.md` - APB BFM documentation
+- `bin/TBClasses/README.md` - Testbench framework overview
+- `bin/TBClasses/CLAUDE.md` - Framework usage guide
+- `bin/TBClasses/components/apb/README.md` - APB BFM documentation
 
 **Verification Architecture:**
 - `docs/VERIFICATION_ARCHITECTURE_GUIDE.md` - Complete verification patterns

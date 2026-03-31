@@ -117,7 +117,7 @@ dv/
 from projects.components.timing_characterization.dv.tbclasses.timing_char_tb import (
     TimingCharTB, lfsr_step, lfsr_sequence, bit,
 )
-from CocoTBFramework.tbclasses.shared.tbbase import TBBase
+from TBClasses.shared.tbbase import TBBase
 ```
 
 ---

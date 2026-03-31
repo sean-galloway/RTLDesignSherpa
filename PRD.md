@@ -55,7 +55,7 @@ rtldesignsherpa/
 │   ├── rapids/                   # Tests for rtl/rapids/
 │   └── integ_*/                # Integration tests
 │
-├── bin/CocoTBFramework/        # Verification infrastructure (196 files)
+├── bin/TBClasses/        # Verification infrastructure (196 files)
 │   ├── components/             # Protocol BFMs (AXI, APB, AXIS, etc.)
 │   ├── tbclasses/              # Testbench classes and drivers
 │   └── scoreboards/            # Verification scoreboards
@@ -77,7 +77,7 @@ Each major subsystem has its own detailed PRD:
 - **`rtl/common/PRD.md`** - Reusable Building Blocks Library
 - **`rtl/amba/PRD.md`** - AMBA Protocol Infrastructure
 - **`rtl/rapids/PRD.md`** - Rapid AXI Programmable In-band Descriptor System Specification
-- **`bin/CocoTBFramework/README.md`** - Verification Framework Guide
+- **`bin/TBClasses/README.md`** - Verification Framework Guide
 
 ### 2.3 Organizational Standards - MANDATORY PROJECT STRUCTURE
 
@@ -89,7 +89,7 @@ This repository enforces a strict organizational pattern to ensure easy discover
 
 **"All project-specific code MUST reside in the project area for easy discovery."**
 
-The framework area (`bin/CocoTBFramework/`) contains ONLY shared, cross-project infrastructure. Project-specific testbench classes, components, and scoreboards belong in the project area under `projects/components/{name}/dv/`.
+The framework area (`bin/TBClasses/`) contains ONLY shared, cross-project infrastructure. Project-specific testbench classes, components, and scoreboards belong in the project area under `projects/components/{name}/dv/`.
 
 #### 2.3.2 MANDATORY Directory Structure
 
@@ -125,12 +125,12 @@ projects/components/{name}/
 
 | Code Type | ✅ CORRECT Location | ❌ WRONG Location |
 |-----------|---------------------|-------------------|
-| **Project TB Classes** | `projects/components/{name}/dv/tbclasses/` | `bin/CocoTBFramework/tbclasses/{name}/` |
-| **Project BFMs** | `projects/components/{name}/dv/components/` | `bin/CocoTBFramework/components/{name}/` |
-| **Project Scoreboards** | `projects/components/{name}/dv/scoreboards/` | `bin/CocoTBFramework/scoreboards/{name}/` |
+| **Project TB Classes** | `projects/components/{name}/dv/tbclasses/` | `bin/TBClasses/{name}/` |
+| **Project BFMs** | `projects/components/{name}/dv/components/` | `bin/TBClasses/components/{name}/` |
+| **Project Scoreboards** | `projects/components/{name}/dv/scoreboards/` | `bin/TBClasses/scoreboards/{name}/` |
 | **Test Runners** | `projects/components/{name}/dv/tests/` | Anywhere else |
-| **Shared Protocol BFMs** | `bin/CocoTBFramework/components/{protocol}/` | Project area |
-| **Shared Utilities** | `bin/CocoTBFramework/tbclasses/shared/` | Project area |
+| **Shared Protocol BFMs** | `bin/TBClasses/components/{protocol}/` | Project area |
+| **Shared Utilities** | `bin/TBClasses/shared/` | Project area |
 
 #### 2.3.4 Import Pattern from Project Area
 
@@ -148,14 +148,14 @@ from projects.components.rapids.dv.tbclasses.scheduler_tb import SchedulerTB
 from projects.components.stream.dv.tbclasses.descriptor_engine_tb import DescriptorEngineTB
 
 # Shared infrastructure still comes from framework
-from CocoTBFramework.tbclasses.shared.tbbase import TBBase
+from TBClasses.shared.tbbase import TBBase
 from CocoTBFramework.components.axi4.axi4_master import AXI4Master
 ```
 
 **❌ WRONG:**
 ```python
 # DON'T import project-specific TB classes from framework!
-from CocoTBFramework.tbclasses.rapids.scheduler_tb import SchedulerTB  # ❌ WRONG!
+from TBClasses.rapids.scheduler_tb import SchedulerTB  # ❌ WRONG!
 ```
 
 #### 2.3.5 Framework vs Project Decision Tree
@@ -171,7 +171,7 @@ Is this code specific to a single project component (RAPIDS, STREAM, Bridge)?
 │   - Bridge configuration testbench
 │
 └─ NO → Is it reusable across multiple projects?
-    ├─ YES → Place in bin/CocoTBFramework/
+    ├─ YES → Place in bin/TBClasses/
     │   Examples:
     │   - AXI4 protocol drivers/monitors
     │   - APB protocol drivers/monitors
@@ -203,7 +203,7 @@ Is this code specific to a single project component (RAPIDS, STREAM, Bridge)?
 
 If project-specific code is found in the framework area, it MUST be moved:
 
-1. **Identify:** Search for `bin/CocoTBFramework/tbclasses/{project}/`
+1. **Identify:** Search for `bin/TBClasses/{project}/`
 2. **Create:** Ensure `projects/components/{project}/dv/tbclasses/` exists
 3. **Move:** Transfer TB classes to project area
 4. **Update:** Fix all imports in test files
@@ -318,12 +318,12 @@ RAPIDS Architecture
 
 ---
 
-### 3.4 Verification Infrastructure (`bin/CocoTBFramework/`)
+### 3.4 Verification Infrastructure (`bin/TBClasses/`)
 
 **Purpose:** Reusable CocoTB-based verification components
 **Files:** 196 Python files
 **Status:** ✅ Mature, actively maintained
-**Documentation:** `bin/CocoTBFramework/README.md`, `bin/CocoTBFramework/CLAUDE.md`
+**Documentation:** `bin/TBClasses/README.md`, `bin/TBClasses/CLAUDE.md`
 
 **Component Categories:**
 
@@ -425,7 +425,7 @@ endmodule
 **Test Organization:**
 - One test file per RTL module
 - Use CocoTB framework
-- Leverage `bin/CocoTBFramework/` infrastructure
+- Leverage `bin/TBClasses/` infrastructure
 - Generate waveforms for debug
 
 **🚨 MANDATORY: Pytest Function Naming Convention 🚨**
@@ -475,7 +475,7 @@ def test_converter(request, params):  # ← Too generic!
 All verification follows a strict three-layer architecture for reusability and maintainability:
 
 #### Layer 1: Testbench Class (TB)
-**Location:** `bin/CocoTBFramework/tbclasses/{subsystem}/{module}_tb.py`
+**Location:** `bin/TBClasses/{subsystem}/{module}_tb.py`
 
 **Purpose:** Reusable infrastructure and base methods
 
@@ -488,8 +488,8 @@ All verification follows a strict three-layer architecture for reusability and m
 
 **Example:**
 ```python
-# bin/CocoTBFramework/tbclasses/rapids/scheduler_tb.py
-from CocoTBFramework.tbclasses.shared.tbbase import TBBase
+# bin/TBClasses/rapids/scheduler_tb.py
+from TBClasses.shared.tbbase import TBBase
 
 class SchedulerTB(TBBase):
     """Reusable testbench for RAPIDS Scheduler"""
@@ -523,7 +523,7 @@ class SchedulerTB(TBBase):
 **Example:**
 ```python
 # val/rapids/fub_tests/scheduler/test_scheduler.py
-from CocoTBFramework.tbclasses.rapids.scheduler_tb import SchedulerTB
+from TBClasses.rapids.scheduler_tb import SchedulerTB
 
 @cocotb.test()
 async def cocotb_test_basic_flow(dut):
@@ -540,7 +540,7 @@ def test_basic_flow(num_ops, ...):
 ```
 
 #### Layer 3: Scoreboard (Separate Component)
-**Location:** `bin/CocoTBFramework/scoreboards/{protocol}/`
+**Location:** `bin/TBClasses/scoreboards/{protocol}/`
 
 **Purpose:** Transaction verification and checking
 
@@ -552,7 +552,7 @@ def test_basic_flow(num_ops, ...):
 
 **Example:**
 ```python
-# bin/CocoTBFramework/scoreboards/rapids/program_engine_scoreboard.py
+# bin/TBClasses/scoreboards/rapids/program_engine_scoreboard.py
 class ProgramEngineScoreboard:
     """Scoreboard for program engine verification"""
 
@@ -585,7 +585,7 @@ class ProgramEngineScoreboard:
    - Contains all BFMs and hardware interface code
    - Provides reusable methods
    - Used across multiple test scenarios
-   - Lives in `bin/CocoTBFramework/tbclasses/`
+   - Lives in `bin/TBClasses/`
 
 2. **Test = Intelligence**
    - Scenario-specific logic
@@ -684,7 +684,7 @@ w_pkt = self.w_monitor._recvQ.popleft()
 
 **📖 See:**
 - **`docs/VERIFICATION_ARCHITECTURE_GUIDE.md`** - Complete guide with examples for all subsystems
-- `bin/CocoTBFramework/CLAUDE.md` - Framework-specific patterns
+- `bin/TBClasses/CLAUDE.md` - Framework-specific patterns
 - `rtl/rapids/CLAUDE.md` Section "Rule #0" - Detailed testbench architecture
 - `val/amba/test_apb_slave.py` - Reference example following this pattern
 
@@ -707,7 +707,7 @@ w_pkt = self.w_monitor._recvQ.popleft()
 ### 5.3 Verification Engineer (Primary)
 **Background:** Creating testbenches and verification environments
 **Needs:** Protocol monitors, BFMs, scoreboards, coverage
-**Uses:** `bin/CocoTBFramework/`, `rtl/amba/` monitors, test examples
+**Uses:** `bin/TBClasses/`, `rtl/amba/` monitors, test examples
 **Skill Level:** Python + SystemVerilog, CocoTB proficiency
 
 ### 5.4 Student/Learner (Secondary)
@@ -790,7 +790,7 @@ ls rtl/common/*.sv
 
 **Step 3: Create Test**
 - File: `val/{subsystem}/test_{module}.py`
-- Import CocoTB framework from `bin/CocoTBFramework/`
+- Import CocoTB framework from `bin/TBClasses/`
 - Target >95% functional coverage
 - Include waveform dumps
 
@@ -990,7 +990,7 @@ See `CLAUDE.md` for comprehensive guide on:
 - `rtl/common/PRD.md` - Common Library detailed spec
 - `rtl/amba/PRD.md` - AMBA Infrastructure detailed spec
 - `rtl/rapids/PRD.md` - RAPIDS detailed spec
-- `bin/CocoTBFramework/README.md` - Verification framework guide
+- `bin/TBClasses/README.md` - Verification framework guide
 
 ### 12.2 Design Guides
 

@@ -393,7 +393,7 @@ tb.add_cleanup(close_files)
 ```python
 import cocotb
 from cocotb.triggers import Timer, RisingEdge
-from CocoTBFramework.tbclasses.misc.tbbase import TBBase
+from TBClasses.misc.tbbase import TBBase
 
 class SimpleTestbench(TBBase):
     def __init__(self, dut):
@@ -429,8 +429,8 @@ async def simple_test(dut):
 ### Advanced Testbench with Monitoring
 
 ```python
-from CocoTBFramework.tbclasses.misc.tbbase import TBBase
-from CocoTBFramework.tbclasses.misc.advanced_monitoring import advanced_monitoring
+from TBClasses.misc.tbbase import TBBase
+from TBClasses.misc.advanced_monitoring import advanced_monitoring
 
 class AdvancedTestbench(TBBase):
     def __init__(self, dut):

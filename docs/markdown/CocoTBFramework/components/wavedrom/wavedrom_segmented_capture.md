@@ -27,7 +27,7 @@
 **Status:** ✅ Implemented & Tested
 **Test Results:** 2/4 scenarios generating waveforms (50% success, architecture validated)
 **Files Modified:**
-- `bin/CocoTBFramework/components/wavedrom/constraint_solver.py`
+- `bin/TBClasses/components/wavedrom/constraint_solver.py`
 - `val/amba/test_gaxi_wavedrom_example.py`
 
 ---

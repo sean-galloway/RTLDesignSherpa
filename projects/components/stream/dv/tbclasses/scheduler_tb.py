@@ -46,7 +46,7 @@ from cocotb.triggers import RisingEdge, ClockCycles
 from cocotb.utils import get_sim_time
 
 # Framework imports (shared infrastructure)
-from CocoTBFramework.tbclasses.shared.tbbase import TBBase
+from TBClasses.shared.tbbase import TBBase
 from CocoTBFramework.components.gaxi.gaxi_factories import create_gaxi_master
 from CocoTBFramework.components.shared.field_config import FieldConfig, FieldDefinition
 from CocoTBFramework.components.shared.flex_randomizer import FlexRandomizer

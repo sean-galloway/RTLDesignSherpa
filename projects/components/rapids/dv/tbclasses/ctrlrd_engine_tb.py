@@ -50,7 +50,7 @@ from enum import Enum
 import random
 import os
 
-from CocoTBFramework.tbclasses.shared.tbbase import TBBase
+from TBClasses.shared.tbbase import TBBase
 from CocoTBFramework.components.shared.memory_model import MemoryModel
 from CocoTBFramework.components.axi4.axi4_factories import create_axi4_slave_rd
 from CocoTBFramework.components.gaxi.gaxi_factories import create_gaxi_master

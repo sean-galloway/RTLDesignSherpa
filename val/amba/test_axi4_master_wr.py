@@ -47,11 +47,11 @@ import pytest
 import cocotb
 from cocotb_test.simulator import run
 from conftest import get_coverage_compile_args
-from CocoTBFramework.tbclasses.shared.tbbase import TBBase
-from CocoTBFramework.tbclasses.shared.utilities import get_paths, create_view_cmd
+from TBClasses.shared.tbbase import TBBase
+from TBClasses.shared.utilities import get_paths, create_view_cmd
 
 # Import the testbench (assuming it's in the same directory structure)
-from CocoTBFramework.tbclasses.axi4.axi4_master_write_tb import AXI4MasterWriteTB
+from TBClasses.axi4.axi4_master_write_tb import AXI4MasterWriteTB
 
 
 @cocotb.test(timeout_time=30, timeout_unit="ms")  # Increased timeout for comprehensive testing

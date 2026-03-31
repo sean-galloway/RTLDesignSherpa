@@ -19,9 +19,9 @@ from itertools import product
 import pytest
 import cocotb
 from cocotb_test.simulator import run
-from CocoTBFramework.tbclasses.shared.tbbase import TBBase
-from CocoTBFramework.tbclasses.gaxi.gaxi_buffer_multi_sigmap import GaxiMultiSigMapBufferTB
-from CocoTBFramework.tbclasses.shared.utilities import get_paths, create_view_cmd
+from TBClasses.shared.tbbase import TBBase
+from TBClasses.gaxi.gaxi_buffer_multi_sigmap import GaxiMultiSigMapBufferTB
+from TBClasses.shared.utilities import get_paths, create_view_cmd
 
 
 @cocotb.test(timeout_time=1, timeout_unit="ms")

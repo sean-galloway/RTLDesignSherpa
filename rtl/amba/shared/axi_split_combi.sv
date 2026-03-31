@@ -187,8 +187,9 @@ module axi_split_combi #(
         if (aresetn && transaction_valid) begin
 
             // Validate beats_to_boundary calculation
-            assert (beats_to_boundary <= AW'(256)) else  // Reasonable upper bound
-                $error("beats_to_boundary (%0d) seems too large", beats_to_boundary);
+            // Max is 4KB boundary / min beat size, e.g., 4096/4 = 1024 for DW=32
+            assert (beats_to_boundary <= AW'(4096 / BYTES_PER_BEAT)) else
+                $error("beats_to_boundary (%0d) exceeds max for DW=%0d", beats_to_boundary, DW);
 
             // Validate split length logic
             if (split_required) begin

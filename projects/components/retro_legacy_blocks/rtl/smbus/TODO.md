@@ -118,7 +118,7 @@ mkdir -p projects/components/retro_legacy_blocks/dv/tests/smbus
 ```python
 # projects/components/retro_legacy_blocks/dv/tbclasses/smbus/smbus_tb.py
 
-from CocoTBFramework.tbclasses.tb_base import TBBase
+from TBClasses.tb_base import TBBase
 
 class SMBusTB(TBBase):
     def __init__(self, dut):

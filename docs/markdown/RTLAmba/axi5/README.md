@@ -354,7 +354,7 @@ The `*_mon` variants combine master/slave with integrated monitor:
 ### Source Code
 - RTL: `rtl/amba/axi5/`
 - Tests: `val/amba/test_axi5*.py`
-- Framework: `bin/CocoTBFramework/components/axi4/`
+- Framework: `bin/TBClasses/components/axi4/`
 
 ---
 

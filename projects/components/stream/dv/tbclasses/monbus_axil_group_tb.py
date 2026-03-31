@@ -43,7 +43,7 @@ import cocotb
 from cocotb.triggers import Combine
 
 # Framework imports
-from CocoTBFramework.tbclasses.shared.tbbase import TBBase
+from TBClasses.shared.tbbase import TBBase
 from CocoTBFramework.components.shared.flex_randomizer import FlexRandomizer
 
 # AXIL4 imports for slave/master interfaces
@@ -52,10 +52,10 @@ from CocoTBFramework.components.axil4.axil4_factories import (
 )
 
 # MonBus imports
-from CocoTBFramework.tbclasses.monbus.monbus_types import (
+from TBClasses.monbus.monbus_types import (
     ProtocolType, PktType, ARBErrorCode, ARBCompletionCode
 )
-from CocoTBFramework.tbclasses.monbus.monbus_packet import create_monbus_field_config
+from TBClasses.monbus.monbus_packet import create_monbus_field_config
 
 # GAXI for monitor bus driving
 from CocoTBFramework.components.gaxi.gaxi_factories import create_gaxi_master

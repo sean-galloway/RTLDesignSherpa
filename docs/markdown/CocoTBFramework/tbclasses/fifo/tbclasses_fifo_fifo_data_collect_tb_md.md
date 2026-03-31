@@ -291,7 +291,7 @@ Tests coordinated patterns across multiple channels.
 ```python
 import cocotb
 import os
-from CocoTBFramework.tbclasses.fifo.fifo_data_collect_tb import DataCollectTB
+from TBClasses.fifo.fifo_data_collect_tb import DataCollectTB
 
 @cocotb.test()
 async def test_data_collect(dut):

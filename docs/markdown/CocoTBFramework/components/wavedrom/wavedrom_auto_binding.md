@@ -48,7 +48,7 @@ The WaveDrom infrastructure has been modernized to use **automatic signal discov
 ### GAXI WaveDrom (Simplest Case)
 
 ```python
-from CocoTBFramework.tbclasses.wavedrom_user.gaxi import GAXIWaveDromTemplate
+from TBClasses.wavedrom_user.gaxi import GAXIWaveDromTemplate
 
 @cocotb.test()
 async def my_test(dut):
@@ -71,7 +71,7 @@ async def my_test(dut):
 ### APB WaveDrom
 
 ```python
-from CocoTBFramework.tbclasses.wavedrom_user.apb import APBWaveDromTemplate
+from TBClasses.wavedrom_user.apb import APBWaveDromTemplate
 
 @cocotb.test()
 async def my_apb_test(dut):
@@ -535,10 +535,10 @@ wave = GAXIWaveDromTemplate(
 
 ## See Also
 
-- **SignalResolver Documentation**: `bin/CocoTBFramework/components/shared/signal_mapping_helper.py`
-- **Constraint Solver**: `bin/CocoTBFramework/components/wavedrom/constraint_solver.py`
-- **GAXI Constraints**: `bin/CocoTBFramework/tbclasses/wavedrom_user/gaxi.py`
-- **APB Constraints**: `bin/CocoTBFramework/tbclasses/wavedrom_user/apb.py`
+- **SignalResolver Documentation**: `bin/TBClasses/components/shared/signal_mapping_helper.py`
+- **Constraint Solver**: `bin/TBClasses/components/wavedrom/constraint_solver.py`
+- **GAXI Constraints**: `bin/TBClasses/wavedrom_user/gaxi.py`
+- **APB Constraints**: `bin/TBClasses/wavedrom_user/apb.py`
 
 ---
 

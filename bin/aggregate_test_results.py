@@ -14,6 +14,9 @@ Usage:
     # Run at a specific level
     python3 bin/aggregate_test_results.py --run --test-level FUNC
 
+    # Run all environments in parallel (concurrent across environments)
+    python3 bin/aggregate_test_results.py --run --parallel
+
     # Run only specific areas
     python3 bin/aggregate_test_results.py --run --area rapids --area stream
 
@@ -36,6 +39,7 @@ import os
 import subprocess
 import sys
 import xml.etree.ElementTree as ET
+from concurrent.futures import ProcessPoolExecutor, as_completed
 from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
@@ -505,6 +509,14 @@ def main():
         help="Path to test_environments.toml (default: <repo>/test_environments.toml)"
     )
     parser.add_argument(
+        "--parallel", action="store_true",
+        help="Run environments concurrently (use with --run)"
+    )
+    parser.add_argument(
+        "--max-workers", type=int, default=None,
+        help="Max concurrent environments for --parallel (default: number of areas)"
+    )
+    parser.add_argument(
         "--list", action="store_true",
         help="List all test areas from TOML and exit"
     )
@@ -557,25 +569,77 @@ def main():
         if args.areas:
             areas_to_run = [a for a in test_areas if a.area in args.areas]
 
-        title = f"Test Results (level={test_level})"
-        print(f"Running tests across {len(areas_to_run)} environments (level={test_level})...")
+        mode_label = "PARALLEL" if args.parallel else "serial"
+        title = f"Test Results (level={test_level}, {mode_label})"
+        print(f"Running tests across {len(areas_to_run)} environments "
+              f"(level={test_level}, {mode_label})...")
         print()
 
-        for ac in areas_to_run:
-            label = f"{ac.area}/{ac.sub_area}" if ac.sub_area else ac.area
-            print(f"  Running {label}...", end=" ", flush=True)
-            r = run_tests_for_area(
-                repo_root, ac, results_dir, test_level, args.timeout
-            )
-            r.name = label
-            results.append(r)
+        if args.parallel:
+            # Concurrent execution across environments
+            max_workers = args.max_workers or len(areas_to_run)
+            labels = {
+                id(ac): (f"{ac.area}/{ac.sub_area}" if ac.sub_area else ac.area)
+                for ac in areas_to_run
+            }
+            print(f"  Launching {len(areas_to_run)} environments "
+                  f"(max_workers={max_workers})...")
+            for label in labels.values():
+                print(f"    - {label}")
+            print()
 
-            if r.status == "PASS":
-                print(f"PASS ({r.passed}/{r.total}, {r.time_sec:.1f}s)")
-            elif r.status == "FAIL":
-                print(f"FAIL ({r.passed}/{r.total} pass, {r.failed}F {r.errors}E)")
-            else:
-                print(f"{r.status}: {r.run_error[:60]}")
+            with ProcessPoolExecutor(max_workers=max_workers) as executor:
+                future_to_ac = {
+                    executor.submit(
+                        run_tests_for_area,
+                        repo_root, ac, results_dir, test_level, args.timeout
+                    ): ac
+                    for ac in areas_to_run
+                }
+                for future in as_completed(future_to_ac):
+                    ac = future_to_ac[future]
+                    label = labels[id(ac)]
+                    try:
+                        r = future.result()
+                    except Exception as e:
+                        r = TestSuiteResult(
+                            name=label, area=ac.area,
+                            run_error=str(e)[:120]
+                        )
+                    r.name = label
+                    results.append(r)
+
+                    if r.status == "PASS":
+                        print(f"  Finished {label}: "
+                              f"PASS ({r.passed}/{r.total}, {r.time_sec:.1f}s)")
+                    elif r.status == "FAIL":
+                        print(f"  Finished {label}: "
+                              f"FAIL ({r.passed}/{r.total} pass, "
+                              f"{r.failed}F {r.errors}E)")
+                    else:
+                        print(f"  Finished {label}: "
+                              f"{r.status}: {r.run_error[:60]}")
+
+            # Sort results to match input order for consistent display
+            area_order = {labels[id(ac)]: i for i, ac in enumerate(areas_to_run)}
+            results.sort(key=lambda r: area_order.get(r.name, 999))
+        else:
+            # Serial execution (original behavior)
+            for ac in areas_to_run:
+                label = f"{ac.area}/{ac.sub_area}" if ac.sub_area else ac.area
+                print(f"  Running {label}...", end=" ", flush=True)
+                r = run_tests_for_area(
+                    repo_root, ac, results_dir, test_level, args.timeout
+                )
+                r.name = label
+                results.append(r)
+
+                if r.status == "PASS":
+                    print(f"PASS ({r.passed}/{r.total}, {r.time_sec:.1f}s)")
+                elif r.status == "FAIL":
+                    print(f"FAIL ({r.passed}/{r.total} pass, {r.failed}F {r.errors}E)")
+                else:
+                    print(f"{r.status}: {r.run_error[:60]}")
 
         print()
 

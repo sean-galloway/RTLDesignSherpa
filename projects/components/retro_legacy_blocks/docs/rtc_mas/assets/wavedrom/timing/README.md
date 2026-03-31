@@ -76,4 +76,4 @@ Shows UIP flag protocol for safe time reads. UIP asserts before time update begi
 
 - **RTC RTL:** `rtl/rtc/apb_rtc.sv`
 - **RTC Testbench:** `dv/tbclasses/rtc/rtc_tb.py`
-- **Constraint Class:** `bin/CocoTBFramework/tbclasses/wavedrom_user/rtc.py`
+- **Constraint Class:** `bin/TBClasses/wavedrom_user/rtc.py`

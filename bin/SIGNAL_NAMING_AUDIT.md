@@ -415,8 +415,8 @@ chmod +x bin/audit_signal_naming_conflicts.py
 
 ## Related Documentation
 
-- **Signal Helper Implementation:** `bin/CocoTBFramework/components/shared/signal_mapping_helper.py`
-- **AXI Factory Functions:** `bin/CocoTBFramework/components/axi4/axi4_factories.py`
+- **Signal Helper Implementation:** `bin/TBClasses/components/shared/signal_mapping_helper.py`
+- **AXI Factory Functions:** `bin/TBClasses/components/axi4/axi4_factories.py`
 - **Known Issues:** `rtl/rapids/known_issues/scheduler_group_signal_naming_conflicts.md`
 - **Example Report:** `rtl/rapids/signal_conflicts_report.md`
 

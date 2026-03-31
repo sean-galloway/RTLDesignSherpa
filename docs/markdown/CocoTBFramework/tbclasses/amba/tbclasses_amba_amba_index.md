@@ -53,7 +53,7 @@ CocoTBFramework/tbclasses/amba/
 
 ### Basic Clock Gate Controller Setup
 ```python
-from CocoTBFramework.tbclasses.amba.amba_cg_ctrl import AxiClockGateCtrl
+from TBClasses.amba.amba_cg_ctrl import AxiClockGateCtrl
 
 # Create clock gate controller
 clock_gate = AxiClockGateCtrl(
@@ -75,7 +75,7 @@ print(f"Active: {stats['active_percent']}%, Gated: {stats['gated_percent']}%")
 
 ### Basic CDC Testbench Setup
 ```python
-from CocoTBFramework.tbclasses.amba.cdc_handshake import CDCHandshakeTB
+from TBClasses.amba.cdc_handshake import CDCHandshakeTB
 
 # Create CDC testbench with dual clock domains
 @cocotb.test()
@@ -94,7 +94,7 @@ async def test_cdc_basic(dut):
 
 ### Using Randomization Configurations
 ```python
-from CocoTBFramework.tbclasses.amba.amba_random_configs import (
+from TBClasses.amba.amba_random_configs import (
     APB_MASTER_RANDOMIZER_CONFIGS,
     APB_SLAVE_RANDOMIZER_CONFIGS,
     AXI_RANDOMIZER_CONFIGS
@@ -116,10 +116,10 @@ randomizer.load_config(APB_SLAVE_RANDOMIZER_CONFIGS['slow_consumer'])
 ```python
 import cocotb
 from cocotb.triggers import Timer
-from CocoTBFramework.tbclasses.misc.tbbase import TBBase
-from CocoTBFramework.tbclasses.amba.amba_cg_ctrl import AxiClockGateCtrl
-from CocoTBFramework.tbclasses.amba.amba_random_configs import AXI_RANDOMIZER_CONFIGS
-from CocoTBFramework.tbclasses.amba.cdc_handshake import CDCHandshakeTB
+from TBClasses.misc.tbbase import TBBase
+from TBClasses.amba.amba_cg_ctrl import AxiClockGateCtrl
+from TBClasses.amba.amba_random_configs import AXI_RANDOMIZER_CONFIGS
+from TBClasses.amba.cdc_handshake import CDCHandshakeTB
 
 class ComprehensiveAmbaTestbench(TBBase):
     def __init__(self, dut):

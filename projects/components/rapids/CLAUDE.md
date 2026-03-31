@@ -51,7 +51,7 @@ All mandatory requirements are consolidated in the global requirements document:
 This CLAUDE.md provides RAPIDS-specific guidance. Also review:
 - Root `/CLAUDE.md` - Repository-wide patterns
 - `projects/components/CLAUDE.md` - Project area standards (reset macros, FPGA attributes)
-- `bin/CocoTBFramework/CLAUDE.md` - Framework usage patterns
+- `bin/TBClasses/CLAUDE.md` - Framework usage patterns
 
 ---
 
@@ -95,8 +95,8 @@ projects/components/rapids/dv/
 ```python
 # Import framework utilities (PYTHONPATH includes bin/)
 import os, sys
-from CocoTBFramework.tbclasses.shared.utilities import get_repo_root
-from CocoTBFramework.tbclasses.shared.tbbase import TBBase
+from TBClasses.shared.utilities import get_repo_root
+from TBClasses.shared.tbbase import TBBase
 
 # Add repo root to Python path using robust git-based method
 repo_root = get_repo_root()
@@ -271,13 +271,13 @@ See `projects/components/rapids/known_issues/scheduler_group_signal_naming_confl
 
 | Interface Type | Framework Component Location | Usage |
 |----------------|----------------------------|-------|
-| **Custom valid/ready** | `bin/CocoTBFramework/components/gaxi/` | **GAXI Master/Slave BFMs** |
-| **AXI4** | `bin/CocoTBFramework/components/axi4/` | AXI4 Master/Slave drivers |
-| **AXI4-Lite (AXIL)** | `bin/CocoTBFramework/components/axil4/` | AXIL Master/Slave drivers |
-| **APB** | `bin/CocoTBFramework/components/apb/` | APB Master/Slave drivers |
-| **AXI-Stream (AXIS)** | `bin/CocoTBFramework/components/axis4/` | AXIS Master/Slave drivers |
-| **Network** | `bin/CocoTBFramework/components/network/` | Network Master/Slave drivers |
-| **MonBus** | `bin/CocoTBFramework/components/monbus/` | MonBus drivers |
+| **Custom valid/ready** | `bin/TBClasses/components/gaxi/` | **GAXI Master/Slave BFMs** |
+| **AXI4** | `bin/TBClasses/components/axi4/` | AXI4 Master/Slave drivers |
+| **AXI4-Lite (AXIL)** | `bin/TBClasses/components/axil4/` | AXIL Master/Slave drivers |
+| **APB** | `bin/TBClasses/components/apb/` | APB Master/Slave drivers |
+| **AXI-Stream (AXIS)** | `bin/TBClasses/components/axis4/` | AXIS Master/Slave drivers |
+| **Network** | `bin/TBClasses/components/network/` | Network Master/Slave drivers |
+| **MonBus** | `bin/TBClasses/components/monbus/` | MonBus drivers |
 
 **Critical Rules:**
 
@@ -339,11 +339,11 @@ class ProgramEngineTB(TBBase):
 
 ```bash
 # Find existing GAXI components
-find bin/CocoTBFramework/components/gaxi/ -name "*.py"
+find bin/TBClasses/components/gaxi/ -name "*.py"
 
 # Find example usage
 grep -r "GAXIMaster\|GAXISlave" projects/components/rapids/dv/tests/fub_tests/
-grep -r "from.*gaxi" bin/CocoTBFramework/tbclasses/
+grep -r "from.*gaxi" bin/TBClasses/
 ```
 
 **BFM Selection Guide:**
@@ -361,8 +361,8 @@ Need to drive interface with valid/ready?
 ```
 
 **📖 See:**
-- `bin/CocoTBFramework/components/gaxi/README.md` - GAXI BFM documentation
-- `bin/CocoTBFramework/components/axi4/README.md` - AXI4 BFM documentation
+- `bin/TBClasses/components/gaxi/README.md` - GAXI BFM documentation
+- `bin/TBClasses/components/axi4/README.md` - AXI4 BFM documentation
 - `val/amba/test_*.py` - Reference examples using framework BFMs
 
 ---
@@ -1099,7 +1099,7 @@ class DescriptorEngineTB(TBBase):
 
 **Framework Structure:**
 ```
-bin/CocoTBFramework/
+bin/TBClasses/
 ├── components/           # Protocol-specific BFMs and drivers
 │   ├── axi4/            # Complete AXI4 infrastructure
 │   ├── axil4/           # AXI4-Lite components
@@ -1401,7 +1401,7 @@ The shell script will automatically:
 4. 🐛 **Check known issues** - Before diagnosing bugs
 5. 🔗 **Block interactions** - RAPIDS blocks are tightly coupled
 6. 🧪 **Multi-layered testing** - FUB → Integration → System tests
-7. 🏗️ **Testbench reuse** - Always create TB classes in `bin/CocoTBFramework/tbclasses/rapids/`
+7. 🏗️ **Testbench reuse** - Always create TB classes in `bin/TBClasses/rapids/`
 8. 🎯 **Continuous monitoring** - Use background coroutines for asynchronous output capture
 9. 🔍 **Search first** - Use existing CocoTBFramework components before creating new ones
 10. 📊 **100% success** - All tests must achieve 100% success rate, no exceptions

@@ -189,7 +189,7 @@ Implement the 4×4 mesh topology with router and network interface instantiation
 Create comprehensive CocoTB testbench for single router testing.
 
 **Acceptance Criteria:**
-- [ ] Create DeltaRouterTB class in bin/CocoTBFramework/tbclasses/delta/
+- [ ] Create DeltaRouterTB class in bin/TBClasses/delta/
 - [ ] Implement packet injection on all 5 ports
 - [ ] Test X-Y routing decisions
 - [ ] Verify virtual channel allocation
@@ -202,7 +202,7 @@ Create comprehensive CocoTB testbench for single router testing.
 
 **Related Files:**
 - `val/delta/test_delta_router.py`
-- `bin/CocoTBFramework/tbclasses/delta/delta_router_tb.py`
+- `bin/TBClasses/delta/delta_router_tb.py`
 
 ---
 
@@ -230,7 +230,7 @@ Create end-to-end mesh network testbench with traffic generation.
 
 **Related Files:**
 - `val/delta/test_delta_mesh_integration.py`
-- `bin/CocoTBFramework/tbclasses/delta/delta_mesh_tb.py`
+- `bin/TBClasses/delta/delta_mesh_tb.py`
 
 ---
 

@@ -49,7 +49,7 @@ This directory contains testbench classes that provide high-level testbench func
 
 ### Basic Testbench Creation
 ```python
-from CocoTBFramework.tbclasses.misc.tbbase import TBBase
+from TBClasses.misc.tbbase import TBBase
 
 class MyTestbench(TBBase):
     def __init__(self, dut):
@@ -65,7 +65,7 @@ class MyTestbench(TBBase):
 ### Protocol-Specific Usage
 ```python
 # FIFO Buffer Testbench
-from CocoTBFramework.tbclasses.fifo.fifo_buffer import FifoBufferTB
+from TBClasses.fifo.fifo_buffer import FifoBufferTB
 
 @cocotb.test()
 async def test_fifo_buffer(dut):
@@ -74,7 +74,7 @@ async def test_fifo_buffer(dut):
     await tb.test_basic_traffic(packet_count=100)
 
 # GAXI Buffer Testbench
-from CocoTBFramework.tbclasses.gaxi.gaxi_buffer import GaxiBufferTB
+from TBClasses.gaxi.gaxi_buffer import GaxiBufferTB
 
 @cocotb.test()
 async def test_gaxi_buffer(dut):
@@ -85,7 +85,7 @@ async def test_gaxi_buffer(dut):
 
 ### Advanced Monitoring
 ```python
-from CocoTBFramework.tbclasses.misc.advanced_monitoring import advanced_monitoring
+from TBClasses.misc.advanced_monitoring import advanced_monitoring
 
 @cocotb.test()
 async def test_with_monitoring(dut):
@@ -224,9 +224,9 @@ export PARAM_N=8
 
 ### Complete Testbench Setup
 ```python
-from CocoTBFramework.tbclasses.misc import TBBase, advanced_monitoring
-from CocoTBFramework.tbclasses.fifo.fifo_buffer import FifoBufferTB
-from CocoTBFramework.tbclasses.amba.amba_cg_ctrl import AxiClockGateCtrl
+from TBClasses.misc import TBBase, advanced_monitoring
+from TBClasses.fifo.fifo_buffer import FifoBufferTB
+from TBClasses.amba.amba_cg_ctrl import AxiClockGateCtrl
 
 class ComprehensiveTestbench(TBBase):
     def __init__(self, dut):

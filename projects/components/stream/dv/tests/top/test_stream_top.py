@@ -33,9 +33,9 @@ import pytest
 import cocotb
 
 # Import utilities
-from CocoTBFramework.tbclasses.shared.tbbase import TBBase
-from CocoTBFramework.tbclasses.shared.utilities import get_paths, get_repo_root, create_view_cmd
-from CocoTBFramework.tbclasses.shared.filelist_utils import get_sources_from_filelist
+from TBClasses.shared.tbbase import TBBase
+from TBClasses.shared.utilities import get_paths, get_repo_root, create_view_cmd
+from TBClasses.shared.filelist_utils import get_sources_from_filelist
 
 # Add repo root to Python path using robust git-based method
 repo_root = get_repo_root()

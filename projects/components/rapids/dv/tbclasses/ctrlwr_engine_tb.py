@@ -49,7 +49,7 @@ import os
 
 # Add framework path
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "..", ".."))
-from CocoTBFramework.tbclasses.shared.tbbase import TBBase
+from TBClasses.shared.tbbase import TBBase
 from CocoTBFramework.components.shared.memory_model import MemoryModel
 from CocoTBFramework.components.axi4.axi4_factories import create_axi4_slave_wr
 from CocoTBFramework.components.gaxi.gaxi_factories import create_gaxi_master

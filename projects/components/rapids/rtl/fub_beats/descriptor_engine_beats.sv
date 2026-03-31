@@ -811,7 +811,6 @@ module descriptor_engine_beats #(
             // Detect APB request with address 0 - this is an error condition
             if (apb_valid && !w_apb_addr_valid) begin
                 r_descriptor_error <= 1'b1;
-                        $time, CHANNEL_ID);
             end
         end
     )

@@ -56,7 +56,7 @@ CocoTBFramework/tbclasses/fifo/
 
 ### Basic FIFO Testbench Usage
 ```python
-from CocoTBFramework.tbclasses.fifo.fifo_buffer import FifoBufferTB
+from TBClasses.fifo.fifo_buffer import FifoBufferTB
 
 @cocotb.test()
 async def test_basic_fifo(dut):
@@ -68,7 +68,7 @@ async def test_basic_fifo(dut):
 
 ### Multi-Field FIFO Testing
 ```python
-from CocoTBFramework.tbclasses.fifo.fifo_buffer_field import FifoFieldBufferTB
+from TBClasses.fifo.fifo_buffer_field import FifoFieldBufferTB
 
 @cocotb.test() 
 async def test_field_fifo(dut):
@@ -81,7 +81,7 @@ async def test_field_fifo(dut):
 
 ### Data Collection FIFO Testing
 ```python
-from CocoTBFramework.tbclasses.fifo.fifo_data_collect_tb import DataCollectTB
+from TBClasses.fifo.fifo_data_collect_tb import DataCollectTB
 
 @cocotb.test()
 async def test_data_collect(dut):

@@ -392,9 +392,16 @@ module ioapic_core #(
     // ========================================================================
     
     // Ensure only one IRQ is in delivery at a time
+    // Pack unpacked array into a packed vector for $countones (Verilator compat)
+    logic [NUM_IRQS-1:0] w_deliv_status_packed;
+    always_comb begin
+        for (int i = 0; i < NUM_IRQS; i++)
+            w_deliv_status_packed[i] = status_deliv_status[i];
+    end
+
     always @(posedge clk) begin
         if (rst_n) begin
-            assert ($countones(status_deliv_status) <= 1)
+            assert ($countones(w_deliv_status_packed) <= 1)
                 else $error("IOAPIC: Multiple IRQs in delivery state!");
         end
     end

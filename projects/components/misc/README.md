@@ -553,7 +553,7 @@ When adding components to `misc/`:
 - `/CLAUDE.md` - Repository standards
 - `/GLOBAL_REQUIREMENTS.md` - Mandatory requirements
 - `projects/components/CLAUDE.md` - Component area standards
-- `bin/CocoTBFramework/` - Testbench framework
+- `bin/TBClasses/` - Testbench framework
 
 ### External References
 - **AXI4 Protocol:** ARM IHI0022E (AMBA AXI and ACE Protocol Specification)

@@ -928,7 +928,7 @@ def _validate_sequence_properties(self, packets):
 ### Basic Sequence Generation
 
 ```python
-from CocoTBFramework.tbclasses.gaxi.gaxi_buffer_seq import GAXIBufferSequence
+from TBClasses.gaxi.gaxi_buffer_seq import GAXIBufferSequence
 from CocoTBFramework.components.shared.field_config import FieldConfig
 
 # Create field configuration

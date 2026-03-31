@@ -10,8 +10,8 @@ import sys
 
 # Import testbench class from project area
 from projects.components.converters.dv.tbclasses.axi_data_dnsize_tb import AXIDataDnsizeTB
-from CocoTBFramework.tbclasses.shared.utilities import get_paths
-from CocoTBFramework.tbclasses.shared.filelist_utils import get_sources_from_filelist
+from TBClasses.shared.utilities import get_paths
+from TBClasses.shared.filelist_utils import get_sources_from_filelist
 
 
 @cocotb.test()

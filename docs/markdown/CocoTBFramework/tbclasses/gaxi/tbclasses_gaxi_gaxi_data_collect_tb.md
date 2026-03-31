@@ -519,7 +519,7 @@ def calculate_expected_combined_data(self, original_packets, collected_packet):
 ```python
 import cocotb
 import os
-from CocoTBFramework.tbclasses.gaxi.gaxi_data_collect_tb import GAXIDataCollectTB
+from TBClasses.gaxi.gaxi_data_collect_tb import GAXIDataCollectTB
 
 @cocotb.test()
 async def test_data_collection_basic(dut):

@@ -164,7 +164,7 @@ Tests asynchronous FIFO operation (if TEST_KIND='async').
 
 ```python
 import cocotb
-from CocoTBFramework.tbclasses.fifo.fifo_buffer import FifoBufferTB
+from TBClasses.fifo.fifo_buffer import FifoBufferTB
 
 @cocotb.test()
 async def test_basic_fifo(dut):
@@ -183,7 +183,7 @@ async def test_basic_fifo(dut):
 ```python
 import os
 import cocotb
-from CocoTBFramework.tbclasses.fifo.fifo_buffer import FifoBufferTB
+from TBClasses.fifo.fifo_buffer import FifoBufferTB
 
 @cocotb.test()
 async def test_advanced_fifo(dut):

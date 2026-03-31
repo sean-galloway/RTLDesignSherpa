@@ -504,7 +504,7 @@ On `aresetn` assertion (active-low):
 ### Source Code
 - RTL: `rtl/amba/axi4/axi4_slave_wr.sv`
 - Tests: `val/amba/test_axi4_slave_wr.py`
-- Framework: `bin/CocoTBFramework/components/axi4/`
+- Framework: `bin/TBClasses/components/axi4/`
 
 ### Documentation
 - Architecture: [RTLAmba Overview](../overview.md)

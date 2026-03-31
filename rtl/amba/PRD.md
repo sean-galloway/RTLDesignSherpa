@@ -219,7 +219,7 @@ All AMBA verification components MUST follow this architecture to enable reuse a
 **Required Structure:**
 
 ```
-bin/CocoTBFramework/tbclasses/[protocol]/
+bin/TBClasses/[protocol]/
     ├── [module]_tb.py           ← REUSABLE TESTBENCH CLASS
     ├── [module]_scoreboard.py   ← REUSABLE SCOREBOARD (if needed)
     ├── [module]_packets.py      ← REUSABLE PACKET TYPES (if needed)
@@ -230,11 +230,11 @@ val/amba/
 ```
 
 **Testbench Class Location:**
-- ✅ **MUST BE:** `bin/CocoTBFramework/tbclasses/[protocol]/[module]_tb.py`
+- ✅ **MUST BE:** `bin/TBClasses/[protocol]/[module]_tb.py`
 - ❌ **NEVER:** Embedded in `val/amba/test_*.py` files
 
 **Test Runner Responsibilities (ONLY):**
-1. Import testbench class from `bin/CocoTBFramework/tbclasses/`
+1. Import testbench class from `bin/TBClasses/`
 2. Define pytest parameters and test matrix
 3. Configure RTL sources and compilation
 4. Call `cocotb_test.simulator.run()`
@@ -260,7 +260,7 @@ The same testbench will be used in:
 **Example - CORRECT Pattern:**
 
 ```python
-# bin/CocoTBFramework/tbclasses/axi4/axi4_master_read_tb.py
+# bin/TBClasses/axi4/axi4_master_read_tb.py
 class AXI4MasterReadTB(TBBase):
     """Reusable testbench for AXI4 master read validation"""
 
@@ -272,7 +272,7 @@ class AXI4MasterReadTB(TBBase):
         # Test logic
 
 # val/amba/test_axi4_master_rd.py (TEST RUNNER ONLY)
-from CocoTBFramework.tbclasses.axi4.axi4_master_read_tb import AXI4MasterReadTB
+from TBClasses.axi4.axi4_master_read_tb import AXI4MasterReadTB
 
 @cocotb.test()
 async def axi4_master_read_test(dut):
@@ -289,16 +289,16 @@ def test_axi4_master_read(request, aw, dw, ...):
 **Verification Checklist:**
 
 Before submitting any test:
-- [ ] Testbench class exists in `bin/CocoTBFramework/tbclasses/[protocol]/`
+- [ ] Testbench class exists in `bin/TBClasses/[protocol]/`
 - [ ] Test runner imports testbench (does not define it)
 - [ ] Testbench has no test-specific hardcoded values
 - [ ] Testbench can be imported and reused by other tests
 - [ ] Test runner only handles pytest params and compilation
 
 **Reference Examples:**
-- `bin/CocoTBFramework/tbclasses/axi4/axi4_master_read_tb.py`
-- `bin/CocoTBFramework/tbclasses/apb_monitor/apb_monitor_core_tb.py`
-- `bin/CocoTBFramework/tbclasses/axi4/monitor/axi_monitor_config_tb.py`
+- `bin/TBClasses/axi4/axi4_master_read_tb.py`
+- `bin/TBClasses/apb_monitor/apb_monitor_core_tb.py`
+- `bin/TBClasses/axi4/monitor/axi_monitor_config_tb.py`
 
 **See Also:**
 - `CLAUDE.md` Rule #0 for detailed AI assistance guidance
@@ -490,7 +490,7 @@ cfg_perf_enable     = 1
 
 ### 11.2 CocoTB Framework
 
-**Location:** `bin/CocoTBFramework/tbclasses/amba/`
+**Location:** `bin/TBClasses/amba/`
 
 **Components:**
 - Monitor testbenches

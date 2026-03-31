@@ -249,7 +249,7 @@ grep -r "Severity.*High" projects/components/apb_hpet/known_issues/active/
 
 **Test Infrastructure:**
 - `projects/components/apb_hpet/dv/tests/` - Test files
-- `bin/CocoTBFramework/tbclasses/amba/apb_hpet/` - Reusable testbench classes
+- `bin/TBClasses/amba/apb_hpet/` - Reusable testbench classes
 
 ---
 

@@ -196,7 +196,7 @@ Mixed traffic with varying field patterns.
 ```python
 import cocotb
 import os
-from CocoTBFramework.tbclasses.fifo.fifo_buffer_field import FifoFieldBufferTB
+from TBClasses.fifo.fifo_buffer_field import FifoFieldBufferTB
 
 @cocotb.test()
 async def test_field_fifo(dut):

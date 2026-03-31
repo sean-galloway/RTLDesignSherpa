@@ -30,10 +30,10 @@ import pytest
 # Import the testbench and utilities
 
 # Add repo root to path for CocoTBFramework imports
-from CocoTBFramework.tbclasses.common.arbiter_round_robin_simple_tb import ArbiterRoundRobinSimpleTB
-from CocoTBFramework.tbclasses.shared.tbbase import TBBase
-from CocoTBFramework.tbclasses.shared.filelist_utils import get_sources_from_filelist
-from CocoTBFramework.tbclasses.shared.utilities import get_paths, create_view_cmd
+from TBClasses.common.arbiter_round_robin_simple_tb import ArbiterRoundRobinSimpleTB
+from TBClasses.shared.tbbase import TBBase
+from TBClasses.shared.filelist_utils import get_sources_from_filelist
+from TBClasses.shared.utilities import get_paths, create_view_cmd
 from conftest import get_coverage_compile_args
 
 @cocotb.test(timeout_time=15, timeout_unit="ms")

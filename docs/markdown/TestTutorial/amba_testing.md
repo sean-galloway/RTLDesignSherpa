@@ -43,14 +43,14 @@ A comprehensive guide to testing AMBA protocols (AXI4, AXI4-Lite, APB, AXI4-Stre
 
 ## Overview
 
-AMBA (Advanced Microcontroller Bus Architecture) protocols are industry-standard interfaces for on-chip communication. The RTL Design Sherpa framework provides comprehensive support for testing all AMBA protocol variants through reusable components in `bin/CocoTBFramework/components/`.
+AMBA (Advanced Microcontroller Bus Architecture) protocols are industry-standard interfaces for on-chip communication. The RTL Design Sherpa framework provides comprehensive support for testing all AMBA protocol variants through reusable components in `bin/TBClasses/components/`.
 
 ### Framework Components
 
 The framework provides protocol-specific components:
 
 ```
-bin/CocoTBFramework/components/
+bin/TBClasses/components/
 ├── axi4/              # AXI4 full protocol
 │   ├── axi4_interfaces.py        # Master/Slave interfaces
 │   ├── axi4_field_configs.py     # Channel configurations
@@ -81,7 +81,7 @@ AXI4 is a high-performance, burst-based protocol with separate read and write ch
 ```python
 import cocotb
 from cocotb.triggers import RisingEdge, Timer
-from CocoTBFramework.tbclasses.shared.tbbase import TBBase
+from TBClasses.shared.tbbase import TBBase
 from CocoTBFramework.components.axi4.axi4_interfaces import (
     AXI4MasterRead, AXI4SlaveRead
 )

@@ -459,7 +459,7 @@ Clock-gated variants (`*_cg`) add power management:
 ### Source Code
 - RTL: `rtl/amba/axis4/`
 - Tests: `val/amba/test_axis*.py`
-- Framework: `bin/CocoTBFramework/components/axis4/`
+- Framework: `bin/TBClasses/components/axis4/`
 - Shared Infrastructure: `rtl/amba/shared/` (gaxi_skid_buffer)
 
 ---

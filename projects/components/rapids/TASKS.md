@@ -227,7 +227,7 @@ assign error_axi_timeout = r_timeout_error;
 **Assigned:** Unassigned
 
 **Description:**
-Refactor RAPIDS tests to follow mandatory testbench architecture with reusable TB classes in `bin/CocoTBFramework/tbclasses/rapids/`.
+Refactor RAPIDS tests to follow mandatory testbench architecture with reusable TB classes in `bin/TBClasses/rapids/`.
 
 **Current State:**
 - 32 test files in `projects/components/rapids/dv/tests/`
@@ -236,7 +236,7 @@ Refactor RAPIDS tests to follow mandatory testbench architecture with reusable T
 
 **Required Structure:**
 ```
-bin/CocoTBFramework/tbclasses/rapids/
+bin/TBClasses/rapids/
 ├── scheduler_tb.py              ← NEW: Reusable scheduler testbench
 ├── descriptor_engine_tb.py      ← NEW: Reusable descriptor engine TB
 ├── program_engine_tb.py         ← NEW: Reusable program engine TB
@@ -285,13 +285,13 @@ async def test_scheduler(dut):
 
 **AFTER (Correct):**
 ```python
-# bin/CocoTBFramework/tbclasses/rapids/scheduler_tb.py
+# bin/TBClasses/rapids/scheduler_tb.py
 class SchedulerTB(TBBase):
     """Reusable scheduler testbench"""
     # 200 lines of REUSABLE testbench logic...
 
 # projects/components/rapids/dv/tests/fub_tests/scheduler/test_scheduler.py
-from CocoTBFramework.tbclasses.rapids.scheduler_tb import SchedulerTB
+from TBClasses.rapids.scheduler_tb import SchedulerTB
 
 @cocotb.test()
 async def test_scheduler(dut):
@@ -300,21 +300,21 @@ async def test_scheduler(dut):
 ```
 
 **Verification Steps:**
-1. Create all TB class files in `bin/CocoTBFramework/tbclasses/rapids/`
+1. Create all TB class files in `bin/TBClasses/rapids/`
 2. Update test files to import TB classes
 3. Run full test suite: `pytest projects/components/rapids/dv/tests/ -v`
 4. Verify all tests pass
 5. Update documentation
 
 **Related Files:**
-- Create: `bin/CocoTBFramework/tbclasses/rapids/*.py`
+- Create: `bin/TBClasses/rapids/*.py`
 - Update: All test files in `projects/components/rapids/dv/tests/`
 - Update: `projects/components/rapids/CLAUDE.md` with examples
 
 **Dependencies:** None
 
 **Completion Criteria:**
-- [ ] All TB classes created in `bin/CocoTBFramework/tbclasses/rapids/`
+- [ ] All TB classes created in `bin/TBClasses/rapids/`
 - [ ] All test files refactored to import TB classes
 - [ ] Full test suite passing
 - [ ] Documentation updated
@@ -380,7 +380,7 @@ projects/components/rapids/dv/tests/integration_tests/
 
 **Related Files:**
 - Create: Test files in `projects/components/rapids/dv/tests/integration_tests/`
-- Use: TB classes from `bin/CocoTBFramework/tbclasses/rapids/` (from TASK-003)
+- Use: TB classes from `bin/TBClasses/rapids/` (from TASK-003)
 - Update: `docs/RAPIDS_Validation_Status_Report.md`
 
 **Dependencies:**
@@ -459,7 +459,7 @@ projects/components/rapids/dv/tests/system_tests/
 
 **Related Files:**
 - Create: Test files in `projects/components/rapids/dv/tests/system_tests/`
-- Use: TB classes from `bin/CocoTBFramework/tbclasses/rapids/` (from TASK-003)
+- Use: TB classes from `bin/TBClasses/rapids/` (from TASK-003)
 - Update: `docs/RAPIDS_Validation_Status_Report.md`
 
 **Dependencies:**

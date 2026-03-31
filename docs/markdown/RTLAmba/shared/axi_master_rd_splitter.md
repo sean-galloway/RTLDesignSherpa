@@ -528,7 +528,7 @@ The module enforces several critical assumptions for correct operation:
 ### Source Code
 - RTL: `rtl/amba/shared/axi_master_rd_splitter.sv`
 - Tests: `val/amba/test_axi_master_rd_splitter.py`
-- Testbench: `bin/CocoTBFramework/tbclasses/amba/axi_master_rd_splitter_tb.py`
+- Testbench: `bin/TBClasses/amba/axi_master_rd_splitter_tb.py`
 
 ### Documentation
 - Architecture: `docs/markdown/RTLAmba/shared/README.md`

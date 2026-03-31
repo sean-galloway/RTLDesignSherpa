@@ -188,7 +188,7 @@ Create FUB-level tests for:
 - RAPIDS CLAUDE.md: `projects/components/rapids/CLAUDE.md`
 
 ### Test Infrastructure
-- Test Framework: `/mnt/data/github/rtldesignsherpa/bin/CocoTBFramework/`
+- Test Framework: `/mnt/data/github/rtldesignsherpa/bin/TBClasses/`
 - RAPIDS TB Classes: `projects/components/rapids/dv/tbclasses/`
 - RAPIDS Coverage: `projects/components/rapids/dv/tests/rapids_coverage/`
 

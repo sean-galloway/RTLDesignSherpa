@@ -414,7 +414,7 @@ fub_wvalid  = 1'b1;
 ### Source Code
 - RTL: `rtl/amba/axil4/axil4_master_wr.sv`
 - Tests: `val/amba/test_axil4_master_wr.py`
-- Framework: `bin/CocoTBFramework/components/axil4/`
+- Framework: `bin/TBClasses/components/axil4/`
 
 ---
 

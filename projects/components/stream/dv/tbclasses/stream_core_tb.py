@@ -17,8 +17,8 @@ import sys
 import os
 
 # Import framework utilities (PYTHONPATH includes bin/)
-from CocoTBFramework.tbclasses.shared.utilities import get_repo_root
-from CocoTBFramework.tbclasses.shared.tbbase import TBBase
+from TBClasses.shared.utilities import get_repo_root
+from TBClasses.shared.tbbase import TBBase
 
 # Add repo root to Python path using robust git-based method
 repo_root = get_repo_root()
@@ -1190,7 +1190,7 @@ class StreamCoreTB(TBBase):
         # Import here to avoid circular dependencies
         from CocoTBFramework.components.apb.apb_components import APBMaster
         from CocoTBFramework.components.shared.flex_randomizer import FlexRandomizer
-        from CocoTBFramework.tbclasses.amba.amba_random_configs import APB_MASTER_RANDOMIZER_CONFIGS
+        from TBClasses.amba.amba_random_configs import APB_MASTER_RANDOMIZER_CONFIGS
 
         # Check if DUT has APB interface
         if not hasattr(self.dut, 's_apb_paddr'):

@@ -17,7 +17,7 @@
 AXIL4 Master Write Monitor Integration Test
 
 Thin wrapper that uses the reusable AXIL4MasterMonitorTB testbench class.
-All test logic is in bin/CocoTBFramework/tbclasses/axil4/monitor/axil4_master_monitor_tb.py
+All test logic is in bin/TBClasses/axil4/monitor/axil4_master_monitor_tb.py
 """
 
 import os
@@ -27,8 +27,8 @@ import cocotb
 from cocotb_test.simulator import run
 from conftest import get_coverage_compile_args
 
-from CocoTBFramework.tbclasses.axil4.monitor.axil4_master_monitor_tb import AXIL4MasterMonitorTB
-from CocoTBFramework.tbclasses.shared.utilities import get_paths
+from TBClasses.axil4.monitor.axil4_master_monitor_tb import AXIL4MasterMonitorTB
+from TBClasses.shared.utilities import get_paths
 
 
 @cocotb.test(timeout_time=30, timeout_unit="sec")

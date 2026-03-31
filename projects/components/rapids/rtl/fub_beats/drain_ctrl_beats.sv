@@ -91,16 +91,6 @@ module drain_ctrl_beats #(
         .counter_bin_next (w_wr_ptr_bin_next)
     );
 
-    // Debug: Monitor FIFO writes
-    always_ff @(posedge axi_aclk) begin
-        if (axi_aresetn && w_write && !r_wr_full) begin
-            /* verilator lint_off WIDTHEXPAND */
-                    $time, r_wr_ptr_bin, w_wr_ptr_bin_next,
-                    w_wr_ptr_bin_next - r_rd_ptr_bin);
-            /* verilator lint_on WIDTHEXPAND */
-        end
-    end
-
     // ---------------------------------------------------------------------
     // Read pointer (drain pointer) - variable size increments
     // ---------------------------------------------------------------------

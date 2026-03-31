@@ -424,29 +424,4 @@ module gaxi_drop_fifo_sync #(
         end
     endgenerate
 
-    /////////////////////////////////////////////////////////////////////////
-    // Overflow/underflow and protocol error checking
-    /////////////////////////////////////////////////////////////////////////
-    always @(posedge axi_aclk) begin
-        if ((w_write && r_wr_full) == 1'b1) begin
-        end
-    end
-
-    always @(posedge axi_aclk) begin
-        if ((w_read && r_rd_empty) == 1'b1) begin
-        end
-    end
-
-    always @(posedge axi_aclk) begin
-        if (drop_valid && !drop_all && (drop_count > count)) begin
-                     drop_count, count, $time);
-        end
-    end
-
-    always @(posedge axi_aclk) begin
-        if (drop_valid && (r_drop_state != IDLE)) begin
-                     $time);
-        end
-    end
-
 endmodule : gaxi_drop_fifo_sync

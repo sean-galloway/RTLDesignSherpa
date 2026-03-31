@@ -23,7 +23,7 @@
 
 # RAPIDS Validation Test Suite - v2.0
 
-This directory contains comprehensive validation tests for the RAPIDS (Memory Input/Output Processor) system, following the established CocoTB framework methodology and leveraging existing TB classes from `bin/CocoTBFramework/tbclasses/rapids/`.
+This directory contains comprehensive validation tests for the RAPIDS (Memory Input/Output Processor) system, following the established CocoTB framework methodology and leveraging existing TB classes from `bin/TBClasses/rapids/`.
 
 ## Overview
 
@@ -38,7 +38,7 @@ The RAPIDS is a high-performance 2.5 GHz data streaming engine with four main ma
 
 This test suite follows the user's guidance for proper TB organization:
 
-- **TB Classes**: Located in `bin/CocoTBFramework/tbclasses/rapids/` with real GAXI/AXI4/Network/MonBus integration
+- **TB Classes**: Located in `bin/TBClasses/rapids/` with real GAXI/AXI4/Network/MonBus integration
 - **Fixed 32-Channel Configuration**: All TBs use fixed 32-channel configuration for 32x scaling
 - **Superset Testing**: Integration tests leverage multiple TB classes for unit-level validation
 - **Organized FUB Tests**: Complex component tests organized in subdirectories to prevent clutter

@@ -31,7 +31,7 @@ Before working in this repository, review the global requirements document:
 
 This CLAUDE.md provides repository-wide guidance and examples. For subsystem-specific details, see:
 - `projects/components/CLAUDE.md` - Project area standards
-- `bin/CocoTBFramework/CLAUDE.md` - Framework patterns
+- `bin/TBClasses/CLAUDE.md` - Framework patterns
 - `projects/components/{name}/CLAUDE.md` - Component-specific guidance
 - `rtl/{subsystem}/CLAUDE.md` - Subsystem-specific guidance
 
@@ -52,7 +52,7 @@ rtldesignsherpa/
 │   ├── amba/              # Tests for rtl/amba/
 │   ├── rapids/              # Tests for rtl/rapids/
 │   └── integ_*/           # Integration tests
-├── bin/CocoTBFramework/   # Reusable testbench infrastructure (196 files)
+├── bin/TBClasses/   # Reusable testbench infrastructure (196 files)
 │   ├── components/        # BFMs for AXI, APB, AXIS, etc.
 │   ├── tbclasses/         # Testbench classes and drivers
 │   └── scoreboards/       # Verification scoreboards
@@ -203,7 +203,7 @@ If you find generated files at the top level:
 - **RAPIDS:** `projects/components/rapids/dv/tbclasses/` ✅
 - **STREAM:** `projects/components/stream/dv/tbclasses/` ✅
 - **Bridge:** `projects/components/bridge/dv/tbclasses/` ✅
-- **Framework (shared only):** `bin/CocoTBFramework/` ✅
+- **Framework (shared only):** `bin/TBClasses/` ✅
 
 **Import Pattern:**
 ```python
@@ -211,7 +211,7 @@ If you find generated files at the top level:
 from projects.components.rapids.dv.tbclasses.scheduler_tb import SchedulerTB
 
 # Shared infrastructure
-from CocoTBFramework.tbclasses.shared.tbbase import TBBase
+from TBClasses.shared.tbbase import TBBase
 ```
 
 **Complete details:** Decision trees, anti-patterns, and rationale in `/GLOBAL_REQUIREMENTS.md`
@@ -264,7 +264,7 @@ from CocoTBFramework.tbclasses.shared.tbbase import TBBase
 
 **Documentation:** `rtl/rapids/PRD.md`, `rtl/rapids/CLAUDE.md`, `rtl/rapids/known_issues/`
 
-### bin/CocoTBFramework/ - Verification Infrastructure
+### bin/TBClasses/ - Verification Infrastructure
 **Files:** 196 Python files
 **Purpose:** Reusable testbench components for CocoTB
 
@@ -273,7 +273,7 @@ from CocoTBFramework.tbclasses.shared.tbbase import TBBase
 - `tbclasses/` - Testbench classes for each subsystem
 - `scoreboards/` - Transaction checking and coverage
 
-**Documentation:** `bin/CocoTBFramework/README.md`, `bin/CocoTBFramework/CLAUDE.md`
+**Documentation:** `bin/TBClasses/README.md`, `bin/TBClasses/CLAUDE.md`
 
 ---
 
@@ -388,7 +388,7 @@ pytest val/{subsystem}/ --cov=rtl/{subsystem}/
 
 **Test Structure:**
 1. Use CocoTB framework
-2. Import appropriate BFMs from `bin/CocoTBFramework/`
+2. Import appropriate BFMs from `bin/TBClasses/`
 3. Target >95% functional coverage
 4. Document test methodology in file header
 5. Include waveform dumps for debugging
@@ -828,7 +828,7 @@ cat rtl/*/TASKS.md
 | AXIS | `axis_master`, `axis_slave` | Stream interface monitoring |
 | Monitor Bus | `arbiter_*_monbus` | Monitor packet arbitration |
 
-### bin/CocoTBFramework/
+### bin/TBClasses/
 
 | Directory | Purpose | Key Files |
 |-----------|---------|-----------|

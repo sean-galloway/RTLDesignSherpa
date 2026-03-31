@@ -303,7 +303,7 @@ See [apb_monitor.md](apb_monitor.md) for detailed packet format.
 ### Source Code
 - RTL: `rtl/amba/apb/`
 - Tests: `val/amba/test_apb*.py`
-- Framework: `bin/CocoTBFramework/components/apb/`
+- Framework: `bin/TBClasses/components/apb/`
 
 ### Test Documentation
 - APB Master Tests: `val/amba/test_apb_master.py`

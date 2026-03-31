@@ -473,7 +473,7 @@ async def wait_for_mapped_completion(self, expected_packets, timeout_cycles):
 ```python
 import cocotb
 import os
-from CocoTBFramework.tbclasses.gaxi.gaxi_buffer_multi_sigmap import GaxiMultiSigMapBufferTB
+from TBClasses.gaxi.gaxi_buffer_multi_sigmap import GaxiMultiSigMapBufferTB
 
 @cocotb.test()
 async def test_custom_signal_mapping(dut):

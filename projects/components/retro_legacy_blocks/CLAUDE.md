@@ -153,8 +153,8 @@ projects/components/retro_legacy_blocks/dv/
 ```python
 # Import framework utilities (PYTHONPATH includes bin/)
 import os, sys
-from CocoTBFramework.tbclasses.shared.utilities import get_repo_root, get_paths, create_view_cmd
-from CocoTBFramework.tbclasses.shared.tbbase import TBBase
+from TBClasses.shared.utilities import get_repo_root, get_paths, create_view_cmd
+from TBClasses.shared.tbbase import TBBase
 
 # Add repo root to Python path using robust git-based method
 repo_root = get_repo_root()
@@ -319,7 +319,7 @@ rtl/{block}/
 **3. Create Testbench Classes:**
 ```python
 # dv/tbclasses/{block}/{block}_tb.py
-from CocoTBFramework.tbclasses.shared.tbbase import TBBase
+from TBClasses.shared.tbbase import TBBase
 
 class {Block}TB(TBBase):
     """Testbench for {Block} peripheral"""
@@ -382,7 +382,7 @@ class {Block}BasicTests:
 import os, sys
 
 # Import framework utilities (PYTHONPATH includes bin/)
-from CocoTBFramework.tbclasses.shared.utilities import get_repo_root
+from TBClasses.shared.utilities import get_repo_root
 
 # Add repo root to Python path using robust git-based method
 repo_root = get_repo_root()

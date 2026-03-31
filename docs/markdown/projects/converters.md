@@ -452,7 +452,7 @@ env WAVES=1 REG_LEVEL=GATE pytest test_uart_axil_bridge.py -v
 **Verification:**
 - `projects/components/converters/dv/tbclasses/uart_axil_bridge_tb.py` - Testbench class
 - `projects/components/converters/dv/tests/test_uart_axil_bridge.py` - Test runner
-- `bin/CocoTBFramework/components/uart/` - UART BFM components
+- `bin/TBClasses/components/uart/` - UART BFM components
 
 **Documentation:**
 - `projects/components/converters/rtl/uart_to_axil4/README.md` - Detailed implementation guide

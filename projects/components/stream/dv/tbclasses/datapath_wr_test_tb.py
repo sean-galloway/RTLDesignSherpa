@@ -15,8 +15,8 @@ import os
 import sys
 
 # Import framework utilities (PYTHONPATH includes bin/)
-from CocoTBFramework.tbclasses.shared.utilities import get_repo_root
-from CocoTBFramework.tbclasses.shared.tbbase import TBBase
+from TBClasses.shared.utilities import get_repo_root
+from TBClasses.shared.tbbase import TBBase
 
 # Add repo root to Python path using robust git-based method
 repo_root = get_repo_root()
@@ -24,7 +24,7 @@ sys.path.insert(0, repo_root)
 from CocoTBFramework.components.axi4.axi4_interfaces import AXI4SlaveWrite
 from CocoTBFramework.components.shared.memory_model import MemoryModel
 from CocoTBFramework.components.shared.flex_randomizer import FlexRandomizer
-from CocoTBFramework.tbclasses.amba.amba_random_configs import AXI_RANDOMIZER_CONFIGS
+from TBClasses.amba.amba_random_configs import AXI_RANDOMIZER_CONFIGS
 
 # Add project-specific testbench utilities
 from projects.components.stream.dv.tbclasses.descriptor_packet_builder import DescriptorPacketBuilder

@@ -772,6 +772,6 @@ pytest test_gaxi_buffer_multi.py -v
 
 **Next Steps:**
 1. Review testcode modules: `rtl/amba/testcode/`
-2. Study test infrastructure: `bin/CocoTBFramework/tbclasses/gaxi/gaxi_buffer_multi.py`
+2. Study test infrastructure: `bin/TBClasses/gaxi/gaxi_buffer_multi.py`
 3. Create your own protocol-specific wrapper
 4. Add comprehensive tests with field-level checking

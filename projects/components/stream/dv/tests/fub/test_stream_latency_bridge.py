@@ -29,8 +29,8 @@ import cocotb
 from cocotb.triggers import RisingEdge, ReadOnly
 from cocotb_test.simulator import run
 
-from CocoTBFramework.tbclasses.shared.utilities import get_paths, create_view_cmd, get_repo_root
-from CocoTBFramework.tbclasses.shared.filelist_utils import get_sources_from_filelist
+from TBClasses.shared.utilities import get_paths, create_view_cmd, get_repo_root
+from TBClasses.shared.filelist_utils import get_sources_from_filelist
 
 # Add repo root to Python path using robust git-based method
 repo_root = get_repo_root()

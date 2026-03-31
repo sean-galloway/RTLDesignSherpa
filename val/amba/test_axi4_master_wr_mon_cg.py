@@ -18,7 +18,7 @@ AXI4 Master Write Monitor CG Integration Test
 
 Thin wrapper that uses the reusable AXI4MasterMonitorTB testbench class.
 Tests the clock-gated version of the AXI4 master write monitor.
-All test logic is in bin/CocoTBFramework/tbclasses/axi4/monitor/axi4_master_monitor_tb.py
+All test logic is in bin/TBClasses/axi4/monitor/axi4_master_monitor_tb.py
 """
 
 import os
@@ -28,8 +28,8 @@ import cocotb
 from cocotb_test.simulator import run
 from conftest import get_coverage_compile_args
 
-from CocoTBFramework.tbclasses.axi4.monitor.axi4_master_monitor_tb import AXI4MasterMonitorTB
-from CocoTBFramework.tbclasses.shared.utilities import get_paths
+from TBClasses.axi4.monitor.axi4_master_monitor_tb import AXI4MasterMonitorTB
+from TBClasses.shared.utilities import get_paths
 
 
 def validate_addr_width(addr_width):

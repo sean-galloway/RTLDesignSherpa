@@ -398,7 +398,7 @@ Master 0 → Address 0x00001000 → Slave 0
 ### Source Code
 - RTL: `rtl/amba/axi4/axi4_interconnect_2x2_mon.sv`
 - Tests: `val/amba/test_axi4_interconnect.py`
-- Framework: `bin/CocoTBFramework/components/axi4/`
+- Framework: `bin/TBClasses/components/axi4/`
 
 ### Documentation
 - Configuration Guide: [AXI Monitor Base](../shared/axi_monitor_base.md)

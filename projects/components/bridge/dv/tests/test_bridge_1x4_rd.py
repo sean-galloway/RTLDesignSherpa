@@ -23,8 +23,8 @@ sys.path.insert(0, os.path.join(repo_root, 'bin'))
 import cocotb
 from cocotb.triggers import RisingEdge, ClockCycles
 from cocotb_test.simulator import run
-from CocoTBFramework.tbclasses.shared.utilities import get_paths
-from CocoTBFramework.tbclasses.shared.filelist_utils import get_sources_from_filelist
+from TBClasses.shared.utilities import get_paths
+from TBClasses.shared.filelist_utils import get_sources_from_filelist
 
 # Import generated testbench class
 from projects.components.bridge.dv.tbclasses.bridge1x4_rd_tb import Bridge1x4RdTB

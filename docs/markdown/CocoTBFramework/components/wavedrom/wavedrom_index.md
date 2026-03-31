@@ -65,7 +65,7 @@ The WaveDrom infrastructure provides automated timing diagram generation for dig
 ## Quick Example
 
 ```python
-from CocoTBFramework.tbclasses.wavedrom_user.gaxi import GAXIWaveDromTemplate
+from TBClasses.wavedrom_user.gaxi import GAXIWaveDromTemplate
 
 @cocotb.test()
 async def my_test(dut):
@@ -140,15 +140,15 @@ graph TB
 ## File Locations
 
 ### Source Code
-- **Constraint Solver**: `bin/CocoTBFramework/components/wavedrom/constraint_solver.py`
-- **WaveJSON Generator**: `bin/CocoTBFramework/components/wavedrom/wavejson_gen.py`
-- **Signal Binder**: `bin/CocoTBFramework/components/wavedrom/signal_binder.py`
+- **Constraint Solver**: `bin/TBClasses/components/wavedrom/constraint_solver.py`
+- **WaveJSON Generator**: `bin/TBClasses/components/wavedrom/wavejson_gen.py`
+- **Signal Binder**: `bin/TBClasses/components/wavedrom/signal_binder.py`
 - **Protocol Presets**:
-  - `bin/CocoTBFramework/tbclasses/wavedrom_user/gaxi.py`
-  - `bin/CocoTBFramework/tbclasses/wavedrom_user/apb.py`
-  - `bin/CocoTBFramework/tbclasses/wavedrom_user/axi4.py`
-  - `bin/CocoTBFramework/tbclasses/wavedrom_user/axil4.py`
-  - `bin/CocoTBFramework/tbclasses/wavedrom_user/axis.py`
+  - `bin/TBClasses/wavedrom_user/gaxi.py`
+  - `bin/TBClasses/wavedrom_user/apb.py`
+  - `bin/TBClasses/wavedrom_user/axi4.py`
+  - `bin/TBClasses/wavedrom_user/axil4.py`
+  - `bin/TBClasses/wavedrom_user/axis.py`
 
 ### Example Tests
 - **GAXI Comprehensive**: `val/amba/test_gaxi_wavedrom_example.py`

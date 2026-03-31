@@ -34,7 +34,7 @@ Add minimal WaveDrom timing diagram generation to AXI4 monitor tests, following 
 
 ### 1. AXI4 Protocol Field Configuration
 
-**File:** `bin/CocoTBFramework/tbclasses/wavedrom_user/axi4.py` (create if needed)
+**File:** `bin/TBClasses/wavedrom_user/axi4.py` (create if needed)
 
 **Functions to Create:**
 ```python
@@ -267,7 +267,7 @@ done
 ## References
 
 - **Pattern:** `val/amba/test_gaxi_buffer_sync.py`
-- **Framework:** `bin/CocoTBFramework/components/wavedrom/`
+- **Framework:** `bin/TBClasses/components/wavedrom/`
 - **AXI4 Spec:** ARM IHI0022 (AMBA AXI Protocol Specification)
 - **Monitor RTL:** `rtl/amba/axi4/axi4_master_rd_mon.sv`
 

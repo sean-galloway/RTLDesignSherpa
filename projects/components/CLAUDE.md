@@ -56,7 +56,7 @@ This file contains project-area-specific standards. For the complete list of man
 
 This CLAUDE.md focuses on projects/components/ specifics. Also review:
 - Root `/CLAUDE.md` - Repository-wide guidance
-- `bin/CocoTBFramework/CLAUDE.md` - Framework patterns
+- `bin/TBClasses/CLAUDE.md` - Framework patterns
 - `projects/components/{name}/CLAUDE.md` - Component-specific guidance
 
 ---
@@ -205,8 +205,8 @@ endmodule
 ```python
 # Import framework utilities (PYTHONPATH includes bin/)
 import os, sys
-from CocoTBFramework.tbclasses.shared.utilities import get_repo_root
-from CocoTBFramework.tbclasses.shared.tbbase import TBBase
+from TBClasses.shared.utilities import get_repo_root
+from TBClasses.shared.tbbase import TBBase
 
 # Add repo root to Python path using robust git-based method
 repo_root = get_repo_root()

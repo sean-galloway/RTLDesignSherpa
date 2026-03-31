@@ -36,8 +36,8 @@ This CLAUDE.md provides common RTL library guidance. Also review:
 **📖 See:** `/GLOBAL_REQUIREMENTS.md` Sections 2.1, 2.3, 2.4 for complete requirements
 
 **Common RTL Three-Layer Pattern:**
-1. **TB:** `bin/CocoTBFramework/tbclasses/common/{module}_tb.py`
-2. **Scoreboard:** `bin/CocoTBFramework/scoreboards/common/{module}_scoreboard.py`
+1. **TB:** `bin/TBClasses/common/{module}_tb.py`
+2. **Scoreboard:** `bin/TBClasses/scoreboards/common/{module}_scoreboard.py`
 3. **Test:** `val/common/test_{module}.py`
 
 **Common RTL typically uses queue access** - counters, arbiters, and math blocks are simple control paths.

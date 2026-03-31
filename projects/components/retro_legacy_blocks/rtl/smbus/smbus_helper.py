@@ -37,7 +37,7 @@ Example Usage:
 """
 
 from typing import List, Dict, Tuple, Optional
-from bin.CocoTBFramework.tbclasses.apb.register_map import RegisterMap
+from bin.TBClasses.apb.register_map import RegisterMap
 from bin.CocoTBFramework.components.apb.apb_packet import APBPacket
 
 

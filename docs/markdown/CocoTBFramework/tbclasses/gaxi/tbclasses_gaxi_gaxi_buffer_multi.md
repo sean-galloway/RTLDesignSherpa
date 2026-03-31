@@ -538,7 +538,7 @@ def verify_multi_field_packet(self, sent_packet, received_packet, packet_index):
 ```python
 import cocotb
 import os
-from CocoTBFramework.tbclasses.gaxi.gaxi_buffer_multi import GaxiMultiBufferTB
+from TBClasses.gaxi.gaxi_buffer_multi import GaxiMultiBufferTB
 
 @cocotb.test()
 async def test_multi_signal_basic(dut):

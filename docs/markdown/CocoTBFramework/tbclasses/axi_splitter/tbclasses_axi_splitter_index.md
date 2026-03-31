@@ -57,7 +57,7 @@ CocoTBFramework/tbclasses/axi_splitter/
 
 ### Basic Read Splitter Test
 ```python
-from CocoTBFramework.tbclasses.axi_splitter.axi_read_splitter_tb import AxiReadSplitterTB
+from TBClasses.axi_splitter.axi_read_splitter_tb import AxiReadSplitterTB
 
 @cocotb.test()
 async def test_read_boundary_crossing(dut):
@@ -71,7 +71,7 @@ async def test_read_boundary_crossing(dut):
 
 ### Basic Write Splitter Test
 ```python
-from CocoTBFramework.tbclasses.axi_splitter.axi_write_splitter_tb import AxiWriteSplitterTB
+from TBClasses.axi_splitter.axi_write_splitter_tb import AxiWriteSplitterTB
 
 @cocotb.test()
 async def test_write_boundary_crossing(dut):

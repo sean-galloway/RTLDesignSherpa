@@ -481,7 +481,7 @@ slave = create_monbus_slave(dut, expected_unit_id=2, expected_agent_id=15)
 ```python
 import cocotb
 from cocotb.triggers import Timer
-from CocoTBFramework.tbclasses.misc.monbus_components import (
+from TBClasses.misc.monbus_components import (
     create_monbus_master, create_monbus_slave,
     MonbusPktType, MonbusEventCode
 )

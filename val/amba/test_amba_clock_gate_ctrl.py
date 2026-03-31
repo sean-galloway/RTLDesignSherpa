@@ -25,9 +25,9 @@ from cocotb.triggers import RisingEdge, Timer
 from cocotb_test.simulator import run
 from conftest import get_coverage_compile_args
 
-from CocoTBFramework.tbclasses.shared.tbbase import TBBase
-from CocoTBFramework.tbclasses.amba.amba_cg_ctrl import AxiClockGateCtrl
-from CocoTBFramework.tbclasses.shared.utilities import get_paths, create_view_cmd
+from TBClasses.shared.tbbase import TBBase
+from TBClasses.amba.amba_cg_ctrl import AxiClockGateCtrl
+from TBClasses.shared.utilities import get_paths, create_view_cmd
 
 
 class AmbaClockGateCtrlConfig:

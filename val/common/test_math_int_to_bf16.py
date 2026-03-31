@@ -30,10 +30,10 @@ from cocotb_test.simulator import run
 from conftest import get_coverage_compile_args
 
 # Add repo root to path for CocoTBFramework imports
-from CocoTBFramework.tbclasses.shared.utilities import get_paths, create_view_cmd
+from TBClasses.shared.utilities import get_paths, create_view_cmd
 
 # Import the BF16 testbench class
-from CocoTBFramework.tbclasses.common.bf16_testing import IntToBF16TB
+from TBClasses.common.bf16_testing import IntToBF16TB
 
 
 def get_int_to_bf16_params():

@@ -93,7 +93,7 @@ assert error_count == 0, f"Verification failed with {error_count} errors"
 ### Complete Testbench
 ```python
 # Use high-level testbench classes
-from CocoTBFramework.tbclasses.gaxi.gaxi_buffer import GaxiBufferTB
+from TBClasses.gaxi.gaxi_buffer import GaxiBufferTB
 
 @cocotb.test()
 async def test_gaxi_buffer(dut):
@@ -220,7 +220,7 @@ for packet in sequence:
 ### System-Level Verification
 ```python
 # Complete system verification with multiple protocols
-from CocoTBFramework.tbclasses.misc.tbbase import TBBase
+from TBClasses.misc.tbbase import TBBase
 from CocoTBFramework.scoreboards.apb_gaxi_scoreboard import APBGAXIScoreboard
 
 class SystemTestbench(TBBase):

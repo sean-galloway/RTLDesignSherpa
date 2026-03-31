@@ -345,7 +345,7 @@ endproperty
 
 ### Test Coverage
 The reset_sync module has comprehensive test coverage via:
-- **Testbench Class**: `bin/CocoTBFramework/tbclasses/reset_sync_tb.py`
+- **Testbench Class**: `bin/TBClasses/reset_sync_tb.py`
 - **Test Runner**: `val/common/test_reset_sync.py`
 
 ### Test Scenarios

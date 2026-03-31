@@ -27,9 +27,9 @@ from cocotb_test.simulator import run
 from conftest import get_coverage_compile_args
 
 # Add repo root to path for CocoTBFramework imports
-from CocoTBFramework.tbclasses.reset_sync_tb import ResetSyncTB
-from CocoTBFramework.tbclasses.shared.utilities import get_paths
-from CocoTBFramework.tbclasses.shared.filelist_utils import get_sources_from_filelist
+from TBClasses.reset_sync_tb import ResetSyncTB
+from TBClasses.shared.utilities import get_paths
+from TBClasses.shared.filelist_utils import get_sources_from_filelist
 
 @cocotb.test(timeout_time=100, timeout_unit="us")
 async def reset_sync_test(dut):
@@ -100,7 +100,7 @@ def test_reset_sync(n, test_mode):
     }
 
     compile_args = [
-        "-Wall", "-Wno-UNUSED", "-Wno-DECLFILENAME",
+        "-Wall", "-Wno-UNUSED", "-Wno-DECLFILENAME", "-Wno-UNOPTFLAT", "-Wno-PROCASSINIT",
         "--trace",  # Enable VCD trace
         "--trace-depth", "99",  # Trace all hierarchy levels
     ]

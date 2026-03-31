@@ -32,7 +32,7 @@ import cocotb
 from cocotb_test.simulator import run
 
 # Import framework utilities (PYTHONPATH includes bin/)
-from CocoTBFramework.tbclasses.shared.utilities import get_repo_root, get_paths, create_view_cmd
+from TBClasses.shared.utilities import get_repo_root, get_paths, create_view_cmd
 
 # Add repo root to Python path using robust git-based method
 repo_root = get_repo_root()
@@ -40,7 +40,7 @@ sys.path.insert(0, repo_root)
 
 # Import TB class from project area
 from projects.components.converters.dv.tbclasses.axi4_to_axil4_wr_tb import AXI4ToAXIL4WriteTB
-from CocoTBFramework.tbclasses.shared.filelist_utils import get_sources_from_filelist
+from TBClasses.shared.filelist_utils import get_sources_from_filelist
 
 
 @cocotb.test(timeout_time=60, timeout_unit="ms")

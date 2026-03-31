@@ -113,5 +113,5 @@ Demonstrates latency between APB write completion and HPET domain effect.
 
 - **HPET RTL:** `rtl/hpet/hpet_core.sv`
 - **HPET Testbench:** `dv/tbclasses/hpet/hpet_tb.py`
-- **Constraint Class:** `bin/CocoTBFramework/tbclasses/wavedrom_user/hpet.py`
+- **Constraint Class:** `bin/TBClasses/wavedrom_user/hpet.py`
 - **Register Layouts:** `../hpet_registers.json`

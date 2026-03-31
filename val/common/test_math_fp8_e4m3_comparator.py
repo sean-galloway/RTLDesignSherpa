@@ -23,8 +23,8 @@ import cocotb
 from cocotb_test.simulator import run
 from conftest import get_coverage_compile_args
 
-from CocoTBFramework.tbclasses.shared.utilities import get_paths, create_view_cmd
-from CocoTBFramework.tbclasses.common.fp_testing import (
+from TBClasses.shared.utilities import get_paths, create_view_cmd
+from TBClasses.common.fp_testing import (
     FPComparatorTB, FORMATS
 )
 

@@ -93,7 +93,7 @@ CocoTBFramework/
 ├── puml/                          # PlantUML source files
 │   ├── CocoTBFramework.puml              # Full project diagram
 │   ├── CocoTBFramework.components.puml   # Components package
-│   ├── CocoTBFramework.tbclasses.puml    # TB classes package
+│   ├── TBClasses.puml    # TB classes package
 │   └── CocoTBFramework.components.axi4.axi_master.__init__.puml  # Per-file
 └── puml_img/                      # Rendered images (if PlantUML available)
     ├── CocoTBFramework.png
@@ -112,7 +112,7 @@ This generates UML for the `rtl_generators` directory with module names like `ge
 ### Example 3: Verification Framework
 
 ```bash
-python3 bin/generate_uml.py bin/CocoTBFramework --base-module CocoTBFramework
+python3 bin/generate_uml.py bin/TBClasses --base-module CocoTBFramework
 ```
 
 ## Generated Diagram Levels
@@ -313,7 +313,7 @@ Create diagrams for review sessions:
 python3 bin/generate_uml.py
 
 # View specific package
-open CocoTBFramework/puml_img/CocoTBFramework.tbclasses.png
+open CocoTBFramework/puml_img/TBClasses.png
 ```
 
 ### 3. Architecture Analysis
@@ -346,7 +346,7 @@ cat > docs/architecture.md <<EOF
 
 ## Key Components
 ![AXI Components](../puml_img/CocoTBFramework.components.axi4.png)
-![Testbench Classes](../puml_img/CocoTBFramework.tbclasses.png)
+![Testbench Classes](../puml_img/TBClasses.png)
 EOF
 ```
 

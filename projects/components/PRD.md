@@ -531,7 +531,7 @@ projects/components/{component}/
 All testbench classes MUST implement three mandatory methods:
 
 ```python
-from CocoTBFramework.tbclasses.shared.tbbase import TBBase
+from TBClasses.shared.tbbase import TBBase
 
 class ModuleTB(TBBase):
     def __init__(self, dut, **kwargs):
@@ -566,8 +566,8 @@ Test runners MUST:
 ```python
 # Import framework utilities (PYTHONPATH includes bin/)
 import os, sys
-from CocoTBFramework.tbclasses.shared.utilities import get_repo_root
-from CocoTBFramework.tbclasses.shared.tbbase import TBBase
+from TBClasses.shared.utilities import get_repo_root
+from TBClasses.shared.tbbase import TBBase
 
 # Add repo root to Python path using robust git-based method
 repo_root = get_repo_root()

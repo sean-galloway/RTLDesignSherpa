@@ -223,7 +223,7 @@ else:  # Linux
 #!/usr/bin/env python3
 
 import cocotb
-from CocoTBFramework.tbclasses.misc.utilities import get_paths, create_view_cmd
+from TBClasses.misc.utilities import get_paths, create_view_cmd
 
 # Automatic path setup
 module, repo_root, tests_dir, log_dir, paths = get_paths({

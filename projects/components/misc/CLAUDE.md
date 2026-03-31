@@ -114,7 +114,7 @@ dv/
 **Import pattern:**
 ```python
 from projects.components.misc.dv.tbclasses.axi_rom_tb import AXIRomTB
-from CocoTBFramework.tbclasses.shared.tbbase import TBBase
+from TBClasses.shared.tbbase import TBBase
 ```
 
 ---
@@ -350,8 +350,8 @@ from cocotb.triggers import RisingEdge, ReadOnly
 from cocotb.clock import Clock
 
 # Import framework utilities (PYTHONPATH includes bin/)
-from CocoTBFramework.tbclasses.shared.utilities import get_repo_root
-from CocoTBFramework.tbclasses.shared.tbbase import TBBase
+from TBClasses.shared.utilities import get_repo_root
+from TBClasses.shared.tbbase import TBBase
 
 # Add repo root to Python path using robust git-based method
 repo_root = get_repo_root()
@@ -431,7 +431,7 @@ import cocotb
 from cocotb_test.simulator import run
 
 # Import framework utilities (PYTHONPATH includes bin/)
-from CocoTBFramework.tbclasses.shared.utilities import get_repo_root
+from TBClasses.shared.utilities import get_repo_root
 
 # Add repo root to Python path using robust git-based method
 repo_root = get_repo_root()

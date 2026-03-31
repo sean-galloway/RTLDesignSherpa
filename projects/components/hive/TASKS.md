@@ -315,7 +315,7 @@ Implement top-level HIVE module integrating all components.
 Create comprehensive CocoTB testbench for SERV wrapper testing.
 
 **Acceptance Criteria:**
-- [ ] Create ServWrapperTB class in bin/CocoTBFramework/tbclasses/hive/
+- [ ] Create ServWrapperTB class in bin/TBClasses/hive/
 - [ ] Implement instruction memory loader
 - [ ] Run basic RISC-V ISA tests (ADD, SUB, LOAD, STORE)
 - [ ] Verify bit-serial execution timing
@@ -327,7 +327,7 @@ Create comprehensive CocoTB testbench for SERV wrapper testing.
 
 **Related Files:**
 - `val/hive/test_serv_wrapper.py`
-- `bin/CocoTBFramework/tbclasses/hive/serv_wrapper_tb.py`
+- `bin/TBClasses/hive/serv_wrapper_tb.py`
 
 ---
 
@@ -353,7 +353,7 @@ Create comprehensive CocoTB testbench for VexRiscv wrapper testing.
 
 **Related Files:**
 - `val/hive/test_vexriscv_wrapper.py`
-- `bin/CocoTBFramework/tbclasses/hive/vexriscv_wrapper_tb.py`
+- `bin/TBClasses/hive/vexriscv_wrapper_tb.py`
 
 ---
 
@@ -379,7 +379,7 @@ Create testbench for shared memory arbiter with multiple master stimuli.
 
 **Related Files:**
 - `val/hive/test_hive_mem_arbiter.py`
-- `bin/CocoTBFramework/tbclasses/hive/mem_arbiter_tb.py`
+- `bin/TBClasses/hive/mem_arbiter_tb.py`
 
 ---
 
@@ -409,7 +409,7 @@ Create end-to-end HIVE system testbench with VexRiscv supervising 16 SERV cores.
 
 **Related Files:**
 - `val/hive/test_hive_system_integration.py`
-- `bin/CocoTBFramework/tbclasses/hive/hive_system_tb.py`
+- `bin/TBClasses/hive/hive_system_tb.py`
 
 ---
 

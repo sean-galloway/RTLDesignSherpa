@@ -105,14 +105,14 @@
 - `rtl/amba/components/hpet/apb_hpet.sv` - Signal declarations
 
 ### Test Changes:
-- `bin/CocoTBFramework/tbclasses/amba/apb_hpet/hpet_tests_medium.py`
+- `bin/TBClasses/amba/apb_hpet/hpet_tests_medium.py`
   - Added timer reset loop (lines 308-318)
   - Fixed periodic mode timeout (line 103)
   - Fixed mode switching timeout (line 453)
   - **NEW:** Added counter cleanup in 64-bit Counter test (lines 220-222)
   - **NEW:** Increased Multiple Timers timeout to 20µs (line 356)
 
-- `bin/CocoTBFramework/tbclasses/amba/apb_hpet/hpet_tests_full.py`
+- `bin/TBClasses/amba/apb_hpet/hpet_tests_full.py`
   - Removed Interrupt Latency test (non-functional)
   - Removed Performance Benchmark test (non-functional)
 

@@ -350,7 +350,7 @@ end
 ### Source Code
 - RTL: `rtl/amba/axil4/axil4_master_rd.sv`
 - Tests: `val/amba/test_axil4_master_rd.py`
-- Framework: `bin/CocoTBFramework/components/axil4/`
+- Framework: `bin/TBClasses/components/axil4/`
 
 ---
 

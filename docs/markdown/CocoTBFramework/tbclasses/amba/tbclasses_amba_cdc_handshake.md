@@ -379,7 +379,7 @@ success = await tb.wait_for_completion(
 
 ```python
 import cocotb
-from CocoTBFramework.tbclasses.amba.cdc_handshake import CDCHandshakeTB
+from TBClasses.amba.cdc_handshake import CDCHandshakeTB
 
 @cocotb.test()
 async def test_cdc_basic(dut):
@@ -460,7 +460,7 @@ async def test_cdc_adaptive(dut):
 ### Integration with Power Management
 
 ```python
-from CocoTBFramework.tbclasses.amba.amba_cg_ctrl import AxiClockGateCtrl
+from TBClasses.amba.amba_cg_ctrl import AxiClockGateCtrl
 
 @cocotb.test()
 async def test_cdc_with_power(dut):

@@ -45,7 +45,7 @@ import cocotb
 from cocotb.triggers import Combine
 
 # Framework imports
-from CocoTBFramework.tbclasses.shared.tbbase import TBBase
+from TBClasses.shared.tbbase import TBBase
 from CocoTBFramework.components.shared.memory_model import MemoryModel
 from CocoTBFramework.components.shared.flex_randomizer import FlexRandomizer
 
@@ -59,14 +59,14 @@ from CocoTBFramework.components.axil4.axil4_packet import AXIL4Packet
 from CocoTBFramework.components.axil4.axil4_compliance_checker import AXIL4ComplianceChecker
 
 # MonBus imports for packet generation and validation - ONLY EXISTING IMPORTS
-from CocoTBFramework.tbclasses.monbus.monbus_types import (
+from TBClasses.monbus.monbus_types import (
     ProtocolType, PktType,
     ARBErrorCode, ARBTimeoutCode, ARBCompletionCode, ARBThresholdCode,
     ARBPerformanceCode, ARBDebugCode
 )
-from CocoTBFramework.tbclasses.monbus.monbus_packet import MonbusPacket, create_monbus_field_config
-from CocoTBFramework.tbclasses.monbus.monbus_slave import MonbusSlave
-from CocoTBFramework.tbclasses.monbus.monbus_validators import (
+from TBClasses.monbus.monbus_packet import MonbusPacket, create_monbus_field_config
+from TBClasses.monbus.monbus_slave import MonbusSlave
+from TBClasses.monbus.monbus_validators import (
     validate_packet_consistency, validate_arb_protocol_packet,
     create_packet_matcher
 )

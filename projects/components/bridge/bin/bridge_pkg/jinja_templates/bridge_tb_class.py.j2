@@ -9,7 +9,7 @@ import os
 import sys
 
 # Import framework utilities (PYTHONPATH includes bin/)
-from CocoTBFramework.tbclasses.shared.utilities import get_repo_root
+from TBClasses.shared.utilities import get_repo_root
 
 # Add repo root to Python path using robust git-based method
 repo_root = get_repo_root()
@@ -17,7 +17,7 @@ sys.path.insert(0, repo_root)
 
 import cocotb
 from cocotb.triggers import RisingEdge, ClockCycles
-from CocoTBFramework.tbclasses.shared.tbbase import TBBase
+from TBClasses.shared.tbbase import TBBase
 from CocoTBFramework.components.gaxi.gaxi_master import GAXIMaster
 from CocoTBFramework.components.gaxi.gaxi_slave import GAXISlave
 from CocoTBFramework.components.axi4.axi4_field_configs import AXI4FieldConfigHelper

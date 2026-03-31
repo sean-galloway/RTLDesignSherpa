@@ -32,7 +32,7 @@ import cocotb
 from typing import Dict, List, Optional
 
 # Framework imports
-from CocoTBFramework.tbclasses.shared.tbbase import TBBase
+from TBClasses.shared.tbbase import TBBase
 
 
 class DrainCtrlBeatsTB(TBBase):

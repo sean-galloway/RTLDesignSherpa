@@ -141,7 +141,7 @@ The GAXI testbench framework includes field configuration for:
 
 ## Example: Field Definition
 
-**From:** `bin/CocoTBFramework/tbclasses/wavedrom_user/gaxi.py`
+**From:** `bin/TBClasses/wavedrom_user/gaxi.py`
 
 [Show get_gaxi_field_config() implementation and explanation]
 
@@ -275,7 +275,7 @@ pytest test_gaxi_buffer_field.py -v
 - `val/integ_amba/test_gaxi_buffer_field.py`
 
 **Framework:**
-- `bin/CocoTBFramework/tbclasses/wavedrom_user/gaxi.py`
+- `bin/TBClasses/wavedrom_user/gaxi.py`
 
 **Existing Docs:**
 - `docs/markdown/RTLAmba/gaxi/` (GAXI module docs)

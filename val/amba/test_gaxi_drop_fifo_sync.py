@@ -47,14 +47,14 @@ import random
 
 # Import testbench class (reusable infrastructure)
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '../../bin'))
-from CocoTBFramework.tbclasses.gaxi.gaxi_drop_fifo_sync_tb import GaxiDropFifoSyncTB
+from TBClasses.gaxi.gaxi_drop_fifo_sync_tb import GaxiDropFifoSyncTB
 
 # Import run function for pytest
 from cocotb_test.simulator import run
 from conftest import get_coverage_compile_args
 
 # Import path utilities
-from CocoTBFramework.tbclasses.shared.utilities import get_paths, create_view_cmd
+from TBClasses.shared.utilities import get_paths, create_view_cmd
 
 
 ##############################################################################

@@ -193,7 +193,7 @@ for i, (dividend, divisor) in enumerate(test_vectors):
 ### Basic Divider Test
 ```python
 import cocotb
-from CocoTBFramework.tbclasses.common.divider_testing import DividerTB
+from TBClasses.common.divider_testing import DividerTB
 
 @cocotb.test()
 async def test_divider_basic(dut):

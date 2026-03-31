@@ -538,7 +538,7 @@ All multi-field modules have comprehensive tests in `val/integ_amba/`:
 ### Example Test Pattern
 
 ```python
-from CocoTBFramework.tbclasses.gaxi.gaxi_buffer_multi import GaxiMultiBufferTB
+from TBClasses.gaxi.gaxi_buffer_multi import GaxiMultiBufferTB
 
 @cocotb.test()
 async def test_multi_field_buffer(dut):
