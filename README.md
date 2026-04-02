@@ -106,7 +106,10 @@ graph TD
 ### 🧪 Verification
 - **[Common Tests](val/common/)** - Unit tests for common modules
 - **[AMBA Tests](val/amba/)** - Protocol compliance tests
-- **[CocoTB Framework](bin/TBClasses/)** - Reusable testbench infrastructure
+- **[TBClasses](bin/TBClasses/)** - Project-specific testbench classes (local)
+- **[cocotb-framework](https://pypi.org/project/cocotb-framework/)** (PyPI) - Reusable verification components (BFMs, scoreboards)
+  - Source: [RTLDesignSherpa-DV](https://github.com/sean-galloway/RTLDesignSherpa-DV)
+  - Install: `pip install cocotb-framework` (included in requirements.txt)
 
 ### 🛠️ Tools
 - **[RTL Generators](bin/rtl_generators/)** - Math circuits, floating-point modules

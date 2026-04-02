@@ -71,12 +71,17 @@ Complete implementation of ARM AMBA protocols:
 
 ### 🧪 Verification Framework
 
-#### **[CocoTB Framework](CocoTBFramework/)**
-Professional verification environment:
+#### **CocoTB Framework** (`cocotb-framework` PyPI package)
+Protocol VIP and verification infrastructure (installed via `pip install cocotb-framework`):
 - **Protocol VIP**: AXI4, APB, AXI4-Stream verification IP with configurable drivers and monitors
-- **Testbench Classes**: Reusable testbench components for common verification patterns
 - **Scoreboards**: Transaction-level modeling and checking infrastructure
 - **Coverage**: Functional coverage collection and analysis tools
+
+#### **[TBClasses](TBClasses/tbclasses_index.md)**
+Project-specific testbench classes (local to this repo):
+- **Testbench Classes**: Reusable testbench components for common verification patterns
+- **Protocol TBs**: AMBA, AXI4, APB, AXIS, FIFO, GAXI testbench orchestration
+- **Shared Utilities**: TBBase, path helpers, filelist processing
 
 #### **[Testing Tutorials](TestTutorial/index.md)**
 Comprehensive guides for hardware verification:
@@ -226,8 +231,9 @@ RTL Design Sherpa is built on solid technical foundations inspired by industry-l
 - **[RTL AMBA Protocols](RTLAmba/index.md)** - Complete AMBA protocol implementation
 
 ### 🧪 **Verification and Testing**
-- **[CocoTB Framework](CocoTBFramework/)** - Verification IP and testbench components
+- **[TBClasses](TBClasses/tbclasses_index.md)** - Project-specific testbench classes
 - **[Testing Tutorial](TestTutorial/index.md)** - Complete guide to hardware verification
+- **cocotb-framework** (PyPI) - Protocol VIP, scoreboards, and shared components
 
 ### 🛠️ **Tools and Automation**
 - **[Python Scripts](Scripts/index.md)** - Development tools and automation scripts

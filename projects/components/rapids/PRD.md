@@ -645,7 +645,7 @@ projects/components/rapids/dv/tests/
 - Traffic patterns
 - Monitor checkers
 
-**📖 See:** `docs/markdown/CocoTBFramework/` (once created)
+**📖 See:** `docs/markdown/TBClasses/` (once created)
 
 ### 12.2.1 MANDATORY: BFM Usage for FUB Tests
 

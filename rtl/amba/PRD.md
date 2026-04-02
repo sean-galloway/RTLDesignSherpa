@@ -498,7 +498,7 @@ cfg_perf_enable     = 1
 - Random configuration generators
 - Clock gating control
 
-**Documentation:** See `docs/markdown/CocoTBFramework/tbclasses/amba/`
+**Documentation:** See `docs/markdown/TBClasses/amba/`
 
 ---
 
@@ -564,7 +564,7 @@ cat docs/markdown/RTLAmba/index.md
 ### 14.1 Internal Documentation
 
 - **Detailed RTL Specs:** `docs/markdown/RTLAmba/` ← **Primary technical reference**
-- **Test Framework:** `docs/markdown/CocoTBFramework/tbclasses/amba/`
+- **Test Framework:** `docs/markdown/TBClasses/amba/`
 - **Configuration:** `docs/AXI_Monitor_Configuration_Guide.md`
 - **Validation Report:** `docs/RAPIDS_Validation_Status_Report.md`
 - **Master PRD:** `/PRD.md`
