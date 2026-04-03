@@ -1,0 +1,53 @@
+# Bridge Configuration: 1x3 Read-Only Bridge with Mixed Data Widths
+# Port definitions only - connectivity comes from bridge_1x3_rd_mixed_connectivity.csv
+# Demonstrates width conversion: 64b master -> 32b, 64b, 128b slaves
+
+[bridge]
+name = "bridge_1x3_rd"
+description = "1 master x 3 slave read-only bridge with mixed data widths"
+
+[[bridge.masters]]
+name = "cpu_rd"  # Descriptive identifier (cpu read master)
+prefix = "cpu_rd_axi_"  # External signal prefix
+id_width = 4
+addr_width = 32
+data_width = 64  # 64-bit master
+user_width = 1
+channels = "rd"  # Read-only (AR, R channels)
+# No interface module = direct connection (for testing)
+
+[[bridge.slaves]]
+name = "periph_rd"  # Descriptive identifier (peripheral read slave - 32b)
+prefix = "periph_rd_axi_"  # External signal prefix
+id_width = 4
+addr_width = 32
+data_width = 32  # 32-bit slave (requires downsize converter)
+user_width = 1
+channels = "rd"  # Read-only (AR, R channels) - must match master
+base_addr = "0x00000000"
+addr_range = "0x10000000"  # 256MB
+# No interface module = direct connection
+
+[[bridge.slaves]]
+name = "ddr_rd"  # Descriptive identifier (ddr read slave - 64b)
+prefix = "ddr_rd_axi_"  # External signal prefix
+id_width = 4
+addr_width = 32
+data_width = 64  # 64-bit slave (direct connection, no converter)
+user_width = 1
+channels = "rd"  # Read-only (AR, R channels) - must match master
+base_addr = "0x10000000"
+addr_range = "0x40000000"  # 1GB
+# No interface module = direct connection
+
+[[bridge.slaves]]
+name = "hbm_rd"  # Descriptive identifier (high bandwidth memory read slave - 128b)
+prefix = "hbm_rd_axi_"  # External signal prefix
+id_width = 4
+addr_width = 32
+data_width = 128  # 128-bit slave (requires upsize converter)
+user_width = 1
+channels = "rd"  # Read-only (AR, R channels) - must match master
+base_addr = "0x50000000"
+addr_range = "0x30000000"  # 768MB
+# No interface module = direct connection

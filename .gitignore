@@ -240,7 +240,6 @@ SVG
 *_LOCAL.md
 *_SCRATCH.md
 *_TEMP.md
-generated/
 
 # Claude Code user-specific settings (DO NOT COMMIT)
 .claude/settings.local.json

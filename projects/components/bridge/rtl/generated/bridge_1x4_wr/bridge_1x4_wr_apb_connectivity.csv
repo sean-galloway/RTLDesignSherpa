@@ -1,0 +1,2 @@
+master\slave,periph_wr,ddr_wr,hbm_wr,apb_periph
+cpu_wr,1,1,1,1

@@ -1,0 +1,83 @@
+# Bridge Configuration: 2x2 Read/Write Bridge with Interface Modules
+# Port definitions only - connectivity comes from bridge_2x2_rw_connectivity.csv
+# Converted from YAML to TOML format
+
+[bridge]
+name = "bridge_2x2_rw"
+description = "2 master x 2 slave full read/write bridge with timing isolation"
+
+# Global defaults for skid buffer depths (can be overridden per port)
+[bridge.defaults.skid_depths]
+ar = 2  # Read address channel
+r = 4   # Read data channel
+aw = 2  # Write address channel
+w = 4   # Write data channel
+b = 2   # Write response channel
+
+[[bridge.masters]]
+name = "cpu"
+prefix = "cpu_m_axi"
+id_width = 4
+addr_width = 32
+data_width = 32
+user_width = 1
+channels = "rw"
+
+[bridge.masters.interface]
+type = "axi4_master"  # Options: none, axi4_master, axi4_master_mon
+# Uses default skid depths (2,4,2,4,2)
+
+[[bridge.masters]]
+name = "dma"
+prefix = "dma_m_axi"
+id_width = 4
+addr_width = 32
+data_width = 32
+user_width = 1
+channels = "rw"
+
+[bridge.masters.interface]
+type = "axi4_master"
+
+[bridge.masters.interface.skid_depths]
+ar = 4  # Deeper read address buffer for DMA
+r = 8   # Deeper read data buffer
+aw = 4  # Deeper write address buffer
+w = 8   # Deeper write data buffer
+b = 4   # Deeper write response buffer
+
+[[bridge.slaves]]
+name = "ddr"
+prefix = "ddr_s_axi"
+id_width = 4
+addr_width = 32
+data_width = 32
+user_width = 1
+channels = "rw"
+base_addr = "0x00000000"
+addr_range = "0x80000000"  # 2GB
+
+[bridge.slaves.interface]
+type = "axi4_slave"
+# Uses default skid depths (2,4,2,4,2)
+
+[[bridge.slaves]]
+name = "sram"
+prefix = "sram_s_axi"
+id_width = 4
+addr_width = 32
+data_width = 32
+user_width = 1
+channels = "rw"
+base_addr = "0x80000000"
+addr_range = "0x80000000"  # 2GB
+
+[bridge.slaves.interface]
+type = "axi4_slave"
+
+[bridge.slaves.interface.skid_depths]
+ar = 2
+r = 2   # Smaller buffer for fast SRAM response
+aw = 2
+w = 2
+b = 2

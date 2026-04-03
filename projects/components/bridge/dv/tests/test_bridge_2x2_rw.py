@@ -15,10 +15,12 @@ import sys
 import pytest
 import logging
 
-# Add repo root to path
-repo_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '../../../../../..'))
+# Import framework utilities (PYTHONPATH includes bin/)
+from TBClasses.shared.utilities import get_repo_root
+
+# Add repo root to Python path using robust git-based method
+repo_root = get_repo_root()
 sys.path.insert(0, repo_root)
-sys.path.insert(0, os.path.join(repo_root, 'bin'))
 
 import cocotb
 from cocotb.triggers import RisingEdge, ClockCycles
@@ -59,14 +61,6 @@ async def cocotb_test_basic_connectivity(dut):
     tb.log.info("Starting basic connectivity test")
     tb.log.info(f"Configuration: 2M x 2S, RW channels")
     tb.log.info("=" * 80)
-
-    tb.log.info("=== Scenario BRIDGE-2x2-01: Multi-master address routing ===")
-    tb.log.info("=== Scenario BRIDGE-2x2-03: Simultaneous different slaves ===")
-    tb.log.info("=== Scenario BRIDGE-2x2-05: Full duplex operation ===")
-    tb.log.info("=== Scenario BRIDGE-2x2-06: Transaction ID tracking ===")
-    tb.log.info("=== Scenario BRIDGE-2x2-08: Backpressure propagation ===")
-    tb.log.info("=== Scenario BRIDGE-2x2-09: Response code routing ===")
-    tb.log.info("=== Scenario BRIDGE-2x2-11: Address decode independence ===")
 
     # Write connectivity test
     tb.log.info(f"Testing master 0 (cpu) write connectivity")
@@ -322,12 +316,7 @@ async def cocotb_test_address_decode(dut):
 
     tb.log.info("=" * 80)
     tb.log.info("Starting address decode test")
-    tb.log.info("=" * 80)
-
-    tb.log.info("=== Scenario BRIDGE-2x2-01: Multi-master address routing ===")
-    tb.log.info("=== Scenario BRIDGE-2x2-11: Address decode independence ===")
-
-    # Master 0: cpu
+    tb.log.info("=" * 80)    # Master 0: cpu
     tb.log.info(f"Testing master 0 address decode")
     # Slave 0: ddr
     # Range: 0x00000000 - 0x7fffffff
@@ -403,11 +392,6 @@ async def cocotb_test_arbitration(dut):
     tb.log.info("=" * 80)
     tb.log.info("Starting arbitration test")
     tb.log.info("=" * 80)
-
-    tb.log.info("=== Scenario BRIDGE-2x2-02: Per-slave arbitration ===")
-    tb.log.info("=== Scenario BRIDGE-2x2-04: Simultaneous same slave ===")
-    tb.log.info("=== Scenario BRIDGE-2x2-07: Burst grant locking ===")
-    tb.log.info("=== Scenario BRIDGE-2x2-10: Master priority fairness ===")
 
     # TODO: Implement concurrent transaction test
     # This requires cocotb.start_soon() for parallel master activity

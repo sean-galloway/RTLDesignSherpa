@@ -15,10 +15,12 @@ import sys
 import pytest
 import logging
 
-# Add repo root to path
-repo_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '../../../../../..'))
+# Import framework utilities (PYTHONPATH includes bin/)
+from TBClasses.shared.utilities import get_repo_root
+
+# Add repo root to Python path using robust git-based method
+repo_root = get_repo_root()
 sys.path.insert(0, repo_root)
-sys.path.insert(0, os.path.join(repo_root, 'bin'))
 
 import cocotb
 from cocotb.triggers import RisingEdge, ClockCycles
@@ -53,12 +55,6 @@ async def cocotb_test_basic_connectivity(dut):
     tb.log.info("Starting basic connectivity test")
     tb.log.info(f"Configuration: 1M x 2S, RD channels")
     tb.log.info("=" * 80)
-
-    tb.log.info("=== Scenario BRIDGE-1x2-01: Basic address routing ===")
-    tb.log.info("=== Scenario BRIDGE-1x2-02: Read channel routing ===")
-    tb.log.info("=== Scenario BRIDGE-1x2-03: Transaction ID preservation ===")
-    tb.log.info("=== Scenario BRIDGE-1x2-05: Backpressure handling ===")
-    tb.log.info("=== Scenario BRIDGE-1x2-06: Response codes ===")
 
     # Read connectivity test    tb.log.info(f"Testing master 0 (cpu_rd) read connectivity")
     # Master 0 → Slave 0 (ddr_rd)
@@ -139,11 +135,7 @@ async def cocotb_test_address_decode(dut):
 
     tb.log.info("=" * 80)
     tb.log.info("Starting address decode test")
-    tb.log.info("=" * 80)
-
-    tb.log.info("=== Scenario BRIDGE-1x2-08: Address boundary conditions ===")
-
-    # Master 0: cpu_rd
+    tb.log.info("=" * 80)    # Master 0: cpu_rd
     tb.log.info(f"Testing master 0 address decode")
     # Slave 0: ddr_rd
     # Range: 0x00000000 - 0x7fffffff

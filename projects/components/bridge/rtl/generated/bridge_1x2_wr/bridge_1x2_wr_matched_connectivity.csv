@@ -1,0 +1,2 @@
+master\slave,ddr_wr,sram_wr
+cpu_wr,1,1

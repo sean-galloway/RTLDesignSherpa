@@ -1,0 +1,74 @@
+# Bridge 1x4 Read-only with APB slave
+# Demonstrates AXI4-to-APB conversion on slave 3
+
+[bridge]
+name = "bridge_1x4_rd"
+description = "1 master x 4 slave read-only bridge with APB slave"
+
+# Clock configuration for testing
+[bridge.clock]
+name = "aclk"
+frequency_mhz = 100  # 100 MHz (10ns period)
+
+# Master 0: CPU read master (64-bit)
+[[bridge.masters]]
+name = "cpu_rd"
+prefix = "cpu_rd_axi_"
+protocol = "axi4"
+channels = "rd"
+id_width = 4
+addr_width = 32
+data_width = 64
+user_width = 1
+
+# Slave 0: Peripheral read (32-bit AXI4)
+[[bridge.slaves]]
+name = "periph_rd"
+prefix = "periph_rd_axi_"
+protocol = "axi4"
+channels = "rd"
+id_width = 4
+addr_width = 32
+data_width = 32
+user_width = 1
+base_addr = "0x00000000"
+addr_range = "0x10000000"  # 256MB
+
+# Slave 1: DDR read (64-bit AXI4)
+[[bridge.slaves]]
+name = "ddr_rd"
+prefix = "ddr_rd_axi_"
+protocol = "axi4"
+channels = "rd"
+id_width = 4
+addr_width = 32
+data_width = 64
+user_width = 1
+base_addr = "0x10000000"
+addr_range = "0x40000000"  # 1GB
+
+# Slave 2: HBM read (128-bit AXI4)
+[[bridge.slaves]]
+name = "hbm_rd"
+prefix = "hbm_rd_axi_"
+protocol = "axi4"
+channels = "rd"
+id_width = 4
+addr_width = 32
+data_width = 128
+user_width = 1
+base_addr = "0x50000000"
+addr_range = "0x30000000"  # 768MB
+
+# Slave 3: APB peripheral (32-bit APB) - REQUIRES AXI4-to-APB SHIM
+[[bridge.slaves]]
+name = "apb_periph"
+prefix = "apb_periph_"
+protocol = "apb"
+channels = "rw"  # APB doesn't have separate rd/wr channels
+id_width = 0  # APB has no transaction IDs
+addr_width = 32
+data_width = 32
+user_width = 0  # APB has no user signals
+base_addr = "0x80000000"
+addr_range = "0x00010000"  # 64KB

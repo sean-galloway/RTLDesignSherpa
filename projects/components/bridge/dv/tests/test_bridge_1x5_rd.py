@@ -15,10 +15,12 @@ import sys
 import pytest
 import logging
 
-# Add repo root to path
-repo_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '../../../../../..'))
+# Import framework utilities (PYTHONPATH includes bin/)
+from TBClasses.shared.utilities import get_repo_root
+
+# Add repo root to Python path using robust git-based method
+repo_root = get_repo_root()
 sys.path.insert(0, repo_root)
-sys.path.insert(0, os.path.join(repo_root, 'bin'))
 
 import cocotb
 from cocotb.triggers import RisingEdge, ClockCycles
@@ -53,11 +55,6 @@ async def cocotb_test_basic_connectivity(dut):
     tb.log.info("Starting basic connectivity test")
     tb.log.info(f"Configuration: 1M x 5S, RD channels")
     tb.log.info("=" * 80)
-
-    tb.log.info("=== Scenario BRIDGE-1x5-01: Five-way address routing ===")
-    tb.log.info("=== Scenario BRIDGE-1x5-02: AXI4 slave routing ===")
-    tb.log.info("=== Scenario BRIDGE-1x5-06: Transaction ID preservation ===")
-    tb.log.info("=== Scenario BRIDGE-1x5-08: Backpressure per slave ===")
 
     # Read connectivity test    tb.log.info(f"Testing master 0 (cpu_rd) read connectivity")
     # Master 0 → Slave 0 (periph_rd)
