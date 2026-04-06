@@ -1,0 +1,23 @@
+[tasks]
+prove
+cover
+
+[options]
+prove: mode bmc
+prove: depth 40
+cover: mode cover
+cover: depth 80
+
+[engines]
+prove: smtbmc z3
+cover: smtbmc z3
+
+[script]
+read -formal -sv -Iincludes uart_rx.sv
+read -formal -sv formal_uart_rx.sv
+prep -top formal_uart_rx
+
+[files]
+uart_rx.sv ../../../projects/components/converters/rtl/uart_to_axil4/uart_rx.sv
+formal_uart_rx.sv
+includes/reset_defs.svh ../../../rtl/amba/includes/reset_defs.svh
