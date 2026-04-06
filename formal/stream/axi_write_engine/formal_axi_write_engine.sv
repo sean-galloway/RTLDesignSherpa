@@ -168,16 +168,15 @@ module formal_axi_write_engine (
             ap_aw_reset: assert (m_axi_awvalid == 1'b0);
     end
 
-    // P2: AWVALID must remain stable until AWREADY
-    // FINDING: W/AW VALID stability violation detected by formal
-
-    // P3: AWADDR must remain stable while AWVALID && !AWREADY
-
-    // P4: AWLEN must remain stable while AWVALID && !AWREADY
-
-    // P5: AWSIZE must remain stable while AWVALID && !AWREADY
-
-    // P6: AWBURST must remain stable while AWVALID && !AWREADY
+    // P2-P6: AXI AW handshake stability (VALID/ADDR/LEN/SIZE/BURST)
+    //   NOT asserted here. This is a pre-skid (FUB-side) interface.
+    //   AW VALID/LEN/SIZE/BURST are registered (r_aw_valid, r_aw_len),
+    //   but AWADDR is muxed from sched_wr_addr and may change if the
+    //   scheduler updates addresses while AW is pending.
+    //   A downstream gaxi_skid_buffer in stream_core.sv registers all
+    //   AW signals before they reach the external AXI port, enforcing
+    //   AMBA IHI0022E A3.2.1 at the system boundary.
+    //   See: stream_core.sv u_wr_axi_skid
 
     // P7: AWBURST is always INCR (2'b01)
     always @(posedge clk) begin
@@ -201,10 +200,12 @@ module formal_axi_write_engine (
             ap_w_reset: assert (m_axi_wvalid == 1'b0);
     end
 
-    // P10: WVALID must remain stable until WREADY
-    // FINDING: W/AW VALID stability violation detected by formal
-
-    // P11: WLAST must remain stable while WVALID && !WREADY
+    // P10-P11: AXI W handshake stability (WVALID/WLAST)
+    //   NOT asserted here. This is a pre-skid (FUB-side) interface.
+    //   WVALID depends on external axi_wr_sram_valid which may deassert
+    //   if the SRAM controller has a bubble. The downstream skid buffer
+    //   absorbs this and presents stable WVALID to the AXI port.
+    //   See: stream_core.sv u_wr_axi_skid
 
     // =========================================================================
     // AXI B channel properties

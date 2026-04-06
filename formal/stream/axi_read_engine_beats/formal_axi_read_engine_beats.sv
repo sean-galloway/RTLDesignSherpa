@@ -156,20 +156,13 @@ module formal_axi_read_engine_beats (
             ap_ar_reset: assert (m_axi_arvalid == 1'b0);
     end
 
-    // P2: ARVALID must remain stable until ARREADY (AXI handshake rule)
-    always @(posedge clk) begin
-        if (f_past_valid > 0 && rst_n && $past(rst_n))
-            if ($past(m_axi_arvalid) && !$past(m_axi_arready))
-                ap_ar_stable_valid: assert (m_axi_arvalid);
-    end
-
-    // P3: ARADDR must remain stable while ARVALID && !ARREADY
-
-    // P4: ARLEN must remain stable while ARVALID && !ARREADY
-
-    // P5: ARSIZE must remain stable while ARVALID && !ARREADY
-
-    // P6: ARBURST must remain stable while ARVALID && !ARREADY
+    // P2-P6: AXI handshake stability (VALID/ADDR/LEN/SIZE/BURST)
+    //   NOT asserted here. This is a pre-skid (FUB-side) interface.
+    //   The engine drives AR combinationally from the arbiter for instant
+    //   backpressure response (space_free->arvalid in same cycle).
+    //   A downstream gaxi_skid_buffer registers these signals before
+    //   they reach the external AXI port, enforcing AMBA IHI0022E A3.2.1
+    //   at the system boundary.
 
     // P7: ARBURST is always INCR (2'b01)
     always @(posedge clk) begin

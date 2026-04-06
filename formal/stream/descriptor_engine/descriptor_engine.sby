@@ -1,0 +1,22 @@
+[tasks]
+prove
+cover
+
+[options]
+prove: mode bmc
+prove: depth 20
+cover: mode cover
+cover: depth 50
+
+[engines]
+prove: smtbmc z3
+cover: smtbmc z3
+
+[script]
+read_verilog -formal descriptor_engine_flat.v
+read -formal -sv formal_descriptor_engine.sv
+prep -top formal_descriptor_engine
+
+[files]
+formal_descriptor_engine.sv
+descriptor_engine_flat.v

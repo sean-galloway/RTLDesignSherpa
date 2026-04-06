@@ -1,0 +1,22 @@
+[tasks]
+prove
+cover
+
+[options]
+prove: mode bmc
+prove: depth 25
+cover: mode cover
+cover: depth 40
+
+[engines]
+prove: smtbmc z3
+cover: smtbmc z3
+
+[script]
+read_verilog -formal sram_controller_flat.v
+read -formal -sv formal_sram_controller.sv
+prep -top formal_sram_controller
+
+[files]
+formal_sram_controller.sv
+sram_controller_flat.v

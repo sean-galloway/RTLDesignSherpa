@@ -31,7 +31,24 @@ MODULES = \
 	axi_gen_addr \
 	dataint_crc_xor_shift \
 	dataint_crc_xor_shift_cascade \
-	dataint_ecc_hamming
+	dataint_ecc_hamming \
+	cam_tag \
+	clock_divider \
+	clock_gate_ctrl \
+	count_leading_zeros \
+	dataint_parity \
+	decoder \
+	encoder \
+	encoder_priority_enable \
+	find_first_set \
+	find_last_set \
+	gaxi_drop_fifo_sync \
+	gaxi_fifo_async \
+	gaxi_fifo_sync \
+	gaxi_regslice \
+	gaxi_skid_buffer_dbldrn \
+	icg \
+	monbus_arbiter
 
 .PHONY: help
 help:
@@ -49,9 +66,12 @@ help:
 	@echo "  Counters:    counter, counter-gray, counter-johnson"
 	@echo "  Gray code:   bin2gray, gray2bin, grayj2bin"
 	@echo "  CDC:         glitch-free"
-	@echo "  FIFOs:       fifo, fifo-async, gaxi-skid"
-	@echo "  AXI:         axi-gen-addr"
-	@echo "  Integrity:   crc-xor, crc-cascade, ecc"
+	@echo "  FIFOs:       fifo, fifo-async, gaxi-skid, gaxi-drop-fifo, gaxi-fifo-async,"
+	@echo "               gaxi-fifo-sync, gaxi-regslice, gaxi-skid-dbldrn"
+	@echo "  AXI:         axi-gen-addr, monbus-arbiter"
+	@echo "  Integrity:   crc-xor, crc-cascade, ecc, parity"
+	@echo "  Logic:       cam-tag, clz, decoder, encoder, encoder-pe, ffs, fls"
+	@echo "  Clock:       clk-div, clk-gate, icg"
 	@echo ""
 	@echo "  make clean                 Remove all artifacts"
 	@echo "================================================================================"
@@ -88,6 +108,23 @@ $(eval $(call MODULE_TARGETS,axi_gen_addr,axi-gen-addr,axi_gen_addr.sby))
 $(eval $(call MODULE_TARGETS,dataint_crc_xor_shift,crc-xor,dataint_crc_xor_shift.sby))
 $(eval $(call MODULE_TARGETS,dataint_crc_xor_shift_cascade,crc-cascade,dataint_crc_xor_shift_cascade.sby))
 $(eval $(call MODULE_TARGETS,dataint_ecc_hamming,ecc,ecc_hamming.sby))
+$(eval $(call MODULE_TARGETS,cam_tag,cam-tag,cam_tag.sby))
+$(eval $(call MODULE_TARGETS,clock_divider,clk-div,clock_divider.sby))
+$(eval $(call MODULE_TARGETS,clock_gate_ctrl,clk-gate,clock_gate_ctrl.sby))
+$(eval $(call MODULE_TARGETS,count_leading_zeros,clz,count_leading_zeros.sby))
+$(eval $(call MODULE_TARGETS,dataint_parity,parity,dataint_parity.sby))
+$(eval $(call MODULE_TARGETS,decoder,decoder,decoder.sby))
+$(eval $(call MODULE_TARGETS,encoder,encoder,encoder.sby))
+$(eval $(call MODULE_TARGETS,encoder_priority_enable,encoder-pe,encoder_priority_enable.sby))
+$(eval $(call MODULE_TARGETS,find_first_set,ffs,find_first_set.sby))
+$(eval $(call MODULE_TARGETS,find_last_set,fls,find_last_set.sby))
+$(eval $(call MODULE_TARGETS,gaxi_drop_fifo_sync,gaxi-drop-fifo,gaxi_drop_fifo_sync.sby))
+$(eval $(call MODULE_TARGETS,gaxi_fifo_async,gaxi-fifo-async,gaxi_fifo_async.sby))
+$(eval $(call MODULE_TARGETS,gaxi_fifo_sync,gaxi-fifo-sync,gaxi_fifo_sync.sby))
+$(eval $(call MODULE_TARGETS,gaxi_regslice,gaxi-regslice,gaxi_regslice.sby))
+$(eval $(call MODULE_TARGETS,gaxi_skid_buffer_dbldrn,gaxi-skid-dbldrn,gaxi_skid_buffer_dbldrn.sby))
+$(eval $(call MODULE_TARGETS,icg,icg,icg.sby))
+$(eval $(call MODULE_TARGETS,monbus_arbiter,monbus-arbiter,monbus_arbiter.sby))
 
 # Legacy aliases
 .PHONY: prove-arbiter cover-arbiter prove-counter cover-counter prove-fifo cover-fifo
@@ -101,7 +138,15 @@ PROVE_ALL = prove-arbiter-simple prove-arbiter-rr prove-arbiter-rrw prove-arbite
             prove-glitch-free \
             prove-fifo prove-fifo-async prove-gaxi-skid \
             prove-axi-gen-addr \
-            prove-crc-xor prove-crc-cascade prove-ecc
+            prove-crc-xor prove-crc-cascade prove-ecc \
+            prove-cam-tag \
+            prove-clk-div prove-clk-gate prove-icg \
+            prove-clz prove-parity \
+            prove-decoder prove-encoder prove-encoder-pe \
+            prove-ffs prove-fls \
+            prove-gaxi-drop-fifo prove-gaxi-fifo-async prove-gaxi-fifo-sync \
+            prove-gaxi-regslice prove-gaxi-skid-dbldrn \
+            prove-monbus-arbiter
 
 COVER_ALL = cover-arbiter-simple cover-arbiter-rr cover-arbiter-rrw cover-arbiter-pe \
             cover-counter cover-counter-gray cover-counter-johnson \
@@ -109,7 +154,15 @@ COVER_ALL = cover-arbiter-simple cover-arbiter-rr cover-arbiter-rrw cover-arbite
             cover-glitch-free \
             cover-fifo cover-fifo-async cover-gaxi-skid \
             cover-axi-gen-addr \
-            cover-crc-xor cover-crc-cascade cover-ecc
+            cover-crc-xor cover-crc-cascade cover-ecc \
+            cover-cam-tag \
+            cover-clk-div cover-clk-gate cover-icg \
+            cover-clz cover-parity \
+            cover-decoder cover-encoder cover-encoder-pe \
+            cover-ffs cover-fls \
+            cover-gaxi-drop-fifo cover-gaxi-fifo-async cover-gaxi-fifo-sync \
+            cover-gaxi-regslice cover-gaxi-skid-dbldrn \
+            cover-monbus-arbiter
 
 .PHONY: prove-all
 prove-all: $(PROVE_ALL)
