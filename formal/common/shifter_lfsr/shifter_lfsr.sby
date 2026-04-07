@@ -1,0 +1,23 @@
+[tasks]
+prove
+cover
+
+[options]
+prove: mode bmc
+prove: depth 15
+cover: mode cover
+cover: depth 20
+
+[engines]
+prove: smtbmc z3
+cover: smtbmc z3
+
+[script]
+read -formal -sv -Iincludes shifter_lfsr.sv
+read -formal -sv formal_shifter_lfsr.sv
+prep -top formal_shifter_lfsr
+
+[files]
+shifter_lfsr.sv ../../../rtl/common/shifter_lfsr.sv
+formal_shifter_lfsr.sv
+includes/reset_defs.svh ../../../rtl/amba/includes/reset_defs.svh

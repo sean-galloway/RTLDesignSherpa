@@ -1,0 +1,22 @@
+[tasks]
+prove
+cover
+
+[options]
+prove: mode bmc
+prove: depth 25
+cover: mode cover
+cover: depth 30
+
+[engines]
+prove: smtbmc z3
+cover: smtbmc z3
+
+[script]
+read -formal -sv cdc_handshake.sv
+read -formal -sv formal_cdc_handshake.sv
+prep -top formal_cdc_handshake
+
+[files]
+cdc_handshake.sv cdc_handshake_formal.sv
+formal_cdc_handshake.sv

@@ -1,0 +1,23 @@
+[tasks]
+prove
+cover
+
+[options]
+prove: mode bmc
+prove: depth 25
+cover: mode cover
+cover: depth 30
+
+[engines]
+prove: smtbmc z3
+cover: smtbmc z3
+
+[script]
+read -formal -sv -Iincludes pwm.sv
+read -formal -sv formal_pwm.sv
+prep -top formal_pwm
+
+[files]
+pwm.sv ../../../rtl/common/pwm.sv
+formal_pwm.sv
+includes/reset_defs.svh ../../../rtl/amba/includes/reset_defs.svh

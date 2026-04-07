@@ -1,0 +1,23 @@
+[tasks]
+prove
+cover
+
+[options]
+prove: mode bmc
+prove: depth 20
+cover: mode cover
+cover: depth 30
+
+[engines]
+prove: smtbmc z3
+cover: smtbmc z3
+
+[script]
+read -formal -sv -Iincludes fifo_control.sv
+read -formal -sv formal_fifo_control.sv
+prep -top formal_fifo_control
+
+[files]
+fifo_control.sv ../../../rtl/common/fifo_control.sv
+formal_fifo_control.sv
+includes/reset_defs.svh ../../../rtl/amba/includes/reset_defs.svh

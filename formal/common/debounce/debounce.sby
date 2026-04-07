@@ -1,0 +1,23 @@
+[tasks]
+prove
+cover
+
+[options]
+prove: mode bmc
+prove: depth 20
+cover: mode cover
+cover: depth 25
+
+[engines]
+prove: smtbmc z3
+cover: smtbmc z3
+
+[script]
+read -formal -sv -Iincludes debounce.sv
+read -formal -sv formal_debounce.sv
+prep -top formal_debounce
+
+[files]
+debounce.sv ../../../rtl/common/debounce.sv
+formal_debounce.sv
+includes/reset_defs.svh ../../../rtl/amba/includes/reset_defs.svh

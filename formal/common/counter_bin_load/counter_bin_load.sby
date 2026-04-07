@@ -1,0 +1,23 @@
+[tasks]
+prove
+cover
+
+[options]
+prove: mode bmc
+prove: depth 20
+cover: mode cover
+cover: depth 30
+
+[engines]
+prove: smtbmc z3
+cover: smtbmc z3
+
+[script]
+read -formal -sv -Iincludes counter_bin_load.sv
+read -formal -sv formal_counter_bin_load.sv
+prep -top formal_counter_bin_load
+
+[files]
+counter_bin_load.sv ../../../rtl/common/counter_bin_load.sv
+formal_counter_bin_load.sv
+includes/reset_defs.svh ../../../rtl/amba/includes/reset_defs.svh
