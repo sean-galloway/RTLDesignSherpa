@@ -1,0 +1,22 @@
+[tasks]
+prove
+cover
+
+[options]
+prove: mode bmc
+prove: depth 2
+cover: mode cover
+cover: depth 2
+
+[engines]
+prove: smtbmc z3
+cover: smtbmc z3
+
+[script]
+read -formal -sv math_subtractor_full.sv
+read -formal -sv formal_math_subtractor_full.sv
+prep -top formal_math_subtractor_full
+
+[files]
+math_subtractor_full.sv ../../../rtl/common/math_subtractor_full.sv
+formal_math_subtractor_full.sv
