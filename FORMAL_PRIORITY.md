@@ -1,8 +1,7 @@
 # Formal Verification Priority List
 
-**Generated:** 2026-03-21
+**Generated:** 2026-03-21 | **Updated:** 2026-04-07
 **Purpose:** Prioritize modules for formal verification with SymbiYosys
-**Delete this file after work is planned/complete**
 
 Priority: 1 = highest value, 2 = high, 3 = medium, 0 = not needed
 Status: PASSING = proved, blank = not started
@@ -17,19 +16,19 @@ Status: PASSING = proved, blank = not started
 | ---------------------------- | -------- | ------- | -------------------------------------------------- |
 | arbiter_round_robin_simple   | 1        | PASSING | 6 safety + 6 cover                                 |
 | arbiter_round_robin          | 1        | PASSING | 7 safety + 5 cover (no-ACK mode)                   |
-| arbiter_round_robin_weighted | 1        |         | Weighted fairness — high value, complex properties |
-| arbiter_priority_encoder     | 1        |         | Combinational — prove priority order correctness   |
+| arbiter_round_robin_weighted | 1        | PASSING | Weighted fairness — high value, complex properties |
+| arbiter_priority_encoder     | 1        | PASSING | Combinational — prove priority order correctness   |
 
 ### FIFOs & Buffers
 
 | Module                 | Priority | Status  | Notes                                                       |
 | ---------------------- | -------- | ------- | ----------------------------------------------------------- |
 | fifo_sync              | 1        | PASSING | 9 safety + 4 cover (ghost counter)                          |
-| fifo_async             | 1        |         | CDC critical — Gray pointer sync, empty/full across domains |
-| fifo_async_div2        | 1        |         | Johnson counter variant of async FIFO                       |
-| fifo_control           | 2        |         | Flag generation logic, used by both sync/async FIFOs        |
-| fifo_sync_multi        | 3        |         | Multi-signal variant                                        |
-| fifo_sync_multi_sigmap | 3        |         | Signal-mapped variant                                       |
+| fifo_async             | 1        | PASSING | CDC critical — Gray pointer sync, empty/full across domains |
+| fifo_async_div2        | 1        | PASSING | Johnson counter variant of async FIFO                       |
+| fifo_control           | 2        | PASSING | Flag generation logic, used by both sync/async FIFOs        |
+| fifo_sync_multi        | 3        | PASSING | Multi-signal variant                                        |
+| fifo_sync_multi_sigmap | 3        | PASSING | Signal-mapped variant                                       |
 
 ### Counters
 
@@ -37,54 +36,54 @@ Status: PASSING = proved, blank = not started
 | ---------------------- | -------- | ------- | ---------------------------------------------------- |
 | counter_bin            | 1        | PASSING | 7 safety + 3 cover (FIFO pointer wraparound)         |
 | counter_bingray        | 1        | PASSING | 7 safety + 3 cover (Gray code single-bit-change)     |
-| counter_johnson        | 1        |         | Johnson counter — used in non-power-of-2 async FIFOs |
-| counter_load_clear     | 3        |         | Standard counter, less critical                      |
-| counter_freq_invariant | 3        |         | Timeout timer — prove timeout bound                  |
-| counter_bin_load       | 3        |         | Counter with load                                    |
-| counter_ring           | 0        |         | Simple ring counter, low risk                        |
-| counter                | 0        |         | Basic wrapper                                        |
+| counter_johnson        | 1        | PASSING | Johnson counter — used in non-power-of-2 async FIFOs |
+| counter_load_clear     | 3        | PASSING | Standard counter, less critical                      |
+| counter_freq_invariant | 3        | PASSING | Timeout timer — prove timeout bound                  |
+| counter_bin_load       | 3        | PASSING | Counter with load                                    |
+| counter_ring           | 0        | PASSING | Simple ring counter, low risk                        |
+| counter                | 0        | PASSING | Basic wrapper                                        |
 
 ### Clock Domain Crossing
 
 | Module                | Priority | Status | Notes                                          |
 | --------------------- | -------- | ------ | ---------------------------------------------- |
-| glitch_free_n_dff_arn | 1        |        | CDC synchronizer — prove no glitch on output   |
-| sync_pulse            | 1        |        | Pulse CDC — prove pulse delivered exactly once |
-| cdc_synchronizer      | 1        |        | Multi-bit CDC sync                             |
-| cdc_handshake         | 1        |        | Handshake-based CDC — prove no data loss       |
-| reset_sync            | 2        |        | Reset synchronizer — prove clean deassertion   |
+| glitch_free_n_dff_arn | 1        | PASSING | CDC synchronizer — prove no glitch on output   |
+| sync_pulse            | 1        |         | Pulse CDC — prove pulse delivered exactly once |
+| cdc_synchronizer      | 1        | PASSING | Multi-bit CDC sync                             |
+| cdc_handshake         | 1        | PASSING | Handshake-based CDC — prove no data loss       |
+| reset_sync            | 2        | PASSING | Reset synchronizer — prove clean deassertion   |
 
 ### Gray Code Converters
 
 | Module    | Priority | Status | Notes                                                  |
 | --------- | -------- | ------ | ------------------------------------------------------ |
-| bin2gray  | 1        |        | Prove: gray = bin ^ (bin >> 1), used everywhere in CDC |
-| gray2bin  | 1        |        | Prove: inverse of bin2gray, roundtrip correctness      |
-| grayj2bin | 1        |        | Johnson-to-binary, used in fifo_async_div2             |
+| bin2gray  | 1        | PASSING | Prove: gray = bin ^ (bin >> 1), used everywhere in CDC |
+| gray2bin  | 1        | PASSING | Prove: inverse of bin2gray, roundtrip correctness      |
+| grayj2bin | 1        | PASSING | Johnson-to-binary, used in fifo_async_div2             |
 
 ### Data Integrity
 
 | Module                            | Priority | Status | Notes                                                  |
 | --------------------------------- | -------- | ------ | ------------------------------------------------------ |
-| dataint_ecc_hamming_encode_secded | 1        |        | Prove encode-decode roundtrip, single-error correction |
-| dataint_ecc_hamming_decode_secded | 1        |        | Prove SEC-DED capability formally                      |
-| dataint_crc                       | 3        |        | Polynomial correctness — high value but complex        |
-| dataint_parity                    | 2        |        | Simple parity — prove odd/even generation              |
-| dataint_checksum                  | 3        |        | Checksum accumulation                                  |
-| dataint_crc_xor_shift             | 1        |        | CRC variant                                            |
-| dataint_crc_xor_shift_cascade     | 1        |        | CRC cascade variant                                    |
+| dataint_ecc_hamming_encode_secded | 1        | PASSING | Prove encode-decode roundtrip, single-error correction |
+| dataint_ecc_hamming_decode_secded | 1        | PASSING | Prove SEC-DED capability formally                      |
+| dataint_crc                       | 3        | PASSING | Polynomial correctness — high value but complex        |
+| dataint_parity                    | 2        | PASSING | Simple parity — prove odd/even generation              |
+| dataint_checksum                  | 3        | PASSING | Checksum accumulation                                  |
+| dataint_crc_xor_shift             | 1        | PASSING | CRC variant                                            |
+| dataint_crc_xor_shift_cascade     | 1        | PASSING | CRC cascade variant                                    |
 
 ### Encoders & Decoders
 
 | Module                   | Priority | Status | Notes                                                 |
 | ------------------------ | -------- | ------ | ----------------------------------------------------- |
-| encoder                  | 2        |        | Binary encoder — prove one-hot input → correct output |
-| decoder                  | 2        |        | Binary decoder — prove inverse of encoder             |
-| encoder_priority_enable  | 2        |        | Priority encoder with enable                          |
-| find_first_set           | 2        |        | Prove correct bit position found                      |
-| find_last_set            | 2        |        | Prove correct bit position found                      |
-| count_leading_zeros      | 2        |        | Prove count matches actual leading zeros              |
-| leading_one_trailing_one | 3        |        | Bit scanning                                          |
+| encoder                  | 2        | PASSING | Binary encoder — prove one-hot input → correct output |
+| decoder                  | 2        | PASSING | Binary decoder — prove inverse of encoder             |
+| encoder_priority_enable  | 2        | PASSING | Priority encoder with enable                          |
+| find_first_set           | 2        | PASSING | Prove correct bit position found                      |
+| find_last_set            | 2        | PASSING | Prove correct bit position found                      |
+| count_leading_zeros      | 2        | PASSING | Prove count matches actual leading zeros              |
+| leading_one_trailing_one | 3        | PASSING | Bit scanning                                          |
 | bin_to_bcd               | 0        |        | Display conversion, low risk                          |
 | hex_to_7seg              | 0        |        | Display conversion, low risk                          |
 
@@ -92,29 +91,29 @@ Status: PASSING = proved, blank = not started
 
 | Module          | Priority | Status | Notes                                   |
 | --------------- | -------- | ------ | --------------------------------------- |
-| clock_divider   | 2        |        | Prove divide ratio correct, no glitches |
-| clock_gate_ctrl | 2        |        | Prove glitch-free gating                |
-| icg             | 2        |        | Integrated clock gate cell              |
+| clock_divider   | 2        | PASSING | Prove divide ratio correct, no glitches |
+| clock_gate_ctrl | 2        | PASSING | Prove glitch-free gating                |
+| icg             | 2        | PASSING | Integrated clock gate cell              |
 | clock_pulse     | 3        |        | Pulse generation                        |
 
 ### Shifters
 
 | Module                 | Priority | Status | Notes                                      |
 | ---------------------- | -------- | ------ | ------------------------------------------ |
-| shifter_barrel         | 2        |        | Prove shift amount → correct output        |
-| shifter_lfsr           | 2        |        | Prove LFSR period = 2^N-1 (maximal length) |
-| shifter_lfsr_fibonacci | 2        |        | Fibonacci LFSR variant                     |
-| shifter_lfsr_galois    | 2        |        | Galois LFSR variant                        |
+| shifter_barrel         | 2        | PASSING | Prove shift amount → correct output        |
+| shifter_lfsr           | 2        | PASSING | Prove LFSR period = 2^N-1 (maximal length) |
+| shifter_lfsr_fibonacci | 2        | PASSING | Fibonacci LFSR variant                     |
+| shifter_lfsr_galois    | 2        | PASSING | Galois LFSR variant                        |
 | shifter_universal      | 3        |        | Multi-mode shifter                         |
 
 ### Miscellaneous
 
 | Module         | Priority | Status | Notes                                                |
 | -------------- | -------- | ------ | ---------------------------------------------------- |
-| cam_tag        | 2        |        | CAM lookup — prove match correctness                 |
-| sort           | 3        |        | Sorting network — prove output is sorted permutation |
-| debounce       | 3        |        | Debounce filter                                      |
-| pwm            | 3        |        | PWM generator                                        |
+| cam_tag        | 2        | PASSING | CAM lookup — prove match correctness                 |
+| sort           | 3        | PASSING | Sorting network — prove output is sorted permutation |
+| debounce       | 3        | PASSING | Debounce filter                                      |
+| pwm            | 3        | PASSING | PWM generator                                        |
 | reverse_vector | 0        |        | Trivial bit reversal                                 |
 
 ### Math — Adders (prove equivalence to reference)
@@ -234,12 +233,12 @@ Status: PASSING = proved, blank = not started
 
 | Module                        | Priority | Status | Notes                                                   |
 | ----------------------------- | -------- | ------ | ------------------------------------------------------- |
-| gaxi_fifo_sync                | 1        |        | Production FIFO — prove empty/full/count like fifo_sync |
-| gaxi_fifo_async               | 1        |        | Production async FIFO — CDC safety critical             |
-| gaxi_skid_buffer              | 1        |        | Skid buffer — prove no data loss, backpressure correct  |
-| gaxi_skid_buffer_dbldrn       | 1        |        | Double-drain variant — prove throughput properties      |
-| gaxi_regslice                 | 2        |        | Register slice — prove valid/ready protocol             |
-| gaxi_drop_fifo_sync           | 1        |        | Drop FIFO — prove drop-on-full behavior correct         |
+| gaxi_fifo_sync                | 1        | PASSING | Production FIFO — prove empty/full/count like fifo_sync |
+| gaxi_fifo_async               | 1        | PASSING | Production async FIFO — CDC safety critical             |
+| gaxi_skid_buffer              | 1        | PASSING | Skid buffer — prove no data loss, backpressure correct  |
+| gaxi_skid_buffer_dbldrn       | 1        | PASSING | Double-drain variant — prove throughput properties      |
+| gaxi_regslice                 | 2        | PASSING | Register slice — prove valid/ready protocol             |
+| gaxi_drop_fifo_sync           | 1        | PASSING | Drop FIFO — prove drop-on-full behavior correct         |
 | gaxi_skid_buffer_async        | 2        |        | Async skid — CDC properties                             |
 | gaxi_skid_buffer_struct       | 3        |        | Struct variant                                          |
 | gaxi_fifo_async_multi         | 3        |        | Multi-signal variant                                    |
@@ -304,13 +303,13 @@ Status: PASSING = proved, blank = not started
 | axi_monitor_timeout   | 3        |        | Timeout detection                       |
 | axi_monitor_timer     | 0        |        | Simple timer                            |
 | axi_monitor_filtered  | 0        |        | Filter wrapper                          |
-| axi_gen_addr          | 1        |        | Address generation — prove 4KB boundary |
+| axi_gen_addr          | 1        | PASSING | Address generation — prove 4KB boundary |
 
 ### MonBus Arbiters
 
 | Module                 | Priority | Status | Notes                                       |
 | ---------------------- | -------- | ------ | ------------------------------------------- |
-| monbus_arbiter         | 1        |        | Already has assertions — extend with formal |
+| monbus_arbiter         | 1        | PASSING | Already has assertions — extend with formal |
 | arbiter_monbus_common  | 2        |        | Common arbiter for monitor bus              |
 | arbiter_rr_pwm_monbus  | 2        |        | PWM round-robin — prove fairness            |
 | arbiter_wrr_pwm_monbus | 2        |        | Weighted RR — prove weight distribution     |
@@ -321,17 +320,17 @@ Status: PASSING = proved, blank = not started
 | ---------------------- | -------- | ------ | --------------------------------------- |
 | axi_master_rd_splitter | 2        |        | Prove no transaction loss through split |
 | axi_master_wr_splitter | 2        |        | Same                                    |
-| axi_split_combi        | 2        |        | Combinational split logic               |
+| axi_split_combi        | 2        | PASSING | Combinational split logic               |
 
 ### APB Modules
 
 | Module             | Priority | Status | Notes                                   |
 | ------------------ | -------- | ------ | --------------------------------------- |
-| apb_master         | 2        |        | Prove APB setup/access phase sequencing |
-| apb_slave          | 2        |        | Prove correct response timing           |
+| apb_master         | 2        | PASSING | Prove APB setup/access phase sequencing |
+| apb_slave          | 2        | PASSING | Prove correct response timing           |
 | apb_monitor        | 2        |        | Prove packet generation                 |
-| apb5_master        | 2        |        | APB5 variant                            |
-| apb5_slave         | 2        |        | APB5 variant                            |
+| apb5_master        | 2        | PASSING | APB5 variant                            |
+| apb5_slave         | 2        | PASSING | APB5 variant                            |
 | apb5_monitor       | 2        |        | APB5 variant                            |
 | apb_slave_cdc      | 2        |        | CDC variant — prove safe crossing       |
 | apb5_slave_cdc     | 2        |        | APB5 CDC variant                        |
@@ -350,10 +349,10 @@ Status: PASSING = proved, blank = not started
 
 ### CDC Modules
 
-| Module           | Priority | Status | Notes                           |
-| ---------------- | -------- | ------ | ------------------------------- |
-| cdc_synchronizer | 1        |        | Already listed under common CDC |
-| cdc_handshake    | 1        |        | Already listed under common CDC |
+| Module           | Priority | Status  | Notes                           |
+| ---------------- | -------- | ------- | ------------------------------- |
+| cdc_synchronizer | 1        | PASSING | Already listed under common CDC |
+| cdc_handshake    | 1        | PASSING | Already listed under common CDC |
 
 ### Interconnect
 
@@ -399,13 +398,15 @@ Status: PASSING = proved, blank = not started
 | 2        | 42    | Monitors, encoders, data integrity, splitters, APB, adders             |
 | 3        | 27    | Larger variants, less critical modules                                 |
 | 0        | ~120+ | Internal cells, stubs, packages, approximations, large multipliers     |
-| PASSING  | 5     | arbiter_rr_simple, arbiter_rr, counter_bin, counter_bingray, fifo_sync |
+| PASSING  | 87    | See individual tables above for complete status                        |
 
-**Recommended execution order for Priority 1:**
+**All Priority 1 common/CDC modules DONE** (except sync_pulse).
 
-1. CDC modules: `bin2gray`, `gray2bin`, `glitch_free_n_dff_arn`, `sync_pulse`
-2. Production FIFOs: `gaxi_fifo_sync`, `gaxi_skid_buffer`, `fifo_async`
-3. Weighted arbiter: `arbiter_round_robin_weighted`
-4. AXI wrappers: `axi4_master_rd`, `axi4_slave_rd`, `axi4_master_wr`, `axi4_slave_wr`
-5. ECC: `dataint_ecc_hamming_encode_secded` + `decode_secded` (roundtrip)
-6. MonBus: `monbus_arbiter`
+**Remaining high-value targets:**
+1. `sync_pulse` (Priority 1 CDC -- pulse delivered exactly once)
+2. AMBA monitors: `apb_monitor`, `apb5_monitor`, `axi4_*_mon`
+3. AMBA CDC: `apb_slave_cdc`, `apb5_slave_cdc`
+4. AXIS: `axis_master`, `axis_slave`
+5. AXI splitters: `axi_master_rd_splitter`, `axi_master_wr_splitter`
+6. Converters: `axi4_dwidth_converter_rd/wr`
+7. Math: adders, subtractors, 8-bit multipliers
