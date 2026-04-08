@@ -251,28 +251,39 @@ module formal_math_bf16_fma (
     // Property 16: Result exponent validity for normal results
     // FP32 normal: exp in [1, 254]
     //
-    // NOTE: The DUT has a known issue in the c_eff_zero passthrough path
-    // (line ~297-299 of math_bf16_fma.sv). When c is effectively zero and the
-    // product of a*b overflows (exp >= 255), the passthrough uses
-    // w_prod_exp[7:0] which wraps, producing an invalid FP32 encoding
-    // (e.g., exp=0 with non-zero mantissa). The property is relaxed to
-    // exclude the c_eff_zero passthrough case to verify the rest of the logic.
+    // The c_eff_zero path now properly handles product overflow (saturates to
+    // infinity) and product underflow (saturates to zero), so no exclusions
+    // are needed.
     // =========================================================================
     always @(posedge clk) begin
         if (!r_is_zero && !r_is_inf && !r_is_nan && !overflow && !underflow && !invalid
-            && !c_eff_zero && !prod_is_zero) begin
+            && !prod_is_zero) begin
             p_normal_exp_range: assert (exp_r >= 8'h01 && exp_r <= 8'hFE);
         end
     end
 
     // =========================================================================
-    // Property 16b: KNOWN ISSUE - c=0 passthrough with product overflow
-    // When c is effectively zero but product exponent overflows (a*b produces
-    // very large result), the DUT bypasses overflow checking and directly
-    // outputs {prod_sign, w_prod_exp[7:0], w_prod_mant_ext[22:0]}.
-    // w_prod_exp can be >= 255, so [7:0] wraps, producing invalid FP32.
-    // This is documented as a known DUT issue.
+    // Property 16b: c=0 with product overflow produces infinity
+    // When c is effectively zero and the product overflows, the result must
+    // be infinity (not garbage from truncated exponent bits).
     // =========================================================================
+    always @(posedge clk) begin
+        if (c_eff_zero && a_is_normal && b_is_normal && !any_nan && overflow) begin
+            p_c_zero_prod_overflow_inf: assert (r_is_inf);
+            p_c_zero_prod_overflow_sign: assert (sign_r == prod_sign);
+        end
+    end
+
+    // =========================================================================
+    // Property 16c: c=0 with product underflow produces zero
+    // When c is effectively zero and the product underflows, the result must
+    // be zero (not garbage from raw product bits).
+    // =========================================================================
+    always @(posedge clk) begin
+        if (c_eff_zero && a_is_normal && b_is_normal && !any_nan && underflow) begin
+            p_c_zero_prod_underflow_zero: assert (r_is_zero);
+        end
+    end
 
     // =========================================================================
     // Cover properties

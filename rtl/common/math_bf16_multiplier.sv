@@ -159,18 +159,25 @@ always_comb begin
     ow_invalid = 1'b0;
 
     // Special case priority (highest to lowest)
+    // IEEE 754: NaN > Zero > Infinity/Overflow > Underflow > Normal
+    // Zero MUST be checked before overflow because when either input
+    // is zero, the exponent adder produces a garbage value (e.g. 0xFF)
+    // that falsely triggers the overflow path.
     if (w_any_nan | w_invalid_op) begin
         // NaN result: quiet NaN with sign preserved
         ow_result = {w_sign_result, 8'hFF, 7'h40};  // Canonical qNaN
         ow_invalid = w_invalid_op;
+    end else if (w_result_zero) begin
+        // Zero result: either input is zero/subnormal
+        ow_result = {w_sign_result, 8'h00, 7'h00};
     end else if (w_result_inf | w_final_overflow) begin
-        // Infinity result
+        // Infinity result (from input inf or exponent overflow)
         ow_result = {w_sign_result, 8'hFF, 7'h00};
         ow_overflow = w_final_overflow & ~w_result_inf;
-    end else if (w_result_zero | w_exp_underflow) begin
-        // Zero result
+    end else if (w_exp_underflow) begin
+        // Underflow to zero
         ow_result = {w_sign_result, 8'h00, 7'h00};
-        ow_underflow = w_exp_underflow & ~w_result_zero;
+        ow_underflow = 1'b1;
     end
 end
 

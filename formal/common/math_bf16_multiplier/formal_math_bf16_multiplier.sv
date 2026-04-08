@@ -110,36 +110,33 @@ module formal_math_bf16_multiplier (
     end
 
     // =========================================================================
-    // Property 4: Zero input produces zero or infinity output
+    // Property 4: Zero input produces zero output
     // (when other input is normal, not inf/nan)
     //
-    // NOTE: DUT has a known priority ordering issue where the exponent adder
-    // can produce exp_out=0xFF when one input has exp=0 (e.g., zero/subnorm).
-    // This causes w_final_overflow to fire before w_result_zero in the DUT's
-    // priority cascade. The mathematically correct result is zero, but the DUT
-    // may produce infinity. We assert the weaker property that the result is
-    // either zero or infinity (with correct sign), and flag the issue separately.
+    // Zero * normal = zero with correct sign. The DUT checks w_result_zero
+    // before w_final_overflow in the priority cascade, so even when the
+    // exponent adder produces a spurious 0xFF, the zero check takes priority.
     // =========================================================================
     always @(posedge clk) begin
         if (a_eff_zero && !b_is_inf && !b_is_nan) begin
-            p_zero_a_result: assert (r_is_zero || r_is_inf);
+            p_zero_a_result: assert (r_is_zero);
             p_zero_a_sign: assert (sign_r == expected_sign);
         end
         if (b_eff_zero && !a_is_inf && !a_is_nan) begin
-            p_zero_b_result: assert (r_is_zero || r_is_inf);
+            p_zero_b_result: assert (r_is_zero);
             p_zero_b_sign: assert (sign_r == expected_sign);
         end
     end
 
     // =========================================================================
-    // Property 4b: KNOWN ISSUE - Zero * normal should ideally produce zero
-    // This property documents the DUT bug: it sometimes produces infinity
-    // instead of zero due to exponent adder priority ordering.
-    // Uncomment to reproduce:
-    //   always @(posedge clk)
-    //     if (b_eff_zero && b_is_zero && a_is_normal)
-    //       p_zero_b_strict: assert (r_is_zero); // WILL FAIL
+    // Property 4b: Strict zero assertion -- zero * normal = exactly zero
+    // Verifies that the full result encoding is {sign, 8'h00, 7'h00}
     // =========================================================================
+    always @(posedge clk) begin
+        if ((a_eff_zero || b_eff_zero) && !any_nan && !invalid_op) begin
+            p_zero_strict: assert (result == {expected_sign, 8'h00, 7'h00});
+        end
+    end
 
     // =========================================================================
     // Property 5: Infinity propagation
@@ -244,15 +241,14 @@ module formal_math_bf16_multiplier (
 
     // =========================================================================
     // Property 15: Subnormal inputs flushed to zero (FTZ mode)
-    // Same priority ordering caveat as Property 4: DUT may produce infinity
-    // instead of zero due to exponent path.
+    // Subnormals are treated as effective zeros, so subnorm * normal = zero.
     // =========================================================================
     always @(posedge clk) begin
         if (a_is_subnorm && b_is_normal) begin
-            p_subnorm_a_ftz: assert (r_is_zero || r_is_inf);
+            p_subnorm_a_ftz: assert (r_is_zero);
         end
         if (b_is_subnorm && a_is_normal) begin
-            p_subnorm_b_ftz: assert (r_is_zero || r_is_inf);
+            p_subnorm_b_ftz: assert (r_is_zero);
         end
     end
 

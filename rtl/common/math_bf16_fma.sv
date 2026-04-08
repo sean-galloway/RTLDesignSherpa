@@ -296,7 +296,18 @@ always_comb begin
         ow_result = i_c;
     end else if (w_c_eff_zero) begin
         // A * B + 0 = A * B (product only, extend to FP32)
-        ow_result = {w_prod_sign, w_prod_exp[7:0], w_prod_mant_ext[22:0]};
+        // Must check product overflow/underflow here since the normal
+        // overflow/underflow checks below operate on the addition result,
+        // not the raw product exponent.
+        if (w_prod_exp > 10'd254) begin
+            ow_result = {w_prod_sign, 8'hFF, 23'h0};  // Overflow to inf
+            ow_overflow = 1'b1;
+        end else if (w_prod_underflow) begin
+            ow_result = {w_prod_sign, 8'h00, 23'h0};  // Underflow to zero
+            ow_underflow = 1'b1;
+        end else begin
+            ow_result = {w_prod_sign, w_prod_exp[7:0], w_prod_mant_ext[22:0]};
+        end
     end else if (w_sum_abs == 48'h0) begin
         // Exact zero result: IEEE 754 round-to-nearest gives +0
         // (Exception: both operands negative gives -0, but that's handled by
