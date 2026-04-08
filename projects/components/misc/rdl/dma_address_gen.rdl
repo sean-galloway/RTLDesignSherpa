@@ -1,0 +1,102 @@
+// SPDX-License-Identifier: MIT
+// SPDX-FileCopyrightText: 2025 sean galloway
+//
+// SystemRDL register definition for dma_address_gen descriptor fields.
+// Conforms to IEEE 1800.2-2017 (SystemRDL 2.0).
+//
+// Usage with PeakRDL:
+//   peakrdl regblock rdl/dma_address_gen.rdl -o rtl/generated/
+//   peakrdl html     rdl/dma_address_gen.rdl -o docs/dma_address_gen_regs/
+//
+// The generated register block provides an APB/AXI-Lite CSR interface.
+// Software writes descriptor fields, then the hw-readable outputs drive
+// the dma_address_gen configuration ports directly.
+//
+// Connection pattern:
+//   dma_address_gen_regs u_regs (...);
+//   dma_address_gen      u_addr_gen (
+//       .i_cfg_base_addr   (u_regs.base_addr_lo.value | (u_regs.base_addr_hi.value << 32)),
+//       .i_cfg_stride_0    (u_regs.stride_0.value),
+//       .i_cfg_stride_1    (u_regs.stride_1.value),
+//       .i_cfg_wrap_mask_0 (u_regs.wrap_mask_0_lo.value | (u_regs.wrap_mask_0_hi.value << 32)),
+//       .i_cfg_wrap_mask_1 (u_regs.wrap_mask_1_lo.value | (u_regs.wrap_mask_1_hi.value << 32)),
+//       ...
+//   );
+
+addrmap dma_address_gen_regs {
+    desc = "DMA Address Generator descriptor registers.
+            Programs the base address, signed strides, and wrap masks
+            that control the dma_address_gen module.";
+
+    default hw   = r;       // Hardware reads all fields
+    default sw   = rw;      // Software reads and writes all fields
+    default reset = 0;
+
+    // =========================================================================
+    // Base Address (40-bit, split across two 32-bit registers)
+    // IEEE 1800-2017 Section 6.11: unsigned logic [ADDR_WIDTH-1:0]
+    // =========================================================================
+    reg base_addr_lo_reg {
+        desc = "Base address [31:0]. Starting address for this DMA transfer.";
+        field {} value[32] = 0;
+    };
+
+    reg base_addr_hi_reg {
+        desc = "Base address [39:32]. Upper bits of starting address.";
+        field {} value[8] = 0;
+    };
+
+    base_addr_lo_reg base_addr_lo @ 0x00;
+    base_addr_hi_reg base_addr_hi @ 0x04;
+
+    // =========================================================================
+    // Signed Strides (24-bit signed, one register each)
+    // IEEE 1800-2017 Section 6.11, Table 6-8: signed logic [STRIDE_WIDTH-1:0]
+    // Two's complement: range -(2^23) to +(2^23 - 1) = -8388608 to +8388607
+    // =========================================================================
+    reg stride_reg {
+        desc = "Signed byte stride for one dimension. Two's complement encoding.
+                Positive values advance forward, negative values reverse.";
+        field {} value[24] = 0;
+    };
+
+    stride_reg stride_0 @ 0x08;
+    stride_reg stride_1 @ 0x0C;
+
+    // =========================================================================
+    // Wrap Masks (40-bit unsigned, split across two 32-bit registers each)
+    // IEEE 1800-2017 Section 7.4.1: unsigned logic [ADDR_WIDTH-1:0]
+    //
+    // Power-of-2 wrap boundary via bitwise AND on the computed offset.
+    // Set to 0 to disable wrapping (full address range).
+    // Example: 0x0000_00FF wraps within 256-byte region.
+    //          0x0000_0FFF wraps within 4KB region.
+    // =========================================================================
+    reg wrap_mask_lo_reg {
+        desc = "Wrap mask [31:0]. Power-of-2 mask for circular buffer wrapping.
+                0 = no wrap.";
+        field {} value[32] = 0;
+    };
+
+    reg wrap_mask_hi_reg {
+        desc = "Wrap mask [39:32]. Upper bits of wrap mask.";
+        field {} value[8] = 0;
+    };
+
+    wrap_mask_lo_reg wrap_mask_0_lo @ 0x10;
+    wrap_mask_hi_reg wrap_mask_0_hi @ 0x14;
+    wrap_mask_lo_reg wrap_mask_1_lo @ 0x18;
+    wrap_mask_hi_reg wrap_mask_1_hi @ 0x1C;
+
+    // =========================================================================
+    // Control / Status (future expansion)
+    // =========================================================================
+    reg control_reg {
+        desc = "DMA address generator control. Reserved for future use
+                (e.g., enable, soft reset, interrupt mask).";
+        field {} enable[1]   = 0;
+        field {} reserved[31] = 0;
+    };
+
+    control_reg control @ 0x20;
+};
