@@ -1,0 +1,23 @@
+[tasks]
+prove
+cover
+
+[options]
+prove: mode bmc
+prove: depth 20
+cover: mode cover
+cover: depth 25
+
+[engines]
+prove: smtbmc z3
+cover: smtbmc z3
+
+[script]
+read -formal -sv -Iincludes clock_pulse.sv
+read -formal -sv formal_clock_pulse.sv
+prep -top formal_clock_pulse
+
+[files]
+clock_pulse.sv ../../../rtl/common/clock_pulse.sv
+formal_clock_pulse.sv
+includes/reset_defs.svh ../../../rtl/amba/includes/reset_defs.svh
