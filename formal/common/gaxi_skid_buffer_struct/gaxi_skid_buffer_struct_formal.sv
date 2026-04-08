@@ -1,0 +1,110 @@
+// SPDX-License-Identifier: MIT
+// SPDX-FileCopyrightText: 2024-2025 sean galloway
+//
+// Stripped copy of gaxi_skid_buffer_struct for yosys formal verification.
+// Changes from original:
+//   - Removed parameterized STRUCT_TYPE (yosys does not support type parameters)
+//   - Uses logic [STRUCT_WIDTH-1:0] directly as the data type
+//   - Removed $error(...) call (yosys cannot parse)
+//   - Everything else identical to rtl/amba/gaxi/gaxi_skid_buffer_struct.sv
+
+`timescale 1ns / 1ps
+
+`include "reset_defs.svh"
+
+module gaxi_skid_buffer_struct #(
+    parameter int  STRUCT_WIDTH = 32,
+    parameter int  DEPTH = 2,                  // Must be one of {2, 4, 6, 8}
+
+    // Derived parameters
+    localparam int BUF_WIDTH = STRUCT_WIDTH * DEPTH,
+    localparam int SW = STRUCT_WIDTH,
+    localparam int BW = BUF_WIDTH
+) (
+    // Global Clock and Reset
+    input  logic                     axi_aclk,
+    input  logic                     axi_aresetn,
+
+    // Input side
+    input  logic                     wr_valid,
+    output logic                     wr_ready,
+    input  logic [SW-1:0]            wr_data,
+
+    // Output side
+    output logic [3:0]               count,
+    output logic                     rd_valid,
+    input  logic                     rd_ready,
+    output logic [3:0]               rd_count,
+    output logic [SW-1:0]            rd_data
+);
+
+    // Internal storage as array
+    logic [SW-1:0]         r_data [DEPTH];
+    logic [3:0]            r_data_count;
+    logic                  w_wr_xfer;
+    logic                  w_rd_xfer;
+    logic [SW-1:0]         struct_zeros;
+
+    assign struct_zeros = '0;
+    assign w_wr_xfer = wr_valid & wr_ready;
+    assign w_rd_xfer = rd_valid & rd_ready;
+
+    // Data shift register logic
+    `ALWAYS_FF_RST(axi_aclk, axi_aresetn,
+        if (`RST_ASSERTED(axi_aresetn)) begin
+            for (int i = 0; i < DEPTH; i++) begin
+                r_data[i] <= '0;
+            end
+            r_data_count <= 'b0;
+        end else begin
+            if (w_wr_xfer & ~w_rd_xfer) begin
+                // Shift in new data at the position indicated by count
+                r_data[r_data_count] <= wr_data;
+                r_data_count <= r_data_count + 1;
+            end else if (~w_wr_xfer & w_rd_xfer) begin
+                // Shift out old data - move everything down by one position
+                for (int i = 0; i < DEPTH-1; i++) begin
+                    r_data[i] <= r_data[i+1];
+                end
+                r_data[DEPTH-1] <= struct_zeros;
+                r_data_count <= r_data_count - 1;
+            end else if (w_wr_xfer & w_rd_xfer) begin
+                // Shift in new data and shift out old data simultaneously
+                // Move existing data down and insert new data at the top valid position
+                for (int i = 0; i < DEPTH-1; i++) begin
+                    r_data[i] <= r_data[i+1];
+                end
+                r_data[r_data_count - 1] <= wr_data;
+                // Count stays the same since we're adding and removing one
+            end
+        end
+    )
+
+
+    // Ready and valid signal generation
+    `ALWAYS_FF_RST(axi_aclk, axi_aresetn,
+        if (`RST_ASSERTED(axi_aresetn)) begin
+            wr_ready <= 1'b0;
+            rd_valid <= 1'b0;
+        end else begin
+            // wr_ready: Can accept write if buffer isn't full or will have space next cycle
+            wr_ready <= (32'(r_data_count) <= DEPTH-2) ||
+                        (32'(r_data_count) == DEPTH-1 && (~w_wr_xfer || w_rd_xfer)) ||
+                        (32'(r_data_count) == DEPTH && w_rd_xfer);
+
+            // rd_valid: Can provide read if buffer has data or will have data next cycle
+            rd_valid <= (r_data_count >= 2) ||
+                        (r_data_count == 4'b0001 && (~w_rd_xfer || w_wr_xfer)) ||
+                        (r_data_count == 4'b0000 && w_wr_xfer);
+        end
+    )
+
+
+    // Output assignments
+    assign rd_data  = r_data[0];  // Always read from the bottom of the buffer
+    assign rd_count = r_data_count;
+    assign count    = r_data_count;
+
+    // Structural checks removed for yosys compatibility ($error not supported)
+
+endmodule : gaxi_skid_buffer_struct

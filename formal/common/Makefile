@@ -51,7 +51,9 @@ MODULES = \
 	gaxi_fifo_async \
 	gaxi_fifo_sync \
 	gaxi_regslice \
+	gaxi_skid_buffer_async \
 	gaxi_skid_buffer_dbldrn \
+	gaxi_skid_buffer_struct \
 	icg \
 	monbus_arbiter
 
@@ -74,7 +76,8 @@ help:
 	@echo "  CDC:         glitch-free"
 	@echo "  FIFOs:       fifo-ctrl, fifo, fifo-multi, fifo-async, gaxi-skid,"
 	@echo "               gaxi-drop-fifo, gaxi-fifo-async, gaxi-fifo-sync,"
-	@echo "               gaxi-regslice, gaxi-skid-dbldrn"
+	@echo "               gaxi-regslice, gaxi-skid-async, gaxi-skid-dbldrn,"
+	@echo "               gaxi-skid-struct"
 	@echo "  AXI:         axi-gen-addr, monbus-arbiter"
 	@echo "  Integrity:   crc-xor, crc-cascade, ecc, parity"
 	@echo "  Logic:       cam-tag, clz, decoder, encoder, encoder-pe, ffs, fls"
@@ -134,7 +137,9 @@ $(eval $(call MODULE_TARGETS,gaxi_drop_fifo_sync,gaxi-drop-fifo,gaxi_drop_fifo_s
 $(eval $(call MODULE_TARGETS,gaxi_fifo_async,gaxi-fifo-async,gaxi_fifo_async.sby))
 $(eval $(call MODULE_TARGETS,gaxi_fifo_sync,gaxi-fifo-sync,gaxi_fifo_sync.sby))
 $(eval $(call MODULE_TARGETS,gaxi_regslice,gaxi-regslice,gaxi_regslice.sby))
+$(eval $(call MODULE_TARGETS,gaxi_skid_buffer_async,gaxi-skid-async,gaxi_skid_buffer_async.sby))
 $(eval $(call MODULE_TARGETS,gaxi_skid_buffer_dbldrn,gaxi-skid-dbldrn,gaxi_skid_buffer_dbldrn.sby))
+$(eval $(call MODULE_TARGETS,gaxi_skid_buffer_struct,gaxi-skid-struct,gaxi_skid_buffer_struct.sby))
 $(eval $(call MODULE_TARGETS,icg,icg,icg.sby))
 $(eval $(call MODULE_TARGETS,monbus_arbiter,monbus-arbiter,monbus_arbiter.sby))
 
@@ -158,7 +163,8 @@ PROVE_ALL = prove-arbiter-simple prove-arbiter-rr prove-arbiter-rrw prove-arbite
             prove-decoder prove-encoder prove-encoder-pe \
             prove-ffs prove-fls \
             prove-gaxi-drop-fifo prove-gaxi-fifo-async prove-gaxi-fifo-sync \
-            prove-gaxi-regslice prove-gaxi-skid-dbldrn \
+            prove-gaxi-regslice prove-gaxi-skid-async prove-gaxi-skid-dbldrn \
+            prove-gaxi-skid-struct \
             prove-monbus-arbiter
 
 COVER_ALL = cover-arbiter-simple cover-arbiter-rr cover-arbiter-rrw cover-arbiter-pe \
@@ -175,7 +181,8 @@ COVER_ALL = cover-arbiter-simple cover-arbiter-rr cover-arbiter-rrw cover-arbite
             cover-decoder cover-encoder cover-encoder-pe \
             cover-ffs cover-fls \
             cover-gaxi-drop-fifo cover-gaxi-fifo-async cover-gaxi-fifo-sync \
-            cover-gaxi-regslice cover-gaxi-skid-dbldrn \
+            cover-gaxi-regslice cover-gaxi-skid-async cover-gaxi-skid-dbldrn \
+            cover-gaxi-skid-struct \
             cover-monbus-arbiter
 
 .PHONY: prove-all

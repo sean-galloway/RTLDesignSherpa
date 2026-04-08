@@ -1,0 +1,31 @@
+[tasks]
+prove
+cover
+
+[options]
+prove: mode bmc
+prove: depth 25
+cover: mode cover
+cover: depth 25
+
+[engines]
+prove: smtbmc z3
+cover: smtbmc z3
+
+[script]
+read -formal -sv -Iincludes counter_bin.sv
+read -formal -sv -Iincludes fifo_control.sv
+read -formal -sv -Iincludes gaxi_fifo_sync_formal.sv
+read -formal -sv -Iincludes axi_split_combi_formal.sv
+read -formal -sv -Iincludes axi_master_rd_splitter_formal.sv
+read -formal -sv formal_axi_master_rd_splitter.sv
+prep -top formal_axi_master_rd_splitter
+
+[files]
+formal_axi_master_rd_splitter.sv
+axi_master_rd_splitter_formal.sv
+axi_split_combi_formal.sv ../axi_split_combi/axi_split_combi_formal.sv
+gaxi_fifo_sync_formal.sv ../../common/gaxi_fifo_sync/gaxi_fifo_sync_formal.sv
+counter_bin.sv ../../../rtl/common/counter_bin.sv
+fifo_control.sv ../../../rtl/common/fifo_control.sv
+includes/reset_defs.svh ../../../rtl/amba/includes/reset_defs.svh

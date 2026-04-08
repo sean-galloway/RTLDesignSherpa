@@ -1,0 +1,37 @@
+[tasks]
+prove
+cover
+
+[options]
+prove: mode bmc
+prove: depth 25
+cover: mode cover
+cover: depth 25
+
+[engines]
+prove: smtbmc z3
+cover: smtbmc z3
+
+[script]
+read -formal -sv -Iincludes counter_bin.sv
+read -formal -sv -Iincludes fifo_control.sv
+read -formal -sv -Iincludes gaxi_fifo_sync_formal.sv
+read -formal -sv -Iincludes arbiter_priority_encoder.sv
+read -formal -sv -Iincludes arbiter_round_robin.sv
+read -formal -sv -Iincludes pwm.sv
+read -formal -sv -Iincludes arbiter_monbus_common_formal.sv
+read -formal -sv -Iincludes arbiter_rr_pwm_monbus_formal.sv
+read -formal -sv formal_arbiter_rr_pwm_monbus.sv
+prep -top formal_arbiter_rr_pwm_monbus
+
+[files]
+formal_arbiter_rr_pwm_monbus.sv
+arbiter_rr_pwm_monbus_formal.sv
+arbiter_monbus_common_formal.sv ../arbiter_monbus_common/arbiter_monbus_common_formal.sv
+gaxi_fifo_sync_formal.sv ../../common/gaxi_fifo_sync/gaxi_fifo_sync_formal.sv
+counter_bin.sv ../../../rtl/common/counter_bin.sv
+fifo_control.sv ../../../rtl/common/fifo_control.sv
+arbiter_priority_encoder.sv ../../../rtl/common/arbiter_priority_encoder.sv
+arbiter_round_robin.sv ../../../rtl/common/arbiter_round_robin.sv
+pwm.sv ../../../rtl/common/pwm.sv
+includes/reset_defs.svh ../../../rtl/amba/includes/reset_defs.svh

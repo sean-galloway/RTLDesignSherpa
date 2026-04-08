@@ -1,0 +1,23 @@
+[tasks]
+prove
+cover
+
+[options]
+prove: mode bmc
+prove: depth 15
+cover: mode cover
+cover: depth 15
+
+[engines]
+prove: smtbmc z3
+cover: smtbmc z3
+
+[script]
+read -formal -sv -Iincludes gaxi_skid_buffer_struct_formal.sv
+read -formal -sv formal_gaxi_skid_buffer_struct.sv
+prep -top formal_gaxi_skid_buffer_struct
+
+[files]
+gaxi_skid_buffer_struct_formal.sv
+formal_gaxi_skid_buffer_struct.sv
+includes/reset_defs.svh ../../../rtl/amba/includes/reset_defs.svh

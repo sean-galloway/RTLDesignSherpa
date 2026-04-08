@@ -1,0 +1,23 @@
+[tasks]
+prove
+cover
+
+[options]
+prove: mode bmc
+prove: depth 20
+cover: mode cover
+cover: depth 20
+
+[engines]
+prove: smtbmc z3
+cover: smtbmc z3
+
+[script]
+read -formal -sv -Iincludes bridge_cam.sv
+read -formal -sv -Iincludes formal_bridge_cam.sv
+prep -top formal_bridge_cam
+
+[files]
+bridge_cam.sv ../../../projects/components/bridge/rtl/bridge_cam.sv
+formal_bridge_cam.sv
+includes/reset_defs.svh ../../../rtl/amba/includes/reset_defs.svh
