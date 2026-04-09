@@ -1,0 +1,22 @@
+[tasks]
+prove
+cover
+
+[options]
+prove: mode bmc
+prove: depth 2
+cover: mode cover
+cover: depth 2
+
+[engines]
+prove: smtbmc z3
+cover: smtbmc z3
+
+[script]
+read -formal -sv hex_to_7seg.sv
+read -formal -sv formal_hex_to_7seg.sv
+prep -top formal_hex_to_7seg
+
+[files]
+hex_to_7seg.sv ../../../rtl/common/hex_to_7seg.sv
+formal_hex_to_7seg.sv

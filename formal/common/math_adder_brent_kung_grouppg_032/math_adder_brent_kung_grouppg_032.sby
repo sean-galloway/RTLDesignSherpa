@@ -1,0 +1,26 @@
+[tasks]
+prove
+cover
+
+[options]
+prove: mode bmc
+prove: depth 2
+cover: mode cover
+cover: depth 2
+
+[engines]
+prove: smtbmc z3
+cover: smtbmc z3
+
+[script]
+read -formal -sv math_adder_brent_kung_black.sv
+read -formal -sv math_adder_brent_kung_gray.sv
+read -formal -sv math_adder_brent_kung_grouppg_032.sv
+read -formal -sv formal_math_adder_brent_kung_grouppg_032.sv
+prep -top formal_math_adder_brent_kung_grouppg_032
+
+[files]
+math_adder_brent_kung_black.sv ../../../rtl/common/math_adder_brent_kung_black.sv
+math_adder_brent_kung_gray.sv ../../../rtl/common/math_adder_brent_kung_gray.sv
+math_adder_brent_kung_grouppg_032.sv ../../../rtl/common/math_adder_brent_kung_grouppg_032.sv
+formal_math_adder_brent_kung_grouppg_032.sv

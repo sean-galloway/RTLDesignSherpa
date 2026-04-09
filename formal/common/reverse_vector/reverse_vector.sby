@@ -1,0 +1,22 @@
+[tasks]
+prove
+cover
+
+[options]
+prove: mode bmc
+prove: depth 2
+cover: mode cover
+cover: depth 2
+
+[engines]
+prove: smtbmc z3
+cover: smtbmc z3
+
+[script]
+read -formal -sv reverse_vector.sv
+read -formal -sv formal_reverse_vector.sv
+prep -top formal_reverse_vector
+
+[files]
+reverse_vector.sv ../../../rtl/common/reverse_vector.sv
+formal_reverse_vector.sv
