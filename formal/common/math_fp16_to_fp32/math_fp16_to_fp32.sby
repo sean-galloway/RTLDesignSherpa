@@ -1,0 +1,22 @@
+[tasks]
+prove
+cover
+
+[options]
+prove: mode bmc
+prove: depth 2
+cover: mode cover
+cover: depth 5
+
+[engines]
+prove: smtbmc z3
+cover: smtbmc z3
+
+[script]
+read -formal -sv math_fp16_to_fp32.sv
+read -formal -sv formal_math_fp16_to_fp32.sv
+prep -top formal_math_fp16_to_fp32
+
+[files]
+math_fp16_to_fp32.sv ../../../rtl/common/math_fp16_to_fp32.sv
+formal_math_fp16_to_fp32.sv

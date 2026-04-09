@@ -1,0 +1,24 @@
+[tasks]
+prove
+cover
+
+[options]
+prove: mode bmc
+prove: depth 2
+cover: mode cover
+cover: depth 2
+
+[engines]
+prove: smtbmc z3
+cover: smtbmc z3
+
+[script]
+read -formal -sv math_multiplier_basic_cell.sv
+read -formal -sv math_multiplier_carry_save.sv
+read -formal -sv formal_math_multiplier_carry_save.sv
+prep -top formal_math_multiplier_carry_save
+
+[files]
+math_multiplier_basic_cell.sv ../../../rtl/common/math_multiplier_basic_cell.sv
+math_multiplier_carry_save.sv ../../../rtl/common/math_multiplier_carry_save.sv
+formal_math_multiplier_carry_save.sv

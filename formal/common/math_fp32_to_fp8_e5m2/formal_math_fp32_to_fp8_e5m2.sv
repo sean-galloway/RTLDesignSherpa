@@ -1,0 +1,119 @@
+// SPDX-License-Identifier: MIT
+// SPDX-FileCopyrightText: 2024-2025 sean galloway
+//
+// Formal verification wrapper for math_fp32_to_fp8_e5m2
+//
+// Verifies lossy FP32 -> FP8_E5M2 downconversion properties:
+//   - Sign preservation
+//   - NaN propagation
+//   - Infinity preservation / overflow to infinity
+//   - Zero preservation, subnormal/underflow flush-to-zero
+//   - Flag consistency and mutual exclusivity
+
+`timescale 1ns / 1ps
+
+module formal_math_fp32_to_fp8_e5m2 (
+    input logic clk
+);
+
+    (* anyconst *) logic [31:0] a;
+
+    logic [7:0]  result;
+    logic        overflow, underflow, invalid;
+
+    math_fp32_to_fp8_e5m2 dut (
+        .i_a          (a),
+        .ow_result    (result),
+        .ow_overflow  (overflow),
+        .ow_underflow (underflow),
+        .ow_invalid   (invalid)
+    );
+
+    wire        sign_a = a[31];
+    wire [7:0]  exp_a  = a[30:23];
+    wire [22:0] mant_a = a[22:0];
+
+    wire        sign_r = result[7];
+    wire [4:0]  exp_r  = result[6:2];
+    wire [1:0]  mant_r = result[1:0];
+
+    wire a_is_zero     = (exp_a == 8'h00) && (mant_a == 23'h0);
+    wire a_is_subnorm  = (exp_a == 8'h00) && (mant_a != 23'h0);
+    wire a_is_inf      = (exp_a == 8'hFF) && (mant_a == 23'h0);
+    wire a_is_nan      = (exp_a == 8'hFF) && (mant_a != 23'h0);
+
+    wire r_is_zero     = (exp_r == 5'h00) && (mant_r == 2'h0);
+    wire r_is_inf      = (exp_r == 5'h1F) && (mant_r == 2'h0);
+    wire r_is_nan      = (exp_r == 5'h1F) && (mant_r != 2'h0);
+
+    always @(posedge clk) begin
+        p_sign_preserved: assert (sign_r == sign_a);
+    end
+
+    always @(posedge clk) begin
+        if (a_is_nan) begin
+            p_nan_out: assert (r_is_nan);
+            p_nan_invalid: assert (invalid);
+        end
+    end
+
+    always @(posedge clk) begin
+        if (a_is_inf) begin
+            p_inf_preserved: assert (r_is_inf);
+        end
+    end
+
+    always @(posedge clk) begin
+        if (a_is_zero) begin
+            p_zero_preserved: assert (r_is_zero);
+        end
+    end
+
+    always @(posedge clk) begin
+        if (a_is_subnorm) begin
+            p_subnorm_ftz: assert (r_is_zero);
+        end
+    end
+
+    always @(posedge clk) begin
+        if (overflow) begin
+            p_overflow_implies_inf: assert (r_is_inf);
+        end
+    end
+
+    always @(posedge clk) begin
+        if (underflow) begin
+            p_underflow_implies_zero: assert (r_is_zero);
+        end
+    end
+
+    always @(posedge clk) begin
+        if (invalid) begin
+            p_invalid_implies_nan: assert (r_is_nan);
+        end
+    end
+
+    always @(posedge clk) begin
+        p_flags_exclusive: assert ((overflow + underflow + invalid) <= 1);
+    end
+
+    always @(posedge clk) begin
+        if (!r_is_zero && !r_is_inf && !r_is_nan) begin
+            p_normal_exp_range: assert (exp_r >= 5'h01 && exp_r <= 5'h1E);
+        end
+    end
+
+    always @(posedge clk) begin
+        if (a_is_inf) begin
+            p_inf_no_overflow: assert (!overflow);
+        end
+    end
+
+    always @(posedge clk) begin
+        c_normal: cover (!a_is_zero && !a_is_subnorm && !a_is_inf && !a_is_nan && !overflow && !underflow);
+        c_overflow: cover (overflow);
+        c_underflow: cover (underflow);
+        c_nan: cover (a_is_nan);
+    end
+
+endmodule
