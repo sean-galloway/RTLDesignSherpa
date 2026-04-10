@@ -69,12 +69,20 @@ CSR_BUILD_ID        = HARNESS_CSR_BASE + 0x24
 
 EXPECTED_BUILD_ID   = 0x5354_5243
 
-# STREAM APB registers (offsets within STREAM APB space)
-# These must match the PeakRDL-generated register map
-APB_GLOBAL_CTRL     = STREAM_APB_BASE + 0x100  # [0] GLOBAL_EN, [1] GLOBAL_RST
-APB_CHANNEL_ENABLE  = STREAM_APB_BASE + 0x104  # [7:0] per-channel enable
-APB_CH_KICK_BASE    = STREAM_APB_BASE + 0x000  # Channel 0 kick-off register
-APB_CH_KICK_STRIDE  = 0x08                     # 8 bytes per channel (LOW + HIGH 32-bit writes)
+# STREAM APB registers — from projects/components/stream/rtl/stream_regmap.py
+APB_GLOBAL_CTRL         = STREAM_APB_BASE + 0x100
+APB_CHANNEL_ENABLE      = STREAM_APB_BASE + 0x120
+APB_CHANNEL_RESET       = STREAM_APB_BASE + 0x124
+APB_SCHED_TIMEOUT_CYC   = STREAM_APB_BASE + 0x200
+APB_SCHED_CONFIG        = STREAM_APB_BASE + 0x204
+APB_DESCENG_CONFIG      = STREAM_APB_BASE + 0x220
+APB_DESCENG_ADDR0_BASE  = STREAM_APB_BASE + 0x224
+APB_DESCENG_ADDR0_LIMIT = STREAM_APB_BASE + 0x228
+APB_DESCENG_ADDR1_BASE  = STREAM_APB_BASE + 0x22C
+APB_DESCENG_ADDR1_LIMIT = STREAM_APB_BASE + 0x230
+APB_AXI_XFER_CONFIG     = STREAM_APB_BASE + 0x2A0
+APB_CH_KICK_BASE        = STREAM_APB_BASE + 0x000
+APB_CH_KICK_STRIDE      = 0x08
 
 
 # =========================================================================
@@ -141,19 +149,31 @@ class CharacterizationRunner:
         return True
 
     def configure_stream(self, num_channels: int):
-        """Configure address ranges and enable STREAM."""
-        # Descriptor address range 0: covers full desc_ram AXI4 space
-        APB_DESCENG_ADDR0_BASE  = STREAM_APB_BASE + 0x224
-        APB_DESCENG_ADDR0_LIMIT = STREAM_APB_BASE + 0x228
-        self.bridge.write(APB_DESCENG_ADDR0_BASE,  0x0000_0000)
-        self.bridge.write(APB_DESCENG_ADDR0_LIMIT, 0x0000_FFFF)
+        """Full STREAM configuration — matches StreamHelper sequence."""
+        # Scheduler config
+        sched_cfg = 0x0F  # SCHED_EN + TIMEOUT_EN + ERR_EN + COMPL_EN
+        self.bridge.write(APB_SCHED_CONFIG, sched_cfg)
+        self.bridge.write(APB_SCHED_TIMEOUT_CYC, 0xFFFF)
 
-        # Global enable
+        # Descriptor engine config
+        self.bridge.write(APB_DESCENG_CONFIG, 0x01)  # DESCENG_EN
+
+        # Address ranges (full 32-bit space)
+        self.bridge.write(APB_DESCENG_ADDR0_BASE,  0x0000_0000)
+        self.bridge.write(APB_DESCENG_ADDR0_LIMIT, 0xFFFF_FFFF)
+        self.bridge.write(APB_DESCENG_ADDR1_BASE,  0x0000_0000)
+        self.bridge.write(APB_DESCENG_ADDR1_LIMIT, 0xFFFF_FFFF)
+
+        # AXI burst config (16 beats rd + 16 beats wr)
+        axi_cfg = (15 & 0xFF) | ((15 & 0xFF) << 8)
+        self.bridge.write(APB_AXI_XFER_CONFIG, axi_cfg)
+
+        # Global enable + channels
         self.bridge.write(APB_GLOBAL_CTRL, 0x01)
-        # Channel enable mask
         ch_mask = (1 << num_channels) - 1
         self.bridge.write(APB_CHANNEL_ENABLE, ch_mask)
-        self.vlog(f"  STREAM enabled: global=1, ch_mask=0x{ch_mask:02X}")
+        self.vlog(f"  STREAM configured: sched=0x{sched_cfg:02X}, "
+                  f"desceng=0x01, axi=0x{axi_cfg:04X}, ch_mask=0x{ch_mask:02X}")
 
     def kick_channels(self, kick_addresses: dict):
         """Write kick-off addresses to start descriptor fetch per channel.
