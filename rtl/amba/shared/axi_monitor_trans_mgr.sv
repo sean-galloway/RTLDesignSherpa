@@ -269,10 +269,13 @@ module axi_monitor_trans_mgr
     // get event_reported re-set.
     // -------------------------------------------------------------------------
 
-    // Track net active_count adjustments within the cycle
+    // Track net active_count adjustments within the cycle.
+    // These use blocking assignments inside always_ff as intermediate accumulators
+    // (intentional: they are combinational temporaries, not register state).
     logic [7:0] w_active_delta_inc;
     logic [7:0] w_active_delta_dec;
 
+    /* verilator lint_off BLKSEQ */
     `ALWAYS_FF_RST(aclk, aresetn,
         if (`RST_ASSERTED(aresetn)) begin
             for (int idx = 0; idx < MAX_TRANSACTIONS; idx++) begin
@@ -535,5 +538,6 @@ module axi_monitor_trans_mgr
             r_active_count <= r_active_count + w_active_delta_inc - w_active_delta_dec;
         end
     )
+    /* verilator lint_on BLKSEQ */
 
 endmodule : axi_monitor_trans_mgr
