@@ -90,10 +90,6 @@ help:
 	@echo "  make run-fpga-suite         fpga_suite.csv  (1-16desc x 1MB, 1-8ch)"
 	@echo "  make run-csv CSV=<file>     Run from any CSV file"
 	@echo ""
-	@echo "  make dry-run-sim-suite      Preview sim_suite.csv (no simulation)"
-	@echo "  make dry-run-fpga-suite     Preview fpga_suite.csv"
-	@echo "  make dry-run-csv CSV=<file> Preview any CSV file"
-	@echo ""
 	@echo "COLLECTION (verify tests, don't run):"
 	@echo "  make collect-all          Collect all tests (verify imports)"
 	@echo ""
@@ -177,28 +173,6 @@ run-stream-char:
 # runner, so the simulation exercises the exact same descriptor layouts
 # and test sequences that will run on real hardware.
 # ==============================================================================
-
-.PHONY: dry-run-sim-suite
-dry-run-sim-suite:
-	@echo "================================================================================"
-	@echo "Simulation Suite Preview (sim_suite.csv)"
-	@echo "================================================================================"
-	$(CHAR_RUNNER) --csv $(SIM_SUITE) --dry-run
-
-.PHONY: dry-run-fpga-suite
-dry-run-fpga-suite:
-	@echo "================================================================================"
-	@echo "FPGA Suite Preview (fpga_suite.csv)"
-	@echo "================================================================================"
-	$(CHAR_RUNNER) --csv $(FPGA_SUITE) --dry-run
-
-.PHONY: dry-run-csv
-dry-run-csv:
-	@if [ -z "$(CSV)" ]; then echo "Usage: make dry-run-csv CSV=path/to/file.csv"; exit 1; fi
-	@echo "================================================================================"
-	@echo "CSV Preview: $(CSV)"
-	@echo "================================================================================"
-	$(CHAR_RUNNER) --csv $(CSV) --dry-run
 
 .PHONY: run-sim-suite
 run-sim-suite:
