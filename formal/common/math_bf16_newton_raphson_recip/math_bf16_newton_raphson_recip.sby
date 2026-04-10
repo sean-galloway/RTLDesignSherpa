@@ -1,0 +1,48 @@
+[tasks]
+prove
+cover
+
+[options]
+prove: mode bmc
+prove: depth 2
+cover: mode cover
+cover: depth 2
+
+[engines]
+prove: smtbmc z3
+cover: smtbmc z3
+
+[script]
+read -formal -sv math_prefix_cell.sv
+read -formal -sv math_prefix_cell_gray.sv
+read -formal -sv math_adder_full.sv
+read -formal -sv math_adder_han_carlson_016.sv
+read -formal -sv math_compressor_4to2.sv
+read -formal -sv math_multiplier_dadda_4to2_008.sv
+read -formal -sv math_bf16_exponent_adder.sv
+read -formal -sv math_bf16_mantissa_mult.sv
+read -formal -sv math_bf16_multiplier.sv
+read -formal -sv shifter_barrel.sv
+read -formal -sv count_leading_zeros.sv
+read -formal -sv math_bf16_adder.sv
+read -formal -sv math_bf16_fast_reciprocal.sv
+read -formal -sv math_bf16_newton_raphson_recip.sv
+read -formal -sv formal_math_bf16_newton_raphson_recip.sv
+prep -top formal_math_bf16_newton_raphson_recip
+
+[files]
+math_prefix_cell.sv ../../../rtl/common/math_prefix_cell.sv
+math_prefix_cell_gray.sv ../../../rtl/common/math_prefix_cell_gray.sv
+math_adder_full.sv ../../../rtl/common/math_adder_full.sv
+math_adder_han_carlson_016.sv ../../../rtl/common/math_adder_han_carlson_016.sv
+math_compressor_4to2.sv ../../../rtl/common/math_compressor_4to2.sv
+math_multiplier_dadda_4to2_008.sv ../../../rtl/common/math_multiplier_dadda_4to2_008.sv
+math_bf16_exponent_adder.sv ../../../rtl/common/math_bf16_exponent_adder.sv
+math_bf16_mantissa_mult.sv ../../../rtl/common/math_bf16_mantissa_mult.sv
+math_bf16_multiplier.sv ../../../rtl/common/math_bf16_multiplier.sv
+shifter_barrel.sv ../../../rtl/common/shifter_barrel.sv
+count_leading_zeros.sv ../../../rtl/common/count_leading_zeros.sv
+math_bf16_adder.sv ../../../rtl/common/math_bf16_adder.sv
+math_bf16_fast_reciprocal.sv ../../../rtl/common/math_bf16_fast_reciprocal.sv
+math_bf16_newton_raphson_recip.sv ../../../rtl/common/math_bf16_newton_raphson_recip.sv
+formal_math_bf16_newton_raphson_recip.sv

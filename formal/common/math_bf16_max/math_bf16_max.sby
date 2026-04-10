@@ -1,0 +1,22 @@
+[tasks]
+prove
+cover
+
+[options]
+prove: mode bmc
+prove: depth 2
+cover: mode cover
+cover: depth 2
+
+[engines]
+prove: smtbmc z3
+cover: smtbmc z3
+
+[script]
+read -formal -sv math_bf16_max.sv
+read -formal -sv formal_math_bf16_max.sv
+prep -top formal_math_bf16_max
+
+[files]
+math_bf16_max.sv ../../../rtl/common/math_bf16_max.sv
+formal_math_bf16_max.sv
