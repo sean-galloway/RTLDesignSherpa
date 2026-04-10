@@ -155,6 +155,13 @@ module axi_monitor_base
     logic                     w_debug_monbus_valid;
     logic [63:0]              w_debug_monbus_packet;
 
+    // Default: debug monbus disabled when ENABLE_DEBUG_MODULE=0.
+    // Without this, the wires are undriven and formal tools see undefined values.
+    if (!ENABLE_DEBUG_MODULE) begin : gen_no_debug
+        assign w_debug_monbus_valid  = 1'b0;
+        assign w_debug_monbus_packet = '0;
+    end
+
     // Performance metrics registers (only used when ENABLE_PERF_PACKETS=1) (flopped)
     logic [15:0] r_perf_completed_count;
     logic [15:0] r_perf_error_count;

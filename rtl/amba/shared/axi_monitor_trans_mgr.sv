@@ -105,6 +105,13 @@ module axi_monitor_trans_mgr
     int w_data_trans_idx;
     int w_data_free_idx;
     int w_resp_trans_idx;
+
+    // Will the address phase actually allocate a new slot this cycle?
+    // Used to prevent data/resp orphan paths from double-counting the same slot.
+    logic w_addr_will_alloc;
+    // Will the data phase allocate an orphan slot this cycle?
+    // Used to prevent resp orphan path from reusing the same slot.
+    logic w_data_will_alloc_orphan;
     int w_resp_free_idx;
 
     // Channel index for AXI ID (combinational)
@@ -165,12 +172,31 @@ module axi_monitor_trans_mgr
             end
         end
 
-        // Find free slot for data phase
+        // Determine if the address phase will actually allocate a new slot
+        // (cmd_valid with no existing match and a free slot available).
+        // Used to prevent data/resp orphan paths from reusing the same slot,
+        // which would double-count the active_count increment.
+        w_addr_will_alloc = cmd_valid && (w_addr_trans_idx < 0) && (w_addr_free_idx >= 0);
+
+        // Find free slot for data phase (exclude slot claimed by cmd allocation)
         w_data_free_idx = -1;
         for (int idx = 0; idx < MAX_TRANSACTIONS; idx++) begin
-            if (w_data_free_idx == -1 && !r_trans_table[idx].valid) begin
+            if (w_data_free_idx == -1 && !r_trans_table[idx].valid &&
+                !(w_addr_will_alloc && idx == w_addr_free_idx)) begin
                 w_data_free_idx = idx;
             end
+        end
+
+        // Determine if the data phase will allocate an orphan slot.
+        // For reads: orphan when data arrives with no matching transaction.
+        // For writes: orphan only in AXI-Lite mode (!IS_AXI) when no match found.
+        // Computed before response section so it can guard resp_free_idx.
+        if (IS_READ) begin
+            w_data_will_alloc_orphan = data_valid && data_ready &&
+                                       (w_data_trans_idx < 0) && (w_data_free_idx >= 0);
+        end else begin
+            w_data_will_alloc_orphan = data_valid && data_ready && !IS_AXI &&
+                                       (w_data_trans_idx < 0) && (w_data_free_idx >= 0);
         end
 
         // Find transaction and free slot for response phase
@@ -183,9 +209,12 @@ module axi_monitor_trans_mgr
                 end
             end
 
+            // Exclude slots claimed by cmd and data orphan allocations
             w_resp_free_idx = -1;
             for (int idx = 0; idx < MAX_TRANSACTIONS; idx++) begin
-                if (w_resp_free_idx == -1 && !r_trans_table[idx].valid) begin
+                if (w_resp_free_idx == -1 && !r_trans_table[idx].valid &&
+                    !(w_addr_will_alloc && idx == w_addr_free_idx) &&
+                    !(w_data_will_alloc_orphan && idx == w_data_free_idx)) begin
                     w_resp_free_idx = idx;
                 end
             end

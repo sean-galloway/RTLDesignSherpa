@@ -69,6 +69,8 @@ module axi_monitor_trans_mgr (
 	reg signed [31:0] w_data_trans_idx;
 	reg signed [31:0] w_data_free_idx;
 	reg signed [31:0] w_resp_trans_idx;
+	reg w_addr_will_alloc;
+	reg w_data_will_alloc_orphan;
 	reg signed [31:0] w_resp_free_idx;
 	reg [5:0] w_addr_chan_idx;
 	reg [MAX_TRANSACTIONS - 1:0] w_can_cleanup;
@@ -108,13 +110,18 @@ module axi_monitor_trans_mgr (
 						w_data_trans_idx = idx;
 			end
 		end
+		w_addr_will_alloc = (cmd_valid && (w_addr_trans_idx < 0)) && (w_addr_free_idx >= 0);
 		w_data_free_idx = -1;
 		begin : sv2v_autoblock_5
 			reg signed [31:0] idx;
 			for (idx = 0; idx < MAX_TRANSACTIONS; idx = idx + 1)
-				if ((w_data_free_idx == -1) && !r_trans_table[(((MAX_TRANSACTIONS - 1) - idx) * 281) + 280])
+				if (((w_data_free_idx == -1) && !r_trans_table[(((MAX_TRANSACTIONS - 1) - idx) * 281) + 280]) && !(w_addr_will_alloc && (idx == w_addr_free_idx)))
 					w_data_free_idx = idx;
 		end
+		if (IS_READ)
+			w_data_will_alloc_orphan = ((data_valid && data_ready) && (w_data_trans_idx < 0)) && (w_data_free_idx >= 0);
+		else
+			w_data_will_alloc_orphan = (((data_valid && data_ready) && !IS_AXI) && (w_data_trans_idx < 0)) && (w_data_free_idx >= 0);
 		if (!IS_READ) begin
 			w_resp_trans_idx = -1;
 			begin : sv2v_autoblock_6
@@ -127,7 +134,7 @@ module axi_monitor_trans_mgr (
 			begin : sv2v_autoblock_7
 				reg signed [31:0] idx;
 				for (idx = 0; idx < MAX_TRANSACTIONS; idx = idx + 1)
-					if ((w_resp_free_idx == -1) && !r_trans_table[(((MAX_TRANSACTIONS - 1) - idx) * 281) + 280])
+					if ((((w_resp_free_idx == -1) && !r_trans_table[(((MAX_TRANSACTIONS - 1) - idx) * 281) + 280]) && !(w_addr_will_alloc && (idx == w_addr_free_idx))) && !(w_data_will_alloc_orphan && (idx == w_data_free_idx)))
 						w_resp_free_idx = idx;
 			end
 		end
@@ -172,23 +179,36 @@ module axi_monitor_trans_mgr (
 						r_state_change[idx] <= 1'b0;
 			end
 		end
+	reg [7:0] w_active_delta_inc;
+	reg [7:0] w_active_delta_dec;
+	localparam [3:0] monitor_amba4_pkg_EVT_DATA_ORPHAN = 4'h2;
+	localparam [3:0] monitor_amba4_pkg_EVT_PROTOCOL = 4'h4;
+	localparam [3:0] monitor_amba4_pkg_EVT_RESP_DECERR = 4'h1;
+	localparam [3:0] monitor_amba4_pkg_EVT_RESP_ORPHAN = 4'h3;
+	localparam [3:0] monitor_amba4_pkg_EVT_RESP_SLVERR = 4'h0;
+	function automatic [31:0] sv2v_cast_32;
+		input reg [31:0] inp;
+		sv2v_cast_32 = inp;
+	endfunction
 	always @(posedge aclk)
 		if (!aresetn) begin
 			begin : sv2v_autoblock_11
 				reg signed [31:0] idx;
 				for (idx = 0; idx < MAX_TRANSACTIONS; idx = idx + 1)
-					r_trans_table[(((MAX_TRANSACTIONS - 1) - idx) * 281) + 280] <= 1'b0;
+					r_trans_table[((MAX_TRANSACTIONS - 1) - idx) * 281+:281] <= 1'sb0;
 			end
 			r_active_count <= 1'sb0;
 		end
 		else begin
+			w_active_delta_inc = 1'sb0;
+			w_active_delta_dec = 1'sb0;
 			if (cmd_valid) begin
 				if ((w_addr_trans_idx < 0) && (w_addr_free_idx >= 0)) begin
 					r_trans_table[(((MAX_TRANSACTIONS - 1) - w_addr_free_idx) * 281) + 280] <= 1'b1;
 					r_trans_table[(((MAX_TRANSACTIONS - 1) - w_addr_free_idx) * 281) + 273-:3] <= 3'h1;
 					r_trans_table[(((MAX_TRANSACTIONS - 1) - w_addr_free_idx) * 281) + 238-:8] <= 1'sb0;
 					r_trans_table[(((MAX_TRANSACTIONS - 1) - w_addr_free_idx) * 281) + ((230 + IW) >= 231 ? 230 + IW : ((230 + IW) + ((230 + IW) >= 231 ? (230 + IW) - 230 : 232 - (230 + IW))) - 1)-:((230 + IW) >= 231 ? (230 + IW) - 230 : 232 - (230 + IW))] <= cmd_id;
-					r_trans_table[(((MAX_TRANSACTIONS - 1) - w_addr_free_idx) * 281) + 270-:32] <= (ADDR_NEEDS_TRUNC ? cmd_addr[31:0] : {{ADDR_PAD_BITS {1'b0}}, cmd_addr});
+					r_trans_table[(((MAX_TRANSACTIONS - 1) - w_addr_free_idx) * 281) + 270-:32] <= sv2v_cast_32(cmd_addr);
 					r_trans_table[(((MAX_TRANSACTIONS - 1) - w_addr_free_idx) * 281) + 230-:8] <= cmd_len;
 					r_trans_table[(((MAX_TRANSACTIONS - 1) - w_addr_free_idx) * 281) + 222-:3] <= cmd_size;
 					r_trans_table[(((MAX_TRANSACTIONS - 1) - w_addr_free_idx) * 281) + 219-:2] <= cmd_burst;
@@ -206,7 +226,7 @@ module axi_monitor_trans_mgr (
 					r_trans_table[(((MAX_TRANSACTIONS - 1) - w_addr_free_idx) * 281) + 11-:8] <= 1'sb0;
 					r_trans_table[(((MAX_TRANSACTIONS - 1) - w_addr_free_idx) * 281) + 217-:6] <= w_addr_chan_idx;
 					r_trans_table[(((MAX_TRANSACTIONS - 1) - w_addr_free_idx) * 281) + 274] <= 1'b0;
-					r_active_count <= r_active_count + 1'b1;
+					w_active_delta_inc = w_active_delta_inc + 1'b1;
 				end
 			end
 			if (cmd_valid && cmd_ready) begin
@@ -216,105 +236,78 @@ module axi_monitor_trans_mgr (
 					r_trans_table[(((MAX_TRANSACTIONS - 1) - w_addr_trans_idx) * 281) + 115-:32] <= timestamp;
 				end
 			end
-			begin : sv2v_autoblock_12
-				reg signed [31:0] idx;
-				for (idx = 0; idx < MAX_TRANSACTIONS; idx = idx + 1)
-					if (r_trans_table[(((MAX_TRANSACTIONS - 1) - idx) * 281) + 280] && w_can_cleanup[idx]) begin
-						r_trans_table[(((MAX_TRANSACTIONS - 1) - idx) * 281) + 280] <= 1'b0;
-						r_active_count <= r_active_count - 1'b1;
+			if (data_valid && data_ready) begin
+				if (IS_READ) begin
+					if (w_data_trans_idx >= 0) begin
+						r_trans_table[(((MAX_TRANSACTIONS - 1) - w_data_trans_idx) * 281) + 278] <= 1'b1;
+						r_trans_table[(((MAX_TRANSACTIONS - 1) - w_data_trans_idx) * 281) + 11-:8] <= r_trans_table[(((MAX_TRANSACTIONS - 1) - w_data_trans_idx) * 281) + 11-:8] + 1'b1;
+						r_trans_table[(((MAX_TRANSACTIONS - 1) - w_data_trans_idx) * 281) + 179-:32] <= 1'sb0;
+						if (r_trans_table[(((MAX_TRANSACTIONS - 1) - w_data_trans_idx) * 281) + 273-:3] != 3'h4)
+							r_trans_table[(((MAX_TRANSACTIONS - 1) - w_data_trans_idx) * 281) + 273-:3] <= 3'h2;
+						if (data_last) begin
+							r_trans_table[(((MAX_TRANSACTIONS - 1) - w_data_trans_idx) * 281) + 277] <= 1'b1;
+							r_trans_table[(((MAX_TRANSACTIONS - 1) - w_data_trans_idx) * 281) + 83-:32] <= timestamp;
+						end
+						if (data_resp[1]) begin
+							r_trans_table[(((MAX_TRANSACTIONS - 1) - w_data_trans_idx) * 281) + 273-:3] <= 3'h4;
+							r_trans_table[(((MAX_TRANSACTIONS - 1) - w_data_trans_idx) * 281) + 3-:4] <= (data_resp[0] ? monitor_amba4_pkg_EVT_RESP_DECERR : monitor_amba4_pkg_EVT_RESP_SLVERR);
+						end
+						else if (data_last) begin
+							r_trans_table[(((MAX_TRANSACTIONS - 1) - w_data_trans_idx) * 281) + 273-:3] <= 3'h3;
+							if (ENABLE_PERF_PACKETS)
+								;
+						end
 					end
-			end
-			begin : sv2v_autoblock_13
-				reg signed [31:0] idx;
-				for (idx = 0; idx < MAX_TRANSACTIONS; idx = idx + 1)
-					if (i_event_reported_flags[idx] && !r_trans_table[(((MAX_TRANSACTIONS - 1) - idx) * 281) + 275])
-						r_trans_table[(((MAX_TRANSACTIONS - 1) - idx) * 281) + 275] <= 1'b1;
-			end
-		end
-	localparam [3:0] monitor_amba4_pkg_EVT_DATA_ORPHAN = 4'h2;
-	localparam [3:0] monitor_amba4_pkg_EVT_RESP_DECERR = 4'h1;
-	localparam [3:0] monitor_amba4_pkg_EVT_RESP_SLVERR = 4'h0;
-	always @(posedge aclk)
-		if (!aresetn)
-			;
-		else if (data_valid && data_ready) begin
-			if (IS_READ) begin
-				if (w_data_trans_idx >= 0) begin
+					else if (w_data_free_idx >= 0) begin
+						r_trans_table[(((MAX_TRANSACTIONS - 1) - w_data_free_idx) * 281) + 280] <= 1'b1;
+						r_trans_table[(((MAX_TRANSACTIONS - 1) - w_data_free_idx) * 281) + 273-:3] <= 3'h5;
+						if (IS_AXI) begin
+							r_trans_table[(((MAX_TRANSACTIONS - 1) - w_data_free_idx) * 281) + 238-:8] <= 1'sb0;
+							r_trans_table[(((MAX_TRANSACTIONS - 1) - w_data_free_idx) * 281) + ((230 + IW) >= 231 ? 230 + IW : ((230 + IW) + ((230 + IW) >= 231 ? (230 + IW) - 230 : 232 - (230 + IW))) - 1)-:((230 + IW) >= 231 ? (230 + IW) - 230 : 232 - (230 + IW))] <= data_id;
+							r_trans_table[(((MAX_TRANSACTIONS - 1) - w_data_free_idx) * 281) + 217-:6] <= {24'h000000, data_id} % 64;
+						end
+						else begin
+							r_trans_table[(((MAX_TRANSACTIONS - 1) - w_data_free_idx) * 281) + 238-:8] <= 1'sb0;
+							r_trans_table[(((MAX_TRANSACTIONS - 1) - w_data_free_idx) * 281) + 19-:8] <= 8'h01;
+							r_trans_table[(((MAX_TRANSACTIONS - 1) - w_data_free_idx) * 281) + 217-:6] <= 6'h00;
+						end
+						r_trans_table[(((MAX_TRANSACTIONS - 1) - w_data_free_idx) * 281) + 278] <= 1'b1;
+						r_trans_table[(((MAX_TRANSACTIONS - 1) - w_data_free_idx) * 281) + 277] <= data_last;
+						r_trans_table[(((MAX_TRANSACTIONS - 1) - w_data_free_idx) * 281) + 11-:8] <= 8'h01;
+						r_trans_table[(((MAX_TRANSACTIONS - 1) - w_data_free_idx) * 281) + 83-:32] <= timestamp;
+						r_trans_table[(((MAX_TRANSACTIONS - 1) - w_data_free_idx) * 281) + 3-:4] <= monitor_amba4_pkg_EVT_DATA_ORPHAN;
+						w_active_delta_inc = w_active_delta_inc + 1'b1;
+					end
+				end
+				else if (w_data_trans_idx >= 0) begin
 					r_trans_table[(((MAX_TRANSACTIONS - 1) - w_data_trans_idx) * 281) + 278] <= 1'b1;
 					r_trans_table[(((MAX_TRANSACTIONS - 1) - w_data_trans_idx) * 281) + 11-:8] <= r_trans_table[(((MAX_TRANSACTIONS - 1) - w_data_trans_idx) * 281) + 11-:8] + 1'b1;
 					r_trans_table[(((MAX_TRANSACTIONS - 1) - w_data_trans_idx) * 281) + 179-:32] <= 1'sb0;
 					if (r_trans_table[(((MAX_TRANSACTIONS - 1) - w_data_trans_idx) * 281) + 273-:3] != 3'h4)
 						r_trans_table[(((MAX_TRANSACTIONS - 1) - w_data_trans_idx) * 281) + 273-:3] <= 3'h2;
-					if (data_last) begin
+					if (data_last || ((r_trans_table[(((MAX_TRANSACTIONS - 1) - w_data_trans_idx) * 281) + 11-:8] + 1) == r_trans_table[(((MAX_TRANSACTIONS - 1) - w_data_trans_idx) * 281) + 19-:8])) begin
 						r_trans_table[(((MAX_TRANSACTIONS - 1) - w_data_trans_idx) * 281) + 277] <= 1'b1;
 						r_trans_table[(((MAX_TRANSACTIONS - 1) - w_data_trans_idx) * 281) + 83-:32] <= timestamp;
-					end
-					if (data_resp[1]) begin
-						r_trans_table[(((MAX_TRANSACTIONS - 1) - w_data_trans_idx) * 281) + 273-:3] <= 3'h4;
-						r_trans_table[(((MAX_TRANSACTIONS - 1) - w_data_trans_idx) * 281) + 3-:4] <= (data_resp[0] ? monitor_amba4_pkg_EVT_RESP_DECERR : monitor_amba4_pkg_EVT_RESP_SLVERR);
-					end
-					else if (data_last) begin
-						r_trans_table[(((MAX_TRANSACTIONS - 1) - w_data_trans_idx) * 281) + 273-:3] <= 3'h3;
 						if (ENABLE_PERF_PACKETS)
 							;
 					end
 				end
-				else if (w_data_free_idx >= 0) begin
+				else if (!IS_AXI && (w_data_free_idx >= 0)) begin
 					r_trans_table[(((MAX_TRANSACTIONS - 1) - w_data_free_idx) * 281) + 280] <= 1'b1;
 					r_trans_table[(((MAX_TRANSACTIONS - 1) - w_data_free_idx) * 281) + 273-:3] <= 3'h5;
-					if (IS_AXI) begin
-						r_trans_table[(((MAX_TRANSACTIONS - 1) - w_data_free_idx) * 281) + 238-:8] <= 1'sb0;
-						r_trans_table[(((MAX_TRANSACTIONS - 1) - w_data_free_idx) * 281) + ((230 + IW) >= 231 ? 230 + IW : ((230 + IW) + ((230 + IW) >= 231 ? (230 + IW) - 230 : 232 - (230 + IW))) - 1)-:((230 + IW) >= 231 ? (230 + IW) - 230 : 232 - (230 + IW))] <= data_id;
-						r_trans_table[(((MAX_TRANSACTIONS - 1) - w_data_free_idx) * 281) + 217-:6] <= {24'h000000, data_id} % 64;
-					end
-					else begin
-						r_trans_table[(((MAX_TRANSACTIONS - 1) - w_data_free_idx) * 281) + 238-:8] <= 1'sb0;
-						r_trans_table[(((MAX_TRANSACTIONS - 1) - w_data_free_idx) * 281) + 19-:8] <= 8'h01;
-						r_trans_table[(((MAX_TRANSACTIONS - 1) - w_data_free_idx) * 281) + 217-:6] <= 6'h00;
-					end
+					r_trans_table[(((MAX_TRANSACTIONS - 1) - w_data_free_idx) * 281) + 238-:8] <= 1'sb0;
 					r_trans_table[(((MAX_TRANSACTIONS - 1) - w_data_free_idx) * 281) + 278] <= 1'b1;
 					r_trans_table[(((MAX_TRANSACTIONS - 1) - w_data_free_idx) * 281) + 277] <= data_last;
 					r_trans_table[(((MAX_TRANSACTIONS - 1) - w_data_free_idx) * 281) + 11-:8] <= 8'h01;
+					r_trans_table[(((MAX_TRANSACTIONS - 1) - w_data_free_idx) * 281) + 19-:8] <= 8'h01;
 					r_trans_table[(((MAX_TRANSACTIONS - 1) - w_data_free_idx) * 281) + 83-:32] <= timestamp;
 					r_trans_table[(((MAX_TRANSACTIONS - 1) - w_data_free_idx) * 281) + 3-:4] <= monitor_amba4_pkg_EVT_DATA_ORPHAN;
-					r_active_count <= r_active_count + 1'b1;
+					r_trans_table[(((MAX_TRANSACTIONS - 1) - w_data_free_idx) * 281) + 217-:6] <= 6'h00;
+					w_active_delta_inc = w_active_delta_inc + 1'b1;
 				end
 			end
-			else if (w_data_trans_idx >= 0) begin
-				r_trans_table[(((MAX_TRANSACTIONS - 1) - w_data_trans_idx) * 281) + 278] <= 1'b1;
-				r_trans_table[(((MAX_TRANSACTIONS - 1) - w_data_trans_idx) * 281) + 11-:8] <= r_trans_table[(((MAX_TRANSACTIONS - 1) - w_data_trans_idx) * 281) + 11-:8] + 1'b1;
-				r_trans_table[(((MAX_TRANSACTIONS - 1) - w_data_trans_idx) * 281) + 179-:32] <= 1'sb0;
-				if (r_trans_table[(((MAX_TRANSACTIONS - 1) - w_data_trans_idx) * 281) + 273-:3] != 3'h4)
-					r_trans_table[(((MAX_TRANSACTIONS - 1) - w_data_trans_idx) * 281) + 273-:3] <= 3'h2;
-				if (data_last || ((r_trans_table[(((MAX_TRANSACTIONS - 1) - w_data_trans_idx) * 281) + 11-:8] + 1) == r_trans_table[(((MAX_TRANSACTIONS - 1) - w_data_trans_idx) * 281) + 19-:8])) begin
-					r_trans_table[(((MAX_TRANSACTIONS - 1) - w_data_trans_idx) * 281) + 277] <= 1'b1;
-					r_trans_table[(((MAX_TRANSACTIONS - 1) - w_data_trans_idx) * 281) + 83-:32] <= timestamp;
-					if (ENABLE_PERF_PACKETS)
-						;
-				end
-			end
-			else if (!IS_AXI && (w_data_free_idx >= 0)) begin
-				r_trans_table[(((MAX_TRANSACTIONS - 1) - w_data_free_idx) * 281) + 280] <= 1'b1;
-				r_trans_table[(((MAX_TRANSACTIONS - 1) - w_data_free_idx) * 281) + 273-:3] <= 3'h5;
-				r_trans_table[(((MAX_TRANSACTIONS - 1) - w_data_free_idx) * 281) + 238-:8] <= 1'sb0;
-				r_trans_table[(((MAX_TRANSACTIONS - 1) - w_data_free_idx) * 281) + 278] <= 1'b1;
-				r_trans_table[(((MAX_TRANSACTIONS - 1) - w_data_free_idx) * 281) + 277] <= data_last;
-				r_trans_table[(((MAX_TRANSACTIONS - 1) - w_data_free_idx) * 281) + 11-:8] <= 8'h01;
-				r_trans_table[(((MAX_TRANSACTIONS - 1) - w_data_free_idx) * 281) + 19-:8] <= 8'h01;
-				r_trans_table[(((MAX_TRANSACTIONS - 1) - w_data_free_idx) * 281) + 83-:32] <= timestamp;
-				r_trans_table[(((MAX_TRANSACTIONS - 1) - w_data_free_idx) * 281) + 3-:4] <= monitor_amba4_pkg_EVT_DATA_ORPHAN;
-				r_trans_table[(((MAX_TRANSACTIONS - 1) - w_data_free_idx) * 281) + 217-:6] <= 6'h00;
-				r_active_count <= r_active_count + 1'b1;
-			end
-		end
-	localparam [3:0] monitor_amba4_pkg_EVT_PROTOCOL = 4'h4;
-	localparam [3:0] monitor_amba4_pkg_EVT_RESP_ORPHAN = 4'h3;
-	generate
-		if (!IS_READ) begin : gen_resp_processor
-			always @(posedge aclk)
-				if (!aresetn)
-					;
-				else if (resp_valid && resp_ready) begin
+			if (!IS_READ) begin
+				if (resp_valid && resp_ready) begin
 					if (w_resp_trans_idx >= 0) begin
 						r_trans_table[(((MAX_TRANSACTIONS - 1) - w_resp_trans_idx) * 281) + 276] <= 1'b1;
 						r_trans_table[(((MAX_TRANSACTIONS - 1) - w_resp_trans_idx) * 281) + 51-:32] <= timestamp;
@@ -359,10 +352,25 @@ module axi_monitor_trans_mgr (
 							r_trans_table[(((MAX_TRANSACTIONS - 1) - w_resp_free_idx) * 281) + 3-:4] <= monitor_amba4_pkg_EVT_RESP_ORPHAN;
 							r_trans_table[(((MAX_TRANSACTIONS - 1) - w_resp_free_idx) * 281) + 217-:6] <= 6'h00;
 						end
-						r_active_count <= r_active_count + 1'b1;
+						w_active_delta_inc = w_active_delta_inc + 1'b1;
 					end
 				end
+			end
+			begin : sv2v_autoblock_12
+				reg signed [31:0] idx;
+				for (idx = 0; idx < MAX_TRANSACTIONS; idx = idx + 1)
+					if (r_trans_table[(((MAX_TRANSACTIONS - 1) - idx) * 281) + 280] && w_can_cleanup[idx]) begin
+						r_trans_table[(((MAX_TRANSACTIONS - 1) - idx) * 281) + 280] <= 1'b0;
+						w_active_delta_dec = w_active_delta_dec + 1'b1;
+					end
+			end
+			begin : sv2v_autoblock_13
+				reg signed [31:0] idx;
+				for (idx = 0; idx < MAX_TRANSACTIONS; idx = idx + 1)
+					if (i_event_reported_flags[idx] && !r_trans_table[(((MAX_TRANSACTIONS - 1) - idx) * 281) + 275])
+						r_trans_table[(((MAX_TRANSACTIONS - 1) - idx) * 281) + 275] <= 1'b1;
+			end
+			r_active_count <= (r_active_count + w_active_delta_inc) - w_active_delta_dec;
 		end
-	endgenerate
 	initial _sv2v_0 = 0;
 endmodule

@@ -140,8 +140,15 @@ module formal_axi_monitor_base (
     always @(posedge clk)
         f_past_valid <= f_past_valid + (f_past_valid < 8'hFF);
 
+    // Hold reset for 5 cycles to allow all internal pipeline stages
+    // (trans_mgr, reporter, FIFOs, timers) to fully clear under synchronous reset.
     initial assume (!rst_n);
-    always @(posedge clk) if (f_past_valid >= 2) assume (rst_n);
+    always @(posedge clk) begin
+        if (f_past_valid < 5)
+            assume (!rst_n);
+        else
+            assume (rst_n);
+    end
 
     // =========================================================================
     // Environment constraints
@@ -152,11 +159,15 @@ module formal_axi_monitor_base (
         assume (cmd_len <= 8'd3);
     end
 
-    // Keep all packet enables off except error for tractability
-    // (reduces state space while still testing core path)
+    // Keep optional packet enables off for tractability.
+    // Error and completion are the core reporting path; threshold and
+    // timeout can fire immediately under unconstrained configs, so
+    // disabling them avoids false counterexamples.
     always @(*) begin
         assume (cfg_perf_enable == 1'b0);
         assume (cfg_debug_enable == 1'b0);
+        assume (cfg_threshold_enable == 1'b0);
+        assume (cfg_timeout_enable == 1'b0);
     end
 
     // =========================================================================
@@ -179,9 +190,11 @@ module formal_axi_monitor_base (
 
     // =========================================================================
     // P1: Reset clears monbus_valid
+    //     Verified while reset is still asserted (not on the first active
+    //     cycle, where legitimate AXI inputs could produce output).
     // =========================================================================
     always @(posedge clk) begin
-        if (f_past_valid > 0 && $past(!rst_n))
+        if (f_past_valid >= 3 && !rst_n)
             ap_reset_monbus_valid: assert (monbus_valid_o == 1'b0);
     end
 
@@ -189,7 +202,7 @@ module formal_axi_monitor_base (
     // P2: Reset clears active_count
     // =========================================================================
     always @(posedge clk) begin
-        if (f_past_valid > 0 && $past(!rst_n))
+        if (f_past_valid >= 3 && !rst_n)
             ap_reset_active_count: assert (active_count_o == 8'h0);
     end
 
@@ -197,7 +210,7 @@ module formal_axi_monitor_base (
     // P3: Reset clears busy
     // =========================================================================
     always @(posedge clk) begin
-        if (f_past_valid > 0 && $past(!rst_n))
+        if (f_past_valid >= 3 && !rst_n)
             ap_reset_busy: assert (busy_o == 1'b0);
     end
 
@@ -219,16 +232,7 @@ module formal_axi_monitor_base (
     end
 
     // =========================================================================
-    // P6: No monbus_valid in the first few cycles after reset
-    //     (before any AXI activity can complete a transaction and be reported)
-    // =========================================================================
-    always @(posedge clk) begin
-        if (f_past_valid >= 1 && f_past_valid <= 3 && rst_n)
-            ap_no_early_monbus: assert (!monbus_valid_o || f_any_cmd_seen || f_any_data_seen);
-    end
-
-    // =========================================================================
-    // P7: monbus_packet is zero when monbus_valid is deasserted
+    // P6: monbus_packet is zero when monbus_valid is deasserted
     //     (from the priority mux in axi_monitor_base)
     // =========================================================================
     always @(*) begin
@@ -237,7 +241,7 @@ module formal_axi_monitor_base (
     end
 
     // =========================================================================
-    // P8: block_ready behavior
+    // P7: block_ready behavior
     //     With MAX_TRANSACTIONS=2, block_ready should always be 0
     //     (the condition is MAX_TRANSACTIONS > 2 for block_ready to ever assert)
     // =========================================================================

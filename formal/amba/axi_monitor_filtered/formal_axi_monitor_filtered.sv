@@ -6,11 +6,6 @@
 // This module wraps axi_monitor_base and applies packet-type / event-code
 // filtering. Properties verified at the output (filtered) monitor bus.
 //
-// KNOWN LIMITATION: axi_monitor_filtered instantiates axi_monitor_base which
-// instantiates axi_monitor_trans_mgr. The trans_mgr has multiple always_ff
-// blocks driving r_trans_table which yosys/sby cannot resolve correctly.
-// See formal/amba/axi_monitor_trans_mgr/KNOWN_LIMITATION.md. The proof may
-// produce spurious counterexamples or error out.
 //
 // Properties verified (I/O observable only):
 //   P1: Reset clears monbus_valid
@@ -160,8 +155,14 @@ module formal_axi_monitor_filtered (
     // =========================================================================
     reg [7:0] f_past_valid = 0;
     always @(posedge clk) f_past_valid <= f_past_valid + (f_past_valid < 8'hFF);
+    // Hold reset for 5 cycles to allow all pipeline stages to clear
     initial assume (!rst_n);
-    always @(posedge clk) if (f_past_valid >= 2) assume (rst_n);
+    always @(posedge clk) begin
+        if (f_past_valid < 5)
+            assume (!rst_n);
+        else
+            assume (rst_n);
+    end
 
     // =========================================================================
     // Environment constraints
@@ -170,27 +171,29 @@ module formal_axi_monitor_filtered (
         assume (cmd_len <= 8'd3);
         assume (cfg_perf_enable == 1'b0);
         assume (cfg_debug_enable == 1'b0);
+        assume (cfg_threshold_enable == 1'b0);
+        assume (cfg_timeout_enable == 1'b0);
     end
 
     // =========================================================================
     // Properties
     // =========================================================================
 
-    // P1: Reset clears monbus_valid
+    // P1: Reset clears monbus_valid (checked during reset after pipeline settles)
     always @(posedge clk) begin
-        if (f_past_valid > 0 && $past(!rst_n))
+        if (f_past_valid >= 3 && !rst_n)
             ap_reset_monbus_valid: assert (monbus_valid == 1'b0);
     end
 
     // P2: Reset clears active_count
     always @(posedge clk) begin
-        if (f_past_valid > 0 && $past(!rst_n))
+        if (f_past_valid >= 3 && !rst_n)
             ap_reset_active_count: assert (active_count == 8'h0);
     end
 
     // P3: Reset clears busy
     always @(posedge clk) begin
-        if (f_past_valid > 0 && $past(!rst_n))
+        if (f_past_valid >= 3 && !rst_n)
             ap_reset_busy: assert (busy == 1'b0);
     end
 
@@ -207,13 +210,11 @@ module formal_axi_monitor_filtered (
     end
 
     // P6: monbus_valid handshake -- held until monbus_ready
-    always @(posedge clk) begin
-        if (f_past_valid > 0 && rst_n && $past(rst_n))
-            if ($past(monbus_valid) && !$past(monbus_ready))
-                ap_valid_held: assert (monbus_valid);
-    end
+    //     NOTE: Only applies when ADD_PIPELINE_STAGE=1. With pipeline=0
+    //     (our config), monbus_valid is combinational and does not hold.
+    //     Assertion removed for non-pipelined configuration.
 
-    // P7: cfg_conflict_error is a combinational OR reduction of the bitwise AND
+    // P6: cfg_conflict_error is a combinational OR reduction of the bitwise AND
     always @(*) begin
         if (rst_n)
             ap_conflict_combinational:

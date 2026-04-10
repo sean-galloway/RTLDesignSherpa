@@ -4,7 +4,7 @@
 # multi-driver issue in axi_monitor_trans_mgr. See KNOWN_LIMITATION.md.
 
 REPO_ROOT := $(shell git rev-parse --show-toplevel)
-SV2V      := sv2v
+SV2V      := /mnt/data/tools/sv2v
 
 INC := -I$(REPO_ROOT)/rtl/amba/includes
 
