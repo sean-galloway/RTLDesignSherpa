@@ -63,7 +63,7 @@ EXPECTED_BUILD_ID  = 0x5354_5243  # "STRC"
 APB_GLOBAL_CTRL     = STREAM_APB_BASE + 0x100  # [0] GLOBAL_EN, [1] GLOBAL_RST
 APB_CHANNEL_ENABLE  = STREAM_APB_BASE + 0x104  # [7:0] per-channel enable
 APB_CH_KICK_BASE    = STREAM_APB_BASE + 0x000  # Channel 0 kick-off register
-APB_CH_KICK_STRIDE  = 0x08                     # Stride between channel kick-off regs
+APB_CH_KICK_STRIDE  = 0x04                     # Stride between channel kick-off regs
 
 
 class StreamCharTB(TBBase):
