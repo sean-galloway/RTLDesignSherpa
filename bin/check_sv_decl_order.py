@@ -8,7 +8,7 @@ this coding style makes code harder to read and debug.
 
 Usage:
     check_sv_decl_order.py <file1.sv> [file2.sv ...]
-    check_sv_decl_order.py --all          # Check all .sv files in src/rtl
+    check_sv_decl_order.py --all          # Check all .sv files in rtl/ and projects/
     check_sv_decl_order.py --staged       # Check staged .sv files (for pre-commit)
 
 Exit codes:
@@ -156,13 +156,29 @@ def find_signal_uses(content: str, signals: Dict[str, SignalInfo], start_line: i
     if not signals:
         return
 
-    # Sort by length (longest first) to avoid partial matches
-    names = sorted(signals.keys(), key=len, reverse=True)
+    # SystemVerilog built-in type keywords that parse_declarations might
+    # accidentally capture as signal names (e.g. from ``function automatic int``).
+    sv_builtins = {
+        'int', 'bit', 'byte', 'shortint', 'longint', 'integer', 'real',
+        'realtime', 'shortreal', 'string', 'chandle', 'void', 'time',
+        'signed', 'unsigned', 'automatic', 'static',
+    }
+
+    # Sort by length (longest first) to avoid partial matches.
+    # Filter out built-in keywords that slipped through declaration parsing.
+    names = sorted(
+        (n for n in signals.keys() if n not in sv_builtins),
+        key=len, reverse=True,
+    )
 
     for i, line in enumerate(lines, start_line):
         # Skip declaration lines and comments
         if re.search(r'\b(logic|wire|reg|input|output|inout|parameter|localparam)\b', line):
             continue
+
+        # Strip port connection names: in `.port_name(signal)`, only `signal`
+        # is a local use; `port_name` is a child-module reference.
+        scan_line = re.sub(r'\.\s*(\w+)\s*\(', '.(', line)
 
         for name in names:
             if signals[name].first_use_line is not None:
@@ -170,7 +186,7 @@ def find_signal_uses(content: str, signals: Dict[str, SignalInfo], start_line: i
 
             # Look for signal use (word boundary match)
             pattern = r'\b' + re.escape(name) + r'\b'
-            if re.search(pattern, line):
+            if re.search(pattern, scan_line):
                 signals[name].first_use_line = i
 
 
@@ -248,7 +264,7 @@ def main():
     )
     parser.add_argument('files', nargs='*', help='Files to check')
     parser.add_argument('--all', action='store_true',
-                        help='Check all .sv files in src/rtl')
+                        help='Check all .sv files in rtl/ and projects/')
     parser.add_argument('--staged', action='store_true',
                         help='Check staged .sv files (for pre-commit)')
     parser.add_argument('--quiet', '-q', action='store_true',
@@ -265,15 +281,17 @@ def main():
             print("No staged .sv files to check")
             return 0
     elif args.all:
-        # Find repo root
+        # Find repo root and scan all RTL directories
         try:
             result = subprocess.run(
                 ['git', 'rev-parse', '--show-toplevel'],
                 capture_output=True, text=True, check=True
             )
             repo_root = result.stdout.strip()
-            rtl_dir = os.path.join(repo_root, 'src', 'rtl')
-            files_to_check = get_all_sv_files(rtl_dir)
+            for subdir in ['rtl', 'projects']:
+                scan_dir = os.path.join(repo_root, subdir)
+                if os.path.isdir(scan_dir):
+                    files_to_check.extend(get_all_sv_files(scan_dir))
         except subprocess.CalledProcessError:
             print("Error: Not in a git repository", file=sys.stderr)
             return 2
