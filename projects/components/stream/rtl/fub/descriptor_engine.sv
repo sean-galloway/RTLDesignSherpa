@@ -43,11 +43,11 @@
 `timescale 1ns / 1ps
 
 // Import common STREAM and monitor packages
+// (stream_imports.svh now brings in monitor_common_pkg AND monitor_arbiter_pkg,
+//  so the CORE_COMPL_* / CORE_ERR_* constants are visible here without a
+//  separate explicit import.)
 `include "stream_imports.svh"
 `include "reset_defs.svh"
-
-// Import monitor arbiter package for CORE_COMPL_* and CORE_ERR_* constants
-import monitor_arbiter_pkg::*;
 
 module descriptor_engine #(
     parameter int CHANNEL_ID = 0,

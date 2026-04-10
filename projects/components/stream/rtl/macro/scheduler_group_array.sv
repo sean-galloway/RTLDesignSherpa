@@ -262,10 +262,14 @@ module scheduler_group_array #(
                 .ADDR_WIDTH             (ADDR_WIDTH),
                 .DATA_WIDTH             (DATA_WIDTH),
                 .AXI_ID_WIDTH           (AXI_ID_WIDTH),
-                .DESC_MON_AGENT_ID      (8'(DESC_MON_BASE_AGENT_ID + ch)),
-                .SCHED_MON_AGENT_ID     (8'(SCHED_MON_BASE_AGENT_ID + ch)),
-                .MON_UNIT_ID            (4'(MON_UNIT_ID)),
-                .MON_CHANNEL_ID         (6'(ch))
+                // Pass parameters through as 32-bit int values; the child
+                // modules slice them to the required packet widths internally.
+                // Narrowing casts here triggered Verilator WIDTHEXPAND
+                // warnings on the child's int-parameter declarations.
+                .DESC_MON_AGENT_ID      (DESC_MON_BASE_AGENT_ID + ch),
+                .SCHED_MON_AGENT_ID     (SCHED_MON_BASE_AGENT_ID + ch),
+                .MON_UNIT_ID            (MON_UNIT_ID),
+                .MON_CHANNEL_ID         (ch)
             ) u_scheduler_group (
                 .clk                    (clk),
                 .rst_n                  (rst_n),
@@ -435,8 +439,12 @@ module scheduler_group_array #(
             desc_r_id[ch] = desc_axi_int_rid;
         end
 
-        // Route R valid to correct channel based on ID
-        if (desc_axi_int_rvalid && desc_r_channel_id < NUM_CHANNELS) begin
+        // Route R valid to correct channel based on ID.
+        // Zero-extend desc_r_channel_id to 32 bits so the comparison with
+        // the int-typed NUM_CHANNELS parameter is width-matched.
+        // (This check only bites when NUM_CHANNELS is not a power of 2;
+        //  for the default NUM_CHANNELS=8, CHAN_WIDTH=3 makes it tautological.)
+        if (desc_axi_int_rvalid && (32'(desc_r_channel_id) < NUM_CHANNELS)) begin
             desc_r_valid[desc_r_channel_id] = 1'b1;
         end
     end
@@ -461,8 +469,9 @@ module scheduler_group_array #(
         .AXI_ADDR_WIDTH         (ADDR_WIDTH),
         .AXI_DATA_WIDTH         (256),  // FIXED 256-bit for descriptor size
         .AXI_USER_WIDTH         (1),
-        .UNIT_ID                (4'(MON_UNIT_ID)),
-        .AGENT_ID               (8'(DESC_AXI_MON_AGENT_ID)),
+        // Pass 32-bit values; child slices to packet widths internally
+        .UNIT_ID                (MON_UNIT_ID),
+        .AGENT_ID               (DESC_AXI_MON_AGENT_ID),
         .MAX_TRANSACTIONS       (MON_MAX_TRANSACTIONS),
         .ENABLE_FILTERING       (1)
     ) u_desc_axi_monitor (
@@ -520,19 +529,26 @@ module scheduler_group_array #(
         .cfg_error_enable       (cfg_desc_mon_err_enable),
         .cfg_perf_enable        (cfg_desc_mon_perf_enable),
         .cfg_timeout_enable     (cfg_desc_mon_timeout_enable),
-        .cfg_timeout_cycles     (cfg_desc_mon_timeout_cycles),
+        // Monitor port is 16-bit; our register is 32-bit. Software is
+        // responsible for programming a value that fits in 16 cycles
+        // (max ~655 us at 100 MHz). Explicit truncation silences Verilator
+        // and documents the limit.
+        .cfg_timeout_cycles     (16'(cfg_desc_mon_timeout_cycles)),
         .cfg_latency_threshold  (cfg_desc_mon_latency_thresh),
 
         // AXI Protocol Filtering Configuration
+        // Monitor expects 16-bit mask/select fields; STREAM's config
+        // registers expose a narrower programmable slice (4 or 8 bits),
+        // and the unused upper bits are tied to zero (all masked out).
         .cfg_axi_pkt_mask       (cfg_desc_mon_pkt_mask),
-        .cfg_axi_err_select     (cfg_desc_mon_err_select),
-        .cfg_axi_error_mask     (cfg_desc_mon_err_mask),
-        .cfg_axi_timeout_mask   (cfg_desc_mon_timeout_mask),
-        .cfg_axi_compl_mask     (cfg_desc_mon_compl_mask),
-        .cfg_axi_thresh_mask    (cfg_desc_mon_thresh_mask),
-        .cfg_axi_perf_mask      (cfg_desc_mon_perf_mask),
-        .cfg_axi_addr_mask      (cfg_desc_mon_addr_mask),
-        .cfg_axi_debug_mask     (cfg_desc_mon_debug_mask),
+        .cfg_axi_err_select     (16'(cfg_desc_mon_err_select)),
+        .cfg_axi_error_mask     (16'(cfg_desc_mon_err_mask)),
+        .cfg_axi_timeout_mask   (16'(cfg_desc_mon_timeout_mask)),
+        .cfg_axi_compl_mask     (16'(cfg_desc_mon_compl_mask)),
+        .cfg_axi_thresh_mask    (16'(cfg_desc_mon_thresh_mask)),
+        .cfg_axi_perf_mask      (16'(cfg_desc_mon_perf_mask)),
+        .cfg_axi_addr_mask      (16'(cfg_desc_mon_addr_mask)),
+        .cfg_axi_debug_mask     (16'(cfg_desc_mon_debug_mask)),
 
         // Monitor bus
         .monbus_valid           (desc_axi_mon_valid),
@@ -610,7 +626,7 @@ module scheduler_group_array #(
     // R channel routing
     property desc_r_channel_valid_routing;
         @(posedge clk) disable iff (!rst_n)
-        desc_axi_int_rvalid && (desc_r_channel_id < NUM_CHANNELS) |->
+        desc_axi_int_rvalid && (32'(desc_r_channel_id) < NUM_CHANNELS) |->
             desc_r_valid[desc_r_channel_id];
     endproperty
     assert property (desc_r_channel_valid_routing);

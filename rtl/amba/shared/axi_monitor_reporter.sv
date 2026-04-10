@@ -85,17 +85,13 @@ module axi_monitor_reporter
     // FIX-001: Connect internal flag to output port for trans_mgr feedback
     assign event_reported_flags = r_event_reported;
 
-    // Localparams for address width handling
-    localparam int ADDR_PAD_WIDTH = (ADDR_WIDTH <= 38) ? (38 - ADDR_WIDTH) : 0;
-    localparam bit ADDR_NEEDS_TRUNCATE = (ADDR_WIDTH > 38);
-
-    // Helper function to safely pad/truncate address for packet data field
-    function automatic logic [37:0] pad_address(input logic [ADDR_WIDTH-1:0] addr);
-        if (ADDR_NEEDS_TRUNCATE) begin
-            return addr[37:0];
-        end else begin
-            return {{ADDR_PAD_WIDTH{1'b0}}, addr};
-        end
+    // Helper function to pack a stored transaction-table address into the
+    // 38-bit packet data field. The trans-table stores addresses as a
+    // fixed 32-bit value (see bus_transaction_t in monitor_amba4_pkg.sv),
+    // so this is a simple zero-extension. A static cast is used to avoid
+    // dead-branch width warnings from Verilator.
+    function automatic logic [37:0] pad_address(input logic [31:0] addr);
+        return 38'(addr);
     endfunction
 
     // Threshold crossing flags (flopped)

@@ -43,10 +43,14 @@ module axi_monitor_base
     parameter int ADDR_BITS_IN_PKT    = 38,    // Number of address bits to include in error packet
 
     // Configuration options
-    parameter int IS_READ             = 1, // 1 for read, 0 for write
-    parameter int IS_AXI              = 1, // 1 for AXI, 0 for AXI-Lite
-    parameter int ENABLE_PERF_PACKETS = 0, // Enable performance metrics tracking
-    parameter int ENABLE_DEBUG_MODULE = 0, // Enable debug tracking module
+    // These are boolean flags, so they're declared as `bit` (1-bit)
+    // to match the internal sub-modules (trans_mgr, timeout, reporter,
+    // filtered). Previously they were `int` which caused Verilator width
+    // warnings at every level of the hierarchy.
+    parameter bit IS_READ             = 1'b1, // 1 for read, 0 for write
+    parameter bit IS_AXI              = 1'b1, // 1 for AXI, 0 for AXI-Lite
+    parameter bit ENABLE_PERF_PACKETS = 1'b0, // Enable performance metrics tracking
+    parameter bit ENABLE_DEBUG_MODULE = 1'b0, // Enable debug tracking module
 
     // FIFO depths
     parameter int INTR_FIFO_DEPTH     = 8,     // Interrupt FIFO depth
@@ -164,9 +168,9 @@ module axi_monitor_base
         .MAX_TRANSACTIONS   (MAX_TRANSACTIONS),
         .ADDR_WIDTH         (ADDR_WIDTH),
         .ID_WIDTH           (ID_WIDTH),
-        .IS_READ            (1'(IS_READ)),
-        .IS_AXI             (1'(IS_AXI)),
-        .ENABLE_PERF_PACKETS(1'(ENABLE_PERF_PACKETS))
+        .IS_READ            (IS_READ),
+        .IS_AXI             (IS_AXI),
+        .ENABLE_PERF_PACKETS(ENABLE_PERF_PACKETS)
     ) trans_mgr(
         .aclk               (aclk),
         .aresetn            (aresetn),
@@ -206,7 +210,7 @@ module axi_monitor_base
     axi_monitor_timeout #(
         .MAX_TRANSACTIONS    (MAX_TRANSACTIONS),
         .ADDR_WIDTH          (ADDR_WIDTH),
-        .IS_READ             (1'(IS_READ))
+        .IS_READ             (IS_READ)
     ) timeout(
         .aclk                (aclk),
         .aresetn             (aresetn),
@@ -225,8 +229,8 @@ module axi_monitor_base
         .ADDR_WIDTH            (ADDR_WIDTH),
         .UNIT_ID               (UNIT_ID),
         .AGENT_ID              (AGENT_ID),
-        .IS_READ               (1'(IS_READ)),
-        .ENABLE_PERF_PACKETS   (1'(ENABLE_PERF_PACKETS)),
+        .IS_READ               (IS_READ),
+        .ENABLE_PERF_PACKETS   (ENABLE_PERF_PACKETS),
         .INTR_FIFO_DEPTH       (INTR_FIFO_DEPTH)
     ) reporter(
         .aclk                  (aclk),

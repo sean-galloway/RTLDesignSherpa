@@ -46,10 +46,10 @@ module axi_monitor_filtered
     parameter int MAX_TRANSACTIONS       = 16,
     parameter int ADDR_WIDTH             = 32,
     parameter int ID_WIDTH               = 8,
-    parameter bit IS_READ                = 1,
-    parameter bit IS_AXI                 = 1,
-    parameter bit ENABLE_PERF_PACKETS    = 1,
-    parameter bit ENABLE_DEBUG_MODULE    = 0,
+    parameter bit IS_READ                = 1'b1,
+    parameter bit IS_AXI                 = 1'b1,
+    parameter bit ENABLE_PERF_PACKETS    = 1'b1,
+    parameter bit ENABLE_DEBUG_MODULE    = 1'b0,
 
     // Filtering parameters
     parameter bit ENABLE_FILTERING       = 1,     // Enable filtering logic
@@ -136,7 +136,9 @@ module axi_monitor_filtered
     logic [3:0]              pkt_type;
     logic [2:0]              pkt_protocol;
     logic [3:0]              pkt_event_code;
-    logic [35:0]             pkt_event_data;
+    // 35 bits matches get_event_data() and the modern monitor_pkg packet
+    // layout (event_data occupies [34:0]).
+    logic [34:0]             pkt_event_data;
 
     // Filter decisions
     logic                    pkt_drop;

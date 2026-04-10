@@ -34,8 +34,9 @@ module apb_monitor
 #(
     parameter int ADDR_WIDTH          = 32,
     parameter int DATA_WIDTH          = 32,
-    parameter int UNIT_ID             = 1,     // 4-bit Unit ID
-    parameter int AGENT_ID            = 10,    // 8-bit Agent ID
+    // Literals sized to 32 bits for Verilator int-parameter width check
+    parameter int UNIT_ID             = 32'd1,     // 4-bit Unit ID
+    parameter int AGENT_ID            = 32'd10,    // 8-bit Agent ID
     parameter int MAX_TRANSACTIONS    = 4,     // APB is typically single outstanding
     parameter int MONITOR_FIFO_DEPTH  = 8,    // Monitor packet FIFO depth
 

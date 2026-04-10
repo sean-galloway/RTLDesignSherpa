@@ -44,9 +44,9 @@ module axil4_slave_rd_mon
     parameter int AXIL_ADDR_WIDTH   = 32,
     parameter int AXIL_DATA_WIDTH   = 32,
 
-    // Monitor parameters
-    parameter int UNIT_ID           = 2,     // 4-bit Unit ID for monitor packets
-    parameter int AGENT_ID          = 20,    // 8-bit Agent ID for monitor packets
+    // Monitor parameters (literals sized to 32 bits for Verilator int-parameter width check)
+    parameter int UNIT_ID           = 32'd2,     // 4-bit Unit ID for monitor packets
+    parameter int AGENT_ID          = 32'd20,    // 8-bit Agent ID for monitor packets
     parameter int MAX_TRANSACTIONS  = 8,     // Maximum outstanding transactions (reduced for AXIL)
 
     // Filtering parameters
@@ -167,11 +167,11 @@ module axil4_slave_rd_mon
         .AGENT_ID                (AGENT_ID),
         .MAX_TRANSACTIONS        (MAX_TRANSACTIONS),
         .ADDR_WIDTH              (AW),
-        .ID_WIDTH                (1),                // Fixed ID width for AXIL
-        .IS_READ                 (1),                // This is a read monitor
-        .IS_AXI                  (1),                // AXI protocol (AXIL is subset)
-        .ENABLE_PERF_PACKETS     (1),
-        .ENABLE_DEBUG_MODULE     (0),
+        .ID_WIDTH                (32'd1),            // Fixed ID width for AXIL
+        .IS_READ                 (1'b1),             // This is a read monitor
+        .IS_AXI                  (1'b1),             // AXI protocol (AXIL is subset)
+        .ENABLE_PERF_PACKETS     (1'b1),
+        .ENABLE_DEBUG_MODULE     (1'b0),
         .ENABLE_FILTERING        (ENABLE_FILTERING),
         .ADD_PIPELINE_STAGE      (ADD_PIPELINE_STAGE)
     ) axi_monitor_inst (

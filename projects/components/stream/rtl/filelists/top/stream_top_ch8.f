@@ -21,6 +21,8 @@ $REPO_ROOT/rtl/amba/includes/monitor_arbiter_pkg.sv
 $STREAM_ROOT/rtl/includes/stream_pkg.sv
 
 # PeakRDL generated register package and module
+# Verilator waiver: suppress MULTIDRIVEN on generated per-field always_comb blocks
+$STREAM_ROOT/regs/stream_regs.vlt
 $STREAM_ROOT/regs/generated/rtl/stream_regs_pkg.sv
 $STREAM_ROOT/regs/generated/rtl/stream_regs.sv
 

@@ -218,7 +218,8 @@ module axi_monitor_trans_mgr
     end
 
     // -------------------------------------------------------------------------
-    // State Change Detection
+    // State Change Detection (separate block - only reads r_trans_table,
+    // writes r_trans_table_prev and r_state_change)
     // -------------------------------------------------------------------------
     `ALWAYS_FF_RST(aclk, aresetn,
         if (`RST_ASSERTED(aresetn)) begin
@@ -247,42 +248,71 @@ module axi_monitor_trans_mgr
 
 
     // -------------------------------------------------------------------------
-    // Address Phase Processor
+    // Unified Transaction Table Processor
+    //
+    // Merges the former Address Phase, Data Phase, and Response Phase
+    // always_ff blocks into a single block so that r_trans_table and
+    // r_active_count have exactly one procedural driver. This is required
+    // for formal-verification tools (yosys/sby) that reject multiple
+    // drivers on the same register.
+    //
+    // Ordering within the block (SystemVerilog last-assignment-wins):
+    //   1. Address Phase   - creates entries, marks cmd_received
+    //   2. Data Phase      - updates data fields, creates orphaned entries
+    //   3. Response Phase  - updates resp fields (write channel only)
+    //   4. Cleanup         - invalidates completed/reported transactions
+    //   5. Event Reported  - marks transactions as reported for cleanup
+    //
+    // Cleanup is AFTER all phase processors so it takes priority when a
+    // transaction completes and is cleaned in the same cycle.
+    // Event reported is LAST so a transaction cleaned this cycle does not
+    // get event_reported re-set.
     // -------------------------------------------------------------------------
+
+    // Track net active_count adjustments within the cycle
+    logic [7:0] w_active_delta_inc;
+    logic [7:0] w_active_delta_dec;
+
     `ALWAYS_FF_RST(aclk, aresetn,
         if (`RST_ASSERTED(aresetn)) begin
             for (int idx = 0; idx < MAX_TRANSACTIONS; idx++) begin
-                r_trans_table[idx].valid <= 1'b0;
+                r_trans_table[idx] <= '0;
             end
             r_active_count <= '0;
         end else begin
 
-            // =====================================================================
-            // STEP 1: Create transaction when cmd_valid asserted (before handshake)
-            // =====================================================================
+            // Use combinational variables to accumulate active count changes
+            // so that simultaneous create + cleanup yields the correct net delta.
+            w_active_delta_inc = '0;
+            w_active_delta_dec = '0;
+
+            // =================================================================
+            // STEP 1: Address Phase Processing
+            // =================================================================
+
+            // STEP 1a: Create transaction when cmd_valid asserted (before handshake)
             if (cmd_valid) begin
-                // Check if we need to create a new transaction
                 if (w_addr_trans_idx < 0 && w_addr_free_idx >= 0) begin
                     // Create new transaction entry immediately when valid asserted
                     r_trans_table[w_addr_free_idx].valid <= 1'b1;
-                    // Protocol is handled at packet construction time  // Updated: Set protocol type
+                    // Protocol is handled at packet construction time
                     r_trans_table[w_addr_free_idx].state <= TRANS_ADDR_PHASE;
                     r_trans_table[w_addr_free_idx].id <= '0;
                     r_trans_table[w_addr_free_idx].id[IW-1:0] <= cmd_id;
-                    // Truncate or zero-extend address to fit 32-bit struct field
-                    r_trans_table[w_addr_free_idx].addr <= ADDR_NEEDS_TRUNC ? cmd_addr[31:0] : {{ADDR_PAD_BITS{1'b0}}, cmd_addr};
+                    // Truncate or zero-extend address to fit 32-bit struct field.
+                    r_trans_table[w_addr_free_idx].addr <= 32'(cmd_addr);
                     r_trans_table[w_addr_free_idx].len <= cmd_len;
                     r_trans_table[w_addr_free_idx].size <= cmd_size;
                     r_trans_table[w_addr_free_idx].burst <= cmd_burst;
 
                     // CRITICAL: Set cmd_received immediately if handshake completes in same cycle
                     r_trans_table[w_addr_free_idx].cmd_received <= cmd_ready ? 1'b1 : 1'b0;
-                    r_trans_table[w_addr_free_idx].addr_timer <= '0;       // Start timer immediately
+                    r_trans_table[w_addr_free_idx].addr_timer <= '0;
 
                     r_trans_table[w_addr_free_idx].data_started <= 1'b0;
                     r_trans_table[w_addr_free_idx].data_completed <= 1'b0;
                     r_trans_table[w_addr_free_idx].resp_received <= 1'b0;
-                    r_trans_table[w_addr_free_idx].event_code.raw_code <= 4'h0;  // Initialize event code union to zero
+                    r_trans_table[w_addr_free_idx].event_code.raw_code <= 4'h0;
                     r_trans_table[w_addr_free_idx].event_reported <= 1'b0;
                     r_trans_table[w_addr_free_idx].data_timer <= '0;
                     r_trans_table[w_addr_free_idx].resp_timer <= '0;
@@ -293,60 +323,27 @@ module axi_monitor_trans_mgr
 
                     // Initialize enhanced tracking fields for AXI protocol
                     r_trans_table[w_addr_free_idx].eos_seen <= 1'b0;
-                    // parity_error not in modern bus_transaction_t
-                    // credit_at_start not in modern bus_transaction_t
-                    // retry_count not in modern bus_transaction_t
 
-                    // Increment active count
-                    r_active_count <= r_active_count + 1'b1;
+                    w_active_delta_inc = w_active_delta_inc + 1'b1;
                 end
             end
 
-            // =====================================================================
-            // STEP 2: Mark address received when handshake completes
-            // =====================================================================
+            // STEP 1b: Mark address received when handshake completes
             if (cmd_valid && cmd_ready) begin
                 if (w_addr_trans_idx >= 0) begin
-                    // Mark address phase as complete
                     r_trans_table[w_addr_trans_idx].cmd_received <= 1'b1;
-                    r_trans_table[w_addr_trans_idx].addr_timer <= '0;  // Stop/clear timer
+                    r_trans_table[w_addr_trans_idx].addr_timer <= '0;
                     r_trans_table[w_addr_trans_idx].addr_timestamp <= timestamp;
                 end
             end
 
-            // Clean up completed transactions
-            for (int idx = 0; idx < MAX_TRANSACTIONS; idx++) begin
-                if (r_trans_table[idx].valid && w_can_cleanup[idx]) begin
-                    r_trans_table[idx].valid <= 1'b0;
-                    r_active_count <= r_active_count - 1'b1;
-                end
-            end
-
-            // FIX-001: Update event_reported field from reporter feedback
-            // This enables proper transaction cleanup by allowing trans_mgr to know
-            // when events have been reported and transactions can be safely cleaned up
-            for (int idx = 0; idx < MAX_TRANSACTIONS; idx++) begin
-                if (i_event_reported_flags[idx] && !r_trans_table[idx].event_reported) begin
-                    r_trans_table[idx].event_reported <= 1'b1;
-                end
-            end
-        end
-    )
-
-
-    // -------------------------------------------------------------------------
-    // Data Phase Processor
-    // -------------------------------------------------------------------------
-    `ALWAYS_FF_RST(aclk, aresetn,
-        if (`RST_ASSERTED(aresetn)) begin
-            // Reset handled by address processor
-        end else begin
-            // Process data phase transactions
+            // =================================================================
+            // STEP 2: Data Phase Processing
+            // =================================================================
             if (data_valid && data_ready) begin
                 if (IS_READ) begin
                     // For reads, we have an ID so we can find the transaction
                     if (w_data_trans_idx >= 0) begin
-                        // Update transaction data phase info
                         r_trans_table[w_data_trans_idx].data_started <= 1'b1;
                         r_trans_table[w_data_trans_idx].data_beat_count <=
                             r_trans_table[w_data_trans_idx].data_beat_count + 1'b1;
@@ -368,12 +365,10 @@ module axi_monitor_trans_mgr
                         // Check for data response error FIRST - overrides completion
                         if (data_resp[1]) begin
                             r_trans_table[w_data_trans_idx].state <= TRANS_ERROR;
-                            // Updated: Use unified event code with proper AXI event
                             r_trans_table[w_data_trans_idx].event_code.axi_error <= (data_resp[0]) ? EVT_RESP_DECERR : EVT_RESP_SLVERR;
                         end
                         // Only mark as complete if no error response
                         else if (data_last) begin
-                            // For reads, transaction is complete once last data beat arrives
                             r_trans_table[w_data_trans_idx].state <= TRANS_COMPLETE;
 
                             // Performance metrics - calculate and store latencies
@@ -383,9 +378,7 @@ module axi_monitor_trans_mgr
                         end
                     end else if (w_data_free_idx >= 0) begin
                         // Orphaned read data - create entry to track it
-                        // Create orphaned transaction
                         r_trans_table[w_data_free_idx].valid <= 1'b1;
-                        // Protocol is handled at packet construction time
                         r_trans_table[w_data_free_idx].state <= TRANS_ORPHANED;
                         if (IS_AXI) begin
                             r_trans_table[w_data_free_idx].id <= '0;
@@ -394,9 +387,9 @@ module axi_monitor_trans_mgr
                             r_trans_table[w_data_free_idx].channel <= ({24'h0, data_id} % 64);
                             /* verilator lint_on WIDTHTRUNC */
                         end else begin
-                            r_trans_table[w_data_free_idx].id <= '0; // No ID for AXI-Lite
-                            r_trans_table[w_data_free_idx].expected_beats <= 8'h1; // AXI-Lite is single beat
-                            r_trans_table[w_data_free_idx].channel <= 6'h0; // AXI-Lite always channel 0
+                            r_trans_table[w_data_free_idx].id <= '0;
+                            r_trans_table[w_data_free_idx].expected_beats <= 8'h1;
+                            r_trans_table[w_data_free_idx].channel <= 6'h0;
                         end
                         r_trans_table[w_data_free_idx].data_started <= 1'b1;
                         r_trans_table[w_data_free_idx].data_completed <= data_last;
@@ -404,13 +397,11 @@ module axi_monitor_trans_mgr
                         r_trans_table[w_data_free_idx].data_timestamp <= timestamp;
                         r_trans_table[w_data_free_idx].event_code.axi_error <= EVT_DATA_ORPHAN;
 
-                        // Increment active count
-                        r_active_count <= r_active_count + 1'b1;
+                        w_active_delta_inc = w_active_delta_inc + 1'b1;
                     end
                 end else begin
-                    // For writes, we need to find matching transaction without ID
+                    // For writes, find matching transaction without ID
                     if (w_data_trans_idx >= 0) begin
-                        // Update transaction data phase info
                         r_trans_table[w_data_trans_idx].data_started <= 1'b1;
                         r_trans_table[w_data_trans_idx].data_beat_count <=
                             r_trans_table[w_data_trans_idx].data_beat_count + 1'b1;
@@ -436,107 +427,113 @@ module axi_monitor_trans_mgr
                         end
                     end else if (!IS_AXI && w_data_free_idx >= 0) begin
                         // For AXI-Lite, create an orphaned entry for data-before-address
-                        // Create orphaned transaction
                         r_trans_table[w_data_free_idx].valid <= 1'b1;
-                        // Protocol is handled at packet construction time
                         r_trans_table[w_data_free_idx].state <= TRANS_ORPHANED;
-                        r_trans_table[w_data_free_idx].id <= '0; // No ID for AXI-Lite
+                        r_trans_table[w_data_free_idx].id <= '0;
                         r_trans_table[w_data_free_idx].data_started <= 1'b1;
                         r_trans_table[w_data_free_idx].data_completed <= data_last;
                         r_trans_table[w_data_free_idx].data_beat_count <= 8'h1;
-                        r_trans_table[w_data_free_idx].expected_beats <= 8'h1; // AXI-Lite is single beat
+                        r_trans_table[w_data_free_idx].expected_beats <= 8'h1;
                         r_trans_table[w_data_free_idx].data_timestamp <= timestamp;
                         r_trans_table[w_data_free_idx].event_code.axi_error <= EVT_DATA_ORPHAN;
-                        r_trans_table[w_data_free_idx].channel <= 6'h0; // AXI-Lite always channel 0
+                        r_trans_table[w_data_free_idx].channel <= 6'h0;
 
-                        // Increment active count
-                        r_active_count <= r_active_count + 1'b1;
+                        w_active_delta_inc = w_active_delta_inc + 1'b1;
                     end
                 end
             end
-        end
-    )
 
+            // =================================================================
+            // STEP 3: Response Phase Processing (write channel only)
+            // =================================================================
+            if (!IS_READ) begin
+                if (resp_valid && resp_ready) begin
+                    if (w_resp_trans_idx >= 0) begin
+                        // Update transaction response info
+                        r_trans_table[w_resp_trans_idx].resp_received <= 1'b1;
+                        r_trans_table[w_resp_trans_idx].resp_timestamp <= timestamp;
 
-    // -------------------------------------------------------------------------
-    // Response Phase Processor (write only)
-    // -------------------------------------------------------------------------
-    generate
-        if (!IS_READ) begin : gen_resp_processor
-            `ALWAYS_FF_RST(aclk, aresetn,
-        if (`RST_ASSERTED(aresetn)) begin
-                    // Reset handled by address processor
-                end else begin
-                    // Process response phase
-                    if (resp_valid && resp_ready) begin
-                        if (w_resp_trans_idx >= 0) begin
-                            // Update transaction response info
-                            r_trans_table[w_resp_trans_idx].resp_received <= 1'b1;
-                            r_trans_table[w_resp_trans_idx].resp_timestamp <= timestamp;
+                        // Reset response timeout timer
+                        r_trans_table[w_resp_trans_idx].resp_timer <= '0;
 
-                            // Reset response timeout timer
-                            r_trans_table[w_resp_trans_idx].resp_timer <= '0;
+                        // Check for response error
+                        if (resp_code[1]) begin
+                            r_trans_table[w_resp_trans_idx].state <= TRANS_ERROR;
+                            r_trans_table[w_resp_trans_idx].event_code.axi_error <= (resp_code[0]) ? EVT_RESP_DECERR : EVT_RESP_SLVERR;
+                        end else if (r_trans_table[w_resp_trans_idx].data_completed) begin
+                            // Transaction completed successfully
+                            if (r_trans_table[w_resp_trans_idx].state != TRANS_ERROR) begin
+                                r_trans_table[w_resp_trans_idx].state <= TRANS_COMPLETE;
 
-                            // Check for response error
-                            if (resp_code[1]) begin
-                                r_trans_table[w_resp_trans_idx].state <= TRANS_ERROR;
-                                // Updated: Use unified event code with proper AXI event
-                                r_trans_table[w_resp_trans_idx].event_code.axi_error <= (resp_code[0]) ? EVT_RESP_DECERR : EVT_RESP_SLVERR;
-                            end else if (r_trans_table[w_resp_trans_idx].data_completed) begin
-                                // Transaction completed successfully
-                                if (r_trans_table[w_resp_trans_idx].state != TRANS_ERROR) begin
-                                    r_trans_table[w_resp_trans_idx].state <= TRANS_COMPLETE;
-
-                                    // Performance metrics - calculate and store latencies
-                                    if (ENABLE_PERF_PACKETS) begin
-                                        // Additional performance tracking can be added here
-                                    end
+                                // Performance metrics - calculate and store latencies
+                                if (ENABLE_PERF_PACKETS) begin
+                                    // Additional performance tracking can be added here
                                 end
-                            end else if (r_trans_table[w_resp_trans_idx].data_started) begin
-                                // Response received before data completion (protocol violation)
-                                r_trans_table[w_resp_trans_idx].state <= TRANS_ERROR;
-                                r_trans_table[w_resp_trans_idx].event_code.axi_error <= EVT_PROTOCOL;
-                            end else begin
-                                // Response received before data started (protocol violation)
-                                r_trans_table[w_resp_trans_idx].state <= TRANS_ERROR;
-                                r_trans_table[w_resp_trans_idx].event_code.axi_error <= EVT_PROTOCOL;
                             end
-                        end else if (w_resp_free_idx >= 0) begin
-                            if (IS_AXI) begin
-                                // Orphaned response (no matching transaction) - create entry
-                                // Create orphaned transaction
-                                r_trans_table[w_resp_free_idx].valid <= 1'b1;
-                                // Protocol is handled at packet construction time
-                                r_trans_table[w_resp_free_idx].state <= TRANS_ORPHANED;
-                                r_trans_table[w_resp_free_idx].id <= '0;
-                                r_trans_table[w_resp_free_idx].id[IW-1:0] <= resp_id;
-                                r_trans_table[w_resp_free_idx].resp_received <= 1'b1;
-                                r_trans_table[w_resp_free_idx].resp_timestamp <= timestamp;
-                                r_trans_table[w_resp_free_idx].event_code.axi_error <= EVT_RESP_ORPHAN;
-                                /* verilator lint_off WIDTHTRUNC */
-                                r_trans_table[w_resp_free_idx].channel <= (resp_id % 64);
-                                /* verilator lint_on WIDTHTRUNC */
-                            end else begin
-                                // For AXI-Lite, orphaned response
-                                // Create orphaned transaction
-                                r_trans_table[w_resp_free_idx].valid <= 1'b1;
-                                // Protocol is handled at packet construction time
-                                r_trans_table[w_resp_free_idx].state <= TRANS_ORPHANED;
-                                r_trans_table[w_resp_free_idx].id <= '0; // No ID for AXI-Lite
-                                r_trans_table[w_resp_free_idx].resp_received <= 1'b1;
-                                r_trans_table[w_resp_free_idx].resp_timestamp <= timestamp;
-                                r_trans_table[w_resp_free_idx].event_code.axi_error <= EVT_RESP_ORPHAN;
-                                r_trans_table[w_resp_free_idx].channel <= 6'h0; // AXI-Lite always channel 0
-                            end
-
-                            // Increment active count
-                            r_active_count <= r_active_count + 1'b1;
+                        end else if (r_trans_table[w_resp_trans_idx].data_started) begin
+                            // Response received before data completion (protocol violation)
+                            r_trans_table[w_resp_trans_idx].state <= TRANS_ERROR;
+                            r_trans_table[w_resp_trans_idx].event_code.axi_error <= EVT_PROTOCOL;
+                        end else begin
+                            // Response received before data started (protocol violation)
+                            r_trans_table[w_resp_trans_idx].state <= TRANS_ERROR;
+                            r_trans_table[w_resp_trans_idx].event_code.axi_error <= EVT_PROTOCOL;
                         end
+                    end else if (w_resp_free_idx >= 0) begin
+                        if (IS_AXI) begin
+                            // Orphaned response (no matching transaction) - create entry
+                            r_trans_table[w_resp_free_idx].valid <= 1'b1;
+                            r_trans_table[w_resp_free_idx].state <= TRANS_ORPHANED;
+                            r_trans_table[w_resp_free_idx].id <= '0;
+                            r_trans_table[w_resp_free_idx].id[IW-1:0] <= resp_id;
+                            r_trans_table[w_resp_free_idx].resp_received <= 1'b1;
+                            r_trans_table[w_resp_free_idx].resp_timestamp <= timestamp;
+                            r_trans_table[w_resp_free_idx].event_code.axi_error <= EVT_RESP_ORPHAN;
+                            /* verilator lint_off WIDTHTRUNC */
+                            r_trans_table[w_resp_free_idx].channel <= (resp_id % 64);
+                            /* verilator lint_on WIDTHTRUNC */
+                        end else begin
+                            // For AXI-Lite, orphaned response
+                            r_trans_table[w_resp_free_idx].valid <= 1'b1;
+                            r_trans_table[w_resp_free_idx].state <= TRANS_ORPHANED;
+                            r_trans_table[w_resp_free_idx].id <= '0;
+                            r_trans_table[w_resp_free_idx].resp_received <= 1'b1;
+                            r_trans_table[w_resp_free_idx].resp_timestamp <= timestamp;
+                            r_trans_table[w_resp_free_idx].event_code.axi_error <= EVT_RESP_ORPHAN;
+                            r_trans_table[w_resp_free_idx].channel <= 6'h0;
+                        end
+
+                        w_active_delta_inc = w_active_delta_inc + 1'b1;
                     end
                 end
-            )
+            end
 
+            // =================================================================
+            // STEP 4: Cleanup - MUST be after all phase processors so that
+            // invalidation takes priority in the same cycle
+            // =================================================================
+            for (int idx = 0; idx < MAX_TRANSACTIONS; idx++) begin
+                if (r_trans_table[idx].valid && w_can_cleanup[idx]) begin
+                    r_trans_table[idx].valid <= 1'b0;
+                    w_active_delta_dec = w_active_delta_dec + 1'b1;
+                end
+            end
+
+            // =================================================================
+            // STEP 5: Event reported feedback (FIX-001) - MUST be after
+            // cleanup so a cleaned-up transaction doesn't get re-marked
+            // =================================================================
+            for (int idx = 0; idx < MAX_TRANSACTIONS; idx++) begin
+                if (i_event_reported_flags[idx] && !r_trans_table[idx].event_reported) begin
+                    r_trans_table[idx].event_reported <= 1'b1;
+                end
+            end
+
+            // =================================================================
+            // Apply net active count change
+            // =================================================================
+            r_active_count <= r_active_count + w_active_delta_inc - w_active_delta_dec;
         end
-    endgenerate
+    )
 
 endmodule : axi_monitor_trans_mgr

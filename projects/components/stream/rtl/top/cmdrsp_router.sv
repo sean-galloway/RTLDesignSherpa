@@ -176,7 +176,13 @@ module cmdrsp_router #(
                 perf_rsp_data = perf_fifo_data_high;
             end
             PERF_STATUS_ADDR: begin
-                perf_rsp_data = {15'h0, perf_fifo_count, 14'h0, perf_fifo_full, perf_fifo_empty};
+                // perf_rsp_data is 32 bits wide
+                // layout: [31:16] perf_fifo_count (16b)
+                //         [15:2]  reserved (14b)
+                //         [1]     perf_fifo_full
+                //         [0]     perf_fifo_empty
+                // (previously had an extra leading 15'h0 that made the RHS 47 bits)
+                perf_rsp_data = {perf_fifo_count, 14'h0, perf_fifo_full, perf_fifo_empty};
             end
             default: begin
                 perf_rsp_data = 32'hDEADBEEF;  // Invalid address within perf range

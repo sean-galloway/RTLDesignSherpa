@@ -1,0 +1,11 @@
+`verilator_config
+// PeakRDL generates per-field always_comb blocks that each write to
+// a different sub-field of the same `field_combo` struct. This is
+// functionally clean (no overlap) but Verilator's strict IEEE 1800-2023
+// Section 9.2.2.2 interpretation flags it as MULTIDRIVEN. Other tools
+// (Vivado, Synopsys DC, Icarus) accept the pattern silently.
+//
+// Waiving only for the generated file preserves MULTIDRIVEN detection
+// everywhere else. This file lives outside generated/ so regeneration
+// does not overwrite it.
+lint_off -rule MULTIDRIVEN -file "*/stream_regs.sv"
