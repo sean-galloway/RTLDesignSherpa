@@ -465,6 +465,25 @@ class StreamCharTB(TBBase):
         await self.uart_write(APB_CHANNEL_ENABLE, ch_mask)  # channel mask
         self.log.info(f"  STREAM configured and enabled: ch_mask=0x{ch_mask:02X}")
 
+        # 4a. Debug: read back key registers to confirm config took effect
+        for name, addr in [
+            ("GLOBAL_CTRL",       APB_GLOBAL_CTRL),
+            ("GLOBAL_STATUS",     APB_GLOBAL_STATUS),
+            ("CHANNEL_ENABLE",    APB_CHANNEL_ENABLE),
+            ("SCHED_CONFIG",      APB_SCHED_CONFIG),
+            ("DESCENG_CONFIG",    APB_DESCENG_CONFIG),
+            ("ADDR0_BASE",        APB_DESCENG_ADDR0_BASE),
+            ("ADDR0_LIMIT",       APB_DESCENG_ADDR0_LIMIT),
+            ("AXI_XFER_CONFIG",   APB_AXI_XFER_CONFIG),
+            ("CHANNEL_IDLE",      STREAM_APB_BASE + 0x140),
+            ("DESC_ENGINE_IDLE",  STREAM_APB_BASE + 0x144),
+            ("SCHEDULER_IDLE",    STREAM_APB_BASE + 0x148),
+            ("SCHED_ERROR",       STREAM_APB_BASE + 0x170),
+        ]:
+            val = await self.uart_read(addr)
+            self.log.info(f"  [DEBUG] {name:20s} @ 0x{addr:03X} = 0x{val:08X}" if val is not None
+                          else f"  [DEBUG] {name:20s} @ 0x{addr:03X} = READ FAILED")
+
         # 5. Kick all channels (two APB writes per channel: LOW + HIGH 32-bit)
         # apbtodescr expects LOW write first (bits [31:0]), then HIGH (bits [63:32])
         for ch, kick_addr in sorted(test_data['kick_addresses'].items()):
@@ -475,7 +494,22 @@ class StreamCharTB(TBBase):
             await self.uart_write(kick_reg + 4, high)   # HIGH word
             self.log.info(f"  Kicked ch{ch} → desc@0x{kick_addr:08X}")
 
-        # 5. Poll for completion (stream_irq or error in status register)
+        # 5a. Debug: read status immediately after kick
+        await self.wait_clocks(self.clk_name, 1000)
+        for name, addr in [
+            ("GLOBAL_STATUS",     APB_GLOBAL_STATUS),
+            ("CHANNEL_IDLE",      STREAM_APB_BASE + 0x140),
+            ("DESC_ENGINE_IDLE",  STREAM_APB_BASE + 0x144),
+            ("SCHEDULER_IDLE",    STREAM_APB_BASE + 0x148),
+            ("SCHED_ERROR",       STREAM_APB_BASE + 0x170),
+            ("AXI_RD_COMPLETE",   STREAM_APB_BASE + 0x174),
+            ("AXI_WR_COMPLETE",   STREAM_APB_BASE + 0x178),
+        ]:
+            val = await self.uart_read(addr)
+            self.log.info(f"  [POST-KICK] {name:20s} @ 0x{addr:03X} = 0x{val:08X}" if val is not None
+                          else f"  [POST-KICK] {name:20s} @ 0x{addr:03X} = READ FAILED")
+
+        # 6. Poll for completion (stream_irq or error in status register)
         self.log.info(f"  Waiting for completion (up to {timeout_clocks} clocks)...")
         completed = False
         for _ in range(timeout_clocks // 100):
