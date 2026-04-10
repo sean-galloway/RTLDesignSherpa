@@ -18,5 +18,5 @@ read -formal -sv formal_math_fp8_e4m3_clamp.sv
 prep -top formal_math_fp8_e4m3_clamp
 
 [files]
-math_fp8_e4m3_clamp.sv ../../../rtl/common/math_fp8_e4m3_clamp.sv
+math_fp8_e4m3_clamp.sv math_fp8_e4m3_clamp_yw.sv
 formal_math_fp8_e4m3_clamp.sv

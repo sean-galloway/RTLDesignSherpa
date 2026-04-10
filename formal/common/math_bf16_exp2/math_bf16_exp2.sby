@@ -1,3 +1,13 @@
+# DEFERRED: Yosys cannot parse the SystemVerilog static cast syntax
+# used in math_bf16_exp2.sv (e.g., 9'(signed'({...})) at line 108).
+# Formal verification requires either:
+#   1. Refactoring the RTL to avoid 9'(signed'(...)) cast syntax
+#   2. A Yosys version with improved SystemVerilog cast support
+#   3. Use of a commercial formal tool (JasperGold, VC Formal)
+#
+# The formal wrapper (formal_math_bf16_exp2.sv) is ready and can be
+# used once the parse issue is resolved.
+
 [tasks]
 prove
 cover

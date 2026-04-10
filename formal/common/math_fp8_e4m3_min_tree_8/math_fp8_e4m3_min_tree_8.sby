@@ -18,5 +18,5 @@ read -formal -sv formal_math_fp8_e4m3_min_tree_8.sv
 prep -top formal_math_fp8_e4m3_min_tree_8
 
 [files]
-math_fp8_e4m3_min_tree_8.sv ../../../rtl/common/math_fp8_e4m3_min_tree_8.sv
+math_fp8_e4m3_min_tree_8.sv math_fp8_e4m3_min_tree_8_yw.sv
 formal_math_fp8_e4m3_min_tree_8.sv

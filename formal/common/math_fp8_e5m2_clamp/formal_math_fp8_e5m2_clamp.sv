@@ -75,9 +75,9 @@ module formal_math_fp8_e5m2_clamp (
         end
     end
 
-    // Property 4: Clamp to max
+    // Property 4: Clamp to max (only when min check doesn't fire first)
     always @(posedge clk) begin
-        if (!any_nan && hi_lt_x) begin
+        if (!any_nan && hi_lt_x && !x_lt_lo) begin
             p_clamp_to_max: assert (result == hi);
         end
     end

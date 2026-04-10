@@ -47,7 +47,7 @@ module formal_math_fp8_e4m3_tanh (
     wire a_is_nan      = (exp == 4'hF) && (mant == 3'h7);
     wire a_is_inf      = 1'b0;
 
-    wire r_is_nan      = (exp_r == 4'hF) && (mant_r != 3'h0);
+    wire r_is_nan      = (exp_r == 4'hF) && (mant_r == 3'h7);
 
     // =========================================================================
     // Property: NaN input produces NaN output (passthrough)
