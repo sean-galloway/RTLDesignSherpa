@@ -74,7 +74,7 @@ EXPECTED_BUILD_ID   = 0x5354_5243
 APB_GLOBAL_CTRL     = STREAM_APB_BASE + 0x100  # [0] GLOBAL_EN, [1] GLOBAL_RST
 APB_CHANNEL_ENABLE  = STREAM_APB_BASE + 0x104  # [7:0] per-channel enable
 APB_CH_KICK_BASE    = STREAM_APB_BASE + 0x000  # Channel 0 kick-off register
-APB_CH_KICK_STRIDE  = 0x04                     # Stride between channel kick-off regs
+APB_CH_KICK_STRIDE  = 0x08                     # 8 bytes per channel (LOW + HIGH 32-bit writes)
 
 
 # =========================================================================
@@ -156,10 +156,14 @@ class CharacterizationRunner:
         self.vlog(f"  STREAM enabled: global=1, ch_mask=0x{ch_mask:02X}")
 
     def kick_channels(self, kick_addresses: dict):
-        """Write kick-off addresses to start descriptor fetch per channel."""
+        """Write kick-off addresses to start descriptor fetch per channel.
+        apbtodescr requires two APB writes per channel: LOW [31:0] then HIGH [63:32]."""
         for ch, axi4_addr in sorted(kick_addresses.items()):
             kick_reg = APB_CH_KICK_BASE + ch * APB_CH_KICK_STRIDE
-            self.bridge.write(kick_reg, axi4_addr)
+            low  = axi4_addr & 0xFFFF_FFFF
+            high = (axi4_addr >> 32) & 0xFFFF_FFFF
+            self.bridge.write(kick_reg + 0, low)    # LOW word
+            self.bridge.write(kick_reg + 4, high)   # HIGH word
             self.vlog(f"  Kicked channel {ch} → desc@0x{axi4_addr:08X}")
 
     def poll_completion(self, timeout_s: float = 30.0) -> dict:

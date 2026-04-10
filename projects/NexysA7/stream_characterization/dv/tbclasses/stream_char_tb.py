@@ -63,7 +63,7 @@ EXPECTED_BUILD_ID  = 0x5354_5243  # "STRC"
 APB_GLOBAL_CTRL     = STREAM_APB_BASE + 0x100  # [0] GLOBAL_EN, [1] GLOBAL_RST
 APB_CHANNEL_ENABLE  = STREAM_APB_BASE + 0x104  # [7:0] per-channel enable
 APB_CH_KICK_BASE    = STREAM_APB_BASE + 0x000  # Channel 0 kick-off register
-APB_CH_KICK_STRIDE  = 0x04                     # Stride between channel kick-off regs
+APB_CH_KICK_STRIDE  = 0x08                     # 8 bytes per channel (LOW + HIGH 32-bit writes)
 
 
 class StreamCharTB(TBBase):
@@ -439,10 +439,14 @@ class StreamCharTB(TBBase):
         await self.uart_write(APB_CHANNEL_ENABLE, ch_mask)  # channel mask
         self.log.info(f"  STREAM enabled: ch_mask=0x{ch_mask:02X}")
 
-        # 4. Kick all channels
+        # 5. Kick all channels (two APB writes per channel: LOW + HIGH 32-bit)
+        # apbtodescr expects LOW write first (bits [31:0]), then HIGH (bits [63:32])
         for ch, kick_addr in sorted(test_data['kick_addresses'].items()):
             kick_reg = APB_CH_KICK_BASE + ch * APB_CH_KICK_STRIDE
-            await self.uart_write(kick_reg, kick_addr)
+            low  = kick_addr & 0xFFFF_FFFF
+            high = (kick_addr >> 32) & 0xFFFF_FFFF
+            await self.uart_write(kick_reg + 0, low)    # LOW word
+            await self.uart_write(kick_reg + 4, high)   # HIGH word
             self.log.info(f"  Kicked ch{ch} → desc@0x{kick_addr:08X}")
 
         # 5. Poll for completion (stream_irq or error in status register)
