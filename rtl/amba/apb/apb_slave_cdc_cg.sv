@@ -97,6 +97,19 @@ module apb_slave_cdc_cg #(
     logic aclk_user_valid;
     logic aclk_axi_valid;
 
+    // Synchronize pclk-domain s_apb_PSEL into aclk domain for clock gating
+    // Without this, s_apb_PSEL crosses clock domains unsynchronized (CDC violation)
+    logic r_psel_sync1, r_psel_sync2;
+    always_ff @(posedge aclk or negedge aresetn) begin
+        if (!aresetn) begin
+            r_psel_sync1 <= 1'b0;
+            r_psel_sync2 <= 1'b0;
+        end else begin
+            r_psel_sync1 <= s_apb_PSEL;
+            r_psel_sync2 <= r_psel_sync1;
+        end
+    end
+
     // Internal signals to pass between the handshake
     logic              w_cmd_valid;
     logic              w_cmd_ready;
@@ -120,7 +133,7 @@ module apb_slave_cdc_cg #(
 
     // OR all ACLK domain valid signals for clock gating control
     assign aclk_user_valid = rsp_valid;
-    assign aclk_axi_valid = cmd_valid || cmd_ready || s_apb_PSEL;
+    assign aclk_axi_valid = cmd_valid || cmd_ready || r_psel_sync2;
 
     // Force ready signals to 0 when clock gating is active in their respective domains
     assign w_cmd_ready = pclk_cg_gating ? 1'b0 : int_cmd_ready;

@@ -336,7 +336,7 @@ module axi4_master_rd_mon_cg
         .ENABLE_FILTERING        (ENABLE_FILTERING),
         .ADD_PIPELINE_STAGE      (ADD_PIPELINE_STAGE)
     ) axi4_master_rd_mon_inst (
-        .aclk                    (aclk),
+        .aclk                    (aclk_monitor),
         .aresetn                 (aresetn),
 
         // Slave AXI Interface (Input Side)

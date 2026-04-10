@@ -123,13 +123,27 @@ module apb5_slave_cdc_cg #(
     logic r_wakeup;
     logic gated_pclk;
 
+    // Synchronize aclk-domain signals into pclk domain for clock gating
+    // Without this, cmd_valid/rsp_valid/wakeup_request cross unsynchronized (CDC violation)
+    logic r_aclk_activity_sync1, r_aclk_activity_sync2;
+    always_ff @(posedge pclk or negedge presetn) begin
+        if (!presetn) begin
+            r_aclk_activity_sync1 <= 1'b0;
+            r_aclk_activity_sync2 <= 1'b0;
+        end else begin
+            r_aclk_activity_sync1 <= cmd_valid || rsp_valid || wakeup_request;
+            r_aclk_activity_sync2 <= r_aclk_activity_sync1;
+        end
+    end
+
     `ALWAYS_FF_RST(pclk, presetn,
         if (!presetn)
             r_wakeup <= 1'b1;
         else
-            // Keep active when APB transaction in progress, command/response activity,
-            // or when wakeup is requested
-            r_wakeup <= s_apb_PSEL || s_apb_PENABLE || cmd_valid || rsp_valid || wakeup_request;
+            // Keep active when APB transaction in progress or aclk-domain activity
+            // pclk-domain signals (s_apb_PSEL, s_apb_PENABLE) used directly
+            // aclk-domain signals synchronized via 2-FF synchronizer above
+            r_wakeup <= s_apb_PSEL || s_apb_PENABLE || r_aclk_activity_sync2;
     )
 
     // Instantiate clock gate controller for pclk domain
