@@ -232,39 +232,54 @@ class DescriptorBuilder:
 # Characterization test matrix
 # =====================================================================
 
-def build_char_matrix() -> List[CharConfig]:
+def build_char_matrix(transfer_bytes: int = 1024 * 1024) -> List[CharConfig]:
     """
     Build the full 40-configuration characterization matrix.
 
-    Phase 1: 1 descriptor/channel, 1 MB each, 1..8 channels  (8 configs)
-    Phase 2: {2,4,8,16} desc/ch, 1 MB each, 1..8 channels    (32 configs)
+    Phase 1: 1 descriptor/channel, 1..8 channels  (8 configs)
+    Phase 2: {2,4,8,16} desc/ch, 1..8 channels    (32 configs)
+
+    Args:
+        transfer_bytes: Bytes per descriptor transfer (default 1 MB).
+                        Pass e.g. 4096 for quick smoke tests or
+                        4*1024*1024 for 4 MB stress runs.
 
     Returns:
         List of 40 CharConfig objects.
     """
-    ONE_MB = 1024 * 1024
+    size_label = _size_label(transfer_bytes)
     configs = []
 
     # Phase 1: single descriptor per channel
     for num_ch in range(1, 9):
         configs.append(CharConfig(
-            name=f"1desc_{num_ch}ch",
+            name=f"1desc_{num_ch}ch_{size_label}",
             num_channels=num_ch,
             descriptors_per_channel=1,
-            transfer_bytes=ONE_MB,
+            transfer_bytes=transfer_bytes,
         ))
 
     # Phase 2: multiple descriptors per channel
     for num_desc in [2, 4, 8, 16]:
         for num_ch in range(1, 9):
             configs.append(CharConfig(
-                name=f"{num_desc}desc_{num_ch}ch",
+                name=f"{num_desc}desc_{num_ch}ch_{size_label}",
                 num_channels=num_ch,
                 descriptors_per_channel=num_desc,
-                transfer_bytes=ONE_MB,
+                transfer_bytes=transfer_bytes,
             ))
 
     return configs
+
+
+def _size_label(nbytes: int) -> str:
+    """Human-readable label for a byte count (e.g. '1MB', '4KB')."""
+    if nbytes >= 1024 * 1024 and nbytes % (1024 * 1024) == 0:
+        return f"{nbytes // (1024 * 1024)}MB"
+    elif nbytes >= 1024 and nbytes % 1024 == 0:
+        return f"{nbytes // 1024}KB"
+    else:
+        return f"{nbytes}B"
 
 
 # =====================================================================
@@ -272,21 +287,39 @@ def build_char_matrix() -> List[CharConfig]:
 # =====================================================================
 
 if __name__ == '__main__':
-    builder = DescriptorBuilder(data_width=128)
-    matrix = build_char_matrix()
+    import argparse
+    ap = argparse.ArgumentParser(description="Preview characterization matrix")
+    ap.add_argument('--size', type=str, default='1MB',
+                    help='Transfer size per descriptor (e.g., 4KB, 1MB, default 1MB)')
+    cli = ap.parse_args()
 
-    print(f"Characterization matrix: {len(matrix)} configurations\n")
-    print(f"{'Name':<20} {'Channels':>8} {'Desc/Ch':>8} {'Total Desc':>10} "
-          f"{'Total MB':>10} {'UART Writes':>12}")
-    print("-" * 78)
+    # Parse size string
+    s = cli.size.strip().upper()
+    if s.endswith('MB'):
+        xfer_bytes = int(s[:-2]) * 1024 * 1024
+    elif s.endswith('KB'):
+        xfer_bytes = int(s[:-2]) * 1024
+    elif s.endswith('B'):
+        xfer_bytes = int(s[:-1])
+    else:
+        xfer_bytes = int(s)
+
+    builder = DescriptorBuilder(data_width=128)
+    matrix = build_char_matrix(transfer_bytes=xfer_bytes)
+
+    print(f"Characterization matrix: {len(matrix)} configurations "
+          f"(transfer_bytes={xfer_bytes}, {_size_label(xfer_bytes)})\n")
+    print(f"{'Name':<28} {'Channels':>8} {'Desc/Ch':>8} {'Total Desc':>10} "
+          f"{'Total Data':>12} {'UART Writes':>12}")
+    print("-" * 88)
 
     for cfg in matrix:
         test = builder.build_test(cfg)
-        total_mb = test['total_bytes'] / (1024 * 1024)
-        print(f"{cfg.name:<20} {cfg.num_channels:>8} "
+        total_label = _size_label(test['total_bytes'])
+        print(f"{cfg.name:<28} {cfg.num_channels:>8} "
               f"{cfg.descriptors_per_channel:>8} "
               f"{test['total_descriptors']:>10} "
-              f"{total_mb:>10.0f} "
+              f"{total_label:>12} "
               f"{len(test['descriptor_writes']):>12}")
 
     # Show first config in detail

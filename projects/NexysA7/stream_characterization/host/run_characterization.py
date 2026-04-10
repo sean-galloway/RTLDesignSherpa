@@ -47,7 +47,7 @@ repo_root = script_dir.parent.parent.parent.parent
 sys.path.insert(0, str(repo_root / 'projects' / 'components' / 'converters' / 'bin'))
 
 from descriptor_builder import (
-    DescriptorBuilder, CharConfig, build_char_matrix,
+    DescriptorBuilder, CharConfig, build_char_matrix, _size_label,
     HARNESS_CSR_BASE, STREAM_APB_BASE, DESC_RAM_BASE,
     CTRL_VALID, CTRL_LAST, CTRL_INTERRUPT,
 )
@@ -361,6 +361,8 @@ Examples:
                         help='Run only named configs (e.g., 1desc_1ch 4desc_8ch)')
     parser.add_argument('--channels', type=int, nargs='+',
                         help='Limit to specific channel counts (e.g., 1 4 8)')
+    parser.add_argument('--size', type=str, default='1MB',
+                        help='Transfer size per descriptor (e.g., 4KB, 1MB, 4MB; default 1MB)')
     parser.add_argument('--dry-run', action='store_true',
                         help='Print test plan without running')
     parser.add_argument('--output', '-o', type=str,
@@ -370,11 +372,27 @@ Examples:
     return parser.parse_args()
 
 
+def _parse_size(s: str) -> int:
+    """Parse a human-readable size string to bytes (e.g., '4KB' -> 4096)."""
+    s = s.strip().upper()
+    if s.endswith('MB'):
+        return int(s[:-2]) * 1024 * 1024
+    elif s.endswith('KB'):
+        return int(s[:-2]) * 1024
+    elif s.endswith('B'):
+        return int(s[:-1])
+    else:
+        return int(s)
+
+
 def main():
     args = parse_args()
 
+    # Parse transfer size
+    transfer_bytes = _parse_size(args.size)
+
     # Build matrix
-    all_configs = build_char_matrix()
+    all_configs = build_char_matrix(transfer_bytes=transfer_bytes)
 
     # Filter
     configs = all_configs
@@ -397,15 +415,15 @@ def main():
     if args.dry_run:
         builder = DescriptorBuilder(data_width=128)
         print(f"Test plan: {len(configs)} configurations\n")
-        print(f"{'#':<4} {'Name':<20} {'Ch':>3} {'Desc/Ch':>8} "
-              f"{'Total MB':>10} {'UART Writes':>12}")
-        print("-" * 65)
+        print(f"{'#':<4} {'Name':<28} {'Ch':>3} {'Desc/Ch':>8} "
+              f"{'Total Data':>12} {'UART Writes':>12}")
+        print("-" * 75)
         for i, cfg in enumerate(configs):
             test = builder.build_test(cfg)
-            total_mb = test['total_bytes'] / (1024 * 1024)
-            print(f"{i+1:<4} {cfg.name:<20} {cfg.num_channels:>3} "
+            total_label = _size_label(test['total_bytes'])
+            print(f"{i+1:<4} {cfg.name:<28} {cfg.num_channels:>3} "
                   f"{cfg.descriptors_per_channel:>8} "
-                  f"{total_mb:>10.0f} "
+                  f"{total_label:>12} "
                   f"{len(test['descriptor_writes']):>12}")
         return 0
 
