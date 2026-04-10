@@ -1,0 +1,33 @@
+#!/bin/bash
+# pre-commit hook: check SystemVerilog declaration order
+#
+# Fails the commit if any staged .sv file has signals used before
+# their declaration. While SystemVerilog allows forward references,
+# some tools (particularly formal verification and certain synthesis
+# flows) break when signals are used before declaration.
+#
+# Install: make setup-hooks
+# Bypass:  git commit --no-verify
+
+REPO_ROOT=$(git rev-parse --show-toplevel)
+
+STAGED_SV=$(git diff --cached --name-only --diff-filter=ACM | grep '\.sv$' || true)
+
+if [ -z "$STAGED_SV" ]; then
+    exit 0
+fi
+
+NUM_FILES=$(echo "$STAGED_SV" | wc -l)
+echo "[pre-commit] Checking declaration order in $NUM_FILES staged .sv file(s)..."
+
+python3 "$REPO_ROOT/bin/check_sv_decl_order.py" --staged
+STATUS=$?
+
+if [ $STATUS -ne 0 ]; then
+    echo ""
+    echo "[pre-commit] BLOCKED: Signal(s) used before declaration."
+    echo "  Fix the ordering or bypass with: git commit --no-verify"
+    echo ""
+fi
+
+exit $STATUS

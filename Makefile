@@ -5,6 +5,7 @@
 # Bootstrap (no env_python needed):
 #   make setup          - Full setup from scratch (apt + venv + formal tools)
 #   make setup-no-sudo  - Setup without apt (venv + formal tools only)
+#   make setup-hooks    - Install git hooks (SV declaration order check)
 #   make install        - Create venv and install Python dependencies only
 #   make doctor         - Check that all required tools are available
 #   make count          - LOC / file counts for RTL, tests, framework
@@ -69,6 +70,7 @@ doctor:
 	@printf "  %-22s " "Venv:" && (test -f "$(MAKEFILE_DIR)venv/bin/python3" && echo "OK ($(MAKEFILE_DIR)venv)" || echo "MISSING (run: make install)")
 	@printf "  %-22s " "CocoTB:" && ("$(MAKEFILE_DIR)venv/bin/python3" -c "import cocotb; print(cocotb.__version__)" 2>/dev/null || echo "MISSING (run: make install)")
 	@printf "  %-22s " "REPO_ROOT:" && (test -n "$$REPO_ROOT" && echo "$$REPO_ROOT" || echo "NOT SET (run: source env_python)")
+	@printf "  %-22s " "Git hooks:" && (test -x .git/hooks/pre-commit && echo "OK (pre-commit installed)" || echo "NOT INSTALLED (run: make setup-hooks)")
 	@echo ""
 	@echo "================================================================================"
 
@@ -98,8 +100,25 @@ setup:
 setup-no-sudo:
 	@bash bin/setup_from_scratch.sh --skip-apt
 
+.PHONY: setup-hooks
+setup-hooks: ## Install git hooks (declaration-order check on .sv commits)
+	@echo "================================================================================"
+	@echo "Installing git hooks"
+	@echo "================================================================================"
+	@mkdir -p .git/hooks
+	@for hook in tools/hooks/*; do \
+		name=$$(basename "$$hook"); \
+		cp "$$hook" ".git/hooks/$$name"; \
+		chmod +x ".git/hooks/$$name"; \
+		echo "  Installed $$name"; \
+	done
+	@echo ""
+	@echo "Hooks installed. They run automatically on each commit."
+	@echo "Bypass (emergency): git commit --no-verify"
+	@echo "================================================================================"
+
 # Only enforce REPO_ROOT for non-bootstrap targets
-BOOTSTRAP_TARGETS := install doctor count setup setup-no-sudo
+BOOTSTRAP_TARGETS := install doctor count setup setup-no-sudo setup-hooks
 ifneq ($(filter-out $(BOOTSTRAP_TARGETS),$(MAKECMDGOALS)),)
 ifndef REPO_ROOT
 $(error REPO_ROOT is not set. Please run: source env_python)
