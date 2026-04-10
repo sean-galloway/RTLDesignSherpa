@@ -45,7 +45,7 @@ FPGA_SUITE = $(HOST_DIR)/fpga_suite.csv
 PYTEST = python3 -m pytest
 PYTEST_VERBOSE = -v
 PYTEST_QUIET = -q
-PYTEST_XDIST = -n 4
+PYTEST_XDIST = -n 48
 PYTEST_TBSTYLE = --tb=short
 PYTEST_RERUNS = --reruns 3 --reruns-delay 1
 
@@ -76,7 +76,7 @@ help:
 	@echo "    make run-all-func         FUNC level"
 	@echo "    make run-all-full         FULL level (1-8 channel DMA)"
 	@echo ""
-	@echo "  PARALLEL (4 workers):"
+	@echo "  PARALLEL (48 workers):"
 	@echo "    make run-all-parallel           Parallel (TEST_LEVEL=$(TEST_LEVEL))"
 	@echo "    make run-all-gate-parallel      GATE parallel"
 	@echo "    make run-all-func-parallel      FUNC parallel"
