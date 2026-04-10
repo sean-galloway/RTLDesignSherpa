@@ -54,12 +54,12 @@ async def cocotb_test_stream_char(dut):
     await tb.setup_clocks_and_reset()
 
     if test_type == 'ping':
-        tb.log.info("=== Ping test (UART → decode → CSR) ===")
+        tb.log.info("=== Ping test (UART -> decode -> CSR) ===")
         ok = await tb.run_ping_test()
 
     elif test_type == 'desc_load':
         tb.log.info("=== Descriptor load test ===")
-        ok = await tb.run_ping_test()    # ping first as sanity
+        ok = await tb.run_ping_test()
         ok &= await tb.run_descriptor_load_test()
 
     elif test_type == 'csr_read':
@@ -71,6 +71,19 @@ async def cocotb_test_stream_char(dut):
         tb.log.info("=== APB config path test ===")
         ok = await tb.run_ping_test()
         ok &= await tb.run_apb_config_test()
+
+    elif test_type.startswith('dma_'):
+        # dma_1ch, dma_2ch, ..., dma_8ch
+        num_ch = int(test_type.split('_')[1].replace('ch', ''))
+        desc_per_ch = int(os.environ.get('DMA_DESC_PER_CH', '2'))
+        xfer_bytes = int(os.environ.get('DMA_XFER_BYTES', '8192'))
+        tb.log.info(f"=== DMA test: {num_ch}ch x {desc_per_ch}desc x {xfer_bytes}B ===")
+        ok = await tb.run_ping_test()
+        ok &= await tb.run_dma_test(
+            num_channels=num_ch,
+            descriptors_per_channel=desc_per_ch,
+            transfer_bytes=xfer_bytes,
+        )
 
     else:
         raise ValueError(f"Unknown TEST_TYPE: {test_type}")
@@ -100,17 +113,24 @@ def generate_stream_char_params():
     """
     Generate (test_type,) tuples.
 
-    gate: ping only                                    (1 test)
-    func: ping + desc_load + csr_read + apb_config     (4 tests)
-    full: same as func (expandable later with DMA ops)  (4 tests)
+    gate: ping only                                        (1 test)
+    func: ping + desc_load + csr_read + apb_config +
+          dma_1ch + dma_2ch                                (6 tests)
+    full: func tests + dma_3ch..dma_8ch                    (12 tests)
+
+    DMA tests: 2 descriptors/channel, 8 KB each = 16 KB moved per channel.
     """
-    all_types = ['ping', 'desc_load', 'csr_read', 'apb_config']
+    infra_types = ['ping', 'desc_load', 'csr_read', 'apb_config']
+    dma_func = [f'dma_{n}ch' for n in [1, 2]]
+    dma_full = [f'dma_{n}ch' for n in range(3, 9)]
 
     reg_level = os.environ.get('REG_LEVEL', 'FUNC').upper()
     if reg_level == 'GATE':
         types = ['ping']
+    elif reg_level == 'FULL':
+        types = infra_types + dma_func + dma_full
     else:
-        types = all_types
+        types = infra_types + dma_func
 
     return [(t,) for t in types]
 
@@ -172,6 +192,9 @@ def test_stream_char(request, test_type, test_level):
         'COCOTB_LOG_LEVEL': 'INFO',
         'COCOTB_RESULTS_FILE': results_path,
         'SEED':             str(random.randint(0, 100000)),
+        # DMA test parameters: 2 descriptors/ch x 8KB = 16KB moved per channel
+        'DMA_DESC_PER_CH':  '2',
+        'DMA_XFER_BYTES':   '8192',
     }
 
     simulator = os.environ.get('SIM', 'verilator').lower()

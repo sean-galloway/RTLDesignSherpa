@@ -30,6 +30,11 @@ repo_root = get_repo_root()
 sys.path.insert(0, repo_root)
 from CocoTBFramework.components.uart import UARTMaster, UARTMonitor
 
+# Add host/ to path for descriptor_builder
+sys.path.insert(0, os.path.join(
+    repo_root, 'projects', 'NexysA7', 'stream_characterization', 'host'))
+from descriptor_builder import DescriptorBuilder, CharConfig
+
 
 # =========================================================================
 # Memory map constants (must match stream_char_harness parameters)
@@ -53,6 +58,12 @@ CSR_SCRATCH        = HARNESS_CSR_BASE + 0x20
 CSR_BUILD_ID       = HARNESS_CSR_BASE + 0x24
 
 EXPECTED_BUILD_ID  = 0x5354_5243  # "STRC"
+
+# STREAM APB registers (must match PeakRDL-generated register map)
+APB_GLOBAL_CTRL     = STREAM_APB_BASE + 0x100  # [0] GLOBAL_EN, [1] GLOBAL_RST
+APB_CHANNEL_ENABLE  = STREAM_APB_BASE + 0x104  # [7:0] per-channel enable
+APB_CH_KICK_BASE    = STREAM_APB_BASE + 0x000  # Channel 0 kick-off register
+APB_CH_KICK_STRIDE  = 0x08                     # Stride between channel kick-off regs
 
 
 class StreamCharTB(TBBase):
@@ -368,6 +379,100 @@ class StreamCharTB(TBBase):
             f"APB write/readback: wrote 0x01, read 0x{rb:08X} "
             f"{'PASS' if wrote_ok else 'FAIL'}")
         return wrote_ok
+
+    # =====================================================================
+    # DMA test using descriptor_builder
+    # =====================================================================
+
+    async def run_dma_test(self, num_channels: int,
+                           descriptors_per_channel: int,
+                           transfer_bytes: int,
+                           timeout_clocks: int = 500_000) -> bool:
+        """
+        Full DMA test: load descriptors, configure STREAM, kick channels,
+        poll completion, verify CRC.
+
+        Uses the same DescriptorBuilder that the FPGA host script uses,
+        so descriptor layout is identical between sim and hardware.
+        """
+        self.log.info(
+            f"=== DMA test: {num_channels}ch x {descriptors_per_channel}desc "
+            f"x {transfer_bytes}B ===")
+
+        builder = DescriptorBuilder(data_width=128)
+        config = CharConfig(
+            name=f"sim_{descriptors_per_channel}desc_{num_channels}ch",
+            num_channels=num_channels,
+            descriptors_per_channel=descriptors_per_channel,
+            transfer_bytes=transfer_bytes,
+        )
+        test_data = builder.build_test(config)
+
+        # 1. Reset STREAM and clear CRC/stats
+        await self.uart_write(APB_GLOBAL_CTRL, 0x02)   # GLOBAL_RST
+        await self.wait_clocks(self.clk_name, 100)
+        await self.uart_write(APB_GLOBAL_CTRL, 0x00)   # clear reset
+        await self.wait_clocks(self.clk_name, 100)
+        await self.clear_stats()
+        await self.wait_clocks(self.clk_name, 50)
+
+        # 2. Load all descriptors via UART
+        self.log.info(
+            f"  Loading {test_data['total_descriptors']} descriptors "
+            f"({len(test_data['descriptor_writes'])} UART writes)...")
+        for addr, data in test_data['descriptor_writes']:
+            ok = await self.uart_write(addr, data)
+            if not ok:
+                self.log.error(f"  Descriptor write failed at 0x{addr:08X}")
+                return False
+
+        # 3. Enable STREAM
+        ch_mask = (1 << num_channels) - 1
+        await self.uart_write(APB_GLOBAL_CTRL, 0x01)       # GLOBAL_EN
+        await self.uart_write(APB_CHANNEL_ENABLE, ch_mask)  # channel mask
+        self.log.info(f"  STREAM enabled: ch_mask=0x{ch_mask:02X}")
+
+        # 4. Kick all channels
+        for ch, kick_addr in sorted(test_data['kick_addresses'].items()):
+            kick_reg = APB_CH_KICK_BASE + ch * APB_CH_KICK_STRIDE
+            await self.uart_write(kick_reg, kick_addr)
+            self.log.info(f"  Kicked ch{ch} → desc@0x{kick_addr:08X}")
+
+        # 5. Poll for completion (stream_irq or error in status register)
+        self.log.info(f"  Waiting for completion (up to {timeout_clocks} clocks)...")
+        completed = False
+        for _ in range(timeout_clocks // 100):
+            await self.wait_clocks(self.clk_name, 100)
+            status = await self.read_status()
+            if status.get('stream_irq') or status.get('any_error'):
+                completed = True
+                break
+
+        if not completed:
+            self.log.error("  DMA timeout — no IRQ or error detected")
+            status = await self.read_status()
+            self.log.error(f"  Final status: {status}")
+            return False
+
+        if status.get('any_error'):
+            self.log.error(f"  DMA error flagged: {status}")
+            return False
+
+        self.log.info("  DMA completed (IRQ received)")
+
+        # 6. CRC verification
+        crc = await self.read_crc_status()
+        self.log.info(
+            f"  CRC: rd_exp=0x{crc.get('rd_expected', 0):08X} "
+            f"wr_comp=0x{crc.get('wr_computed', 0):08X} "
+            f"match={crc.get('match')} valid={crc.get('valid')}")
+
+        if crc.get('match') and crc.get('valid'):
+            self.log.info(f"  DMA test PASSED")
+            return True
+        else:
+            self.log.error(f"  CRC mismatch — DMA test FAILED")
+            return False
 
     def get_report(self) -> dict:
         return {
