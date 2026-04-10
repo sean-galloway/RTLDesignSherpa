@@ -111,26 +111,29 @@ BASE_RTL_PARAMS = {
 
 def generate_stream_char_params():
     """
-    Generate (test_type,) tuples.
+    Generate (test_type,) tuples.  Each level is CUMULATIVE:
 
-    gate: ping only                                        (1 test)
-    func: ping + desc_load + csr_read + apb_config +
-          dma_1ch + dma_2ch                                (6 tests)
-    full: func tests + dma_3ch..dma_8ch                    (12 tests)
+    gate: ping                                               (1 test)
+    func: gate + desc_load + csr_read + apb_config +
+          dma_1ch + dma_2ch                                  (6 tests)
+    full: func + dma_3ch + dma_4ch + ... + dma_8ch           (12 tests)
 
     DMA tests: 2 descriptors/channel, 8 KB each = 16 KB moved per channel.
     """
-    infra_types = ['ping', 'desc_load', 'csr_read', 'apb_config']
-    dma_func = [f'dma_{n}ch' for n in [1, 2]]
-    dma_full = [f'dma_{n}ch' for n in range(3, 9)]
+    gate_types = ['ping']
+    func_types = ['desc_load', 'csr_read', 'apb_config',
+                  'dma_1ch', 'dma_2ch']
+    full_types = [f'dma_{n}ch' for n in range(3, 9)]
 
-    reg_level = os.environ.get('REG_LEVEL', 'FUNC').upper()
-    if reg_level == 'GATE':
-        types = ['ping']
-    elif reg_level == 'FULL':
-        types = infra_types + dma_func + dma_full
-    else:
-        types = infra_types + dma_func
+    # Accept both TEST_LEVEL (Makefile convention) and REG_LEVEL (legacy)
+    level = os.environ.get('TEST_LEVEL',
+                os.environ.get('REG_LEVEL', 'FUNC')).upper()
+
+    types = list(gate_types)                  # gate always included
+    if level in ('FUNC', 'FULL'):
+        types += func_types
+    if level == 'FULL':
+        types += full_types
 
     return [(t,) for t in types]
 
