@@ -47,7 +47,8 @@ repo_root = script_dir.parent.parent.parent.parent
 sys.path.insert(0, str(repo_root / 'projects' / 'components' / 'converters' / 'bin'))
 
 from descriptor_builder import (
-    DescriptorBuilder, CharConfig, build_char_matrix, _size_label,
+    DescriptorBuilder, CharConfig, build_char_matrix, load_configs_from_csv,
+    _size_label, _parse_size,
     HARNESS_CSR_BASE, STREAM_APB_BASE, DESC_RAM_BASE,
     CTRL_VALID, CTRL_LAST, CTRL_INTERRUPT,
 )
@@ -345,7 +346,10 @@ def parse_args():
         epilog="""\
 Examples:
   %(prog)s                                    # full 40-config matrix
+  %(prog)s --csv char_tests.csv               # run from CSV (comment lines to skip)
+  %(prog)s --csv char_tests.csv --dry-run     # preview CSV without running
   %(prog)s --phase 1                          # phase 1 only (8 configs)
+  %(prog)s --size 64KB --channels 1 8         # custom size, specific channels
   %(prog)s --configs 1desc_1ch 4desc_8ch      # specific configs by name
   %(prog)s --dry-run                          # print plan, don't run
   %(prog)s --port /dev/ttyUSB0 -v             # different port, verbose
@@ -363,6 +367,8 @@ Examples:
                         help='Limit to specific channel counts (e.g., 1 4 8)')
     parser.add_argument('--size', type=str, default='1MB',
                         help='Transfer size per descriptor (e.g., 4KB, 1MB, 4MB; default 1MB)')
+    parser.add_argument('--csv', type=str, default=None,
+                        help='Load test configs from CSV file (overrides --phase/--size/--configs)')
     parser.add_argument('--dry-run', action='store_true',
                         help='Print test plan without running')
     parser.add_argument('--output', '-o', type=str,
@@ -372,40 +378,28 @@ Examples:
     return parser.parse_args()
 
 
-def _parse_size(s: str) -> int:
-    """Parse a human-readable size string to bytes (e.g., '4KB' -> 4096)."""
-    s = s.strip().upper()
-    if s.endswith('MB'):
-        return int(s[:-2]) * 1024 * 1024
-    elif s.endswith('KB'):
-        return int(s[:-2]) * 1024
-    elif s.endswith('B'):
-        return int(s[:-1])
-    else:
-        return int(s)
-
-
 def main():
     args = parse_args()
 
-    # Parse transfer size
-    transfer_bytes = _parse_size(args.size)
+    # Build config list — CSV takes priority over programmatic matrix
+    if args.csv:
+        configs = load_configs_from_csv(args.csv)
+    else:
+        transfer_bytes = _parse_size(args.size)
+        all_configs = build_char_matrix(transfer_bytes=transfer_bytes)
 
-    # Build matrix
-    all_configs = build_char_matrix(transfer_bytes=transfer_bytes)
+        # Filter
+        configs = all_configs
+        if args.phase == 1:
+            configs = [c for c in configs if c.descriptors_per_channel == 1]
+        elif args.phase == 2:
+            configs = [c for c in configs if c.descriptors_per_channel > 1]
 
-    # Filter
-    configs = all_configs
-    if args.phase == 1:
-        configs = [c for c in configs if c.descriptors_per_channel == 1]
-    elif args.phase == 2:
-        configs = [c for c in configs if c.descriptors_per_channel > 1]
+        if args.configs:
+            configs = [c for c in configs if c.name in args.configs]
 
-    if args.configs:
-        configs = [c for c in configs if c.name in args.configs]
-
-    if args.channels:
-        configs = [c for c in configs if c.num_channels in args.channels]
+        if args.channels:
+            configs = [c for c in configs if c.num_channels in args.channels]
 
     if not configs:
         print("No configurations match the filter. Use --dry-run to see available.")

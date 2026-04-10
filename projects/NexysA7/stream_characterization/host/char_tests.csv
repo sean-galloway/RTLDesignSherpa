@@ -1,0 +1,58 @@
+# Stream Characterization Test Configurations
+# =============================================
+# Comment out lines with '#' to skip tests.
+# Uncomment to include in the run.
+#
+# Columns: name, num_channels, descriptors_per_channel, transfer_bytes
+#
+# transfer_bytes supports suffixes: KB, MB (e.g., 8KB, 1MB, 4MB)
+#
+# Phase 1: Single descriptor per channel, 1 MB each
+1desc_1ch,  1, 1, 1MB
+1desc_2ch,  2, 1, 1MB
+1desc_3ch,  3, 1, 1MB
+1desc_4ch,  4, 1, 1MB
+1desc_5ch,  5, 1, 1MB
+1desc_6ch,  6, 1, 1MB
+1desc_7ch,  7, 1, 1MB
+1desc_8ch,  8, 1, 1MB
+#
+# Phase 2: 2 descriptors per channel, 1 MB each
+2desc_1ch,  1, 2, 1MB
+2desc_2ch,  2, 2, 1MB
+2desc_3ch,  3, 2, 1MB
+2desc_4ch,  4, 2, 1MB
+2desc_5ch,  5, 2, 1MB
+2desc_6ch,  6, 2, 1MB
+2desc_7ch,  7, 2, 1MB
+2desc_8ch,  8, 2, 1MB
+#
+# Phase 2: 4 descriptors per channel, 1 MB each
+4desc_1ch,  1, 4, 1MB
+4desc_2ch,  2, 4, 1MB
+4desc_3ch,  3, 4, 1MB
+4desc_4ch,  4, 4, 1MB
+4desc_5ch,  5, 4, 1MB
+4desc_6ch,  6, 4, 1MB
+4desc_7ch,  7, 4, 1MB
+4desc_8ch,  8, 4, 1MB
+#
+# Phase 2: 8 descriptors per channel, 1 MB each
+8desc_1ch,  1, 8, 1MB
+8desc_2ch,  2, 8, 1MB
+8desc_3ch,  3, 8, 1MB
+8desc_4ch,  4, 8, 1MB
+8desc_5ch,  5, 8, 1MB
+8desc_6ch,  6, 8, 1MB
+8desc_7ch,  7, 8, 1MB
+8desc_8ch,  8, 8, 1MB
+#
+# Phase 2: 16 descriptors per channel, 1 MB each
+16desc_1ch, 1, 16, 1MB
+16desc_2ch, 2, 16, 1MB
+16desc_3ch, 3, 16, 1MB
+16desc_4ch, 4, 16, 1MB
+16desc_5ch, 5, 16, 1MB
+16desc_6ch, 6, 16, 1MB
+16desc_7ch, 7, 16, 1MB
+16desc_8ch, 8, 16, 1MB

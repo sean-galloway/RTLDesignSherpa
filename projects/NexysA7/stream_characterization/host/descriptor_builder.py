@@ -282,6 +282,58 @@ def _size_label(nbytes: int) -> str:
         return f"{nbytes}B"
 
 
+def _parse_size(s: str) -> int:
+    """Parse a human-readable size string to bytes (e.g., '4KB' -> 4096)."""
+    s = s.strip().upper()
+    if s.endswith('MB'):
+        return int(s[:-2]) * 1024 * 1024
+    elif s.endswith('KB'):
+        return int(s[:-2]) * 1024
+    elif s.endswith('B'):
+        return int(s[:-1])
+    else:
+        return int(s)
+
+
+def load_configs_from_csv(csv_path: str) -> List[CharConfig]:
+    """
+    Load test configurations from a CSV file.
+
+    Lines starting with '#' are skipped (comments). This makes it easy
+    to comment out tests during bring-up and uncomment them later.
+
+    Format: name, num_channels, descriptors_per_channel, transfer_bytes
+    transfer_bytes supports suffixes: KB, MB (e.g., 8KB, 1MB, 4MB)
+
+    Args:
+        csv_path: Path to the CSV file.
+
+    Returns:
+        List of CharConfig objects for non-commented lines.
+    """
+    configs = []
+    with open(csv_path, 'r') as f:
+        for lineno, raw in enumerate(f, 1):
+            line = raw.strip()
+            if not line or line.startswith('#'):
+                continue
+            parts = [p.strip() for p in line.split(',')]
+            if len(parts) != 4:
+                raise ValueError(
+                    f"{csv_path}:{lineno}: expected 4 columns, got {len(parts)}: {line!r}")
+            name = parts[0]
+            num_ch = int(parts[1])
+            desc_per_ch = int(parts[2])
+            xfer_bytes = _parse_size(parts[3])
+            configs.append(CharConfig(
+                name=name,
+                num_channels=num_ch,
+                descriptors_per_channel=desc_per_ch,
+                transfer_bytes=xfer_bytes,
+            ))
+    return configs
+
+
 # =====================================================================
 # Quick self-test / preview
 # =====================================================================
