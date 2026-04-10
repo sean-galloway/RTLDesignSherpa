@@ -141,7 +141,13 @@ class CharacterizationRunner:
         return True
 
     def configure_stream(self, num_channels: int):
-        """Enable STREAM global + per-channel enables."""
+        """Configure address ranges and enable STREAM."""
+        # Descriptor address range 0: covers full desc_ram AXI4 space
+        APB_DESCENG_ADDR0_BASE  = STREAM_APB_BASE + 0x224
+        APB_DESCENG_ADDR0_LIMIT = STREAM_APB_BASE + 0x228
+        self.bridge.write(APB_DESCENG_ADDR0_BASE,  0x0000_0000)
+        self.bridge.write(APB_DESCENG_ADDR0_LIMIT, 0x0000_FFFF)
+
         # Global enable
         self.bridge.write(APB_GLOBAL_CTRL, 0x01)
         # Channel enable mask

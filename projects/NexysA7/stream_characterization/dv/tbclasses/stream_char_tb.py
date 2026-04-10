@@ -426,7 +426,14 @@ class StreamCharTB(TBBase):
                 self.log.error(f"  Descriptor write failed at 0x{addr:08X}")
                 return False
 
-        # 3. Enable STREAM
+        # 3. Configure descriptor address ranges (required for chaining)
+        # Range 0 covers all of desc_ram's AXI4 address space (0x00-0xFFFF)
+        APB_DESCENG_ADDR0_BASE  = STREAM_APB_BASE + 0x224
+        APB_DESCENG_ADDR0_LIMIT = STREAM_APB_BASE + 0x228
+        await self.uart_write(APB_DESCENG_ADDR0_BASE,  0x0000_0000)
+        await self.uart_write(APB_DESCENG_ADDR0_LIMIT, 0x0000_FFFF)
+
+        # 4. Enable STREAM
         ch_mask = (1 << num_channels) - 1
         await self.uart_write(APB_GLOBAL_CTRL, 0x01)       # GLOBAL_EN
         await self.uart_write(APB_CHANNEL_ENABLE, ch_mask)  # channel mask

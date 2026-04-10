@@ -66,6 +66,11 @@ CTRL_INTERRUPT = 1 << 2
 # Max descriptors per channel (layout constant — not an RTL limit)
 MAX_DESC_PER_CH = 32
 
+# Descriptor index offset: STREAM's descriptor_engine rejects AXI4
+# address 0 as invalid (apb_addr != 0 check). Start at index 1 so the
+# first descriptor lives at AXI4 address 0x20 (32 bytes), not 0x00.
+DESC_INDEX_OFFSET = 1
+
 
 @dataclass
 class DescriptorConfig:
@@ -107,8 +112,10 @@ class DescriptorBuilder:
         self.dst_base = dst_base
 
     def _desc_index(self, channel: int, desc_idx: int) -> int:
-        """Flat index in desc_ram for (channel, descriptor)."""
-        return channel * MAX_DESC_PER_CH + desc_idx
+        """Flat index in desc_ram for (channel, descriptor).
+        Offset by DESC_INDEX_OFFSET so no descriptor lands at AXI4 address 0
+        (STREAM's descriptor_engine treats address 0 as invalid)."""
+        return DESC_INDEX_OFFSET + channel * MAX_DESC_PER_CH + desc_idx
 
     def _axi4_addr(self, index: int) -> int:
         """AXI4-side byte address for a descriptor index."""
