@@ -1,0 +1,21 @@
+# Stream Characterization - Simulation Suite
+# =============================================
+# Sized for fast CocoTB/Verilator simulation.
+# 2 descriptors/channel x 8 KB each = 16 KB moved per channel.
+#
+# Comment out lines with '#' to skip tests during bring-up.
+# Uncomment as each level passes.
+#
+# Columns: name, num_channels, descriptors_per_channel, transfer_bytes
+#
+# --- Single channel (start here) ---
+sim_2desc_1ch,  1, 2, 8KB
+#
+# --- Scale up channels ---
+sim_2desc_2ch,  2, 2, 8KB
+sim_2desc_3ch,  3, 2, 8KB
+sim_2desc_4ch,  4, 2, 8KB
+sim_2desc_5ch,  5, 2, 8KB
+sim_2desc_6ch,  6, 2, 8KB
+sim_2desc_7ch,  7, 2, 8KB
+sim_2desc_8ch,  8, 2, 8KB
