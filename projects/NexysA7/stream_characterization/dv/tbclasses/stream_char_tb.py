@@ -1,0 +1,378 @@
+"""
+Stream Characterization Harness Testbench
+
+Drives the stream_char_harness module through its UART interface using
+the CocoTBFramework UARTMaster and UARTMonitor BFMs.  All host-visible
+operations (register access, descriptor loading, CRC readback, trace dump)
+are exercised through the same UART command protocol the real FPGA uses.
+
+For simulation speed, UART_BAUD is overridden to ~12.5 MHz
+(CLKS_PER_BIT=8) so each byte takes ~80 ns instead of ~87 us.
+
+Architecture:
+    UARTMaster  --> i_uart_rx  --> uart_axil_bridge
+    UARTMonitor <-- o_uart_tx  <-- uart_axil_bridge
+    (inside the harness: AXIL decode -> CSR / desc_ram / STREAM / debug_sram)
+
+Author: RTL Design Sherpa
+Created: 2026-04-10
+"""
+
+import os
+import sys
+import cocotb
+from cocotb.triggers import RisingEdge, Timer
+
+from TBClasses.shared.utilities import get_repo_root
+from TBClasses.shared.tbbase import TBBase
+
+repo_root = get_repo_root()
+sys.path.insert(0, repo_root)
+from CocoTBFramework.components.uart import UARTMaster, UARTMonitor
+
+
+# =========================================================================
+# Memory map constants (must match stream_char_harness parameters)
+# =========================================================================
+STREAM_APB_BASE    = 0x0000_0000
+HARNESS_CSR_BASE   = 0x0001_0000
+DESC_RAM_BASE      = 0x0002_0000
+STREAM_ERR_BASE    = 0x0003_0000
+DEBUG_SRAM_BASE    = 0x0004_0000
+
+# Harness CSR offsets
+CSR_CTRL           = HARNESS_CSR_BASE + 0x00
+CSR_STATUS         = HARNESS_CSR_BASE + 0x04
+CSR_DBG_WR_PTR    = HARNESS_CSR_BASE + 0x08
+CSR_DBG_OVERFLOW   = HARNESS_CSR_BASE + 0x0C
+CSR_CRC_RD_EXPECTED = HARNESS_CSR_BASE + 0x10
+CSR_CRC_WR_EXPECTED = HARNESS_CSR_BASE + 0x14
+CSR_CRC_WR_COMPUTED = HARNESS_CSR_BASE + 0x18
+CSR_CRC_MATCH      = HARNESS_CSR_BASE + 0x1C
+CSR_SCRATCH        = HARNESS_CSR_BASE + 0x20
+CSR_BUILD_ID       = HARNESS_CSR_BASE + 0x24
+
+EXPECTED_BUILD_ID  = 0x5354_5243  # "STRC"
+
+
+class StreamCharTB(TBBase):
+    """
+    Testbench for stream_char_harness.
+
+    Drives the full characterization harness through UART. Uses fast baud
+    rate for simulation (CLKS_PER_BIT from RTL parameter, typically 8 for sim).
+    """
+
+    def __init__(self, dut):
+        super().__init__(dut)
+
+        self.clk = dut.aclk
+        self.clk_name = 'aclk'
+        self.rst_n = dut.aresetn
+
+        self.TEST_LEVEL = os.environ.get('TEST_LEVEL', 'gate').lower()
+        self.SEED = self.convert_to_int(os.environ.get('SEED', '12345'))
+
+        # CLKS_PER_BIT must match the RTL parameterisation
+        fpga_clk_hz = self.convert_to_int(os.environ.get('FPGA_CLK_HZ', '100000000'))
+        uart_baud = self.convert_to_int(os.environ.get('UART_BAUD', '12500000'))
+        self.clks_per_bit = fpga_clk_hz // uart_baud
+
+        # UART BFMs
+        self.uart_master = UARTMaster(
+            entity=dut,
+            title="HOST_TX",
+            signal_name="i_uart_rx",
+            clock=self.clk,
+            clks_per_bit=self.clks_per_bit,
+            log=self.log,
+        )
+        self.uart_monitor = UARTMonitor(
+            entity=dut,
+            title="HOST_RX",
+            signal_name="o_uart_tx",
+            clock=self.clk,
+            clks_per_bit=self.clks_per_bit,
+            direction='RX',
+            log=self.log,
+        )
+
+        # Statistics
+        self.writes_ok = 0
+        self.reads_ok = 0
+        self.errors = 0
+
+        self.log.info(
+            f"StreamCharTB: TEST_LEVEL={self.TEST_LEVEL} "
+            f"CLKS_PER_BIT={self.clks_per_bit}")
+
+    # =====================================================================
+    # Mandatory methods
+    # =====================================================================
+
+    async def setup_clocks_and_reset(self):
+        await self.start_clock(self.clk_name, freq=10, units='ns')
+        # Drive UART idle (high) before reset
+        self.dut.i_uart_rx.value = 1
+        await self.assert_reset()
+        await self.wait_clocks(self.clk_name, 20)
+        await self.deassert_reset()
+        await self.wait_clocks(self.clk_name, 20)
+
+    async def assert_reset(self):
+        self.rst_n.value = 0
+
+    async def deassert_reset(self):
+        self.rst_n.value = 1
+
+    # =====================================================================
+    # Low-level UART command helpers
+    # =====================================================================
+
+    def _uart_byte_clocks(self, num_bytes: int) -> int:
+        """Clock cycles for num_bytes over UART (10 bits/byte)."""
+        return num_bytes * 10 * self.clks_per_bit
+
+    async def uart_write(self, addr: int, data: int) -> bool:
+        """Send 'W addr data\\n', wait for 'OK\\n'. Return True on success."""
+        cmd = f"W {addr:08X} {data:08X}\n"
+        self.uart_monitor._recvQ.clear()
+        await self.uart_master.send_string(cmd)
+
+        # Wait for command TX + bridge latency + response TX
+        wait = self._uart_byte_clocks(len(cmd) + 4) + 500
+        await self.wait_clocks(self.clk_name, wait)
+
+        resp = self._drain_response()
+        if resp == "OK\n":
+            self.writes_ok += 1
+            return True
+        self.log.error(f"uart_write(0x{addr:08X}, 0x{data:08X}): "
+                       f"expected 'OK\\n', got {resp!r}")
+        self.errors += 1
+        return False
+
+    async def uart_read(self, addr: int) -> int | None:
+        """Send 'R addr\\n', return 32-bit value or None."""
+        cmd = f"R {addr:08X}\n"
+        self.uart_monitor._recvQ.clear()
+        await self.uart_master.send_string(cmd)
+
+        # Response is "0xHHHHHHHH\n" = 11 chars
+        wait = self._uart_byte_clocks(len(cmd) + 12) + 500
+        await self.wait_clocks(self.clk_name, wait)
+
+        resp = self._drain_response()
+        if resp and resp.startswith("0x") and resp.endswith("\n"):
+            try:
+                val = int(resp[2:].strip(), 16)
+                self.reads_ok += 1
+                return val
+            except ValueError:
+                pass
+        self.log.error(f"uart_read(0x{addr:08X}): bad response {resp!r}")
+        self.errors += 1
+        return None
+
+    def _drain_response(self) -> str:
+        """Collect all bytes currently in the UART monitor queue."""
+        chars = []
+        while self.uart_monitor._recvQ:
+            pkt = self.uart_monitor._recvQ.popleft()
+            chars.append(chr(pkt.data))
+        return ''.join(chars)
+
+    # =====================================================================
+    # High-level harness operations
+    # =====================================================================
+
+    async def ping_scratch(self, value: int = 0xDEAD_BEEF) -> bool:
+        """Write scratch register and read it back."""
+        ok = await self.uart_write(CSR_SCRATCH, value)
+        if not ok:
+            return False
+        rb = await self.uart_read(CSR_SCRATCH)
+        if rb != value:
+            self.log.error(
+                f"Scratch mismatch: wrote 0x{value:08X}, read 0x{rb:08X}"
+                if rb is not None else "Scratch read failed")
+            return False
+        self.log.info(f"Scratch ping OK: 0x{value:08X}")
+        return True
+
+    async def check_build_id(self) -> bool:
+        """Read BUILD_ID and verify."""
+        val = await self.uart_read(CSR_BUILD_ID)
+        ok = val == EXPECTED_BUILD_ID
+        if ok:
+            self.log.info(f"Build ID OK: 0x{val:08X}")
+        else:
+            self.log.error(
+                f"Build ID mismatch: expected 0x{EXPECTED_BUILD_ID:08X}, "
+                f"got 0x{val:08X}" if val is not None else "read failed")
+        return ok
+
+    async def load_descriptor(self, desc_index: int,
+                              src_addr: int, dst_addr: int,
+                              length: int, next_ptr: int = 0,
+                              control: int = 0x01) -> bool:
+        """
+        Write one 256-bit STREAM descriptor to desc_ram.
+
+        Descriptor layout (256 bits = 8 x 32-bit words):
+          Word 0: src_addr[31:0]
+          Word 1: src_addr[63:32]
+          Word 2: dst_addr[31:0]
+          Word 3: dst_addr[63:32]
+          Word 4: length[31:0]
+          Word 5: next_descriptor_ptr[31:0]
+          Word 6: control (valid, last, interrupt, priority, channel_id)
+          Word 7: reserved
+        """
+        base = DESC_RAM_BASE + desc_index * 32  # 32 bytes per descriptor
+        words = [
+            src_addr & 0xFFFF_FFFF,
+            (src_addr >> 32) & 0xFFFF_FFFF,
+            dst_addr & 0xFFFF_FFFF,
+            (dst_addr >> 32) & 0xFFFF_FFFF,
+            length & 0xFFFF_FFFF,
+            next_ptr & 0xFFFF_FFFF,
+            control & 0xFFFF_FFFF,
+            0x0000_0000,  # reserved
+        ]
+        all_ok = True
+        for i, w in enumerate(words):
+            ok = await self.uart_write(base + i * 4, w)
+            if not ok:
+                all_ok = False
+        self.log.info(
+            f"Descriptor[{desc_index}]: src=0x{src_addr:08X} dst=0x{dst_addr:08X} "
+            f"len={length} next=0x{next_ptr:08X} ctrl=0x{control:02X} "
+            f"{'OK' if all_ok else 'FAILED'}")
+        return all_ok
+
+    async def read_crc_status(self) -> dict:
+        """Read CRC registers and return a status dict."""
+        rd_exp = await self.uart_read(CSR_CRC_RD_EXPECTED)
+        wr_exp = await self.uart_read(CSR_CRC_WR_EXPECTED)
+        wr_got = await self.uart_read(CSR_CRC_WR_COMPUTED)
+        match  = await self.uart_read(CSR_CRC_MATCH)
+        return {
+            'rd_expected': rd_exp,
+            'wr_expected': wr_exp,
+            'wr_computed': wr_got,
+            'match_reg':   match,
+            'match':       (match is not None) and (match & 0x1 == 1),
+            'valid':       (match is not None) and (match & 0x2 == 2),
+        }
+
+    async def read_status(self) -> dict:
+        """Read harness status register."""
+        val = await self.uart_read(CSR_STATUS)
+        if val is None:
+            return {}
+        return {
+            'stream_irq':     bool(val & 0x01),
+            'any_error':      bool(val & 0x02),
+            'trace_overflow': bool(val & 0x04),
+            'raw': val,
+        }
+
+    async def clear_stats(self):
+        """Pulse clear_stats bit in CTRL."""
+        await self.uart_write(CSR_CTRL, 0x02)
+
+    # =====================================================================
+    # Test scenarios
+    # =====================================================================
+
+    async def run_ping_test(self) -> bool:
+        """Gate-level: verify UART → decode → CSR round-trip."""
+        self.log.info("=== Ping test ===")
+        ok = True
+        ok &= await self.ping_scratch(0xDEAD_BEEF)
+        ok &= await self.ping_scratch(0x1234_5678)
+        ok &= await self.ping_scratch(0x0000_0000)
+        ok &= await self.ping_scratch(0xFFFF_FFFF)
+        ok &= await self.check_build_id()
+        self.log.info(f"Ping test: {'PASS' if ok else 'FAIL'}")
+        return ok
+
+    async def run_descriptor_load_test(self) -> bool:
+        """Func-level: load descriptors into desc_ram via UART."""
+        self.log.info("=== Descriptor load test ===")
+        ok = True
+        ok &= await self.load_descriptor(
+            desc_index=0,
+            src_addr=0x8000_0000,
+            dst_addr=0x9000_0000,
+            length=64,
+            next_ptr=0,
+            control=0x07,  # valid + last + interrupt
+        )
+        if self.TEST_LEVEL != 'gate':
+            ok &= await self.load_descriptor(
+                desc_index=1,
+                src_addr=0x8000_1000,
+                dst_addr=0x9000_1000,
+                length=128,
+                next_ptr=0,
+                control=0x07,
+            )
+        self.log.info(f"Descriptor load: {'PASS' if ok else 'FAIL'}")
+        return ok
+
+    async def run_csr_readback_test(self) -> bool:
+        """Func-level: read status and CRC registers."""
+        self.log.info("=== CSR readback test ===")
+        ok = True
+
+        status = await self.read_status()
+        if not status:
+            self.log.error("Failed to read status register")
+            ok = False
+        else:
+            self.log.info(f"Status: {status}")
+
+        wr_ptr = await self.uart_read(CSR_DBG_WR_PTR)
+        if wr_ptr is None:
+            ok = False
+        else:
+            self.log.info(f"Debug wr_ptr: {wr_ptr}")
+
+        crc = await self.read_crc_status()
+        self.log.info(f"CRC status: {crc}")
+
+        self.log.info(f"CSR readback: {'PASS' if ok else 'FAIL'}")
+        return ok
+
+    async def run_apb_config_test(self) -> bool:
+        """Func-level: read STREAM APB register space (verify axil2apb path)."""
+        self.log.info("=== APB config path test ===")
+        # Read STREAM's GLOBAL_CTRL register (offset 0x100 in APB space)
+        # After reset, GLOBAL_EN should be 0
+        val = await self.uart_read(STREAM_APB_BASE + 0x100)
+        if val is None:
+            self.log.error("Failed to read STREAM APB GLOBAL_CTRL")
+            return False
+        self.log.info(f"STREAM GLOBAL_CTRL = 0x{val:08X}")
+        # Write and readback
+        ok = await self.uart_write(STREAM_APB_BASE + 0x100, 0x01)  # GLOBAL_EN=1
+        if not ok:
+            return False
+        rb = await self.uart_read(STREAM_APB_BASE + 0x100)
+        if rb is None:
+            return False
+        wrote_ok = (rb & 0x01) == 0x01
+        self.log.info(
+            f"APB write/readback: wrote 0x01, read 0x{rb:08X} "
+            f"{'PASS' if wrote_ok else 'FAIL'}")
+        return wrote_ok
+
+    def get_report(self) -> dict:
+        return {
+            'writes_ok': self.writes_ok,
+            'reads_ok': self.reads_ok,
+            'errors': self.errors,
+            'test_level': self.TEST_LEVEL,
+        }
