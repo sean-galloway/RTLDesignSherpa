@@ -230,10 +230,13 @@ always_comb begin
         ow_underflow = w_underflow & ~w_sum_is_zero;
     end else if (w_prod_zero) begin
         ow_result = i_c;  // 0 * b + c = c
-    end else if (w_c_eff_zero) begin
-        // a * b + 0 = a * b
-        ow_result = {w_prod_sign, w_prod_exp[3:0], w_prod_mant_norm[6:4]};
     end
+    // NOTE: The c_eff_zero shortcut branch has been removed. The default
+    // assignment at the top of this always_comb already uses the properly
+    // rounded and normalized sum-path result (w_exp_final, w_mant_final),
+    // which correctly handles the a*b case when c=0 via the main pipeline.
+    // The previous shortcut override used raw unrounded product bits and
+    // produced invalid phantom-subnormal encodings. Bug found by formal.
 end
 
 endmodule

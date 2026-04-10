@@ -1,0 +1,26 @@
+[tasks]
+prove
+cover
+
+[options]
+prove: mode bmc
+prove: depth 2
+cover: mode cover
+cover: depth 5
+
+[engines]
+prove: smtbmc z3
+cover: smtbmc z3
+
+[script]
+read -formal -sv math_fp8_e4m3_exponent_adder.sv
+read -formal -sv math_fp8_e4m3_mantissa_mult.sv
+read -formal -sv math_fp8_e4m3_multiplier.sv
+read -formal -sv formal_math_fp8_e4m3_multiplier.sv
+prep -top formal_math_fp8_e4m3_multiplier
+
+[files]
+math_fp8_e4m3_exponent_adder.sv ../../../rtl/common/math_fp8_e4m3_exponent_adder.sv
+math_fp8_e4m3_mantissa_mult.sv ../../../rtl/common/math_fp8_e4m3_mantissa_mult.sv
+math_fp8_e4m3_multiplier.sv ../../../rtl/common/math_fp8_e4m3_multiplier.sv
+formal_math_fp8_e4m3_multiplier.sv

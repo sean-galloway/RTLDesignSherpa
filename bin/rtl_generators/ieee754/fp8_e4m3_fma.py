@@ -303,10 +303,10 @@ class FP8E4M3FMA(Module):
         self.instruction("        ow_underflow = w_underflow & ~w_sum_is_zero;")
         self.instruction('    end else if (w_prod_zero) begin')
         self.instruction('        ow_result = i_c;  // 0 * b + c = c')
-        self.instruction('    end else if (w_c_eff_zero) begin')
-        self.instruction('        // a * b + 0 = a * b')
-        self.instruction("        ow_result = {w_prod_sign, w_prod_exp[3:0], w_prod_mant_norm[6:4]};")
         self.instruction('    end')
+        self.instruction('    // NOTE: c_eff_zero shortcut removed (bug found by formal).')
+        self.instruction('    // The default assignment already uses the properly rounded')
+        self.instruction('    // and normalized sum-path result for the a*b case when c=0.')
         self.instruction('end')
         self.instruction('')
 

@@ -1,0 +1,30 @@
+[tasks]
+prove
+cover
+
+[options]
+prove: mode bmc
+prove: depth 15
+cover: mode cover
+cover: depth 20
+
+[engines]
+prove: smtbmc z3
+cover: smtbmc z3
+
+[script]
+read_verilog -formal axi_monitor_filtered_flat.v
+read -formal -sv formal_axi_monitor_filtered.sv
+hierarchy -top formal_axi_monitor_filtered
+proc
+flatten
+opt_expr
+opt_clean
+memory_map
+async2sync
+opt -full
+setundef -undriven -init -expose
+
+[files]
+formal_axi_monitor_filtered.sv
+axi_monitor_filtered_flat.v

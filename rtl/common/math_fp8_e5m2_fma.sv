@@ -237,10 +237,11 @@ always_comb begin
         ow_underflow = w_underflow & ~w_sum_is_zero;
     end else if (w_prod_zero) begin
         ow_result = i_c;  // 0 * b + c = c
-    end else if (w_c_eff_zero) begin
-        // a * b + 0 = a * b
-        ow_result = {w_prod_sign, w_prod_exp[4:0], w_prod_mant_norm[4:3]};
     end
+    // Note: w_c_eff_zero (a*b + 0 = a*b) is handled by the default assignment
+    // which uses the normalized/rounded sum path result (w_exp_final, w_mant_final).
+    // A separate raw passthrough would bypass rounding and overflow/underflow
+    // checks, producing invalid encodings in edge cases.
 end
 
 endmodule
