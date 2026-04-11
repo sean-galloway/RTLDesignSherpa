@@ -200,15 +200,20 @@ def test_stream_char(request, test_type, test_level):
         'DMA_XFER_BYTES':   '8192',
     }
 
+    # Use Verilator by default
     simulator = os.environ.get('SIM', 'verilator').lower()
 
-    # Always enable VCD trace for stream_char (design is complex enough
-    # that waveforms are essential for debugging). The Verilator binary
-    # is compiled with --trace regardless; this tells cocotb to open the file.
-    extra_env['COCOTB_TRACE_FILE'] = os.path.join(sim_build, 'dump.vcd')
+    # WAVES support - conditionally set COCOTB_TRACE_FILE for VCD generation
+    if bool(int(os.environ.get('WAVES', '0'))):
+        extra_env['COCOTB_TRACE_FILE'] = os.path.join(sim_build, 'dump.vcd')
+
+    cmd_filename = create_view_cmd(
+        log_dir, log_path, sim_build, module, test_name_plus_params)
 
     compile_args = [
-        "--trace", "--trace-structs", "--trace-depth", "99",
+        "--trace",
+        "--trace-structs",
+        "--trace-depth", "99",
         "-Wno-TIMESCALEMOD",
         "-Wno-MULTIDRIVEN",    # PeakRDL stream_regs.sv
         "-Wno-WIDTHEXPAND",    # minor width warnings in STREAM hierarchy
@@ -216,9 +221,6 @@ def test_stream_char(request, test_type, test_level):
         "-Wno-SELRANGE",       # descriptor_engine pre-existing slice warning
         "-Wno-UNOPTFLAT",      # dataint_crc combinational cascade (structural CRC)
     ]
-
-    cmd_filename = create_view_cmd(
-        log_dir, log_path, sim_build, module, test_name_plus_params)
 
     try:
         run(
@@ -232,11 +234,17 @@ def test_stream_char(request, test_type, test_level):
             sim_build=sim_build,
             extra_env=extra_env,
             simulator=simulator,
-            waves=True,
+            waves=False,
             keep_files=True,
             compile_args=compile_args,
-            sim_args=["--trace", "--trace-structs", "--trace-depth", "99"],
-            plusargs=["--trace"],
+            sim_args=[
+                "--trace",
+                "--trace-structs",
+                "--trace-depth", "99",
+            ],
+            plusargs=[
+                "--trace",
+            ],
         )
         print(f"PASS {test_type}! Logs: {log_path}")
     except Exception as e:
