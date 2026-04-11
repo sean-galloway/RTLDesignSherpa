@@ -43,7 +43,6 @@ import cocotb
 from cocotb.clock import Clock
 from cocotb.triggers import RisingEdge, Timer, ClockCycles
 from cocotb_test.simulator import run
-from conftest import get_coverage_compile_args
 import pytest
 import math
 
@@ -476,6 +475,7 @@ def test_counter_load_clear_wavedrom(request, max_value):
     log_path = os.path.join(log_dir, f'{test_name_plus_params}.log')
 
     sim_build = os.path.join(tests_dir, 'local_sim_build', test_name_plus_params)
+    enable_waves = bool(int(os.environ.get(\'WAVES\', \'0\')))
     os.makedirs(sim_build, exist_ok=True)
     os.makedirs(log_dir, exist_ok=True)
 
@@ -496,9 +496,11 @@ def test_counter_load_clear_wavedrom(request, max_value):
         'ENABLE_WAVEDROM': '1'
     }
 
-    compile_args = []
-    sim_args = []
-    plusargs = []
+    extra_args = [
+        '--trace-fst',
+        '--trace-structs',
+        '-Wno-TIMESCALEMOD',
+    ]
 
     cmd_filename = create_view_cmd(log_dir, log_path, sim_build, module, test_name_plus_params)
 
@@ -518,11 +520,9 @@ def test_counter_load_clear_wavedrom(request, max_value):
             parameters=rtl_parameters,
             sim_build=sim_build,
             extra_env=extra_env,
-            waves=False,
-            keep_files=True,
-            compile_args=compile_args,
-            sim_args=sim_args,
-            plusargs=plusargs,
+            extra_args=extra_args,
+
+            waves=enable_waves,
         )
         print(f"✓ Counter Load Clear WaveDrom generation PASSED")
     except Exception as e:

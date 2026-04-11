@@ -19,7 +19,6 @@ import random
 import pytest
 import cocotb
 from cocotb_test.simulator import run
-from conftest import get_coverage_compile_args
 
 # Add repo root to path for CocoTBFramework imports
 from TBClasses.shared.tbbase import TBBase
@@ -250,6 +249,7 @@ def test_simple_lfsr_generate(request, params):
     sim_build = os.path.join(tests_dir, 'local_sim_build', test_name)
     log_path = os.path.join(log_dir, f'{test_name}.log')
     
+    enable_waves = bool(int(os.environ.get(\'WAVES\', \'0\')))
     os.makedirs(sim_build, exist_ok=True)
     os.makedirs(log_dir, exist_ok=True)
     
@@ -271,10 +271,12 @@ def test_simple_lfsr_generate(request, params):
         'TEST_COUNT': str(params['COUNT'])
     }
     
-    compile_args = ["--trace", "--trace-structs", "--trace-depth", "99"]
-    sim_args = ["--trace", "--trace-structs", "--trace-depth", "99"]
-    plusargs = ["+trace"]
-    
+    extra_args = [
+        '--trace-fst',
+        '--trace-structs',
+        '-Wno-TIMESCALEMOD',
+    ]
+
     try:
         run(
             python_search=[tests_dir],
@@ -284,11 +286,9 @@ def test_simple_lfsr_generate(request, params):
             parameters=parameters,
             sim_build=sim_build,
             extra_env=extra_env,
-            waves=False,
-            keep_files=True,
-            compile_args=compile_args,
-            sim_args=sim_args,
-            plusargs=plusargs,
+            extra_args=extra_args,
+
+            waves=enable_waves,
             includes=includes,  # From filelist via get_sources_from_filelist()
         )
     except Exception as e:

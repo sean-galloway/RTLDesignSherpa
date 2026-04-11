@@ -46,7 +46,6 @@ from TBClasses.arbiter_priority_encoder_tb import ArbiterPriorityEncoderTB
 from TBClasses.shared.utilities import get_paths, create_view_cmd
 from TBClasses.shared.tbbase import TBBase
 from TBClasses.shared.filelist_utils import get_sources_from_filelist
-from conftest import get_coverage_compile_args
 
 # ===========================================================================
 # COCOTB TEST FUNCTIONS - prefix with "cocotb_" to prevent pytest collection
@@ -134,6 +133,7 @@ def test_arbiter_priority_encoder(request, clients, test_mode):
 
     log_path = os.path.join(log_dir, f'{test_name_plus_params}.log')
     sim_build = os.path.join(tests_dir, 'local_sim_build', test_name_plus_params)
+    enable_waves = bool(int(os.environ.get(\'WAVES\', \'0\')))
     os.makedirs(sim_build, exist_ok=True)
     os.makedirs(log_dir, exist_ok=True)
 
@@ -146,11 +146,13 @@ def test_arbiter_priority_encoder(request, clients, test_mode):
         'PARAM_CLIENTS': str(clients),
     }
 
-    cmd_filename = create_view_cmd(log_dir, log_path, sim_build, module, test_name_plus_params)
+    extra_args = [
+        '--trace-fst',
+        '--trace-structs',
+        '-Wno-TIMESCALEMOD',
+    ]
 
-    # Build compile_args with coverage support
-    compile_args = ["-Wno-TIMESCALEMOD"]
-    compile_args.extend(get_coverage_compile_args())
+    cmd_filename = create_view_cmd(log_dir, log_path, sim_build, module, test_name_plus_params)
 
     try:
         run(
@@ -162,11 +164,9 @@ def test_arbiter_priority_encoder(request, clients, test_mode):
             parameters=rtl_parameters,
             sim_build=sim_build,
             extra_env=extra_env,
-            waves=False,
-            keep_files=True,
-            compile_args=compile_args,
-            sim_args=[],
-            plusargs=[],
+            extra_args=extra_args,
+
+            waves=enable_waves,
         )
         print(f"✓ Test completed! Logs: {log_path}")
     except Exception as e:

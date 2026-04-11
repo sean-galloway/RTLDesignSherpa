@@ -56,7 +56,6 @@ from cocotb_test.simulator import run
 from TBClasses.shared.tbbase import TBBase
 from TBClasses.shared.filelist_utils import get_sources_from_filelist
 from TBClasses.shared.utilities import get_paths, create_view_cmd
-from conftest import get_coverage_compile_args
 
 class FindFirstSetTB(TBBase):
     """Testbench for Find First Set module"""
@@ -513,6 +512,7 @@ def test_find_first_set(request, width, test_level):
 
     # Setup directories
     sim_build = os.path.join(tests_dir, 'local_sim_build', test_name_plus_params)
+    enable_waves = bool(int(os.environ.get(\'WAVES\', \'0\')))
     os.makedirs(sim_build, exist_ok=True)
     os.makedirs(log_dir, exist_ok=True)
     results_path = os.path.join(log_dir, f'results_{test_name_plus_params}.xml')
@@ -530,7 +530,7 @@ def test_find_first_set(request, width, test_level):
 
     # Environment variables
     extra_env = {
-        'TRACE_FILE': f"{sim_build}/dump.vcd",
+        'TRACE_FILE': f"{sim_build}/dump.fst",
         'VERILATOR_TRACE': '1',
         'DUT': dut_name,
         'LOG_PATH': log_path,
@@ -543,25 +543,12 @@ def test_find_first_set(request, width, test_level):
         'COCOTB_TEST_TIMEOUT': str(timeout_ms)
     }
 
-    # VCD waveform generation support via WAVES environment variable
-    # Trace compilation always enabled (minimal overhead)
-    # Set WAVES=1 to enable VCD dumping for debugging
-    compile_args = [
-        "--trace",
-        "--trace-structs",
-        "--trace-depth", "99",
-    ]
-
     # Add coverage compile args if COVERAGE=1
-    compile_args.extend(get_coverage_compile_args())
-
-    sim_args = [
-        "--trace",  # VCD waveform format
-        "--trace-structs",
-        "--trace-depth", "99",
+    extra_args = [
+        '--trace-fst',
+        '--trace-structs',
+        '-Wno-TIMESCALEMOD',
     ]
-
-    plusargs = ["+trace"]
 
     cmd_filename = create_view_cmd(log_dir, log_path, sim_build, module, test_name_plus_params)
 
@@ -571,10 +558,6 @@ def test_find_first_set(request, width, test_level):
     print(f"Expected duration: {timeout_ms/1000:.1f}s")
     print(f"Log: {log_path}")
     print(f"{'='*60}")
-
-    # Conditionally set COCOTB_TRACE_FILE for VCD generation
-    if bool(int(os.environ.get('WAVES', '0'))):
-        extra_env['COCOTB_TRACE_FILE'] = os.path.join(sim_build, 'dump.vcd')
 
     try:
         run(
@@ -586,11 +569,9 @@ def test_find_first_set(request, width, test_level):
             parameters=parameters,
             sim_build=sim_build,
             extra_env=extra_env,
-            waves=False,  # VCD controlled by compile_args, not cocotb-test
-            keep_files=True,
-            compile_args=compile_args,
-            sim_args=sim_args,
-            plusargs=plusargs,
+            extra_args=extra_args,
+
+            waves=enable_waves,
         )
         print(f"✓ {test_level.upper()} test PASSED: width={width}")
     except Exception as e:

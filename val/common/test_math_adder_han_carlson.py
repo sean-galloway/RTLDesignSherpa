@@ -30,8 +30,6 @@ from cocotb_test.simulator import run
 # Add repo root to path for CocoTBFramework imports
 from TBClasses.shared.utilities import get_paths, create_view_cmd
 from TBClasses.shared.tbbase import TBBase
-from conftest import get_coverage_compile_args
-
 
 class HanCarlsonAdderTB(TBBase):
     """Testbench for Han-Carlson prefix adder.
@@ -152,7 +150,6 @@ class HanCarlsonAdderTB(TBBase):
         self.log.info(f"Final: {self.pass_count}/{self.test_count} passed, {self.fail_count} failed")
         assert self.fail_count == 0, f"Test failures: {self.fail_count}"
 
-
 @cocotb.test(timeout_time=10, timeout_unit="ms")
 async def han_carlson_adder_test(dut):
     """Test the Han-Carlson prefix adder"""
@@ -167,7 +164,6 @@ async def han_carlson_adder_test(dut):
     await tb.wait_time(1, 'ns')
 
     await tb.run_comprehensive_tests()
-
 
 def get_adder_params():
     """Generate adder parameters based on REG_LEVEL."""
@@ -187,7 +183,6 @@ def get_adder_params():
             {'width': 16, 'test_level': 'func'},
             {'width': 48, 'test_level': 'func'},
         ]
-
 
 @pytest.mark.parametrize("params", get_adder_params())
 def test_math_adder_han_carlson(request, params):
@@ -216,6 +211,7 @@ def test_math_adder_han_carlson(request, params):
     ]
 
     sim_build = os.path.join(tests_dir, 'local_sim_build', test_name_plus_params)
+    enable_waves = bool(int(os.environ.get(\'WAVES\', \'0\')))
     os.makedirs(sim_build, exist_ok=True)
 
     os.makedirs(log_dir, exist_ok=True)
@@ -225,7 +221,7 @@ def test_math_adder_han_carlson(request, params):
     seed = random.randint(0, 100000)
 
     extra_env = {
-        'TRACE_FILE': f"{sim_build}/dump.vcd",
+        'TRACE_FILE': f"{sim_build}/dump.fst",
         'VERILATOR_TRACE': '1',
         'DUT': dut_name,
         'LOG_PATH': log_path,
@@ -236,28 +232,17 @@ def test_math_adder_han_carlson(request, params):
         'PARAM_N': str(width),
     }
 
-    compile_args = [
-        "--trace",
-        "--trace-structs",
-        "--trace-depth", "99",
-    ]
-
     # Add coverage compile args if COVERAGE=1
-    compile_args.extend(get_coverage_compile_args())
-
-    sim_args = [
-        "--trace",
-        "--trace-structs",
-        "--trace-depth", "99",
-    ]
-    plusargs = [
-        "--trace",
+    extra_args = [
+        '--trace-fst',
+        '--trace-structs',
+        '-Wno-TIMESCALEMOD',
     ]
 
     cmd_filename = create_view_cmd(log_dir, log_path, sim_build, module, test_name_plus_params)
 
     if bool(int(os.environ.get('WAVES', '0'))):
-        extra_env['COCOTB_TRACE_FILE'] = os.path.join(sim_build, 'dump.vcd')
+        extra_env['COCOTB_TRACE_FILE'] = os.path.join(sim_build, 'dump.fst')
 
     try:
         run(
@@ -266,15 +251,12 @@ def test_math_adder_han_carlson(request, params):
             includes=[],
             toplevel=toplevel,
             module=module,
-            simulator="verilator",
             parameters={'N': width},
             sim_build=sim_build,
             extra_env=extra_env,
-            waves=False,
-            keep_files=True,
-            compile_args=compile_args,
-            sim_args=sim_args,
-            plusargs=plusargs,
+            extra_args=extra_args,
+
+            waves=enable_waves,
         )
     except Exception as e:
         print(f"Test failed: {str(e)}")

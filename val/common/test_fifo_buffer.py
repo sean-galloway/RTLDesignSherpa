@@ -48,7 +48,6 @@ from TBClasses.shared.tbbase import TBBase
 from TBClasses.shared.filelist_utils import get_sources_from_filelist
 from TBClasses.fifo.fifo_buffer import FifoBufferTB
 from TBClasses.shared.utilities import get_paths, create_view_cmd
-from conftest import get_coverage_compile_args
 
 @cocotb.test(timeout_time=3, timeout_unit="ms")  # Increased timeout for comprehensive testing
 async def fifo_test(dut):
@@ -254,6 +253,7 @@ def test_fifo_buffer(request, data_width, depth, wr_clk_period, rd_clk_period, r
     # use it in the simbuild path
     sim_build = os.path.join(tests_dir, 'local_sim_build', test_name_plus_params)
     # Make sim_build directory
+    enable_waves = bool(int(os.environ.get(\'WAVES\', \'0\')))
     os.makedirs(sim_build, exist_ok=True)
 
     # get the logs and results into one area
@@ -304,26 +304,14 @@ def test_fifo_buffer(request, data_width, depth, wr_clk_period, rd_clk_period, r
     else:
         vendor_flag = None  # no vendor flags at all
 
-    compile_args = [
-        "--trace",
-        "--trace-structs",
-        "--trace-depth", "99",
-    ]
-
     # Add coverage compile args if COVERAGE=1
-    compile_args.extend(get_coverage_compile_args())
-
     if vendor_flag:
-        compile_args.append(vendor_flag)
+        extra_args.append(vendor_flag)
 
-    sim_args = [
-        "--trace",  # Tell Verilator to use FST
-        "--trace-structs",
-        "--trace-depth", "99",
-    ]
-
-    plusargs = [
-        "+trace",
+    extra_args = [
+        '--trace-fst',
+        '--trace-structs',
+        '-Wno-TIMESCALEMOD',
     ]
 
     cmd_filename = create_view_cmd(log_dir, log_path, sim_build, module, test_name_plus_params)
@@ -344,11 +332,9 @@ def test_fifo_buffer(request, data_width, depth, wr_clk_period, rd_clk_period, r
             parameters=rtl_parameters,
             sim_build=sim_build,
             extra_env=extra_env,
-            waves=False,
-            keep_files=True,
-            compile_args=compile_args,
-            sim_args=sim_args,
-            plusargs=plusargs,
+            extra_args=extra_args,
+
+            waves=enable_waves,
         )
         print(f"✓ {test_level.upper()} test PASSED: {mode} mode")
     except Exception as e:

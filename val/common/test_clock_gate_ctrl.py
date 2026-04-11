@@ -26,7 +26,6 @@ from TBClasses.shared.tbbase import TBBase
 from TBClasses.shared.filelist_utils import get_sources_from_filelist
 from TBClasses.shared.utilities import get_paths, create_view_cmd
 from CocoTBFramework.components.shared.flex_randomizer import FlexRandomizer
-from conftest import get_coverage_compile_args
 
 class ClockGateCtrlConfig:
     """Configuration class for clock gate controller tests"""
@@ -715,6 +714,7 @@ def test_clock_gate_ctrl(request, counter_width):
     sim_build = os.path.join(tests_dir, 'local_sim_build', test_name_plus_params)
 
     # Make sim_build directory
+    enable_waves = bool(int(os.environ.get(\'WAVES\', \'0\')))
     os.makedirs(sim_build, exist_ok=True)
 
     # Get the logs and results into one area
@@ -734,31 +734,19 @@ def test_clock_gate_ctrl(request, counter_width):
         'VERILATOR_TRACE': '1',  # Enable tracing
     }
 
-    compile_args = [
-        "--trace",
-        "--trace-structs",
-        "--trace-depth", "99",
-    ]
-
     # Add coverage compile args if COVERAGE=1
-    compile_args.extend(get_coverage_compile_args())
-
     # Add parameter values to environment variables
     # sourcery skip: no-loop-in-tests
     for k, v in parameters.items():
         extra_env[f'PARAM_{k}'] = str(v)
 
+    extra_args = [
+        '--trace-fst',
+        '--trace-structs',
+        '-Wno-TIMESCALEMOD',
+    ]
+
     cmd_filename = create_view_cmd(log_dir, log_path, sim_build, module, test_name_plus_params)
-
-    sim_args = [
-                "--trace",  # Tell Verilator to use FST
-                "--trace-structs",
-                "--trace-depth", "99",
-    ]
-
-    plusargs = [
-        "+trace",
-    ]
 
     try:
         run(
@@ -769,11 +757,9 @@ def test_clock_gate_ctrl(request, counter_width):
             module=module,
             parameters=parameters,
             sim_build=sim_build,
+            extra_args=extra_args,
             extra_env=extra_env,
-            compile_args=compile_args,
-            sim_args=sim_args,
-            plusargs=plusargs,
-            keep_files=True
+            waves=enable_waves,
         )
     except Exception as e:
         # If the test fails, make sure logs are preserved

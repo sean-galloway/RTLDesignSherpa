@@ -41,7 +41,6 @@ from cocotb.triggers import RisingEdge
 from cocotb_test.simulator import run
 
 from TBClasses.shared.tbbase import TBBase
-from conftest import get_coverage_compile_args
 from TBClasses.shared.filelist_utils import get_sources_from_filelist
 from TBClasses.shared.utilities import get_paths, create_view_cmd
 
@@ -55,7 +54,6 @@ def linear_freq(idx: int, n: int, lo: int, hi: int) -> int:
         return lo
     return lo + ((hi - lo) * idx) // (n - 1)
 
-
 def pow2_freq(idx: int, n: int, lo: int, hi: int) -> int:
     """Matches RTL pow2_freq: doubling per step, capped at hi."""
     v = lo
@@ -64,7 +62,6 @@ def pow2_freq(idx: int, n: int, lo: int, hi: int) -> int:
             return hi
         v *= 2
     return min(v, hi)
-
 
 def build_factor_map(
     min_mhz: int, max_mhz: int, num_entries: int, strategy: int = 0
@@ -77,7 +74,6 @@ def build_factor_map(
         else:
             table[i] = linear_freq(i, num_entries, min_mhz, max_mhz)
     return table
-
 
 # ==========================================================================
 # Testbench class
@@ -389,7 +385,6 @@ class CounterFreqInvariantTB(TBBase):
         self.log.info(f"Frequency sweep: {'PASS' if all_ok else 'FAIL'}")
         return all_ok
 
-
 # ==========================================================================
 # CocoTB test function
 # ==========================================================================
@@ -423,7 +418,6 @@ async def counter_freq_invariant_test(dut):
     await tb.wait_clocks('clk', 100)
     tb.log.info("All tests passed" if passed else "Some tests FAILED")
 
-
 # ==========================================================================
 # Parameter generation
 # ==========================================================================
@@ -437,7 +431,6 @@ FREQ_RANGES = [
 
 NUM_ENTRIES = 16
 STRATEGY = 0  # LINEAR
-
 
 def generate_test_parameters():
     """
@@ -463,9 +456,7 @@ def generate_test_parameters():
             params.append((cw, lo, hi))
     return params
 
-
 test_params = generate_test_parameters()
-
 
 # ==========================================================================
 # Pytest wrapper
@@ -499,6 +490,7 @@ def test_counter_freq_invariant(request, counter_width, min_mhz, max_mhz):
     )
     log_path = os.path.join(log_dir, f'{test_name_plus_params}.log')
     sim_build = os.path.join(tests_dir, 'local_sim_build', test_name_plus_params)
+    enable_waves = bool(int(os.environ.get(\'WAVES\', \'0\')))
     os.makedirs(sim_build, exist_ok=True)
     os.makedirs(log_dir, exist_ok=True)
     results_path = os.path.join(log_dir, f'results_{test_name_plus_params}.xml')
@@ -516,7 +508,7 @@ def test_counter_freq_invariant(request, counter_width, min_mhz, max_mhz):
     test_level = test_level_map.get(reg_level, 'gate')
 
     extra_env = {
-        'TRACE_FILE': f"{sim_build}/dump.vcd",
+        'TRACE_FILE': f"{sim_build}/dump.fst",
         'VERILATOR_TRACE': '1',
         'TEST_COUNTER_WIDTH': str(counter_width),
         'TEST_MIN_FREQ_MHZ': str(min_mhz),
@@ -531,17 +523,17 @@ def test_counter_freq_invariant(request, counter_width, min_mhz, max_mhz):
         'SEED': str(random.randint(0, 100000)),
     }
 
-    compile_args = [
-        "--trace", "--trace-structs", "--trace-depth", "99",
-        "-Wno-TIMESCALEMOD",
+    extra_args = [
+        '--trace-fst',
+        '--trace-structs',
+        '-Wno-TIMESCALEMOD',
     ]
-    compile_args.extend(get_coverage_compile_args())
 
     cmd_filename = create_view_cmd(
         log_dir, log_path, sim_build, module, test_name_plus_params)
 
     if bool(int(os.environ.get('WAVES', '0'))):
-        extra_env['COCOTB_TRACE_FILE'] = os.path.join(sim_build, 'dump.vcd')
+        extra_env['COCOTB_TRACE_FILE'] = os.path.join(sim_build, 'dump.fst')
 
     try:
         run(
@@ -554,11 +546,9 @@ def test_counter_freq_invariant(request, counter_width, min_mhz, max_mhz):
             parameters=rtl_parameters,
             sim_build=sim_build,
             extra_env=extra_env,
-            waves=False,
-            keep_files=True,
-            compile_args=compile_args,
-            sim_args=["--trace", "--trace-structs", "--trace-depth", "99"],
-            plusargs=["--trace"],
+            extra_args=extra_args,
+
+            waves=enable_waves,
         )
     except Exception as e:
         print(f"Test failed: {e}")

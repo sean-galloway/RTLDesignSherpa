@@ -24,11 +24,9 @@ import pytest
 import cocotb
 from cocotb.triggers import Timer
 from cocotb_test.simulator import run
-from conftest import get_coverage_compile_args
 
 from TBClasses.shared.utilities import get_paths, create_view_cmd
 from TBClasses.shared.tbbase import TBBase
-
 
 class DaddaMultiplierTB(TBBase):
     """Testbench for Dadda 4:2 multiplier.
@@ -153,7 +151,6 @@ class DaddaMultiplierTB(TBBase):
         self.log.info(f"Final: {self.pass_count}/{self.test_count} passed, {self.fail_count} failed")
         assert self.fail_count == 0, f"Test failures: {self.fail_count}"
 
-
 @cocotb.test(timeout_time=300, timeout_unit="ms")
 async def dadda_multiplier_test(dut):
     """Test the Dadda 4:2 multiplier"""
@@ -168,7 +165,6 @@ async def dadda_multiplier_test(dut):
     await tb.wait_time(1, 'ns')
 
     await tb.run_comprehensive_tests()
-
 
 def get_multiplier_params():
     """Generate multiplier parameters based on REG_LEVEL."""
@@ -186,7 +182,6 @@ def get_multiplier_params():
         return [
             {'width': 8, 'test_level': 'full'},
         ]
-
 
 @pytest.mark.parametrize("params", get_multiplier_params())
 def test_math_multiplier_dadda_4to2(request, params):
@@ -219,6 +214,7 @@ def test_math_multiplier_dadda_4to2(request, params):
     ]
 
     sim_build = os.path.join(tests_dir, 'local_sim_build', test_name_plus_params)
+    enable_waves = bool(int(os.environ.get(\'WAVES\', \'0\')))
     os.makedirs(sim_build, exist_ok=True)
 
     os.makedirs(log_dir, exist_ok=True)
@@ -228,7 +224,7 @@ def test_math_multiplier_dadda_4to2(request, params):
     seed = random.randint(0, 100000)
 
     extra_env = {
-        'TRACE_FILE': f"{sim_build}/dump.vcd",
+        'TRACE_FILE': f"{sim_build}/dump.fst",
         'VERILATOR_TRACE': '1',
         'DUT': dut_name,
         'LOG_PATH': log_path,
@@ -239,28 +235,17 @@ def test_math_multiplier_dadda_4to2(request, params):
         'PARAM_N': str(width),
     }
 
-    compile_args = [
-        "--trace",
-        "--trace-structs",
-        "--trace-depth", "99",
-    ]
-
     # Add coverage compile args if COVERAGE=1
-    compile_args.extend(get_coverage_compile_args())
-
-    sim_args = [
-        "--trace",
-        "--trace-structs",
-        "--trace-depth", "99",
-    ]
-    plusargs = [
-        "--trace",
+    extra_args = [
+        '--trace-fst',
+        '--trace-structs',
+        '-Wno-TIMESCALEMOD',
     ]
 
     cmd_filename = create_view_cmd(log_dir, log_path, sim_build, module, test_name_plus_params)
 
     if bool(int(os.environ.get('WAVES', '0'))):
-        extra_env['COCOTB_TRACE_FILE'] = os.path.join(sim_build, 'dump.vcd')
+        extra_env['COCOTB_TRACE_FILE'] = os.path.join(sim_build, 'dump.fst')
 
     try:
         run(
@@ -269,15 +254,12 @@ def test_math_multiplier_dadda_4to2(request, params):
             includes=[],
             toplevel=toplevel,
             module=module,
-            simulator="verilator",
             parameters={'N': width},
             sim_build=sim_build,
             extra_env=extra_env,
-            waves=False,
-            keep_files=True,
-            compile_args=compile_args,
-            sim_args=sim_args,
-            plusargs=plusargs,
+            extra_args=extra_args,
+
+            waves=enable_waves,
         )
     except Exception as e:
         print(f"Test failed: {str(e)}")

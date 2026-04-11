@@ -21,13 +21,11 @@ import random
 import pytest
 import cocotb
 from cocotb_test.simulator import run
-from conftest import get_coverage_compile_args
 
 from TBClasses.shared.utilities import get_paths, create_view_cmd
 from TBClasses.common.fp_testing import (
     FPMaxMinTB, FORMATS
 )
-
 
 def get_fp8_e4m3_min_params():
     """Generate test parameters based on REG_LEVEL."""
@@ -38,7 +36,6 @@ def get_fp8_e4m3_min_params():
         return [{'test_level': 'func'}]
     else:
         return [{'test_level': 'gate'}, {'test_level': 'func'}, {'test_level': 'full'}]
-
 
 @cocotb.test(timeout_time=60, timeout_unit="ms")
 async def fp8_e4m3_min_test(dut):
@@ -51,7 +48,6 @@ async def fp8_e4m3_min_test(dut):
     await tb.clear_interface()
     await tb.wait_time(1, 'ns')
     await tb.run_comprehensive_tests()
-
 
 @pytest.mark.parametrize("params", get_fp8_e4m3_min_params())
 def test_math_fp8_e4m3_min(request, params):
@@ -70,6 +66,7 @@ def test_math_fp8_e4m3_min(request, params):
     ]
 
     sim_build = os.path.join(tests_dir, 'local_sim_build', test_name_plus_params)
+    enable_waves = bool(int(os.environ.get(\'WAVES\', \'0\')))
     os.makedirs(sim_build, exist_ok=True)
     os.makedirs(log_dir, exist_ok=True)
     log_path = os.path.join(log_dir, f'{test_name_plus_params}.log')
@@ -77,17 +74,22 @@ def test_math_fp8_e4m3_min(request, params):
 
     seed = random.randint(0, 100000)
     extra_env = {
-        'TRACE_FILE': f"{sim_build}/dump.vcd", 'VERILATOR_TRACE': '1',
+        'TRACE_FILE': f"{sim_build}/dump.fst", 'VERILATOR_TRACE': '1',
         'DUT': dut_name, 'LOG_PATH': log_path, 'COCOTB_LOG_LEVEL': 'INFO',
         'COCOTB_RESULTS_FILE': results_path, 'SEED': str(seed),
         'TEST_LEVEL': params['test_level'],
     }
-    compile_args = ["--trace", "--trace-structs", "--trace-depth", "99"]
+    extra_args = [
+        '--trace-fst',
+        '--trace-structs',
+        '-Wno-TIMESCALEMOD',
+    ]
+
     cmd_filename = create_view_cmd(log_dir, log_path, sim_build, module, test_name_plus_params)
     if bool(int(os.environ.get('WAVES', '0'))):
-        extra_env['COCOTB_TRACE_FILE'] = os.path.join(sim_build, 'dump.vcd')
+        extra_env['COCOTB_TRACE_FILE'] = os.path.join(sim_build, 'dump.fst')
 
     run(python_search=[tests_dir], verilog_sources=verilog_sources, includes=[],
         toplevel=dut_name, module=module, parameters={}, sim_build=sim_build,
-        extra_env=extra_env, waves=False, keep_files=True, compile_args=compile_args,
-        sim_args=compile_args, plusargs=["--trace"])
+        extra_env=extra_env, extra_args=extra_args,
+ waves=enable_waves,

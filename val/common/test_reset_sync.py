@@ -24,7 +24,6 @@ import sys
 import pytest
 import cocotb
 from cocotb_test.simulator import run
-from conftest import get_coverage_compile_args
 
 # Add repo root to path for CocoTBFramework imports
 from TBClasses.reset_sync_tb import ResetSyncTB
@@ -79,6 +78,7 @@ def test_reset_sync(n, test_mode):
 
     log_path = os.path.join(log_dir, f'{test_name}.log')
     sim_build = os.path.join(tests_dir, 'local_sim_build', test_name)
+    enable_waves = bool(int(os.environ.get(\'WAVES\', \'0\')))
     os.makedirs(sim_build, exist_ok=True)
     os.makedirs(log_dir, exist_ok=True)
 
@@ -99,18 +99,22 @@ def test_reset_sync(n, test_mode):
         'PARAM_N': str(n),
     }
 
-    compile_args = [
-        "-Wall", "-Wno-UNUSED", "-Wno-DECLFILENAME", "-Wno-UNOPTFLAT", "-Wno-PROCASSINIT",
-        "--trace",  # Enable VCD trace
-        "--trace-depth", "99",  # Trace all hierarchy levels
-    ]
-
     # Force VCD format (not FST) - cocotb will use this
     extra_env['COCOTB_TRACE_FILE'] = os.path.join(sim_build, 'dump.fst')
 
     print(f"\n{'='*80}")
     print(f"Reset Sync Test: {test_mode} (N={n})")
     print(f"{'='*80}")
+
+    extra_args = [
+        '--trace-fst',
+        '--trace-structs',
+        '-Wno-DECLFILENAME',
+        '-Wno-PROCASSINIT',
+        '-Wno-TIMESCALEMOD',
+        '-Wno-UNOPTFLAT',
+        '-Wno-UNUSED',
+    ]
 
     try:
         run(
@@ -121,9 +125,9 @@ def test_reset_sync(n, test_mode):
             parameters=rtl_parameters,
             sim_build=sim_build,
             extra_env=extra_env,
-            waves=False,  # We're handling tracing manually with compile_args
-            keep_files=True,
-            compile_args=compile_args,
+            extra_args=extra_args,
+
+            waves=enable_waves,
         )
         print(f"✓ PASSED: {test_name}")
         print(f"Waveform: {sim_build}/dump.fst")
