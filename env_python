@@ -63,6 +63,15 @@ if [ -f "/mnt/data/tools/sv2v" ]; then
 fi
 fi
 
+# Use Verilator 5.020 for simulation (newer versions have bugs with
+# cocotb VCD/FST generation). The oss-cad-suite bundles 5.045 but we
+# override it here so only verilator is affected — yosys, symbiyosys,
+# gtkwave etc. still come from oss-cad-suite.
+# NOTE: Do NOT set VERILATOR_ROOT — the perl wrapper auto-detects it
+# relative to its own location. Setting it wrong breaks verilator_bin lookup.
+unset VERILATOR_ROOT 2>/dev/null
+export PATH="/mnt/data/tools/verilator-5.020/bin:$PATH"
+
 # Set default simulation tool
 export SIM=verilator
 
