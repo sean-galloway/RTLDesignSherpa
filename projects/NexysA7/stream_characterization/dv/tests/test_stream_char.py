@@ -202,8 +202,10 @@ def test_stream_char(request, test_type, test_level):
 
     simulator = os.environ.get('SIM', 'verilator').lower()
 
-    if bool(int(os.environ.get('WAVES', '0'))):
-        extra_env['COCOTB_TRACE_FILE'] = os.path.join(sim_build, 'dump.vcd')
+    # Always enable VCD trace for stream_char (design is complex enough
+    # that waveforms are essential for debugging). The Verilator binary
+    # is compiled with --trace regardless; this tells cocotb to open the file.
+    extra_env['COCOTB_TRACE_FILE'] = os.path.join(sim_build, 'dump.vcd')
 
     compile_args = [
         "--trace", "--trace-structs", "--trace-depth", "99",

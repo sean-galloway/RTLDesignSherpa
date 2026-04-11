@@ -58,10 +58,11 @@ _W_NEXT_PTR = 5
 _W_CONTROL  = 6
 _W_RESERVED = 7
 
-# Control flag bits
-CTRL_VALID     = 1 << 0
-CTRL_LAST      = 1 << 1
-CTRL_INTERRUPT = 1 << 2
+# Control flag bits (must match stream_pkg.sv descriptor_t layout)
+# [192] = valid, [193] = gen_irq, [194] = last, [195] = error
+CTRL_VALID     = 1 << 0   # bit [192]
+CTRL_INTERRUPT = 1 << 1   # bit [193] gen_irq
+CTRL_LAST      = 1 << 2   # bit [194] last
 
 # Max descriptors per channel (layout constant — not an RTL limit)
 MAX_DESC_PER_CH = 32
