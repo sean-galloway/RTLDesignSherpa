@@ -1,0 +1,27 @@
+[tasks]
+prove
+cover
+
+[options]
+prove: mode bmc
+prove: depth 2
+cover: mode cover
+cover: depth 2
+
+[engines]
+prove: smtbmc z3
+cover: smtbmc z3
+
+[script]
+read -formal -sv -Iincludes axil4_to_axi4.sv
+read -formal -sv -Iincludes axil4_to_axi4_rd.sv
+read -formal -sv -Iincludes axil4_to_axi4_wr.sv
+read -formal -sv -Iincludes formal_axil4_to_axi4.sv
+prep -top formal_axil4_to_axi4
+
+[files]
+axil4_to_axi4.sv ../../../projects/components/converters/rtl/axil4_to_axi4.sv
+axil4_to_axi4_rd.sv ../../../projects/components/converters/rtl/axil4_to_axi4_rd.sv
+axil4_to_axi4_wr.sv ../../../projects/components/converters/rtl/axil4_to_axi4_wr.sv
+formal_axil4_to_axi4.sv
+includes/reset_defs.svh ../../../rtl/amba/includes/reset_defs.svh
