@@ -232,7 +232,7 @@ def test_stream_char(request, test_type, test_level):
             sim_build=sim_build,
             extra_env=extra_env,
             simulator=simulator,
-            waves=False,
+            waves=True,
             keep_files=True,
             compile_args=compile_args,
             sim_args=["--trace", "--trace-structs", "--trace-depth", "99"],
