@@ -584,7 +584,7 @@ def test_counter_bingray_wavedrom(request):
 
     # Directories
     sim_build = os.path.join(tests_dir, 'local_sim_build', test_name)
-    enable_waves = bool(int(os.environ.get(\'WAVES\', \'0\')))
+    enable_waves = bool(int(os.environ.get('WAVES', '0')))
     os.makedirs(sim_build, exist_ok=True)
     os.makedirs(log_dir, exist_ok=True)
 
@@ -616,6 +616,11 @@ def test_counter_bingray_wavedrom(request):
         '-Wno-TIMESCALEMOD',
     ]
 
+    sim_args = ['--trace'] if enable_waves else []
+
+    if enable_waves:
+        extra_env['COCOTB_TRACE_FILE'] = os.path.join(sim_build, 'dump.fst')
+
     cmd_filename = create_view_cmd(log_dir, log_path, sim_build, module, test_name)
 
     print(f"\n{'='*60}")
@@ -634,6 +639,7 @@ def test_counter_bingray_wavedrom(request):
             sim_build=sim_build,
             extra_env=extra_env,
             extra_args=extra_args,
+            plus_args=sim_args,
 
             waves=enable_waves,
         )

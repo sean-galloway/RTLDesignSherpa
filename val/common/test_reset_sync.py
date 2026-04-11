@@ -78,7 +78,7 @@ def test_reset_sync(n, test_mode):
 
     log_path = os.path.join(log_dir, f'{test_name}.log')
     sim_build = os.path.join(tests_dir, 'local_sim_build', test_name)
-    enable_waves = bool(int(os.environ.get(\'WAVES\', \'0\')))
+    enable_waves = bool(int(os.environ.get('WAVES', '0')))
     os.makedirs(sim_build, exist_ok=True)
     os.makedirs(log_dir, exist_ok=True)
 
@@ -126,6 +126,7 @@ def test_reset_sync(n, test_mode):
             sim_build=sim_build,
             extra_env=extra_env,
             extra_args=extra_args,
+            plus_args=sim_args,
 
             waves=enable_waves,
         )

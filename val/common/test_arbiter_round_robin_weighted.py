@@ -229,7 +229,7 @@ def test_arbiter_round_robin_weighted(request, clients, max_levels, wait_ack):
     sim_build = os.path.join(tests_dir, 'local_sim_build', test_name_plus_params)
 
     # Make sim_build directory
-    enable_waves = bool(int(os.environ.get(\'WAVES\', \'0\')))
+    enable_waves = bool(int(os.environ.get('WAVES', '0')))
     os.makedirs(sim_build, exist_ok=True)
 
     # Get the logs and results into one area
@@ -261,6 +261,11 @@ def test_arbiter_round_robin_weighted(request, clients, max_levels, wait_ack):
         '-Wno-TIMESCALEMOD',
     ]
 
+    sim_args = ['--trace'] if enable_waves else []
+
+    if enable_waves:
+        extra_env['COCOTB_TRACE_FILE'] = os.path.join(sim_build, 'dump.fst')
+
     cmd_filename = create_view_cmd(log_dir, log_path, sim_build, module, test_name_plus_params)
 
     try:
@@ -274,6 +279,7 @@ def test_arbiter_round_robin_weighted(request, clients, max_levels, wait_ack):
             sim_build=sim_build,
             extra_env=extra_env,
             extra_args=extra_args,
+            plus_args=sim_args,
 
             waves=enable_waves,
         )

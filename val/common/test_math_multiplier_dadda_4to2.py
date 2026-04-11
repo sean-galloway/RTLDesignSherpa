@@ -214,7 +214,7 @@ def test_math_multiplier_dadda_4to2(request, params):
     ]
 
     sim_build = os.path.join(tests_dir, 'local_sim_build', test_name_plus_params)
-    enable_waves = bool(int(os.environ.get(\'WAVES\', \'0\')))
+    enable_waves = bool(int(os.environ.get('WAVES', '0')))
     os.makedirs(sim_build, exist_ok=True)
 
     os.makedirs(log_dir, exist_ok=True)
@@ -258,6 +258,7 @@ def test_math_multiplier_dadda_4to2(request, params):
             sim_build=sim_build,
             extra_env=extra_env,
             extra_args=extra_args,
+            plus_args=sim_args,
 
             waves=enable_waves,
         )

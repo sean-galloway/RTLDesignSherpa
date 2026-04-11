@@ -253,7 +253,7 @@ def test_fifo_buffer(request, data_width, depth, wr_clk_period, rd_clk_period, r
     # use it in the simbuild path
     sim_build = os.path.join(tests_dir, 'local_sim_build', test_name_plus_params)
     # Make sim_build directory
-    enable_waves = bool(int(os.environ.get(\'WAVES\', \'0\')))
+    enable_waves = bool(int(os.environ.get('WAVES', '0')))
     os.makedirs(sim_build, exist_ok=True)
 
     # get the logs and results into one area
@@ -314,6 +314,11 @@ def test_fifo_buffer(request, data_width, depth, wr_clk_period, rd_clk_period, r
         '-Wno-TIMESCALEMOD',
     ]
 
+    sim_args = ['--trace'] if enable_waves else []
+
+    if enable_waves:
+        extra_env['COCOTB_TRACE_FILE'] = os.path.join(sim_build, 'dump.fst')
+
     cmd_filename = create_view_cmd(log_dir, log_path, sim_build, module, test_name_plus_params)
 
     print(f"\n{'='*60}")
@@ -333,6 +338,7 @@ def test_fifo_buffer(request, data_width, depth, wr_clk_period, rd_clk_period, r
             sim_build=sim_build,
             extra_env=extra_env,
             extra_args=extra_args,
+            plus_args=sim_args,
 
             waves=enable_waves,
         )
