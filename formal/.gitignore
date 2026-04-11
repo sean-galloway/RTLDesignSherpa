@@ -1,5 +1,7 @@
 # SymbiYosys output directories
 *_prove/
+*_prove_*/
 *_cover/
+*_cover_*/
 # sby status databases
 status.sqlite
