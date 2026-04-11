@@ -1,0 +1,28 @@
+[tasks]
+prove_low8
+prove_boundary
+
+[options]
+prove_low8: mode bmc
+prove_low8: depth 2
+prove_boundary: mode bmc
+prove_boundary: depth 2
+
+[engines]
+prove_low8: smtbmc z3
+prove_boundary: smtbmc z3
+
+[script]
+prove_low8: verilog_defines -DPROVE_LOW8
+prove_boundary: verilog_defines -DPROVE_BOUNDARY
+read -formal -sv math_adder_half.sv
+read -formal -sv math_adder_carry_save.sv
+read -formal -sv math_multiplier_dadda_tree_016.sv
+read -formal -sv formal_math_multiplier_dadda_tree_016.sv
+prep -top formal_math_multiplier_dadda_tree_016
+
+[files]
+math_adder_half.sv ../../../rtl/common/math_adder_half.sv
+math_adder_carry_save.sv ../../../rtl/common/math_adder_carry_save.sv
+math_multiplier_dadda_tree_016.sv ../../../rtl/common/math_multiplier_dadda_tree_016.sv
+formal_math_multiplier_dadda_tree_016.sv
