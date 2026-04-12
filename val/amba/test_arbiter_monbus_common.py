@@ -25,7 +25,6 @@ from cocotb.triggers import RisingEdge, ClockCycles
 from cocotb.utils import get_sim_time
 from cocotb.clock import Clock
 from cocotb_test.simulator import run
-from conftest import get_coverage_compile_args
 import pytest
 
 from TBClasses.shared.tbbase import TBBase
@@ -479,7 +478,6 @@ async def arbiter_monbus_common_test(dut):
     if not success:
         raise AssertionError(f"Comprehensive monitor test failed - {len(failed_validations)} validation failures, {final_packet_count} packets generated")
 
-
 def generate_params():
     """Generate test parameters for comprehensive testing"""
     from itertools import product
@@ -502,7 +500,6 @@ def generate_params():
 
     # Full test suite - generate all combinations
     return list(product(clients, wait_gnt_ack, weighted_mode, fifo_depths, agent_ids, unit_ids, test_levels))
-
 
 @pytest.mark.parametrize(              "clients, wait_gnt_ack, weighted_mode, fifo_depth, mon_agent_id, mon_unit_id, test_level", generate_params())
 def test_arbiter_monbus_common(request, clients, wait_gnt_ack, weighted_mode, fifo_depth, mon_agent_id, mon_unit_id, test_level):
@@ -563,6 +560,7 @@ def test_arbiter_monbus_common(request, clients, wait_gnt_ack, weighted_mode, fi
     sim_build = os.path.join(tests_dir, 'local_sim_build', test_name_plus_params)
 
     # Make sim_build directory
+    enable_waves = bool(int(os.environ.get('WAVES', '0')))
     os.makedirs(sim_build, exist_ok=True)
 
     # Get the logs and results into one area
@@ -583,7 +581,7 @@ def test_arbiter_monbus_common(request, clients, wait_gnt_ack, weighted_mode, fi
 
     # Environment variables
     extra_env = {
-        'TRACE_FILE': f"{sim_build}/dump.vcd",
+        'TRACE_FILE': f"{sim_build}/dump.fst",
         'VERILATOR_TRACE': '1',
         'DUT': dut_name,
         'LOG_PATH': log_path,
@@ -599,30 +597,18 @@ def test_arbiter_monbus_common(request, clients, wait_gnt_ack, weighted_mode, fi
         'TEST_LEVEL': test_level
     }
 
-    # VCD waveform generation support via WAVES environment variable
-    # Trace compilation always enabled (minimal overhead)
-    # Set WAVES=1 to enable VCD dumping for debugging
-    compile_args = [
-        "--trace",
-        
-        "--trace-depth", "99",
-    ]
-
-
     # Add coverage compile args if COVERAGE=1
 
-    compile_args.extend(get_coverage_compile_args())
-
-
-    sim_args = [
-        "--trace",
-        
-        "--trace-depth", "99",
+    extra_args = [
+        '--trace-fst',
+        '--trace-structs',
+        '-Wno-TIMESCALEMOD',
     ]
 
-    plusargs = [
-        "--trace",
-    ]
+    if enable_waves:
+        extra_env['COCOTB_TRACE_FILE'] = os.path.join(sim_build, 'dump.fst')
+
+    sim_args = ['--trace'] if enable_waves else []
 
     cmd_filename = create_view_cmd(log_dir, log_path, sim_build, module, test_name_plus_params)
 
@@ -636,13 +622,11 @@ def test_arbiter_monbus_common(request, clients, wait_gnt_ack, weighted_mode, fi
             module=module,
             parameters=parameters,
             sim_build=sim_build,
-            extra_env=extra_env,
-            simulator="verilator",  # Use verilator instead of iverilog
-            waves=False,  # VCD controlled by compile_args, not cocotb-test
-            keep_files=True,
-            compile_args=compile_args,
-            sim_args=sim_args,
-            plusargs=plusargs,
+            extra_env=extra_env,  # Use verilator instead of iverilog
+            extra_args=extra_args,
+            plus_args=sim_args,
+
+            waves=enable_waves,
         )
 
         # If we get here, the cocotb test passed (no AssertionError was raised)

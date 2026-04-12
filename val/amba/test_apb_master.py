@@ -22,7 +22,6 @@ import cocotb
 from cocotb.utils import get_sim_time
 from cocotb.triggers import Timer, RisingEdge
 from cocotb_test.simulator import run
-from conftest import get_coverage_compile_args
 
 from CocoTBFramework.components.shared.memory_model import MemoryModel
 from CocoTBFramework.components.shared.flex_randomizer import FlexRandomizer
@@ -279,7 +278,6 @@ class APBGAXIScoreboard:
         self.address_coverage.clear()
         self.type_coverage = {"apb_write": 0, "apb_read": 0, "gaxi_write": 0, "gaxi_read": 0}
         if self.log: self.log.info(f"Scoreboard {self.name} cleared")
-
 
 class APBMasterTB(TBBase):
     def __init__(self, dut):
@@ -610,7 +608,18 @@ class APBMasterTB(TBBase):
 
         results = []
 
-        try:
+        extra_args = [
+        '--trace-fst',
+        '--trace-structs',
+        '-Wno-TIMESCALEMOD',
+    ]
+
+    if enable_waves:
+        extra_env['COCOTB_TRACE_FILE'] = os.path.join(sim_build, 'dump.fst')
+
+    sim_args = ['--trace'] if enable_waves else []
+
+    try:
             # Execute transactions
             for i in range(num_transactions):
                 # Get next transaction parameters
@@ -806,7 +815,6 @@ class APBMasterTB(TBBase):
             use_random_selection=True
         )
 
-
 @cocotb.test(timeout_time=10, timeout_unit="sec")
 async def apb_master_wavedrom_test(dut):
     """
@@ -949,7 +957,6 @@ async def apb_master_wavedrom_test(dut):
     tb.done = True
     await tb.wait_clocks('pclk', 10)
 
-
 @cocotb.test(timeout_time=100, timeout_unit="us")  # Increased timeout
 async def apb_master_test(dut):
     tb = APBMasterTB(dut)
@@ -968,6 +975,12 @@ async def apb_master_test(dut):
 
     # Keep track of test results
     test_results = []
+
+    extra_args = [
+        '--trace-fst',
+        '--trace-structs',
+        '-Wno-TIMESCALEMOD',
+    ]
 
     try:
         # Test 1: Basic transfers
@@ -1040,7 +1053,6 @@ async def apb_master_test(dut):
         # Wait for the tasks to complete
         await tb.wait_clocks('pclk', 20)
 
-
 # Rest of the test function remains the same...
 @pytest.mark.parametrize("addr_width, data_width, cmd_depth, rsp_depth",
     [
@@ -1054,7 +1066,6 @@ async def apb_master_test(dut):
 def test_apb_master(request, addr_width, data_width, cmd_depth, rsp_depth):
     # Get worker ID for parallel execution isolation
     worker_id = os.environ.get('PYTEST_XDIST_WORKER', 'gw0')
-
 
     # get all of the directory and module information
     module, repo_root, tests_dir, log_dir, rtl_dict = get_paths({'rtl_cmn': 'rtl/common', 'rtl_amba': 'rtl/amba', 'rtl_amba_includes': 'rtl/amba/includes'})
@@ -1079,6 +1090,7 @@ def test_apb_master(request, addr_width, data_width, cmd_depth, rsp_depth):
     sim_build = os.path.join(tests_dir, 'local_sim_build', test_name_plus_params)
 
     # Make sim_build directory
+    enable_waves = bool(int(os.environ.get('WAVES', '0')))
     os.makedirs(sim_build, exist_ok=True)
 
     # get the logs and results into one area
@@ -1091,7 +1103,7 @@ def test_apb_master(request, addr_width, data_width, cmd_depth, rsp_depth):
 
     # Environment variables
     extra_env = {
-        'TRACE_FILE': f"{sim_build}/dump.vcd",
+        'TRACE_FILE': f"{sim_build}/dump.fst",
         'VERILATOR_TRACE': '1',  # Enable tracing
         'DUT': dut_name,
         'LOG_PATH': log_path,
@@ -1106,141 +1118,7 @@ def test_apb_master(request, addr_width, data_width, cmd_depth, rsp_depth):
     extra_env['TEST_CMD_DEPTH'] = str(cmd_depth)
     extra_env['TEST_RSP_DEPTH'] = str(rsp_depth)
 
-    # VCD waveform generation support via WAVES environment variable
-    # Trace compilation always enabled (minimal overhead)
-    # Set WAVES=1 to enable VCD dumping for debugging
-    compile_args = [
-            "--trace",
-            
-            "--trace-depth", "99",
-    ]
-
-
     # Add coverage compile args if COVERAGE=1
-
-    compile_args.extend(get_coverage_compile_args())
-
-
-    sim_args = [
-            "--trace",  # Tell Verilator to use VCD
-            
-            "--trace-depth", "99",
-    ]
-
-    plusargs = [
-            "--trace",
-    ]
-
-    cmd_filename = create_view_cmd(log_dir, log_path, sim_build, module, test_name_plus_params)
-
-    try:
-        run(
-            python_search=[tests_dir],  # where to search for all the python test files
-            verilog_sources=verilog_sources,
-            includes=includes,
-            toplevel=toplevel,
-            module=module,
-            parameters=rtl_parameters,
-            sim_build=sim_build,
-            extra_env=extra_env,
-            waves=False,  # VCD controlled by compile_args, not cocotb-test
-            keep_files=True,
-            compile_args=compile_args,
-            sim_args=sim_args,
-            plusargs=plusargs,
-        )
-    except Exception as e:
-        # If the test fails, make sure logs are preserved
-        print(f"Test failed: {str(e)}")
-        print(f"Logs preserved at: {log_path}")
-        print(f"To view the Waveforms run this command: {cmd_filename}")
-        raise  # Re-raise exception to indicate failure
-
-
-# WaveDrom test parameters
-def generate_apb_master_wavedrom_params():
-    """Generate parameters for APB master WaveDrom tests"""
-    return [
-        # addr_width, data_width, cmd_depth, rsp_depth
-        (32, 32, 6, 6),
-    ]
-
-wavedrom_params = generate_apb_master_wavedrom_params()
-
-@pytest.mark.parametrize("addr_width, data_width, cmd_depth, rsp_depth", wavedrom_params)
-def test_apb_master_wavedrom(request, addr_width, data_width, cmd_depth, rsp_depth):
-    """APB master wavedrom test - generates timing diagrams."""
-    # Get worker ID for parallel execution isolation
-    worker_id = os.environ.get('PYTEST_XDIST_WORKER', 'gw0')
-
-    module, repo_root, tests_dir, log_dir, rtl_dict = get_paths({
-        'rtl_cmn': 'rtl/common',
-        'rtl_gaxi': 'rtl/amba/gaxi',
-        'rtl_apb': 'rtl/amba/apb',
-     'rtl_amba_includes': 'rtl/amba/includes'})
-
-    toplevel = "apb_master"
-
-    verilog_sources = [
-        os.path.join(rtl_dict['rtl_cmn'], "counter_bin.sv"),
-        os.path.join(rtl_dict['rtl_cmn'], "counter_load_clear.sv"),
-        os.path.join(rtl_dict['rtl_cmn'], "fifo_control.sv"),
-        os.path.join(rtl_dict['rtl_gaxi'], "gaxi_fifo_sync.sv"),
-        os.path.join(rtl_dict['rtl_gaxi'], "gaxi_skid_buffer.sv"),
-        os.path.join(rtl_dict['rtl_apb'], "apb_master.sv"),
-    ]
-
-    aw_str = TBBase.format_dec(addr_width, 3)
-    dw_str = TBBase.format_dec(data_width, 3)
-    cmd_str = TBBase.format_dec(cmd_depth, 3)
-    rsp_str = TBBase.format_dec(rsp_depth, 3)
-
-    test_name_plus_params = f"test_{worker_id}_apb_master_aw{aw_str}_dw{dw_str}_cmd{cmd_str}_rsp{rsp_str}_wd"
-    log_path = os.path.join(log_dir, f'{test_name_plus_params}.log')
-    sim_build = os.path.join(tests_dir, 'local_sim_build', test_name_plus_params)
-    os.makedirs(sim_build, exist_ok=True)
-    os.makedirs(log_dir, exist_ok=True)
-    results_path = os.path.join(log_dir, f'results_{test_name_plus_params}.xml')
-
-    includes = [rtl_dict['rtl_amba_includes']]
-    rtl_parameters = {}
-    for param_name in ['addr_width', 'data_width', 'cmd_depth', 'rsp_depth']:
-        if param_name in locals():
-            rtl_parameters[param_name.upper()] = str(locals()[param_name])
-
-    extra_env = {
-        'TRACE_FILE': f"{sim_build}/dump.vcd",
-        'VERILATOR_TRACE': '1',
-        'DUT': 'apb_master',
-        'LOG_PATH': log_path,
-        'COCOTB_LOG_LEVEL': 'INFO',
-        'COCOTB_RESULTS_FILE': results_path,
-        'SEED': str(random.randint(0, 100000)),
-        'ENABLE_WAVEDROM': '1',  # Enable WaveDrom!
-        'TEST_ADDR_WIDTH': str(addr_width),
-        'TEST_DATA_WIDTH': str(data_width),
-        'TEST_CMD_DEPTH': str(cmd_depth),
-        'TEST_RSP_DEPTH': str(rsp_depth),
-    }
-
-    # VCD waveform generation support via WAVES environment variable
-    # Trace compilation always enabled (minimal overhead)
-    # Set WAVES=1 to enable VCD dumping for debugging
-    compile_args = [
-            "--trace",
-            
-            "--trace-depth", "99",
-    ]
-
-
-    # Add coverage compile args if COVERAGE=1
-
-    compile_args.extend(get_coverage_compile_args())
-
-
-    sim_args = []
-
-    plusargs = []
 
     run(
         python_search=[tests_dir],
@@ -1251,10 +1129,9 @@ def test_apb_master_wavedrom(request, addr_width, data_width, cmd_depth, rsp_dep
         parameters=rtl_parameters,
         sim_build=sim_build,
         extra_env=extra_env,
-        waves=False,  # Disable FST - using WaveDrom instead
-        keep_files=True,
-        compile_args=compile_args,
-        sim_args=sim_args,
-        plusargs=plusargs,
+        extra_args=extra_args,
+        plus_args=sim_args,
+
+        waves=enable_waves,  # Disable FST - using WaveDrom instead,
         testcase="apb_master_wavedrom_test",  # Run wavedrom test specifically!
     )

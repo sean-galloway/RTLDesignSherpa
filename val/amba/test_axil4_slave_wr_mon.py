@@ -25,11 +25,9 @@ import random
 import pytest
 import cocotb
 from cocotb_test.simulator import run
-from conftest import get_coverage_compile_args
 
 from TBClasses.axil4.monitor.axil4_slave_monitor_tb import AXIL4SlaveMonitorTB
 from TBClasses.shared.utilities import get_paths
-
 
 @cocotb.test(timeout_time=30, timeout_unit="sec")
 async def axil4_slave_wr_mon_test(dut):
@@ -46,7 +44,6 @@ async def axil4_slave_wr_mon_test(dut):
 
     # Run all integration tests
     await tb.run_integration_tests(test_level=test_level)
-
 
 # ============================================================================
 # PyTest Test Runner
@@ -69,7 +66,6 @@ def generate_axil4_monitor_params():
         return ['gate']
     else:  # FUNC or FULL
         return ['gate', 'func', 'full']
-
 
 @pytest.mark.parametrize("test_level", generate_axil4_monitor_params())
 def test_axil4_slave_wr_mon(test_level):
@@ -102,6 +98,7 @@ def test_axil4_slave_wr_mon(test_level):
 
     log_path = os.path.join(log_dir, f'{test_name}.log')
     sim_build = os.path.join(tests_dir, 'local_sim_build', test_name)
+    enable_waves = bool(int(os.environ.get('WAVES', '0')))
     os.makedirs(sim_build, exist_ok=True)
     os.makedirs(log_dir, exist_ok=True)
 
@@ -153,31 +150,36 @@ def test_axil4_slave_wr_mon(test_level):
         'TEST_LEVEL': test_level,
     }
 
-    compile_args = ["-Wno-WIDTH",
-            "-Wno-SELRANGE",
-            "-Wno-CASEINCOMPLETE",
-            "-Wno-BLKANDNBLK",
-            "--timescale", "1ns/1ps",
+    # Add coverage compile args if COVERAGE=1    extra_args = [
+        '--trace-fst',
+        '--trace-structs',
+        '-Wno-BLKANDNBLK',
+        '-Wno-CASEINCOMPLETE',
+        '-Wno-SELRANGE',
+        '-Wno-TIMESCALEMOD',
+        '-Wno-WIDTH',
     ]
 
-    # Add coverage compile args if COVERAGE=1
-    compile_args.extend(get_coverage_compile_args())
+    if enable_waves:
+        extra_env['COCOTB_TRACE_FILE'] = os.path.join(sim_build, 'dump.fst')
+
+    sim_args = ['--trace'] if enable_waves else []
 
     run(
         verilog_sources=verilog_sources,
         toplevel=dut_name,
         module=module,
-        simulator="verilator",
         parameters=rtl_parameters,
         sim_build=sim_build,
         extra_env=extra_env,
-        waves=False,  # VCD controlled by compile_args, not cocotb-test
+        extra_args=extra_args,
+        plus_args=sim_args,
+
+        waves=enable_waves,
         timescale='1ns/1ps',
         verilator_trace=False,
-        compile_args=compile_args,
         includes=[rtl_dict['rtl_amba_includes']]
     )
-
 
 if __name__ == "__main__":
     pytest.main([__file__, "-v", "-s"])

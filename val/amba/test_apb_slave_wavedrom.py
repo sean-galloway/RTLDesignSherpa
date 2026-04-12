@@ -29,7 +29,6 @@ import pytest
 import cocotb
 from cocotb.utils import get_sim_time
 from cocotb_test.simulator import run
-from conftest import get_coverage_compile_args
 
 from CocoTBFramework.components.shared.memory_model import MemoryModel
 from CocoTBFramework.components.shared.flex_randomizer import FlexRandomizer
@@ -65,7 +64,6 @@ from TBClasses.wavedrom_user.apb import (
     APBPresets, APBDebug, APBConstraints,
     setup_apb_constraints_with_boundaries, get_apb_boundary_pattern
 )
-
 
 class ComprehensiveAPBSlaveTB(TBBase):
     """Enhanced APB Slave Testbench with comprehensive test coverage."""
@@ -878,7 +876,6 @@ class ComprehensiveAPBSlaveTB(TBBase):
 
         self.log.info("=== END TEST REPORT ===")
 
-
 @cocotb.test(timeout_time=300, timeout_unit="us")  # Increased timeout for comprehensive tests
 async def comprehensive_apb_slave_test(dut):
     """Comprehensive APB slave test with all randomizer configurations."""
@@ -942,7 +939,6 @@ async def comprehensive_apb_slave_test(dut):
         await tb.cmd_handler.stop()
         await tb.wait_clocks('pclk', 10)
 
-
 # Keep the original test parameters
 @pytest.mark.parametrize("addr_width, data_width, depth",
     [
@@ -973,6 +969,7 @@ def test_comprehensive_apb_slave(request, addr_width, data_width, depth):
     log_path = os.path.join(log_dir, f'{test_name_plus_params}.log')
 
     sim_build = os.path.join(tests_dir, 'local_sim_build', test_name_plus_params)
+    enable_waves = bool(int(os.environ.get('WAVES', '0')))
     os.makedirs(sim_build, exist_ok=True)
     os.makedirs(log_dir, exist_ok=True)
 
@@ -995,97 +992,17 @@ def test_comprehensive_apb_slave(request, addr_width, data_width, depth):
     }
 
     # Disable FST tracing to avoid Verilator bug
-    # VCD waveform generation support via WAVES environment variable
-    # Trace compilation always enabled (minimal overhead)
-    # Set WAVES=1 to enable VCD dumping for debugging
-    compile_args = []
-
     # Add coverage compile args if COVERAGE=1
-    compile_args.extend(get_coverage_compile_args())
-
-    sim_args = []
-    plusargs = []
-
-    cmd_filename = create_view_cmd(log_dir, log_path, sim_build, module, test_name_plus_params)
-
-    try:
-        run(
-            python_search=[tests_dir],
-            verilog_sources=verilog_sources,
-            includes=[rtl_dict['rtl_amba_includes']],
-            toplevel=toplevel,
-            module=module,
-            parameters=rtl_parameters,
-            sim_build=sim_build,
-            extra_env=extra_env,
-            waves=False,  # Disable waves to avoid Verilator FST bug
-            keep_files=True,
-            compile_args=compile_args,
-            sim_args=sim_args,
-            plusargs=plusargs,
-        )
-    except Exception as e:
-        print(f"Comprehensive test failed: {str(e)}")
-        print(f"Logs preserved at: {log_path}")
-        print(f"To view waveforms: {cmd_filename}")
-        raise
-
-    # Get worker ID for parallel execution isolation
-    worker_id = os.environ.get('PYTEST_XDIST_WORKER', 'gw0')
-
-    """Comprehensive APB slave test with all configurations."""
-
-    # Get paths and setup
-    module, repo_root, tests_dir, log_dir, rtl_dict = get_paths({'rtl_cmn': 'rtl/common', 'rtl_amba': 'rtl/amba', 'rtl_amba_includes': 'rtl/amba/includes'})
-
-    dut_name = "apb_slave"
-    toplevel = dut_name
-
-    verilog_sources = [
-        os.path.join(rtl_dict['rtl_amba'], "gaxi/gaxi_skid_buffer.sv"),
-        os.path.join(rtl_dict['rtl_amba'], f"apb/{dut_name}.sv")
+    extra_args = [
+        '--trace-fst',
+        '--trace-structs',
+        '-Wno-TIMESCALEMOD',
     ]
 
-    # Create test identifier
-    aw_str = TBBase.format_dec(addr_width, 3)
-    dw_str = TBBase.format_dec(data_width, 3)
-    d_str = TBBase.format_dec(depth, 3)
-    test_name_plus_params = f"test_{worker_id}_{dut_name}_aw{aw_str}_dw{dw_str}_d{d_str}_wd"
-    log_path = os.path.join(log_dir, f'{test_name_plus_params}.log')
+    if enable_waves:
+        extra_env['COCOTB_TRACE_FILE'] = os.path.join(sim_build, 'dump.fst')
 
-    sim_build = os.path.join(tests_dir, 'local_sim_build', test_name_plus_params)
-    os.makedirs(sim_build, exist_ok=True)
-    os.makedirs(log_dir, exist_ok=True)
-
-    results_path = os.path.join(log_dir, f'results_{test_name_plus_params}.xml')
-
-    # RTL parameters
-    rtl_parameters = {k.upper(): str(v) for k, v in locals().items() if k in ["addr_width", "data_width", "depth"]}
-
-    # Environment variables
-    extra_env = {
-        'DUT': dut_name,
-        'LOG_PATH': log_path,
-        'COCOTB_LOG_LEVEL': 'INFO',
-        'COCOTB_RESULTS_FILE': results_path,
-        'SEED': str(4347), # str(random.randint(0, 100000)),
-        'WAVEDROM_SHOW_STATUS': '1',
-        'TEST_ADDR_WIDTH': str(addr_width),
-        'TEST_DATA_WIDTH': str(data_width),
-        'TEST_DEPTH': str(depth),
-    }
-
-    # Disable FST tracing to avoid Verilator bug
-    # VCD waveform generation support via WAVES environment variable
-    # Trace compilation always enabled (minimal overhead)
-    # Set WAVES=1 to enable VCD dumping for debugging
-    compile_args = []
-
-    # Add coverage compile args if COVERAGE=1
-    compile_args.extend(get_coverage_compile_args())
-
-    sim_args = []
-    plusargs = []
+    sim_args = ['--trace'] if enable_waves else []
 
     cmd_filename = create_view_cmd(log_dir, log_path, sim_build, module, test_name_plus_params)
 
@@ -1099,11 +1016,10 @@ def test_comprehensive_apb_slave(request, addr_width, data_width, depth):
             parameters=rtl_parameters,
             sim_build=sim_build,
             extra_env=extra_env,
-            waves=False,  # Disable waves to avoid Verilator FST bug
-            keep_files=True,
-            compile_args=compile_args,
-            sim_args=sim_args,
-            plusargs=plusargs,
+            extra_args=extra_args,
+            plus_args=sim_args,
+
+            waves=enable_waves,  # Disable waves to avoid Verilator FST bug,
         )
     except Exception as e:
         print(f"Comprehensive test failed: {str(e)}")

@@ -47,9 +47,7 @@ from cocotb.triggers import RisingEdge
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '../../bin'))
 from TBClasses.gaxi.gaxi_drop_fifo_sync_tb import GaxiDropFifoSyncTB
 from cocotb_test.simulator import run
-from conftest import get_coverage_compile_args
 from TBClasses.shared.utilities import get_paths, create_view_cmd
-
 
 @cocotb.test()
 async def capacity_only_cocotb(dut):
@@ -94,7 +92,6 @@ async def capacity_only_cocotb(dut):
 
     tb.log.info("✅ Capacity test PASSED")
 
-
 def generate_capacity_test_params():
     """
     Generate test parameter combinations based on REG_LEVEL.
@@ -130,7 +127,6 @@ def generate_capacity_test_params():
             (32, 64,  1),  # Medium flop
         ]
 
-
 @pytest.mark.parametrize("data_width, depth, registered", generate_capacity_test_params())
 def test_gaxi_drop_fifo_capacity(request, data_width, depth, registered):
     """Pytest runner for capacity test with parameterization."""
@@ -159,6 +155,7 @@ def test_gaxi_drop_fifo_capacity(request, data_width, depth, registered):
     test_name = f"test_{worker_id}_capacity_dw{data_width}_d{depth}_{mode_str}_{reg_level}"
     log_path = os.path.join(log_dir, f'{test_name}.log')
     sim_build = os.path.join(tests_dir, 'local_sim_build', test_name)
+    enable_waves = bool(int(os.environ.get('WAVES', '0')))
     os.makedirs(sim_build, exist_ok=True)
     os.makedirs(log_dir, exist_ok=True)
 
@@ -173,30 +170,29 @@ def test_gaxi_drop_fifo_capacity(request, data_width, depth, registered):
     }
 
     extra_env = {
-        'TRACE_FILE': f"{sim_build}/dump.vcd",
+        'TRACE_FILE': f"{sim_build}/dump.fst",
         'DUT': dut_name,
         'LOG_PATH': log_path,
         'COCOTB_LOG_LEVEL': 'INFO',
         'WAVES': '1',
     }
 
-    # VCD waveform generation support via WAVES environment variable
-    # Trace compilation always enabled (minimal overhead)
-    # Set WAVES=1 to enable VCD dumping for debugging
-    compile_args = [
-        "--trace",
-        "--trace-structs",
-        "--Wno-UNOPTFLAT",
-    ]
-
-    # Add coverage compile args if COVERAGE=1
-    compile_args.extend(get_coverage_compile_args())
-
     print(f"\n{'='*60}")
     print(f"Testing FIFO Capacity: depth={depth}")
     print(f"Log: {log_path}")
-    print(f"Waveform: {sim_build}/dump.vcd")
+    print(f"Waveform: {sim_build}/dump.fst")
     print(f"{'='*60}")
+
+    extra_args = [
+        '--trace-fst',
+        '--trace-structs',
+        '-Wno-TIMESCALEMOD',
+    ]
+
+    if enable_waves:
+        extra_env['COCOTB_TRACE_FILE'] = os.path.join(sim_build, 'dump.fst')
+
+    sim_args = ['--trace'] if enable_waves else []
 
     try:
         run(
@@ -208,101 +204,16 @@ def test_gaxi_drop_fifo_capacity(request, data_width, depth, registered):
             parameters=parameters,
             sim_build=sim_build,
             extra_env=extra_env,
-            waves=False,  # Use VCD
-            keep_files=True,
-            compile_args=compile_args,
+            extra_args=extra_args,
+            plus_args=sim_args,
+
+            waves=enable_waves,  # Use VCD,
         )
         print(f"✓ Capacity test PASSED")
     except Exception as e:
         print(f"✗ Capacity test FAILED: {str(e)}")
-        print(f"View waveform: gtkwave {sim_build}/dump.vcd")
+        print(f"View waveform: gtkwave {sim_build}/dump.fst")
         raise
-
-
-if __name__ == "__main__":
-    pytest.main([__file__, "-v", "-s"])
-
-    # Get worker ID for parallel execution isolation
-    worker_id = os.environ.get('PYTEST_XDIST_WORKER', 'gw0')
-
-    """Pytest runner for capacity test with parameterization."""
-
-    # Get paths
-    module, repo_root, tests_dir, log_dir, rtl_dict = get_paths({
-        'rtl_amba': 'rtl/amba',
-        'rtl_cmn': 'rtl/common',
-        'rtl_amba_includes': 'rtl/amba/includes',
-    })
-
-    dut_name = "gaxi_drop_fifo_sync"
-    verilog_sources = [
-        os.path.join(rtl_dict['rtl_amba_includes'], "fifo_defs.svh"),
-        os.path.join(rtl_dict['rtl_amba'], 'gaxi/gaxi_drop_fifo_sync.sv'),
-        os.path.join(rtl_dict['rtl_cmn'], 'counter_bin.sv'),
-        os.path.join(rtl_dict['rtl_cmn'], 'counter_bin_load.sv'),
-        os.path.join(rtl_dict['rtl_cmn'], 'fifo_control.sv'),
-    ]
-
-    mode_str = 'mux' if registered == 0 else 'flop'
-    test_name = f"test_{worker_id}_capacity_dw{data_width}_d{depth}_{mode_str}"
-    log_path = os.path.join(log_dir, f'{test_name}.log')
-    sim_build = os.path.join(tests_dir, 'local_sim_build', test_name)
-    os.makedirs(sim_build, exist_ok=True)
-    os.makedirs(log_dir, exist_ok=True)
-
-    includes=[rtl_dict['rtl_amba_includes']]
-
-    parameters = {
-        'DATA_WIDTH': str(data_width),
-        'DEPTH': str(depth),
-        'REGISTERED': str(registered),
-        'ALMOST_WR_MARGIN': '1',
-        'ALMOST_RD_MARGIN': '1',
-    }
-
-    extra_env = {
-        'TRACE_FILE': f"{sim_build}/dump.vcd",
-        'DUT': dut_name,
-        'LOG_PATH': log_path,
-        'COCOTB_LOG_LEVEL': 'INFO',
-        'WAVES': '1',
-    }
-
-    # VCD waveform generation support via WAVES environment variable
-    # Trace compilation always enabled (minimal overhead)
-    # Set WAVES=1 to enable VCD dumping for debugging
-    compile_args = [
-        "--trace",
-        "--trace-structs",
-        "--Wno-UNOPTFLAT",
-    ]
-
-    print(f"\n{'='*60}")
-    print(f"Testing FIFO Capacity: depth={depth}")
-    print(f"Log: {log_path}")
-    print(f"Waveform: {sim_build}/dump.vcd")
-    print(f"{'='*60}")
-
-    try:
-        run(
-            python_search=[tests_dir],
-            verilog_sources=verilog_sources,
-            includes=includes,
-            toplevel=dut_name,
-            module=module,
-            parameters=parameters,
-            sim_build=sim_build,
-            extra_env=extra_env,
-            waves=False,  # Use VCD
-            keep_files=True,
-            compile_args=compile_args,
-        )
-        print(f"✓ Capacity test PASSED")
-    except Exception as e:
-        print(f"✗ Capacity test FAILED: {str(e)}")
-        print(f"View waveform: gtkwave {sim_build}/dump.vcd")
-        raise
-
 
 if __name__ == "__main__":
     pytest.main([__file__, "-v", "-s"])

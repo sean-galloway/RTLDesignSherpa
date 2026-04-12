@@ -34,7 +34,6 @@ import cocotb
 from cocotb.triggers import RisingEdge, Timer, FallingEdge
 from cocotb.utils import get_sim_time
 from cocotb_test.simulator import run
-from conftest import get_coverage_compile_args
 import pytest
 
 from TBClasses.shared.tbbase import TBBase
@@ -54,7 +53,6 @@ RESP_DECERR = 0b11
 BURST_FIXED = 0b00
 BURST_INCR  = 0b01
 BURST_WRAP  = 0b10
-
 
 class AXI4MonitorTB(TBBase):
     """Testbench for AXI4 Monitor stress testing"""
@@ -252,7 +250,27 @@ class AXI4MonitorTB(TBBase):
     async def test_basic_transactions(self) -> bool:
         """Test 1: Basic transactions"""
         self.log.info("TEST 1: Basic Transactions")
-        try:
+        extra_args = [
+        '--trace-fst',
+        '--trace-structs',
+        '-Wno-CASEINCOMPLETE',
+        '-Wno-DECLFILENAME',
+        '-Wno-PINMISSING',
+        '-Wno-SELRANGE',
+        '-Wno-SYNCASYNCNET',
+        '-Wno-TIMESCALEMOD',
+        '-Wno-UNDRIVEN',
+        '-Wno-UNUSED',
+        '-Wno-WIDTHEXPAND',
+        '-Wno-WIDTHTRUNC',
+    ]
+
+    if enable_waves:
+        extra_env['COCOTB_TRACE_FILE'] = os.path.join(sim_build, 'dump.fst')
+
+    sim_args = ['--trace'] if enable_waves else []
+
+    try:
             stats_start = self.get_stats()
             for i in range(5):
                 await self.send_transaction(addr=0x1000 + (i * 0x10), txn_id=i)
@@ -279,7 +297,22 @@ class AXI4MonitorTB(TBBase):
             return True
 
         self.log.info("TEST 2: Burst Transactions")
-        try:
+        extra_args = [
+        '--trace-fst',
+        '--trace-structs',
+        '-Wno-CASEINCOMPLETE',
+        '-Wno-DECLFILENAME',
+        '-Wno-PINMISSING',
+        '-Wno-SELRANGE',
+        '-Wno-SYNCASYNCNET',
+        '-Wno-TIMESCALEMOD',
+        '-Wno-UNDRIVEN',
+        '-Wno-UNUSED',
+        '-Wno-WIDTHEXPAND',
+        '-Wno-WIDTHTRUNC',
+    ]
+
+    try:
             stats_start = self.get_stats()
             for i, length in enumerate([1, 3, 7]):
                 await self.send_transaction(addr=0x2000 + (i * 0x100), txn_id=i, length=length)
@@ -302,7 +335,22 @@ class AXI4MonitorTB(TBBase):
     async def test_error_responses(self) -> bool:
         """Test 3: Error responses"""
         self.log.info("TEST 3: Error Responses")
-        try:
+        extra_args = [
+        '--trace-fst',
+        '--trace-structs',
+        '-Wno-CASEINCOMPLETE',
+        '-Wno-DECLFILENAME',
+        '-Wno-PINMISSING',
+        '-Wno-SELRANGE',
+        '-Wno-SYNCASYNCNET',
+        '-Wno-TIMESCALEMOD',
+        '-Wno-UNDRIVEN',
+        '-Wno-UNUSED',
+        '-Wno-WIDTHEXPAND',
+        '-Wno-WIDTHTRUNC',
+    ]
+
+    try:
             stats_start = self.get_stats()
             # Use IDs within valid range [0, MAX_TRANS-1]
             await self.send_transaction(addr=0x3000, txn_id=0, response=RESP_SLVERR)
@@ -329,7 +377,22 @@ class AXI4MonitorTB(TBBase):
     async def test_orphan_detection(self) -> bool:
         """Test 4: Orphan detection"""
         self.log.info("TEST 4: Orphan Detection")
-        try:
+        extra_args = [
+        '--trace-fst',
+        '--trace-structs',
+        '-Wno-CASEINCOMPLETE',
+        '-Wno-DECLFILENAME',
+        '-Wno-PINMISSING',
+        '-Wno-SELRANGE',
+        '-Wno-SYNCASYNCNET',
+        '-Wno-TIMESCALEMOD',
+        '-Wno-UNDRIVEN',
+        '-Wno-UNUSED',
+        '-Wno-WIDTHEXPAND',
+        '-Wno-WIDTHTRUNC',
+    ]
+
+    try:
             stats_start = self.get_stats()
             for _ in range(20):
                 await RisingEdge(self.dut.aclk)
@@ -358,7 +421,22 @@ class AXI4MonitorTB(TBBase):
     async def test_sustained_throughput(self) -> bool:
         """Test 5: Sustained throughput"""
         self.log.info("TEST 5: Sustained Throughput")
-        try:
+        extra_args = [
+        '--trace-fst',
+        '--trace-structs',
+        '-Wno-CASEINCOMPLETE',
+        '-Wno-DECLFILENAME',
+        '-Wno-PINMISSING',
+        '-Wno-SELRANGE',
+        '-Wno-SYNCASYNCNET',
+        '-Wno-TIMESCALEMOD',
+        '-Wno-UNDRIVEN',
+        '-Wno-UNUSED',
+        '-Wno-WIDTHEXPAND',
+        '-Wno-WIDTHTRUNC',
+    ]
+
+    try:
             packets_start = len(self.mon_slave.received_packets)
             for i in range(self.NUM_TXN):
                 delay = random.randint(0, self.MAX_DELAY)
@@ -397,7 +475,22 @@ class AXI4MonitorTB(TBBase):
             return True
 
         self.log.info("TEST 6: Zero-Delay Stress")
-        try:
+        extra_args = [
+        '--trace-fst',
+        '--trace-structs',
+        '-Wno-CASEINCOMPLETE',
+        '-Wno-DECLFILENAME',
+        '-Wno-PINMISSING',
+        '-Wno-SELRANGE',
+        '-Wno-SYNCASYNCNET',
+        '-Wno-TIMESCALEMOD',
+        '-Wno-UNDRIVEN',
+        '-Wno-UNUSED',
+        '-Wno-WIDTHEXPAND',
+        '-Wno-WIDTHTRUNC',
+    ]
+
+    try:
             stats_start = self.get_stats()
             num_txn = 100
 
@@ -452,7 +545,6 @@ class AXI4MonitorTB(TBBase):
 
         return all(results.values())
 
-
 @cocotb.test(timeout_time=600, timeout_unit="sec")
 async def axi4_monitor_test(dut):
     """Main test function"""
@@ -465,7 +557,6 @@ async def axi4_monitor_test(dut):
     passed = await tb.run_all_tests()
 
     assert passed, "AXI4 monitor test failed"
-
 
 def generate_test_params():
     """Generate test parameter combinations"""
@@ -487,7 +578,6 @@ def generate_test_params():
         (8, 64, 8,  True,  True,  'addr64'),    # 10. 64-bit addr, 8-bit ID
         (8, 64, 16, True,  True,  'combined'),  # 11. Combined stress
     ]
-
 
 @pytest.mark.parametrize("iw, aw, max_transactions, is_read, is_axi4, test_mode", generate_test_params())
 def test_axi4_monitor(iw, aw, max_transactions, is_read, is_axi4, test_mode):
@@ -515,6 +605,7 @@ def test_axi4_monitor(iw, aw, max_transactions, is_read, is_axi4, test_mode):
     test_name = f"test_{worker_id}_{worker_id}_axi_monitor_{test_mode}_iw{iw}_aw{aw}_mt{max_transactions}_{protocol}_{direction}"
     log_path = os.path.join(log_dir, f'{test_name}.log')
     sim_build = os.path.join(tests_dir, 'local_sim_build', test_name)
+    enable_waves = bool(int(os.environ.get('WAVES', '0')))
     os.makedirs(sim_build, exist_ok=True)
     os.makedirs(log_dir, exist_ok=True)
 
@@ -567,22 +658,26 @@ def test_axi4_monitor(iw, aw, max_transactions, is_read, is_axi4, test_mode):
         'STRESS_LEVEL': stress_level,
     }
 
-    # VCD waveform generation support via WAVES environment variable
-    # Trace compilation always enabled (minimal overhead)
-    # Set WAVES=1 to enable VCD dumping for debugging
-    compile_args = [
-        "-Wall", "-Wno-SYNCASYNCNET", "-Wno-UNUSED", "-Wno-DECLFILENAME", "-Wno-PINMISSING",
-        "-Wno-UNDRIVEN", "-Wno-WIDTHEXPAND", "-Wno-WIDTHTRUNC",
-        "-Wno-SELRANGE", "-Wno-CASEINCOMPLETE", "-Wno-TIMESCALEMOD",
-    ]
-
     # Add coverage compile args if COVERAGE=1
-    compile_args.extend(get_coverage_compile_args())
-
     print(f"\n{'='*80}")
     print(f"AXI4 Monitor Test: {test_mode}")
     print(f"IW={iw}, AW={aw}, MAX_TRANS={max_transactions}, {protocol.upper()}, {direction.upper()}")
     print(f"{'='*80}")
+
+    extra_args = [
+        '--trace-fst',
+        '--trace-structs',
+        '-Wno-CASEINCOMPLETE',
+        '-Wno-DECLFILENAME',
+        '-Wno-PINMISSING',
+        '-Wno-SELRANGE',
+        '-Wno-SYNCASYNCNET',
+        '-Wno-TIMESCALEMOD',
+        '-Wno-UNDRIVEN',
+        '-Wno-UNUSED',
+        '-Wno-WIDTHEXPAND',
+        '-Wno-WIDTHTRUNC',
+    ]
 
     try:
         run(
@@ -594,9 +689,10 @@ def test_axi4_monitor(iw, aw, max_transactions, is_read, is_axi4, test_mode):
             parameters=rtl_parameters,
             sim_build=sim_build,
             extra_env=extra_env,
-            waves=False,  # VCD controlled by compile_args, not cocotb-test
-            keep_files=True,
-            compile_args=compile_args,
+            extra_args=extra_args,
+            plus_args=sim_args,
+
+            waves=enable_waves,
         )
         print(f"✓ PASSED: {test_name}")
     except Exception as e:

@@ -48,7 +48,6 @@ import pytest
 import cocotb
 from cocotb.triggers import RisingEdge
 from cocotb_test.simulator import run
-from conftest import get_coverage_compile_args
 from TBClasses.shared.tbbase import TBBase
 from TBClasses.gaxi.gaxi_buffer import GaxiBufferTB
 from TBClasses.shared.utilities import get_paths, create_view_cmd
@@ -66,7 +65,6 @@ from CocoTBFramework.components.wavedrom.constraint_solver import (
     TemporalRelation
 )
 from CocoTBFramework.components.shared.field_config import FieldDefinition
-
 
 @cocotb.test(timeout_time=3, timeout_unit="ms")
 async def gaxi_fifo_sync_test(dut):
@@ -188,7 +186,6 @@ async def gaxi_fifo_sync_test(dut):
         tb.log.info("✓ Completed stress test")
 
     tb.log.info(f"✓ ALL {test_level.upper()} GAXI FIFO SYNC ({mode_name}) TESTS PASSED!")
-
 
 @cocotb.test(timeout_time=5, timeout_unit="sec")
 async def gaxi_fifo_sync_wavedrom_test(dut):
@@ -391,7 +388,6 @@ async def gaxi_fifo_sync_wavedrom_test(dut):
 
     dut._log.info(f"✓ GAXI FIFO Sync {mode_name} WaveDrom Complete: 3 scenarios generated")
 
-
 def generate_test_params():
     """
     Generate test parameters for gaxi_fifo_sync based on REG_LEVEL.
@@ -437,9 +433,7 @@ def generate_test_params():
         return list(product(widths, depths, registered, clk_periods, test_levels))
         # Result: 4 widths × 3 depths × 2 modes × 3 levels = 72 tests
 
-
 params = generate_test_params()
-
 
 @pytest.mark.parametrize("data_width, depth, registered, clk_period, test_level", params)
 def test_gaxi_fifo_sync(request, data_width, depth, registered, clk_period, test_level):
@@ -497,6 +491,7 @@ def test_gaxi_fifo_sync(request, data_width, depth, registered, clk_period, test
     log_path = os.path.join(log_dir, f'{test_name_plus_params}.log')
 
     sim_build = os.path.join(tests_dir, 'local_sim_build', test_name_plus_params)
+    enable_waves = bool(int(os.environ.get('WAVES', '0')))
     os.makedirs(sim_build, exist_ok=True)
 
     os.makedirs(log_dir, exist_ok=True)
@@ -518,7 +513,7 @@ def test_gaxi_fifo_sync(request, data_width, depth, registered, clk_period, test
 
     # Environment variables
     extra_env = {
-        'TRACE_FILE': f"{sim_build}/dump.vcd",
+        'TRACE_FILE': f"{sim_build}/dump.fst",
         'VERILATOR_TRACE': '1',
         'DUT': dut_name,
         'LOG_PATH': log_path,
@@ -536,28 +531,18 @@ def test_gaxi_fifo_sync(request, data_width, depth, registered, clk_period, test
         'REGISTERED': str(registered)
     }
 
-    # VCD waveform generation support via WAVES environment variable
-    # Trace compilation always enabled (minimal overhead)
-    # Set WAVES=1 to enable VCD dumping for debugging
-    compile_args = [
-        "--trace",
-        "--trace-depth", "99",
-    ]
-
-
     # Add coverage compile args if COVERAGE=1
 
-    compile_args.extend(get_coverage_compile_args())
-
-
-    sim_args = [
-        "--trace",
-        "--trace-depth", "99",
+    extra_args = [
+        '--trace-fst',
+        '--trace-structs',
+        '-Wno-TIMESCALEMOD',
     ]
 
-    plusargs = [
-        "--trace",
-    ]
+    if enable_waves:
+        extra_env['COCOTB_TRACE_FILE'] = os.path.join(sim_build, 'dump.fst')
+
+    sim_args = ['--trace'] if enable_waves else []
 
     cmd_filename = create_view_cmd(log_dir, log_path, sim_build, module, test_name_plus_params)
 
@@ -578,11 +563,10 @@ def test_gaxi_fifo_sync(request, data_width, depth, registered, clk_period, test
             parameters=rtl_parameters,
             sim_build=sim_build,
             extra_env=extra_env,
-            waves=False,  # VCD controlled by compile_args, not cocotb-test
-            keep_files=True,
-            compile_args=compile_args,
-            sim_args=sim_args,
-            plusargs=plusargs,
+            extra_args=extra_args,
+            plus_args=sim_args,
+
+            waves=enable_waves,
             testcase="gaxi_fifo_sync_test",
         )
         print(f"✓ {test_level.upper()} test PASSED: gaxi_fifo_sync ({mode_name} mode)")
@@ -591,7 +575,6 @@ def test_gaxi_fifo_sync(request, data_width, depth, registered, clk_period, test
         print(f"Logs preserved at: {log_path}")
         print(f"To view waveforms: {cmd_filename}")
         raise
-
 
 # WaveDrom tests - one for each mode
 @pytest.mark.parametrize("data_width, depth, registered, clk_period", [
@@ -637,7 +620,7 @@ def test_gaxi_fifo_sync_wavedrom(request, data_width, depth, registered, clk_per
     }
 
     extra_env = {
-        'TRACE_FILE': f"{sim_build}/dump.vcd",
+        'TRACE_FILE': f"{sim_build}/dump.fst",
         'VERILATOR_TRACE': '1',
         'DUT': dut_name,
         'LOG_PATH': log_path,
@@ -664,14 +647,13 @@ def test_gaxi_fifo_sync_wavedrom(request, data_width, depth, registered, clk_per
             parameters=rtl_parameters,
             sim_build=sim_build,
             extra_env=extra_env,
-            waves=False,  # VCD controlled by compile_args, not cocotb-test
+            waves=enable_waves,
             testcase="gaxi_fifo_sync_wavedrom_test",
         )
         print(f"✓ WaveDrom test PASSED: gaxi_fifo_sync ({mode_name} mode) - 3 scenarios generated")
     except Exception as e:
         print(f"✗ WaveDrom test FAILED: {str(e)}")
         raise
-
 
 if __name__ == "__main__":
     # Run basic test by default (mux mode)

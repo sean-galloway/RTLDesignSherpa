@@ -29,11 +29,9 @@ import pytest
 import cocotb
 from cocotb.triggers import Timer, RisingEdge, FallingEdge
 from cocotb_test.simulator import run
-from conftest import get_coverage_compile_args
 
 from TBClasses.shared.tbbase import TBBase
 from TBClasses.shared.utilities import get_paths, create_view_cmd
-
 
 class APB5SlaveBasicTB(TBBase):
     """Basic APB5 slave testbench for RTL verification."""
@@ -185,7 +183,6 @@ class APB5SlaveBasicTB(TBBase):
         await RisingEdge(self.dut.pclk)
         self.dut.rsp_valid.value = 0
 
-
 @cocotb.test(timeout_time=100, timeout_unit="us")
 async def cocotb_test_apb5_slave_basic(dut):
     """Basic APB5 slave test - verifies APB to command/response conversion."""
@@ -279,7 +276,6 @@ async def cocotb_test_apb5_slave_basic(dut):
 
     tb.log.info("=== APB5 Slave Basic Test PASSED ===")
 
-
 def generate_apb5_slave_params():
     """Generate test parameters for APB5 slave."""
     return [
@@ -288,7 +284,6 @@ def generate_apb5_slave_params():
         (16, 32, 8, 8, 8, 8),
         (12, 64, 4, 4, 4, 4),
     ]
-
 
 @pytest.mark.parametrize(
     "addr_width, data_width, auser_width, wuser_width, ruser_width, buser_width",
@@ -325,6 +320,7 @@ def test_apb5_slave(request, addr_width, data_width, auser_width, wuser_width,
     log_path = os.path.join(log_dir, f'{test_name_plus_params}.log')
     sim_build = os.path.join(tests_dir, 'local_sim_build', test_name_plus_params)
 
+    enable_waves = bool(int(os.environ.get('WAVES', '0')))
     os.makedirs(sim_build, exist_ok=True)
     os.makedirs(log_dir, exist_ok=True)
 
@@ -343,7 +339,7 @@ def test_apb5_slave(request, addr_width, data_width, auser_width, wuser_width,
 
     # Environment variables
     extra_env = {
-        'TRACE_FILE': f"{sim_build}/dump.vcd",
+        'TRACE_FILE': f"{sim_build}/dump.fst",
         'VERILATOR_TRACE': '1',
         'DUT': toplevel,
         'LOG_PATH': log_path,
@@ -358,14 +354,19 @@ def test_apb5_slave(request, addr_width, data_width, auser_width, wuser_width,
         'TEST_BUSER_WIDTH': str(buser_width),
     }
 
-    compile_args = [
-        "-Wno-TIMESCALEMOD",
-        "-Wno-WIDTHTRUNC",
-        "-Wno-WIDTHEXPAND",
+    # Add coverage compile args if COVERAGE=1
+    extra_args = [
+        '--trace-fst',
+        '--trace-structs',
+        '-Wno-TIMESCALEMOD',
+        '-Wno-WIDTHEXPAND',
+        '-Wno-WIDTHTRUNC',
     ]
 
-    # Add coverage compile args if COVERAGE=1
-    compile_args.extend(get_coverage_compile_args())
+    if enable_waves:
+        extra_env['COCOTB_TRACE_FILE'] = os.path.join(sim_build, 'dump.fst')
+
+    sim_args = ['--trace'] if enable_waves else []
 
     cmd_filename = create_view_cmd(log_dir, log_path, sim_build, module, test_name_plus_params)
 
@@ -379,11 +380,11 @@ def test_apb5_slave(request, addr_width, data_width, auser_width, wuser_width,
             parameters=rtl_parameters,
             sim_build=sim_build,
             extra_env=extra_env,
-            waves=False,
-            keep_files=True,
-            compile_args=compile_args,
+            extra_args=extra_args,
+            plus_args=sim_args,
+
+            waves=enable_waves,
             testcase="cocotb_test_apb5_slave_basic",
-            simulator="verilator",
         )
     except Exception as e:
         print(f"Test failed: {str(e)}")

@@ -38,11 +38,9 @@ import pytest
 import cocotb
 from cocotb.triggers import Timer, RisingEdge
 from cocotb_test.simulator import run
-from conftest import get_coverage_compile_args
 
 from TBClasses.shared.tbbase import TBBase
 from TBClasses.shared.utilities import get_paths, create_view_cmd
-
 
 class RealisticAxiSplitTB(TBBase):
     """
@@ -820,14 +818,12 @@ class RealisticAxiSplitTB(TBBase):
             if len(self.errors) > 5:
                 self.log.error(f"  ... and {len(self.errors) - 5} more errors")
 
-
 @cocotb.test(timeout_time=120000, timeout_unit="us")
 async def realistic_axi_split_test(dut):
     """Run the realistic test suite"""
     tb = RealisticAxiSplitTB(dut)
     passed = await tb.run_realistic_test_suite()
     assert passed, f"Realistic test failed with {len(tb.errors)} errors"
-
 
 def generate_realistic_test_params():
     """Generate test parameters for realistic testing"""
@@ -845,7 +841,6 @@ def generate_realistic_test_params():
         }
         for combo in product(aw, dw, test_levels, test_modes)
     ]
-
 
 @pytest.mark.parametrize("params", generate_realistic_test_params())
 def test_axi_split_realistic(request, params):
@@ -881,6 +876,7 @@ def test_axi_split_realistic(request, params):
     sim_build = os.path.join(tests_dir, 'local_sim_build', test_name_plus_params)
     results_path = os.path.join(log_dir, f'results_{test_name_plus_params}.xml')
 
+    enable_waves = bool(int(os.environ.get('WAVES', '0')))
     os.makedirs(sim_build, exist_ok=True)
     os.makedirs(log_dir, exist_ok=True)
 
@@ -892,7 +888,7 @@ def test_axi_split_realistic(request, params):
 
     # Environment
     extra_env = {
-        'TRACE_FILE': f"{sim_build}/dump.vcd",
+        'TRACE_FILE': f"{sim_build}/dump.fst",
         'VERILATOR_TRACE': '1',
         'DUT': dut_name,
         'LOG_PATH': log_path,
@@ -910,24 +906,22 @@ def test_axi_split_realistic(request, params):
     extra_env['COCOTB_TIMEOUT_MULTIPLIER'] = str(timeout_multiplier)
 
     # Compilation arguments
-    # VCD waveform generation support via WAVES environment variable
-    # Trace compilation always enabled (minimal overhead)
-    # Set WAVES=1 to enable VCD dumping for debugging
-    compile_args = [
-        "--trace", "--trace-depth", "99",
-        "-Wall", "-Wno-SYNCASYNCNET", "-Wno-WIDTHEXPAND"
-    ]
-
-
     # Add coverage compile args if COVERAGE=1
 
-    compile_args.extend(get_coverage_compile_args())
-
-
-    sim_args = ["--trace", "--trace-depth", "99"]
-    plusargs = ["--trace"]
-
     # Create view command
+    extra_args = [
+        '--trace-fst',
+        '--trace-structs',
+        '-Wno-SYNCASYNCNET',
+        '-Wno-TIMESCALEMOD',
+        '-Wno-WIDTHEXPAND',
+    ]
+
+    if enable_waves:
+        extra_env['COCOTB_TRACE_FILE'] = os.path.join(sim_build, 'dump.fst')
+
+    sim_args = ['--trace'] if enable_waves else []
+
     cmd_filename = create_view_cmd(log_dir, log_path, sim_build, module, test_name_plus_params)
 
     try:
@@ -939,113 +933,10 @@ def test_axi_split_realistic(request, params):
             parameters=rtl_parameters,
             sim_build=sim_build,
             extra_env=extra_env,
-            waves=False,  # VCD controlled by compile_args, not cocotb-test
-            keep_files=True,
-            compile_args=compile_args,
-            sim_args=sim_args,
-            plusargs=plusargs,
-        )
-    except Exception as e:
-        print(f"Realistic test failed: {str(e)}")
-        print(f"Logs at: {log_path}")
-        print(f"View waveforms: {cmd_filename}")
-        raise
+            extra_args=extra_args,
+            plus_args=sim_args,
 
-    # Get worker ID for parallel execution isolation
-    worker_id = os.environ.get('PYTEST_XDIST_WORKER', 'gw0')
-
-    """Run realistic test with pytest"""
-
-    # Get paths
-    module, repo_root, tests_dir, log_dir, rtl_dict = get_paths({
-        'rtl_cmn': 'rtl/common',
-        'rtl_amba_shared': 'rtl/amba/shared'
-    })
-
-    dut_name = "axi_split_combi"
-    toplevel = dut_name
-    verilog_sources = [
-        os.path.join(rtl_dict['rtl_amba_shared'], "axi_split_combi.sv")
-    ]
-
-    # Create test identifier following pattern: test_<module>_<params>
-    t_aw = params['AW']
-    t_dw = params['DW']
-    t_level = params['test_level']
-    t_mode = params['test_mode']
-    # Format: test_axi_split_combi_aw032_dw064_basic_realistic
-    aw_str = f"{t_aw:03d}"
-    dw_str = f"{t_dw:03d}"
-    test_name_plus_params = f"test_{worker_id}_{dut_name}_aw{aw_str}_dw{dw_str}_{t_level}_{t_mode}"
-
-    # Setup paths
-    log_path = os.path.join(log_dir, f'{test_name_plus_params}.log')
-    sim_build = os.path.join(tests_dir, 'local_sim_build', test_name_plus_params)
-    results_path = os.path.join(log_dir, f'results_{test_name_plus_params}.xml')
-
-    os.makedirs(sim_build, exist_ok=True)
-    os.makedirs(log_dir, exist_ok=True)
-
-    # RTL parameters
-    rtl_parameters = {
-        'AW': str(params['AW']),
-        'DW': str(params['DW'])
-    }
-
-    # Environment
-    extra_env = {
-        'TRACE_FILE': f"{sim_build}/dump.vcd",
-        'VERILATOR_TRACE': '1',
-        'DUT': dut_name,
-        'LOG_PATH': log_path,
-        'COCOTB_LOG_LEVEL': 'INFO',
-        'COCOTB_RESULTS_FILE': results_path,
-        'SEED': str(random.randint(0, 100000)),
-        'TEST_LEVEL': params['test_level'],
-        'TEST_MODE': params['test_mode'],
-        'TEST_AW': str(params['AW']),
-        'TEST_DW': str(params['DW']),
-    }
-
-    # Realistic timeout
-    timeout_multiplier = 8.0 if params['test_level'] == 'full' else 4.0
-    extra_env['COCOTB_TIMEOUT_MULTIPLIER'] = str(timeout_multiplier)
-
-    # Compilation arguments
-    # VCD waveform generation support via WAVES environment variable
-    # Trace compilation always enabled (minimal overhead)
-    # Set WAVES=1 to enable VCD dumping for debugging
-    compile_args = [
-        "--trace", "--trace-depth", "99",
-        "-Wall", "-Wno-SYNCASYNCNET", "-Wno-WIDTHEXPAND"
-    ]
-
-
-    # Add coverage compile args if COVERAGE=1
-
-    compile_args.extend(get_coverage_compile_args())
-
-
-    sim_args = ["--trace", "--trace-depth", "99"]
-    plusargs = ["--trace"]
-
-    # Create view command
-    cmd_filename = create_view_cmd(log_dir, log_path, sim_build, module, test_name_plus_params)
-
-    try:
-        run(
-            python_search=[tests_dir],
-            verilog_sources=verilog_sources,
-            toplevel=toplevel,
-            module=module,
-            parameters=rtl_parameters,
-            sim_build=sim_build,
-            extra_env=extra_env,
-            waves=False,  # VCD controlled by compile_args, not cocotb-test
-            keep_files=True,
-            compile_args=compile_args,
-            sim_args=sim_args,
-            plusargs=plusargs,
+            waves=enable_waves,
         )
     except Exception as e:
         print(f"Realistic test failed: {str(e)}")

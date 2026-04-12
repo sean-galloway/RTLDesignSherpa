@@ -50,7 +50,6 @@ import pytest
 import cocotb
 from cocotb.triggers import RisingEdge
 from cocotb_test.simulator import run
-from conftest import get_coverage_compile_args
 from TBClasses.shared.tbbase import TBBase
 from TBClasses.gaxi.gaxi_buffer import GaxiBufferTB
 from TBClasses.shared.utilities import get_paths, create_view_cmd
@@ -68,7 +67,6 @@ from CocoTBFramework.components.wavedrom.constraint_solver import (
     TemporalRelation
 )
 from CocoTBFramework.components.shared.field_config import FieldDefinition
-
 
 @cocotb.test(timeout_time=5, timeout_unit="ms")  # Increased timeout for async testing
 async def gaxi_async_test(dut):
@@ -218,7 +216,6 @@ async def gaxi_async_test(dut):
         tb.log.info("✓ Completed CDC stress test")
 
     tb.log.info(f"✓ ALL {test_level.upper()} ASYNC TESTS PASSED!")
-
 
 @cocotb.test(timeout_time=10, timeout_unit="sec")
 async def gaxi_async_wavedrom_test(dut):
@@ -432,7 +429,6 @@ async def gaxi_async_wavedrom_test(dut):
 
     dut._log.info(f"✓ GAXI Async {mode} WaveDrom Complete: 3 CDC scenarios generated")
 
-
 # WaveDrom test parameters - separate from functional tests
 def generate_async_wavedrom_params():
     """
@@ -536,6 +532,7 @@ def test_gaxi_buffer_async_wavedrom(request, data_width, depth, wr_clk_period, r
     # use it in the simbuild path
     sim_build = os.path.join(tests_dir, 'local_sim_build', test_name_plus_params)
     # Make sim_build directory
+    enable_waves = bool(int(os.environ.get('WAVES', '0')))
     os.makedirs(sim_build, exist_ok=True)
 
     # get the logs and results into one area
@@ -562,7 +559,7 @@ def test_gaxi_buffer_async_wavedrom(request, data_width, depth, wr_clk_period, r
 
     # Environment variables - ENABLE WAVEDROM!
     extra_env = {
-        'TRACE_FILE': f"{sim_build}/dump.vcd",
+        'TRACE_FILE': f"{sim_build}/dump.fst",
         'VERILATOR_TRACE': '1',
         'DUT': dut_name,
         'LOG_PATH': log_path,
@@ -580,238 +577,18 @@ def test_gaxi_buffer_async_wavedrom(request, data_width, depth, wr_clk_period, r
         'TEST_KIND': 'async',
     }
 
-    # VCD waveform generation support via WAVES environment variable
-    # Trace compilation always enabled (minimal overhead)
-    # Set WAVES=1 to enable VCD dumping for debugging
-    compile_args = [
-        "-Wno-TIMESCALEMOD",
-    ]
-
-
     # Add coverage compile args if COVERAGE=1
 
-    compile_args.extend(get_coverage_compile_args())
-
-
-    sim_args = []
-
-    plusargs = []
-
-    # Run with WaveDrom-specific test function
-    run(
-        python_search=[os.path.join(repo_root, 'bin')],
-        verilog_sources=verilog_sources,
-        includes=includes,
-        toplevel=toplevel,
-        module=module,
-        parameters=rtl_parameters,
-        sim_build=sim_build,
-        extra_env=extra_env,
-        compile_args=compile_args,
-        sim_args=sim_args,
-        plusargs=plusargs,
-        waves=False,  # Disable FST - using WaveDrom instead
-        testcase="gaxi_async_wavedrom_test",  # Run wavedrom test specifically!
-    )
-
-
-def generate_params():
-    """
-    Generate test parameters based on REG_LEVEL for async CDC testing.
-
-    REG_LEVEL=GATE: 1 test (smoke test)
-    REG_LEVEL=FUNC: 9 tests (functional coverage) - default
-    REG_LEVEL=FULL: 48 tests (comprehensive validation)
-
-    Clock Ratios Tested:
-        1.0x: Same clocks (10:10) - basic CDC validation
-        1.2x: (10:12) - typical async scenario
-        1.5x: (8:12) - moderate ratio
-        2.0x: (10:20) - high ratio stress test
-        2.5x: (8:20) - extreme ratio (FULL only)
-    """
-    reg_level = os.environ.get('REG_LEVEL', 'FUNC').upper()
-
-    if reg_level == 'GATE':
-        # Minimal - just prove it works with one clock ratio
-        # 1 test: skid mode, 1.2x ratio (10:12), basic level
-        return [
-            (8, 4, 10, 12, 'skid', 'gate'),
-        ]
-
-    elif reg_level == 'FUNC':
-        # Functional coverage - all modes with one clock ratio at all test levels
-        # 3 modes × 3 levels = 9 tests
-        modes = ['skid', 'fifo_mux', 'fifo_flop']
-        test_levels = ['gate', 'func', 'full']
-
-        # Use 1.2x ratio (10:12) - typical async scenario
-        return list(product([8], [4], [10], [12], modes, test_levels))
-
-    else:  # FULL
-        # Comprehensive testing - all modes, multiple clock ratios, multiple depths
-        # 3 modes × 4 ratios × 4 depths × full level = 48 tests
-        modes = ['skid', 'fifo_mux', 'fifo_flop']
-        depths = [4, 6, 8, 10]
-
-        # Test meaningful clock ratio combinations
-        clock_configs = [
-            (10, 10),  # 1.0x - same clocks
-            (10, 12),  # 1.2x - typical async
-            (8, 12),   # 1.5x - moderate ratio
-            (10, 20),  # 2.0x - high ratio
-        ]
-
-        params = []
-        for mode, depth, (wr_clk, rd_clk) in product(modes, depths, clock_configs):
-            params.append((8, depth, wr_clk, rd_clk, mode, 'full'))
-
-        return params
-
-
-params = generate_params()
-
-@pytest.mark.parametrize("data_width, depth, wr_clk_period, rd_clk_period, mode, test_level", params)
-def test_gaxi_buffer_async(request, data_width, depth, wr_clk_period, rd_clk_period, mode, test_level):
-    """
-    Parameterized GAXI async buffer test with configurable test levels and independent clock domains.
-
-    Test level controls the depth and breadth of testing:
-    - basic: Quick verification (3-5 min)
-    - medium: Integration testing (8-12 min)
-    - full: Comprehensive validation (20-35 min)
-
-    Clock configurations test various CDC scenarios:
-    - Same clocks: wr_clk = rd_clk (basic CDC validation)
-    - Slow write/fast read: wr_clk > rd_clk (backpressure scenarios)
-    - Fast write/slow read: wr_clk < rd_clk (buffering scenarios)
-    - Extreme ratios: up to 2.5x difference (stress testing)
-
-    For quick debugging: Modify generate_params() function to return only specific combinations
-    """
-
-    # Get worker ID for parallel execution isolation
-    worker_id = os.environ.get('PYTEST_XDIST_WORKER', 'gw0')
-
-    # get all of the directory and module information
-    module, repo_root, tests_dir, log_dir, rtl_dict = get_paths({
-        'rtl_cmn':  'rtl/common',
-        'rtl_gaxi': 'rtl/amba/gaxi',
-        'rtl_amba_includes': 'rtl/amba/includes',
-    })
-
-    # set up all of the test names based on async modules
-    if mode == 'skid':
-        dut_name = "gaxi_skid_buffer_async"
-    else:
-        dut_name = "gaxi_fifo_async"
-    toplevel = dut_name
-
-    # Get verilog sources based on mode for async versions
-    #
-    verilog_sources = [
-        os.path.join(rtl_dict['rtl_amba_includes'], "fifo_defs.svh"),
-        os.path.join(rtl_dict['rtl_cmn'],  "find_first_set.sv"),
-        os.path.join(rtl_dict['rtl_cmn'],  "find_last_set.sv"),
-        os.path.join(rtl_dict['rtl_cmn'],  "leading_one_trailing_one.sv"),
-        os.path.join(rtl_dict['rtl_cmn'],  "counter_bin.sv"),
-        os.path.join(rtl_dict['rtl_cmn'],  "counter_johnson.sv"),
-        os.path.join(rtl_dict['rtl_cmn'],  "grayj2bin.sv"),
-        os.path.join(rtl_dict['rtl_cmn'],  "glitch_free_n_dff_arn.sv"),
-        os.path.join(rtl_dict['rtl_cmn'],  "fifo_control.sv"),
-        os.path.join(rtl_dict['rtl_gaxi'], "gaxi_fifo_async.sv"),
+    extra_args = [
+        '--trace-fst',
+        '--trace-structs',
+        '-Wno-TIMESCALEMOD',
     ]
 
-    if mode == 'skid':
-        verilog_sources.append(os.path.join(rtl_dict['rtl_gaxi'], "gaxi_skid_buffer.sv"))
-        verilog_sources.append(os.path.join(rtl_dict['rtl_gaxi'], "gaxi_skid_buffer_async.sv"))
+    if enable_waves:
+        extra_env['COCOTB_TRACE_FILE'] = os.path.join(sim_build, 'dump.fst')
 
-    # create a human readable test identifier with clock information
-    w_str = TBBase.format_dec(data_width, 3)
-    d_str = TBBase.format_dec(depth, 3)
-    wr_str = TBBase.format_dec(wr_clk_period, 3)
-    rd_str = TBBase.format_dec(rd_clk_period, 3)
-
-    # Calculate clock ratio for test name
-    clk_ratio = max(wr_clk_period, rd_clk_period) / min(wr_clk_period, rd_clk_period)
-    ratio_str = f"r{clk_ratio:.1f}".replace('.', 'p')  # r2p0 for 2.0x ratio
-
-    test_name_plus_params = f"test_{worker_id}_gaxi_async_{mode}_w{w_str}_d{d_str}_wr{wr_str}_rd{rd_str}_{ratio_str}_{test_level}"
-    log_path = os.path.join(log_dir, f'{test_name_plus_params}.log')
-
-    # use it in the simbuild path
-    sim_build = os.path.join(tests_dir, 'local_sim_build', test_name_plus_params)
-    # Make sim_build directory
-    os.makedirs(sim_build, exist_ok=True)
-
-    # get the logs and results into one area
-    os.makedirs(log_dir, exist_ok=True)
-    results_path = os.path.join(log_dir, f'results_{test_name_plus_params}.xml')
-
-    includes=[rtl_dict['rtl_amba_includes']]
-
-    # RTL parameters - Handle string parameters specially for Verilator
-    rtl_parameters = {}
-
-    # Add numeric parameters normally
-    for param_name in ['data_width', 'depth']:
-        if param_name in locals():
-            rtl_parameters[param_name.upper()] = str(locals()[param_name])
-
-    # Add async-specific parameters
-    rtl_parameters['N_FLOP_CROSS'] = '3'  # Standard 3-flop synchronizer
-
-    if 'fifo' in mode:
-        rtl_parameters['REGISTERED'] = str(1) if mode == 'fifo_flop' else str(0)
-
-    # Adjust timeout based on test level and clock ratio
-    timeout_multipliers = {'gate': 1.5, 'func': 3, 'full': 6}  # Higher for async
-    base_timeout = 3000  # 3 seconds base for async
-    timeout_ms = int(base_timeout * timeout_multipliers.get(test_level, 1) * clk_ratio)
-
-    # Environment variables
-    extra_env = {
-        'TRACE_FILE': f"{sim_build}/dump.vcd",
-        'VERILATOR_TRACE': '1',  # Enable tracing
-        'DUT': dut_name,
-        'LOG_PATH': log_path,
-        'COCOTB_LOG_LEVEL': 'INFO',
-        'COCOTB_RESULTS_FILE': results_path,
-        'SEED': str(random.randint(0, 100000)),
-        'TEST_LEVEL': test_level,
-        'COCOTB_TEST_TIMEOUT': str(timeout_ms)  # Dynamic timeout
-    }
-
-    # Add test parameters for async testing
-    extra_env['TEST_DATA_WIDTH'] = str(data_width)
-    extra_env['TEST_DEPTH'] = str(depth)
-    extra_env['TEST_CLK_WR'] = str(wr_clk_period)  # Write clock period
-    extra_env['TEST_CLK_RD'] = str(rd_clk_period)  # Read clock period
-    extra_env['TEST_MODE'] = mode
-    extra_env['TEST_KIND'] = 'async'  # Important: tells TB this is async
-
-    # VCD waveform generation support via WAVES environment variable
-    # Trace compilation always enabled (minimal overhead)
-    # Set WAVES=1 to enable VCD dumping for debugging
-    compile_args = [
-        "-Wno-TIMESCALEMOD",
-    ]
-
-
-    # Add coverage compile args if COVERAGE=1
-
-    compile_args.extend(get_coverage_compile_args())
-
-
-    sim_args = [
-        "--trace",
-        
-        "--trace-depth", "99",
-    ]
-
-    plusargs = [
-        "--trace",
-    ]
+    sim_args = ['--trace'] if enable_waves else []
 
     cmd_filename = create_view_cmd(log_dir, log_path, sim_build, module, test_name_plus_params)
 
@@ -833,11 +610,10 @@ def test_gaxi_buffer_async(request, data_width, depth, wr_clk_period, rd_clk_per
             parameters=rtl_parameters,
             sim_build=sim_build,
             extra_env=extra_env,
-            waves=False,  # VCD controlled by compile_args, not cocotb-test
-            keep_files=True,
-            compile_args=compile_args,
-            sim_args=sim_args,
-            plusargs=plusargs,
+            extra_args=extra_args,
+            plus_args=sim_args,
+
+            waves=enable_waves,
         )
         print(f"✓ {test_level.upper()} ASYNC test PASSED: {mode} mode (WR:{wr_clk_period}ns/RD:{rd_clk_period}ns)")
     except Exception as e:

@@ -26,15 +26,12 @@ from itertools import product
 import pytest
 import cocotb
 from cocotb_test.simulator import run
-from conftest import get_coverage_compile_args
 from TBClasses.amba.cdc_handshake import CDCHandshakeTB
 from TBClasses.shared.utilities import get_paths, create_view_cmd
-
 
 @cocotb.test(timeout_time=30, timeout_unit="ms")
 async def cdc_handshake_test(dut):
     """CDC handshake test with sophisticated patterns and analysis"""
-
 
     tb = CDCHandshakeTB(dut)
 
@@ -117,7 +114,6 @@ async def cdc_handshake_test(dut):
         await tb.wait_clocks('clk_src', 10)
         await tb.wait_clocks('clk_dst', 10)
 
-
 def generate_cdc_test_params():
     """
     Generate CDC test parameters with focus on clock domain crossing scenarios.
@@ -191,7 +187,6 @@ def generate_cdc_test_params():
     return [{'clk_src_period_ns': 30, 'clk_dst_period_ns': 10, 'test_level': 'full'}, {'clk_src_period_ns': 10, 'clk_dst_period_ns': 30, 'test_level': 'full'}]
     # return params
 
-
 @pytest.mark.parametrize("params", generate_cdc_test_params())
 def test_cdc_handshake(request, params):
     """
@@ -246,6 +241,7 @@ def test_cdc_handshake(request, params):
 
     # Simulation build directory
     sim_build = os.path.join(tests_dir, 'local_sim_build', test_name_plus_params)
+    enable_waves = bool(int(os.environ.get('WAVES', '0')))
     os.makedirs(sim_build, exist_ok=True)
 
     # Results directory
@@ -267,7 +263,7 @@ def test_cdc_handshake(request, params):
 
     # Environment variables
     extra_env = {
-        'TRACE_FILE': f"{sim_build}/dump.vcd",
+        'TRACE_FILE': f"{sim_build}/dump.fst",
         'VERILATOR_TRACE': '1',
         'DUT': dut_name,
         'LOG_PATH': log_path,
@@ -285,39 +281,18 @@ def test_cdc_handshake(request, params):
         'CDC_TYPE': 'fast_to_slow' if ratio > 1 else 'slow_to_fast' if ratio < 1 else 'same_freq',
     }
 
-    # VCD waveform generation support via WAVES environment variable
-    # Trace compilation always enabled (minimal overhead)
-    # Set WAVES=1 to enable VCD dumping for debugging
-    compile_args = [
-        "--trace",
-        
-        "--trace-depth", "99",
-        "--trace-max-array", "1024",
-        "--trace-underscore",
-        "--trace-threads", "1",
-    ]
-
-
     # Add coverage compile args if COVERAGE=1
 
-    compile_args.extend(get_coverage_compile_args())
-
-
-    sim_args = [
-        "--trace",
-        
-        "--trace-depth", "99",
-        "--trace-max-array", "1024",
-        "--trace-underscore",
-        "--trace-threads", "1",
+    extra_args = [
+        '--trace-fst',
+        '--trace-structs',
+        '-Wno-TIMESCALEMOD',
     ]
 
-    plusargs = [
-        "--trace",
-        f"+cdc_src_period={src_period}",
-        f"+cdc_dst_period={dst_period}",
-        f"+test_level={test_level}",
-    ]
+    if enable_waves:
+        extra_env['COCOTB_TRACE_FILE'] = os.path.join(sim_build, 'dump.fst')
+
+    sim_args = ['--trace'] if enable_waves else []
 
     cmd_filename = create_view_cmd(log_dir, log_path, sim_build, module, test_name_plus_params)
 
@@ -339,11 +314,10 @@ def test_cdc_handshake(request, params):
             parameters=rtl_parameters,
             sim_build=sim_build,
             extra_env=extra_env,
-            waves=False,  # VCD controlled by compile_args, not cocotb-test
-            keep_files=True,
-            compile_args=compile_args,
-            sim_args=sim_args,
-            plusargs=plusargs,
+            extra_args=extra_args,
+            plus_args=sim_args,
+
+            waves=enable_waves,
         )
 
         print(f"✅ {test_level.upper()} CDC TEST PASSED")

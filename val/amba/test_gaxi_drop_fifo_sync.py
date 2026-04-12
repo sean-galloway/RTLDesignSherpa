@@ -51,11 +51,9 @@ from TBClasses.gaxi.gaxi_drop_fifo_sync_tb import GaxiDropFifoSyncTB
 
 # Import run function for pytest
 from cocotb_test.simulator import run
-from conftest import get_coverage_compile_args
 
 # Import path utilities
 from TBClasses.shared.utilities import get_paths, create_view_cmd
-
 
 ##############################################################################
 # CocoTB Test Functions (imported by pytest test cases)
@@ -69,7 +67,6 @@ async def basic_fifo_operation_cocotb(dut):
     await tb.test_basic_fifo_operation()
     tb.log.info("✅ Basic FIFO operation test PASSED")
 
-
 @cocotb.test()
 async def drop_by_count_cocotb(dut):
     """CocoTB test: Dropping specific number of entries."""
@@ -77,7 +74,6 @@ async def drop_by_count_cocotb(dut):
     await tb.setup_clocks_and_reset()
     await tb.test_drop_by_count()
     tb.log.info("✅ Drop by count test PASSED")
-
 
 @cocotb.test()
 async def drop_all_cocotb(dut):
@@ -87,7 +83,6 @@ async def drop_all_cocotb(dut):
     await tb.test_drop_all()
     tb.log.info("✅ Drop all test PASSED")
 
-
 @cocotb.test()
 async def drop_during_io_blocked_cocotb(dut):
     """CocoTB test: Normal I/O is blocked during drop operation."""
@@ -96,7 +91,6 @@ async def drop_during_io_blocked_cocotb(dut):
     await tb.test_drop_during_io_blocked()
     tb.log.info("✅ I/O blocking during drop test PASSED")
 
-
 @cocotb.test()
 async def wraparound_with_drop_cocotb(dut):
     """CocoTB test: Drop operation across FIFO wraparound boundary."""
@@ -104,7 +98,6 @@ async def wraparound_with_drop_cocotb(dut):
     await tb.setup_clocks_and_reset()
     await tb.test_wraparound_with_drop()
     tb.log.info("✅ Wraparound with drop test PASSED")
-
 
 ##############################################################################
 # Pytest Test Cases (parameterized test generation)
@@ -156,7 +149,6 @@ def generate_test_parameters():
             (64, 256, 0, "large-mux"),
             (64, 256, 1, "large-flop"),
         ]
-
 
 @pytest.mark.parametrize("data_width, depth, registered, test_id",
                          generate_test_parameters())
@@ -210,6 +202,7 @@ def test_gaxi_drop_fifo_sync(request, data_width, depth, registered, test_id):
 
     # Setup directories
     sim_build = os.path.join(tests_dir, 'local_sim_build', test_name_plus_params)
+    enable_waves = bool(int(os.environ.get('WAVES', '0')))
     os.makedirs(sim_build, exist_ok=True)
     os.makedirs(log_dir, exist_ok=True)
     results_path = os.path.join(log_dir, f'results_{test_name_plus_params}.xml')
@@ -227,7 +220,7 @@ def test_gaxi_drop_fifo_sync(request, data_width, depth, registered, test_id):
 
     # Environment variables
     extra_env = {
-        'TRACE_FILE': f"{sim_build}/dump.vcd",
+        'TRACE_FILE': f"{sim_build}/dump.fst",
         'VERILATOR_TRACE': '1',
         'DUT': dut_name,
         'LOG_PATH': log_path,
@@ -236,32 +229,21 @@ def test_gaxi_drop_fifo_sync(request, data_width, depth, registered, test_id):
         'SEED': str(random.randint(0, 100000)),
     }
 
-    # VCD waveform generation support via WAVES environment variable
-    # Trace compilation always enabled (minimal overhead)
-    # Set WAVES=1 to enable VCD dumping for debugging
-    compile_args = [
-        "--trace",
-        "--trace-structs",
-        "--trace-depth", "99",
-        "--Wno-UNOPTFLAT",
-    ]
-
-
     # Add coverage compile args if COVERAGE=1
-
-    compile_args.extend(get_coverage_compile_args())
-
-
-    sim_args = [
-        "--trace",
-        "--trace-structs",
-        "--trace-depth", "99",
-    ]
-
-    plusargs = ["--trace"]
 
     # Enable waveform dumping
     extra_env['WAVES'] = '1'
+
+    extra_args = [
+        '--trace-fst',
+        '--trace-structs',
+        '-Wno-TIMESCALEMOD',
+    ]
+
+    if enable_waves:
+        extra_env['COCOTB_TRACE_FILE'] = os.path.join(sim_build, 'dump.fst')
+
+    sim_args = ['--trace'] if enable_waves else []
 
     cmd_filename = create_view_cmd(log_dir, log_path, sim_build, module, test_name_plus_params)
 
@@ -280,11 +262,10 @@ def test_gaxi_drop_fifo_sync(request, data_width, depth, registered, test_id):
             parameters=parameters,
             sim_build=sim_build,
             extra_env=extra_env,
-            waves=False,  # VCD controlled by compile_args, not cocotb-test
-            keep_files=True,
-            compile_args=compile_args,
-            sim_args=sim_args,
-            plusargs=plusargs,
+            extra_args=extra_args,
+            plus_args=sim_args,
+
+            waves=enable_waves,
         )
         print(f"✓ Test PASSED: data_width={data_width}, depth={depth}, registered={registered}, id={test_id}")
     except Exception as e:
@@ -292,7 +273,6 @@ def test_gaxi_drop_fifo_sync(request, data_width, depth, registered, test_id):
         print(f"Logs preserved at: {log_path}")
         print(f"To view waveforms run: {cmd_filename}")
         raise
-
 
 ##############################################################################
 # Smoke Test (Quick Verification)
@@ -314,7 +294,6 @@ def test_gaxi_drop_fifo_smoke():
         registered=0,
         test_id="smoke"
     )
-
 
 if __name__ == "__main__":
     """

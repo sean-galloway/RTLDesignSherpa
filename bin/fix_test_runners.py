@@ -122,7 +122,7 @@ def fix_file(filepath: str, dry_run: bool = False) -> bool:
     if 'enable_waves' not in content:
         content = re.sub(
             r'(    os\.makedirs\(sim_build)',
-            r'    enable_waves = bool(int(os.environ.get(\'WAVES\', \'0\')))\n\1',
+            "    enable_waves = bool(int(os.environ.get('WAVES', '0')))\n\\1",
             content, count=1)
 
     # 10. Build extra_args block
