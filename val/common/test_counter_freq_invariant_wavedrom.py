@@ -493,7 +493,6 @@ def test_counter_freq_invariant_wavedrom(request, counter_width):
 
     rtl_parameters = {
         'COUNTER_WIDTH': str(counter_width),
-        'PRESCALER_MAX': '2048'
     }
 
     extra_env = {

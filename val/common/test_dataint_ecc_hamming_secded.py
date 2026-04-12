@@ -213,6 +213,7 @@ endmodule
         run(
             python_search=[tests_dir],
             verilog_sources=verilog_sources,
+            includes=[rtl_dict['rtl_amba_includes']],
             toplevel=toplevel,
             module=module,
             testcase="cocotb_ecc_secded_test",
