@@ -244,6 +244,8 @@ def test_math_adder_han_carlson(request, params):
     if bool(int(os.environ.get('WAVES', '0'))):
         extra_env['COCOTB_TRACE_FILE'] = os.path.join(sim_build, 'dump.fst')
 
+    sim_args = ['--trace'] if enable_waves else []
+
     try:
         run(
             python_search=[tests_dir],

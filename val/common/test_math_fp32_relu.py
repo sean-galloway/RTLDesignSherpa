@@ -89,6 +89,8 @@ def test_math_fp32_relu(request, params):
     if bool(int(os.environ.get('WAVES', '0'))):
         extra_env['COCOTB_TRACE_FILE'] = os.path.join(sim_build, 'dump.fst')
 
+    sim_args = ['--trace'] if enable_waves else []
+
     run(python_search=[tests_dir], verilog_sources=verilog_sources, includes=[],
         toplevel=dut_name, module=module, parameters={}, sim_build=sim_build,
         extra_env=extra_env, extra_args=extra_args,

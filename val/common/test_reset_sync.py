@@ -99,8 +99,10 @@ def test_reset_sync(n, test_mode):
         'PARAM_N': str(n),
     }
 
-    # Force VCD format (not FST) - cocotb will use this
-    extra_env['COCOTB_TRACE_FILE'] = os.path.join(sim_build, 'dump.fst')
+    if enable_waves:
+        extra_env['COCOTB_TRACE_FILE'] = os.path.join(sim_build, 'dump.fst')
+
+    sim_args = ['--trace'] if enable_waves else []
 
     print(f"\n{'='*80}")
     print(f"Reset Sync Test: {test_mode} (N={n})")
