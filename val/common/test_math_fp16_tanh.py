@@ -92,5 +92,6 @@ def test_math_fp16_tanh(request, params):
     run(python_search=[tests_dir], verilog_sources=verilog_sources, includes=[],
         toplevel=dut_name, module=module, parameters={}, sim_build=sim_build,
         extra_env=extra_env, extra_args=extra_args,
- plus_args=sim_args,
- waves=enable_waves,
+        plus_args=sim_args,
+        waves=enable_waves,
+    )
