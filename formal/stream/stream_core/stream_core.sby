@@ -1,0 +1,22 @@
+[tasks]
+prove
+cover
+
+[options]
+prove: mode bmc
+prove: depth 15
+cover: mode cover
+cover: depth 25
+
+[engines]
+prove: smtbmc z3
+cover: smtbmc z3
+
+[script]
+read_verilog -formal stream_core_flat.v
+read -formal -sv formal_stream_core.sv
+prep -top formal_stream_core -nordff -run begin:check
+
+[files]
+formal_stream_core.sv
+stream_core_flat.v
