@@ -715,7 +715,19 @@ def test_gaxi_wavedrom_example(data_width, depth, trim_mode, enable_wavedrom):
     # Trace compilation always enabled (minimal overhead)
     # Set WAVES=1 to enable VCD dumping for debugging
     for param, value in parameters.items():
-        compile_args.append(f'-G{param}={value}')
+        extra_args.append(f'-G{param}={value}')
+
+    extra_args = [
+        '--trace-fst',
+        '--trace-structs',
+        '-Wno-TIMESCALEMOD',
+    ]
+
+    if enable_waves:
+        extra_env['COCOTB_TRACE_FILE'] = os.path.join(sim_build, 'dump.fst')
+
+    sim_args = ['--trace'] if enable_waves else []
+
 
     run(
         verilog_sources=verilog_sources,

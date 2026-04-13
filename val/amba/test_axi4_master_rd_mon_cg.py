@@ -232,7 +232,7 @@ def test_axi4_master_rd_mon_cg(id_width, addr_width, data_width, user_width, max
     # Set WAVES=1 to enable VCD dumping for debugging
     # Add parameter overrides
     for param, value in parameters.items():
-        compile_args.append(f'-G{param}={value}')
+        extra_args.append(f'-G{param}={value}')
 
     # Environment variables
     extra_env = {
@@ -240,6 +240,18 @@ def test_axi4_master_rd_mon_cg(id_width, addr_width, data_width, user_width, max
     }
 
     # Run test
+
+    extra_args = [
+        '--trace-fst',
+        '--trace-structs',
+        '-Wno-TIMESCALEMOD',
+    ]
+
+    if enable_waves:
+        extra_env['COCOTB_TRACE_FILE'] = os.path.join(sim_build, 'dump.fst')
+
+    sim_args = ['--trace'] if enable_waves else []
+
     run(
         verilog_sources=verilog_sources,
         toplevel=dut_name,

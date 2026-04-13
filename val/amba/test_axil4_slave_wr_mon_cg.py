@@ -167,6 +167,18 @@ def test_axil4_slave_wr_mon_cg(test_level):
         'TEST_LEVEL': test_level,
     }
 
+    extra_args = [
+        '--trace-fst',
+        '--trace-structs',
+        '-Wno-TIMESCALEMOD',
+    ]
+
+    if enable_waves:
+        extra_env['COCOTB_TRACE_FILE'] = os.path.join(sim_build, 'dump.fst')
+
+    sim_args = ['--trace'] if enable_waves else []
+
+
     run(
         verilog_sources=verilog_sources,
         toplevel=dut_name,
