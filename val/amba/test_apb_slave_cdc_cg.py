@@ -22,7 +22,6 @@ import cocotb
 from cocotb.utils import get_sim_time
 from cocotb.triggers import RisingEdge, Timer
 from cocotb_test.simulator import run
-from conftest import get_coverage_compile_args
 
 from CocoTBFramework.components.shared.memory_model import MemoryModel
 from CocoTBFramework.components.shared.flex_randomizer import FlexRandomizer
@@ -1230,7 +1229,7 @@ def test_apb_slave_cdc_cg_robust(request, addr_width, data_width, depth, cg_idle
 
     # Add coverage compile args if COVERAGE=1
 
-    compile_args.extend(get_coverage_compile_args())
+    compile_args.extend([])
 
 
     sim_args = [
@@ -1345,7 +1344,7 @@ def test_apb_slave_cdc_cg_robust(request, addr_width, data_width, depth, cg_idle
 
     # Add coverage compile args if COVERAGE=1
 
-    compile_args.extend(get_coverage_compile_args())
+    compile_args.extend([])
 
 
     sim_args = [

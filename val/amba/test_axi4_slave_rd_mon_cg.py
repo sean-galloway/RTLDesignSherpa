@@ -26,7 +26,6 @@ import random
 import pytest
 import cocotb
 from cocotb_test.simulator import run
-from conftest import get_coverage_compile_args
 
 from TBClasses.axi4.monitor.axi4_slave_monitor_tb import AXI4SlaveMonitorTB
 from TBClasses.shared.utilities import get_paths
@@ -238,7 +237,7 @@ def test_axi4_slave_rd_mon_cg(id_width, addr_width, data_width, user_width, max_
     ]
 
     # Add coverage compile args if COVERAGE=1
-    compile_args.extend(get_coverage_compile_args())
+    compile_args.extend([])
 
     # Add parameter overrides
     for param, value in parameters.items():

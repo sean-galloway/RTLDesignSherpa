@@ -34,7 +34,6 @@ from itertools import product
 import pytest
 import cocotb
 from cocotb_test.simulator import run
-from conftest import get_coverage_compile_args
 
 from TBClasses.shared.tbbase import TBBase
 from TBClasses.shared.utilities import get_paths, create_view_cmd
@@ -206,7 +205,7 @@ def test_axi_read_splitter(request, iw, aw, dw, uw, fifo_depth, alignment_mask, 
     ]
 
     # Add coverage compile args if COVERAGE=1
-    compile_args.extend(get_coverage_compile_args())
+    compile_args.extend([])
 
     sim_args = [
         "--trace",
@@ -360,7 +359,7 @@ def test_axi_read_splitter(request, iw, aw, dw, uw, fifo_depth, alignment_mask, 
     ]
 
     # Add coverage compile args if COVERAGE=1
-    compile_args.extend(get_coverage_compile_args())
+    compile_args.extend([])
 
     sim_args = [
         "--trace",

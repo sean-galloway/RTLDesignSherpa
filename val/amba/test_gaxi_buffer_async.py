@@ -50,7 +50,6 @@ import pytest
 import cocotb
 from cocotb.triggers import RisingEdge
 from cocotb_test.simulator import run
-from conftest import get_coverage_compile_args
 from TBClasses.shared.tbbase import TBBase
 from TBClasses.gaxi.gaxi_buffer import GaxiBufferTB
 from TBClasses.shared.utilities import get_paths, create_view_cmd
@@ -591,7 +590,7 @@ def test_gaxi_buffer_async_wavedrom(request, data_width, depth, wr_clk_period, r
 
     # Add coverage compile args if COVERAGE=1
 
-    compile_args.extend(get_coverage_compile_args())
+    compile_args.extend([])
 
 
     sim_args = []
@@ -802,7 +801,7 @@ def test_gaxi_buffer_async(request, data_width, depth, wr_clk_period, rd_clk_per
 
     # Add coverage compile args if COVERAGE=1
 
-    compile_args.extend(get_coverage_compile_args())
+    compile_args.extend([])
 
 
     sim_args = [

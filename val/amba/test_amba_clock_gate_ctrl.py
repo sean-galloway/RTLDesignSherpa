@@ -23,7 +23,6 @@ import cocotb
 from cocotb.utils import get_sim_time
 from cocotb.triggers import RisingEdge, Timer
 from cocotb_test.simulator import run
-from conftest import get_coverage_compile_args
 
 from TBClasses.shared.tbbase import TBBase
 from TBClasses.amba.amba_cg_ctrl import AxiClockGateCtrl
@@ -859,7 +858,7 @@ def test_amba_clock_gate_ctrl(request, params):
 
     # Add coverage compile args if COVERAGE=1
 
-    compile_args.extend(get_coverage_compile_args())
+    compile_args.extend([])
 
 
     sim_args = [

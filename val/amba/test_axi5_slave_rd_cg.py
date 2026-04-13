@@ -26,7 +26,6 @@ from itertools import product
 import pytest
 import cocotb
 from cocotb_test.simulator import run
-from conftest import get_coverage_compile_args
 from cocotb.triggers import RisingEdge, Timer
 
 from TBClasses.shared.tbbase import TBBase
@@ -325,7 +324,7 @@ def test_axi5_slave_rd_cg(id_width, addr_width, data_width, user_width, ar_depth
     ]
 
     # Add coverage compile args if COVERAGE=1
-    compile_args.extend(get_coverage_compile_args())
+    compile_args.extend([])
 
     print(f"\n{'='*80}")
     print(f"AXI5 Slave Read CG Test")

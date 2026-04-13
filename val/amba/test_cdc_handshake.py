@@ -26,7 +26,6 @@ from itertools import product
 import pytest
 import cocotb
 from cocotb_test.simulator import run
-from conftest import get_coverage_compile_args
 from TBClasses.amba.cdc_handshake import CDCHandshakeTB
 from TBClasses.shared.utilities import get_paths, create_view_cmd
 
@@ -301,7 +300,7 @@ def test_cdc_handshake(request, params):
 
     # Add coverage compile args if COVERAGE=1
 
-    compile_args.extend(get_coverage_compile_args())
+    compile_args.extend([])
 
 
     sim_args = [

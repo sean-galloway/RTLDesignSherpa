@@ -25,7 +25,6 @@ import random
 import pytest
 import cocotb
 from cocotb_test.simulator import run
-from conftest import get_coverage_compile_args
 
 from TBClasses.axil4.monitor.axil4_master_monitor_tb import AXIL4MasterMonitorTB
 from TBClasses.shared.utilities import get_paths
@@ -161,7 +160,7 @@ def test_axil4_master_rd_mon(test_level):
     ]
 
     # Add coverage compile args if COVERAGE=1
-    compile_args.extend(get_coverage_compile_args())
+    compile_args.extend([])
 
     run(
         verilog_sources=verilog_sources,

@@ -47,7 +47,6 @@ from cocotb.triggers import RisingEdge
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '../../bin'))
 from TBClasses.gaxi.gaxi_drop_fifo_sync_tb import GaxiDropFifoSyncTB
 from cocotb_test.simulator import run
-from conftest import get_coverage_compile_args
 from TBClasses.shared.utilities import get_paths, create_view_cmd
 
 
@@ -191,7 +190,7 @@ def test_gaxi_drop_fifo_capacity(request, data_width, depth, registered):
     ]
 
     # Add coverage compile args if COVERAGE=1
-    compile_args.extend(get_coverage_compile_args())
+    compile_args.extend([])
 
     print(f"\n{'='*60}")
     print(f"Testing FIFO Capacity: depth={depth}")

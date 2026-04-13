@@ -29,7 +29,6 @@ import pytest
 import cocotb
 from cocotb.utils import get_sim_time
 from cocotb_test.simulator import run
-from conftest import get_coverage_compile_args
 
 from CocoTBFramework.components.shared.memory_model import MemoryModel
 from CocoTBFramework.components.shared.flex_randomizer import FlexRandomizer
@@ -1002,7 +1001,7 @@ def test_comprehensive_apb_slave(request, addr_width, data_width, depth):
     compile_args = []
 
     # Add coverage compile args if COVERAGE=1
-    compile_args.extend(get_coverage_compile_args())
+    compile_args.extend([])
 
     sim_args = []
     plusargs = []
@@ -1084,7 +1083,7 @@ def test_comprehensive_apb_slave(request, addr_width, data_width, depth):
     compile_args = []
 
     # Add coverage compile args if COVERAGE=1
-    compile_args.extend(get_coverage_compile_args())
+    compile_args.extend([])
 
     sim_args = []
     plusargs = []

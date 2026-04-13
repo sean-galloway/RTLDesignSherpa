@@ -42,7 +42,6 @@ from cocotb.clock import Clock
 from cocotb.triggers import RisingEdge, Timer
 import pytest
 from cocotb_test.simulator import run
-from conftest import get_coverage_compile_args
 
 # Import GAXI wavedrom support
 from TBClasses.wavedrom_user.gaxi import (
@@ -449,7 +448,7 @@ def test_gaxi_drop_fifo_wavedrom():
     ]
 
     # Add coverage compile args if COVERAGE=1
-    compile_args.extend(get_coverage_compile_args())
+    compile_args.extend([])
 
     print(f"\n{'='*60}")
     print(f"Testing GAXI Drop FIFO WaveDrom")

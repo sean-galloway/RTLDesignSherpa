@@ -33,7 +33,6 @@ from itertools import product
 import pytest
 import cocotb
 from cocotb_test.simulator import run
-from conftest import get_coverage_compile_args
 from TBClasses.shared.tbbase import TBBase
 from TBClasses.shared.utilities import get_paths, create_view_cmd
 
@@ -397,7 +396,7 @@ def test_axil4_slave_read(request, addr_width, data_width, ar_depth, r_depth, te
     ]
 
     # Add coverage compile args if COVERAGE=1
-    compile_args.extend(get_coverage_compile_args())
+    compile_args.extend([])
 
     sim_args = ["--trace", "--trace-depth", "99"]
     plusargs = ["--trace"]
@@ -536,7 +535,7 @@ if __name__ == "__main__":
     ]
 
     # Add coverage compile args if COVERAGE=1
-    compile_args.extend(get_coverage_compile_args())
+    compile_args.extend([])
 
     sim_args = ["--trace", "--trace-depth", "99"]
     plusargs = ["--trace"]

@@ -46,7 +46,6 @@ from itertools import product
 import pytest
 import cocotb
 from cocotb_test.simulator import run
-from conftest import get_coverage_compile_args
 from TBClasses.shared.tbbase import TBBase
 from TBClasses.shared.utilities import get_paths, create_view_cmd
 
@@ -510,7 +509,7 @@ def test_axi4_write_master(stub, id_width, addr_width, data_width, user_width, a
     ]
 
     # Add coverage compile args if COVERAGE=1
-    compile_args.extend(get_coverage_compile_args())
+    compile_args.extend([])
 
     sim_args = ["--trace", "--trace-depth", "99"]
     plusargs = ["--trace"]

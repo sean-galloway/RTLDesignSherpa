@@ -24,7 +24,6 @@ import random
 import pytest
 import cocotb
 from cocotb_test.simulator import run
-from conftest import get_coverage_compile_args
 
 from TBClasses.axi5.monitor.axi5_master_monitor_tb import AXI5MasterMonitorTB
 from TBClasses.shared.utilities import get_paths
@@ -158,7 +157,7 @@ def test_axi5_master_wr_mon_cg(id_width, addr_width, data_width, user_width, max
     ]
 
     # Add coverage compile args if COVERAGE=1
-    compile_args.extend(get_coverage_compile_args())
+    compile_args.extend([])
 
     print(f"\n{'='*80}")
     print(f"AXI5 Master Write Monitor CG Integration Test")

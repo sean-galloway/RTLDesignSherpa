@@ -22,7 +22,6 @@ import cocotb
 from cocotb.utils import get_sim_time
 from cocotb.triggers import Timer, RisingEdge
 from cocotb_test.simulator import run
-from conftest import get_coverage_compile_args
 
 from CocoTBFramework.components.shared.memory_model import MemoryModel
 from CocoTBFramework.components.shared.flex_randomizer import FlexRandomizer
@@ -1119,7 +1118,7 @@ def test_apb_master(request, addr_width, data_width, cmd_depth, rsp_depth):
 
     # Add coverage compile args if COVERAGE=1
 
-    compile_args.extend(get_coverage_compile_args())
+    compile_args.extend([])
 
 
     sim_args = [
@@ -1237,7 +1236,7 @@ def test_apb_master_wavedrom(request, addr_width, data_width, cmd_depth, rsp_dep
 
     # Add coverage compile args if COVERAGE=1
 
-    compile_args.extend(get_coverage_compile_args())
+    compile_args.extend([])
 
 
     sim_args = []
