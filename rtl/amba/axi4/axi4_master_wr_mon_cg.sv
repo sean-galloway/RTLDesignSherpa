@@ -352,7 +352,7 @@ module axi4_master_wr_mon_cg
         .ENABLE_FILTERING        (ENABLE_FILTERING),
         .ADD_PIPELINE_STAGE      (ADD_PIPELINE_STAGE)
     ) axi4_master_wr_mon_inst (
-        .aclk                    (aclk_monitor),
+        .aclk                    (aclk),  // TODO: Use aclk_monitor once ICG cells replace combinational gating
         .aresetn                 (aresetn),
 
         // Slave AXI Interface (Input Side)
