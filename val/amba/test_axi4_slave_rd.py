@@ -46,11 +46,13 @@ from itertools import product
 import pytest
 import cocotb
 from cocotb_test.simulator import run
+from conftest import get_coverage_compile_args
 from TBClasses.shared.tbbase import TBBase
 from TBClasses.shared.utilities import get_paths, create_view_cmd
 
 # Import the testbench
 from TBClasses.axi4.axi4_slave_read_tb import AXI4SlaveReadTB
+
 
 @cocotb.test(timeout_time=10, timeout_unit="ms")
 async def axi4_slave_read_test(dut):
@@ -293,6 +295,7 @@ async def axi4_slave_read_test(dut):
         tb.log.error(f"Final stats: {final_stats.get('summary', {})}")
         raise
 
+
 def validate_axi4_params(params):
     """
     Validate AXI4 parameters to ensure they meet specification constraints.
@@ -312,6 +315,7 @@ def validate_axi4_params(params):
             )
 
     return params
+
 
 def generate_axi4_params():
     """
@@ -374,6 +378,7 @@ def generate_axi4_params():
             params.append((stub, id_w, addr_w, data_width, user_width, ar_d, r_d, level))
 
         return validate_axi4_params(params)
+
 
 @pytest.mark.parametrize("stub, id_width, addr_width, data_width, user_width, ar_depth, r_depth, test_level",
                         generate_axi4_params())
@@ -484,23 +489,26 @@ def test_axi4_slave_read(request, stub, id_width, addr_width, data_width, user_w
 
     # Simulation settings
     includes = [rtl_dict['rtl_amba_includes']]
-    # Add coverage compile args if COVERAGE=1
-    # Create command file for viewing results
-    extra_args = [
-        '--trace-fst',
-        '--trace-structs',
-        '-Wno-DECLFILENAME',
-        '-Wno-PINMISSING',
-        '-Wno-SYNCASYNCNET',
-        '-Wno-TIMESCALEMOD',
-        '-Wno-UNUSED',
+    # VCD waveform generation support via WAVES environment variable
+    # Trace compilation always enabled (minimal overhead)
+    # Set WAVES=1 to enable VCD dumping for debugging
+    compile_args = [
+        "--trace",
+        
+        "--trace-depth", "99",
+        "-Wall", "-Wno-SYNCASYNCNET", "-DUSE_ASYNC_RESET",
+        "-Wno-UNUSED",
+        "-Wno-DECLFILENAME",
+        "-Wno-PINMISSING",  # Allow unconnected pins for stub testing
     ]
 
-    if enable_waves:
-        extra_env['COCOTB_TRACE_FILE'] = os.path.join(sim_build, 'dump.fst')
+    # Add coverage compile args if COVERAGE=1
+    compile_args.extend(get_coverage_compile_args())
 
-    sim_args = ['--trace'] if enable_waves else []
+    sim_args = ["--trace", "--trace-depth", "99"]
+    plusargs = ["--trace"]
 
+    # Create command file for viewing results
     cmd_filename = create_view_cmd(os.path.dirname(log_path), log_path, sim_build,
                                     module, test_name_plus_params)
 
@@ -521,10 +529,11 @@ def test_axi4_slave_read(request, stub, id_width, addr_width, data_width, user_w
             parameters=rtl_parameters,
             sim_build=sim_build,
             extra_env=extra_env,
-            extra_args=extra_args,
-            plus_args=sim_args,
-
-            waves=enable_waves,
+            waves=enable_waves,  # VCD controlled by compile_args, not cocotb-test
+            keep_files=True,
+            compile_args=compile_args,
+            sim_args=sim_args,
+            plusargs=plusargs,
         )
         print(f"✅ {test_level.upper()} AXI4 Slave Read test PASSED")
     except Exception as e:

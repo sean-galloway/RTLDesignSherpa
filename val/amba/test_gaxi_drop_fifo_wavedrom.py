@@ -42,6 +42,7 @@ from cocotb.clock import Clock
 from cocotb.triggers import RisingEdge, Timer
 import pytest
 from cocotb_test.simulator import run
+from conftest import get_coverage_compile_args
 
 # Import GAXI wavedrom support
 from TBClasses.wavedrom_user.gaxi import (
@@ -56,6 +57,7 @@ from CocoTBFramework.components.wavedrom.constraint_solver import (
     TemporalRelation
 )
 from TBClasses.shared.utilities import get_paths
+
 
 @cocotb.test(timeout_time=10, timeout_unit="sec")
 async def gaxi_drop_fifo_wavedrom_cocotb(dut):
@@ -356,6 +358,7 @@ async def gaxi_drop_fifo_wavedrom_cocotb(dut):
 
     dut._log.info("✅ WaveDrom generation complete - check docs/markdown/assets/WAVES/")
 
+
 async def run_basic_test(dut):
     """Basic functional test without waveforms"""
     dut.wr_valid.value = 0
@@ -381,6 +384,7 @@ async def run_basic_test(dut):
     dut.rd_ready.value = 0
 
     dut._log.info("✓ Basic test passed")
+
 
 def test_gaxi_drop_fifo_wavedrom():
     """Pytest runner for WaveDrom test"""
@@ -435,23 +439,23 @@ def test_gaxi_drop_fifo_wavedrom():
         'TRIM_MODE': 'default',
     }
 
+    # VCD waveform generation support via WAVES environment variable
+    # Trace compilation always enabled (minimal overhead)
+    # Set WAVES=1 to enable VCD dumping for debugging
+    compile_args = [
+        "--trace",
+        "--trace-structs",
+        "--Wno-UNOPTFLAT",
+    ]
+
     # Add coverage compile args if COVERAGE=1
+    compile_args.extend(get_coverage_compile_args())
+
     print(f"\n{'='*60}")
     print(f"Testing GAXI Drop FIFO WaveDrom")
     print(f"Log: {log_path}")
     print(f"Waveforms: docs/markdown/assets/WAVES/")
     print(f"{'='*60}")
-
-    extra_args = [
-        '--trace-fst',
-        '--trace-structs',
-        '-Wno-TIMESCALEMOD',
-    ]
-
-    if enable_waves:
-        extra_env['COCOTB_TRACE_FILE'] = os.path.join(sim_build, 'dump.fst')
-
-    sim_args = ['--trace'] if enable_waves else []
 
     try:
         run(
@@ -463,16 +467,16 @@ def test_gaxi_drop_fifo_wavedrom():
             parameters=parameters,
             sim_build=sim_build,
             extra_env=extra_env,
-            extra_args=extra_args,
-            plus_args=sim_args,
-
-            waves=enable_waves,  # Use VCD,
+            waves=enable_waves,  # Use VCD
+            keep_files=True,
+            compile_args=compile_args,
         )
         print(f"✓ WaveDrom test PASSED")
     except Exception as e:
         print(f"✗ WaveDrom test FAILED: {str(e)}")
         print(f"View waveform: gtkwave {sim_build}/dump.fst")
         raise
+
 
 if __name__ == "__main__":
     pytest.main([__file__, "-v", "-s"])

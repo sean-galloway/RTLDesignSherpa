@@ -50,9 +50,11 @@ import pytest
 import cocotb
 from cocotb.triggers import RisingEdge
 from cocotb_test.simulator import run
+from conftest import get_coverage_compile_args
 from TBClasses.shared.tbbase import TBBase
 from TBClasses.gaxi.gaxi_buffer import GaxiBufferTB
 from TBClasses.shared.utilities import get_paths, create_view_cmd
+
 
 @cocotb.test(timeout_time=3, timeout_unit="ms")
 async def gaxi_regslice_test(dut):
@@ -168,6 +170,7 @@ async def gaxi_regslice_test(dut):
 
     tb.log.info(f"✅ ALL {test_level.upper()} TESTS PASSED!")
 
+
 def generate_test_params():
     """
     Generate test parameter combinations based on REG_LEVEL.
@@ -203,6 +206,7 @@ def generate_test_params():
         test_levels = ['gate', 'func', 'full']
 
         return list(product(data_widths, clk_periods, test_levels))
+
 
 @pytest.mark.parametrize("data_width, clk_period, test_level", generate_test_params())
 def test_gaxi_regslice(request, data_width, clk_period, test_level):
@@ -276,41 +280,45 @@ def test_gaxi_regslice(request, data_width, clk_period, test_level):
         'SEED': str(seed),
     }
 
-    # Add include paths and parameters to extra_args
-    inc_args = [f'-I{inc}' for inc in includes]
-    param_args = [f'-G{param}={value}' for param, value in parameters.items()]
-
-    # Run the simulation
-    enable_waves = bool(int(os.environ.get('WAVES', '0')))
-
-    extra_args = [
-        '--trace-fst',
-        '--trace-structs',
+    # Compile arguments
+    # VCD waveform generation support via WAVES environment variable
+    # Trace compilation always enabled (minimal overhead)
+    # Set WAVES=1 to enable VCD dumping for debugging
+    compile_args = [
+        '-Wall',
+        '-Wno-SYNCASYNCNET',
+        '-DUSE_ASYNC_RESET',
+        '-Wno-UNUSED',
         '-Wno-DECLFILENAME',
         '-Wno-PINMISSING',
-        '-Wno-SYNCASYNCNET',
-        '-Wno-TIMESCALEMOD',
-        '-Wno-UNUSED',
-    ] + inc_args + param_args
+    ]
 
-    if enable_waves:
-        extra_env['COCOTB_TRACE_FILE'] = os.path.join(sim_build, 'dump.fst')
+    # Add coverage compile args if COVERAGE=1
+    compile_args.extend(get_coverage_compile_args())
 
-    sim_args = ['--trace'] if enable_waves else []
+    # Add include paths
+    for inc in includes:
+        compile_args.append(f'-I{inc}')
 
+    # Add parameters
+    for param, value in parameters.items():
+        compile_args.append(f'-G{param}={value}')
+
+    # Run the simulation
+    # Note: waves=enable_waves due to Verilator FST bug with INSTANCE_NAME string parameter
     run(
         verilog_sources=verilog_sources,
         toplevel="gaxi_regslice",
         module=module,
         sim_build=sim_build,
-        extra_args=extra_args,
-        plus_args=sim_args,
+        compile_args=compile_args,
         extra_env=extra_env,
-        waves=enable_waves,
+        waves=enable_waves,  # VCD controlled by compile_args, not cocotb-test
     )
 
     # Generate waveform viewing command
     create_view_cmd(log_dir, log_path, sim_build, module, test_id)
+
 
 if __name__ == "__main__":
     # Run basic test by default

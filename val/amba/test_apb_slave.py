@@ -22,6 +22,7 @@ import cocotb
 from cocotb.utils import get_sim_time
 from cocotb.triggers import RisingEdge, Timer
 from cocotb_test.simulator import run
+from conftest import get_coverage_compile_args
 
 from CocoTBFramework.components.shared.memory_model import MemoryModel
 from CocoTBFramework.components.shared.flex_randomizer import FlexRandomizer
@@ -51,6 +52,7 @@ from CocoTBFramework.components.wavedrom.constraint_solver import (
 from CocoTBFramework.components.wavedrom.wavejson_gen import create_apb_wavejson_generator
 from CocoTBFramework.components.wavedrom.utility import get_apb_field_config
 from TBClasses.wavedrom_user.apb import setup_apb_constraints_with_boundaries
+
 
 class APBGAXIDebugTB(TBBase):
     """APB-GAXI Debug testbench - focus on finding refactor issues."""
@@ -975,6 +977,7 @@ class APBGAXIDebugTB(TBBase):
 
         self.log.info("=== END TEST REPORT ===")
 
+
 @cocotb.test(timeout_time=10, timeout_unit="sec")
 async def apb_slave_wavedrom_test(dut):
     """
@@ -1112,6 +1115,7 @@ async def apb_slave_wavedrom_test(dut):
     dut._log.info(f"✅ APB Slave WaveDrom Complete: {len(results['solutions'])} scenarios generated")
     dut._log.info("=" * 80)
 
+
 @cocotb.test(timeout_time=300, timeout_unit="us")  # Increased timeout for comprehensive tests
 async def comprehensive_apb_gaxi_test(dut):
     """Comprehensive APB-GAXI test with all sequences."""
@@ -1161,6 +1165,7 @@ async def comprehensive_apb_gaxi_test(dut):
         tb.done = True
         await tb.cmd_handler.stop()
         await tb.wait_clocks('pclk', 10)
+
 
 @pytest.mark.parametrize("addr_width, data_width, depth", [(32, 32, 2)])
 def test_apb_gaxi_refactor_debug(request, addr_width, data_width, depth):
@@ -1213,18 +1218,141 @@ def test_apb_gaxi_refactor_debug(request, addr_width, data_width, depth):
         'TEST_DEPTH': str(depth),
     }
 
-    # Add coverage compile args if COVERAGE=1
-
-    extra_args = [
-        '--trace-fst',
-        '--trace-structs',
-        '-Wno-TIMESCALEMOD',
+    # VCD waveform generation support via WAVES environment variable
+    # Trace compilation always enabled (minimal overhead)
+    # Set WAVES=1 to enable VCD dumping for debugging
+    compile_args = [
+        "--trace",
+        
+        "--trace-depth", "99",
+        "--trace-max-array", "1024",
     ]
 
-    if enable_waves:
-        extra_env['COCOTB_TRACE_FILE'] = os.path.join(sim_build, 'dump.fst')
 
-    sim_args = ['--trace'] if enable_waves else []
+    # Add coverage compile args if COVERAGE=1
+
+    compile_args.extend(get_coverage_compile_args())
+
+
+    sim_args = [
+        "--trace",
+        
+        "--trace-depth", "99",
+    ]
+
+    plusargs = ["--trace"]
+
+    cmd_filename = create_view_cmd(log_dir, log_path, sim_build, module, test_name_plus_params)
+
+    try:
+        run(
+            python_search=[tests_dir],
+            verilog_sources=verilog_sources,
+            includes=[rtl_dict['rtl_amba_includes']],
+            toplevel=toplevel,
+            module=module,
+            parameters=rtl_parameters,
+            sim_build=sim_build,
+            extra_env=extra_env,
+            waves=enable_waves,  # VCD controlled by compile_args, not cocotb-test
+            keep_files=True,
+            compile_args=compile_args,
+            sim_args=sim_args,
+            plusargs=plusargs,
+        )
+
+        print(f"✓ APB-GAXI refactor debug test completed!")
+        print(f"Logs: {log_path}")
+        print(f"Waveforms: {cmd_filename}")
+
+    except Exception as e:
+        print(f"❌ APB-GAXI refactor debug test failed: {str(e)}")
+        print(f"Logs preserved at: {log_path}")
+        print(f"To view waveforms: {cmd_filename}")
+        print(f"Check the log file for detailed refactor issue analysis.")
+        raise
+
+
+# ===============================================================================
+# WaveDrom Test
+# ===============================================================================
+
+def generate_apb_slave_wavedrom_params():
+    """Generate test parameters for APB slave WaveDrom test."""
+    return [
+        # (addr_width, data_width, depth)
+        (32, 32, 2),  # Standard configuration
+    ]
+
+
+wavedrom_params = generate_apb_slave_wavedrom_params()
+
+
+@pytest.mark.parametrize("addr_width, data_width, depth", wavedrom_params)
+def test_apb_slave_wavedrom(request, addr_width, data_width, depth):
+    """
+    APB slave WaveDrom test - generates timing diagrams.
+
+    Run with: ENABLE_WAVEDROM=1 pytest val/amba/test_apb_slave.py::test_apb_slave_wavedrom -v
+    """
+    # Get worker ID for parallel execution isolation
+    worker_id = os.environ.get('PYTEST_XDIST_WORKER', 'gw0')
+
+    module, repo_root, tests_dir, log_dir, rtl_dict = get_paths({
+        'rtl_cmn': 'rtl/common',
+        'rtl_amba': 'rtl/amba'
+    , 'rtl_amba_includes': 'rtl/amba/includes'})
+
+    dut_name = "apb_slave"
+    toplevel = dut_name
+
+    verilog_sources = [
+        os.path.join(rtl_dict['rtl_amba'], "gaxi/gaxi_skid_buffer.sv"),
+        os.path.join(rtl_dict['rtl_amba'], f"apb/{dut_name}.sv")
+    ]
+
+    aw_str = TBBase.format_dec(addr_width, 3)
+    dw_str = TBBase.format_dec(data_width, 3)
+    d_str = TBBase.format_dec(depth, 3)
+    test_name_plus_params = f"test_{worker_id}_apb_slave_aw{aw_str}_dw{dw_str}_d{d_str}_wd"
+    log_path = os.path.join(log_dir, f'{test_name_plus_params}.log')
+
+    sim_build = os.path.join(tests_dir, 'local_sim_build', test_name_plus_params)
+    os.makedirs(sim_build, exist_ok=True)
+    os.makedirs(log_dir, exist_ok=True)
+
+    rtl_parameters = {
+        'ADDR_WIDTH': addr_width,
+        'DATA_WIDTH': data_width,
+        'DEPTH': depth,
+    }
+
+    extra_env = {
+        'ENABLE_WAVEDROM': '1',  # ← Enable WaveDrom!
+        'TEST_ADDR_WIDTH': str(addr_width),
+        'TEST_DATA_WIDTH': str(data_width),
+        'TEST_DEPTH': str(depth),
+    }
+
+    # VCD waveform generation support via WAVES environment variable
+    # Trace compilation always enabled (minimal overhead)
+    # Set WAVES=1 to enable VCD dumping for debugging
+    compile_args = [
+        "--trace",
+        
+        "--trace-depth", "99",
+        "--trace-max-array", "1024",
+    ]
+
+
+    # Add coverage compile args if COVERAGE=1
+
+    compile_args.extend(get_coverage_compile_args())
+
+
+    sim_args = []
+
+    plusargs = []
 
     cmd_filename = create_view_cmd(log_dir, log_path, sim_build, module, test_name_plus_params)
 
@@ -1239,10 +1367,11 @@ def test_apb_gaxi_refactor_debug(request, addr_width, data_width, depth):
             parameters=rtl_parameters,
             sim_build=sim_build,
             extra_env=extra_env,
-            extra_args=extra_args,
-            plus_args=sim_args,
-
-            waves=enable_waves,
+            waves=enable_waves,  # VCD controlled by compile_args, not cocotb-test
+            keep_files=True,
+            compile_args=compile_args,
+            sim_args=sim_args,
+            plusargs=plusargs,
         )
 
         print(f"✓ APB Slave WaveDrom test completed!")

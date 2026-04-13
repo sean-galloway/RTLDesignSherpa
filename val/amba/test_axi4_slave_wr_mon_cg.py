@@ -26,9 +26,11 @@ import random
 import pytest
 import cocotb
 from cocotb_test.simulator import run
+from conftest import get_coverage_compile_args
 
 from TBClasses.axi4.monitor.axi4_slave_monitor_tb import AXI4SlaveMonitorTB
 from TBClasses.shared.utilities import get_paths
+
 
 def validate_addr_width(addr_width):
     """
@@ -45,6 +47,7 @@ def validate_addr_width(addr_width):
             f"Invalid AXI4 configuration: AXI_ADDR_WIDTH={addr_width} exceeds maximum of 64-bits. "
             f"AXI4 specification limits address width to 64-bits."
         )
+
 
 def generate_axi4_write_monitor_cg_params():
     """
@@ -82,6 +85,7 @@ def generate_axi4_write_monitor_cg_params():
 
     return params
 
+
 @cocotb.test(timeout_time=30, timeout_unit="sec")
 async def axi4_slave_wr_mon_cg_test(dut):
     """AXI4 slave write monitor CG integration test"""
@@ -109,6 +113,7 @@ async def axi4_slave_wr_mon_cg_test(dut):
 
     # Run all integration tests (same as non-CG version)
     await tb.run_integration_tests(test_level=test_level)
+
 
 # ============================================================================
 # PyTest Test Runner
@@ -147,8 +152,8 @@ def test_axi4_slave_wr_mon_cg(id_width, addr_width, data_width, user_width, wstr
 
     log_path = os.path.join(log_dir, f'{test_name}.log')
     sim_build = os.path.join(tests_dir, 'local_sim_build', test_name)
-    os.makedirs(sim_build, exist_ok=True)
     enable_waves = bool(int(os.environ.get('WAVES', '0')))
+    os.makedirs(sim_build, exist_ok=True)
     os.makedirs(log_dir, exist_ok=True)
 
     # Verilog sources (includes axi4_slave_wr_mon which the CG version instantiates)
@@ -207,11 +212,31 @@ def test_axi4_slave_wr_mon_cg(id_width, addr_width, data_width, user_width, wstr
     validate_addr_width(parameters['AXI_ADDR_WIDTH'])
 
     # Compile options
+    # VCD waveform generation support via WAVES environment variable
     # Trace compilation always enabled (minimal overhead)
     # Set WAVES=1 to enable VCD dumping for debugging
+    compile_args = [
+        '-Wall', '-Wno-SYNCASYNCNET',
+        '-Wno-UNUSED',
+        '-Wno-DECLFILENAME',
+        '-Wno-PINMISSING',
+        '-Wno-UNDRIVEN',
+        '-Wno-WIDTHEXPAND',
+        '-Wno-WIDTHTRUNC',
+        '-Wno-SELRANGE',
+        '-Wno-CASEINCOMPLETE',
+        '-Wno-TIMESCALEMOD',
+        f'-I{rtl_dict["rtl_includes"]}',
+        f'-I{rtl_dict["rtl_common"]}',
+        f'-I{sim_build}',
+    ]
+
+    # Add coverage compile args if COVERAGE=1
+    compile_args.extend(get_coverage_compile_args())
+
     # Add parameter overrides
     for param, value in parameters.items():
-        extra_args.append(f'-G{param}={value}')
+        compile_args.append(f'-G{param}={value}')
 
     # Environment variables
     extra_env = {
@@ -219,25 +244,12 @@ def test_axi4_slave_wr_mon_cg(id_width, addr_width, data_width, user_width, wstr
     }
 
     # Run test
-
-    extra_args = [
-        '--trace-fst',
-        '--trace-structs',
-        '-Wno-TIMESCALEMOD',
-    ]
-
-    if enable_waves:
-        extra_env['COCOTB_TRACE_FILE'] = os.path.join(sim_build, 'dump.fst')
-
-    sim_args = ['--trace'] if enable_waves else []
-
     run(
         verilog_sources=verilog_sources,
         toplevel=dut_name,
         module=os.path.splitext(os.path.basename(__file__))[0],
         simulator="verilator",
-        extra_args=extra_args,
-            plus_args=sim_args,
+        compile_args=compile_args,
         sim_build=sim_build,
         extra_env=extra_env,
         waves=enable_waves,  # Disable waves for CG tests to avoid Verilator FST issues

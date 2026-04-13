@@ -25,9 +25,11 @@ import pytest
 import cocotb
 from cocotb.triggers import Timer, RisingEdge
 from cocotb_test.simulator import run
+from conftest import get_coverage_compile_args
 
 from TBClasses.shared.tbbase import TBBase
 from TBClasses.shared.utilities import get_paths, create_view_cmd
+
 
 class APB5SlaveCDCCGBasicTB(TBBase):
     """Basic APB5 slave CDC clock-gated testbench."""
@@ -74,6 +76,7 @@ class APB5SlaveCDCCGBasicTB(TBBase):
         self.dut.cfg_cg_enable.value = 1 if enable else 0
         await RisingEdge(self.dut.pclk)
         self.log.info(f"Clock gating {'enabled' if enable else 'disabled'}")
+
 
 @cocotb.test(timeout_time=100, timeout_unit="us")
 async def cocotb_test_apb5_slave_cdc_cg_basic(dut):
@@ -131,6 +134,7 @@ async def cocotb_test_apb5_slave_cdc_cg_basic(dut):
 
     tb.log.info("=== APB5 Slave CDC CG Basic Test PASSED ===")
 
+
 def generate_apb5_slave_cdc_cg_params():
     """Generate test parameters for APB5 slave CDC clock-gated."""
     return [
@@ -138,6 +142,7 @@ def generate_apb5_slave_cdc_cg_params():
         (16, 32, 8, 0),  # 16-bit address
         (12, 64, 4, 1),  # With parity
     ]
+
 
 @pytest.mark.parametrize(
     "addr_width, data_width, auser_width, enable_parity",
@@ -214,19 +219,14 @@ def test_apb5_slave_cdc_cg(request, addr_width, data_width, auser_width, enable_
         'TEST_ENABLE_PARITY': str(enable_parity),
     }
 
-    # Add coverage compile args if COVERAGE=1
-    extra_args = [
-        '--trace-fst',
-        '--trace-structs',
-        '-Wno-TIMESCALEMOD',
-        '-Wno-WIDTHEXPAND',
-        '-Wno-WIDTHTRUNC',
+    compile_args = [
+        "-Wno-TIMESCALEMOD",
+        "-Wno-WIDTHTRUNC",
+        "-Wno-WIDTHEXPAND",
     ]
 
-    if enable_waves:
-        extra_env['COCOTB_TRACE_FILE'] = os.path.join(sim_build, 'dump.fst')
-
-    sim_args = ['--trace'] if enable_waves else []
+    # Add coverage compile args if COVERAGE=1
+    compile_args.extend(get_coverage_compile_args())
 
     cmd_filename = create_view_cmd(log_dir, log_path, sim_build, module, test_name_plus_params)
 
@@ -240,11 +240,11 @@ def test_apb5_slave_cdc_cg(request, addr_width, data_width, auser_width, enable_
             parameters=rtl_parameters,
             sim_build=sim_build,
             extra_env=extra_env,
-            extra_args=extra_args,
-            plus_args=sim_args,
-
             waves=enable_waves,
+            keep_files=True,
+            compile_args=compile_args,
             testcase="cocotb_test_apb5_slave_cdc_cg_basic",
+            simulator="verilator",
         )
     except Exception as e:
         print(f"Test failed: {str(e)}")

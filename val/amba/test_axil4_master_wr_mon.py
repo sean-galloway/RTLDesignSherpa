@@ -25,9 +25,11 @@ import random
 import pytest
 import cocotb
 from cocotb_test.simulator import run
+from conftest import get_coverage_compile_args
 
 from TBClasses.axil4.monitor.axil4_master_monitor_tb import AXIL4MasterMonitorTB
 from TBClasses.shared.utilities import get_paths
+
 
 @cocotb.test(timeout_time=30, timeout_unit="sec")
 async def axil4_master_wr_mon_test(dut):
@@ -44,6 +46,7 @@ async def axil4_master_wr_mon_test(dut):
 
     # Run all integration tests
     await tb.run_integration_tests(test_level=test_level)
+
 
 # ============================================================================
 # PyTest Test Runner
@@ -66,6 +69,7 @@ def generate_axil4_monitor_params():
         return ['gate']
     else:  # FUNC or FULL
         return ['gate', 'func', 'full']
+
 
 @pytest.mark.parametrize("test_level", generate_axil4_monitor_params())
 def test_axil4_master_wr_mon(test_level):
@@ -98,8 +102,8 @@ def test_axil4_master_wr_mon(test_level):
 
     log_path = os.path.join(log_dir, f'{test_name}.log')
     sim_build = os.path.join(tests_dir, 'local_sim_build', test_name)
-    os.makedirs(sim_build, exist_ok=True)
     enable_waves = bool(int(os.environ.get('WAVES', '0')))
+    os.makedirs(sim_build, exist_ok=True)
     os.makedirs(log_dir, exist_ok=True)
 
     # Verilog sources
@@ -150,17 +154,15 @@ def test_axil4_master_wr_mon(test_level):
         'TEST_LEVEL': test_level,
     }
 
-    extra_args = [
-        '--trace-fst',
-        '--trace-structs',
-        '-Wno-TIMESCALEMOD',
+    compile_args = ["-Wno-WIDTH",
+            "-Wno-SELRANGE",
+            "-Wno-CASEINCOMPLETE",
+            "-Wno-BLKANDNBLK",
+            "--timescale", "1ns/1ps",
     ]
 
-    if enable_waves:
-        extra_env['COCOTB_TRACE_FILE'] = os.path.join(sim_build, 'dump.fst')
-
-    sim_args = ['--trace'] if enable_waves else []
-
+    # Add coverage compile args if COVERAGE=1
+    compile_args.extend(get_coverage_compile_args())
 
     run(
         verilog_sources=verilog_sources,
@@ -173,10 +175,10 @@ def test_axil4_master_wr_mon(test_level):
         waves=enable_waves,  # VCD controlled by compile_args, not cocotb-test
         timescale='1ns/1ps',
         verilator_trace=False,
-        extra_args=extra_args,
-            plus_args=sim_args,
+        compile_args=compile_args,
         includes=[rtl_dict['rtl_amba_includes']]
     )
+
 
 if __name__ == "__main__":
     pytest.main([__file__, "-v", "-s"])

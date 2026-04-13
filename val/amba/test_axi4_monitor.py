@@ -34,6 +34,7 @@ import cocotb
 from cocotb.triggers import RisingEdge, Timer, FallingEdge
 from cocotb.utils import get_sim_time
 from cocotb_test.simulator import run
+from conftest import get_coverage_compile_args
 import pytest
 
 from TBClasses.shared.tbbase import TBBase
@@ -53,6 +54,7 @@ RESP_DECERR = 0b11
 BURST_FIXED = 0b00
 BURST_INCR  = 0b01
 BURST_WRAP  = 0b10
+
 
 class AXI4MonitorTB(TBBase):
     """Testbench for AXI4 Monitor stress testing"""
@@ -450,6 +452,7 @@ class AXI4MonitorTB(TBBase):
 
         return all(results.values())
 
+
 @cocotb.test(timeout_time=600, timeout_unit="sec")
 async def axi4_monitor_test(dut):
     """Main test function"""
@@ -462,6 +465,7 @@ async def axi4_monitor_test(dut):
     passed = await tb.run_all_tests()
 
     assert passed, "AXI4 monitor test failed"
+
 
 def generate_test_params():
     """Generate test parameter combinations"""
@@ -483,6 +487,7 @@ def generate_test_params():
         (8, 64, 8,  True,  True,  'addr64'),    # 10. 64-bit addr, 8-bit ID
         (8, 64, 16, True,  True,  'combined'),  # 11. Combined stress
     ]
+
 
 @pytest.mark.parametrize("iw, aw, max_transactions, is_read, is_axi4, test_mode", generate_test_params())
 def test_axi4_monitor(iw, aw, max_transactions, is_read, is_axi4, test_mode):
@@ -510,8 +515,8 @@ def test_axi4_monitor(iw, aw, max_transactions, is_read, is_axi4, test_mode):
     test_name = f"test_{worker_id}_{worker_id}_axi_monitor_{test_mode}_iw{iw}_aw{aw}_mt{max_transactions}_{protocol}_{direction}"
     log_path = os.path.join(log_dir, f'{test_name}.log')
     sim_build = os.path.join(tests_dir, 'local_sim_build', test_name)
-    os.makedirs(sim_build, exist_ok=True)
     enable_waves = bool(int(os.environ.get('WAVES', '0')))
+    os.makedirs(sim_build, exist_ok=True)
     os.makedirs(log_dir, exist_ok=True)
 
     verilog_sources = [
@@ -563,23 +568,22 @@ def test_axi4_monitor(iw, aw, max_transactions, is_read, is_axi4, test_mode):
         'STRESS_LEVEL': stress_level,
     }
 
+    # VCD waveform generation support via WAVES environment variable
     # Trace compilation always enabled (minimal overhead)
     # Set WAVES=1 to enable VCD dumping for debugging
+    compile_args = [
+        "-Wall", "-Wno-SYNCASYNCNET", "-Wno-UNUSED", "-Wno-DECLFILENAME", "-Wno-PINMISSING",
+        "-Wno-UNDRIVEN", "-Wno-WIDTHEXPAND", "-Wno-WIDTHTRUNC",
+        "-Wno-SELRANGE", "-Wno-CASEINCOMPLETE", "-Wno-TIMESCALEMOD",
+    ]
+
+    # Add coverage compile args if COVERAGE=1
+    compile_args.extend(get_coverage_compile_args())
+
     print(f"\n{'='*80}")
     print(f"AXI4 Monitor Test: {test_mode}")
     print(f"IW={iw}, AW={aw}, MAX_TRANS={max_transactions}, {protocol.upper()}, {direction.upper()}")
     print(f"{'='*80}")
-
-    if enable_waves:
-        extra_env['COCOTB_TRACE_FILE'] = os.path.join(sim_build, 'dump.fst')
-
-    sim_args = ['--trace'] if enable_waves else []
-
-    extra_args = [
-        '--trace-fst',
-        '--trace-structs',
-        '-Wno-TIMESCALEMOD',
-    ]
 
     try:
         run(
@@ -592,8 +596,8 @@ def test_axi4_monitor(iw, aw, max_transactions, is_read, is_axi4, test_mode):
             sim_build=sim_build,
             extra_env=extra_env,
             waves=enable_waves,  # VCD controlled by compile_args, not cocotb-test
-            extra_args=extra_args,
-            plus_args=sim_args,
+            keep_files=True,
+            compile_args=compile_args,
         )
         print(f"✓ PASSED: {test_name}")
     except Exception as e:

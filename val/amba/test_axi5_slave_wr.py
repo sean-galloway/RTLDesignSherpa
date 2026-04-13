@@ -43,11 +43,13 @@ from itertools import product
 import pytest
 import cocotb
 from cocotb_test.simulator import run
+from conftest import get_coverage_compile_args
 from TBClasses.shared.tbbase import TBBase
 from TBClasses.shared.utilities import get_paths, create_view_cmd
 
 # Import the testbench
 from TBClasses.axi5.axi5_slave_write_tb import AXI5SlaveWriteTB
+
 
 @cocotb.test(timeout_time=30, timeout_unit="sec")
 async def axi5_write_slave_test(dut):
@@ -271,6 +273,7 @@ async def axi5_write_slave_test(dut):
         tb.log.error(f"AXI5 WRITE SLAVE TESTS FAILED (success rate: {success_rate:.1f}%)")
         raise RuntimeError(f"Test failed with {success_rate:.1f}% success rate")
 
+
 def validate_axi5_params(params):
     """
     Validate AXI5 parameters to ensure they meet specification constraints.
@@ -285,6 +288,7 @@ def validate_axi5_params(params):
             )
 
     return params
+
 
 def generate_axi5_params():
     """
@@ -334,6 +338,7 @@ def generate_axi5_params():
             params.append((stub, id_w, addr_w, data_width, user_width, aw_d, w_d, b_d, level))
 
         return validate_axi5_params(params)
+
 
 @pytest.mark.parametrize("stub, id_width, addr_width, data_width, user_width, aw_depth, w_depth, b_depth, test_level",
                         generate_axi5_params())
@@ -461,21 +466,20 @@ def test_axi5_slave_wr(request, stub, id_width, addr_width, data_width, user_wid
     }
 
     includes = [rtl_dict['rtl_amba_includes']]
-    # Add coverage compile args if COVERAGE=1
-    extra_args = [
-        '--trace-fst',
-        '--trace-structs',
-        '-Wno-DECLFILENAME',
-        '-Wno-PINMISSING',
-        '-Wno-SYNCASYNCNET',
-        '-Wno-TIMESCALEMOD',
-        '-Wno-UNUSED',
+    compile_args = [
+        "--trace",
+        "--trace-depth", "99",
+        "-Wall", "-Wno-SYNCASYNCNET", "-DUSE_ASYNC_RESET",
+        "-Wno-UNUSED",
+        "-Wno-DECLFILENAME",
+        "-Wno-PINMISSING",
     ]
 
-    if enable_waves:
-        extra_env['COCOTB_TRACE_FILE'] = os.path.join(sim_build, 'dump.fst')
+    # Add coverage compile args if COVERAGE=1
+    compile_args.extend(get_coverage_compile_args())
 
-    sim_args = ['--trace'] if enable_waves else []
+    sim_args = ["--trace", "--trace-depth", "99"]
+    plusargs = ["--trace"]
 
     cmd_filename = create_view_cmd(os.path.dirname(log_path), log_path, sim_build,
                                     module, test_name_plus_params)
@@ -498,10 +502,12 @@ def test_axi5_slave_wr(request, stub, id_width, addr_width, data_width, user_wid
             parameters=rtl_parameters,
             sim_build=sim_build,
             extra_env=extra_env,
-            extra_args=extra_args,
-            plus_args=sim_args,
-
             waves=enable_waves,
+            keep_files=True,
+            compile_args=compile_args,
+            sim_args=sim_args,
+            plusargs=plusargs,
+            simulator="verilator",
         )
         print(f"{test_level.upper()} AXI5 Write Slave test PASSED")
     except Exception as e:

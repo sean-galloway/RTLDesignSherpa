@@ -37,10 +37,12 @@ from itertools import product
 import pytest
 import cocotb
 from cocotb_test.simulator import run
+from conftest import get_coverage_compile_args
 from cocotb.triggers import RisingEdge, Timer, ClockCycles
 from cocotb.clock import Clock
 from TBClasses.shared.tbbase import TBBase
 from TBClasses.shared.utilities import get_paths, create_view_cmd
+
 
 @cocotb.test(timeout_time=30, timeout_unit="ms")
 async def arbiter_rr_pwm_monbus_test(dut):
@@ -393,6 +395,7 @@ async def arbiter_rr_pwm_monbus_test(dut):
 
     print("=" * 80)
 
+
 @pytest.mark.parametrize("clients, wait_gnt_ack, agent_id, unit_id, test_level", [
     # Basic integration configurations
     (4, 0, 0x10, 0, 'gate'),      # 4 clients, no ACK, basic test
@@ -489,18 +492,27 @@ def test_arbiter_rr_pwm_monbus(request, clients, wait_gnt_ack, agent_id, unit_id
         'TEST_LEVEL': test_level
     }
 
-    # Add coverage compile args if COVERAGE=1
-
-    extra_args = [
-        '--trace-fst',
-        '--trace-structs',
-        '-Wno-TIMESCALEMOD',
+    # VCD waveform generation support via WAVES environment variable
+    # Trace compilation always enabled (minimal overhead)
+    # Set WAVES=1 to enable VCD dumping for debugging
+    compile_args = [
+        "--trace",
+        
+        "--trace-depth", "99",
     ]
 
-    if enable_waves:
-        extra_env['COCOTB_TRACE_FILE'] = os.path.join(sim_build, 'dump.fst')
 
-    sim_args = ['--trace'] if enable_waves else []
+    # Add coverage compile args if COVERAGE=1
+
+    compile_args.extend(get_coverage_compile_args())
+
+
+    sim_args = [
+        "--trace",
+        
+    ]
+
+    plusargs = ["--trace"]
 
     cmd_filename = create_view_cmd(log_dir, log_path, sim_build, module, test_name_plus_params)
 
@@ -513,11 +525,13 @@ def test_arbiter_rr_pwm_monbus(request, clients, wait_gnt_ack, agent_id, unit_id
             module=module,
             parameters=parameters,
             sim_build=sim_build,
-            extra_env=extra_env,  # Specify verilator explicitly
-            extra_args=extra_args,
-            plus_args=sim_args,
-
-            waves=enable_waves,
+            extra_env=extra_env,
+            simulator="verilator",  # Specify verilator explicitly
+            waves=enable_waves,  # VCD controlled by compile_args, not cocotb-test
+            keep_files=True,
+            compile_args=compile_args,
+            sim_args=sim_args,
+            plusargs=plusargs,
         )
 
         print(f"✅ Integration test PASSED: {test_level} level")
@@ -539,6 +553,152 @@ def test_arbiter_rr_pwm_monbus(request, clients, wait_gnt_ack, agent_id, unit_id
         print("- Verify ACK protocol timing if WAIT_GNT_ACK=1")
 
         raise
+
+
+if __name__ == "__main__":
+    # For direct execution, run a basic test
+    pytest.main([__file__ + "::test_arbiter_rr_pwm_monbus[4-0-16-0-basic]", "-v"])
+    # Get worker ID for parallel execution isolation
+    worker_id = os.environ.get('PYTEST_XDIST_WORKER', 'gw0')
+
+    """Run the integration test for arbiter_rr_pwm_monbus with different configurations"""
+
+    # Get all of the directory and module information
+    module, repo_root, tests_dir, log_dir, rtl_dict = get_paths({
+        'rtl_cmn':           'rtl/common',
+        'rtl_amba_includes': 'rtl/amba/includes',
+        'rtl_amba_shared':   'rtl/amba/shared',
+        'rtl_gaxi':          'rtl/amba/gaxi',
+    })
+
+    dut_name = "arbiter_rr_pwm_monbus"
+    toplevel = dut_name
+
+    # RTL sources - all components needed for integration
+    verilog_sources = [
+        # Monitor packages (must be compiled in dependency order)
+        os.path.join(rtl_dict['rtl_amba_includes'], "monitor_common_pkg.sv"),
+        os.path.join(rtl_dict['rtl_amba_includes'], "monitor_arbiter_pkg.sv"),
+        os.path.join(rtl_dict['rtl_amba_includes'], "monitor_amba4_pkg.sv"),
+        os.path.join(rtl_dict['rtl_amba_includes'], "monitor_amba5_pkg.sv"),
+        os.path.join(rtl_dict['rtl_amba_includes'], "monitor_pkg.sv"),
+
+        # Common components (include all arbiter dependencies)
+        os.path.join(rtl_dict['rtl_cmn'], "counter_bin.sv"),
+        os.path.join(rtl_dict['rtl_cmn'], "fifo_control.sv"),
+        os.path.join(rtl_dict['rtl_cmn'], "arbiter_priority_encoder.sv"),
+        os.path.join(rtl_dict['rtl_cmn'], "arbiter_round_robin.sv"),
+        os.path.join(rtl_dict['rtl_cmn'], "pwm.sv"),
+
+        # GAXI components
+        os.path.join(rtl_dict['rtl_gaxi'], "gaxi_fifo_sync.sv"),
+
+        # AMBA shared components (monitor and top-level)
+        os.path.join(rtl_dict['rtl_amba_shared'], "arbiter_monbus_common.sv"),
+        os.path.join(rtl_dict['rtl_amba_shared'], f"{dut_name}.sv"),
+    ]
+
+    # Create a human readable test identifier following repo pattern
+    c_str = TBBase.format_dec(clients, 2)
+    ack_str = TBBase.format_dec(wait_gnt_ack, 1)
+    aid_str = TBBase.format_hex(agent_id, 2)
+    uid_str = TBBase.format_dec(unit_id, 1)
+
+    test_name_plus_params = f"test_{worker_id}_{dut_name}_c{c_str}_ack{ack_str}_a{aid_str}_u{uid_str}_{test_level}"
+    log_path = os.path.join(log_dir, f'{test_name_plus_params}.log')
+
+    # Use it in the simbuild path
+    sim_build = os.path.join(tests_dir, 'local_sim_build', test_name_plus_params)
+
+    # Make directories
+    os.makedirs(sim_build, exist_ok=True)
+    os.makedirs(log_dir, exist_ok=True)
+
+    # RTL parameters
+    parameters = {
+        'CLIENTS': clients,
+        'WAIT_GNT_ACK': wait_gnt_ack,
+        'MON_AGENT_ID': agent_id,
+        'MON_UNIT_ID': unit_id,
+    }
+
+    # Environment variables
+    extra_env = {
+        'TRACE_FILE': f"{sim_build}/dump.fst",
+        'VERILATOR_TRACE': '1',
+        'DUT': dut_name,
+        'LOG_PATH': log_path,
+        'COCOTB_LOG_LEVEL': 'INFO',
+        'SEED': str(random.randint(0, 100000)),
+        'TEST_CLIENTS': str(clients),
+        'TEST_WAIT_GNT_ACK': str(wait_gnt_ack),
+        'TEST_AGENT_ID': f'0x{agent_id:02X}',
+        'TEST_UNIT_ID': str(unit_id),
+        'TEST_LEVEL': test_level
+    }
+
+    # VCD waveform generation support via WAVES environment variable
+    # Trace compilation always enabled (minimal overhead)
+    # Set WAVES=1 to enable VCD dumping for debugging
+    compile_args = [
+        "--trace",
+        
+        "--trace-depth", "99",
+    ]
+
+
+    # Add coverage compile args if COVERAGE=1
+
+    compile_args.extend(get_coverage_compile_args())
+
+
+    sim_args = [
+        "--trace",
+        
+    ]
+
+    plusargs = ["--trace"]
+
+    cmd_filename = create_view_cmd(log_dir, log_path, sim_build, module, test_name_plus_params)
+
+    try:
+        run(
+            python_search=[tests_dir],
+            verilog_sources=verilog_sources,
+            includes=[rtl_dict['rtl_amba_includes']],  # Include monitor_pkg.sv
+            toplevel=toplevel,
+            module=module,
+            parameters=parameters,
+            sim_build=sim_build,
+            extra_env=extra_env,
+            simulator="verilator",  # Specify verilator explicitly
+            waves=enable_waves,  # VCD controlled by compile_args, not cocotb-test
+            keep_files=True,
+            compile_args=compile_args,
+            sim_args=sim_args,
+            plusargs=plusargs,
+        )
+
+        print(f"✅ Integration test PASSED: {test_level} level")
+        print(f"   Configuration: {clients} clients, ACK={wait_gnt_ack}")
+        print(f"   Agent ID: 0x{agent_id:02X}, Unit ID: {unit_id}")
+
+    except Exception as e:
+        print(f"❌ Integration test FAILED: {str(e)}")
+        print(f"   Configuration: CLIENTS={clients}, WAIT_GNT_ACK={wait_gnt_ack}")
+        print(f"   AGENT_ID=0x{agent_id:02X}, UNIT_ID={unit_id}, LEVEL={test_level}")
+        print(f"   Logs preserved at: {log_path}")
+        print(f"   To view waveforms: {cmd_filename}")
+
+        print("\nTroubleshooting hints for integration test:")
+        print("- Check that all RTL components are present and compile cleanly")
+        print("- Verify PWM and arbiter signal connectivity")
+        print("- Look for monitor bus interface issues")
+        print("- Check parameter passing between integrated components")
+        print("- Verify ACK protocol timing if WAIT_GNT_ACK=1")
+
+        raise
+
 
 if __name__ == "__main__":
     # For direct execution, run a basic test

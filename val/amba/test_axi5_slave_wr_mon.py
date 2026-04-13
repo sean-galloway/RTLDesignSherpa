@@ -25,9 +25,11 @@ import random
 import pytest
 import cocotb
 from cocotb_test.simulator import run
+from conftest import get_coverage_compile_args
 
 from TBClasses.axi5.monitor.axi5_slave_monitor_tb import AXI5SlaveMonitorTB
 from TBClasses.shared.utilities import get_paths
+
 
 @cocotb.test(timeout_time=30, timeout_unit="sec")
 async def axi5_slave_wr_mon_test(dut):
@@ -40,6 +42,7 @@ async def axi5_slave_wr_mon_test(dut):
 
     await tb.initialize()
     await tb.run_integration_tests(test_level=test_level)
+
 
 def generate_axi5_monitor_params():
     """Generate AXI5 monitor parameter combinations based on REG_LEVEL."""
@@ -69,6 +72,7 @@ def generate_axi5_monitor_params():
         ]
 
     return params
+
 
 @pytest.mark.parametrize(
     "id_width, addr_width, data_width, user_width, max_trans, skid_aw, skid_w, skid_b, test_level",
@@ -158,31 +162,19 @@ def test_axi5_slave_wr_mon(id_width, addr_width, data_width, user_width, max_tra
         'TEST_CLK_PERIOD': '10',
     }
 
+    compile_args = [
+        "-Wall", "-Wno-SYNCASYNCNET", "-Wno-UNUSED", "-Wno-DECLFILENAME", "-Wno-PINMISSING",
+        "-Wno-UNDRIVEN", "-Wno-WIDTHEXPAND", "-Wno-WIDTHTRUNC",
+        "-Wno-SELRANGE", "-Wno-CASEINCOMPLETE", "-Wno-TIMESCALEMOD",
+    ]
+
     # Add coverage compile args if COVERAGE=1
+    compile_args.extend(get_coverage_compile_args())
+
     print(f"\n{'='*80}")
     print(f"AXI5 Slave Write Monitor Integration Test")
     print(f"Test Level: {test_level}")
     print(f"{'='*80}")
-
-    extra_args = [
-        '--trace-fst',
-        '--trace-structs',
-        '-Wno-CASEINCOMPLETE',
-        '-Wno-DECLFILENAME',
-        '-Wno-PINMISSING',
-        '-Wno-SELRANGE',
-        '-Wno-SYNCASYNCNET',
-        '-Wno-TIMESCALEMOD',
-        '-Wno-UNDRIVEN',
-        '-Wno-UNUSED',
-        '-Wno-WIDTHEXPAND',
-        '-Wno-WIDTHTRUNC',
-    ]
-
-    if enable_waves:
-        extra_env['COCOTB_TRACE_FILE'] = os.path.join(sim_build, 'dump.fst')
-
-    sim_args = ['--trace'] if enable_waves else []
 
     try:
         run(
@@ -194,10 +186,10 @@ def test_axi5_slave_wr_mon(id_width, addr_width, data_width, user_width, max_tra
             parameters=rtl_parameters,
             sim_build=sim_build,
             extra_env=extra_env,
-            extra_args=extra_args,
-            plus_args=sim_args,
-
             waves=enable_waves,
+            keep_files=True,
+            compile_args=compile_args,
+            simulator="verilator",
         )
         print(f"PASSED: {test_name}")
     except Exception as e:

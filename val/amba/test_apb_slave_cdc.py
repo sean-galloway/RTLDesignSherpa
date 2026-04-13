@@ -22,6 +22,7 @@ import cocotb
 from cocotb.utils import get_sim_time
 from cocotb.triggers import RisingEdge, Timer
 from cocotb_test.simulator import run
+from conftest import get_coverage_compile_args
 
 from CocoTBFramework.components.shared.memory_model import MemoryModel
 from CocoTBFramework.components.shared.flex_randomizer import FlexRandomizer
@@ -57,6 +58,7 @@ from TBClasses.wavedrom_user.gaxi import (
     get_gaxi_field_config,
     create_gaxi_wavejson_generator
 )
+
 
 class APBSlaveCDCTB(TBBase):
     """Enhanced APB-GAXI CDC testbench with comprehensive testing and debug capabilities."""
@@ -996,6 +998,7 @@ class APBSlaveCDCTB(TBBase):
 
         self.log.info("=== END CDC TEST REPORT ===")
 
+
 @cocotb.test(timeout_time=10, timeout_unit="sec")
 async def apb_slave_cdc_wavedrom_test(dut):
     """
@@ -1272,6 +1275,7 @@ async def apb_slave_cdc_wavedrom_test(dut):
     dut._log.info("   Clock ratio: pclk (period=1.0) : aclk (period=0.5) = 1:2")
     dut._log.info("=" * 80)
 
+
 @cocotb.test(timeout_time=60, timeout_unit="ms")  # Longer timeout for CDC tests
 async def comprehensive_apb_cdc_test(dut):
     """Comprehensive APB-GAXI CDC test with cross-domain validation."""
@@ -1323,6 +1327,7 @@ async def comprehensive_apb_cdc_test(dut):
         # Final CDC synchronization wait
         await tb.wait_clocks('aclk', 20)
         await tb.wait_clocks('pclk', 20)
+
 
 @pytest.mark.parametrize("addr_width, data_width, depth", [(32, 32, 2)])
 def test_apb_slave_cdc_robust(request, addr_width, data_width, depth):
@@ -1383,18 +1388,262 @@ def test_apb_slave_cdc_robust(request, addr_width, data_width, depth):
         'TEST_DEPTH': str(depth),
     }
 
-    # Add coverage compile args if COVERAGE=1
-
-    extra_args = [
-        '--trace-fst',
-        '--trace-structs',
-        '-Wno-TIMESCALEMOD',
+    # VCD waveform generation support via WAVES environment variable
+    # Trace compilation always enabled (minimal overhead)
+    # Set WAVES=1 to enable VCD dumping for debugging
+    compile_args = [
+        "--trace",
+        
+        "--trace-depth", "99",
+        "--trace-max-array", "1024",
     ]
 
-    if enable_waves:
-        extra_env['COCOTB_TRACE_FILE'] = os.path.join(sim_build, 'dump.fst')
 
-    sim_args = ['--trace'] if enable_waves else []
+    # Add coverage compile args if COVERAGE=1
+
+    compile_args.extend(get_coverage_compile_args())
+
+
+    sim_args = [
+        "--trace",
+        
+        "--trace-depth", "99",
+    ]
+
+    plusargs = ["--trace"]
+
+    cmd_filename = create_view_cmd(log_dir, log_path, sim_build, module, test_name_plus_params)
+
+    try:
+        run(
+            python_search=[tests_dir],
+            verilog_sources=verilog_sources,
+            includes=[rtl_dict['rtl_amba_includes']],
+            toplevel=toplevel,
+            module=module,
+            parameters=rtl_parameters,
+            sim_build=sim_build,
+            extra_env=extra_env,
+            waves=enable_waves,  # VCD controlled by compile_args, not cocotb-test
+            keep_files=True,
+            compile_args=compile_args,
+            sim_args=sim_args,
+            plusargs=plusargs,
+        )
+
+        print(f"✓ APB-GAXI CDC robust test completed!")
+        print(f"Logs: {log_path}")
+        print(f"Waveforms: {cmd_filename}")
+
+    except Exception as e:
+        print(f"❌ APB-GAXI CDC robust test failed: {str(e)}")
+        print(f"Logs preserved at: {log_path}")
+        print(f"To view waveforms: {cmd_filename}")
+        print(f"Check the log file for detailed CDC analysis.")
+        raise
+
+
+# ===============================================================================
+# WaveDrom Test
+# ===============================================================================
+
+def generate_apb_slave_cdc_wavedrom_params():
+    """Generate test parameters for APB slave CDC WaveDrom test."""
+    # Get worker ID for parallel execution isolation
+    worker_id = os.environ.get('PYTEST_XDIST_WORKER', 'gw0')
+
+    """Robust APB-GAXI CDC test with comprehensive validation."""
+
+    module, repo_root, tests_dir, log_dir, rtl_dict = get_paths({
+        'rtl_cmn':  'rtl/common',
+        'rtl_amba': 'rtl/amba',
+        'rtl_amba_shared':'rtl/amba/shared',
+        'rtl_apb':  'rtl/amba/apb',
+        'rtl_gaxi': 'rtl/amba/gaxi',
+     'rtl_amba_includes': 'rtl/amba/includes'})
+
+    dut_name = "apb_slave_cdc"
+    toplevel = dut_name
+
+    verilog_sources = [
+        os.path.join(rtl_dict['rtl_gaxi'],         "gaxi_skid_buffer.sv"),
+        os.path.join(rtl_dict['rtl_amba_shared'],  "cdc_handshake.sv"),
+        os.path.join(rtl_dict['rtl_apb'],          "apb_slave.sv"),
+        os.path.join(rtl_dict['rtl_apb'],         f"{dut_name}.sv")
+    ]
+
+    aw_str = TBBase.format_dec(addr_width, 3)
+    dw_str = TBBase.format_dec(data_width, 3)
+    d_str = TBBase.format_dec(depth, 3)
+    test_name_plus_params = f"test_{worker_id}_{dut_name}_aw{aw_str}_dw{dw_str}_d{d_str}"
+    log_path = os.path.join(log_dir, f'{test_name_plus_params}.log')
+
+    sim_build = os.path.join(tests_dir, 'local_sim_build', test_name_plus_params)
+    os.makedirs(sim_build, exist_ok=True)
+    os.makedirs(log_dir, exist_ok=True)
+
+    results_path = os.path.join(log_dir, f'results_{test_name_plus_params}.xml')
+
+    rtl_parameters = {
+        k.upper(): str(v) for k, v in locals().items()
+        if k in ["addr_width", "data_width", "depth"]
+    }
+
+    extra_env = {
+        'TRACE_FILE': f"{sim_build}/dump.fst",
+        'VERILATOR_TRACE': '1',
+        'DUT': dut_name,
+        'LOG_PATH': log_path,
+        'COCOTB_LOG_LEVEL': 'INFO',
+        'COCOTB_RESULTS_FILE': results_path,
+        'SEED': str(42),
+        'TEST_ADDR_WIDTH': str(addr_width),
+        'TEST_DATA_WIDTH': str(data_width),
+        'TEST_DEPTH': str(depth),
+    }
+
+    # VCD waveform generation support via WAVES environment variable
+    # Trace compilation always enabled (minimal overhead)
+    # Set WAVES=1 to enable VCD dumping for debugging
+    compile_args = [
+        "--trace",
+        
+        "--trace-depth", "99",
+        "--trace-max-array", "1024",
+    ]
+
+
+    # Add coverage compile args if COVERAGE=1
+
+    compile_args.extend(get_coverage_compile_args())
+
+
+    sim_args = [
+        "--trace",
+        
+        "--trace-depth", "99",
+    ]
+
+    plusargs = ["--trace"]
+
+    cmd_filename = create_view_cmd(log_dir, log_path, sim_build, module, test_name_plus_params)
+
+    try:
+        run(
+            python_search=[tests_dir],
+            verilog_sources=verilog_sources,
+            includes=[rtl_dict['rtl_amba_includes']],
+            toplevel=toplevel,
+            module=module,
+            parameters=rtl_parameters,
+            sim_build=sim_build,
+            extra_env=extra_env,
+            waves=enable_waves,  # VCD controlled by compile_args, not cocotb-test
+            keep_files=True,
+            compile_args=compile_args,
+            sim_args=sim_args,
+            plusargs=plusargs,
+        )
+
+        print(f"✓ APB-GAXI CDC robust test completed!")
+        print(f"Logs: {log_path}")
+        print(f"Waveforms: {cmd_filename}")
+
+    except Exception as e:
+        print(f"❌ APB-GAXI CDC robust test failed: {str(e)}")
+        print(f"Logs preserved at: {log_path}")
+        print(f"To view waveforms: {cmd_filename}")
+        print(f"Check the log file for detailed CDC analysis.")
+        raise
+
+
+# ===============================================================================
+# WaveDrom Test
+# ===============================================================================
+
+def generate_apb_slave_cdc_wavedrom_params():
+    """Generate test parameters for APB slave CDC WaveDrom test."""
+    return [
+        # (addr_width, data_width, rsp_depth, cmd_depth)
+        (32, 32, 2, 2),  # Standard CDC configuration
+    ]
+
+
+wavedrom_params = generate_apb_slave_cdc_wavedrom_params()
+
+
+@pytest.mark.parametrize("addr_width, data_width, rsp_depth, cmd_depth", wavedrom_params)
+def test_apb_slave_cdc_wavedrom(request, addr_width, data_width, rsp_depth, cmd_depth):
+    """
+    APB slave CDC WaveDrom test - generates timing diagrams with APB and CMD/RSP interfaces.
+
+    Run with: ENABLE_WAVEDROM=1 pytest val/amba/test_apb_slave_cdc.py::test_apb_slave_cdc_wavedrom -v
+    """
+    # Get worker ID for parallel execution isolation
+    worker_id = os.environ.get('PYTEST_XDIST_WORKER', 'gw0')
+
+    module, repo_root, tests_dir, log_dir, rtl_dict = get_paths({
+        'rtl_cmn':  'rtl/common',
+        'rtl_amba': 'rtl/amba',
+        'rtl_amba_shared':'rtl/amba/shared',
+        'rtl_apb':  'rtl/amba/apb',
+        'rtl_gaxi': 'rtl/amba/gaxi',
+     'rtl_amba_includes': 'rtl/amba/includes'})
+
+    dut_name = "apb_slave_cdc"
+    toplevel = dut_name
+
+    verilog_sources = [
+        os.path.join(rtl_dict['rtl_gaxi'],         "gaxi_skid_buffer.sv"),
+        os.path.join(rtl_dict['rtl_amba_shared'],  "cdc_handshake.sv"),
+        os.path.join(rtl_dict['rtl_apb'],          "apb_slave.sv"),
+        os.path.join(rtl_dict['rtl_apb'],         f"{dut_name}.sv")
+    ]
+
+    aw_str = TBBase.format_dec(addr_width, 3)
+    dw_str = TBBase.format_dec(data_width, 3)
+    rd_str = TBBase.format_dec(rsp_depth, 3)
+    cd_str = TBBase.format_dec(cmd_depth, 3)
+    test_name_plus_params = f"test_{worker_id}_apb_slave_cdc_aw{aw_str}_dw{dw_str}_rd{rd_str}_cd{cd_str}_wd"
+    log_path = os.path.join(log_dir, f'{test_name_plus_params}.log')
+
+    sim_build = os.path.join(tests_dir, 'local_sim_build', test_name_plus_params)
+    os.makedirs(sim_build, exist_ok=True)
+    os.makedirs(log_dir, exist_ok=True)
+
+    rtl_parameters = {
+        'ADDR_WIDTH': addr_width,
+        'DATA_WIDTH': data_width,
+        'DEPTH': rsp_depth,  # apb_slave_cdc uses single DEPTH parameter
+    }
+
+    extra_env = {
+        'ENABLE_WAVEDROM': '1',  # ← Enable WaveDrom!
+        'TEST_ADDR_WIDTH': str(addr_width),
+        'TEST_DATA_WIDTH': str(data_width),
+        'TEST_RSP_DEPTH': str(rsp_depth),
+        'TEST_CMD_DEPTH': str(cmd_depth),
+    }
+
+    # VCD waveform generation support via WAVES environment variable
+    # Trace compilation always enabled (minimal overhead)
+    # Set WAVES=1 to enable VCD dumping for debugging
+    compile_args = [
+        "--trace",
+        
+        "--trace-depth", "99",
+        "--trace-max-array", "1024",
+    ]
+
+
+    # Add coverage compile args if COVERAGE=1
+
+    compile_args.extend(get_coverage_compile_args())
+
+
+    sim_args = []
+
+    plusargs = []
 
     cmd_filename = create_view_cmd(log_dir, log_path, sim_build, module, test_name_plus_params)
 
@@ -1409,10 +1658,11 @@ def test_apb_slave_cdc_robust(request, addr_width, data_width, depth):
             parameters=rtl_parameters,
             sim_build=sim_build,
             extra_env=extra_env,
-            extra_args=extra_args,
-            plus_args=sim_args,
-
-            waves=enable_waves,  # Disable FST - using WaveDrom instead,
+            waves=enable_waves,  # Disable FST - using WaveDrom instead
+            keep_files=True,
+            compile_args=compile_args,
+            sim_args=sim_args,
+            plusargs=plusargs,
         )
 
         print(f"✓ APB Slave CDC WaveDrom test completed!")

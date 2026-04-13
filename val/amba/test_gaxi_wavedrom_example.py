@@ -45,6 +45,7 @@ from cocotb.clock import Clock
 from cocotb.triggers import RisingEdge, Timer
 import pytest
 from cocotb_test.simulator import run
+from conftest import get_coverage_compile_args
 
 # Import GAXI wavedrom support
 from TBClasses.wavedrom_user.gaxi import (
@@ -59,6 +60,7 @@ from CocoTBFramework.components.wavedrom.constraint_solver import (
     TemporalRelation
 )
 from TBClasses.shared.utilities import get_paths
+
 
 async def run_basic_functional_test(dut):
     """Run basic functional test without waveform generation"""
@@ -91,6 +93,7 @@ async def run_basic_functional_test(dut):
     dut.rd_ready.value = 0
 
     dut._log.info("✓ Basic functional test passed")
+
 
 @cocotb.test(timeout_time=10, timeout_unit="sec")
 async def gaxi_comprehensive_wavedrom_test(dut):
@@ -605,6 +608,7 @@ async def gaxi_comprehensive_wavedrom_test(dut):
     dut._log.info(f"  6. Alternating read/write (continuous flow)")
     dut._log.info(f"  Trim mode: {trim_mode}")
 
+
 # ==============================================================================
 # Test Parameter Generation
 # ==============================================================================
@@ -660,7 +664,9 @@ def generate_params():
     # - 1 full wavedrom test (32-bit, depth=4, default trim)
     # Total test count: 48 (not 96 with separate wavedrom tests!)
 
+
 params = generate_params()
+
 
 # ==============================================================================
 # PyTest Test Runner
@@ -702,8 +708,8 @@ def test_gaxi_wavedrom_example(data_width, depth, trim_mode, enable_wavedrom):
     test_name = f"test_{worker_id}_{dut_name}_w{data_width}_d{depth}_{trim_mode}_{wd_flag}"
 
     sim_build = os.path.join(tests_dir, 'local_sim_build', test_name)
-    os.makedirs(sim_build, exist_ok=True)
     enable_waves = bool(int(os.environ.get('WAVES', '0')))
+    os.makedirs(sim_build, exist_ok=True)
     os.makedirs(log_dir, exist_ok=True)
 
     extra_env = {
@@ -712,36 +718,36 @@ def test_gaxi_wavedrom_example(data_width, depth, trim_mode, enable_wavedrom):
         'ENABLE_WAVEDROM': '1' if enable_wavedrom else '0',
     }
 
+    # VCD waveform generation support via WAVES environment variable
     # Trace compilation always enabled (minimal overhead)
     # Set WAVES=1 to enable VCD dumping for debugging
-    for param, value in parameters.items():
-        extra_args.append(f'-G{param}={value}')
-
-    extra_args = [
-        '--trace-fst',
-        '--trace-structs',
-        '-Wno-TIMESCALEMOD',
+    compile_args = [
+        '-Wall',
+        '-Wno-UNUSED',
+        '-Wno-DECLFILENAME',
+        '-Wno-WIDTHTRUNC',
+        '-Wno-PINCONNECTEMPTY',
     ]
 
-    if enable_waves:
-        extra_env['COCOTB_TRACE_FILE'] = os.path.join(sim_build, 'dump.fst')
+    # Add coverage compile args if COVERAGE=1
+    compile_args.extend(get_coverage_compile_args())
 
-    sim_args = ['--trace'] if enable_waves else []
-
+    for param, value in parameters.items():
+        compile_args.append(f'-G{param}={value}')
 
     run(
         verilog_sources=verilog_sources,
         toplevel=dut_name,
         module=module,
         simulator="verilator",
-        extra_args=extra_args,
-            plus_args=sim_args,
+        compile_args=compile_args,
         sim_build=sim_build,
         extra_env=extra_env,
         waves=enable_waves,  # VCD controlled by compile_args, not cocotb-test
         testcase="gaxi_comprehensive_wavedrom_test",
         includes=[rtl_dict['rtl_amba_includes']]
     )
+
 
 if __name__ == "__main__":
     """

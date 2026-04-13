@@ -26,12 +26,14 @@ from itertools import product
 import pytest
 import cocotb
 from cocotb_test.simulator import run
+from conftest import get_coverage_compile_args
 from cocotb.triggers import RisingEdge, Timer
 
 from TBClasses.shared.tbbase import TBBase
 from TBClasses.shared.utilities import get_paths, create_view_cmd
 from TBClasses.amba.amba_cg_ctrl import AxiClockGateCtrl
 from TBClasses.axi5.axi5_master_read_tb import AXI5MasterReadTB
+
 
 class AXI5MasterReadCGTB(AXI5MasterReadTB):
     """
@@ -135,6 +137,7 @@ class AXI5MasterReadCGTB(AXI5MasterReadTB):
         self.log.info(f"Power efficiency: {efficiency:.1f}% ({gated_cycles}/{test_duration_cycles} cycles gated)")
         return self.cg_stats
 
+
 @cocotb.test(timeout_time=30, timeout_unit="sec")
 async def axi5_master_read_cg_test(dut):
     """AXI5 master read clock gated test"""
@@ -226,6 +229,7 @@ async def axi5_master_read_cg_test(dut):
         tb.log.error(f"AXI5 master read CG test FAILED: {str(e)}")
         raise
 
+
 def generate_axi5_cg_params():
     """Generate AXI5 CG parameter combinations based on REG_LEVEL."""
     reg_level = os.environ.get('REG_LEVEL', 'FUNC').upper()
@@ -248,6 +252,7 @@ def generate_axi5_cg_params():
         ]
 
     return params
+
 
 @pytest.mark.parametrize(
     "id_width, addr_width, data_width, user_width, ar_depth, r_depth, test_level",
@@ -272,8 +277,8 @@ def test_axi5_master_rd_cg(id_width, addr_width, data_width, user_width, ar_dept
 
     log_path = os.path.join(log_dir, f'{test_name}.log')
     sim_build = os.path.join(tests_dir, 'local_sim_build', test_name)
-    os.makedirs(sim_build, exist_ok=True)
     enable_waves = bool(int(os.environ.get('WAVES', '0')))
+    os.makedirs(sim_build, exist_ok=True)
     os.makedirs(log_dir, exist_ok=True)
 
     verilog_sources = [
@@ -313,21 +318,19 @@ def test_axi5_master_rd_cg(id_width, addr_width, data_width, user_width, ar_dept
         'TEST_CLK_PERIOD': '10',
     }
 
+    compile_args = [
+        "-Wall", "-Wno-SYNCASYNCNET", "-Wno-UNUSED", "-Wno-DECLFILENAME", "-Wno-PINMISSING",
+        "-Wno-UNDRIVEN", "-Wno-WIDTHEXPAND", "-Wno-WIDTHTRUNC",
+        "-Wno-SELRANGE", "-Wno-CASEINCOMPLETE", "-Wno-TIMESCALEMOD",
+    ]
+
+    # Add coverage compile args if COVERAGE=1
+    compile_args.extend(get_coverage_compile_args())
+
     print(f"\n{'='*80}")
     print(f"AXI5 Master Read CG Test")
     print(f"Test Level: {test_level}")
     print(f"{'='*80}")
-
-    if enable_waves:
-        extra_env['COCOTB_TRACE_FILE'] = os.path.join(sim_build, 'dump.fst')
-
-    sim_args = ['--trace'] if enable_waves else []
-
-    extra_args = [
-        '--trace-fst',
-        '--trace-structs',
-        '-Wno-TIMESCALEMOD',
-    ]
 
     try:
         run(
@@ -340,8 +343,8 @@ def test_axi5_master_rd_cg(id_width, addr_width, data_width, user_width, ar_dept
             sim_build=sim_build,
             extra_env=extra_env,
             waves=enable_waves,
-            extra_args=extra_args,
-            plus_args=sim_args,
+            keep_files=True,
+            compile_args=compile_args,
             simulator="verilator",
         )
         print(f"PASSED: {test_name}")

@@ -33,11 +33,13 @@ from itertools import product
 import pytest
 import cocotb
 from cocotb_test.simulator import run
+from conftest import get_coverage_compile_args
 from TBClasses.shared.tbbase import TBBase
 from TBClasses.shared.utilities import get_paths, create_view_cmd
 
 # Import the testbench
 from TBClasses.axil4.axil4_slave_write_tb import AXIL4SlaveWriteTB
+
 
 @cocotb.test(timeout_time=20, timeout_unit="ms")
 async def axil4_slave_write_test(dut):
@@ -329,6 +331,7 @@ async def axil4_slave_write_test(dut):
         # Always call finalize to print compliance reports
         tb.finalize_test()
 
+
 def generate_axil4_params():
     """
     Generate AXIL4 slave write parameter combinations based on REG_LEVEL.
@@ -355,6 +358,7 @@ def generate_axil4_params():
         params = [(aw, dw, awd, wd, bd, level) for (aw, dw, awd, wd, bd) in configs for level in test_levels]
 
     return params
+
 
 @pytest.mark.parametrize("addr_width, data_width, aw_depth, w_depth, b_depth, test_level",
                         generate_axil4_params())
@@ -444,23 +448,26 @@ def test_axil4_slave_write(request, addr_width, data_width, aw_depth, w_depth, b
 
     # Simulation settings
     includes = [rtl_dict['rtl_amba_includes']]
-    # Add coverage compile args if COVERAGE=1
-    # Create command file for viewing results
-    extra_args = [
-        '--trace-fst',
-        '--trace-structs',
-        '-Wno-DECLFILENAME',
-        '-Wno-PINMISSING',
-        '-Wno-SYNCASYNCNET',
-        '-Wno-TIMESCALEMOD',
-        '-Wno-UNUSED',
+    # VCD waveform generation support via WAVES environment variable
+    # Trace compilation always enabled (minimal overhead)
+    # Set WAVES=1 to enable VCD dumping for debugging
+    compile_args = [
+        "--trace",
+        
+        "--trace-depth", "99",
+        "-Wall", "-Wno-SYNCASYNCNET",
+        "-Wno-UNUSED",
+        "-Wno-DECLFILENAME",
+        "-Wno-PINMISSING",  # Allow unconnected pins
     ]
 
-    if enable_waves:
-        extra_env['COCOTB_TRACE_FILE'] = os.path.join(sim_build, 'dump.fst')
+    # Add coverage compile args if COVERAGE=1
+    compile_args.extend(get_coverage_compile_args())
 
-    sim_args = ['--trace'] if enable_waves else []
+    sim_args = ["--trace", "--trace-depth", "99"]
+    plusargs = ["--trace"]
 
+    # Create command file for viewing results
     cmd_filename = create_view_cmd(os.path.dirname(log_path), log_path, sim_build,
                                     module, test_name_plus_params)
 
@@ -481,10 +488,11 @@ def test_axil4_slave_write(request, addr_width, data_width, aw_depth, w_depth, b
             parameters=rtl_parameters,
             sim_build=sim_build,
             extra_env=extra_env,
-            extra_args=extra_args,
-            plus_args=sim_args,
-
-            waves=enable_waves,
+            waves=enable_waves,  # VCD controlled by compile_args, not cocotb-test
+            keep_files=True,
+            compile_args=compile_args,
+            sim_args=sim_args,
+            plusargs=plusargs,
         )
         print(f"✅ {test_level.upper()} AXIL4 Slave Write test PASSED")
     except Exception as e:
@@ -492,6 +500,148 @@ def test_axil4_slave_write(request, addr_width, data_width, aw_depth, w_depth, b
         print(f"Logs preserved at: {log_path}")
         print(f"To view the waveforms run: {cmd_filename}")
         raise
+
+
+if __name__ == "__main__":
+    # Can run individual tests or use pytest
+    pytest.main([__file__, "-v", "-s"])
+
+    # Get worker ID for parallel execution isolation
+    worker_id = os.environ.get('PYTEST_XDIST_WORKER', 'gw0')
+
+    """Test AXIL4 slave write with different parameter combinations"""
+
+    # Get paths and setup
+    module, repo_root, tests_dir, log_dir, rtl_dict = get_paths({
+        'rtl_axil4': 'rtl/amba/axil4/',
+        'rtl_gaxi': 'rtl/amba/gaxi',
+     'rtl_amba_includes': 'rtl/amba/includes'})
+
+    # Set up test names and directories
+    dut_name = "axil4_slave_wr"
+
+    aw_str = TBBase.format_dec(addr_width, 2)
+    dw_str = TBBase.format_dec(data_width, 3)
+    awd_str = TBBase.format_dec(aw_depth, 1)
+    wd_str = TBBase.format_dec(w_depth, 1)
+    bd_str = TBBase.format_dec(b_depth, 1)
+
+    test_name_plus_params = f"test_{worker_id}_{dut_name}_a{aw_str}_d{dw_str}_awd{awd_str}_wd{wd_str}_bd{bd_str}_{test_level}"
+
+    log_path = os.path.join(log_dir, f'{test_name_plus_params}.log')
+    sim_build = os.path.join(tests_dir, 'local_sim_build', test_name_plus_params)
+    os.makedirs(sim_build, exist_ok=True)
+    os.makedirs(log_dir, exist_ok=True)
+    results_path = os.path.join(log_dir, f'results_{test_name_plus_params}.xml')
+
+    # Verilog sources - include dependencies
+    verilog_sources = [
+        os.path.join(rtl_dict['rtl_gaxi'], "gaxi_skid_buffer.sv"),  # Dependency
+        os.path.join(rtl_dict['rtl_axil4'], f"{dut_name}.sv"),     # Main DUT
+    ]
+
+    # Check that files exist
+    for src in verilog_sources:
+        if not os.path.exists(src):
+            raise FileNotFoundError(f"RTL source not found: {src}")
+
+    # RTL parameters (simplified for AXIL4)
+    rtl_parameters = {
+        'AXIL_ADDR_WIDTH': addr_width,
+        'AXIL_DATA_WIDTH': data_width,
+        'SKID_DEPTH_AW': aw_depth,
+        'SKID_DEPTH_W': w_depth,
+        'SKID_DEPTH_B': b_depth,
+        # Derived parameters
+        'AW': addr_width,
+        'DW': data_width,
+    }
+
+    # Calculate timeout based on complexity
+    timeout_multipliers = {'gate': 1, 'func': 2, 'full': 4}
+    complexity_factor = (data_width + addr_width) / 100.0
+    timeout_ms = int(6000 * timeout_multipliers.get(test_level, 1) * max(1.0, complexity_factor))
+
+    # Environment variables
+    extra_env = {
+        'TRACE_FILE': f"{sim_build}/dump.fst",
+        'VERILATOR_TRACE': '1',
+        'DUT': dut_name,
+        'LOG_PATH': log_path,
+        'COCOTB_LOG_LEVEL': 'INFO',
+        'COCOTB_RESULTS_FILE': results_path,
+        'SEED': str(4347), # str(random.randint(0, 100000)),
+        'TEST_LEVEL': test_level,
+        'COCOTB_TEST_TIMEOUT': str(timeout_ms),
+
+        # AXIL4 test parameters
+        'TEST_ADDR_WIDTH': str(addr_width),
+        'TEST_DATA_WIDTH': str(data_width),
+        'TEST_CLK_PERIOD': '10',  # 10ns = 100MHz
+        'TIMEOUT_CYCLES': '2000',
+
+        # Buffer depth parameters
+        'TEST_AW_DEPTH': str(aw_depth),
+        'TEST_W_DEPTH': str(w_depth),
+        'TEST_B_DEPTH': str(b_depth),
+        'AXIL4_COMPLIANCE_CHECK': '1',
+    }
+
+    # Simulation settings
+    includes = [rtl_dict['rtl_amba_includes']]
+    # VCD waveform generation support via WAVES environment variable
+    # Trace compilation always enabled (minimal overhead)
+    # Set WAVES=1 to enable VCD dumping for debugging
+    compile_args = [
+        "--trace",
+        
+        "--trace-depth", "99",
+        "-Wall", "-Wno-SYNCASYNCNET",
+        "-Wno-UNUSED",
+        "-Wno-DECLFILENAME",
+        "-Wno-PINMISSING",  # Allow unconnected pins
+    ]
+
+    # Add coverage compile args if COVERAGE=1
+    compile_args.extend(get_coverage_compile_args())
+
+    sim_args = ["--trace", "--trace-depth", "99"]
+    plusargs = ["--trace"]
+
+    # Create command file for viewing results
+    cmd_filename = create_view_cmd(os.path.dirname(log_path), log_path, sim_build,
+                                    module, test_name_plus_params)
+
+    print(f"\n{'='*80}")
+    print(f"Running {test_level.upper()} AXIL4 Slave Write test: {dut_name}")
+    print(f"AXIL4 Config: ADDR={addr_width}, DATA={data_width}")
+    print(f"Buffer Depths: AW={aw_depth}, W={w_depth}, B={b_depth}")
+    print(f"Expected duration: {timeout_ms/1000:.1f}s")
+    print(f"{'='*80}")
+
+    try:
+        run(
+            python_search=[tests_dir],
+            verilog_sources=verilog_sources,
+            includes=includes,
+            toplevel=dut_name,
+            module=module,
+            parameters=rtl_parameters,
+            sim_build=sim_build,
+            extra_env=extra_env,
+            waves=enable_waves,  # VCD controlled by compile_args, not cocotb-test
+            keep_files=True,
+            compile_args=compile_args,
+            sim_args=sim_args,
+            plusargs=plusargs,
+        )
+        print(f"✅ {test_level.upper()} AXIL4 Slave Write test PASSED")
+    except Exception as e:
+        print(f"❌ {test_level.upper()} AXIL4 Slave Write test FAILED: {str(e)}")
+        print(f"Logs preserved at: {log_path}")
+        print(f"To view the waveforms run: {cmd_filename}")
+        raise
+
 
 if __name__ == "__main__":
     # Can run individual tests or use pytest

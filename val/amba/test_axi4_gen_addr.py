@@ -23,9 +23,11 @@ import cocotb
 from cocotb.utils import get_sim_time
 from cocotb.triggers import RisingEdge, Timer
 from cocotb_test.simulator import run
+from conftest import get_coverage_compile_args
 
 from TBClasses.shared.tbbase import TBBase
 from TBClasses.shared.utilities import get_paths, create_view_cmd
+
 
 class AxiGenAddrConfig:
     """Configuration class for AXI Address Generator tests"""
@@ -47,6 +49,7 @@ class AxiGenAddrConfig:
         self.dw = dw
         self.odw = odw
         self.len_width = len_width
+
 
 class AxiGenAddrTB(TBBase):
     """
@@ -563,6 +566,7 @@ class AxiGenAddrTB(TBBase):
                     self.log.info(f"  Aligned address mismatch: expected=0x{result['expected_align']:08x}, " +
                                     f"actual=0x{result['actual_align']:08x}")
 
+
 @cocotb.test(timeout_time=5000, timeout_unit="us")
 async def comprehensive_test(dut):
     """Run a comprehensive test suite according to the specified test level."""
@@ -574,6 +578,7 @@ async def comprehensive_test(dut):
 
     # Verify test result
     assert passed, f"Comprehensive test failed at level {tb.TEST_LEVEL}"
+
 
 @pytest.mark.parametrize("params", [
     # Test with standard configurations
@@ -677,18 +682,31 @@ def test_axi_gen_addr(request, params):
     timeout_factor = complexity_factor * 50
     extra_env['COCOTB_TIMEOUT_MULTIPLIER'] = str(timeout_factor)
 
-    # Add coverage compile args if COVERAGE=1
 
-    extra_args = [
-        '--trace-fst',
-        '--trace-structs',
-        '-Wno-TIMESCALEMOD',
+    # VCD waveform generation support via WAVES environment variable
+    # Trace compilation always enabled (minimal overhead)
+    # Set WAVES=1 to enable VCD dumping for debugging
+    compile_args = [
+            "--trace",
+            
+            "--trace-depth", "99",
     ]
 
-    if enable_waves:
-        extra_env['COCOTB_TRACE_FILE'] = os.path.join(sim_build, 'dump.fst')
 
-    sim_args = ['--trace'] if enable_waves else []
+    # Add coverage compile args if COVERAGE=1
+
+    compile_args.extend(get_coverage_compile_args())
+
+
+    sim_args = [
+            "--trace",  # Tell Verilator to use VCD
+            
+            "--trace-depth", "99",
+    ]
+
+    plusargs = [
+            "--trace",
+    ]
 
     cmd_filename = create_view_cmd(log_dir, log_path, sim_build, module, test_name_plus_params)
 
@@ -700,12 +718,14 @@ def test_axi_gen_addr(request, params):
             toplevel=toplevel,
             module=module,
             parameters=rtl_parameters,
+            simulator="verilator",
             sim_build=sim_build,
             extra_env=extra_env,
-            extra_args=extra_args,
-            plus_args=sim_args,
-
-            waves=enable_waves,
+            waves=enable_waves,  # VCD controlled by compile_args, not cocotb-test
+            keep_files=True,
+            compile_args=compile_args,
+            sim_args=sim_args,
+            plusargs=plusargs,
         )
     except Exception as e:
         # If the test fails, make sure logs are preserved
