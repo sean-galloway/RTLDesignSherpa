@@ -544,6 +544,7 @@ def test_apb_monitor():
     log_path = os.path.join(log_dir, f'{test_name}.log')
 
     os.makedirs(sim_build, exist_ok=True)
+    enable_waves = bool(int(os.environ.get('WAVES', '0')))
     os.makedirs(log_dir, exist_ok=True)
 
     # RTL sources (validated from compilation test)
@@ -590,10 +591,8 @@ def test_apb_monitor():
     }
 
     # Compile settings
-    # VCD waveform generation support via WAVES environment variable
     # Trace compilation always enabled (minimal overhead)
     # Set WAVES=1 to enable VCD dumping for debugging
-    # Add coverage compile args if COVERAGE=1
     print(f"\n{'='*60}")
     print(f"Running Working APB Monitor Test")
     print(f"Parameters: AW={aw}, DW={dw}, Unit={unit_id}, Agent={agent_id}")

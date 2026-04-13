@@ -112,6 +112,7 @@ def test_axil4_master_wr_mon_cg(test_level):
     log_path = os.path.join(log_dir, f'{test_name}.log')
     sim_build = os.path.join(tests_dir, 'local_sim_build', test_name)
     os.makedirs(sim_build, exist_ok=True)
+    enable_waves = bool(int(os.environ.get('WAVES', '0')))
     os.makedirs(log_dir, exist_ok=True)
 
     # Verilog sources (includes axil4_master_wr_mon which the CG version instantiates)
@@ -166,7 +167,6 @@ def test_axil4_master_wr_mon_cg(test_level):
         'TEST_LEVEL': test_level,
     }
 
-    # Add coverage compile args if COVERAGE=1
     run(
         verilog_sources=verilog_sources,
         toplevel=dut_name,

@@ -703,6 +703,7 @@ def test_gaxi_wavedrom_example(data_width, depth, trim_mode, enable_wavedrom):
 
     sim_build = os.path.join(tests_dir, 'local_sim_build', test_name)
     os.makedirs(sim_build, exist_ok=True)
+    enable_waves = bool(int(os.environ.get('WAVES', '0')))
     os.makedirs(log_dir, exist_ok=True)
 
     extra_env = {
@@ -711,10 +712,8 @@ def test_gaxi_wavedrom_example(data_width, depth, trim_mode, enable_wavedrom):
         'ENABLE_WAVEDROM': '1' if enable_wavedrom else '0',
     }
 
-    # VCD waveform generation support via WAVES environment variable
     # Trace compilation always enabled (minimal overhead)
     # Set WAVES=1 to enable VCD dumping for debugging
-    # Add coverage compile args if COVERAGE=1
     for param, value in parameters.items():
         compile_args.append(f'-G{param}={value}')
 

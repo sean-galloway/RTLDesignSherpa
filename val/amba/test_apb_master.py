@@ -1074,6 +1074,7 @@ def test_apb_master(request, addr_width, data_width, cmd_depth, rsp_depth):
 
     # Make sim_build directory
     os.makedirs(sim_build, exist_ok=True)
+    enable_waves = bool(int(os.environ.get('WAVES', '0')))
 
     # get the logs and results into one area
     os.makedirs(log_dir, exist_ok=True)
@@ -1100,10 +1101,8 @@ def test_apb_master(request, addr_width, data_width, cmd_depth, rsp_depth):
     extra_env['TEST_CMD_DEPTH'] = str(cmd_depth)
     extra_env['TEST_RSP_DEPTH'] = str(rsp_depth)
 
-    # VCD waveform generation support via WAVES environment variable
     # Trace compilation always enabled (minimal overhead)
     # Set WAVES=1 to enable VCD dumping for debugging
-    # Add coverage compile args if COVERAGE=1
 
     if enable_waves:
         extra_env['COCOTB_TRACE_FILE'] = os.path.join(sim_build, 'dump.fst')
@@ -1181,6 +1180,7 @@ def test_apb_master_wavedrom(request, addr_width, data_width, cmd_depth, rsp_dep
     log_path = os.path.join(log_dir, f'{test_name_plus_params}.log')
     sim_build = os.path.join(tests_dir, 'local_sim_build', test_name_plus_params)
     os.makedirs(sim_build, exist_ok=True)
+    enable_waves = bool(int(os.environ.get('WAVES', '0')))
     os.makedirs(log_dir, exist_ok=True)
     results_path = os.path.join(log_dir, f'results_{test_name_plus_params}.xml')
 
@@ -1205,10 +1205,8 @@ def test_apb_master_wavedrom(request, addr_width, data_width, cmd_depth, rsp_dep
         'TEST_RSP_DEPTH': str(rsp_depth),
     }
 
-    # VCD waveform generation support via WAVES environment variable
     # Trace compilation always enabled (minimal overhead)
     # Set WAVES=1 to enable VCD dumping for debugging
-    # Add coverage compile args if COVERAGE=1
 
     run(
         python_search=[tests_dir],

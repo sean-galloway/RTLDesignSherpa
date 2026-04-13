@@ -511,6 +511,7 @@ def test_axi4_monitor(iw, aw, max_transactions, is_read, is_axi4, test_mode):
     log_path = os.path.join(log_dir, f'{test_name}.log')
     sim_build = os.path.join(tests_dir, 'local_sim_build', test_name)
     os.makedirs(sim_build, exist_ok=True)
+    enable_waves = bool(int(os.environ.get('WAVES', '0')))
     os.makedirs(log_dir, exist_ok=True)
 
     verilog_sources = [
@@ -562,10 +563,8 @@ def test_axi4_monitor(iw, aw, max_transactions, is_read, is_axi4, test_mode):
         'STRESS_LEVEL': stress_level,
     }
 
-    # VCD waveform generation support via WAVES environment variable
     # Trace compilation always enabled (minimal overhead)
     # Set WAVES=1 to enable VCD dumping for debugging
-    # Add coverage compile args if COVERAGE=1
     print(f"\n{'='*80}")
     print(f"AXI4 Monitor Test: {test_mode}")
     print(f"IW={iw}, AW={aw}, MAX_TRANS={max_transactions}, {protocol.upper()}, {direction.upper()}")

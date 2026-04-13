@@ -148,6 +148,7 @@ def test_axi4_slave_wr_mon_cg(id_width, addr_width, data_width, user_width, wstr
     log_path = os.path.join(log_dir, f'{test_name}.log')
     sim_build = os.path.join(tests_dir, 'local_sim_build', test_name)
     os.makedirs(sim_build, exist_ok=True)
+    enable_waves = bool(int(os.environ.get('WAVES', '0')))
     os.makedirs(log_dir, exist_ok=True)
 
     # Verilog sources (includes axi4_slave_wr_mon which the CG version instantiates)
@@ -206,10 +207,8 @@ def test_axi4_slave_wr_mon_cg(id_width, addr_width, data_width, user_width, wstr
     validate_addr_width(parameters['AXI_ADDR_WIDTH'])
 
     # Compile options
-    # VCD waveform generation support via WAVES environment variable
     # Trace compilation always enabled (minimal overhead)
     # Set WAVES=1 to enable VCD dumping for debugging
-    # Add coverage compile args if COVERAGE=1
     # Add parameter overrides
     for param, value in parameters.items():
         compile_args.append(f'-G{param}={value}')

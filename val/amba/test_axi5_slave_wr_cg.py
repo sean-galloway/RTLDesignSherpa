@@ -276,6 +276,7 @@ def test_axi5_slave_wr_cg(id_width, addr_width, data_width, user_width, aw_depth
     log_path = os.path.join(log_dir, f'{test_name}.log')
     sim_build = os.path.join(tests_dir, 'local_sim_build', test_name)
     os.makedirs(sim_build, exist_ok=True)
+    enable_waves = bool(int(os.environ.get('WAVES', '0')))
     os.makedirs(log_dir, exist_ok=True)
 
     verilog_sources = [
@@ -316,7 +317,6 @@ def test_axi5_slave_wr_cg(id_width, addr_width, data_width, user_width, aw_depth
         'TEST_CLK_PERIOD': '10',
     }
 
-    # Add coverage compile args if COVERAGE=1
     print(f"\n{'='*80}")
     print(f"AXI5 Slave Write CG Test")
     print(f"Test Level: {test_level}")
