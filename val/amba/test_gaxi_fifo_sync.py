@@ -628,6 +628,7 @@ def test_gaxi_fifo_sync_wavedrom(request, data_width, depth, registered, clk_per
     test_name_plus_params = f"test_{worker_id}_gaxi_fifo_sync_{mode_name}_wavedrom"
     log_path = os.path.join(log_dir, f'{test_name_plus_params}.log')
     sim_build = os.path.join(tests_dir, 'local_sim_build', test_name_plus_params)
+    enable_waves = bool(int(os.environ.get('WAVES', '0')))
     os.makedirs(sim_build, exist_ok=True)
     os.makedirs(log_dir, exist_ok=True)
 

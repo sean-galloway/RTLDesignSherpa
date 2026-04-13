@@ -302,6 +302,7 @@ def test_axis_master(request, skid_depth, data_width, id_width, dest_width, user
     sim_build = os.path.join(tests_dir, 'local_sim_build', test_name_plus_params)
 
     # Make sim_build directory
+    enable_waves = bool(int(os.environ.get('WAVES', '0')))
     os.makedirs(sim_build, exist_ok=True)
 
     # Get the logs and results into one area

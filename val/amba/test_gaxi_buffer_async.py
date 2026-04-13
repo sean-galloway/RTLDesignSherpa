@@ -743,6 +743,7 @@ def test_gaxi_buffer_async(request, data_width, depth, wr_clk_period, rd_clk_per
     # use it in the simbuild path
     sim_build = os.path.join(tests_dir, 'local_sim_build', test_name_plus_params)
     # Make sim_build directory
+    enable_waves = bool(int(os.environ.get('WAVES', '0')))
     os.makedirs(sim_build, exist_ok=True)
 
     # get the logs and results into one area

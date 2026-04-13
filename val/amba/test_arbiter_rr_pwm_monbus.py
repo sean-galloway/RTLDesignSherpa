@@ -611,6 +611,7 @@ if __name__ == "__main__":
     sim_build = os.path.join(tests_dir, 'local_sim_build', test_name_plus_params)
 
     # Make directories
+    enable_waves = bool(int(os.environ.get('WAVES', '0')))
     os.makedirs(sim_build, exist_ok=True)
     os.makedirs(log_dir, exist_ok=True)
 
