@@ -1,0 +1,29 @@
+[tasks]
+prove
+cover
+
+[options]
+prove: mode bmc
+prove: depth 20
+cover: mode cover
+cover: depth 20
+
+[engines]
+prove: smtbmc z3
+cover: smtbmc z3
+
+[script]
+read -formal -sv -Iincludes apb_xbar_thin.sv
+read -formal -sv -Iincludes arbiter_priority_encoder.sv
+read -formal -sv -Iincludes arbiter_round_robin.sv
+read -formal -sv -Iincludes arbiter_round_robin_weighted.sv
+read -formal -sv -Iincludes formal_apb_xbar_thin.sv
+prep -top formal_apb_xbar_thin
+
+[files]
+apb_xbar_thin.sv ../../../projects/components/apb_xbar/rtl/apb_xbar_thin.sv
+arbiter_priority_encoder.sv ../../../rtl/common/arbiter_priority_encoder.sv
+arbiter_round_robin.sv ../../../rtl/common/arbiter_round_robin.sv
+arbiter_round_robin_weighted.sv ../../../rtl/common/arbiter_round_robin_weighted.sv
+formal_apb_xbar_thin.sv
+includes/reset_defs.svh ../../../rtl/amba/includes/reset_defs.svh
