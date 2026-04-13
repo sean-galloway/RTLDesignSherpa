@@ -210,24 +210,7 @@ class SimpleAPBMonitorTB(TBBase):
         """Run comprehensive functionality test"""
         self.log.info("=== Running Comprehensive APB Monitor Test ===")
 
-        extra_args = [
-        '--trace-fst',
-        '--trace-structs',
-        '-Wno-PINCONNECTEMPTY',
-        '-Wno-SELRANGE',
-        '-Wno-SYNCASYNCNET',
-        '-Wno-TIMESCALEMOD',
-        '-Wno-UNUSED',
-        '-Wno-WIDTHEXPAND',
-        '-Wno-WIDTHTRUNC',
-    ]
-
-    if enable_waves:
-        extra_env['COCOTB_TRACE_FILE'] = os.path.join(sim_build, 'dump.fst')
-
-    sim_args = ['--trace'] if enable_waves else []
-
-    try:
+        try:
             # Start monitor bus collector using cocotb.start_soon
             collector_task = cocotb.start_soon(self.monitor_bus_collector())
 
@@ -377,19 +360,7 @@ class SimpleAPBMonitorTB(TBBase):
         """Test timeout detection with multiple scenarios"""
         self.log.info("=== Running Enhanced Timeout Test ===")
 
-        extra_args = [
-        '--trace-fst',
-        '--trace-structs',
-        '-Wno-PINCONNECTEMPTY',
-        '-Wno-SELRANGE',
-        '-Wno-SYNCASYNCNET',
-        '-Wno-TIMESCALEMOD',
-        '-Wno-UNUSED',
-        '-Wno-WIDTHEXPAND',
-        '-Wno-WIDTHTRUNC',
-    ]
-
-    try:
+        try:
             # Start monitor bus collector
             collector_task = cocotb.start_soon(self.monitor_bus_collector())
             initial_packet_count = len(self.packets_collected)
@@ -572,7 +543,6 @@ def test_apb_monitor():
     sim_build = os.path.join(tests_dir, 'local_sim_build', test_name)
     log_path = os.path.join(log_dir, f'{test_name}.log')
 
-    enable_waves = bool(int(os.environ.get('WAVES', '0')))
     os.makedirs(sim_build, exist_ok=True)
     os.makedirs(log_dir, exist_ok=True)
 
@@ -620,6 +590,9 @@ def test_apb_monitor():
     }
 
     # Compile settings
+    # VCD waveform generation support via WAVES environment variable
+    # Trace compilation always enabled (minimal overhead)
+    # Set WAVES=1 to enable VCD dumping for debugging
     # Add coverage compile args if COVERAGE=1
     print(f"\n{'='*60}")
     print(f"Running Working APB Monitor Test")
@@ -627,16 +600,15 @@ def test_apb_monitor():
     print(f"Max Transactions: {max_transactions}")
     print(f"{'='*60}")
 
+    if enable_waves:
+        extra_env['COCOTB_TRACE_FILE'] = os.path.join(sim_build, 'dump.fst')
+
+    sim_args = ['--trace'] if enable_waves else []
+
     extra_args = [
         '--trace-fst',
         '--trace-structs',
-        '-Wno-PINCONNECTEMPTY',
-        '-Wno-SELRANGE',
-        '-Wno-SYNCASYNCNET',
         '-Wno-TIMESCALEMOD',
-        '-Wno-UNUSED',
-        '-Wno-WIDTHEXPAND',
-        '-Wno-WIDTHTRUNC',
     ]
 
     try:
@@ -649,10 +621,9 @@ def test_apb_monitor():
             parameters=parameters,
             sim_build=sim_build,
             extra_env=extra_env,
+            waves=enable_waves,  # VCD controlled by compile_args, not cocotb-test
             extra_args=extra_args,
             plus_args=sim_args,
-
-            waves=enable_waves,
         )
         print("✅ APB Monitor Test PASSED")
 

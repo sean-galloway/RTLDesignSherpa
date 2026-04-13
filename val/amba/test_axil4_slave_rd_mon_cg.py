@@ -111,7 +111,6 @@ def test_axil4_slave_rd_mon_cg(test_level):
 
     log_path = os.path.join(log_dir, f'{test_name}.log')
     sim_build = os.path.join(tests_dir, 'local_sim_build', test_name)
-    enable_waves = bool(int(os.environ.get('WAVES', '0')))
     os.makedirs(sim_build, exist_ok=True)
     os.makedirs(log_dir, exist_ok=True)
 
@@ -166,34 +165,20 @@ def test_axil4_slave_rd_mon_cg(test_level):
         'TEST_LEVEL': test_level,
     }
 
-    # Add coverage compile args if COVERAGE=1    extra_args = [
-        '--trace-fst',
-        '--trace-structs',
-        '-Wno-BLKANDNBLK',
-        '-Wno-CASEINCOMPLETE',
-        '-Wno-SELRANGE',
-        '-Wno-TIMESCALEMOD',
-        '-Wno-WIDTH',
-    ]
-
-    if enable_waves:
-        extra_env['COCOTB_TRACE_FILE'] = os.path.join(sim_build, 'dump.fst')
-
-    sim_args = ['--trace'] if enable_waves else []
-
+    # Add coverage compile args if COVERAGE=1
     run(
         verilog_sources=verilog_sources,
         toplevel=dut_name,
         module=module,
+        simulator="verilator",
         parameters=rtl_parameters,
         sim_build=sim_build,
         extra_env=extra_env,
-        extra_args=extra_args,
-        plus_args=sim_args,
-
-        waves=enable_waves,
+        waves=enable_waves,  # VCD controlled by compile_args, not cocotb-test
         timescale='1ns/1ps',
         verilator_trace=False,
+        extra_args=extra_args,
+            plus_args=sim_args,
         includes=[rtl_dict['rtl_amba_includes']]
     )
 

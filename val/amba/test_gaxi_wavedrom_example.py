@@ -702,7 +702,6 @@ def test_gaxi_wavedrom_example(data_width, depth, trim_mode, enable_wavedrom):
     test_name = f"test_{worker_id}_{dut_name}_w{data_width}_d{depth}_{trim_mode}_{wd_flag}"
 
     sim_build = os.path.join(tests_dir, 'local_sim_build', test_name)
-    enable_waves = bool(int(os.environ.get('WAVES', '0')))
     os.makedirs(sim_build, exist_ok=True)
     os.makedirs(log_dir, exist_ok=True)
 
@@ -712,33 +711,23 @@ def test_gaxi_wavedrom_example(data_width, depth, trim_mode, enable_wavedrom):
         'ENABLE_WAVEDROM': '1' if enable_wavedrom else '0',
     }
 
+    # VCD waveform generation support via WAVES environment variable
+    # Trace compilation always enabled (minimal overhead)
+    # Set WAVES=1 to enable VCD dumping for debugging
     # Add coverage compile args if COVERAGE=1
     for param, value in parameters.items():
-        compile_args.append(f'-G{param}={value}')    extra_args = [
-        '--trace-fst',
-        '--trace-structs',
-        '-Wno-DECLFILENAME',
-        '-Wno-PINCONNECTEMPTY',
-        '-Wno-TIMESCALEMOD',
-        '-Wno-UNUSED',
-        '-Wno-WIDTHTRUNC',
-    ]
-
-    if enable_waves:
-        extra_env['COCOTB_TRACE_FILE'] = os.path.join(sim_build, 'dump.fst')
-
-    sim_args = ['--trace'] if enable_waves else []
+        compile_args.append(f'-G{param}={value}')
 
     run(
         verilog_sources=verilog_sources,
         toplevel=dut_name,
         module=module,
+        simulator="verilator",
+        extra_args=extra_args,
+            plus_args=sim_args,
         sim_build=sim_build,
         extra_env=extra_env,
-        extra_args=extra_args,
-        plus_args=sim_args,
-
-        waves=enable_waves,
+        waves=enable_waves,  # VCD controlled by compile_args, not cocotb-test
         testcase="gaxi_comprehensive_wavedrom_test",
         includes=[rtl_dict['rtl_amba_includes']]
     )

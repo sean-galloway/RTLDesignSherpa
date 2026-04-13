@@ -250,27 +250,7 @@ class AXI4MonitorTB(TBBase):
     async def test_basic_transactions(self) -> bool:
         """Test 1: Basic transactions"""
         self.log.info("TEST 1: Basic Transactions")
-        extra_args = [
-        '--trace-fst',
-        '--trace-structs',
-        '-Wno-CASEINCOMPLETE',
-        '-Wno-DECLFILENAME',
-        '-Wno-PINMISSING',
-        '-Wno-SELRANGE',
-        '-Wno-SYNCASYNCNET',
-        '-Wno-TIMESCALEMOD',
-        '-Wno-UNDRIVEN',
-        '-Wno-UNUSED',
-        '-Wno-WIDTHEXPAND',
-        '-Wno-WIDTHTRUNC',
-    ]
-
-    if enable_waves:
-        extra_env['COCOTB_TRACE_FILE'] = os.path.join(sim_build, 'dump.fst')
-
-    sim_args = ['--trace'] if enable_waves else []
-
-    try:
+        try:
             stats_start = self.get_stats()
             for i in range(5):
                 await self.send_transaction(addr=0x1000 + (i * 0x10), txn_id=i)
@@ -297,22 +277,7 @@ class AXI4MonitorTB(TBBase):
             return True
 
         self.log.info("TEST 2: Burst Transactions")
-        extra_args = [
-        '--trace-fst',
-        '--trace-structs',
-        '-Wno-CASEINCOMPLETE',
-        '-Wno-DECLFILENAME',
-        '-Wno-PINMISSING',
-        '-Wno-SELRANGE',
-        '-Wno-SYNCASYNCNET',
-        '-Wno-TIMESCALEMOD',
-        '-Wno-UNDRIVEN',
-        '-Wno-UNUSED',
-        '-Wno-WIDTHEXPAND',
-        '-Wno-WIDTHTRUNC',
-    ]
-
-    try:
+        try:
             stats_start = self.get_stats()
             for i, length in enumerate([1, 3, 7]):
                 await self.send_transaction(addr=0x2000 + (i * 0x100), txn_id=i, length=length)
@@ -335,22 +300,7 @@ class AXI4MonitorTB(TBBase):
     async def test_error_responses(self) -> bool:
         """Test 3: Error responses"""
         self.log.info("TEST 3: Error Responses")
-        extra_args = [
-        '--trace-fst',
-        '--trace-structs',
-        '-Wno-CASEINCOMPLETE',
-        '-Wno-DECLFILENAME',
-        '-Wno-PINMISSING',
-        '-Wno-SELRANGE',
-        '-Wno-SYNCASYNCNET',
-        '-Wno-TIMESCALEMOD',
-        '-Wno-UNDRIVEN',
-        '-Wno-UNUSED',
-        '-Wno-WIDTHEXPAND',
-        '-Wno-WIDTHTRUNC',
-    ]
-
-    try:
+        try:
             stats_start = self.get_stats()
             # Use IDs within valid range [0, MAX_TRANS-1]
             await self.send_transaction(addr=0x3000, txn_id=0, response=RESP_SLVERR)
@@ -377,22 +327,7 @@ class AXI4MonitorTB(TBBase):
     async def test_orphan_detection(self) -> bool:
         """Test 4: Orphan detection"""
         self.log.info("TEST 4: Orphan Detection")
-        extra_args = [
-        '--trace-fst',
-        '--trace-structs',
-        '-Wno-CASEINCOMPLETE',
-        '-Wno-DECLFILENAME',
-        '-Wno-PINMISSING',
-        '-Wno-SELRANGE',
-        '-Wno-SYNCASYNCNET',
-        '-Wno-TIMESCALEMOD',
-        '-Wno-UNDRIVEN',
-        '-Wno-UNUSED',
-        '-Wno-WIDTHEXPAND',
-        '-Wno-WIDTHTRUNC',
-    ]
-
-    try:
+        try:
             stats_start = self.get_stats()
             for _ in range(20):
                 await RisingEdge(self.dut.aclk)
@@ -421,22 +356,7 @@ class AXI4MonitorTB(TBBase):
     async def test_sustained_throughput(self) -> bool:
         """Test 5: Sustained throughput"""
         self.log.info("TEST 5: Sustained Throughput")
-        extra_args = [
-        '--trace-fst',
-        '--trace-structs',
-        '-Wno-CASEINCOMPLETE',
-        '-Wno-DECLFILENAME',
-        '-Wno-PINMISSING',
-        '-Wno-SELRANGE',
-        '-Wno-SYNCASYNCNET',
-        '-Wno-TIMESCALEMOD',
-        '-Wno-UNDRIVEN',
-        '-Wno-UNUSED',
-        '-Wno-WIDTHEXPAND',
-        '-Wno-WIDTHTRUNC',
-    ]
-
-    try:
+        try:
             packets_start = len(self.mon_slave.received_packets)
             for i in range(self.NUM_TXN):
                 delay = random.randint(0, self.MAX_DELAY)
@@ -475,22 +395,7 @@ class AXI4MonitorTB(TBBase):
             return True
 
         self.log.info("TEST 6: Zero-Delay Stress")
-        extra_args = [
-        '--trace-fst',
-        '--trace-structs',
-        '-Wno-CASEINCOMPLETE',
-        '-Wno-DECLFILENAME',
-        '-Wno-PINMISSING',
-        '-Wno-SELRANGE',
-        '-Wno-SYNCASYNCNET',
-        '-Wno-TIMESCALEMOD',
-        '-Wno-UNDRIVEN',
-        '-Wno-UNUSED',
-        '-Wno-WIDTHEXPAND',
-        '-Wno-WIDTHTRUNC',
-    ]
-
-    try:
+        try:
             stats_start = self.get_stats()
             num_txn = 100
 
@@ -605,7 +510,6 @@ def test_axi4_monitor(iw, aw, max_transactions, is_read, is_axi4, test_mode):
     test_name = f"test_{worker_id}_{worker_id}_axi_monitor_{test_mode}_iw{iw}_aw{aw}_mt{max_transactions}_{protocol}_{direction}"
     log_path = os.path.join(log_dir, f'{test_name}.log')
     sim_build = os.path.join(tests_dir, 'local_sim_build', test_name)
-    enable_waves = bool(int(os.environ.get('WAVES', '0')))
     os.makedirs(sim_build, exist_ok=True)
     os.makedirs(log_dir, exist_ok=True)
 
@@ -658,25 +562,24 @@ def test_axi4_monitor(iw, aw, max_transactions, is_read, is_axi4, test_mode):
         'STRESS_LEVEL': stress_level,
     }
 
+    # VCD waveform generation support via WAVES environment variable
+    # Trace compilation always enabled (minimal overhead)
+    # Set WAVES=1 to enable VCD dumping for debugging
     # Add coverage compile args if COVERAGE=1
     print(f"\n{'='*80}")
     print(f"AXI4 Monitor Test: {test_mode}")
     print(f"IW={iw}, AW={aw}, MAX_TRANS={max_transactions}, {protocol.upper()}, {direction.upper()}")
     print(f"{'='*80}")
 
+    if enable_waves:
+        extra_env['COCOTB_TRACE_FILE'] = os.path.join(sim_build, 'dump.fst')
+
+    sim_args = ['--trace'] if enable_waves else []
+
     extra_args = [
         '--trace-fst',
         '--trace-structs',
-        '-Wno-CASEINCOMPLETE',
-        '-Wno-DECLFILENAME',
-        '-Wno-PINMISSING',
-        '-Wno-SELRANGE',
-        '-Wno-SYNCASYNCNET',
         '-Wno-TIMESCALEMOD',
-        '-Wno-UNDRIVEN',
-        '-Wno-UNUSED',
-        '-Wno-WIDTHEXPAND',
-        '-Wno-WIDTHTRUNC',
     ]
 
     try:
@@ -689,10 +592,9 @@ def test_axi4_monitor(iw, aw, max_transactions, is_read, is_axi4, test_mode):
             parameters=rtl_parameters,
             sim_build=sim_build,
             extra_env=extra_env,
+            waves=enable_waves,  # VCD controlled by compile_args, not cocotb-test
             extra_args=extra_args,
             plus_args=sim_args,
-
-            waves=enable_waves,
         )
         print(f"✓ PASSED: {test_name}")
     except Exception as e:

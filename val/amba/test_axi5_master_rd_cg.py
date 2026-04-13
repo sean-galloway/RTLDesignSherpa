@@ -56,27 +56,7 @@ class AXI5MasterReadCGTB(AXI5MasterReadTB):
 
     def setup_clock_gating_controller(self):
         """Setup clock gating controller for monitoring."""
-        extra_args = [
-        '--trace-fst',
-        '--trace-structs',
-        '-Wno-CASEINCOMPLETE',
-        '-Wno-DECLFILENAME',
-        '-Wno-PINMISSING',
-        '-Wno-SELRANGE',
-        '-Wno-SYNCASYNCNET',
-        '-Wno-TIMESCALEMOD',
-        '-Wno-UNDRIVEN',
-        '-Wno-UNUSED',
-        '-Wno-WIDTHEXPAND',
-        '-Wno-WIDTHTRUNC',
-    ]
-
-    if enable_waves:
-        extra_env['COCOTB_TRACE_FILE'] = os.path.join(sim_build, 'dump.fst')
-
-    sim_args = ['--trace'] if enable_waves else []
-
-    try:
+        try:
             self.cg_ctrl = AxiClockGateCtrl(
                 dut=self.dut,
                 instance_path="i_amba_clock_gate_ctrl",
@@ -176,21 +156,6 @@ async def axi5_master_read_cg_test(dut):
     tb.log.info("=" * 80)
     tb.log.info(f"AXI5 MASTER READ CLOCK GATED TEST - {test_level.upper()} LEVEL")
     tb.log.info("=" * 80)
-
-    extra_args = [
-        '--trace-fst',
-        '--trace-structs',
-        '-Wno-CASEINCOMPLETE',
-        '-Wno-DECLFILENAME',
-        '-Wno-PINMISSING',
-        '-Wno-SELRANGE',
-        '-Wno-SYNCASYNCNET',
-        '-Wno-TIMESCALEMOD',
-        '-Wno-UNDRIVEN',
-        '-Wno-UNUSED',
-        '-Wno-WIDTHEXPAND',
-        '-Wno-WIDTHTRUNC',
-    ]
 
     try:
         if test_level == 'gate':
@@ -307,7 +272,6 @@ def test_axi5_master_rd_cg(id_width, addr_width, data_width, user_width, ar_dept
 
     log_path = os.path.join(log_dir, f'{test_name}.log')
     sim_build = os.path.join(tests_dir, 'local_sim_build', test_name)
-    enable_waves = bool(int(os.environ.get('WAVES', '0')))
     os.makedirs(sim_build, exist_ok=True)
     os.makedirs(log_dir, exist_ok=True)
 
@@ -354,19 +318,15 @@ def test_axi5_master_rd_cg(id_width, addr_width, data_width, user_width, ar_dept
     print(f"Test Level: {test_level}")
     print(f"{'='*80}")
 
+    if enable_waves:
+        extra_env['COCOTB_TRACE_FILE'] = os.path.join(sim_build, 'dump.fst')
+
+    sim_args = ['--trace'] if enable_waves else []
+
     extra_args = [
         '--trace-fst',
         '--trace-structs',
-        '-Wno-CASEINCOMPLETE',
-        '-Wno-DECLFILENAME',
-        '-Wno-PINMISSING',
-        '-Wno-SELRANGE',
-        '-Wno-SYNCASYNCNET',
         '-Wno-TIMESCALEMOD',
-        '-Wno-UNDRIVEN',
-        '-Wno-UNUSED',
-        '-Wno-WIDTHEXPAND',
-        '-Wno-WIDTHTRUNC',
     ]
 
     try:
@@ -379,10 +339,10 @@ def test_axi5_master_rd_cg(id_width, addr_width, data_width, user_width, ar_dept
             parameters=rtl_parameters,
             sim_build=sim_build,
             extra_env=extra_env,
+            waves=enable_waves,
             extra_args=extra_args,
             plus_args=sim_args,
-
-            waves=enable_waves,
+            simulator="verilator",
         )
         print(f"PASSED: {test_name}")
     except Exception as e:

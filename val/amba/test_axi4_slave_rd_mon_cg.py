@@ -155,7 +155,6 @@ def test_axi4_slave_rd_mon_cg(id_width, addr_width, data_width, user_width, max_
 
     log_path = os.path.join(log_dir, f'{test_name}.log')
     sim_build = os.path.join(tests_dir, 'local_sim_build', test_name)
-    enable_waves = bool(int(os.environ.get('WAVES', '0')))
     os.makedirs(sim_build, exist_ok=True)
     os.makedirs(log_dir, exist_ok=True)
 
@@ -213,6 +212,9 @@ def test_axi4_slave_rd_mon_cg(id_width, addr_width, data_width, user_width, max_
     validate_addr_width(parameters['AXI_ADDR_WIDTH'])
 
     # Compile options
+    # VCD waveform generation support via WAVES environment variable
+    # Trace compilation always enabled (minimal overhead)
+    # Set WAVES=1 to enable VCD dumping for debugging
     # Add coverage compile args if COVERAGE=1
     # Add parameter overrides
     for param, value in parameters.items():
@@ -223,35 +225,16 @@ def test_axi4_slave_rd_mon_cg(id_width, addr_width, data_width, user_width, max_
         'TEST_LEVEL': test_level,
     }
 
-    # Run test    extra_args = [
-        '--trace-fst',
-        '--trace-structs',
-        '-Wno-CASEINCOMPLETE',
-        '-Wno-DECLFILENAME',
-        '-Wno-PINMISSING',
-        '-Wno-SELRANGE',
-        '-Wno-SYNCASYNCNET',
-        '-Wno-TIMESCALEMOD',
-        '-Wno-UNDRIVEN',
-        '-Wno-UNUSED',
-        '-Wno-WIDTHEXPAND',
-        '-Wno-WIDTHTRUNC',
-    ]
-
-    if enable_waves:
-        extra_env['COCOTB_TRACE_FILE'] = os.path.join(sim_build, 'dump.fst')
-
-    sim_args = ['--trace'] if enable_waves else []
-
+    # Run test
     run(
         verilog_sources=verilog_sources,
         toplevel=dut_name,
         module=os.path.splitext(os.path.basename(__file__))[0],
+        simulator="verilator",
+        extra_args=extra_args,
+            plus_args=sim_args,
         sim_build=sim_build,
         extra_env=extra_env,
-        extra_args=extra_args,
-        plus_args=sim_args,
-
         waves=enable_waves,  # Disable waves for CG tests to avoid Verilator FST issues
         includes=[rtl_dict['rtl_amba_includes']]
     )
