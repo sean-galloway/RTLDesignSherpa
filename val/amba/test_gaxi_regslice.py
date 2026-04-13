@@ -305,7 +305,7 @@ def test_gaxi_regslice(request, data_width, clk_period, test_level):
         compile_args.append(f'-G{param}={value}')
 
     # Run the simulation
-    # Note: waves=enable_waves due to Verilator FST bug with INSTANCE_NAME string parameter
+    enable_waves = bool(int(os.environ.get('WAVES', '0')))
     run(
         verilog_sources=verilog_sources,
         toplevel="gaxi_regslice",
