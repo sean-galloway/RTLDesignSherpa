@@ -96,45 +96,56 @@ run-all-parallel:
 	$(PYTEST) $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE) $(PYTEST_XDIST) $(PYTEST_RERUNS) test_*.py
 
 # ==============================================================================
-# Standardized REG_LEVEL Targets (aliases for cross-area consistency)
+# Standardized REG_LEVEL Targets (for cross-area consistency)
 # ==============================================================================
-# integ_amba tests do not use REG_LEVEL or WAVES, so these are aliases.
+# integ_amba tests do not use REG_LEVEL, so the level variants alias to run-all.
+# The -waves variants set WAVES=1 to enable VCD/FST dumping via cocotb-test.
 
 .PHONY: run-all-gate
 run-all-gate: run-all
 
 .PHONY: run-all-gate-waves
-run-all-gate-waves: run-all
+run-all-gate-waves:
+	@echo "Running ALL AMBA Integration Tests - with WAVES"
+	WAVES=1 $(PYTEST) $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE) $(PYTEST_RERUNS) test_*.py
 
 .PHONY: run-all-gate-parallel
 run-all-gate-parallel: run-all-parallel
 
 .PHONY: run-all-gate-parallel-waves
-run-all-gate-parallel-waves: run-all-parallel
+run-all-gate-parallel-waves:
+	@echo "Running ALL AMBA Integration Tests - PARALLEL with WAVES"
+	WAVES=1 $(PYTEST) $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE) $(PYTEST_XDIST) $(PYTEST_RERUNS) test_*.py
 
 .PHONY: run-all-func
 run-all-func: run-all
 
 .PHONY: run-all-func-waves
-run-all-func-waves: run-all
+run-all-func-waves: run-all-gate-waves
 
 .PHONY: run-all-func-parallel
 run-all-func-parallel: run-all-parallel
 
 .PHONY: run-all-func-parallel-waves
-run-all-func-parallel-waves: run-all-parallel
+run-all-func-parallel-waves: run-all-gate-parallel-waves
 
 .PHONY: run-all-full
 run-all-full: run-all
 
 .PHONY: run-all-full-waves
-run-all-full-waves: run-all
+run-all-full-waves: run-all-gate-waves
 
 .PHONY: run-all-full-parallel
 run-all-full-parallel: run-all-parallel
 
 .PHONY: run-all-full-parallel-waves
-run-all-full-parallel-waves: run-all-parallel
+run-all-full-parallel-waves: run-all-gate-parallel-waves
+
+.PHONY: run-all-parallel-waves
+run-all-parallel-waves: run-all-gate-parallel-waves
+
+.PHONY: run-all-waves
+run-all-waves: run-all-gate-waves
 
 .PHONY: run-gaxi
 run-gaxi:

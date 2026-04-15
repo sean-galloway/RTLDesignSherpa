@@ -280,12 +280,11 @@ def test_fifo_buffer_field(request, addr_width, ctrl_width, data_width, depth, w
 
     # Environment variables
     extra_env = {
-        'TRACE_FILE': f"{sim_build}/dump.vcd",
+        'TRACE_FILE': f"{sim_build}/dump.fst",
         'VERILATOR_TRACE': '1',  # Enable tracing
         'DUT': dut_name,
         'LOG_PATH': log_path,
         'COCOTB_LOG_LEVEL': 'INFO',
-        # 'COCOTB_LOG_LEVEL': 'DEBUG',
         'COCOTB_RESULTS_FILE': results_path,
         'SEED': str(random.randint(0, 100000)),
         'TEST_LEVEL': test_level,
@@ -302,24 +301,20 @@ def test_fifo_buffer_field(request, addr_width, ctrl_width, data_width, depth, w
     extra_env['TEST_MODE'] = mode
     extra_env['TEST_KIND'] = 'sync'
 
-    # VCD waveform generation support via WAVES environment variable
-    # Trace compilation always enabled (minimal overhead)
-    # Set WAVES=1 to enable VCD dumping for debugging
-    compile_args = [
-        "--trace",
-        "--trace-structs",
-        "--trace-depth", "99",
+    # WAVES=1 enables VCD/FST dumping at runtime (compile-time trace support
+    # is always on via extra_args; runtime --trace turns dumping on).
+    enable_waves = bool(int(os.environ.get('WAVES', '0')))
+
+    extra_args = [
+        '--trace-fst',
+        '--trace-structs',
+        '-Wno-TIMESCALEMOD',
     ]
 
-    sim_args = [
-        "--trace",  # Tell Verilator to use VCD
-        "--trace-structs",
-        "--trace-depth", "99",
-    ]
+    sim_args = ['--trace'] if enable_waves else []
 
-    plusargs = [
-        "--trace",
-    ]
+    if enable_waves:
+        extra_env['COCOTB_TRACE_FILE'] = os.path.join(sim_build, 'dump.fst')
 
     cmd_filename = create_view_cmd(log_dir, log_path, sim_build, module, test_name_plus_params)
 
@@ -340,11 +335,10 @@ def test_fifo_buffer_field(request, addr_width, ctrl_width, data_width, depth, w
             parameters=rtl_parameters,
             sim_build=sim_build,
             extra_env=extra_env,
-            waves=False,  # VCD controlled by compile_args, not cocotb-test
+            extra_args=extra_args,
+            plus_args=sim_args,
+            waves=enable_waves,
             keep_files=True,
-            compile_args=compile_args,
-            sim_args=sim_args,
-            plusargs=plusargs,
         )
         print(f"✓ {test_level.upper()} field test PASSED: {mode} mode")
     except Exception as e:

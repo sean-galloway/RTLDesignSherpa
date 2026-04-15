@@ -91,6 +91,55 @@ def create_view_cmd(log_dir, log_path, sim_build, module, test_name):
     return cmd_filename
 
 
+def get_wave_config(sim_build: str) -> Dict:
+    """Resolve waveform configuration from environment variables.
+
+    Honors:
+        WAVES       '1' to enable waveform dumping, '0' (default) to disable.
+        WAVES_TYPE  'fst' (default) or 'vcd'. Case-insensitive.
+
+    Args:
+        sim_build: Simulation build directory where the trace file will live.
+
+    Returns:
+        Dict with keys:
+            enable      (bool)  Whether waveforms are enabled.
+            fmt         (str)   'fst' or 'vcd'.
+            extra_args  (list)  Verilator compile flags for trace support.
+            sim_args    (list)  Runtime plus_args for the simulator.
+            extra_env   (dict)  Env vars to merge into cocotb-test extra_env.
+            trace_file  (str)   Absolute path to the dump file, or '' if disabled.
+    """
+    enable = bool(int(os.environ.get('WAVES', '0')))
+    fmt = os.environ.get('WAVES_TYPE', 'fst').lower()
+    if fmt not in ('fst', 'vcd'):
+        fmt = 'fst'
+
+    result: Dict = {
+        'enable': enable,
+        'fmt': fmt,
+        'extra_args': [],
+        'sim_args': [],
+        'extra_env': {},
+        'trace_file': '',
+    }
+
+    if not enable:
+        return result
+
+    trace_file = os.path.join(sim_build, f'dump.{fmt}')
+    result['trace_file'] = trace_file
+    result['extra_env'] = {'COCOTB_TRACE_FILE': trace_file}
+    result['sim_args'] = ['--trace']
+
+    if fmt == 'fst':
+        result['extra_args'] = ['--trace-fst', '--trace-structs']
+    else:
+        result['extra_args'] = ['--trace', '--trace-structs']
+
+    return result
+
+
 def quick_log():
     log_file = tempfile.NamedTemporaryFile(delete=False, suffix=".log").name  # Create temp log file
     logging.basicConfig(filename=log_file, level=logging.DEBUG,

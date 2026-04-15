@@ -27,7 +27,7 @@ from cocotb_test.simulator import run
 
 # Add repo root to path for CocoTBFramework imports
 from TBClasses.reset_sync_tb import ResetSyncTB
-from TBClasses.shared.utilities import get_paths
+from TBClasses.shared.utilities import get_paths, get_wave_config
 from TBClasses.shared.filelist_utils import get_sources_from_filelist
 
 @cocotb.test(timeout_time=100, timeout_unit="us")
@@ -78,9 +78,10 @@ def test_reset_sync(n, test_mode):
 
     log_path = os.path.join(log_dir, f'{test_name}.log')
     sim_build = os.path.join(tests_dir, 'local_sim_build', test_name)
-    enable_waves = bool(int(os.environ.get('WAVES', '0')))
     os.makedirs(sim_build, exist_ok=True)
     os.makedirs(log_dir, exist_ok=True)
+    wave_cfg = get_wave_config(sim_build)
+    enable_waves = wave_cfg['enable']
 
     # Get verilog sources and includes from filelist
     verilog_sources, includes = get_sources_from_filelist(
@@ -98,19 +99,15 @@ def test_reset_sync(n, test_mode):
         'COCOTB_LOG_LEVEL': 'INFO',
         'PARAM_N': str(n),
     }
+    extra_env.update(wave_cfg['extra_env'])
 
-    if enable_waves:
-        extra_env['COCOTB_TRACE_FILE'] = os.path.join(sim_build, 'dump.fst')
-
-    sim_args = ['--trace'] if enable_waves else []
+    sim_args = list(wave_cfg['sim_args'])
 
     print(f"\n{'='*80}")
     print(f"Reset Sync Test: {test_mode} (N={n})")
     print(f"{'='*80}")
 
-    extra_args = [
-        '--trace-fst',
-        '--trace-structs',
+    extra_args = list(wave_cfg['extra_args']) + [
         '-Wno-DECLFILENAME',
         '-Wno-PROCASSINIT',
         '-Wno-TIMESCALEMOD',
@@ -133,12 +130,14 @@ def test_reset_sync(n, test_mode):
             waves=enable_waves,
         )
         print(f"✓ PASSED: {test_name}")
-        print(f"Waveform: {sim_build}/dump.fst")
+        if enable_waves:
+            print(f"Waveform: {wave_cfg['trace_file']}")
     except Exception as e:
         print(f"✗ FAILED: {test_name}")
         print(f"Error: {str(e)}")
         print(f"Log: {log_path}")
-        print(f"Waveform: {sim_build}/dump.fst")
+        if enable_waves:
+            print(f"Waveform: {wave_cfg['trace_file']}")
         raise
 
 if __name__ == "__main__":

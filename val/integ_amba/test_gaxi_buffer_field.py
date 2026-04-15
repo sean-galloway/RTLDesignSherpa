@@ -163,7 +163,7 @@ def test_gaxi_buffer_field(request, addr_width, ctrl_width, data_width, depth, m
 
     # Environment variables - FIELD-ONLY MODE (explicitly no struct variables)
     extra_env = {
-        'TRACE_FILE': f"{sim_build}/dump.vcd",
+        'TRACE_FILE': f"{sim_build}/dump.fst",
         'VERILATOR_TRACE': '1',
         'DUT': dut_name,
         'LOG_PATH': log_path,
@@ -172,15 +172,15 @@ def test_gaxi_buffer_field(request, addr_width, ctrl_width, data_width, depth, m
         'SEED': str(random.randint(0, 100000)),
         'TEST_LEVEL': test_level,
         'COCOTB_TEST_TIMEOUT': str(timeout_ms),
-        
+
         # Field mode parameters
         'TEST_ADDR_WIDTH': str(addr_width),
-        'TEST_CTRL_WIDTH': str(ctrl_width), 
+        'TEST_CTRL_WIDTH': str(ctrl_width),
         'TEST_DATA_WIDTH': str(data_width),
         'TEST_DEPTH': str(depth),
         'TEST_MODE': mode,
         'TEST_KIND': 'field_only',
-        
+
         # Explicitly ensure no struct variables are set
         'TEST_STRUCT_NAME': '',  # Empty to ensure field mode
         'TEST_TYPEDEF_NAME': '',
@@ -191,12 +191,25 @@ def test_gaxi_buffer_field(request, addr_width, ctrl_width, data_width, depth, m
 
     # Simulation settings
     includes=[sim_build, rtl_dict['rtl_amba_includes']]
-    # VCD waveform generation support via WAVES environment variable
-    # Trace compilation always enabled (minimal overhead)
-    # Set WAVES=1 to enable VCD dumping for debugging
-    compile_args = ["--trace", "--trace-structs", "--trace-depth", "99", "-Wall", "-Wno-UNUSED", "-Wno-DECLFILENAME", "-Wno-SYNCASYNCNET"]
-    sim_args = ["--trace", "--trace-structs", "--trace-depth", "99"]
-    plusargs = ["--trace"]
+
+    # WAVES=1 enables VCD/FST dumping at runtime (compile-time trace support
+    # is always on via extra_args; runtime --trace turns dumping on).
+    enable_waves = bool(int(os.environ.get('WAVES', '0')))
+
+    extra_args = [
+        '--trace-fst',
+        '--trace-structs',
+        '-Wno-TIMESCALEMOD',
+        '-Wall',
+        '-Wno-UNUSED',
+        '-Wno-DECLFILENAME',
+        '-Wno-SYNCASYNCNET',
+    ]
+
+    sim_args = ['--trace'] if enable_waves else []
+
+    if enable_waves:
+        extra_env['COCOTB_TRACE_FILE'] = os.path.join(sim_build, 'dump.fst')
 
     cmd_filename = create_view_cmd(os.path.dirname(log_path), log_path, sim_build, module, test_name_plus_params)
 
@@ -217,11 +230,10 @@ def test_gaxi_buffer_field(request, addr_width, ctrl_width, data_width, depth, m
             parameters=rtl_parameters,
             sim_build=sim_build,
             extra_env=extra_env,
-            waves=False,  # VCD controlled by compile_args, not cocotb-test
+            extra_args=extra_args,
+            plus_args=sim_args,
+            waves=enable_waves,
             keep_files=True,
-            compile_args=compile_args,
-            sim_args=sim_args,
-            plusargs=plusargs,
         )
         print(f"✓ {test_level.upper()} FIELD-ONLY test PASSED")
     except Exception as e:
