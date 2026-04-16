@@ -527,6 +527,7 @@ def test_counter_freq_invariant(request, counter_width, min_mhz, max_mhz):
         '--trace-fst',
         '--trace-structs',
         '-Wno-TIMESCALEMOD',
+        '-Wno-WIDTHTRUNC',
     ]
 
     cmd_filename = create_view_cmd(

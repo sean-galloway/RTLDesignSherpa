@@ -109,7 +109,7 @@ def test_reset_sync(n, test_mode):
 
     extra_args = list(wave_cfg['extra_args']) + [
         '-Wno-DECLFILENAME',
-        '-Wno-PROCASSINIT',
+        '-Wno-PROCASSWIRE',
         '-Wno-TIMESCALEMOD',
         '-Wno-UNOPTFLAT',
         '-Wno-UNUSED',

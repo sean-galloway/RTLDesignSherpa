@@ -7,6 +7,7 @@
 
 # Package files (MUST be first)
 $REPO_ROOT/rtl/amba/includes/monitor_common_pkg.sv
+$REPO_ROOT/rtl/amba/includes/monitor_arbiter_pkg.sv
 $STREAM_ROOT/rtl/includes/stream_pkg.sv
 
 # APB to descriptor module
