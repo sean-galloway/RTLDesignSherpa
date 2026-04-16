@@ -349,6 +349,7 @@ async def cocotb_test_v1_baseline_performance(dut):
 
 @pytest.mark.parametrize("config", v1_configs, ids=v1_test_ids)
 def test_v1_baseline_write_performance(request, config):
+    enable_waves = bool(int(os.environ.get('WAVES', '0')))
     """Pytest wrapper for V1 baseline write performance test."""
 
     module, repo_root, tests_dir, log_dir, rtl_dict = get_paths({
@@ -423,9 +424,6 @@ def test_v1_baseline_write_performance(request, config):
         "--trace-depth", "99",
     ]
 
-    plusargs = [
-        "--trace",
-    ]
 
     cmd_filename = create_view_cmd(log_dir, log_path, sim_build, module, test_name)
 
@@ -440,11 +438,11 @@ def test_v1_baseline_write_performance(request, config):
             parameters=parameters,
             sim_build=sim_build,
             extra_env=extra_env,
-            waves=False,  # VCD controlled by compile_args, not cocotb-test
+            waves=enable_waves,  # VCD controlled by compile_args, not cocotb-test
             keep_files=True,
             compile_args=compile_args,
             sim_args=sim_args,
-            plusargs=plusargs
+            plus_args=['--trace'] if enable_waves else []
         )
         print(f"✓ V1 baseline write PASSED: {test_name}")
     except Exception as e:

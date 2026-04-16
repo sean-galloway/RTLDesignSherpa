@@ -327,6 +327,7 @@ async def peakrdl_adapter_stress(dut):
 # ==============================================================================
 
 def test_peakrdl_to_cmdrsp():
+    enable_waves = bool(int(os.environ.get('WAVES', '0')))
     """Pytest entry point for PeakRDL adapter test"""
 
     # Get directory and module information using repository standard
@@ -364,9 +365,6 @@ def test_peakrdl_to_cmdrsp():
         "--trace-depth", "99",
     ]
 
-    plusargs = [
-        "--trace",
-    ]
 
     # Conditionally set COCOTB_TRACE_FILE for VCD generation
     extra_env = {}
@@ -383,11 +381,11 @@ def test_peakrdl_to_cmdrsp():
         includes=includes,
         sim_build=sim_build,
         extra_env=extra_env,
-        waves=False,  # VCD controlled by compile_args, not cocotb-test
+        waves=enable_waves,  # VCD controlled by compile_args, not cocotb-test
         keep_files=True,
         compile_args=compile_args,
         sim_args=sim_args,
-        plusargs=plusargs,
+        plus_args=['--trace'] if enable_waves else [],
     )
 
 

@@ -159,6 +159,7 @@ monbus_axil_params = generate_monbus_axil_test_params()
 # ===========================================================================
 
 def run_monbus_axil_test(testcase_name, fifo_depth_err, fifo_depth_write, addr_width, data_width, num_protocols):
+    enable_waves = bool(int(os.environ.get('WAVES', '0')))
     """Helper function to run monbus_axil_group tests with common setup."""
     module, repo_root, tests_dir, log_dir, rtl_dict = get_paths({
         'rtl_macro': '../../rtl/macro',
@@ -220,11 +221,11 @@ def run_monbus_axil_test(testcase_name, fifo_depth_err, fifo_depth_write, addr_w
             parameters=rtl_parameters,
             sim_build=sim_build,
             extra_env=extra_env,
-            waves=False,
+            waves=enable_waves,
             keep_files=True,
             compile_args=["-Wno-TIMESCALEMOD"],
             sim_args=[],
-            plusargs=[],
+            plus_args=['--trace'] if enable_waves else [],
         )
         print(f"✓ {testcase_name} completed! Logs: {log_path}")
     except Exception as e:

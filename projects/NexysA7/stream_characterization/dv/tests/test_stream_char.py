@@ -147,6 +147,7 @@ stream_char_params = generate_stream_char_params()
 
 @pytest.mark.parametrize("test_type", [p[0] for p in stream_char_params])
 def test_stream_char(request, test_type, test_level):
+    enable_waves = bool(int(os.environ.get('WAVES', '0')))
     """Pytest wrapper for stream characterization harness tests."""
     module, repo_root_path, tests_dir, log_dir, rtl_dict = get_paths({
         'stream_char': 'projects/NexysA7/stream_characterization',
@@ -234,7 +235,7 @@ def test_stream_char(request, test_type, test_level):
             sim_build=sim_build,
             extra_env=extra_env,
             simulator=simulator,
-            waves=False,
+            waves=enable_waves,
             keep_files=True,
             compile_args=compile_args,
             sim_args=[
@@ -242,9 +243,7 @@ def test_stream_char(request, test_type, test_level):
                 "--trace-structs",
                 "--trace-depth", "99",
             ],
-            plusargs=[
-                "--trace",
-            ],
+            plus_args=['--trace'] if enable_waves else [],
         )
         print(f"PASS {test_type}! Logs: {log_path}")
     except Exception as e:

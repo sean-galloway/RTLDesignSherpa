@@ -147,6 +147,7 @@ def test_multi_channel(request, num_channels, data_width, sram_depth):
 # ===========================================================================
 
 def _run_src_sram_controller_test(request, testcase_name, num_channels, data_width, sram_depth):
+    enable_waves = bool(int(os.environ.get('WAVES', '0')))
     """Helper function to run src_sram_controller tests with AMBA pattern.
 
     Args:
@@ -232,9 +233,10 @@ def _run_src_sram_controller_test(request, testcase_name, num_channels, data_wid
             simulator="verilator",
             sim_build=sim_build,
             extra_env=extra_env,
-            waves=os.environ.get('ENABLE_WAVEDUMP', '0') == '1',
+            waves=enable_waves,
             keep_files=True,
             compile_args=compile_args,
+            plus_args=['--trace'] if enable_waves else [],
         )
         print(f"Test completed! Logs: {log_path}")
         if os.path.exists(cmd_filename):

@@ -302,6 +302,7 @@ params = generate_params()
 @pytest.mark.beats_latency_bridge
 @pytest.mark.parametrize("test_type, data_width", params)
 def test_beats_latency_bridge(request, test_type, data_width):
+    enable_waves = bool(int(os.environ.get('WAVES', '0')))
     """Pytest wrapper for beats latency bridge tests - handles all test types."""
     # Check if coverage collection is enabled via environment variable
     coverage_enabled = os.environ.get('COVERAGE', '0') == '1'
@@ -378,7 +379,9 @@ def test_beats_latency_bridge(request, test_type, data_width):
             results_xml=results_path,
             simulator='verilator',
             compile_args=compile_args,
-            extra_env=extra_env
+            extra_env=extra_env,
+            waves=enable_waves,
+            plus_args=['--trace'] if enable_waves else [],
         )
         print(f"Test completed! Logs: {log_path}")
         if os.path.exists(cmd_filename):

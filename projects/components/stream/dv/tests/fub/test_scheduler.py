@@ -501,6 +501,7 @@ scheduler_params = generate_scheduler_test_params()
 
 @pytest.mark.parametrize("test_type, channel_id, num_channels, addr_width, data_width, timeout_cycles", scheduler_params)
 def test_scheduler(request, test_type, channel_id, num_channels, addr_width, data_width, timeout_cycles, test_level):
+    enable_waves = bool(int(os.environ.get('WAVES', '0')))
     """Pytest wrapper for scheduler tests - handles all test types.
 
     Coverage Support:
@@ -593,7 +594,7 @@ def test_scheduler(request, test_type, channel_id, num_channels, addr_width, dat
             sim_build=sim_build,
             extra_env=extra_env,
             simulator="verilator",  # ← Must specify verilator
-            waves=False,
+            waves=enable_waves,
             keep_files=True,
             compile_args=compile_args,
             sim_args=[
@@ -601,9 +602,7 @@ def test_scheduler(request, test_type, channel_id, num_channels, addr_width, dat
                 "--trace-structs",
                 "--trace-depth", "99",
             ],
-            plusargs=[
-                "--trace",
-            ]
+            plus_args=['--trace'] if enable_waves else []
         )
         print(f"Scheduler {test_type} test completed! Logs: {log_path}")
         if coverage_compile_args:

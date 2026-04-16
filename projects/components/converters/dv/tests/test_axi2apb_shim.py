@@ -521,6 +521,7 @@ async def axi2apb_shim_test(dut):
                             [(8,32,32,1,12,8)])
 def test_axi2abp_shim(request, id_width, addr_width, data_width, user_width, apb_addr_width, apb_data_width):
 
+    enable_waves = bool(int(os.environ.get('WAVES', '0')))
     module, repo_root, tests_dir, log_dir, rtl_dict = get_paths({
         'rtl_cmn':  'rtl/common',
         'rtl_amba': 'rtl/amba',
@@ -585,9 +586,6 @@ def test_axi2abp_shim(request, id_width, addr_width, data_width, user_width, apb
         "--trace-depth", "99",
     ]
 
-    plusargs = [
-        "--trace",
-    ]
 
     # Conditionally set COCOTB_TRACE_FILE for VCD generation
     if bool(int(os.environ.get('WAVES', '0'))):
@@ -605,11 +603,11 @@ def test_axi2abp_shim(request, id_width, addr_width, data_width, user_width, apb
             parameters=rtl_parameters,
             sim_build=sim_build,
             extra_env=extra_env,
-            waves=False,  # VCD controlled by compile_args, not cocotb-test
+            waves=enable_waves,  # VCD controlled by compile_args, not cocotb-test
             keep_files=True,
             compile_args=compile_args,
             sim_args=sim_args,
-            plusargs=plusargs,
+            plus_args=['--trace'] if enable_waves else [],
         )
     except Exception as e:
         print(f"Test failed: {str(e)}")

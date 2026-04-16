@@ -219,6 +219,7 @@ descriptor_engine_params = generate_descriptor_engine_test_params()
 
 @pytest.mark.parametrize("test_type, channel_id, num_channels, addr_width, axi_id_width, fifo_depth", descriptor_engine_params)
 def test_descriptor_engine(request, test_type, channel_id, num_channels, addr_width, axi_id_width, fifo_depth, test_level):
+    enable_waves = bool(int(os.environ.get('WAVES', '0')))
     """Pytest wrapper for descriptor engine tests - handles all test types."""
     module, repo_root, tests_dir, log_dir, rtl_dict = get_paths({
         'rtl_stream_fub': '../../../../rtl/stream_fub',
@@ -301,7 +302,7 @@ def test_descriptor_engine(request, test_type, channel_id, num_channels, addr_wi
             parameters=rtl_parameters,
             sim_build=sim_build,
             extra_env=extra_env,
-            waves=False,
+            waves=enable_waves,
             keep_files=True,
             compile_args=compile_args,
             sim_args=[
@@ -309,9 +310,7 @@ def test_descriptor_engine(request, test_type, channel_id, num_channels, addr_wi
                 "--trace-structs",
                 "--trace-depth", "99",
             ],
-            plusargs=[
-                "--trace",
-            ]
+            plus_args=['--trace'] if enable_waves else []
         )
         print(f"✓ Descriptor engine {test_type} test completed! Logs: {log_path}")
         if coverage_compile_args:

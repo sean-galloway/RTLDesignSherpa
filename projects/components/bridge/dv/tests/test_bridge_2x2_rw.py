@@ -404,6 +404,7 @@ async def cocotb_test_arbitration(dut):
 # ============================================================================
 
 def test_bridge_2x2_rw_basic_connectivity(request):
+    enable_waves = bool(int(os.environ.get('WAVES', '0')))
     """Pytest wrapper for basic connectivity test"""
 
     # Get standard paths
@@ -462,13 +463,15 @@ def test_bridge_2x2_rw_basic_connectivity(request):
         sim_build=f'{log_dir}/sim_build_{dut_name}_basic',
         work_dir=log_dir,
         test_dir=log_dir,
-        waves=False,  # Use compile_args for VCD control via WAVES env var
+        waves=enable_waves,  # Use compile_args for VCD control via WAVES env var
         extra_args=extra_args,
-        extra_env=extra_env
+        extra_env=extra_env,
+        plus_args=['--trace'] if enable_waves else [],
     )
 
 
 def test_bridge_2x2_rw_address_decode(request):
+    enable_waves = bool(int(os.environ.get('WAVES', '0')))
     """Pytest wrapper for address decode test"""
 
     module, repo_root, tests_dir, log_dir, rtl_dict = get_paths({
@@ -524,11 +527,13 @@ def test_bridge_2x2_rw_address_decode(request):
         sim_build=f'{log_dir}/sim_build_{dut_name}_decode',
         work_dir=log_dir,
         test_dir=log_dir,
-        waves=False,  # Use compile_args for VCD control via WAVES env var
+        waves=enable_waves,  # Use compile_args for VCD control via WAVES env var
         extra_args=extra_args,
-        extra_env=extra_env
+        extra_env=extra_env,
+        plus_args=['--trace'] if enable_waves else [],
     )
 def test_bridge_2x2_rw_arbitration(request):
+    enable_waves = bool(int(os.environ.get('WAVES', '0')))
     """Pytest wrapper for arbitration test"""
 
     module, repo_root, tests_dir, log_dir, rtl_dict = get_paths({
@@ -584,9 +589,10 @@ def test_bridge_2x2_rw_arbitration(request):
         sim_build=f'{log_dir}/sim_build_{dut_name}_arb',
         work_dir=log_dir,
         test_dir=log_dir,
-        waves=False,  # Use compile_args for VCD control via WAVES env var
+        waves=enable_waves,  # Use compile_args for VCD control via WAVES env var
         extra_args=extra_args,
-        extra_env=extra_env
+        extra_env=extra_env,
+        plus_args=['--trace'] if enable_waves else [],
     )
 
 if __name__ == "__main__":

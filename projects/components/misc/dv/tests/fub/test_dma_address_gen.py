@@ -171,6 +171,7 @@ dma_address_gen_params = generate_dma_address_gen_params()
 )
 def test_dma_address_gen(request, test_type, addr_width, index_width,
                          stride_width, tag_width, test_level):
+    enable_waves = bool(int(os.environ.get('WAVES', '0')))
     """Pytest wrapper for DMA address generator tests."""
     module, repo_root, tests_dir, log_dir, rtl_dict = get_paths({
         'rtl_misc': 'projects/components/misc/rtl',
@@ -253,7 +254,7 @@ def test_dma_address_gen(request, test_type, addr_width, index_width,
             sim_build=sim_build,
             extra_env=extra_env,
             simulator=simulator,
-            waves=False,
+            waves=enable_waves,
             keep_files=True,
             compile_args=compile_args,
             sim_args=[
@@ -261,9 +262,7 @@ def test_dma_address_gen(request, test_type, addr_width, index_width,
                 "--trace-structs",
                 "--trace-depth", "99",
             ],
-            plusargs=[
-                "--trace",
-            ]
+            plus_args=['--trace'] if enable_waves else []
         )
         print(f"PASS {test_type} test completed! Logs: {log_path}")
     except Exception as e:

@@ -223,6 +223,7 @@ async def cocotb_test_timeout_simple(dut):
 @pytest.mark.scheduler
 @pytest.mark.timeout
 def test_timeout_simple(request):
+    enable_waves = bool(int(os.environ.get('WAVES', '0')))
     """Pytest wrapper for simple timeout test"""
     # Check if coverage collection is enabled via environment variable
     coverage_enabled = os.environ.get('COVERAGE', '0') == '1'
@@ -285,9 +286,10 @@ def test_timeout_simple(request):
             simulator="verilator",
             sim_build=sim_build,
             extra_env=extra_env,
-            waves=False,
+            waves=enable_waves,
             keep_files=True,
             compile_args=compile_args,
+            plus_args=['--trace'] if enable_waves else [],
         )
         print(f"✓ Test completed! Logs: {log_path}")
         if os.path.exists(cmd_filename):

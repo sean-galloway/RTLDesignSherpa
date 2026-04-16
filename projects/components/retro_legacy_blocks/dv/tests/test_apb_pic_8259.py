@@ -167,6 +167,7 @@ def generate_test_params():
 @pytest.mark.parametrize("test_level, description",
                         generate_test_params())
 def test_pic_8259(request, test_level, description):
+    enable_waves = bool(int(os.environ.get('WAVES', '0')))
     """Test PIC 8259 with parametrized configurations"""
 
     # Get paths and setup
@@ -226,7 +227,6 @@ def test_pic_8259(request, test_level, description):
         "--trace-structs",
         "--trace-depth", "99",
     ]
-    plusargs = ["+trace"]
 
     cmd_filename = create_view_cmd(log_dir, log_path, sim_build, module, test_name_plus_params)
 
@@ -246,11 +246,11 @@ def test_pic_8259(request, test_level, description):
             parameters=rtl_parameters,
             sim_build=sim_build,
             extra_env=extra_env,
-            waves=False,
+            waves=enable_waves,
             keep_files=True,
             compile_args=compile_args,
             sim_args=sim_args,
-            plusargs=plusargs,
+            plus_args=['--trace'] if enable_waves else [],
         )
         print(f"PIC 8259 test PASSED: {description}")
 

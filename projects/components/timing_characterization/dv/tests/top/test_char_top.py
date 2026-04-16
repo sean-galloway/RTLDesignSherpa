@@ -499,6 +499,7 @@ char_top_configs = generate_char_top_configs()
     ids=[c[0] for c in char_top_configs],
 )
 def test_char_top(request, tag, rtl_params, test_level):
+    enable_waves = bool(int(os.environ.get('WAVES', '0')))
     """Pytest wrapper for char_top integration test."""
     module, repo_root, tests_dir, log_dir, rtl_dict = get_paths({
         'rtl_top': '../../../../rtl/top',
@@ -555,9 +556,10 @@ def test_char_top(request, tag, rtl_params, test_level):
             sim_build=sim_build,
             extra_env=extra_env,
             simulator="verilator",
-            waves=False,
+            waves=enable_waves,
             keep_files=True,
             compile_args=compile_args,
+            plus_args=['--trace'] if enable_waves else [],
         )
     except Exception as e:
         print(f"char_top [{tag}] test failed: {e}")
@@ -571,6 +573,7 @@ def test_char_top(request, tag, rtl_params, test_level):
     ids=["all_enabled"],
 )
 def test_char_top_lfsr_seed(request, tag, rtl_params, test_level):
+    enable_waves = bool(int(os.environ.get('WAVES', '0')))
     """Pytest wrapper for char_top LFSR seed determinism test."""
     module, repo_root, tests_dir, log_dir, rtl_dict = get_paths({
         'rtl_top': '../../../../rtl/top',
@@ -627,9 +630,10 @@ def test_char_top_lfsr_seed(request, tag, rtl_params, test_level):
             sim_build=sim_build,
             extra_env=extra_env,
             simulator="verilator",
-            waves=False,
+            waves=enable_waves,
             keep_files=True,
             compile_args=compile_args,
+            plus_args=['--trace'] if enable_waves else [],
         )
     except Exception as e:
         print(f"char_top LFSR seed [{tag}] test failed: {e}")

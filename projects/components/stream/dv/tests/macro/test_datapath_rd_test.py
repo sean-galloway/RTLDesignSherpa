@@ -1204,12 +1204,10 @@ def test_datapath_rd(request, test_type, data_width, num_channels, sram_depth, t
         # VCD tracing compile args (not FST to avoid Verilator bugs)
         compile_args = ["--trace", "--trace-depth", "99"]
         sim_args = []
-        plusargs = []
     else:
         # No tracing - faster compilation
         compile_args = []
         sim_args = []
-        plusargs = []
 
     # Add coverage compile args if COVERAGE=1
     coverage_compile_args = get_coverage_compile_args()
@@ -1220,7 +1218,7 @@ def test_datapath_rd(request, test_type, data_width, num_channels, sram_depth, t
     try:
         run(python_search=[tests_dir], verilog_sources=verilog_sources, includes=includes, toplevel=dut_name,
             module=module, testcase="cocotb_test_datapath_rd", parameters=parameters, sim_build=sim_build,
-            extra_env=extra_env, waves=False, keep_files=True, compile_args=compile_args, sim_args=sim_args, plusargs=plusargs,
+            extra_env=extra_env, waves=enable_waves, keep_files=True, compile_args=compile_args, sim_args=sim_args, plus_args=['--trace'] if enable_waves else [],
             simulator='verilator')
         print(f"✓ Read {test_type} test PASSED ({test_level} level)")
     except Exception as e:

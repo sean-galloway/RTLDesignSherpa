@@ -187,6 +187,7 @@ async def cocotb_test_heartbeat_leds(dut):
 # ===========================================================================
 
 def test_cdc_counter_display():
+    enable_waves = bool(int(os.environ.get('WAVES', '0')))
     """Pytest wrapper for CDC counter display testbench"""
 
     # Get paths
@@ -240,8 +241,9 @@ def test_cdc_counter_display():
         module=module,
         parameters=parameters,
         sim_build=sim_build,
-        compile_args=["-Wno-TIMESCALEMOD", "--trace", "--trace-structs"],  # Manual VCD tracing (waves=False prevents auto FST)
-        waves=False,  # Disable auto FST due to Verilator 5.028 bug (using manual VCD via compile_args)
+        compile_args=["-Wno-TIMESCALEMOD", "--trace", "--trace-structs"],  # Manual VCD tracing (waves=enable_waves)
+        waves=enable_waves,  # Disable auto FST due to Verilator 5.028 bug (using manual VCD via compile_args)
+        plus_args=['--trace'] if enable_waves else [],
     )
 
 

@@ -287,6 +287,7 @@ def test_ctrlrd_mixed_scenarios(request, channel_id, num_channels, addr_width, a
 # ===========================================================================
 
 def _run_ctrlrd_test(request, testcase_name, channel_id, num_channels, addr_width, axi_data_width):
+    enable_waves = bool(int(os.environ.get('WAVES', '0')))
     """Helper function to run ctrlrd_engine tests with AMBA pattern.
 
     Args:
@@ -367,9 +368,10 @@ def _run_ctrlrd_test(request, testcase_name, channel_id, num_channels, addr_widt
             simulator="verilator",
             sim_build=sim_build,
             extra_env=extra_env,
-            waves=os.environ.get('WAVES', '0') == '1',
+            waves=enable_waves,
             keep_files=True,
             compile_args=["-Wno-TIMESCALEMOD"],
+            plus_args=['--trace'] if enable_waves else [],
         )
         print(f"Test completed! Logs: {log_path}")
         if os.path.exists(cmd_filename):

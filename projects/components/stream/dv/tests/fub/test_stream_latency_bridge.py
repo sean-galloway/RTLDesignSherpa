@@ -371,6 +371,7 @@ params = generate_params()
 
 @pytest.mark.parametrize("test_type, data_width", params)
 def test_stream_latency_bridge(request, test_type, data_width):
+    enable_waves = bool(int(os.environ.get('WAVES', '0')))
     """Pytest wrapper for stream latency bridge tests - handles all test types."""
 
     module, repo_root, tests_dir, log_dir, rtl_dict = get_paths({
@@ -440,7 +441,9 @@ def test_stream_latency_bridge(request, test_type, data_width):
         results_xml=results_path,
         simulator='verilator',
         compile_args=compile_args,
-        extra_env=extra_env
+        extra_env=extra_env,
+        waves=enable_waves,
+        plus_args=['--trace'] if enable_waves else [],
     )
 
     # Restore WAVES if it was set

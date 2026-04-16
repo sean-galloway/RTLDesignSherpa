@@ -283,6 +283,7 @@ def test_long_chain(request, channel_id, num_channels, axi_id_width):
 # ===========================================================================
 
 def _run_descriptor_engine_test(request, testcase_name, channel_id, num_channels, axi_id_width):
+    enable_waves = bool(int(os.environ.get('WAVES', '0')))
     """Helper function to run descriptor engine tests with AMBA pattern.
 
     Args:
@@ -376,9 +377,10 @@ def _run_descriptor_engine_test(request, testcase_name, channel_id, num_channels
             simulator="verilator",
             sim_build=sim_build,
             extra_env=extra_env,
-            waves=os.environ.get('ENABLE_WAVEDUMP', '0') == '1',
+            waves=enable_waves,
             keep_files=True,
             compile_args=compile_args,
+            plus_args=['--trace'] if enable_waves else [],
         )
         print(f"✓ Test completed! Logs: {log_path}")
         if os.path.exists(cmd_filename):

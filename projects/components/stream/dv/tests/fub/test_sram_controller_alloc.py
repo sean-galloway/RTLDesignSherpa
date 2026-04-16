@@ -318,6 +318,7 @@ sram_alloc_params = generate_sram_alloc_params()
 
 @pytest.mark.parametrize("test_type, num_channels, fifo_depth, data_width", sram_alloc_params)
 def test_sram_controller_alloc(request, test_type, num_channels, fifo_depth, data_width, test_level):
+    enable_waves = bool(int(os.environ.get('WAVES', '0')))
     """Pytest wrapper for SRAM controller allocation tests - handles all test types."""
     module, repo_root, tests_dir, log_dir, rtl_dict = get_paths({
         'rtl_stream_fub': '../../../../rtl/stream_fub',
@@ -395,7 +396,7 @@ def test_sram_controller_alloc(request, test_type, num_channels, fifo_depth, dat
             sim_build=sim_build,
             extra_env=extra_env,
             simulator=simulator,
-            waves=False,
+            waves=enable_waves,
             keep_files=True,
             compile_args=compile_args,
             sim_args=[
@@ -403,9 +404,7 @@ def test_sram_controller_alloc(request, test_type, num_channels, fifo_depth, dat
                 "--trace-structs",
                 "--trace-depth", "99",
             ],
-            plusargs=[
-                "--trace",
-            ]
+            plus_args=['--trace'] if enable_waves else []
         )
         print(f"✓ Allocation {test_type} test completed! Logs: {log_path}")
         if coverage_compile_args:

@@ -170,6 +170,7 @@ def test_monbus_events(request, channel_id, addr_width, data_width, axi_id_width
 # ===========================================================================
 
 def _run_beats_scheduler_group_test(request, testcase_name, channel_id, addr_width, data_width, axi_id_width):
+    enable_waves = bool(int(os.environ.get('WAVES', '0')))
     """Helper function to run beats_scheduler_group tests with AMBA pattern.
 
     Args:
@@ -259,9 +260,10 @@ def _run_beats_scheduler_group_test(request, testcase_name, channel_id, addr_wid
             simulator="verilator",
             sim_build=sim_build,
             extra_env=extra_env,
-            waves=os.environ.get('ENABLE_WAVEDUMP', '0') == '1',
+            waves=enable_waves,
             keep_files=True,
             compile_args=compile_args,
+            plus_args=['--trace'] if enable_waves else [],
         )
         print(f"Test completed! Logs: {log_path}")
         if os.path.exists(cmd_filename):

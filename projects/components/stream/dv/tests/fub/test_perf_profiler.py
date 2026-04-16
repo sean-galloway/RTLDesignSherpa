@@ -490,6 +490,7 @@ perf_profiler_params = generate_perf_profiler_test_params()
 
 @pytest.mark.parametrize("test_type, num_channels, timestamp_width, fifo_depth", perf_profiler_params)
 def test_perf_profiler(request, test_type, num_channels, timestamp_width, fifo_depth, test_level):
+    enable_waves = bool(int(os.environ.get('WAVES', '0')))
     """Pytest wrapper for perf_profiler tests - handles all test types."""
     module, repo_root, tests_dir, log_dir, rtl_dict = get_paths({
         'rtl_stream_fub': '../../../../rtl/stream_fub',
@@ -568,11 +569,11 @@ def test_perf_profiler(request, test_type, num_channels, timestamp_width, fifo_d
             parameters=rtl_parameters,
             sim_build=sim_build,
             extra_env=extra_env,
-            waves=False,  # Must be False! We use compile_args for VCD instead
+            waves=enable_waves,  # Must be False! We use compile_args for VCD instead
             keep_files=True,
             compile_args=compile_args,
             sim_args=[],
-            plusargs=[],
+            plus_args=['--trace'] if enable_waves else [],
         )
         print(f"✓ Perf profiler {test_type} test completed! Logs: {log_path}")
         if coverage_compile_args:

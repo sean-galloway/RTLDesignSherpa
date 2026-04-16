@@ -406,10 +406,11 @@ def test_apbtodescr(request, test_type, addr_width, data_width, num_channels, te
             parameters=rtl_parameters,
             sim_build=sim_build,
             extra_env=extra_env,
-            waves=False,
+            waves=enable_waves,
             keep_files=True,
             compile_args=compile_args,
-            simulator='verilator'
+            simulator='verilator',
+            plus_args=['--trace'] if enable_waves else [],
         )
         print(f"✓ APB to Descriptor {test_type} test completed! Logs: {log_path}")
     except Exception as e:

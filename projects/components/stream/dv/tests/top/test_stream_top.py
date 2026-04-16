@@ -482,9 +482,10 @@ def test_stream_top_basic(request, params):
             sim_args=sim_args,
             extra_env=extra_env,
             sim_build=sim_build,
-            waves=False,  # Explicitly disable auto-FST
+            waves=enable_waves,  # Explicitly disable auto-FST
             keep_files=True,
             simulator='verilator',
+            plus_args=['--trace'] if enable_waves else [],
         )
         print(f"✓ Stream top test completed! Logs: {log_path}")
     except Exception as e:

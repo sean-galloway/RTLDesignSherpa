@@ -342,6 +342,7 @@ async def cocotb_test_performance_profile(dut):
 
 @pytest.mark.parametrize("config", PERF_TEST_CONFIGS, ids=lambda c: c['name'])
 def test_stream_performance_profile(request, config):
+    enable_waves = bool(int(os.environ.get('WAVES', '0')))
     """Run performance profiling for a specific configuration"""
 
     module, repo_root, tests_dir, log_dir, rtl_dict = get_paths({})
@@ -400,12 +401,13 @@ def test_stream_performance_profile(request, config):
         parameters=rtl_parameters,
         simulator="verilator",
         sim_build=sim_build,
-        waves=waves_enabled,
+        waves=enable_waves,
         extra_args=extra_args,
         extra_env=coverage_env,
         compile_args=[
             "-j", "4",
         ],
+        plus_args=['--trace'] if enable_waves else [],
     )
 
 # ============================================================================

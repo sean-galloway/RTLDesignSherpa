@@ -151,6 +151,7 @@ monbus_axil_params = generate_monbus_axil_test_params()
 @pytest.mark.parametrize("test_type, fifo_depth_err, fifo_depth_write, addr_width, data_width, num_protocols",
                          monbus_axil_params)
 def test_monbus_axil_group(request, test_type, fifo_depth_err, fifo_depth_write, addr_width, data_width, num_protocols):
+    enable_waves = bool(int(os.environ.get('WAVES', '0')))
     """Pytest wrapper for MonBus AXIL Group tests - handles all test types."""
     module, repo_root, tests_dir, log_dir, rtl_dict = get_paths({
         'rtl_stream_macro': '../../rtl/macro',
@@ -210,11 +211,9 @@ def test_monbus_axil_group(request, test_type, fifo_depth_err, fifo_depth_write,
     waves_enabled = False
     compile_args = ["-Wno-TIMESCALEMOD", "-Wno-SELRANGE", "-Wno-WIDTHEXPAND", "-Wno-WIDTH"]
     sim_args = []
-    plusargs = []
     if waves_enabled:
         compile_args.extend(["--trace", "--trace-structs", "--trace-depth", "99"])
         sim_args.extend(["--trace", "--trace-structs", "--trace-depth", "99"])
-        plusargs.append("--trace")
 
     # Add coverage compile args if COVERAGE=1
     coverage_compile_args = get_coverage_compile_args()
@@ -232,11 +231,11 @@ def test_monbus_axil_group(request, test_type, fifo_depth_err, fifo_depth_write,
             sim_build=sim_build,
             extra_env=extra_env,
             simulator="verilator",
-            waves=waves_enabled,
+            waves=enable_waves,
             keep_files=True,
             compile_args=compile_args,
             sim_args=sim_args,
-            plusargs=plusargs,
+            plus_args=['--trace'] if enable_waves else [],
         )
         print(f"✓ MonBus AXIL {test_type} test PASSED! Logs: {log_path}")
     except Exception as e:

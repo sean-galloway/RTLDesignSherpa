@@ -176,6 +176,7 @@ def generate_test_params():
 
 @pytest.mark.parametrize("params", generate_test_params())
 def test_axi4_dwidth_converter_wr(request, params):
+    enable_waves = bool(int(os.environ.get('WAVES', '0')))
     """
     AXI4 Write Data Width Converter test with comprehensive validation.
 
@@ -281,9 +282,6 @@ def test_axi4_dwidth_converter_wr(request, params):
         "--trace-depth", "99",
     ]
 
-    plusargs = [
-        "--trace",
-    ]
 
     # Conditionally set COCOTB_TRACE_FILE for VCD generation
     if bool(int(os.environ.get('WAVES', '0'))):
@@ -309,11 +307,11 @@ def test_axi4_dwidth_converter_wr(request, params):
             parameters=rtl_parameters,
             sim_build=sim_build,
             extra_env=extra_env,
-            waves=False,  # VCD controlled by compile_args, not cocotb-test
+            waves=enable_waves,  # VCD controlled by compile_args, not cocotb-test
             keep_files=True,
             compile_args=compile_args,
             sim_args=sim_args,
-            plusargs=plusargs,
+            plus_args=['--trace'] if enable_waves else [],
         )
 
         print(f"✅ {test_level.upper()} TEST PASSED")

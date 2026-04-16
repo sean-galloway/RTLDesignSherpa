@@ -198,6 +198,7 @@ def test_stress(request, depth, almost_wr_margin, almost_rd_margin):
 # ===========================================================================
 
 def _run_beats_drain_ctrl_test(request, testcase_name, depth, almost_wr_margin, almost_rd_margin):
+    enable_waves = bool(int(os.environ.get('WAVES', '0')))
     """Helper function to run beats_drain_ctrl tests with AMBA pattern.
 
     Args:
@@ -285,9 +286,10 @@ def _run_beats_drain_ctrl_test(request, testcase_name, depth, almost_wr_margin, 
             simulator="verilator",
             sim_build=sim_build,
             extra_env=extra_env,
-            waves=os.environ.get('ENABLE_WAVEDUMP', '0') == '1',
+            waves=enable_waves,
             keep_files=True,
             compile_args=compile_args,
+            plus_args=['--trace'] if enable_waves else [],
         )
         print(f"Test completed! Logs: {log_path}")
         if os.path.exists(cmd_filename):

@@ -413,6 +413,7 @@ async def apb_xbar_2to4_test(dut):
     (32, 32, 0x10000000),
 ])
 def test_apb_xbar_2to4(request, aw, dw, base):
+    enable_waves = bool(int(os.environ.get('WAVES', '0')))
     """Pytest wrapper for 2-to-4 crossbar test"""
 
     # Get RTL sources from filelist
@@ -457,6 +458,8 @@ def test_apb_xbar_2to4(request, aw, dw, base):
         compile_args=compile_args,
         sim_build=sim_build,
         work_dir=sim_build,
+        waves=enable_waves,
+        plus_args=['--trace'] if enable_waves else [],
     )
 
 

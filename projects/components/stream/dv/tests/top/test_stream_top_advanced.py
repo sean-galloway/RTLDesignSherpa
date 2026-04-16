@@ -968,9 +968,10 @@ def create_pytest_wrapper(test_name, cocotb_testcase, default_params=None):
                 sim_args=sim_args,
                 extra_env=extra_env,
                 sim_build=sim_build,
-                waves=False,
+                waves=enable_waves,
                 keep_files=True,
                 simulator='verilator',
+                plus_args=['--trace'] if enable_waves else [],
             )
             print(f"PASS: {test_name}")
         except Exception as e:

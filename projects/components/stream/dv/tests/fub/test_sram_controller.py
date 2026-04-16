@@ -198,6 +198,7 @@ sram_controller_params = generate_sram_controller_params()
 
 @pytest.mark.parametrize("test_type, num_channels, fifo_depth, data_width", sram_controller_params)
 def test_sram_controller(request, test_type, num_channels, fifo_depth, data_width, test_level):
+    enable_waves = bool(int(os.environ.get('WAVES', '0')))
     """Pytest wrapper for SRAM controller tests - handles all test types."""
     module, repo_root, tests_dir, log_dir, rtl_dict = get_paths({
         'rtl_stream_fub': '../../../../rtl/stream_fub',
@@ -278,7 +279,7 @@ def test_sram_controller(request, test_type, num_channels, fifo_depth, data_widt
             sim_build=sim_build,
             extra_env=extra_env,
             simulator=simulator,
-            waves=False,
+            waves=enable_waves,
             keep_files=True,
             compile_args=compile_args,
             sim_args=[
@@ -286,9 +287,7 @@ def test_sram_controller(request, test_type, num_channels, fifo_depth, data_widt
                 "--trace-structs",
                 "--trace-depth", "99",
             ],
-            plusargs=[
-                "--trace",
-            ]
+            plus_args=['--trace'] if enable_waves else []
         )
         print(f"✓ {test_type} test completed! Logs: {log_path}")
         if coverage_compile_args:

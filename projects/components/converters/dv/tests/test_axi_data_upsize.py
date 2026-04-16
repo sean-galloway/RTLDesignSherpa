@@ -35,6 +35,7 @@ def get_test_name(params):
 
 @pytest.mark.parametrize("params", test_params, ids=[get_test_name(p) for p in test_params])
 def test_axi_data_upsize(request, params):
+    enable_waves = bool(int(os.environ.get('WAVES', '0')))
     """
     Test axi_data_upsize with various configurations
     """
@@ -81,9 +82,6 @@ def test_axi_data_upsize(request, params):
         "--trace-depth", "99",
     ]
 
-    plusargs = [
-        "--trace",
-    ]
 
     # Simulation build directory
     sim_build = os.path.join(tests_dir, 'local_sim_build', f'test_axi_data_upsize_{description}')
@@ -104,12 +102,12 @@ def test_axi_data_upsize(request, params):
         includes=includes,
         sim_build=sim_build,
         extra_env=extra_env,
-        waves=False,  # VCD controlled by compile_args, not cocotb-test
+        waves=enable_waves,  # VCD controlled by compile_args, not cocotb-test
         gui=False,
         keep_files=True,
         compile_args=compile_args,
         sim_args=sim_args,
-        plusargs=plusargs,
+        plus_args=['--trace'] if enable_waves else [],
     )
 
 

@@ -614,9 +614,10 @@ def test_stream_core_mon_single_channel(request, params):
             sim_args=sim_args,
             extra_env=extra_env,
             sim_build=sim_build,
-            waves=False,  # Explicitly disable auto-FST
+            waves=enable_waves,  # Explicitly disable auto-FST
             keep_files=True,
             simulator='verilator',
+            plus_args=['--trace'] if enable_waves else [],
         )
         print(f"✓ Stream core single channel test completed! Logs: {log_path}")
     except Exception as e:
@@ -734,9 +735,10 @@ def test_stream_core_mon_multi_channel(request, params):
             sim_args=sim_args,
             extra_env=extra_env,
             sim_build=sim_build,
-            waves=False,  # Explicitly disable auto-FST
+            waves=enable_waves,  # Explicitly disable auto-FST
             keep_files=True,
             simulator='verilator',
+            plus_args=['--trace'] if enable_waves else [],
         )
         print(f"✓ Stream core multi-channel test completed! Logs: {log_path}")
     except Exception as e:
@@ -842,9 +844,10 @@ def test_stream_core_variable_sizes(request, params):
             sim_args=sim_args,
             extra_env=extra_env,
             sim_build=sim_build,
-            waves=False,  # Explicitly disable auto-FST
+            waves=enable_waves,  # Explicitly disable auto-FST
             keep_files=True,
             simulator='verilator',
+            plus_args=['--trace'] if enable_waves else [],
         )
         print(f"✓ Stream core variable sizes test completed! Logs: {log_path}")
     except Exception as e:

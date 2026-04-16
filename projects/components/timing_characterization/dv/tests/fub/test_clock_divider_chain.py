@@ -56,6 +56,7 @@ clock_divider_chain_params = generate_clock_divider_chain_params()
 
 @pytest.mark.parametrize("num_stages, counter_width, pickoff", clock_divider_chain_params)
 def test_clock_divider_chain(request, num_stages, counter_width, pickoff, test_level):
+    enable_waves = bool(int(os.environ.get('WAVES', '0')))
     """Pytest wrapper for clock_divider_chain FUB test."""
     module, repo_root, tests_dir, log_dir, rtl_dict = get_paths({
         'rtl_fub': '../../../../rtl/fub',
@@ -121,9 +122,10 @@ def test_clock_divider_chain(request, num_stages, counter_width, pickoff, test_l
             sim_build=sim_build,
             extra_env=extra_env,
             simulator="verilator",
-            waves=False,
+            waves=enable_waves,
             keep_files=True,
             compile_args=compile_args,
+            plus_args=['--trace'] if enable_waves else [],
         )
     except Exception as e:
         print(f"clock_divider_chain test failed: {e}")

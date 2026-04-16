@@ -27,6 +27,7 @@ async def cocotb_test_basic_splitting(dut):
     (256, 64, 2, 2, 1, 0, "256to64_rresp"),
 ], ids=["128to32_wstrb", "256to64_rresp"])
 def test_axi_data_dnsize_quick(request, params):
+    enable_waves = bool(int(os.environ.get('WAVES', '0')))
     """Quick test with 2 configurations only"""
     wide_width, narrow_width, wide_sb_width, narrow_sb_width, sb_broadcast, track_bursts, description = params
 
@@ -65,9 +66,6 @@ def test_axi_data_dnsize_quick(request, params):
         "--trace-depth", "99",
     ]
 
-    plusargs = [
-        "--trace",
-    ]
 
     # Simulation build directory
     sim_build = os.path.join(tests_dir, 'local_sim_build', f'test_dnsize_quick_{description}')
@@ -87,12 +85,12 @@ def test_axi_data_dnsize_quick(request, params):
         includes=includes,
         sim_build=sim_build,
         extra_env=extra_env,
-        waves=False,  # VCD controlled by compile_args, not cocotb-test
+        waves=enable_waves,  # VCD controlled by compile_args, not cocotb-test
         gui=False,
         keep_files=True,
         compile_args=compile_args,
         sim_args=sim_args,
-        plusargs=plusargs,
+        plus_args=['--trace'] if enable_waves else [],
     )
 
 
