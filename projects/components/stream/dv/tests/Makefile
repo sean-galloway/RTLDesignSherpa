@@ -118,6 +118,12 @@ help:
 	@echo "  make run-all-func-parallel      Run all tests at FUNC level (parallel)"
 	@echo "  make run-all-full-parallel      Run all tests at FULL level (parallel)"
 	@echo ""
+	@echo "WITH WAVES (VCD dump):"
+	@echo "  make run-all-wave              Waves (TEST_LEVEL=$(TEST_LEVEL))"
+	@echo "  make run-all-gate-wave         GATE + waves"
+	@echo "  make run-all-func-wave         FUNC + waves"
+	@echo "  make run-all-full-wave         FULL + waves"
+	@echo ""
 	@echo "COVERAGE TARGETS:"
 	@echo "  make coverage-fub               Run FUB tests with coverage"
 	@echo "  make coverage-macro             Run macro tests with coverage"
@@ -454,6 +460,38 @@ run-all-full-parallel:
 	@echo "Running ALL STREAM Tests - FULL level PARALLEL (48 workers)"
 	@echo "================================================================================"
 	TEST_LEVEL=full $(PYTEST) $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE) $(PYTEST_XDIST) $(PYTEST_RERUNS) \
+		$(FUB_TESTS_DIR)/test_*.py \
+		$(MACRO_TESTS_DIR)/test_*.py \
+		$(TOP_TESTS_DIR)/test_*.py
+
+# ==============================================================================
+# Wave-Enabled Targets (WAVES=1 enables VCD dump)
+# ==============================================================================
+
+.PHONY: run-all-wave
+run-all-wave:
+	WAVES=1 TEST_LEVEL=$(TEST_LEVEL) $(PYTEST) $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE) \
+		$(FUB_TESTS_DIR)/test_*.py \
+		$(MACRO_TESTS_DIR)/test_*.py \
+		$(TOP_TESTS_DIR)/test_*.py
+
+.PHONY: run-all-gate-wave
+run-all-gate-wave:
+	WAVES=1 TEST_LEVEL=gate $(PYTEST) $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE) \
+		$(FUB_TESTS_DIR)/test_*.py \
+		$(MACRO_TESTS_DIR)/test_*.py \
+		$(TOP_TESTS_DIR)/test_*.py
+
+.PHONY: run-all-func-wave
+run-all-func-wave:
+	WAVES=1 TEST_LEVEL=func $(PYTEST) $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE) \
+		$(FUB_TESTS_DIR)/test_*.py \
+		$(MACRO_TESTS_DIR)/test_*.py \
+		$(TOP_TESTS_DIR)/test_*.py
+
+.PHONY: run-all-full-wave
+run-all-full-wave:
+	WAVES=1 TEST_LEVEL=full $(PYTEST) $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE) \
 		$(FUB_TESTS_DIR)/test_*.py \
 		$(MACRO_TESTS_DIR)/test_*.py \
 		$(TOP_TESTS_DIR)/test_*.py

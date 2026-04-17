@@ -76,6 +76,12 @@ help:
 	@echo "    make run-all-func         FUNC level"
 	@echo "    make run-all-full         FULL level (1-8 channel DMA)"
 	@echo ""
+	@echo "  WITH WAVES (VCD dump):"
+	@echo "    make run-all-wave               Waves (TEST_LEVEL=$(TEST_LEVEL))"
+	@echo "    make run-all-gate-wave          GATE + waves"
+	@echo "    make run-all-func-wave          FUNC + waves"
+	@echo "    make run-all-full-wave          FULL + waves"
+	@echo ""
 	@echo "  PARALLEL (48 workers):"
 	@echo "    make run-all-parallel           Parallel (TEST_LEVEL=$(TEST_LEVEL))"
 	@echo "    make run-all-gate-parallel      GATE parallel"
@@ -160,6 +166,38 @@ run-all-func-parallel:
 .PHONY: run-all-full-parallel
 run-all-full-parallel:
 	TEST_LEVEL=full $(PYTEST) $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE) $(PYTEST_XDIST) $(PYTEST_RERUNS) test_*.py
+
+# ==============================================================================
+# Wave-Enabled Targets (WAVES=1 enables VCD dump)
+# ==============================================================================
+
+.PHONY: run-all-wave
+run-all-wave:
+	@echo "================================================================================"
+	@echo "Running Stream Char Tests + Waves (TEST_LEVEL=$(TEST_LEVEL))"
+	@echo "================================================================================"
+	WAVES=1 TEST_LEVEL=$(TEST_LEVEL) $(PYTEST) $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE) test_*.py
+
+.PHONY: run-all-gate-wave
+run-all-gate-wave:
+	@echo "================================================================================"
+	@echo "Running Stream Char Tests - GATE + Waves"
+	@echo "================================================================================"
+	WAVES=1 TEST_LEVEL=gate $(PYTEST) $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE) test_*.py
+
+.PHONY: run-all-func-wave
+run-all-func-wave:
+	@echo "================================================================================"
+	@echo "Running Stream Char Tests - FUNC + Waves"
+	@echo "================================================================================"
+	WAVES=1 TEST_LEVEL=func $(PYTEST) $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE) test_*.py
+
+.PHONY: run-all-full-wave
+run-all-full-wave:
+	@echo "================================================================================"
+	@echo "Running Stream Char Tests - FULL + Waves"
+	@echo "================================================================================"
+	WAVES=1 TEST_LEVEL=full $(PYTEST) $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE) test_*.py
 
 .PHONY: run-stream-char
 run-stream-char:

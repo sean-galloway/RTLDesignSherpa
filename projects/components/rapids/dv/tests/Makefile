@@ -372,6 +372,26 @@ run-all-full-parallel: run-fub-full-parallel run-fub-beats-full-parallel run-mac
 	@echo "All RAPIDS Tests Complete - FULL level (Parallel)"
 
 # ==============================================================================
+# Wave-Enabled Targets (WAVES=1 enables VCD dump)
+# ==============================================================================
+
+.PHONY: run-all-wave
+run-all-wave:
+	WAVES=1 $(MAKE) run-all
+
+.PHONY: run-all-gate-wave
+run-all-gate-wave:
+	WAVES=1 $(MAKE) run-all-gate
+
+.PHONY: run-all-func-wave
+run-all-func-wave:
+	WAVES=1 $(MAKE) run-all-func
+
+.PHONY: run-all-full-wave
+run-all-full-wave:
+	WAVES=1 $(MAKE) run-all-full
+
+# ==============================================================================
 # Development Targets (pytest-watch) - Delegate to sub-Makefiles
 # ==============================================================================
 

@@ -71,6 +71,12 @@ help:
 	@echo "  make run-all-full         Run full tests (comprehensive)"
 	@echo "  make run-all-full-parallel Run full tests (parallel)"
 	@echo ""
+	@echo "  WITH WAVES (VCD dump):"
+	@echo "  make run-all-wave         Waves (REG_LEVEL=$(REG_LEVEL))"
+	@echo "  make run-all-gate-wave    GATE + waves"
+	@echo "  make run-all-func-wave    FUNC + waves"
+	@echo "  make run-all-full-wave    FULL + waves"
+	@echo ""
 	@echo "INDIVIDUAL TEST TARGETS:"
 	@echo "  Data Width Converters:"
 	@echo "    make run-rd-converter     Run read converter tests (REG_LEVEL=FUNC)"
@@ -171,6 +177,26 @@ run-all-full-parallel:
 	@echo "Running AXI4 Converter Tests - FULL level (parallel, 48 workers)"
 	@echo "================================================================================"
 	REG_LEVEL=FULL $(PYTEST) $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE) $(PYTEST_XDIST) $(PYTEST_RERUNS) test_*.py
+
+# ==============================================================================
+# Wave-Enabled Targets (WAVES=1 enables VCD dump)
+# ==============================================================================
+
+.PHONY: run-all-wave
+run-all-wave:
+	WAVES=1 REG_LEVEL=$(REG_LEVEL) $(PYTEST) $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE) test_*.py
+
+.PHONY: run-all-gate-wave
+run-all-gate-wave:
+	WAVES=1 REG_LEVEL=GATE $(PYTEST) $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE) test_*.py
+
+.PHONY: run-all-func-wave
+run-all-func-wave:
+	WAVES=1 REG_LEVEL=FUNC $(PYTEST) $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE) test_*.py
+
+.PHONY: run-all-full-wave
+run-all-full-wave:
+	WAVES=1 REG_LEVEL=FULL $(PYTEST) $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE) test_*.py
 
 # ==============================================================================
 # Individual Test Targets (Read Converter)
