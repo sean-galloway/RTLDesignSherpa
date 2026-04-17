@@ -83,6 +83,18 @@ help:
 	@echo "    make run-all-full-wave          FULL + waves"
 	@echo ""
 	@echo "  PARALLEL (48 workers):"
+	@echo "    make run-all-parallel                 Parallel (TEST_LEVEL=$(TEST_LEVEL))"
+	@echo "    make run-all-gate-parallel            GATE parallel"
+	@echo "    make run-all-func-parallel            FUNC parallel"
+	@echo "    make run-all-full-parallel             FULL parallel"
+	@echo ""
+	@echo "  PARALLEL + WAVES:"
+	@echo "    make run-all-parallel-wave            Parallel + waves"
+	@echo "    make run-all-gate-parallel-wave       GATE parallel + waves"
+	@echo "    make run-all-func-parallel-wave       FUNC parallel + waves"
+	@echo "    make run-all-full-parallel-wave       FULL parallel + waves"
+	@echo ""
+	@echo "  (legacy aliases):"
 	@echo "    make run-all-parallel           Parallel (TEST_LEVEL=$(TEST_LEVEL))"
 	@echo "    make run-all-gate-parallel      GATE parallel"
 	@echo "    make run-all-func-parallel      FUNC parallel"
@@ -198,6 +210,26 @@ run-all-full-wave:
 	@echo "Running Stream Char Tests - FULL + Waves"
 	@echo "================================================================================"
 	WAVES=1 TEST_LEVEL=full $(PYTEST) $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE) test_*.py
+
+# ==============================================================================
+# Parallel + Wave Targets
+# ==============================================================================
+
+.PHONY: run-all-parallel-wave
+run-all-parallel-wave:
+	WAVES=1 TEST_LEVEL=$(TEST_LEVEL) $(PYTEST) $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE) $(PYTEST_XDIST) $(PYTEST_RERUNS) test_*.py
+
+.PHONY: run-all-gate-parallel-wave
+run-all-gate-parallel-wave:
+	WAVES=1 TEST_LEVEL=gate $(PYTEST) $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE) $(PYTEST_XDIST) $(PYTEST_RERUNS) test_*.py
+
+.PHONY: run-all-func-parallel-wave
+run-all-func-parallel-wave:
+	WAVES=1 TEST_LEVEL=func $(PYTEST) $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE) $(PYTEST_XDIST) $(PYTEST_RERUNS) test_*.py
+
+.PHONY: run-all-full-parallel-wave
+run-all-full-parallel-wave:
+	WAVES=1 TEST_LEVEL=full $(PYTEST) $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE) $(PYTEST_XDIST) $(PYTEST_RERUNS) test_*.py
 
 .PHONY: run-stream-char
 run-stream-char:

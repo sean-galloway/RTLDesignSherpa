@@ -391,6 +391,22 @@ run-all-func-wave:
 run-all-full-wave:
 	WAVES=1 $(MAKE) run-all-full
 
+.PHONY: run-all-parallel-wave
+run-all-parallel-wave:
+	WAVES=1 $(MAKE) run-all-gate-parallel
+
+.PHONY: run-all-gate-parallel-wave
+run-all-gate-parallel-wave:
+	WAVES=1 $(MAKE) run-all-gate-parallel
+
+.PHONY: run-all-func-parallel-wave
+run-all-func-parallel-wave:
+	WAVES=1 $(MAKE) run-all-func-parallel
+
+.PHONY: run-all-full-parallel-wave
+run-all-full-parallel-wave:
+	WAVES=1 $(MAKE) run-all-full-parallel
+
 # ==============================================================================
 # Development Targets (pytest-watch) - Delegate to sub-Makefiles
 # ==============================================================================

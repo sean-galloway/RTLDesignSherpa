@@ -497,6 +497,38 @@ run-all-full-wave:
 		$(TOP_TESTS_DIR)/test_*.py
 
 # ==============================================================================
+# Parallel + Wave Targets
+# ==============================================================================
+
+.PHONY: run-all-parallel-wave
+run-all-parallel-wave:
+	WAVES=1 TEST_LEVEL=$(TEST_LEVEL) $(PYTEST) $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE) $(PYTEST_XDIST) $(PYTEST_RERUNS) \
+		$(FUB_TESTS_DIR)/test_*.py \
+		$(MACRO_TESTS_DIR)/test_*.py \
+		$(TOP_TESTS_DIR)/test_*.py
+
+.PHONY: run-all-gate-parallel-wave
+run-all-gate-parallel-wave:
+	WAVES=1 TEST_LEVEL=gate $(PYTEST) $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE) $(PYTEST_XDIST) $(PYTEST_RERUNS) \
+		$(FUB_TESTS_DIR)/test_*.py \
+		$(MACRO_TESTS_DIR)/test_*.py \
+		$(TOP_TESTS_DIR)/test_*.py
+
+.PHONY: run-all-func-parallel-wave
+run-all-func-parallel-wave:
+	WAVES=1 TEST_LEVEL=func $(PYTEST) $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE) $(PYTEST_XDIST) $(PYTEST_RERUNS) \
+		$(FUB_TESTS_DIR)/test_*.py \
+		$(MACRO_TESTS_DIR)/test_*.py \
+		$(TOP_TESTS_DIR)/test_*.py
+
+.PHONY: run-all-full-parallel-wave
+run-all-full-parallel-wave:
+	WAVES=1 TEST_LEVEL=full $(PYTEST) $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE) $(PYTEST_XDIST) $(PYTEST_RERUNS) \
+		$(FUB_TESTS_DIR)/test_*.py \
+		$(MACRO_TESTS_DIR)/test_*.py \
+		$(TOP_TESTS_DIR)/test_*.py
+
+# ==============================================================================
 # Coverage Targets - Individual Test Levels
 # ==============================================================================
 

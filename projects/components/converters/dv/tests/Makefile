@@ -198,6 +198,22 @@ run-all-func-wave:
 run-all-full-wave:
 	WAVES=1 REG_LEVEL=FULL $(PYTEST) $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE) test_*.py
 
+.PHONY: run-all-parallel-wave
+run-all-parallel-wave:
+	WAVES=1 REG_LEVEL=$(REG_LEVEL) $(PYTEST) $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE) $(PYTEST_XDIST) $(PYTEST_RERUNS) test_*.py
+
+.PHONY: run-all-gate-parallel-wave
+run-all-gate-parallel-wave:
+	WAVES=1 REG_LEVEL=GATE $(PYTEST) $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE) $(PYTEST_XDIST) $(PYTEST_RERUNS) test_*.py
+
+.PHONY: run-all-func-parallel-wave
+run-all-func-parallel-wave:
+	WAVES=1 REG_LEVEL=FUNC $(PYTEST) $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE) $(PYTEST_XDIST) $(PYTEST_RERUNS) test_*.py
+
+.PHONY: run-all-full-parallel-wave
+run-all-full-parallel-wave:
+	WAVES=1 REG_LEVEL=FULL $(PYTEST) $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE) $(PYTEST_XDIST) $(PYTEST_RERUNS) test_*.py
+
 # ==============================================================================
 # Individual Test Targets (Read Converter)
 # ==============================================================================
