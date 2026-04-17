@@ -321,22 +321,6 @@ axi4_master_rd_lp_mon #(
 );
 ```
 
-### **System Integration**
-```systemverilog
-axi4_interconnect_2x2_mon #(
-    .S0_BASE_ADDR(32'h0000_0000),
-    .S0_ADDR_MASK(32'h0FFF_FFFF),
-    .S1_BASE_ADDR(32'h1000_0000),
-    .S1_ADDR_MASK(32'h0FFF_FFFF),
-    .ENABLE_FILTERING(1),
-    .ENABLE_CLOCK_GATING(1)
-) interconnect (
-    // ... 2 master + 2 slave interfaces ...
-    .monbus_valid(aggregated_monbus_valid),
-    .total_active_transactions(system_active_trans)
-);
-```
-
 ---
 
 ## 🎯 **Future Roadmap (Phase 5+)**

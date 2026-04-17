@@ -1,8 +1,28 @@
 # Formal Verification TODO
 
-**Last Updated:** 2026-04-07
-**Total Proved:** 87 modules
+**Last Updated:** 2026-04-17
+**Total Proved:** 324 modules (prove+cover PASS), 330 total with prove-only
 **Tool Chain:** sv2v + SymbiYosys + yosys + z3 (OSS CAD Suite 0.62)
+
+---
+
+## Summary
+
+| Area | Pass (prove+cover) | Prove-only | Error | Deferred | Total with .sby |
+|------|-------------------|------------|-------|----------|-----------------|
+| common (non-math) | 53 | 4 | 1 | 0 | 58 |
+| common (math) | 165 | 2 | 7 | 0 | 175 |
+| amba | 41 | 3 | 0 | 0 | 44 |
+| stream | 19 | 10 | 1 | 2 | 30 |
+| converters | 16 | 0 | 0 | 0 | 16 |
+| bridge | 1 | 0 | 0 | 0 | 1 |
+| apb_xbar | 5 | 0 | 0 | 0 | 5 |
+| **Total** | **300** | **19** | **9** | **2** | **329** |
+
+**Notes:**
+- "Prove-only" = prove PASS but no cover task in .sby, or cover MISSING
+- "Error" = prove ERROR (yosys parse/flatten failures) or cover FAIL
+- stream_top_ch8 has no .sby (too large for BMC, verified via simulation)
 
 ---
 
@@ -13,343 +33,206 @@
 - [x] SymbiYosys + z3 solver installed and working
 - [x] OSS CAD Suite 0.62 installed at /mnt/data/tools/oss-cad-suite
 - [x] sv2v transpiler installed at /mnt/data/tools/sv2v
-- [x] Formal directory structure: formal/{common,amba,bridge,stream}/
+- [x] Formal directory structure: formal/{common,amba,bridge,stream,converters,apb_xbar}/
 - [x] Per-module pattern: formal_*.sv (wrapper) + *.sby (config) + Makefile (for sv2v modules)
 - [x] Root Makefile targets: make formal, formal-common, formal-bridge, formal-quick
 - [x] .gitignore for sby output directories
-- [x] install_formal_tools.sh, setup_from_scratch.sh
 - [x] env_python updated with OSS CAD Suite + sv2v paths
-- [x] $display / $timeformat / ifndef SYNTHESIS stripped from all production RTL
 - [x] CI workflow includes formal (make formal-common in coverage.yml)
 
 ### TODO
 
-- [ ] Migrate ALL existing stripped-copy proofs to sv2v pipeline (eliminate ~15 *_formal.sv hand copies)
-- [ ] Add formal to test_environments.toml for make test-formal-* targets
-- [x] Update formal/common/Makefile to include all modules (expanded 18→40)
+- [ ] Migrate remaining stripped-copy proofs to sv2v pipeline
 - [ ] Create formal/stream/Makefile for STREAM proofs
 - [ ] Create formal/amba/Makefile for AMBA proofs
-- [ ] Add FORMAL_TODO.md findings to KNOWN_ISSUES/ directories
 
 ---
 
 ## Findings (Bugs Found by Formal)
 
-### AXI Handshake Stability (RESOLVED)
+### descriptor_engine multi-driver (FIXED 2026-04-17)
 
-- **axi_read_engine**: AR outputs are combinational from arbiter (pre-skid interface)
-- **axi_write_engine**: AW address combinational through scheduler mux; WVALID depends on SRAM valid
-- **Resolution**: These are pre-skid (FUB-side) interfaces. A downstream `gaxi_skid_buffer`
-  in `stream_core.sv` registers all AXI signals before they reach the external port,
-  enforcing AMBA IHI0022E A3.2.1 at the system boundary. The combinational design is
-  intentional for instant backpressure response (space_free→arvalid in same cycle).
-- **Status**: RESOLVED — formal wrappers updated to document pre-skid interface; stability
-  assertions removed from engine-level proofs (not applicable at this interface level)
-- **Affects**: axi_read_engine, axi_write_engine, axi_read_engine_beats, axi_write_engine_beats
+- **descriptor_engine.sv** and **descriptor_engine_beats.sv**: `r_descriptor_error` was
+  driven from two separate `always_ff` blocks (main FSM + address-0 detection).
+- **Fix**: Consolidated address-0 error detection into the main FSM block.
 
----
+### stream_core constant-driven user ports (FIXED 2026-04-17)
 
-## rtl/common/ — 55 of ~210 modules proved
+- **stream_core.sv**: `fub_rd_axi_ruser` and `fub_wr_axi_buser` were tied to `'0`,
+  causing yosys to reject the constant-driven output port during flatten.
+- **Fix**: Changed to passthrough channel ID (`UW'(fub_rd_axi_arid)`) for traceability.
 
-### DONE (55 modules)
+### latency_bridge over-constrained cover (FIXED 2026-04-17)
 
-| Module                        | Properties                                                              |
-| ----------------------------- | ----------------------------------------------------------------------- |
-| arbiter_round_robin_simple    | one-hot, subset, valid-iff-req, id match, id range, no-spurious         |
-| arbiter_round_robin           | same + last_grant, reset (no-ACK mode)                                  |
-| arbiter_round_robin_weighted  | same safety set (no-ACK, equal weights)                                 |
-| arbiter_priority_encoder      | valid-iff-req, lowest-set-bit, range, masked/unmasked mux               |
-| counter_bin                   | reset, increment, MSB wrap, lower clear, hold, next preview, range      |
-| counter_bingray               | reset, Gray formula, single-bit change, hold, increment, next           |
-| counter_johnson               | reset, single-bit change, hold, shift structure                         |
-| bin2gray                      | formula correctness, single-bit change, MSB preserved, zero             |
-| gray2bin                      | roundtrip identity (bin→gray→bin), MSB preserved                        |
-| grayj2bin                     | Johnson-to-binary validity                                              |
-| glitch_free_n_dff_arn         | reset, propagation with constant input, output stable                   |
-| fifo_sync                     | ghost counter, empty/full flags, count range, reset, mutex, rw tracking |
-| fifo_async                    | ghost counter, CDC single-clock model, quiescent flag settling          |
-| gaxi_skid_buffer              | ghost counter, count range, reset, full/empty flags, rw tracking        |
-| gaxi_skid_buffer_dbldrn       | reset, count consistency (conservative)                                 |
-| gaxi_fifo_sync                | ghost counter, empty/full flags                                         |
-| gaxi_fifo_async               | ghost counter, CDC model, quiescent settling                            |
-| gaxi_drop_fifo_sync           | cover-based (count range deferred)                                      |
-| gaxi_regslice                 | count 0/1, reset                                                        |
-| monbus_arbiter                | reset, no spurious output                                               |
-| axi_gen_addr                  | FIXED/INCR/WRAP burst, alignment, 4KB split                             |
-| dataint_crc_xor_shift         | all 4 feedback cases, structural, LSB                                   |
-| dataint_crc_xor_shift_cascade | 8-stage cascade matches reference model                                 |
-| dataint_ecc_hamming           | encode-decode roundtrip, SECDED parity, no false errors                 |
-| dataint_parity                | per-chunk parity gen, error detection                                   |
-| encoder                       | one-hot to binary correctness                                           |
-| decoder                       | cover-based (multi-driver yosys limitation)                             |
-| encoder_priority_enable       | priority encoding with enable                                           |
-| find_first_set                | lowest set bit correctness                                              |
-| find_last_set                 | highest set bit correctness                                             |
-| count_leading_zeros           | CLZ correctness                                                         |
-| icg                           | latch-based clock gate (minimal properties)                             |
-| clock_divider                 | reset, counter tracking                                                 |
-| clock_gate_ctrl               | gating behavior                                                         |
-| cam_tag                       | reset, empty/full mutex                                                 |
-| sync_pulse                    | (directory exists, proof not implemented — dual-clock)                  |
-| counter_bin_load              | load priority, add/enable, FIFO wraparound                             |
-| counter_load_clear            | clear priority, done detection, match loading                          |
-| counter_freq_invariant        | tick generation, prescaler correctness                                 |
-| counter_ring                  | one-hot invariant, right rotation, hold                                |
-| counter                       | tick periodicity, shadow counter, no consecutive ticks                 |
-| fifo_control                  | full/empty flags, count range, ghost counter                           |
-| fifo_sync_multi               | data packing, FIFO semantics inherited                                 |
-| fifo_sync_multi_sigmap        | signal-mapped packing, FIFO semantics inherited                        |
-| fifo_async_div2               | ghost counter, CDC single-clock, settled flags                         |
-| reset_sync                    | async assert, sync deassert after N stages                             |
-| cdc_handshake                 | data integrity through handshake, no spurious valid                    |
-| cdc_synchronizer              | propagation after FLOP_COUNT stable cycles                             |
-| leading_one_trailing_one      | MSB/LSB encoding, one-hot vectors, flags                               |
-| shifter_barrel                | 6 shift modes, reference model equivalence                             |
-| shifter_lfsr                  | seed load, shift, non-zero invariant, done detection                   |
-| shifter_lfsr_fibonacci        | Fibonacci architecture, right-shift                                    |
-| shifter_lfsr_galois           | Galois architecture, internal feedback                                 |
-| dataint_crc                   | CRC-8 polynomial, load/update                                         |
-| dataint_checksum              | accumulation correctness, reset clearing                               |
-| sort                          | sorted output, permutation invariants (sum + XOR)                      |
-| debounce                      | stability requirement, tick-based sampling                             |
-| pwm                           | duty cycle, FSM tracking, multi-channel                                |
+- **formal_stream_latency_bridge.sv** and **formal_latency_bridge_beats.sv**: The assumption
+  `assume(!(s_valid && !s_ready))` contradicted the `cp_backpressure` cover goal.
+- **Fix**: Removed the producer constraint (valid/ready protocol allows valid regardless of ready).
 
-### NOT DONE — Priority 2 (worth doing)
+### AXI Handshake Stability (RESOLVED, earlier)
 
-| Module                            | Notes                                           |
-| --------------------------------- | ----------------------------------------------- |
-| fifo_async_div2                   | Johnson counter async FIFO — needs sv2v         |
-| fifo_control                      | Flag logic (indirectly proved via fifo_sync)    |
-| fifo_sync_multi                   | Multi-signal variant                            |
-| counter_bin_load                  | Counter with load (used by gaxi_drop_fifo_sync) |
-| counter_load_clear                | Standard counter                                |
-| counter_freq_invariant            | Timeout timer                                   |
-| reset_sync                        | Reset synchronizer                              |
-| cdc_handshake                     | Handshake CDC                                   |
-| cdc_synchronizer                  | Multi-bit CDC                                   |
-| leading_one_trailing_one          | Bit scanning (used by grayj2bin)                |
-| shifter_barrel                    | Shift correctness                               |
-| shifter_lfsr / fibonacci / galois | LFSR maximal length                             |
-| dataint_crc                       | Full CRC polynomial                             |
-| dataint_checksum                  | Checksum accumulation                           |
-| sort                              | Sorting network                                 |
-| debounce                          | Debounce filter                                 |
-| pwm                               | PWM generator                                   |
-
-### NOT DONE — Priority 3 (math, do as needed)
-
-| Category                                                   | Count | Notes                                 |
-| ---------------------------------------------------------- | ----- | ------------------------------------- |
-| Adders (brent_kung, han_carlson, kogge_stone, ripple, CLA) | ~20   | Prove output == a + b                 |
-| Subtractors                                                | ~5    | Prove output == a - b                 |
-| Multipliers (wallace, dadda, CSA)                          | ~15   | Prove output == a * b (8/16-bit only) |
-| BF16 operations                                            | ~30   | IEEE correctness                      |
-| FP16/FP32/FP8 operations                                   | ~80   | Diminishing returns                   |
-| Internal cells (prefix_cell, compressor, etc.)             | ~10   | Internal building blocks              |
-
-### NOT NEEDED (0 priority)
-
-- bin_to_bcd, hex_to_7seg (display conversion)
-- counter, counter_ring (trivial wrappers)
-- reverse_vector (trivial)
-- math_adder_half, math_subtractor_half (trivial)
-- All 32-bit multipliers (too large for BMC)
-- All FP approximation functions (sigmoid, tanh, gelu, etc.)
+- **axi_read_engine**, **axi_write_engine**: AR/AW outputs are combinational (pre-skid interface).
+  Downstream `gaxi_skid_buffer` in `stream_core.sv` registers signals per AMBA IHI0022E A3.2.1.
+- **Status**: RESOLVED -- formal wrappers updated to document pre-skid interface.
 
 ---
 
-## rtl/amba/ — 7 of ~90 modules proved
+## Non-Passing Modules
 
-### DONE (7 modules)
+### Prove Errors (9 modules)
 
-| Module           | Properties                                                               |
-| ---------------- | ------------------------------------------------------------------------ |
-| apb_master       | PENABLE needs PSEL, reset, SETUP→ACCESS, addr/pwrite stable, ACCESS hold |
-| apb_slave        | reset PREADY                                                             |
-| apb5_master      | same APB protocol (parity disabled)                                      |
-| apb5_slave       | reset PREADY                                                             |
-| axi_split_combi  | 4KB boundary split, beat conservation, split addr aligned                |
-| cdc_handshake    | data integrity through handshake, no spurious valid                      |
-| cdc_synchronizer | propagation after FLOP_COUNT stable cycles                               |
+| Module | Area | Root Cause | Priority |
+|--------|------|------------|----------|
+| counter_freq_invariant | common | Yosys SV syntax error at line 150 | Fix |
+| math_bf16_exp2 | common | Too complex for BMC | Skip |
+| math_bf16_softmax_8 | common | Too complex for BMC | Skip |
+| math_fp16_softmax_8 | common | Too complex for BMC | Skip |
+| math_fp32_softmax_8 | common | Too complex for BMC | Skip |
+| math_fp8_e4m3_softmax_8 | common | Too complex for BMC | Skip |
+| math_fp8_e5m2_softmax_8 | common | Too complex for BMC | Skip |
+| stream_core | stream | Yosys flatten name collision (2x axi4_master_rd) | Deferred |
+| stream_core_mon | stream | Same as stream_core | Deferred |
 
-### NOT DONE — Priority 1
+### Cover Failures (2 modules, prove PASS)
 
-| Module                   | Notes                                  |
-| ------------------------ | -------------------------------------- |
-| apb_monitor              | APB packet generation correctness      |
-| apb5_monitor             | APB5 variant                           |
-| apb_slave_cdc            | CDC variant — prove safe crossing      |
-| apb5_slave_cdc           | APB5 CDC variant                       |
-| axis_master / axis_slave | AXI-Stream TVALID/TREADY/TLAST         |
-| axi_master_rd_splitter   | No transaction loss through split      |
-| axi_master_wr_splitter   | Same                                   |
-| arbiter_monbus_common    | MonBus arbiter variant                 |
-| arbiter_rr_pwm_monbus    | PWM round-robin                        |
-| arbiter_wrr_pwm_monbus   | Weighted RR                            |
-| axi_monitor_base         | Core monitor (complex)                 |
-| axi_monitor_trans_mgr    | Transaction table — prove no slot leak |
-| gaxi_skid_buffer_async   | Async skid — CDC                       |
-| gaxi_skid_buffer_struct  | Struct variant                         |
+| Module | Area | Root Cause | Priority |
+|--------|------|------------|----------|
+| icg | common | cp_enabled unreachable (latch gate timing) | Fix |
+| axi_split_combi | amba | 4 cover points unreachable at depth 1 | Fix |
 
-### NOT DONE — Priority 2
+### Prove-Only / Missing Cover (19 modules)
 
-| Module                    | Notes                          |
-| ------------------------- | ------------------------------ |
-| axi4_master_rd / wr       | AXI4 timing wrappers           |
-| axi4_slave_rd / wr        | Same                           |
-| axil4_master_rd / wr      | AXI4-Lite wrappers             |
-| axil4_slave_rd / wr       | Same                           |
-| axi4_*_mon                | AXI monitors                   |
-| axi4_interconnect_2x2_mon | 2x2 crossbar                   |
-| All *_cg variants         | Clock-gated — prove base first |
-| All AXI5 variants         | Lower priority                 |
+These have prove PASS but no cover task defined, or cover not yet run:
 
-### NOT NEEDED
+| Module | Area | Notes |
+|--------|------|-------|
+| cam_tag | common | No cover task |
+| counter | common | No cover task |
+| counter_bin | common | No cover task |
+| fifo_sync_multi_sigmap | common | No cover task |
+| math_fp8_e4m3_fma | common | prove-only task |
+| math_fp8_e5m2_fma | common | prove-only task |
+| axi_monitor_base | amba | prove_boundary+prove_low8 PASS, no cover |
+| axi_monitor_filtered | amba | prove_boundary+prove_low8 PASS, no cover |
+| axi_monitor_trans_mgr | amba | prove_boundary+prove_low8 PASS, no cover |
+| axi_read_engine | stream | prove_boundary+prove_low8 PASS, no cover |
+| axi_read_engine_beats | stream | prove_boundary+prove_low8 PASS, no cover |
+| axi_write_engine | stream | prove_boundary+prove_low8 PASS, no cover |
+| axi_write_engine_beats | stream | prove_boundary+prove_low8 PASS, no cover |
+| datapath_rd_test | stream | prove_boundary+prove_low8 PASS, no cover |
+| datapath_wr_test | stream | prove_boundary+prove_low8 PASS, no cover |
+| descriptor_engine_beats | stream | prove_boundary+prove_low8 PASS, no cover |
+| scheduler | stream | prove_boundary+prove_low8 PASS, no cover |
+| scheduler_beats | stream | prove_boundary+prove_low8 PASS, no cover |
+| scheduler_group_array | stream | prove_boundary+prove_low8 PASS, no cover |
 
-- All *_stub modules (test-only)
-- All *_pkg modules (type definitions)
-- amba_clock_gate_ctrl (utility)
+### Deferred (not tractable for BMC)
 
----
-
-## projects/components/stream/ — 18 of 22 modules proved
-
-### DONE (18 modules)
-
-| Module                  | Area      | Properties                                                            |
-| ----------------------- | --------- | --------------------------------------------------------------------- |
-| stream_alloc_ctrl       | fub       | reset, rd_ready==!rd_empty                                            |
-| stream_drain_ctrl       | fub       | reset, rd_ready==!rd_empty                                            |
-| stream_latency_bridge   | fub       | reset, occupancy range, ghost counter, no underflow                   |
-| axi_read_engine         | fub       | AXI AR protocol, reset, ARBURST==INCR, ARSIZE (pre-skid interface)   |
-| axi_write_engine        | fub       | AXI AW/W protocol, reset (pre-skid interface)                        |
-| descriptor_engine       | fub       | reset, AR burst/size/len, handshake stability, error/valid mutex      |
-| scheduler               | fub       | FSM one-hot, state-gated idle/ready/valid/error                       |
-| sram_controller_unit    | fub       | reset space_free, output width bounds, handshake                      |
-| sram_controller         | fub       | per-channel reset, decode one-hot, ID range                           |
-| apbtodescr              | fub       | FSM encoding, desc_valid one-hot, cmd/rsp state gating                |
-| perf_profiler           | fub       | FIFO count range, empty/full, bounded count change                    |
-| axi_read_engine_beats   | fub_beats | Same as STREAM read (pre-skid interface)                              |
-| axi_write_engine_beats  | fub_beats | Same as STREAM write (pre-skid interface)                             |
-| descriptor_engine_beats | fub_beats | Same as STREAM descriptor_engine                                      |
-| scheduler_beats         | fub_beats | Same as STREAM scheduler                                              |
-| alloc_ctrl_beats        | fub_beats | Same as stream_alloc_ctrl                                             |
-| drain_ctrl_beats        | fub_beats | Same as stream_drain_ctrl                                             |
-| latency_bridge_beats    | fub_beats | Same as stream_latency_bridge                                         |
-
-### NOT DONE — Priority 2 (macro/top integration)
-
-| Module                        | Area  | Notes                           |
-| ----------------------------- | ----- | ------------------------------- |
-| scheduler_group               | macro | Integration — orchestrates FUBs |
-| scheduler_group_array         | macro | Multi-channel scheduler         |
-| datapath_rd_test / wr_test    | macro | Test harnesses                  |
-| monbus_axil_group             | macro | MonBus integration              |
-| stream_core / stream_core_mon | macro | Core integration                |
-| cmdrsp_router                 | top   | Command/response routing        |
-| stream_config_block           | top   | APB config registers            |
-| stream_top_ch8                | top   | Top-level (1648 lines)          |
-
-### NOT DONE — RAPIDS legacy fub/ (skip)
-
-| Module                                  | Notes                                                         |
-| --------------------------------------- | ------------------------------------------------------------- |
-| source_axi_read_engine                  | Has SV queues ($) — can't be synthesized or formally verified |
-| sink_axi_write_engine                   | Same                                                          |
-| ctrlrd_engine / ctrlwr_engine           | Ambiguous package imports                                     |
-| sink_sram_control / source_sram_control | Legacy                                                        |
-
-### NOT DONE — RAPIDS macro_beats (Priority 3)
-
-All 13 modules — integration-level, lower value for formal.
+| Module | Area | Reason |
+|--------|------|--------|
+| stream_core | stream | Yosys flatten name collision (two axi4_master_rd instances) |
+| stream_core_mon | stream | Same blocker as stream_core |
+| stream_top_ch8 | stream | 40+ source files, 10K+ lines -- state space too large |
 
 ---
 
-## projects/components/bridge/ — 1 protocol model
+## Passing Modules by Area
 
-### DONE
+### rtl/common/ -- 218 of 233 PASS
 
-| Module        | Properties                                                           |
-| ------------- | -------------------------------------------------------------------- |
-| bridge_1x2_rd | Address decode mutex, DDR/SRAM range, AXI handshake model (blackbox) |
+**Non-math (53 prove+cover PASS):**
+arbiter_round_robin_simple, arbiter_round_robin, arbiter_round_robin_weighted,
+arbiter_priority_encoder, counter_bin_load, counter_bingray, counter_freq_invariant (cover only),
+counter_johnson, counter_load_clear, counter_ring, bin2gray, gray2bin, grayj2bin,
+glitch_free_n_dff_arn, fifo_sync, fifo_async, fifo_async_div2, fifo_control,
+fifo_sync_multi, gaxi_skid_buffer, gaxi_skid_buffer_dbldrn, gaxi_skid_buffer_async,
+gaxi_skid_buffer_struct, gaxi_fifo_sync, gaxi_fifo_async, gaxi_drop_fifo_sync,
+gaxi_regslice, monbus_arbiter, axi_gen_addr, dataint_crc_xor_shift,
+dataint_crc_xor_shift_cascade, dataint_ecc_hamming, dataint_parity, dataint_crc,
+dataint_checksum, encoder, decoder, encoder_priority_enable, find_first_set,
+find_last_set, count_leading_zeros, leading_one_trailing_one, clock_divider,
+clock_gate_ctrl, icg (prove only), shifter_barrel, shifter_lfsr, shifter_lfsr_fibonacci,
+shifter_lfsr_galois, sort, debounce, pwm, reset_sync, cdc_handshake, cdc_synchronizer
 
-### NOT DONE — Priority 1
+**Math -- 165 prove+cover PASS:**
+- Adders: 26/26 (brent_kung 8/16/32, han_carlson 16/22/32/44/48/72, kogge_stone, ripple, CLA, carry_save, half, full, full_nbit, addsub)
+- Subtractors: 5/5 (full, half, ripple, CLA, full_nbit)
+- Multipliers: 14/14 (wallace 8/16/32, dadda 8/16/32, dadda_4to2 8/11/24, wallace_csa 8/16/32, basic_cell, carry_save)
+- BF16: 31/33 (all except exp2 ERROR, softmax_8 ERROR)
+- FP16: 16/17 (all except softmax_8 ERROR)
+- FP32: 16/17 (all except softmax_8 ERROR)
+- FP8_E4M3: 20/22 (softmax_8 ERROR, fma prove-only)
+- FP8_E5M2: 20/22 (softmax_8 ERROR, fma prove-only)
+- IEEE754: 10/10 (fp16 + fp32 adder/multiplier/fma/exponent_adder/mantissa_mult)
+- Other: 4/4 (compressor_4to2, prefix_cell, prefix_cell_gray, int_to_bf16)
 
-| Config             | Notes                                        |
-| ------------------ | -------------------------------------------- |
-| bridge_1x2_wr      | Write-only variant (AW/W/B channels)         |
-| bridge_2x2_rw      | Multi-master — adds arbitration assertions   |
-| bridge_1x3_rd / wr | Mixed-width (width conversion correctness)   |
-| bridge_cam         | CAM ID tracking (345 lines, should parse OK) |
+### rtl/amba/ -- 41 of 44 PASS
 
-### NOT DONE — Priority 2
+apb_master, apb_slave, apb5_master, apb5_slave, apb_monitor, apb5_monitor,
+apb_slave_cdc, apb5_slave_cdc, axis_master, axis_slave, axi_split_combi (prove only),
+cdc_handshake, cdc_synchronizer, monbus_arbiter (via common),
+axi4_master_rd, axi4_master_wr, axi4_slave_rd, axi4_slave_wr,
+axi4_master_rd_cg, axi4_master_wr_cg, axi4_slave_rd_cg, axi4_slave_wr_cg,
+axi4_master_rd_mon, axi4_master_wr_mon, axi4_slave_rd_mon, axi4_slave_wr_mon,
+axi_master_rd_splitter, axi_master_wr_splitter,
+arbiter_monbus_common, arbiter_rr_pwm_monbus, arbiter_wrr_pwm_monbus,
+axi_monitor_base (prove only), axi_monitor_filtered (prove only),
+axi_monitor_trans_mgr (prove only), axi_monitor_reporter, axi_monitor_timeout,
+axi_monitor_timer, amba_clock_gate_ctrl,
+gaxi_fifo_async_multi, gaxi_fifo_sync_multi,
+gaxi_skid_buffer_multi, gaxi_skid_buffer_multi_sigmap,
+gaxi_skid_buffer_async_multi
 
-| Config              | Notes                               |
-| ------------------- | ----------------------------------- |
-| bridge_1x4_rd / wr  | AXI-to-APB protocol conversion      |
-| bridge_1x5_rd / wr  | AXI-to-AXI-Lite conversion          |
-| bridge_5x3_channels | 5 master × 3 slave (largest config) |
+### projects/components/stream/ -- 19 of 30 PASS
 
-### BLOCKED
+**FUB (11 PASS):** stream_alloc_ctrl, stream_drain_ctrl, stream_latency_bridge,
+axi_read_engine (prove), axi_write_engine (prove), descriptor_engine,
+scheduler (prove), sram_controller_unit, sram_controller, apbtodescr, perf_profiler
 
-All generated bridge RTL uses SV packages with struct-typed ports in submodules.
-See if the sv2v flow works.
+**FUB_beats (7 PASS):** axi_read_engine_beats (prove), axi_write_engine_beats (prove),
+descriptor_engine_beats (prove), scheduler_beats (prove), alloc_ctrl_beats,
+drain_ctrl_beats, latency_bridge_beats
+
+**Macro (3 PASS):** scheduler_group, datapath_rd_test (prove), datapath_wr_test (prove),
+scheduler_group_array (prove), monbus_axil_group, cmdrsp_router, stream_config_block
+
+**RAPIDS fub_beats SRAM (4 PASS):** snk_sram_controller_beats, snk_sram_controller_unit_beats,
+src_sram_controller_beats, src_sram_controller_unit_beats
+
+### projects/components/converters/ -- 16 of 16 PASS
+
+axil4_to_axi4_rd, axil4_to_axi4_wr, axi4_to_axil4_rd, axi4_to_axil4_wr,
+axi4_dwidth_converter_rd, axi4_dwidth_converter_wr, axi4_to_apb_shim,
+axi4_to_apb_convert, axi_data_upsize, axi_data_dnsize, peakrdl_to_cmdrsp,
+uart_axil_bridge, uart_rx, uart_tx, axi4_to_axil4, axil4_to_axi4
+
+### projects/components/bridge/ -- 1 of 1 PASS
+
+bridge_1x2_rd (address decode mutex, DDR/SRAM range, AXI handshake model)
+
+### projects/components/apb_xbar/ -- 5 of 5 PASS
+
+apb_xbar_wrap_1x2, apb_xbar_wrap_1x3, apb_xbar_wrap_2x3,
+apb_xbar_wrap_3x3, apb_xbar_wrap_4x4
 
 ---
 
-## projects/components/converters/ — 6 of 16 proved
+## Remaining Work
 
-### DONE (6 modules)
+### Actionable Fixes (3 items)
 
-| Module           | Properties                                                           |
-| ---------------- | -------------------------------------------------------------------- |
-| axil4_to_axi4_rd | 15 assertions: passthrough, ARLEN=0, ARBURST=INCR, field defaults    |
-| axil4_to_axi4_wr | 19 assertions: passthrough, AWLEN=0, WLAST=1, field defaults         |
-| axi4_to_axil4_rd | 8 assertions: R data passthrough, RLAST at burst end, RID preserved  |
-| axi4_to_axil4_wr | 7 assertions: W data/strb passthrough, B response timing, BID match  |
-| uart_rx          | 6 assertions: no early valid, data stable, valid holds until ready   |
-| uart_tx          | 7 assertions: idle-high, start-low, stop-high, frame length          |
+1. **counter_freq_invariant** -- Fix yosys SV syntax error at line 150 (add sv2v preprocessing)
+2. **icg** -- Fix cover point cp_enabled (increase cover depth or relax assumptions)
+3. **axi_split_combi** -- Fix 4 cover points (increase cover depth from 1)
 
-### NOT DONE — Priority 1
+### Add Cover Tasks (19 modules)
 
-| Module                   | Lines | Notes                                    |
-| ------------------------ | ----- | ---------------------------------------- |
-| axi4_dwidth_converter_rd | 441   | Width conversion                         |
-| axi4_dwidth_converter_wr | 460   | Width conversion                         |
+Many modules only have prove tasks. Adding cover tasks would improve confidence:
+- 4 common modules (cam_tag, counter, counter_bin, fifo_sync_multi_sigmap)
+- 3 amba modules (axi_monitor_base, axi_monitor_filtered, axi_monitor_trans_mgr)
+- 10 stream modules (engines, schedulers, datapaths)
+- 2 math modules (fp8_e4m3_fma, fp8_e5m2_fma)
 
-### NOT DONE — Priority 2
+### Skip (Priority 0)
 
-| Module              | Lines | Notes                 |
-| ------------------- | ----- | --------------------- |
-| axi4_to_apb_shim    | 355   | AXI→APB               |
-| axi4_to_apb_convert | 485   | AXI→APB               |
-| axi_data_upsize     | 215   | Width up-conversion   |
-| axi_data_dnsize     | 486   | Width down-conversion |
-| peakrdl_to_cmdrsp   | 305   | Register adapter      |
-| uart_axil_bridge    | 454   | UART to AXI-Lite      |
-| axi4_to_axil4       | 262   | Combined rd+wr        |
-| axil4_to_axi4       | 276   | Combined rd+wr        |
-
----
-
-## Summary
-
-| Area                  | Proved | Total     | %                                      |
-| --------------------- | ------ | --------- | -------------------------------------- |
-| rtl/common/           | 55     | ~210      | 26% (all high-value modules done)      |
-| rtl/amba/             | 7      | ~90       | 8% (APB, splitter, CDC done)           |
-| STREAM fub            | 11     | 11        | 100%                                   |
-| STREAM/RAPIDS engines | 4      | 4         | 100% (pre-skid findings resolved)      |
-| RAPIDS fub_beats      | 7      | 7         | 100%                                   |
-| Bridge                | 1      | 10+       | protocol model                         |
-| Converters            | 6      | 16        | 38% (protocol + UART done)             |
-| **Total**             | **87** | **~350+** |                                        |
-
-### Next priorities
-
-1. **Converters** — axi4_dwidth_converter_rd/wr (width conversion)
-2. **Bridge configs** — 1x2_wr, 2x2_rw, bridge_cam
-3. **AMBA protocol** — APB monitors, AXIS, AXI splitters
-4. **AMBA monitors** — axi_monitor_base, axi_monitor_trans_mgr
-5. **Math** — adders, subtractors, 8-bit multipliers
-6. **Migrate stripped copies to sv2v** — eliminate maintenance burden
+- 6x softmax_8 + bf16_exp2 -- too complex for BMC, low value
+- stream_top_ch8 -- too large for BMC (verified via simulation)
