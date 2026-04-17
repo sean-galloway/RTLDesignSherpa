@@ -13,13 +13,10 @@ prove: smtbmc z3
 cover: smtbmc z3
 
 [script]
-read -formal -sv -Iincludes counter_load_clear.sv
-read -formal -sv -Iincludes counter_freq_invariant.sv
+read_verilog -formal counter_freq_invariant_flat.v
 read -formal -sv formal_counter_freq_invariant.sv
 prep -top formal_counter_freq_invariant
 
 [files]
-counter_load_clear.sv ../../../rtl/common/counter_load_clear.sv
-counter_freq_invariant.sv ../../../rtl/common/counter_freq_invariant.sv
+counter_freq_invariant_flat.v
 formal_counter_freq_invariant.sv
-includes/reset_defs.svh ../../../rtl/amba/includes/reset_defs.svh
