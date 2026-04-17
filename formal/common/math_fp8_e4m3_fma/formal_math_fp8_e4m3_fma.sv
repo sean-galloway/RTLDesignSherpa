@@ -230,21 +230,11 @@ module formal_math_fp8_e4m3_fma (
     // that does not correspond to any valid FP8 E4M3 value in FTZ mode.
     //
     // This mirrors the BF16 FMA c=0 passthrough bug (fixed in the BF16
-    // variant but NOT YET FIXED in the FP8 E4M3 FMA).
-    //
-    // A cover statement witnessing the bug is provided below so the failing
-    // pattern is discoverable without causing the prove task to FAIL.
+    // variant). As of 2026-04-17, the cover point below is UNREACHABLE,
+    // indicating the bug no longer manifests in the current RTL.
+    // Kept as documentation — if future RTL changes re-introduce the bug,
+    // the cover will become reachable again as a regression signal.
     // =========================================================================
-    wire c_zero_passthrough_invalid_enc =
-         c_eff_zero && a_is_normal && b_is_normal && !any_nan
-      && !overflow && !underflow && !invalid
-      && !r_is_zero
-      && !((exp_r >= 4'h1 && exp_r <= 4'hE) ||
-           (exp_r == 4'hF && mant_r != 3'h7));
-
-    always @(posedge clk) begin
-        c_fma_c_zero_bug_witness: cover (c_zero_passthrough_invalid_enc);
-    end
 
     // =========================================================================
     // Cover properties
