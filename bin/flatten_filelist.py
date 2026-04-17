@@ -33,8 +33,8 @@ from typing import Set, List, Tuple
 
 class FilelistFlattener:
     def __init__(self, exclude_patterns: List[str] = None, resolve_env: bool = False,
-                 keep_env_vars: bool = True, preferred_vars: List[str] = None,
-                 dedup: bool = True, verbose: bool = False):
+                keep_env_vars: bool = True, preferred_vars: List[str] = None,
+                dedup: bool = True, verbose: bool = False):
         """
         Initialize the filelist flattener.
 
@@ -98,7 +98,7 @@ class FilelistFlattener:
 
         # Sort by length (longest first) to match most specific paths first
         for resolved_path, env_var in sorted(self.env_mappings.items(),
-                                              key=lambda x: len(x[0]), reverse=True):
+                                            key=lambda x: len(x[0]), reverse=True):
             if path.startswith(resolved_path):
                 return path.replace(resolved_path, env_var, 1)
 
@@ -287,10 +287,10 @@ def main():
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 Examples:
-  %(prog)s src/filelists/q32/top/q32_top.f
-  %(prog)s src/filelists/q32/top/q32_top.f --exclude qcore
-  %(prog)s src/filelists/q32/top/q32_top.f --exclude qcore --exclude external -o flat.f
-  %(prog)s src/filelists/q32/top/q32_top.f --resolve-env --no-dedup
+%(prog)s src/filelists/q32/top/q32_top.f
+%(prog)s src/filelists/q32/top/q32_top.f --exclude qcore
+%(prog)s src/filelists/q32/top/q32_top.f --exclude qcore --exclude external -o flat.f
+%(prog)s src/filelists/q32/top/q32_top.f --resolve-env --no-dedup
         """
     )
 
