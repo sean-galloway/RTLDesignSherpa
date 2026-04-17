@@ -190,7 +190,6 @@ STREAM (Scatter-gather Transfer Rapid Engine for AXI Memory)
 - ✅ **Error handling:** AXI errors stop chaining, set `descriptor_error`, block `descriptor_valid`
 
 **Adaptations from RAPIDS:**
-- ❌ **RDA removed:** STREAM is memory-to-memory only (no network interfaces)
 - ✅ **APB-only:** Single APB write kicks off entire descriptor chain
 - ✅ **Descriptor Read Address FIFO:** 2-deep FIFO stores addresses for AXI fetch (APB + chaining)
 - ✅ **Chaining logic:** Descriptor engine autonomously manages `next_descriptor_ptr` chaining
@@ -824,7 +823,7 @@ projects/components/stream/dv/tests/
 ## 16. Open Questions (For Review)
 
 ### 16.1 Descriptor Engine Adaptation
-- **Q:** Should descriptor engine use APB-only, RDA-only, or mixed mode?
+- **Q:** Should descriptor engine use APB-only, or support additional modes?
 - **A (pending):** TBD - depends on software use case preference
 
 ### 16.2 AXI Descriptor Master

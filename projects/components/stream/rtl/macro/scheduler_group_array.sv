@@ -18,7 +18,7 @@
 //   - 8 channels (vs 32 in RAPIDS)
 //   - No control read/write engines
 //   - No program engine
-//   - No network interfaces (RDA, EOS completion)
+//   - No network interfaces (EOS completion)
 //   - No alignment bus
 //   - Direct data path interfaces (beats-based, no chunks)
 //

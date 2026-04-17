@@ -66,7 +66,7 @@ class SnkDatapathTB(TBBase):
     - SRAM control and buffering per channel with rd_lines_for_transfer
     - AXI write operations to memory with 4-byte chunk tracking
     - Stream boundary processing (EOS only - EOL/EOD removed)
-    - Packet type routing (CONFIG/TS/RDA/RAW)
+    - Packet type routing (CONFIG/TS/RAW)
     - Channel isolation and concurrent operations
     - Error handling and overflow detection
     - EOS completion interface validation
@@ -960,7 +960,7 @@ class SnkDatapathTB(TBBase):
 
         successful = 0
         failed = 0
-        operation_types = ['ts', 'rda', 'raw', 'config']
+        operation_types = ['ts', 'raw', 'config']
 
         for i in range(count):
             try:
@@ -981,14 +981,6 @@ class SnkDatapathTB(TBBase):
                         field_config=field_config
                     )
                     pkt_type = NETWORK_PKT_TYPES.TS_PKT
-                elif op_type == 'rda':
-                    packet = MNOCPacket.create_rda_packet(
-                        channel=channel,
-                        rda_data=[random.randint(0, 0xFFFF) for _ in range(num_chunks)],
-                        chunk_enables=chunk_enables,
-                        field_config=field_config
-                    )
-                    pkt_type = NETWORK_PKT_TYPES.RDA_PKT
                 else:  # raw or config
                     packet = MNOCPacket.create_raw_packet(
                         channel=channel,

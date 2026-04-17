@@ -59,7 +59,6 @@ Organized individual component validation in `fub_tests/`:
 #### Descriptor Engine (`fub_tests/descriptor_engine/`)
 - `test_descriptor_engine.py` - Main descriptor engine validation
 - `apb_interface_test.py` - APB programming interface *(pending)*
-- `rda_interface_test.py` - RDA packet interface *(pending)*
 - `descriptor_processing_test.py` - Descriptor data processing *(pending)*
 
 #### Other FUB Components
@@ -187,7 +186,7 @@ Tests are organized with pytest markers:
 ### ✅ Completed
 - Test infrastructure and configuration
 - Scheduler FUB validation (dual FSM architecture)
-- Descriptor engine FUB validation (APB + RDA interfaces)
+- Descriptor engine FUB validation (APB interface)
 - Scheduler group macro integration (3-engine coordination)
 - Network master FUB validation (packet transmission)
 - Network slave FUB validation (packet reception)

@@ -316,8 +316,6 @@ class SchedulerGroupArrayTB(TBBase):
             # Packed vectors - set entire vector to 0 or appropriate value
             if hasattr(self.dut, 'apb_valid'):
                 self.dut.apb_valid.value = 0  # All channels: no APB requests
-            if hasattr(self.dut, 'rda_valid'):
-                self.dut.rda_valid.value = 0  # All channels: no RDA data
             if hasattr(self.dut, 'eos_completion_valid'):
                 self.dut.eos_completion_valid.value = 0  # All channels: no EOS completions
             if hasattr(self.dut, 'data_ready'):
@@ -326,16 +324,14 @@ class SchedulerGroupArrayTB(TBBase):
                 self.dut.data_error.value = 0  # All channels: no errors
             if hasattr(self.dut, 'data_done_strobe'):
                 self.dut.data_done_strobe.value = 0  # All channels: no done strobes
-            if hasattr(self.dut, 'rda_complete_ready'):
-                self.dut.rda_complete_ready.value = (1 << self.CHANNEL_COUNT) - 1  # All channels ready
             if hasattr(self.dut, 'data_alignment_ready'):
                 self.dut.data_alignment_ready.value = (1 << self.CHANNEL_COUNT) - 1  # All channels ready
 
             # Packed multi-dimensional arrays (Verilator flattens these)
             # Set entire flattened vector to 0 for arrays we can't index into
-            packed_arrays = ['apb_addr', 'rda_packet', 'rda_channel',
+            packed_arrays = ['apb_addr',
                              'eos_completion_channel', 'data_transfer_length',
-                             'rda_complete_channel', 'cfg_addr0_base',
+                             'cfg_addr0_base',
                              'cfg_addr0_limit', 'cfg_addr1_base', 'cfg_addr1_limit',
                              'cfg_fifo_threshold']
             for arr_name in packed_arrays:

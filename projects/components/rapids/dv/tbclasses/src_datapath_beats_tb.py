@@ -63,7 +63,7 @@ class SrcDatapathTB(TBBase):
     - AXI read operations from memory
     - SRAM control and buffering per channel
     - Network packet transmission to network (EOS-only)
-    - Packet type routing (CONFIG/TS/RDA/RAW)
+    - Packet type routing (CONFIG/TS/RAW)
     - Channel isolation and concurrent operations
     - Error handling and flow control
     - Preallocation and loaded_lines coordination
@@ -325,7 +325,7 @@ class SrcDatapathTB(TBBase):
                 offset = (i // 32) * 1024  # Different offset per round
                 address = base_addr + offset
                 length = random.randint(256, 2048)  # 256B to 2KB
-                data_type = random.randint(0, 3)  # 0=CONFIG, 1=TS, 2=RDA, 3=RAW
+                data_type = random.choice([0, 1, 3])  # 0=CONFIG, 1=TS, 3=RAW
                 eos = (i % 8 == 7)  # EOS every 8th request
 
                 # Send scheduler request

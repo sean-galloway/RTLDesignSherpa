@@ -804,7 +804,6 @@ The Monitor Bus architecture provides a unified, scalable framework for monitori
 |---------|-------|-------------|
 | **MNOC_PAYLOAD_CONFIG** | 2'b00 | CONFIG_PKT |
 | **MNOC_PAYLOAD_TS** | 2'b01 | TS_PKT |
-| **MNOC_PAYLOAD_RDA** | 2'b10 | RDA_PKT |
 | **MNOC_PAYLOAD_RAW** | 2'b11 | RAW_PKT |
 
 : MNOC Payload Types

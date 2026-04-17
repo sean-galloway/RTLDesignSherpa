@@ -73,12 +73,6 @@ The AXI4 subsystem provides a complete implementation of the ARM AMBA AXI4 proto
 | **axi4_dwidth_converter_rd** | Read-only data width conversion | [axi4_dwidth_converter_rd.md](axi4_dwidth_converter_rd.md) | ✅ Documented |
 | **axi4_dwidth_converter_wr** | Write-only data width conversion | [axi4_dwidth_converter_wr.md](axi4_dwidth_converter_wr.md) | ✅ Documented |
 
-### Interconnect
-
-| Module | Description | Documentation | Status |
-|--------|-------------|---------------|--------|
-| **axi4_interconnect_2x2_mon** | 2x2 AXI4 crossbar with monitoring | [axi4_interconnect_2x2_mon.md](axi4_interconnect_2x2_mon.md) | ✅ Documented |
-
 ### Clock-Gated Variants
 
 **All clock-gated variants documented in:** [axi4_clock_gating_guide.md](axi4_clock_gating_guide.md)

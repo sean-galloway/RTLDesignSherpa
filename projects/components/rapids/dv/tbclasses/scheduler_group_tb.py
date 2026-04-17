@@ -71,14 +71,12 @@ class SchedulerGroupTB(TBBase):
 
     Tests comprehensive scheduler wrapper functionality:
     - APB programming interface for descriptor fetch
-    - RDA packet interface from Network slave
     - EOS completion interface from SRAM control
     - Enhanced descriptor engine interface with stream control
     - Program engine AXI write operations
     - Control read engine interface (ctrlrd) for pre-descriptor operations
     - Control write engine interface (ctrlwr) for post-descriptor operations
     - Data mover interface with stream boundaries
-    - RDA credit return management
     - Monitor bus aggregation and validation
     - Configuration and status interfaces
     - Channel isolation and concurrent operations
@@ -153,7 +151,6 @@ class SchedulerGroupTB(TBBase):
         }
 
         # Component interfaces (initialized in setup)
-        self.rda_network_master = None      # RDA packet injection
         self.desc_axi_slave = None       # Descriptor AXI interface
         self.prog_axi_slave = None       # Program engine AXI interface
         self.monitor_slave = None        # Monitor bus interface
@@ -257,13 +254,6 @@ class SchedulerGroupTB(TBBase):
             )
             self.program_memory_size = prog_num_lines * prog_bytes_per_line
 
-            # RDA packet interface (Network Master for injection)
-            self.rda_network_master = create_network_master(
-                self.dut, self.clk, prefix="rda_", log=self.log,
-                data_width=self.TEST_DATA_WIDTH,
-                num_channels=self.TEST_CHANNELS
-            )
-
             # Descriptor engine AXI read interface (AXI4 Slave)
             # Signals: desc_ar_*, desc_r_*
             # SOLUTION: Use prefix="desc_" to match desc_ar_valid, desc_r_valid, etc.
@@ -348,12 +338,6 @@ class SchedulerGroupTB(TBBase):
             self.dut.apb_valid.value = 0
             self.dut.apb_addr.value = 0
 
-            # RDA interface defaults
-            if hasattr(self.dut, 'rda_valid'):
-                self.dut.rda_valid.value = 0
-                self.dut.rda_packet.value = 0
-                self.dut.rda_channel.value = 0
-
             # Configuration defaults
             self.dut.cfg_idle_mode.value = 0
             self.dut.cfg_channel_wait.value = 0
@@ -374,10 +358,6 @@ class SchedulerGroupTB(TBBase):
                 self.dut.data_transfer_length.value = 0
                 self.dut.data_error.value = 0
                 self.dut.data_done_strobe.value = 0
-
-            # RDA credit return interface
-            if hasattr(self.dut, 'rda_complete_ready'):
-                self.dut.rda_complete_ready.value = 1
 
             # Control Read Engine Interface (ctrlrd) - defaults
             if hasattr(self.dut, 'ctrlrd_ready'):
@@ -404,11 +384,6 @@ class SchedulerGroupTB(TBBase):
     async def clear_all_interfaces(self):
         """Clear all interfaces and reset to known state."""
         try:
-            # Clear any pending Network transactions
-            if self.rda_network_master:
-                # Flush any pending packets
-                pass
-
             # Memory models don't need clearing - they persist test patterns
             # which is intentional for descriptor and program data
 
@@ -840,81 +815,6 @@ class SchedulerGroupTB(TBBase):
     # =========================================================================
     # ENHANCED TEST METHODS WITH REAL VERIFICATION
     # =========================================================================
-
-    async def test_rda_packet_injection(self, count: int = 16) -> Tuple[bool, Dict[str, Any]]:
-        """
-        Test RDA packet injection from Network network.
-
-        Tests:
-        - RDA packet reception via Network slave
-        - Credit-based flow control
-        - Channel-specific RDA routing
-        - RDA completion/credit return
-        """
-        self.log.info(f"Testing RDA packet injection ({count} packets)...")
-
-        success_count = 0
-        error_count = 0
-        channels_tested = set()
-
-        try:
-            for i in range(count):
-                # Select random channel
-                channel = random.randint(0, self.TEST_CHANNELS - 1)
-                channels_tested.add(channel)
-
-                # Create RDA packet for this channel
-                rda_data = random.randint(0, self.MAX_DATA)
-
-                # Inject RDA packet via Network master
-                # RDA packets signal data arrival and request descriptor processing
-                self.log.debug(f"Injecting RDA packet {i+1}/{count} on channel {channel}")
-
-                # Drive RDA interface directly
-                if hasattr(self.dut, 'rda_valid'):
-                    self.dut.rda_valid.value = 1
-                    self.dut.rda_packet.value = rda_data
-                    self.dut.rda_channel.value = channel
-
-                    await RisingEdge(self.clk)
-
-                    # Wait for ready
-                    timeout = 50
-                    while timeout > 0 and int(self.dut.rda_ready.value) == 0:
-                        await RisingEdge(self.clk)
-                        timeout -= 1
-
-                    self.dut.rda_valid.value = 0
-
-                    if timeout > 0:
-                        success_count += 1
-                        self.log.debug(f"✓ RDA packet accepted on channel {channel}")
-                    else:
-                        error_count += 1
-                        self.log.warning(f"✗ RDA packet timeout on channel {channel}")
-                else:
-                    self.log.warning("RDA interface not available in DUT")
-                    error_count += 1
-
-                await self.wait_random_cycles()
-
-        except Exception as e:
-            self.log.error(f"RDA packet injection test failed: {str(e)}")
-            error_count += 1
-
-        stats = {
-            'success_count': success_count,
-            'error_count': error_count,
-            'success_rate': success_count / count if count > 0 else 0,
-            'channels_tested': len(channels_tested)
-        }
-
-        self.test_stats['performance']['descriptors_processed'] += success_count
-        self.test_stats['summary']['total_operations'] += count
-        self.test_stats['summary']['successful_operations'] += success_count
-        self.test_stats['summary']['failed_operations'] += error_count
-
-        return error_count == 0, stats
 
     async def test_concurrent_multi_channel(self, channel_count: int = 8, ops_per_channel: int = 4) -> Tuple[bool, Dict[str, Any]]:
         """

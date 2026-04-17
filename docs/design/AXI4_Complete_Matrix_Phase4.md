@@ -73,11 +73,6 @@ Phase 4 Complete Matrix
     │   ├── axi4_master_wr_lp_mon.sv (planned)
     │   └── axi4_slave_*_lp_mon.sv (planned)
     │
-    ├── System Integration
-    │   ├── axi4_interconnect_2x2_mon.sv
-    │   ├── axi4_interconnect_4x4_mon.sv (planned)
-    │   └── axi4_bridge_mon.sv (planned)
-    │
     └── Verification Suite
         ├── test_axi4_matrix_integration.py
         ├── TBAXIMonitorConfig TB
@@ -160,35 +155,9 @@ parameter int VF_LEVELS         = 4;      // Number of V/F levels
 
 ---
 
-### **3. System Integration Module: `axi4_interconnect_2x2_mon.sv`**
-
-**Purpose**: System-level integration with comprehensive monitoring
-
-**Key Features**:
-- **2x2 AXI4 interconnect** (2 masters, 2 slaves)
-- **Individual monitoring** on all interfaces
-- **Address decoding** and routing logic
-- **Monitor bus aggregation** with round-robin arbitration
-- **System-level performance** analysis
-- **Cross-channel correlation** and deadlock detection
-- **Centralized configuration** management
-
-**Interface Configuration**:
-- **Master 0**: Agent ID 30 (Write), 31 (Read)
-- **Master 1**: Agent ID 32 (Write), 33 (Read)
-- **Slave 0**: Base address 0x0000_0000, 256MB
-- **Slave 1**: Base address 0x1000_0000, 256MB
-
-**System-Level Metrics**:
-- Total active transactions across all interfaces
-- Aggregated error counts
-- Total transaction counts
-- Combined power savings
-- System utilization metrics
-
 ---
 
-## 🧪 **Comprehensive Verification Suite**
+## Comprehensive Verification Suite
 
 ### **Integration Test Matrix: `test_axi4_matrix_integration.py`**
 

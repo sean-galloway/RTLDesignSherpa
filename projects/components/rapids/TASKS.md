@@ -739,131 +739,6 @@ module miop_perf_monitor #(
 
 ---
 
-### TASK-010: Rename RDA to CDA (Compute Direct Access)
-**Status:** 🟡 Planned
-**Priority:** P2 (Medium)
-**Effort:** 4-6 hours
-**Assigned:** Unassigned
-
-**Description:**
-Rename all references to RDA (Read Direct Access) to CDA (Compute Direct Access) throughout RAPIDS codebase and documentation. This renaming clarifies that the descriptor mechanism supports in-band compute operations, not just read operations.
-
-**Scope:**
-1. **RTL Signal Names**
-   - `rda_valid` → `cda_valid`
-   - `rda_ready` → `cda_ready`
-   - `rda_packet` → `cda_packet`
-   - `rda_*` → `cda_*` (all related signals)
-
-2. **RTL Comments and Documentation**
-   - Update all comments referencing RDA
-   - Update port descriptions
-   - Update signal explanations
-
-3. **Test Files**
-   - Update test variable names
-   - Update test function names
-   - Update test comments
-
-4. **Specification Documents**
-   - `projects/components/rapids/docs/rapids_spec/` - All references
-   - `projects/components/rapids/PRD.md` - All references
-   - `projects/components/rapids/CLAUDE.md` - All references
-   - `projects/components/rapids/README.md` - All references (once created)
-
-**Files Requiring Updates:**
-```
-RTL Files:
-- projects/components/rapids/rtl/rapids_fub/descriptor_engine.sv
-- projects/components/rapids/rtl/rapids_fub/program_engine.sv
-- projects/components/rapids/rtl/rapids_fub/scheduler.sv
-- projects/components/rapids/rtl/rapids_macro/scheduler_group.sv
-- projects/components/rapids/rtl/rapids_macro/scheduler_group_array.sv
-- projects/components/rapids/rtl/includes/rapids_pkg.sv
-
-Test Files:
-- projects/components/rapids/dv/tests/fub_tests/descriptor_engine/test_desc_engine.py
-- projects/components/rapids/dv/tests/fub_tests/program_engine/test_prog_engine.py
-- projects/components/rapids/dv/tests/fub_tests/scheduler/test_scheduler.py
-- projects/components/rapids/dv/tbclasses/* (once created per TASK-003)
-
-Documentation:
-- projects/components/rapids/docs/rapids_spec/ch02_blocks/*.md
-- projects/components/rapids/docs/rapids_spec/ch03_interfaces/*.md
-- projects/components/rapids/PRD.md
-- projects/components/rapids/CLAUDE.md
-```
-
-**Implementation Steps:**
-
-1. **RTL Updates** (1-2 hours)
-   - [ ] Find all `rda_` signal instances
-   - [ ] Rename to `cda_` systematically
-   - [ ] Update port descriptions
-   - [ ] Update internal comments
-
-2. **Test Updates** (1-2 hours)
-   - [ ] Update test variable names
-   - [ ] Update test assertions
-   - [ ] Verify tests still pass
-
-3. **Documentation Updates** (2 hours)
-   - [ ] Update specification markdown files
-   - [ ] Update PRD.md
-   - [ ] Update CLAUDE.md
-   - [ ] Update known_issues/ if referenced
-
-4. **Verification** (1 hour)
-   - [ ] Search for remaining RDA references: `grep -r "rda" projects/components/rapids/`
-   - [ ] Verify no broken references
-   - [ ] Run full test suite
-   - [ ] Verify documentation consistency
-
-**Search Commands:**
-```bash
-# Find all RDA references in RTL
-grep -r "rda" projects/components/rapids/rtl/ --include="*.sv" --include="*.svh"
-
-# Find all RDA references in tests
-grep -r "rda" projects/components/rapids/dv/ --include="*.py"
-
-# Find all RDA references in documentation
-grep -r "rda" projects/components/rapids/docs/ --include="*.md"
-grep -r "RDA" projects/components/rapids/ --include="*.md"
-```
-
-**Verification Steps:**
-1. Search for all RDA references before starting
-2. Systematically rename in each file category
-3. Run RTL lint: `verilator --lint-only projects/components/rapids/rtl/**/*.sv`
-4. Run full test suite: `pytest projects/components/rapids/dv/tests/ -v`
-5. Search for remaining RDA references after completion
-6. Verify documentation builds/renders correctly
-
-**Related Files:**
-- Update: All RTL files with RDA signals
-- Update: All test files with RDA references
-- Update: All documentation with RDA mentions
-
-**Dependencies:**
-- None (can be done independently)
-
-**Completion Criteria:**
-- [ ] All RTL signals renamed (rda → cda)
-- [ ] All test references updated
-- [ ] All documentation updated
-- [ ] No remaining RDA references found
-- [ ] All tests passing
-- [ ] RTL linting clean
-
-**Notes:**
-- **Rationale:** "Compute Direct Access" better reflects the in-band descriptor capability for compute operations
-- **Breaking Change:** This is a naming convention update - external interfaces remain compatible
-- **Systematic Approach:** Use search-and-replace with verification at each step
-- **Case Sensitivity:** Handle both lowercase `rda` and uppercase `RDA`
-
----
-
 ## Task Dependencies Graph
 
 ```
@@ -1096,7 +971,7 @@ assign channel_idle = scheduler_idle &&
 | `scheduler_idle` | No active data transfers, all descriptors processed | Prevents new operations during active transfer |
 | `descriptor_engine_idle` | No pending descriptor fetches (FIFO empty) | Prevents new operations during descriptor fetch |
 | `program_engine_idle` | No pending program operations | Prevents new operations during programming |
-| `channel_idle` (AND of all) | Channel fully quiescent | **Gates external interfaces (APB, RDA, CDA)** |
+| `channel_idle` (AND of all) | Channel fully quiescent | **Gates external interfaces (APB, CDA)** |
 
 **Usage in Descriptor Engine:**
 
@@ -1111,34 +986,34 @@ assign apb_ready = apb_skid_ready_in &&
 **Example Scenario:**
 
 ```
-1. Software writes APB/RDA/CDA → descriptor_addr = 0x1000
+1. Software writes APB/CDA → descriptor_addr = 0x1000
    - channel_idle = 1 (all engines idle)
    - Request accepted
 
 2. Descriptor engine fetches descriptor @ 0x1000
    - descriptor_engine_idle = 0 (fetch in progress)
    - channel_idle = 0
-   - APB/RDA/CDA BLOCKED
+   - APB/CDA BLOCKED
 
 3. Descriptor pushed to scheduler
    - descriptor_engine_idle = 1 (fetch complete)
    - scheduler_idle = 0 (transfer starting)
    - channel_idle = 0
-   - APB/RDA/CDA BLOCKED
+   - APB/CDA BLOCKED
 
 4. Scheduler completes data transfer
    - Descriptor has next_descriptor_ptr = 0x1100 (chained!)
    - Descriptor engine autonomously fetches @ 0x1100
    - descriptor_engine_idle = 0 (autonomous fetch)
    - channel_idle = 0
-   - APB/RDA/CDA BLOCKED
+   - APB/CDA BLOCKED
 
 5. Final descriptor completes (last = 1 OR next_ptr = 0)
    - scheduler_idle = 1 (transfer done)
    - descriptor_engine_idle = 1 (no more fetches)
    - all other engines idle = 1
    - channel_idle = 1
-   - APB/RDA/CDA UNBLOCKED (ready for next transfer!)
+   - APB/CDA UNBLOCKED (ready for next transfer!)
 ```
 
 **Implementation Steps:**
@@ -1148,14 +1023,13 @@ assign apb_ready = apb_skid_ready_in &&
 4. Update scheduler_group.sv to AND all idle signals
 5. Connect channel_idle to all relevant engines (descriptor_engine, program_engine)
 6. Update testbenches to drive channel_idle
-7. Create integration test verifying APB/RDA/CDA blocking during active chains
+7. Create integration test verifying APB/CDA blocking during active chains
 
 **Verification Steps:**
 1. Verify each engine correctly asserts its idle signal
 2. Verify scheduler_group correctly ANDs all idle signals
 3. Verify APB interface blocks when !channel_idle
-4. Verify RDA interface blocks when !channel_idle (if present)
-5. Verify CDA interface blocks when !channel_idle (if present)
+4. Verify CDA interface blocks when !channel_idle (if present)
 6. Test multi-descriptor chain scenario (software blocked until chain completes)
 7. Test error scenarios (channel_idle behavior on errors)
 
@@ -1174,7 +1048,7 @@ assign apb_ready = apb_skid_ready_in &&
 - [ ] All engines output their idle signals
 - [ ] scheduler_group ANDs all idle signals to create channel_idle
 - [ ] channel_idle connected to all relevant engines
-- [ ] APB/RDA/CDA interfaces block when !channel_idle
+- [ ] APB/CDA interfaces block when !channel_idle
 - [ ] Integration tests passing
 - [ ] Documentation updated
 

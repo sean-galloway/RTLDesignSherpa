@@ -95,7 +95,6 @@ Main AXI4 master/slave interfaces.
 | axi4/axi4_dwidth_converter.md | axi4_dwidth_converter | High | [x] Done |
 | axi4/axi4_dwidth_converter_rd.md | axi4_dwidth_converter_rd | High | [x] Done |
 | axi4/axi4_dwidth_converter_wr.md | axi4_dwidth_converter_wr | High | [x] Done |
-| axi4/axi4_interconnect_2x2_mon.md | axi4_interconnect_2x2_mon | High | [x] Done |
 
 ### Phase 4: AXI4 Monitors (4 files) - MEDIUM PRIORITY
 

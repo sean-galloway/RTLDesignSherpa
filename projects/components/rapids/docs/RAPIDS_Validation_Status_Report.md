@@ -39,7 +39,7 @@ The RAPIDS (Modular I/O Pipeline) validation has been successfully restored and 
 - **Data transfers verified**: 12+ transfers completed (32-3817 bytes each)
 - **Alignment calculations working**: 68+ calculations with proper phase transitions (000, 001, 010)
 - **Program operations functional**: 2+ program operations completed
-- **EOS/RDA processing working**: All descriptor types validated
+- **EOS processing working**: All descriptor types validated
 
 ### ✅ **Other RAPIDS Components - WORKING**
 - **Simple SRAM**: `test_simple_sram.py` - **PASSING** ✅
@@ -141,7 +141,7 @@ SCHED_ERROR           = 6'b100000    // 0x20
 - ✅ Comprehensive descriptor testing
 - ✅ Data transfer simulation
 - ✅ Program operation validation
-- ✅ EOS/RDA packet processing
+- ✅ EOS packet processing
 - ✅ Safety monitoring with resource limits
 
 ---
@@ -171,7 +171,6 @@ SCHED_ERROR           = 6'b100000    // 0x20
 - ✅ Basic descriptors (data-only)
 - ✅ Program descriptors (prog0/prog1)
 - ✅ EOS descriptors (end-of-stream)
-- ✅ RDA descriptors (remote direct access)
 
 ---
 

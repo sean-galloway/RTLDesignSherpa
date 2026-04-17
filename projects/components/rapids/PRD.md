@@ -418,7 +418,7 @@ miop_top #(
 **Recent Achievements:**
 - ✅ **Descriptor Engine (2025-10-13):** Achieved 100% test pass rate using continuous background monitoring pattern
   - 14/14 tests passing across all test levels (basic, medium, full)
-  - All test classes passing (APB_ONLY, RDA_ONLY, MIXED)
+  - All test classes passing (APB_ONLY, MIXED)
   - All delay profiles passing (fast_producer, fast_consumer, fixed_delay, minimal_delay)
   - Applied continuous monitoring methodology for asynchronous output capture
 

@@ -27,7 +27,6 @@ Features:
 - Multiple delay timing profiles
 
 SIMPLIFICATIONS FROM RAPIDS:
-- NO RDA interface (STREAM has APB interface only)
 - APB-only testing (no network interfaces)
 - 256-bit descriptors (not 512-bit data width)
 - Fewer delay profiles (5 instead of 10)
@@ -73,7 +72,7 @@ class DescriptorEngineTB(TBBase):
     - Channel filtering
     - Error handling
 
-    NOTE: STREAM uses APB interface ONLY (no RDA/CDA interfaces)
+    NOTE: STREAM uses APB interface ONLY (no CDA interfaces)
     """
 
     def __init__(self, dut, clk=None, rst_n=None):

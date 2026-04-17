@@ -87,7 +87,7 @@ module scheduler_group_array
     output logic [CHANNEL_COUNT-1:0]    apb_ready,
     input  logic [ADDR_WIDTH-1:0]       apb_addr [CHANNEL_COUNT],
 
-    // CDA Packet Interface (from Network Slave) - per channel, formerly RDA
+    // CDA Packet Interface (from Network Slave) - per channel
     input  logic [CHANNEL_COUNT-1:0]    cda_valid,
     output logic [CHANNEL_COUNT-1:0]    cda_ready,
     input  logic [DATA_WIDTH-1:0]       cda_packet [CHANNEL_COUNT],
@@ -142,11 +142,6 @@ module scheduler_group_array
     input  logic [CHANNEL_COUNT-1:0]    data_alignment_next,
     output transfer_phase_t             data_transfer_phase [CHANNEL_COUNT],
     output logic [CHANNEL_COUNT-1:0]    data_sequence_complete,
-
-    // RDA Credit Return Interface - per channel
-    output logic [CHANNEL_COUNT-1:0]    rda_complete_valid,
-    input  logic [CHANNEL_COUNT-1:0]    rda_complete_ready,
-    output logic [CHAN_WIDTH-1:0]       rda_complete_channel [CHANNEL_COUNT],
 
     // ========================================================================
     // Shared AXI4 Master Read Interface (Descriptor Engine - with MonBus)
@@ -484,7 +479,7 @@ module scheduler_group_array
                 .apb_ready                  (apb_ready[ch]),
                 .apb_addr                   (apb_addr[ch]),
 
-                // CDA Packet Interface (formerly RDA)
+                // CDA Packet Interface
                 .cda_valid                  (cda_valid[ch]),
                 .cda_ready                  (cda_ready[ch]),
                 .cda_packet                 (cda_packet[ch]),
@@ -601,11 +596,6 @@ module scheduler_group_array
                 .data_alignment_next        (data_alignment_next[ch]),
                 .data_transfer_phase        (data_transfer_phase[ch]),
                 .data_sequence_complete     (data_sequence_complete[ch]),
-
-                // RDA Credit Return Interface
-                .rda_complete_valid         (rda_complete_valid[ch]),
-                .rda_complete_ready         (rda_complete_ready[ch]),
-                .rda_complete_channel       (rda_complete_channel[ch]),
 
                 // Monitor Bus Interface
                 .mon_valid                  (sched_mon_valid[ch]),

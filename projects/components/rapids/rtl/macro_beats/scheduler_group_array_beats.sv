@@ -18,7 +18,7 @@
 //   - 8 channels (simplified from full RAPIDS)
 //   - No control read/write engines
 //   - No program engine
-//   - No network interfaces (RDA, EOS completion)
+//   - No network interfaces (EOS completion)
 //   - Direct data path interfaces (beats-based, no chunks)
 //
 // Documentation: projects/components/rapids/docs/rapids_spec/

@@ -44,7 +44,7 @@ module scheduler_group #(
     output logic                        apb_ready,
     input  logic [ADDR_WIDTH-1:0]       apb_addr,
 
-    // CDA Packet Interface (from Network Slave) - formerly RDA
+    // CDA Packet Interface (from Network Slave)
     input  logic                        cda_valid,
     output logic                        cda_ready,
     input  logic [DATA_WIDTH-1:0]       cda_packet,
@@ -165,11 +165,6 @@ module scheduler_group #(
     output transfer_phase_t             data_transfer_phase,
     output logic                        data_sequence_complete,
 
-    // Generic RDA Credit Return Interface
-    output logic                        rda_complete_valid,
-    input  logic                        rda_complete_ready,
-    output logic [CHAN_WIDTH-1:0]       rda_complete_channel,
-
     // Unified Monitor Bus Interface
     output logic                        mon_valid,
     input  logic                        mon_ready,
@@ -240,7 +235,7 @@ module scheduler_group #(
         .apb_valid              (apb_valid),
         .apb_ready              (apb_ready),
         .apb_addr               (apb_addr),
-        // CDA Packet Interface (formerly RDA)
+        // CDA Packet Interface
         .cda_valid              (cda_valid),
         .cda_ready              (cda_ready),
         .cda_packet             (cda_packet),
@@ -250,7 +245,7 @@ module scheduler_group #(
         .descriptor_packet      (desceng_to_sched_packet),
         .descriptor_same        (desceng_to_sched_same),
         .descriptor_error       (desceng_to_sched_error),
-        // RDA renamed to CDA (Control Descriptor Arrival)
+        // CDA (Control Descriptor Arrival)
         .descriptor_is_cda      (desceng_to_sched_is_cda),
         .descriptor_cda_channel (desceng_to_sched_cda_channel),
         .descriptor_eos         (desceng_to_sched_eos),
@@ -347,7 +342,7 @@ module scheduler_group #(
         .descriptor_packet      (desceng_to_sched_packet),
         .descriptor_same        (desceng_to_sched_same),
         .descriptor_error       (desceng_to_sched_error),
-        // RDA renamed to CDA (Control Descriptor Arrival)
+        // CDA (Control Descriptor Arrival)
         .descriptor_is_cda      (desceng_to_sched_is_cda),
         .descriptor_cda_channel (desceng_to_sched_cda_channel),
         .descriptor_eos         (desceng_to_sched_eos),
@@ -393,11 +388,7 @@ module scheduler_group #(
         .data_transfer_phase    (data_transfer_phase),
         .data_sequence_complete (data_sequence_complete),
 
-        // RDA completion interface removed from scheduler
-        // .rda_complete_valid     (rda_complete_valid),
-        // .rda_complete_ready     (rda_complete_ready),
-        // .rda_complete_channel   (rda_complete_channel),
-        // Use CDA completion interface instead
+        // CDA completion interface
         .cda_complete_valid     (cda_complete_valid),
         .cda_complete_ready     (cda_complete_ready),
         .cda_complete_channel   (cda_complete_channel),

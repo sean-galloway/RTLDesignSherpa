@@ -6,7 +6,6 @@ apb_slave_stub.sv
 apb_slave.sv
 axi4_dwidth_converter.sv
 axi4_dwidth_converter_wr.sv
-axi4_interconnect_2x2_mon.sv
 axi4_master_rd_mon_cg.sv
 axi4_master_wr_mon_cg.sv
 axi4_slave_rd_mon_cg.sv

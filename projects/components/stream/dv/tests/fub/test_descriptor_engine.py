@@ -17,7 +17,7 @@
 """
 STREAM Descriptor Engine Test Runner - v1.0
 
-Tests APB→AXI→Descriptor flow only (no RDA/CDA interfaces in STREAM).
+Tests APB→AXI→Descriptor flow only (no CDA interfaces in STREAM).
 
 Test Types:
 - 'apb_basic': Basic APB→AXI→Descriptor flow

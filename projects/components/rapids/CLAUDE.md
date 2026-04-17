@@ -1232,12 +1232,12 @@ def test_descriptor_engine(test_level, ...):
     elif test_level == "medium":
         # Moderate coverage: 3 packets × 4 profiles
         num_packets = 3
-        test_classes = [TestClass.APB_ONLY, TestClass.RDA_ONLY, TestClass.MIXED]
+        test_classes = [TestClass.APB_ONLY, TestClass.MIXED]
 
     elif test_level == "full":
         # Comprehensive: 5 packets × all profiles × all test classes
         num_packets = 5
-        test_classes = [TestClass.APB_ONLY, TestClass.RDA_ONLY, TestClass.MIXED]
+        test_classes = [TestClass.APB_ONLY, TestClass.MIXED]
 ```
 
 **Benefits:**

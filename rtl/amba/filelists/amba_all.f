@@ -98,9 +98,6 @@ $REPO_ROOT/rtl/amba/axi4/axi4_slave_wr_cg.sv
 $REPO_ROOT/rtl/amba/axi4/axi4_slave_wr_mon.sv
 $REPO_ROOT/rtl/amba/axi4/axi4_slave_wr_mon_cg.sv
 
-# AXI4 Infrastructure
-$REPO_ROOT/rtl/amba/axi4/axi4_interconnect_2x2_mon.sv
-
 # AXI4 Stubs (Test support)
 $REPO_ROOT/rtl/amba/axi4/stubs/axi4_master_rd_stub.sv
 $REPO_ROOT/rtl/amba/axi4/stubs/axi4_master_stub.sv

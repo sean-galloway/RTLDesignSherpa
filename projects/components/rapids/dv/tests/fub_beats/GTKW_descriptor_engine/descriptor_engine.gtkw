@@ -18,15 +18,6 @@
 clk
 rst_n
 @200
--rda
-@28
-descriptor_engine.rda_valid
-descriptor_engine.rda_ready
-@22
-descriptor_engine.rda_packet[511:0]
-@23
-descriptor_engine.rda_channel[4:0]
-@200
 -apb
 @28
 apb_valid
@@ -58,10 +49,8 @@ descriptor_engine.r_resp[1:0]
 descriptor_engine.descriptor_valid
 descriptor_engine.descriptor_ready
 @22
-descriptor_engine.descriptor_rda_channel[4:0]
 descriptor_engine.descriptor_packet[511:0]
 @28
-descriptor_engine.descriptor_is_rda
 descriptor_engine.descriptor_error
 descriptor_engine.descriptor_eos
 descriptor_engine.descriptor_eol

@@ -53,7 +53,7 @@ All three FUBs (Functional Unit Blocks) in the scheduler group are now **product
 |-------|-----------|--------|------------|--------------|
 | Credit counter initialization | Scheduler | ✅ FIXED | 2025-10-14 | 43/43 tests passing |
 | FSM state transitions (3 bugs) | Program Engine | ✅ FIXED | 2025-10-14 | 8/8 tests passing |
-| APB→RDA sequential pattern | Descriptor Engine | ✅ NO BUG FOUND | 2025-10-14 | All scenarios working |
+| APB sequential pattern | Descriptor Engine | ✅ NO BUG FOUND | 2025-10-14 | All scenarios working |
 
 **Test Results:**
 - **Scheduler:** 43/43 tests passing (100%) - Credit-based flow control fully functional
