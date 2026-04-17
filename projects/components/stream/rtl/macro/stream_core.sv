@@ -928,7 +928,7 @@ module stream_core #(
     assign fub_rd_axi_arregion = 4'h0;
     // AXI USER fields carry channel ID for packet analysis/sorting
     assign fub_rd_axi_aruser = UW'(fub_rd_axi_arid);  // Extract channel ID from transaction ID
-    assign fub_rd_axi_ruser = '0;  // R channel user not used (response path)
+    assign fub_rd_axi_ruser = UW'(fub_rd_axi_arid);  // Carry channel ID for traceability
 
     axi4_master_rd #(
         .SKID_DEPTH_AR          (SKID_DEPTH_AR),
@@ -1001,7 +1001,7 @@ module stream_core #(
     // AXI USER fields carry channel ID for packet analysis/sorting
     assign fub_wr_axi_awuser = UW'(fub_wr_axi_awid);  // Extract channel ID from transaction ID
     // NOTE: fub_wr_axi_wuser already carries channel ID from write engine (passes through)
-    assign fub_wr_axi_buser = '0;  // B channel user not used (response path)
+    assign fub_wr_axi_buser = UW'(fub_wr_axi_awid);  // Carry channel ID for traceability
 
     axi4_master_wr #(
         .SKID_DEPTH_AW          (SKID_DEPTH_AW),

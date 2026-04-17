@@ -3540,6 +3540,8 @@ module descriptor_engine (
 				r_axi_read_active <= 1'b0;
 				r_descriptor_error <= 1'b0;
 			end
+			if (apb_valid && !w_apb_addr_valid)
+				r_descriptor_error <= 1'b1;
 		end
 	always @(*) begin
 		if (_sv2v_0)
@@ -3597,11 +3599,6 @@ module descriptor_engine (
 					;
 			endcase
 		end
-	always @(posedge clk)
-		if (!rst_n)
-			;
-		else if (apb_valid && !w_apb_addr_valid)
-			r_descriptor_error <= 1'b1;
 	wire w_channel_idle_falling = r_channel_idle_prev && !channel_idle;
 	always @(posedge clk)
 		if (!rst_n) begin
@@ -7018,7 +7015,7 @@ module stream_core (
 		sv2v_cast_FDCE5 = inp;
 	endfunction
 	assign fub_rd_axi_aruser = sv2v_cast_FDCE5(fub_rd_axi_arid);
-	assign fub_rd_axi_ruser = 1'sb0;
+	assign fub_rd_axi_ruser = sv2v_cast_FDCE5(fub_rd_axi_arid);
 	axi4_master_rd #(
 		.SKID_DEPTH_AR(SKID_DEPTH_AR),
 		.SKID_DEPTH_R(SKID_DEPTH_R),
@@ -7077,7 +7074,7 @@ module stream_core (
 	assign fub_wr_axi_awqos = 4'h0;
 	assign fub_wr_axi_awregion = 4'h0;
 	assign fub_wr_axi_awuser = sv2v_cast_FDCE5(fub_wr_axi_awid);
-	assign fub_wr_axi_buser = 1'sb0;
+	assign fub_wr_axi_buser = sv2v_cast_FDCE5(fub_wr_axi_awid);
 	axi4_master_wr #(
 		.SKID_DEPTH_AW(SKID_DEPTH_AW),
 		.SKID_DEPTH_W(SKID_DEPTH_W),

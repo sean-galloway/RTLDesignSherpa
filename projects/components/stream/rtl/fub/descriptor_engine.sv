@@ -711,6 +711,12 @@ module descriptor_engine #(
                 r_axi_read_active <= 1'b0;
                 r_descriptor_error <= 1'b0;
             end
+
+            // Address 0 error detection: invalid APB address flags error
+            // Prevents silent failures from uninitialized/null descriptor pointers
+            if (apb_valid && !w_apb_addr_valid) begin
+                r_descriptor_error <= 1'b1;
+            end
         end
     )
 
@@ -798,22 +804,8 @@ module descriptor_engine #(
     )
 
 
-    //=========================================================================
-    // Address 0 Error Detection
-    //=========================================================================
-    // Detect invalid APB address 0 and flag as error
-    // This prevents silent failures from uninitialized/null descriptor pointers
-
-    `ALWAYS_FF_RST(clk, rst_n,
-        if (`RST_ASSERTED(rst_n)) begin
-            // Error flag cleared on reset (handled in main FSM)
-        end else begin
-            // Detect APB request with address 0 - this is an error condition
-            if (apb_valid && !w_apb_addr_valid) begin
-                r_descriptor_error <= 1'b1;
-            end
-        end
-    )
+    // NOTE: Address 0 error detection is handled in the main FSM block above
+    // to avoid multi-driver issues on r_descriptor_error.
 
     //=========================================================================
     // APB In-Progress Flag Management

@@ -1,26 +1,31 @@
 # stream_core -- DEFERRED
 
-## Status: DEFERRED (sv2v builds, yosys flatten fails)
+## Status: DEFERRED (sv2v builds, yosys flatten name collision)
 
-## Blocker: Constant-driven output ports during yosys flatten
+## Fixed (2026-04-17)
 
-The sv2v flattening succeeds (7108 lines of Verilog), but yosys fails during
-the `flatten` pass with:
+1. **descriptor_engine multi-driver on r_descriptor_error** -- FIXED
+   Consolidated APB address-0 error detection into main FSM block.
+
+2. **Constant-driven ruser/buser ports** -- FIXED
+   Changed `stream_core.sv` to assign channel ID to `fub_rd_axi_ruser` and
+   `fub_wr_axi_buser` instead of tying to `'0`.
+
+## Remaining Blocker: yosys flatten name collision
+
+After the above fixes, sv2v and yosys `prep` succeed through hierarchy/proc/opt,
+but the SMT2 backend reports:
 
 ```
-ERROR: Cell port stream_core.u_rd_axi_skid.fub_axi_ruser (axi4_master_rd) is connected to constants: 1'0
+ERROR: Found multiple drivers for \fub_rd_axi_aruser.
 ```
 
 ### Root cause
 
-stream_core instantiates `axi4_master_rd` with `AXI_USER_WIDTH=1`. Internally,
-the AXI skid buffer has a `fub_axi_ruser` output that gets constant-optimized
-to 1'b0 when the user width is minimal. Yosys's `flatten` pass treats this as
-a hard error (output port driving constants).
-
-Additionally, `descriptor_engine` has a multi-driver issue where
-`r_descriptor_error` is written from two separate `always_ff` blocks (lines
-651 and 807 in the RTL).
+After yosys flattens two `axi4_master_rd` instances (desc and rd data paths),
+the internal `fub_axi_aruser` wire names collide. The desc monitor ties
+`.fub_axi_aruser(1'b0)` while the data path ties `.fub_axi_aruser(fub_rd_axi_aruser)`.
+Yosys flatten merges these into one wire with two drivers.
 
 ### Files created
 

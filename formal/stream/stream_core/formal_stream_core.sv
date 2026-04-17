@@ -20,7 +20,7 @@ module formal_stream_core (
     localparam int AW  = 32;         // 32-bit address (not 64)
     localparam int DW  = 64;         // 64-bit data (not 512)
     localparam int IW  = 4;          // 4-bit AXI ID
-    localparam int UW  = 1;          // 1-bit user (log2(2))
+    localparam int UW  = 1;          // 1-bit user (log2(NC))
 
     // =========================================================================
     // Free inputs (driven by formal engine)

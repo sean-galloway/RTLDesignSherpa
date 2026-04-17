@@ -53,10 +53,13 @@ module formal_stream_latency_bridge #(
         if (f_past_valid >= 2) assume (rst_n);
     end
 
-    // Well-behaved environment: no write when not ready, no read when not valid
+    // Well-behaved consumer: don't assert ready when nothing valid
+    // NOTE: We do NOT constrain s_valid — valid/ready protocol allows
+    // the producer to assert valid regardless of ready. The producer
+    // just can't assume data was consumed until ready is also high.
+    // Removing the s_valid constraint makes cp_backpressure reachable.
     always @(posedge clk) begin
         if (rst_n) begin
-            assume (!(s_valid && !s_ready));
             assume (!(m_ready && !m_valid));
         end
     end
