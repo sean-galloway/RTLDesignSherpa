@@ -167,8 +167,10 @@ module axi4_slave_rd_pattern_gen #(
     logic        lfsr_enable;
     logic        lfsr_seed_load;
 
-    // LFSR advances on each read beat
-    assign lfsr_enable = fub_axi_arvalid && fub_axi_arready;
+    // LFSR advances on each R beat handshake (not AR)
+    // Enable must also be high during seed_load for the LFSR to accept the seed
+    wire w_r_beat = fub_axi_rvalid && fub_axi_rready;
+    assign lfsr_enable = w_r_beat || crc_lfsr_reset;
     assign lfsr_seed_load = crc_lfsr_reset;
 
     shifter_lfsr_fibonacci #(
@@ -219,8 +221,8 @@ module axi4_slave_rd_pattern_gen #(
     // CRC resets on crc_lfsr_reset pulse
     assign crc_load_start = crc_lfsr_reset;
 
-    // CRC updates on each read beat (processes 32-bit LFSR output)
-    assign crc_load_from_cascade = lfsr_enable;
+    // CRC updates on each R beat (processes 32-bit LFSR output)
+    assign crc_load_from_cascade = w_r_beat;
 
     // Process all 4 bytes of 32-bit LFSR output (cascade_sel = one-hot for byte 3)
     assign crc_cascade_sel = 4'b1000;
@@ -258,14 +260,14 @@ module axi4_slave_rd_pattern_gen #(
             // CRC valid after first update
             if (crc_lfsr_reset) begin
                 r_crc_valid <= 1'b0;
-            end else if (lfsr_enable) begin
+            end else if (w_r_beat) begin
                 r_crc_valid <= 1'b1;
             end
 
             // Beat counter
             if (crc_lfsr_reset) begin
                 r_beat_count <= '0;
-            end else if (lfsr_enable) begin
+            end else if (w_r_beat) begin
                 r_beat_count <= r_beat_count + 1'b1;
             end
         end
@@ -277,20 +279,67 @@ module axi4_slave_rd_pattern_gen #(
     assign read_beat_count = r_beat_count;
 
     //==========================================================================
-    // FUB Interface - Connect Pattern Data to AXI
+    // FUB Interface - Burst FSM
     //==========================================================================
+    // Accepts AR requests, tracks burst beat count, generates R beats with
+    // LFSR pattern data. Asserts rlast on final beat of each burst.
 
-    // FUB AR channel ready (always ready for single-cycle access)
-    assign fub_axi_arready = 1'b1;
+    typedef enum logic [1:0] {
+        RD_IDLE   = 2'b00,
+        RD_BURST  = 2'b01
+    } rd_state_t;
 
-    // FUB R channel - Pattern data and control
-    assign fub_axi_rid     = fub_axi_arid;      // Pass through ID
-    assign fub_axi_rdata   = pattern_data;      // LFSR pattern (replicated)
-    assign fub_axi_rresp   = 2'b00;             // OKAY response
-    assign fub_axi_rlast   = 1'b1;              // Single-beat response (burst handled by slave_rd)
-    assign fub_axi_ruser   = '0;                // User signal unused
-    assign fub_axi_rvalid  = fub_axi_arvalid;   // Valid when AR valid (single-cycle)
-    assign fub_axi_rready  = 1'b1;              // Always ready (no backpressure)
+    rd_state_t r_rd_state;
+    logic [AXI_ID_WIDTH-1:0]   r_rd_id;
+    logic [AXI_USER_WIDTH-1:0] r_rd_user;
+    logic [7:0]                r_rd_beats_remaining;
+
+    // Accept AR only when idle
+    assign fub_axi_arready = (r_rd_state == RD_IDLE);
+
+    // R channel outputs
+    assign fub_axi_rid   = r_rd_id;
+    assign fub_axi_rdata = pattern_data;
+    assign fub_axi_rresp = 2'b00;  // OKAY
+    assign fub_axi_ruser = r_rd_user;
+    assign fub_axi_rlast = (r_rd_state == RD_BURST) && (r_rd_beats_remaining == 8'd0);
+    assign fub_axi_rvalid = (r_rd_state == RD_BURST);
+
+    // FUB rready is driven by downstream skid buffer — not tied off here
+    // (it's an input from axi4_slave_rd)
+
+    `ALWAYS_FF_RST(aclk, aresetn,
+        if (`RST_ASSERTED(aresetn)) begin
+            r_rd_state <= RD_IDLE;
+            r_rd_id <= '0;
+            r_rd_user <= '0;
+            r_rd_beats_remaining <= '0;
+        end else begin
+            case (r_rd_state)
+                RD_IDLE: begin
+                    if (fub_axi_arvalid && fub_axi_arready) begin
+                        r_rd_state <= RD_BURST;
+                        r_rd_id <= fub_axi_arid;
+                        r_rd_user <= fub_axi_aruser;
+                        r_rd_beats_remaining <= fub_axi_arlen;  // arlen = beats - 1
+                    end
+                end
+
+                RD_BURST: begin
+                    if (fub_axi_rvalid && fub_axi_rready) begin
+                        if (r_rd_beats_remaining == 8'd0) begin
+                            // Last beat consumed — return to idle
+                            r_rd_state <= RD_IDLE;
+                        end else begin
+                            r_rd_beats_remaining <= r_rd_beats_remaining - 8'd1;
+                        end
+                    end
+                end
+
+                default: r_rd_state <= RD_IDLE;
+            endcase
+        end
+    )
 
     //==========================================================================
     // AXI4 Slave Read Protocol Handler
