@@ -95,7 +95,7 @@ rd_pattern_gen_params = generate_params()
     rd_pattern_gen_params,
 )
 def test_axi4_slave_rd_pattern_gen(request, test_type, data_width, id_width,
-                                    user_width):
+                                    user_width, test_level):
     enable_waves = bool(int(os.environ.get('WAVES', '0')))
     module, repo_root_path, tests_dir, log_dir, rtl_dict = get_paths({
         'rtl_misc': 'projects/components/misc/rtl',

@@ -68,16 +68,26 @@ help:
 	@echo "  make run-all-func         Run all tests at FUNC level"
 	@echo "  make run-all-full         Run all tests at FULL level"
 	@echo ""
+	@echo "WITH WAVES (VCD dump):"
+	@echo "  make run-all-wave               Waves (TEST_LEVEL=$(TEST_LEVEL))"
+	@echo "  make run-all-gate-wave          GATE + waves"
+	@echo "  make run-all-func-wave          FUNC + waves"
+	@echo "  make run-all-full-wave          FULL + waves"
+	@echo ""
 	@echo "PARALLEL (48 workers, with retries):"
 	@echo "  make run-all-parallel           All tests in parallel"
 	@echo "  make run-all-gate-parallel      GATE level parallel"
 	@echo "  make run-all-func-parallel      FUNC level parallel"
 	@echo "  make run-all-full-parallel      FULL level parallel"
 	@echo ""
-	@echo "INDIVIDUAL MODULES:"
-	@echo "  make run-dma-addr-gen     Run DMA address generator tests only"
+	@echo "PARALLEL + WAVES:"
+	@echo "  make run-all-parallel-wave      All parallel + waves"
+	@echo "  make run-all-full-parallel-wave FULL parallel + waves"
 	@echo ""
-	@echo "  (Add more individual targets as test files are created)"
+	@echo "INDIVIDUAL MODULES:"
+	@echo "  make run-dma-addr-gen     Run DMA address generator tests"
+	@echo "  make run-rd-pattern-gen   Run AXI4 read pattern generator tests"
+	@echo "  make run-wr-crc-check     Run AXI4 write CRC check tests"
 	@echo ""
 	@echo "COLLECTION (verify tests, don't run):"
 	@echo "  make collect-all          Collect all tests (verify imports)"
@@ -167,26 +177,55 @@ run-dma-addr-gen:
 	@echo "Running DMA address generator tests..."
 	TEST_LEVEL=$(TEST_LEVEL) $(PYTEST) $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE) test_dma_address_gen.py
 
-# Future modules (uncomment as test files are created):
-# .PHONY: run-axi-rom
-# run-axi-rom:
-# 	@echo "Running AXI ROM tests..."
-# 	TEST_LEVEL=$(TEST_LEVEL) $(PYTEST) $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE) test_axi4_slave_rom.py
-#
-# .PHONY: run-axi-pattern-gen
-# run-axi-pattern-gen:
-# 	@echo "Running AXI pattern generator tests..."
-# 	TEST_LEVEL=$(TEST_LEVEL) $(PYTEST) $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE) test_axi4_slave_rd_pattern_gen.py
-#
-# .PHONY: run-axi-crc-check
-# run-axi-crc-check:
-# 	@echo "Running AXI CRC check tests..."
-# 	TEST_LEVEL=$(TEST_LEVEL) $(PYTEST) $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE) test_axi4_slave_wr_crc_check.py
-#
-# .PHONY: run-rom
-# run-rom:
-# 	@echo "Running ROM tests..."
-# 	TEST_LEVEL=$(TEST_LEVEL) $(PYTEST) $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE) test_rom.py
+.PHONY: run-rd-pattern-gen
+run-rd-pattern-gen:
+	@echo "Running AXI4 read pattern generator tests..."
+	TEST_LEVEL=$(TEST_LEVEL) $(PYTEST) $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE) test_axi4_slave_rd_pattern_gen.py
+
+.PHONY: run-wr-crc-check
+run-wr-crc-check:
+	@echo "Running AXI4 write CRC check tests..."
+	TEST_LEVEL=$(TEST_LEVEL) $(PYTEST) $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE) test_axi4_slave_wr_crc_check.py
+
+# ==============================================================================
+# Wave-Enabled Targets (WAVES=1 enables VCD dump)
+# ==============================================================================
+
+.PHONY: run-all-wave
+run-all-wave:
+	WAVES=1 TEST_LEVEL=$(TEST_LEVEL) $(PYTEST) $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE) test_*.py
+
+.PHONY: run-all-gate-wave
+run-all-gate-wave:
+	WAVES=1 TEST_LEVEL=gate $(PYTEST) $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE) test_*.py
+
+.PHONY: run-all-func-wave
+run-all-func-wave:
+	WAVES=1 TEST_LEVEL=func $(PYTEST) $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE) test_*.py
+
+.PHONY: run-all-full-wave
+run-all-full-wave:
+	WAVES=1 TEST_LEVEL=full $(PYTEST) $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE) test_*.py
+
+# ==============================================================================
+# Parallel + Wave Targets
+# ==============================================================================
+
+.PHONY: run-all-parallel-wave
+run-all-parallel-wave:
+	WAVES=1 TEST_LEVEL=$(TEST_LEVEL) $(PYTEST) $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE) $(PYTEST_XDIST) $(PYTEST_RERUNS) test_*.py
+
+.PHONY: run-all-gate-parallel-wave
+run-all-gate-parallel-wave:
+	WAVES=1 TEST_LEVEL=gate $(PYTEST) $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE) $(PYTEST_XDIST) $(PYTEST_RERUNS) test_*.py
+
+.PHONY: run-all-func-parallel-wave
+run-all-func-parallel-wave:
+	WAVES=1 TEST_LEVEL=func $(PYTEST) $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE) $(PYTEST_XDIST) $(PYTEST_RERUNS) test_*.py
+
+.PHONY: run-all-full-parallel-wave
+run-all-full-parallel-wave:
+	WAVES=1 TEST_LEVEL=full $(PYTEST) $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE) $(PYTEST_XDIST) $(PYTEST_RERUNS) test_*.py
 
 # ==============================================================================
 # Collection Targets (verify tests without running)
