@@ -84,10 +84,14 @@ help:
 	@echo "  make run-all-parallel-wave      All parallel + waves"
 	@echo "  make run-all-full-parallel-wave FULL parallel + waves"
 	@echo ""
-	@echo "INDIVIDUAL MODULES:"
-	@echo "  make run-dma-addr-gen     Run DMA address generator tests"
-	@echo "  make run-rd-pattern-gen   Run AXI4 read pattern generator tests"
-	@echo "  make run-wr-crc-check     Run AXI4 write CRC check tests"
+	@echo "INDIVIDUAL MODULES (support -gate/-func/-full/-wave/-parallel suffixes):"
+	@echo "  make run-dma-addr-gen              DMA address generator"
+	@echo "  make run-rd-pattern-gen            AXI4 read pattern generator"
+	@echo "  make run-wr-crc-check              AXI4 write CRC check"
+	@echo ""
+	@echo "  Example combos:"
+	@echo "    make run-rd-pattern-gen-full-wave"
+	@echo "    make run-wr-crc-check-gate-parallel"
 	@echo ""
 	@echo "COLLECTION (verify tests, don't run):"
 	@echo "  make collect-all          Collect all tests (verify imports)"
@@ -169,23 +173,58 @@ run-all-full-parallel:
 # ==============================================================================
 # Individual Test Modules
 # ==============================================================================
-# Add a target for each module as test files are created.
-# Convention: make run-<short-name>
+# Macro generates all target variants for a module:
+#   run-<name>, run-<name>-gate, run-<name>-func, run-<name>-full,
+#   run-<name>-wave, run-<name>-gate-wave, run-<name>-func-wave,
+#   run-<name>-full-wave, run-<name>-parallel, run-<name>-gate-parallel,
+#   run-<name>-func-parallel, run-<name>-full-parallel,
+#   run-<name>-gate-parallel-wave, run-<name>-full-parallel-wave
 
-.PHONY: run-dma-addr-gen
-run-dma-addr-gen:
-	@echo "Running DMA address generator tests..."
-	TEST_LEVEL=$(TEST_LEVEL) $(PYTEST) $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE) test_dma_address_gen.py
+define MODULE_TARGETS
+.PHONY: run-$(1) run-$(1)-gate run-$(1)-func run-$(1)-full
+run-$(1):
+	TEST_LEVEL=$$(TEST_LEVEL) $$(PYTEST) $$(PYTEST_VERBOSE) $$(PYTEST_TBSTYLE) $(2)
+run-$(1)-gate:
+	TEST_LEVEL=gate $$(PYTEST) $$(PYTEST_VERBOSE) $$(PYTEST_TBSTYLE) $(2)
+run-$(1)-func:
+	TEST_LEVEL=func $$(PYTEST) $$(PYTEST_VERBOSE) $$(PYTEST_TBSTYLE) $(2)
+run-$(1)-full:
+	TEST_LEVEL=full $$(PYTEST) $$(PYTEST_VERBOSE) $$(PYTEST_TBSTYLE) $(2)
 
-.PHONY: run-rd-pattern-gen
-run-rd-pattern-gen:
-	@echo "Running AXI4 read pattern generator tests..."
-	TEST_LEVEL=$(TEST_LEVEL) $(PYTEST) $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE) test_axi4_slave_rd_pattern_gen.py
+.PHONY: run-$(1)-wave run-$(1)-gate-wave run-$(1)-func-wave run-$(1)-full-wave
+run-$(1)-wave:
+	WAVES=1 TEST_LEVEL=$$(TEST_LEVEL) $$(PYTEST) $$(PYTEST_VERBOSE) $$(PYTEST_TBSTYLE) $(2)
+run-$(1)-gate-wave:
+	WAVES=1 TEST_LEVEL=gate $$(PYTEST) $$(PYTEST_VERBOSE) $$(PYTEST_TBSTYLE) $(2)
+run-$(1)-func-wave:
+	WAVES=1 TEST_LEVEL=func $$(PYTEST) $$(PYTEST_VERBOSE) $$(PYTEST_TBSTYLE) $(2)
+run-$(1)-full-wave:
+	WAVES=1 TEST_LEVEL=full $$(PYTEST) $$(PYTEST_VERBOSE) $$(PYTEST_TBSTYLE) $(2)
 
-.PHONY: run-wr-crc-check
-run-wr-crc-check:
-	@echo "Running AXI4 write CRC check tests..."
-	TEST_LEVEL=$(TEST_LEVEL) $(PYTEST) $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE) test_axi4_slave_wr_crc_check.py
+.PHONY: run-$(1)-parallel run-$(1)-gate-parallel run-$(1)-func-parallel run-$(1)-full-parallel
+run-$(1)-parallel:
+	TEST_LEVEL=$$(TEST_LEVEL) $$(PYTEST) $$(PYTEST_VERBOSE) $$(PYTEST_TBSTYLE) $$(PYTEST_XDIST) $$(PYTEST_RERUNS) $(2)
+run-$(1)-gate-parallel:
+	TEST_LEVEL=gate $$(PYTEST) $$(PYTEST_VERBOSE) $$(PYTEST_TBSTYLE) $$(PYTEST_XDIST) $$(PYTEST_RERUNS) $(2)
+run-$(1)-func-parallel:
+	TEST_LEVEL=func $$(PYTEST) $$(PYTEST_VERBOSE) $$(PYTEST_TBSTYLE) $$(PYTEST_XDIST) $$(PYTEST_RERUNS) $(2)
+run-$(1)-full-parallel:
+	TEST_LEVEL=full $$(PYTEST) $$(PYTEST_VERBOSE) $$(PYTEST_TBSTYLE) $$(PYTEST_XDIST) $$(PYTEST_RERUNS) $(2)
+
+.PHONY: run-$(1)-parallel-wave run-$(1)-gate-parallel-wave run-$(1)-func-parallel-wave run-$(1)-full-parallel-wave
+run-$(1)-parallel-wave:
+	WAVES=1 TEST_LEVEL=$$(TEST_LEVEL) $$(PYTEST) $$(PYTEST_VERBOSE) $$(PYTEST_TBSTYLE) $$(PYTEST_XDIST) $$(PYTEST_RERUNS) $(2)
+run-$(1)-gate-parallel-wave:
+	WAVES=1 TEST_LEVEL=gate $$(PYTEST) $$(PYTEST_VERBOSE) $$(PYTEST_TBSTYLE) $$(PYTEST_XDIST) $$(PYTEST_RERUNS) $(2)
+run-$(1)-func-parallel-wave:
+	WAVES=1 TEST_LEVEL=func $$(PYTEST) $$(PYTEST_VERBOSE) $$(PYTEST_TBSTYLE) $$(PYTEST_XDIST) $$(PYTEST_RERUNS) $(2)
+run-$(1)-full-parallel-wave:
+	WAVES=1 TEST_LEVEL=full $$(PYTEST) $$(PYTEST_VERBOSE) $$(PYTEST_TBSTYLE) $$(PYTEST_XDIST) $$(PYTEST_RERUNS) $(2)
+endef
+
+$(eval $(call MODULE_TARGETS,dma-addr-gen,test_dma_address_gen.py))
+$(eval $(call MODULE_TARGETS,rd-pattern-gen,test_axi4_slave_rd_pattern_gen.py))
+$(eval $(call MODULE_TARGETS,wr-crc-check,test_axi4_slave_wr_crc_check.py))
 
 # ==============================================================================
 # Wave-Enabled Targets (WAVES=1 enables VCD dump)
