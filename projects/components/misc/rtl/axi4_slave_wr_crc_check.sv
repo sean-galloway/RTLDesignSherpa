@@ -187,6 +187,14 @@ module axi4_slave_wr_crc_check #(
     endgenerate
 
     //==========================================================================
+    // FUB burst state (declared early for CRC gating)
+    //==========================================================================
+    logic r_b_pending;
+    logic [AXI_ID_WIDTH-1:0]   r_wr_id;
+    logic [AXI_USER_WIDTH-1:0] r_wr_user;
+    logic                      r_wr_active;  // Currently accepting W beats
+
+    //==========================================================================
     // CRC-32 Calculator
     //==========================================================================
 
@@ -200,7 +208,7 @@ module axi4_slave_wr_crc_check #(
     assign crc_load_start = crc_reset;
 
     // CRC updates on each accepted write beat
-    assign crc_update = fub_axi_wvalid && fub_axi_wready && (r_wr_state == WR_DATA);
+    assign crc_update = fub_axi_wvalid && fub_axi_wready && r_wr_active;
     assign crc_load_from_cascade = crc_update;
 
     // Process all 4 bytes of 32-bit slice (cascade_sel = one-hot for byte 3)
@@ -263,57 +271,42 @@ module axi4_slave_wr_crc_check #(
     // Captures AW transaction info, accepts W beats, generates B response
     // after wlast. Properly holds BID from the captured AW handshake.
 
-    typedef enum logic [1:0] {
-        WR_IDLE   = 2'b00,
-        WR_DATA   = 2'b01,
-        WR_RESP   = 2'b10
-    } wr_state_t;
+    // Accept AW when not active (no burst in progress)
+    assign fub_axi_awready = !r_wr_active;
 
-    wr_state_t r_wr_state;
-    logic [AXI_ID_WIDTH-1:0]   r_wr_id;
-    logic [AXI_USER_WIDTH-1:0] r_wr_user;
+    // Accept W data when active
+    assign fub_axi_wready = r_wr_active;
 
-    // Accept AW only when idle
-    assign fub_axi_awready = (r_wr_state == WR_IDLE);
-
-    // Accept W data when in DATA state
-    assign fub_axi_wready = (r_wr_state == WR_DATA);
-
-    // B response in RESP state
+    // B response when pending
     assign fub_axi_bid    = r_wr_id;
     assign fub_axi_bresp  = 2'b00;  // OKAY
     assign fub_axi_buser  = r_wr_user;
-    assign fub_axi_bvalid = (r_wr_state == WR_RESP);
+    assign fub_axi_bvalid = r_b_pending;
 
     `ALWAYS_FF_RST(aclk, aresetn,
         if (`RST_ASSERTED(aresetn)) begin
-            r_wr_state <= WR_IDLE;
+            r_wr_active <= 1'b0;
+            r_b_pending <= 1'b0;
             r_wr_id <= '0;
             r_wr_user <= '0;
         end else begin
-            case (r_wr_state)
-                WR_IDLE: begin
-                    if (fub_axi_awvalid && fub_axi_awready) begin
-                        r_wr_state <= WR_DATA;
-                        r_wr_id <= fub_axi_awid;
-                        r_wr_user <= fub_axi_awuser;
-                    end
-                end
+            // AW acceptance — start a new burst
+            if (fub_axi_awvalid && fub_axi_awready) begin
+                r_wr_active <= 1'b1;
+                r_wr_id <= fub_axi_awid;
+                r_wr_user <= fub_axi_awuser;
+            end
 
-                WR_DATA: begin
-                    if (fub_axi_wvalid && fub_axi_wready && fub_axi_wlast) begin
-                        r_wr_state <= WR_RESP;
-                    end
-                end
+            // W last beat — end burst, assert B
+            if (r_wr_active && fub_axi_wvalid && fub_axi_wready && fub_axi_wlast) begin
+                r_wr_active <= 1'b0;
+                r_b_pending <= 1'b1;
+            end
 
-                WR_RESP: begin
-                    if (fub_axi_bvalid && fub_axi_bready) begin
-                        r_wr_state <= WR_IDLE;
-                    end
-                end
-
-                default: r_wr_state <= WR_IDLE;
-            endcase
+            // B consumed by skid buffer
+            if (r_b_pending && fub_axi_bready) begin
+                r_b_pending <= 1'b0;
+            end
         end
     )
 
