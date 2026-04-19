@@ -210,7 +210,7 @@ def test_cdc_counter_display():
         os.path.join(common_dir, "hex_to_7seg.sv"),
 
         # AMBA shared modules (CDC handshake)
-        os.path.join(amba_shared_dir, "cdc_handshake.sv"),
+        os.path.join(amba_shared_dir, "cdc_4_phase_handshake.sv"),
     ]
 
     # Module and simulation parameters

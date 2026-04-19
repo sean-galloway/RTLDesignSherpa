@@ -4,8 +4,8 @@
 # RTL Design Sherpa - Industry-Standard RTL Design and Verification
 # https://github.com/sean-galloway/RTLDesignSherpa
 #
-# Module: test_cdc_handshake
-# Purpose: CDC Handshake Main Test - test_cdc_handshake.py
+# Module: test_cdc_2_phase_handshake
+# Purpose: CDC 2-Phase Handshake Main Test - test_cdc_2_phase_handshake.py
 #
 # Documentation: PRD.md
 # Subsystem: tests
@@ -14,10 +14,10 @@
 # Created: 2025-10-18
 
 """
-CDC Handshake Main Test - test_cdc_handshake.py
+CDC 2-Phase Handshake Main Test - test_cdc_2_phase_handshake.py
 
 Main test file that should be placed in the tests directory.
-This integrates the CDC handshake testbench with sophisticated features.
+This integrates the CDC 2-phase handshake testbench with sophisticated features.
 """
 
 import os
@@ -26,16 +26,16 @@ from itertools import product
 import pytest
 import cocotb
 from cocotb_test.simulator import run
-from TBClasses.amba.cdc_handshake import CDCHandshakeTB
+from TBClasses.amba.cdc_2_phase_handshake import CDC2PhaseHandshakeTB
 from TBClasses.shared.utilities import get_paths, create_view_cmd
 
 
 @cocotb.test(timeout_time=30, timeout_unit="ms")
-async def cdc_handshake_test(dut):
-    """CDC handshake test with sophisticated patterns and analysis"""
+async def cdc_2_phase_handshake_test(dut):
+    """CDC 2-phase handshake test with sophisticated patterns and analysis"""
 
 
-    tb = CDCHandshakeTB(dut)
+    tb = CDC2PhaseHandshakeTB(dut)
 
     # Use seed for reproducibility
     seed = int(os.environ.get('SEED', '42'))
@@ -192,9 +192,9 @@ def generate_cdc_test_params():
 
 
 @pytest.mark.parametrize("params", generate_cdc_test_params())
-def test_cdc_handshake(request, params):
+def test_cdc_2_phase_handshake(request, params):
     """
-    CDC handshake test with comprehensive validation.
+    CDC 2-phase handshake test with comprehensive validation.
 
     Features:
     - Test Levels: basic (2-3min), medium (5-8min), full (15-25min)
@@ -215,7 +215,7 @@ def test_cdc_handshake(request, params):
         'rtl_amba_shared':'rtl/amba/shared',
      'rtl_amba_includes': 'rtl/amba/includes'})
 
-    dut_name = "cdc_handshake"
+    dut_name = "cdc_2_phase_handshake"
     toplevel = dut_name
 
     verilog_sources = [
@@ -237,7 +237,7 @@ def test_cdc_handshake(request, params):
         ratio_desc = "same"
 
     # Create descriptive test name
-    test_name_plus_params = (f"test_{worker_id}_cdc_handshake_"
+    test_name_plus_params = (f"test_{worker_id}_cdc_2_phase_handshake_"
                             f"src{src_period}ns_dst{dst_period}ns_"
                             f"{ratio_desc}_{test_level}")
 
@@ -323,7 +323,7 @@ def test_cdc_handshake(request, params):
 
     # test execution with reporting
     print(f"\n{'='*80}")
-    print(f"CDC Handshake Test: {test_level.upper()}")
+    print(f"CDC 2-Phase Handshake Test: {test_level.upper()}")
     print(f"Clock Configuration: src={src_period}ns ({1000/src_period:.1f}MHz), dst={dst_period}ns ({1000/dst_period:.1f}MHz)")
     print(f"CDC Ratio: {ratio:.3f} ({extra_env['CDC_TYPE']})")
     print(f"Expected Duration: {timeout_ms/1000:.1f}s")

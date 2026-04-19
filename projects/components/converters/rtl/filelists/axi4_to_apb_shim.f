@@ -9,7 +9,8 @@
 $REPO_ROOT/rtl/amba/includes/reset_defs.svh
 
 # Dependencies - CDC and synchronization
-$REPO_ROOT/rtl/amba/shared/cdc_handshake.sv
+$REPO_ROOT/rtl/amba/shared/cdc_2_phase_handshake.sv
+$REPO_ROOT/rtl/amba/shared/cdc_4_phase_handshake.sv
 
 # Dependencies - GAXI infrastructure
 $REPO_ROOT/rtl/amba/gaxi/gaxi_skid_buffer.sv

@@ -4,8 +4,8 @@
 # RTL Design Sherpa - Industry-Standard RTL Design and Verification
 # https://github.com/sean-galloway/RTLDesignSherpa
 #
-# Module: CDCHandshakeTB
-# Purpose: CDC Handshake Testbench with FlexConfigGen Sophistication
+# Module: CDC4PhaseHandshakeTB
+# Purpose: CDC 4-Phase Handshake Testbench with FlexConfigGen Sophistication
 #
 # Documentation: cocotb-framework PyPI package
 # Subsystem: framework
@@ -13,10 +13,10 @@
 # Author: sean galloway
 # Created: 2025-10-18
 
-"""CDC Handshake Testbench with FlexConfigGen Sophistication
+"""CDC 4-Phase Handshake Testbench with FlexConfigGen Sophistication
 
-File: cdc_handshake.py
-Location: CocoTBFramework/tbclasses/gaxi/cdc_handshake.py
+File: cdc_4_phase_handshake.py
+Location: bin/TBClasses/amba/cdc_4_phase_handshake.py
 
 CDC Handshake Testbench that combines:
 - CDC-focused architecture (multiple clock domains, APB-like fields, memory integration)
@@ -42,7 +42,7 @@ from CocoTBFramework.components.gaxi.gaxi_factories import (
 from CocoTBFramework.components.shared.flex_config_gen import FlexConfigGen
 
 
-class CDCHandshakeTB(TBBase):
+class CDC4PhaseHandshakeTB(TBBase):
     """
     CDC Handshake Testbench with sophisticated randomization and test patterns.
 

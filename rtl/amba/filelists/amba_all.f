@@ -44,7 +44,8 @@ $REPO_ROOT/rtl/amba/shared/axi_monitor_timeout.sv
 $REPO_ROOT/rtl/amba/shared/axi_monitor_timer.sv
 $REPO_ROOT/rtl/amba/shared/axi_monitor_trans_mgr.sv
 $REPO_ROOT/rtl/amba/shared/axi_split_combi.sv
-$REPO_ROOT/rtl/amba/shared/cdc_handshake.sv
+$REPO_ROOT/rtl/amba/shared/cdc_2_phase_handshake.sv
+$REPO_ROOT/rtl/amba/shared/cdc_4_phase_handshake.sv
 $REPO_ROOT/rtl/amba/shared/monbus_arbiter.sv
 
 # =============================================================================

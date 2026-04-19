@@ -1351,7 +1351,8 @@ def test_apb_slave_cdc_robust(request, addr_width, data_width, depth):
 
     verilog_sources = [
         os.path.join(rtl_dict['rtl_gaxi'],         "gaxi_skid_buffer.sv"),
-        os.path.join(rtl_dict['rtl_amba_shared'],  "cdc_handshake.sv"),
+        os.path.join(rtl_dict['rtl_amba_shared'],  "cdc_2_phase_handshake.sv"),
+        os.path.join(rtl_dict['rtl_amba_shared'],  "cdc_4_phase_handshake.sv"),
         os.path.join(rtl_dict['rtl_apb'],          "apb_slave.sv"),
         os.path.join(rtl_dict['rtl_apb'],         f"{dut_name}.sv")
     ]
@@ -1466,7 +1467,8 @@ def generate_apb_slave_cdc_wavedrom_params():
 
     verilog_sources = [
         os.path.join(rtl_dict['rtl_gaxi'],         "gaxi_skid_buffer.sv"),
-        os.path.join(rtl_dict['rtl_amba_shared'],  "cdc_handshake.sv"),
+        os.path.join(rtl_dict['rtl_amba_shared'],  "cdc_2_phase_handshake.sv"),
+        os.path.join(rtl_dict['rtl_amba_shared'],  "cdc_4_phase_handshake.sv"),
         os.path.join(rtl_dict['rtl_apb'],          "apb_slave.sv"),
         os.path.join(rtl_dict['rtl_apb'],         f"{dut_name}.sv")
     ]
@@ -1595,7 +1597,8 @@ def test_apb_slave_cdc_wavedrom(request, addr_width, data_width, rsp_depth, cmd_
 
     verilog_sources = [
         os.path.join(rtl_dict['rtl_gaxi'],         "gaxi_skid_buffer.sv"),
-        os.path.join(rtl_dict['rtl_amba_shared'],  "cdc_handshake.sv"),
+        os.path.join(rtl_dict['rtl_amba_shared'],  "cdc_2_phase_handshake.sv"),
+        os.path.join(rtl_dict['rtl_amba_shared'],  "cdc_4_phase_handshake.sv"),
         os.path.join(rtl_dict['rtl_apb'],          "apb_slave.sv"),
         os.path.join(rtl_dict['rtl_apb'],         f"{dut_name}.sv")
     ]

@@ -38,7 +38,8 @@ $STREAM_ROOT/regs/generated/rtl/stream_regs.sv
 # GAXI modules for CDC
 $REPO_ROOT/rtl/amba/gaxi/gaxi_skid_buffer.sv
 $REPO_ROOT/rtl/amba/gaxi/gaxi_fifo_sync.sv
-$REPO_ROOT/rtl/amba/shared/cdc_handshake.sv
+$REPO_ROOT/rtl/amba/shared/cdc_2_phase_handshake.sv
+$REPO_ROOT/rtl/amba/shared/cdc_4_phase_handshake.sv
 
 # APB slave modules (conditional CDC based on CDC_ENABLE parameter)
 $REPO_ROOT/rtl/amba/apb/apb_slave_cdc.sv  # With CDC (pclk ≠ aclk)

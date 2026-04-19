@@ -1176,7 +1176,8 @@ def test_apb_slave_cdc_cg_robust(request, addr_width, data_width, depth, cg_idle
         os.path.join(rtl_dict['rtl_cmn'],          "icg.sv"),
         os.path.join(rtl_dict['rtl_cmn'],          "clock_gate_ctrl.sv"),
         os.path.join(rtl_dict['rtl_gaxi'],         "gaxi_skid_buffer.sv"),
-        os.path.join(rtl_dict['rtl_amba_shared'],  "cdc_handshake.sv"),
+        os.path.join(rtl_dict['rtl_amba_shared'],  "cdc_2_phase_handshake.sv"),
+        os.path.join(rtl_dict['rtl_amba_shared'],  "cdc_4_phase_handshake.sv"),
         os.path.join(rtl_dict['rtl_amba_shared'],  "amba_clock_gate_ctrl.sv"),
         os.path.join(rtl_dict['rtl_apb'],          "apb_slave.sv"),
         os.path.join(rtl_dict['rtl_apb'],         f"{dut_name}.sv")
@@ -1291,7 +1292,8 @@ def test_apb_slave_cdc_cg_robust(request, addr_width, data_width, depth, cg_idle
         os.path.join(rtl_dict['rtl_cmn'],          "icg.sv"),
         os.path.join(rtl_dict['rtl_cmn'],          "clock_gate_ctrl.sv"),
         os.path.join(rtl_dict['rtl_gaxi'],         "gaxi_skid_buffer.sv"),
-        os.path.join(rtl_dict['rtl_amba_shared'],  "cdc_handshake.sv"),
+        os.path.join(rtl_dict['rtl_amba_shared'],  "cdc_2_phase_handshake.sv"),
+        os.path.join(rtl_dict['rtl_amba_shared'],  "cdc_4_phase_handshake.sv"),
         os.path.join(rtl_dict['rtl_amba_shared'],  "amba_clock_gate_ctrl.sv"),
         os.path.join(rtl_dict['rtl_apb'],          "apb_slave.sv"),
         os.path.join(rtl_dict['rtl_apb'],         f"{dut_name}.sv")

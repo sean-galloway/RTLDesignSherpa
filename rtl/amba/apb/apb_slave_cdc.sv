@@ -21,6 +21,8 @@ module apb_slave_cdc #(
     parameter int STRB_WIDTH  = DATA_WIDTH / 8,
     parameter int PROT_WIDTH  = 3,
     parameter int DEPTH       = 2,
+    // CDC handshake variant: 1 = 2-phase (toggle, faster), 0 = 4-phase (level, classic)
+    parameter bit USE_2_PHASE_CDC = 1'b1,
     // Short Parameters
     parameter int DW  = DATA_WIDTH,
     parameter int AW  = ADDR_WIDTH,
@@ -117,37 +119,80 @@ module apb_slave_cdc #(
         .rsp_pslverr  (w_rsp_pslverr)
     );
 
-    cdc_handshake #(
-        .DATA_WIDTH      (CPW)
-    ) u_cmd_cdc_handshake (
-        .clk_src         (pclk),
-        .rst_src_n       (presetn),
-        .src_valid       (w_cmd_valid),
-        .src_ready       (w_cmd_ready),
-        .src_data        ({w_cmd_pwrite, w_cmd_paddr, w_cmd_pwdata, w_cmd_pstrb, w_cmd_pprot}),
+    generate
+    if (USE_2_PHASE_CDC) begin : g_cmd_2phase
+        cdc_2_phase_handshake #(
+            .DATA_WIDTH      (CPW)
+        ) u_cmd_cdc_handshake (
+            .clk_src         (pclk),
+            .rst_src_n       (presetn),
+            .src_valid       (w_cmd_valid),
+            .src_ready       (w_cmd_ready),
+            .src_data        ({w_cmd_pwrite, w_cmd_paddr, w_cmd_pwdata, w_cmd_pstrb, w_cmd_pprot}),
+            .src_timeout     (),
 
-        .clk_dst         (aclk),
-        .rst_dst_n       (aresetn),
-        .dst_valid       (cmd_valid),
-        .dst_ready       (cmd_ready),
-        .dst_data        (
-            {cmd_pwrite, cmd_paddr, cmd_pwdata, cmd_pstrb, cmd_pprot})
-    );
+            .clk_dst         (aclk),
+            .rst_dst_n       (aresetn),
+            .dst_valid       (cmd_valid),
+            .dst_ready       (cmd_ready),
+            .dst_data        ({cmd_pwrite, cmd_paddr, cmd_pwdata, cmd_pstrb, cmd_pprot})
+        );
+    end else begin : g_cmd_4phase
+        cdc_4_phase_handshake #(
+            .DATA_WIDTH      (CPW)
+        ) u_cmd_cdc_handshake (
+            .clk_src         (pclk),
+            .rst_src_n       (presetn),
+            .src_valid       (w_cmd_valid),
+            .src_ready       (w_cmd_ready),
+            .src_data        ({w_cmd_pwrite, w_cmd_paddr, w_cmd_pwdata, w_cmd_pstrb, w_cmd_pprot}),
+            .src_timeout     (),
 
-    cdc_handshake #(
-        .DATA_WIDTH      (RPW)
-    ) u_rsp_cdc_handshake (
-        .clk_src         (aclk),
-        .rst_src_n       (aresetn),
-        .src_valid       (rsp_valid),
-        .src_ready       (rsp_ready),
-        .src_data        ({rsp_pslverr, rsp_prdata}),
+            .clk_dst         (aclk),
+            .rst_dst_n       (aresetn),
+            .dst_valid       (cmd_valid),
+            .dst_ready       (cmd_ready),
+            .dst_data        ({cmd_pwrite, cmd_paddr, cmd_pwdata, cmd_pstrb, cmd_pprot})
+        );
+    end
+    endgenerate
 
-        .clk_dst         (pclk),
-        .rst_dst_n       (presetn),
-        .dst_valid       (w_rsp_valid),
-        .dst_ready       (w_rsp_ready),
-        .dst_data        ({w_rsp_pslverr, w_rsp_prdata})
-    );
+    generate
+    if (USE_2_PHASE_CDC) begin : g_rsp_2phase
+        cdc_2_phase_handshake #(
+            .DATA_WIDTH      (RPW)
+        ) u_rsp_cdc_handshake (
+            .clk_src         (aclk),
+            .rst_src_n       (aresetn),
+            .src_valid       (rsp_valid),
+            .src_ready       (rsp_ready),
+            .src_data        ({rsp_pslverr, rsp_prdata}),
+            .src_timeout     (),
+
+            .clk_dst         (pclk),
+            .rst_dst_n       (presetn),
+            .dst_valid       (w_rsp_valid),
+            .dst_ready       (w_rsp_ready),
+            .dst_data        ({w_rsp_pslverr, w_rsp_prdata})
+        );
+    end else begin : g_rsp_4phase
+        cdc_4_phase_handshake #(
+            .DATA_WIDTH      (RPW)
+        ) u_rsp_cdc_handshake (
+            .clk_src         (aclk),
+            .rst_src_n       (aresetn),
+            .src_valid       (rsp_valid),
+            .src_ready       (rsp_ready),
+            .src_data        ({rsp_pslverr, rsp_prdata}),
+            .src_timeout     (),
+
+            .clk_dst         (pclk),
+            .rst_dst_n       (presetn),
+            .dst_valid       (w_rsp_valid),
+            .dst_ready       (w_rsp_ready),
+            .dst_data        ({w_rsp_pslverr, w_rsp_prdata})
+        );
+    end
+    endgenerate
 
 endmodule : apb_slave_cdc

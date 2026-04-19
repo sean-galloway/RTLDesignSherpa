@@ -32,6 +32,8 @@ module axi4_to_apb_shim #(
     parameter int APB_DATA_WIDTH    = 32,
     parameter int AXI_WSTRB_WIDTH   = AXI_DATA_WIDTH / 8,
     parameter int APB_WSTRB_WIDTH   = APB_DATA_WIDTH / 8,
+    // CDC handshake variant: 1 = 2-phase (toggle, faster), 0 = 4-phase (level, classic)
+    parameter bit USE_2_PHASE_CDC   = 1'b1,
     // Declare parameters for short-hand notation
     parameter int AW                = AXI_ADDR_WIDTH,
     parameter int DW                = AXI_DATA_WIDTH,
@@ -289,37 +291,81 @@ module axi4_to_apb_shim #(
         .r_rsp_data           (r_rsp_data)
     );
 
-    cdc_handshake #(
-        .DATA_WIDTH(APBCmdWidth)
-    ) u_cmd_cdc_handshake (
-        .clk_src         (aclk),
-        .rst_src_n       (aresetn),
-        .src_valid       (w_cmd_valid),
-        .src_ready       (r_cmd_ready),
-        .src_data        (r_cmd_data),
+    generate
+    if (USE_2_PHASE_CDC) begin : g_cmd_2phase
+        cdc_2_phase_handshake #(
+            .DATA_WIDTH(APBCmdWidth)
+        ) u_cmd_cdc_handshake (
+            .clk_src         (aclk),
+            .rst_src_n       (aresetn),
+            .src_valid       (w_cmd_valid),
+            .src_ready       (r_cmd_ready),
+            .src_data        (r_cmd_data),
+            .src_timeout     (),
 
-        .clk_dst         (pclk),
-        .rst_dst_n       (presetn),
-        .dst_valid       (w_cmd_valid_apb),
-        .dst_ready       (r_cmd_ready_apb),
-        .dst_data        (r_cmd_data_apb)
-    );
+            .clk_dst         (pclk),
+            .rst_dst_n       (presetn),
+            .dst_valid       (w_cmd_valid_apb),
+            .dst_ready       (r_cmd_ready_apb),
+            .dst_data        (r_cmd_data_apb)
+        );
+    end else begin : g_cmd_4phase
+        cdc_4_phase_handshake #(
+            .DATA_WIDTH(APBCmdWidth)
+        ) u_cmd_cdc_handshake (
+            .clk_src         (aclk),
+            .rst_src_n       (aresetn),
+            .src_valid       (w_cmd_valid),
+            .src_ready       (r_cmd_ready),
+            .src_data        (r_cmd_data),
+            .src_timeout     (),
 
-    cdc_handshake #(
-        .DATA_WIDTH(APBRspWidth)
-    ) u_rsp_cdc_handshake (
-        .clk_src         (pclk),
-        .rst_src_n       (presetn),
-        .src_valid       (r_rsp_valid_apb),
-        .src_ready       (w_rsp_ready_apb),
-        .src_data        (r_rsp_data_apb),
+            .clk_dst         (pclk),
+            .rst_dst_n       (presetn),
+            .dst_valid       (w_cmd_valid_apb),
+            .dst_ready       (r_cmd_ready_apb),
+            .dst_data        (r_cmd_data_apb)
+        );
+    end
+    endgenerate
 
-        .clk_dst         (aclk),
-        .rst_dst_n       (aresetn),
-        .dst_valid       (r_rsp_valid),
-        .dst_ready       (w_rsp_ready),
-        .dst_data        (r_rsp_data)
-    );
+    generate
+    if (USE_2_PHASE_CDC) begin : g_rsp_2phase
+        cdc_2_phase_handshake #(
+            .DATA_WIDTH(APBRspWidth)
+        ) u_rsp_cdc_handshake (
+            .clk_src         (pclk),
+            .rst_src_n       (presetn),
+            .src_valid       (r_rsp_valid_apb),
+            .src_ready       (w_rsp_ready_apb),
+            .src_data        (r_rsp_data_apb),
+            .src_timeout     (),
+
+            .clk_dst         (aclk),
+            .rst_dst_n       (aresetn),
+            .dst_valid       (r_rsp_valid),
+            .dst_ready       (w_rsp_ready),
+            .dst_data        (r_rsp_data)
+        );
+    end else begin : g_rsp_4phase
+        cdc_4_phase_handshake #(
+            .DATA_WIDTH(APBRspWidth)
+        ) u_rsp_cdc_handshake (
+            .clk_src         (pclk),
+            .rst_src_n       (presetn),
+            .src_valid       (r_rsp_valid_apb),
+            .src_ready       (w_rsp_ready_apb),
+            .src_data        (r_rsp_data_apb),
+            .src_timeout     (),
+
+            .clk_dst         (aclk),
+            .rst_dst_n       (aresetn),
+            .dst_valid       (r_rsp_valid),
+            .dst_ready       (w_rsp_ready),
+            .dst_data        (r_rsp_data)
+        );
+    end
+    endgenerate
 
 
     // Instantiate the APB Master interface

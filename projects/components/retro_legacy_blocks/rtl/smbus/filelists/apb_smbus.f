@@ -25,7 +25,8 @@ $REPO_ROOT/rtl/common/counter_bin.sv
 
 # Low-level dependencies (for APB slave modules)
 $REPO_ROOT/rtl/amba/gaxi/gaxi_skid_buffer.sv
-$REPO_ROOT/rtl/amba/shared/cdc_handshake.sv
+$REPO_ROOT/rtl/amba/shared/cdc_2_phase_handshake.sv
+$REPO_ROOT/rtl/amba/shared/cdc_4_phase_handshake.sv
 
 # APB slave infrastructure
 $REPO_ROOT/rtl/amba/apb/apb_slave.sv

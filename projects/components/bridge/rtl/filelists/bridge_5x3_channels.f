@@ -45,7 +45,8 @@ $REPO_ROOT/rtl/amba/axi4/stubs/axi4_slave_stub.sv
 
 # APB modules
 $REPO_ROOT/rtl/amba/apb/apb_master.sv
-$REPO_ROOT/rtl/amba/shared/cdc_handshake.sv
+$REPO_ROOT/rtl/amba/shared/cdc_2_phase_handshake.sv
+$REPO_ROOT/rtl/amba/shared/cdc_4_phase_handshake.sv
 $REPO_ROOT/projects/components/converters/rtl/axi4_to_apb_convert.sv
 $REPO_ROOT/rtl/amba/apb/apb_master_stub.sv
 

@@ -10,7 +10,8 @@ DEPS := $(REPO_ROOT)/rtl/common/counter_bin.sv \
         $(REPO_ROOT)/rtl/amba/gaxi/gaxi_fifo_sync.sv \
         $(REPO_ROOT)/rtl/amba/gaxi/gaxi_skid_buffer.sv \
         $(REPO_ROOT)/rtl/amba/shared/axi_gen_addr.sv \
-        $(REPO_ROOT)/rtl/amba/shared/cdc_handshake.sv \
+        $(REPO_ROOT)/rtl/amba/shared/cdc_2_phase_handshake.sv \
+        $(REPO_ROOT)/rtl/amba/shared/cdc_4_phase_handshake.sv \
         $(REPO_ROOT)/rtl/amba/apb/apb_master.sv \
         $(REPO_ROOT)/rtl/amba/apb/apb_master_stub.sv \
         $(REPO_ROOT)/rtl/amba/axi4/stubs/axi4_slave_rd_stub.sv \

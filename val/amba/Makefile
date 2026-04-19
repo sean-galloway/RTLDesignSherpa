@@ -183,8 +183,10 @@ help:
 	@echo "  make run-axi4-mon-all-func-parallel     FUNC parallel (~35 min)"
 	@echo "  make run-axi4-mon-all-full-parallel     FULL parallel (~3 hr)"
 	@echo ""
-	@echo "  make run-cdc              Run CDC (Clock Domain Crossing) tests"
-	@echo "  make run-cdc-parallel     Run CDC tests in parallel"
+	@echo "  make run-cdc                    Run CDC (Clock Domain Crossing) tests"
+	@echo "  make run-cdc-parallel           Run CDC tests in parallel"
+	@echo "  make run-cdc-waves              Run CDC tests with waveform dumping"
+	@echo "  make run-cdc-parallel-waves     Run CDC tests in parallel with waves"
 	@echo "  make run-utils            Run utility tests (clock gate, PeakRDL)"
 	@echo "  make run-utils-parallel   Run utility tests in parallel"
 	@echo ""
@@ -1241,6 +1243,16 @@ run-cdc:
 run-cdc-parallel:
 	@echo "Running CDC (Clock Domain Crossing) tests (Parallel)..."
 	$(PYTEST) $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE) $(PYTEST_XDIST) test_cdc_*.py test_*_cdc*.py
+
+.PHONY: run-cdc-waves
+run-cdc-waves:
+	@echo "Running CDC (Clock Domain Crossing) tests with WAVES..."
+	WAVES=1 $(PYTEST) $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE) test_cdc_*.py test_*_cdc*.py
+
+.PHONY: run-cdc-parallel-waves
+run-cdc-parallel-waves:
+	@echo "Running CDC (Clock Domain Crossing) tests (Parallel) with WAVES..."
+	WAVES=1 $(PYTEST) $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE) $(PYTEST_XDIST) test_cdc_*.py test_*_cdc*.py
 
 .PHONY: run-utils
 run-utils:

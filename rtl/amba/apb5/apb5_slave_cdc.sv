@@ -35,6 +35,8 @@ module apb5_slave_cdc #(
     parameter int BUSER_WIDTH     = 4,
     parameter int DEPTH           = 2,
     parameter bit ENABLE_PARITY   = 0,
+    // CDC handshake variant: 1 = 2-phase (toggle, faster), 0 = 4-phase (level, classic)
+    parameter bit USE_2_PHASE_CDC = 1'b1,
     // Short Parameters
     parameter int DW  = DATA_WIDTH,
     parameter int AW  = ADDR_WIDTH,
@@ -208,39 +210,85 @@ module apb5_slave_cdc #(
     );
 
     // Command CDC handshake (pclk -> aclk)
-    cdc_handshake #(
-        .DATA_WIDTH      (CPW)
-    ) u_cmd_cdc_handshake (
-        .clk_src         (pclk),
-        .rst_src_n       (presetn),
-        .src_valid       (w_cmd_valid),
-        .src_ready       (w_cmd_ready),
-        .src_data        ({w_cmd_pwrite, w_cmd_pprot, w_cmd_pstrb, w_cmd_paddr, w_cmd_pwdata,
-                          w_cmd_pauser, w_cmd_pwuser}),
+    generate
+    if (USE_2_PHASE_CDC) begin : g_cmd_2phase
+        cdc_2_phase_handshake #(
+            .DATA_WIDTH      (CPW)
+        ) u_cmd_cdc_handshake (
+            .clk_src         (pclk),
+            .rst_src_n       (presetn),
+            .src_valid       (w_cmd_valid),
+            .src_ready       (w_cmd_ready),
+            .src_data        ({w_cmd_pwrite, w_cmd_pprot, w_cmd_pstrb, w_cmd_paddr, w_cmd_pwdata,
+                              w_cmd_pauser, w_cmd_pwuser}),
+            .src_timeout     (),
 
-        .clk_dst         (aclk),
-        .rst_dst_n       (aresetn),
-        .dst_valid       (cmd_valid),
-        .dst_ready       (cmd_ready),
-        .dst_data        ({cmd_pwrite, cmd_pprot, cmd_pstrb, cmd_paddr, cmd_pwdata,
-                          cmd_pauser, cmd_pwuser})
-    );
+            .clk_dst         (aclk),
+            .rst_dst_n       (aresetn),
+            .dst_valid       (cmd_valid),
+            .dst_ready       (cmd_ready),
+            .dst_data        ({cmd_pwrite, cmd_pprot, cmd_pstrb, cmd_paddr, cmd_pwdata,
+                              cmd_pauser, cmd_pwuser})
+        );
+    end else begin : g_cmd_4phase
+        cdc_4_phase_handshake #(
+            .DATA_WIDTH      (CPW)
+        ) u_cmd_cdc_handshake (
+            .clk_src         (pclk),
+            .rst_src_n       (presetn),
+            .src_valid       (w_cmd_valid),
+            .src_ready       (w_cmd_ready),
+            .src_data        ({w_cmd_pwrite, w_cmd_pprot, w_cmd_pstrb, w_cmd_paddr, w_cmd_pwdata,
+                              w_cmd_pauser, w_cmd_pwuser}),
+            .src_timeout     (),
+
+            .clk_dst         (aclk),
+            .rst_dst_n       (aresetn),
+            .dst_valid       (cmd_valid),
+            .dst_ready       (cmd_ready),
+            .dst_data        ({cmd_pwrite, cmd_pprot, cmd_pstrb, cmd_paddr, cmd_pwdata,
+                              cmd_pauser, cmd_pwuser})
+        );
+    end
+    endgenerate
 
     // Response CDC handshake (aclk -> pclk)
-    cdc_handshake #(
-        .DATA_WIDTH      (RPW)
-    ) u_rsp_cdc_handshake (
-        .clk_src         (aclk),
-        .rst_src_n       (aresetn),
-        .src_valid       (rsp_valid),
-        .src_ready       (rsp_ready),
-        .src_data        ({rsp_pslverr, rsp_prdata, rsp_pruser, rsp_pbuser}),
+    generate
+    if (USE_2_PHASE_CDC) begin : g_rsp_2phase
+        cdc_2_phase_handshake #(
+            .DATA_WIDTH      (RPW)
+        ) u_rsp_cdc_handshake (
+            .clk_src         (aclk),
+            .rst_src_n       (aresetn),
+            .src_valid       (rsp_valid),
+            .src_ready       (rsp_ready),
+            .src_data        ({rsp_pslverr, rsp_prdata, rsp_pruser, rsp_pbuser}),
+            .src_timeout     (),
 
-        .clk_dst         (pclk),
-        .rst_dst_n       (presetn),
-        .dst_valid       (w_rsp_valid),
-        .dst_ready       (w_rsp_ready),
-        .dst_data        ({w_rsp_pslverr, w_rsp_prdata, w_rsp_pruser, w_rsp_pbuser})
-    );
+            .clk_dst         (pclk),
+            .rst_dst_n       (presetn),
+            .dst_valid       (w_rsp_valid),
+            .dst_ready       (w_rsp_ready),
+            .dst_data        ({w_rsp_pslverr, w_rsp_prdata, w_rsp_pruser, w_rsp_pbuser})
+        );
+    end else begin : g_rsp_4phase
+        cdc_4_phase_handshake #(
+            .DATA_WIDTH      (RPW)
+        ) u_rsp_cdc_handshake (
+            .clk_src         (aclk),
+            .rst_src_n       (aresetn),
+            .src_valid       (rsp_valid),
+            .src_ready       (rsp_ready),
+            .src_data        ({rsp_pslverr, rsp_prdata, rsp_pruser, rsp_pbuser}),
+            .src_timeout     (),
+
+            .clk_dst         (pclk),
+            .rst_dst_n       (presetn),
+            .dst_valid       (w_rsp_valid),
+            .dst_ready       (w_rsp_ready),
+            .dst_data        ({w_rsp_pslverr, w_rsp_prdata, w_rsp_pruser, w_rsp_pbuser})
+        );
+    end
+    endgenerate
 
 endmodule : apb5_slave_cdc

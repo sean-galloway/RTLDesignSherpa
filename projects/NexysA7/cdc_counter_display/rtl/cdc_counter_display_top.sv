@@ -381,7 +381,7 @@ module cdc_counter_display_top #(
 
     // CDC: Transfer counter value bus from btn_clk to disp_clk
     // Uses 4-phase handshake protocol with FSM-based synchronization
-    cdc_handshake #(
+    cdc_4_phase_handshake #(
         .DATA_WIDTH(COUNTER_WIDTH)
     ) u_counter_cdc (
         // Source domain (button clock)
@@ -394,6 +394,7 @@ module cdc_counter_display_top #(
         // Destination domain (display clock)
         .clk_dst        (disp_clk),
         .rst_dst_n      (sys_rst_n),
+        .src_timeout    (),                   // Unused
         .dst_valid      (cdc_dst_valid),      // Data valid in dst domain
         .dst_ready      (cdc_dst_ready),      // Always ready to receive
         .dst_data       (cdc_dst_data)        // Transferred counter value

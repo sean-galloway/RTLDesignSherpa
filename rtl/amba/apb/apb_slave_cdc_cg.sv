@@ -23,6 +23,8 @@ module apb_slave_cdc_cg #(
     parameter int DEPTH              = 2,
     // Clock gating parameters
     parameter int CG_IDLE_COUNT_WIDTH = 4,  // Width of idle counter
+    // CDC handshake variant: 1 = 2-phase (toggle, faster), 0 = 4-phase (level, classic)
+    parameter bit USE_2_PHASE_CDC    = 1'b1,
     // Short Parameters
     parameter int DW  = DATA_WIDTH,
     parameter int AW  = ADDR_WIDTH,
@@ -211,37 +213,81 @@ module apb_slave_cdc_cg #(
     );
 
     // Use clock domain crossing handshake for command path
-    cdc_handshake #(
-        .DATA_WIDTH      (APBCmdWidth)
-    ) u_cmd_cdc_handshake (
-        .clk_src         (gated_pclk),       // Use gated clock
-        .rst_src_n       (presetn),
-        .src_valid       (w_cmd_valid),
-        .src_ready       (int_cmd_ready),
-        .src_data        ({w_cmd_pwrite, w_cmd_paddr, w_cmd_pwdata, w_cmd_pstrb, w_cmd_pprot}),
+    generate
+    if (USE_2_PHASE_CDC) begin : g_cmd_2phase
+        cdc_2_phase_handshake #(
+            .DATA_WIDTH      (APBCmdWidth)
+        ) u_cmd_cdc_handshake (
+            .clk_src         (gated_pclk),       // Use gated clock
+            .rst_src_n       (presetn),
+            .src_valid       (w_cmd_valid),
+            .src_ready       (int_cmd_ready),
+            .src_data        ({w_cmd_pwrite, w_cmd_paddr, w_cmd_pwdata, w_cmd_pstrb, w_cmd_pprot}),
+            .src_timeout     (),
 
-        .clk_dst         (gated_aclk),       // Use gated clock
-        .rst_dst_n       (aresetn),
-        .dst_valid       (cmd_valid),
-        .dst_ready       (cmd_ready),
-        .dst_data        ({cmd_pwrite, cmd_paddr, cmd_pwdata, cmd_pstrb, cmd_pprot})
-    );
+            .clk_dst         (gated_aclk),       // Use gated clock
+            .rst_dst_n       (aresetn),
+            .dst_valid       (cmd_valid),
+            .dst_ready       (cmd_ready),
+            .dst_data        ({cmd_pwrite, cmd_paddr, cmd_pwdata, cmd_pstrb, cmd_pprot})
+        );
+    end else begin : g_cmd_4phase
+        cdc_4_phase_handshake #(
+            .DATA_WIDTH      (APBCmdWidth)
+        ) u_cmd_cdc_handshake (
+            .clk_src         (gated_pclk),       // Use gated clock
+            .rst_src_n       (presetn),
+            .src_valid       (w_cmd_valid),
+            .src_ready       (int_cmd_ready),
+            .src_data        ({w_cmd_pwrite, w_cmd_paddr, w_cmd_pwdata, w_cmd_pstrb, w_cmd_pprot}),
+            .src_timeout     (),
+
+            .clk_dst         (gated_aclk),       // Use gated clock
+            .rst_dst_n       (aresetn),
+            .dst_valid       (cmd_valid),
+            .dst_ready       (cmd_ready),
+            .dst_data        ({cmd_pwrite, cmd_paddr, cmd_pwdata, cmd_pstrb, cmd_pprot})
+        );
+    end
+    endgenerate
 
     // Use clock domain crossing handshake for response path
-    cdc_handshake #(
-        .DATA_WIDTH      (APBRspWidth)
-    ) u_rsp_cdc_handshake (
-        .clk_src         (gated_aclk),       // Use gated clock
-        .rst_src_n       (aresetn),
-        .src_valid       (rsp_valid),
-        .src_ready       (int_rsp_ready_aclk),
-        .src_data        ({rsp_pslverr, rsp_prdata}),
+    generate
+    if (USE_2_PHASE_CDC) begin : g_rsp_2phase
+        cdc_2_phase_handshake #(
+            .DATA_WIDTH      (APBRspWidth)
+        ) u_rsp_cdc_handshake (
+            .clk_src         (gated_aclk),       // Use gated clock
+            .rst_src_n       (aresetn),
+            .src_valid       (rsp_valid),
+            .src_ready       (int_rsp_ready_aclk),
+            .src_data        ({rsp_pslverr, rsp_prdata}),
+            .src_timeout     (),
 
-        .clk_dst         (gated_pclk),       // Use gated clock
-        .rst_dst_n       (presetn),
-        .dst_valid       (w_rsp_valid),
-        .dst_ready       (w_rsp_ready),
-        .dst_data        ({w_rsp_pslverr, w_rsp_prdata})
-    );
+            .clk_dst         (gated_pclk),       // Use gated clock
+            .rst_dst_n       (presetn),
+            .dst_valid       (w_rsp_valid),
+            .dst_ready       (w_rsp_ready),
+            .dst_data        ({w_rsp_pslverr, w_rsp_prdata})
+        );
+    end else begin : g_rsp_4phase
+        cdc_4_phase_handshake #(
+            .DATA_WIDTH      (APBRspWidth)
+        ) u_rsp_cdc_handshake (
+            .clk_src         (gated_aclk),       // Use gated clock
+            .rst_src_n       (aresetn),
+            .src_valid       (rsp_valid),
+            .src_ready       (int_rsp_ready_aclk),
+            .src_data        ({rsp_pslverr, rsp_prdata}),
+            .src_timeout     (),
+
+            .clk_dst         (gated_pclk),       // Use gated clock
+            .rst_dst_n       (presetn),
+            .dst_valid       (w_rsp_valid),
+            .dst_ready       (w_rsp_ready),
+            .dst_data        ({w_rsp_pslverr, w_rsp_prdata})
+        );
+    end
+    endgenerate
 
 endmodule : apb_slave_cdc_cg

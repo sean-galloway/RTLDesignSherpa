@@ -17,7 +17,8 @@ $REPO_ROOT/rtl/amba/includes/reset_defs.svh
 
 # Low-level dependencies (for APB slave modules)
 $REPO_ROOT/rtl/amba/gaxi/gaxi_skid_buffer.sv
-$REPO_ROOT/rtl/amba/shared/cdc_handshake.sv
+$REPO_ROOT/rtl/amba/shared/cdc_2_phase_handshake.sv
+$REPO_ROOT/rtl/amba/shared/cdc_4_phase_handshake.sv
 
 # Layer 1: APB Slave (APB -> CMD/RSP interface)
 $REPO_ROOT/rtl/amba/apb/apb_slave.sv

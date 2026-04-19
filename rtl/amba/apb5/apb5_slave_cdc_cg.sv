@@ -39,6 +39,8 @@ module apb5_slave_cdc_cg #(
     parameter int DEPTH               = 2,
     parameter bit ENABLE_PARITY       = 0,
     parameter int CG_IDLE_COUNT_WIDTH = 4,
+    // CDC handshake variant: 1 = 2-phase (toggle, faster), 0 = 4-phase (level, classic)
+    parameter bit USE_2_PHASE_CDC     = 1'b1,
     // Short Parameters
     parameter int DW  = DATA_WIDTH,
     parameter int AW  = ADDR_WIDTH,
@@ -173,8 +175,9 @@ module apb5_slave_cdc_cg #(
         .WUSER_WIDTH   (WUSER_WIDTH),
         .RUSER_WIDTH   (RUSER_WIDTH),
         .BUSER_WIDTH   (BUSER_WIDTH),
-        .DEPTH         (DEPTH),
-        .ENABLE_PARITY (ENABLE_PARITY)
+        .DEPTH           (DEPTH),
+        .ENABLE_PARITY   (ENABLE_PARITY),
+        .USE_2_PHASE_CDC (USE_2_PHASE_CDC)
     ) u_apb5_slave_cdc (
         // APB Clock Domain (gated)
         .pclk              (gated_pclk),
