@@ -129,7 +129,9 @@ module apb_slave_cdc #(
             .src_valid       (w_cmd_valid),
             .src_ready       (w_cmd_ready),
             .src_data        ({w_cmd_pwrite, w_cmd_paddr, w_cmd_pwdata, w_cmd_pstrb, w_cmd_pprot}),
+            /* verilator lint_off PINCONNECTEMPTY */
             .src_timeout     (),
+            /* verilator lint_on PINCONNECTEMPTY */
 
             .clk_dst         (aclk),
             .rst_dst_n       (aresetn),
@@ -146,7 +148,9 @@ module apb_slave_cdc #(
             .src_valid       (w_cmd_valid),
             .src_ready       (w_cmd_ready),
             .src_data        ({w_cmd_pwrite, w_cmd_paddr, w_cmd_pwdata, w_cmd_pstrb, w_cmd_pprot}),
+            /* verilator lint_off PINCONNECTEMPTY */
             .src_timeout     (),
+            /* verilator lint_on PINCONNECTEMPTY */
 
             .clk_dst         (aclk),
             .rst_dst_n       (aresetn),
@@ -167,7 +171,9 @@ module apb_slave_cdc #(
             .src_valid       (rsp_valid),
             .src_ready       (rsp_ready),
             .src_data        ({rsp_pslverr, rsp_prdata}),
+            /* verilator lint_off PINCONNECTEMPTY */
             .src_timeout     (),
+            /* verilator lint_on PINCONNECTEMPTY */
 
             .clk_dst         (pclk),
             .rst_dst_n       (presetn),
@@ -184,7 +190,9 @@ module apb_slave_cdc #(
             .src_valid       (rsp_valid),
             .src_ready       (rsp_ready),
             .src_data        ({rsp_pslverr, rsp_prdata}),
+            /* verilator lint_off PINCONNECTEMPTY */
             .src_timeout     (),
+            /* verilator lint_on PINCONNECTEMPTY */
 
             .clk_dst         (pclk),
             .rst_dst_n       (presetn),

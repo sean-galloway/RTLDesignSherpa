@@ -394,7 +394,9 @@ module cdc_counter_display_top #(
         // Destination domain (display clock)
         .clk_dst        (disp_clk),
         .rst_dst_n      (sys_rst_n),
+        /* verilator lint_off PINCONNECTEMPTY */
         .src_timeout    (),                   // Unused
+        /* verilator lint_on PINCONNECTEMPTY */
         .dst_valid      (cdc_dst_valid),      // Data valid in dst domain
         .dst_ready      (cdc_dst_ready),      // Always ready to receive
         .dst_data       (cdc_dst_data)        // Transferred counter value

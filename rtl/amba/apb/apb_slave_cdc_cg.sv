@@ -223,7 +223,9 @@ module apb_slave_cdc_cg #(
             .src_valid       (w_cmd_valid),
             .src_ready       (int_cmd_ready),
             .src_data        ({w_cmd_pwrite, w_cmd_paddr, w_cmd_pwdata, w_cmd_pstrb, w_cmd_pprot}),
+            /* verilator lint_off PINCONNECTEMPTY */
             .src_timeout     (),
+            /* verilator lint_on PINCONNECTEMPTY */
 
             .clk_dst         (gated_aclk),       // Use gated clock
             .rst_dst_n       (aresetn),
@@ -240,7 +242,9 @@ module apb_slave_cdc_cg #(
             .src_valid       (w_cmd_valid),
             .src_ready       (int_cmd_ready),
             .src_data        ({w_cmd_pwrite, w_cmd_paddr, w_cmd_pwdata, w_cmd_pstrb, w_cmd_pprot}),
+            /* verilator lint_off PINCONNECTEMPTY */
             .src_timeout     (),
+            /* verilator lint_on PINCONNECTEMPTY */
 
             .clk_dst         (gated_aclk),       // Use gated clock
             .rst_dst_n       (aresetn),
@@ -262,7 +266,9 @@ module apb_slave_cdc_cg #(
             .src_valid       (rsp_valid),
             .src_ready       (int_rsp_ready_aclk),
             .src_data        ({rsp_pslverr, rsp_prdata}),
+            /* verilator lint_off PINCONNECTEMPTY */
             .src_timeout     (),
+            /* verilator lint_on PINCONNECTEMPTY */
 
             .clk_dst         (gated_pclk),       // Use gated clock
             .rst_dst_n       (presetn),
@@ -279,7 +285,9 @@ module apb_slave_cdc_cg #(
             .src_valid       (rsp_valid),
             .src_ready       (int_rsp_ready_aclk),
             .src_data        ({rsp_pslverr, rsp_prdata}),
+            /* verilator lint_off PINCONNECTEMPTY */
             .src_timeout     (),
+            /* verilator lint_on PINCONNECTEMPTY */
 
             .clk_dst         (gated_pclk),       // Use gated clock
             .rst_dst_n       (presetn),

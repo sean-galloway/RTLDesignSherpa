@@ -301,7 +301,9 @@ module axi4_to_apb_shim #(
             .src_valid       (w_cmd_valid),
             .src_ready       (r_cmd_ready),
             .src_data        (r_cmd_data),
+            /* verilator lint_off PINCONNECTEMPTY */
             .src_timeout     (),
+            /* verilator lint_on PINCONNECTEMPTY */
 
             .clk_dst         (pclk),
             .rst_dst_n       (presetn),
@@ -318,7 +320,9 @@ module axi4_to_apb_shim #(
             .src_valid       (w_cmd_valid),
             .src_ready       (r_cmd_ready),
             .src_data        (r_cmd_data),
+            /* verilator lint_off PINCONNECTEMPTY */
             .src_timeout     (),
+            /* verilator lint_on PINCONNECTEMPTY */
 
             .clk_dst         (pclk),
             .rst_dst_n       (presetn),
@@ -339,7 +343,9 @@ module axi4_to_apb_shim #(
             .src_valid       (r_rsp_valid_apb),
             .src_ready       (w_rsp_ready_apb),
             .src_data        (r_rsp_data_apb),
+            /* verilator lint_off PINCONNECTEMPTY */
             .src_timeout     (),
+            /* verilator lint_on PINCONNECTEMPTY */
 
             .clk_dst         (aclk),
             .rst_dst_n       (aresetn),
@@ -356,7 +362,9 @@ module axi4_to_apb_shim #(
             .src_valid       (r_rsp_valid_apb),
             .src_ready       (w_rsp_ready_apb),
             .src_data        (r_rsp_data_apb),
+            /* verilator lint_off PINCONNECTEMPTY */
             .src_timeout     (),
+            /* verilator lint_on PINCONNECTEMPTY */
 
             .clk_dst         (aclk),
             .rst_dst_n       (aresetn),
