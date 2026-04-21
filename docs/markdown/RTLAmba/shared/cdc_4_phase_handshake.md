@@ -21,11 +21,12 @@
 
 <!-- End Header -->
 
-# CDC Handshake
+# CDC 4-Phase Handshake
 
-**Module:** `cdc_handshake.sv`
+**Module:** `cdc_4_phase_handshake.sv` (renamed from `cdc_4_phase_handshake.sv`)
 **Location:** `rtl/amba/shared/`
 **Status:** Production Ready
+**Companion:** `cdc_2_phase_handshake.sv` (toggle-based, faster variant)
 
 ---
 
@@ -69,6 +70,9 @@ Modern SoC designs frequently require data transfer between asynchronous clock d
 | Parameter | Type | Default | Description |
 |-----------|------|---------|-------------|
 | DATA_WIDTH | int | 8 | Width of the data bus (1 to 1024+ bits typical) |
+| SYNC_STAGES | int | 3 | Synchronizer depth for req/ack (2 or 3) |
+| TIMEOUT_CYCLES | int | 0 | 0 = disabled; >0 asserts src_timeout after stall |
+| FAST_PATH | bit | 0 | 1 = destination fast-path when dst_ready already high |
 
 **Typical Values:**
 - Control signals: 8-32 bits
@@ -295,7 +299,7 @@ Where:
 // Monitor packets generated in monitor clock domain
 // Must cross to system clock domain for processing
 
-cdc_handshake #(
+cdc_4_phase_handshake #(
     .DATA_WIDTH         (64)  // AXI monitor packet width
 ) u_packet_cdc (
     // Source: Monitor clock domain
@@ -348,7 +352,7 @@ end
 // CPU writes config register in AHB clock domain
 // Design uses config in AXI clock domain
 
-cdc_handshake #(
+cdc_4_phase_handshake #(
     .DATA_WIDTH         (32)  // Configuration register width
 ) u_config_cdc (
     // Source: CPU/AHB clock domain
@@ -397,7 +401,7 @@ end
 ```systemverilog
 // Transfer burst of data with flow control
 
-cdc_handshake #(
+cdc_4_phase_handshake #(
     .DATA_WIDTH         (128)  // Large data path
 ) u_burst_cdc (
     .clk_src            (src_clk),
@@ -537,7 +541,7 @@ assert property (@(posedge clk_dst)
 ```systemverilog
 // Use async FIFO for data, CDC handshake for control
 async_fifo #(.WIDTH(64), .DEPTH(16)) u_data_fifo (...);
-cdc_handshake #(.WIDTH(8)) u_ctrl_cdc (...);
+cdc_4_phase_handshake #(.WIDTH(8)) u_ctrl_cdc (...);
 ```
 
 ---
@@ -562,8 +566,8 @@ cdc_handshake #(.WIDTH(8)) u_ctrl_cdc (...);
 ## References
 
 ### Source Code
-- RTL: `rtl/amba/shared/cdc_handshake.sv`
-- Tests: `val/common/test_cdc_handshake.py` (if available)
+- RTL: `rtl/amba/shared/cdc_4_phase_handshake.sv`
+- Tests: `val/amba/test_cdc_4_phase_handshake.py`
 
 ### Documentation
 - Architecture: `docs/markdown/RTLAmba/shared/README.md`
@@ -576,7 +580,7 @@ cdc_handshake #(.WIDTH(8)) u_ctrl_cdc (...);
 
 ---
 
-**Last Updated:** 2025-10-24
+**Last Updated:** 2026-04-21
 
 ---
 

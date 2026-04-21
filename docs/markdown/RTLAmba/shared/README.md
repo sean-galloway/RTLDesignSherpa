@@ -81,7 +81,9 @@ Utility modules for AXI protocol handling:
 | **axi_master_rd_splitter** | Read channel splitter | Split AXI read across boundaries | [axi_master_rd_splitter.md](axi_master_rd_splitter.md) |
 | **axi_master_wr_splitter** | Write channel splitter | Split AXI write with response consolidation | [axi_master_wr_splitter.md](axi_master_wr_splitter.md) |
 | **axi_split_combi** | Combined splitter | Bidirectional split (read + write) | [axi_split_combi.md](axi_split_combi.md) |
-| **cdc_handshake** | Clock domain crossing | Dual-clock valid/ready handshake | [cdc_handshake.md](cdc_handshake.md) |
+| **cdc_4_phase_handshake** | Clock domain crossing | 4-phase level-based valid/ready handshake | [cdc_4_phase_handshake.md](cdc_4_phase_handshake.md) |
+| **cdc_2_phase_handshake** | Clock domain crossing | 2-phase toggle-based valid/ready handshake (faster) | [cdc_2_phase_handshake.md](cdc_2_phase_handshake.md) |
+| **cdc_synchronizer** | Multi-bit synchronizer | N-stage synchronizer for quasi-static signals | [cdc_synchronizer.md](cdc_synchronizer.md) |
 
 ---
 
@@ -580,7 +582,7 @@ Full AXI split for complex bridges or adapters.
 
 ---
 
-### cdc_handshake
+### cdc_4_phase_handshake
 
 **Purpose:** Clock domain crossing with valid/ready handshake
 
@@ -593,7 +595,7 @@ Full AXI split for complex bridges or adapters.
 
 **Parameters:**
 ```systemverilog
-module cdc_handshake #(
+module cdc_4_phase_handshake #(
     parameter int DATA_WIDTH = 8
 )
 ```
@@ -641,7 +643,7 @@ Used extensively in axi4_to_apb_shim for cmd/rsp CDC. General-purpose CDC utilit
 
 **Example:**
 ```systemverilog
-cdc_handshake #(.DATA_WIDTH(32)) u_cdc (
+cdc_4_phase_handshake #(.DATA_WIDTH(32)) u_cdc (
     .clk_src(clk_100mhz),
     .rst_src_n(rst_n),
     .src_valid(cmd_valid),
@@ -711,7 +713,7 @@ axi_monitor_base → Unfiltered packets
 - Need packet filtering
 - Using with monitor bus aggregation
 
-**✅ Use cdc_handshake When:**
+**✅ Use cdc_4_phase_handshake When:**
 - Clock domain crossing required
 - Valid/ready protocol
 - Arbitrary clock ratios
@@ -804,7 +806,7 @@ axi_monitor_base → Unfiltered packets
 
 ### CDC Latency
 
-**cdc_handshake:**
+**cdc_4_phase_handshake:**
 - Minimum: 6 cycles (src → dst → src)
 - Typical: 8-12 cycles
 - Maximum: Depends on clock ratio
@@ -835,7 +837,7 @@ set_dont_touch [get_cells */u_clock_gate_ctrl/*]
 
 ### CDC Constraints
 
-**cdc_handshake:**
+**cdc_4_phase_handshake:**
 ```tcl
 set_false_path -from [get_clocks clk_src] -to [get_clocks clk_dst]
 set_false_path -from [get_clocks clk_dst] -to [get_clocks clk_src]
@@ -884,7 +886,7 @@ The shared subsystem provides essential infrastructure:
 - Zero-overhead aggregation
 
 **Utilities:**
-- Clock domain crossing (cdc_handshake)
+- Clock domain crossing (cdc_4_phase_handshake)
 - AXI address generation (axi_gen_addr)
 - Channel splitting (axi_*_splitter)
 - Clock gating (amba_clock_gate_ctrl)
