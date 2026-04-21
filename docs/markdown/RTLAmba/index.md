@@ -250,8 +250,10 @@ Infrastructure components used across all AMBA protocols.
 ### Clock and Reset Management
 
 - **[amba_clock_gate_ctrl](shared/amba_clock_gate_ctrl.md)** - AMBA-specific clock gating controller
-- **[cdc_4_phase_handshake](shared/cdc_4_phase_handshake.md)** - 4-phase level-based CDC handshake
+- **[CDC Primer](shared/cdc_primer.md)** - All CDC techniques categorized with decision guide
+- **[cdc_open_loop](shared/cdc_open_loop.md)** - Open-loop CDC (sync_pulse + data hold, no handshake)
 - **[cdc_2_phase_handshake](shared/cdc_2_phase_handshake.md)** - 2-phase toggle-based CDC handshake (faster)
+- **[cdc_4_phase_handshake](shared/cdc_4_phase_handshake.md)** - 4-phase level-based CDC handshake
 - **[cdc_synchronizer](shared/cdc_synchronizer.md)** - Multi-bit synchronizer for quasi-static signals
 
 ---

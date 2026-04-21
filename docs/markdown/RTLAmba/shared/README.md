@@ -81,8 +81,10 @@ Utility modules for AXI protocol handling:
 | **axi_master_rd_splitter** | Read channel splitter | Split AXI read across boundaries | [axi_master_rd_splitter.md](axi_master_rd_splitter.md) |
 | **axi_master_wr_splitter** | Write channel splitter | Split AXI write with response consolidation | [axi_master_wr_splitter.md](axi_master_wr_splitter.md) |
 | **axi_split_combi** | Combined splitter | Bidirectional split (read + write) | [axi_split_combi.md](axi_split_combi.md) |
-| **cdc_4_phase_handshake** | Clock domain crossing | 4-phase level-based valid/ready handshake | [cdc_4_phase_handshake.md](cdc_4_phase_handshake.md) |
+| **CDC Primer** | Reference guide | All CDC techniques categorized with decision guide | [cdc_primer.md](cdc_primer.md) |
+| **cdc_open_loop** | Clock domain crossing | Open-loop CDC with sync_pulse (no handshake) | [cdc_open_loop.md](cdc_open_loop.md) |
 | **cdc_2_phase_handshake** | Clock domain crossing | 2-phase toggle-based valid/ready handshake (faster) | [cdc_2_phase_handshake.md](cdc_2_phase_handshake.md) |
+| **cdc_4_phase_handshake** | Clock domain crossing | 4-phase level-based valid/ready handshake | [cdc_4_phase_handshake.md](cdc_4_phase_handshake.md) |
 | **cdc_synchronizer** | Multi-bit synchronizer | N-stage synchronizer for quasi-static signals | [cdc_synchronizer.md](cdc_synchronizer.md) |
 
 ---
