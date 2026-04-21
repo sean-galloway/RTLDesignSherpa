@@ -262,7 +262,13 @@ module stream_char_harness #(
     // Simple CRC match comparison
     wire crc_match = read_crc_valid && write_crc_valid && (read_crc_value == write_crc_value);
     wire crc_both_valid = read_crc_valid && write_crc_valid;
-    wire any_error = 1'b0;  // placeholder until we wire up error-FIFO non-empty
+    // any_error: sticky "something went wrong" signal routed to CSR_STATUS[1].
+    // TODO: drive from a real error source. stream_top_ch8 does not yet expose
+    // a scheduler/engine error wire at its boundary, so for now this stays tied
+    // to 0 and callers must poll the in-band SCHED_ERROR register (stream_regs
+    // @ 0x170) for error visibility. The primary completion signal for tests is
+    // stream_irq from monbus_axil_group.irq_out.
+    wire any_error = 1'b0;
 
     harness_csr #(.AW(32), .DW(32)) u_csr (
         .aclk(aclk), .aresetn(aresetn),

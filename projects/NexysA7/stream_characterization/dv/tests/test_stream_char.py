@@ -45,7 +45,10 @@ from projects.NexysA7.stream_characterization.dv.tbclasses.stream_char_tb import
 # CocoTB test function
 # ==========================================================================
 
-@cocotb.test(timeout_time=2000, timeout_unit="ms")
+# 50 ms caps the entire test. Realistic breakdown: UART setup ~2.5 ms of
+# sim time, poll window ~500 us, plus margin. Was 2000 ms; lowered so a
+# broken DMA surfaces as a cocotb timeout in seconds, not minutes.
+@cocotb.test(timeout_time=50, timeout_unit="ms")
 async def cocotb_test_stream_char(dut):
     """Unified stream characterization test — dispatches on TEST_TYPE."""
     test_type = os.environ.get('TEST_TYPE', 'ping')

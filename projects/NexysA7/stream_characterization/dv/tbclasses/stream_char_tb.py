@@ -76,6 +76,40 @@ APB_AXI_XFER_CONFIG     = STREAM_APB_BASE + 0x2A0
 APB_CH_KICK_BASE        = STREAM_APB_BASE + 0x000  # kick-off via apbtodescr
 APB_CH_KICK_STRIDE      = 0x08                     # 8 bytes per ch (LOW + HIGH)
 
+# Monitor configuration registers (stream_regs.rdl).
+# stream_irq == monbus_axil_group.irq_out == !err_fifo_empty. A packet only
+# reaches the err FIFO if ALL of the following are true:
+#   1. PKT_MASK[pkt_type] == 0     — packet not dropped at monbus entry
+#                                      (RDL default is 16'hFFFF = drop everything!)
+#   2. <MON>_ENABLE bit set         — monitor is allowed to emit that pkt type
+#   3. <MON>_MASK[event_code] == 0  — event code not masked (defaults OK)
+#   4. ERR_CFG.ERR_SELECT[pkt_type]==1 — route that type to err FIFO (default 0!)
+# Steps 1 and 4 were silently blocking everything.
+APB_DAXMON_PKT_MASK     = STREAM_APB_BASE + 0x24C  # [15:0] per-type drop mask
+APB_DAXMON_ENABLE       = STREAM_APB_BASE + 0x240
+APB_DAXMON_ERR_CFG      = STREAM_APB_BASE + 0x250  # [3:0]=ERR_SELECT, [15:8]=ERR_MASK
+APB_RDMON_PKT_MASK      = STREAM_APB_BASE + 0x26C
+APB_RDMON_ENABLE        = STREAM_APB_BASE + 0x260
+APB_RDMON_ERR_CFG       = STREAM_APB_BASE + 0x270
+APB_WRMON_PKT_MASK      = STREAM_APB_BASE + 0x28C
+APB_WRMON_ENABLE        = STREAM_APB_BASE + 0x280
+APB_WRMON_ERR_CFG       = STREAM_APB_BASE + 0x290
+
+# Value to enable MON + ERR + COMPL + TIMEOUT events (PERF stays off to avoid
+# packet congestion). Matches <MON>_ENABLE bit layout: [0]=MON_EN, [1]=ERR_EN,
+# [2]=COMPL_EN, [3]=TIMEOUT_EN, [4]=PERF_EN.
+MON_ENABLE_COMPL_IRQ    = 0x0F
+
+# Per-type drop mask: clear bits 0..3 so Error/Completion/Threshold/Timeout
+# packets are NOT dropped at monbus entry. Keep bits 4..15 masked to avoid
+# traffic we don't care about.
+MON_PKT_MASK_ALLOW_BASIC = 0x0000_FFF0
+
+# ERR_CFG value: route packet types 0..3 (Error, Completion, Threshold, Timeout)
+# to the err FIFO so irq_out fires on any of them. ERR_MASK[15:8] cleared to 0
+# (default is 0xFF = "mask all error codes 0-7"; we want them to pass through).
+MON_ERR_CFG_ROUTE_ALL   = 0x0000_000F
+
 
 class StreamCharTB(TBBase):
     """
@@ -398,7 +432,11 @@ class StreamCharTB(TBBase):
     async def run_dma_test(self, num_channels: int,
                            descriptors_per_channel: int,
                            transfer_bytes: int,
-                           timeout_clocks: int = 500_000) -> bool:
+                           timeout_clocks: int = 50_000) -> bool:
+        # timeout_clocks default = 50_000 ≈ 500 us of wait_clocks budget at a
+        # 10 ns clock period. Reduced from 500_000 so failures surface fast;
+        # bump it explicitly at the call site when a test legitimately needs
+        # longer.
         """
         Full DMA test: load descriptors, configure STREAM, kick channels,
         poll completion, verify CRC.
@@ -458,6 +496,22 @@ class StreamCharTB(TBBase):
         # 3d. AXI transfer config: burst sizes (ARLEN/AWLEN)
         axi_cfg = (15 & 0xFF) | ((15 & 0xFF) << 8)  # rd=16 beats, wr=16 beats
         await self.uart_write(APB_AXI_XFER_CONFIG, axi_cfg)
+
+        # 3e. Unblock completion events all the way to the err FIFO so
+        # monbus_axil_group.irq_out pulses when the DMA retires. FOUR things
+        # must all be true (see register-group comment above):
+        #   PKT_MASK[pkt_type]==0  ← RDL default drops EVERY type, must clear!
+        #   ENABLE.COMPL_EN=1      ← monitor must emit completion packets
+        #   MASK1 event_code       ← defaults are fine (COMPL_MASK=0)
+        #   ERR_CFG.ERR_SELECT     ← routes pkt type to err FIFO (default 0)
+        for pkt_mask_reg, en_reg, err_reg in (
+            (APB_DAXMON_PKT_MASK, APB_DAXMON_ENABLE, APB_DAXMON_ERR_CFG),
+            (APB_RDMON_PKT_MASK,  APB_RDMON_ENABLE,  APB_RDMON_ERR_CFG),
+            (APB_WRMON_PKT_MASK,  APB_WRMON_ENABLE,  APB_WRMON_ERR_CFG),
+        ):
+            await self.uart_write(pkt_mask_reg, MON_PKT_MASK_ALLOW_BASIC)
+            await self.uart_write(en_reg,       MON_ENABLE_COMPL_IRQ)
+            await self.uart_write(err_reg,      MON_ERR_CFG_ROUTE_ALL)
 
         # 4. Enable STREAM global + channels
         ch_mask = (1 << num_channels) - 1

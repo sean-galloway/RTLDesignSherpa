@@ -231,6 +231,22 @@ run-all-func-parallel-wave:
 run-all-full-parallel-wave:
 	WAVES=1 TEST_LEVEL=full $(PYTEST) $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE) $(PYTEST_XDIST) $(PYTEST_RERUNS) test_*.py
 
+# -----------------------------------------------------------------------------
+# Plural aliases (-waves) for consistency with val/amba and retro_legacy_blocks.
+# These are just passthroughs to the singular (-wave) targets above.
+# -----------------------------------------------------------------------------
+.PHONY: run-all-waves run-all-gate-waves run-all-func-waves run-all-full-waves \
+        run-all-parallel-waves run-all-gate-parallel-waves \
+        run-all-func-parallel-waves run-all-full-parallel-waves
+run-all-waves:               run-all-wave
+run-all-gate-waves:          run-all-gate-wave
+run-all-func-waves:          run-all-func-wave
+run-all-full-waves:          run-all-full-wave
+run-all-parallel-waves:      run-all-parallel-wave
+run-all-gate-parallel-waves: run-all-gate-parallel-wave
+run-all-func-parallel-waves: run-all-func-parallel-wave
+run-all-full-parallel-waves: run-all-full-parallel-wave
+
 .PHONY: run-stream-char
 run-stream-char:
 	@echo "Running stream_char harness tests..."
