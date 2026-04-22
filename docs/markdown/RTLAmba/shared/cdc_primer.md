@@ -53,14 +53,18 @@ When you need to move multi-bit data across clock domains, there are three funda
 ### Module: `cdc_open_loop`
 
 ```systemverilog
+// CPU at 100 MHz, peripheral at 25 MHz (ratio 4:1)
+// STRETCH_CYCLES = ceil(1.5 * 4) + 3 = 9
 cdc_open_loop #(
-    .DATA_WIDTH  (32),
-    .SYNC_STAGES (3)
+    .DATA_WIDTH     (32),
+    .STRETCH_CYCLES (9),
+    .SYNC_STAGES    (3)
 ) u_cfg_cdc (
     .clk_src   (cpu_clk),
     .rst_src_n (cpu_rst_n),
     .src_valid (cfg_write_pulse),   // Single-cycle pulse
-    .src_data  (cfg_write_data),    // Must be stable for 4+ dst clocks
+    .src_data  (cfg_write_data),
+    .src_busy  (cfg_busy),         // Blocks next write during stretch
 
     .clk_dst   (periph_clk),
     .rst_dst_n (periph_rst_n),
@@ -69,9 +73,9 @@ cdc_open_loop #(
 );
 ```
 
-**Internals:** Uses [sync_pulse](../../RTLCommon/sync_pulse.md) for the valid crossing and a simple holding register for data.
+**Internals:** Source captures data into a holding register and asserts a stretched valid level for `STRETCH_CYCLES` source clocks. The destination synchronizes the stretched level through `glitch_free_n_dff_arn` and latches data on the rising edge. `src_busy` blocks the next transfer during the stretch countdown.
 
-**Minimum spacing:** Source valid pulses must be separated by at least `SYNC_STAGES + 1` destination clock cycles. Violating this loses transfers silently.
+**Setting STRETCH_CYCLES:** `STRETCH_CYCLES >= ceil(1.5 * T_dst / T_src) + SYNC_STAGES`. This ensures the stretched valid is seen by at least one destination clock edge after passing through the synchronizer. When in doubt, round up -- extra cycles cost only source-side latency.
 
 **Documentation:** [cdc_open_loop.md](cdc_open_loop.md)
 
@@ -79,9 +83,9 @@ cdc_open_loop #(
 
 | Module | Purpose | Doc |
 |--------|---------|-----|
-| [sync_pulse](../../RTLCommon/sync_pulse.md) | Single-cycle pulse crossing (toggle + edge detect) | rtl/common/ |
-| [cdc_synchronizer](cdc_synchronizer.md) | Multi-flop synchronizer for quasi-static signals | rtl/amba/shared/ |
 | [glitch_free_n_dff_arn](../../RTLCommon/glitch_free_n_dff_arn.md) | N-stage synchronizer primitive with ASYNC_REG | rtl/common/ |
+| [cdc_synchronizer](cdc_synchronizer.md) | Multi-flop synchronizer wrapper for quasi-static signals | rtl/amba/shared/ |
+| [sync_pulse](../../RTLCommon/sync_pulse.md) | Single-cycle pulse crossing (toggle + edge detect) | rtl/common/ |
 | [reset_sync](../../RTLCommon/reset_sync.md) | Reset synchronizer (async assert, sync deassert) | rtl/common/ |
 
 ---
