@@ -26,7 +26,11 @@ module stream_char_harness #(
     parameter int UART_BAUD    = 115_200,
     parameter int DATA_WIDTH   = 128,
     parameter int ADDR_WIDTH   = 32,
-    parameter int SRAM_DEPTH   = 256
+    parameter int SRAM_DEPTH   = 256,
+    // NUM_CHANNELS is overridable so the FPGA target can build a 4-channel
+    // configuration to fit the Artix-7 100T without changing the DUT's native
+    // DATA_WIDTH. Valid values: any power of 2 that the DUT supports (1/2/4/8).
+    parameter int NUM_CHANNELS = 8
 ) (
     input  logic            aclk,
     input  logic            aresetn,
@@ -43,7 +47,7 @@ module stream_char_harness #(
 );
 
     localparam int AXI_ID_WIDTH   = 8;
-    localparam int AXI_USER_WIDTH = 3;     // $clog2(NUM_CHANNELS=8)
+    localparam int AXI_USER_WIDTH = $clog2(NUM_CHANNELS) > 0 ? $clog2(NUM_CHANNELS) : 1;
     localparam int APB_ADDR_WIDTH = 12;
     localparam int APB_DATA_WIDTH = 32;
 
@@ -534,7 +538,7 @@ module stream_char_harness #(
     // STREAM DUT
     // =========================================================================
     stream_top_ch8 #(
-        .NUM_CHANNELS    (8),
+        .NUM_CHANNELS    (NUM_CHANNELS),
         .DATA_WIDTH      (DATA_WIDTH),
         .ADDR_WIDTH      (ADDR_WIDTH),
         .SRAM_DEPTH      (SRAM_DEPTH),

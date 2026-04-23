@@ -109,6 +109,9 @@ BASE_RTL_PARAMS = {
     'DATA_WIDTH': 128,
     'ADDR_WIDTH': 32,
     'SRAM_DEPTH': 256,
+    # NUM_CHANNELS shrunk from 8 to 4 to fit the Artix-7 100T BRAM budget.
+    # Keep in lockstep with rtl/stream_char_top.sv.
+    'NUM_CHANNELS': 4,
 }
 
 
@@ -119,14 +122,17 @@ def generate_stream_char_params():
     gate: ping                                               (1 test)
     func: gate + desc_load + csr_read + apb_config +
           dma_1ch + dma_2ch                                  (6 tests)
-    full: func + dma_3ch + dma_4ch + ... + dma_8ch           (12 tests)
+    full: func + dma_3ch + dma_4ch + ... + dma_<NCH>ch
 
     DMA tests: 2 descriptors/channel, 8 KB each = 16 KB moved per channel.
+    The FULL set is capped at BASE_RTL_PARAMS['NUM_CHANNELS'] so we don't
+    ask the harness to kick channels it doesn't have (FPGA build is 4-ch).
     """
+    max_channels = BASE_RTL_PARAMS.get('NUM_CHANNELS', 8)
     gate_types = ['ping']
     func_types = ['desc_load', 'csr_read', 'apb_config',
                   'dma_1ch', 'dma_2ch']
-    full_types = [f'dma_{n}ch' for n in range(3, 9)]
+    full_types = [f'dma_{n}ch' for n in range(3, max_channels + 1)]
 
     # Accept both TEST_LEVEL (Makefile convention) and REG_LEVEL (legacy)
     level = os.environ.get('TEST_LEVEL',

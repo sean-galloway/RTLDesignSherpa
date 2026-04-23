@@ -97,10 +97,15 @@ package monitor_pkg;
     // Unified event code union and transaction structure
     typedef monitor_amba4_pkg::unified_event_code_t unified_event_code_t;
     typedef monitor_amba4_pkg::event_code_union_t event_code_union_t;
-    typedef monitor_amba4_pkg::bus_transaction_t bus_transaction_t;
 
-    // NOTE: Legacy event constants (EVT_NONE, EVT_CMD_TIMEOUT, etc.) are available
-    // via `import monitor_amba4_pkg::*;` in consuming modules.
+    // NOTE 1: `bus_transaction_t` is intentionally NOT re-typedef'd here.
+    //         Vivado's synth front-end treats a re-typedef that's reachable
+    //         through wildcard imports from two packages as an ambiguous
+    //         definition ([Synth 8-8958]), even though both aliases refer to
+    //         the same struct. All five consumers of the struct also import
+    //         `monitor_amba4_pkg::*`, so they still see it from there.
+    // NOTE 2: Legacy event constants (EVT_NONE, EVT_CMD_TIMEOUT, etc.) are
+    //         available via `import monitor_amba4_pkg::*;` in consuming modules.
 
     // =============================================================================
     // RE-EXPORT AMBA5 TYPES FROM monitor_amba5_pkg

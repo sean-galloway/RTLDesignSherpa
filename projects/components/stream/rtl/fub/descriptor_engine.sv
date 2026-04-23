@@ -778,7 +778,10 @@ module descriptor_engine #(
                         MON_CHANNEL_ID,
                         MON_UNIT_ID,
                         MON_AGENT_ID,
-                        r_axi_read_addr[34:0]
+                        // event_data is 35 bits; zero-extend (or truncate)
+                        // r_axi_read_addr to fit. Direct [34:0] slice breaks
+                        // synthesis when ADDR_WIDTH < 35 (e.g. FPGA 32-bit).
+                        35'(r_axi_read_addr)
                     );
                 end
 

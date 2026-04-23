@@ -299,14 +299,14 @@ module perf_profiler #(
                 // Timestamp mode: Record current timestamp with event type
                 w_fifo_wr_data = {
                     w_idle_rising[w_active_channel] ? EVENT_END : EVENT_START,  // [35]: Event type
-                    w_active_channel[2:0],                                       // [34:32]: Channel ID
+                    3'(w_active_channel),                                        // [34:32]: Channel ID (zero-extended for NUM_CHANNELS < 8)
                     r_timestamp_counter                                          // [31:0]: Timestamp
                 };
             end else begin
                 // Elapsed mode: Record pre-computed elapsed time
                 w_fifo_wr_data = {
                     EVENT_END,                  // [35]: Always end event for elapsed mode
-                    w_active_channel[2:0],      // [34:32]: Channel ID
+                    3'(w_active_channel),       // [34:32]: Channel ID (zero-extended for NUM_CHANNELS < 8)
                     w_elapsed_time              // [31:0]: Elapsed time in clock cycles
                 };
             end

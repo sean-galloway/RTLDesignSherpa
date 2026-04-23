@@ -44,12 +44,20 @@ development board. All I/O to the host is through a single USB-UART link.
 
 | Parameter           | ASIC default | FPGA value |
 |---------------------|--------------|------------|
-| `NUM_CHANNELS`      | 8            | 8 (fixed)  |
+| `NUM_CHANNELS`      | 8            | 4          |
 | `DATA_WIDTH`        | 512          | 128        |
 | `ADDR_WIDTH`        | 64           | 32         |
 | `SRAM_DEPTH`        | 4096         | 256        |
 | `CDC_ENABLE`        | 1            | 0          |
 | `USE_AXI_MONITORS`  | 0            | 1          |
+
+`NUM_CHANNELS` was reduced from 8 to 4 to fit the Artix-7 100T BRAM budget
+(135 tiles). First synth at 8 channels reported 192 BRAM tiles (142 %).
+`DATA_WIDTH` and `SRAM_DEPTH` stay at their native FPGA targets so the
+per-channel characterization numbers are directly comparable with the ASIC
+path. Mirror `NUM_CHANNELS` in `dv/tests/test_stream_char.py` whenever it
+changes so sim and FPGA stay in lockstep — the DMA test suite is auto-capped
+at `NUM_CHANNELS`.
 
 ### Host memory map (via UART AXIL bridge)
 

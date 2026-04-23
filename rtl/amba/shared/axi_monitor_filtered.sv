@@ -38,7 +38,9 @@
 module axi_monitor_filtered
     import monitor_common_pkg::*;
     import monitor_amba4_pkg::*;
-    import monitor_pkg::*;
+    // NOTE: `import monitor_pkg::*;` intentionally omitted — its helper
+    // functions (get_packet_type etc.) duplicate monitor_common_pkg's, and
+    // Vivado flags the duplicates as ambiguous under wildcard imports.
 #(
     // Monitor parameters (passed through to axi_monitor_base)
     parameter int UNIT_ID                = 1,
@@ -251,13 +253,13 @@ module axi_monitor_filtered
                 // Level 3: Check individual event masking (only if not already dropped)
                 if (!pkt_drop) begin
                     case (pkt_type)
-                        monitor_pkg::PktTypeError:     pkt_event_masked = cfg_axi_error_mask[pkt_event_code];
-                        monitor_pkg::PktTypeTimeout:   pkt_event_masked = cfg_axi_timeout_mask[pkt_event_code];
-                        monitor_pkg::PktTypeCompletion: pkt_event_masked = cfg_axi_compl_mask[pkt_event_code];
-                        monitor_pkg::PktTypeThreshold: pkt_event_masked = cfg_axi_thresh_mask[pkt_event_code];
-                        monitor_pkg::PktTypePerf:      pkt_event_masked = cfg_axi_perf_mask[pkt_event_code];
-                        monitor_pkg::PktTypeAddrMatch: pkt_event_masked = cfg_axi_addr_mask[pkt_event_code];
-                        monitor_pkg::PktTypeDebug:     pkt_event_masked = cfg_axi_debug_mask[pkt_event_code];
+                        monitor_common_pkg::PktTypeError:     pkt_event_masked = cfg_axi_error_mask[pkt_event_code];
+                        monitor_common_pkg::PktTypeTimeout:   pkt_event_masked = cfg_axi_timeout_mask[pkt_event_code];
+                        monitor_common_pkg::PktTypeCompletion: pkt_event_masked = cfg_axi_compl_mask[pkt_event_code];
+                        monitor_common_pkg::PktTypeThreshold: pkt_event_masked = cfg_axi_thresh_mask[pkt_event_code];
+                        monitor_common_pkg::PktTypePerf:      pkt_event_masked = cfg_axi_perf_mask[pkt_event_code];
+                        monitor_common_pkg::PktTypeAddrMatch: pkt_event_masked = cfg_axi_addr_mask[pkt_event_code];
+                        monitor_common_pkg::PktTypeDebug:     pkt_event_masked = cfg_axi_debug_mask[pkt_event_code];
                         default:                       pkt_event_masked = 1'b0;
                     endcase
 
