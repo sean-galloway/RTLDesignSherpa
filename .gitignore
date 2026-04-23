@@ -256,4 +256,4 @@ sandbox/
 temp/
 *.swp
 *.swo
-
+vivado*
