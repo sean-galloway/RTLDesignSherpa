@@ -184,6 +184,22 @@ module axi_monitor_reporter
     logic [31:0] w_total_latency;
     logic [31:0] w_selected_latency_value;
 
+    // Per-slot registered latency + threshold-exceeded flags.
+    //
+    // The original code computed `r_trans_table_local[idx].data_timestamp -
+    // addr_timestamp` combinationally for every slot, compared with
+    // `latency_threshold`, priority-encoded the winner, then did ANOTHER
+    // subtract on the winning slot to produce `r_event_data`. All one
+    // cone: 16-wide CARRY chain + ~10 LUTs, route-dominated.
+    //
+    // Registering the per-slot subtract and threshold comparison here
+    // splits that cone across a cycle — selection/mux now operates on
+    // registered values. Adds 1 cycle of latency to threshold-event
+    // packets, which is transparent to monitor consumers (the packet
+    // still carries the correct latency for the selected slot).
+    logic [31:0]                 r_latency [MAX_TRANSACTIONS];
+    logic [MAX_TRANSACTIONS-1:0] r_latency_over_thresh;
+
     // Performance packet state and selection (combinational)
     logic w_generate_perf_packet_completed;
     logic w_generate_perf_packet_errors;
@@ -344,27 +360,19 @@ module axi_monitor_reporter
         /* verilator lint_on WIDTHEXPAND */
     end
 
-    // Latency threshold detection
+    // Latency threshold detection — now consumes the REGISTERED per-slot
+    // latency + threshold flags (r_latency / r_latency_over_thresh) so the
+    // combinational cone shrinks to priority-encode + mux only. The
+    // 32-bit subtract and threshold comparison run one cycle earlier, in
+    // the main always_ff below.
     always_comb begin
         w_latency_threshold_events = '0;
         w_selected_latency_idx = '0;
         w_has_latency_event = 1'b0;
-        w_total_latency = '0;
+        w_total_latency = '0;  // legacy signal, retained for waveform debug
 
         if (ENABLE_PERF_PACKETS && cfg_perf_enable && cfg_threshold_enable) begin
-            for (int idx = 0; idx < MAX_TRANSACTIONS; idx++) begin
-                if (r_trans_table_local[idx].valid && r_trans_table_local[idx].state == TRANS_COMPLETE) begin
-                    if (IS_READ) begin
-                        w_total_latency = r_trans_table_local[idx].data_timestamp - r_trans_table_local[idx].addr_timestamp;
-                    end else begin
-                        w_total_latency = r_trans_table_local[idx].resp_timestamp - r_trans_table_local[idx].addr_timestamp;
-                    end
-
-                    if (w_total_latency > latency_threshold && !r_latency_threshold_crossed) begin
-                        w_latency_threshold_events[idx] = 1'b1;
-                    end
-                end
-            end
+            w_latency_threshold_events = r_latency_over_thresh;
 
             // Priority encoder to select the first latency threshold event
             for (int idx = 0; idx < MAX_TRANSACTIONS; idx++) begin
@@ -378,18 +386,12 @@ module axi_monitor_reporter
         end
     end
 
-    // Calculate latency value for selected transaction (combinational)
+    // Calculate latency value for selected transaction (combinational) —
+    // mux from the registered per-slot latencies instead of re-subtracting.
     always_comb begin
         w_selected_latency_value = '0;
-
         if (w_has_latency_event) begin
-            if (IS_READ) begin
-                w_selected_latency_value = r_trans_table_local[w_selected_latency_idx].data_timestamp -
-                                            r_trans_table_local[w_selected_latency_idx].addr_timestamp;
-            end else begin
-                w_selected_latency_value = r_trans_table_local[w_selected_latency_idx].resp_timestamp -
-                                            r_trans_table_local[w_selected_latency_idx].addr_timestamp;
-            end
+            w_selected_latency_value = r_latency[w_selected_latency_idx];
         end
     end
 
@@ -444,6 +446,12 @@ module axi_monitor_reporter
             r_active_threshold_crossed <= 1'b0;
             r_latency_threshold_crossed <= 1'b0;
 
+            // Reset per-slot latency pipeline registers
+            for (int idx = 0; idx < MAX_TRANSACTIONS; idx++) begin
+                r_latency[idx] <= '0;
+            end
+            r_latency_over_thresh <= '0;
+
             // Initialize packet construction registers
             r_packet_type <= PktTypeError;
             r_event_code <= EVT_NONE;
@@ -456,6 +464,32 @@ module axi_monitor_reporter
             // Update local transaction table element by element to avoid width issues
             for (int idx = 0; idx < MAX_TRANSACTIONS; idx++) begin
                 r_trans_table_local[idx] <= trans_table[idx];
+            end
+
+            // Per-slot latency pipeline. Computed from the LIVE (unregistered)
+            // trans_table input so r_latency[idx] is in-sync with
+            // r_trans_table_local[idx] on the NEXT cycle. The 32-bit subtract
+            // runs in parallel for all slots here, then priority encoding
+            // and mux happen combinationally from these registered values.
+            for (int idx = 0; idx < MAX_TRANSACTIONS; idx++) begin : g_lat
+                logic [31:0] lat;
+                if (IS_READ) begin
+                    lat = trans_table[idx].data_timestamp -
+                          trans_table[idx].addr_timestamp;
+                end else begin
+                    lat = trans_table[idx].resp_timestamp -
+                          trans_table[idx].addr_timestamp;
+                end
+                r_latency[idx] <= lat;
+                // Threshold flag: gated by valid+TRANS_COMPLETE to match
+                // the original "only score completed transactions" rule,
+                // and by r_latency_threshold_crossed to keep the edge-
+                // sticky behaviour.
+                r_latency_over_thresh[idx] <=
+                    trans_table[idx].valid &&
+                    (trans_table[idx].state == TRANS_COMPLETE) &&
+                    (lat > latency_threshold) &&
+                    !r_latency_threshold_crossed;
             end
 
             // Handle packet output

@@ -794,9 +794,13 @@ module stream_core_mon #(
     assign fub_rd_axi_arprot = 3'h0;
     assign fub_rd_axi_arqos = 4'h0;
     assign fub_rd_axi_arregion = 4'h0;
-    // AXI USER fields carry channel ID for packet analysis/sorting
+    // AXI USER fields carry channel ID for packet analysis/sorting.
+    // RUSER intentionally NOT driven here: it's an output from
+    // axi4_master_rd_mon's fub_axi_ruser (the slave's R-response RUSER).
+    // Tying it to '0 here was a real multi-driver bug — see the matching
+    // comment in stream_core.sv. RUSER is unused downstream; leaving it
+    // driven only by the master is correct.
     assign fub_rd_axi_aruser = UW'(fub_rd_axi_arid);  // Extract channel ID from transaction ID
-    assign fub_rd_axi_ruser = '0;  // R channel user not used (response path)
 
     axi4_master_rd_mon #(
         .SKID_DEPTH_AR          (SKID_DEPTH_AR),
@@ -898,10 +902,12 @@ module stream_core_mon #(
     assign fub_wr_axi_awprot = 3'h0;
     assign fub_wr_axi_awqos = 4'h0;
     assign fub_wr_axi_awregion = 4'h0;
-    // AXI USER fields carry channel ID for packet analysis/sorting
+    // AXI USER fields carry channel ID for packet analysis/sorting.
+    // BUSER intentionally NOT driven — it's an output from
+    // axi4_master_wr_mon's fub_axi_buser (the slave's B-response BUSER).
+    // See the matching comment in stream_core.sv.
     assign fub_wr_axi_awuser = UW'(fub_wr_axi_awid);  // Extract channel ID from transaction ID
     // NOTE: fub_wr_axi_wuser already carries channel ID from write engine (passes through)
-    assign fub_wr_axi_buser = '0;  // B channel user not used (response path)
 
     axi4_master_wr_mon #(
         .SKID_DEPTH_AW          (SKID_DEPTH_AW),

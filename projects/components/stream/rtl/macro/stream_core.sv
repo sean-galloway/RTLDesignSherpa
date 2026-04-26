@@ -926,9 +926,15 @@ module stream_core #(
     assign fub_rd_axi_arprot = 3'h0;
     assign fub_rd_axi_arqos = 4'h0;
     assign fub_rd_axi_arregion = 4'h0;
-    // AXI USER fields carry channel ID for packet analysis/sorting
+    // AXI USER fields carry channel ID for packet analysis/sorting.
+    // ARUSER is request-side (FUB drives -> master forwards), so this assign
+    // is a legitimate driver. RUSER is response-side (master drives FUB from
+    // slave's R response), so we must NOT drive it here — doing so creates a
+    // real multi-driver against axi4_master_rd's fub_axi_ruser output and
+    // surfaces as DRC MDRV-1 in opt_design (and as Synth 8-6859 critical
+    // warnings during synthesis). RUSER is unused downstream; leaving it
+    // driven only by the master is correct.
     assign fub_rd_axi_aruser = UW'(fub_rd_axi_arid);  // Extract channel ID from transaction ID
-    assign fub_rd_axi_ruser = UW'(fub_rd_axi_arid);  // Carry channel ID for traceability
 
     axi4_master_rd #(
         .SKID_DEPTH_AR          (SKID_DEPTH_AR),
@@ -998,10 +1004,12 @@ module stream_core #(
     assign fub_wr_axi_awprot = 3'h0;
     assign fub_wr_axi_awqos = 4'h0;
     assign fub_wr_axi_awregion = 4'h0;
-    // AXI USER fields carry channel ID for packet analysis/sorting
+    // AXI USER fields carry channel ID for packet analysis/sorting.
+    // AWUSER is request-side (legitimate driver). BUSER is response-side and
+    // is driven by axi4_master_wr's fub_axi_buser output — so we must NOT
+    // drive it here. See the equivalent comment on the read side above.
     assign fub_wr_axi_awuser = UW'(fub_wr_axi_awid);  // Extract channel ID from transaction ID
     // NOTE: fub_wr_axi_wuser already carries channel ID from write engine (passes through)
-    assign fub_wr_axi_buser = UW'(fub_wr_axi_awid);  // Carry channel ID for traceability
 
     axi4_master_wr #(
         .SKID_DEPTH_AW          (SKID_DEPTH_AW),
