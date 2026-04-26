@@ -112,6 +112,11 @@ BASE_RTL_PARAMS = {
     # NUM_CHANNELS shrunk from 8 to 4 to fit the Artix-7 100T BRAM budget.
     # Keep in lockstep with rtl/stream_char_top.sv.
     'NUM_CHANNELS': 4,
+    # Harness memories were the dominant BRAM consumers. Mirror the FPGA
+    # values so sim exercises the same sizes as silicon. Bump either when a
+    # test needs deeper descriptor chains or longer trace captures.
+    'DESC_RAM_ENTRIES': 128,    # 128 × 256 b =  4 KB
+    'DEBUG_SRAM_WORDS': 4096,   # 4K × 32 b   = 16 KB
 }
 
 

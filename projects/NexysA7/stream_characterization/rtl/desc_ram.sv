@@ -101,9 +101,18 @@ module desc_ram #(
     localparam int R4_PKT_W    = AXI_ID_WIDTH + 256 + 2 + 1 + AXI_USER_WIDTH;
 
     // =========================================================================
-    // BRAM storage (256-bit wide, dual-port inferred from separate clocked writes/reads)
-    // =========================================================================
-    (* ram_style = "block" *)
+    // Descriptor storage (256-bit wide, dual-port inferred from separate
+    // clocked writes/reads). The byte-strobed RMW write path below forces
+    // Vivado to infer one RAM per byte lane (32 lanes × 8 bits = 256 bits).
+    // With ram_style = "block" and this width, Vivado allocates one RAMB18
+    // per bit → 256 RAMB18 = 128 tiles regardless of DEPTH_256, which blows
+    // the Artix-7 100T budget. Use "auto" so Vivado picks distributed LUTRAM
+    // for small depths (FPGA build at DEPTH_256=128 fits easily in ~512 LUT-
+    // as-memory cells) and block RAM only for the big ASIC-sim depths.
+    // "distributed" forces LUTRAM inference; at DEPTH_256=128 this costs
+    // about 512 LUT-as-memory cells (we have 19000 available). For the big
+    // ASIC simulation depths (2048+), switch this back to "auto" or "block".
+    (* ram_style = "distributed" *)
     logic [255:0] r_mem [DEPTH_256];
 
     // =========================================================================

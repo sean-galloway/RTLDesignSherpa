@@ -62,14 +62,22 @@ module stream_char_top (
     logic [3:0] w_heartbeat;
 
     stream_char_harness #(
-        .FPGA_CLK_HZ  (100_000_000),
-        .UART_BAUD    (115_200),
-        .DATA_WIDTH   (128),
-        .ADDR_WIDTH   (32),
-        .SRAM_DEPTH   (256),
+        .FPGA_CLK_HZ      (100_000_000),
+        .UART_BAUD        (115_200),
+        .DATA_WIDTH       (128),
+        .ADDR_WIDTH       (32),
+        .SRAM_DEPTH       (256),
         // NUM_CHANNELS shrunk from 8 to 4 to fit the Artix-7 100T BRAM budget.
         // Keep in lockstep with dv/tests/test_stream_char.py rtl_params.
-        .NUM_CHANNELS (4)
+        .NUM_CHANNELS     (4),
+        // First-synth BRAM budget was 192 tiles / 135. Dominant consumers were
+        // the harness's descriptor RAM (2048 × 256 b → 128 tiles) and monitor
+        // trace buffer (64K × 32 b → 64 tiles), neither proportional to the
+        // channel count. Shrunk here to fit the 100T. Bump either when the
+        // characterization campaign needs deeper descriptor chains or longer
+        // trace captures — at the expense of BRAM headroom.
+        .DESC_RAM_ENTRIES ( 128),   //  128 × 256 b =   4 KB → ~4 tiles
+        .DEBUG_SRAM_WORDS (4096)    // 4096 ×  32 b =  16 KB → ~4 tiles
     ) u_harness (
         .aclk            (aclk),
         .aresetn         (aresetn),
@@ -82,12 +90,29 @@ module stream_char_top (
     );
 
     // =========================================================================
-    // LEDs
+    // LEDs — driven from a slow (~200 Hz) clock domain via a 2-phase CDC
+    // handshake. See led_status_driver.sv for the full rationale; in short,
+    // LEDs are human-visible and have no business sitting on 10 ns
+    // sys_clk_pin paths in the heart of the design.
     // =========================================================================
-    assign LED[0]     = w_stream_irq;
-    assign LED[1]     = w_any_error;
-    assign LED[2]     = w_trace_overflow;
-    assign LED[3]     = w_heartbeat[3];   // ~1 Hz blink
-    assign LED[15:4]  = 12'h000;
+    logic [15:0] w_led_status;
+
+    assign w_led_status = {12'h000,
+                           w_heartbeat[3],     // [3] ~1 Hz blink
+                           w_trace_overflow,   // [2]
+                           w_any_error,        // [1]
+                           w_stream_irq};      // [0]
+
+    led_status_driver #(
+        .FPGA_CLK_HZ  (100_000_000),
+        .LED_UPDATE_HZ(200),
+        .NUM_LEDS     (16),
+        .SYNC_STAGES  (3)
+    ) u_led_status_driver (
+        .aclk     (aclk),
+        .aresetn  (aresetn),
+        .i_status (w_led_status),
+        .o_led    (LED)
+    );
 
 endmodule : stream_char_top

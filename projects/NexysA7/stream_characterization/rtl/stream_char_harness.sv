@@ -30,7 +30,15 @@ module stream_char_harness #(
     // NUM_CHANNELS is overridable so the FPGA target can build a 4-channel
     // configuration to fit the Artix-7 100T without changing the DUT's native
     // DATA_WIDTH. Valid values: any power of 2 that the DUT supports (1/2/4/8).
-    parameter int NUM_CHANNELS = 8
+    parameter int NUM_CHANNELS = 8,
+
+    // Harness-side memory sizing. Defaults match the big ASIC simulation
+    // target. The FPGA top overrides these to fit in Artix-7 BRAM: see
+    // rtl/stream_char_top.sv. Descriptor test traffic uses ~256 B; monitor
+    // trace depth is user-adjustable based on what the characterization
+    // campaign needs to capture.
+    parameter int DESC_RAM_ENTRIES = 2048,   // 2048 × 256 b  = 64 KB
+    parameter int DEBUG_SRAM_WORDS = 65536   //  64K ×  32 b  = 256 KB
 ) (
     input  logic            aclk,
     input  logic            aresetn,
@@ -327,7 +335,7 @@ module stream_char_harness #(
         .AXI_ID_WIDTH  (AXI_ID_WIDTH),
         .AXI_USER_WIDTH(AXI_USER_WIDTH),
         .AXI_ADDR_WIDTH(ADDR_WIDTH),
-        .DEPTH_256     (2048)
+        .DEPTH_256     (DESC_RAM_ENTRIES)
     ) u_desc_ram (
         .aclk(aclk), .aresetn(aresetn),
         // AXIL write (from host decode S2)
@@ -406,7 +414,7 @@ module stream_char_harness #(
     logic [1:0]  mon_bresp;
 
     debug_sram #(
-        .DEPTH_WORDS(65536)  // 64K x 32b = 256 KB
+        .DEPTH_WORDS(DEBUG_SRAM_WORDS)
     ) u_debug_sram (
         .aclk(aclk), .aresetn(aresetn),
         .i_freeze     (csr_freeze),

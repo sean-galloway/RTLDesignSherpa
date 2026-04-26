@@ -47,14 +47,54 @@ if {[get_property PROGRESS [get_runs impl_1]] != "100%"} {
 # ---- Post-route reports ----
 puts "\n--- Reports ---"
 open_run impl_1
-report_utilization         -file "$project_root/reports/utilization_impl.txt"
-report_timing_summary      -file "$project_root/reports/timing_summary.txt"
+set rpt_dir "$project_root/reports"
+report_utilization         -file "$rpt_dir/utilization_impl.txt"
+report_timing_summary      -file "$rpt_dir/timing_summary.txt"
 report_timing -sort_by group -max_paths 20 -path_type summary \
-                            -file "$project_root/reports/timing_worst.txt"
-report_clock_interaction   -file "$project_root/reports/clock_interaction.txt"
-report_cdc                 -file "$project_root/reports/cdc.txt"
-report_drc                 -file "$project_root/reports/drc.txt"
-report_power               -file "$project_root/reports/power.txt"
+                            -file "$rpt_dir/timing_worst.txt"
+report_clock_interaction   -file "$rpt_dir/clock_interaction.txt"
+report_cdc                 -file "$rpt_dir/cdc.txt"
+report_drc                 -file "$rpt_dir/drc.txt"
+report_power               -file "$rpt_dir/power.txt"
+
+# Full failing-path detail (post-route). Same format as synth_only.tcl so
+# diffing pre- vs post-route timing closure is easy.
+report_timing -setup \
+    -slack_lesser_than 0 \
+    -max_paths 100000 \
+    -nworst 1 \
+    -sort_by slack \
+    -input_pins \
+    -file "$rpt_dir/timing_failing_setup_full.txt"
+
+set fail_paths [get_timing_paths -setup -slack_lesser_than 0 \
+                                 -max_paths 100000 -nworst 1 -sort_by slack]
+set fh [open "$rpt_dir/timing_failing_endpoints.csv" "w"]
+puts $fh "slack_ns,levels,startpoint,endpoint"
+foreach p $fail_paths {
+    set slack  [get_property SLACK         $p]
+    set levels [get_property LOGIC_LEVELS  $p]
+    set src    [get_property STARTPOINT_PIN $p]
+    set dst    [get_property ENDPOINT_PIN   $p]
+    puts $fh "$slack,$levels,$src,$dst"
+}
+close $fh
+
+set hot [dict create]
+foreach p $fail_paths {
+    set ep     [get_property ENDPOINT_PIN $p]
+    set cell   [file dirname $ep]
+    set parent [file dirname $cell]
+    dict incr hot $parent
+}
+set fh [open "$rpt_dir/timing_failing_hotspots.txt" "w"]
+puts $fh "# Failing-endpoint count per parent instance (descending) — post-route"
+puts $fh "# count  parent_instance"
+set sorted [lsort -stride 2 -index 1 -integer -decreasing $hot]
+foreach {inst cnt} $sorted {
+    puts $fh [format "%6d  %s" $cnt $inst]
+}
+close $fh
 
 # ---- Copy bitstream to the project root for easy access ----
 set bit_src "$project_root/vivado_project/stream_char.runs/impl_1/stream_char_top.bit"
