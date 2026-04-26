@@ -257,3 +257,7 @@ temp/
 *.swp
 *.swo
 vivado*
+# vivado* above is meant to catch generated junk in working dirs (vivado.log,
+# vivado.jou, vivado_project/, vivado_pid*.str). Re-include analysis scripts
+# in bin/ that happen to start with "vivado_".
+!bin/vivado_*.py
