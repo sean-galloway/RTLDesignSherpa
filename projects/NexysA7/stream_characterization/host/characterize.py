@@ -193,8 +193,8 @@ def main() -> int:
 
     if args.output:
         fieldnames = ["name", "num_channels", "descriptors", "total_bytes",
-                      "cycles", "seconds", "throughput_MBps",
-                      "pass", "timeout"]
+                      "cycles", "seconds",
+                      "throughput_MBps", "pass", "timeout"]
         with open(args.output, "w", newline="") as f:
             w = csv.DictWriter(f, fieldnames=fieldnames)
             w.writeheader()

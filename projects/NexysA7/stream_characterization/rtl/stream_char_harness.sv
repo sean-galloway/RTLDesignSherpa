@@ -564,7 +564,8 @@ module stream_char_harness #(
     logic [1:0]                 rd_rresp;
     logic                       rd_rlast;
     logic [AXI_USER_WIDTH-1:0]  rd_ruser;
-    logic                       rd_rvalid, rd_rready;
+    logic                       rd_rvalid;
+    logic                       rd_rready;
 
     axi4_slave_rd_pattern_gen #(
         .AXI_ID_WIDTH  (AXI_ID_WIDTH),
@@ -584,9 +585,9 @@ module stream_char_harness #(
         .s_axi_arqos   (rd_arqos),   .s_axi_arregion(rd_arregion),
         .s_axi_aruser  (rd_aruser),  .s_axi_arvalid(rd_arvalid),
         .s_axi_arready (rd_arready),
-        .s_axi_rid     (rd_rid),     .s_axi_rdata(rd_rdata),
-        .s_axi_rresp   (rd_rresp),   .s_axi_rlast(rd_rlast),
-        .s_axi_ruser   (rd_ruser),   .s_axi_rvalid(rd_rvalid),
+        .s_axi_rid     (rd_rid),    .s_axi_rdata(rd_rdata),
+        .s_axi_rresp   (rd_rresp),  .s_axi_rlast(rd_rlast),
+        .s_axi_ruser   (rd_ruser),  .s_axi_rvalid(rd_rvalid),
         .s_axi_rready  (rd_rready),
         .busy          ()
     );
@@ -614,7 +615,8 @@ module stream_char_harness #(
     logic [AXI_ID_WIDTH-1:0]    wr_bid;
     logic [1:0]                 wr_bresp;
     logic [AXI_USER_WIDTH-1:0]  wr_buser;
-    logic                       wr_bvalid, wr_bready;
+    logic                       wr_bvalid;
+    logic                       wr_bready;
 
     axi4_slave_wr_crc_check #(
         .AXI_ID_WIDTH  (AXI_ID_WIDTH),

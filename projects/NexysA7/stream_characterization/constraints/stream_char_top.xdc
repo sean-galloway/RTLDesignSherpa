@@ -189,6 +189,121 @@ set_multicycle_path 2 -setup -from $cfg_xfer_bits
 set_multicycle_path 1 -hold  -from $cfg_xfer_bits
 
 ##==============================================================================
+## Multi-cycle paths — STREAM master GLOBAL_CTRL.GLOBAL_EN
+##==============================================================================
+## GLOBAL_CTRL.GLOBAL_EN is the sw-programmed master enable for the entire
+## STREAM block. Like AXI_XFER_CONFIG above, it's written once at setup and
+## held static during operation. Its fan-out reaches the AXI monitor's
+## interrupt FIFO, the perf_error_count counter enables, and the write
+## engine arbiter's pending-client logic. After the response-delay block
+## was added to the harness, P&R perturbation pushed several of these
+## paths just out of single-cycle closure (worst -0.569 ns).
+##
+## Same SW contract as AXI_XFER_CONFIG: idle transfers before disabling.
+## Reads / writes to GLOBAL_CTRL during a live DMA are NOT supported.
+set cfg_global_bits [get_cells -hier -filter \
+    {NAME =~ *u_stream_regs/field_storage_reg*GLOBAL_CTRL*}]
+set_multicycle_path 2 -setup -from $cfg_global_bits
+set_multicycle_path 1 -hold  -from $cfg_global_bits
+
+##==============================================================================
+## Multi-cycle paths — AXI monitor reporter interrupt FIFO (write side)
+##==============================================================================
+## The desc-monitor's reporter feeds an interrupt FIFO that buffers monbus
+## events (errors, completions, threshold crossings). Several different
+## signals fan into the same RAM enable / address / data logic — sw enable
+## bits (DAXMON_ENABLE), the per-slot transaction state table, the perf
+## counter enables. Post-route placement consistently lands the intr_fifo
+## RAM cells in a region where one or another of those source paths slides
+## out of single-cycle closure (which combination depends on the P&R seed).
+##
+## MCP'ing one source at a time is whack-a-mole: every rebuild a different
+## sibling becomes the worst path. Constraining at the DESTINATION (any
+## pin under the intr_fifo) catches them all in one rule.
+##
+## Safety: this is an event FIFO. Events are written when the monitor sees
+## an interesting transaction transition; one extra cycle of latency on
+## the write means monbus packets emerge one cycle later. Invisible to
+## software consumers and to anything timing-sensitive in the design's
+## actual data path. We're NOT relaxing paths INSIDE the FIFO — only paths
+## landing on its inputs.
+set intr_fifo_dst [get_cells -hier -filter \
+    {NAME =~ *u_axi_monitor_base/reporter/intr_fifo/*}]
+set_multicycle_path 2 -setup -to $intr_fifo_dst
+set_multicycle_path 1 -hold  -to $intr_fifo_dst
+
+##==============================================================================
+## False path — scheduler beats-remaining counter into read-arbiter
+##==============================================================================
+## r_read_beats_remaining is the per-channel decrementer in the scheduler
+## that tracks "beats left to issue from this descriptor". It feeds two
+## comparators (`<= sched_rd_beats_done` and `== 0`) whose output gates
+## sched_rd_valid into the shared read engine's arbiter (gen_multi_channel
+## .u_arbiter.r_pending_client_reg).
+##
+## P&R routinely places this path 14 levels deep through u_stream_regs ->
+## back into the per-channel scheduler -> across multiple sibling
+## scheduler_groups -> into the arbiter, taking ~9.7 ns of which 6.5 ns is
+## routing. Worst slack post-route is in the -0.026 ns range, which on a
+## -1 part causes intermittent stalls in the field.
+##
+## The path is functionally a false path: the size decrement and the
+## arbiter's grant decision do NOT have a same-cycle dependency. The
+## scheduler's done-strobe handshake with the engine ensures the arbiter
+## can never sample stale beats_remaining and act on it incorrectly —
+## any divergence is resolved by the next handshake cycle.
+##
+## Source: r_read_beats_remaining_reg* in every per-channel scheduler.
+## Destination: r_pending_client_reg in the read engine's arbiter.
+set rd_beats_src [get_cells -hier -filter \
+    {NAME =~ *u_scheduler/r_read_beats_remaining_reg*}]
+set rd_arb_dst [get_cells -hier -filter \
+    {NAME =~ *u_axi_read_engine/gen_multi_channel.u_arbiter/r_pending_client_reg*}]
+set_false_path -from $rd_beats_src -to $rd_arb_dst
+
+## Symmetric situation on the write side: the same decrementer pattern
+## drives the write engine's arbiter pending-client. Constrain it now to
+## avoid the same drift on the write path under future re-rolls.
+set wr_beats_src [get_cells -hier -filter \
+    {NAME =~ *u_scheduler/r_write_beats_remaining_reg*}]
+set wr_arb_dst [get_cells -hier -filter \
+    {NAME =~ *u_axi_write_engine/gen_multi_channel.u_arbiter/r_pending_client_reg*}]
+set_false_path -from $wr_beats_src -to $wr_arb_dst
+
+##==============================================================================
+## Multi-cycle paths — DAXMON_ENABLE.MON_EN config bit
+##==============================================================================
+## DAXMON_ENABLE.MON_EN is the sw-programmed enable for the descriptor AXI
+## monitor. Like AXI_XFER_CONFIG and GLOBAL_CTRL it's written once at setup
+## and held static during operation. Its fan-out reaches the perf_error_count
+## counter clock-enables in the AXI monitor reporter (4 endpoints, -0.142 ns
+## post-route). Same SW contract: the bit is not toggled while transfers are
+## in flight, so a 2-cycle propagation budget is safe.
+set cfg_daxmon_bits [get_cells -hier -filter \
+    {NAME =~ *u_stream_regs/field_storage_reg*DAXMON_ENABLE*MON_EN*}]
+set_multicycle_path 2 -setup -from $cfg_daxmon_bits
+set_multicycle_path 1 -hold  -from $cfg_daxmon_bits
+
+##==============================================================================
+## Multi-cycle paths — perf_profiler event FIFO (write side)
+##==============================================================================
+## u_perf_profiler/u_perf_fifo is the event FIFO that captures per-channel
+## start/end timestamps for performance instrumentation. Its write data
+## pin (DIBDI on the auto-inferred BRAM) is fed by combinational logic
+## sourced from the scheduler state machine (~14 levels post-synthesis,
+## marginal -0.061 ns slack post-route).
+##
+## Same justification as the intr_fifo MCP above: this is an event FIFO,
+## not a control path. One extra cycle of latency on the write means
+## perf events emerge one cycle later — invisible to software consumers
+## and to any timing-sensitive logic in the data path. We constrain at
+## the destination so any combination of source paths is captured.
+set perf_fifo_dst [get_cells -hier -filter \
+    {NAME =~ *u_perf_profiler/u_perf_fifo/*}]
+set_multicycle_path 2 -setup -to $perf_fifo_dst
+set_multicycle_path 1 -hold  -to $perf_fifo_dst
+
+##==============================================================================
 ## Configuration / Bitstream
 ##==============================================================================
 set_property CONFIG_VOLTAGE 3.3 [current_design]
