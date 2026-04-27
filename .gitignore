@@ -261,3 +261,4 @@ vivado*
 # vivado.jou, vivado_project/, vivado_pid*.str). Re-include analysis scripts
 # in bin/ that happen to start with "vivado_".
 !bin/vivado_*.py
+*.lock

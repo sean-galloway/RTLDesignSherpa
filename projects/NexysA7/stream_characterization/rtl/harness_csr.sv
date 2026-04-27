@@ -33,7 +33,19 @@
 //   0x20  SCRATCH         RW  Free scratchpad for host bring-up / ping test
 //   0x24  BUILD_ID        R   Parameter-driven build ID (for host handshake)
 //
-//   0x28 - 0xFF           --  Reserved (read as 0)
+//   0x28  TIMER_CTRL      W   [0] = clear pulse (resets done/cycles/pass)
+//                              Reads as 0.
+//   0x2C  TIMER_STATUS    R   [0] = done   (latched: stop trigger fired)
+//                              [1] = running (between start and stop)
+//                              [2] = pass   (CRC matched at stop edge)
+//   0x30  TIMER_CYCLES_LO R   Low 32 b of 64 b cycle counter (10 ns / cycle)
+//   0x34  TIMER_CYCLES_HI R   High 32 b
+//   0x38  TIMER_EXP_BEATS RW  Expected sink-side beat count (host programs
+//                              this before the kick; timer stops when the
+//                              sink slave's write_beat_count >= this value).
+//                              Write 0 to disable beat-based stop.
+//
+//   0x3C - 0xFF           --  Reserved (read as 0)
 
 `timescale 1ns / 1ps
 
@@ -99,7 +111,17 @@ module harness_csr #(
     input  logic [31:0]     i_crc_wr_expected,
     input  logic [31:0]     i_crc_wr_computed,
     input  logic            i_crc_valid,
-    input  logic            i_crc_match
+    input  logic            i_crc_match,
+
+    // =====================================================================
+    // Characterization timer interface
+    // =====================================================================
+    output logic            o_timer_clear_pulse,
+    output logic [31:0]     o_timer_expected_beats,
+    input  logic            i_timer_done,
+    input  logic            i_timer_running,
+    input  logic            i_timer_pass,
+    input  logic [63:0]     i_timer_cycles
 );
 
     localparam int AW_PKT_W = AW + 3;
@@ -209,6 +231,8 @@ module harness_csr #(
     logic r_start_pulse;
     logic r_clear_stats_pulse;
     logic r_soft_reset_pulse;
+    logic r_timer_clear_pulse;
+    logic [31:0] r_timer_expected_beats;
 
     // =========================================================================
     // Write channel FSM (operates on skid-buffer outputs)
@@ -225,13 +249,16 @@ module harness_csr #(
             r_wstate            <= W_IDLE;
             r_freeze_trace      <= 1'b0;
             r_scratch           <= '0;
-            r_start_pulse       <= 1'b0;
-            r_clear_stats_pulse <= 1'b0;
-            r_soft_reset_pulse  <= 1'b0;
+            r_start_pulse          <= 1'b0;
+            r_clear_stats_pulse    <= 1'b0;
+            r_soft_reset_pulse     <= 1'b0;
+            r_timer_clear_pulse    <= 1'b0;
+            r_timer_expected_beats <= '0;
         end else begin
-            r_start_pulse       <= 1'b0;
-            r_clear_stats_pulse <= 1'b0;
-            r_soft_reset_pulse  <= 1'b0;
+            r_start_pulse          <= 1'b0;
+            r_clear_stats_pulse    <= 1'b0;
+            r_soft_reset_pulse     <= 1'b0;
+            r_timer_clear_pulse    <= 1'b0;
 
             case (r_wstate)
                 W_IDLE: begin
@@ -244,6 +271,8 @@ module harness_csr #(
                                 r_soft_reset_pulse  <= int_wdata[3];
                             end
                             8'h20: r_scratch <= int_wdata;
+                            8'h28: r_timer_clear_pulse <= int_wdata[0];
+                            8'h38: r_timer_expected_beats <= int_wdata;
                             default: ; // ignore
                         endcase
                         r_wstate <= W_BRESP;
@@ -313,6 +342,13 @@ module harness_csr #(
                             8'h1C: r_rdata <= {30'd0, i_crc_valid, i_crc_match};
                             8'h20: r_rdata <= r_scratch;
                             8'h24: r_rdata <= BUILD_ID;
+                            8'h28: r_rdata <= 32'h0000_0000;  // TIMER_CTRL is W-only
+                            8'h2C: r_rdata <= {29'd0, i_timer_pass,
+                                                       i_timer_running,
+                                                       i_timer_done};
+                            8'h30: r_rdata <= i_timer_cycles[31:0];
+                            8'h34: r_rdata <= i_timer_cycles[63:32];
+                            8'h38: r_rdata <= r_timer_expected_beats;
                             default: r_rdata <= 32'h0000_0000;
                         endcase
                         r_rstate <= R_RRESP;
@@ -335,6 +371,8 @@ module harness_csr #(
     assign o_clear_stats_pulse = r_clear_stats_pulse;
     assign o_freeze_trace      = r_freeze_trace;
     assign o_soft_reset_pulse  = r_soft_reset_pulse;
+    assign o_timer_clear_pulse    = r_timer_clear_pulse;
+    assign o_timer_expected_beats = r_timer_expected_beats;
 
     // Prevent unused signal warnings
     /* verilator lint_off UNUSED */

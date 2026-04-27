@@ -31,7 +31,13 @@ module stream_char_top (
     input  logic        UART_TXD_IN,     // FTDI->FPGA
     output logic        UART_RXD_OUT,    // FPGA->FTDI
 
-    output logic [15:0] LED
+    output logic [15:0] LED,
+
+    // 7-segment display (rightmost 4 digits used; AN[7:4] blanked)
+    output logic [7:0]  AN,              // anodes, active low
+    output logic        CA, CB, CC, CD,  // cathode segments, active low
+    output logic        CE, CF, CG,
+    output logic        DP               // decimal point, active low
 );
 
     // =========================================================================
@@ -60,6 +66,8 @@ module stream_char_top (
     logic       w_any_error;
     logic       w_trace_overflow;
     logic [3:0] w_heartbeat;
+    logic       w_timer_done;
+    logic       w_timer_pass;
 
     stream_char_harness #(
         .FPGA_CLK_HZ      (100_000_000),
@@ -86,7 +94,9 @@ module stream_char_top (
         .o_stream_irq    (w_stream_irq),
         .o_any_error     (w_any_error),
         .o_trace_overflow(w_trace_overflow),
-        .o_heartbeat     (w_heartbeat)
+        .o_heartbeat     (w_heartbeat),
+        .o_timer_done    (w_timer_done),
+        .o_timer_pass    (w_timer_pass)
     );
 
     // =========================================================================
@@ -94,14 +104,29 @@ module stream_char_top (
     // handshake. See led_status_driver.sv for the full rationale; in short,
     // LEDs are human-visible and have no business sitting on 10 ns
     // sys_clk_pin paths in the heart of the design.
+    //
+    // When the characterization timer has completed, override the per-bit
+    // status display with one of two distinctive patterns so the board
+    // shows the result at a glance (no need to read it over UART):
+    //   PASS = 0x0123  (low-bit "ladder" — bits 0,1,5,8 lit)
+    //   FAIL = 0x9999  (every nibble = 1001, very obviously NOT 0x0123)
+    // Heartbeat continues blinking on bit [3] in the PASS pattern (bit 3
+    // of 0x0123 is 0, so the heartbeat doesn't disturb the pattern).
     // =========================================================================
     logic [15:0] w_led_status;
+    logic [15:0] w_led_status_idle;
+    localparam logic [15:0] LED_PATTERN_PASS = 16'h0123;
+    localparam logic [15:0] LED_PATTERN_FAIL = 16'h9999;
 
-    assign w_led_status = {12'h000,
-                           w_heartbeat[3],     // [3] ~1 Hz blink
-                           w_trace_overflow,   // [2]
-                           w_any_error,        // [1]
-                           w_stream_irq};      // [0]
+    assign w_led_status_idle = {12'h000,
+                                w_heartbeat[3],     // [3] ~1 Hz blink
+                                w_trace_overflow,   // [2]
+                                w_any_error,        // [1]
+                                w_stream_irq};      // [0]
+
+    assign w_led_status = w_timer_done
+        ? (w_timer_pass ? LED_PATTERN_PASS : LED_PATTERN_FAIL)
+        : w_led_status_idle;
 
     led_status_driver #(
         .FPGA_CLK_HZ  (100_000_000),
@@ -114,5 +139,37 @@ module stream_char_top (
         .i_status (w_led_status),
         .o_led    (LED)
     );
+
+    // =========================================================================
+    // 7-segment display: show "0123" on PASS, "9999" on FAIL, blank when idle.
+    // Same w_timer_done / w_timer_pass signals that drive the LED override.
+    // =========================================================================
+    logic [15:0] w_seg_value;
+    logic [6:0]  w_seg_bus;
+
+    assign w_seg_value = w_timer_pass ? 16'h0123 : 16'h9999;
+
+    seven_seg_4digit #(
+        .FPGA_CLK_HZ(100_000_000),
+        .REFRESH_HZ (1000)
+    ) u_seven_seg (
+        .aclk    (aclk),
+        .aresetn (aresetn),
+        .i_hex   (w_seg_value),
+        .i_enable(w_timer_done),  // blanked until a result is latched
+        .o_an    (AN),
+        .o_seg   (w_seg_bus),
+        .o_dp    (DP)
+    );
+
+    // Cathode bus split into named board pins. Bit order matches hex_to_7seg:
+    //   w_seg_bus = {g, f, e, d, c, b, a}
+    assign CA = w_seg_bus[0];
+    assign CB = w_seg_bus[1];
+    assign CC = w_seg_bus[2];
+    assign CD = w_seg_bus[3];
+    assign CE = w_seg_bus[4];
+    assign CF = w_seg_bus[5];
+    assign CG = w_seg_bus[6];
 
 endmodule : stream_char_top

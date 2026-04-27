@@ -51,7 +51,11 @@ module stream_char_harness #(
     output logic            o_stream_irq,
     output logic            o_any_error,
     output logic            o_trace_overflow,
-    output logic [3:0]      o_heartbeat
+    output logic [3:0]      o_heartbeat,
+
+    // Characterization timer status (to top for LED PASS/FAIL display)
+    output logic            o_timer_done,
+    output logic            o_timer_pass
 );
 
     localparam int AXI_ID_WIDTH   = 8;
@@ -264,12 +268,21 @@ module stream_char_harness #(
     // S1: harness_csr
     // =========================================================================
     logic        csr_start_pulse, csr_clear_pulse, csr_freeze, csr_soft_reset;
+    logic        csr_timer_clear_pulse;
+    logic [31:0] csr_timer_expected_beats;
     logic [31:0] dbg_wr_ptr;
     logic        dbg_overflow;
     logic [31:0] read_crc_value, write_crc_value;
     logic        read_crc_valid, write_crc_valid;
     logic [31:0] read_beat_count, write_beat_count;
     logic        stream_irq;
+
+    // Characterization timer outputs (driven below, consumed by harness_csr
+    // and exposed to the top-level for the LED override).
+    logic        timer_done;
+    logic        timer_running;
+    logic        timer_pass;
+    logic [63:0] timer_cycles;
 
     // Simple CRC match comparison
     wire crc_match = read_crc_valid && write_crc_valid && (read_crc_value == write_crc_value);
@@ -305,8 +318,96 @@ module stream_char_harness #(
         .i_crc_wr_expected  (read_crc_value),  // expected = source CRC
         .i_crc_wr_computed  (write_crc_value),
         .i_crc_valid        (crc_both_valid),
-        .i_crc_match        (crc_match)
+        .i_crc_match        (crc_match),
+
+        // Characterization timer
+        .o_timer_clear_pulse   (csr_timer_clear_pulse),
+        .o_timer_expected_beats(csr_timer_expected_beats),
+        .i_timer_done          (timer_done),
+        .i_timer_running       (timer_running),
+        .i_timer_pass          (timer_pass),
+        .i_timer_cycles        (timer_cycles)
     );
+
+    // =========================================================================
+    // Characterization timer
+    // =========================================================================
+    // 64-bit cycle counter at aclk (10 ns / cycle). Captures the wall-clock
+    // duration of a DMA "session" so the host can compute measured throughput
+    // without depending on the broken stream_irq -> CSR_STATUS path.
+    //
+    //   START : rising edge of (desc_arvalid & desc_arready) — the first AR
+    //           handshake the scheduler issues on the descriptor-RAM bus
+    //           after a TIMER_CTRL clear. Latched: only one start per
+    //           session (ignored once running OR done).
+    //   STOP  : write_beat_count >= csr_timer_expected_beats. The sink
+    //           slave's write_beat_count increments on each W beat, so this
+    //           reaches the programmed expected count exactly when the last
+    //           beat has been consumed by the CRC checker. The host
+    //           programs CSR_TIMER_EXP_BEATS (0x38) before the kick.
+    //           Disabled when expected_beats == 0 (host can keep timer
+    //           running indefinitely if it wants to read cycles live).
+    //   PASS  : crc_match sampled SETTLE_CYCLES after the stop trigger.
+    //           dataint_crc has a 2-cycle pipeline (cascade compute +
+    //           output register), so write_crc_value lags write_beat_count
+    //           by one cycle. We let it settle for SETTLE_CYCLES before
+    //           capturing pass to avoid a 1-cycle race that would mark a
+    //           correct transfer as failed. The settle window is NOT
+    //           counted in timer_cycles — that freezes at the true
+    //           transfer-end so reported throughput stays accurate.
+    //   CLEAR : csr_timer_clear_pulse from harness_csr (0x28[0] write).
+    localparam logic [2:0] SETTLE_CYCLES = 3'd5;
+
+    logic r_desc_handshake_d;
+    logic [2:0] r_settle_cnt;
+    wire  w_desc_handshake      = desc_arvalid & desc_arready;
+    wire  w_desc_handshake_rise = w_desc_handshake & ~r_desc_handshake_d;
+    wire  w_beat_count_reached  = (csr_timer_expected_beats != 32'd0) &&
+                                  (write_beat_count >= csr_timer_expected_beats);
+
+    `ALWAYS_FF_RST(aclk, aresetn,
+        if (`RST_ASSERTED(aresetn)) begin
+            r_desc_handshake_d <= 1'b0;
+        end else begin
+            r_desc_handshake_d <= w_desc_handshake;
+        end
+    )
+
+    `ALWAYS_FF_RST(aclk, aresetn,
+        if (`RST_ASSERTED(aresetn)) begin
+            timer_running <= 1'b0;
+            timer_done    <= 1'b0;
+            timer_pass    <= 1'b0;
+            timer_cycles  <= '0;
+            r_settle_cnt  <= 3'd0;
+        end else if (csr_timer_clear_pulse) begin
+            timer_running <= 1'b0;
+            timer_done    <= 1'b0;
+            timer_pass    <= 1'b0;
+            timer_cycles  <= '0;
+            r_settle_cnt  <= 3'd0;
+        end else if (timer_running) begin
+            if (w_beat_count_reached) begin
+                // Stop counting cycles; begin settle window.
+                timer_running <= 1'b0;
+                r_settle_cnt  <= 3'd1;
+            end else begin
+                timer_cycles  <= timer_cycles + 64'd1;
+            end
+        end else if (r_settle_cnt != 3'd0) begin
+            if (r_settle_cnt == SETTLE_CYCLES) begin
+                r_settle_cnt <= 3'd0;
+                timer_done   <= 1'b1;
+                timer_pass   <= crc_match;
+            end else begin
+                r_settle_cnt <= r_settle_cnt + 3'd1;
+            end
+        end else if (!timer_done && w_desc_handshake_rise) begin
+            // First AR handshake on the descriptor RAM bus — start.
+            timer_running <= 1'b1;
+            timer_cycles  <= 64'd1;  // count the start cycle
+        end
+    )
 
     // =========================================================================
     // S2: desc_ram  (AXIL write + AXI4 read)
@@ -687,10 +788,14 @@ module stream_char_harness #(
     )
     assign o_heartbeat = r_hb[26:23];
 
+    // Characterization timer outputs to the board top for LED PASS/FAIL.
+    assign o_timer_done = timer_done;
+    assign o_timer_pass = timer_pass;
+
     // Prevent unused signal warnings
     /* verilator lint_off UNUSED */
     wire _unused_ok = &{1'b0,
-        read_beat_count, write_beat_count,
+        read_beat_count,
         csr_start_pulse, csr_soft_reset,
         1'b0};
     /* verilator lint_on UNUSED */

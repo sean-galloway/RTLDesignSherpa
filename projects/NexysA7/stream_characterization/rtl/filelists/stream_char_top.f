@@ -8,5 +8,9 @@
 $REPO_ROOT/rtl/amba/shared/cdc_2_phase_handshake.sv
 $STREAM_CHAR_ROOT/rtl/led_status_driver.sv
 
+# 7-segment display (PASS/FAIL indicator from the characterization timer).
+$REPO_ROOT/rtl/common/hex_to_7seg.sv
+$STREAM_CHAR_ROOT/rtl/seven_seg_4digit.sv
+
 # Board-level top (pins + harness instantiation only).
 $STREAM_CHAR_ROOT/rtl/stream_char_top.sv
