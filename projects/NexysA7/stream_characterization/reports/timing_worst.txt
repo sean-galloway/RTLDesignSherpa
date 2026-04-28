@@ -1,0 +1,193 @@
+Copyright 1986-2022 Xilinx, Inc. All Rights Reserved. Copyright 2022-2025 Advanced Micro Devices, Inc. All Rights Reserved.
+----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+| Tool Version : Vivado v.2025.1 (lin64) Build 6140274 Wed May 21 22:58:25 MDT 2025
+| Date         : Mon Apr 27 17:38:53 2026
+| Host         : amdtrp running 64-bit Ubuntu 24.04.4 LTS
+| Command      : report_timing -sort_by group -max_paths 20 -path_type summary -file /mnt/data/github/RTLDesignSherpa/projects/NexysA7/stream_characterization/reports/timing_worst.txt
+| Design       : stream_char_top
+| Device       : 7a100t-csg324
+| Speed File   : -1  PRODUCTION 1.23 2018-06-13
+| Design State : Routed
+----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+Timing Report
+
+Startpoint                     Endpoint                       Slack(ns)     
+----------------------------------------------------------------------------
+u_harness/u_stream/g_stream_core_mon.u_stream_core/u_scheduler_group_array/u_desc_axi_monitor/axi_monitor_inst/u_axi_monitor_base/reporter/r_trans_table_local_reg[6][state][0]/C
+                               u_harness/u_stream/g_stream_core_mon.u_stream_core/u_scheduler_group_array/u_desc_axi_monitor/axi_monitor_inst/u_axi_monitor_base/reporter/r_event_data_reg[2]/CE
+                                                              0.204         
+u_harness/u_stream/g_stream_core_mon.u_stream_core/u_scheduler_group_array/u_desc_axi_monitor/axi_monitor_inst/u_axi_monitor_base/reporter/r_trans_table_local_reg[6][state][0]/C
+                               u_harness/u_stream/g_stream_core_mon.u_stream_core/u_scheduler_group_array/u_desc_axi_monitor/axi_monitor_inst/u_axi_monitor_base/reporter/r_event_data_reg[3]/CE
+                                                              0.204         
+u_harness/u_stream/g_stream_core_mon.u_stream_core/u_scheduler_group_array/u_desc_axi_monitor/axi_monitor_inst/u_axi_monitor_base/reporter/r_trans_table_local_reg[6][state][0]/C
+                               u_harness/u_stream/g_stream_core_mon.u_stream_core/u_scheduler_group_array/u_desc_axi_monitor/axi_monitor_inst/u_axi_monitor_base/reporter/r_event_data_reg[5]/CE
+                                                              0.204         
+u_harness/u_stream/g_stream_core_mon.u_stream_core/u_scheduler_group_array/u_desc_axi_monitor/axi_monitor_inst/u_axi_monitor_base/reporter/r_trans_table_local_reg[6][state][0]/C
+                               u_harness/u_stream/g_stream_core_mon.u_stream_core/u_scheduler_group_array/u_desc_axi_monitor/axi_monitor_inst/u_axi_monitor_base/reporter/r_event_data_reg[11]/D
+                                                              0.252         
+u_harness/u_stream/g_stream_core_mon.u_stream_core/u_scheduler_group_array/u_desc_axi_monitor/axi_monitor_inst/u_axi_monitor_base/reporter/r_trans_table_local_reg[6][state][0]/C
+                               u_harness/u_stream/g_stream_core_mon.u_stream_core/u_scheduler_group_array/u_desc_axi_monitor/axi_monitor_inst/u_axi_monitor_base/reporter/r_event_data_reg[8]/CE
+                                                              0.256         
+u_harness/u_stream/g_stream_core_mon.u_stream_core/u_scheduler_group_array/u_desc_axi_monitor/axi_monitor_inst/u_axi_monitor_base/reporter/r_trans_table_local_reg[6][state][0]/C
+                               u_harness/u_stream/g_stream_core_mon.u_stream_core/u_scheduler_group_array/u_desc_axi_monitor/axi_monitor_inst/u_axi_monitor_base/reporter/r_event_data_reg[11]/CE
+                                                              0.260         
+u_harness/u_stream/g_stream_core_mon.u_stream_core/u_scheduler_group_array/u_desc_axi_monitor/axi_monitor_inst/u_axi_monitor_base/reporter/r_trans_table_local_reg[6][state][0]/C
+                               u_harness/u_stream/g_stream_core_mon.u_stream_core/u_scheduler_group_array/u_desc_axi_monitor/axi_monitor_inst/u_axi_monitor_base/reporter/r_event_code_reg[3]/CE
+                                                              0.269         
+u_harness/u_stream/g_stream_core_mon.u_stream_core/u_scheduler_group_array/u_desc_axi_monitor/axi_monitor_inst/u_axi_monitor_base/reporter/r_trans_table_local_reg[6][state][0]/C
+                               u_harness/u_stream/g_stream_core_mon.u_stream_core/u_scheduler_group_array/u_desc_axi_monitor/axi_monitor_inst/u_axi_monitor_base/reporter/r_event_data_reg[6]/D
+                                                              0.281         
+u_harness/u_stream/g_stream_core_mon.u_stream_core/u_scheduler_group_array/u_desc_axi_monitor/axi_monitor_inst/u_axi_monitor_base/reporter/r_trans_table_local_reg[6][state][0]/C
+                               u_harness/u_stream/g_stream_core_mon.u_stream_core/u_scheduler_group_array/u_desc_axi_monitor/axi_monitor_inst/u_axi_monitor_base/reporter/r_event_data_reg[9]/D
+                                                              0.281         
+u_harness/u_stream/g_stream_core_mon.u_stream_core/u_scheduler_group_array/u_desc_axi_monitor/axi_monitor_inst/u_axi_monitor_base/reporter/r_trans_table_local_reg[6][state][0]/C
+                               u_harness/u_stream/g_stream_core_mon.u_stream_core/u_scheduler_group_array/u_desc_axi_monitor/axi_monitor_inst/u_axi_monitor_base/reporter/r_event_data_reg[6]/CE
+                                                              0.283         
+u_harness/u_stream/g_stream_core_mon.u_stream_core/u_scheduler_group_array/u_desc_axi_monitor/axi_monitor_inst/u_axi_monitor_base/reporter/r_trans_table_local_reg[6][state][0]/C
+                               u_harness/u_stream/g_stream_core_mon.u_stream_core/u_scheduler_group_array/u_desc_axi_monitor/axi_monitor_inst/u_axi_monitor_base/reporter/r_event_data_reg[7]/CE
+                                                              0.283         
+u_harness/u_stream/g_stream_core_mon.u_stream_core/u_scheduler_group_array/u_desc_axi_monitor/axi_monitor_inst/u_axi_monitor_base/reporter/r_trans_table_local_reg[6][state][0]/C
+                               u_harness/u_stream/g_stream_core_mon.u_stream_core/u_scheduler_group_array/u_desc_axi_monitor/axi_monitor_inst/u_axi_monitor_base/reporter/r_event_data_reg[13]/CE
+                                                              0.285         
+u_harness/u_stream/g_stream_core_mon.u_stream_core/u_scheduler_group_array/u_desc_axi_monitor/axi_monitor_inst/u_axi_monitor_base/reporter/r_trans_table_local_reg[6][state][0]/C
+                               u_harness/u_stream/g_stream_core_mon.u_stream_core/u_scheduler_group_array/u_desc_axi_monitor/axi_monitor_inst/u_axi_monitor_base/reporter/r_event_data_reg[14]/CE
+                                                              0.285         
+u_harness/u_stream/g_stream_core_mon.u_stream_core/u_scheduler_group_array/gen_scheduler_groups[1].u_scheduler_group/u_scheduler/r_current_state_reg[0]/C
+                               u_harness/u_stream/g_apb_passthrough.u_apb_slave/resp_skid_buffer_inst/g_slot[1].r_data_reg[1][23]/D
+                                                              0.293         
+u_harness/u_stream/g_stream_core_mon.u_stream_core/u_scheduler_group_array/u_desc_axi_monitor/axi_monitor_inst/u_axi_monitor_base/reporter/r_trans_table_local_reg[6][state][0]/C
+                               u_harness/u_stream/g_stream_core_mon.u_stream_core/u_scheduler_group_array/u_desc_axi_monitor/axi_monitor_inst/u_axi_monitor_base/reporter/r_event_data_reg[25]/CE
+                                                              0.324         
+u_harness/u_stream/g_stream_core_mon.u_stream_core/u_scheduler_group_array/u_desc_axi_monitor/axi_monitor_inst/u_axi_monitor_base/reporter/r_trans_table_local_reg[6][state][0]/C
+                               u_harness/u_stream/g_stream_core_mon.u_stream_core/u_scheduler_group_array/u_desc_axi_monitor/axi_monitor_inst/u_axi_monitor_base/reporter/r_event_data_reg[26]/CE
+                                                              0.324         
+u_harness/u_stream/g_stream_core_mon.u_stream_core/u_scheduler_group_array/u_desc_axi_monitor/axi_monitor_inst/u_axi_monitor_base/reporter/r_trans_table_local_reg[6][state][0]/C
+                               u_harness/u_stream/g_stream_core_mon.u_stream_core/u_scheduler_group_array/u_desc_axi_monitor/axi_monitor_inst/u_axi_monitor_base/reporter/r_event_data_reg[27]/CE
+                                                              0.324         
+u_harness/u_stream/g_stream_core_mon.u_stream_core/u_scheduler_group_array/u_desc_axi_monitor/axi_monitor_inst/u_axi_monitor_base/reporter/r_trans_table_local_reg[6][state][0]/C
+                               u_harness/u_stream/g_stream_core_mon.u_stream_core/u_scheduler_group_array/u_desc_axi_monitor/axi_monitor_inst/u_axi_monitor_base/reporter/r_event_data_reg[10]/CE
+                                                              0.327         
+u_harness/u_stream/g_stream_core_mon.u_stream_core/u_scheduler_group_array/u_desc_axi_monitor/axi_monitor_inst/u_axi_monitor_base/reporter/r_trans_table_local_reg[6][state][0]/C
+                               u_harness/u_stream/g_stream_core_mon.u_stream_core/u_scheduler_group_array/u_desc_axi_monitor/axi_monitor_inst/u_axi_monitor_base/reporter/r_event_data_reg[15]/CE
+                                                              0.327         
+u_harness/u_stream/g_stream_core_mon.u_stream_core/u_scheduler_group_array/u_desc_axi_monitor/axi_monitor_inst/u_axi_monitor_base/reporter/r_trans_table_local_reg[6][state][0]/C
+                               u_harness/u_stream/g_stream_core_mon.u_stream_core/u_scheduler_group_array/u_desc_axi_monitor/axi_monitor_inst/u_axi_monitor_base/reporter/r_event_data_reg[9]/CE
+                                                              0.327         
+u_harness/u_stream/u_stream_regs/field_storage_reg[PERF_CONFIG][PERF_CLEAR][value]/C
+                               u_harness/u_stream/g_stream_core_mon.u_stream_core/u_perf_profiler/u_perf_fifo/fifo_control_inst/rd_empty_reg/PRE
+                                                              16.770        
+u_harness/u_stream/u_stream_regs/field_storage_reg[PERF_CONFIG][PERF_CLEAR][value]/C
+                               u_harness/u_stream/g_stream_core_mon.u_stream_core/u_perf_profiler/u_perf_fifo/fifo_control_inst/wr_full_reg/CLR
+                                                              16.770        
+u_led_status_driver/r_slow_rst_sync_reg/C
+                               u_led_status_driver/u_hs/r_ack_tog_reg/R
+                                                              9999997.000   
+u_led_status_driver/u_hs/r_req_sync_d_reg/C
+                               u_led_status_driver/u_hs/r_dst_data_reg[1]/D
+                                                              9999997.000   
+u_led_status_driver/r_slow_rst_sync_reg/C
+                               u_led_status_driver/u_hs/r_dst_data_reg[1]/R
+                                                              9999997.000   
+u_led_status_driver/u_hs/r_req_sync_d_reg/C
+                               u_led_status_driver/u_hs/r_dst_data_reg[8]/D
+                                                              9999997.000   
+u_led_status_driver/r_slow_rst_sync_reg/C
+                               u_led_status_driver/u_hs/r_dst_data_reg[8]/R
+                                                              9999997.000   
+u_led_status_driver/r_slow_rst_sync_reg/C
+                               u_led_status_driver/u_hs/r_dst_state_reg_inv/S
+                                                              9999997.000   
+u_led_status_driver/r_slow_rst_sync_reg/C
+                               u_led_status_driver/u_hs/r_req_sync_d_reg/R
+                                                              9999997.000   
+u_led_status_driver/r_slow_rst_sync_reg/C
+                               u_led_status_driver/u_hs/r_req_sync_reg[0]/R
+                                                              9999997.000   
+u_led_status_driver/r_slow_rst_sync_reg/C
+                               u_led_status_driver/u_hs/r_req_sync_reg[1]/R
+                                                              9999997.000   
+u_led_status_driver/r_slow_rst_sync_reg/C
+                               u_led_status_driver/u_hs/r_req_sync_reg[2]/R
+                                                              9999997.000   
+u_led_status_driver/r_slow_rst_sync_reg/C
+                               u_led_status_driver/r_led_reg[0]/CLR
+                                                              9999998.000   
+u_led_status_driver/r_slow_rst_sync_reg/C
+                               u_led_status_driver/r_led_reg[10]/CLR
+                                                              9999998.000   
+u_led_status_driver/r_slow_rst_sync_reg/C
+                               u_led_status_driver/r_led_reg[11]/CLR
+                                                              9999998.000   
+u_led_status_driver/r_slow_rst_sync_reg/C
+                               u_led_status_driver/r_led_reg[12]/CLR
+                                                              9999998.000   
+u_led_status_driver/r_slow_rst_sync_reg/C
+                               u_led_status_driver/r_led_reg[13]/CLR
+                                                              9999998.000   
+u_led_status_driver/r_slow_rst_sync_reg/C
+                               u_led_status_driver/r_led_reg[14]/CLR
+                                                              9999998.000   
+u_led_status_driver/r_slow_rst_sync_reg/C
+                               u_led_status_driver/r_led_reg[15]/CLR
+                                                              9999998.000   
+u_led_status_driver/r_slow_rst_sync_reg/C
+                               u_led_status_driver/r_led_reg[1]/CLR
+                                                              9999998.000   
+u_led_status_driver/r_slow_rst_sync_reg/C
+                               u_led_status_driver/r_led_reg[2]/CLR
+                                                              9999998.000   
+u_led_status_driver/r_slow_rst_sync_reg/C
+                               u_led_status_driver/r_led_reg[3]/CLR
+                                                              9999998.000   
+u_led_status_driver/r_slow_rst_sync_reg/C
+                               u_led_status_driver/r_led_reg[4]/CLR
+                                                              9999998.000   
+u_led_status_driver/r_slow_rst_sync_reg/C
+                               u_led_status_driver/r_led_reg[5]/CLR
+                                                              9999998.000   
+u_led_status_driver/r_slow_rst_sync_reg/C
+                               u_led_status_driver/r_led_reg[6]/CLR
+                                                              9999998.000   
+u_led_status_driver/r_slow_rst_sync_reg/C
+                               u_led_status_driver/r_led_reg[7]/CLR
+                                                              9999998.000   
+u_led_status_driver/r_slow_rst_sync_reg/C
+                               u_led_status_driver/r_led_reg[8]/CLR
+                                                              9999998.000   
+u_led_status_driver/r_slow_rst_sync_reg/C
+                               u_led_status_driver/r_led_reg[9]/CLR
+                                                              9999998.000   
+u_led_status_driver/u_hs/dst_valid_reg/C
+                               u_led_status_driver/r_led_reg[10]/CE
+                                                              9999998.000   
+u_led_status_driver/u_hs/dst_valid_reg/C
+                               u_led_status_driver/r_led_reg[11]/CE
+                                                              9999998.000   
+u_led_status_driver/u_hs/dst_valid_reg/C
+                               u_led_status_driver/r_led_reg[12]/CE
+                                                              9999998.000   
+u_led_status_driver/u_hs/dst_valid_reg/C
+                               u_led_status_driver/r_led_reg[14]/CE
+                                                              9999998.000   
+u_led_status_driver/u_hs/dst_valid_reg/C
+                               u_led_status_driver/r_led_reg[15]/CE
+                                                              9999998.000   
+u_led_status_driver/u_hs/dst_valid_reg/C
+                               u_led_status_driver/r_led_reg[1]/CE
+                                                              9999998.000   
+u_led_status_driver/u_hs/dst_valid_reg/C
+                               u_led_status_driver/r_led_reg[4]/CE
+                                                              9999998.000   
+u_led_status_driver/u_hs/dst_valid_reg/C
+                               u_led_status_driver/r_led_reg[8]/CE
+                                                              9999998.000   
+u_led_status_driver/u_hs/r_dst_state_reg_inv/C
+                               u_led_status_driver/u_hs/dst_valid_reg/D
+                                                              9999998.000   
+u_led_status_driver/u_hs/r_req_sync_d_reg/C
+                               u_led_status_driver/u_hs/r_dst_data_reg[0]/D
+                                                              9999998.000   
+
+
+

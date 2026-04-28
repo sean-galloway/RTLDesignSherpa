@@ -1,0 +1,78 @@
+[*]
+[*] GTKWave Analyzer v3.4.0 (w)1999-2022 BSI
+[*] Mon Apr 27 23:10:54 2026
+[*]
+[dumpfile] "/mnt/data/github/RTLDesignSherpa/projects/NexysA7/stream_characterization/dv/tests/local_sim_build/test_stream_char_harness_dma_1ch_FUNC/dump.fst"
+[dumpfile_mtime] "Mon Apr 27 22:00:16 2026"
+[dumpfile_size] 40449881
+[savefile] "/mnt/data/github/RTLDesignSherpa/projects/NexysA7/stream_characterization/dv/tests/GTKW/debug.gtkw"
+[timestart] 2628566400
+[size] 2932 1858
+[pos] 235 39
+*-15.873186 2628890000 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
+[treeopen] .
+[treeopen] .stream_char_harness.
+[treeopen] .stream_char_harness.u_stream.
+[treeopen] .stream_char_harness.u_stream.g_apb_passthrough.
+[treeopen] .stream_char_harness.u_stream.g_stream_core_mon.
+[treeopen] .stream_char_harness.u_stream.g_stream_core_mon.u_stream_core.
+[treeopen] .stream_char_harness.u_stream.g_stream_core_mon.u_stream_core.u_scheduler_group_array.
+[treeopen] .stream_char_harness.u_stream.g_stream_core_mon.u_stream_core.u_scheduler_group_array.gen_scheduler_groups[0].
+[treeopen] .stream_char_harness.u_stream.g_stream_core_mon.u_stream_core.u_scheduler_group_array.gen_scheduler_groups[0].u_scheduler_group.
+[sst_width] 449
+[signals_width] 427
+[sst_expanded] 1
+[sst_vpaned_height] 774
+@28
+stream_char_harness.u_stream.g_stream_core_mon.u_stream_core.u_axi_read_engine.clk
+@200
+-read engine
+@22
+stream_char_harness.u_stream.g_stream_core_mon.u_stream_core.u_axi_read_engine.r_beats_done[0][31:0]
+stream_char_harness.u_stream.g_stream_core_mon.u_stream_core.u_axi_read_engine.r_r_beats_rcvd[31:0]
+stream_char_harness.u_stream.g_stream_core_mon.u_stream_core.u_axi_read_engine.r_sram_writes[31:0]
+@200
+-write engine
+@28
+stream_char_harness.u_stream.g_stream_core_mon.u_stream_core.u_scheduler_group_array.gen_scheduler_groups[0].u_scheduler_group.u_scheduler.sched_wr_error
+stream_char_harness.u_stream.g_stream_core_mon.u_stream_core.u_scheduler_group_array.gen_scheduler_groups[0].u_scheduler_group.u_scheduler.sched_error
+@22
+stream_char_harness.u_stream.g_stream_core_mon.u_stream_core.u_axi_write_engine.sched_wr_beats[0][31:0]
+stream_char_harness.u_stream.g_stream_core_mon.u_stream_core.u_axi_write_engine.sched_wr_valid[3:0]
+stream_char_harness.u_stream.g_stream_core_mon.u_stream_core.u_axi_write_engine.r_beats_done[0][31:0]
+stream_char_harness.u_stream.g_stream_core_mon.u_stream_core.u_axi_write_engine.r_w_beats_remaining[7:0]
+stream_char_harness.u_stream.g_stream_core_mon.u_stream_core.u_axi_write_engine.r_beats_written[0][31:0]
+stream_char_harness.u_stream.g_stream_core_mon.u_stream_core.u_axi_write_engine.sched_wr_beats[0][31:0]
+stream_char_harness.u_stream.g_stream_core_mon.u_stream_core.u_axi_write_engine.sched_wr_beats_done[0][31:0]
+@200
+-scheduler
+@23
+stream_char_harness.u_stream.g_stream_core_mon.u_stream_core.u_scheduler_group_array.gen_scheduler_groups[0].u_scheduler_group.u_scheduler.cfg_sched_timeout_cycles[15:0]
+@28
+stream_char_harness.u_stream.g_stream_core_mon.u_stream_core.u_scheduler_group_array.gen_scheduler_groups[0].u_scheduler_group.u_scheduler.cfg_sched_timeout_enable
+@22
+stream_char_harness.u_stream.g_stream_core_mon.u_stream_core.u_scheduler_group_array.gen_scheduler_groups[0].u_scheduler_group.u_scheduler.r_timeout_counter[31:0]
+stream_char_harness.u_stream.g_stream_core_mon.u_stream_core.u_scheduler_group_array.gen_scheduler_groups[0].u_scheduler_group.u_scheduler.r_read_beats_remaining[31:0]
+stream_char_harness.u_stream.g_stream_core_mon.u_stream_core.u_scheduler_group_array.gen_scheduler_groups[0].u_scheduler_group.u_scheduler.r_write_beats_remaining[31:0]
+stream_char_harness.u_stream.g_stream_core_mon.u_stream_core.u_scheduler_group_array.gen_scheduler_groups[0].u_scheduler_group.u_scheduler.r_beats_remaining[31:0]
+stream_char_harness.u_stream.g_stream_core_mon.u_stream_core.u_scheduler_group_array.gen_scheduler_groups[0].u_scheduler_group.u_scheduler.scheduler_state[6:0]
+@28
+stream_char_harness.u_stream.g_stream_core_mon.u_stream_core.u_scheduler_group_array.gen_scheduler_groups[0].u_scheduler_group.u_scheduler.w_state_error
+stream_char_harness.u_stream.g_stream_core_mon.u_stream_core.u_scheduler_group_array.gen_scheduler_groups[0].u_scheduler_group.u_scheduler.w_state_idle
+@22
+stream_char_harness.u_stream.g_stream_core_mon.u_stream_core.u_scheduler_group_array.gen_scheduler_groups[0].u_scheduler_group.u_scheduler.cfg_sched_timeout_cycles[15:0]
+stream_char_harness.u_stream.g_stream_core_mon.u_stream_core.u_scheduler_group_array.gen_scheduler_groups[0].u_scheduler_group.u_scheduler.r_timeout_counter[31:0]
+@28
+stream_char_harness.u_stream.g_stream_core_mon.u_stream_core.u_scheduler_group_array.gen_scheduler_groups[0].u_scheduler_group.u_scheduler.sched_rd_error
+stream_char_harness.u_stream.g_stream_core_mon.u_stream_core.u_scheduler_group_array.gen_scheduler_groups[0].u_scheduler_group.u_scheduler.sched_wr_error
+stream_char_harness.u_stream.g_stream_core_mon.u_stream_core.u_scheduler_group_array.gen_scheduler_groups[0].u_scheduler_group.u_scheduler.w_timeout_expired
+stream_char_harness.u_stream.g_stream_core_mon.u_stream_core.u_scheduler_group_array.gen_scheduler_groups[0].u_scheduler_group.u_scheduler.descriptor_error
+stream_char_harness.u_stream.g_stream_core_mon.u_stream_core.u_scheduler_group_array.gen_scheduler_groups[0].u_scheduler_group.u_scheduler.r_descriptor_error
+@200
+-descriptor_engine
+@28
+stream_char_harness.u_stream.g_stream_core_mon.u_stream_core.u_scheduler_group_array.gen_scheduler_groups[0].u_scheduler_group.u_descriptor_engine.ar_valid
+stream_char_harness.u_stream.g_stream_core_mon.u_stream_core.u_scheduler_group_array.gen_scheduler_groups[0].u_scheduler_group.u_descriptor_engine.ar_ready
+stream_char_harness.u_stream.g_stream_core_mon.u_stream_core.u_scheduler_group_array.gen_scheduler_groups[0].u_scheduler_group.u_descriptor_engine.descriptor_error
+[pattern_trace] 1
+[pattern_trace] 0

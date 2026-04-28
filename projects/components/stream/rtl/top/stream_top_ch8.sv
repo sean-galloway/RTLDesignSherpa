@@ -396,7 +396,7 @@ module stream_top_ch8 #(
 
     // Scheduler Configuration
     logic                                   cfg_sched_enable;
-    logic [15:0]                            cfg_sched_timeout_cycles;
+    logic [31:0]                            cfg_sched_timeout_cycles;
     logic                                   cfg_sched_timeout_enable;
     logic                                   cfg_sched_err_enable;
     logic                                   cfg_sched_compl_enable;

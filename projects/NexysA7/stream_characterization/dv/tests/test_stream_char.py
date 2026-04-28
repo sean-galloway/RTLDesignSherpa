@@ -82,10 +82,12 @@ async def cocotb_test_stream_char(dut):
         xfer_bytes = int(os.environ.get('DMA_XFER_BYTES', '8192'))
         tb.log.info(f"=== DMA test: {num_ch}ch x {desc_per_ch}desc x {xfer_bytes}B ===")
         ok = await tb.run_ping_test()
+        timeout_clocks = int(os.environ.get('DMA_TIMEOUT_CLOCKS', '50000'))
         ok &= await tb.run_dma_test(
             num_channels=num_ch,
             descriptors_per_channel=desc_per_ch,
             transfer_bytes=xfer_bytes,
+            timeout_clocks=timeout_clocks,
         )
 
     else:
@@ -220,15 +222,19 @@ def test_stream_char(request, test_type, test_level):
 
     # WAVES support - conditionally set COCOTB_TRACE_FILE for VCD generation
     if bool(int(os.environ.get('WAVES', '0'))):
-        extra_env['COCOTB_TRACE_FILE'] = os.path.join(sim_build, 'dump.vcd')
+        extra_env['COCOTB_TRACE_FILE'] = os.path.join(sim_build, 'dump.fst')
 
     cmd_filename = create_view_cmd(
         log_dir, log_path, sim_build, module, test_name_plus_params)
 
     compile_args = [
-        "--trace",
+        "--trace-fst",
         "--trace-structs",
         "--trace-depth", "99",
+        # --public-flat-rw exposes every internal signal/instance to VPI so
+        # cocotb can probe deep state (e.g., axi_write_engine internals)
+        # without needing top-level pass-through ports. Slight sim-perf cost.
+        "--public-flat-rw",
         "-Wno-TIMESCALEMOD",
         "-Wno-MULTIDRIVEN",    # PeakRDL stream_regs.sv
         "-Wno-WIDTHEXPAND",    # minor width warnings in STREAM hierarchy

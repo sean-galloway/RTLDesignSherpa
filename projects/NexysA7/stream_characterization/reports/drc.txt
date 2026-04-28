@@ -1,0 +1,183 @@
+Copyright 1986-2022 Xilinx, Inc. All Rights Reserved. Copyright 2022-2025 Advanced Micro Devices, Inc. All Rights Reserved.
+---------------------------------------------------------------------------------------------------------------------------------------------
+| Tool Version : Vivado v.2025.1 (lin64) Build 6140274 Wed May 21 22:58:25 MDT 2025
+| Date         : Mon Apr 27 17:38:58 2026
+| Host         : amdtrp running 64-bit Ubuntu 24.04.4 LTS
+| Command      : report_drc -file /mnt/data/github/RTLDesignSherpa/projects/NexysA7/stream_characterization/reports/drc.txt
+| Design       : stream_char_top
+| Device       : xc7a100tcsg324-1
+| Speed File   : -1
+| Design State : Fully Routed
+---------------------------------------------------------------------------------------------------------------------------------------------
+
+Report DRC
+
+Table of Contents
+-----------------
+1. REPORT SUMMARY
+2. REPORT DETAILS
+
+1. REPORT SUMMARY
+-----------------
+            Netlist: netlist
+          Floorplan: impl_1
+      Design limits: <entire design considered>
+           Ruledeck: default
+             Max checks: <unlimited>
+             Checks found: 29
++-----------+----------+----------------------------+--------+
+| Rule      | Severity | Description                | Checks |
++-----------+----------+----------------------------+--------+
+| CHECK-3   | Warning  | Report rule limit reached  | 1      |
+| REQP-1839 | Warning  | RAMB36 async control check | 20     |
+| REQP-1840 | Warning  | RAMB18 async control check | 8      |
++-----------+----------+----------------------------+--------+
+
+2. REPORT DETAILS
+-----------------
+CHECK-3#1 Warning
+Report rule limit reached  
+REQP-1839 rule limit reached: 20 violations have been found.
+Related violations: <none>
+
+REQP-1839#1 Warning
+RAMB36 async control check  
+The RAMB36E1 u_harness/u_debug_sram/r_mem_reg_0 has an input control pin u_harness/u_debug_sram/r_mem_reg_0/ENARDEN (net: u_harness/u_debug_sram/r_mem_reg_0_ENARDEN_cooolgate_en_sig_1) which is driven by a register (r_rst_sync_reg) that has an active asychronous set or reset. This may cause corruption of the memory contents and/or read values when the set/reset is asserted and is not analyzed by the default static timing analysis. It is suggested to eliminate the use of a set/reset to registers driving this RAMB pin or else use a synchronous reset in which the assertion of the reset is timed by default.
+Related violations: <none>
+
+REQP-1839#2 Warning
+RAMB36 async control check  
+The RAMB36E1 u_harness/u_debug_sram/r_mem_reg_0 has an input control pin u_harness/u_debug_sram/r_mem_reg_0/ENBWREN (net: u_harness/u_debug_sram/r_mem_reg_0_i_2_n_0) which is driven by a register (r_rst_sync_reg) that has an active asychronous set or reset. This may cause corruption of the memory contents and/or read values when the set/reset is asserted and is not analyzed by the default static timing analysis. It is suggested to eliminate the use of a set/reset to registers driving this RAMB pin or else use a synchronous reset in which the assertion of the reset is timed by default.
+Related violations: <none>
+
+REQP-1839#3 Warning
+RAMB36 async control check  
+The RAMB36E1 u_harness/u_debug_sram/r_mem_reg_0 has an input control pin u_harness/u_debug_sram/r_mem_reg_0/RSTRAMB (net: u_harness/u_debug_sram/out) which is driven by a register (r_rst_sync_reg) that has an active asychronous set or reset. This may cause corruption of the memory contents and/or read values when the set/reset is asserted and is not analyzed by the default static timing analysis. It is suggested to eliminate the use of a set/reset to registers driving this RAMB pin or else use a synchronous reset in which the assertion of the reset is timed by default.
+Related violations: <none>
+
+REQP-1839#4 Warning
+RAMB36 async control check  
+The RAMB36E1 u_harness/u_debug_sram/r_mem_reg_1 has an input control pin u_harness/u_debug_sram/r_mem_reg_1/ENARDEN (net: u_harness/u_debug_sram/r_mem_reg_1_ENARDEN_cooolgate_en_sig_2) which is driven by a register (r_rst_sync_reg) that has an active asychronous set or reset. This may cause corruption of the memory contents and/or read values when the set/reset is asserted and is not analyzed by the default static timing analysis. It is suggested to eliminate the use of a set/reset to registers driving this RAMB pin or else use a synchronous reset in which the assertion of the reset is timed by default.
+Related violations: <none>
+
+REQP-1839#5 Warning
+RAMB36 async control check  
+The RAMB36E1 u_harness/u_debug_sram/r_mem_reg_1 has an input control pin u_harness/u_debug_sram/r_mem_reg_1/ENBWREN (net: u_harness/u_debug_sram/r_mem_reg_0_i_2_n_0) which is driven by a register (r_rst_sync_reg) that has an active asychronous set or reset. This may cause corruption of the memory contents and/or read values when the set/reset is asserted and is not analyzed by the default static timing analysis. It is suggested to eliminate the use of a set/reset to registers driving this RAMB pin or else use a synchronous reset in which the assertion of the reset is timed by default.
+Related violations: <none>
+
+REQP-1839#6 Warning
+RAMB36 async control check  
+The RAMB36E1 u_harness/u_debug_sram/r_mem_reg_1 has an input control pin u_harness/u_debug_sram/r_mem_reg_1/RSTRAMB (net: u_harness/u_debug_sram/out) which is driven by a register (r_rst_sync_reg) that has an active asychronous set or reset. This may cause corruption of the memory contents and/or read values when the set/reset is asserted and is not analyzed by the default static timing analysis. It is suggested to eliminate the use of a set/reset to registers driving this RAMB pin or else use a synchronous reset in which the assertion of the reset is timed by default.
+Related violations: <none>
+
+REQP-1839#7 Warning
+RAMB36 async control check  
+The RAMB36E1 u_harness/u_debug_sram/r_mem_reg_2 has an input control pin u_harness/u_debug_sram/r_mem_reg_2/ENARDEN (net: u_harness/u_debug_sram/r_mem_reg_2_ENARDEN_cooolgate_en_sig_3) which is driven by a register (r_rst_sync_reg) that has an active asychronous set or reset. This may cause corruption of the memory contents and/or read values when the set/reset is asserted and is not analyzed by the default static timing analysis. It is suggested to eliminate the use of a set/reset to registers driving this RAMB pin or else use a synchronous reset in which the assertion of the reset is timed by default.
+Related violations: <none>
+
+REQP-1839#8 Warning
+RAMB36 async control check  
+The RAMB36E1 u_harness/u_debug_sram/r_mem_reg_2 has an input control pin u_harness/u_debug_sram/r_mem_reg_2/ENBWREN (net: u_harness/u_debug_sram/r_mem_reg_0_i_2_n_0) which is driven by a register (r_rst_sync_reg) that has an active asychronous set or reset. This may cause corruption of the memory contents and/or read values when the set/reset is asserted and is not analyzed by the default static timing analysis. It is suggested to eliminate the use of a set/reset to registers driving this RAMB pin or else use a synchronous reset in which the assertion of the reset is timed by default.
+Related violations: <none>
+
+REQP-1839#9 Warning
+RAMB36 async control check  
+The RAMB36E1 u_harness/u_debug_sram/r_mem_reg_2 has an input control pin u_harness/u_debug_sram/r_mem_reg_2/RSTRAMB (net: u_harness/u_debug_sram/out) which is driven by a register (r_rst_sync_reg) that has an active asychronous set or reset. This may cause corruption of the memory contents and/or read values when the set/reset is asserted and is not analyzed by the default static timing analysis. It is suggested to eliminate the use of a set/reset to registers driving this RAMB pin or else use a synchronous reset in which the assertion of the reset is timed by default.
+Related violations: <none>
+
+REQP-1839#10 Warning
+RAMB36 async control check  
+The RAMB36E1 u_harness/u_debug_sram/r_mem_reg_3 has an input control pin u_harness/u_debug_sram/r_mem_reg_3/ENARDEN (net: u_harness/u_debug_sram/r_mem_reg_3_ENARDEN_cooolgate_en_sig_4) which is driven by a register (r_rst_sync_reg) that has an active asychronous set or reset. This may cause corruption of the memory contents and/or read values when the set/reset is asserted and is not analyzed by the default static timing analysis. It is suggested to eliminate the use of a set/reset to registers driving this RAMB pin or else use a synchronous reset in which the assertion of the reset is timed by default.
+Related violations: <none>
+
+REQP-1839#11 Warning
+RAMB36 async control check  
+The RAMB36E1 u_harness/u_debug_sram/r_mem_reg_3 has an input control pin u_harness/u_debug_sram/r_mem_reg_3/ENBWREN (net: u_harness/u_debug_sram/r_mem_reg_0_i_2_n_0) which is driven by a register (r_rst_sync_reg) that has an active asychronous set or reset. This may cause corruption of the memory contents and/or read values when the set/reset is asserted and is not analyzed by the default static timing analysis. It is suggested to eliminate the use of a set/reset to registers driving this RAMB pin or else use a synchronous reset in which the assertion of the reset is timed by default.
+Related violations: <none>
+
+REQP-1839#12 Warning
+RAMB36 async control check  
+The RAMB36E1 u_harness/u_debug_sram/r_mem_reg_3 has an input control pin u_harness/u_debug_sram/r_mem_reg_3/RSTRAMB (net: u_harness/u_debug_sram/out) which is driven by a register (r_rst_sync_reg) that has an active asychronous set or reset. This may cause corruption of the memory contents and/or read values when the set/reset is asserted and is not analyzed by the default static timing analysis. It is suggested to eliminate the use of a set/reset to registers driving this RAMB pin or else use a synchronous reset in which the assertion of the reset is timed by default.
+Related violations: <none>
+
+REQP-1839#13 Warning
+RAMB36 async control check  
+The RAMB36E1 u_harness/u_stream/g_stream_core_mon.u_stream_core/u_sram_controller/gen_channel_units[0].u_channel_unit/u_channel_fifo/gen_auto.mem_reg_0 has an input control pin u_harness/u_stream/g_stream_core_mon.u_stream_core/u_sram_controller/gen_channel_units[0].u_channel_unit/u_channel_fifo/gen_auto.mem_reg_0/ENBWREN (net: u_harness/u_stream/g_stream_core_mon.u_stream_core/u_sram_controller/gen_channel_units[0].u_channel_unit/u_channel_fifo/p_0_in_6) which is driven by a register (u_harness/u_stream/g_stream_core_mon.u_stream_core/u_sram_controller/gen_channel_units[0].u_channel_unit/u_channel_fifo/fifo_control_inst/wr_full_reg) that has an active asychronous set or reset. This may cause corruption of the memory contents and/or read values when the set/reset is asserted and is not analyzed by the default static timing analysis. It is suggested to eliminate the use of a set/reset to registers driving this RAMB pin or else use a synchronous reset in which the assertion of the reset is timed by default.
+Related violations: <none>
+
+REQP-1839#14 Warning
+RAMB36 async control check  
+The RAMB36E1 u_harness/u_stream/g_stream_core_mon.u_stream_core/u_sram_controller/gen_channel_units[0].u_channel_unit/u_channel_fifo/gen_auto.mem_reg_0 has an input control pin u_harness/u_stream/g_stream_core_mon.u_stream_core/u_sram_controller/gen_channel_units[0].u_channel_unit/u_channel_fifo/gen_auto.mem_reg_0/RSTRAMARSTRAM (net: u_harness/u_stream/g_stream_core_mon.u_stream_core/u_sram_controller/gen_channel_units[0].u_channel_unit/u_channel_fifo/lopt) which is driven by a register (r_rst_sync_reg) that has an active asychronous set or reset. This may cause corruption of the memory contents and/or read values when the set/reset is asserted and is not analyzed by the default static timing analysis. It is suggested to eliminate the use of a set/reset to registers driving this RAMB pin or else use a synchronous reset in which the assertion of the reset is timed by default.
+Related violations: <none>
+
+REQP-1839#15 Warning
+RAMB36 async control check  
+The RAMB36E1 u_harness/u_stream/g_stream_core_mon.u_stream_core/u_sram_controller/gen_channel_units[0].u_channel_unit/u_channel_fifo/gen_auto.mem_reg_0 has an input control pin u_harness/u_stream/g_stream_core_mon.u_stream_core/u_sram_controller/gen_channel_units[0].u_channel_unit/u_channel_fifo/gen_auto.mem_reg_0/WEBWE[2] (net: u_harness/u_stream/g_stream_core_mon.u_stream_core/u_sram_controller/gen_channel_units[0].u_channel_unit/u_channel_fifo/axi_rd_sram_ready_per_channel[0]) which is driven by a register (u_harness/u_stream/g_stream_core_mon.u_stream_core/u_sram_controller/gen_channel_units[0].u_channel_unit/u_channel_fifo/fifo_control_inst/wr_full_reg) that has an active asychronous set or reset. This may cause corruption of the memory contents and/or read values when the set/reset is asserted and is not analyzed by the default static timing analysis. It is suggested to eliminate the use of a set/reset to registers driving this RAMB pin or else use a synchronous reset in which the assertion of the reset is timed by default.
+Related violations: <none>
+
+REQP-1839#16 Warning
+RAMB36 async control check  
+The RAMB36E1 u_harness/u_stream/g_stream_core_mon.u_stream_core/u_sram_controller/gen_channel_units[0].u_channel_unit/u_channel_fifo/gen_auto.mem_reg_0 has an input control pin u_harness/u_stream/g_stream_core_mon.u_stream_core/u_sram_controller/gen_channel_units[0].u_channel_unit/u_channel_fifo/gen_auto.mem_reg_0/WEBWE[3] (net: u_harness/u_stream/g_stream_core_mon.u_stream_core/u_sram_controller/gen_channel_units[0].u_channel_unit/u_channel_fifo/axi_rd_sram_ready_per_channel[0]) which is driven by a register (u_harness/u_stream/g_stream_core_mon.u_stream_core/u_sram_controller/gen_channel_units[0].u_channel_unit/u_channel_fifo/fifo_control_inst/wr_full_reg) that has an active asychronous set or reset. This may cause corruption of the memory contents and/or read values when the set/reset is asserted and is not analyzed by the default static timing analysis. It is suggested to eliminate the use of a set/reset to registers driving this RAMB pin or else use a synchronous reset in which the assertion of the reset is timed by default.
+Related violations: <none>
+
+REQP-1839#17 Warning
+RAMB36 async control check  
+The RAMB36E1 u_harness/u_stream/g_stream_core_mon.u_stream_core/u_sram_controller/gen_channel_units[0].u_channel_unit/u_channel_fifo/gen_auto.mem_reg_0 has an input control pin u_harness/u_stream/g_stream_core_mon.u_stream_core/u_sram_controller/gen_channel_units[0].u_channel_unit/u_channel_fifo/gen_auto.mem_reg_0/WEBWE[4] (net: u_harness/u_stream/g_stream_core_mon.u_stream_core/u_sram_controller/gen_channel_units[0].u_channel_unit/u_channel_fifo/axi_rd_sram_ready_per_channel[0]) which is driven by a register (u_harness/u_stream/g_stream_core_mon.u_stream_core/u_sram_controller/gen_channel_units[0].u_channel_unit/u_channel_fifo/fifo_control_inst/wr_full_reg) that has an active asychronous set or reset. This may cause corruption of the memory contents and/or read values when the set/reset is asserted and is not analyzed by the default static timing analysis. It is suggested to eliminate the use of a set/reset to registers driving this RAMB pin or else use a synchronous reset in which the assertion of the reset is timed by default.
+Related violations: <none>
+
+REQP-1839#18 Warning
+RAMB36 async control check  
+The RAMB36E1 u_harness/u_stream/g_stream_core_mon.u_stream_core/u_sram_controller/gen_channel_units[0].u_channel_unit/u_channel_fifo/gen_auto.mem_reg_0 has an input control pin u_harness/u_stream/g_stream_core_mon.u_stream_core/u_sram_controller/gen_channel_units[0].u_channel_unit/u_channel_fifo/gen_auto.mem_reg_0/WEBWE[5] (net: u_harness/u_stream/g_stream_core_mon.u_stream_core/u_sram_controller/gen_channel_units[0].u_channel_unit/u_channel_fifo/axi_rd_sram_ready_per_channel[0]) which is driven by a register (u_harness/u_stream/g_stream_core_mon.u_stream_core/u_sram_controller/gen_channel_units[0].u_channel_unit/u_channel_fifo/fifo_control_inst/wr_full_reg) that has an active asychronous set or reset. This may cause corruption of the memory contents and/or read values when the set/reset is asserted and is not analyzed by the default static timing analysis. It is suggested to eliminate the use of a set/reset to registers driving this RAMB pin or else use a synchronous reset in which the assertion of the reset is timed by default.
+Related violations: <none>
+
+REQP-1839#19 Warning
+RAMB36 async control check  
+The RAMB36E1 u_harness/u_stream/g_stream_core_mon.u_stream_core/u_sram_controller/gen_channel_units[0].u_channel_unit/u_channel_fifo/gen_auto.mem_reg_0 has an input control pin u_harness/u_stream/g_stream_core_mon.u_stream_core/u_sram_controller/gen_channel_units[0].u_channel_unit/u_channel_fifo/gen_auto.mem_reg_0/WEBWE[6] (net: u_harness/u_stream/g_stream_core_mon.u_stream_core/u_sram_controller/gen_channel_units[0].u_channel_unit/u_channel_fifo/axi_rd_sram_ready_per_channel[0]) which is driven by a register (u_harness/u_stream/g_stream_core_mon.u_stream_core/u_sram_controller/gen_channel_units[0].u_channel_unit/u_channel_fifo/fifo_control_inst/wr_full_reg) that has an active asychronous set or reset. This may cause corruption of the memory contents and/or read values when the set/reset is asserted and is not analyzed by the default static timing analysis. It is suggested to eliminate the use of a set/reset to registers driving this RAMB pin or else use a synchronous reset in which the assertion of the reset is timed by default.
+Related violations: <none>
+
+REQP-1839#20 Warning
+RAMB36 async control check  
+The RAMB36E1 u_harness/u_stream/g_stream_core_mon.u_stream_core/u_sram_controller/gen_channel_units[0].u_channel_unit/u_channel_fifo/gen_auto.mem_reg_0 has an input control pin u_harness/u_stream/g_stream_core_mon.u_stream_core/u_sram_controller/gen_channel_units[0].u_channel_unit/u_channel_fifo/gen_auto.mem_reg_0/WEBWE[7] (net: u_harness/u_stream/g_stream_core_mon.u_stream_core/u_sram_controller/gen_channel_units[0].u_channel_unit/u_channel_fifo/axi_rd_sram_ready_per_channel[0]) which is driven by a register (u_harness/u_stream/g_stream_core_mon.u_stream_core/u_sram_controller/gen_channel_units[0].u_channel_unit/u_channel_fifo/fifo_control_inst/wr_full_reg) that has an active asychronous set or reset. This may cause corruption of the memory contents and/or read values when the set/reset is asserted and is not analyzed by the default static timing analysis. It is suggested to eliminate the use of a set/reset to registers driving this RAMB pin or else use a synchronous reset in which the assertion of the reset is timed by default.
+Related violations: <none>
+
+REQP-1840#1 Warning
+RAMB18 async control check  
+The RAMB18E1 u_harness/u_stream/g_stream_core_mon.u_stream_core/u_perf_profiler/u_perf_fifo/gen_auto.mem_reg has an input control pin u_harness/u_stream/g_stream_core_mon.u_stream_core/u_perf_profiler/u_perf_fifo/gen_auto.mem_reg/ENARDEN (net: u_harness/u_stream/g_stream_core_mon.u_stream_core/u_perf_profiler/u_perf_fifo/gen_auto.mem_reg_7) which is driven by a register (r_rst_sync_reg) that has an active asychronous set or reset. This may cause corruption of the memory contents and/or read values when the set/reset is asserted and is not analyzed by the default static timing analysis. It is suggested to eliminate the use of a set/reset to registers driving this RAMB pin or else use a synchronous reset in which the assertion of the reset is timed by default.
+Related violations: <none>
+
+REQP-1840#2 Warning
+RAMB18 async control check  
+The RAMB18E1 u_harness/u_stream/g_stream_core_mon.u_stream_core/u_perf_profiler/u_perf_fifo/gen_auto.mem_reg has an input control pin u_harness/u_stream/g_stream_core_mon.u_stream_core/u_perf_profiler/u_perf_fifo/gen_auto.mem_reg/ENARDEN (net: u_harness/u_stream/g_stream_core_mon.u_stream_core/u_perf_profiler/u_perf_fifo/gen_auto.mem_reg_7) which is driven by a register (u_harness/u_stream/g_stream_core_mon.u_stream_core/u_perf_profiler/u_perf_fifo/fifo_control_inst/rd_empty_reg) that has an active asychronous set or reset. This may cause corruption of the memory contents and/or read values when the set/reset is asserted and is not analyzed by the default static timing analysis. It is suggested to eliminate the use of a set/reset to registers driving this RAMB pin or else use a synchronous reset in which the assertion of the reset is timed by default.
+Related violations: <none>
+
+REQP-1840#3 Warning
+RAMB18 async control check  
+The RAMB18E1 u_harness/u_stream/g_stream_core_mon.u_stream_core/u_perf_profiler/u_perf_fifo/gen_auto.mem_reg has an input control pin u_harness/u_stream/g_stream_core_mon.u_stream_core/u_perf_profiler/u_perf_fifo/gen_auto.mem_reg/ENBWREN (net: u_harness/u_stream/g_stream_core_mon.u_stream_core/u_perf_profiler/u_perf_fifo/p_0_in_0) which is driven by a register (u_harness/u_stream/g_stream_core_mon.u_stream_core/u_perf_profiler/u_perf_fifo/fifo_control_inst/wr_full_reg) that has an active asychronous set or reset. This may cause corruption of the memory contents and/or read values when the set/reset is asserted and is not analyzed by the default static timing analysis. It is suggested to eliminate the use of a set/reset to registers driving this RAMB pin or else use a synchronous reset in which the assertion of the reset is timed by default.
+Related violations: <none>
+
+REQP-1840#4 Warning
+RAMB18 async control check  
+The RAMB18E1 u_harness/u_stream/g_stream_core_mon.u_stream_core/u_perf_profiler/u_perf_fifo/gen_auto.mem_reg has an input control pin u_harness/u_stream/g_stream_core_mon.u_stream_core/u_perf_profiler/u_perf_fifo/gen_auto.mem_reg/RSTRAMARSTRAM (net: u_harness/u_stream/g_stream_core_mon.u_stream_core/u_perf_profiler/u_perf_fifo/r_start_time) which is driven by a register (r_rst_sync_reg) that has an active asychronous set or reset. This may cause corruption of the memory contents and/or read values when the set/reset is asserted and is not analyzed by the default static timing analysis. It is suggested to eliminate the use of a set/reset to registers driving this RAMB pin or else use a synchronous reset in which the assertion of the reset is timed by default.
+Related violations: <none>
+
+REQP-1840#5 Warning
+RAMB18 async control check  
+The RAMB18E1 u_harness/u_stream/g_stream_core_mon.u_stream_core/u_perf_profiler/u_perf_fifo/gen_auto.mem_reg has an input control pin u_harness/u_stream/g_stream_core_mon.u_stream_core/u_perf_profiler/u_perf_fifo/gen_auto.mem_reg/WEBWE[0] (net: u_harness/u_stream/g_stream_core_mon.u_stream_core/u_perf_profiler/u_perf_fifo/w_fifo_wr_ready_internal) which is driven by a register (u_harness/u_stream/g_stream_core_mon.u_stream_core/u_perf_profiler/u_perf_fifo/fifo_control_inst/wr_full_reg) that has an active asychronous set or reset. This may cause corruption of the memory contents and/or read values when the set/reset is asserted and is not analyzed by the default static timing analysis. It is suggested to eliminate the use of a set/reset to registers driving this RAMB pin or else use a synchronous reset in which the assertion of the reset is timed by default.
+Related violations: <none>
+
+REQP-1840#6 Warning
+RAMB18 async control check  
+The RAMB18E1 u_harness/u_stream/g_stream_core_mon.u_stream_core/u_perf_profiler/u_perf_fifo/gen_auto.mem_reg has an input control pin u_harness/u_stream/g_stream_core_mon.u_stream_core/u_perf_profiler/u_perf_fifo/gen_auto.mem_reg/WEBWE[1] (net: u_harness/u_stream/g_stream_core_mon.u_stream_core/u_perf_profiler/u_perf_fifo/w_fifo_wr_ready_internal) which is driven by a register (u_harness/u_stream/g_stream_core_mon.u_stream_core/u_perf_profiler/u_perf_fifo/fifo_control_inst/wr_full_reg) that has an active asychronous set or reset. This may cause corruption of the memory contents and/or read values when the set/reset is asserted and is not analyzed by the default static timing analysis. It is suggested to eliminate the use of a set/reset to registers driving this RAMB pin or else use a synchronous reset in which the assertion of the reset is timed by default.
+Related violations: <none>
+
+REQP-1840#7 Warning
+RAMB18 async control check  
+The RAMB18E1 u_harness/u_stream/g_stream_core_mon.u_stream_core/u_perf_profiler/u_perf_fifo/gen_auto.mem_reg has an input control pin u_harness/u_stream/g_stream_core_mon.u_stream_core/u_perf_profiler/u_perf_fifo/gen_auto.mem_reg/WEBWE[2] (net: u_harness/u_stream/g_stream_core_mon.u_stream_core/u_perf_profiler/u_perf_fifo/w_fifo_wr_ready_internal) which is driven by a register (u_harness/u_stream/g_stream_core_mon.u_stream_core/u_perf_profiler/u_perf_fifo/fifo_control_inst/wr_full_reg) that has an active asychronous set or reset. This may cause corruption of the memory contents and/or read values when the set/reset is asserted and is not analyzed by the default static timing analysis. It is suggested to eliminate the use of a set/reset to registers driving this RAMB pin or else use a synchronous reset in which the assertion of the reset is timed by default.
+Related violations: <none>
+
+REQP-1840#8 Warning
+RAMB18 async control check  
+The RAMB18E1 u_harness/u_stream/g_stream_core_mon.u_stream_core/u_perf_profiler/u_perf_fifo/gen_auto.mem_reg has an input control pin u_harness/u_stream/g_stream_core_mon.u_stream_core/u_perf_profiler/u_perf_fifo/gen_auto.mem_reg/WEBWE[3] (net: u_harness/u_stream/g_stream_core_mon.u_stream_core/u_perf_profiler/u_perf_fifo/w_fifo_wr_ready_internal) which is driven by a register (u_harness/u_stream/g_stream_core_mon.u_stream_core/u_perf_profiler/u_perf_fifo/fifo_control_inst/wr_full_reg) that has an active asychronous set or reset. This may cause corruption of the memory contents and/or read values when the set/reset is asserted and is not analyzed by the default static timing analysis. It is suggested to eliminate the use of a set/reset to registers driving this RAMB pin or else use a synchronous reset in which the assertion of the reset is timed by default.
+Related violations: <none>
+
+

@@ -325,7 +325,7 @@ module datapath_rd_test #(
                 // Configuration (tied off for test - channel always enabled)
                 .cfg_channel_enable     (1'b1),
                 .cfg_channel_reset      (1'b0),
-                .cfg_sched_timeout_cycles(16'd1000),  // Runtime timeout config
+                .cfg_sched_timeout_cycles(32'd1000),  // Runtime timeout config
                 .cfg_sched_timeout_enable(1'b1),      // Enable timeout
 
                 // Status

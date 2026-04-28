@@ -84,7 +84,7 @@ module scheduler #(
     // Configuration Interface
     input  logic                        cfg_channel_enable,     // Enable this channel
     input  logic                        cfg_channel_reset,      // Channel reset
-    input  logic [15:0]                 cfg_sched_timeout_cycles, // Timeout threshold (cycles)
+    input  logic [31:0]                 cfg_sched_timeout_cycles, // Timeout threshold (cycles)
     input  logic                        cfg_sched_timeout_enable, // Enable timeout detection
 
     // Status Interface
@@ -610,7 +610,7 @@ module scheduler #(
 
     // Timeout threshold: Compare counter to configured limit (if enabled)
     assign w_timeout_expired = cfg_sched_timeout_enable &&
-                               (r_timeout_counter >= {16'h0, cfg_sched_timeout_cycles});
+                               (r_timeout_counter >= cfg_sched_timeout_cycles);
 
     //=========================================================================
     // Monitor Packet Generation

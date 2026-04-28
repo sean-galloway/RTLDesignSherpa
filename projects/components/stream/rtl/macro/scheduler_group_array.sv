@@ -61,7 +61,7 @@ module scheduler_group_array #(
 
     // Scheduler Configuration (global - applied to all channels)
     input  logic                                 cfg_sched_enable,          // Master scheduler enable
-    input  logic [15:0]                          cfg_sched_timeout_cycles,  // Timeout threshold
+    input  logic [31:0]                          cfg_sched_timeout_cycles,  // Timeout threshold
     input  logic                                 cfg_sched_timeout_enable,  // Enable timeout detection
     input  logic                                 cfg_sched_err_enable,      // Enable error reporting
     input  logic                                 cfg_sched_compl_enable,    // Enable completion reporting

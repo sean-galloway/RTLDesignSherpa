@@ -1,0 +1,19 @@
+Copyright 1986-2022 Xilinx, Inc. All Rights Reserved. Copyright 2022-2025 Advanced Micro Devices, Inc. All Rights Reserved.
+---------------------------------------------------------------------------------------------------------------------------------------------
+| Tool Version : Vivado v.2025.1 (lin64) Build 6140274 Wed May 21 22:58:25 MDT 2025
+| Date         : Mon Apr 27 17:38:54 2026
+| Host         : amdtrp running 64-bit Ubuntu 24.04.4 LTS
+| Command      : report_cdc -file /mnt/data/github/RTLDesignSherpa/projects/NexysA7/stream_characterization/reports/cdc.txt
+| Design       : stream_char_top
+| Device       : 7a100t-csg324
+| Speed File   : -1  PRODUCTION 1.23 2018-06-13
+| Design State : Routed
+---------------------------------------------------------------------------------------------------------------------------------------------
+
+CDC Report
+
+Severity  Source Clock  Destination Clock  CDC Type          Exceptions           Endpoints  Safe  Unsafe  Unknown  No ASYNC_REG  
+--------  ------------  -----------------  ----------------  -------------------  ---------  ----  ------  -------  ------------  
+Warning   sys_clk_pin   led_slow_clk       No Common Period  Asynch Clock Groups         13    13       0        0             0  
+Info      led_slow_clk  sys_clk_pin        No Common Period  Asynch Clock Groups          1     1       0        0             0  
+

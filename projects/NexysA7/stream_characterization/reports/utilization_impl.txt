@@ -1,14 +1,14 @@
 Copyright 1986-2022 Xilinx, Inc. All Rights Reserved. Copyright 2022-2025 Advanced Micro Devices, Inc. All Rights Reserved.
---------------------------------------------------------------------------------------------------------------------------------------------------
+-------------------------------------------------------------------------------------------------------------------------------------------------
 | Tool Version : Vivado v.2025.1 (lin64) Build 6140274 Wed May 21 22:58:25 MDT 2025
-| Date         : Mon Apr 27 17:34:10 2026
+| Date         : Mon Apr 27 17:38:49 2026
 | Host         : amdtrp running 64-bit Ubuntu 24.04.4 LTS
-| Command      : report_utilization -file /mnt/data/github/RTLDesignSherpa/projects/NexysA7/stream_characterization/reports/utilization_synth.txt
+| Command      : report_utilization -file /mnt/data/github/RTLDesignSherpa/projects/NexysA7/stream_characterization/reports/utilization_impl.txt
 | Design       : stream_char_top
 | Device       : xc7a100tcsg324-1
 | Speed File   : -1
-| Design State : Synthesized
---------------------------------------------------------------------------------------------------------------------------------------------------
+| Design State : Routed
+-------------------------------------------------------------------------------------------------------------------------------------------------
 
 Utilization Design Information
 
@@ -16,14 +16,15 @@ Table of Contents
 -----------------
 1. Slice Logic
 1.1 Summary of Registers by Type
-2. Memory
-3. DSP
-4. IO and GT Specific
-5. Clocking
-6. Specific Feature
-7. Primitives
-8. Black Boxes
-9. Instantiated Netlists
+2. Slice Logic Distribution
+3. Memory
+4. DSP
+5. IO and GT Specific
+6. Clocking
+7. Specific Feature
+8. Primitives
+9. Black Boxes
+10. Instantiated Netlists
 
 1. Slice Logic
 --------------
@@ -31,20 +32,18 @@ Table of Contents
 +----------------------------+-------+-------+------------+-----------+-------+
 |          Site Type         |  Used | Fixed | Prohibited | Available | Util% |
 +----------------------------+-------+-------+------------+-----------+-------+
-| Slice LUTs*                | 14365 |     0 |          0 |     63400 | 22.66 |
-|   LUT as Logic             | 13581 |     0 |          0 |     63400 | 21.42 |
-|   LUT as Memory            |   784 |     0 |          0 |     19000 |  4.13 |
-|     LUT as Distributed RAM |   784 |     0 |            |           |       |
+| Slice LUTs                 | 13959 |     0 |          0 |     63400 | 22.02 |
+|   LUT as Logic             | 13193 |     0 |          0 |     63400 | 20.81 |
+|   LUT as Memory            |   766 |     0 |          0 |     19000 |  4.03 |
+|     LUT as Distributed RAM |   766 |     0 |            |           |       |
 |     LUT as Shift Register  |     0 |     0 |            |           |       |
-| Slice Registers            | 13163 |     0 |          0 |    126800 | 10.38 |
-|   Register as Flip Flop    | 13163 |     0 |          0 |    126800 | 10.38 |
+| Slice Registers            | 13157 |     0 |          0 |    126800 | 10.38 |
+|   Register as Flip Flop    | 13157 |     0 |          0 |    126800 | 10.38 |
 |   Register as Latch        |     0 |     0 |          0 |    126800 |  0.00 |
 | F7 Muxes                   |   168 |     0 |          0 |     31700 |  0.53 |
 | F8 Muxes                   |     0 |     0 |          0 |     15850 |  0.00 |
 +----------------------------+-------+-------+------------+-----------+-------+
-* Warning! The Final LUT count, after physical optimizations and full implementation, is typically lower. Run opt_design after synthesis, if not already completed, for a more realistic count.
-Warning! LUT value is adjusted to account for LUT combining.
-Warning! For any ECO changes, please run place_design if there are unplaced instances
+* Warning! LUT value is adjusted to account for LUT combining.
 
 
 1.1 Summary of Registers by Type
@@ -62,11 +61,43 @@ Warning! For any ECO changes, please run place_design if there are unplaced inst
 | 33    |          Yes |           - |          Set |
 | 132   |          Yes |           - |        Reset |
 | 362   |          Yes |         Set |            - |
-| 12636 |          Yes |       Reset |            - |
+| 12630 |          Yes |       Reset |            - |
 +-------+--------------+-------------+--------------+
 
 
-2. Memory
+2. Slice Logic Distribution
+---------------------------
+
++--------------------------------------------+-------+-------+------------+-----------+-------+
+|                  Site Type                 |  Used | Fixed | Prohibited | Available | Util% |
++--------------------------------------------+-------+-------+------------+-----------+-------+
+| Slice                                      |  4771 |     0 |          0 |     15850 | 30.10 |
+|   SLICEL                                   |  3374 |     0 |            |           |       |
+|   SLICEM                                   |  1397 |     0 |            |           |       |
+| LUT as Logic                               | 13193 |     0 |          0 |     63400 | 20.81 |
+|   using O5 output only                     |     4 |       |            |           |       |
+|   using O6 output only                     |  9020 |       |            |           |       |
+|   using O5 and O6                          |  4169 |       |            |           |       |
+| LUT as Memory                              |   766 |     0 |          0 |     19000 |  4.03 |
+|   LUT as Distributed RAM                   |   766 |     0 |            |           |       |
+|     using O5 output only                   |     0 |       |            |           |       |
+|     using O6 output only                   |   356 |       |            |           |       |
+|     using O5 and O6                        |   410 |       |            |           |       |
+|   LUT as Shift Register                    |     0 |     0 |            |           |       |
+|     using O5 output only                   |     0 |       |            |           |       |
+|     using O6 output only                   |     0 |       |            |           |       |
+|     using O5 and O6                        |     0 |       |            |           |       |
+| Slice Registers                            | 13157 |     0 |          0 |    126800 | 10.38 |
+|   Register driven from within the Slice    |  9826 |       |            |           |       |
+|   Register driven from outside the Slice   |  3331 |       |            |           |       |
+|     LUT in front of the register is unused |  1628 |       |            |           |       |
+|     LUT in front of the register is used   |  1703 |       |            |           |       |
+| Unique Control Sets                        |   430 |       |          0 |     15850 |  2.71 |
++--------------------------------------------+-------+-------+------------+-----------+-------+
+* * Note: Available Control Sets calculated as Slice * 1, Review the Control Sets Report for more information regarding control sets.
+
+
+3. Memory
 ---------
 
 +-------------------+------+-------+------------+-----------+-------+
@@ -81,7 +112,7 @@ Warning! For any ECO changes, please run place_design if there are unplaced inst
 * Note: Each Block RAM Tile only has one FIFO logic available and therefore can accommodate only one FIFO36E1 or one FIFO18E1. However, if a FIFO18E1 occupies a Block RAM Tile, that tile can still accommodate a RAMB18E1
 
 
-3. DSP
+4. DSP
 ------
 
 +-----------+------+-------+------------+-----------+-------+
@@ -91,7 +122,7 @@ Warning! For any ECO changes, please run place_design if there are unplaced inst
 +-----------+------+-------+------------+-----------+-------+
 
 
-4. IO and GT Specific
+5. IO and GT Specific
 ---------------------
 
 +-----------------------------+------+-------+------------+-----------+-------+
@@ -115,7 +146,7 @@ Warning! For any ECO changes, please run place_design if there are unplaced inst
 +-----------------------------+------+-------+------------+-----------+-------+
 
 
-5. Clocking
+6. Clocking
 -----------
 
 +------------+------+-------+------------+-----------+-------+
@@ -131,7 +162,7 @@ Warning! For any ECO changes, please run place_design if there are unplaced inst
 +------------+------+-------+------------+-----------+-------+
 
 
-6. Specific Feature
+7. Specific Feature
 -------------------
 
 +-------------+------+-------+------------+-----------+-------+
@@ -149,23 +180,23 @@ Warning! For any ECO changes, please run place_design if there are unplaced inst
 +-------------+------+-------+------------+-----------+-------+
 
 
-7. Primitives
+8. Primitives
 -------------
 
 +----------+-------+---------------------+
 | Ref Name |  Used | Functional Category |
 +----------+-------+---------------------+
-| FDRE     | 12636 |        Flop & Latch |
+| FDRE     | 12630 |        Flop & Latch |
 | LUT2     |  4666 |                 LUT |
 | LUT6     |  3791 |                 LUT |
-| LUT4     |  3770 |                 LUT |
+| LUT4     |  3765 |                 LUT |
 | LUT5     |  3217 |                 LUT |
 | LUT3     |  1618 |                 LUT |
 | CARRY4   |  1100 |          CarryLogic |
 | RAMD32   |   624 |  Distributed Memory |
-| LUT1     |   364 |                 LUT |
 | FDSE     |   362 |        Flop & Latch |
 | RAMD64E  |   356 |  Distributed Memory |
+| LUT1     |   305 |                 LUT |
 | RAMS32   |   196 |  Distributed Memory |
 | MUXF7    |   168 |               MuxFx |
 | FDCE     |   132 |        Flop & Latch |
@@ -178,7 +209,7 @@ Warning! For any ECO changes, please run place_design if there are unplaced inst
 +----------+-------+---------------------+
 
 
-8. Black Boxes
+9. Black Boxes
 --------------
 
 +----------+------+
@@ -186,8 +217,8 @@ Warning! For any ECO changes, please run place_design if there are unplaced inst
 +----------+------+
 
 
-9. Instantiated Netlists
-------------------------
+10. Instantiated Netlists
+-------------------------
 
 +----------+------+
 | Ref Name | Used |

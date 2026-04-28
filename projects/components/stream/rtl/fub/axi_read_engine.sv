@@ -173,6 +173,13 @@ module axi_read_engine #(
     logic [NC-1:0] r_outstanding_limit;              // 1 = channel at or exceeds max outstanding
     logic [NC-1:0][MOW-1:0] r_outstanding_count;   // Outstanding AR count per channel (PIPELINE=1 only)
 
+    // Forward declarations for arbiter signals (used in tracking blocks below
+    // before their natural definition in the arbiter section)
+    logic              w_arb_grant_valid;
+    logic [NC-1:0]     w_arb_grant;
+    logic [CW-1:0]     w_arb_grant_id;
+    logic [NC-1:0]     w_arb_grant_ack;
+
     //=========================================================================
     // Beats Issued Tracking - REMOVED
     //=========================================================================
@@ -273,6 +280,26 @@ module axi_read_engine #(
     // Only allow arbitration for channels with sufficient SRAM space
     // and (if PIPELINE=0) no outstanding transactions
     // and haven't issued more beats than requested
+    //
+    // TODO: Decouple drain activity from sched_rd_valid.
+    //   Today w_arb_request below is gated by sched_rd_valid. If the scheduler
+    //   drops sched_rd_valid while there are still outstanding AR transactions
+    //   or in-flight R beats heading into SRAM, the engine cannot continue to
+    //   land those beats cleanly — any state tied to "scheduler still wants
+    //   reads" goes away. Mirroring the write-engine TODO:
+    //
+    //   If sched_rd_valid drops while there are still beats to do
+    //   (sched_rd_beats > 0, outstanding ARs > 0, or R beats in flight), the
+    //   engine should:
+    //     1. Stop issuing new ARs,
+    //     2. Continue accepting R beats for any AR already issued, draining
+    //        them into the SRAM/bridge,
+    //     3. Wait for all outstanding R responses (and rlast on each) to
+    //        arrive,
+    //     4. Then return to a clean idle state with all per-channel state
+    //        reset (sched_rd_beats, r_outstanding_limit, etc.).
+    //   This keeps the AXI side of the read engine well-behaved on any
+    //   upstream abort and prevents orphaned R bursts.
 
     logic [NC-1:0] w_space_ok;                  // Channel has enough space for burst
     logic [NC-1:0] w_below_outstanding_limit;   // Channel below max outstanding limit (can issue new AR)
@@ -304,11 +331,8 @@ module axi_read_engine #(
     //=========================================================================
     // Round-Robin Arbiter (or Direct Grant for Single Channel)
     //=========================================================================
-
-    logic              w_arb_grant_valid;
-    logic [NC-1:0]     w_arb_grant;
-    logic [CW-1:0]     w_arb_grant_id;
-    logic [NC-1:0]     w_arb_grant_ack;
+    // (w_arb_grant_valid, w_arb_grant, w_arb_grant_id, w_arb_grant_ack
+    // declared in forward-declarations block at the top of the module)
 
     generate
         if (NC == 1) begin : gen_single_channel

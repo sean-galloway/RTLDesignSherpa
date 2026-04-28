@@ -208,7 +208,7 @@ module stream_regs (
         } CHANNEL_RESET;
         struct {
             struct {
-                logic [15:0] next;
+                logic [31:0] next;
                 logic load_next;
             } TIMEOUT_CYCLES;
         } SCHED_TIMEOUT_CYCLES;
@@ -560,7 +560,7 @@ module stream_regs (
         } CHANNEL_RESET;
         struct {
             struct {
-                logic [15:0] value;
+                logic [31:0] value;
             } TIMEOUT_CYCLES;
         } SCHED_TIMEOUT_CYCLES;
         struct {
@@ -921,12 +921,12 @@ module stream_regs (
     assign hwif_out.CHANNEL_RESET.CH_RST.swmod = decoded_reg_strb.CHANNEL_RESET && decoded_req_is_wr && |(decoded_wr_biten[7:0]);
     // Field: stream_regs.SCHED_TIMEOUT_CYCLES.TIMEOUT_CYCLES
     always_comb begin
-        automatic logic [15:0] next_c;
+        automatic logic [31:0] next_c;
         automatic logic load_next_c;
         next_c = field_storage.SCHED_TIMEOUT_CYCLES.TIMEOUT_CYCLES.value;
         load_next_c = '0;
         if(decoded_reg_strb.SCHED_TIMEOUT_CYCLES && decoded_req_is_wr) begin // SW write
-            next_c = (field_storage.SCHED_TIMEOUT_CYCLES.TIMEOUT_CYCLES.value & ~decoded_wr_biten[15:0]) | (decoded_wr_data[15:0] & decoded_wr_biten[15:0]);
+            next_c = (field_storage.SCHED_TIMEOUT_CYCLES.TIMEOUT_CYCLES.value & ~decoded_wr_biten[31:0]) | (decoded_wr_data[31:0] & decoded_wr_biten[31:0]);
             load_next_c = '1;
         end
         field_combo.SCHED_TIMEOUT_CYCLES.TIMEOUT_CYCLES.next = next_c;
@@ -934,7 +934,7 @@ module stream_regs (
     end
     always_ff @(posedge clk) begin
         if(rst) begin
-            field_storage.SCHED_TIMEOUT_CYCLES.TIMEOUT_CYCLES.value <= 16'h3e8;
+            field_storage.SCHED_TIMEOUT_CYCLES.TIMEOUT_CYCLES.value <= 32'h3e8;
         end else begin
             if(field_combo.SCHED_TIMEOUT_CYCLES.TIMEOUT_CYCLES.load_next) begin
                 field_storage.SCHED_TIMEOUT_CYCLES.TIMEOUT_CYCLES.value <= field_combo.SCHED_TIMEOUT_CYCLES.TIMEOUT_CYCLES.next;
@@ -2492,8 +2492,7 @@ module stream_regs (
     assign readback_array[19][31:4] = (decoded_reg_strb.MON_FIFO_STATUS && !decoded_req_is_wr) ? 28'h0 : '0;
     assign readback_array[20][15:0] = (decoded_reg_strb.MON_FIFO_COUNT && !decoded_req_is_wr) ? hwif_in.MON_FIFO_COUNT.FIFO_COUNT.next : '0;
     assign readback_array[20][31:16] = (decoded_reg_strb.MON_FIFO_COUNT && !decoded_req_is_wr) ? 16'h0 : '0;
-    assign readback_array[21][15:0] = (decoded_reg_strb.SCHED_TIMEOUT_CYCLES && !decoded_req_is_wr) ? field_storage.SCHED_TIMEOUT_CYCLES.TIMEOUT_CYCLES.value : '0;
-    assign readback_array[21][31:16] = (decoded_reg_strb.SCHED_TIMEOUT_CYCLES && !decoded_req_is_wr) ? 16'h0 : '0;
+    assign readback_array[21][31:0] = (decoded_reg_strb.SCHED_TIMEOUT_CYCLES && !decoded_req_is_wr) ? field_storage.SCHED_TIMEOUT_CYCLES.TIMEOUT_CYCLES.value : '0;
     assign readback_array[22][0:0] = (decoded_reg_strb.SCHED_CONFIG && !decoded_req_is_wr) ? field_storage.SCHED_CONFIG.SCHED_EN.value : '0;
     assign readback_array[22][1:1] = (decoded_reg_strb.SCHED_CONFIG && !decoded_req_is_wr) ? field_storage.SCHED_CONFIG.TIMEOUT_EN.value : '0;
     assign readback_array[22][2:2] = (decoded_reg_strb.SCHED_CONFIG && !decoded_req_is_wr) ? field_storage.SCHED_CONFIG.ERR_EN.value : '0;

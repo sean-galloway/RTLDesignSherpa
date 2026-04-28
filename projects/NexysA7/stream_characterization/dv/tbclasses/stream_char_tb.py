@@ -481,7 +481,7 @@ class StreamCharTB(TBBase):
         # 3a. Scheduler config: enable + timeout + error/completion reporting
         sched_cfg = 0x0F  # [0]=SCHED_EN, [1]=TIMEOUT_EN, [2]=ERR_EN, [3]=COMPL_EN
         await self.uart_write(APB_SCHED_CONFIG, sched_cfg)
-        await self.uart_write(APB_SCHED_TIMEOUT_CYC, 0xFFFF)  # max timeout
+        await self.uart_write(APB_SCHED_TIMEOUT_CYC, 0x0FFFFFFF)  # 28-bit, ~2.68s @ 100MHz
 
         # 3b. Descriptor engine config: enable (no prefetch for now)
         desceng_cfg = 0x01  # [0]=DESCENG_EN
@@ -585,12 +585,101 @@ class StreamCharTB(TBBase):
 
         self.log.info("  DMA completed (IRQ received)")
 
-        # 6. CRC verification
+        # 6a. Diagnostic: wait until pattern_gen + crc_check beat counts match
+        # the descriptor total before checking CRCs. The IRQ fires on the very
+        # first per-burst completion packet, which is *much* earlier than the
+        # final beat — so reading CRCs immediately after IRQ samples them
+        # mid-flight and gives a spurious mismatch on long transfers.
+        expected_total = (transfer_bytes // 16) * num_channels * descriptors_per_channel
+        prev_rd = -1
+        prev_wr = -1
+        stuck_for = 0
+        max_extra_clocks = max(timeout_clocks, expected_total * 4)
+        elapsed = 0
+        while elapsed < max_extra_clocks:
+            rd_beats = int(self.dut.u_rd_pattern.read_beat_count.value)
+            wr_beats = int(self.dut.u_wr_crc_check.write_beat_count.value)
+            if wr_beats >= expected_total and rd_beats >= expected_total:
+                self.log.info(f"  Beats reached expected ({expected_total}) after {elapsed} extra clocks")
+                break
+            # Detect a true hang: counts are not advancing
+            if rd_beats == prev_rd and wr_beats == prev_wr:
+                stuck_for += 200
+                if stuck_for >= 20000:  # 20k cycles with no progress = hung
+                    self.log.error(
+                        f"  HANG: read={rd_beats} write={wr_beats} expected={expected_total} "
+                        f"(stuck for {stuck_for} clocks)")
+                    # Probe the write engine to see why it isn't issuing AW.
+                    # Verilator flattens generate-block labels, so try several
+                    # hierarchical variants and report which ones exist.
+                    try:
+                        candidates = [
+                            'u_stream.u_stream_core',
+                            'u_stream.g_stream_core_mon.u_stream_core',
+                            'u_stream.g_stream_core_mon_u_stream_core',
+                        ]
+                        for c in candidates:
+                            try:
+                                obj = self.dut
+                                for part in c.split('.'):
+                                    obj = getattr(obj, part)
+                                self.log.error(f"  Found path: {c}")
+                            except Exception as ex:
+                                self.log.error(f"  Path {c} fails: {ex}")
+                        # Dump available children of u_stream — only sub-instances
+                        try:
+                            children = [n for n in dir(self.dut.u_stream) if not n.startswith('_')]
+                            interesting = [n for n in children if 'core' in n.lower() or 'engine' in n.lower() or 'sched' in n.lower() or 'sram' in n.lower() or 'g_' in n.lower() or n.startswith('u_')]
+                            self.log.error(f"  u_stream interesting children ({len(interesting)}): {interesting}")
+                        except Exception as ex:
+                            self.log.error(f"  Could not list u_stream children: {ex}")
+                        wr_eng = self.dut.u_stream.g_stream_core_mon.u_stream_core.u_axi_write_engine
+                        sched = self.dut.u_stream.g_stream_core_mon.u_stream_core.u_scheduler_group_array.gen_scheduler_groups[0].u_scheduler_group.u_scheduler
+                        sram = self.dut.u_stream.g_stream_core_mon.u_stream_core.u_sram_controller.gen_units[0].u_sram_unit
+                        self.log.error(
+                            f"  WR ENGINE probes:\n"
+                            f"    sched_wr_valid[0]      = {int(wr_eng.sched_wr_valid.value) & 1}\n"
+                            f"    sched_wr_beats[0]      = {int(wr_eng.sched_wr_beats[0].value)}\n"
+                            f"    drain_data_avail[0]    = {int(wr_eng.axi_wr_drain_data_avail[0].value)}\n"
+                            f"    drain_data_avail (raw) = {int(sram.drain_data_available.value)}\n"
+                            f"    bridge_occupancy       = {int(sram.bridge_occupancy.value)}\n"
+                            f"    fifo_count             = {int(sram.fifo_count.value)}\n"
+                            f"    w_has_data[0]          = {int(wr_eng.w_has_data.value) & 1}\n"
+                            f"    w_final_burst[0]       = {int(wr_eng.w_final_burst.value) & 1}\n"
+                            f"    w_data_ok[0]           = {int(wr_eng.w_data_ok.value) & 1}\n"
+                            f"    w_no_outstanding[0]    = {int(wr_eng.w_no_outstanding.value) & 1}\n"
+                            f"    w_arb_request[0]       = {int(wr_eng.w_arb_request.value) & 1}\n"
+                            f"    w_transfer_size[0]     = {int(wr_eng.w_transfer_size[0].value)}\n"
+                            f"    r_write_beats_remaining = {int(sched.r_write_beats_remaining.value)}\n"
+                            f"    r_read_beats_remaining  = {int(sched.r_read_beats_remaining.value)}\n"
+                        )
+                    except Exception as e:
+                        self.log.error(f"  Probe failed: {e}")
+                    break
+            else:
+                stuck_for = 0
+            prev_rd, prev_wr = rd_beats, wr_beats
+            await self.wait_clocks(self.clk_name, 200)
+            elapsed += 200
+
+        # 6b. CRC verification (now post-completion or post-hang)
         crc = await self.read_crc_status()
         self.log.info(
             f"  CRC: rd_exp=0x{crc.get('rd_expected', 0):08X} "
             f"wr_comp=0x{crc.get('wr_computed', 0):08X} "
             f"match={crc.get('match')} valid={crc.get('valid')}")
+
+        # Diagnostic: directly probe the harness-side beat counters so we
+        # can tell beat-loss from reordering when CRCs mismatch.
+        try:
+            rd_beats = int(self.dut.u_rd_pattern.read_beat_count.value)
+            wr_beats = int(self.dut.u_wr_crc_check.write_beat_count.value)
+            expected_beats = transfer_bytes // 16  # DATA_WIDTH=128 → 16 B/beat
+            self.log.info(
+                f"  Beat counts: read={rd_beats} write={wr_beats} "
+                f"expected={expected_beats * num_channels * descriptors_per_channel}")
+        except Exception as e:
+            self.log.warning(f"  Beat count probe failed: {e}")
 
         if crc.get('match') and crc.get('valid'):
             self.log.info(f"  DMA test PASSED")

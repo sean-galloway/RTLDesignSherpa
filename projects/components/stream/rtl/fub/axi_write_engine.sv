@@ -157,6 +157,48 @@ module axi_write_engine #(
     localparam int MOW = $clog2(AW_MAX_OUTSTANDING + 1);  // Max Outstanding Width (bits needed for 0..AW_MAX_OUTSTANDING)
 
     //=========================================================================
+    // Forward Declarations (signals/typedefs used in always blocks below
+    // before their natural definition site - hoisted to satisfy declaration-
+    // before-use checks)
+    //=========================================================================
+
+    // AW channel registers (driven by AW Channel Management block below)
+    logic [7:0]      r_aw_len;
+    logic [CIW-1:0]  r_aw_channel_id;
+    logic            r_aw_valid;
+
+    // Beats-written counter per channel (driven by always_ff after this block)
+    logic [NC-1:0][31:0] r_beats_written;
+
+    // W-phase transaction FIFO (in-order with AW, single shared FIFO)
+    typedef struct packed {
+        logic [7:0]     beats;       // Number of beats for this W transaction
+        logic [CIW-1:0] channel_id;  // Channel ID for this transaction
+    } w_phase_txn_t;
+
+    logic            w_phase_txn_fifo_wr;
+    logic            w_phase_txn_fifo_rd;
+    w_phase_txn_t    w_phase_txn_fifo_din;
+    w_phase_txn_t    w_phase_txn_fifo_dout;
+    logic            w_phase_txn_fifo_empty;
+    logic            w_phase_txn_fifo_full;
+    logic            w_phase_txn_fifo_wr_ready;
+    logic            w_phase_txn_fifo_rd_valid;
+
+    // B-phase transaction FIFOs (per-channel, out-of-order responses)
+    typedef struct packed {
+        logic [7:0]  beats;     // Number of beats in this transaction
+        logic        last;      // Is this the last transfer for descriptor?
+    } b_phase_txn_t;
+
+    logic [NC-1:0]           b_phase_txn_fifo_wr;
+    logic [NC-1:0]           b_phase_txn_fifo_rd;
+    b_phase_txn_t [NC-1:0]   b_phase_txn_fifo_din;
+    b_phase_txn_t [NC-1:0]   b_phase_txn_fifo_dout;
+    logic [NC-1:0]           b_phase_txn_fifo_empty;
+    logic [NC-1:0]           b_phase_txn_fifo_full;
+
+    //=========================================================================
     // Outstanding Transaction Tracking
     //=========================================================================
     // PIPELINE=0: Boolean flag per channel (0 or 1 transaction)
@@ -253,8 +295,7 @@ module axi_write_engine #(
     //=========================================================================
     // Track how many beats have been written (B responses received)
     // Note: Address tracking moved to scheduler, r_beats_issued removed
-
-    logic [NC-1:0][31:0] r_beats_written;  // Beats written per channel (B responses)
+    // (r_beats_written declared in forward-declarations block above)
 
     // Track beats written: increment when B response arrives, reset when sched_wr_valid de-asserts
     `ALWAYS_FF_RST(clk, rst_n,
@@ -281,6 +322,24 @@ module axi_write_engine #(
     //
     // For PERFORMANCE: Always burst the full configured amount (cfg_axi_wr_xfer_beats)
     // Only allow partial bursts on the final burst of a descriptor
+    //
+    // TODO: Decouple drain activity from sched_wr_valid.
+    //   Today, when sched_wr_valid drops (e.g. scheduler enters CH_ERROR after
+    //   a timeout, or any upstream abort), every gating signal collapses to 0
+    //   in the else-branch below and the engine quits — even if the SRAM,
+    //   bridge, and W-side FIFOs still hold beats that were already accounted
+    //   for as "to do". Those beats become permanently stranded.
+    //
+    //   Desired behavior: if sched_wr_valid drops while there are still beats
+    //   left in this channel's drain path (SRAM occupancy + bridge_occupancy +
+    //   any in-flight AW/W FIFO entries), the engine should:
+    //     1. Continue draining residual data via partial-burst issuance until
+    //        the drain path is empty,
+    //     2. Wait for all outstanding B responses to come back,
+    //     3. Then return to a clean idle state with all per-channel state
+    //        reset (sched_wr_beats, r_outstanding_limit, b_phase FIFO, etc.).
+    //   This makes the engine resilient to upstream errors and keeps SRAM
+    //   from holding stale beats across descriptors.
 
     logic [NC-1:0]      w_has_data;           // Channel has enough data for burst
     logic [NC-1:0]      w_data_ok;            // Channel has enough data for burst
@@ -367,10 +426,8 @@ module axi_write_engine #(
     //=========================================================================
     // AW Channel Management
     //=========================================================================
-
-    logic [7:0]    r_aw_len;
-    logic [CIW-1:0] r_aw_channel_id;
-    logic          r_aw_valid;
+    // (r_aw_len, r_aw_channel_id, r_aw_valid declared in forward-declarations
+    // block at the top of the module)
 
     // Acknowledge arbiter grant when AXI accepts AW command
     assign w_arb_grant_ack = w_arb_grant & {NC{(m_axi_awvalid && m_axi_awready)}};
@@ -535,20 +592,8 @@ module axi_write_engine #(
     // CRITICAL: Since W-phase is in-order with AW, we use ONE shared FIFO
     // (not per-channel). This preserves the order that AW commands were issued.
 
-    typedef struct packed {
-        logic [7:0]    beats;       // Number of beats for this W transaction
-        logic [CIW-1:0] channel_id;  // Channel ID for this transaction
-    } w_phase_txn_t;
-
-    // Single W-phase FIFO (shared across all channels)
-    logic            w_phase_txn_fifo_wr;
-    logic            w_phase_txn_fifo_rd;
-    w_phase_txn_t    w_phase_txn_fifo_din;
-    w_phase_txn_t    w_phase_txn_fifo_dout;
-    logic            w_phase_txn_fifo_empty;
-    logic            w_phase_txn_fifo_full;
-    logic            w_phase_txn_fifo_wr_ready;
-    logic            w_phase_txn_fifo_rd_valid;
+    // (w_phase_txn_t typedef and w_phase_txn_fifo_* signals declared in
+    // forward-declarations block at the top of the module)
 
     gaxi_fifo_sync #(
         .DATA_WIDTH($bits(w_phase_txn_t)),
@@ -607,17 +652,8 @@ module axi_write_engine #(
     // Track beats and last-flag for each outstanding transaction per channel
     // Push on AW handshake, pop on B response
 
-    typedef struct packed {
-        logic [7:0]  beats;     // Number of beats in this transaction
-        logic        last;      // Is this the last transfer for descriptor?
-    } b_phase_txn_t;
-
-    logic [NC-1:0]           b_phase_txn_fifo_wr;
-    logic [NC-1:0]           b_phase_txn_fifo_rd;
-    b_phase_txn_t [NC-1:0]   b_phase_txn_fifo_din;
-    b_phase_txn_t [NC-1:0]   b_phase_txn_fifo_dout;
-    logic [NC-1:0]           b_phase_txn_fifo_empty;
-    logic [NC-1:0]           b_phase_txn_fifo_full;
+    // (b_phase_txn_t typedef and b_phase_txn_fifo_* signals declared in
+    // forward-declarations block at the top of the module)
 
     genvar g;
     generate
@@ -700,6 +736,33 @@ module axi_write_engine #(
 
     assign sched_wr_done_strobe = r_done_strobe;
     assign sched_wr_beats_done = r_beats_done;
+
+    // synopsys translate_off
+    // Hang diagnostic: when sched_wr_valid is high but w_arb_request is low for
+    // 1024+ cycles, dump the blocking conditions. Helps debug "stuck near end"
+    // hangs where SRAM has data but the engine refuses to issue the final
+    // partial burst.
+    logic [15:0] r_stuck_counter [NC];
+    initial begin
+        for (int i = 0; i < NC; i++) r_stuck_counter[i] = 0;
+    end
+    always_ff @(posedge clk) begin
+        for (int i = 0; i < NC; i++) begin
+            if (sched_wr_valid[i] && !w_arb_request[i] && !(m_axi_bvalid && m_axi_bready)) begin
+                r_stuck_counter[i] <= r_stuck_counter[i] + 1;
+                if (r_stuck_counter[i] == 1024) begin
+                    $display("[%0t] WR ENGINE STUCK ch%0d: sched_wr_beats=%0d transfer_size=%0d has_data=%b final=%b data_ok=%b no_out=%b arb_req=%b drain_avail=%0d",
+                        $time, i,
+                        sched_wr_beats[i], w_transfer_size[i], w_has_data[i], w_final_burst[i],
+                        w_data_ok[i], w_no_outstanding[i], w_arb_request[i],
+                        axi_wr_drain_data_avail[i]);
+                end
+            end else begin
+                r_stuck_counter[i] <= '0;
+            end
+        end
+    end
+    // synopsys translate_on
 
     //=========================================================================
     // B Channel → Response Handling

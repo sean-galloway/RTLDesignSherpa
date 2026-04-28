@@ -153,7 +153,7 @@ class CharacterizationRunner:
         # Scheduler config
         sched_cfg = 0x0F  # SCHED_EN + TIMEOUT_EN + ERR_EN + COMPL_EN
         self.bridge.write(APB_SCHED_CONFIG, sched_cfg)
-        self.bridge.write(APB_SCHED_TIMEOUT_CYC, 0xFFFF)
+        self.bridge.write(APB_SCHED_TIMEOUT_CYC, 0x0FFFFFFF)  # 28-bit, ~2.68s @ 100MHz
 
         # Descriptor engine config
         self.bridge.write(APB_DESCENG_CONFIG, 0x01)  # DESCENG_EN

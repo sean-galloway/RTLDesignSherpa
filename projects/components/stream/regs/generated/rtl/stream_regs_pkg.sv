@@ -151,7 +151,7 @@ package stream_regs_pkg;
     } stream_regs__CHANNEL_RESET__out_t;
 
     typedef struct {
-        logic [15:0] value;
+        logic [31:0] value;
     } stream_regs__SCHED_TIMEOUT_CYCLES__TIMEOUT_CYCLES__out_t;
 
     typedef struct {

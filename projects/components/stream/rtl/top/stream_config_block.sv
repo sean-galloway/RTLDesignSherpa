@@ -57,7 +57,7 @@ module stream_config_block #(
     input  logic [7:0]                  reg_channel_reset_ch_rst,
 
     // Scheduler Configuration
-    input  logic [15:0]                 reg_sched_timeout_cycles_timeout_cycles,
+    input  logic [31:0]                 reg_sched_timeout_cycles_timeout_cycles,
     input  logic                        reg_sched_config_sched_en,
     input  logic                        reg_sched_config_timeout_en,
     input  logic                        reg_sched_config_err_en,
@@ -146,7 +146,7 @@ module stream_config_block #(
 
     // Scheduler Configuration
     output logic                        cfg_sched_enable,
-    output logic [15:0]                 cfg_sched_timeout_cycles,
+    output logic [31:0]                 cfg_sched_timeout_cycles,
     output logic                        cfg_sched_timeout_enable,
     output logic                        cfg_sched_err_enable,
     output logic                        cfg_sched_compl_enable,
