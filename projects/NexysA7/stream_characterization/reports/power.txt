@@ -1,7 +1,7 @@
 Copyright 1986-2022 Xilinx, Inc. All Rights Reserved. Copyright 2022-2025 Advanced Micro Devices, Inc. All Rights Reserved.
 -------------------------------------------------------------------------------------------------------------------------------------------------
 | Tool Version     : Vivado v.2025.1 (lin64) Build 6140274 Wed May 21 22:58:25 MDT 2025
-| Date             : Mon Apr 27 17:39:04 2026
+| Date             : Mon Apr 27 22:36:15 2026
 | Host             : amdtrp running 64-bit Ubuntu 24.04.4 LTS
 | Command          : report_power -file /mnt/data/github/RTLDesignSherpa/projects/NexysA7/stream_characterization/reports/power.txt
 | Design           : stream_char_top
@@ -52,16 +52,16 @@ Table of Contents
 +--------------------------+-----------+----------+-----------+-----------------+
 | On-Chip                  | Power (W) | Used     | Available | Utilization (%) |
 +--------------------------+-----------+----------+-----------+-----------------+
-| Clocks                   |     0.038 |        4 |       --- |             --- |
-| Slice Logic              |     0.022 |    33280 |       --- |             --- |
-|   LUT as Logic           |     0.020 |    13193 |     63400 |           20.81 |
-|   CARRY4                 |     0.001 |     1100 |     15850 |            6.94 |
-|   Register               |    <0.001 |    13157 |    126800 |           10.38 |
+| Clocks                   |     0.040 |        4 |       --- |             --- |
+| Slice Logic              |     0.021 |    33954 |       --- |             --- |
+|   LUT as Logic           |     0.020 |    13524 |     63400 |           21.33 |
+|   CARRY4                 |     0.001 |     1120 |     15850 |            7.07 |
+|   Register               |    <0.001 |    13551 |    126800 |           10.69 |
 |   LUT as Distributed RAM |    <0.001 |      766 |     19000 |            4.03 |
 |   F7/F8 Muxes            |    <0.001 |      168 |     63400 |            0.26 |
-|   Others                 |     0.000 |      317 |       --- |             --- |
-| Signals                  |     0.022 |    21898 |       --- |             --- |
-| Block RAM                |     0.024 |      9.5 |       135 |            7.04 |
+|   Others                 |     0.000 |      321 |       --- |             --- |
+| Signals                  |     0.021 |    22461 |       --- |             --- |
+| Block RAM                |     0.023 |      9.5 |       135 |            7.04 |
 | I/O                      |    <0.001 |       36 |       210 |           17.14 |
 | Static Power             |     0.098 |          |           |                 |
 | Total                    |     0.204 |          |           |                 |
@@ -74,7 +74,7 @@ Table of Contents
 +-----------+-------------+-----------+-------------+------------+-------------+-------------+------------+
 | Source    | Voltage (V) | Total (A) | Dynamic (A) | Static (A) | Powerup (A) | Budget (A)  | Margin (A) |
 +-----------+-------------+-----------+-------------+------------+-------------+-------------+------------+
-| Vccint    |       1.000 |     0.120 |       0.105 |      0.015 |       NA    | Unspecified | NA         |
+| Vccint    |       1.000 |     0.120 |       0.104 |      0.015 |       NA    | Unspecified | NA         |
 | Vccaux    |       1.800 |     0.018 |       0.000 |      0.018 |       NA    | Unspecified | NA         |
 | Vcco33    |       3.300 |     0.004 |       0.000 |      0.004 |       NA    | Unspecified | NA         |
 | Vcco25    |       2.500 |     0.000 |       0.000 |      0.000 |       NA    | Unspecified | NA         |
@@ -148,18 +148,19 @@ Table of Contents
 |   u_harness                             |     0.105 |
 |     u_axil2apb                          |     0.002 |
 |     u_csr                               |     0.002 |
-|     u_debug_sram                        |     0.006 |
+|     u_debug_sram                        |     0.005 |
 |     u_desc_ram                          |     0.005 |
-|       u_skid_r                          |     0.002 |
+|       u_skid_r                          |     0.003 |
 |     u_rd_pattern                        |     0.005 |
 |       u_axi4_slave_rd                   |     0.002 |
 |       u_crc                             |     0.002 |
 |       u_lfsr                            |     0.001 |
-|     u_stream                            |     0.076 |
+|     u_stream                            |     0.074 |
 |       g_monbus_axil.u_monbus_axil_group |     0.006 |
-|       g_stream_core_mon.u_stream_core   |     0.067 |
+|       g_stream_core_mon.u_stream_core   |     0.065 |
 |       u_stream_regs                     |     0.002 |
-|     u_uart                              |     0.003 |
+|     u_uart                              |     0.004 |
+|       u_axil_rd_timing                  |     0.001 |
 |       u_axil_wr_timing                  |     0.001 |
 |     u_wr_crc_check                      |     0.006 |
 |       u_axi4_slave_wr                   |     0.003 |

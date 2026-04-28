@@ -284,6 +284,15 @@ module stream_char_harness #(
     logic        timer_pass;
     logic [63:0] timer_cycles;
 
+    // Per-engine cycle stamps captured during the timed window. Used to
+    // compute R2R and W2W steady-state engine throughput, which strip the
+    // descriptor-fetch fill and last-burst drain overhead from the total.
+    //   r_first / r_last : cycle counts at first / last R beat
+    //   w_first / w_last : cycle counts at first / last W beat
+    // All four are sampled from timer_cycles, so they share its time base.
+    logic [63:0] timer_r_first, timer_r_last;
+    logic [63:0] timer_w_first, timer_w_last;
+
     // Simple CRC match comparison
     wire crc_match = read_crc_valid && write_crc_valid && (read_crc_value == write_crc_value);
     wire crc_both_valid = read_crc_valid && write_crc_valid;
@@ -294,6 +303,10 @@ module stream_char_harness #(
     // @ 0x170) for error visibility. The primary completion signal for tests is
     // stream_irq from monbus_axil_group.irq_out.
     wire any_error = 1'b0;
+
+    // Wires from harness_csr → axi_response_delay blocks below (RESP_DELAY @ 0x3C).
+    logic [15:0] csr_rd_resp_delay_cyc;
+    logic [15:0] csr_wr_resp_delay_cyc;
 
     harness_csr #(.AW(32), .DW(32)) u_csr (
         .aclk(aclk), .aresetn(aresetn),
@@ -326,7 +339,15 @@ module stream_char_harness #(
         .i_timer_done          (timer_done),
         .i_timer_running       (timer_running),
         .i_timer_pass          (timer_pass),
-        .i_timer_cycles        (timer_cycles)
+        .i_timer_cycles        (timer_cycles),
+        .i_timer_r_first       (timer_r_first),
+        .i_timer_r_last        (timer_r_last),
+        .i_timer_w_first       (timer_w_first),
+        .i_timer_w_last        (timer_w_last),
+
+        // Response-delay knobs (driven by RESP_DELAY register @ 0x3C)
+        .o_rd_resp_delay_cyc   (csr_rd_resp_delay_cyc),
+        .o_wr_resp_delay_cyc   (csr_wr_resp_delay_cyc)
     );
 
     // =========================================================================
@@ -373,6 +394,22 @@ module stream_char_harness #(
         end
     )
 
+    // First/last beat detection on the slave side. read_beat_count and
+    // write_beat_count both start at 0 and increment monotonically; we
+    // latch cycle stamps on the first cycle each crosses 0 and on the
+    // first cycle each reaches the programmed expected_beats target.
+    logic        r_rd_first_seen, r_wr_first_seen;
+    logic        r_rd_last_seen,  r_wr_last_seen;
+    wire         w_rd_first_now  = timer_running && !r_rd_first_seen
+                                                  && (read_beat_count != 32'd0);
+    wire         w_wr_first_now  = timer_running && !r_wr_first_seen
+                                                  && (write_beat_count != 32'd0);
+    wire         w_rd_last_now   = timer_running && !r_rd_last_seen
+                                                  && (csr_timer_expected_beats != 32'd0)
+                                                  && (read_beat_count >= csr_timer_expected_beats);
+    wire         w_wr_last_now   = timer_running && !r_wr_last_seen
+                                                  && w_beat_count_reached;
+
     `ALWAYS_FF_RST(aclk, aresetn,
         if (`RST_ASSERTED(aresetn)) begin
             timer_running <= 1'b0;
@@ -380,13 +417,49 @@ module stream_char_harness #(
             timer_pass    <= 1'b0;
             timer_cycles  <= '0;
             r_settle_cnt  <= 3'd0;
+            timer_r_first <= '0;
+            timer_r_last  <= '0;
+            timer_w_first <= '0;
+            timer_w_last  <= '0;
+            r_rd_first_seen <= 1'b0;
+            r_wr_first_seen <= 1'b0;
+            r_rd_last_seen  <= 1'b0;
+            r_wr_last_seen  <= 1'b0;
         end else if (csr_timer_clear_pulse) begin
             timer_running <= 1'b0;
             timer_done    <= 1'b0;
             timer_pass    <= 1'b0;
             timer_cycles  <= '0;
             r_settle_cnt  <= 3'd0;
+            timer_r_first <= '0;
+            timer_r_last  <= '0;
+            timer_w_first <= '0;
+            timer_w_last  <= '0;
+            r_rd_first_seen <= 1'b0;
+            r_wr_first_seen <= 1'b0;
+            r_rd_last_seen  <= 1'b0;
+            r_wr_last_seen  <= 1'b0;
         end else if (timer_running) begin
+            // Latch first/last beat stamps. Sampled from timer_cycles so all
+            // four share the same start-of-session time base (cycle 1 = first
+            // post-start cycle). Each is latched exactly once per session.
+            if (w_rd_first_now) begin
+                timer_r_first   <= timer_cycles;
+                r_rd_first_seen <= 1'b1;
+            end
+            if (w_wr_first_now) begin
+                timer_w_first   <= timer_cycles;
+                r_wr_first_seen <= 1'b1;
+            end
+            if (w_rd_last_now) begin
+                timer_r_last   <= timer_cycles;
+                r_rd_last_seen <= 1'b1;
+            end
+            if (w_wr_last_now) begin
+                timer_w_last   <= timer_cycles;
+                r_wr_last_seen <= 1'b1;
+            end
+
             if (w_beat_count_reached) begin
                 // Stop counting cycles; begin settle window.
                 timer_running <= 1'b0;
@@ -567,6 +640,17 @@ module stream_char_harness #(
     logic                       rd_rvalid;
     logic                       rd_rready;
 
+    // Slave-side R wires (u_rd_pattern -> u_rd_resp_delay).
+    // Master-side R wires (u_rd_resp_delay -> u_stream) keep the historical
+    // rd_r* names so the u_stream port map below is untouched.
+    logic [AXI_ID_WIDTH-1:0]   s_rd_rid;
+    logic [DATA_WIDTH-1:0]     s_rd_rdata;
+    logic [1:0]                s_rd_rresp;
+    logic                      s_rd_rlast;
+    logic [AXI_USER_WIDTH-1:0] s_rd_ruser;
+    logic                      s_rd_rvalid;
+    logic                      s_rd_rready;
+
     axi4_slave_rd_pattern_gen #(
         .AXI_ID_WIDTH  (AXI_ID_WIDTH),
         .AXI_ADDR_WIDTH(ADDR_WIDTH),
@@ -585,11 +669,37 @@ module stream_char_harness #(
         .s_axi_arqos   (rd_arqos),   .s_axi_arregion(rd_arregion),
         .s_axi_aruser  (rd_aruser),  .s_axi_arvalid(rd_arvalid),
         .s_axi_arready (rd_arready),
-        .s_axi_rid     (rd_rid),    .s_axi_rdata(rd_rdata),
-        .s_axi_rresp   (rd_rresp),  .s_axi_rlast(rd_rlast),
-        .s_axi_ruser   (rd_ruser),  .s_axi_rvalid(rd_rvalid),
-        .s_axi_rready  (rd_rready),
+        // R channel routed through u_rd_resp_delay (below)
+        .s_axi_rid     (s_rd_rid),    .s_axi_rdata(s_rd_rdata),
+        .s_axi_rresp   (s_rd_rresp),  .s_axi_rlast(s_rd_rlast),
+        .s_axi_ruser   (s_rd_ruser),  .s_axi_rvalid(s_rd_rvalid),
+        .s_axi_rready  (s_rd_rready),
         .busy          ()
+    );
+
+    // Optional per-beat response delay on the R channel. Bypass when
+    // i_rd_resp_delay_en is 0 (zero added latency). When asserted, each beat
+    // is held for RD_RESP_DELAY_CYCLES cycles before reaching u_stream.
+    localparam int RD_R_PAYLOAD_W = AXI_ID_WIDTH + DATA_WIDTH + 2 + 1 + AXI_USER_WIDTH;
+    logic [RD_R_PAYLOAD_W-1:0] s_rd_r_payload;
+    logic [RD_R_PAYLOAD_W-1:0] m_rd_r_payload;
+
+    assign s_rd_r_payload = {s_rd_rid, s_rd_rdata, s_rd_rresp, s_rd_rlast, s_rd_ruser};
+    assign {rd_rid, rd_rdata, rd_rresp, rd_rlast, rd_ruser} = m_rd_r_payload;
+
+    axi_response_delay #(
+        .DATA_WIDTH(RD_R_PAYLOAD_W),
+        .DELAY_W   (16)
+    ) u_rd_resp_delay (
+        .aclk          (aclk),
+        .aresetn       (aresetn),
+        .i_delay_cycles(csr_rd_resp_delay_cyc),
+        .s_data        (s_rd_r_payload),
+        .s_valid       (s_rd_rvalid),
+        .s_ready       (s_rd_rready),
+        .m_data        (m_rd_r_payload),
+        .m_valid       (rd_rvalid),
+        .m_ready       (rd_rready)
     );
 
     // =========================================================================
@@ -618,6 +728,15 @@ module stream_char_harness #(
     logic                       wr_bvalid;
     logic                       wr_bready;
 
+    // Slave-side B wires (u_wr_crc_check -> u_wr_resp_delay).
+    // Master-side B wires (u_wr_resp_delay -> u_stream) keep the historical
+    // wr_b* names so the u_stream port map below is untouched.
+    logic [AXI_ID_WIDTH-1:0]   s_wr_bid;
+    logic [1:0]                s_wr_bresp;
+    logic [AXI_USER_WIDTH-1:0] s_wr_buser;
+    logic                      s_wr_bvalid;
+    logic                      s_wr_bready;
+
     axi4_slave_wr_crc_check #(
         .AXI_ID_WIDTH  (AXI_ID_WIDTH),
         .AXI_ADDR_WIDTH(ADDR_WIDTH),
@@ -639,10 +758,38 @@ module stream_char_harness #(
         .s_axi_wdata  (wr_wdata),  .s_axi_wstrb(wr_wstrb),
         .s_axi_wlast  (wr_wlast),  .s_axi_wuser(wr_wuser),
         .s_axi_wvalid (wr_wvalid), .s_axi_wready(wr_wready),
-        .s_axi_bid    (wr_bid),    .s_axi_bresp(wr_bresp),
-        .s_axi_buser  (wr_buser),  .s_axi_bvalid(wr_bvalid),
-        .s_axi_bready (wr_bready),
+        // B channel routed through u_wr_resp_delay (below)
+        .s_axi_bid    (s_wr_bid),    .s_axi_bresp(s_wr_bresp),
+        .s_axi_buser  (s_wr_buser),  .s_axi_bvalid(s_wr_bvalid),
+        .s_axi_bready (s_wr_bready),
         .busy         ()
+    );
+
+    // Optional per-beat response delay on the B channel. Bypass when
+    // i_wr_resp_delay_en is 0 (zero added latency). When asserted, each B
+    // response is held for WR_RESP_DELAY_CYCLES cycles before reaching
+    // u_stream — which back-pressures the write pipeline and lets us study
+    // sustained write bandwidth under realistic memory latency.
+    localparam int WR_B_PAYLOAD_W = AXI_ID_WIDTH + 2 + AXI_USER_WIDTH;
+    logic [WR_B_PAYLOAD_W-1:0] s_wr_b_payload;
+    logic [WR_B_PAYLOAD_W-1:0] m_wr_b_payload;
+
+    assign s_wr_b_payload = {s_wr_bid, s_wr_bresp, s_wr_buser};
+    assign {wr_bid, wr_bresp, wr_buser} = m_wr_b_payload;
+
+    axi_response_delay #(
+        .DATA_WIDTH(WR_B_PAYLOAD_W),
+        .DELAY_W   (16)
+    ) u_wr_resp_delay (
+        .aclk          (aclk),
+        .aresetn       (aresetn),
+        .i_delay_cycles(csr_wr_resp_delay_cyc),
+        .s_data        (s_wr_b_payload),
+        .s_valid       (s_wr_bvalid),
+        .s_ready       (s_wr_bready),
+        .m_data        (m_wr_b_payload),
+        .m_valid       (wr_bvalid),
+        .m_ready       (wr_bready)
     );
 
     // =========================================================================

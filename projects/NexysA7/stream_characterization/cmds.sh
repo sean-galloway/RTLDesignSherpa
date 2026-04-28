@@ -19,8 +19,39 @@ echo "=== make program ==="                                         | tee -a run
 make program >> run.log 2>&1
 echo "program done"                                                 | tee -a run.log
 
-echo "=== baseline 1desc_1ch_512KB (largest known-good size) ==="   | tee -a run.log
-python3 host/characterize.py --port /dev/serial/by-id/usb-Digilent_Digilent_USB_Device_210292B7D46F-if01-port0 --configs 1desc_1ch_512KB --size 512KB -v >> run.log 2>&1 || true
+UART_PORT=/dev/serial/by-id/usb-Digilent_Digilent_USB_Device_210292B7D46F-if01-port0
 
-echo "=== done — last 30 lines of run.log ==="                      | tee -a run.log
+# ---- Per-sweep knobs ------------------------------------------------------
+# Edit these for each sweep. The CSV name is the only state shared across
+# the loop iterations — a fresh CSV per sweep keeps each experiment's data
+# separate and ready to plot independently.
+SWEEP_CHANNELS=1
+SWEEP_DESCRIPTORS=1
+SWEEP_SIZE=512KB
+SWEEP_CSV=results_${SWEEP_DESCRIPTORS}desc_${SWEEP_CHANNELS}ch_${SWEEP_SIZE}.csv
+
+# Start each sweep with a clean CSV so the header is written exactly once.
+rm -f "$SWEEP_CSV"
+
+echo "=== response-delay sweep ${SWEEP_DESCRIPTORS}desc_${SWEEP_CHANNELS}ch_${SWEEP_SIZE} (delay 0..30 step 5) ==="  | tee -a run.log
+echo "    accumulating results into ${SWEEP_CSV}"                                    | tee -a run.log
+for d in 0 5 10 15 20 25 30; do
+    echo ""                                                                          | tee -a run.log
+    echo "--- RESP_DELAY = ${d} cycles (rd=wr) ---"                                  | tee -a run.log
+    python3 host/characterize.py \
+        --port "$UART_PORT" \
+        --channels "$SWEEP_CHANNELS" \
+        --descriptors "$SWEEP_DESCRIPTORS" \
+        --size "$SWEEP_SIZE" \
+        --rd-delay "$d" --wr-delay "$d" \
+        --output "$SWEEP_CSV" \
+        -v >> run.log 2>&1 || true
+done
+
+echo ""                                                                              | tee -a run.log
+echo "=== sweep CSV (${SWEEP_CSV}) ==="                                              | tee -a run.log
+column -s, -t "$SWEEP_CSV" 2>/dev/null | tee -a run.log
+
+echo ""                                                                              | tee -a run.log
+echo "=== done — last 30 lines of run.log ==="                                       | tee -a run.log
 tail -30 run.log

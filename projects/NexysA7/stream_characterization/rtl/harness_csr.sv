@@ -45,7 +45,29 @@
 //                              sink slave's write_beat_count >= this value).
 //                              Write 0 to disable beat-based stop.
 //
-//   0x3C - 0xFF           --  Reserved (read as 0)
+//   0x3C  RESP_DELAY      RW  Per-beat hold time injected into the response
+//                              channels by the axi_response_delay blocks in
+//                              the harness. Used for bandwidth-vs-latency
+//                              characterization studies (host can sweep this
+//                              between runs without rebuilding the bitstream).
+//                              [15:0]  rd_delay_cycles  (0 = bypass on R)
+//                              [31:16] wr_delay_cycles  (0 = bypass on B)
+//
+//   Per-engine cycle stamps captured during the timed window. All four are
+//   sampled from the same 64-bit timer_cycles base, so subtraction across
+//   first/last gives a steady-state engine throughput uncontaminated by
+//   descriptor-fetch or last-burst-tail overhead. Cleared by TIMER_CTRL.
+//
+//   0x40  TIMER_R_FIRST_LO  R  Cycle of first R beat (low 32 bits)
+//   0x44  TIMER_R_FIRST_HI  R  Cycle of first R beat (high 32 bits)
+//   0x48  TIMER_R_LAST_LO   R  Cycle of last  R beat (low 32 bits)
+//   0x4C  TIMER_R_LAST_HI   R  Cycle of last  R beat (high 32 bits)
+//   0x50  TIMER_W_FIRST_LO  R  Cycle of first W beat (low 32 bits)
+//   0x54  TIMER_W_FIRST_HI  R  Cycle of first W beat (high 32 bits)
+//   0x58  TIMER_W_LAST_LO   R  Cycle of last  W beat (low 32 bits)
+//   0x5C  TIMER_W_LAST_HI   R  Cycle of last  W beat (high 32 bits)
+//
+//   0x60 - 0xFF           --  Reserved (read as 0)
 
 `timescale 1ns / 1ps
 
@@ -121,7 +143,20 @@ module harness_csr #(
     input  logic            i_timer_done,
     input  logic            i_timer_running,
     input  logic            i_timer_pass,
-    input  logic [63:0]     i_timer_cycles
+    input  logic [63:0]     i_timer_cycles,
+
+    // Per-engine first/last beat cycle stamps (sampled from i_timer_cycles).
+    // Subtract first from last to get pure engine throughput windows.
+    input  logic [63:0]     i_timer_r_first,
+    input  logic [63:0]     i_timer_r_last,
+    input  logic [63:0]     i_timer_w_first,
+    input  logic [63:0]     i_timer_w_last,
+
+    // =====================================================================
+    // Response-delay knobs (driven from RESP_DELAY register @ 0x3C)
+    // =====================================================================
+    output logic [15:0]     o_rd_resp_delay_cyc,
+    output logic [15:0]     o_wr_resp_delay_cyc
 );
 
     localparam int AW_PKT_W = AW + 3;
@@ -233,6 +268,8 @@ module harness_csr #(
     logic r_soft_reset_pulse;
     logic r_timer_clear_pulse;
     logic [31:0] r_timer_expected_beats;
+    logic [15:0] r_rd_resp_delay_cyc;
+    logic [15:0] r_wr_resp_delay_cyc;
 
     // =========================================================================
     // Write channel FSM (operates on skid-buffer outputs)
@@ -254,6 +291,8 @@ module harness_csr #(
             r_soft_reset_pulse     <= 1'b0;
             r_timer_clear_pulse    <= 1'b0;
             r_timer_expected_beats <= '0;
+            r_rd_resp_delay_cyc    <= '0;
+            r_wr_resp_delay_cyc    <= '0;
         end else begin
             r_start_pulse          <= 1'b0;
             r_clear_stats_pulse    <= 1'b0;
@@ -273,6 +312,10 @@ module harness_csr #(
                             8'h20: r_scratch <= int_wdata;
                             8'h28: r_timer_clear_pulse <= int_wdata[0];
                             8'h38: r_timer_expected_beats <= int_wdata;
+                            8'h3C: begin
+                                r_rd_resp_delay_cyc <= int_wdata[15:0];
+                                r_wr_resp_delay_cyc <= int_wdata[31:16];
+                            end
                             default: ; // ignore
                         endcase
                         r_wstate <= W_BRESP;
@@ -349,6 +392,15 @@ module harness_csr #(
                             8'h30: r_rdata <= i_timer_cycles[31:0];
                             8'h34: r_rdata <= i_timer_cycles[63:32];
                             8'h38: r_rdata <= r_timer_expected_beats;
+                            8'h3C: r_rdata <= {r_wr_resp_delay_cyc, r_rd_resp_delay_cyc};
+                            8'h40: r_rdata <= i_timer_r_first[31:0];
+                            8'h44: r_rdata <= i_timer_r_first[63:32];
+                            8'h48: r_rdata <= i_timer_r_last [31:0];
+                            8'h4C: r_rdata <= i_timer_r_last [63:32];
+                            8'h50: r_rdata <= i_timer_w_first[31:0];
+                            8'h54: r_rdata <= i_timer_w_first[63:32];
+                            8'h58: r_rdata <= i_timer_w_last [31:0];
+                            8'h5C: r_rdata <= i_timer_w_last [63:32];
                             default: r_rdata <= 32'h0000_0000;
                         endcase
                         r_rstate <= R_RRESP;
@@ -373,6 +425,8 @@ module harness_csr #(
     assign o_soft_reset_pulse  = r_soft_reset_pulse;
     assign o_timer_clear_pulse    = r_timer_clear_pulse;
     assign o_timer_expected_beats = r_timer_expected_beats;
+    assign o_rd_resp_delay_cyc    = r_rd_resp_delay_cyc;
+    assign o_wr_resp_delay_cyc    = r_wr_resp_delay_cyc;
 
     // Prevent unused signal warnings
     /* verilator lint_off UNUSED */

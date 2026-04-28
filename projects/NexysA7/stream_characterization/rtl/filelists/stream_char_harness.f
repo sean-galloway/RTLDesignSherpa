@@ -33,4 +33,5 @@ $STREAM_CHAR_ROOT/rtl/axil2apb.sv
 $STREAM_CHAR_ROOT/rtl/harness_csr.sv
 $STREAM_CHAR_ROOT/rtl/desc_ram.sv
 $STREAM_CHAR_ROOT/rtl/debug_sram.sv
+$STREAM_CHAR_ROOT/rtl/axi_response_delay.sv
 $STREAM_CHAR_ROOT/rtl/stream_char_harness.sv

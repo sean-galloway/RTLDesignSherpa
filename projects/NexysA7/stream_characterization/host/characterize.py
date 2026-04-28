@@ -51,6 +51,24 @@ CSR_TIMER_STATUS        = HARNESS_CSR_BASE + 0x2C  # R: [0]=done [1]=running [2]
 CSR_TIMER_CYCLES_LO     = HARNESS_CSR_BASE + 0x30
 CSR_TIMER_CYCLES_HI     = HARNESS_CSR_BASE + 0x34
 CSR_TIMER_EXPECTED_BEATS = HARNESS_CSR_BASE + 0x38  # RW: stop when sink beat count >= this
+CSR_RESP_DELAY           = HARNESS_CSR_BASE + 0x3C  # RW: [15:0]=rd_cyc, [31:16]=wr_cyc
+
+# Per-engine first/last beat cycle stamps (sampled from the same 64-bit
+# timer base as CSR_TIMER_CYCLES_*). r2r = R_LAST - R_FIRST, w2w likewise.
+CSR_TIMER_R_FIRST_LO     = HARNESS_CSR_BASE + 0x40
+CSR_TIMER_R_FIRST_HI     = HARNESS_CSR_BASE + 0x44
+CSR_TIMER_R_LAST_LO      = HARNESS_CSR_BASE + 0x48
+CSR_TIMER_R_LAST_HI      = HARNESS_CSR_BASE + 0x4C
+CSR_TIMER_W_FIRST_LO     = HARNESS_CSR_BASE + 0x50
+CSR_TIMER_W_FIRST_HI     = HARNESS_CSR_BASE + 0x54
+CSR_TIMER_W_LAST_LO      = HARNESS_CSR_BASE + 0x58
+CSR_TIMER_W_LAST_HI      = HARNESS_CSR_BASE + 0x5C
+
+
+def _read64(bridge, lo_addr: int, hi_addr: int) -> int:
+    lo = bridge.read(lo_addr) or 0
+    hi = bridge.read(hi_addr) or 0
+    return (hi << 32) | lo
 
 CLK_PERIOD_NS = 10.0  # 100 MHz aclk
 DATA_WIDTH_BYTES = 16  # 128 b data path -> 16 B per beat
@@ -88,11 +106,20 @@ def run_one(runner, bridge, cfg, timeout_s: float, verbose: bool) -> dict:
             time.sleep(0.01)
             continue
         if sts & 0x1:
-            cycles_lo = bridge.read(CSR_TIMER_CYCLES_LO) or 0
-            cycles_hi = bridge.read(CSR_TIMER_CYCLES_HI) or 0
-            cycles = (cycles_hi << 32) | cycles_lo
-            seconds = cycles * CLK_PERIOD_NS * 1e-9
-            mbps = (total_bytes / seconds) / (1024 * 1024) if seconds > 0 else 0.0
+            cycles = _read64(bridge, CSR_TIMER_CYCLES_LO, CSR_TIMER_CYCLES_HI)
+            r_first = _read64(bridge, CSR_TIMER_R_FIRST_LO, CSR_TIMER_R_FIRST_HI)
+            r_last  = _read64(bridge, CSR_TIMER_R_LAST_LO,  CSR_TIMER_R_LAST_HI)
+            w_first = _read64(bridge, CSR_TIMER_W_FIRST_LO, CSR_TIMER_W_FIRST_HI)
+            w_last  = _read64(bridge, CSR_TIMER_W_LAST_LO,  CSR_TIMER_W_LAST_HI)
+
+            r2r_cycles = r_last - r_first if r_last >= r_first else 0
+            w2w_cycles = w_last - w_first if w_last >= w_first else 0
+
+            seconds      = cycles     * CLK_PERIOD_NS * 1e-9
+            r2r_seconds  = r2r_cycles * CLK_PERIOD_NS * 1e-9
+            w2w_seconds  = w2w_cycles * CLK_PERIOD_NS * 1e-9
+
+            def _mbps(t): return (total_bytes / t) / (1024 * 1024) if t > 0 else 0.0
             return {
                 "name":         cfg.name,
                 "num_channels": cfg.num_channels,
@@ -100,7 +127,11 @@ def run_one(runner, bridge, cfg, timeout_s: float, verbose: bool) -> dict:
                 "total_bytes":  total_bytes,
                 "cycles":       cycles,
                 "seconds":      seconds,
-                "throughput_MBps": mbps,
+                "throughput_MBps": _mbps(seconds),
+                "r2r_cycles":      r2r_cycles,
+                "r2r_MBps":        _mbps(r2r_seconds),
+                "w2w_cycles":      w2w_cycles,
+                "w2w_MBps":        _mbps(w2w_seconds),
                 "pass":         bool(sts & 0x4),
                 "timeout":      False,
             }
@@ -114,6 +145,10 @@ def run_one(runner, bridge, cfg, timeout_s: float, verbose: bool) -> dict:
         "cycles":       None,
         "seconds":      None,
         "throughput_MBps": None,
+        "r2r_cycles":      None,
+        "r2r_MBps":        None,
+        "w2w_cycles":      None,
+        "w2w_MBps":        None,
         "pass":         False,
         "timeout":      True,
     }
@@ -127,7 +162,9 @@ def fmt_row(r: dict) -> str:
     return (f"  {r['name']:<24} {r['num_channels']:>3}ch "
             f"{r['descriptors']:>3}d  {_size_label(r['total_bytes']):>10}  "
             f"{r['cycles']:>10} cyc  {r['seconds']*1e6:>9.1f} us  "
-            f"{r['throughput_MBps']:>7.1f} MB/s  "
+            f"tot={r['throughput_MBps']:>7.1f}  "
+            f"r2r={r['r2r_MBps']:>7.1f}  "
+            f"w2w={r['w2w_MBps']:>7.1f} MB/s  "
             f"{'PASS' if r['pass'] else 'FAIL'}")
 
 
@@ -137,41 +174,113 @@ def parse_args():
                     "measure cycles + throughput via the harness timer.")
     p.add_argument("--port", default="/dev/ttyUSB1")
     p.add_argument("--baud", type=int, default=115200)
+
+    # Two ways to pick configs:
+    #   (a) --csv FILE: load a list of named configs from a CSV file
+    #   (b) --channels N --descriptors N --size SIZE: build one config inline
+    # If none of those are given we fall back to the built-in matrix
+    # (filterable with --configs / --channels) for backward compatibility.
     p.add_argument("--csv", default=None,
                    help="Load test configs from CSV (default: built-in matrix)")
     p.add_argument("--configs", nargs="+",
                    help="Run only the named configs from the matrix")
-    p.add_argument("--channels", type=int, nargs="+",
-                   help="Limit to specific channel counts")
+    p.add_argument("--channels", type=int, default=None,
+                   help="Number of active channels for this run "
+                        "(scalar; combine with --descriptors and --size to "
+                        "describe one config without naming a matrix entry)")
+    p.add_argument("--descriptors", type=int, default=None,
+                   help="Descriptors per channel for this run "
+                        "(combine with --channels and --size)")
     p.add_argument("--size", default="1MB",
-                   help="Per-descriptor transfer size for the built-in matrix "
-                        "(ignored when --csv is used)")
+                   help="Per-descriptor transfer size (e.g. 4KB, 512KB, 1MB). "
+                        "Total bytes moved = channels * descriptors * size.")
     p.add_argument("--timeout", type=float, default=60.0,
                    help="Per-test timeout in seconds (default: 60)")
     p.add_argument("--output", "-o", default=None,
-                   help="Write results to a CSV file in addition to stdout")
+                   help="CSV file to record results in. If the file already "
+                        "exists, rows are appended (no header rewrite); if "
+                        "missing, the file is created with a header. Use the "
+                        "same path across multiple invocations to accumulate "
+                        "a sweep into one CSV.")
     p.add_argument("--verbose", "-v", action="store_true")
+    p.add_argument("--rd-delay", type=int, default=None,
+                   help="Read-response per-beat delay in cycles "
+                        "(0 = bypass; programs CSR RESP_DELAY[15:0]). "
+                        "If --wr-delay is omitted, the same value is used.")
+    p.add_argument("--wr-delay", type=int, default=None,
+                   help="Write-response per-beat delay in cycles "
+                        "(0 = bypass; programs CSR RESP_DELAY[31:16]). "
+                        "Defaults to --rd-delay if omitted.")
     return p.parse_args()
 
 
 def main() -> int:
     args = parse_args()
 
-    # Build config list (same logic the existing runner uses).
+    # Import here so the CharConfig dataclass is available for the inline
+    # build path below.
+    from descriptor_builder import CharConfig  # noqa: E402
+
+    # Build config list. Three input modes (in priority order):
+    #   1. --csv FILE: explicit list of named configs.
+    #   2. --channels + --descriptors: build a single config inline.
+    #   3. Otherwise: built-in matrix, filterable with --configs / --channels.
+    inline_mode = (args.channels is not None) or (args.descriptors is not None)
+
     if args.csv:
         configs = load_configs_from_csv(args.csv)
+    elif inline_mode:
+        if args.channels is None or args.descriptors is None:
+            print("ERROR: --channels and --descriptors must be used together.",
+                  file=sys.stderr)
+            return 1
+        xfer_bytes = _parse_size(args.size)
+        cfg = CharConfig(
+            name=f"{args.descriptors}desc_{args.channels}ch_"
+                 f"{_size_label(xfer_bytes)}",
+            num_channels=args.channels,
+            descriptors_per_channel=args.descriptors,
+            transfer_bytes=xfer_bytes,
+        )
+        configs = [cfg]
     else:
         configs = build_char_matrix(transfer_bytes=_parse_size(args.size))
         if args.configs:
             configs = [c for c in configs if c.name in args.configs]
-        if args.channels:
-            configs = [c for c in configs if c.num_channels in args.channels]
+        # In matrix mode --channels would have already been a list, but
+        # we narrowed --channels to a scalar above. If a scalar was given
+        # without --descriptors, treat it as a filter.
+        if args.channels is not None:
+            configs = [c for c in configs if c.num_channels == args.channels]
 
     if not configs:
         print("No configurations match the filter.", file=sys.stderr)
         return 1
 
-    print(f"Sweeping {len(configs)} configurations on {args.port}\n")
+    # Resolve response-delay knobs (per-beat hold cycles on the R / B
+    # channels, programmed via CSR RESP_DELAY @ 0x3C). Either flag alone
+    # is fine; the other defaults to the first one's value so the common
+    # case "I just want N cycles on both" stays one flag.
+    rd_delay = args.rd_delay
+    wr_delay = args.wr_delay
+    if rd_delay is None and wr_delay is None:
+        delay_word = None
+    else:
+        if rd_delay is None:
+            rd_delay = wr_delay
+        if wr_delay is None:
+            wr_delay = rd_delay
+        if not (0 <= rd_delay <= 0xFFFF and 0 <= wr_delay <= 0xFFFF):
+            print(f"ERROR: --rd-delay/--wr-delay must be in 0..65535",
+                  file=sys.stderr)
+            return 1
+        delay_word = ((wr_delay & 0xFFFF) << 16) | (rd_delay & 0xFFFF)
+
+    print(f"Sweeping {len(configs)} configurations on {args.port}")
+    if delay_word is not None:
+        print(f"Response-delay programming: rd={rd_delay} cyc, "
+              f"wr={wr_delay} cyc (RESP_DELAY=0x{delay_word:08X})")
+    print()
     results = []
     with UARTAxiBridge(args.port, args.baud) as bridge:
         runner = runner_mod.CharacterizationRunner(
@@ -180,9 +289,21 @@ def main() -> int:
             print("ERROR: harness ping failed.", file=sys.stderr)
             return 2
 
+        # Program response-delay CSR once up front; it persists across
+        # configs in the sweep (the harness only resets it on aresetn).
+        if delay_word is not None:
+            bridge.write(CSR_RESP_DELAY, delay_word)
+
+        # Tag every result with the delay programming so the CSV can carry
+        # bandwidth-vs-delay context per row. Default 0 when no flag was given.
+        rd_tag = rd_delay if rd_delay is not None else 0
+        wr_tag = wr_delay if wr_delay is not None else 0
+
         for i, cfg in enumerate(configs, 1):
             print(f"[{i}/{len(configs)}] {cfg.name}")
             r = run_one(runner, bridge, cfg, args.timeout, args.verbose)
+            r["rd_delay_cyc"] = rd_tag
+            r["wr_delay_cyc"] = wr_tag
             results.append(r)
             print(fmt_row(r))
 
@@ -193,14 +314,24 @@ def main() -> int:
 
     if args.output:
         fieldnames = ["name", "num_channels", "descriptors", "total_bytes",
-                      "cycles", "seconds",
-                      "throughput_MBps", "pass", "timeout"]
-        with open(args.output, "w", newline="") as f:
+                      "rd_delay_cyc", "wr_delay_cyc",
+                      "cycles",     "seconds",     "throughput_MBps",
+                      "r2r_cycles", "r2r_MBps",
+                      "w2w_cycles", "w2w_MBps",
+                      "pass", "timeout"]
+        # Append if the file already has content (so multiple invocations
+        # accumulate into one CSV); otherwise create with a header.
+        write_header = (not os.path.exists(args.output)) \
+                       or (os.path.getsize(args.output) == 0)
+        with open(args.output, "a", newline="") as f:
             w = csv.DictWriter(f, fieldnames=fieldnames)
-            w.writeheader()
+            if write_header:
+                w.writeheader()
             for r in results:
-                w.writerow(r)
-        print(f"Wrote {args.output}")
+                # Subset to declared fields; ignore anything extra.
+                w.writerow({k: r.get(k) for k in fieldnames})
+        action = "Created" if write_header else "Appended to"
+        print(f"{action} {args.output} ({len(results)} row(s))")
 
     return 0 if n_fail == 0 else 3
 
