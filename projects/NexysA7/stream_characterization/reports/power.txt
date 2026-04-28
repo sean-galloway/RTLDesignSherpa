@@ -1,7 +1,7 @@
 Copyright 1986-2022 Xilinx, Inc. All Rights Reserved. Copyright 2022-2025 Advanced Micro Devices, Inc. All Rights Reserved.
 -------------------------------------------------------------------------------------------------------------------------------------------------
 | Tool Version     : Vivado v.2025.1 (lin64) Build 6140274 Wed May 21 22:58:25 MDT 2025
-| Date             : Mon Apr 27 22:36:15 2026
+| Date             : Tue Apr 28 05:48:45 2026
 | Host             : amdtrp running 64-bit Ubuntu 24.04.4 LTS
 | Command          : report_power -file /mnt/data/github/RTLDesignSherpa/projects/NexysA7/stream_characterization/reports/power.txt
 | Design           : stream_char_top
@@ -30,14 +30,14 @@ Table of Contents
 ----------
 
 +--------------------------+--------------+
-| Total On-Chip Power (W)  | 0.204        |
+| Total On-Chip Power (W)  | 0.243        |
 | Design Power Budget (W)  | Unspecified* |
 | Power Budget Margin (W)  | NA           |
-| Dynamic (W)              | 0.106        |
+| Dynamic (W)              | 0.145        |
 | Device Static (W)        | 0.098        |
 | Effective TJA (C/W)      | 4.6          |
-| Max Ambient (C)          | 84.1         |
-| Junction Temperature (C) | 25.9         |
+| Max Ambient (C)          | 83.9         |
+| Junction Temperature (C) | 26.1         |
 | Confidence Level         | Medium       |
 | Setting File             | ---          |
 | Simulation Activity File | ---          |
@@ -52,19 +52,19 @@ Table of Contents
 +--------------------------+-----------+----------+-----------+-----------------+
 | On-Chip                  | Power (W) | Used     | Available | Utilization (%) |
 +--------------------------+-----------+----------+-----------+-----------------+
-| Clocks                   |     0.040 |        4 |       --- |             --- |
-| Slice Logic              |     0.021 |    33954 |       --- |             --- |
-|   LUT as Logic           |     0.020 |    13524 |     63400 |           21.33 |
-|   CARRY4                 |     0.001 |     1120 |     15850 |            7.07 |
-|   Register               |    <0.001 |    13551 |    126800 |           10.69 |
+| Clocks                   |     0.041 |        4 |       --- |             --- |
+| Slice Logic              |     0.040 |    36435 |       --- |             --- |
+|   LUT as Logic           |     0.039 |    14812 |     63400 |           23.36 |
+|   CARRY4                 |     0.001 |     1193 |     15850 |            7.53 |
+|   Register               |    <0.001 |    14205 |    126800 |           11.20 |
 |   LUT as Distributed RAM |    <0.001 |      766 |     19000 |            4.03 |
-|   F7/F8 Muxes            |    <0.001 |      168 |     63400 |            0.26 |
-|   Others                 |     0.000 |      321 |       --- |             --- |
-| Signals                  |     0.021 |    22461 |       --- |             --- |
-| Block RAM                |     0.023 |      9.5 |       135 |            7.04 |
+|   F7/F8 Muxes            |    <0.001 |      185 |     63400 |            0.29 |
+|   Others                 |     0.000 |      330 |       --- |             --- |
+| Signals                  |     0.039 |    24382 |       --- |             --- |
+| Block RAM                |     0.024 |      9.5 |       135 |            7.04 |
 | I/O                      |    <0.001 |       36 |       210 |           17.14 |
 | Static Power             |     0.098 |          |           |                 |
-| Total                    |     0.204 |          |           |                 |
+| Total                    |     0.243 |          |           |                 |
 +--------------------------+-----------+----------+-----------+-----------------+
 
 
@@ -74,7 +74,7 @@ Table of Contents
 +-----------+-------------+-----------+-------------+------------+-------------+-------------+------------+
 | Source    | Voltage (V) | Total (A) | Dynamic (A) | Static (A) | Powerup (A) | Budget (A)  | Margin (A) |
 +-----------+-------------+-----------+-------------+------------+-------------+-------------+------------+
-| Vccint    |       1.000 |     0.120 |       0.104 |      0.015 |       NA    | Unspecified | NA         |
+| Vccint    |       1.000 |     0.158 |       0.143 |      0.016 |       NA    | Unspecified | NA         |
 | Vccaux    |       1.800 |     0.018 |       0.000 |      0.018 |       NA    | Unspecified | NA         |
 | Vcco33    |       3.300 |     0.004 |       0.000 |      0.004 |       NA    | Unspecified | NA         |
 | Vcco25    |       2.500 |     0.000 |       0.000 |      0.000 |       NA    | Unspecified | NA         |
@@ -144,27 +144,28 @@ Table of Contents
 +-----------------------------------------+-----------+
 | Name                                    | Power (W) |
 +-----------------------------------------+-----------+
-| stream_char_top                         |     0.106 |
-|   u_harness                             |     0.105 |
+| stream_char_top                         |     0.145 |
+|   u_harness                             |     0.143 |
 |     u_axil2apb                          |     0.002 |
-|     u_csr                               |     0.002 |
-|     u_debug_sram                        |     0.005 |
+|     u_csr                               |     0.005 |
+|     u_debug_sram                        |     0.006 |
 |     u_desc_ram                          |     0.005 |
 |       u_skid_r                          |     0.003 |
-|     u_rd_pattern                        |     0.005 |
+|     u_rd_pattern                        |     0.009 |
 |       u_axi4_slave_rd                   |     0.002 |
-|       u_crc                             |     0.002 |
-|       u_lfsr                            |     0.001 |
 |     u_stream                            |     0.074 |
 |       g_monbus_axil.u_monbus_axil_group |     0.006 |
 |       g_stream_core_mon.u_stream_core   |     0.065 |
 |       u_stream_regs                     |     0.002 |
 |     u_uart                              |     0.004 |
 |       u_axil_rd_timing                  |     0.001 |
-|       u_axil_wr_timing                  |     0.001 |
-|     u_wr_crc_check                      |     0.006 |
-|       u_axi4_slave_wr                   |     0.003 |
-|       u_crc                             |     0.003 |
+|       u_axil_wr_timing                  |     0.002 |
+|     u_wr_crc_check                      |     0.038 |
+|       gen_crc[0].u_crc                  |     0.009 |
+|       gen_crc[1].u_crc                  |     0.010 |
+|       gen_crc[2].u_crc                  |     0.009 |
+|       gen_crc[3].u_crc                  |     0.009 |
+|       u_axi4_slave_wr                   |     0.001 |
 +-----------------------------------------+-----------+
 
 

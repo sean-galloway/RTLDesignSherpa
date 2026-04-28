@@ -7,51 +7,20 @@
 //   AXI4 write-only slave that computes CRC-32 on received data for DMA
 //   validation. Combines axi4_slave_wr protocol handler with CRC checker.
 //
-// Purpose:
-//   DMA characterization and data integrity validation. Companion to
-//   axi4_slave_rd_pattern_gen - receives DMA writes and computes CRC-32
-//   for comparison with read pattern generator CRC.
+//   Per-channel mode (NUM_CHANNELS > 1): the slave maintains independent
+//   CRC state per channel, demuxed off the low bits of the W-side wuser
+//   (which the STREAM master drives with the burst's channel index). The
+//   AW FSM accepts one burst at a time and W beats are in-order with AW,
+//   so r_wr_id[CIW-1:0] is the active channel during W; we use that as
+//   the demux selector.
 //
-// Parameters:
-//   SKID_DEPTH_AW  - AW channel skid buffer depth (default: 2)
-//   SKID_DEPTH_W   - W channel skid buffer depth (default: 4)
-//   SKID_DEPTH_B   - B channel skid buffer depth (default: 2)
-//   AXI_ID_WIDTH   - AXI ID width (default: 8)
-//   AXI_ADDR_WIDTH - AXI address width (default: 32)
-//   AXI_DATA_WIDTH - AXI data width (default: 64, can be wider)
-//   AXI_USER_WIDTH - AXI user signal width (default: 1)
-//   CRC_SLICE_OFFSET - Which 32-bit slice to CRC (0 = [31:0], 1 = [63:32], etc.)
+// Per-channel outputs:
+//   write_crc_value [NUM_CHANNELS][31:0] - per-channel CRC values
+//   write_crc_valid [NUM_CHANNELS]       - per-channel valid flags
+//   write_beat_count[NUM_CHANNELS][31:0] - per-channel beat counts
 //
-// Architecture:
-//   AXI AW/W → axi4_slave_wr → Extract 32-bit slice → CRC-32 → write_crc_value
-//
-// Interfaces:
-//   aclk, aresetn          - Clock and reset
-//   crc_reset              - Synchronous reset for test control (from UART)
-//   write_crc_value[31:0]  - CRC-32 output for validation
-//   write_crc_valid        - CRC value is valid (after first update)
-//   write_beat_count[31:0] - Number of AXI write beats received
-//   s_axi_aw*              - AXI4 write address channel (slave)
-//   s_axi_w*               - AXI4 write data channel (slave)
-//   s_axi_b*               - AXI4 write response channel (slave)
-//   busy                   - Status output (active transactions)
-//
-// Notes:
-//   - Extracts 32-bit slice from AXI_DATA_WIDTH (default [31:0])
-//   - CRC processes 32-bit data only
-//   - CRC-32 Ethernet standard (POLY=0x04C11DB7, INIT/XOR=0xFFFFFFFF)
-//   - CRC accumulates over all write beats
-//   - crc_reset resets CRC for new test sequence
-//   - Companion module: axi4_slave_rd_pattern_gen.sv (must use matching CRC params)
-//   - Written data is discarded (no storage backend)
-//
-// Example Usage (Python via UART):
-//   uart.write("RESET_CRC")
-//   dma.read_burst(addr=pattern_gen_addr, length=10000)
-//   dma.write_burst(addr=crc_check_addr, length=10000)
-//   read_crc = uart.read("READ_CRC_VALUE")
-//   write_crc = uart.read("WRITE_CRC_VALUE")
-//   assert read_crc == write_crc, "DMA data integrity failure!"
+// Aggregate output (for harness timer):
+//   write_beat_count_total [31:0]        - sum of per-channel beat counts
 //
 //==============================================================================
 
@@ -59,38 +28,43 @@
 
 module axi4_slave_wr_crc_check #(
     // AXI parameters
-    parameter int SKID_DEPTH_AW  = 2,
-    parameter int SKID_DEPTH_W   = 4,
-    parameter int SKID_DEPTH_B   = 2,
-    parameter int AXI_ID_WIDTH   = 8,
+    parameter int NUM_CHANNELS  = 1,
+    parameter int SKID_DEPTH_AW = 2,
+    parameter int SKID_DEPTH_W  = 4,
+    parameter int SKID_DEPTH_B  = 2,
+    parameter int AXI_ID_WIDTH  = 8,
     parameter int AXI_ADDR_WIDTH = 32,
     parameter int AXI_DATA_WIDTH = 64,
     parameter int AXI_USER_WIDTH = 1,
 
     // CRC parameters (MUST MATCH axi4_slave_rd_pattern_gen!)
     parameter int CRC_WIDTH      = 32,
-    parameter int CRC_DATA_WIDTH = 32,  // Process 32-bit slice only
-    parameter logic [31:0] CRC_POLY    = 32'h04C11DB7,  // CRC-32 Ethernet
+    parameter int CRC_DATA_WIDTH = 32,
+    parameter logic [31:0] CRC_POLY    = 32'h04C11DB7,
     parameter logic [31:0] CRC_INIT    = 32'hFFFFFFFF,
     parameter logic [31:0] CRC_XOROUT  = 32'hFFFFFFFF,
     parameter int CRC_REFIN  = 1,
     parameter int CRC_REFOUT = 1,
 
     // Which 32-bit slice to CRC from AXI_DATA_WIDTH
-    // 0 = [31:0], 1 = [63:32], 2 = [95:64], etc.
-    parameter int CRC_SLICE_OFFSET = 0
+    parameter int CRC_SLICE_OFFSET = 0,
+
+    // Derived
+    parameter int CIW = (NUM_CHANNELS > 1) ? $clog2(NUM_CHANNELS) : 1
 ) (
     // Global Clock and Reset
     input  logic                        aclk,
     input  logic                        aresetn,
 
-    // Test Control (from UART controller or test logic)
-    input  logic                        crc_reset,  // Pulse to reset CRC
+    // Test Control
+    input  logic                        crc_reset,
 
-    // CRC and Status Outputs (to UART controller)
-    output logic [31:0]                 write_crc_value,   // Current CRC-32 value
-    output logic                        write_crc_valid,   // CRC valid after first update
-    output logic [31:0]                 write_beat_count,  // Number of write beats received
+    // Per-channel CRC and Status Outputs
+    output logic [NUM_CHANNELS-1:0][31:0] write_crc_value,
+    output logic [NUM_CHANNELS-1:0]       write_crc_valid,
+    output logic [NUM_CHANNELS-1:0][31:0] write_beat_count,
+    // Aggregate beat count (sum across channels) for the harness stop trigger.
+    output logic [31:0]                   write_beat_count_total,
 
     // AXI4 Slave Interface (Write-Only)
     // Write address channel (AW)
@@ -131,7 +105,6 @@ module axi4_slave_wr_crc_check #(
     // Internal Signals - FUB (Functional Unit Backend) Interface
     //==========================================================================
 
-    // Internal interface between axi4_slave_wr and CRC checker
     logic [AXI_ID_WIDTH-1:0]     fub_axi_awid;
     logic [AXI_ADDR_WIDTH-1:0]   fub_axi_awaddr;
     logic [7:0]                  fub_axi_awlen;
@@ -167,14 +140,11 @@ module axi4_slave_wr_crc_check #(
 
     generate
         if (AXI_DATA_WIDTH == 32) begin : gen_no_slice
-            // Direct connection for 32-bit AXI data
             assign data_slice = fub_axi_wdata;
         end else begin : gen_slice
-            // Extract 32-bit slice based on CRC_SLICE_OFFSET
             localparam int SLICE_LSB = CRC_SLICE_OFFSET * 32;
             localparam int SLICE_MSB = SLICE_LSB + 31;
 
-            // Bounds checking at compile time
             initial begin
                 if (SLICE_MSB >= AXI_DATA_WIDTH) begin
                     $error("CRC_SLICE_OFFSET=%0d out of range for AXI_DATA_WIDTH=%0d",
@@ -187,101 +157,98 @@ module axi4_slave_wr_crc_check #(
     endgenerate
 
     //==========================================================================
-    // FUB burst state (declared early for CRC gating)
+    // FUB burst state (declared early — used by per-channel CRC gating)
     //==========================================================================
-    logic r_b_pending;
+
+    logic                      r_b_pending;
     logic [AXI_ID_WIDTH-1:0]   r_wr_id;
     logic [AXI_USER_WIDTH-1:0] r_wr_user;
-    logic                      r_wr_active;  // Currently accepting W beats
+    logic                      r_wr_active;
+
+    // Active channel index for the in-flight burst (low bits of captured AW ID).
+    logic [CIW-1:0] w_active_ch;
+    assign w_active_ch = (NUM_CHANNELS == 1) ? '0 : r_wr_id[CIW-1:0];
+
+    // Single accepted-W-beat strobe; per-channel CRC instances gate on this.
+    wire w_w_beat = fub_axi_wvalid && fub_axi_wready && r_wr_active;
 
     //==========================================================================
-    // CRC-32 Calculator
+    // Per-channel CRC-32 Calculators + beat counters
     //==========================================================================
 
-    logic        crc_load_start;
-    logic        crc_load_from_cascade;
-    logic [3:0]  crc_cascade_sel;
-    logic [31:0] crc_out;
-    logic        crc_update;
+    logic [31:0] crc_out_per_ch [NUM_CHANNELS];
 
-    // CRC resets on crc_reset pulse
-    assign crc_load_start = crc_reset;
+    genvar gch;
+    generate
+        for (gch = 0; gch < NUM_CHANNELS; gch++) begin : gen_crc
+            logic ch_load_from_cascade;
+            logic r_ch_crc_valid;
+            logic [31:0] r_ch_beat_count;
 
-    // CRC updates on each accepted write beat
-    assign crc_update = fub_axi_wvalid && fub_axi_wready && r_wr_active;
-    assign crc_load_from_cascade = crc_update;
+            // CRC accumulates only when the active burst belongs to this channel
+            assign ch_load_from_cascade = w_w_beat
+                                       && (w_active_ch == gch[CIW-1:0]);
 
-    // Process all 4 bytes of 32-bit slice (cascade_sel = one-hot for byte 3)
-    assign crc_cascade_sel = 4'b1000;
+            dataint_crc #(
+                .DATA_WIDTH(CRC_DATA_WIDTH),
+                .CRC_WIDTH (CRC_WIDTH),
+                .REFIN     (CRC_REFIN),
+                .REFOUT    (CRC_REFOUT)
+            ) u_crc (
+                .POLY             (CRC_POLY),
+                .POLY_INIT        (CRC_INIT),
+                .XOROUT           (CRC_XOROUT),
+                .clk              (aclk),
+                .rst_n            (aresetn),
+                .load_crc_start   (crc_reset),
+                .load_from_cascade(ch_load_from_cascade),
+                .cascade_sel      (4'b1000),
+                .data             (data_slice),
+                .crc              (crc_out_per_ch[gch])
+            );
 
-    dataint_crc #(
-        .DATA_WIDTH(CRC_DATA_WIDTH),  // 32-bit input
-        .CRC_WIDTH(CRC_WIDTH),        // 32-bit output
-        .REFIN(CRC_REFIN),
-        .REFOUT(CRC_REFOUT)
-    ) u_crc (
-        .POLY(CRC_POLY),
-        .POLY_INIT(CRC_INIT),
-        .XOROUT(CRC_XOROUT),
-        .clk(aclk),
-        .rst_n(aresetn),
-        .load_crc_start(crc_load_start),
-        .load_from_cascade(crc_load_from_cascade),
-        .cascade_sel(crc_cascade_sel),
-        .data(data_slice),  // CRC on 32-bit slice
-        .crc(crc_out)
-    );
+            `ALWAYS_FF_RST(aclk, aresetn,
+                if (`RST_ASSERTED(aresetn)) begin
+                    r_ch_crc_valid  <= 1'b0;
+                    r_ch_beat_count <= '0;
+                end else begin
+                    if (crc_reset) begin
+                        r_ch_crc_valid  <= 1'b0;
+                        r_ch_beat_count <= '0;
+                    end else if (ch_load_from_cascade) begin
+                        r_ch_crc_valid  <= 1'b1;
+                        r_ch_beat_count <= r_ch_beat_count + 1'b1;
+                    end
+                end
+            )
 
-    //==========================================================================
-    // CRC Valid and Beat Counter
-    //==========================================================================
-
-    logic r_crc_valid;
-    logic [31:0] r_beat_count;
-
-    `ALWAYS_FF_RST(aclk, aresetn,
-        if (`RST_ASSERTED(aresetn)) begin
-            r_crc_valid <= 1'b0;
-            r_beat_count <= '0;
-        end else begin
-            // CRC valid after first update
-            if (crc_reset) begin
-                r_crc_valid <= 1'b0;
-            end else if (crc_update) begin
-                r_crc_valid <= 1'b1;
-            end
-
-            // Beat counter
-            if (crc_reset) begin
-                r_beat_count <= '0;
-            end else if (crc_update) begin
-                r_beat_count <= r_beat_count + 1'b1;
-            end
+            assign write_crc_value [gch] = crc_out_per_ch[gch];
+            assign write_crc_valid [gch] = r_ch_crc_valid;
+            assign write_beat_count[gch] = r_ch_beat_count;
         end
-    )
+    endgenerate
 
-    // Output assignments
-    assign write_crc_value  = crc_out;
-    assign write_crc_valid  = r_crc_valid;
-    assign write_beat_count = r_beat_count;
+    //==========================================================================
+    // Aggregate beat count (sum across all channels) for the harness timer
+    //==========================================================================
+
+    always_comb begin
+        write_beat_count_total = '0;
+        for (int ch = 0; ch < NUM_CHANNELS; ch++) begin
+            write_beat_count_total = write_beat_count_total + write_beat_count[ch];
+        end
+    end
 
     //==========================================================================
     // FUB Interface - Burst FSM for Write Acceptance
     //==========================================================================
-    // Captures AW transaction info, accepts W beats, generates B response
-    // after wlast. Properly holds BID from the captured AW handshake.
 
-    // Accept AW when not active (no burst in progress)
     assign fub_axi_awready = !r_wr_active;
-
-    // Accept W data when active
-    assign fub_axi_wready = r_wr_active;
-
-    // B response when pending
-    assign fub_axi_bid    = r_wr_id;
-    assign fub_axi_bresp  = 2'b00;  // OKAY
-    assign fub_axi_buser  = r_wr_user;
-    assign fub_axi_bvalid = r_b_pending;
+    assign fub_axi_wready  = r_wr_active;
+    assign fub_axi_bid     = r_wr_id;
+    assign fub_axi_bresp   = 2'b00;  // OKAY
+    assign fub_axi_buser   = r_wr_user;
+    assign fub_axi_bvalid  = r_b_pending;
 
     `ALWAYS_FF_RST(aclk, aresetn,
         if (`RST_ASSERTED(aresetn)) begin
@@ -323,11 +290,9 @@ module axi4_slave_wr_crc_check #(
         .AXI_DATA_WIDTH     (AXI_DATA_WIDTH),
         .AXI_USER_WIDTH     (AXI_USER_WIDTH)
     ) u_axi4_slave_wr (
-        // Clock and Reset
         .aclk               (aclk),
         .aresetn            (aresetn),
 
-        // Slave AXI Interface (External)
         .s_axi_awid         (s_axi_awid),
         .s_axi_awaddr       (s_axi_awaddr),
         .s_axi_awlen        (s_axi_awlen),
@@ -355,7 +320,6 @@ module axi4_slave_wr_crc_check #(
         .s_axi_bvalid       (s_axi_bvalid),
         .s_axi_bready       (s_axi_bready),
 
-        // Master AXI Interface (Internal to CRC checker)
         .fub_axi_awid       (fub_axi_awid),
         .fub_axi_awaddr     (fub_axi_awaddr),
         .fub_axi_awlen      (fub_axi_awlen),
@@ -383,7 +347,6 @@ module axi4_slave_wr_crc_check #(
         .fub_axi_bvalid     (fub_axi_bvalid),
         .fub_axi_bready     (fub_axi_bready),
 
-        // Status Output
         .busy               (busy)
     );
 

@@ -55,9 +55,18 @@
 
 
 module apbtodescr #(
-    parameter int ADDR_WIDTH = 32,
-    parameter int DATA_WIDTH = 32,
-    parameter int NUM_CHANNELS = 8
+    // APB bus parameters (the kick-register space is only ~64 B, so the
+    // APB address bus is typically narrow — APB_ADDR_WIDTH=12 is enough
+    // for 4 KB of decode space).
+    parameter int ADDR_WIDTH      = 32,
+    parameter int DATA_WIDTH      = 32,
+    parameter int NUM_CHANNELS    = 8,
+    // Descriptor-address width — independent of the APB address width.
+    // The two-word programming protocol assembles a {HIGH,LOW} value
+    // (DATA_WIDTH bits each) and forwards the low DESC_ADDR_WIDTH bits
+    // as the channel's first descriptor address. Match this to the AXI
+    // address width that the descriptor_engine's apb_addr port expects.
+    parameter int DESC_ADDR_WIDTH = 32
 ) (
     // Clock and Reset
     input  logic                        clk,
@@ -81,7 +90,7 @@ module apbtodescr #(
     // NOTE: Uses 64-bit address width for descriptor addresses
     output logic [NUM_CHANNELS-1:0]                 desc_apb_valid,
     input  logic [NUM_CHANNELS-1:0]                 desc_apb_ready,
-    output logic [NUM_CHANNELS-1:0][63:0]           desc_apb_addr,
+    output logic [NUM_CHANNELS-1:0][DESC_ADDR_WIDTH-1:0] desc_apb_addr,
 
     // Integration Control Signal
     // Indicates this module is handling a kick-off transaction
@@ -301,12 +310,25 @@ module apbtodescr #(
         end
     end
 
-    // Broadcast assembled 64-bit descriptor address to all channels
-    // Only the selected channel's valid will be asserted
+    // Broadcast assembled descriptor address to all channels (only the
+    // selected channel's valid will be asserted). The two-word programming
+    // protocol always assembles a (2*DATA_WIDTH)-bit value from {HIGH,LOW};
+    // we then truncate to DESC_ADDR_WIDTH so the per-channel output array
+    // matches the descriptor_engine's apb_addr port width.
+    //
+    // BUG history: the output was previously hardcoded [63:0] per channel
+    // while parents declared the same wire as [ADDR_WIDTH-1:0] (= 32). SV
+    // re-sliced the 4×64-bit source onto a 4×32-bit destination from LSB up,
+    // putting the HIGH word (= 0) onto the odd channels and silently
+    // breaking multi-channel kicks. Splitting DESC_ADDR_WIDTH from the APB
+    // bus's ADDR_WIDTH keeps the kick-register decode narrow (12 bits) and
+    // the descriptor address wide (32/64), so the same value is broadcast
+    // verbatim to every channel.
+    logic [(2*DATA_WIDTH)-1:0] w_full_addr;
+    assign w_full_addr = {r_wdata_high, r_wdata_low};
     always_comb begin
         for (int ch = 0; ch < NUM_CHANNELS; ch++) begin
-            // Assemble 64-bit descriptor address from LOW + HIGH writes
-            desc_apb_addr[ch] = {r_wdata_high, r_wdata_low};
+            desc_apb_addr[ch] = w_full_addr[DESC_ADDR_WIDTH-1:0];
         end
     end
 

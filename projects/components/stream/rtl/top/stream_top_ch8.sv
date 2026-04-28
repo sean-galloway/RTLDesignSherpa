@@ -634,9 +634,10 @@ module stream_top_ch8 #(
     // Channel Kick-off Router (apbtodescr)
     //=========================================================================
     apbtodescr #(
-        .NUM_CHANNELS(NUM_CHANNELS),
-        .ADDR_WIDTH(APB_ADDR_WIDTH),
-        .DATA_WIDTH(APB_DATA_WIDTH)
+        .NUM_CHANNELS    (NUM_CHANNELS),
+        .ADDR_WIDTH      (APB_ADDR_WIDTH),  // narrow APB bus address (~12 bits)
+        .DATA_WIDTH      (APB_DATA_WIDTH),
+        .DESC_ADDR_WIDTH (ADDR_WIDTH)       // wide descriptor address (AXI)
     ) u_apbtodescr (
         .clk                            (aclk),
         .rst_n                          (aresetn),

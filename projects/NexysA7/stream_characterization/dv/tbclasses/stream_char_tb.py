@@ -54,6 +54,13 @@ CSR_CRC_RD_EXPECTED = HARNESS_CSR_BASE + 0x10
 CSR_CRC_WR_EXPECTED = HARNESS_CSR_BASE + 0x14
 CSR_CRC_WR_COMPUTED = HARNESS_CSR_BASE + 0x18
 CSR_CRC_MATCH      = HARNESS_CSR_BASE + 0x1C
+
+# Per-channel CRC verification (multi-channel). Up to 8 channels supported
+# in the layout; only NUM_CHANNELS slots are populated by the harness.
+CSR_CRC_RD_PER_CH_BASE = HARNESS_CSR_BASE + 0x60   # 0x60+4*ch
+CSR_CRC_WR_PER_CH_BASE = HARNESS_CSR_BASE + 0x80   # 0x80+4*ch
+CSR_CRC_VALID_MASK     = HARNESS_CSR_BASE + 0xA0   # [NC-1:0]
+CSR_CRC_MATCH_MASK     = HARNESS_CSR_BASE + 0xA4   # [NC-1:0]
 CSR_SCRATCH        = HARNESS_CSR_BASE + 0x20
 CSR_BUILD_ID       = HARNESS_CSR_BASE + 0x24
 
@@ -307,12 +314,29 @@ class StreamCharTB(TBBase):
             f"{'OK' if all_ok else 'FAILED'}")
         return all_ok
 
-    async def read_crc_status(self) -> dict:
-        """Read CRC registers and return a status dict."""
+    async def read_crc_status(self, num_channels: int = 1) -> dict:
+        """Read CRC registers and return a status dict.
+
+        For backward compat the legacy aggregate fields (rd_expected,
+        wr_expected, wr_computed, match, valid) are still returned —
+        but for multi-channel runs they reflect channel 0 only and the
+        aggregate match/valid reductions across all active channels.
+        Per-channel arrays are returned alongside for verification.
+        """
         rd_exp = await self.uart_read(CSR_CRC_RD_EXPECTED)
         wr_exp = await self.uart_read(CSR_CRC_WR_EXPECTED)
         wr_got = await self.uart_read(CSR_CRC_WR_COMPUTED)
         match  = await self.uart_read(CSR_CRC_MATCH)
+
+        # Per-channel reads — only NUM_CHANNELS slots are populated, the
+        # rest read as 0 (harness pads).
+        rd_per_ch = []
+        wr_per_ch = []
+        for ch in range(num_channels):
+            rd_per_ch.append(await self.uart_read(CSR_CRC_RD_PER_CH_BASE + 4 * ch))
+            wr_per_ch.append(await self.uart_read(CSR_CRC_WR_PER_CH_BASE + 4 * ch))
+        valid_mask = await self.uart_read(CSR_CRC_VALID_MASK)
+        match_mask = await self.uart_read(CSR_CRC_MATCH_MASK)
         return {
             'rd_expected': rd_exp,
             'wr_expected': wr_exp,
@@ -320,6 +344,10 @@ class StreamCharTB(TBBase):
             'match_reg':   match,
             'match':       (match is not None) and (match & 0x1 == 1),
             'valid':       (match is not None) and (match & 0x2 == 2),
+            'rd_per_ch':   rd_per_ch,
+            'wr_per_ch':   wr_per_ch,
+            'valid_mask':  valid_mask if valid_mask is not None else 0,
+            'match_mask':  match_mask if match_mask is not None else 0,
         }
 
     async def read_status(self) -> dict:
@@ -597,8 +625,8 @@ class StreamCharTB(TBBase):
         max_extra_clocks = max(timeout_clocks, expected_total * 4)
         elapsed = 0
         while elapsed < max_extra_clocks:
-            rd_beats = int(self.dut.u_rd_pattern.read_beat_count.value)
-            wr_beats = int(self.dut.u_wr_crc_check.write_beat_count.value)
+            rd_beats = int(self.dut.u_rd_pattern.read_beat_count_total.value)
+            wr_beats = int(self.dut.u_wr_crc_check.write_beat_count_total.value)
             if wr_beats >= expected_total and rd_beats >= expected_total:
                 self.log.info(f"  Beats reached expected ({expected_total}) after {elapsed} extra clocks")
                 break
@@ -663,17 +691,28 @@ class StreamCharTB(TBBase):
             elapsed += 200
 
         # 6b. CRC verification (now post-completion or post-hang)
-        crc = await self.read_crc_status()
+        crc = await self.read_crc_status(num_channels=num_channels)
         self.log.info(
             f"  CRC: rd_exp=0x{crc.get('rd_expected', 0):08X} "
             f"wr_comp=0x{crc.get('wr_computed', 0):08X} "
             f"match={crc.get('match')} valid={crc.get('valid')}")
+        # Per-channel CRC readout (multi-channel verification)
+        valid_mask = crc.get('valid_mask', 0) or 0
+        match_mask = crc.get('match_mask', 0) or 0
+        for ch in range(num_channels):
+            rd_v = (crc.get('rd_per_ch') or [None])[ch] if ch < len(crc.get('rd_per_ch') or []) else None
+            wr_v = (crc.get('wr_per_ch') or [None])[ch] if ch < len(crc.get('wr_per_ch') or []) else None
+            self.log.info(
+                f"    ch{ch}: rd=0x{(rd_v or 0):08X} wr=0x{(wr_v or 0):08X} "
+                f"valid={(valid_mask >> ch) & 1} match={(match_mask >> ch) & 1}")
 
         # Diagnostic: directly probe the harness-side beat counters so we
-        # can tell beat-loss from reordering when CRCs mismatch.
+        # can tell beat-loss from reordering when CRCs mismatch. Both signals
+        # are now per-channel packed arrays — read the aggregate `_total`
+        # outputs instead of treating the array as a scalar.
         try:
-            rd_beats = int(self.dut.u_rd_pattern.read_beat_count.value)
-            wr_beats = int(self.dut.u_wr_crc_check.write_beat_count.value)
+            rd_beats = int(self.dut.u_rd_pattern.read_beat_count_total.value)
+            wr_beats = int(self.dut.u_wr_crc_check.write_beat_count_total.value)
             expected_beats = transfer_bytes // 16  # DATA_WIDTH=128 → 16 B/beat
             self.log.info(
                 f"  Beat counts: read={rd_beats} write={wr_beats} "

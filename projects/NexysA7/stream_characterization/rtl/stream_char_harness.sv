@@ -272,9 +272,19 @@ module stream_char_harness #(
     logic [31:0] csr_timer_expected_beats;
     logic [31:0] dbg_wr_ptr;
     logic        dbg_overflow;
-    logic [31:0] read_crc_value, write_crc_value;
-    logic        read_crc_valid, write_crc_valid;
-    logic [31:0] read_beat_count, write_beat_count;
+    // Per-channel CRC + beat-count outputs from the slaves. The slaves
+    // demux off s_axi_arid / s_axi_wuser low-bits and keep independent
+    // LFSR/CRC state per channel, so multi-channel runs verify integrity
+    // per channel instead of being scrambled by interleave at the shared
+    // AXI port. Aggregates feed the harness-timer beat-count stop trigger.
+    logic [NUM_CHANNELS-1:0][31:0] read_crc_value;
+    logic [NUM_CHANNELS-1:0]       read_crc_valid;
+    logic [NUM_CHANNELS-1:0][31:0] read_beat_count_per_ch;
+    logic [31:0]                   read_beat_count;   // aggregate
+    logic [NUM_CHANNELS-1:0][31:0] write_crc_value;
+    logic [NUM_CHANNELS-1:0]       write_crc_valid;
+    logic [NUM_CHANNELS-1:0][31:0] write_beat_count_per_ch;
+    logic [31:0]                   write_beat_count;  // aggregate
     logic        stream_irq;
 
     // Characterization timer outputs (driven below, consumed by harness_csr
@@ -293,9 +303,24 @@ module stream_char_harness #(
     logic [63:0] timer_r_first, timer_r_last;
     logic [63:0] timer_w_first, timer_w_last;
 
-    // Simple CRC match comparison
-    wire crc_match = read_crc_valid && write_crc_valid && (read_crc_value == write_crc_value);
-    wire crc_both_valid = read_crc_valid && write_crc_valid;
+    // Per-channel match: equal CRC AND both halves valid for that channel.
+    // Aggregate "test passed" = at least one channel was active (saw beats
+    // and produced a valid CRC) AND no active channel mismatched. This
+    // sidesteps needing visibility into cfg_channel_enable here — channels
+    // that were never enabled have valid=0 so they neither pass nor fail.
+    logic [NUM_CHANNELS-1:0] crc_match_per_ch;
+    logic [NUM_CHANNELS-1:0] crc_valid_per_ch;
+    always_comb begin
+        for (int ch = 0; ch < NUM_CHANNELS; ch++) begin
+            crc_valid_per_ch[ch] = read_crc_valid[ch] && write_crc_valid[ch];
+            crc_match_per_ch[ch] = crc_valid_per_ch[ch]
+                                && (read_crc_value[ch] == write_crc_value[ch]);
+        end
+    end
+    wire any_active   = |crc_valid_per_ch;
+    wire any_mismatch = |(crc_valid_per_ch & ~crc_match_per_ch);
+    wire crc_match      = any_active && !any_mismatch;
+    wire crc_both_valid = any_active;
     // any_error: sticky "something went wrong" signal routed to CSR_STATUS[1].
     // TODO: drive from a real error source. stream_top_ch8 does not yet expose
     // a scheduler/engine error wire at its boundary, so for now this stays tied
@@ -308,7 +333,7 @@ module stream_char_harness #(
     logic [15:0] csr_rd_resp_delay_cyc;
     logic [15:0] csr_wr_resp_delay_cyc;
 
-    harness_csr #(.AW(32), .DW(32)) u_csr (
+    harness_csr #(.AW(32), .DW(32), .NUM_CHANNELS(NUM_CHANNELS)) u_csr (
         .aclk(aclk), .aresetn(aresetn),
         .s_awaddr(s1_awaddr), .s_awprot(s1_awprot),
         .s_awvalid(s1_awvalid), .s_awready(s1_awready),
@@ -327,11 +352,18 @@ module stream_char_harness #(
         .i_any_error        (any_error),
         .i_dbg_wr_ptr       (dbg_wr_ptr),
         .i_dbg_overflow     (dbg_overflow),
-        .i_crc_rd_expected  (read_crc_value),
-        .i_crc_wr_expected  (read_crc_value),  // expected = source CRC
-        .i_crc_wr_computed  (write_crc_value),
+        // Aggregate scalars (back-compat at 0x10/0x14/0x18/0x1C): channel-0
+        // CRC plus any-active/all-active reductions across channels.
+        .i_crc_rd_expected  (read_crc_value[0]),
+        .i_crc_wr_expected  (read_crc_value[0]),  // expected = source CRC
+        .i_crc_wr_computed  (write_crc_value[0]),
         .i_crc_valid        (crc_both_valid),
         .i_crc_match        (crc_match),
+        // Per-channel CRC arrays + bitmasks for multi-channel verification.
+        .i_crc_rd_per_ch    (read_crc_value),
+        .i_crc_wr_per_ch    (write_crc_value),
+        .i_crc_valid_mask   (crc_valid_per_ch),
+        .i_crc_match_mask   (crc_match_per_ch),
 
         // Characterization timer
         .o_timer_clear_pulse   (csr_timer_clear_pulse),
@@ -652,16 +684,18 @@ module stream_char_harness #(
     logic                      s_rd_rready;
 
     axi4_slave_rd_pattern_gen #(
+        .NUM_CHANNELS  (NUM_CHANNELS),
         .AXI_ID_WIDTH  (AXI_ID_WIDTH),
         .AXI_ADDR_WIDTH(ADDR_WIDTH),
         .AXI_DATA_WIDTH(DATA_WIDTH),
         .AXI_USER_WIDTH(AXI_USER_WIDTH)
     ) u_rd_pattern (
         .aclk(aclk), .aresetn(aresetn),
-        .crc_lfsr_reset (csr_clear_pulse),
-        .read_crc_value (read_crc_value),
-        .read_crc_valid (read_crc_valid),
-        .read_beat_count(read_beat_count),
+        .crc_lfsr_reset       (csr_clear_pulse),
+        .read_crc_value       (read_crc_value),
+        .read_crc_valid       (read_crc_valid),
+        .read_beat_count      (read_beat_count_per_ch),
+        .read_beat_count_total(read_beat_count),
         .s_axi_arid    (rd_arid),    .s_axi_araddr(rd_araddr),
         .s_axi_arlen   (rd_arlen),   .s_axi_arsize(rd_arsize),
         .s_axi_arburst (rd_arburst), .s_axi_arlock(rd_arlock),
@@ -738,16 +772,18 @@ module stream_char_harness #(
     logic                      s_wr_bready;
 
     axi4_slave_wr_crc_check #(
+        .NUM_CHANNELS  (NUM_CHANNELS),
         .AXI_ID_WIDTH  (AXI_ID_WIDTH),
         .AXI_ADDR_WIDTH(ADDR_WIDTH),
         .AXI_DATA_WIDTH(DATA_WIDTH),
         .AXI_USER_WIDTH(AXI_USER_WIDTH)
     ) u_wr_crc_check (
         .aclk(aclk), .aresetn(aresetn),
-        .crc_reset      (csr_clear_pulse),
-        .write_crc_value(write_crc_value),
-        .write_crc_valid(write_crc_valid),
-        .write_beat_count(write_beat_count),
+        .crc_reset             (csr_clear_pulse),
+        .write_crc_value       (write_crc_value),
+        .write_crc_valid       (write_crc_valid),
+        .write_beat_count      (write_beat_count_per_ch),
+        .write_beat_count_total(write_beat_count),
         .s_axi_awid   (wr_awid),   .s_axi_awaddr(wr_awaddr),
         .s_axi_awlen  (wr_awlen),  .s_axi_awsize(wr_awsize),
         .s_axi_awburst(wr_awburst),.s_axi_awlock(wr_awlock),

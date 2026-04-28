@@ -64,6 +64,11 @@ CSR_CRC_RD_EXPECTED = HARNESS_CSR_BASE + 0x10
 CSR_CRC_WR_EXPECTED = HARNESS_CSR_BASE + 0x14
 CSR_CRC_WR_COMPUTED = HARNESS_CSR_BASE + 0x18
 CSR_CRC_MATCH       = HARNESS_CSR_BASE + 0x1C
+# Per-channel CRC verification (multi-channel)
+CSR_CRC_RD_PER_CH_BASE = HARNESS_CSR_BASE + 0x60
+CSR_CRC_WR_PER_CH_BASE = HARNESS_CSR_BASE + 0x80
+CSR_CRC_VALID_MASK     = HARNESS_CSR_BASE + 0xA0
+CSR_CRC_MATCH_MASK     = HARNESS_CSR_BASE + 0xA4
 CSR_SCRATCH         = HARNESS_CSR_BASE + 0x20
 CSR_BUILD_ID        = HARNESS_CSR_BASE + 0x24
 
@@ -213,13 +218,27 @@ class CharacterizationRunner:
 
         return {'completed': False, 'elapsed_s': timeout_s}
 
-    def read_crc(self) -> dict:
-        """Read CRC registers."""
+    def read_crc(self, num_channels: int = 1) -> dict:
+        """Read CRC registers.
+
+        Aggregate scalars stay backward-compat (rd_expected = ch0,
+        match_reg = AND-reduce). Per-channel arrays + bitmasks expose
+        each channel's pass/fail independently for multi-channel runs.
+        """
+        rd_per_ch = []
+        wr_per_ch = []
+        for ch in range(num_channels):
+            rd_per_ch.append(self.bridge.read(CSR_CRC_RD_PER_CH_BASE + 4 * ch))
+            wr_per_ch.append(self.bridge.read(CSR_CRC_WR_PER_CH_BASE + 4 * ch))
         return {
             'rd_expected': self.bridge.read(CSR_CRC_RD_EXPECTED),
             'wr_expected': self.bridge.read(CSR_CRC_WR_EXPECTED),
             'wr_computed': self.bridge.read(CSR_CRC_WR_COMPUTED),
             'match_reg':   self.bridge.read(CSR_CRC_MATCH),
+            'rd_per_ch':   rd_per_ch,
+            'wr_per_ch':   wr_per_ch,
+            'valid_mask':  self.bridge.read(CSR_CRC_VALID_MASK) or 0,
+            'match_mask':  self.bridge.read(CSR_CRC_MATCH_MASK) or 0,
         }
 
     def read_trace_summary(self) -> dict:
@@ -300,8 +319,8 @@ class CharacterizationRunner:
             result['error'] = 'status_error'
             return result
 
-        # 6. CRC check
-        crc = self.read_crc()
+        # 6. CRC check (per-channel + aggregate)
+        crc = self.read_crc(num_channels=config.num_channels)
         result['crc'] = crc
         match_reg = crc.get('match_reg')
         crc_match = (match_reg is not None) and (match_reg & 0x01 == 1)
@@ -314,6 +333,15 @@ class CharacterizationRunner:
             self.log(f"  CRC MISMATCH! rd_exp=0x{crc.get('rd_expected', 0):08X} "
                      f"wr_comp=0x{crc.get('wr_computed', 0):08X} "
                      f"match_reg=0x{match_reg or 0:08X}")
+        # Per-channel CRC visibility (multi-channel runs)
+        if config.num_channels > 1:
+            v_mask = crc.get('valid_mask', 0) or 0
+            m_mask = crc.get('match_mask', 0) or 0
+            for ch in range(config.num_channels):
+                rd_v = (crc.get('rd_per_ch') or [None])[ch]
+                wr_v = (crc.get('wr_per_ch') or [None])[ch]
+                self.log(f"    ch{ch}: rd=0x{(rd_v or 0):08X} wr=0x{(wr_v or 0):08X} "
+                         f"valid={(v_mask >> ch) & 1} match={(m_mask >> ch) & 1}")
 
         # 7. Trace summary
         trace = self.read_trace_summary()

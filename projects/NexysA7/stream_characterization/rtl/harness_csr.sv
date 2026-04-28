@@ -67,7 +67,22 @@
 //   0x58  TIMER_W_LAST_LO   R  Cycle of last  W beat (low 32 bits)
 //   0x5C  TIMER_W_LAST_HI   R  Cycle of last  W beat (high 32 bits)
 //
-//   0x60 - 0xFF           --  Reserved (read as 0)
+//   Per-channel CRC verification (multi-channel pass/fail visibility).
+//   The slave-side LFSR/CRC keeps independent state per channel, demuxed
+//   off s_axi_arid / s_axi_wuser low bits. A run is "pass" only if every
+//   channel that produced beats also matched.
+//
+//   0x60 + 4*ch:  CRC_RD_PER_CH[ch]   R  Per-channel read CRC value
+//                                        (NUM_CHANNELS slots, ch 0..NC-1)
+//   0x80 + 4*ch:  CRC_WR_PER_CH[ch]   R  Per-channel write CRC value
+//   0xA0          CRC_VALID_MASK      R  [NC-1:0] = per-channel valid bits
+//                                        (a channel is "valid" once both
+//                                         its read and write CRCs have
+//                                         seen at least one beat each)
+//   0xA4          CRC_MATCH_MASK      R  [NC-1:0] = per-channel match bits
+//                                        (read CRC == write CRC AND valid)
+//
+//   0xA8 - 0xFF           --  Reserved (read as 0)
 
 `timescale 1ns / 1ps
 
@@ -76,6 +91,7 @@
 module harness_csr #(
     parameter int AW = 32,
     parameter int DW = 32,
+    parameter int NUM_CHANNELS = 1,
     parameter logic [31:0] BUILD_ID = 32'h5354_5243,  // "STRC"
 
     parameter int SKID_DEPTH_AW = 2,
@@ -134,6 +150,12 @@ module harness_csr #(
     input  logic [31:0]     i_crc_wr_computed,
     input  logic            i_crc_valid,
     input  logic            i_crc_match,
+
+    // Per-channel CRC arrays + bitmasks (multi-channel verification).
+    input  logic [NUM_CHANNELS-1:0][31:0] i_crc_rd_per_ch,
+    input  logic [NUM_CHANNELS-1:0][31:0] i_crc_wr_per_ch,
+    input  logic [NUM_CHANNELS-1:0]       i_crc_valid_mask,
+    input  logic [NUM_CHANNELS-1:0]       i_crc_match_mask,
 
     // =====================================================================
     // Characterization timer interface
@@ -271,6 +293,37 @@ module harness_csr #(
     logic [15:0] r_rd_resp_delay_cyc;
     logic [15:0] r_wr_resp_delay_cyc;
 
+    // Fixed-shape views over per-channel CRC arrays so the read-decode
+    // case below can index them with literals regardless of NUM_CHANNELS.
+    // Channels >= NUM_CHANNELS read as 0.
+    localparam int CRC_VIEW_NC = 8;
+    logic [31:0] crc_rd_view [CRC_VIEW_NC];
+    logic [31:0] crc_wr_view [CRC_VIEW_NC];
+    genvar gi;
+    generate
+        for (gi = 0; gi < CRC_VIEW_NC; gi++) begin : g_crc_view
+            if (gi < NUM_CHANNELS) begin : g_real
+                assign crc_rd_view[gi] = i_crc_rd_per_ch[gi];
+                assign crc_wr_view[gi] = i_crc_wr_per_ch[gi];
+            end else begin : g_pad
+                assign crc_rd_view[gi] = 32'h0;
+                assign crc_wr_view[gi] = 32'h0;
+            end
+        end
+    endgenerate
+
+    // Likewise for the per-channel valid/match bitmasks, padded to 32 bits.
+    logic [31:0] w_crc_valid_word;
+    logic [31:0] w_crc_match_word;
+    always_comb begin
+        w_crc_valid_word = '0;
+        w_crc_match_word = '0;
+        for (int ci = 0; ci < NUM_CHANNELS; ci++) begin
+            w_crc_valid_word[ci] = i_crc_valid_mask[ci];
+            w_crc_match_word[ci] = i_crc_match_mask[ci];
+        end
+    end
+
     // =========================================================================
     // Write channel FSM (operates on skid-buffer outputs)
     // =========================================================================
@@ -401,6 +454,26 @@ module harness_csr #(
                             8'h54: r_rdata <= i_timer_w_first[63:32];
                             8'h58: r_rdata <= i_timer_w_last [31:0];
                             8'h5C: r_rdata <= i_timer_w_last [63:32];
+                            // Per-channel CRC values (NC up to CRC_VIEW_NC=8).
+                            // 0x60..0x7C: read CRCs, 0x80..0x9C: write CRCs.
+                            8'h60: r_rdata <= crc_rd_view[0];
+                            8'h64: r_rdata <= crc_rd_view[1];
+                            8'h68: r_rdata <= crc_rd_view[2];
+                            8'h6C: r_rdata <= crc_rd_view[3];
+                            8'h70: r_rdata <= crc_rd_view[4];
+                            8'h74: r_rdata <= crc_rd_view[5];
+                            8'h78: r_rdata <= crc_rd_view[6];
+                            8'h7C: r_rdata <= crc_rd_view[7];
+                            8'h80: r_rdata <= crc_wr_view[0];
+                            8'h84: r_rdata <= crc_wr_view[1];
+                            8'h88: r_rdata <= crc_wr_view[2];
+                            8'h8C: r_rdata <= crc_wr_view[3];
+                            8'h90: r_rdata <= crc_wr_view[4];
+                            8'h94: r_rdata <= crc_wr_view[5];
+                            8'h98: r_rdata <= crc_wr_view[6];
+                            8'h9C: r_rdata <= crc_wr_view[7];
+                            8'hA0: r_rdata <= w_crc_valid_word;
+                            8'hA4: r_rdata <= w_crc_match_word;
                             default: r_rdata <= 32'h0000_0000;
                         endcase
                         r_rstate <= R_RRESP;
