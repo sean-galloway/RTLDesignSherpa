@@ -333,6 +333,10 @@ module stream_char_harness #(
     logic [15:0] csr_rd_resp_delay_cyc;
     logic [15:0] csr_wr_resp_delay_cyc;
 
+    // Wires from harness_csr → stream_top_ch8 (kick-burst fast path).
+    logic [NUM_CHANNELS-1:0]       csr_kick_burst_mask;
+    logic [NUM_CHANNELS-1:0][31:0] csr_kick_burst_addr;
+
     harness_csr #(.AW(32), .DW(32), .NUM_CHANNELS(NUM_CHANNELS)) u_csr (
         .aclk(aclk), .aresetn(aresetn),
         .s_awaddr(s1_awaddr), .s_awprot(s1_awprot),
@@ -379,7 +383,11 @@ module stream_char_harness #(
 
         // Response-delay knobs (driven by RESP_DELAY register @ 0x3C)
         .o_rd_resp_delay_cyc   (csr_rd_resp_delay_cyc),
-        .o_wr_resp_delay_cyc   (csr_wr_resp_delay_cyc)
+        .o_wr_resp_delay_cyc   (csr_wr_resp_delay_cyc),
+
+        // Kick-burst outputs (CH_KICK_ADDR @ 0xB0+4*ch, KICK_GO @ 0xC0)
+        .o_kick_burst_mask     (csr_kick_burst_mask),
+        .o_kick_burst_addr     (csr_kick_burst_addr)
     );
 
     // =========================================================================
@@ -845,6 +853,11 @@ module stream_char_harness #(
     ) u_stream (
         .aclk    (aclk),   .aresetn(aresetn),
         .pclk    (aclk),   .presetn(aresetn),
+
+        // Kick-burst fast path (1-cycle pulse from harness_csr KICK_GO,
+        // shadow addresses from CH_KICK_ADDR[ch]).
+        .i_kick_burst_mask (csr_kick_burst_mask),
+        .i_kick_burst_addr (csr_kick_burst_addr),
 
         // APB config
         .s_apb_paddr  (apb_paddr),

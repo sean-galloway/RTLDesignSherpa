@@ -61,6 +61,13 @@ CSR_CRC_RD_PER_CH_BASE = HARNESS_CSR_BASE + 0x60   # 0x60+4*ch
 CSR_CRC_WR_PER_CH_BASE = HARNESS_CSR_BASE + 0x80   # 0x80+4*ch
 CSR_CRC_VALID_MASK     = HARNESS_CSR_BASE + 0xA0   # [NC-1:0]
 CSR_CRC_MATCH_MASK     = HARNESS_CSR_BASE + 0xA4   # [NC-1:0]
+
+# Kick-burst fast path: shadow addrs at 0xB0+4*ch (8 slots), trigger at 0xC0.
+# A single UART write to KICK_GO with a channel bitmask pulses the in-RTL
+# kick lines for every set bit on one aclk cycle — eliminates the multi-ms
+# UART gap between per-channel APB kick writes.
+CSR_CH_KICK_ADDR_BASE  = HARNESS_CSR_BASE + 0xB0   # 0xB0..0xBC, 0xC4..0xD0
+CSR_KICK_GO            = HARNESS_CSR_BASE + 0xC0
 CSR_SCRATCH        = HARNESS_CSR_BASE + 0x20
 CSR_BUILD_ID       = HARNESS_CSR_BASE + 0x24
 
@@ -567,14 +574,19 @@ class StreamCharTB(TBBase):
                           else f"  [DEBUG] {name:20s} @ 0x{addr:03X} = READ FAILED")
 
         # 5. Kick all channels (two APB writes per channel: LOW + HIGH 32-bit)
-        # apbtodescr expects LOW write first (bits [31:0]), then HIGH (bits [63:32])
+        # Kick-burst fast path: pre-load each channel's first descriptor
+        # address into the shadow register, then a single KICK_GO write
+        # pulses every channel's hardware kick line on the same aclk
+        # cycle. This avoids the multi-ms UART gap between per-channel
+        # APB writes that would otherwise serialize multi-channel runs.
+        kick_mask = 0
         for ch, kick_addr in sorted(test_data['kick_addresses'].items()):
-            kick_reg = APB_CH_KICK_BASE + ch * APB_CH_KICK_STRIDE
-            low  = kick_addr & 0xFFFF_FFFF
-            high = (kick_addr >> 32) & 0xFFFF_FFFF
-            await self.uart_write(kick_reg + 0, low)    # LOW word
-            await self.uart_write(kick_reg + 4, high)   # HIGH word
-            self.log.info(f"  Kicked ch{ch} → desc@0x{kick_addr:08X}")
+            await self.uart_write(CSR_CH_KICK_ADDR_BASE + 4 * ch,
+                                  kick_addr & 0xFFFF_FFFF)
+            kick_mask |= (1 << ch)
+            self.log.info(f"  Loaded ch{ch} kick addr 0x{kick_addr:08X}")
+        await self.uart_write(CSR_KICK_GO, kick_mask)
+        self.log.info(f"  Kick burst fired, mask=0x{kick_mask:02X}")
 
         # 5a. Debug: read status immediately after kick
         await self.wait_clocks(self.clk_name, 1000)
@@ -719,6 +731,27 @@ class StreamCharTB(TBBase):
                 f"expected={expected_beats * num_channels * descriptors_per_channel}")
         except Exception as e:
             self.log.warning(f"  Beat count probe failed: {e}")
+
+        # Read the harness timer's cycle counts (same path characterize.py
+        # uses on FPGA). Lets us directly compare sim vs FPGA cycles/beat
+        # for the same workload.
+        try:
+            tcyc = int(self.dut.timer_cycles.value)
+            r_first = int(self.dut.timer_r_first.value)
+            r_last  = int(self.dut.timer_r_last.value)
+            w_first = int(self.dut.timer_w_first.value)
+            w_last  = int(self.dut.timer_w_last.value)
+            r2r = max(r_last - r_first, 0)
+            w2w = max(w_last - w_first, 0)
+            beats_total = expected_total
+            self.log.info(
+                f"  Timer cycles: total={tcyc} r2r={r2r} w2w={w2w} "
+                f"  beats={beats_total}  "
+                f"  cyc/beat: tot={tcyc / max(beats_total,1):.2f} "
+                f"r2r={r2r / max(beats_total,1):.2f} "
+                f"w2w={w2w / max(beats_total,1):.2f}")
+        except Exception as e:
+            self.log.warning(f"  Timer cycles probe failed: {e}")
 
         if crc.get('match') and crc.get('valid'):
             self.log.info(f"  DMA test PASSED")

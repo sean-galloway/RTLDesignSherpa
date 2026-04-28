@@ -69,6 +69,9 @@ CSR_CRC_RD_PER_CH_BASE = HARNESS_CSR_BASE + 0x60
 CSR_CRC_WR_PER_CH_BASE = HARNESS_CSR_BASE + 0x80
 CSR_CRC_VALID_MASK     = HARNESS_CSR_BASE + 0xA0
 CSR_CRC_MATCH_MASK     = HARNESS_CSR_BASE + 0xA4
+# Kick-burst fast path
+CSR_CH_KICK_ADDR_BASE  = HARNESS_CSR_BASE + 0xB0
+CSR_KICK_GO            = HARNESS_CSR_BASE + 0xC0
 CSR_SCRATCH         = HARNESS_CSR_BASE + 0x20
 CSR_BUILD_ID        = HARNESS_CSR_BASE + 0x24
 
@@ -181,15 +184,20 @@ class CharacterizationRunner:
                   f"desceng=0x01, axi=0x{axi_cfg:04X}, ch_mask=0x{ch_mask:02X}")
 
     def kick_channels(self, kick_addresses: dict):
-        """Write kick-off addresses to start descriptor fetch per channel.
-        apbtodescr requires two APB writes per channel: LOW [31:0] then HIGH [63:32]."""
+        """Kick-burst fast path: pre-load per-channel addresses into the
+        harness CSR shadow registers, then fire a single KICK_GO write
+        with a channel bitmask. The harness pulses every kick line on the
+        same aclk cycle, so multi-channel runs actually pipeline instead
+        of serializing on the slow UART that the legacy per-channel APB
+        kick path needed (~2 ms / write at 115200 baud)."""
+        mask = 0
         for ch, axi4_addr in sorted(kick_addresses.items()):
-            kick_reg = APB_CH_KICK_BASE + ch * APB_CH_KICK_STRIDE
-            low  = axi4_addr & 0xFFFF_FFFF
-            high = (axi4_addr >> 32) & 0xFFFF_FFFF
-            self.bridge.write(kick_reg + 0, low)    # LOW word
-            self.bridge.write(kick_reg + 4, high)   # HIGH word
-            self.vlog(f"  Kicked channel {ch} → desc@0x{axi4_addr:08X}")
+            self.bridge.write(CSR_CH_KICK_ADDR_BASE + 4 * ch,
+                              axi4_addr & 0xFFFFFFFF)
+            mask |= (1 << ch)
+            self.vlog(f"  Loaded channel {ch} kick addr 0x{axi4_addr:08X}")
+        self.bridge.write(CSR_KICK_GO, mask)
+        self.vlog(f"  Kick burst fired, mask=0x{mask:02X}")
 
     def poll_completion(self, timeout_s: float = 30.0) -> dict:
         """Poll harness STATUS register until done or timeout."""

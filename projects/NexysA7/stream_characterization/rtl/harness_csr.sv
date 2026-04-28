@@ -82,7 +82,23 @@
 //   0xA4          CRC_MATCH_MASK      R  [NC-1:0] = per-channel match bits
 //                                        (read CRC == write CRC AND valid)
 //
-//   0xA8 - 0xFF           --  Reserved (read as 0)
+//   Kick-burst fast path. Bypasses the slow APB-via-UART kick sequence
+//   (which would otherwise stretch out by ~2 ms per UART write at 115200
+//   baud, pushing the harness timer's "first AR -> last W" window way
+//   past the actual hardware compute). Programming sequence:
+//     1. Write CHx_KICK_ADDR for every channel that should be kicked.
+//     2. Write KICK_GO with a bitmask of channels — that single APB write
+//        pulses the in-hardware kick lines for every selected channel
+//        within one aclk cycle, so multi-channel runs actually pipeline
+//        rather than serializing on UART.
+//
+//   0xB0 + 4*ch:  CH_KICK_ADDR[ch]  RW  Per-channel descriptor address
+//                                       latch (NUM_CHANNELS slots).
+//   0xC0          KICK_GO          W   Bitmask: writing N pulses the
+//                                       hardware kick line for each set
+//                                       bit for one cycle. Reads as 0.
+//
+//   0xC4 - 0xFF           --  Reserved (read as 0)
 
 `timescale 1ns / 1ps
 
@@ -178,7 +194,13 @@ module harness_csr #(
     // Response-delay knobs (driven from RESP_DELAY register @ 0x3C)
     // =====================================================================
     output logic [15:0]     o_rd_resp_delay_cyc,
-    output logic [15:0]     o_wr_resp_delay_cyc
+    output logic [15:0]     o_wr_resp_delay_cyc,
+
+    // =====================================================================
+    // Kick-burst fast path (CH_KICK_ADDR @ 0xB0+4*ch, KICK_GO @ 0xC0)
+    // =====================================================================
+    output logic [NUM_CHANNELS-1:0]       o_kick_burst_mask,  // 1-cycle pulse
+    output logic [NUM_CHANNELS-1:0][31:0] o_kick_burst_addr   // shadow values
 );
 
     localparam int AW_PKT_W = AW + 3;
@@ -293,6 +315,13 @@ module harness_csr #(
     logic [15:0] r_rd_resp_delay_cyc;
     logic [15:0] r_wr_resp_delay_cyc;
 
+    // Kick-burst storage: per-channel address shadow + pulse-per-cycle
+    // trigger output. Writing CH_KICK_ADDR[ch] (0xB0+4*ch) latches an
+    // address; writing KICK_GO (0xC0) with a bitmask asserts
+    // o_kick_burst_mask for that bitmask for exactly one cycle.
+    logic [31:0] r_kick_addr [8];   // 8 fixed slots; only NUM_CHANNELS used
+    logic [7:0]  r_kick_go_pulse;   // one-cycle pulse driven by 0xC0 write
+
     // Fixed-shape views over per-channel CRC arrays so the read-decode
     // case below can index them with literals regardless of NUM_CHANNELS.
     // Channels >= NUM_CHANNELS read as 0.
@@ -346,11 +375,14 @@ module harness_csr #(
             r_timer_expected_beats <= '0;
             r_rd_resp_delay_cyc    <= '0;
             r_wr_resp_delay_cyc    <= '0;
+            for (int i = 0; i < 8; i++) r_kick_addr[i] <= '0;
+            r_kick_go_pulse        <= '0;
         end else begin
             r_start_pulse          <= 1'b0;
             r_clear_stats_pulse    <= 1'b0;
             r_soft_reset_pulse     <= 1'b0;
             r_timer_clear_pulse    <= 1'b0;
+            r_kick_go_pulse        <= '0;  // single-cycle trigger
 
             case (r_wstate)
                 W_IDLE: begin
@@ -369,6 +401,19 @@ module harness_csr #(
                                 r_rd_resp_delay_cyc <= int_wdata[15:0];
                                 r_wr_resp_delay_cyc <= int_wdata[31:16];
                             end
+                            // Kick-burst shadow address per channel
+                            // (0xB0..0xCC: 8 slots = enough for NC up to 8)
+                            8'hB0: r_kick_addr[0] <= int_wdata;
+                            8'hB4: r_kick_addr[1] <= int_wdata;
+                            8'hB8: r_kick_addr[2] <= int_wdata;
+                            8'hBC: r_kick_addr[3] <= int_wdata;
+                            8'hC4: r_kick_addr[4] <= int_wdata;
+                            8'hC8: r_kick_addr[5] <= int_wdata;
+                            8'hCC: r_kick_addr[6] <= int_wdata;
+                            8'hD0: r_kick_addr[7] <= int_wdata;
+                            // Kick-burst trigger: bitmask of channels to
+                            // pulse for exactly one cycle. Auto-clears.
+                            8'hC0: r_kick_go_pulse <= int_wdata[7:0];
                             default: ; // ignore
                         endcase
                         r_wstate <= W_BRESP;
@@ -474,6 +519,16 @@ module harness_csr #(
                             8'h9C: r_rdata <= crc_wr_view[7];
                             8'hA0: r_rdata <= w_crc_valid_word;
                             8'hA4: r_rdata <= w_crc_match_word;
+                            // Kick-burst shadow registers (read-back)
+                            8'hB0: r_rdata <= r_kick_addr[0];
+                            8'hB4: r_rdata <= r_kick_addr[1];
+                            8'hB8: r_rdata <= r_kick_addr[2];
+                            8'hBC: r_rdata <= r_kick_addr[3];
+                            8'hC0: r_rdata <= 32'h0;  // KICK_GO is W-only
+                            8'hC4: r_rdata <= r_kick_addr[4];
+                            8'hC8: r_rdata <= r_kick_addr[5];
+                            8'hCC: r_rdata <= r_kick_addr[6];
+                            8'hD0: r_rdata <= r_kick_addr[7];
                             default: r_rdata <= 32'h0000_0000;
                         endcase
                         r_rstate <= R_RRESP;
@@ -500,6 +555,16 @@ module harness_csr #(
     assign o_timer_expected_beats = r_timer_expected_beats;
     assign o_rd_resp_delay_cyc    = r_rd_resp_delay_cyc;
     assign o_wr_resp_delay_cyc    = r_wr_resp_delay_cyc;
+
+    // Kick-burst outputs: pulse the mask exactly when KICK_GO was just
+    // written (one aclk cycle), and broadcast the per-channel shadow
+    // addresses so stream_top_ch8 latches the right one for each ch.
+    always_comb begin
+        for (int ch = 0; ch < NUM_CHANNELS; ch++) begin
+            o_kick_burst_mask[ch] = r_kick_go_pulse[ch];
+            o_kick_burst_addr[ch] = r_kick_addr[ch];
+        end
+    end
 
     // Prevent unused signal warnings
     /* verilator lint_off UNUSED */

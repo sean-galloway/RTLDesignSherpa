@@ -76,6 +76,17 @@ module stream_top_ch8 #(
     input  logic                                    presetn,
 
     //-------------------------------------------------------------------------
+    // Kick-Burst Interface (fast-path multi-channel kick from harness CSR)
+    //-------------------------------------------------------------------------
+    // Bypasses the slow APB-via-UART kick path. Pulse i_kick_burst_mask[ch]
+    // for one cycle with the channel's first descriptor address on
+    // i_kick_burst_addr[ch] to enqueue a kick. We latch into pending bits
+    // and drive the descriptor_engine's apb_valid until accepted, so no
+    // beats are lost even if a channel is briefly unready.
+    input  logic [NUM_CHANNELS-1:0]                 i_kick_burst_mask,
+    input  logic [NUM_CHANNELS-1:0][ADDR_WIDTH-1:0] i_kick_burst_addr,
+
+    //-------------------------------------------------------------------------
     // APB4 Configuration Interface
     //-------------------------------------------------------------------------
     input  logic [APB_ADDR_WIDTH-1:0]               s_apb_paddr,
@@ -320,9 +331,57 @@ module stream_top_ch8 #(
     //-------------------------------------------------------------------------
     // Descriptor Kick-off Signals (renamed to match stream_core)
     //-------------------------------------------------------------------------
+    // Two upstream sources feed the descriptor_engine kick interface:
+    //   1. apbtodescr — slow APB / UART path (kick via APB writes)
+    //   2. kick-burst inputs — fast hardware-trigger path from harness_csr
+    // Both share the same downstream apb_valid / apb_addr / apb_ready bus
+    // to the descriptor_engine; we OR-mux them below with priority to
+    // whichever source is currently asserting.
     logic [NUM_CHANNELS-1:0]                 apb_valid;
     logic [NUM_CHANNELS-1:0]                 apb_ready;
     logic [NUM_CHANNELS-1:0][ADDR_WIDTH-1:0] apb_addr;
+
+    // Apbtodescr-side outputs (renamed; final apb_* are the OR-mux).
+    logic [NUM_CHANNELS-1:0]                 apb_valid_apbtodescr;
+    logic [NUM_CHANNELS-1:0][ADDR_WIDTH-1:0] apb_addr_apbtodescr;
+
+    // Kick-burst latch: holds a kick request high until the engine accepts
+    // it (apb_ready), so a single 1-cycle trigger pulse from harness_csr
+    // can't be missed even if the engine isn't immediately ready.
+    logic [NUM_CHANNELS-1:0]                 r_kick_burst_pending;
+    logic [NUM_CHANNELS-1:0][ADDR_WIDTH-1:0] r_kick_burst_addr;
+
+    always_ff @(posedge aclk or negedge aresetn) begin
+        if (!aresetn) begin
+            r_kick_burst_pending <= '0;
+            r_kick_burst_addr    <= '{default:'0};
+        end else begin
+            for (int ch = 0; ch < NUM_CHANNELS; ch++) begin
+                // Trigger pulse: latch new address and mark pending. If a
+                // pending kick is already waiting on this channel, the new
+                // address overwrites — host should not retrigger before
+                // the previous one has been accepted.
+                if (i_kick_burst_mask[ch]) begin
+                    r_kick_burst_pending[ch] <= 1'b1;
+                    r_kick_burst_addr[ch]    <= i_kick_burst_addr[ch];
+                end
+                // Clear when the descriptor_engine accepts the kick.
+                else if (r_kick_burst_pending[ch] && apb_ready[ch]) begin
+                    r_kick_burst_pending[ch] <= 1'b0;
+                end
+            end
+        end
+    end
+
+    // OR-mux: whichever path has a valid request drives the bus. apbtodescr
+    // path wins on the address when both fire (rare — APB kicks are slow).
+    always_comb begin
+        for (int ch = 0; ch < NUM_CHANNELS; ch++) begin
+            apb_valid[ch] = apb_valid_apbtodescr[ch] | r_kick_burst_pending[ch];
+            apb_addr [ch] = apb_valid_apbtodescr[ch] ? apb_addr_apbtodescr[ch]
+                                                     : r_kick_burst_addr[ch];
+        end
+    end
 
     //-------------------------------------------------------------------------
     // Status Signals from stream_core
@@ -654,10 +713,12 @@ module stream_top_ch8 #(
         .apb_rsp_rdata                  (kickoff_rsp_prdata),
         .apb_rsp_error                  (kickoff_rsp_pslverr),
 
-        // Descriptor Engine Outputs
-        .desc_apb_valid                 (apb_valid),
+        // Descriptor Engine Outputs (apbtodescr's contribution to the
+        // shared kick bus — final apb_* is OR-muxed with the kick-burst
+        // path above).
+        .desc_apb_valid                 (apb_valid_apbtodescr),
         .desc_apb_ready                 (apb_ready),
-        .desc_apb_addr                  (apb_addr),
+        .desc_apb_addr                  (apb_addr_apbtodescr),
 
         // Debug output (unused)
         .apb_descriptor_kickoff_hit     ()
