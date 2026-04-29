@@ -1,7 +1,7 @@
 Copyright 1986-2022 Xilinx, Inc. All Rights Reserved. Copyright 2022-2025 Advanced Micro Devices, Inc. All Rights Reserved.
 ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 | Tool Version : Vivado v.2025.1 (lin64) Build 6140274 Wed May 21 22:58:25 MDT 2025
-| Date         : Tue Apr 28 16:22:21 2026
+| Date         : Tue Apr 28 17:46:12 2026
 | Host         : amdtrp running 64-bit Ubuntu 24.04.4 LTS
 | Command      : report_timing -sort_by group -max_paths 20 -path_type summary -file /mnt/data/github/RTLDesignSherpa/projects/NexysA7/stream_characterization/reports/timing_worst.txt
 | Design       : stream_char_top
@@ -14,83 +14,134 @@ Timing Report
 
 Startpoint                     Endpoint                       Slack(ns)     
 ----------------------------------------------------------------------------
-u_harness/u_wr_crc_check/gen_crc[2].r_ch_beat_count_reg[13]/C
-                               u_harness/timer_w_last_reg[28]/CE
-                                                              0.067         
-u_harness/u_stream/g_stream_core_mon.u_stream_core/u_axi_write_engine/r_w_channel_id_reg[1]/C
-                               u_harness/u_stream/g_stream_core_mon.u_stream_core/u_axi_write_engine/gen_multi_channel.u_arbiter/r_pending_client_reg[1]/D
-                                                              0.072         
-u_harness/u_wr_crc_check/gen_crc[2].r_ch_beat_count_reg[13]/C
-                               u_harness/timer_w_last_reg[11]/CE
-                                                              0.182         
-u_harness/u_wr_crc_check/gen_crc[2].r_ch_beat_count_reg[13]/C
-                               u_harness/timer_w_last_reg[60]/CE
-                                                              0.189         
-u_harness/u_wr_crc_check/gen_crc[2].r_ch_beat_count_reg[13]/C
-                               u_harness/timer_w_last_reg[10]/CE
-                                                              0.209         
-u_harness/u_wr_crc_check/gen_crc[2].r_ch_beat_count_reg[13]/C
-                               u_harness/timer_w_last_reg[12]/CE
-                                                              0.209         
-u_harness/u_wr_crc_check/gen_crc[2].r_ch_beat_count_reg[13]/C
+u_harness/u_stream/g_apb_passthrough.u_apb_slave/cmd_skid_buffer_inst/g_slot[0].r_data_reg[0][43]/C
+                               u_harness/u_stream/g_apb_passthrough.u_apb_slave/resp_skid_buffer_inst/g_slot[1].r_data_reg[1][23]/D
+                                                              -0.021        
+u_harness/u_wr_crc_check/gen_crc[2].r_ch_beat_count_reg[12]/C
+                               u_harness/timer_w_last_reg[35]/CE
+                                                              -0.009        
+u_harness/u_wr_crc_check/gen_crc[2].r_ch_beat_count_reg[12]/C
+                               u_harness/timer_w_last_reg[2]/CE
+                                                              0.025         
+u_harness/u_wr_crc_check/gen_crc[2].r_ch_beat_count_reg[12]/C
+                               u_harness/timer_w_last_reg[34]/CE
+                                                              0.025         
+u_harness/u_wr_crc_check/gen_crc[2].r_ch_beat_count_reg[12]/C
+                               u_harness/timer_w_last_reg[37]/CE
+                                                              0.025         
+u_harness/u_wr_crc_check/gen_crc[2].r_ch_beat_count_reg[12]/C
+                               u_harness/timer_w_last_reg[5]/CE
+                                                              0.025         
+u_harness/u_stream/g_apb_passthrough.u_apb_slave/cmd_skid_buffer_inst/g_slot[0].r_data_reg[0][43]/C
+                               u_harness/u_stream/g_apb_passthrough.u_apb_slave/resp_skid_buffer_inst/g_slot[0].r_data_reg[0][23]/D
+                                                              0.101         
+u_harness/u_stream/g_stream_core_mon.u_stream_core/u_scheduler_group_array/u_desc_axi_monitor/axi_monitor_inst/u_axi_monitor_base/reporter/r_trans_table_local_reg[8][state][0]/C
+                               u_harness/u_stream/g_stream_core_mon.u_stream_core/u_scheduler_group_array/u_desc_axi_monitor/axi_monitor_inst/u_axi_monitor_base/reporter/r_event_data_reg[5]/D
+                                                              0.105         
+u_harness/u_wr_crc_check/gen_crc[2].r_ch_beat_count_reg[12]/C
+                               u_harness/timer_w_last_reg[38]/CE
+                                                              0.155         
+u_harness/u_wr_crc_check/gen_crc[2].r_ch_beat_count_reg[12]/C
                                u_harness/timer_w_last_reg[41]/CE
-                                                              0.209         
-u_harness/u_wr_crc_check/gen_crc[2].r_ch_beat_count_reg[13]/C
-                               u_harness/timer_w_last_reg[43]/CE
-                                                              0.209         
-u_harness/u_wr_crc_check/gen_crc[2].r_ch_beat_count_reg[13]/C
-                               u_harness/timer_w_last_reg[44]/CE
-                                                              0.209         
-u_harness/u_wr_crc_check/gen_crc[2].r_ch_beat_count_reg[13]/C
+                                                              0.155         
+u_harness/u_wr_crc_check/gen_crc[2].r_ch_beat_count_reg[12]/C
                                u_harness/timer_w_last_reg[6]/CE
-                                                              0.209         
-u_harness/u_wr_crc_check/gen_crc[2].r_ch_beat_count_reg[13]/C
-                               u_harness/timer_w_last_reg[7]/CE
-                                                              0.209         
-u_harness/u_wr_crc_check/gen_crc[2].r_ch_beat_count_reg[13]/C
+                                                              0.155         
+u_harness/u_wr_crc_check/gen_crc[2].r_ch_beat_count_reg[12]/C
                                u_harness/timer_w_last_reg[9]/CE
-                                                              0.209         
-u_harness/u_wr_crc_check/gen_crc[2].r_ch_beat_count_reg[13]/C
-                               u_harness/timer_w_last_reg[17]/CE
-                                                              0.250         
-u_harness/u_wr_crc_check/gen_crc[2].r_ch_beat_count_reg[13]/C
-                               u_harness/timer_w_last_reg[23]/CE
-                                                              0.250         
-u_harness/u_wr_crc_check/gen_crc[2].r_ch_beat_count_reg[13]/C
-                               u_harness/timer_w_last_reg[49]/CE
-                                                              0.250         
-u_harness/u_wr_crc_check/gen_crc[2].r_ch_beat_count_reg[13]/C
-                               u_harness/timer_w_last_reg[55]/CE
-                                                              0.250         
-u_harness/u_wr_crc_check/gen_crc[2].r_ch_beat_count_reg[13]/C
-                               u_harness/timer_w_last_reg[21]/CE
-                                                              0.261         
-u_harness/u_wr_crc_check/gen_crc[2].r_ch_beat_count_reg[13]/C
+                                                              0.155         
+u_harness/u_wr_crc_check/gen_crc[2].r_ch_beat_count_reg[12]/C
+                               u_harness/timer_w_last_reg[10]/CE
+                                                              0.159         
+u_harness/u_wr_crc_check/gen_crc[2].r_ch_beat_count_reg[12]/C
+                               u_harness/timer_w_last_reg[12]/CE
+                                                              0.159         
+u_harness/u_wr_crc_check/gen_crc[2].r_ch_beat_count_reg[12]/C
+                               u_harness/timer_w_last_reg[19]/CE
+                                                              0.159         
+u_harness/u_wr_crc_check/gen_crc[2].r_ch_beat_count_reg[12]/C
+                               u_harness/timer_w_last_reg[44]/CE
+                                                              0.159         
+u_harness/u_wr_crc_check/gen_crc[2].r_ch_beat_count_reg[12]/C
                                u_harness/timer_w_last_reg[51]/CE
-                                                              0.261         
-u_harness/u_wr_crc_check/gen_crc[2].r_ch_beat_count_reg[13]/C
-                               u_harness/timer_w_last_reg[57]/CE
-                                                              0.261         
-u_harness/u_wr_crc_check/gen_crc[2].r_ch_beat_count_reg[13]/C
-                               u_harness/timer_w_last_reg[61]/CE
-                                                              0.261         
+                                                              0.159         
+u_harness/u_stream/g_stream_core_mon.u_stream_core/u_scheduler_group_array/u_desc_axi_monitor/axi_monitor_inst/u_axi_monitor_base/reporter/r_trans_table_local_reg[8][state][0]/C
+                               u_harness/u_stream/g_stream_core_mon.u_stream_core/u_scheduler_group_array/u_desc_axi_monitor/axi_monitor_inst/u_axi_monitor_base/reporter/r_event_data_reg[13]/CE
+                                                              0.177         
+u_harness/u_stream/g_stream_core_mon.u_stream_core/u_scheduler_group_array/u_desc_axi_monitor/axi_monitor_inst/u_axi_monitor_base/reporter/r_trans_table_local_reg[8][state][0]/C
+                               u_harness/u_stream/g_stream_core_mon.u_stream_core/u_scheduler_group_array/u_desc_axi_monitor/axi_monitor_inst/u_axi_monitor_base/reporter/r_event_data_reg[14]/CE
+                                                              0.177         
+u_harness/u_stream/g_stream_core_mon.u_stream_core/u_scheduler_group_array/u_desc_axi_monitor/axi_monitor_inst/u_axi_monitor_base/reporter/r_trans_table_local_reg[8][state][0]/C
+                               u_harness/u_stream/g_stream_core_mon.u_stream_core/u_scheduler_group_array/u_desc_axi_monitor/axi_monitor_inst/u_axi_monitor_base/reporter/r_event_data_reg[15]/CE
+                                                              0.177         
 u_harness/u_stream/u_stream_regs/field_storage_reg[PERF_CONFIG][PERF_CLEAR][value]/C
                                u_harness/u_stream/g_stream_core_mon.u_stream_core/u_perf_profiler/u_perf_fifo/fifo_control_inst/wr_full_reg/CLR
-                                                              15.123        
+                                                              15.545        
 u_harness/u_stream/u_stream_regs/field_storage_reg[PERF_CONFIG][PERF_CLEAR][value]/C
                                u_harness/u_stream/g_stream_core_mon.u_stream_core/u_perf_profiler/u_perf_fifo/fifo_control_inst/rd_empty_reg/PRE
-                                                              15.169        
+                                                              15.591        
+u_led_status_driver/r_slow_rst_sync_reg/C
+                               u_led_status_driver/r_led_reg[12]/CLR
+                                                              9999997.000   
+u_led_status_driver/r_slow_rst_sync_reg/C
+                               u_led_status_driver/r_led_reg[13]/CLR
+                                                              9999997.000   
+u_led_status_driver/r_slow_rst_sync_reg/C
+                               u_led_status_driver/r_led_reg[14]/CLR
+                                                              9999997.000   
+u_led_status_driver/r_slow_rst_sync_reg/C
+                               u_led_status_driver/r_led_reg[15]/CLR
+                                                              9999997.000   
+u_led_status_driver/r_slow_rst_sync_reg/C
+                               u_led_status_driver/r_led_reg[1]/CLR
+                                                              9999997.000   
+u_led_status_driver/r_slow_rst_sync_reg/C
+                               u_led_status_driver/r_led_reg[4]/CLR
+                                                              9999997.000   
+u_led_status_driver/r_slow_rst_sync_reg/C
+                               u_led_status_driver/r_led_reg[5]/CLR
+                                                              9999997.000   
+u_led_status_driver/r_slow_rst_sync_reg/C
+                               u_led_status_driver/r_led_reg[7]/CLR
+                                                              9999997.000   
+u_led_status_driver/r_slow_rst_sync_reg/C
+                               u_led_status_driver/r_led_reg[8]/CLR
+                                                              9999997.000   
+u_led_status_driver/r_slow_rst_sync_reg/C
+                               u_led_status_driver/r_led_reg[9]/CLR
+                                                              9999997.000   
+u_led_status_driver/r_slow_rst_sync_reg/C
+                               u_led_status_driver/u_hs/r_dst_data_reg[10]/R
+                                                              9999997.000   
 u_led_status_driver/r_slow_rst_sync_reg/C
                                u_led_status_driver/u_hs/r_dst_data_reg[11]/R
+                                                              9999997.000   
+u_led_status_driver/r_slow_rst_sync_reg/C
+                               u_led_status_driver/u_hs/r_dst_data_reg[12]/R
                                                               9999997.000   
 u_led_status_driver/r_slow_rst_sync_reg/C
                                u_led_status_driver/u_hs/r_dst_data_reg[13]/R
                                                               9999997.000   
 u_led_status_driver/r_slow_rst_sync_reg/C
-                               u_led_status_driver/u_hs/r_dst_data_reg[15]/R
+                               u_led_status_driver/u_hs/r_dst_data_reg[14]/R
                                                               9999997.000   
 u_led_status_driver/r_slow_rst_sync_reg/C
-                               u_led_status_driver/u_hs/r_dst_data_reg[2]/R
+                               u_led_status_driver/u_hs/r_dst_data_reg[1]/R
+                                                              9999997.000   
+u_led_status_driver/r_slow_rst_sync_reg/C
+                               u_led_status_driver/u_hs/r_dst_data_reg[3]/R
+                                                              9999997.000   
+u_led_status_driver/r_slow_rst_sync_reg/C
+                               u_led_status_driver/u_hs/r_dst_data_reg[6]/R
+                                                              9999997.000   
+u_led_status_driver/r_slow_rst_sync_reg/C
+                               u_led_status_driver/u_hs/r_dst_data_reg[7]/R
+                                                              9999997.000   
+u_led_status_driver/r_slow_rst_sync_reg/C
+                               u_led_status_driver/u_hs/r_dst_data_reg[8]/R
+                                                              9999997.000   
+u_led_status_driver/r_slow_rst_sync_reg/C
+                               u_led_status_driver/u_hs/r_dst_data_reg[9]/R
                                                               9999997.000   
 u_led_status_driver/r_slow_rst_sync_reg/C
                                u_led_status_driver/r_led_reg[0]/CLR
@@ -102,91 +153,40 @@ u_led_status_driver/r_slow_rst_sync_reg/C
                                u_led_status_driver/r_led_reg[11]/CLR
                                                               9999998.000   
 u_led_status_driver/r_slow_rst_sync_reg/C
-                               u_led_status_driver/r_led_reg[12]/CLR
-                                                              9999998.000   
-u_led_status_driver/r_slow_rst_sync_reg/C
-                               u_led_status_driver/r_led_reg[13]/CLR
-                                                              9999998.000   
-u_led_status_driver/r_slow_rst_sync_reg/C
-                               u_led_status_driver/r_led_reg[14]/CLR
-                                                              9999998.000   
-u_led_status_driver/r_slow_rst_sync_reg/C
-                               u_led_status_driver/r_led_reg[15]/CLR
-                                                              9999998.000   
-u_led_status_driver/r_slow_rst_sync_reg/C
-                               u_led_status_driver/r_led_reg[1]/CLR
-                                                              9999998.000   
-u_led_status_driver/r_slow_rst_sync_reg/C
                                u_led_status_driver/r_led_reg[2]/CLR
                                                               9999998.000   
 u_led_status_driver/r_slow_rst_sync_reg/C
                                u_led_status_driver/r_led_reg[3]/CLR
                                                               9999998.000   
 u_led_status_driver/r_slow_rst_sync_reg/C
-                               u_led_status_driver/r_led_reg[4]/CLR
-                                                              9999998.000   
-u_led_status_driver/r_slow_rst_sync_reg/C
-                               u_led_status_driver/r_led_reg[5]/CLR
-                                                              9999998.000   
-u_led_status_driver/r_slow_rst_sync_reg/C
                                u_led_status_driver/r_led_reg[6]/CLR
                                                               9999998.000   
-u_led_status_driver/r_slow_rst_sync_reg/C
-                               u_led_status_driver/r_led_reg[7]/CLR
-                                                              9999998.000   
-u_led_status_driver/r_slow_rst_sync_reg/C
-                               u_led_status_driver/r_led_reg[8]/CLR
-                                                              9999998.000   
-u_led_status_driver/r_slow_rst_sync_reg/C
-                               u_led_status_driver/r_led_reg[9]/CLR
-                                                              9999998.000   
 u_led_status_driver/u_hs/dst_valid_reg/C
-                               u_led_status_driver/r_led_reg[10]/CE
-                                                              9999998.000   
-u_led_status_driver/u_hs/dst_valid_reg/C
-                               u_led_status_driver/r_led_reg[11]/CE
-                                                              9999998.000   
-u_led_status_driver/u_hs/dst_valid_reg/C
-                               u_led_status_driver/r_led_reg[12]/CE
-                                                              9999998.000   
-u_led_status_driver/u_hs/dst_valid_reg/C
-                               u_led_status_driver/r_led_reg[13]/CE
-                                                              9999998.000   
-u_led_status_driver/u_hs/dst_valid_reg/C
-                               u_led_status_driver/r_led_reg[15]/CE
+                               u_led_status_driver/r_led_reg[14]/CE
                                                               9999998.000   
 u_led_status_driver/u_hs/dst_valid_reg/C
                                u_led_status_driver/r_led_reg[1]/CE
                                                               9999998.000   
 u_led_status_driver/u_hs/dst_valid_reg/C
-                               u_led_status_driver/r_led_reg[2]/CE
-                                                              9999998.000   
-u_led_status_driver/u_hs/dst_valid_reg/C
-                               u_led_status_driver/r_led_reg[3]/CE
-                                                              9999998.000   
-u_led_status_driver/u_hs/dst_valid_reg/C
-                               u_led_status_driver/r_led_reg[5]/CE
-                                                              9999998.000   
-u_led_status_driver/u_hs/dst_valid_reg/C
-                               u_led_status_driver/r_led_reg[7]/CE
-                                                              9999998.000   
-u_led_status_driver/u_hs/dst_valid_reg/C
                                u_led_status_driver/r_led_reg[8]/CE
                                                               9999998.000   
-u_led_status_driver/r_slow_rst_sync_reg/C
+u_led_status_driver/u_hs/r_req_sync_reg[2]/C
                                u_led_status_driver/u_hs/dst_valid_reg/D
                                                               9999998.000   
 u_led_status_driver/r_slow_rst_sync_reg/C
                                u_led_status_driver/u_hs/r_ack_tog_reg/R
                                                               9999998.000   
-u_led_status_driver/u_hs/r_req_sync_reg[2]/C
+u_led_status_driver/u_hs/r_req_sync_d_reg/C
                                u_led_status_driver/u_hs/r_dst_data_reg[0]/D
                                                               9999998.000   
 u_led_status_driver/r_slow_rst_sync_reg/C
                                u_led_status_driver/u_hs/r_dst_data_reg[0]/R
                                                               9999998.000   
-u_led_status_driver/u_hs/r_req_sync_reg[2]/C
+u_led_status_driver/u_hs/r_req_sync_d_reg/C
                                u_led_status_driver/u_hs/r_dst_data_reg[10]/D
+                                                              9999998.000   
+u_led_status_driver/u_hs/r_req_sync_d_reg/C
+                               u_led_status_driver/u_hs/r_dst_data_reg[11]/D
                                                               9999998.000   
 
 

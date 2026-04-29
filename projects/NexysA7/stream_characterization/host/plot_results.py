@@ -91,22 +91,32 @@ def _axis_label(col: str) -> str:
     }.get(col, col)
 
 
+_INTEGER_AXES = {"rd_delay_cyc", "descriptors", "num_channels"}
+
+
 def _format_x_ticks(ax, col: str, values: np.ndarray) -> None:
-    """For total_bytes axes, use KB/MB labels; otherwise let matplotlib do it."""
+    """Pin x-ticks to the actual sweep values so integer-only sweeps stop
+    showing fractional ticks (e.g. "1.5 channels"). For total_bytes use
+    KB/MB labels and a log-base-2 scale."""
     if col == "total_bytes":
-        # Use log-x to span 8KB..several MB cleanly.
         ax.set_xscale("log", base=2)
         labels = []
-        for v in values:
-            v = int(v)
+        sorted_vals = sorted(set(int(v) for v in values))
+        for v in sorted_vals:
             if v >= 1 << 20:
                 labels.append(f"{v >> 20}MB")
             elif v >= 1 << 10:
                 labels.append(f"{v >> 10}KB")
             else:
                 labels.append(str(v))
-        ax.set_xticks(values)
+        ax.set_xticks(sorted_vals)
         ax.set_xticklabels(labels)
+    elif col in _INTEGER_AXES:
+        # Force integer ticks at exactly the sampled values so matplotlib
+        # doesn't auto-fill 1.5, 2.5, etc. for sparse integer sweeps.
+        sorted_vals = sorted(set(int(v) for v in values))
+        ax.set_xticks(sorted_vals)
+        ax.set_xticklabels([str(v) for v in sorted_vals])
 
 
 def plot_1d(df: pd.DataFrame, x_col: str, title: str, out_path: str) -> None:
@@ -158,10 +168,21 @@ def plot_2d(df: pd.DataFrame, x_col: str, y_col: str, base_path: str,
         cmap="viridis",
         interpolation="nearest",
     )
+    # Stringify ticks so integer axes don't render as "1.0", "2.0", etc.
+    def _label(col, v):
+        if col in _INTEGER_AXES:
+            return str(int(v))
+        if col == "total_bytes":
+            v = int(v)
+            if v >= 1 << 20: return f"{v >> 20}MB"
+            if v >= 1 << 10: return f"{v >> 10}KB"
+            return str(v)
+        return str(v)
+
     ax.set_xticks(range(len(pivot.columns)))
-    ax.set_xticklabels(pivot.columns)
+    ax.set_xticklabels([_label(x_col, v) for v in pivot.columns])
     ax.set_yticks(range(len(pivot.index)))
-    ax.set_yticklabels(pivot.index)
+    ax.set_yticklabels([_label(y_col, v) for v in pivot.index])
     ax.set_xlabel(_axis_label(x_col))
     ax.set_ylabel(_axis_label(y_col))
     ax.set_title(f"{title}\n(throughput_MBps surface)")

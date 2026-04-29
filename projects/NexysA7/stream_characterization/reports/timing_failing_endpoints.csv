@@ -1,1 +1,3 @@
 slack_ns,levels,startpoint,endpoint
+-0.021,12,u_harness/u_stream/g_apb_passthrough.u_apb_slave/cmd_skid_buffer_inst/g_slot[0].r_data_reg[0][43]/C,u_harness/u_stream/g_apb_passthrough.u_apb_slave/resp_skid_buffer_inst/g_slot[1].r_data_reg[1][23]/D
+-0.009,12,u_harness/u_wr_crc_check/gen_crc[2].r_ch_beat_count_reg[12]/C,u_harness/timer_w_last_reg[35]/CE

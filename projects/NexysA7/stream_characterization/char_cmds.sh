@@ -60,9 +60,9 @@ DELAY_CSV=delay_sweep_1desc_1ch_512KB.csv
 SWEEP_CSVS+=("$DELAY_CSV")
 rm -f "$DELAY_CSV"
 
-echo "=== Sweep 1: delay 1desc 1ch 512KB (delay 0..7 step 1) ==="              | tee -a run.log
+echo "=== Sweep 1: delay 1desc 1ch 512KB (delay 0..8 step 1) ==="              | tee -a run.log
 echo "    accumulating into ${DELAY_CSV}"                                       | tee -a run.log
-for d in 0 1 2 3 4 5 6 7; do
+for d in 0 1 2 3 4 5 6 7 8; do
     echo "--- RESP_DELAY = ${d} cycles (rd=wr) ---"                             | tee -a run.log
     run_one "$DELAY_CSV" 1 1 512KB "$d"
 done
@@ -123,7 +123,7 @@ done
 
 #==============================================================================
 # Sweep 5 — Channels × delay (2-D)
-#   Sweep channels {1,2,4} crossed with delay {0,2,4,8} at 1desc/512KB.
+#   All 4 channels crossed with delay 0..8 at 1desc/512KB.
 #   Question: do extra channels help tolerate response latency by keeping
 #   more transactions in flight? Expectation: at delay>0, total_MBps should
 #   scale with channels until the engine's outstanding-AW limit saturates.
@@ -134,10 +134,10 @@ rm -f "$CH_X_DLY_CSV"
 
 echo ""                                                                         | tee -a run.log
 echo "=== Sweep 5: channels x delay (1desc, 512KB) ==="                         | tee -a run.log
-echo "    channels in {1,2,4}; delay in {0,2,4,8}"                              | tee -a run.log
+echo "    channels in {1,2,3,4}; delay in {0..8}"                               | tee -a run.log
 echo "    accumulating into ${CH_X_DLY_CSV}"                                    | tee -a run.log
-for c in 1 2 4; do
-    for d in 0 2 4 8; do
+for c in 1 2 3 4; do
+    for d in 0 1 2 3 4 5 6 7 8; do
         echo "--- channels=${c}, delay=${d} ---"                                | tee -a run.log
         run_one "$CH_X_DLY_CSV" "$c" 1 512KB "$d"
     done
@@ -145,7 +145,7 @@ done
 
 #==============================================================================
 # Sweep 6 — Descriptors × delay (2-D)
-#   Sweep descriptors {1,2,4,8,16} crossed with delay {0,2,4,8} at 1ch/512KB.
+#   Sweep descriptors {1,2,4,8,16} crossed with delay 0..8 at 1ch/512KB.
 #   Question: does descriptor chaining hide response latency? Expectation:
 #   long chains amortize startup cost regardless of delay, so the *gap*
 #   between r2r/w2w and total should shrink with more descriptors at every
@@ -157,10 +157,10 @@ rm -f "$DESC_X_DLY_CSV"
 
 echo ""                                                                         | tee -a run.log
 echo "=== Sweep 6: descriptors x delay (1ch, 512KB) ==="                        | tee -a run.log
-echo "    descriptors in {1,2,4,8,16}; delay in {0,2,4,8}"                      | tee -a run.log
+echo "    descriptors in {1,2,4,8,16}; delay in {0..8}"                         | tee -a run.log
 echo "    accumulating into ${DESC_X_DLY_CSV}"                                  | tee -a run.log
 for n in 1 2 4 8 16; do
-    for d in 0 2 4 8; do
+    for d in 0 1 2 3 4 5 6 7 8; do
         echo "--- descriptors=${n}, delay=${d} ---"                             | tee -a run.log
         run_one "$DESC_X_DLY_CSV" 1 "$n" 512KB "$d"
     done

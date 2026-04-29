@@ -5,40 +5,38 @@
 // https://github.com/sean-galloway/RTLDesignSherpa
 //
 // Module: axi_response_delay
-// Purpose: Configurable per-beat response delay for an AXI valid/ready channel
+// Purpose: Per-burst response delay for an AXI valid/ready channel
 //
 // Description:
-//   Generic single-beat delay pipe that sits in the response path between an
-//   AXI slave model and the AXI master that consumes it (e.g. between
-//   axi4_slave_rd_pattern_gen.s_axi_r* and STREAM's m_axi_rd_r*, or between
-//   axi4_slave_wr_crc_check.s_axi_b* and STREAM's m_axi_wr_b*).
+//   Models real memory-style latency on an AXI response channel: when a
+//   new burst begins (rising edge of s_valid after an idle gap), stall
+//   the handshake for i_delay_cycles cycles. After that delay expires,
+//   every beat of the burst flows through combinationally at full rate.
 //
-//   The block is purely a valid/ready/data pipe — it does not understand AXI
-//   semantics. Pack the channel signals (rid/rdata/rresp/rlast/ruser, or
-//   bid/bresp/buser) into the DATA_WIDTH input and unpack them on the output.
+//   This matches the behavior the DMA engine + SRAM/FIFO sizing was
+//   designed to absorb (round-trip latency to first response data, then
+//   line-rate streaming for the rest of the burst). The previous
+//   implementation held *every* beat for N cycles, which corresponds to
+//   a memory whose throughput is rate-limited per beat — not realistic,
+//   and not absorbable by any FIFO depth.
 //
 // Behavior:
-//   - i_delay_cycles == 0: pure combinational pass-through. m_valid/m_data
-//                          come directly from s_valid/s_data; s_ready follows
-//                          m_ready. Zero added latency, zero throughput hit.
-//                          A beat that was held when delay went to zero
-//                          drains first.
-//   - i_delay_cycles >  0: each accepted beat is parked in a one-deep
-//                          register and held for i_delay_cycles cycles before
-//                          being released to the consumer. Effective max
-//                          throughput becomes 1 beat / (i_delay_cycles + 1)
-//                          cycles, which is exactly the knob we want for
-//                          long-term-bandwidth experiments.
-//
-// Parameters:
-//   - DATA_WIDTH : Width of the packed channel payload.
-//   - DELAY_W    : Bit-width of the i_delay_cycles input (max delay value
-//                  that can be programmed at runtime is 2**DELAY_W - 1).
+//   - i_delay_cycles == 0: pure combinational pass-through.
+//   - i_delay_cycles >  0: when s_valid rises (or each time s_valid is
+//                          re-asserted after a gap), hold the handshake
+//                          for N cycles, then pass beats through with
+//                          zero added latency until s_valid drops again.
 //
 // Notes:
-//   - For bursts, the delay is applied per beat — the slave can only push
-//     a new beat once the previous beat has been released. This matches the
-//     "memory-latency model" intent rather than a one-shot per-burst delay.
+//   - Burst boundary detection relies on s_valid going low for at least
+//     one cycle between bursts. The slaves we use (axi4_slave_rd /
+//     axi4_slave_wr_crc_check) cycle through IDLE between bursts so this
+//     is satisfied. If a slave streams two bursts back-to-back without
+//     dropping valid, only the first will be delayed.
+//   - During the delay window the slave holds its current beat on its
+//     output (s_ready==0 back-pressures it). No internal data buffer is
+//     needed — beats are forwarded combinationally once the delay
+//     expires.
 
 `timescale 1ns / 1ps
 
@@ -51,8 +49,7 @@ module axi_response_delay #(
     input  logic                    aclk,
     input  logic                    aresetn,
 
-    // Runtime delay knob (cycles). 0 = pure pass-through (bypass);
-    // any non-zero value injects N cycles of per-beat hold time.
+    // Per-burst hold time. 0 = pure pass-through.
     input  logic [DELAY_W-1:0]      i_delay_cycles,
 
     // Slave-facing input (from response-producing model)
@@ -66,61 +63,39 @@ module axi_response_delay #(
     input  logic                    m_ready
 );
 
-    logic [DATA_WIDTH-1:0] r_buf_data;
-    logic                  r_buf_valid;
-    logic [DELAY_W-1:0]    r_counter;       // Counts down from i_delay_cycles to 0
-    logic                  w_delay_active;  // Runtime knob says "delay this beat"
-    logic                  w_held_ready;    // Held beat is past its delay window
-
-    assign w_delay_active = (i_delay_cycles != '0);
-
-    // A beat is ready to leave the buffer when its counter has expired, OR
-    // when the runtime knob is currently zero (so a leftover beat captured
-    // during a previous delay period drains immediately).
-    assign w_held_ready = r_buf_valid && (!w_delay_active || (r_counter == '0));
-
-    // Output muxing:
-    //   - If a beat is held in the buffer, it must drain via the master port
-    //     (regardless of the current runtime knob) before any pass-through
-    //     can resume.
-    //   - Otherwise (buffer empty), bypass mode is a clean combinational
-    //     pass-through; delay mode just gates m_valid until something is
-    //     captured and counted down.
-    assign m_valid = r_buf_valid ? w_held_ready
-                                 : (!w_delay_active && s_valid);
-    assign m_data  = r_buf_valid ? r_buf_data : s_data;
-
-    // Slave-side ready:
-    //   - Buffer empty in delay mode: accept a new beat (it will be captured).
-    //   - Buffer empty in bypass mode: pass m_ready straight through.
-    //   - Buffer full: hold the slave off until the held beat drains.
-    assign s_ready = r_buf_valid ? 1'b0
-                                 : (w_delay_active ? 1'b1 : m_ready);
+    // Cycles still to wait before this burst's first beat is allowed
+    // through. Re-armed to i_delay_cycles whenever s_valid is low (i.e.
+    // between bursts, or before the very first burst).
+    logic [DELAY_W-1:0] r_remaining;
 
     `ALWAYS_FF_RST(aclk, aresetn,
         if (`RST_ASSERTED(aresetn)) begin
-            r_buf_data  <= '0;
-            r_buf_valid <= 1'b0;
-            r_counter   <= '0;
+            r_remaining <= '0;
         end else begin
-            // Capture: in delay mode, snap a beat from the slave into the
-            // held register and start its delay counter.
-            if (w_delay_active && s_valid && s_ready) begin
-                r_buf_data  <= s_data;
-                r_buf_valid <= 1'b1;
-                r_counter   <= i_delay_cycles;
+            if (!s_valid) begin
+                // Idle: arm the delay counter for the next burst start.
+                // (Tracking the runtime knob here means changing
+                // i_delay_cycles between bursts takes effect on the
+                // next burst, not mid-burst.)
+                r_remaining <= i_delay_cycles;
+            end else if (r_remaining != '0) begin
+                // In the delay window — count down each cycle s_valid
+                // is held high (the slave is waiting for s_ready).
+                r_remaining <= r_remaining - 1'b1;
             end
-            // Tick the delay counter while a beat is being held.
-            else if (r_buf_valid && r_counter != '0 && w_delay_active) begin
-                r_counter <= r_counter - 1'b1;
-            end
-
-            // Release: master accepts the held beat.
-            if (r_buf_valid && w_held_ready && m_ready) begin
-                r_buf_valid <= 1'b0;
-                r_counter   <= '0;
-            end
+            // r_remaining stays at 0 once the delay has expired; beats
+            // flow through at line rate until s_valid drops again, at
+            // which point the !s_valid branch above re-arms the counter.
         end
     )
+
+    // Pass-through is enabled once the delay has expired. While
+    // r_remaining > 0, m_valid is held low (master sees no beat) and
+    // s_ready is held low (slave keeps the beat parked on its output).
+    wire w_pass = (r_remaining == '0);
+
+    assign m_valid = s_valid && w_pass;
+    assign s_ready = m_ready && w_pass;
+    assign m_data  = s_data;
 
 endmodule : axi_response_delay

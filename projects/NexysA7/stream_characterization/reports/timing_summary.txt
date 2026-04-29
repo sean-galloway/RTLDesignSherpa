@@ -1,7 +1,7 @@
 Copyright 1986-2022 Xilinx, Inc. All Rights Reserved. Copyright 2022-2025 Advanced Micro Devices, Inc. All Rights Reserved.
 --------------------------------------------------------------------------------------------------------------------------------------------------
 | Tool Version : Vivado v.2025.1 (lin64) Build 6140274 Wed May 21 22:58:25 MDT 2025
-| Date         : Tue Apr 28 16:22:21 2026
+| Date         : Tue Apr 28 17:46:12 2026
 | Host         : amdtrp running 64-bit Ubuntu 24.04.4 LTS
 | Command      : report_timing_summary -file /mnt/data/github/RTLDesignSherpa/projects/NexysA7/stream_characterization/reports/timing_summary.txt
 | Design       : stream_char_top
@@ -147,10 +147,10 @@ Table of Contents
 
     WNS(ns)      TNS(ns)  TNS Failing Endpoints  TNS Total Endpoints      WHS(ns)      THS(ns)  THS Failing Endpoints  THS Total Endpoints     WPWS(ns)     TPWS(ns)  TPWS Failing Endpoints  TPWS Total Endpoints  
     -------      -------  ---------------------  -------------------      -------      -------  ---------------------  -------------------     --------     --------  ----------------------  --------------------  
-      0.067        0.000                      0                33466        0.027        0.000                      0                33466        3.750        0.000                       0                 15799  
+     -0.021       -0.030                      2                33365        0.024        0.000                      0                33365        3.750        0.000                       0                 15765  
 
 
-All user specified timing constraints are met.
+Timing constraints are not met.
 
 
 ------------------------------------------------------------------------------------------------
@@ -171,8 +171,8 @@ sys_clk_pin     {0.000 5.000}                10.000          100.000
 
 Clock                WNS(ns)       TNS(ns)  TNS Failing Endpoints  TNS Total Endpoints       WHS(ns)       THS(ns)  THS Failing Endpoints  THS Total Endpoints      WPWS(ns)      TPWS(ns)  TPWS Failing Endpoints  TPWS Total Endpoints  
 -----                -------       -------  ---------------------  -------------------       -------       -------  ---------------------  -------------------      --------      --------  ----------------------  --------------------  
-sys_clk_pin            0.067         0.000                      0                33355         0.027         0.000                      0                33355         3.750         0.000                       0                 15758  
-  led_slow_clk   9999997.000         0.000                      0                   93         0.152         0.000                      0                   93   4999999.500         0.000                       0                    41  
+sys_clk_pin           -0.021        -0.030                      2                33254         0.024         0.000                      0                33254         3.750         0.000                       0                 15724  
+  led_slow_clk   9999997.000         0.000                      0                   93         0.131         0.000                      0                   93   4999999.500         0.000                       0                    41  
 
 
 ------------------------------------------------------------------------------------------------
@@ -191,8 +191,8 @@ From Clock    To Clock          WNS(ns)      TNS(ns)  TNS Failing Endpoints  TNS
 
 Path Group         From Clock         To Clock                WNS(ns)       TNS(ns)  TNS Failing Endpoints  TNS Total Endpoints       WHS(ns)       THS(ns)  THS Failing Endpoints  THS Total Endpoints  
 ----------         ----------         --------                -------       -------  ---------------------  -------------------       -------       -------  ---------------------  -------------------  
-**async_default**  led_slow_clk       led_slow_clk        9999998.000         0.000                      0                   16         0.621         0.000                      0                   16  
-**async_default**  sys_clk_pin        sys_clk_pin              15.123         0.000                      0                    2         1.879         0.000                      0                    2  
+**async_default**  led_slow_clk       led_slow_clk        9999997.000         0.000                      0                   16         0.969         0.000                      0                   16  
+**async_default**  sys_clk_pin        sys_clk_pin              15.545         0.000                      0                    2         1.668         0.000                      0                    2  
 
 
 ------------------------------------------------------------------------------------------------
@@ -205,27 +205,27 @@ Path Group         From Clock         To Clock                WNS(ns)       TNS(
 From Clock:  sys_clk_pin
   To Clock:  sys_clk_pin
 
-Setup :            0  Failing Endpoints,  Worst Slack        0.067ns,  Total Violation        0.000ns
-Hold  :            0  Failing Endpoints,  Worst Slack        0.027ns,  Total Violation        0.000ns
+Setup :            2  Failing Endpoints,  Worst Slack       -0.021ns,  Total Violation       -0.030ns
+Hold  :            0  Failing Endpoints,  Worst Slack        0.024ns,  Total Violation        0.000ns
 PW    :            0  Failing Endpoints,  Worst Slack        3.750ns,  Total Violation        0.000ns
 ---------------------------------------------------------------------------------------------------
 
 
 Max Delay Paths
 --------------------------------------------------------------------------------------
-Slack (MET) :             0.067ns  (required time - arrival time)
-  Source:                 u_harness/u_wr_crc_check/gen_crc[2].r_ch_beat_count_reg[13]/C
+Slack (VIOLATED) :        -0.021ns  (required time - arrival time)
+  Source:                 u_harness/u_stream/g_apb_passthrough.u_apb_slave/cmd_skid_buffer_inst/g_slot[0].r_data_reg[0][43]/C
                             (rising edge-triggered cell FDRE clocked by sys_clk_pin  {rise@0.000ns fall@5.000ns period=10.000ns})
-  Destination:            u_harness/timer_w_last_reg[28]/CE
+  Destination:            u_harness/u_stream/g_apb_passthrough.u_apb_slave/resp_skid_buffer_inst/g_slot[1].r_data_reg[1][23]/D
                             (rising edge-triggered cell FDRE clocked by sys_clk_pin  {rise@0.000ns fall@5.000ns period=10.000ns})
   Path Group:             sys_clk_pin
   Path Type:              Setup (Max at Slow Process Corner)
   Requirement:            10.000ns  (sys_clk_pin rise@10.000ns - sys_clk_pin rise@0.000ns)
-  Data Path Delay:        9.441ns  (logic 3.230ns (34.212%)  route 6.211ns (65.788%))
-  Logic Levels:           12  (CARRY4=6 LUT2=1 LUT3=2 LUT4=1 LUT5=1 LUT6=1)
-  Clock Path Skew:        -0.045ns (DCD - SCD + CPR)
-    Destination Clock Delay (DCD):    5.099ns = ( 15.099 - 10.000 ) 
-    Source Clock Delay      (SCD):    5.412ns
+  Data Path Delay:        9.975ns  (logic 3.081ns (30.888%)  route 6.894ns (69.112%))
+  Logic Levels:           12  (CARRY4=1 LUT2=3 LUT3=2 LUT5=2 LUT6=4)
+  Clock Path Skew:        -0.040ns (DCD - SCD + CPR)
+    Destination Clock Delay (DCD):    5.087ns = ( 15.087 - 10.000 ) 
+    Source Clock Delay      (SCD):    5.395ns
     Clock Pessimism Removal (CPR):    0.267ns
   Clock Uncertainty:      0.035ns  ((TSJ^2 + TIJ^2)^1/2 + DJ) / 2 + PE
     Total System Jitter     (TSJ):    0.071ns
@@ -242,42 +242,37 @@ Slack (MET) :             0.067ns  (required time - arrival time)
     E3                   IBUF (Prop_ibuf_I_O)         1.482     1.482 r  CLK100MHZ_IBUF_inst/O
                          net (fo=1, routed)           2.025     3.506    CLK100MHZ_IBUF
     BUFGCTRL_X0Y16       BUFG (Prop_bufg_I_O)         0.096     3.602 r  CLK100MHZ_IBUF_BUFG_inst/O
-                         net (fo=15757, routed)       1.809     5.412    u_harness/u_wr_crc_check/CLK100MHZ_IBUF_BUFG
-    SLICE_X22Y32         FDRE                                         r  u_harness/u_wr_crc_check/gen_crc[2].r_ch_beat_count_reg[13]/C
+                         net (fo=15723, routed)       1.792     5.395    u_harness/u_stream/g_apb_passthrough.u_apb_slave/cmd_skid_buffer_inst/CLK100MHZ_IBUF_BUFG
+    SLICE_X66Y28         FDRE                                         r  u_harness/u_stream/g_apb_passthrough.u_apb_slave/cmd_skid_buffer_inst/g_slot[0].r_data_reg[0][43]/C
   -------------------------------------------------------------------    -------------------
-    SLICE_X22Y32         FDRE (Prop_fdre_C_Q)         0.456     5.868 r  u_harness/u_wr_crc_check/gen_crc[2].r_ch_beat_count_reg[13]/Q
-                         net (fo=4, routed)           1.201     7.069    u_harness/u_wr_crc_check/gen_crc[2].r_ch_beat_count_reg_n_0_[13]
-    SLICE_X29Y33         LUT3 (Prop_lut3_I2_O)        0.124     7.193 r  u_harness/u_wr_crc_check/timer_w_first[63]_i_90/O
-                         net (fo=2, routed)           0.827     8.020    u_harness/u_wr_crc_check/timer_w_first[63]_i_90_n_0
-    SLICE_X28Y34         LUT5 (Prop_lut5_I1_O)        0.152     8.172 r  u_harness/u_wr_crc_check/timer_w_first[63]_i_49/O
-                         net (fo=2, routed)           0.583     8.755    u_harness/u_wr_crc_check/timer_w_first[63]_i_49_n_0
-    SLICE_X27Y32         LUT6 (Prop_lut6_I0_O)        0.326     9.081 r  u_harness/u_wr_crc_check/timer_w_first[63]_i_53/O
-                         net (fo=1, routed)           0.000     9.081    u_harness/u_wr_crc_check/timer_w_first[63]_i_53_n_0
-    SLICE_X27Y32         CARRY4 (Prop_carry4_S[2]_CO[3])
-                                                      0.398     9.479 r  u_harness/u_wr_crc_check/timer_w_first_reg[63]_i_14/CO[3]
-                         net (fo=1, routed)           0.000     9.479    u_harness/u_wr_crc_check/timer_w_first_reg[63]_i_14_n_0
-    SLICE_X27Y33         CARRY4 (Prop_carry4_CI_CO[3])
-                                                      0.114     9.593 r  u_harness/u_wr_crc_check/timer_w_first_reg[63]_i_6/CO[3]
-                         net (fo=1, routed)           0.000     9.593    u_harness/u_wr_crc_check/timer_w_first_reg[63]_i_6_n_0
-    SLICE_X27Y34         CARRY4 (Prop_carry4_CI_CO[3])
-                                                      0.114     9.707 r  u_harness/u_wr_crc_check/timer_w_first_reg[63]_i_23/CO[3]
-                         net (fo=1, routed)           0.000     9.707    u_harness/u_wr_crc_check/timer_w_first_reg[63]_i_23_n_0
-    SLICE_X27Y35         CARRY4 (Prop_carry4_CI_CO[3])
-                                                      0.114     9.821 r  u_harness/u_wr_crc_check/timer_w_first_reg[63]_i_8/CO[3]
-                         net (fo=1, routed)           0.000     9.821    u_harness/u_wr_crc_check/timer_w_first_reg[63]_i_8_n_0
-    SLICE_X27Y36         CARRY4 (Prop_carry4_CI_O[3])
-                                                      0.313    10.134 r  u_harness/u_wr_crc_check/timer_cycles_reg[63]_i_29/O[3]
-                         net (fo=3, routed)           0.976    11.110    u_harness/u_csr/write_beat_count[31]
-    SLICE_X30Y33         LUT4 (Prop_lut4_I1_O)        0.306    11.416 r  u_harness/u_csr/timer_cycles[63]_i_12/O
-                         net (fo=1, routed)           0.000    11.416    u_harness/u_wr_crc_check/timer_cycles_reg[1]_0[3]
-    SLICE_X30Y33         CARRY4 (Prop_carry4_S[3]_CO[3])
-                                                      0.376    11.792 r  u_harness/u_wr_crc_check/timer_cycles_reg[63]_i_5/CO[3]
-                         net (fo=3, routed)           1.064    12.856    u_harness/u_wr_crc_check/CO[0]
-    SLICE_X36Y28         LUT3 (Prop_lut3_I0_O)        0.118    12.974 r  u_harness/u_wr_crc_check/timer_w_last[63]_i_2/O
-                         net (fo=6, routed)           0.603    13.577    u_harness/u_wr_crc_check/timer_running_reg
-    SLICE_X34Y28         LUT2 (Prop_lut2_I0_O)        0.319    13.896 r  u_harness/u_wr_crc_check/timer_w_last[63]_i_1/O
-                         net (fo=64, routed)          0.957    14.853    u_harness/u_wr_crc_check_n_222
-    SLICE_X26Y29         FDRE                                         r  u_harness/timer_w_last_reg[28]/CE
+    SLICE_X66Y28         FDRE (Prop_fdre_C_Q)         0.478     5.873 f  u_harness/u_stream/g_apb_passthrough.u_apb_slave/cmd_skid_buffer_inst/g_slot[0].r_data_reg[0][43]/Q
+                         net (fo=3, routed)           0.876     6.748    u_harness/u_stream/g_apb_passthrough.u_apb_slave/cmd_skid_buffer_inst/g_slot[0].r_data_reg_n_0_[0][43]
+    SLICE_X66Y28         LUT6 (Prop_lut6_I1_O)        0.301     7.049 r  u_harness/u_stream/g_apb_passthrough.u_apb_slave/cmd_skid_buffer_inst/r_cmd_pwrite_i_2/O
+                         net (fo=7, routed)           0.821     7.870    u_harness/u_stream/g_apb_passthrough.u_apb_slave/cmd_skid_buffer_inst/g_slot[0].r_data_reg[0][42]_1
+    SLICE_X67Y30         LUT5 (Prop_lut5_I4_O)        0.152     8.022 f  u_harness/u_stream/g_apb_passthrough.u_apb_slave/cmd_skid_buffer_inst/r_data_count[3]_i_3__7/O
+                         net (fo=11, routed)          0.654     8.676    u_harness/u_stream/g_apb_passthrough.u_apb_slave/cmd_skid_buffer_inst/u_cmdrsp_router/p_6_in
+    SLICE_X67Y29         LUT2 (Prop_lut2_I0_O)        0.332     9.008 f  u_harness/u_stream/g_apb_passthrough.u_apb_slave/cmd_skid_buffer_inst/perf_rsp_valid_i_2/O
+                         net (fo=3, routed)           0.421     9.429    u_harness/u_stream/g_apb_passthrough.u_apb_slave/cmd_skid_buffer_inst/p_7_in
+    SLICE_X67Y28         LUT6 (Prop_lut6_I5_O)        0.124     9.553 f  u_harness/u_stream/g_apb_passthrough.u_apb_slave/cmd_skid_buffer_inst/gen_auto.mem_reg_i_39/O
+                         net (fo=13, routed)          1.024    10.577    u_harness/u_stream/g_stream_core_mon.u_stream_core/u_perf_profiler/u_perf_fifo/read_pointer_inst/perf_fifo_rd
+    SLICE_X61Y15         LUT6 (Prop_lut6_I0_O)        0.124    10.701 r  u_harness/u_stream/g_stream_core_mon.u_stream_core/u_perf_profiler/u_perf_fifo/read_pointer_inst/counter_bin_curr[8]_i_3/O
+                         net (fo=8, routed)           0.498    11.199    u_harness/u_stream/g_stream_core_mon.u_stream_core/u_perf_profiler/u_perf_fifo/read_pointer_inst/counter_bin_curr[8]_i_3_n_0
+    SLICE_X61Y15         LUT3 (Prop_lut3_I2_O)        0.124    11.323 r  u_harness/u_stream/g_stream_core_mon.u_stream_core/u_perf_profiler/u_perf_fifo/read_pointer_inst/counter_bin_curr[5]_i_1__18/O
+                         net (fo=5, routed)           0.530    11.853    u_harness/u_stream/g_stream_core_mon.u_stream_core/u_perf_profiler/u_perf_fifo/read_pointer_inst/counter_bin_curr_reg[5]_1
+    SLICE_X60Y15         LUT2 (Prop_lut2_I0_O)        0.124    11.977 r  u_harness/u_stream/g_stream_core_mon.u_stream_core/u_perf_profiler/u_perf_fifo/read_pointer_inst/g_slot[1].r_data[1][22]_i_8/O
+                         net (fo=1, routed)           0.000    11.977    u_harness/u_stream/g_stream_core_mon.u_stream_core/u_perf_profiler/u_perf_fifo/read_pointer_inst/g_slot[1].r_data[1][22]_i_8_n_0
+    SLICE_X60Y15         CARRY4 (Prop_carry4_S[1]_O[3])
+                                                      0.643    12.620 r  u_harness/u_stream/g_stream_core_mon.u_stream_core/u_perf_profiler/u_perf_fifo/read_pointer_inst/g_slot[1].r_data_reg[1][22]_i_4/O[3]
+                         net (fo=1, routed)           0.643    13.263    u_harness/u_stream/g_stream_core_mon.u_stream_core/u_perf_profiler/u_perf_fifo/write_pointer_inst/g_slot[1].r_data[1][24]_i_2__0[3]
+    SLICE_X61Y19         LUT3 (Prop_lut3_I2_O)        0.307    13.570 r  u_harness/u_stream/g_stream_core_mon.u_stream_core/u_perf_profiler/u_perf_fifo/write_pointer_inst/g_slot[1].r_data[1][23]_i_4/O
+                         net (fo=1, routed)           0.391    13.961    u_harness/u_stream/g_stream_core_mon.u_stream_core/u_perf_profiler/u_perf_fifo/write_pointer_inst/perf_fifo_count[7]
+    SLICE_X62Y19         LUT6 (Prop_lut6_I1_O)        0.124    14.085 r  u_harness/u_stream/g_stream_core_mon.u_stream_core/u_perf_profiler/u_perf_fifo/write_pointer_inst/g_slot[1].r_data[1][23]_i_3/O
+                         net (fo=1, routed)           0.452    14.537    u_harness/u_stream/u_cmdrsp_router/g_slot[1].r_data_reg[1][23]
+    SLICE_X63Y19         LUT5 (Prop_lut5_I0_O)        0.124    14.661 r  u_harness/u_stream/u_cmdrsp_router/g_slot[1].r_data[1][23]_i_2__0/O
+                         net (fo=2, routed)           0.584    15.245    u_harness/u_stream/g_apb_passthrough.u_apb_slave/resp_skid_buffer_inst/g_slot[1].r_data_reg[1][23]_0
+    SLICE_X63Y20         LUT2 (Prop_lut2_I1_O)        0.124    15.369 r  u_harness/u_stream/g_apb_passthrough.u_apb_slave/resp_skid_buffer_inst/g_slot[1].r_data[1][23]_i_1__26/O
+                         net (fo=1, routed)           0.000    15.369    u_harness/u_stream/g_apb_passthrough.u_apb_slave/resp_skid_buffer_inst/g_slot[1].r_data[1][23]_i_1__26_n_0
+    SLICE_X63Y20         FDRE                                         r  u_harness/u_stream/g_apb_passthrough.u_apb_slave/resp_skid_buffer_inst/g_slot[1].r_data_reg[1][23]/D
   -------------------------------------------------------------------    -------------------
 
                          (clock sys_clk_pin rise edge)
@@ -287,16 +282,16 @@ Slack (MET) :             0.067ns  (required time - arrival time)
     E3                   IBUF (Prop_ibuf_I_O)         1.411    11.411 r  CLK100MHZ_IBUF_inst/O
                          net (fo=1, routed)           1.920    13.331    CLK100MHZ_IBUF
     BUFGCTRL_X0Y16       BUFG (Prop_bufg_I_O)         0.091    13.422 r  CLK100MHZ_IBUF_BUFG_inst/O
-                         net (fo=15757, routed)       1.677    15.099    u_harness/CLK100MHZ_IBUF_BUFG
-    SLICE_X26Y29         FDRE                                         r  u_harness/timer_w_last_reg[28]/C
-                         clock pessimism              0.267    15.367    
-                         clock uncertainty           -0.035    15.331    
-    SLICE_X26Y29         FDRE (Setup_fdre_C_CE)      -0.412    14.919    u_harness/timer_w_last_reg[28]
+                         net (fo=15723, routed)       1.665    15.087    u_harness/u_stream/g_apb_passthrough.u_apb_slave/resp_skid_buffer_inst/CLK100MHZ_IBUF_BUFG
+    SLICE_X63Y20         FDRE                                         r  u_harness/u_stream/g_apb_passthrough.u_apb_slave/resp_skid_buffer_inst/g_slot[1].r_data_reg[1][23]/C
+                         clock pessimism              0.267    15.355    
+                         clock uncertainty           -0.035    15.319    
+    SLICE_X63Y20         FDRE (Setup_fdre_C_D)        0.029    15.348    u_harness/u_stream/g_apb_passthrough.u_apb_slave/resp_skid_buffer_inst/g_slot[1].r_data_reg[1][23]
   -------------------------------------------------------------------
-                         required time                         14.919    
-                         arrival time                         -14.853    
+                         required time                         15.348    
+                         arrival time                         -15.369    
   -------------------------------------------------------------------
-                         slack                                  0.067    
+                         slack                                 -0.021    
 
 
 
@@ -304,20 +299,20 @@ Slack (MET) :             0.067ns  (required time - arrival time)
 
 Min Delay Paths
 --------------------------------------------------------------------------------------
-Slack (MET) :             0.027ns  (arrival time - required time)
-  Source:                 u_harness/u_desc_ram/r_ar_data_reg[162]/C
+Slack (MET) :             0.024ns  (arrival time - required time)
+  Source:                 u_harness/u_stream/g_stream_core_mon.u_stream_core/u_scheduler_group_array/gen_scheduler_groups[1].u_scheduler_group/u_descriptor_engine/i_descriptor_fifo/write_pointer_inst/counter_bin_curr_reg[0]/C
                             (rising edge-triggered cell FDRE clocked by sys_clk_pin  {rise@0.000ns fall@5.000ns period=10.000ns})
-  Destination:            u_harness/u_desc_ram/u_skid_r/g_slot[2].r_data_reg[2][167]/D
-                            (rising edge-triggered cell FDRE clocked by sys_clk_pin  {rise@0.000ns fall@5.000ns period=10.000ns})
+  Destination:            u_harness/u_stream/g_stream_core_mon.u_stream_core/u_scheduler_group_array/gen_scheduler_groups[1].u_scheduler_group/u_descriptor_engine/i_descriptor_fifo/gen_auto.mem_reg_0_7_168_173/RAMA/WADR0
+                            (rising edge-triggered cell RAMD32 clocked by sys_clk_pin  {rise@0.000ns fall@5.000ns period=10.000ns})
   Path Group:             sys_clk_pin
   Path Type:              Hold (Min at Fast Process Corner)
   Requirement:            0.000ns  (sys_clk_pin rise@0.000ns - sys_clk_pin rise@0.000ns)
-  Data Path Delay:        0.380ns  (logic 0.209ns (54.945%)  route 0.171ns (45.055%))
-  Logic Levels:           1  (LUT5=1)
-  Clock Path Skew:        0.262ns (DCD - SCD - CPR)
-    Destination Clock Delay (DCD):    1.987ns
-    Source Clock Delay      (SCD):    1.474ns
-    Clock Pessimism Removal (CPR):    0.250ns
+  Data Path Delay:        0.347ns  (logic 0.141ns (40.606%)  route 0.206ns (59.394%))
+  Logic Levels:           0  
+  Clock Path Skew:        0.013ns (DCD - SCD - CPR)
+    Destination Clock Delay (DCD):    2.071ns
+    Source Clock Delay      (SCD):    1.552ns
+    Clock Pessimism Removal (CPR):    0.506ns
 
     Location             Delay type                Incr(ns)  Path(ns)    Netlist Resource(s)
   -------------------------------------------------------------------    -------------------
@@ -328,14 +323,12 @@ Slack (MET) :             0.027ns  (arrival time - required time)
     E3                   IBUF (Prop_ibuf_I_O)         0.250     0.250 r  CLK100MHZ_IBUF_inst/O
                          net (fo=1, routed)           0.644     0.894    CLK100MHZ_IBUF
     BUFGCTRL_X0Y16       BUFG (Prop_bufg_I_O)         0.026     0.920 r  CLK100MHZ_IBUF_BUFG_inst/O
-                         net (fo=15757, routed)       0.555     1.474    u_harness/u_desc_ram/CLK100MHZ_IBUF_BUFG
-    SLICE_X50Y71         FDRE                                         r  u_harness/u_desc_ram/r_ar_data_reg[162]/C
+                         net (fo=15723, routed)       0.632     1.552    u_harness/u_stream/g_stream_core_mon.u_stream_core/u_scheduler_group_array/gen_scheduler_groups[1].u_scheduler_group/u_descriptor_engine/i_descriptor_fifo/write_pointer_inst/CLK100MHZ_IBUF_BUFG
+    SLICE_X51Y48         FDRE                                         r  u_harness/u_stream/g_stream_core_mon.u_stream_core/u_scheduler_group_array/gen_scheduler_groups[1].u_scheduler_group/u_descriptor_engine/i_descriptor_fifo/write_pointer_inst/counter_bin_curr_reg[0]/C
   -------------------------------------------------------------------    -------------------
-    SLICE_X50Y71         FDRE (Prop_fdre_C_Q)         0.164     1.638 r  u_harness/u_desc_ram/r_ar_data_reg[162]/Q
-                         net (fo=4, routed)           0.171     1.810    u_harness/u_desc_ram/u_skid_r/int4_r_pkt[35]
-    SLICE_X52Y71         LUT5 (Prop_lut5_I2_O)        0.045     1.855 r  u_harness/u_desc_ram/u_skid_r/g_slot[2].r_data[2][167]_i_1__0/O
-                         net (fo=1, routed)           0.000     1.855    u_harness/u_desc_ram/u_skid_r/g_slot[2].r_data[2][167]_i_1__0_n_0
-    SLICE_X52Y71         FDRE                                         r  u_harness/u_desc_ram/u_skid_r/g_slot[2].r_data_reg[2][167]/D
+    SLICE_X51Y48         FDRE (Prop_fdre_C_Q)         0.141     1.693 r  u_harness/u_stream/g_stream_core_mon.u_stream_core/u_scheduler_group_array/gen_scheduler_groups[1].u_scheduler_group/u_descriptor_engine/i_descriptor_fifo/write_pointer_inst/counter_bin_curr_reg[0]/Q
+                         net (fo=101, routed)         0.206     1.899    u_harness/u_stream/g_stream_core_mon.u_stream_core/u_scheduler_group_array/gen_scheduler_groups[1].u_scheduler_group/u_descriptor_engine/i_descriptor_fifo/gen_auto.mem_reg_0_7_168_173/ADDRD0
+    SLICE_X50Y48         RAMD32                                       r  u_harness/u_stream/g_stream_core_mon.u_stream_core/u_scheduler_group_array/gen_scheduler_groups[1].u_scheduler_group/u_descriptor_engine/i_descriptor_fifo/gen_auto.mem_reg_0_7_168_173/RAMA/WADR0
   -------------------------------------------------------------------    -------------------
 
                          (clock sys_clk_pin rise edge)
@@ -345,15 +338,16 @@ Slack (MET) :             0.027ns  (arrival time - required time)
     E3                   IBUF (Prop_ibuf_I_O)         0.438     0.438 r  CLK100MHZ_IBUF_inst/O
                          net (fo=1, routed)           0.699     1.136    CLK100MHZ_IBUF
     BUFGCTRL_X0Y16       BUFG (Prop_bufg_I_O)         0.029     1.165 r  CLK100MHZ_IBUF_BUFG_inst/O
-                         net (fo=15757, routed)       0.822     1.987    u_harness/u_desc_ram/u_skid_r/CLK100MHZ_IBUF_BUFG
-    SLICE_X52Y71         FDRE                                         r  u_harness/u_desc_ram/u_skid_r/g_slot[2].r_data_reg[2][167]/C
-                         clock pessimism             -0.250     1.736    
-    SLICE_X52Y71         FDRE (Hold_fdre_C_D)         0.091     1.827    u_harness/u_desc_ram/u_skid_r/g_slot[2].r_data_reg[2][167]
+                         net (fo=15723, routed)       0.906     2.071    u_harness/u_stream/g_stream_core_mon.u_stream_core/u_scheduler_group_array/gen_scheduler_groups[1].u_scheduler_group/u_descriptor_engine/i_descriptor_fifo/gen_auto.mem_reg_0_7_168_173/WCLK
+    SLICE_X50Y48         RAMD32                                       r  u_harness/u_stream/g_stream_core_mon.u_stream_core/u_scheduler_group_array/gen_scheduler_groups[1].u_scheduler_group/u_descriptor_engine/i_descriptor_fifo/gen_auto.mem_reg_0_7_168_173/RAMA/CLK
+                         clock pessimism             -0.506     1.565    
+    SLICE_X50Y48         RAMD32 (Hold_ramd32_CLK_WADR0)
+                                                      0.310     1.875    u_harness/u_stream/g_stream_core_mon.u_stream_core/u_scheduler_group_array/gen_scheduler_groups[1].u_scheduler_group/u_descriptor_engine/i_descriptor_fifo/gen_auto.mem_reg_0_7_168_173/RAMA
   -------------------------------------------------------------------
-                         required time                         -1.827    
-                         arrival time                           1.855    
+                         required time                         -1.875    
+                         arrival time                           1.899    
   -------------------------------------------------------------------
-                         slack                                  0.027    
+                         slack                                  0.024    
 
 
 
@@ -367,9 +361,9 @@ Period(ns):         10.000
 Sources:            { CLK100MHZ }
 
 Check Type        Corner  Lib Pin             Reference Pin  Required(ns)  Actual(ns)  Slack(ns)  Location      Pin
-Min Period        n/a     RAMB36E1/CLKARDCLK  n/a            2.944         10.000      7.056      RAMB36_X2Y3   u_harness/u_debug_sram/r_mem_reg_0/CLKARDCLK
-Low Pulse Width   Slow    RAMD64E/CLK         n/a            1.250         5.000       3.750      SLICE_X42Y73  u_harness/u_desc_ram/r_mem_reg_0_127_127_127/DP.HIGH/CLK
-High Pulse Width  Slow    RAMD64E/CLK         n/a            1.250         5.000       3.750      SLICE_X42Y73  u_harness/u_desc_ram/r_mem_reg_0_127_127_127/DP.HIGH/CLK
+Min Period        n/a     RAMB36E1/CLKARDCLK  n/a            2.944         10.000      7.056      RAMB36_X1Y1   u_harness/u_debug_sram/r_mem_reg_0/CLKARDCLK
+Low Pulse Width   Slow    RAMD64E/CLK         n/a            1.250         5.000       3.750      SLICE_X34Y58  u_harness/u_desc_ram/r_mem_reg_0_127_127_127/DP.HIGH/CLK
+High Pulse Width  Slow    RAMD64E/CLK         n/a            1.250         5.000       3.750      SLICE_X34Y58  u_harness/u_desc_ram/r_mem_reg_0_127_127_127/DP.HIGH/CLK
 
 
 
@@ -378,7 +372,7 @@ From Clock:  led_slow_clk
   To Clock:  led_slow_clk
 
 Setup :            0  Failing Endpoints,  Worst Slack  9999997.000ns,  Total Violation        0.000ns
-Hold  :            0  Failing Endpoints,  Worst Slack        0.152ns,  Total Violation        0.000ns
+Hold  :            0  Failing Endpoints,  Worst Slack        0.131ns,  Total Violation        0.000ns
 PW    :            0  Failing Endpoints,  Worst Slack  4999999.500ns,  Total Violation        0.000ns
 ---------------------------------------------------------------------------------------------------
 
@@ -388,16 +382,16 @@ Max Delay Paths
 Slack (MET) :             9999997.000ns  (required time - arrival time)
   Source:                 u_led_status_driver/r_slow_rst_sync_reg/C
                             (rising edge-triggered cell FDCE clocked by led_slow_clk  {rise@0.000ns fall@5000000.000ns period=10000000.000ns})
-  Destination:            u_led_status_driver/u_hs/r_dst_data_reg[11]/R
+  Destination:            u_led_status_driver/u_hs/r_dst_data_reg[10]/R
                             (rising edge-triggered cell FDRE clocked by led_slow_clk  {rise@0.000ns fall@5000000.000ns period=10000000.000ns})
   Path Group:             led_slow_clk
   Path Type:              Setup (Max at Slow Process Corner)
   Requirement:            10000000.000ns  (led_slow_clk rise@10000000.000ns - led_slow_clk rise@0.000ns)
-  Data Path Delay:        1.662ns  (logic 0.773ns (46.517%)  route 0.889ns (53.483%))
+  Data Path Delay:        2.533ns  (logic 0.718ns (28.350%)  route 1.815ns (71.650%))
   Logic Levels:           1  (LUT1=1)
-  Clock Path Skew:        -0.024ns (DCD - SCD + CPR)
-    Destination Clock Delay (DCD):    1.769ns = ( 10000002.000 - 10000000.000 ) 
-    Source Clock Delay      (SCD):    1.897ns
+  Clock Path Skew:        -0.019ns (DCD - SCD + CPR)
+    Destination Clock Delay (DCD):    1.762ns = ( 10000002.000 - 10000000.000 ) 
+    Source Clock Delay      (SCD):    1.885ns
     Clock Pessimism Removal (CPR):    0.104ns
   Clock Uncertainty:      0.035ns  ((TSJ^2 + TIJ^2)^1/2 + DJ) / 2 + PE
     Total System Jitter     (TSJ):    0.071ns
@@ -410,27 +404,27 @@ Slack (MET) :             9999997.000ns  (required time - arrival time)
                          (clock led_slow_clk rise edge)
                                                       0.000     0.000 r  
     BUFGCTRL_X0Y0        BUFG                         0.000     0.000 r  u_led_status_driver/u_slow_bufg/O
-                         net (fo=41, routed)          1.897     1.897    u_led_status_driver/slow_clk
-    SLICE_X2Y45          FDCE                                         r  u_led_status_driver/r_slow_rst_sync_reg/C
+                         net (fo=41, routed)          1.885     1.885    u_led_status_driver/slow_clk
+    SLICE_X0Y30          FDCE                                         r  u_led_status_driver/r_slow_rst_sync_reg/C
   -------------------------------------------------------------------    -------------------
-    SLICE_X2Y45          FDCE (Prop_fdce_C_Q)         0.478     2.375 f  u_led_status_driver/r_slow_rst_sync_reg/Q
-                         net (fo=2, routed)           0.181     2.556    u_led_status_driver/r_slow_rst_sync
-    SLICE_X2Y45          LUT1 (Prop_lut1_I0_O)        0.295     2.851 r  u_led_status_driver/r_req_sync[2]_i_1/O
-                         net (fo=38, routed)          0.708     3.559    u_led_status_driver/u_hs/r_ack_tog_reg_0
-    SLICE_X2Y47          FDRE                                         r  u_led_status_driver/u_hs/r_dst_data_reg[11]/R
+    SLICE_X0Y30          FDCE (Prop_fdce_C_Q)         0.419     2.304 f  u_led_status_driver/r_slow_rst_sync_reg/Q
+                         net (fo=2, routed)           0.651     2.955    u_led_status_driver/r_slow_rst_sync
+    SLICE_X0Y31          LUT1 (Prop_lut1_I0_O)        0.299     3.254 r  u_led_status_driver/r_req_sync[2]_i_1/O
+                         net (fo=38, routed)          1.164     4.418    u_led_status_driver/u_hs/r_ack_tog_reg_0
+    SLICE_X0Y34          FDRE                                         r  u_led_status_driver/u_hs/r_dst_data_reg[10]/R
   -------------------------------------------------------------------    -------------------
 
                          (clock led_slow_clk rise edge)
                                                   10000000.000 10000000.000 r  
     BUFGCTRL_X0Y0        BUFG                         0.000 10000000.000 r  u_led_status_driver/u_slow_bufg/O
-                         net (fo=41, routed)          1.769 10000002.000    u_led_status_driver/u_hs/slow_clk
-    SLICE_X2Y47          FDRE                                         r  u_led_status_driver/u_hs/r_dst_data_reg[11]/C
+                         net (fo=41, routed)          1.762 10000002.000    u_led_status_driver/u_hs/slow_clk
+    SLICE_X0Y34          FDRE                                         r  u_led_status_driver/u_hs/r_dst_data_reg[10]/C
                          clock pessimism              0.104 10000002.000    
                          clock uncertainty           -0.035 10000002.000    
-    SLICE_X2Y47          FDRE (Setup_fdre_C_R)       -0.524 10000001.000    u_led_status_driver/u_hs/r_dst_data_reg[11]
+    SLICE_X0Y34          FDRE (Setup_fdre_C_R)       -0.429 10000002.000    u_led_status_driver/u_hs/r_dst_data_reg[10]
   -------------------------------------------------------------------
-                         required time                      10000001.000    
-                         arrival time                          -3.559    
+                         required time                      10000002.000    
+                         arrival time                          -4.418    
   -------------------------------------------------------------------
                          slack                              9999997.000    
 
@@ -440,46 +434,46 @@ Slack (MET) :             9999997.000ns  (required time - arrival time)
 
 Min Delay Paths
 --------------------------------------------------------------------------------------
-Slack (MET) :             0.152ns  (arrival time - required time)
-  Source:                 u_led_status_driver/u_hs/r_dst_data_reg[10]/C
-                            (rising edge-triggered cell FDRE clocked by led_slow_clk  {rise@0.000ns fall@5000000.000ns period=10000000.000ns})
-  Destination:            u_led_status_driver/r_led_reg[10]/D
+Slack (MET) :             0.131ns  (arrival time - required time)
+  Source:                 u_led_status_driver/r_slow_rst_meta_reg/C
+                            (rising edge-triggered cell FDCE clocked by led_slow_clk  {rise@0.000ns fall@5000000.000ns period=10000000.000ns})
+  Destination:            u_led_status_driver/r_slow_rst_sync_reg/D
                             (rising edge-triggered cell FDCE clocked by led_slow_clk  {rise@0.000ns fall@5000000.000ns period=10000000.000ns})
   Path Group:             led_slow_clk
   Path Type:              Hold (Min at Fast Process Corner)
   Requirement:            0.000ns  (led_slow_clk rise@0.000ns - led_slow_clk rise@0.000ns)
-  Data Path Delay:        0.211ns  (logic 0.141ns (66.955%)  route 0.070ns (33.045%))
+  Data Path Delay:        0.206ns  (logic 0.141ns (68.336%)  route 0.065ns (31.664%))
   Logic Levels:           0  
-  Clock Path Skew:        0.013ns (DCD - SCD - CPR)
-    Destination Clock Delay (DCD):    0.946ns
-    Source Clock Delay      (SCD):    0.669ns
-    Clock Pessimism Removal (CPR):    0.263ns
+  Clock Path Skew:        0.000ns (DCD - SCD - CPR)
+    Destination Clock Delay (DCD):    0.935ns
+    Source Clock Delay      (SCD):    0.660ns
+    Clock Pessimism Removal (CPR):    0.274ns
 
     Location             Delay type                Incr(ns)  Path(ns)    Netlist Resource(s)
   -------------------------------------------------------------------    -------------------
                          (clock led_slow_clk rise edge)
                                                       0.000     0.000 r  
     BUFGCTRL_X0Y0        BUFG                         0.000     0.000 r  u_led_status_driver/u_slow_bufg/O
-                         net (fo=41, routed)          0.669     0.669    u_led_status_driver/u_hs/slow_clk
-    SLICE_X1Y47          FDRE                                         r  u_led_status_driver/u_hs/r_dst_data_reg[10]/C
+                         net (fo=41, routed)          0.660     0.660    u_led_status_driver/slow_clk
+    SLICE_X0Y30          FDCE                                         r  u_led_status_driver/r_slow_rst_meta_reg/C
   -------------------------------------------------------------------    -------------------
-    SLICE_X1Y47          FDRE (Prop_fdre_C_Q)         0.141     0.810 r  u_led_status_driver/u_hs/r_dst_data_reg[10]/Q
-                         net (fo=2, routed)           0.070     0.880    u_led_status_driver/w_dst_data[10]
-    SLICE_X0Y47          FDCE                                         r  u_led_status_driver/r_led_reg[10]/D
+    SLICE_X0Y30          FDCE (Prop_fdce_C_Q)         0.141     0.801 r  u_led_status_driver/r_slow_rst_meta_reg/Q
+                         net (fo=1, routed)           0.065     0.867    u_led_status_driver/r_slow_rst_meta
+    SLICE_X0Y30          FDCE                                         r  u_led_status_driver/r_slow_rst_sync_reg/D
   -------------------------------------------------------------------    -------------------
 
                          (clock led_slow_clk rise edge)
                                                       0.000     0.000 r  
     BUFGCTRL_X0Y0        BUFG                         0.000     0.000 r  u_led_status_driver/u_slow_bufg/O
-                         net (fo=41, routed)          0.946     0.946    u_led_status_driver/slow_clk
-    SLICE_X0Y47          FDCE                                         r  u_led_status_driver/r_led_reg[10]/C
-                         clock pessimism             -0.263     0.682    
-    SLICE_X0Y47          FDCE (Hold_fdce_C_D)         0.046     0.728    u_led_status_driver/r_led_reg[10]
+                         net (fo=41, routed)          0.935     0.935    u_led_status_driver/slow_clk
+    SLICE_X0Y30          FDCE                                         r  u_led_status_driver/r_slow_rst_sync_reg/C
+                         clock pessimism             -0.274     0.660    
+    SLICE_X0Y30          FDCE (Hold_fdce_C_D)         0.075     0.735    u_led_status_driver/r_slow_rst_sync_reg
   -------------------------------------------------------------------
-                         required time                         -0.728    
-                         arrival time                           0.880    
+                         required time                         -0.735    
+                         arrival time                           0.867    
   -------------------------------------------------------------------
-                         slack                                  0.152    
+                         slack                                  0.131    
 
 
 
@@ -493,9 +487,9 @@ Period(ns):         10000000.000
 Sources:            { u_led_status_driver/u_slow_bufg/O }
 
 Check Type        Corner  Lib Pin  Reference Pin  Required(ns)  Actual(ns)   Slack(ns)    Location     Pin
-Min Period        n/a     FDCE/C   n/a            1.000         9999999.776  9999998.845  SLICE_X0Y46  u_led_status_driver/r_led_reg[0]/C
-Low Pulse Width   Slow    FDCE/C   n/a            0.500         4999999.888  4999999.423  SLICE_X0Y46  u_led_status_driver/r_led_reg[0]/C
-High Pulse Width  Slow    FDCE/C   n/a            0.500         4999999.888  4999999.423  SLICE_X0Y46  u_led_status_driver/r_led_reg[0]/C
+Min Period        n/a     FDCE/C   n/a            1.000         9999999.776  9999998.845  SLICE_X0Y35  u_led_status_driver/r_led_reg[0]/C
+Low Pulse Width   Slow    FDCE/C   n/a            0.500         4999999.888  4999999.423  SLICE_X0Y35  u_led_status_driver/r_led_reg[0]/C
+High Pulse Width  Slow    FDCE/C   n/a            0.500         4999999.888  4999999.423  SLICE_X0Y35  u_led_status_driver/r_led_reg[0]/C
 
 
 
@@ -504,26 +498,26 @@ Path Group:  **async_default**
 From Clock:  led_slow_clk
   To Clock:  led_slow_clk
 
-Setup :            0  Failing Endpoints,  Worst Slack  9999998.000ns,  Total Violation        0.000ns
-Hold  :            0  Failing Endpoints,  Worst Slack        0.621ns,  Total Violation        0.000ns
+Setup :            0  Failing Endpoints,  Worst Slack  9999997.000ns,  Total Violation        0.000ns
+Hold  :            0  Failing Endpoints,  Worst Slack        0.969ns,  Total Violation        0.000ns
 ---------------------------------------------------------------------------------------------------
 
 
 Max Delay Paths
 --------------------------------------------------------------------------------------
-Slack (MET) :             9999998.000ns  (required time - arrival time)
+Slack (MET) :             9999997.000ns  (required time - arrival time)
   Source:                 u_led_status_driver/r_slow_rst_sync_reg/C
                             (rising edge-triggered cell FDCE clocked by led_slow_clk  {rise@0.000ns fall@5000000.000ns period=10000000.000ns})
-  Destination:            u_led_status_driver/r_led_reg[0]/CLR
+  Destination:            u_led_status_driver/r_led_reg[12]/CLR
                             (recovery check against rising-edge clock led_slow_clk  {rise@0.000ns fall@5000000.000ns period=10000000.000ns})
   Path Group:             **async_default**
   Path Type:              Recovery (Max at Slow Process Corner)
   Requirement:            10000000.000ns  (led_slow_clk rise@10000000.000ns - led_slow_clk rise@0.000ns)
-  Data Path Delay:        1.493ns  (logic 0.773ns (51.789%)  route 0.720ns (48.211%))
+  Data Path Delay:        2.394ns  (logic 0.718ns (29.989%)  route 1.676ns (70.011%))
   Logic Levels:           1  (LUT1=1)
-  Clock Path Skew:        -0.025ns (DCD - SCD + CPR)
-    Destination Clock Delay (DCD):    1.768ns = ( 10000002.000 - 10000000.000 ) 
-    Source Clock Delay      (SCD):    1.897ns
+  Clock Path Skew:        -0.020ns (DCD - SCD + CPR)
+    Destination Clock Delay (DCD):    1.761ns = ( 10000002.000 - 10000000.000 ) 
+    Source Clock Delay      (SCD):    1.885ns
     Clock Pessimism Removal (CPR):    0.104ns
   Clock Uncertainty:      0.035ns  ((TSJ^2 + TIJ^2)^1/2 + DJ) / 2 + PE
     Total System Jitter     (TSJ):    0.071ns
@@ -536,29 +530,29 @@ Slack (MET) :             9999998.000ns  (required time - arrival time)
                          (clock led_slow_clk rise edge)
                                                       0.000     0.000 r  
     BUFGCTRL_X0Y0        BUFG                         0.000     0.000 r  u_led_status_driver/u_slow_bufg/O
-                         net (fo=41, routed)          1.897     1.897    u_led_status_driver/slow_clk
-    SLICE_X2Y45          FDCE                                         r  u_led_status_driver/r_slow_rst_sync_reg/C
+                         net (fo=41, routed)          1.885     1.885    u_led_status_driver/slow_clk
+    SLICE_X0Y30          FDCE                                         r  u_led_status_driver/r_slow_rst_sync_reg/C
   -------------------------------------------------------------------    -------------------
-    SLICE_X2Y45          FDCE (Prop_fdce_C_Q)         0.478     2.375 r  u_led_status_driver/r_slow_rst_sync_reg/Q
-                         net (fo=2, routed)           0.181     2.556    u_led_status_driver/r_slow_rst_sync
-    SLICE_X2Y45          LUT1 (Prop_lut1_I0_O)        0.295     2.851 f  u_led_status_driver/r_req_sync[2]_i_1/O
-                         net (fo=38, routed)          0.539     3.390    u_led_status_driver/r_req_sync[2]_i_1_n_0
-    SLICE_X0Y46          FDCE                                         f  u_led_status_driver/r_led_reg[0]/CLR
+    SLICE_X0Y30          FDCE (Prop_fdce_C_Q)         0.419     2.304 r  u_led_status_driver/r_slow_rst_sync_reg/Q
+                         net (fo=2, routed)           0.651     2.955    u_led_status_driver/r_slow_rst_sync
+    SLICE_X0Y31          LUT1 (Prop_lut1_I0_O)        0.299     3.254 f  u_led_status_driver/r_req_sync[2]_i_1/O
+                         net (fo=38, routed)          1.025     4.280    u_led_status_driver/r_req_sync[2]_i_1_n_0
+    SLICE_X0Y33          FDCE                                         f  u_led_status_driver/r_led_reg[12]/CLR
   -------------------------------------------------------------------    -------------------
 
                          (clock led_slow_clk rise edge)
                                                   10000000.000 10000000.000 r  
     BUFGCTRL_X0Y0        BUFG                         0.000 10000000.000 r  u_led_status_driver/u_slow_bufg/O
-                         net (fo=41, routed)          1.768 10000002.000    u_led_status_driver/slow_clk
-    SLICE_X0Y46          FDCE                                         r  u_led_status_driver/r_led_reg[0]/C
+                         net (fo=41, routed)          1.761 10000002.000    u_led_status_driver/slow_clk
+    SLICE_X0Y33          FDCE                                         r  u_led_status_driver/r_led_reg[12]/C
                          clock pessimism              0.104 10000002.000    
                          clock uncertainty           -0.035 10000002.000    
-    SLICE_X0Y46          FDCE (Recov_fdce_C_CLR)     -0.405 10000002.000    u_led_status_driver/r_led_reg[0]
+    SLICE_X0Y33          FDCE (Recov_fdce_C_CLR)     -0.405 10000002.000    u_led_status_driver/r_led_reg[12]
   -------------------------------------------------------------------
                          required time                      10000002.000    
-                         arrival time                          -3.390    
+                         arrival time                          -4.280    
   -------------------------------------------------------------------
-                         slack                              9999998.000    
+                         slack                              9999997.000    
 
 
 
@@ -566,7 +560,7 @@ Slack (MET) :             9999998.000ns  (required time - arrival time)
 
 Min Delay Paths
 --------------------------------------------------------------------------------------
-Slack (MET) :             0.621ns  (arrival time - required time)
+Slack (MET) :             0.969ns  (arrival time - required time)
   Source:                 u_led_status_driver/r_slow_rst_sync_reg/C
                             (rising edge-triggered cell FDCE clocked by led_slow_clk  {rise@0.000ns fall@5000000.000ns period=10000000.000ns})
   Destination:            u_led_status_driver/r_led_reg[0]/CLR
@@ -574,11 +568,11 @@ Slack (MET) :             0.621ns  (arrival time - required time)
   Path Group:             **async_default**
   Path Type:              Removal (Min at Fast Process Corner)
   Requirement:            0.000ns  (led_slow_clk rise@0.000ns - led_slow_clk rise@0.000ns)
-  Data Path Delay:        0.545ns  (logic 0.246ns (45.170%)  route 0.299ns (54.830%))
+  Data Path Delay:        0.896ns  (logic 0.227ns (25.324%)  route 0.669ns (74.676%))
   Logic Levels:           1  (LUT1=1)
-  Clock Path Skew:        0.016ns (DCD - SCD - CPR)
-    Destination Clock Delay (DCD):    0.945ns
-    Source Clock Delay      (SCD):    0.668ns
+  Clock Path Skew:        0.019ns (DCD - SCD - CPR)
+    Destination Clock Delay (DCD):    0.940ns
+    Source Clock Delay      (SCD):    0.660ns
     Clock Pessimism Removal (CPR):    0.260ns
 
     Location             Delay type                Incr(ns)  Path(ns)    Netlist Resource(s)
@@ -586,28 +580,28 @@ Slack (MET) :             0.621ns  (arrival time - required time)
                          (clock led_slow_clk rise edge)
                                                       0.000     0.000 r  
     BUFGCTRL_X0Y0        BUFG                         0.000     0.000 r  u_led_status_driver/u_slow_bufg/O
-                         net (fo=41, routed)          0.668     0.668    u_led_status_driver/slow_clk
-    SLICE_X2Y45          FDCE                                         r  u_led_status_driver/r_slow_rst_sync_reg/C
+                         net (fo=41, routed)          0.660     0.660    u_led_status_driver/slow_clk
+    SLICE_X0Y30          FDCE                                         r  u_led_status_driver/r_slow_rst_sync_reg/C
   -------------------------------------------------------------------    -------------------
-    SLICE_X2Y45          FDCE (Prop_fdce_C_Q)         0.148     0.816 r  u_led_status_driver/r_slow_rst_sync_reg/Q
-                         net (fo=2, routed)           0.073     0.889    u_led_status_driver/r_slow_rst_sync
-    SLICE_X2Y45          LUT1 (Prop_lut1_I0_O)        0.098     0.987 f  u_led_status_driver/r_req_sync[2]_i_1/O
-                         net (fo=38, routed)          0.226     1.213    u_led_status_driver/r_req_sync[2]_i_1_n_0
-    SLICE_X0Y46          FDCE                                         f  u_led_status_driver/r_led_reg[0]/CLR
+    SLICE_X0Y30          FDCE (Prop_fdce_C_Q)         0.128     0.788 r  u_led_status_driver/r_slow_rst_sync_reg/Q
+                         net (fo=2, routed)           0.225     1.013    u_led_status_driver/r_slow_rst_sync
+    SLICE_X0Y31          LUT1 (Prop_lut1_I0_O)        0.099     1.112 f  u_led_status_driver/r_req_sync[2]_i_1/O
+                         net (fo=38, routed)          0.445     1.557    u_led_status_driver/r_req_sync[2]_i_1_n_0
+    SLICE_X0Y35          FDCE                                         f  u_led_status_driver/r_led_reg[0]/CLR
   -------------------------------------------------------------------    -------------------
 
                          (clock led_slow_clk rise edge)
                                                       0.000     0.000 r  
     BUFGCTRL_X0Y0        BUFG                         0.000     0.000 r  u_led_status_driver/u_slow_bufg/O
-                         net (fo=41, routed)          0.945     0.945    u_led_status_driver/slow_clk
-    SLICE_X0Y46          FDCE                                         r  u_led_status_driver/r_led_reg[0]/C
-                         clock pessimism             -0.260     0.684    
-    SLICE_X0Y46          FDCE (Remov_fdce_C_CLR)     -0.092     0.592    u_led_status_driver/r_led_reg[0]
+                         net (fo=41, routed)          0.940     0.940    u_led_status_driver/slow_clk
+    SLICE_X0Y35          FDCE                                         r  u_led_status_driver/r_led_reg[0]/C
+                         clock pessimism             -0.260     0.679    
+    SLICE_X0Y35          FDCE (Remov_fdce_C_CLR)     -0.092     0.587    u_led_status_driver/r_led_reg[0]
   -------------------------------------------------------------------
-                         required time                         -0.592    
-                         arrival time                           1.213    
+                         required time                         -0.587    
+                         arrival time                           1.557    
   -------------------------------------------------------------------
-                         slack                                  0.621    
+                         slack                                  0.969    
 
 
 
@@ -618,14 +612,14 @@ Path Group:  **async_default**
 From Clock:  sys_clk_pin
   To Clock:  sys_clk_pin
 
-Setup :            0  Failing Endpoints,  Worst Slack       15.123ns,  Total Violation        0.000ns
-Hold  :            0  Failing Endpoints,  Worst Slack        1.879ns,  Total Violation        0.000ns
+Setup :            0  Failing Endpoints,  Worst Slack       15.545ns,  Total Violation        0.000ns
+Hold  :            0  Failing Endpoints,  Worst Slack        1.668ns,  Total Violation        0.000ns
 ---------------------------------------------------------------------------------------------------
 
 
 Max Delay Paths
 --------------------------------------------------------------------------------------
-Slack (MET) :             15.123ns  (required time - arrival time)
+Slack (MET) :             15.545ns  (required time - arrival time)
   Source:                 u_harness/u_stream/u_stream_regs/field_storage_reg[PERF_CONFIG][PERF_CLEAR][value]/C
                             (rising edge-triggered cell FDRE clocked by sys_clk_pin  {rise@0.000ns fall@5.000ns period=10.000ns})
   Destination:            u_harness/u_stream/g_stream_core_mon.u_stream_core/u_perf_profiler/u_perf_fifo/fifo_control_inst/wr_full_reg/CLR
@@ -633,11 +627,11 @@ Slack (MET) :             15.123ns  (required time - arrival time)
   Path Group:             **async_default**
   Path Type:              Recovery (Max at Slow Process Corner)
   Requirement:            20.000ns  (sys_clk_pin rise@20.000ns - sys_clk_pin rise@0.000ns)
-  Data Path Delay:        4.387ns  (logic 0.580ns (13.219%)  route 3.807ns (86.781%))
+  Data Path Delay:        3.765ns  (logic 0.605ns (16.069%)  route 3.160ns (83.931%))
   Logic Levels:           1  (LUT2=1)
-  Clock Path Skew:        -0.049ns (DCD - SCD + CPR)
-    Destination Clock Delay (DCD):    5.088ns = ( 15.088 - 10.000 ) 
-    Source Clock Delay      (SCD):    5.405ns
+  Clock Path Skew:        -0.042ns (DCD - SCD + CPR)
+    Destination Clock Delay (DCD):    5.090ns = ( 15.090 - 10.000 ) 
+    Source Clock Delay      (SCD):    5.400ns
     Clock Pessimism Removal (CPR):    0.267ns
   Clock Uncertainty:      0.035ns  ((TSJ^2 + TIJ^2)^1/2 + DJ) / 2 + PE
     Total System Jitter     (TSJ):    0.071ns
@@ -655,14 +649,14 @@ Slack (MET) :             15.123ns  (required time - arrival time)
     E3                   IBUF (Prop_ibuf_I_O)         1.482     1.482 r  CLK100MHZ_IBUF_inst/O
                          net (fo=1, routed)           2.025     3.506    CLK100MHZ_IBUF
     BUFGCTRL_X0Y16       BUFG (Prop_bufg_I_O)         0.096     3.602 r  CLK100MHZ_IBUF_BUFG_inst/O
-                         net (fo=15757, routed)       1.802     5.405    u_harness/u_stream/u_stream_regs/CLK100MHZ_IBUF_BUFG
-    SLICE_X69Y37         FDRE                                         r  u_harness/u_stream/u_stream_regs/field_storage_reg[PERF_CONFIG][PERF_CLEAR][value]/C
+                         net (fo=15723, routed)       1.797     5.400    u_harness/u_stream/u_stream_regs/CLK100MHZ_IBUF_BUFG
+    SLICE_X65Y32         FDRE                                         r  u_harness/u_stream/u_stream_regs/field_storage_reg[PERF_CONFIG][PERF_CLEAR][value]/C
   -------------------------------------------------------------------    -------------------
-    SLICE_X69Y37         FDRE (Prop_fdre_C_Q)         0.456     5.861 f  u_harness/u_stream/u_stream_regs/field_storage_reg[PERF_CONFIG][PERF_CLEAR][value]/Q
-                         net (fo=4, routed)           1.026     6.886    u_harness/u_stream/u_stream_regs/cfg_perf_clear
-    SLICE_X72Y38         LUT2 (Prop_lut2_I0_O)        0.124     7.010 f  u_harness/u_stream/u_stream_regs/counter_bin_curr[8]_i_1__12/O
-                         net (fo=181, routed)         2.782     9.792    u_harness/u_stream/g_stream_core_mon.u_stream_core/u_perf_profiler/u_perf_fifo/fifo_control_inst/r_start_time
-    SLICE_X67Y29         FDCE                                         f  u_harness/u_stream/g_stream_core_mon.u_stream_core/u_perf_profiler/u_perf_fifo/fifo_control_inst/wr_full_reg/CLR
+    SLICE_X65Y32         FDRE (Prop_fdre_C_Q)         0.456     5.856 f  u_harness/u_stream/u_stream_regs/field_storage_reg[PERF_CONFIG][PERF_CLEAR][value]/Q
+                         net (fo=4, routed)           1.791     7.647    u_harness/u_stream/u_stream_regs/cfg_perf_clear
+    SLICE_X61Y14         LUT2 (Prop_lut2_I0_O)        0.149     7.796 f  u_harness/u_stream/u_stream_regs/counter_bin_curr[8]_i_1__12/O
+                         net (fo=181, routed)         1.369     9.165    u_harness/u_stream/g_stream_core_mon.u_stream_core/u_perf_profiler/u_perf_fifo/fifo_control_inst/r_start_time
+    SLICE_X59Y15         FDCE                                         f  u_harness/u_stream/g_stream_core_mon.u_stream_core/u_perf_profiler/u_perf_fifo/fifo_control_inst/wr_full_reg/CLR
   -------------------------------------------------------------------    -------------------
 
                          (clock sys_clk_pin rise edge)
@@ -672,16 +666,16 @@ Slack (MET) :             15.123ns  (required time - arrival time)
     E3                   IBUF (Prop_ibuf_I_O)         1.411    21.411 r  CLK100MHZ_IBUF_inst/O
                          net (fo=1, routed)           1.920    23.331    CLK100MHZ_IBUF
     BUFGCTRL_X0Y16       BUFG (Prop_bufg_I_O)         0.091    23.422 r  CLK100MHZ_IBUF_BUFG_inst/O
-                         net (fo=15757, routed)       1.666    25.088    u_harness/u_stream/g_stream_core_mon.u_stream_core/u_perf_profiler/u_perf_fifo/fifo_control_inst/CLK100MHZ_IBUF_BUFG
-    SLICE_X67Y29         FDCE                                         r  u_harness/u_stream/g_stream_core_mon.u_stream_core/u_perf_profiler/u_perf_fifo/fifo_control_inst/wr_full_reg/C
-                         clock pessimism              0.267    25.356    
-                         clock uncertainty           -0.035    25.320    
-    SLICE_X67Y29         FDCE (Recov_fdce_C_CLR)     -0.405    24.915    u_harness/u_stream/g_stream_core_mon.u_stream_core/u_perf_profiler/u_perf_fifo/fifo_control_inst/wr_full_reg
+                         net (fo=15723, routed)       1.668    25.090    u_harness/u_stream/g_stream_core_mon.u_stream_core/u_perf_profiler/u_perf_fifo/fifo_control_inst/CLK100MHZ_IBUF_BUFG
+    SLICE_X59Y15         FDCE                                         r  u_harness/u_stream/g_stream_core_mon.u_stream_core/u_perf_profiler/u_perf_fifo/fifo_control_inst/wr_full_reg/C
+                         clock pessimism              0.267    25.358    
+                         clock uncertainty           -0.035    25.322    
+    SLICE_X59Y15         FDCE (Recov_fdce_C_CLR)     -0.613    24.709    u_harness/u_stream/g_stream_core_mon.u_stream_core/u_perf_profiler/u_perf_fifo/fifo_control_inst/wr_full_reg
   -------------------------------------------------------------------
-                         required time                         24.915    
-                         arrival time                          -9.792    
+                         required time                         24.709    
+                         arrival time                          -9.165    
   -------------------------------------------------------------------
-                         slack                                 15.123    
+                         slack                                 15.545    
 
 
 
@@ -689,7 +683,7 @@ Slack (MET) :             15.123ns  (required time - arrival time)
 
 Min Delay Paths
 --------------------------------------------------------------------------------------
-Slack (MET) :             1.879ns  (arrival time - required time)
+Slack (MET) :             1.668ns  (arrival time - required time)
   Source:                 u_harness/u_stream/u_stream_regs/field_storage_reg[PERF_CONFIG][PERF_CLEAR][value]/C
                             (rising edge-triggered cell FDRE clocked by sys_clk_pin  {rise@0.000ns fall@5.000ns period=10.000ns})
   Destination:            u_harness/u_stream/g_stream_core_mon.u_stream_core/u_perf_profiler/u_perf_fifo/fifo_control_inst/wr_full_reg/CLR
@@ -697,11 +691,11 @@ Slack (MET) :             1.879ns  (arrival time - required time)
   Path Group:             **async_default**
   Path Type:              Removal (Min at Fast Process Corner)
   Requirement:            0.000ns  (sys_clk_pin rise@10.000ns - sys_clk_pin rise@10.000ns)
-  Data Path Delay:        1.817ns  (logic 0.186ns (10.234%)  route 1.631ns (89.766%))
+  Data Path Delay:        1.544ns  (logic 0.185ns (11.982%)  route 1.359ns (88.018%))
   Logic Levels:           1  (LUT2=1)
-  Clock Path Skew:        0.030ns (DCD - SCD - CPR)
-    Destination Clock Delay (DCD):    2.064ns
-    Source Clock Delay      (SCD):    1.551ns
+  Clock Path Skew:        0.035ns (DCD - SCD - CPR)
+    Destination Clock Delay (DCD):    2.066ns
+    Source Clock Delay      (SCD):    1.548ns
     Clock Pessimism Removal (CPR):    0.483ns
   Timing Exception:       MultiCycle Path   Setup -end   2    Hold  -start 1
 
@@ -714,14 +708,14 @@ Slack (MET) :             1.879ns  (arrival time - required time)
     E3                   IBUF (Prop_ibuf_I_O)         0.250    10.250 r  CLK100MHZ_IBUF_inst/O
                          net (fo=1, routed)           0.644    10.894    CLK100MHZ_IBUF
     BUFGCTRL_X0Y16       BUFG (Prop_bufg_I_O)         0.026    10.920 r  CLK100MHZ_IBUF_BUFG_inst/O
-                         net (fo=15757, routed)       0.631    11.551    u_harness/u_stream/u_stream_regs/CLK100MHZ_IBUF_BUFG
-    SLICE_X69Y37         FDRE                                         r  u_harness/u_stream/u_stream_regs/field_storage_reg[PERF_CONFIG][PERF_CLEAR][value]/C
+                         net (fo=15723, routed)       0.628    11.548    u_harness/u_stream/u_stream_regs/CLK100MHZ_IBUF_BUFG
+    SLICE_X65Y32         FDRE                                         r  u_harness/u_stream/u_stream_regs/field_storage_reg[PERF_CONFIG][PERF_CLEAR][value]/C
   -------------------------------------------------------------------    -------------------
-    SLICE_X69Y37         FDRE (Prop_fdre_C_Q)         0.141    11.692 f  u_harness/u_stream/u_stream_regs/field_storage_reg[PERF_CONFIG][PERF_CLEAR][value]/Q
-                         net (fo=4, routed)           0.409    12.101    u_harness/u_stream/u_stream_regs/cfg_perf_clear
-    SLICE_X72Y38         LUT2 (Prop_lut2_I0_O)        0.045    12.146 f  u_harness/u_stream/u_stream_regs/counter_bin_curr[8]_i_1__12/O
-                         net (fo=181, routed)         1.223    13.368    u_harness/u_stream/g_stream_core_mon.u_stream_core/u_perf_profiler/u_perf_fifo/fifo_control_inst/r_start_time
-    SLICE_X67Y29         FDCE                                         f  u_harness/u_stream/g_stream_core_mon.u_stream_core/u_perf_profiler/u_perf_fifo/fifo_control_inst/wr_full_reg/CLR
+    SLICE_X65Y32         FDRE (Prop_fdre_C_Q)         0.141    11.689 f  u_harness/u_stream/u_stream_regs/field_storage_reg[PERF_CONFIG][PERF_CLEAR][value]/Q
+                         net (fo=4, routed)           0.754    12.443    u_harness/u_stream/u_stream_regs/cfg_perf_clear
+    SLICE_X61Y14         LUT2 (Prop_lut2_I0_O)        0.044    12.487 f  u_harness/u_stream/u_stream_regs/counter_bin_curr[8]_i_1__12/O
+                         net (fo=181, routed)         0.605    13.092    u_harness/u_stream/g_stream_core_mon.u_stream_core/u_perf_profiler/u_perf_fifo/fifo_control_inst/r_start_time
+    SLICE_X59Y15         FDCE                                         f  u_harness/u_stream/g_stream_core_mon.u_stream_core/u_perf_profiler/u_perf_fifo/fifo_control_inst/wr_full_reg/CLR
   -------------------------------------------------------------------    -------------------
 
                          (clock sys_clk_pin rise edge)
@@ -731,15 +725,15 @@ Slack (MET) :             1.879ns  (arrival time - required time)
     E3                   IBUF (Prop_ibuf_I_O)         0.438    10.438 r  CLK100MHZ_IBUF_inst/O
                          net (fo=1, routed)           0.699    11.136    CLK100MHZ_IBUF
     BUFGCTRL_X0Y16       BUFG (Prop_bufg_I_O)         0.029    11.165 r  CLK100MHZ_IBUF_BUFG_inst/O
-                         net (fo=15757, routed)       0.899    12.064    u_harness/u_stream/g_stream_core_mon.u_stream_core/u_perf_profiler/u_perf_fifo/fifo_control_inst/CLK100MHZ_IBUF_BUFG
-    SLICE_X67Y29         FDCE                                         r  u_harness/u_stream/g_stream_core_mon.u_stream_core/u_perf_profiler/u_perf_fifo/fifo_control_inst/wr_full_reg/C
-                         clock pessimism             -0.483    11.581    
-    SLICE_X67Y29         FDCE (Remov_fdce_C_CLR)     -0.092    11.489    u_harness/u_stream/g_stream_core_mon.u_stream_core/u_perf_profiler/u_perf_fifo/fifo_control_inst/wr_full_reg
+                         net (fo=15723, routed)       0.901    12.066    u_harness/u_stream/g_stream_core_mon.u_stream_core/u_perf_profiler/u_perf_fifo/fifo_control_inst/CLK100MHZ_IBUF_BUFG
+    SLICE_X59Y15         FDCE                                         r  u_harness/u_stream/g_stream_core_mon.u_stream_core/u_perf_profiler/u_perf_fifo/fifo_control_inst/wr_full_reg/C
+                         clock pessimism             -0.483    11.583    
+    SLICE_X59Y15         FDCE (Remov_fdce_C_CLR)     -0.159    11.424    u_harness/u_stream/g_stream_core_mon.u_stream_core/u_perf_profiler/u_perf_fifo/fifo_control_inst/wr_full_reg
   -------------------------------------------------------------------
-                         required time                        -11.489    
-                         arrival time                          13.368    
+                         required time                        -11.424    
+                         arrival time                          13.092    
   -------------------------------------------------------------------
-                         slack                                  1.879    
+                         slack                                  1.668    
 
 
 

@@ -1,7 +1,7 @@
 Copyright 1986-2022 Xilinx, Inc. All Rights Reserved. Copyright 2022-2025 Advanced Micro Devices, Inc. All Rights Reserved.
 --------------------------------------------------------------------------------------------------------------------------------------------------------
 | Tool Version : Vivado v.2025.1 (lin64) Build 6140274 Wed May 21 22:58:25 MDT 2025
-| Date         : Tue Apr 28 16:22:21 2026
+| Date         : Tue Apr 28 17:46:12 2026
 | Host         : amdtrp running 64-bit Ubuntu 24.04.4 LTS
 | Command      : report_clock_interaction -file /mnt/data/github/RTLDesignSherpa/projects/NexysA7/stream_characterization/reports/clock_interaction.txt
 | Design       : stream_char_top
@@ -21,6 +21,6 @@ From Clock    To Clock      Clock Edges      WNS(ns)  TNS(ns)    Endpoints    En
 led_slow_clk  led_slow_clk  rise - rise   9999997.00     0.00            0          109      10000000.00  Clean                Timed                
 led_slow_clk  sys_clk_pin                                                0           17                   Ignored              Asynchronous Groups  
 sys_clk_pin   led_slow_clk                                               0           14                   Ignored              Asynchronous Groups  
-sys_clk_pin   sys_clk_pin   rise - rise         0.07     0.00            0        46327            10.00  Clean                Partial False Path   
+sys_clk_pin   sys_clk_pin   rise - rise        -0.02    -0.03            2        46224            10.00  Clean                Partial False Path   
 
 
