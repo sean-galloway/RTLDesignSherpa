@@ -1,5 +1,5 @@
 # Filelist for stream_char_harness (full characterization integration)
-# Location: projects/NexysA7/flows-stream-bridge/rtl/filelists/stream_char_harness.f
+# Location: projects/NexysA7/stream_characterization/flows-stream-bridge/rtl/filelists/stream_char_harness.f
 
 # Include directories
 +incdir+$REPO_ROOT/rtl/amba/includes

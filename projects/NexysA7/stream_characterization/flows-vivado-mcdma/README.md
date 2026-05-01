@@ -64,14 +64,14 @@ flows-vivado-mcdma/
 
 ## Vivado IP source of truth
 
-`projects/NexysA7/rtl-vivado/axi_mcdma_0/` — committed `.xci` and
+`projects/NexysA7/stream_characterization/rtl-vivado/axi_mcdma_0/` — committed `.xci` and
 generated synth/sim products. `tcl/create_project.tcl` imports the
 `.xci` so the generated wrapper is rebuilt on each clean run.
 
 ## Running
 
 ```bash
-cd projects/NexysA7/flows-vivado-mcdma
+cd projects/NexysA7/stream_characterization/flows-vivado-mcdma
 make project        # creates the Vivado project; fast (~30 s)
 make synth          # synth-only check; ~2-3 min
 make bitstream      # full P&R; ~10-30 min

@@ -20,7 +20,7 @@ import sys
 HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, HERE)
 sys.path.insert(0, os.path.abspath(os.path.join(
-    HERE, "../../../components/converters/bin")))
+    HERE, "../../../../components/converters/bin")))
 
 from uart_axi_bridge import UARTAxiBridge  # noqa: E402
 

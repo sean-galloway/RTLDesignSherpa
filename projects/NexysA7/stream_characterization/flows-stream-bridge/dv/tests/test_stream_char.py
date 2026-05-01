@@ -41,7 +41,7 @@ sys.path.insert(0, repo_root)
 # shell paths and FPGA tooling conventions, so it is not a valid Python package.
 # Inject the flow's `dv/` directly into sys.path and import the tbclasses module
 # unqualified.
-_flow_dv = os.path.join(repo_root, "projects/NexysA7/flows-stream-bridge/dv")
+_flow_dv = os.path.join(repo_root, "projects/NexysA7/stream_characterization/flows-stream-bridge/dv")
 if _flow_dv not in sys.path:
     sys.path.insert(0, _flow_dv)
 
@@ -172,7 +172,7 @@ def test_stream_char(request, test_type, test_level):
     enable_waves = bool(int(os.environ.get('WAVES', '0')))
     """Pytest wrapper for stream characterization harness tests."""
     module, repo_root_path, tests_dir, log_dir, rtl_dict = get_paths({
-        'stream_char': 'projects/NexysA7/flows-stream-bridge',
+        'stream_char': 'projects/NexysA7/stream_characterization/flows-stream-bridge',
     })
 
     dut_name = "stream_char_harness"
@@ -182,12 +182,12 @@ def test_stream_char(request, test_type, test_level):
     os.environ['STREAM_ROOT'] = os.path.join(repo_root_path, 'projects/components/stream')
     os.environ['CONVERTERS_ROOT'] = os.path.join(repo_root_path, 'projects/components/converters')
     os.environ['MISC_ROOT'] = os.path.join(repo_root_path, 'projects/components/misc')
-    os.environ['STREAM_CHAR_ROOT'] = os.path.join(repo_root_path, 'projects/NexysA7/flows-stream-bridge')
-    os.environ['FRAMEWORK_ROOT'] = os.path.join(repo_root_path, 'projects/NexysA7/stream_char_framework')
+    os.environ['STREAM_CHAR_ROOT'] = os.path.join(repo_root_path, 'projects/NexysA7/stream_characterization/flows-stream-bridge')
+    os.environ['FRAMEWORK_ROOT'] = os.path.join(repo_root_path, 'projects/NexysA7/stream_characterization/stream_char_framework')
 
     verilog_sources, includes = get_sources_from_filelist(
         repo_root=repo_root_path,
-        filelist_path='projects/NexysA7/flows-stream-bridge/rtl/filelists/stream_char_harness.f',
+        filelist_path='projects/NexysA7/stream_characterization/flows-stream-bridge/rtl/filelists/stream_char_harness.f',
     )
 
     reg_level = os.environ.get("REG_LEVEL", "FUNC").upper()

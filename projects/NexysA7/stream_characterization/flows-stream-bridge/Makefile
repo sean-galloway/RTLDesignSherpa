@@ -15,14 +15,19 @@
 #==============================================================================
 
 # ---- Layout ---------------------------------------------------------------
-# Resolve the repo root two levels above projects/ (three levels up from here).
-SELF_DIR         := $(patsubst %/,%,$(dir $(abspath $(lastword $(MAKEFILE_LIST)))))
-export STREAM_CHAR_ROOT := $(SELF_DIR)
-export REPO_ROOT        := $(abspath $(SELF_DIR)/../../..)
-export FRAMEWORK_ROOT   := $(REPO_ROOT)/projects/NexysA7/stream_char_framework
-export STREAM_ROOT      := $(REPO_ROOT)/projects/components/stream
-export CONVERTERS_ROOT  := $(REPO_ROOT)/projects/components/converters
-export MISC_ROOT        := $(REPO_ROOT)/projects/components/misc
+# This flow lives at:
+#   $REPO_ROOT/projects/NexysA7/stream_characterization/flows-stream-bridge/
+# Four levels above SELF_DIR is the repo root.
+SELF_DIR                 := $(patsubst %/,%,$(dir $(abspath $(lastword $(MAKEFILE_LIST)))))
+export STREAM_CHAR_ROOT  := $(SELF_DIR)
+export FLOW_ROOT         := $(SELF_DIR)
+export CHAR_ROOT         := $(abspath $(SELF_DIR)/..)
+export REPO_ROOT         := $(abspath $(SELF_DIR)/../../../..)
+export FRAMEWORK_ROOT    := $(CHAR_ROOT)/stream_char_framework
+export DOCS_ROOT         := $(CHAR_ROOT)/docs
+export STREAM_ROOT       := $(REPO_ROOT)/projects/components/stream
+export CONVERTERS_ROOT   := $(REPO_ROOT)/projects/components/converters
+export MISC_ROOT         := $(REPO_ROOT)/projects/components/misc
 
 VIVADO ?= vivado
 # Keep the journal+log for post-mortem (vivado.log / vivado.jou in project dir).

@@ -32,7 +32,8 @@ from CocoTBFramework.components.uart import UARTMaster, UARTMonitor
 
 # Add host/ to path for descriptor_builder
 sys.path.insert(0, os.path.join(
-    repo_root, 'projects', 'NexysA7', 'flows-stream-bridge', 'host'))
+    repo_root, 'projects', 'NexysA7', 'stream_characterization',
+    'flows-stream-bridge', 'host'))
 from descriptor_builder import DescriptorBuilder, CharConfig
 
 

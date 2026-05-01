@@ -13,7 +13,7 @@ from descriptor_builder import HARNESS_CSR_BASE, STREAM_APB_BASE
 
 # Pull in the same UARTAxiBridge the runner uses.
 sys.path.insert(0, os.path.abspath(os.path.join(
-    os.path.dirname(__file__), "../../../components/converters/bin")))
+    os.path.dirname(__file__), "../../../../components/converters/bin")))
 from uart_axi_bridge import UARTAxiBridge
 
 # Harness CSR offsets (mirror of run_characterization.py)

@@ -103,7 +103,7 @@ FPGA → Host:  0x53545243\n
 ## File layout
 
 ```
-projects/NexysA7/flows-stream-bridge/
+projects/NexysA7/stream_characterization/flows-stream-bridge/
 ├── rtl/
 │   ├── stream_char_top.sv         FPGA pin-level top (clk, uart, LEDs)
 │   ├── stream_char_harness.sv     Internal integration
@@ -124,7 +124,7 @@ projects/NexysA7/flows-stream-bridge/
 ## Build and run (phase 2 -- not yet implemented)
 
 ```bash
-cd projects/NexysA7/flows-stream-bridge
+cd projects/NexysA7/stream_characterization/flows-stream-bridge
 make synth        # Vivado synthesis
 make program      # Program FPGA via USB
 python3 host/run_test.py --port /dev/ttyUSB1

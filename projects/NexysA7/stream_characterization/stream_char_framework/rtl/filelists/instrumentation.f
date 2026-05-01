@@ -4,7 +4,7 @@
 # fpga-flow that wraps a DMA on the Nexys A7 board pulls these in.
 #
 # Required env vars (Makefile sets them):
-#   FRAMEWORK_ROOT - this framework's root (projects/NexysA7/stream_char_framework)
+#   FRAMEWORK_ROOT - this framework's root (projects/NexysA7/stream_characterization/stream_char_framework)
 
 # Pipelined memory-controller delay queue (timestamp FIFO).
 $FRAMEWORK_ROOT/rtl/axi_response_delay.sv

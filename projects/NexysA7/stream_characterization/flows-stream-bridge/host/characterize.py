@@ -40,7 +40,7 @@ import run_characterization as runner_mod  # noqa: E402
 
 # UART bridge — same module the main runner imports lazily.
 sys.path.insert(0, os.path.abspath(os.path.join(
-    HERE, "../../../components/converters/bin")))
+    HERE, "../../../../components/converters/bin")))
 from uart_axi_bridge import UARTAxiBridge  # noqa: E402
 
 # ---------------------------------------------------------------------------

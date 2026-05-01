@@ -17,14 +17,20 @@
 #==============================================================================
 
 # ---- Layout ---------------------------------------------------------------
-SELF_DIR              := $(patsubst %/,%,$(dir $(abspath $(lastword $(MAKEFILE_LIST)))))
-export MCDMA_FLOW_ROOT := $(SELF_DIR)
-export REPO_ROOT       := $(abspath $(SELF_DIR)/../../..)
-export FRAMEWORK_ROOT  := $(REPO_ROOT)/projects/NexysA7/stream_char_framework
-export RTL_VIVADO_ROOT := $(REPO_ROOT)/projects/NexysA7/rtl-vivado
-export STREAM_ROOT     := $(REPO_ROOT)/projects/components/stream
-export CONVERTERS_ROOT := $(REPO_ROOT)/projects/components/converters
-export MISC_ROOT       := $(REPO_ROOT)/projects/components/misc
+# This flow lives at:
+#   $REPO_ROOT/projects/NexysA7/stream_characterization/flows-vivado-mcdma/
+# Four levels above SELF_DIR is the repo root.
+SELF_DIR                 := $(patsubst %/,%,$(dir $(abspath $(lastword $(MAKEFILE_LIST)))))
+export MCDMA_FLOW_ROOT   := $(SELF_DIR)
+export FLOW_ROOT         := $(SELF_DIR)
+export CHAR_ROOT         := $(abspath $(SELF_DIR)/..)
+export REPO_ROOT         := $(abspath $(SELF_DIR)/../../../..)
+export FRAMEWORK_ROOT    := $(CHAR_ROOT)/stream_char_framework
+export RTL_VIVADO_ROOT   := $(CHAR_ROOT)/rtl-vivado
+export DOCS_ROOT         := $(CHAR_ROOT)/docs
+export STREAM_ROOT       := $(REPO_ROOT)/projects/components/stream
+export CONVERTERS_ROOT   := $(REPO_ROOT)/projects/components/converters
+export MISC_ROOT         := $(REPO_ROOT)/projects/components/misc
 
 VIVADO ?= vivado
 VIVADO_BATCH = $(VIVADO) -mode batch -notrace

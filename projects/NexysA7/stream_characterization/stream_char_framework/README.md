@@ -39,10 +39,10 @@ need to override goes in the per-flow directory, not here.
 
 ## Used by
 
-- `projects/NexysA7/flows-stream-bridge/`           in-house STREAM + in-house bridge
-- `projects/NexysA7/flows-vivado-mcdma/`            Vivado MCDMA + in-house bridge (pending)
-- `projects/NexysA7/flows-stream-vivado-bridge/`    in-house STREAM + Vivado bridge (future)
-- `projects/NexysA7/flows-vivado-mcdma-vivado-bridge/`  Vivado × Vivado (future)
+- `projects/NexysA7/stream_characterization/flows-stream-bridge/`           in-house STREAM + in-house bridge
+- `projects/NexysA7/stream_characterization/flows-vivado-mcdma/`            Vivado MCDMA + in-house bridge (pending)
+- `projects/NexysA7/stream_characterization/flows-stream-vivado-bridge/`    in-house STREAM + Vivado bridge (future)
+- `projects/NexysA7/stream_characterization/flows-vivado-mcdma-vivado-bridge/`  Vivado × Vivado (future)
 
 Each flow's Makefile exports `FRAMEWORK_ROOT` so RTL filelists and host
 scripts can resolve shared modules with one path.
