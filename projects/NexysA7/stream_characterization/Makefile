@@ -28,6 +28,7 @@ VIVADO ?= vivado
 VIVADO_BATCH = $(VIVADO) -mode batch -notrace
 
 TCL      := $(SELF_DIR)/tcl
+
 PROJECT  := $(SELF_DIR)/vivado_project/stream_char.xpr
 BITSTREAM:= $(SELF_DIR)/stream_char.bit
 REPORTS  := $(SELF_DIR)/reports

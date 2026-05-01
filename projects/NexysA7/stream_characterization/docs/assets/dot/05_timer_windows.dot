@@ -1,0 +1,43 @@
+// Cycle-stamp timer windows: total_cycles, r2r_cycles, w2w_cycles.
+// Each is a separate latch in harness_csr that captures a different
+// pair of edges, letting us back out the engine's true sustained rate
+// (r2r/w2w) from the software-visible runtime (total).
+
+digraph timer_windows {
+    rankdir=LR;
+    fontname="Helvetica";
+    node [fontname="Helvetica", fontsize=10, style="rounded,filled"];
+    edge [fontname="Helvetica", fontsize=9, arrowsize=0.7];
+
+    // event ticks along the timeline
+    e0 [label="kick", shape=circle, fillcolor="#cfe2ff", width=0.45];
+    e1 [label="first AR", shape=circle, fillcolor="#cfe2ff", width=0.55];
+    e2 [label="first R", shape=circle, fillcolor="#caebab", width=0.55];
+    e3 [label="last R", shape=circle, fillcolor="#caebab", width=0.55];
+    e4 [label="first W", shape=circle, fillcolor="#fcd9aa", width=0.55];
+    e5 [label="last W", shape=circle, fillcolor="#fcd9aa", width=0.55];
+    e6 [label="last B", shape=circle, fillcolor="#fcd9aa", width=0.55];
+
+    e0 -> e1 -> e2 -> e3 -> e4 -> e5 -> e6 [arrowhead=none, color="#888888"];
+
+    // window brackets above / below
+    total [label="total_cycles\n(software-visible runtime)", shape=box, fillcolor="#cfe2ff"];
+    r2r   [label="r2r_cycles\n(read engine sustained rate)", shape=box, fillcolor="#caebab"];
+    w2w   [label="w2w_cycles\n(write engine sustained rate)", shape=box, fillcolor="#fcd9aa"];
+
+    total -> e0 [arrowhead=none, color="#3b6fa8"];
+    total -> e6 [arrowhead=none, color="#3b6fa8"];
+    r2r   -> e2 [arrowhead=none, color="#5b8c3a"];
+    r2r   -> e3 [arrowhead=none, color="#5b8c3a"];
+    w2w   -> e4 [arrowhead=none, color="#bd6f1c"];
+    w2w   -> e5 [arrowhead=none, color="#bd6f1c"];
+
+    // annotations
+    note [shape=note, fillcolor="#fffbe0", color="#888888", style="filled", fontsize=9,
+          label="(total − r2r) ≈ startup + drain overhead\nr2r / w2w = engine's true sustained rate\n  (independent of software/UART pacing)"];
+    e6 -> note [style=invis];
+
+    {rank=same; e0; e1; e2; e3; e4; e5; e6}
+    {rank=min; total}
+    {rank=max; r2r; w2w}
+}

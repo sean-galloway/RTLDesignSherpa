@@ -1,0 +1,100 @@
+// Top-level block diagram: stream_char_top + stream_char_harness on the
+// Nexys A7-100T board. Shows external pins, UART/APB control plane, the
+// STREAM DUT's three AXI masters, the harness-side slaves wrapping each
+// master, the cycle-stamp timer, and the LED/7-seg status outputs.
+
+digraph harness_top {
+    rankdir=LR;
+    fontname="Helvetica";
+    node [fontname="Helvetica", fontsize=10, shape=box, style="rounded,filled"];
+    edge [fontname="Helvetica", fontsize=9];
+
+    // ---- color palette ------------------------------------------------------
+    // external = gray; harness hooks = blue; DUT = green; slaves = orange
+    // status outputs = light yellow
+
+    // ---- external (board pins / host PC) -----------------------------------
+    subgraph cluster_ext {
+        label="Board / Host";
+        style="rounded,filled";
+        fillcolor="#f4f4f4";
+        color="#888888";
+        host  [label="Host PC\n(characterize.py over UART)", fillcolor="#dddddd"];
+        leds  [label="LEDs / 7-seg display\n(PASS / FAIL / heartbeat)", fillcolor="#fff4b3"];
+    }
+
+    // ---- harness instrumentation -------------------------------------------
+    subgraph cluster_harn {
+        label="stream_char_harness  (instrumentation)";
+        style="rounded,filled";
+        fillcolor="#eaf2ff";
+        color="#3b6fa8";
+
+        uart    [label="UART → AXIL bridge\n(115 200 bps)", fillcolor="#cfe2ff"];
+        axil5   [label="AXIL 5-slave decoder\n0x0000 / 0x0040 / 0x0400 /\n0x0800 / 0x0C00", fillcolor="#cfe2ff"];
+        axil2apb[label="axil → apb\n(slave 0x0400 / 0x0800)", fillcolor="#cfe2ff"];
+        csr     [label="harness_csr\nCSR registers, kick-burst,\ncycle timer", fillcolor="#cfe2ff"];
+        descram [label="desc_ram\n128 × 256 b", fillcolor="#cfe2ff"];
+        dbgsram [label="debug_sram\n4096 × 32 b\n(monitor trace)", fillcolor="#cfe2ff"];
+        timer   [label="64-bit cycle timer\ntotal / r2r / w2w windows", fillcolor="#cfe2ff"];
+    }
+
+    // ---- DUT ---------------------------------------------------------------
+    subgraph cluster_dut {
+        label="stream_top_ch8  (DUT — 4 channels enabled)";
+        style="rounded,filled";
+        fillcolor="#e3f4d7";
+        color="#5b8c3a";
+
+        sched  [label="scheduler array\n+ descriptor engine", fillcolor="#caebab"];
+        rdeng  [label="AXI read engine\nAR_MAX_OUTSTANDING = 8\n(per channel)", fillcolor="#caebab"];
+        wreng  [label="AXI write engine\nAW_MAX_OUTSTANDING = 8\n(per channel)", fillcolor="#caebab"];
+        sram   [label="SRAM controller\nper-channel buffers", fillcolor="#caebab"];
+    }
+
+    // ---- harness-side slaves (memory model) --------------------------------
+    subgraph cluster_slv {
+        label="harness slaves  (memory model)";
+        style="rounded,filled";
+        fillcolor="#fdecd6";
+        color="#bd6f1c";
+
+        descmem [label="axi4_slave_rd\n(descriptor fetch)", fillcolor="#fcd9aa"];
+        rdmem   [label="axi4_slave_rd_pattern_gen\n+ per-channel LFSR/CRC", fillcolor="#fcd9aa"];
+        wrmem   [label="axi4_slave_wr_crc_check\n+ per-channel CRC", fillcolor="#fcd9aa"];
+
+        rdelay  [label="axi_response_delay (R)\npipelined model\nCAPACITY = 256", fillcolor="#fcd9aa"];
+        bdelay  [label="axi_response_delay (B)\npipelined model\nCAPACITY = 16", fillcolor="#fcd9aa"];
+    }
+
+    // ---- control plane edges -----------------------------------------------
+    host    -> uart        [label="UART RX / TX"];
+    uart    -> axil5       [label="AXIL"];
+    axil5   -> axil2apb    [label="0x0400 / 0x0800"];
+    axil2apb-> csr         [label="APB"];
+    axil2apb-> sched       [label="APB\n(STREAM regs)"];
+    csr     -> sched       [label="kick-burst\n(1 aclk pulse)"];
+    csr     -> rdelay      [label="i_delay_cycles"];
+    csr     -> bdelay      [label="i_delay_cycles"];
+    csr     -> timer       [style=dashed, label="start / stop"];
+    sched   -> timer       [style=dashed, color="#888888"];
+
+    // ---- data plane edges --------------------------------------------------
+    sched   -> descmem     [label="m_axi_desc"];
+    descmem -> descram     [style=dashed, label="backed by"];
+
+    rdeng   -> rdmem       [label="AR / R req"];
+    rdmem   -> rdelay      [label="R beats"];
+    rdelay  -> sram        [label="R beats\n(latency-modeled)"];
+
+    sram    -> wreng       [label="W beats"];
+    wreng   -> wrmem       [label="AW / W"];
+    wrmem   -> bdelay      [label="B response"];
+    bdelay  -> wreng       [label="B (latency-modeled)"];
+
+    // ---- status / observability --------------------------------------------
+    sched   -> csr         [style=dashed, label="status / IRQ"];
+    csr     -> dbgsram     [label="trace"];
+    csr     -> leds        [label="status pattern"];
+    timer   -> csr         [style=dashed, label="cycle counts"];
+}

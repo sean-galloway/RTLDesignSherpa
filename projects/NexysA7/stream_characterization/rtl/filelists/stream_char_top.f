@@ -12,5 +12,10 @@ $STREAM_CHAR_ROOT/rtl/led_status_driver.sv
 $REPO_ROOT/rtl/common/hex_to_7seg.sv
 $STREAM_CHAR_ROOT/rtl/seven_seg_4digit.sv
 
+# Per-build configuration package (side-Q depths, delay queue capacities).
+# Swap this line to a variant package file (same package name, different
+# parameter values) to rebuild a different config without touching RTL.
+$STREAM_CHAR_ROOT/rtl/stream_char_cfg_pkg.sv
+
 # Board-level top (pins + harness instantiation only).
 $STREAM_CHAR_ROOT/rtl/stream_char_top.sv

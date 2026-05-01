@@ -1,4 +1,4 @@
 # Failing-endpoint count per parent instance (descending) — post-route
 # count  parent_instance
-     1  u_harness/u_stream/g_apb_passthrough.u_apb_slave/resp_skid_buffer_inst
-     1  u_harness
+    17  u_harness/u_stream/g_stream_core_mon.u_stream_core/u_rd_axi_skid/r_channel
+     7  u_harness

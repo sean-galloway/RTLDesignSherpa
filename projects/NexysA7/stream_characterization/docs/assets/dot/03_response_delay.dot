@@ -1,0 +1,58 @@
+// axi_response_delay — internal block diagram. Shows the pipelined
+// timestamp-FIFO that models a real memory controller: every beat
+// dwells L cycles, but multiple beats can be in flight in parallel up
+// to CAPACITY. Bandwidth is decoupled from L by Little's Law as long
+// as the upstream master keeps the pipe full.
+
+digraph response_delay {
+    rankdir=LR;
+    fontname="Helvetica";
+    node [fontname="Helvetica", fontsize=10, shape=box, style="rounded,filled"];
+    edge [fontname="Helvetica", fontsize=9];
+
+    in   [label="s_valid / s_ready / s_data\n(slave produces beat)", fillcolor="#fcd9aa"];
+    out  [label="m_valid / m_ready / m_data\n(beat to master)", fillcolor="#fcd9aa"];
+
+    subgraph cluster_blk {
+        label="axi_response_delay (CAPACITY-deep timestamp FIFO)";
+        style="rounded,filled";
+        fillcolor="#fff4e0";
+        color="#bd6f1c";
+
+        cyc   [label="r_cyc[31:0]\nfree-running cycle counter", fillcolor="#ffe6c0"];
+        delay [label="i_delay_cycles\n(runtime CSR)", fillcolor="#ffe6c0"];
+        admit [label="enq logic\n(s_valid & s_ready)\nrecord t_in = r_cyc", fillcolor="#ffe6c0"];
+
+        // FIFO slots represented as a single packed node for clarity
+        fifo  [label=<<table border='0' cellborder='1' cellspacing='0' cellpadding='4'>
+                       <tr>
+                         <td bgcolor="#ffe6c0"><b>head</b></td>
+                         <td bgcolor="#fff4e0">slot 1</td>
+                         <td bgcolor="#fff4e0">slot 2</td>
+                         <td bgcolor="#fff4e0">…</td>
+                         <td bgcolor="#ffe6c0"><b>tail</b></td>
+                       </tr>
+                       <tr>
+                         <td colspan="5"><font point-size="9">slot = {data, t_in[31:0]}; CAPACITY entries</font></td>
+                       </tr>
+                     </table>>, shape=plain];
+
+        gate  [label="drain gate\nhead_dwell = r_cyc − t_in[head]\nfire when head_dwell ≥ delay", fillcolor="#ffe6c0"];
+    }
+
+    in     -> admit         [label="(beat, valid)"];
+    cyc    -> admit         [style=dashed];
+    cyc    -> gate          [style=dashed];
+    delay  -> gate          [style=dashed];
+    admit  -> fifo          [label="enq"];
+    fifo   -> gate          [label="head"];
+    gate   -> out           [label="deq"];
+
+    // back-pressure path
+    full  [shape=note, fillcolor="#fffbe0", color="#888888", style="filled",
+           label="full → s_ready ↓\n(natural back-pressure\nwhen master would exceed CAPACITY)"];
+    fifo -> full [style=invis];
+    full -> in  [style=dashed, color="#888888", label="s_ready ↓"];
+
+    {rank=same; cyc; delay}
+}

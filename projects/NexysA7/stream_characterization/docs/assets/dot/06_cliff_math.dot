@@ -1,0 +1,57 @@
+// Little's Law / pipeline-fill cliff illustration. The engine keeps
+// AR_MAX_OUTSTANDING × burst_len = 128 beats in flight per channel.
+// As long as L ≤ in_flight_beats, the L-cycle latency is paid once at
+// pipe-fill and throughput stays at peak. Past that point, latency
+// dominates and BW = (in_flight / L) × peak.
+
+digraph cliff_math {
+    rankdir=TB;
+    fontname="Helvetica";
+    node [fontname="Helvetica", fontsize=10, style="rounded,filled"];
+    edge [fontname="Helvetica", fontsize=9];
+
+    title [shape=plain,
+           label=<<b>Little's Law for the multi-outstanding engine</b><br/>
+                  <font point-size="10">in_flight_beats = AR_MAX_OUTSTANDING × burst_len = 8 × 16 = <b>128 beats / channel</b></font>>];
+
+    // ---- pre-cliff regime ----
+    pre [shape=box, style="rounded,filled", fillcolor="#e3f4d7", color="#5b8c3a", penwidth=1.5,
+         label=<<b>Pre-cliff: L ≤ 128</b><br/><br/>
+                pipe-fill cost = L cycles, paid once<br/>
+                → BW ≈ peak (1435 MB/s)<br/>
+                → adding L only shifts runtime by L cycles total>];
+
+    // ---- at-cliff regime ----
+    knee [shape=box, style="rounded,filled", fillcolor="#fff4b3", color="#a3812a", penwidth=1.5,
+          label=<<b>At cliff: L = 128</b><br/><br/>
+                 pipe stops covering L<br/>
+                 → BW knee, ~−11 % at L = 128<br/>
+                 → engine starts to wait>];
+
+    // ---- post-cliff regime ----
+    post [shape=box, style="rounded,filled", fillcolor="#fbe4e4", color="#a14040", penwidth=1.5,
+          label=<<b>Post-cliff: L &gt; 128</b><br/><br/>
+                 BW = (in_flight / L) × peak<br/>
+                 → 256 → 718, measured 694 (−3 %)<br/>
+                 → 384 → 478, measured 477 (exact)<br/>
+                 → 512 → 359, measured 363 (+1 %)>];
+
+    // ---- multi-channel scaling ----
+    multich [shape=box, style="rounded,filled", fillcolor="#cfe2ff", color="#3b6fa8", penwidth=1.5,
+             label=<<b>Multi-channel scaling</b><br/><br/>
+                    Each channel has its own AR/AW queue<br/>
+                    → cliff scales linearly with N<sub>channels</sub><br/><br/>
+                    1 ch: cliff @ 128 cyc<br/>
+                    2 ch: cliff @ 256 cyc<br/>
+                    3 ch: cliff @ 384 cyc<br/>
+                    4 ch: cliff @ 512 cyc>];
+
+    title -> pre  [style=invis];
+    title -> knee [style=invis];
+    title -> post [style=invis];
+    pre   -> knee [label="L grows", color="#888888"];
+    knee  -> post [label="L grows", color="#888888"];
+    post  -> multich [style=dashed, label="repeat per channel"];
+
+    {rank=same; pre; knee; post}
+}

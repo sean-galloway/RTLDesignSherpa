@@ -63,7 +63,12 @@ module stream_top_ch8 #(
     parameter int AXI_ID_WIDTH = 8,
     parameter int AXI_USER_WIDTH = 3,    // $clog2(NUM_CHANNELS) for channel ID
     parameter int USE_AXI_MONITORS = 0,  // 0 = Disable monitors, 1 = Enable monitors
-    parameter int CDC_ENABLE = 1         // 0 = Same clock (pclk=aclk), 1 = Different clocks (CDC)
+    parameter int CDC_ENABLE = 1,        // 0 = Same clock (pclk=aclk), 1 = Different clocks (CDC)
+    // Engine-side outstanding queue (side-Q) depths. Defaulted to the
+    // historical stream_core values so existing instantiations are unchanged.
+    // Override at the next level up to sweep latency-tolerance.
+    parameter int AR_MAX_OUTSTANDING = 8,
+    parameter int AW_MAX_OUTSTANDING = 8
 ) (
     //-------------------------------------------------------------------------
     // Clock and Reset
@@ -1134,6 +1139,8 @@ module stream_top_ch8 #(
                 .ADDR_WIDTH(ADDR_WIDTH),
                 .AXI_ID_WIDTH(AXI_ID_WIDTH),
                 .FIFO_DEPTH(SRAM_DEPTH),  // Pass SRAM_DEPTH as FIFO_DEPTH
+                .AR_MAX_OUTSTANDING(AR_MAX_OUTSTANDING),
+                .AW_MAX_OUTSTANDING(AW_MAX_OUTSTANDING),
                 .USE_AXI_MONITORS(1)      // Enable monitors
             ) u_stream_core (
                 .clk                        (aclk),
@@ -1354,6 +1361,8 @@ module stream_top_ch8 #(
                 .ADDR_WIDTH(ADDR_WIDTH),
                 .AXI_ID_WIDTH(AXI_ID_WIDTH),
                 .FIFO_DEPTH(SRAM_DEPTH),  // Pass SRAM_DEPTH as FIFO_DEPTH
+                .AR_MAX_OUTSTANDING(AR_MAX_OUTSTANDING),
+                .AW_MAX_OUTSTANDING(AW_MAX_OUTSTANDING),
                 .USE_AXI_MONITORS(0)      // Explicitly disable monitors
             ) u_stream_core (
                 .clk                        (aclk),

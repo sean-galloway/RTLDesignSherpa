@@ -5,97 +5,169 @@
 // https://github.com/sean-galloway/RTLDesignSherpa
 //
 // Module: axi_response_delay
-// Purpose: Per-burst response delay for an AXI valid/ready channel
+// Purpose: Pipelined memory-controller delay model for an AXI response
+//          channel (R-data or B-resp).
 //
 // Description:
-//   Models real memory-style latency on an AXI response channel: when a
-//   new burst begins (rising edge of s_valid after an idle gap), stall
-//   the handshake for i_delay_cycles cycles. After that delay expires,
-//   every beat of the burst flows through combinationally at full rate.
+//   Models a real memory controller (DDR, HBM, on-chip SRAM controller,
+//   etc.) where every request pays a fixed access latency L, but L
+//   *overlaps* across pipelined requests. Concretely:
 //
-//   This matches the behavior the DMA engine + SRAM/FIFO sizing was
-//   designed to absorb (round-trip latency to first response data, then
-//   line-rate streaming for the rest of the burst). The previous
-//   implementation held *every* beat for N cycles, which corresponds to
-//   a memory whose throughput is rate-limited per beat — not realistic,
-//   and not absorbable by any FIFO depth.
+//     - Each beat presented on the slave side enters a queue with a
+//       timestamp.
+//     - The beat is released to the master side exactly i_delay_cycles
+//       cycles after it was admitted.
+//     - Up to CAPACITY beats can be in flight simultaneously. Once the
+//       queue is full, s_ready drops, naturally back-pressuring the
+//       slave model — that mirrors a controller running out of in-flight
+//       slots.
 //
-// Behavior:
-//   - i_delay_cycles == 0: pure combinational pass-through.
-//   - i_delay_cycles >  0: when s_valid rises (or each time s_valid is
-//                          re-asserted after a gap), hold the handshake
-//                          for N cycles, then pass beats through with
-//                          zero added latency until s_valid drops again.
+//   By Little's Law, sustained throughput is min(1, N/L) beats/cycle,
+//   where N is the number of beats the master has outstanding. So
+//   throughput is decoupled from L as long as the master keeps the pipe
+//   full (which is exactly what AXI multi-outstanding is for).
+//
+//   Concretely: with AR_MAX_OUTSTANDING=8 and 16-beat bursts, the master
+//   keeps up to 128 beats in flight. As long as CAPACITY ≥ 128, every
+//   beat is admitted on arrival, dwells L cycles, and emerges at line
+//   rate after the initial fill. Throughput stays at 1 beat/cycle for
+//   any L up to where the queue fills (pipeline-limited).
+//
+// Interface:
+//   - i_delay_cycles : runtime-programmable per-beat latency (in aclk
+//                      cycles). 0 → 1-cycle minimum (FIFO register
+//                      stage); N → N cycles end-to-end.
+//   - s_valid/s_ready/s_data : slave-side ingress.
+//   - m_valid/m_ready/m_data : master-side egress.
+//
+// Parameters:
+//   DATA_WIDTH : payload width (R: data+id+resp+last+user, B: id+resp+user).
+//   DELAY_W    : width of i_delay_cycles register.
+//   CAPACITY   : maximum beats in flight. MUST be a power of 2 ≥ 2 so
+//                head/tail pointers wrap by truncation.
+//                  - R channel: ≥ AR_MAX_OUTSTANDING × max_burst_len
+//                  - B channel: ≥ AW_MAX_OUTSTANDING
 //
 // Notes:
-//   - Burst boundary detection relies on s_valid going low for at least
-//     one cycle between bursts. The slaves we use (axi4_slave_rd /
-//     axi4_slave_wr_crc_check) cycle through IDLE between bursts so this
-//     is satisfied. If a slave streams two bursts back-to-back without
-//     dropping valid, only the first will be delayed.
-//   - During the delay window the slave holds its current beat on its
-//     output (s_ready==0 back-pressures it). No internal data buffer is
-//     needed — beats are forwarded combinationally once the delay
-//     expires.
+//   - Strict FIFO drain — preserves response ordering at this point in
+//     the path. AXI per-ID ordering is enforced upstream by the slave.
+//   - Minimum end-to-end latency is 1 aclk cycle (a real controller
+//     always has at least one register stage, so this is realistic).
+//   - i_delay_cycles is sampled per drain decision, not per admission,
+//     so changing it mid-flight will affect in-queue beats. In normal
+//     operation the value is held constant for an entire test.
 
 `timescale 1ns / 1ps
 
 `include "reset_defs.svh"
 
 module axi_response_delay #(
-    parameter int DATA_WIDTH = 64,
-    parameter int DELAY_W    = 16
+    parameter int DATA_WIDTH = 128,
+    parameter int DELAY_W    = 16,
+    parameter int CAPACITY   = 256
 ) (
     input  logic                    aclk,
     input  logic                    aresetn,
 
-    // Per-burst hold time. 0 = pure pass-through.
+    // Per-beat fixed latency, in aclk cycles. 0 → 1-cycle pass-through.
     input  logic [DELAY_W-1:0]      i_delay_cycles,
 
-    // Slave-facing input (from response-producing model)
+    // Slave-facing input
     input  logic [DATA_WIDTH-1:0]   s_data,
     input  logic                    s_valid,
     output logic                    s_ready,
 
-    // Master-facing output (to response-consuming master)
+    // Master-facing output
     output logic [DATA_WIDTH-1:0]   m_data,
     output logic                    m_valid,
     input  logic                    m_ready
 );
 
-    // Cycles still to wait before this burst's first beat is allowed
-    // through. Re-armed to i_delay_cycles whenever s_valid is low (i.e.
-    // between bursts, or before the very first burst).
-    logic [DELAY_W-1:0] r_remaining;
-
-    `ALWAYS_FF_RST(aclk, aresetn,
-        if (`RST_ASSERTED(aresetn)) begin
-            r_remaining <= '0;
-        end else begin
-            if (!s_valid) begin
-                // Idle: arm the delay counter for the next burst start.
-                // (Tracking the runtime knob here means changing
-                // i_delay_cycles between bursts takes effect on the
-                // next burst, not mid-burst.)
-                r_remaining <= i_delay_cycles;
-            end else if (r_remaining != '0) begin
-                // In the delay window — count down each cycle s_valid
-                // is held high (the slave is waiting for s_ready).
-                r_remaining <= r_remaining - 1'b1;
-            end
-            // r_remaining stays at 0 once the delay has expired; beats
-            // flow through at line rate until s_valid drops again, at
-            // which point the !s_valid branch above re-arms the counter.
+    // ---- Sanity check ------------------------------------------------------
+    // CAPACITY must be a power of 2 ≥ 2 so the index pointers wrap by
+    // truncation (no comparison logic needed in the increment path).
+    initial begin
+        if ((CAPACITY < 2) || ((CAPACITY & (CAPACITY - 1)) != 0)) begin
+            $fatal(1, "axi_response_delay: CAPACITY (=%0d) must be a power of 2 >= 2",
+                   CAPACITY);
         end
+    end
+
+    // ---- Free-running cycle counter ----------------------------------------
+    // Width sized generously so (cyc - tin) never wraps before drain.
+    // 32 bits = 42 s at 100 MHz; far longer than any realistic queue dwell.
+    localparam int CYC_W = 32;
+    localparam int IDX_W = $clog2(CAPACITY);
+    localparam int CNT_W = $clog2(CAPACITY + 1);
+
+    logic [CYC_W-1:0] r_cyc;
+    `ALWAYS_FF_RST(aclk, aresetn,
+        if (`RST_ASSERTED(aresetn)) r_cyc <= '0;
+        else                        r_cyc <= r_cyc + 1'b1;
     )
 
-    // Pass-through is enabled once the delay has expired. While
-    // r_remaining > 0, m_valid is held low (master sees no beat) and
-    // s_ready is held low (slave keeps the beat parked on its output).
-    wire w_pass = (r_remaining == '0);
+    // ---- Storage -----------------------------------------------------------
+    // Each slot holds {payload, admit-timestamp}. Vivado picks BRAM or LUTRAM
+    // based on width/depth — at 256×~160b the R-channel queue lands in BRAM,
+    // the small B-channel queue in LUTRAM.
+    `ifdef XILINX
+        (* ram_style = "auto" *)
+    `elsif INTEL
+        /* synthesis ramstyle = "AUTO" */
+    `endif
+    logic [DATA_WIDTH-1:0] r_data [CAPACITY];
 
-    assign m_valid = s_valid && w_pass;
-    assign s_ready = m_ready && w_pass;
-    assign m_data  = s_data;
+    `ifdef XILINX
+        (* ram_style = "auto" *)
+    `elsif INTEL
+        /* synthesis ramstyle = "AUTO" */
+    `endif
+    logic [CYC_W-1:0]      r_tin  [CAPACITY];
+
+    logic [IDX_W-1:0]      r_head, r_tail;
+    logic [CNT_W-1:0]      r_count;
+
+    wire full  = (r_count == CNT_W'(CAPACITY));
+    wire empty = (r_count == '0);
+
+    // Slave-side handshake: accept a beat whenever there's room.
+    assign s_ready = ~full;
+
+    // ---- Drain gate --------------------------------------------------------
+    // Head's dwell time = current cycle minus the cycle it was admitted.
+    // Drain when dwell has reached the configured delay AND the queue is
+    // non-empty.
+    wire [CYC_W-1:0] head_dwell      = r_cyc - r_tin[r_head];
+    wire [CYC_W-1:0] delay_extended  = {{(CYC_W-DELAY_W){1'b0}}, i_delay_cycles};
+    wire             head_ready      = ~empty && (head_dwell >= delay_extended);
+
+    assign m_valid = head_ready;
+    assign m_data  = r_data[r_head];
+
+    wire enq = s_valid & s_ready;
+    wire deq = m_valid & m_ready;
+
+    // ---- Pointer / count update -------------------------------------------
+    `ALWAYS_FF_RST(aclk, aresetn,
+        if (`RST_ASSERTED(aresetn)) begin
+            r_head  <= '0;
+            r_tail  <= '0;
+            r_count <= '0;
+        end else begin
+            if (enq) begin
+                r_data[r_tail] <= s_data;
+                r_tin [r_tail] <= r_cyc;
+                r_tail         <= r_tail + 1'b1;  // power-of-2 truncation wrap
+            end
+            if (deq) begin
+                r_head <= r_head + 1'b1;          // power-of-2 truncation wrap
+            end
+            unique case ({enq, deq})
+                2'b10:   r_count <= r_count + 1'b1;
+                2'b01:   r_count <= r_count - 1'b1;
+                default: r_count <= r_count;      // 2'b00 or 2'b11
+            endcase
+        end
+    )
 
 endmodule : axi_response_delay

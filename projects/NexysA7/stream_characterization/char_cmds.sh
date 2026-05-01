@@ -10,9 +10,11 @@
 #   --descriptors N     scalar — descriptors per channel
 #   --size SIZE         per-descriptor transfer size: e.g. 4KB / 64KB / 1MB.
 #                       total bytes = channels * descriptors * size.
-#   --rd-delay N        read-response per-beat hold cycles  (CSR RESP_DELAY[15:0])
-#   --wr-delay N        write-response per-beat hold cycles (CSR RESP_DELAY[31:16])
-#                       0 = bypass on either channel.
+#   --rd-delay N        read-response per-beat memory latency  (CSR RESP_DELAY[15:0])
+#   --wr-delay N        write-response per-beat memory latency (CSR RESP_DELAY[31:16])
+#                       Pipelined model: every beat dwells N cycles, but multiple
+#                       beats are in flight in parallel up to the queue capacity.
+#                       0 = 1-cycle minimum (FIFO register stage).
 #   --output FILE.csv   creates if missing, appends if present (single header).
 #
 # CSV columns:
@@ -52,17 +54,22 @@ run_one() {
 SWEEP_CSVS=()
 
 #==============================================================================
-# Sweep 1 — Response-delay sweep (1-D)
-#   1 channel, 1 descriptor, 512 KB total. Delay = 0..7.
-#   Shows the per-beat response-delay -> bandwidth penalty in fine steps.
+# Sweep 1 — Response-delay sweep (1-D), maps the pipeline cliff
+#   1 channel, 1 descriptor, 512 KB total. Delay 0..512.
+#   With the pipelined memory-controller delay model, throughput stays flat
+#   until the master's outstanding pipe (AR/AW_MAX_OUTSTANDING × burst_len ≈
+#   128 beats with default cfg) stops covering the latency. Sweep spans well
+#   past the predicted knee so we capture both the flat floor and the linear
+#   degradation regime above it. Re-run after changing CFG_AR/AW_MAX_OUTSTANDING
+#   in stream_char_cfg_pkg.sv to see the cliff shift.
 #==============================================================================
 DELAY_CSV=delay_sweep_1desc_1ch_512KB.csv
 SWEEP_CSVS+=("$DELAY_CSV")
 rm -f "$DELAY_CSV"
 
-echo "=== Sweep 1: delay 1desc 1ch 512KB (delay 0..8 step 1) ==="              | tee -a run.log
+echo "=== Sweep 1: delay 1desc 1ch 512KB (delay 0..512 — maps cliff) ==="      | tee -a run.log
 echo "    accumulating into ${DELAY_CSV}"                                       | tee -a run.log
-for d in 0 1 2 3 4 5 6 7 8; do
+for d in 0 16 32 64 96 112 128 144 160 192 224 256 320 384 448 512; do
     echo "--- RESP_DELAY = ${d} cycles (rd=wr) ---"                             | tee -a run.log
     run_one "$DELAY_CSV" 1 1 512KB "$d"
 done
@@ -123,10 +130,15 @@ done
 
 #==============================================================================
 # Sweep 5 — Channels × delay (2-D)
-#   All 4 channels crossed with delay 0..8 at 1desc/512KB.
-#   Question: do extra channels help tolerate response latency by keeping
-#   more transactions in flight? Expectation: at delay>0, total_MBps should
-#   scale with channels until the engine's outstanding-AW limit saturates.
+#   Channels {1..4} crossed with delay {0..512} at 1desc/512KB.
+#   With the pipelined model, the read/write engines are shared across all
+#   channels (single AR/AW outstanding queue per engine), so cliff position
+#   is set by the engine config, not the channel count. What channels DO
+#   change is arbitration efficiency at low delay and how quickly bandwidth
+#   degrades in the post-cliff regime (more channels share the same in-flight
+#   budget). Expect cliff at the same L for every channel count; flat-region
+#   throughput should rise with channel count (better arbitration overlap),
+#   post-cliff slope should steepen.
 #==============================================================================
 CH_X_DLY_CSV=channels_x_delay_1desc_512KB.csv
 SWEEP_CSVS+=("$CH_X_DLY_CSV")
@@ -134,10 +146,10 @@ rm -f "$CH_X_DLY_CSV"
 
 echo ""                                                                         | tee -a run.log
 echo "=== Sweep 5: channels x delay (1desc, 512KB) ==="                         | tee -a run.log
-echo "    channels in {1,2,3,4}; delay in {0..8}"                               | tee -a run.log
+echo "    channels in {1,2,3,4}; delay in {0,32,64,96,128,160,192,256,384,512}" | tee -a run.log
 echo "    accumulating into ${CH_X_DLY_CSV}"                                    | tee -a run.log
 for c in 1 2 3 4; do
-    for d in 0 1 2 3 4 5 6 7 8; do
+    for d in 0 32 64 96 128 160 192 256 384 512; do
         echo "--- channels=${c}, delay=${d} ---"                                | tee -a run.log
         run_one "$CH_X_DLY_CSV" "$c" 1 512KB "$d"
     done
@@ -145,11 +157,13 @@ done
 
 #==============================================================================
 # Sweep 6 — Descriptors × delay (2-D)
-#   Sweep descriptors {1,2,4,8,16} crossed with delay 0..8 at 1ch/512KB.
-#   Question: does descriptor chaining hide response latency? Expectation:
-#   long chains amortize startup cost regardless of delay, so the *gap*
-#   between r2r/w2w and total should shrink with more descriptors at every
-#   delay value.
+#   Descriptors {1,2,4,8,16} crossed with delay {0..512} at 1ch/512KB.
+#   With the pipelined model, the engines maintain their outstanding queue
+#   across descriptors as long as bursts are back-to-back, so the once-per-
+#   transfer pipe-fill cost (L cycles) is paid once per chain — not per
+#   descriptor. Long chains should amortize that fixed cost over more total
+#   beats, narrowing the gap between r2r/w2w and total throughput at every
+#   delay value. Cliff position itself shouldn't move with descriptor count.
 #==============================================================================
 DESC_X_DLY_CSV=desc_x_delay_1ch_512KB.csv
 SWEEP_CSVS+=("$DESC_X_DLY_CSV")
@@ -157,10 +171,10 @@ rm -f "$DESC_X_DLY_CSV"
 
 echo ""                                                                         | tee -a run.log
 echo "=== Sweep 6: descriptors x delay (1ch, 512KB) ==="                        | tee -a run.log
-echo "    descriptors in {1,2,4,8,16}; delay in {0..8}"                         | tee -a run.log
+echo "    descriptors in {1,2,4,8,16}; delay in {0,32,64,96,128,160,192,256,384,512}" | tee -a run.log
 echo "    accumulating into ${DESC_X_DLY_CSV}"                                  | tee -a run.log
 for n in 1 2 4 8 16; do
-    for d in 0 1 2 3 4 5 6 7 8; do
+    for d in 0 32 64 96 128 160 192 256 384 512; do
         echo "--- descriptors=${n}, delay=${d} ---"                             | tee -a run.log
         run_one "$DESC_X_DLY_CSV" 1 "$n" 512KB "$d"
     done

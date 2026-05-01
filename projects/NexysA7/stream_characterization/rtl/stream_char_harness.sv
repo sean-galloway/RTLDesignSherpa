@@ -38,7 +38,27 @@ module stream_char_harness #(
     // trace depth is user-adjustable based on what the characterization
     // campaign needs to capture.
     parameter int DESC_RAM_ENTRIES = 2048,   // 2048 × 256 b  = 64 KB
-    parameter int DEBUG_SRAM_WORDS = 65536   //  64K ×  32 b  = 256 KB
+    parameter int DEBUG_SRAM_WORDS = 65536,  //  64K ×  32 b  = 256 KB
+
+    // axi_response_delay pipeline depths (in beats). Each delay block
+    // models a real memory controller: every beat dwells exactly L cycles
+    // (set by csr_*_resp_delay_cyc) but multiple beats are in flight in
+    // parallel up to CAPACITY. Sized to absorb the engines' worst-case
+    // outstanding count without back-pressuring the slave:
+    //   R channel — AR_MAX_OUTSTANDING × max burst length (16)
+    //   B channel — AW_MAX_OUTSTANDING (one BRESP per AW)
+    // Override these at the top level if you change the engines' AR/AW
+    // outstanding parameters or push to longer bursts.
+    parameter int RESP_DELAY_R_CAPACITY = 256,
+    parameter int RESP_DELAY_B_CAPACITY = 16,
+
+    // STREAM engine outstanding queue (side-Q) depths. These are the
+    // values stream_core uses to size its AR/AW reorder/outstanding-
+    // tracking queues — the levers for measuring how much memory latency
+    // the engines can hide. Defaults match stream_core's historical
+    // values so this parameter is invisible unless overridden.
+    parameter int AR_MAX_OUTSTANDING     = 8,
+    parameter int AW_MAX_OUTSTANDING     = 8
 ) (
     input  logic            aclk,
     input  logic            aresetn,
@@ -730,8 +750,9 @@ module stream_char_harness #(
     assign {rd_rid, rd_rdata, rd_rresp, rd_rlast, rd_ruser} = m_rd_r_payload;
 
     axi_response_delay #(
-        .DATA_WIDTH(RD_R_PAYLOAD_W),
-        .DELAY_W   (16)
+        .DATA_WIDTH (RD_R_PAYLOAD_W),
+        .DELAY_W    (16),
+        .CAPACITY   (RESP_DELAY_R_CAPACITY)
     ) u_rd_resp_delay (
         .aclk          (aclk),
         .aresetn       (aresetn),
@@ -822,8 +843,9 @@ module stream_char_harness #(
     assign {wr_bid, wr_bresp, wr_buser} = m_wr_b_payload;
 
     axi_response_delay #(
-        .DATA_WIDTH(WR_B_PAYLOAD_W),
-        .DELAY_W   (16)
+        .DATA_WIDTH (WR_B_PAYLOAD_W),
+        .DELAY_W    (16),
+        .CAPACITY   (RESP_DELAY_B_CAPACITY)
     ) u_wr_resp_delay (
         .aclk          (aclk),
         .aresetn       (aresetn),
@@ -840,16 +862,18 @@ module stream_char_harness #(
     // STREAM DUT
     // =========================================================================
     stream_top_ch8 #(
-        .NUM_CHANNELS    (NUM_CHANNELS),
-        .DATA_WIDTH      (DATA_WIDTH),
-        .ADDR_WIDTH      (ADDR_WIDTH),
-        .SRAM_DEPTH      (SRAM_DEPTH),
-        .APB_ADDR_WIDTH  (APB_ADDR_WIDTH),
-        .APB_DATA_WIDTH  (APB_DATA_WIDTH),
-        .AXI_ID_WIDTH    (AXI_ID_WIDTH),
-        .AXI_USER_WIDTH  (AXI_USER_WIDTH),
-        .USE_AXI_MONITORS(1),
-        .CDC_ENABLE      (0)
+        .NUM_CHANNELS       (NUM_CHANNELS),
+        .DATA_WIDTH         (DATA_WIDTH),
+        .ADDR_WIDTH         (ADDR_WIDTH),
+        .SRAM_DEPTH         (SRAM_DEPTH),
+        .APB_ADDR_WIDTH     (APB_ADDR_WIDTH),
+        .APB_DATA_WIDTH     (APB_DATA_WIDTH),
+        .AXI_ID_WIDTH       (AXI_ID_WIDTH),
+        .AXI_USER_WIDTH     (AXI_USER_WIDTH),
+        .USE_AXI_MONITORS   (1),
+        .CDC_ENABLE         (0),
+        .AR_MAX_OUTSTANDING (AR_MAX_OUTSTANDING),
+        .AW_MAX_OUTSTANDING (AW_MAX_OUTSTANDING)
     ) u_stream (
         .aclk    (aclk),   .aresetn(aresetn),
         .pclk    (aclk),   .presetn(aresetn),

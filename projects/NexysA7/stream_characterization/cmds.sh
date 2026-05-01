@@ -7,8 +7,8 @@ set -e
 rm -f run.log
 touch run.log
 
-echo "=== make clean + make bitstream (re-roll P&R) ==="            | tee -a run.log
-make clean >> run.log 2>&1
+echo "=== make clean-all + make bitstream (re-roll P&R) ==="            | tee -a run.log
+make clean-all >> run.log 2>&1
 make bitstream >> run.log 2>&1
 echo "bitstream done"                                               | tee -a run.log
 
@@ -33,9 +33,13 @@ SWEEP_CSV=results_${SWEEP_DESCRIPTORS}desc_${SWEEP_CHANNELS}ch_${SWEEP_SIZE}.csv
 # Start each sweep with a clean CSV so the header is written exactly once.
 rm -f "$SWEEP_CSV"
 
-echo "=== response-delay sweep ${SWEEP_DESCRIPTORS}desc_${SWEEP_CHANNELS}ch_${SWEEP_SIZE} (delay 0..30 step 5) ==="  | tee -a run.log
+# Wider sweep to capture the pipelined-delay-model cliff:
+# engines run AR/AW_MAX_OUTSTANDING=8 × ~16-beat bursts → ~128 beats in flight,
+# so throughput stays flat up to ~128 cycles of memory latency, then degrades.
+# The points cluster around the predicted cliff at L=128 to map it cleanly.
+echo "=== response-delay sweep ${SWEEP_DESCRIPTORS}desc_${SWEEP_CHANNELS}ch_${SWEEP_SIZE} (delay 0..256) ===" | tee -a run.log
 echo "    accumulating results into ${SWEEP_CSV}"                                    | tee -a run.log
-for d in 0 5 10 15 20 25 30; do
+for d in 0 32 64 96 112 128 144 160 192 224 256; do
     echo ""                                                                          | tee -a run.log
     echo "--- RESP_DELAY = ${d} cycles (rd=wr) ---"                                  | tee -a run.log
     python3 host/characterize.py \

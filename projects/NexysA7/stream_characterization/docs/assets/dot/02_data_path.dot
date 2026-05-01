@@ -1,0 +1,65 @@
+// Read/write data path through the harness, focused on where the
+// instrumentation hooks attach. Shows the engine's outstanding-request
+// queues, the skid buffers (timing-only), the per-channel slaves, and
+// the pipelined response-delay blocks that model memory latency.
+
+digraph data_path {
+    rankdir=LR;
+    fontname="Helvetica";
+    node [fontname="Helvetica", fontsize=10, shape=box, style="rounded,filled"];
+    edge [fontname="Helvetica", fontsize=9];
+
+    // ---- READ PATH (top half) -----------------------------------------------
+    subgraph cluster_rd {
+        label="Read path (R-channel)";
+        labeljust=l;
+        style="rounded,filled";
+        fillcolor="#f4faf0";
+        color="#5b8c3a";
+        rankdir=LR;
+
+        re_arq    [label="AR queue\n(8 deep / channel)", fillcolor="#caebab"];
+        re_skar   [label="AR skid\n(timing only)", fillcolor="#e8f4dc"];
+        rd_slv    [label="axi4_slave_rd_\npattern_gen\n(LFSR per channel)", fillcolor="#fcd9aa"];
+        rd_delay  [label="axi_response_delay (R)\nCAPACITY = 256", fillcolor="#fcd9aa", penwidth=2, color="#bd6f1c"];
+        re_skr    [label="R skid\n(timing only)", fillcolor="#e8f4dc"];
+        re_sram   [label="SRAM ingress\n(per-channel buffer)", fillcolor="#caebab"];
+
+        re_arq -> re_skar -> rd_slv;
+        rd_slv -> rd_delay -> re_skr -> re_sram;
+    }
+
+    // ---- WRITE PATH (bottom half) -------------------------------------------
+    subgraph cluster_wr {
+        label="Write path (W / B-channels)";
+        labeljust=l;
+        style="rounded,filled";
+        fillcolor="#fff7eb";
+        color="#bd6f1c";
+        rankdir=LR;
+
+        we_sram  [label="SRAM egress\n(per-channel buffer)", fillcolor="#caebab"];
+        we_skaw  [label="AW skid\n(timing only)", fillcolor="#e8f4dc"];
+        we_skw   [label="W skid\n(timing only)", fillcolor="#e8f4dc"];
+        we_awq   [label="AW queue\n(8 deep / channel)", fillcolor="#caebab"];
+        wr_slv   [label="axi4_slave_wr_\ncrc_check\n(CRC per channel)", fillcolor="#fcd9aa"];
+        b_delay  [label="axi_response_delay (B)\nCAPACITY = 16", fillcolor="#fcd9aa", penwidth=2, color="#bd6f1c"];
+        we_skb   [label="B skid\n(timing only)", fillcolor="#e8f4dc"];
+        we_done  [label="completion\n→ scheduler", fillcolor="#caebab"];
+
+        we_sram -> we_awq -> we_skaw -> wr_slv;
+        we_sram -> we_skw  -> wr_slv [constraint=false];
+        wr_slv  -> b_delay -> we_skb -> we_done;
+    }
+
+    // ---- annotations --------------------------------------------------------
+    note_rd [shape=note, fillcolor="#fffbe0", color="#888888", style="filled",
+             label="In-flight beats =\nAR_MAX_OUTSTANDING × burst_len\n= 8 × 16 = 128 beats per channel\n→ cliff at L ≈ 128 cycles"];
+    note_wr [shape=note, fillcolor="#fffbe0", color="#888888", style="filled",
+             label="B-channel one BRESP per AW\n→ B-side queue smaller (16)"];
+
+    re_sram -> note_rd [style=invis];
+    we_done -> note_wr [style=invis];
+    {rank=same; re_sram; note_rd}
+    {rank=same; we_done; note_wr}
+}

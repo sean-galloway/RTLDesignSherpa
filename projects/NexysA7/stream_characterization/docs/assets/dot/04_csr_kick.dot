@@ -1,0 +1,49 @@
+// CSR kick-burst path. Compares the original UART-paced channel start
+// (where each channel was kicked by an independent APB write, spreading
+// channel kicks over many milliseconds of UART time) with the current
+// hardware kick-burst path (single UART transaction → all channels
+// start on the same aclk cycle).
+
+digraph csr_kick {
+    rankdir=TB;
+    fontname="Helvetica";
+    node [fontname="Helvetica", fontsize=10, shape=box, style="rounded,filled"];
+    edge [fontname="Helvetica", fontsize=9];
+
+    // ---- before: software-paced ----
+    subgraph cluster_before {
+        label="Before:  software-paced kicks (channels start staggered)";
+        labeljust=l;
+        style="rounded,filled";
+        fillcolor="#fbe4e4";
+        color="#a14040";
+
+        b_host  [label="Host: write CH0_KICK\nwrite CH1_KICK\nwrite CH2_KICK\nwrite CH3_KICK", fillcolor="#f7c8c8"];
+        b_uart  [label="UART @ 115 200 bps\n~10 byte packet ≈ 870 µs", fillcolor="#f7c8c8"];
+        b_apb   [label="STREAM channel\nstart registers\n(one APB write each)", fillcolor="#f7c8c8"];
+        b_chs   [label="Ch0 starts t = 0\nCh1 starts t ≈ 870 µs\nCh2 starts t ≈ 1.7 ms\nCh3 starts t ≈ 2.6 ms", fillcolor="#f7c8c8"];
+
+        b_host -> b_uart -> b_apb -> b_chs;
+    }
+
+    // ---- after: hardware kick-burst ----
+    subgraph cluster_after {
+        label="After:  hardware kick-burst (single APB write fans out to all channels)";
+        labeljust=l;
+        style="rounded,filled";
+        fillcolor="#e3f4d7";
+        color="#5b8c3a";
+
+        a_host  [label="Host: write CH_KICK_ADDR[0..3]\n(shadow registers, no kick yet)\nwrite KICK_GO mask", fillcolor="#caebab"];
+        a_uart  [label="UART writes shadow regs\nthen one KICK_GO write", fillcolor="#caebab"];
+        a_csr   [label="harness_csr.KICK_GO\n→ generates 1-aclk pulse\non all selected channels", fillcolor="#caebab", penwidth=2];
+        a_chs   [label="Ch0–Ch3 all start\non the same aclk\n(< 10 ns skew)", fillcolor="#caebab"];
+
+        a_host -> a_uart -> a_csr -> a_chs;
+    }
+
+    // ---- annotation ----
+    note [shape=note, fillcolor="#fffbe0", color="#888888", style="filled",
+          label="Why it matters:\nResponse-delay sweeps need all\nchannels active simultaneously.\nKick skew of ms makes the\n2-D channel × delay heatmap\nuninterpretable."];
+    a_chs -> note [style=invis];
+}

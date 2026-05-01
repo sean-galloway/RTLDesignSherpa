@@ -96,7 +96,9 @@ if {[llength $defines] > 0} {
     set_property verilog_define $defines $src_fs
 }
 
-set_property top stream_char_top $src_fs
+set top_name stream_char_top
+puts "Setting top module: $top_name"
+set_property top $top_name $src_fs
 update_compile_order -fileset sources_1
 
 # ----------------------------------------------------------------------------

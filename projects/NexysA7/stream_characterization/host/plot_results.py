@@ -111,12 +111,18 @@ def _format_x_ticks(ax, col: str, values: np.ndarray) -> None:
                 labels.append(str(v))
         ax.set_xticks(sorted_vals)
         ax.set_xticklabels(labels)
+        if len(sorted_vals) > 10:
+            ax.tick_params(axis="x", labelrotation=45)
     elif col in _INTEGER_AXES:
         # Force integer ticks at exactly the sampled values so matplotlib
         # doesn't auto-fill 1.5, 2.5, etc. for sparse integer sweeps.
         sorted_vals = sorted(set(int(v) for v in values))
         ax.set_xticks(sorted_vals)
         ax.set_xticklabels([str(v) for v in sorted_vals])
+        # Wide delay sweeps (now up to 16 ticks across 0..512) overlap when
+        # rendered horizontally. Rotate once we cross ~10 ticks.
+        if len(sorted_vals) > 10:
+            ax.tick_params(axis="x", labelrotation=45)
 
 
 def plot_1d(df: pd.DataFrame, x_col: str, title: str, out_path: str) -> None:
@@ -181,6 +187,8 @@ def plot_2d(df: pd.DataFrame, x_col: str, y_col: str, base_path: str,
 
     ax.set_xticks(range(len(pivot.columns)))
     ax.set_xticklabels([_label(x_col, v) for v in pivot.columns])
+    if len(pivot.columns) > 10:
+        ax.tick_params(axis="x", labelrotation=45)
     ax.set_yticks(range(len(pivot.index)))
     ax.set_yticklabels([_label(y_col, v) for v in pivot.index])
     ax.set_xlabel(_axis_label(x_col))
