@@ -1,17 +1,19 @@
 # Include directories
 +incdir+$REPO_ROOT/rtl/amba/includes
 
-# Bridge RTL files (generated)
-generated/bridge_stream_char_axil/bridge_stream_char_axil_pkg.sv
-generated/bridge_stream_char_axil/host_adapter.sv
-generated/bridge_stream_char_axil/bridge_stream_char_axil.sv
-generated/bridge_stream_char_axil/bridge_stream_char_axil_xbar.sv
-generated/bridge_stream_char_axil/debug_sram_adapter.sv
-generated/bridge_stream_char_axil/desc_ram_adapter.sv
-generated/bridge_stream_char_axil/dma_axil_adapter.sv
-generated/bridge_stream_char_axil/harness_csr_adapter.sv
-generated/bridge_stream_char_axil/stream_apb_adapter.sv
-generated/bridge_stream_char_axil/stream_err_adapter.sv
+# Bridge RTL files (generated). Paths are absolute via $FRAMEWORK_ROOT so
+# the filelist works whether it's pulled in from the umbrella or from a
+# per-flow filelist.
+$FRAMEWORK_ROOT/rtl/bridges/generated/bridge_stream_char_axil/bridge_stream_char_axil_pkg.sv
+$FRAMEWORK_ROOT/rtl/bridges/generated/bridge_stream_char_axil/host_adapter.sv
+$FRAMEWORK_ROOT/rtl/bridges/generated/bridge_stream_char_axil/bridge_stream_char_axil.sv
+$FRAMEWORK_ROOT/rtl/bridges/generated/bridge_stream_char_axil/bridge_stream_char_axil_xbar.sv
+$FRAMEWORK_ROOT/rtl/bridges/generated/bridge_stream_char_axil/debug_sram_adapter.sv
+$FRAMEWORK_ROOT/rtl/bridges/generated/bridge_stream_char_axil/desc_ram_adapter.sv
+$FRAMEWORK_ROOT/rtl/bridges/generated/bridge_stream_char_axil/dma_axil_adapter.sv
+$FRAMEWORK_ROOT/rtl/bridges/generated/bridge_stream_char_axil/harness_csr_adapter.sv
+$FRAMEWORK_ROOT/rtl/bridges/generated/bridge_stream_char_axil/stream_apb_adapter.sv
+$FRAMEWORK_ROOT/rtl/bridges/generated/bridge_stream_char_axil/stream_err_adapter.sv
 
 # AXI4 Wrapper modules (timing isolation)
 # Master adapters use axi4_slave_* (act as AXI slave to external master)
