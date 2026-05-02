@@ -1,0 +1,2 @@
+master\slave,stream_apb,harness_csr,desc_ram,stream_err,debug_sram,dma_axil
+host,1,1,1,1,1,1
