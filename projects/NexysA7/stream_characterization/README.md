@@ -90,11 +90,11 @@ column attribute to the bridge change.
 
 ## Status
 
-| Cell | Build | Sweeps | Doc data |
-|---|---|---|---|
-| stream-bridge | ✅ working | ✅ collected (delay 0–512, ch×delay 1–4×0–512, etc.) | ✅ in writeup |
-| vivado-mcdma | ⚠️ skeleton elaborates; harness not yet wired through MCDMA | — | — |
-| stream-vivado-bridge | not yet built | — | — |
-| vivado-mcdma-vivado-bridge | not yet built | — | — |
+| Cell | Build | Validation strategy | Sweeps | Doc data |
+|---|---|---|---|---|
+| stream-bridge | working | cocotb gate + FPGA sweeps | collected (delay 0–512, ch×delay 1–4×0–512, etc.) | in writeup |
+| vivado-mcdma | skeleton elaborates; harness not yet wired through MCDMA | **FPGA-only** (Vivado IP is VHDL → Verilator can't simulate; see flow's `dv/README.md`) | — | — |
+| stream-vivado-bridge | not yet built | cocotb gate + FPGA sweeps | — | — |
+| vivado-mcdma-vivado-bridge | not yet built | FPGA-only (same VHDL constraint as MCDMA) | — | — |
 
 See each flow's own `README.md` for the per-flow detail.

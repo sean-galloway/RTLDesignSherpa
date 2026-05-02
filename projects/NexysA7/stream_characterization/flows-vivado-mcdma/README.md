@@ -11,6 +11,10 @@ harness are in place. **The harness does not yet drive MCDMA** — the
 stub ties off all status outputs and just blinks the heartbeat LED. The
 next session will plumb the IP through the framework's instrumentation.
 
+**Validation is FPGA-only** for this flow (no cocotb regression). See
+`dv/README.md` for the rationale. The bring-up loop is `make project →
+synth → bitstream → program → cmds.sh`.
+
 What works today:
 
 - `make project` — creates the Vivado project, imports `axi_mcdma_0.xci`,
@@ -53,7 +57,7 @@ flows-vivado-mcdma/
 │       └── vivado_mcdma_top.f
 ├── tcl/                              create_project / build_all / program / synth_only
 ├── constraints/vivado_mcdma_top.xdc  same Nexys A7 pin set as flows-stream-bridge
-├── dv/                               cocotb tests (TBD)
+├── dv/                               see dv/README.md — FPGA-only, no cocotb
 ├── host/                             host scripts (TBD — copy + adapt from flows-stream-bridge)
 ├── csv/                              sweep results (committed)
 ├── plots/                            rendered PNGs (committed)

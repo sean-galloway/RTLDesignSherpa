@@ -41,7 +41,7 @@ PROJECT  := $(SELF_DIR)/build/vivado_project/vivado_mcdma.xpr
 BITSTREAM:= $(SELF_DIR)/bitstream/vivado_mcdma.bit
 REPORTS  := $(SELF_DIR)/reports
 
-.PHONY: help project synth bitstream program utilization timing clean clean-all cleanall
+.PHONY: help project synth bitstream program utilization timing sim clean clean-all cleanall
 
 help:
 	@echo "Vivado MCDMA Characterization — FPGA build targets"
@@ -73,6 +73,25 @@ bitstream:
 program:
 	@[ -f $(BITSTREAM) ] || (echo "No bitstream found — run 'make bitstream' first." && false)
 	cd $(SELF_DIR) && $(VIVADO_BATCH) -source $(TCL)/program_fpga.tcl
+
+# ---- Sim ------------------------------------------------------------------
+# This flow is FPGA-only validated. The Vivado MCDMA IP is delivered as
+# VHDL, which Verilator (our cocotb default) cannot simulate. See
+# dv/README.md for the rationale and how to wire xsim if you need
+# pre-silicon regression here.
+sim:
+	@echo ""
+	@echo "  flows-vivado-mcdma is FPGA-only validated; there is no cocotb"
+	@echo "  regression for this flow. See dv/README.md for the rationale."
+	@echo ""
+	@echo "  Bring-up loop instead:"
+	@echo "    make project    # validate IP imports + elaborates"
+	@echo "    make synth      # validate it fits"
+	@echo "    make bitstream  # validate it routes + meets timing"
+	@echo "    make program    # flash to the Nexys A7"
+	@echo "    cmds.sh         # exercise on-board with UART"
+	@echo ""
+	@false
 
 utilization:
 	@if [ -f $(REPORTS)/utilization_impl.txt ]; then \
