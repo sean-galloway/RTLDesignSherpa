@@ -30,7 +30,15 @@
 #   make docs
 #==============================================================================
 
+# REPO_ROOT must be set in the environment (e.g. by sourcing env_python).
+# This Makefile does not compute it from relative paths — by design.
+ifndef REPO_ROOT
+$(error REPO_ROOT is not set. Source the repo's env file (env_python) or export REPO_ROOT manually before running make.)
+endif
+
 SELF_DIR := $(patsubst %/,%,$(dir $(abspath $(lastword $(MAKEFILE_LIST)))))
+export REPO_ROOT
+export CHAR_ROOT := $(SELF_DIR)
 
 # ---- Flow inventory ------------------------------------------------------
 # Add new flow dirs here as they come online. The skeleton + the future

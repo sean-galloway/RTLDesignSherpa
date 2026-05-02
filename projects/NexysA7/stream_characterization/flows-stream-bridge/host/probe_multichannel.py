@@ -19,8 +19,15 @@ import sys
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, HERE)
-sys.path.insert(0, os.path.abspath(os.path.join(
-    HERE, "../../../../components/converters/bin")))
+
+# REPO_ROOT must be set in the environment (source env_python).
+_repo_root = os.environ.get("REPO_ROOT")
+if not _repo_root:
+    raise RuntimeError(
+        "REPO_ROOT is not set. Source env_python (or export REPO_ROOT) "
+        "before running this script."
+    )
+sys.path.insert(0, os.path.join(_repo_root, "projects/components/converters/bin"))
 
 from uart_axi_bridge import UARTAxiBridge  # noqa: E402
 

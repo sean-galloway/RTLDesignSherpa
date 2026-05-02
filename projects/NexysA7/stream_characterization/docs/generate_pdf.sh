@@ -13,9 +13,13 @@
 set -euo pipefail
 
 REV="0.90"
+
+# REPO_ROOT must be set in the environment (source env_python). We don't
+# compute it from relative paths — too brittle when the tree gets reshuffled.
+: "${REPO_ROOT:?REPO_ROOT is not set. Source env_python or export REPO_ROOT manually before running this script.}"
+
 DOC_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-CHAR_ROOT="$(cd "${DOC_DIR}/.." && pwd)"
-REPO_ROOT="$(cd "${DOC_DIR}/../../../.." && pwd)"
+CHAR_ROOT="${REPO_ROOT}/projects/NexysA7/stream_characterization"
 
 ASSETS="${DOC_DIR}/assets"
 INPUT="${DOC_DIR}/characterization_v1_findings.md"

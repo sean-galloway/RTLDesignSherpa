@@ -15,14 +15,18 @@
 #==============================================================================
 
 # ---- Layout ---------------------------------------------------------------
-# This flow lives at:
-#   $REPO_ROOT/projects/NexysA7/stream_characterization/flows-stream-bridge/
-# Four levels above SELF_DIR is the repo root.
+# REPO_ROOT must be set in the environment (e.g. by sourcing env_python).
+# We don't compute it from relative paths — too brittle when the directory
+# tree gets reshuffled. Hard-fail here so the failure mode is obvious.
+ifndef REPO_ROOT
+$(error REPO_ROOT is not set. Source the repo's env file (env_python) or export REPO_ROOT manually before running make.)
+endif
+
 SELF_DIR                 := $(patsubst %/,%,$(dir $(abspath $(lastword $(MAKEFILE_LIST)))))
-export STREAM_CHAR_ROOT  := $(SELF_DIR)
+export REPO_ROOT
+export CHAR_ROOT         := $(REPO_ROOT)/projects/NexysA7/stream_characterization
 export FLOW_ROOT         := $(SELF_DIR)
-export CHAR_ROOT         := $(abspath $(SELF_DIR)/..)
-export REPO_ROOT         := $(abspath $(SELF_DIR)/../../../..)
+export STREAM_CHAR_ROOT  := $(SELF_DIR)
 export FRAMEWORK_ROOT    := $(CHAR_ROOT)/stream_char_framework
 export DOCS_ROOT         := $(CHAR_ROOT)/docs
 export STREAM_ROOT       := $(REPO_ROOT)/projects/components/stream
