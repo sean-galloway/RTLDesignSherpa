@@ -629,6 +629,72 @@ Create guide for synthesizing and implementing generated bridges.
 
 ---
 
+### TASK-011: Generator emits invalid `[-1:0]` ranges when `id_width = 0`
+**Status:** 🟡 Open
+**Priority:** P2
+**Effort:** 0.5 day
+**Owner:** Unassigned
+
+**Description:**
+When a port (master or slave) is configured with `id_width = 0` and
+`protocol = "axil"`, the generator emits SystemVerilog port declarations
+with invalid `[-1:0]` packed ranges on the AXI ID signals (`*_awid`,
+`*_bid`, `*_arid`, `*_rid`). Vivado / Verilator both reject this — a
+0-bit signal in SV must use `[0:0]` (degenerate single-bit) or be omitted
+entirely.
+
+**Reproducer:**
+```toml
+[[bridge.masters]]
+name = "host"
+prefix = "host_axi_"
+protocol = "axil"
+channels = "rw"
+id_width = 0       # <-- triggers `[-1:0]` in the generated wrapper
+```
+
+The generated `bridge_<name>.sv` will contain lines like:
+```systemverilog
+input  logic [-1:0]  host_axi_awid,    // illegal range
+output logic [-1:0]  host_axi_bid,
+input  logic [-1:0]  host_axi_arid,
+output logic [-1:0]  host_axi_rid,
+```
+
+**Real-world hit:**
+Hit while integrating a 1×6 AXIL bridge for the
+`stream_characterization` harness
+(`projects/NexysA7/stream_characterization/stream_char_framework/rtl/bridges/`).
+AXIL has no transaction IDs in its protocol, so `id_width = 0` is the
+semantically correct value, but the workaround was to set
+`id_width = 1` (a degenerate single-bit ID always tied to 0).
+
+**Acceptance Criteria:**
+- [ ] When `id_width = 0`, emit either:
+      (a) no `*_awid` / `*_bid` / `*_arid` / `*_rid` ports at all (cleanest), or
+      (b) `[0:0]` declarations with internal tie-off.
+- [ ] Existing AXI4 ports with `id_width >= 1` keep their current behaviour.
+- [ ] Add a regression test covering AXIL master + AXIL slaves with `id_width = 0`.
+- [ ] Update `bin/test_configs/bridge_1x5_rd_axil.toml` (which today uses
+      `id_width = 0` on AXIL slaves but `id_width = 4` on the master) to
+      exercise both styles.
+
+**Workaround until fixed:**
+Set `id_width = 1` for AXIL ports. Cost: an extra unused 1-bit signal at
+the port boundary that the surrounding logic ties to 0. Documented
+inline in
+`projects/NexysA7/stream_characterization/stream_char_framework/rtl/bridges/configs/bridge_stream_char_axil.toml`.
+
+**Dependencies:**
+- None.
+
+**Related Files:**
+- `projects/components/bridge/bin/bridge_generator.py`
+- `projects/components/bridge/bin/bridge_pkg/` (port emission code)
+- `projects/NexysA7/stream_characterization/stream_char_framework/rtl/bridges/configs/bridge_stream_char_axil.toml` (downstream consumer with the workaround)
+
+---
+
 ## Recently Completed Tasks
 
 ### ✅ Phase 2: Channel-Specific Masters (Complete - 2025-10-26)
