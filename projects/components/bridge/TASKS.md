@@ -629,69 +629,159 @@ Create guide for synthesizing and implementing generated bridges.
 
 ---
 
-### TASK-011: Generator emits invalid `[-1:0]` ranges when `id_width = 0`
-**Status:** 🟡 Open
-**Priority:** P2
-**Effort:** 0.5 day
+### TASK-011: Generator id_width handling is broken in two places
+**Status:** 🟡 Open — root-caused, fix not yet started
+**Priority:** P1 (was P2 — escalated after second site found; the bridge
+                 only generates valid RTL for a narrow happy-path config)
+**Effort:** 1–2 days
 **Owner:** Unassigned
 
-**Description:**
-When a port (master or slave) is configured with `id_width = 0` and
-`protocol = "axil"`, the generator emits SystemVerilog port declarations
-with invalid `[-1:0]` packed ranges on the AXI ID signals (`*_awid`,
-`*_bid`, `*_arid`, `*_rid`). Vivado / Verilator both reject this — a
-0-bit signal in SV must use `[0:0]` (degenerate single-bit) or be omitted
-entirely.
+**Symptoms:**
+The generator's own `--generate-tests` connectivity test fails to
+elaborate under Verilator with width mismatches on the slave-side ID
+signals, e.g.:
 
-**Reproducer:**
-```toml
-[[bridge.masters]]
-name = "host"
-prefix = "host_axi_"
-protocol = "axil"
-channels = "rw"
-id_width = 0       # <-- triggers `[-1:0]` in the generated wrapper
+```
+%Warning-WIDTHEXPAND: bridge_<name>_xbar.sv:734:76:
+  Operator COND expects 8 bits on the Conditional True,
+  but Conditional True's VARREF 'harness_csr_axi_rid' generates 4 bits.
+   ((harness_csr_axi_rid_bridge_id == 0) && harness_csr_axi_rid_valid
+        ? harness_csr_axi_rid : '0)
 ```
 
-The generated `bridge_<name>.sv` will contain lines like:
+Up to ~24 such warnings on a 1M×6S bridge, all on the per-slave `*_axi_*id`
+families. Verilator promotes them to fatal, so the bridge never elaborates,
+let alone runs.
+
+**Two root causes (one symptom):**
+
+**(A) `id_width = 0` emits `[-1:0]` ranges.** Configuring any port with
+`id_width = 0` (which is the semantically correct value for AXIL,
+since AXIL has no transaction IDs) makes the top wrapper emit lines
+like:
+
 ```systemverilog
-input  logic [-1:0]  host_axi_awid,    // illegal range
+input  logic [-1:0]  host_axi_awid,    // illegal SV range
 output logic [-1:0]  host_axi_bid,
 input  logic [-1:0]  host_axi_arid,
 output logic [-1:0]  host_axi_rid,
 ```
 
+A 0-bit signal in SV must be `[0:0]` (degenerate single-bit) or omitted.
+
+**(B) Slave port wires are hardcoded `[3:0]`, ignoring slave `id_width`.**
+In `projects/components/bridge/bin/bridge_pkg/components/bridge_module_generator.py`,
+the slave-port wire declarations in the top wrapper are emitted as literal
+4-bit ranges:
+
+```python
+# Lines ~519, 525-528, 538, 546, 552-555, 559
+lines.append(f"    logic [3:0]                {prefix}awid;")
+lines.append(f"    logic [3:0]                {prefix}awcache;")    # spec-fixed at 4, OK
+lines.append(f"    logic [3:0]                {prefix}awqos;")      # spec-fixed at 4, OK
+lines.append(f"    logic [3:0]                {prefix}awregion;")   # spec-fixed at 4, OK
+lines.append(f"    logic [3:0]                {prefix}bid;")        # ★ should be parameterized
+lines.append(f"    logic [3:0]                {prefix}arid;")       # ★
+lines.append(f"    logic [3:0]                {prefix}arcache;")    # spec-fixed at 4, OK
+lines.append(f"    logic [3:0]                {prefix}arqos;")      # spec-fixed at 4, OK
+lines.append(f"    logic [3:0]                {prefix}arregion;")   # spec-fixed at 4, OK
+lines.append(f"    logic [3:0]                {prefix}rid;")        # ★
+```
+
+The `*id` lines (★) ignore the slave's `id_width` from the .toml; the
+*cache/qos/region lines are correct (those fields are spec-fixed at 4).
+
+Meanwhile the surrounding xbar uses `BRIDGE_ID_WIDTH` (computed from
+master id_width + routing bits, capped at 8 by the hard limit at
+`bridge_pkg/csv_parser.py:254`) for the tracking/routing signals
+(`*_axi_rid_bridge_id`, `*_axi_rid_valid`). The 4 vs BRIDGE_ID_WIDTH
+mismatch is what Verilator catches.
+
+**Why bridge_1x5_rd_axil works today:**
+The shipped 1x5 example happens to land in the only working corner:
+- Master `cpu_rd` has `id_width = 4` → matches the hardcoded 4 on slave wires.
+- Single master with no routing bits → `BRIDGE_ID_WIDTH = 4` too.
+- Result: every width is 4, no mismatch.
+
+Any deviation breaks: more masters (routing bits push BRIDGE_ID_WIDTH > 4),
+master id_width ≠ 4, or trying to declare slave id_width ≠ 4.
+
+**Reproducer:**
+```toml
+[bridge]
+name = "bridge_repro"
+
+[[bridge.masters]]
+name = "host"
+prefix = "host_axi_"
+protocol = "axil"
+channels = "rw"
+id_width = 0           # → [-1:0] in top wrapper (Bug A)
+
+[[bridge.slaves]]
+name = "axil_periph"
+prefix = "axil_periph_"
+protocol = "axil"
+channels = "rw"
+id_width = 8           # → silently ignored, slave wires emit [3:0] (Bug B)
+addr_width = 32
+data_width = 32
+base_addr = "0x00000000"
+addr_range = "0x00001000"
+```
+
+Run with `--generate-tests` then run the connectivity test under Verilator.
+
 **Real-world hit:**
-Hit while integrating a 1×6 AXIL bridge for the
+Both bugs hit while integrating a 1×6 AXIL bridge for the
 `stream_characterization` harness
 (`projects/NexysA7/stream_characterization/stream_char_framework/rtl/bridges/`).
-AXIL has no transaction IDs in its protocol, so `id_width = 0` is the
-semantically correct value, but the workaround was to set
-`id_width = 1` (a degenerate single-bit ID always tied to 0).
+We worked through:
+- `id_width = 0` → `[-1:0]` (Bug A)
+- bumped to 1 → 1 vs 4 mismatch in xbar (Bug B surfacing for AXIL slaves)
+- bumped to 8 → 8 vs 4 mismatch (Bug B again, slave wires still 4)
+- bumped to 4 → matches but only because of the happy-path coincidence
+  described above
 
 **Acceptance Criteria:**
-- [ ] When `id_width = 0`, emit either:
-      (a) no `*_awid` / `*_bid` / `*_arid` / `*_rid` ports at all (cleanest), or
-      (b) `[0:0]` declarations with internal tie-off.
-- [ ] Existing AXI4 ports with `id_width >= 1` keep their current behaviour.
-- [ ] Add a regression test covering AXIL master + AXIL slaves with `id_width = 0`.
-- [ ] Update `bin/test_configs/bridge_1x5_rd_axil.toml` (which today uses
-      `id_width = 0` on AXIL slaves but `id_width = 4` on the master) to
-      exercise both styles.
+- [ ] **Bug A:** `id_width = 0` either omits `*_awid` / `*_bid` /
+       `*_arid` / `*_rid` ports entirely (cleanest, matches AXIL spec)
+       or emits `[0:0]` with internal tie-off — never `[-1:0]`.
+- [ ] **Bug B:** Slave port wires for `*id` use the slave's configured
+       `id_width` (parameterised), not literal `[3:0]`. The cache/qos/
+       region literals are correct as-is and stay.
+- [ ] The xbar's `*_bridge_id` / `*_valid` companion signals are sized
+       to match the slave's `id_width + routing_bits` end-to-end.
+- [ ] Add a regression test (use `--generate-tests`) covering at least:
+       (a) AXIL master id_width=0 + AXIL slaves id_width=0 → must emit and
+           connectivity-test pass under Verilator;
+       (b) Master id_width=4 + mixed AXIL slaves id_width=0/4/8 → all pass.
+- [ ] Update the shipped `bin/test_configs/bridge_1x5_rd_axil.toml` to use
+       `id_width = 0` on the AXIL master too once Bug A is fixed (it
+       currently uses `id_width = 4` on the master to dodge Bug A, which
+       hides the issue from contributors).
 
 **Workaround until fixed:**
-Set `id_width = 1` for AXIL ports. Cost: an extra unused 1-bit signal at
-the port boundary that the surrounding logic ties to 0. Documented
-inline in
+Master id_width = 4, slave id_width = 4 (everywhere except APB which the
+validator forces to 0), and limit fan-out so routing_bits stays at 0 (1
+master only, ≤ 8 slaves). Documented inline in
 `projects/NexysA7/stream_characterization/stream_char_framework/rtl/bridges/configs/bridge_stream_char_axil.toml`.
+This avoids both bugs at the cost of carrying 4 wasted ID bits on every
+AXIL port at the boundary.
 
 **Dependencies:**
 - None.
 
 **Related Files:**
-- `projects/components/bridge/bin/bridge_generator.py`
-- `projects/components/bridge/bin/bridge_pkg/` (port emission code)
-- `projects/NexysA7/stream_characterization/stream_char_framework/rtl/bridges/configs/bridge_stream_char_axil.toml` (downstream consumer with the workaround)
+- `projects/components/bridge/bin/bridge_pkg/components/bridge_module_generator.py`
+   lines ~519, 538, 546, 559 (the four `*id` lines that need parameterising)
+- `projects/components/bridge/bin/bridge_pkg/csv_parser.py` line 254
+   (`crossbar_id_width = 8` hard-limit comment refers to "all agents" but
+   the slave wires don't actually obey it)
+- `projects/components/bridge/bin/bridge_pkg/generators/slave_adapter_generator.py`
+   uses `self.id_width` (= crossbar/master width), never `self.slave.id_width`
+- `projects/NexysA7/stream_characterization/stream_char_framework/rtl/bridges/configs/bridge_stream_char_axil.toml`
+   (downstream consumer carrying the workaround)
 
 ---
 
