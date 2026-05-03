@@ -217,7 +217,7 @@ module bridge_1x5_wr (
 
     // Crossbar-to-Slave Internal AXI4 Signals
     // periph_wr (AXI4, 32b AXI4 interface)
-    logic [3:0]                xbar_periph_wr_axi_awid;
+    logic [3:0]            xbar_periph_wr_axi_awid;
     logic [31:0]               xbar_periph_wr_axi_awaddr;
     logic [7:0]                xbar_periph_wr_axi_awlen;
     logic [2:0]                xbar_periph_wr_axi_awsize;
@@ -236,7 +236,7 @@ module bridge_1x5_wr (
     logic                      xbar_periph_wr_axi_wuser;
     logic                      xbar_periph_wr_axi_wvalid;
     logic                      xbar_periph_wr_axi_wready;
-    logic [3:0]                xbar_periph_wr_axi_bid;
+    logic [3:0]            xbar_periph_wr_axi_bid;
     logic [1:0]                xbar_periph_wr_axi_bresp;
     logic                      xbar_periph_wr_axi_buser;
     logic                      xbar_periph_wr_axi_bvalid;
@@ -246,7 +246,7 @@ module bridge_1x5_wr (
     logic                       periph_wr_axi_bid_valid;
 
     // ddr_wr (AXI4, 64b AXI4 interface)
-    logic [3:0]                xbar_ddr_wr_axi_awid;
+    logic [3:0]            xbar_ddr_wr_axi_awid;
     logic [31:0]               xbar_ddr_wr_axi_awaddr;
     logic [7:0]                xbar_ddr_wr_axi_awlen;
     logic [2:0]                xbar_ddr_wr_axi_awsize;
@@ -265,7 +265,7 @@ module bridge_1x5_wr (
     logic                      xbar_ddr_wr_axi_wuser;
     logic                      xbar_ddr_wr_axi_wvalid;
     logic                      xbar_ddr_wr_axi_wready;
-    logic [3:0]                xbar_ddr_wr_axi_bid;
+    logic [3:0]            xbar_ddr_wr_axi_bid;
     logic [1:0]                xbar_ddr_wr_axi_bresp;
     logic                      xbar_ddr_wr_axi_buser;
     logic                      xbar_ddr_wr_axi_bvalid;
@@ -275,7 +275,7 @@ module bridge_1x5_wr (
     logic                       ddr_wr_axi_bid_valid;
 
     // hbm_wr (AXI4, 128b AXI4 interface)
-    logic [3:0]                xbar_hbm_wr_axi_awid;
+    logic [3:0]            xbar_hbm_wr_axi_awid;
     logic [31:0]               xbar_hbm_wr_axi_awaddr;
     logic [7:0]                xbar_hbm_wr_axi_awlen;
     logic [2:0]                xbar_hbm_wr_axi_awsize;
@@ -294,7 +294,7 @@ module bridge_1x5_wr (
     logic                      xbar_hbm_wr_axi_wuser;
     logic                      xbar_hbm_wr_axi_wvalid;
     logic                      xbar_hbm_wr_axi_wready;
-    logic [3:0]                xbar_hbm_wr_axi_bid;
+    logic [3:0]            xbar_hbm_wr_axi_bid;
     logic [1:0]                xbar_hbm_wr_axi_bresp;
     logic                      xbar_hbm_wr_axi_buser;
     logic                      xbar_hbm_wr_axi_bvalid;
@@ -304,7 +304,7 @@ module bridge_1x5_wr (
     logic                       hbm_wr_axi_bid_valid;
 
     // apb_periph (APB, 32b AXI4 interface)
-    logic [3:0]                xbar_apb_periph_axi_awid;
+    logic [3:0]            xbar_apb_periph_axi_awid;
     logic [31:0]               xbar_apb_periph_axi_awaddr;
     logic [7:0]                xbar_apb_periph_axi_awlen;
     logic [2:0]                xbar_apb_periph_axi_awsize;
@@ -323,7 +323,7 @@ module bridge_1x5_wr (
     logic                      xbar_apb_periph_axi_wuser;
     logic                      xbar_apb_periph_axi_wvalid;
     logic                      xbar_apb_periph_axi_wready;
-    logic [3:0]                xbar_apb_periph_axi_bid;
+    logic [3:0]            xbar_apb_periph_axi_bid;
     logic [1:0]                xbar_apb_periph_axi_bresp;
     logic                      xbar_apb_periph_axi_buser;
     logic                      xbar_apb_periph_axi_bvalid;
@@ -333,7 +333,7 @@ module bridge_1x5_wr (
     logic                       apb_periph_axi_bid_valid;
 
     // axil_periph (AXIL, 32b AXI4 interface)
-    logic [3:0]                xbar_axil_periph_axi_awid;
+    logic [3:0]            xbar_axil_periph_axi_awid;
     logic [31:0]               xbar_axil_periph_axi_awaddr;
     logic [7:0]                xbar_axil_periph_axi_awlen;
     logic [2:0]                xbar_axil_periph_axi_awsize;
@@ -352,7 +352,7 @@ module bridge_1x5_wr (
     logic                      xbar_axil_periph_axi_wuser;
     logic                      xbar_axil_periph_axi_wvalid;
     logic                      xbar_axil_periph_axi_wready;
-    logic [3:0]                xbar_axil_periph_axi_bid;
+    logic [3:0]            xbar_axil_periph_axi_bid;
     logic [1:0]                xbar_axil_periph_axi_bresp;
     logic                      xbar_axil_periph_axi_buser;
     logic                      xbar_axil_periph_axi_bvalid;

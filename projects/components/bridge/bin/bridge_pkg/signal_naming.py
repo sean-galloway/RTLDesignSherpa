@@ -115,8 +115,12 @@ class SignalInfo:
                 # Unknown parameter, return expression
                 return f"[{self.width_expr}-1:0]"
 
-        if width == 1:
-            return ""  # Scalar
+        # width == 0 is the AXIL "no ID" case — id_width=0 in the .toml.
+        # Emit as scalar (1 bit) so we don't generate the invalid SV range
+        # `[-1:0]`. Any port wired to it will tie the bit to 0. This is the
+        # Bug A fix in TASK-011.
+        if width <= 1:
+            return ""  # Scalar (1 bit, including the degenerate zero-width case)
         else:
             return f"[{width-1}:0]"
 
@@ -307,61 +311,75 @@ class SignalNaming:
 
     @staticmethod
     def axi4_signal_name(port_name: str, direction: Direction,
-                        channel: AXI4Channel, signal: str) -> str:
+                        channel: AXI4Channel, signal: str,
+                        prefix: Optional[str] = None) -> str:
         """
-        Generate AXI4 signal name following bridge convention.
+        Generate AXI4 signal name.
 
-        Format: <port>_axi_<channel><signal>
+        Bug C in TASK-011: callers can now pass an explicit `prefix` from the
+        port config (e.g. `dma_axil_`) instead of having `<port_name>_axi_`
+        baked in. Without the override, signals are named
+        `<port_name>_axi_<channel><signal>` for backward compatibility with
+        the existing 9 generated bridges (whose configs all set
+        prefix == "<name>_axi_").
 
         Args:
-            port_name: Port name (e.g., "cpu", "ddr_controller")
-            direction: Direction.MASTER or Direction.SLAVE (used for port direction, not signal naming)
+            port_name: Port name, used as the legacy `<name>_axi_` prefix
+                when `prefix` is not supplied (e.g. "cpu", "ddr_controller")
+            direction: Direction.MASTER or Direction.SLAVE (port direction
+                only — does not affect signal naming)
             channel: AXI4 channel (AW, W, B, AR, R)
-            signal: Signal name within channel (e.g., "id", "addr", "valid")
+            signal: Signal name within channel ("id", "addr", "valid", ...)
+            prefix: Explicit port prefix from the .toml (e.g. "dma_axil_").
+                When set, the signal becomes `{prefix}{channel}{signal}` and
+                `port_name` is ignored. Use this so a config setting
+                prefix="dma_axil_" gets `dma_axil_awvalid`, not
+                `dma_axil_axi_awvalid`.
 
         Returns:
-            Complete signal name (e.g., "cpu_axi_awid")
+            Complete signal name.
 
         Examples:
             >>> SignalNaming.axi4_signal_name("cpu", Direction.MASTER, AXI4Channel.AW, "id")
             'cpu_axi_awid'
-            >>> SignalNaming.axi4_signal_name("ddr", Direction.SLAVE, AXI4Channel.R, "data")
-            'ddr_axi_rdata'
-
-        Naming Convention Rationale:
-            - NO direction prefix (m_/s_) - Port name already identifies endpoint
-            - Protocol identifier (_axi_) retained for easy signal tracing in waveforms
-            - User requirement: "the _m_axi should be just _axi" (signal naming session)
-
-        Format: <port>_axi_<channel><signal>
-            ✅ CORRECT: cpu_axi_awaddr, ddr_axi_rdata
-            ❌ WRONG:   cpu_m_axi_awaddr (redundant direction prefix)
+            >>> SignalNaming.axi4_signal_name("dma", Direction.MASTER, AXI4Channel.AW, "valid", prefix="dma_axil_")
+            'dma_axil_awvalid'
         """
-        # Implementation note: No direction prefix in signal names
-        # Port name (cpu, ddr, m0, s1) is sufficient to identify master vs slave
-        # Adding _m_ or _s_ prefix creates redundant naming (cpu_m_axi_awaddr)
+        if prefix is not None:
+            # Normalise: ensure trailing separator. Old configs sometimes
+            # set prefix="cpu_m_axi" (no trailing `_`), which would yield
+            # "cpu_m_axiawid". Add the underscore for the user.
+            sep = "" if prefix.endswith("_") or not prefix else "_"
+            return f"{prefix}{sep}{channel.value}{signal}"
         return f"{port_name}_axi_{channel.value}{signal}"
 
     @staticmethod
-    def apb_signal_name(port_name: str, signal: str) -> str:
+    def apb_signal_name(port_name: str, signal: str,
+                        prefix: Optional[str] = None) -> str:
         """
-        Generate APB signal name following industry standard convention.
+        Generate APB signal name.
 
-        Format: <port>_<signal>
+        Bug C in TASK-011: callers can pass an explicit `prefix` (which
+        already includes its trailing underscore, e.g. "apb_periph_"). When
+        omitted, falls back to legacy `<port_name>_<signal>`.
 
         Args:
-            port_name: Port name (e.g., "apb0", "apb_periph")
-            signal: APB signal name (e.g., "psel", "paddr", "pready")
+            port_name: Port name (used only when `prefix` is not supplied)
+            signal: APB signal name ("PADDR", "PSEL", ...)
+            prefix: Explicit prefix from .toml. Trailing underscore expected.
 
         Returns:
-            Complete signal name (e.g., "apb0_psel")
+            Complete signal name.
 
         Examples:
             >>> SignalNaming.apb_signal_name("apb0", "PSEL")
             'apb0_PSEL'
-            >>> SignalNaming.apb_signal_name("apb_periph", "PADDR")
-            'apb_periph_PADDR'
+            >>> SignalNaming.apb_signal_name("apb0", "PSEL", prefix="apb_periph_")
+            'apb_periph_PSEL'
         """
+        if prefix is not None:
+            sep = "" if prefix.endswith("_") or not prefix else "_"
+            return f"{prefix}{sep}{signal}"
         return f"{port_name}_{signal}"
 
     @staticmethod
@@ -411,25 +429,23 @@ class SignalNaming:
 
     @staticmethod
     def get_all_axi4_signals(port_name: str, direction: Direction,
-                            channels: List[AXI4Channel]) -> Dict[AXI4Channel, List[Tuple[str, SignalInfo]]]:
+                            channels: List[AXI4Channel],
+                            prefix: Optional[str] = None) -> Dict[AXI4Channel, List[Tuple[str, SignalInfo]]]:
         """
         Get all signal names and info for specified AXI4 channels.
 
         Args:
-            port_name: Port name
+            port_name: Port name (used as `<name>_axi_` prefix when `prefix`
+                is not supplied)
             direction: Direction.MASTER or Direction.SLAVE
             channels: List of channels to generate (e.g., [AW, W, B] for write-only)
+            prefix: Explicit signal prefix from the .toml port config (Bug C
+                in TASK-011). When provided, signals are
+                `{prefix}{channel}{signal}`; otherwise legacy
+                `{port_name}_axi_{channel}{signal}`.
 
         Returns:
             Dictionary mapping channel to list of (signal_name, SignalInfo) tuples
-
-        Example:
-            >>> signals = SignalNaming.get_all_axi4_signals("cpu", Direction.MASTER, [AXI4Channel.AW])
-            >>> for sig_name, sig_info in signals[AXI4Channel.AW]:
-            ...     print(f"{sig_name}: {sig_info.direction.value} {sig_info.get_range({'ID_WIDTH': 8})}")
-            cpu_m_axi_awid: output [7:0]
-            cpu_m_axi_awaddr: output [31:0]
-            cpu_m_axi_awvalid: output
         """
         signal_db = AXI4_MASTER_SIGNALS if direction == Direction.MASTER else AXI4_SLAVE_SIGNALS
         result = {}
@@ -440,7 +456,9 @@ class SignalNaming:
 
             channel_signals = []
             for sig_info in signal_db[channel]:
-                sig_name = SignalNaming.axi4_signal_name(port_name, direction, channel, sig_info.name)
+                sig_name = SignalNaming.axi4_signal_name(
+                    port_name, direction, channel, sig_info.name, prefix=prefix
+                )
                 channel_signals.append((sig_name, sig_info))
 
             result[channel] = channel_signals
@@ -448,28 +466,24 @@ class SignalNaming:
         return result
 
     @staticmethod
-    def get_all_apb_signals(port_name: str, direction: Direction) -> List[Tuple[str, SignalInfo]]:
+    def get_all_apb_signals(port_name: str, direction: Direction,
+                            prefix: Optional[str] = None) -> List[Tuple[str, SignalInfo]]:
         """
         Get all APB signal names and info for a port.
 
         Args:
-            port_name: Port name
+            port_name: Port name (used only when `prefix` is not supplied)
             direction: Direction.MASTER or Direction.SLAVE
+            prefix: Explicit signal prefix from .toml port config (Bug C in
+                TASK-011). When provided, signals are `{prefix}{signal}`;
+                otherwise legacy `{port_name}_{signal}`.
 
         Returns:
             List of (signal_name, SignalInfo) tuples
-
-        Example:
-            >>> signals = SignalNaming.get_all_apb_signals("apb0", Direction.MASTER)
-            >>> for sig_name, sig_info in signals:
-            ...     print(f"{sig_name}: {sig_info.direction.value}")
-            apb0_psel: output
-            apb0_paddr: output
-            apb0_prdata: input
         """
         signal_db = APB_MASTER_SIGNALS if direction == Direction.MASTER else APB_SLAVE_SIGNALS
 
-        return [(SignalNaming.apb_signal_name(port_name, sig_info.name), sig_info)
+        return [(SignalNaming.apb_signal_name(port_name, sig_info.name, prefix=prefix), sig_info)
                 for sig_info in signal_db]
 
     @staticmethod

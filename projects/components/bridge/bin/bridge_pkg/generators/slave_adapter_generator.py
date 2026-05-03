@@ -164,9 +164,11 @@ class SlaveAdapterGenerator:
         # This matches what bridge_module_generator expects
         prefix = f"xbar_{self.slave.name}_axi_"
 
-        # Width parameters
+        # Width parameters. self.id_width is the crossbar/master id_width
+        # passed in by the caller (== max master id_width). Was hardcoded
+        # to 4 — Bug B in TASK-011.
         width_values = {
-            'ID_WIDTH': 4,  # Crossbar uses 4-bit IDs
+            'ID_WIDTH': self.id_width,
             'ADDR_WIDTH': self.slave.addr_width,
             'DATA_WIDTH': self.slave.data_width,
             'STRB_WIDTH': self.slave.data_width // 8,
@@ -262,9 +264,9 @@ class SlaveAdapterGenerator:
         # Use slave prefix from config
         prefix = self.slave.prefix
 
-        # Width parameters
+        # Width parameters. ID_WIDTH is master pass-through (Bug B fix).
         width_values = {
-            'ID_WIDTH': 4,
+            'ID_WIDTH': self.id_width,
             'ADDR_WIDTH': self.slave.addr_width,
             'DATA_WIDTH': self.slave.data_width,
             'STRB_WIDTH': self.slave.data_width // 8,

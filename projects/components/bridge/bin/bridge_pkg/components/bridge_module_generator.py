@@ -335,11 +335,15 @@ class BridgeModuleGenerator:
         # Determine which channels to generate based on master type
         channels = SignalNaming.channels_from_type(master.channels)
 
-        # Get all AXI4 signals from SignalNaming
+        # Get all AXI4 signals from SignalNaming. Pass `prefix` so the
+        # bridge's external master ports honour the .toml's prefix setting
+        # (e.g. prefix="host_" -> host_awvalid). Without this they'd be
+        # forced to `<name>_axi_*` — Bug C in TASK-011.
         all_signals = SignalNaming.get_all_axi4_signals(
             port_name=master.name,
             direction=Direction.MASTER,
-            channels=channels
+            channels=channels,
+            prefix=master.prefix
         )
 
         # Generate declarations for each channel with INVERTED directions
@@ -374,12 +378,23 @@ class BridgeModuleGenerator:
         return lines
 
     def _generate_slave_ports(self, slave: SlaveInfo) -> List[str]:
-        """Generate slave port declarations (AXI4 or APB based on protocol)."""
+        """Generate slave port declarations (AXI4 or APB based on protocol).
+
+        The AXI4 transaction ID (*_awid/*_bid/*_arid/*_rid) is a pass-through
+        from the master, so the slave-side port ID width must equal the
+        master's id_width. Hardcoding it to 4 (the previous behaviour) breaks
+        for any master with id_width != 4 — see Bug B in TASK-011.
+        """
         lines = []
+
+        # Master id_width drives the slave-port ID width (pass-through).
+        # Floor at 1 to avoid `[-1:0]` when id_width=0 (Bug A).
+        master_id_width = max(m.id_width for m in self.masters) if self.masters else 4
+        master_id_width = max(master_id_width, 1)
 
         # Width parameters for signal info queries
         width_values = {
-            'ID_WIDTH': 4,  # Standard 4-bit ID for slaves
+            'ID_WIDTH': master_id_width,
             'ADDR_WIDTH': 32,  # Global address width
             'DATA_WIDTH': slave.data_width,
             'STRB_WIDTH': slave.data_width // 8,
@@ -392,7 +407,11 @@ class BridgeModuleGenerator:
             lines.append(f"    // APB Slave: {slave.name}")
 
             # Get all APB signals from SignalNaming
-            apb_signals = SignalNaming.get_all_apb_signals(slave.name, Direction.MASTER)
+            # Pass prefix so bridge's APB slave ports honour the .toml
+            # prefix (Bug C in TASK-011).
+            apb_signals = SignalNaming.get_all_apb_signals(
+                slave.name, Direction.MASTER, prefix=slave.prefix
+            )
 
             for sig_name, sig_info in apb_signals:
                 # Get complete signal declaration
@@ -419,11 +438,14 @@ class BridgeModuleGenerator:
                 channels.extend([AXI4Channel.AR, AXI4Channel.R])
 
             # Get all AXI4 signals from SignalNaming
-            # Bridge acts as master to external slaves (same perspective as crossbar)
+            # Bridge acts as master to external slaves (same perspective as crossbar).
+            # Pass prefix so the bridge's external slave ports honour the
+            # .toml prefix setting — Bug C in TASK-011.
             all_signals = SignalNaming.get_all_axi4_signals(
                 port_name=slave.name,
                 direction=Direction.MASTER,
-                channels=channels
+                channels=channels,
+                prefix=slave.prefix
             )
 
             # Generate declarations for each channel
@@ -495,7 +517,15 @@ class BridgeModuleGenerator:
             lines.append("")
 
         # Add crossbar-to-slave AXI4 signals for ALL slaves
-        # These are internal wires connecting crossbar slave outputs to slave adapters
+        # These are internal wires connecting crossbar slave outputs to slave adapters.
+        # The AXI4 *id signals (awid/bid/arid/rid) carry the master's transaction ID
+        # pass-through, so they need to be sized at the master's id_width — NOT
+        # hardcoded to 4 bits, which only happens to work when master.id_width == 4.
+        # Bug B in TASK-011 (projects/components/bridge/TASKS.md).
+        # Floor at 1 so id_width=0 (AXIL's "no ID" case) emits a degenerate
+        # 1-bit signal rather than an invalid `[-1:0]` SV range — Bug A.
+        crossbar_id_width = max(m.id_width for m in self.masters) if self.masters else 4
+        crossbar_id_width = max(crossbar_id_width, 1)
         lines.append("    // Crossbar-to-Slave Internal AXI4 Signals")
         for slave in self.slaves:
             prefix = f"xbar_{slave.name}_axi_"
@@ -514,9 +544,15 @@ class BridgeModuleGenerator:
             axi_strb_width = axi_data_width // 8
             lines.append(f"    // {slave.name} ({slave.protocol.upper()}, {axi_data_width}b AXI4 interface)")
 
+            # Width of the AXI4 transaction-ID signals (awid/bid/arid/rid).
+            # These carry the master's per-txn tag pass-through, so they MUST
+            # match the master's id_width. The cache/qos/region literals stay
+            # at [3:0] (those AXI4 fields are spec-fixed at 4 bits).
+            id_w = crossbar_id_width
+
             # Write channels
             if has_write:
-                lines.append(f"    logic [3:0]                {prefix}awid;")
+                lines.append(f"    logic [{id_w-1}:0]            {prefix}awid;")
                 lines.append(f"    logic [31:0]               {prefix}awaddr;")
                 lines.append(f"    logic [7:0]                {prefix}awlen;")
                 lines.append(f"    logic [2:0]                {prefix}awsize;")
@@ -535,7 +571,7 @@ class BridgeModuleGenerator:
                 lines.append(f"    logic                      {prefix}wuser;")
                 lines.append(f"    logic                      {prefix}wvalid;")
                 lines.append(f"    logic                      {prefix}wready;")
-                lines.append(f"    logic [3:0]                {prefix}bid;")
+                lines.append(f"    logic [{id_w-1}:0]            {prefix}bid;")
                 lines.append(f"    logic [1:0]                {prefix}bresp;")
                 lines.append(f"    logic                      {prefix}buser;")
                 lines.append(f"    logic                      {prefix}bvalid;")
@@ -543,7 +579,7 @@ class BridgeModuleGenerator:
 
             # Read channels
             if has_read:
-                lines.append(f"    logic [3:0]                {prefix}arid;")
+                lines.append(f"    logic [{id_w-1}:0]            {prefix}arid;")
                 lines.append(f"    logic [31:0]               {prefix}araddr;")
                 lines.append(f"    logic [7:0]                {prefix}arlen;")
                 lines.append(f"    logic [2:0]                {prefix}arsize;")
@@ -556,7 +592,7 @@ class BridgeModuleGenerator:
                 lines.append(f"    logic                      {prefix}aruser;")
                 lines.append(f"    logic                      {prefix}arvalid;")
                 lines.append(f"    logic                      {prefix}arready;")
-                lines.append(f"    logic [3:0]                {prefix}rid;")
+                lines.append(f"    logic [{id_w-1}:0]            {prefix}rid;")
                 lines.append(f"    logic [{axi_data_width-1}:0] {prefix}rdata;")
                 lines.append(f"    logic [1:0]                {prefix}rresp;")
                 lines.append(f"    logic                      {prefix}rlast;")
@@ -696,9 +732,15 @@ class BridgeModuleGenerator:
             lines.append("")
             lines.append("        // External interface")
 
-            # Use SignalNaming.get_all_axi4_signals() for consistent naming
-            # Signal naming: <port_name>_axi_<channel><signal> (no direction prefix)
-            signal_prefix = f"{master.name}_axi_"
+            # Use master.prefix from the .toml config (Bug C in TASK-011).
+            # The adapter's external port names also use master.prefix (see
+            # AdapterGenerator._generate_external_ports), so .{sig}({sig})
+            # connects adapter ports to identically-named bridge top-level
+            # wires/ports. Normalise to ensure trailing `_` so configs that
+            # set prefix="cpu_m_axi" still produce "cpu_m_axi_awid".
+            signal_prefix = master.prefix
+            if signal_prefix and not signal_prefix.endswith("_"):
+                signal_prefix = signal_prefix + "_"
 
             # Get channels for this master
             channels = SignalNaming.channels_from_type(master.channels)
@@ -711,7 +753,6 @@ class BridgeModuleGenerator:
                     continue
 
                 for sig_info in signal_db[channel]:
-                    # Build signal name using correct naming convention
                     sig_name = f"{signal_prefix}{channel.value}{sig_info.name}"
                     lines.append(f"        .{sig_name}({sig_name}),")
 

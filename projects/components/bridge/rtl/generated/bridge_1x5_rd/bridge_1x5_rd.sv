@@ -183,7 +183,7 @@ module bridge_1x5_rd (
 
     // Crossbar-to-Slave Internal AXI4 Signals
     // periph_rd (AXI4, 32b AXI4 interface)
-    logic [3:0]                xbar_periph_rd_axi_arid;
+    logic [3:0]            xbar_periph_rd_axi_arid;
     logic [31:0]               xbar_periph_rd_axi_araddr;
     logic [7:0]                xbar_periph_rd_axi_arlen;
     logic [2:0]                xbar_periph_rd_axi_arsize;
@@ -196,7 +196,7 @@ module bridge_1x5_rd (
     logic                      xbar_periph_rd_axi_aruser;
     logic                      xbar_periph_rd_axi_arvalid;
     logic                      xbar_periph_rd_axi_arready;
-    logic [3:0]                xbar_periph_rd_axi_rid;
+    logic [3:0]            xbar_periph_rd_axi_rid;
     logic [31:0] xbar_periph_rd_axi_rdata;
     logic [1:0]                xbar_periph_rd_axi_rresp;
     logic                      xbar_periph_rd_axi_rlast;
@@ -208,7 +208,7 @@ module bridge_1x5_rd (
     logic                       periph_rd_axi_rid_valid;
 
     // ddr_rd (AXI4, 64b AXI4 interface)
-    logic [3:0]                xbar_ddr_rd_axi_arid;
+    logic [3:0]            xbar_ddr_rd_axi_arid;
     logic [31:0]               xbar_ddr_rd_axi_araddr;
     logic [7:0]                xbar_ddr_rd_axi_arlen;
     logic [2:0]                xbar_ddr_rd_axi_arsize;
@@ -221,7 +221,7 @@ module bridge_1x5_rd (
     logic                      xbar_ddr_rd_axi_aruser;
     logic                      xbar_ddr_rd_axi_arvalid;
     logic                      xbar_ddr_rd_axi_arready;
-    logic [3:0]                xbar_ddr_rd_axi_rid;
+    logic [3:0]            xbar_ddr_rd_axi_rid;
     logic [63:0] xbar_ddr_rd_axi_rdata;
     logic [1:0]                xbar_ddr_rd_axi_rresp;
     logic                      xbar_ddr_rd_axi_rlast;
@@ -233,7 +233,7 @@ module bridge_1x5_rd (
     logic                       ddr_rd_axi_rid_valid;
 
     // hbm_rd (AXI4, 128b AXI4 interface)
-    logic [3:0]                xbar_hbm_rd_axi_arid;
+    logic [3:0]            xbar_hbm_rd_axi_arid;
     logic [31:0]               xbar_hbm_rd_axi_araddr;
     logic [7:0]                xbar_hbm_rd_axi_arlen;
     logic [2:0]                xbar_hbm_rd_axi_arsize;
@@ -246,7 +246,7 @@ module bridge_1x5_rd (
     logic                      xbar_hbm_rd_axi_aruser;
     logic                      xbar_hbm_rd_axi_arvalid;
     logic                      xbar_hbm_rd_axi_arready;
-    logic [3:0]                xbar_hbm_rd_axi_rid;
+    logic [3:0]            xbar_hbm_rd_axi_rid;
     logic [127:0] xbar_hbm_rd_axi_rdata;
     logic [1:0]                xbar_hbm_rd_axi_rresp;
     logic                      xbar_hbm_rd_axi_rlast;
@@ -258,7 +258,7 @@ module bridge_1x5_rd (
     logic                       hbm_rd_axi_rid_valid;
 
     // apb_periph (APB, 32b AXI4 interface)
-    logic [3:0]                xbar_apb_periph_axi_arid;
+    logic [3:0]            xbar_apb_periph_axi_arid;
     logic [31:0]               xbar_apb_periph_axi_araddr;
     logic [7:0]                xbar_apb_periph_axi_arlen;
     logic [2:0]                xbar_apb_periph_axi_arsize;
@@ -271,7 +271,7 @@ module bridge_1x5_rd (
     logic                      xbar_apb_periph_axi_aruser;
     logic                      xbar_apb_periph_axi_arvalid;
     logic                      xbar_apb_periph_axi_arready;
-    logic [3:0]                xbar_apb_periph_axi_rid;
+    logic [3:0]            xbar_apb_periph_axi_rid;
     logic [31:0] xbar_apb_periph_axi_rdata;
     logic [1:0]                xbar_apb_periph_axi_rresp;
     logic                      xbar_apb_periph_axi_rlast;
@@ -283,7 +283,7 @@ module bridge_1x5_rd (
     logic                       apb_periph_axi_rid_valid;
 
     // axil_periph (AXIL, 32b AXI4 interface)
-    logic [3:0]                xbar_axil_periph_axi_arid;
+    logic [3:0]            xbar_axil_periph_axi_arid;
     logic [31:0]               xbar_axil_periph_axi_araddr;
     logic [7:0]                xbar_axil_periph_axi_arlen;
     logic [2:0]                xbar_axil_periph_axi_arsize;
@@ -296,7 +296,7 @@ module bridge_1x5_rd (
     logic                      xbar_axil_periph_axi_aruser;
     logic                      xbar_axil_periph_axi_arvalid;
     logic                      xbar_axil_periph_axi_arready;
-    logic [3:0]                xbar_axil_periph_axi_rid;
+    logic [3:0]            xbar_axil_periph_axi_rid;
     logic [31:0] xbar_axil_periph_axi_rdata;
     logic [1:0]                xbar_axil_periph_axi_rresp;
     logic                      xbar_axil_periph_axi_rlast;

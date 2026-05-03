@@ -216,11 +216,15 @@ class AdapterGenerator:
         # Determine which channels to generate based on master type
         channels = SignalNaming.channels_from_type(self.master.channels)
 
-        # Get all AXI4 signals using SignalNaming (same as bridge top-level)
+        # Get all AXI4 signals using SignalNaming (same as bridge top-level).
+        # Pass `prefix` so the adapter's external ports honour the .toml
+        # prefix setting — Bug C in TASK-011. Bridge top-level instantiation
+        # uses the same prefix to wire adapter ports to bridge external ports.
         all_signals = SignalNaming.get_all_axi4_signals(
-            port_name=self.master.name,  # Use name, not prefix!
+            port_name=self.master.name,
             direction=Direction.MASTER,
-            channels=channels
+            channels=channels,
+            prefix=self.master.prefix
         )
 
         # Generate declarations for each channel with INVERTED directions
@@ -401,9 +405,14 @@ class AdapterGenerator:
         """
         lines = []
 
-        # Build signal prefix using master name (consistent with _generate_external_ports)
-        # Format: <master_name>_axi_ (e.g., "cpu_axi_")
-        signal_prefix = f"{self.master.name}_axi_"
+        # Use the master's configured prefix so the adapter's wrapper port
+        # connections match its external port names (which are now built
+        # from master.prefix — Bug C in TASK-011). Normalise to ensure a
+        # trailing `_` separator: configs sometimes set prefix="cpu_m_axi"
+        # without one, which would produce "cpu_m_axiawid".
+        signal_prefix = self.master.prefix
+        if signal_prefix and not signal_prefix.endswith("_"):
+            signal_prefix = signal_prefix + "_"
 
         id_width = self.master.id_width
         addr_width = 32  # Use global 32-bit address width

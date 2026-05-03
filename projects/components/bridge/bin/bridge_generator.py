@@ -48,6 +48,20 @@ from bridge_pkg import (BridgeConfig, parse_ports_csv, parse_connectivity_csv, l
 # Test Generation Helper Functions
 # ==============================================================================
 
+def _normalize_prefix(prefix: str) -> str:
+    """Ensure a port prefix from the .toml has a trailing `_` separator.
+
+    Downstream emitters build signal names as ``f"{prefix}{signal}"``
+    (e.g. ``f"{prefix}awvalid"``). Configs that set ``prefix="cpu_m_axi"``
+    without a trailing underscore would otherwise produce ``cpu_m_axiawvalid``.
+    Normalising at the boundary means every downstream consumer can rely on
+    the well-formed prefix without re-implementing this.
+    """
+    if not prefix:
+        return prefix
+    return prefix if prefix.endswith("_") else prefix + "_"
+
+
 def determine_channel_type(masters):
     """Determine overall channel type based on masters."""
     has_write = any(m.has_write_channels() for m in masters)
@@ -305,9 +319,15 @@ def generate_bridge(ports_file, connectivity_file, name=None, output_dir="../rtl
                 if slave_spec.port_name in connected_slave_names:
                     slave_connections.append(slave_idx)
 
+            # Normalise prefix at the boundary: many downstream emitters
+            # build signal names as `f"{prefix}{signal}"` and break if the
+            # config forgot the trailing underscore (e.g. "cpu_m_axi" →
+            # "cpu_m_axiawid"). Doing it here means every consumer sees the
+            # well-formed prefix without having to remember to normalise.
+            master_prefix = _normalize_prefix(master_spec.prefix)
             master_config = MasterConfig(
                 name=master_spec.port_name,
-                prefix=master_spec.prefix,
+                prefix=master_prefix,
                 data_width=master_spec.data_width,
                 addr_width=master_spec.addr_width,
                 id_width=master_spec.id_width,
@@ -317,9 +337,10 @@ def generate_bridge(ports_file, connectivity_file, name=None, output_dir="../rtl
             master_configs.append(master_config)
 
         for slave_spec in slaves:
+            slave_prefix = _normalize_prefix(slave_spec.prefix)
             slave_info = SlaveInfo(
                 name=slave_spec.port_name,
-                prefix=slave_spec.prefix,  # Pass slave prefix from config
+                prefix=slave_prefix,  # Pass slave prefix from config
                 base_addr=slave_spec.base_addr,
                 addr_range=slave_spec.addr_range,
                 data_width=slave_spec.data_width,

@@ -108,7 +108,7 @@ module bridge_1x2_rd (
 
     // Crossbar-to-Slave Internal AXI4 Signals
     // ddr_rd (AXI4, 32b AXI4 interface)
-    logic [3:0]                xbar_ddr_rd_axi_arid;
+    logic [3:0]            xbar_ddr_rd_axi_arid;
     logic [31:0]               xbar_ddr_rd_axi_araddr;
     logic [7:0]                xbar_ddr_rd_axi_arlen;
     logic [2:0]                xbar_ddr_rd_axi_arsize;
@@ -121,7 +121,7 @@ module bridge_1x2_rd (
     logic                      xbar_ddr_rd_axi_aruser;
     logic                      xbar_ddr_rd_axi_arvalid;
     logic                      xbar_ddr_rd_axi_arready;
-    logic [3:0]                xbar_ddr_rd_axi_rid;
+    logic [3:0]            xbar_ddr_rd_axi_rid;
     logic [31:0] xbar_ddr_rd_axi_rdata;
     logic [1:0]                xbar_ddr_rd_axi_rresp;
     logic                      xbar_ddr_rd_axi_rlast;
@@ -133,7 +133,7 @@ module bridge_1x2_rd (
     logic                       ddr_rd_axi_rid_valid;
 
     // sram_rd (AXI4, 32b AXI4 interface)
-    logic [3:0]                xbar_sram_rd_axi_arid;
+    logic [3:0]            xbar_sram_rd_axi_arid;
     logic [31:0]               xbar_sram_rd_axi_araddr;
     logic [7:0]                xbar_sram_rd_axi_arlen;
     logic [2:0]                xbar_sram_rd_axi_arsize;
@@ -146,7 +146,7 @@ module bridge_1x2_rd (
     logic                      xbar_sram_rd_axi_aruser;
     logic                      xbar_sram_rd_axi_arvalid;
     logic                      xbar_sram_rd_axi_arready;
-    logic [3:0]                xbar_sram_rd_axi_rid;
+    logic [3:0]            xbar_sram_rd_axi_rid;
     logic [31:0] xbar_sram_rd_axi_rdata;
     logic [1:0]                xbar_sram_rd_axi_rresp;
     logic                      xbar_sram_rd_axi_rlast;

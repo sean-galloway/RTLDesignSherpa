@@ -126,7 +126,7 @@ module bridge_1x2_wr (
 
     // Crossbar-to-Slave Internal AXI4 Signals
     // ddr_wr (AXI4, 32b AXI4 interface)
-    logic [3:0]                xbar_ddr_wr_axi_awid;
+    logic [3:0]            xbar_ddr_wr_axi_awid;
     logic [31:0]               xbar_ddr_wr_axi_awaddr;
     logic [7:0]                xbar_ddr_wr_axi_awlen;
     logic [2:0]                xbar_ddr_wr_axi_awsize;
@@ -145,7 +145,7 @@ module bridge_1x2_wr (
     logic                      xbar_ddr_wr_axi_wuser;
     logic                      xbar_ddr_wr_axi_wvalid;
     logic                      xbar_ddr_wr_axi_wready;
-    logic [3:0]                xbar_ddr_wr_axi_bid;
+    logic [3:0]            xbar_ddr_wr_axi_bid;
     logic [1:0]                xbar_ddr_wr_axi_bresp;
     logic                      xbar_ddr_wr_axi_buser;
     logic                      xbar_ddr_wr_axi_bvalid;
@@ -155,7 +155,7 @@ module bridge_1x2_wr (
     logic                       ddr_wr_axi_bid_valid;
 
     // sram_wr (AXI4, 32b AXI4 interface)
-    logic [3:0]                xbar_sram_wr_axi_awid;
+    logic [3:0]            xbar_sram_wr_axi_awid;
     logic [31:0]               xbar_sram_wr_axi_awaddr;
     logic [7:0]                xbar_sram_wr_axi_awlen;
     logic [2:0]                xbar_sram_wr_axi_awsize;
@@ -174,7 +174,7 @@ module bridge_1x2_wr (
     logic                      xbar_sram_wr_axi_wuser;
     logic                      xbar_sram_wr_axi_wvalid;
     logic                      xbar_sram_wr_axi_wready;
-    logic [3:0]                xbar_sram_wr_axi_bid;
+    logic [3:0]            xbar_sram_wr_axi_bid;
     logic [1:0]                xbar_sram_wr_axi_bresp;
     logic                      xbar_sram_wr_axi_buser;
     logic                      xbar_sram_wr_axi_bvalid;

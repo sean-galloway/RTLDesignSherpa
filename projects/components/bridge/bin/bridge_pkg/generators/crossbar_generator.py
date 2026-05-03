@@ -258,9 +258,15 @@ class CrossbarGenerator:
         # Determine correct interface width (for APB slaves, use connecting master's width)
         data_width, addr_width = self._determine_slave_interface_width(slave)
 
+        # AXI4 *id width is master pass-through, not a fixed crossbar constant
+        # (Bug B in TASK-011 — was hardcoded to 4). Floor at 1 to avoid the
+        # invalid `[-1:0]` SV range when id_width=0 (Bug A).
+        master_id_width = max(m.id_width for m in self.masters) if self.masters else 4
+        master_id_width = max(master_id_width, 1)
+
         # Width parameters for signal info queries
         width_values = {
-            'ID_WIDTH': 4,  # Standard 4-bit ID for crossbar outputs
+            'ID_WIDTH': master_id_width,
             'ADDR_WIDTH': addr_width,
             'DATA_WIDTH': data_width,
             'STRB_WIDTH': data_width // 8,

@@ -629,12 +629,12 @@ Create guide for synthesizing and implementing generated bridges.
 
 ---
 
-### TASK-011: Generator id_width handling is broken in two places
-**Status:** 🟡 Open — root-caused, fix not yet started
+### TASK-011: Generator id_width + prefix handling
+**Status:** ✅ Closed — Bugs A, B, and C all fixed (2026-04-30)
 **Priority:** P1 (was P2 — escalated after second site found; the bridge
                  only generates valid RTL for a narrow happy-path config)
 **Effort:** 1–2 days
-**Owner:** Unassigned
+**Owner:** sean (with Claude)
 
 **Symptoms:**
 The generator's own `--generate-tests` connectivity test fails to
@@ -762,34 +762,55 @@ We worked through:
 - bumped to 4 → matches but only because of the happy-path coincidence
   described above
 
-**Acceptance Criteria:**
-- [ ] **Bug A:** `id_width = 0` either omits `*_awid` / `*_bid` /
-       `*_arid` / `*_rid` ports entirely (cleanest, matches AXIL spec)
-       or emits `[0:0]` with internal tie-off — never `[-1:0]`.
-- [ ] **Bug B:** Slave port AXI4 transaction-ID wires (`*_awid`, `*_bid`,
-       `*_arid`, `*_rid`) are emitted at the **master's** `id_width`
-       (since the slave just echoes back what the master sent), not
-       literal `[3:0]`. The `*cache` / `*qos` / `*region` literals are
-       correct as-is and stay. The internal `*_bridge_id` routing
-       signals (sized by `BRIDGE_ID_WIDTH = ceil(log2(num_masters))`)
-       are unrelated and should not change.
-- [ ] Add a regression test (use `--generate-tests`) covering at least:
-       (a) AXIL master id_width=0 + AXIL slaves → must emit and
-           connectivity-test pass under Verilator;
-       (b) Master id_width ∈ {1, 4, 8} + AXIL slaves → all elaborate
-           and pass connectivity.
-- [ ] Update the shipped `bin/test_configs/bridge_1x5_rd_axil.toml` to use
-       `id_width = 0` on the AXIL master too once Bug A is fixed (it
-       currently uses `id_width = 4` on the master to dodge Bug A, which
-       hides the issue from contributors).
+**Bug C (added during the same investigation): SV emitter ignored `prefix`,
+hardcoded `<name>_axi_`.**
 
-**Workaround until fixed:**
-Master id_width = 4, slave id_width = 4 (everywhere except APB which the
-validator forces to 0), and limit fan-out so routing_bits stays at 0 (1
-master only, ≤ 8 slaves). Documented inline in
-`projects/NexysA7/stream_characterization/stream_char_framework/rtl/bridges/configs/bridge_stream_char_axil.toml`.
-This avoids both bugs at the cost of carrying 4 wasted ID bits on every
-AXIL port at the boundary.
+The .toml allows each port to set its own external signal `prefix` (e.g.
+`prefix = "dma_axil_"`). The emitter ignored it and unconditionally built
+signal names as `f"{port.name}_axi_<sig>"`, so a slave configured as
+`name="dma_axil"` got `dma_axil_axi_awvalid` instead of the requested
+`dma_axil_awvalid`. This was hidden on the original 9 bridges only because
+their configs all set `prefix = "<name>_axi_"`, which happened to match
+what the emitter hardcoded.
+
+**Acceptance Criteria:**
+- [x] **Bug A:** `id_width = 0` no longer emits `[-1:0]`. `SignalInfo.get_range`
+       now treats `width <= 1` as a scalar (1 bit), and the slave-port /
+       crossbar-internal id-wire emitters apply a `max(id_width, 1)` floor.
+       The single bit is tied to 0 at the wiring boundary.
+- [x] **Bug B:** Slave-port and crossbar-internal AXI4 transaction-ID
+       wires (`*_awid`, `*_bid`, `*_arid`, `*_rid`) are now sized at the
+       master's `id_width` instead of the literal `[3:0]`. Patched at four
+       sites: `bridge_module_generator.py` (`_generate_slave_ports`,
+       `_generate_internal_signals`), `crossbar_generator.py`
+       (`_generate_slave_output_ports`), and
+       `slave_adapter_generator.py` (both `width_values` dicts). The
+       `*cache`/`*qos`/`*region` literals stay at 4 (spec-fixed). The
+       `*_bridge_id` routing signals (sized by `BRIDGE_ID_WIDTH`) are
+       unrelated and unchanged.
+- [x] **Bug C:** External port emitters now honour the .toml `prefix`.
+       Done by adding an optional `prefix=` parameter to
+       `SignalNaming.{axi4_signal_name, apb_signal_name,
+       get_all_axi4_signals, get_all_apb_signals}`, and passing
+       `master.prefix`/`slave.prefix` from the four call sites
+       (`bridge_module_generator.py: _generate_master_ports,
+       _generate_slave_ports (×2), _generate_adapter_instantiations`,
+       and `adapter_generator.py: _generate_external_ports + the wrapper
+       signal_prefix`). `bridge_generator.py` now normalises every prefix
+       at load via `_normalize_prefix` (auto-appends a trailing `_` if
+       missing) so configs like the older `prefix = "cpu_m_axi"` still
+       produce well-formed names.
+- [x] Regression: all 19 auto-generated bridge tests across the 9
+       shipped configs (bridge_1x2_{rd,wr}, 1x3_{rd,wr}, 1x4_{rd,wr},
+       1x5_{rd,wr}, 2x2_rw) plus the new 5x3_channels bridge pass under
+       Verilator after the change.
+- [x] Real-world: the stream_characterization 1×6 AXIL bridge (`host_`
+       master + `dma_axil_` and four other AXIL slaves + one APB slave)
+       generates and validates against the auto-test suite.
+
+**No remaining workaround needed.** The 1×6 AXIL bridge can now use
+ergonomic prefixes (`host_awvalid`, `dma_axil_awvalid`,
+`stream_apb_PSEL`) without the `_axi_` infix.
 
 **Dependencies:**
 - None.
