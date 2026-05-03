@@ -29,7 +29,7 @@ from TBClasses.shared.utilities import get_paths
 from TBClasses.shared.filelist_utils import get_sources_from_filelist
 
 # Import generated testbench class
-from projects.components.bridge.dv.tbclasses.{{ tb_class_module }} import {{ tb_class_name }}
+from {{ tb_import_pkg }}.{{ tb_class_module }} import {{ tb_class_name }}
 
 
 # ============================================================================

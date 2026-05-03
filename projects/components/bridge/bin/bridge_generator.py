@@ -48,6 +48,19 @@ from bridge_pkg import (BridgeConfig, parse_ports_csv, parse_connectivity_csv, l
 # Test Generation Helper Functions
 # ==============================================================================
 
+def get_repo_root_for_path(path: Path) -> Path:
+    """Walk up from `path` to find the nearest git repo root.
+
+    Used by the test-file template to compute the importable module path
+    of the generated TB regardless of where --output-tb wrote it.
+    """
+    p = Path(path).resolve()
+    for candidate in (p, *p.parents):
+        if (candidate / '.git').exists():
+            return candidate
+    raise RuntimeError(f"No .git ancestor for {path}")
+
+
 def _normalize_prefix(prefix: str) -> str:
     """Ensure a port prefix from the .toml has a trailing `_` separator.
 
@@ -98,7 +111,7 @@ def build_tb_module_name(tb_class_name):
     return re.sub('([a-z0-9])([A-Z])', r'\1_\2', s1).lower()
 
 
-def generate_tests(ports_file, connectivity_file, bridge_name, output_tb_dir, output_test_dir, enable_ooo=True):
+def generate_tests(ports_file, connectivity_file, bridge_name, output_tb_dir, output_test_dir, enable_ooo=True, output_rtl_dir=None):
     """Generate testbench class and test file from CSV or YAML configuration.
 
     Args:
@@ -108,6 +121,9 @@ def generate_tests(ports_file, connectivity_file, bridge_name, output_tb_dir, ou
         output_tb_dir: Output directory for TB class
         output_test_dir: Output directory for test file
         enable_ooo: Enable out-of-order support
+        output_rtl_dir: Directory the bridge RTL was written to. Used to
+            derive the filelist path for the test runner; if omitted the
+            template falls back to the legacy bridge-component path.
 
     Returns:
         True if successful, False otherwise
@@ -155,10 +171,41 @@ def generate_tests(ports_file, connectivity_file, bridge_name, output_tb_dir, ou
         # ID width conversion is not supported - uniform width simplifies routing
         id_width = 8
 
+        # Derive the importable module path for the TB class from the
+        # actual output directory. The old template hardcoded
+        # `projects.components.bridge.dv.tbclasses.<tb>`, which broke when
+        # the user routed --output-tb to any other location (e.g. the
+        # stream_char_framework bridge).
+        try:
+            tb_dir_abs = Path(output_tb_dir).resolve()
+            repo_root_abs = Path(get_repo_root_for_path(tb_dir_abs))
+            tb_dir_rel = tb_dir_abs.relative_to(repo_root_abs)
+            tb_import_pkg = '.'.join(tb_dir_rel.parts)
+        except (ValueError, RuntimeError):
+            tb_import_pkg = 'projects.components.bridge.dv.tbclasses'
+
+        # Derive filelist path the same way generate_bridge writes it:
+        # bridge_dir is `<output_rtl_dir>/<bridge_name>` and the filelist
+        # lives at `<output_rtl_dir>/../filelists/<bridge_name>.f`.
+        # Pre-Bug-C this was hardcoded to the bridge-component path.
+        if output_rtl_dir:
+            try:
+                bridge_dir_abs = (Path(output_rtl_dir).resolve() / bridge_name)
+                repo_root_abs = Path(get_repo_root_for_path(bridge_dir_abs))
+                rtl_root = bridge_dir_abs.parent.parent  # `<rtl>` dir
+                filelist_abs = rtl_root / 'filelists' / f'{bridge_name}.f'
+                filelist_rel = filelist_abs.relative_to(repo_root_abs)
+                filelist_path = str(filelist_rel)
+            except (ValueError, RuntimeError):
+                filelist_path = f'projects/components/bridge/rtl/filelists/{bridge_name}.f'
+        else:
+            filelist_path = f'projects/components/bridge/rtl/filelists/{bridge_name}.f'
+
         context = {
             'rtl_module_name': bridge_name,
             'tb_class_name': tb_class_name,
             'tb_class_module': tb_class_module,
+            'tb_import_pkg': tb_import_pkg,
             'num_masters': len(config.masters),
             'num_slaves': len(config.slaves),
             'channel_type': channel_type,
@@ -172,7 +219,7 @@ def generate_tests(ports_file, connectivity_file, bridge_name, output_tb_dir, ou
             'addr_width': addr_width,
             'id_width': id_width,
             'rtl_relative_path': '../../../../rtl/bridge',
-            'filelist_path': f'projects/components/bridge/rtl/filelists/{bridge_name}.f'
+            'filelist_path': filelist_path
         }
 
         # Setup Jinja2 environment
@@ -653,7 +700,8 @@ Bulk Generation CSV Format:
                         bridge_name=bridge_name,
                         output_tb_dir=config['output_tb'],
                         output_test_dir=config['output_test'],
-                        enable_ooo=True
+                        enable_ooo=True,
+                        output_rtl_dir=config['output_dir']
                     )
                     if not test_success:
                         print(f"  ⚠ Test generation failed for {bridge_name}")
@@ -709,7 +757,8 @@ Bulk Generation CSV Format:
                 bridge_name=bridge_name,
                 output_tb_dir=args.output_tb,
                 output_test_dir=args.output_test,
-                enable_ooo=True
+                enable_ooo=True,
+                output_rtl_dir=args.output_dir
             )
             if not test_success:
                 print("  ⚠ Test generation failed")

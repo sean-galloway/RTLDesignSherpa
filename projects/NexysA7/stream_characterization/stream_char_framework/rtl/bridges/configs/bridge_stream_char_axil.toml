@@ -33,13 +33,19 @@ frequency_mhz = 100
 # ---- Master ----------------------------------------------------------------
 [[bridge.masters]]
 name        = "host"
-prefix      = "host_axi_"
+prefix      = "host_"
 protocol    = "axil"
 channels    = "rw"
-# id_width=1 is a workaround for the generator emitting `[-1:0]` ranges
-# when id_width=0. AXIL has no transaction IDs in its protocol; the host
-# port ties the id signals to 0 — a degenerate 1-bit ID is harmless.
-id_width    = 1
+# id_width=8 across the bridge so master-side and slave-side ID widths
+# match end-to-end. Setting it to 0 hits two generator quirks (TASK-011
+# in projects/components/bridge):
+#   1. host port emits invalid `[-1:0]` SV ranges.
+#   2. xbar's slave-side AXI4 carries IDs at the slave's id_width but
+#      a width-mismatched master triggers WIDTHEXPAND fatals in the
+#      generated connectivity test.
+# AXIL has no transaction IDs in its protocol; the host port ties its
+# 8 id bits to 0 at the wiring boundary.
+id_width    = 4
 addr_width  = 32
 data_width  = 32
 user_width  = 0
@@ -50,7 +56,7 @@ name        = "stream_apb"
 prefix      = "stream_apb_"
 protocol    = "apb"
 channels    = "rw"
-id_width    = 0
+id_width    = 0       # APB has no IDs; validator forces this to 0
 addr_width  = 32
 data_width  = 32
 user_width  = 0
@@ -59,10 +65,10 @@ addr_range  = "0x00001000"     # 4 KB
 
 [[bridge.slaves]]
 name        = "harness_csr"
-prefix      = "harness_csr_axi_"
+prefix      = "harness_csr_"
 protocol    = "axil"
 channels    = "rw"
-id_width    = 0
+id_width    = 4
 addr_width  = 32
 data_width  = 32
 user_width  = 0
@@ -71,10 +77,10 @@ addr_range  = "0x00000100"     # 256 B
 
 [[bridge.slaves]]
 name        = "desc_ram"
-prefix      = "desc_ram_axi_"
+prefix      = "desc_ram_"
 protocol    = "axil"
 channels    = "rw"
-id_width    = 0
+id_width    = 4
 addr_width  = 32
 data_width  = 32
 user_width  = 0
@@ -83,10 +89,10 @@ addr_range  = "0x00010000"     # 64 KB
 
 [[bridge.slaves]]
 name        = "stream_err"
-prefix      = "stream_err_axi_"
+prefix      = "stream_err_"
 protocol    = "axil"
 channels    = "rw"
-id_width    = 0
+id_width    = 4
 addr_width  = 32
 data_width  = 32
 user_width  = 0
@@ -95,10 +101,10 @@ addr_range  = "0x00000040"     # 64 B
 
 [[bridge.slaves]]
 name        = "debug_sram"
-prefix      = "debug_sram_axi_"
+prefix      = "debug_sram_"
 protocol    = "axil"
 channels    = "rw"
-id_width    = 0
+id_width    = 4
 addr_width  = 32
 data_width  = 32
 user_width  = 0
@@ -110,7 +116,7 @@ name        = "dma_axil"
 prefix      = "dma_axil_"
 protocol    = "axil"
 channels    = "rw"
-id_width    = 0
+id_width    = 4
 addr_width  = 32
 data_width  = 32
 user_width  = 0

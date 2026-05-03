@@ -187,7 +187,7 @@ module stream_apb_adapter #(
         .SIDE_DEPTH       (4),
         .APB_CMD_DEPTH    (4),
         .APB_RSP_DEPTH    (4),
-        .AXI_ID_WIDTH     (1),
+        .AXI_ID_WIDTH     (4),
         .AXI_ADDR_WIDTH   (32),
         .AXI_DATA_WIDTH   (32),
         .AXI_USER_WIDTH   (1),

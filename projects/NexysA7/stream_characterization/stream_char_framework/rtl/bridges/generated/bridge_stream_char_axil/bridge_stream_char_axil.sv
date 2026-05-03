@@ -22,54 +22,54 @@ module bridge_stream_char_axil (
 
     // Master 0: host (rw)
     // Master: host (rw)
-    input  logic         host_axi_awid,
-    input  logic [31:0]  host_axi_awaddr,
-    input  logic [7:0]  host_axi_awlen,
-    input  logic [2:0]  host_axi_awsize,
-    input  logic [1:0]  host_axi_awburst,
-    input  logic         host_axi_awlock,
-    input  logic [3:0]  host_axi_awcache,
-    input  logic [2:0]  host_axi_awprot,
-    input  logic [3:0]  host_axi_awqos,
-    input  logic [3:0]  host_axi_awregion,
-    input  logic         host_axi_awuser,
-    input  logic         host_axi_awvalid,
-    output  logic         host_axi_awready,
+    input  logic [3:0]  host_awid,
+    input  logic [31:0]  host_awaddr,
+    input  logic [7:0]  host_awlen,
+    input  logic [2:0]  host_awsize,
+    input  logic [1:0]  host_awburst,
+    input  logic         host_awlock,
+    input  logic [3:0]  host_awcache,
+    input  logic [2:0]  host_awprot,
+    input  logic [3:0]  host_awqos,
+    input  logic [3:0]  host_awregion,
+    input  logic         host_awuser,
+    input  logic         host_awvalid,
+    output  logic         host_awready,
 
-    input  logic [31:0]  host_axi_wdata,
-    input  logic [3:0]  host_axi_wstrb,
-    input  logic         host_axi_wlast,
-    input  logic         host_axi_wuser,
-    input  logic         host_axi_wvalid,
-    output  logic         host_axi_wready,
+    input  logic [31:0]  host_wdata,
+    input  logic [3:0]  host_wstrb,
+    input  logic         host_wlast,
+    input  logic         host_wuser,
+    input  logic         host_wvalid,
+    output  logic         host_wready,
 
-    output  logic         host_axi_bid,
-    output  logic [1:0]  host_axi_bresp,
-    output  logic         host_axi_buser,
-    output  logic         host_axi_bvalid,
-    input  logic         host_axi_bready,
+    output  logic [3:0]  host_bid,
+    output  logic [1:0]  host_bresp,
+    output  logic         host_buser,
+    output  logic         host_bvalid,
+    input  logic         host_bready,
 
-    input  logic         host_axi_arid,
-    input  logic [31:0]  host_axi_araddr,
-    input  logic [7:0]  host_axi_arlen,
-    input  logic [2:0]  host_axi_arsize,
-    input  logic [1:0]  host_axi_arburst,
-    input  logic         host_axi_arlock,
-    input  logic [3:0]  host_axi_arcache,
-    input  logic [2:0]  host_axi_arprot,
-    input  logic [3:0]  host_axi_arqos,
-    input  logic [3:0]  host_axi_arregion,
-    input  logic         host_axi_aruser,
-    input  logic         host_axi_arvalid,
-    output  logic         host_axi_arready,
+    input  logic [3:0]  host_arid,
+    input  logic [31:0]  host_araddr,
+    input  logic [7:0]  host_arlen,
+    input  logic [2:0]  host_arsize,
+    input  logic [1:0]  host_arburst,
+    input  logic         host_arlock,
+    input  logic [3:0]  host_arcache,
+    input  logic [2:0]  host_arprot,
+    input  logic [3:0]  host_arqos,
+    input  logic [3:0]  host_arregion,
+    input  logic         host_aruser,
+    input  logic         host_arvalid,
+    output  logic         host_arready,
 
-    output  logic         host_axi_rid,
-    output  logic [31:0]  host_axi_rdata,
-    output  logic [1:0]  host_axi_rresp,
-    output  logic         host_axi_rlast,
-    output  logic         host_axi_ruser,
-    output  logic         host_axi_rvalid,
-    input  logic         host_axi_rready,
+    output  logic [3:0]  host_rid,
+    output  logic [31:0]  host_rdata,
+    output  logic [1:0]  host_rresp,
+    output  logic         host_rlast,
+    output  logic         host_ruser,
+    output  logic         host_rvalid,
+    input  logic         host_rready,
 
     // Slave 0: stream_apb
     // APB Slave: stream_apb
@@ -86,258 +86,258 @@ module bridge_stream_char_axil (
 
     // Slave 1: harness_csr
     // AXI4 Slave: harness_csr
-    output  logic [3:0]  harness_csr_axi_awid,
-    output  logic [31:0]  harness_csr_axi_awaddr,
-    output  logic [7:0]  harness_csr_axi_awlen,
-    output  logic [2:0]  harness_csr_axi_awsize,
-    output  logic [1:0]  harness_csr_axi_awburst,
-    output  logic         harness_csr_axi_awlock,
-    output  logic [3:0]  harness_csr_axi_awcache,
-    output  logic [2:0]  harness_csr_axi_awprot,
-    output  logic [3:0]  harness_csr_axi_awqos,
-    output  logic [3:0]  harness_csr_axi_awregion,
-    output  logic         harness_csr_axi_awuser,
-    output  logic         harness_csr_axi_awvalid,
-    input  logic         harness_csr_axi_awready,
+    output  logic [3:0]  harness_csr_awid,
+    output  logic [31:0]  harness_csr_awaddr,
+    output  logic [7:0]  harness_csr_awlen,
+    output  logic [2:0]  harness_csr_awsize,
+    output  logic [1:0]  harness_csr_awburst,
+    output  logic         harness_csr_awlock,
+    output  logic [3:0]  harness_csr_awcache,
+    output  logic [2:0]  harness_csr_awprot,
+    output  logic [3:0]  harness_csr_awqos,
+    output  logic [3:0]  harness_csr_awregion,
+    output  logic         harness_csr_awuser,
+    output  logic         harness_csr_awvalid,
+    input  logic         harness_csr_awready,
 
-    output  logic [31:0]  harness_csr_axi_wdata,
-    output  logic [3:0]  harness_csr_axi_wstrb,
-    output  logic         harness_csr_axi_wlast,
-    output  logic         harness_csr_axi_wuser,
-    output  logic         harness_csr_axi_wvalid,
-    input  logic         harness_csr_axi_wready,
+    output  logic [31:0]  harness_csr_wdata,
+    output  logic [3:0]  harness_csr_wstrb,
+    output  logic         harness_csr_wlast,
+    output  logic         harness_csr_wuser,
+    output  logic         harness_csr_wvalid,
+    input  logic         harness_csr_wready,
 
-    input  logic [3:0]  harness_csr_axi_bid,
-    input  logic [1:0]  harness_csr_axi_bresp,
-    input  logic         harness_csr_axi_buser,
-    input  logic         harness_csr_axi_bvalid,
-    output  logic         harness_csr_axi_bready,
+    input  logic [3:0]  harness_csr_bid,
+    input  logic [1:0]  harness_csr_bresp,
+    input  logic         harness_csr_buser,
+    input  logic         harness_csr_bvalid,
+    output  logic         harness_csr_bready,
 
-    output  logic [3:0]  harness_csr_axi_arid,
-    output  logic [31:0]  harness_csr_axi_araddr,
-    output  logic [7:0]  harness_csr_axi_arlen,
-    output  logic [2:0]  harness_csr_axi_arsize,
-    output  logic [1:0]  harness_csr_axi_arburst,
-    output  logic         harness_csr_axi_arlock,
-    output  logic [3:0]  harness_csr_axi_arcache,
-    output  logic [2:0]  harness_csr_axi_arprot,
-    output  logic [3:0]  harness_csr_axi_arqos,
-    output  logic [3:0]  harness_csr_axi_arregion,
-    output  logic         harness_csr_axi_aruser,
-    output  logic         harness_csr_axi_arvalid,
-    input  logic         harness_csr_axi_arready,
+    output  logic [3:0]  harness_csr_arid,
+    output  logic [31:0]  harness_csr_araddr,
+    output  logic [7:0]  harness_csr_arlen,
+    output  logic [2:0]  harness_csr_arsize,
+    output  logic [1:0]  harness_csr_arburst,
+    output  logic         harness_csr_arlock,
+    output  logic [3:0]  harness_csr_arcache,
+    output  logic [2:0]  harness_csr_arprot,
+    output  logic [3:0]  harness_csr_arqos,
+    output  logic [3:0]  harness_csr_arregion,
+    output  logic         harness_csr_aruser,
+    output  logic         harness_csr_arvalid,
+    input  logic         harness_csr_arready,
 
-    input  logic [3:0]  harness_csr_axi_rid,
-    input  logic [31:0]  harness_csr_axi_rdata,
-    input  logic [1:0]  harness_csr_axi_rresp,
-    input  logic         harness_csr_axi_rlast,
-    input  logic         harness_csr_axi_ruser,
-    input  logic         harness_csr_axi_rvalid,
-    output  logic         harness_csr_axi_rready,
+    input  logic [3:0]  harness_csr_rid,
+    input  logic [31:0]  harness_csr_rdata,
+    input  logic [1:0]  harness_csr_rresp,
+    input  logic         harness_csr_rlast,
+    input  logic         harness_csr_ruser,
+    input  logic         harness_csr_rvalid,
+    output  logic         harness_csr_rready,
 
     // Slave 2: desc_ram
     // AXI4 Slave: desc_ram
-    output  logic [3:0]  desc_ram_axi_awid,
-    output  logic [31:0]  desc_ram_axi_awaddr,
-    output  logic [7:0]  desc_ram_axi_awlen,
-    output  logic [2:0]  desc_ram_axi_awsize,
-    output  logic [1:0]  desc_ram_axi_awburst,
-    output  logic         desc_ram_axi_awlock,
-    output  logic [3:0]  desc_ram_axi_awcache,
-    output  logic [2:0]  desc_ram_axi_awprot,
-    output  logic [3:0]  desc_ram_axi_awqos,
-    output  logic [3:0]  desc_ram_axi_awregion,
-    output  logic         desc_ram_axi_awuser,
-    output  logic         desc_ram_axi_awvalid,
-    input  logic         desc_ram_axi_awready,
+    output  logic [3:0]  desc_ram_awid,
+    output  logic [31:0]  desc_ram_awaddr,
+    output  logic [7:0]  desc_ram_awlen,
+    output  logic [2:0]  desc_ram_awsize,
+    output  logic [1:0]  desc_ram_awburst,
+    output  logic         desc_ram_awlock,
+    output  logic [3:0]  desc_ram_awcache,
+    output  logic [2:0]  desc_ram_awprot,
+    output  logic [3:0]  desc_ram_awqos,
+    output  logic [3:0]  desc_ram_awregion,
+    output  logic         desc_ram_awuser,
+    output  logic         desc_ram_awvalid,
+    input  logic         desc_ram_awready,
 
-    output  logic [31:0]  desc_ram_axi_wdata,
-    output  logic [3:0]  desc_ram_axi_wstrb,
-    output  logic         desc_ram_axi_wlast,
-    output  logic         desc_ram_axi_wuser,
-    output  logic         desc_ram_axi_wvalid,
-    input  logic         desc_ram_axi_wready,
+    output  logic [31:0]  desc_ram_wdata,
+    output  logic [3:0]  desc_ram_wstrb,
+    output  logic         desc_ram_wlast,
+    output  logic         desc_ram_wuser,
+    output  logic         desc_ram_wvalid,
+    input  logic         desc_ram_wready,
 
-    input  logic [3:0]  desc_ram_axi_bid,
-    input  logic [1:0]  desc_ram_axi_bresp,
-    input  logic         desc_ram_axi_buser,
-    input  logic         desc_ram_axi_bvalid,
-    output  logic         desc_ram_axi_bready,
+    input  logic [3:0]  desc_ram_bid,
+    input  logic [1:0]  desc_ram_bresp,
+    input  logic         desc_ram_buser,
+    input  logic         desc_ram_bvalid,
+    output  logic         desc_ram_bready,
 
-    output  logic [3:0]  desc_ram_axi_arid,
-    output  logic [31:0]  desc_ram_axi_araddr,
-    output  logic [7:0]  desc_ram_axi_arlen,
-    output  logic [2:0]  desc_ram_axi_arsize,
-    output  logic [1:0]  desc_ram_axi_arburst,
-    output  logic         desc_ram_axi_arlock,
-    output  logic [3:0]  desc_ram_axi_arcache,
-    output  logic [2:0]  desc_ram_axi_arprot,
-    output  logic [3:0]  desc_ram_axi_arqos,
-    output  logic [3:0]  desc_ram_axi_arregion,
-    output  logic         desc_ram_axi_aruser,
-    output  logic         desc_ram_axi_arvalid,
-    input  logic         desc_ram_axi_arready,
+    output  logic [3:0]  desc_ram_arid,
+    output  logic [31:0]  desc_ram_araddr,
+    output  logic [7:0]  desc_ram_arlen,
+    output  logic [2:0]  desc_ram_arsize,
+    output  logic [1:0]  desc_ram_arburst,
+    output  logic         desc_ram_arlock,
+    output  logic [3:0]  desc_ram_arcache,
+    output  logic [2:0]  desc_ram_arprot,
+    output  logic [3:0]  desc_ram_arqos,
+    output  logic [3:0]  desc_ram_arregion,
+    output  logic         desc_ram_aruser,
+    output  logic         desc_ram_arvalid,
+    input  logic         desc_ram_arready,
 
-    input  logic [3:0]  desc_ram_axi_rid,
-    input  logic [31:0]  desc_ram_axi_rdata,
-    input  logic [1:0]  desc_ram_axi_rresp,
-    input  logic         desc_ram_axi_rlast,
-    input  logic         desc_ram_axi_ruser,
-    input  logic         desc_ram_axi_rvalid,
-    output  logic         desc_ram_axi_rready,
+    input  logic [3:0]  desc_ram_rid,
+    input  logic [31:0]  desc_ram_rdata,
+    input  logic [1:0]  desc_ram_rresp,
+    input  logic         desc_ram_rlast,
+    input  logic         desc_ram_ruser,
+    input  logic         desc_ram_rvalid,
+    output  logic         desc_ram_rready,
 
     // Slave 3: stream_err
     // AXI4 Slave: stream_err
-    output  logic [3:0]  stream_err_axi_awid,
-    output  logic [31:0]  stream_err_axi_awaddr,
-    output  logic [7:0]  stream_err_axi_awlen,
-    output  logic [2:0]  stream_err_axi_awsize,
-    output  logic [1:0]  stream_err_axi_awburst,
-    output  logic         stream_err_axi_awlock,
-    output  logic [3:0]  stream_err_axi_awcache,
-    output  logic [2:0]  stream_err_axi_awprot,
-    output  logic [3:0]  stream_err_axi_awqos,
-    output  logic [3:0]  stream_err_axi_awregion,
-    output  logic         stream_err_axi_awuser,
-    output  logic         stream_err_axi_awvalid,
-    input  logic         stream_err_axi_awready,
+    output  logic [3:0]  stream_err_awid,
+    output  logic [31:0]  stream_err_awaddr,
+    output  logic [7:0]  stream_err_awlen,
+    output  logic [2:0]  stream_err_awsize,
+    output  logic [1:0]  stream_err_awburst,
+    output  logic         stream_err_awlock,
+    output  logic [3:0]  stream_err_awcache,
+    output  logic [2:0]  stream_err_awprot,
+    output  logic [3:0]  stream_err_awqos,
+    output  logic [3:0]  stream_err_awregion,
+    output  logic         stream_err_awuser,
+    output  logic         stream_err_awvalid,
+    input  logic         stream_err_awready,
 
-    output  logic [31:0]  stream_err_axi_wdata,
-    output  logic [3:0]  stream_err_axi_wstrb,
-    output  logic         stream_err_axi_wlast,
-    output  logic         stream_err_axi_wuser,
-    output  logic         stream_err_axi_wvalid,
-    input  logic         stream_err_axi_wready,
+    output  logic [31:0]  stream_err_wdata,
+    output  logic [3:0]  stream_err_wstrb,
+    output  logic         stream_err_wlast,
+    output  logic         stream_err_wuser,
+    output  logic         stream_err_wvalid,
+    input  logic         stream_err_wready,
 
-    input  logic [3:0]  stream_err_axi_bid,
-    input  logic [1:0]  stream_err_axi_bresp,
-    input  logic         stream_err_axi_buser,
-    input  logic         stream_err_axi_bvalid,
-    output  logic         stream_err_axi_bready,
+    input  logic [3:0]  stream_err_bid,
+    input  logic [1:0]  stream_err_bresp,
+    input  logic         stream_err_buser,
+    input  logic         stream_err_bvalid,
+    output  logic         stream_err_bready,
 
-    output  logic [3:0]  stream_err_axi_arid,
-    output  logic [31:0]  stream_err_axi_araddr,
-    output  logic [7:0]  stream_err_axi_arlen,
-    output  logic [2:0]  stream_err_axi_arsize,
-    output  logic [1:0]  stream_err_axi_arburst,
-    output  logic         stream_err_axi_arlock,
-    output  logic [3:0]  stream_err_axi_arcache,
-    output  logic [2:0]  stream_err_axi_arprot,
-    output  logic [3:0]  stream_err_axi_arqos,
-    output  logic [3:0]  stream_err_axi_arregion,
-    output  logic         stream_err_axi_aruser,
-    output  logic         stream_err_axi_arvalid,
-    input  logic         stream_err_axi_arready,
+    output  logic [3:0]  stream_err_arid,
+    output  logic [31:0]  stream_err_araddr,
+    output  logic [7:0]  stream_err_arlen,
+    output  logic [2:0]  stream_err_arsize,
+    output  logic [1:0]  stream_err_arburst,
+    output  logic         stream_err_arlock,
+    output  logic [3:0]  stream_err_arcache,
+    output  logic [2:0]  stream_err_arprot,
+    output  logic [3:0]  stream_err_arqos,
+    output  logic [3:0]  stream_err_arregion,
+    output  logic         stream_err_aruser,
+    output  logic         stream_err_arvalid,
+    input  logic         stream_err_arready,
 
-    input  logic [3:0]  stream_err_axi_rid,
-    input  logic [31:0]  stream_err_axi_rdata,
-    input  logic [1:0]  stream_err_axi_rresp,
-    input  logic         stream_err_axi_rlast,
-    input  logic         stream_err_axi_ruser,
-    input  logic         stream_err_axi_rvalid,
-    output  logic         stream_err_axi_rready,
+    input  logic [3:0]  stream_err_rid,
+    input  logic [31:0]  stream_err_rdata,
+    input  logic [1:0]  stream_err_rresp,
+    input  logic         stream_err_rlast,
+    input  logic         stream_err_ruser,
+    input  logic         stream_err_rvalid,
+    output  logic         stream_err_rready,
 
     // Slave 4: debug_sram
     // AXI4 Slave: debug_sram
-    output  logic [3:0]  debug_sram_axi_awid,
-    output  logic [31:0]  debug_sram_axi_awaddr,
-    output  logic [7:0]  debug_sram_axi_awlen,
-    output  logic [2:0]  debug_sram_axi_awsize,
-    output  logic [1:0]  debug_sram_axi_awburst,
-    output  logic         debug_sram_axi_awlock,
-    output  logic [3:0]  debug_sram_axi_awcache,
-    output  logic [2:0]  debug_sram_axi_awprot,
-    output  logic [3:0]  debug_sram_axi_awqos,
-    output  logic [3:0]  debug_sram_axi_awregion,
-    output  logic         debug_sram_axi_awuser,
-    output  logic         debug_sram_axi_awvalid,
-    input  logic         debug_sram_axi_awready,
+    output  logic [3:0]  debug_sram_awid,
+    output  logic [31:0]  debug_sram_awaddr,
+    output  logic [7:0]  debug_sram_awlen,
+    output  logic [2:0]  debug_sram_awsize,
+    output  logic [1:0]  debug_sram_awburst,
+    output  logic         debug_sram_awlock,
+    output  logic [3:0]  debug_sram_awcache,
+    output  logic [2:0]  debug_sram_awprot,
+    output  logic [3:0]  debug_sram_awqos,
+    output  logic [3:0]  debug_sram_awregion,
+    output  logic         debug_sram_awuser,
+    output  logic         debug_sram_awvalid,
+    input  logic         debug_sram_awready,
 
-    output  logic [31:0]  debug_sram_axi_wdata,
-    output  logic [3:0]  debug_sram_axi_wstrb,
-    output  logic         debug_sram_axi_wlast,
-    output  logic         debug_sram_axi_wuser,
-    output  logic         debug_sram_axi_wvalid,
-    input  logic         debug_sram_axi_wready,
+    output  logic [31:0]  debug_sram_wdata,
+    output  logic [3:0]  debug_sram_wstrb,
+    output  logic         debug_sram_wlast,
+    output  logic         debug_sram_wuser,
+    output  logic         debug_sram_wvalid,
+    input  logic         debug_sram_wready,
 
-    input  logic [3:0]  debug_sram_axi_bid,
-    input  logic [1:0]  debug_sram_axi_bresp,
-    input  logic         debug_sram_axi_buser,
-    input  logic         debug_sram_axi_bvalid,
-    output  logic         debug_sram_axi_bready,
+    input  logic [3:0]  debug_sram_bid,
+    input  logic [1:0]  debug_sram_bresp,
+    input  logic         debug_sram_buser,
+    input  logic         debug_sram_bvalid,
+    output  logic         debug_sram_bready,
 
-    output  logic [3:0]  debug_sram_axi_arid,
-    output  logic [31:0]  debug_sram_axi_araddr,
-    output  logic [7:0]  debug_sram_axi_arlen,
-    output  logic [2:0]  debug_sram_axi_arsize,
-    output  logic [1:0]  debug_sram_axi_arburst,
-    output  logic         debug_sram_axi_arlock,
-    output  logic [3:0]  debug_sram_axi_arcache,
-    output  logic [2:0]  debug_sram_axi_arprot,
-    output  logic [3:0]  debug_sram_axi_arqos,
-    output  logic [3:0]  debug_sram_axi_arregion,
-    output  logic         debug_sram_axi_aruser,
-    output  logic         debug_sram_axi_arvalid,
-    input  logic         debug_sram_axi_arready,
+    output  logic [3:0]  debug_sram_arid,
+    output  logic [31:0]  debug_sram_araddr,
+    output  logic [7:0]  debug_sram_arlen,
+    output  logic [2:0]  debug_sram_arsize,
+    output  logic [1:0]  debug_sram_arburst,
+    output  logic         debug_sram_arlock,
+    output  logic [3:0]  debug_sram_arcache,
+    output  logic [2:0]  debug_sram_arprot,
+    output  logic [3:0]  debug_sram_arqos,
+    output  logic [3:0]  debug_sram_arregion,
+    output  logic         debug_sram_aruser,
+    output  logic         debug_sram_arvalid,
+    input  logic         debug_sram_arready,
 
-    input  logic [3:0]  debug_sram_axi_rid,
-    input  logic [31:0]  debug_sram_axi_rdata,
-    input  logic [1:0]  debug_sram_axi_rresp,
-    input  logic         debug_sram_axi_rlast,
-    input  logic         debug_sram_axi_ruser,
-    input  logic         debug_sram_axi_rvalid,
-    output  logic         debug_sram_axi_rready,
+    input  logic [3:0]  debug_sram_rid,
+    input  logic [31:0]  debug_sram_rdata,
+    input  logic [1:0]  debug_sram_rresp,
+    input  logic         debug_sram_rlast,
+    input  logic         debug_sram_ruser,
+    input  logic         debug_sram_rvalid,
+    output  logic         debug_sram_rready,
 
     // Slave 5: dma_axil
     // AXI4 Slave: dma_axil
-    output  logic [3:0]  dma_axil_axi_awid,
-    output  logic [31:0]  dma_axil_axi_awaddr,
-    output  logic [7:0]  dma_axil_axi_awlen,
-    output  logic [2:0]  dma_axil_axi_awsize,
-    output  logic [1:0]  dma_axil_axi_awburst,
-    output  logic         dma_axil_axi_awlock,
-    output  logic [3:0]  dma_axil_axi_awcache,
-    output  logic [2:0]  dma_axil_axi_awprot,
-    output  logic [3:0]  dma_axil_axi_awqos,
-    output  logic [3:0]  dma_axil_axi_awregion,
-    output  logic         dma_axil_axi_awuser,
-    output  logic         dma_axil_axi_awvalid,
-    input  logic         dma_axil_axi_awready,
+    output  logic [3:0]  dma_axil_awid,
+    output  logic [31:0]  dma_axil_awaddr,
+    output  logic [7:0]  dma_axil_awlen,
+    output  logic [2:0]  dma_axil_awsize,
+    output  logic [1:0]  dma_axil_awburst,
+    output  logic         dma_axil_awlock,
+    output  logic [3:0]  dma_axil_awcache,
+    output  logic [2:0]  dma_axil_awprot,
+    output  logic [3:0]  dma_axil_awqos,
+    output  logic [3:0]  dma_axil_awregion,
+    output  logic         dma_axil_awuser,
+    output  logic         dma_axil_awvalid,
+    input  logic         dma_axil_awready,
 
-    output  logic [31:0]  dma_axil_axi_wdata,
-    output  logic [3:0]  dma_axil_axi_wstrb,
-    output  logic         dma_axil_axi_wlast,
-    output  logic         dma_axil_axi_wuser,
-    output  logic         dma_axil_axi_wvalid,
-    input  logic         dma_axil_axi_wready,
+    output  logic [31:0]  dma_axil_wdata,
+    output  logic [3:0]  dma_axil_wstrb,
+    output  logic         dma_axil_wlast,
+    output  logic         dma_axil_wuser,
+    output  logic         dma_axil_wvalid,
+    input  logic         dma_axil_wready,
 
-    input  logic [3:0]  dma_axil_axi_bid,
-    input  logic [1:0]  dma_axil_axi_bresp,
-    input  logic         dma_axil_axi_buser,
-    input  logic         dma_axil_axi_bvalid,
-    output  logic         dma_axil_axi_bready,
+    input  logic [3:0]  dma_axil_bid,
+    input  logic [1:0]  dma_axil_bresp,
+    input  logic         dma_axil_buser,
+    input  logic         dma_axil_bvalid,
+    output  logic         dma_axil_bready,
 
-    output  logic [3:0]  dma_axil_axi_arid,
-    output  logic [31:0]  dma_axil_axi_araddr,
-    output  logic [7:0]  dma_axil_axi_arlen,
-    output  logic [2:0]  dma_axil_axi_arsize,
-    output  logic [1:0]  dma_axil_axi_arburst,
-    output  logic         dma_axil_axi_arlock,
-    output  logic [3:0]  dma_axil_axi_arcache,
-    output  logic [2:0]  dma_axil_axi_arprot,
-    output  logic [3:0]  dma_axil_axi_arqos,
-    output  logic [3:0]  dma_axil_axi_arregion,
-    output  logic         dma_axil_axi_aruser,
-    output  logic         dma_axil_axi_arvalid,
-    input  logic         dma_axil_axi_arready,
+    output  logic [3:0]  dma_axil_arid,
+    output  logic [31:0]  dma_axil_araddr,
+    output  logic [7:0]  dma_axil_arlen,
+    output  logic [2:0]  dma_axil_arsize,
+    output  logic [1:0]  dma_axil_arburst,
+    output  logic         dma_axil_arlock,
+    output  logic [3:0]  dma_axil_arcache,
+    output  logic [2:0]  dma_axil_arprot,
+    output  logic [3:0]  dma_axil_arqos,
+    output  logic [3:0]  dma_axil_arregion,
+    output  logic         dma_axil_aruser,
+    output  logic         dma_axil_arvalid,
+    input  logic         dma_axil_arready,
 
-    input  logic [3:0]  dma_axil_axi_rid,
-    input  logic [31:0]  dma_axil_axi_rdata,
-    input  logic [1:0]  dma_axil_axi_rresp,
-    input  logic         dma_axil_axi_rlast,
-    input  logic         dma_axil_axi_ruser,
-    input  logic         dma_axil_axi_rvalid,
-    output  logic         dma_axil_axi_rready
+    input  logic [3:0]  dma_axil_rid,
+    input  logic [31:0]  dma_axil_rdata,
+    input  logic [1:0]  dma_axil_rresp,
+    input  logic         dma_axil_rlast,
+    input  logic         dma_axil_ruser,
+    input  logic         dma_axil_rvalid,
+    output  logic         dma_axil_rready
 );
 
     localparam NUM_SLAVES = 6;
@@ -366,7 +366,7 @@ module bridge_stream_char_axil (
 
     // Crossbar-to-Slave Internal AXI4 Signals
     // stream_apb (APB, 32b AXI4 interface)
-    logic [3:0]                xbar_stream_apb_axi_awid;
+    logic [3:0]            xbar_stream_apb_axi_awid;
     logic [31:0]               xbar_stream_apb_axi_awaddr;
     logic [7:0]                xbar_stream_apb_axi_awlen;
     logic [2:0]                xbar_stream_apb_axi_awsize;
@@ -385,12 +385,12 @@ module bridge_stream_char_axil (
     logic                      xbar_stream_apb_axi_wuser;
     logic                      xbar_stream_apb_axi_wvalid;
     logic                      xbar_stream_apb_axi_wready;
-    logic [3:0]                xbar_stream_apb_axi_bid;
+    logic [3:0]            xbar_stream_apb_axi_bid;
     logic [1:0]                xbar_stream_apb_axi_bresp;
     logic                      xbar_stream_apb_axi_buser;
     logic                      xbar_stream_apb_axi_bvalid;
     logic                      xbar_stream_apb_axi_bready;
-    logic [3:0]                xbar_stream_apb_axi_arid;
+    logic [3:0]            xbar_stream_apb_axi_arid;
     logic [31:0]               xbar_stream_apb_axi_araddr;
     logic [7:0]                xbar_stream_apb_axi_arlen;
     logic [2:0]                xbar_stream_apb_axi_arsize;
@@ -403,7 +403,7 @@ module bridge_stream_char_axil (
     logic                      xbar_stream_apb_axi_aruser;
     logic                      xbar_stream_apb_axi_arvalid;
     logic                      xbar_stream_apb_axi_arready;
-    logic [3:0]                xbar_stream_apb_axi_rid;
+    logic [3:0]            xbar_stream_apb_axi_rid;
     logic [31:0] xbar_stream_apb_axi_rdata;
     logic [1:0]                xbar_stream_apb_axi_rresp;
     logic                      xbar_stream_apb_axi_rlast;
@@ -418,7 +418,7 @@ module bridge_stream_char_axil (
     logic                       stream_apb_axi_rid_valid;
 
     // harness_csr (AXIL, 32b AXI4 interface)
-    logic [3:0]                xbar_harness_csr_axi_awid;
+    logic [3:0]            xbar_harness_csr_axi_awid;
     logic [31:0]               xbar_harness_csr_axi_awaddr;
     logic [7:0]                xbar_harness_csr_axi_awlen;
     logic [2:0]                xbar_harness_csr_axi_awsize;
@@ -437,12 +437,12 @@ module bridge_stream_char_axil (
     logic                      xbar_harness_csr_axi_wuser;
     logic                      xbar_harness_csr_axi_wvalid;
     logic                      xbar_harness_csr_axi_wready;
-    logic [3:0]                xbar_harness_csr_axi_bid;
+    logic [3:0]            xbar_harness_csr_axi_bid;
     logic [1:0]                xbar_harness_csr_axi_bresp;
     logic                      xbar_harness_csr_axi_buser;
     logic                      xbar_harness_csr_axi_bvalid;
     logic                      xbar_harness_csr_axi_bready;
-    logic [3:0]                xbar_harness_csr_axi_arid;
+    logic [3:0]            xbar_harness_csr_axi_arid;
     logic [31:0]               xbar_harness_csr_axi_araddr;
     logic [7:0]                xbar_harness_csr_axi_arlen;
     logic [2:0]                xbar_harness_csr_axi_arsize;
@@ -455,7 +455,7 @@ module bridge_stream_char_axil (
     logic                      xbar_harness_csr_axi_aruser;
     logic                      xbar_harness_csr_axi_arvalid;
     logic                      xbar_harness_csr_axi_arready;
-    logic [3:0]                xbar_harness_csr_axi_rid;
+    logic [3:0]            xbar_harness_csr_axi_rid;
     logic [31:0] xbar_harness_csr_axi_rdata;
     logic [1:0]                xbar_harness_csr_axi_rresp;
     logic                      xbar_harness_csr_axi_rlast;
@@ -470,7 +470,7 @@ module bridge_stream_char_axil (
     logic                       harness_csr_axi_rid_valid;
 
     // desc_ram (AXIL, 32b AXI4 interface)
-    logic [3:0]                xbar_desc_ram_axi_awid;
+    logic [3:0]            xbar_desc_ram_axi_awid;
     logic [31:0]               xbar_desc_ram_axi_awaddr;
     logic [7:0]                xbar_desc_ram_axi_awlen;
     logic [2:0]                xbar_desc_ram_axi_awsize;
@@ -489,12 +489,12 @@ module bridge_stream_char_axil (
     logic                      xbar_desc_ram_axi_wuser;
     logic                      xbar_desc_ram_axi_wvalid;
     logic                      xbar_desc_ram_axi_wready;
-    logic [3:0]                xbar_desc_ram_axi_bid;
+    logic [3:0]            xbar_desc_ram_axi_bid;
     logic [1:0]                xbar_desc_ram_axi_bresp;
     logic                      xbar_desc_ram_axi_buser;
     logic                      xbar_desc_ram_axi_bvalid;
     logic                      xbar_desc_ram_axi_bready;
-    logic [3:0]                xbar_desc_ram_axi_arid;
+    logic [3:0]            xbar_desc_ram_axi_arid;
     logic [31:0]               xbar_desc_ram_axi_araddr;
     logic [7:0]                xbar_desc_ram_axi_arlen;
     logic [2:0]                xbar_desc_ram_axi_arsize;
@@ -507,7 +507,7 @@ module bridge_stream_char_axil (
     logic                      xbar_desc_ram_axi_aruser;
     logic                      xbar_desc_ram_axi_arvalid;
     logic                      xbar_desc_ram_axi_arready;
-    logic [3:0]                xbar_desc_ram_axi_rid;
+    logic [3:0]            xbar_desc_ram_axi_rid;
     logic [31:0] xbar_desc_ram_axi_rdata;
     logic [1:0]                xbar_desc_ram_axi_rresp;
     logic                      xbar_desc_ram_axi_rlast;
@@ -522,7 +522,7 @@ module bridge_stream_char_axil (
     logic                       desc_ram_axi_rid_valid;
 
     // stream_err (AXIL, 32b AXI4 interface)
-    logic [3:0]                xbar_stream_err_axi_awid;
+    logic [3:0]            xbar_stream_err_axi_awid;
     logic [31:0]               xbar_stream_err_axi_awaddr;
     logic [7:0]                xbar_stream_err_axi_awlen;
     logic [2:0]                xbar_stream_err_axi_awsize;
@@ -541,12 +541,12 @@ module bridge_stream_char_axil (
     logic                      xbar_stream_err_axi_wuser;
     logic                      xbar_stream_err_axi_wvalid;
     logic                      xbar_stream_err_axi_wready;
-    logic [3:0]                xbar_stream_err_axi_bid;
+    logic [3:0]            xbar_stream_err_axi_bid;
     logic [1:0]                xbar_stream_err_axi_bresp;
     logic                      xbar_stream_err_axi_buser;
     logic                      xbar_stream_err_axi_bvalid;
     logic                      xbar_stream_err_axi_bready;
-    logic [3:0]                xbar_stream_err_axi_arid;
+    logic [3:0]            xbar_stream_err_axi_arid;
     logic [31:0]               xbar_stream_err_axi_araddr;
     logic [7:0]                xbar_stream_err_axi_arlen;
     logic [2:0]                xbar_stream_err_axi_arsize;
@@ -559,7 +559,7 @@ module bridge_stream_char_axil (
     logic                      xbar_stream_err_axi_aruser;
     logic                      xbar_stream_err_axi_arvalid;
     logic                      xbar_stream_err_axi_arready;
-    logic [3:0]                xbar_stream_err_axi_rid;
+    logic [3:0]            xbar_stream_err_axi_rid;
     logic [31:0] xbar_stream_err_axi_rdata;
     logic [1:0]                xbar_stream_err_axi_rresp;
     logic                      xbar_stream_err_axi_rlast;
@@ -574,7 +574,7 @@ module bridge_stream_char_axil (
     logic                       stream_err_axi_rid_valid;
 
     // debug_sram (AXIL, 32b AXI4 interface)
-    logic [3:0]                xbar_debug_sram_axi_awid;
+    logic [3:0]            xbar_debug_sram_axi_awid;
     logic [31:0]               xbar_debug_sram_axi_awaddr;
     logic [7:0]                xbar_debug_sram_axi_awlen;
     logic [2:0]                xbar_debug_sram_axi_awsize;
@@ -593,12 +593,12 @@ module bridge_stream_char_axil (
     logic                      xbar_debug_sram_axi_wuser;
     logic                      xbar_debug_sram_axi_wvalid;
     logic                      xbar_debug_sram_axi_wready;
-    logic [3:0]                xbar_debug_sram_axi_bid;
+    logic [3:0]            xbar_debug_sram_axi_bid;
     logic [1:0]                xbar_debug_sram_axi_bresp;
     logic                      xbar_debug_sram_axi_buser;
     logic                      xbar_debug_sram_axi_bvalid;
     logic                      xbar_debug_sram_axi_bready;
-    logic [3:0]                xbar_debug_sram_axi_arid;
+    logic [3:0]            xbar_debug_sram_axi_arid;
     logic [31:0]               xbar_debug_sram_axi_araddr;
     logic [7:0]                xbar_debug_sram_axi_arlen;
     logic [2:0]                xbar_debug_sram_axi_arsize;
@@ -611,7 +611,7 @@ module bridge_stream_char_axil (
     logic                      xbar_debug_sram_axi_aruser;
     logic                      xbar_debug_sram_axi_arvalid;
     logic                      xbar_debug_sram_axi_arready;
-    logic [3:0]                xbar_debug_sram_axi_rid;
+    logic [3:0]            xbar_debug_sram_axi_rid;
     logic [31:0] xbar_debug_sram_axi_rdata;
     logic [1:0]                xbar_debug_sram_axi_rresp;
     logic                      xbar_debug_sram_axi_rlast;
@@ -626,7 +626,7 @@ module bridge_stream_char_axil (
     logic                       debug_sram_axi_rid_valid;
 
     // dma_axil (AXIL, 32b AXI4 interface)
-    logic [3:0]                xbar_dma_axil_axi_awid;
+    logic [3:0]            xbar_dma_axil_axi_awid;
     logic [31:0]               xbar_dma_axil_axi_awaddr;
     logic [7:0]                xbar_dma_axil_axi_awlen;
     logic [2:0]                xbar_dma_axil_axi_awsize;
@@ -645,12 +645,12 @@ module bridge_stream_char_axil (
     logic                      xbar_dma_axil_axi_wuser;
     logic                      xbar_dma_axil_axi_wvalid;
     logic                      xbar_dma_axil_axi_wready;
-    logic [3:0]                xbar_dma_axil_axi_bid;
+    logic [3:0]            xbar_dma_axil_axi_bid;
     logic [1:0]                xbar_dma_axil_axi_bresp;
     logic                      xbar_dma_axil_axi_buser;
     logic                      xbar_dma_axil_axi_bvalid;
     logic                      xbar_dma_axil_axi_bready;
-    logic [3:0]                xbar_dma_axil_axi_arid;
+    logic [3:0]            xbar_dma_axil_axi_arid;
     logic [31:0]               xbar_dma_axil_axi_araddr;
     logic [7:0]                xbar_dma_axil_axi_arlen;
     logic [2:0]                xbar_dma_axil_axi_arsize;
@@ -663,7 +663,7 @@ module bridge_stream_char_axil (
     logic                      xbar_dma_axil_axi_aruser;
     logic                      xbar_dma_axil_axi_arvalid;
     logic                      xbar_dma_axil_axi_arready;
-    logic [3:0]                xbar_dma_axil_axi_rid;
+    logic [3:0]            xbar_dma_axil_axi_rid;
     logic [31:0] xbar_dma_axil_axi_rdata;
     logic [1:0]                xbar_dma_axil_axi_rresp;
     logic                      xbar_dma_axil_axi_rlast;
@@ -685,50 +685,50 @@ module bridge_stream_char_axil (
         .aresetn(aresetn),
 
         // External interface
-        .host_axi_awid(host_axi_awid),
-        .host_axi_awaddr(host_axi_awaddr),
-        .host_axi_awlen(host_axi_awlen),
-        .host_axi_awsize(host_axi_awsize),
-        .host_axi_awburst(host_axi_awburst),
-        .host_axi_awlock(host_axi_awlock),
-        .host_axi_awcache(host_axi_awcache),
-        .host_axi_awprot(host_axi_awprot),
-        .host_axi_awqos(host_axi_awqos),
-        .host_axi_awregion(host_axi_awregion),
-        .host_axi_awuser(host_axi_awuser),
-        .host_axi_awvalid(host_axi_awvalid),
-        .host_axi_awready(host_axi_awready),
-        .host_axi_wdata(host_axi_wdata),
-        .host_axi_wstrb(host_axi_wstrb),
-        .host_axi_wlast(host_axi_wlast),
-        .host_axi_wuser(host_axi_wuser),
-        .host_axi_wvalid(host_axi_wvalid),
-        .host_axi_wready(host_axi_wready),
-        .host_axi_bid(host_axi_bid),
-        .host_axi_bresp(host_axi_bresp),
-        .host_axi_buser(host_axi_buser),
-        .host_axi_bvalid(host_axi_bvalid),
-        .host_axi_bready(host_axi_bready),
-        .host_axi_arid(host_axi_arid),
-        .host_axi_araddr(host_axi_araddr),
-        .host_axi_arlen(host_axi_arlen),
-        .host_axi_arsize(host_axi_arsize),
-        .host_axi_arburst(host_axi_arburst),
-        .host_axi_arlock(host_axi_arlock),
-        .host_axi_arcache(host_axi_arcache),
-        .host_axi_arprot(host_axi_arprot),
-        .host_axi_arqos(host_axi_arqos),
-        .host_axi_arregion(host_axi_arregion),
-        .host_axi_aruser(host_axi_aruser),
-        .host_axi_arvalid(host_axi_arvalid),
-        .host_axi_arready(host_axi_arready),
-        .host_axi_rid(host_axi_rid),
-        .host_axi_rdata(host_axi_rdata),
-        .host_axi_rresp(host_axi_rresp),
-        .host_axi_rlast(host_axi_rlast),
-        .host_axi_ruser(host_axi_ruser),
-        .host_axi_rvalid(host_axi_rvalid),
-        .host_axi_rready(host_axi_rready),
+        .host_awid(host_awid),
+        .host_awaddr(host_awaddr),
+        .host_awlen(host_awlen),
+        .host_awsize(host_awsize),
+        .host_awburst(host_awburst),
+        .host_awlock(host_awlock),
+        .host_awcache(host_awcache),
+        .host_awprot(host_awprot),
+        .host_awqos(host_awqos),
+        .host_awregion(host_awregion),
+        .host_awuser(host_awuser),
+        .host_awvalid(host_awvalid),
+        .host_awready(host_awready),
+        .host_wdata(host_wdata),
+        .host_wstrb(host_wstrb),
+        .host_wlast(host_wlast),
+        .host_wuser(host_wuser),
+        .host_wvalid(host_wvalid),
+        .host_wready(host_wready),
+        .host_bid(host_bid),
+        .host_bresp(host_bresp),
+        .host_buser(host_buser),
+        .host_bvalid(host_bvalid),
+        .host_bready(host_bready),
+        .host_arid(host_arid),
+        .host_araddr(host_araddr),
+        .host_arlen(host_arlen),
+        .host_arsize(host_arsize),
+        .host_arburst(host_arburst),
+        .host_arlock(host_arlock),
+        .host_arcache(host_arcache),
+        .host_arprot(host_arprot),
+        .host_arqos(host_arqos),
+        .host_arregion(host_arregion),
+        .host_aruser(host_aruser),
+        .host_arvalid(host_arvalid),
+        .host_arready(host_arready),
+        .host_rid(host_rid),
+        .host_rdata(host_rdata),
+        .host_rresp(host_rresp),
+        .host_rlast(host_rlast),
+        .host_ruser(host_ruser),
+        .host_rvalid(host_rvalid),
+        .host_rready(host_rready),
 
         // Decode outputs
         .slave_select_aw(host_slave_select_aw),
