@@ -669,18 +669,35 @@ output logic [-1:0]  host_axi_rid,
 
 A 0-bit signal in SV must be `[0:0]` (degenerate single-bit) or omitted.
 
-**(B) Slave port wires are hardcoded `[3:0]`, ignoring slave `id_width`.**
-In `projects/components/bridge/bin/bridge_pkg/components/bridge_module_generator.py`,
-the slave-port wire declarations in the top wrapper are emitted as literal
-4-bit ranges:
+**(B) Slave AXI4 `*id` port wires are hardcoded `[3:0]`, breaking pass-through.**
+
+There are TWO different ID concepts in the bridge that should not be
+confused:
+
+1. **AXI4 transaction ID** (`*_axi_*id` on every port). This is the
+   master's per-transaction tag; the slave is required to echo it back
+   on B/R responses so the master can correlate responses to requests.
+   It is **passed through** the bridge unchanged. Therefore the slave-
+   facing `*_axi_*id` port width should equal the master's `id_width`.
+
+2. **Bridge routing tag** (`*_bridge_id` and `*_valid` companions).
+   This is a *separate*, *internal* signal added by the bridge to
+   remember "which master originated this transaction" so the response
+   can be routed back. Its width is `ceil(log2(num_masters))` bits
+   (with the 8-bit hard cap from `csv_parser.py:254`).
+
+The bug: in
+`projects/components/bridge/bin/bridge_pkg/components/bridge_module_generator.py`,
+the slave-port wire declarations for the AXI4 transaction ID are
+emitted as literal 4-bit ranges, ignoring the master's `id_width`:
 
 ```python
 # Lines ~519, 525-528, 538, 546, 552-555, 559
-lines.append(f"    logic [3:0]                {prefix}awid;")
+lines.append(f"    logic [3:0]                {prefix}awid;")       # ★ pass-through; should = master id_width
 lines.append(f"    logic [3:0]                {prefix}awcache;")    # spec-fixed at 4, OK
 lines.append(f"    logic [3:0]                {prefix}awqos;")      # spec-fixed at 4, OK
 lines.append(f"    logic [3:0]                {prefix}awregion;")   # spec-fixed at 4, OK
-lines.append(f"    logic [3:0]                {prefix}bid;")        # ★ should be parameterized
+lines.append(f"    logic [3:0]                {prefix}bid;")        # ★ pass-through; should = master id_width
 lines.append(f"    logic [3:0]                {prefix}arid;")       # ★
 lines.append(f"    logic [3:0]                {prefix}arcache;")    # spec-fixed at 4, OK
 lines.append(f"    logic [3:0]                {prefix}arqos;")      # spec-fixed at 4, OK
@@ -688,14 +705,16 @@ lines.append(f"    logic [3:0]                {prefix}arregion;")   # spec-fixed
 lines.append(f"    logic [3:0]                {prefix}rid;")        # ★
 ```
 
-The `*id` lines (★) ignore the slave's `id_width` from the .toml; the
-*cache/qos/region lines are correct (those fields are spec-fixed at 4).
+The four ★ lines (`*id`) need to track the master's `id_width`. The
+`*cache`/`*qos`/`*region` literals are correct as-is (those AXI4 fields
+are spec-fixed at 4 bits).
 
-Meanwhile the surrounding xbar uses `BRIDGE_ID_WIDTH` (computed from
-master id_width + routing bits, capped at 8 by the hard limit at
-`bridge_pkg/csv_parser.py:254`) for the tracking/routing signals
-(`*_axi_rid_bridge_id`, `*_axi_rid_valid`). The 4 vs BRIDGE_ID_WIDTH
-mismatch is what Verilator catches.
+Meanwhile the xbar's separate routing signals (`*_axi_rid_bridge_id`,
+`*_axi_rid_valid`) are sized by `BRIDGE_ID_WIDTH` — that machinery is
+fine. What blows up Verilator is when the xbar tries to mux the 4-bit
+hardcoded `harness_csr_axi_rid` into the `host_axi_rid` reduction
+(which is at master's `id_width` ≠ 4). The two concepts collide
+*because* the slave wire is hardcoded to 4 bits.
 
 **Why bridge_1x5_rd_axil works today:**
 The shipped 1x5 example happens to land in the only working corner:
@@ -747,15 +766,18 @@ We worked through:
 - [ ] **Bug A:** `id_width = 0` either omits `*_awid` / `*_bid` /
        `*_arid` / `*_rid` ports entirely (cleanest, matches AXIL spec)
        or emits `[0:0]` with internal tie-off — never `[-1:0]`.
-- [ ] **Bug B:** Slave port wires for `*id` use the slave's configured
-       `id_width` (parameterised), not literal `[3:0]`. The cache/qos/
-       region literals are correct as-is and stay.
-- [ ] The xbar's `*_bridge_id` / `*_valid` companion signals are sized
-       to match the slave's `id_width + routing_bits` end-to-end.
+- [ ] **Bug B:** Slave port AXI4 transaction-ID wires (`*_awid`, `*_bid`,
+       `*_arid`, `*_rid`) are emitted at the **master's** `id_width`
+       (since the slave just echoes back what the master sent), not
+       literal `[3:0]`. The `*cache` / `*qos` / `*region` literals are
+       correct as-is and stay. The internal `*_bridge_id` routing
+       signals (sized by `BRIDGE_ID_WIDTH = ceil(log2(num_masters))`)
+       are unrelated and should not change.
 - [ ] Add a regression test (use `--generate-tests`) covering at least:
-       (a) AXIL master id_width=0 + AXIL slaves id_width=0 → must emit and
+       (a) AXIL master id_width=0 + AXIL slaves → must emit and
            connectivity-test pass under Verilator;
-       (b) Master id_width=4 + mixed AXIL slaves id_width=0/4/8 → all pass.
+       (b) Master id_width ∈ {1, 4, 8} + AXIL slaves → all elaborate
+           and pass connectivity.
 - [ ] Update the shipped `bin/test_configs/bridge_1x5_rd_axil.toml` to use
        `id_width = 0` on the AXIL master too once Bug A is fixed (it
        currently uses `id_width = 4` on the master to dodge Bug A, which
