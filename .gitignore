@@ -262,3 +262,35 @@ vivado*
 # in bin/ that happen to start with "vivado_".
 !bin/vivado_*.py
 *.lock
+
+# ---------------------------------------------------------------------------
+# Per-flow Vivado / FPGA build artifacts
+# ---------------------------------------------------------------------------
+# Each NexysA7 (or similar) project has flows-<something>/ subdirs that hold
+# Vivado outputs (bitstreams, timing/utilization/CDC reports, etc.). The
+# top-level `reports/*` rule earlier in this file does NOT match nested
+# `flows-*/reports/`, and there's no top-level `*.bit` rule, so these end up
+# tracked unless we explicitly say otherwise.
+#
+# Files in these directories regenerate on every Vivado run and shouldn't
+# live in git history. The .gitkeep placeholders are re-included so the
+# bitstream/ and reports/ dirs survive a clean checkout.
+**/flows-*/bitstream/*.bit
+**/flows-*/bitstream/*.bin
+**/flows-*/bitstream/*.ltx
+**/flows-*/bitstream/*.mcs
+**/flows-*/bitstream/*.rpt
+**/flows-*/reports/*
+!**/flows-*/bitstream/.gitkeep
+!**/flows-*/reports/.gitkeep
+
+# Vivado scratch dirs (created anywhere a Vivado tool runs, including under
+# dv/tests/.../ when a sim picks up xsim or runs a Vivado helper).
+**/.Xil/
+**/.Xil
+
+# GTKWave save/dump files left behind by the simulator
+**/dv/tests/**/GTKW/
+**/dv/tests/**/*.gtkw
+**/dv/tests/**/*.vcd
+**/dv/tests/**/*.fst
