@@ -63,6 +63,14 @@ PYTEST_RERUNS    = --reruns 3 --reruns-delay 1
 
 .DEFAULT_GOAL := help
 
+# Files that the run targets need; if any are missing, ensure-generated will
+# fire `make tests` to recreate them. Lets you do `make clean-all && make run`
+# without remembering an explicit regen step.
+GENERATED_TEST   = $(TEST_DIR)/$(TEST_FILE)
+GENERATED_TB     = $(TB_DIR)/$(BRIDGE_NAME)_tb.py
+GENERATED_RTL    = $(RTL_DIR)/$(BRIDGE_NAME)/$(BRIDGE_NAME).sv
+GENERATED_FL     = $(FILELIST_DIR)/$(BRIDGE_NAME).f
+
 # ==============================================================================
 # Help
 # ==============================================================================
@@ -104,36 +112,55 @@ help:
 # ==============================================================================
 # Run targets
 # ==============================================================================
+#
+# Every run-* target depends on `ensure-generated`, which calls `make tests`
+# if any of the generated files are missing. Lets you do
+#   make clean-all && make run-parallel-waves
+# without an explicit regen step in between.
+
+.PHONY: ensure-generated
+ensure-generated:
+	@missing=0; \
+	for f in $(GENERATED_TEST) $(GENERATED_TB) $(GENERATED_RTL) $(GENERATED_FL); do \
+	    if [ ! -f "$$f" ]; then \
+	        echo "  missing: $$f"; \
+	        missing=1; \
+	    fi; \
+	done; \
+	if [ $$missing -eq 1 ]; then \
+	    echo "Generated files missing — running 'make tests' first..."; \
+	    $(MAKE) --no-print-directory tests; \
+	fi
 
 .PHONY: run
-run:
+run: ensure-generated
 	@echo "Running $(BRIDGE_NAME) auto-tests (sequential)..."
 	$(PYTEST) $(TEST_FILE) $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE)
 
 .PHONY: run-quiet
-run-quiet:
+run-quiet: ensure-generated
 	$(PYTEST) $(TEST_FILE) $(PYTEST_QUIET) $(PYTEST_TBSTYLE)
 
 .PHONY: run-waves
-run-waves:
+run-waves: ensure-generated
 	@echo "Running $(BRIDGE_NAME) auto-tests with WAVES=1..."
 	WAVES=1 $(PYTEST) $(TEST_FILE) $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE)
 
 .PHONY: run-parallel
-run-parallel:
+run-parallel: ensure-generated
 	@echo "Running $(BRIDGE_NAME) auto-tests in parallel (-n 2)..."
 	$(PYTEST) $(TEST_FILE) $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE) $(PYTEST_XDIST) $(PYTEST_RERUNS)
 
 .PHONY: run-parallel-waves
-run-parallel-waves:
+run-parallel-waves: ensure-generated
 	WAVES=1 $(PYTEST) $(TEST_FILE) $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE) $(PYTEST_XDIST) $(PYTEST_RERUNS)
 
 .PHONY: run-basic
-run-basic:
+run-basic: ensure-generated
 	$(PYTEST) $(TEST_FILE)::test_$(BRIDGE_NAME)_basic_connectivity $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE)
 
 .PHONY: run-decode
-run-decode:
+run-decode: ensure-generated
 	$(PYTEST) $(TEST_FILE)::test_$(BRIDGE_NAME)_address_decode $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE)
 
 # ==============================================================================
