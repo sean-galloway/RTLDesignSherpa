@@ -89,8 +89,15 @@ async def cocotb_test_basic_connectivity(dut):
         txn_id={{ master_idx }}
     )
 
-    # Wait for write to propagate through bridge
-    await ClockCycles(tb.clock, 5)
+    # Verify the bridge actually routed the AW to *this* slave (and only
+    # this slave). Catches silent misroutes that the old version of this
+    # test missed by responding from the expected slave without first
+    # checking it had received anything.
+    await tb.expect_aw_at_slave(
+        slave_idx={{ loop.index0 }},
+        expected_addr=test_addr,
+        expected_id={{ master_idx }}
+    )
 
     # Slave responds
     await tb.slave_respond_write(
@@ -99,11 +106,14 @@ async def cocotb_test_basic_connectivity(dut):
         resp=0  # OKAY
     )
 
-    # Wait for response to return
-    await ClockCycles(tb.clock, 5)
+    # Verify the B response actually came back to the originating master.
+    await tb.expect_b_at_master(
+        master_idx={{ master_idx }},
+        expected_id={{ master_idx }},
+        expected_resp=0
+    )
 
-    # Verify response received at master (check via monitor)
-    tb.log.info(f"  Write completed successfully")
+    tb.log.info(f"  Write completed successfully (routing + response verified)")
 {% endif %}
 {% endif %}
 {% endfor %}
@@ -133,8 +143,12 @@ async def cocotb_test_basic_connectivity(dut):
         txn_id={{ master_idx }}
     )
 
-    # Wait for read to propagate
-    await ClockCycles(tb.clock, 5)
+    # Verify AR routed to expected slave only.
+    await tb.expect_ar_at_slave(
+        slave_idx={{ loop.index0 }},
+        expected_addr=test_addr,
+        expected_id={{ master_idx }}
+    )
 
     # Slave responds with data
     await tb.slave_respond_read(
@@ -144,10 +158,15 @@ async def cocotb_test_basic_connectivity(dut):
         resp=0  # OKAY
     )
 
-    # Wait for response to return
-    await ClockCycles(tb.clock, 5)
+    # Verify R response (data + id) returned to originating master.
+    await tb.expect_r_at_master(
+        master_idx={{ master_idx }},
+        expected_id={{ master_idx }},
+        expected_data=test_data,
+        expected_resp=0
+    )
 
-    tb.log.info(f"  Read completed successfully")
+    tb.log.info(f"  Read completed successfully (routing + response verified)")
 {% endif %}
 {% endif %}
 {% endfor %}

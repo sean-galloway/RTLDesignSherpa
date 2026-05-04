@@ -637,3 +637,138 @@ class BridgeStreamCharAxilTB(TBBase):
                     last=1 if (i == len(data) - 1 and last) else 0
                 )
                 await r_master.send(r_pkt)
+
+    # ----------------------------------------------------------------------
+    # Routing-correctness verification helpers
+    # ----------------------------------------------------------------------
+    # The connectivity test used to *call* slave_respond_write(slave_idx=N)
+    # without first checking that the AW had actually arrived at slave N.
+    # That meant a routing bug — bridge sends the AW to slave M instead — was
+    # invisible: the test responded as N, the master saw a B, and everything
+    # "looked fine". These helpers check the AXI4 slave BFM receive queues
+    # so a misroute fails the test loudly.
+    #
+    # APB slaves are intentionally skipped — they're driven by the APBSlave
+    # BFM which has its own transaction model, not a GAXISlave _recvQ.
+
+    def _axi4_slave_indices(self):
+        """Return slave indices whose protocol is AXI4 / AXIL (have GAXI slave BFMs)."""
+        return [i for i, p in self.slave_protocols.items() if p.lower() != 'apb']
+
+    async def expect_aw_at_slave(self, slave_idx, expected_addr, expected_id=0,
+                                  settle_cycles=2):
+        """
+        Verify the bridge routed an AW to ``slave_idx`` and only there.
+
+        Pops one AW from slave_idx's recvQ, compares addr+id, and confirms
+        every other AXI4 slave's recvQ is still empty. Raises AssertionError
+        on any mismatch — including silent misroutes that earlier versions
+        of the connectivity test missed entirely.
+        """
+        # Allow a couple of cycles for the bridge to drive AW onto the slave
+        # interface before sampling the queue.
+        await ClockCycles(self.clock, settle_cycles)
+
+        protocol = self.slave_protocols.get(slave_idx, 'axi4').lower()
+        if protocol == 'apb':
+            return  # APB slaves don't expose a GAXI _recvQ
+
+        target = getattr(self, f'aw_s{slave_idx}')
+        assert len(target._recvQ) >= 1, (
+            f"AW to slave {slave_idx} (addr=0x{expected_addr:08x}) never arrived "
+            f"— bridge dropped the transaction or routed it elsewhere"
+        )
+        pkt = target._recvQ.popleft()
+        assert int(pkt.addr) == expected_addr, (
+            f"AW addr mismatch at slave {slave_idx}: "
+            f"got 0x{int(pkt.addr):08x}, expected 0x{expected_addr:08x}"
+        )
+        assert int(pkt.id) == expected_id, (
+            f"AW id mismatch at slave {slave_idx}: "
+            f"got {int(pkt.id)}, expected {expected_id}"
+        )
+
+        for other in self._axi4_slave_indices():
+            if other == slave_idx:
+                continue
+            other_q = getattr(self, f'aw_s{other}')._recvQ
+            assert len(other_q) == 0, (
+                f"AW for slave {slave_idx} (addr=0x{expected_addr:08x}) "
+                f"leaked to slave {other} (queue depth={len(other_q)})"
+            )
+
+    async def expect_ar_at_slave(self, slave_idx, expected_addr, expected_id=0,
+                                  settle_cycles=2):
+        """Read-side analogue of expect_aw_at_slave."""
+        await ClockCycles(self.clock, settle_cycles)
+
+        protocol = self.slave_protocols.get(slave_idx, 'axi4').lower()
+        if protocol == 'apb':
+            return
+
+        target = getattr(self, f'ar_s{slave_idx}')
+        assert len(target._recvQ) >= 1, (
+            f"AR to slave {slave_idx} (addr=0x{expected_addr:08x}) never arrived"
+        )
+        pkt = target._recvQ.popleft()
+        assert int(pkt.addr) == expected_addr, (
+            f"AR addr mismatch at slave {slave_idx}: "
+            f"got 0x{int(pkt.addr):08x}, expected 0x{expected_addr:08x}"
+        )
+        assert int(pkt.id) == expected_id, (
+            f"AR id mismatch at slave {slave_idx}: "
+            f"got {int(pkt.id)}, expected {expected_id}"
+        )
+
+        for other in self._axi4_slave_indices():
+            if other == slave_idx:
+                continue
+            other_q = getattr(self, f'ar_s{other}')._recvQ
+            assert len(other_q) == 0, (
+                f"AR for slave {slave_idx} leaked to slave {other} "
+                f"(queue depth={len(other_q)})"
+            )
+
+    async def expect_b_at_master(self, master_idx, expected_id=0,
+                                  expected_resp=0, settle_cycles=2):
+        """Verify the B response routed back to the originating master."""
+        await ClockCycles(self.clock, settle_cycles)
+
+        target = getattr(self, f'b_m{master_idx}')
+        assert len(target._recvQ) >= 1, (
+            f"B response never reached master {master_idx} (txn_id={expected_id})"
+        )
+        pkt = target._recvQ.popleft()
+        assert int(pkt.id) == expected_id, (
+            f"B id mismatch at master {master_idx}: "
+            f"got {int(pkt.id)}, expected {expected_id}"
+        )
+        assert int(pkt.resp) == expected_resp, (
+            f"B resp mismatch at master {master_idx}: "
+            f"got {int(pkt.resp)}, expected {expected_resp}"
+        )
+
+    async def expect_r_at_master(self, master_idx, expected_id=0,
+                                  expected_data=None, expected_resp=0,
+                                  settle_cycles=2):
+        """Verify the R response routed back to the originating master."""
+        await ClockCycles(self.clock, settle_cycles)
+
+        target = getattr(self, f'r_m{master_idx}')
+        assert len(target._recvQ) >= 1, (
+            f"R response never reached master {master_idx} (txn_id={expected_id})"
+        )
+        pkt = target._recvQ.popleft()
+        assert int(pkt.id) == expected_id, (
+            f"R id mismatch at master {master_idx}: "
+            f"got {int(pkt.id)}, expected {expected_id}"
+        )
+        if expected_data is not None:
+            assert int(pkt.data) == expected_data, (
+                f"R data mismatch at master {master_idx}: "
+                f"got 0x{int(pkt.data):x}, expected 0x{expected_data:x}"
+            )
+        assert int(pkt.resp) == expected_resp, (
+            f"R resp mismatch at master {master_idx}: "
+            f"got {int(pkt.resp)}, expected {expected_resp}"
+        )

@@ -78,8 +78,15 @@ async def cocotb_test_basic_connectivity(dut):
         txn_id=0
     )
 
-    # Wait for write to propagate through bridge
-    await ClockCycles(tb.clock, 5)
+    # Verify the bridge actually routed the AW to *this* slave (and only
+    # this slave). Catches silent misroutes that the old version of this
+    # test missed by responding from the expected slave without first
+    # checking it had received anything.
+    await tb.expect_aw_at_slave(
+        slave_idx=0,
+        expected_addr=test_addr,
+        expected_id=0
+    )
 
     # Slave responds
     await tb.slave_respond_write(
@@ -88,11 +95,14 @@ async def cocotb_test_basic_connectivity(dut):
         resp=0  # OKAY
     )
 
-    # Wait for response to return
-    await ClockCycles(tb.clock, 5)
+    # Verify the B response actually came back to the originating master.
+    await tb.expect_b_at_master(
+        master_idx=0,
+        expected_id=0,
+        expected_resp=0
+    )
 
-    # Verify response received at master (check via monitor)
-    tb.log.info(f"  Write completed successfully")
+    tb.log.info(f"  Write completed successfully (routing + response verified)")
 
     # Master 0 → Slave 1 (harness_csr)
     test_addr = 0x00010000
@@ -107,8 +117,15 @@ async def cocotb_test_basic_connectivity(dut):
         txn_id=0
     )
 
-    # Wait for write to propagate through bridge
-    await ClockCycles(tb.clock, 5)
+    # Verify the bridge actually routed the AW to *this* slave (and only
+    # this slave). Catches silent misroutes that the old version of this
+    # test missed by responding from the expected slave without first
+    # checking it had received anything.
+    await tb.expect_aw_at_slave(
+        slave_idx=1,
+        expected_addr=test_addr,
+        expected_id=0
+    )
 
     # Slave responds
     await tb.slave_respond_write(
@@ -117,11 +134,14 @@ async def cocotb_test_basic_connectivity(dut):
         resp=0  # OKAY
     )
 
-    # Wait for response to return
-    await ClockCycles(tb.clock, 5)
+    # Verify the B response actually came back to the originating master.
+    await tb.expect_b_at_master(
+        master_idx=0,
+        expected_id=0,
+        expected_resp=0
+    )
 
-    # Verify response received at master (check via monitor)
-    tb.log.info(f"  Write completed successfully")
+    tb.log.info(f"  Write completed successfully (routing + response verified)")
 
     # Master 0 → Slave 2 (desc_ram)
     test_addr = 0x00020000
@@ -136,8 +156,15 @@ async def cocotb_test_basic_connectivity(dut):
         txn_id=0
     )
 
-    # Wait for write to propagate through bridge
-    await ClockCycles(tb.clock, 5)
+    # Verify the bridge actually routed the AW to *this* slave (and only
+    # this slave). Catches silent misroutes that the old version of this
+    # test missed by responding from the expected slave without first
+    # checking it had received anything.
+    await tb.expect_aw_at_slave(
+        slave_idx=2,
+        expected_addr=test_addr,
+        expected_id=0
+    )
 
     # Slave responds
     await tb.slave_respond_write(
@@ -146,11 +173,14 @@ async def cocotb_test_basic_connectivity(dut):
         resp=0  # OKAY
     )
 
-    # Wait for response to return
-    await ClockCycles(tb.clock, 5)
+    # Verify the B response actually came back to the originating master.
+    await tb.expect_b_at_master(
+        master_idx=0,
+        expected_id=0,
+        expected_resp=0
+    )
 
-    # Verify response received at master (check via monitor)
-    tb.log.info(f"  Write completed successfully")
+    tb.log.info(f"  Write completed successfully (routing + response verified)")
 
     # Master 0 → Slave 3 (stream_err)
     test_addr = 0x00030000
@@ -165,8 +195,15 @@ async def cocotb_test_basic_connectivity(dut):
         txn_id=0
     )
 
-    # Wait for write to propagate through bridge
-    await ClockCycles(tb.clock, 5)
+    # Verify the bridge actually routed the AW to *this* slave (and only
+    # this slave). Catches silent misroutes that the old version of this
+    # test missed by responding from the expected slave without first
+    # checking it had received anything.
+    await tb.expect_aw_at_slave(
+        slave_idx=3,
+        expected_addr=test_addr,
+        expected_id=0
+    )
 
     # Slave responds
     await tb.slave_respond_write(
@@ -175,11 +212,14 @@ async def cocotb_test_basic_connectivity(dut):
         resp=0  # OKAY
     )
 
-    # Wait for response to return
-    await ClockCycles(tb.clock, 5)
+    # Verify the B response actually came back to the originating master.
+    await tb.expect_b_at_master(
+        master_idx=0,
+        expected_id=0,
+        expected_resp=0
+    )
 
-    # Verify response received at master (check via monitor)
-    tb.log.info(f"  Write completed successfully")
+    tb.log.info(f"  Write completed successfully (routing + response verified)")
 
     # Master 0 → Slave 4 (debug_sram)
     test_addr = 0x00040000
@@ -194,8 +234,15 @@ async def cocotb_test_basic_connectivity(dut):
         txn_id=0
     )
 
-    # Wait for write to propagate through bridge
-    await ClockCycles(tb.clock, 5)
+    # Verify the bridge actually routed the AW to *this* slave (and only
+    # this slave). Catches silent misroutes that the old version of this
+    # test missed by responding from the expected slave without first
+    # checking it had received anything.
+    await tb.expect_aw_at_slave(
+        slave_idx=4,
+        expected_addr=test_addr,
+        expected_id=0
+    )
 
     # Slave responds
     await tb.slave_respond_write(
@@ -204,11 +251,14 @@ async def cocotb_test_basic_connectivity(dut):
         resp=0  # OKAY
     )
 
-    # Wait for response to return
-    await ClockCycles(tb.clock, 5)
+    # Verify the B response actually came back to the originating master.
+    await tb.expect_b_at_master(
+        master_idx=0,
+        expected_id=0,
+        expected_resp=0
+    )
 
-    # Verify response received at master (check via monitor)
-    tb.log.info(f"  Write completed successfully")
+    tb.log.info(f"  Write completed successfully (routing + response verified)")
 
     # Master 0 → Slave 5 (dma_axil)
     test_addr = 0x00080000
@@ -223,8 +273,15 @@ async def cocotb_test_basic_connectivity(dut):
         txn_id=0
     )
 
-    # Wait for write to propagate through bridge
-    await ClockCycles(tb.clock, 5)
+    # Verify the bridge actually routed the AW to *this* slave (and only
+    # this slave). Catches silent misroutes that the old version of this
+    # test missed by responding from the expected slave without first
+    # checking it had received anything.
+    await tb.expect_aw_at_slave(
+        slave_idx=5,
+        expected_addr=test_addr,
+        expected_id=0
+    )
 
     # Slave responds
     await tb.slave_respond_write(
@@ -233,11 +290,14 @@ async def cocotb_test_basic_connectivity(dut):
         resp=0  # OKAY
     )
 
-    # Wait for response to return
-    await ClockCycles(tb.clock, 5)
+    # Verify the B response actually came back to the originating master.
+    await tb.expect_b_at_master(
+        master_idx=0,
+        expected_id=0,
+        expected_resp=0
+    )
 
-    # Verify response received at master (check via monitor)
-    tb.log.info(f"  Write completed successfully")
+    tb.log.info(f"  Write completed successfully (routing + response verified)")
     # Read connectivity test    tb.log.info(f"Testing master 0 (host) read connectivity")
     # Master 0 → Slave 0 (stream_apb)
     test_addr = 0x00000100
@@ -251,8 +311,12 @@ async def cocotb_test_basic_connectivity(dut):
         txn_id=0
     )
 
-    # Wait for read to propagate
-    await ClockCycles(tb.clock, 5)
+    # Verify AR routed to expected slave only.
+    await tb.expect_ar_at_slave(
+        slave_idx=0,
+        expected_addr=test_addr,
+        expected_id=0
+    )
 
     # Slave responds with data
     await tb.slave_respond_read(
@@ -262,10 +326,15 @@ async def cocotb_test_basic_connectivity(dut):
         resp=0  # OKAY
     )
 
-    # Wait for response to return
-    await ClockCycles(tb.clock, 5)
+    # Verify R response (data + id) returned to originating master.
+    await tb.expect_r_at_master(
+        master_idx=0,
+        expected_id=0,
+        expected_data=test_data,
+        expected_resp=0
+    )
 
-    tb.log.info(f"  Read completed successfully")
+    tb.log.info(f"  Read completed successfully (routing + response verified)")
 
     # Master 0 → Slave 1 (harness_csr)
     test_addr = 0x00010100
@@ -279,8 +348,12 @@ async def cocotb_test_basic_connectivity(dut):
         txn_id=0
     )
 
-    # Wait for read to propagate
-    await ClockCycles(tb.clock, 5)
+    # Verify AR routed to expected slave only.
+    await tb.expect_ar_at_slave(
+        slave_idx=1,
+        expected_addr=test_addr,
+        expected_id=0
+    )
 
     # Slave responds with data
     await tb.slave_respond_read(
@@ -290,10 +363,15 @@ async def cocotb_test_basic_connectivity(dut):
         resp=0  # OKAY
     )
 
-    # Wait for response to return
-    await ClockCycles(tb.clock, 5)
+    # Verify R response (data + id) returned to originating master.
+    await tb.expect_r_at_master(
+        master_idx=0,
+        expected_id=0,
+        expected_data=test_data,
+        expected_resp=0
+    )
 
-    tb.log.info(f"  Read completed successfully")
+    tb.log.info(f"  Read completed successfully (routing + response verified)")
 
     # Master 0 → Slave 2 (desc_ram)
     test_addr = 0x00020100
@@ -307,8 +385,12 @@ async def cocotb_test_basic_connectivity(dut):
         txn_id=0
     )
 
-    # Wait for read to propagate
-    await ClockCycles(tb.clock, 5)
+    # Verify AR routed to expected slave only.
+    await tb.expect_ar_at_slave(
+        slave_idx=2,
+        expected_addr=test_addr,
+        expected_id=0
+    )
 
     # Slave responds with data
     await tb.slave_respond_read(
@@ -318,10 +400,15 @@ async def cocotb_test_basic_connectivity(dut):
         resp=0  # OKAY
     )
 
-    # Wait for response to return
-    await ClockCycles(tb.clock, 5)
+    # Verify R response (data + id) returned to originating master.
+    await tb.expect_r_at_master(
+        master_idx=0,
+        expected_id=0,
+        expected_data=test_data,
+        expected_resp=0
+    )
 
-    tb.log.info(f"  Read completed successfully")
+    tb.log.info(f"  Read completed successfully (routing + response verified)")
 
     # Master 0 → Slave 3 (stream_err)
     test_addr = 0x00030100
@@ -335,8 +422,12 @@ async def cocotb_test_basic_connectivity(dut):
         txn_id=0
     )
 
-    # Wait for read to propagate
-    await ClockCycles(tb.clock, 5)
+    # Verify AR routed to expected slave only.
+    await tb.expect_ar_at_slave(
+        slave_idx=3,
+        expected_addr=test_addr,
+        expected_id=0
+    )
 
     # Slave responds with data
     await tb.slave_respond_read(
@@ -346,10 +437,15 @@ async def cocotb_test_basic_connectivity(dut):
         resp=0  # OKAY
     )
 
-    # Wait for response to return
-    await ClockCycles(tb.clock, 5)
+    # Verify R response (data + id) returned to originating master.
+    await tb.expect_r_at_master(
+        master_idx=0,
+        expected_id=0,
+        expected_data=test_data,
+        expected_resp=0
+    )
 
-    tb.log.info(f"  Read completed successfully")
+    tb.log.info(f"  Read completed successfully (routing + response verified)")
 
     # Master 0 → Slave 4 (debug_sram)
     test_addr = 0x00040100
@@ -363,8 +459,12 @@ async def cocotb_test_basic_connectivity(dut):
         txn_id=0
     )
 
-    # Wait for read to propagate
-    await ClockCycles(tb.clock, 5)
+    # Verify AR routed to expected slave only.
+    await tb.expect_ar_at_slave(
+        slave_idx=4,
+        expected_addr=test_addr,
+        expected_id=0
+    )
 
     # Slave responds with data
     await tb.slave_respond_read(
@@ -374,10 +474,15 @@ async def cocotb_test_basic_connectivity(dut):
         resp=0  # OKAY
     )
 
-    # Wait for response to return
-    await ClockCycles(tb.clock, 5)
+    # Verify R response (data + id) returned to originating master.
+    await tb.expect_r_at_master(
+        master_idx=0,
+        expected_id=0,
+        expected_data=test_data,
+        expected_resp=0
+    )
 
-    tb.log.info(f"  Read completed successfully")
+    tb.log.info(f"  Read completed successfully (routing + response verified)")
 
     # Master 0 → Slave 5 (dma_axil)
     test_addr = 0x00080100
@@ -391,8 +496,12 @@ async def cocotb_test_basic_connectivity(dut):
         txn_id=0
     )
 
-    # Wait for read to propagate
-    await ClockCycles(tb.clock, 5)
+    # Verify AR routed to expected slave only.
+    await tb.expect_ar_at_slave(
+        slave_idx=5,
+        expected_addr=test_addr,
+        expected_id=0
+    )
 
     # Slave responds with data
     await tb.slave_respond_read(
@@ -402,10 +511,15 @@ async def cocotb_test_basic_connectivity(dut):
         resp=0  # OKAY
     )
 
-    # Wait for response to return
-    await ClockCycles(tb.clock, 5)
+    # Verify R response (data + id) returned to originating master.
+    await tb.expect_r_at_master(
+        master_idx=0,
+        expected_id=0,
+        expected_data=test_data,
+        expected_resp=0
+    )
 
-    tb.log.info(f"  Read completed successfully")
+    tb.log.info(f"  Read completed successfully (routing + response verified)")
 
     await ClockCycles(tb.clock, 20)
     tb.log.info("=" * 80)
