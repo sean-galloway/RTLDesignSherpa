@@ -29,6 +29,15 @@ namespace eval filelist {
         return $line
     }
 
+    # Resolve a (possibly relative) path against `base_dir`.
+    # Absolute paths and $REPO_ROOT-anchored paths come back unchanged.
+    proc _resolve_relative {raw base_dir} {
+        if {[file pathtype $raw] eq "absolute"} {
+            return [file normalize $raw]
+        }
+        return [file normalize [file join $base_dir $raw]]
+    }
+
     # Parse one filelist, return {sources include_dirs defines}.
     proc read_filelist {path} {
         variable seen_files
@@ -37,6 +46,16 @@ namespace eval filelist {
             return {{} {} {}}
         }
         set seen_files($path) 1
+
+        # Anchor for any bare relative path inside this filelist. Match the
+        # cocotb-side filelist_utils.py, which uses `dirname(dirname(path))`
+        # — i.e. `<rtl>/filelists/foo.f` → relative paths root at `<rtl>/`.
+        # Without this, Tcl's `[file normalize]` resolves bare paths against
+        # the launching CWD (e.g. flows-stream-bridge/) and fails to find
+        # generated bridge files that actually live under
+        # stream_char_framework/rtl/bridges/generated/.
+        set filelist_dir   [file dirname $path]
+        set rel_path_base  [file dirname $filelist_dir]
 
         set sources {}
         set incdirs {}
@@ -60,7 +79,8 @@ namespace eval filelist {
             set expanded [_expand_env $line]
 
             if {[string match "+incdir+*" $expanded]} {
-                lappend incdirs [file normalize [string range $expanded 8 end]]
+                set inc [string range $expanded 8 end]
+                lappend incdirs [_resolve_relative $inc $rel_path_base]
                 continue
             }
             if {[string match "+define+*" $expanded]} {
@@ -69,7 +89,7 @@ namespace eval filelist {
             }
             if {[string match "-f*" $expanded] || [string match "-F*" $expanded]} {
                 set nested [string trim [string range $expanded 2 end]]
-                set nested [file normalize $nested]
+                set nested [_resolve_relative $nested $rel_path_base]
                 lassign [read_filelist $nested] ns ni nd
                 set sources [concat $sources $ns]
                 set incdirs [concat $incdirs $ni]
@@ -77,7 +97,7 @@ namespace eval filelist {
                 continue
             }
             # Otherwise, treat as a source file path.
-            lappend sources [file normalize $expanded]
+            lappend sources [_resolve_relative $expanded $rel_path_base]
         }
 
         return [list $sources $incdirs $defines]

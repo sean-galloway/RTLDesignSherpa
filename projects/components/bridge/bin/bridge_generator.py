@@ -457,17 +457,22 @@ def generate_bridge(ports_file, connectivity_file, name=None, output_dir="../rtl
         rtl_dir = os.path.dirname(os.path.dirname(bridge_dir))  # Go up 2 levels to rtl/
         filelist_dir = os.path.join(rtl_dir, "filelists")
 
+        # Paths are relative to the filelist's grandparent (== `rtl_dir`).
+        # Both the cocotb consumer (TBClasses/shared/filelist_utils.py) and
+        # the Vivado consumer (flows-*/tcl/filelist_utils.tcl) anchor
+        # bare relative paths off `dirname(dirname(filelist))`, so this
+        # works for every existing bridge unchanged.
         # Package must be first for compile order
         if 'package' in generated_files:
             filepath = generated_files['package']
-            rel_path = os.path.relpath(filepath, rtl_dir)  # Relative to rtl/
+            rel_path = os.path.relpath(filepath, rtl_dir)
             filelist_lines.append(rel_path)
 
         # Then other files (adapters, bridge)
         for file_key in sorted(generated_files.keys()):
             if file_key != 'package':  # Skip package (already added)
                 filepath = generated_files[file_key]
-                rel_path = os.path.relpath(filepath, rtl_dir)  # Relative to rtl/
+                rel_path = os.path.relpath(filepath, rtl_dir)
                 filelist_lines.append(rel_path)
 
         filelist_lines.append("")
