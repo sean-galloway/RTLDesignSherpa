@@ -189,20 +189,14 @@ rtl:
 		--output-dir $(RTL_DIR)
 	@echo "✅ RTL regenerated at $(RTL_DIR)/$(BRIDGE_NAME)/"
 
+REGEN_BRIDGES = $(REPO_ROOT)/projects/NexysA7/stream_characterization/stream_char_framework/bin/regen_bridges.sh
+
 .PHONY: tests
 tests:
 	@echo "================================================================================"
-	@echo "Regenerating $(BRIDGE_NAME) RTL + TB + test runner"
+	@echo "Regenerating $(BRIDGE_NAME) via shared regen_bridges.sh"
 	@echo "================================================================================"
-	python3 $(BRIDGE_GEN) \
-		--ports $(PORTS_TOML) \
-		--connectivity $(CONN_CSV) \
-		--name $(BRIDGE_NAME) \
-		--output-dir $(RTL_DIR) \
-		--generate-tests \
-		--output-tb $(TB_DIR) \
-		--output-test $(TEST_DIR)
-	@echo "✅ Generation complete"
+	@$(REGEN_BRIDGES) $(BRIDGE_NAME)
 	@echo "   RTL:        $(RTL_DIR)/$(BRIDGE_NAME)/"
 	@echo "   TB class:   $(TB_DIR)/$(BRIDGE_NAME)_tb.py"
 	@echo "   Test file:  $(TEST_DIR)/$(TEST_FILE)"

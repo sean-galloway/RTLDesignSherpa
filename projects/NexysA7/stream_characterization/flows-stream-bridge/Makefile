@@ -43,13 +43,19 @@ PROJECT  := $(SELF_DIR)/build/vivado_project/stream_char.xpr
 BITSTREAM:= $(SELF_DIR)/bitstream/stream_char.bit
 REPORTS  := $(SELF_DIR)/reports
 
-.PHONY: help project synth bitstream program utilization timing sim clean clean-all cleanall
+.PHONY: help project synth bitstream program utilization timing sim clean clean-all cleanall regen-bridges
+
+# Regenerate every framework-owned bridge before any synthesis. Cheap
+# (~seconds), keeps the bridge RTL + filelist consistent with the .toml,
+# and means a stale checkout can't silently produce a stale bitstream.
+REGEN_BRIDGES := $(FRAMEWORK_ROOT)/bin/regen_bridges.sh
 
 help:
 	@echo "STREAM Characterization — FPGA build targets"
+	@echo "  make regen-bridges Regenerate framework bridges (RTL + filelist + TBs)"
 	@echo "  make project      Create Vivado project (no build)"
-	@echo "  make synth        Synthesis + utilization_synth.txt report"
-	@echo "  make bitstream    Full synth/impl/bitgen + all reports"
+	@echo "  make synth        regen-bridges + synthesis + utilization_synth.txt"
+	@echo "  make bitstream    regen-bridges + full synth/impl/bitgen + all reports"
 	@echo "  make program      Flash the Nexys A7 via JTAG"
 	@echo "  make utilization  cat utilization_impl.txt (post-route)"
 	@echo "  make timing       cat timing_summary.txt   (post-route)"
@@ -57,19 +63,26 @@ help:
 	@echo "  make clean        Remove Vivado artifacts and reports"
 	@echo "  make clean-all    clean + sim caches/logs + Python bytecode"
 
+# ---- Bridge regeneration --------------------------------------------------
+# Always re-runs (the script itself is fast and idempotent). Synth/bitstream
+# depend on this so a stale checkout can't silently feed stale bridge RTL
+# into Vivado.
+regen-bridges:
+	@$(REGEN_BRIDGES)
+
 # ---- Project creation ------------------------------------------------------
 project:
 	@echo "[create_project] REPO_ROOT=$(REPO_ROOT)"
 	cd $(SELF_DIR) && $(VIVADO_BATCH) -source $(TCL)/create_project.tcl
 
 # ---- Synthesis only --------------------------------------------------------
-synth:
+synth: regen-bridges
 	@echo "[synth] synth_1 + utilization_synth.txt (skips place/route)"
 	cd $(SELF_DIR) && $(VIVADO_BATCH) -source $(TCL)/synth_only.tcl
 	@$(MAKE) --no-print-directory utilization
 
 # ---- Full build ------------------------------------------------------------
-bitstream:
+bitstream: regen-bridges
 	@echo "[bitstream] full flow (~10-30 min depending on host)"
 	cd $(SELF_DIR) && $(VIVADO_BATCH) -source $(TCL)/build_all.tcl
 	@echo ""
