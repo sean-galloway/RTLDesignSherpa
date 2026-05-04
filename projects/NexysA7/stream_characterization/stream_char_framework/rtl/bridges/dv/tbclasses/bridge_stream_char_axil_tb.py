@@ -78,7 +78,7 @@ class BridgeStreamCharAxilTB(TBBase):
         self.aw_m0 = GAXIMaster(
             dut=self.dut,
             title="AW_M0",
-            prefix="host_",
+            prefix="host_axi_",
             clock=self.clock,
             field_config=AXI4FieldConfigHelper.create_aw_field_config(
                 4, 32, 1
@@ -92,7 +92,7 @@ class BridgeStreamCharAxilTB(TBBase):
         self.w_m0 = GAXIMaster(
             dut=self.dut,
             title="W_M0",
-            prefix="host_",
+            prefix="host_axi_",
             clock=self.clock,
             field_config=AXI4FieldConfigHelper.create_w_field_config(
                 32, 1
@@ -106,7 +106,7 @@ class BridgeStreamCharAxilTB(TBBase):
         self.b_m0 = GAXISlave(
             dut=self.dut,
             title="B_M0",
-            prefix="host_",
+            prefix="host_axi_",
             clock=self.clock,
             field_config=AXI4FieldConfigHelper.create_b_field_config(
                 4, 1
@@ -119,7 +119,7 @@ class BridgeStreamCharAxilTB(TBBase):
         self.ar_m0 = GAXIMaster(
             dut=self.dut,
             title="AR_M0",
-            prefix="host_",
+            prefix="host_axi_",
             clock=self.clock,
             field_config=AXI4FieldConfigHelper.create_ar_field_config(
                 4, 32, 1
@@ -133,7 +133,7 @@ class BridgeStreamCharAxilTB(TBBase):
         self.r_m0 = GAXISlave(
             dut=self.dut,
             title="R_M0",
-            prefix="host_",
+            prefix="host_axi_",
             clock=self.clock,
             field_config=AXI4FieldConfigHelper.create_r_field_config(
                 4, 32, 1
@@ -160,7 +160,7 @@ class BridgeStreamCharAxilTB(TBBase):
         self.aw_s1 = GAXISlave(
             dut=self.dut,
             title="AW_S1",
-            prefix="harness_csr_",
+            prefix="harness_csr_axi_",
             clock=self.clock,
             field_config=AXI4FieldConfigHelper.create_aw_field_config(
                 4, 32, 1
@@ -174,7 +174,7 @@ class BridgeStreamCharAxilTB(TBBase):
         self.w_s1 = GAXISlave(
             dut=self.dut,
             title="W_S1",
-            prefix="harness_csr_",
+            prefix="harness_csr_axi_",
             clock=self.clock,
             field_config=AXI4FieldConfigHelper.create_w_field_config(
                 32, 1
@@ -188,7 +188,7 @@ class BridgeStreamCharAxilTB(TBBase):
         self.b_s1 = GAXIMaster(
             dut=self.dut,
             title="B_S1",
-            prefix="harness_csr_",
+            prefix="harness_csr_axi_",
             clock=self.clock,
             field_config=AXI4FieldConfigHelper.create_b_field_config(
                 4, 1
@@ -201,7 +201,7 @@ class BridgeStreamCharAxilTB(TBBase):
         self.ar_s1 = GAXISlave(
             dut=self.dut,
             title="AR_S1",
-            prefix="harness_csr_",
+            prefix="harness_csr_axi_",
             clock=self.clock,
             field_config=AXI4FieldConfigHelper.create_ar_field_config(
                 4, 32, 1
@@ -215,7 +215,7 @@ class BridgeStreamCharAxilTB(TBBase):
         self.r_s1 = GAXIMaster(
             dut=self.dut,
             title="R_S1",
-            prefix="harness_csr_",
+            prefix="harness_csr_axi_",
             clock=self.clock,
             field_config=AXI4FieldConfigHelper.create_r_field_config(
                 4, 32, 1
@@ -229,7 +229,7 @@ class BridgeStreamCharAxilTB(TBBase):
         self.aw_s2 = GAXISlave(
             dut=self.dut,
             title="AW_S2",
-            prefix="desc_ram_",
+            prefix="desc_ram_axi_",
             clock=self.clock,
             field_config=AXI4FieldConfigHelper.create_aw_field_config(
                 4, 32, 1
@@ -243,7 +243,7 @@ class BridgeStreamCharAxilTB(TBBase):
         self.w_s2 = GAXISlave(
             dut=self.dut,
             title="W_S2",
-            prefix="desc_ram_",
+            prefix="desc_ram_axi_",
             clock=self.clock,
             field_config=AXI4FieldConfigHelper.create_w_field_config(
                 32, 1
@@ -257,7 +257,7 @@ class BridgeStreamCharAxilTB(TBBase):
         self.b_s2 = GAXIMaster(
             dut=self.dut,
             title="B_S2",
-            prefix="desc_ram_",
+            prefix="desc_ram_axi_",
             clock=self.clock,
             field_config=AXI4FieldConfigHelper.create_b_field_config(
                 4, 1
@@ -270,7 +270,7 @@ class BridgeStreamCharAxilTB(TBBase):
         self.ar_s2 = GAXISlave(
             dut=self.dut,
             title="AR_S2",
-            prefix="desc_ram_",
+            prefix="desc_ram_axi_",
             clock=self.clock,
             field_config=AXI4FieldConfigHelper.create_ar_field_config(
                 4, 32, 1
@@ -284,7 +284,7 @@ class BridgeStreamCharAxilTB(TBBase):
         self.r_s2 = GAXIMaster(
             dut=self.dut,
             title="R_S2",
-            prefix="desc_ram_",
+            prefix="desc_ram_axi_",
             clock=self.clock,
             field_config=AXI4FieldConfigHelper.create_r_field_config(
                 4, 32, 1
@@ -298,7 +298,7 @@ class BridgeStreamCharAxilTB(TBBase):
         self.aw_s3 = GAXISlave(
             dut=self.dut,
             title="AW_S3",
-            prefix="stream_err_",
+            prefix="stream_err_axi_",
             clock=self.clock,
             field_config=AXI4FieldConfigHelper.create_aw_field_config(
                 4, 32, 1
@@ -312,7 +312,7 @@ class BridgeStreamCharAxilTB(TBBase):
         self.w_s3 = GAXISlave(
             dut=self.dut,
             title="W_S3",
-            prefix="stream_err_",
+            prefix="stream_err_axi_",
             clock=self.clock,
             field_config=AXI4FieldConfigHelper.create_w_field_config(
                 32, 1
@@ -326,7 +326,7 @@ class BridgeStreamCharAxilTB(TBBase):
         self.b_s3 = GAXIMaster(
             dut=self.dut,
             title="B_S3",
-            prefix="stream_err_",
+            prefix="stream_err_axi_",
             clock=self.clock,
             field_config=AXI4FieldConfigHelper.create_b_field_config(
                 4, 1
@@ -339,7 +339,7 @@ class BridgeStreamCharAxilTB(TBBase):
         self.ar_s3 = GAXISlave(
             dut=self.dut,
             title="AR_S3",
-            prefix="stream_err_",
+            prefix="stream_err_axi_",
             clock=self.clock,
             field_config=AXI4FieldConfigHelper.create_ar_field_config(
                 4, 32, 1
@@ -353,7 +353,7 @@ class BridgeStreamCharAxilTB(TBBase):
         self.r_s3 = GAXIMaster(
             dut=self.dut,
             title="R_S3",
-            prefix="stream_err_",
+            prefix="stream_err_axi_",
             clock=self.clock,
             field_config=AXI4FieldConfigHelper.create_r_field_config(
                 4, 32, 1
@@ -367,7 +367,7 @@ class BridgeStreamCharAxilTB(TBBase):
         self.aw_s4 = GAXISlave(
             dut=self.dut,
             title="AW_S4",
-            prefix="debug_sram_",
+            prefix="debug_sram_axi_",
             clock=self.clock,
             field_config=AXI4FieldConfigHelper.create_aw_field_config(
                 4, 32, 1
@@ -381,7 +381,7 @@ class BridgeStreamCharAxilTB(TBBase):
         self.w_s4 = GAXISlave(
             dut=self.dut,
             title="W_S4",
-            prefix="debug_sram_",
+            prefix="debug_sram_axi_",
             clock=self.clock,
             field_config=AXI4FieldConfigHelper.create_w_field_config(
                 32, 1
@@ -395,7 +395,7 @@ class BridgeStreamCharAxilTB(TBBase):
         self.b_s4 = GAXIMaster(
             dut=self.dut,
             title="B_S4",
-            prefix="debug_sram_",
+            prefix="debug_sram_axi_",
             clock=self.clock,
             field_config=AXI4FieldConfigHelper.create_b_field_config(
                 4, 1
@@ -408,7 +408,7 @@ class BridgeStreamCharAxilTB(TBBase):
         self.ar_s4 = GAXISlave(
             dut=self.dut,
             title="AR_S4",
-            prefix="debug_sram_",
+            prefix="debug_sram_axi_",
             clock=self.clock,
             field_config=AXI4FieldConfigHelper.create_ar_field_config(
                 4, 32, 1
@@ -422,7 +422,7 @@ class BridgeStreamCharAxilTB(TBBase):
         self.r_s4 = GAXIMaster(
             dut=self.dut,
             title="R_S4",
-            prefix="debug_sram_",
+            prefix="debug_sram_axi_",
             clock=self.clock,
             field_config=AXI4FieldConfigHelper.create_r_field_config(
                 4, 32, 1

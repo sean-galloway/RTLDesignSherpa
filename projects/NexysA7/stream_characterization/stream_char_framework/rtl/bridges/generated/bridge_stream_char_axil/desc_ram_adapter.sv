@@ -71,29 +71,29 @@ module desc_ram_adapter #(
     output logic                       rid_valid,
 
     // External slave interface (AXIL)
-    output logic [31:0] desc_ram_awaddr,
-    output logic [2:0]            desc_ram_awprot,
-    output logic                  desc_ram_awvalid,
-    input  logic                  desc_ram_awready,
+    output logic [31:0] desc_ram_axi_awaddr,
+    output logic [2:0]            desc_ram_axi_awprot,
+    output logic                  desc_ram_axi_awvalid,
+    input  logic                  desc_ram_axi_awready,
     // Write Data Channel
-    output logic [31:0] desc_ram_wdata,
-    output logic [3:0] desc_ram_wstrb,
-    output logic                  desc_ram_wvalid,
-    input  logic                  desc_ram_wready,
+    output logic [31:0] desc_ram_axi_wdata,
+    output logic [3:0] desc_ram_axi_wstrb,
+    output logic                  desc_ram_axi_wvalid,
+    input  logic                  desc_ram_axi_wready,
     // Write Response Channel
-    input  logic [1:0]            desc_ram_bresp,
-    input  logic                  desc_ram_bvalid,
-    output logic                  desc_ram_bready,
+    input  logic [1:0]            desc_ram_axi_bresp,
+    input  logic                  desc_ram_axi_bvalid,
+    output logic                  desc_ram_axi_bready,
     // Read Address Channel
-    output logic [31:0] desc_ram_araddr,
-    output logic [2:0]            desc_ram_arprot,
-    output logic                  desc_ram_arvalid,
-    input  logic                  desc_ram_arready,
+    output logic [31:0] desc_ram_axi_araddr,
+    output logic [2:0]            desc_ram_axi_arprot,
+    output logic                  desc_ram_axi_arvalid,
+    input  logic                  desc_ram_axi_arready,
     // Read Data Channel
-    input  logic [31:0] desc_ram_rdata,
-    input  logic [1:0]            desc_ram_rresp,
-    input  logic                  desc_ram_rvalid,
-    output logic                  desc_ram_rready
+    input  logic [31:0] desc_ram_axi_rdata,
+    input  logic [1:0]            desc_ram_axi_rresp,
+    input  logic                  desc_ram_axi_rvalid,
+    output logic                  desc_ram_axi_rready
 );
 
     // ================================================================
@@ -142,13 +142,13 @@ module desc_ram_adapter #(
         end
     end
 
-    // Pop on B response (desc_ram_bvalid && desc_ram_bready)
+    // Pop on B response (desc_ram_axi_bvalid && desc_ram_axi_bready)
     always_ff @(posedge aclk or negedge aresetn) begin
         if (!aresetn) begin
             rd_ptr <= '0;
             bid_bridge_id <= '0;
             bid_valid <= 1'b0;
-        end else if (desc_ram_bvalid && desc_ram_bready) begin
+        end else if (desc_ram_axi_bvalid && desc_ram_axi_bready) begin
             bid_bridge_id <= wr_fifo[rd_ptr[$clog2(WR_FIFO_DEPTH)-1:0]];
             bid_valid <= 1'b1;
             rd_ptr <= rd_ptr + 1'b1;
@@ -173,13 +173,13 @@ module desc_ram_adapter #(
         end
     end
 
-    // Pop on R response (desc_ram_rvalid && desc_ram_rready)
+    // Pop on R response (desc_ram_axi_rvalid && desc_ram_axi_rready)
     always_ff @(posedge aclk or negedge aresetn) begin
         if (!aresetn) begin
             r_ptr <= '0;
             rid_bridge_id <= '0;
             rid_valid <= 1'b0;
-        end else if (desc_ram_rvalid && desc_ram_rready) begin
+        end else if (desc_ram_axi_rvalid && desc_ram_axi_rready) begin
             rid_bridge_id <= rd_fifo[r_ptr[$clog2(RD_FIFO_DEPTH)-1:0]];
             rid_valid <= 1'b1;
             r_ptr <= r_ptr + 1'b1;

@@ -33,7 +33,10 @@ frequency_mhz = 100
 # ---- Master ----------------------------------------------------------------
 [[bridge.masters]]
 name        = "host"
-prefix      = "host_"
+# `host_axi_` matches the wiring in flows-stream-bridge/rtl/stream_char_harness.sv
+# (the harness instantiates the bridge with `.host_axi_<sig>(...)` connections,
+# carried over from the pre-Bug-C generator that hardcoded the `_axi_` infix).
+prefix      = "host_axi_"
 protocol    = "axil"
 channels    = "rw"
 # id_width=8 across the bridge so master-side and slave-side ID widths
@@ -65,7 +68,7 @@ addr_range  = "0x00001000"     # 4 KB
 
 [[bridge.slaves]]
 name        = "harness_csr"
-prefix      = "harness_csr_"
+prefix      = "harness_csr_axi_"
 protocol    = "axil"
 channels    = "rw"
 id_width    = 4
@@ -77,7 +80,7 @@ addr_range  = "0x00000100"     # 256 B
 
 [[bridge.slaves]]
 name        = "desc_ram"
-prefix      = "desc_ram_"
+prefix      = "desc_ram_axi_"
 protocol    = "axil"
 channels    = "rw"
 id_width    = 4
@@ -89,7 +92,7 @@ addr_range  = "0x00010000"     # 64 KB
 
 [[bridge.slaves]]
 name        = "stream_err"
-prefix      = "stream_err_"
+prefix      = "stream_err_axi_"
 protocol    = "axil"
 channels    = "rw"
 id_width    = 4
@@ -101,7 +104,7 @@ addr_range  = "0x00000040"     # 64 B
 
 [[bridge.slaves]]
 name        = "debug_sram"
-prefix      = "debug_sram_"
+prefix      = "debug_sram_axi_"
 protocol    = "axil"
 channels    = "rw"
 id_width    = 4
@@ -113,6 +116,9 @@ addr_range  = "0x00040000"     # 256 KB
 
 [[bridge.slaves]]
 name        = "dma_axil"
+# Drop the `_axi_` infix on this port — the slave name already carries the
+# protocol tag (`axil`), so `dma_axil_axi_*` would be saying it twice. The
+# harness wires the bridge as `.dma_axil_<sig>(...)` to match.
 prefix      = "dma_axil_"
 protocol    = "axil"
 channels    = "rw"

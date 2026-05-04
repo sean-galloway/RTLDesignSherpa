@@ -571,50 +571,50 @@ module stream_char_harness #(
         // Slave 5: dma_axil (unused in flows-stream-bridge — tied off so
         // accidental writes don't hang the bus; never addressed in normal
         // operation, so this is purely defensive).
-        .dma_axil_axi_awid     (),  // outputs from bridge — leave dangling
-        .dma_axil_axi_awaddr   (),
-        .dma_axil_axi_awlen    (),
-        .dma_axil_axi_awsize   (),
-        .dma_axil_axi_awburst  (),
-        .dma_axil_axi_awlock   (),
-        .dma_axil_axi_awcache  (),
-        .dma_axil_axi_awprot   (),
-        .dma_axil_axi_awqos    (),
-        .dma_axil_axi_awregion (),
-        .dma_axil_axi_awuser   (),
-        .dma_axil_axi_awvalid  (),
-        .dma_axil_axi_awready  (1'b1),         // always accept
-        .dma_axil_axi_wdata    (),
-        .dma_axil_axi_wstrb    (),
-        .dma_axil_axi_wlast    (),
-        .dma_axil_axi_wuser    (),
-        .dma_axil_axi_wvalid   (),
-        .dma_axil_axi_wready   (1'b1),         // always accept
-        .dma_axil_axi_bid      (4'd0),
-        .dma_axil_axi_bresp    (2'b11),        // DECERR if anything lands here
-        .dma_axil_axi_buser    (1'b0),
-        .dma_axil_axi_bvalid   (1'b0),         // never assert (host should never address this)
-        .dma_axil_axi_bready   (),
-        .dma_axil_axi_arid     (),
-        .dma_axil_axi_araddr   (),
-        .dma_axil_axi_arlen    (),
-        .dma_axil_axi_arsize   (),
-        .dma_axil_axi_arburst  (),
-        .dma_axil_axi_arlock   (),
-        .dma_axil_axi_arcache  (),
-        .dma_axil_axi_arprot   (),
-        .dma_axil_axi_arqos    (),
-        .dma_axil_axi_arregion (),
-        .dma_axil_axi_aruser   (),
-        .dma_axil_axi_arvalid  (),
-        .dma_axil_axi_arready  (1'b1),
-        .dma_axil_axi_rid      (4'd0),
-        .dma_axil_axi_rdata    (32'hDEAD_BEEF),
-        .dma_axil_axi_rresp    (2'b11),
-        .dma_axil_axi_rlast    (1'b1),
-        .dma_axil_axi_ruser    (1'b0),
-        .dma_axil_axi_rvalid   (1'b0),
-        .dma_axil_axi_rready   ()
+        .dma_axil_awid     (),  // outputs from bridge — leave dangling
+        .dma_axil_awaddr   (),
+        .dma_axil_awlen    (),
+        .dma_axil_awsize   (),
+        .dma_axil_awburst  (),
+        .dma_axil_awlock   (),
+        .dma_axil_awcache  (),
+        .dma_axil_awprot   (),
+        .dma_axil_awqos    (),
+        .dma_axil_awregion (),
+        .dma_axil_awuser   (),
+        .dma_axil_awvalid  (),
+        .dma_axil_awready  (1'b1),         // always accept
+        .dma_axil_wdata    (),
+        .dma_axil_wstrb    (),
+        .dma_axil_wlast    (),
+        .dma_axil_wuser    (),
+        .dma_axil_wvalid   (),
+        .dma_axil_wready   (1'b1),         // always accept
+        .dma_axil_bid      (4'd0),
+        .dma_axil_bresp    (2'b11),        // DECERR if anything lands here
+        .dma_axil_buser    (1'b0),
+        .dma_axil_bvalid   (1'b0),         // never assert (host should never address this)
+        .dma_axil_bready   (),
+        .dma_axil_arid     (),
+        .dma_axil_araddr   (),
+        .dma_axil_arlen    (),
+        .dma_axil_arsize   (),
+        .dma_axil_arburst  (),
+        .dma_axil_arlock   (),
+        .dma_axil_arcache  (),
+        .dma_axil_arprot   (),
+        .dma_axil_arqos    (),
+        .dma_axil_arregion (),
+        .dma_axil_aruser   (),
+        .dma_axil_arvalid  (),
+        .dma_axil_arready  (1'b1),
+        .dma_axil_rid      (4'd0),
+        .dma_axil_rdata    (32'hDEAD_BEEF),
+        .dma_axil_rresp    (2'b11),
+        .dma_axil_rlast    (1'b1),
+        .dma_axil_ruser    (1'b0),
+        .dma_axil_rvalid   (1'b0),
+        .dma_axil_rready   ()
     );
 
     // ---- AXI4 -> AXIL shims (one wr + one rd per AXIL slave) ---------------

@@ -71,29 +71,29 @@ module stream_err_adapter #(
     output logic                       rid_valid,
 
     // External slave interface (AXIL)
-    output logic [31:0] stream_err_awaddr,
-    output logic [2:0]            stream_err_awprot,
-    output logic                  stream_err_awvalid,
-    input  logic                  stream_err_awready,
+    output logic [31:0] stream_err_axi_awaddr,
+    output logic [2:0]            stream_err_axi_awprot,
+    output logic                  stream_err_axi_awvalid,
+    input  logic                  stream_err_axi_awready,
     // Write Data Channel
-    output logic [31:0] stream_err_wdata,
-    output logic [3:0] stream_err_wstrb,
-    output logic                  stream_err_wvalid,
-    input  logic                  stream_err_wready,
+    output logic [31:0] stream_err_axi_wdata,
+    output logic [3:0] stream_err_axi_wstrb,
+    output logic                  stream_err_axi_wvalid,
+    input  logic                  stream_err_axi_wready,
     // Write Response Channel
-    input  logic [1:0]            stream_err_bresp,
-    input  logic                  stream_err_bvalid,
-    output logic                  stream_err_bready,
+    input  logic [1:0]            stream_err_axi_bresp,
+    input  logic                  stream_err_axi_bvalid,
+    output logic                  stream_err_axi_bready,
     // Read Address Channel
-    output logic [31:0] stream_err_araddr,
-    output logic [2:0]            stream_err_arprot,
-    output logic                  stream_err_arvalid,
-    input  logic                  stream_err_arready,
+    output logic [31:0] stream_err_axi_araddr,
+    output logic [2:0]            stream_err_axi_arprot,
+    output logic                  stream_err_axi_arvalid,
+    input  logic                  stream_err_axi_arready,
     // Read Data Channel
-    input  logic [31:0] stream_err_rdata,
-    input  logic [1:0]            stream_err_rresp,
-    input  logic                  stream_err_rvalid,
-    output logic                  stream_err_rready
+    input  logic [31:0] stream_err_axi_rdata,
+    input  logic [1:0]            stream_err_axi_rresp,
+    input  logic                  stream_err_axi_rvalid,
+    output logic                  stream_err_axi_rready
 );
 
     // ================================================================
@@ -142,13 +142,13 @@ module stream_err_adapter #(
         end
     end
 
-    // Pop on B response (stream_err_bvalid && stream_err_bready)
+    // Pop on B response (stream_err_axi_bvalid && stream_err_axi_bready)
     always_ff @(posedge aclk or negedge aresetn) begin
         if (!aresetn) begin
             rd_ptr <= '0;
             bid_bridge_id <= '0;
             bid_valid <= 1'b0;
-        end else if (stream_err_bvalid && stream_err_bready) begin
+        end else if (stream_err_axi_bvalid && stream_err_axi_bready) begin
             bid_bridge_id <= wr_fifo[rd_ptr[$clog2(WR_FIFO_DEPTH)-1:0]];
             bid_valid <= 1'b1;
             rd_ptr <= rd_ptr + 1'b1;
@@ -173,13 +173,13 @@ module stream_err_adapter #(
         end
     end
 
-    // Pop on R response (stream_err_rvalid && stream_err_rready)
+    // Pop on R response (stream_err_axi_rvalid && stream_err_axi_rready)
     always_ff @(posedge aclk or negedge aresetn) begin
         if (!aresetn) begin
             r_ptr <= '0;
             rid_bridge_id <= '0;
             rid_valid <= 1'b0;
-        end else if (stream_err_rvalid && stream_err_rready) begin
+        end else if (stream_err_axi_rvalid && stream_err_axi_rready) begin
             rid_bridge_id <= rd_fifo[r_ptr[$clog2(RD_FIFO_DEPTH)-1:0]];
             rid_valid <= 1'b1;
             r_ptr <= r_ptr + 1'b1;
