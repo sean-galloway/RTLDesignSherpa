@@ -33,7 +33,9 @@ PYTEST_TBSTYLE = --tb=short
 PYTEST_RERUNS = --reruns 3 --reruns-delay 1
 
 # Test files: Matching-width configurations (no converters) - GENERATED
-MATCHING_WIDTH_TESTS = test_bridge_1x2_rd.py test_bridge_1x2_wr.py
+# Includes 2x2_rw (one master id_width=4, both slaves id_width=4 — no
+# conversion needed) alongside the two 1x2 tests.
+MATCHING_WIDTH_TESTS = test_bridge_1x2_rd.py test_bridge_1x2_wr.py test_bridge_2x2_rw.py
 
 # Test files: Mixed-width configurations (uses converters) - GENERATED
 MIXED_WIDTH_TESTS = test_bridge_1x3_rd.py test_bridge_1x3_wr.py
@@ -44,11 +46,15 @@ APB_TESTS = test_bridge_1x4_rd.py test_bridge_1x4_wr.py
 # Test files: AXI-Lite protocol conversion - GENERATED
 AXIL_TESTS = test_bridge_1x5_rd.py test_bridge_1x5_wr.py
 
-# Test files: Currently disabled (not in batch CSV)
-# DISABLED_TESTS = test_bridge_2x2_rw.py test_bridge_4x4_rw.py test_bridge_5x3_channels.py test_bridge_example.py test_apb_bridge.py
+# Test files: Channel-specific master configurations (wr/rd/rw mix) - GENERATED
+# Exercises Phase 2 channel-aware port emission (write-only/read-only masters).
+CHANNELS_TESTS = test_bridge_5x3_channels.py
 
-# All tests (currently generated and available)
-ALL_TESTS = $(MATCHING_WIDTH_TESTS) $(MIXED_WIDTH_TESTS) $(APB_TESTS) $(AXIL_TESTS)
+# Test files: Currently disabled (commented out in bin/bridge_batch.csv)
+# DISABLED_TESTS = test_bridge_4x4_rw.py test_bridge_example.py test_apb_bridge.py
+
+# All tests (currently generated and available — 10 total)
+ALL_TESTS = $(MATCHING_WIDTH_TESTS) $(MIXED_WIDTH_TESTS) $(APB_TESTS) $(AXIL_TESTS) $(CHANNELS_TESTS)
 
 # Default target
 .DEFAULT_GOAL := help
@@ -74,6 +80,7 @@ help:
 	@echo "  make run-mixed                Run mixed-width tests (1x3_rd, 1x3_wr)"
 	@echo "  make run-apb                  Run APB protocol tests (1x4_rd, 1x4_wr)"
 	@echo "  make run-axil                 Run AXI-Lite protocol tests (1x5_rd, 1x5_wr)"
+	@echo "  make run-channels             Run channel-specific tests (5x3_channels)"
 	@echo ""
 	@echo "⚠️  DANGEROUS TARGETS (CAN CRASH SYSTEM):"
 	@echo "  make run-all-parallel         ❌ DISABLED - Would use 48GB+ RAM"
@@ -88,6 +95,7 @@ help:
 	@echo "  make run-mixed-waves          Run mixed-width tests with waveforms"
 	@echo "  make run-apb-waves            Run APB tests with waveforms"
 	@echo "  make run-axil-waves           Run AXI-Lite tests with waveforms"
+	@echo "  make run-channels-waves       Run channel-specific tests with waveforms"
 	@echo ""
 	@echo "UTILITY TARGETS:"
 	@echo "  make collect                  Collect (don't run) tests"
@@ -108,6 +116,10 @@ help:
 	@echo "  make test                     Regenerate ALL (RTL + tests + TB) from batch CSV"
 	@echo "  make test-matching            Regenerate matching-width (RTL + tests + TB)"
 	@echo "  make test-mixed               Regenerate mixed-width (RTL + tests + TB)"
+	@echo "  make test-apb                 Regenerate APB protocol (RTL + tests + TB)"
+	@echo "  make test-axil                Regenerate AXI-Lite protocol (RTL + tests + TB)"
+	@echo "  make test-channels            Regenerate channel-specific (RTL + tests + TB)"
+	@echo "  make regenerate-all           Regenerate every category sequentially"
 	@echo "  make rebuild-all              Clean + regenerate everything (calls 'make test')"
 	@echo ""
 	@echo "SAFETY NOTES:"
@@ -117,7 +129,9 @@ help:
 	@echo "  - System has 256GB RAM, but parallel compilation still risks OOM"
 	@echo ""
 	@echo "REGENERATION NOTES:"
-	@echo "  - Batch file: bin/bridge_batch.csv (7 configs: 1x2_rd, 1x2_wr, 2x2, 4x4, 5x3, example, apb)"
+	@echo "  - Batch file: bin/bridge_batch.csv (10 active: 1x2_{rd,wr}, 1x3_{rd,wr},"
+	@echo "                                       1x4_{rd,wr}, 1x5_{rd,wr}, 2x2_rw, 5x3_channels;"
+	@echo "                                       4x4_rw and bridge_example are commented out)"
 	@echo "  - All tests are GENERATED from YAML configs"
 	@echo "  - Uses unified bridge_generator.py with Jinja2 templates"
 	@echo "  - RTL generation: bridge_generator.py --ports X --connectivity Y"
@@ -157,7 +171,7 @@ run-matching-parallel-waves:
 
 .PHONY: run-mixed
 run-mixed:
-	@echo "Running mixed-width bridge tests (4x4, 5x3)..."
+	@echo "Running mixed-width bridge tests (1x3_rd, 1x3_wr)..."
 	$(PYTEST) $(MIXED_WIDTH_TESTS) $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE)
 
 .PHONY: run-mixed-waves
@@ -222,6 +236,30 @@ run-axil-parallel:
 run-axil-parallel-waves:
 	@echo "Running AXI-Lite protocol bridge tests in parallel with waveforms..."
 	WAVES=1 $(PYTEST) $(AXIL_TESTS) $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE) $(PYTEST_XDIST) $(PYTEST_RERUNS)
+
+# ==============================================================================
+# Run Targets - Channel-Specific Tests (Phase 2 wr/rd/rw masters)
+# ==============================================================================
+
+.PHONY: run-channels
+run-channels:
+	@echo "Running channel-specific bridge tests (5x3_channels)..."
+	$(PYTEST) $(CHANNELS_TESTS) $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE)
+
+.PHONY: run-channels-waves
+run-channels-waves:
+	@echo "Running channel-specific bridge tests with waveforms..."
+	WAVES=1 $(PYTEST) $(CHANNELS_TESTS) $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE)
+
+.PHONY: run-channels-parallel
+run-channels-parallel:
+	@echo "Running channel-specific bridge tests in parallel..."
+	$(PYTEST) $(CHANNELS_TESTS) $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE) $(PYTEST_XDIST) $(PYTEST_RERUNS)
+
+.PHONY: run-channels-parallel-waves
+run-channels-parallel-waves:
+	@echo "Running channel-specific bridge tests in parallel with waveforms..."
+	WAVES=1 $(PYTEST) $(CHANNELS_TESTS) $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE) $(PYTEST_XDIST) $(PYTEST_RERUNS)
 
 # ==============================================================================
 # Run Targets - All Tests
@@ -595,6 +633,23 @@ test-axil:
 	@echo "✅ AXI-Lite protocol test files regenerated"
 	@echo "================================================================================"
 
+.PHONY: test-channels
+test-channels:
+	@echo "================================================================================"
+	@echo "REGENERATING CHANNEL-SPECIFIC TESTS (5x3_channels)"
+	@echo "================================================================================"
+	@echo "Generating bridge_5x3_channels tests..."
+	cd $(BIN_DIR) && python3 bridge_generator.py \
+		--ports $(CONFIG_DIR)/bridge_5x3_channels.toml \
+		--name bridge_5x3_channels \
+		--output-dir $(RTL_FROM_BIN) \
+		--generate-tests \
+		--output-tb $(TB_FROM_BIN) \
+		--output-test $(TEST_FROM_BIN)
+	@echo ""
+	@echo "✅ Channel-specific test files regenerated"
+	@echo "================================================================================"
+
 # Create default batch file if missing
 $(BATCH_FILE):
 	@echo "Creating default bridge_batch.csv..."
@@ -605,7 +660,7 @@ $(BATCH_FILE):
 	@exit 1
 
 .PHONY: regenerate-all
-regenerate-all: test-matching test-mixed test-apb test-axil
+regenerate-all: test-matching test-mixed test-apb test-axil test-channels
 	@echo "================================================================================"
 	@echo "✅ ALL TEST FILES REGENERATED"
 	@echo "================================================================================"
@@ -615,6 +670,7 @@ regenerate-all: test-matching test-mixed test-apb test-axil
 	@echo "  - test_bridge_1x3_rd.py, test_bridge_1x3_wr.py (mixed-width)"
 	@echo "  - test_bridge_1x4_rd.py, test_bridge_1x4_wr.py (APB protocol)"
 	@echo "  - test_bridge_1x5_rd.py, test_bridge_1x5_wr.py (AXI-Lite protocol)"
+	@echo "  - test_bridge_5x3_channels.py (channel-specific wr/rd/rw)"
 	@echo "================================================================================"
 
 .PHONY: rebuild-all
