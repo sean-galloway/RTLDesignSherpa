@@ -457,23 +457,37 @@ def generate_bridge(ports_file, connectivity_file, name=None, output_dir="../rtl
         rtl_dir = os.path.dirname(os.path.dirname(bridge_dir))  # Go up 2 levels to rtl/
         filelist_dir = os.path.join(rtl_dir, "filelists")
 
-        # Paths are relative to the filelist's grandparent (== `rtl_dir`).
-        # Both the cocotb consumer (TBClasses/shared/filelist_utils.py) and
-        # the Vivado consumer (flows-*/tcl/filelist_utils.tcl) anchor
-        # bare relative paths off `dirname(dirname(filelist))`, so this
-        # works for every existing bridge unchanged.
+        # Anchor every emitted bridge-file path on $REPO_ROOT (when we can
+        # find a git root above the output dir). Bare relative paths break
+        # whenever the bridge filelist is `-f`-included from another
+        # filelist whose base dir is somewhere else — both consumers
+        # (Vivado's tcl/filelist_utils.tcl and TBClasses/shared/
+        # filelist_utils.py via FileListProcessor) flatten nested filelists
+        # against the outer filelist's base, so a nested `generated/...`
+        # path resolves wrong. Using $REPO_ROOT-anchored paths matches
+        # every other entry in the filelist (axi4_slave_*, gaxi_*, ...).
+        try:
+            repo_root_for_bridge = str(get_repo_root_for_path(Path(bridge_dir)))
+        except (RuntimeError, OSError):
+            repo_root_for_bridge = None
+
+        def _bridge_file_path(fp: str) -> str:
+            if repo_root_for_bridge:
+                try:
+                    rel = Path(fp).resolve().relative_to(repo_root_for_bridge)
+                    return f"$REPO_ROOT/{rel.as_posix()}"
+                except ValueError:
+                    pass  # bridge_dir lives outside the repo for some reason
+            return os.path.relpath(fp, rtl_dir)
+
         # Package must be first for compile order
         if 'package' in generated_files:
-            filepath = generated_files['package']
-            rel_path = os.path.relpath(filepath, rtl_dir)
-            filelist_lines.append(rel_path)
+            filelist_lines.append(_bridge_file_path(generated_files['package']))
 
         # Then other files (adapters, bridge)
         for file_key in sorted(generated_files.keys()):
             if file_key != 'package':  # Skip package (already added)
-                filepath = generated_files[file_key]
-                rel_path = os.path.relpath(filepath, rtl_dir)
-                filelist_lines.append(rel_path)
+                filelist_lines.append(_bridge_file_path(generated_files[file_key]))
 
         filelist_lines.append("")
         filelist_lines.append("# AXI4 Wrapper modules (timing isolation)")

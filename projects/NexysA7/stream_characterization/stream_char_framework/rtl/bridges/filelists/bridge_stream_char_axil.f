@@ -2,16 +2,16 @@
 +incdir+$REPO_ROOT/rtl/amba/includes
 
 # Bridge RTL files (generated)
-generated/bridge_stream_char_axil/bridge_stream_char_axil_pkg.sv
-generated/bridge_stream_char_axil/host_adapter.sv
-generated/bridge_stream_char_axil/bridge_stream_char_axil.sv
-generated/bridge_stream_char_axil/bridge_stream_char_axil_xbar.sv
-generated/bridge_stream_char_axil/debug_sram_adapter.sv
-generated/bridge_stream_char_axil/desc_ram_adapter.sv
-generated/bridge_stream_char_axil/dma_axil_adapter.sv
-generated/bridge_stream_char_axil/harness_csr_adapter.sv
-generated/bridge_stream_char_axil/stream_apb_adapter.sv
-generated/bridge_stream_char_axil/stream_err_adapter.sv
+$REPO_ROOT/projects/NexysA7/stream_characterization/stream_char_framework/rtl/bridges/generated/bridge_stream_char_axil/bridge_stream_char_axil_pkg.sv
+$REPO_ROOT/projects/NexysA7/stream_characterization/stream_char_framework/rtl/bridges/generated/bridge_stream_char_axil/host_adapter.sv
+$REPO_ROOT/projects/NexysA7/stream_characterization/stream_char_framework/rtl/bridges/generated/bridge_stream_char_axil/bridge_stream_char_axil.sv
+$REPO_ROOT/projects/NexysA7/stream_characterization/stream_char_framework/rtl/bridges/generated/bridge_stream_char_axil/bridge_stream_char_axil_xbar.sv
+$REPO_ROOT/projects/NexysA7/stream_characterization/stream_char_framework/rtl/bridges/generated/bridge_stream_char_axil/debug_sram_adapter.sv
+$REPO_ROOT/projects/NexysA7/stream_characterization/stream_char_framework/rtl/bridges/generated/bridge_stream_char_axil/desc_ram_adapter.sv
+$REPO_ROOT/projects/NexysA7/stream_characterization/stream_char_framework/rtl/bridges/generated/bridge_stream_char_axil/dma_axil_adapter.sv
+$REPO_ROOT/projects/NexysA7/stream_characterization/stream_char_framework/rtl/bridges/generated/bridge_stream_char_axil/harness_csr_adapter.sv
+$REPO_ROOT/projects/NexysA7/stream_characterization/stream_char_framework/rtl/bridges/generated/bridge_stream_char_axil/stream_apb_adapter.sv
+$REPO_ROOT/projects/NexysA7/stream_characterization/stream_char_framework/rtl/bridges/generated/bridge_stream_char_axil/stream_err_adapter.sv
 
 # AXI4 Wrapper modules (timing isolation)
 # Master adapters use axi4_slave_* (act as AXI slave to external master)
