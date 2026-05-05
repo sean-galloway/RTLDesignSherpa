@@ -2,12 +2,12 @@
 +incdir+$REPO_ROOT/rtl/amba/includes
 
 # Bridge RTL files (generated)
-generated/bridge_1x2_wr/bridge_1x2_wr_pkg.sv
-generated/bridge_1x2_wr/cpu_wr_adapter.sv
-generated/bridge_1x2_wr/bridge_1x2_wr.sv
-generated/bridge_1x2_wr/bridge_1x2_wr_xbar.sv
-generated/bridge_1x2_wr/ddr_wr_adapter.sv
-generated/bridge_1x2_wr/sram_wr_adapter.sv
+$REPO_ROOT/projects/components/bridge/rtl/generated/bridge_1x2_wr/bridge_1x2_wr_pkg.sv
+$REPO_ROOT/projects/components/bridge/rtl/generated/bridge_1x2_wr/cpu_wr_adapter.sv
+$REPO_ROOT/projects/components/bridge/rtl/generated/bridge_1x2_wr/bridge_1x2_wr.sv
+$REPO_ROOT/projects/components/bridge/rtl/generated/bridge_1x2_wr/bridge_1x2_wr_xbar.sv
+$REPO_ROOT/projects/components/bridge/rtl/generated/bridge_1x2_wr/ddr_wr_adapter.sv
+$REPO_ROOT/projects/components/bridge/rtl/generated/bridge_1x2_wr/sram_wr_adapter.sv
 
 # AXI4 Wrapper modules (timing isolation)
 # Master adapters use axi4_slave_* (act as AXI slave to external master)

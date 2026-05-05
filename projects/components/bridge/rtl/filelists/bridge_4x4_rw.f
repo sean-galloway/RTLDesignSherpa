@@ -2,17 +2,17 @@
 +incdir+$REPO_ROOT/rtl/amba/includes
 
 # Bridge RTL files (generated)
-generated/bridge_4x4_rw/bridge_4x4_rw_pkg.sv
-generated/bridge_4x4_rw/cpu_master_adapter.sv
-generated/bridge_4x4_rw/dma0_master_adapter.sv
-generated/bridge_4x4_rw/dma1_master_adapter.sv
-generated/bridge_4x4_rw/gpu_master_adapter.sv
-generated/bridge_4x4_rw/bridge_4x4_rw.sv
-generated/bridge_4x4_rw/bridge_4x4_rw_xbar.sv
-generated/bridge_4x4_rw/ddr0_slave_adapter.sv
-generated/bridge_4x4_rw/gpu_mem_slave_adapter.sv
-generated/bridge_4x4_rw/periph_slave_adapter.sv
-generated/bridge_4x4_rw/sram_slave_adapter.sv
+$REPO_ROOT/projects/components/bridge/rtl/generated/bridge_4x4_rw/bridge_4x4_rw_pkg.sv
+$REPO_ROOT/projects/components/bridge/rtl/generated/bridge_4x4_rw/cpu_master_adapter.sv
+$REPO_ROOT/projects/components/bridge/rtl/generated/bridge_4x4_rw/dma0_master_adapter.sv
+$REPO_ROOT/projects/components/bridge/rtl/generated/bridge_4x4_rw/dma1_master_adapter.sv
+$REPO_ROOT/projects/components/bridge/rtl/generated/bridge_4x4_rw/gpu_master_adapter.sv
+$REPO_ROOT/projects/components/bridge/rtl/generated/bridge_4x4_rw/bridge_4x4_rw.sv
+$REPO_ROOT/projects/components/bridge/rtl/generated/bridge_4x4_rw/bridge_4x4_rw_xbar.sv
+$REPO_ROOT/projects/components/bridge/rtl/generated/bridge_4x4_rw/ddr0_slave_adapter.sv
+$REPO_ROOT/projects/components/bridge/rtl/generated/bridge_4x4_rw/gpu_mem_slave_adapter.sv
+$REPO_ROOT/projects/components/bridge/rtl/generated/bridge_4x4_rw/periph_slave_adapter.sv
+$REPO_ROOT/projects/components/bridge/rtl/generated/bridge_4x4_rw/sram_slave_adapter.sv
 
 # AXI4 Wrapper modules (timing isolation)
 # Master adapters use axi4_slave_* (act as AXI slave to external master)

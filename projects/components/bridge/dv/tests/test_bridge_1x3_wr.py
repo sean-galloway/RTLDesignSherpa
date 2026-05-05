@@ -73,8 +73,15 @@ async def cocotb_test_basic_connectivity(dut):
         txn_id=0
     )
 
-    # Wait for write to propagate through bridge
-    await ClockCycles(tb.clock, 5)
+    # Verify the bridge actually routed the AW to *this* slave (and only
+    # this slave). Catches silent misroutes that the old version of this
+    # test missed by responding from the expected slave without first
+    # checking it had received anything.
+    await tb.expect_aw_at_slave(
+        slave_idx=0,
+        expected_addr=test_addr,
+        expected_id=0
+    )
 
     # Slave responds
     await tb.slave_respond_write(
@@ -83,11 +90,14 @@ async def cocotb_test_basic_connectivity(dut):
         resp=0  # OKAY
     )
 
-    # Wait for response to return
-    await ClockCycles(tb.clock, 5)
+    # Verify the B response actually came back to the originating master.
+    await tb.expect_b_at_master(
+        master_idx=0,
+        expected_id=0,
+        expected_resp=0
+    )
 
-    # Verify response received at master (check via monitor)
-    tb.log.info(f"  Write completed successfully")
+    tb.log.info(f"  Write completed successfully (routing + response verified)")
 
     # Master 0 → Slave 1 (ddr_wr)
     test_addr = 0x10000000
@@ -102,8 +112,15 @@ async def cocotb_test_basic_connectivity(dut):
         txn_id=0
     )
 
-    # Wait for write to propagate through bridge
-    await ClockCycles(tb.clock, 5)
+    # Verify the bridge actually routed the AW to *this* slave (and only
+    # this slave). Catches silent misroutes that the old version of this
+    # test missed by responding from the expected slave without first
+    # checking it had received anything.
+    await tb.expect_aw_at_slave(
+        slave_idx=1,
+        expected_addr=test_addr,
+        expected_id=0
+    )
 
     # Slave responds
     await tb.slave_respond_write(
@@ -112,11 +129,14 @@ async def cocotb_test_basic_connectivity(dut):
         resp=0  # OKAY
     )
 
-    # Wait for response to return
-    await ClockCycles(tb.clock, 5)
+    # Verify the B response actually came back to the originating master.
+    await tb.expect_b_at_master(
+        master_idx=0,
+        expected_id=0,
+        expected_resp=0
+    )
 
-    # Verify response received at master (check via monitor)
-    tb.log.info(f"  Write completed successfully")
+    tb.log.info(f"  Write completed successfully (routing + response verified)")
 
     # Master 0 → Slave 2 (hbm_wr)
     test_addr = 0x50000000
@@ -131,8 +151,15 @@ async def cocotb_test_basic_connectivity(dut):
         txn_id=0
     )
 
-    # Wait for write to propagate through bridge
-    await ClockCycles(tb.clock, 5)
+    # Verify the bridge actually routed the AW to *this* slave (and only
+    # this slave). Catches silent misroutes that the old version of this
+    # test missed by responding from the expected slave without first
+    # checking it had received anything.
+    await tb.expect_aw_at_slave(
+        slave_idx=2,
+        expected_addr=test_addr,
+        expected_id=0
+    )
 
     # Slave responds
     await tb.slave_respond_write(
@@ -141,11 +168,14 @@ async def cocotb_test_basic_connectivity(dut):
         resp=0  # OKAY
     )
 
-    # Wait for response to return
-    await ClockCycles(tb.clock, 5)
+    # Verify the B response actually came back to the originating master.
+    await tb.expect_b_at_master(
+        master_idx=0,
+        expected_id=0,
+        expected_resp=0
+    )
 
-    # Verify response received at master (check via monitor)
-    tb.log.info(f"  Write completed successfully")
+    tb.log.info(f"  Write completed successfully (routing + response verified)")
 
     await ClockCycles(tb.clock, 20)
     tb.log.info("=" * 80)
@@ -220,7 +250,6 @@ async def cocotb_test_address_decode(dut):
 # ============================================================================
 
 def test_bridge_1x3_wr_basic_connectivity(request):
-    enable_waves = bool(int(os.environ.get('WAVES', '0')))
     """Pytest wrapper for basic connectivity test"""
 
     # Get standard paths
@@ -279,15 +308,13 @@ def test_bridge_1x3_wr_basic_connectivity(request):
         sim_build=f'{log_dir}/sim_build_{dut_name}_basic',
         work_dir=log_dir,
         test_dir=log_dir,
-        waves=enable_waves,  # Use compile_args for VCD control via WAVES env var
+        waves=False,  # Use compile_args for VCD control via WAVES env var
         extra_args=extra_args,
-        extra_env=extra_env,
-        plus_args=['--trace'] if enable_waves else [],
+        extra_env=extra_env
     )
 
 
 def test_bridge_1x3_wr_address_decode(request):
-    enable_waves = bool(int(os.environ.get('WAVES', '0')))
     """Pytest wrapper for address decode test"""
 
     module, repo_root, tests_dir, log_dir, rtl_dict = get_paths({
@@ -343,10 +370,9 @@ def test_bridge_1x3_wr_address_decode(request):
         sim_build=f'{log_dir}/sim_build_{dut_name}_decode',
         work_dir=log_dir,
         test_dir=log_dir,
-        waves=enable_waves,  # Use compile_args for VCD control via WAVES env var
+        waves=False,  # Use compile_args for VCD control via WAVES env var
         extra_args=extra_args,
-        extra_env=extra_env,
-        plus_args=['--trace'] if enable_waves else [],
+        extra_env=extra_env
     )
 
 if __name__ == "__main__":

@@ -2,17 +2,17 @@
 +incdir+$REPO_ROOT/rtl/amba/includes
 
 # Bridge RTL files (generated)
-generated/bridge_5x3_channels/bridge_5x3_channels_pkg.sv
-generated/bridge_5x3_channels/cpu_master_adapter.sv
-generated/bridge_5x3_channels/descr_wr_master_adapter.sv
-generated/bridge_5x3_channels/sink_wr_master_adapter.sv
-generated/bridge_5x3_channels/src_rd_master_adapter.sv
-generated/bridge_5x3_channels/stream_master_adapter.sv
-generated/bridge_5x3_channels/bridge_5x3_channels.sv
-generated/bridge_5x3_channels/bridge_5x3_channels_xbar.sv
-generated/bridge_5x3_channels/apb_periph_adapter.sv
-generated/bridge_5x3_channels/ddr_controller_adapter.sv
-generated/bridge_5x3_channels/sram_buffer_adapter.sv
+$REPO_ROOT/projects/components/bridge/rtl/generated/bridge_5x3_channels/bridge_5x3_channels_pkg.sv
+$REPO_ROOT/projects/components/bridge/rtl/generated/bridge_5x3_channels/cpu_master_adapter.sv
+$REPO_ROOT/projects/components/bridge/rtl/generated/bridge_5x3_channels/descr_wr_master_adapter.sv
+$REPO_ROOT/projects/components/bridge/rtl/generated/bridge_5x3_channels/sink_wr_master_adapter.sv
+$REPO_ROOT/projects/components/bridge/rtl/generated/bridge_5x3_channels/src_rd_master_adapter.sv
+$REPO_ROOT/projects/components/bridge/rtl/generated/bridge_5x3_channels/stream_master_adapter.sv
+$REPO_ROOT/projects/components/bridge/rtl/generated/bridge_5x3_channels/bridge_5x3_channels.sv
+$REPO_ROOT/projects/components/bridge/rtl/generated/bridge_5x3_channels/bridge_5x3_channels_xbar.sv
+$REPO_ROOT/projects/components/bridge/rtl/generated/bridge_5x3_channels/apb_periph_adapter.sv
+$REPO_ROOT/projects/components/bridge/rtl/generated/bridge_5x3_channels/ddr_controller_adapter.sv
+$REPO_ROOT/projects/components/bridge/rtl/generated/bridge_5x3_channels/sram_buffer_adapter.sv
 
 # AXI4 Wrapper modules (timing isolation)
 # Master adapters use axi4_slave_* (act as AXI slave to external master)

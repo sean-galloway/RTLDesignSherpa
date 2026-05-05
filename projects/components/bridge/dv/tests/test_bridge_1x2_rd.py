@@ -69,8 +69,12 @@ async def cocotb_test_basic_connectivity(dut):
         txn_id=0
     )
 
-    # Wait for read to propagate
-    await ClockCycles(tb.clock, 5)
+    # Verify AR routed to expected slave only.
+    await tb.expect_ar_at_slave(
+        slave_idx=0,
+        expected_addr=test_addr,
+        expected_id=0
+    )
 
     # Slave responds with data
     await tb.slave_respond_read(
@@ -80,10 +84,15 @@ async def cocotb_test_basic_connectivity(dut):
         resp=0  # OKAY
     )
 
-    # Wait for response to return
-    await ClockCycles(tb.clock, 5)
+    # Verify R response (data + id) returned to originating master.
+    await tb.expect_r_at_master(
+        master_idx=0,
+        expected_id=0,
+        expected_data=test_data,
+        expected_resp=0
+    )
 
-    tb.log.info(f"  Read completed successfully")
+    tb.log.info(f"  Read completed successfully (routing + response verified)")
 
     # Master 0 → Slave 1 (sram_rd)
     test_addr = 0x80000100
@@ -97,8 +106,12 @@ async def cocotb_test_basic_connectivity(dut):
         txn_id=0
     )
 
-    # Wait for read to propagate
-    await ClockCycles(tb.clock, 5)
+    # Verify AR routed to expected slave only.
+    await tb.expect_ar_at_slave(
+        slave_idx=1,
+        expected_addr=test_addr,
+        expected_id=0
+    )
 
     # Slave responds with data
     await tb.slave_respond_read(
@@ -108,10 +121,15 @@ async def cocotb_test_basic_connectivity(dut):
         resp=0  # OKAY
     )
 
-    # Wait for response to return
-    await ClockCycles(tb.clock, 5)
+    # Verify R response (data + id) returned to originating master.
+    await tb.expect_r_at_master(
+        master_idx=0,
+        expected_id=0,
+        expected_data=test_data,
+        expected_resp=0
+    )
 
-    tb.log.info(f"  Read completed successfully")
+    tb.log.info(f"  Read completed successfully (routing + response verified)")
 
     await ClockCycles(tb.clock, 20)
     tb.log.info("=" * 80)
@@ -173,7 +191,6 @@ async def cocotb_test_address_decode(dut):
 # ============================================================================
 
 def test_bridge_1x2_rd_basic_connectivity(request):
-    enable_waves = bool(int(os.environ.get('WAVES', '0')))
     """Pytest wrapper for basic connectivity test"""
 
     # Get standard paths
@@ -232,15 +249,13 @@ def test_bridge_1x2_rd_basic_connectivity(request):
         sim_build=f'{log_dir}/sim_build_{dut_name}_basic',
         work_dir=log_dir,
         test_dir=log_dir,
-        waves=enable_waves,  # Use compile_args for VCD control via WAVES env var
+        waves=False,  # Use compile_args for VCD control via WAVES env var
         extra_args=extra_args,
-        extra_env=extra_env,
-        plus_args=['--trace'] if enable_waves else [],
+        extra_env=extra_env
     )
 
 
 def test_bridge_1x2_rd_address_decode(request):
-    enable_waves = bool(int(os.environ.get('WAVES', '0')))
     """Pytest wrapper for address decode test"""
 
     module, repo_root, tests_dir, log_dir, rtl_dict = get_paths({
@@ -296,10 +311,9 @@ def test_bridge_1x2_rd_address_decode(request):
         sim_build=f'{log_dir}/sim_build_{dut_name}_decode',
         work_dir=log_dir,
         test_dir=log_dir,
-        waves=enable_waves,  # Use compile_args for VCD control via WAVES env var
+        waves=False,  # Use compile_args for VCD control via WAVES env var
         extra_args=extra_args,
-        extra_env=extra_env,
-        plus_args=['--trace'] if enable_waves else [],
+        extra_env=extra_env
     )
 
 if __name__ == "__main__":

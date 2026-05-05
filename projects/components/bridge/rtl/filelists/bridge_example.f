@@ -2,17 +2,17 @@
 +incdir+$REPO_ROOT/rtl/amba/includes
 
 # Bridge RTL files (generated)
-generated/bridge_example/bridge_example_pkg.sv
-generated/bridge_example/cpu_master_adapter.sv
-generated/bridge_example/rapids_master_adapter.sv
-generated/bridge_example/stream_master_adapter.sv
-generated/bridge_example/bridge_example.sv
-generated/bridge_example/bridge_example_xbar.sv
-generated/bridge_example/apb_periph0_adapter.sv
-generated/bridge_example/apb_periph1_adapter.sv
-generated/bridge_example/apb_periph2_adapter.sv
-generated/bridge_example/ddr_controller_adapter.sv
-generated/bridge_example/sram_buffer_adapter.sv
+$REPO_ROOT/projects/components/bridge/rtl/generated/bridge_example/bridge_example_pkg.sv
+$REPO_ROOT/projects/components/bridge/rtl/generated/bridge_example/cpu_master_adapter.sv
+$REPO_ROOT/projects/components/bridge/rtl/generated/bridge_example/rapids_master_adapter.sv
+$REPO_ROOT/projects/components/bridge/rtl/generated/bridge_example/stream_master_adapter.sv
+$REPO_ROOT/projects/components/bridge/rtl/generated/bridge_example/bridge_example.sv
+$REPO_ROOT/projects/components/bridge/rtl/generated/bridge_example/bridge_example_xbar.sv
+$REPO_ROOT/projects/components/bridge/rtl/generated/bridge_example/apb_periph0_adapter.sv
+$REPO_ROOT/projects/components/bridge/rtl/generated/bridge_example/apb_periph1_adapter.sv
+$REPO_ROOT/projects/components/bridge/rtl/generated/bridge_example/apb_periph2_adapter.sv
+$REPO_ROOT/projects/components/bridge/rtl/generated/bridge_example/ddr_controller_adapter.sv
+$REPO_ROOT/projects/components/bridge/rtl/generated/bridge_example/sram_buffer_adapter.sv
 
 # AXI4 Wrapper modules (timing isolation)
 # Master adapters use axi4_slave_* (act as AXI slave to external master)
