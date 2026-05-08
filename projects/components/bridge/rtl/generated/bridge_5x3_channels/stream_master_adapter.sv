@@ -330,6 +330,12 @@ module stream_master_adapter #(
     // Connected to slaves with widths: [256]
     // ================================================================
 
+    // Per-width path-active gates (see comment in adapter_generator.py).
+    logic aw_path_active_256b;
+    assign aw_path_active_256b = slave_select_aw[0] | slave_select_aw[1];
+    logic ar_path_active_256b;
+    assign ar_path_active_256b = slave_select_ar[0] | slave_select_ar[1];
+
     // ================================================================
     // Direct passthrough: 256b → 256b (no converter)
     // Requests: fub_axi_* → stream_master_256b_*
@@ -348,7 +354,7 @@ module stream_master_adapter #(
     assign stream_master_256b_aw.qos    = 4'b0;  // Tie to 0
     assign stream_master_256b_aw.region = 4'b0;  // Tie to 0
     assign stream_master_256b_aw.user   = 1'b0;  // Tie to 0
-    assign stream_master_256b_awvalid   = fub_axi_awvalid;
+    assign stream_master_256b_awvalid   = fub_axi_awvalid && aw_path_active_256b;
     // awready routed via MUX
 
     // W channel (request: fub → output)
@@ -356,7 +362,7 @@ module stream_master_adapter #(
     assign stream_master_256b_w.strb  = fub_axi_wstrb;
     assign stream_master_256b_w.last  = fub_axi_wlast;
     assign stream_master_256b_w.user  = 1'b0;  // Tie to 0
-    assign stream_master_256b_wvalid  = fub_axi_wvalid;
+    assign stream_master_256b_wvalid  = fub_axi_wvalid && aw_path_active_256b;
     // wready routed via MUX
 
     // B channel (response: output → MUX → fub)
@@ -375,11 +381,77 @@ module stream_master_adapter #(
     assign stream_master_256b_ar.qos    = 4'b0;  // Tie to 0
     assign stream_master_256b_ar.region = 4'b0;  // Tie to 0
     assign stream_master_256b_ar.user   = 1'b0;  // Tie to 0
-    assign stream_master_256b_arvalid   = fub_axi_arvalid;
+    assign stream_master_256b_arvalid   = fub_axi_arvalid && ar_path_active_256b;
     // arready routed via MUX
 
     // R channel (response: output → MUX → fub)
     assign stream_master_256b_rready = fub_axi_rready;
     // rid, rdata, rresp, rlast, rvalid routed via MUX (user field ignored)
+
+    // ================================================================
+    // Response MUX - Route responses from width-specific paths
+    // back to fub_axi_* based on address decode
+    // ================================================================
+
+    // Write response MUX (B channel)
+    always_comb begin
+        fub_axi_awready = 1'b0;
+        fub_axi_wready = 1'b0;
+        fub_axi_bid = 8'd0;
+        fub_axi_bresp = 2'b00;
+        fub_axi_bvalid = 1'b0;
+
+        case (slave_select_aw)
+            3'b001: begin  // Slave 0 (256b)
+                fub_axi_awready = stream_master_256b_awready;
+                fub_axi_wready = stream_master_256b_wready;
+                fub_axi_bid = stream_master_256b_b.id;
+                fub_axi_bresp = stream_master_256b_b.resp;
+                fub_axi_bvalid = stream_master_256b_bvalid;
+            end
+            3'b010: begin  // Slave 1 (256b)
+                fub_axi_awready = stream_master_256b_awready;
+                fub_axi_wready = stream_master_256b_wready;
+                fub_axi_bid = stream_master_256b_b.id;
+                fub_axi_bresp = stream_master_256b_b.resp;
+                fub_axi_bvalid = stream_master_256b_bvalid;
+            end
+            default: begin
+                // No slave selected - hold defaults
+            end
+        endcase
+    end
+
+    // Read response MUX (R channel)
+    always_comb begin
+        fub_axi_arready = 1'b0;
+        fub_axi_rid = 8'd0;
+        fub_axi_rdata = 256'd0;
+        fub_axi_rresp = 2'b00;
+        fub_axi_rlast = 1'b0;
+        fub_axi_rvalid = 1'b0;
+
+        case (slave_select_ar)
+            3'b001: begin  // Slave 0 (256b)
+                fub_axi_arready = stream_master_256b_arready;
+                fub_axi_rid = stream_master_256b_r.id;
+                fub_axi_rdata = stream_master_256b_r.data;
+                fub_axi_rresp = stream_master_256b_r.resp;
+                fub_axi_rlast = stream_master_256b_r.last;
+                fub_axi_rvalid = stream_master_256b_rvalid;
+            end
+            3'b010: begin  // Slave 1 (256b)
+                fub_axi_arready = stream_master_256b_arready;
+                fub_axi_rid = stream_master_256b_r.id;
+                fub_axi_rdata = stream_master_256b_r.data;
+                fub_axi_rresp = stream_master_256b_r.resp;
+                fub_axi_rlast = stream_master_256b_r.last;
+                fub_axi_rvalid = stream_master_256b_rvalid;
+            end
+            default: begin
+                // No slave selected - hold defaults
+            end
+        endcase
+    end
 
 endmodule : stream_master_adapter

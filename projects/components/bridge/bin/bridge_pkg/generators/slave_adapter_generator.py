@@ -121,10 +121,16 @@ class SlaveAdapterGenerator:
         """Generate module declaration with parameters and all ports."""
         lines = []
 
-        # Module declaration with parameters
+        # Module declaration. ID_WIDTH defaults to the bridge's actual
+        # crossbar id_width (= max of all master id_widths) — the previous
+        # default of 4 silently shadowed any wider master. BRIDGE_ID_WIDTH
+        # is dropped from the parameter list and comes from the imported
+        # package (`import {bridge}_pkg::*;`), where it's set to
+        # ceil(log2(NUM_MASTERS)). Earlier the adapter declared its own
+        # `parameter int BRIDGE_ID_WIDTH = 1` which shadowed the package
+        # value and clipped multi-master bridges to a 1-bit routing tag.
         lines.append(f"module {self.slave.name}_adapter #(")
-        lines.append(f"    parameter int ID_WIDTH = 4,")
-        lines.append(f"    parameter int BRIDGE_ID_WIDTH = 1")
+        lines.append(f"    parameter int ID_WIDTH = {self.id_width}")
         lines.append(f") (")
         lines.append("    input  logic aclk,")
         lines.append("    input  logic aresetn,")
@@ -557,16 +563,20 @@ class SlaveAdapterGenerator:
         lines.append("    always_ff @(posedge aclk or negedge aresetn) begin")
         lines.append("        if (!aresetn) begin")
         lines.append("            rd_ptr <= '0;")
-        lines.append("            bid_bridge_id <= '0;")
-        lines.append("            bid_valid <= 1'b0;")
         lines.append(f"        end else if ({pop_condition}) begin")
-        lines.append("            bid_bridge_id <= wr_fifo[rd_ptr[$clog2(WR_FIFO_DEPTH)-1:0]];")
-        lines.append("            bid_valid <= 1'b1;")
         lines.append("            rd_ptr <= rd_ptr + 1'b1;")
-        lines.append("        end else begin")
-        lines.append("            bid_valid <= 1'b0;")
         lines.append("        end")
         lines.append("    end")
+        lines.append("")
+        lines.append("    // bid_bridge_id / bid_valid drive the crossbar's response mux,")
+        lines.append("    // which gates B going BACK to the master on bid_valid. Earlier")
+        lines.append("    // versions registered these on the handshake completing — but")
+        lines.append("    // the handshake CAN'T complete until the master sees bvalid,")
+        lines.append("    // and the master can't see bvalid until bid_valid is high.")
+        lines.append("    // Result: deadlock. Drive these combinationally so the route")
+        lines.append("    // is open from the moment a B arrives.")
+        lines.append("    assign bid_bridge_id = wr_fifo[rd_ptr[$clog2(WR_FIFO_DEPTH)-1:0]];")
+        lines.append("    assign bid_valid     = (wr_ptr != rd_ptr);")
         lines.append("")
 
         return lines
@@ -649,16 +659,20 @@ class SlaveAdapterGenerator:
         lines.append("    always_ff @(posedge aclk or negedge aresetn) begin")
         lines.append("        if (!aresetn) begin")
         lines.append("            r_ptr <= '0;")
-        lines.append("            rid_bridge_id <= '0;")
-        lines.append("            rid_valid <= 1'b0;")
         lines.append(f"        end else if ({pop_condition}) begin")
-        lines.append("            rid_bridge_id <= rd_fifo[r_ptr[$clog2(RD_FIFO_DEPTH)-1:0]];")
-        lines.append("            rid_valid <= 1'b1;")
         lines.append("            r_ptr <= r_ptr + 1'b1;")
-        lines.append("        end else begin")
-        lines.append("            rid_valid <= 1'b0;")
         lines.append("        end")
         lines.append("    end")
+        lines.append("")
+        lines.append("    // rid_bridge_id / rid_valid drive the crossbar's response mux,")
+        lines.append("    // which gates R going BACK to the master on rid_valid. Earlier")
+        lines.append("    // versions registered these on the handshake completing — but")
+        lines.append("    // the handshake CAN'T complete until the master sees rvalid,")
+        lines.append("    // and the master can't see rvalid until rid_valid is high.")
+        lines.append("    // Result: deadlock. Drive these combinationally so the route")
+        lines.append("    // is open from the moment an R arrives.")
+        lines.append("    assign rid_bridge_id = rd_fifo[r_ptr[$clog2(RD_FIFO_DEPTH)-1:0]];")
+        lines.append("    assign rid_valid     = (ar_ptr != r_ptr);")
         lines.append("")
 
         return lines
@@ -687,7 +701,7 @@ class SlaveAdapterGenerator:
         lines.append(f"        .SKID_DEPTH_AW({self.skid_depth_aw}),")
         lines.append(f"        .SKID_DEPTH_W({self.skid_depth_w}),")
         lines.append(f"        .SKID_DEPTH_B({self.skid_depth_b}),")
-        lines.append(f"        .AXI_ID_WIDTH(4),")
+        lines.append(f"        .AXI_ID_WIDTH({self.id_width}),")
         lines.append(f"        .AXI_ADDR_WIDTH({self.slave.addr_width}),")
         lines.append(f"        .AXI_DATA_WIDTH({self.slave.data_width}),")
         lines.append(f"        .AXI_USER_WIDTH(1)")
@@ -766,7 +780,7 @@ class SlaveAdapterGenerator:
         lines.append("    axi4_master_rd #(")
         lines.append(f"        .SKID_DEPTH_AR({self.skid_depth_ar}),")
         lines.append(f"        .SKID_DEPTH_R({self.skid_depth_r}),")
-        lines.append(f"        .AXI_ID_WIDTH(4),")
+        lines.append(f"        .AXI_ID_WIDTH({self.id_width}),")
         lines.append(f"        .AXI_ADDR_WIDTH({self.slave.addr_width}),")
         lines.append(f"        .AXI_DATA_WIDTH({self.slave.data_width}),")
         lines.append(f"        .AXI_USER_WIDTH(1)")

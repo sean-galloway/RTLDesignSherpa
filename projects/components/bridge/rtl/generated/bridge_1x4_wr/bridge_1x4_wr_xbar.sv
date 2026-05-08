@@ -204,8 +204,9 @@ module bridge_1x4_wr_xbar (
     assign periph_wr_axi_wlast  = cpu_wr_slave_select_aw[0] ? cpu_wr_32b_w.last : '0;
     assign periph_wr_axi_wvalid = cpu_wr_slave_select_aw[0] ? cpu_wr_32b_wvalid : '0;
 
-    // Bready (master → slave)
-    assign periph_wr_axi_bready = cpu_wr_slave_select_aw[0] ? cpu_wr_32b_bready : '0;
+    // Bready (master → slave) — gated on bid_valid so the path stays
+    // open through the entire B handshake, not just the AW phase.
+    assign periph_wr_axi_bready = ((periph_wr_axi_bid_bridge_id == 0) && periph_wr_axi_bid_valid) ? cpu_wr_32b_bready : '0;
 
     // Bridge ID (master → slave)
     assign periph_wr_axi_bridge_id_aw = cpu_wr_slave_select_aw[0] ? cpu_wr_bridge_id_aw : '0;
@@ -235,8 +236,9 @@ module bridge_1x4_wr_xbar (
     assign ddr_wr_axi_wlast  = cpu_wr_slave_select_aw[1] ? cpu_wr_64b_w.last : '0;
     assign ddr_wr_axi_wvalid = cpu_wr_slave_select_aw[1] ? cpu_wr_64b_wvalid : '0;
 
-    // Bready (master → slave)
-    assign ddr_wr_axi_bready = cpu_wr_slave_select_aw[1] ? cpu_wr_64b_bready : '0;
+    // Bready (master → slave) — gated on bid_valid so the path stays
+    // open through the entire B handshake, not just the AW phase.
+    assign ddr_wr_axi_bready = ((ddr_wr_axi_bid_bridge_id == 0) && ddr_wr_axi_bid_valid) ? cpu_wr_64b_bready : '0;
 
     // Bridge ID (master → slave)
     assign ddr_wr_axi_bridge_id_aw = cpu_wr_slave_select_aw[1] ? cpu_wr_bridge_id_aw : '0;
@@ -266,8 +268,9 @@ module bridge_1x4_wr_xbar (
     assign hbm_wr_axi_wlast  = cpu_wr_slave_select_aw[2] ? cpu_wr_128b_w.last : '0;
     assign hbm_wr_axi_wvalid = cpu_wr_slave_select_aw[2] ? cpu_wr_128b_wvalid : '0;
 
-    // Bready (master → slave)
-    assign hbm_wr_axi_bready = cpu_wr_slave_select_aw[2] ? cpu_wr_128b_bready : '0;
+    // Bready (master → slave) — gated on bid_valid so the path stays
+    // open through the entire B handshake, not just the AW phase.
+    assign hbm_wr_axi_bready = ((hbm_wr_axi_bid_bridge_id == 0) && hbm_wr_axi_bid_valid) ? cpu_wr_128b_bready : '0;
 
     // Bridge ID (master → slave)
     assign hbm_wr_axi_bridge_id_aw = cpu_wr_slave_select_aw[2] ? cpu_wr_bridge_id_aw : '0;
@@ -297,8 +300,9 @@ module bridge_1x4_wr_xbar (
     assign apb_periph_axi_wlast  = cpu_wr_slave_select_aw[3] ? cpu_wr_32b_w.last : '0;
     assign apb_periph_axi_wvalid = cpu_wr_slave_select_aw[3] ? cpu_wr_32b_wvalid : '0;
 
-    // Bready (master → slave)
-    assign apb_periph_axi_bready = cpu_wr_slave_select_aw[3] ? cpu_wr_32b_bready : '0;
+    // Bready (master → slave) — gated on bid_valid so the path stays
+    // open through the entire B handshake, not just the AW phase.
+    assign apb_periph_axi_bready = ((apb_periph_axi_bid_bridge_id == 0) && apb_periph_axi_bid_valid) ? cpu_wr_32b_bready : '0;
 
     // Bridge ID (master → slave)
     assign apb_periph_axi_bridge_id_aw = cpu_wr_slave_select_aw[3] ? cpu_wr_bridge_id_aw : '0;

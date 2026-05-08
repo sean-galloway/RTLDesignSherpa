@@ -9,8 +9,7 @@
 import bridge_2x2_rw_pkg::*;
 
 module sram_adapter #(
-    parameter int ID_WIDTH = 4,
-    parameter int BRIDGE_ID_WIDTH = 1
+    parameter int ID_WIDTH = 4
 ) (
     input  logic aclk,
     input  logic aresetn,
@@ -157,16 +156,20 @@ module sram_adapter #(
     always_ff @(posedge aclk or negedge aresetn) begin
         if (!aresetn) begin
             rd_ptr <= '0;
-            bid_bridge_id <= '0;
-            bid_valid <= 1'b0;
         end else if (xbar_sram_axi_bvalid && xbar_sram_axi_bready) begin
-            bid_bridge_id <= wr_fifo[rd_ptr[$clog2(WR_FIFO_DEPTH)-1:0]];
-            bid_valid <= 1'b1;
             rd_ptr <= rd_ptr + 1'b1;
-        end else begin
-            bid_valid <= 1'b0;
         end
     end
+
+    // bid_bridge_id / bid_valid drive the crossbar's response mux,
+    // which gates B going BACK to the master on bid_valid. Earlier
+    // versions registered these on the handshake completing — but
+    // the handshake CAN'T complete until the master sees bvalid,
+    // and the master can't see bvalid until bid_valid is high.
+    // Result: deadlock. Drive these combinationally so the route
+    // is open from the moment a B arrives.
+    assign bid_bridge_id = wr_fifo[rd_ptr[$clog2(WR_FIFO_DEPTH)-1:0]];
+    assign bid_valid     = (wr_ptr != rd_ptr);
 
     // Read Channel FIFO (In-Order) - AXI4 Protocol
     localparam RD_FIFO_DEPTH = 16;
@@ -187,16 +190,20 @@ module sram_adapter #(
     always_ff @(posedge aclk or negedge aresetn) begin
         if (!aresetn) begin
             r_ptr <= '0;
-            rid_bridge_id <= '0;
-            rid_valid <= 1'b0;
         end else if (xbar_sram_axi_rvalid && xbar_sram_axi_rready && xbar_sram_axi_rlast) begin
-            rid_bridge_id <= rd_fifo[r_ptr[$clog2(RD_FIFO_DEPTH)-1:0]];
-            rid_valid <= 1'b1;
             r_ptr <= r_ptr + 1'b1;
-        end else begin
-            rid_valid <= 1'b0;
         end
     end
+
+    // rid_bridge_id / rid_valid drive the crossbar's response mux,
+    // which gates R going BACK to the master on rid_valid. Earlier
+    // versions registered these on the handshake completing — but
+    // the handshake CAN'T complete until the master sees rvalid,
+    // and the master can't see rvalid until rid_valid is high.
+    // Result: deadlock. Drive these combinationally so the route
+    // is open from the moment an R arrives.
+    assign rid_bridge_id = rd_fifo[r_ptr[$clog2(RD_FIFO_DEPTH)-1:0]];
+    assign rid_valid     = (ar_ptr != r_ptr);
 
     // AXI4 Master Write Timing Wrapper
     axi4_master_wr #(

@@ -25,7 +25,7 @@ sys.path.insert(0, repo_root)
 import cocotb
 from cocotb.triggers import RisingEdge, ClockCycles
 from cocotb_test.simulator import run
-from TBClasses.shared.utilities import get_paths
+from TBClasses.shared.utilities import get_paths, get_wave_config
 from TBClasses.shared.filelist_utils import get_sources_from_filelist
 
 # Import generated testbench class
@@ -62,7 +62,12 @@ async def cocotb_test_basic_connectivity(dut):
 
     # Master 0 → Slave 0 (periph_wr)
     test_addr = 0x00000000
-    test_data = 0xDEADBEEF00
+    # Use a 32-bit-or-less data pattern so it fits any slave's data path.
+    # The original 0xDEADBEEFXX form was 40 bits and got truncated by the
+    # narrowest slave BFM (e.g. a 32-bit APB/AXIL slave), which then broke
+    # the data-equality assertion downstream. Master-width masking didn't
+    # help because the data still has to ride the slave's BFM first.
+    test_data = (0xDEADBE00 | 0x00)
     tb.log.info(f"  Write: addr=0x{test_addr:08x}, data=0x{test_data:08x}")
 
     # Master sends write transaction
@@ -101,7 +106,12 @@ async def cocotb_test_basic_connectivity(dut):
 
     # Master 0 → Slave 1 (ddr_wr)
     test_addr = 0x10000000
-    test_data = 0xDEADBEEF01
+    # Use a 32-bit-or-less data pattern so it fits any slave's data path.
+    # The original 0xDEADBEEFXX form was 40 bits and got truncated by the
+    # narrowest slave BFM (e.g. a 32-bit APB/AXIL slave), which then broke
+    # the data-equality assertion downstream. Master-width masking didn't
+    # help because the data still has to ride the slave's BFM first.
+    test_data = (0xDEADBE00 | 0x01)
     tb.log.info(f"  Write: addr=0x{test_addr:08x}, data=0x{test_data:08x}")
 
     # Master sends write transaction
@@ -140,7 +150,12 @@ async def cocotb_test_basic_connectivity(dut):
 
     # Master 0 → Slave 2 (hbm_wr)
     test_addr = 0x50000000
-    test_data = 0xDEADBEEF02
+    # Use a 32-bit-or-less data pattern so it fits any slave's data path.
+    # The original 0xDEADBEEFXX form was 40 bits and got truncated by the
+    # narrowest slave BFM (e.g. a 32-bit APB/AXIL slave), which then broke
+    # the data-equality assertion downstream. Master-width masking didn't
+    # help because the data still has to ride the slave's BFM first.
+    test_data = (0xDEADBE00 | 0x02)
     tb.log.info(f"  Write: addr=0x{test_addr:08x}, data=0x{test_data:08x}")
 
     # Master sends write transaction
@@ -179,7 +194,12 @@ async def cocotb_test_basic_connectivity(dut):
 
     # Master 0 → Slave 3 (apb_periph)
     test_addr = 0x80000000
-    test_data = 0xDEADBEEF03
+    # Use a 32-bit-or-less data pattern so it fits any slave's data path.
+    # The original 0xDEADBEEFXX form was 40 bits and got truncated by the
+    # narrowest slave BFM (e.g. a 32-bit APB/AXIL slave), which then broke
+    # the data-equality assertion downstream. Master-width masking didn't
+    # help because the data still has to ride the slave's BFM first.
+    test_data = (0xDEADBE00 | 0x03)
     tb.log.info(f"  Write: addr=0x{test_addr:08x}, data=0x{test_data:08x}")
 
     # Master sends write transaction
@@ -319,34 +339,32 @@ def test_bridge_1x4_wr_basic_connectivity(request):
         filelist_path='projects/components/bridge/rtl/filelists/bridge_1x4_wr.f'
     )
 
-    # Note: New adapter-based bridge has NO parameters
-    # All configuration is fixed from YAML at generation time
+    # Per-test naming follows the q32 canonical pattern
+    # (design_dv/q32/tests/macro/test_q32_*.py): test_<dut>_<testcase>
+    # plus an optional pytest-xdist worker suffix when running in parallel.
+    # `test_name_plus_params` drives EVERY artifact path (log, xml, sim_build,
+    # dump.fst) so each parameterised test invocation gets its own
+    # directory and outputs.
+    worker_id = os.environ.get('PYTEST_XDIST_WORKER', '')
+    worker_suffix = f"_{worker_id}" if worker_id else ""
+    test_name_plus_params = f"test_{dut_name}_basic_connectivity"
+    sim_build_name = f"{test_name_plus_params}{worker_suffix}"
 
-    # Get worker ID for parallel execution isolation
-    worker_id = os.environ.get('PYTEST_XDIST_WORKER', 'gw0')
-    test_name = f"test_{worker_id}_bridge_1x4_wr_basic_connectivity"
-    log_path = os.path.join(log_dir, f'{test_name}.log')
+    log_path = os.path.join(log_dir, f'{sim_build_name}.log')
+    results_path = os.path.join(log_dir, f'results_{sim_build_name}.xml')
+    sim_build = os.path.join(tests_dir, 'local_sim_build', sim_build_name)
+    os.makedirs(sim_build, exist_ok=True)
+    os.makedirs(log_dir, exist_ok=True)
 
-    # VCD waveform generation support via WAVES environment variable
-    compile_args = []
-    if int(os.environ.get('WAVES', '0')) == 1:
-        compile_args.extend([
-            "--trace",                  # VCD tracing
-            "--trace-depth", "99",      # Full depth
-            "--trace-max-array", "1024" # Array tracing
-        ])
+    # Waveforms via the canonical helper in TBClasses.shared.utilities.
+    waves = get_wave_config(sim_build)
 
-    # Compilation arguments
-    extra_args = [
-        '--assert',
-        '--coverage'
-    ]
-    extra_args.extend(compile_args)
-
-    # Environment variables for cocotb
+    extra_args = ['--assert', '--coverage'] + waves['extra_args']
     extra_env = {
         'COCOTB_LOG_LEVEL': 'INFO',
-        'LOG_PATH': log_path
+        'LOG_PATH': log_path,
+        'COCOTB_RESULTS_FILE': results_path,
+        **waves['extra_env'],
     }
 
     run(
@@ -355,13 +373,11 @@ def test_bridge_1x4_wr_basic_connectivity(request):
         includes=includes,
         toplevel=dut_name,
         module=module,
-        testcase="cocotb_test_basic_connectivity",  # Call specific cocotb function
-        # Note: No parameters - new bridge has fixed config from YAML
-        sim_build=f'{log_dir}/sim_build_{dut_name}_basic',
-        work_dir=log_dir,
-        test_dir=log_dir,
-        waves=False,  # Use compile_args for VCD control via WAVES env var
+        testcase="cocotb_test_basic_connectivity",
+        sim_build=sim_build,
+        waves=False,            # cocotb-test compile flags handled via extra_args
         extra_args=extra_args,
+        plus_args=waves['sim_args'],
         extra_env=extra_env
     )
 
@@ -382,33 +398,25 @@ def test_bridge_1x4_wr_address_decode(request):
         filelist_path='projects/components/bridge/rtl/filelists/bridge_1x4_wr.f'
     )
 
-    # Note: New adapter-based bridge has NO parameters
-    # All configuration is fixed from YAML at generation time
+    worker_id = os.environ.get('PYTEST_XDIST_WORKER', '')
+    worker_suffix = f"_{worker_id}" if worker_id else ""
+    test_name_plus_params = f"test_{dut_name}_address_decode"
+    sim_build_name = f"{test_name_plus_params}{worker_suffix}"
 
-    # Get worker ID for parallel execution isolation
-    worker_id = os.environ.get('PYTEST_XDIST_WORKER', 'gw0')
-    test_name = f"test_{worker_id}_bridge_1x4_wr_address_decode"
-    log_path = os.path.join(log_dir, f'{test_name}.log')
+    log_path = os.path.join(log_dir, f'{sim_build_name}.log')
+    results_path = os.path.join(log_dir, f'results_{sim_build_name}.xml')
+    sim_build = os.path.join(tests_dir, 'local_sim_build', sim_build_name)
+    os.makedirs(sim_build, exist_ok=True)
+    os.makedirs(log_dir, exist_ok=True)
 
-    # VCD waveform generation support via WAVES environment variable
-    compile_args = []
-    if int(os.environ.get('WAVES', '0')) == 1:
-        compile_args.extend([
-            "--trace",                  # VCD tracing
-            "--trace-depth", "99",      # Full depth
-            "--trace-max-array", "1024" # Array tracing
-        ])
+    waves = get_wave_config(sim_build)
 
-    extra_args = [
-        '--assert',
-        '--coverage'
-    ]
-    extra_args.extend(compile_args)
-
-    # Environment variables for cocotb
+    extra_args = ['--assert', '--coverage'] + waves['extra_args']
     extra_env = {
         'COCOTB_LOG_LEVEL': 'INFO',
-        'LOG_PATH': log_path
+        'LOG_PATH': log_path,
+        'COCOTB_RESULTS_FILE': results_path,
+        **waves['extra_env'],
     }
 
     run(
@@ -417,13 +425,11 @@ def test_bridge_1x4_wr_address_decode(request):
         includes=includes,
         toplevel=dut_name,
         module=module,
-        testcase="cocotb_test_address_decode",  # Call specific cocotb function
-        # Note: No parameters - new bridge has fixed config from YAML
-        sim_build=f'{log_dir}/sim_build_{dut_name}_decode',
-        work_dir=log_dir,
-        test_dir=log_dir,
-        waves=False,  # Use compile_args for VCD control via WAVES env var
+        testcase="cocotb_test_address_decode",
+        sim_build=sim_build,
+        waves=False,
         extra_args=extra_args,
+        plus_args=waves['sim_args'],
         extra_env=extra_env
     )
 

@@ -660,30 +660,21 @@ class AdapterGenerator:
         """
         Get unique adapter output widths for slaves this master connects to.
 
-        For AXI4 slaves: Use slave's native width
-        For APB slaves: Use LCD width (min of all masters connecting to same APB slaves)
+        Always uses the slave's data_width — the bridge has one width
+        parameter per slave, regardless of protocol. The adapter handles
+        any width conversion locally for that slave; the crossbar only
+        sees the slave's data_width on the wire.
 
-        This implements Option B (LCD approach) where:
-        - Adapter downsizes to LCD for APB slaves
-        - APB shim handles final LCD→APB conversion
+        Earlier versions used a "LCD width" for APB slaves (min of master
+        widths connecting to the same APB), which left the adapter and
+        crossbar disagreeing on the suffix to use — adapter emitted
+        cpu_master_64b_*, crossbar referenced cpu_master_32b_*. Dropping
+        the LCD path means both sides read slave.data_width and
+        get the same answer.
         """
         widths = set()
-
-        # Separate AXI4 and APB slaves
-        axi4_slave_indices = [idx for idx in self.master.slave_connections
-                              if self.slaves[idx].protocol == 'axi4']
-        apb_slave_indices = [idx for idx in self.master.slave_connections
-                             if self.slaves[idx].protocol == 'apb']
-
-        # For AXI4 slaves: use their native widths
-        for idx in axi4_slave_indices:
+        for idx in self.master.slave_connections:
             widths.add(self.slaves[idx].data_width)
-
-        # For APB slaves: use LCD width (calculated once for all APB connections)
-        if apb_slave_indices:
-            lcd_width = self._calculate_lcd_width_for_apb()
-            widths.add(lcd_width)
-
         return sorted(list(widths))
 
     def _get_masters_connecting_to_apb_slaves(self) -> List[MasterConfig]:
@@ -760,6 +751,41 @@ class AdapterGenerator:
         lines.append("    // ================================================================")
         lines.append("")
 
+        # Per-width valid gating. fub_axi_awvalid/fub_axi_arvalid is
+        # broadcast to every width path, so without gating an unselected
+        # converter would accept the AW (its s_axi_awready handshakes
+        # locally) and then sit stuck waiting for an m_axi_awready that
+        # never comes — leaking the stuck transaction into the wrong slave
+        # when the NEXT transaction's slave_select happens to match.
+        # `<W>b_aw_path_active` is HIGH only when the currently-selected
+        # slave actually has data_width == W; we feed it into each
+        # converter/passthrough's s_axi_awvalid (and s_axi_arvalid for
+        # reads) so only the matching path sees the request.
+        if slave_widths and (self.master.channels in ("wr", "rw") or self.master.channels in ("rd", "rw")):
+            lines.append("    // Per-width path-active gates (see comment in adapter_generator.py).")
+            for slave_width in slave_widths:
+                slaves_at_w = [
+                    si for si in self.master.slave_connections
+                    if self.slaves[si].data_width == slave_width
+                ]
+                if self.master.channels in ("wr", "rw"):
+                    aw_terms = " | ".join(f"slave_select_aw[{si}]" for si in slaves_at_w)
+                    lines.append(
+                        f"    logic aw_path_active_{slave_width}b;"
+                    )
+                    lines.append(
+                        f"    assign aw_path_active_{slave_width}b = {aw_terms};"
+                    )
+                if self.master.channels in ("rd", "rw"):
+                    ar_terms = " | ".join(f"slave_select_ar[{si}]" for si in slaves_at_w)
+                    lines.append(
+                        f"    logic ar_path_active_{slave_width}b;"
+                    )
+                    lines.append(
+                        f"    assign ar_path_active_{slave_width}b = {ar_terms};"
+                    )
+            lines.append("")
+
         # Generate one path per unique width
         for slave_width in slave_widths:
             if slave_width == self.master.data_width:
@@ -769,10 +795,13 @@ class AdapterGenerator:
                 # Width conversion needed
                 lines.extend(self._generate_converter_instance(slave_width))
 
-        # Generate response MUX logic (only needed if we have converters)
-        has_converters = any(w != self.master.data_width for w in slave_widths)
-        if has_converters:
-            lines.extend(self._generate_response_mux(slave_widths))
+        # Always generate the response MUX. The matched-width / direct-passthrough
+        # path used to skip this entirely, leaving fub_axi_r* and fub_axi_b*
+        # declared but undriven — so a master could never see a B or R
+        # response come back. The MUX template handles direct-passthrough
+        # (slave_width == master_width) by routing master.<W>b_* signals,
+        # so it works for both converter and passthrough slaves.
+        lines.extend(self._generate_response_mux(slave_widths))
 
         return lines
 
@@ -792,21 +821,15 @@ class AdapterGenerator:
 
         master_width = self.master.data_width
 
-        # Build mapping: adapter_output_width -> list of slave indices with that width
-        # NOTE: For APB slaves, use LCD width; for AXI4 slaves, use native width
+        # Build mapping: adapter_output_width -> list of slave indices with that width.
+        # Always uses slave.data_width — see _get_connected_slave_widths for
+        # why the LCD-for-APB path was dropped (kept adapter and crossbar
+        # disagreeing on the suffix).
         width_to_slaves = {}
-        lcd_width_apb = None  # Cache LCD calculation
 
         for slave_idx in self.master.slave_connections:
             slave = self.slaves[slave_idx]
-
-            # Determine adapter output width for this slave
-            if slave.protocol == 'apb':
-                if lcd_width_apb is None:
-                    lcd_width_apb = self._calculate_lcd_width_for_apb()
-                adapter_output_width = lcd_width_apb
-            else:
-                adapter_output_width = slave.data_width
+            adapter_output_width = slave.data_width
 
             if adapter_output_width not in width_to_slaves:
                 width_to_slaves[adapter_output_width] = []
@@ -949,7 +972,10 @@ class AdapterGenerator:
             lines.append(f"    assign {self.master.name}_{suffix}_aw.qos    = 4'b0;  // Tie to 0")
             lines.append(f"    assign {self.master.name}_{suffix}_aw.region = 4'b0;  // Tie to 0")
             lines.append(f"    assign {self.master.name}_{suffix}_aw.user   = 1'b0;  // Tie to 0")
-            lines.append(f"    assign {self.master.name}_{suffix}_awvalid   = fub_axi_awvalid;")
+            # Gate by `<W>b_aw_path_active` so only the path matching the
+            # currently selected slave's data_width drives awvalid (see big
+            # comment in _generate_width_adaptation).
+            lines.append(f"    assign {self.master.name}_{suffix}_awvalid   = fub_axi_awvalid && aw_path_active_{width}b;")
             lines.append("    // awready routed via MUX")
             lines.append("")
 
@@ -958,7 +984,8 @@ class AdapterGenerator:
             lines.append(f"    assign {self.master.name}_{suffix}_w.strb  = fub_axi_wstrb;")
             lines.append(f"    assign {self.master.name}_{suffix}_w.last  = fub_axi_wlast;")
             lines.append(f"    assign {self.master.name}_{suffix}_w.user  = 1'b0;  // Tie to 0")
-            lines.append(f"    assign {self.master.name}_{suffix}_wvalid  = fub_axi_wvalid;")
+            # Gate by `<W>b_aw_path_active` (W follows AW selection).
+            lines.append(f"    assign {self.master.name}_{suffix}_wvalid  = fub_axi_wvalid && aw_path_active_{width}b;")
             lines.append("    // wready routed via MUX")
             lines.append("")
 
@@ -981,7 +1008,9 @@ class AdapterGenerator:
             lines.append(f"    assign {self.master.name}_{suffix}_ar.qos    = 4'b0;  // Tie to 0")
             lines.append(f"    assign {self.master.name}_{suffix}_ar.region = 4'b0;  // Tie to 0")
             lines.append(f"    assign {self.master.name}_{suffix}_ar.user   = 1'b0;  // Tie to 0")
-            lines.append(f"    assign {self.master.name}_{suffix}_arvalid   = fub_axi_arvalid;")
+            # Gate by `<W>b_ar_path_active` (only the matching width path
+            # drives arvalid; see comment in _generate_width_adaptation).
+            lines.append(f"    assign {self.master.name}_{suffix}_arvalid   = fub_axi_arvalid && ar_path_active_{width}b;")
             lines.append("    // arready routed via MUX")
             lines.append("")
 
@@ -1048,14 +1077,16 @@ class AdapterGenerator:
             lines.append("        .s_axi_awqos(4'b0),")
             lines.append("        .s_axi_awregion(4'b0),")
             lines.append("        .s_axi_awuser(1'b0),")
-            lines.append("        .s_axi_awvalid(fub_axi_awvalid),")
+            # Gate by per-width path-active so this converter only sees the
+            # AW when the selected slave actually has this width.
+            lines.append(f"        .s_axi_awvalid(fub_axi_awvalid && aw_path_active_{slave_width}b),")
             lines.append(f"        .s_axi_awready(conv_{suffix}_awready),  // Intermediate signal")
             lines.append("")
             lines.append("        .s_axi_wdata(fub_axi_wdata),")
             lines.append("        .s_axi_wstrb(fub_axi_wstrb),")
             lines.append("        .s_axi_wlast(fub_axi_wlast),")
             lines.append("        .s_axi_wuser(1'b0),")
-            lines.append("        .s_axi_wvalid(fub_axi_wvalid),")
+            lines.append(f"        .s_axi_wvalid(fub_axi_wvalid && aw_path_active_{slave_width}b),")
             lines.append(f"        .s_axi_wready(conv_{suffix}_wready),  // Intermediate signal")
             lines.append("")
             lines.append(f"        .s_axi_bid(conv_{suffix}_bid),  // Intermediate signal")
@@ -1120,7 +1151,7 @@ class AdapterGenerator:
             lines.append("        .s_axi_arqos(4'b0),")
             lines.append("        .s_axi_arregion(4'b0),")
             lines.append("        .s_axi_aruser(1'b0),")
-            lines.append("        .s_axi_arvalid(fub_axi_arvalid),")
+            lines.append(f"        .s_axi_arvalid(fub_axi_arvalid && ar_path_active_{slave_width}b),")
             lines.append(f"        .s_axi_arready(conv_{suffix}_arready),  // Intermediate signal")
             lines.append("")
             lines.append(f"        .s_axi_rid(conv_{suffix}_rid),  // Intermediate signal")

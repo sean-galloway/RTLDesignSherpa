@@ -169,8 +169,9 @@ module bridge_1x4_rd_xbar (
     assign periph_rd_axi_arprot   = cpu_rd_slave_select_ar[0] ? cpu_rd_32b_ar.prot : '0;
     assign periph_rd_axi_arvalid  = cpu_rd_slave_select_ar[0] ? cpu_rd_32b_arvalid : '0;
 
-    // Rready (master → slave)
-    assign periph_rd_axi_rready = cpu_rd_slave_select_ar[0] ? cpu_rd_32b_rready : '0;
+    // Rready (master → slave) — gated on rid_valid so the path stays
+    // open through the entire R handshake, not just the AR phase.
+    assign periph_rd_axi_rready = ((periph_rd_axi_rid_bridge_id == 0) && periph_rd_axi_rid_valid) ? cpu_rd_32b_rready : '0;
 
     // Bridge ID (master → slave)
     assign periph_rd_axi_bridge_id_ar = cpu_rd_slave_select_ar[0] ? cpu_rd_bridge_id_ar : '0;
@@ -194,8 +195,9 @@ module bridge_1x4_rd_xbar (
     assign ddr_rd_axi_arprot   = cpu_rd_slave_select_ar[1] ? cpu_rd_64b_ar.prot : '0;
     assign ddr_rd_axi_arvalid  = cpu_rd_slave_select_ar[1] ? cpu_rd_64b_arvalid : '0;
 
-    // Rready (master → slave)
-    assign ddr_rd_axi_rready = cpu_rd_slave_select_ar[1] ? cpu_rd_64b_rready : '0;
+    // Rready (master → slave) — gated on rid_valid so the path stays
+    // open through the entire R handshake, not just the AR phase.
+    assign ddr_rd_axi_rready = ((ddr_rd_axi_rid_bridge_id == 0) && ddr_rd_axi_rid_valid) ? cpu_rd_64b_rready : '0;
 
     // Bridge ID (master → slave)
     assign ddr_rd_axi_bridge_id_ar = cpu_rd_slave_select_ar[1] ? cpu_rd_bridge_id_ar : '0;
@@ -219,8 +221,9 @@ module bridge_1x4_rd_xbar (
     assign hbm_rd_axi_arprot   = cpu_rd_slave_select_ar[2] ? cpu_rd_128b_ar.prot : '0;
     assign hbm_rd_axi_arvalid  = cpu_rd_slave_select_ar[2] ? cpu_rd_128b_arvalid : '0;
 
-    // Rready (master → slave)
-    assign hbm_rd_axi_rready = cpu_rd_slave_select_ar[2] ? cpu_rd_128b_rready : '0;
+    // Rready (master → slave) — gated on rid_valid so the path stays
+    // open through the entire R handshake, not just the AR phase.
+    assign hbm_rd_axi_rready = ((hbm_rd_axi_rid_bridge_id == 0) && hbm_rd_axi_rid_valid) ? cpu_rd_128b_rready : '0;
 
     // Bridge ID (master → slave)
     assign hbm_rd_axi_bridge_id_ar = cpu_rd_slave_select_ar[2] ? cpu_rd_bridge_id_ar : '0;
@@ -244,8 +247,9 @@ module bridge_1x4_rd_xbar (
     assign apb_periph_axi_arprot   = cpu_rd_slave_select_ar[3] ? cpu_rd_32b_ar.prot : '0;
     assign apb_periph_axi_arvalid  = cpu_rd_slave_select_ar[3] ? cpu_rd_32b_arvalid : '0;
 
-    // Rready (master → slave)
-    assign apb_periph_axi_rready = cpu_rd_slave_select_ar[3] ? cpu_rd_32b_rready : '0;
+    // Rready (master → slave) — gated on rid_valid so the path stays
+    // open through the entire R handshake, not just the AR phase.
+    assign apb_periph_axi_rready = ((apb_periph_axi_rid_bridge_id == 0) && apb_periph_axi_rid_valid) ? cpu_rd_32b_rready : '0;
 
     // Bridge ID (master → slave)
     assign apb_periph_axi_bridge_id_ar = cpu_rd_slave_select_ar[3] ? cpu_rd_bridge_id_ar : '0;

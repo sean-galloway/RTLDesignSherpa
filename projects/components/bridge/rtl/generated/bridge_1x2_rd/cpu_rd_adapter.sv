@@ -170,6 +170,10 @@ module cpu_rd_adapter #(
     // Connected to slaves with widths: [32]
     // ================================================================
 
+    // Per-width path-active gates (see comment in adapter_generator.py).
+    logic ar_path_active_32b;
+    assign ar_path_active_32b = slave_select_ar[0] | slave_select_ar[1];
+
     // ================================================================
     // Direct passthrough: 32b → 32b (no converter)
     // Requests: fub_axi_* → cpu_rd_32b_*
@@ -188,11 +192,48 @@ module cpu_rd_adapter #(
     assign cpu_rd_32b_ar.qos    = 4'b0;  // Tie to 0
     assign cpu_rd_32b_ar.region = 4'b0;  // Tie to 0
     assign cpu_rd_32b_ar.user   = 1'b0;  // Tie to 0
-    assign cpu_rd_32b_arvalid   = fub_axi_arvalid;
+    assign cpu_rd_32b_arvalid   = fub_axi_arvalid && ar_path_active_32b;
     // arready routed via MUX
 
     // R channel (response: output → MUX → fub)
     assign cpu_rd_32b_rready = fub_axi_rready;
     // rid, rdata, rresp, rlast, rvalid routed via MUX (user field ignored)
+
+    // ================================================================
+    // Response MUX - Route responses from width-specific paths
+    // back to fub_axi_* based on address decode
+    // ================================================================
+
+    // Read response MUX (R channel)
+    always_comb begin
+        fub_axi_arready = 1'b0;
+        fub_axi_rid = 4'd0;
+        fub_axi_rdata = 32'd0;
+        fub_axi_rresp = 2'b00;
+        fub_axi_rlast = 1'b0;
+        fub_axi_rvalid = 1'b0;
+
+        case (slave_select_ar)
+            2'b01: begin  // Slave 0 (32b)
+                fub_axi_arready = cpu_rd_32b_arready;
+                fub_axi_rid = cpu_rd_32b_r.id;
+                fub_axi_rdata = cpu_rd_32b_r.data;
+                fub_axi_rresp = cpu_rd_32b_r.resp;
+                fub_axi_rlast = cpu_rd_32b_r.last;
+                fub_axi_rvalid = cpu_rd_32b_rvalid;
+            end
+            2'b10: begin  // Slave 1 (32b)
+                fub_axi_arready = cpu_rd_32b_arready;
+                fub_axi_rid = cpu_rd_32b_r.id;
+                fub_axi_rdata = cpu_rd_32b_r.data;
+                fub_axi_rresp = cpu_rd_32b_r.resp;
+                fub_axi_rlast = cpu_rd_32b_r.last;
+                fub_axi_rvalid = cpu_rd_32b_rvalid;
+            end
+            default: begin
+                // No slave selected - hold defaults
+            end
+        endcase
+    end
 
 endmodule : cpu_rd_adapter

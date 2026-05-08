@@ -107,9 +107,18 @@ def _aggregate_coverage():
 
 
 def pytest_ignore_collect(collection_path, config):
-    """Disable automatic test collection in logs and coverage directories"""
+    """Disable automatic test collection in build/log/coverage scratch dirs.
+
+    Includes `local_sim_build` so per-test sim build trees (which now hold
+    each test's `dump.fst`) don't get picked up as test modules. Mirrors the
+    convention used in the q32 dv conftest.
+    """
     path_str = str(collection_path)
-    return 'logs' in path_str or 'coverage_data' in path_str
+    return (
+        'logs' in path_str
+        or 'local_sim_build' in path_str
+        or 'coverage_data' in path_str
+    )
 
 
 # Bridge-specific parametrization fixtures

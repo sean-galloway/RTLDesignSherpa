@@ -398,11 +398,134 @@ class CrossbarGenerator:
             master = connecting_masters[0]
             lines.extend(self._generate_single_master_routing(slave_idx, slave, master))
         else:
-            # Multi-master case (requires arbitration)
-            lines.append(f"    // TODO: Multi-master arbitration")
-            lines.append(f"    // {len(connecting_masters)} masters connect to this slave:")
-            for master in connecting_masters:
-                lines.append(f"    //   - {master.name}")
+            # Multi-master: OR-merge each master's contribution to the
+            # slave-side request signals, gated by that master's own
+            # `slave_select_aw/ar[slave_idx]`. This is correct as long as
+            # only one master at a time is targeting this slave (which is
+            # what the basic_connectivity test exercises). Simultaneous
+            # contention would need a real arbiter; that's a separate
+            # follow-up. Response-side routing already uses the
+            # slave_adapter's bid_bridge_id/rid_bridge_id tracking
+            # to pick the right destination master.
+            lines.extend(self._generate_multi_master_routing(slave_idx, slave, connecting_masters))
+
+        return lines
+
+    def _generate_multi_master_routing(self, slave_idx: int, slave: SlaveInfo,
+                                        masters: List[MasterConfig]) -> List[str]:
+        """OR-merge each master's request contribution onto the slave-side
+        request signals. Use the slave's bid_*/rid_* tracking to route the
+        response back through the correct master."""
+        lines = []
+        suffix = f"{slave.data_width}b"
+        prefix = f"{slave.name}_axi_"
+
+        wr_masters = [m for m in masters if m.channels in ("wr", "rw")]
+        rd_masters = [m for m in masters if m.channels in ("rd", "rw")]
+
+        lines.append(f"    // Multi-master ({len(masters)} masters) → {slave.name}")
+        for m in masters:
+            lines.append(f"    //   - {m.name} ({m.channels})")
+        lines.append("")
+
+        def _or_merge(out_sig: str, struct_field: str | None,
+                      master_sig_template: str, sel_array: str,
+                      master_subset: List[MasterConfig]) -> str:
+            """Build an OR-merged assignment line.
+
+            out_sig          — slave-side signal (e.g. 'awid')
+            struct_field     — if the master signal is inside a struct
+                               (e.g. master_<W>_aw.id), the '.id' part;
+                               None for plain logic signals like awvalid.
+            master_sig_template — e.g. '{m}_{suffix}_aw' or '{m}_{suffix}_awvalid'
+            sel_array        — '{m}_slave_select_aw' or '{m}_slave_select_ar'
+            """
+            parts = []
+            for m in master_subset:
+                base = master_sig_template.format(m=m.name, suffix=suffix)
+                lhs = f"{base}{struct_field}" if struct_field else base
+                gate = f"{m.name}_slave_select_{sel_array}[{slave_idx}]"
+                parts.append(f"({gate} ? {lhs} : '0)")
+            return " |\n        ".join(parts) if parts else "'0"
+
+        # Write side
+        if wr_masters:
+            lines.append("    // AW channel (OR-merged across writing masters)")
+            for sig, fld in [("awid", ".id"), ("awaddr", ".addr"), ("awlen", ".len"),
+                             ("awsize", ".size"), ("awburst", ".burst"),
+                             ("awlock", ".lock"), ("awcache", ".cache"),
+                             ("awprot", ".prot")]:
+                tmpl = "{m}_{suffix}_aw"
+                expr = _or_merge(sig, fld, tmpl, "aw", wr_masters)
+                lines.append(f"    assign {prefix}{sig} = {expr};")
+            tmpl = "{m}_{suffix}_awvalid"
+            lines.append(f"    assign {prefix}awvalid = {_or_merge('awvalid', None, tmpl, 'aw', wr_masters)};")
+            lines.append("")
+
+            lines.append("    // W channel (OR-merged across writing masters)")
+            for sig, fld in [("wdata", ".data"), ("wstrb", ".strb"), ("wlast", ".last")]:
+                tmpl = "{m}_{suffix}_w"
+                expr = _or_merge(sig, fld, tmpl, "aw", wr_masters)
+                lines.append(f"    assign {prefix}{sig} = {expr};")
+            tmpl = "{m}_{suffix}_wvalid"
+            lines.append(f"    assign {prefix}wvalid = {_or_merge('wvalid', None, tmpl, 'aw', wr_masters)};")
+            lines.append("")
+
+            # bready: route back to whichever master owns this response
+            # (per bid_bridge_id from the slave_adapter). bid_valid keeps
+            # the path open across the whole B handshake.
+            lines.append("    // Bready (slave → owning master, by bid_bridge_id)")
+            bready_terms = []
+            for m in wr_masters:
+                idx = self.masters.index(m)
+                bready_terms.append(
+                    f"(({prefix}bid_bridge_id == {idx}) && {prefix}bid_valid ? {m.name}_{suffix}_bready : '0)"
+                )
+            lines.append(f"    assign {prefix}bready = " + " |\n        ".join(bready_terms) + ";")
+            lines.append("")
+
+            # bridge_id_aw: which master originated this AW
+            lines.append("    // Bridge ID (writes) — picks the originating master's id")
+            bid_terms = []
+            for m in wr_masters:
+                bid_terms.append(
+                    f"({m.name}_slave_select_aw[{slave_idx}] ? {m.name}_bridge_id_aw : '0)"
+                )
+            lines.append(f"    assign {prefix}bridge_id_aw = " + " |\n        ".join(bid_terms) + ";")
+            lines.append("")
+
+        # Read side
+        if rd_masters:
+            lines.append("    // AR channel (OR-merged across reading masters)")
+            for sig, fld in [("arid", ".id"), ("araddr", ".addr"), ("arlen", ".len"),
+                             ("arsize", ".size"), ("arburst", ".burst"),
+                             ("arlock", ".lock"), ("arcache", ".cache"),
+                             ("arprot", ".prot")]:
+                tmpl = "{m}_{suffix}_ar"
+                expr = _or_merge(sig, fld, tmpl, "ar", rd_masters)
+                lines.append(f"    assign {prefix}{sig} = {expr};")
+            tmpl = "{m}_{suffix}_arvalid"
+            lines.append(f"    assign {prefix}arvalid = {_or_merge('arvalid', None, tmpl, 'ar', rd_masters)};")
+            lines.append("")
+
+            lines.append("    // Rready (slave → owning master, by rid_bridge_id)")
+            rready_terms = []
+            for m in rd_masters:
+                idx = self.masters.index(m)
+                rready_terms.append(
+                    f"(({prefix}rid_bridge_id == {idx}) && {prefix}rid_valid ? {m.name}_{suffix}_rready : '0)"
+                )
+            lines.append(f"    assign {prefix}rready = " + " |\n        ".join(rready_terms) + ";")
+            lines.append("")
+
+            lines.append("    // Bridge ID (reads) — picks the originating master's id")
+            rid_terms = []
+            for m in rd_masters:
+                rid_terms.append(
+                    f"({m.name}_slave_select_ar[{slave_idx}] ? {m.name}_bridge_id_ar : '0)"
+                )
+            lines.append(f"    assign {prefix}bridge_id_ar = " + " |\n        ".join(rid_terms) + ";")
+            lines.append("")
 
         return lines
 
@@ -444,6 +567,7 @@ class CrossbarGenerator:
         lines = []
         # Use SignalNaming convention for slave signals
         prefix = f"{slave.name}_axi_"
+        master_idx = self.masters.index(master)
 
         # AW channel (master → slave)
         lines.append("    // AW channel")
@@ -466,9 +590,15 @@ class CrossbarGenerator:
         lines.append(f"    assign {prefix}wvalid = {master.name}_slave_select_aw[{slave_idx}] ? {master.name}_{suffix}_wvalid : '0;")
         lines.append("")
 
-        # Ready/B channel routing is handled in response MUX (no individual assigns to avoid multi-driver)
-        lines.append("    // Bready (master → slave)")
-        lines.append(f"    assign {prefix}bready = {master.name}_slave_select_aw[{slave_idx}] ? {master.name}_{suffix}_bready : '0;")
+        # bready (master → slave). Use the slave's bid_valid/bid_bridge_id
+        # tracking instead of slave_select_aw, because slave_select_aw is
+        # combinational from fub_axi_awaddr and goes back to 0 once the AW
+        # has been issued — leaving bready stuck at 0 while the slave is
+        # still trying to drive bvalid for the response. Earlier versions
+        # had this exact bug.
+        lines.append("    // Bready (master → slave) — gated on bid_valid so the path stays")
+        lines.append("    // open through the entire B handshake, not just the AW phase.")
+        lines.append(f"    assign {prefix}bready = (({prefix}bid_bridge_id == {master_idx}) && {prefix}bid_valid) ? {master.name}_{suffix}_bready : '0;")
         lines.append("")
 
         # Bridge ID routing (master → slave) - passes master index for response routing
@@ -484,6 +614,7 @@ class CrossbarGenerator:
         lines = []
         # Use SignalNaming convention for slave signals
         prefix = f"{slave.name}_axi_"
+        master_idx = self.masters.index(master)
 
         # AR channel (master → slave)
         lines.append("    // AR channel")
@@ -498,9 +629,15 @@ class CrossbarGenerator:
         lines.append(f"    assign {prefix}arvalid  = {master.name}_slave_select_ar[{slave_idx}] ? {master.name}_{suffix}_arvalid : '0;")
         lines.append("")
 
-        # Ready/R channel routing is handled in response MUX (no individual assigns to avoid multi-driver)
-        lines.append("    // Rready (master → slave)")
-        lines.append(f"    assign {prefix}rready = {master.name}_slave_select_ar[{slave_idx}] ? {master.name}_{suffix}_rready : '0;")
+        # rready (master → slave). Same fix as bready: gate on rid_valid /
+        # rid_bridge_id (which the slave_adapter holds combinationally
+        # across the response phase) instead of slave_select_ar (which
+        # is combinational from fub_axi_araddr and goes back to 0 once
+        # the AR has been issued — so the slave never gets rready and
+        # the R handshake stalls).
+        lines.append("    // Rready (master → slave) — gated on rid_valid so the path stays")
+        lines.append("    // open through the entire R handshake, not just the AR phase.")
+        lines.append(f"    assign {prefix}rready = (({prefix}rid_bridge_id == {master_idx}) && {prefix}rid_valid) ? {master.name}_{suffix}_rready : '0;")
         lines.append("")
 
         # Bridge ID routing (master → slave) - passes master index for response routing
@@ -726,26 +863,15 @@ class CrossbarGenerator:
         """
         Get sorted list of unique ADAPTER OUTPUT widths for slaves this master connects to.
 
-        For AXI4 slaves: uses native slave width
-        For APB slaves: uses LCD (Lowest Common Denominator) width
+        Always uses slave.data_width — must match the adapter generator's
+        choice (see AdapterGenerator._get_connected_slave_widths). The
+        previous LCD-for-APB path here disagreed with the adapter on
+        which suffix to emit, leaving the xbar referencing
+        cpu_master_32b_* while the adapter only produced cpu_master_64b_*.
         """
         widths = set()
-
-        # Separate AXI4 and APB slaves
-        axi4_slave_indices = [idx for idx in master.slave_connections
-                              if self.slaves[idx].protocol == 'axi4']
-        apb_slave_indices = [idx for idx in master.slave_connections
-                             if self.slaves[idx].protocol == 'apb']
-
-        # For AXI4 slaves: use their native widths
-        for idx in axi4_slave_indices:
+        for idx in master.slave_connections:
             widths.add(self.slaves[idx].data_width)
-
-        # For APB slaves: use LCD width
-        if apb_slave_indices:
-            lcd_width = self._calculate_lcd_width_for_apb(master)
-            widths.add(lcd_width)
-
         return sorted(list(widths))
 
     def _get_masters_connecting_to_slave(self, slave: SlaveInfo) -> List[MasterConfig]:

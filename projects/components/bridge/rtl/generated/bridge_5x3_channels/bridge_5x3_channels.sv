@@ -388,22 +388,22 @@ module bridge_5x3_channels (
     logic [BRIDGE_ID_WIDTH-1:0] cpu_master_bridge_id_aw;
     logic [NUM_SLAVES-1:0] cpu_master_slave_select_ar;
     logic [BRIDGE_ID_WIDTH-1:0] cpu_master_bridge_id_ar;
-    // 64b path
-    axi4_aw_t     cpu_master_64b_aw;
-    logic         cpu_master_64b_awvalid;
-    logic         cpu_master_64b_awready;
-    axi4_w_64b_t  cpu_master_64b_w;
-    logic         cpu_master_64b_wvalid;
-    logic         cpu_master_64b_wready;
-    axi4_b_t      cpu_master_64b_b;
-    logic         cpu_master_64b_bvalid;
-    logic         cpu_master_64b_bready;
-    axi4_ar_t     cpu_master_64b_ar;
-    logic         cpu_master_64b_arvalid;
-    logic         cpu_master_64b_arready;
-    axi4_r_64b_t  cpu_master_64b_r;
-    logic         cpu_master_64b_rvalid;
-    logic         cpu_master_64b_rready;
+    // 32b path
+    axi4_aw_t     cpu_master_32b_aw;
+    logic         cpu_master_32b_awvalid;
+    logic         cpu_master_32b_awready;
+    axi4_w_32b_t  cpu_master_32b_w;
+    logic         cpu_master_32b_wvalid;
+    logic         cpu_master_32b_wready;
+    axi4_b_t      cpu_master_32b_b;
+    logic         cpu_master_32b_bvalid;
+    logic         cpu_master_32b_bready;
+    axi4_ar_t     cpu_master_32b_ar;
+    logic         cpu_master_32b_arvalid;
+    logic         cpu_master_32b_arready;
+    axi4_r_32b_t  cpu_master_32b_r;
+    logic         cpu_master_32b_rvalid;
+    logic         cpu_master_32b_rready;
     // 256b path
     axi4_aw_t     cpu_master_256b_aw;
     logic         cpu_master_256b_awvalid;
@@ -854,22 +854,22 @@ module bridge_5x3_channels (
         .slave_select_ar(cpu_master_slave_select_ar),
         .bridge_id_ar(cpu_master_bridge_id_ar),
 
-        // 64b path
-        .cpu_master_64b_aw(cpu_master_64b_aw),
-        .cpu_master_64b_awvalid(cpu_master_64b_awvalid),
-        .cpu_master_64b_awready(cpu_master_64b_awready),
-        .cpu_master_64b_w(cpu_master_64b_w),
-        .cpu_master_64b_wvalid(cpu_master_64b_wvalid),
-        .cpu_master_64b_wready(cpu_master_64b_wready),
-        .cpu_master_64b_b(cpu_master_64b_b),
-        .cpu_master_64b_bvalid(cpu_master_64b_bvalid),
-        .cpu_master_64b_bready(cpu_master_64b_bready),
-        .cpu_master_64b_ar(cpu_master_64b_ar),
-        .cpu_master_64b_arvalid(cpu_master_64b_arvalid),
-        .cpu_master_64b_arready(cpu_master_64b_arready),
-        .cpu_master_64b_r(cpu_master_64b_r),
-        .cpu_master_64b_rvalid(cpu_master_64b_rvalid),
-        .cpu_master_64b_rready(cpu_master_64b_rready),
+        // 32b path
+        .cpu_master_32b_aw(cpu_master_32b_aw),
+        .cpu_master_32b_awvalid(cpu_master_32b_awvalid),
+        .cpu_master_32b_awready(cpu_master_32b_awready),
+        .cpu_master_32b_w(cpu_master_32b_w),
+        .cpu_master_32b_wvalid(cpu_master_32b_wvalid),
+        .cpu_master_32b_wready(cpu_master_32b_wready),
+        .cpu_master_32b_b(cpu_master_32b_b),
+        .cpu_master_32b_bvalid(cpu_master_32b_bvalid),
+        .cpu_master_32b_bready(cpu_master_32b_bready),
+        .cpu_master_32b_ar(cpu_master_32b_ar),
+        .cpu_master_32b_arvalid(cpu_master_32b_arvalid),
+        .cpu_master_32b_arready(cpu_master_32b_arready),
+        .cpu_master_32b_r(cpu_master_32b_r),
+        .cpu_master_32b_rvalid(cpu_master_32b_rvalid),
+        .cpu_master_32b_rready(cpu_master_32b_rready),
 
         // 256b path
         .cpu_master_256b_aw(cpu_master_256b_aw),
@@ -962,22 +962,22 @@ module bridge_5x3_channels (
         .cpu_master_bridge_id_aw(cpu_master_bridge_id_aw),
         .cpu_master_slave_select_ar(cpu_master_slave_select_ar),
         .cpu_master_bridge_id_ar(cpu_master_bridge_id_ar),
-        // 64b path
-        .cpu_master_64b_aw(cpu_master_64b_aw),
-        .cpu_master_64b_awvalid(cpu_master_64b_awvalid),
-        .cpu_master_64b_awready(cpu_master_64b_awready),
-        .cpu_master_64b_w(cpu_master_64b_w),
-        .cpu_master_64b_wvalid(cpu_master_64b_wvalid),
-        .cpu_master_64b_wready(cpu_master_64b_wready),
-        .cpu_master_64b_b(cpu_master_64b_b),
-        .cpu_master_64b_bvalid(cpu_master_64b_bvalid),
-        .cpu_master_64b_bready(cpu_master_64b_bready),
-        .cpu_master_64b_ar(cpu_master_64b_ar),
-        .cpu_master_64b_arvalid(cpu_master_64b_arvalid),
-        .cpu_master_64b_arready(cpu_master_64b_arready),
-        .cpu_master_64b_r(cpu_master_64b_r),
-        .cpu_master_64b_rvalid(cpu_master_64b_rvalid),
-        .cpu_master_64b_rready(cpu_master_64b_rready),
+        // 32b path
+        .cpu_master_32b_aw(cpu_master_32b_aw),
+        .cpu_master_32b_awvalid(cpu_master_32b_awvalid),
+        .cpu_master_32b_awready(cpu_master_32b_awready),
+        .cpu_master_32b_w(cpu_master_32b_w),
+        .cpu_master_32b_wvalid(cpu_master_32b_wvalid),
+        .cpu_master_32b_wready(cpu_master_32b_wready),
+        .cpu_master_32b_b(cpu_master_32b_b),
+        .cpu_master_32b_bvalid(cpu_master_32b_bvalid),
+        .cpu_master_32b_bready(cpu_master_32b_bready),
+        .cpu_master_32b_ar(cpu_master_32b_ar),
+        .cpu_master_32b_arvalid(cpu_master_32b_arvalid),
+        .cpu_master_32b_arready(cpu_master_32b_arready),
+        .cpu_master_32b_r(cpu_master_32b_r),
+        .cpu_master_32b_rvalid(cpu_master_32b_rvalid),
+        .cpu_master_32b_rready(cpu_master_32b_rready),
         // 256b path
         .cpu_master_256b_aw(cpu_master_256b_aw),
         .cpu_master_256b_awvalid(cpu_master_256b_awvalid),
@@ -1390,7 +1390,7 @@ module bridge_5x3_channels (
         .SIDE_DEPTH(4),
         .APB_CMD_DEPTH(4),
         .APB_RSP_DEPTH(4),
-        .AXI_ID_WIDTH(4),
+        .AXI_ID_WIDTH(8),
         .AXI_ADDR_WIDTH(32),
         .AXI_DATA_WIDTH(32),
         .AXI_USER_WIDTH(1),

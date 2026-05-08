@@ -195,6 +195,10 @@ module cpu_wr_adapter #(
     // Connected to slaves with widths: [32]
     // ================================================================
 
+    // Per-width path-active gates (see comment in adapter_generator.py).
+    logic aw_path_active_32b;
+    assign aw_path_active_32b = slave_select_aw[0] | slave_select_aw[1];
+
     // ================================================================
     // Direct passthrough: 32b → 32b (no converter)
     // Requests: fub_axi_* → cpu_wr_32b_*
@@ -213,7 +217,7 @@ module cpu_wr_adapter #(
     assign cpu_wr_32b_aw.qos    = 4'b0;  // Tie to 0
     assign cpu_wr_32b_aw.region = 4'b0;  // Tie to 0
     assign cpu_wr_32b_aw.user   = 1'b0;  // Tie to 0
-    assign cpu_wr_32b_awvalid   = fub_axi_awvalid;
+    assign cpu_wr_32b_awvalid   = fub_axi_awvalid && aw_path_active_32b;
     // awready routed via MUX
 
     // W channel (request: fub → output)
@@ -221,11 +225,45 @@ module cpu_wr_adapter #(
     assign cpu_wr_32b_w.strb  = fub_axi_wstrb;
     assign cpu_wr_32b_w.last  = fub_axi_wlast;
     assign cpu_wr_32b_w.user  = 1'b0;  // Tie to 0
-    assign cpu_wr_32b_wvalid  = fub_axi_wvalid;
+    assign cpu_wr_32b_wvalid  = fub_axi_wvalid && aw_path_active_32b;
     // wready routed via MUX
 
     // B channel (response: output → MUX → fub)
     assign cpu_wr_32b_bready = fub_axi_bready;
     // bid, bresp, bvalid routed via MUX (user field ignored)
+
+    // ================================================================
+    // Response MUX - Route responses from width-specific paths
+    // back to fub_axi_* based on address decode
+    // ================================================================
+
+    // Write response MUX (B channel)
+    always_comb begin
+        fub_axi_awready = 1'b0;
+        fub_axi_wready = 1'b0;
+        fub_axi_bid = 4'd0;
+        fub_axi_bresp = 2'b00;
+        fub_axi_bvalid = 1'b0;
+
+        case (slave_select_aw)
+            2'b01: begin  // Slave 0 (32b)
+                fub_axi_awready = cpu_wr_32b_awready;
+                fub_axi_wready = cpu_wr_32b_wready;
+                fub_axi_bid = cpu_wr_32b_b.id;
+                fub_axi_bresp = cpu_wr_32b_b.resp;
+                fub_axi_bvalid = cpu_wr_32b_bvalid;
+            end
+            2'b10: begin  // Slave 1 (32b)
+                fub_axi_awready = cpu_wr_32b_awready;
+                fub_axi_wready = cpu_wr_32b_wready;
+                fub_axi_bid = cpu_wr_32b_b.id;
+                fub_axi_bresp = cpu_wr_32b_b.resp;
+                fub_axi_bvalid = cpu_wr_32b_bvalid;
+            end
+            default: begin
+                // No slave selected - hold defaults
+            end
+        endcase
+    end
 
 endmodule : cpu_wr_adapter

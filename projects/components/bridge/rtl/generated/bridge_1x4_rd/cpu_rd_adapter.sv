@@ -194,6 +194,14 @@ module cpu_rd_adapter #(
     // Connected to slaves with widths: [32, 64, 128]
     // ================================================================
 
+    // Per-width path-active gates (see comment in adapter_generator.py).
+    logic ar_path_active_32b;
+    assign ar_path_active_32b = slave_select_ar[0] | slave_select_ar[3];
+    logic ar_path_active_64b;
+    assign ar_path_active_64b = slave_select_ar[1];
+    logic ar_path_active_128b;
+    assign ar_path_active_128b = slave_select_ar[2];
+
     // ================================================================
     // Width converter: 64b → 32b
     // ================================================================
@@ -230,7 +238,7 @@ module cpu_rd_adapter #(
         .s_axi_arqos(4'b0),
         .s_axi_arregion(4'b0),
         .s_axi_aruser(1'b0),
-        .s_axi_arvalid(fub_axi_arvalid),
+        .s_axi_arvalid(fub_axi_arvalid && ar_path_active_32b),
         .s_axi_arready(conv_32b_arready),  // Intermediate signal
 
         .s_axi_rid(conv_32b_rid),  // Intermediate signal
@@ -283,7 +291,7 @@ module cpu_rd_adapter #(
     assign cpu_rd_64b_ar.qos    = 4'b0;  // Tie to 0
     assign cpu_rd_64b_ar.region = 4'b0;  // Tie to 0
     assign cpu_rd_64b_ar.user   = 1'b0;  // Tie to 0
-    assign cpu_rd_64b_arvalid   = fub_axi_arvalid;
+    assign cpu_rd_64b_arvalid   = fub_axi_arvalid && ar_path_active_64b;
     // arready routed via MUX
 
     // R channel (response: output → MUX → fub)
@@ -326,7 +334,7 @@ module cpu_rd_adapter #(
         .s_axi_arqos(4'b0),
         .s_axi_arregion(4'b0),
         .s_axi_aruser(1'b0),
-        .s_axi_arvalid(fub_axi_arvalid),
+        .s_axi_arvalid(fub_axi_arvalid && ar_path_active_128b),
         .s_axi_arready(conv_128b_arready),  // Intermediate signal
 
         .s_axi_rid(conv_128b_rid),  // Intermediate signal
@@ -384,15 +392,15 @@ module cpu_rd_adapter #(
                 fub_axi_rlast = conv_32b_rlast;
                 fub_axi_rvalid = conv_32b_rvalid;
             end
-            4'b0010: begin  // Slave 1 (64b)
-                fub_axi_arready = cpu_rd_64b_arready;
-                fub_axi_rid = cpu_rd_64b_r.id;
-                fub_axi_rdata = cpu_rd_64b_r.data;
-                fub_axi_rresp = cpu_rd_64b_r.resp;
-                fub_axi_rlast = cpu_rd_64b_r.last;
-                fub_axi_rvalid = cpu_rd_64b_rvalid;
+            4'b1000: begin  // Slave 3 (32b)
+                fub_axi_arready = conv_32b_arready;
+                fub_axi_rid = conv_32b_rid;
+                fub_axi_rdata = conv_32b_rdata;
+                fub_axi_rresp = conv_32b_rresp;
+                fub_axi_rlast = conv_32b_rlast;
+                fub_axi_rvalid = conv_32b_rvalid;
             end
-            4'b1000: begin  // Slave 3 (64b)
+            4'b0010: begin  // Slave 1 (64b)
                 fub_axi_arready = cpu_rd_64b_arready;
                 fub_axi_rid = cpu_rd_64b_r.id;
                 fub_axi_rdata = cpu_rd_64b_r.data;

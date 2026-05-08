@@ -223,6 +223,14 @@ module cpu_wr_adapter #(
     // Connected to slaves with widths: [32, 64, 128]
     // ================================================================
 
+    // Per-width path-active gates (see comment in adapter_generator.py).
+    logic aw_path_active_32b;
+    assign aw_path_active_32b = slave_select_aw[0];
+    logic aw_path_active_64b;
+    assign aw_path_active_64b = slave_select_aw[1];
+    logic aw_path_active_128b;
+    assign aw_path_active_128b = slave_select_aw[2];
+
     // ================================================================
     // Width converter: 64b → 32b
     // ================================================================
@@ -259,14 +267,14 @@ module cpu_wr_adapter #(
         .s_axi_awqos(4'b0),
         .s_axi_awregion(4'b0),
         .s_axi_awuser(1'b0),
-        .s_axi_awvalid(fub_axi_awvalid),
+        .s_axi_awvalid(fub_axi_awvalid && aw_path_active_32b),
         .s_axi_awready(conv_32b_awready),  // Intermediate signal
 
         .s_axi_wdata(fub_axi_wdata),
         .s_axi_wstrb(fub_axi_wstrb),
         .s_axi_wlast(fub_axi_wlast),
         .s_axi_wuser(1'b0),
-        .s_axi_wvalid(fub_axi_wvalid),
+        .s_axi_wvalid(fub_axi_wvalid && aw_path_active_32b),
         .s_axi_wready(conv_32b_wready),  // Intermediate signal
 
         .s_axi_bid(conv_32b_bid),  // Intermediate signal
@@ -322,7 +330,7 @@ module cpu_wr_adapter #(
     assign cpu_wr_64b_aw.qos    = 4'b0;  // Tie to 0
     assign cpu_wr_64b_aw.region = 4'b0;  // Tie to 0
     assign cpu_wr_64b_aw.user   = 1'b0;  // Tie to 0
-    assign cpu_wr_64b_awvalid   = fub_axi_awvalid;
+    assign cpu_wr_64b_awvalid   = fub_axi_awvalid && aw_path_active_64b;
     // awready routed via MUX
 
     // W channel (request: fub → output)
@@ -330,7 +338,7 @@ module cpu_wr_adapter #(
     assign cpu_wr_64b_w.strb  = fub_axi_wstrb;
     assign cpu_wr_64b_w.last  = fub_axi_wlast;
     assign cpu_wr_64b_w.user  = 1'b0;  // Tie to 0
-    assign cpu_wr_64b_wvalid  = fub_axi_wvalid;
+    assign cpu_wr_64b_wvalid  = fub_axi_wvalid && aw_path_active_64b;
     // wready routed via MUX
 
     // B channel (response: output → MUX → fub)
@@ -373,14 +381,14 @@ module cpu_wr_adapter #(
         .s_axi_awqos(4'b0),
         .s_axi_awregion(4'b0),
         .s_axi_awuser(1'b0),
-        .s_axi_awvalid(fub_axi_awvalid),
+        .s_axi_awvalid(fub_axi_awvalid && aw_path_active_128b),
         .s_axi_awready(conv_128b_awready),  // Intermediate signal
 
         .s_axi_wdata(fub_axi_wdata),
         .s_axi_wstrb(fub_axi_wstrb),
         .s_axi_wlast(fub_axi_wlast),
         .s_axi_wuser(1'b0),
-        .s_axi_wvalid(fub_axi_wvalid),
+        .s_axi_wvalid(fub_axi_wvalid && aw_path_active_128b),
         .s_axi_wready(conv_128b_wready),  // Intermediate signal
 
         .s_axi_bid(conv_128b_bid),  // Intermediate signal

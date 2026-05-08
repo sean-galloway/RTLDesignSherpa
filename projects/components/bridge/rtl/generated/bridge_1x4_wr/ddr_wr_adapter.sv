@@ -9,8 +9,7 @@
 import bridge_1x4_wr_pkg::*;
 
 module ddr_wr_adapter #(
-    parameter int ID_WIDTH = 4,
-    parameter int BRIDGE_ID_WIDTH = 1
+    parameter int ID_WIDTH = 4
 ) (
     input  logic aclk,
     input  logic aresetn,
@@ -107,16 +106,20 @@ module ddr_wr_adapter #(
     always_ff @(posedge aclk or negedge aresetn) begin
         if (!aresetn) begin
             rd_ptr <= '0;
-            bid_bridge_id <= '0;
-            bid_valid <= 1'b0;
         end else if (xbar_ddr_wr_axi_bvalid && xbar_ddr_wr_axi_bready) begin
-            bid_bridge_id <= wr_fifo[rd_ptr[$clog2(WR_FIFO_DEPTH)-1:0]];
-            bid_valid <= 1'b1;
             rd_ptr <= rd_ptr + 1'b1;
-        end else begin
-            bid_valid <= 1'b0;
         end
     end
+
+    // bid_bridge_id / bid_valid drive the crossbar's response mux,
+    // which gates B going BACK to the master on bid_valid. Earlier
+    // versions registered these on the handshake completing — but
+    // the handshake CAN'T complete until the master sees bvalid,
+    // and the master can't see bvalid until bid_valid is high.
+    // Result: deadlock. Drive these combinationally so the route
+    // is open from the moment a B arrives.
+    assign bid_bridge_id = wr_fifo[rd_ptr[$clog2(WR_FIFO_DEPTH)-1:0]];
+    assign bid_valid     = (wr_ptr != rd_ptr);
 
     // AXI4 Master Write Timing Wrapper
     axi4_master_wr #(

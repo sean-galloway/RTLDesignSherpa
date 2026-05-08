@@ -77,25 +77,25 @@ module cpu_master_adapter #(
     output logic [BRIDGE_ID_WIDTH-1:0] bridge_id_ar,
 
     // 64b width outputs (to crossbar)
-    output axi4_aw_t     cpu_master_64b_aw,
-    output logic         cpu_master_64b_awvalid,
-    input  logic         cpu_master_64b_awready,
+    output axi4_aw_t     cpu_master_32b_aw,
+    output logic         cpu_master_32b_awvalid,
+    input  logic         cpu_master_32b_awready,
 
-    output axi4_w_64b_t  cpu_master_64b_w,
-    output logic         cpu_master_64b_wvalid,
-    input  logic         cpu_master_64b_wready,
+    output axi4_w_32b_t  cpu_master_32b_w,
+    output logic         cpu_master_32b_wvalid,
+    input  logic         cpu_master_32b_wready,
 
-    input  axi4_b_t      cpu_master_64b_b,
-    input  logic         cpu_master_64b_bvalid,
-    output logic         cpu_master_64b_bready,
+    input  axi4_b_t      cpu_master_32b_b,
+    input  logic         cpu_master_32b_bvalid,
+    output logic         cpu_master_32b_bready,
 
-    output axi4_ar_t     cpu_master_64b_ar,
-    output logic         cpu_master_64b_arvalid,
-    input  logic         cpu_master_64b_arready,
+    output axi4_ar_t     cpu_master_32b_ar,
+    output logic         cpu_master_32b_arvalid,
+    input  logic         cpu_master_32b_arready,
 
-    input  axi4_r_64b_t  cpu_master_64b_r,
-    input  logic         cpu_master_64b_rvalid,
-    output logic         cpu_master_64b_rready,
+    input  axi4_r_32b_t  cpu_master_32b_r,
+    input  logic         cpu_master_32b_rvalid,
+    output logic         cpu_master_32b_rready,
 
     output axi4_aw_t     cpu_master_256b_aw,
     output logic         cpu_master_256b_awvalid,
@@ -355,60 +355,164 @@ module cpu_master_adapter #(
 
     // ================================================================
     // Width adaptation - Master: 64b
-    // Connected to slaves with widths: [64, 256]
+    // Connected to slaves with widths: [32, 256]
     // ================================================================
 
+    // Per-width path-active gates (see comment in adapter_generator.py).
+    logic aw_path_active_32b;
+    assign aw_path_active_32b = slave_select_aw[2];
+    logic ar_path_active_32b;
+    assign ar_path_active_32b = slave_select_ar[2];
+    logic aw_path_active_256b;
+    assign aw_path_active_256b = slave_select_aw[0] | slave_select_aw[1];
+    logic ar_path_active_256b;
+    assign ar_path_active_256b = slave_select_ar[0] | slave_select_ar[1];
+
     // ================================================================
-    // Direct passthrough: 64b → 64b (no converter)
-    // Requests: fub_axi_* → cpu_master_64b_*
-    // Responses: cpu_master_64b_* → MUX → fub_axi_*
+    // Width converter: 64b → 32b
     // ================================================================
 
-    // AW channel (request: fub → output)
-    assign cpu_master_64b_aw.id     = fub_axi_awid;
-    assign cpu_master_64b_aw.addr   = fub_axi_awaddr;
-    assign cpu_master_64b_aw.len    = fub_axi_awlen;
-    assign cpu_master_64b_aw.size   = fub_axi_awsize;
-    assign cpu_master_64b_aw.burst  = fub_axi_awburst;
-    assign cpu_master_64b_aw.lock   = fub_axi_awlock;
-    assign cpu_master_64b_aw.cache  = fub_axi_awcache;
-    assign cpu_master_64b_aw.prot   = fub_axi_awprot;
-    assign cpu_master_64b_aw.qos    = 4'b0;  // Tie to 0
-    assign cpu_master_64b_aw.region = 4'b0;  // Tie to 0
-    assign cpu_master_64b_aw.user   = 1'b0;  // Tie to 0
-    assign cpu_master_64b_awvalid   = fub_axi_awvalid;
-    // awready routed via MUX
+    // Intermediate signals for 32b converter
+    logic conv_32b_awready;
+    logic conv_32b_wready;
+    logic [7:0] conv_32b_bid;
+    logic [1:0] conv_32b_bresp;
+    logic conv_32b_bvalid;
+    logic conv_32b_arready;
+    logic [7:0] conv_32b_rid;
+    logic [63:0] conv_32b_rdata;
+    logic [1:0] conv_32b_rresp;
+    logic conv_32b_rlast;
+    logic conv_32b_rvalid;
 
-    // W channel (request: fub → output)
-    assign cpu_master_64b_w.data  = fub_axi_wdata;
-    assign cpu_master_64b_w.strb  = fub_axi_wstrb;
-    assign cpu_master_64b_w.last  = fub_axi_wlast;
-    assign cpu_master_64b_w.user  = 1'b0;  // Tie to 0
-    assign cpu_master_64b_wvalid  = fub_axi_wvalid;
-    // wready routed via MUX
+    axi4_dwidth_converter_wr #(
+        .S_AXI_DATA_WIDTH(64),
+        .M_AXI_DATA_WIDTH(32),
+        .AXI_ID_WIDTH(8),
+        .AXI_ADDR_WIDTH(32),
+        .AXI_USER_WIDTH(1),
+        .SKID_DEPTH_AW(2),
+        .SKID_DEPTH_W(4),
+        .SKID_DEPTH_B(2)
+    ) u_wr_conv_32b (
+        .aclk(aclk),
+        .aresetn(aresetn),
 
-    // B channel (response: output → MUX → fub)
-    assign cpu_master_64b_bready = fub_axi_bready;
-    // bid, bresp, bvalid routed via MUX (user field ignored)
+        // Slave side (from wrapper) - BROADCAST requests
+        .s_axi_awid(fub_axi_awid),
+        .s_axi_awaddr(fub_axi_awaddr),
+        .s_axi_awlen(fub_axi_awlen),
+        .s_axi_awsize(fub_axi_awsize),
+        .s_axi_awburst(fub_axi_awburst),
+        .s_axi_awlock(fub_axi_awlock),
+        .s_axi_awcache(fub_axi_awcache),
+        .s_axi_awprot(fub_axi_awprot),
+        .s_axi_awqos(4'b0),
+        .s_axi_awregion(4'b0),
+        .s_axi_awuser(1'b0),
+        .s_axi_awvalid(fub_axi_awvalid && aw_path_active_32b),
+        .s_axi_awready(conv_32b_awready),  // Intermediate signal
 
-    // AR channel (request: fub → output)
-    assign cpu_master_64b_ar.id     = fub_axi_arid;
-    assign cpu_master_64b_ar.addr   = fub_axi_araddr;
-    assign cpu_master_64b_ar.len    = fub_axi_arlen;
-    assign cpu_master_64b_ar.size   = fub_axi_arsize;
-    assign cpu_master_64b_ar.burst  = fub_axi_arburst;
-    assign cpu_master_64b_ar.lock   = fub_axi_arlock;
-    assign cpu_master_64b_ar.cache  = fub_axi_arcache;
-    assign cpu_master_64b_ar.prot   = fub_axi_arprot;
-    assign cpu_master_64b_ar.qos    = 4'b0;  // Tie to 0
-    assign cpu_master_64b_ar.region = 4'b0;  // Tie to 0
-    assign cpu_master_64b_ar.user   = 1'b0;  // Tie to 0
-    assign cpu_master_64b_arvalid   = fub_axi_arvalid;
-    // arready routed via MUX
+        .s_axi_wdata(fub_axi_wdata),
+        .s_axi_wstrb(fub_axi_wstrb),
+        .s_axi_wlast(fub_axi_wlast),
+        .s_axi_wuser(1'b0),
+        .s_axi_wvalid(fub_axi_wvalid && aw_path_active_32b),
+        .s_axi_wready(conv_32b_wready),  // Intermediate signal
 
-    // R channel (response: output → MUX → fub)
-    assign cpu_master_64b_rready = fub_axi_rready;
-    // rid, rdata, rresp, rlast, rvalid routed via MUX (user field ignored)
+        .s_axi_bid(conv_32b_bid),  // Intermediate signal
+        .s_axi_bresp(conv_32b_bresp),  // Intermediate signal
+        .s_axi_buser(),
+        .s_axi_bvalid(conv_32b_bvalid),  // Intermediate signal
+        .s_axi_bready(fub_axi_bready),
+
+        // Master side (to crossbar)
+        .m_axi_awid(cpu_master_32b_aw.id),
+        .m_axi_awaddr(cpu_master_32b_aw.addr),
+        .m_axi_awlen(cpu_master_32b_aw.len),
+        .m_axi_awsize(cpu_master_32b_aw.size),
+        .m_axi_awburst(cpu_master_32b_aw.burst),
+        .m_axi_awlock(cpu_master_32b_aw.lock),
+        .m_axi_awcache(cpu_master_32b_aw.cache),
+        .m_axi_awprot(cpu_master_32b_aw.prot),
+        .m_axi_awqos(cpu_master_32b_aw.qos),      // Tie to 0 in packet
+        .m_axi_awregion(cpu_master_32b_aw.region), // Tie to 0 in packet
+        .m_axi_awuser(cpu_master_32b_aw.user),     // Tie to 0 in packet
+        .m_axi_awvalid(cpu_master_32b_awvalid),
+        .m_axi_awready(cpu_master_32b_awready),
+
+        .m_axi_wdata(cpu_master_32b_w.data),
+        .m_axi_wstrb(cpu_master_32b_w.strb),
+        .m_axi_wlast(cpu_master_32b_w.last),
+        .m_axi_wuser(cpu_master_32b_w.user),       // Tie to 0 in packet
+        .m_axi_wvalid(cpu_master_32b_wvalid),
+        .m_axi_wready(cpu_master_32b_wready),
+
+        .m_axi_bid(cpu_master_32b_b.id),
+        .m_axi_bresp(cpu_master_32b_b.resp),
+        .m_axi_buser(cpu_master_32b_b.user),       // From packet (ignored)
+        .m_axi_bvalid(cpu_master_32b_bvalid),
+        .m_axi_bready(cpu_master_32b_bready)
+    );
+
+    axi4_dwidth_converter_rd #(
+        .S_AXI_DATA_WIDTH(64),
+        .M_AXI_DATA_WIDTH(32),
+        .AXI_ID_WIDTH(8),
+        .AXI_ADDR_WIDTH(32),
+        .AXI_USER_WIDTH(1),
+        .SKID_DEPTH_AR(2),
+        .SKID_DEPTH_R(4)
+    ) u_rd_conv_32b (
+        .aclk(aclk),
+        .aresetn(aresetn),
+
+        // Slave side (from wrapper) - BROADCAST requests
+        .s_axi_arid(fub_axi_arid),
+        .s_axi_araddr(fub_axi_araddr),
+        .s_axi_arlen(fub_axi_arlen),
+        .s_axi_arsize(fub_axi_arsize),
+        .s_axi_arburst(fub_axi_arburst),
+        .s_axi_arlock(fub_axi_arlock),
+        .s_axi_arcache(fub_axi_arcache),
+        .s_axi_arprot(fub_axi_arprot),
+        .s_axi_arqos(4'b0),
+        .s_axi_arregion(4'b0),
+        .s_axi_aruser(1'b0),
+        .s_axi_arvalid(fub_axi_arvalid && ar_path_active_32b),
+        .s_axi_arready(conv_32b_arready),  // Intermediate signal
+
+        .s_axi_rid(conv_32b_rid),  // Intermediate signal
+        .s_axi_rdata(conv_32b_rdata),  // Intermediate signal
+        .s_axi_rresp(conv_32b_rresp),  // Intermediate signal
+        .s_axi_rlast(conv_32b_rlast),  // Intermediate signal
+        .s_axi_ruser(),
+        .s_axi_rvalid(conv_32b_rvalid),  // Intermediate signal
+        .s_axi_rready(fub_axi_rready),
+
+        // Master side (to crossbar)
+        .m_axi_arid(cpu_master_32b_ar.id),
+        .m_axi_araddr(cpu_master_32b_ar.addr),
+        .m_axi_arlen(cpu_master_32b_ar.len),
+        .m_axi_arsize(cpu_master_32b_ar.size),
+        .m_axi_arburst(cpu_master_32b_ar.burst),
+        .m_axi_arlock(cpu_master_32b_ar.lock),
+        .m_axi_arcache(cpu_master_32b_ar.cache),
+        .m_axi_arprot(cpu_master_32b_ar.prot),
+        .m_axi_arqos(cpu_master_32b_ar.qos),      // Tie to 0 in packet
+        .m_axi_arregion(cpu_master_32b_ar.region), // Tie to 0 in packet
+        .m_axi_aruser(cpu_master_32b_ar.user),     // Tie to 0 in packet
+        .m_axi_arvalid(cpu_master_32b_arvalid),
+        .m_axi_arready(cpu_master_32b_arready),
+
+        .m_axi_rid(cpu_master_32b_r.id),
+        .m_axi_rdata(cpu_master_32b_r.data),
+        .m_axi_rresp(cpu_master_32b_r.resp),
+        .m_axi_rlast(cpu_master_32b_r.last),
+        .m_axi_ruser(cpu_master_32b_r.user),       // From packet (ignored)
+        .m_axi_rvalid(cpu_master_32b_rvalid),
+        .m_axi_rready(cpu_master_32b_rready)
+    );
 
     // ================================================================
     // Width converter: 64b → 256b
@@ -452,14 +556,14 @@ module cpu_master_adapter #(
         .s_axi_awqos(4'b0),
         .s_axi_awregion(4'b0),
         .s_axi_awuser(1'b0),
-        .s_axi_awvalid(fub_axi_awvalid),
+        .s_axi_awvalid(fub_axi_awvalid && aw_path_active_256b),
         .s_axi_awready(conv_256b_awready),  // Intermediate signal
 
         .s_axi_wdata(fub_axi_wdata),
         .s_axi_wstrb(fub_axi_wstrb),
         .s_axi_wlast(fub_axi_wlast),
         .s_axi_wuser(1'b0),
-        .s_axi_wvalid(fub_axi_wvalid),
+        .s_axi_wvalid(fub_axi_wvalid && aw_path_active_256b),
         .s_axi_wready(conv_256b_wready),  // Intermediate signal
 
         .s_axi_bid(conv_256b_bid),  // Intermediate signal
@@ -521,7 +625,7 @@ module cpu_master_adapter #(
         .s_axi_arqos(4'b0),
         .s_axi_arregion(4'b0),
         .s_axi_aruser(1'b0),
-        .s_axi_arvalid(fub_axi_arvalid),
+        .s_axi_arvalid(fub_axi_arvalid && ar_path_active_256b),
         .s_axi_arready(conv_256b_arready),  // Intermediate signal
 
         .s_axi_rid(conv_256b_rid),  // Intermediate signal
@@ -570,12 +674,12 @@ module cpu_master_adapter #(
         fub_axi_bvalid = 1'b0;
 
         case (slave_select_aw)
-            3'b100: begin  // Slave 2 (64b)
-                fub_axi_awready = cpu_master_64b_awready;
-                fub_axi_wready = cpu_master_64b_wready;
-                fub_axi_bid = cpu_master_64b_b.id;
-                fub_axi_bresp = cpu_master_64b_b.resp;
-                fub_axi_bvalid = cpu_master_64b_bvalid;
+            3'b100: begin  // Slave 2 (32b)
+                fub_axi_awready = conv_32b_awready;
+                fub_axi_wready = conv_32b_wready;
+                fub_axi_bid = conv_32b_bid;
+                fub_axi_bresp = conv_32b_bresp;
+                fub_axi_bvalid = conv_32b_bvalid;
             end
             3'b001: begin  // Slave 0 (256b)
                 fub_axi_awready = conv_256b_awready;
@@ -607,13 +711,13 @@ module cpu_master_adapter #(
         fub_axi_rvalid = 1'b0;
 
         case (slave_select_ar)
-            3'b100: begin  // Slave 2 (64b)
-                fub_axi_arready = cpu_master_64b_arready;
-                fub_axi_rid = cpu_master_64b_r.id;
-                fub_axi_rdata = cpu_master_64b_r.data;
-                fub_axi_rresp = cpu_master_64b_r.resp;
-                fub_axi_rlast = cpu_master_64b_r.last;
-                fub_axi_rvalid = cpu_master_64b_rvalid;
+            3'b100: begin  // Slave 2 (32b)
+                fub_axi_arready = conv_32b_arready;
+                fub_axi_rid = conv_32b_rid;
+                fub_axi_rdata = conv_32b_rdata;
+                fub_axi_rresp = conv_32b_rresp;
+                fub_axi_rlast = conv_32b_rlast;
+                fub_axi_rvalid = conv_32b_rvalid;
             end
             3'b001: begin  // Slave 0 (256b)
                 fub_axi_arready = conv_256b_arready;

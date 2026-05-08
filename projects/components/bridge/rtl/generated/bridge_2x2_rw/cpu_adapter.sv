@@ -330,6 +330,12 @@ module cpu_adapter #(
     // Connected to slaves with widths: [32]
     // ================================================================
 
+    // Per-width path-active gates (see comment in adapter_generator.py).
+    logic aw_path_active_32b;
+    assign aw_path_active_32b = slave_select_aw[0] | slave_select_aw[1];
+    logic ar_path_active_32b;
+    assign ar_path_active_32b = slave_select_ar[0] | slave_select_ar[1];
+
     // ================================================================
     // Direct passthrough: 32b → 32b (no converter)
     // Requests: fub_axi_* → cpu_32b_*
@@ -348,7 +354,7 @@ module cpu_adapter #(
     assign cpu_32b_aw.qos    = 4'b0;  // Tie to 0
     assign cpu_32b_aw.region = 4'b0;  // Tie to 0
     assign cpu_32b_aw.user   = 1'b0;  // Tie to 0
-    assign cpu_32b_awvalid   = fub_axi_awvalid;
+    assign cpu_32b_awvalid   = fub_axi_awvalid && aw_path_active_32b;
     // awready routed via MUX
 
     // W channel (request: fub → output)
@@ -356,7 +362,7 @@ module cpu_adapter #(
     assign cpu_32b_w.strb  = fub_axi_wstrb;
     assign cpu_32b_w.last  = fub_axi_wlast;
     assign cpu_32b_w.user  = 1'b0;  // Tie to 0
-    assign cpu_32b_wvalid  = fub_axi_wvalid;
+    assign cpu_32b_wvalid  = fub_axi_wvalid && aw_path_active_32b;
     // wready routed via MUX
 
     // B channel (response: output → MUX → fub)
@@ -375,11 +381,77 @@ module cpu_adapter #(
     assign cpu_32b_ar.qos    = 4'b0;  // Tie to 0
     assign cpu_32b_ar.region = 4'b0;  // Tie to 0
     assign cpu_32b_ar.user   = 1'b0;  // Tie to 0
-    assign cpu_32b_arvalid   = fub_axi_arvalid;
+    assign cpu_32b_arvalid   = fub_axi_arvalid && ar_path_active_32b;
     // arready routed via MUX
 
     // R channel (response: output → MUX → fub)
     assign cpu_32b_rready = fub_axi_rready;
     // rid, rdata, rresp, rlast, rvalid routed via MUX (user field ignored)
+
+    // ================================================================
+    // Response MUX - Route responses from width-specific paths
+    // back to fub_axi_* based on address decode
+    // ================================================================
+
+    // Write response MUX (B channel)
+    always_comb begin
+        fub_axi_awready = 1'b0;
+        fub_axi_wready = 1'b0;
+        fub_axi_bid = 4'd0;
+        fub_axi_bresp = 2'b00;
+        fub_axi_bvalid = 1'b0;
+
+        case (slave_select_aw)
+            2'b01: begin  // Slave 0 (32b)
+                fub_axi_awready = cpu_32b_awready;
+                fub_axi_wready = cpu_32b_wready;
+                fub_axi_bid = cpu_32b_b.id;
+                fub_axi_bresp = cpu_32b_b.resp;
+                fub_axi_bvalid = cpu_32b_bvalid;
+            end
+            2'b10: begin  // Slave 1 (32b)
+                fub_axi_awready = cpu_32b_awready;
+                fub_axi_wready = cpu_32b_wready;
+                fub_axi_bid = cpu_32b_b.id;
+                fub_axi_bresp = cpu_32b_b.resp;
+                fub_axi_bvalid = cpu_32b_bvalid;
+            end
+            default: begin
+                // No slave selected - hold defaults
+            end
+        endcase
+    end
+
+    // Read response MUX (R channel)
+    always_comb begin
+        fub_axi_arready = 1'b0;
+        fub_axi_rid = 4'd0;
+        fub_axi_rdata = 32'd0;
+        fub_axi_rresp = 2'b00;
+        fub_axi_rlast = 1'b0;
+        fub_axi_rvalid = 1'b0;
+
+        case (slave_select_ar)
+            2'b01: begin  // Slave 0 (32b)
+                fub_axi_arready = cpu_32b_arready;
+                fub_axi_rid = cpu_32b_r.id;
+                fub_axi_rdata = cpu_32b_r.data;
+                fub_axi_rresp = cpu_32b_r.resp;
+                fub_axi_rlast = cpu_32b_r.last;
+                fub_axi_rvalid = cpu_32b_rvalid;
+            end
+            2'b10: begin  // Slave 1 (32b)
+                fub_axi_arready = cpu_32b_arready;
+                fub_axi_rid = cpu_32b_r.id;
+                fub_axi_rdata = cpu_32b_r.data;
+                fub_axi_rresp = cpu_32b_r.resp;
+                fub_axi_rlast = cpu_32b_r.last;
+                fub_axi_rvalid = cpu_32b_rvalid;
+            end
+            default: begin
+                // No slave selected - hold defaults
+            end
+        endcase
+    end
 
 endmodule : cpu_adapter

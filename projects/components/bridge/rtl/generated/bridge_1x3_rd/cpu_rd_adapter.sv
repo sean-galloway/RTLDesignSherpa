@@ -190,6 +190,14 @@ module cpu_rd_adapter #(
     // Connected to slaves with widths: [32, 64, 128]
     // ================================================================
 
+    // Per-width path-active gates (see comment in adapter_generator.py).
+    logic ar_path_active_32b;
+    assign ar_path_active_32b = slave_select_ar[0];
+    logic ar_path_active_64b;
+    assign ar_path_active_64b = slave_select_ar[1];
+    logic ar_path_active_128b;
+    assign ar_path_active_128b = slave_select_ar[2];
+
     // ================================================================
     // Width converter: 64b → 32b
     // ================================================================
@@ -226,7 +234,7 @@ module cpu_rd_adapter #(
         .s_axi_arqos(4'b0),
         .s_axi_arregion(4'b0),
         .s_axi_aruser(1'b0),
-        .s_axi_arvalid(fub_axi_arvalid),
+        .s_axi_arvalid(fub_axi_arvalid && ar_path_active_32b),
         .s_axi_arready(conv_32b_arready),  // Intermediate signal
 
         .s_axi_rid(conv_32b_rid),  // Intermediate signal
@@ -279,7 +287,7 @@ module cpu_rd_adapter #(
     assign cpu_rd_64b_ar.qos    = 4'b0;  // Tie to 0
     assign cpu_rd_64b_ar.region = 4'b0;  // Tie to 0
     assign cpu_rd_64b_ar.user   = 1'b0;  // Tie to 0
-    assign cpu_rd_64b_arvalid   = fub_axi_arvalid;
+    assign cpu_rd_64b_arvalid   = fub_axi_arvalid && ar_path_active_64b;
     // arready routed via MUX
 
     // R channel (response: output → MUX → fub)
@@ -322,7 +330,7 @@ module cpu_rd_adapter #(
         .s_axi_arqos(4'b0),
         .s_axi_arregion(4'b0),
         .s_axi_aruser(1'b0),
-        .s_axi_arvalid(fub_axi_arvalid),
+        .s_axi_arvalid(fub_axi_arvalid && ar_path_active_128b),
         .s_axi_arready(conv_128b_arready),  // Intermediate signal
 
         .s_axi_rid(conv_128b_rid),  // Intermediate signal

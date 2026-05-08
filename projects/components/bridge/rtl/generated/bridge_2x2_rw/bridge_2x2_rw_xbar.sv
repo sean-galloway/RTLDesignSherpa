@@ -181,18 +181,150 @@ module bridge_2x2_rw_xbar (
     // ================================================================
     // Slave 0: ddr (32b)
     // ================================================================
-    // TODO: Multi-master arbitration
-    // 2 masters connect to this slave:
-    //   - cpu
-    //   - dma
+    // Multi-master (2 masters) → ddr
+    //   - cpu (rw)
+    //   - dma (rw)
+
+    // AW channel (OR-merged across writing masters)
+    assign ddr_axi_awid = (cpu_slave_select_aw[0] ? cpu_32b_aw.id : '0) |
+        (dma_slave_select_aw[0] ? dma_32b_aw.id : '0);
+    assign ddr_axi_awaddr = (cpu_slave_select_aw[0] ? cpu_32b_aw.addr : '0) |
+        (dma_slave_select_aw[0] ? dma_32b_aw.addr : '0);
+    assign ddr_axi_awlen = (cpu_slave_select_aw[0] ? cpu_32b_aw.len : '0) |
+        (dma_slave_select_aw[0] ? dma_32b_aw.len : '0);
+    assign ddr_axi_awsize = (cpu_slave_select_aw[0] ? cpu_32b_aw.size : '0) |
+        (dma_slave_select_aw[0] ? dma_32b_aw.size : '0);
+    assign ddr_axi_awburst = (cpu_slave_select_aw[0] ? cpu_32b_aw.burst : '0) |
+        (dma_slave_select_aw[0] ? dma_32b_aw.burst : '0);
+    assign ddr_axi_awlock = (cpu_slave_select_aw[0] ? cpu_32b_aw.lock : '0) |
+        (dma_slave_select_aw[0] ? dma_32b_aw.lock : '0);
+    assign ddr_axi_awcache = (cpu_slave_select_aw[0] ? cpu_32b_aw.cache : '0) |
+        (dma_slave_select_aw[0] ? dma_32b_aw.cache : '0);
+    assign ddr_axi_awprot = (cpu_slave_select_aw[0] ? cpu_32b_aw.prot : '0) |
+        (dma_slave_select_aw[0] ? dma_32b_aw.prot : '0);
+    assign ddr_axi_awvalid = (cpu_slave_select_aw[0] ? cpu_32b_awvalid : '0) |
+        (dma_slave_select_aw[0] ? dma_32b_awvalid : '0);
+
+    // W channel (OR-merged across writing masters)
+    assign ddr_axi_wdata = (cpu_slave_select_aw[0] ? cpu_32b_w.data : '0) |
+        (dma_slave_select_aw[0] ? dma_32b_w.data : '0);
+    assign ddr_axi_wstrb = (cpu_slave_select_aw[0] ? cpu_32b_w.strb : '0) |
+        (dma_slave_select_aw[0] ? dma_32b_w.strb : '0);
+    assign ddr_axi_wlast = (cpu_slave_select_aw[0] ? cpu_32b_w.last : '0) |
+        (dma_slave_select_aw[0] ? dma_32b_w.last : '0);
+    assign ddr_axi_wvalid = (cpu_slave_select_aw[0] ? cpu_32b_wvalid : '0) |
+        (dma_slave_select_aw[0] ? dma_32b_wvalid : '0);
+
+    // Bready (slave → owning master, by bid_bridge_id)
+    assign ddr_axi_bready = ((ddr_axi_bid_bridge_id == 0) && ddr_axi_bid_valid ? cpu_32b_bready : '0) |
+        ((ddr_axi_bid_bridge_id == 1) && ddr_axi_bid_valid ? dma_32b_bready : '0);
+
+    // Bridge ID (writes) — picks the originating master's id
+    assign ddr_axi_bridge_id_aw = (cpu_slave_select_aw[0] ? cpu_bridge_id_aw : '0) |
+        (dma_slave_select_aw[0] ? dma_bridge_id_aw : '0);
+
+    // AR channel (OR-merged across reading masters)
+    assign ddr_axi_arid = (cpu_slave_select_ar[0] ? cpu_32b_ar.id : '0) |
+        (dma_slave_select_ar[0] ? dma_32b_ar.id : '0);
+    assign ddr_axi_araddr = (cpu_slave_select_ar[0] ? cpu_32b_ar.addr : '0) |
+        (dma_slave_select_ar[0] ? dma_32b_ar.addr : '0);
+    assign ddr_axi_arlen = (cpu_slave_select_ar[0] ? cpu_32b_ar.len : '0) |
+        (dma_slave_select_ar[0] ? dma_32b_ar.len : '0);
+    assign ddr_axi_arsize = (cpu_slave_select_ar[0] ? cpu_32b_ar.size : '0) |
+        (dma_slave_select_ar[0] ? dma_32b_ar.size : '0);
+    assign ddr_axi_arburst = (cpu_slave_select_ar[0] ? cpu_32b_ar.burst : '0) |
+        (dma_slave_select_ar[0] ? dma_32b_ar.burst : '0);
+    assign ddr_axi_arlock = (cpu_slave_select_ar[0] ? cpu_32b_ar.lock : '0) |
+        (dma_slave_select_ar[0] ? dma_32b_ar.lock : '0);
+    assign ddr_axi_arcache = (cpu_slave_select_ar[0] ? cpu_32b_ar.cache : '0) |
+        (dma_slave_select_ar[0] ? dma_32b_ar.cache : '0);
+    assign ddr_axi_arprot = (cpu_slave_select_ar[0] ? cpu_32b_ar.prot : '0) |
+        (dma_slave_select_ar[0] ? dma_32b_ar.prot : '0);
+    assign ddr_axi_arvalid = (cpu_slave_select_ar[0] ? cpu_32b_arvalid : '0) |
+        (dma_slave_select_ar[0] ? dma_32b_arvalid : '0);
+
+    // Rready (slave → owning master, by rid_bridge_id)
+    assign ddr_axi_rready = ((ddr_axi_rid_bridge_id == 0) && ddr_axi_rid_valid ? cpu_32b_rready : '0) |
+        ((ddr_axi_rid_bridge_id == 1) && ddr_axi_rid_valid ? dma_32b_rready : '0);
+
+    // Bridge ID (reads) — picks the originating master's id
+    assign ddr_axi_bridge_id_ar = (cpu_slave_select_ar[0] ? cpu_bridge_id_ar : '0) |
+        (dma_slave_select_ar[0] ? dma_bridge_id_ar : '0);
+
 
     // ================================================================
     // Slave 1: sram (32b)
     // ================================================================
-    // TODO: Multi-master arbitration
-    // 2 masters connect to this slave:
-    //   - cpu
-    //   - dma
+    // Multi-master (2 masters) → sram
+    //   - cpu (rw)
+    //   - dma (rw)
+
+    // AW channel (OR-merged across writing masters)
+    assign sram_axi_awid = (cpu_slave_select_aw[1] ? cpu_32b_aw.id : '0) |
+        (dma_slave_select_aw[1] ? dma_32b_aw.id : '0);
+    assign sram_axi_awaddr = (cpu_slave_select_aw[1] ? cpu_32b_aw.addr : '0) |
+        (dma_slave_select_aw[1] ? dma_32b_aw.addr : '0);
+    assign sram_axi_awlen = (cpu_slave_select_aw[1] ? cpu_32b_aw.len : '0) |
+        (dma_slave_select_aw[1] ? dma_32b_aw.len : '0);
+    assign sram_axi_awsize = (cpu_slave_select_aw[1] ? cpu_32b_aw.size : '0) |
+        (dma_slave_select_aw[1] ? dma_32b_aw.size : '0);
+    assign sram_axi_awburst = (cpu_slave_select_aw[1] ? cpu_32b_aw.burst : '0) |
+        (dma_slave_select_aw[1] ? dma_32b_aw.burst : '0);
+    assign sram_axi_awlock = (cpu_slave_select_aw[1] ? cpu_32b_aw.lock : '0) |
+        (dma_slave_select_aw[1] ? dma_32b_aw.lock : '0);
+    assign sram_axi_awcache = (cpu_slave_select_aw[1] ? cpu_32b_aw.cache : '0) |
+        (dma_slave_select_aw[1] ? dma_32b_aw.cache : '0);
+    assign sram_axi_awprot = (cpu_slave_select_aw[1] ? cpu_32b_aw.prot : '0) |
+        (dma_slave_select_aw[1] ? dma_32b_aw.prot : '0);
+    assign sram_axi_awvalid = (cpu_slave_select_aw[1] ? cpu_32b_awvalid : '0) |
+        (dma_slave_select_aw[1] ? dma_32b_awvalid : '0);
+
+    // W channel (OR-merged across writing masters)
+    assign sram_axi_wdata = (cpu_slave_select_aw[1] ? cpu_32b_w.data : '0) |
+        (dma_slave_select_aw[1] ? dma_32b_w.data : '0);
+    assign sram_axi_wstrb = (cpu_slave_select_aw[1] ? cpu_32b_w.strb : '0) |
+        (dma_slave_select_aw[1] ? dma_32b_w.strb : '0);
+    assign sram_axi_wlast = (cpu_slave_select_aw[1] ? cpu_32b_w.last : '0) |
+        (dma_slave_select_aw[1] ? dma_32b_w.last : '0);
+    assign sram_axi_wvalid = (cpu_slave_select_aw[1] ? cpu_32b_wvalid : '0) |
+        (dma_slave_select_aw[1] ? dma_32b_wvalid : '0);
+
+    // Bready (slave → owning master, by bid_bridge_id)
+    assign sram_axi_bready = ((sram_axi_bid_bridge_id == 0) && sram_axi_bid_valid ? cpu_32b_bready : '0) |
+        ((sram_axi_bid_bridge_id == 1) && sram_axi_bid_valid ? dma_32b_bready : '0);
+
+    // Bridge ID (writes) — picks the originating master's id
+    assign sram_axi_bridge_id_aw = (cpu_slave_select_aw[1] ? cpu_bridge_id_aw : '0) |
+        (dma_slave_select_aw[1] ? dma_bridge_id_aw : '0);
+
+    // AR channel (OR-merged across reading masters)
+    assign sram_axi_arid = (cpu_slave_select_ar[1] ? cpu_32b_ar.id : '0) |
+        (dma_slave_select_ar[1] ? dma_32b_ar.id : '0);
+    assign sram_axi_araddr = (cpu_slave_select_ar[1] ? cpu_32b_ar.addr : '0) |
+        (dma_slave_select_ar[1] ? dma_32b_ar.addr : '0);
+    assign sram_axi_arlen = (cpu_slave_select_ar[1] ? cpu_32b_ar.len : '0) |
+        (dma_slave_select_ar[1] ? dma_32b_ar.len : '0);
+    assign sram_axi_arsize = (cpu_slave_select_ar[1] ? cpu_32b_ar.size : '0) |
+        (dma_slave_select_ar[1] ? dma_32b_ar.size : '0);
+    assign sram_axi_arburst = (cpu_slave_select_ar[1] ? cpu_32b_ar.burst : '0) |
+        (dma_slave_select_ar[1] ? dma_32b_ar.burst : '0);
+    assign sram_axi_arlock = (cpu_slave_select_ar[1] ? cpu_32b_ar.lock : '0) |
+        (dma_slave_select_ar[1] ? dma_32b_ar.lock : '0);
+    assign sram_axi_arcache = (cpu_slave_select_ar[1] ? cpu_32b_ar.cache : '0) |
+        (dma_slave_select_ar[1] ? dma_32b_ar.cache : '0);
+    assign sram_axi_arprot = (cpu_slave_select_ar[1] ? cpu_32b_ar.prot : '0) |
+        (dma_slave_select_ar[1] ? dma_32b_ar.prot : '0);
+    assign sram_axi_arvalid = (cpu_slave_select_ar[1] ? cpu_32b_arvalid : '0) |
+        (dma_slave_select_ar[1] ? dma_32b_arvalid : '0);
+
+    // Rready (slave → owning master, by rid_bridge_id)
+    assign sram_axi_rready = ((sram_axi_rid_bridge_id == 0) && sram_axi_rid_valid ? cpu_32b_rready : '0) |
+        ((sram_axi_rid_bridge_id == 1) && sram_axi_rid_valid ? dma_32b_rready : '0);
+
+    // Bridge ID (reads) — picks the originating master's id
+    assign sram_axi_bridge_id_ar = (cpu_slave_select_ar[1] ? cpu_bridge_id_ar : '0) |
+        (dma_slave_select_ar[1] ? dma_bridge_id_ar : '0);
+
 
     // ================================================================
     // Response MUXes (OR together all slave responses)

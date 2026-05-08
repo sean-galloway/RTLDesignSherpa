@@ -667,26 +667,15 @@ class BridgeModuleGenerator:
         """
         Get sorted list of unique ADAPTER OUTPUT widths for slaves this master connects to.
 
-        For AXI4 slaves: uses native slave width
-        For APB slaves: uses LCD (Lowest Common Denominator) width
+        Always uses slave.data_width — must match the adapter generator's
+        and crossbar generator's choice. The previous LCD-for-APB path
+        here disagreed with the regenerated adapter and crossbar (which
+        both now use slave.data_width), leaving the bridge top
+        instantiating the xbar with widths that don't exist as ports.
         """
         widths = set()
-
-        # Separate AXI4 and APB slaves
-        axi4_slave_indices = [idx for idx in master.slave_connections
-                              if self.slaves[idx].protocol == 'axi4']
-        apb_slave_indices = [idx for idx in master.slave_connections
-                             if self.slaves[idx].protocol == 'apb']
-
-        # For AXI4 slaves: use their native widths
-        for idx in axi4_slave_indices:
+        for idx in master.slave_connections:
             widths.add(self.slaves[idx].data_width)
-
-        # For APB slaves: use LCD width (calculated once for all APB connections)
-        if apb_slave_indices:
-            lcd_width = self._calculate_lcd_width_for_apb(master)
-            widths.add(lcd_width)
-
         return sorted(list(widths))
 
     def _get_masters_connecting_to_slave(self, slave: SlaveInfo) -> List[MasterConfig]:
@@ -1095,7 +1084,11 @@ class BridgeModuleGenerator:
             lines.append(f"        .SIDE_DEPTH(4),")
             lines.append(f"        .APB_CMD_DEPTH(4),")
             lines.append(f"        .APB_RSP_DEPTH(4),")
-            lines.append(f"        .AXI_ID_WIDTH(4),")  # Standard 4-bit ID
+            # Use the bridge's actual master id_width (== max master id_width).
+            # Hardcoding 4 broke any bridge with wider master IDs.
+            apb_shim_id_width = max(m.id_width for m in self.masters) if self.masters else 4
+            apb_shim_id_width = max(apb_shim_id_width, 1)
+            lines.append(f"        .AXI_ID_WIDTH({apb_shim_id_width}),")
             lines.append(f"        .AXI_ADDR_WIDTH({axi_addr_width}),")
             lines.append(f"        .AXI_DATA_WIDTH({axi_data_width}),")
             lines.append(f"        .AXI_USER_WIDTH(1),")

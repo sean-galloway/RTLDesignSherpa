@@ -170,6 +170,10 @@ module src_rd_master_adapter #(
     // Connected to slaves with widths: [256]
     // ================================================================
 
+    // Per-width path-active gates (see comment in adapter_generator.py).
+    logic ar_path_active_256b;
+    assign ar_path_active_256b = slave_select_ar[0] | slave_select_ar[1];
+
     // ================================================================
     // Direct passthrough: 256b → 256b (no converter)
     // Requests: fub_axi_* → src_rd_master_256b_*
@@ -188,11 +192,48 @@ module src_rd_master_adapter #(
     assign src_rd_master_256b_ar.qos    = 4'b0;  // Tie to 0
     assign src_rd_master_256b_ar.region = 4'b0;  // Tie to 0
     assign src_rd_master_256b_ar.user   = 1'b0;  // Tie to 0
-    assign src_rd_master_256b_arvalid   = fub_axi_arvalid;
+    assign src_rd_master_256b_arvalid   = fub_axi_arvalid && ar_path_active_256b;
     // arready routed via MUX
 
     // R channel (response: output → MUX → fub)
     assign src_rd_master_256b_rready = fub_axi_rready;
     // rid, rdata, rresp, rlast, rvalid routed via MUX (user field ignored)
+
+    // ================================================================
+    // Response MUX - Route responses from width-specific paths
+    // back to fub_axi_* based on address decode
+    // ================================================================
+
+    // Read response MUX (R channel)
+    always_comb begin
+        fub_axi_arready = 1'b0;
+        fub_axi_rid = 8'd0;
+        fub_axi_rdata = 256'd0;
+        fub_axi_rresp = 2'b00;
+        fub_axi_rlast = 1'b0;
+        fub_axi_rvalid = 1'b0;
+
+        case (slave_select_ar)
+            3'b001: begin  // Slave 0 (256b)
+                fub_axi_arready = src_rd_master_256b_arready;
+                fub_axi_rid = src_rd_master_256b_r.id;
+                fub_axi_rdata = src_rd_master_256b_r.data;
+                fub_axi_rresp = src_rd_master_256b_r.resp;
+                fub_axi_rlast = src_rd_master_256b_r.last;
+                fub_axi_rvalid = src_rd_master_256b_rvalid;
+            end
+            3'b010: begin  // Slave 1 (256b)
+                fub_axi_arready = src_rd_master_256b_arready;
+                fub_axi_rid = src_rd_master_256b_r.id;
+                fub_axi_rdata = src_rd_master_256b_r.data;
+                fub_axi_rresp = src_rd_master_256b_r.resp;
+                fub_axi_rlast = src_rd_master_256b_r.last;
+                fub_axi_rvalid = src_rd_master_256b_rvalid;
+            end
+            default: begin
+                // No slave selected - hold defaults
+            end
+        endcase
+    end
 
 endmodule : src_rd_master_adapter

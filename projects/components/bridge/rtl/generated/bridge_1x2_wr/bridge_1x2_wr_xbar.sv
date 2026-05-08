@@ -120,8 +120,9 @@ module bridge_1x2_wr_xbar (
     assign ddr_wr_axi_wlast  = cpu_wr_slave_select_aw[0] ? cpu_wr_32b_w.last : '0;
     assign ddr_wr_axi_wvalid = cpu_wr_slave_select_aw[0] ? cpu_wr_32b_wvalid : '0;
 
-    // Bready (master → slave)
-    assign ddr_wr_axi_bready = cpu_wr_slave_select_aw[0] ? cpu_wr_32b_bready : '0;
+    // Bready (master → slave) — gated on bid_valid so the path stays
+    // open through the entire B handshake, not just the AW phase.
+    assign ddr_wr_axi_bready = ((ddr_wr_axi_bid_bridge_id == 0) && ddr_wr_axi_bid_valid) ? cpu_wr_32b_bready : '0;
 
     // Bridge ID (master → slave)
     assign ddr_wr_axi_bridge_id_aw = cpu_wr_slave_select_aw[0] ? cpu_wr_bridge_id_aw : '0;
@@ -151,8 +152,9 @@ module bridge_1x2_wr_xbar (
     assign sram_wr_axi_wlast  = cpu_wr_slave_select_aw[1] ? cpu_wr_32b_w.last : '0;
     assign sram_wr_axi_wvalid = cpu_wr_slave_select_aw[1] ? cpu_wr_32b_wvalid : '0;
 
-    // Bready (master → slave)
-    assign sram_wr_axi_bready = cpu_wr_slave_select_aw[1] ? cpu_wr_32b_bready : '0;
+    // Bready (master → slave) — gated on bid_valid so the path stays
+    // open through the entire B handshake, not just the AW phase.
+    assign sram_wr_axi_bready = ((sram_wr_axi_bid_bridge_id == 0) && sram_wr_axi_bid_valid) ? cpu_wr_32b_bready : '0;
 
     // Bridge ID (master → slave)
     assign sram_wr_axi_bridge_id_aw = cpu_wr_slave_select_aw[1] ? cpu_wr_bridge_id_aw : '0;
