@@ -225,6 +225,8 @@ def test_axi4_master_rd_mon(id_width, addr_width, data_width, user_width, max_tr
     # Trace compilation always enabled (minimal overhead)
     # Set WAVES=1 to enable VCD dumping for debugging
     compile_args = [
+        "--trace-fst",
+        "--trace-structs",
         "-Wall", "-Wno-SYNCASYNCNET", "-Wno-UNUSED", "-Wno-DECLFILENAME", "-Wno-PINMISSING",
         "-Wno-UNDRIVEN", "-Wno-WIDTHEXPAND", "-Wno-WIDTHTRUNC",
         "-Wno-SELRANGE", "-Wno-CASEINCOMPLETE", "-Wno-TIMESCALEMOD",
@@ -249,6 +251,7 @@ def test_axi4_master_rd_mon(id_width, addr_width, data_width, user_width, max_tr
             sim_build=sim_build,
             extra_env=extra_env,
             waves=enable_waves,  # VCD controlled by compile_args, not cocotb-test
+            plus_args=(['--trace'] if enable_waves else []),
             keep_files=True,
             compile_args=compile_args,
         )
@@ -562,6 +565,7 @@ def test_axi4_master_rd_mon_wavedrom(id_width, addr_width, data_width):
             sim_build=sim_build,
             extra_env=extra_env,
             waves=enable_waves,  # VCD controlled by compile_args, not cocotb-test
+            plus_args=(['--trace'] if enable_waves else []),
             keep_files=True,
             compile_args=compile_args,
         )

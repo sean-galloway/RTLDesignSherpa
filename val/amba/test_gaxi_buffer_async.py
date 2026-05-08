@@ -595,7 +595,7 @@ def test_gaxi_buffer_async_wavedrom(request, data_width, depth, wr_clk_period, r
 
     sim_args = []
 
-    plusargs = []
+    plus_args = []
 
     # Run with WaveDrom-specific test function
     run(
@@ -609,7 +609,7 @@ def test_gaxi_buffer_async_wavedrom(request, data_width, depth, wr_clk_period, r
         extra_env=extra_env,
         compile_args=compile_args,
         sim_args=sim_args,
-        plusargs=plusargs,
+        plus_args=plus_args,
         waves=enable_waves,  # Disable FST - using WaveDrom instead
         testcase="gaxi_async_wavedrom_test",  # Run wavedrom test specifically!
     )
@@ -810,7 +810,7 @@ def test_gaxi_buffer_async(request, data_width, depth, wr_clk_period, rd_clk_per
         "--trace-depth", "99",
     ]
 
-    plusargs = [
+    plus_args = [
         "--trace",
     ]
 
@@ -838,7 +838,7 @@ def test_gaxi_buffer_async(request, data_width, depth, wr_clk_period, rd_clk_per
             keep_files=True,
             compile_args=compile_args,
             sim_args=sim_args,
-            plusargs=plusargs,
+            plus_args=plus_args,
         )
         print(f"✓ {test_level.upper()} ASYNC test PASSED: {mode} mode (WR:{wr_clk_period}ns/RD:{rd_clk_period}ns)")
     except Exception as e:

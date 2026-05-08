@@ -231,7 +231,7 @@ def test_axis_master(request, skid_depth, data_width, id_width, dest_width, user
         "--trace-depth", "99",
     ]
 
-    plusargs = [
+    plus_args = [
         "--trace",
     ]
 
@@ -251,7 +251,7 @@ def test_axis_master(request, skid_depth, data_width, id_width, dest_width, user
             keep_files=True,
             compile_args=compile_args,
             sim_args=sim_args,
-            plusargs=plusargs,
+            plus_args=plus_args,
         )
     except Exception as e:
         print(f"AXIS master test failed: {str(e)}")
@@ -356,7 +356,7 @@ def test_axis_master(request, skid_depth, data_width, id_width, dest_width, user
         "--trace-depth", "99",
     ]
 
-    plusargs = [
+    plus_args = [
         "--trace",
     ]
 
@@ -376,7 +376,7 @@ def test_axis_master(request, skid_depth, data_width, id_width, dest_width, user
             keep_files=True,
             compile_args=compile_args,
             sim_args=sim_args,
-            plusargs=plusargs,
+            plus_args=plus_args,
         )
     except Exception as e:
         print(f"AXIS master test failed: {str(e)}")

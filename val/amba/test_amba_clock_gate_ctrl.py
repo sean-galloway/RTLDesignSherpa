@@ -867,7 +867,7 @@ def test_amba_clock_gate_ctrl(request, params):
             "--trace-depth", "99",
     ]
 
-    plusargs = [
+    plus_args = [
             "--trace",
     ]
 
@@ -887,7 +887,7 @@ def test_amba_clock_gate_ctrl(request, params):
             keep_files=True,
             compile_args=compile_args,
             sim_args=sim_args,
-            plusargs=plusargs,
+            plus_args=plus_args,
         )
     except Exception as e:
         # If the test fails, make sure logs are preserved

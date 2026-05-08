@@ -537,7 +537,7 @@ def test_gaxi_skid_buffer(request, data_width, depth, clk_period, test_level):
         "--trace-depth", "99",
     ]
 
-    plusargs = [
+    plus_args = [
         "--trace",
     ]
 
@@ -564,7 +564,7 @@ def test_gaxi_skid_buffer(request, data_width, depth, clk_period, test_level):
             keep_files=True,
             compile_args=compile_args,
             sim_args=sim_args,
-            plusargs=plusargs,
+            plus_args=plus_args,
             testcase="gaxi_skid_buffer_test",
         )
         print(f"✓ {test_level.upper()} test PASSED: gaxi_skid_buffer")
@@ -631,6 +631,7 @@ def test_gaxi_skid_buffer_wavedrom(request, data_width, depth, clk_period):
             sim_build=sim_build,
             extra_env=extra_env,
             waves=enable_waves,  # VCD controlled by compile_args, not cocotb-test
+            plus_args=(['--trace'] if enable_waves else []),
             testcase="gaxi_skid_buffer_wavedrom_test",
         )
         print("✓ WaveDrom test PASSED: gaxi_skid_buffer - 3 scenarios generated")

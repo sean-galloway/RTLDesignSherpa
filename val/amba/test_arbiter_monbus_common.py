@@ -620,7 +620,7 @@ def test_arbiter_monbus_common(request, clients, wait_gnt_ack, weighted_mode, fi
         "--trace-depth", "99",
     ]
 
-    plusargs = [
+    plus_args = [
         "--trace",
     ]
 
@@ -642,7 +642,7 @@ def test_arbiter_monbus_common(request, clients, wait_gnt_ack, weighted_mode, fi
             keep_files=True,
             compile_args=compile_args,
             sim_args=sim_args,
-            plusargs=plusargs,
+            plus_args=plus_args,
         )
 
         # If we get here, the cocotb test passed (no AssertionError was raised)

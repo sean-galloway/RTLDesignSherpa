@@ -555,7 +555,7 @@ def test_gaxi_fifo_sync(request, data_width, depth, registered, clk_period, test
         "--trace-depth", "99",
     ]
 
-    plusargs = [
+    plus_args = [
         "--trace",
     ]
 
@@ -582,7 +582,7 @@ def test_gaxi_fifo_sync(request, data_width, depth, registered, clk_period, test
             keep_files=True,
             compile_args=compile_args,
             sim_args=sim_args,
-            plusargs=plusargs,
+            plus_args=plus_args,
             testcase="gaxi_fifo_sync_test",
         )
         print(f"✓ {test_level.upper()} test PASSED: gaxi_fifo_sync ({mode_name} mode)")
@@ -666,6 +666,7 @@ def test_gaxi_fifo_sync_wavedrom(request, data_width, depth, registered, clk_per
             sim_build=sim_build,
             extra_env=extra_env,
             waves=enable_waves,  # VCD controlled by compile_args, not cocotb-test
+            plus_args=(['--trace'] if enable_waves else []),
             testcase="gaxi_fifo_sync_wavedrom_test",
         )
         print(f"✓ WaveDrom test PASSED: gaxi_fifo_sync ({mode_name} mode) - 3 scenarios generated")

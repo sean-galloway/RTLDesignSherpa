@@ -1127,7 +1127,7 @@ def test_apb_master(request, addr_width, data_width, cmd_depth, rsp_depth):
             "--trace-depth", "99",
     ]
 
-    plusargs = [
+    plus_args = [
             "--trace",
     ]
 
@@ -1147,7 +1147,7 @@ def test_apb_master(request, addr_width, data_width, cmd_depth, rsp_depth):
             keep_files=True,
             compile_args=compile_args,
             sim_args=sim_args,
-            plusargs=plusargs,
+            plus_args=plus_args,
         )
     except Exception as e:
         # If the test fails, make sure logs are preserved
@@ -1241,7 +1241,7 @@ def test_apb_master_wavedrom(request, addr_width, data_width, cmd_depth, rsp_dep
 
     sim_args = []
 
-    plusargs = []
+    plus_args = []
 
     run(
         python_search=[tests_dir],
@@ -1256,6 +1256,6 @@ def test_apb_master_wavedrom(request, addr_width, data_width, cmd_depth, rsp_dep
         keep_files=True,
         compile_args=compile_args,
         sim_args=sim_args,
-        plusargs=plusargs,
+        plus_args=plus_args,
         testcase="apb_master_wavedrom_test",  # Run wavedrom test specifically!
     )

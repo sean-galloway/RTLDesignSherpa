@@ -241,6 +241,8 @@ def test_apb5_master(request, addr_width, data_width, auser_width, wuser_width,
     }
 
     compile_args = [
+        "--trace-fst",
+        "--trace-structs",
         "-Wno-TIMESCALEMOD",
         "-Wno-WIDTHTRUNC",
         "-Wno-WIDTHEXPAND",
@@ -262,6 +264,7 @@ def test_apb5_master(request, addr_width, data_width, auser_width, wuser_width,
             sim_build=sim_build,
             extra_env=extra_env,
             waves=enable_waves,
+            plus_args=(['--trace'] if enable_waves else []),
             keep_files=True,
             compile_args=compile_args,
             testcase="cocotb_test_apb5_master_basic",

@@ -1410,7 +1410,7 @@ def test_apb_slave_cdc_robust(request, addr_width, data_width, depth):
         "--trace-depth", "99",
     ]
 
-    plusargs = ["--trace"]
+    plus_args = ["--trace"]
 
     cmd_filename = create_view_cmd(log_dir, log_path, sim_build, module, test_name_plus_params)
 
@@ -1428,7 +1428,7 @@ def test_apb_slave_cdc_robust(request, addr_width, data_width, depth):
             keep_files=True,
             compile_args=compile_args,
             sim_args=sim_args,
-            plusargs=plusargs,
+            plus_args=plus_args,
         )
 
         print(f"✓ APB-GAXI CDC robust test completed!")
@@ -1526,7 +1526,7 @@ def generate_apb_slave_cdc_wavedrom_params():
         "--trace-depth", "99",
     ]
 
-    plusargs = ["--trace"]
+    plus_args = ["--trace"]
 
     cmd_filename = create_view_cmd(log_dir, log_path, sim_build, module, test_name_plus_params)
 
@@ -1544,7 +1544,7 @@ def generate_apb_slave_cdc_wavedrom_params():
             keep_files=True,
             compile_args=compile_args,
             sim_args=sim_args,
-            plusargs=plusargs,
+            plus_args=plus_args,
         )
 
         print(f"✓ APB-GAXI CDC robust test completed!")
@@ -1647,7 +1647,7 @@ def test_apb_slave_cdc_wavedrom(request, addr_width, data_width, rsp_depth, cmd_
 
     sim_args = []
 
-    plusargs = []
+    plus_args = []
 
     cmd_filename = create_view_cmd(log_dir, log_path, sim_build, module, test_name_plus_params)
 
@@ -1666,7 +1666,7 @@ def test_apb_slave_cdc_wavedrom(request, addr_width, data_width, rsp_depth, cmd_
             keep_files=True,
             compile_args=compile_args,
             sim_args=sim_args,
-            plusargs=plusargs,
+            plus_args=plus_args,
         )
 
         print(f"✓ APB Slave CDC WaveDrom test completed!")

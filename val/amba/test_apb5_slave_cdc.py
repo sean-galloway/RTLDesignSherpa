@@ -196,6 +196,8 @@ def test_apb5_slave_cdc(request, addr_width, data_width, auser_width, enable_par
     }
 
     compile_args = [
+        "--trace-fst",
+        "--trace-structs",
         "-Wno-TIMESCALEMOD",
         "-Wno-WIDTHTRUNC",
         "-Wno-WIDTHEXPAND",
@@ -217,6 +219,7 @@ def test_apb5_slave_cdc(request, addr_width, data_width, auser_width, enable_par
             sim_build=sim_build,
             extra_env=extra_env,
             waves=enable_waves,
+            plus_args=(['--trace'] if enable_waves else []),
             keep_files=True,
             compile_args=compile_args,
             testcase="cocotb_test_apb5_slave_cdc_basic",

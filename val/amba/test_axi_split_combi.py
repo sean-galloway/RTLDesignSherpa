@@ -925,7 +925,7 @@ def test_axi_split_realistic(request, params):
 
 
     sim_args = ["--trace", "--trace-depth", "99"]
-    plusargs = ["--trace"]
+    plus_args = ["--trace"]
 
     # Create view command
     cmd_filename = create_view_cmd(log_dir, log_path, sim_build, module, test_name_plus_params)
@@ -943,7 +943,7 @@ def test_axi_split_realistic(request, params):
             keep_files=True,
             compile_args=compile_args,
             sim_args=sim_args,
-            plusargs=plusargs,
+            plus_args=plus_args,
         )
     except Exception as e:
         print(f"Realistic test failed: {str(e)}")
@@ -1028,7 +1028,7 @@ def test_axi_split_realistic(request, params):
 
 
     sim_args = ["--trace", "--trace-depth", "99"]
-    plusargs = ["--trace"]
+    plus_args = ["--trace"]
 
     # Create view command
     cmd_filename = create_view_cmd(log_dir, log_path, sim_build, module, test_name_plus_params)
@@ -1046,7 +1046,7 @@ def test_axi_split_realistic(request, params):
             keep_files=True,
             compile_args=compile_args,
             sim_args=sim_args,
-            plusargs=plusargs,
+            plus_args=plus_args,
         )
     except Exception as e:
         print(f"Realistic test failed: {str(e)}")

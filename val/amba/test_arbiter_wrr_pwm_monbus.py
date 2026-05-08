@@ -566,7 +566,7 @@ def test_arbiter_wrr_pwm_monbus(request, clients, max_levels, wait_gnt_ack, agen
         
     ]
 
-    plusargs = ["--trace"]
+    plus_args = ["--trace"]
 
     cmd_filename = create_view_cmd(log_dir, log_path, sim_build, module, test_name_plus_params)
 
@@ -585,7 +585,7 @@ def test_arbiter_wrr_pwm_monbus(request, clients, max_levels, wait_gnt_ack, agen
             keep_files=True,
             compile_args=compile_args,
             sim_args=sim_args,
-            plusargs=plusargs,
+            plus_args=plus_args,
         )
 
         print(f"✅ Weighted integration test PASSED: {test_level} level")
@@ -716,7 +716,7 @@ if __name__ == "__main__":
         
     ]
 
-    plusargs = ["--trace"]
+    plus_args = ["--trace"]
 
     cmd_filename = create_view_cmd(log_dir, log_path, sim_build, module, test_name_plus_params)
 
@@ -735,7 +735,7 @@ if __name__ == "__main__":
             keep_files=True,
             compile_args=compile_args,
             sim_args=sim_args,
-            plusargs=plusargs,
+            plus_args=plus_args,
         )
 
         print(f"✅ Weighted integration test PASSED: {test_level} level")

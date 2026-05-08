@@ -265,5 +265,18 @@ collect: collect-all
 list: list-all
 
 # ==============================================================================
+# Pattern-rule fallback: any `-waves` variant of an existing target is just
+# the same target with WAVES=1 in the environment. Lets you do
+#   make run-buffer-gate-waves
+#   make run-all-func-parallel-waves
+#   ...
+# without adding a separate stanza per category x level x parallelism.
+# Explicit `-waves` targets defined elsewhere in this file take precedence
+# (Make prefers explicit over pattern rules); anything not explicitly
+# defined falls through to this rule.
+%-waves:
+	@$(MAKE) --no-print-directory $* WAVES=1
+
+# ==============================================================================
 # End of Makefile
 # ==============================================================================

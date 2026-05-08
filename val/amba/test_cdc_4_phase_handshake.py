@@ -312,7 +312,7 @@ def test_cdc_4_phase_handshake(request, params):
         "--trace-threads", "1",
     ]
 
-    plusargs = [
+    plus_args = [
         "--trace",
         f"+cdc_src_period={src_period}",
         f"+cdc_dst_period={dst_period}",
@@ -343,7 +343,7 @@ def test_cdc_4_phase_handshake(request, params):
             keep_files=True,
             compile_args=compile_args,
             sim_args=sim_args,
-            plusargs=plusargs,
+            plus_args=plus_args,
         )
 
         print(f"✅ {test_level.upper()} CDC TEST PASSED")

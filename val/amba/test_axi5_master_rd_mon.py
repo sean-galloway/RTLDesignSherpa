@@ -176,6 +176,8 @@ def test_axi5_master_rd_mon(id_width, addr_width, data_width, user_width, max_tr
     }
 
     compile_args = [
+        "--trace-fst",
+        "--trace-structs",
         "-Wall", "-Wno-SYNCASYNCNET", "-Wno-UNUSED", "-Wno-DECLFILENAME", "-Wno-PINMISSING",
         "-Wno-UNDRIVEN", "-Wno-WIDTHEXPAND", "-Wno-WIDTHTRUNC",
         "-Wno-SELRANGE", "-Wno-CASEINCOMPLETE", "-Wno-TIMESCALEMOD",
@@ -200,6 +202,7 @@ def test_axi5_master_rd_mon(id_width, addr_width, data_width, user_width, max_tr
             sim_build=sim_build,
             extra_env=extra_env,
             waves=enable_waves,
+            plus_args=(['--trace'] if enable_waves else []),
             keep_files=True,
             compile_args=compile_args,
             simulator="verilator",

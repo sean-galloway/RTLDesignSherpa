@@ -1239,7 +1239,7 @@ def test_apb_slave_cdc_cg_robust(request, addr_width, data_width, depth, cg_idle
         "--trace-depth", "99",
     ]
 
-    plusargs = ["--trace"]
+    plus_args = ["--trace"]
 
     cmd_filename = create_view_cmd(log_dir, log_path, sim_build, module, test_name_plus_params)
 
@@ -1257,7 +1257,7 @@ def test_apb_slave_cdc_cg_robust(request, addr_width, data_width, depth, cg_idle
             keep_files=True,
             compile_args=compile_args,
             sim_args=sim_args,
-            plusargs=plusargs,
+            plus_args=plus_args,
         )
 
         print(f"✓ APB-GAXI CDC + Clock Gating robust test completed!")
@@ -1355,7 +1355,7 @@ def test_apb_slave_cdc_cg_robust(request, addr_width, data_width, depth, cg_idle
         "--trace-depth", "99",
     ]
 
-    plusargs = ["--trace"]
+    plus_args = ["--trace"]
 
     cmd_filename = create_view_cmd(log_dir, log_path, sim_build, module, test_name_plus_params)
 
@@ -1373,7 +1373,7 @@ def test_apb_slave_cdc_cg_robust(request, addr_width, data_width, depth, cg_idle
             keep_files=True,
             compile_args=compile_args,
             sim_args=sim_args,
-            plusargs=plusargs,
+            plus_args=plus_args,
         )
 
         print(f"✓ APB-GAXI CDC + Clock Gating robust test completed!")

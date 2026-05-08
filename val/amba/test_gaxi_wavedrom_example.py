@@ -721,6 +721,8 @@ def test_gaxi_wavedrom_example(data_width, depth, trim_mode, enable_wavedrom):
     # Trace compilation always enabled (minimal overhead)
     # Set WAVES=1 to enable VCD dumping for debugging
     compile_args = [
+        "--trace-fst",
+        "--trace-structs",
         '-Wall',
         '-Wno-UNUSED',
         '-Wno-DECLFILENAME',
@@ -743,6 +745,7 @@ def test_gaxi_wavedrom_example(data_width, depth, trim_mode, enable_wavedrom):
         sim_build=sim_build,
         extra_env=extra_env,
         waves=enable_waves,  # VCD controlled by compile_args, not cocotb-test
+        plus_args=(['--trace'] if enable_waves else []),
         testcase="gaxi_comprehensive_wavedrom_test",
         includes=[rtl_dict['rtl_amba_includes']]
     )

@@ -241,7 +241,7 @@ def test_axis_slave(request, skid_depth, data_width, id_width, dest_width, user_
         "--trace-depth", "99",
     ]
 
-    plusargs = [
+    plus_args = [
         "--trace",
     ]
 
@@ -261,7 +261,7 @@ def test_axis_slave(request, skid_depth, data_width, id_width, dest_width, user_
             keep_files=True,
             compile_args=compile_args,
             sim_args=sim_args,
-            plusargs=plusargs,
+            plus_args=plus_args,
         )
     except Exception as e:
         print(f"AXIS slave test failed: {str(e)}")
@@ -367,7 +367,7 @@ def test_axis_slave(request, skid_depth, data_width, id_width, dest_width, user_
         "--trace-depth", "99",
     ]
 
-    plusargs = [
+    plus_args = [
         "--trace",
     ]
 
@@ -387,7 +387,7 @@ def test_axis_slave(request, skid_depth, data_width, id_width, dest_width, user_
             keep_files=True,
             compile_args=compile_args,
             sim_args=sim_args,
-            plusargs=plusargs,
+            plus_args=plus_args,
         )
     except Exception as e:
         print(f"AXIS slave test failed: {str(e)}")

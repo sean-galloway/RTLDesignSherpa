@@ -436,7 +436,7 @@ def test_axi5_slave_rd(request, stub, id_width, addr_width, data_width, user_wid
     compile_args.extend([])
 
     sim_args = ["--trace", "--trace-depth", "99"]
-    plusargs = ["--trace"]
+    plus_args = ["--trace"]
 
     cmd_filename = create_view_cmd(os.path.dirname(log_path), log_path, sim_build,
                                     module, test_name_plus_params)
@@ -463,7 +463,7 @@ def test_axi5_slave_rd(request, stub, id_width, addr_width, data_width, user_wid
             keep_files=True,
             compile_args=compile_args,
             sim_args=sim_args,
-            plusargs=plusargs,
+            plus_args=plus_args,
             simulator="verilator",
         )
         print(f"{test_level.upper()} AXI5 Read Slave test PASSED")

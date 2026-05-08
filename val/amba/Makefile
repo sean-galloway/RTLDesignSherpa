@@ -2056,5 +2056,19 @@ collect: collect-all
 list: list-all
 
 # ==============================================================================
+# Pattern-rule fallback: any `-waves` variant of an existing target is just
+# the same target with WAVES=1 in the environment. Lets you do
+#   make run-cdc-gate-waves
+#   make run-axi4-func-parallel-waves
+#   ...
+# without adding a separate stanza per category x level x parallelism. The
+# explicit per-target waves blocks earlier in this file take precedence
+# -- Make prefers explicit targets over pattern rules -- so existing
+# recipes keep their bespoke echos. Anything not explicitly defined falls
+# through to this rule.
+%-waves:
+	@$(MAKE) --no-print-directory $* WAVES=1
+
+# ==============================================================================
 # End of Makefile
 # ==============================================================================

@@ -442,6 +442,8 @@ def test_gaxi_drop_fifo_wavedrom():
     # Trace compilation always enabled (minimal overhead)
     # Set WAVES=1 to enable VCD dumping for debugging
     compile_args = [
+        "--trace-fst",
+        "--trace-structs",
         "--trace",
         "--trace-structs",
         "--Wno-UNOPTFLAT",
@@ -467,6 +469,7 @@ def test_gaxi_drop_fifo_wavedrom():
             sim_build=sim_build,
             extra_env=extra_env,
             waves=enable_waves,  # Use VCD
+            plus_args=(['--trace'] if enable_waves else []),
             keep_files=True,
             compile_args=compile_args,
         )

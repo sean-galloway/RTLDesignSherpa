@@ -216,7 +216,7 @@ def test_axi_write_splitter(request, iw, aw, dw, uw, fifo_depth, alignment_mask,
         
         "--trace-depth", "99"
     ]
-    plusargs = ["--trace"]
+    plus_args = ["--trace"]
 
     cmd_filename = create_view_cmd(os.path.dirname(log_path), log_path, sim_build, module, test_name_plus_params)
 
@@ -241,7 +241,7 @@ def test_axi_write_splitter(request, iw, aw, dw, uw, fifo_depth, alignment_mask,
             keep_files=True,
             compile_args=compile_args,
             sim_args=sim_args,
-            plusargs=plusargs,
+            plus_args=plus_args,
         )
         print(f"✓ {test_level.upper()} AXI Write Splitter test PASSED")
 
@@ -371,7 +371,7 @@ def test_axi_write_splitter(request, iw, aw, dw, uw, fifo_depth, alignment_mask,
         
         "--trace-depth", "99"
     ]
-    plusargs = ["--trace"]
+    plus_args = ["--trace"]
 
     cmd_filename = create_view_cmd(os.path.dirname(log_path), log_path, sim_build, module, test_name_plus_params)
 
@@ -396,7 +396,7 @@ def test_axi_write_splitter(request, iw, aw, dw, uw, fifo_depth, alignment_mask,
             keep_files=True,
             compile_args=compile_args,
             sim_args=sim_args,
-            plusargs=plusargs,
+            plus_args=plus_args,
         )
         print(f"✓ {test_level.upper()} AXI Write Splitter test PASSED")
 

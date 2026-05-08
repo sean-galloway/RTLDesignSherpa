@@ -152,7 +152,9 @@ def test_axil4_slave_rd_mon(test_level):
         'TEST_LEVEL': test_level,
     }
 
-    compile_args = ["-Wno-WIDTH",
+    compile_args = ["--trace-fst",
+        "--trace-structs",
+        "-Wno-WIDTH",
             "-Wno-SELRANGE",
             "-Wno-CASEINCOMPLETE",
             "-Wno-BLKANDNBLK",
@@ -171,6 +173,7 @@ def test_axil4_slave_rd_mon(test_level):
         sim_build=sim_build,
         extra_env=extra_env,
         waves=enable_waves,  # VCD controlled by compile_args, not cocotb-test
+        plus_args=(['--trace'] if enable_waves else []),
         timescale='1ns/1ps',
         verilator_trace=False,
         compile_args=compile_args,

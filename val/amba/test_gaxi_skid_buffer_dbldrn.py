@@ -215,7 +215,7 @@ def test_gaxi_skid_buffer_dbldrn(request, data_width, depth, clk_period, test_le
         "--trace-depth", "99",
     ]
 
-    plusargs = [
+    plus_args = [
         "--trace",
     ]
 
@@ -242,7 +242,7 @@ def test_gaxi_skid_buffer_dbldrn(request, data_width, depth, clk_period, test_le
             keep_files=True,
             compile_args=compile_args,
             sim_args=sim_args,
-            plusargs=plusargs,
+            plus_args=plus_args,
             testcase="gaxi_skid_buffer_dbldrn_test",
         )
         print(f"PASS {test_level.upper()} test PASSED: gaxi_skid_buffer_dbldrn")

@@ -399,7 +399,7 @@ def test_axil4_slave_read(request, addr_width, data_width, ar_depth, r_depth, te
     compile_args.extend([])
 
     sim_args = ["--trace", "--trace-depth", "99"]
-    plusargs = ["--trace"]
+    plus_args = ["--trace"]
 
     # Create command file for viewing results
     cmd_filename = create_view_cmd(os.path.dirname(log_path), log_path, sim_build,
@@ -426,7 +426,7 @@ def test_axil4_slave_read(request, addr_width, data_width, ar_depth, r_depth, te
             keep_files=True,
             compile_args=compile_args,
             sim_args=sim_args,
-            plusargs=plusargs,
+            plus_args=plus_args,
         )
         print(f"✅ {test_level.upper()} AXIL4 Slave Read test PASSED")
     except Exception as e:
@@ -538,7 +538,7 @@ if __name__ == "__main__":
     compile_args.extend([])
 
     sim_args = ["--trace", "--trace-depth", "99"]
-    plusargs = ["--trace"]
+    plus_args = ["--trace"]
 
     # Create command file for viewing results
     cmd_filename = create_view_cmd(os.path.dirname(log_path), log_path, sim_build,
@@ -565,7 +565,7 @@ if __name__ == "__main__":
             keep_files=True,
             compile_args=compile_args,
             sim_args=sim_args,
-            plusargs=plusargs,
+            plus_args=plus_args,
         )
         print(f"✅ {test_level.upper()} AXIL4 Slave Read test PASSED")
     except Exception as e:

@@ -258,7 +258,7 @@ def test_gaxi_drop_fifo_sync(request, data_width, depth, registered, test_id):
         "--trace-depth", "99",
     ]
 
-    plusargs = ["--trace"]
+    plus_args = ["--trace"]
 
     # Enable waveform dumping
     extra_env['WAVES'] = '1'
@@ -284,7 +284,7 @@ def test_gaxi_drop_fifo_sync(request, data_width, depth, registered, test_id):
             keep_files=True,
             compile_args=compile_args,
             sim_args=sim_args,
-            plusargs=plusargs,
+            plus_args=plus_args,
         )
         print(f"✓ Test PASSED: data_width={data_width}, depth={depth}, registered={registered}, id={test_id}")
     except Exception as e:

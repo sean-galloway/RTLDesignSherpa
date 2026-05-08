@@ -598,6 +598,8 @@ def test_apb_monitor():
     # Trace compilation always enabled (minimal overhead)
     # Set WAVES=1 to enable VCD dumping for debugging
     compile_args = [
+        "--trace-fst",
+        "--trace-structs",
         "--trace", "--trace-depth", "99",
         "-Wall", "-Wno-SYNCASYNCNET", "-Wno-UNUSED", "-Wno-WIDTHEXPAND", "-Wno-WIDTHTRUNC",
         "-Wno-SELRANGE", "-Wno-PINCONNECTEMPTY", "--no-timing"
@@ -623,6 +625,7 @@ def test_apb_monitor():
             sim_build=sim_build,
             extra_env=extra_env,
             waves=enable_waves,  # VCD controlled by compile_args, not cocotb-test
+            plus_args=(['--trace'] if enable_waves else []),
             compile_args=compile_args,
         )
         print("✅ APB Monitor Test PASSED")

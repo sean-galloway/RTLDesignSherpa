@@ -215,6 +215,8 @@ def test_axi4_slave_wr_mon_cg(id_width, addr_width, data_width, user_width, wstr
     # Trace compilation always enabled (minimal overhead)
     # Set WAVES=1 to enable VCD dumping for debugging
     compile_args = [
+        "--trace-fst",
+        "--trace-structs",
         '-Wall', '-Wno-SYNCASYNCNET',
         '-Wno-UNUSED',
         '-Wno-DECLFILENAME',
@@ -252,5 +254,6 @@ def test_axi4_slave_wr_mon_cg(id_width, addr_width, data_width, user_width, wstr
         sim_build=sim_build,
         extra_env=extra_env,
         waves=enable_waves,  # Disable waves for CG tests to avoid Verilator FST issues
+        plus_args=(['--trace'] if enable_waves else []),
         includes=[rtl_dict['rtl_amba_includes']]
     )
