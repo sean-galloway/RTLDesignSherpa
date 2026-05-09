@@ -686,3 +686,17 @@ rebuild-all: build-clean regenerate-all
 	@echo "  4. Run AXI-Lite tests: make run-axil"
 	@echo "  5. Or run all: make run-all"
 	@echo "================================================================================"
+
+# ==============================================================================
+# Pattern-rule fallback: any `-waves` variant of an existing target is just
+# the same target with WAVES=1 in the environment. Lets you do
+#   make run-all-gate-waves
+#   make run-fub-func-parallel-waves
+#   ...
+# without writing a separate stanza per category x level x parallelism.
+# Explicit `-waves` recipes elsewhere in this file take precedence (Make
+# prefers explicit over pattern rules); anything not explicitly defined
+# falls through here.
+# ==============================================================================
+%-waves:
+	@$(MAKE) --no-print-directory $* WAVES=1
