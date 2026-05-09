@@ -305,3 +305,12 @@ clean-all: clean
 
 clean-logs:
 	rm -rf logs/
+
+# ==============================================================================
+# Pattern-rule fallback: any `-waves` variant of an existing target is just
+# the same target with WAVES=1 in the environment.
+# Explicit `-waves` recipes elsewhere take precedence (Make prefers explicit
+# over pattern rules); anything not explicitly defined falls through here.
+# ==============================================================================
+%-waves:
+	@$(MAKE) --no-print-directory $* WAVES=1
