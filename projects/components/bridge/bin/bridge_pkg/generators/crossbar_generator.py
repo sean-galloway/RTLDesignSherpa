@@ -430,7 +430,8 @@ class CrossbarGenerator:
 
         def _or_merge(out_sig: str, struct_field: str | None,
                       master_sig_template: str, sel_array: str,
-                      master_subset: List[MasterConfig]) -> str:
+                      master_subset: List[MasterConfig],
+                      valid_signal: str) -> str:
             """Build an OR-merged assignment line.
 
             out_sig          — slave-side signal (e.g. 'awid')
@@ -438,17 +439,34 @@ class CrossbarGenerator:
                                (e.g. master_<W>_aw.id), the '.id' part;
                                None for plain logic signals like awvalid.
             master_sig_template — e.g. '{m}_{suffix}_aw' or '{m}_{suffix}_awvalid'
-            sel_array        — '{m}_slave_select_aw' or '{m}_slave_select_ar'
+            sel_array        — 'aw' or 'ar' (selects slave_select_<sel_array>)
+            valid_signal     — '{m}_{suffix}_awvalid' / '_arvalid' / '_wvalid'.
+                Each OR-merged term is gated by `slave_select && valid` so
+                an idle master with a stale `fub_axi_awaddr` (which can
+                still combinationally decode to `slave_select_aw[idx]=1`)
+                does NOT contribute. Without the valid gating, both
+                masters' bridge_id_aw entries OR together, corrupting the
+                routing tag captured into the slave-adapter's FIFO and
+                misrouting the B/R response.
             """
             parts = []
             for m in master_subset:
                 base = master_sig_template.format(m=m.name, suffix=suffix)
                 lhs = f"{base}{struct_field}" if struct_field else base
-                gate = f"{m.name}_slave_select_{sel_array}[{slave_idx}]"
-                parts.append(f"({gate} ? {lhs} : '0)")
+                sel = f"{m.name}_slave_select_{sel_array}[{slave_idx}]"
+                vld = valid_signal.format(m=m.name, suffix=suffix)
+                parts.append(f"(({sel} && {vld}) ? {lhs} : '0)")
             return " |\n        ".join(parts) if parts else "'0"
 
-        # Write side
+        # Write side. Each OR-merge term is gated by `slave_select_aw &&
+        # awvalid` (or wvalid for W) so an idle master with a stale
+        # `fub_axi_awaddr` that happens to decode to slave_idx does NOT
+        # contribute. The W beats use the same `slave_select_aw` (which
+        # holds across the W phase), gated by wvalid for liveness.
+        aw_valid = "{m}_{suffix}_awvalid"
+        w_valid = "{m}_{suffix}_wvalid"
+        ar_valid = "{m}_{suffix}_arvalid"
+
         if wr_masters:
             lines.append("    // AW channel (OR-merged across writing masters)")
             for sig, fld in [("awid", ".id"), ("awaddr", ".addr"), ("awlen", ".len"),
@@ -456,19 +474,19 @@ class CrossbarGenerator:
                              ("awlock", ".lock"), ("awcache", ".cache"),
                              ("awprot", ".prot")]:
                 tmpl = "{m}_{suffix}_aw"
-                expr = _or_merge(sig, fld, tmpl, "aw", wr_masters)
+                expr = _or_merge(sig, fld, tmpl, "aw", wr_masters, aw_valid)
                 lines.append(f"    assign {prefix}{sig} = {expr};")
             tmpl = "{m}_{suffix}_awvalid"
-            lines.append(f"    assign {prefix}awvalid = {_or_merge('awvalid', None, tmpl, 'aw', wr_masters)};")
+            lines.append(f"    assign {prefix}awvalid = {_or_merge('awvalid', None, tmpl, 'aw', wr_masters, aw_valid)};")
             lines.append("")
 
             lines.append("    // W channel (OR-merged across writing masters)")
             for sig, fld in [("wdata", ".data"), ("wstrb", ".strb"), ("wlast", ".last")]:
                 tmpl = "{m}_{suffix}_w"
-                expr = _or_merge(sig, fld, tmpl, "aw", wr_masters)
+                expr = _or_merge(sig, fld, tmpl, "aw", wr_masters, w_valid)
                 lines.append(f"    assign {prefix}{sig} = {expr};")
             tmpl = "{m}_{suffix}_wvalid"
-            lines.append(f"    assign {prefix}wvalid = {_or_merge('wvalid', None, tmpl, 'aw', wr_masters)};")
+            lines.append(f"    assign {prefix}wvalid = {_or_merge('wvalid', None, tmpl, 'aw', wr_masters, w_valid)};")
             lines.append("")
 
             # bready: route back to whichever master owns this response
@@ -484,17 +502,19 @@ class CrossbarGenerator:
             lines.append(f"    assign {prefix}bready = " + " |\n        ".join(bready_terms) + ";")
             lines.append("")
 
-            # bridge_id_aw: which master originated this AW
+            # bridge_id_aw: which master originated this AW. MUST gate on
+            # awvalid too — slave_select_aw alone leaks an idle master's
+            # bridge_id_aw into the OR and corrupts the FIFO push tag.
             lines.append("    // Bridge ID (writes) — picks the originating master's id")
             bid_terms = []
             for m in wr_masters:
                 bid_terms.append(
-                    f"({m.name}_slave_select_aw[{slave_idx}] ? {m.name}_bridge_id_aw : '0)"
+                    f"(({m.name}_slave_select_aw[{slave_idx}] && {m.name}_{suffix}_awvalid) ? {m.name}_bridge_id_aw : '0)"
                 )
             lines.append(f"    assign {prefix}bridge_id_aw = " + " |\n        ".join(bid_terms) + ";")
             lines.append("")
 
-        # Read side
+        # Read side. Same `slave_select && arvalid` gating story.
         if rd_masters:
             lines.append("    // AR channel (OR-merged across reading masters)")
             for sig, fld in [("arid", ".id"), ("araddr", ".addr"), ("arlen", ".len"),
@@ -502,10 +522,10 @@ class CrossbarGenerator:
                              ("arlock", ".lock"), ("arcache", ".cache"),
                              ("arprot", ".prot")]:
                 tmpl = "{m}_{suffix}_ar"
-                expr = _or_merge(sig, fld, tmpl, "ar", rd_masters)
+                expr = _or_merge(sig, fld, tmpl, "ar", rd_masters, ar_valid)
                 lines.append(f"    assign {prefix}{sig} = {expr};")
             tmpl = "{m}_{suffix}_arvalid"
-            lines.append(f"    assign {prefix}arvalid = {_or_merge('arvalid', None, tmpl, 'ar', rd_masters)};")
+            lines.append(f"    assign {prefix}arvalid = {_or_merge('arvalid', None, tmpl, 'ar', rd_masters, ar_valid)};")
             lines.append("")
 
             lines.append("    // Rready (slave → owning master, by rid_bridge_id)")
@@ -522,7 +542,7 @@ class CrossbarGenerator:
             rid_terms = []
             for m in rd_masters:
                 rid_terms.append(
-                    f"({m.name}_slave_select_ar[{slave_idx}] ? {m.name}_bridge_id_ar : '0)"
+                    f"(({m.name}_slave_select_ar[{slave_idx}] && {m.name}_{suffix}_arvalid) ? {m.name}_bridge_id_ar : '0)"
                 )
             lines.append(f"    assign {prefix}bridge_id_ar = " + " |\n        ".join(rid_terms) + ";")
             lines.append("")
