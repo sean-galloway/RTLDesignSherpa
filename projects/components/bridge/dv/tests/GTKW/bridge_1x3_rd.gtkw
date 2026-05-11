@@ -1,0 +1,227 @@
+[*]
+[*] GTKWave save file for bridge_1x3_rd basic_connectivity test
+[*] Traces the R-response path so a stalled or misrouted R is obvious.
+[*]
+[dumpfile] "/mnt/data/github/RTLDesignSherpa/projects/components/bridge/dv/tests/local_sim_build/test_bridge_1x3_rd_basic_connectivity/dump.fst"
+[savefile] "/mnt/data/github/RTLDesignSherpa/projects/components/bridge/dv/tests/GTKW/bridge_1x3_rd.gtkw"
+[timestart] 0
+[size] 2482 1606
+[pos] 39 8
+[treeopen] .
+[treeopen] .bridge_1x3_rd.
+[sst_width] 356
+[signals_width] 280
+[sst_expanded] 1
+[sst_vpaned_height] 509
+@28
+bridge_1x3_rd.aclk
+bridge_1x3_rd.aresetn
+@200
+-CPU master AR interface (external)
+@28
+bridge_1x3_rd.cpu_rd_axi_arvalid
+bridge_1x3_rd.cpu_rd_axi_arready
+@22
+bridge_1x3_rd.cpu_rd_axi_araddr[31:0]
+bridge_1x3_rd.cpu_rd_axi_arid[3:0]
+bridge_1x3_rd.cpu_rd_axi_arlen[7:0]
+bridge_1x3_rd.cpu_rd_axi_arsize[2:0]
+@200
+-CPU master R interface (external) -- this is where R should arrive
+@28
+bridge_1x3_rd.cpu_rd_axi_rvalid
+bridge_1x3_rd.cpu_rd_axi_rready
+@22
+bridge_1x3_rd.cpu_rd_axi_rid[3:0]
+bridge_1x3_rd.cpu_rd_axi_rdata[63:0]
+bridge_1x3_rd.cpu_rd_axi_rresp[1:0]
+@28
+bridge_1x3_rd.cpu_rd_axi_rlast
+@200
+-CPU adapter internals: fub_axi_ar -> wrapper -> external
+@28
+bridge_1x3_rd.u_cpu_rd_adapter.fub_axi_arvalid
+bridge_1x3_rd.u_cpu_rd_adapter.fub_axi_arready
+@22
+bridge_1x3_rd.u_cpu_rd_adapter.fub_axi_araddr[31:0]
+@200
+-CPU address decode + bridge_id
+@22
+bridge_1x3_rd.cpu_rd_slave_select_ar[2:0]
+bridge_1x3_rd.cpu_rd_bridge_id_ar[1:0]
+@200
+-CPU adapter path-active gates (per-width AR enable)
+@28
+bridge_1x3_rd.u_cpu_rd_adapter.ar_path_active_32b
+bridge_1x3_rd.u_cpu_rd_adapter.ar_path_active_64b
+bridge_1x3_rd.u_cpu_rd_adapter.ar_path_active_128b
+@200
+-CPU adapter -> xbar: 32b width path (slave 0 = periph_rd)
+@28
+bridge_1x3_rd.cpu_rd_32b_arvalid
+bridge_1x3_rd.cpu_rd_32b_arready
+@22
+bridge_1x3_rd.cpu_rd_32b_ar.addr[31:0]
+@28
+bridge_1x3_rd.cpu_rd_32b_rvalid
+bridge_1x3_rd.cpu_rd_32b_rready
+@22
+bridge_1x3_rd.cpu_rd_32b_r.id[3:0]
+bridge_1x3_rd.cpu_rd_32b_r.data[31:0]
+bridge_1x3_rd.cpu_rd_32b_r.resp[1:0]
+@28
+bridge_1x3_rd.cpu_rd_32b_r.last
+@200
+-CPU adapter -> xbar: 64b width path (slave 1 = ddr_rd, passthrough)
+@28
+bridge_1x3_rd.cpu_rd_64b_arvalid
+bridge_1x3_rd.cpu_rd_64b_arready
+@22
+bridge_1x3_rd.cpu_rd_64b_ar.addr[31:0]
+@28
+bridge_1x3_rd.cpu_rd_64b_rvalid
+bridge_1x3_rd.cpu_rd_64b_rready
+@22
+bridge_1x3_rd.cpu_rd_64b_r.id[3:0]
+bridge_1x3_rd.cpu_rd_64b_r.data[63:0]
+bridge_1x3_rd.cpu_rd_64b_r.resp[1:0]
+@28
+bridge_1x3_rd.cpu_rd_64b_r.last
+@200
+-CPU adapter -> xbar: 128b width path (slave 2 = hbm_rd)
+@28
+bridge_1x3_rd.cpu_rd_128b_arvalid
+bridge_1x3_rd.cpu_rd_128b_arready
+@22
+bridge_1x3_rd.cpu_rd_128b_ar.addr[31:0]
+@28
+bridge_1x3_rd.cpu_rd_128b_rvalid
+bridge_1x3_rd.cpu_rd_128b_rready
+@22
+bridge_1x3_rd.cpu_rd_128b_r.id[3:0]
+bridge_1x3_rd.cpu_rd_128b_r.data[127:0]
+bridge_1x3_rd.cpu_rd_128b_r.resp[1:0]
+@28
+bridge_1x3_rd.cpu_rd_128b_r.last
+@200
+-32b dwidth converter intermediate signals (slave 0 = periph_rd)
+@28
+bridge_1x3_rd.u_cpu_rd_adapter.conv_32b_arready
+bridge_1x3_rd.u_cpu_rd_adapter.conv_32b_rvalid
+@22
+bridge_1x3_rd.u_cpu_rd_adapter.conv_32b_rid[3:0]
+bridge_1x3_rd.u_cpu_rd_adapter.conv_32b_rdata[63:0]
+bridge_1x3_rd.u_cpu_rd_adapter.conv_32b_rresp[1:0]
+@28
+bridge_1x3_rd.u_cpu_rd_adapter.conv_32b_rlast
+@200
+-128b dwidth converter intermediate signals (slave 2 = hbm_rd)
+@28
+bridge_1x3_rd.u_cpu_rd_adapter.conv_128b_arready
+bridge_1x3_rd.u_cpu_rd_adapter.conv_128b_rvalid
+@22
+bridge_1x3_rd.u_cpu_rd_adapter.conv_128b_rid[3:0]
+bridge_1x3_rd.u_cpu_rd_adapter.conv_128b_rdata[63:0]
+bridge_1x3_rd.u_cpu_rd_adapter.conv_128b_rresp[1:0]
+@28
+bridge_1x3_rd.u_cpu_rd_adapter.conv_128b_rlast
+@200
+-Periph slave (32b) -- external slave port
+@28
+bridge_1x3_rd.periph_rd_axi_arvalid
+bridge_1x3_rd.periph_rd_axi_arready
+@22
+bridge_1x3_rd.periph_rd_axi_araddr[31:0]
+@28
+bridge_1x3_rd.periph_rd_axi_rvalid
+bridge_1x3_rd.periph_rd_axi_rready
+@22
+bridge_1x3_rd.periph_rd_axi_rid[3:0]
+bridge_1x3_rd.periph_rd_axi_rdata[31:0]
+bridge_1x3_rd.periph_rd_axi_rresp[1:0]
+@28
+bridge_1x3_rd.periph_rd_axi_rlast
+@200
+-Periph slave-adapter output to xbar + rid tracking
+@28
+bridge_1x3_rd.xbar_periph_rd_axi_rvalid
+bridge_1x3_rd.xbar_periph_rd_axi_rready
+@22
+bridge_1x3_rd.xbar_periph_rd_axi_rid[3:0]
+bridge_1x3_rd.xbar_periph_rd_axi_rdata[31:0]
+@28
+bridge_1x3_rd.xbar_periph_rd_axi_rlast
+bridge_1x3_rd.periph_rd_axi_rid_valid
+@22
+bridge_1x3_rd.periph_rd_axi_rid_bridge_id[1:0]
+bridge_1x3_rd.periph_rd_axi_bridge_id_ar[1:0]
+@200
+-DDR slave (64b passthrough) -- external slave port
+@28
+bridge_1x3_rd.ddr_rd_axi_arvalid
+bridge_1x3_rd.ddr_rd_axi_arready
+@22
+bridge_1x3_rd.ddr_rd_axi_araddr[31:0]
+@28
+bridge_1x3_rd.ddr_rd_axi_rvalid
+bridge_1x3_rd.ddr_rd_axi_rready
+@22
+bridge_1x3_rd.ddr_rd_axi_rid[3:0]
+bridge_1x3_rd.ddr_rd_axi_rdata[63:0]
+bridge_1x3_rd.ddr_rd_axi_rresp[1:0]
+@28
+bridge_1x3_rd.ddr_rd_axi_rlast
+@200
+-DDR slave-adapter output to xbar + rid tracking
+@28
+bridge_1x3_rd.xbar_ddr_rd_axi_rvalid
+bridge_1x3_rd.xbar_ddr_rd_axi_rready
+@22
+bridge_1x3_rd.xbar_ddr_rd_axi_rid[3:0]
+bridge_1x3_rd.xbar_ddr_rd_axi_rdata[63:0]
+@28
+bridge_1x3_rd.xbar_ddr_rd_axi_rlast
+bridge_1x3_rd.ddr_rd_axi_rid_valid
+@22
+bridge_1x3_rd.ddr_rd_axi_rid_bridge_id[1:0]
+bridge_1x3_rd.ddr_rd_axi_bridge_id_ar[1:0]
+@200
+-HBM slave (128b) -- external slave port
+@28
+bridge_1x3_rd.hbm_rd_axi_arvalid
+bridge_1x3_rd.hbm_rd_axi_arready
+@22
+bridge_1x3_rd.hbm_rd_axi_araddr[31:0]
+@28
+bridge_1x3_rd.hbm_rd_axi_rvalid
+bridge_1x3_rd.hbm_rd_axi_rready
+@22
+bridge_1x3_rd.hbm_rd_axi_rid[3:0]
+bridge_1x3_rd.hbm_rd_axi_rdata[127:0]
+bridge_1x3_rd.hbm_rd_axi_rresp[1:0]
+@28
+bridge_1x3_rd.hbm_rd_axi_rlast
+@200
+-HBM slave-adapter output to xbar + rid tracking
+@28
+bridge_1x3_rd.xbar_hbm_rd_axi_rvalid
+bridge_1x3_rd.xbar_hbm_rd_axi_rready
+@22
+bridge_1x3_rd.xbar_hbm_rd_axi_rid[3:0]
+@28
+bridge_1x3_rd.xbar_hbm_rd_axi_rlast
+bridge_1x3_rd.hbm_rd_axi_rid_valid
+@22
+bridge_1x3_rd.hbm_rd_axi_rid_bridge_id[1:0]
+bridge_1x3_rd.hbm_rd_axi_bridge_id_ar[1:0]
+@200
+-Slave-adapter read FIFOs (wr/rd ptr) -- shows AR push / R pop
+@22
+bridge_1x3_rd.u_periph_rd_adapter.ar_ptr[4:0]
+bridge_1x3_rd.u_periph_rd_adapter.r_ptr[4:0]
+bridge_1x3_rd.u_ddr_rd_adapter.ar_ptr[4:0]
+bridge_1x3_rd.u_ddr_rd_adapter.r_ptr[4:0]
+bridge_1x3_rd.u_hbm_rd_adapter.ar_ptr[4:0]
+bridge_1x3_rd.u_hbm_rd_adapter.r_ptr[4:0]
+[pattern_trace] 1
+[pattern_trace] 0
