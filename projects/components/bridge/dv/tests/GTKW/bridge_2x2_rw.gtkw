@@ -1,0 +1,134 @@
+[*]
+[*] GTKWave Analyzer v3.4.0 (w)1999-2022 BSI
+[*] Mon May 11 00:41:09 2026
+[*]
+[dumpfile] "/mnt/data/github/RTLDesignSherpa/projects/components/bridge/dv/tests/local_sim_build/test_bridge_2x2_rw_basic_connectivity/dump.fst"
+[dumpfile_mtime] "Sat May  9 20:06:06 2026"
+[dumpfile_size] 11900
+[savefile] "/mnt/data/github/RTLDesignSherpa/projects/components/bridge/dv/tests/GTKW/bridge_2x2_rw.gtkw"
+[timestart] 0
+[size] 2482 1606
+[pos] 39 8
+*-17.034399 2 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
+[treeopen] .
+[treeopen] .bridge_2x2_rw.
+[sst_width] 356
+[signals_width] 214
+[sst_expanded] 1
+[sst_vpaned_height] 509
+@28
+bridge_2x2_rw.aclk
+bridge_2x2_rw.aresetn
+@200
+-CPU master AW interface
+@28
+bridge_2x2_rw.cpu_m_axi_awvalid
+bridge_2x2_rw.cpu_m_axi_awready
+@22
+bridge_2x2_rw.cpu_m_axi_awaddr[31:0]
+bridge_2x2_rw.cpu_m_axi_awid[3:0]
+bridge_2x2_rw.cpu_m_axi_awlen[7:0]
+@200
+------> W
+@28
+bridge_2x2_rw.cpu_m_axi_wvalid
+bridge_2x2_rw.cpu_m_axi_wready
+@22
+bridge_2x2_rw.cpu_m_axi_wdata[31:0]
+@28
+bridge_2x2_rw.cpu_m_axi_wlast
+@200
+------> B
+@28
+bridge_2x2_rw.cpu_m_axi_bvalid
+bridge_2x2_rw.cpu_m_axi_bready
+@22
+bridge_2x2_rw.cpu_m_axi_bid[3:0]
+@28
+bridge_2x2_rw.cpu_m_axi_bresp[1:0]
+@200
+-DDR slave AW interface
+@28
+bridge_2x2_rw.ddr_s_axi_awvalid
+bridge_2x2_rw.ddr_s_axi_awready
+@22
+bridge_2x2_rw.ddr_s_axi_awaddr[31:0]
+bridge_2x2_rw.ddr_s_axi_awid[3:0]
+bridge_2x2_rw.ddr_s_axi_awlen[7:0]
+@200
+------> W
+@28
+bridge_2x2_rw.ddr_s_axi_wvalid
+bridge_2x2_rw.ddr_s_axi_wready
+@22
+bridge_2x2_rw.ddr_s_axi_wdata[31:0]
+@28
+bridge_2x2_rw.ddr_s_axi_wlast
+@200
+------> B
+@28
+bridge_2x2_rw.ddr_s_axi_bvalid
+bridge_2x2_rw.ddr_s_axi_bready
+bridge_2x2_rw.ddr_s_axi_bresp[1:0]
+@22
+bridge_2x2_rw.ddr_s_axi_bid[3:0]
+@200
+-DDR slave-adapter output to xbar
+@28
+bridge_2x2_rw.xbar_ddr_axi_bvalid
+bridge_2x2_rw.xbar_ddr_axi_bready
+@22
+bridge_2x2_rw.xbar_ddr_axi_bresp[1:0]
+bridge_2x2_rw.xbar_ddr_axi_bid[3:0]
+@200
+-DDR bridge_id tracking (slave_adapter FIFO)
+@28
+bridge_2x2_rw.ddr_axi_bid_valid
+@22
+bridge_2x2_rw.ddr_axi_bid_bridge_id[0:0]
+bridge_2x2_rw.ddr_axi_bridge_id_aw[0:0]
+@200
+-SRAM slave-adapter output to xbar (for AW leak detection)
+@28
+bridge_2x2_rw.xbar_sram_axi_bvalid
+bridge_2x2_rw.xbar_sram_axi_bready
+@28
+bridge_2x2_rw.sram_axi_bid_valid
+@22
+bridge_2x2_rw.sram_axi_bid_bridge_id[0:0]
+@200
+-CPU master adapter outputs (xbar -> master adapter)
+@28
+bridge_2x2_rw.cpu_32b_bvalid
+bridge_2x2_rw.cpu_32b_bready
+@22
+bridge_2x2_rw.cpu_32b_b.id[3:0]
+bridge_2x2_rw.cpu_32b_b.resp[1:0]
+@200
+-CPU master address-decode + bridge_id
+@22
+bridge_2x2_rw.cpu_slave_select_aw[1:0]
+bridge_2x2_rw.cpu_bridge_id_aw[0:0]
+@200
+-DMA master adapter outputs (for cross-talk check)
+@28
+bridge_2x2_rw.dma_32b_bvalid
+bridge_2x2_rw.dma_32b_bready
+@22
+bridge_2x2_rw.dma_slave_select_aw[1:0]
+bridge_2x2_rw.dma_bridge_id_aw[0:0]
+@200
+-CPU master adapter internals (fub_axi_* -> wrapper)
+@28
+bridge_2x2_rw.u_cpu_adapter.fub_axi_bvalid
+bridge_2x2_rw.u_cpu_adapter.fub_axi_bready
+@22
+bridge_2x2_rw.u_cpu_adapter.fub_axi_bid[3:0]
+bridge_2x2_rw.u_cpu_adapter.fub_axi_bresp[1:0]
+@200
+-DDR slave_adapter B-FIFO internals (wr_ptr/rd_ptr)
+@22
+bridge_2x2_rw.u_ddr_adapter.wr_ptr[4:0]
+bridge_2x2_rw.u_ddr_adapter.rd_ptr[4:0]
+[pattern_trace] 1
+[pattern_trace] 0
