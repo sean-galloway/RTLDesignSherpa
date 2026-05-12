@@ -326,11 +326,15 @@ def generate_bridge(ports_file, connectivity_file, name=None, output_dir="../rtl
                 connectivity=connectivity
             )
 
-        # Generate output module name
+        # Generate output module name. Precedence:
+        #   1. --name CLI override / bulk-mode `name` column
+        #   2. [bridge].name from the TOML/YAML config (set on BridgeConfig)
+        #   3. Auto-generated topology fallback: bridge_<M>x<S>_<channels>
         if name:
             output_name = name
+        elif is_config_file and getattr(config, 'name', '').strip():
+            output_name = config.name.strip()
         else:
-            # Auto-generate name from topology: bridge_<M>x<S>_<channels>
             channel_types = set(m.channels for m in masters)
             if len(channel_types) == 1:
                 channel_suffix = list(channel_types)[0]  # 'rd', 'wr', or 'rw'

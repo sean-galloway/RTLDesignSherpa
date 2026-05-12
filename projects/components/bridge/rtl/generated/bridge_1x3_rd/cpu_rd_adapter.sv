@@ -169,16 +169,17 @@ module cpu_rd_adapter #(
     // Slave 1 (ddr_rd): 0x10000000 - 0x4FFFFFFF
     // Slave 2 (hbm_rd): 0x50000000 - 0x7FFFFFFF
     // ================================================================
+    logic [NUM_SLAVES-1:0] comb_slave_select_ar;
     always_comb begin
-        slave_select_ar = '0;
+        comb_slave_select_ar = '0;
         if (fub_axi_araddr <= 32'h0FFFFFFF) begin
-            slave_select_ar[0] = 1'b1;  // periph_rd
+            comb_slave_select_ar[0] = 1'b1;  // periph_rd
         end
         else if (fub_axi_araddr >= 32'h10000000 && fub_axi_araddr <= 32'h4FFFFFFF) begin
-            slave_select_ar[1] = 1'b1;  // ddr_rd
+            comb_slave_select_ar[1] = 1'b1;  // ddr_rd
         end
         else if (fub_axi_araddr >= 32'h50000000 && fub_axi_araddr <= 32'h7FFFFFFF) begin
-            slave_select_ar[2] = 1'b1;  // hbm_rd
+            comb_slave_select_ar[2] = 1'b1;  // hbm_rd
         end
     end
 
@@ -192,11 +193,11 @@ module cpu_rd_adapter #(
 
     // Per-width path-active gates (see comment in adapter_generator.py).
     logic ar_path_active_32b;
-    assign ar_path_active_32b = slave_select_ar[0];
+    assign ar_path_active_32b = comb_slave_select_ar[0];
     logic ar_path_active_64b;
-    assign ar_path_active_64b = slave_select_ar[1];
+    assign ar_path_active_64b = comb_slave_select_ar[1];
     logic ar_path_active_128b;
-    assign ar_path_active_128b = slave_select_ar[2];
+    assign ar_path_active_128b = comb_slave_select_ar[2];
 
     // ================================================================
     // Width converter: 64b → 32b
@@ -368,20 +369,81 @@ module cpu_rd_adapter #(
     // ================================================================
     // Response MUX - Route responses from width-specific paths
     // back to fub_axi_* based on address decode
+    //
+    // Request side (arready/awready/wready) uses the combinational
+    // slave_select_{ar,aw} (valid while {ar,aw}valid is asserted).
+    //
+    // Response side (rvalid/rdata/..., bvalid/bid/...) cannot reuse
+    // the combinational decode because fub_axi_{ar,aw}addr no longer
+    // holds the request address once the {AR,AW} handshake completes
+    // -- the decode reverts (typically to slave 0) and drops the
+    // response. So we track slave_select_{ar,aw} per outstanding
+    // request in a small FIFO captured at handshake, popped at
+    // R-last / B; the FIFO head drives the response MUX.
     // ================================================================
 
-    // Read response MUX (R channel)
+    // OUTPUT slave_select_ar mirrors the live combinational decode.
+    assign slave_select_ar = comb_slave_select_ar;
+
+    // -------- AR->R slave_select tracking FIFO --------
+    localparam int AR_TRK_DEPTH = 16;
+    localparam int AR_TRK_AW    = 4;
+    logic [NUM_SLAVES-1:0] ar_trk_mem [AR_TRK_DEPTH];
+    logic [AR_TRK_AW:0] ar_trk_wptr, ar_trk_rptr;
+    logic ar_trk_push, ar_trk_pop;
+    logic [NUM_SLAVES-1:0] r_slave_select;
+
+    assign ar_trk_push = fub_axi_arvalid && fub_axi_arready;
+    assign ar_trk_pop  = fub_axi_rvalid && fub_axi_rready && fub_axi_rlast;
+
+    always_ff @(posedge aclk or negedge aresetn) begin
+        if (!aresetn) begin
+            ar_trk_wptr <= '0;
+            ar_trk_rptr <= '0;
+        end else begin
+            if (ar_trk_push) begin
+                ar_trk_mem[ar_trk_wptr[AR_TRK_AW-1:0]] <= comb_slave_select_ar;
+                ar_trk_wptr <= ar_trk_wptr + 1'b1;
+            end
+            if (ar_trk_pop) begin
+                ar_trk_rptr <= ar_trk_rptr + 1'b1;
+            end
+        end
+    end
+
+    assign r_slave_select = (ar_trk_wptr != ar_trk_rptr)
+                          ? ar_trk_mem[ar_trk_rptr[AR_TRK_AW-1:0]]
+                          : '0;
+
+    // AR-ready MUX (request side: uses combinational comb_slave_select_ar)
     always_comb begin
         fub_axi_arready = 1'b0;
+        case (comb_slave_select_ar)
+            3'b001: begin  // Slave 0 (32b)
+                fub_axi_arready = conv_32b_arready;
+            end
+            3'b010: begin  // Slave 1 (64b)
+                fub_axi_arready = cpu_rd_64b_arready;
+            end
+            3'b100: begin  // Slave 2 (128b)
+                fub_axi_arready = conv_128b_arready;
+            end
+            default: begin
+                // No slave selected
+            end
+        endcase
+    end
+
+    // Read response MUX (R channel - uses r_slave_select FIFO head)
+    always_comb begin
         fub_axi_rid = 4'd0;
         fub_axi_rdata = 64'd0;
         fub_axi_rresp = 2'b00;
         fub_axi_rlast = 1'b0;
         fub_axi_rvalid = 1'b0;
 
-        case (slave_select_ar)
+        case (r_slave_select)
             3'b001: begin  // Slave 0 (32b)
-                fub_axi_arready = conv_32b_arready;
                 fub_axi_rid = conv_32b_rid;
                 fub_axi_rdata = conv_32b_rdata;
                 fub_axi_rresp = conv_32b_rresp;
@@ -389,7 +451,6 @@ module cpu_rd_adapter #(
                 fub_axi_rvalid = conv_32b_rvalid;
             end
             3'b010: begin  // Slave 1 (64b)
-                fub_axi_arready = cpu_rd_64b_arready;
                 fub_axi_rid = cpu_rd_64b_r.id;
                 fub_axi_rdata = cpu_rd_64b_r.data;
                 fub_axi_rresp = cpu_rd_64b_r.resp;
@@ -397,7 +458,6 @@ module cpu_rd_adapter #(
                 fub_axi_rvalid = cpu_rd_64b_rvalid;
             end
             3'b100: begin  // Slave 2 (128b)
-                fub_axi_arready = conv_128b_arready;
                 fub_axi_rid = conv_128b_rid;
                 fub_axi_rdata = conv_128b_rdata;
                 fub_axi_rresp = conv_128b_rresp;

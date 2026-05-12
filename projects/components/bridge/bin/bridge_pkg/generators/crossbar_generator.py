@@ -428,32 +428,35 @@ class CrossbarGenerator:
             lines.append(f"    //   - {m.name} ({m.channels})")
         lines.append("")
 
+        # Per-master address-decode signals. Defined once up-front and
+        # reused by every OR-merge below so we don't repeat the same
+        # comparison expression.
+        for m in masters:
+            if m.channels in ("wr", "rw"):
+                aw_dec = self._addr_decode_expr(m.name, suffix, "aw", slave)
+                lines.append(f"    wire {m.name}_{suffix}_aw_to_{slave.name} = {aw_dec};")
+            if m.channels in ("rd", "rw"):
+                ar_dec = self._addr_decode_expr(m.name, suffix, "ar", slave)
+                lines.append(f"    wire {m.name}_{suffix}_ar_to_{slave.name} = {ar_dec};")
+        lines.append("")
+
         def _or_merge(out_sig: str, struct_field: str | None,
                       master_sig_template: str, sel_array: str,
                       master_subset: List[MasterConfig],
                       valid_signal: str) -> str:
             """Build an OR-merged assignment line.
 
-            out_sig          — slave-side signal (e.g. 'awid')
-            struct_field     — if the master signal is inside a struct
-                               (e.g. master_<W>_aw.id), the '.id' part;
-                               None for plain logic signals like awvalid.
-            master_sig_template — e.g. '{m}_{suffix}_aw' or '{m}_{suffix}_awvalid'
-            sel_array        — 'aw' or 'ar' (selects slave_select_<sel_array>)
-            valid_signal     — '{m}_{suffix}_awvalid' / '_arvalid' / '_wvalid'.
-                Each OR-merged term is gated by `slave_select && valid` so
-                an idle master with a stale `fub_axi_awaddr` (which can
-                still combinationally decode to `slave_select_aw[idx]=1`)
-                does NOT contribute. Without the valid gating, both
-                masters' bridge_id_aw entries OR together, corrupting the
-                routing tag captured into the slave-adapter's FIFO and
-                misrouting the B/R response.
+            Each OR-merged term is gated by `addr_decode && valid` so
+            an idle master with a stale fub_axi_*addr does NOT contribute.
+            Address decode happens on the converter/passthrough's m_axi
+            address bus (stable across the entire handshake), avoiding
+            the slave_select_* reverts-after-handshake bug.
             """
             parts = []
             for m in master_subset:
                 base = master_sig_template.format(m=m.name, suffix=suffix)
                 lhs = f"{base}{struct_field}" if struct_field else base
-                sel = f"{m.name}_slave_select_{sel_array}[{slave_idx}]"
+                sel = f"{m.name}_{suffix}_{sel_array}_to_{slave.name}"
                 vld = valid_signal.format(m=m.name, suffix=suffix)
                 parts.append(f"(({sel} && {vld}) ? {lhs} : '0)")
             return " |\n        ".join(parts) if parts else "'0"
@@ -480,13 +483,43 @@ class CrossbarGenerator:
             lines.append(f"    assign {prefix}awvalid = {_or_merge('awvalid', None, tmpl, 'aw', wr_masters, aw_valid)};")
             lines.append("")
 
-            lines.append("    // W channel (OR-merged across writing masters)")
+            # Per-(master,slave) AW->W tracking FIFO: capture which slave
+            # the AW was driven to so W beats follow even after the AW
+            # address moves on. Same pattern as single-master.
+            for m in wr_masters:
+                w_sig = f"{m.name}_{suffix}_w_to_{slave.name}"
+                aw_sig = f"{m.name}_{suffix}_aw_to_{slave.name}"
+                lines.append(f"    // AW->W tracking FIFO: {m.name} -> {slave.name}")
+                lines.append(f"    logic {w_sig};")
+                lines.append(f"    logic [3:0] {aw_sig}_w_wptr, {aw_sig}_w_rptr;")
+                lines.append(f"    logic {aw_sig}_w_mem [16];")
+                lines.append(f"    logic {aw_sig}_w_push, {aw_sig}_w_pop;")
+                lines.append(f"    assign {aw_sig}_w_push = {m.name}_{suffix}_awvalid && {m.name}_{suffix}_awready && {aw_sig};")
+                lines.append(f"    assign {aw_sig}_w_pop  = {m.name}_{suffix}_wvalid && {m.name}_{suffix}_wready && {m.name}_{suffix}_w.last && {w_sig};")
+                lines.append(f"    always_ff @(posedge aclk or negedge aresetn) begin")
+                lines.append(f"        if (!aresetn) begin")
+                lines.append(f"            {aw_sig}_w_wptr <= '0;")
+                lines.append(f"            {aw_sig}_w_rptr <= '0;")
+                lines.append(f"        end else begin")
+                lines.append(f"            if ({aw_sig}_w_push) begin")
+                lines.append(f"                {aw_sig}_w_mem[{aw_sig}_w_wptr] <= 1'b1;")
+                lines.append(f"                {aw_sig}_w_wptr <= {aw_sig}_w_wptr + 1'b1;")
+                lines.append(f"            end")
+                lines.append(f"            if ({aw_sig}_w_pop) begin")
+                lines.append(f"                {aw_sig}_w_rptr <= {aw_sig}_w_rptr + 1'b1;")
+                lines.append(f"            end")
+                lines.append(f"        end")
+                lines.append(f"    end")
+                lines.append(f"    assign {w_sig} = ({aw_sig}_w_wptr != {aw_sig}_w_rptr) ? {aw_sig}_w_mem[{aw_sig}_w_rptr] : 1'b0;")
+                lines.append("")
+
+            lines.append("    // W channel (OR-merged across writing masters, gated by w_to_<slave> FIFO)")
             for sig, fld in [("wdata", ".data"), ("wstrb", ".strb"), ("wlast", ".last")]:
                 tmpl = "{m}_{suffix}_w"
-                expr = _or_merge(sig, fld, tmpl, "aw", wr_masters, w_valid)
+                expr = _or_merge(sig, fld, tmpl, "w", wr_masters, w_valid)
                 lines.append(f"    assign {prefix}{sig} = {expr};")
             tmpl = "{m}_{suffix}_wvalid"
-            lines.append(f"    assign {prefix}wvalid = {_or_merge('wvalid', None, tmpl, 'aw', wr_masters, w_valid)};")
+            lines.append(f"    assign {prefix}wvalid = {_or_merge('wvalid', None, tmpl, 'w', wr_masters, w_valid)};")
             lines.append("")
 
             # bready: route back to whichever master owns this response
@@ -502,14 +535,14 @@ class CrossbarGenerator:
             lines.append(f"    assign {prefix}bready = " + " |\n        ".join(bready_terms) + ";")
             lines.append("")
 
-            # bridge_id_aw: which master originated this AW. MUST gate on
-            # awvalid too — slave_select_aw alone leaks an idle master's
-            # bridge_id_aw into the OR and corrupts the FIFO push tag.
+            # bridge_id_aw: which master originated this AW. Gate on
+            # addr-decode && awvalid (the address bus is stable across
+            # the AW handshake; slave_select_aw isn't).
             lines.append("    // Bridge ID (writes) — picks the originating master's id")
             bid_terms = []
             for m in wr_masters:
                 bid_terms.append(
-                    f"(({m.name}_slave_select_aw[{slave_idx}] && {m.name}_{suffix}_awvalid) ? {m.name}_bridge_id_aw : '0)"
+                    f"(({m.name}_{suffix}_aw_to_{slave.name} && {m.name}_{suffix}_awvalid) ? {m.name}_bridge_id_aw : '0)"
                 )
             lines.append(f"    assign {prefix}bridge_id_aw = " + " |\n        ".join(bid_terms) + ";")
             lines.append("")
@@ -542,7 +575,7 @@ class CrossbarGenerator:
             rid_terms = []
             for m in rd_masters:
                 rid_terms.append(
-                    f"(({m.name}_slave_select_ar[{slave_idx}] && {m.name}_{suffix}_arvalid) ? {m.name}_bridge_id_ar : '0)"
+                    f"(({m.name}_{suffix}_ar_to_{slave.name} && {m.name}_{suffix}_arvalid) ? {m.name}_bridge_id_ar : '0)"
                 )
             lines.append(f"    assign {prefix}bridge_id_ar = " + " |\n        ".join(rid_terms) + ";")
             lines.append("")
@@ -581,33 +614,102 @@ class CrossbarGenerator:
 
         return lines
 
+    def _addr_decode_expr(self, master_name: str, suffix: str, channel: str,
+                          slave: SlaveInfo) -> str:
+        """Return an expression evaluating to 1 when
+        `<master_name>_<suffix>_<channel>.addr` falls in `slave`'s range.
+        Used in place of `<master>_slave_select_<channel>[slave_idx]` to
+        gate AR/AW signals: the address bus on the converter/passthrough
+        m_axi side is held stable across the entire handshake, while the
+        master adapter's `slave_select_*` reverts the moment fub_axi
+        `*addr` reverts -- which happens as soon as the wrapper pops the
+        skid, before the converter has finished pushing to the xbar.
+        """
+        addr_sig = f"{master_name}_{suffix}_{channel}.addr"
+        base = slave.base_addr
+        end = slave.base_addr + slave.addr_range - 1
+        aw = slave.addr_width
+        hex_digits = (aw + 3) // 4
+        max_addr = (1 << aw) - 1
+        # Verilator warns when comparisons are tautological for an
+        # unsigned bus. Drop the always-true halves to keep the RTL
+        # lint-clean. If the slave covers the full address space, the
+        # decode is just a constant 1.
+        base_zero = (base == 0)
+        end_max = (end >= max_addr)
+        if base_zero and end_max:
+            return "1'b1"
+        if base_zero:
+            return f"({addr_sig} <= {aw}'h{end:0{hex_digits}x})"
+        if end_max:
+            return f"({addr_sig} >= {aw}'h{base:0{hex_digits}x})"
+        return (f"(({addr_sig} >= {aw}'h{base:0{hex_digits}x}) && "
+                f"({addr_sig} <= {aw}'h{end:0{hex_digits}x}))")
+
     def _generate_write_channel_routing(self, slave_idx: int, slave: SlaveInfo,
                                         master: MasterConfig, suffix: str) -> List[str]:
-        """Generate AW, W, B channel routing."""
+        """Generate AW, W, B channel routing.
+
+        AW gating uses address re-decode on `<master>_<suffix>_aw.addr`
+        (the converter/passthrough's m_axi side) -- see _addr_decode_expr
+        for rationale. W follows AW via a small per-(master,slave) FIFO
+        that captures which slave the AW went to at AW handshake and
+        gates W beats until the WLAST handshake pops the FIFO.
+        """
         lines = []
         # Use SignalNaming convention for slave signals
         prefix = f"{slave.name}_axi_"
         master_idx = self.masters.index(master)
+        addr_dec = self._addr_decode_expr(master.name, suffix, "aw", slave)
+        sig_select = f"{master.name}_{suffix}_aw_to_{slave.name}"
+        w_sig = f"{master.name}_{suffix}_w_to_{slave.name}"
 
-        # AW channel (master → slave)
-        lines.append("    // AW channel")
-        lines.append(f"    assign {prefix}awid     = {master.name}_slave_select_aw[{slave_idx}] ? {master.name}_{suffix}_aw.id : '0;")
-        lines.append(f"    assign {prefix}awaddr   = {master.name}_slave_select_aw[{slave_idx}] ? {master.name}_{suffix}_aw.addr : '0;")
-        lines.append(f"    assign {prefix}awlen    = {master.name}_slave_select_aw[{slave_idx}] ? {master.name}_{suffix}_aw.len : '0;")
-        lines.append(f"    assign {prefix}awsize   = {master.name}_slave_select_aw[{slave_idx}] ? {master.name}_{suffix}_aw.size : '0;")
-        lines.append(f"    assign {prefix}awburst  = {master.name}_slave_select_aw[{slave_idx}] ? {master.name}_{suffix}_aw.burst : '0;")
-        lines.append(f"    assign {prefix}awlock   = {master.name}_slave_select_aw[{slave_idx}] ? {master.name}_{suffix}_aw.lock : '0;")
-        lines.append(f"    assign {prefix}awcache  = {master.name}_slave_select_aw[{slave_idx}] ? {master.name}_{suffix}_aw.cache : '0;")
-        lines.append(f"    assign {prefix}awprot   = {master.name}_slave_select_aw[{slave_idx}] ? {master.name}_{suffix}_aw.prot : '0;")
-        lines.append(f"    assign {prefix}awvalid  = {master.name}_slave_select_aw[{slave_idx}] ? {master.name}_{suffix}_awvalid : '0;")
+        # AW channel (master → slave) - address-decode gating
+        lines.append("    // AW channel (gated by address re-decode -- see _addr_decode_expr)")
+        lines.append(f"    wire {sig_select} = {addr_dec};")
+        lines.append(f"    assign {prefix}awid     = {sig_select} ? {master.name}_{suffix}_aw.id : '0;")
+        lines.append(f"    assign {prefix}awaddr   = {sig_select} ? {master.name}_{suffix}_aw.addr : '0;")
+        lines.append(f"    assign {prefix}awlen    = {sig_select} ? {master.name}_{suffix}_aw.len : '0;")
+        lines.append(f"    assign {prefix}awsize   = {sig_select} ? {master.name}_{suffix}_aw.size : '0;")
+        lines.append(f"    assign {prefix}awburst  = {sig_select} ? {master.name}_{suffix}_aw.burst : '0;")
+        lines.append(f"    assign {prefix}awlock   = {sig_select} ? {master.name}_{suffix}_aw.lock : '0;")
+        lines.append(f"    assign {prefix}awcache  = {sig_select} ? {master.name}_{suffix}_aw.cache : '0;")
+        lines.append(f"    assign {prefix}awprot   = {sig_select} ? {master.name}_{suffix}_aw.prot : '0;")
+        lines.append(f"    assign {prefix}awvalid  = {sig_select} && {master.name}_{suffix}_awvalid;")
+        lines.append("")
+
+        # AW->W tracking FIFO so W beats follow the AW.
+        lines.append(f"    // AW->W tracking FIFO for this (master,slave) pair")
+        lines.append(f"    logic {w_sig};")
+        lines.append(f"    logic [3:0] {sig_select}_w_wptr, {sig_select}_w_rptr;")
+        lines.append(f"    logic {sig_select}_w_mem [16];")
+        lines.append(f"    logic {sig_select}_w_push, {sig_select}_w_pop;")
+        lines.append(f"    assign {sig_select}_w_push = {master.name}_{suffix}_awvalid && {master.name}_{suffix}_awready && {sig_select};")
+        lines.append(f"    assign {sig_select}_w_pop  = {master.name}_{suffix}_wvalid && {master.name}_{suffix}_wready && {master.name}_{suffix}_w.last && {w_sig};")
+        lines.append(f"    always_ff @(posedge aclk or negedge aresetn) begin")
+        lines.append(f"        if (!aresetn) begin")
+        lines.append(f"            {sig_select}_w_wptr <= '0;")
+        lines.append(f"            {sig_select}_w_rptr <= '0;")
+        lines.append(f"        end else begin")
+        lines.append(f"            if ({sig_select}_w_push) begin")
+        lines.append(f"                {sig_select}_w_mem[{sig_select}_w_wptr] <= 1'b1;")
+        lines.append(f"                {sig_select}_w_wptr <= {sig_select}_w_wptr + 1'b1;")
+        lines.append(f"            end")
+        lines.append(f"            if ({sig_select}_w_pop) begin")
+        lines.append(f"                {sig_select}_w_rptr <= {sig_select}_w_rptr + 1'b1;")
+        lines.append(f"            end")
+        lines.append(f"        end")
+        lines.append(f"    end")
+        lines.append(f"    assign {w_sig} = ({sig_select}_w_wptr != {sig_select}_w_rptr) ? {sig_select}_w_mem[{sig_select}_w_rptr] : 1'b0;")
+        lines.append("")
         lines.append("")
 
         # W channel (master → slave)
-        lines.append("    // W channel")
-        lines.append(f"    assign {prefix}wdata  = {master.name}_slave_select_aw[{slave_idx}] ? {master.name}_{suffix}_w.data : '0;")
-        lines.append(f"    assign {prefix}wstrb  = {master.name}_slave_select_aw[{slave_idx}] ? {master.name}_{suffix}_w.strb : '0;")
-        lines.append(f"    assign {prefix}wlast  = {master.name}_slave_select_aw[{slave_idx}] ? {master.name}_{suffix}_w.last : '0;")
-        lines.append(f"    assign {prefix}wvalid = {master.name}_slave_select_aw[{slave_idx}] ? {master.name}_{suffix}_wvalid : '0;")
+        lines.append("    // W channel (gated by aw_to_<slave> FIFO head)")
+        lines.append(f"    assign {prefix}wdata  = {w_sig} ? {master.name}_{suffix}_w.data : '0;")
+        lines.append(f"    assign {prefix}wstrb  = {w_sig} ? {master.name}_{suffix}_w.strb : '0;")
+        lines.append(f"    assign {prefix}wlast  = {w_sig} ? {master.name}_{suffix}_w.last : '0;")
+        lines.append(f"    assign {prefix}wvalid = {w_sig} && {master.name}_{suffix}_wvalid;")
         lines.append("")
 
         # bready (master → slave). Use the slave's bid_valid/bid_bridge_id
@@ -623,30 +725,37 @@ class CrossbarGenerator:
 
         # Bridge ID routing (master → slave) - passes master index for response routing
         lines.append("    // Bridge ID (master → slave)")
-        lines.append(f"    assign {prefix}bridge_id_aw = {master.name}_slave_select_aw[{slave_idx}] ? {master.name}_bridge_id_aw : '0;")
+        lines.append(f"    assign {prefix}bridge_id_aw = {sig_select} ? {master.name}_bridge_id_aw : '0;")
         lines.append("")
 
         return lines
 
     def _generate_read_channel_routing(self, slave_idx: int, slave: SlaveInfo,
                                        master: MasterConfig, suffix: str) -> List[str]:
-        """Generate AR, R channel routing."""
+        """Generate AR, R channel routing.
+
+        AR gating uses address re-decode on `<master>_<suffix>_ar.addr`
+        (the converter/passthrough's m_axi side). See _addr_decode_expr.
+        """
         lines = []
         # Use SignalNaming convention for slave signals
         prefix = f"{slave.name}_axi_"
         master_idx = self.masters.index(master)
+        addr_dec = self._addr_decode_expr(master.name, suffix, "ar", slave)
+        sig_select = f"{master.name}_{suffix}_ar_to_{slave.name}"
 
-        # AR channel (master → slave)
-        lines.append("    // AR channel")
-        lines.append(f"    assign {prefix}arid     = {master.name}_slave_select_ar[{slave_idx}] ? {master.name}_{suffix}_ar.id : '0;")
-        lines.append(f"    assign {prefix}araddr   = {master.name}_slave_select_ar[{slave_idx}] ? {master.name}_{suffix}_ar.addr : '0;")
-        lines.append(f"    assign {prefix}arlen    = {master.name}_slave_select_ar[{slave_idx}] ? {master.name}_{suffix}_ar.len : '0;")
-        lines.append(f"    assign {prefix}arsize   = {master.name}_slave_select_ar[{slave_idx}] ? {master.name}_{suffix}_ar.size : '0;")
-        lines.append(f"    assign {prefix}arburst  = {master.name}_slave_select_ar[{slave_idx}] ? {master.name}_{suffix}_ar.burst : '0;")
-        lines.append(f"    assign {prefix}arlock   = {master.name}_slave_select_ar[{slave_idx}] ? {master.name}_{suffix}_ar.lock : '0;")
-        lines.append(f"    assign {prefix}arcache  = {master.name}_slave_select_ar[{slave_idx}] ? {master.name}_{suffix}_ar.cache : '0;")
-        lines.append(f"    assign {prefix}arprot   = {master.name}_slave_select_ar[{slave_idx}] ? {master.name}_{suffix}_ar.prot : '0;")
-        lines.append(f"    assign {prefix}arvalid  = {master.name}_slave_select_ar[{slave_idx}] ? {master.name}_{suffix}_arvalid : '0;")
+        # AR channel (master → slave) - address-decode gating
+        lines.append("    // AR channel (gated by address re-decode -- see _addr_decode_expr)")
+        lines.append(f"    wire {sig_select} = {addr_dec};")
+        lines.append(f"    assign {prefix}arid     = {sig_select} ? {master.name}_{suffix}_ar.id : '0;")
+        lines.append(f"    assign {prefix}araddr   = {sig_select} ? {master.name}_{suffix}_ar.addr : '0;")
+        lines.append(f"    assign {prefix}arlen    = {sig_select} ? {master.name}_{suffix}_ar.len : '0;")
+        lines.append(f"    assign {prefix}arsize   = {sig_select} ? {master.name}_{suffix}_ar.size : '0;")
+        lines.append(f"    assign {prefix}arburst  = {sig_select} ? {master.name}_{suffix}_ar.burst : '0;")
+        lines.append(f"    assign {prefix}arlock   = {sig_select} ? {master.name}_{suffix}_ar.lock : '0;")
+        lines.append(f"    assign {prefix}arcache  = {sig_select} ? {master.name}_{suffix}_ar.cache : '0;")
+        lines.append(f"    assign {prefix}arprot   = {sig_select} ? {master.name}_{suffix}_ar.prot : '0;")
+        lines.append(f"    assign {prefix}arvalid  = {sig_select} && {master.name}_{suffix}_arvalid;")
         lines.append("")
 
         # rready (master → slave). Same fix as bready: gate on rid_valid /
@@ -662,7 +771,7 @@ class CrossbarGenerator:
 
         # Bridge ID routing (master → slave) - passes master index for response routing
         lines.append("    // Bridge ID (master → slave)")
-        lines.append(f"    assign {prefix}bridge_id_ar = {master.name}_slave_select_ar[{slave_idx}] ? {master.name}_bridge_id_ar : '0;")
+        lines.append(f"    assign {prefix}bridge_id_ar = {sig_select} ? {master.name}_bridge_id_ar : '0;")
         lines.append("")
 
         return lines
@@ -728,21 +837,22 @@ class CrossbarGenerator:
         # Get master index for bridge_id matching
         master_idx = self.masters.index(master)
 
-        # Generate awready MUX (uses slave_select_aw - request path)
+        # Generate awready MUX (gated by address re-decode -- same fix
+        # as the AW signal gating in _generate_*_channel_routing).
         lines.append(f"    assign {master.name}_{suffix}_awready = ")
         mux_terms = []
         for slave_idx, slave in connected_slaves:
             prefix = get_slave_prefix(slave)
-            mux_terms.append(f"        ({master.name}_slave_select_aw[{slave_idx}] ? {prefix}awready : '0)")
+            mux_terms.append(f"        ({master.name}_{suffix}_aw_to_{slave.name} ? {prefix}awready : '0)")
         lines.append(" |\n".join(mux_terms) + ";")
         lines.append("")
 
-        # Generate wready MUX (uses slave_select_aw - request path)
+        # Generate wready MUX -- W beats follow the AW-to-slave FIFO head.
         lines.append(f"    assign {master.name}_{suffix}_wready = ")
         mux_terms = []
         for slave_idx, slave in connected_slaves:
             prefix = get_slave_prefix(slave)
-            mux_terms.append(f"        ({master.name}_slave_select_aw[{slave_idx}] ? {prefix}wready : '0)")
+            mux_terms.append(f"        ({master.name}_{suffix}_w_to_{slave.name} ? {prefix}wready : '0)")
         lines.append(" |\n".join(mux_terms) + ";")
         lines.append("")
 
@@ -794,12 +904,13 @@ class CrossbarGenerator:
         # Get master index for bridge_id matching
         master_idx = self.masters.index(master)
 
-        # Generate arready MUX (uses slave_select_ar - request path)
+        # Generate arready MUX (gated by address re-decode -- same fix
+        # as the AR signal gating in _generate_*_channel_routing).
         lines.append(f"    assign {master.name}_{suffix}_arready = ")
         mux_terms = []
         for slave_idx, slave in connected_slaves:
             prefix = get_slave_prefix(slave)
-            mux_terms.append(f"        ({master.name}_slave_select_ar[{slave_idx}] ? {prefix}arready : '0)")
+            mux_terms.append(f"        ({master.name}_{suffix}_ar_to_{slave.name} ? {prefix}arready : '0)")
         lines.append(" |\n".join(mux_terms) + ";")
         lines.append("")
 

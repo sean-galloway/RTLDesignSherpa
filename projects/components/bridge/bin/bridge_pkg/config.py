@@ -34,6 +34,8 @@ class PortSpec:
 @dataclass
 class BridgeConfig:
     """Complete bridge configuration"""
+    name: str = ""           # From TOML/YAML [bridge].name; empty = let
+                             # generate_bridge() auto-name from topology.
     masters: List[PortSpec] = field(default_factory=list)
     slaves: List[PortSpec] = field(default_factory=list)
     connectivity: Dict[str, List[str]] = field(default_factory=dict)

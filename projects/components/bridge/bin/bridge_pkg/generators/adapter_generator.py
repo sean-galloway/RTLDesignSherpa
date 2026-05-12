@@ -568,7 +568,17 @@ class AdapterGenerator:
         return lines
 
     def _generate_address_decode(self) -> List[str]:
-        """Generate address decode logic."""
+        """Generate address decode logic.
+
+        The internal `comb_slave_select_{ar,aw}` are combinational decodes
+        of `fub_axi_{ar,aw}addr`. They are valid only while {ar,aw}valid is
+        asserted -- after the handshake completes the address bus reverts
+        and the decode flips back to slave 0 (or all-zero), so anything
+        downstream that needs to know which slave a request was targeted
+        at *after* the handshake (the xbar AR/AW gating, the B/R response
+        MUX) must use the FIFO-tracked output `slave_select_{ar,aw}`
+        instead. See _generate_response_mux for the tracking FIFOs.
+        """
         lines = []
 
         # Write address decode
@@ -577,9 +587,10 @@ class AdapterGenerator:
             lines.append("    // Address decode (slave selection) - Write")
             lines.extend(self._generate_decode_comment())
             lines.append("    // ================================================================")
+            lines.append("    logic [NUM_SLAVES-1:0] comb_slave_select_aw;")
             lines.append("    always_comb begin")
-            lines.append("        slave_select_aw = '0;")
-            lines.extend(self._generate_decode_logic("fub_axi_awaddr", "slave_select_aw"))
+            lines.append("        comb_slave_select_aw = '0;")
+            lines.extend(self._generate_decode_logic("fub_axi_awaddr", "comb_slave_select_aw"))
             lines.append("    end")
             lines.append("")
             lines.append("    // Bridge ID for write channel (constant - tied to BRIDGE_ID parameter)")
@@ -592,9 +603,10 @@ class AdapterGenerator:
             lines.append("    // Address decode (slave selection) - Read")
             lines.extend(self._generate_decode_comment())
             lines.append("    // ================================================================")
+            lines.append("    logic [NUM_SLAVES-1:0] comb_slave_select_ar;")
             lines.append("    always_comb begin")
-            lines.append("        slave_select_ar = '0;")
-            lines.extend(self._generate_decode_logic("fub_axi_araddr", "slave_select_ar"))
+            lines.append("        comb_slave_select_ar = '0;")
+            lines.extend(self._generate_decode_logic("fub_axi_araddr", "comb_slave_select_ar"))
             lines.append("    end")
             lines.append("")
             lines.append("    // Bridge ID for read channel (constant - tied to BRIDGE_ID parameter)")
@@ -769,7 +781,7 @@ class AdapterGenerator:
                     if self.slaves[si].data_width == slave_width
                 ]
                 if self.master.channels in ("wr", "rw"):
-                    aw_terms = " | ".join(f"slave_select_aw[{si}]" for si in slaves_at_w)
+                    aw_terms = " | ".join(f"comb_slave_select_aw[{si}]" for si in slaves_at_w)
                     lines.append(
                         f"    logic aw_path_active_{slave_width}b;"
                     )
@@ -777,7 +789,7 @@ class AdapterGenerator:
                         f"    assign aw_path_active_{slave_width}b = {aw_terms};"
                     )
                 if self.master.channels in ("rd", "rw"):
-                    ar_terms = " | ".join(f"slave_select_ar[{si}]" for si in slaves_at_w)
+                    ar_terms = " | ".join(f"comb_slave_select_ar[{si}]" for si in slaves_at_w)
                     lines.append(
                         f"    logic ar_path_active_{slave_width}b;"
                     )
@@ -816,6 +828,17 @@ class AdapterGenerator:
         lines.append("    // ================================================================")
         lines.append("    // Response MUX - Route responses from width-specific paths")
         lines.append("    // back to fub_axi_* based on address decode")
+        lines.append("    //")
+        lines.append("    // Request side (arready/awready/wready) uses the combinational")
+        lines.append("    // slave_select_{ar,aw} (valid while {ar,aw}valid is asserted).")
+        lines.append("    //")
+        lines.append("    // Response side (rvalid/rdata/..., bvalid/bid/...) cannot reuse")
+        lines.append("    // the combinational decode because fub_axi_{ar,aw}addr no longer")
+        lines.append("    // holds the request address once the {AR,AW} handshake completes")
+        lines.append("    // -- the decode reverts (typically to slave 0) and drops the")
+        lines.append("    // response. So we track slave_select_{ar,aw} per outstanding")
+        lines.append("    // request in a small FIFO captured at handshake, popped at")
+        lines.append("    // R-last / B; the FIFO head drives the response MUX.")
         lines.append("    // ================================================================")
         lines.append("")
 
@@ -835,21 +858,136 @@ class AdapterGenerator:
                 width_to_slaves[adapter_output_width] = []
             width_to_slaves[adapter_output_width].append(slave_idx)
 
+        num_slaves = len(self.slaves)
+
+        # FIFO depth: needs to cover max outstanding requests. 16 is a safe default;
+        # adapter wrappers typically don't accept more outstanding than this anyway.
+        fifo_depth = 16
+        fifo_aw_bits = 4  # $clog2(16)
+
+        # Generate response-tracking FIFOs (one per channel direction).
+        # The FIFO captures `comb_slave_select_{ar,aw}` at the {ar,aw}
+        # handshake so the slave selection is available for the response
+        # MUX (B/R) even after fub_axi_{ar,aw}addr reverts.
+        #
+        # The OUTPUT `slave_select_{ar,aw}` keeps the combinational
+        # semantics: it's the live decode of the current request address.
+        # The xbar handles the "address reverts after handshake" problem
+        # by re-decoding the converter/passthrough's m_axi address bus
+        # instead of relying on `slave_select_*` (see crossbar_generator
+        # _generate_*_channel_routing).
+        if self.master.channels in ("wr", "rw"):
+            lines.append("    // OUTPUT slave_select_aw mirrors the live combinational decode.")
+            lines.append("    assign slave_select_aw = comb_slave_select_aw;")
+            lines.append("")
+            lines.append("    // -------- AW->B slave_select tracking FIFO --------")
+            lines.append(f"    localparam int AW_TRK_DEPTH = {fifo_depth};")
+            lines.append(f"    localparam int AW_TRK_AW    = {fifo_aw_bits};")
+            lines.append(f"    logic [NUM_SLAVES-1:0] aw_trk_mem [AW_TRK_DEPTH];")
+            lines.append("    logic [AW_TRK_AW:0] aw_trk_wptr, aw_trk_rptr;")
+            lines.append("    logic aw_trk_push, aw_trk_pop;")
+            lines.append("    logic [NUM_SLAVES-1:0] b_slave_select;")
+            lines.append("")
+            lines.append("    assign aw_trk_push = fub_axi_awvalid && fub_axi_awready;")
+            lines.append("    assign aw_trk_pop  = fub_axi_bvalid && fub_axi_bready;")
+            lines.append("")
+            lines.append("    always_ff @(posedge aclk or negedge aresetn) begin")
+            lines.append("        if (!aresetn) begin")
+            lines.append("            aw_trk_wptr <= '0;")
+            lines.append("            aw_trk_rptr <= '0;")
+            lines.append("        end else begin")
+            lines.append("            if (aw_trk_push) begin")
+            lines.append("                aw_trk_mem[aw_trk_wptr[AW_TRK_AW-1:0]] <= comb_slave_select_aw;")
+            lines.append("                aw_trk_wptr <= aw_trk_wptr + 1'b1;")
+            lines.append("            end")
+            lines.append("            if (aw_trk_pop) begin")
+            lines.append("                aw_trk_rptr <= aw_trk_rptr + 1'b1;")
+            lines.append("            end")
+            lines.append("        end")
+            lines.append("    end")
+            lines.append("")
+            lines.append("    assign b_slave_select = (aw_trk_wptr != aw_trk_rptr)")
+            lines.append("                          ? aw_trk_mem[aw_trk_rptr[AW_TRK_AW-1:0]]")
+            lines.append("                          : '0;")
+            lines.append("")
+
+        if self.master.channels in ("rd", "rw"):
+            lines.append("    // OUTPUT slave_select_ar mirrors the live combinational decode.")
+            lines.append("    assign slave_select_ar = comb_slave_select_ar;")
+            lines.append("")
+            lines.append("    // -------- AR->R slave_select tracking FIFO --------")
+            lines.append(f"    localparam int AR_TRK_DEPTH = {fifo_depth};")
+            lines.append(f"    localparam int AR_TRK_AW    = {fifo_aw_bits};")
+            lines.append(f"    logic [NUM_SLAVES-1:0] ar_trk_mem [AR_TRK_DEPTH];")
+            lines.append("    logic [AR_TRK_AW:0] ar_trk_wptr, ar_trk_rptr;")
+            lines.append("    logic ar_trk_push, ar_trk_pop;")
+            lines.append("    logic [NUM_SLAVES-1:0] r_slave_select;")
+            lines.append("")
+            lines.append("    assign ar_trk_push = fub_axi_arvalid && fub_axi_arready;")
+            lines.append("    assign ar_trk_pop  = fub_axi_rvalid && fub_axi_rready && fub_axi_rlast;")
+            lines.append("")
+            lines.append("    always_ff @(posedge aclk or negedge aresetn) begin")
+            lines.append("        if (!aresetn) begin")
+            lines.append("            ar_trk_wptr <= '0;")
+            lines.append("            ar_trk_rptr <= '0;")
+            lines.append("        end else begin")
+            lines.append("            if (ar_trk_push) begin")
+            lines.append("                ar_trk_mem[ar_trk_wptr[AR_TRK_AW-1:0]] <= comb_slave_select_ar;")
+            lines.append("                ar_trk_wptr <= ar_trk_wptr + 1'b1;")
+            lines.append("            end")
+            lines.append("            if (ar_trk_pop) begin")
+            lines.append("                ar_trk_rptr <= ar_trk_rptr + 1'b1;")
+            lines.append("            end")
+            lines.append("        end")
+            lines.append("    end")
+            lines.append("")
+            lines.append("    assign r_slave_select = (ar_trk_wptr != ar_trk_rptr)")
+            lines.append("                          ? ar_trk_mem[ar_trk_rptr[AR_TRK_AW-1:0]]")
+            lines.append("                          : '0;")
+            lines.append("")
+
         # Write channel MUX
         if self.master.channels in ["wr", "rw"]:
-            lines.append("    // Write response MUX (B channel)")
+            # AW/W-ready path: combinational decode on the request side.
+            lines.append("    // AW/W-ready MUX (request side: uses combinational comb_slave_select_aw)")
+            lines.append("    always_comb begin")
+            lines.append("        fub_axi_awready = 1'b0;")
+            lines.append("        fub_axi_wready = 1'b0;")
+            lines.append("        case (comb_slave_select_aw)")
+            for slave_width in sorted(set(slave_widths)):
+                suffix = f"{slave_width}b"
+                slave_indices = width_to_slaves[slave_width]
+                for slave_idx in slave_indices:
+                    pattern = f"{num_slaves}'b" + ''.join(
+                        '1' if i == slave_idx else '0'
+                        for i in range(num_slaves - 1, -1, -1)
+                    )
+                    lines.append(f"            {pattern}: begin  // Slave {slave_idx} ({slave_width}b)")
+                    if slave_width == master_width:
+                        lines.append(f"                fub_axi_awready = {self.master.name}_{suffix}_awready;")
+                        lines.append(f"                fub_axi_wready = {self.master.name}_{suffix}_wready;")
+                    else:
+                        lines.append(f"                fub_axi_awready = conv_{suffix}_awready;")
+                        lines.append(f"                fub_axi_wready = conv_{suffix}_wready;")
+                    lines.append("            end")
+            lines.append("            default: begin")
+            lines.append("                // No slave selected")
+            lines.append("            end")
+            lines.append("        endcase")
+            lines.append("    end")
+            lines.append("")
+
+            lines.append("    // Write response MUX (B channel - uses b_slave_select FIFO head)")
             lines.append("    always_comb begin")
 
             # Default assignments
-            lines.append("        fub_axi_awready = 1'b0;")
-            lines.append("        fub_axi_wready = 1'b0;")
             lines.append(f"        fub_axi_bid = {self.master.id_width}'d0;")
             lines.append("        fub_axi_bresp = 2'b00;")
             lines.append("        fub_axi_bvalid = 1'b0;")
             lines.append("")
 
-            # Case statement based on slave_select_aw
-            lines.append("        case (slave_select_aw)")
+            # Case statement based on b_slave_select (was slave_select_aw)
+            lines.append("        case (b_slave_select)")
             for width_idx, slave_width in enumerate(sorted(set(slave_widths))):
                 suffix = f"{slave_width}b"
                 slave_indices = width_to_slaves[slave_width]
@@ -865,15 +1003,11 @@ class AdapterGenerator:
 
                     if slave_width == master_width:
                         # Direct passthrough signals
-                        lines.append(f"                fub_axi_awready = {self.master.name}_{suffix}_awready;")
-                        lines.append(f"                fub_axi_wready = {self.master.name}_{suffix}_wready;")
                         lines.append(f"                fub_axi_bid = {self.master.name}_{suffix}_b.id;")
                         lines.append(f"                fub_axi_bresp = {self.master.name}_{suffix}_b.resp;")
                         lines.append(f"                fub_axi_bvalid = {self.master.name}_{suffix}_bvalid;")
                     else:
                         # Converter intermediate signals
-                        lines.append(f"                fub_axi_awready = conv_{suffix}_awready;")
-                        lines.append(f"                fub_axi_wready = conv_{suffix}_wready;")
                         lines.append(f"                fub_axi_bid = conv_{suffix}_bid;")
                         lines.append(f"                fub_axi_bresp = conv_{suffix}_bresp;")
                         lines.append(f"                fub_axi_bvalid = conv_{suffix}_bvalid;")
@@ -889,11 +1023,36 @@ class AdapterGenerator:
 
         # Read channel MUX
         if self.master.channels in ["rd", "rw"]:
-            lines.append("    // Read response MUX (R channel)")
+            # AR-ready MUX: request-side decode is valid while arvalid is asserted.
+            lines.append("    // AR-ready MUX (request side: uses combinational comb_slave_select_ar)")
+            lines.append("    always_comb begin")
+            lines.append("        fub_axi_arready = 1'b0;")
+            lines.append("        case (comb_slave_select_ar)")
+            for slave_width in sorted(set(slave_widths)):
+                suffix = f"{slave_width}b"
+                slave_indices = width_to_slaves[slave_width]
+                for slave_idx in slave_indices:
+                    pattern = f"{num_slaves}'b" + ''.join(
+                        '1' if i == slave_idx else '0'
+                        for i in range(num_slaves - 1, -1, -1)
+                    )
+                    lines.append(f"            {pattern}: begin  // Slave {slave_idx} ({slave_width}b)")
+                    if slave_width == master_width:
+                        lines.append(f"                fub_axi_arready = {self.master.name}_{suffix}_arready;")
+                    else:
+                        lines.append(f"                fub_axi_arready = conv_{suffix}_arready;")
+                    lines.append("            end")
+            lines.append("            default: begin")
+            lines.append("                // No slave selected")
+            lines.append("            end")
+            lines.append("        endcase")
+            lines.append("    end")
+            lines.append("")
+
+            lines.append("    // Read response MUX (R channel - uses r_slave_select FIFO head)")
             lines.append("    always_comb begin")
 
             # Default assignments
-            lines.append("        fub_axi_arready = 1'b0;")
             lines.append(f"        fub_axi_rid = {self.master.id_width}'d0;")
             lines.append(f"        fub_axi_rdata = {master_width}'d0;")
             lines.append("        fub_axi_rresp = 2'b00;")
@@ -901,8 +1060,8 @@ class AdapterGenerator:
             lines.append("        fub_axi_rvalid = 1'b0;")
             lines.append("")
 
-            # Case statement based on slave_select_ar
-            lines.append("        case (slave_select_ar)")
+            # Case statement based on r_slave_select (was slave_select_ar)
+            lines.append("        case (r_slave_select)")
             for width_idx, slave_width in enumerate(sorted(set(slave_widths))):
                 suffix = f"{slave_width}b"
                 slave_indices = width_to_slaves[slave_width]
@@ -916,7 +1075,6 @@ class AdapterGenerator:
 
                     if slave_width == master_width:
                         # Direct passthrough signals
-                        lines.append(f"                fub_axi_arready = {self.master.name}_{suffix}_arready;")
                         lines.append(f"                fub_axi_rid = {self.master.name}_{suffix}_r.id;")
                         lines.append(f"                fub_axi_rdata = {self.master.name}_{suffix}_r.data;")
                         lines.append(f"                fub_axi_rresp = {self.master.name}_{suffix}_r.resp;")
@@ -924,7 +1082,6 @@ class AdapterGenerator:
                         lines.append(f"                fub_axi_rvalid = {self.master.name}_{suffix}_rvalid;")
                     else:
                         # Converter intermediate signals
-                        lines.append(f"                fub_axi_arready = conv_{suffix}_arready;")
                         lines.append(f"                fub_axi_rid = conv_{suffix}_rid;")
                         lines.append(f"                fub_axi_rdata = conv_{suffix}_rdata;")
                         lines.append(f"                fub_axi_rresp = conv_{suffix}_rresp;")

@@ -158,23 +158,24 @@ module bridge_1x4_rd_xbar (
     // Master width: 64b, Slave width: 32b
     // Using 32b path from adapter
 
-    // AR channel
-    assign periph_rd_axi_arid     = cpu_rd_slave_select_ar[0] ? cpu_rd_32b_ar.id : '0;
-    assign periph_rd_axi_araddr   = cpu_rd_slave_select_ar[0] ? cpu_rd_32b_ar.addr : '0;
-    assign periph_rd_axi_arlen    = cpu_rd_slave_select_ar[0] ? cpu_rd_32b_ar.len : '0;
-    assign periph_rd_axi_arsize   = cpu_rd_slave_select_ar[0] ? cpu_rd_32b_ar.size : '0;
-    assign periph_rd_axi_arburst  = cpu_rd_slave_select_ar[0] ? cpu_rd_32b_ar.burst : '0;
-    assign periph_rd_axi_arlock   = cpu_rd_slave_select_ar[0] ? cpu_rd_32b_ar.lock : '0;
-    assign periph_rd_axi_arcache  = cpu_rd_slave_select_ar[0] ? cpu_rd_32b_ar.cache : '0;
-    assign periph_rd_axi_arprot   = cpu_rd_slave_select_ar[0] ? cpu_rd_32b_ar.prot : '0;
-    assign periph_rd_axi_arvalid  = cpu_rd_slave_select_ar[0] ? cpu_rd_32b_arvalid : '0;
+    // AR channel (gated by address re-decode -- see _addr_decode_expr)
+    wire cpu_rd_32b_ar_to_periph_rd = (cpu_rd_32b_ar.addr <= 32'h0fffffff);
+    assign periph_rd_axi_arid     = cpu_rd_32b_ar_to_periph_rd ? cpu_rd_32b_ar.id : '0;
+    assign periph_rd_axi_araddr   = cpu_rd_32b_ar_to_periph_rd ? cpu_rd_32b_ar.addr : '0;
+    assign periph_rd_axi_arlen    = cpu_rd_32b_ar_to_periph_rd ? cpu_rd_32b_ar.len : '0;
+    assign periph_rd_axi_arsize   = cpu_rd_32b_ar_to_periph_rd ? cpu_rd_32b_ar.size : '0;
+    assign periph_rd_axi_arburst  = cpu_rd_32b_ar_to_periph_rd ? cpu_rd_32b_ar.burst : '0;
+    assign periph_rd_axi_arlock   = cpu_rd_32b_ar_to_periph_rd ? cpu_rd_32b_ar.lock : '0;
+    assign periph_rd_axi_arcache  = cpu_rd_32b_ar_to_periph_rd ? cpu_rd_32b_ar.cache : '0;
+    assign periph_rd_axi_arprot   = cpu_rd_32b_ar_to_periph_rd ? cpu_rd_32b_ar.prot : '0;
+    assign periph_rd_axi_arvalid  = cpu_rd_32b_ar_to_periph_rd && cpu_rd_32b_arvalid;
 
     // Rready (master → slave) — gated on rid_valid so the path stays
     // open through the entire R handshake, not just the AR phase.
     assign periph_rd_axi_rready = ((periph_rd_axi_rid_bridge_id == 0) && periph_rd_axi_rid_valid) ? cpu_rd_32b_rready : '0;
 
     // Bridge ID (master → slave)
-    assign periph_rd_axi_bridge_id_ar = cpu_rd_slave_select_ar[0] ? cpu_rd_bridge_id_ar : '0;
+    assign periph_rd_axi_bridge_id_ar = cpu_rd_32b_ar_to_periph_rd ? cpu_rd_bridge_id_ar : '0;
 
 
     // ================================================================
@@ -184,23 +185,24 @@ module bridge_1x4_rd_xbar (
     // Master width: 64b, Slave width: 64b
     // Using 64b path from adapter
 
-    // AR channel
-    assign ddr_rd_axi_arid     = cpu_rd_slave_select_ar[1] ? cpu_rd_64b_ar.id : '0;
-    assign ddr_rd_axi_araddr   = cpu_rd_slave_select_ar[1] ? cpu_rd_64b_ar.addr : '0;
-    assign ddr_rd_axi_arlen    = cpu_rd_slave_select_ar[1] ? cpu_rd_64b_ar.len : '0;
-    assign ddr_rd_axi_arsize   = cpu_rd_slave_select_ar[1] ? cpu_rd_64b_ar.size : '0;
-    assign ddr_rd_axi_arburst  = cpu_rd_slave_select_ar[1] ? cpu_rd_64b_ar.burst : '0;
-    assign ddr_rd_axi_arlock   = cpu_rd_slave_select_ar[1] ? cpu_rd_64b_ar.lock : '0;
-    assign ddr_rd_axi_arcache  = cpu_rd_slave_select_ar[1] ? cpu_rd_64b_ar.cache : '0;
-    assign ddr_rd_axi_arprot   = cpu_rd_slave_select_ar[1] ? cpu_rd_64b_ar.prot : '0;
-    assign ddr_rd_axi_arvalid  = cpu_rd_slave_select_ar[1] ? cpu_rd_64b_arvalid : '0;
+    // AR channel (gated by address re-decode -- see _addr_decode_expr)
+    wire cpu_rd_64b_ar_to_ddr_rd = ((cpu_rd_64b_ar.addr >= 32'h10000000) && (cpu_rd_64b_ar.addr <= 32'h4fffffff));
+    assign ddr_rd_axi_arid     = cpu_rd_64b_ar_to_ddr_rd ? cpu_rd_64b_ar.id : '0;
+    assign ddr_rd_axi_araddr   = cpu_rd_64b_ar_to_ddr_rd ? cpu_rd_64b_ar.addr : '0;
+    assign ddr_rd_axi_arlen    = cpu_rd_64b_ar_to_ddr_rd ? cpu_rd_64b_ar.len : '0;
+    assign ddr_rd_axi_arsize   = cpu_rd_64b_ar_to_ddr_rd ? cpu_rd_64b_ar.size : '0;
+    assign ddr_rd_axi_arburst  = cpu_rd_64b_ar_to_ddr_rd ? cpu_rd_64b_ar.burst : '0;
+    assign ddr_rd_axi_arlock   = cpu_rd_64b_ar_to_ddr_rd ? cpu_rd_64b_ar.lock : '0;
+    assign ddr_rd_axi_arcache  = cpu_rd_64b_ar_to_ddr_rd ? cpu_rd_64b_ar.cache : '0;
+    assign ddr_rd_axi_arprot   = cpu_rd_64b_ar_to_ddr_rd ? cpu_rd_64b_ar.prot : '0;
+    assign ddr_rd_axi_arvalid  = cpu_rd_64b_ar_to_ddr_rd && cpu_rd_64b_arvalid;
 
     // Rready (master → slave) — gated on rid_valid so the path stays
     // open through the entire R handshake, not just the AR phase.
     assign ddr_rd_axi_rready = ((ddr_rd_axi_rid_bridge_id == 0) && ddr_rd_axi_rid_valid) ? cpu_rd_64b_rready : '0;
 
     // Bridge ID (master → slave)
-    assign ddr_rd_axi_bridge_id_ar = cpu_rd_slave_select_ar[1] ? cpu_rd_bridge_id_ar : '0;
+    assign ddr_rd_axi_bridge_id_ar = cpu_rd_64b_ar_to_ddr_rd ? cpu_rd_bridge_id_ar : '0;
 
 
     // ================================================================
@@ -210,23 +212,24 @@ module bridge_1x4_rd_xbar (
     // Master width: 64b, Slave width: 128b
     // Using 128b path from adapter
 
-    // AR channel
-    assign hbm_rd_axi_arid     = cpu_rd_slave_select_ar[2] ? cpu_rd_128b_ar.id : '0;
-    assign hbm_rd_axi_araddr   = cpu_rd_slave_select_ar[2] ? cpu_rd_128b_ar.addr : '0;
-    assign hbm_rd_axi_arlen    = cpu_rd_slave_select_ar[2] ? cpu_rd_128b_ar.len : '0;
-    assign hbm_rd_axi_arsize   = cpu_rd_slave_select_ar[2] ? cpu_rd_128b_ar.size : '0;
-    assign hbm_rd_axi_arburst  = cpu_rd_slave_select_ar[2] ? cpu_rd_128b_ar.burst : '0;
-    assign hbm_rd_axi_arlock   = cpu_rd_slave_select_ar[2] ? cpu_rd_128b_ar.lock : '0;
-    assign hbm_rd_axi_arcache  = cpu_rd_slave_select_ar[2] ? cpu_rd_128b_ar.cache : '0;
-    assign hbm_rd_axi_arprot   = cpu_rd_slave_select_ar[2] ? cpu_rd_128b_ar.prot : '0;
-    assign hbm_rd_axi_arvalid  = cpu_rd_slave_select_ar[2] ? cpu_rd_128b_arvalid : '0;
+    // AR channel (gated by address re-decode -- see _addr_decode_expr)
+    wire cpu_rd_128b_ar_to_hbm_rd = ((cpu_rd_128b_ar.addr >= 32'h50000000) && (cpu_rd_128b_ar.addr <= 32'h7fffffff));
+    assign hbm_rd_axi_arid     = cpu_rd_128b_ar_to_hbm_rd ? cpu_rd_128b_ar.id : '0;
+    assign hbm_rd_axi_araddr   = cpu_rd_128b_ar_to_hbm_rd ? cpu_rd_128b_ar.addr : '0;
+    assign hbm_rd_axi_arlen    = cpu_rd_128b_ar_to_hbm_rd ? cpu_rd_128b_ar.len : '0;
+    assign hbm_rd_axi_arsize   = cpu_rd_128b_ar_to_hbm_rd ? cpu_rd_128b_ar.size : '0;
+    assign hbm_rd_axi_arburst  = cpu_rd_128b_ar_to_hbm_rd ? cpu_rd_128b_ar.burst : '0;
+    assign hbm_rd_axi_arlock   = cpu_rd_128b_ar_to_hbm_rd ? cpu_rd_128b_ar.lock : '0;
+    assign hbm_rd_axi_arcache  = cpu_rd_128b_ar_to_hbm_rd ? cpu_rd_128b_ar.cache : '0;
+    assign hbm_rd_axi_arprot   = cpu_rd_128b_ar_to_hbm_rd ? cpu_rd_128b_ar.prot : '0;
+    assign hbm_rd_axi_arvalid  = cpu_rd_128b_ar_to_hbm_rd && cpu_rd_128b_arvalid;
 
     // Rready (master → slave) — gated on rid_valid so the path stays
     // open through the entire R handshake, not just the AR phase.
     assign hbm_rd_axi_rready = ((hbm_rd_axi_rid_bridge_id == 0) && hbm_rd_axi_rid_valid) ? cpu_rd_128b_rready : '0;
 
     // Bridge ID (master → slave)
-    assign hbm_rd_axi_bridge_id_ar = cpu_rd_slave_select_ar[2] ? cpu_rd_bridge_id_ar : '0;
+    assign hbm_rd_axi_bridge_id_ar = cpu_rd_128b_ar_to_hbm_rd ? cpu_rd_bridge_id_ar : '0;
 
 
     // ================================================================
@@ -236,23 +239,24 @@ module bridge_1x4_rd_xbar (
     // Master width: 64b, Slave width: 32b
     // Using 32b path from adapter (APB LCD width)
 
-    // AR channel
-    assign apb_periph_axi_arid     = cpu_rd_slave_select_ar[3] ? cpu_rd_32b_ar.id : '0;
-    assign apb_periph_axi_araddr   = cpu_rd_slave_select_ar[3] ? cpu_rd_32b_ar.addr : '0;
-    assign apb_periph_axi_arlen    = cpu_rd_slave_select_ar[3] ? cpu_rd_32b_ar.len : '0;
-    assign apb_periph_axi_arsize   = cpu_rd_slave_select_ar[3] ? cpu_rd_32b_ar.size : '0;
-    assign apb_periph_axi_arburst  = cpu_rd_slave_select_ar[3] ? cpu_rd_32b_ar.burst : '0;
-    assign apb_periph_axi_arlock   = cpu_rd_slave_select_ar[3] ? cpu_rd_32b_ar.lock : '0;
-    assign apb_periph_axi_arcache  = cpu_rd_slave_select_ar[3] ? cpu_rd_32b_ar.cache : '0;
-    assign apb_periph_axi_arprot   = cpu_rd_slave_select_ar[3] ? cpu_rd_32b_ar.prot : '0;
-    assign apb_periph_axi_arvalid  = cpu_rd_slave_select_ar[3] ? cpu_rd_32b_arvalid : '0;
+    // AR channel (gated by address re-decode -- see _addr_decode_expr)
+    wire cpu_rd_32b_ar_to_apb_periph = ((cpu_rd_32b_ar.addr >= 32'h80000000) && (cpu_rd_32b_ar.addr <= 32'h8000ffff));
+    assign apb_periph_axi_arid     = cpu_rd_32b_ar_to_apb_periph ? cpu_rd_32b_ar.id : '0;
+    assign apb_periph_axi_araddr   = cpu_rd_32b_ar_to_apb_periph ? cpu_rd_32b_ar.addr : '0;
+    assign apb_periph_axi_arlen    = cpu_rd_32b_ar_to_apb_periph ? cpu_rd_32b_ar.len : '0;
+    assign apb_periph_axi_arsize   = cpu_rd_32b_ar_to_apb_periph ? cpu_rd_32b_ar.size : '0;
+    assign apb_periph_axi_arburst  = cpu_rd_32b_ar_to_apb_periph ? cpu_rd_32b_ar.burst : '0;
+    assign apb_periph_axi_arlock   = cpu_rd_32b_ar_to_apb_periph ? cpu_rd_32b_ar.lock : '0;
+    assign apb_periph_axi_arcache  = cpu_rd_32b_ar_to_apb_periph ? cpu_rd_32b_ar.cache : '0;
+    assign apb_periph_axi_arprot   = cpu_rd_32b_ar_to_apb_periph ? cpu_rd_32b_ar.prot : '0;
+    assign apb_periph_axi_arvalid  = cpu_rd_32b_ar_to_apb_periph && cpu_rd_32b_arvalid;
 
     // Rready (master → slave) — gated on rid_valid so the path stays
     // open through the entire R handshake, not just the AR phase.
     assign apb_periph_axi_rready = ((apb_periph_axi_rid_bridge_id == 0) && apb_periph_axi_rid_valid) ? cpu_rd_32b_rready : '0;
 
     // Bridge ID (master → slave)
-    assign apb_periph_axi_bridge_id_ar = cpu_rd_slave_select_ar[3] ? cpu_rd_bridge_id_ar : '0;
+    assign apb_periph_axi_bridge_id_ar = cpu_rd_32b_ar_to_apb_periph ? cpu_rd_bridge_id_ar : '0;
 
 
     // ================================================================
@@ -261,8 +265,8 @@ module bridge_1x4_rd_xbar (
 
     // Master: cpu_rd, Width path: 32b
     assign cpu_rd_32b_arready = 
-        (cpu_rd_slave_select_ar[0] ? periph_rd_axi_arready : '0) |
-        (cpu_rd_slave_select_ar[3] ? apb_periph_axi_arready : '0);
+        (cpu_rd_32b_ar_to_periph_rd ? periph_rd_axi_arready : '0) |
+        (cpu_rd_32b_ar_to_apb_periph ? apb_periph_axi_arready : '0);
 
     assign cpu_rd_32b_r.id = 
         ((periph_rd_axi_rid_bridge_id == 0) && periph_rd_axi_rid_valid ? periph_rd_axi_rid : '0) |
@@ -287,7 +291,7 @@ module bridge_1x4_rd_xbar (
 
     // Master: cpu_rd, Width path: 64b
     assign cpu_rd_64b_arready = 
-        (cpu_rd_slave_select_ar[1] ? ddr_rd_axi_arready : '0);
+        (cpu_rd_64b_ar_to_ddr_rd ? ddr_rd_axi_arready : '0);
 
     assign cpu_rd_64b_r.id = 
         ((ddr_rd_axi_rid_bridge_id == 0) && ddr_rd_axi_rid_valid ? ddr_rd_axi_rid : '0);
@@ -307,7 +311,7 @@ module bridge_1x4_rd_xbar (
 
     // Master: cpu_rd, Width path: 128b
     assign cpu_rd_128b_arready = 
-        (cpu_rd_slave_select_ar[2] ? hbm_rd_axi_arready : '0);
+        (cpu_rd_128b_ar_to_hbm_rd ? hbm_rd_axi_arready : '0);
 
     assign cpu_rd_128b_r.id = 
         ((hbm_rd_axi_rid_bridge_id == 0) && hbm_rd_axi_rid_valid ? hbm_rd_axi_rid : '0);

@@ -177,13 +177,14 @@ module descr_wr_master_adapter #(
     // Slave 0 (sram_buffer): 0x00000000 - 0x3FFFFFFF
     // Slave 1 (ddr_controller): 0x40000000 - 0xBFFFFFFF
     // ================================================================
+    logic [NUM_SLAVES-1:0] comb_slave_select_aw;
     always_comb begin
-        slave_select_aw = '0;
+        comb_slave_select_aw = '0;
         if (fub_axi_awaddr <= 32'h3FFFFFFF) begin
-            slave_select_aw[0] = 1'b1;  // sram_buffer
+            comb_slave_select_aw[0] = 1'b1;  // sram_buffer
         end
         else if (fub_axi_awaddr >= 32'h40000000 && fub_axi_awaddr <= 32'hBFFFFFFF) begin
-            slave_select_aw[1] = 1'b1;  // ddr_controller
+            comb_slave_select_aw[1] = 1'b1;  // ddr_controller
         end
     end
 
@@ -197,7 +198,7 @@ module descr_wr_master_adapter #(
 
     // Per-width path-active gates (see comment in adapter_generator.py).
     logic aw_path_active_256b;
-    assign aw_path_active_256b = slave_select_aw[0] | slave_select_aw[1];
+    assign aw_path_active_256b = comb_slave_select_aw[0] | comb_slave_select_aw[1];
 
     // ================================================================
     // Direct passthrough: 256b → 256b (no converter)
@@ -235,27 +236,84 @@ module descr_wr_master_adapter #(
     // ================================================================
     // Response MUX - Route responses from width-specific paths
     // back to fub_axi_* based on address decode
+    //
+    // Request side (arready/awready/wready) uses the combinational
+    // slave_select_{ar,aw} (valid while {ar,aw}valid is asserted).
+    //
+    // Response side (rvalid/rdata/..., bvalid/bid/...) cannot reuse
+    // the combinational decode because fub_axi_{ar,aw}addr no longer
+    // holds the request address once the {AR,AW} handshake completes
+    // -- the decode reverts (typically to slave 0) and drops the
+    // response. So we track slave_select_{ar,aw} per outstanding
+    // request in a small FIFO captured at handshake, popped at
+    // R-last / B; the FIFO head drives the response MUX.
     // ================================================================
 
-    // Write response MUX (B channel)
+    // OUTPUT slave_select_aw mirrors the live combinational decode.
+    assign slave_select_aw = comb_slave_select_aw;
+
+    // -------- AW->B slave_select tracking FIFO --------
+    localparam int AW_TRK_DEPTH = 16;
+    localparam int AW_TRK_AW    = 4;
+    logic [NUM_SLAVES-1:0] aw_trk_mem [AW_TRK_DEPTH];
+    logic [AW_TRK_AW:0] aw_trk_wptr, aw_trk_rptr;
+    logic aw_trk_push, aw_trk_pop;
+    logic [NUM_SLAVES-1:0] b_slave_select;
+
+    assign aw_trk_push = fub_axi_awvalid && fub_axi_awready;
+    assign aw_trk_pop  = fub_axi_bvalid && fub_axi_bready;
+
+    always_ff @(posedge aclk or negedge aresetn) begin
+        if (!aresetn) begin
+            aw_trk_wptr <= '0;
+            aw_trk_rptr <= '0;
+        end else begin
+            if (aw_trk_push) begin
+                aw_trk_mem[aw_trk_wptr[AW_TRK_AW-1:0]] <= comb_slave_select_aw;
+                aw_trk_wptr <= aw_trk_wptr + 1'b1;
+            end
+            if (aw_trk_pop) begin
+                aw_trk_rptr <= aw_trk_rptr + 1'b1;
+            end
+        end
+    end
+
+    assign b_slave_select = (aw_trk_wptr != aw_trk_rptr)
+                          ? aw_trk_mem[aw_trk_rptr[AW_TRK_AW-1:0]]
+                          : '0;
+
+    // AW/W-ready MUX (request side: uses combinational comb_slave_select_aw)
     always_comb begin
         fub_axi_awready = 1'b0;
         fub_axi_wready = 1'b0;
+        case (comb_slave_select_aw)
+            3'b001: begin  // Slave 0 (256b)
+                fub_axi_awready = descr_wr_master_256b_awready;
+                fub_axi_wready = descr_wr_master_256b_wready;
+            end
+            3'b010: begin  // Slave 1 (256b)
+                fub_axi_awready = descr_wr_master_256b_awready;
+                fub_axi_wready = descr_wr_master_256b_wready;
+            end
+            default: begin
+                // No slave selected
+            end
+        endcase
+    end
+
+    // Write response MUX (B channel - uses b_slave_select FIFO head)
+    always_comb begin
         fub_axi_bid = 8'd0;
         fub_axi_bresp = 2'b00;
         fub_axi_bvalid = 1'b0;
 
-        case (slave_select_aw)
+        case (b_slave_select)
             3'b001: begin  // Slave 0 (256b)
-                fub_axi_awready = descr_wr_master_256b_awready;
-                fub_axi_wready = descr_wr_master_256b_wready;
                 fub_axi_bid = descr_wr_master_256b_b.id;
                 fub_axi_bresp = descr_wr_master_256b_b.resp;
                 fub_axi_bvalid = descr_wr_master_256b_bvalid;
             end
             3'b010: begin  // Slave 1 (256b)
-                fub_axi_awready = descr_wr_master_256b_awready;
-                fub_axi_wready = descr_wr_master_256b_wready;
                 fub_axi_bid = descr_wr_master_256b_b.id;
                 fub_axi_bresp = descr_wr_master_256b_b.resp;
                 fub_axi_bvalid = descr_wr_master_256b_bvalid;

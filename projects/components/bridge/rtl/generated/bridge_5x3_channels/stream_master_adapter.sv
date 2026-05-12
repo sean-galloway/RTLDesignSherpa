@@ -294,13 +294,14 @@ module stream_master_adapter #(
     // Slave 0 (sram_buffer): 0x00000000 - 0x3FFFFFFF
     // Slave 1 (ddr_controller): 0x40000000 - 0xBFFFFFFF
     // ================================================================
+    logic [NUM_SLAVES-1:0] comb_slave_select_aw;
     always_comb begin
-        slave_select_aw = '0;
+        comb_slave_select_aw = '0;
         if (fub_axi_awaddr <= 32'h3FFFFFFF) begin
-            slave_select_aw[0] = 1'b1;  // sram_buffer
+            comb_slave_select_aw[0] = 1'b1;  // sram_buffer
         end
         else if (fub_axi_awaddr >= 32'h40000000 && fub_axi_awaddr <= 32'hBFFFFFFF) begin
-            slave_select_aw[1] = 1'b1;  // ddr_controller
+            comb_slave_select_aw[1] = 1'b1;  // ddr_controller
         end
     end
 
@@ -312,13 +313,14 @@ module stream_master_adapter #(
     // Slave 0 (sram_buffer): 0x00000000 - 0x3FFFFFFF
     // Slave 1 (ddr_controller): 0x40000000 - 0xBFFFFFFF
     // ================================================================
+    logic [NUM_SLAVES-1:0] comb_slave_select_ar;
     always_comb begin
-        slave_select_ar = '0;
+        comb_slave_select_ar = '0;
         if (fub_axi_araddr <= 32'h3FFFFFFF) begin
-            slave_select_ar[0] = 1'b1;  // sram_buffer
+            comb_slave_select_ar[0] = 1'b1;  // sram_buffer
         end
         else if (fub_axi_araddr >= 32'h40000000 && fub_axi_araddr <= 32'hBFFFFFFF) begin
-            slave_select_ar[1] = 1'b1;  // ddr_controller
+            comb_slave_select_ar[1] = 1'b1;  // ddr_controller
         end
     end
 
@@ -332,9 +334,9 @@ module stream_master_adapter #(
 
     // Per-width path-active gates (see comment in adapter_generator.py).
     logic aw_path_active_256b;
-    assign aw_path_active_256b = slave_select_aw[0] | slave_select_aw[1];
+    assign aw_path_active_256b = comb_slave_select_aw[0] | comb_slave_select_aw[1];
     logic ar_path_active_256b;
-    assign ar_path_active_256b = slave_select_ar[0] | slave_select_ar[1];
+    assign ar_path_active_256b = comb_slave_select_ar[0] | comb_slave_select_ar[1];
 
     // ================================================================
     // Direct passthrough: 256b → 256b (no converter)
@@ -391,27 +393,117 @@ module stream_master_adapter #(
     // ================================================================
     // Response MUX - Route responses from width-specific paths
     // back to fub_axi_* based on address decode
+    //
+    // Request side (arready/awready/wready) uses the combinational
+    // slave_select_{ar,aw} (valid while {ar,aw}valid is asserted).
+    //
+    // Response side (rvalid/rdata/..., bvalid/bid/...) cannot reuse
+    // the combinational decode because fub_axi_{ar,aw}addr no longer
+    // holds the request address once the {AR,AW} handshake completes
+    // -- the decode reverts (typically to slave 0) and drops the
+    // response. So we track slave_select_{ar,aw} per outstanding
+    // request in a small FIFO captured at handshake, popped at
+    // R-last / B; the FIFO head drives the response MUX.
     // ================================================================
 
-    // Write response MUX (B channel)
+    // OUTPUT slave_select_aw mirrors the live combinational decode.
+    assign slave_select_aw = comb_slave_select_aw;
+
+    // -------- AW->B slave_select tracking FIFO --------
+    localparam int AW_TRK_DEPTH = 16;
+    localparam int AW_TRK_AW    = 4;
+    logic [NUM_SLAVES-1:0] aw_trk_mem [AW_TRK_DEPTH];
+    logic [AW_TRK_AW:0] aw_trk_wptr, aw_trk_rptr;
+    logic aw_trk_push, aw_trk_pop;
+    logic [NUM_SLAVES-1:0] b_slave_select;
+
+    assign aw_trk_push = fub_axi_awvalid && fub_axi_awready;
+    assign aw_trk_pop  = fub_axi_bvalid && fub_axi_bready;
+
+    always_ff @(posedge aclk or negedge aresetn) begin
+        if (!aresetn) begin
+            aw_trk_wptr <= '0;
+            aw_trk_rptr <= '0;
+        end else begin
+            if (aw_trk_push) begin
+                aw_trk_mem[aw_trk_wptr[AW_TRK_AW-1:0]] <= comb_slave_select_aw;
+                aw_trk_wptr <= aw_trk_wptr + 1'b1;
+            end
+            if (aw_trk_pop) begin
+                aw_trk_rptr <= aw_trk_rptr + 1'b1;
+            end
+        end
+    end
+
+    assign b_slave_select = (aw_trk_wptr != aw_trk_rptr)
+                          ? aw_trk_mem[aw_trk_rptr[AW_TRK_AW-1:0]]
+                          : '0;
+
+    // OUTPUT slave_select_ar mirrors the live combinational decode.
+    assign slave_select_ar = comb_slave_select_ar;
+
+    // -------- AR->R slave_select tracking FIFO --------
+    localparam int AR_TRK_DEPTH = 16;
+    localparam int AR_TRK_AW    = 4;
+    logic [NUM_SLAVES-1:0] ar_trk_mem [AR_TRK_DEPTH];
+    logic [AR_TRK_AW:0] ar_trk_wptr, ar_trk_rptr;
+    logic ar_trk_push, ar_trk_pop;
+    logic [NUM_SLAVES-1:0] r_slave_select;
+
+    assign ar_trk_push = fub_axi_arvalid && fub_axi_arready;
+    assign ar_trk_pop  = fub_axi_rvalid && fub_axi_rready && fub_axi_rlast;
+
+    always_ff @(posedge aclk or negedge aresetn) begin
+        if (!aresetn) begin
+            ar_trk_wptr <= '0;
+            ar_trk_rptr <= '0;
+        end else begin
+            if (ar_trk_push) begin
+                ar_trk_mem[ar_trk_wptr[AR_TRK_AW-1:0]] <= comb_slave_select_ar;
+                ar_trk_wptr <= ar_trk_wptr + 1'b1;
+            end
+            if (ar_trk_pop) begin
+                ar_trk_rptr <= ar_trk_rptr + 1'b1;
+            end
+        end
+    end
+
+    assign r_slave_select = (ar_trk_wptr != ar_trk_rptr)
+                          ? ar_trk_mem[ar_trk_rptr[AR_TRK_AW-1:0]]
+                          : '0;
+
+    // AW/W-ready MUX (request side: uses combinational comb_slave_select_aw)
     always_comb begin
         fub_axi_awready = 1'b0;
         fub_axi_wready = 1'b0;
+        case (comb_slave_select_aw)
+            3'b001: begin  // Slave 0 (256b)
+                fub_axi_awready = stream_master_256b_awready;
+                fub_axi_wready = stream_master_256b_wready;
+            end
+            3'b010: begin  // Slave 1 (256b)
+                fub_axi_awready = stream_master_256b_awready;
+                fub_axi_wready = stream_master_256b_wready;
+            end
+            default: begin
+                // No slave selected
+            end
+        endcase
+    end
+
+    // Write response MUX (B channel - uses b_slave_select FIFO head)
+    always_comb begin
         fub_axi_bid = 8'd0;
         fub_axi_bresp = 2'b00;
         fub_axi_bvalid = 1'b0;
 
-        case (slave_select_aw)
+        case (b_slave_select)
             3'b001: begin  // Slave 0 (256b)
-                fub_axi_awready = stream_master_256b_awready;
-                fub_axi_wready = stream_master_256b_wready;
                 fub_axi_bid = stream_master_256b_b.id;
                 fub_axi_bresp = stream_master_256b_b.resp;
                 fub_axi_bvalid = stream_master_256b_bvalid;
             end
             3'b010: begin  // Slave 1 (256b)
-                fub_axi_awready = stream_master_256b_awready;
-                fub_axi_wready = stream_master_256b_wready;
                 fub_axi_bid = stream_master_256b_b.id;
                 fub_axi_bresp = stream_master_256b_b.resp;
                 fub_axi_bvalid = stream_master_256b_bvalid;
@@ -422,18 +514,32 @@ module stream_master_adapter #(
         endcase
     end
 
-    // Read response MUX (R channel)
+    // AR-ready MUX (request side: uses combinational comb_slave_select_ar)
     always_comb begin
         fub_axi_arready = 1'b0;
+        case (comb_slave_select_ar)
+            3'b001: begin  // Slave 0 (256b)
+                fub_axi_arready = stream_master_256b_arready;
+            end
+            3'b010: begin  // Slave 1 (256b)
+                fub_axi_arready = stream_master_256b_arready;
+            end
+            default: begin
+                // No slave selected
+            end
+        endcase
+    end
+
+    // Read response MUX (R channel - uses r_slave_select FIFO head)
+    always_comb begin
         fub_axi_rid = 8'd0;
         fub_axi_rdata = 256'd0;
         fub_axi_rresp = 2'b00;
         fub_axi_rlast = 1'b0;
         fub_axi_rvalid = 1'b0;
 
-        case (slave_select_ar)
+        case (r_slave_select)
             3'b001: begin  // Slave 0 (256b)
-                fub_axi_arready = stream_master_256b_arready;
                 fub_axi_rid = stream_master_256b_r.id;
                 fub_axi_rdata = stream_master_256b_r.data;
                 fub_axi_rresp = stream_master_256b_r.resp;
@@ -441,7 +547,6 @@ module stream_master_adapter #(
                 fub_axi_rvalid = stream_master_256b_rvalid;
             end
             3'b010: begin  // Slave 1 (256b)
-                fub_axi_arready = stream_master_256b_arready;
                 fub_axi_rid = stream_master_256b_r.id;
                 fub_axi_rdata = stream_master_256b_r.data;
                 fub_axi_rresp = stream_master_256b_r.resp;

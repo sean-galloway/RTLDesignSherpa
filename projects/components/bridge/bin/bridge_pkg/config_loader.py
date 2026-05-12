@@ -45,7 +45,7 @@ except ImportError:
         print("  Install with: pip install tomli")
 
 
-def load_toml_ports(toml_path: str) -> Tuple[List[PortSpec], List[PortSpec], Optional[Dict], Optional[Dict]]:
+def load_toml_ports(toml_path: str) -> Tuple[List[PortSpec], List[PortSpec], Optional[Dict], Optional[Dict], str]:
     """
     Load port configuration from TOML file.
 
@@ -70,7 +70,7 @@ def load_toml_ports(toml_path: str) -> Tuple[List[PortSpec], List[PortSpec], Opt
     return _parse_port_data(data, toml_path)
 
 
-def load_yaml_ports(yaml_path: str) -> Tuple[List[PortSpec], List[PortSpec], Optional[Dict], Optional[Dict]]:
+def load_yaml_ports(yaml_path: str) -> Tuple[List[PortSpec], List[PortSpec], Optional[Dict], Optional[Dict], str]:
     """
     Load port configuration from YAML file.
 
@@ -88,7 +88,7 @@ def load_yaml_ports(yaml_path: str) -> Tuple[List[PortSpec], List[PortSpec], Opt
     return _parse_port_data(data, yaml_path)
 
 
-def _parse_port_data(data: Dict, config_path: str) -> Tuple[List[PortSpec], List[PortSpec], Optional[Dict], Optional[Dict]]:
+def _parse_port_data(data: Dict, config_path: str) -> Tuple[List[PortSpec], List[PortSpec], Optional[Dict], Optional[Dict], str]:
     """
     Parse port data from loaded config (YAML or TOML).
 
@@ -211,7 +211,12 @@ def _parse_port_data(data: Dict, config_path: str) -> Tuple[List[PortSpec], List
         print(f"  Found embedded connectivity in config file")
 
     print(f"  Total: {len(masters)} masters, {len(slaves)} slaves")
-    return masters, slaves, defaults, connectivity_data
+    # Surface the TOML [bridge].name so load_config can wire it onto the
+    # returned BridgeConfig -- generate_bridge() uses it instead of the
+    # auto-named topology fallback, so a TOML saying
+    # name = "bridge_5x3_channels" no longer produces "bridge_5x3_rw".
+    bridge_name = bridge_data.get('name', '')
+    return masters, slaves, defaults, connectivity_data, bridge_name
 
 
 def find_connectivity_csv(yaml_path: str) -> Optional[str]:
@@ -305,9 +310,9 @@ def load_config(config_path: str, connectivity_csv: Optional[str] = None) -> Bri
     # Auto-detect format based on file extension
     config_file = Path(config_path)
     if config_file.suffix == '.toml':
-        masters, slaves, defaults, embedded_connectivity = load_toml_ports(config_path)
+        masters, slaves, defaults, embedded_connectivity, bridge_name = load_toml_ports(config_path)
     elif config_file.suffix in ['.yaml', '.yml']:
-        masters, slaves, defaults, embedded_connectivity = load_yaml_ports(config_path)
+        masters, slaves, defaults, embedded_connectivity, bridge_name = load_yaml_ports(config_path)
     else:
         raise ValueError(f"Unsupported config format: {config_file.suffix}. Use .toml, .yaml, or .yml")
 
@@ -331,6 +336,7 @@ def load_config(config_path: str, connectivity_csv: Optional[str] = None) -> Bri
     # Create BridgeConfig
     # Note: Slave addresses now come from YAML, not connectivity CSV
     config = BridgeConfig(
+        name=bridge_name,
         masters=masters,
         slaves=slaves,
         connectivity=connectivity

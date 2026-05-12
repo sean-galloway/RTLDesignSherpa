@@ -219,29 +219,54 @@ module bridge_1x5_wr_xbar (
     // Master width: 64b, Slave width: 32b
     // Using 32b path from adapter
 
-    // AW channel
-    assign periph_wr_axi_awid     = cpu_wr_slave_select_aw[0] ? cpu_wr_32b_aw.id : '0;
-    assign periph_wr_axi_awaddr   = cpu_wr_slave_select_aw[0] ? cpu_wr_32b_aw.addr : '0;
-    assign periph_wr_axi_awlen    = cpu_wr_slave_select_aw[0] ? cpu_wr_32b_aw.len : '0;
-    assign periph_wr_axi_awsize   = cpu_wr_slave_select_aw[0] ? cpu_wr_32b_aw.size : '0;
-    assign periph_wr_axi_awburst  = cpu_wr_slave_select_aw[0] ? cpu_wr_32b_aw.burst : '0;
-    assign periph_wr_axi_awlock   = cpu_wr_slave_select_aw[0] ? cpu_wr_32b_aw.lock : '0;
-    assign periph_wr_axi_awcache  = cpu_wr_slave_select_aw[0] ? cpu_wr_32b_aw.cache : '0;
-    assign periph_wr_axi_awprot   = cpu_wr_slave_select_aw[0] ? cpu_wr_32b_aw.prot : '0;
-    assign periph_wr_axi_awvalid  = cpu_wr_slave_select_aw[0] ? cpu_wr_32b_awvalid : '0;
+    // AW channel (gated by address re-decode -- see _addr_decode_expr)
+    wire cpu_wr_32b_aw_to_periph_wr = (cpu_wr_32b_aw.addr <= 32'h0fffffff);
+    assign periph_wr_axi_awid     = cpu_wr_32b_aw_to_periph_wr ? cpu_wr_32b_aw.id : '0;
+    assign periph_wr_axi_awaddr   = cpu_wr_32b_aw_to_periph_wr ? cpu_wr_32b_aw.addr : '0;
+    assign periph_wr_axi_awlen    = cpu_wr_32b_aw_to_periph_wr ? cpu_wr_32b_aw.len : '0;
+    assign periph_wr_axi_awsize   = cpu_wr_32b_aw_to_periph_wr ? cpu_wr_32b_aw.size : '0;
+    assign periph_wr_axi_awburst  = cpu_wr_32b_aw_to_periph_wr ? cpu_wr_32b_aw.burst : '0;
+    assign periph_wr_axi_awlock   = cpu_wr_32b_aw_to_periph_wr ? cpu_wr_32b_aw.lock : '0;
+    assign periph_wr_axi_awcache  = cpu_wr_32b_aw_to_periph_wr ? cpu_wr_32b_aw.cache : '0;
+    assign periph_wr_axi_awprot   = cpu_wr_32b_aw_to_periph_wr ? cpu_wr_32b_aw.prot : '0;
+    assign periph_wr_axi_awvalid  = cpu_wr_32b_aw_to_periph_wr && cpu_wr_32b_awvalid;
 
-    // W channel
-    assign periph_wr_axi_wdata  = cpu_wr_slave_select_aw[0] ? cpu_wr_32b_w.data : '0;
-    assign periph_wr_axi_wstrb  = cpu_wr_slave_select_aw[0] ? cpu_wr_32b_w.strb : '0;
-    assign periph_wr_axi_wlast  = cpu_wr_slave_select_aw[0] ? cpu_wr_32b_w.last : '0;
-    assign periph_wr_axi_wvalid = cpu_wr_slave_select_aw[0] ? cpu_wr_32b_wvalid : '0;
+    // AW->W tracking FIFO for this (master,slave) pair
+    logic cpu_wr_32b_w_to_periph_wr;
+    logic [3:0] cpu_wr_32b_aw_to_periph_wr_w_wptr, cpu_wr_32b_aw_to_periph_wr_w_rptr;
+    logic cpu_wr_32b_aw_to_periph_wr_w_mem [16];
+    logic cpu_wr_32b_aw_to_periph_wr_w_push, cpu_wr_32b_aw_to_periph_wr_w_pop;
+    assign cpu_wr_32b_aw_to_periph_wr_w_push = cpu_wr_32b_awvalid && cpu_wr_32b_awready && cpu_wr_32b_aw_to_periph_wr;
+    assign cpu_wr_32b_aw_to_periph_wr_w_pop  = cpu_wr_32b_wvalid && cpu_wr_32b_wready && cpu_wr_32b_w.last && cpu_wr_32b_w_to_periph_wr;
+    always_ff @(posedge aclk or negedge aresetn) begin
+        if (!aresetn) begin
+            cpu_wr_32b_aw_to_periph_wr_w_wptr <= '0;
+            cpu_wr_32b_aw_to_periph_wr_w_rptr <= '0;
+        end else begin
+            if (cpu_wr_32b_aw_to_periph_wr_w_push) begin
+                cpu_wr_32b_aw_to_periph_wr_w_mem[cpu_wr_32b_aw_to_periph_wr_w_wptr] <= 1'b1;
+                cpu_wr_32b_aw_to_periph_wr_w_wptr <= cpu_wr_32b_aw_to_periph_wr_w_wptr + 1'b1;
+            end
+            if (cpu_wr_32b_aw_to_periph_wr_w_pop) begin
+                cpu_wr_32b_aw_to_periph_wr_w_rptr <= cpu_wr_32b_aw_to_periph_wr_w_rptr + 1'b1;
+            end
+        end
+    end
+    assign cpu_wr_32b_w_to_periph_wr = (cpu_wr_32b_aw_to_periph_wr_w_wptr != cpu_wr_32b_aw_to_periph_wr_w_rptr) ? cpu_wr_32b_aw_to_periph_wr_w_mem[cpu_wr_32b_aw_to_periph_wr_w_rptr] : 1'b0;
+
+
+    // W channel (gated by aw_to_<slave> FIFO head)
+    assign periph_wr_axi_wdata  = cpu_wr_32b_w_to_periph_wr ? cpu_wr_32b_w.data : '0;
+    assign periph_wr_axi_wstrb  = cpu_wr_32b_w_to_periph_wr ? cpu_wr_32b_w.strb : '0;
+    assign periph_wr_axi_wlast  = cpu_wr_32b_w_to_periph_wr ? cpu_wr_32b_w.last : '0;
+    assign periph_wr_axi_wvalid = cpu_wr_32b_w_to_periph_wr && cpu_wr_32b_wvalid;
 
     // Bready (master → slave) — gated on bid_valid so the path stays
     // open through the entire B handshake, not just the AW phase.
     assign periph_wr_axi_bready = ((periph_wr_axi_bid_bridge_id == 0) && periph_wr_axi_bid_valid) ? cpu_wr_32b_bready : '0;
 
     // Bridge ID (master → slave)
-    assign periph_wr_axi_bridge_id_aw = cpu_wr_slave_select_aw[0] ? cpu_wr_bridge_id_aw : '0;
+    assign periph_wr_axi_bridge_id_aw = cpu_wr_32b_aw_to_periph_wr ? cpu_wr_bridge_id_aw : '0;
 
 
     // ================================================================
@@ -251,29 +276,54 @@ module bridge_1x5_wr_xbar (
     // Master width: 64b, Slave width: 64b
     // Using 64b path from adapter
 
-    // AW channel
-    assign ddr_wr_axi_awid     = cpu_wr_slave_select_aw[1] ? cpu_wr_64b_aw.id : '0;
-    assign ddr_wr_axi_awaddr   = cpu_wr_slave_select_aw[1] ? cpu_wr_64b_aw.addr : '0;
-    assign ddr_wr_axi_awlen    = cpu_wr_slave_select_aw[1] ? cpu_wr_64b_aw.len : '0;
-    assign ddr_wr_axi_awsize   = cpu_wr_slave_select_aw[1] ? cpu_wr_64b_aw.size : '0;
-    assign ddr_wr_axi_awburst  = cpu_wr_slave_select_aw[1] ? cpu_wr_64b_aw.burst : '0;
-    assign ddr_wr_axi_awlock   = cpu_wr_slave_select_aw[1] ? cpu_wr_64b_aw.lock : '0;
-    assign ddr_wr_axi_awcache  = cpu_wr_slave_select_aw[1] ? cpu_wr_64b_aw.cache : '0;
-    assign ddr_wr_axi_awprot   = cpu_wr_slave_select_aw[1] ? cpu_wr_64b_aw.prot : '0;
-    assign ddr_wr_axi_awvalid  = cpu_wr_slave_select_aw[1] ? cpu_wr_64b_awvalid : '0;
+    // AW channel (gated by address re-decode -- see _addr_decode_expr)
+    wire cpu_wr_64b_aw_to_ddr_wr = ((cpu_wr_64b_aw.addr >= 32'h10000000) && (cpu_wr_64b_aw.addr <= 32'h4fffffff));
+    assign ddr_wr_axi_awid     = cpu_wr_64b_aw_to_ddr_wr ? cpu_wr_64b_aw.id : '0;
+    assign ddr_wr_axi_awaddr   = cpu_wr_64b_aw_to_ddr_wr ? cpu_wr_64b_aw.addr : '0;
+    assign ddr_wr_axi_awlen    = cpu_wr_64b_aw_to_ddr_wr ? cpu_wr_64b_aw.len : '0;
+    assign ddr_wr_axi_awsize   = cpu_wr_64b_aw_to_ddr_wr ? cpu_wr_64b_aw.size : '0;
+    assign ddr_wr_axi_awburst  = cpu_wr_64b_aw_to_ddr_wr ? cpu_wr_64b_aw.burst : '0;
+    assign ddr_wr_axi_awlock   = cpu_wr_64b_aw_to_ddr_wr ? cpu_wr_64b_aw.lock : '0;
+    assign ddr_wr_axi_awcache  = cpu_wr_64b_aw_to_ddr_wr ? cpu_wr_64b_aw.cache : '0;
+    assign ddr_wr_axi_awprot   = cpu_wr_64b_aw_to_ddr_wr ? cpu_wr_64b_aw.prot : '0;
+    assign ddr_wr_axi_awvalid  = cpu_wr_64b_aw_to_ddr_wr && cpu_wr_64b_awvalid;
 
-    // W channel
-    assign ddr_wr_axi_wdata  = cpu_wr_slave_select_aw[1] ? cpu_wr_64b_w.data : '0;
-    assign ddr_wr_axi_wstrb  = cpu_wr_slave_select_aw[1] ? cpu_wr_64b_w.strb : '0;
-    assign ddr_wr_axi_wlast  = cpu_wr_slave_select_aw[1] ? cpu_wr_64b_w.last : '0;
-    assign ddr_wr_axi_wvalid = cpu_wr_slave_select_aw[1] ? cpu_wr_64b_wvalid : '0;
+    // AW->W tracking FIFO for this (master,slave) pair
+    logic cpu_wr_64b_w_to_ddr_wr;
+    logic [3:0] cpu_wr_64b_aw_to_ddr_wr_w_wptr, cpu_wr_64b_aw_to_ddr_wr_w_rptr;
+    logic cpu_wr_64b_aw_to_ddr_wr_w_mem [16];
+    logic cpu_wr_64b_aw_to_ddr_wr_w_push, cpu_wr_64b_aw_to_ddr_wr_w_pop;
+    assign cpu_wr_64b_aw_to_ddr_wr_w_push = cpu_wr_64b_awvalid && cpu_wr_64b_awready && cpu_wr_64b_aw_to_ddr_wr;
+    assign cpu_wr_64b_aw_to_ddr_wr_w_pop  = cpu_wr_64b_wvalid && cpu_wr_64b_wready && cpu_wr_64b_w.last && cpu_wr_64b_w_to_ddr_wr;
+    always_ff @(posedge aclk or negedge aresetn) begin
+        if (!aresetn) begin
+            cpu_wr_64b_aw_to_ddr_wr_w_wptr <= '0;
+            cpu_wr_64b_aw_to_ddr_wr_w_rptr <= '0;
+        end else begin
+            if (cpu_wr_64b_aw_to_ddr_wr_w_push) begin
+                cpu_wr_64b_aw_to_ddr_wr_w_mem[cpu_wr_64b_aw_to_ddr_wr_w_wptr] <= 1'b1;
+                cpu_wr_64b_aw_to_ddr_wr_w_wptr <= cpu_wr_64b_aw_to_ddr_wr_w_wptr + 1'b1;
+            end
+            if (cpu_wr_64b_aw_to_ddr_wr_w_pop) begin
+                cpu_wr_64b_aw_to_ddr_wr_w_rptr <= cpu_wr_64b_aw_to_ddr_wr_w_rptr + 1'b1;
+            end
+        end
+    end
+    assign cpu_wr_64b_w_to_ddr_wr = (cpu_wr_64b_aw_to_ddr_wr_w_wptr != cpu_wr_64b_aw_to_ddr_wr_w_rptr) ? cpu_wr_64b_aw_to_ddr_wr_w_mem[cpu_wr_64b_aw_to_ddr_wr_w_rptr] : 1'b0;
+
+
+    // W channel (gated by aw_to_<slave> FIFO head)
+    assign ddr_wr_axi_wdata  = cpu_wr_64b_w_to_ddr_wr ? cpu_wr_64b_w.data : '0;
+    assign ddr_wr_axi_wstrb  = cpu_wr_64b_w_to_ddr_wr ? cpu_wr_64b_w.strb : '0;
+    assign ddr_wr_axi_wlast  = cpu_wr_64b_w_to_ddr_wr ? cpu_wr_64b_w.last : '0;
+    assign ddr_wr_axi_wvalid = cpu_wr_64b_w_to_ddr_wr && cpu_wr_64b_wvalid;
 
     // Bready (master → slave) — gated on bid_valid so the path stays
     // open through the entire B handshake, not just the AW phase.
     assign ddr_wr_axi_bready = ((ddr_wr_axi_bid_bridge_id == 0) && ddr_wr_axi_bid_valid) ? cpu_wr_64b_bready : '0;
 
     // Bridge ID (master → slave)
-    assign ddr_wr_axi_bridge_id_aw = cpu_wr_slave_select_aw[1] ? cpu_wr_bridge_id_aw : '0;
+    assign ddr_wr_axi_bridge_id_aw = cpu_wr_64b_aw_to_ddr_wr ? cpu_wr_bridge_id_aw : '0;
 
 
     // ================================================================
@@ -283,29 +333,54 @@ module bridge_1x5_wr_xbar (
     // Master width: 64b, Slave width: 128b
     // Using 128b path from adapter
 
-    // AW channel
-    assign hbm_wr_axi_awid     = cpu_wr_slave_select_aw[2] ? cpu_wr_128b_aw.id : '0;
-    assign hbm_wr_axi_awaddr   = cpu_wr_slave_select_aw[2] ? cpu_wr_128b_aw.addr : '0;
-    assign hbm_wr_axi_awlen    = cpu_wr_slave_select_aw[2] ? cpu_wr_128b_aw.len : '0;
-    assign hbm_wr_axi_awsize   = cpu_wr_slave_select_aw[2] ? cpu_wr_128b_aw.size : '0;
-    assign hbm_wr_axi_awburst  = cpu_wr_slave_select_aw[2] ? cpu_wr_128b_aw.burst : '0;
-    assign hbm_wr_axi_awlock   = cpu_wr_slave_select_aw[2] ? cpu_wr_128b_aw.lock : '0;
-    assign hbm_wr_axi_awcache  = cpu_wr_slave_select_aw[2] ? cpu_wr_128b_aw.cache : '0;
-    assign hbm_wr_axi_awprot   = cpu_wr_slave_select_aw[2] ? cpu_wr_128b_aw.prot : '0;
-    assign hbm_wr_axi_awvalid  = cpu_wr_slave_select_aw[2] ? cpu_wr_128b_awvalid : '0;
+    // AW channel (gated by address re-decode -- see _addr_decode_expr)
+    wire cpu_wr_128b_aw_to_hbm_wr = ((cpu_wr_128b_aw.addr >= 32'h50000000) && (cpu_wr_128b_aw.addr <= 32'h7fffffff));
+    assign hbm_wr_axi_awid     = cpu_wr_128b_aw_to_hbm_wr ? cpu_wr_128b_aw.id : '0;
+    assign hbm_wr_axi_awaddr   = cpu_wr_128b_aw_to_hbm_wr ? cpu_wr_128b_aw.addr : '0;
+    assign hbm_wr_axi_awlen    = cpu_wr_128b_aw_to_hbm_wr ? cpu_wr_128b_aw.len : '0;
+    assign hbm_wr_axi_awsize   = cpu_wr_128b_aw_to_hbm_wr ? cpu_wr_128b_aw.size : '0;
+    assign hbm_wr_axi_awburst  = cpu_wr_128b_aw_to_hbm_wr ? cpu_wr_128b_aw.burst : '0;
+    assign hbm_wr_axi_awlock   = cpu_wr_128b_aw_to_hbm_wr ? cpu_wr_128b_aw.lock : '0;
+    assign hbm_wr_axi_awcache  = cpu_wr_128b_aw_to_hbm_wr ? cpu_wr_128b_aw.cache : '0;
+    assign hbm_wr_axi_awprot   = cpu_wr_128b_aw_to_hbm_wr ? cpu_wr_128b_aw.prot : '0;
+    assign hbm_wr_axi_awvalid  = cpu_wr_128b_aw_to_hbm_wr && cpu_wr_128b_awvalid;
 
-    // W channel
-    assign hbm_wr_axi_wdata  = cpu_wr_slave_select_aw[2] ? cpu_wr_128b_w.data : '0;
-    assign hbm_wr_axi_wstrb  = cpu_wr_slave_select_aw[2] ? cpu_wr_128b_w.strb : '0;
-    assign hbm_wr_axi_wlast  = cpu_wr_slave_select_aw[2] ? cpu_wr_128b_w.last : '0;
-    assign hbm_wr_axi_wvalid = cpu_wr_slave_select_aw[2] ? cpu_wr_128b_wvalid : '0;
+    // AW->W tracking FIFO for this (master,slave) pair
+    logic cpu_wr_128b_w_to_hbm_wr;
+    logic [3:0] cpu_wr_128b_aw_to_hbm_wr_w_wptr, cpu_wr_128b_aw_to_hbm_wr_w_rptr;
+    logic cpu_wr_128b_aw_to_hbm_wr_w_mem [16];
+    logic cpu_wr_128b_aw_to_hbm_wr_w_push, cpu_wr_128b_aw_to_hbm_wr_w_pop;
+    assign cpu_wr_128b_aw_to_hbm_wr_w_push = cpu_wr_128b_awvalid && cpu_wr_128b_awready && cpu_wr_128b_aw_to_hbm_wr;
+    assign cpu_wr_128b_aw_to_hbm_wr_w_pop  = cpu_wr_128b_wvalid && cpu_wr_128b_wready && cpu_wr_128b_w.last && cpu_wr_128b_w_to_hbm_wr;
+    always_ff @(posedge aclk or negedge aresetn) begin
+        if (!aresetn) begin
+            cpu_wr_128b_aw_to_hbm_wr_w_wptr <= '0;
+            cpu_wr_128b_aw_to_hbm_wr_w_rptr <= '0;
+        end else begin
+            if (cpu_wr_128b_aw_to_hbm_wr_w_push) begin
+                cpu_wr_128b_aw_to_hbm_wr_w_mem[cpu_wr_128b_aw_to_hbm_wr_w_wptr] <= 1'b1;
+                cpu_wr_128b_aw_to_hbm_wr_w_wptr <= cpu_wr_128b_aw_to_hbm_wr_w_wptr + 1'b1;
+            end
+            if (cpu_wr_128b_aw_to_hbm_wr_w_pop) begin
+                cpu_wr_128b_aw_to_hbm_wr_w_rptr <= cpu_wr_128b_aw_to_hbm_wr_w_rptr + 1'b1;
+            end
+        end
+    end
+    assign cpu_wr_128b_w_to_hbm_wr = (cpu_wr_128b_aw_to_hbm_wr_w_wptr != cpu_wr_128b_aw_to_hbm_wr_w_rptr) ? cpu_wr_128b_aw_to_hbm_wr_w_mem[cpu_wr_128b_aw_to_hbm_wr_w_rptr] : 1'b0;
+
+
+    // W channel (gated by aw_to_<slave> FIFO head)
+    assign hbm_wr_axi_wdata  = cpu_wr_128b_w_to_hbm_wr ? cpu_wr_128b_w.data : '0;
+    assign hbm_wr_axi_wstrb  = cpu_wr_128b_w_to_hbm_wr ? cpu_wr_128b_w.strb : '0;
+    assign hbm_wr_axi_wlast  = cpu_wr_128b_w_to_hbm_wr ? cpu_wr_128b_w.last : '0;
+    assign hbm_wr_axi_wvalid = cpu_wr_128b_w_to_hbm_wr && cpu_wr_128b_wvalid;
 
     // Bready (master → slave) — gated on bid_valid so the path stays
     // open through the entire B handshake, not just the AW phase.
     assign hbm_wr_axi_bready = ((hbm_wr_axi_bid_bridge_id == 0) && hbm_wr_axi_bid_valid) ? cpu_wr_128b_bready : '0;
 
     // Bridge ID (master → slave)
-    assign hbm_wr_axi_bridge_id_aw = cpu_wr_slave_select_aw[2] ? cpu_wr_bridge_id_aw : '0;
+    assign hbm_wr_axi_bridge_id_aw = cpu_wr_128b_aw_to_hbm_wr ? cpu_wr_bridge_id_aw : '0;
 
 
     // ================================================================
@@ -315,29 +390,54 @@ module bridge_1x5_wr_xbar (
     // Master width: 64b, Slave width: 32b
     // Using 32b path from adapter (APB LCD width)
 
-    // AW channel
-    assign apb_periph_axi_awid     = cpu_wr_slave_select_aw[3] ? cpu_wr_32b_aw.id : '0;
-    assign apb_periph_axi_awaddr   = cpu_wr_slave_select_aw[3] ? cpu_wr_32b_aw.addr : '0;
-    assign apb_periph_axi_awlen    = cpu_wr_slave_select_aw[3] ? cpu_wr_32b_aw.len : '0;
-    assign apb_periph_axi_awsize   = cpu_wr_slave_select_aw[3] ? cpu_wr_32b_aw.size : '0;
-    assign apb_periph_axi_awburst  = cpu_wr_slave_select_aw[3] ? cpu_wr_32b_aw.burst : '0;
-    assign apb_periph_axi_awlock   = cpu_wr_slave_select_aw[3] ? cpu_wr_32b_aw.lock : '0;
-    assign apb_periph_axi_awcache  = cpu_wr_slave_select_aw[3] ? cpu_wr_32b_aw.cache : '0;
-    assign apb_periph_axi_awprot   = cpu_wr_slave_select_aw[3] ? cpu_wr_32b_aw.prot : '0;
-    assign apb_periph_axi_awvalid  = cpu_wr_slave_select_aw[3] ? cpu_wr_32b_awvalid : '0;
+    // AW channel (gated by address re-decode -- see _addr_decode_expr)
+    wire cpu_wr_32b_aw_to_apb_periph = ((cpu_wr_32b_aw.addr >= 32'h80000000) && (cpu_wr_32b_aw.addr <= 32'h8000ffff));
+    assign apb_periph_axi_awid     = cpu_wr_32b_aw_to_apb_periph ? cpu_wr_32b_aw.id : '0;
+    assign apb_periph_axi_awaddr   = cpu_wr_32b_aw_to_apb_periph ? cpu_wr_32b_aw.addr : '0;
+    assign apb_periph_axi_awlen    = cpu_wr_32b_aw_to_apb_periph ? cpu_wr_32b_aw.len : '0;
+    assign apb_periph_axi_awsize   = cpu_wr_32b_aw_to_apb_periph ? cpu_wr_32b_aw.size : '0;
+    assign apb_periph_axi_awburst  = cpu_wr_32b_aw_to_apb_periph ? cpu_wr_32b_aw.burst : '0;
+    assign apb_periph_axi_awlock   = cpu_wr_32b_aw_to_apb_periph ? cpu_wr_32b_aw.lock : '0;
+    assign apb_periph_axi_awcache  = cpu_wr_32b_aw_to_apb_periph ? cpu_wr_32b_aw.cache : '0;
+    assign apb_periph_axi_awprot   = cpu_wr_32b_aw_to_apb_periph ? cpu_wr_32b_aw.prot : '0;
+    assign apb_periph_axi_awvalid  = cpu_wr_32b_aw_to_apb_periph && cpu_wr_32b_awvalid;
 
-    // W channel
-    assign apb_periph_axi_wdata  = cpu_wr_slave_select_aw[3] ? cpu_wr_32b_w.data : '0;
-    assign apb_periph_axi_wstrb  = cpu_wr_slave_select_aw[3] ? cpu_wr_32b_w.strb : '0;
-    assign apb_periph_axi_wlast  = cpu_wr_slave_select_aw[3] ? cpu_wr_32b_w.last : '0;
-    assign apb_periph_axi_wvalid = cpu_wr_slave_select_aw[3] ? cpu_wr_32b_wvalid : '0;
+    // AW->W tracking FIFO for this (master,slave) pair
+    logic cpu_wr_32b_w_to_apb_periph;
+    logic [3:0] cpu_wr_32b_aw_to_apb_periph_w_wptr, cpu_wr_32b_aw_to_apb_periph_w_rptr;
+    logic cpu_wr_32b_aw_to_apb_periph_w_mem [16];
+    logic cpu_wr_32b_aw_to_apb_periph_w_push, cpu_wr_32b_aw_to_apb_periph_w_pop;
+    assign cpu_wr_32b_aw_to_apb_periph_w_push = cpu_wr_32b_awvalid && cpu_wr_32b_awready && cpu_wr_32b_aw_to_apb_periph;
+    assign cpu_wr_32b_aw_to_apb_periph_w_pop  = cpu_wr_32b_wvalid && cpu_wr_32b_wready && cpu_wr_32b_w.last && cpu_wr_32b_w_to_apb_periph;
+    always_ff @(posedge aclk or negedge aresetn) begin
+        if (!aresetn) begin
+            cpu_wr_32b_aw_to_apb_periph_w_wptr <= '0;
+            cpu_wr_32b_aw_to_apb_periph_w_rptr <= '0;
+        end else begin
+            if (cpu_wr_32b_aw_to_apb_periph_w_push) begin
+                cpu_wr_32b_aw_to_apb_periph_w_mem[cpu_wr_32b_aw_to_apb_periph_w_wptr] <= 1'b1;
+                cpu_wr_32b_aw_to_apb_periph_w_wptr <= cpu_wr_32b_aw_to_apb_periph_w_wptr + 1'b1;
+            end
+            if (cpu_wr_32b_aw_to_apb_periph_w_pop) begin
+                cpu_wr_32b_aw_to_apb_periph_w_rptr <= cpu_wr_32b_aw_to_apb_periph_w_rptr + 1'b1;
+            end
+        end
+    end
+    assign cpu_wr_32b_w_to_apb_periph = (cpu_wr_32b_aw_to_apb_periph_w_wptr != cpu_wr_32b_aw_to_apb_periph_w_rptr) ? cpu_wr_32b_aw_to_apb_periph_w_mem[cpu_wr_32b_aw_to_apb_periph_w_rptr] : 1'b0;
+
+
+    // W channel (gated by aw_to_<slave> FIFO head)
+    assign apb_periph_axi_wdata  = cpu_wr_32b_w_to_apb_periph ? cpu_wr_32b_w.data : '0;
+    assign apb_periph_axi_wstrb  = cpu_wr_32b_w_to_apb_periph ? cpu_wr_32b_w.strb : '0;
+    assign apb_periph_axi_wlast  = cpu_wr_32b_w_to_apb_periph ? cpu_wr_32b_w.last : '0;
+    assign apb_periph_axi_wvalid = cpu_wr_32b_w_to_apb_periph && cpu_wr_32b_wvalid;
 
     // Bready (master → slave) — gated on bid_valid so the path stays
     // open through the entire B handshake, not just the AW phase.
     assign apb_periph_axi_bready = ((apb_periph_axi_bid_bridge_id == 0) && apb_periph_axi_bid_valid) ? cpu_wr_32b_bready : '0;
 
     // Bridge ID (master → slave)
-    assign apb_periph_axi_bridge_id_aw = cpu_wr_slave_select_aw[3] ? cpu_wr_bridge_id_aw : '0;
+    assign apb_periph_axi_bridge_id_aw = cpu_wr_32b_aw_to_apb_periph ? cpu_wr_bridge_id_aw : '0;
 
 
     // ================================================================
@@ -347,29 +447,54 @@ module bridge_1x5_wr_xbar (
     // Master width: 64b, Slave width: 32b
     // Using 32b path from adapter
 
-    // AW channel
-    assign axil_periph_axi_awid     = cpu_wr_slave_select_aw[4] ? cpu_wr_32b_aw.id : '0;
-    assign axil_periph_axi_awaddr   = cpu_wr_slave_select_aw[4] ? cpu_wr_32b_aw.addr : '0;
-    assign axil_periph_axi_awlen    = cpu_wr_slave_select_aw[4] ? cpu_wr_32b_aw.len : '0;
-    assign axil_periph_axi_awsize   = cpu_wr_slave_select_aw[4] ? cpu_wr_32b_aw.size : '0;
-    assign axil_periph_axi_awburst  = cpu_wr_slave_select_aw[4] ? cpu_wr_32b_aw.burst : '0;
-    assign axil_periph_axi_awlock   = cpu_wr_slave_select_aw[4] ? cpu_wr_32b_aw.lock : '0;
-    assign axil_periph_axi_awcache  = cpu_wr_slave_select_aw[4] ? cpu_wr_32b_aw.cache : '0;
-    assign axil_periph_axi_awprot   = cpu_wr_slave_select_aw[4] ? cpu_wr_32b_aw.prot : '0;
-    assign axil_periph_axi_awvalid  = cpu_wr_slave_select_aw[4] ? cpu_wr_32b_awvalid : '0;
+    // AW channel (gated by address re-decode -- see _addr_decode_expr)
+    wire cpu_wr_32b_aw_to_axil_periph = ((cpu_wr_32b_aw.addr >= 32'h90000000) && (cpu_wr_32b_aw.addr <= 32'h9000ffff));
+    assign axil_periph_axi_awid     = cpu_wr_32b_aw_to_axil_periph ? cpu_wr_32b_aw.id : '0;
+    assign axil_periph_axi_awaddr   = cpu_wr_32b_aw_to_axil_periph ? cpu_wr_32b_aw.addr : '0;
+    assign axil_periph_axi_awlen    = cpu_wr_32b_aw_to_axil_periph ? cpu_wr_32b_aw.len : '0;
+    assign axil_periph_axi_awsize   = cpu_wr_32b_aw_to_axil_periph ? cpu_wr_32b_aw.size : '0;
+    assign axil_periph_axi_awburst  = cpu_wr_32b_aw_to_axil_periph ? cpu_wr_32b_aw.burst : '0;
+    assign axil_periph_axi_awlock   = cpu_wr_32b_aw_to_axil_periph ? cpu_wr_32b_aw.lock : '0;
+    assign axil_periph_axi_awcache  = cpu_wr_32b_aw_to_axil_periph ? cpu_wr_32b_aw.cache : '0;
+    assign axil_periph_axi_awprot   = cpu_wr_32b_aw_to_axil_periph ? cpu_wr_32b_aw.prot : '0;
+    assign axil_periph_axi_awvalid  = cpu_wr_32b_aw_to_axil_periph && cpu_wr_32b_awvalid;
 
-    // W channel
-    assign axil_periph_axi_wdata  = cpu_wr_slave_select_aw[4] ? cpu_wr_32b_w.data : '0;
-    assign axil_periph_axi_wstrb  = cpu_wr_slave_select_aw[4] ? cpu_wr_32b_w.strb : '0;
-    assign axil_periph_axi_wlast  = cpu_wr_slave_select_aw[4] ? cpu_wr_32b_w.last : '0;
-    assign axil_periph_axi_wvalid = cpu_wr_slave_select_aw[4] ? cpu_wr_32b_wvalid : '0;
+    // AW->W tracking FIFO for this (master,slave) pair
+    logic cpu_wr_32b_w_to_axil_periph;
+    logic [3:0] cpu_wr_32b_aw_to_axil_periph_w_wptr, cpu_wr_32b_aw_to_axil_periph_w_rptr;
+    logic cpu_wr_32b_aw_to_axil_periph_w_mem [16];
+    logic cpu_wr_32b_aw_to_axil_periph_w_push, cpu_wr_32b_aw_to_axil_periph_w_pop;
+    assign cpu_wr_32b_aw_to_axil_periph_w_push = cpu_wr_32b_awvalid && cpu_wr_32b_awready && cpu_wr_32b_aw_to_axil_periph;
+    assign cpu_wr_32b_aw_to_axil_periph_w_pop  = cpu_wr_32b_wvalid && cpu_wr_32b_wready && cpu_wr_32b_w.last && cpu_wr_32b_w_to_axil_periph;
+    always_ff @(posedge aclk or negedge aresetn) begin
+        if (!aresetn) begin
+            cpu_wr_32b_aw_to_axil_periph_w_wptr <= '0;
+            cpu_wr_32b_aw_to_axil_periph_w_rptr <= '0;
+        end else begin
+            if (cpu_wr_32b_aw_to_axil_periph_w_push) begin
+                cpu_wr_32b_aw_to_axil_periph_w_mem[cpu_wr_32b_aw_to_axil_periph_w_wptr] <= 1'b1;
+                cpu_wr_32b_aw_to_axil_periph_w_wptr <= cpu_wr_32b_aw_to_axil_periph_w_wptr + 1'b1;
+            end
+            if (cpu_wr_32b_aw_to_axil_periph_w_pop) begin
+                cpu_wr_32b_aw_to_axil_periph_w_rptr <= cpu_wr_32b_aw_to_axil_periph_w_rptr + 1'b1;
+            end
+        end
+    end
+    assign cpu_wr_32b_w_to_axil_periph = (cpu_wr_32b_aw_to_axil_periph_w_wptr != cpu_wr_32b_aw_to_axil_periph_w_rptr) ? cpu_wr_32b_aw_to_axil_periph_w_mem[cpu_wr_32b_aw_to_axil_periph_w_rptr] : 1'b0;
+
+
+    // W channel (gated by aw_to_<slave> FIFO head)
+    assign axil_periph_axi_wdata  = cpu_wr_32b_w_to_axil_periph ? cpu_wr_32b_w.data : '0;
+    assign axil_periph_axi_wstrb  = cpu_wr_32b_w_to_axil_periph ? cpu_wr_32b_w.strb : '0;
+    assign axil_periph_axi_wlast  = cpu_wr_32b_w_to_axil_periph ? cpu_wr_32b_w.last : '0;
+    assign axil_periph_axi_wvalid = cpu_wr_32b_w_to_axil_periph && cpu_wr_32b_wvalid;
 
     // Bready (master → slave) — gated on bid_valid so the path stays
     // open through the entire B handshake, not just the AW phase.
     assign axil_periph_axi_bready = ((axil_periph_axi_bid_bridge_id == 0) && axil_periph_axi_bid_valid) ? cpu_wr_32b_bready : '0;
 
     // Bridge ID (master → slave)
-    assign axil_periph_axi_bridge_id_aw = cpu_wr_slave_select_aw[4] ? cpu_wr_bridge_id_aw : '0;
+    assign axil_periph_axi_bridge_id_aw = cpu_wr_32b_aw_to_axil_periph ? cpu_wr_bridge_id_aw : '0;
 
 
     // ================================================================
@@ -378,14 +503,14 @@ module bridge_1x5_wr_xbar (
 
     // Master: cpu_wr, Width path: 32b
     assign cpu_wr_32b_awready = 
-        (cpu_wr_slave_select_aw[0] ? periph_wr_axi_awready : '0) |
-        (cpu_wr_slave_select_aw[3] ? apb_periph_axi_awready : '0) |
-        (cpu_wr_slave_select_aw[4] ? axil_periph_axi_awready : '0);
+        (cpu_wr_32b_aw_to_periph_wr ? periph_wr_axi_awready : '0) |
+        (cpu_wr_32b_aw_to_apb_periph ? apb_periph_axi_awready : '0) |
+        (cpu_wr_32b_aw_to_axil_periph ? axil_periph_axi_awready : '0);
 
     assign cpu_wr_32b_wready = 
-        (cpu_wr_slave_select_aw[0] ? periph_wr_axi_wready : '0) |
-        (cpu_wr_slave_select_aw[3] ? apb_periph_axi_wready : '0) |
-        (cpu_wr_slave_select_aw[4] ? axil_periph_axi_wready : '0);
+        (cpu_wr_32b_w_to_periph_wr ? periph_wr_axi_wready : '0) |
+        (cpu_wr_32b_w_to_apb_periph ? apb_periph_axi_wready : '0) |
+        (cpu_wr_32b_w_to_axil_periph ? axil_periph_axi_wready : '0);
 
     assign cpu_wr_32b_b.id = 
         ((periph_wr_axi_bid_bridge_id == 0) && periph_wr_axi_bid_valid ? periph_wr_axi_bid : '0) |
@@ -405,10 +530,10 @@ module bridge_1x5_wr_xbar (
 
     // Master: cpu_wr, Width path: 64b
     assign cpu_wr_64b_awready = 
-        (cpu_wr_slave_select_aw[1] ? ddr_wr_axi_awready : '0);
+        (cpu_wr_64b_aw_to_ddr_wr ? ddr_wr_axi_awready : '0);
 
     assign cpu_wr_64b_wready = 
-        (cpu_wr_slave_select_aw[1] ? ddr_wr_axi_wready : '0);
+        (cpu_wr_64b_w_to_ddr_wr ? ddr_wr_axi_wready : '0);
 
     assign cpu_wr_64b_b.id = 
         ((ddr_wr_axi_bid_bridge_id == 0) && ddr_wr_axi_bid_valid ? ddr_wr_axi_bid : '0);
@@ -422,10 +547,10 @@ module bridge_1x5_wr_xbar (
 
     // Master: cpu_wr, Width path: 128b
     assign cpu_wr_128b_awready = 
-        (cpu_wr_slave_select_aw[2] ? hbm_wr_axi_awready : '0);
+        (cpu_wr_128b_aw_to_hbm_wr ? hbm_wr_axi_awready : '0);
 
     assign cpu_wr_128b_wready = 
-        (cpu_wr_slave_select_aw[2] ? hbm_wr_axi_wready : '0);
+        (cpu_wr_128b_w_to_hbm_wr ? hbm_wr_axi_wready : '0);
 
     assign cpu_wr_128b_b.id = 
         ((hbm_wr_axi_bid_bridge_id == 0) && hbm_wr_axi_bid_valid ? hbm_wr_axi_bid : '0);

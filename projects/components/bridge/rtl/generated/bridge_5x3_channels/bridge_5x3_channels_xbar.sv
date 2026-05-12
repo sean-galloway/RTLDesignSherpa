@@ -301,61 +301,161 @@ module bridge_5x3_channels_xbar (
     //   - stream_master (rw)
     //   - cpu_master (rw)
 
-    // AW channel (OR-merged across writing masters)
-    assign sram_buffer_axi_awid = ((descr_wr_master_slave_select_aw[0] && descr_wr_master_256b_awvalid) ? descr_wr_master_256b_aw.id : '0) |
-        ((sink_wr_master_slave_select_aw[0] && sink_wr_master_256b_awvalid) ? sink_wr_master_256b_aw.id : '0) |
-        ((stream_master_slave_select_aw[0] && stream_master_256b_awvalid) ? stream_master_256b_aw.id : '0) |
-        ((cpu_master_slave_select_aw[0] && cpu_master_256b_awvalid) ? cpu_master_256b_aw.id : '0);
-    assign sram_buffer_axi_awaddr = ((descr_wr_master_slave_select_aw[0] && descr_wr_master_256b_awvalid) ? descr_wr_master_256b_aw.addr : '0) |
-        ((sink_wr_master_slave_select_aw[0] && sink_wr_master_256b_awvalid) ? sink_wr_master_256b_aw.addr : '0) |
-        ((stream_master_slave_select_aw[0] && stream_master_256b_awvalid) ? stream_master_256b_aw.addr : '0) |
-        ((cpu_master_slave_select_aw[0] && cpu_master_256b_awvalid) ? cpu_master_256b_aw.addr : '0);
-    assign sram_buffer_axi_awlen = ((descr_wr_master_slave_select_aw[0] && descr_wr_master_256b_awvalid) ? descr_wr_master_256b_aw.len : '0) |
-        ((sink_wr_master_slave_select_aw[0] && sink_wr_master_256b_awvalid) ? sink_wr_master_256b_aw.len : '0) |
-        ((stream_master_slave_select_aw[0] && stream_master_256b_awvalid) ? stream_master_256b_aw.len : '0) |
-        ((cpu_master_slave_select_aw[0] && cpu_master_256b_awvalid) ? cpu_master_256b_aw.len : '0);
-    assign sram_buffer_axi_awsize = ((descr_wr_master_slave_select_aw[0] && descr_wr_master_256b_awvalid) ? descr_wr_master_256b_aw.size : '0) |
-        ((sink_wr_master_slave_select_aw[0] && sink_wr_master_256b_awvalid) ? sink_wr_master_256b_aw.size : '0) |
-        ((stream_master_slave_select_aw[0] && stream_master_256b_awvalid) ? stream_master_256b_aw.size : '0) |
-        ((cpu_master_slave_select_aw[0] && cpu_master_256b_awvalid) ? cpu_master_256b_aw.size : '0);
-    assign sram_buffer_axi_awburst = ((descr_wr_master_slave_select_aw[0] && descr_wr_master_256b_awvalid) ? descr_wr_master_256b_aw.burst : '0) |
-        ((sink_wr_master_slave_select_aw[0] && sink_wr_master_256b_awvalid) ? sink_wr_master_256b_aw.burst : '0) |
-        ((stream_master_slave_select_aw[0] && stream_master_256b_awvalid) ? stream_master_256b_aw.burst : '0) |
-        ((cpu_master_slave_select_aw[0] && cpu_master_256b_awvalid) ? cpu_master_256b_aw.burst : '0);
-    assign sram_buffer_axi_awlock = ((descr_wr_master_slave_select_aw[0] && descr_wr_master_256b_awvalid) ? descr_wr_master_256b_aw.lock : '0) |
-        ((sink_wr_master_slave_select_aw[0] && sink_wr_master_256b_awvalid) ? sink_wr_master_256b_aw.lock : '0) |
-        ((stream_master_slave_select_aw[0] && stream_master_256b_awvalid) ? stream_master_256b_aw.lock : '0) |
-        ((cpu_master_slave_select_aw[0] && cpu_master_256b_awvalid) ? cpu_master_256b_aw.lock : '0);
-    assign sram_buffer_axi_awcache = ((descr_wr_master_slave_select_aw[0] && descr_wr_master_256b_awvalid) ? descr_wr_master_256b_aw.cache : '0) |
-        ((sink_wr_master_slave_select_aw[0] && sink_wr_master_256b_awvalid) ? sink_wr_master_256b_aw.cache : '0) |
-        ((stream_master_slave_select_aw[0] && stream_master_256b_awvalid) ? stream_master_256b_aw.cache : '0) |
-        ((cpu_master_slave_select_aw[0] && cpu_master_256b_awvalid) ? cpu_master_256b_aw.cache : '0);
-    assign sram_buffer_axi_awprot = ((descr_wr_master_slave_select_aw[0] && descr_wr_master_256b_awvalid) ? descr_wr_master_256b_aw.prot : '0) |
-        ((sink_wr_master_slave_select_aw[0] && sink_wr_master_256b_awvalid) ? sink_wr_master_256b_aw.prot : '0) |
-        ((stream_master_slave_select_aw[0] && stream_master_256b_awvalid) ? stream_master_256b_aw.prot : '0) |
-        ((cpu_master_slave_select_aw[0] && cpu_master_256b_awvalid) ? cpu_master_256b_aw.prot : '0);
-    assign sram_buffer_axi_awvalid = ((descr_wr_master_slave_select_aw[0] && descr_wr_master_256b_awvalid) ? descr_wr_master_256b_awvalid : '0) |
-        ((sink_wr_master_slave_select_aw[0] && sink_wr_master_256b_awvalid) ? sink_wr_master_256b_awvalid : '0) |
-        ((stream_master_slave_select_aw[0] && stream_master_256b_awvalid) ? stream_master_256b_awvalid : '0) |
-        ((cpu_master_slave_select_aw[0] && cpu_master_256b_awvalid) ? cpu_master_256b_awvalid : '0);
+    wire descr_wr_master_256b_aw_to_sram_buffer = (descr_wr_master_256b_aw.addr <= 32'h3fffffff);
+    wire sink_wr_master_256b_aw_to_sram_buffer = (sink_wr_master_256b_aw.addr <= 32'h3fffffff);
+    wire src_rd_master_256b_ar_to_sram_buffer = (src_rd_master_256b_ar.addr <= 32'h3fffffff);
+    wire stream_master_256b_aw_to_sram_buffer = (stream_master_256b_aw.addr <= 32'h3fffffff);
+    wire stream_master_256b_ar_to_sram_buffer = (stream_master_256b_ar.addr <= 32'h3fffffff);
+    wire cpu_master_256b_aw_to_sram_buffer = (cpu_master_256b_aw.addr <= 32'h3fffffff);
+    wire cpu_master_256b_ar_to_sram_buffer = (cpu_master_256b_ar.addr <= 32'h3fffffff);
 
-    // W channel (OR-merged across writing masters)
-    assign sram_buffer_axi_wdata = ((descr_wr_master_slave_select_aw[0] && descr_wr_master_256b_wvalid) ? descr_wr_master_256b_w.data : '0) |
-        ((sink_wr_master_slave_select_aw[0] && sink_wr_master_256b_wvalid) ? sink_wr_master_256b_w.data : '0) |
-        ((stream_master_slave_select_aw[0] && stream_master_256b_wvalid) ? stream_master_256b_w.data : '0) |
-        ((cpu_master_slave_select_aw[0] && cpu_master_256b_wvalid) ? cpu_master_256b_w.data : '0);
-    assign sram_buffer_axi_wstrb = ((descr_wr_master_slave_select_aw[0] && descr_wr_master_256b_wvalid) ? descr_wr_master_256b_w.strb : '0) |
-        ((sink_wr_master_slave_select_aw[0] && sink_wr_master_256b_wvalid) ? sink_wr_master_256b_w.strb : '0) |
-        ((stream_master_slave_select_aw[0] && stream_master_256b_wvalid) ? stream_master_256b_w.strb : '0) |
-        ((cpu_master_slave_select_aw[0] && cpu_master_256b_wvalid) ? cpu_master_256b_w.strb : '0);
-    assign sram_buffer_axi_wlast = ((descr_wr_master_slave_select_aw[0] && descr_wr_master_256b_wvalid) ? descr_wr_master_256b_w.last : '0) |
-        ((sink_wr_master_slave_select_aw[0] && sink_wr_master_256b_wvalid) ? sink_wr_master_256b_w.last : '0) |
-        ((stream_master_slave_select_aw[0] && stream_master_256b_wvalid) ? stream_master_256b_w.last : '0) |
-        ((cpu_master_slave_select_aw[0] && cpu_master_256b_wvalid) ? cpu_master_256b_w.last : '0);
-    assign sram_buffer_axi_wvalid = ((descr_wr_master_slave_select_aw[0] && descr_wr_master_256b_wvalid) ? descr_wr_master_256b_wvalid : '0) |
-        ((sink_wr_master_slave_select_aw[0] && sink_wr_master_256b_wvalid) ? sink_wr_master_256b_wvalid : '0) |
-        ((stream_master_slave_select_aw[0] && stream_master_256b_wvalid) ? stream_master_256b_wvalid : '0) |
-        ((cpu_master_slave_select_aw[0] && cpu_master_256b_wvalid) ? cpu_master_256b_wvalid : '0);
+    // AW channel (OR-merged across writing masters)
+    assign sram_buffer_axi_awid = ((descr_wr_master_256b_aw_to_sram_buffer && descr_wr_master_256b_awvalid) ? descr_wr_master_256b_aw.id : '0) |
+        ((sink_wr_master_256b_aw_to_sram_buffer && sink_wr_master_256b_awvalid) ? sink_wr_master_256b_aw.id : '0) |
+        ((stream_master_256b_aw_to_sram_buffer && stream_master_256b_awvalid) ? stream_master_256b_aw.id : '0) |
+        ((cpu_master_256b_aw_to_sram_buffer && cpu_master_256b_awvalid) ? cpu_master_256b_aw.id : '0);
+    assign sram_buffer_axi_awaddr = ((descr_wr_master_256b_aw_to_sram_buffer && descr_wr_master_256b_awvalid) ? descr_wr_master_256b_aw.addr : '0) |
+        ((sink_wr_master_256b_aw_to_sram_buffer && sink_wr_master_256b_awvalid) ? sink_wr_master_256b_aw.addr : '0) |
+        ((stream_master_256b_aw_to_sram_buffer && stream_master_256b_awvalid) ? stream_master_256b_aw.addr : '0) |
+        ((cpu_master_256b_aw_to_sram_buffer && cpu_master_256b_awvalid) ? cpu_master_256b_aw.addr : '0);
+    assign sram_buffer_axi_awlen = ((descr_wr_master_256b_aw_to_sram_buffer && descr_wr_master_256b_awvalid) ? descr_wr_master_256b_aw.len : '0) |
+        ((sink_wr_master_256b_aw_to_sram_buffer && sink_wr_master_256b_awvalid) ? sink_wr_master_256b_aw.len : '0) |
+        ((stream_master_256b_aw_to_sram_buffer && stream_master_256b_awvalid) ? stream_master_256b_aw.len : '0) |
+        ((cpu_master_256b_aw_to_sram_buffer && cpu_master_256b_awvalid) ? cpu_master_256b_aw.len : '0);
+    assign sram_buffer_axi_awsize = ((descr_wr_master_256b_aw_to_sram_buffer && descr_wr_master_256b_awvalid) ? descr_wr_master_256b_aw.size : '0) |
+        ((sink_wr_master_256b_aw_to_sram_buffer && sink_wr_master_256b_awvalid) ? sink_wr_master_256b_aw.size : '0) |
+        ((stream_master_256b_aw_to_sram_buffer && stream_master_256b_awvalid) ? stream_master_256b_aw.size : '0) |
+        ((cpu_master_256b_aw_to_sram_buffer && cpu_master_256b_awvalid) ? cpu_master_256b_aw.size : '0);
+    assign sram_buffer_axi_awburst = ((descr_wr_master_256b_aw_to_sram_buffer && descr_wr_master_256b_awvalid) ? descr_wr_master_256b_aw.burst : '0) |
+        ((sink_wr_master_256b_aw_to_sram_buffer && sink_wr_master_256b_awvalid) ? sink_wr_master_256b_aw.burst : '0) |
+        ((stream_master_256b_aw_to_sram_buffer && stream_master_256b_awvalid) ? stream_master_256b_aw.burst : '0) |
+        ((cpu_master_256b_aw_to_sram_buffer && cpu_master_256b_awvalid) ? cpu_master_256b_aw.burst : '0);
+    assign sram_buffer_axi_awlock = ((descr_wr_master_256b_aw_to_sram_buffer && descr_wr_master_256b_awvalid) ? descr_wr_master_256b_aw.lock : '0) |
+        ((sink_wr_master_256b_aw_to_sram_buffer && sink_wr_master_256b_awvalid) ? sink_wr_master_256b_aw.lock : '0) |
+        ((stream_master_256b_aw_to_sram_buffer && stream_master_256b_awvalid) ? stream_master_256b_aw.lock : '0) |
+        ((cpu_master_256b_aw_to_sram_buffer && cpu_master_256b_awvalid) ? cpu_master_256b_aw.lock : '0);
+    assign sram_buffer_axi_awcache = ((descr_wr_master_256b_aw_to_sram_buffer && descr_wr_master_256b_awvalid) ? descr_wr_master_256b_aw.cache : '0) |
+        ((sink_wr_master_256b_aw_to_sram_buffer && sink_wr_master_256b_awvalid) ? sink_wr_master_256b_aw.cache : '0) |
+        ((stream_master_256b_aw_to_sram_buffer && stream_master_256b_awvalid) ? stream_master_256b_aw.cache : '0) |
+        ((cpu_master_256b_aw_to_sram_buffer && cpu_master_256b_awvalid) ? cpu_master_256b_aw.cache : '0);
+    assign sram_buffer_axi_awprot = ((descr_wr_master_256b_aw_to_sram_buffer && descr_wr_master_256b_awvalid) ? descr_wr_master_256b_aw.prot : '0) |
+        ((sink_wr_master_256b_aw_to_sram_buffer && sink_wr_master_256b_awvalid) ? sink_wr_master_256b_aw.prot : '0) |
+        ((stream_master_256b_aw_to_sram_buffer && stream_master_256b_awvalid) ? stream_master_256b_aw.prot : '0) |
+        ((cpu_master_256b_aw_to_sram_buffer && cpu_master_256b_awvalid) ? cpu_master_256b_aw.prot : '0);
+    assign sram_buffer_axi_awvalid = ((descr_wr_master_256b_aw_to_sram_buffer && descr_wr_master_256b_awvalid) ? descr_wr_master_256b_awvalid : '0) |
+        ((sink_wr_master_256b_aw_to_sram_buffer && sink_wr_master_256b_awvalid) ? sink_wr_master_256b_awvalid : '0) |
+        ((stream_master_256b_aw_to_sram_buffer && stream_master_256b_awvalid) ? stream_master_256b_awvalid : '0) |
+        ((cpu_master_256b_aw_to_sram_buffer && cpu_master_256b_awvalid) ? cpu_master_256b_awvalid : '0);
+
+    // AW->W tracking FIFO: descr_wr_master -> sram_buffer
+    logic descr_wr_master_256b_w_to_sram_buffer;
+    logic [3:0] descr_wr_master_256b_aw_to_sram_buffer_w_wptr, descr_wr_master_256b_aw_to_sram_buffer_w_rptr;
+    logic descr_wr_master_256b_aw_to_sram_buffer_w_mem [16];
+    logic descr_wr_master_256b_aw_to_sram_buffer_w_push, descr_wr_master_256b_aw_to_sram_buffer_w_pop;
+    assign descr_wr_master_256b_aw_to_sram_buffer_w_push = descr_wr_master_256b_awvalid && descr_wr_master_256b_awready && descr_wr_master_256b_aw_to_sram_buffer;
+    assign descr_wr_master_256b_aw_to_sram_buffer_w_pop  = descr_wr_master_256b_wvalid && descr_wr_master_256b_wready && descr_wr_master_256b_w.last && descr_wr_master_256b_w_to_sram_buffer;
+    always_ff @(posedge aclk or negedge aresetn) begin
+        if (!aresetn) begin
+            descr_wr_master_256b_aw_to_sram_buffer_w_wptr <= '0;
+            descr_wr_master_256b_aw_to_sram_buffer_w_rptr <= '0;
+        end else begin
+            if (descr_wr_master_256b_aw_to_sram_buffer_w_push) begin
+                descr_wr_master_256b_aw_to_sram_buffer_w_mem[descr_wr_master_256b_aw_to_sram_buffer_w_wptr] <= 1'b1;
+                descr_wr_master_256b_aw_to_sram_buffer_w_wptr <= descr_wr_master_256b_aw_to_sram_buffer_w_wptr + 1'b1;
+            end
+            if (descr_wr_master_256b_aw_to_sram_buffer_w_pop) begin
+                descr_wr_master_256b_aw_to_sram_buffer_w_rptr <= descr_wr_master_256b_aw_to_sram_buffer_w_rptr + 1'b1;
+            end
+        end
+    end
+    assign descr_wr_master_256b_w_to_sram_buffer = (descr_wr_master_256b_aw_to_sram_buffer_w_wptr != descr_wr_master_256b_aw_to_sram_buffer_w_rptr) ? descr_wr_master_256b_aw_to_sram_buffer_w_mem[descr_wr_master_256b_aw_to_sram_buffer_w_rptr] : 1'b0;
+
+    // AW->W tracking FIFO: sink_wr_master -> sram_buffer
+    logic sink_wr_master_256b_w_to_sram_buffer;
+    logic [3:0] sink_wr_master_256b_aw_to_sram_buffer_w_wptr, sink_wr_master_256b_aw_to_sram_buffer_w_rptr;
+    logic sink_wr_master_256b_aw_to_sram_buffer_w_mem [16];
+    logic sink_wr_master_256b_aw_to_sram_buffer_w_push, sink_wr_master_256b_aw_to_sram_buffer_w_pop;
+    assign sink_wr_master_256b_aw_to_sram_buffer_w_push = sink_wr_master_256b_awvalid && sink_wr_master_256b_awready && sink_wr_master_256b_aw_to_sram_buffer;
+    assign sink_wr_master_256b_aw_to_sram_buffer_w_pop  = sink_wr_master_256b_wvalid && sink_wr_master_256b_wready && sink_wr_master_256b_w.last && sink_wr_master_256b_w_to_sram_buffer;
+    always_ff @(posedge aclk or negedge aresetn) begin
+        if (!aresetn) begin
+            sink_wr_master_256b_aw_to_sram_buffer_w_wptr <= '0;
+            sink_wr_master_256b_aw_to_sram_buffer_w_rptr <= '0;
+        end else begin
+            if (sink_wr_master_256b_aw_to_sram_buffer_w_push) begin
+                sink_wr_master_256b_aw_to_sram_buffer_w_mem[sink_wr_master_256b_aw_to_sram_buffer_w_wptr] <= 1'b1;
+                sink_wr_master_256b_aw_to_sram_buffer_w_wptr <= sink_wr_master_256b_aw_to_sram_buffer_w_wptr + 1'b1;
+            end
+            if (sink_wr_master_256b_aw_to_sram_buffer_w_pop) begin
+                sink_wr_master_256b_aw_to_sram_buffer_w_rptr <= sink_wr_master_256b_aw_to_sram_buffer_w_rptr + 1'b1;
+            end
+        end
+    end
+    assign sink_wr_master_256b_w_to_sram_buffer = (sink_wr_master_256b_aw_to_sram_buffer_w_wptr != sink_wr_master_256b_aw_to_sram_buffer_w_rptr) ? sink_wr_master_256b_aw_to_sram_buffer_w_mem[sink_wr_master_256b_aw_to_sram_buffer_w_rptr] : 1'b0;
+
+    // AW->W tracking FIFO: stream_master -> sram_buffer
+    logic stream_master_256b_w_to_sram_buffer;
+    logic [3:0] stream_master_256b_aw_to_sram_buffer_w_wptr, stream_master_256b_aw_to_sram_buffer_w_rptr;
+    logic stream_master_256b_aw_to_sram_buffer_w_mem [16];
+    logic stream_master_256b_aw_to_sram_buffer_w_push, stream_master_256b_aw_to_sram_buffer_w_pop;
+    assign stream_master_256b_aw_to_sram_buffer_w_push = stream_master_256b_awvalid && stream_master_256b_awready && stream_master_256b_aw_to_sram_buffer;
+    assign stream_master_256b_aw_to_sram_buffer_w_pop  = stream_master_256b_wvalid && stream_master_256b_wready && stream_master_256b_w.last && stream_master_256b_w_to_sram_buffer;
+    always_ff @(posedge aclk or negedge aresetn) begin
+        if (!aresetn) begin
+            stream_master_256b_aw_to_sram_buffer_w_wptr <= '0;
+            stream_master_256b_aw_to_sram_buffer_w_rptr <= '0;
+        end else begin
+            if (stream_master_256b_aw_to_sram_buffer_w_push) begin
+                stream_master_256b_aw_to_sram_buffer_w_mem[stream_master_256b_aw_to_sram_buffer_w_wptr] <= 1'b1;
+                stream_master_256b_aw_to_sram_buffer_w_wptr <= stream_master_256b_aw_to_sram_buffer_w_wptr + 1'b1;
+            end
+            if (stream_master_256b_aw_to_sram_buffer_w_pop) begin
+                stream_master_256b_aw_to_sram_buffer_w_rptr <= stream_master_256b_aw_to_sram_buffer_w_rptr + 1'b1;
+            end
+        end
+    end
+    assign stream_master_256b_w_to_sram_buffer = (stream_master_256b_aw_to_sram_buffer_w_wptr != stream_master_256b_aw_to_sram_buffer_w_rptr) ? stream_master_256b_aw_to_sram_buffer_w_mem[stream_master_256b_aw_to_sram_buffer_w_rptr] : 1'b0;
+
+    // AW->W tracking FIFO: cpu_master -> sram_buffer
+    logic cpu_master_256b_w_to_sram_buffer;
+    logic [3:0] cpu_master_256b_aw_to_sram_buffer_w_wptr, cpu_master_256b_aw_to_sram_buffer_w_rptr;
+    logic cpu_master_256b_aw_to_sram_buffer_w_mem [16];
+    logic cpu_master_256b_aw_to_sram_buffer_w_push, cpu_master_256b_aw_to_sram_buffer_w_pop;
+    assign cpu_master_256b_aw_to_sram_buffer_w_push = cpu_master_256b_awvalid && cpu_master_256b_awready && cpu_master_256b_aw_to_sram_buffer;
+    assign cpu_master_256b_aw_to_sram_buffer_w_pop  = cpu_master_256b_wvalid && cpu_master_256b_wready && cpu_master_256b_w.last && cpu_master_256b_w_to_sram_buffer;
+    always_ff @(posedge aclk or negedge aresetn) begin
+        if (!aresetn) begin
+            cpu_master_256b_aw_to_sram_buffer_w_wptr <= '0;
+            cpu_master_256b_aw_to_sram_buffer_w_rptr <= '0;
+        end else begin
+            if (cpu_master_256b_aw_to_sram_buffer_w_push) begin
+                cpu_master_256b_aw_to_sram_buffer_w_mem[cpu_master_256b_aw_to_sram_buffer_w_wptr] <= 1'b1;
+                cpu_master_256b_aw_to_sram_buffer_w_wptr <= cpu_master_256b_aw_to_sram_buffer_w_wptr + 1'b1;
+            end
+            if (cpu_master_256b_aw_to_sram_buffer_w_pop) begin
+                cpu_master_256b_aw_to_sram_buffer_w_rptr <= cpu_master_256b_aw_to_sram_buffer_w_rptr + 1'b1;
+            end
+        end
+    end
+    assign cpu_master_256b_w_to_sram_buffer = (cpu_master_256b_aw_to_sram_buffer_w_wptr != cpu_master_256b_aw_to_sram_buffer_w_rptr) ? cpu_master_256b_aw_to_sram_buffer_w_mem[cpu_master_256b_aw_to_sram_buffer_w_rptr] : 1'b0;
+
+    // W channel (OR-merged across writing masters, gated by w_to_<slave> FIFO)
+    assign sram_buffer_axi_wdata = ((descr_wr_master_256b_w_to_sram_buffer && descr_wr_master_256b_wvalid) ? descr_wr_master_256b_w.data : '0) |
+        ((sink_wr_master_256b_w_to_sram_buffer && sink_wr_master_256b_wvalid) ? sink_wr_master_256b_w.data : '0) |
+        ((stream_master_256b_w_to_sram_buffer && stream_master_256b_wvalid) ? stream_master_256b_w.data : '0) |
+        ((cpu_master_256b_w_to_sram_buffer && cpu_master_256b_wvalid) ? cpu_master_256b_w.data : '0);
+    assign sram_buffer_axi_wstrb = ((descr_wr_master_256b_w_to_sram_buffer && descr_wr_master_256b_wvalid) ? descr_wr_master_256b_w.strb : '0) |
+        ((sink_wr_master_256b_w_to_sram_buffer && sink_wr_master_256b_wvalid) ? sink_wr_master_256b_w.strb : '0) |
+        ((stream_master_256b_w_to_sram_buffer && stream_master_256b_wvalid) ? stream_master_256b_w.strb : '0) |
+        ((cpu_master_256b_w_to_sram_buffer && cpu_master_256b_wvalid) ? cpu_master_256b_w.strb : '0);
+    assign sram_buffer_axi_wlast = ((descr_wr_master_256b_w_to_sram_buffer && descr_wr_master_256b_wvalid) ? descr_wr_master_256b_w.last : '0) |
+        ((sink_wr_master_256b_w_to_sram_buffer && sink_wr_master_256b_wvalid) ? sink_wr_master_256b_w.last : '0) |
+        ((stream_master_256b_w_to_sram_buffer && stream_master_256b_wvalid) ? stream_master_256b_w.last : '0) |
+        ((cpu_master_256b_w_to_sram_buffer && cpu_master_256b_wvalid) ? cpu_master_256b_w.last : '0);
+    assign sram_buffer_axi_wvalid = ((descr_wr_master_256b_w_to_sram_buffer && descr_wr_master_256b_wvalid) ? descr_wr_master_256b_wvalid : '0) |
+        ((sink_wr_master_256b_w_to_sram_buffer && sink_wr_master_256b_wvalid) ? sink_wr_master_256b_wvalid : '0) |
+        ((stream_master_256b_w_to_sram_buffer && stream_master_256b_wvalid) ? stream_master_256b_wvalid : '0) |
+        ((cpu_master_256b_w_to_sram_buffer && cpu_master_256b_wvalid) ? cpu_master_256b_wvalid : '0);
 
     // Bready (slave → owning master, by bid_bridge_id)
     assign sram_buffer_axi_bready = ((sram_buffer_axi_bid_bridge_id == 0) && sram_buffer_axi_bid_valid ? descr_wr_master_256b_bready : '0) |
@@ -364,39 +464,39 @@ module bridge_5x3_channels_xbar (
         ((sram_buffer_axi_bid_bridge_id == 4) && sram_buffer_axi_bid_valid ? cpu_master_256b_bready : '0);
 
     // Bridge ID (writes) — picks the originating master's id
-    assign sram_buffer_axi_bridge_id_aw = ((descr_wr_master_slave_select_aw[0] && descr_wr_master_256b_awvalid) ? descr_wr_master_bridge_id_aw : '0) |
-        ((sink_wr_master_slave_select_aw[0] && sink_wr_master_256b_awvalid) ? sink_wr_master_bridge_id_aw : '0) |
-        ((stream_master_slave_select_aw[0] && stream_master_256b_awvalid) ? stream_master_bridge_id_aw : '0) |
-        ((cpu_master_slave_select_aw[0] && cpu_master_256b_awvalid) ? cpu_master_bridge_id_aw : '0);
+    assign sram_buffer_axi_bridge_id_aw = ((descr_wr_master_256b_aw_to_sram_buffer && descr_wr_master_256b_awvalid) ? descr_wr_master_bridge_id_aw : '0) |
+        ((sink_wr_master_256b_aw_to_sram_buffer && sink_wr_master_256b_awvalid) ? sink_wr_master_bridge_id_aw : '0) |
+        ((stream_master_256b_aw_to_sram_buffer && stream_master_256b_awvalid) ? stream_master_bridge_id_aw : '0) |
+        ((cpu_master_256b_aw_to_sram_buffer && cpu_master_256b_awvalid) ? cpu_master_bridge_id_aw : '0);
 
     // AR channel (OR-merged across reading masters)
-    assign sram_buffer_axi_arid = ((src_rd_master_slave_select_ar[0] && src_rd_master_256b_arvalid) ? src_rd_master_256b_ar.id : '0) |
-        ((stream_master_slave_select_ar[0] && stream_master_256b_arvalid) ? stream_master_256b_ar.id : '0) |
-        ((cpu_master_slave_select_ar[0] && cpu_master_256b_arvalid) ? cpu_master_256b_ar.id : '0);
-    assign sram_buffer_axi_araddr = ((src_rd_master_slave_select_ar[0] && src_rd_master_256b_arvalid) ? src_rd_master_256b_ar.addr : '0) |
-        ((stream_master_slave_select_ar[0] && stream_master_256b_arvalid) ? stream_master_256b_ar.addr : '0) |
-        ((cpu_master_slave_select_ar[0] && cpu_master_256b_arvalid) ? cpu_master_256b_ar.addr : '0);
-    assign sram_buffer_axi_arlen = ((src_rd_master_slave_select_ar[0] && src_rd_master_256b_arvalid) ? src_rd_master_256b_ar.len : '0) |
-        ((stream_master_slave_select_ar[0] && stream_master_256b_arvalid) ? stream_master_256b_ar.len : '0) |
-        ((cpu_master_slave_select_ar[0] && cpu_master_256b_arvalid) ? cpu_master_256b_ar.len : '0);
-    assign sram_buffer_axi_arsize = ((src_rd_master_slave_select_ar[0] && src_rd_master_256b_arvalid) ? src_rd_master_256b_ar.size : '0) |
-        ((stream_master_slave_select_ar[0] && stream_master_256b_arvalid) ? stream_master_256b_ar.size : '0) |
-        ((cpu_master_slave_select_ar[0] && cpu_master_256b_arvalid) ? cpu_master_256b_ar.size : '0);
-    assign sram_buffer_axi_arburst = ((src_rd_master_slave_select_ar[0] && src_rd_master_256b_arvalid) ? src_rd_master_256b_ar.burst : '0) |
-        ((stream_master_slave_select_ar[0] && stream_master_256b_arvalid) ? stream_master_256b_ar.burst : '0) |
-        ((cpu_master_slave_select_ar[0] && cpu_master_256b_arvalid) ? cpu_master_256b_ar.burst : '0);
-    assign sram_buffer_axi_arlock = ((src_rd_master_slave_select_ar[0] && src_rd_master_256b_arvalid) ? src_rd_master_256b_ar.lock : '0) |
-        ((stream_master_slave_select_ar[0] && stream_master_256b_arvalid) ? stream_master_256b_ar.lock : '0) |
-        ((cpu_master_slave_select_ar[0] && cpu_master_256b_arvalid) ? cpu_master_256b_ar.lock : '0);
-    assign sram_buffer_axi_arcache = ((src_rd_master_slave_select_ar[0] && src_rd_master_256b_arvalid) ? src_rd_master_256b_ar.cache : '0) |
-        ((stream_master_slave_select_ar[0] && stream_master_256b_arvalid) ? stream_master_256b_ar.cache : '0) |
-        ((cpu_master_slave_select_ar[0] && cpu_master_256b_arvalid) ? cpu_master_256b_ar.cache : '0);
-    assign sram_buffer_axi_arprot = ((src_rd_master_slave_select_ar[0] && src_rd_master_256b_arvalid) ? src_rd_master_256b_ar.prot : '0) |
-        ((stream_master_slave_select_ar[0] && stream_master_256b_arvalid) ? stream_master_256b_ar.prot : '0) |
-        ((cpu_master_slave_select_ar[0] && cpu_master_256b_arvalid) ? cpu_master_256b_ar.prot : '0);
-    assign sram_buffer_axi_arvalid = ((src_rd_master_slave_select_ar[0] && src_rd_master_256b_arvalid) ? src_rd_master_256b_arvalid : '0) |
-        ((stream_master_slave_select_ar[0] && stream_master_256b_arvalid) ? stream_master_256b_arvalid : '0) |
-        ((cpu_master_slave_select_ar[0] && cpu_master_256b_arvalid) ? cpu_master_256b_arvalid : '0);
+    assign sram_buffer_axi_arid = ((src_rd_master_256b_ar_to_sram_buffer && src_rd_master_256b_arvalid) ? src_rd_master_256b_ar.id : '0) |
+        ((stream_master_256b_ar_to_sram_buffer && stream_master_256b_arvalid) ? stream_master_256b_ar.id : '0) |
+        ((cpu_master_256b_ar_to_sram_buffer && cpu_master_256b_arvalid) ? cpu_master_256b_ar.id : '0);
+    assign sram_buffer_axi_araddr = ((src_rd_master_256b_ar_to_sram_buffer && src_rd_master_256b_arvalid) ? src_rd_master_256b_ar.addr : '0) |
+        ((stream_master_256b_ar_to_sram_buffer && stream_master_256b_arvalid) ? stream_master_256b_ar.addr : '0) |
+        ((cpu_master_256b_ar_to_sram_buffer && cpu_master_256b_arvalid) ? cpu_master_256b_ar.addr : '0);
+    assign sram_buffer_axi_arlen = ((src_rd_master_256b_ar_to_sram_buffer && src_rd_master_256b_arvalid) ? src_rd_master_256b_ar.len : '0) |
+        ((stream_master_256b_ar_to_sram_buffer && stream_master_256b_arvalid) ? stream_master_256b_ar.len : '0) |
+        ((cpu_master_256b_ar_to_sram_buffer && cpu_master_256b_arvalid) ? cpu_master_256b_ar.len : '0);
+    assign sram_buffer_axi_arsize = ((src_rd_master_256b_ar_to_sram_buffer && src_rd_master_256b_arvalid) ? src_rd_master_256b_ar.size : '0) |
+        ((stream_master_256b_ar_to_sram_buffer && stream_master_256b_arvalid) ? stream_master_256b_ar.size : '0) |
+        ((cpu_master_256b_ar_to_sram_buffer && cpu_master_256b_arvalid) ? cpu_master_256b_ar.size : '0);
+    assign sram_buffer_axi_arburst = ((src_rd_master_256b_ar_to_sram_buffer && src_rd_master_256b_arvalid) ? src_rd_master_256b_ar.burst : '0) |
+        ((stream_master_256b_ar_to_sram_buffer && stream_master_256b_arvalid) ? stream_master_256b_ar.burst : '0) |
+        ((cpu_master_256b_ar_to_sram_buffer && cpu_master_256b_arvalid) ? cpu_master_256b_ar.burst : '0);
+    assign sram_buffer_axi_arlock = ((src_rd_master_256b_ar_to_sram_buffer && src_rd_master_256b_arvalid) ? src_rd_master_256b_ar.lock : '0) |
+        ((stream_master_256b_ar_to_sram_buffer && stream_master_256b_arvalid) ? stream_master_256b_ar.lock : '0) |
+        ((cpu_master_256b_ar_to_sram_buffer && cpu_master_256b_arvalid) ? cpu_master_256b_ar.lock : '0);
+    assign sram_buffer_axi_arcache = ((src_rd_master_256b_ar_to_sram_buffer && src_rd_master_256b_arvalid) ? src_rd_master_256b_ar.cache : '0) |
+        ((stream_master_256b_ar_to_sram_buffer && stream_master_256b_arvalid) ? stream_master_256b_ar.cache : '0) |
+        ((cpu_master_256b_ar_to_sram_buffer && cpu_master_256b_arvalid) ? cpu_master_256b_ar.cache : '0);
+    assign sram_buffer_axi_arprot = ((src_rd_master_256b_ar_to_sram_buffer && src_rd_master_256b_arvalid) ? src_rd_master_256b_ar.prot : '0) |
+        ((stream_master_256b_ar_to_sram_buffer && stream_master_256b_arvalid) ? stream_master_256b_ar.prot : '0) |
+        ((cpu_master_256b_ar_to_sram_buffer && cpu_master_256b_arvalid) ? cpu_master_256b_ar.prot : '0);
+    assign sram_buffer_axi_arvalid = ((src_rd_master_256b_ar_to_sram_buffer && src_rd_master_256b_arvalid) ? src_rd_master_256b_arvalid : '0) |
+        ((stream_master_256b_ar_to_sram_buffer && stream_master_256b_arvalid) ? stream_master_256b_arvalid : '0) |
+        ((cpu_master_256b_ar_to_sram_buffer && cpu_master_256b_arvalid) ? cpu_master_256b_arvalid : '0);
 
     // Rready (slave → owning master, by rid_bridge_id)
     assign sram_buffer_axi_rready = ((sram_buffer_axi_rid_bridge_id == 2) && sram_buffer_axi_rid_valid ? src_rd_master_256b_rready : '0) |
@@ -404,9 +504,9 @@ module bridge_5x3_channels_xbar (
         ((sram_buffer_axi_rid_bridge_id == 4) && sram_buffer_axi_rid_valid ? cpu_master_256b_rready : '0);
 
     // Bridge ID (reads) — picks the originating master's id
-    assign sram_buffer_axi_bridge_id_ar = ((src_rd_master_slave_select_ar[0] && src_rd_master_256b_arvalid) ? src_rd_master_bridge_id_ar : '0) |
-        ((stream_master_slave_select_ar[0] && stream_master_256b_arvalid) ? stream_master_bridge_id_ar : '0) |
-        ((cpu_master_slave_select_ar[0] && cpu_master_256b_arvalid) ? cpu_master_bridge_id_ar : '0);
+    assign sram_buffer_axi_bridge_id_ar = ((src_rd_master_256b_ar_to_sram_buffer && src_rd_master_256b_arvalid) ? src_rd_master_bridge_id_ar : '0) |
+        ((stream_master_256b_ar_to_sram_buffer && stream_master_256b_arvalid) ? stream_master_bridge_id_ar : '0) |
+        ((cpu_master_256b_ar_to_sram_buffer && cpu_master_256b_arvalid) ? cpu_master_bridge_id_ar : '0);
 
 
     // ================================================================
@@ -419,61 +519,161 @@ module bridge_5x3_channels_xbar (
     //   - stream_master (rw)
     //   - cpu_master (rw)
 
-    // AW channel (OR-merged across writing masters)
-    assign ddr_controller_axi_awid = ((descr_wr_master_slave_select_aw[1] && descr_wr_master_256b_awvalid) ? descr_wr_master_256b_aw.id : '0) |
-        ((sink_wr_master_slave_select_aw[1] && sink_wr_master_256b_awvalid) ? sink_wr_master_256b_aw.id : '0) |
-        ((stream_master_slave_select_aw[1] && stream_master_256b_awvalid) ? stream_master_256b_aw.id : '0) |
-        ((cpu_master_slave_select_aw[1] && cpu_master_256b_awvalid) ? cpu_master_256b_aw.id : '0);
-    assign ddr_controller_axi_awaddr = ((descr_wr_master_slave_select_aw[1] && descr_wr_master_256b_awvalid) ? descr_wr_master_256b_aw.addr : '0) |
-        ((sink_wr_master_slave_select_aw[1] && sink_wr_master_256b_awvalid) ? sink_wr_master_256b_aw.addr : '0) |
-        ((stream_master_slave_select_aw[1] && stream_master_256b_awvalid) ? stream_master_256b_aw.addr : '0) |
-        ((cpu_master_slave_select_aw[1] && cpu_master_256b_awvalid) ? cpu_master_256b_aw.addr : '0);
-    assign ddr_controller_axi_awlen = ((descr_wr_master_slave_select_aw[1] && descr_wr_master_256b_awvalid) ? descr_wr_master_256b_aw.len : '0) |
-        ((sink_wr_master_slave_select_aw[1] && sink_wr_master_256b_awvalid) ? sink_wr_master_256b_aw.len : '0) |
-        ((stream_master_slave_select_aw[1] && stream_master_256b_awvalid) ? stream_master_256b_aw.len : '0) |
-        ((cpu_master_slave_select_aw[1] && cpu_master_256b_awvalid) ? cpu_master_256b_aw.len : '0);
-    assign ddr_controller_axi_awsize = ((descr_wr_master_slave_select_aw[1] && descr_wr_master_256b_awvalid) ? descr_wr_master_256b_aw.size : '0) |
-        ((sink_wr_master_slave_select_aw[1] && sink_wr_master_256b_awvalid) ? sink_wr_master_256b_aw.size : '0) |
-        ((stream_master_slave_select_aw[1] && stream_master_256b_awvalid) ? stream_master_256b_aw.size : '0) |
-        ((cpu_master_slave_select_aw[1] && cpu_master_256b_awvalid) ? cpu_master_256b_aw.size : '0);
-    assign ddr_controller_axi_awburst = ((descr_wr_master_slave_select_aw[1] && descr_wr_master_256b_awvalid) ? descr_wr_master_256b_aw.burst : '0) |
-        ((sink_wr_master_slave_select_aw[1] && sink_wr_master_256b_awvalid) ? sink_wr_master_256b_aw.burst : '0) |
-        ((stream_master_slave_select_aw[1] && stream_master_256b_awvalid) ? stream_master_256b_aw.burst : '0) |
-        ((cpu_master_slave_select_aw[1] && cpu_master_256b_awvalid) ? cpu_master_256b_aw.burst : '0);
-    assign ddr_controller_axi_awlock = ((descr_wr_master_slave_select_aw[1] && descr_wr_master_256b_awvalid) ? descr_wr_master_256b_aw.lock : '0) |
-        ((sink_wr_master_slave_select_aw[1] && sink_wr_master_256b_awvalid) ? sink_wr_master_256b_aw.lock : '0) |
-        ((stream_master_slave_select_aw[1] && stream_master_256b_awvalid) ? stream_master_256b_aw.lock : '0) |
-        ((cpu_master_slave_select_aw[1] && cpu_master_256b_awvalid) ? cpu_master_256b_aw.lock : '0);
-    assign ddr_controller_axi_awcache = ((descr_wr_master_slave_select_aw[1] && descr_wr_master_256b_awvalid) ? descr_wr_master_256b_aw.cache : '0) |
-        ((sink_wr_master_slave_select_aw[1] && sink_wr_master_256b_awvalid) ? sink_wr_master_256b_aw.cache : '0) |
-        ((stream_master_slave_select_aw[1] && stream_master_256b_awvalid) ? stream_master_256b_aw.cache : '0) |
-        ((cpu_master_slave_select_aw[1] && cpu_master_256b_awvalid) ? cpu_master_256b_aw.cache : '0);
-    assign ddr_controller_axi_awprot = ((descr_wr_master_slave_select_aw[1] && descr_wr_master_256b_awvalid) ? descr_wr_master_256b_aw.prot : '0) |
-        ((sink_wr_master_slave_select_aw[1] && sink_wr_master_256b_awvalid) ? sink_wr_master_256b_aw.prot : '0) |
-        ((stream_master_slave_select_aw[1] && stream_master_256b_awvalid) ? stream_master_256b_aw.prot : '0) |
-        ((cpu_master_slave_select_aw[1] && cpu_master_256b_awvalid) ? cpu_master_256b_aw.prot : '0);
-    assign ddr_controller_axi_awvalid = ((descr_wr_master_slave_select_aw[1] && descr_wr_master_256b_awvalid) ? descr_wr_master_256b_awvalid : '0) |
-        ((sink_wr_master_slave_select_aw[1] && sink_wr_master_256b_awvalid) ? sink_wr_master_256b_awvalid : '0) |
-        ((stream_master_slave_select_aw[1] && stream_master_256b_awvalid) ? stream_master_256b_awvalid : '0) |
-        ((cpu_master_slave_select_aw[1] && cpu_master_256b_awvalid) ? cpu_master_256b_awvalid : '0);
+    wire descr_wr_master_256b_aw_to_ddr_controller = ((descr_wr_master_256b_aw.addr >= 32'h40000000) && (descr_wr_master_256b_aw.addr <= 32'hbfffffff));
+    wire sink_wr_master_256b_aw_to_ddr_controller = ((sink_wr_master_256b_aw.addr >= 32'h40000000) && (sink_wr_master_256b_aw.addr <= 32'hbfffffff));
+    wire src_rd_master_256b_ar_to_ddr_controller = ((src_rd_master_256b_ar.addr >= 32'h40000000) && (src_rd_master_256b_ar.addr <= 32'hbfffffff));
+    wire stream_master_256b_aw_to_ddr_controller = ((stream_master_256b_aw.addr >= 32'h40000000) && (stream_master_256b_aw.addr <= 32'hbfffffff));
+    wire stream_master_256b_ar_to_ddr_controller = ((stream_master_256b_ar.addr >= 32'h40000000) && (stream_master_256b_ar.addr <= 32'hbfffffff));
+    wire cpu_master_256b_aw_to_ddr_controller = ((cpu_master_256b_aw.addr >= 32'h40000000) && (cpu_master_256b_aw.addr <= 32'hbfffffff));
+    wire cpu_master_256b_ar_to_ddr_controller = ((cpu_master_256b_ar.addr >= 32'h40000000) && (cpu_master_256b_ar.addr <= 32'hbfffffff));
 
-    // W channel (OR-merged across writing masters)
-    assign ddr_controller_axi_wdata = ((descr_wr_master_slave_select_aw[1] && descr_wr_master_256b_wvalid) ? descr_wr_master_256b_w.data : '0) |
-        ((sink_wr_master_slave_select_aw[1] && sink_wr_master_256b_wvalid) ? sink_wr_master_256b_w.data : '0) |
-        ((stream_master_slave_select_aw[1] && stream_master_256b_wvalid) ? stream_master_256b_w.data : '0) |
-        ((cpu_master_slave_select_aw[1] && cpu_master_256b_wvalid) ? cpu_master_256b_w.data : '0);
-    assign ddr_controller_axi_wstrb = ((descr_wr_master_slave_select_aw[1] && descr_wr_master_256b_wvalid) ? descr_wr_master_256b_w.strb : '0) |
-        ((sink_wr_master_slave_select_aw[1] && sink_wr_master_256b_wvalid) ? sink_wr_master_256b_w.strb : '0) |
-        ((stream_master_slave_select_aw[1] && stream_master_256b_wvalid) ? stream_master_256b_w.strb : '0) |
-        ((cpu_master_slave_select_aw[1] && cpu_master_256b_wvalid) ? cpu_master_256b_w.strb : '0);
-    assign ddr_controller_axi_wlast = ((descr_wr_master_slave_select_aw[1] && descr_wr_master_256b_wvalid) ? descr_wr_master_256b_w.last : '0) |
-        ((sink_wr_master_slave_select_aw[1] && sink_wr_master_256b_wvalid) ? sink_wr_master_256b_w.last : '0) |
-        ((stream_master_slave_select_aw[1] && stream_master_256b_wvalid) ? stream_master_256b_w.last : '0) |
-        ((cpu_master_slave_select_aw[1] && cpu_master_256b_wvalid) ? cpu_master_256b_w.last : '0);
-    assign ddr_controller_axi_wvalid = ((descr_wr_master_slave_select_aw[1] && descr_wr_master_256b_wvalid) ? descr_wr_master_256b_wvalid : '0) |
-        ((sink_wr_master_slave_select_aw[1] && sink_wr_master_256b_wvalid) ? sink_wr_master_256b_wvalid : '0) |
-        ((stream_master_slave_select_aw[1] && stream_master_256b_wvalid) ? stream_master_256b_wvalid : '0) |
-        ((cpu_master_slave_select_aw[1] && cpu_master_256b_wvalid) ? cpu_master_256b_wvalid : '0);
+    // AW channel (OR-merged across writing masters)
+    assign ddr_controller_axi_awid = ((descr_wr_master_256b_aw_to_ddr_controller && descr_wr_master_256b_awvalid) ? descr_wr_master_256b_aw.id : '0) |
+        ((sink_wr_master_256b_aw_to_ddr_controller && sink_wr_master_256b_awvalid) ? sink_wr_master_256b_aw.id : '0) |
+        ((stream_master_256b_aw_to_ddr_controller && stream_master_256b_awvalid) ? stream_master_256b_aw.id : '0) |
+        ((cpu_master_256b_aw_to_ddr_controller && cpu_master_256b_awvalid) ? cpu_master_256b_aw.id : '0);
+    assign ddr_controller_axi_awaddr = ((descr_wr_master_256b_aw_to_ddr_controller && descr_wr_master_256b_awvalid) ? descr_wr_master_256b_aw.addr : '0) |
+        ((sink_wr_master_256b_aw_to_ddr_controller && sink_wr_master_256b_awvalid) ? sink_wr_master_256b_aw.addr : '0) |
+        ((stream_master_256b_aw_to_ddr_controller && stream_master_256b_awvalid) ? stream_master_256b_aw.addr : '0) |
+        ((cpu_master_256b_aw_to_ddr_controller && cpu_master_256b_awvalid) ? cpu_master_256b_aw.addr : '0);
+    assign ddr_controller_axi_awlen = ((descr_wr_master_256b_aw_to_ddr_controller && descr_wr_master_256b_awvalid) ? descr_wr_master_256b_aw.len : '0) |
+        ((sink_wr_master_256b_aw_to_ddr_controller && sink_wr_master_256b_awvalid) ? sink_wr_master_256b_aw.len : '0) |
+        ((stream_master_256b_aw_to_ddr_controller && stream_master_256b_awvalid) ? stream_master_256b_aw.len : '0) |
+        ((cpu_master_256b_aw_to_ddr_controller && cpu_master_256b_awvalid) ? cpu_master_256b_aw.len : '0);
+    assign ddr_controller_axi_awsize = ((descr_wr_master_256b_aw_to_ddr_controller && descr_wr_master_256b_awvalid) ? descr_wr_master_256b_aw.size : '0) |
+        ((sink_wr_master_256b_aw_to_ddr_controller && sink_wr_master_256b_awvalid) ? sink_wr_master_256b_aw.size : '0) |
+        ((stream_master_256b_aw_to_ddr_controller && stream_master_256b_awvalid) ? stream_master_256b_aw.size : '0) |
+        ((cpu_master_256b_aw_to_ddr_controller && cpu_master_256b_awvalid) ? cpu_master_256b_aw.size : '0);
+    assign ddr_controller_axi_awburst = ((descr_wr_master_256b_aw_to_ddr_controller && descr_wr_master_256b_awvalid) ? descr_wr_master_256b_aw.burst : '0) |
+        ((sink_wr_master_256b_aw_to_ddr_controller && sink_wr_master_256b_awvalid) ? sink_wr_master_256b_aw.burst : '0) |
+        ((stream_master_256b_aw_to_ddr_controller && stream_master_256b_awvalid) ? stream_master_256b_aw.burst : '0) |
+        ((cpu_master_256b_aw_to_ddr_controller && cpu_master_256b_awvalid) ? cpu_master_256b_aw.burst : '0);
+    assign ddr_controller_axi_awlock = ((descr_wr_master_256b_aw_to_ddr_controller && descr_wr_master_256b_awvalid) ? descr_wr_master_256b_aw.lock : '0) |
+        ((sink_wr_master_256b_aw_to_ddr_controller && sink_wr_master_256b_awvalid) ? sink_wr_master_256b_aw.lock : '0) |
+        ((stream_master_256b_aw_to_ddr_controller && stream_master_256b_awvalid) ? stream_master_256b_aw.lock : '0) |
+        ((cpu_master_256b_aw_to_ddr_controller && cpu_master_256b_awvalid) ? cpu_master_256b_aw.lock : '0);
+    assign ddr_controller_axi_awcache = ((descr_wr_master_256b_aw_to_ddr_controller && descr_wr_master_256b_awvalid) ? descr_wr_master_256b_aw.cache : '0) |
+        ((sink_wr_master_256b_aw_to_ddr_controller && sink_wr_master_256b_awvalid) ? sink_wr_master_256b_aw.cache : '0) |
+        ((stream_master_256b_aw_to_ddr_controller && stream_master_256b_awvalid) ? stream_master_256b_aw.cache : '0) |
+        ((cpu_master_256b_aw_to_ddr_controller && cpu_master_256b_awvalid) ? cpu_master_256b_aw.cache : '0);
+    assign ddr_controller_axi_awprot = ((descr_wr_master_256b_aw_to_ddr_controller && descr_wr_master_256b_awvalid) ? descr_wr_master_256b_aw.prot : '0) |
+        ((sink_wr_master_256b_aw_to_ddr_controller && sink_wr_master_256b_awvalid) ? sink_wr_master_256b_aw.prot : '0) |
+        ((stream_master_256b_aw_to_ddr_controller && stream_master_256b_awvalid) ? stream_master_256b_aw.prot : '0) |
+        ((cpu_master_256b_aw_to_ddr_controller && cpu_master_256b_awvalid) ? cpu_master_256b_aw.prot : '0);
+    assign ddr_controller_axi_awvalid = ((descr_wr_master_256b_aw_to_ddr_controller && descr_wr_master_256b_awvalid) ? descr_wr_master_256b_awvalid : '0) |
+        ((sink_wr_master_256b_aw_to_ddr_controller && sink_wr_master_256b_awvalid) ? sink_wr_master_256b_awvalid : '0) |
+        ((stream_master_256b_aw_to_ddr_controller && stream_master_256b_awvalid) ? stream_master_256b_awvalid : '0) |
+        ((cpu_master_256b_aw_to_ddr_controller && cpu_master_256b_awvalid) ? cpu_master_256b_awvalid : '0);
+
+    // AW->W tracking FIFO: descr_wr_master -> ddr_controller
+    logic descr_wr_master_256b_w_to_ddr_controller;
+    logic [3:0] descr_wr_master_256b_aw_to_ddr_controller_w_wptr, descr_wr_master_256b_aw_to_ddr_controller_w_rptr;
+    logic descr_wr_master_256b_aw_to_ddr_controller_w_mem [16];
+    logic descr_wr_master_256b_aw_to_ddr_controller_w_push, descr_wr_master_256b_aw_to_ddr_controller_w_pop;
+    assign descr_wr_master_256b_aw_to_ddr_controller_w_push = descr_wr_master_256b_awvalid && descr_wr_master_256b_awready && descr_wr_master_256b_aw_to_ddr_controller;
+    assign descr_wr_master_256b_aw_to_ddr_controller_w_pop  = descr_wr_master_256b_wvalid && descr_wr_master_256b_wready && descr_wr_master_256b_w.last && descr_wr_master_256b_w_to_ddr_controller;
+    always_ff @(posedge aclk or negedge aresetn) begin
+        if (!aresetn) begin
+            descr_wr_master_256b_aw_to_ddr_controller_w_wptr <= '0;
+            descr_wr_master_256b_aw_to_ddr_controller_w_rptr <= '0;
+        end else begin
+            if (descr_wr_master_256b_aw_to_ddr_controller_w_push) begin
+                descr_wr_master_256b_aw_to_ddr_controller_w_mem[descr_wr_master_256b_aw_to_ddr_controller_w_wptr] <= 1'b1;
+                descr_wr_master_256b_aw_to_ddr_controller_w_wptr <= descr_wr_master_256b_aw_to_ddr_controller_w_wptr + 1'b1;
+            end
+            if (descr_wr_master_256b_aw_to_ddr_controller_w_pop) begin
+                descr_wr_master_256b_aw_to_ddr_controller_w_rptr <= descr_wr_master_256b_aw_to_ddr_controller_w_rptr + 1'b1;
+            end
+        end
+    end
+    assign descr_wr_master_256b_w_to_ddr_controller = (descr_wr_master_256b_aw_to_ddr_controller_w_wptr != descr_wr_master_256b_aw_to_ddr_controller_w_rptr) ? descr_wr_master_256b_aw_to_ddr_controller_w_mem[descr_wr_master_256b_aw_to_ddr_controller_w_rptr] : 1'b0;
+
+    // AW->W tracking FIFO: sink_wr_master -> ddr_controller
+    logic sink_wr_master_256b_w_to_ddr_controller;
+    logic [3:0] sink_wr_master_256b_aw_to_ddr_controller_w_wptr, sink_wr_master_256b_aw_to_ddr_controller_w_rptr;
+    logic sink_wr_master_256b_aw_to_ddr_controller_w_mem [16];
+    logic sink_wr_master_256b_aw_to_ddr_controller_w_push, sink_wr_master_256b_aw_to_ddr_controller_w_pop;
+    assign sink_wr_master_256b_aw_to_ddr_controller_w_push = sink_wr_master_256b_awvalid && sink_wr_master_256b_awready && sink_wr_master_256b_aw_to_ddr_controller;
+    assign sink_wr_master_256b_aw_to_ddr_controller_w_pop  = sink_wr_master_256b_wvalid && sink_wr_master_256b_wready && sink_wr_master_256b_w.last && sink_wr_master_256b_w_to_ddr_controller;
+    always_ff @(posedge aclk or negedge aresetn) begin
+        if (!aresetn) begin
+            sink_wr_master_256b_aw_to_ddr_controller_w_wptr <= '0;
+            sink_wr_master_256b_aw_to_ddr_controller_w_rptr <= '0;
+        end else begin
+            if (sink_wr_master_256b_aw_to_ddr_controller_w_push) begin
+                sink_wr_master_256b_aw_to_ddr_controller_w_mem[sink_wr_master_256b_aw_to_ddr_controller_w_wptr] <= 1'b1;
+                sink_wr_master_256b_aw_to_ddr_controller_w_wptr <= sink_wr_master_256b_aw_to_ddr_controller_w_wptr + 1'b1;
+            end
+            if (sink_wr_master_256b_aw_to_ddr_controller_w_pop) begin
+                sink_wr_master_256b_aw_to_ddr_controller_w_rptr <= sink_wr_master_256b_aw_to_ddr_controller_w_rptr + 1'b1;
+            end
+        end
+    end
+    assign sink_wr_master_256b_w_to_ddr_controller = (sink_wr_master_256b_aw_to_ddr_controller_w_wptr != sink_wr_master_256b_aw_to_ddr_controller_w_rptr) ? sink_wr_master_256b_aw_to_ddr_controller_w_mem[sink_wr_master_256b_aw_to_ddr_controller_w_rptr] : 1'b0;
+
+    // AW->W tracking FIFO: stream_master -> ddr_controller
+    logic stream_master_256b_w_to_ddr_controller;
+    logic [3:0] stream_master_256b_aw_to_ddr_controller_w_wptr, stream_master_256b_aw_to_ddr_controller_w_rptr;
+    logic stream_master_256b_aw_to_ddr_controller_w_mem [16];
+    logic stream_master_256b_aw_to_ddr_controller_w_push, stream_master_256b_aw_to_ddr_controller_w_pop;
+    assign stream_master_256b_aw_to_ddr_controller_w_push = stream_master_256b_awvalid && stream_master_256b_awready && stream_master_256b_aw_to_ddr_controller;
+    assign stream_master_256b_aw_to_ddr_controller_w_pop  = stream_master_256b_wvalid && stream_master_256b_wready && stream_master_256b_w.last && stream_master_256b_w_to_ddr_controller;
+    always_ff @(posedge aclk or negedge aresetn) begin
+        if (!aresetn) begin
+            stream_master_256b_aw_to_ddr_controller_w_wptr <= '0;
+            stream_master_256b_aw_to_ddr_controller_w_rptr <= '0;
+        end else begin
+            if (stream_master_256b_aw_to_ddr_controller_w_push) begin
+                stream_master_256b_aw_to_ddr_controller_w_mem[stream_master_256b_aw_to_ddr_controller_w_wptr] <= 1'b1;
+                stream_master_256b_aw_to_ddr_controller_w_wptr <= stream_master_256b_aw_to_ddr_controller_w_wptr + 1'b1;
+            end
+            if (stream_master_256b_aw_to_ddr_controller_w_pop) begin
+                stream_master_256b_aw_to_ddr_controller_w_rptr <= stream_master_256b_aw_to_ddr_controller_w_rptr + 1'b1;
+            end
+        end
+    end
+    assign stream_master_256b_w_to_ddr_controller = (stream_master_256b_aw_to_ddr_controller_w_wptr != stream_master_256b_aw_to_ddr_controller_w_rptr) ? stream_master_256b_aw_to_ddr_controller_w_mem[stream_master_256b_aw_to_ddr_controller_w_rptr] : 1'b0;
+
+    // AW->W tracking FIFO: cpu_master -> ddr_controller
+    logic cpu_master_256b_w_to_ddr_controller;
+    logic [3:0] cpu_master_256b_aw_to_ddr_controller_w_wptr, cpu_master_256b_aw_to_ddr_controller_w_rptr;
+    logic cpu_master_256b_aw_to_ddr_controller_w_mem [16];
+    logic cpu_master_256b_aw_to_ddr_controller_w_push, cpu_master_256b_aw_to_ddr_controller_w_pop;
+    assign cpu_master_256b_aw_to_ddr_controller_w_push = cpu_master_256b_awvalid && cpu_master_256b_awready && cpu_master_256b_aw_to_ddr_controller;
+    assign cpu_master_256b_aw_to_ddr_controller_w_pop  = cpu_master_256b_wvalid && cpu_master_256b_wready && cpu_master_256b_w.last && cpu_master_256b_w_to_ddr_controller;
+    always_ff @(posedge aclk or negedge aresetn) begin
+        if (!aresetn) begin
+            cpu_master_256b_aw_to_ddr_controller_w_wptr <= '0;
+            cpu_master_256b_aw_to_ddr_controller_w_rptr <= '0;
+        end else begin
+            if (cpu_master_256b_aw_to_ddr_controller_w_push) begin
+                cpu_master_256b_aw_to_ddr_controller_w_mem[cpu_master_256b_aw_to_ddr_controller_w_wptr] <= 1'b1;
+                cpu_master_256b_aw_to_ddr_controller_w_wptr <= cpu_master_256b_aw_to_ddr_controller_w_wptr + 1'b1;
+            end
+            if (cpu_master_256b_aw_to_ddr_controller_w_pop) begin
+                cpu_master_256b_aw_to_ddr_controller_w_rptr <= cpu_master_256b_aw_to_ddr_controller_w_rptr + 1'b1;
+            end
+        end
+    end
+    assign cpu_master_256b_w_to_ddr_controller = (cpu_master_256b_aw_to_ddr_controller_w_wptr != cpu_master_256b_aw_to_ddr_controller_w_rptr) ? cpu_master_256b_aw_to_ddr_controller_w_mem[cpu_master_256b_aw_to_ddr_controller_w_rptr] : 1'b0;
+
+    // W channel (OR-merged across writing masters, gated by w_to_<slave> FIFO)
+    assign ddr_controller_axi_wdata = ((descr_wr_master_256b_w_to_ddr_controller && descr_wr_master_256b_wvalid) ? descr_wr_master_256b_w.data : '0) |
+        ((sink_wr_master_256b_w_to_ddr_controller && sink_wr_master_256b_wvalid) ? sink_wr_master_256b_w.data : '0) |
+        ((stream_master_256b_w_to_ddr_controller && stream_master_256b_wvalid) ? stream_master_256b_w.data : '0) |
+        ((cpu_master_256b_w_to_ddr_controller && cpu_master_256b_wvalid) ? cpu_master_256b_w.data : '0);
+    assign ddr_controller_axi_wstrb = ((descr_wr_master_256b_w_to_ddr_controller && descr_wr_master_256b_wvalid) ? descr_wr_master_256b_w.strb : '0) |
+        ((sink_wr_master_256b_w_to_ddr_controller && sink_wr_master_256b_wvalid) ? sink_wr_master_256b_w.strb : '0) |
+        ((stream_master_256b_w_to_ddr_controller && stream_master_256b_wvalid) ? stream_master_256b_w.strb : '0) |
+        ((cpu_master_256b_w_to_ddr_controller && cpu_master_256b_wvalid) ? cpu_master_256b_w.strb : '0);
+    assign ddr_controller_axi_wlast = ((descr_wr_master_256b_w_to_ddr_controller && descr_wr_master_256b_wvalid) ? descr_wr_master_256b_w.last : '0) |
+        ((sink_wr_master_256b_w_to_ddr_controller && sink_wr_master_256b_wvalid) ? sink_wr_master_256b_w.last : '0) |
+        ((stream_master_256b_w_to_ddr_controller && stream_master_256b_wvalid) ? stream_master_256b_w.last : '0) |
+        ((cpu_master_256b_w_to_ddr_controller && cpu_master_256b_wvalid) ? cpu_master_256b_w.last : '0);
+    assign ddr_controller_axi_wvalid = ((descr_wr_master_256b_w_to_ddr_controller && descr_wr_master_256b_wvalid) ? descr_wr_master_256b_wvalid : '0) |
+        ((sink_wr_master_256b_w_to_ddr_controller && sink_wr_master_256b_wvalid) ? sink_wr_master_256b_wvalid : '0) |
+        ((stream_master_256b_w_to_ddr_controller && stream_master_256b_wvalid) ? stream_master_256b_wvalid : '0) |
+        ((cpu_master_256b_w_to_ddr_controller && cpu_master_256b_wvalid) ? cpu_master_256b_wvalid : '0);
 
     // Bready (slave → owning master, by bid_bridge_id)
     assign ddr_controller_axi_bready = ((ddr_controller_axi_bid_bridge_id == 0) && ddr_controller_axi_bid_valid ? descr_wr_master_256b_bready : '0) |
@@ -482,39 +682,39 @@ module bridge_5x3_channels_xbar (
         ((ddr_controller_axi_bid_bridge_id == 4) && ddr_controller_axi_bid_valid ? cpu_master_256b_bready : '0);
 
     // Bridge ID (writes) — picks the originating master's id
-    assign ddr_controller_axi_bridge_id_aw = ((descr_wr_master_slave_select_aw[1] && descr_wr_master_256b_awvalid) ? descr_wr_master_bridge_id_aw : '0) |
-        ((sink_wr_master_slave_select_aw[1] && sink_wr_master_256b_awvalid) ? sink_wr_master_bridge_id_aw : '0) |
-        ((stream_master_slave_select_aw[1] && stream_master_256b_awvalid) ? stream_master_bridge_id_aw : '0) |
-        ((cpu_master_slave_select_aw[1] && cpu_master_256b_awvalid) ? cpu_master_bridge_id_aw : '0);
+    assign ddr_controller_axi_bridge_id_aw = ((descr_wr_master_256b_aw_to_ddr_controller && descr_wr_master_256b_awvalid) ? descr_wr_master_bridge_id_aw : '0) |
+        ((sink_wr_master_256b_aw_to_ddr_controller && sink_wr_master_256b_awvalid) ? sink_wr_master_bridge_id_aw : '0) |
+        ((stream_master_256b_aw_to_ddr_controller && stream_master_256b_awvalid) ? stream_master_bridge_id_aw : '0) |
+        ((cpu_master_256b_aw_to_ddr_controller && cpu_master_256b_awvalid) ? cpu_master_bridge_id_aw : '0);
 
     // AR channel (OR-merged across reading masters)
-    assign ddr_controller_axi_arid = ((src_rd_master_slave_select_ar[1] && src_rd_master_256b_arvalid) ? src_rd_master_256b_ar.id : '0) |
-        ((stream_master_slave_select_ar[1] && stream_master_256b_arvalid) ? stream_master_256b_ar.id : '0) |
-        ((cpu_master_slave_select_ar[1] && cpu_master_256b_arvalid) ? cpu_master_256b_ar.id : '0);
-    assign ddr_controller_axi_araddr = ((src_rd_master_slave_select_ar[1] && src_rd_master_256b_arvalid) ? src_rd_master_256b_ar.addr : '0) |
-        ((stream_master_slave_select_ar[1] && stream_master_256b_arvalid) ? stream_master_256b_ar.addr : '0) |
-        ((cpu_master_slave_select_ar[1] && cpu_master_256b_arvalid) ? cpu_master_256b_ar.addr : '0);
-    assign ddr_controller_axi_arlen = ((src_rd_master_slave_select_ar[1] && src_rd_master_256b_arvalid) ? src_rd_master_256b_ar.len : '0) |
-        ((stream_master_slave_select_ar[1] && stream_master_256b_arvalid) ? stream_master_256b_ar.len : '0) |
-        ((cpu_master_slave_select_ar[1] && cpu_master_256b_arvalid) ? cpu_master_256b_ar.len : '0);
-    assign ddr_controller_axi_arsize = ((src_rd_master_slave_select_ar[1] && src_rd_master_256b_arvalid) ? src_rd_master_256b_ar.size : '0) |
-        ((stream_master_slave_select_ar[1] && stream_master_256b_arvalid) ? stream_master_256b_ar.size : '0) |
-        ((cpu_master_slave_select_ar[1] && cpu_master_256b_arvalid) ? cpu_master_256b_ar.size : '0);
-    assign ddr_controller_axi_arburst = ((src_rd_master_slave_select_ar[1] && src_rd_master_256b_arvalid) ? src_rd_master_256b_ar.burst : '0) |
-        ((stream_master_slave_select_ar[1] && stream_master_256b_arvalid) ? stream_master_256b_ar.burst : '0) |
-        ((cpu_master_slave_select_ar[1] && cpu_master_256b_arvalid) ? cpu_master_256b_ar.burst : '0);
-    assign ddr_controller_axi_arlock = ((src_rd_master_slave_select_ar[1] && src_rd_master_256b_arvalid) ? src_rd_master_256b_ar.lock : '0) |
-        ((stream_master_slave_select_ar[1] && stream_master_256b_arvalid) ? stream_master_256b_ar.lock : '0) |
-        ((cpu_master_slave_select_ar[1] && cpu_master_256b_arvalid) ? cpu_master_256b_ar.lock : '0);
-    assign ddr_controller_axi_arcache = ((src_rd_master_slave_select_ar[1] && src_rd_master_256b_arvalid) ? src_rd_master_256b_ar.cache : '0) |
-        ((stream_master_slave_select_ar[1] && stream_master_256b_arvalid) ? stream_master_256b_ar.cache : '0) |
-        ((cpu_master_slave_select_ar[1] && cpu_master_256b_arvalid) ? cpu_master_256b_ar.cache : '0);
-    assign ddr_controller_axi_arprot = ((src_rd_master_slave_select_ar[1] && src_rd_master_256b_arvalid) ? src_rd_master_256b_ar.prot : '0) |
-        ((stream_master_slave_select_ar[1] && stream_master_256b_arvalid) ? stream_master_256b_ar.prot : '0) |
-        ((cpu_master_slave_select_ar[1] && cpu_master_256b_arvalid) ? cpu_master_256b_ar.prot : '0);
-    assign ddr_controller_axi_arvalid = ((src_rd_master_slave_select_ar[1] && src_rd_master_256b_arvalid) ? src_rd_master_256b_arvalid : '0) |
-        ((stream_master_slave_select_ar[1] && stream_master_256b_arvalid) ? stream_master_256b_arvalid : '0) |
-        ((cpu_master_slave_select_ar[1] && cpu_master_256b_arvalid) ? cpu_master_256b_arvalid : '0);
+    assign ddr_controller_axi_arid = ((src_rd_master_256b_ar_to_ddr_controller && src_rd_master_256b_arvalid) ? src_rd_master_256b_ar.id : '0) |
+        ((stream_master_256b_ar_to_ddr_controller && stream_master_256b_arvalid) ? stream_master_256b_ar.id : '0) |
+        ((cpu_master_256b_ar_to_ddr_controller && cpu_master_256b_arvalid) ? cpu_master_256b_ar.id : '0);
+    assign ddr_controller_axi_araddr = ((src_rd_master_256b_ar_to_ddr_controller && src_rd_master_256b_arvalid) ? src_rd_master_256b_ar.addr : '0) |
+        ((stream_master_256b_ar_to_ddr_controller && stream_master_256b_arvalid) ? stream_master_256b_ar.addr : '0) |
+        ((cpu_master_256b_ar_to_ddr_controller && cpu_master_256b_arvalid) ? cpu_master_256b_ar.addr : '0);
+    assign ddr_controller_axi_arlen = ((src_rd_master_256b_ar_to_ddr_controller && src_rd_master_256b_arvalid) ? src_rd_master_256b_ar.len : '0) |
+        ((stream_master_256b_ar_to_ddr_controller && stream_master_256b_arvalid) ? stream_master_256b_ar.len : '0) |
+        ((cpu_master_256b_ar_to_ddr_controller && cpu_master_256b_arvalid) ? cpu_master_256b_ar.len : '0);
+    assign ddr_controller_axi_arsize = ((src_rd_master_256b_ar_to_ddr_controller && src_rd_master_256b_arvalid) ? src_rd_master_256b_ar.size : '0) |
+        ((stream_master_256b_ar_to_ddr_controller && stream_master_256b_arvalid) ? stream_master_256b_ar.size : '0) |
+        ((cpu_master_256b_ar_to_ddr_controller && cpu_master_256b_arvalid) ? cpu_master_256b_ar.size : '0);
+    assign ddr_controller_axi_arburst = ((src_rd_master_256b_ar_to_ddr_controller && src_rd_master_256b_arvalid) ? src_rd_master_256b_ar.burst : '0) |
+        ((stream_master_256b_ar_to_ddr_controller && stream_master_256b_arvalid) ? stream_master_256b_ar.burst : '0) |
+        ((cpu_master_256b_ar_to_ddr_controller && cpu_master_256b_arvalid) ? cpu_master_256b_ar.burst : '0);
+    assign ddr_controller_axi_arlock = ((src_rd_master_256b_ar_to_ddr_controller && src_rd_master_256b_arvalid) ? src_rd_master_256b_ar.lock : '0) |
+        ((stream_master_256b_ar_to_ddr_controller && stream_master_256b_arvalid) ? stream_master_256b_ar.lock : '0) |
+        ((cpu_master_256b_ar_to_ddr_controller && cpu_master_256b_arvalid) ? cpu_master_256b_ar.lock : '0);
+    assign ddr_controller_axi_arcache = ((src_rd_master_256b_ar_to_ddr_controller && src_rd_master_256b_arvalid) ? src_rd_master_256b_ar.cache : '0) |
+        ((stream_master_256b_ar_to_ddr_controller && stream_master_256b_arvalid) ? stream_master_256b_ar.cache : '0) |
+        ((cpu_master_256b_ar_to_ddr_controller && cpu_master_256b_arvalid) ? cpu_master_256b_ar.cache : '0);
+    assign ddr_controller_axi_arprot = ((src_rd_master_256b_ar_to_ddr_controller && src_rd_master_256b_arvalid) ? src_rd_master_256b_ar.prot : '0) |
+        ((stream_master_256b_ar_to_ddr_controller && stream_master_256b_arvalid) ? stream_master_256b_ar.prot : '0) |
+        ((cpu_master_256b_ar_to_ddr_controller && cpu_master_256b_arvalid) ? cpu_master_256b_ar.prot : '0);
+    assign ddr_controller_axi_arvalid = ((src_rd_master_256b_ar_to_ddr_controller && src_rd_master_256b_arvalid) ? src_rd_master_256b_arvalid : '0) |
+        ((stream_master_256b_ar_to_ddr_controller && stream_master_256b_arvalid) ? stream_master_256b_arvalid : '0) |
+        ((cpu_master_256b_ar_to_ddr_controller && cpu_master_256b_arvalid) ? cpu_master_256b_arvalid : '0);
 
     // Rready (slave → owning master, by rid_bridge_id)
     assign ddr_controller_axi_rready = ((ddr_controller_axi_rid_bridge_id == 2) && ddr_controller_axi_rid_valid ? src_rd_master_256b_rready : '0) |
@@ -522,9 +722,9 @@ module bridge_5x3_channels_xbar (
         ((ddr_controller_axi_rid_bridge_id == 4) && ddr_controller_axi_rid_valid ? cpu_master_256b_rready : '0);
 
     // Bridge ID (reads) — picks the originating master's id
-    assign ddr_controller_axi_bridge_id_ar = ((src_rd_master_slave_select_ar[1] && src_rd_master_256b_arvalid) ? src_rd_master_bridge_id_ar : '0) |
-        ((stream_master_slave_select_ar[1] && stream_master_256b_arvalid) ? stream_master_bridge_id_ar : '0) |
-        ((cpu_master_slave_select_ar[1] && cpu_master_256b_arvalid) ? cpu_master_bridge_id_ar : '0);
+    assign ddr_controller_axi_bridge_id_ar = ((src_rd_master_256b_ar_to_ddr_controller && src_rd_master_256b_arvalid) ? src_rd_master_bridge_id_ar : '0) |
+        ((stream_master_256b_ar_to_ddr_controller && stream_master_256b_arvalid) ? stream_master_bridge_id_ar : '0) |
+        ((cpu_master_256b_ar_to_ddr_controller && cpu_master_256b_arvalid) ? cpu_master_bridge_id_ar : '0);
 
 
     // ================================================================
@@ -534,47 +734,73 @@ module bridge_5x3_channels_xbar (
     // Master width: 64b, Slave width: 32b
     // Using 32b path from adapter (APB LCD width)
 
-    // AW channel
-    assign apb_periph_axi_awid     = cpu_master_slave_select_aw[2] ? cpu_master_32b_aw.id : '0;
-    assign apb_periph_axi_awaddr   = cpu_master_slave_select_aw[2] ? cpu_master_32b_aw.addr : '0;
-    assign apb_periph_axi_awlen    = cpu_master_slave_select_aw[2] ? cpu_master_32b_aw.len : '0;
-    assign apb_periph_axi_awsize   = cpu_master_slave_select_aw[2] ? cpu_master_32b_aw.size : '0;
-    assign apb_periph_axi_awburst  = cpu_master_slave_select_aw[2] ? cpu_master_32b_aw.burst : '0;
-    assign apb_periph_axi_awlock   = cpu_master_slave_select_aw[2] ? cpu_master_32b_aw.lock : '0;
-    assign apb_periph_axi_awcache  = cpu_master_slave_select_aw[2] ? cpu_master_32b_aw.cache : '0;
-    assign apb_periph_axi_awprot   = cpu_master_slave_select_aw[2] ? cpu_master_32b_aw.prot : '0;
-    assign apb_periph_axi_awvalid  = cpu_master_slave_select_aw[2] ? cpu_master_32b_awvalid : '0;
+    // AW channel (gated by address re-decode -- see _addr_decode_expr)
+    wire cpu_master_32b_aw_to_apb_periph = ((cpu_master_32b_aw.addr >= 32'hc0000000) && (cpu_master_32b_aw.addr <= 32'hcfffffff));
+    assign apb_periph_axi_awid     = cpu_master_32b_aw_to_apb_periph ? cpu_master_32b_aw.id : '0;
+    assign apb_periph_axi_awaddr   = cpu_master_32b_aw_to_apb_periph ? cpu_master_32b_aw.addr : '0;
+    assign apb_periph_axi_awlen    = cpu_master_32b_aw_to_apb_periph ? cpu_master_32b_aw.len : '0;
+    assign apb_periph_axi_awsize   = cpu_master_32b_aw_to_apb_periph ? cpu_master_32b_aw.size : '0;
+    assign apb_periph_axi_awburst  = cpu_master_32b_aw_to_apb_periph ? cpu_master_32b_aw.burst : '0;
+    assign apb_periph_axi_awlock   = cpu_master_32b_aw_to_apb_periph ? cpu_master_32b_aw.lock : '0;
+    assign apb_periph_axi_awcache  = cpu_master_32b_aw_to_apb_periph ? cpu_master_32b_aw.cache : '0;
+    assign apb_periph_axi_awprot   = cpu_master_32b_aw_to_apb_periph ? cpu_master_32b_aw.prot : '0;
+    assign apb_periph_axi_awvalid  = cpu_master_32b_aw_to_apb_periph && cpu_master_32b_awvalid;
 
-    // W channel
-    assign apb_periph_axi_wdata  = cpu_master_slave_select_aw[2] ? cpu_master_32b_w.data : '0;
-    assign apb_periph_axi_wstrb  = cpu_master_slave_select_aw[2] ? cpu_master_32b_w.strb : '0;
-    assign apb_periph_axi_wlast  = cpu_master_slave_select_aw[2] ? cpu_master_32b_w.last : '0;
-    assign apb_periph_axi_wvalid = cpu_master_slave_select_aw[2] ? cpu_master_32b_wvalid : '0;
+    // AW->W tracking FIFO for this (master,slave) pair
+    logic cpu_master_32b_w_to_apb_periph;
+    logic [3:0] cpu_master_32b_aw_to_apb_periph_w_wptr, cpu_master_32b_aw_to_apb_periph_w_rptr;
+    logic cpu_master_32b_aw_to_apb_periph_w_mem [16];
+    logic cpu_master_32b_aw_to_apb_periph_w_push, cpu_master_32b_aw_to_apb_periph_w_pop;
+    assign cpu_master_32b_aw_to_apb_periph_w_push = cpu_master_32b_awvalid && cpu_master_32b_awready && cpu_master_32b_aw_to_apb_periph;
+    assign cpu_master_32b_aw_to_apb_periph_w_pop  = cpu_master_32b_wvalid && cpu_master_32b_wready && cpu_master_32b_w.last && cpu_master_32b_w_to_apb_periph;
+    always_ff @(posedge aclk or negedge aresetn) begin
+        if (!aresetn) begin
+            cpu_master_32b_aw_to_apb_periph_w_wptr <= '0;
+            cpu_master_32b_aw_to_apb_periph_w_rptr <= '0;
+        end else begin
+            if (cpu_master_32b_aw_to_apb_periph_w_push) begin
+                cpu_master_32b_aw_to_apb_periph_w_mem[cpu_master_32b_aw_to_apb_periph_w_wptr] <= 1'b1;
+                cpu_master_32b_aw_to_apb_periph_w_wptr <= cpu_master_32b_aw_to_apb_periph_w_wptr + 1'b1;
+            end
+            if (cpu_master_32b_aw_to_apb_periph_w_pop) begin
+                cpu_master_32b_aw_to_apb_periph_w_rptr <= cpu_master_32b_aw_to_apb_periph_w_rptr + 1'b1;
+            end
+        end
+    end
+    assign cpu_master_32b_w_to_apb_periph = (cpu_master_32b_aw_to_apb_periph_w_wptr != cpu_master_32b_aw_to_apb_periph_w_rptr) ? cpu_master_32b_aw_to_apb_periph_w_mem[cpu_master_32b_aw_to_apb_periph_w_rptr] : 1'b0;
+
+
+    // W channel (gated by aw_to_<slave> FIFO head)
+    assign apb_periph_axi_wdata  = cpu_master_32b_w_to_apb_periph ? cpu_master_32b_w.data : '0;
+    assign apb_periph_axi_wstrb  = cpu_master_32b_w_to_apb_periph ? cpu_master_32b_w.strb : '0;
+    assign apb_periph_axi_wlast  = cpu_master_32b_w_to_apb_periph ? cpu_master_32b_w.last : '0;
+    assign apb_periph_axi_wvalid = cpu_master_32b_w_to_apb_periph && cpu_master_32b_wvalid;
 
     // Bready (master → slave) — gated on bid_valid so the path stays
     // open through the entire B handshake, not just the AW phase.
     assign apb_periph_axi_bready = ((apb_periph_axi_bid_bridge_id == 4) && apb_periph_axi_bid_valid) ? cpu_master_32b_bready : '0;
 
     // Bridge ID (master → slave)
-    assign apb_periph_axi_bridge_id_aw = cpu_master_slave_select_aw[2] ? cpu_master_bridge_id_aw : '0;
+    assign apb_periph_axi_bridge_id_aw = cpu_master_32b_aw_to_apb_periph ? cpu_master_bridge_id_aw : '0;
 
-    // AR channel
-    assign apb_periph_axi_arid     = cpu_master_slave_select_ar[2] ? cpu_master_32b_ar.id : '0;
-    assign apb_periph_axi_araddr   = cpu_master_slave_select_ar[2] ? cpu_master_32b_ar.addr : '0;
-    assign apb_periph_axi_arlen    = cpu_master_slave_select_ar[2] ? cpu_master_32b_ar.len : '0;
-    assign apb_periph_axi_arsize   = cpu_master_slave_select_ar[2] ? cpu_master_32b_ar.size : '0;
-    assign apb_periph_axi_arburst  = cpu_master_slave_select_ar[2] ? cpu_master_32b_ar.burst : '0;
-    assign apb_periph_axi_arlock   = cpu_master_slave_select_ar[2] ? cpu_master_32b_ar.lock : '0;
-    assign apb_periph_axi_arcache  = cpu_master_slave_select_ar[2] ? cpu_master_32b_ar.cache : '0;
-    assign apb_periph_axi_arprot   = cpu_master_slave_select_ar[2] ? cpu_master_32b_ar.prot : '0;
-    assign apb_periph_axi_arvalid  = cpu_master_slave_select_ar[2] ? cpu_master_32b_arvalid : '0;
+    // AR channel (gated by address re-decode -- see _addr_decode_expr)
+    wire cpu_master_32b_ar_to_apb_periph = ((cpu_master_32b_ar.addr >= 32'hc0000000) && (cpu_master_32b_ar.addr <= 32'hcfffffff));
+    assign apb_periph_axi_arid     = cpu_master_32b_ar_to_apb_periph ? cpu_master_32b_ar.id : '0;
+    assign apb_periph_axi_araddr   = cpu_master_32b_ar_to_apb_periph ? cpu_master_32b_ar.addr : '0;
+    assign apb_periph_axi_arlen    = cpu_master_32b_ar_to_apb_periph ? cpu_master_32b_ar.len : '0;
+    assign apb_periph_axi_arsize   = cpu_master_32b_ar_to_apb_periph ? cpu_master_32b_ar.size : '0;
+    assign apb_periph_axi_arburst  = cpu_master_32b_ar_to_apb_periph ? cpu_master_32b_ar.burst : '0;
+    assign apb_periph_axi_arlock   = cpu_master_32b_ar_to_apb_periph ? cpu_master_32b_ar.lock : '0;
+    assign apb_periph_axi_arcache  = cpu_master_32b_ar_to_apb_periph ? cpu_master_32b_ar.cache : '0;
+    assign apb_periph_axi_arprot   = cpu_master_32b_ar_to_apb_periph ? cpu_master_32b_ar.prot : '0;
+    assign apb_periph_axi_arvalid  = cpu_master_32b_ar_to_apb_periph && cpu_master_32b_arvalid;
 
     // Rready (master → slave) — gated on rid_valid so the path stays
     // open through the entire R handshake, not just the AR phase.
     assign apb_periph_axi_rready = ((apb_periph_axi_rid_bridge_id == 4) && apb_periph_axi_rid_valid) ? cpu_master_32b_rready : '0;
 
     // Bridge ID (master → slave)
-    assign apb_periph_axi_bridge_id_ar = cpu_master_slave_select_ar[2] ? cpu_master_bridge_id_ar : '0;
+    assign apb_periph_axi_bridge_id_ar = cpu_master_32b_ar_to_apb_periph ? cpu_master_bridge_id_ar : '0;
 
 
     // ================================================================
@@ -583,12 +809,12 @@ module bridge_5x3_channels_xbar (
 
     // Master: descr_wr_master, Width path: 256b
     assign descr_wr_master_256b_awready = 
-        (descr_wr_master_slave_select_aw[0] ? sram_buffer_axi_awready : '0) |
-        (descr_wr_master_slave_select_aw[1] ? ddr_controller_axi_awready : '0);
+        (descr_wr_master_256b_aw_to_sram_buffer ? sram_buffer_axi_awready : '0) |
+        (descr_wr_master_256b_aw_to_ddr_controller ? ddr_controller_axi_awready : '0);
 
     assign descr_wr_master_256b_wready = 
-        (descr_wr_master_slave_select_aw[0] ? sram_buffer_axi_wready : '0) |
-        (descr_wr_master_slave_select_aw[1] ? ddr_controller_axi_wready : '0);
+        (descr_wr_master_256b_w_to_sram_buffer ? sram_buffer_axi_wready : '0) |
+        (descr_wr_master_256b_w_to_ddr_controller ? ddr_controller_axi_wready : '0);
 
     assign descr_wr_master_256b_b.id = 
         ((sram_buffer_axi_bid_bridge_id == 0) && sram_buffer_axi_bid_valid ? sram_buffer_axi_bid : '0) |
@@ -605,12 +831,12 @@ module bridge_5x3_channels_xbar (
 
     // Master: sink_wr_master, Width path: 256b
     assign sink_wr_master_256b_awready = 
-        (sink_wr_master_slave_select_aw[0] ? sram_buffer_axi_awready : '0) |
-        (sink_wr_master_slave_select_aw[1] ? ddr_controller_axi_awready : '0);
+        (sink_wr_master_256b_aw_to_sram_buffer ? sram_buffer_axi_awready : '0) |
+        (sink_wr_master_256b_aw_to_ddr_controller ? ddr_controller_axi_awready : '0);
 
     assign sink_wr_master_256b_wready = 
-        (sink_wr_master_slave_select_aw[0] ? sram_buffer_axi_wready : '0) |
-        (sink_wr_master_slave_select_aw[1] ? ddr_controller_axi_wready : '0);
+        (sink_wr_master_256b_w_to_sram_buffer ? sram_buffer_axi_wready : '0) |
+        (sink_wr_master_256b_w_to_ddr_controller ? ddr_controller_axi_wready : '0);
 
     assign sink_wr_master_256b_b.id = 
         ((sram_buffer_axi_bid_bridge_id == 1) && sram_buffer_axi_bid_valid ? sram_buffer_axi_bid : '0) |
@@ -627,8 +853,8 @@ module bridge_5x3_channels_xbar (
 
     // Master: src_rd_master, Width path: 256b
     assign src_rd_master_256b_arready = 
-        (src_rd_master_slave_select_ar[0] ? sram_buffer_axi_arready : '0) |
-        (src_rd_master_slave_select_ar[1] ? ddr_controller_axi_arready : '0);
+        (src_rd_master_256b_ar_to_sram_buffer ? sram_buffer_axi_arready : '0) |
+        (src_rd_master_256b_ar_to_ddr_controller ? ddr_controller_axi_arready : '0);
 
     assign src_rd_master_256b_r.id = 
         ((sram_buffer_axi_rid_bridge_id == 2) && sram_buffer_axi_rid_valid ? sram_buffer_axi_rid : '0) |
@@ -653,12 +879,12 @@ module bridge_5x3_channels_xbar (
 
     // Master: stream_master, Width path: 256b
     assign stream_master_256b_awready = 
-        (stream_master_slave_select_aw[0] ? sram_buffer_axi_awready : '0) |
-        (stream_master_slave_select_aw[1] ? ddr_controller_axi_awready : '0);
+        (stream_master_256b_aw_to_sram_buffer ? sram_buffer_axi_awready : '0) |
+        (stream_master_256b_aw_to_ddr_controller ? ddr_controller_axi_awready : '0);
 
     assign stream_master_256b_wready = 
-        (stream_master_slave_select_aw[0] ? sram_buffer_axi_wready : '0) |
-        (stream_master_slave_select_aw[1] ? ddr_controller_axi_wready : '0);
+        (stream_master_256b_w_to_sram_buffer ? sram_buffer_axi_wready : '0) |
+        (stream_master_256b_w_to_ddr_controller ? ddr_controller_axi_wready : '0);
 
     assign stream_master_256b_b.id = 
         ((sram_buffer_axi_bid_bridge_id == 3) && sram_buffer_axi_bid_valid ? sram_buffer_axi_bid : '0) |
@@ -673,8 +899,8 @@ module bridge_5x3_channels_xbar (
         ((ddr_controller_axi_bid_bridge_id == 3) && ddr_controller_axi_bid_valid ? ddr_controller_axi_bvalid : '0);
 
     assign stream_master_256b_arready = 
-        (stream_master_slave_select_ar[0] ? sram_buffer_axi_arready : '0) |
-        (stream_master_slave_select_ar[1] ? ddr_controller_axi_arready : '0);
+        (stream_master_256b_ar_to_sram_buffer ? sram_buffer_axi_arready : '0) |
+        (stream_master_256b_ar_to_ddr_controller ? ddr_controller_axi_arready : '0);
 
     assign stream_master_256b_r.id = 
         ((sram_buffer_axi_rid_bridge_id == 3) && sram_buffer_axi_rid_valid ? sram_buffer_axi_rid : '0) |
@@ -699,10 +925,10 @@ module bridge_5x3_channels_xbar (
 
     // Master: cpu_master, Width path: 32b
     assign cpu_master_32b_awready = 
-        (cpu_master_slave_select_aw[2] ? apb_periph_axi_awready : '0);
+        (cpu_master_32b_aw_to_apb_periph ? apb_periph_axi_awready : '0);
 
     assign cpu_master_32b_wready = 
-        (cpu_master_slave_select_aw[2] ? apb_periph_axi_wready : '0);
+        (cpu_master_32b_w_to_apb_periph ? apb_periph_axi_wready : '0);
 
     assign cpu_master_32b_b.id = 
         ((apb_periph_axi_bid_bridge_id == 4) && apb_periph_axi_bid_valid ? apb_periph_axi_bid : '0);
@@ -714,7 +940,7 @@ module bridge_5x3_channels_xbar (
         ((apb_periph_axi_bid_bridge_id == 4) && apb_periph_axi_bid_valid ? apb_periph_axi_bvalid : '0);
 
     assign cpu_master_32b_arready = 
-        (cpu_master_slave_select_ar[2] ? apb_periph_axi_arready : '0);
+        (cpu_master_32b_ar_to_apb_periph ? apb_periph_axi_arready : '0);
 
     assign cpu_master_32b_r.id = 
         ((apb_periph_axi_rid_bridge_id == 4) && apb_periph_axi_rid_valid ? apb_periph_axi_rid : '0);
@@ -734,12 +960,12 @@ module bridge_5x3_channels_xbar (
 
     // Master: cpu_master, Width path: 256b
     assign cpu_master_256b_awready = 
-        (cpu_master_slave_select_aw[0] ? sram_buffer_axi_awready : '0) |
-        (cpu_master_slave_select_aw[1] ? ddr_controller_axi_awready : '0);
+        (cpu_master_256b_aw_to_sram_buffer ? sram_buffer_axi_awready : '0) |
+        (cpu_master_256b_aw_to_ddr_controller ? ddr_controller_axi_awready : '0);
 
     assign cpu_master_256b_wready = 
-        (cpu_master_slave_select_aw[0] ? sram_buffer_axi_wready : '0) |
-        (cpu_master_slave_select_aw[1] ? ddr_controller_axi_wready : '0);
+        (cpu_master_256b_w_to_sram_buffer ? sram_buffer_axi_wready : '0) |
+        (cpu_master_256b_w_to_ddr_controller ? ddr_controller_axi_wready : '0);
 
     assign cpu_master_256b_b.id = 
         ((sram_buffer_axi_bid_bridge_id == 4) && sram_buffer_axi_bid_valid ? sram_buffer_axi_bid : '0) |
@@ -754,8 +980,8 @@ module bridge_5x3_channels_xbar (
         ((ddr_controller_axi_bid_bridge_id == 4) && ddr_controller_axi_bid_valid ? ddr_controller_axi_bvalid : '0);
 
     assign cpu_master_256b_arready = 
-        (cpu_master_slave_select_ar[0] ? sram_buffer_axi_arready : '0) |
-        (cpu_master_slave_select_ar[1] ? ddr_controller_axi_arready : '0);
+        (cpu_master_256b_ar_to_sram_buffer ? sram_buffer_axi_arready : '0) |
+        (cpu_master_256b_ar_to_ddr_controller ? ddr_controller_axi_arready : '0);
 
     assign cpu_master_256b_r.id = 
         ((sram_buffer_axi_rid_bridge_id == 4) && sram_buffer_axi_rid_valid ? sram_buffer_axi_rid : '0) |
