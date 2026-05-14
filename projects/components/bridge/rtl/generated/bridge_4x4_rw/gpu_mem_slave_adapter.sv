@@ -218,7 +218,7 @@ module gpu_mem_slave_adapter #(
         .aclk(aclk),
         .aresetn(aresetn),
 
-        // Slave interface (from crossbar)
+        // Bridge-internal side (fub_axi)
         .fub_axi_awid(xbar_gpu_mem_slave_axi_awid),
         .fub_axi_awaddr(xbar_gpu_mem_slave_axi_awaddr),
         .fub_axi_awlen(xbar_gpu_mem_slave_axi_awlen),
@@ -232,21 +232,19 @@ module gpu_mem_slave_adapter #(
         .fub_axi_awuser(xbar_gpu_mem_slave_axi_awuser),
         .fub_axi_awvalid(xbar_gpu_mem_slave_axi_awvalid),
         .fub_axi_awready(xbar_gpu_mem_slave_axi_awready),
-
         .fub_axi_wdata(xbar_gpu_mem_slave_axi_wdata),
         .fub_axi_wstrb(xbar_gpu_mem_slave_axi_wstrb),
         .fub_axi_wlast(xbar_gpu_mem_slave_axi_wlast),
         .fub_axi_wuser(xbar_gpu_mem_slave_axi_wuser),
         .fub_axi_wvalid(xbar_gpu_mem_slave_axi_wvalid),
         .fub_axi_wready(xbar_gpu_mem_slave_axi_wready),
-
         .fub_axi_bid(xbar_gpu_mem_slave_axi_bid),
         .fub_axi_bresp(xbar_gpu_mem_slave_axi_bresp),
         .fub_axi_buser(xbar_gpu_mem_slave_axi_buser),
         .fub_axi_bvalid(xbar_gpu_mem_slave_axi_bvalid),
         .fub_axi_bready(xbar_gpu_mem_slave_axi_bready),
 
-        // Master interface (to external slave)
+        // External side (m_axi)
         .m_axi_awid(gpu_mem_slave_axi_awid),
         .m_axi_awaddr(gpu_mem_slave_axi_awaddr),
         .m_axi_awlen(gpu_mem_slave_axi_awlen),
@@ -260,21 +258,19 @@ module gpu_mem_slave_adapter #(
         .m_axi_awuser(gpu_mem_slave_axi_awuser),
         .m_axi_awvalid(gpu_mem_slave_axi_awvalid),
         .m_axi_awready(gpu_mem_slave_axi_awready),
-
         .m_axi_wdata(gpu_mem_slave_axi_wdata),
         .m_axi_wstrb(gpu_mem_slave_axi_wstrb),
         .m_axi_wlast(gpu_mem_slave_axi_wlast),
         .m_axi_wuser(gpu_mem_slave_axi_wuser),
         .m_axi_wvalid(gpu_mem_slave_axi_wvalid),
         .m_axi_wready(gpu_mem_slave_axi_wready),
-
         .m_axi_bid(gpu_mem_slave_axi_bid),
         .m_axi_bresp(gpu_mem_slave_axi_bresp),
         .m_axi_buser(gpu_mem_slave_axi_buser),
         .m_axi_bvalid(gpu_mem_slave_axi_bvalid),
         .m_axi_bready(gpu_mem_slave_axi_bready),
 
-        // Status output (unconnected - for clock gating)
+        // Status (unconnected = clock-gating tie-off)
         .busy()
     );
 
@@ -290,7 +286,7 @@ module gpu_mem_slave_adapter #(
         .aclk(aclk),
         .aresetn(aresetn),
 
-        // Slave interface (from crossbar)
+        // Bridge-internal side (fub_axi)
         .fub_axi_arid(xbar_gpu_mem_slave_axi_arid),
         .fub_axi_araddr(xbar_gpu_mem_slave_axi_araddr),
         .fub_axi_arlen(xbar_gpu_mem_slave_axi_arlen),
@@ -304,7 +300,6 @@ module gpu_mem_slave_adapter #(
         .fub_axi_aruser(xbar_gpu_mem_slave_axi_aruser),
         .fub_axi_arvalid(xbar_gpu_mem_slave_axi_arvalid),
         .fub_axi_arready(xbar_gpu_mem_slave_axi_arready),
-
         .fub_axi_rid(xbar_gpu_mem_slave_axi_rid),
         .fub_axi_rdata(xbar_gpu_mem_slave_axi_rdata),
         .fub_axi_rresp(xbar_gpu_mem_slave_axi_rresp),
@@ -313,7 +308,7 @@ module gpu_mem_slave_adapter #(
         .fub_axi_rvalid(xbar_gpu_mem_slave_axi_rvalid),
         .fub_axi_rready(xbar_gpu_mem_slave_axi_rready),
 
-        // Master interface (to external slave)
+        // External side (m_axi)
         .m_axi_arid(gpu_mem_slave_axi_arid),
         .m_axi_araddr(gpu_mem_slave_axi_araddr),
         .m_axi_arlen(gpu_mem_slave_axi_arlen),
@@ -327,7 +322,6 @@ module gpu_mem_slave_adapter #(
         .m_axi_aruser(gpu_mem_slave_axi_aruser),
         .m_axi_arvalid(gpu_mem_slave_axi_arvalid),
         .m_axi_arready(gpu_mem_slave_axi_arready),
-
         .m_axi_rid(gpu_mem_slave_axi_rid),
         .m_axi_rdata(gpu_mem_slave_axi_rdata),
         .m_axi_rresp(gpu_mem_slave_axi_rresp),
@@ -336,7 +330,7 @@ module gpu_mem_slave_adapter #(
         .m_axi_rvalid(gpu_mem_slave_axi_rvalid),
         .m_axi_rready(gpu_mem_slave_axi_rready),
 
-        // Status output (unconnected - for clock gating)
+        // Status (unconnected = clock-gating tie-off)
         .busy()
     );
 

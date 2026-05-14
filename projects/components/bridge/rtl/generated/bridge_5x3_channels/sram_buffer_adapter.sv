@@ -218,7 +218,7 @@ module sram_buffer_adapter #(
         .aclk(aclk),
         .aresetn(aresetn),
 
-        // Slave interface (from crossbar)
+        // Bridge-internal side (fub_axi)
         .fub_axi_awid(xbar_sram_buffer_axi_awid),
         .fub_axi_awaddr(xbar_sram_buffer_axi_awaddr),
         .fub_axi_awlen(xbar_sram_buffer_axi_awlen),
@@ -232,21 +232,19 @@ module sram_buffer_adapter #(
         .fub_axi_awuser(xbar_sram_buffer_axi_awuser),
         .fub_axi_awvalid(xbar_sram_buffer_axi_awvalid),
         .fub_axi_awready(xbar_sram_buffer_axi_awready),
-
         .fub_axi_wdata(xbar_sram_buffer_axi_wdata),
         .fub_axi_wstrb(xbar_sram_buffer_axi_wstrb),
         .fub_axi_wlast(xbar_sram_buffer_axi_wlast),
         .fub_axi_wuser(xbar_sram_buffer_axi_wuser),
         .fub_axi_wvalid(xbar_sram_buffer_axi_wvalid),
         .fub_axi_wready(xbar_sram_buffer_axi_wready),
-
         .fub_axi_bid(xbar_sram_buffer_axi_bid),
         .fub_axi_bresp(xbar_sram_buffer_axi_bresp),
         .fub_axi_buser(xbar_sram_buffer_axi_buser),
         .fub_axi_bvalid(xbar_sram_buffer_axi_bvalid),
         .fub_axi_bready(xbar_sram_buffer_axi_bready),
 
-        // Master interface (to external slave)
+        // External side (m_axi)
         .m_axi_awid(sram_buffer_axi_awid),
         .m_axi_awaddr(sram_buffer_axi_awaddr),
         .m_axi_awlen(sram_buffer_axi_awlen),
@@ -260,21 +258,19 @@ module sram_buffer_adapter #(
         .m_axi_awuser(sram_buffer_axi_awuser),
         .m_axi_awvalid(sram_buffer_axi_awvalid),
         .m_axi_awready(sram_buffer_axi_awready),
-
         .m_axi_wdata(sram_buffer_axi_wdata),
         .m_axi_wstrb(sram_buffer_axi_wstrb),
         .m_axi_wlast(sram_buffer_axi_wlast),
         .m_axi_wuser(sram_buffer_axi_wuser),
         .m_axi_wvalid(sram_buffer_axi_wvalid),
         .m_axi_wready(sram_buffer_axi_wready),
-
         .m_axi_bid(sram_buffer_axi_bid),
         .m_axi_bresp(sram_buffer_axi_bresp),
         .m_axi_buser(sram_buffer_axi_buser),
         .m_axi_bvalid(sram_buffer_axi_bvalid),
         .m_axi_bready(sram_buffer_axi_bready),
 
-        // Status output (unconnected - for clock gating)
+        // Status (unconnected = clock-gating tie-off)
         .busy()
     );
 
@@ -290,7 +286,7 @@ module sram_buffer_adapter #(
         .aclk(aclk),
         .aresetn(aresetn),
 
-        // Slave interface (from crossbar)
+        // Bridge-internal side (fub_axi)
         .fub_axi_arid(xbar_sram_buffer_axi_arid),
         .fub_axi_araddr(xbar_sram_buffer_axi_araddr),
         .fub_axi_arlen(xbar_sram_buffer_axi_arlen),
@@ -304,7 +300,6 @@ module sram_buffer_adapter #(
         .fub_axi_aruser(xbar_sram_buffer_axi_aruser),
         .fub_axi_arvalid(xbar_sram_buffer_axi_arvalid),
         .fub_axi_arready(xbar_sram_buffer_axi_arready),
-
         .fub_axi_rid(xbar_sram_buffer_axi_rid),
         .fub_axi_rdata(xbar_sram_buffer_axi_rdata),
         .fub_axi_rresp(xbar_sram_buffer_axi_rresp),
@@ -313,7 +308,7 @@ module sram_buffer_adapter #(
         .fub_axi_rvalid(xbar_sram_buffer_axi_rvalid),
         .fub_axi_rready(xbar_sram_buffer_axi_rready),
 
-        // Master interface (to external slave)
+        // External side (m_axi)
         .m_axi_arid(sram_buffer_axi_arid),
         .m_axi_araddr(sram_buffer_axi_araddr),
         .m_axi_arlen(sram_buffer_axi_arlen),
@@ -327,7 +322,6 @@ module sram_buffer_adapter #(
         .m_axi_aruser(sram_buffer_axi_aruser),
         .m_axi_arvalid(sram_buffer_axi_arvalid),
         .m_axi_arready(sram_buffer_axi_arready),
-
         .m_axi_rid(sram_buffer_axi_rid),
         .m_axi_rdata(sram_buffer_axi_rdata),
         .m_axi_rresp(sram_buffer_axi_rresp),
@@ -336,7 +330,7 @@ module sram_buffer_adapter #(
         .m_axi_rvalid(sram_buffer_axi_rvalid),
         .m_axi_rready(sram_buffer_axi_rready),
 
-        // Status output (unconnected - for clock gating)
+        // Status (unconnected = clock-gating tie-off)
         .busy()
     );
 

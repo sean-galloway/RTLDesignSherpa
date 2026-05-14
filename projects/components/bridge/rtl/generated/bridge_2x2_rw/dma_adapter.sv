@@ -167,7 +167,7 @@ module dma_adapter #(
         .aclk(aclk),
         .aresetn(aresetn),
 
-        // External boundary (slave side - accepts from master)
+        // External side (s_axi)
         .s_axi_awid(dma_m_axi_awid),
         .s_axi_awaddr(dma_m_axi_awaddr),
         .s_axi_awlen(dma_m_axi_awlen),
@@ -181,21 +181,19 @@ module dma_adapter #(
         .s_axi_awuser(dma_m_axi_awuser),
         .s_axi_awvalid(dma_m_axi_awvalid),
         .s_axi_awready(dma_m_axi_awready),
-
         .s_axi_wdata(dma_m_axi_wdata),
         .s_axi_wstrb(dma_m_axi_wstrb),
         .s_axi_wlast(dma_m_axi_wlast),
         .s_axi_wuser(dma_m_axi_wuser),
         .s_axi_wvalid(dma_m_axi_wvalid),
         .s_axi_wready(dma_m_axi_wready),
-
         .s_axi_bid(dma_m_axi_bid),
         .s_axi_bresp(dma_m_axi_bresp),
         .s_axi_buser(dma_m_axi_buser),
         .s_axi_bvalid(dma_m_axi_bvalid),
         .s_axi_bready(dma_m_axi_bready),
 
-        // Internal crossbar (master side - outputs to converter)
+        // Bridge-internal side (fub_axi)
         .fub_axi_awid(fub_axi_awid),
         .fub_axi_awaddr(fub_axi_awaddr),
         .fub_axi_awlen(fub_axi_awlen),
@@ -209,20 +207,19 @@ module dma_adapter #(
         .fub_axi_awuser(),
         .fub_axi_awvalid(fub_axi_awvalid),
         .fub_axi_awready(fub_axi_awready),
-
         .fub_axi_wdata(fub_axi_wdata),
         .fub_axi_wstrb(fub_axi_wstrb),
         .fub_axi_wlast(fub_axi_wlast),
         .fub_axi_wuser(),
         .fub_axi_wvalid(fub_axi_wvalid),
         .fub_axi_wready(fub_axi_wready),
-
         .fub_axi_bid(fub_axi_bid),
         .fub_axi_bresp(fub_axi_bresp),
         .fub_axi_buser(1'b0),
         .fub_axi_bvalid(fub_axi_bvalid),
         .fub_axi_bready(fub_axi_bready),
 
+        // Status (unconnected = clock-gating tie-off)
         .busy(wrapper_wr_busy)
     );
 
@@ -240,7 +237,7 @@ module dma_adapter #(
         .aclk(aclk),
         .aresetn(aresetn),
 
-        // External boundary (slave side - accepts from master)
+        // External side (s_axi)
         .s_axi_arid(dma_m_axi_arid),
         .s_axi_araddr(dma_m_axi_araddr),
         .s_axi_arlen(dma_m_axi_arlen),
@@ -254,7 +251,6 @@ module dma_adapter #(
         .s_axi_aruser(dma_m_axi_aruser),
         .s_axi_arvalid(dma_m_axi_arvalid),
         .s_axi_arready(dma_m_axi_arready),
-
         .s_axi_rid(dma_m_axi_rid),
         .s_axi_rdata(dma_m_axi_rdata),
         .s_axi_rresp(dma_m_axi_rresp),
@@ -263,7 +259,7 @@ module dma_adapter #(
         .s_axi_rvalid(dma_m_axi_rvalid),
         .s_axi_rready(dma_m_axi_rready),
 
-        // Internal crossbar (master side - outputs to converter)
+        // Bridge-internal side (fub_axi)
         .fub_axi_arid(fub_axi_arid),
         .fub_axi_araddr(fub_axi_araddr),
         .fub_axi_arlen(fub_axi_arlen),
@@ -277,7 +273,6 @@ module dma_adapter #(
         .fub_axi_aruser(),
         .fub_axi_arvalid(fub_axi_arvalid),
         .fub_axi_arready(fub_axi_arready),
-
         .fub_axi_rid(fub_axi_rid),
         .fub_axi_rdata(fub_axi_rdata),
         .fub_axi_rresp(fub_axi_rresp),
@@ -286,6 +281,7 @@ module dma_adapter #(
         .fub_axi_rvalid(fub_axi_rvalid),
         .fub_axi_rready(fub_axi_rready),
 
+        // Status (unconnected = clock-gating tie-off)
         .busy(wrapper_rd_busy)
     );
 

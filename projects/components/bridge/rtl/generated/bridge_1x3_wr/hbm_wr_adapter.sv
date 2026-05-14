@@ -134,7 +134,7 @@ module hbm_wr_adapter #(
         .aclk(aclk),
         .aresetn(aresetn),
 
-        // Slave interface (from crossbar)
+        // Bridge-internal side (fub_axi)
         .fub_axi_awid(xbar_hbm_wr_axi_awid),
         .fub_axi_awaddr(xbar_hbm_wr_axi_awaddr),
         .fub_axi_awlen(xbar_hbm_wr_axi_awlen),
@@ -148,21 +148,19 @@ module hbm_wr_adapter #(
         .fub_axi_awuser(xbar_hbm_wr_axi_awuser),
         .fub_axi_awvalid(xbar_hbm_wr_axi_awvalid),
         .fub_axi_awready(xbar_hbm_wr_axi_awready),
-
         .fub_axi_wdata(xbar_hbm_wr_axi_wdata),
         .fub_axi_wstrb(xbar_hbm_wr_axi_wstrb),
         .fub_axi_wlast(xbar_hbm_wr_axi_wlast),
         .fub_axi_wuser(xbar_hbm_wr_axi_wuser),
         .fub_axi_wvalid(xbar_hbm_wr_axi_wvalid),
         .fub_axi_wready(xbar_hbm_wr_axi_wready),
-
         .fub_axi_bid(xbar_hbm_wr_axi_bid),
         .fub_axi_bresp(xbar_hbm_wr_axi_bresp),
         .fub_axi_buser(xbar_hbm_wr_axi_buser),
         .fub_axi_bvalid(xbar_hbm_wr_axi_bvalid),
         .fub_axi_bready(xbar_hbm_wr_axi_bready),
 
-        // Master interface (to external slave)
+        // External side (m_axi)
         .m_axi_awid(hbm_wr_axi_awid),
         .m_axi_awaddr(hbm_wr_axi_awaddr),
         .m_axi_awlen(hbm_wr_axi_awlen),
@@ -176,21 +174,19 @@ module hbm_wr_adapter #(
         .m_axi_awuser(hbm_wr_axi_awuser),
         .m_axi_awvalid(hbm_wr_axi_awvalid),
         .m_axi_awready(hbm_wr_axi_awready),
-
         .m_axi_wdata(hbm_wr_axi_wdata),
         .m_axi_wstrb(hbm_wr_axi_wstrb),
         .m_axi_wlast(hbm_wr_axi_wlast),
         .m_axi_wuser(hbm_wr_axi_wuser),
         .m_axi_wvalid(hbm_wr_axi_wvalid),
         .m_axi_wready(hbm_wr_axi_wready),
-
         .m_axi_bid(hbm_wr_axi_bid),
         .m_axi_bresp(hbm_wr_axi_bresp),
         .m_axi_buser(hbm_wr_axi_buser),
         .m_axi_bvalid(hbm_wr_axi_bvalid),
         .m_axi_bready(hbm_wr_axi_bready),
 
-        // Status output (unconnected - for clock gating)
+        // Status (unconnected = clock-gating tie-off)
         .busy()
     );
 

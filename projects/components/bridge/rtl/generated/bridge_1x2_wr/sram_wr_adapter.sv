@@ -134,7 +134,7 @@ module sram_wr_adapter #(
         .aclk(aclk),
         .aresetn(aresetn),
 
-        // Slave interface (from crossbar)
+        // Bridge-internal side (fub_axi)
         .fub_axi_awid(xbar_sram_wr_axi_awid),
         .fub_axi_awaddr(xbar_sram_wr_axi_awaddr),
         .fub_axi_awlen(xbar_sram_wr_axi_awlen),
@@ -148,21 +148,19 @@ module sram_wr_adapter #(
         .fub_axi_awuser(xbar_sram_wr_axi_awuser),
         .fub_axi_awvalid(xbar_sram_wr_axi_awvalid),
         .fub_axi_awready(xbar_sram_wr_axi_awready),
-
         .fub_axi_wdata(xbar_sram_wr_axi_wdata),
         .fub_axi_wstrb(xbar_sram_wr_axi_wstrb),
         .fub_axi_wlast(xbar_sram_wr_axi_wlast),
         .fub_axi_wuser(xbar_sram_wr_axi_wuser),
         .fub_axi_wvalid(xbar_sram_wr_axi_wvalid),
         .fub_axi_wready(xbar_sram_wr_axi_wready),
-
         .fub_axi_bid(xbar_sram_wr_axi_bid),
         .fub_axi_bresp(xbar_sram_wr_axi_bresp),
         .fub_axi_buser(xbar_sram_wr_axi_buser),
         .fub_axi_bvalid(xbar_sram_wr_axi_bvalid),
         .fub_axi_bready(xbar_sram_wr_axi_bready),
 
-        // Master interface (to external slave)
+        // External side (m_axi)
         .m_axi_awid(sram_wr_axi_awid),
         .m_axi_awaddr(sram_wr_axi_awaddr),
         .m_axi_awlen(sram_wr_axi_awlen),
@@ -176,21 +174,19 @@ module sram_wr_adapter #(
         .m_axi_awuser(sram_wr_axi_awuser),
         .m_axi_awvalid(sram_wr_axi_awvalid),
         .m_axi_awready(sram_wr_axi_awready),
-
         .m_axi_wdata(sram_wr_axi_wdata),
         .m_axi_wstrb(sram_wr_axi_wstrb),
         .m_axi_wlast(sram_wr_axi_wlast),
         .m_axi_wuser(sram_wr_axi_wuser),
         .m_axi_wvalid(sram_wr_axi_wvalid),
         .m_axi_wready(sram_wr_axi_wready),
-
         .m_axi_bid(sram_wr_axi_bid),
         .m_axi_bresp(sram_wr_axi_bresp),
         .m_axi_buser(sram_wr_axi_buser),
         .m_axi_bvalid(sram_wr_axi_bvalid),
         .m_axi_bready(sram_wr_axi_bready),
 
-        // Status output (unconnected - for clock gating)
+        // Status (unconnected = clock-gating tie-off)
         .busy()
     );
 

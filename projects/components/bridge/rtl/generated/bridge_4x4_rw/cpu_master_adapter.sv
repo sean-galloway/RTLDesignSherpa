@@ -227,7 +227,7 @@ module cpu_master_adapter #(
         .aclk(aclk),
         .aresetn(aresetn),
 
-        // External boundary (slave side - accepts from master)
+        // External side (s_axi)
         .s_axi_awid(cpu_axi_awid),
         .s_axi_awaddr(cpu_axi_awaddr),
         .s_axi_awlen(cpu_axi_awlen),
@@ -241,21 +241,19 @@ module cpu_master_adapter #(
         .s_axi_awuser(cpu_axi_awuser),
         .s_axi_awvalid(cpu_axi_awvalid),
         .s_axi_awready(cpu_axi_awready),
-
         .s_axi_wdata(cpu_axi_wdata),
         .s_axi_wstrb(cpu_axi_wstrb),
         .s_axi_wlast(cpu_axi_wlast),
         .s_axi_wuser(cpu_axi_wuser),
         .s_axi_wvalid(cpu_axi_wvalid),
         .s_axi_wready(cpu_axi_wready),
-
         .s_axi_bid(cpu_axi_bid),
         .s_axi_bresp(cpu_axi_bresp),
         .s_axi_buser(cpu_axi_buser),
         .s_axi_bvalid(cpu_axi_bvalid),
         .s_axi_bready(cpu_axi_bready),
 
-        // Internal crossbar (master side - outputs to converter)
+        // Bridge-internal side (fub_axi)
         .fub_axi_awid(fub_axi_awid),
         .fub_axi_awaddr(fub_axi_awaddr),
         .fub_axi_awlen(fub_axi_awlen),
@@ -269,20 +267,19 @@ module cpu_master_adapter #(
         .fub_axi_awuser(),
         .fub_axi_awvalid(fub_axi_awvalid),
         .fub_axi_awready(fub_axi_awready),
-
         .fub_axi_wdata(fub_axi_wdata),
         .fub_axi_wstrb(fub_axi_wstrb),
         .fub_axi_wlast(fub_axi_wlast),
         .fub_axi_wuser(),
         .fub_axi_wvalid(fub_axi_wvalid),
         .fub_axi_wready(fub_axi_wready),
-
         .fub_axi_bid(fub_axi_bid),
         .fub_axi_bresp(fub_axi_bresp),
         .fub_axi_buser(1'b0),
         .fub_axi_bvalid(fub_axi_bvalid),
         .fub_axi_bready(fub_axi_bready),
 
+        // Status (unconnected = clock-gating tie-off)
         .busy(wrapper_wr_busy)
     );
 
@@ -300,7 +297,7 @@ module cpu_master_adapter #(
         .aclk(aclk),
         .aresetn(aresetn),
 
-        // External boundary (slave side - accepts from master)
+        // External side (s_axi)
         .s_axi_arid(cpu_axi_arid),
         .s_axi_araddr(cpu_axi_araddr),
         .s_axi_arlen(cpu_axi_arlen),
@@ -314,7 +311,6 @@ module cpu_master_adapter #(
         .s_axi_aruser(cpu_axi_aruser),
         .s_axi_arvalid(cpu_axi_arvalid),
         .s_axi_arready(cpu_axi_arready),
-
         .s_axi_rid(cpu_axi_rid),
         .s_axi_rdata(cpu_axi_rdata),
         .s_axi_rresp(cpu_axi_rresp),
@@ -323,7 +319,7 @@ module cpu_master_adapter #(
         .s_axi_rvalid(cpu_axi_rvalid),
         .s_axi_rready(cpu_axi_rready),
 
-        // Internal crossbar (master side - outputs to converter)
+        // Bridge-internal side (fub_axi)
         .fub_axi_arid(fub_axi_arid),
         .fub_axi_araddr(fub_axi_araddr),
         .fub_axi_arlen(fub_axi_arlen),
@@ -337,7 +333,6 @@ module cpu_master_adapter #(
         .fub_axi_aruser(),
         .fub_axi_arvalid(fub_axi_arvalid),
         .fub_axi_arready(fub_axi_arready),
-
         .fub_axi_rid(fub_axi_rid),
         .fub_axi_rdata(fub_axi_rdata),
         .fub_axi_rresp(fub_axi_rresp),
@@ -346,6 +341,7 @@ module cpu_master_adapter #(
         .fub_axi_rvalid(fub_axi_rvalid),
         .fub_axi_rready(fub_axi_rready),
 
+        // Status (unconnected = clock-gating tie-off)
         .busy(wrapper_rd_busy)
     );
 

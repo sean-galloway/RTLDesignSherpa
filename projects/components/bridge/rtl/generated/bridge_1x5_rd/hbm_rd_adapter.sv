@@ -125,7 +125,7 @@ module hbm_rd_adapter #(
         .aclk(aclk),
         .aresetn(aresetn),
 
-        // Slave interface (from crossbar)
+        // Bridge-internal side (fub_axi)
         .fub_axi_arid(xbar_hbm_rd_axi_arid),
         .fub_axi_araddr(xbar_hbm_rd_axi_araddr),
         .fub_axi_arlen(xbar_hbm_rd_axi_arlen),
@@ -139,7 +139,6 @@ module hbm_rd_adapter #(
         .fub_axi_aruser(xbar_hbm_rd_axi_aruser),
         .fub_axi_arvalid(xbar_hbm_rd_axi_arvalid),
         .fub_axi_arready(xbar_hbm_rd_axi_arready),
-
         .fub_axi_rid(xbar_hbm_rd_axi_rid),
         .fub_axi_rdata(xbar_hbm_rd_axi_rdata),
         .fub_axi_rresp(xbar_hbm_rd_axi_rresp),
@@ -148,7 +147,7 @@ module hbm_rd_adapter #(
         .fub_axi_rvalid(xbar_hbm_rd_axi_rvalid),
         .fub_axi_rready(xbar_hbm_rd_axi_rready),
 
-        // Master interface (to external slave)
+        // External side (m_axi)
         .m_axi_arid(hbm_rd_axi_arid),
         .m_axi_araddr(hbm_rd_axi_araddr),
         .m_axi_arlen(hbm_rd_axi_arlen),
@@ -162,7 +161,6 @@ module hbm_rd_adapter #(
         .m_axi_aruser(hbm_rd_axi_aruser),
         .m_axi_arvalid(hbm_rd_axi_arvalid),
         .m_axi_arready(hbm_rd_axi_arready),
-
         .m_axi_rid(hbm_rd_axi_rid),
         .m_axi_rdata(hbm_rd_axi_rdata),
         .m_axi_rresp(hbm_rd_axi_rresp),
@@ -171,7 +169,7 @@ module hbm_rd_adapter #(
         .m_axi_rvalid(hbm_rd_axi_rvalid),
         .m_axi_rready(hbm_rd_axi_rready),
 
-        // Status output (unconnected - for clock gating)
+        // Status (unconnected = clock-gating tie-off)
         .busy()
     );
 

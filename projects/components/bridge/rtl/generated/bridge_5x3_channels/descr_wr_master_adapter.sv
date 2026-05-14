@@ -113,7 +113,7 @@ module descr_wr_master_adapter #(
         .aclk(aclk),
         .aresetn(aresetn),
 
-        // External boundary (slave side - accepts from master)
+        // External side (s_axi)
         .s_axi_awid(descr_axi_awid),
         .s_axi_awaddr(descr_axi_awaddr),
         .s_axi_awlen(descr_axi_awlen),
@@ -127,21 +127,19 @@ module descr_wr_master_adapter #(
         .s_axi_awuser(descr_axi_awuser),
         .s_axi_awvalid(descr_axi_awvalid),
         .s_axi_awready(descr_axi_awready),
-
         .s_axi_wdata(descr_axi_wdata),
         .s_axi_wstrb(descr_axi_wstrb),
         .s_axi_wlast(descr_axi_wlast),
         .s_axi_wuser(descr_axi_wuser),
         .s_axi_wvalid(descr_axi_wvalid),
         .s_axi_wready(descr_axi_wready),
-
         .s_axi_bid(descr_axi_bid),
         .s_axi_bresp(descr_axi_bresp),
         .s_axi_buser(descr_axi_buser),
         .s_axi_bvalid(descr_axi_bvalid),
         .s_axi_bready(descr_axi_bready),
 
-        // Internal crossbar (master side - outputs to converter)
+        // Bridge-internal side (fub_axi)
         .fub_axi_awid(fub_axi_awid),
         .fub_axi_awaddr(fub_axi_awaddr),
         .fub_axi_awlen(fub_axi_awlen),
@@ -155,20 +153,19 @@ module descr_wr_master_adapter #(
         .fub_axi_awuser(),
         .fub_axi_awvalid(fub_axi_awvalid),
         .fub_axi_awready(fub_axi_awready),
-
         .fub_axi_wdata(fub_axi_wdata),
         .fub_axi_wstrb(fub_axi_wstrb),
         .fub_axi_wlast(fub_axi_wlast),
         .fub_axi_wuser(),
         .fub_axi_wvalid(fub_axi_wvalid),
         .fub_axi_wready(fub_axi_wready),
-
         .fub_axi_bid(fub_axi_bid),
         .fub_axi_bresp(fub_axi_bresp),
         .fub_axi_buser(1'b0),
         .fub_axi_bvalid(fub_axi_bvalid),
         .fub_axi_bready(fub_axi_bready),
 
+        // Status (unconnected = clock-gating tie-off)
         .busy(wrapper_wr_busy)
     );
 

@@ -131,7 +131,7 @@ module axil_periph_adapter #(
         .aclk(aclk),
         .aresetn(aresetn),
 
-        // Slave interface (from crossbar)
+        // Bridge-internal side (fub_axi)
         .fub_axi_arid(xbar_axil_periph_axi_arid),
         .fub_axi_araddr(xbar_axil_periph_axi_araddr),
         .fub_axi_arlen(xbar_axil_periph_axi_arlen),
@@ -145,7 +145,6 @@ module axil_periph_adapter #(
         .fub_axi_aruser(xbar_axil_periph_axi_aruser),
         .fub_axi_arvalid(xbar_axil_periph_axi_arvalid),
         .fub_axi_arready(xbar_axil_periph_axi_arready),
-
         .fub_axi_rid(xbar_axil_periph_axi_rid),
         .fub_axi_rdata(xbar_axil_periph_axi_rdata),
         .fub_axi_rresp(xbar_axil_periph_axi_rresp),
@@ -154,7 +153,7 @@ module axil_periph_adapter #(
         .fub_axi_rvalid(xbar_axil_periph_axi_rvalid),
         .fub_axi_rready(xbar_axil_periph_axi_rready),
 
-        // Master interface (to external slave)
+        // External side (m_axi)
         .m_axi_arid(axil_periph_axi_arid),
         .m_axi_araddr(axil_periph_axi_araddr),
         .m_axi_arlen(axil_periph_axi_arlen),
@@ -168,7 +167,6 @@ module axil_periph_adapter #(
         .m_axi_aruser(axil_periph_axi_aruser),
         .m_axi_arvalid(axil_periph_axi_arvalid),
         .m_axi_arready(axil_periph_axi_arready),
-
         .m_axi_rid(axil_periph_axi_rid),
         .m_axi_rdata(axil_periph_axi_rdata),
         .m_axi_rresp(axil_periph_axi_rresp),
@@ -177,7 +175,7 @@ module axil_periph_adapter #(
         .m_axi_rvalid(axil_periph_axi_rvalid),
         .m_axi_rready(axil_periph_axi_rready),
 
-        // Status output (unconnected - for clock gating)
+        // Status (unconnected = clock-gating tie-off)
         .busy()
     );
 

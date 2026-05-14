@@ -218,7 +218,7 @@ module ddr0_slave_adapter #(
         .aclk(aclk),
         .aresetn(aresetn),
 
-        // Slave interface (from crossbar)
+        // Bridge-internal side (fub_axi)
         .fub_axi_awid(xbar_ddr0_slave_axi_awid),
         .fub_axi_awaddr(xbar_ddr0_slave_axi_awaddr),
         .fub_axi_awlen(xbar_ddr0_slave_axi_awlen),
@@ -232,21 +232,19 @@ module ddr0_slave_adapter #(
         .fub_axi_awuser(xbar_ddr0_slave_axi_awuser),
         .fub_axi_awvalid(xbar_ddr0_slave_axi_awvalid),
         .fub_axi_awready(xbar_ddr0_slave_axi_awready),
-
         .fub_axi_wdata(xbar_ddr0_slave_axi_wdata),
         .fub_axi_wstrb(xbar_ddr0_slave_axi_wstrb),
         .fub_axi_wlast(xbar_ddr0_slave_axi_wlast),
         .fub_axi_wuser(xbar_ddr0_slave_axi_wuser),
         .fub_axi_wvalid(xbar_ddr0_slave_axi_wvalid),
         .fub_axi_wready(xbar_ddr0_slave_axi_wready),
-
         .fub_axi_bid(xbar_ddr0_slave_axi_bid),
         .fub_axi_bresp(xbar_ddr0_slave_axi_bresp),
         .fub_axi_buser(xbar_ddr0_slave_axi_buser),
         .fub_axi_bvalid(xbar_ddr0_slave_axi_bvalid),
         .fub_axi_bready(xbar_ddr0_slave_axi_bready),
 
-        // Master interface (to external slave)
+        // External side (m_axi)
         .m_axi_awid(ddr0_slave_axi_awid),
         .m_axi_awaddr(ddr0_slave_axi_awaddr),
         .m_axi_awlen(ddr0_slave_axi_awlen),
@@ -260,21 +258,19 @@ module ddr0_slave_adapter #(
         .m_axi_awuser(ddr0_slave_axi_awuser),
         .m_axi_awvalid(ddr0_slave_axi_awvalid),
         .m_axi_awready(ddr0_slave_axi_awready),
-
         .m_axi_wdata(ddr0_slave_axi_wdata),
         .m_axi_wstrb(ddr0_slave_axi_wstrb),
         .m_axi_wlast(ddr0_slave_axi_wlast),
         .m_axi_wuser(ddr0_slave_axi_wuser),
         .m_axi_wvalid(ddr0_slave_axi_wvalid),
         .m_axi_wready(ddr0_slave_axi_wready),
-
         .m_axi_bid(ddr0_slave_axi_bid),
         .m_axi_bresp(ddr0_slave_axi_bresp),
         .m_axi_buser(ddr0_slave_axi_buser),
         .m_axi_bvalid(ddr0_slave_axi_bvalid),
         .m_axi_bready(ddr0_slave_axi_bready),
 
-        // Status output (unconnected - for clock gating)
+        // Status (unconnected = clock-gating tie-off)
         .busy()
     );
 
@@ -290,7 +286,7 @@ module ddr0_slave_adapter #(
         .aclk(aclk),
         .aresetn(aresetn),
 
-        // Slave interface (from crossbar)
+        // Bridge-internal side (fub_axi)
         .fub_axi_arid(xbar_ddr0_slave_axi_arid),
         .fub_axi_araddr(xbar_ddr0_slave_axi_araddr),
         .fub_axi_arlen(xbar_ddr0_slave_axi_arlen),
@@ -304,7 +300,6 @@ module ddr0_slave_adapter #(
         .fub_axi_aruser(xbar_ddr0_slave_axi_aruser),
         .fub_axi_arvalid(xbar_ddr0_slave_axi_arvalid),
         .fub_axi_arready(xbar_ddr0_slave_axi_arready),
-
         .fub_axi_rid(xbar_ddr0_slave_axi_rid),
         .fub_axi_rdata(xbar_ddr0_slave_axi_rdata),
         .fub_axi_rresp(xbar_ddr0_slave_axi_rresp),
@@ -313,7 +308,7 @@ module ddr0_slave_adapter #(
         .fub_axi_rvalid(xbar_ddr0_slave_axi_rvalid),
         .fub_axi_rready(xbar_ddr0_slave_axi_rready),
 
-        // Master interface (to external slave)
+        // External side (m_axi)
         .m_axi_arid(ddr0_slave_axi_arid),
         .m_axi_araddr(ddr0_slave_axi_araddr),
         .m_axi_arlen(ddr0_slave_axi_arlen),
@@ -327,7 +322,6 @@ module ddr0_slave_adapter #(
         .m_axi_aruser(ddr0_slave_axi_aruser),
         .m_axi_arvalid(ddr0_slave_axi_arvalid),
         .m_axi_arready(ddr0_slave_axi_arready),
-
         .m_axi_rid(ddr0_slave_axi_rid),
         .m_axi_rdata(ddr0_slave_axi_rdata),
         .m_axi_rresp(ddr0_slave_axi_rresp),
@@ -336,7 +330,7 @@ module ddr0_slave_adapter #(
         .m_axi_rvalid(ddr0_slave_axi_rvalid),
         .m_axi_rready(ddr0_slave_axi_rready),
 
-        // Status output (unconnected - for clock gating)
+        // Status (unconnected = clock-gating tie-off)
         .busy()
     );
 

@@ -694,153 +694,45 @@ class SlaveAdapterGenerator:
         return lines
 
     def _generate_master_wr_wrapper(self, crossbar_prefix: str, slave_prefix: str) -> List[str]:
-        """Generate axi4_master_wr wrapper instance."""
-        lines = []
+        """Generate axi4_master_wr timing-wrapper instance via the
+        typed Axi4TimingWrapper component."""
+        from ..components.axi4_timing_wrapper_component import Axi4TimingWrapper
 
-        lines.append("    // AXI4 Master Write Timing Wrapper")
-        lines.append("    axi4_master_wr #(")
-        lines.append(f"        .SKID_DEPTH_AW({self.skid_depth_aw}),")
-        lines.append(f"        .SKID_DEPTH_W({self.skid_depth_w}),")
-        lines.append(f"        .SKID_DEPTH_B({self.skid_depth_b}),")
-        lines.append(f"        .AXI_ID_WIDTH({self.id_width}),")
-        lines.append(f"        .AXI_ADDR_WIDTH({self.slave.addr_width}),")
-        lines.append(f"        .AXI_DATA_WIDTH({self.slave.data_width}),")
-        lines.append(f"        .AXI_USER_WIDTH(1)")
-        lines.append("    ) u_master_wr (")
-        lines.append("        .aclk(aclk),")
-        lines.append("        .aresetn(aresetn),")
-        lines.append("")
-        lines.append("        // Slave interface (from crossbar)")
-        lines.append(f"        .fub_axi_awid({crossbar_prefix}awid),")
-        lines.append(f"        .fub_axi_awaddr({crossbar_prefix}awaddr),")
-        lines.append(f"        .fub_axi_awlen({crossbar_prefix}awlen),")
-        lines.append(f"        .fub_axi_awsize({crossbar_prefix}awsize),")
-        lines.append(f"        .fub_axi_awburst({crossbar_prefix}awburst),")
-        lines.append(f"        .fub_axi_awlock({crossbar_prefix}awlock),")
-        lines.append(f"        .fub_axi_awcache({crossbar_prefix}awcache),")
-        lines.append(f"        .fub_axi_awprot({crossbar_prefix}awprot),")
-        lines.append(f"        .fub_axi_awqos({crossbar_prefix}awqos),")
-        lines.append(f"        .fub_axi_awregion({crossbar_prefix}awregion),")
-        lines.append(f"        .fub_axi_awuser({crossbar_prefix}awuser),")
-        lines.append(f"        .fub_axi_awvalid({crossbar_prefix}awvalid),")
-        lines.append(f"        .fub_axi_awready({crossbar_prefix}awready),")
-        lines.append("")
-        lines.append(f"        .fub_axi_wdata({crossbar_prefix}wdata),")
-        lines.append(f"        .fub_axi_wstrb({crossbar_prefix}wstrb),")
-        lines.append(f"        .fub_axi_wlast({crossbar_prefix}wlast),")
-        lines.append(f"        .fub_axi_wuser({crossbar_prefix}wuser),")
-        lines.append(f"        .fub_axi_wvalid({crossbar_prefix}wvalid),")
-        lines.append(f"        .fub_axi_wready({crossbar_prefix}wready),")
-        lines.append("")
-        lines.append(f"        .fub_axi_bid({crossbar_prefix}bid),")
-        lines.append(f"        .fub_axi_bresp({crossbar_prefix}bresp),")
-        lines.append(f"        .fub_axi_buser({crossbar_prefix}buser),")
-        lines.append(f"        .fub_axi_bvalid({crossbar_prefix}bvalid),")
-        lines.append(f"        .fub_axi_bready({crossbar_prefix}bready),")
-        lines.append("")
-        lines.append("        // Master interface (to external slave)")
-        lines.append(f"        .m_axi_awid({slave_prefix}awid),")
-        lines.append(f"        .m_axi_awaddr({slave_prefix}awaddr),")
-        lines.append(f"        .m_axi_awlen({slave_prefix}awlen),")
-        lines.append(f"        .m_axi_awsize({slave_prefix}awsize),")
-        lines.append(f"        .m_axi_awburst({slave_prefix}awburst),")
-        lines.append(f"        .m_axi_awlock({slave_prefix}awlock),")
-        lines.append(f"        .m_axi_awcache({slave_prefix}awcache),")
-        lines.append(f"        .m_axi_awprot({slave_prefix}awprot),")
-        lines.append(f"        .m_axi_awqos({slave_prefix}awqos),")
-        lines.append(f"        .m_axi_awregion({slave_prefix}awregion),")
-        lines.append(f"        .m_axi_awuser({slave_prefix}awuser),")
-        lines.append(f"        .m_axi_awvalid({slave_prefix}awvalid),")
-        lines.append(f"        .m_axi_awready({slave_prefix}awready),")
-        lines.append("")
-        lines.append(f"        .m_axi_wdata({slave_prefix}wdata),")
-        lines.append(f"        .m_axi_wstrb({slave_prefix}wstrb),")
-        lines.append(f"        .m_axi_wlast({slave_prefix}wlast),")
-        lines.append(f"        .m_axi_wuser({slave_prefix}wuser),")
-        lines.append(f"        .m_axi_wvalid({slave_prefix}wvalid),")
-        lines.append(f"        .m_axi_wready({slave_prefix}wready),")
-        lines.append("")
-        lines.append(f"        .m_axi_bid({slave_prefix}bid),")
-        lines.append(f"        .m_axi_bresp({slave_prefix}bresp),")
-        lines.append(f"        .m_axi_buser({slave_prefix}buser),")
-        lines.append(f"        .m_axi_bvalid({slave_prefix}bvalid),")
-        lines.append(f"        .m_axi_bready({slave_prefix}bready),")
-        lines.append("")
-        lines.append("        // Status output (unconnected - for clock gating)")
-        lines.append("        .busy()")
-        lines.append("    );")
-        lines.append("")
-
-        return lines
+        wrapper = Axi4TimingWrapper(
+            side='master', channel='wr',
+            instance_name='u_master_wr',
+            id_width=self.id_width,
+            addr_width=self.slave.addr_width,
+            data_width=self.slave.data_width,
+            skid_depth_ax=str(self.skid_depth_aw),
+            skid_depth_data=str(self.skid_depth_w),
+            skid_depth_resp=str(self.skid_depth_b),
+        )
+        wrapper.connect_clocks_and_resets()
+        wrapper.connect_bridge_internal(connector_prefix=crossbar_prefix)
+        wrapper.connect_external(connector_prefix=slave_prefix)
+        wrapper.add_status()
+        return ["    // AXI4 Master Write Timing Wrapper"] + wrapper.generate_lines()
 
     def _generate_master_rd_wrapper(self, crossbar_prefix: str, slave_prefix: str) -> List[str]:
-        """Generate axi4_master_rd wrapper instance."""
-        lines = []
+        """Generate axi4_master_rd timing-wrapper instance via the
+        typed Axi4TimingWrapper component."""
+        from ..components.axi4_timing_wrapper_component import Axi4TimingWrapper
 
-        lines.append("    // AXI4 Master Read Timing Wrapper")
-        lines.append("    axi4_master_rd #(")
-        lines.append(f"        .SKID_DEPTH_AR({self.skid_depth_ar}),")
-        lines.append(f"        .SKID_DEPTH_R({self.skid_depth_r}),")
-        lines.append(f"        .AXI_ID_WIDTH({self.id_width}),")
-        lines.append(f"        .AXI_ADDR_WIDTH({self.slave.addr_width}),")
-        lines.append(f"        .AXI_DATA_WIDTH({self.slave.data_width}),")
-        lines.append(f"        .AXI_USER_WIDTH(1)")
-        lines.append("    ) u_master_rd (")
-        lines.append("        .aclk(aclk),")
-        lines.append("        .aresetn(aresetn),")
-        lines.append("")
-        lines.append("        // Slave interface (from crossbar)")
-        lines.append(f"        .fub_axi_arid({crossbar_prefix}arid),")
-        lines.append(f"        .fub_axi_araddr({crossbar_prefix}araddr),")
-        lines.append(f"        .fub_axi_arlen({crossbar_prefix}arlen),")
-        lines.append(f"        .fub_axi_arsize({crossbar_prefix}arsize),")
-        lines.append(f"        .fub_axi_arburst({crossbar_prefix}arburst),")
-        lines.append(f"        .fub_axi_arlock({crossbar_prefix}arlock),")
-        lines.append(f"        .fub_axi_arcache({crossbar_prefix}arcache),")
-        lines.append(f"        .fub_axi_arprot({crossbar_prefix}arprot),")
-        lines.append(f"        .fub_axi_arqos({crossbar_prefix}arqos),")
-        lines.append(f"        .fub_axi_arregion({crossbar_prefix}arregion),")
-        lines.append(f"        .fub_axi_aruser({crossbar_prefix}aruser),")
-        lines.append(f"        .fub_axi_arvalid({crossbar_prefix}arvalid),")
-        lines.append(f"        .fub_axi_arready({crossbar_prefix}arready),")
-        lines.append("")
-        lines.append(f"        .fub_axi_rid({crossbar_prefix}rid),")
-        lines.append(f"        .fub_axi_rdata({crossbar_prefix}rdata),")
-        lines.append(f"        .fub_axi_rresp({crossbar_prefix}rresp),")
-        lines.append(f"        .fub_axi_rlast({crossbar_prefix}rlast),")
-        lines.append(f"        .fub_axi_ruser({crossbar_prefix}ruser),")
-        lines.append(f"        .fub_axi_rvalid({crossbar_prefix}rvalid),")
-        lines.append(f"        .fub_axi_rready({crossbar_prefix}rready),")
-        lines.append("")
-        lines.append("        // Master interface (to external slave)")
-        lines.append(f"        .m_axi_arid({slave_prefix}arid),")
-        lines.append(f"        .m_axi_araddr({slave_prefix}araddr),")
-        lines.append(f"        .m_axi_arlen({slave_prefix}arlen),")
-        lines.append(f"        .m_axi_arsize({slave_prefix}arsize),")
-        lines.append(f"        .m_axi_arburst({slave_prefix}arburst),")
-        lines.append(f"        .m_axi_arlock({slave_prefix}arlock),")
-        lines.append(f"        .m_axi_arcache({slave_prefix}arcache),")
-        lines.append(f"        .m_axi_arprot({slave_prefix}arprot),")
-        lines.append(f"        .m_axi_arqos({slave_prefix}arqos),")
-        lines.append(f"        .m_axi_arregion({slave_prefix}arregion),")
-        lines.append(f"        .m_axi_aruser({slave_prefix}aruser),")
-        lines.append(f"        .m_axi_arvalid({slave_prefix}arvalid),")
-        lines.append(f"        .m_axi_arready({slave_prefix}arready),")
-        lines.append("")
-        lines.append(f"        .m_axi_rid({slave_prefix}rid),")
-        lines.append(f"        .m_axi_rdata({slave_prefix}rdata),")
-        lines.append(f"        .m_axi_rresp({slave_prefix}rresp),")
-        lines.append(f"        .m_axi_rlast({slave_prefix}rlast),")
-        lines.append(f"        .m_axi_ruser({slave_prefix}ruser),")
-        lines.append(f"        .m_axi_rvalid({slave_prefix}rvalid),")
-        lines.append(f"        .m_axi_rready({slave_prefix}rready),")
-        lines.append("")
-        lines.append("        // Status output (unconnected - for clock gating)")
-        lines.append("        .busy()")
-        lines.append("    );")
-        lines.append("")
-
-        return lines
+        wrapper = Axi4TimingWrapper(
+            side='master', channel='rd',
+            instance_name='u_master_rd',
+            id_width=self.id_width,
+            addr_width=self.slave.addr_width,
+            data_width=self.slave.data_width,
+            skid_depth_ax=str(self.skid_depth_ar),
+            skid_depth_data=str(self.skid_depth_r),
+        )
+        wrapper.connect_clocks_and_resets()
+        wrapper.connect_bridge_internal(connector_prefix=crossbar_prefix)
+        wrapper.connect_external(connector_prefix=slave_prefix)
+        wrapper.add_status()
+        return ["    // AXI4 Master Read Timing Wrapper"] + wrapper.generate_lines()
 
     def _generate_apb_converter(self) -> List[str]:
         """Generate AXI4-to-APB converter instantiation via the typed

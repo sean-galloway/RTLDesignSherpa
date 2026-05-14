@@ -139,7 +139,7 @@ module axil_periph_adapter #(
         .aclk(aclk),
         .aresetn(aresetn),
 
-        // Slave interface (from crossbar)
+        // Bridge-internal side (fub_axi)
         .fub_axi_awid(xbar_axil_periph_axi_awid),
         .fub_axi_awaddr(xbar_axil_periph_axi_awaddr),
         .fub_axi_awlen(xbar_axil_periph_axi_awlen),
@@ -153,21 +153,19 @@ module axil_periph_adapter #(
         .fub_axi_awuser(xbar_axil_periph_axi_awuser),
         .fub_axi_awvalid(xbar_axil_periph_axi_awvalid),
         .fub_axi_awready(xbar_axil_periph_axi_awready),
-
         .fub_axi_wdata(xbar_axil_periph_axi_wdata),
         .fub_axi_wstrb(xbar_axil_periph_axi_wstrb),
         .fub_axi_wlast(xbar_axil_periph_axi_wlast),
         .fub_axi_wuser(xbar_axil_periph_axi_wuser),
         .fub_axi_wvalid(xbar_axil_periph_axi_wvalid),
         .fub_axi_wready(xbar_axil_periph_axi_wready),
-
         .fub_axi_bid(xbar_axil_periph_axi_bid),
         .fub_axi_bresp(xbar_axil_periph_axi_bresp),
         .fub_axi_buser(xbar_axil_periph_axi_buser),
         .fub_axi_bvalid(xbar_axil_periph_axi_bvalid),
         .fub_axi_bready(xbar_axil_periph_axi_bready),
 
-        // Master interface (to external slave)
+        // External side (m_axi)
         .m_axi_awid(axil_periph_axi_awid),
         .m_axi_awaddr(axil_periph_axi_awaddr),
         .m_axi_awlen(axil_periph_axi_awlen),
@@ -181,21 +179,19 @@ module axil_periph_adapter #(
         .m_axi_awuser(axil_periph_axi_awuser),
         .m_axi_awvalid(axil_periph_axi_awvalid),
         .m_axi_awready(axil_periph_axi_awready),
-
         .m_axi_wdata(axil_periph_axi_wdata),
         .m_axi_wstrb(axil_periph_axi_wstrb),
         .m_axi_wlast(axil_periph_axi_wlast),
         .m_axi_wuser(axil_periph_axi_wuser),
         .m_axi_wvalid(axil_periph_axi_wvalid),
         .m_axi_wready(axil_periph_axi_wready),
-
         .m_axi_bid(axil_periph_axi_bid),
         .m_axi_bresp(axil_periph_axi_bresp),
         .m_axi_buser(axil_periph_axi_buser),
         .m_axi_bvalid(axil_periph_axi_bvalid),
         .m_axi_bready(axil_periph_axi_bready),
 
-        // Status output (unconnected - for clock gating)
+        // Status (unconnected = clock-gating tie-off)
         .busy()
     );
 

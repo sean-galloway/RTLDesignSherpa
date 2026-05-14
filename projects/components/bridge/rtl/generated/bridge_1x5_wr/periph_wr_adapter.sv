@@ -134,7 +134,7 @@ module periph_wr_adapter #(
         .aclk(aclk),
         .aresetn(aresetn),
 
-        // Slave interface (from crossbar)
+        // Bridge-internal side (fub_axi)
         .fub_axi_awid(xbar_periph_wr_axi_awid),
         .fub_axi_awaddr(xbar_periph_wr_axi_awaddr),
         .fub_axi_awlen(xbar_periph_wr_axi_awlen),
@@ -148,21 +148,19 @@ module periph_wr_adapter #(
         .fub_axi_awuser(xbar_periph_wr_axi_awuser),
         .fub_axi_awvalid(xbar_periph_wr_axi_awvalid),
         .fub_axi_awready(xbar_periph_wr_axi_awready),
-
         .fub_axi_wdata(xbar_periph_wr_axi_wdata),
         .fub_axi_wstrb(xbar_periph_wr_axi_wstrb),
         .fub_axi_wlast(xbar_periph_wr_axi_wlast),
         .fub_axi_wuser(xbar_periph_wr_axi_wuser),
         .fub_axi_wvalid(xbar_periph_wr_axi_wvalid),
         .fub_axi_wready(xbar_periph_wr_axi_wready),
-
         .fub_axi_bid(xbar_periph_wr_axi_bid),
         .fub_axi_bresp(xbar_periph_wr_axi_bresp),
         .fub_axi_buser(xbar_periph_wr_axi_buser),
         .fub_axi_bvalid(xbar_periph_wr_axi_bvalid),
         .fub_axi_bready(xbar_periph_wr_axi_bready),
 
-        // Master interface (to external slave)
+        // External side (m_axi)
         .m_axi_awid(periph_wr_axi_awid),
         .m_axi_awaddr(periph_wr_axi_awaddr),
         .m_axi_awlen(periph_wr_axi_awlen),
@@ -176,21 +174,19 @@ module periph_wr_adapter #(
         .m_axi_awuser(periph_wr_axi_awuser),
         .m_axi_awvalid(periph_wr_axi_awvalid),
         .m_axi_awready(periph_wr_axi_awready),
-
         .m_axi_wdata(periph_wr_axi_wdata),
         .m_axi_wstrb(periph_wr_axi_wstrb),
         .m_axi_wlast(periph_wr_axi_wlast),
         .m_axi_wuser(periph_wr_axi_wuser),
         .m_axi_wvalid(periph_wr_axi_wvalid),
         .m_axi_wready(periph_wr_axi_wready),
-
         .m_axi_bid(periph_wr_axi_bid),
         .m_axi_bresp(periph_wr_axi_bresp),
         .m_axi_buser(periph_wr_axi_buser),
         .m_axi_bvalid(periph_wr_axi_bvalid),
         .m_axi_bready(periph_wr_axi_bready),
 
-        // Status output (unconnected - for clock gating)
+        // Status (unconnected = clock-gating tie-off)
         .busy()
     );
 
