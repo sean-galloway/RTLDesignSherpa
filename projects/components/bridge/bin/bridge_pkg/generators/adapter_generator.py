@@ -1233,142 +1233,58 @@ class AdapterGenerator:
             lines.append(f"    logic conv_{suffix}_rvalid;")
         lines.append("")
 
+        from ..components.axi4_dwidth_converter_component import Axi4DwidthConverter
+
+        struct_prefix = f"{self.master.name}_{suffix}"
+
         # Write converter
         if self.master.channels in ["wr", "rw"]:
-            lines.append(f"    axi4_dwidth_converter_wr #(")
-            lines.append(f"        .S_AXI_DATA_WIDTH({master_width}),")
-            lines.append(f"        .M_AXI_DATA_WIDTH({slave_width}),")
-            lines.append(f"        .AXI_ID_WIDTH({self.master.id_width}),")
-            lines.append(f"        .AXI_ADDR_WIDTH(32),")  # Use global 32-bit address width
-            lines.append("        .AXI_USER_WIDTH(1),")
-            lines.append("        .SKID_DEPTH_AW(2),")
-            lines.append("        .SKID_DEPTH_W(4),")
-            lines.append("        .SKID_DEPTH_B(2)")
-            lines.append(f"    ) u_wr_conv_{suffix} (")
-            lines.append("        .aclk(aclk),")
-            lines.append("        .aresetn(aresetn),")
-            lines.append("")
-            lines.append("        // Slave side (from wrapper) - BROADCAST requests")
-            lines.append("        .s_axi_awid(fub_axi_awid),")
-            lines.append("        .s_axi_awaddr(fub_axi_awaddr),")
-            lines.append("        .s_axi_awlen(fub_axi_awlen),")
-            lines.append("        .s_axi_awsize(fub_axi_awsize),")
-            lines.append("        .s_axi_awburst(fub_axi_awburst),")
-            lines.append("        .s_axi_awlock(fub_axi_awlock),")
-            lines.append("        .s_axi_awcache(fub_axi_awcache),")
-            lines.append("        .s_axi_awprot(fub_axi_awprot),")
-            lines.append("        .s_axi_awqos(4'b0),")
-            lines.append("        .s_axi_awregion(4'b0),")
-            lines.append("        .s_axi_awuser(1'b0),")
-            # Gate by per-width path-active so this converter only sees the
-            # AW when the selected slave actually has this width.
-            lines.append(f"        .s_axi_awvalid(fub_axi_awvalid && aw_path_active_{slave_width}b),")
-            lines.append(f"        .s_axi_awready(conv_{suffix}_awready),  // Intermediate signal")
-            lines.append("")
-            lines.append("        .s_axi_wdata(fub_axi_wdata),")
-            lines.append("        .s_axi_wstrb(fub_axi_wstrb),")
-            lines.append("        .s_axi_wlast(fub_axi_wlast),")
-            lines.append("        .s_axi_wuser(1'b0),")
-            lines.append(f"        .s_axi_wvalid(fub_axi_wvalid && w_path_active_{slave_width}b),")
-            lines.append(f"        .s_axi_wready(conv_{suffix}_wready),  // Intermediate signal")
-            lines.append("")
-            lines.append(f"        .s_axi_bid(conv_{suffix}_bid),  // Intermediate signal")
-            lines.append(f"        .s_axi_bresp(conv_{suffix}_bresp),  // Intermediate signal")
-            lines.append("        .s_axi_buser(),")
-            lines.append(f"        .s_axi_bvalid(conv_{suffix}_bvalid),  // Intermediate signal")
-            lines.append("        .s_axi_bready(fub_axi_bready),")
-            lines.append("")
-            lines.append("        // Master side (to crossbar)")
-            lines.append(f"        .m_axi_awid({self.master.name}_{suffix}_aw.id),")
-            lines.append(f"        .m_axi_awaddr({self.master.name}_{suffix}_aw.addr),")
-            lines.append(f"        .m_axi_awlen({self.master.name}_{suffix}_aw.len),")
-            lines.append(f"        .m_axi_awsize({self.master.name}_{suffix}_aw.size),")
-            lines.append(f"        .m_axi_awburst({self.master.name}_{suffix}_aw.burst),")
-            lines.append(f"        .m_axi_awlock({self.master.name}_{suffix}_aw.lock),")
-            lines.append(f"        .m_axi_awcache({self.master.name}_{suffix}_aw.cache),")
-            lines.append(f"        .m_axi_awprot({self.master.name}_{suffix}_aw.prot),")
-            lines.append(f"        .m_axi_awqos({self.master.name}_{suffix}_aw.qos),      // Tie to 0 in packet")
-            lines.append(f"        .m_axi_awregion({self.master.name}_{suffix}_aw.region), // Tie to 0 in packet")
-            lines.append(f"        .m_axi_awuser({self.master.name}_{suffix}_aw.user),     // Tie to 0 in packet")
-            lines.append(f"        .m_axi_awvalid({self.master.name}_{suffix}_awvalid),")
-            lines.append(f"        .m_axi_awready({self.master.name}_{suffix}_awready),")
-            lines.append("")
-            lines.append(f"        .m_axi_wdata({self.master.name}_{suffix}_w.data),")
-            lines.append(f"        .m_axi_wstrb({self.master.name}_{suffix}_w.strb),")
-            lines.append(f"        .m_axi_wlast({self.master.name}_{suffix}_w.last),")
-            lines.append(f"        .m_axi_wuser({self.master.name}_{suffix}_w.user),       // Tie to 0 in packet")
-            lines.append(f"        .m_axi_wvalid({self.master.name}_{suffix}_wvalid),")
-            lines.append(f"        .m_axi_wready({self.master.name}_{suffix}_wready),")
-            lines.append("")
-            lines.append(f"        .m_axi_bid({self.master.name}_{suffix}_b.id),")
-            lines.append(f"        .m_axi_bresp({self.master.name}_{suffix}_b.resp),")
-            lines.append(f"        .m_axi_buser({self.master.name}_{suffix}_b.user),       // From packet (ignored)")
-            lines.append(f"        .m_axi_bvalid({self.master.name}_{suffix}_bvalid),")
-            lines.append(f"        .m_axi_bready({self.master.name}_{suffix}_bready)")
-            lines.append("    );")
-            lines.append("")
+            conv_wr = Axi4DwidthConverter(
+                direction='wr',
+                instance_name=f'u_wr_conv_{suffix}',
+                s_data_width=master_width,
+                m_data_width=slave_width,
+                id_width=self.master.id_width,
+            )
+            conv_wr.connect_clocks_and_resets()
+            conv_wr.connect_s_axi_write(
+                fub_prefix='fub_axi_',
+                aw_valid_gate=f'fub_axi_awvalid && aw_path_active_{slave_width}b',
+                w_valid_gate=f'fub_axi_wvalid && w_path_active_{slave_width}b',
+                b_intercept_prefix=f'conv_{suffix}',
+            )
+            conv_wr.connect_m_axi_write(
+                struct_prefix=struct_prefix,
+                valid_signal=f'{struct_prefix}_awvalid',
+                ready_signal=f'{struct_prefix}_awready',
+                bvalid_signal=f'{struct_prefix}_bvalid',
+                bready_signal=f'{struct_prefix}_bready',
+            )
+            lines.extend(conv_wr.generate_lines())
 
         # Read converter
         if self.master.channels in ["rd", "rw"]:
-            lines.append(f"    axi4_dwidth_converter_rd #(")
-            lines.append(f"        .S_AXI_DATA_WIDTH({master_width}),")
-            lines.append(f"        .M_AXI_DATA_WIDTH({slave_width}),")
-            lines.append(f"        .AXI_ID_WIDTH({self.master.id_width}),")
-            lines.append(f"        .AXI_ADDR_WIDTH(32),")  # Use global 32-bit address width
-            lines.append("        .AXI_USER_WIDTH(1),")
-            lines.append("        .SKID_DEPTH_AR(2),")
-            lines.append("        .SKID_DEPTH_R(4)")
-            lines.append(f"    ) u_rd_conv_{suffix} (")
-            lines.append("        .aclk(aclk),")
-            lines.append("        .aresetn(aresetn),")
-            lines.append("")
-            lines.append("        // Slave side (from wrapper) - BROADCAST requests")
-            lines.append("        .s_axi_arid(fub_axi_arid),")
-            lines.append("        .s_axi_araddr(fub_axi_araddr),")
-            lines.append("        .s_axi_arlen(fub_axi_arlen),")
-            lines.append("        .s_axi_arsize(fub_axi_arsize),")
-            lines.append("        .s_axi_arburst(fub_axi_arburst),")
-            lines.append("        .s_axi_arlock(fub_axi_arlock),")
-            lines.append("        .s_axi_arcache(fub_axi_arcache),")
-            lines.append("        .s_axi_arprot(fub_axi_arprot),")
-            lines.append("        .s_axi_arqos(4'b0),")
-            lines.append("        .s_axi_arregion(4'b0),")
-            lines.append("        .s_axi_aruser(1'b0),")
-            lines.append(f"        .s_axi_arvalid(fub_axi_arvalid && ar_path_active_{slave_width}b),")
-            lines.append(f"        .s_axi_arready(conv_{suffix}_arready),  // Intermediate signal")
-            lines.append("")
-            lines.append(f"        .s_axi_rid(conv_{suffix}_rid),  // Intermediate signal")
-            lines.append(f"        .s_axi_rdata(conv_{suffix}_rdata),  // Intermediate signal")
-            lines.append(f"        .s_axi_rresp(conv_{suffix}_rresp),  // Intermediate signal")
-            lines.append(f"        .s_axi_rlast(conv_{suffix}_rlast),  // Intermediate signal")
-            lines.append("        .s_axi_ruser(),")
-            lines.append(f"        .s_axi_rvalid(conv_{suffix}_rvalid),  // Intermediate signal")
-            lines.append("        .s_axi_rready(fub_axi_rready),")
-            lines.append("")
-            lines.append("        // Master side (to crossbar)")
-            lines.append(f"        .m_axi_arid({self.master.name}_{suffix}_ar.id),")
-            lines.append(f"        .m_axi_araddr({self.master.name}_{suffix}_ar.addr),")
-            lines.append(f"        .m_axi_arlen({self.master.name}_{suffix}_ar.len),")
-            lines.append(f"        .m_axi_arsize({self.master.name}_{suffix}_ar.size),")
-            lines.append(f"        .m_axi_arburst({self.master.name}_{suffix}_ar.burst),")
-            lines.append(f"        .m_axi_arlock({self.master.name}_{suffix}_ar.lock),")
-            lines.append(f"        .m_axi_arcache({self.master.name}_{suffix}_ar.cache),")
-            lines.append(f"        .m_axi_arprot({self.master.name}_{suffix}_ar.prot),")
-            lines.append(f"        .m_axi_arqos({self.master.name}_{suffix}_ar.qos),      // Tie to 0 in packet")
-            lines.append(f"        .m_axi_arregion({self.master.name}_{suffix}_ar.region), // Tie to 0 in packet")
-            lines.append(f"        .m_axi_aruser({self.master.name}_{suffix}_ar.user),     // Tie to 0 in packet")
-            lines.append(f"        .m_axi_arvalid({self.master.name}_{suffix}_arvalid),")
-            lines.append(f"        .m_axi_arready({self.master.name}_{suffix}_arready),")
-            lines.append("")
-            lines.append(f"        .m_axi_rid({self.master.name}_{suffix}_r.id),")
-            lines.append(f"        .m_axi_rdata({self.master.name}_{suffix}_r.data),")
-            lines.append(f"        .m_axi_rresp({self.master.name}_{suffix}_r.resp),")
-            lines.append(f"        .m_axi_rlast({self.master.name}_{suffix}_r.last),")
-            lines.append(f"        .m_axi_ruser({self.master.name}_{suffix}_r.user),       // From packet (ignored)")
-            lines.append(f"        .m_axi_rvalid({self.master.name}_{suffix}_rvalid),")
-            lines.append(f"        .m_axi_rready({self.master.name}_{suffix}_rready)")
-            lines.append("    );")
-            lines.append("")
+            conv_rd = Axi4DwidthConverter(
+                direction='rd',
+                instance_name=f'u_rd_conv_{suffix}',
+                s_data_width=master_width,
+                m_data_width=slave_width,
+                id_width=self.master.id_width,
+            )
+            conv_rd.connect_clocks_and_resets()
+            conv_rd.connect_s_axi_read(
+                fub_prefix='fub_axi_',
+                ar_valid_gate=f'fub_axi_arvalid && ar_path_active_{slave_width}b',
+                r_intercept_prefix=f'conv_{suffix}',
+            )
+            conv_rd.connect_m_axi_read(
+                struct_prefix=struct_prefix,
+                arvalid_signal=f'{struct_prefix}_arvalid',
+                arready_signal=f'{struct_prefix}_arready',
+                rvalid_signal=f'{struct_prefix}_rvalid',
+                rready_signal=f'{struct_prefix}_rready',
+            )
+            lines.extend(conv_rd.generate_lines())
 
         return lines
 

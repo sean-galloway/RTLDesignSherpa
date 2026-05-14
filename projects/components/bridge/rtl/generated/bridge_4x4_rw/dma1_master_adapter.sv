@@ -433,7 +433,7 @@ module dma1_master_adapter #(
         .aclk(aclk),
         .aresetn(aresetn),
 
-        // Slave side (from wrapper) - BROADCAST requests
+        // Slave side (from wrapper) - BROADCAST requests; ready/B intercepted for FIFO
         .s_axi_awid(fub_axi_awid),
         .s_axi_awaddr(fub_axi_awaddr),
         .s_axi_awlen(fub_axi_awlen),
@@ -446,19 +446,17 @@ module dma1_master_adapter #(
         .s_axi_awregion(4'b0),
         .s_axi_awuser(1'b0),
         .s_axi_awvalid(fub_axi_awvalid && aw_path_active_64b),
-        .s_axi_awready(conv_64b_awready),  // Intermediate signal
-
+        .s_axi_awready(conv_64b_awready),
         .s_axi_wdata(fub_axi_wdata),
         .s_axi_wstrb(fub_axi_wstrb),
         .s_axi_wlast(fub_axi_wlast),
         .s_axi_wuser(1'b0),
         .s_axi_wvalid(fub_axi_wvalid && w_path_active_64b),
-        .s_axi_wready(conv_64b_wready),  // Intermediate signal
-
-        .s_axi_bid(conv_64b_bid),  // Intermediate signal
-        .s_axi_bresp(conv_64b_bresp),  // Intermediate signal
+        .s_axi_wready(conv_64b_wready),
+        .s_axi_bid(conv_64b_bid),
+        .s_axi_bresp(conv_64b_bresp),
         .s_axi_buser(),
-        .s_axi_bvalid(conv_64b_bvalid),  // Intermediate signal
+        .s_axi_bvalid(conv_64b_bvalid),
         .s_axi_bready(fub_axi_bready),
 
         // Master side (to crossbar)
@@ -470,22 +468,20 @@ module dma1_master_adapter #(
         .m_axi_awlock(dma1_master_64b_aw.lock),
         .m_axi_awcache(dma1_master_64b_aw.cache),
         .m_axi_awprot(dma1_master_64b_aw.prot),
-        .m_axi_awqos(dma1_master_64b_aw.qos),      // Tie to 0 in packet
-        .m_axi_awregion(dma1_master_64b_aw.region), // Tie to 0 in packet
-        .m_axi_awuser(dma1_master_64b_aw.user),     // Tie to 0 in packet
+        .m_axi_awqos(dma1_master_64b_aw.qos),
+        .m_axi_awregion(dma1_master_64b_aw.region),
+        .m_axi_awuser(dma1_master_64b_aw.user),
         .m_axi_awvalid(dma1_master_64b_awvalid),
         .m_axi_awready(dma1_master_64b_awready),
-
         .m_axi_wdata(dma1_master_64b_w.data),
         .m_axi_wstrb(dma1_master_64b_w.strb),
         .m_axi_wlast(dma1_master_64b_w.last),
-        .m_axi_wuser(dma1_master_64b_w.user),       // Tie to 0 in packet
+        .m_axi_wuser(dma1_master_64b_w.user),
         .m_axi_wvalid(dma1_master_64b_wvalid),
         .m_axi_wready(dma1_master_64b_wready),
-
         .m_axi_bid(dma1_master_64b_b.id),
         .m_axi_bresp(dma1_master_64b_b.resp),
-        .m_axi_buser(dma1_master_64b_b.user),       // From packet (ignored)
+        .m_axi_buser(dma1_master_64b_b.user),
         .m_axi_bvalid(dma1_master_64b_bvalid),
         .m_axi_bready(dma1_master_64b_bready)
     );
@@ -502,7 +498,7 @@ module dma1_master_adapter #(
         .aclk(aclk),
         .aresetn(aresetn),
 
-        // Slave side (from wrapper) - BROADCAST requests
+        // Slave side (from wrapper) - BROADCAST requests; arready/R intercepted for FIFO
         .s_axi_arid(fub_axi_arid),
         .s_axi_araddr(fub_axi_araddr),
         .s_axi_arlen(fub_axi_arlen),
@@ -515,14 +511,13 @@ module dma1_master_adapter #(
         .s_axi_arregion(4'b0),
         .s_axi_aruser(1'b0),
         .s_axi_arvalid(fub_axi_arvalid && ar_path_active_64b),
-        .s_axi_arready(conv_64b_arready),  // Intermediate signal
-
-        .s_axi_rid(conv_64b_rid),  // Intermediate signal
-        .s_axi_rdata(conv_64b_rdata),  // Intermediate signal
-        .s_axi_rresp(conv_64b_rresp),  // Intermediate signal
-        .s_axi_rlast(conv_64b_rlast),  // Intermediate signal
+        .s_axi_arready(conv_64b_arready),
+        .s_axi_rid(conv_64b_rid),
+        .s_axi_rdata(conv_64b_rdata),
+        .s_axi_rresp(conv_64b_rresp),
+        .s_axi_rlast(conv_64b_rlast),
         .s_axi_ruser(),
-        .s_axi_rvalid(conv_64b_rvalid),  // Intermediate signal
+        .s_axi_rvalid(conv_64b_rvalid),
         .s_axi_rready(fub_axi_rready),
 
         // Master side (to crossbar)
@@ -534,17 +529,16 @@ module dma1_master_adapter #(
         .m_axi_arlock(dma1_master_64b_ar.lock),
         .m_axi_arcache(dma1_master_64b_ar.cache),
         .m_axi_arprot(dma1_master_64b_ar.prot),
-        .m_axi_arqos(dma1_master_64b_ar.qos),      // Tie to 0 in packet
-        .m_axi_arregion(dma1_master_64b_ar.region), // Tie to 0 in packet
-        .m_axi_aruser(dma1_master_64b_ar.user),     // Tie to 0 in packet
+        .m_axi_arqos(dma1_master_64b_ar.qos),
+        .m_axi_arregion(dma1_master_64b_ar.region),
+        .m_axi_aruser(dma1_master_64b_ar.user),
         .m_axi_arvalid(dma1_master_64b_arvalid),
         .m_axi_arready(dma1_master_64b_arready),
-
         .m_axi_rid(dma1_master_64b_r.id),
         .m_axi_rdata(dma1_master_64b_r.data),
         .m_axi_rresp(dma1_master_64b_r.resp),
         .m_axi_rlast(dma1_master_64b_r.last),
-        .m_axi_ruser(dma1_master_64b_r.user),       // From packet (ignored)
+        .m_axi_ruser(dma1_master_64b_r.user),
         .m_axi_rvalid(dma1_master_64b_rvalid),
         .m_axi_rready(dma1_master_64b_rready)
     );
@@ -631,7 +625,7 @@ module dma1_master_adapter #(
         .aclk(aclk),
         .aresetn(aresetn),
 
-        // Slave side (from wrapper) - BROADCAST requests
+        // Slave side (from wrapper) - BROADCAST requests; ready/B intercepted for FIFO
         .s_axi_awid(fub_axi_awid),
         .s_axi_awaddr(fub_axi_awaddr),
         .s_axi_awlen(fub_axi_awlen),
@@ -644,19 +638,17 @@ module dma1_master_adapter #(
         .s_axi_awregion(4'b0),
         .s_axi_awuser(1'b0),
         .s_axi_awvalid(fub_axi_awvalid && aw_path_active_256b),
-        .s_axi_awready(conv_256b_awready),  // Intermediate signal
-
+        .s_axi_awready(conv_256b_awready),
         .s_axi_wdata(fub_axi_wdata),
         .s_axi_wstrb(fub_axi_wstrb),
         .s_axi_wlast(fub_axi_wlast),
         .s_axi_wuser(1'b0),
         .s_axi_wvalid(fub_axi_wvalid && w_path_active_256b),
-        .s_axi_wready(conv_256b_wready),  // Intermediate signal
-
-        .s_axi_bid(conv_256b_bid),  // Intermediate signal
-        .s_axi_bresp(conv_256b_bresp),  // Intermediate signal
+        .s_axi_wready(conv_256b_wready),
+        .s_axi_bid(conv_256b_bid),
+        .s_axi_bresp(conv_256b_bresp),
         .s_axi_buser(),
-        .s_axi_bvalid(conv_256b_bvalid),  // Intermediate signal
+        .s_axi_bvalid(conv_256b_bvalid),
         .s_axi_bready(fub_axi_bready),
 
         // Master side (to crossbar)
@@ -668,22 +660,20 @@ module dma1_master_adapter #(
         .m_axi_awlock(dma1_master_256b_aw.lock),
         .m_axi_awcache(dma1_master_256b_aw.cache),
         .m_axi_awprot(dma1_master_256b_aw.prot),
-        .m_axi_awqos(dma1_master_256b_aw.qos),      // Tie to 0 in packet
-        .m_axi_awregion(dma1_master_256b_aw.region), // Tie to 0 in packet
-        .m_axi_awuser(dma1_master_256b_aw.user),     // Tie to 0 in packet
+        .m_axi_awqos(dma1_master_256b_aw.qos),
+        .m_axi_awregion(dma1_master_256b_aw.region),
+        .m_axi_awuser(dma1_master_256b_aw.user),
         .m_axi_awvalid(dma1_master_256b_awvalid),
         .m_axi_awready(dma1_master_256b_awready),
-
         .m_axi_wdata(dma1_master_256b_w.data),
         .m_axi_wstrb(dma1_master_256b_w.strb),
         .m_axi_wlast(dma1_master_256b_w.last),
-        .m_axi_wuser(dma1_master_256b_w.user),       // Tie to 0 in packet
+        .m_axi_wuser(dma1_master_256b_w.user),
         .m_axi_wvalid(dma1_master_256b_wvalid),
         .m_axi_wready(dma1_master_256b_wready),
-
         .m_axi_bid(dma1_master_256b_b.id),
         .m_axi_bresp(dma1_master_256b_b.resp),
-        .m_axi_buser(dma1_master_256b_b.user),       // From packet (ignored)
+        .m_axi_buser(dma1_master_256b_b.user),
         .m_axi_bvalid(dma1_master_256b_bvalid),
         .m_axi_bready(dma1_master_256b_bready)
     );
@@ -700,7 +690,7 @@ module dma1_master_adapter #(
         .aclk(aclk),
         .aresetn(aresetn),
 
-        // Slave side (from wrapper) - BROADCAST requests
+        // Slave side (from wrapper) - BROADCAST requests; arready/R intercepted for FIFO
         .s_axi_arid(fub_axi_arid),
         .s_axi_araddr(fub_axi_araddr),
         .s_axi_arlen(fub_axi_arlen),
@@ -713,14 +703,13 @@ module dma1_master_adapter #(
         .s_axi_arregion(4'b0),
         .s_axi_aruser(1'b0),
         .s_axi_arvalid(fub_axi_arvalid && ar_path_active_256b),
-        .s_axi_arready(conv_256b_arready),  // Intermediate signal
-
-        .s_axi_rid(conv_256b_rid),  // Intermediate signal
-        .s_axi_rdata(conv_256b_rdata),  // Intermediate signal
-        .s_axi_rresp(conv_256b_rresp),  // Intermediate signal
-        .s_axi_rlast(conv_256b_rlast),  // Intermediate signal
+        .s_axi_arready(conv_256b_arready),
+        .s_axi_rid(conv_256b_rid),
+        .s_axi_rdata(conv_256b_rdata),
+        .s_axi_rresp(conv_256b_rresp),
+        .s_axi_rlast(conv_256b_rlast),
         .s_axi_ruser(),
-        .s_axi_rvalid(conv_256b_rvalid),  // Intermediate signal
+        .s_axi_rvalid(conv_256b_rvalid),
         .s_axi_rready(fub_axi_rready),
 
         // Master side (to crossbar)
@@ -732,17 +721,16 @@ module dma1_master_adapter #(
         .m_axi_arlock(dma1_master_256b_ar.lock),
         .m_axi_arcache(dma1_master_256b_ar.cache),
         .m_axi_arprot(dma1_master_256b_ar.prot),
-        .m_axi_arqos(dma1_master_256b_ar.qos),      // Tie to 0 in packet
-        .m_axi_arregion(dma1_master_256b_ar.region), // Tie to 0 in packet
-        .m_axi_aruser(dma1_master_256b_ar.user),     // Tie to 0 in packet
+        .m_axi_arqos(dma1_master_256b_ar.qos),
+        .m_axi_arregion(dma1_master_256b_ar.region),
+        .m_axi_aruser(dma1_master_256b_ar.user),
         .m_axi_arvalid(dma1_master_256b_arvalid),
         .m_axi_arready(dma1_master_256b_arready),
-
         .m_axi_rid(dma1_master_256b_r.id),
         .m_axi_rdata(dma1_master_256b_r.data),
         .m_axi_rresp(dma1_master_256b_r.resp),
         .m_axi_rlast(dma1_master_256b_r.last),
-        .m_axi_ruser(dma1_master_256b_r.user),       // From packet (ignored)
+        .m_axi_ruser(dma1_master_256b_r.user),
         .m_axi_rvalid(dma1_master_256b_rvalid),
         .m_axi_rready(dma1_master_256b_rready)
     );

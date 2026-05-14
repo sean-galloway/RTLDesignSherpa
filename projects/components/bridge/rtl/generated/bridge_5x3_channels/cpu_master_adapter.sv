@@ -407,7 +407,7 @@ module cpu_master_adapter #(
         .aclk(aclk),
         .aresetn(aresetn),
 
-        // Slave side (from wrapper) - BROADCAST requests
+        // Slave side (from wrapper) - BROADCAST requests; ready/B intercepted for FIFO
         .s_axi_awid(fub_axi_awid),
         .s_axi_awaddr(fub_axi_awaddr),
         .s_axi_awlen(fub_axi_awlen),
@@ -420,19 +420,17 @@ module cpu_master_adapter #(
         .s_axi_awregion(4'b0),
         .s_axi_awuser(1'b0),
         .s_axi_awvalid(fub_axi_awvalid && aw_path_active_32b),
-        .s_axi_awready(conv_32b_awready),  // Intermediate signal
-
+        .s_axi_awready(conv_32b_awready),
         .s_axi_wdata(fub_axi_wdata),
         .s_axi_wstrb(fub_axi_wstrb),
         .s_axi_wlast(fub_axi_wlast),
         .s_axi_wuser(1'b0),
         .s_axi_wvalid(fub_axi_wvalid && w_path_active_32b),
-        .s_axi_wready(conv_32b_wready),  // Intermediate signal
-
-        .s_axi_bid(conv_32b_bid),  // Intermediate signal
-        .s_axi_bresp(conv_32b_bresp),  // Intermediate signal
+        .s_axi_wready(conv_32b_wready),
+        .s_axi_bid(conv_32b_bid),
+        .s_axi_bresp(conv_32b_bresp),
         .s_axi_buser(),
-        .s_axi_bvalid(conv_32b_bvalid),  // Intermediate signal
+        .s_axi_bvalid(conv_32b_bvalid),
         .s_axi_bready(fub_axi_bready),
 
         // Master side (to crossbar)
@@ -444,22 +442,20 @@ module cpu_master_adapter #(
         .m_axi_awlock(cpu_master_32b_aw.lock),
         .m_axi_awcache(cpu_master_32b_aw.cache),
         .m_axi_awprot(cpu_master_32b_aw.prot),
-        .m_axi_awqos(cpu_master_32b_aw.qos),      // Tie to 0 in packet
-        .m_axi_awregion(cpu_master_32b_aw.region), // Tie to 0 in packet
-        .m_axi_awuser(cpu_master_32b_aw.user),     // Tie to 0 in packet
+        .m_axi_awqos(cpu_master_32b_aw.qos),
+        .m_axi_awregion(cpu_master_32b_aw.region),
+        .m_axi_awuser(cpu_master_32b_aw.user),
         .m_axi_awvalid(cpu_master_32b_awvalid),
         .m_axi_awready(cpu_master_32b_awready),
-
         .m_axi_wdata(cpu_master_32b_w.data),
         .m_axi_wstrb(cpu_master_32b_w.strb),
         .m_axi_wlast(cpu_master_32b_w.last),
-        .m_axi_wuser(cpu_master_32b_w.user),       // Tie to 0 in packet
+        .m_axi_wuser(cpu_master_32b_w.user),
         .m_axi_wvalid(cpu_master_32b_wvalid),
         .m_axi_wready(cpu_master_32b_wready),
-
         .m_axi_bid(cpu_master_32b_b.id),
         .m_axi_bresp(cpu_master_32b_b.resp),
-        .m_axi_buser(cpu_master_32b_b.user),       // From packet (ignored)
+        .m_axi_buser(cpu_master_32b_b.user),
         .m_axi_bvalid(cpu_master_32b_bvalid),
         .m_axi_bready(cpu_master_32b_bready)
     );
@@ -476,7 +472,7 @@ module cpu_master_adapter #(
         .aclk(aclk),
         .aresetn(aresetn),
 
-        // Slave side (from wrapper) - BROADCAST requests
+        // Slave side (from wrapper) - BROADCAST requests; arready/R intercepted for FIFO
         .s_axi_arid(fub_axi_arid),
         .s_axi_araddr(fub_axi_araddr),
         .s_axi_arlen(fub_axi_arlen),
@@ -489,14 +485,13 @@ module cpu_master_adapter #(
         .s_axi_arregion(4'b0),
         .s_axi_aruser(1'b0),
         .s_axi_arvalid(fub_axi_arvalid && ar_path_active_32b),
-        .s_axi_arready(conv_32b_arready),  // Intermediate signal
-
-        .s_axi_rid(conv_32b_rid),  // Intermediate signal
-        .s_axi_rdata(conv_32b_rdata),  // Intermediate signal
-        .s_axi_rresp(conv_32b_rresp),  // Intermediate signal
-        .s_axi_rlast(conv_32b_rlast),  // Intermediate signal
+        .s_axi_arready(conv_32b_arready),
+        .s_axi_rid(conv_32b_rid),
+        .s_axi_rdata(conv_32b_rdata),
+        .s_axi_rresp(conv_32b_rresp),
+        .s_axi_rlast(conv_32b_rlast),
         .s_axi_ruser(),
-        .s_axi_rvalid(conv_32b_rvalid),  // Intermediate signal
+        .s_axi_rvalid(conv_32b_rvalid),
         .s_axi_rready(fub_axi_rready),
 
         // Master side (to crossbar)
@@ -508,17 +503,16 @@ module cpu_master_adapter #(
         .m_axi_arlock(cpu_master_32b_ar.lock),
         .m_axi_arcache(cpu_master_32b_ar.cache),
         .m_axi_arprot(cpu_master_32b_ar.prot),
-        .m_axi_arqos(cpu_master_32b_ar.qos),      // Tie to 0 in packet
-        .m_axi_arregion(cpu_master_32b_ar.region), // Tie to 0 in packet
-        .m_axi_aruser(cpu_master_32b_ar.user),     // Tie to 0 in packet
+        .m_axi_arqos(cpu_master_32b_ar.qos),
+        .m_axi_arregion(cpu_master_32b_ar.region),
+        .m_axi_aruser(cpu_master_32b_ar.user),
         .m_axi_arvalid(cpu_master_32b_arvalid),
         .m_axi_arready(cpu_master_32b_arready),
-
         .m_axi_rid(cpu_master_32b_r.id),
         .m_axi_rdata(cpu_master_32b_r.data),
         .m_axi_rresp(cpu_master_32b_r.resp),
         .m_axi_rlast(cpu_master_32b_r.last),
-        .m_axi_ruser(cpu_master_32b_r.user),       // From packet (ignored)
+        .m_axi_ruser(cpu_master_32b_r.user),
         .m_axi_rvalid(cpu_master_32b_rvalid),
         .m_axi_rready(cpu_master_32b_rready)
     );
@@ -553,7 +547,7 @@ module cpu_master_adapter #(
         .aclk(aclk),
         .aresetn(aresetn),
 
-        // Slave side (from wrapper) - BROADCAST requests
+        // Slave side (from wrapper) - BROADCAST requests; ready/B intercepted for FIFO
         .s_axi_awid(fub_axi_awid),
         .s_axi_awaddr(fub_axi_awaddr),
         .s_axi_awlen(fub_axi_awlen),
@@ -566,19 +560,17 @@ module cpu_master_adapter #(
         .s_axi_awregion(4'b0),
         .s_axi_awuser(1'b0),
         .s_axi_awvalid(fub_axi_awvalid && aw_path_active_256b),
-        .s_axi_awready(conv_256b_awready),  // Intermediate signal
-
+        .s_axi_awready(conv_256b_awready),
         .s_axi_wdata(fub_axi_wdata),
         .s_axi_wstrb(fub_axi_wstrb),
         .s_axi_wlast(fub_axi_wlast),
         .s_axi_wuser(1'b0),
         .s_axi_wvalid(fub_axi_wvalid && w_path_active_256b),
-        .s_axi_wready(conv_256b_wready),  // Intermediate signal
-
-        .s_axi_bid(conv_256b_bid),  // Intermediate signal
-        .s_axi_bresp(conv_256b_bresp),  // Intermediate signal
+        .s_axi_wready(conv_256b_wready),
+        .s_axi_bid(conv_256b_bid),
+        .s_axi_bresp(conv_256b_bresp),
         .s_axi_buser(),
-        .s_axi_bvalid(conv_256b_bvalid),  // Intermediate signal
+        .s_axi_bvalid(conv_256b_bvalid),
         .s_axi_bready(fub_axi_bready),
 
         // Master side (to crossbar)
@@ -590,22 +582,20 @@ module cpu_master_adapter #(
         .m_axi_awlock(cpu_master_256b_aw.lock),
         .m_axi_awcache(cpu_master_256b_aw.cache),
         .m_axi_awprot(cpu_master_256b_aw.prot),
-        .m_axi_awqos(cpu_master_256b_aw.qos),      // Tie to 0 in packet
-        .m_axi_awregion(cpu_master_256b_aw.region), // Tie to 0 in packet
-        .m_axi_awuser(cpu_master_256b_aw.user),     // Tie to 0 in packet
+        .m_axi_awqos(cpu_master_256b_aw.qos),
+        .m_axi_awregion(cpu_master_256b_aw.region),
+        .m_axi_awuser(cpu_master_256b_aw.user),
         .m_axi_awvalid(cpu_master_256b_awvalid),
         .m_axi_awready(cpu_master_256b_awready),
-
         .m_axi_wdata(cpu_master_256b_w.data),
         .m_axi_wstrb(cpu_master_256b_w.strb),
         .m_axi_wlast(cpu_master_256b_w.last),
-        .m_axi_wuser(cpu_master_256b_w.user),       // Tie to 0 in packet
+        .m_axi_wuser(cpu_master_256b_w.user),
         .m_axi_wvalid(cpu_master_256b_wvalid),
         .m_axi_wready(cpu_master_256b_wready),
-
         .m_axi_bid(cpu_master_256b_b.id),
         .m_axi_bresp(cpu_master_256b_b.resp),
-        .m_axi_buser(cpu_master_256b_b.user),       // From packet (ignored)
+        .m_axi_buser(cpu_master_256b_b.user),
         .m_axi_bvalid(cpu_master_256b_bvalid),
         .m_axi_bready(cpu_master_256b_bready)
     );
@@ -622,7 +612,7 @@ module cpu_master_adapter #(
         .aclk(aclk),
         .aresetn(aresetn),
 
-        // Slave side (from wrapper) - BROADCAST requests
+        // Slave side (from wrapper) - BROADCAST requests; arready/R intercepted for FIFO
         .s_axi_arid(fub_axi_arid),
         .s_axi_araddr(fub_axi_araddr),
         .s_axi_arlen(fub_axi_arlen),
@@ -635,14 +625,13 @@ module cpu_master_adapter #(
         .s_axi_arregion(4'b0),
         .s_axi_aruser(1'b0),
         .s_axi_arvalid(fub_axi_arvalid && ar_path_active_256b),
-        .s_axi_arready(conv_256b_arready),  // Intermediate signal
-
-        .s_axi_rid(conv_256b_rid),  // Intermediate signal
-        .s_axi_rdata(conv_256b_rdata),  // Intermediate signal
-        .s_axi_rresp(conv_256b_rresp),  // Intermediate signal
-        .s_axi_rlast(conv_256b_rlast),  // Intermediate signal
+        .s_axi_arready(conv_256b_arready),
+        .s_axi_rid(conv_256b_rid),
+        .s_axi_rdata(conv_256b_rdata),
+        .s_axi_rresp(conv_256b_rresp),
+        .s_axi_rlast(conv_256b_rlast),
         .s_axi_ruser(),
-        .s_axi_rvalid(conv_256b_rvalid),  // Intermediate signal
+        .s_axi_rvalid(conv_256b_rvalid),
         .s_axi_rready(fub_axi_rready),
 
         // Master side (to crossbar)
@@ -654,17 +643,16 @@ module cpu_master_adapter #(
         .m_axi_arlock(cpu_master_256b_ar.lock),
         .m_axi_arcache(cpu_master_256b_ar.cache),
         .m_axi_arprot(cpu_master_256b_ar.prot),
-        .m_axi_arqos(cpu_master_256b_ar.qos),      // Tie to 0 in packet
-        .m_axi_arregion(cpu_master_256b_ar.region), // Tie to 0 in packet
-        .m_axi_aruser(cpu_master_256b_ar.user),     // Tie to 0 in packet
+        .m_axi_arqos(cpu_master_256b_ar.qos),
+        .m_axi_arregion(cpu_master_256b_ar.region),
+        .m_axi_aruser(cpu_master_256b_ar.user),
         .m_axi_arvalid(cpu_master_256b_arvalid),
         .m_axi_arready(cpu_master_256b_arready),
-
         .m_axi_rid(cpu_master_256b_r.id),
         .m_axi_rdata(cpu_master_256b_r.data),
         .m_axi_rresp(cpu_master_256b_r.resp),
         .m_axi_rlast(cpu_master_256b_r.last),
-        .m_axi_ruser(cpu_master_256b_r.user),       // From packet (ignored)
+        .m_axi_ruser(cpu_master_256b_r.user),
         .m_axi_rvalid(cpu_master_256b_rvalid),
         .m_axi_rready(cpu_master_256b_rready)
     );

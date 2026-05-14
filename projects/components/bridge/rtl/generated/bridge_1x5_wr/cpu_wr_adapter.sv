@@ -272,7 +272,7 @@ module cpu_wr_adapter #(
         .aclk(aclk),
         .aresetn(aresetn),
 
-        // Slave side (from wrapper) - BROADCAST requests
+        // Slave side (from wrapper) - BROADCAST requests; ready/B intercepted for FIFO
         .s_axi_awid(fub_axi_awid),
         .s_axi_awaddr(fub_axi_awaddr),
         .s_axi_awlen(fub_axi_awlen),
@@ -285,19 +285,17 @@ module cpu_wr_adapter #(
         .s_axi_awregion(4'b0),
         .s_axi_awuser(1'b0),
         .s_axi_awvalid(fub_axi_awvalid && aw_path_active_32b),
-        .s_axi_awready(conv_32b_awready),  // Intermediate signal
-
+        .s_axi_awready(conv_32b_awready),
         .s_axi_wdata(fub_axi_wdata),
         .s_axi_wstrb(fub_axi_wstrb),
         .s_axi_wlast(fub_axi_wlast),
         .s_axi_wuser(1'b0),
         .s_axi_wvalid(fub_axi_wvalid && w_path_active_32b),
-        .s_axi_wready(conv_32b_wready),  // Intermediate signal
-
-        .s_axi_bid(conv_32b_bid),  // Intermediate signal
-        .s_axi_bresp(conv_32b_bresp),  // Intermediate signal
+        .s_axi_wready(conv_32b_wready),
+        .s_axi_bid(conv_32b_bid),
+        .s_axi_bresp(conv_32b_bresp),
         .s_axi_buser(),
-        .s_axi_bvalid(conv_32b_bvalid),  // Intermediate signal
+        .s_axi_bvalid(conv_32b_bvalid),
         .s_axi_bready(fub_axi_bready),
 
         // Master side (to crossbar)
@@ -309,22 +307,20 @@ module cpu_wr_adapter #(
         .m_axi_awlock(cpu_wr_32b_aw.lock),
         .m_axi_awcache(cpu_wr_32b_aw.cache),
         .m_axi_awprot(cpu_wr_32b_aw.prot),
-        .m_axi_awqos(cpu_wr_32b_aw.qos),      // Tie to 0 in packet
-        .m_axi_awregion(cpu_wr_32b_aw.region), // Tie to 0 in packet
-        .m_axi_awuser(cpu_wr_32b_aw.user),     // Tie to 0 in packet
+        .m_axi_awqos(cpu_wr_32b_aw.qos),
+        .m_axi_awregion(cpu_wr_32b_aw.region),
+        .m_axi_awuser(cpu_wr_32b_aw.user),
         .m_axi_awvalid(cpu_wr_32b_awvalid),
         .m_axi_awready(cpu_wr_32b_awready),
-
         .m_axi_wdata(cpu_wr_32b_w.data),
         .m_axi_wstrb(cpu_wr_32b_w.strb),
         .m_axi_wlast(cpu_wr_32b_w.last),
-        .m_axi_wuser(cpu_wr_32b_w.user),       // Tie to 0 in packet
+        .m_axi_wuser(cpu_wr_32b_w.user),
         .m_axi_wvalid(cpu_wr_32b_wvalid),
         .m_axi_wready(cpu_wr_32b_wready),
-
         .m_axi_bid(cpu_wr_32b_b.id),
         .m_axi_bresp(cpu_wr_32b_b.resp),
-        .m_axi_buser(cpu_wr_32b_b.user),       // From packet (ignored)
+        .m_axi_buser(cpu_wr_32b_b.user),
         .m_axi_bvalid(cpu_wr_32b_bvalid),
         .m_axi_bready(cpu_wr_32b_bready)
     );
@@ -386,7 +382,7 @@ module cpu_wr_adapter #(
         .aclk(aclk),
         .aresetn(aresetn),
 
-        // Slave side (from wrapper) - BROADCAST requests
+        // Slave side (from wrapper) - BROADCAST requests; ready/B intercepted for FIFO
         .s_axi_awid(fub_axi_awid),
         .s_axi_awaddr(fub_axi_awaddr),
         .s_axi_awlen(fub_axi_awlen),
@@ -399,19 +395,17 @@ module cpu_wr_adapter #(
         .s_axi_awregion(4'b0),
         .s_axi_awuser(1'b0),
         .s_axi_awvalid(fub_axi_awvalid && aw_path_active_128b),
-        .s_axi_awready(conv_128b_awready),  // Intermediate signal
-
+        .s_axi_awready(conv_128b_awready),
         .s_axi_wdata(fub_axi_wdata),
         .s_axi_wstrb(fub_axi_wstrb),
         .s_axi_wlast(fub_axi_wlast),
         .s_axi_wuser(1'b0),
         .s_axi_wvalid(fub_axi_wvalid && w_path_active_128b),
-        .s_axi_wready(conv_128b_wready),  // Intermediate signal
-
-        .s_axi_bid(conv_128b_bid),  // Intermediate signal
-        .s_axi_bresp(conv_128b_bresp),  // Intermediate signal
+        .s_axi_wready(conv_128b_wready),
+        .s_axi_bid(conv_128b_bid),
+        .s_axi_bresp(conv_128b_bresp),
         .s_axi_buser(),
-        .s_axi_bvalid(conv_128b_bvalid),  // Intermediate signal
+        .s_axi_bvalid(conv_128b_bvalid),
         .s_axi_bready(fub_axi_bready),
 
         // Master side (to crossbar)
@@ -423,22 +417,20 @@ module cpu_wr_adapter #(
         .m_axi_awlock(cpu_wr_128b_aw.lock),
         .m_axi_awcache(cpu_wr_128b_aw.cache),
         .m_axi_awprot(cpu_wr_128b_aw.prot),
-        .m_axi_awqos(cpu_wr_128b_aw.qos),      // Tie to 0 in packet
-        .m_axi_awregion(cpu_wr_128b_aw.region), // Tie to 0 in packet
-        .m_axi_awuser(cpu_wr_128b_aw.user),     // Tie to 0 in packet
+        .m_axi_awqos(cpu_wr_128b_aw.qos),
+        .m_axi_awregion(cpu_wr_128b_aw.region),
+        .m_axi_awuser(cpu_wr_128b_aw.user),
         .m_axi_awvalid(cpu_wr_128b_awvalid),
         .m_axi_awready(cpu_wr_128b_awready),
-
         .m_axi_wdata(cpu_wr_128b_w.data),
         .m_axi_wstrb(cpu_wr_128b_w.strb),
         .m_axi_wlast(cpu_wr_128b_w.last),
-        .m_axi_wuser(cpu_wr_128b_w.user),       // Tie to 0 in packet
+        .m_axi_wuser(cpu_wr_128b_w.user),
         .m_axi_wvalid(cpu_wr_128b_wvalid),
         .m_axi_wready(cpu_wr_128b_wready),
-
         .m_axi_bid(cpu_wr_128b_b.id),
         .m_axi_bresp(cpu_wr_128b_b.resp),
-        .m_axi_buser(cpu_wr_128b_b.user),       // From packet (ignored)
+        .m_axi_buser(cpu_wr_128b_b.user),
         .m_axi_bvalid(cpu_wr_128b_bvalid),
         .m_axi_bready(cpu_wr_128b_bready)
     );

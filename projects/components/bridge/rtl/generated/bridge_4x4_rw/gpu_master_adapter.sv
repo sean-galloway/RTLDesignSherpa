@@ -433,7 +433,7 @@ module gpu_master_adapter #(
         .aclk(aclk),
         .aresetn(aresetn),
 
-        // Slave side (from wrapper) - BROADCAST requests
+        // Slave side (from wrapper) - BROADCAST requests; ready/B intercepted for FIFO
         .s_axi_awid(fub_axi_awid),
         .s_axi_awaddr(fub_axi_awaddr),
         .s_axi_awlen(fub_axi_awlen),
@@ -446,19 +446,17 @@ module gpu_master_adapter #(
         .s_axi_awregion(4'b0),
         .s_axi_awuser(1'b0),
         .s_axi_awvalid(fub_axi_awvalid && aw_path_active_32b),
-        .s_axi_awready(conv_32b_awready),  // Intermediate signal
-
+        .s_axi_awready(conv_32b_awready),
         .s_axi_wdata(fub_axi_wdata),
         .s_axi_wstrb(fub_axi_wstrb),
         .s_axi_wlast(fub_axi_wlast),
         .s_axi_wuser(1'b0),
         .s_axi_wvalid(fub_axi_wvalid && w_path_active_32b),
-        .s_axi_wready(conv_32b_wready),  // Intermediate signal
-
-        .s_axi_bid(conv_32b_bid),  // Intermediate signal
-        .s_axi_bresp(conv_32b_bresp),  // Intermediate signal
+        .s_axi_wready(conv_32b_wready),
+        .s_axi_bid(conv_32b_bid),
+        .s_axi_bresp(conv_32b_bresp),
         .s_axi_buser(),
-        .s_axi_bvalid(conv_32b_bvalid),  // Intermediate signal
+        .s_axi_bvalid(conv_32b_bvalid),
         .s_axi_bready(fub_axi_bready),
 
         // Master side (to crossbar)
@@ -470,22 +468,20 @@ module gpu_master_adapter #(
         .m_axi_awlock(gpu_master_32b_aw.lock),
         .m_axi_awcache(gpu_master_32b_aw.cache),
         .m_axi_awprot(gpu_master_32b_aw.prot),
-        .m_axi_awqos(gpu_master_32b_aw.qos),      // Tie to 0 in packet
-        .m_axi_awregion(gpu_master_32b_aw.region), // Tie to 0 in packet
-        .m_axi_awuser(gpu_master_32b_aw.user),     // Tie to 0 in packet
+        .m_axi_awqos(gpu_master_32b_aw.qos),
+        .m_axi_awregion(gpu_master_32b_aw.region),
+        .m_axi_awuser(gpu_master_32b_aw.user),
         .m_axi_awvalid(gpu_master_32b_awvalid),
         .m_axi_awready(gpu_master_32b_awready),
-
         .m_axi_wdata(gpu_master_32b_w.data),
         .m_axi_wstrb(gpu_master_32b_w.strb),
         .m_axi_wlast(gpu_master_32b_w.last),
-        .m_axi_wuser(gpu_master_32b_w.user),       // Tie to 0 in packet
+        .m_axi_wuser(gpu_master_32b_w.user),
         .m_axi_wvalid(gpu_master_32b_wvalid),
         .m_axi_wready(gpu_master_32b_wready),
-
         .m_axi_bid(gpu_master_32b_b.id),
         .m_axi_bresp(gpu_master_32b_b.resp),
-        .m_axi_buser(gpu_master_32b_b.user),       // From packet (ignored)
+        .m_axi_buser(gpu_master_32b_b.user),
         .m_axi_bvalid(gpu_master_32b_bvalid),
         .m_axi_bready(gpu_master_32b_bready)
     );
@@ -502,7 +498,7 @@ module gpu_master_adapter #(
         .aclk(aclk),
         .aresetn(aresetn),
 
-        // Slave side (from wrapper) - BROADCAST requests
+        // Slave side (from wrapper) - BROADCAST requests; arready/R intercepted for FIFO
         .s_axi_arid(fub_axi_arid),
         .s_axi_araddr(fub_axi_araddr),
         .s_axi_arlen(fub_axi_arlen),
@@ -515,14 +511,13 @@ module gpu_master_adapter #(
         .s_axi_arregion(4'b0),
         .s_axi_aruser(1'b0),
         .s_axi_arvalid(fub_axi_arvalid && ar_path_active_32b),
-        .s_axi_arready(conv_32b_arready),  // Intermediate signal
-
-        .s_axi_rid(conv_32b_rid),  // Intermediate signal
-        .s_axi_rdata(conv_32b_rdata),  // Intermediate signal
-        .s_axi_rresp(conv_32b_rresp),  // Intermediate signal
-        .s_axi_rlast(conv_32b_rlast),  // Intermediate signal
+        .s_axi_arready(conv_32b_arready),
+        .s_axi_rid(conv_32b_rid),
+        .s_axi_rdata(conv_32b_rdata),
+        .s_axi_rresp(conv_32b_rresp),
+        .s_axi_rlast(conv_32b_rlast),
         .s_axi_ruser(),
-        .s_axi_rvalid(conv_32b_rvalid),  // Intermediate signal
+        .s_axi_rvalid(conv_32b_rvalid),
         .s_axi_rready(fub_axi_rready),
 
         // Master side (to crossbar)
@@ -534,17 +529,16 @@ module gpu_master_adapter #(
         .m_axi_arlock(gpu_master_32b_ar.lock),
         .m_axi_arcache(gpu_master_32b_ar.cache),
         .m_axi_arprot(gpu_master_32b_ar.prot),
-        .m_axi_arqos(gpu_master_32b_ar.qos),      // Tie to 0 in packet
-        .m_axi_arregion(gpu_master_32b_ar.region), // Tie to 0 in packet
-        .m_axi_aruser(gpu_master_32b_ar.user),     // Tie to 0 in packet
+        .m_axi_arqos(gpu_master_32b_ar.qos),
+        .m_axi_arregion(gpu_master_32b_ar.region),
+        .m_axi_aruser(gpu_master_32b_ar.user),
         .m_axi_arvalid(gpu_master_32b_arvalid),
         .m_axi_arready(gpu_master_32b_arready),
-
         .m_axi_rid(gpu_master_32b_r.id),
         .m_axi_rdata(gpu_master_32b_r.data),
         .m_axi_rresp(gpu_master_32b_r.resp),
         .m_axi_rlast(gpu_master_32b_r.last),
-        .m_axi_ruser(gpu_master_32b_r.user),       // From packet (ignored)
+        .m_axi_ruser(gpu_master_32b_r.user),
         .m_axi_rvalid(gpu_master_32b_rvalid),
         .m_axi_rready(gpu_master_32b_rready)
     );
@@ -579,7 +573,7 @@ module gpu_master_adapter #(
         .aclk(aclk),
         .aresetn(aresetn),
 
-        // Slave side (from wrapper) - BROADCAST requests
+        // Slave side (from wrapper) - BROADCAST requests; ready/B intercepted for FIFO
         .s_axi_awid(fub_axi_awid),
         .s_axi_awaddr(fub_axi_awaddr),
         .s_axi_awlen(fub_axi_awlen),
@@ -592,19 +586,17 @@ module gpu_master_adapter #(
         .s_axi_awregion(4'b0),
         .s_axi_awuser(1'b0),
         .s_axi_awvalid(fub_axi_awvalid && aw_path_active_64b),
-        .s_axi_awready(conv_64b_awready),  // Intermediate signal
-
+        .s_axi_awready(conv_64b_awready),
         .s_axi_wdata(fub_axi_wdata),
         .s_axi_wstrb(fub_axi_wstrb),
         .s_axi_wlast(fub_axi_wlast),
         .s_axi_wuser(1'b0),
         .s_axi_wvalid(fub_axi_wvalid && w_path_active_64b),
-        .s_axi_wready(conv_64b_wready),  // Intermediate signal
-
-        .s_axi_bid(conv_64b_bid),  // Intermediate signal
-        .s_axi_bresp(conv_64b_bresp),  // Intermediate signal
+        .s_axi_wready(conv_64b_wready),
+        .s_axi_bid(conv_64b_bid),
+        .s_axi_bresp(conv_64b_bresp),
         .s_axi_buser(),
-        .s_axi_bvalid(conv_64b_bvalid),  // Intermediate signal
+        .s_axi_bvalid(conv_64b_bvalid),
         .s_axi_bready(fub_axi_bready),
 
         // Master side (to crossbar)
@@ -616,22 +608,20 @@ module gpu_master_adapter #(
         .m_axi_awlock(gpu_master_64b_aw.lock),
         .m_axi_awcache(gpu_master_64b_aw.cache),
         .m_axi_awprot(gpu_master_64b_aw.prot),
-        .m_axi_awqos(gpu_master_64b_aw.qos),      // Tie to 0 in packet
-        .m_axi_awregion(gpu_master_64b_aw.region), // Tie to 0 in packet
-        .m_axi_awuser(gpu_master_64b_aw.user),     // Tie to 0 in packet
+        .m_axi_awqos(gpu_master_64b_aw.qos),
+        .m_axi_awregion(gpu_master_64b_aw.region),
+        .m_axi_awuser(gpu_master_64b_aw.user),
         .m_axi_awvalid(gpu_master_64b_awvalid),
         .m_axi_awready(gpu_master_64b_awready),
-
         .m_axi_wdata(gpu_master_64b_w.data),
         .m_axi_wstrb(gpu_master_64b_w.strb),
         .m_axi_wlast(gpu_master_64b_w.last),
-        .m_axi_wuser(gpu_master_64b_w.user),       // Tie to 0 in packet
+        .m_axi_wuser(gpu_master_64b_w.user),
         .m_axi_wvalid(gpu_master_64b_wvalid),
         .m_axi_wready(gpu_master_64b_wready),
-
         .m_axi_bid(gpu_master_64b_b.id),
         .m_axi_bresp(gpu_master_64b_b.resp),
-        .m_axi_buser(gpu_master_64b_b.user),       // From packet (ignored)
+        .m_axi_buser(gpu_master_64b_b.user),
         .m_axi_bvalid(gpu_master_64b_bvalid),
         .m_axi_bready(gpu_master_64b_bready)
     );
@@ -648,7 +638,7 @@ module gpu_master_adapter #(
         .aclk(aclk),
         .aresetn(aresetn),
 
-        // Slave side (from wrapper) - BROADCAST requests
+        // Slave side (from wrapper) - BROADCAST requests; arready/R intercepted for FIFO
         .s_axi_arid(fub_axi_arid),
         .s_axi_araddr(fub_axi_araddr),
         .s_axi_arlen(fub_axi_arlen),
@@ -661,14 +651,13 @@ module gpu_master_adapter #(
         .s_axi_arregion(4'b0),
         .s_axi_aruser(1'b0),
         .s_axi_arvalid(fub_axi_arvalid && ar_path_active_64b),
-        .s_axi_arready(conv_64b_arready),  // Intermediate signal
-
-        .s_axi_rid(conv_64b_rid),  // Intermediate signal
-        .s_axi_rdata(conv_64b_rdata),  // Intermediate signal
-        .s_axi_rresp(conv_64b_rresp),  // Intermediate signal
-        .s_axi_rlast(conv_64b_rlast),  // Intermediate signal
+        .s_axi_arready(conv_64b_arready),
+        .s_axi_rid(conv_64b_rid),
+        .s_axi_rdata(conv_64b_rdata),
+        .s_axi_rresp(conv_64b_rresp),
+        .s_axi_rlast(conv_64b_rlast),
         .s_axi_ruser(),
-        .s_axi_rvalid(conv_64b_rvalid),  // Intermediate signal
+        .s_axi_rvalid(conv_64b_rvalid),
         .s_axi_rready(fub_axi_rready),
 
         // Master side (to crossbar)
@@ -680,17 +669,16 @@ module gpu_master_adapter #(
         .m_axi_arlock(gpu_master_64b_ar.lock),
         .m_axi_arcache(gpu_master_64b_ar.cache),
         .m_axi_arprot(gpu_master_64b_ar.prot),
-        .m_axi_arqos(gpu_master_64b_ar.qos),      // Tie to 0 in packet
-        .m_axi_arregion(gpu_master_64b_ar.region), // Tie to 0 in packet
-        .m_axi_aruser(gpu_master_64b_ar.user),     // Tie to 0 in packet
+        .m_axi_arqos(gpu_master_64b_ar.qos),
+        .m_axi_arregion(gpu_master_64b_ar.region),
+        .m_axi_aruser(gpu_master_64b_ar.user),
         .m_axi_arvalid(gpu_master_64b_arvalid),
         .m_axi_arready(gpu_master_64b_arready),
-
         .m_axi_rid(gpu_master_64b_r.id),
         .m_axi_rdata(gpu_master_64b_r.data),
         .m_axi_rresp(gpu_master_64b_r.resp),
         .m_axi_rlast(gpu_master_64b_r.last),
-        .m_axi_ruser(gpu_master_64b_r.user),       // From packet (ignored)
+        .m_axi_ruser(gpu_master_64b_r.user),
         .m_axi_rvalid(gpu_master_64b_rvalid),
         .m_axi_rready(gpu_master_64b_rready)
     );

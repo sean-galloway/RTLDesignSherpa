@@ -229,7 +229,7 @@ module cpu_rd_adapter #(
         .aclk(aclk),
         .aresetn(aresetn),
 
-        // Slave side (from wrapper) - BROADCAST requests
+        // Slave side (from wrapper) - BROADCAST requests; arready/R intercepted for FIFO
         .s_axi_arid(fub_axi_arid),
         .s_axi_araddr(fub_axi_araddr),
         .s_axi_arlen(fub_axi_arlen),
@@ -242,14 +242,13 @@ module cpu_rd_adapter #(
         .s_axi_arregion(4'b0),
         .s_axi_aruser(1'b0),
         .s_axi_arvalid(fub_axi_arvalid && ar_path_active_32b),
-        .s_axi_arready(conv_32b_arready),  // Intermediate signal
-
-        .s_axi_rid(conv_32b_rid),  // Intermediate signal
-        .s_axi_rdata(conv_32b_rdata),  // Intermediate signal
-        .s_axi_rresp(conv_32b_rresp),  // Intermediate signal
-        .s_axi_rlast(conv_32b_rlast),  // Intermediate signal
+        .s_axi_arready(conv_32b_arready),
+        .s_axi_rid(conv_32b_rid),
+        .s_axi_rdata(conv_32b_rdata),
+        .s_axi_rresp(conv_32b_rresp),
+        .s_axi_rlast(conv_32b_rlast),
         .s_axi_ruser(),
-        .s_axi_rvalid(conv_32b_rvalid),  // Intermediate signal
+        .s_axi_rvalid(conv_32b_rvalid),
         .s_axi_rready(fub_axi_rready),
 
         // Master side (to crossbar)
@@ -261,17 +260,16 @@ module cpu_rd_adapter #(
         .m_axi_arlock(cpu_rd_32b_ar.lock),
         .m_axi_arcache(cpu_rd_32b_ar.cache),
         .m_axi_arprot(cpu_rd_32b_ar.prot),
-        .m_axi_arqos(cpu_rd_32b_ar.qos),      // Tie to 0 in packet
-        .m_axi_arregion(cpu_rd_32b_ar.region), // Tie to 0 in packet
-        .m_axi_aruser(cpu_rd_32b_ar.user),     // Tie to 0 in packet
+        .m_axi_arqos(cpu_rd_32b_ar.qos),
+        .m_axi_arregion(cpu_rd_32b_ar.region),
+        .m_axi_aruser(cpu_rd_32b_ar.user),
         .m_axi_arvalid(cpu_rd_32b_arvalid),
         .m_axi_arready(cpu_rd_32b_arready),
-
         .m_axi_rid(cpu_rd_32b_r.id),
         .m_axi_rdata(cpu_rd_32b_r.data),
         .m_axi_rresp(cpu_rd_32b_r.resp),
         .m_axi_rlast(cpu_rd_32b_r.last),
-        .m_axi_ruser(cpu_rd_32b_r.user),       // From packet (ignored)
+        .m_axi_ruser(cpu_rd_32b_r.user),
         .m_axi_rvalid(cpu_rd_32b_rvalid),
         .m_axi_rready(cpu_rd_32b_rready)
     );
@@ -325,7 +323,7 @@ module cpu_rd_adapter #(
         .aclk(aclk),
         .aresetn(aresetn),
 
-        // Slave side (from wrapper) - BROADCAST requests
+        // Slave side (from wrapper) - BROADCAST requests; arready/R intercepted for FIFO
         .s_axi_arid(fub_axi_arid),
         .s_axi_araddr(fub_axi_araddr),
         .s_axi_arlen(fub_axi_arlen),
@@ -338,14 +336,13 @@ module cpu_rd_adapter #(
         .s_axi_arregion(4'b0),
         .s_axi_aruser(1'b0),
         .s_axi_arvalid(fub_axi_arvalid && ar_path_active_128b),
-        .s_axi_arready(conv_128b_arready),  // Intermediate signal
-
-        .s_axi_rid(conv_128b_rid),  // Intermediate signal
-        .s_axi_rdata(conv_128b_rdata),  // Intermediate signal
-        .s_axi_rresp(conv_128b_rresp),  // Intermediate signal
-        .s_axi_rlast(conv_128b_rlast),  // Intermediate signal
+        .s_axi_arready(conv_128b_arready),
+        .s_axi_rid(conv_128b_rid),
+        .s_axi_rdata(conv_128b_rdata),
+        .s_axi_rresp(conv_128b_rresp),
+        .s_axi_rlast(conv_128b_rlast),
         .s_axi_ruser(),
-        .s_axi_rvalid(conv_128b_rvalid),  // Intermediate signal
+        .s_axi_rvalid(conv_128b_rvalid),
         .s_axi_rready(fub_axi_rready),
 
         // Master side (to crossbar)
@@ -357,17 +354,16 @@ module cpu_rd_adapter #(
         .m_axi_arlock(cpu_rd_128b_ar.lock),
         .m_axi_arcache(cpu_rd_128b_ar.cache),
         .m_axi_arprot(cpu_rd_128b_ar.prot),
-        .m_axi_arqos(cpu_rd_128b_ar.qos),      // Tie to 0 in packet
-        .m_axi_arregion(cpu_rd_128b_ar.region), // Tie to 0 in packet
-        .m_axi_aruser(cpu_rd_128b_ar.user),     // Tie to 0 in packet
+        .m_axi_arqos(cpu_rd_128b_ar.qos),
+        .m_axi_arregion(cpu_rd_128b_ar.region),
+        .m_axi_aruser(cpu_rd_128b_ar.user),
         .m_axi_arvalid(cpu_rd_128b_arvalid),
         .m_axi_arready(cpu_rd_128b_arready),
-
         .m_axi_rid(cpu_rd_128b_r.id),
         .m_axi_rdata(cpu_rd_128b_r.data),
         .m_axi_rresp(cpu_rd_128b_r.resp),
         .m_axi_rlast(cpu_rd_128b_r.last),
-        .m_axi_ruser(cpu_rd_128b_r.user),       // From packet (ignored)
+        .m_axi_ruser(cpu_rd_128b_r.user),
         .m_axi_rvalid(cpu_rd_128b_rvalid),
         .m_axi_rready(cpu_rd_128b_rready)
     );
