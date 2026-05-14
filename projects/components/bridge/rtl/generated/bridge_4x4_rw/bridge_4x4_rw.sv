@@ -1797,7 +1797,7 @@ module bridge_4x4_rw (
         .aclk(aclk),
         .aresetn(aresetn),
 
-        // Crossbar interface (internal signals)
+        // Crossbar interface (xbar_periph_slave_axi_*)
         .xbar_periph_slave_axi_awid(xbar_periph_slave_axi_awid),
         .xbar_periph_slave_axi_awaddr(xbar_periph_slave_axi_awaddr),
         .xbar_periph_slave_axi_awlen(xbar_periph_slave_axi_awlen),
@@ -1843,7 +1843,7 @@ module bridge_4x4_rw (
         .xbar_periph_slave_axi_rvalid(xbar_periph_slave_axi_rvalid),
         .xbar_periph_slave_axi_rready(xbar_periph_slave_axi_rready),
 
-        // External slave interface (AXI4)
+        // External AXI4 interface (periph_slave_axi_*)
         .periph_slave_axi_awid(periph_slave_axi_awid),
         .periph_slave_axi_awaddr(periph_slave_axi_awaddr),
         .periph_slave_axi_awlen(periph_slave_axi_awlen),
@@ -1893,7 +1893,6 @@ module bridge_4x4_rw (
         .xbar_bridge_id_aw(periph_slave_axi_bridge_id_aw),
         .bid_bridge_id(periph_slave_axi_bid_bridge_id),
         .bid_valid(periph_slave_axi_bid_valid),
-
         .xbar_bridge_id_ar(periph_slave_axi_bridge_id_ar),
         .rid_bridge_id(periph_slave_axi_rid_bridge_id),
         .rid_valid(periph_slave_axi_rid_valid)
@@ -1904,7 +1903,7 @@ module bridge_4x4_rw (
         .aclk(aclk),
         .aresetn(aresetn),
 
-        // Crossbar interface (internal signals)
+        // Crossbar interface (xbar_ddr0_slave_axi_*)
         .xbar_ddr0_slave_axi_awid(xbar_ddr0_slave_axi_awid),
         .xbar_ddr0_slave_axi_awaddr(xbar_ddr0_slave_axi_awaddr),
         .xbar_ddr0_slave_axi_awlen(xbar_ddr0_slave_axi_awlen),
@@ -1950,7 +1949,7 @@ module bridge_4x4_rw (
         .xbar_ddr0_slave_axi_rvalid(xbar_ddr0_slave_axi_rvalid),
         .xbar_ddr0_slave_axi_rready(xbar_ddr0_slave_axi_rready),
 
-        // External slave interface (AXI4)
+        // External AXI4 interface (ddr0_slave_axi_*)
         .ddr0_slave_axi_awid(ddr0_slave_axi_awid),
         .ddr0_slave_axi_awaddr(ddr0_slave_axi_awaddr),
         .ddr0_slave_axi_awlen(ddr0_slave_axi_awlen),
@@ -2000,7 +1999,6 @@ module bridge_4x4_rw (
         .xbar_bridge_id_aw(ddr0_slave_axi_bridge_id_aw),
         .bid_bridge_id(ddr0_slave_axi_bid_bridge_id),
         .bid_valid(ddr0_slave_axi_bid_valid),
-
         .xbar_bridge_id_ar(ddr0_slave_axi_bridge_id_ar),
         .rid_bridge_id(ddr0_slave_axi_rid_bridge_id),
         .rid_valid(ddr0_slave_axi_rid_valid)
@@ -2011,7 +2009,7 @@ module bridge_4x4_rw (
         .aclk(aclk),
         .aresetn(aresetn),
 
-        // Crossbar interface (internal signals)
+        // Crossbar interface (xbar_sram_slave_axi_*)
         .xbar_sram_slave_axi_awid(xbar_sram_slave_axi_awid),
         .xbar_sram_slave_axi_awaddr(xbar_sram_slave_axi_awaddr),
         .xbar_sram_slave_axi_awlen(xbar_sram_slave_axi_awlen),
@@ -2057,7 +2055,7 @@ module bridge_4x4_rw (
         .xbar_sram_slave_axi_rvalid(xbar_sram_slave_axi_rvalid),
         .xbar_sram_slave_axi_rready(xbar_sram_slave_axi_rready),
 
-        // External slave interface (AXI4)
+        // External AXI4 interface (sram_slave_axi_*)
         .sram_slave_axi_awid(sram_slave_axi_awid),
         .sram_slave_axi_awaddr(sram_slave_axi_awaddr),
         .sram_slave_axi_awlen(sram_slave_axi_awlen),
@@ -2107,7 +2105,6 @@ module bridge_4x4_rw (
         .xbar_bridge_id_aw(sram_slave_axi_bridge_id_aw),
         .bid_bridge_id(sram_slave_axi_bid_bridge_id),
         .bid_valid(sram_slave_axi_bid_valid),
-
         .xbar_bridge_id_ar(sram_slave_axi_bridge_id_ar),
         .rid_bridge_id(sram_slave_axi_rid_bridge_id),
         .rid_valid(sram_slave_axi_rid_valid)
@@ -2118,7 +2115,7 @@ module bridge_4x4_rw (
         .aclk(aclk),
         .aresetn(aresetn),
 
-        // Crossbar interface (internal signals)
+        // Crossbar interface (xbar_gpu_mem_slave_axi_*)
         .xbar_gpu_mem_slave_axi_awid(xbar_gpu_mem_slave_axi_awid),
         .xbar_gpu_mem_slave_axi_awaddr(xbar_gpu_mem_slave_axi_awaddr),
         .xbar_gpu_mem_slave_axi_awlen(xbar_gpu_mem_slave_axi_awlen),
@@ -2164,7 +2161,7 @@ module bridge_4x4_rw (
         .xbar_gpu_mem_slave_axi_rvalid(xbar_gpu_mem_slave_axi_rvalid),
         .xbar_gpu_mem_slave_axi_rready(xbar_gpu_mem_slave_axi_rready),
 
-        // External slave interface (AXI4)
+        // External AXI4 interface (gpu_mem_slave_axi_*)
         .gpu_mem_slave_axi_awid(gpu_mem_slave_axi_awid),
         .gpu_mem_slave_axi_awaddr(gpu_mem_slave_axi_awaddr),
         .gpu_mem_slave_axi_awlen(gpu_mem_slave_axi_awlen),
@@ -2214,7 +2211,6 @@ module bridge_4x4_rw (
         .xbar_bridge_id_aw(gpu_mem_slave_axi_bridge_id_aw),
         .bid_bridge_id(gpu_mem_slave_axi_bid_bridge_id),
         .bid_valid(gpu_mem_slave_axi_bid_valid),
-
         .xbar_bridge_id_ar(gpu_mem_slave_axi_bridge_id_ar),
         .rid_bridge_id(gpu_mem_slave_axi_rid_bridge_id),
         .rid_valid(gpu_mem_slave_axi_rid_valid)

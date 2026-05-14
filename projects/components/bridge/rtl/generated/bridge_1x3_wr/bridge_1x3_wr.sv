@@ -473,7 +473,7 @@ module bridge_1x3_wr (
         .aclk(aclk),
         .aresetn(aresetn),
 
-        // Crossbar interface (internal signals)
+        // Crossbar interface (xbar_periph_wr_axi_*)
         .xbar_periph_wr_axi_awid(xbar_periph_wr_axi_awid),
         .xbar_periph_wr_axi_awaddr(xbar_periph_wr_axi_awaddr),
         .xbar_periph_wr_axi_awlen(xbar_periph_wr_axi_awlen),
@@ -499,7 +499,7 @@ module bridge_1x3_wr (
         .xbar_periph_wr_axi_bvalid(xbar_periph_wr_axi_bvalid),
         .xbar_periph_wr_axi_bready(xbar_periph_wr_axi_bready),
 
-        // External slave interface (AXI4)
+        // External AXI4 interface (periph_wr_axi_*)
         .periph_wr_axi_awid(periph_wr_axi_awid),
         .periph_wr_axi_awaddr(periph_wr_axi_awaddr),
         .periph_wr_axi_awlen(periph_wr_axi_awlen),
@@ -536,7 +536,7 @@ module bridge_1x3_wr (
         .aclk(aclk),
         .aresetn(aresetn),
 
-        // Crossbar interface (internal signals)
+        // Crossbar interface (xbar_ddr_wr_axi_*)
         .xbar_ddr_wr_axi_awid(xbar_ddr_wr_axi_awid),
         .xbar_ddr_wr_axi_awaddr(xbar_ddr_wr_axi_awaddr),
         .xbar_ddr_wr_axi_awlen(xbar_ddr_wr_axi_awlen),
@@ -562,7 +562,7 @@ module bridge_1x3_wr (
         .xbar_ddr_wr_axi_bvalid(xbar_ddr_wr_axi_bvalid),
         .xbar_ddr_wr_axi_bready(xbar_ddr_wr_axi_bready),
 
-        // External slave interface (AXI4)
+        // External AXI4 interface (ddr_wr_axi_*)
         .ddr_wr_axi_awid(ddr_wr_axi_awid),
         .ddr_wr_axi_awaddr(ddr_wr_axi_awaddr),
         .ddr_wr_axi_awlen(ddr_wr_axi_awlen),
@@ -599,7 +599,7 @@ module bridge_1x3_wr (
         .aclk(aclk),
         .aresetn(aresetn),
 
-        // Crossbar interface (internal signals)
+        // Crossbar interface (xbar_hbm_wr_axi_*)
         .xbar_hbm_wr_axi_awid(xbar_hbm_wr_axi_awid),
         .xbar_hbm_wr_axi_awaddr(xbar_hbm_wr_axi_awaddr),
         .xbar_hbm_wr_axi_awlen(xbar_hbm_wr_axi_awlen),
@@ -625,7 +625,7 @@ module bridge_1x3_wr (
         .xbar_hbm_wr_axi_bvalid(xbar_hbm_wr_axi_bvalid),
         .xbar_hbm_wr_axi_bready(xbar_hbm_wr_axi_bready),
 
-        // External slave interface (AXI4)
+        // External AXI4 interface (hbm_wr_axi_*)
         .hbm_wr_axi_awid(hbm_wr_axi_awid),
         .hbm_wr_axi_awaddr(hbm_wr_axi_awaddr),
         .hbm_wr_axi_awlen(hbm_wr_axi_awlen),

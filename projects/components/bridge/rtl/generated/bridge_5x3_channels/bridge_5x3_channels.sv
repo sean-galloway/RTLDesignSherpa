@@ -1167,7 +1167,7 @@ module bridge_5x3_channels (
         .aclk(aclk),
         .aresetn(aresetn),
 
-        // Crossbar interface (internal signals)
+        // Crossbar interface (xbar_sram_buffer_axi_*)
         .xbar_sram_buffer_axi_awid(xbar_sram_buffer_axi_awid),
         .xbar_sram_buffer_axi_awaddr(xbar_sram_buffer_axi_awaddr),
         .xbar_sram_buffer_axi_awlen(xbar_sram_buffer_axi_awlen),
@@ -1213,7 +1213,7 @@ module bridge_5x3_channels (
         .xbar_sram_buffer_axi_rvalid(xbar_sram_buffer_axi_rvalid),
         .xbar_sram_buffer_axi_rready(xbar_sram_buffer_axi_rready),
 
-        // External slave interface (AXI4)
+        // External AXI4 interface (sram_buffer_axi_*)
         .sram_buffer_axi_awid(sram_buffer_axi_awid),
         .sram_buffer_axi_awaddr(sram_buffer_axi_awaddr),
         .sram_buffer_axi_awlen(sram_buffer_axi_awlen),
@@ -1263,7 +1263,6 @@ module bridge_5x3_channels (
         .xbar_bridge_id_aw(sram_buffer_axi_bridge_id_aw),
         .bid_bridge_id(sram_buffer_axi_bid_bridge_id),
         .bid_valid(sram_buffer_axi_bid_valid),
-
         .xbar_bridge_id_ar(sram_buffer_axi_bridge_id_ar),
         .rid_bridge_id(sram_buffer_axi_rid_bridge_id),
         .rid_valid(sram_buffer_axi_rid_valid)
@@ -1274,7 +1273,7 @@ module bridge_5x3_channels (
         .aclk(aclk),
         .aresetn(aresetn),
 
-        // Crossbar interface (internal signals)
+        // Crossbar interface (xbar_ddr_controller_axi_*)
         .xbar_ddr_controller_axi_awid(xbar_ddr_controller_axi_awid),
         .xbar_ddr_controller_axi_awaddr(xbar_ddr_controller_axi_awaddr),
         .xbar_ddr_controller_axi_awlen(xbar_ddr_controller_axi_awlen),
@@ -1320,7 +1319,7 @@ module bridge_5x3_channels (
         .xbar_ddr_controller_axi_rvalid(xbar_ddr_controller_axi_rvalid),
         .xbar_ddr_controller_axi_rready(xbar_ddr_controller_axi_rready),
 
-        // External slave interface (AXI4)
+        // External AXI4 interface (ddr_controller_axi_*)
         .ddr_controller_axi_awid(ddr_controller_axi_awid),
         .ddr_controller_axi_awaddr(ddr_controller_axi_awaddr),
         .ddr_controller_axi_awlen(ddr_controller_axi_awlen),
@@ -1370,7 +1369,6 @@ module bridge_5x3_channels (
         .xbar_bridge_id_aw(ddr_controller_axi_bridge_id_aw),
         .bid_bridge_id(ddr_controller_axi_bid_bridge_id),
         .bid_valid(ddr_controller_axi_bid_valid),
-
         .xbar_bridge_id_ar(ddr_controller_axi_bridge_id_ar),
         .rid_bridge_id(ddr_controller_axi_rid_bridge_id),
         .rid_valid(ddr_controller_axi_rid_valid)
@@ -1381,7 +1379,7 @@ module bridge_5x3_channels (
         .aclk(aclk),
         .aresetn(aresetn),
 
-        // Crossbar interface (internal signals)
+        // Crossbar interface (xbar_apb_periph_axi_*)
         .xbar_apb_periph_axi_awid(xbar_apb_periph_axi_awid),
         .xbar_apb_periph_axi_awaddr(xbar_apb_periph_axi_awaddr),
         .xbar_apb_periph_axi_awlen(xbar_apb_periph_axi_awlen),
@@ -1427,7 +1425,7 @@ module bridge_5x3_channels (
         .xbar_apb_periph_axi_rvalid(xbar_apb_periph_axi_rvalid),
         .xbar_apb_periph_axi_rready(xbar_apb_periph_axi_rready),
 
-        // External slave interface (APB)
+        // External APB interface (apb_periph_*)
         .apb_periph_PADDR(apb_periph_PADDR),
         .apb_periph_PSEL(apb_periph_PSEL),
         .apb_periph_PENABLE(apb_periph_PENABLE),
@@ -1443,7 +1441,6 @@ module bridge_5x3_channels (
         .xbar_bridge_id_aw(apb_periph_axi_bridge_id_aw),
         .bid_bridge_id(apb_periph_axi_bid_bridge_id),
         .bid_valid(apb_periph_axi_bid_valid),
-
         .xbar_bridge_id_ar(apb_periph_axi_bridge_id_ar),
         .rid_bridge_id(apb_periph_axi_rid_bridge_id),
         .rid_valid(apb_periph_axi_rid_valid)

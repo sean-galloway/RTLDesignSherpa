@@ -700,7 +700,7 @@ module bridge_2x2_rw (
         .aclk(aclk),
         .aresetn(aresetn),
 
-        // Crossbar interface (internal signals)
+        // Crossbar interface (xbar_ddr_axi_*)
         .xbar_ddr_axi_awid(xbar_ddr_axi_awid),
         .xbar_ddr_axi_awaddr(xbar_ddr_axi_awaddr),
         .xbar_ddr_axi_awlen(xbar_ddr_axi_awlen),
@@ -746,7 +746,7 @@ module bridge_2x2_rw (
         .xbar_ddr_axi_rvalid(xbar_ddr_axi_rvalid),
         .xbar_ddr_axi_rready(xbar_ddr_axi_rready),
 
-        // External slave interface (AXI4)
+        // External AXI4 interface (ddr_s_axi_*)
         .ddr_s_axi_awid(ddr_s_axi_awid),
         .ddr_s_axi_awaddr(ddr_s_axi_awaddr),
         .ddr_s_axi_awlen(ddr_s_axi_awlen),
@@ -796,7 +796,6 @@ module bridge_2x2_rw (
         .xbar_bridge_id_aw(ddr_axi_bridge_id_aw),
         .bid_bridge_id(ddr_axi_bid_bridge_id),
         .bid_valid(ddr_axi_bid_valid),
-
         .xbar_bridge_id_ar(ddr_axi_bridge_id_ar),
         .rid_bridge_id(ddr_axi_rid_bridge_id),
         .rid_valid(ddr_axi_rid_valid)
@@ -807,7 +806,7 @@ module bridge_2x2_rw (
         .aclk(aclk),
         .aresetn(aresetn),
 
-        // Crossbar interface (internal signals)
+        // Crossbar interface (xbar_sram_axi_*)
         .xbar_sram_axi_awid(xbar_sram_axi_awid),
         .xbar_sram_axi_awaddr(xbar_sram_axi_awaddr),
         .xbar_sram_axi_awlen(xbar_sram_axi_awlen),
@@ -853,7 +852,7 @@ module bridge_2x2_rw (
         .xbar_sram_axi_rvalid(xbar_sram_axi_rvalid),
         .xbar_sram_axi_rready(xbar_sram_axi_rready),
 
-        // External slave interface (AXI4)
+        // External AXI4 interface (sram_s_axi_*)
         .sram_s_axi_awid(sram_s_axi_awid),
         .sram_s_axi_awaddr(sram_s_axi_awaddr),
         .sram_s_axi_awlen(sram_s_axi_awlen),
@@ -903,7 +902,6 @@ module bridge_2x2_rw (
         .xbar_bridge_id_aw(sram_axi_bridge_id_aw),
         .bid_bridge_id(sram_axi_bid_bridge_id),
         .bid_valid(sram_axi_bid_valid),
-
         .xbar_bridge_id_ar(sram_axi_bridge_id_ar),
         .rid_bridge_id(sram_axi_rid_bridge_id),
         .rid_valid(sram_axi_rid_valid)

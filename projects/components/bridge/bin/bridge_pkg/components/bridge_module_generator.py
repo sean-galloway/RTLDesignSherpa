@@ -952,23 +952,19 @@ class BridgeModuleGenerator:
         return lines
 
     def _generate_slave_adapter_instantiations(self) -> List[str]:
-        """
-        Generate slave adapter instantiations for ALL slaves.
+        """Generate slave-adapter instantiations for ALL slaves via the
+        typed SlaveAdapterInstance component.
 
-        The slave_adapter_generator already produces protocol-aware
-        adapter modules (axi4 wrapper, axi4_to_apb_shim wrapper, or
-        axi4_to_axil shim wrapper) that wrap the protocol converter and
-        carry the bridge_id-tracking FIFO. The bridge top just needs to
-        instantiate that module -- the same way it does for AXI4
-        slaves -- with the right external port list per protocol.
+        The slave_adapter_generator emits protocol-aware adapter
+        modules (axi4 wrapper, axi4_to_apb_shim wrapper, or axi4_to_axil
+        shim wrapper). The bridge top needs to instantiate each with
+        the matching port list -- the component keeps the bridge top
+        and the adapter generator in lockstep so the two can't drift
+        apart silently (which left `rid_bridge_id`/`rid_valid`/`bid_*`
+        undriven for APB slaves in a previous regression)."""
+        from .slave_adapter_instance_component import SlaveAdapterInstance
 
-        Earlier the bridge top would direct-instantiate axi4_to_apb_shim
-        (and axil equivalent) without the surrounding FIFO, leaving
-        `rid_bridge_id`/`rid_valid`/`bid_*` undriven; the xbar response
-        path gates on those, so APB/AXIL responses never propagated.
-        """
         lines = []
-
         if not self.slaves:
             return lines
 
@@ -981,275 +977,26 @@ class BridgeModuleGenerator:
         lines.append("")
 
         for slave in self.slaves:
-            # Determine channels needed
             connecting_masters = self._get_masters_connecting_to_slave(slave)
             has_write = any(m.channels in ["wr", "rw"] for m in connecting_masters)
             has_read = any(m.channels in ["rd", "rw"] for m in connecting_masters)
+            if not (has_write or has_read):
+                continue
 
-            channels = []
-            if has_write:
-                channels.extend([AXI4Channel.AW, AXI4Channel.W, AXI4Channel.B])
-            if has_read:
-                channels.extend([AXI4Channel.AR, AXI4Channel.R])
-
-            lines.append(f"    // {slave.name} adapter ({slave.protocol.upper()}, crossbar → external slave)")
-            lines.append(f"    {slave.name}_adapter u_{slave.name}_adapter (")
-            lines.append("        .aclk(aclk),")
-            lines.append("        .aresetn(aresetn),")
-            lines.append("")
-            lines.append("        // Crossbar interface (internal signals)")
-
-            # Crossbar-facing signals (xbar_{slave}_axi_*) -- always AXI4
-            # regardless of slave protocol; the wrapper does the conversion.
-            xbar_prefix = f"xbar_{slave.name}_axi_"
-            for channel in channels:
-                if channel not in AXI4_MASTER_SIGNALS:
-                    continue
-                for sig_info in AXI4_MASTER_SIGNALS[channel]:
-                    sig_name = f"{xbar_prefix}{channel.value}{sig_info.name}"
-                    lines.append(f"        .{xbar_prefix}{channel.value}{sig_info.name}({sig_name}),")
-
-            lines.append("")
-            lines.append(f"        // External slave interface ({slave.protocol.upper()})")
-
-            # External-facing signals -- protocol-specific port list.
-            ext_prefix = slave.prefix
-            if slave.protocol == 'apb':
-                # APB external port list matches _generate_apb_external_ports
-                # in slave_adapter_generator.
-                apb_signals = [
-                    "PADDR", "PSEL", "PENABLE", "PWRITE", "PWDATA",
-                    "PSTRB", "PPROT", "PRDATA", "PSLVERR", "PREADY",
-                ]
-                for sig in apb_signals:
-                    lines.append(f"        .{ext_prefix}{sig}({ext_prefix}{sig}),")
-            else:
-                # AXI4 (and AXIL) external port list. AXIL slaves
-                # currently use the full AXI4 external interface -- see
-                # slave_adapter_generator._generate_axil_converter for
-                # the rationale.
-                for channel in channels:
-                    if channel not in AXI4_MASTER_SIGNALS:
-                        continue
-                    for sig_info in AXI4_MASTER_SIGNALS[channel]:
-                        sig_name = f"{ext_prefix}{channel.value}{sig_info.name}"
-                        lines.append(f"        .{ext_prefix}{sig_name.replace(ext_prefix, '')}({sig_name}),")
-
-            # Bridge ID tracking signals (always present for slave adapters)
-            lines.append("")
-            lines.append("        // Bridge ID tracking")
-            if has_write:
-                lines.append(f"        .xbar_bridge_id_aw({slave.name}_axi_bridge_id_aw),")
-                lines.append(f"        .bid_bridge_id({slave.name}_axi_bid_bridge_id),")
-                lines.append(f"        .bid_valid({slave.name}_axi_bid_valid){'' if not has_read else ','}")
-            if has_read:
-                if has_write:
-                    lines.append("")
-                lines.append(f"        .xbar_bridge_id_ar({slave.name}_axi_bridge_id_ar),")
-                lines.append(f"        .rid_bridge_id({slave.name}_axi_rid_bridge_id),")
-                lines.append(f"        .rid_valid({slave.name}_axi_rid_valid)")
-
-            lines.append("    );")
-            lines.append("")
+            inst = SlaveAdapterInstance(
+                slave_name=slave.name,
+                slave_prefix=slave.prefix,
+                protocol=slave.protocol,
+                has_write=has_write,
+                has_read=has_read,
+            )
+            inst.connect_clocks_and_resets()
+            inst.connect_xbar_interface()
+            inst.connect_external_interface()
+            inst.connect_bridge_id_tracking()
+            lines.extend(inst.generate_lines())
 
         return lines
-
-    def _generate_apb_shims(self) -> List[str]:
-        """
-        Generate axi4_to_apb_shim instantiations for APB slaves.
-
-        Converts crossbar AXI4 slave outputs to external APB ports.
-        """
-        lines = []
-
-        # Filter for APB slaves only
-        apb_slaves = [s for s in self.slaves if s.protocol == 'apb']
-
-        if not apb_slaves:
-            return lines
-
-        lines.append("    // ================================================================")
-        lines.append("    // APB Shim Instantiations")
-        lines.append("    // Converts crossbar AXI4 outputs to APB protocol")
-        lines.append("    // ================================================================")
-        lines.append("")
-
-        for slave in apb_slaves:
-            # Crossbar AXI4 output prefix (matches crossbar-generated signals)
-            axi_prefix = f"xbar_{slave.name}_axi_"
-            # External APB port prefix (from slave config)
-            apb_prefix = slave.prefix if hasattr(slave, 'prefix') and slave.prefix else f"{slave.name}_"
-            if apb_prefix.endswith('_'):
-                apb_prefix = apb_prefix[:-1]
-
-            # APB slave native widths
-            apb_data_width = slave.data_width
-            apb_addr_width = 32  # Use global 32-bit address width
-
-            # AXI4 interface widths (must match _generate_internal_signals() logic)
-            # All slaves (including APB) use their native data width at crossbar interface
-            # Width adaptation happens in master adapter, not at crossbar/APB converter
-            axi_addr_width = 32  # Global 32-bit address width
-            axi_data_width = slave.data_width  # APB slave's native width
-
-            lines.append(f"    // APB Shim: {slave.name}")
-            lines.append(f"    // Crossbar AXI4 ({axi_addr_width}b addr, {axi_data_width}b data) → External APB ({apb_addr_width}b addr, {apb_data_width}b data)")
-            lines.append(f"    axi4_to_apb_shim #(")
-            lines.append(f"        .DEPTH_AW(2),")
-            lines.append(f"        .DEPTH_W(4),")
-            lines.append(f"        .DEPTH_B(2),")
-            lines.append(f"        .DEPTH_AR(2),")
-            lines.append(f"        .DEPTH_R(4),")
-            lines.append(f"        .SIDE_DEPTH(4),")
-            lines.append(f"        .APB_CMD_DEPTH(4),")
-            lines.append(f"        .APB_RSP_DEPTH(4),")
-            # Use the bridge's actual master id_width (== max master id_width).
-            # Hardcoding 4 broke any bridge with wider master IDs.
-            apb_shim_id_width = max(m.id_width for m in self.masters) if self.masters else 4
-            apb_shim_id_width = max(apb_shim_id_width, 1)
-            lines.append(f"        .AXI_ID_WIDTH({apb_shim_id_width}),")
-            lines.append(f"        .AXI_ADDR_WIDTH({axi_addr_width}),")
-            lines.append(f"        .AXI_DATA_WIDTH({axi_data_width}),")
-            lines.append(f"        .AXI_USER_WIDTH(1),")
-            lines.append(f"        .APB_ADDR_WIDTH({apb_addr_width}),")
-            lines.append(f"        .APB_DATA_WIDTH({apb_data_width})")
-            lines.append(f"    ) u_apb_shim_{slave.name} (")
-            lines.append(f"        .aclk(aclk),")
-            lines.append(f"        .aresetn(aresetn),")
-            lines.append(f"        .pclk(aclk),")  # Same clock domain for now
-            lines.append(f"        .presetn(aresetn),")
-            lines.append(f"        ")
-            lines.append(f"        // AXI4 Slave (from crossbar)")
-
-            # Determine which channels to connect based on connecting masters
-            connecting_masters = self._get_masters_connecting_to_slave(slave)
-            has_write = any(m.channels in ["wr", "rw"] for m in connecting_masters)
-            has_read = any(m.channels in ["rd", "rw"] for m in connecting_masters)
-
-            # Get ID width from first connecting master
-            id_width = connecting_masters[0].id_width if connecting_masters else 4
-
-            # Write channels - connect or tie off
-            if has_write:
-                lines.append(f"        .s_axi_awid({axi_prefix}awid),")
-                lines.append(f"        .s_axi_awaddr({axi_prefix}awaddr),")
-                lines.append(f"        .s_axi_awlen({axi_prefix}awlen),")
-                lines.append(f"        .s_axi_awsize({axi_prefix}awsize),")
-                lines.append(f"        .s_axi_awburst({axi_prefix}awburst),")
-                lines.append(f"        .s_axi_awlock({axi_prefix}awlock),")
-                lines.append(f"        .s_axi_awcache({axi_prefix}awcache),")
-                lines.append(f"        .s_axi_awprot({axi_prefix}awprot),")
-                lines.append(f"        .s_axi_awqos(4'b0),")
-                lines.append(f"        .s_axi_awregion(4'b0),")
-                lines.append(f"        .s_axi_awuser(1'b0),")
-                lines.append(f"        .s_axi_awvalid({axi_prefix}awvalid),")
-                lines.append(f"        .s_axi_awready({axi_prefix}awready),")
-                lines.append(f"        .s_axi_wdata({axi_prefix}wdata),")
-                lines.append(f"        .s_axi_wstrb({axi_prefix}wstrb),")
-                lines.append(f"        .s_axi_wlast({axi_prefix}wlast),")
-                lines.append(f"        .s_axi_wuser(1'b0),")
-                lines.append(f"        .s_axi_wvalid({axi_prefix}wvalid),")
-                lines.append(f"        .s_axi_wready({axi_prefix}wready),")
-                lines.append(f"        .s_axi_bid({axi_prefix}bid),")
-                lines.append(f"        .s_axi_bresp({axi_prefix}bresp),")
-                lines.append(f"        .s_axi_buser(),")
-                lines.append(f"        .s_axi_bvalid({axi_prefix}bvalid),")
-                lines.append(f"        .s_axi_bready({axi_prefix}bready),")
-            else:
-                # Tie off write channels for read-only bridge
-                lines.append(f"        // Write channels tied off (read-only bridge)")
-                lines.append(f"        .s_axi_awid({id_width}'b0),")
-                lines.append(f"        .s_axi_awaddr(32'b0),")
-                lines.append(f"        .s_axi_awlen(8'b0),")
-                lines.append(f"        .s_axi_awsize(3'b0),")
-                lines.append(f"        .s_axi_awburst(2'b0),")
-                lines.append(f"        .s_axi_awlock(1'b0),")
-                lines.append(f"        .s_axi_awcache(4'b0),")
-                lines.append(f"        .s_axi_awprot(3'b0),")
-                lines.append(f"        .s_axi_awqos(4'b0),")
-                lines.append(f"        .s_axi_awregion(4'b0),")
-                lines.append(f"        .s_axi_awuser(1'b0),")
-                lines.append(f"        .s_axi_awvalid(1'b0),")
-                lines.append(f"        .s_axi_awready(),  // Unconnected")
-                # Use slave's AXI4 interface width (matches APB shim parameter)
-                strb_width = axi_data_width // 8
-                lines.append(f"        .s_axi_wdata({axi_data_width}'b0),")
-                lines.append(f"        .s_axi_wstrb({strb_width}'b0),")
-                lines.append(f"        .s_axi_wlast(1'b0),")
-                lines.append(f"        .s_axi_wuser(1'b0),")
-                lines.append(f"        .s_axi_wvalid(1'b0),")
-                lines.append(f"        .s_axi_wready(),  // Unconnected")
-                lines.append(f"        .s_axi_bid(),  // Unconnected")
-                lines.append(f"        .s_axi_bresp(),  // Unconnected")
-                lines.append(f"        .s_axi_buser(),  // Unconnected")
-                lines.append(f"        .s_axi_bvalid(),  // Unconnected")
-                lines.append(f"        .s_axi_bready(1'b0),")
-            lines.append(f"        ")
-
-            # Read channels - connect or tie off
-            if has_read:
-                lines.append(f"        .s_axi_arid({axi_prefix}arid),")
-                lines.append(f"        .s_axi_araddr({axi_prefix}araddr),")
-                lines.append(f"        .s_axi_arlen({axi_prefix}arlen),")
-                lines.append(f"        .s_axi_arsize({axi_prefix}arsize),")
-                lines.append(f"        .s_axi_arburst({axi_prefix}arburst),")
-                lines.append(f"        .s_axi_arlock({axi_prefix}arlock),")
-                lines.append(f"        .s_axi_arcache({axi_prefix}arcache),")
-                lines.append(f"        .s_axi_arprot({axi_prefix}arprot),")
-                lines.append(f"        .s_axi_arqos(4'b0),")
-                lines.append(f"        .s_axi_arregion(4'b0),")
-                lines.append(f"        .s_axi_aruser(1'b0),")
-                lines.append(f"        .s_axi_arvalid({axi_prefix}arvalid),")
-                lines.append(f"        .s_axi_arready({axi_prefix}arready),")
-                lines.append(f"        .s_axi_rid({axi_prefix}rid),")
-                lines.append(f"        .s_axi_rdata({axi_prefix}rdata),")
-                lines.append(f"        .s_axi_rresp({axi_prefix}rresp),")
-                lines.append(f"        .s_axi_rlast({axi_prefix}rlast),")
-                lines.append(f"        .s_axi_ruser(),")
-                lines.append(f"        .s_axi_rvalid({axi_prefix}rvalid),")
-                lines.append(f"        .s_axi_rready({axi_prefix}rready),")
-            else:
-                # Tie off read channels for write-only bridge
-                lines.append(f"        // Read channels tied off (write-only bridge)")
-                lines.append(f"        .s_axi_arid({id_width}'b0),")
-                lines.append(f"        .s_axi_araddr(32'b0),")
-                lines.append(f"        .s_axi_arlen(8'b0),")
-                lines.append(f"        .s_axi_arsize(3'b0),")
-                lines.append(f"        .s_axi_arburst(2'b0),")
-                lines.append(f"        .s_axi_arlock(1'b0),")
-                lines.append(f"        .s_axi_arcache(4'b0),")
-                lines.append(f"        .s_axi_arprot(3'b0),")
-                lines.append(f"        .s_axi_arqos(4'b0),")
-                lines.append(f"        .s_axi_arregion(4'b0),")
-                lines.append(f"        .s_axi_aruser(1'b0),")
-                lines.append(f"        .s_axi_arvalid(1'b0),")
-                lines.append(f"        .s_axi_arready(),  // Unconnected")
-                lines.append(f"        .s_axi_rid(),  // Unconnected")
-                # Get data width from first connecting master
-                data_width = connecting_masters[0].data_width if connecting_masters else 64
-                lines.append(f"        .s_axi_rdata(),  // Unconnected")
-                lines.append(f"        .s_axi_rresp(),  // Unconnected")
-                lines.append(f"        .s_axi_rlast(),  // Unconnected")
-                lines.append(f"        .s_axi_ruser(),  // Unconnected")
-                lines.append(f"        .s_axi_rvalid(),  // Unconnected")
-                lines.append(f"        .s_axi_rready(1'b0),")
-            lines.append(f"        ")
-            lines.append(f"        // APB Master (to external APB slave)")
-            lines.append(f"        .m_apb_PSEL({apb_prefix}_PSEL),")
-            lines.append(f"        .m_apb_PADDR({apb_prefix}_PADDR),")
-            lines.append(f"        .m_apb_PENABLE({apb_prefix}_PENABLE),")
-            lines.append(f"        .m_apb_PWRITE({apb_prefix}_PWRITE),")
-            lines.append(f"        .m_apb_PWDATA({apb_prefix}_PWDATA),")
-            lines.append(f"        .m_apb_PSTRB({apb_prefix}_PSTRB),")
-            lines.append(f"        .m_apb_PPROT({apb_prefix}_PPROT),")
-            lines.append(f"        .m_apb_PRDATA({apb_prefix}_PRDATA),")
-            lines.append(f"        .m_apb_PREADY({apb_prefix}_PREADY),")
-            lines.append(f"        .m_apb_PSLVERR({apb_prefix}_PSLVERR)")
-            lines.append(f"    );")
-            lines.append(f"")
-
-        return lines
-
 
 # Old implementation below - keeping for reference during migration
 def _generate_crossbar_routing_OLD(self) -> List[str]:

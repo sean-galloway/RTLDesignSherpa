@@ -324,7 +324,7 @@ module bridge_1x2_wr (
         .aclk(aclk),
         .aresetn(aresetn),
 
-        // Crossbar interface (internal signals)
+        // Crossbar interface (xbar_ddr_wr_axi_*)
         .xbar_ddr_wr_axi_awid(xbar_ddr_wr_axi_awid),
         .xbar_ddr_wr_axi_awaddr(xbar_ddr_wr_axi_awaddr),
         .xbar_ddr_wr_axi_awlen(xbar_ddr_wr_axi_awlen),
@@ -350,7 +350,7 @@ module bridge_1x2_wr (
         .xbar_ddr_wr_axi_bvalid(xbar_ddr_wr_axi_bvalid),
         .xbar_ddr_wr_axi_bready(xbar_ddr_wr_axi_bready),
 
-        // External slave interface (AXI4)
+        // External AXI4 interface (ddr_wr_axi_*)
         .ddr_wr_axi_awid(ddr_wr_axi_awid),
         .ddr_wr_axi_awaddr(ddr_wr_axi_awaddr),
         .ddr_wr_axi_awlen(ddr_wr_axi_awlen),
@@ -387,7 +387,7 @@ module bridge_1x2_wr (
         .aclk(aclk),
         .aresetn(aresetn),
 
-        // Crossbar interface (internal signals)
+        // Crossbar interface (xbar_sram_wr_axi_*)
         .xbar_sram_wr_axi_awid(xbar_sram_wr_axi_awid),
         .xbar_sram_wr_axi_awaddr(xbar_sram_wr_axi_awaddr),
         .xbar_sram_wr_axi_awlen(xbar_sram_wr_axi_awlen),
@@ -413,7 +413,7 @@ module bridge_1x2_wr (
         .xbar_sram_wr_axi_bvalid(xbar_sram_wr_axi_bvalid),
         .xbar_sram_wr_axi_bready(xbar_sram_wr_axi_bready),
 
-        // External slave interface (AXI4)
+        // External AXI4 interface (sram_wr_axi_*)
         .sram_wr_axi_awid(sram_wr_axi_awid),
         .sram_wr_axi_awaddr(sram_wr_axi_awaddr),
         .sram_wr_axi_awlen(sram_wr_axi_awlen),
