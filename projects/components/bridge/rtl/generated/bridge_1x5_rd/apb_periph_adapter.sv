@@ -113,89 +113,86 @@ module apb_periph_adapter #(
 
     // AXI4-to-APB converter shim
     axi4_to_apb_shim #(
-        .DEPTH_AW         (2),
-        .DEPTH_W          (4),
-        .DEPTH_B          (2),
-        .DEPTH_AR         (2),
-        .DEPTH_R          (4),
-        .SIDE_DEPTH       (4),
-        .APB_CMD_DEPTH    (4),
-        .APB_RSP_DEPTH    (4),
-        .AXI_ID_WIDTH     (4),
-        .AXI_ADDR_WIDTH   (32),
-        .AXI_DATA_WIDTH   (32),
-        .AXI_USER_WIDTH   (1),
-        .APB_ADDR_WIDTH   (32),
-        .APB_DATA_WIDTH   (32)
+        .DEPTH_AW(2),
+        .DEPTH_W(4),
+        .DEPTH_B(2),
+        .DEPTH_AR(2),
+        .DEPTH_R(4),
+        .SIDE_DEPTH(4),
+        .APB_CMD_DEPTH(4),
+        .APB_RSP_DEPTH(4),
+        .AXI_ID_WIDTH(4),
+        .AXI_ADDR_WIDTH(32),
+        .AXI_DATA_WIDTH(32),
+        .AXI_USER_WIDTH(1),
+        .APB_ADDR_WIDTH(32),
+        .APB_DATA_WIDTH(32)
     ) u_apb_periph_apb_converter (
-        .aclk             (aclk),
-        .aresetn          (aresetn),
-        .pclk             (aclk),     // Same clock domain
-        .presetn          (aresetn),  // Same reset
+        // Clocks and resets (single clock domain by default)
+        .aclk(aclk),
+        .aresetn(aresetn),
+        .pclk(aclk),
+        .presetn(aresetn),
 
-        // Write channels tied off (read-only bridge)
-        .s_axi_awid       (4'b0),
-        .s_axi_awaddr     (32'b0),
-        .s_axi_awlen      (8'b0),
-        .s_axi_awsize     (3'b0),
-        .s_axi_awburst    (2'b0),
-        .s_axi_awlock     (1'b0),
-        .s_axi_awcache    (4'b0),
-        .s_axi_awprot     (3'b0),
-        .s_axi_awqos      (4'b0),
-        .s_axi_awregion   (4'b0),
-        .s_axi_awuser     (1'b0),
-        .s_axi_awvalid    (1'b0),
-        .s_axi_awready    (),  // Unconnected
+        // AXI4 write channels (tied off — read-only bridge)
+        .s_axi_awid(4'b0),
+        .s_axi_awaddr(32'b0),
+        .s_axi_awlen(8'b0),
+        .s_axi_awsize(3'b0),
+        .s_axi_awburst(2'b0),
+        .s_axi_awlock(1'b0),
+        .s_axi_awcache(4'b0),
+        .s_axi_awprot(3'b0),
+        .s_axi_awqos(4'b0),
+        .s_axi_awregion(4'b0),
+        .s_axi_awuser(1'b0),
+        .s_axi_awvalid(1'b0),
+        .s_axi_awready(),
+        .s_axi_wdata(32'b0),
+        .s_axi_wstrb(4'b0),
+        .s_axi_wlast(1'b0),
+        .s_axi_wuser(1'b0),
+        .s_axi_wvalid(1'b0),
+        .s_axi_wready(),
+        .s_axi_bid(),
+        .s_axi_bresp(),
+        .s_axi_buser(),
+        .s_axi_bvalid(),
+        .s_axi_bready(1'b0),
 
-        .s_axi_wdata      (32'b0),
-        .s_axi_wstrb      (4'b0),
-        .s_axi_wlast      (1'b0),
-        .s_axi_wuser      (1'b0),
-        .s_axi_wvalid     (1'b0),
-        .s_axi_wready     (),  // Unconnected
-
-        .s_axi_bid        (),  // Unconnected
-        .s_axi_bresp      (),  // Unconnected
-        .s_axi_buser      (),  // Unconnected
-        .s_axi_bvalid     (),  // Unconnected
-        .s_axi_bready     (1'b0),
-
-        // AXI4 read address channel (from crossbar)
-        .s_axi_arid       (xbar_apb_periph_axi_arid),
-        .s_axi_araddr     (xbar_apb_periph_axi_araddr),
-        .s_axi_arlen      (xbar_apb_periph_axi_arlen),
-        .s_axi_arsize     (xbar_apb_periph_axi_arsize),
-        .s_axi_arburst    (xbar_apb_periph_axi_arburst),
-        .s_axi_arlock     (xbar_apb_periph_axi_arlock),
-        .s_axi_arcache    (xbar_apb_periph_axi_arcache),
-        .s_axi_arprot     (xbar_apb_periph_axi_arprot),
-        .s_axi_arqos      (xbar_apb_periph_axi_arqos),
-        .s_axi_arregion   (xbar_apb_periph_axi_arregion),
-        .s_axi_aruser     (xbar_apb_periph_axi_aruser),
-        .s_axi_arvalid    (xbar_apb_periph_axi_arvalid),
-        .s_axi_arready    (xbar_apb_periph_axi_arready),
-
-        // AXI4 read data channel (to intermediate signals for FIFO tracking)
-        .s_axi_rid        (xbar_apb_periph_axi_rid),
-        .s_axi_rdata      (xbar_apb_periph_axi_rdata),
-        .s_axi_rresp      (xbar_apb_periph_axi_rresp),
-        .s_axi_rlast      (converter_rlast),  // ← FIFO tracks this
-        .s_axi_ruser      (xbar_apb_periph_axi_ruser),
-        .s_axi_rvalid     (converter_rvalid),  // ← FIFO tracks this
-        .s_axi_rready     (converter_rready),
+        // AXI4 read channels (from crossbar)
+        .s_axi_arid(xbar_apb_periph_axi_arid),
+        .s_axi_araddr(xbar_apb_periph_axi_araddr),
+        .s_axi_arlen(xbar_apb_periph_axi_arlen),
+        .s_axi_arsize(xbar_apb_periph_axi_arsize),
+        .s_axi_arburst(xbar_apb_periph_axi_arburst),
+        .s_axi_arlock(xbar_apb_periph_axi_arlock),
+        .s_axi_arcache(xbar_apb_periph_axi_arcache),
+        .s_axi_arprot(xbar_apb_periph_axi_arprot),
+        .s_axi_arqos(xbar_apb_periph_axi_arqos),
+        .s_axi_arregion(xbar_apb_periph_axi_arregion),
+        .s_axi_aruser(xbar_apb_periph_axi_aruser),
+        .s_axi_arvalid(xbar_apb_periph_axi_arvalid),
+        .s_axi_arready(xbar_apb_periph_axi_arready),
+        .s_axi_rid(xbar_apb_periph_axi_rid),
+        .s_axi_rdata(xbar_apb_periph_axi_rdata),
+        .s_axi_rresp(xbar_apb_periph_axi_rresp),
+        .s_axi_rlast(converter_rlast),
+        .s_axi_ruser(xbar_apb_periph_axi_ruser),
+        .s_axi_rvalid(converter_rvalid),
+        .s_axi_rready(converter_rready),
 
         // APB master interface (to external slave)
-        .m_apb_PSEL       (apb_periph_PSEL),
-        .m_apb_PADDR      (apb_periph_PADDR),
-        .m_apb_PENABLE    (apb_periph_PENABLE),
-        .m_apb_PWRITE     (apb_periph_PWRITE),
-        .m_apb_PWDATA     (apb_periph_PWDATA),
-        .m_apb_PSTRB      (apb_periph_PSTRB),
-        .m_apb_PPROT      (apb_periph_PPROT),
-        .m_apb_PRDATA     (apb_periph_PRDATA),
-        .m_apb_PSLVERR    (apb_periph_PSLVERR),
-        .m_apb_PREADY     (apb_periph_PREADY)
+        .m_apb_PSEL(apb_periph_PSEL),
+        .m_apb_PADDR(apb_periph_PADDR),
+        .m_apb_PENABLE(apb_periph_PENABLE),
+        .m_apb_PWRITE(apb_periph_PWRITE),
+        .m_apb_PWDATA(apb_periph_PWDATA),
+        .m_apb_PSTRB(apb_periph_PSTRB),
+        .m_apb_PPROT(apb_periph_PPROT),
+        .m_apb_PRDATA(apb_periph_PRDATA),
+        .m_apb_PSLVERR(apb_periph_PSLVERR),
+        .m_apb_PREADY(apb_periph_PREADY)
     );
 
     // Wire converter outputs back to crossbar interface

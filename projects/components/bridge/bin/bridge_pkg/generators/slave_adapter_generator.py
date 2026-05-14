@@ -843,176 +843,53 @@ class SlaveAdapterGenerator:
         return lines
 
     def _generate_apb_converter(self) -> List[str]:
-        """Generate AXI4-to-APB converter instantiation."""
-        lines = []
+        """Generate AXI4-to-APB converter instantiation via the typed
+        Axi4ToApbShim component. The component owns the param list,
+        port list, and tie-off widths, so the call site can't mistype
+        AXI_DATA_WIDTH or an 8'b0 tie-off (both regressed here before)."""
+        from ..components.axi4_to_apb_shim_component import Axi4ToApbShim
 
-        # Crossbar interface prefix
         crossbar_prefix = f"xbar_{self.slave.name}_axi_"
 
-        lines.append("    // AXI4-to-APB converter shim")
-        lines.append("    axi4_to_apb_shim #(")
-        lines.append("        .DEPTH_AW         (2),")
-        lines.append("        .DEPTH_W          (4),")
-        lines.append("        .DEPTH_B          (2),")
-        lines.append("        .DEPTH_AR         (2),")
-        lines.append("        .DEPTH_R          (4),")
-        lines.append("        .SIDE_DEPTH       (4),")
-        lines.append("        .APB_CMD_DEPTH    (4),")
-        lines.append("        .APB_RSP_DEPTH    (4),")
-        lines.append(f"        .AXI_ID_WIDTH     ({self.id_width}),")
-        lines.append(f"        .AXI_ADDR_WIDTH   ({self.slave.addr_width}),")
-        # AXI side of the shim is the crossbar port for this slave; the
-        # crossbar carries each slave at slave.data_width (width
-        # conversion happens in the master adapter, not here).
-        lines.append(f"        .AXI_DATA_WIDTH   ({self.slave.data_width}),")
-        lines.append("        .AXI_USER_WIDTH   (1),")
-        lines.append(f"        .APB_ADDR_WIDTH   ({self.slave.addr_width}),")
-        lines.append(f"        .APB_DATA_WIDTH   ({self.slave.data_width})")
-        lines.append(f"    ) u_{self.slave.name}_apb_converter (")
-        lines.append("        .aclk             (aclk),")
-        lines.append("        .aresetn          (aresetn),")
-        lines.append("        .pclk             (aclk),     // Same clock domain")
-        lines.append("        .presetn          (aresetn),  // Same reset")
-        lines.append("")
+        shim = Axi4ToApbShim(
+            instance_name=f"u_{self.slave.name}_apb_converter",
+            id_width=self.id_width,
+            addr_width=self.slave.addr_width,
+            axi_data_width=self.slave.data_width,
+            apb_data_width=self.slave.data_width,
+            has_write=self.has_write,
+            has_read=self.has_read,
+        )
+        shim.connect_clocks_and_resets()
 
-        # AXI4 slave interface (from crossbar) - connect or tie off channels
         if self.has_write:
-            lines.append("        // AXI4 write address channel (from crossbar)")
-            lines.append(f"        .s_axi_awid       ({crossbar_prefix}awid),")
-            lines.append(f"        .s_axi_awaddr     ({crossbar_prefix}awaddr),")
-            lines.append(f"        .s_axi_awlen      ({crossbar_prefix}awlen),")
-            lines.append(f"        .s_axi_awsize     ({crossbar_prefix}awsize),")
-            lines.append(f"        .s_axi_awburst    ({crossbar_prefix}awburst),")
-            lines.append(f"        .s_axi_awlock     ({crossbar_prefix}awlock),")
-            lines.append(f"        .s_axi_awcache    ({crossbar_prefix}awcache),")
-            lines.append(f"        .s_axi_awprot     ({crossbar_prefix}awprot),")
-            lines.append(f"        .s_axi_awqos      ({crossbar_prefix}awqos),")
-            lines.append(f"        .s_axi_awregion   ({crossbar_prefix}awregion),")
-            lines.append(f"        .s_axi_awuser     ({crossbar_prefix}awuser),")
-            lines.append(f"        .s_axi_awvalid    ({crossbar_prefix}awvalid),")
-            lines.append(f"        .s_axi_awready    ({crossbar_prefix}awready),")
-            lines.append("")
-            lines.append("        // AXI4 write data channel")
-            lines.append(f"        .s_axi_wdata      ({crossbar_prefix}wdata),")
-            lines.append(f"        .s_axi_wstrb      ({crossbar_prefix}wstrb),")
-            lines.append(f"        .s_axi_wlast      ({crossbar_prefix}wlast),")
-            lines.append(f"        .s_axi_wuser      ({crossbar_prefix}wuser),")
-            lines.append(f"        .s_axi_wvalid     ({crossbar_prefix}wvalid),")
-            lines.append(f"        .s_axi_wready     ({crossbar_prefix}wready),")
-            lines.append("")
-            lines.append("        // AXI4 write response channel (to intermediate signals for FIFO tracking)")
-            lines.append(f"        .s_axi_bid        ({crossbar_prefix}bid),")
-            lines.append(f"        .s_axi_bresp      ({crossbar_prefix}bresp),")
-            lines.append(f"        .s_axi_buser      ({crossbar_prefix}buser),")
-            lines.append(f"        .s_axi_bvalid     (converter_bvalid),  // ← FIFO tracks this")
-            lines.append(f"        .s_axi_bready     (converter_bready),")
-            lines.append("")
+            shim.connect_axi_write_channel(
+                crossbar_prefix=crossbar_prefix,
+                bvalid_intercept='converter_bvalid',
+                bready_intercept='converter_bready',
+            )
         else:
-            # Tie off write channels for read-only bridge
-            lines.append("        // Write channels tied off (read-only bridge)")
-            lines.append(f"        .s_axi_awid       ({self.id_width}'b0),")
-            lines.append(f"        .s_axi_awaddr     ({self.slave.addr_width}'b0),")
-            lines.append(f"        .s_axi_awlen      (8'b0),")
-            lines.append(f"        .s_axi_awsize     (3'b0),")
-            lines.append(f"        .s_axi_awburst    (2'b0),")
-            lines.append(f"        .s_axi_awlock     (1'b0),")
-            lines.append(f"        .s_axi_awcache    (4'b0),")
-            lines.append(f"        .s_axi_awprot     (3'b0),")
-            lines.append(f"        .s_axi_awqos      (4'b0),")
-            lines.append(f"        .s_axi_awregion   (4'b0),")
-            lines.append(f"        .s_axi_awuser     (1'b0),")
-            lines.append(f"        .s_axi_awvalid    (1'b0),")
-            lines.append(f"        .s_axi_awready    (),  // Unconnected")
-            lines.append("")
-            # Get data width and strb width
-            # Tie-off widths must match the shim's AXI_DATA_WIDTH, which
-            # is now slave.data_width (the crossbar carries each slave at
-            # its native width).
-            tie_data_width = self.slave.data_width
-            tie_strb_width = tie_data_width // 8
-            lines.append(f"        .s_axi_wdata      ({tie_data_width}'b0),")
-            lines.append(f"        .s_axi_wstrb      ({tie_strb_width}'b0),")
-            lines.append(f"        .s_axi_wlast      (1'b0),")
-            lines.append(f"        .s_axi_wuser      (1'b0),")
-            lines.append(f"        .s_axi_wvalid     (1'b0),")
-            lines.append(f"        .s_axi_wready     (),  // Unconnected")
-            lines.append("")
-            lines.append(f"        .s_axi_bid        (),  // Unconnected")
-            lines.append(f"        .s_axi_bresp      (),  // Unconnected")
-            lines.append(f"        .s_axi_buser      (),  // Unconnected")
-            lines.append(f"        .s_axi_bvalid     (),  // Unconnected")
-            lines.append(f"        .s_axi_bready     (1'b0),")
-            lines.append("")
+            shim.tie_off_axi_write_channel()
 
         if self.has_read:
-            lines.append("        // AXI4 read address channel (from crossbar)")
-            lines.append(f"        .s_axi_arid       ({crossbar_prefix}arid),")
-            lines.append(f"        .s_axi_araddr     ({crossbar_prefix}araddr),")
-            lines.append(f"        .s_axi_arlen      ({crossbar_prefix}arlen),")
-            lines.append(f"        .s_axi_arsize     ({crossbar_prefix}arsize),")
-            lines.append(f"        .s_axi_arburst    ({crossbar_prefix}arburst),")
-            lines.append(f"        .s_axi_arlock     ({crossbar_prefix}arlock),")
-            lines.append(f"        .s_axi_arcache    ({crossbar_prefix}arcache),")
-            lines.append(f"        .s_axi_arprot     ({crossbar_prefix}arprot),")
-            lines.append(f"        .s_axi_arqos      ({crossbar_prefix}arqos),")
-            lines.append(f"        .s_axi_arregion   ({crossbar_prefix}arregion),")
-            lines.append(f"        .s_axi_aruser     ({crossbar_prefix}aruser),")
-            lines.append(f"        .s_axi_arvalid    ({crossbar_prefix}arvalid),")
-            lines.append(f"        .s_axi_arready    ({crossbar_prefix}arready),")
-            lines.append("")
-            lines.append("        // AXI4 read data channel (to intermediate signals for FIFO tracking)")
-            lines.append(f"        .s_axi_rid        ({crossbar_prefix}rid),")
-            lines.append(f"        .s_axi_rdata      ({crossbar_prefix}rdata),")
-            lines.append(f"        .s_axi_rresp      ({crossbar_prefix}rresp),")
-            lines.append(f"        .s_axi_rlast      (converter_rlast),  // ← FIFO tracks this")
-            lines.append(f"        .s_axi_ruser      ({crossbar_prefix}ruser),")
-            lines.append(f"        .s_axi_rvalid     (converter_rvalid),  // ← FIFO tracks this")
-            lines.append(f"        .s_axi_rready     (converter_rready),")
-            lines.append("")
+            shim.connect_axi_read_channel(
+                crossbar_prefix=crossbar_prefix,
+                rvalid_intercept='converter_rvalid',
+                rready_intercept='converter_rready',
+                rlast_intercept='converter_rlast',
+            )
         else:
-            # Tie off read channels for write-only bridge
-            lines.append("        // Read channels tied off (write-only bridge)")
-            lines.append(f"        .s_axi_arid       ({self.id_width}'b0),")
-            lines.append(f"        .s_axi_araddr     ({self.slave.addr_width}'b0),")
-            lines.append(f"        .s_axi_arlen      (8'b0),")
-            lines.append(f"        .s_axi_arsize     (3'b0),")
-            lines.append(f"        .s_axi_arburst    (2'b0),")
-            lines.append(f"        .s_axi_arlock     (1'b0),")
-            lines.append(f"        .s_axi_arcache    (4'b0),")
-            lines.append(f"        .s_axi_arprot     (3'b0),")
-            lines.append(f"        .s_axi_arqos      (4'b0),")
-            lines.append(f"        .s_axi_arregion   (4'b0),")
-            lines.append(f"        .s_axi_aruser     (1'b0),")
-            lines.append(f"        .s_axi_arvalid    (1'b0),")
-            lines.append(f"        .s_axi_arready    (),  // Unconnected")
-            lines.append("")
-            lines.append(f"        .s_axi_rid        (),  // Unconnected")
-            lines.append(f"        .s_axi_rdata      (),  // Unconnected")
-            lines.append(f"        .s_axi_rresp      (),  // Unconnected")
-            lines.append(f"        .s_axi_rlast      (),  // Unconnected")
-            lines.append(f"        .s_axi_ruser      (),  // Unconnected")
-            lines.append(f"        .s_axi_rvalid     (),  // Unconnected")
-            lines.append(f"        .s_axi_rready     (1'b0),")
-            lines.append("")
+            shim.tie_off_axi_read_channel()
 
-        # APB master interface (to external slave) - use external prefix
-        # Note: axi4_to_apb_shim uses uppercase APB signal names (PSEL, PADDR, etc.)
-        # Connect to top-level APB ports (also uppercase to match APB standard)
-        lines.append("        // APB master interface (to external slave)")
-        lines.append(f"        .m_apb_PSEL       ({self.slave.prefix}PSEL),")
-        lines.append(f"        .m_apb_PADDR      ({self.slave.prefix}PADDR),")
-        lines.append(f"        .m_apb_PENABLE    ({self.slave.prefix}PENABLE),")
-        lines.append(f"        .m_apb_PWRITE     ({self.slave.prefix}PWRITE),")
-        lines.append(f"        .m_apb_PWDATA     ({self.slave.prefix}PWDATA),")
-        lines.append(f"        .m_apb_PSTRB      ({self.slave.prefix}PSTRB),")
-        lines.append(f"        .m_apb_PPROT      ({self.slave.prefix}PPROT),")
-        lines.append(f"        .m_apb_PRDATA     ({self.slave.prefix}PRDATA),")
-        lines.append(f"        .m_apb_PSLVERR    ({self.slave.prefix}PSLVERR),")
-        lines.append(f"        .m_apb_PREADY     ({self.slave.prefix}PREADY)")
-        lines.append("    );")
-        lines.append("")
+        shim.connect_apb_master(prefix=self.slave.prefix)
 
-        # Wire intermediate signals back to crossbar
+        lines: List[str] = ["    // AXI4-to-APB converter shim"]
+        lines.extend(shim.generate_lines())
+
+        # Wire the intercept signals (converter_*) back to the crossbar
+        # interface. The component pulls bvalid/bready/rvalid/rready/rlast
+        # off into intermediate signals so the bridge_id-tracking FIFO
+        # can monitor them; we still need the crossbar to see those.
         lines.append("    // Wire converter outputs back to crossbar interface")
         if self.has_write:
             lines.append(f"    assign {crossbar_prefix}bvalid = converter_bvalid;")
