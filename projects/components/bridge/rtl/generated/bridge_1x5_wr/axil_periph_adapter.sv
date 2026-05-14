@@ -46,19 +46,30 @@ module axil_periph_adapter #(
     output logic                       bid_valid,
 
     // External slave interface (AXIL)
-    output logic [31:0] axil_periph_axi_awaddr,
-    output logic [2:0]            axil_periph_axi_awprot,
-    output logic                  axil_periph_axi_awvalid,
-    input  logic                  axil_periph_axi_awready,
-    // Write Data Channel
-    output logic [31:0] axil_periph_axi_wdata,
-    output logic [3:0] axil_periph_axi_wstrb,
-    output logic                  axil_periph_axi_wvalid,
-    input  logic                  axil_periph_axi_wready,
-    // Write Response Channel
-    input  logic [1:0]            axil_periph_axi_bresp,
-    input  logic                  axil_periph_axi_bvalid,
-    output logic                  axil_periph_axi_bready
+    output  logic [3:0]  axil_periph_axi_awid,
+    output  logic [31:0]  axil_periph_axi_awaddr,
+    output  logic [7:0]  axil_periph_axi_awlen,
+    output  logic [2:0]  axil_periph_axi_awsize,
+    output  logic [1:0]  axil_periph_axi_awburst,
+    output  logic         axil_periph_axi_awlock,
+    output  logic [3:0]  axil_periph_axi_awcache,
+    output  logic [2:0]  axil_periph_axi_awprot,
+    output  logic [3:0]  axil_periph_axi_awqos,
+    output  logic [3:0]  axil_periph_axi_awregion,
+    output  logic         axil_periph_axi_awuser,
+    output  logic         axil_periph_axi_awvalid,
+    input  logic         axil_periph_axi_awready,
+    output  logic [31:0]  axil_periph_axi_wdata,
+    output  logic [3:0]  axil_periph_axi_wstrb,
+    output  logic         axil_periph_axi_wlast,
+    output  logic         axil_periph_axi_wuser,
+    output  logic         axil_periph_axi_wvalid,
+    input  logic         axil_periph_axi_wready,
+    input  logic [3:0]  axil_periph_axi_bid,
+    input  logic [1:0]  axil_periph_axi_bresp,
+    input  logic         axil_periph_axi_buser,
+    input  logic         axil_periph_axi_bvalid,
+    output  logic         axil_periph_axi_bready
 );
 
     // ================================================================
@@ -82,7 +93,6 @@ module axil_periph_adapter #(
     // ================================================================
 
     // Write Channel FIFO (In-Order) - AXIL Protocol
-    // NOTE: Monitors external slave response, not crossbar input
     localparam WR_FIFO_DEPTH = 16;
     logic [BRIDGE_ID_WIDTH-1:0] wr_fifo [WR_FIFO_DEPTH];
     logic [$clog2(WR_FIFO_DEPTH):0] wr_ptr, rd_ptr;
@@ -97,11 +107,11 @@ module axil_periph_adapter #(
         end
     end
 
-    // Pop on B response (axil_periph_axi_bvalid && axil_periph_axi_bready)
+    // Pop on B response (xbar_axil_periph_axi_bvalid && xbar_axil_periph_axi_bready)
     always_ff @(posedge aclk or negedge aresetn) begin
         if (!aresetn) begin
             rd_ptr <= '0;
-        end else if (axil_periph_axi_bvalid && axil_periph_axi_bready) begin
+        end else if (xbar_axil_periph_axi_bvalid && xbar_axil_periph_axi_bready) begin
             rd_ptr <= rd_ptr + 1'b1;
         end
     end
@@ -116,65 +126,77 @@ module axil_periph_adapter #(
     assign bid_bridge_id = wr_fifo[rd_ptr[$clog2(WR_FIFO_DEPTH)-1:0]];
     assign bid_valid     = (wr_ptr != rd_ptr);
 
-    // AXI4-to-AXI4-Lite converter
-    axi4_to_axil4_wr #(
-        .AXI_ID_WIDTH     (4),
-        .AXI_ADDR_WIDTH   (32),
-        .AXI_DATA_WIDTH   (64),
-        .AXI_USER_WIDTH   (1),
-        .SKID_DEPTH_AR    (2),
-        .SKID_DEPTH_R     (4)
-    ) u_axil_periph_axil_converter (
-        .aclk             (aclk),
-        .aresetn          (aresetn),
+    // AXI4 Master Write Timing Wrapper
+    axi4_master_wr #(
+        .SKID_DEPTH_AW(2),
+        .SKID_DEPTH_W(4),
+        .SKID_DEPTH_B(2),
+        .AXI_ID_WIDTH(4),
+        .AXI_ADDR_WIDTH(32),
+        .AXI_DATA_WIDTH(32),
+        .AXI_USER_WIDTH(1)
+    ) u_master_wr (
+        .aclk(aclk),
+        .aresetn(aresetn),
 
-        // AXI4 write address channel (from crossbar)
-        .s_axi_awid       (xbar_axil_periph_axi_awid),
-        .s_axi_awaddr     (xbar_axil_periph_axi_awaddr),
-        .s_axi_awlen      (xbar_axil_periph_axi_awlen),
-        .s_axi_awsize     (xbar_axil_periph_axi_awsize),
-        .s_axi_awburst    (xbar_axil_periph_axi_awburst),
-        .s_axi_awlock     (xbar_axil_periph_axi_awlock),
-        .s_axi_awcache    (xbar_axil_periph_axi_awcache),
-        .s_axi_awprot     (xbar_axil_periph_axi_awprot),
-        .s_axi_awqos      (xbar_axil_periph_axi_awqos),
-        .s_axi_awregion   (xbar_axil_periph_axi_awregion),
-        .s_axi_awuser     (xbar_axil_periph_axi_awuser),
-        .s_axi_awvalid    (xbar_axil_periph_axi_awvalid),
-        .s_axi_awready    (xbar_axil_periph_axi_awready),
+        // Slave interface (from crossbar)
+        .fub_axi_awid(xbar_axil_periph_axi_awid),
+        .fub_axi_awaddr(xbar_axil_periph_axi_awaddr),
+        .fub_axi_awlen(xbar_axil_periph_axi_awlen),
+        .fub_axi_awsize(xbar_axil_periph_axi_awsize),
+        .fub_axi_awburst(xbar_axil_periph_axi_awburst),
+        .fub_axi_awlock(xbar_axil_periph_axi_awlock),
+        .fub_axi_awcache(xbar_axil_periph_axi_awcache),
+        .fub_axi_awprot(xbar_axil_periph_axi_awprot),
+        .fub_axi_awqos(xbar_axil_periph_axi_awqos),
+        .fub_axi_awregion(xbar_axil_periph_axi_awregion),
+        .fub_axi_awuser(xbar_axil_periph_axi_awuser),
+        .fub_axi_awvalid(xbar_axil_periph_axi_awvalid),
+        .fub_axi_awready(xbar_axil_periph_axi_awready),
 
-        // AXI4 write data channel
-        .s_axi_wdata      (xbar_axil_periph_axi_wdata),
-        .s_axi_wstrb      (xbar_axil_periph_axi_wstrb),
-        .s_axi_wlast      (xbar_axil_periph_axi_wlast),
-        .s_axi_wuser      (xbar_axil_periph_axi_wuser),
-        .s_axi_wvalid     (xbar_axil_periph_axi_wvalid),
-        .s_axi_wready     (xbar_axil_periph_axi_wready),
+        .fub_axi_wdata(xbar_axil_periph_axi_wdata),
+        .fub_axi_wstrb(xbar_axil_periph_axi_wstrb),
+        .fub_axi_wlast(xbar_axil_periph_axi_wlast),
+        .fub_axi_wuser(xbar_axil_periph_axi_wuser),
+        .fub_axi_wvalid(xbar_axil_periph_axi_wvalid),
+        .fub_axi_wready(xbar_axil_periph_axi_wready),
 
-        // AXI4 write response channel
-        .s_axi_bid        (xbar_axil_periph_axi_bid),
-        .s_axi_bresp      (xbar_axil_periph_axi_bresp),
-        .s_axi_buser      (xbar_axil_periph_axi_buser),
-        .s_axi_bvalid     (xbar_axil_periph_axi_bvalid),
-        .s_axi_bready     (xbar_axil_periph_axi_bready),
+        .fub_axi_bid(xbar_axil_periph_axi_bid),
+        .fub_axi_bresp(xbar_axil_periph_axi_bresp),
+        .fub_axi_buser(xbar_axil_periph_axi_buser),
+        .fub_axi_bvalid(xbar_axil_periph_axi_bvalid),
+        .fub_axi_bready(xbar_axil_periph_axi_bready),
 
-        // AXI4-Lite write address channel (to external slave)
-        .m_axil_awaddr    (axil_periph_axi_awaddr),
-        .m_axil_awprot    (axil_periph_axi_awprot),
-        .m_axil_awvalid   (axil_periph_axi_awvalid),
-        .m_axil_awready   (axil_periph_axi_awready),
+        // Master interface (to external slave)
+        .m_axi_awid(axil_periph_axi_awid),
+        .m_axi_awaddr(axil_periph_axi_awaddr),
+        .m_axi_awlen(axil_periph_axi_awlen),
+        .m_axi_awsize(axil_periph_axi_awsize),
+        .m_axi_awburst(axil_periph_axi_awburst),
+        .m_axi_awlock(axil_periph_axi_awlock),
+        .m_axi_awcache(axil_periph_axi_awcache),
+        .m_axi_awprot(axil_periph_axi_awprot),
+        .m_axi_awqos(axil_periph_axi_awqos),
+        .m_axi_awregion(axil_periph_axi_awregion),
+        .m_axi_awuser(axil_periph_axi_awuser),
+        .m_axi_awvalid(axil_periph_axi_awvalid),
+        .m_axi_awready(axil_periph_axi_awready),
 
-        // AXI4-Lite write data channel
-        .m_axil_wdata     (axil_periph_axi_wdata),
-        .m_axil_wstrb     (axil_periph_axi_wstrb),
-        .m_axil_wvalid    (axil_periph_axi_wvalid),
-        .m_axil_wready    (axil_periph_axi_wready),
+        .m_axi_wdata(axil_periph_axi_wdata),
+        .m_axi_wstrb(axil_periph_axi_wstrb),
+        .m_axi_wlast(axil_periph_axi_wlast),
+        .m_axi_wuser(axil_periph_axi_wuser),
+        .m_axi_wvalid(axil_periph_axi_wvalid),
+        .m_axi_wready(axil_periph_axi_wready),
 
-        // AXI4-Lite write response channel
-        .m_axil_bresp     (axil_periph_axi_bresp),
-        .m_axil_bvalid    (axil_periph_axi_bvalid),
-        .m_axil_bready    (axil_periph_axi_bready)
+        .m_axi_bid(axil_periph_axi_bid),
+        .m_axi_bresp(axil_periph_axi_bresp),
+        .m_axi_buser(axil_periph_axi_buser),
+        .m_axi_bvalid(axil_periph_axi_bvalid),
+        .m_axi_bready(axil_periph_axi_bready),
 
+        // Status output (unconnected - for clock gating)
+        .busy()
     );
 
 endmodule : axil_periph_adapter

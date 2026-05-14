@@ -196,6 +196,8 @@ module cpu_wr_adapter #(
         .busy(wrapper_wr_busy)
     );
 
+    logic [NUM_SLAVES-1:0] b_slave_select;
+
     // ================================================================
     // Address decode (slave selection) - Write
     // Slave 0 (periph_wr): 0x00000000 - 0x0FFFFFFF
@@ -235,10 +237,16 @@ module cpu_wr_adapter #(
     // Per-width path-active gates (see comment in adapter_generator.py).
     logic aw_path_active_32b;
     assign aw_path_active_32b = comb_slave_select_aw[0] | comb_slave_select_aw[3] | comb_slave_select_aw[4];
+    logic w_path_active_32b;
+    assign w_path_active_32b = b_slave_select[0] | b_slave_select[3] | b_slave_select[4];
     logic aw_path_active_64b;
     assign aw_path_active_64b = comb_slave_select_aw[1];
+    logic w_path_active_64b;
+    assign w_path_active_64b = b_slave_select[1];
     logic aw_path_active_128b;
     assign aw_path_active_128b = comb_slave_select_aw[2];
+    logic w_path_active_128b;
+    assign w_path_active_128b = b_slave_select[2];
 
     // ================================================================
     // Width converter: 64b → 32b
@@ -283,7 +291,7 @@ module cpu_wr_adapter #(
         .s_axi_wstrb(fub_axi_wstrb),
         .s_axi_wlast(fub_axi_wlast),
         .s_axi_wuser(1'b0),
-        .s_axi_wvalid(fub_axi_wvalid && aw_path_active_32b),
+        .s_axi_wvalid(fub_axi_wvalid && w_path_active_32b),
         .s_axi_wready(conv_32b_wready),  // Intermediate signal
 
         .s_axi_bid(conv_32b_bid),  // Intermediate signal
@@ -347,7 +355,7 @@ module cpu_wr_adapter #(
     assign cpu_wr_64b_w.strb  = fub_axi_wstrb;
     assign cpu_wr_64b_w.last  = fub_axi_wlast;
     assign cpu_wr_64b_w.user  = 1'b0;  // Tie to 0
-    assign cpu_wr_64b_wvalid  = fub_axi_wvalid && aw_path_active_64b;
+    assign cpu_wr_64b_wvalid  = fub_axi_wvalid && w_path_active_64b;
     // wready routed via MUX
 
     // B channel (response: output → MUX → fub)
@@ -397,7 +405,7 @@ module cpu_wr_adapter #(
         .s_axi_wstrb(fub_axi_wstrb),
         .s_axi_wlast(fub_axi_wlast),
         .s_axi_wuser(1'b0),
-        .s_axi_wvalid(fub_axi_wvalid && aw_path_active_128b),
+        .s_axi_wvalid(fub_axi_wvalid && w_path_active_128b),
         .s_axi_wready(conv_128b_wready),  // Intermediate signal
 
         .s_axi_bid(conv_128b_bid),  // Intermediate signal
@@ -460,7 +468,6 @@ module cpu_wr_adapter #(
     logic [NUM_SLAVES-1:0] aw_trk_mem [AW_TRK_DEPTH];
     logic [AW_TRK_AW:0] aw_trk_wptr, aw_trk_rptr;
     logic aw_trk_push, aw_trk_pop;
-    logic [NUM_SLAVES-1:0] b_slave_select;
 
     assign aw_trk_push = fub_axi_awvalid && fub_axi_awready;
     assign aw_trk_pop  = fub_axi_bvalid && fub_axi_bready;

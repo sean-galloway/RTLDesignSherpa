@@ -329,6 +329,9 @@ module gpu_master_adapter #(
         .busy(wrapper_rd_busy)
     );
 
+    logic [NUM_SLAVES-1:0] b_slave_select;
+    logic [NUM_SLAVES-1:0] r_slave_select;
+
     // ================================================================
     // Address decode (slave selection) - Write
     // Slave 0 (periph_slave): 0x00000000 - 0x3FFFFFFF
@@ -383,14 +386,20 @@ module gpu_master_adapter #(
     // Per-width path-active gates (see comment in adapter_generator.py).
     logic aw_path_active_32b;
     assign aw_path_active_32b = comb_slave_select_aw[0];
+    logic w_path_active_32b;
+    assign w_path_active_32b = b_slave_select[0];
     logic ar_path_active_32b;
     assign ar_path_active_32b = comb_slave_select_ar[0];
     logic aw_path_active_64b;
     assign aw_path_active_64b = comb_slave_select_aw[1];
+    logic w_path_active_64b;
+    assign w_path_active_64b = b_slave_select[1];
     logic ar_path_active_64b;
     assign ar_path_active_64b = comb_slave_select_ar[1];
     logic aw_path_active_256b;
     assign aw_path_active_256b = comb_slave_select_aw[3];
+    logic w_path_active_256b;
+    assign w_path_active_256b = b_slave_select[3];
     logic ar_path_active_256b;
     assign ar_path_active_256b = comb_slave_select_ar[3];
 
@@ -443,7 +452,7 @@ module gpu_master_adapter #(
         .s_axi_wstrb(fub_axi_wstrb),
         .s_axi_wlast(fub_axi_wlast),
         .s_axi_wuser(1'b0),
-        .s_axi_wvalid(fub_axi_wvalid && aw_path_active_32b),
+        .s_axi_wvalid(fub_axi_wvalid && w_path_active_32b),
         .s_axi_wready(conv_32b_wready),  // Intermediate signal
 
         .s_axi_bid(conv_32b_bid),  // Intermediate signal
@@ -589,7 +598,7 @@ module gpu_master_adapter #(
         .s_axi_wstrb(fub_axi_wstrb),
         .s_axi_wlast(fub_axi_wlast),
         .s_axi_wuser(1'b0),
-        .s_axi_wvalid(fub_axi_wvalid && aw_path_active_64b),
+        .s_axi_wvalid(fub_axi_wvalid && w_path_active_64b),
         .s_axi_wready(conv_64b_wready),  // Intermediate signal
 
         .s_axi_bid(conv_64b_bid),  // Intermediate signal
@@ -712,7 +721,7 @@ module gpu_master_adapter #(
     assign gpu_master_256b_w.strb  = fub_axi_wstrb;
     assign gpu_master_256b_w.last  = fub_axi_wlast;
     assign gpu_master_256b_w.user  = 1'b0;  // Tie to 0
-    assign gpu_master_256b_wvalid  = fub_axi_wvalid && aw_path_active_256b;
+    assign gpu_master_256b_wvalid  = fub_axi_wvalid && w_path_active_256b;
     // wready routed via MUX
 
     // B channel (response: output → MUX → fub)
@@ -763,7 +772,6 @@ module gpu_master_adapter #(
     logic [NUM_SLAVES-1:0] aw_trk_mem [AW_TRK_DEPTH];
     logic [AW_TRK_AW:0] aw_trk_wptr, aw_trk_rptr;
     logic aw_trk_push, aw_trk_pop;
-    logic [NUM_SLAVES-1:0] b_slave_select;
 
     assign aw_trk_push = fub_axi_awvalid && fub_axi_awready;
     assign aw_trk_pop  = fub_axi_bvalid && fub_axi_bready;
@@ -796,7 +804,6 @@ module gpu_master_adapter #(
     logic [NUM_SLAVES-1:0] ar_trk_mem [AR_TRK_DEPTH];
     logic [AR_TRK_AW:0] ar_trk_wptr, ar_trk_rptr;
     logic ar_trk_push, ar_trk_pop;
-    logic [NUM_SLAVES-1:0] r_slave_select;
 
     assign ar_trk_push = fub_axi_arvalid && fub_axi_arready;
     assign ar_trk_pop  = fub_axi_rvalid && fub_axi_rready && fub_axi_rlast;

@@ -42,15 +42,26 @@ module axil_periph_adapter #(
     output logic                       rid_valid,
 
     // External slave interface (AXIL)
-    output logic [31:0] axil_periph_axi_araddr,
-    output logic [2:0]            axil_periph_axi_arprot,
-    output logic                  axil_periph_axi_arvalid,
-    input  logic                  axil_periph_axi_arready,
-    // Read Data Channel
-    input  logic [31:0] axil_periph_axi_rdata,
-    input  logic [1:0]            axil_periph_axi_rresp,
-    input  logic                  axil_periph_axi_rvalid,
-    output logic                  axil_periph_axi_rready
+    output  logic [3:0]  axil_periph_axi_arid,
+    output  logic [31:0]  axil_periph_axi_araddr,
+    output  logic [7:0]  axil_periph_axi_arlen,
+    output  logic [2:0]  axil_periph_axi_arsize,
+    output  logic [1:0]  axil_periph_axi_arburst,
+    output  logic         axil_periph_axi_arlock,
+    output  logic [3:0]  axil_periph_axi_arcache,
+    output  logic [2:0]  axil_periph_axi_arprot,
+    output  logic [3:0]  axil_periph_axi_arqos,
+    output  logic [3:0]  axil_periph_axi_arregion,
+    output  logic         axil_periph_axi_aruser,
+    output  logic         axil_periph_axi_arvalid,
+    input  logic         axil_periph_axi_arready,
+    input  logic [3:0]  axil_periph_axi_rid,
+    input  logic [31:0]  axil_periph_axi_rdata,
+    input  logic [1:0]  axil_periph_axi_rresp,
+    input  logic         axil_periph_axi_rlast,
+    input  logic         axil_periph_axi_ruser,
+    input  logic         axil_periph_axi_rvalid,
+    output  logic         axil_periph_axi_rready
 );
 
     // ================================================================
@@ -75,7 +86,6 @@ module axil_periph_adapter #(
     // ================================================================
 
     // Read Channel FIFO (In-Order) - AXIL Protocol
-    // NOTE: Monitors external slave response, not crossbar input
     localparam RD_FIFO_DEPTH = 16;
     logic [BRIDGE_ID_WIDTH-1:0] rd_fifo [RD_FIFO_DEPTH];
     logic [$clog2(RD_FIFO_DEPTH):0] ar_ptr, r_ptr;
@@ -90,11 +100,11 @@ module axil_periph_adapter #(
         end
     end
 
-    // Pop on R response (axil_periph_axi_rvalid && axil_periph_axi_rready)
+    // Pop on R response (xbar_axil_periph_axi_rvalid && xbar_axil_periph_axi_rready && xbar_axil_periph_axi_rlast)
     always_ff @(posedge aclk or negedge aresetn) begin
         if (!aresetn) begin
             r_ptr <= '0;
-        end else if (axil_periph_axi_rvalid && axil_periph_axi_rready) begin
+        end else if (xbar_axil_periph_axi_rvalid && xbar_axil_periph_axi_rready && xbar_axil_periph_axi_rlast) begin
             r_ptr <= r_ptr + 1'b1;
         end
     end
@@ -109,53 +119,66 @@ module axil_periph_adapter #(
     assign rid_bridge_id = rd_fifo[r_ptr[$clog2(RD_FIFO_DEPTH)-1:0]];
     assign rid_valid     = (ar_ptr != r_ptr);
 
-    // AXI4-to-AXI4-Lite converter
-    axi4_to_axil4_rd #(
-        .AXI_ID_WIDTH     (4),
-        .AXI_ADDR_WIDTH   (32),
-        .AXI_DATA_WIDTH   (64),
-        .AXI_USER_WIDTH   (1),
-        .SKID_DEPTH_AR    (2),
-        .SKID_DEPTH_R     (4)
-    ) u_axil_periph_axil_converter (
-        .aclk             (aclk),
-        .aresetn          (aresetn),
+    // AXI4 Master Read Timing Wrapper
+    axi4_master_rd #(
+        .SKID_DEPTH_AR(2),
+        .SKID_DEPTH_R(2),
+        .AXI_ID_WIDTH(4),
+        .AXI_ADDR_WIDTH(32),
+        .AXI_DATA_WIDTH(32),
+        .AXI_USER_WIDTH(1)
+    ) u_master_rd (
+        .aclk(aclk),
+        .aresetn(aresetn),
 
-        // AXI4 read address channel (from crossbar)
-        .s_axi_arid       (xbar_axil_periph_axi_arid),
-        .s_axi_araddr     (xbar_axil_periph_axi_araddr),
-        .s_axi_arlen      (xbar_axil_periph_axi_arlen),
-        .s_axi_arsize     (xbar_axil_periph_axi_arsize),
-        .s_axi_arburst    (xbar_axil_periph_axi_arburst),
-        .s_axi_arlock     (xbar_axil_periph_axi_arlock),
-        .s_axi_arcache    (xbar_axil_periph_axi_arcache),
-        .s_axi_arprot     (xbar_axil_periph_axi_arprot),
-        .s_axi_arqos      (xbar_axil_periph_axi_arqos),
-        .s_axi_arregion   (xbar_axil_periph_axi_arregion),
-        .s_axi_aruser     (xbar_axil_periph_axi_aruser),
-        .s_axi_arvalid    (xbar_axil_periph_axi_arvalid),
-        .s_axi_arready    (xbar_axil_periph_axi_arready),
+        // Slave interface (from crossbar)
+        .fub_axi_arid(xbar_axil_periph_axi_arid),
+        .fub_axi_araddr(xbar_axil_periph_axi_araddr),
+        .fub_axi_arlen(xbar_axil_periph_axi_arlen),
+        .fub_axi_arsize(xbar_axil_periph_axi_arsize),
+        .fub_axi_arburst(xbar_axil_periph_axi_arburst),
+        .fub_axi_arlock(xbar_axil_periph_axi_arlock),
+        .fub_axi_arcache(xbar_axil_periph_axi_arcache),
+        .fub_axi_arprot(xbar_axil_periph_axi_arprot),
+        .fub_axi_arqos(xbar_axil_periph_axi_arqos),
+        .fub_axi_arregion(xbar_axil_periph_axi_arregion),
+        .fub_axi_aruser(xbar_axil_periph_axi_aruser),
+        .fub_axi_arvalid(xbar_axil_periph_axi_arvalid),
+        .fub_axi_arready(xbar_axil_periph_axi_arready),
 
-        // AXI4 read data channel
-        .s_axi_rid        (xbar_axil_periph_axi_rid),
-        .s_axi_rdata      (xbar_axil_periph_axi_rdata),
-        .s_axi_rresp      (xbar_axil_periph_axi_rresp),
-        .s_axi_rlast      (xbar_axil_periph_axi_rlast),
-        .s_axi_ruser      (xbar_axil_periph_axi_ruser),
-        .s_axi_rvalid     (xbar_axil_periph_axi_rvalid),
-        .s_axi_rready     (xbar_axil_periph_axi_rready),
+        .fub_axi_rid(xbar_axil_periph_axi_rid),
+        .fub_axi_rdata(xbar_axil_periph_axi_rdata),
+        .fub_axi_rresp(xbar_axil_periph_axi_rresp),
+        .fub_axi_rlast(xbar_axil_periph_axi_rlast),
+        .fub_axi_ruser(xbar_axil_periph_axi_ruser),
+        .fub_axi_rvalid(xbar_axil_periph_axi_rvalid),
+        .fub_axi_rready(xbar_axil_periph_axi_rready),
 
-        // AXI4-Lite read address channel (to external slave)
-        .m_axil_araddr    (axil_periph_axi_araddr),
-        .m_axil_arprot    (axil_periph_axi_arprot),
-        .m_axil_arvalid   (axil_periph_axi_arvalid),
-        .m_axil_arready   (axil_periph_axi_arready),
+        // Master interface (to external slave)
+        .m_axi_arid(axil_periph_axi_arid),
+        .m_axi_araddr(axil_periph_axi_araddr),
+        .m_axi_arlen(axil_periph_axi_arlen),
+        .m_axi_arsize(axil_periph_axi_arsize),
+        .m_axi_arburst(axil_periph_axi_arburst),
+        .m_axi_arlock(axil_periph_axi_arlock),
+        .m_axi_arcache(axil_periph_axi_arcache),
+        .m_axi_arprot(axil_periph_axi_arprot),
+        .m_axi_arqos(axil_periph_axi_arqos),
+        .m_axi_arregion(axil_periph_axi_arregion),
+        .m_axi_aruser(axil_periph_axi_aruser),
+        .m_axi_arvalid(axil_periph_axi_arvalid),
+        .m_axi_arready(axil_periph_axi_arready),
 
-        // AXI4-Lite read data channel
-        .m_axil_rdata     (axil_periph_axi_rdata),
-        .m_axil_rresp     (axil_periph_axi_rresp),
-        .m_axil_rvalid    (axil_periph_axi_rvalid),
-        .m_axil_rready    (axil_periph_axi_rready)
+        .m_axi_rid(axil_periph_axi_rid),
+        .m_axi_rdata(axil_periph_axi_rdata),
+        .m_axi_rresp(axil_periph_axi_rresp),
+        .m_axi_rlast(axil_periph_axi_rlast),
+        .m_axi_ruser(axil_periph_axi_ruser),
+        .m_axi_rvalid(axil_periph_axi_rvalid),
+        .m_axi_rready(axil_periph_axi_rready),
+
+        // Status output (unconnected - for clock gating)
+        .busy()
     );
 
 endmodule : axil_periph_adapter

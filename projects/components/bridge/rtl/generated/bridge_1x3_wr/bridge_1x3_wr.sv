@@ -462,11 +462,13 @@ module bridge_1x3_wr (
     );
 
     // ================================================================
-    // Slave Adapter Instantiations (AXI4 Slaves)
-    // Provides timing isolation (axi4_master_wr/rd wrappers)
+    // Slave Adapter Instantiations
+    // AXI4 slaves: timing-isolation wrapper (axi4_master_wr/rd)
+    // APB / AXIL slaves: protocol-converter wrapper
+    // All adapters carry bridge_id tracking FIFOs.
     // ================================================================
 
-    // periph_wr adapter (crossbar → external slave)
+    // periph_wr adapter (AXI4, crossbar → external slave)
     periph_wr_adapter u_periph_wr_adapter (
         .aclk(aclk),
         .aresetn(aresetn),
@@ -497,7 +499,7 @@ module bridge_1x3_wr (
         .xbar_periph_wr_axi_bvalid(xbar_periph_wr_axi_bvalid),
         .xbar_periph_wr_axi_bready(xbar_periph_wr_axi_bready),
 
-        // External slave interface
+        // External slave interface (AXI4)
         .periph_wr_axi_awid(periph_wr_axi_awid),
         .periph_wr_axi_awaddr(periph_wr_axi_awaddr),
         .periph_wr_axi_awlen(periph_wr_axi_awlen),
@@ -529,7 +531,7 @@ module bridge_1x3_wr (
         .bid_valid(periph_wr_axi_bid_valid)
     );
 
-    // ddr_wr adapter (crossbar → external slave)
+    // ddr_wr adapter (AXI4, crossbar → external slave)
     ddr_wr_adapter u_ddr_wr_adapter (
         .aclk(aclk),
         .aresetn(aresetn),
@@ -560,7 +562,7 @@ module bridge_1x3_wr (
         .xbar_ddr_wr_axi_bvalid(xbar_ddr_wr_axi_bvalid),
         .xbar_ddr_wr_axi_bready(xbar_ddr_wr_axi_bready),
 
-        // External slave interface
+        // External slave interface (AXI4)
         .ddr_wr_axi_awid(ddr_wr_axi_awid),
         .ddr_wr_axi_awaddr(ddr_wr_axi_awaddr),
         .ddr_wr_axi_awlen(ddr_wr_axi_awlen),
@@ -592,7 +594,7 @@ module bridge_1x3_wr (
         .bid_valid(ddr_wr_axi_bid_valid)
     );
 
-    // hbm_wr adapter (crossbar → external slave)
+    // hbm_wr adapter (AXI4, crossbar → external slave)
     hbm_wr_adapter u_hbm_wr_adapter (
         .aclk(aclk),
         .aresetn(aresetn),
@@ -623,7 +625,7 @@ module bridge_1x3_wr (
         .xbar_hbm_wr_axi_bvalid(xbar_hbm_wr_axi_bvalid),
         .xbar_hbm_wr_axi_bready(xbar_hbm_wr_axi_bready),
 
-        // External slave interface
+        // External slave interface (AXI4)
         .hbm_wr_axi_awid(hbm_wr_axi_awid),
         .hbm_wr_axi_awaddr(hbm_wr_axi_awaddr),
         .hbm_wr_axi_awlen(hbm_wr_axi_awlen),

@@ -1786,11 +1786,13 @@ module bridge_4x4_rw (
     );
 
     // ================================================================
-    // Slave Adapter Instantiations (AXI4 Slaves)
-    // Provides timing isolation (axi4_master_wr/rd wrappers)
+    // Slave Adapter Instantiations
+    // AXI4 slaves: timing-isolation wrapper (axi4_master_wr/rd)
+    // APB / AXIL slaves: protocol-converter wrapper
+    // All adapters carry bridge_id tracking FIFOs.
     // ================================================================
 
-    // periph_slave adapter (crossbar → external slave)
+    // periph_slave adapter (AXI4, crossbar → external slave)
     periph_slave_adapter u_periph_slave_adapter (
         .aclk(aclk),
         .aresetn(aresetn),
@@ -1841,7 +1843,7 @@ module bridge_4x4_rw (
         .xbar_periph_slave_axi_rvalid(xbar_periph_slave_axi_rvalid),
         .xbar_periph_slave_axi_rready(xbar_periph_slave_axi_rready),
 
-        // External slave interface
+        // External slave interface (AXI4)
         .periph_slave_axi_awid(periph_slave_axi_awid),
         .periph_slave_axi_awaddr(periph_slave_axi_awaddr),
         .periph_slave_axi_awlen(periph_slave_axi_awlen),
@@ -1897,7 +1899,7 @@ module bridge_4x4_rw (
         .rid_valid(periph_slave_axi_rid_valid)
     );
 
-    // ddr0_slave adapter (crossbar → external slave)
+    // ddr0_slave adapter (AXI4, crossbar → external slave)
     ddr0_slave_adapter u_ddr0_slave_adapter (
         .aclk(aclk),
         .aresetn(aresetn),
@@ -1948,7 +1950,7 @@ module bridge_4x4_rw (
         .xbar_ddr0_slave_axi_rvalid(xbar_ddr0_slave_axi_rvalid),
         .xbar_ddr0_slave_axi_rready(xbar_ddr0_slave_axi_rready),
 
-        // External slave interface
+        // External slave interface (AXI4)
         .ddr0_slave_axi_awid(ddr0_slave_axi_awid),
         .ddr0_slave_axi_awaddr(ddr0_slave_axi_awaddr),
         .ddr0_slave_axi_awlen(ddr0_slave_axi_awlen),
@@ -2004,7 +2006,7 @@ module bridge_4x4_rw (
         .rid_valid(ddr0_slave_axi_rid_valid)
     );
 
-    // sram_slave adapter (crossbar → external slave)
+    // sram_slave adapter (AXI4, crossbar → external slave)
     sram_slave_adapter u_sram_slave_adapter (
         .aclk(aclk),
         .aresetn(aresetn),
@@ -2055,7 +2057,7 @@ module bridge_4x4_rw (
         .xbar_sram_slave_axi_rvalid(xbar_sram_slave_axi_rvalid),
         .xbar_sram_slave_axi_rready(xbar_sram_slave_axi_rready),
 
-        // External slave interface
+        // External slave interface (AXI4)
         .sram_slave_axi_awid(sram_slave_axi_awid),
         .sram_slave_axi_awaddr(sram_slave_axi_awaddr),
         .sram_slave_axi_awlen(sram_slave_axi_awlen),
@@ -2111,7 +2113,7 @@ module bridge_4x4_rw (
         .rid_valid(sram_slave_axi_rid_valid)
     );
 
-    // gpu_mem_slave adapter (crossbar → external slave)
+    // gpu_mem_slave adapter (AXI4, crossbar → external slave)
     gpu_mem_slave_adapter u_gpu_mem_slave_adapter (
         .aclk(aclk),
         .aresetn(aresetn),
@@ -2162,7 +2164,7 @@ module bridge_4x4_rw (
         .xbar_gpu_mem_slave_axi_rvalid(xbar_gpu_mem_slave_axi_rvalid),
         .xbar_gpu_mem_slave_axi_rready(xbar_gpu_mem_slave_axi_rready),
 
-        // External slave interface
+        // External slave interface (AXI4)
         .gpu_mem_slave_axi_awid(gpu_mem_slave_axi_awid),
         .gpu_mem_slave_axi_awaddr(gpu_mem_slave_axi_awaddr),
         .gpu_mem_slave_axi_awlen(gpu_mem_slave_axi_awlen),

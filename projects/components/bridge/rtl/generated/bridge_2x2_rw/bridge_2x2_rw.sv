@@ -689,11 +689,13 @@ module bridge_2x2_rw (
     );
 
     // ================================================================
-    // Slave Adapter Instantiations (AXI4 Slaves)
-    // Provides timing isolation (axi4_master_wr/rd wrappers)
+    // Slave Adapter Instantiations
+    // AXI4 slaves: timing-isolation wrapper (axi4_master_wr/rd)
+    // APB / AXIL slaves: protocol-converter wrapper
+    // All adapters carry bridge_id tracking FIFOs.
     // ================================================================
 
-    // ddr adapter (crossbar → external slave)
+    // ddr adapter (AXI4, crossbar → external slave)
     ddr_adapter u_ddr_adapter (
         .aclk(aclk),
         .aresetn(aresetn),
@@ -744,7 +746,7 @@ module bridge_2x2_rw (
         .xbar_ddr_axi_rvalid(xbar_ddr_axi_rvalid),
         .xbar_ddr_axi_rready(xbar_ddr_axi_rready),
 
-        // External slave interface
+        // External slave interface (AXI4)
         .ddr_s_axi_awid(ddr_s_axi_awid),
         .ddr_s_axi_awaddr(ddr_s_axi_awaddr),
         .ddr_s_axi_awlen(ddr_s_axi_awlen),
@@ -800,7 +802,7 @@ module bridge_2x2_rw (
         .rid_valid(ddr_axi_rid_valid)
     );
 
-    // sram adapter (crossbar → external slave)
+    // sram adapter (AXI4, crossbar → external slave)
     sram_adapter u_sram_adapter (
         .aclk(aclk),
         .aresetn(aresetn),
@@ -851,7 +853,7 @@ module bridge_2x2_rw (
         .xbar_sram_axi_rvalid(xbar_sram_axi_rvalid),
         .xbar_sram_axi_rready(xbar_sram_axi_rready),
 
-        // External slave interface
+        // External slave interface (AXI4)
         .sram_s_axi_awid(sram_s_axi_awid),
         .sram_s_axi_awaddr(sram_s_axi_awaddr),
         .sram_s_axi_awlen(sram_s_axi_awlen),

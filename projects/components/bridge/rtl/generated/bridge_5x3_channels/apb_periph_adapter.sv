@@ -196,7 +196,7 @@ module apb_periph_adapter #(
         .APB_RSP_DEPTH    (4),
         .AXI_ID_WIDTH     (8),
         .AXI_ADDR_WIDTH   (32),
-        .AXI_DATA_WIDTH   (256),
+        .AXI_DATA_WIDTH   (32),
         .AXI_USER_WIDTH   (1),
         .APB_ADDR_WIDTH   (32),
         .APB_DATA_WIDTH   (32)

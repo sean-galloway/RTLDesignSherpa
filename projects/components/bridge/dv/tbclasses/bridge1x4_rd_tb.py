@@ -263,6 +263,15 @@ class Bridge1x4RdTB(TBBase):
             burst_len: Burst length (default: 1 for single beat)
             txn_id: Transaction ID (default: 0)
         """
+        # Remember the most recent read address per master so that
+        # slave_respond_read() can populate the APB slave's register
+        # file at the right offset (APB slaves auto-respond from their
+        # internal memory; there's no R-channel handle the TB can drive
+        # the way it does for AXI4 slaves).
+        if not hasattr(self, '_last_read_addr'):
+            self._last_read_addr = {}
+        self._last_read_addr[master_idx] = address
+
         # Get master component
         ar_master = getattr(self, f'ar_m{master_idx}')
 
@@ -317,9 +326,23 @@ class Bridge1x4RdTB(TBBase):
         protocol = self.slave_protocols.get(slave_idx, 'axi4').lower()
 
         if protocol == 'apb':
-            # APB slaves handle response automatically via APBSlave BFM
-            # No manual R channel response needed
-            pass
+            # APBSlave BFM auto-responds with whatever is in its register
+            # file. Pre-load that register with the expected `data` value
+            # at the most-recently-issued read address so the response
+            # matches what the test expects.
+            apb_slave = getattr(self, f'apb_slave_{slave_idx}', None)
+            addr_map = getattr(self, '_last_read_addr', {})
+            # Default to master 0 since 1xN bridges have a single master;
+            # callers with multiple masters should issue reads in
+            # last-wins order or extend this helper accordingly.
+            addr = next(iter(addr_map.values()), None)
+            if apb_slave is not None and addr is not None:
+                strb_bits = apb_slave.strb_bits
+                data_bytes = apb_slave.mem.integer_to_bytearray(int(data), strb_bits)
+                addr_bits = (apb_slave.num_lines * strb_bits - 1).bit_length()
+                apb_slave.mem.write(int(addr) & ((1 << addr_bits) - 1),
+                                    data_bytes, (1 << strb_bits) - 1)
+            return
         else:
             # AXI4 slave - send R response
             r_master = getattr(self, f'r_s{slave_idx}')

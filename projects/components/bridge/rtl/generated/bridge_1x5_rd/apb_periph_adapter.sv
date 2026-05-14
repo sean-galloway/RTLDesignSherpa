@@ -123,7 +123,7 @@ module apb_periph_adapter #(
         .APB_RSP_DEPTH    (4),
         .AXI_ID_WIDTH     (4),
         .AXI_ADDR_WIDTH   (32),
-        .AXI_DATA_WIDTH   (64),
+        .AXI_DATA_WIDTH   (32),
         .AXI_USER_WIDTH   (1),
         .APB_ADDR_WIDTH   (32),
         .APB_DATA_WIDTH   (32)
@@ -148,8 +148,8 @@ module apb_periph_adapter #(
         .s_axi_awvalid    (1'b0),
         .s_axi_awready    (),  // Unconnected
 
-        .s_axi_wdata      (64'b0),
-        .s_axi_wstrb      (8'b0),
+        .s_axi_wdata      (32'b0),
+        .s_axi_wstrb      (4'b0),
         .s_axi_wlast      (1'b0),
         .s_axi_wuser      (1'b0),
         .s_axi_wvalid     (1'b0),

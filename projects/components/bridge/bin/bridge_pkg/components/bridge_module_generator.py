@@ -236,11 +236,12 @@ class BridgeModuleGenerator:
         # Crossbar routing
         lines.extend(self._generate_crossbar_routing())
 
-        # Slave adapter instantiations (for AXI4 slaves)
+        # Slave adapter instantiations for ALL slaves. The adapter
+        # module per-protocol wraps the timing isolator or protocol
+        # converter AND the bridge_id-tracking FIFO -- the bridge top
+        # used to direct-instantiate axi4_to_apb_shim here, which left
+        # rid_*/bid_* undriven and broke APB responses end-to-end.
         lines.extend(self._generate_slave_adapter_instantiations())
-
-        # APB shim instantiations (for APB slaves)
-        lines.extend(self._generate_apb_shims())
 
         # Module end
         lines.append(f"endmodule : {self.bridge_name}")
@@ -952,25 +953,34 @@ class BridgeModuleGenerator:
 
     def _generate_slave_adapter_instantiations(self) -> List[str]:
         """
-        Generate slave adapter instantiations for AXI4 slaves.
+        Generate slave adapter instantiations for ALL slaves.
 
-        Instantiates slave adapters between crossbar outputs and external slave ports.
+        The slave_adapter_generator already produces protocol-aware
+        adapter modules (axi4 wrapper, axi4_to_apb_shim wrapper, or
+        axi4_to_axil shim wrapper) that wrap the protocol converter and
+        carry the bridge_id-tracking FIFO. The bridge top just needs to
+        instantiate that module -- the same way it does for AXI4
+        slaves -- with the right external port list per protocol.
+
+        Earlier the bridge top would direct-instantiate axi4_to_apb_shim
+        (and axil equivalent) without the surrounding FIFO, leaving
+        `rid_bridge_id`/`rid_valid`/`bid_*` undriven; the xbar response
+        path gates on those, so APB/AXIL responses never propagated.
         """
         lines = []
 
-        # Filter for AXI4 slaves only
-        axi4_slaves = [s for s in self.slaves if s.protocol == 'axi4']
-
-        if not axi4_slaves:
+        if not self.slaves:
             return lines
 
         lines.append("    // ================================================================")
-        lines.append("    // Slave Adapter Instantiations (AXI4 Slaves)")
-        lines.append("    // Provides timing isolation (axi4_master_wr/rd wrappers)")
+        lines.append("    // Slave Adapter Instantiations")
+        lines.append("    // AXI4 slaves: timing-isolation wrapper (axi4_master_wr/rd)")
+        lines.append("    // APB / AXIL slaves: protocol-converter wrapper")
+        lines.append("    // All adapters carry bridge_id tracking FIFOs.")
         lines.append("    // ================================================================")
         lines.append("")
 
-        for slave in axi4_slaves:
+        for slave in self.slaves:
             # Determine channels needed
             connecting_masters = self._get_masters_connecting_to_slave(slave)
             has_write = any(m.channels in ["wr", "rw"] for m in connecting_masters)
@@ -982,14 +992,15 @@ class BridgeModuleGenerator:
             if has_read:
                 channels.extend([AXI4Channel.AR, AXI4Channel.R])
 
-            lines.append(f"    // {slave.name} adapter (crossbar → external slave)")
+            lines.append(f"    // {slave.name} adapter ({slave.protocol.upper()}, crossbar → external slave)")
             lines.append(f"    {slave.name}_adapter u_{slave.name}_adapter (")
             lines.append("        .aclk(aclk),")
             lines.append("        .aresetn(aresetn),")
             lines.append("")
             lines.append("        // Crossbar interface (internal signals)")
 
-            # Crossbar-facing signals (xbar_{slave}_axi_*)
+            # Crossbar-facing signals (xbar_{slave}_axi_*) -- always AXI4
+            # regardless of slave protocol; the wrapper does the conversion.
             xbar_prefix = f"xbar_{slave.name}_axi_"
             for channel in channels:
                 if channel not in AXI4_MASTER_SIGNALS:
@@ -999,22 +1010,30 @@ class BridgeModuleGenerator:
                     lines.append(f"        .{xbar_prefix}{channel.value}{sig_info.name}({sig_name}),")
 
             lines.append("")
-            lines.append("        // External slave interface")
+            lines.append(f"        // External slave interface ({slave.protocol.upper()})")
 
-            # External-facing signals (slave.prefix)
+            # External-facing signals -- protocol-specific port list.
             ext_prefix = slave.prefix
-            signal_list = []
-            for channel in channels:
-                if channel not in AXI4_MASTER_SIGNALS:
-                    continue
-                for sig_info in AXI4_MASTER_SIGNALS[channel]:
-                    sig_name = f"{ext_prefix}{channel.value}{sig_info.name}"
-                    signal_list.append(sig_name)
-
-            # Generate connections with proper comma handling
-            for idx, sig_name in enumerate(signal_list):
-                # Not the last anymore - bridge_id signals come after
-                lines.append(f"        .{ext_prefix}{sig_name.replace(ext_prefix, '')}({sig_name}),")
+            if slave.protocol == 'apb':
+                # APB external port list matches _generate_apb_external_ports
+                # in slave_adapter_generator.
+                apb_signals = [
+                    "PADDR", "PSEL", "PENABLE", "PWRITE", "PWDATA",
+                    "PSTRB", "PPROT", "PRDATA", "PSLVERR", "PREADY",
+                ]
+                for sig in apb_signals:
+                    lines.append(f"        .{ext_prefix}{sig}({ext_prefix}{sig}),")
+            else:
+                # AXI4 (and AXIL) external port list. AXIL slaves
+                # currently use the full AXI4 external interface -- see
+                # slave_adapter_generator._generate_axil_converter for
+                # the rationale.
+                for channel in channels:
+                    if channel not in AXI4_MASTER_SIGNALS:
+                        continue
+                    for sig_info in AXI4_MASTER_SIGNALS[channel]:
+                        sig_name = f"{ext_prefix}{channel.value}{sig_info.name}"
+                        lines.append(f"        .{ext_prefix}{sig_name.replace(ext_prefix, '')}({sig_name}),")
 
             # Bridge ID tracking signals (always present for slave adapters)
             lines.append("")

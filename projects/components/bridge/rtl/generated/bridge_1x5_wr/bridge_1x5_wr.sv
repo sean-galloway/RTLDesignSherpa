@@ -620,11 +620,13 @@ module bridge_1x5_wr (
     );
 
     // ================================================================
-    // Slave Adapter Instantiations (AXI4 Slaves)
-    // Provides timing isolation (axi4_master_wr/rd wrappers)
+    // Slave Adapter Instantiations
+    // AXI4 slaves: timing-isolation wrapper (axi4_master_wr/rd)
+    // APB / AXIL slaves: protocol-converter wrapper
+    // All adapters carry bridge_id tracking FIFOs.
     // ================================================================
 
-    // periph_wr adapter (crossbar → external slave)
+    // periph_wr adapter (AXI4, crossbar → external slave)
     periph_wr_adapter u_periph_wr_adapter (
         .aclk(aclk),
         .aresetn(aresetn),
@@ -655,7 +657,7 @@ module bridge_1x5_wr (
         .xbar_periph_wr_axi_bvalid(xbar_periph_wr_axi_bvalid),
         .xbar_periph_wr_axi_bready(xbar_periph_wr_axi_bready),
 
-        // External slave interface
+        // External slave interface (AXI4)
         .periph_wr_axi_awid(periph_wr_axi_awid),
         .periph_wr_axi_awaddr(periph_wr_axi_awaddr),
         .periph_wr_axi_awlen(periph_wr_axi_awlen),
@@ -687,7 +689,7 @@ module bridge_1x5_wr (
         .bid_valid(periph_wr_axi_bid_valid)
     );
 
-    // ddr_wr adapter (crossbar → external slave)
+    // ddr_wr adapter (AXI4, crossbar → external slave)
     ddr_wr_adapter u_ddr_wr_adapter (
         .aclk(aclk),
         .aresetn(aresetn),
@@ -718,7 +720,7 @@ module bridge_1x5_wr (
         .xbar_ddr_wr_axi_bvalid(xbar_ddr_wr_axi_bvalid),
         .xbar_ddr_wr_axi_bready(xbar_ddr_wr_axi_bready),
 
-        // External slave interface
+        // External slave interface (AXI4)
         .ddr_wr_axi_awid(ddr_wr_axi_awid),
         .ddr_wr_axi_awaddr(ddr_wr_axi_awaddr),
         .ddr_wr_axi_awlen(ddr_wr_axi_awlen),
@@ -750,7 +752,7 @@ module bridge_1x5_wr (
         .bid_valid(ddr_wr_axi_bid_valid)
     );
 
-    // hbm_wr adapter (crossbar → external slave)
+    // hbm_wr adapter (AXI4, crossbar → external slave)
     hbm_wr_adapter u_hbm_wr_adapter (
         .aclk(aclk),
         .aresetn(aresetn),
@@ -781,7 +783,7 @@ module bridge_1x5_wr (
         .xbar_hbm_wr_axi_bvalid(xbar_hbm_wr_axi_bvalid),
         .xbar_hbm_wr_axi_bready(xbar_hbm_wr_axi_bready),
 
-        // External slave interface
+        // External slave interface (AXI4)
         .hbm_wr_axi_awid(hbm_wr_axi_awid),
         .hbm_wr_axi_awaddr(hbm_wr_axi_awaddr),
         .hbm_wr_axi_awlen(hbm_wr_axi_awlen),
@@ -813,93 +815,116 @@ module bridge_1x5_wr (
         .bid_valid(hbm_wr_axi_bid_valid)
     );
 
-    // ================================================================
-    // APB Shim Instantiations
-    // Converts crossbar AXI4 outputs to APB protocol
-    // ================================================================
-
-    // APB Shim: apb_periph
-    // Crossbar AXI4 (32b addr, 32b data) → External APB (32b addr, 32b data)
-    axi4_to_apb_shim #(
-        .DEPTH_AW(2),
-        .DEPTH_W(4),
-        .DEPTH_B(2),
-        .DEPTH_AR(2),
-        .DEPTH_R(4),
-        .SIDE_DEPTH(4),
-        .APB_CMD_DEPTH(4),
-        .APB_RSP_DEPTH(4),
-        .AXI_ID_WIDTH(4),
-        .AXI_ADDR_WIDTH(32),
-        .AXI_DATA_WIDTH(32),
-        .AXI_USER_WIDTH(1),
-        .APB_ADDR_WIDTH(32),
-        .APB_DATA_WIDTH(32)
-    ) u_apb_shim_apb_periph (
+    // apb_periph adapter (APB, crossbar → external slave)
+    apb_periph_adapter u_apb_periph_adapter (
         .aclk(aclk),
         .aresetn(aresetn),
-        .pclk(aclk),
-        .presetn(aresetn),
-        
-        // AXI4 Slave (from crossbar)
-        .s_axi_awid(xbar_apb_periph_axi_awid),
-        .s_axi_awaddr(xbar_apb_periph_axi_awaddr),
-        .s_axi_awlen(xbar_apb_periph_axi_awlen),
-        .s_axi_awsize(xbar_apb_periph_axi_awsize),
-        .s_axi_awburst(xbar_apb_periph_axi_awburst),
-        .s_axi_awlock(xbar_apb_periph_axi_awlock),
-        .s_axi_awcache(xbar_apb_periph_axi_awcache),
-        .s_axi_awprot(xbar_apb_periph_axi_awprot),
-        .s_axi_awqos(4'b0),
-        .s_axi_awregion(4'b0),
-        .s_axi_awuser(1'b0),
-        .s_axi_awvalid(xbar_apb_periph_axi_awvalid),
-        .s_axi_awready(xbar_apb_periph_axi_awready),
-        .s_axi_wdata(xbar_apb_periph_axi_wdata),
-        .s_axi_wstrb(xbar_apb_periph_axi_wstrb),
-        .s_axi_wlast(xbar_apb_periph_axi_wlast),
-        .s_axi_wuser(1'b0),
-        .s_axi_wvalid(xbar_apb_periph_axi_wvalid),
-        .s_axi_wready(xbar_apb_periph_axi_wready),
-        .s_axi_bid(xbar_apb_periph_axi_bid),
-        .s_axi_bresp(xbar_apb_periph_axi_bresp),
-        .s_axi_buser(),
-        .s_axi_bvalid(xbar_apb_periph_axi_bvalid),
-        .s_axi_bready(xbar_apb_periph_axi_bready),
-        
-        // Read channels tied off (write-only bridge)
-        .s_axi_arid(4'b0),
-        .s_axi_araddr(32'b0),
-        .s_axi_arlen(8'b0),
-        .s_axi_arsize(3'b0),
-        .s_axi_arburst(2'b0),
-        .s_axi_arlock(1'b0),
-        .s_axi_arcache(4'b0),
-        .s_axi_arprot(3'b0),
-        .s_axi_arqos(4'b0),
-        .s_axi_arregion(4'b0),
-        .s_axi_aruser(1'b0),
-        .s_axi_arvalid(1'b0),
-        .s_axi_arready(),  // Unconnected
-        .s_axi_rid(),  // Unconnected
-        .s_axi_rdata(),  // Unconnected
-        .s_axi_rresp(),  // Unconnected
-        .s_axi_rlast(),  // Unconnected
-        .s_axi_ruser(),  // Unconnected
-        .s_axi_rvalid(),  // Unconnected
-        .s_axi_rready(1'b0),
-        
-        // APB Master (to external APB slave)
-        .m_apb_PSEL(apb_periph_PSEL),
-        .m_apb_PADDR(apb_periph_PADDR),
-        .m_apb_PENABLE(apb_periph_PENABLE),
-        .m_apb_PWRITE(apb_periph_PWRITE),
-        .m_apb_PWDATA(apb_periph_PWDATA),
-        .m_apb_PSTRB(apb_periph_PSTRB),
-        .m_apb_PPROT(apb_periph_PPROT),
-        .m_apb_PRDATA(apb_periph_PRDATA),
-        .m_apb_PREADY(apb_periph_PREADY),
-        .m_apb_PSLVERR(apb_periph_PSLVERR)
+
+        // Crossbar interface (internal signals)
+        .xbar_apb_periph_axi_awid(xbar_apb_periph_axi_awid),
+        .xbar_apb_periph_axi_awaddr(xbar_apb_periph_axi_awaddr),
+        .xbar_apb_periph_axi_awlen(xbar_apb_periph_axi_awlen),
+        .xbar_apb_periph_axi_awsize(xbar_apb_periph_axi_awsize),
+        .xbar_apb_periph_axi_awburst(xbar_apb_periph_axi_awburst),
+        .xbar_apb_periph_axi_awlock(xbar_apb_periph_axi_awlock),
+        .xbar_apb_periph_axi_awcache(xbar_apb_periph_axi_awcache),
+        .xbar_apb_periph_axi_awprot(xbar_apb_periph_axi_awprot),
+        .xbar_apb_periph_axi_awqos(xbar_apb_periph_axi_awqos),
+        .xbar_apb_periph_axi_awregion(xbar_apb_periph_axi_awregion),
+        .xbar_apb_periph_axi_awuser(xbar_apb_periph_axi_awuser),
+        .xbar_apb_periph_axi_awvalid(xbar_apb_periph_axi_awvalid),
+        .xbar_apb_periph_axi_awready(xbar_apb_periph_axi_awready),
+        .xbar_apb_periph_axi_wdata(xbar_apb_periph_axi_wdata),
+        .xbar_apb_periph_axi_wstrb(xbar_apb_periph_axi_wstrb),
+        .xbar_apb_periph_axi_wlast(xbar_apb_periph_axi_wlast),
+        .xbar_apb_periph_axi_wuser(xbar_apb_periph_axi_wuser),
+        .xbar_apb_periph_axi_wvalid(xbar_apb_periph_axi_wvalid),
+        .xbar_apb_periph_axi_wready(xbar_apb_periph_axi_wready),
+        .xbar_apb_periph_axi_bid(xbar_apb_periph_axi_bid),
+        .xbar_apb_periph_axi_bresp(xbar_apb_periph_axi_bresp),
+        .xbar_apb_periph_axi_buser(xbar_apb_periph_axi_buser),
+        .xbar_apb_periph_axi_bvalid(xbar_apb_periph_axi_bvalid),
+        .xbar_apb_periph_axi_bready(xbar_apb_periph_axi_bready),
+
+        // External slave interface (APB)
+        .apb_periph_PADDR(apb_periph_PADDR),
+        .apb_periph_PSEL(apb_periph_PSEL),
+        .apb_periph_PENABLE(apb_periph_PENABLE),
+        .apb_periph_PWRITE(apb_periph_PWRITE),
+        .apb_periph_PWDATA(apb_periph_PWDATA),
+        .apb_periph_PSTRB(apb_periph_PSTRB),
+        .apb_periph_PPROT(apb_periph_PPROT),
+        .apb_periph_PRDATA(apb_periph_PRDATA),
+        .apb_periph_PSLVERR(apb_periph_PSLVERR),
+        .apb_periph_PREADY(apb_periph_PREADY),
+
+        // Bridge ID tracking
+        .xbar_bridge_id_aw(apb_periph_axi_bridge_id_aw),
+        .bid_bridge_id(apb_periph_axi_bid_bridge_id),
+        .bid_valid(apb_periph_axi_bid_valid)
+    );
+
+    // axil_periph adapter (AXIL, crossbar → external slave)
+    axil_periph_adapter u_axil_periph_adapter (
+        .aclk(aclk),
+        .aresetn(aresetn),
+
+        // Crossbar interface (internal signals)
+        .xbar_axil_periph_axi_awid(xbar_axil_periph_axi_awid),
+        .xbar_axil_periph_axi_awaddr(xbar_axil_periph_axi_awaddr),
+        .xbar_axil_periph_axi_awlen(xbar_axil_periph_axi_awlen),
+        .xbar_axil_periph_axi_awsize(xbar_axil_periph_axi_awsize),
+        .xbar_axil_periph_axi_awburst(xbar_axil_periph_axi_awburst),
+        .xbar_axil_periph_axi_awlock(xbar_axil_periph_axi_awlock),
+        .xbar_axil_periph_axi_awcache(xbar_axil_periph_axi_awcache),
+        .xbar_axil_periph_axi_awprot(xbar_axil_periph_axi_awprot),
+        .xbar_axil_periph_axi_awqos(xbar_axil_periph_axi_awqos),
+        .xbar_axil_periph_axi_awregion(xbar_axil_periph_axi_awregion),
+        .xbar_axil_periph_axi_awuser(xbar_axil_periph_axi_awuser),
+        .xbar_axil_periph_axi_awvalid(xbar_axil_periph_axi_awvalid),
+        .xbar_axil_periph_axi_awready(xbar_axil_periph_axi_awready),
+        .xbar_axil_periph_axi_wdata(xbar_axil_periph_axi_wdata),
+        .xbar_axil_periph_axi_wstrb(xbar_axil_periph_axi_wstrb),
+        .xbar_axil_periph_axi_wlast(xbar_axil_periph_axi_wlast),
+        .xbar_axil_periph_axi_wuser(xbar_axil_periph_axi_wuser),
+        .xbar_axil_periph_axi_wvalid(xbar_axil_periph_axi_wvalid),
+        .xbar_axil_periph_axi_wready(xbar_axil_periph_axi_wready),
+        .xbar_axil_periph_axi_bid(xbar_axil_periph_axi_bid),
+        .xbar_axil_periph_axi_bresp(xbar_axil_periph_axi_bresp),
+        .xbar_axil_periph_axi_buser(xbar_axil_periph_axi_buser),
+        .xbar_axil_periph_axi_bvalid(xbar_axil_periph_axi_bvalid),
+        .xbar_axil_periph_axi_bready(xbar_axil_periph_axi_bready),
+
+        // External slave interface (AXIL)
+        .axil_periph_axi_awid(axil_periph_axi_awid),
+        .axil_periph_axi_awaddr(axil_periph_axi_awaddr),
+        .axil_periph_axi_awlen(axil_periph_axi_awlen),
+        .axil_periph_axi_awsize(axil_periph_axi_awsize),
+        .axil_periph_axi_awburst(axil_periph_axi_awburst),
+        .axil_periph_axi_awlock(axil_periph_axi_awlock),
+        .axil_periph_axi_awcache(axil_periph_axi_awcache),
+        .axil_periph_axi_awprot(axil_periph_axi_awprot),
+        .axil_periph_axi_awqos(axil_periph_axi_awqos),
+        .axil_periph_axi_awregion(axil_periph_axi_awregion),
+        .axil_periph_axi_awuser(axil_periph_axi_awuser),
+        .axil_periph_axi_awvalid(axil_periph_axi_awvalid),
+        .axil_periph_axi_awready(axil_periph_axi_awready),
+        .axil_periph_axi_wdata(axil_periph_axi_wdata),
+        .axil_periph_axi_wstrb(axil_periph_axi_wstrb),
+        .axil_periph_axi_wlast(axil_periph_axi_wlast),
+        .axil_periph_axi_wuser(axil_periph_axi_wuser),
+        .axil_periph_axi_wvalid(axil_periph_axi_wvalid),
+        .axil_periph_axi_wready(axil_periph_axi_wready),
+        .axil_periph_axi_bid(axil_periph_axi_bid),
+        .axil_periph_axi_bresp(axil_periph_axi_bresp),
+        .axil_periph_axi_buser(axil_periph_axi_buser),
+        .axil_periph_axi_bvalid(axil_periph_axi_bvalid),
+        .axil_periph_axi_bready(axil_periph_axi_bready),
+
+        // Bridge ID tracking
+        .xbar_bridge_id_aw(axil_periph_axi_bridge_id_aw),
+        .bid_bridge_id(axil_periph_axi_bid_bridge_id),
+        .bid_valid(axil_periph_axi_bid_valid)
     );
 
 endmodule : bridge_1x5_wr

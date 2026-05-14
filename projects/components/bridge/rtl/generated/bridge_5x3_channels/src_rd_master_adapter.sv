@@ -147,6 +147,8 @@ module src_rd_master_adapter #(
         .busy(wrapper_rd_busy)
     );
 
+    logic [NUM_SLAVES-1:0] r_slave_select;
+
     // ================================================================
     // Address decode (slave selection) - Read
     // Slave 0 (sram_buffer): 0x00000000 - 0x3FFFFFFF
@@ -225,7 +227,6 @@ module src_rd_master_adapter #(
     logic [NUM_SLAVES-1:0] ar_trk_mem [AR_TRK_DEPTH];
     logic [AR_TRK_AW:0] ar_trk_wptr, ar_trk_rptr;
     logic ar_trk_push, ar_trk_pop;
-    logic [NUM_SLAVES-1:0] r_slave_select;
 
     assign ar_trk_push = fub_axi_arvalid && fub_axi_arready;
     assign ar_trk_pop  = fub_axi_rvalid && fub_axi_rready && fub_axi_rlast;

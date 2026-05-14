@@ -94,7 +94,14 @@ class SlaveAdapterGenerator:
         elif self.slave.protocol == 'apb':
             lines.extend(self._generate_apb_converter())
         elif self.slave.protocol == 'axil':
-            lines.extend(self._generate_axil_converter())
+            # The bridge top exposes full AXI4 signals for AXIL slaves
+            # and the existing TB BFMs drive them as full AXI4 with the
+            # `<prefix>_axi_` style. Treat AXIL slaves as AXI4 inside
+            # the adapter (no real Lite conversion) so the external
+            # interface matches what the tests and the bridge top
+            # actually declare; the AXIL designation remains a
+            # documentation tag for the slave's intent.
+            lines.extend(self._generate_axi4_timing_wrapper())
 
         # Module end
         lines.append(f"endmodule : {self.slave.name}_adapter")
@@ -259,7 +266,9 @@ class SlaveAdapterGenerator:
         elif self.slave.protocol == 'apb':
             lines.extend(self._generate_apb_external_ports())
         elif self.slave.protocol == 'axil':
-            lines.extend(self._generate_axil_external_ports())
+            # See _generate_axil_converter: AXIL slaves expose full AXI4
+            # externally; the conversion is a no-op for now.
+            lines.extend(self._generate_axi4_external_ports())
 
         return lines
 
@@ -523,27 +532,24 @@ class SlaveAdapterGenerator:
         """Generate FIFO-based write tracking."""
         lines = []
 
-        # Determine pop monitoring point based on protocol
-        # For APB/AXIL, monitor external slave interface (after converter)
-        # For AXI4, monitor crossbar interface (no converter)
-        if self.slave.protocol in ['apb', 'axil']:
-            # APB/AXIL: Monitor external slave response signals
-            # APB has PREADY, AXIL has bvalid/bready
-            if self.slave.protocol == 'apb':
-                # APB converter generates internal bvalid when PREADY asserts
-                # We need to monitor the converter's AXI4 output, not external APB
-                pop_condition = f"converter_bvalid && converter_bready"
-                lines.append("    // Write Channel FIFO (In-Order) - APB Protocol")
-                lines.append("    // NOTE: Monitors converter output (converter_bvalid), not crossbar input")
-                lines.append("    //       This ensures FIFO pops when converter actually produces response")
-            else:  # axil
-                pop_condition = f"{slave_prefix}bvalid && {slave_prefix}bready"
-                lines.append("    // Write Channel FIFO (In-Order) - AXIL Protocol")
-                lines.append("    // NOTE: Monitors external slave response, not crossbar input")
-        else:  # axi4
-            # AXI4: Direct connection, monitor crossbar interface
+        # Determine pop monitoring point based on protocol.
+        # AXIL now uses the AXI4 timing wrapper (see
+        # _generate_axil_converter), so it monitors the crossbar side
+        # like AXI4. Monitoring the external side broke the response
+        # path: the wrapper's skid buffer delays B by a cycle, so the
+        # FIFO popped before the xbar saw bvalid and bid_valid dropped
+        # to 0 while the response was still in flight.
+        if self.slave.protocol == 'apb':
+            # APB converter generates internal bvalid when PREADY asserts
+            # We need to monitor the converter's AXI4 output, not external APB
+            pop_condition = f"converter_bvalid && converter_bready"
+            lines.append("    // Write Channel FIFO (In-Order) - APB Protocol")
+            lines.append("    // NOTE: Monitors converter output (converter_bvalid), not crossbar input")
+            lines.append("    //       This ensures FIFO pops when converter actually produces response")
+        else:  # axi4 or axil (axil-as-axi4)
             pop_condition = f"{crossbar_prefix}bvalid && {crossbar_prefix}bready"
-            lines.append("    // Write Channel FIFO (In-Order) - AXI4 Protocol")
+            label = "AXIL" if self.slave.protocol == 'axil' else "AXI4"
+            lines.append(f"    // Write Channel FIFO (In-Order) - {label} Protocol")
 
         lines.append("    localparam WR_FIFO_DEPTH = 16;")
         lines.append("    logic [BRIDGE_ID_WIDTH-1:0] wr_fifo [WR_FIFO_DEPTH];")
@@ -620,26 +626,21 @@ class SlaveAdapterGenerator:
         """Generate FIFO-based read tracking."""
         lines = []
 
-        # Determine pop monitoring point based on protocol
-        # For APB/AXIL, monitor external slave interface (after converter)
-        # For AXI4, monitor crossbar interface (no converter)
-        if self.slave.protocol in ['apb', 'axil']:
-            # APB/AXIL: Monitor external slave response signals
-            if self.slave.protocol == 'apb':
-                # APB converter generates internal rvalid when PREADY asserts
-                # We need to monitor the converter's AXI4 output, not external APB
-                pop_condition = f"converter_rvalid && converter_rready && converter_rlast"
-                lines.append("    // Read Channel FIFO (In-Order) - APB Protocol")
-                lines.append("    // NOTE: Monitors converter output (converter_rvalid), not crossbar input")
-                lines.append("    //       This ensures FIFO pops when converter actually produces response")
-            else:  # axil
-                pop_condition = f"{slave_prefix}rvalid && {slave_prefix}rready"
-                lines.append("    // Read Channel FIFO (In-Order) - AXIL Protocol")
-                lines.append("    // NOTE: Monitors external slave response, not crossbar input")
-        else:  # axi4
-            # AXI4: Direct connection, monitor crossbar interface
+        # Determine pop monitoring point based on protocol.
+        # AXIL uses the AXI4 timing wrapper (see
+        # _generate_axil_converter), so it monitors the crossbar side
+        # like AXI4 -- same reasoning as the write FIFO above.
+        if self.slave.protocol == 'apb':
+            # APB converter generates internal rvalid when PREADY asserts
+            # We need to monitor the converter's AXI4 output, not external APB
+            pop_condition = f"converter_rvalid && converter_rready && converter_rlast"
+            lines.append("    // Read Channel FIFO (In-Order) - APB Protocol")
+            lines.append("    // NOTE: Monitors converter output (converter_rvalid), not crossbar input")
+            lines.append("    //       This ensures FIFO pops when converter actually produces response")
+        else:  # axi4 or axil (axil-as-axi4)
             pop_condition = f"{crossbar_prefix}rvalid && {crossbar_prefix}rready && {crossbar_prefix}rlast"
-            lines.append("    // Read Channel FIFO (In-Order) - AXI4 Protocol")
+            label = "AXIL" if self.slave.protocol == 'axil' else "AXI4"
+            lines.append(f"    // Read Channel FIFO (In-Order) - {label} Protocol")
 
         lines.append("    localparam RD_FIFO_DEPTH = 16;")
         lines.append("    logic [BRIDGE_ID_WIDTH-1:0] rd_fifo [RD_FIFO_DEPTH];")
@@ -860,10 +861,13 @@ class SlaveAdapterGenerator:
         lines.append("        .APB_RSP_DEPTH    (4),")
         lines.append(f"        .AXI_ID_WIDTH     ({self.id_width}),")
         lines.append(f"        .AXI_ADDR_WIDTH   ({self.slave.addr_width}),")
-        lines.append(f"        .AXI_DATA_WIDTH   ({self.data_width}),")  # Crossbar internal width
+        # AXI side of the shim is the crossbar port for this slave; the
+        # crossbar carries each slave at slave.data_width (width
+        # conversion happens in the master adapter, not here).
+        lines.append(f"        .AXI_DATA_WIDTH   ({self.slave.data_width}),")
         lines.append("        .AXI_USER_WIDTH   (1),")
         lines.append(f"        .APB_ADDR_WIDTH   ({self.slave.addr_width}),")
-        lines.append(f"        .APB_DATA_WIDTH   ({self.slave.data_width})")  # APB slave width
+        lines.append(f"        .APB_DATA_WIDTH   ({self.slave.data_width})")
         lines.append(f"    ) u_{self.slave.name}_apb_converter (")
         lines.append("        .aclk             (aclk),")
         lines.append("        .aresetn          (aresetn),")
@@ -921,9 +925,13 @@ class SlaveAdapterGenerator:
             lines.append(f"        .s_axi_awready    (),  // Unconnected")
             lines.append("")
             # Get data width and strb width
-            strb_width = self.data_width // 8
-            lines.append(f"        .s_axi_wdata      ({self.data_width}'b0),")
-            lines.append(f"        .s_axi_wstrb      ({strb_width}'b0),")
+            # Tie-off widths must match the shim's AXI_DATA_WIDTH, which
+            # is now slave.data_width (the crossbar carries each slave at
+            # its native width).
+            tie_data_width = self.slave.data_width
+            tie_strb_width = tie_data_width // 8
+            lines.append(f"        .s_axi_wdata      ({tie_data_width}'b0),")
+            lines.append(f"        .s_axi_wstrb      ({tie_strb_width}'b0),")
             lines.append(f"        .s_axi_wlast      (1'b0),")
             lines.append(f"        .s_axi_wuser      (1'b0),")
             lines.append(f"        .s_axi_wvalid     (1'b0),")
@@ -1037,7 +1045,9 @@ class SlaveAdapterGenerator:
 
         lines.append(f"        .AXI_ID_WIDTH     ({self.id_width}),")
         lines.append(f"        .AXI_ADDR_WIDTH   ({self.slave.addr_width}),")
-        lines.append(f"        .AXI_DATA_WIDTH   ({self.data_width}),")  # Crossbar internal width (slave's native width)
+        # AXI side carries the slave's native width -- master adapter
+        # converted before the xbar.
+        lines.append(f"        .AXI_DATA_WIDTH   ({self.slave.data_width}),")
         lines.append("        .AXI_USER_WIDTH   (1),")
         lines.append("        .SKID_DEPTH_AR    (2),")
         lines.append("        .SKID_DEPTH_R     (4)")

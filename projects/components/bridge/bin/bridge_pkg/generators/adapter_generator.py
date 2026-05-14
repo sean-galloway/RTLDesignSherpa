@@ -581,6 +581,16 @@ class AdapterGenerator:
         """
         lines = []
 
+        # Forward-declare the FIFO-head signals (b_slave_select for AW->B
+        # and r_slave_select for AR->R) so that width-adaptation can use
+        # them for W and R gating. The actual driver assigns live in
+        # _generate_response_mux further down.
+        if self.master.channels in ("wr", "rw"):
+            lines.append("    logic [NUM_SLAVES-1:0] b_slave_select;")
+        if self.master.channels in ("rd", "rw"):
+            lines.append("    logic [NUM_SLAVES-1:0] r_slave_select;")
+        lines.append("")
+
         # Write address decode
         if self.master.channels in ["wr", "rw"]:
             lines.append("    // ================================================================")
@@ -788,6 +798,19 @@ class AdapterGenerator:
                     lines.append(
                         f"    assign aw_path_active_{slave_width}b = {aw_terms};"
                     )
+                    # W beats arrive after AW; by then fub_axi_awaddr may
+                    # have reverted (wrapper popped its skid) and the
+                    # combinational decode flips back to a different slave.
+                    # Use the FIFO-tracked b_slave_select (defined in the
+                    # response-MUX section below) for W gating so the W
+                    # beats continue to flow through the right path.
+                    w_terms = " | ".join(f"b_slave_select[{si}]" for si in slaves_at_w)
+                    lines.append(
+                        f"    logic w_path_active_{slave_width}b;"
+                    )
+                    lines.append(
+                        f"    assign w_path_active_{slave_width}b = {w_terms};"
+                    )
                 if self.master.channels in ("rd", "rw"):
                     ar_terms = " | ".join(f"comb_slave_select_ar[{si}]" for si in slaves_at_w)
                     lines.append(
@@ -886,7 +909,8 @@ class AdapterGenerator:
             lines.append(f"    logic [NUM_SLAVES-1:0] aw_trk_mem [AW_TRK_DEPTH];")
             lines.append("    logic [AW_TRK_AW:0] aw_trk_wptr, aw_trk_rptr;")
             lines.append("    logic aw_trk_push, aw_trk_pop;")
-            lines.append("    logic [NUM_SLAVES-1:0] b_slave_select;")
+            # b_slave_select declared at the top of the module (see
+            # _generate_address_decode) so width-adaptation can use it.
             lines.append("")
             lines.append("    assign aw_trk_push = fub_axi_awvalid && fub_axi_awready;")
             lines.append("    assign aw_trk_pop  = fub_axi_bvalid && fub_axi_bready;")
@@ -921,7 +945,7 @@ class AdapterGenerator:
             lines.append(f"    logic [NUM_SLAVES-1:0] ar_trk_mem [AR_TRK_DEPTH];")
             lines.append("    logic [AR_TRK_AW:0] ar_trk_wptr, ar_trk_rptr;")
             lines.append("    logic ar_trk_push, ar_trk_pop;")
-            lines.append("    logic [NUM_SLAVES-1:0] r_slave_select;")
+            # r_slave_select declared at the top of the module.
             lines.append("")
             lines.append("    assign ar_trk_push = fub_axi_arvalid && fub_axi_arready;")
             lines.append("    assign ar_trk_pop  = fub_axi_rvalid && fub_axi_rready && fub_axi_rlast;")
@@ -1141,8 +1165,10 @@ class AdapterGenerator:
             lines.append(f"    assign {self.master.name}_{suffix}_w.strb  = fub_axi_wstrb;")
             lines.append(f"    assign {self.master.name}_{suffix}_w.last  = fub_axi_wlast;")
             lines.append(f"    assign {self.master.name}_{suffix}_w.user  = 1'b0;  // Tie to 0")
-            # Gate by `<W>b_aw_path_active` (W follows AW selection).
-            lines.append(f"    assign {self.master.name}_{suffix}_wvalid  = fub_axi_wvalid && aw_path_active_{width}b;")
+            # Gate by `<W>b_w_path_active` (FIFO-tracked) -- aw_path_active
+            # is combinational and would revert mid-burst once fub_axi_awaddr
+            # changes.
+            lines.append(f"    assign {self.master.name}_{suffix}_wvalid  = fub_axi_wvalid && w_path_active_{width}b;")
             lines.append("    // wready routed via MUX")
             lines.append("")
 
@@ -1243,7 +1269,7 @@ class AdapterGenerator:
             lines.append("        .s_axi_wstrb(fub_axi_wstrb),")
             lines.append("        .s_axi_wlast(fub_axi_wlast),")
             lines.append("        .s_axi_wuser(1'b0),")
-            lines.append(f"        .s_axi_wvalid(fub_axi_wvalid && aw_path_active_{slave_width}b),")
+            lines.append(f"        .s_axi_wvalid(fub_axi_wvalid && w_path_active_{slave_width}b),")
             lines.append(f"        .s_axi_wready(conv_{suffix}_wready),  // Intermediate signal")
             lines.append("")
             lines.append(f"        .s_axi_bid(conv_{suffix}_bid),  // Intermediate signal")

@@ -387,11 +387,13 @@ module bridge_1x3_rd (
     );
 
     // ================================================================
-    // Slave Adapter Instantiations (AXI4 Slaves)
-    // Provides timing isolation (axi4_master_wr/rd wrappers)
+    // Slave Adapter Instantiations
+    // AXI4 slaves: timing-isolation wrapper (axi4_master_wr/rd)
+    // APB / AXIL slaves: protocol-converter wrapper
+    // All adapters carry bridge_id tracking FIFOs.
     // ================================================================
 
-    // periph_rd adapter (crossbar → external slave)
+    // periph_rd adapter (AXI4, crossbar → external slave)
     periph_rd_adapter u_periph_rd_adapter (
         .aclk(aclk),
         .aresetn(aresetn),
@@ -418,7 +420,7 @@ module bridge_1x3_rd (
         .xbar_periph_rd_axi_rvalid(xbar_periph_rd_axi_rvalid),
         .xbar_periph_rd_axi_rready(xbar_periph_rd_axi_rready),
 
-        // External slave interface
+        // External slave interface (AXI4)
         .periph_rd_axi_arid(periph_rd_axi_arid),
         .periph_rd_axi_araddr(periph_rd_axi_araddr),
         .periph_rd_axi_arlen(periph_rd_axi_arlen),
@@ -446,7 +448,7 @@ module bridge_1x3_rd (
         .rid_valid(periph_rd_axi_rid_valid)
     );
 
-    // ddr_rd adapter (crossbar → external slave)
+    // ddr_rd adapter (AXI4, crossbar → external slave)
     ddr_rd_adapter u_ddr_rd_adapter (
         .aclk(aclk),
         .aresetn(aresetn),
@@ -473,7 +475,7 @@ module bridge_1x3_rd (
         .xbar_ddr_rd_axi_rvalid(xbar_ddr_rd_axi_rvalid),
         .xbar_ddr_rd_axi_rready(xbar_ddr_rd_axi_rready),
 
-        // External slave interface
+        // External slave interface (AXI4)
         .ddr_rd_axi_arid(ddr_rd_axi_arid),
         .ddr_rd_axi_araddr(ddr_rd_axi_araddr),
         .ddr_rd_axi_arlen(ddr_rd_axi_arlen),
@@ -501,7 +503,7 @@ module bridge_1x3_rd (
         .rid_valid(ddr_rd_axi_rid_valid)
     );
 
-    // hbm_rd adapter (crossbar → external slave)
+    // hbm_rd adapter (AXI4, crossbar → external slave)
     hbm_rd_adapter u_hbm_rd_adapter (
         .aclk(aclk),
         .aresetn(aresetn),
@@ -528,7 +530,7 @@ module bridge_1x3_rd (
         .xbar_hbm_rd_axi_rvalid(xbar_hbm_rd_axi_rvalid),
         .xbar_hbm_rd_axi_rready(xbar_hbm_rd_axi_rready),
 
-        // External slave interface
+        // External slave interface (AXI4)
         .hbm_rd_axi_arid(hbm_rd_axi_arid),
         .hbm_rd_axi_araddr(hbm_rd_axi_araddr),
         .hbm_rd_axi_arlen(hbm_rd_axi_arlen),
