@@ -23,8 +23,8 @@
 
 # STREAM Specification Index
 
-**Version:** 0.90
-**Date:** 2025-11-22
+**Version:** 0.91
+**Date:** 2026-05-11
 **Purpose:** Complete technical specification for STREAM subsystem
 
 ---
@@ -306,5 +306,5 @@ state_t r_state, w_next_state;  // Current and next state
 
 ---
 
-**Last Updated:** 2025-10-17
+**Last Updated:** 2026-05-11
 **Maintained By:** STREAM Architecture Team

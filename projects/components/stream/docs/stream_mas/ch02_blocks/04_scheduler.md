@@ -124,7 +124,7 @@ if (DESC_WIDTH != 256)
 |--------|-----------|-------|-------------|
 | `cfg_channel_enable` | input | 1 | Enable this channel |
 | `cfg_channel_reset` | input | 1 | Channel soft reset (FSM → IDLE) |
-| `cfg_sched_timeout_cycles` | input | 16 | Timeout threshold in clock cycles (runtime config) |
+| `cfg_sched_timeout_cycles` | input | 32 | Timeout threshold in clock cycles (32-bit, runtime config) |
 | `cfg_sched_timeout_enable` | input | 1 | Enable timeout detection |
 
 : Configuration Interface

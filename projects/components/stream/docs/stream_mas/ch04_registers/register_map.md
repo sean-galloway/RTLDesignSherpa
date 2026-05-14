@@ -359,8 +359,7 @@ Timeout threshold for scheduler (global for all channels).
 
 | Bits   | Field           | Type | Reset | Description                          |
 |--------|-----------------|------|-------|--------------------------------------|
-| 31:16  | Reserved        | RO   | 0x0   | Reserved                             |
-| 15:0   | TIMEOUT_CYCLES  | RW   | 1000  | Timeout in clock cycles              |
+| 31:0   | TIMEOUT_CYCLES  | RW   | 1000  | Timeout in clock cycles (32-bit)     |
 
 : SCHED_TIMEOUT_CYCLES
 

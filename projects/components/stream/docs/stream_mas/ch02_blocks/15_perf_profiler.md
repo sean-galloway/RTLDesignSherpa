@@ -28,7 +28,7 @@
 **Category:** FUB (Functional Unit Block)
 **Parent:** `stream_top.sv`
 **Status:** Implemented
-**Last Updated:** 2025-11-30
+**Last Updated:** 2026-05-11
 
 ---
 

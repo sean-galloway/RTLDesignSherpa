@@ -109,11 +109,14 @@ typedef enum logic [2:0] {
 
 | Parameter | Type | Default | Description |
 |-----------|------|---------|-------------|
-| `ADDR_WIDTH` | int | 32 | APB address width |
+| `ADDR_WIDTH` | int | 32 | APB bus address width (for address decoding only) |
 | `DATA_WIDTH` | int | 32 | APB data width |
 | `NUM_CHANNELS` | int | 8 | Number of DMA channels |
+| `DESC_ADDR_WIDTH` | int | 32 | Descriptor address output width (independent of ADDR_WIDTH) |
 
 : Parameters
+
+**Important:** `DESC_ADDR_WIDTH` is separate from `ADDR_WIDTH`. The APB address bus is used for register decode (typically 12 bits), while descriptor addresses are wide (typically 32 or 64 bits). The two-word programming protocol assembles a full-width descriptor address and truncates to `DESC_ADDR_WIDTH` bits when routing to descriptor engines.
 
 ---
 
@@ -261,13 +264,28 @@ The following diagram shows multiple channels being kicked off in sequence:
 
 ---
 
+## Known Issues and Fixes
+
+### Issue: Multi-Channel Kick-off Address Routing (RESOLVED a3beb2eb)
+
+**Symptom:** In multi-channel operations, channels 1-7 received corrupted descriptor addresses (bit-shuffled) while channel 0 worked correctly.
+
+**Root Cause:** Parameter mismatch between `apbtodescr` and parent modules. The `ADDR_WIDTH` parameter (12 bits, for APB decode) was incorrectly used as the descriptor address output width. Parent modules expected 32-bit descriptor addresses but received 12-bit values routed to 32-bit wires, causing SystemVerilog to re-slice the bits and place the HIGH word (all-0s) on odd channels.
+
+**Fix (Commit a3beb2eb):** Separated `DESC_ADDR_WIDTH` as an independent parameter (default 32). The two-word programming protocol still assembles a full descriptor address, but now correctly truncates to `DESC_ADDR_WIDTH` bits when routing to all channels uniformly.
+
+**Status:** RESOLVED (a3beb2eb - 2026-04-28)
+
+---
+
 ## Integration Example
 
 ```systemverilog
 apbtodescr #(
-    .ADDR_WIDTH     (32),
-    .DATA_WIDTH     (32),
-    .NUM_CHANNELS   (8)
+    .ADDR_WIDTH         (32),
+    .DATA_WIDTH         (32),
+    .NUM_CHANNELS       (8),
+    .DESC_ADDR_WIDTH    (32)  // Descriptor address output width
 ) u_apbtodescr (
     .clk                        (clk),
     .rst_n                      (rst_n),

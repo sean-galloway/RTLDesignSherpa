@@ -26,7 +26,7 @@
 **Module:** `stream_core.sv`
 **Location:** `projects/components/stream/rtl/macro/`
 **Status:** Implemented
-**Last Updated:** 2025-11-30
+**Last Updated:** 2026-05-11
 
 ---
 
