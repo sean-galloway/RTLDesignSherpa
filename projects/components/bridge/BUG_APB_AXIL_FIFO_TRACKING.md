@@ -23,17 +23,22 @@
 
 # Bug: APB/AXIL Slave Adapter FIFO Tracking Deadlock
 
-**Date:** 2025-11-10
+**Date:** 2025-11-10 - RESOLVED 2026-05-13
 **Severity:** CRITICAL
-**Status:** FIXED - Implemented and Tested
+**Status:** RESOLVED - All fixes integrated and verified (commit 608c97cb)
 **Affects:** All bridges with APB or AXI4-Lite slaves (bridge_1x5_rd, bridge_1x5_wr, bridge_1x2_* with APB)
-**Fixed In:** slave_adapter_generator.py (2025-11-10)
+**Resolved In:** Multiple commits addressing three distinct bugs (2026-05-10 to 2026-05-13)
 
 ---
 
 ## Summary
 
-The bridge_id FIFO tracking logic in APB and AXI4-Lite slave adapters causes **deadlock** because it monitors the wrong signals. The FIFO pop logic waits for crossbar-side handshakes that never complete when the external slave doesn't respond.
+Three coordinated bugs were fixed in this session that collectively caused APB/AXIL slave deadlock:
+1. APB shim wasn't wrapped in the per-slave adapter (FIFO tracking missing)
+2. AXIL slaves declared wrong external interface (AXI4-Lite instead of full AXI4)
+3. W-beat path-active gating used stale combinational decode instead of FIFO-tracked slave_select
+
+All issues are now resolved across the bridge generator and supporting modules.
 
 ---
 
@@ -374,28 +379,50 @@ assign xbar_apb_periph_axi_rlast = converter_rlast;
 
 ---
 
+## Resolution Summary
+
+All three bugs were fixed across four commits (a68c9f1e, f17213b6, 608c97cb, plus supporting refactors):
+
+1. **Multi-master OR-merge gating fix (a68c9f1e):**
+   - Every OR-merge term now gates on `(slave_select && <valid>)` so idle masters can't corrupt routing tags
+   - Applied to all bridge_id_aw/ar and data signal multiplexing
+
+2. **Stable slave_select fix (f17213b6):**
+   - Master adapter: Added per-channel response-tracking FIFOs (ar_trk_*, aw_trk_*)
+   - Crossbar: Replace slave_select_* gating with inline address re-decode on stable m_axi buses
+   - Added per-(master,slave) AW->W tracking FIFO for proper W-beat routing
+
+3. **APB/AXIL protocol gap fix (608c97cb):**
+   - APB shim now properly wrapped in slave_adapter module with correct FIFO tracking
+   - AXIL slaves now use full AXI4 interface (documentation only; real Lite conversion is future)
+   - W-beat gating uses separate w_path_active_<W> driven from FIFO-tracked b_slave_select
+
+4. **Typed component refactoring (6c9dc8e2, 95caea2e, ee7ed471, 7334487a):**
+   - Wrapped sub-module instantiation patterns in typed components (Axi4ToApbShim, Axi4DwidthConverter, etc.)
+   - Centralized parameter lists and port plumbing to reduce hot-spot bugs
+
+5. **Jinja template improvements (b65525a7):**
+   - APB pre-load moved into TB Jinja template so it survives regeneration
+   - Config validator enforces 4K page alignment on slave address windows
+
 ## Test Results
 
-**Status:** Pending test execution
+**Status:** All 22 bridge tests passing (confirmed end of session)
 
-**Next Steps:**
-1. Run failing tests to verify fix:
-   ```bash
-   pytest dv/tests/test_bridge_1x5_rd.py -v
-   pytest dv/tests/test_bridge_1x5_wr.py -v
-   ```
-2. Verify no TIMEOUT errors
-3. Check that all tests achieve 100% success
+**Coverage:**
+- bridge_1x5_rd, bridge_1x5_wr (APB/AXIL slaves) - basic_connectivity now passing
+- bridge_4x4_rw, bridge_5x3_channels - mixed-master, mixed-width now passing
+- All pure-AXI4 bridges - maintained 100% pass rate
 
 ---
 
 ## Priority
 
-**CRITICAL** - Fix implemented and deployed
-**Status:** Ready for testing
+**RESOLVED** - All fixes integrated and verified
+**Test Status:** 22/22 passing (2026-05-13)
 
 ---
 
-**Reported By:** Claude Code AI (via user observation)
-**Date:** 2025-11-10
-**Status:** Identified, awaiting fix implementation
+**Fixes By:** Claude Code AI
+**Date Resolved:** 2026-05-13
+**Status:** Complete and verified

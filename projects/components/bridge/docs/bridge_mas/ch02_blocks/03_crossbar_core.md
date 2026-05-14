@@ -105,23 +105,39 @@ This separation allows:
 - Independent grant decisions for AR vs. AW channels
 - Better throughput for mixed read/write workloads
 
-### Request Multiplexers
+### Request Multiplexers with Stable Address Gating
 
-After arbitration, multiplexers select granted master's signals:
+After arbitration, multiplexers select granted master's signals. AR/AW gating uses **inline address re-decode** on the stable m_axi address bus (held stable across the full handshake):
 
 ```systemverilog
+// Inline address re-decode for stable gating (replaces slave_select_* gating)
+// The address on m_axi is held stable from fub_axi handshake through m_axi handshake
+always_comb begin
+    // Re-decode each master's address to determine target slave
+    m0_targets_s0 = (m0_m_axi_araddr >= S0_BASE) && (m0_m_axi_araddr < S0_END);
+    m1_targets_s0 = (m1_m_axi_araddr >= S0_BASE) && (m1_m_axi_araddr < S0_END);
+    m2_targets_s0 = (m2_m_axi_araddr >= S0_BASE) && (m2_m_axi_araddr < S0_END);
+    m3_targets_s0 = (m3_m_axi_araddr >= S0_BASE) && (m3_m_axi_araddr < S0_END);
+end
+
+// Gate with valid signals
+assign m0_ar_s0_valid = m0_arvalid && m0_targets_s0;
+assign m1_ar_s0_valid = m1_arvalid && m1_targets_s0;
+assign m2_ar_s0_valid = m2_arvalid && m2_targets_s0;
+assign m3_ar_s0_valid = m3_arvalid && m3_targets_s0;
+
 // Simplified AR channel MUX for Slave 0
 always_comb begin
     case (ar_grant_s0)
         2'b00: begin  // Master 0 granted
             s0_arvalid = m0_arvalid;
-            s0_araddr  = m0_araddr;
+            s0_araddr  = m0_m_axi_araddr;  // Stable across m_axi handshake
             s0_arid    = m0_arid;    // Includes Bridge ID
             // ... other AR signals
         end
         2'b01: begin  // Master 1 granted
             s0_arvalid = m1_arvalid;
-            s0_araddr  = m1_araddr;
+            s0_araddr  = m1_m_axi_araddr;  // Stable across m_axi handshake
             s0_arid    = m1_arid;
             // ... other AR signals
         end
@@ -129,6 +145,37 @@ always_comb begin
     endcase
 end
 ```
+
+**Why this matters**: The address on `m_axi_*` is held stable for the entire AXI handshake (arvalid && arready). This allows address re-decoding to determine the target slave even as the master's internal address state changes.
+
+### AW→W Burst Tracking FIFO
+
+For masters with multiple slave connections, W beats must follow the slave that the AW was driven to. A per-(master, slave) FIFO tracks which slave the AW was routed to:
+
+```systemverilog
+// Track which slave the AW was driven to
+always_ff @(posedge aclk or negedge aresetn) begin
+    if (!aresetn) begin
+        aw_trk_slave_id <= '0;
+        aw_trk_valid <= 1'b0;
+    end else if (m0_awvalid && m0_m_axi_awready && s_selected_aw == S0) begin
+        aw_trk_slave_id <= S0;  // Track that AW went to slave 0
+        aw_trk_valid <= 1'b1;
+    end else if (m0_wvalid && m0_m_axi_wready && m0_m_axi_wlast) begin
+        aw_trk_valid <= 1'b0;  // AW->W burst complete
+    end
+end
+
+// Gate W path based on tracked slave
+logic w_to_s0, w_to_s1, w_to_s2;
+always_comb begin
+    w_to_s0 = m0_wvalid && (aw_trk_slave_id == S0);
+    w_to_s1 = m0_wvalid && (aw_trk_slave_id == S1);
+    w_to_s2 = m0_wvalid && (aw_trk_slave_id == S2);
+end
+```
+
+**Why this matters**: Without tracking, W beats would re-evaluate address decode which may have stale or different values, routing to the wrong width converter or slave.
 
 ### Backpressure Propagation
 

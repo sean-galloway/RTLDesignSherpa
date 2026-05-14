@@ -110,6 +110,28 @@ Master sees 4-bit IDs
 Bridge translates between them
 ```
 
+## 2.5.4a Multi-Master OR-Merge Gating
+
+When multiple masters drive address and ID signals toward a slave, an OR-merge combines them. To prevent idle masters with stale addresses from corrupting the routing tag, every OR-merge term is gated on both the slave_select condition AND the valid signal:
+
+```systemverilog
+// Wrong (deprecated):
+assign s0_bridge_id_aw = m0_bridge_id_aw | m1_bridge_id_aw | m2_bridge_id_aw;
+//                       ↓ Master 1 contributes even if awvalid=0 and address is stale!
+
+// Correct:
+assign s0_bridge_id_aw = (m0_slave_select_aw && m0_awvalid ? m0_bridge_id_aw : '0) |
+                        (m1_slave_select_aw && m1_awvalid ? m1_bridge_id_aw : '0) |
+                        (m2_slave_select_aw && m2_awvalid ? m2_bridge_id_aw : '0);
+```
+
+**Why this matters**: An idle master with stale address (fub_axi_awaddr = 0) still decodes to slave 0 if that's the address map. Without valid gating, its zero bridge_id corrupts the slave's routing tag via OR-merge. When the slave responds, the B-response gets routed to the idle master instead of the actual requester.
+
+**Implementation**:
+- All AW/AR/W data signals gated by `{slave_select && <channel_valid>}`
+- bridge_id_aw/ar signals gated by corresponding `<channel>valid`
+- Prevents any idle master from affecting the OR-merge result
+
 ## 2.5.5 ID Injection (Request Path)
 
 ### Read Address Channel (AR)

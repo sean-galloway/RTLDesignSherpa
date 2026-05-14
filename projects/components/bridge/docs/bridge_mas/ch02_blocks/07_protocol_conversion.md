@@ -55,8 +55,18 @@ Protocol conversion performs the following critical functions:
 - For low-bandwidth peripherals
 - Simplified handshaking
 
+### Current Limitation: AXI4-Lite Conversion
+
+**IMPORTANT**: AXI4-Lite slaves are currently treated as full AXI4 slaves internally. The bridge does NOT perform real AXI4-Lite protocol conversion (single-beat restriction, no ARLEN/AWLEN, etc.). AXIL slaves:
+- Use the standard AXI4 timing wrapper (same as AXI4 slaves)
+- Expose full 5-channel AXI4 interface at the bridge boundary
+- Are documented as "axil" for user reference only
+
+Real AXI4-Lite protocol enforcement (burst length restriction, size field handling) is deferred to a future phase. Currently, AXIL slaves behave identically to AXI4 slaves from the bridge's perspective.
+
 ### Future Support (Phase 2+)
 
+- **Real AXI4-Lite Conversion**: Enforce single-beat constraint, remove unused signals
 - **AHB**: Advanced High-performance Bus
 - **Wishbone**: Open-source bus standard
 - **Custom**: User-defined protocols

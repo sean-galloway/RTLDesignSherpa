@@ -70,10 +70,40 @@
 | prefix | string | Signal prefix |
 | protocol | enum | "axi4", "axi4lite", "apb" |
 | data_width | int | Port data width |
-| base_addr | hex | Base address |
-| addr_range | hex | Address range size |
+| base_addr | hex | Base address (must be 4K-aligned) |
+| addr_range | hex | Address range size (must be multiple of 4K) |
 
 : Table 6.11: Slave Port Configuration
+
+#### Slave Address Window Rules (MANDATORY)
+
+Every slave must occupy a 4K-aligned address window that is a multiple of 4 KB:
+
+```
+Rule 1: Base Address Alignment
+  base_addr & 0xFFF == 0x000
+  
+  Valid:   0x00000000, 0x00001000, 0x80000000, 0xFFFF0000
+  Invalid: 0x00000001, 0x80000800, 0xC0000100
+
+Rule 2: Range Alignment
+  addr_range % 0x1000 == 0
+  
+  Valid:   0x1000 (4 KB), 0x2000 (8 KB), 0x10000 (64 KB)
+  Invalid: 0x800 (2 KB), 0x1001, 0x7FFF
+
+Rule 3: Non-Overlapping Windows
+  All slaves must have non-overlapping address ranges
+  
+  Valid:   Slave0: 0x00000000-0x0FFFFFFF, Slave1: 0x10000000-0x1FFFFFFF
+  Invalid: Slave0: 0x00000000-0x10000000, Slave1: 0x0FFFFFFF-0x1FFFFFFF
+```
+
+**Why This Rule Exists**:
+- Real memory systems use 4K page boundaries (virtual memory, MMU)
+- Linker scripts and memory maps assume 4K granularity
+- Address decoders simplify to bit masks with 4K alignment
+- Prevents ambiguity in address decode logic
 
 ## Configuration File Format
 

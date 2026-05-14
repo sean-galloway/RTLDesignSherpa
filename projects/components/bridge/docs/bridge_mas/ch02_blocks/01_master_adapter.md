@@ -192,6 +192,34 @@ The Master Adapter enforces several protocol requirements:
 - Ensures ARCACHE/AWCACHE have legal values
 - Sets ARPROT/AWPROT based on configuration
 
+## 2.1.6 Response Path Slave Selection Tracking
+
+### Problem: Stale Slave Select Decode
+
+The master adapter decodes incoming address to determine target slave immediately (combinational). When the wrapper's skid buffer pops and `fub_axi_awaddr`/`fub_axi_araddr` reverts, the decode changes even though the converter is still in flight pushing the request to the crossbar. This causes the response MUX to route read/write responses from the wrong slave.
+
+### Solution: Per-Channel Response-Tracking FIFOs
+
+Added separate FIFOs for AR and AW channels that capture the slave index (`comb_slave_select_ar/aw`) at the moment of the FUB-level handshake:
+
+```systemverilog
+// At request time (when fub_axi_arvalid && fub_axi_arready)
+ar_trk_push <= comb_slave_select_ar;  // Capture decoded slave index
+
+// At response time (when m_axi_rvalid && m_axi_rready && m_axi_rlast)
+r_slave_select <= ar_trk_pop;  // Stable slave index for response MUX
+```
+
+**Benefits**:
+- R/B responses route correctly even after address reverts
+- Supports multi-slave masters spanning different widths
+- Stable path for both data width and target slave
+
+**Implementation**:
+- One FIFO per (master, AW/AR channel)
+- Width: `clog2(NUM_SLAVES)` bits (4 bits typical for 16-slave systems)
+- Depth: Matches maximum outstanding transactions (8-16 typical)
+
 ## 2.1.7 Interface Specifications
 
 ### External Master Interface (per master)

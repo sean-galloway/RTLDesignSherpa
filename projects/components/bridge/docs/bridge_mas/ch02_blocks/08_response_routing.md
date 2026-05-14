@@ -43,11 +43,38 @@ Response routing performs the following critical functions:
 
 Response routing architecture showing B and R channel merging from slaves and ID-based demultiplexing to masters.
 
-## 2.8.3 BID Extraction
+## 2.8.3 Stable Response Routing via FIFO-Tracked Slave Select
 
-### Simple Extraction (No CAM)
+### Architecture: FIFO-Tracked Master Routing
 
-For configurations where direct BID mapping suffices:
+For multi-slave masters, responses are routed based on a **stable slave-select value** captured at request time, not the current address decode:
+
+```systemverilog
+// At AW/AR time: Capture slave index
+assign aw_slave_select = address_decode(fub_axi_awaddr);
+always_ff @(posedge aclk) begin
+    if (fub_axi_awvalid && fub_axi_awready) begin
+        aw_trk_fifo <= aw_slave_select;  // Capture now
+    end
+end
+
+// At B time: Use captured slave from FIFO (not current decode)
+assign b_slave_select = aw_trk_fifo_out;  // Stable value
+logic [NUM_MASTERS-1:0] master_bvalid;
+always_comb begin
+    master_bvalid = '0;
+    master_bvalid[extracted_bid] = slave_bvalid && (b_slave_select == current_slave);
+end
+```
+
+**Benefits**:
+- B-responses route to correct master even after address reverts
+- Handles multi-slave masters spanning different widths
+- Prevents response loss due to stale address decodes
+
+### BID Extraction
+
+For ID-based routing, Bridge ID is extracted from response:
 
 ```systemverilog
 // Extract Bridge ID from response ID
@@ -59,11 +86,11 @@ logic [RID_WIDTH-1:0] external_rid;        // To master
 assign extracted_bid = slave_rid[TOTAL_RID_WIDTH-1:RID_WIDTH];
 assign external_rid = slave_rid[RID_WIDTH-1:0];
 
-// Route response based on BID
+// Route response based on BID (combined with slave select tracking above)
 logic [NUM_MASTERS-1:0] master_rvalid;
 always_comb begin
     master_rvalid = '0;  // Default: no master selected
-    master_rvalid[extracted_bid] = slave_rvalid;
+    master_rvalid[extracted_bid] = slave_rvalid && (r_slave_select == current_slave);
 end
 ```
 

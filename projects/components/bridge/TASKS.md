@@ -359,6 +359,76 @@ endcase
 
 ---
 
+### TASK-000B: Critical Stability Fixes - slave_select Reversion and Multi-Master Routing
+**Status:** 🟢 **COMPLETE** (2026-05-13)
+**Priority:** P0 (Critical Bug Fixes)
+**Effort:** Completed (4 coordinated commits + 4 component refactors)
+**Owner:** Claude Code AI
+**Completed:** 2026-05-13
+
+**Description:**
+Fix three critical bugs introduced by earlier optimizations that caused transaction deadlocks in multi-master, multi-slave, and APB/AXIL-slave configurations.
+
+**Bugs Fixed:**
+
+**Bug 1: Multi-Master OR-Merge Corruption (commit a68c9f1e)**
+- Idle masters with stale addresses corrupted bridge_id routing tags via OR-merge
+- Fix: Gate all OR-merge terms by `(slave_select && <channel_valid>)`
+- Test Impact: Basic connectivity tests now pass for 2x2_rw, 4x4_rw
+
+**Bug 2: Stale slave_select After Handshake (commit f17213b6)**
+- Address decode (slave_select_*) reverts after skid pop, before converter finishes
+- Master adapter: R/B responses routed from wrong slave or lost entirely
+- Crossbar: AR/AW gating closed prematurely, blocking requests mid-burst
+- Fix: Master adapter uses per-channel response-tracking FIFOs; crossbar uses inline address re-decode on stable m_axi bus
+- Test Impact: Multi-slave masters, multi-width topologies now passing
+
+**Bug 3: APB/AXIL Response Path & W-Beat Drift (commit 608c97cb)**
+- APB shim not wrapped in adapter (bid_valid/rid_valid undriven)
+- AXIL slaves declared wrong external interface (Lite vs full AXI4)
+- W-beat path-active gating used combinational decode, routed to wrong converter
+- Fix: Adapter instantiation handles all protocols uniformly; separate w_path_active_<W> from aw_path_active; AXIL uses AXI4 wrapper
+- Test Impact: bridge_1x5_rd, bridge_1x5_wr, bridge_5x3_channels basic_connectivity now passing
+
+**Test Results:**
+- All 22 bridge tests passing (2026-05-13)
+- Multi-master configurations stable
+- Mixed-width topologies validated
+- APB/AXIL slave responses correctly routed
+
+**Implementation:**
+1. ✅ Fixed OR-merge gating in crossbar AR/AW multiplexing
+2. ✅ Added ar_trk_* and aw_trk_* FIFOs to master adapter
+3. ✅ Replaced slave_select_* gates with inline address re-decode
+4. ✅ Added per-(master,slave) AW→W tracking FIFO
+5. ✅ Unified APB/AXIL/AXI4 slave adapter instantiation
+6. ✅ Separated w_path_active from aw_path_active
+7. ✅ Refactored sub-module instantiations into typed components
+8. ✅ Updated Jinja templates for APB pre-load
+9. ✅ Added config validator for 4K address alignment
+
+**Related Documentation:**
+- `BUG_APB_AXIL_FIFO_TRACKING.md` - Detailed bug analysis (updated to RESOLVED)
+- `CLAUDE.md` - "Critical Pitfalls: slave_select_* Reversion" section
+- `docs/bridge_mas/ch02_blocks/01_master_adapter.md` - FIFO tracking section
+- `docs/bridge_mas/ch02_blocks/03_crossbar_core.md` - Address re-decode and tracking FIFO
+
+**Related Commits:**
+- a68c9f1e: Multi-master OR-merge fix
+- f17213b6: Stable slave_select + TOML name fix
+- 608c97cb: APB/AXIL response gap + W-beat path drift
+- 6c9dc8e2, 95caea2e, ee7ed471, 7334487a: Typed component refactors
+- b65525a7: APB pre-load into TB template
+- b889dc74: Shared conftest helpers + drop xdist override
+- e0a1ec73: 4K page alignment validator
+
+**Future Work:**
+- Real AXI4-Lite protocol conversion (single-beat enforcement) deferred
+- Migrate remaining area conftests to `cov_utils/conftest_base.py` pattern
+- Enhanced monitoring integration for debug/performance analysis
+
+---
+
 ### TASK-001: Phase 3 - APB Converter Implementation
 **Status:** 🟡 Planned
 **Priority:** P0

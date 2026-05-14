@@ -246,6 +246,99 @@ endpackage
 
 ---
 
+## Configuration Validation
+
+### Slave Address Window Validator (2026-05-13)
+
+The config loader enforces 4K page alignment on all slave address windows:
+
+```python
+# bin/bridge_pkg/config_loader.py - validate_slave_config()
+
+def validate_slave_config(slave, slave_name):
+    """
+    Validate slave address configuration.
+    
+    Rules:
+    1. base_addr must be 4K-aligned (base & 0xFFF == 0)
+    2. addr_range must be multiple of 4K (addr_range % 0x1000 == 0)
+    3. No overlapping with other slaves
+    """
+    
+    # Check base address alignment
+    if slave.base_addr & 0xFFF != 0:
+        raise ConfigError(f"{slave_name}: base_addr must be 4K-aligned")
+    
+    # Check range is multiple of 4K
+    if slave.addr_range % 0x1000 != 0:
+        raise ConfigError(f"{slave_name}: addr_range must be multiple of 4K")
+```
+
+**Why This Matters:**
+- Real memory systems use 4K page boundaries (MMU, virtual memory)
+- Address decoders simplify to bit masks with 4K alignment
+- Linker scripts and memory maps assume 4K granularity
+- Prevents address decoding ambiguity
+
+**Jinja Global Functions:**
+Registered `min()` and `max()` as Jinja globals so address decode templates can use arithmetic without silent failures:
+```jinja2
+{% if (slave.base_addr >= 0) %}
+    ... valid arithmetic in templates ...
+{% endif %}
+```
+
+---
+
+### Typed Component Architecture (2026-05-13)
+
+To reduce bugs from manual signal plumbing and tie-off widths, four sub-module instantiation patterns are now wrapped in typed components:
+
+#### 1. Axi4ToApbShim Component
+**Location:** `bin/bridge_pkg/components/axi4_to_apb_shim_component.py`
+**Purpose:** Encapsulate AXI4-to-APB protocol conversion instantiation
+**Handles:**
+- Parameter list generation (AXI_ID_WIDTH, AXI_ADDR_WIDTH, AXI_DATA_WIDTH)
+- Port list generation (all AXI4 and APB signal mappings)
+- Tie-off logic for APB-specific widths (PADDR, PRDATA, PSTRB)
+
+#### 2. Axi4DwidthConverter Component
+**Location:** `bin/bridge_pkg/components/axi4_dwidth_converter_component.py`
+**Purpose:** Encapsulate width conversion instantiation (wr/rd pairs or singles)
+**Handles:**
+- Width parameters (S_WIDTH, M_WIDTH)
+- Channel-specific instantiation (wr/rd/rw)
+- Signal mapping and adaptation
+- Tie-off logic for unused channels
+
+#### 3. Axi4TimingWrapper Component
+**Location:** `bin/bridge_pkg/components/axi4_timing_wrapper_component.py`
+**Purpose:** Encapsulate timing isolation wrapper instantiation (4 variants)
+**Handles:**
+- Master vs Slave variants (4 combinations: master_rd, master_wr, slave_rd, slave_wr)
+- Skid buffer depth parameters
+- Proper fub_axi <→> m_axi signal mapping
+- ID width adaptation
+
+#### 4. SlaveAdapterInstance Component
+**Location:** `bin/bridge_pkg/components/slave_adapter_instance_component.py`
+**Purpose:** Encapsulate slave adapter instantiation and port connections
+**Handles:**
+- Protocol-specific instantiation (axi4_slave_adapter, apb_periph_adapter, axil_slave_adapter)
+- Per-slave FIFO tracking wiring (ar_trk_*, aw_trk_*, b_slave_select, r_slave_select)
+- Converter instantiation for APB/AXIL (axi4_to_apb_shim wrapping)
+- Response path interconnect
+
+**Benefits:**
+- Single source of truth for parameter lists and port mappings
+- Reduced error surface for manual signal plumbing
+- Easier to maintain and extend sub-module patterns
+- Clear, type-checked component instantiation
+
+**Files Created:** ~700 lines of `.port(connector)` code extracted from generator functions
+
+---
+
 ### 2. Adapter Generator
 
 **Location:** `bin/bridge_pkg/generators/adapter_generator.py`
