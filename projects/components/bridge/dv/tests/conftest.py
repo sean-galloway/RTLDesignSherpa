@@ -1,8 +1,9 @@
-"""
-Bridge Validation Test Configuration for pytest
+"""Bridge Validation Test Configuration for pytest.
 
-Configures the test environment for AXI4 Bridge crossbar validation,
-following the established repository patterns.
+Configures the test environment for AXI4 Bridge crossbar validation.
+The boilerplate (log dir setup, coverage aggregation, scratch-dir
+ignore) lives in ``bin/cov_utils/conftest_base.py``; this file just
+declares the bridge-specific bits.
 
 Coverage Features:
 - Set COVERAGE=1 to enable code coverage collection
@@ -12,117 +13,65 @@ Coverage Features:
 
 import os
 import sys
-import logging
-import pytest
 
 # Add repository paths before any test imports
 repo_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '../../../../..'))
 sys.path.insert(0, repo_root)
 sys.path.insert(0, os.path.join(repo_root, 'bin'))
 
-from cov_utils.conftest_coverage import aggregate_all_coverage
+import pytest
+from cov_utils.conftest_base import configure, sessionfinish, ignore_collect
+from cov_utils.conftest_coverage import get_coverage_compile_args  # noqa: F401 — re-exported for test files
 
+AREA_NAME = 'Bridge'
+LOG_BASENAME = 'pytest_bridge.log'
 
-def get_coverage_compile_args():
-    """Get Verilator compile arguments for coverage collection.
-
-    Usage in test files:
-        from conftest import get_coverage_compile_args
-        compile_args.extend(get_coverage_compile_args())
-
-    Enable coverage by setting COVERAGE=1 environment variable.
-    """
-    if os.environ.get('COVERAGE', '0') != '1':
-        return []
-    return [
-        '--coverage',
-        '--coverage-line',
-        '--coverage-toggle',
-        '--coverage-underscore',
-    ]
+MARKERS = (
+    'bridge: Bridge crossbar tests',
+    'basic: Basic functionality tests',
+    'routing: Address decode and routing tests',
+    'arbitration: Round-robin arbitration tests',
+    'concurrent: Concurrent path tests',
+    'stress: Stress testing',
+    'coverage: Tests that collect coverage data',
+    'protocol_coverage: Tests that collect protocol coverage',
+)
 
 
 def pytest_configure(config):
-    """Configure pytest for Bridge testing"""
-    # Create logs directory if it doesn't exist
-    log_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "logs")
-    os.makedirs(log_dir, exist_ok=True)
-
-    # Create coverage directory if coverage is enabled
-    if os.environ.get('COVERAGE', '0') == '1':
-        coverage_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "coverage_data")
-        os.makedirs(os.path.join(coverage_dir, "per_test"), exist_ok=True)
-        os.makedirs(os.path.join(coverage_dir, "merged"), exist_ok=True)
-        os.makedirs(os.path.join(coverage_dir, "reports"), exist_ok=True)
-        logging.info(f"Coverage enabled. Data will be stored in: {coverage_dir}")
-
-    # Configure log file for pytest itself
-    config.option.log_file = os.path.join(log_dir, "pytest_bridge.log")
-    config.option.log_file_level = "DEBUG"
-
-    # Enable console logging
-    config.option.log_cli = True
-    config.option.log_cli_level = "INFO"
-
-    # CRITICAL: Force sequential execution to prevent system crashes
-    # Bridge tests compile large Verilator models that use 1GB+ memory each
-    # Parallel execution with -n 48 would require 48GB+ RAM simultaneously
-    if hasattr(config.option, 'numprocesses') and config.option.numprocesses is not None:
-        config.option.numprocesses = None
-        config.option.dist = 'no'
-        logging.warning("Bridge tests: Forcing sequential execution to prevent memory exhaustion")
-        logging.warning("Parallel execution disabled - each test uses ~1GB during compilation")
-
-    # Register Bridge-specific pytest markers
-    config.addinivalue_line("markers", "bridge: Bridge crossbar tests")
-    config.addinivalue_line("markers", "basic: Basic functionality tests")
-    config.addinivalue_line("markers", "routing: Address decode and routing tests")
-    config.addinivalue_line("markers", "arbitration: Round-robin arbitration tests")
-    config.addinivalue_line("markers", "concurrent: Concurrent path tests")
-    config.addinivalue_line("markers", "stress: Stress testing")
-    config.addinivalue_line("markers", "coverage: Tests that collect coverage data")
-    config.addinivalue_line("markers", "protocol_coverage: Tests that collect protocol coverage")
+    configure(config, __file__, LOG_BASENAME, markers=MARKERS)
 
 
 @pytest.hookimpl(trylast=True)
 def pytest_sessionfinish(session, exitstatus):
-    """Called after whole test run finished"""
-    logging.info("Bridge test session finished. Preserving all logs and build artifacts.")
-
-    # Aggregate coverage if enabled
-    if os.environ.get('COVERAGE', '0') == '1':
-        _aggregate_coverage()
-
-
-def _aggregate_coverage():
-    """Aggregate all per-test coverage data into a merged report.
-
-    Delegates to the shared coverage helper which:
-    - Merges Verilator .dat files via verilator_coverage --write
-    - Merges protocol JSON summaries using MAX hits (not SUM)
-    - Generates a Markdown coverage report
-    """
-    base_dir = os.path.dirname(os.path.abspath(__file__))
-    aggregate_all_coverage(base_dir, 'Bridge')
+    sessionfinish(__file__, AREA_NAME)
 
 
 def pytest_ignore_collect(collection_path, config):
-    """Disable automatic test collection in build/log/coverage scratch dirs.
-
-    Includes `local_sim_build` so per-test sim build trees (which now hold
-    each test's `dump.fst`) don't get picked up as test modules. Mirrors the
-    convention used in the q32 dv conftest.
-    """
-    path_str = str(collection_path)
-    return (
-        'logs' in path_str
-        or 'local_sim_build' in path_str
-        or 'coverage_data' in path_str
-    )
+    return ignore_collect(collection_path)
 
 
-# Bridge-specific parametrization fixtures
-@pytest.fixture(scope="module", params=[
+def pytest_collection_modifyitems(config, items):
+    """Auto-tag tests with bridge-specific markers based on node-id substrings."""
+    for item in items:
+        nid = item.nodeid
+        if 'routing' in nid:
+            item.add_marker(pytest.mark.routing)
+        elif 'arbitration' in nid:
+            item.add_marker(pytest.mark.arbitration)
+        elif 'concurrent' in nid:
+            item.add_marker(pytest.mark.concurrent)
+        elif 'stress' in nid:
+            item.add_marker(pytest.mark.stress)
+        elif 'basic' in nid:
+            item.add_marker(pytest.mark.basic)
+
+
+# ----------------------------------------------------------------------
+# Bridge-specific parametrization fixtures (kept local to this area).
+# ----------------------------------------------------------------------
+
+@pytest.fixture(scope='module', params=[
     # (num_masters, num_slaves, data_width, addr_width, id_width)
     (2, 2, 32, 32, 4),   # Basic 2x2 crossbar
     (2, 4, 32, 32, 4),   # 2 masters, 4 slaves
@@ -130,7 +79,7 @@ def pytest_ignore_collect(collection_path, config):
     (4, 4, 32, 32, 4),   # Full 4x4 crossbar
 ])
 def bridge_config(request):
-    """Bridge crossbar configuration parameters"""
+    """Bridge crossbar configuration parameters."""
     num_masters, num_slaves, data_width, addr_width, id_width = request.param
     return {
         'NUM_MASTERS': num_masters,
@@ -141,30 +90,27 @@ def bridge_config(request):
     }
 
 
-@pytest.fixture(scope="module", params=[
-    # Test levels: (level, transaction_count, timeout_factor)
+@pytest.fixture(scope='module', params=[
+    # (level, transaction_count, timeout_factor)
     ('gate', 10, 1.0),
     ('func', 50, 1.5),
     ('full', 200, 2.0),
 ])
 def bridge_test_level(request):
-    """Bridge test level configuration"""
+    """Bridge test level configuration; ``TEST_LEVEL`` env var overrides."""
     level, transaction_count, timeout_factor = request.param
-
-    # Override from environment if specified
     env_level = os.environ.get('TEST_LEVEL', level).lower()
     if env_level in ['gate', 'func', 'full']:
         level = env_level
-
     return {
         'level': level,
         'transaction_count': transaction_count,
-        'timeout_factor': timeout_factor
+        'timeout_factor': timeout_factor,
     }
 
 
 def get_bridge_env_config():
-    """Get Bridge configuration from environment variables"""
+    """Bridge configuration from environment variables."""
     return {
         'NUM_MASTERS': int(os.environ.get('BRIDGE_NUM_MASTERS', '2')),
         'NUM_SLAVES': int(os.environ.get('BRIDGE_NUM_SLAVES', '2')),
@@ -176,30 +122,13 @@ def get_bridge_env_config():
     }
 
 
-def pytest_collection_modifyitems(config, items):
-    """Modify test collection to add Bridge-specific markers"""
-    for item in items:
-        # Add markers based on test name patterns
-        if "routing" in item.nodeid:
-            item.add_marker(pytest.mark.routing)
-        elif "arbitration" in item.nodeid:
-            item.add_marker(pytest.mark.arbitration)
-        elif "concurrent" in item.nodeid:
-            item.add_marker(pytest.mark.concurrent)
-        elif "stress" in item.nodeid:
-            item.add_marker(pytest.mark.stress)
-        elif "basic" in item.nodeid:
-            item.add_marker(pytest.mark.basic)
-
-
-# Coverage fixtures
-@pytest.fixture(scope="function")
+@pytest.fixture(scope='function')
 def coverage_enabled():
-    """Check if coverage collection is enabled."""
+    """Whether coverage collection is enabled for this run."""
     return os.environ.get('COVERAGE', '0') == '1'
 
 
-@pytest.fixture(scope="function")
+@pytest.fixture(scope='function')
 def test_level():
-    """Test level fixture - can be overridden by TEST_LEVEL environment variable"""
+    """Test level (overridable via ``TEST_LEVEL`` env var)."""
     return os.environ.get('TEST_LEVEL', 'gate')
