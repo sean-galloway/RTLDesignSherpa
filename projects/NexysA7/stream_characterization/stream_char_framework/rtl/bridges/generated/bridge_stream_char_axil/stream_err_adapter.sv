@@ -9,8 +9,7 @@
 import bridge_stream_char_axil_pkg::*;
 
 module stream_err_adapter #(
-    parameter int ID_WIDTH = 4,
-    parameter int BRIDGE_ID_WIDTH = 1
+    parameter int ID_WIDTH = 4
 ) (
     input  logic aclk,
     input  logic aresetn,
@@ -71,29 +70,50 @@ module stream_err_adapter #(
     output logic                       rid_valid,
 
     // External slave interface (AXIL)
-    output logic [31:0] stream_err_axi_awaddr,
-    output logic [2:0]            stream_err_axi_awprot,
-    output logic                  stream_err_axi_awvalid,
-    input  logic                  stream_err_axi_awready,
-    // Write Data Channel
-    output logic [31:0] stream_err_axi_wdata,
-    output logic [3:0] stream_err_axi_wstrb,
-    output logic                  stream_err_axi_wvalid,
-    input  logic                  stream_err_axi_wready,
-    // Write Response Channel
-    input  logic [1:0]            stream_err_axi_bresp,
-    input  logic                  stream_err_axi_bvalid,
-    output logic                  stream_err_axi_bready,
-    // Read Address Channel
-    output logic [31:0] stream_err_axi_araddr,
-    output logic [2:0]            stream_err_axi_arprot,
-    output logic                  stream_err_axi_arvalid,
-    input  logic                  stream_err_axi_arready,
-    // Read Data Channel
-    input  logic [31:0] stream_err_axi_rdata,
-    input  logic [1:0]            stream_err_axi_rresp,
-    input  logic                  stream_err_axi_rvalid,
-    output logic                  stream_err_axi_rready
+    output  logic [3:0]  stream_err_axi_awid,
+    output  logic [31:0]  stream_err_axi_awaddr,
+    output  logic [7:0]  stream_err_axi_awlen,
+    output  logic [2:0]  stream_err_axi_awsize,
+    output  logic [1:0]  stream_err_axi_awburst,
+    output  logic         stream_err_axi_awlock,
+    output  logic [3:0]  stream_err_axi_awcache,
+    output  logic [2:0]  stream_err_axi_awprot,
+    output  logic [3:0]  stream_err_axi_awqos,
+    output  logic [3:0]  stream_err_axi_awregion,
+    output  logic         stream_err_axi_awuser,
+    output  logic         stream_err_axi_awvalid,
+    input  logic         stream_err_axi_awready,
+    output  logic [31:0]  stream_err_axi_wdata,
+    output  logic [3:0]  stream_err_axi_wstrb,
+    output  logic         stream_err_axi_wlast,
+    output  logic         stream_err_axi_wuser,
+    output  logic         stream_err_axi_wvalid,
+    input  logic         stream_err_axi_wready,
+    input  logic [3:0]  stream_err_axi_bid,
+    input  logic [1:0]  stream_err_axi_bresp,
+    input  logic         stream_err_axi_buser,
+    input  logic         stream_err_axi_bvalid,
+    output  logic         stream_err_axi_bready,
+    output  logic [3:0]  stream_err_axi_arid,
+    output  logic [31:0]  stream_err_axi_araddr,
+    output  logic [7:0]  stream_err_axi_arlen,
+    output  logic [2:0]  stream_err_axi_arsize,
+    output  logic [1:0]  stream_err_axi_arburst,
+    output  logic         stream_err_axi_arlock,
+    output  logic [3:0]  stream_err_axi_arcache,
+    output  logic [2:0]  stream_err_axi_arprot,
+    output  logic [3:0]  stream_err_axi_arqos,
+    output  logic [3:0]  stream_err_axi_arregion,
+    output  logic         stream_err_axi_aruser,
+    output  logic         stream_err_axi_arvalid,
+    input  logic         stream_err_axi_arready,
+    input  logic [3:0]  stream_err_axi_rid,
+    input  logic [31:0]  stream_err_axi_rdata,
+    input  logic [1:0]  stream_err_axi_rresp,
+    input  logic         stream_err_axi_rlast,
+    input  logic         stream_err_axi_ruser,
+    input  logic         stream_err_axi_rvalid,
+    output  logic         stream_err_axi_rready
 );
 
     // ================================================================
@@ -127,7 +147,6 @@ module stream_err_adapter #(
     // ================================================================
 
     // Write Channel FIFO (In-Order) - AXIL Protocol
-    // NOTE: Monitors external slave response, not crossbar input
     localparam WR_FIFO_DEPTH = 16;
     logic [BRIDGE_ID_WIDTH-1:0] wr_fifo [WR_FIFO_DEPTH];
     logic [$clog2(WR_FIFO_DEPTH):0] wr_ptr, rd_ptr;
@@ -142,23 +161,26 @@ module stream_err_adapter #(
         end
     end
 
-    // Pop on B response (stream_err_axi_bvalid && stream_err_axi_bready)
+    // Pop on B response (xbar_stream_err_axi_bvalid && xbar_stream_err_axi_bready)
     always_ff @(posedge aclk or negedge aresetn) begin
         if (!aresetn) begin
             rd_ptr <= '0;
-            bid_bridge_id <= '0;
-            bid_valid <= 1'b0;
-        end else if (stream_err_axi_bvalid && stream_err_axi_bready) begin
-            bid_bridge_id <= wr_fifo[rd_ptr[$clog2(WR_FIFO_DEPTH)-1:0]];
-            bid_valid <= 1'b1;
+        end else if (xbar_stream_err_axi_bvalid && xbar_stream_err_axi_bready) begin
             rd_ptr <= rd_ptr + 1'b1;
-        end else begin
-            bid_valid <= 1'b0;
         end
     end
 
+    // bid_bridge_id / bid_valid drive the crossbar's response mux,
+    // which gates B going BACK to the master on bid_valid. Earlier
+    // versions registered these on the handshake completing — but
+    // the handshake CAN'T complete until the master sees bvalid,
+    // and the master can't see bvalid until bid_valid is high.
+    // Result: deadlock. Drive these combinationally so the route
+    // is open from the moment a B arrives.
+    assign bid_bridge_id = wr_fifo[rd_ptr[$clog2(WR_FIFO_DEPTH)-1:0]];
+    assign bid_valid     = (wr_ptr != rd_ptr);
+
     // Read Channel FIFO (In-Order) - AXIL Protocol
-    // NOTE: Monitors external slave response, not crossbar input
     localparam RD_FIFO_DEPTH = 16;
     logic [BRIDGE_ID_WIDTH-1:0] rd_fifo [RD_FIFO_DEPTH];
     logic [$clog2(RD_FIFO_DEPTH):0] ar_ptr, r_ptr;
@@ -173,21 +195,152 @@ module stream_err_adapter #(
         end
     end
 
-    // Pop on R response (stream_err_axi_rvalid && stream_err_axi_rready)
+    // Pop on R response (xbar_stream_err_axi_rvalid && xbar_stream_err_axi_rready && xbar_stream_err_axi_rlast)
     always_ff @(posedge aclk or negedge aresetn) begin
         if (!aresetn) begin
             r_ptr <= '0;
-            rid_bridge_id <= '0;
-            rid_valid <= 1'b0;
-        end else if (stream_err_axi_rvalid && stream_err_axi_rready) begin
-            rid_bridge_id <= rd_fifo[r_ptr[$clog2(RD_FIFO_DEPTH)-1:0]];
-            rid_valid <= 1'b1;
+        end else if (xbar_stream_err_axi_rvalid && xbar_stream_err_axi_rready && xbar_stream_err_axi_rlast) begin
             r_ptr <= r_ptr + 1'b1;
-        end else begin
-            rid_valid <= 1'b0;
         end
     end
 
-    // AXI4-to-AXI4-Lite converter
-    // TODO: Read-write AXI4-Lite conversion requires both converters
+    // rid_bridge_id / rid_valid drive the crossbar's response mux,
+    // which gates R going BACK to the master on rid_valid. Earlier
+    // versions registered these on the handshake completing — but
+    // the handshake CAN'T complete until the master sees rvalid,
+    // and the master can't see rvalid until rid_valid is high.
+    // Result: deadlock. Drive these combinationally so the route
+    // is open from the moment an R arrives.
+    assign rid_bridge_id = rd_fifo[r_ptr[$clog2(RD_FIFO_DEPTH)-1:0]];
+    assign rid_valid     = (ar_ptr != r_ptr);
+
+    // AXI4 Master Write Timing Wrapper
+    axi4_master_wr #(
+        .SKID_DEPTH_AW(2),
+        .SKID_DEPTH_W(4),
+        .SKID_DEPTH_B(2),
+        .AXI_ID_WIDTH(4),
+        .AXI_ADDR_WIDTH(32),
+        .AXI_DATA_WIDTH(32),
+        .AXI_USER_WIDTH(1)
+    ) u_master_wr (
+        .aclk(aclk),
+        .aresetn(aresetn),
+
+        // Bridge-internal side (fub_axi)
+        .fub_axi_awid(xbar_stream_err_axi_awid),
+        .fub_axi_awaddr(xbar_stream_err_axi_awaddr),
+        .fub_axi_awlen(xbar_stream_err_axi_awlen),
+        .fub_axi_awsize(xbar_stream_err_axi_awsize),
+        .fub_axi_awburst(xbar_stream_err_axi_awburst),
+        .fub_axi_awlock(xbar_stream_err_axi_awlock),
+        .fub_axi_awcache(xbar_stream_err_axi_awcache),
+        .fub_axi_awprot(xbar_stream_err_axi_awprot),
+        .fub_axi_awqos(xbar_stream_err_axi_awqos),
+        .fub_axi_awregion(xbar_stream_err_axi_awregion),
+        .fub_axi_awuser(xbar_stream_err_axi_awuser),
+        .fub_axi_awvalid(xbar_stream_err_axi_awvalid),
+        .fub_axi_awready(xbar_stream_err_axi_awready),
+        .fub_axi_wdata(xbar_stream_err_axi_wdata),
+        .fub_axi_wstrb(xbar_stream_err_axi_wstrb),
+        .fub_axi_wlast(xbar_stream_err_axi_wlast),
+        .fub_axi_wuser(xbar_stream_err_axi_wuser),
+        .fub_axi_wvalid(xbar_stream_err_axi_wvalid),
+        .fub_axi_wready(xbar_stream_err_axi_wready),
+        .fub_axi_bid(xbar_stream_err_axi_bid),
+        .fub_axi_bresp(xbar_stream_err_axi_bresp),
+        .fub_axi_buser(xbar_stream_err_axi_buser),
+        .fub_axi_bvalid(xbar_stream_err_axi_bvalid),
+        .fub_axi_bready(xbar_stream_err_axi_bready),
+
+        // External side (m_axi)
+        .m_axi_awid(stream_err_axi_awid),
+        .m_axi_awaddr(stream_err_axi_awaddr),
+        .m_axi_awlen(stream_err_axi_awlen),
+        .m_axi_awsize(stream_err_axi_awsize),
+        .m_axi_awburst(stream_err_axi_awburst),
+        .m_axi_awlock(stream_err_axi_awlock),
+        .m_axi_awcache(stream_err_axi_awcache),
+        .m_axi_awprot(stream_err_axi_awprot),
+        .m_axi_awqos(stream_err_axi_awqos),
+        .m_axi_awregion(stream_err_axi_awregion),
+        .m_axi_awuser(stream_err_axi_awuser),
+        .m_axi_awvalid(stream_err_axi_awvalid),
+        .m_axi_awready(stream_err_axi_awready),
+        .m_axi_wdata(stream_err_axi_wdata),
+        .m_axi_wstrb(stream_err_axi_wstrb),
+        .m_axi_wlast(stream_err_axi_wlast),
+        .m_axi_wuser(stream_err_axi_wuser),
+        .m_axi_wvalid(stream_err_axi_wvalid),
+        .m_axi_wready(stream_err_axi_wready),
+        .m_axi_bid(stream_err_axi_bid),
+        .m_axi_bresp(stream_err_axi_bresp),
+        .m_axi_buser(stream_err_axi_buser),
+        .m_axi_bvalid(stream_err_axi_bvalid),
+        .m_axi_bready(stream_err_axi_bready),
+
+        // Status (unconnected = clock-gating tie-off)
+        .busy()
+    );
+
+    // AXI4 Master Read Timing Wrapper
+    axi4_master_rd #(
+        .SKID_DEPTH_AR(2),
+        .SKID_DEPTH_R(2),
+        .AXI_ID_WIDTH(4),
+        .AXI_ADDR_WIDTH(32),
+        .AXI_DATA_WIDTH(32),
+        .AXI_USER_WIDTH(1)
+    ) u_master_rd (
+        .aclk(aclk),
+        .aresetn(aresetn),
+
+        // Bridge-internal side (fub_axi)
+        .fub_axi_arid(xbar_stream_err_axi_arid),
+        .fub_axi_araddr(xbar_stream_err_axi_araddr),
+        .fub_axi_arlen(xbar_stream_err_axi_arlen),
+        .fub_axi_arsize(xbar_stream_err_axi_arsize),
+        .fub_axi_arburst(xbar_stream_err_axi_arburst),
+        .fub_axi_arlock(xbar_stream_err_axi_arlock),
+        .fub_axi_arcache(xbar_stream_err_axi_arcache),
+        .fub_axi_arprot(xbar_stream_err_axi_arprot),
+        .fub_axi_arqos(xbar_stream_err_axi_arqos),
+        .fub_axi_arregion(xbar_stream_err_axi_arregion),
+        .fub_axi_aruser(xbar_stream_err_axi_aruser),
+        .fub_axi_arvalid(xbar_stream_err_axi_arvalid),
+        .fub_axi_arready(xbar_stream_err_axi_arready),
+        .fub_axi_rid(xbar_stream_err_axi_rid),
+        .fub_axi_rdata(xbar_stream_err_axi_rdata),
+        .fub_axi_rresp(xbar_stream_err_axi_rresp),
+        .fub_axi_rlast(xbar_stream_err_axi_rlast),
+        .fub_axi_ruser(xbar_stream_err_axi_ruser),
+        .fub_axi_rvalid(xbar_stream_err_axi_rvalid),
+        .fub_axi_rready(xbar_stream_err_axi_rready),
+
+        // External side (m_axi)
+        .m_axi_arid(stream_err_axi_arid),
+        .m_axi_araddr(stream_err_axi_araddr),
+        .m_axi_arlen(stream_err_axi_arlen),
+        .m_axi_arsize(stream_err_axi_arsize),
+        .m_axi_arburst(stream_err_axi_arburst),
+        .m_axi_arlock(stream_err_axi_arlock),
+        .m_axi_arcache(stream_err_axi_arcache),
+        .m_axi_arprot(stream_err_axi_arprot),
+        .m_axi_arqos(stream_err_axi_arqos),
+        .m_axi_arregion(stream_err_axi_arregion),
+        .m_axi_aruser(stream_err_axi_aruser),
+        .m_axi_arvalid(stream_err_axi_arvalid),
+        .m_axi_arready(stream_err_axi_arready),
+        .m_axi_rid(stream_err_axi_rid),
+        .m_axi_rdata(stream_err_axi_rdata),
+        .m_axi_rresp(stream_err_axi_rresp),
+        .m_axi_rlast(stream_err_axi_rlast),
+        .m_axi_ruser(stream_err_axi_ruser),
+        .m_axi_rvalid(stream_err_axi_rvalid),
+        .m_axi_rready(stream_err_axi_rready),
+
+        // Status (unconnected = clock-gating tie-off)
+        .busy()
+    );
+
 endmodule : stream_err_adapter

@@ -395,45 +395,73 @@ module bridge_stream_char_axil_xbar (
     // Master width: 32b, Slave width: 32b
     // Using 32b path from adapter (APB LCD width)
 
-    // AW channel
-    assign stream_apb_axi_awid     = host_slave_select_aw[0] ? host_32b_aw.id : '0;
-    assign stream_apb_axi_awaddr   = host_slave_select_aw[0] ? host_32b_aw.addr : '0;
-    assign stream_apb_axi_awlen    = host_slave_select_aw[0] ? host_32b_aw.len : '0;
-    assign stream_apb_axi_awsize   = host_slave_select_aw[0] ? host_32b_aw.size : '0;
-    assign stream_apb_axi_awburst  = host_slave_select_aw[0] ? host_32b_aw.burst : '0;
-    assign stream_apb_axi_awlock   = host_slave_select_aw[0] ? host_32b_aw.lock : '0;
-    assign stream_apb_axi_awcache  = host_slave_select_aw[0] ? host_32b_aw.cache : '0;
-    assign stream_apb_axi_awprot   = host_slave_select_aw[0] ? host_32b_aw.prot : '0;
-    assign stream_apb_axi_awvalid  = host_slave_select_aw[0] ? host_32b_awvalid : '0;
+    // AW channel (gated by address re-decode -- see _addr_decode_expr)
+    wire host_32b_aw_to_stream_apb = (host_32b_aw.addr <= 32'h00000fff);
+    assign stream_apb_axi_awid     = host_32b_aw_to_stream_apb ? host_32b_aw.id : '0;
+    assign stream_apb_axi_awaddr   = host_32b_aw_to_stream_apb ? host_32b_aw.addr : '0;
+    assign stream_apb_axi_awlen    = host_32b_aw_to_stream_apb ? host_32b_aw.len : '0;
+    assign stream_apb_axi_awsize   = host_32b_aw_to_stream_apb ? host_32b_aw.size : '0;
+    assign stream_apb_axi_awburst  = host_32b_aw_to_stream_apb ? host_32b_aw.burst : '0;
+    assign stream_apb_axi_awlock   = host_32b_aw_to_stream_apb ? host_32b_aw.lock : '0;
+    assign stream_apb_axi_awcache  = host_32b_aw_to_stream_apb ? host_32b_aw.cache : '0;
+    assign stream_apb_axi_awprot   = host_32b_aw_to_stream_apb ? host_32b_aw.prot : '0;
+    assign stream_apb_axi_awvalid  = host_32b_aw_to_stream_apb && host_32b_awvalid;
 
-    // W channel
-    assign stream_apb_axi_wdata  = host_slave_select_aw[0] ? host_32b_w.data : '0;
-    assign stream_apb_axi_wstrb  = host_slave_select_aw[0] ? host_32b_w.strb : '0;
-    assign stream_apb_axi_wlast  = host_slave_select_aw[0] ? host_32b_w.last : '0;
-    assign stream_apb_axi_wvalid = host_slave_select_aw[0] ? host_32b_wvalid : '0;
+    // AW->W tracking FIFO for this (master,slave) pair
+    logic host_32b_w_to_stream_apb;
+    logic [3:0] host_32b_aw_to_stream_apb_w_wptr, host_32b_aw_to_stream_apb_w_rptr;
+    logic host_32b_aw_to_stream_apb_w_mem [16];
+    logic host_32b_aw_to_stream_apb_w_push, host_32b_aw_to_stream_apb_w_pop;
+    assign host_32b_aw_to_stream_apb_w_push = host_32b_awvalid && host_32b_awready && host_32b_aw_to_stream_apb;
+    assign host_32b_aw_to_stream_apb_w_pop  = host_32b_wvalid && host_32b_wready && host_32b_w.last && host_32b_w_to_stream_apb;
+    always_ff @(posedge aclk or negedge aresetn) begin
+        if (!aresetn) begin
+            host_32b_aw_to_stream_apb_w_wptr <= '0;
+            host_32b_aw_to_stream_apb_w_rptr <= '0;
+        end else begin
+            if (host_32b_aw_to_stream_apb_w_push) begin
+                host_32b_aw_to_stream_apb_w_mem[host_32b_aw_to_stream_apb_w_wptr] <= 1'b1;
+                host_32b_aw_to_stream_apb_w_wptr <= host_32b_aw_to_stream_apb_w_wptr + 1'b1;
+            end
+            if (host_32b_aw_to_stream_apb_w_pop) begin
+                host_32b_aw_to_stream_apb_w_rptr <= host_32b_aw_to_stream_apb_w_rptr + 1'b1;
+            end
+        end
+    end
+    assign host_32b_w_to_stream_apb = (host_32b_aw_to_stream_apb_w_wptr != host_32b_aw_to_stream_apb_w_rptr) ? host_32b_aw_to_stream_apb_w_mem[host_32b_aw_to_stream_apb_w_rptr] : 1'b0;
 
-    // Bready (master → slave)
-    assign stream_apb_axi_bready = host_slave_select_aw[0] ? host_32b_bready : '0;
+
+    // W channel (gated by aw_to_<slave> FIFO head)
+    assign stream_apb_axi_wdata  = host_32b_w_to_stream_apb ? host_32b_w.data : '0;
+    assign stream_apb_axi_wstrb  = host_32b_w_to_stream_apb ? host_32b_w.strb : '0;
+    assign stream_apb_axi_wlast  = host_32b_w_to_stream_apb ? host_32b_w.last : '0;
+    assign stream_apb_axi_wvalid = host_32b_w_to_stream_apb && host_32b_wvalid;
+
+    // Bready (master → slave) — gated on bid_valid so the path stays
+    // open through the entire B handshake, not just the AW phase.
+    assign stream_apb_axi_bready = ((stream_apb_axi_bid_bridge_id == 0) && stream_apb_axi_bid_valid) ? host_32b_bready : '0;
 
     // Bridge ID (master → slave)
-    assign stream_apb_axi_bridge_id_aw = host_slave_select_aw[0] ? host_bridge_id_aw : '0;
+    assign stream_apb_axi_bridge_id_aw = host_32b_aw_to_stream_apb ? host_bridge_id_aw : '0;
 
-    // AR channel
-    assign stream_apb_axi_arid     = host_slave_select_ar[0] ? host_32b_ar.id : '0;
-    assign stream_apb_axi_araddr   = host_slave_select_ar[0] ? host_32b_ar.addr : '0;
-    assign stream_apb_axi_arlen    = host_slave_select_ar[0] ? host_32b_ar.len : '0;
-    assign stream_apb_axi_arsize   = host_slave_select_ar[0] ? host_32b_ar.size : '0;
-    assign stream_apb_axi_arburst  = host_slave_select_ar[0] ? host_32b_ar.burst : '0;
-    assign stream_apb_axi_arlock   = host_slave_select_ar[0] ? host_32b_ar.lock : '0;
-    assign stream_apb_axi_arcache  = host_slave_select_ar[0] ? host_32b_ar.cache : '0;
-    assign stream_apb_axi_arprot   = host_slave_select_ar[0] ? host_32b_ar.prot : '0;
-    assign stream_apb_axi_arvalid  = host_slave_select_ar[0] ? host_32b_arvalid : '0;
+    // AR channel (gated by address re-decode -- see _addr_decode_expr)
+    wire host_32b_ar_to_stream_apb = (host_32b_ar.addr <= 32'h00000fff);
+    assign stream_apb_axi_arid     = host_32b_ar_to_stream_apb ? host_32b_ar.id : '0;
+    assign stream_apb_axi_araddr   = host_32b_ar_to_stream_apb ? host_32b_ar.addr : '0;
+    assign stream_apb_axi_arlen    = host_32b_ar_to_stream_apb ? host_32b_ar.len : '0;
+    assign stream_apb_axi_arsize   = host_32b_ar_to_stream_apb ? host_32b_ar.size : '0;
+    assign stream_apb_axi_arburst  = host_32b_ar_to_stream_apb ? host_32b_ar.burst : '0;
+    assign stream_apb_axi_arlock   = host_32b_ar_to_stream_apb ? host_32b_ar.lock : '0;
+    assign stream_apb_axi_arcache  = host_32b_ar_to_stream_apb ? host_32b_ar.cache : '0;
+    assign stream_apb_axi_arprot   = host_32b_ar_to_stream_apb ? host_32b_ar.prot : '0;
+    assign stream_apb_axi_arvalid  = host_32b_ar_to_stream_apb && host_32b_arvalid;
 
-    // Rready (master → slave)
-    assign stream_apb_axi_rready = host_slave_select_ar[0] ? host_32b_rready : '0;
+    // Rready (master → slave) — gated on rid_valid so the path stays
+    // open through the entire R handshake, not just the AR phase.
+    assign stream_apb_axi_rready = ((stream_apb_axi_rid_bridge_id == 0) && stream_apb_axi_rid_valid) ? host_32b_rready : '0;
 
     // Bridge ID (master → slave)
-    assign stream_apb_axi_bridge_id_ar = host_slave_select_ar[0] ? host_bridge_id_ar : '0;
+    assign stream_apb_axi_bridge_id_ar = host_32b_ar_to_stream_apb ? host_bridge_id_ar : '0;
 
 
     // ================================================================
@@ -443,45 +471,73 @@ module bridge_stream_char_axil_xbar (
     // Master width: 32b, Slave width: 32b
     // Using 32b path from adapter
 
-    // AW channel
-    assign harness_csr_axi_awid     = host_slave_select_aw[1] ? host_32b_aw.id : '0;
-    assign harness_csr_axi_awaddr   = host_slave_select_aw[1] ? host_32b_aw.addr : '0;
-    assign harness_csr_axi_awlen    = host_slave_select_aw[1] ? host_32b_aw.len : '0;
-    assign harness_csr_axi_awsize   = host_slave_select_aw[1] ? host_32b_aw.size : '0;
-    assign harness_csr_axi_awburst  = host_slave_select_aw[1] ? host_32b_aw.burst : '0;
-    assign harness_csr_axi_awlock   = host_slave_select_aw[1] ? host_32b_aw.lock : '0;
-    assign harness_csr_axi_awcache  = host_slave_select_aw[1] ? host_32b_aw.cache : '0;
-    assign harness_csr_axi_awprot   = host_slave_select_aw[1] ? host_32b_aw.prot : '0;
-    assign harness_csr_axi_awvalid  = host_slave_select_aw[1] ? host_32b_awvalid : '0;
+    // AW channel (gated by address re-decode -- see _addr_decode_expr)
+    wire host_32b_aw_to_harness_csr = ((host_32b_aw.addr >= 32'h00010000) && (host_32b_aw.addr <= 32'h00010fff));
+    assign harness_csr_axi_awid     = host_32b_aw_to_harness_csr ? host_32b_aw.id : '0;
+    assign harness_csr_axi_awaddr   = host_32b_aw_to_harness_csr ? host_32b_aw.addr : '0;
+    assign harness_csr_axi_awlen    = host_32b_aw_to_harness_csr ? host_32b_aw.len : '0;
+    assign harness_csr_axi_awsize   = host_32b_aw_to_harness_csr ? host_32b_aw.size : '0;
+    assign harness_csr_axi_awburst  = host_32b_aw_to_harness_csr ? host_32b_aw.burst : '0;
+    assign harness_csr_axi_awlock   = host_32b_aw_to_harness_csr ? host_32b_aw.lock : '0;
+    assign harness_csr_axi_awcache  = host_32b_aw_to_harness_csr ? host_32b_aw.cache : '0;
+    assign harness_csr_axi_awprot   = host_32b_aw_to_harness_csr ? host_32b_aw.prot : '0;
+    assign harness_csr_axi_awvalid  = host_32b_aw_to_harness_csr && host_32b_awvalid;
 
-    // W channel
-    assign harness_csr_axi_wdata  = host_slave_select_aw[1] ? host_32b_w.data : '0;
-    assign harness_csr_axi_wstrb  = host_slave_select_aw[1] ? host_32b_w.strb : '0;
-    assign harness_csr_axi_wlast  = host_slave_select_aw[1] ? host_32b_w.last : '0;
-    assign harness_csr_axi_wvalid = host_slave_select_aw[1] ? host_32b_wvalid : '0;
+    // AW->W tracking FIFO for this (master,slave) pair
+    logic host_32b_w_to_harness_csr;
+    logic [3:0] host_32b_aw_to_harness_csr_w_wptr, host_32b_aw_to_harness_csr_w_rptr;
+    logic host_32b_aw_to_harness_csr_w_mem [16];
+    logic host_32b_aw_to_harness_csr_w_push, host_32b_aw_to_harness_csr_w_pop;
+    assign host_32b_aw_to_harness_csr_w_push = host_32b_awvalid && host_32b_awready && host_32b_aw_to_harness_csr;
+    assign host_32b_aw_to_harness_csr_w_pop  = host_32b_wvalid && host_32b_wready && host_32b_w.last && host_32b_w_to_harness_csr;
+    always_ff @(posedge aclk or negedge aresetn) begin
+        if (!aresetn) begin
+            host_32b_aw_to_harness_csr_w_wptr <= '0;
+            host_32b_aw_to_harness_csr_w_rptr <= '0;
+        end else begin
+            if (host_32b_aw_to_harness_csr_w_push) begin
+                host_32b_aw_to_harness_csr_w_mem[host_32b_aw_to_harness_csr_w_wptr] <= 1'b1;
+                host_32b_aw_to_harness_csr_w_wptr <= host_32b_aw_to_harness_csr_w_wptr + 1'b1;
+            end
+            if (host_32b_aw_to_harness_csr_w_pop) begin
+                host_32b_aw_to_harness_csr_w_rptr <= host_32b_aw_to_harness_csr_w_rptr + 1'b1;
+            end
+        end
+    end
+    assign host_32b_w_to_harness_csr = (host_32b_aw_to_harness_csr_w_wptr != host_32b_aw_to_harness_csr_w_rptr) ? host_32b_aw_to_harness_csr_w_mem[host_32b_aw_to_harness_csr_w_rptr] : 1'b0;
 
-    // Bready (master → slave)
-    assign harness_csr_axi_bready = host_slave_select_aw[1] ? host_32b_bready : '0;
+
+    // W channel (gated by aw_to_<slave> FIFO head)
+    assign harness_csr_axi_wdata  = host_32b_w_to_harness_csr ? host_32b_w.data : '0;
+    assign harness_csr_axi_wstrb  = host_32b_w_to_harness_csr ? host_32b_w.strb : '0;
+    assign harness_csr_axi_wlast  = host_32b_w_to_harness_csr ? host_32b_w.last : '0;
+    assign harness_csr_axi_wvalid = host_32b_w_to_harness_csr && host_32b_wvalid;
+
+    // Bready (master → slave) — gated on bid_valid so the path stays
+    // open through the entire B handshake, not just the AW phase.
+    assign harness_csr_axi_bready = ((harness_csr_axi_bid_bridge_id == 0) && harness_csr_axi_bid_valid) ? host_32b_bready : '0;
 
     // Bridge ID (master → slave)
-    assign harness_csr_axi_bridge_id_aw = host_slave_select_aw[1] ? host_bridge_id_aw : '0;
+    assign harness_csr_axi_bridge_id_aw = host_32b_aw_to_harness_csr ? host_bridge_id_aw : '0;
 
-    // AR channel
-    assign harness_csr_axi_arid     = host_slave_select_ar[1] ? host_32b_ar.id : '0;
-    assign harness_csr_axi_araddr   = host_slave_select_ar[1] ? host_32b_ar.addr : '0;
-    assign harness_csr_axi_arlen    = host_slave_select_ar[1] ? host_32b_ar.len : '0;
-    assign harness_csr_axi_arsize   = host_slave_select_ar[1] ? host_32b_ar.size : '0;
-    assign harness_csr_axi_arburst  = host_slave_select_ar[1] ? host_32b_ar.burst : '0;
-    assign harness_csr_axi_arlock   = host_slave_select_ar[1] ? host_32b_ar.lock : '0;
-    assign harness_csr_axi_arcache  = host_slave_select_ar[1] ? host_32b_ar.cache : '0;
-    assign harness_csr_axi_arprot   = host_slave_select_ar[1] ? host_32b_ar.prot : '0;
-    assign harness_csr_axi_arvalid  = host_slave_select_ar[1] ? host_32b_arvalid : '0;
+    // AR channel (gated by address re-decode -- see _addr_decode_expr)
+    wire host_32b_ar_to_harness_csr = ((host_32b_ar.addr >= 32'h00010000) && (host_32b_ar.addr <= 32'h00010fff));
+    assign harness_csr_axi_arid     = host_32b_ar_to_harness_csr ? host_32b_ar.id : '0;
+    assign harness_csr_axi_araddr   = host_32b_ar_to_harness_csr ? host_32b_ar.addr : '0;
+    assign harness_csr_axi_arlen    = host_32b_ar_to_harness_csr ? host_32b_ar.len : '0;
+    assign harness_csr_axi_arsize   = host_32b_ar_to_harness_csr ? host_32b_ar.size : '0;
+    assign harness_csr_axi_arburst  = host_32b_ar_to_harness_csr ? host_32b_ar.burst : '0;
+    assign harness_csr_axi_arlock   = host_32b_ar_to_harness_csr ? host_32b_ar.lock : '0;
+    assign harness_csr_axi_arcache  = host_32b_ar_to_harness_csr ? host_32b_ar.cache : '0;
+    assign harness_csr_axi_arprot   = host_32b_ar_to_harness_csr ? host_32b_ar.prot : '0;
+    assign harness_csr_axi_arvalid  = host_32b_ar_to_harness_csr && host_32b_arvalid;
 
-    // Rready (master → slave)
-    assign harness_csr_axi_rready = host_slave_select_ar[1] ? host_32b_rready : '0;
+    // Rready (master → slave) — gated on rid_valid so the path stays
+    // open through the entire R handshake, not just the AR phase.
+    assign harness_csr_axi_rready = ((harness_csr_axi_rid_bridge_id == 0) && harness_csr_axi_rid_valid) ? host_32b_rready : '0;
 
     // Bridge ID (master → slave)
-    assign harness_csr_axi_bridge_id_ar = host_slave_select_ar[1] ? host_bridge_id_ar : '0;
+    assign harness_csr_axi_bridge_id_ar = host_32b_ar_to_harness_csr ? host_bridge_id_ar : '0;
 
 
     // ================================================================
@@ -491,45 +547,73 @@ module bridge_stream_char_axil_xbar (
     // Master width: 32b, Slave width: 32b
     // Using 32b path from adapter
 
-    // AW channel
-    assign desc_ram_axi_awid     = host_slave_select_aw[2] ? host_32b_aw.id : '0;
-    assign desc_ram_axi_awaddr   = host_slave_select_aw[2] ? host_32b_aw.addr : '0;
-    assign desc_ram_axi_awlen    = host_slave_select_aw[2] ? host_32b_aw.len : '0;
-    assign desc_ram_axi_awsize   = host_slave_select_aw[2] ? host_32b_aw.size : '0;
-    assign desc_ram_axi_awburst  = host_slave_select_aw[2] ? host_32b_aw.burst : '0;
-    assign desc_ram_axi_awlock   = host_slave_select_aw[2] ? host_32b_aw.lock : '0;
-    assign desc_ram_axi_awcache  = host_slave_select_aw[2] ? host_32b_aw.cache : '0;
-    assign desc_ram_axi_awprot   = host_slave_select_aw[2] ? host_32b_aw.prot : '0;
-    assign desc_ram_axi_awvalid  = host_slave_select_aw[2] ? host_32b_awvalid : '0;
+    // AW channel (gated by address re-decode -- see _addr_decode_expr)
+    wire host_32b_aw_to_desc_ram = ((host_32b_aw.addr >= 32'h00020000) && (host_32b_aw.addr <= 32'h0002ffff));
+    assign desc_ram_axi_awid     = host_32b_aw_to_desc_ram ? host_32b_aw.id : '0;
+    assign desc_ram_axi_awaddr   = host_32b_aw_to_desc_ram ? host_32b_aw.addr : '0;
+    assign desc_ram_axi_awlen    = host_32b_aw_to_desc_ram ? host_32b_aw.len : '0;
+    assign desc_ram_axi_awsize   = host_32b_aw_to_desc_ram ? host_32b_aw.size : '0;
+    assign desc_ram_axi_awburst  = host_32b_aw_to_desc_ram ? host_32b_aw.burst : '0;
+    assign desc_ram_axi_awlock   = host_32b_aw_to_desc_ram ? host_32b_aw.lock : '0;
+    assign desc_ram_axi_awcache  = host_32b_aw_to_desc_ram ? host_32b_aw.cache : '0;
+    assign desc_ram_axi_awprot   = host_32b_aw_to_desc_ram ? host_32b_aw.prot : '0;
+    assign desc_ram_axi_awvalid  = host_32b_aw_to_desc_ram && host_32b_awvalid;
 
-    // W channel
-    assign desc_ram_axi_wdata  = host_slave_select_aw[2] ? host_32b_w.data : '0;
-    assign desc_ram_axi_wstrb  = host_slave_select_aw[2] ? host_32b_w.strb : '0;
-    assign desc_ram_axi_wlast  = host_slave_select_aw[2] ? host_32b_w.last : '0;
-    assign desc_ram_axi_wvalid = host_slave_select_aw[2] ? host_32b_wvalid : '0;
+    // AW->W tracking FIFO for this (master,slave) pair
+    logic host_32b_w_to_desc_ram;
+    logic [3:0] host_32b_aw_to_desc_ram_w_wptr, host_32b_aw_to_desc_ram_w_rptr;
+    logic host_32b_aw_to_desc_ram_w_mem [16];
+    logic host_32b_aw_to_desc_ram_w_push, host_32b_aw_to_desc_ram_w_pop;
+    assign host_32b_aw_to_desc_ram_w_push = host_32b_awvalid && host_32b_awready && host_32b_aw_to_desc_ram;
+    assign host_32b_aw_to_desc_ram_w_pop  = host_32b_wvalid && host_32b_wready && host_32b_w.last && host_32b_w_to_desc_ram;
+    always_ff @(posedge aclk or negedge aresetn) begin
+        if (!aresetn) begin
+            host_32b_aw_to_desc_ram_w_wptr <= '0;
+            host_32b_aw_to_desc_ram_w_rptr <= '0;
+        end else begin
+            if (host_32b_aw_to_desc_ram_w_push) begin
+                host_32b_aw_to_desc_ram_w_mem[host_32b_aw_to_desc_ram_w_wptr] <= 1'b1;
+                host_32b_aw_to_desc_ram_w_wptr <= host_32b_aw_to_desc_ram_w_wptr + 1'b1;
+            end
+            if (host_32b_aw_to_desc_ram_w_pop) begin
+                host_32b_aw_to_desc_ram_w_rptr <= host_32b_aw_to_desc_ram_w_rptr + 1'b1;
+            end
+        end
+    end
+    assign host_32b_w_to_desc_ram = (host_32b_aw_to_desc_ram_w_wptr != host_32b_aw_to_desc_ram_w_rptr) ? host_32b_aw_to_desc_ram_w_mem[host_32b_aw_to_desc_ram_w_rptr] : 1'b0;
 
-    // Bready (master → slave)
-    assign desc_ram_axi_bready = host_slave_select_aw[2] ? host_32b_bready : '0;
+
+    // W channel (gated by aw_to_<slave> FIFO head)
+    assign desc_ram_axi_wdata  = host_32b_w_to_desc_ram ? host_32b_w.data : '0;
+    assign desc_ram_axi_wstrb  = host_32b_w_to_desc_ram ? host_32b_w.strb : '0;
+    assign desc_ram_axi_wlast  = host_32b_w_to_desc_ram ? host_32b_w.last : '0;
+    assign desc_ram_axi_wvalid = host_32b_w_to_desc_ram && host_32b_wvalid;
+
+    // Bready (master → slave) — gated on bid_valid so the path stays
+    // open through the entire B handshake, not just the AW phase.
+    assign desc_ram_axi_bready = ((desc_ram_axi_bid_bridge_id == 0) && desc_ram_axi_bid_valid) ? host_32b_bready : '0;
 
     // Bridge ID (master → slave)
-    assign desc_ram_axi_bridge_id_aw = host_slave_select_aw[2] ? host_bridge_id_aw : '0;
+    assign desc_ram_axi_bridge_id_aw = host_32b_aw_to_desc_ram ? host_bridge_id_aw : '0;
 
-    // AR channel
-    assign desc_ram_axi_arid     = host_slave_select_ar[2] ? host_32b_ar.id : '0;
-    assign desc_ram_axi_araddr   = host_slave_select_ar[2] ? host_32b_ar.addr : '0;
-    assign desc_ram_axi_arlen    = host_slave_select_ar[2] ? host_32b_ar.len : '0;
-    assign desc_ram_axi_arsize   = host_slave_select_ar[2] ? host_32b_ar.size : '0;
-    assign desc_ram_axi_arburst  = host_slave_select_ar[2] ? host_32b_ar.burst : '0;
-    assign desc_ram_axi_arlock   = host_slave_select_ar[2] ? host_32b_ar.lock : '0;
-    assign desc_ram_axi_arcache  = host_slave_select_ar[2] ? host_32b_ar.cache : '0;
-    assign desc_ram_axi_arprot   = host_slave_select_ar[2] ? host_32b_ar.prot : '0;
-    assign desc_ram_axi_arvalid  = host_slave_select_ar[2] ? host_32b_arvalid : '0;
+    // AR channel (gated by address re-decode -- see _addr_decode_expr)
+    wire host_32b_ar_to_desc_ram = ((host_32b_ar.addr >= 32'h00020000) && (host_32b_ar.addr <= 32'h0002ffff));
+    assign desc_ram_axi_arid     = host_32b_ar_to_desc_ram ? host_32b_ar.id : '0;
+    assign desc_ram_axi_araddr   = host_32b_ar_to_desc_ram ? host_32b_ar.addr : '0;
+    assign desc_ram_axi_arlen    = host_32b_ar_to_desc_ram ? host_32b_ar.len : '0;
+    assign desc_ram_axi_arsize   = host_32b_ar_to_desc_ram ? host_32b_ar.size : '0;
+    assign desc_ram_axi_arburst  = host_32b_ar_to_desc_ram ? host_32b_ar.burst : '0;
+    assign desc_ram_axi_arlock   = host_32b_ar_to_desc_ram ? host_32b_ar.lock : '0;
+    assign desc_ram_axi_arcache  = host_32b_ar_to_desc_ram ? host_32b_ar.cache : '0;
+    assign desc_ram_axi_arprot   = host_32b_ar_to_desc_ram ? host_32b_ar.prot : '0;
+    assign desc_ram_axi_arvalid  = host_32b_ar_to_desc_ram && host_32b_arvalid;
 
-    // Rready (master → slave)
-    assign desc_ram_axi_rready = host_slave_select_ar[2] ? host_32b_rready : '0;
+    // Rready (master → slave) — gated on rid_valid so the path stays
+    // open through the entire R handshake, not just the AR phase.
+    assign desc_ram_axi_rready = ((desc_ram_axi_rid_bridge_id == 0) && desc_ram_axi_rid_valid) ? host_32b_rready : '0;
 
     // Bridge ID (master → slave)
-    assign desc_ram_axi_bridge_id_ar = host_slave_select_ar[2] ? host_bridge_id_ar : '0;
+    assign desc_ram_axi_bridge_id_ar = host_32b_ar_to_desc_ram ? host_bridge_id_ar : '0;
 
 
     // ================================================================
@@ -539,45 +623,73 @@ module bridge_stream_char_axil_xbar (
     // Master width: 32b, Slave width: 32b
     // Using 32b path from adapter
 
-    // AW channel
-    assign stream_err_axi_awid     = host_slave_select_aw[3] ? host_32b_aw.id : '0;
-    assign stream_err_axi_awaddr   = host_slave_select_aw[3] ? host_32b_aw.addr : '0;
-    assign stream_err_axi_awlen    = host_slave_select_aw[3] ? host_32b_aw.len : '0;
-    assign stream_err_axi_awsize   = host_slave_select_aw[3] ? host_32b_aw.size : '0;
-    assign stream_err_axi_awburst  = host_slave_select_aw[3] ? host_32b_aw.burst : '0;
-    assign stream_err_axi_awlock   = host_slave_select_aw[3] ? host_32b_aw.lock : '0;
-    assign stream_err_axi_awcache  = host_slave_select_aw[3] ? host_32b_aw.cache : '0;
-    assign stream_err_axi_awprot   = host_slave_select_aw[3] ? host_32b_aw.prot : '0;
-    assign stream_err_axi_awvalid  = host_slave_select_aw[3] ? host_32b_awvalid : '0;
+    // AW channel (gated by address re-decode -- see _addr_decode_expr)
+    wire host_32b_aw_to_stream_err = ((host_32b_aw.addr >= 32'h00030000) && (host_32b_aw.addr <= 32'h00030fff));
+    assign stream_err_axi_awid     = host_32b_aw_to_stream_err ? host_32b_aw.id : '0;
+    assign stream_err_axi_awaddr   = host_32b_aw_to_stream_err ? host_32b_aw.addr : '0;
+    assign stream_err_axi_awlen    = host_32b_aw_to_stream_err ? host_32b_aw.len : '0;
+    assign stream_err_axi_awsize   = host_32b_aw_to_stream_err ? host_32b_aw.size : '0;
+    assign stream_err_axi_awburst  = host_32b_aw_to_stream_err ? host_32b_aw.burst : '0;
+    assign stream_err_axi_awlock   = host_32b_aw_to_stream_err ? host_32b_aw.lock : '0;
+    assign stream_err_axi_awcache  = host_32b_aw_to_stream_err ? host_32b_aw.cache : '0;
+    assign stream_err_axi_awprot   = host_32b_aw_to_stream_err ? host_32b_aw.prot : '0;
+    assign stream_err_axi_awvalid  = host_32b_aw_to_stream_err && host_32b_awvalid;
 
-    // W channel
-    assign stream_err_axi_wdata  = host_slave_select_aw[3] ? host_32b_w.data : '0;
-    assign stream_err_axi_wstrb  = host_slave_select_aw[3] ? host_32b_w.strb : '0;
-    assign stream_err_axi_wlast  = host_slave_select_aw[3] ? host_32b_w.last : '0;
-    assign stream_err_axi_wvalid = host_slave_select_aw[3] ? host_32b_wvalid : '0;
+    // AW->W tracking FIFO for this (master,slave) pair
+    logic host_32b_w_to_stream_err;
+    logic [3:0] host_32b_aw_to_stream_err_w_wptr, host_32b_aw_to_stream_err_w_rptr;
+    logic host_32b_aw_to_stream_err_w_mem [16];
+    logic host_32b_aw_to_stream_err_w_push, host_32b_aw_to_stream_err_w_pop;
+    assign host_32b_aw_to_stream_err_w_push = host_32b_awvalid && host_32b_awready && host_32b_aw_to_stream_err;
+    assign host_32b_aw_to_stream_err_w_pop  = host_32b_wvalid && host_32b_wready && host_32b_w.last && host_32b_w_to_stream_err;
+    always_ff @(posedge aclk or negedge aresetn) begin
+        if (!aresetn) begin
+            host_32b_aw_to_stream_err_w_wptr <= '0;
+            host_32b_aw_to_stream_err_w_rptr <= '0;
+        end else begin
+            if (host_32b_aw_to_stream_err_w_push) begin
+                host_32b_aw_to_stream_err_w_mem[host_32b_aw_to_stream_err_w_wptr] <= 1'b1;
+                host_32b_aw_to_stream_err_w_wptr <= host_32b_aw_to_stream_err_w_wptr + 1'b1;
+            end
+            if (host_32b_aw_to_stream_err_w_pop) begin
+                host_32b_aw_to_stream_err_w_rptr <= host_32b_aw_to_stream_err_w_rptr + 1'b1;
+            end
+        end
+    end
+    assign host_32b_w_to_stream_err = (host_32b_aw_to_stream_err_w_wptr != host_32b_aw_to_stream_err_w_rptr) ? host_32b_aw_to_stream_err_w_mem[host_32b_aw_to_stream_err_w_rptr] : 1'b0;
 
-    // Bready (master → slave)
-    assign stream_err_axi_bready = host_slave_select_aw[3] ? host_32b_bready : '0;
+
+    // W channel (gated by aw_to_<slave> FIFO head)
+    assign stream_err_axi_wdata  = host_32b_w_to_stream_err ? host_32b_w.data : '0;
+    assign stream_err_axi_wstrb  = host_32b_w_to_stream_err ? host_32b_w.strb : '0;
+    assign stream_err_axi_wlast  = host_32b_w_to_stream_err ? host_32b_w.last : '0;
+    assign stream_err_axi_wvalid = host_32b_w_to_stream_err && host_32b_wvalid;
+
+    // Bready (master → slave) — gated on bid_valid so the path stays
+    // open through the entire B handshake, not just the AW phase.
+    assign stream_err_axi_bready = ((stream_err_axi_bid_bridge_id == 0) && stream_err_axi_bid_valid) ? host_32b_bready : '0;
 
     // Bridge ID (master → slave)
-    assign stream_err_axi_bridge_id_aw = host_slave_select_aw[3] ? host_bridge_id_aw : '0;
+    assign stream_err_axi_bridge_id_aw = host_32b_aw_to_stream_err ? host_bridge_id_aw : '0;
 
-    // AR channel
-    assign stream_err_axi_arid     = host_slave_select_ar[3] ? host_32b_ar.id : '0;
-    assign stream_err_axi_araddr   = host_slave_select_ar[3] ? host_32b_ar.addr : '0;
-    assign stream_err_axi_arlen    = host_slave_select_ar[3] ? host_32b_ar.len : '0;
-    assign stream_err_axi_arsize   = host_slave_select_ar[3] ? host_32b_ar.size : '0;
-    assign stream_err_axi_arburst  = host_slave_select_ar[3] ? host_32b_ar.burst : '0;
-    assign stream_err_axi_arlock   = host_slave_select_ar[3] ? host_32b_ar.lock : '0;
-    assign stream_err_axi_arcache  = host_slave_select_ar[3] ? host_32b_ar.cache : '0;
-    assign stream_err_axi_arprot   = host_slave_select_ar[3] ? host_32b_ar.prot : '0;
-    assign stream_err_axi_arvalid  = host_slave_select_ar[3] ? host_32b_arvalid : '0;
+    // AR channel (gated by address re-decode -- see _addr_decode_expr)
+    wire host_32b_ar_to_stream_err = ((host_32b_ar.addr >= 32'h00030000) && (host_32b_ar.addr <= 32'h00030fff));
+    assign stream_err_axi_arid     = host_32b_ar_to_stream_err ? host_32b_ar.id : '0;
+    assign stream_err_axi_araddr   = host_32b_ar_to_stream_err ? host_32b_ar.addr : '0;
+    assign stream_err_axi_arlen    = host_32b_ar_to_stream_err ? host_32b_ar.len : '0;
+    assign stream_err_axi_arsize   = host_32b_ar_to_stream_err ? host_32b_ar.size : '0;
+    assign stream_err_axi_arburst  = host_32b_ar_to_stream_err ? host_32b_ar.burst : '0;
+    assign stream_err_axi_arlock   = host_32b_ar_to_stream_err ? host_32b_ar.lock : '0;
+    assign stream_err_axi_arcache  = host_32b_ar_to_stream_err ? host_32b_ar.cache : '0;
+    assign stream_err_axi_arprot   = host_32b_ar_to_stream_err ? host_32b_ar.prot : '0;
+    assign stream_err_axi_arvalid  = host_32b_ar_to_stream_err && host_32b_arvalid;
 
-    // Rready (master → slave)
-    assign stream_err_axi_rready = host_slave_select_ar[3] ? host_32b_rready : '0;
+    // Rready (master → slave) — gated on rid_valid so the path stays
+    // open through the entire R handshake, not just the AR phase.
+    assign stream_err_axi_rready = ((stream_err_axi_rid_bridge_id == 0) && stream_err_axi_rid_valid) ? host_32b_rready : '0;
 
     // Bridge ID (master → slave)
-    assign stream_err_axi_bridge_id_ar = host_slave_select_ar[3] ? host_bridge_id_ar : '0;
+    assign stream_err_axi_bridge_id_ar = host_32b_ar_to_stream_err ? host_bridge_id_ar : '0;
 
 
     // ================================================================
@@ -587,45 +699,73 @@ module bridge_stream_char_axil_xbar (
     // Master width: 32b, Slave width: 32b
     // Using 32b path from adapter
 
-    // AW channel
-    assign debug_sram_axi_awid     = host_slave_select_aw[4] ? host_32b_aw.id : '0;
-    assign debug_sram_axi_awaddr   = host_slave_select_aw[4] ? host_32b_aw.addr : '0;
-    assign debug_sram_axi_awlen    = host_slave_select_aw[4] ? host_32b_aw.len : '0;
-    assign debug_sram_axi_awsize   = host_slave_select_aw[4] ? host_32b_aw.size : '0;
-    assign debug_sram_axi_awburst  = host_slave_select_aw[4] ? host_32b_aw.burst : '0;
-    assign debug_sram_axi_awlock   = host_slave_select_aw[4] ? host_32b_aw.lock : '0;
-    assign debug_sram_axi_awcache  = host_slave_select_aw[4] ? host_32b_aw.cache : '0;
-    assign debug_sram_axi_awprot   = host_slave_select_aw[4] ? host_32b_aw.prot : '0;
-    assign debug_sram_axi_awvalid  = host_slave_select_aw[4] ? host_32b_awvalid : '0;
+    // AW channel (gated by address re-decode -- see _addr_decode_expr)
+    wire host_32b_aw_to_debug_sram = ((host_32b_aw.addr >= 32'h00040000) && (host_32b_aw.addr <= 32'h0007ffff));
+    assign debug_sram_axi_awid     = host_32b_aw_to_debug_sram ? host_32b_aw.id : '0;
+    assign debug_sram_axi_awaddr   = host_32b_aw_to_debug_sram ? host_32b_aw.addr : '0;
+    assign debug_sram_axi_awlen    = host_32b_aw_to_debug_sram ? host_32b_aw.len : '0;
+    assign debug_sram_axi_awsize   = host_32b_aw_to_debug_sram ? host_32b_aw.size : '0;
+    assign debug_sram_axi_awburst  = host_32b_aw_to_debug_sram ? host_32b_aw.burst : '0;
+    assign debug_sram_axi_awlock   = host_32b_aw_to_debug_sram ? host_32b_aw.lock : '0;
+    assign debug_sram_axi_awcache  = host_32b_aw_to_debug_sram ? host_32b_aw.cache : '0;
+    assign debug_sram_axi_awprot   = host_32b_aw_to_debug_sram ? host_32b_aw.prot : '0;
+    assign debug_sram_axi_awvalid  = host_32b_aw_to_debug_sram && host_32b_awvalid;
 
-    // W channel
-    assign debug_sram_axi_wdata  = host_slave_select_aw[4] ? host_32b_w.data : '0;
-    assign debug_sram_axi_wstrb  = host_slave_select_aw[4] ? host_32b_w.strb : '0;
-    assign debug_sram_axi_wlast  = host_slave_select_aw[4] ? host_32b_w.last : '0;
-    assign debug_sram_axi_wvalid = host_slave_select_aw[4] ? host_32b_wvalid : '0;
+    // AW->W tracking FIFO for this (master,slave) pair
+    logic host_32b_w_to_debug_sram;
+    logic [3:0] host_32b_aw_to_debug_sram_w_wptr, host_32b_aw_to_debug_sram_w_rptr;
+    logic host_32b_aw_to_debug_sram_w_mem [16];
+    logic host_32b_aw_to_debug_sram_w_push, host_32b_aw_to_debug_sram_w_pop;
+    assign host_32b_aw_to_debug_sram_w_push = host_32b_awvalid && host_32b_awready && host_32b_aw_to_debug_sram;
+    assign host_32b_aw_to_debug_sram_w_pop  = host_32b_wvalid && host_32b_wready && host_32b_w.last && host_32b_w_to_debug_sram;
+    always_ff @(posedge aclk or negedge aresetn) begin
+        if (!aresetn) begin
+            host_32b_aw_to_debug_sram_w_wptr <= '0;
+            host_32b_aw_to_debug_sram_w_rptr <= '0;
+        end else begin
+            if (host_32b_aw_to_debug_sram_w_push) begin
+                host_32b_aw_to_debug_sram_w_mem[host_32b_aw_to_debug_sram_w_wptr] <= 1'b1;
+                host_32b_aw_to_debug_sram_w_wptr <= host_32b_aw_to_debug_sram_w_wptr + 1'b1;
+            end
+            if (host_32b_aw_to_debug_sram_w_pop) begin
+                host_32b_aw_to_debug_sram_w_rptr <= host_32b_aw_to_debug_sram_w_rptr + 1'b1;
+            end
+        end
+    end
+    assign host_32b_w_to_debug_sram = (host_32b_aw_to_debug_sram_w_wptr != host_32b_aw_to_debug_sram_w_rptr) ? host_32b_aw_to_debug_sram_w_mem[host_32b_aw_to_debug_sram_w_rptr] : 1'b0;
 
-    // Bready (master → slave)
-    assign debug_sram_axi_bready = host_slave_select_aw[4] ? host_32b_bready : '0;
+
+    // W channel (gated by aw_to_<slave> FIFO head)
+    assign debug_sram_axi_wdata  = host_32b_w_to_debug_sram ? host_32b_w.data : '0;
+    assign debug_sram_axi_wstrb  = host_32b_w_to_debug_sram ? host_32b_w.strb : '0;
+    assign debug_sram_axi_wlast  = host_32b_w_to_debug_sram ? host_32b_w.last : '0;
+    assign debug_sram_axi_wvalid = host_32b_w_to_debug_sram && host_32b_wvalid;
+
+    // Bready (master → slave) — gated on bid_valid so the path stays
+    // open through the entire B handshake, not just the AW phase.
+    assign debug_sram_axi_bready = ((debug_sram_axi_bid_bridge_id == 0) && debug_sram_axi_bid_valid) ? host_32b_bready : '0;
 
     // Bridge ID (master → slave)
-    assign debug_sram_axi_bridge_id_aw = host_slave_select_aw[4] ? host_bridge_id_aw : '0;
+    assign debug_sram_axi_bridge_id_aw = host_32b_aw_to_debug_sram ? host_bridge_id_aw : '0;
 
-    // AR channel
-    assign debug_sram_axi_arid     = host_slave_select_ar[4] ? host_32b_ar.id : '0;
-    assign debug_sram_axi_araddr   = host_slave_select_ar[4] ? host_32b_ar.addr : '0;
-    assign debug_sram_axi_arlen    = host_slave_select_ar[4] ? host_32b_ar.len : '0;
-    assign debug_sram_axi_arsize   = host_slave_select_ar[4] ? host_32b_ar.size : '0;
-    assign debug_sram_axi_arburst  = host_slave_select_ar[4] ? host_32b_ar.burst : '0;
-    assign debug_sram_axi_arlock   = host_slave_select_ar[4] ? host_32b_ar.lock : '0;
-    assign debug_sram_axi_arcache  = host_slave_select_ar[4] ? host_32b_ar.cache : '0;
-    assign debug_sram_axi_arprot   = host_slave_select_ar[4] ? host_32b_ar.prot : '0;
-    assign debug_sram_axi_arvalid  = host_slave_select_ar[4] ? host_32b_arvalid : '0;
+    // AR channel (gated by address re-decode -- see _addr_decode_expr)
+    wire host_32b_ar_to_debug_sram = ((host_32b_ar.addr >= 32'h00040000) && (host_32b_ar.addr <= 32'h0007ffff));
+    assign debug_sram_axi_arid     = host_32b_ar_to_debug_sram ? host_32b_ar.id : '0;
+    assign debug_sram_axi_araddr   = host_32b_ar_to_debug_sram ? host_32b_ar.addr : '0;
+    assign debug_sram_axi_arlen    = host_32b_ar_to_debug_sram ? host_32b_ar.len : '0;
+    assign debug_sram_axi_arsize   = host_32b_ar_to_debug_sram ? host_32b_ar.size : '0;
+    assign debug_sram_axi_arburst  = host_32b_ar_to_debug_sram ? host_32b_ar.burst : '0;
+    assign debug_sram_axi_arlock   = host_32b_ar_to_debug_sram ? host_32b_ar.lock : '0;
+    assign debug_sram_axi_arcache  = host_32b_ar_to_debug_sram ? host_32b_ar.cache : '0;
+    assign debug_sram_axi_arprot   = host_32b_ar_to_debug_sram ? host_32b_ar.prot : '0;
+    assign debug_sram_axi_arvalid  = host_32b_ar_to_debug_sram && host_32b_arvalid;
 
-    // Rready (master → slave)
-    assign debug_sram_axi_rready = host_slave_select_ar[4] ? host_32b_rready : '0;
+    // Rready (master → slave) — gated on rid_valid so the path stays
+    // open through the entire R handshake, not just the AR phase.
+    assign debug_sram_axi_rready = ((debug_sram_axi_rid_bridge_id == 0) && debug_sram_axi_rid_valid) ? host_32b_rready : '0;
 
     // Bridge ID (master → slave)
-    assign debug_sram_axi_bridge_id_ar = host_slave_select_ar[4] ? host_bridge_id_ar : '0;
+    assign debug_sram_axi_bridge_id_ar = host_32b_ar_to_debug_sram ? host_bridge_id_ar : '0;
 
 
     // ================================================================
@@ -635,45 +775,73 @@ module bridge_stream_char_axil_xbar (
     // Master width: 32b, Slave width: 32b
     // Using 32b path from adapter
 
-    // AW channel
-    assign dma_axil_axi_awid     = host_slave_select_aw[5] ? host_32b_aw.id : '0;
-    assign dma_axil_axi_awaddr   = host_slave_select_aw[5] ? host_32b_aw.addr : '0;
-    assign dma_axil_axi_awlen    = host_slave_select_aw[5] ? host_32b_aw.len : '0;
-    assign dma_axil_axi_awsize   = host_slave_select_aw[5] ? host_32b_aw.size : '0;
-    assign dma_axil_axi_awburst  = host_slave_select_aw[5] ? host_32b_aw.burst : '0;
-    assign dma_axil_axi_awlock   = host_slave_select_aw[5] ? host_32b_aw.lock : '0;
-    assign dma_axil_axi_awcache  = host_slave_select_aw[5] ? host_32b_aw.cache : '0;
-    assign dma_axil_axi_awprot   = host_slave_select_aw[5] ? host_32b_aw.prot : '0;
-    assign dma_axil_axi_awvalid  = host_slave_select_aw[5] ? host_32b_awvalid : '0;
+    // AW channel (gated by address re-decode -- see _addr_decode_expr)
+    wire host_32b_aw_to_dma_axil = ((host_32b_aw.addr >= 32'h00080000) && (host_32b_aw.addr <= 32'h00080fff));
+    assign dma_axil_axi_awid     = host_32b_aw_to_dma_axil ? host_32b_aw.id : '0;
+    assign dma_axil_axi_awaddr   = host_32b_aw_to_dma_axil ? host_32b_aw.addr : '0;
+    assign dma_axil_axi_awlen    = host_32b_aw_to_dma_axil ? host_32b_aw.len : '0;
+    assign dma_axil_axi_awsize   = host_32b_aw_to_dma_axil ? host_32b_aw.size : '0;
+    assign dma_axil_axi_awburst  = host_32b_aw_to_dma_axil ? host_32b_aw.burst : '0;
+    assign dma_axil_axi_awlock   = host_32b_aw_to_dma_axil ? host_32b_aw.lock : '0;
+    assign dma_axil_axi_awcache  = host_32b_aw_to_dma_axil ? host_32b_aw.cache : '0;
+    assign dma_axil_axi_awprot   = host_32b_aw_to_dma_axil ? host_32b_aw.prot : '0;
+    assign dma_axil_axi_awvalid  = host_32b_aw_to_dma_axil && host_32b_awvalid;
 
-    // W channel
-    assign dma_axil_axi_wdata  = host_slave_select_aw[5] ? host_32b_w.data : '0;
-    assign dma_axil_axi_wstrb  = host_slave_select_aw[5] ? host_32b_w.strb : '0;
-    assign dma_axil_axi_wlast  = host_slave_select_aw[5] ? host_32b_w.last : '0;
-    assign dma_axil_axi_wvalid = host_slave_select_aw[5] ? host_32b_wvalid : '0;
+    // AW->W tracking FIFO for this (master,slave) pair
+    logic host_32b_w_to_dma_axil;
+    logic [3:0] host_32b_aw_to_dma_axil_w_wptr, host_32b_aw_to_dma_axil_w_rptr;
+    logic host_32b_aw_to_dma_axil_w_mem [16];
+    logic host_32b_aw_to_dma_axil_w_push, host_32b_aw_to_dma_axil_w_pop;
+    assign host_32b_aw_to_dma_axil_w_push = host_32b_awvalid && host_32b_awready && host_32b_aw_to_dma_axil;
+    assign host_32b_aw_to_dma_axil_w_pop  = host_32b_wvalid && host_32b_wready && host_32b_w.last && host_32b_w_to_dma_axil;
+    always_ff @(posedge aclk or negedge aresetn) begin
+        if (!aresetn) begin
+            host_32b_aw_to_dma_axil_w_wptr <= '0;
+            host_32b_aw_to_dma_axil_w_rptr <= '0;
+        end else begin
+            if (host_32b_aw_to_dma_axil_w_push) begin
+                host_32b_aw_to_dma_axil_w_mem[host_32b_aw_to_dma_axil_w_wptr] <= 1'b1;
+                host_32b_aw_to_dma_axil_w_wptr <= host_32b_aw_to_dma_axil_w_wptr + 1'b1;
+            end
+            if (host_32b_aw_to_dma_axil_w_pop) begin
+                host_32b_aw_to_dma_axil_w_rptr <= host_32b_aw_to_dma_axil_w_rptr + 1'b1;
+            end
+        end
+    end
+    assign host_32b_w_to_dma_axil = (host_32b_aw_to_dma_axil_w_wptr != host_32b_aw_to_dma_axil_w_rptr) ? host_32b_aw_to_dma_axil_w_mem[host_32b_aw_to_dma_axil_w_rptr] : 1'b0;
 
-    // Bready (master → slave)
-    assign dma_axil_axi_bready = host_slave_select_aw[5] ? host_32b_bready : '0;
+
+    // W channel (gated by aw_to_<slave> FIFO head)
+    assign dma_axil_axi_wdata  = host_32b_w_to_dma_axil ? host_32b_w.data : '0;
+    assign dma_axil_axi_wstrb  = host_32b_w_to_dma_axil ? host_32b_w.strb : '0;
+    assign dma_axil_axi_wlast  = host_32b_w_to_dma_axil ? host_32b_w.last : '0;
+    assign dma_axil_axi_wvalid = host_32b_w_to_dma_axil && host_32b_wvalid;
+
+    // Bready (master → slave) — gated on bid_valid so the path stays
+    // open through the entire B handshake, not just the AW phase.
+    assign dma_axil_axi_bready = ((dma_axil_axi_bid_bridge_id == 0) && dma_axil_axi_bid_valid) ? host_32b_bready : '0;
 
     // Bridge ID (master → slave)
-    assign dma_axil_axi_bridge_id_aw = host_slave_select_aw[5] ? host_bridge_id_aw : '0;
+    assign dma_axil_axi_bridge_id_aw = host_32b_aw_to_dma_axil ? host_bridge_id_aw : '0;
 
-    // AR channel
-    assign dma_axil_axi_arid     = host_slave_select_ar[5] ? host_32b_ar.id : '0;
-    assign dma_axil_axi_araddr   = host_slave_select_ar[5] ? host_32b_ar.addr : '0;
-    assign dma_axil_axi_arlen    = host_slave_select_ar[5] ? host_32b_ar.len : '0;
-    assign dma_axil_axi_arsize   = host_slave_select_ar[5] ? host_32b_ar.size : '0;
-    assign dma_axil_axi_arburst  = host_slave_select_ar[5] ? host_32b_ar.burst : '0;
-    assign dma_axil_axi_arlock   = host_slave_select_ar[5] ? host_32b_ar.lock : '0;
-    assign dma_axil_axi_arcache  = host_slave_select_ar[5] ? host_32b_ar.cache : '0;
-    assign dma_axil_axi_arprot   = host_slave_select_ar[5] ? host_32b_ar.prot : '0;
-    assign dma_axil_axi_arvalid  = host_slave_select_ar[5] ? host_32b_arvalid : '0;
+    // AR channel (gated by address re-decode -- see _addr_decode_expr)
+    wire host_32b_ar_to_dma_axil = ((host_32b_ar.addr >= 32'h00080000) && (host_32b_ar.addr <= 32'h00080fff));
+    assign dma_axil_axi_arid     = host_32b_ar_to_dma_axil ? host_32b_ar.id : '0;
+    assign dma_axil_axi_araddr   = host_32b_ar_to_dma_axil ? host_32b_ar.addr : '0;
+    assign dma_axil_axi_arlen    = host_32b_ar_to_dma_axil ? host_32b_ar.len : '0;
+    assign dma_axil_axi_arsize   = host_32b_ar_to_dma_axil ? host_32b_ar.size : '0;
+    assign dma_axil_axi_arburst  = host_32b_ar_to_dma_axil ? host_32b_ar.burst : '0;
+    assign dma_axil_axi_arlock   = host_32b_ar_to_dma_axil ? host_32b_ar.lock : '0;
+    assign dma_axil_axi_arcache  = host_32b_ar_to_dma_axil ? host_32b_ar.cache : '0;
+    assign dma_axil_axi_arprot   = host_32b_ar_to_dma_axil ? host_32b_ar.prot : '0;
+    assign dma_axil_axi_arvalid  = host_32b_ar_to_dma_axil && host_32b_arvalid;
 
-    // Rready (master → slave)
-    assign dma_axil_axi_rready = host_slave_select_ar[5] ? host_32b_rready : '0;
+    // Rready (master → slave) — gated on rid_valid so the path stays
+    // open through the entire R handshake, not just the AR phase.
+    assign dma_axil_axi_rready = ((dma_axil_axi_rid_bridge_id == 0) && dma_axil_axi_rid_valid) ? host_32b_rready : '0;
 
     // Bridge ID (master → slave)
-    assign dma_axil_axi_bridge_id_ar = host_slave_select_ar[5] ? host_bridge_id_ar : '0;
+    assign dma_axil_axi_bridge_id_ar = host_32b_ar_to_dma_axil ? host_bridge_id_ar : '0;
 
 
     // ================================================================
@@ -682,20 +850,20 @@ module bridge_stream_char_axil_xbar (
 
     // Master: host, Width path: 32b
     assign host_32b_awready = 
-        (host_slave_select_aw[0] ? stream_apb_axi_awready : '0) |
-        (host_slave_select_aw[1] ? harness_csr_axi_awready : '0) |
-        (host_slave_select_aw[2] ? desc_ram_axi_awready : '0) |
-        (host_slave_select_aw[3] ? stream_err_axi_awready : '0) |
-        (host_slave_select_aw[4] ? debug_sram_axi_awready : '0) |
-        (host_slave_select_aw[5] ? dma_axil_axi_awready : '0);
+        (host_32b_aw_to_stream_apb ? stream_apb_axi_awready : '0) |
+        (host_32b_aw_to_harness_csr ? harness_csr_axi_awready : '0) |
+        (host_32b_aw_to_desc_ram ? desc_ram_axi_awready : '0) |
+        (host_32b_aw_to_stream_err ? stream_err_axi_awready : '0) |
+        (host_32b_aw_to_debug_sram ? debug_sram_axi_awready : '0) |
+        (host_32b_aw_to_dma_axil ? dma_axil_axi_awready : '0);
 
     assign host_32b_wready = 
-        (host_slave_select_aw[0] ? stream_apb_axi_wready : '0) |
-        (host_slave_select_aw[1] ? harness_csr_axi_wready : '0) |
-        (host_slave_select_aw[2] ? desc_ram_axi_wready : '0) |
-        (host_slave_select_aw[3] ? stream_err_axi_wready : '0) |
-        (host_slave_select_aw[4] ? debug_sram_axi_wready : '0) |
-        (host_slave_select_aw[5] ? dma_axil_axi_wready : '0);
+        (host_32b_w_to_stream_apb ? stream_apb_axi_wready : '0) |
+        (host_32b_w_to_harness_csr ? harness_csr_axi_wready : '0) |
+        (host_32b_w_to_desc_ram ? desc_ram_axi_wready : '0) |
+        (host_32b_w_to_stream_err ? stream_err_axi_wready : '0) |
+        (host_32b_w_to_debug_sram ? debug_sram_axi_wready : '0) |
+        (host_32b_w_to_dma_axil ? dma_axil_axi_wready : '0);
 
     assign host_32b_b.id = 
         ((stream_apb_axi_bid_bridge_id == 0) && stream_apb_axi_bid_valid ? stream_apb_axi_bid : '0) |
@@ -722,12 +890,12 @@ module bridge_stream_char_axil_xbar (
         ((dma_axil_axi_bid_bridge_id == 0) && dma_axil_axi_bid_valid ? dma_axil_axi_bvalid : '0);
 
     assign host_32b_arready = 
-        (host_slave_select_ar[0] ? stream_apb_axi_arready : '0) |
-        (host_slave_select_ar[1] ? harness_csr_axi_arready : '0) |
-        (host_slave_select_ar[2] ? desc_ram_axi_arready : '0) |
-        (host_slave_select_ar[3] ? stream_err_axi_arready : '0) |
-        (host_slave_select_ar[4] ? debug_sram_axi_arready : '0) |
-        (host_slave_select_ar[5] ? dma_axil_axi_arready : '0);
+        (host_32b_ar_to_stream_apb ? stream_apb_axi_arready : '0) |
+        (host_32b_ar_to_harness_csr ? harness_csr_axi_arready : '0) |
+        (host_32b_ar_to_desc_ram ? desc_ram_axi_arready : '0) |
+        (host_32b_ar_to_stream_err ? stream_err_axi_arready : '0) |
+        (host_32b_ar_to_debug_sram ? debug_sram_axi_arready : '0) |
+        (host_32b_ar_to_dma_axil ? dma_axil_axi_arready : '0);
 
     assign host_32b_r.id = 
         ((stream_apb_axi_rid_bridge_id == 0) && stream_apb_axi_rid_valid ? stream_apb_axi_rid : '0) |

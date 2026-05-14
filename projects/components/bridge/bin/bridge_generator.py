@@ -230,6 +230,14 @@ def generate_tests(ports_file, connectivity_file, bridge_name, output_tb_dir, ou
             trim_blocks=True,
             lstrip_blocks=True
         )
+        # Expose `min` / `max` as Jinja globals so templates can pick safe
+        # offsets that depend on the slave's address range (e.g. avoiding
+        # decode gaps when ranges are < 256 B). Jinja's default expression
+        # language has no global builtins and silently fails on `&`/`~`,
+        # which made earlier template attempts go through the generic
+        # except-Exception in generate_tests() and produce a stale file.
+        env.globals['min'] = min
+        env.globals['max'] = max
 
         # Render templates
         tb_template = env.get_template('bridge_tb_class.py.j2')

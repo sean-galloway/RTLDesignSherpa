@@ -247,6 +247,25 @@ def validate_required_fields(port: PortSpec) -> None:
                 f"Slave '{port.port_name}' has invalid addr_range={port.addr_range}"
             )
 
+        # 4K page-alignment rule. Every slave hanging off the bridge
+        # needs a 4K-multiple addressable space and a 4K-aligned base.
+        # This matches what every real bus / MMU / address-decoder
+        # expects: sub-4K agents create decode gaps and tooling
+        # assumptions break (e.g. linker scripts, page-table mappers,
+        # config-register layout helpers).
+        page = 0x1000
+        if port.base_addr & (page - 1):
+            raise ValidationError(
+                f"Slave '{port.port_name}' base_addr 0x{port.base_addr:08X} "
+                f"is not 4K-aligned. Real bus agents must sit on a 4K page boundary."
+            )
+        if port.addr_range & (page - 1):
+            raise ValidationError(
+                f"Slave '{port.port_name}' addr_range 0x{port.addr_range:X} "
+                f"is not a multiple of 4K (0x1000). Real bus agents must "
+                f"occupy whole 4K pages -- bump it up to at least 0x1000."
+            )
+
 
 def validate_address_map(slaves: List[PortSpec]) -> None:
     """

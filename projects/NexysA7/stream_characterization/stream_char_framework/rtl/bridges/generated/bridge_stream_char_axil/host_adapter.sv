@@ -167,7 +167,7 @@ module host_adapter #(
         .aclk(aclk),
         .aresetn(aresetn),
 
-        // External boundary (slave side - accepts from master)
+        // External side (s_axi)
         .s_axi_awid(host_axi_awid),
         .s_axi_awaddr(host_axi_awaddr),
         .s_axi_awlen(host_axi_awlen),
@@ -181,21 +181,19 @@ module host_adapter #(
         .s_axi_awuser(host_axi_awuser),
         .s_axi_awvalid(host_axi_awvalid),
         .s_axi_awready(host_axi_awready),
-
         .s_axi_wdata(host_axi_wdata),
         .s_axi_wstrb(host_axi_wstrb),
         .s_axi_wlast(host_axi_wlast),
         .s_axi_wuser(host_axi_wuser),
         .s_axi_wvalid(host_axi_wvalid),
         .s_axi_wready(host_axi_wready),
-
         .s_axi_bid(host_axi_bid),
         .s_axi_bresp(host_axi_bresp),
         .s_axi_buser(host_axi_buser),
         .s_axi_bvalid(host_axi_bvalid),
         .s_axi_bready(host_axi_bready),
 
-        // Internal crossbar (master side - outputs to converter)
+        // Bridge-internal side (fub_axi)
         .fub_axi_awid(fub_axi_awid),
         .fub_axi_awaddr(fub_axi_awaddr),
         .fub_axi_awlen(fub_axi_awlen),
@@ -209,20 +207,19 @@ module host_adapter #(
         .fub_axi_awuser(),
         .fub_axi_awvalid(fub_axi_awvalid),
         .fub_axi_awready(fub_axi_awready),
-
         .fub_axi_wdata(fub_axi_wdata),
         .fub_axi_wstrb(fub_axi_wstrb),
         .fub_axi_wlast(fub_axi_wlast),
         .fub_axi_wuser(),
         .fub_axi_wvalid(fub_axi_wvalid),
         .fub_axi_wready(fub_axi_wready),
-
         .fub_axi_bid(fub_axi_bid),
         .fub_axi_bresp(fub_axi_bresp),
         .fub_axi_buser(1'b0),
         .fub_axi_bvalid(fub_axi_bvalid),
         .fub_axi_bready(fub_axi_bready),
 
+        // Status (unconnected = clock-gating tie-off)
         .busy(wrapper_wr_busy)
     );
 
@@ -240,7 +237,7 @@ module host_adapter #(
         .aclk(aclk),
         .aresetn(aresetn),
 
-        // External boundary (slave side - accepts from master)
+        // External side (s_axi)
         .s_axi_arid(host_axi_arid),
         .s_axi_araddr(host_axi_araddr),
         .s_axi_arlen(host_axi_arlen),
@@ -254,7 +251,6 @@ module host_adapter #(
         .s_axi_aruser(host_axi_aruser),
         .s_axi_arvalid(host_axi_arvalid),
         .s_axi_arready(host_axi_arready),
-
         .s_axi_rid(host_axi_rid),
         .s_axi_rdata(host_axi_rdata),
         .s_axi_rresp(host_axi_rresp),
@@ -263,7 +259,7 @@ module host_adapter #(
         .s_axi_rvalid(host_axi_rvalid),
         .s_axi_rready(host_axi_rready),
 
-        // Internal crossbar (master side - outputs to converter)
+        // Bridge-internal side (fub_axi)
         .fub_axi_arid(fub_axi_arid),
         .fub_axi_araddr(fub_axi_araddr),
         .fub_axi_arlen(fub_axi_arlen),
@@ -277,7 +273,6 @@ module host_adapter #(
         .fub_axi_aruser(),
         .fub_axi_arvalid(fub_axi_arvalid),
         .fub_axi_arready(fub_axi_arready),
-
         .fub_axi_rid(fub_axi_rid),
         .fub_axi_rdata(fub_axi_rdata),
         .fub_axi_rresp(fub_axi_rresp),
@@ -286,37 +281,42 @@ module host_adapter #(
         .fub_axi_rvalid(fub_axi_rvalid),
         .fub_axi_rready(fub_axi_rready),
 
+        // Status (unconnected = clock-gating tie-off)
         .busy(wrapper_rd_busy)
     );
+
+    logic [NUM_SLAVES-1:0] b_slave_select;
+    logic [NUM_SLAVES-1:0] r_slave_select;
 
     // ================================================================
     // Address decode (slave selection) - Write
     // Slave 0 (stream_apb): 0x00000000 - 0x00000FFF
-    // Slave 1 (harness_csr): 0x00010000 - 0x000100FF
+    // Slave 1 (harness_csr): 0x00010000 - 0x00010FFF
     // Slave 2 (desc_ram): 0x00020000 - 0x0002FFFF
-    // Slave 3 (stream_err): 0x00030000 - 0x0003003F
+    // Slave 3 (stream_err): 0x00030000 - 0x00030FFF
     // Slave 4 (debug_sram): 0x00040000 - 0x0007FFFF
     // Slave 5 (dma_axil): 0x00080000 - 0x00080FFF
     // ================================================================
+    logic [NUM_SLAVES-1:0] comb_slave_select_aw;
     always_comb begin
-        slave_select_aw = '0;
+        comb_slave_select_aw = '0;
         if (fub_axi_awaddr <= 32'h00000FFF) begin
-            slave_select_aw[0] = 1'b1;  // stream_apb
+            comb_slave_select_aw[0] = 1'b1;  // stream_apb
         end
-        else if (fub_axi_awaddr >= 32'h00010000 && fub_axi_awaddr <= 32'h000100FF) begin
-            slave_select_aw[1] = 1'b1;  // harness_csr
+        else if (fub_axi_awaddr >= 32'h00010000 && fub_axi_awaddr <= 32'h00010FFF) begin
+            comb_slave_select_aw[1] = 1'b1;  // harness_csr
         end
         else if (fub_axi_awaddr >= 32'h00020000 && fub_axi_awaddr <= 32'h0002FFFF) begin
-            slave_select_aw[2] = 1'b1;  // desc_ram
+            comb_slave_select_aw[2] = 1'b1;  // desc_ram
         end
-        else if (fub_axi_awaddr >= 32'h00030000 && fub_axi_awaddr <= 32'h0003003F) begin
-            slave_select_aw[3] = 1'b1;  // stream_err
+        else if (fub_axi_awaddr >= 32'h00030000 && fub_axi_awaddr <= 32'h00030FFF) begin
+            comb_slave_select_aw[3] = 1'b1;  // stream_err
         end
         else if (fub_axi_awaddr >= 32'h00040000 && fub_axi_awaddr <= 32'h0007FFFF) begin
-            slave_select_aw[4] = 1'b1;  // debug_sram
+            comb_slave_select_aw[4] = 1'b1;  // debug_sram
         end
         else if (fub_axi_awaddr >= 32'h00080000 && fub_axi_awaddr <= 32'h00080FFF) begin
-            slave_select_aw[5] = 1'b1;  // dma_axil
+            comb_slave_select_aw[5] = 1'b1;  // dma_axil
         end
     end
 
@@ -326,31 +326,32 @@ module host_adapter #(
     // ================================================================
     // Address decode (slave selection) - Read
     // Slave 0 (stream_apb): 0x00000000 - 0x00000FFF
-    // Slave 1 (harness_csr): 0x00010000 - 0x000100FF
+    // Slave 1 (harness_csr): 0x00010000 - 0x00010FFF
     // Slave 2 (desc_ram): 0x00020000 - 0x0002FFFF
-    // Slave 3 (stream_err): 0x00030000 - 0x0003003F
+    // Slave 3 (stream_err): 0x00030000 - 0x00030FFF
     // Slave 4 (debug_sram): 0x00040000 - 0x0007FFFF
     // Slave 5 (dma_axil): 0x00080000 - 0x00080FFF
     // ================================================================
+    logic [NUM_SLAVES-1:0] comb_slave_select_ar;
     always_comb begin
-        slave_select_ar = '0;
+        comb_slave_select_ar = '0;
         if (fub_axi_araddr <= 32'h00000FFF) begin
-            slave_select_ar[0] = 1'b1;  // stream_apb
+            comb_slave_select_ar[0] = 1'b1;  // stream_apb
         end
-        else if (fub_axi_araddr >= 32'h00010000 && fub_axi_araddr <= 32'h000100FF) begin
-            slave_select_ar[1] = 1'b1;  // harness_csr
+        else if (fub_axi_araddr >= 32'h00010000 && fub_axi_araddr <= 32'h00010FFF) begin
+            comb_slave_select_ar[1] = 1'b1;  // harness_csr
         end
         else if (fub_axi_araddr >= 32'h00020000 && fub_axi_araddr <= 32'h0002FFFF) begin
-            slave_select_ar[2] = 1'b1;  // desc_ram
+            comb_slave_select_ar[2] = 1'b1;  // desc_ram
         end
-        else if (fub_axi_araddr >= 32'h00030000 && fub_axi_araddr <= 32'h0003003F) begin
-            slave_select_ar[3] = 1'b1;  // stream_err
+        else if (fub_axi_araddr >= 32'h00030000 && fub_axi_araddr <= 32'h00030FFF) begin
+            comb_slave_select_ar[3] = 1'b1;  // stream_err
         end
         else if (fub_axi_araddr >= 32'h00040000 && fub_axi_araddr <= 32'h0007FFFF) begin
-            slave_select_ar[4] = 1'b1;  // debug_sram
+            comb_slave_select_ar[4] = 1'b1;  // debug_sram
         end
         else if (fub_axi_araddr >= 32'h00080000 && fub_axi_araddr <= 32'h00080FFF) begin
-            slave_select_ar[5] = 1'b1;  // dma_axil
+            comb_slave_select_ar[5] = 1'b1;  // dma_axil
         end
     end
 
@@ -361,6 +362,14 @@ module host_adapter #(
     // Width adaptation - Master: 32b
     // Connected to slaves with widths: [32]
     // ================================================================
+
+    // Per-width path-active gates (see comment in adapter_generator.py).
+    logic aw_path_active_32b;
+    assign aw_path_active_32b = comb_slave_select_aw[0] | comb_slave_select_aw[1] | comb_slave_select_aw[2] | comb_slave_select_aw[3] | comb_slave_select_aw[4] | comb_slave_select_aw[5];
+    logic w_path_active_32b;
+    assign w_path_active_32b = b_slave_select[0] | b_slave_select[1] | b_slave_select[2] | b_slave_select[3] | b_slave_select[4] | b_slave_select[5];
+    logic ar_path_active_32b;
+    assign ar_path_active_32b = comb_slave_select_ar[0] | comb_slave_select_ar[1] | comb_slave_select_ar[2] | comb_slave_select_ar[3] | comb_slave_select_ar[4] | comb_slave_select_ar[5];
 
     // ================================================================
     // Direct passthrough: 32b → 32b (no converter)
@@ -380,7 +389,7 @@ module host_adapter #(
     assign host_32b_aw.qos    = 4'b0;  // Tie to 0
     assign host_32b_aw.region = 4'b0;  // Tie to 0
     assign host_32b_aw.user   = 1'b0;  // Tie to 0
-    assign host_32b_awvalid   = fub_axi_awvalid;
+    assign host_32b_awvalid   = fub_axi_awvalid && aw_path_active_32b;
     // awready routed via MUX
 
     // W channel (request: fub → output)
@@ -388,7 +397,7 @@ module host_adapter #(
     assign host_32b_w.strb  = fub_axi_wstrb;
     assign host_32b_w.last  = fub_axi_wlast;
     assign host_32b_w.user  = 1'b0;  // Tie to 0
-    assign host_32b_wvalid  = fub_axi_wvalid;
+    assign host_32b_wvalid  = fub_axi_wvalid && w_path_active_32b;
     // wready routed via MUX
 
     // B channel (response: output → MUX → fub)
@@ -407,11 +416,254 @@ module host_adapter #(
     assign host_32b_ar.qos    = 4'b0;  // Tie to 0
     assign host_32b_ar.region = 4'b0;  // Tie to 0
     assign host_32b_ar.user   = 1'b0;  // Tie to 0
-    assign host_32b_arvalid   = fub_axi_arvalid;
+    assign host_32b_arvalid   = fub_axi_arvalid && ar_path_active_32b;
     // arready routed via MUX
 
     // R channel (response: output → MUX → fub)
     assign host_32b_rready = fub_axi_rready;
     // rid, rdata, rresp, rlast, rvalid routed via MUX (user field ignored)
+
+    // ================================================================
+    // Response MUX - Route responses from width-specific paths
+    // back to fub_axi_* based on address decode
+    //
+    // Request side (arready/awready/wready) uses the combinational
+    // slave_select_{ar,aw} (valid while {ar,aw}valid is asserted).
+    //
+    // Response side (rvalid/rdata/..., bvalid/bid/...) cannot reuse
+    // the combinational decode because fub_axi_{ar,aw}addr no longer
+    // holds the request address once the {AR,AW} handshake completes
+    // -- the decode reverts (typically to slave 0) and drops the
+    // response. So we track slave_select_{ar,aw} per outstanding
+    // request in a small FIFO captured at handshake, popped at
+    // R-last / B; the FIFO head drives the response MUX.
+    // ================================================================
+
+    // OUTPUT slave_select_aw mirrors the live combinational decode.
+    assign slave_select_aw = comb_slave_select_aw;
+
+    // -------- AW->B slave_select tracking FIFO --------
+    localparam int AW_TRK_DEPTH = 16;
+    localparam int AW_TRK_AW    = 4;
+    logic [NUM_SLAVES-1:0] aw_trk_mem [AW_TRK_DEPTH];
+    logic [AW_TRK_AW:0] aw_trk_wptr, aw_trk_rptr;
+    logic aw_trk_push, aw_trk_pop;
+
+    assign aw_trk_push = fub_axi_awvalid && fub_axi_awready;
+    assign aw_trk_pop  = fub_axi_bvalid && fub_axi_bready;
+
+    always_ff @(posedge aclk or negedge aresetn) begin
+        if (!aresetn) begin
+            aw_trk_wptr <= '0;
+            aw_trk_rptr <= '0;
+        end else begin
+            if (aw_trk_push) begin
+                aw_trk_mem[aw_trk_wptr[AW_TRK_AW-1:0]] <= comb_slave_select_aw;
+                aw_trk_wptr <= aw_trk_wptr + 1'b1;
+            end
+            if (aw_trk_pop) begin
+                aw_trk_rptr <= aw_trk_rptr + 1'b1;
+            end
+        end
+    end
+
+    assign b_slave_select = (aw_trk_wptr != aw_trk_rptr)
+                          ? aw_trk_mem[aw_trk_rptr[AW_TRK_AW-1:0]]
+                          : '0;
+
+    // OUTPUT slave_select_ar mirrors the live combinational decode.
+    assign slave_select_ar = comb_slave_select_ar;
+
+    // -------- AR->R slave_select tracking FIFO --------
+    localparam int AR_TRK_DEPTH = 16;
+    localparam int AR_TRK_AW    = 4;
+    logic [NUM_SLAVES-1:0] ar_trk_mem [AR_TRK_DEPTH];
+    logic [AR_TRK_AW:0] ar_trk_wptr, ar_trk_rptr;
+    logic ar_trk_push, ar_trk_pop;
+
+    assign ar_trk_push = fub_axi_arvalid && fub_axi_arready;
+    assign ar_trk_pop  = fub_axi_rvalid && fub_axi_rready && fub_axi_rlast;
+
+    always_ff @(posedge aclk or negedge aresetn) begin
+        if (!aresetn) begin
+            ar_trk_wptr <= '0;
+            ar_trk_rptr <= '0;
+        end else begin
+            if (ar_trk_push) begin
+                ar_trk_mem[ar_trk_wptr[AR_TRK_AW-1:0]] <= comb_slave_select_ar;
+                ar_trk_wptr <= ar_trk_wptr + 1'b1;
+            end
+            if (ar_trk_pop) begin
+                ar_trk_rptr <= ar_trk_rptr + 1'b1;
+            end
+        end
+    end
+
+    assign r_slave_select = (ar_trk_wptr != ar_trk_rptr)
+                          ? ar_trk_mem[ar_trk_rptr[AR_TRK_AW-1:0]]
+                          : '0;
+
+    // AW/W-ready MUX (request side: uses combinational comb_slave_select_aw)
+    always_comb begin
+        fub_axi_awready = 1'b0;
+        fub_axi_wready = 1'b0;
+        case (comb_slave_select_aw)
+            6'b000001: begin  // Slave 0 (32b)
+                fub_axi_awready = host_32b_awready;
+                fub_axi_wready = host_32b_wready;
+            end
+            6'b000010: begin  // Slave 1 (32b)
+                fub_axi_awready = host_32b_awready;
+                fub_axi_wready = host_32b_wready;
+            end
+            6'b000100: begin  // Slave 2 (32b)
+                fub_axi_awready = host_32b_awready;
+                fub_axi_wready = host_32b_wready;
+            end
+            6'b001000: begin  // Slave 3 (32b)
+                fub_axi_awready = host_32b_awready;
+                fub_axi_wready = host_32b_wready;
+            end
+            6'b010000: begin  // Slave 4 (32b)
+                fub_axi_awready = host_32b_awready;
+                fub_axi_wready = host_32b_wready;
+            end
+            6'b100000: begin  // Slave 5 (32b)
+                fub_axi_awready = host_32b_awready;
+                fub_axi_wready = host_32b_wready;
+            end
+            default: begin
+                // No slave selected
+            end
+        endcase
+    end
+
+    // Write response MUX (B channel - uses b_slave_select FIFO head)
+    always_comb begin
+        fub_axi_bid = 4'd0;
+        fub_axi_bresp = 2'b00;
+        fub_axi_bvalid = 1'b0;
+
+        case (b_slave_select)
+            6'b000001: begin  // Slave 0 (32b)
+                fub_axi_bid = host_32b_b.id;
+                fub_axi_bresp = host_32b_b.resp;
+                fub_axi_bvalid = host_32b_bvalid;
+            end
+            6'b000010: begin  // Slave 1 (32b)
+                fub_axi_bid = host_32b_b.id;
+                fub_axi_bresp = host_32b_b.resp;
+                fub_axi_bvalid = host_32b_bvalid;
+            end
+            6'b000100: begin  // Slave 2 (32b)
+                fub_axi_bid = host_32b_b.id;
+                fub_axi_bresp = host_32b_b.resp;
+                fub_axi_bvalid = host_32b_bvalid;
+            end
+            6'b001000: begin  // Slave 3 (32b)
+                fub_axi_bid = host_32b_b.id;
+                fub_axi_bresp = host_32b_b.resp;
+                fub_axi_bvalid = host_32b_bvalid;
+            end
+            6'b010000: begin  // Slave 4 (32b)
+                fub_axi_bid = host_32b_b.id;
+                fub_axi_bresp = host_32b_b.resp;
+                fub_axi_bvalid = host_32b_bvalid;
+            end
+            6'b100000: begin  // Slave 5 (32b)
+                fub_axi_bid = host_32b_b.id;
+                fub_axi_bresp = host_32b_b.resp;
+                fub_axi_bvalid = host_32b_bvalid;
+            end
+            default: begin
+                // No slave selected - hold defaults
+            end
+        endcase
+    end
+
+    // AR-ready MUX (request side: uses combinational comb_slave_select_ar)
+    always_comb begin
+        fub_axi_arready = 1'b0;
+        case (comb_slave_select_ar)
+            6'b000001: begin  // Slave 0 (32b)
+                fub_axi_arready = host_32b_arready;
+            end
+            6'b000010: begin  // Slave 1 (32b)
+                fub_axi_arready = host_32b_arready;
+            end
+            6'b000100: begin  // Slave 2 (32b)
+                fub_axi_arready = host_32b_arready;
+            end
+            6'b001000: begin  // Slave 3 (32b)
+                fub_axi_arready = host_32b_arready;
+            end
+            6'b010000: begin  // Slave 4 (32b)
+                fub_axi_arready = host_32b_arready;
+            end
+            6'b100000: begin  // Slave 5 (32b)
+                fub_axi_arready = host_32b_arready;
+            end
+            default: begin
+                // No slave selected
+            end
+        endcase
+    end
+
+    // Read response MUX (R channel - uses r_slave_select FIFO head)
+    always_comb begin
+        fub_axi_rid = 4'd0;
+        fub_axi_rdata = 32'd0;
+        fub_axi_rresp = 2'b00;
+        fub_axi_rlast = 1'b0;
+        fub_axi_rvalid = 1'b0;
+
+        case (r_slave_select)
+            6'b000001: begin  // Slave 0 (32b)
+                fub_axi_rid = host_32b_r.id;
+                fub_axi_rdata = host_32b_r.data;
+                fub_axi_rresp = host_32b_r.resp;
+                fub_axi_rlast = host_32b_r.last;
+                fub_axi_rvalid = host_32b_rvalid;
+            end
+            6'b000010: begin  // Slave 1 (32b)
+                fub_axi_rid = host_32b_r.id;
+                fub_axi_rdata = host_32b_r.data;
+                fub_axi_rresp = host_32b_r.resp;
+                fub_axi_rlast = host_32b_r.last;
+                fub_axi_rvalid = host_32b_rvalid;
+            end
+            6'b000100: begin  // Slave 2 (32b)
+                fub_axi_rid = host_32b_r.id;
+                fub_axi_rdata = host_32b_r.data;
+                fub_axi_rresp = host_32b_r.resp;
+                fub_axi_rlast = host_32b_r.last;
+                fub_axi_rvalid = host_32b_rvalid;
+            end
+            6'b001000: begin  // Slave 3 (32b)
+                fub_axi_rid = host_32b_r.id;
+                fub_axi_rdata = host_32b_r.data;
+                fub_axi_rresp = host_32b_r.resp;
+                fub_axi_rlast = host_32b_r.last;
+                fub_axi_rvalid = host_32b_rvalid;
+            end
+            6'b010000: begin  // Slave 4 (32b)
+                fub_axi_rid = host_32b_r.id;
+                fub_axi_rdata = host_32b_r.data;
+                fub_axi_rresp = host_32b_r.resp;
+                fub_axi_rlast = host_32b_r.last;
+                fub_axi_rvalid = host_32b_rvalid;
+            end
+            6'b100000: begin  // Slave 5 (32b)
+                fub_axi_rid = host_32b_r.id;
+                fub_axi_rdata = host_32b_r.data;
+                fub_axi_rresp = host_32b_r.resp;
+                fub_axi_rlast = host_32b_r.last;
+                fub_axi_rvalid = host_32b_rvalid;
+            end
+            default: begin
+                // No slave selected - hold defaults
+            end
+        endcase
+    end
 
 endmodule : host_adapter

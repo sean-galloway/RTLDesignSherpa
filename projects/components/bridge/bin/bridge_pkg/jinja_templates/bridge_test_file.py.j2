@@ -137,6 +137,9 @@ async def cocotb_test_basic_connectivity(dut):
 {%- if slave.has_read_channels() %}
 
     # Master {{ master_idx }} → Slave {{ loop.index0 }} ({{ slave.port_name }})
+    # Probe a non-base offset (catches decoders that ignore the low bits).
+    # The config validator enforces addr_range is a multiple of 4 KB, so
+    # +0x100 is always safely inside every slave's window.
     test_addr = {{ '0x%08x' % (slave.base_addr + 0x100) }}
     # 32-bit-or-less value (see DEADBEEF comment above for rationale).
     test_data = (0xCAFEBA00 | {{ '0x%02x' % loop.index0 }})

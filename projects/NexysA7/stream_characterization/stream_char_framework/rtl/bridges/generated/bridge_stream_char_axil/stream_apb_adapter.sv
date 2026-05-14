@@ -9,8 +9,7 @@
 import bridge_stream_char_axil_pkg::*;
 
 module stream_apb_adapter #(
-    parameter int ID_WIDTH = 4,
-    parameter int BRIDGE_ID_WIDTH = 1
+    parameter int ID_WIDTH = 4
 ) (
     input  logic aclk,
     input  logic aresetn,
@@ -134,16 +133,20 @@ module stream_apb_adapter #(
     always_ff @(posedge aclk or negedge aresetn) begin
         if (!aresetn) begin
             rd_ptr <= '0;
-            bid_bridge_id <= '0;
-            bid_valid <= 1'b0;
         end else if (converter_bvalid && converter_bready) begin
-            bid_bridge_id <= wr_fifo[rd_ptr[$clog2(WR_FIFO_DEPTH)-1:0]];
-            bid_valid <= 1'b1;
             rd_ptr <= rd_ptr + 1'b1;
-        end else begin
-            bid_valid <= 1'b0;
         end
     end
+
+    // bid_bridge_id / bid_valid drive the crossbar's response mux,
+    // which gates B going BACK to the master on bid_valid. Earlier
+    // versions registered these on the handshake completing — but
+    // the handshake CAN'T complete until the master sees bvalid,
+    // and the master can't see bvalid until bid_valid is high.
+    // Result: deadlock. Drive these combinationally so the route
+    // is open from the moment a B arrives.
+    assign bid_bridge_id = wr_fifo[rd_ptr[$clog2(WR_FIFO_DEPTH)-1:0]];
+    assign bid_valid     = (wr_ptr != rd_ptr);
 
     // Read Channel FIFO (In-Order) - APB Protocol
     // NOTE: Monitors converter output (converter_rvalid), not crossbar input
@@ -166,104 +169,103 @@ module stream_apb_adapter #(
     always_ff @(posedge aclk or negedge aresetn) begin
         if (!aresetn) begin
             r_ptr <= '0;
-            rid_bridge_id <= '0;
-            rid_valid <= 1'b0;
         end else if (converter_rvalid && converter_rready && converter_rlast) begin
-            rid_bridge_id <= rd_fifo[r_ptr[$clog2(RD_FIFO_DEPTH)-1:0]];
-            rid_valid <= 1'b1;
             r_ptr <= r_ptr + 1'b1;
-        end else begin
-            rid_valid <= 1'b0;
         end
     end
 
+    // rid_bridge_id / rid_valid drive the crossbar's response mux,
+    // which gates R going BACK to the master on rid_valid. Earlier
+    // versions registered these on the handshake completing — but
+    // the handshake CAN'T complete until the master sees rvalid,
+    // and the master can't see rvalid until rid_valid is high.
+    // Result: deadlock. Drive these combinationally so the route
+    // is open from the moment an R arrives.
+    assign rid_bridge_id = rd_fifo[r_ptr[$clog2(RD_FIFO_DEPTH)-1:0]];
+    assign rid_valid     = (ar_ptr != r_ptr);
+
     // AXI4-to-APB converter shim
     axi4_to_apb_shim #(
-        .DEPTH_AW         (2),
-        .DEPTH_W          (4),
-        .DEPTH_B          (2),
-        .DEPTH_AR         (2),
-        .DEPTH_R          (4),
-        .SIDE_DEPTH       (4),
-        .APB_CMD_DEPTH    (4),
-        .APB_RSP_DEPTH    (4),
-        .AXI_ID_WIDTH     (4),
-        .AXI_ADDR_WIDTH   (32),
-        .AXI_DATA_WIDTH   (32),
-        .AXI_USER_WIDTH   (1),
-        .APB_ADDR_WIDTH   (32),
-        .APB_DATA_WIDTH   (32)
+        .DEPTH_AW(2),
+        .DEPTH_W(4),
+        .DEPTH_B(2),
+        .DEPTH_AR(2),
+        .DEPTH_R(4),
+        .SIDE_DEPTH(4),
+        .APB_CMD_DEPTH(4),
+        .APB_RSP_DEPTH(4),
+        .AXI_ID_WIDTH(4),
+        .AXI_ADDR_WIDTH(32),
+        .AXI_DATA_WIDTH(32),
+        .AXI_USER_WIDTH(1),
+        .APB_ADDR_WIDTH(32),
+        .APB_DATA_WIDTH(32)
     ) u_stream_apb_apb_converter (
-        .aclk             (aclk),
-        .aresetn          (aresetn),
-        .pclk             (aclk),     // Same clock domain
-        .presetn          (aresetn),  // Same reset
+        // Clocks and resets (single clock domain by default)
+        .aclk(aclk),
+        .aresetn(aresetn),
+        .pclk(aclk),
+        .presetn(aresetn),
 
-        // AXI4 write address channel (from crossbar)
-        .s_axi_awid       (xbar_stream_apb_axi_awid),
-        .s_axi_awaddr     (xbar_stream_apb_axi_awaddr),
-        .s_axi_awlen      (xbar_stream_apb_axi_awlen),
-        .s_axi_awsize     (xbar_stream_apb_axi_awsize),
-        .s_axi_awburst    (xbar_stream_apb_axi_awburst),
-        .s_axi_awlock     (xbar_stream_apb_axi_awlock),
-        .s_axi_awcache    (xbar_stream_apb_axi_awcache),
-        .s_axi_awprot     (xbar_stream_apb_axi_awprot),
-        .s_axi_awqos      (xbar_stream_apb_axi_awqos),
-        .s_axi_awregion   (xbar_stream_apb_axi_awregion),
-        .s_axi_awuser     (xbar_stream_apb_axi_awuser),
-        .s_axi_awvalid    (xbar_stream_apb_axi_awvalid),
-        .s_axi_awready    (xbar_stream_apb_axi_awready),
+        // AXI4 write channels (from crossbar)
+        .s_axi_awid(xbar_stream_apb_axi_awid),
+        .s_axi_awaddr(xbar_stream_apb_axi_awaddr),
+        .s_axi_awlen(xbar_stream_apb_axi_awlen),
+        .s_axi_awsize(xbar_stream_apb_axi_awsize),
+        .s_axi_awburst(xbar_stream_apb_axi_awburst),
+        .s_axi_awlock(xbar_stream_apb_axi_awlock),
+        .s_axi_awcache(xbar_stream_apb_axi_awcache),
+        .s_axi_awprot(xbar_stream_apb_axi_awprot),
+        .s_axi_awqos(xbar_stream_apb_axi_awqos),
+        .s_axi_awregion(xbar_stream_apb_axi_awregion),
+        .s_axi_awuser(xbar_stream_apb_axi_awuser),
+        .s_axi_awvalid(xbar_stream_apb_axi_awvalid),
+        .s_axi_awready(xbar_stream_apb_axi_awready),
+        .s_axi_wdata(xbar_stream_apb_axi_wdata),
+        .s_axi_wstrb(xbar_stream_apb_axi_wstrb),
+        .s_axi_wlast(xbar_stream_apb_axi_wlast),
+        .s_axi_wuser(xbar_stream_apb_axi_wuser),
+        .s_axi_wvalid(xbar_stream_apb_axi_wvalid),
+        .s_axi_wready(xbar_stream_apb_axi_wready),
+        .s_axi_bid(xbar_stream_apb_axi_bid),
+        .s_axi_bresp(xbar_stream_apb_axi_bresp),
+        .s_axi_buser(xbar_stream_apb_axi_buser),
+        .s_axi_bvalid(converter_bvalid),
+        .s_axi_bready(converter_bready),
 
-        // AXI4 write data channel
-        .s_axi_wdata      (xbar_stream_apb_axi_wdata),
-        .s_axi_wstrb      (xbar_stream_apb_axi_wstrb),
-        .s_axi_wlast      (xbar_stream_apb_axi_wlast),
-        .s_axi_wuser      (xbar_stream_apb_axi_wuser),
-        .s_axi_wvalid     (xbar_stream_apb_axi_wvalid),
-        .s_axi_wready     (xbar_stream_apb_axi_wready),
-
-        // AXI4 write response channel (to intermediate signals for FIFO tracking)
-        .s_axi_bid        (xbar_stream_apb_axi_bid),
-        .s_axi_bresp      (xbar_stream_apb_axi_bresp),
-        .s_axi_buser      (xbar_stream_apb_axi_buser),
-        .s_axi_bvalid     (converter_bvalid),  // ← FIFO tracks this
-        .s_axi_bready     (converter_bready),
-
-        // AXI4 read address channel (from crossbar)
-        .s_axi_arid       (xbar_stream_apb_axi_arid),
-        .s_axi_araddr     (xbar_stream_apb_axi_araddr),
-        .s_axi_arlen      (xbar_stream_apb_axi_arlen),
-        .s_axi_arsize     (xbar_stream_apb_axi_arsize),
-        .s_axi_arburst    (xbar_stream_apb_axi_arburst),
-        .s_axi_arlock     (xbar_stream_apb_axi_arlock),
-        .s_axi_arcache    (xbar_stream_apb_axi_arcache),
-        .s_axi_arprot     (xbar_stream_apb_axi_arprot),
-        .s_axi_arqos      (xbar_stream_apb_axi_arqos),
-        .s_axi_arregion   (xbar_stream_apb_axi_arregion),
-        .s_axi_aruser     (xbar_stream_apb_axi_aruser),
-        .s_axi_arvalid    (xbar_stream_apb_axi_arvalid),
-        .s_axi_arready    (xbar_stream_apb_axi_arready),
-
-        // AXI4 read data channel (to intermediate signals for FIFO tracking)
-        .s_axi_rid        (xbar_stream_apb_axi_rid),
-        .s_axi_rdata      (xbar_stream_apb_axi_rdata),
-        .s_axi_rresp      (xbar_stream_apb_axi_rresp),
-        .s_axi_rlast      (converter_rlast),  // ← FIFO tracks this
-        .s_axi_ruser      (xbar_stream_apb_axi_ruser),
-        .s_axi_rvalid     (converter_rvalid),  // ← FIFO tracks this
-        .s_axi_rready     (converter_rready),
+        // AXI4 read channels (from crossbar)
+        .s_axi_arid(xbar_stream_apb_axi_arid),
+        .s_axi_araddr(xbar_stream_apb_axi_araddr),
+        .s_axi_arlen(xbar_stream_apb_axi_arlen),
+        .s_axi_arsize(xbar_stream_apb_axi_arsize),
+        .s_axi_arburst(xbar_stream_apb_axi_arburst),
+        .s_axi_arlock(xbar_stream_apb_axi_arlock),
+        .s_axi_arcache(xbar_stream_apb_axi_arcache),
+        .s_axi_arprot(xbar_stream_apb_axi_arprot),
+        .s_axi_arqos(xbar_stream_apb_axi_arqos),
+        .s_axi_arregion(xbar_stream_apb_axi_arregion),
+        .s_axi_aruser(xbar_stream_apb_axi_aruser),
+        .s_axi_arvalid(xbar_stream_apb_axi_arvalid),
+        .s_axi_arready(xbar_stream_apb_axi_arready),
+        .s_axi_rid(xbar_stream_apb_axi_rid),
+        .s_axi_rdata(xbar_stream_apb_axi_rdata),
+        .s_axi_rresp(xbar_stream_apb_axi_rresp),
+        .s_axi_rlast(converter_rlast),
+        .s_axi_ruser(xbar_stream_apb_axi_ruser),
+        .s_axi_rvalid(converter_rvalid),
+        .s_axi_rready(converter_rready),
 
         // APB master interface (to external slave)
-        .m_apb_PSEL       (stream_apb_PSEL),
-        .m_apb_PADDR      (stream_apb_PADDR),
-        .m_apb_PENABLE    (stream_apb_PENABLE),
-        .m_apb_PWRITE     (stream_apb_PWRITE),
-        .m_apb_PWDATA     (stream_apb_PWDATA),
-        .m_apb_PSTRB      (stream_apb_PSTRB),
-        .m_apb_PPROT      (stream_apb_PPROT),
-        .m_apb_PRDATA     (stream_apb_PRDATA),
-        .m_apb_PSLVERR    (stream_apb_PSLVERR),
-        .m_apb_PREADY     (stream_apb_PREADY)
+        .m_apb_PSEL(stream_apb_PSEL),
+        .m_apb_PADDR(stream_apb_PADDR),
+        .m_apb_PENABLE(stream_apb_PENABLE),
+        .m_apb_PWRITE(stream_apb_PWRITE),
+        .m_apb_PWDATA(stream_apb_PWDATA),
+        .m_apb_PSTRB(stream_apb_PSTRB),
+        .m_apb_PPROT(stream_apb_PPROT),
+        .m_apb_PRDATA(stream_apb_PRDATA),
+        .m_apb_PSLVERR(stream_apb_PSLVERR),
+        .m_apb_PREADY(stream_apb_PREADY)
     );
 
     // Wire converter outputs back to crossbar interface

@@ -465,6 +465,9 @@ async def cocotb_test_basic_connectivity(dut):
     tb.log.info(f"  Write completed successfully (routing + response verified)")
     # Read connectivity test    tb.log.info(f"Testing master 2 (src_rd_master) read connectivity")
     # Master 2 → Slave 0 (sram_buffer)
+    # Probe a non-base offset (catches decoders that ignore the low bits).
+    # The config validator enforces addr_range is a multiple of 4 KB, so
+    # +0x100 is always safely inside every slave's window.
     test_addr = 0x00000100
     # 32-bit-or-less value (see DEADBEEF comment above for rationale).
     test_data = (0xCAFEBA00 | 0x00)
@@ -503,6 +506,9 @@ async def cocotb_test_basic_connectivity(dut):
     tb.log.info(f"  Read completed successfully (routing + response verified)")
 
     # Master 2 → Slave 1 (ddr_controller)
+    # Probe a non-base offset (catches decoders that ignore the low bits).
+    # The config validator enforces addr_range is a multiple of 4 KB, so
+    # +0x100 is always safely inside every slave's window.
     test_addr = 0x40000100
     # 32-bit-or-less value (see DEADBEEF comment above for rationale).
     test_data = (0xCAFEBA00 | 0x01)
@@ -541,6 +547,9 @@ async def cocotb_test_basic_connectivity(dut):
     tb.log.info(f"  Read completed successfully (routing + response verified)")
     tb.log.info(f"Testing master 3 (stream_master) read connectivity")
     # Master 3 → Slave 0 (sram_buffer)
+    # Probe a non-base offset (catches decoders that ignore the low bits).
+    # The config validator enforces addr_range is a multiple of 4 KB, so
+    # +0x100 is always safely inside every slave's window.
     test_addr = 0x00000100
     # 32-bit-or-less value (see DEADBEEF comment above for rationale).
     test_data = (0xCAFEBA00 | 0x00)
@@ -579,6 +588,9 @@ async def cocotb_test_basic_connectivity(dut):
     tb.log.info(f"  Read completed successfully (routing + response verified)")
 
     # Master 3 → Slave 1 (ddr_controller)
+    # Probe a non-base offset (catches decoders that ignore the low bits).
+    # The config validator enforces addr_range is a multiple of 4 KB, so
+    # +0x100 is always safely inside every slave's window.
     test_addr = 0x40000100
     # 32-bit-or-less value (see DEADBEEF comment above for rationale).
     test_data = (0xCAFEBA00 | 0x01)
@@ -617,6 +629,9 @@ async def cocotb_test_basic_connectivity(dut):
     tb.log.info(f"  Read completed successfully (routing + response verified)")
     tb.log.info(f"Testing master 4 (cpu_master) read connectivity")
     # Master 4 → Slave 0 (sram_buffer)
+    # Probe a non-base offset (catches decoders that ignore the low bits).
+    # The config validator enforces addr_range is a multiple of 4 KB, so
+    # +0x100 is always safely inside every slave's window.
     test_addr = 0x00000100
     # 32-bit-or-less value (see DEADBEEF comment above for rationale).
     test_data = (0xCAFEBA00 | 0x00)
@@ -655,6 +670,9 @@ async def cocotb_test_basic_connectivity(dut):
     tb.log.info(f"  Read completed successfully (routing + response verified)")
 
     # Master 4 → Slave 1 (ddr_controller)
+    # Probe a non-base offset (catches decoders that ignore the low bits).
+    # The config validator enforces addr_range is a multiple of 4 KB, so
+    # +0x100 is always safely inside every slave's window.
     test_addr = 0x40000100
     # 32-bit-or-less value (see DEADBEEF comment above for rationale).
     test_data = (0xCAFEBA00 | 0x01)
@@ -693,6 +711,9 @@ async def cocotb_test_basic_connectivity(dut):
     tb.log.info(f"  Read completed successfully (routing + response verified)")
 
     # Master 4 → Slave 2 (apb_periph)
+    # Probe a non-base offset (catches decoders that ignore the low bits).
+    # The config validator enforces addr_range is a multiple of 4 KB, so
+    # +0x100 is always safely inside every slave's window.
     test_addr = 0xc0000100
     # 32-bit-or-less value (see DEADBEEF comment above for rationale).
     test_data = (0xCAFEBA00 | 0x02)

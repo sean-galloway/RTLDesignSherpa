@@ -8,13 +8,15 @@
 # that flows-vivado-mcdma (and the future flows-stream-vivado-bridge) plug
 # their DUT's AXIL config interface into.
 #
-# Address map (matches stream_char_harness's prior axil_decode_5s map plus
-# the new s5 region):
+# Address map. Every slave occupies a whole 4 KB page (enforced by
+# the bridge generator's config validator: real bus agents must sit
+# on 4K boundaries with 4K-multiple windows or MMU / linker / decode
+# tooling breaks).
 #
 #   stream_apb     0x0000_0000  4 KB    APB    STREAM config regs (auto-converted from AXIL)
-#   harness_csr    0x0001_0000  256 B   AXIL   timer / response delay / kick / status
+#   harness_csr    0x0001_0000  4 KB    AXIL   timer / response delay / kick / status
 #   desc_ram       0x0002_0000  64 KB   AXIL   descriptor preload BRAM
-#   stream_err     0x0003_0000  64 B    AXIL   small err FIFO read
+#   stream_err     0x0003_0000  4 KB    AXIL   small err FIFO read
 #   debug_sram     0x0004_0000  256 KB  AXIL   monitor trace          (ends 0x7_FFFF)
 #   dma_axil       0x0008_0000  4 KB    AXIL   DMA s_axi_lite (MCDMA / Vivado bridge)
 #
@@ -76,7 +78,11 @@ addr_width  = 32
 data_width  = 32
 user_width  = 0
 base_addr   = "0x00010000"
-addr_range  = "0x00000100"     # 256 B
+# Bumped from the legacy 256 B to a 4 KB page. Every agent on the
+# bridge must occupy a whole 4K page (validator enforces this) -- the
+# CSR block itself still uses only the first few bytes, but the
+# decode window has to be page-granular.
+addr_range  = "0x00001000"     # 4 KB
 
 [[bridge.slaves]]
 name        = "desc_ram"
@@ -100,7 +106,9 @@ addr_width  = 32
 data_width  = 32
 user_width  = 0
 base_addr   = "0x00030000"
-addr_range  = "0x00000040"     # 64 B
+# Bumped from 64 B to a 4 KB page. The err FIFO only uses a few bytes
+# but its decode window has to be page-granular like every other slave.
+addr_range  = "0x00001000"     # 4 KB
 
 [[bridge.slaves]]
 name        = "debug_sram"

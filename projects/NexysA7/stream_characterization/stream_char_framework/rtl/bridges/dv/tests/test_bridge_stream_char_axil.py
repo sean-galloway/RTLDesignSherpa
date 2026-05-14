@@ -25,7 +25,7 @@ sys.path.insert(0, repo_root)
 import cocotb
 from cocotb.triggers import RisingEdge, ClockCycles
 from cocotb_test.simulator import run
-from TBClasses.shared.utilities import get_paths
+from TBClasses.shared.utilities import get_paths, get_wave_config
 from TBClasses.shared.filelist_utils import get_sources_from_filelist
 
 # Import generated testbench class
@@ -67,7 +67,12 @@ async def cocotb_test_basic_connectivity(dut):
 
     # Master 0 → Slave 0 (stream_apb)
     test_addr = 0x00000000
-    test_data = 0xDEADBEEF00
+    # Use a 32-bit-or-less data pattern so it fits any slave's data path.
+    # The original 0xDEADBEEFXX form was 40 bits and got truncated by the
+    # narrowest slave BFM (e.g. a 32-bit APB/AXIL slave), which then broke
+    # the data-equality assertion downstream. Master-width masking didn't
+    # help because the data still has to ride the slave's BFM first.
+    test_data = (0xDEADBE00 | 0x00)
     tb.log.info(f"  Write: addr=0x{test_addr:08x}, data=0x{test_data:08x}")
 
     # Master sends write transaction
@@ -106,7 +111,12 @@ async def cocotb_test_basic_connectivity(dut):
 
     # Master 0 → Slave 1 (harness_csr)
     test_addr = 0x00010000
-    test_data = 0xDEADBEEF01
+    # Use a 32-bit-or-less data pattern so it fits any slave's data path.
+    # The original 0xDEADBEEFXX form was 40 bits and got truncated by the
+    # narrowest slave BFM (e.g. a 32-bit APB/AXIL slave), which then broke
+    # the data-equality assertion downstream. Master-width masking didn't
+    # help because the data still has to ride the slave's BFM first.
+    test_data = (0xDEADBE00 | 0x01)
     tb.log.info(f"  Write: addr=0x{test_addr:08x}, data=0x{test_data:08x}")
 
     # Master sends write transaction
@@ -145,7 +155,12 @@ async def cocotb_test_basic_connectivity(dut):
 
     # Master 0 → Slave 2 (desc_ram)
     test_addr = 0x00020000
-    test_data = 0xDEADBEEF02
+    # Use a 32-bit-or-less data pattern so it fits any slave's data path.
+    # The original 0xDEADBEEFXX form was 40 bits and got truncated by the
+    # narrowest slave BFM (e.g. a 32-bit APB/AXIL slave), which then broke
+    # the data-equality assertion downstream. Master-width masking didn't
+    # help because the data still has to ride the slave's BFM first.
+    test_data = (0xDEADBE00 | 0x02)
     tb.log.info(f"  Write: addr=0x{test_addr:08x}, data=0x{test_data:08x}")
 
     # Master sends write transaction
@@ -184,7 +199,12 @@ async def cocotb_test_basic_connectivity(dut):
 
     # Master 0 → Slave 3 (stream_err)
     test_addr = 0x00030000
-    test_data = 0xDEADBEEF03
+    # Use a 32-bit-or-less data pattern so it fits any slave's data path.
+    # The original 0xDEADBEEFXX form was 40 bits and got truncated by the
+    # narrowest slave BFM (e.g. a 32-bit APB/AXIL slave), which then broke
+    # the data-equality assertion downstream. Master-width masking didn't
+    # help because the data still has to ride the slave's BFM first.
+    test_data = (0xDEADBE00 | 0x03)
     tb.log.info(f"  Write: addr=0x{test_addr:08x}, data=0x{test_data:08x}")
 
     # Master sends write transaction
@@ -223,7 +243,12 @@ async def cocotb_test_basic_connectivity(dut):
 
     # Master 0 → Slave 4 (debug_sram)
     test_addr = 0x00040000
-    test_data = 0xDEADBEEF04
+    # Use a 32-bit-or-less data pattern so it fits any slave's data path.
+    # The original 0xDEADBEEFXX form was 40 bits and got truncated by the
+    # narrowest slave BFM (e.g. a 32-bit APB/AXIL slave), which then broke
+    # the data-equality assertion downstream. Master-width masking didn't
+    # help because the data still has to ride the slave's BFM first.
+    test_data = (0xDEADBE00 | 0x04)
     tb.log.info(f"  Write: addr=0x{test_addr:08x}, data=0x{test_data:08x}")
 
     # Master sends write transaction
@@ -262,7 +287,12 @@ async def cocotb_test_basic_connectivity(dut):
 
     # Master 0 → Slave 5 (dma_axil)
     test_addr = 0x00080000
-    test_data = 0xDEADBEEF05
+    # Use a 32-bit-or-less data pattern so it fits any slave's data path.
+    # The original 0xDEADBEEFXX form was 40 bits and got truncated by the
+    # narrowest slave BFM (e.g. a 32-bit APB/AXIL slave), which then broke
+    # the data-equality assertion downstream. Master-width masking didn't
+    # help because the data still has to ride the slave's BFM first.
+    test_data = (0xDEADBE00 | 0x05)
     tb.log.info(f"  Write: addr=0x{test_addr:08x}, data=0x{test_data:08x}")
 
     # Master sends write transaction
@@ -300,8 +330,12 @@ async def cocotb_test_basic_connectivity(dut):
     tb.log.info(f"  Write completed successfully (routing + response verified)")
     # Read connectivity test    tb.log.info(f"Testing master 0 (host) read connectivity")
     # Master 0 → Slave 0 (stream_apb)
+    # Probe a non-base offset (catches decoders that ignore the low bits).
+    # The config validator enforces addr_range is a multiple of 4 KB, so
+    # +0x100 is always safely inside every slave's window.
     test_addr = 0x00000100
-    test_data = 0xCAFEBABE00
+    # 32-bit-or-less value (see DEADBEEF comment above for rationale).
+    test_data = (0xCAFEBA00 | 0x00)
     tb.log.info(f"  Read: addr=0x{test_addr:08x}, expect_data=0x{test_data:08x}")
 
     # Master sends read transaction
@@ -337,8 +371,12 @@ async def cocotb_test_basic_connectivity(dut):
     tb.log.info(f"  Read completed successfully (routing + response verified)")
 
     # Master 0 → Slave 1 (harness_csr)
+    # Probe a non-base offset (catches decoders that ignore the low bits).
+    # The config validator enforces addr_range is a multiple of 4 KB, so
+    # +0x100 is always safely inside every slave's window.
     test_addr = 0x00010100
-    test_data = 0xCAFEBABE01
+    # 32-bit-or-less value (see DEADBEEF comment above for rationale).
+    test_data = (0xCAFEBA00 | 0x01)
     tb.log.info(f"  Read: addr=0x{test_addr:08x}, expect_data=0x{test_data:08x}")
 
     # Master sends read transaction
@@ -374,8 +412,12 @@ async def cocotb_test_basic_connectivity(dut):
     tb.log.info(f"  Read completed successfully (routing + response verified)")
 
     # Master 0 → Slave 2 (desc_ram)
+    # Probe a non-base offset (catches decoders that ignore the low bits).
+    # The config validator enforces addr_range is a multiple of 4 KB, so
+    # +0x100 is always safely inside every slave's window.
     test_addr = 0x00020100
-    test_data = 0xCAFEBABE02
+    # 32-bit-or-less value (see DEADBEEF comment above for rationale).
+    test_data = (0xCAFEBA00 | 0x02)
     tb.log.info(f"  Read: addr=0x{test_addr:08x}, expect_data=0x{test_data:08x}")
 
     # Master sends read transaction
@@ -411,8 +453,12 @@ async def cocotb_test_basic_connectivity(dut):
     tb.log.info(f"  Read completed successfully (routing + response verified)")
 
     # Master 0 → Slave 3 (stream_err)
+    # Probe a non-base offset (catches decoders that ignore the low bits).
+    # The config validator enforces addr_range is a multiple of 4 KB, so
+    # +0x100 is always safely inside every slave's window.
     test_addr = 0x00030100
-    test_data = 0xCAFEBABE03
+    # 32-bit-or-less value (see DEADBEEF comment above for rationale).
+    test_data = (0xCAFEBA00 | 0x03)
     tb.log.info(f"  Read: addr=0x{test_addr:08x}, expect_data=0x{test_data:08x}")
 
     # Master sends read transaction
@@ -448,8 +494,12 @@ async def cocotb_test_basic_connectivity(dut):
     tb.log.info(f"  Read completed successfully (routing + response verified)")
 
     # Master 0 → Slave 4 (debug_sram)
+    # Probe a non-base offset (catches decoders that ignore the low bits).
+    # The config validator enforces addr_range is a multiple of 4 KB, so
+    # +0x100 is always safely inside every slave's window.
     test_addr = 0x00040100
-    test_data = 0xCAFEBABE04
+    # 32-bit-or-less value (see DEADBEEF comment above for rationale).
+    test_data = (0xCAFEBA00 | 0x04)
     tb.log.info(f"  Read: addr=0x{test_addr:08x}, expect_data=0x{test_data:08x}")
 
     # Master sends read transaction
@@ -485,8 +535,12 @@ async def cocotb_test_basic_connectivity(dut):
     tb.log.info(f"  Read completed successfully (routing + response verified)")
 
     # Master 0 → Slave 5 (dma_axil)
+    # Probe a non-base offset (catches decoders that ignore the low bits).
+    # The config validator enforces addr_range is a multiple of 4 KB, so
+    # +0x100 is always safely inside every slave's window.
     test_addr = 0x00080100
-    test_data = 0xCAFEBABE05
+    # 32-bit-or-less value (see DEADBEEF comment above for rationale).
+    test_data = (0xCAFEBA00 | 0x05)
     tb.log.info(f"  Read: addr=0x{test_addr:08x}, expect_data=0x{test_data:08x}")
 
     # Master sends read transaction
@@ -559,15 +613,15 @@ async def cocotb_test_address_decode(dut):
     await tb.slave_respond_write(0, txn_id=0)
     await ClockCycles(tb.clock, 3)
     # Slave 1: harness_csr
-    # Range: 0x00010000 - 0x000100ff
-    tb.log.info(f"  Slave 1 (harness_csr): 0x00010000-0x000100ff")    # Test base address
+    # Range: 0x00010000 - 0x00010fff
+    tb.log.info(f"  Slave 1 (harness_csr): 0x00010000-0x00010fff")    # Test base address
     await tb.write_transaction(0, 0x00010000, 0x00000001, txn_id=0)
     await ClockCycles(tb.clock, 3)
     await tb.slave_respond_write(1, txn_id=0)
     await ClockCycles(tb.clock, 3)
 
     # Test end address
-    await tb.write_transaction(0, 0x000100fc, 0x11111112, txn_id=0)
+    await tb.write_transaction(0, 0x00010ffc, 0x11111112, txn_id=0)
     await ClockCycles(tb.clock, 3)
     await tb.slave_respond_write(1, txn_id=0)
     await ClockCycles(tb.clock, 3)
@@ -585,15 +639,15 @@ async def cocotb_test_address_decode(dut):
     await tb.slave_respond_write(2, txn_id=0)
     await ClockCycles(tb.clock, 3)
     # Slave 3: stream_err
-    # Range: 0x00030000 - 0x0003003f
-    tb.log.info(f"  Slave 3 (stream_err): 0x00030000-0x0003003f")    # Test base address
+    # Range: 0x00030000 - 0x00030fff
+    tb.log.info(f"  Slave 3 (stream_err): 0x00030000-0x00030fff")    # Test base address
     await tb.write_transaction(0, 0x00030000, 0x00000003, txn_id=0)
     await ClockCycles(tb.clock, 3)
     await tb.slave_respond_write(3, txn_id=0)
     await ClockCycles(tb.clock, 3)
 
     # Test end address
-    await tb.write_transaction(0, 0x0003003c, 0x11111114, txn_id=0)
+    await tb.write_transaction(0, 0x00030ffc, 0x11111114, txn_id=0)
     await ClockCycles(tb.clock, 3)
     await tb.slave_respond_write(3, txn_id=0)
     await ClockCycles(tb.clock, 3)
@@ -650,34 +704,32 @@ def test_bridge_stream_char_axil_basic_connectivity(request):
         filelist_path='projects/NexysA7/stream_characterization/stream_char_framework/rtl/bridges/filelists/bridge_stream_char_axil.f'
     )
 
-    # Note: New adapter-based bridge has NO parameters
-    # All configuration is fixed from YAML at generation time
+    # Per-test naming follows the q32 canonical pattern
+    # (design_dv/q32/tests/macro/test_q32_*.py): test_<dut>_<testcase>
+    # plus an optional pytest-xdist worker suffix when running in parallel.
+    # `test_name_plus_params` drives EVERY artifact path (log, xml, sim_build,
+    # dump.fst) so each parameterised test invocation gets its own
+    # directory and outputs.
+    worker_id = os.environ.get('PYTEST_XDIST_WORKER', '')
+    worker_suffix = f"_{worker_id}" if worker_id else ""
+    test_name_plus_params = f"test_{dut_name}_basic_connectivity"
+    sim_build_name = f"{test_name_plus_params}{worker_suffix}"
 
-    # Get worker ID for parallel execution isolation
-    worker_id = os.environ.get('PYTEST_XDIST_WORKER', 'gw0')
-    test_name = f"test_{worker_id}_bridge_stream_char_axil_basic_connectivity"
-    log_path = os.path.join(log_dir, f'{test_name}.log')
+    log_path = os.path.join(log_dir, f'{sim_build_name}.log')
+    results_path = os.path.join(log_dir, f'results_{sim_build_name}.xml')
+    sim_build = os.path.join(tests_dir, 'local_sim_build', sim_build_name)
+    os.makedirs(sim_build, exist_ok=True)
+    os.makedirs(log_dir, exist_ok=True)
 
-    # VCD waveform generation support via WAVES environment variable
-    compile_args = []
-    if int(os.environ.get('WAVES', '0')) == 1:
-        compile_args.extend([
-            "--trace",                  # VCD tracing
-            "--trace-depth", "99",      # Full depth
-            "--trace-max-array", "1024" # Array tracing
-        ])
+    # Waveforms via the canonical helper in TBClasses.shared.utilities.
+    waves = get_wave_config(sim_build)
 
-    # Compilation arguments
-    extra_args = [
-        '--assert',
-        '--coverage'
-    ]
-    extra_args.extend(compile_args)
-
-    # Environment variables for cocotb
+    extra_args = ['--assert', '--coverage'] + waves['extra_args']
     extra_env = {
         'COCOTB_LOG_LEVEL': 'INFO',
-        'LOG_PATH': log_path
+        'LOG_PATH': log_path,
+        'COCOTB_RESULTS_FILE': results_path,
+        **waves['extra_env'],
     }
 
     run(
@@ -686,13 +738,11 @@ def test_bridge_stream_char_axil_basic_connectivity(request):
         includes=includes,
         toplevel=dut_name,
         module=module,
-        testcase="cocotb_test_basic_connectivity",  # Call specific cocotb function
-        # Note: No parameters - new bridge has fixed config from YAML
-        sim_build=f'{log_dir}/sim_build_{dut_name}_basic',
-        work_dir=log_dir,
-        test_dir=log_dir,
-        waves=False,  # Use compile_args for VCD control via WAVES env var
+        testcase="cocotb_test_basic_connectivity",
+        sim_build=sim_build,
+        waves=False,            # cocotb-test compile flags handled via extra_args
         extra_args=extra_args,
+        plus_args=waves['sim_args'],
         extra_env=extra_env
     )
 
@@ -713,33 +763,25 @@ def test_bridge_stream_char_axil_address_decode(request):
         filelist_path='projects/NexysA7/stream_characterization/stream_char_framework/rtl/bridges/filelists/bridge_stream_char_axil.f'
     )
 
-    # Note: New adapter-based bridge has NO parameters
-    # All configuration is fixed from YAML at generation time
+    worker_id = os.environ.get('PYTEST_XDIST_WORKER', '')
+    worker_suffix = f"_{worker_id}" if worker_id else ""
+    test_name_plus_params = f"test_{dut_name}_address_decode"
+    sim_build_name = f"{test_name_plus_params}{worker_suffix}"
 
-    # Get worker ID for parallel execution isolation
-    worker_id = os.environ.get('PYTEST_XDIST_WORKER', 'gw0')
-    test_name = f"test_{worker_id}_bridge_stream_char_axil_address_decode"
-    log_path = os.path.join(log_dir, f'{test_name}.log')
+    log_path = os.path.join(log_dir, f'{sim_build_name}.log')
+    results_path = os.path.join(log_dir, f'results_{sim_build_name}.xml')
+    sim_build = os.path.join(tests_dir, 'local_sim_build', sim_build_name)
+    os.makedirs(sim_build, exist_ok=True)
+    os.makedirs(log_dir, exist_ok=True)
 
-    # VCD waveform generation support via WAVES environment variable
-    compile_args = []
-    if int(os.environ.get('WAVES', '0')) == 1:
-        compile_args.extend([
-            "--trace",                  # VCD tracing
-            "--trace-depth", "99",      # Full depth
-            "--trace-max-array", "1024" # Array tracing
-        ])
+    waves = get_wave_config(sim_build)
 
-    extra_args = [
-        '--assert',
-        '--coverage'
-    ]
-    extra_args.extend(compile_args)
-
-    # Environment variables for cocotb
+    extra_args = ['--assert', '--coverage'] + waves['extra_args']
     extra_env = {
         'COCOTB_LOG_LEVEL': 'INFO',
-        'LOG_PATH': log_path
+        'LOG_PATH': log_path,
+        'COCOTB_RESULTS_FILE': results_path,
+        **waves['extra_env'],
     }
 
     run(
@@ -748,13 +790,11 @@ def test_bridge_stream_char_axil_address_decode(request):
         includes=includes,
         toplevel=dut_name,
         module=module,
-        testcase="cocotb_test_address_decode",  # Call specific cocotb function
-        # Note: No parameters - new bridge has fixed config from YAML
-        sim_build=f'{log_dir}/sim_build_{dut_name}_decode',
-        work_dir=log_dir,
-        test_dir=log_dir,
-        waves=False,  # Use compile_args for VCD control via WAVES env var
+        testcase="cocotb_test_address_decode",
+        sim_build=sim_build,
+        waves=False,
         extra_args=extra_args,
+        plus_args=waves['sim_args'],
         extra_env=extra_env
     )
 

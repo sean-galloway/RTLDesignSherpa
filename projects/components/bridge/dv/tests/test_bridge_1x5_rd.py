@@ -58,6 +58,9 @@ async def cocotb_test_basic_connectivity(dut):
 
     # Read connectivity test    tb.log.info(f"Testing master 0 (cpu_rd) read connectivity")
     # Master 0 → Slave 0 (periph_rd)
+    # Probe a non-base offset (catches decoders that ignore the low bits).
+    # The config validator enforces addr_range is a multiple of 4 KB, so
+    # +0x100 is always safely inside every slave's window.
     test_addr = 0x00000100
     # 32-bit-or-less value (see DEADBEEF comment above for rationale).
     test_data = (0xCAFEBA00 | 0x00)
@@ -96,6 +99,9 @@ async def cocotb_test_basic_connectivity(dut):
     tb.log.info(f"  Read completed successfully (routing + response verified)")
 
     # Master 0 → Slave 1 (ddr_rd)
+    # Probe a non-base offset (catches decoders that ignore the low bits).
+    # The config validator enforces addr_range is a multiple of 4 KB, so
+    # +0x100 is always safely inside every slave's window.
     test_addr = 0x10000100
     # 32-bit-or-less value (see DEADBEEF comment above for rationale).
     test_data = (0xCAFEBA00 | 0x01)
@@ -134,6 +140,9 @@ async def cocotb_test_basic_connectivity(dut):
     tb.log.info(f"  Read completed successfully (routing + response verified)")
 
     # Master 0 → Slave 2 (hbm_rd)
+    # Probe a non-base offset (catches decoders that ignore the low bits).
+    # The config validator enforces addr_range is a multiple of 4 KB, so
+    # +0x100 is always safely inside every slave's window.
     test_addr = 0x50000100
     # 32-bit-or-less value (see DEADBEEF comment above for rationale).
     test_data = (0xCAFEBA00 | 0x02)
@@ -172,6 +181,9 @@ async def cocotb_test_basic_connectivity(dut):
     tb.log.info(f"  Read completed successfully (routing + response verified)")
 
     # Master 0 → Slave 3 (apb_periph)
+    # Probe a non-base offset (catches decoders that ignore the low bits).
+    # The config validator enforces addr_range is a multiple of 4 KB, so
+    # +0x100 is always safely inside every slave's window.
     test_addr = 0x80000100
     # 32-bit-or-less value (see DEADBEEF comment above for rationale).
     test_data = (0xCAFEBA00 | 0x03)
@@ -210,6 +222,9 @@ async def cocotb_test_basic_connectivity(dut):
     tb.log.info(f"  Read completed successfully (routing + response verified)")
 
     # Master 0 → Slave 4 (axil_periph)
+    # Probe a non-base offset (catches decoders that ignore the low bits).
+    # The config validator enforces addr_range is a multiple of 4 KB, so
+    # +0x100 is always safely inside every slave's window.
     test_addr = 0x90000100
     # 32-bit-or-less value (see DEADBEEF comment above for rationale).
     test_data = (0xCAFEBA00 | 0x04)
