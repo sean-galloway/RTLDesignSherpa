@@ -131,7 +131,27 @@ module axi_data_dnsize #(
 
     generate
         if (DUAL_BUFFER == 0) begin : gen_single_buffer_sm
-            // SINGLE-BUFFER MODE: Original implementation
+            // SINGLE-BUFFER MODE
+            //
+            // Send/accept ordering note:
+            //   `wide_ready` (combinational, defined below) asserts in two
+            //   cases: buffer empty, OR we're on the last-narrow-beat
+            //   cycle that frees the buffer this cycle. The latter
+            //   enables back-to-back wide beats with no bubble.
+            //
+            //   For the atomic-replace case to work, the accept FF must
+            //   fire even when `r_wide_buffered=1` at the start of the
+            //   cycle (since the same cycle's send branch is clearing
+            //   it). We rely on SystemVerilog's "last NBA wins"
+            //   semantics within a single always_ff: the accept block
+            //   is textually AFTER the send block, so its
+            //   `r_wide_buffered <= 1'b1` overrides any `<= 1'b0` from
+            //   the send branch.
+            //
+            //   The previous implementation gated accept on
+            //   `!r_wide_buffered`, which silently dropped back-to-back
+            //   wide beats — the producer saw wide_ready=1 and
+            //   handshaked, but the FF didn't capture the data.
             `ALWAYS_FF_RST(aclk, aresetn,
         if (`RST_ASSERTED(aresetn)) begin
                     gen_single_buffer.r_data_buffer <= '0;
@@ -152,15 +172,7 @@ module axi_data_dnsize #(
                         r_burst_active <= 1'b1;
                     end
 
-                    // Accept wide beat
-                    if (wide_valid && wide_ready && !gen_single_buffer.r_wide_buffered) begin
-                        gen_single_buffer.r_data_buffer <= wide_data;
-                        gen_single_buffer.r_last_buffered <= wide_last;
-                        gen_single_buffer.r_wide_buffered <= 1'b1;
-                        r_beat_ptr <= '0;
-                    end
-
-                    // Send narrow beat
+                    // Send narrow beat (may clear r_wide_buffered)
                     if (gen_single_buffer.r_wide_buffered && narrow_ready) begin
                         if (TRACK_BURSTS != 0 && r_burst_active) begin
                             // With burst tracking
@@ -186,6 +198,17 @@ module axi_data_dnsize #(
                                 r_beat_ptr <= r_beat_ptr + 1'b1;
                             end
                         end
+                    end
+
+                    // Accept wide beat (textually after send so its NBA to
+                    // r_wide_buffered/r_beat_ptr takes priority on the
+                    // atomic-replace cycle). wide_ready already encodes
+                    // when accept is safe (see wide_ready assign below).
+                    if (wide_valid && wide_ready) begin
+                        gen_single_buffer.r_data_buffer <= wide_data;
+                        gen_single_buffer.r_last_buffered <= wide_last;
+                        gen_single_buffer.r_wide_buffered <= 1'b1;
+                        r_beat_ptr <= '0;
                     end
                 end
             )
@@ -307,12 +330,15 @@ module axi_data_dnsize #(
     generate
         if (WIDE_SB_WIDTH > 0) begin : gen_sideband_buffer_logic
             if (DUAL_BUFFER == 0) begin : gen_single_sb
-                // Single-buffer sideband logic
+                // Single-buffer sideband logic — same accept criterion
+                // as the data-path FF above (drops the !r_wide_buffered
+                // predicate so back-to-back atomic-replace captures the
+                // new wide beat's sideband too).
                 always_ff @(posedge aclk or negedge aresetn) begin
                     if (!aresetn) begin
                         gen_single_buffer.r_sideband_buffer <= '0;
                     end else begin
-                        if (wide_valid && wide_ready && !gen_single_buffer.r_wide_buffered) begin
+                        if (wide_valid && wide_ready) begin
                             gen_single_buffer.r_sideband_buffer <= wide_sideband;
                         end
                     end
@@ -379,8 +405,27 @@ module axi_data_dnsize #(
             // Narrow side valid when buffer has data
             assign narrow_valid = gen_single_buffer.r_wide_buffered;
 
-            // Wide side ready when buffer empty OR sending last narrow beat
-            assign wide_ready = !gen_single_buffer.r_wide_buffered || (narrow_ready && w_last_narrow_beat);
+            // Wide side ready: buffer empty, OR sending the last narrow
+            // beat of the current wide group AND the burst (if tracked)
+            // needs another wide beat after this one.
+            //
+            // The "atomic replace" case lets the producer deliver a new
+            // wide beat in the same cycle the last narrow beat goes out,
+            // which the FF above handles via NBA last-write-wins. For
+            // TRACK_BURSTS=1, exclude end-of-burst — accepting a new wide
+            // there would land it in the buffer without burst context
+            // (the send branch is also clearing r_burst_active), leaving
+            // the new data stranded.
+            if (TRACK_BURSTS != 0) begin : gen_wide_ready_tracked
+                wire mid_burst_replace = r_burst_active &&
+                                         (r_beat_ptr == PTR_WIDTH'(WIDTH_RATIO-1)) &&
+                                         ((r_slave_beat_count + 1'b1) < r_slave_total_beats);
+                assign wide_ready = !gen_single_buffer.r_wide_buffered ||
+                                    (narrow_ready && mid_burst_replace);
+            end else begin : gen_wide_ready_simple
+                assign wide_ready = !gen_single_buffer.r_wide_buffered ||
+                                    (narrow_ready && w_last_narrow_beat);
+            end
 
         end else begin : gen_dual_buffer_outputs
             // DUAL-BUFFER MODE OUTPUTS

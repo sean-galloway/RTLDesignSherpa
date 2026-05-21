@@ -8,15 +8,13 @@
 //   Converts between AXI4 read interfaces of different data widths.
 //   Handles ONLY read path (AR, R channels) - no write support.
 //
-//   Standalone implementation with gaxi_skid_buffer for timing closure.
-//   For write conversion, use axi4_dwidth_converter_wr.sv.
+//   The R channel data path is delegated to the validated
+//   axi_data_upsize / axi_data_dnsize primitives in this same
+//   directory (each with its own pytest suite). This wrapper still
+//   owns: AR/R skid buffers, the AR arlen/arsize rewrite, and the
+//   rid/ruser carry that the primitives don't handle.
 //
-//   Key Features:
-//   - Read-only: AR, R channels only
-//   - Bidirectional: Single module handles upsize OR downsize
-//   - Timing closure: Uses gaxi_skid_buffer on all channels
-//   - Full AXI4: All read channel signals
-//   - Burst preservation: Maintains burst semantics
+//   For write conversion, use axi4_dwidth_converter_wr.sv.
 //
 // Parameters:
 //   S_AXI_DATA_WIDTH: Slave interface data width (32, 64, 128, 256)
@@ -54,7 +52,6 @@ module axi4_dwidth_converter_rd #(
                                   (S_AXI_DATA_WIDTH / M_AXI_DATA_WIDTH),
     localparam bit UPSIZE       = (S_AXI_DATA_WIDTH < M_AXI_DATA_WIDTH) ? 1'b1 : 1'b0,
     localparam bit DOWNSIZE     = (S_AXI_DATA_WIDTH > M_AXI_DATA_WIDTH) ? 1'b1 : 1'b0,
-    localparam int PTR_WIDTH    = $clog2(WIDTH_RATIO),
 
     // Skid buffer packed widths
     localparam int AR_WIDTH = AXI_ID_WIDTH + AXI_ADDR_WIDTH + 8 + 3 + 2 + 1 + 4 + 3 + 4 + 4 + AXI_USER_WIDTH,
@@ -134,7 +131,6 @@ module axi4_dwidth_converter_rd #(
             $error("WIDTH_RATIO must be >= 2");
         if (!UPSIZE && !DOWNSIZE)
             $error("Must be either UPSIZE or DOWNSIZE mode");
-
     end
 
     //==========================================================================
@@ -220,13 +216,14 @@ module axi4_dwidth_converter_rd #(
     assign int_r_data = {int_rid, int_rdata, int_rresp, int_rlast, int_ruser};
 
     //==========================================================================
-    // Read Address Channel Conversion
+    // Read Address Channel Conversion (arlen/arsize rewrite)
     //==========================================================================
 
     generate
         if (DOWNSIZE) begin : gen_ar_downsize
-            // Downsize: Wide→Narrow
-            // Multiply burst length by ratio
+            // Downsize: slave (wide) → master (narrow).
+            // Multiply slave's burst length by ratio so master moves the
+            // same total bytes in narrow beats.
             localparam int MASTER_SIZE = $clog2(M_STRB_WIDTH);
 
             assign m_axi_arid     = int_arid;
@@ -244,15 +241,15 @@ module axi4_dwidth_converter_rd #(
             assign int_ar_ready   = m_axi_arready;
 
         end else begin : gen_ar_upsize
-            // Upsize: Narrow→Wide
-            // Divide burst length by ratio, align address
+            // Upsize: slave (narrow) → master (wide). Divide burst length
+            // by ratio (round up) and align address down to wide boundary.
             localparam int MASTER_SIZE = $clog2(M_STRB_WIDTH);
             localparam int ALIGN_BITS  = $clog2(M_STRB_WIDTH);
 
             logic [7:0] master_arlen;
             logic [AXI_ADDR_WIDTH-1:0] aligned_araddr;
 
-            assign master_arlen = 8'((int_arlen + 8'(WIDTH_RATIO)) / 8'(WIDTH_RATIO)) - 8'd1;
+            assign master_arlen   = 8'((int_arlen + 8'(WIDTH_RATIO)) / 8'(WIDTH_RATIO)) - 8'd1;
             assign aligned_araddr = {int_araddr[AXI_ADDR_WIDTH-1:ALIGN_BITS], {ALIGN_BITS{1'b0}}};
 
             assign m_axi_arid     = int_arid;
@@ -268,166 +265,100 @@ module axi4_dwidth_converter_rd #(
             assign m_axi_aruser   = int_aruser;
             assign m_axi_arvalid  = int_ar_valid;
             assign int_ar_ready   = m_axi_arready;
-
         end
     endgenerate
 
     //==========================================================================
-    // Read Data Channel Conversion
+    // R Channel ID / USER Carry
+    //
+    //   The validated axi_data_{upsize,dnsize} primitives handle the data
+    //   payload, RRESP sideband, and LAST signalling. They do NOT carry
+    //   AXI4 transaction id (rid) or the optional ruser sideband, so we
+    //   register them on every master-side R handshake and present the
+    //   latest captured value on the slave-side R output.
+    //
+    //   This works because AXI4 holds rid constant for every beat of a
+    //   single transaction, so "most recent rid" is the correct rid for
+    //   whatever aggregated/split slave beat is currently being emitted.
+    //==========================================================================
+
+    logic [AXI_ID_WIDTH-1:0]   r_rid_held;
+    logic [AXI_USER_WIDTH-1:0] r_ruser_held;
+
+    `ALWAYS_FF_RST(aclk, aresetn,
+        if (`RST_ASSERTED(aresetn)) begin
+            r_rid_held   <= '0;
+            r_ruser_held <= '0;
+        end else if (m_axi_rvalid && m_axi_rready) begin
+            r_rid_held   <= m_axi_rid;
+            r_ruser_held <= m_axi_ruser;
+        end
+    )
+
+    assign int_rid   = r_rid_held;
+    assign int_ruser = r_ruser_held;
+
+    //==========================================================================
+    // R Channel Data Conversion (delegates to validated primitives)
     //==========================================================================
 
     generate
         if (DOWNSIZE) begin : gen_r_downsize
-            // Downsize: Wide→Narrow
-            // Accumulate WIDTH_RATIO narrow beats into 1 wide beat
-
-            logic [S_AXI_DATA_WIDTH-1:0] r_rdata_accumulator;
-            logic [PTR_WIDTH-1:0]        r_accum_ptr;
-            logic                        r_wide_beat_valid;
-            logic                        r_rlast_buffered;
-            logic [1:0]                  r_rresp_buffered;
-            logic [AXI_ID_WIDTH-1:0]     r_rid_buffered;
-            logic [AXI_USER_WIDTH-1:0]   r_ruser_buffered;
-
-            `ALWAYS_FF_RST(aclk, aresetn,
-        if (`RST_ASSERTED(aresetn)) begin
-                    r_rdata_accumulator <= '0;
-                    r_accum_ptr <= '0;
-                    r_wide_beat_valid <= 1'b0;
-                    r_rlast_buffered <= 1'b0;
-                    r_rresp_buffered <= 2'b00;
-                    r_rid_buffered <= '0;
-                    r_ruser_buffered <= '0;
-                end else begin
-                    // Accept narrow beat from master
-                    if (m_axi_rvalid && m_axi_rready) begin
-                        // Accumulate narrow beat
-                        r_rdata_accumulator[r_accum_ptr*M_AXI_DATA_WIDTH +: M_AXI_DATA_WIDTH] <= m_axi_rdata;
-
-                        // Track ID, response, user (first beat sets these)
-                        if (r_accum_ptr == '0) begin
-                            r_rid_buffered <= m_axi_rid;
-                            r_rresp_buffered <= m_axi_rresp;
-                            r_ruser_buffered <= m_axi_ruser;
-                        end else begin
-                            // OR together RRESP (any error propagates)
-                            r_rresp_buffered <= r_rresp_buffered | m_axi_rresp;
-                        end
-
-                        // Check if complete wide beat ready
-                        if (r_accum_ptr == PTR_WIDTH'(WIDTH_RATIO-1) || m_axi_rlast) begin
-                            r_wide_beat_valid <= 1'b1;
-                            r_accum_ptr <= '0;
-                            r_rlast_buffered <= m_axi_rlast;
-                        end else begin
-                            r_accum_ptr <= r_accum_ptr + 1'b1;
-                        end
-                    end
-
-                    // Slave accepts wide beat
-                    if (r_wide_beat_valid && int_r_ready) begin
-                        r_wide_beat_valid <= 1'b0;
-                        r_rlast_buffered <= 1'b0;
-                    end
-                end
-            )
-
-            // Drive internal R channel
-            assign int_rdata  = r_rdata_accumulator;
-            assign int_rid    = r_rid_buffered;
-            assign int_rresp  = r_rresp_buffered;
-            assign int_rlast  = r_rlast_buffered && r_wide_beat_valid;
-            assign int_ruser  = r_ruser_buffered;
-            assign int_r_valid = r_wide_beat_valid;
-
-            // Master ready when we're accumulating or slave ready
-            assign m_axi_rready = !r_wide_beat_valid || int_r_ready;
+            // Slave wide, master narrow. R direction: master → slave, so
+            // narrow → wide. Use axi_data_upsize. RRESP errors must
+            // propagate across all sub-beats: SB_OR_MODE=1.
+            axi_data_upsize #(
+                .NARROW_WIDTH    (M_AXI_DATA_WIDTH),
+                .WIDE_WIDTH      (S_AXI_DATA_WIDTH),
+                .NARROW_SB_WIDTH (2),
+                .WIDE_SB_WIDTH   (2),
+                .SB_OR_MODE      (1)
+            ) u_r_upsize (
+                .aclk            (aclk),
+                .aresetn         (aresetn),
+                .narrow_valid    (m_axi_rvalid),
+                .narrow_ready    (m_axi_rready),
+                .narrow_data     (m_axi_rdata),
+                .narrow_sideband (m_axi_rresp),
+                .narrow_last     (m_axi_rlast),
+                .wide_valid      (int_r_valid),
+                .wide_ready      (int_r_ready),
+                .wide_data       (int_rdata),
+                .wide_sideband   (int_rresp),
+                .wide_last       (int_rlast)
+            );
 
         end else begin : gen_r_upsize
-            // Upsize: Narrow→Wide
-            // Split each wide beat into WIDTH_RATIO narrow beats
-
-            logic [M_AXI_DATA_WIDTH-1:0] r_rdata_buffer;
-            logic [1:0]                  r_rresp_buffer;
-            logic [AXI_USER_WIDTH-1:0]   r_ruser_buffer;
-            logic [AXI_ID_WIDTH-1:0]     r_rid_buffer;
-            logic [PTR_WIDTH-1:0]        r_beat_ptr;
-            logic                        r_wide_buffered;
-            logic                        r_rlast_buffered;
-
-            // Burst tracking
-            logic [7:0]                  r_slave_beat_count;
-            logic [7:0]                  r_slave_total_beats;
-            logic                        r_burst_active;
-
-            `ALWAYS_FF_RST(aclk, aresetn,
-        if (`RST_ASSERTED(aresetn)) begin
-                    r_rdata_buffer <= '0;
-                    r_rresp_buffer <= '0;
-                    r_ruser_buffer <= '0;
-                    r_rid_buffer <= '0;
-                    r_beat_ptr <= '0;
-                    r_wide_buffered <= 1'b0;
-                    r_rlast_buffered <= 1'b0;
-                    r_slave_beat_count <= '0;
-                    r_slave_total_beats <= '0;
-                    r_burst_active <= 1'b0;
-                end else begin
-                    // Start new burst
-                    if (int_ar_valid && int_ar_ready && !r_burst_active) begin
-                        r_slave_total_beats <= int_arlen + 8'd1;
-                        r_slave_beat_count <= '0;
-                        r_burst_active <= 1'b1;
-                    end
-
-                    // Accept wide beat from master
-                    if (m_axi_rvalid && m_axi_rready && !r_wide_buffered) begin
-                        r_rdata_buffer <= m_axi_rdata;
-                        r_rresp_buffer <= m_axi_rresp;
-                        r_ruser_buffer <= m_axi_ruser;
-                        r_rid_buffer <= m_axi_rid;
-                        r_rlast_buffered <= m_axi_rlast;
-                        r_wide_buffered <= 1'b1;
-                        r_beat_ptr <= '0;
-                    end
-
-                    // Send narrow beat to slave
-                    if (r_wide_buffered && int_r_ready && r_burst_active) begin
-                        if (r_slave_beat_count + 8'd1 >= r_slave_total_beats) begin
-                            // Last slave beat - end burst
-                            r_wide_buffered <= 1'b0;
-                            r_beat_ptr <= '0;
-                            r_slave_beat_count <= '0;
-                            r_burst_active <= 1'b0;
-                        end else if (r_beat_ptr == PTR_WIDTH'(WIDTH_RATIO-1)) begin
-                            // Last narrow beat from wide beat, more beats needed
-                            r_wide_buffered <= 1'b0;
-                            r_beat_ptr <= '0;
-                            r_slave_beat_count <= r_slave_beat_count + 8'd1;
-                        end else begin
-                            // More narrow beats from this wide beat
-                            r_beat_ptr <= r_beat_ptr + 1'b1;
-                            r_slave_beat_count <= r_slave_beat_count + 8'd1;
-                        end
-                    end
-                end
-)
-
-            // Determine last slave beat
-            logic w_last_slave_beat;
-            assign w_last_slave_beat = (r_slave_beat_count + 8'd1 >= r_slave_total_beats);
-
-            // Master ready when buffer empty or sending last beat
-            assign m_axi_rready = !r_wide_buffered || (int_r_ready && w_last_slave_beat);
-
-            // Drive internal R channel
-            assign int_r_valid = r_wide_buffered && r_burst_active;
-            assign int_rdata   = r_rdata_buffer[r_beat_ptr*S_AXI_DATA_WIDTH +: S_AXI_DATA_WIDTH];
-            assign int_rresp   = r_rresp_buffer;
-            assign int_ruser   = r_ruser_buffer;
-            assign int_rid     = r_rid_buffer;
-            assign int_rlast   = r_wide_buffered && w_last_slave_beat;
-
+            // Slave narrow, master wide. R direction: master → slave, so
+            // wide → narrow. axi_data_dnsize with TRACK_BURSTS=1 to
+            // assert narrow_last on the last narrow beat of the slave's
+            // original (pre-rewrite) burst length. RRESP broadcasts to
+            // every narrow beat that comes from the same wide beat.
+            axi_data_dnsize #(
+                .WIDE_WIDTH       (M_AXI_DATA_WIDTH),
+                .NARROW_WIDTH     (S_AXI_DATA_WIDTH),
+                .WIDE_SB_WIDTH    (2),
+                .NARROW_SB_WIDTH  (2),
+                .SB_BROADCAST     (1),
+                .TRACK_BURSTS     (1),
+                .BURST_LEN_WIDTH  (8),
+                .DUAL_BUFFER      (0)
+            ) u_r_dnsize (
+                .aclk            (aclk),
+                .aresetn         (aresetn),
+                .burst_len       (int_arlen),
+                .burst_start     (int_ar_valid && int_ar_ready),
+                .wide_valid      (m_axi_rvalid),
+                .wide_ready      (m_axi_rready),
+                .wide_data       (m_axi_rdata),
+                .wide_sideband   (m_axi_rresp),
+                .wide_last       (m_axi_rlast),
+                .narrow_valid    (int_r_valid),
+                .narrow_ready    (int_r_ready),
+                .narrow_data     (int_rdata),
+                .narrow_sideband (int_rresp),
+                .narrow_last     (int_rlast)
+            );
         end
     endgenerate
 

@@ -8,15 +8,14 @@
 //   Converts between AXI4 write interfaces of different data widths.
 //   Handles ONLY write path (AW, W, B channels) - no read support.
 //
-//   Standalone implementation with gaxi_skid_buffer for timing closure.
-//   For read conversion, use axi4_dwidth_converter_rd.sv.
+//   The W channel data path is delegated to the validated
+//   axi_data_upsize / axi_data_dnsize primitives in this same
+//   directory (each with its own pytest suite). This wrapper still
+//   owns: AW/W/B skid buffers, the AW awlen/awsize rewrite, the
+//   wuser carry that the primitives don't handle, and the B channel
+//   pass-through.
 //
-//   Key Features:
-//   - Write-only: AW, W, B channels only
-//   - Bidirectional: Single module handles upsize OR downsize
-//   - Timing closure: Uses gaxi_skid_buffer on all channels
-//   - Full AXI4: All write channel signals
-//   - Burst preservation: Maintains burst semantics
+//   For read conversion, use axi4_dwidth_converter_rd.sv.
 //
 // Parameters:
 //   S_AXI_DATA_WIDTH: Slave interface data width (32, 64, 128, 256)
@@ -56,7 +55,6 @@ module axi4_dwidth_converter_wr #(
                                   (S_AXI_DATA_WIDTH / M_AXI_DATA_WIDTH),
     localparam bit UPSIZE       = (S_AXI_DATA_WIDTH < M_AXI_DATA_WIDTH) ? 1'b1 : 1'b0,
     localparam bit DOWNSIZE     = (S_AXI_DATA_WIDTH > M_AXI_DATA_WIDTH) ? 1'b1 : 1'b0,
-    localparam int PTR_WIDTH    = $clog2(WIDTH_RATIO),
 
     // Skid buffer packed widths
     localparam int AW_WIDTH = AXI_ID_WIDTH + AXI_ADDR_WIDTH + 8 + 3 + 2 + 1 + 4 + 3 + 4 + 4 + AXI_USER_WIDTH,
@@ -149,16 +147,15 @@ module axi4_dwidth_converter_wr #(
             $error("WIDTH_RATIO must be >= 2");
         if (!UPSIZE && !DOWNSIZE)
             $error("Must be either UPSIZE or DOWNSIZE mode");
-
     end
 
     //==========================================================================
     // Internal Signals - AW Channel (after skid buffer, before conversion)
     //==========================================================================
 
-    logic [AW_WIDTH-1:0] int_aw_data;
-    logic                int_aw_valid;
-    logic                int_aw_ready;
+    logic [AW_WIDTH-1:0]       int_aw_data;
+    logic                      int_aw_valid;
+    logic                      int_aw_ready;
 
     logic [AXI_ID_WIDTH-1:0]   int_awid;
     logic [AXI_ADDR_WIDTH-1:0] int_awaddr;
@@ -176,9 +173,9 @@ module axi4_dwidth_converter_wr #(
     // Internal Signals - W Channel (after skid buffer, before conversion)
     //==========================================================================
 
-    logic [W_WIDTH-1:0] int_w_data;
-    logic               int_w_valid;
-    logic               int_w_ready;
+    logic [W_WIDTH-1:0]          int_w_data;
+    logic                        int_w_valid;
+    logic                        int_w_ready;
 
     logic [S_AXI_DATA_WIDTH-1:0] int_wdata;
     logic [S_STRB_WIDTH-1:0]     int_wstrb;
@@ -189,9 +186,9 @@ module axi4_dwidth_converter_wr #(
     // Internal Signals - B Channel (before skid buffer, after pass-through)
     //==========================================================================
 
-    logic [B_WIDTH-1:0]      int_b_data;
-    logic                    int_b_valid;
-    logic                    int_b_ready;
+    logic [B_WIDTH-1:0]        int_b_data;
+    logic                      int_b_valid;
+    logic                      int_b_ready;
 
     logic [AXI_ID_WIDTH-1:0]   int_bid;
     logic [1:0]                int_bresp;
@@ -219,7 +216,6 @@ module axi4_dwidth_converter_wr #(
         .rd_count   ()
     );
 
-    // Unpack AW skid buffer output
     assign {int_awid, int_awaddr, int_awlen, int_awsize, int_awburst,
             int_awlock, int_awcache, int_awprot, int_awqos, int_awregion,
             int_awuser} = int_aw_data;
@@ -244,7 +240,6 @@ module axi4_dwidth_converter_wr #(
         .rd_count   ()
     );
 
-    // Unpack W skid buffer output
     assign {int_wdata, int_wstrb, int_wlast, int_wuser} = int_w_data;
 
     //==========================================================================
@@ -267,17 +262,17 @@ module axi4_dwidth_converter_wr #(
         .rd_count   ()
     );
 
-    // Pack B channel for skid buffer input
     assign int_b_data = {int_bid, int_bresp, int_buser};
 
     //==========================================================================
-    // Write Address Channel Conversion
+    // Write Address Channel Conversion (awlen/awsize rewrite)
     //==========================================================================
 
     generate
         if (DOWNSIZE) begin : gen_aw_downsize
-            // Downsize: Wide→Narrow
-            // Multiply burst length by ratio
+            // Downsize: slave (wide) → master (narrow). Multiply slave's
+            // burst length by ratio so master moves the same total bytes
+            // in narrow beats.
             localparam int MASTER_SIZE = $clog2(M_STRB_WIDTH);
 
             assign m_axi_awid     = int_awid;
@@ -295,13 +290,12 @@ module axi4_dwidth_converter_wr #(
             assign int_aw_ready   = m_axi_awready;
 
         end else begin : gen_aw_upsize
-            // Upsize: Narrow→Wide
-            // Divide burst length by ratio (rounding up for partial bursts)
+            // Upsize: slave (narrow) → master (wide). Divide burst length
+            // by ratio (round up).
             localparam int MASTER_SIZE = $clog2(M_STRB_WIDTH);
 
             assign m_axi_awid     = int_awid;
             assign m_axi_awaddr   = int_awaddr;
-            // Round up: (num_slave_beats + ratio - 1) / ratio
             assign m_axi_awlen    = ((int_awlen + 8'(WIDTH_RATIO)) / 8'(WIDTH_RATIO)) - 8'd1;
             assign m_axi_awsize   = MASTER_SIZE[2:0];
             assign m_axi_awburst  = int_awburst;
@@ -317,126 +311,89 @@ module axi4_dwidth_converter_wr #(
     endgenerate
 
     //==========================================================================
-    // Write Data Channel Conversion
+    // W Channel WUSER Carry
+    //
+    //   The validated axi_data_{upsize,dnsize} primitives carry only one
+    //   sideband (WSTRB on the W channel). WUSER stays constant within a
+    //   burst in normal AXI4 traffic, so we register the latest value
+    //   from the slave-side W handshake and present it on every
+    //   master-side W beat.
+    //==========================================================================
+
+    logic [AXI_USER_WIDTH-1:0] r_wuser_held;
+
+    `ALWAYS_FF_RST(aclk, aresetn,
+        if (`RST_ASSERTED(aresetn)) begin
+            r_wuser_held <= '0;
+        end else if (int_w_valid && int_w_ready) begin
+            r_wuser_held <= int_wuser;
+        end
+    )
+
+    assign m_axi_wuser = r_wuser_held;
+
+    //==========================================================================
+    // W Channel Data Conversion (delegates to validated primitives)
     //==========================================================================
 
     generate
         if (DOWNSIZE) begin : gen_w_downsize
-            // Downsize: Split wide beats into narrow beats
-            // No FSM - just a counter. Counter value IS the state.
-
-            // Wide beat buffer
-            logic [S_AXI_DATA_WIDTH-1:0] r_wdata_buffer;
-            logic [S_STRB_WIDTH-1:0]     r_wstrb_buffer;
-            logic [AXI_USER_WIDTH-1:0]   r_wuser_buffer;
-            logic                        r_wlast_buffered;
-            logic [PTR_WIDTH:0]          r_beat_index;  // 0-3: valid, 4: empty (need extra bit)
-
-            `ALWAYS_FF_RST(aclk, aresetn,
-        if (`RST_ASSERTED(aresetn)) begin
-                    r_wdata_buffer <= '0;
-                    r_wstrb_buffer <= '0;
-                    r_wuser_buffer <= '0;
-                    r_wlast_buffered <= 1'b0;
-                    r_beat_index <= (PTR_WIDTH+1)'(WIDTH_RATIO);  // Empty
-                end else begin
-                    logic accepting_wide_beat;
-                    logic sending_narrow_beat;
-
-                    accepting_wide_beat = int_w_valid && int_w_ready;
-                    sending_narrow_beat = m_axi_wvalid && m_axi_wready;
-
-                    // Load new wide beat (resets counter to 0)
-                    if (accepting_wide_beat) begin
-                        r_wdata_buffer <= int_wdata;
-                        r_wstrb_buffer <= int_wstrb;
-                        r_wuser_buffer <= int_wuser;
-                        r_wlast_buffered <= int_wlast;
-                        r_beat_index <= '0;
-                    end
-                    // Send narrow beat (increment counter, mark empty when done)
-                    else if (sending_narrow_beat) begin
-                        r_beat_index <= r_beat_index + 1'b1;
-                    end
-                    // else: hold
-                end
-)
-
-
-            // Output logic - counter encodes all state
-            wire buffer_valid = (r_beat_index < (PTR_WIDTH+1)'(WIDTH_RATIO));
-            wire last_beat    = (r_beat_index == (PTR_WIDTH+1)'(WIDTH_RATIO-1));
-
-            assign int_w_ready  = !buffer_valid || (m_axi_wready && last_beat);
-            assign m_axi_wvalid = buffer_valid;
-            assign m_axi_wdata  = r_wdata_buffer[r_beat_index[PTR_WIDTH-1:0]*M_AXI_DATA_WIDTH +: M_AXI_DATA_WIDTH];
-            assign m_axi_wstrb  = r_wstrb_buffer[r_beat_index[PTR_WIDTH-1:0]*M_STRB_WIDTH +: M_STRB_WIDTH];
-            assign m_axi_wlast  = r_wlast_buffered && last_beat;
-            assign m_axi_wuser  = r_wuser_buffer;
+            // Slave wide, master narrow. W direction: slave → master, so
+            // wide → narrow. axi_data_dnsize with TRACK_BURSTS=0 — the
+            // slave's wlast drives narrow_last on the final narrow beat
+            // from the last wide beat (matches the master's awlen rewrite).
+            // WSTRB slices per narrow beat: SB_BROADCAST=0.
+            axi_data_dnsize #(
+                .WIDE_WIDTH      (S_AXI_DATA_WIDTH),
+                .NARROW_WIDTH    (M_AXI_DATA_WIDTH),
+                .WIDE_SB_WIDTH   (S_STRB_WIDTH),
+                .NARROW_SB_WIDTH (M_STRB_WIDTH),
+                .SB_BROADCAST    (0),
+                .TRACK_BURSTS    (0),
+                .BURST_LEN_WIDTH (8),
+                .DUAL_BUFFER     (0)
+            ) u_w_dnsize (
+                .aclk            (aclk),
+                .aresetn         (aresetn),
+                .burst_len       (8'd0),
+                .burst_start     (1'b0),
+                .wide_valid      (int_w_valid),
+                .wide_ready      (int_w_ready),
+                .wide_data       (int_wdata),
+                .wide_sideband   (int_wstrb),
+                .wide_last       (int_wlast),
+                .narrow_valid    (m_axi_wvalid),
+                .narrow_ready    (m_axi_wready),
+                .narrow_data     (m_axi_wdata),
+                .narrow_sideband (m_axi_wstrb),
+                .narrow_last     (m_axi_wlast)
+            );
 
         end else begin : gen_w_upsize
-            // Upsize: Accumulate narrow beats into wide beats
-
-            logic [M_AXI_DATA_WIDTH-1:0] r_wdata_buffer;
-            logic [M_STRB_WIDTH-1:0]     r_wstrb_buffer;
-            logic [AXI_USER_WIDTH-1:0]   r_wuser_buffer;
-            logic [PTR_WIDTH-1:0]        r_write_beat_ptr;
-            logic                        r_wlast_buffered;
-            logic                        r_buffer_full;
-
-            `ALWAYS_FF_RST(aclk, aresetn,
-        if (`RST_ASSERTED(aresetn)) begin
-                    r_wdata_buffer <= '0;
-                    r_wstrb_buffer <= '0;
-                    r_wuser_buffer <= '0;
-                    r_write_beat_ptr <= '0;
-                    r_wlast_buffered <= 1'b0;
-                    r_buffer_full <= 1'b0;
-                end else begin
-                    // Handle slave-side accumulation and master-side transmission
-                    logic accepting_new_beat;
-                    logic sending_master_beat;
-                    logic buffer_completing;  // Buffer fills or gets last beat
-
-                    accepting_new_beat = int_w_valid && int_w_ready;
-                    sending_master_beat = m_axi_wvalid && m_axi_wready;
-                    buffer_completing = accepting_new_beat && (r_write_beat_ptr == PTR_WIDTH'(WIDTH_RATIO-1) || int_wlast);
-
-                    if (accepting_new_beat) begin
-                        // Accumulate data into buffer
-                        r_wdata_buffer[r_write_beat_ptr*S_AXI_DATA_WIDTH +: S_AXI_DATA_WIDTH] <= int_wdata;
-                        r_wstrb_buffer[r_write_beat_ptr*S_STRB_WIDTH +: S_STRB_WIDTH] <= int_wstrb;
-                        r_wuser_buffer <= int_wuser;
-                        r_wlast_buffered <= int_wlast;
-
-                        if (r_write_beat_ptr == PTR_WIDTH'(WIDTH_RATIO-1) || int_wlast) begin
-                            // Buffer will be full after this beat
-                            r_write_beat_ptr <= '0;
-                            // Set buffer_full regardless of current transmission state
-                            // If we're completing a NEW buffer, it must be marked full
-                            r_buffer_full <= 1'b1;
-                        end else begin
-                            r_write_beat_ptr <= r_write_beat_ptr + 1'b1;
-                            // Clear buffer_full if master accepted previous beat
-                            if (sending_master_beat) begin
-                                r_buffer_full <= 1'b0;
-                            end
-                        end
-                    end else if (sending_master_beat && !buffer_completing) begin
-                        // Buffer sent to master, clear full flag
-                        // But only if we're not simultaneously completing a new buffer
-                        r_buffer_full <= 1'b0;
-                    end
-                end
-            )
-
-
-            assign int_w_ready  = !r_buffer_full || (m_axi_wvalid && m_axi_wready);
-            assign m_axi_wvalid = r_buffer_full;
-            assign m_axi_wdata  = r_wdata_buffer;
-            assign m_axi_wstrb  = r_wstrb_buffer;
-            assign m_axi_wuser  = r_wuser_buffer;
-            assign m_axi_wlast  = r_wlast_buffered;
+            // Slave narrow, master wide. W direction: slave → master, so
+            // narrow → wide. axi_data_upsize concatenates WSTRBs:
+            // SB_OR_MODE=0. wlast on the narrow side terminates the
+            // accumulation early (matches existing UPSIZE semantics).
+            axi_data_upsize #(
+                .NARROW_WIDTH    (S_AXI_DATA_WIDTH),
+                .WIDE_WIDTH      (M_AXI_DATA_WIDTH),
+                .NARROW_SB_WIDTH (S_STRB_WIDTH),
+                .WIDE_SB_WIDTH   (M_STRB_WIDTH),
+                .SB_OR_MODE      (0)
+            ) u_w_upsize (
+                .aclk            (aclk),
+                .aresetn         (aresetn),
+                .narrow_valid    (int_w_valid),
+                .narrow_ready    (int_w_ready),
+                .narrow_data     (int_wdata),
+                .narrow_sideband (int_wstrb),
+                .narrow_last     (int_wlast),
+                .wide_valid      (m_axi_wvalid),
+                .wide_ready      (m_axi_wready),
+                .wide_data       (m_axi_wdata),
+                .wide_sideband   (m_axi_wstrb),
+                .wide_last       (m_axi_wlast)
+            );
         end
     endgenerate
 
@@ -444,10 +401,10 @@ module axi4_dwidth_converter_wr #(
     // Write Response Channel (Pass-Through)
     //==========================================================================
 
-    assign int_bid    = m_axi_bid;
-    assign int_bresp  = m_axi_bresp;
-    assign int_buser  = m_axi_buser;
+    assign int_bid     = m_axi_bid;
+    assign int_bresp   = m_axi_bresp;
+    assign int_buser   = m_axi_buser;
     assign int_b_valid = m_axi_bvalid;
     assign m_axi_bready = int_b_ready;
 
-endmodule
+endmodule : axi4_dwidth_converter_wr

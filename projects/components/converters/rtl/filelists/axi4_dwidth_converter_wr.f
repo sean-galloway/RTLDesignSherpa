@@ -11,5 +11,10 @@ $REPO_ROOT/rtl/amba/includes/reset_defs.svh
 # Dependencies - Skid buffers for timing isolation
 $REPO_ROOT/rtl/amba/gaxi/gaxi_skid_buffer.sv
 
+# Dependencies - Validated data-sizing primitives (wr uses both:
+# DOWNSIZE direction → axi_data_dnsize; UPSIZE direction → axi_data_upsize).
+$CONVERTERS_ROOT/rtl/axi_data_upsize.sv
+$CONVERTERS_ROOT/rtl/axi_data_dnsize.sv
+
 # AXI4 write data width converter
 $CONVERTERS_ROOT/rtl/axi4_dwidth_converter_wr.sv

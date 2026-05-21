@@ -108,8 +108,24 @@ module axi_data_upsize #(
         end else begin
             // Accept narrow beat
             if (narrow_valid && narrow_ready) begin
-                // Accumulate data into wide buffer
-                r_data_accumulator[r_beat_ptr*NARROW_WIDTH +: NARROW_WIDTH] <= narrow_data;
+                // First narrow of a fresh accumulation: zero the whole
+                // accumulator and place narrow_data in slot 0 with a
+                // single whole-register assignment. This is critical
+                // when the accumulation early-terminates via narrow_last
+                // before reaching WIDTH_RATIO beats: the unfilled slots
+                // must be '0 in the emitted wide beat so the previous
+                // group's residual data/WSTRB doesn't leak through and
+                // cause stray downstream writes.
+                //
+                // Subsequent narrows do a partial assignment to their
+                // slot. Two separate NBAs to the same register (whole
+                // then partial) compose unreliably across simulators,
+                // so we branch and emit one assignment per cycle.
+                if (r_beat_ptr == '0) begin
+                    r_data_accumulator <= {{(WIDE_WIDTH-NARROW_WIDTH){1'b0}}, narrow_data};
+                end else begin
+                    r_data_accumulator[r_beat_ptr*NARROW_WIDTH +: NARROW_WIDTH] <= narrow_data;
+                end
 
                 // Check if accumulation complete
                 if (r_beat_ptr == PTR_WIDTH'(WIDTH_RATIO-1) || narrow_last) begin
@@ -153,13 +169,23 @@ module axi_data_upsize #(
                     end
                 end
             end else begin : gen_concat_mode
-                // Concatenate mode: for WSTRB accumulation
+                // Concatenate mode: for WSTRB accumulation.
+                // Same single-NBA-per-cycle pattern as the data
+                // accumulator above — unfilled WSTRB slots must stay '0
+                // after an early narrow_last termination so a partial
+                // wide beat doesn't re-strobe bytes from the previous
+                // group's WSTRBs.
                 always_ff @(posedge aclk or negedge aresetn) begin
                     if (!aresetn) begin
                         r_sideband_accumulator <= '0;
                     end else begin
                         if (narrow_valid && narrow_ready) begin
-                            r_sideband_accumulator[r_beat_ptr*NARROW_SB_WIDTH +: NARROW_SB_WIDTH] <= narrow_sideband[NARROW_SB_WIDTH-1:0];
+                            if (r_beat_ptr == '0) begin
+                                r_sideband_accumulator <= {{(WIDE_SB_PORT_WIDTH-NARROW_SB_WIDTH){1'b0}},
+                                                           narrow_sideband[NARROW_SB_WIDTH-1:0]};
+                            end else begin
+                                r_sideband_accumulator[r_beat_ptr*NARROW_SB_WIDTH +: NARROW_SB_WIDTH] <= narrow_sideband[NARROW_SB_WIDTH-1:0];
+                            end
                         end
                     end
                 end
