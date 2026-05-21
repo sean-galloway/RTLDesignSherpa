@@ -70,50 +70,29 @@ module debug_sram_adapter #(
     output logic                       rid_valid,
 
     // External slave interface (AXIL)
-    output  logic [3:0]  debug_sram_axi_awid,
-    output  logic [31:0]  debug_sram_axi_awaddr,
-    output  logic [7:0]  debug_sram_axi_awlen,
-    output  logic [2:0]  debug_sram_axi_awsize,
-    output  logic [1:0]  debug_sram_axi_awburst,
-    output  logic         debug_sram_axi_awlock,
-    output  logic [3:0]  debug_sram_axi_awcache,
-    output  logic [2:0]  debug_sram_axi_awprot,
-    output  logic [3:0]  debug_sram_axi_awqos,
-    output  logic [3:0]  debug_sram_axi_awregion,
-    output  logic         debug_sram_axi_awuser,
-    output  logic         debug_sram_axi_awvalid,
-    input  logic         debug_sram_axi_awready,
-    output  logic [31:0]  debug_sram_axi_wdata,
-    output  logic [3:0]  debug_sram_axi_wstrb,
-    output  logic         debug_sram_axi_wlast,
-    output  logic         debug_sram_axi_wuser,
-    output  logic         debug_sram_axi_wvalid,
-    input  logic         debug_sram_axi_wready,
-    input  logic [3:0]  debug_sram_axi_bid,
-    input  logic [1:0]  debug_sram_axi_bresp,
-    input  logic         debug_sram_axi_buser,
-    input  logic         debug_sram_axi_bvalid,
-    output  logic         debug_sram_axi_bready,
-    output  logic [3:0]  debug_sram_axi_arid,
-    output  logic [31:0]  debug_sram_axi_araddr,
-    output  logic [7:0]  debug_sram_axi_arlen,
-    output  logic [2:0]  debug_sram_axi_arsize,
-    output  logic [1:0]  debug_sram_axi_arburst,
-    output  logic         debug_sram_axi_arlock,
-    output  logic [3:0]  debug_sram_axi_arcache,
-    output  logic [2:0]  debug_sram_axi_arprot,
-    output  logic [3:0]  debug_sram_axi_arqos,
-    output  logic [3:0]  debug_sram_axi_arregion,
-    output  logic         debug_sram_axi_aruser,
-    output  logic         debug_sram_axi_arvalid,
-    input  logic         debug_sram_axi_arready,
-    input  logic [3:0]  debug_sram_axi_rid,
-    input  logic [31:0]  debug_sram_axi_rdata,
-    input  logic [1:0]  debug_sram_axi_rresp,
-    input  logic         debug_sram_axi_rlast,
-    input  logic         debug_sram_axi_ruser,
-    input  logic         debug_sram_axi_rvalid,
-    output  logic         debug_sram_axi_rready
+    output logic [31:0] debug_sram_axi_awaddr,
+    output logic [2:0]            debug_sram_axi_awprot,
+    output logic                  debug_sram_axi_awvalid,
+    input  logic                  debug_sram_axi_awready,
+    // Write Data Channel
+    output logic [31:0] debug_sram_axi_wdata,
+    output logic [3:0] debug_sram_axi_wstrb,
+    output logic                  debug_sram_axi_wvalid,
+    input  logic                  debug_sram_axi_wready,
+    // Write Response Channel
+    input  logic [1:0]            debug_sram_axi_bresp,
+    input  logic                  debug_sram_axi_bvalid,
+    output logic                  debug_sram_axi_bready,
+    // Read Address Channel
+    output logic [31:0] debug_sram_axi_araddr,
+    output logic [2:0]            debug_sram_axi_arprot,
+    output logic                  debug_sram_axi_arvalid,
+    input  logic                  debug_sram_axi_arready,
+    // Read Data Channel
+    input  logic [31:0] debug_sram_axi_rdata,
+    input  logic [1:0]            debug_sram_axi_rresp,
+    input  logic                  debug_sram_axi_rvalid,
+    output logic                  debug_sram_axi_rready
 );
 
     // ================================================================
@@ -147,6 +126,8 @@ module debug_sram_adapter #(
     // ================================================================
 
     // Write Channel FIFO (In-Order) - AXIL Protocol
+    // NOTE: Monitors converter output (converter_bvalid), not crossbar input
+    //       This ensures FIFO pops when converter actually produces response
     localparam WR_FIFO_DEPTH = 16;
     logic [BRIDGE_ID_WIDTH-1:0] wr_fifo [WR_FIFO_DEPTH];
     logic [$clog2(WR_FIFO_DEPTH):0] wr_ptr, rd_ptr;
@@ -161,11 +142,11 @@ module debug_sram_adapter #(
         end
     end
 
-    // Pop on B response (xbar_debug_sram_axi_bvalid && xbar_debug_sram_axi_bready)
+    // Pop on B response (converter_bvalid && converter_bready)
     always_ff @(posedge aclk or negedge aresetn) begin
         if (!aresetn) begin
             rd_ptr <= '0;
-        end else if (xbar_debug_sram_axi_bvalid && xbar_debug_sram_axi_bready) begin
+        end else if (converter_bvalid && converter_bready) begin
             rd_ptr <= rd_ptr + 1'b1;
         end
     end
@@ -181,6 +162,8 @@ module debug_sram_adapter #(
     assign bid_valid     = (wr_ptr != rd_ptr);
 
     // Read Channel FIFO (In-Order) - AXIL Protocol
+    // NOTE: Monitors converter output (converter_rvalid), not crossbar input
+    //       This ensures FIFO pops when converter actually produces response
     localparam RD_FIFO_DEPTH = 16;
     logic [BRIDGE_ID_WIDTH-1:0] rd_fifo [RD_FIFO_DEPTH];
     logic [$clog2(RD_FIFO_DEPTH):0] ar_ptr, r_ptr;
@@ -195,11 +178,11 @@ module debug_sram_adapter #(
         end
     end
 
-    // Pop on R response (xbar_debug_sram_axi_rvalid && xbar_debug_sram_axi_rready && xbar_debug_sram_axi_rlast)
+    // Pop on R response (converter_rvalid && converter_rready && converter_rlast)
     always_ff @(posedge aclk or negedge aresetn) begin
         if (!aresetn) begin
             r_ptr <= '0;
-        end else if (xbar_debug_sram_axi_rvalid && xbar_debug_sram_axi_rready && xbar_debug_sram_axi_rlast) begin
+        end else if (converter_rvalid && converter_rready && converter_rlast) begin
             r_ptr <= r_ptr + 1'b1;
         end
     end
@@ -214,133 +197,110 @@ module debug_sram_adapter #(
     assign rid_bridge_id = rd_fifo[r_ptr[$clog2(RD_FIFO_DEPTH)-1:0]];
     assign rid_valid     = (ar_ptr != r_ptr);
 
-    // AXI4 Master Write Timing Wrapper
-    axi4_master_wr #(
+    // AXI4-to-AXI4-Lite converter shim
+    axi4_to_axil4_wr #(
+        .AXI_ID_WIDTH(4),
+        .AXI_ADDR_WIDTH(32),
+        .AXI_DATA_WIDTH(32),
+        .AXI_USER_WIDTH(1),
         .SKID_DEPTH_AW(2),
         .SKID_DEPTH_W(4),
-        .SKID_DEPTH_B(2),
-        .AXI_ID_WIDTH(4),
-        .AXI_ADDR_WIDTH(32),
-        .AXI_DATA_WIDTH(32),
-        .AXI_USER_WIDTH(1)
-    ) u_master_wr (
+        .SKID_DEPTH_B(2)
+    ) u_debug_sram_axil_converter_wr (
+        // Clocks and resets
         .aclk(aclk),
         .aresetn(aresetn),
 
-        // Bridge-internal side (fub_axi)
-        .fub_axi_awid(xbar_debug_sram_axi_awid),
-        .fub_axi_awaddr(xbar_debug_sram_axi_awaddr),
-        .fub_axi_awlen(xbar_debug_sram_axi_awlen),
-        .fub_axi_awsize(xbar_debug_sram_axi_awsize),
-        .fub_axi_awburst(xbar_debug_sram_axi_awburst),
-        .fub_axi_awlock(xbar_debug_sram_axi_awlock),
-        .fub_axi_awcache(xbar_debug_sram_axi_awcache),
-        .fub_axi_awprot(xbar_debug_sram_axi_awprot),
-        .fub_axi_awqos(xbar_debug_sram_axi_awqos),
-        .fub_axi_awregion(xbar_debug_sram_axi_awregion),
-        .fub_axi_awuser(xbar_debug_sram_axi_awuser),
-        .fub_axi_awvalid(xbar_debug_sram_axi_awvalid),
-        .fub_axi_awready(xbar_debug_sram_axi_awready),
-        .fub_axi_wdata(xbar_debug_sram_axi_wdata),
-        .fub_axi_wstrb(xbar_debug_sram_axi_wstrb),
-        .fub_axi_wlast(xbar_debug_sram_axi_wlast),
-        .fub_axi_wuser(xbar_debug_sram_axi_wuser),
-        .fub_axi_wvalid(xbar_debug_sram_axi_wvalid),
-        .fub_axi_wready(xbar_debug_sram_axi_wready),
-        .fub_axi_bid(xbar_debug_sram_axi_bid),
-        .fub_axi_bresp(xbar_debug_sram_axi_bresp),
-        .fub_axi_buser(xbar_debug_sram_axi_buser),
-        .fub_axi_bvalid(xbar_debug_sram_axi_bvalid),
-        .fub_axi_bready(xbar_debug_sram_axi_bready),
+        // AXI4 write channels (from crossbar)
+        .s_axi_awid(xbar_debug_sram_axi_awid),
+        .s_axi_awaddr(xbar_debug_sram_axi_awaddr),
+        .s_axi_awlen(xbar_debug_sram_axi_awlen),
+        .s_axi_awsize(xbar_debug_sram_axi_awsize),
+        .s_axi_awburst(xbar_debug_sram_axi_awburst),
+        .s_axi_awlock(xbar_debug_sram_axi_awlock),
+        .s_axi_awcache(xbar_debug_sram_axi_awcache),
+        .s_axi_awprot(xbar_debug_sram_axi_awprot),
+        .s_axi_awqos(xbar_debug_sram_axi_awqos),
+        .s_axi_awregion(xbar_debug_sram_axi_awregion),
+        .s_axi_awuser(xbar_debug_sram_axi_awuser),
+        .s_axi_awvalid(xbar_debug_sram_axi_awvalid),
+        .s_axi_awready(xbar_debug_sram_axi_awready),
+        .s_axi_wdata(xbar_debug_sram_axi_wdata),
+        .s_axi_wstrb(xbar_debug_sram_axi_wstrb),
+        .s_axi_wlast(xbar_debug_sram_axi_wlast),
+        .s_axi_wuser(xbar_debug_sram_axi_wuser),
+        .s_axi_wvalid(xbar_debug_sram_axi_wvalid),
+        .s_axi_wready(xbar_debug_sram_axi_wready),
+        .s_axi_bid(xbar_debug_sram_axi_bid),
+        .s_axi_bresp(xbar_debug_sram_axi_bresp),
+        .s_axi_buser(xbar_debug_sram_axi_buser),
+        .s_axi_bvalid(converter_bvalid),
+        .s_axi_bready(converter_bready),
 
-        // External side (m_axi)
-        .m_axi_awid(debug_sram_axi_awid),
-        .m_axi_awaddr(debug_sram_axi_awaddr),
-        .m_axi_awlen(debug_sram_axi_awlen),
-        .m_axi_awsize(debug_sram_axi_awsize),
-        .m_axi_awburst(debug_sram_axi_awburst),
-        .m_axi_awlock(debug_sram_axi_awlock),
-        .m_axi_awcache(debug_sram_axi_awcache),
-        .m_axi_awprot(debug_sram_axi_awprot),
-        .m_axi_awqos(debug_sram_axi_awqos),
-        .m_axi_awregion(debug_sram_axi_awregion),
-        .m_axi_awuser(debug_sram_axi_awuser),
-        .m_axi_awvalid(debug_sram_axi_awvalid),
-        .m_axi_awready(debug_sram_axi_awready),
-        .m_axi_wdata(debug_sram_axi_wdata),
-        .m_axi_wstrb(debug_sram_axi_wstrb),
-        .m_axi_wlast(debug_sram_axi_wlast),
-        .m_axi_wuser(debug_sram_axi_wuser),
-        .m_axi_wvalid(debug_sram_axi_wvalid),
-        .m_axi_wready(debug_sram_axi_wready),
-        .m_axi_bid(debug_sram_axi_bid),
-        .m_axi_bresp(debug_sram_axi_bresp),
-        .m_axi_buser(debug_sram_axi_buser),
-        .m_axi_bvalid(debug_sram_axi_bvalid),
-        .m_axi_bready(debug_sram_axi_bready),
-
-        // Status (unconnected = clock-gating tie-off)
-        .busy()
+        // AXI4-Lite master write interface (to external slave)
+        .m_axil_awaddr(debug_sram_axi_awaddr),
+        .m_axil_awprot(debug_sram_axi_awprot),
+        .m_axil_awvalid(debug_sram_axi_awvalid),
+        .m_axil_awready(debug_sram_axi_awready),
+        .m_axil_wdata(debug_sram_axi_wdata),
+        .m_axil_wstrb(debug_sram_axi_wstrb),
+        .m_axil_wvalid(debug_sram_axi_wvalid),
+        .m_axil_wready(debug_sram_axi_wready),
+        .m_axil_bresp(debug_sram_axi_bresp),
+        .m_axil_bvalid(debug_sram_axi_bvalid),
+        .m_axil_bready(debug_sram_axi_bready)
     );
 
-    // AXI4 Master Read Timing Wrapper
-    axi4_master_rd #(
+    axi4_to_axil4_rd #(
+        .AXI_ID_WIDTH(4),
+        .AXI_ADDR_WIDTH(32),
+        .AXI_DATA_WIDTH(32),
+        .AXI_USER_WIDTH(1),
         .SKID_DEPTH_AR(2),
-        .SKID_DEPTH_R(2),
-        .AXI_ID_WIDTH(4),
-        .AXI_ADDR_WIDTH(32),
-        .AXI_DATA_WIDTH(32),
-        .AXI_USER_WIDTH(1)
-    ) u_master_rd (
+        .SKID_DEPTH_R(2)
+    ) u_debug_sram_axil_converter_rd (
+        // Clocks and resets
         .aclk(aclk),
         .aresetn(aresetn),
 
-        // Bridge-internal side (fub_axi)
-        .fub_axi_arid(xbar_debug_sram_axi_arid),
-        .fub_axi_araddr(xbar_debug_sram_axi_araddr),
-        .fub_axi_arlen(xbar_debug_sram_axi_arlen),
-        .fub_axi_arsize(xbar_debug_sram_axi_arsize),
-        .fub_axi_arburst(xbar_debug_sram_axi_arburst),
-        .fub_axi_arlock(xbar_debug_sram_axi_arlock),
-        .fub_axi_arcache(xbar_debug_sram_axi_arcache),
-        .fub_axi_arprot(xbar_debug_sram_axi_arprot),
-        .fub_axi_arqos(xbar_debug_sram_axi_arqos),
-        .fub_axi_arregion(xbar_debug_sram_axi_arregion),
-        .fub_axi_aruser(xbar_debug_sram_axi_aruser),
-        .fub_axi_arvalid(xbar_debug_sram_axi_arvalid),
-        .fub_axi_arready(xbar_debug_sram_axi_arready),
-        .fub_axi_rid(xbar_debug_sram_axi_rid),
-        .fub_axi_rdata(xbar_debug_sram_axi_rdata),
-        .fub_axi_rresp(xbar_debug_sram_axi_rresp),
-        .fub_axi_rlast(xbar_debug_sram_axi_rlast),
-        .fub_axi_ruser(xbar_debug_sram_axi_ruser),
-        .fub_axi_rvalid(xbar_debug_sram_axi_rvalid),
-        .fub_axi_rready(xbar_debug_sram_axi_rready),
+        // AXI4 read channels (from crossbar)
+        .s_axi_arid(xbar_debug_sram_axi_arid),
+        .s_axi_araddr(xbar_debug_sram_axi_araddr),
+        .s_axi_arlen(xbar_debug_sram_axi_arlen),
+        .s_axi_arsize(xbar_debug_sram_axi_arsize),
+        .s_axi_arburst(xbar_debug_sram_axi_arburst),
+        .s_axi_arlock(xbar_debug_sram_axi_arlock),
+        .s_axi_arcache(xbar_debug_sram_axi_arcache),
+        .s_axi_arprot(xbar_debug_sram_axi_arprot),
+        .s_axi_arqos(xbar_debug_sram_axi_arqos),
+        .s_axi_arregion(xbar_debug_sram_axi_arregion),
+        .s_axi_aruser(xbar_debug_sram_axi_aruser),
+        .s_axi_arvalid(xbar_debug_sram_axi_arvalid),
+        .s_axi_arready(xbar_debug_sram_axi_arready),
+        .s_axi_rid(xbar_debug_sram_axi_rid),
+        .s_axi_rdata(xbar_debug_sram_axi_rdata),
+        .s_axi_rresp(xbar_debug_sram_axi_rresp),
+        .s_axi_rlast(converter_rlast),
+        .s_axi_ruser(xbar_debug_sram_axi_ruser),
+        .s_axi_rvalid(converter_rvalid),
+        .s_axi_rready(converter_rready),
 
-        // External side (m_axi)
-        .m_axi_arid(debug_sram_axi_arid),
-        .m_axi_araddr(debug_sram_axi_araddr),
-        .m_axi_arlen(debug_sram_axi_arlen),
-        .m_axi_arsize(debug_sram_axi_arsize),
-        .m_axi_arburst(debug_sram_axi_arburst),
-        .m_axi_arlock(debug_sram_axi_arlock),
-        .m_axi_arcache(debug_sram_axi_arcache),
-        .m_axi_arprot(debug_sram_axi_arprot),
-        .m_axi_arqos(debug_sram_axi_arqos),
-        .m_axi_arregion(debug_sram_axi_arregion),
-        .m_axi_aruser(debug_sram_axi_aruser),
-        .m_axi_arvalid(debug_sram_axi_arvalid),
-        .m_axi_arready(debug_sram_axi_arready),
-        .m_axi_rid(debug_sram_axi_rid),
-        .m_axi_rdata(debug_sram_axi_rdata),
-        .m_axi_rresp(debug_sram_axi_rresp),
-        .m_axi_rlast(debug_sram_axi_rlast),
-        .m_axi_ruser(debug_sram_axi_ruser),
-        .m_axi_rvalid(debug_sram_axi_rvalid),
-        .m_axi_rready(debug_sram_axi_rready),
-
-        // Status (unconnected = clock-gating tie-off)
-        .busy()
+        // AXI4-Lite master read interface (to external slave)
+        .m_axil_araddr(debug_sram_axi_araddr),
+        .m_axil_arprot(debug_sram_axi_arprot),
+        .m_axil_arvalid(debug_sram_axi_arvalid),
+        .m_axil_arready(debug_sram_axi_arready),
+        .m_axil_rdata(debug_sram_axi_rdata),
+        .m_axil_rresp(debug_sram_axi_rresp),
+        .m_axil_rvalid(debug_sram_axi_rvalid),
+        .m_axil_rready(debug_sram_axi_rready)
     );
+
+    // Wire converter outputs back to crossbar interface
+    assign xbar_debug_sram_axi_bvalid = converter_bvalid;
+    assign converter_bready = xbar_debug_sram_axi_bready;
+    assign xbar_debug_sram_axi_rvalid = converter_rvalid;
+    assign converter_rready = xbar_debug_sram_axi_rready;
+    assign xbar_debug_sram_axi_rlast = converter_rlast;
 
 endmodule : debug_sram_adapter

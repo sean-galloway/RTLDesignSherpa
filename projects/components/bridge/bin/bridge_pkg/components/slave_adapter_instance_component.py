@@ -40,6 +40,21 @@ _APB_PORTS = (
     'PSTRB', 'PPROT', 'PRDATA', 'PSLVERR', 'PREADY',
 )
 
+# AXI4-Lite has none of AXI4's id/len/size/burst/lock/cache/qos/region/
+# user/last signals on AW/AR/W/B/R -- only the bare minimum needed for
+# single-beat transactions. Used by the axil branch of
+# connect_external_interface() so the bridge top's AXIL slave ports
+# match the adapter module's _generate_axil_external_ports output.
+_AXIL_WRITE_PORTS = (
+    'awaddr', 'awprot', 'awvalid', 'awready',
+    'wdata', 'wstrb', 'wvalid', 'wready',
+    'bresp', 'bvalid', 'bready',
+)
+_AXIL_READ_PORTS = (
+    'araddr', 'arprot', 'arvalid', 'arready',
+    'rdata', 'rresp', 'rvalid', 'rready',
+)
+
 
 class SlaveAdapterInstance:
     """Instantiate a generated <slave>_adapter module from the bridge
@@ -92,14 +107,31 @@ class SlaveAdapterInstance:
 
     def connect_external_interface(self) -> None:
         """Wire the external slave-facing ports. Layout depends on
-        slave protocol -- APB uses uppercase PADDR/PSEL/..., AXI4 /
-        AXIL use the full AXI4 set."""
+        slave protocol:
+          - apb : uppercase PADDR/PSEL/... ten-signal APB master
+          - axil: AXI4-Lite (no id/len/burst/etc.)
+          - axi4: full AXI4 channel set
+        Each branch must match what the adapter module declares in its
+        own _generate_*_external_ports method, or the bridge top won't
+        compile against the adapter."""
         if self.protocol == 'apb':
             pairs = [(f'{self.slave_prefix}{sig}', f'{self.slave_prefix}{sig}')
                      for sig in _APB_PORTS]
             self._sections.append((
                 f"External APB interface ({self.slave_prefix}*)", pairs))
-        else:
+        elif self.protocol == 'axil':
+            pairs: List[tuple] = []
+            if self.has_write:
+                for base in _AXIL_WRITE_PORTS:
+                    pairs.append((f'{self.slave_prefix}{base}',
+                                  f'{self.slave_prefix}{base}'))
+            if self.has_read:
+                for base in _AXIL_READ_PORTS:
+                    pairs.append((f'{self.slave_prefix}{base}',
+                                  f'{self.slave_prefix}{base}'))
+            self._sections.append((
+                f"External AXI4-Lite interface ({self.slave_prefix}*)", pairs))
+        else:  # axi4
             pairs: List[tuple] = []
             if self.has_write:
                 for base in _AXI4_AW_PORTS:

@@ -22,7 +22,11 @@ $REPO_ROOT/rtl/amba/axi4/axi4_master_rd.sv
 # GAXI skid buffers (used by wrappers and converters)
 $REPO_ROOT/rtl/amba/gaxi/gaxi_skid_buffer.sv
 
-# Width converters (for data width adaptation)
+# Width converters (for data width adaptation).
+# axi_data_{upsize,dnsize} are validated primitives used by the
+# axi4_dwidth_converter_{rd,wr} wrappers for the W/R data path.
+$REPO_ROOT/projects/components/converters/rtl/axi_data_upsize.sv
+$REPO_ROOT/projects/components/converters/rtl/axi_data_dnsize.sv
 $REPO_ROOT/projects/components/converters/rtl/axi4_dwidth_converter_rd.sv
 $REPO_ROOT/projects/components/converters/rtl/axi4_dwidth_converter_wr.sv
 

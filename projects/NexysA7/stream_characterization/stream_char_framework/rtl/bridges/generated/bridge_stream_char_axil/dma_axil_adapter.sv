@@ -70,50 +70,29 @@ module dma_axil_adapter #(
     output logic                       rid_valid,
 
     // External slave interface (AXIL)
-    output  logic [3:0]  dma_axil_awid,
-    output  logic [31:0]  dma_axil_awaddr,
-    output  logic [7:0]  dma_axil_awlen,
-    output  logic [2:0]  dma_axil_awsize,
-    output  logic [1:0]  dma_axil_awburst,
-    output  logic         dma_axil_awlock,
-    output  logic [3:0]  dma_axil_awcache,
-    output  logic [2:0]  dma_axil_awprot,
-    output  logic [3:0]  dma_axil_awqos,
-    output  logic [3:0]  dma_axil_awregion,
-    output  logic         dma_axil_awuser,
-    output  logic         dma_axil_awvalid,
-    input  logic         dma_axil_awready,
-    output  logic [31:0]  dma_axil_wdata,
-    output  logic [3:0]  dma_axil_wstrb,
-    output  logic         dma_axil_wlast,
-    output  logic         dma_axil_wuser,
-    output  logic         dma_axil_wvalid,
-    input  logic         dma_axil_wready,
-    input  logic [3:0]  dma_axil_bid,
-    input  logic [1:0]  dma_axil_bresp,
-    input  logic         dma_axil_buser,
-    input  logic         dma_axil_bvalid,
-    output  logic         dma_axil_bready,
-    output  logic [3:0]  dma_axil_arid,
-    output  logic [31:0]  dma_axil_araddr,
-    output  logic [7:0]  dma_axil_arlen,
-    output  logic [2:0]  dma_axil_arsize,
-    output  logic [1:0]  dma_axil_arburst,
-    output  logic         dma_axil_arlock,
-    output  logic [3:0]  dma_axil_arcache,
-    output  logic [2:0]  dma_axil_arprot,
-    output  logic [3:0]  dma_axil_arqos,
-    output  logic [3:0]  dma_axil_arregion,
-    output  logic         dma_axil_aruser,
-    output  logic         dma_axil_arvalid,
-    input  logic         dma_axil_arready,
-    input  logic [3:0]  dma_axil_rid,
-    input  logic [31:0]  dma_axil_rdata,
-    input  logic [1:0]  dma_axil_rresp,
-    input  logic         dma_axil_rlast,
-    input  logic         dma_axil_ruser,
-    input  logic         dma_axil_rvalid,
-    output  logic         dma_axil_rready
+    output logic [31:0] dma_axil_awaddr,
+    output logic [2:0]            dma_axil_awprot,
+    output logic                  dma_axil_awvalid,
+    input  logic                  dma_axil_awready,
+    // Write Data Channel
+    output logic [31:0] dma_axil_wdata,
+    output logic [3:0] dma_axil_wstrb,
+    output logic                  dma_axil_wvalid,
+    input  logic                  dma_axil_wready,
+    // Write Response Channel
+    input  logic [1:0]            dma_axil_bresp,
+    input  logic                  dma_axil_bvalid,
+    output logic                  dma_axil_bready,
+    // Read Address Channel
+    output logic [31:0] dma_axil_araddr,
+    output logic [2:0]            dma_axil_arprot,
+    output logic                  dma_axil_arvalid,
+    input  logic                  dma_axil_arready,
+    // Read Data Channel
+    input  logic [31:0] dma_axil_rdata,
+    input  logic [1:0]            dma_axil_rresp,
+    input  logic                  dma_axil_rvalid,
+    output logic                  dma_axil_rready
 );
 
     // ================================================================
@@ -147,6 +126,8 @@ module dma_axil_adapter #(
     // ================================================================
 
     // Write Channel FIFO (In-Order) - AXIL Protocol
+    // NOTE: Monitors converter output (converter_bvalid), not crossbar input
+    //       This ensures FIFO pops when converter actually produces response
     localparam WR_FIFO_DEPTH = 16;
     logic [BRIDGE_ID_WIDTH-1:0] wr_fifo [WR_FIFO_DEPTH];
     logic [$clog2(WR_FIFO_DEPTH):0] wr_ptr, rd_ptr;
@@ -161,11 +142,11 @@ module dma_axil_adapter #(
         end
     end
 
-    // Pop on B response (xbar_dma_axil_axi_bvalid && xbar_dma_axil_axi_bready)
+    // Pop on B response (converter_bvalid && converter_bready)
     always_ff @(posedge aclk or negedge aresetn) begin
         if (!aresetn) begin
             rd_ptr <= '0;
-        end else if (xbar_dma_axil_axi_bvalid && xbar_dma_axil_axi_bready) begin
+        end else if (converter_bvalid && converter_bready) begin
             rd_ptr <= rd_ptr + 1'b1;
         end
     end
@@ -181,6 +162,8 @@ module dma_axil_adapter #(
     assign bid_valid     = (wr_ptr != rd_ptr);
 
     // Read Channel FIFO (In-Order) - AXIL Protocol
+    // NOTE: Monitors converter output (converter_rvalid), not crossbar input
+    //       This ensures FIFO pops when converter actually produces response
     localparam RD_FIFO_DEPTH = 16;
     logic [BRIDGE_ID_WIDTH-1:0] rd_fifo [RD_FIFO_DEPTH];
     logic [$clog2(RD_FIFO_DEPTH):0] ar_ptr, r_ptr;
@@ -195,11 +178,11 @@ module dma_axil_adapter #(
         end
     end
 
-    // Pop on R response (xbar_dma_axil_axi_rvalid && xbar_dma_axil_axi_rready && xbar_dma_axil_axi_rlast)
+    // Pop on R response (converter_rvalid && converter_rready && converter_rlast)
     always_ff @(posedge aclk or negedge aresetn) begin
         if (!aresetn) begin
             r_ptr <= '0;
-        end else if (xbar_dma_axil_axi_rvalid && xbar_dma_axil_axi_rready && xbar_dma_axil_axi_rlast) begin
+        end else if (converter_rvalid && converter_rready && converter_rlast) begin
             r_ptr <= r_ptr + 1'b1;
         end
     end
@@ -214,133 +197,110 @@ module dma_axil_adapter #(
     assign rid_bridge_id = rd_fifo[r_ptr[$clog2(RD_FIFO_DEPTH)-1:0]];
     assign rid_valid     = (ar_ptr != r_ptr);
 
-    // AXI4 Master Write Timing Wrapper
-    axi4_master_wr #(
+    // AXI4-to-AXI4-Lite converter shim
+    axi4_to_axil4_wr #(
+        .AXI_ID_WIDTH(4),
+        .AXI_ADDR_WIDTH(32),
+        .AXI_DATA_WIDTH(32),
+        .AXI_USER_WIDTH(1),
         .SKID_DEPTH_AW(2),
         .SKID_DEPTH_W(4),
-        .SKID_DEPTH_B(2),
-        .AXI_ID_WIDTH(4),
-        .AXI_ADDR_WIDTH(32),
-        .AXI_DATA_WIDTH(32),
-        .AXI_USER_WIDTH(1)
-    ) u_master_wr (
+        .SKID_DEPTH_B(2)
+    ) u_dma_axil_axil_converter_wr (
+        // Clocks and resets
         .aclk(aclk),
         .aresetn(aresetn),
 
-        // Bridge-internal side (fub_axi)
-        .fub_axi_awid(xbar_dma_axil_axi_awid),
-        .fub_axi_awaddr(xbar_dma_axil_axi_awaddr),
-        .fub_axi_awlen(xbar_dma_axil_axi_awlen),
-        .fub_axi_awsize(xbar_dma_axil_axi_awsize),
-        .fub_axi_awburst(xbar_dma_axil_axi_awburst),
-        .fub_axi_awlock(xbar_dma_axil_axi_awlock),
-        .fub_axi_awcache(xbar_dma_axil_axi_awcache),
-        .fub_axi_awprot(xbar_dma_axil_axi_awprot),
-        .fub_axi_awqos(xbar_dma_axil_axi_awqos),
-        .fub_axi_awregion(xbar_dma_axil_axi_awregion),
-        .fub_axi_awuser(xbar_dma_axil_axi_awuser),
-        .fub_axi_awvalid(xbar_dma_axil_axi_awvalid),
-        .fub_axi_awready(xbar_dma_axil_axi_awready),
-        .fub_axi_wdata(xbar_dma_axil_axi_wdata),
-        .fub_axi_wstrb(xbar_dma_axil_axi_wstrb),
-        .fub_axi_wlast(xbar_dma_axil_axi_wlast),
-        .fub_axi_wuser(xbar_dma_axil_axi_wuser),
-        .fub_axi_wvalid(xbar_dma_axil_axi_wvalid),
-        .fub_axi_wready(xbar_dma_axil_axi_wready),
-        .fub_axi_bid(xbar_dma_axil_axi_bid),
-        .fub_axi_bresp(xbar_dma_axil_axi_bresp),
-        .fub_axi_buser(xbar_dma_axil_axi_buser),
-        .fub_axi_bvalid(xbar_dma_axil_axi_bvalid),
-        .fub_axi_bready(xbar_dma_axil_axi_bready),
+        // AXI4 write channels (from crossbar)
+        .s_axi_awid(xbar_dma_axil_axi_awid),
+        .s_axi_awaddr(xbar_dma_axil_axi_awaddr),
+        .s_axi_awlen(xbar_dma_axil_axi_awlen),
+        .s_axi_awsize(xbar_dma_axil_axi_awsize),
+        .s_axi_awburst(xbar_dma_axil_axi_awburst),
+        .s_axi_awlock(xbar_dma_axil_axi_awlock),
+        .s_axi_awcache(xbar_dma_axil_axi_awcache),
+        .s_axi_awprot(xbar_dma_axil_axi_awprot),
+        .s_axi_awqos(xbar_dma_axil_axi_awqos),
+        .s_axi_awregion(xbar_dma_axil_axi_awregion),
+        .s_axi_awuser(xbar_dma_axil_axi_awuser),
+        .s_axi_awvalid(xbar_dma_axil_axi_awvalid),
+        .s_axi_awready(xbar_dma_axil_axi_awready),
+        .s_axi_wdata(xbar_dma_axil_axi_wdata),
+        .s_axi_wstrb(xbar_dma_axil_axi_wstrb),
+        .s_axi_wlast(xbar_dma_axil_axi_wlast),
+        .s_axi_wuser(xbar_dma_axil_axi_wuser),
+        .s_axi_wvalid(xbar_dma_axil_axi_wvalid),
+        .s_axi_wready(xbar_dma_axil_axi_wready),
+        .s_axi_bid(xbar_dma_axil_axi_bid),
+        .s_axi_bresp(xbar_dma_axil_axi_bresp),
+        .s_axi_buser(xbar_dma_axil_axi_buser),
+        .s_axi_bvalid(converter_bvalid),
+        .s_axi_bready(converter_bready),
 
-        // External side (m_axi)
-        .m_axi_awid(dma_axil_awid),
-        .m_axi_awaddr(dma_axil_awaddr),
-        .m_axi_awlen(dma_axil_awlen),
-        .m_axi_awsize(dma_axil_awsize),
-        .m_axi_awburst(dma_axil_awburst),
-        .m_axi_awlock(dma_axil_awlock),
-        .m_axi_awcache(dma_axil_awcache),
-        .m_axi_awprot(dma_axil_awprot),
-        .m_axi_awqos(dma_axil_awqos),
-        .m_axi_awregion(dma_axil_awregion),
-        .m_axi_awuser(dma_axil_awuser),
-        .m_axi_awvalid(dma_axil_awvalid),
-        .m_axi_awready(dma_axil_awready),
-        .m_axi_wdata(dma_axil_wdata),
-        .m_axi_wstrb(dma_axil_wstrb),
-        .m_axi_wlast(dma_axil_wlast),
-        .m_axi_wuser(dma_axil_wuser),
-        .m_axi_wvalid(dma_axil_wvalid),
-        .m_axi_wready(dma_axil_wready),
-        .m_axi_bid(dma_axil_bid),
-        .m_axi_bresp(dma_axil_bresp),
-        .m_axi_buser(dma_axil_buser),
-        .m_axi_bvalid(dma_axil_bvalid),
-        .m_axi_bready(dma_axil_bready),
-
-        // Status (unconnected = clock-gating tie-off)
-        .busy()
+        // AXI4-Lite master write interface (to external slave)
+        .m_axil_awaddr(dma_axil_awaddr),
+        .m_axil_awprot(dma_axil_awprot),
+        .m_axil_awvalid(dma_axil_awvalid),
+        .m_axil_awready(dma_axil_awready),
+        .m_axil_wdata(dma_axil_wdata),
+        .m_axil_wstrb(dma_axil_wstrb),
+        .m_axil_wvalid(dma_axil_wvalid),
+        .m_axil_wready(dma_axil_wready),
+        .m_axil_bresp(dma_axil_bresp),
+        .m_axil_bvalid(dma_axil_bvalid),
+        .m_axil_bready(dma_axil_bready)
     );
 
-    // AXI4 Master Read Timing Wrapper
-    axi4_master_rd #(
+    axi4_to_axil4_rd #(
+        .AXI_ID_WIDTH(4),
+        .AXI_ADDR_WIDTH(32),
+        .AXI_DATA_WIDTH(32),
+        .AXI_USER_WIDTH(1),
         .SKID_DEPTH_AR(2),
-        .SKID_DEPTH_R(2),
-        .AXI_ID_WIDTH(4),
-        .AXI_ADDR_WIDTH(32),
-        .AXI_DATA_WIDTH(32),
-        .AXI_USER_WIDTH(1)
-    ) u_master_rd (
+        .SKID_DEPTH_R(2)
+    ) u_dma_axil_axil_converter_rd (
+        // Clocks and resets
         .aclk(aclk),
         .aresetn(aresetn),
 
-        // Bridge-internal side (fub_axi)
-        .fub_axi_arid(xbar_dma_axil_axi_arid),
-        .fub_axi_araddr(xbar_dma_axil_axi_araddr),
-        .fub_axi_arlen(xbar_dma_axil_axi_arlen),
-        .fub_axi_arsize(xbar_dma_axil_axi_arsize),
-        .fub_axi_arburst(xbar_dma_axil_axi_arburst),
-        .fub_axi_arlock(xbar_dma_axil_axi_arlock),
-        .fub_axi_arcache(xbar_dma_axil_axi_arcache),
-        .fub_axi_arprot(xbar_dma_axil_axi_arprot),
-        .fub_axi_arqos(xbar_dma_axil_axi_arqos),
-        .fub_axi_arregion(xbar_dma_axil_axi_arregion),
-        .fub_axi_aruser(xbar_dma_axil_axi_aruser),
-        .fub_axi_arvalid(xbar_dma_axil_axi_arvalid),
-        .fub_axi_arready(xbar_dma_axil_axi_arready),
-        .fub_axi_rid(xbar_dma_axil_axi_rid),
-        .fub_axi_rdata(xbar_dma_axil_axi_rdata),
-        .fub_axi_rresp(xbar_dma_axil_axi_rresp),
-        .fub_axi_rlast(xbar_dma_axil_axi_rlast),
-        .fub_axi_ruser(xbar_dma_axil_axi_ruser),
-        .fub_axi_rvalid(xbar_dma_axil_axi_rvalid),
-        .fub_axi_rready(xbar_dma_axil_axi_rready),
+        // AXI4 read channels (from crossbar)
+        .s_axi_arid(xbar_dma_axil_axi_arid),
+        .s_axi_araddr(xbar_dma_axil_axi_araddr),
+        .s_axi_arlen(xbar_dma_axil_axi_arlen),
+        .s_axi_arsize(xbar_dma_axil_axi_arsize),
+        .s_axi_arburst(xbar_dma_axil_axi_arburst),
+        .s_axi_arlock(xbar_dma_axil_axi_arlock),
+        .s_axi_arcache(xbar_dma_axil_axi_arcache),
+        .s_axi_arprot(xbar_dma_axil_axi_arprot),
+        .s_axi_arqos(xbar_dma_axil_axi_arqos),
+        .s_axi_arregion(xbar_dma_axil_axi_arregion),
+        .s_axi_aruser(xbar_dma_axil_axi_aruser),
+        .s_axi_arvalid(xbar_dma_axil_axi_arvalid),
+        .s_axi_arready(xbar_dma_axil_axi_arready),
+        .s_axi_rid(xbar_dma_axil_axi_rid),
+        .s_axi_rdata(xbar_dma_axil_axi_rdata),
+        .s_axi_rresp(xbar_dma_axil_axi_rresp),
+        .s_axi_rlast(converter_rlast),
+        .s_axi_ruser(xbar_dma_axil_axi_ruser),
+        .s_axi_rvalid(converter_rvalid),
+        .s_axi_rready(converter_rready),
 
-        // External side (m_axi)
-        .m_axi_arid(dma_axil_arid),
-        .m_axi_araddr(dma_axil_araddr),
-        .m_axi_arlen(dma_axil_arlen),
-        .m_axi_arsize(dma_axil_arsize),
-        .m_axi_arburst(dma_axil_arburst),
-        .m_axi_arlock(dma_axil_arlock),
-        .m_axi_arcache(dma_axil_arcache),
-        .m_axi_arprot(dma_axil_arprot),
-        .m_axi_arqos(dma_axil_arqos),
-        .m_axi_arregion(dma_axil_arregion),
-        .m_axi_aruser(dma_axil_aruser),
-        .m_axi_arvalid(dma_axil_arvalid),
-        .m_axi_arready(dma_axil_arready),
-        .m_axi_rid(dma_axil_rid),
-        .m_axi_rdata(dma_axil_rdata),
-        .m_axi_rresp(dma_axil_rresp),
-        .m_axi_rlast(dma_axil_rlast),
-        .m_axi_ruser(dma_axil_ruser),
-        .m_axi_rvalid(dma_axil_rvalid),
-        .m_axi_rready(dma_axil_rready),
-
-        // Status (unconnected = clock-gating tie-off)
-        .busy()
+        // AXI4-Lite master read interface (to external slave)
+        .m_axil_araddr(dma_axil_araddr),
+        .m_axil_arprot(dma_axil_arprot),
+        .m_axil_arvalid(dma_axil_arvalid),
+        .m_axil_arready(dma_axil_arready),
+        .m_axil_rdata(dma_axil_rdata),
+        .m_axil_rresp(dma_axil_rresp),
+        .m_axil_rvalid(dma_axil_rvalid),
+        .m_axil_rready(dma_axil_rready)
     );
+
+    // Wire converter outputs back to crossbar interface
+    assign xbar_dma_axil_axi_bvalid = converter_bvalid;
+    assign converter_bready = xbar_dma_axil_axi_bready;
+    assign xbar_dma_axil_axi_rvalid = converter_rvalid;
+    assign converter_rready = xbar_dma_axil_axi_rready;
+    assign xbar_dma_axil_axi_rlast = converter_rlast;
 
 endmodule : dma_axil_adapter

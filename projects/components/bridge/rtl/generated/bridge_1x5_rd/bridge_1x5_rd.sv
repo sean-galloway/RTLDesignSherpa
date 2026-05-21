@@ -130,28 +130,15 @@ module bridge_1x5_rd (
     input  logic         apb_periph_PSLVERR,
 
     // Slave 4: axil_periph
-    // AXI4 Slave: axil_periph
-    output  logic [3:0]  axil_periph_axi_arid,
-    output  logic [31:0]  axil_periph_axi_araddr,
-    output  logic [7:0]  axil_periph_axi_arlen,
-    output  logic [2:0]  axil_periph_axi_arsize,
-    output  logic [1:0]  axil_periph_axi_arburst,
-    output  logic         axil_periph_axi_arlock,
-    output  logic [3:0]  axil_periph_axi_arcache,
-    output  logic [2:0]  axil_periph_axi_arprot,
-    output  logic [3:0]  axil_periph_axi_arqos,
-    output  logic [3:0]  axil_periph_axi_arregion,
-    output  logic         axil_periph_axi_aruser,
-    output  logic         axil_periph_axi_arvalid,
-    input  logic         axil_periph_axi_arready,
-
-    input  logic [3:0]  axil_periph_axi_rid,
-    input  logic [31:0]  axil_periph_axi_rdata,
-    input  logic [1:0]  axil_periph_axi_rresp,
-    input  logic         axil_periph_axi_rlast,
-    input  logic         axil_periph_axi_ruser,
-    input  logic         axil_periph_axi_rvalid,
-    output  logic         axil_periph_axi_rready
+    // AXI4-Lite Slave: axil_periph
+    output logic [31:0] axil_periph_axi_araddr,
+    output logic [2:0]            axil_periph_axi_arprot,
+    output logic                  axil_periph_axi_arvalid,
+    input  logic                  axil_periph_axi_arready,
+    input  logic [31:0] axil_periph_axi_rdata,
+    input  logic [1:0]            axil_periph_axi_rresp,
+    input  logic                  axil_periph_axi_rvalid,
+    output logic                  axil_periph_axi_rready
 );
 
     localparam NUM_SLAVES = 5;
@@ -767,25 +754,13 @@ module bridge_1x5_rd (
         .xbar_axil_periph_axi_rvalid(xbar_axil_periph_axi_rvalid),
         .xbar_axil_periph_axi_rready(xbar_axil_periph_axi_rready),
 
-        // External AXI4 interface (axil_periph_axi_*)
-        .axil_periph_axi_arid(axil_periph_axi_arid),
+        // External AXI4-Lite interface (axil_periph_axi_*)
         .axil_periph_axi_araddr(axil_periph_axi_araddr),
-        .axil_periph_axi_arlen(axil_periph_axi_arlen),
-        .axil_periph_axi_arsize(axil_periph_axi_arsize),
-        .axil_periph_axi_arburst(axil_periph_axi_arburst),
-        .axil_periph_axi_arlock(axil_periph_axi_arlock),
-        .axil_periph_axi_arcache(axil_periph_axi_arcache),
         .axil_periph_axi_arprot(axil_periph_axi_arprot),
-        .axil_periph_axi_arqos(axil_periph_axi_arqos),
-        .axil_periph_axi_arregion(axil_periph_axi_arregion),
-        .axil_periph_axi_aruser(axil_periph_axi_aruser),
         .axil_periph_axi_arvalid(axil_periph_axi_arvalid),
         .axil_periph_axi_arready(axil_periph_axi_arready),
-        .axil_periph_axi_rid(axil_periph_axi_rid),
         .axil_periph_axi_rdata(axil_periph_axi_rdata),
         .axil_periph_axi_rresp(axil_periph_axi_rresp),
-        .axil_periph_axi_rlast(axil_periph_axi_rlast),
-        .axil_periph_axi_ruser(axil_periph_axi_ruser),
         .axil_periph_axi_rvalid(axil_periph_axi_rvalid),
         .axil_periph_axi_rready(axil_periph_axi_rready),
 

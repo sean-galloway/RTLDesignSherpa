@@ -515,7 +515,11 @@ def generate_bridge(ports_file, connectivity_file, name=None, output_dir="../rtl
         filelist_lines.append("$REPO_ROOT/rtl/amba/gaxi/gaxi_skid_buffer.sv")
 
         filelist_lines.append("")
-        filelist_lines.append("# Width converters (for data width adaptation)")
+        filelist_lines.append("# Width converters (for data width adaptation).")
+        filelist_lines.append("# axi_data_{upsize,dnsize} are validated primitives used by the")
+        filelist_lines.append("# axi4_dwidth_converter_{rd,wr} wrappers for the W/R data path.")
+        filelist_lines.append("$REPO_ROOT/projects/components/converters/rtl/axi_data_upsize.sv")
+        filelist_lines.append("$REPO_ROOT/projects/components/converters/rtl/axi_data_dnsize.sv")
         filelist_lines.append("$REPO_ROOT/projects/components/converters/rtl/axi4_dwidth_converter_rd.sv")
         filelist_lines.append("$REPO_ROOT/projects/components/converters/rtl/axi4_dwidth_converter_wr.sv")
 

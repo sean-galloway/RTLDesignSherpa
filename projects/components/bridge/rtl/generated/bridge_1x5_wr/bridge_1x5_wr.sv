@@ -150,33 +150,18 @@ module bridge_1x5_wr (
     input  logic         apb_periph_PSLVERR,
 
     // Slave 4: axil_periph
-    // AXI4 Slave: axil_periph
-    output  logic [3:0]  axil_periph_axi_awid,
-    output  logic [31:0]  axil_periph_axi_awaddr,
-    output  logic [7:0]  axil_periph_axi_awlen,
-    output  logic [2:0]  axil_periph_axi_awsize,
-    output  logic [1:0]  axil_periph_axi_awburst,
-    output  logic         axil_periph_axi_awlock,
-    output  logic [3:0]  axil_periph_axi_awcache,
-    output  logic [2:0]  axil_periph_axi_awprot,
-    output  logic [3:0]  axil_periph_axi_awqos,
-    output  logic [3:0]  axil_periph_axi_awregion,
-    output  logic         axil_periph_axi_awuser,
-    output  logic         axil_periph_axi_awvalid,
-    input  logic         axil_periph_axi_awready,
-
-    output  logic [31:0]  axil_periph_axi_wdata,
-    output  logic [3:0]  axil_periph_axi_wstrb,
-    output  logic         axil_periph_axi_wlast,
-    output  logic         axil_periph_axi_wuser,
-    output  logic         axil_periph_axi_wvalid,
-    input  logic         axil_periph_axi_wready,
-
-    input  logic [3:0]  axil_periph_axi_bid,
-    input  logic [1:0]  axil_periph_axi_bresp,
-    input  logic         axil_periph_axi_buser,
-    input  logic         axil_periph_axi_bvalid,
-    output  logic         axil_periph_axi_bready
+    // AXI4-Lite Slave: axil_periph
+    output logic [31:0] axil_periph_axi_awaddr,
+    output logic [2:0]            axil_periph_axi_awprot,
+    output logic                  axil_periph_axi_awvalid,
+    input  logic                  axil_periph_axi_awready,
+    output logic [31:0] axil_periph_axi_wdata,
+    output logic [3:0] axil_periph_axi_wstrb,
+    output logic                  axil_periph_axi_wvalid,
+    input  logic                  axil_periph_axi_wready,
+    input  logic [1:0]            axil_periph_axi_bresp,
+    input  logic                  axil_periph_axi_bvalid,
+    output logic                  axil_periph_axi_bready
 );
 
     localparam NUM_SLAVES = 5;
@@ -895,29 +880,16 @@ module bridge_1x5_wr (
         .xbar_axil_periph_axi_bvalid(xbar_axil_periph_axi_bvalid),
         .xbar_axil_periph_axi_bready(xbar_axil_periph_axi_bready),
 
-        // External AXI4 interface (axil_periph_axi_*)
-        .axil_periph_axi_awid(axil_periph_axi_awid),
+        // External AXI4-Lite interface (axil_periph_axi_*)
         .axil_periph_axi_awaddr(axil_periph_axi_awaddr),
-        .axil_periph_axi_awlen(axil_periph_axi_awlen),
-        .axil_periph_axi_awsize(axil_periph_axi_awsize),
-        .axil_periph_axi_awburst(axil_periph_axi_awburst),
-        .axil_periph_axi_awlock(axil_periph_axi_awlock),
-        .axil_periph_axi_awcache(axil_periph_axi_awcache),
         .axil_periph_axi_awprot(axil_periph_axi_awprot),
-        .axil_periph_axi_awqos(axil_periph_axi_awqos),
-        .axil_periph_axi_awregion(axil_periph_axi_awregion),
-        .axil_periph_axi_awuser(axil_periph_axi_awuser),
         .axil_periph_axi_awvalid(axil_periph_axi_awvalid),
         .axil_periph_axi_awready(axil_periph_axi_awready),
         .axil_periph_axi_wdata(axil_periph_axi_wdata),
         .axil_periph_axi_wstrb(axil_periph_axi_wstrb),
-        .axil_periph_axi_wlast(axil_periph_axi_wlast),
-        .axil_periph_axi_wuser(axil_periph_axi_wuser),
         .axil_periph_axi_wvalid(axil_periph_axi_wvalid),
         .axil_periph_axi_wready(axil_periph_axi_wready),
-        .axil_periph_axi_bid(axil_periph_axi_bid),
         .axil_periph_axi_bresp(axil_periph_axi_bresp),
-        .axil_periph_axi_buser(axil_periph_axi_buser),
         .axil_periph_axi_bvalid(axil_periph_axi_bvalid),
         .axil_periph_axi_bready(axil_periph_axi_bready),
 

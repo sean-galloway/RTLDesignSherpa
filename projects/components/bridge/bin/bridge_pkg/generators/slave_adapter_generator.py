@@ -94,14 +94,14 @@ class SlaveAdapterGenerator:
         elif self.slave.protocol == 'apb':
             lines.extend(self._generate_apb_converter())
         elif self.slave.protocol == 'axil':
-            # The bridge top exposes full AXI4 signals for AXIL slaves
-            # and the existing TB BFMs drive them as full AXI4 with the
-            # `<prefix>_axi_` style. Treat AXIL slaves as AXI4 inside
-            # the adapter (no real Lite conversion) so the external
-            # interface matches what the tests and the bridge top
-            # actually declare; the AXIL designation remains a
-            # documentation tag for the slave's intent.
-            lines.extend(self._generate_axi4_timing_wrapper())
+            # Real AXI4-to-AXI4-Lite conversion at the slave boundary.
+            # The crossbar carries full AXI4; only when the packet is
+            # about to land on an AXIL slave do we shim it through
+            # axi4_to_axil4_{rd,wr} (which lives in projects/components
+            # /converters/rtl/). This matches the user's architectural
+            # intent: one AXI4 fabric, protocol-specific shims at the
+            # last mile.
+            lines.extend(self._generate_axil_converter())
 
         # Module end
         lines.append(f"endmodule : {self.slave.name}_adapter")
@@ -266,9 +266,10 @@ class SlaveAdapterGenerator:
         elif self.slave.protocol == 'apb':
             lines.extend(self._generate_apb_external_ports())
         elif self.slave.protocol == 'axil':
-            # See _generate_axil_converter: AXIL slaves expose full AXI4
-            # externally; the conversion is a no-op for now.
-            lines.extend(self._generate_axi4_external_ports())
+            # Real AXI4-Lite external ports (no id/len/size/burst/last/user).
+            # See _generate_axil_converter for the shim that converts
+            # the crossbar-side AXI4 into AXI4-Lite at this boundary.
+            lines.extend(self._generate_axil_external_ports())
 
         return lines
 
@@ -533,23 +534,22 @@ class SlaveAdapterGenerator:
         lines = []
 
         # Determine pop monitoring point based on protocol.
-        # AXIL now uses the AXI4 timing wrapper (see
-        # _generate_axil_converter), so it monitors the crossbar side
-        # like AXI4. Monitoring the external side broke the response
-        # path: the wrapper's skid buffer delays B by a cycle, so the
-        # FIFO popped before the xbar saw bvalid and bid_valid dropped
-        # to 0 while the response was still in flight.
-        if self.slave.protocol == 'apb':
-            # APB converter generates internal bvalid when PREADY asserts
-            # We need to monitor the converter's AXI4 output, not external APB
-            pop_condition = f"converter_bvalid && converter_bready"
-            lines.append("    // Write Channel FIFO (In-Order) - APB Protocol")
+        #   axi4: response comes back from the timing wrapper directly,
+        #         so monitor the crossbar-facing handshake.
+        #   apb / axil: the shim has its own latency between the xbar
+        #         and the external slave; we hand `converter_bvalid` /
+        #         `converter_bready` off the shim's AXI4 (s_axi) side
+        #         so the FIFO pops the moment the shim actually
+        #         produces a response, not when external completes.
+        if self.slave.protocol in ('apb', 'axil'):
+            label = self.slave.protocol.upper()
+            pop_condition = "converter_bvalid && converter_bready"
+            lines.append(f"    // Write Channel FIFO (In-Order) - {label} Protocol")
             lines.append("    // NOTE: Monitors converter output (converter_bvalid), not crossbar input")
             lines.append("    //       This ensures FIFO pops when converter actually produces response")
-        else:  # axi4 or axil (axil-as-axi4)
+        else:  # axi4
             pop_condition = f"{crossbar_prefix}bvalid && {crossbar_prefix}bready"
-            label = "AXIL" if self.slave.protocol == 'axil' else "AXI4"
-            lines.append(f"    // Write Channel FIFO (In-Order) - {label} Protocol")
+            lines.append("    // Write Channel FIFO (In-Order) - AXI4 Protocol")
 
         lines.append("    localparam WR_FIFO_DEPTH = 16;")
         lines.append("    logic [BRIDGE_ID_WIDTH-1:0] wr_fifo [WR_FIFO_DEPTH];")
@@ -626,21 +626,20 @@ class SlaveAdapterGenerator:
         """Generate FIFO-based read tracking."""
         lines = []
 
-        # Determine pop monitoring point based on protocol.
-        # AXIL uses the AXI4 timing wrapper (see
-        # _generate_axil_converter), so it monitors the crossbar side
-        # like AXI4 -- same reasoning as the write FIFO above.
-        if self.slave.protocol == 'apb':
-            # APB converter generates internal rvalid when PREADY asserts
-            # We need to monitor the converter's AXI4 output, not external APB
-            pop_condition = f"converter_rvalid && converter_rready && converter_rlast"
-            lines.append("    // Read Channel FIFO (In-Order) - APB Protocol")
+        # Determine pop monitoring point based on protocol -- same
+        # reasoning as the write FIFO. APB and AXIL slaves go through
+        # shims with their own latency; tracking the shim's AXI4
+        # (s_axi) output via converter_rvalid keeps the FIFO in
+        # lockstep with the actual response.
+        if self.slave.protocol in ('apb', 'axil'):
+            label = self.slave.protocol.upper()
+            pop_condition = "converter_rvalid && converter_rready && converter_rlast"
+            lines.append(f"    // Read Channel FIFO (In-Order) - {label} Protocol")
             lines.append("    // NOTE: Monitors converter output (converter_rvalid), not crossbar input")
             lines.append("    //       This ensures FIFO pops when converter actually produces response")
-        else:  # axi4 or axil (axil-as-axi4)
+        else:  # axi4
             pop_condition = f"{crossbar_prefix}rvalid && {crossbar_prefix}rready && {crossbar_prefix}rlast"
-            label = "AXIL" if self.slave.protocol == 'axil' else "AXI4"
-            lines.append(f"    // Read Channel FIFO (In-Order) - {label} Protocol")
+            lines.append("    // Read Channel FIFO (In-Order) - AXI4 Protocol")
 
         lines.append("    localparam RD_FIFO_DEPTH = 16;")
         lines.append("    logic [BRIDGE_ID_WIDTH-1:0] rd_fifo [RD_FIFO_DEPTH];")
@@ -795,136 +794,70 @@ class SlaveAdapterGenerator:
         return lines
 
     def _generate_axil_converter(self) -> List[str]:
-        """Generate AXI4-to-AXI4-Lite converter instantiation."""
-        lines = []
+        """Generate AXI4-to-AXI4-Lite converter instantiation(s) via the
+        typed Axi4ToAxilShim component.
 
-        # Crossbar interface prefix
+        Routes B / R responses through `converter_*` intercept signals
+        so the bridge_id-tracking FIFO can monitor the shim's s_axi
+        response side (rather than the crossbar-facing path, which is
+        delayed by skid buffers inside the shim). Mirrors the APB shim
+        wiring at _generate_apb_converter so the FIFO pop logic stays
+        protocol-agnostic.
+        """
+        from ..components.axi4_to_axil_shim_component import Axi4ToAxilShim
+
         crossbar_prefix = f"xbar_{self.slave.name}_axi_"
 
-        lines.append("    // AXI4-to-AXI4-Lite converter")
+        shim = Axi4ToAxilShim(
+            instance_base=f"u_{self.slave.name}_axil_converter",
+            id_width=self.id_width,
+            addr_width=self.slave.addr_width,
+            data_width=self.slave.data_width,
+            has_write=self.has_write,
+            has_read=self.has_read,
+            skid_depth_aw=self.skid_depth_aw,
+            skid_depth_w=self.skid_depth_w,
+            skid_depth_b=self.skid_depth_b,
+            skid_depth_ar=self.skid_depth_ar,
+            skid_depth_r=self.skid_depth_r,
+        )
+        shim.connect_clocks_and_resets()
 
-        # Determine which converter to use based on channels
-        if self.channels == "rd":
-            lines.append("    axi4_to_axil4_rd #(")
-        elif self.channels == "wr":
-            lines.append("    axi4_to_axil4_wr #(")
-        else:  # rw - would need both converters or a combined one
-            lines.append("    // TODO: Read-write AXI4-Lite conversion requires both converters")
-            return lines
-
-        lines.append(f"        .AXI_ID_WIDTH     ({self.id_width}),")
-        lines.append(f"        .AXI_ADDR_WIDTH   ({self.slave.addr_width}),")
-        # AXI side carries the slave's native width -- master adapter
-        # converted before the xbar.
-        lines.append(f"        .AXI_DATA_WIDTH   ({self.slave.data_width}),")
-        lines.append("        .AXI_USER_WIDTH   (1),")
-        lines.append("        .SKID_DEPTH_AR    (2),")
-        lines.append("        .SKID_DEPTH_R     (4)")
-        lines.append(f"    ) u_{self.slave.name}_axil_converter (")
-        lines.append("        .aclk             (aclk),")
-        lines.append("        .aresetn          (aresetn),")
-        lines.append("")
-
-        # AXI4 slave interface (from crossbar) - connect or tie off channels
         if self.has_write:
-            # Write channels for write converter
-            lines.append("        // AXI4 write address channel (from crossbar)")
-            lines.append(f"        .s_axi_awid       ({crossbar_prefix}awid),")
-            lines.append(f"        .s_axi_awaddr     ({crossbar_prefix}awaddr),")
-            lines.append(f"        .s_axi_awlen      ({crossbar_prefix}awlen),")
-            lines.append(f"        .s_axi_awsize     ({crossbar_prefix}awsize),")
-            lines.append(f"        .s_axi_awburst    ({crossbar_prefix}awburst),")
-            lines.append(f"        .s_axi_awlock     ({crossbar_prefix}awlock),")
-            lines.append(f"        .s_axi_awcache    ({crossbar_prefix}awcache),")
-            lines.append(f"        .s_axi_awprot     ({crossbar_prefix}awprot),")
-            lines.append(f"        .s_axi_awqos      ({crossbar_prefix}awqos),")
-            lines.append(f"        .s_axi_awregion   ({crossbar_prefix}awregion),")
-            lines.append(f"        .s_axi_awuser     ({crossbar_prefix}awuser),")
-            lines.append(f"        .s_axi_awvalid    ({crossbar_prefix}awvalid),")
-            lines.append(f"        .s_axi_awready    ({crossbar_prefix}awready),")
-            lines.append("")
-            lines.append("        // AXI4 write data channel")
-            lines.append(f"        .s_axi_wdata      ({crossbar_prefix}wdata),")
-            lines.append(f"        .s_axi_wstrb      ({crossbar_prefix}wstrb),")
-            lines.append(f"        .s_axi_wlast      ({crossbar_prefix}wlast),")
-            lines.append(f"        .s_axi_wuser      ({crossbar_prefix}wuser),")
-            lines.append(f"        .s_axi_wvalid     ({crossbar_prefix}wvalid),")
-            lines.append(f"        .s_axi_wready     ({crossbar_prefix}wready),")
-            lines.append("")
-            lines.append("        // AXI4 write response channel")
-            lines.append(f"        .s_axi_bid        ({crossbar_prefix}bid),")
-            lines.append(f"        .s_axi_bresp      ({crossbar_prefix}bresp),")
-            lines.append(f"        .s_axi_buser      ({crossbar_prefix}buser),")
-            lines.append(f"        .s_axi_bvalid     ({crossbar_prefix}bvalid),")
-            lines.append(f"        .s_axi_bready     ({crossbar_prefix}bready),")
-            lines.append("")
+            shim.connect_axi_write_channel(
+                crossbar_prefix=crossbar_prefix,
+                bvalid_intercept='converter_bvalid',
+                bready_intercept='converter_bready',
+            )
 
         if self.has_read:
-            # Read channels for read converter
-            lines.append("        // AXI4 read address channel (from crossbar)")
-            lines.append(f"        .s_axi_arid       ({crossbar_prefix}arid),")
-            lines.append(f"        .s_axi_araddr     ({crossbar_prefix}araddr),")
-            lines.append(f"        .s_axi_arlen      ({crossbar_prefix}arlen),")
-            lines.append(f"        .s_axi_arsize     ({crossbar_prefix}arsize),")
-            lines.append(f"        .s_axi_arburst    ({crossbar_prefix}arburst),")
-            lines.append(f"        .s_axi_arlock     ({crossbar_prefix}arlock),")
-            lines.append(f"        .s_axi_arcache    ({crossbar_prefix}arcache),")
-            lines.append(f"        .s_axi_arprot     ({crossbar_prefix}arprot),")
-            lines.append(f"        .s_axi_arqos      ({crossbar_prefix}arqos),")
-            lines.append(f"        .s_axi_arregion   ({crossbar_prefix}arregion),")
-            lines.append(f"        .s_axi_aruser     ({crossbar_prefix}aruser),")
-            lines.append(f"        .s_axi_arvalid    ({crossbar_prefix}arvalid),")
-            lines.append(f"        .s_axi_arready    ({crossbar_prefix}arready),")
-            lines.append("")
-            lines.append("        // AXI4 read data channel")
-            lines.append(f"        .s_axi_rid        ({crossbar_prefix}rid),")
-            lines.append(f"        .s_axi_rdata      ({crossbar_prefix}rdata),")
-            lines.append(f"        .s_axi_rresp      ({crossbar_prefix}rresp),")
-            lines.append(f"        .s_axi_rlast      ({crossbar_prefix}rlast),")
-            lines.append(f"        .s_axi_ruser      ({crossbar_prefix}ruser),")
-            lines.append(f"        .s_axi_rvalid     ({crossbar_prefix}rvalid),")
-            lines.append(f"        .s_axi_rready     ({crossbar_prefix}rready),")
-            lines.append("")
+            shim.connect_axi_read_channel(
+                crossbar_prefix=crossbar_prefix,
+                rvalid_intercept='converter_rvalid',
+                rready_intercept='converter_rready',
+                rlast_intercept='converter_rlast',
+            )
 
-        # AXI4-Lite master interface (to external slave) - use external prefix
+        shim.connect_axil_master(prefix=self.slave.prefix)
+
+        lines: List[str] = ["    // AXI4-to-AXI4-Lite converter shim"]
+        lines.extend(shim.generate_lines())
+
+        # Wire the intercept signals (converter_*) back to the crossbar
+        # interface. The shim's s_axi_bvalid/bready/rvalid/rready/rlast
+        # go to the converter_* nets so the bridge_id-tracking FIFO can
+        # monitor them; we still need the crossbar to see those, so we
+        # assign them back here. Mirrors the APB pattern.
+        lines.append("    // Wire converter outputs back to crossbar interface")
         if self.has_write:
-            lines.append("        // AXI4-Lite write address channel (to external slave)")
-            lines.append(f"        .m_axil_awaddr    ({self.slave.prefix}awaddr),")
-            lines.append(f"        .m_axil_awprot    ({self.slave.prefix}awprot),")
-            lines.append(f"        .m_axil_awvalid   ({self.slave.prefix}awvalid),")
-            lines.append(f"        .m_axil_awready   ({self.slave.prefix}awready),")
-            lines.append("")
-            lines.append("        // AXI4-Lite write data channel")
-            lines.append(f"        .m_axil_wdata     ({self.slave.prefix}wdata),")
-            lines.append(f"        .m_axil_wstrb     ({self.slave.prefix}wstrb),")
-            lines.append(f"        .m_axil_wvalid    ({self.slave.prefix}wvalid),")
-            lines.append(f"        .m_axil_wready    ({self.slave.prefix}wready),")
-            lines.append("")
-            lines.append("        // AXI4-Lite write response channel")
-            lines.append(f"        .m_axil_bresp     ({self.slave.prefix}bresp),")
-            lines.append(f"        .m_axil_bvalid    ({self.slave.prefix}bvalid),")
-            # Comma only if there are read channels following
-            if self.has_read:
-                lines.append(f"        .m_axil_bready    ({self.slave.prefix}bready),")
-            else:
-                lines.append(f"        .m_axil_bready    ({self.slave.prefix}bready)")
-            lines.append("")
-
+            lines.append(f"    assign {crossbar_prefix}bvalid = converter_bvalid;")
+            lines.append(f"    assign converter_bready = {crossbar_prefix}bready;")
         if self.has_read:
-            lines.append("        // AXI4-Lite read address channel (to external slave)")
-            lines.append(f"        .m_axil_araddr    ({self.slave.prefix}araddr),")
-            lines.append(f"        .m_axil_arprot    ({self.slave.prefix}arprot),")
-            lines.append(f"        .m_axil_arvalid   ({self.slave.prefix}arvalid),")
-            lines.append(f"        .m_axil_arready   ({self.slave.prefix}arready),")
-            lines.append("")
-            lines.append("        // AXI4-Lite read data channel")
-            lines.append(f"        .m_axil_rdata     ({self.slave.prefix}rdata),")
-            lines.append(f"        .m_axil_rresp     ({self.slave.prefix}rresp),")
-            lines.append(f"        .m_axil_rvalid    ({self.slave.prefix}rvalid),")
-            lines.append(f"        .m_axil_rready    ({self.slave.prefix}rready)")
-
-        lines.append("    );")
+            lines.append(f"    assign {crossbar_prefix}rvalid = converter_rvalid;")
+            lines.append(f"    assign converter_rready = {crossbar_prefix}rready;")
+            lines.append(f"    assign {crossbar_prefix}rlast = converter_rlast;")
         lines.append("")
+
         return lines
 
 

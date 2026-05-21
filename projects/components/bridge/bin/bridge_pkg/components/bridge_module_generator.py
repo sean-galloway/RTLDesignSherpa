@@ -423,6 +423,50 @@ class BridgeModuleGenerator:
             if lines and lines[-1].endswith(','):
                 lines[-1] = lines[-1][:-1]
 
+        elif slave.protocol == 'axil':
+            # AXI4-Lite slave ports. The crossbar carries full AXI4 across
+            # the fabric, and the per-slave adapter shims AXI4 → AXIL at
+            # the slave boundary (see SlaveAdapterGenerator
+            # ._generate_axil_external_ports). So the bridge top must
+            # expose only AXIL signals here — no id/len/burst/etc.
+            lines.append(f"    // AXI4-Lite Slave: {slave.name}")
+
+            connecting_masters = self._get_masters_connecting_to_slave(slave)
+            has_write = any(m.channels in ["wr", "rw"] for m in connecting_masters)
+            has_read = any(m.channels in ["rd", "rw"] for m in connecting_masters)
+
+            addr_w = slave.addr_width
+            data_w = slave.data_width
+            strb_w = data_w // 8
+            pfx = slave.prefix
+
+            if has_write:
+                lines.append(f"    output logic [{addr_w-1}:0] {pfx}awaddr,")
+                lines.append(f"    output logic [2:0]            {pfx}awprot,")
+                lines.append(f"    output logic                  {pfx}awvalid,")
+                lines.append(f"    input  logic                  {pfx}awready,")
+                lines.append(f"    output logic [{data_w-1}:0] {pfx}wdata,")
+                lines.append(f"    output logic [{strb_w-1}:0] {pfx}wstrb,")
+                lines.append(f"    output logic                  {pfx}wvalid,")
+                lines.append(f"    input  logic                  {pfx}wready,")
+                lines.append(f"    input  logic [1:0]            {pfx}bresp,")
+                lines.append(f"    input  logic                  {pfx}bvalid,")
+                lines.append(f"    output logic                  {pfx}bready,")
+            if has_read:
+                lines.append(f"    output logic [{addr_w-1}:0] {pfx}araddr,")
+                lines.append(f"    output logic [2:0]            {pfx}arprot,")
+                lines.append(f"    output logic                  {pfx}arvalid,")
+                lines.append(f"    input  logic                  {pfx}arready,")
+                lines.append(f"    input  logic [{data_w-1}:0] {pfx}rdata,")
+                lines.append(f"    input  logic [1:0]            {pfx}rresp,")
+                lines.append(f"    input  logic                  {pfx}rvalid,")
+                lines.append(f"    output logic                  {pfx}rready,")
+
+            # Drop trailing comma so the caller can splice the slave
+            # ports between other port blocks.
+            if lines and lines[-1].endswith(','):
+                lines[-1] = lines[-1][:-1]
+
         else:
             # AXI4 slave ports - use SignalNaming for complete signal information
             lines.append(f"    // AXI4 Slave: {slave.name}")
