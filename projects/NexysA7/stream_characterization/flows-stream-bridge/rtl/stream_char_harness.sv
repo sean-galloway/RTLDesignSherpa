@@ -6,8 +6,9 @@
 //
 // Instantiates:
 //   - uart_axil_bridge                (host interface)
-//   - bridge_stream_char_axil         (1->6 generated bridge w/ APB+AXIL slaves)
-//   - axi4_to_axil4_{wr,rd} x4        (shims between bridge AXI4 and AXIL slaves)
+//   - bridge_stream_char_axil         (1->6 generated bridge w/ APB+AXIL slaves;
+//                                      handles every port natively — no
+//                                      external converter glue needed)
 //   - harness_csr                     (control/status)
 //   - desc_ram                        (descriptor storage)
 //   - debug_sram                      (MonBus trace capture)
@@ -150,16 +151,19 @@ module stream_char_harness #(
     //                                              in flows-stream-bridge;
     //                                              tied off below)
     //
-    // Bridge implementation note: the generator emits FULL AXI4 on every
-    // slave port (even the ones we asked for as protocol="axil"). We keep
-    // the harness's downstream slaves on AXIL and put axi4_to_axil4_rd/wr
-    // shims between the bridge and each AXIL slave. APB is emitted natively
-    // and goes straight to the STREAM APB ports.
+    // Bridge implementation note: the generator emits native AXIL on
+    // every slave port marked protocol="axil" — the AXI4-to-AXIL shim
+    // lives inside each generated slave adapter, so the harness wires
+    // AXIL signals directly from the bridge's <slave>_axi_* ports to
+    // the AXIL slaves. APB is also emitted natively and goes straight
+    // to the STREAM APB ports.
     //
-    // The host port is also full AXI4. We drive the AXI4-only fields
-    // (awid/awlen/awsize/awburst/awcache/awqos/awregion/awuser, plus the
-    // r-side equivalents) from constants matching AXIL semantics: id=0,
-    // single beat (len=0), 4-byte size (size=2), INCR burst (burst=01).
+    // The host port is full AXI4 (the bridge crossbar is AXI4-internal
+    // and that's where the master plugs in). We drive the AXI4-only
+    // fields (awid/awlen/awsize/awburst/awcache/awqos/awregion/awuser
+    // plus the r-side equivalents) from constants matching AXIL
+    // semantics: id=0, single beat (len=0), 4-byte size (size=2), INCR
+    // burst (burst=01).
     // =========================================================================
 
     // ---- Host-side AXI4 wires (bridge expects AXI4; we have AXIL) ----------
@@ -212,110 +216,15 @@ module stream_char_harness #(
     logic                          apb_pready, apb_pslverr;
     assign apb_paddr = stream_apb_PADDR_full[APB_ADDR_WIDTH-1:0];
 
-    // ---- AXI4 wires between bridge and the four shimmed AXIL slaves --------
-    // bridge -> harness_csr (full AXI4 -> shim -> AXIL)
-    logic [3:0]  b2csr_awid;     logic [31:0] b2csr_awaddr;
-    logic [7:0]  b2csr_awlen;    logic [2:0]  b2csr_awsize;
-    logic [1:0]  b2csr_awburst;  logic        b2csr_awlock;
-    logic [3:0]  b2csr_awcache;  logic [2:0]  b2csr_awprot;
-    logic [3:0]  b2csr_awqos;    logic [3:0]  b2csr_awregion;
-    logic        b2csr_awuser;   logic        b2csr_awvalid;
-    logic        b2csr_awready;
-    logic [31:0] b2csr_wdata;    logic [3:0]  b2csr_wstrb;
-    logic        b2csr_wlast;    logic        b2csr_wuser;
-    logic        b2csr_wvalid;   logic        b2csr_wready;
-    logic [3:0]  b2csr_bid;      logic [1:0]  b2csr_bresp;
-    logic        b2csr_buser;    logic        b2csr_bvalid;
-    logic        b2csr_bready;
-    logic [3:0]  b2csr_arid;     logic [31:0] b2csr_araddr;
-    logic [7:0]  b2csr_arlen;    logic [2:0]  b2csr_arsize;
-    logic [1:0]  b2csr_arburst;  logic        b2csr_arlock;
-    logic [3:0]  b2csr_arcache;  logic [2:0]  b2csr_arprot;
-    logic [3:0]  b2csr_arqos;    logic [3:0]  b2csr_arregion;
-    logic        b2csr_aruser;   logic        b2csr_arvalid;
-    logic        b2csr_arready;
-    logic [3:0]  b2csr_rid;      logic [31:0] b2csr_rdata;
-    logic [1:0]  b2csr_rresp;    logic        b2csr_rlast;
-    logic        b2csr_ruser;    logic        b2csr_rvalid;
-    logic        b2csr_rready;
-
-    // bridge -> desc_ram
-    logic [3:0]  b2desc_awid;    logic [31:0] b2desc_awaddr;
-    logic [7:0]  b2desc_awlen;   logic [2:0]  b2desc_awsize;
-    logic [1:0]  b2desc_awburst; logic        b2desc_awlock;
-    logic [3:0]  b2desc_awcache; logic [2:0]  b2desc_awprot;
-    logic [3:0]  b2desc_awqos;   logic [3:0]  b2desc_awregion;
-    logic        b2desc_awuser;  logic        b2desc_awvalid;
-    logic        b2desc_awready;
-    logic [31:0] b2desc_wdata;   logic [3:0]  b2desc_wstrb;
-    logic        b2desc_wlast;   logic        b2desc_wuser;
-    logic        b2desc_wvalid;  logic        b2desc_wready;
-    logic [3:0]  b2desc_bid;     logic [1:0]  b2desc_bresp;
-    logic        b2desc_buser;   logic        b2desc_bvalid;
-    logic        b2desc_bready;
-    logic [3:0]  b2desc_arid;    logic [31:0] b2desc_araddr;
-    logic [7:0]  b2desc_arlen;   logic [2:0]  b2desc_arsize;
-    logic [1:0]  b2desc_arburst; logic        b2desc_arlock;
-    logic [3:0]  b2desc_arcache; logic [2:0]  b2desc_arprot;
-    logic [3:0]  b2desc_arqos;   logic [3:0]  b2desc_arregion;
-    logic        b2desc_aruser;  logic        b2desc_arvalid;
-    logic        b2desc_arready;
-    logic [3:0]  b2desc_rid;     logic [31:0] b2desc_rdata;
-    logic [1:0]  b2desc_rresp;   logic        b2desc_rlast;
-    logic        b2desc_ruser;   logic        b2desc_rvalid;
-    logic        b2desc_rready;
-
-    // bridge -> stream_err
-    logic [3:0]  b2err_awid;     logic [31:0] b2err_awaddr;
-    logic [7:0]  b2err_awlen;    logic [2:0]  b2err_awsize;
-    logic [1:0]  b2err_awburst;  logic        b2err_awlock;
-    logic [3:0]  b2err_awcache;  logic [2:0]  b2err_awprot;
-    logic [3:0]  b2err_awqos;    logic [3:0]  b2err_awregion;
-    logic        b2err_awuser;   logic        b2err_awvalid;
-    logic        b2err_awready;
-    logic [31:0] b2err_wdata;    logic [3:0]  b2err_wstrb;
-    logic        b2err_wlast;    logic        b2err_wuser;
-    logic        b2err_wvalid;   logic        b2err_wready;
-    logic [3:0]  b2err_bid;      logic [1:0]  b2err_bresp;
-    logic        b2err_buser;    logic        b2err_bvalid;
-    logic        b2err_bready;
-    logic [3:0]  b2err_arid;     logic [31:0] b2err_araddr;
-    logic [7:0]  b2err_arlen;    logic [2:0]  b2err_arsize;
-    logic [1:0]  b2err_arburst;  logic        b2err_arlock;
-    logic [3:0]  b2err_arcache;  logic [2:0]  b2err_arprot;
-    logic [3:0]  b2err_arqos;    logic [3:0]  b2err_arregion;
-    logic        b2err_aruser;   logic        b2err_arvalid;
-    logic        b2err_arready;
-    logic [3:0]  b2err_rid;      logic [31:0] b2err_rdata;
-    logic [1:0]  b2err_rresp;    logic        b2err_rlast;
-    logic        b2err_ruser;    logic        b2err_rvalid;
-    logic        b2err_rready;
-
-    // bridge -> debug_sram
-    logic [3:0]  b2dbg_awid;     logic [31:0] b2dbg_awaddr;
-    logic [7:0]  b2dbg_awlen;    logic [2:0]  b2dbg_awsize;
-    logic [1:0]  b2dbg_awburst;  logic        b2dbg_awlock;
-    logic [3:0]  b2dbg_awcache;  logic [2:0]  b2dbg_awprot;
-    logic [3:0]  b2dbg_awqos;    logic [3:0]  b2dbg_awregion;
-    logic        b2dbg_awuser;   logic        b2dbg_awvalid;
-    logic        b2dbg_awready;
-    logic [31:0] b2dbg_wdata;    logic [3:0]  b2dbg_wstrb;
-    logic        b2dbg_wlast;    logic        b2dbg_wuser;
-    logic        b2dbg_wvalid;   logic        b2dbg_wready;
-    logic [3:0]  b2dbg_bid;      logic [1:0]  b2dbg_bresp;
-    logic        b2dbg_buser;    logic        b2dbg_bvalid;
-    logic        b2dbg_bready;
-    logic [3:0]  b2dbg_arid;     logic [31:0] b2dbg_araddr;
-    logic [7:0]  b2dbg_arlen;    logic [2:0]  b2dbg_arsize;
-    logic [1:0]  b2dbg_arburst;  logic        b2dbg_arlock;
-    logic [3:0]  b2dbg_arcache;  logic [2:0]  b2dbg_arprot;
-    logic [3:0]  b2dbg_arqos;    logic [3:0]  b2dbg_arregion;
-    logic        b2dbg_aruser;   logic        b2dbg_arvalid;
-    logic        b2dbg_arready;
-    logic [3:0]  b2dbg_rid;      logic [31:0] b2dbg_rdata;
-    logic [1:0]  b2dbg_rresp;    logic        b2dbg_rlast;
-    logic        b2dbg_ruser;    logic        b2dbg_rvalid;
-    logic        b2dbg_rready;
+    // The previous incarnation of this harness declared b2csr_/b2desc_/
+    // b2err_/b2dbg_ AXI4 intermediate wires and instantiated four
+    // axi4_to_axil4_{wr,rd} shim pairs between the bridge and each AXIL
+    // slave. That was a workaround for an earlier bridge generator that
+    // emitted full AXI4 on every slave port regardless of the toml's
+    // protocol field. The generator now produces native AXIL ports for
+    // AXIL slaves, so the external shims are gone and the bridge's
+    // AXIL signals wire straight to s1_*/s2_*/s3_*/s4_*. One bridge
+    // handles every port — no external converter glue.
 
     // ---- Bridge instance ---------------------------------------------------
     bridge_stream_char_axil u_bridge (
@@ -384,422 +293,113 @@ module stream_char_harness #(
         .stream_apb_PREADY  (apb_pready),
         .stream_apb_PSLVERR (apb_pslverr),
 
-        // Slave 1: harness_csr (AXI4 -> AXIL shim wires named b2csr)
-        .harness_csr_axi_awid     (b2csr_awid),
-        .harness_csr_axi_awaddr   (b2csr_awaddr),
-        .harness_csr_axi_awlen    (b2csr_awlen),
-        .harness_csr_axi_awsize   (b2csr_awsize),
-        .harness_csr_axi_awburst  (b2csr_awburst),
-        .harness_csr_axi_awlock   (b2csr_awlock),
-        .harness_csr_axi_awcache  (b2csr_awcache),
-        .harness_csr_axi_awprot   (b2csr_awprot),
-        .harness_csr_axi_awqos    (b2csr_awqos),
-        .harness_csr_axi_awregion (b2csr_awregion),
-        .harness_csr_axi_awuser   (b2csr_awuser),
-        .harness_csr_axi_awvalid  (b2csr_awvalid),
-        .harness_csr_axi_awready  (b2csr_awready),
-        .harness_csr_axi_wdata    (b2csr_wdata),
-        .harness_csr_axi_wstrb    (b2csr_wstrb),
-        .harness_csr_axi_wlast    (b2csr_wlast),
-        .harness_csr_axi_wuser    (b2csr_wuser),
-        .harness_csr_axi_wvalid   (b2csr_wvalid),
-        .harness_csr_axi_wready   (b2csr_wready),
-        .harness_csr_axi_bid      (b2csr_bid),
-        .harness_csr_axi_bresp    (b2csr_bresp),
-        .harness_csr_axi_buser    (b2csr_buser),
-        .harness_csr_axi_bvalid   (b2csr_bvalid),
-        .harness_csr_axi_bready   (b2csr_bready),
-        .harness_csr_axi_arid     (b2csr_arid),
-        .harness_csr_axi_araddr   (b2csr_araddr),
-        .harness_csr_axi_arlen    (b2csr_arlen),
-        .harness_csr_axi_arsize   (b2csr_arsize),
-        .harness_csr_axi_arburst  (b2csr_arburst),
-        .harness_csr_axi_arlock   (b2csr_arlock),
-        .harness_csr_axi_arcache  (b2csr_arcache),
-        .harness_csr_axi_arprot   (b2csr_arprot),
-        .harness_csr_axi_arqos    (b2csr_arqos),
-        .harness_csr_axi_arregion (b2csr_arregion),
-        .harness_csr_axi_aruser   (b2csr_aruser),
-        .harness_csr_axi_arvalid  (b2csr_arvalid),
-        .harness_csr_axi_arready  (b2csr_arready),
-        .harness_csr_axi_rid      (b2csr_rid),
-        .harness_csr_axi_rdata    (b2csr_rdata),
-        .harness_csr_axi_rresp    (b2csr_rresp),
-        .harness_csr_axi_rlast    (b2csr_rlast),
-        .harness_csr_axi_ruser    (b2csr_ruser),
-        .harness_csr_axi_rvalid   (b2csr_rvalid),
-        .harness_csr_axi_rready   (b2csr_rready),
+        // Slave 1: harness_csr (native AXIL — wired directly to s1_*)
+        .harness_csr_axi_awaddr   (s1_awaddr),
+        .harness_csr_axi_awprot   (s1_awprot),
+        .harness_csr_axi_awvalid  (s1_awvalid),
+        .harness_csr_axi_awready  (s1_awready),
+        .harness_csr_axi_wdata    (s1_wdata),
+        .harness_csr_axi_wstrb    (s1_wstrb),
+        .harness_csr_axi_wvalid   (s1_wvalid),
+        .harness_csr_axi_wready   (s1_wready),
+        .harness_csr_axi_bresp    (s1_bresp),
+        .harness_csr_axi_bvalid   (s1_bvalid),
+        .harness_csr_axi_bready   (s1_bready),
+        .harness_csr_axi_araddr   (s1_araddr),
+        .harness_csr_axi_arprot   (s1_arprot),
+        .harness_csr_axi_arvalid  (s1_arvalid),
+        .harness_csr_axi_arready  (s1_arready),
+        .harness_csr_axi_rdata    (s1_rdata),
+        .harness_csr_axi_rresp    (s1_rresp),
+        .harness_csr_axi_rvalid   (s1_rvalid),
+        .harness_csr_axi_rready   (s1_rready),
 
-        // Slave 2: desc_ram (AXI4 -> AXIL shim wires named b2desc)
-        .desc_ram_axi_awid     (b2desc_awid),
-        .desc_ram_axi_awaddr   (b2desc_awaddr),
-        .desc_ram_axi_awlen    (b2desc_awlen),
-        .desc_ram_axi_awsize   (b2desc_awsize),
-        .desc_ram_axi_awburst  (b2desc_awburst),
-        .desc_ram_axi_awlock   (b2desc_awlock),
-        .desc_ram_axi_awcache  (b2desc_awcache),
-        .desc_ram_axi_awprot   (b2desc_awprot),
-        .desc_ram_axi_awqos    (b2desc_awqos),
-        .desc_ram_axi_awregion (b2desc_awregion),
-        .desc_ram_axi_awuser   (b2desc_awuser),
-        .desc_ram_axi_awvalid  (b2desc_awvalid),
-        .desc_ram_axi_awready  (b2desc_awready),
-        .desc_ram_axi_wdata    (b2desc_wdata),
-        .desc_ram_axi_wstrb    (b2desc_wstrb),
-        .desc_ram_axi_wlast    (b2desc_wlast),
-        .desc_ram_axi_wuser    (b2desc_wuser),
-        .desc_ram_axi_wvalid   (b2desc_wvalid),
-        .desc_ram_axi_wready   (b2desc_wready),
-        .desc_ram_axi_bid      (b2desc_bid),
-        .desc_ram_axi_bresp    (b2desc_bresp),
-        .desc_ram_axi_buser    (b2desc_buser),
-        .desc_ram_axi_bvalid   (b2desc_bvalid),
-        .desc_ram_axi_bready   (b2desc_bready),
-        .desc_ram_axi_arid     (b2desc_arid),
-        .desc_ram_axi_araddr   (b2desc_araddr),
-        .desc_ram_axi_arlen    (b2desc_arlen),
-        .desc_ram_axi_arsize   (b2desc_arsize),
-        .desc_ram_axi_arburst  (b2desc_arburst),
-        .desc_ram_axi_arlock   (b2desc_arlock),
-        .desc_ram_axi_arcache  (b2desc_arcache),
-        .desc_ram_axi_arprot   (b2desc_arprot),
-        .desc_ram_axi_arqos    (b2desc_arqos),
-        .desc_ram_axi_arregion (b2desc_arregion),
-        .desc_ram_axi_aruser   (b2desc_aruser),
-        .desc_ram_axi_arvalid  (b2desc_arvalid),
-        .desc_ram_axi_arready  (b2desc_arready),
-        .desc_ram_axi_rid      (b2desc_rid),
-        .desc_ram_axi_rdata    (b2desc_rdata),
-        .desc_ram_axi_rresp    (b2desc_rresp),
-        .desc_ram_axi_rlast    (b2desc_rlast),
-        .desc_ram_axi_ruser    (b2desc_ruser),
-        .desc_ram_axi_rvalid   (b2desc_rvalid),
-        .desc_ram_axi_rready   (b2desc_rready),
+        // Slave 2: desc_ram (native AXIL — wired directly to s2_*)
+        .desc_ram_axi_awaddr   (s2_awaddr),
+        .desc_ram_axi_awprot   (s2_awprot),
+        .desc_ram_axi_awvalid  (s2_awvalid),
+        .desc_ram_axi_awready  (s2_awready),
+        .desc_ram_axi_wdata    (s2_wdata),
+        .desc_ram_axi_wstrb    (s2_wstrb),
+        .desc_ram_axi_wvalid   (s2_wvalid),
+        .desc_ram_axi_wready   (s2_wready),
+        .desc_ram_axi_bresp    (s2_bresp),
+        .desc_ram_axi_bvalid   (s2_bvalid),
+        .desc_ram_axi_bready   (s2_bready),
+        .desc_ram_axi_araddr   (s2_araddr),
+        .desc_ram_axi_arprot   (s2_arprot),
+        .desc_ram_axi_arvalid  (s2_arvalid),
+        .desc_ram_axi_arready  (s2_arready),
+        .desc_ram_axi_rdata    (s2_rdata),
+        .desc_ram_axi_rresp    (s2_rresp),
+        .desc_ram_axi_rvalid   (s2_rvalid),
+        .desc_ram_axi_rready   (s2_rready),
 
-        // Slave 3: stream_err (AXI4 -> AXIL shim wires named b2err)
-        .stream_err_axi_awid     (b2err_awid),
-        .stream_err_axi_awaddr   (b2err_awaddr),
-        .stream_err_axi_awlen    (b2err_awlen),
-        .stream_err_axi_awsize   (b2err_awsize),
-        .stream_err_axi_awburst  (b2err_awburst),
-        .stream_err_axi_awlock   (b2err_awlock),
-        .stream_err_axi_awcache  (b2err_awcache),
-        .stream_err_axi_awprot   (b2err_awprot),
-        .stream_err_axi_awqos    (b2err_awqos),
-        .stream_err_axi_awregion (b2err_awregion),
-        .stream_err_axi_awuser   (b2err_awuser),
-        .stream_err_axi_awvalid  (b2err_awvalid),
-        .stream_err_axi_awready  (b2err_awready),
-        .stream_err_axi_wdata    (b2err_wdata),
-        .stream_err_axi_wstrb    (b2err_wstrb),
-        .stream_err_axi_wlast    (b2err_wlast),
-        .stream_err_axi_wuser    (b2err_wuser),
-        .stream_err_axi_wvalid   (b2err_wvalid),
-        .stream_err_axi_wready   (b2err_wready),
-        .stream_err_axi_bid      (b2err_bid),
-        .stream_err_axi_bresp    (b2err_bresp),
-        .stream_err_axi_buser    (b2err_buser),
-        .stream_err_axi_bvalid   (b2err_bvalid),
-        .stream_err_axi_bready   (b2err_bready),
-        .stream_err_axi_arid     (b2err_arid),
-        .stream_err_axi_araddr   (b2err_araddr),
-        .stream_err_axi_arlen    (b2err_arlen),
-        .stream_err_axi_arsize   (b2err_arsize),
-        .stream_err_axi_arburst  (b2err_arburst),
-        .stream_err_axi_arlock   (b2err_arlock),
-        .stream_err_axi_arcache  (b2err_arcache),
-        .stream_err_axi_arprot   (b2err_arprot),
-        .stream_err_axi_arqos    (b2err_arqos),
-        .stream_err_axi_arregion (b2err_arregion),
-        .stream_err_axi_aruser   (b2err_aruser),
-        .stream_err_axi_arvalid  (b2err_arvalid),
-        .stream_err_axi_arready  (b2err_arready),
-        .stream_err_axi_rid      (b2err_rid),
-        .stream_err_axi_rdata    (b2err_rdata),
-        .stream_err_axi_rresp    (b2err_rresp),
-        .stream_err_axi_rlast    (b2err_rlast),
-        .stream_err_axi_ruser    (b2err_ruser),
-        .stream_err_axi_rvalid   (b2err_rvalid),
-        .stream_err_axi_rready   (b2err_rready),
+        // Slave 3: stream_err (native AXIL — wired directly to s3_*)
+        .stream_err_axi_awaddr   (s3_awaddr),
+        .stream_err_axi_awprot   (s3_awprot),
+        .stream_err_axi_awvalid  (s3_awvalid),
+        .stream_err_axi_awready  (s3_awready),
+        .stream_err_axi_wdata    (s3_wdata),
+        .stream_err_axi_wstrb    (s3_wstrb),
+        .stream_err_axi_wvalid   (s3_wvalid),
+        .stream_err_axi_wready   (s3_wready),
+        .stream_err_axi_bresp    (s3_bresp),
+        .stream_err_axi_bvalid   (s3_bvalid),
+        .stream_err_axi_bready   (s3_bready),
+        .stream_err_axi_araddr   (s3_araddr),
+        .stream_err_axi_arprot   (s3_arprot),
+        .stream_err_axi_arvalid  (s3_arvalid),
+        .stream_err_axi_arready  (s3_arready),
+        .stream_err_axi_rdata    (s3_rdata),
+        .stream_err_axi_rresp    (s3_rresp),
+        .stream_err_axi_rvalid   (s3_rvalid),
+        .stream_err_axi_rready   (s3_rready),
 
-        // Slave 4: debug_sram (AXI4 -> AXIL shim wires named b2dbg)
-        .debug_sram_axi_awid     (b2dbg_awid),
-        .debug_sram_axi_awaddr   (b2dbg_awaddr),
-        .debug_sram_axi_awlen    (b2dbg_awlen),
-        .debug_sram_axi_awsize   (b2dbg_awsize),
-        .debug_sram_axi_awburst  (b2dbg_awburst),
-        .debug_sram_axi_awlock   (b2dbg_awlock),
-        .debug_sram_axi_awcache  (b2dbg_awcache),
-        .debug_sram_axi_awprot   (b2dbg_awprot),
-        .debug_sram_axi_awqos    (b2dbg_awqos),
-        .debug_sram_axi_awregion (b2dbg_awregion),
-        .debug_sram_axi_awuser   (b2dbg_awuser),
-        .debug_sram_axi_awvalid  (b2dbg_awvalid),
-        .debug_sram_axi_awready  (b2dbg_awready),
-        .debug_sram_axi_wdata    (b2dbg_wdata),
-        .debug_sram_axi_wstrb    (b2dbg_wstrb),
-        .debug_sram_axi_wlast    (b2dbg_wlast),
-        .debug_sram_axi_wuser    (b2dbg_wuser),
-        .debug_sram_axi_wvalid   (b2dbg_wvalid),
-        .debug_sram_axi_wready   (b2dbg_wready),
-        .debug_sram_axi_bid      (b2dbg_bid),
-        .debug_sram_axi_bresp    (b2dbg_bresp),
-        .debug_sram_axi_buser    (b2dbg_buser),
-        .debug_sram_axi_bvalid   (b2dbg_bvalid),
-        .debug_sram_axi_bready   (b2dbg_bready),
-        .debug_sram_axi_arid     (b2dbg_arid),
-        .debug_sram_axi_araddr   (b2dbg_araddr),
-        .debug_sram_axi_arlen    (b2dbg_arlen),
-        .debug_sram_axi_arsize   (b2dbg_arsize),
-        .debug_sram_axi_arburst  (b2dbg_arburst),
-        .debug_sram_axi_arlock   (b2dbg_arlock),
-        .debug_sram_axi_arcache  (b2dbg_arcache),
-        .debug_sram_axi_arprot   (b2dbg_arprot),
-        .debug_sram_axi_arqos    (b2dbg_arqos),
-        .debug_sram_axi_arregion (b2dbg_arregion),
-        .debug_sram_axi_aruser   (b2dbg_aruser),
-        .debug_sram_axi_arvalid  (b2dbg_arvalid),
-        .debug_sram_axi_arready  (b2dbg_arready),
-        .debug_sram_axi_rid      (b2dbg_rid),
-        .debug_sram_axi_rdata    (b2dbg_rdata),
-        .debug_sram_axi_rresp    (b2dbg_rresp),
-        .debug_sram_axi_rlast    (b2dbg_rlast),
-        .debug_sram_axi_ruser    (b2dbg_ruser),
-        .debug_sram_axi_rvalid   (b2dbg_rvalid),
-        .debug_sram_axi_rready   (b2dbg_rready),
+        // Slave 4: debug_sram (native AXIL — wired directly to s4_*)
+        .debug_sram_axi_awaddr   (s4_awaddr),
+        .debug_sram_axi_awprot   (s4_awprot),
+        .debug_sram_axi_awvalid  (s4_awvalid),
+        .debug_sram_axi_awready  (s4_awready),
+        .debug_sram_axi_wdata    (s4_wdata),
+        .debug_sram_axi_wstrb    (s4_wstrb),
+        .debug_sram_axi_wvalid   (s4_wvalid),
+        .debug_sram_axi_wready   (s4_wready),
+        .debug_sram_axi_bresp    (s4_bresp),
+        .debug_sram_axi_bvalid   (s4_bvalid),
+        .debug_sram_axi_bready   (s4_bready),
+        .debug_sram_axi_araddr   (s4_araddr),
+        .debug_sram_axi_arprot   (s4_arprot),
+        .debug_sram_axi_arvalid  (s4_arvalid),
+        .debug_sram_axi_arready  (s4_arready),
+        .debug_sram_axi_rdata    (s4_rdata),
+        .debug_sram_axi_rresp    (s4_rresp),
+        .debug_sram_axi_rvalid   (s4_rvalid),
+        .debug_sram_axi_rready   (s4_rready),
 
         // Slave 5: dma_axil (unused in flows-stream-bridge — tied off so
         // accidental writes don't hang the bus; never addressed in normal
-        // operation, so this is purely defensive).
-        .dma_axil_awid     (),  // outputs from bridge — leave dangling
+        // operation, so this is purely defensive). Native AXIL signal set
+        // only — id/len/burst/etc. no longer exist on this port.
         .dma_axil_awaddr   (),
-        .dma_axil_awlen    (),
-        .dma_axil_awsize   (),
-        .dma_axil_awburst  (),
-        .dma_axil_awlock   (),
-        .dma_axil_awcache  (),
         .dma_axil_awprot   (),
-        .dma_axil_awqos    (),
-        .dma_axil_awregion (),
-        .dma_axil_awuser   (),
         .dma_axil_awvalid  (),
         .dma_axil_awready  (1'b1),         // always accept
         .dma_axil_wdata    (),
         .dma_axil_wstrb    (),
-        .dma_axil_wlast    (),
-        .dma_axil_wuser    (),
         .dma_axil_wvalid   (),
         .dma_axil_wready   (1'b1),         // always accept
-        .dma_axil_bid      (4'd0),
         .dma_axil_bresp    (2'b11),        // DECERR if anything lands here
-        .dma_axil_buser    (1'b0),
         .dma_axil_bvalid   (1'b0),         // never assert (host should never address this)
         .dma_axil_bready   (),
-        .dma_axil_arid     (),
         .dma_axil_araddr   (),
-        .dma_axil_arlen    (),
-        .dma_axil_arsize   (),
-        .dma_axil_arburst  (),
-        .dma_axil_arlock   (),
-        .dma_axil_arcache  (),
         .dma_axil_arprot   (),
-        .dma_axil_arqos    (),
-        .dma_axil_arregion (),
-        .dma_axil_aruser   (),
         .dma_axil_arvalid  (),
         .dma_axil_arready  (1'b1),
-        .dma_axil_rid      (4'd0),
         .dma_axil_rdata    (32'hDEAD_BEEF),
         .dma_axil_rresp    (2'b11),
-        .dma_axil_rlast    (1'b1),
-        .dma_axil_ruser    (1'b0),
         .dma_axil_rvalid   (1'b0),
         .dma_axil_rready   ()
-    );
-
-    // ---- AXI4 -> AXIL shims (one wr + one rd per AXIL slave) ---------------
-    // harness_csr
-    axi4_to_axil4_wr #(
-        .AXI_ID_WIDTH(4), .AXI_ADDR_WIDTH(32), .AXI_DATA_WIDTH(32), .AXI_USER_WIDTH(1)
-    ) u_wr_csr (
-        .aclk(aclk), .aresetn(aresetn),
-        .s_axi_awid    (b2csr_awid),     .s_axi_awaddr  (b2csr_awaddr),
-        .s_axi_awlen   (b2csr_awlen),    .s_axi_awsize  (b2csr_awsize),
-        .s_axi_awburst (b2csr_awburst),  .s_axi_awlock  (b2csr_awlock),
-        .s_axi_awcache (b2csr_awcache),  .s_axi_awprot  (b2csr_awprot),
-        .s_axi_awqos   (b2csr_awqos),    .s_axi_awregion(b2csr_awregion),
-        .s_axi_awuser  (b2csr_awuser),
-        .s_axi_awvalid (b2csr_awvalid),  .s_axi_awready (b2csr_awready),
-        .s_axi_wdata   (b2csr_wdata),    .s_axi_wstrb   (b2csr_wstrb),
-        .s_axi_wlast   (b2csr_wlast),    .s_axi_wuser   (b2csr_wuser),
-        .s_axi_wvalid  (b2csr_wvalid),   .s_axi_wready  (b2csr_wready),
-        .s_axi_bid     (b2csr_bid),      .s_axi_bresp   (b2csr_bresp),
-        .s_axi_buser   (b2csr_buser),
-        .s_axi_bvalid  (b2csr_bvalid),   .s_axi_bready  (b2csr_bready),
-        .m_axil_awaddr (s1_awaddr),      .m_axil_awprot (s1_awprot),
-        .m_axil_awvalid(s1_awvalid),     .m_axil_awready(s1_awready),
-        .m_axil_wdata  (s1_wdata),       .m_axil_wstrb  (s1_wstrb),
-        .m_axil_wvalid (s1_wvalid),      .m_axil_wready (s1_wready),
-        .m_axil_bresp  (s1_bresp),       .m_axil_bvalid (s1_bvalid),
-        .m_axil_bready (s1_bready)
-    );
-    axi4_to_axil4_rd #(
-        .AXI_ID_WIDTH(4), .AXI_ADDR_WIDTH(32), .AXI_DATA_WIDTH(32), .AXI_USER_WIDTH(1)
-    ) u_rd_csr (
-        .aclk(aclk), .aresetn(aresetn),
-        .s_axi_arid    (b2csr_arid),     .s_axi_araddr  (b2csr_araddr),
-        .s_axi_arlen   (b2csr_arlen),    .s_axi_arsize  (b2csr_arsize),
-        .s_axi_arburst (b2csr_arburst),  .s_axi_arlock  (b2csr_arlock),
-        .s_axi_arcache (b2csr_arcache),  .s_axi_arprot  (b2csr_arprot),
-        .s_axi_arqos   (b2csr_arqos),    .s_axi_arregion(b2csr_arregion),
-        .s_axi_aruser  (b2csr_aruser),
-        .s_axi_arvalid (b2csr_arvalid),  .s_axi_arready (b2csr_arready),
-        .s_axi_rid     (b2csr_rid),      .s_axi_rdata   (b2csr_rdata),
-        .s_axi_rresp   (b2csr_rresp),    .s_axi_rlast   (b2csr_rlast),
-        .s_axi_ruser   (b2csr_ruser),
-        .s_axi_rvalid  (b2csr_rvalid),   .s_axi_rready  (b2csr_rready),
-        .m_axil_araddr (s1_araddr),      .m_axil_arprot (s1_arprot),
-        .m_axil_arvalid(s1_arvalid),     .m_axil_arready(s1_arready),
-        .m_axil_rdata  (s1_rdata),       .m_axil_rresp  (s1_rresp),
-        .m_axil_rvalid (s1_rvalid),      .m_axil_rready (s1_rready)
-    );
-
-    // desc_ram
-    axi4_to_axil4_wr #(
-        .AXI_ID_WIDTH(4), .AXI_ADDR_WIDTH(32), .AXI_DATA_WIDTH(32), .AXI_USER_WIDTH(1)
-    ) u_wr_desc (
-        .aclk(aclk), .aresetn(aresetn),
-        .s_axi_awid    (b2desc_awid),    .s_axi_awaddr  (b2desc_awaddr),
-        .s_axi_awlen   (b2desc_awlen),   .s_axi_awsize  (b2desc_awsize),
-        .s_axi_awburst (b2desc_awburst), .s_axi_awlock  (b2desc_awlock),
-        .s_axi_awcache (b2desc_awcache), .s_axi_awprot  (b2desc_awprot),
-        .s_axi_awqos   (b2desc_awqos),   .s_axi_awregion(b2desc_awregion),
-        .s_axi_awuser  (b2desc_awuser),
-        .s_axi_awvalid (b2desc_awvalid), .s_axi_awready (b2desc_awready),
-        .s_axi_wdata   (b2desc_wdata),   .s_axi_wstrb   (b2desc_wstrb),
-        .s_axi_wlast   (b2desc_wlast),   .s_axi_wuser   (b2desc_wuser),
-        .s_axi_wvalid  (b2desc_wvalid),  .s_axi_wready  (b2desc_wready),
-        .s_axi_bid     (b2desc_bid),     .s_axi_bresp   (b2desc_bresp),
-        .s_axi_buser   (b2desc_buser),
-        .s_axi_bvalid  (b2desc_bvalid),  .s_axi_bready  (b2desc_bready),
-        .m_axil_awaddr (s2_awaddr),      .m_axil_awprot (s2_awprot),
-        .m_axil_awvalid(s2_awvalid),     .m_axil_awready(s2_awready),
-        .m_axil_wdata  (s2_wdata),       .m_axil_wstrb  (s2_wstrb),
-        .m_axil_wvalid (s2_wvalid),      .m_axil_wready (s2_wready),
-        .m_axil_bresp  (s2_bresp),       .m_axil_bvalid (s2_bvalid),
-        .m_axil_bready (s2_bready)
-    );
-    axi4_to_axil4_rd #(
-        .AXI_ID_WIDTH(4), .AXI_ADDR_WIDTH(32), .AXI_DATA_WIDTH(32), .AXI_USER_WIDTH(1)
-    ) u_rd_desc (
-        .aclk(aclk), .aresetn(aresetn),
-        .s_axi_arid    (b2desc_arid),    .s_axi_araddr  (b2desc_araddr),
-        .s_axi_arlen   (b2desc_arlen),   .s_axi_arsize  (b2desc_arsize),
-        .s_axi_arburst (b2desc_arburst), .s_axi_arlock  (b2desc_arlock),
-        .s_axi_arcache (b2desc_arcache), .s_axi_arprot  (b2desc_arprot),
-        .s_axi_arqos   (b2desc_arqos),   .s_axi_arregion(b2desc_arregion),
-        .s_axi_aruser  (b2desc_aruser),
-        .s_axi_arvalid (b2desc_arvalid), .s_axi_arready (b2desc_arready),
-        .s_axi_rid     (b2desc_rid),     .s_axi_rdata   (b2desc_rdata),
-        .s_axi_rresp   (b2desc_rresp),   .s_axi_rlast   (b2desc_rlast),
-        .s_axi_ruser   (b2desc_ruser),
-        .s_axi_rvalid  (b2desc_rvalid),  .s_axi_rready  (b2desc_rready),
-        .m_axil_araddr (s2_araddr),      .m_axil_arprot (s2_arprot),
-        .m_axil_arvalid(s2_arvalid),     .m_axil_arready(s2_arready),
-        .m_axil_rdata  (s2_rdata),       .m_axil_rresp  (s2_rresp),
-        .m_axil_rvalid (s2_rvalid),      .m_axil_rready (s2_rready)
-    );
-
-    // stream_err
-    axi4_to_axil4_wr #(
-        .AXI_ID_WIDTH(4), .AXI_ADDR_WIDTH(32), .AXI_DATA_WIDTH(32), .AXI_USER_WIDTH(1)
-    ) u_wr_err (
-        .aclk(aclk), .aresetn(aresetn),
-        .s_axi_awid    (b2err_awid),     .s_axi_awaddr  (b2err_awaddr),
-        .s_axi_awlen   (b2err_awlen),    .s_axi_awsize  (b2err_awsize),
-        .s_axi_awburst (b2err_awburst),  .s_axi_awlock  (b2err_awlock),
-        .s_axi_awcache (b2err_awcache),  .s_axi_awprot  (b2err_awprot),
-        .s_axi_awqos   (b2err_awqos),    .s_axi_awregion(b2err_awregion),
-        .s_axi_awuser  (b2err_awuser),
-        .s_axi_awvalid (b2err_awvalid),  .s_axi_awready (b2err_awready),
-        .s_axi_wdata   (b2err_wdata),    .s_axi_wstrb   (b2err_wstrb),
-        .s_axi_wlast   (b2err_wlast),    .s_axi_wuser   (b2err_wuser),
-        .s_axi_wvalid  (b2err_wvalid),   .s_axi_wready  (b2err_wready),
-        .s_axi_bid     (b2err_bid),      .s_axi_bresp   (b2err_bresp),
-        .s_axi_buser   (b2err_buser),
-        .s_axi_bvalid  (b2err_bvalid),   .s_axi_bready  (b2err_bready),
-        .m_axil_awaddr (s3_awaddr),      .m_axil_awprot (s3_awprot),
-        .m_axil_awvalid(s3_awvalid),     .m_axil_awready(s3_awready),
-        .m_axil_wdata  (s3_wdata),       .m_axil_wstrb  (s3_wstrb),
-        .m_axil_wvalid (s3_wvalid),      .m_axil_wready (s3_wready),
-        .m_axil_bresp  (s3_bresp),       .m_axil_bvalid (s3_bvalid),
-        .m_axil_bready (s3_bready)
-    );
-    axi4_to_axil4_rd #(
-        .AXI_ID_WIDTH(4), .AXI_ADDR_WIDTH(32), .AXI_DATA_WIDTH(32), .AXI_USER_WIDTH(1)
-    ) u_rd_err (
-        .aclk(aclk), .aresetn(aresetn),
-        .s_axi_arid    (b2err_arid),     .s_axi_araddr  (b2err_araddr),
-        .s_axi_arlen   (b2err_arlen),    .s_axi_arsize  (b2err_arsize),
-        .s_axi_arburst (b2err_arburst),  .s_axi_arlock  (b2err_arlock),
-        .s_axi_arcache (b2err_arcache),  .s_axi_arprot  (b2err_arprot),
-        .s_axi_arqos   (b2err_arqos),    .s_axi_arregion(b2err_arregion),
-        .s_axi_aruser  (b2err_aruser),
-        .s_axi_arvalid (b2err_arvalid),  .s_axi_arready (b2err_arready),
-        .s_axi_rid     (b2err_rid),      .s_axi_rdata   (b2err_rdata),
-        .s_axi_rresp   (b2err_rresp),    .s_axi_rlast   (b2err_rlast),
-        .s_axi_ruser   (b2err_ruser),
-        .s_axi_rvalid  (b2err_rvalid),   .s_axi_rready  (b2err_rready),
-        .m_axil_araddr (s3_araddr),      .m_axil_arprot (s3_arprot),
-        .m_axil_arvalid(s3_arvalid),     .m_axil_arready(s3_arready),
-        .m_axil_rdata  (s3_rdata),       .m_axil_rresp  (s3_rresp),
-        .m_axil_rvalid (s3_rvalid),      .m_axil_rready (s3_rready)
-    );
-
-    // debug_sram
-    axi4_to_axil4_wr #(
-        .AXI_ID_WIDTH(4), .AXI_ADDR_WIDTH(32), .AXI_DATA_WIDTH(32), .AXI_USER_WIDTH(1)
-    ) u_wr_dbg (
-        .aclk(aclk), .aresetn(aresetn),
-        .s_axi_awid    (b2dbg_awid),     .s_axi_awaddr  (b2dbg_awaddr),
-        .s_axi_awlen   (b2dbg_awlen),    .s_axi_awsize  (b2dbg_awsize),
-        .s_axi_awburst (b2dbg_awburst),  .s_axi_awlock  (b2dbg_awlock),
-        .s_axi_awcache (b2dbg_awcache),  .s_axi_awprot  (b2dbg_awprot),
-        .s_axi_awqos   (b2dbg_awqos),    .s_axi_awregion(b2dbg_awregion),
-        .s_axi_awuser  (b2dbg_awuser),
-        .s_axi_awvalid (b2dbg_awvalid),  .s_axi_awready (b2dbg_awready),
-        .s_axi_wdata   (b2dbg_wdata),    .s_axi_wstrb   (b2dbg_wstrb),
-        .s_axi_wlast   (b2dbg_wlast),    .s_axi_wuser   (b2dbg_wuser),
-        .s_axi_wvalid  (b2dbg_wvalid),   .s_axi_wready  (b2dbg_wready),
-        .s_axi_bid     (b2dbg_bid),      .s_axi_bresp   (b2dbg_bresp),
-        .s_axi_buser   (b2dbg_buser),
-        .s_axi_bvalid  (b2dbg_bvalid),   .s_axi_bready  (b2dbg_bready),
-        .m_axil_awaddr (s4_awaddr),      .m_axil_awprot (s4_awprot),
-        .m_axil_awvalid(s4_awvalid),     .m_axil_awready(s4_awready),
-        .m_axil_wdata  (s4_wdata),       .m_axil_wstrb  (s4_wstrb),
-        .m_axil_wvalid (s4_wvalid),      .m_axil_wready (s4_wready),
-        .m_axil_bresp  (s4_bresp),       .m_axil_bvalid (s4_bvalid),
-        .m_axil_bready (s4_bready)
-    );
-    axi4_to_axil4_rd #(
-        .AXI_ID_WIDTH(4), .AXI_ADDR_WIDTH(32), .AXI_DATA_WIDTH(32), .AXI_USER_WIDTH(1)
-    ) u_rd_dbg (
-        .aclk(aclk), .aresetn(aresetn),
-        .s_axi_arid    (b2dbg_arid),     .s_axi_araddr  (b2dbg_araddr),
-        .s_axi_arlen   (b2dbg_arlen),    .s_axi_arsize  (b2dbg_arsize),
-        .s_axi_arburst (b2dbg_arburst),  .s_axi_arlock  (b2dbg_arlock),
-        .s_axi_arcache (b2dbg_arcache),  .s_axi_arprot  (b2dbg_arprot),
-        .s_axi_arqos   (b2dbg_arqos),    .s_axi_arregion(b2dbg_arregion),
-        .s_axi_aruser  (b2dbg_aruser),
-        .s_axi_arvalid (b2dbg_arvalid),  .s_axi_arready (b2dbg_arready),
-        .s_axi_rid     (b2dbg_rid),      .s_axi_rdata   (b2dbg_rdata),
-        .s_axi_rresp   (b2dbg_rresp),    .s_axi_rlast   (b2dbg_rlast),
-        .s_axi_ruser   (b2dbg_ruser),
-        .s_axi_rvalid  (b2dbg_rvalid),   .s_axi_rready  (b2dbg_rready),
-        .m_axil_araddr (s4_araddr),      .m_axil_arprot (s4_arprot),
-        .m_axil_arvalid(s4_arvalid),     .m_axil_arready(s4_arready),
-        .m_axil_rdata  (s4_rdata),       .m_axil_rresp  (s4_rresp),
-        .m_axil_rvalid (s4_rvalid),      .m_axil_rready (s4_rready)
     );
 
 

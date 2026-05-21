@@ -39,24 +39,15 @@ from {{ tb_import_pkg }}.{{ tb_class_module }} import {{ tb_class_name }}
 @cocotb.test(timeout_time=200, timeout_unit="ms")
 async def cocotb_test_basic_connectivity(dut):
     """
-    Basic connectivity test - verify master-to-slave routing
+    Basic connectivity — every (master, slave) pair gets one write and/or
+    one read at a non-base offset inside the slave's window. Reads check
+    against the pre-seeded slave memory pattern; writes verify the bytes
+    landed in the slave's memory at the expected offset.
 
-    Test plan:
-{% if channel_type == 'wr' or channel_type == 'rw' %}
-    1. Initialize testbench
-    2. For each master:
-        - Send write to each connected slave
-        - Verify address decode routes to correct slave
-        - Slave responds with OKAY
-        - Verify response reaches master
-{% endif %}
-{% if channel_type == 'rd' or channel_type == 'rw' %}
-    3. For each master:
-        - Send read to each connected slave
-        - Verify address decode routes to correct slave
-        - Slave responds with data
-        - Verify response reaches master
-{% endif %}
+    The slave BFMs auto-respond from their MemoryModel honoring whatever
+    ARSIZE/ARLEN/ARADDR (or AWSIZE/AWLEN/AWADDR) the bridge forwards, so
+    the same test body works across direct, width-converted, and
+    AXIL-shimmed paths — the bridge moves bytes, we read the bytes back.
     """
     tb = {{ tb_class_name }}(dut)
     await tb.setup_clocks_and_reset()
@@ -67,115 +58,54 @@ async def cocotb_test_basic_connectivity(dut):
     tb.log.info("=" * 80)
 
 {% if channel_type == 'wr' or channel_type == 'rw' %}
-    # Write connectivity test
+    # ---- Write connectivity --------------------------------------------
 {% for master_idx in range(num_masters) %}
 {% set master = masters[master_idx] %}
 {% if master.has_write_channels() %}
-    tb.log.info(f"Testing master {{ master_idx }} ({{ master.port_name }}) write connectivity")
+    tb.log.info(f"Master {{ master_idx }} ({{ master.port_name }}) — writes")
 {% for slave in slaves %}
 {% if slave.port_name in connectivity.get(master.port_name, []) %}
 {% if slave.has_write_channels() %}
-
     # Master {{ master_idx }} → Slave {{ loop.index0 }} ({{ slave.port_name }})
-    test_addr = {{ '0x%08x' % slave.base_addr }}
-    # Use a 32-bit-or-less data pattern so it fits any slave's data path.
-    # The original 0xDEADBEEFXX form was 40 bits and got truncated by the
-    # narrowest slave BFM (e.g. a 32-bit APB/AXIL slave), which then broke
-    # the data-equality assertion downstream. Master-width masking didn't
-    # help because the data still has to ride the slave's BFM first.
-    test_data = (0xDEADBE00 | {{ '0x%02x' % loop.index0 }})
-    tb.log.info(f"  Write: addr=0x{test_addr:08x}, data=0x{test_data:08x}")
-
-    # Master sends write transaction
-    await tb.write_transaction(
-        master_idx={{ master_idx }},
-        address=test_addr,
-        data=test_data,
-        txn_id={{ master_idx }}
-    )
-
-    # Verify the bridge actually routed the AW to *this* slave (and only
-    # this slave). Catches silent misroutes that the old version of this
-    # test missed by responding from the expected slave without first
-    # checking it had received anything.
-    await tb.expect_aw_at_slave(
-        slave_idx={{ loop.index0 }},
-        expected_addr=test_addr,
-        expected_id={{ master_idx }}
-    )
-
-    # Slave responds
-    await tb.slave_respond_write(
-        slave_idx={{ loop.index0 }},
-        txn_id={{ master_idx }},
-        resp=0  # OKAY
-    )
-
-    # Verify the B response actually came back to the originating master.
-    await tb.expect_b_at_master(
-        master_idx={{ master_idx }},
-        expected_id={{ master_idx }},
-        expected_resp=0
-    )
-
-    tb.log.info(f"  Write completed successfully (routing + response verified)")
-{% endif %}
-{% endif %}
-{% endfor %}
-{% endif %}
-{% endfor %}
-{% endif %}
-
-{%- if channel_type == 'rd' or channel_type == 'rw' %}
-    # Read connectivity test
-{%- for master_idx in range(num_masters) %}
-{%- set master = masters[master_idx] %}
-{%- if master.has_read_channels() %}
-    tb.log.info(f"Testing master {{ master_idx }} ({{ master.port_name }}) read connectivity")
-{%- for slave in slaves %}
-{%- if slave.port_name in connectivity.get(master.port_name, []) %}
-{%- if slave.has_read_channels() %}
-
-    # Master {{ master_idx }} → Slave {{ loop.index0 }} ({{ slave.port_name }})
-    # Probe a non-base offset (catches decoders that ignore the low bits).
-    # The config validator enforces addr_range is a multiple of 4 KB, so
-    # +0x100 is always safely inside every slave's window.
     test_addr = {{ '0x%08x' % (slave.base_addr + 0x100) }}
-    # 32-bit-or-less value (see DEADBEEF comment above for rationale).
-    test_data = (0xCAFEBA00 | {{ '0x%02x' % loop.index0 }})
-    tb.log.info(f"  Read: addr=0x{test_addr:08x}, expect_data=0x{test_data:08x}")
+    # Non-pattern data: upper byte 0xDE so it can't be confused with any
+    # slave's seed pattern (which uses 0x01..0xFF in the upper byte for
+    # the slave ID). Lower byte tags the (master, slave) pair for debug.
+    test_data = (0xDE000000 | ({{ master_idx }} << 12) | {{ loop.index0 }})
+    tb.log.info(f"  W slave={{ loop.index0 }} addr=0x{test_addr:08x} data=0x{test_data:08x}")
+    await tb.master_write({{ master_idx }}, test_addr, test_data)
+    await tb.expect_aw_at_slave({{ loop.index0 }}, test_addr)
+    actual = tb.slave_mem_read({{ loop.index0 }}, test_addr)
+    assert actual == test_data, (
+        f"Slave {{ loop.index0 }} memory mismatch at 0x{test_addr:08x}: "
+        f"got 0x{actual:08x}, expected 0x{test_data:08x}")
+{% endif %}
+{% endif %}
+{% endfor %}
+{% endif %}
+{% endfor %}
+{% endif %}
 
-    # Master sends read transaction
-    await tb.read_transaction(
-        master_idx={{ master_idx }},
-        address=test_addr,
-        txn_id={{ master_idx }}
-    )
-
-    # Verify AR routed to expected slave only.
-    await tb.expect_ar_at_slave(
-        slave_idx={{ loop.index0 }},
-        expected_addr=test_addr,
-        expected_id={{ master_idx }}
-    )
-
-    # Slave responds with data
-    await tb.slave_respond_read(
-        slave_idx={{ loop.index0 }},
-        data=test_data,
-        txn_id={{ master_idx }},
-        resp=0  # OKAY
-    )
-
-    # Verify R response (data + id) returned to originating master.
-    await tb.expect_r_at_master(
-        master_idx={{ master_idx }},
-        expected_id={{ master_idx }},
-        expected_data=test_data,
-        expected_resp=0
-    )
-
-    tb.log.info(f"  Read completed successfully (routing + response verified)")
+{% if channel_type == 'rd' or channel_type == 'rw' %}
+    # ---- Read connectivity ---------------------------------------------
+{% for master_idx in range(num_masters) %}
+{% set master = masters[master_idx] %}
+{% if master.has_read_channels() %}
+    tb.log.info(f"Master {{ master_idx }} ({{ master.port_name }}) — reads")
+{% for slave in slaves %}
+{% if slave.port_name in connectivity.get(master.port_name, []) %}
+{% if slave.has_read_channels() %}
+    # Master {{ master_idx }} → Slave {{ loop.index0 }} ({{ slave.port_name }})
+    # Probe a non-base offset; addr_range is 4 KB-aligned by validator so
+    # +0x100 is always safely inside the slave's window.
+    test_addr = {{ '0x%08x' % (slave.base_addr + 0x100) }}
+    expected = tb.slave_mem_read({{ loop.index0 }}, test_addr)
+    tb.log.info(f"  R slave={{ loop.index0 }} addr=0x{test_addr:08x} expect=0x{expected:08x}")
+    actual = await tb.master_read({{ master_idx }}, test_addr)
+    await tb.expect_ar_at_slave({{ loop.index0 }}, test_addr)
+    assert actual == expected, (
+        f"Read mismatch master {{ master_idx }} ← slave {{ loop.index0 }} at 0x{test_addr:08x}: "
+        f"got 0x{actual:08x}, expected 0x{expected:08x} (seeded pattern)")
 {% endif %}
 {% endif %}
 {% endfor %}
@@ -192,13 +122,9 @@ async def cocotb_test_basic_connectivity(dut):
 @cocotb.test(timeout_time=500, timeout_unit="ms")
 async def cocotb_test_address_decode(dut):
     """
-    Address decode verification test
-
-    Test plan:
-    1. For each master:
-        - Send transactions to boundary addresses of each slave region
-        - Verify correct slave is selected via address decode
-        - Test: base_addr, base_addr + range - 1, out-of-range addresses
+    Address decode — for each (master, slave) pair, probe the first and
+    last word of the slave's window to catch decoders that ignore high or
+    low address bits.
     """
     tb = {{ tb_class_name }}(dut)
     await tb.setup_clocks_and_reset()
@@ -207,47 +133,48 @@ async def cocotb_test_address_decode(dut):
     tb.log.info("Starting address decode test")
     tb.log.info("=" * 80)
 
-{%- for master_idx in range(num_masters) %}
-{%- set master = masters[master_idx] %}
-{%- if master.has_write_channels() or master.has_read_channels() %}
-    # Master {{ master_idx }}: {{ master.port_name }}
-    tb.log.info(f"Testing master {{ master_idx }} address decode")
-{%- for slave in slaves %}
-{%- if slave.port_name in connectivity.get(master.port_name, []) %}
-
-    # Slave {{ loop.index0 }}: {{ slave.port_name }}
-    # Range: {{ '0x%08x' % slave.base_addr }} - {{ '0x%08x' % (slave.base_addr + slave.addr_range - 1) }}
-    tb.log.info(f"  Slave {{ loop.index0 }} ({{ slave.port_name }}): 0x{{ '%08x' % slave.base_addr }}-0x{{ '%08x' % (slave.base_addr + slave.addr_range - 1) }}")
-
-{%- if master.has_write_channels() and slave.has_write_channels() %}
-    # Test base address
-    await tb.write_transaction({{ master_idx }}, {{ '0x%08x' % slave.base_addr }}, 0x{{ '%08x' % (0x00000000 + loop.index0) }}, txn_id={{ master_idx }})
-    await ClockCycles(tb.clock, 3)
-    await tb.slave_respond_write({{ loop.index0 }}, txn_id={{ master_idx }})
-    await ClockCycles(tb.clock, 3)
-
-    # Test end address
-    await tb.write_transaction({{ master_idx }}, {{ '0x%08x' % (slave.base_addr + slave.addr_range - 4) }}, 0x{{ '%08x' % (0x11111111 + loop.index0) }}, txn_id={{ master_idx }})
-    await ClockCycles(tb.clock, 3)
-    await tb.slave_respond_write({{ loop.index0 }}, txn_id={{ master_idx }})
-    await ClockCycles(tb.clock, 3)
-{%- elif master.has_read_channels() and slave.has_read_channels() %}
-    # Test base address
-    await tb.read_transaction({{ master_idx }}, {{ '0x%08x' % slave.base_addr }}, txn_id={{ master_idx }})
-    await ClockCycles(tb.clock, 3)
-    await tb.slave_respond_read({{ loop.index0 }}, 0x{{ '%08x' % (0x22222222 + loop.index0) }}, txn_id={{ master_idx }})
-    await ClockCycles(tb.clock, 3)
-
-    # Test end address
-    await tb.read_transaction({{ master_idx }}, {{ '0x%08x' % (slave.base_addr + slave.addr_range - 4) }}, txn_id={{ master_idx }})
-    await ClockCycles(tb.clock, 3)
-    await tb.slave_respond_read({{ loop.index0 }}, 0x{{ '%08x' % (0x33333333 + loop.index0) }}, txn_id={{ master_idx }})
-    await ClockCycles(tb.clock, 3)
-{%- endif %}
-{%- endif %}
-{%- endfor %}
-{%- endif %}
-{%- endfor %}
+{% for master_idx in range(num_masters) %}
+{% set master = masters[master_idx] %}
+{% if master.has_write_channels() or master.has_read_channels() %}
+    tb.log.info(f"Master {{ master_idx }} ({{ master.port_name }})")
+{% for slave in slaves %}
+{% if slave.port_name in connectivity.get(master.port_name, []) %}
+    # Slave {{ loop.index0 }} ({{ slave.port_name }}): 0x{{ '%08x' % slave.base_addr }}-0x{{ '%08x' % (slave.base_addr + slave.addr_range - 1) }}
+    base_addr = {{ '0x%08x' % slave.base_addr }}
+    # Probe the end of the *seeded* region (MemoryModel is capped to
+    # SLAVE_MEM_CAP_BYTES — the slave's natural addr_range can be GBs).
+    # The end-address has to be aligned to max(master_width, slave_width)
+    # because the dwidth converter for upsize reads (narrow master, wide
+    # slave) down-aligns ARADDR to the wide-beat boundary; an unaligned
+    # probe would silently return bytes from a different memory offset
+    # than slave_mem_read predicts.
+    master_bytes_{{ master_idx }} = tb.master_data_width[{{ master_idx }}] // 8
+    slave_bytes_{{ loop.index0 }} = {{ slave.data_width }} // 8
+    align_bytes = max(master_bytes_{{ master_idx }}, slave_bytes_{{ loop.index0 }})
+    end_addr  = base_addr + tb._slave_mem_bytes({{ loop.index0 }}) - align_bytes
+{% if master.has_write_channels() and slave.has_write_channels() %}
+    # Boundary write — base
+    d0 = (0xDE000000 | ({{ master_idx }} << 12) | ({{ loop.index0 }} << 4) | 0x0)
+    await tb.master_write({{ master_idx }}, base_addr, d0)
+    assert tb.slave_mem_read({{ loop.index0 }}, base_addr) == d0
+    # Boundary write — end
+    d1 = (0xDE000000 | ({{ master_idx }} << 12) | ({{ loop.index0 }} << 4) | 0x1)
+    await tb.master_write({{ master_idx }}, end_addr, d1)
+    assert tb.slave_mem_read({{ loop.index0 }}, end_addr) == d1
+{% elif master.has_read_channels() and slave.has_read_channels() %}
+    # Boundary read — base
+    exp0 = tb.slave_mem_read({{ loop.index0 }}, base_addr)
+    got0 = await tb.master_read({{ master_idx }}, base_addr)
+    assert got0 == exp0, f"slave {{ loop.index0 }} base mismatch: got 0x{got0:08x}, exp 0x{exp0:08x}"
+    # Boundary read — end
+    exp1 = tb.slave_mem_read({{ loop.index0 }}, end_addr)
+    got1 = await tb.master_read({{ master_idx }}, end_addr)
+    assert got1 == exp1, f"slave {{ loop.index0 }} end mismatch: got 0x{got1:08x}, exp 0x{exp1:08x}"
+{% endif %}
+{% endif %}
+{% endfor %}
+{% endif %}
+{% endfor %}
 
     await ClockCycles(tb.clock, 20)
     tb.log.info("=" * 80)
