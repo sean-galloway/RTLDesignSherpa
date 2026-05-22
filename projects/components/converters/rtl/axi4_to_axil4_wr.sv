@@ -255,12 +255,15 @@ module axi4_to_axil4_wr #(
     // W channel must be synchronized with AW FSM for burst decomposition
     assign m_axil_wdata = s_axi_wdata;
     assign m_axil_wstrb = s_axi_wstrb;
-    // For bursts: W passthrough, but only consume when:
-    //   - AW is handshaking this cycle, OR
+    // For bursts: W passthrough, but only present m_axil_wvalid when:
+    //   - AW is being asserted this cycle (m_axil_awvalid), OR
     //   - AW has already been sent for this beat (r_aw_sent)
-    // This ensures AW completes before or with W, never after
-    // For single beats: Pass through directly
-    assign m_axil_wvalid = s_axi_wvalid;
+    // This ensures the AXIL slave never sees a W beat without a paired AW —
+    // without this gate, a master holding s_axi_wvalid high between
+    // burst-decomposed AXIL emissions would generate spurious W handshakes.
+    // For single beats: Pass through directly.
+    assign m_axil_wvalid = r_aw_active ? (s_axi_wvalid && (r_aw_sent || m_axil_awvalid)) :
+                           s_axi_wvalid;
     assign s_axi_wready = r_aw_active ? (m_axil_wready && (r_aw_sent || (m_axil_awvalid && m_axil_awready))) :
                           m_axil_wready;
 
