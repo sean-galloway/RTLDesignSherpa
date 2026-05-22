@@ -68,7 +68,9 @@ async def cocotb_test_basic_connectivity(dut):
     tb.log.info(f"  W slave=0 addr=0x{test_addr:08x} data=0x{test_data:08x}")
     await tb.master_write(0, test_addr, test_data)
     await tb.expect_aw_at_slave(0, test_addr)
-    actual = tb.slave_mem_read(0, test_addr)
+    # Read back at master 0's width — only the bytes the master
+    # actually wrote should be compared; trailing bytes are still the seed.
+    actual = tb.slave_mem_read(0, test_addr, master_idx=0)
     assert actual == test_data, (
         f"Slave 0 memory mismatch at 0x{test_addr:08x}: "
         f"got 0x{actual:08x}, expected 0x{test_data:08x}")
@@ -81,7 +83,9 @@ async def cocotb_test_basic_connectivity(dut):
     tb.log.info(f"  W slave=1 addr=0x{test_addr:08x} data=0x{test_data:08x}")
     await tb.master_write(0, test_addr, test_data)
     await tb.expect_aw_at_slave(1, test_addr)
-    actual = tb.slave_mem_read(1, test_addr)
+    # Read back at master 0's width — only the bytes the master
+    # actually wrote should be compared; trailing bytes are still the seed.
+    actual = tb.slave_mem_read(1, test_addr, master_idx=0)
     assert actual == test_data, (
         f"Slave 1 memory mismatch at 0x{test_addr:08x}: "
         f"got 0x{actual:08x}, expected 0x{test_data:08x}")
@@ -94,7 +98,9 @@ async def cocotb_test_basic_connectivity(dut):
     tb.log.info(f"  W slave=2 addr=0x{test_addr:08x} data=0x{test_data:08x}")
     await tb.master_write(0, test_addr, test_data)
     await tb.expect_aw_at_slave(2, test_addr)
-    actual = tb.slave_mem_read(2, test_addr)
+    # Read back at master 0's width — only the bytes the master
+    # actually wrote should be compared; trailing bytes are still the seed.
+    actual = tb.slave_mem_read(2, test_addr, master_idx=0)
     assert actual == test_data, (
         f"Slave 2 memory mismatch at 0x{test_addr:08x}: "
         f"got 0x{actual:08x}, expected 0x{test_data:08x}")
@@ -107,7 +113,9 @@ async def cocotb_test_basic_connectivity(dut):
     tb.log.info(f"  W slave=3 addr=0x{test_addr:08x} data=0x{test_data:08x}")
     await tb.master_write(0, test_addr, test_data)
     await tb.expect_aw_at_slave(3, test_addr)
-    actual = tb.slave_mem_read(3, test_addr)
+    # Read back at master 0's width — only the bytes the master
+    # actually wrote should be compared; trailing bytes are still the seed.
+    actual = tb.slave_mem_read(3, test_addr, master_idx=0)
     assert actual == test_data, (
         f"Slave 3 memory mismatch at 0x{test_addr:08x}: "
         f"got 0x{actual:08x}, expected 0x{test_data:08x}")
@@ -121,7 +129,9 @@ async def cocotb_test_basic_connectivity(dut):
     tb.log.info(f"  W slave=0 addr=0x{test_addr:08x} data=0x{test_data:08x}")
     await tb.master_write(1, test_addr, test_data)
     await tb.expect_aw_at_slave(0, test_addr)
-    actual = tb.slave_mem_read(0, test_addr)
+    # Read back at master 1's width — only the bytes the master
+    # actually wrote should be compared; trailing bytes are still the seed.
+    actual = tb.slave_mem_read(0, test_addr, master_idx=1)
     assert actual == test_data, (
         f"Slave 0 memory mismatch at 0x{test_addr:08x}: "
         f"got 0x{actual:08x}, expected 0x{test_data:08x}")
@@ -134,7 +144,9 @@ async def cocotb_test_basic_connectivity(dut):
     tb.log.info(f"  W slave=1 addr=0x{test_addr:08x} data=0x{test_data:08x}")
     await tb.master_write(1, test_addr, test_data)
     await tb.expect_aw_at_slave(1, test_addr)
-    actual = tb.slave_mem_read(1, test_addr)
+    # Read back at master 1's width — only the bytes the master
+    # actually wrote should be compared; trailing bytes are still the seed.
+    actual = tb.slave_mem_read(1, test_addr, master_idx=1)
     assert actual == test_data, (
         f"Slave 1 memory mismatch at 0x{test_addr:08x}: "
         f"got 0x{actual:08x}, expected 0x{test_data:08x}")
@@ -147,7 +159,9 @@ async def cocotb_test_basic_connectivity(dut):
     tb.log.info(f"  W slave=2 addr=0x{test_addr:08x} data=0x{test_data:08x}")
     await tb.master_write(1, test_addr, test_data)
     await tb.expect_aw_at_slave(2, test_addr)
-    actual = tb.slave_mem_read(2, test_addr)
+    # Read back at master 1's width — only the bytes the master
+    # actually wrote should be compared; trailing bytes are still the seed.
+    actual = tb.slave_mem_read(2, test_addr, master_idx=1)
     assert actual == test_data, (
         f"Slave 2 memory mismatch at 0x{test_addr:08x}: "
         f"got 0x{actual:08x}, expected 0x{test_data:08x}")
@@ -161,7 +175,9 @@ async def cocotb_test_basic_connectivity(dut):
     tb.log.info(f"  W slave=1 addr=0x{test_addr:08x} data=0x{test_data:08x}")
     await tb.master_write(2, test_addr, test_data)
     await tb.expect_aw_at_slave(1, test_addr)
-    actual = tb.slave_mem_read(1, test_addr)
+    # Read back at master 2's width — only the bytes the master
+    # actually wrote should be compared; trailing bytes are still the seed.
+    actual = tb.slave_mem_read(1, test_addr, master_idx=2)
     assert actual == test_data, (
         f"Slave 1 memory mismatch at 0x{test_addr:08x}: "
         f"got 0x{actual:08x}, expected 0x{test_data:08x}")
@@ -174,7 +190,9 @@ async def cocotb_test_basic_connectivity(dut):
     tb.log.info(f"  W slave=2 addr=0x{test_addr:08x} data=0x{test_data:08x}")
     await tb.master_write(2, test_addr, test_data)
     await tb.expect_aw_at_slave(2, test_addr)
-    actual = tb.slave_mem_read(2, test_addr)
+    # Read back at master 2's width — only the bytes the master
+    # actually wrote should be compared; trailing bytes are still the seed.
+    actual = tb.slave_mem_read(2, test_addr, master_idx=2)
     assert actual == test_data, (
         f"Slave 2 memory mismatch at 0x{test_addr:08x}: "
         f"got 0x{actual:08x}, expected 0x{test_data:08x}")
@@ -187,7 +205,9 @@ async def cocotb_test_basic_connectivity(dut):
     tb.log.info(f"  W slave=3 addr=0x{test_addr:08x} data=0x{test_data:08x}")
     await tb.master_write(2, test_addr, test_data)
     await tb.expect_aw_at_slave(3, test_addr)
-    actual = tb.slave_mem_read(3, test_addr)
+    # Read back at master 2's width — only the bytes the master
+    # actually wrote should be compared; trailing bytes are still the seed.
+    actual = tb.slave_mem_read(3, test_addr, master_idx=2)
     assert actual == test_data, (
         f"Slave 3 memory mismatch at 0x{test_addr:08x}: "
         f"got 0x{actual:08x}, expected 0x{test_data:08x}")
@@ -201,7 +221,9 @@ async def cocotb_test_basic_connectivity(dut):
     tb.log.info(f"  W slave=0 addr=0x{test_addr:08x} data=0x{test_data:08x}")
     await tb.master_write(3, test_addr, test_data)
     await tb.expect_aw_at_slave(0, test_addr)
-    actual = tb.slave_mem_read(0, test_addr)
+    # Read back at master 3's width — only the bytes the master
+    # actually wrote should be compared; trailing bytes are still the seed.
+    actual = tb.slave_mem_read(0, test_addr, master_idx=3)
     assert actual == test_data, (
         f"Slave 0 memory mismatch at 0x{test_addr:08x}: "
         f"got 0x{actual:08x}, expected 0x{test_data:08x}")
@@ -214,7 +236,9 @@ async def cocotb_test_basic_connectivity(dut):
     tb.log.info(f"  W slave=1 addr=0x{test_addr:08x} data=0x{test_data:08x}")
     await tb.master_write(3, test_addr, test_data)
     await tb.expect_aw_at_slave(1, test_addr)
-    actual = tb.slave_mem_read(1, test_addr)
+    # Read back at master 3's width — only the bytes the master
+    # actually wrote should be compared; trailing bytes are still the seed.
+    actual = tb.slave_mem_read(1, test_addr, master_idx=3)
     assert actual == test_data, (
         f"Slave 1 memory mismatch at 0x{test_addr:08x}: "
         f"got 0x{actual:08x}, expected 0x{test_data:08x}")
@@ -227,7 +251,9 @@ async def cocotb_test_basic_connectivity(dut):
     tb.log.info(f"  W slave=3 addr=0x{test_addr:08x} data=0x{test_data:08x}")
     await tb.master_write(3, test_addr, test_data)
     await tb.expect_aw_at_slave(3, test_addr)
-    actual = tb.slave_mem_read(3, test_addr)
+    # Read back at master 3's width — only the bytes the master
+    # actually wrote should be compared; trailing bytes are still the seed.
+    actual = tb.slave_mem_read(3, test_addr, master_idx=3)
     assert actual == test_data, (
         f"Slave 3 memory mismatch at 0x{test_addr:08x}: "
         f"got 0x{actual:08x}, expected 0x{test_data:08x}")
@@ -238,7 +264,7 @@ async def cocotb_test_basic_connectivity(dut):
     # Probe a non-base offset; addr_range is 4 KB-aligned by validator so
     # +0x100 is always safely inside the slave's window.
     test_addr = 0x00000100
-    expected = tb.slave_mem_read(0, test_addr)
+    expected = tb.slave_mem_read(0, test_addr, master_idx=0)
     tb.log.info(f"  R slave=0 addr=0x{test_addr:08x} expect=0x{expected:08x}")
     actual = await tb.master_read(0, test_addr)
     await tb.expect_ar_at_slave(0, test_addr)
@@ -249,7 +275,7 @@ async def cocotb_test_basic_connectivity(dut):
     # Probe a non-base offset; addr_range is 4 KB-aligned by validator so
     # +0x100 is always safely inside the slave's window.
     test_addr = 0x40000100
-    expected = tb.slave_mem_read(1, test_addr)
+    expected = tb.slave_mem_read(1, test_addr, master_idx=0)
     tb.log.info(f"  R slave=1 addr=0x{test_addr:08x} expect=0x{expected:08x}")
     actual = await tb.master_read(0, test_addr)
     await tb.expect_ar_at_slave(1, test_addr)
@@ -260,7 +286,7 @@ async def cocotb_test_basic_connectivity(dut):
     # Probe a non-base offset; addr_range is 4 KB-aligned by validator so
     # +0x100 is always safely inside the slave's window.
     test_addr = 0x80000100
-    expected = tb.slave_mem_read(2, test_addr)
+    expected = tb.slave_mem_read(2, test_addr, master_idx=0)
     tb.log.info(f"  R slave=2 addr=0x{test_addr:08x} expect=0x{expected:08x}")
     actual = await tb.master_read(0, test_addr)
     await tb.expect_ar_at_slave(2, test_addr)
@@ -271,7 +297,7 @@ async def cocotb_test_basic_connectivity(dut):
     # Probe a non-base offset; addr_range is 4 KB-aligned by validator so
     # +0x100 is always safely inside the slave's window.
     test_addr = 0xc0000100
-    expected = tb.slave_mem_read(3, test_addr)
+    expected = tb.slave_mem_read(3, test_addr, master_idx=0)
     tb.log.info(f"  R slave=3 addr=0x{test_addr:08x} expect=0x{expected:08x}")
     actual = await tb.master_read(0, test_addr)
     await tb.expect_ar_at_slave(3, test_addr)
@@ -283,7 +309,7 @@ async def cocotb_test_basic_connectivity(dut):
     # Probe a non-base offset; addr_range is 4 KB-aligned by validator so
     # +0x100 is always safely inside the slave's window.
     test_addr = 0x00000100
-    expected = tb.slave_mem_read(0, test_addr)
+    expected = tb.slave_mem_read(0, test_addr, master_idx=1)
     tb.log.info(f"  R slave=0 addr=0x{test_addr:08x} expect=0x{expected:08x}")
     actual = await tb.master_read(1, test_addr)
     await tb.expect_ar_at_slave(0, test_addr)
@@ -294,7 +320,7 @@ async def cocotb_test_basic_connectivity(dut):
     # Probe a non-base offset; addr_range is 4 KB-aligned by validator so
     # +0x100 is always safely inside the slave's window.
     test_addr = 0x40000100
-    expected = tb.slave_mem_read(1, test_addr)
+    expected = tb.slave_mem_read(1, test_addr, master_idx=1)
     tb.log.info(f"  R slave=1 addr=0x{test_addr:08x} expect=0x{expected:08x}")
     actual = await tb.master_read(1, test_addr)
     await tb.expect_ar_at_slave(1, test_addr)
@@ -305,7 +331,7 @@ async def cocotb_test_basic_connectivity(dut):
     # Probe a non-base offset; addr_range is 4 KB-aligned by validator so
     # +0x100 is always safely inside the slave's window.
     test_addr = 0x80000100
-    expected = tb.slave_mem_read(2, test_addr)
+    expected = tb.slave_mem_read(2, test_addr, master_idx=1)
     tb.log.info(f"  R slave=2 addr=0x{test_addr:08x} expect=0x{expected:08x}")
     actual = await tb.master_read(1, test_addr)
     await tb.expect_ar_at_slave(2, test_addr)
@@ -317,7 +343,7 @@ async def cocotb_test_basic_connectivity(dut):
     # Probe a non-base offset; addr_range is 4 KB-aligned by validator so
     # +0x100 is always safely inside the slave's window.
     test_addr = 0x40000100
-    expected = tb.slave_mem_read(1, test_addr)
+    expected = tb.slave_mem_read(1, test_addr, master_idx=2)
     tb.log.info(f"  R slave=1 addr=0x{test_addr:08x} expect=0x{expected:08x}")
     actual = await tb.master_read(2, test_addr)
     await tb.expect_ar_at_slave(1, test_addr)
@@ -328,7 +354,7 @@ async def cocotb_test_basic_connectivity(dut):
     # Probe a non-base offset; addr_range is 4 KB-aligned by validator so
     # +0x100 is always safely inside the slave's window.
     test_addr = 0x80000100
-    expected = tb.slave_mem_read(2, test_addr)
+    expected = tb.slave_mem_read(2, test_addr, master_idx=2)
     tb.log.info(f"  R slave=2 addr=0x{test_addr:08x} expect=0x{expected:08x}")
     actual = await tb.master_read(2, test_addr)
     await tb.expect_ar_at_slave(2, test_addr)
@@ -339,7 +365,7 @@ async def cocotb_test_basic_connectivity(dut):
     # Probe a non-base offset; addr_range is 4 KB-aligned by validator so
     # +0x100 is always safely inside the slave's window.
     test_addr = 0xc0000100
-    expected = tb.slave_mem_read(3, test_addr)
+    expected = tb.slave_mem_read(3, test_addr, master_idx=2)
     tb.log.info(f"  R slave=3 addr=0x{test_addr:08x} expect=0x{expected:08x}")
     actual = await tb.master_read(2, test_addr)
     await tb.expect_ar_at_slave(3, test_addr)
@@ -351,7 +377,7 @@ async def cocotb_test_basic_connectivity(dut):
     # Probe a non-base offset; addr_range is 4 KB-aligned by validator so
     # +0x100 is always safely inside the slave's window.
     test_addr = 0x00000100
-    expected = tb.slave_mem_read(0, test_addr)
+    expected = tb.slave_mem_read(0, test_addr, master_idx=3)
     tb.log.info(f"  R slave=0 addr=0x{test_addr:08x} expect=0x{expected:08x}")
     actual = await tb.master_read(3, test_addr)
     await tb.expect_ar_at_slave(0, test_addr)
@@ -362,7 +388,7 @@ async def cocotb_test_basic_connectivity(dut):
     # Probe a non-base offset; addr_range is 4 KB-aligned by validator so
     # +0x100 is always safely inside the slave's window.
     test_addr = 0x40000100
-    expected = tb.slave_mem_read(1, test_addr)
+    expected = tb.slave_mem_read(1, test_addr, master_idx=3)
     tb.log.info(f"  R slave=1 addr=0x{test_addr:08x} expect=0x{expected:08x}")
     actual = await tb.master_read(3, test_addr)
     await tb.expect_ar_at_slave(1, test_addr)
@@ -373,7 +399,7 @@ async def cocotb_test_basic_connectivity(dut):
     # Probe a non-base offset; addr_range is 4 KB-aligned by validator so
     # +0x100 is always safely inside the slave's window.
     test_addr = 0xc0000100
-    expected = tb.slave_mem_read(3, test_addr)
+    expected = tb.slave_mem_read(3, test_addr, master_idx=3)
     tb.log.info(f"  R slave=3 addr=0x{test_addr:08x} expect=0x{expected:08x}")
     actual = await tb.master_read(3, test_addr)
     await tb.expect_ar_at_slave(3, test_addr)
@@ -418,11 +444,11 @@ async def cocotb_test_address_decode(dut):
     # Boundary write — base
     d0 = (0xDE000000 | (0 << 12) | (0 << 4) | 0x0)
     await tb.master_write(0, base_addr, d0)
-    assert tb.slave_mem_read(0, base_addr) == d0
+    assert tb.slave_mem_read(0, base_addr, master_idx=0) == d0
     # Boundary write — end
     d1 = (0xDE000000 | (0 << 12) | (0 << 4) | 0x1)
     await tb.master_write(0, end_addr, d1)
-    assert tb.slave_mem_read(0, end_addr) == d1
+    assert tb.slave_mem_read(0, end_addr, master_idx=0) == d1
     # Slave 1 (ddr0_slave): 0x40000000-0x7fffffff
     base_addr = 0x40000000
     # Probe the end of the *seeded* region (MemoryModel is capped to
@@ -439,11 +465,11 @@ async def cocotb_test_address_decode(dut):
     # Boundary write — base
     d0 = (0xDE000000 | (0 << 12) | (1 << 4) | 0x0)
     await tb.master_write(0, base_addr, d0)
-    assert tb.slave_mem_read(1, base_addr) == d0
+    assert tb.slave_mem_read(1, base_addr, master_idx=0) == d0
     # Boundary write — end
     d1 = (0xDE000000 | (0 << 12) | (1 << 4) | 0x1)
     await tb.master_write(0, end_addr, d1)
-    assert tb.slave_mem_read(1, end_addr) == d1
+    assert tb.slave_mem_read(1, end_addr, master_idx=0) == d1
     # Slave 2 (sram_slave): 0x80000000-0xbfffffff
     base_addr = 0x80000000
     # Probe the end of the *seeded* region (MemoryModel is capped to
@@ -460,11 +486,11 @@ async def cocotb_test_address_decode(dut):
     # Boundary write — base
     d0 = (0xDE000000 | (0 << 12) | (2 << 4) | 0x0)
     await tb.master_write(0, base_addr, d0)
-    assert tb.slave_mem_read(2, base_addr) == d0
+    assert tb.slave_mem_read(2, base_addr, master_idx=0) == d0
     # Boundary write — end
     d1 = (0xDE000000 | (0 << 12) | (2 << 4) | 0x1)
     await tb.master_write(0, end_addr, d1)
-    assert tb.slave_mem_read(2, end_addr) == d1
+    assert tb.slave_mem_read(2, end_addr, master_idx=0) == d1
     # Slave 3 (gpu_mem_slave): 0xc0000000-0xffffffff
     base_addr = 0xc0000000
     # Probe the end of the *seeded* region (MemoryModel is capped to
@@ -481,11 +507,11 @@ async def cocotb_test_address_decode(dut):
     # Boundary write — base
     d0 = (0xDE000000 | (0 << 12) | (3 << 4) | 0x0)
     await tb.master_write(0, base_addr, d0)
-    assert tb.slave_mem_read(3, base_addr) == d0
+    assert tb.slave_mem_read(3, base_addr, master_idx=0) == d0
     # Boundary write — end
     d1 = (0xDE000000 | (0 << 12) | (3 << 4) | 0x1)
     await tb.master_write(0, end_addr, d1)
-    assert tb.slave_mem_read(3, end_addr) == d1
+    assert tb.slave_mem_read(3, end_addr, master_idx=0) == d1
     tb.log.info(f"Master 1 (dma0_master)")
     # Slave 0 (periph_slave): 0x00000000-0x3fffffff
     base_addr = 0x00000000
@@ -503,11 +529,11 @@ async def cocotb_test_address_decode(dut):
     # Boundary write — base
     d0 = (0xDE000000 | (1 << 12) | (0 << 4) | 0x0)
     await tb.master_write(1, base_addr, d0)
-    assert tb.slave_mem_read(0, base_addr) == d0
+    assert tb.slave_mem_read(0, base_addr, master_idx=1) == d0
     # Boundary write — end
     d1 = (0xDE000000 | (1 << 12) | (0 << 4) | 0x1)
     await tb.master_write(1, end_addr, d1)
-    assert tb.slave_mem_read(0, end_addr) == d1
+    assert tb.slave_mem_read(0, end_addr, master_idx=1) == d1
     # Slave 1 (ddr0_slave): 0x40000000-0x7fffffff
     base_addr = 0x40000000
     # Probe the end of the *seeded* region (MemoryModel is capped to
@@ -524,11 +550,11 @@ async def cocotb_test_address_decode(dut):
     # Boundary write — base
     d0 = (0xDE000000 | (1 << 12) | (1 << 4) | 0x0)
     await tb.master_write(1, base_addr, d0)
-    assert tb.slave_mem_read(1, base_addr) == d0
+    assert tb.slave_mem_read(1, base_addr, master_idx=1) == d0
     # Boundary write — end
     d1 = (0xDE000000 | (1 << 12) | (1 << 4) | 0x1)
     await tb.master_write(1, end_addr, d1)
-    assert tb.slave_mem_read(1, end_addr) == d1
+    assert tb.slave_mem_read(1, end_addr, master_idx=1) == d1
     # Slave 2 (sram_slave): 0x80000000-0xbfffffff
     base_addr = 0x80000000
     # Probe the end of the *seeded* region (MemoryModel is capped to
@@ -545,11 +571,11 @@ async def cocotb_test_address_decode(dut):
     # Boundary write — base
     d0 = (0xDE000000 | (1 << 12) | (2 << 4) | 0x0)
     await tb.master_write(1, base_addr, d0)
-    assert tb.slave_mem_read(2, base_addr) == d0
+    assert tb.slave_mem_read(2, base_addr, master_idx=1) == d0
     # Boundary write — end
     d1 = (0xDE000000 | (1 << 12) | (2 << 4) | 0x1)
     await tb.master_write(1, end_addr, d1)
-    assert tb.slave_mem_read(2, end_addr) == d1
+    assert tb.slave_mem_read(2, end_addr, master_idx=1) == d1
     tb.log.info(f"Master 2 (dma1_master)")
     # Slave 1 (ddr0_slave): 0x40000000-0x7fffffff
     base_addr = 0x40000000
@@ -567,11 +593,11 @@ async def cocotb_test_address_decode(dut):
     # Boundary write — base
     d0 = (0xDE000000 | (2 << 12) | (1 << 4) | 0x0)
     await tb.master_write(2, base_addr, d0)
-    assert tb.slave_mem_read(1, base_addr) == d0
+    assert tb.slave_mem_read(1, base_addr, master_idx=2) == d0
     # Boundary write — end
     d1 = (0xDE000000 | (2 << 12) | (1 << 4) | 0x1)
     await tb.master_write(2, end_addr, d1)
-    assert tb.slave_mem_read(1, end_addr) == d1
+    assert tb.slave_mem_read(1, end_addr, master_idx=2) == d1
     # Slave 2 (sram_slave): 0x80000000-0xbfffffff
     base_addr = 0x80000000
     # Probe the end of the *seeded* region (MemoryModel is capped to
@@ -588,11 +614,11 @@ async def cocotb_test_address_decode(dut):
     # Boundary write — base
     d0 = (0xDE000000 | (2 << 12) | (2 << 4) | 0x0)
     await tb.master_write(2, base_addr, d0)
-    assert tb.slave_mem_read(2, base_addr) == d0
+    assert tb.slave_mem_read(2, base_addr, master_idx=2) == d0
     # Boundary write — end
     d1 = (0xDE000000 | (2 << 12) | (2 << 4) | 0x1)
     await tb.master_write(2, end_addr, d1)
-    assert tb.slave_mem_read(2, end_addr) == d1
+    assert tb.slave_mem_read(2, end_addr, master_idx=2) == d1
     # Slave 3 (gpu_mem_slave): 0xc0000000-0xffffffff
     base_addr = 0xc0000000
     # Probe the end of the *seeded* region (MemoryModel is capped to
@@ -609,11 +635,11 @@ async def cocotb_test_address_decode(dut):
     # Boundary write — base
     d0 = (0xDE000000 | (2 << 12) | (3 << 4) | 0x0)
     await tb.master_write(2, base_addr, d0)
-    assert tb.slave_mem_read(3, base_addr) == d0
+    assert tb.slave_mem_read(3, base_addr, master_idx=2) == d0
     # Boundary write — end
     d1 = (0xDE000000 | (2 << 12) | (3 << 4) | 0x1)
     await tb.master_write(2, end_addr, d1)
-    assert tb.slave_mem_read(3, end_addr) == d1
+    assert tb.slave_mem_read(3, end_addr, master_idx=2) == d1
     tb.log.info(f"Master 3 (gpu_master)")
     # Slave 0 (periph_slave): 0x00000000-0x3fffffff
     base_addr = 0x00000000
@@ -631,11 +657,11 @@ async def cocotb_test_address_decode(dut):
     # Boundary write — base
     d0 = (0xDE000000 | (3 << 12) | (0 << 4) | 0x0)
     await tb.master_write(3, base_addr, d0)
-    assert tb.slave_mem_read(0, base_addr) == d0
+    assert tb.slave_mem_read(0, base_addr, master_idx=3) == d0
     # Boundary write — end
     d1 = (0xDE000000 | (3 << 12) | (0 << 4) | 0x1)
     await tb.master_write(3, end_addr, d1)
-    assert tb.slave_mem_read(0, end_addr) == d1
+    assert tb.slave_mem_read(0, end_addr, master_idx=3) == d1
     # Slave 1 (ddr0_slave): 0x40000000-0x7fffffff
     base_addr = 0x40000000
     # Probe the end of the *seeded* region (MemoryModel is capped to
@@ -652,11 +678,11 @@ async def cocotb_test_address_decode(dut):
     # Boundary write — base
     d0 = (0xDE000000 | (3 << 12) | (1 << 4) | 0x0)
     await tb.master_write(3, base_addr, d0)
-    assert tb.slave_mem_read(1, base_addr) == d0
+    assert tb.slave_mem_read(1, base_addr, master_idx=3) == d0
     # Boundary write — end
     d1 = (0xDE000000 | (3 << 12) | (1 << 4) | 0x1)
     await tb.master_write(3, end_addr, d1)
-    assert tb.slave_mem_read(1, end_addr) == d1
+    assert tb.slave_mem_read(1, end_addr, master_idx=3) == d1
     # Slave 3 (gpu_mem_slave): 0xc0000000-0xffffffff
     base_addr = 0xc0000000
     # Probe the end of the *seeded* region (MemoryModel is capped to
@@ -673,11 +699,11 @@ async def cocotb_test_address_decode(dut):
     # Boundary write — base
     d0 = (0xDE000000 | (3 << 12) | (3 << 4) | 0x0)
     await tb.master_write(3, base_addr, d0)
-    assert tb.slave_mem_read(3, base_addr) == d0
+    assert tb.slave_mem_read(3, base_addr, master_idx=3) == d0
     # Boundary write — end
     d1 = (0xDE000000 | (3 << 12) | (3 << 4) | 0x1)
     await tb.master_write(3, end_addr, d1)
-    assert tb.slave_mem_read(3, end_addr) == d1
+    assert tb.slave_mem_read(3, end_addr, master_idx=3) == d1
 
     await ClockCycles(tb.clock, 20)
     tb.log.info("=" * 80)

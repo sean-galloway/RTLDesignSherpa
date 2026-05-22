@@ -286,6 +286,7 @@ module dma_adapter #(
     );
 
     logic [NUM_SLAVES-1:0] b_slave_select;
+    logic [NUM_SLAVES-1:0] w_slave_select;
     logic [NUM_SLAVES-1:0] r_slave_select;
 
     // ================================================================
@@ -335,7 +336,7 @@ module dma_adapter #(
     logic aw_path_active_32b;
     assign aw_path_active_32b = comb_slave_select_aw[0] | comb_slave_select_aw[1];
     logic w_path_active_32b;
-    assign w_path_active_32b = b_slave_select[0] | b_slave_select[1];
+    assign w_path_active_32b = w_slave_select[0] | w_slave_select[1];
     logic ar_path_active_32b;
     assign ar_path_active_32b = comb_slave_select_ar[0] | comb_slave_select_ar[1];
 
@@ -439,6 +440,38 @@ module dma_adapter #(
                           ? aw_trk_mem[aw_trk_rptr[AW_TRK_AW-1:0]]
                           : '0;
 
+    // -------- AW->W slave_select tracking FIFO --------
+    // Same push as AW (records slave_select at handshake);
+    // pops on wlast so W#2's path-active gating doesn't wait
+    // for B#1 to return. Without this, back-to-back writes
+    // to different-width slaves stamp W#2's data on AW#1's
+    // bucket (see multi-master 128b->32b/128b regression).
+    logic [NUM_SLAVES-1:0] w_trk_mem [AW_TRK_DEPTH];
+    logic [AW_TRK_AW:0] w_trk_wptr, w_trk_rptr;
+    logic w_trk_push, w_trk_pop;
+
+    assign w_trk_push = fub_axi_awvalid && fub_axi_awready;
+    assign w_trk_pop  = fub_axi_wvalid && fub_axi_wready && fub_axi_wlast;
+
+    always_ff @(posedge aclk or negedge aresetn) begin
+        if (!aresetn) begin
+            w_trk_wptr <= '0;
+            w_trk_rptr <= '0;
+        end else begin
+            if (w_trk_push) begin
+                w_trk_mem[w_trk_wptr[AW_TRK_AW-1:0]] <= comb_slave_select_aw;
+                w_trk_wptr <= w_trk_wptr + 1'b1;
+            end
+            if (w_trk_pop) begin
+                w_trk_rptr <= w_trk_rptr + 1'b1;
+            end
+        end
+    end
+
+    assign w_slave_select = (w_trk_wptr != w_trk_rptr)
+                          ? w_trk_mem[w_trk_rptr[AW_TRK_AW-1:0]]
+                          : '0;
+
     // OUTPUT slave_select_ar mirrors the live combinational decode.
     assign slave_select_ar = comb_slave_select_ar;
 
@@ -471,21 +504,34 @@ module dma_adapter #(
                           ? ar_trk_mem[ar_trk_rptr[AR_TRK_AW-1:0]]
                           : '0;
 
-    // AW/W-ready MUX (request side: uses combinational comb_slave_select_aw)
+    // AW-ready MUX (combinational comb_slave_select_aw — awaddr is live during awvalid)
     always_comb begin
         fub_axi_awready = 1'b0;
-        fub_axi_wready = 1'b0;
         case (comb_slave_select_aw)
             2'b01: begin  // Slave 0 (32b)
                 fub_axi_awready = dma_32b_awready;
-                fub_axi_wready = dma_32b_wready;
             end
             2'b10: begin  // Slave 1 (32b)
                 fub_axi_awready = dma_32b_awready;
-                fub_axi_wready = dma_32b_wready;
             end
             default: begin
                 // No slave selected
+            end
+        endcase
+    end
+
+    // W-ready MUX (FIFO-tracked w_slave_select — awaddr has already reverted by W phase)
+    always_comb begin
+        fub_axi_wready = 1'b0;
+        case (w_slave_select)
+            2'b01: begin  // Slave 0 (32b)
+                fub_axi_wready = dma_32b_wready;
+            end
+            2'b10: begin  // Slave 1 (32b)
+                fub_axi_wready = dma_32b_wready;
+            end
+            default: begin
+                // No active W transaction
             end
         endcase
     end

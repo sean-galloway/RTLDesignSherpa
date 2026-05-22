@@ -475,12 +475,22 @@ class AdapterGenerator:
         """
         lines = []
 
-        # Forward-declare the FIFO-head signals (b_slave_select for AW->B
-        # and r_slave_select for AR->R) so that width-adaptation can use
-        # them for W and R gating. The actual driver assigns live in
+        # Forward-declare the FIFO-head signals so width-adaptation
+        # can use them for response/data gating. Drivers live in
         # _generate_response_mux further down.
+        #   b_slave_select : AW->B order, popped on B (response MUX)
+        #   w_slave_select : AW->W order, popped on W (wlast). W needs
+        #                    its OWN FIFO because multiple writes can
+        #                    be in flight (AW#1, AW#2 issued; W#1 may
+        #                    still be streaming when W#2 starts). Gating
+        #                    W on b_slave_select would hold W#2 routing
+        #                    on AW#1's slave until B#1 returns, stamping
+        #                    W#2's data onto AW#1's path. Real bug --
+        #                    caught by the multi-master memory-backed TB.
+        #   r_slave_select : AR->R order, popped on R-last (response MUX)
         if self.master.channels in ("wr", "rw"):
             lines.append("    logic [NUM_SLAVES-1:0] b_slave_select;")
+            lines.append("    logic [NUM_SLAVES-1:0] w_slave_select;")
         if self.master.channels in ("rd", "rw"):
             lines.append("    logic [NUM_SLAVES-1:0] r_slave_select;")
         lines.append("")
@@ -695,10 +705,13 @@ class AdapterGenerator:
                     # W beats arrive after AW; by then fub_axi_awaddr may
                     # have reverted (wrapper popped its skid) and the
                     # combinational decode flips back to a different slave.
-                    # Use the FIFO-tracked b_slave_select (defined in the
-                    # response-MUX section below) for W gating so the W
-                    # beats continue to flow through the right path.
-                    w_terms = " | ".join(f"b_slave_select[{si}]" for si in slaves_at_w)
+                    # Use w_slave_select (FIFO popped on wlast, defined in
+                    # the response-MUX section below) so W#2's gating
+                    # doesn't block on B#1 returning. Previously this used
+                    # b_slave_select (popped on B), which made back-to-back
+                    # writes route W#2's data onto AW#1's slave's width
+                    # bucket until B#1 settled.
+                    w_terms = " | ".join(f"w_slave_select[{si}]" for si in slaves_at_w)
                     lines.append(
                         f"    logic w_path_active_{slave_width}b;"
                     )
@@ -828,6 +841,38 @@ class AdapterGenerator:
             lines.append("                          ? aw_trk_mem[aw_trk_rptr[AW_TRK_AW-1:0]]")
             lines.append("                          : '0;")
             lines.append("")
+            lines.append("    // -------- AW->W slave_select tracking FIFO --------")
+            lines.append("    // Same push as AW (records slave_select at handshake);")
+            lines.append("    // pops on wlast so W#2's path-active gating doesn't wait")
+            lines.append("    // for B#1 to return. Without this, back-to-back writes")
+            lines.append("    // to different-width slaves stamp W#2's data on AW#1's")
+            lines.append("    // bucket (see multi-master 128b->32b/128b regression).")
+            lines.append(f"    logic [NUM_SLAVES-1:0] w_trk_mem [AW_TRK_DEPTH];")
+            lines.append("    logic [AW_TRK_AW:0] w_trk_wptr, w_trk_rptr;")
+            lines.append("    logic w_trk_push, w_trk_pop;")
+            lines.append("")
+            lines.append("    assign w_trk_push = fub_axi_awvalid && fub_axi_awready;")
+            lines.append("    assign w_trk_pop  = fub_axi_wvalid && fub_axi_wready && fub_axi_wlast;")
+            lines.append("")
+            lines.append("    always_ff @(posedge aclk or negedge aresetn) begin")
+            lines.append("        if (!aresetn) begin")
+            lines.append("            w_trk_wptr <= '0;")
+            lines.append("            w_trk_rptr <= '0;")
+            lines.append("        end else begin")
+            lines.append("            if (w_trk_push) begin")
+            lines.append("                w_trk_mem[w_trk_wptr[AW_TRK_AW-1:0]] <= comb_slave_select_aw;")
+            lines.append("                w_trk_wptr <= w_trk_wptr + 1'b1;")
+            lines.append("            end")
+            lines.append("            if (w_trk_pop) begin")
+            lines.append("                w_trk_rptr <= w_trk_rptr + 1'b1;")
+            lines.append("            end")
+            lines.append("        end")
+            lines.append("    end")
+            lines.append("")
+            lines.append("    assign w_slave_select = (w_trk_wptr != w_trk_rptr)")
+            lines.append("                          ? w_trk_mem[w_trk_rptr[AW_TRK_AW-1:0]]")
+            lines.append("                          : '0;")
+            lines.append("")
 
         if self.master.channels in ("rd", "rw"):
             lines.append("    // OUTPUT slave_select_ar mirrors the live combinational decode.")
@@ -866,11 +911,11 @@ class AdapterGenerator:
 
         # Write channel MUX
         if self.master.channels in ["wr", "rw"]:
-            # AW/W-ready path: combinational decode on the request side.
-            lines.append("    // AW/W-ready MUX (request side: uses combinational comb_slave_select_aw)")
+            # AW-ready uses the live combinational decode (fub_axi_awaddr
+            # is still valid while awvalid is asserted).
+            lines.append("    // AW-ready MUX (combinational comb_slave_select_aw — awaddr is live during awvalid)")
             lines.append("    always_comb begin")
             lines.append("        fub_axi_awready = 1'b0;")
-            lines.append("        fub_axi_wready = 1'b0;")
             lines.append("        case (comb_slave_select_aw)")
             for slave_width in sorted(set(slave_widths)):
                 suffix = f"{slave_width}b"
@@ -883,13 +928,45 @@ class AdapterGenerator:
                     lines.append(f"            {pattern}: begin  // Slave {slave_idx} ({slave_width}b)")
                     if slave_width == master_width:
                         lines.append(f"                fub_axi_awready = {self.master.name}_{suffix}_awready;")
-                        lines.append(f"                fub_axi_wready = {self.master.name}_{suffix}_wready;")
                     else:
                         lines.append(f"                fub_axi_awready = conv_{suffix}_awready;")
-                        lines.append(f"                fub_axi_wready = conv_{suffix}_wready;")
                     lines.append("            end")
             lines.append("            default: begin")
             lines.append("                // No slave selected")
+            lines.append("            end")
+            lines.append("        endcase")
+            lines.append("    end")
+            lines.append("")
+
+            # W-ready uses w_slave_select (FIFO head, popped on wlast).
+            # By the time W beats arrive, the AW handshake is long
+            # done and fub_axi_awaddr has reverted -- comb_slave_select_aw
+            # would route W to the wrong bucket (or default to 0, which
+            # holds wready low and the master deadlocks). w_slave_select
+            # is the FIFO-tracked slave from AW push order, advanced
+            # only when each W burst's wlast completes -- so W#2 of
+            # back-to-back writes gets W#2's slave's wready immediately
+            # after W#1 finishes, without waiting for B#1.
+            lines.append("    // W-ready MUX (FIFO-tracked w_slave_select — awaddr has already reverted by W phase)")
+            lines.append("    always_comb begin")
+            lines.append("        fub_axi_wready = 1'b0;")
+            lines.append("        case (w_slave_select)")
+            for slave_width in sorted(set(slave_widths)):
+                suffix = f"{slave_width}b"
+                slave_indices = width_to_slaves[slave_width]
+                for slave_idx in slave_indices:
+                    pattern = f"{num_slaves}'b" + ''.join(
+                        '1' if i == slave_idx else '0'
+                        for i in range(num_slaves - 1, -1, -1)
+                    )
+                    lines.append(f"            {pattern}: begin  // Slave {slave_idx} ({slave_width}b)")
+                    if slave_width == master_width:
+                        lines.append(f"                fub_axi_wready = {self.master.name}_{suffix}_wready;")
+                    else:
+                        lines.append(f"                fub_axi_wready = conv_{suffix}_wready;")
+                    lines.append("            end")
+            lines.append("            default: begin")
+            lines.append("                // No active W transaction")
             lines.append("            end")
             lines.append("        endcase")
             lines.append("    end")

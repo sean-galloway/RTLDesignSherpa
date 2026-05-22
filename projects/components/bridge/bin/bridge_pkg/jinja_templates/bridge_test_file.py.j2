@@ -75,7 +75,9 @@ async def cocotb_test_basic_connectivity(dut):
     tb.log.info(f"  W slave={{ loop.index0 }} addr=0x{test_addr:08x} data=0x{test_data:08x}")
     await tb.master_write({{ master_idx }}, test_addr, test_data)
     await tb.expect_aw_at_slave({{ loop.index0 }}, test_addr)
-    actual = tb.slave_mem_read({{ loop.index0 }}, test_addr)
+    # Read back at master {{ master_idx }}'s width — only the bytes the master
+    # actually wrote should be compared; trailing bytes are still the seed.
+    actual = tb.slave_mem_read({{ loop.index0 }}, test_addr, master_idx={{ master_idx }})
     assert actual == test_data, (
         f"Slave {{ loop.index0 }} memory mismatch at 0x{test_addr:08x}: "
         f"got 0x{actual:08x}, expected 0x{test_data:08x}")
@@ -99,7 +101,7 @@ async def cocotb_test_basic_connectivity(dut):
     # Probe a non-base offset; addr_range is 4 KB-aligned by validator so
     # +0x100 is always safely inside the slave's window.
     test_addr = {{ '0x%08x' % (slave.base_addr + 0x100) }}
-    expected = tb.slave_mem_read({{ loop.index0 }}, test_addr)
+    expected = tb.slave_mem_read({{ loop.index0 }}, test_addr, master_idx={{ master_idx }})
     tb.log.info(f"  R slave={{ loop.index0 }} addr=0x{test_addr:08x} expect=0x{expected:08x}")
     actual = await tb.master_read({{ master_idx }}, test_addr)
     await tb.expect_ar_at_slave({{ loop.index0 }}, test_addr)
@@ -156,18 +158,18 @@ async def cocotb_test_address_decode(dut):
     # Boundary write — base
     d0 = (0xDE000000 | ({{ master_idx }} << 12) | ({{ loop.index0 }} << 4) | 0x0)
     await tb.master_write({{ master_idx }}, base_addr, d0)
-    assert tb.slave_mem_read({{ loop.index0 }}, base_addr) == d0
+    assert tb.slave_mem_read({{ loop.index0 }}, base_addr, master_idx={{ master_idx }}) == d0
     # Boundary write — end
     d1 = (0xDE000000 | ({{ master_idx }} << 12) | ({{ loop.index0 }} << 4) | 0x1)
     await tb.master_write({{ master_idx }}, end_addr, d1)
-    assert tb.slave_mem_read({{ loop.index0 }}, end_addr) == d1
+    assert tb.slave_mem_read({{ loop.index0 }}, end_addr, master_idx={{ master_idx }}) == d1
 {% elif master.has_read_channels() and slave.has_read_channels() %}
     # Boundary read — base
-    exp0 = tb.slave_mem_read({{ loop.index0 }}, base_addr)
+    exp0 = tb.slave_mem_read({{ loop.index0 }}, base_addr, master_idx={{ master_idx }})
     got0 = await tb.master_read({{ master_idx }}, base_addr)
     assert got0 == exp0, f"slave {{ loop.index0 }} base mismatch: got 0x{got0:08x}, exp 0x{exp0:08x}"
     # Boundary read — end
-    exp1 = tb.slave_mem_read({{ loop.index0 }}, end_addr)
+    exp1 = tb.slave_mem_read({{ loop.index0 }}, end_addr, master_idx={{ master_idx }})
     got1 = await tb.master_read({{ master_idx }}, end_addr)
     assert got1 == exp1, f"slave {{ loop.index0 }} end mismatch: got 0x{got1:08x}, exp 0x{exp1:08x}"
 {% endif %}

@@ -203,15 +203,20 @@ class Bridge5x3ChannelsTB(TBBase):
         master_width = self.master_data_width.get(0, self.data_width)
         return self.slave_mem_read(slave_idx, addr, byte_count=master_width // 8)
 
-    def slave_mem_read(self, slave_idx: int, addr: int, byte_count: int = None) -> int:
+    def slave_mem_read(self, slave_idx: int, addr: int, byte_count: int = None,
+                       master_idx: int = 0) -> int:
         """Read `byte_count` bytes from slave[slave_idx]'s memory at
         absolute address `addr` and return as a little-endian int.
 
-        If byte_count is None, defaults to master 0's data width in bytes.
+        If byte_count is None, derives it from master_idx's data width.
+        Defaulting to master 0 covers single-master configs; multi-master
+        callers must pass master_idx of the master that wrote (or that
+        the master_read will probe), otherwise read-back will include
+        stale bytes from the seed pattern beyond what the master touched.
         For APB slaves, reads directly from the APBSlave's internal memory."""
         proto, base, _, slave_dw = self.slave_info[slave_idx]
         if byte_count is None:
-            master_width = self.master_data_width.get(0, self.data_width)
+            master_width = self.master_data_width.get(master_idx, self.data_width)
             byte_count = master_width // 8
         offset = addr - base
         if proto == 'apb':
