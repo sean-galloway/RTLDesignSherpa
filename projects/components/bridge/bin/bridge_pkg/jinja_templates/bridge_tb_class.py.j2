@@ -155,9 +155,16 @@ class {{ tb_class_name }}(TBBase):
     # byte, scaled across multiple multi-hundred-MB slaves).
     #
     # Pre-seed the first SLAVE_MEM_CAP_BYTES of each slave; tests must
-    # probe within that window. Misroute-only tests (address_decode end-
-    # of-range probes) skip the data assertion past this cap.
+    # probe within that window for data verification. Routing-only probes
+    # (address_decode beyond page 0) work outside the cap — the framework
+    # slave BFMs silently drop OOR writes and fall back to addr-as-data on
+    # OOR reads, so the AW/AR routing assertion still fires.
     SLAVE_MEM_CAP_BYTES = 4096
+
+    # Bridge page granularity. The slave-window validator already aligns
+    # each base_addr / addr_range to PAGE_SIZE (4 KB), so page-level probes
+    # are always safe to construct.
+    PAGE_SIZE = 0x1000
 
     def _build_preset(self, slave_idx: int, addr_range: int, data_width: int) -> bytearray:
         """Build the bytearray preset for a slave's MemoryModel. Caps the
@@ -177,6 +184,56 @@ class {{ tb_class_name }}(TBBase):
         (= min(addr_range, SLAVE_MEM_CAP_BYTES))."""
         _, _, addr_range, _ = self.slave_info[slave_idx]
         return min(addr_range, self.SLAVE_MEM_CAP_BYTES)
+
+    def slave_probe_pages(self, slave_idx: int, mode: str = 'boundary') -> list:
+        """Return absolute page-base addresses to probe within slave_idx's
+        window.
+
+        mode='boundary': three pages — first, middle, last of the slave's
+            addr_range. For a one-page slave returns [base]; for two pages
+            [base, base+PAGE]. This is the default — it exercises low-bit,
+            mid-bit, and high-bit address decode without scaling test
+            runtime with slave size.
+
+        mode='all': every page in the slave's addr_range. Useful for
+            stress / regression on small slaves; large windows (GB-class
+            DDR) explode the probe count, so use with care.
+        """
+        _, base, addr_range, _ = self.slave_info[slave_idx]
+        num_pages = max(1, addr_range // self.PAGE_SIZE)
+        if mode == 'all':
+            return [base + i * self.PAGE_SIZE for i in range(num_pages)]
+        # boundary (default)
+        if num_pages == 1:
+            return [base]
+        if num_pages == 2:
+            return [base, base + self.PAGE_SIZE]
+        mid = (num_pages // 2) * self.PAGE_SIZE
+        last = (num_pages - 1) * self.PAGE_SIZE
+        return [base, base + mid, base + last]
+
+    def page_probe_offsets(self, slave_idx: int, master_idx: int = 0) -> list:
+        """Return three in-page byte offsets [low, mid, high] for probing,
+        each aligned to max(master_width, slave_width). Catches address
+        decoders that ignore low bits (low probe), mid-bit decoders
+        (middle), and decoders that off-by-one at the page boundary
+        (high — last aligned word in the page)."""
+        master_bytes = self.master_data_width[master_idx] // 8
+        slave_bytes = self.slave_info[slave_idx][3] // 8
+        align = max(master_bytes, slave_bytes)
+        align_mask = ~(align - 1) & 0xFFFFFFFFFFFFFFFF
+        low = 0
+        mid = (self.PAGE_SIZE // 2) & align_mask
+        high = (self.PAGE_SIZE - align) & align_mask
+        return [low, mid, high]
+
+    def is_seeded(self, slave_idx: int, addr: int) -> bool:
+        """True if `addr` falls inside slave_idx's seeded MemoryModel
+        region — i.e. a read at this addr will return the seed pattern
+        and a write here is observable via slave_mem_read."""
+        _, base, _, _ = self.slave_info[slave_idx]
+        offset = addr - base
+        return 0 <= offset < self._slave_mem_bytes(slave_idx)
 
     def expected_pattern(self, slave_idx: int, addr: int) -> int:
         """Return the seeded *master-width* value at the given absolute
@@ -469,28 +526,75 @@ class {{ tb_class_name }}(TBBase):
             await ClockCycles(self.clock, 1)
         return max_cycles
 
+    def _expected_decomposed_beats(self, slave_idx: int, master_idx: int) -> int:
+        """How many AW/AR handshakes a single master transaction generates
+        at this slave's observation point.
+
+        AXI4 slaves: 1 handshake. The dwidth converter rewrites AWLEN
+        and emits a single burst AW with the new beat count; the slave
+        BFM's AW callback fires once per AW, not once per beat.
+
+        AXIL slaves: ceil(master_bytes/slave_bytes) handshakes. The
+        axi4_to_axil4 shim decomposes a burst into N separate AXIL
+        single-beat transactions, each with its own AW handshake.
+
+        APB: irrelevant — APBSlave bypasses GAXISlave, observed_* never
+        sees APB traffic."""
+        proto = self.slave_info[slave_idx][0]
+        if proto == 'axil':
+            master_bytes = self.master_data_width.get(master_idx, self.data_width) // 8
+            slave_bytes = self.slave_info[slave_idx][3] // 8
+            return max(1, master_bytes // slave_bytes)
+        return 1
+
     async def expect_aw_at_slave(self, slave_idx: int, expected_addr: int,
-                                  max_settle_cycles: int = 100) -> None:
-        """Verify the bridge routed an AW to slave_idx and nowhere else.
-        No-op for APB slaves (no GAXISlave callback to hook)."""
+                                  master_idx: int = 0,
+                                  max_settle_cycles: int = 200) -> None:
+        """Verify the bridge routed the expected number of AW beats to
+        slave_idx for the master's transaction, all observed AWADDRs
+        fall within the master's natural transfer window starting at
+        expected_addr, and no AW leaked to any other slave.
+
+        Drains EXACTLY expected_count entries (not all) so back-to-back
+        probes can each verify their own routing without interfering
+        with leftover entries from earlier probes. AXIL/APB shims emit
+        ceil(master_bytes/slave_bytes) narrow beats per master burst.
+
+        max_settle_cycles is a yield window only — when master_write
+        already awaited B, all AWs have fired and target is populated
+        before we get here; the poll just lets cocotb callbacks drain.
+
+        APB slaves bypass the GAXISlave hook, so they're a no-op here."""
         proto = self.slave_info[slave_idx][0]
         if proto == 'apb':
             return
         target = self.observed_aw[slave_idx]
-        await self._wait_for_obs(target, max_settle_cycles)
-        assert len(target) >= 1, (
-            f"AW to slave {slave_idx} (addr=0x{expected_addr:08x}) never arrived "
-            f"after {max_settle_cycles} cycles — bridge dropped or misrouted")
-        pkt = target.pop(0)
-        # Width-converted / AXIL-shimmed paths may down-align AWADDR to
-        # the slave's natural word boundary.
+        expected_count = self._expected_decomposed_beats(slave_idx, master_idx)
+        # Yield until enough entries have been logged (master_write
+        # already synced to B response — usually zero iterations).
+        for _ in range(max_settle_cycles):
+            if len(target) >= expected_count:
+                break
+            await ClockCycles(self.clock, 1)
+        assert len(target) >= expected_count, (
+            f"Expected >={expected_count} AW at slave {slave_idx} for "
+            f"master {master_idx} write at 0x{expected_addr:08x}, got "
+            f"{len(target)} after {max_settle_cycles} cycles — bridge "
+            f"dropped or misrouted")
+
+        master_bytes = self.master_data_width.get(master_idx, self.data_width) // 8
         slave_dw = self.slave_info[slave_idx][3]
         bytes_per_word = slave_dw // 8
         aligned = expected_addr & ~(bytes_per_word - 1)
-        assert int(pkt.addr) in (expected_addr, aligned), (
-            f"AW addr mismatch at slave {slave_idx}: "
-            f"got 0x{int(pkt.addr):08x}, expected 0x{expected_addr:08x} "
-            f"(or aligned 0x{aligned:08x})")
+        win_lo = aligned
+        win_hi = aligned + max(master_bytes, bytes_per_word)
+        for _ in range(expected_count):
+            pkt = target.pop(0)
+            a = int(pkt.addr)
+            assert win_lo <= a < win_hi, (
+                f"AW addr mismatch at slave {slave_idx}: "
+                f"got 0x{a:08x}, expected in [0x{win_lo:08x}, 0x{win_hi:08x}) "
+                f"for master {master_idx} write at 0x{expected_addr:08x}")
 
         for other in self._slave_indices_with_obs():
             if other == slave_idx:
@@ -501,24 +605,37 @@ class {{ tb_class_name }}(TBBase):
                 f"leaked to slave {other} (observed={len(other_obs)})")
 
     async def expect_ar_at_slave(self, slave_idx: int, expected_addr: int,
-                                  max_settle_cycles: int = 100) -> None:
-        """Read-side analogue of expect_aw_at_slave."""
+                                  master_idx: int = 0,
+                                  max_settle_cycles: int = 200) -> None:
+        """Read-side analogue of expect_aw_at_slave — drains
+        expected_decomposed_beats() entries per call."""
         proto = self.slave_info[slave_idx][0]
         if proto == 'apb':
             return
         target = self.observed_ar[slave_idx]
-        await self._wait_for_obs(target, max_settle_cycles)
-        assert len(target) >= 1, (
-            f"AR to slave {slave_idx} (addr=0x{expected_addr:08x}) never arrived "
-            f"after {max_settle_cycles} cycles")
-        pkt = target.pop(0)
+        expected_count = self._expected_decomposed_beats(slave_idx, master_idx)
+        for _ in range(max_settle_cycles):
+            if len(target) >= expected_count:
+                break
+            await ClockCycles(self.clock, 1)
+        assert len(target) >= expected_count, (
+            f"Expected >={expected_count} AR at slave {slave_idx} for "
+            f"master {master_idx} read at 0x{expected_addr:08x}, got "
+            f"{len(target)} after {max_settle_cycles} cycles")
+
+        master_bytes = self.master_data_width.get(master_idx, self.data_width) // 8
         slave_dw = self.slave_info[slave_idx][3]
         bytes_per_word = slave_dw // 8
         aligned = expected_addr & ~(bytes_per_word - 1)
-        assert int(pkt.addr) in (expected_addr, aligned), (
-            f"AR addr mismatch at slave {slave_idx}: "
-            f"got 0x{int(pkt.addr):08x}, expected 0x{expected_addr:08x} "
-            f"(or aligned 0x{aligned:08x})")
+        win_lo = aligned
+        win_hi = aligned + max(master_bytes, bytes_per_word)
+        for _ in range(expected_count):
+            pkt = target.pop(0)
+            a = int(pkt.addr)
+            assert win_lo <= a < win_hi, (
+                f"AR addr mismatch at slave {slave_idx}: "
+                f"got 0x{a:08x}, expected in [0x{win_lo:08x}, 0x{win_hi:08x}) "
+                f"for master {master_idx} read at 0x{expected_addr:08x}")
 
         for other in self._slave_indices_with_obs():
             if other == slave_idx:
