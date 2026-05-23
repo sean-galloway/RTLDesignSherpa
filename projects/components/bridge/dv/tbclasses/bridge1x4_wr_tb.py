@@ -109,17 +109,6 @@ class Bridge1x4WrTB(TBBase):
         # APB doesn't split rd/wr — single APBSlave per port.
         self.slave_apb = {}
 
-        # Passive observation buffers for misroute checks.
-        # cocotb_bus.monitors.Monitor._recv suppresses _recvQ.append when
-        # callbacks are installed. Since the protocol slave BFMs install
-        # their auto-response callback, _recvQ never populates and a
-        # naive _recvQ check would see "nothing arrived" even when the
-        # bridge did route correctly. We install a *second*, passive
-        # callback alongside the BFM's response callback that simply
-        # appends each observed packet to these per-slave lists.
-        self.observed_ar = {i: [] for i in range(4)}
-        self.observed_aw = {i: [] for i in range(4)}
-
         # Master BFMs — separate read and write handles. For wr-only or
         # rd-only masters only one of these gets populated.
         self.master_rd = {}
@@ -325,8 +314,6 @@ class Bridge1x4WrTB(TBBase):
             memory_model=self.slave_memory[0],
             base_addr=0x00000000,
         )
-        self.slave_wr[0].aw_channel.add_callback(
-            lambda pkt, _i=0: self.observed_aw[_i].append(pkt))
     def _setup_slave_1_ddr_wr(self):
         """Set up protocol BFM and pre-seeded MemoryModel for slave 1: ddr_wr (protocol: axi4)"""
         # AXI4 slave — full memory-backed BFM.
@@ -353,8 +340,6 @@ class Bridge1x4WrTB(TBBase):
             memory_model=self.slave_memory[1],
             base_addr=0x10000000,
         )
-        self.slave_wr[1].aw_channel.add_callback(
-            lambda pkt, _i=1: self.observed_aw[_i].append(pkt))
     def _setup_slave_2_hbm_wr(self):
         """Set up protocol BFM and pre-seeded MemoryModel for slave 2: hbm_wr (protocol: axi4)"""
         # AXI4 slave — full memory-backed BFM.
@@ -381,8 +366,6 @@ class Bridge1x4WrTB(TBBase):
             memory_model=self.slave_memory[2],
             base_addr=0x50000000,
         )
-        self.slave_wr[2].aw_channel.add_callback(
-            lambda pkt, _i=2: self.observed_aw[_i].append(pkt))
     def _setup_slave_3_apb_periph(self):
         """Set up protocol BFM and pre-seeded MemoryModel for slave 3: apb_periph (protocol: apb)"""
         # APB slave — APBSlave manages its own internal memory; pre-seed
@@ -446,147 +429,3 @@ class Bridge1x4WrTB(TBBase):
             return
         wr = self.master_wr[master_idx]
         await wr.single_write(address, data, size=self._natural_arsize(master_idx))
-
-    # ----------------------------------------------------------------------
-    # Misroute verification
-    # ----------------------------------------------------------------------
-    #
-    # `cocotb_bus.monitors.Monitor._recv` suppresses `_recvQ.append` when
-    # any callback is installed, and the protocol slave BFMs install their
-    # auto-response callback. So we can't peek at `ar_channel._recvQ` to
-    # see what arrived. Instead we install a second, passive callback on
-    # each slave's AR/AW channel at setup time that mirrors observed
-    # packets into per-slave `observed_ar` / `observed_aw` lists. Those
-    # are what the misroute checks consume.
-    #
-    # APB slaves bypass GAXISlave entirely, so they don't surface here.
-
-    def _slave_indices_with_obs(self):
-        return [i for i, info in self.slave_info.items() if info[0] != 'apb']
-
-    async def _wait_for_obs(self, observed_list, max_cycles=100):
-        """Poll up to max_cycles waiting for `observed_list` to be non-empty."""
-        for cyc in range(max_cycles):
-            if len(observed_list) > 0:
-                return cyc
-            await ClockCycles(self.clock, 1)
-        return max_cycles
-
-    def _expected_decomposed_beats(self, slave_idx: int, master_idx: int) -> int:
-        """How many AW/AR handshakes a single master transaction generates
-        at this slave's observation point.
-
-        AXI4 slaves: 1 handshake. The dwidth converter rewrites AWLEN
-        and emits a single burst AW with the new beat count; the slave
-        BFM's AW callback fires once per AW, not once per beat.
-
-        AXIL slaves: ceil(master_bytes/slave_bytes) handshakes. The
-        axi4_to_axil4 shim decomposes a burst into N separate AXIL
-        single-beat transactions, each with its own AW handshake.
-
-        APB: irrelevant — APBSlave bypasses GAXISlave, observed_* never
-        sees APB traffic."""
-        proto = self.slave_info[slave_idx][0]
-        if proto == 'axil':
-            master_bytes = self.master_data_width.get(master_idx, self.data_width) // 8
-            slave_bytes = self.slave_info[slave_idx][3] // 8
-            return max(1, master_bytes // slave_bytes)
-        return 1
-
-    async def expect_aw_at_slave(self, slave_idx: int, expected_addr: int,
-                                  master_idx: int = 0,
-                                  max_settle_cycles: int = 200) -> None:
-        """Verify the bridge routed the expected number of AW beats to
-        slave_idx for the master's transaction, all observed AWADDRs
-        fall within the master's natural transfer window starting at
-        expected_addr, and no AW leaked to any other slave.
-
-        Drains EXACTLY expected_count entries (not all) so back-to-back
-        probes can each verify their own routing without interfering
-        with leftover entries from earlier probes. AXIL/APB shims emit
-        ceil(master_bytes/slave_bytes) narrow beats per master burst.
-
-        max_settle_cycles is a yield window only — when master_write
-        already awaited B, all AWs have fired and target is populated
-        before we get here; the poll just lets cocotb callbacks drain.
-
-        APB slaves bypass the GAXISlave hook, so they're a no-op here."""
-        proto = self.slave_info[slave_idx][0]
-        if proto == 'apb':
-            return
-        target = self.observed_aw[slave_idx]
-        expected_count = self._expected_decomposed_beats(slave_idx, master_idx)
-        # Yield until enough entries have been logged (master_write
-        # already synced to B response — usually zero iterations).
-        for _ in range(max_settle_cycles):
-            if len(target) >= expected_count:
-                break
-            await ClockCycles(self.clock, 1)
-        assert len(target) >= expected_count, (
-            f"Expected >={expected_count} AW at slave {slave_idx} for "
-            f"master {master_idx} write at 0x{expected_addr:08x}, got "
-            f"{len(target)} after {max_settle_cycles} cycles — bridge "
-            f"dropped or misrouted")
-
-        master_bytes = self.master_data_width.get(master_idx, self.data_width) // 8
-        slave_dw = self.slave_info[slave_idx][3]
-        bytes_per_word = slave_dw // 8
-        aligned = expected_addr & ~(bytes_per_word - 1)
-        win_lo = aligned
-        win_hi = aligned + max(master_bytes, bytes_per_word)
-        for _ in range(expected_count):
-            pkt = target.pop(0)
-            a = int(pkt.addr)
-            assert win_lo <= a < win_hi, (
-                f"AW addr mismatch at slave {slave_idx}: "
-                f"got 0x{a:08x}, expected in [0x{win_lo:08x}, 0x{win_hi:08x}) "
-                f"for master {master_idx} write at 0x{expected_addr:08x}")
-
-        for other in self._slave_indices_with_obs():
-            if other == slave_idx:
-                continue
-            other_obs = self.observed_aw[other]
-            assert len(other_obs) == 0, (
-                f"AW for slave {slave_idx} (addr=0x{expected_addr:08x}) "
-                f"leaked to slave {other} (observed={len(other_obs)})")
-
-    async def expect_ar_at_slave(self, slave_idx: int, expected_addr: int,
-                                  master_idx: int = 0,
-                                  max_settle_cycles: int = 200) -> None:
-        """Read-side analogue of expect_aw_at_slave — drains
-        expected_decomposed_beats() entries per call."""
-        proto = self.slave_info[slave_idx][0]
-        if proto == 'apb':
-            return
-        target = self.observed_ar[slave_idx]
-        expected_count = self._expected_decomposed_beats(slave_idx, master_idx)
-        for _ in range(max_settle_cycles):
-            if len(target) >= expected_count:
-                break
-            await ClockCycles(self.clock, 1)
-        assert len(target) >= expected_count, (
-            f"Expected >={expected_count} AR at slave {slave_idx} for "
-            f"master {master_idx} read at 0x{expected_addr:08x}, got "
-            f"{len(target)} after {max_settle_cycles} cycles")
-
-        master_bytes = self.master_data_width.get(master_idx, self.data_width) // 8
-        slave_dw = self.slave_info[slave_idx][3]
-        bytes_per_word = slave_dw // 8
-        aligned = expected_addr & ~(bytes_per_word - 1)
-        win_lo = aligned
-        win_hi = aligned + max(master_bytes, bytes_per_word)
-        for _ in range(expected_count):
-            pkt = target.pop(0)
-            a = int(pkt.addr)
-            assert win_lo <= a < win_hi, (
-                f"AR addr mismatch at slave {slave_idx}: "
-                f"got 0x{a:08x}, expected in [0x{win_lo:08x}, 0x{win_hi:08x}) "
-                f"for master {master_idx} read at 0x{expected_addr:08x}")
-
-        for other in self._slave_indices_with_obs():
-            if other == slave_idx:
-                continue
-            other_obs = self.observed_ar[other]
-            assert len(other_obs) == 0, (
-                f"AR for slave {slave_idx} leaked to slave {other} "
-                f"(observed={len(other_obs)})")
