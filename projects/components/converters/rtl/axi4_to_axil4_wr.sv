@@ -255,14 +255,49 @@ module axi4_to_axil4_wr #(
     // W channel must be synchronized with AW FSM for burst decomposition
     assign m_axil_wdata = s_axi_wdata;
     assign m_axil_wstrb = s_axi_wstrb;
-    // For bursts: W passthrough, but only consume when:
-    //   - AW is handshaking this cycle, OR
-    //   - AW has already been sent for this beat (r_aw_sent)
-    // This ensures AW completes before or with W, never after
-    // For single beats: Pass through directly
-    assign m_axil_wvalid = s_axi_wvalid;
-    assign s_axi_wready = r_aw_active ? (m_axil_wready && (r_aw_sent || (m_axil_awvalid && m_axil_awready))) :
-                          m_axil_wready;
+    //
+    // W gating. Three states for the W path:
+    //
+    //   1. Idle (no current burst): single-beat AW passthrough mode. W
+    //      passes through directly.
+    //
+    //   2. Active burst (r_aw_active=1): the FSM controls per-beat AW
+    //      emission. W passthrough plus s_axi_wready already gated by
+    //      AW progress prevents upstream from running ahead of the FSM.
+    //
+    //   3. *Burst-capture cycle* (r_aw_active=0, but a multi-beat AW is
+    //      being accepted into the registers this cycle): block W
+    //      entirely. r_aw_active rises on the next clock edge — if we
+    //      don't block here, this cycle falls through the !r_aw_active
+    //      branch into single-beat passthrough mode and fires the new
+    //      burst's W beat 0 with no paired AW (m_axil_awvalid is 0 this
+    //      cycle: r_aw_active=0 AND s_axi_awlen>0 fails the single-beat
+    //      passthrough condition). That orphan W gets mis-paired by a
+    //      FIFO-matching AXIL slave: the AXIL AW for the new burst's
+    //      beat 0 (cycle K+1) pairs with the leftover orphan W (beat 0
+    //      data), and the AXIL AW for beat 1 pairs with W beat 1 — net
+    //      result, W data and address get one-beat-shifted at the AXIL
+    //      slave. Symptom: AW addr from burst N pairs with W data from
+    //      burst N+1 (the bridge's 1x5_wr boundary_probe failure).
+    //
+    //      The bug only surfaces under back-to-back bursts (next AW
+    //      arriving in the cycle right after WR_LAST_BEAT completes —
+    //      sequential test_write_burst-with-20-clock-cooldown never
+    //      reaches this window, which is why this slipped through the
+    //      FUB tests until the bridge boundary_probe stressed it).
+    //
+    wire w_burst_capture = !r_aw_active && s_axi_awvalid && (s_axi_awlen > 0);
+
+    assign m_axil_wvalid = w_burst_capture ? 1'b0 :
+                           r_aw_active     ? (s_axi_wvalid &&
+                                              (r_aw_sent ||
+                                               (m_axil_awvalid && m_axil_awready))) :
+                                             s_axi_wvalid;
+    assign s_axi_wready  = w_burst_capture ? 1'b0 :
+                           r_aw_active     ? (m_axil_wready &&
+                                              (r_aw_sent ||
+                                               (m_axil_awvalid && m_axil_awready))) :
+                                             m_axil_wready;
 
     // Write response path - accumulate responses
     logic [7:0] r_b_beat_count;
