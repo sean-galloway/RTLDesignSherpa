@@ -32,7 +32,7 @@ endif
 #      parallel needs N×1 GB RAM during compile, which OOMs even on
 #      256 GB hosts under load.
 #   2. Bridge tests have observed cross-test state leakage when run in
-#      the same pytest session (basic_connectivity vs address_decode
+#      the same pytest session (basic_connectivity vs boundary_probe
 #      flakes), so serial execution is the only mode where we trust
 #      pass/fail signals.
 PYTEST = python3 -m pytest

@@ -119,12 +119,19 @@ async def cocotb_test_bridge_1x3_wr_basic_connectivity(dut):
 
 
 @cocotb.test(timeout_time=500, timeout_unit="ms")
-async def cocotb_test_bridge_1x3_wr_address_decode(dut):
+async def cocotb_test_bridge_1x3_wr_boundary_probe(dut):
     """
-    Address decode — for each (master, slave) pair, probe three offsets
+    Boundary probe — for each (master, slave) pair, probe three offsets
     per page (bottom / middle / top of the page) back-to-back, at either
     the boundary pages of the slave window (default) or every page
-    (BRIDGE_ADDR_DECODE_MODE=all).
+    (BRIDGE_BOUNDARY_PROBE_MODE=all).
+
+    NB: previously named "address_decode". The failure modes it surfaces
+    are not in the address decoder (which is per-bridge generated inline
+    in <master>_adapter.sv and is fine across all configs); they're in
+    the downstream protocol shims — axi4_to_axil4_{wr,rd}, axi4_to_apb
+    — stressed by the b2b page probes that the simpler basic_connectivity
+    test never reaches.
 
     Routing IS the data round-trip: a misroute lands the write at a
     different slave or different offset and the seed pattern shows
@@ -135,20 +142,20 @@ async def cocotb_test_bridge_1x3_wr_address_decode(dut):
     can't be data-checked. If/when we want explicit AW/AR routing
     monitors, wire them up at the bridge slave ports separately.
 
-    Set BRIDGE_ADDR_DECODE_MODE=all in the environment to walk every page
-    instead of bottom/mid/top — useful for small-window slaves under
-    regression, exhausting for GB-class DDR.
+    Set BRIDGE_BOUNDARY_PROBE_MODE=all in the environment to walk every
+    page instead of bottom/mid/top — useful for small-window slaves
+    under regression, exhausting for GB-class DDR.
     """
     tb = Bridge1x3WrTB(dut)
     await tb.setup_clocks_and_reset()
 
-    mode = os.environ.get('BRIDGE_ADDR_DECODE_MODE', 'boundary').lower()
+    mode = os.environ.get('BRIDGE_BOUNDARY_PROBE_MODE', 'boundary').lower()
     if mode not in ('boundary', 'all'):
-        tb.log.warning(f"Unknown BRIDGE_ADDR_DECODE_MODE={mode!r}, falling back to 'boundary'")
+        tb.log.warning(f"Unknown BRIDGE_BOUNDARY_PROBE_MODE={mode!r}, falling back to 'boundary'")
         mode = 'boundary'
 
     tb.log.info("=" * 80)
-    tb.log.info(f"Starting address decode test (mode={mode})")
+    tb.log.info(f"Starting boundary probe test (mode={mode})")
     tb.log.info("=" * 80)
 
     tb.log.info(f"Master 0 (cpu_wr)")
@@ -230,7 +237,7 @@ async def cocotb_test_bridge_1x3_wr_address_decode(dut):
 
     await ClockCycles(tb.clock, 20)
     tb.log.info("=" * 80)
-    tb.log.info("Address decode test PASSED")
+    tb.log.info("Boundary probe test PASSED")
     tb.log.info("=" * 80)
 
 # ============================================================================
@@ -298,8 +305,8 @@ def test_bridge_1x3_wr_basic_connectivity(request):
     )
 
 
-def test_bridge_1x3_wr_address_decode(request):
-    """Pytest wrapper for address decode test"""
+def test_bridge_1x3_wr_boundary_probe(request):
+    """Pytest wrapper for boundary probe test"""
 
     module, repo_root, tests_dir, log_dir, rtl_dict = get_paths({
         'rtl_bridge': '../../../../rtl/bridge',
@@ -316,7 +323,7 @@ def test_bridge_1x3_wr_address_decode(request):
 
     worker_id = os.environ.get('PYTEST_XDIST_WORKER', '')
     worker_suffix = f"_{worker_id}" if worker_id else ""
-    test_name_plus_params = f"test_{dut_name}_address_decode"
+    test_name_plus_params = f"test_{dut_name}_boundary_probe"
     sim_build_name = f"{test_name_plus_params}{worker_suffix}"
 
     log_path = os.path.join(log_dir, f'{sim_build_name}.log')
@@ -341,7 +348,7 @@ def test_bridge_1x3_wr_address_decode(request):
         includes=includes,
         toplevel=dut_name,
         module=module,
-        testcase="cocotb_test_bridge_1x3_wr_address_decode",
+        testcase="cocotb_test_bridge_1x3_wr_boundary_probe",
         sim_build=sim_build,
         waves=False,
         extra_args=extra_args,
