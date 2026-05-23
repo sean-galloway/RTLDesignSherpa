@@ -155,6 +155,13 @@ class AXI4ToAXIL4WriteTB(TBBase):
         Since the BFM processes transactions immediately, we monitor the
         actual AXIL protocol handshakes on the DUT signals. For writes,
         we track both AW and W handshakes and match them up.
+
+        Note: this monitor assumes AW + W handshakes are paired within a
+        small window (the AXIL slave BFM enforces this). For pipelined
+        b2b cases with many AWs outstanding, beat counts/data may be off —
+        treat any monitor-side mismatch as a SIGNAL that the b2b scenario
+        triggered timing where AW and W desynchronize on the wire, which
+        is the page-probe class of bug we want to surface.
         """
         self.log.info("Starting AXIL4 transaction monitor")
 
@@ -288,6 +295,236 @@ class AXI4ToAXIL4WriteTB(TBBase):
             self.stats['errors'] += 1
             return False
 
+    async def test_b2b_bursts(self, bursts, size=None):
+        """
+        Issue N write bursts back-to-back with NO test-level cooldown.
+
+        Each burst is launched via cocotb.start_soon so the AXI4 master BFM
+        queues them and the AW/W beats can flow on the wire as fast as the
+        bridge accepts. We then await each task in issue order.
+
+        Args:
+            bursts: List of (address, data_list) tuples to issue back-to-back.
+                    All bursts use INCR (burst_type=1).
+            size: AWSIZE for every burst (None = full data width).
+
+        Returns:
+            True if total beats and per-burst (addr, data, strb) tuples match
+            the expected issue order.
+        """
+        if size is None:
+            size = (self.data_width // 8).bit_length() - 1
+        addr_incr = 1 << size
+
+        # Build the expected AXIL beat sequence in issue order
+        expected = []  # list of (addr, data, strb)
+        strb_width = self.data_width // 8
+        default_strb = (1 << strb_width) - 1
+        for (start_addr, data_list) in bursts:
+            addr = start_addr
+            for data in data_list:
+                expected.append((addr, data, default_strb))
+                addr += addr_incr
+
+        total_expected_beats = len(expected)
+        initial_axil_count = len(self.axil_transactions)
+
+        self.log.info(f"B2B WRITE BURSTS: issuing {len(bursts)} bursts "
+                      f"({total_expected_beats} total beats) with NO inter-burst cooldown")
+
+        # Launch all bursts as concurrent tasks (no awaits between launches)
+        tasks = []
+        for (start_addr, data_list) in bursts:
+            task = cocotb.start_soon(self.axi4_master.write_transaction(
+                address=start_addr,
+                data=data_list,
+                size=size,
+                burst_type=1,  # INCR
+            ))
+            tasks.append(task)
+
+        # Wait for every burst's B response to come back, in issue order
+        for i, task in enumerate(tasks):
+            await task
+
+        # Drain remaining AXIL beats (do NOT wait between bursts above —
+        # only here, at the end, to let the last B propagate).
+        await self.wait_clocks(self.clk_name, 50)
+
+        # Verify total beat count
+        actual_beats = len(self.axil_transactions) - initial_axil_count
+        if actual_beats != total_expected_beats:
+            self.log.error(f"B2B beat count MISMATCH: got {actual_beats}, "
+                          f"expected {total_expected_beats}")
+            self.stats['decomposition_errors'] += 1
+            self.stats['errors'] += 1
+            return False
+
+        # Verify the AXIL beat sequence matches the expected tuples in order
+        for i, (exp_addr, exp_data, exp_strb) in enumerate(expected):
+            _, got_addr, got_data, got_strb = self.axil_transactions[initial_axil_count + i]
+            if got_addr != exp_addr:
+                self.log.error(f"B2B addr MISMATCH at beat {i}: "
+                              f"got 0x{got_addr:08X}, expected 0x{exp_addr:08X}")
+                self.stats['address_errors'] += 1
+                self.stats['errors'] += 1
+                return False
+            if got_data != exp_data:
+                self.log.error(f"B2B data MISMATCH at beat {i} (addr=0x{exp_addr:08X}): "
+                              f"got 0x{got_data:08X}, expected 0x{exp_data:08X}")
+                self.stats['data_errors'] += 1
+                self.stats['errors'] += 1
+                return False
+
+        self.log.info(f"B2B WRITE BURSTS PASSED: {len(bursts)} bursts, "
+                      f"{total_expected_beats} beats verified in issue order")
+        self.stats['bursts_sent'] += len(bursts)
+        self.stats['beats_expected'] += total_expected_beats
+        self.stats['bursts_completed'] += len(bursts)
+        return True
+
+    async def test_b2b_mixed_lengths(self):
+        """
+        B2B bursts with interleaved lengths to exercise WR_IDLE↔WR_BURST↔WR_LAST_BEAT
+        transitions in adjacent cycles.
+        """
+        bursts = []
+        base = 0x10000
+        lengths = [1, 4, 1, 2, 8, 1, 16, 1]
+        for i, blen in enumerate(lengths):
+            addr = base + (i * 0x1000)
+            data_list = [((0xA000_0000 | (i << 16) | j) & ((1 << self.data_width) - 1))
+                         for j in range(blen)]
+            bursts.append((addr, data_list))
+        return await self.test_b2b_bursts(bursts)
+
+    async def test_partial_strobe(self):
+        """
+        Single-beat and 2-beat bursts with non-trivial wstrb patterns.
+        Verifies wstrb propagates correctly through to AXIL.
+
+        Note: This scenario is most meaningful at 32b. For wider buses we
+        still exercise low-byte strobe patterns to confirm pass-through.
+        """
+        strb_width = self.data_width // 8
+        # Build strobe patterns: for 32b → 0x3, 0xC, 0x5, 0xA, 0xF
+        # For wider, just use the low nibble pattern in the bottom of the bus.
+        patterns = [0x3, 0xC, 0x5, 0xA, (1 << strb_width) - 1]
+        success = True
+
+        for i, base_strb in enumerate(patterns):
+            # Mask to legal strb width
+            strb = base_strb & ((1 << strb_width) - 1)
+            if strb == 0:
+                continue  # skip degenerate
+
+            addr = 0x20000 + (i * 0x100)
+            data = 0xCAFE0000 | (i & 0xFF)
+            data &= (1 << self.data_width) - 1
+
+            initial_axil_count = len(self.axil_transactions)
+
+            self.log.debug(f"Partial strobe: addr=0x{addr:08X} data=0x{data:08X} strb=0x{strb:0X}")
+
+            try:
+                await self.axi4_master.write_transaction(
+                    address=addr,
+                    data=[data, data ^ 0xFFFFFFFF],  # 2-beat
+                    strb=strb,
+                )
+                await self.wait_clocks(self.clk_name, 20)
+
+                got = self.axil_transactions[initial_axil_count:]
+                if len(got) != 2:
+                    self.log.error(f"Partial strobe: got {len(got)} beats, expected 2")
+                    self.stats['errors'] += 1
+                    success = False
+                    continue
+
+                for beat_idx, (_, _, _, got_strb) in enumerate(got):
+                    if got_strb != strb:
+                        self.log.error(f"Partial strobe MISMATCH beat {beat_idx}: "
+                                      f"got 0x{got_strb:0X}, expected 0x{strb:0X}")
+                        self.stats['errors'] += 1
+                        success = False
+            except Exception as e:
+                self.log.error(f"Partial strobe burst raised: {e}")
+                self.stats['errors'] += 1
+                success = False
+
+        return success
+
+    async def test_narrow_within_wide(self):
+        """
+        Bursts with awsize < full data width on a wider bus.
+        E.g. size=2 (4 bytes) on a 64b/128b DUT. Verifies the shim handles
+        narrow transfers within a wider bus correctly (address increment
+        matches the narrower size).
+        """
+        if self.data_width <= 32:
+            self.log.info("test_narrow_within_wide: data_width<=32, skipping (no narrower size available)")
+            return True
+
+        success = True
+        # Pick a size smaller than full width: log2(data_width/8) - 1
+        full_size = (self.data_width // 8).bit_length() - 1
+        narrow_size = full_size - 1  # one step narrower
+
+        bursts = [
+            (0x30000, [0x1111_2222 & ((1 << self.data_width) - 1)] * 1),
+            (0x30100, [(0x3333_4444 + i) & ((1 << self.data_width) - 1) for i in range(4)]),
+            (0x30200, [(0x5555_6666 + i) & ((1 << self.data_width) - 1) for i in range(8)]),
+        ]
+
+        for addr, data_list in bursts:
+            initial_axil_count = len(self.axil_transactions)
+            try:
+                await self.axi4_master.write_transaction(
+                    address=addr,
+                    data=data_list,
+                    size=narrow_size,
+                    burst_type=1,
+                )
+                await self.wait_clocks(self.clk_name, 20)
+
+                got = self.axil_transactions[initial_axil_count:]
+                if len(got) != len(data_list):
+                    self.log.error(f"narrow_within_wide: got {len(got)} beats, "
+                                  f"expected {len(data_list)}")
+                    self.stats['errors'] += 1
+                    success = False
+                    continue
+
+                # Verify address increment matches the narrower size
+                expected_addr = addr
+                addr_incr = 1 << narrow_size
+                for i, (_, got_addr, _, _) in enumerate(got):
+                    if got_addr != expected_addr:
+                        self.log.error(f"narrow_within_wide addr beat {i}: "
+                                      f"got 0x{got_addr:08X}, expected 0x{expected_addr:08X}")
+                        self.stats['address_errors'] += 1
+                        self.stats['errors'] += 1
+                        success = False
+                    expected_addr += addr_incr
+            except Exception as e:
+                self.log.error(f"narrow_within_wide burst raised: {e}")
+                self.stats['errors'] += 1
+                success = False
+
+        return success
+
+    async def test_max_burst(self):
+        """
+        AWLEN = 255 (256-beat burst). The medium test caps at 16, full at 32;
+        neither hits the AXI4 maximum. This scenario exercises the full burst
+        counter range in the shim.
+        """
+        burst_len = 256
+        addr = 0x40000
+        data_list = [(0xBEEF_0000 + i) & ((1 << self.data_width) - 1)
+                     for i in range(burst_len)]
+        return await self.test_write_burst(addr, data_list, burst_type=1)
+
     async def run_basic_test(self):
         """Run basic write burst test suite"""
         self.log.info("=" * 80)
@@ -308,6 +545,14 @@ class AXI4ToAXIL4WriteTB(TBBase):
         for addr, data_list in test_cases:
             if not await self.test_write_burst(addr, data_list):
                 success = False
+
+        # Lightweight b2b smoke: two short bursts with no inter-burst cooldown
+        b2b_smoke = [
+            (0x5000, [0xAA0000, 0xAA0001]),
+            (0x5010, [0xBB0000, 0xBB0001]),
+        ]
+        if not await self.test_b2b_bursts(b2b_smoke):
+            success = False
 
         return success
 
@@ -330,6 +575,20 @@ class AXI4ToAXIL4WriteTB(TBBase):
             if not await self.test_write_burst(addr, data_list, burst_type):
                 success = False
 
+        # B2B scenarios — exercises the page-probe class of bug
+        b2b_bursts = []
+        base = 0x80000
+        for i in range(8):
+            blen = random.randint(1, 8)
+            addr = base + (i * 0x1000)
+            data_list = [random.randint(0, (1 << self.data_width) - 1) for _ in range(blen)]
+            b2b_bursts.append((addr, data_list))
+        if not await self.test_b2b_bursts(b2b_bursts):
+            success = False
+
+        if not await self.test_b2b_mixed_lengths():
+            success = False
+
         return success
 
     async def run_full_test(self):
@@ -350,6 +609,30 @@ class AXI4ToAXIL4WriteTB(TBBase):
 
             if not await self.test_write_burst(addr, data_list, burst_type):
                 success = False
+
+        # All the medium b2b scenarios too
+        b2b_bursts = []
+        base = 0x90000
+        for i in range(16):
+            blen = random.randint(1, 16)
+            addr = base + (i * 0x1000)
+            data_list = [random.randint(0, (1 << self.data_width) - 1) for _ in range(blen)]
+            b2b_bursts.append((addr, data_list))
+        if not await self.test_b2b_bursts(b2b_bursts):
+            success = False
+
+        if not await self.test_b2b_mixed_lengths():
+            success = False
+
+        # FULL-only scenarios
+        if not await self.test_partial_strobe():
+            success = False
+
+        if not await self.test_narrow_within_wide():
+            success = False
+
+        if not await self.test_max_burst():
+            success = False
 
         return success
 

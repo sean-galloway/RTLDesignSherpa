@@ -264,6 +264,160 @@ class AXI4ToAXIL4ReadTB(TBBase):
             self.stats['errors'] += 1
             return False
 
+    async def test_b2b_bursts(self, bursts, size=None):
+        """
+        Issue N read bursts back-to-back with NO test-level cooldown.
+
+        Each burst is launched via cocotb.start_soon so the AXI4 master BFM
+        queues them and the AR beats flow on the wire as fast as the
+        bridge accepts. We then await each task in issue order.
+
+        Args:
+            bursts: List of (address, burst_len) tuples to issue back-to-back.
+                    All bursts use INCR (burst_type=1).
+            size: ARSIZE for every burst (None = full data width).
+
+        Returns:
+            True if total AXIL reads and per-burst address sequence match
+            the expected issue order.
+        """
+        if size is None:
+            size = (self.data_width // 8).bit_length() - 1
+        addr_incr = 1 << size
+
+        # Build the expected AXIL AR address sequence in issue order
+        expected_addrs = []
+        for (start_addr, blen) in bursts:
+            addr = start_addr
+            for _ in range(blen):
+                expected_addrs.append(addr)
+                addr += addr_incr
+
+        total_expected = len(expected_addrs)
+        initial_axil_count = len(self.axil_transactions)
+
+        self.log.info(f"B2B READ BURSTS: issuing {len(bursts)} bursts "
+                      f"({total_expected} total beats) with NO inter-burst cooldown")
+
+        # Launch all bursts as concurrent tasks (no awaits between launches)
+        tasks = []
+        for (start_addr, blen) in bursts:
+            task = cocotb.start_soon(self.axi4_master.read_transaction(
+                address=start_addr,
+                burst_len=blen,
+                size=size,
+                burst_type=1,  # INCR
+            ))
+            tasks.append(task)
+
+        # Wait for every burst's read data to come back, in issue order
+        for i, task in enumerate(tasks):
+            await task
+
+        # Drain remaining AXIL beats (do NOT wait between bursts above —
+        # only here, at the end).
+        await self.wait_clocks(self.clk_name, 50)
+
+        actual_beats = len(self.axil_transactions) - initial_axil_count
+        if actual_beats != total_expected:
+            self.log.error(f"B2B read beat count MISMATCH: got {actual_beats}, "
+                          f"expected {total_expected}")
+            self.stats['decomposition_errors'] += 1
+            self.stats['errors'] += 1
+            return False
+
+        # Verify the AXIL AR sequence matches the expected addresses in order
+        for i, exp_addr in enumerate(expected_addrs):
+            _, got_addr, _ = self.axil_transactions[initial_axil_count + i]
+            if got_addr != exp_addr:
+                self.log.error(f"B2B read addr MISMATCH at beat {i}: "
+                              f"got 0x{got_addr:08X}, expected 0x{exp_addr:08X}")
+                self.stats['address_errors'] += 1
+                self.stats['errors'] += 1
+                return False
+
+        self.log.info(f"B2B READ BURSTS PASSED: {len(bursts)} bursts, "
+                      f"{total_expected} beats verified in issue order")
+        self.stats['bursts_sent'] += len(bursts)
+        self.stats['beats_expected'] += total_expected
+        self.stats['bursts_completed'] += len(bursts)
+        return True
+
+    async def test_b2b_mixed_lengths(self):
+        """
+        B2B read bursts with interleaved lengths to exercise the
+        RD_IDLE↔RD_BURST↔RD_LAST_BEAT transitions in adjacent cycles.
+        """
+        bursts = []
+        base = 0x10000
+        lengths = [1, 4, 1, 2, 8, 1, 16, 1]
+        for i, blen in enumerate(lengths):
+            addr = base + (i * 0x1000)
+            bursts.append((addr, blen))
+        return await self.test_b2b_bursts(bursts)
+
+    async def test_narrow_within_wide(self):
+        """
+        Bursts with arsize < full data width on a wider bus.
+        Verifies address increment matches the narrower size.
+        """
+        if self.data_width <= 32:
+            self.log.info("test_narrow_within_wide: data_width<=32, skipping")
+            return True
+
+        success = True
+        full_size = (self.data_width // 8).bit_length() - 1
+        narrow_size = full_size - 1
+        addr_incr = 1 << narrow_size
+
+        cases = [
+            (0x30000, 1),
+            (0x30100, 4),
+            (0x30200, 8),
+        ]
+
+        for addr, blen in cases:
+            initial_axil_count = len(self.axil_transactions)
+            try:
+                await self.axi4_master.read_transaction(
+                    address=addr,
+                    burst_len=blen,
+                    size=narrow_size,
+                    burst_type=1,
+                )
+                await self.wait_clocks(self.clk_name, 20)
+
+                got = self.axil_transactions[initial_axil_count:]
+                if len(got) != blen:
+                    self.log.error(f"narrow_within_wide: got {len(got)} beats, "
+                                  f"expected {blen}")
+                    self.stats['errors'] += 1
+                    success = False
+                    continue
+
+                expected_addr = addr
+                for i, (_, got_addr, _) in enumerate(got):
+                    if got_addr != expected_addr:
+                        self.log.error(f"narrow_within_wide addr beat {i}: "
+                                      f"got 0x{got_addr:08X}, expected 0x{expected_addr:08X}")
+                        self.stats['address_errors'] += 1
+                        self.stats['errors'] += 1
+                        success = False
+                    expected_addr += addr_incr
+            except Exception as e:
+                self.log.error(f"narrow_within_wide read raised: {e}")
+                self.stats['errors'] += 1
+                success = False
+
+        return success
+
+    async def test_max_burst(self):
+        """
+        ARLEN = 255 (256-beat burst). Exercises the full burst counter
+        range in the shim.
+        """
+        return await self.test_read_burst(0x40000, 256, burst_type=1)
+
     async def run_basic_test(self):
         """Run basic read burst test suite"""
         self.log.info("=" * 80)
@@ -285,6 +439,11 @@ class AXI4ToAXIL4ReadTB(TBBase):
             if not await self.test_read_burst(addr, burst_len):
                 success = False
 
+        # Lightweight b2b smoke
+        b2b_smoke = [(0x5000, 2), (0x5010, 2)]
+        if not await self.test_b2b_bursts(b2b_smoke):
+            success = False
+
         return success
 
     async def run_medium_test(self):
@@ -305,6 +464,19 @@ class AXI4ToAXIL4ReadTB(TBBase):
             if not await self.test_read_burst(addr, burst_len, burst_type):
                 success = False
 
+        # B2B scenarios — exercises the page-probe class of bug
+        b2b_bursts = []
+        base = 0x80000
+        for i in range(8):
+            blen = random.randint(1, 8)
+            addr = base + (i * 0x1000)
+            b2b_bursts.append((addr, blen))
+        if not await self.test_b2b_bursts(b2b_bursts):
+            success = False
+
+        if not await self.test_b2b_mixed_lengths():
+            success = False
+
         return success
 
     async def run_full_test(self):
@@ -324,6 +496,26 @@ class AXI4ToAXIL4ReadTB(TBBase):
 
             if not await self.test_read_burst(addr, burst_len, burst_type):
                 success = False
+
+        # All the medium b2b scenarios too
+        b2b_bursts = []
+        base = 0x90000
+        for i in range(16):
+            blen = random.randint(1, 16)
+            addr = base + (i * 0x1000)
+            b2b_bursts.append((addr, blen))
+        if not await self.test_b2b_bursts(b2b_bursts):
+            success = False
+
+        if not await self.test_b2b_mixed_lengths():
+            success = False
+
+        # FULL-only scenarios
+        if not await self.test_narrow_within_wide():
+            success = False
+
+        if not await self.test_max_burst():
+            success = False
 
         return success
 

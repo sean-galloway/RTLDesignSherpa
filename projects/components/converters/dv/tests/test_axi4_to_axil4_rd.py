@@ -135,21 +135,19 @@ def generate_test_params():
     reg_level = os.environ.get('REG_LEVEL', 'FUNC').upper()
 
     # All parameters with embedded test_level
+    # NOTE: id_width is a pure pass-through in this shim — fixed at 8.
     all_params = [
-        # GATE level: Basic configurations
+        # GATE level: Basic configurations across data widths
         {'data_width': 32, 'addr_width': 32, 'id_width': 8, 'test_level': 'gate'},
         {'data_width': 64, 'addr_width': 32, 'id_width': 8, 'test_level': 'gate'},
         {'data_width': 128, 'addr_width': 32, 'id_width': 8, 'test_level': 'gate'},
 
-        # FUNC level: Additional widths
-        {'data_width': 32, 'addr_width': 32, 'id_width': 4, 'test_level': 'gate'},
-        {'data_width': 32, 'addr_width': 32, 'id_width': 16, 'test_level': 'gate'},
-
-        # FUNC level: Medium test depth (more bursts, longer lengths)
+        # FUNC level: Medium test depth (more bursts, longer lengths, b2b)
         {'data_width': 32, 'addr_width': 32, 'id_width': 8, 'test_level': 'func'},
         {'data_width': 64, 'addr_width': 32, 'id_width': 8, 'test_level': 'func'},
 
-        # FULL level: Comprehensive validation (maximum bursts, all burst types)
+        # FULL level: Comprehensive validation (maximum bursts, all burst types,
+        # narrow-within-wide, max burst)
         {'data_width': 32, 'addr_width': 32, 'id_width': 8, 'test_level': 'full'},
         {'data_width': 64, 'addr_width': 32, 'id_width': 8, 'test_level': 'full'},
         {'data_width': 128, 'addr_width': 32, 'id_width': 8, 'test_level': 'full'},
