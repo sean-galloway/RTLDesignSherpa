@@ -25,12 +25,20 @@ $(error REPO_ROOT is not set. Please run: source $$REPO_ROOT/env_python)
 endif
 
 # Pytest options
+#
+# Bridge tests run SERIALLY ONLY. Parallel execution via pytest-xdist
+# has been removed for two reasons:
+#   1. Each bridge test compiles a ~1 GB Verilator model. Running N in
+#      parallel needs N×1 GB RAM during compile, which OOMs even on
+#      256 GB hosts under load.
+#   2. Bridge tests have observed cross-test state leakage when run in
+#      the same pytest session (basic_connectivity vs address_decode
+#      flakes), so serial execution is the only mode where we trust
+#      pass/fail signals.
 PYTEST = python3 -m pytest
 PYTEST_VERBOSE = -v
 PYTEST_QUIET = -q
-PYTEST_XDIST = -n 48
 PYTEST_TBSTYLE = --tb=short
-PYTEST_RERUNS = --reruns 3 --reruns-delay 1
 
 # Test files: Matching-width configurations (no converters) - GENERATED
 # Includes 2x2_rw (one master id_width=4, both slaves id_width=4 — no
@@ -66,28 +74,16 @@ ALL_TESTS = $(MATCHING_WIDTH_TESTS) $(MIXED_WIDTH_TESTS) $(APB_TESTS) $(AXIL_TES
 .PHONY: help
 help:
 	@echo "================================================================================"
-	@echo "BRIDGE Tests Makefile"
+	@echo "BRIDGE Tests Makefile (serial-only)"
 	@echo "================================================================================"
 	@echo ""
-	@echo "⚠️  CRITICAL SAFETY WARNING:"
-	@echo "  Bridge tests compile large Verilator models (~1GB each)."
-	@echo "  PARALLEL EXECUTION TARGETS BELOW ARE DISABLED FOR SAFETY."
-	@echo "  Running parallel tests can cause system crashes due to memory exhaustion."
-	@echo ""
-	@echo "SAFE EXECUTION TARGETS (RECOMMENDED):"
-	@echo "  make run-all                  Run all bridge tests (SEQUENTIAL - SAFE)"
+	@echo "EXECUTION TARGETS:"
+	@echo "  make run-all                  Run all bridge tests"
 	@echo "  make run-matching             Run matching-width tests (1x2_rd, 1x2_wr, 2x2_rw)"
 	@echo "  make run-mixed                Run mixed-width tests (1x3_rd, 1x3_wr)"
 	@echo "  make run-apb                  Run APB protocol tests (1x4_rd, 1x4_wr)"
 	@echo "  make run-axil                 Run AXI-Lite protocol tests (1x5_rd, 1x5_wr)"
 	@echo "  make run-channels             Run channel-specific tests (5x3_channels)"
-	@echo ""
-	@echo "⚠️  DANGEROUS TARGETS (CAN CRASH SYSTEM):"
-	@echo "  make run-all-parallel         ❌ DISABLED - Would use 48GB+ RAM"
-	@echo "  make run-matching-parallel    ❌ DISABLED - Would use 48GB+ RAM"
-	@echo "  make run-mixed-parallel       ❌ DISABLED - Would use 48GB+ RAM"
-	@echo "  make run-apb-parallel         ❌ DISABLED - Would use 48GB+ RAM"
-	@echo "  make run-axil-parallel        ❌ DISABLED - Would use 48GB+ RAM"
 	@echo ""
 	@echo "WAVEFORM TARGETS:"
 	@echo "  make run-all-waves            Run all bridge tests with waveforms"
@@ -122,11 +118,12 @@ help:
 	@echo "  make regenerate-all           Regenerate every category sequentially"
 	@echo "  make rebuild-all              Clean + regenerate everything (calls 'make test')"
 	@echo ""
-	@echo "SAFETY NOTES:"
-	@echo "  - Each bridge test compiles ~1GB Verilator model during simulation"
-	@echo "  - Parallel execution with -n 48 would require 48GB+ RAM simultaneously"
-	@echo "  - Sequential execution enforced in conftest.py for system safety"
-	@echo "  - System has 256GB RAM, but parallel compilation still risks OOM"
+	@echo "EXECUTION NOTES:"
+	@echo "  - Each bridge test compiles a ~1 GB Verilator model"
+	@echo "  - All bridge targets are SERIAL — pytest-xdist support has been removed"
+	@echo "    (parallel runs OOMed the host and exposed cross-test state leaks)"
+	@echo "  - For coverage, ENV vars (COVERAGE=1, REG_LEVEL=…), or WAVES=1, just"
+	@echo "    prefix the make invocation — they pass through to the sequential run"
 	@echo ""
 	@echo "REGENERATION NOTES:"
 	@echo "  - Batch file: bin/bridge_batch.csv (10 active: 1x2_{rd,wr}, 1x3_{rd,wr},"
@@ -155,16 +152,6 @@ run-matching-waves:
 	@echo "Running matching-width bridge tests with waveforms..."
 	WAVES=1 $(PYTEST) $(MATCHING_WIDTH_TESTS) $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE)
 
-.PHONY: run-matching-parallel
-run-matching-parallel:
-	@echo "Running matching-width bridge tests in parallel (48 workers)..."
-	$(PYTEST) $(MATCHING_WIDTH_TESTS) $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE) $(PYTEST_XDIST) $(PYTEST_RERUNS)
-
-.PHONY: run-matching-parallel-waves
-run-matching-parallel-waves:
-	@echo "Running matching-width bridge tests in parallel with waveforms..."
-	WAVES=1 $(PYTEST) $(MATCHING_WIDTH_TESTS) $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE) $(PYTEST_XDIST) $(PYTEST_RERUNS)
-
 # ==============================================================================
 # Run Targets - Mixed-Width Tests (Uses Converters)
 # ==============================================================================
@@ -178,16 +165,6 @@ run-mixed:
 run-mixed-waves:
 	@echo "Running mixed-width bridge tests with waveforms..."
 	WAVES=1 $(PYTEST) $(MIXED_WIDTH_TESTS) $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE)
-
-.PHONY: run-mixed-parallel
-run-mixed-parallel:
-	@echo "Running mixed-width bridge tests in parallel..."
-	$(PYTEST) $(MIXED_WIDTH_TESTS) $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE) $(PYTEST_XDIST) $(PYTEST_RERUNS)
-
-.PHONY: run-mixed-parallel-waves
-run-mixed-parallel-waves:
-	@echo "Running mixed-width bridge tests in parallel with waveforms..."
-	WAVES=1 $(PYTEST) $(MIXED_WIDTH_TESTS) $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE) $(PYTEST_XDIST) $(PYTEST_RERUNS)
 
 # ==============================================================================
 # Run Targets - APB Protocol Tests
@@ -203,16 +180,6 @@ run-apb-waves:
 	@echo "Running APB protocol bridge tests with waveforms..."
 	WAVES=1 $(PYTEST) $(APB_TESTS) $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE)
 
-.PHONY: run-apb-parallel
-run-apb-parallel:
-	@echo "Running APB protocol bridge tests in parallel..."
-	$(PYTEST) $(APB_TESTS) $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE) $(PYTEST_XDIST) $(PYTEST_RERUNS)
-
-.PHONY: run-apb-parallel-waves
-run-apb-parallel-waves:
-	@echo "Running APB protocol bridge tests in parallel with waveforms..."
-	WAVES=1 $(PYTEST) $(APB_TESTS) $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE) $(PYTEST_XDIST) $(PYTEST_RERUNS)
-
 # ==============================================================================
 # Run Targets - AXI-Lite Protocol Tests
 # ==============================================================================
@@ -226,16 +193,6 @@ run-axil:
 run-axil-waves:
 	@echo "Running AXI-Lite protocol bridge tests with waveforms..."
 	WAVES=1 $(PYTEST) $(AXIL_TESTS) $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE)
-
-.PHONY: run-axil-parallel
-run-axil-parallel:
-	@echo "Running AXI-Lite protocol bridge tests in parallel..."
-	$(PYTEST) $(AXIL_TESTS) $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE) $(PYTEST_XDIST) $(PYTEST_RERUNS)
-
-.PHONY: run-axil-parallel-waves
-run-axil-parallel-waves:
-	@echo "Running AXI-Lite protocol bridge tests in parallel with waveforms..."
-	WAVES=1 $(PYTEST) $(AXIL_TESTS) $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE) $(PYTEST_XDIST) $(PYTEST_RERUNS)
 
 # ==============================================================================
 # Run Targets - Channel-Specific Tests (Phase 2 wr/rd/rw masters)
@@ -251,39 +208,19 @@ run-channels-waves:
 	@echo "Running channel-specific bridge tests with waveforms..."
 	WAVES=1 $(PYTEST) $(CHANNELS_TESTS) $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE)
 
-.PHONY: run-channels-parallel
-run-channels-parallel:
-	@echo "Running channel-specific bridge tests in parallel..."
-	$(PYTEST) $(CHANNELS_TESTS) $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE) $(PYTEST_XDIST) $(PYTEST_RERUNS)
-
-.PHONY: run-channels-parallel-waves
-run-channels-parallel-waves:
-	@echo "Running channel-specific bridge tests in parallel with waveforms..."
-	WAVES=1 $(PYTEST) $(CHANNELS_TESTS) $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE) $(PYTEST_XDIST) $(PYTEST_RERUNS)
-
 # ==============================================================================
 # Run Targets - All Tests
 # ==============================================================================
 
 .PHONY: run-all
 run-all:
-	@echo "Running ALL bridge tests (10 tests total)..."
+	@echo "Running ALL bridge tests..."
 	$(PYTEST) $(ALL_TESTS) $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE)
 
 .PHONY: run-all-waves
 run-all-waves:
 	@echo "Running ALL bridge tests with waveforms..."
 	WAVES=1 $(PYTEST) $(ALL_TESTS) $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE)
-
-.PHONY: run-all-parallel
-run-all-parallel:
-	@echo "Running ALL bridge tests in parallel..."
-	$(PYTEST) $(ALL_TESTS) $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE) $(PYTEST_XDIST) $(PYTEST_RERUNS)
-
-.PHONY: run-all-parallel-waves
-run-all-parallel-waves:
-	@echo "Running ALL bridge tests in parallel with waveforms..."
-	WAVES=1 $(PYTEST) $(ALL_TESTS) $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE) $(PYTEST_XDIST) $(PYTEST_RERUNS)
 
 # ==============================================================================
 # Coverage Targets
@@ -317,47 +254,31 @@ clean-coverage:
 	@echo "Coverage artifacts cleaned"
 
 # Legacy aliases for backward compatibility
-.PHONY: run run-waves run-parallel run-parallel-waves
+.PHONY: run run-waves
 run: run-all
 run-waves: run-all-waves
-run-parallel: run-all-parallel
-run-parallel-waves: run-all-parallel-waves
 
 # ==============================================================================
 # REG_LEVEL Targets (gate/func/full) - Required by master Makefile
 # ==============================================================================
-# Note: Bridge tests don't currently use REG_LEVEL since they're already
-# specialized per configuration. These targets just map to run-all variants.
+# Bridge tests don't currently use REG_LEVEL since they're already specialized
+# per configuration. These targets just map to run-all with the env var passed
+# through.
 
 .PHONY: run-all-gate
 run-all-gate:
-	@echo "Running ALL bridge tests (GATE level - sequential for safety)..."
+	@echo "Running ALL bridge tests (GATE level)..."
 	REG_LEVEL=GATE $(PYTEST) $(ALL_TESTS) $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE)
 
 .PHONY: run-all-func
 run-all-func:
-	@echo "Running ALL bridge tests (FUNC level - sequential for safety)..."
+	@echo "Running ALL bridge tests (FUNC level)..."
 	REG_LEVEL=FUNC $(PYTEST) $(ALL_TESTS) $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE)
 
 .PHONY: run-all-full
 run-all-full:
-	@echo "Running ALL bridge tests (FULL level - sequential for safety)..."
+	@echo "Running ALL bridge tests (FULL level)..."
 	REG_LEVEL=FULL $(PYTEST) $(ALL_TESTS) $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE)
-
-.PHONY: run-all-gate-parallel
-run-all-gate-parallel:
-	@echo "Running ALL bridge tests (GATE level, parallel)..."
-	REG_LEVEL=GATE $(PYTEST) $(ALL_TESTS) $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE) $(PYTEST_XDIST) $(PYTEST_RERUNS)
-
-.PHONY: run-all-func-parallel
-run-all-func-parallel:
-	@echo "Running ALL bridge tests (FUNC level, parallel)..."
-	REG_LEVEL=FUNC $(PYTEST) $(ALL_TESTS) $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE) $(PYTEST_XDIST) $(PYTEST_RERUNS)
-
-.PHONY: run-all-full-parallel
-run-all-full-parallel:
-	@echo "Running ALL bridge tests (FULL level, parallel)..."
-	REG_LEVEL=FULL $(PYTEST) $(ALL_TESTS) $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE) $(PYTEST_XDIST) $(PYTEST_RERUNS)
 
 # ==============================================================================
 # Utility Targets
