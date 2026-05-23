@@ -58,11 +58,12 @@ AXIL_TESTS = test_bridge_1x5_rd.py test_bridge_1x5_wr.py
 # Exercises Phase 2 channel-aware port emission (write-only/read-only masters).
 CHANNELS_TESTS = test_bridge_5x3_channels.py
 
-# Test files: Currently disabled (commented out in bin/bridge_batch.csv)
-# DISABLED_TESTS = test_bridge_4x4_rw.py test_bridge_example.py test_apb_bridge.py
+# Test files: Multi-master read/write configurations - GENERATED
+# 4x4_rw exercises round-robin arbitration across 4 masters into 4 slaves.
+MULTI_RW_TESTS = test_bridge_4x4_rw.py
 
-# All tests (currently generated and available — 10 total)
-ALL_TESTS = $(MATCHING_WIDTH_TESTS) $(MIXED_WIDTH_TESTS) $(APB_TESTS) $(AXIL_TESTS) $(CHANNELS_TESTS)
+# All tests currently generated and active in bin/bridge_batch.csv (11 total)
+ALL_TESTS = $(MATCHING_WIDTH_TESTS) $(MIXED_WIDTH_TESTS) $(APB_TESTS) $(AXIL_TESTS) $(CHANNELS_TESTS) $(MULTI_RW_TESTS)
 
 # Default target
 .DEFAULT_GOAL := help

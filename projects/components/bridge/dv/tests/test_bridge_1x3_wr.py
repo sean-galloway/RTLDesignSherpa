@@ -33,11 +33,20 @@ from projects.components.bridge.dv.tbclasses.bridge1x3_wr_tb import Bridge1x3WrT
 
 
 # ============================================================================
-# CocoTB Test Functions (prefixed with cocotb_test_* to prevent pytest collection)
+# CocoTB Test Functions
 # ============================================================================
+#
+# Each cocotb test function is named with the rtl_module_name baked in
+# (cocotb_test_<module>_<phase>) so that when pytest collects the full
+# bridge suite — every test_bridge_*.py imported into the same Python
+# process — no two files share a cocotb-registered test name. Sharing
+# names causes cross-test state pollution (one config's cocotb.test
+# registration overwrites another's, and tests that pass in isolation
+# fail in the full regression). Stream's per-module naming was the
+# reference.
 
 @cocotb.test(timeout_time=200, timeout_unit="ms")
-async def cocotb_test_basic_connectivity(dut):
+async def cocotb_test_bridge_1x3_wr_basic_connectivity(dut):
     """
     Basic connectivity — every (master, slave) pair gets one write and/or
     one read at a non-base offset inside the slave's window. Reads check
@@ -110,7 +119,7 @@ async def cocotb_test_basic_connectivity(dut):
 
 
 @cocotb.test(timeout_time=500, timeout_unit="ms")
-async def cocotb_test_address_decode(dut):
+async def cocotb_test_bridge_1x3_wr_address_decode(dut):
     """
     Address decode — for each (master, slave) pair, probe three offsets
     per page (bottom / middle / top of the page) back-to-back, at either
@@ -280,7 +289,7 @@ def test_bridge_1x3_wr_basic_connectivity(request):
         includes=includes,
         toplevel=dut_name,
         module=module,
-        testcase="cocotb_test_basic_connectivity",
+        testcase="cocotb_test_bridge_1x3_wr_basic_connectivity",
         sim_build=sim_build,
         waves=False,            # cocotb-test compile flags handled via extra_args
         extra_args=extra_args,
@@ -332,7 +341,7 @@ def test_bridge_1x3_wr_address_decode(request):
         includes=includes,
         toplevel=dut_name,
         module=module,
-        testcase="cocotb_test_address_decode",
+        testcase="cocotb_test_bridge_1x3_wr_address_decode",
         sim_build=sim_build,
         waves=False,
         extra_args=extra_args,
