@@ -425,6 +425,92 @@ class Axi2ApbTB(TBBase):
         self.log.info(f"Stress test completed: {operations} operations")
         return operations
 
+    async def run_b2b_burst_read_test(self, num_bursts=10, burst_len=2, addrs=None):
+        """Replicate the bridge boundary_probe pattern at the APB-shim FUB.
+
+        Issue N AXI4 read bursts (each ARLEN=burst_len-1 — typically 2-beat
+        bursts as a dwidth-dnsize 64→32 would emit) back-to-back through
+        the shim, with NO test-level inter-burst cooldown (only the cycles
+        the shim itself spends draining its side FIFO).
+
+        This is the scenario the bridge's 1x5_rd boundary_probe hits at
+        slave 3 (APB). The single-beat single_write_read_test in
+        run_comprehensive_write_read_test doesn't reach it because it
+        never decomposes into a multi-beat AXI burst — every transaction
+        is one single_write/single_read with paced inter-test waits.
+
+        Failure signature seen in the bridge: ~5 bursts complete cleanly,
+        the 6th hangs with the master AR_Master waiting forever for its R
+        response — symptom of RSP_IDLE waiting for r_apb_rsp_pkt_first
+        while a response with first=0 sits unprocessed, or the side FIFO
+        accumulating a stale entry that blocks the next IDLE accept.
+
+        addrs: optional explicit address list. If None, uses
+            page-boundary-style probe pattern matching the bridge's
+            boundary_probe: bottom / mid / top of page (0x000, 0x800,
+            0xFF8) for the first few pages of the APB slave's window.
+            This is what the bridge hits at slave-3.
+        """
+        self.log.info("=" * 80)
+        self.log.info(f"B2B BURST READ TEST: {num_bursts} bursts, each {burst_len} beats, "
+                      f"NO inter-burst cooldown")
+        self.log.info("=" * 80)
+
+        size_field = (self.DATA_WIDTH // 8 - 1).bit_length()  # full-width beats
+
+        if addrs is None:
+            # Mirror bridge boundary_probe: 3 page-aligned probes per page
+            # (bottom 0x000, mid 0x800, top 0xFF8 minus a few bytes for
+            # in-range alignment) walked across several pages. The APB
+            # slave's register file is small, so wrap into the seeded
+            # range — what matters for the shim bug is the *traffic
+            # pattern*, not the data itself.
+            apb_bytes = self.APB_DATA_WIDTH // 8
+            beat_bytes = self.DATA_WIDTH // 8
+            in_page_offs = [0x0, 0x80, 0xF0]  # bottom / mid / top inside slave's register range
+            pages = [0x000, 0x100, 0x180]     # walk a few "page" bases inside the slave's window
+            addrs = []
+            for p in pages:
+                for off in in_page_offs:
+                    addrs.append(p + off)
+                    if len(addrs) >= num_bursts:
+                        break
+                if len(addrs) >= num_bursts:
+                    break
+            # Pad if we asked for more bursts than the page×offset matrix gives
+            while len(addrs) < num_bursts:
+                addrs.append(0x200 + len(addrs) * burst_len * beat_bytes)
+
+        # Run each burst sequentially (each awaits its R), with no
+        # wait_clocks in between. The bridge pattern is sequential too —
+        # each master_read awaits R before the next probe starts. The
+        # bug is about state in the shim that doesn't fully reset between
+        # bursts even when the master has already received R.
+        for i, addr in enumerate(addrs[:num_bursts]):
+            try:
+                self.log.info(f"  burst {i+1}/{num_bursts}: addr=0x{addr:08X}, len={burst_len}")
+                read_data = await self.axi_read_interface.read_transaction(
+                    address=addr,
+                    burst_len=burst_len,
+                    id=i & 0xFF,
+                    size=size_field,
+                    burst_type=1,  # INCR
+                )
+                if read_data is None or len(read_data) != burst_len:
+                    err = (f"burst {i+1} at 0x{addr:08X}: expected {burst_len} R beats, "
+                           f"got {0 if read_data is None else len(read_data)}")
+                    self.log.error(err)
+                    self.test_failures.append(err)
+                    return False
+            except Exception as e:
+                err = f"burst {i+1} at 0x{addr:08X} failed: {e}"
+                self.log.error(err)
+                self.test_failures.append(err)
+                return False
+
+        self.log.info(f"B2B BURST READ TEST PASSED: {num_bursts} bursts × {burst_len} beats")
+        return True
+
     async def main_loop(self):
         """Main test loop with comprehensive testing"""
         self.main_loop_count += 1
@@ -481,6 +567,21 @@ class Axi2ApbTB(TBBase):
             self.log.error(f"Stress error: {error_msg}")
             self.test_failures.append(error_msg)
 
+        # B2B burst read test — replicates the bridge boundary_probe
+        # pattern that hangs the APB shim around the 5th-6th burst.
+        # Mark the failure explicitly but don't abort the rest of the
+        # tests — main_loop already catches and accumulates failures.
+        try:
+            self.log.info("Running b2b burst read test")
+            self.apply_timing_profile('axi4_backtoback')
+            await self.wait_clocks('aclk', 10)
+            await self.run_b2b_burst_read_test(num_bursts=10, burst_len=2)
+            total_operations += 10
+        except Exception as e:
+            error_msg = f"B2B burst read test failed: {e}"
+            self.log.error(f"B2B error: {error_msg}")
+            self.test_failures.append(error_msg)
+
         self.log.info(f"TOTAL OPERATIONS COMPLETED: {total_operations}")
 
         if self.test_failures:
@@ -518,7 +619,16 @@ async def axi2apb_shim_test(dut):
 
 
 @pytest.mark.parametrize("id_width, addr_width, data_width, user_width, apb_addr_width, apb_data_width",
-                            [(8,32,32,1,12,8)])
+                            [
+                                # Original: 32b AXI / 8b APB (axi2apbratio=4 — narrow-APB decomposition)
+                                (8, 32, 32, 1, 12, 8),
+                                # Bridge-matched: 32b AXI / 32b APB (axi2apbratio=1 — same-width).
+                                # This is the configuration the bridge's 1x5_rd boundary_probe
+                                # exercises through the APB shim. The new b2b-burst-read scenario
+                                # in main_loop targets the burst pattern that hangs at probe 6
+                                # in the bridge.
+                                (8, 32, 32, 1, 12, 32),
+                            ])
 def test_axi2abp_shim(request, id_width, addr_width, data_width, user_width, apb_addr_width, apb_data_width):
 
     enable_waves = bool(int(os.environ.get('WAVES', '0')))
