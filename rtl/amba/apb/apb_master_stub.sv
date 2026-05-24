@@ -73,8 +73,65 @@ module apb_master_stub #(
     logic [DW-1:0]       rsp_prdata;
     logic                rsp_pslverr;
 
-    // Pack response packet (include first/last from command)
-    assign rsp_data = {cmd_last, cmd_first, rsp_pslverr, rsp_prdata};
+    // -----------------------------------------------------------------
+    // first/last flag side FIFO
+    //
+    // apb_master takes cmd_pwrite/paddr/pwdata/pstrb/pprot only — it
+    // doesn't carry first/last through its internal cmd→rsp pipeline.
+    // The old code tapped {cmd_last, cmd_first} combinationally from
+    // the LIVE cmd_data input and packed it into rsp_data alongside
+    // rsp_prdata/rsp_pslverr. That's correct only when cmd_data is
+    // still holding the same command whose response just arrived —
+    // which is rarely true when the upstream (axi4_to_apb_convert)
+    // pipelines commands ahead of responses. As soon as the cmd FIFO
+    // inside apb_master accepts cmd N+1, the user advances cmd_data
+    // to cmd N+1; meanwhile cmd N's rsp_prdata is still draining out
+    // of the rsp FIFO and gets paired with cmd N+1's first/last bits.
+    //
+    // Symptom in the wider system: axi4_to_apb_convert's RSP_IDLE
+    // state waits for r_apb_rsp_pkt_first=1 to advance. Cmd N+1's
+    // first=0 stomps over cmd N+1's response (which should have
+    // had first=1 itself, but got cmd N+2's first=0 stamped on it,
+    // etc.). RSP_IDLE never sees first=1 again and the convert FSM
+    // hangs forever. Surfaces in the bridge as a TimeoutError on the
+    // master AXI4 R channel.
+    //
+    // Fix: enqueue {cmd_last, cmd_first} into a small FIFO on every
+    // cmd-side handshake, dequeue on every rsp-side handshake. The
+    // FIFO mirrors the depth of the apb_master cmd FIFO so it never
+    // backpressures the cmd path more than the cmd FIFO itself.
+    // -----------------------------------------------------------------
+    logic [1:0]          fl_in_data;
+    logic [1:0]          fl_out_data;
+    logic                fl_in_ready;
+    logic                fl_out_valid;
+    logic                out_cmd_last;
+    logic                out_cmd_first;
+
+    assign fl_in_data = {cmd_last, cmd_first};
+    assign {out_cmd_last, out_cmd_first} = fl_out_data;
+
+    gaxi_fifo_sync #(
+        .DATA_WIDTH (2),
+        .DEPTH      (CMD_DEPTH)
+    ) u_first_last_fifo (
+        .axi_aclk    (pclk),
+        .axi_aresetn (presetn),
+        .wr_valid    (cmd_valid && cmd_ready),
+        .wr_ready    (fl_in_ready),
+        .wr_data     (fl_in_data),
+        .rd_valid    (fl_out_valid),
+        .rd_ready    (rsp_valid && rsp_ready),
+        .rd_data     (fl_out_data),
+        /* verilator lint_off PINCONNECTEMPTY */
+        .count       ()
+        /* verilator lint_on PINCONNECTEMPTY */
+    );
+
+    // Pack response packet with the first/last bits that belong to the
+    // command whose response is being emitted right now (not whatever
+    // cmd is currently presented on the cmd_data input).
+    assign rsp_data = {out_cmd_last, out_cmd_first, rsp_pslverr, rsp_prdata};
 
     // Instantiate fully-tested apb_master
     apb_master #(
