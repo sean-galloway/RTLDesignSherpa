@@ -212,6 +212,62 @@ class Axi4TimingWrapper:
         self._sections.append(("Status (unconnected = clock-gating tie-off)",
                                [('busy', busy_connector)]))
 
+    # --- monitor-only port groups (only valid when mon=True) -----------
+
+    # The 15 cfg_* signal names every axi4_{master,slave}_{wr,rd}_mon
+    # variant exposes. Centralised here so adapter generators and bridge
+    # top can iterate the same list when surfacing per-port cfg inputs.
+    MONITOR_CFG_SIGNALS = (
+        'cfg_monitor_enable',
+        'cfg_error_enable',
+        'cfg_timeout_enable',
+        'cfg_perf_enable',
+        'cfg_timeout_cycles',
+        'cfg_latency_threshold',
+        'cfg_axi_pkt_mask',
+        'cfg_axi_err_select',
+        'cfg_axi_error_mask',
+        'cfg_axi_timeout_mask',
+        'cfg_axi_compl_mask',
+        'cfg_axi_thresh_mask',
+        'cfg_axi_perf_mask',
+        'cfg_axi_addr_mask',
+        'cfg_axi_debug_mask',
+    )
+
+    def connect_monbus(self, valid: str, ready: str, packet: str) -> None:
+        """Wire the wrapper's monitor-bus output trio. Only meaningful
+        on `_mon` variants -- non-mon modules have no such ports."""
+        if '_mon' not in self.module.module_name:
+            raise RuntimeError(
+                f"connect_monbus() called on non-mon wrapper "
+                f"{self.module.module_name!r}; caller must gate on mon=True."
+            )
+        self._sections.append(("Monitor bus output", [
+            ('monbus_valid',  valid),
+            ('monbus_ready',  ready),
+            ('monbus_packet', packet),
+        ]))
+
+    def connect_cfg(self, connector_prefix: str) -> None:
+        """Wire the wrapper's 15 cfg_* inputs. `connector_prefix` is
+        prepended to each base cfg signal name -- e.g. passing 'cfg_wr_'
+        yields .cfg_monitor_enable(cfg_wr_monitor_enable), etc. Only
+        valid on `_mon` variants."""
+        if '_mon' not in self.module.module_name:
+            raise RuntimeError(
+                f"connect_cfg() called on non-mon wrapper "
+                f"{self.module.module_name!r}; caller must gate on mon=True."
+            )
+        pairs = []
+        for sig in self.MONITOR_CFG_SIGNALS:
+            # The SV module's port name is the bare cfg_* signal; the
+            # adapter-level connector is f"{prefix}{stripped}" where we
+            # strip the leading 'cfg_' to avoid 'cfg_wr_cfg_monitor_...'.
+            base = sig[len('cfg_'):]
+            pairs.append((sig, f"{connector_prefix}{base}"))
+        self._sections.append(("Monitor cfg inputs", pairs))
+
     # --- internals -----------------------------------------------------
 
     def _fub_default_connectors(self, connector_prefix: str) -> dict:

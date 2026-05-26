@@ -565,6 +565,49 @@ def generate_bridge(ports_file, connectivity_file, name=None, output_dir="../rtl
             filelist_lines.append("$REPO_ROOT/projects/components/converters/rtl/axi4_to_axil4_rd.sv")
             filelist_lines.append("$REPO_ROOT/projects/components/converters/rtl/axi4_to_axil4_wr.sv")
 
+        # Monitor-aggregation dependencies. Only added when the TOML
+        # opts in via [bridge].use_monitor = true. Pulls in the _mon
+        # wrapper variants, the shared axi_monitor_* core, the monbus
+        # arbiter + axil_group, and the AXIL4 modules the group uses.
+        if config.use_monitor:
+            filelist_lines.append("")
+            filelist_lines.append("# Monitor-aggregation infrastructure (use_monitor=true)")
+            filelist_lines.append("# Header files with macros (already compiled if AMBA pkg path included)")
+            filelist_lines.append("$REPO_ROOT/rtl/amba/includes/reset_defs.svh")
+            filelist_lines.append("$REPO_ROOT/rtl/amba/includes/fifo_defs.svh")
+            filelist_lines.append("# Monitor packages -- must precede module compilation")
+            filelist_lines.append("$REPO_ROOT/rtl/amba/includes/monitor_common_pkg.sv")
+            filelist_lines.append("$REPO_ROOT/rtl/amba/includes/monitor_arbiter_pkg.sv")
+            filelist_lines.append("$REPO_ROOT/rtl/amba/includes/monitor_amba4_pkg.sv")
+            filelist_lines.append("$REPO_ROOT/rtl/amba/includes/monitor_amba5_pkg.sv")
+            filelist_lines.append("$REPO_ROOT/rtl/amba/includes/monitor_pkg.sv")
+            filelist_lines.append("# Common arbitration primitives (used by axi_monitor_*)")
+            filelist_lines.append("$REPO_ROOT/rtl/common/arbiter_priority_encoder.sv")
+            filelist_lines.append("$REPO_ROOT/rtl/common/arbiter_round_robin.sv")
+            filelist_lines.append("# Common counters & FIFO control (used by gaxi_fifo_sync + axi_monitor_timer)")
+            filelist_lines.append("$REPO_ROOT/rtl/common/counter_bin.sv")
+            filelist_lines.append("$REPO_ROOT/rtl/common/counter_load_clear.sv")
+            filelist_lines.append("$REPO_ROOT/rtl/common/counter_freq_invariant.sv")
+            filelist_lines.append("$REPO_ROOT/rtl/common/fifo_control.sv")
+            filelist_lines.append("# axi_monitor_* shared infrastructure (order matters)")
+            filelist_lines.append("$REPO_ROOT/rtl/amba/shared/axi_monitor_trans_mgr.sv")
+            filelist_lines.append("$REPO_ROOT/rtl/amba/shared/axi_monitor_timer.sv")
+            filelist_lines.append("$REPO_ROOT/rtl/amba/shared/axi_monitor_timeout.sv")
+            filelist_lines.append("$REPO_ROOT/rtl/amba/shared/axi_monitor_reporter.sv")
+            filelist_lines.append("$REPO_ROOT/rtl/amba/shared/axi_monitor_base.sv")
+            filelist_lines.append("$REPO_ROOT/rtl/amba/shared/axi_monitor_filtered.sv")
+            filelist_lines.append("# _mon wrapper variants (instantiated by adapters when use_monitor=true)")
+            filelist_lines.append("$REPO_ROOT/rtl/amba/axi4/axi4_slave_wr_mon.sv")
+            filelist_lines.append("$REPO_ROOT/rtl/amba/axi4/axi4_slave_rd_mon.sv")
+            filelist_lines.append("$REPO_ROOT/rtl/amba/axi4/axi4_master_wr_mon.sv")
+            filelist_lines.append("$REPO_ROOT/rtl/amba/axi4/axi4_master_rd_mon.sv")
+            filelist_lines.append("# Monbus aggregator + AXIL group")
+            filelist_lines.append("$REPO_ROOT/rtl/amba/gaxi/gaxi_fifo_sync.sv")
+            filelist_lines.append("$REPO_ROOT/rtl/amba/shared/monbus_arbiter.sv")
+            filelist_lines.append("$REPO_ROOT/rtl/amba/axil4/axil4_slave_rd.sv")
+            filelist_lines.append("$REPO_ROOT/rtl/amba/axil4/axil4_master_wr.sv")
+            filelist_lines.append("$REPO_ROOT/projects/components/stream/rtl/macro/monbus_axil_group.sv")
+
         # Note: Width converters are included even if not used in this specific bridge
         # because they're needed when master/slave data widths differ.
         # The synthesizer will optimize away unused instances.

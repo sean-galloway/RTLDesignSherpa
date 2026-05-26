@@ -18,6 +18,48 @@ from ..components.apb_shim_adapter import ApbShimAdapter
 from ..signal_naming import SignalNaming, Direction, AXI4Channel, AXI4_MASTER_SIGNALS, PortDirection, SignalInfo
 
 
+# Widths in bits for the 15 cfg_* inputs every axi4_*_mon variant
+# exposes. Mirrors the SV declarations in
+# rtl/amba/axi4/axi4_{master,slave}_{wr,rd}_mon.sv.
+_MONITOR_CFG_WIDTHS = {
+    'cfg_monitor_enable':       1,
+    'cfg_error_enable':         1,
+    'cfg_timeout_enable':       1,
+    'cfg_perf_enable':          1,
+    'cfg_timeout_cycles':      16,
+    'cfg_latency_threshold':   32,
+    'cfg_axi_pkt_mask':        16,
+    'cfg_axi_err_select':      16,
+    'cfg_axi_error_mask':      16,
+    'cfg_axi_timeout_mask':    16,
+    'cfg_axi_compl_mask':      16,
+    'cfg_axi_thresh_mask':     16,
+    'cfg_axi_perf_mask':       16,
+    'cfg_axi_addr_mask':       16,
+    'cfg_axi_debug_mask':      16,
+}
+
+
+def _ensure_trailing_comma(port_lines: List[str]) -> None:
+    """In-place: find the last non-blank, non-comment, non-bare-")"
+    port-declaration line and ensure it ends with ','. Used when a new
+    group of ports is appended after a block whose final entry was
+    deliberately comma-less."""
+    for idx in range(len(port_lines) - 1, -1, -1):
+        ln = port_lines[idx]
+        stripped = ln.strip()
+        if not stripped:
+            continue
+        if stripped.startswith('//'):
+            continue
+        if stripped in (');',):
+            continue
+        # First real declaration line from the end.
+        if not stripped.endswith(','):
+            port_lines[idx] = ln.rstrip() + ','
+        return
+
+
 @dataclass
 class SlaveInfo:
     """Information about a slave port."""
@@ -181,9 +223,50 @@ class AdapterGenerator:
         lines.append(f"    // {self.master.data_width}b width outputs (to crossbar)")
         lines.extend(self._generate_struct_ports())
 
+        # Monitor side-band ports. Only emitted when use_monitor=true so
+        # non-monitored builds have an unchanged port surface. Each
+        # wrapper instance gets its own monbus output trio + 15 cfg
+        # inputs; bridge top binds them to externally driven nets.
+        if self.enable_monitoring:
+            _ensure_trailing_comma(lines)
+            lines.append("")
+            lines.extend(self._generate_monitor_ports())
+
         lines.append(");")
         lines.append("")
 
+        return lines
+
+    def _generate_monitor_ports(self) -> List[str]:
+        """Per-wrapper monbus output + cfg input ports for this adapter.
+        Names use the adapter-local channel suffix (`_wr` / `_rd`) -- the
+        bridge top binds them to {port_name}_{port_idx}-prefixed nets so
+        each monbus stream and cfg group is uniquely identifiable."""
+        from ..components.axi4_timing_wrapper_component import Axi4TimingWrapper
+
+        lines: List[str] = []
+        channels: List[str] = []
+        if self.master.channels in ("wr", "rw"):
+            channels.append("wr")
+        if self.master.channels in ("rd", "rw"):
+            channels.append("rd")
+
+        last_chan = channels[-1] if channels else None
+        for chan in channels:
+            lines.append(f"    // Monitor side-band: {chan} wrapper")
+            lines.append(f"    output logic        monbus_{chan}_valid,")
+            lines.append(f"    input  logic        monbus_{chan}_ready,")
+            lines.append(f"    output logic [63:0] monbus_{chan}_packet,")
+            lines.append("")
+            for i, sig in enumerate(Axi4TimingWrapper.MONITOR_CFG_SIGNALS):
+                is_final_cfg = (chan == last_chan and i == len(Axi4TimingWrapper.MONITOR_CFG_SIGNALS) - 1)
+                width = _MONITOR_CFG_WIDTHS[sig]
+                width_decl = "       " if width == 1 else f"[{width-1}:0]"
+                base = sig[len("cfg_"):]
+                sep = "" if is_final_cfg else ","
+                lines.append(f"    input  logic {width_decl} cfg_{chan}_{base}{sep}")
+            if chan != last_chan:
+                lines.append("")
         return lines
 
     def _generate_external_ports(self) -> List[str]:
@@ -445,6 +528,13 @@ class AdapterGenerator:
             wrapper.connect_external(connector_prefix=signal_prefix)
             wrapper.connect_bridge_internal(connector_prefix='fub_axi_')
             wrapper.add_status(busy_connector='wrapper_wr_busy')
+            if self.enable_monitoring:
+                wrapper.connect_monbus(
+                    valid='monbus_wr_valid',
+                    ready='monbus_wr_ready',
+                    packet='monbus_wr_packet',
+                )
+                wrapper.connect_cfg(connector_prefix='cfg_wr_')
             lines.append("    // ================================================================")
             lines.append(f"    // Timing isolation wrapper (axi4_slave_wr{'_mon' if self.enable_monitoring else ''})")
             lines.append("    // ================================================================")
@@ -467,6 +557,13 @@ class AdapterGenerator:
             wrapper.connect_external(connector_prefix=signal_prefix)
             wrapper.connect_bridge_internal(connector_prefix='fub_axi_')
             wrapper.add_status(busy_connector='wrapper_rd_busy')
+            if self.enable_monitoring:
+                wrapper.connect_monbus(
+                    valid='monbus_rd_valid',
+                    ready='monbus_rd_ready',
+                    packet='monbus_rd_packet',
+                )
+                wrapper.connect_cfg(connector_prefix='cfg_rd_')
             lines.append("    // ================================================================")
             lines.append(f"    // Timing isolation wrapper (axi4_slave_rd{'_mon' if self.enable_monitoring else ''})")
             lines.append("    // ================================================================")

@@ -18,10 +18,46 @@ import sys
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '../..'))
 
 from bridge_pkg.generators.package_generator import PackageGenerator
-from bridge_pkg.generators.adapter_generator import AdapterGenerator, MasterConfig, SlaveInfo
+from bridge_pkg.generators.adapter_generator import AdapterGenerator, MasterConfig, SlaveInfo, _MONITOR_CFG_WIDTHS, _ensure_trailing_comma
 from bridge_pkg.generators.slave_adapter_generator import SlaveAdapterGenerator
 from bridge_pkg.generators.crossbar_generator import CrossbarGenerator
 from bridge_pkg.signal_naming import SignalNaming, Direction, AXI4Channel, Protocol, AXI4_MASTER_SIGNALS, PortDirection, SignalInfo
+from bridge_pkg.components.axi4_timing_wrapper_component import Axi4TimingWrapper
+
+
+@dataclass
+class MonitoredWrapper:
+    """One AXI4 _mon wrapper instance inside the bridge. The bridge top
+    references each by a `{port_name}_{port_idx}_{channel}` prefix when
+    naming the per-port cfg inputs, monbus internal wires, and the
+    adapter-instance connector list."""
+    port_name: str        # 'cpu', 'ddr', etc. -- from TOML
+    port_idx: int         # master_index or slave_index
+    side: str             # 'master' or 'slave'
+    channel: str          # 'wr' or 'rd'
+
+    @property
+    def top_prefix(self) -> str:
+        """`<port>_<idx>_<wr|rd>` -- prefix used at the bridge top
+        for both monbus internal nets and per-port cfg inputs."""
+        return f"{self.port_name}_{self.port_idx}_{self.channel}"
+
+    @property
+    def monbus_valid(self) -> str:
+        return f"monbus_{self.top_prefix}_valid"
+
+    @property
+    def monbus_ready(self) -> str:
+        return f"monbus_{self.top_prefix}_ready"
+
+    @property
+    def monbus_packet(self) -> str:
+        return f"monbus_{self.top_prefix}_packet"
+
+    def cfg_signal(self, base: str) -> str:
+        """`cfg_<port>_<idx>_<wr|rd>_<base>` for a cfg signal whose
+        wrapper-side port name is `cfg_<base>`."""
+        return f"cfg_{self.top_prefix}_{base}"
 
 
 class BridgeModuleGenerator:
@@ -205,6 +241,250 @@ class BridgeModuleGenerator:
         )
         return slave_adapter_gen.generate()
 
+    # ==================================================================
+    # Monitor aggregation (use_monitor=true only)
+    # ==================================================================
+
+    def _collect_monitored_wrappers(self) -> List[MonitoredWrapper]:
+        """Enumerate every per-port AXI4 _mon wrapper instance in the
+        bridge, ordered master-side first then slave-side. APB and AXIL
+        slaves contribute nothing -- their converter shims have no
+        monitor support today. The order here defines the indexing of
+        monbus_arbiter inputs at the bridge top."""
+        wrappers: List[MonitoredWrapper] = []
+        for m_idx, m in enumerate(self.masters):
+            if m.channels in ('wr', 'rw'):
+                wrappers.append(MonitoredWrapper(m.name, m_idx, 'master', 'wr'))
+            if m.channels in ('rd', 'rw'):
+                wrappers.append(MonitoredWrapper(m.name, m_idx, 'master', 'rd'))
+        for s_idx, s in enumerate(self.slaves):
+            if s.protocol != 'axi4':
+                continue
+            connecting = self._get_masters_connecting_to_slave(s)
+            has_write = any(m.channels in ('wr', 'rw') for m in connecting)
+            has_read = any(m.channels in ('rd', 'rw') for m in connecting)
+            if has_write:
+                wrappers.append(MonitoredWrapper(s.name, s_idx, 'slave', 'wr'))
+            if has_read:
+                wrappers.append(MonitoredWrapper(s.name, s_idx, 'slave', 'rd'))
+        return wrappers
+
+    # The monbus_axil_group's own port-level cfg signals (NOT the
+    # per-port wrapper cfg). Surfaced as `cfg_mon_group_<base>` at the
+    # bridge top so the SoC integrator drives the post-arbiter filter
+    # behaviour. Mirrors monbus_axil_group's port list in
+    # projects/components/stream/rtl/macro/monbus_axil_group.sv.
+    _MON_GROUP_CFG = (
+        # Address window for the AXIL master write region
+        ('base_addr',           32),
+        ('limit_addr',          32),
+        # Per-protocol filter masks (AXI, AXIS, CORE)
+        ('axi_pkt_mask',        16),
+        ('axi_err_select',      16),
+        ('axi_error_mask',      16),
+        ('axi_timeout_mask',    16),
+        ('axi_compl_mask',      16),
+        ('axi_thresh_mask',     16),
+        ('axi_perf_mask',       16),
+        ('axi_addr_mask',       16),
+        ('axi_debug_mask',      16),
+        ('axis_pkt_mask',       16),
+        ('axis_err_select',     16),
+        ('axis_error_mask',     16),
+        ('axis_timeout_mask',   16),
+        ('axis_compl_mask',     16),
+        ('axis_credit_mask',    16),
+        ('axis_channel_mask',   16),
+        ('axis_stream_mask',    16),
+        ('core_pkt_mask',       16),
+        ('core_err_select',     16),
+        ('core_error_mask',     16),
+        ('core_timeout_mask',   16),
+        ('core_compl_mask',     16),
+        ('core_thresh_mask',    16),
+        ('core_perf_mask',      16),
+        ('core_debug_mask',     16),
+    )
+
+    def _generate_monitor_top_ports(self, wrappers: List[MonitoredWrapper]) -> List[str]:
+        """Per-wrapper cfg inputs + monbus_axil_group's AXIL slave,
+        AXIL master, cfg_mon_group_*, and mon_irq_out ports. Caller has
+        already ensured a trailing comma after the prior port group."""
+        lines: List[str] = []
+
+        # Per-wrapper cfg inputs (15 sigs each)
+        lines.append("")
+        lines.append("    // ============================================================")
+        lines.append("    // Monitor per-port cfg inputs (use_monitor=true)")
+        lines.append("    // ============================================================")
+        for w in wrappers:
+            lines.append(f"    // {w.side} {w.port_name} (idx {w.port_idx}, {w.channel})")
+            for sig in Axi4TimingWrapper.MONITOR_CFG_SIGNALS:
+                base = sig[len('cfg_'):]
+                width = _MONITOR_CFG_WIDTHS[sig]
+                width_decl = "       " if width == 1 else f"[{width-1}:0]"
+                lines.append(f"    input  logic {width_decl} {w.cfg_signal(base)},")
+            lines.append("")
+
+        # monbus_axil_group ports -- the post-arbiter consumer.
+        lines.append("    // ============================================================")
+        lines.append("    // monbus_axil_group access ports + config + IRQ")
+        lines.append("    // ============================================================")
+        # AXIL slave (config / IRQ status reads)
+        lines.append("    // AXIL slave (IRQ-status reads)")
+        lines.append("    input  logic        s_mon_axil_arvalid,")
+        lines.append("    output logic        s_mon_axil_arready,")
+        lines.append("    input  logic [31:0] s_mon_axil_araddr,")
+        lines.append("    input  logic [2:0]  s_mon_axil_arprot,")
+        lines.append("    output logic        s_mon_axil_rvalid,")
+        lines.append("    input  logic        s_mon_axil_rready,")
+        lines.append("    output logic [31:0] s_mon_axil_rdata,")
+        lines.append("    output logic [1:0]  s_mon_axil_rresp,")
+        lines.append("")
+        # AXIL master (packet log writes)
+        lines.append("    // AXIL master (packet log writes)")
+        lines.append("    output logic        m_mon_axil_awvalid,")
+        lines.append("    input  logic        m_mon_axil_awready,")
+        lines.append("    output logic [31:0] m_mon_axil_awaddr,")
+        lines.append("    output logic [2:0]  m_mon_axil_awprot,")
+        lines.append("    output logic        m_mon_axil_wvalid,")
+        lines.append("    input  logic        m_mon_axil_wready,")
+        lines.append("    output logic [31:0] m_mon_axil_wdata,")
+        lines.append("    output logic [3:0]  m_mon_axil_wstrb,")
+        lines.append("    input  logic        m_mon_axil_bvalid,")
+        lines.append("    output logic        m_mon_axil_bready,")
+        lines.append("    input  logic [1:0]  m_mon_axil_bresp,")
+        lines.append("")
+        # monbus_axil_group cfg
+        lines.append("    // monbus_axil_group cfg")
+        for base, width in self._MON_GROUP_CFG:
+            width_decl = "       " if width == 1 else f"[{width-1}:0]"
+            lines.append(f"    input  logic {width_decl} cfg_mon_group_{base},")
+        lines.append("")
+        # IRQ output -- last port, no trailing comma.
+        lines.append("    // IRQ (asserted while error FIFO non-empty)")
+        lines.append("    output logic        mon_irq_out")
+        return lines
+
+    def _generate_monitor_internal_signals(self, wrappers: List[MonitoredWrapper]) -> List[str]:
+        """Per-wrapper monbus internal wires + the arbiter's output
+        net. Each wrapper's adapter output feeds a unique 3-wire stream
+        named monbus_<port>_<idx>_<chan>_{valid,ready,packet}."""
+        lines: List[str] = []
+        lines.append("    // ============================================================")
+        lines.append("    // Per-wrapper monbus streams (adapter -> arbiter input)")
+        lines.append("    // ============================================================")
+        for w in wrappers:
+            lines.append(f"    logic        {w.monbus_valid};")
+            lines.append(f"    logic        {w.monbus_ready};")
+            lines.append(f"    logic [63:0] {w.monbus_packet};")
+        lines.append("")
+        lines.append("    // Arbiter output (-> monbus_axil_group input)")
+        lines.append("    logic        mon_arb_monbus_valid;")
+        lines.append("    logic        mon_arb_monbus_ready;")
+        lines.append("    logic [63:0] mon_arb_monbus_packet;")
+        lines.append("")
+        return lines
+
+    def _generate_master_monitor_connections(self, wrappers: List[MonitoredWrapper]) -> List[str]:
+        """Adapter-instantiation port connections for this master's
+        monbus + cfg ports. The adapter exposes channel-suffixed names
+        (monbus_wr_valid, cfg_rd_axi_pkt_mask, ...) and the bridge top
+        binds them to {port}_{idx}_{chan}-prefixed nets."""
+        lines: List[str] = []
+        # Sort so wr comes before rd (matches port-list order)
+        ordered = sorted(wrappers, key=lambda w: 0 if w.channel == 'wr' else 1)
+        all_pairs: List[tuple] = []  # (adapter_port, bridge_connector)
+        for w in ordered:
+            all_pairs.append((f'monbus_{w.channel}_valid',  w.monbus_valid))
+            all_pairs.append((f'monbus_{w.channel}_ready',  w.monbus_ready))
+            all_pairs.append((f'monbus_{w.channel}_packet', w.monbus_packet))
+            for sig in Axi4TimingWrapper.MONITOR_CFG_SIGNALS:
+                base = sig[len('cfg_'):]
+                adapter_port = f'cfg_{w.channel}_{base}'
+                all_pairs.append((adapter_port, w.cfg_signal(base)))
+        last_idx = len(all_pairs) - 1
+        for i, (port, conn) in enumerate(all_pairs):
+            sep = '' if i == last_idx else ','
+            lines.append(f"        .{port}({conn}){sep}")
+        return lines
+
+    def _generate_monitor_aggregator(self, wrappers: List[MonitoredWrapper]) -> List[str]:
+        """Instantiate monbus_arbiter + monbus_axil_group at the bridge
+        top. Adapter outputs feed the arbiter; arbiter output feeds the
+        axil_group whose AXIL/cfg/IRQ ports are surfaced at module top."""
+        lines: List[str] = []
+        n = len(wrappers)
+        lines.append("    // ============================================================")
+        lines.append(f"    // Monitor aggregator -- {n} client(s) -> arbiter -> axil_group")
+        lines.append("    // ============================================================")
+        # monbus_arbiter: unpacked-array inputs across CLIENTS
+        lines.append("    logic        mon_arb_monbus_valid_in [{}];".format(n))
+        lines.append("    logic        mon_arb_monbus_ready_in [{}];".format(n))
+        lines.append("    logic [63:0] mon_arb_monbus_packet_in [{}];".format(n))
+        for i, w in enumerate(wrappers):
+            lines.append(f"    assign mon_arb_monbus_valid_in[{i}]  = {w.monbus_valid};")
+            lines.append(f"    assign {w.monbus_ready} = mon_arb_monbus_ready_in[{i}];")
+            lines.append(f"    assign mon_arb_monbus_packet_in[{i}] = {w.monbus_packet};")
+        lines.append("")
+        lines.append("    monbus_arbiter #(")
+        lines.append(f"        .CLIENTS            ({n}),")
+        lines.append("        .INPUT_SKID_ENABLE  (1),")
+        lines.append("        .OUTPUT_SKID_ENABLE (1),")
+        lines.append("        .INPUT_SKID_DEPTH   (2),")
+        lines.append("        .OUTPUT_SKID_DEPTH  (2)")
+        lines.append("    ) u_mon_arbiter (")
+        lines.append("        .axi_aclk          (aclk),")
+        lines.append("        .axi_aresetn       (aresetn),")
+        lines.append("        .block_arb         (1'b0),")
+        lines.append("        .monbus_valid_in   (mon_arb_monbus_valid_in),")
+        lines.append("        .monbus_ready_in   (mon_arb_monbus_ready_in),")
+        lines.append("        .monbus_packet_in  (mon_arb_monbus_packet_in),")
+        lines.append("        .monbus_valid      (mon_arb_monbus_valid),")
+        lines.append("        .monbus_ready      (mon_arb_monbus_ready),")
+        lines.append("        .monbus_packet     (mon_arb_monbus_packet),")
+        lines.append("        /* verilator lint_off PINCONNECTEMPTY */")
+        lines.append("        .grant_valid       (),")
+        lines.append("        .grant             (),")
+        lines.append("        .grant_id          (),")
+        lines.append("        .last_grant        ()")
+        lines.append("        /* verilator lint_on PINCONNECTEMPTY */")
+        lines.append("    );")
+        lines.append("")
+        lines.append("    monbus_axil_group #(")
+        lines.append("        .FIFO_DEPTH_ERR    (64),")
+        lines.append("        .FIFO_DEPTH_WRITE  (32),")
+        lines.append("        .ADDR_WIDTH        (32),")
+        lines.append("        .DATA_WIDTH        (32),")
+        lines.append("        .NUM_PROTOCOLS     (3)")
+        lines.append("    ) u_mon_axil_group (")
+        lines.append("        .axi_aclk          (aclk),")
+        lines.append("        .axi_aresetn       (aresetn),")
+        lines.append("        // Arbiter output as the single monbus input")
+        lines.append("        .monbus_valid      (mon_arb_monbus_valid),")
+        lines.append("        .monbus_ready      (mon_arb_monbus_ready),")
+        lines.append("        .monbus_packet     (mon_arb_monbus_packet),")
+        lines.append("        // AXIL slave")
+        for s in ('arvalid','arready','araddr','arprot','rvalid','rready','rdata','rresp'):
+            lines.append(f"        .s_axil_{s}      (s_mon_axil_{s}),")
+        lines.append("        // AXIL master")
+        for s in ('awvalid','awready','awaddr','awprot','wvalid','wready','wdata','wstrb','bvalid','bready','bresp'):
+            lines.append(f"        .m_axil_{s}      (m_mon_axil_{s}),")
+        lines.append("        // IRQ")
+        lines.append("        .irq_out           (mon_irq_out),")
+        lines.append("        // Group-level cfg")
+        for base, _width in self._MON_GROUP_CFG:
+            lines.append(f"        .cfg_{base}     (cfg_mon_group_{base}),")
+        lines.append("        /* verilator lint_off PINCONNECTEMPTY */")
+        lines.append("        .err_fifo_full     (),")
+        lines.append("        .write_fifo_full   (),")
+        lines.append("        .err_fifo_count    (),")
+        lines.append("        .write_fifo_count  ()")
+        lines.append("        /* verilator lint_on PINCONNECTEMPTY */")
+        lines.append("    );")
+        lines.append("")
+        return lines
+
     def _generate_crossbar(self) -> str:
         """
         Generate crossbar module that routes adapter outputs to slaves.
@@ -236,8 +516,15 @@ class BridgeModuleGenerator:
         # Internal signals (adapter outputs)
         lines.extend(self._generate_internal_signals())
 
+        # Monitor side-band internal nets (use_monitor=true only).
+        monitored: List[MonitoredWrapper] = []
+        if self.enable_monitoring:
+            monitored = self._collect_monitored_wrappers()
+            if monitored:
+                lines.extend(self._generate_monitor_internal_signals(monitored))
+
         # Adapter instantiations
-        lines.extend(self._generate_adapter_instantiations())
+        lines.extend(self._generate_adapter_instantiations(monitored))
 
         # Crossbar routing
         lines.extend(self._generate_crossbar_routing())
@@ -247,7 +534,11 @@ class BridgeModuleGenerator:
         # converter AND the bridge_id-tracking FIFO -- the bridge top
         # used to direct-instantiate axi4_to_apb_shim here, which left
         # rid_*/bid_* undriven and broke APB responses end-to-end.
-        lines.extend(self._generate_slave_adapter_instantiations())
+        lines.extend(self._generate_slave_adapter_instantiations(monitored))
+
+        # Monitor aggregator (monbus_arbiter + monbus_axil_group).
+        if self.enable_monitoring and monitored:
+            lines.extend(self._generate_monitor_aggregator(monitored))
 
         # Module end
         lines.append(f"endmodule : {self.bridge_name}")
@@ -307,6 +598,13 @@ class BridgeModuleGenerator:
             lines.extend(slave_ports)
             if i < len(self.slaves) - 1:
                 lines.append("")
+
+        # Monitor side-band top ports (use_monitor=true only)
+        if self.enable_monitoring:
+            wrappers = self._collect_monitored_wrappers()
+            if wrappers:
+                _ensure_trailing_comma(lines)
+                lines.extend(self._generate_monitor_top_ports(wrappers))
 
         lines.append(");")
         lines.append("")
@@ -753,14 +1051,21 @@ class BridgeModuleGenerator:
 
         return connecting_masters
 
-    def _generate_adapter_instantiations(self) -> List[str]:
+    def _generate_adapter_instantiations(self, monitored: List[MonitoredWrapper] = None) -> List[str]:
         """
         Generate adapter module instantiations using SignalNaming.
 
         Connects ALL width paths from adapter to internal signals.
         Now uses SignalNaming for correct port connection names.
+
+        Args:
+            monitored: list of MonitoredWrapper entries the bridge top
+                tracks for monbus aggregation. When non-empty, this
+                method also wires each master adapter's monbus + cfg
+                ports to the matching bridge-top nets.
         """
         lines = []
+        monitored = monitored or []
 
         for master in self.masters:
             lines.append("    // ================================================================")
@@ -842,6 +1147,19 @@ class BridgeModuleGenerator:
                         lines.append(f"        .{master.name}_{suffix}_rready({master.name}_{suffix}_rready)")
                     else:
                         lines.append(f"        .{master.name}_{suffix}_rready({master.name}_{suffix}_rready),")
+
+            # Per-master monbus + cfg wiring -- only emit when this
+            # master has at least one monitored wrapper in the bridge
+            # top. The adapter's port names are channel-suffixed
+            # (monbus_wr_*, cfg_rd_*); the bridge-top connectors carry
+            # the {port}_{idx}_{chan} prefix.
+            my_wrappers = [w for w in monitored
+                           if w.side == 'master' and w.port_name == master.name]
+            if my_wrappers:
+                _ensure_trailing_comma(lines)
+                lines.append("")
+                lines.append("        // Monitor side-band")
+                lines.extend(self._generate_master_monitor_connections(my_wrappers))
 
             lines.append("    );")
             lines.append("")
@@ -1001,7 +1319,7 @@ class BridgeModuleGenerator:
 
         return lines
 
-    def _generate_slave_adapter_instantiations(self) -> List[str]:
+    def _generate_slave_adapter_instantiations(self, monitored: List[MonitoredWrapper] = None) -> List[str]:
         """Generate slave-adapter instantiations for ALL slaves via the
         typed SlaveAdapterInstance component.
 
@@ -1011,10 +1329,15 @@ class BridgeModuleGenerator:
         the matching port list -- the component keeps the bridge top
         and the adapter generator in lockstep so the two can't drift
         apart silently (which left `rid_bridge_id`/`rid_valid`/`bid_*`
-        undriven for APB slaves in a previous regression)."""
+        undriven for APB slaves in a previous regression).
+
+        Args:
+            monitored: when non-empty, wire each AXI4 slave adapter's
+                monbus + cfg ports to the matching bridge-top nets."""
         from .slave_adapter_instance_component import SlaveAdapterInstance
 
         lines = []
+        monitored = monitored or []
         if not self.slaves:
             return lines
 
@@ -1044,6 +1367,12 @@ class BridgeModuleGenerator:
             inst.connect_xbar_interface()
             inst.connect_external_interface()
             inst.connect_bridge_id_tracking()
+            # Wire the AXI4 slave adapter's monbus+cfg ports if this
+            # slave participates in monitor aggregation.
+            slave_wrappers = [w for w in monitored
+                              if w.side == 'slave' and w.port_name == slave.name]
+            if slave_wrappers:
+                inst.connect_monitor(slave_wrappers)
             lines.extend(inst.generate_lines())
 
         return lines

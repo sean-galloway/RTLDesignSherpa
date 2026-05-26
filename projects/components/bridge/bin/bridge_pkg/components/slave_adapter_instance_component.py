@@ -153,6 +153,31 @@ class SlaveAdapterInstance:
             self._sections.append((
                 f"External AXI4 interface ({self.slave_prefix}*)", pairs))
 
+    def connect_monitor(self, wrappers) -> None:
+        """Wire the AXI4 slave adapter's monbus + cfg ports. `wrappers`
+        is a list of MonitoredWrapper entries belonging to this slave;
+        each contributes one channel-suffixed monbus trio plus its 15
+        cfg inputs. Only meaningful when the adapter generator emitted
+        the matching ports (use_monitor=true + protocol=axi4)."""
+        from .axi4_timing_wrapper_component import Axi4TimingWrapper
+
+        if self.protocol != 'axi4':
+            raise RuntimeError(
+                f"connect_monitor() on non-axi4 slave {self.slave_name!r}: "
+                f"the converter shims have no monitor ports today."
+            )
+        pairs: List[tuple] = []
+        ordered = sorted(wrappers, key=lambda w: 0 if w.channel == 'wr' else 1)
+        for w in ordered:
+            pairs.append((f'monbus_{w.channel}_valid',  w.monbus_valid))
+            pairs.append((f'monbus_{w.channel}_ready',  w.monbus_ready))
+            pairs.append((f'monbus_{w.channel}_packet', w.monbus_packet))
+            for sig in Axi4TimingWrapper.MONITOR_CFG_SIGNALS:
+                base = sig[len('cfg_'):]
+                adapter_port = f'cfg_{w.channel}_{base}'
+                pairs.append((adapter_port, w.cfg_signal(base)))
+        self._sections.append(("Monitor side-band", pairs))
+
     def connect_bridge_id_tracking(self) -> None:
         """Wire the xbar_bridge_id_{ar,aw} and bid_*/rid_* signals that
         the response MUX in the xbar uses to route B/R back to the

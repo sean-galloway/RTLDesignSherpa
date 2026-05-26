@@ -165,9 +165,51 @@ class SlaveAdapterGenerator:
         lines.append(f"    // External slave interface ({self.slave.protocol.upper()})")
         lines.extend(self._generate_external_interface_ports())
 
+        # Monitor side-band: only AXI4 slaves use _mon-capable timing
+        # wrappers; APB/AXIL shims have no monitor support today, so we
+        # add the per-port monbus + cfg surface only on AXI4 slaves.
+        if self.enable_monitoring and self.slave.protocol == 'axi4':
+            from .adapter_generator import _ensure_trailing_comma
+            _ensure_trailing_comma(lines)
+            lines.append("")
+            lines.extend(self._generate_monitor_ports())
+
         lines.append(");")
         lines.append("")
 
+        return lines
+
+    def _generate_monitor_ports(self) -> List[str]:
+        """Per-wrapper monbus output + cfg input ports for this slave
+        adapter. Mirrors AdapterGenerator._generate_monitor_ports() so
+        the bridge top can wire master/slave adapters with the same
+        connector-naming scheme."""
+        from ..components.axi4_timing_wrapper_component import Axi4TimingWrapper
+        from .adapter_generator import _MONITOR_CFG_WIDTHS
+
+        lines: List[str] = []
+        channels: List[str] = []
+        if self.channels in ("wr", "rw"):
+            channels.append("wr")
+        if self.channels in ("rd", "rw"):
+            channels.append("rd")
+
+        last_chan = channels[-1] if channels else None
+        for chan in channels:
+            lines.append(f"    // Monitor side-band: {chan} wrapper")
+            lines.append(f"    output logic        monbus_{chan}_valid,")
+            lines.append(f"    input  logic        monbus_{chan}_ready,")
+            lines.append(f"    output logic [63:0] monbus_{chan}_packet,")
+            lines.append("")
+            for i, sig in enumerate(Axi4TimingWrapper.MONITOR_CFG_SIGNALS):
+                is_final_cfg = (chan == last_chan and i == len(Axi4TimingWrapper.MONITOR_CFG_SIGNALS) - 1)
+                width = _MONITOR_CFG_WIDTHS[sig]
+                width_decl = "       " if width == 1 else f"[{width-1}:0]"
+                base = sig[len("cfg_"):]
+                sep = "" if is_final_cfg else ","
+                lines.append(f"    input  logic {width_decl} cfg_{chan}_{base}{sep}")
+            if chan != last_chan:
+                lines.append("")
         return lines
 
     def _generate_crossbar_interface_ports(self) -> List[str]:
@@ -729,6 +771,13 @@ class SlaveAdapterGenerator:
         wrapper.connect_bridge_internal(connector_prefix=crossbar_prefix)
         wrapper.connect_external(connector_prefix=slave_prefix)
         wrapper.add_status()
+        if self.enable_monitoring:
+            wrapper.connect_monbus(
+                valid='monbus_wr_valid',
+                ready='monbus_wr_ready',
+                packet='monbus_wr_packet',
+            )
+            wrapper.connect_cfg(connector_prefix='cfg_wr_')
         return ["    // AXI4 Master Write Timing Wrapper"] + wrapper.generate_lines()
 
     def _generate_master_rd_wrapper(self, crossbar_prefix: str, slave_prefix: str) -> List[str]:
@@ -756,6 +805,13 @@ class SlaveAdapterGenerator:
         wrapper.connect_bridge_internal(connector_prefix=crossbar_prefix)
         wrapper.connect_external(connector_prefix=slave_prefix)
         wrapper.add_status()
+        if self.enable_monitoring:
+            wrapper.connect_monbus(
+                valid='monbus_rd_valid',
+                ready='monbus_rd_ready',
+                packet='monbus_rd_packet',
+            )
+            wrapper.connect_cfg(connector_prefix='cfg_rd_')
         return ["    // AXI4 Master Read Timing Wrapper"] + wrapper.generate_lines()
 
     def _generate_apb_converter(self) -> List[str]:
