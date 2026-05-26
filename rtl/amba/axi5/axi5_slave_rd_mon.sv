@@ -43,6 +43,7 @@ module axi5_slave_rd_mon
     parameter bit ENABLE_POISON     = 1,
 
     parameter bit USE_MONITOR       = 1'b1,  // 0 = omit monitor, tie outputs
+    parameter int N_ADDR_RANGES     = 0,         // 0 = address-range checker disabled
     parameter int UNIT_ID           = 1,
     parameter int AGENT_ID          = 12,
     parameter int MAX_TRANSACTIONS  = 16,
@@ -152,6 +153,12 @@ module axi5_slave_rd_mon
     input  logic [15:0]                cfg_axi_addr_mask,
     input  logic [15:0]                cfg_axi_debug_mask,
 
+    // Address-range checker configuration (active when N_ADDR_RANGES > 0)
+    input  logic                                                       cfg_addr_check_enable,
+    input  logic [(N_ADDR_RANGES > 0 ? N_ADDR_RANGES : 1)-1:0]         cfg_addr_range_enable,
+    input  logic [(N_ADDR_RANGES > 0 ? N_ADDR_RANGES : 1)-1:0][AW-1:0] cfg_addr_range_low,
+    input  logic [(N_ADDR_RANGES > 0 ? N_ADDR_RANGES : 1)-1:0][AW-1:0] cfg_addr_range_high,
+
     output logic                       monbus_valid,
     input  logic                       monbus_ready,
     output logic [63:0]                monbus_packet,
@@ -211,7 +218,8 @@ module axi5_slave_rd_mon
             .UNIT_ID(UNIT_ID), .AGENT_ID(AGENT_ID), .MAX_TRANSACTIONS(MAX_TRANSACTIONS),
             .ADDR_WIDTH(AW), .ID_WIDTH(IW), .IS_READ(1), .IS_AXI(1),
             .ENABLE_PERF_PACKETS(1), .ENABLE_DEBUG_MODULE(0),
-            .ENABLE_FILTERING(ENABLE_FILTERING), .ADD_PIPELINE_STAGE(ADD_PIPELINE_STAGE)
+            .ENABLE_FILTERING(ENABLE_FILTERING), .ADD_PIPELINE_STAGE(ADD_PIPELINE_STAGE),
+            .N_ADDR_RANGES(N_ADDR_RANGES)
         ) axi_monitor_inst (
             .aclk(aclk), .aresetn(aresetn),
             .cmd_addr(fub_axi_araddr), .cmd_id(fub_axi_arid), .cmd_len(fub_axi_arlen),
@@ -232,6 +240,11 @@ module axi5_slave_rd_mon
             .cfg_axi_compl_mask(cfg_axi_compl_mask), .cfg_axi_thresh_mask(cfg_axi_thresh_mask),
             .cfg_axi_perf_mask(cfg_axi_perf_mask), .cfg_axi_addr_mask(cfg_axi_addr_mask),
             .cfg_axi_debug_mask(cfg_axi_debug_mask),
+            // Address-range checker configuration
+            .cfg_addr_check_enable(cfg_addr_check_enable),
+            .cfg_addr_range_enable(cfg_addr_range_enable),
+            .cfg_addr_range_low(cfg_addr_range_low),
+            .cfg_addr_range_high(cfg_addr_range_high),
             .monbus_valid(monbus_valid), .monbus_ready(monbus_ready), .monbus_packet(monbus_packet),
             // block_ready stalls new ARs at s_axi_arready when monitor FIFO is
             // full. Note: monitor here watches the FUB-side handshake, so the

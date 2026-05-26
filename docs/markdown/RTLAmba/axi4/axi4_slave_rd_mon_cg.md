@@ -61,6 +61,7 @@ In addition to all [axi4_slave_rd_mon](./axi4_slave_rd_mon.md) parameters (inclu
 | `CG_IDLE_CYCLES` | 8 | Cycles before clock gating activates |
 | `CG_GATE_*` | 1 | Domain-specific gating enables |
 | `USE_MONITOR` | 1 | Synthesis-time monitor enable (forwarded to inner monitor). |
+| `N_ADDR_RANGES` | 0 | Number of address-range comparators (forwarded to base module). |
 
 ---
 

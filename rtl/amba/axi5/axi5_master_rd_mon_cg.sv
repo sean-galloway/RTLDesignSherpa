@@ -45,6 +45,7 @@ module axi5_master_rd_mon_cg
     parameter bit ENABLE_POISON     = 1,
 
     parameter bit USE_MONITOR       = 1'b1,  // 0 = omit monitor in inner mon; outputs tied
+    parameter int N_ADDR_RANGES     = 0,         // 0 = address-range checker disabled
     parameter int UNIT_ID           = 1,
     parameter int AGENT_ID          = 10,
     parameter int MAX_TRANSACTIONS  = 16,
@@ -157,6 +158,12 @@ module axi5_master_rd_mon_cg
     input  logic [15:0]                cfg_axi_addr_mask,
     input  logic [15:0]                cfg_axi_debug_mask,
 
+    // Address-range checker configuration (active when N_ADDR_RANGES > 0)
+    input  logic                                                       cfg_addr_check_enable,
+    input  logic [(N_ADDR_RANGES > 0 ? N_ADDR_RANGES : 1)-1:0]         cfg_addr_range_enable,
+    input  logic [(N_ADDR_RANGES > 0 ? N_ADDR_RANGES : 1)-1:0][AW-1:0] cfg_addr_range_low,
+    input  logic [(N_ADDR_RANGES > 0 ? N_ADDR_RANGES : 1)-1:0][AW-1:0] cfg_addr_range_high,
+
     output logic                       monbus_valid,
     input  logic                       monbus_ready,
     output logic [63:0]                monbus_packet,
@@ -205,7 +212,8 @@ module axi5_master_rd_mon_cg
         .ENABLE_MTE(ENABLE_MTE), .ENABLE_POISON(ENABLE_POISON),
         .USE_MONITOR(USE_MONITOR),
         .UNIT_ID(UNIT_ID), .AGENT_ID(AGENT_ID), .MAX_TRANSACTIONS(MAX_TRANSACTIONS),
-        .ENABLE_FILTERING(ENABLE_FILTERING), .ADD_PIPELINE_STAGE(ADD_PIPELINE_STAGE)
+        .ENABLE_FILTERING(ENABLE_FILTERING), .ADD_PIPELINE_STAGE(ADD_PIPELINE_STAGE),
+        .N_ADDR_RANGES(N_ADDR_RANGES)
     ) i_axi5_master_rd_mon (
         .aclk(gated_aclk), .aresetn(aresetn),
         .fub_axi_arid(fub_axi_arid), .fub_axi_araddr(fub_axi_araddr),
@@ -250,6 +258,11 @@ module axi5_master_rd_mon_cg
         .cfg_axi_compl_mask(cfg_axi_compl_mask), .cfg_axi_thresh_mask(cfg_axi_thresh_mask),
         .cfg_axi_perf_mask(cfg_axi_perf_mask), .cfg_axi_addr_mask(cfg_axi_addr_mask),
         .cfg_axi_debug_mask(cfg_axi_debug_mask),
+        // Address-range checker configuration
+        .cfg_addr_check_enable(cfg_addr_check_enable),
+        .cfg_addr_range_enable(cfg_addr_range_enable),
+        .cfg_addr_range_low(cfg_addr_range_low),
+        .cfg_addr_range_high(cfg_addr_range_high),
         .monbus_valid(monbus_valid), .monbus_ready(monbus_ready), .monbus_packet(monbus_packet),
         .busy(int_busy), .active_transactions(active_transactions),
         .error_count(error_count), .transaction_count(transaction_count),

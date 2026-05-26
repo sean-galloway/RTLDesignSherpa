@@ -81,6 +81,7 @@ All parameters from [axi4_master_rd_mon](./axi4_master_rd_mon.md) are supported,
 | Parameter | Type | Default | Description |
 |-----------|------|---------|-------------|
 | `USE_MONITOR` | bit | 1 | Synthesis-time monitor enable. 0 = omit monitor and tie outputs to safe non-blocking defaults; 1 = full monitor functionality. |
+| `N_ADDR_RANGES` | int | 0 | Number of address-range comparators (forwarded to base module). |
 
 ### Parameter Relationships
 

@@ -47,7 +47,10 @@ Combines **[axil4_slave_wr](axil4_slave_wr.md)** with **axi_monitor_filtered** f
 - `UNIT_ID = 2` (slaves)
 - `AGENT_ID = 21` (slave write agent)
 - `USE_MONITOR` (synthesis-time monitor enable)
-- Others same as master monitors
+- `N_ADDR_RANGES` (address-range comparator count)
+- Others same as **[axil4_master_rd_mon](axil4_master_rd_mon.md#additional-parameters)**
+
+For complete parameter descriptions, see **[axil4_master_rd_mon](axil4_master_rd_mon.md#additional-parameters)**.
 
 ---
 
@@ -59,6 +62,12 @@ The monitor exposes a `block_ready` signal that goes low when its internal FIFO 
 - **When `USE_MONITOR=0`**: `block_ready` is internally tied high, so the wrapper imposes no stall and runs at full bandwidth.
 
 This replaces a previous bug where `block_ready` was left unconnected and a full monitor FIFO would silently lose events.
+
+---
+
+## Address-Range Checker
+
+Identical to **[axil4_master_rd_mon](axil4_master_rd_mon.md#address-range-checker)** except the checker watches AW (write address) handshakes. The `cfg_addr_*` configuration inputs and monbus event encoding are the same. See the read monitor's Address-Range Checker section for full details.
 
 ---
 

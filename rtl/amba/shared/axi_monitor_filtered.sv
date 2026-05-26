@@ -55,7 +55,10 @@ module axi_monitor_filtered
 
     // Filtering parameters
     parameter bit ENABLE_FILTERING       = 1,     // Enable filtering logic
-    parameter bit ADD_PIPELINE_STAGE     = 0      // Add register stage for timing
+    parameter bit ADD_PIPELINE_STAGE     = 0,     // Add register stage for timing
+
+    // Address-range check (0 = disabled, no comparator synthesised)
+    parameter int N_ADDR_RANGES          = 0
 )
 (
     // Clock and Reset
@@ -110,6 +113,12 @@ module axi_monitor_filtered
     input  logic [15:0]                 cfg_axi_perf_mask,     // Individual performance event mask
     input  logic [15:0]                 cfg_axi_addr_mask,     // Individual address match event mask
     input  logic [15:0]                 cfg_axi_debug_mask,    // Individual debug event mask
+
+    // Address-range check configuration (active when N_ADDR_RANGES > 0)
+    input  logic                                                   cfg_addr_check_enable,
+    input  logic [(N_ADDR_RANGES > 0 ? N_ADDR_RANGES : 1)-1:0]     cfg_addr_range_enable,
+    input  logic [(N_ADDR_RANGES > 0 ? N_ADDR_RANGES : 1)-1:0][ADDR_WIDTH-1:0] cfg_addr_range_low,
+    input  logic [(N_ADDR_RANGES > 0 ? N_ADDR_RANGES : 1)-1:0][ADDR_WIDTH-1:0] cfg_addr_range_high,
 
     // Monitor bus output (filtered)
     output logic                        monbus_valid,
@@ -172,7 +181,8 @@ module axi_monitor_filtered
         .IS_READ                 (IS_READ),
         .IS_AXI                  (IS_AXI),
         .ENABLE_PERF_PACKETS     (ENABLE_PERF_PACKETS),
-        .ENABLE_DEBUG_MODULE     (ENABLE_DEBUG_MODULE)
+        .ENABLE_DEBUG_MODULE     (ENABLE_DEBUG_MODULE),
+        .N_ADDR_RANGES           (N_ADDR_RANGES)
     ) u_axi_monitor_base (
         .aclk                    (aclk),
         .aresetn                 (aresetn),
@@ -214,6 +224,12 @@ module axi_monitor_filtered
         .cfg_debug_mask          (cfg_debug_mask),
         .cfg_active_trans_threshold(cfg_active_trans_threshold),
         .cfg_latency_threshold   (cfg_latency_threshold),
+
+        // Address-range checker
+        .cfg_addr_check_enable   (cfg_addr_check_enable),
+        .cfg_addr_range_enable   (cfg_addr_range_enable),
+        .cfg_addr_range_low      (cfg_addr_range_low),
+        .cfg_addr_range_high     (cfg_addr_range_high),
 
         // Monitor bus output (unfiltered)
         .monbus_valid            (base_monbus_valid),

@@ -109,6 +109,7 @@ The module instantiates two sub-modules:
 | `ENABLE_FILTERING` | bit | 1 | Enable packet filtering (0=pass all packets) |
 | `ADD_PIPELINE_STAGE` | bit | 0 | Add register stage for timing closure |
 | `USE_MONITOR` | bit | 1 | Synthesis-time monitor enable. 0 = omit monitor and tie outputs to safe non-blocking defaults; 1 = full monitor functionality. |
+| `N_ADDR_RANGES` | int | 0 | Number of address-range comparators. 0 = checker omitted (zero area). >0 = N independent [low, high] ranges; hits emit PktTypeError + AXI_ERR_ADDR_RANGE on monbus. |
 
 ---
 
@@ -120,6 +121,32 @@ The monitor exposes a `block_ready` signal that goes low when its internal FIFO 
 - **When `USE_MONITOR=0`**: `block_ready` is internally tied high, so the wrapper imposes no stall and runs at full bandwidth.
 
 This replaces a previous bug where `block_ready` was left unconnected and a full monitor FIFO would silently lose events.
+
+---
+
+## Address-Range Checker
+
+The wrapper can be parameterized with `N_ADDR_RANGES > 0` to instantiate an N-comparator address-range checker that watches every accepted AW handshake and emits a `PktTypeError` monbus packet (event code `AXI_ERR_ADDR_RANGE = 4'hD`) when an address falls inside any of the configured `[low, high]` inclusive ranges.
+
+**Config inputs (active only when `N_ADDR_RANGES > 0`):**
+- `cfg_addr_check_enable` — master on/off for the checker.
+- `cfg_addr_range_enable[N-1:0]` — per-range enable bit.
+- `cfg_addr_range_low[N-1:0][AXI_ADDR_WIDTH-1:0]` — inclusive low bound for each range.
+- `cfg_addr_range_high[N-1:0][AXI_ADDR_WIDTH-1:0]` — inclusive high bound for each range.
+
+**Event encoding** (within the standard 64-bit monbus packet):
+- `packet_type` = `PktTypeError` (4'h0)
+- `protocol`    = AXI (3'b000)
+- `event_code`  = `AXI_ERR_ADDR_RANGE` (4'hD)
+- `event_data[34:30]` = `range_index` (5 bits; supports up to 32 ranges)
+- `event_data[29]`    = `is_read` flag (0 = AW, 1 = AR)
+- `event_data[28:0]`  = lower 29 bits of the matched address
+
+**Exact match:** set `cfg_addr_range_low[i] == cfg_addr_range_high[i]`.
+
+**Filtering:** the existing `cfg_axi_error_mask[13]` bit masks this event code; set it high to suppress range packets without disabling other errors. No new mask wiring needed.
+
+**Per-range coalescing:** if a range hits again before its packet has been emitted, the latched address is overwritten (latest hit wins). One packet per cycle drains the pending mask via a lowest-index priority encoder. Distinct ranges never lose events; under sustained per-range bursts, only the latest address per range is reported per emission cycle.
 
 ---
 

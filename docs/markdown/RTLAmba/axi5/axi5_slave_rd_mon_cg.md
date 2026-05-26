@@ -125,6 +125,7 @@ flowchart TB
 | ENABLE_FILTERING | bit | 1 | Enable packet filtering |
 | ADD_PIPELINE_STAGE | bit | 0 | Add pipeline stage for timing |
 | USE_MONITOR | bit | 1 | Synthesis-time monitor enable (forwarded to inner monitor). |
+| N_ADDR_RANGES | int | 0 | Number of address-range comparators (forwarded to base module). |
 | CG_IDLE_COUNT_WIDTH | int | 4 | Clock gating idle counter width |
 
 ---

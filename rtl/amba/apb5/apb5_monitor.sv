@@ -33,6 +33,7 @@ module apb5_monitor
     import monitor_amba5_pkg::*;
 #(
     parameter bit USE_MONITOR         = 1'b1,  // 0 = omit monitor body, tie outputs
+    parameter int N_ADDR_RANGES       = 0,     // 0 = address-range checker disabled
     parameter int ADDR_WIDTH          = 32,
     parameter int DATA_WIDTH          = 32,
     parameter int AUSER_WIDTH         = 4,
@@ -106,6 +107,12 @@ module apb5_monitor
     input  logic [15:0]              cfg_rsp_timeout_cnt,
     input  logic [31:0]              cfg_latency_threshold,
     input  logic [15:0]              cfg_wakeup_timeout_cnt,
+
+    // Address-range checker configuration (active when N_ADDR_RANGES > 0)
+    input  logic                                                              cfg_addr_check_enable,
+    input  logic [(N_ADDR_RANGES > 0 ? N_ADDR_RANGES : 1)-1:0]                cfg_addr_range_enable,
+    input  logic [(N_ADDR_RANGES > 0 ? N_ADDR_RANGES : 1)-1:0][AW-1:0]        cfg_addr_range_low,
+    input  logic [(N_ADDR_RANGES > 0 ? N_ADDR_RANGES : 1)-1:0][AW-1:0]        cfg_addr_range_high,
 
     // Monitor bus interface
     output logic                     monbus_valid,
@@ -647,18 +654,68 @@ module apb5_monitor
     logic                w_monbus_pkt_ready;
     logic [63:0]         w_monbus_pkt_data;
 
-    assign w_monbus_pkt_valid = w_fifo_rd_valid;
-    assign w_fifo_rd_ready = w_monbus_pkt_ready;
+    // FIFO-side packet (reconstructed from monitor_entry_t)
+    logic [63:0]         w_fifo_pkt_data;
 
     // Construct 64-bit monitor packet
-    assign w_monbus_pkt_data[63:60] = w_fifo_rd_data.packet_type;
-    assign w_monbus_pkt_data[59:57] = PROTOCOL_APB;
-    assign w_monbus_pkt_data[56:53] = w_fifo_rd_data.event_code;
-    assign w_monbus_pkt_data[52:47] = 6'h0;                          // channel_id
-    assign w_monbus_pkt_data[46:43] = UNIT_ID[3:0];
-    assign w_monbus_pkt_data[42:35] = AGENT_ID[7:0];
-    assign w_monbus_pkt_data[34:3]  = w_fifo_rd_data.event_data;
-    assign w_monbus_pkt_data[2:0]   = w_fifo_rd_data.aux_data[2:0];
+    assign w_fifo_pkt_data[63:60] = w_fifo_rd_data.packet_type;
+    assign w_fifo_pkt_data[59:57] = PROTOCOL_APB;
+    assign w_fifo_pkt_data[56:53] = w_fifo_rd_data.event_code;
+    assign w_fifo_pkt_data[52:47] = 6'h0;                          // channel_id
+    assign w_fifo_pkt_data[46:43] = UNIT_ID[3:0];
+    assign w_fifo_pkt_data[42:35] = AGENT_ID[7:0];
+    assign w_fifo_pkt_data[34:3]  = w_fifo_rd_data.event_data;
+    assign w_fifo_pkt_data[2:0]   = w_fifo_rd_data.aux_data[2:0];
+
+    // -------------------------------------------------------------------------
+    // Address-range checker (optional, gated by N_ADDR_RANGES)
+    // -------------------------------------------------------------------------
+    // Priority: FIFO (regular events) > addr_check (range violations).
+    logic        w_addr_pkt_valid;
+    logic [63:0] w_addr_pkt_data;
+    logic        w_addr_pkt_ready;
+
+    if (N_ADDR_RANGES > 0) begin : gen_addr_check
+        apb_monitor_addr_check #(
+            .N_ADDR_RANGES (N_ADDR_RANGES),
+            .ADDR_WIDTH    (ADDR_WIDTH),
+            .UNIT_ID       (UNIT_ID),
+            .AGENT_ID      (AGENT_ID)
+        ) addr_check (
+            .clk                   (aclk),
+            .aresetn               (aresetn),
+            .cmd_paddr             (cmd_paddr),
+            .cmd_pwrite            (cmd_pwrite),
+            .cmd_valid             (cmd_valid),
+            .cmd_ready             (cmd_ready),
+            .cfg_addr_check_enable (cfg_addr_check_enable),
+            .cfg_addr_range_enable (cfg_addr_range_enable),
+            .cfg_addr_range_low    (cfg_addr_range_low),
+            .cfg_addr_range_high   (cfg_addr_range_high),
+            .addr_pkt_valid        (w_addr_pkt_valid),
+            .addr_pkt_ready        (w_addr_pkt_ready),
+            .addr_pkt_data         (w_addr_pkt_data)
+        );
+    end else begin : gen_no_addr_check
+        assign w_addr_pkt_valid = 1'b0;
+        assign w_addr_pkt_data  = 64'h0;
+    end
+
+    // 2:1 priority merge — FIFO has priority over addr_check.
+    always_comb begin
+        if (w_fifo_rd_valid) begin
+            w_monbus_pkt_valid = 1'b1;
+            w_monbus_pkt_data  = w_fifo_pkt_data;
+        end else if (w_addr_pkt_valid) begin
+            w_monbus_pkt_valid = 1'b1;
+            w_monbus_pkt_data  = w_addr_pkt_data;
+        end else begin
+            w_monbus_pkt_valid = 1'b0;
+            w_monbus_pkt_data  = 64'h0;
+        end
+    end
+    assign w_fifo_rd_ready  = w_monbus_pkt_ready && w_fifo_rd_valid;
+    assign w_addr_pkt_ready = w_monbus_pkt_ready && !w_fifo_rd_valid;
 
     // Monitor bus output skid buffer
     gaxi_skid_buffer #(

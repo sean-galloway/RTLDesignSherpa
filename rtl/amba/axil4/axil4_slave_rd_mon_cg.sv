@@ -41,6 +41,7 @@ module axil4_slave_rd_mon_cg
 
     // Monitor parameters
     parameter bit USE_MONITOR       = 1'b1,  // 0 = omit monitor in inner mon; outputs tied
+    parameter int N_ADDR_RANGES     = 0,         // 0 = address-range checker disabled
     parameter int UNIT_ID           = 2,     // 4-bit Unit ID for monitor packets
     parameter int AGENT_ID          = 20,    // 8-bit Agent ID for monitor packets
     parameter int MAX_TRANSACTIONS  = 8,     // Maximum outstanding transactions (reduced for AXIL)
@@ -111,6 +112,12 @@ module axil4_slave_rd_mon_cg
     input  logic                       cfg_cg_enable,           // Enable clock gating
     input  logic [7:0]                 cfg_cg_idle_threshold,   // Idle cycles before gating
 
+    // Address-range checker configuration (active when N_ADDR_RANGES > 0)
+    input  logic                                                       cfg_addr_check_enable,
+    input  logic [(N_ADDR_RANGES > 0 ? N_ADDR_RANGES : 1)-1:0]         cfg_addr_range_enable,
+    input  logic [(N_ADDR_RANGES > 0 ? N_ADDR_RANGES : 1)-1:0][AW-1:0] cfg_addr_range_low,
+    input  logic [(N_ADDR_RANGES > 0 ? N_ADDR_RANGES : 1)-1:0][AW-1:0] cfg_addr_range_high,
+
     // Monitor Bus Output
     output logic                       monbus_valid,            // Monitor bus valid
     input  logic                       monbus_ready,            // Monitor bus ready
@@ -142,7 +149,8 @@ module axil4_slave_rd_mon_cg
         .AGENT_ID                (AGENT_ID),
         .MAX_TRANSACTIONS        (MAX_TRANSACTIONS),
         .ENABLE_FILTERING        (ENABLE_FILTERING),
-        .ADD_PIPELINE_STAGE      (ADD_PIPELINE_STAGE)
+        .ADD_PIPELINE_STAGE      (ADD_PIPELINE_STAGE),
+        .N_ADDR_RANGES           (N_ADDR_RANGES)
     ) axil4_slave_rd_mon_inst (
         .aclk                    (aclk),
         .aresetn                 (aresetn),
@@ -187,6 +195,12 @@ module axil4_slave_rd_mon_cg
         .cfg_axi_perf_mask       (cfg_axi_perf_mask),
         .cfg_axi_addr_mask       (cfg_axi_addr_mask),
         .cfg_axi_debug_mask      (cfg_axi_debug_mask),
+
+        // Address-range checker configuration
+        .cfg_addr_check_enable   (cfg_addr_check_enable),
+        .cfg_addr_range_enable   (cfg_addr_range_enable),
+        .cfg_addr_range_low      (cfg_addr_range_low),
+        .cfg_addr_range_high     (cfg_addr_range_high),
 
         // Monitor Bus
         .monbus_valid            (monbus_valid),

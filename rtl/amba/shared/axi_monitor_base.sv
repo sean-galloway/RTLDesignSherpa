@@ -56,6 +56,10 @@ module axi_monitor_base
     parameter int INTR_FIFO_DEPTH     = 8,     // Interrupt FIFO depth
     parameter int DEBUG_FIFO_DEPTH    = 8,     // Debug FIFO depth
 
+    // Address-range check
+    // N_ADDR_RANGES = 0 disables the address-range checker entirely (zero area).
+    parameter int N_ADDR_RANGES       = 0,
+
     // Short params
     parameter int AW                 = ADDR_WIDTH,
     parameter int IW                 = ID_WIDTH,
@@ -112,6 +116,12 @@ module axi_monitor_base
     input  logic [15:0]              cfg_active_trans_threshold, // Active transaction threshold
     input  logic [31:0]              cfg_latency_threshold,      // Latency threshold
 
+    // Address-range checker (active when N_ADDR_RANGES > 0)
+    input  logic                                                cfg_addr_check_enable,
+    input  logic [(N_ADDR_RANGES > 0 ? N_ADDR_RANGES : 1)-1:0]  cfg_addr_range_enable,
+    input  logic [(N_ADDR_RANGES > 0 ? N_ADDR_RANGES : 1)-1:0][AW-1:0] cfg_addr_range_low,
+    input  logic [(N_ADDR_RANGES > 0 ? N_ADDR_RANGES : 1)-1:0][AW-1:0] cfg_addr_range_high,
+
     // Consolidated 64-bit event packet interface (monitor bus)
     output logic                     monbus_valid,  // Interrupt valid
     input  logic                     monbus_ready,  // Interrupt ready
@@ -154,6 +164,9 @@ module axi_monitor_base
     logic [63:0]              w_reporter_monbus_packet;
     logic                     w_debug_monbus_valid;
     logic [63:0]              w_debug_monbus_packet;
+    logic                     w_addr_pkt_valid;
+    logic [63:0]              w_addr_pkt_data;
+    logic                     w_addr_pkt_ready;
 
     // Default: debug monbus disabled when ENABLE_DEBUG_MODULE=0.
     // Without this, the wires are undriven and formal tools see undefined values.
@@ -262,22 +275,64 @@ module axi_monitor_base
     );
 
     // -------------------------------------------------------------------------
+    // Address-range checker (optional, gated by N_ADDR_RANGES)
+    // -------------------------------------------------------------------------
+    // When N_ADDR_RANGES > 0 we instantiate the comparator; otherwise tie its
+    // output stream to 0 so the arbiter sees nothing.
+    if (N_ADDR_RANGES > 0) begin : gen_addr_check
+        axi_monitor_addr_check #(
+            .N_ADDR_RANGES (N_ADDR_RANGES),
+            .ADDR_WIDTH    (ADDR_WIDTH),
+            .ID_WIDTH      (ID_WIDTH > 0 ? ID_WIDTH : 1),
+            .UNIT_ID       (UNIT_ID),
+            .AGENT_ID      (AGENT_ID),
+            .IS_READ       (IS_READ)
+        ) addr_check (
+            .clk                   (aclk),
+            .aresetn               (aresetn),
+            .cmd_addr              (cmd_addr),
+            .cmd_id                (cmd_id),
+            .cmd_valid             (cmd_valid),
+            .cmd_ready             (cmd_ready),
+            .cfg_addr_check_enable (cfg_addr_check_enable),
+            .cfg_addr_range_enable (cfg_addr_range_enable),
+            .cfg_addr_range_low    (cfg_addr_range_low),
+            .cfg_addr_range_high   (cfg_addr_range_high),
+            .addr_pkt_valid        (w_addr_pkt_valid),
+            .addr_pkt_ready        (w_addr_pkt_ready),
+            .addr_pkt_data         (w_addr_pkt_data)
+        );
+    end else begin : gen_no_addr_check
+        assign w_addr_pkt_valid = 1'b0;
+        assign w_addr_pkt_data  = 64'h0;
+    end
+
+    // -------------------------------------------------------------------------
     // Monitor Bus Arbitration
     // -------------------------------------------------------------------------
 
-    // Simple priority arbitration between reporter and debug packets
+    // Priority: reporter > debug > addr_check.
+    // Reporter handles existing error/timeout/compl/perf events; debug is for
+    // trace; addr_check is a slow-rate violation stream that can wait.
     always_comb begin
         if (w_reporter_monbus_valid) begin
-            monbus_valid = w_reporter_monbus_valid;
+            monbus_valid  = w_reporter_monbus_valid;
             monbus_packet = w_reporter_monbus_packet;
         end else if (w_debug_monbus_valid) begin
-            monbus_valid = w_debug_monbus_valid;
+            monbus_valid  = w_debug_monbus_valid;
             monbus_packet = w_debug_monbus_packet;
+        end else if (w_addr_pkt_valid) begin
+            monbus_valid  = w_addr_pkt_valid;
+            monbus_packet = w_addr_pkt_data;
         end else begin
-            monbus_valid = 1'b0;
+            monbus_valid  = 1'b0;
             monbus_packet = '0;
         end
     end
+
+    // Back-pressure into addr_check: only accept when reporter/debug are quiet
+    // AND the downstream consumer is ready.
+    assign w_addr_pkt_ready = monbus_ready && !w_reporter_monbus_valid && !w_debug_monbus_valid;
 
     // -------------------------------------------------------------------------
     // Flow Control Logic

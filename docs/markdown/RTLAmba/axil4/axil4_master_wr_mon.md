@@ -44,8 +44,10 @@ Combines **[axil4_master_wr](axil4_master_wr.md)** with **axi_monitor_filtered**
 
 ## Additional Parameters
 
-Identical to **[axil4_master_rd_mon](axil4_master_rd_mon.md)**:
-- `UNIT_ID`, `AGENT_ID`, `MAX_TRANSACTIONS`, `ENABLE_FILTERING`, `ADD_PIPELINE_STAGE`, `USE_MONITOR`
+Identical to **[axil4_master_rd_mon](axil4_master_rd_mon.md)** including:
+- `UNIT_ID`, `AGENT_ID`, `MAX_TRANSACTIONS`, `ENABLE_FILTERING`, `ADD_PIPELINE_STAGE`, `USE_MONITOR`, `N_ADDR_RANGES`
+
+See **[axil4_master_rd_mon](axil4_master_rd_mon.md#additional-parameters)** for complete parameter descriptions.
 
 ---
 
@@ -57,6 +59,12 @@ The monitor exposes a `block_ready` signal that goes low when its internal FIFO 
 - **When `USE_MONITOR=0`**: `block_ready` is internally tied high, so the wrapper imposes no stall and runs at full bandwidth.
 
 This replaces a previous bug where `block_ready` was left unconnected and a full monitor FIFO would silently lose events.
+
+---
+
+## Address-Range Checker
+
+Identical to **[axil4_master_rd_mon](axil4_master_rd_mon.md#address-range-checker)** except the checker watches AW (write address) handshakes instead of AR (read address) handshakes. The `cfg_addr_*` configuration inputs and monbus event encoding are the same. See the read monitor's Address-Range Checker section for full details.
 
 ---
 

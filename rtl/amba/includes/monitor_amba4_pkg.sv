@@ -48,7 +48,7 @@ package monitor_amba4_pkg;
         AXI_ERR_RESP_BEFORE_DATA    = 4'hA,  // Response before data complete
         AXI_ERR_LAST_MISSING        = 4'hB,  // Missing LAST signal
         AXI_ERR_STROBE_ERROR        = 4'hC,  // Write strobe error
-        AXI_ERR_RESERVED_D          = 4'hD,  // Reserved
+        AXI_ERR_ADDR_RANGE          = 4'hD,  // Address-range violation (from axi_monitor_addr_check)
         AXI_ERR_RESERVED_E          = 4'hE,  // Reserved
         AXI_ERR_USER_DEFINED        = 4'hF   // User-defined error
     } axi_error_code_t;
@@ -187,7 +187,7 @@ package monitor_amba4_pkg;
         APB_ERR_PROT_VIOLATION   = 4'h5,  // Protection violation (PPROT)
         APB_ERR_ENABLE_ERROR     = 4'h6,  // Enable phase error
         APB_ERR_READY_ERROR      = 4'h7,  // PREADY protocol error
-        APB_ERR_RESERVED_8       = 4'h8,  // Reserved
+        APB_ERR_ADDR_RANGE       = 4'h8,  // Address-range violation (from apb_monitor_addr_check)
         APB_ERR_RESERVED_9       = 4'h9,  // Reserved
         APB_ERR_RESERVED_A       = 4'hA,  // Reserved
         APB_ERR_RESERVED_B       = 4'hB,  // Reserved
@@ -653,7 +653,7 @@ package monitor_amba4_pkg;
             AXI_ERR_RESP_BEFORE_DATA   : return "RESP_BEFORE_DATA";
             AXI_ERR_LAST_MISSING       : return "LAST_MISSING";
             AXI_ERR_STROBE_ERROR       : return "STROBE_ERROR";
-            AXI_ERR_RESERVED_D         : return "RESERVED_D";
+            AXI_ERR_ADDR_RANGE         : return "ADDR_RANGE";
             AXI_ERR_RESERVED_E         : return "RESERVED_E";
             AXI_ERR_USER_DEFINED       : return "USER_DEFINED";
             default                    : return "UNKNOWN_AXI_ERROR";

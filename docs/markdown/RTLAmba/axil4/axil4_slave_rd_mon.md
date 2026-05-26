@@ -44,10 +44,12 @@ Combines **[axil4_slave_rd](axil4_slave_rd.md)** with **axi_monitor_filtered** f
 
 ## Additional Parameters
 
-Identical to master monitors, but typically:
+Identical to **[axil4_master_rd_mon](axil4_master_rd_mon.md#additional-parameters)** including `N_ADDR_RANGES`, but typically:
 - `UNIT_ID = 2` (slaves use different unit ID)
 - `AGENT_ID = 20` (slave agent IDs)
 - `USE_MONITOR` (synthesis-time monitor enable)
+
+For complete parameter descriptions including `N_ADDR_RANGES`, see **[axil4_master_rd_mon](axil4_master_rd_mon.md#additional-parameters)**.
 
 ---
 
@@ -59,6 +61,12 @@ The monitor exposes a `block_ready` signal that goes low when its internal FIFO 
 - **When `USE_MONITOR=0`**: `block_ready` is internally tied high, so the wrapper imposes no stall and runs at full bandwidth.
 
 This replaces a previous bug where `block_ready` was left unconnected and a full monitor FIFO would silently lose events.
+
+---
+
+## Address-Range Checker
+
+Identical to **[axil4_master_rd_mon](axil4_master_rd_mon.md#address-range-checker)** — monitors AR (read address) handshakes and emits address-range violation packets. See the master read monitor's section for full details.
 
 ---
 

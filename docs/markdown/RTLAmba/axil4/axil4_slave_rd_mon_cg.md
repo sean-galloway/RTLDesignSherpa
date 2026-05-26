@@ -53,7 +53,7 @@ The `axil4_slave_rd_mon_cg` module adds power optimization to `axil4_slave_rd_mo
 
 ## Common Parameters
 
-In addition to all [axil4_slave_rd_mon](./axil4_slave_rd_mon.md) parameters (including `USE_MONITOR`):
+In addition to all [axil4_slave_rd_mon](./axil4_slave_rd_mon.md) parameters (including `USE_MONITOR` and `N_ADDR_RANGES`):
 
 | Parameter | Default | Description |
 |-----------|---------|-------------|
