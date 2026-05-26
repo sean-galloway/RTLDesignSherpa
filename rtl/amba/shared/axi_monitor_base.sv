@@ -283,8 +283,17 @@ module axi_monitor_base
     // Flow Control Logic
     // -------------------------------------------------------------------------
 
-    // Flow control - block when too many outstanding transactions
-    assign block_ready = (MAX_TRANSACTIONS > 2) ? ({24'h0, w_active_count} >= (MAX_TRANSACTIONS - 2)) : 1'b0;
+    // Flow control: positive-enable, 1 = upstream may proceed, 0 = stall.
+    // Polarity must match the wrapper gating
+    //   <port>_ready = w_core_<port>_ready & w_block_ready;
+    // (the no-monitor branches tie w_block_ready=1'b1 to allow). The
+    // pre-fix expression set block_ready=1 only when the transaction
+    // table was nearly full, which inverted the polarity and stalled
+    // every upstream handshake immediately after reset (count=0,
+    // block_ready=0, ready=0, count never increments -> deadlock).
+    // The bridge monitored-mode smoke test caught this; formal P6/P7
+    // missed it because the assertion was tautological vs. the assign.
+    assign block_ready = (MAX_TRANSACTIONS > 2) ? ({24'h0, w_active_count} < (MAX_TRANSACTIONS - 2)) : 1'b1;
 
     // Busy signal
     assign busy = (w_active_count > 0);
