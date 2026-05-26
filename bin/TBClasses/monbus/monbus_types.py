@@ -216,42 +216,398 @@ class ARBDebugCode(IntEnum):
 # AXI PROTOCOL EVENT CODES (Partial - for reference)
 # =============================================================================
 
+# =============================================================================
+# AXI PROTOCOL EVENT CODES - FULL 16-ENTRY COVERAGE
+# Auto-extracted from monitor_amba4_pkg.sv. If the SV adds entries,
+# re-run the extractor at the bottom of this file and replace below.
+# =============================================================================
+
 class AXIErrorCode(IntEnum):
-    """AXI Error Event Codes - partial set for reference"""
-    AXI_ERR_RESP_SLVERR        = 0x0  # Slave error response
-    AXI_ERR_RESP_DECERR        = 0x1  # Decode error response
-    AXI_ERR_DATA_ORPHAN        = 0x2  # Data without command
-    AXI_ERR_RESP_ORPHAN        = 0x3  # Response without transaction
-    AXI_ERR_PROTOCOL           = 0x4  # Protocol violation
+    """Auto-extracted from monitor_amba4_pkg::axi_error_code_t."""
+    AXI_ERR_RESP_SLVERR            = 0x0  # Slave error response
+    AXI_ERR_RESP_DECERR            = 0x1  # Decode error response
+    AXI_ERR_DATA_ORPHAN            = 0x2  # Data without command
+    AXI_ERR_RESP_ORPHAN            = 0x3  # Response without transaction
+    AXI_ERR_PROTOCOL               = 0x4  # Protocol violation
+    AXI_ERR_BURST_LENGTH           = 0x5  # Invalid burst length
+    AXI_ERR_BURST_SIZE             = 0x6  # Invalid burst size
+    AXI_ERR_BURST_TYPE             = 0x7  # Invalid burst type
+    AXI_ERR_ID_COLLISION           = 0x8  # ID collision detected
+    AXI_ERR_WRITE_BEFORE_ADDR      = 0x9  # Write data before address
+    AXI_ERR_RESP_BEFORE_DATA       = 0xA  # Response before data complete
+    AXI_ERR_LAST_MISSING           = 0xB  # Missing LAST signal
+    AXI_ERR_STROBE_ERROR           = 0xC  # Write strobe error
+    AXI_ERR_ADDR_RANGE             = 0xD  # Address-range violation (from axi_monitor_addr_check)
+    AXI_ERR_RESERVED_E             = 0xE  # Reserved
+    AXI_ERR_USER_DEFINED           = 0xF  # User-defined error
 
 
 class AXITimeoutCode(IntEnum):
-    """AXI Timeout Event Codes"""
-    AXI_TIMEOUT_CMD            = 0x0  # Command/Address timeout
-    AXI_TIMEOUT_DATA           = 0x1  # Data timeout
-    AXI_TIMEOUT_RESP           = 0x2  # Response timeout
+    """Auto-extracted from monitor_amba4_pkg::axi_timeout_code_t."""
+    AXI_TIMEOUT_CMD                = 0x0  # Command/Address timeout
+    AXI_TIMEOUT_DATA               = 0x1  # Data timeout
+    AXI_TIMEOUT_RESP               = 0x2  # Response timeout
+    AXI_TIMEOUT_HANDSHAKE          = 0x3  # Handshake timeout
+    AXI_TIMEOUT_BURST              = 0x4  # Burst completion timeout
+    AXI_TIMEOUT_EXCLUSIVE          = 0x5  # Exclusive access timeout
+    AXI_TIMEOUT_RESERVED_6         = 0x6
+    AXI_TIMEOUT_RESERVED_7         = 0x7
+    AXI_TIMEOUT_RESERVED_8         = 0x8
+    AXI_TIMEOUT_RESERVED_9         = 0x9
+    AXI_TIMEOUT_RESERVED_A         = 0xA
+    AXI_TIMEOUT_RESERVED_B         = 0xB
+    AXI_TIMEOUT_RESERVED_C         = 0xC
+    AXI_TIMEOUT_RESERVED_D         = 0xD
+    AXI_TIMEOUT_RESERVED_E         = 0xE
+    AXI_TIMEOUT_USER_DEFINED       = 0xF
+
+
+class AXICompletionCode(IntEnum):
+    """Auto-extracted from monitor_amba4_pkg::axi_completion_code_t."""
+    AXI_COMPL_TRANS_COMPLETE       = 0x0  # Transaction completed successfully
+    AXI_COMPL_READ_COMPLETE        = 0x1  # Read transaction complete
+    AXI_COMPL_WRITE_COMPLETE       = 0x2  # Write transaction complete
+    AXI_COMPL_BURST_COMPLETE       = 0x3  # Burst transaction complete
+    AXI_COMPL_EXCLUSIVE_OK         = 0x4  # Exclusive access completed
+    AXI_COMPL_EXCLUSIVE_FAIL       = 0x5  # Exclusive access failed
+    AXI_COMPL_ATOMIC_OK            = 0x6  # Atomic operation completed
+    AXI_COMPL_ATOMIC_FAIL          = 0x7  # Atomic operation failed
+    AXI_COMPL_RESERVED_8           = 0x8
+    AXI_COMPL_RESERVED_9           = 0x9
+    AXI_COMPL_RESERVED_A           = 0xA
+    AXI_COMPL_RESERVED_B           = 0xB
+    AXI_COMPL_RESERVED_C           = 0xC
+    AXI_COMPL_RESERVED_D           = 0xD
+    AXI_COMPL_RESERVED_E           = 0xE
+    AXI_COMPL_USER_DEFINED         = 0xF
+
+
+class AXIThresholdCode(IntEnum):
+    """Auto-extracted from monitor_amba4_pkg::axi_threshold_code_t."""
+    AXI_THRESH_ACTIVE_COUNT        = 0x0  # Active transaction count threshold
+    AXI_THRESH_LATENCY             = 0x1  # Latency threshold
+    AXI_THRESH_ERROR_RATE          = 0x2  # Error rate threshold
+    AXI_THRESH_THROUGHPUT          = 0x3  # Throughput threshold
+    AXI_THRESH_QUEUE_DEPTH         = 0x4  # Queue depth threshold
+    AXI_THRESH_BANDWIDTH           = 0x5  # Bandwidth utilization threshold
+    AXI_THRESH_OUTSTANDING         = 0x6  # Outstanding transactions threshold
+    AXI_THRESH_BURST_SIZE          = 0x7  # Average burst size threshold
+    AXI_THRESH_RESERVED_8          = 0x8
+    AXI_THRESH_RESERVED_9          = 0x9
+    AXI_THRESH_RESERVED_A          = 0xA
+    AXI_THRESH_RESERVED_B          = 0xB
+    AXI_THRESH_RESERVED_C          = 0xC
+    AXI_THRESH_RESERVED_D          = 0xD
+    AXI_THRESH_RESERVED_E          = 0xE
+    AXI_THRESH_USER_DEFINED        = 0xF
+
+
+class AXIPerformanceCode(IntEnum):
+    """Auto-extracted from monitor_amba4_pkg::axi_performance_code_t."""
+    AXI_PERF_ADDR_LATENCY          = 0x0  # Address phase latency
+    AXI_PERF_DATA_LATENCY          = 0x1  # Data phase latency
+    AXI_PERF_RESP_LATENCY          = 0x2  # Response phase latency
+    AXI_PERF_TOTAL_LATENCY         = 0x3  # Total transaction latency
+    AXI_PERF_THROUGHPUT            = 0x4  # Transaction throughput
+    AXI_PERF_ERROR_RATE            = 0x5  # Error rate
+    AXI_PERF_ACTIVE_COUNT          = 0x6  # Current active transaction count
+    AXI_PERF_COMPLETED_COUNT       = 0x7  # Total completed transaction count
+    AXI_PERF_ERROR_COUNT           = 0x8  # Total error transaction count
+    AXI_PERF_BANDWIDTH_UTIL        = 0x9  # Bandwidth utilization
+    AXI_PERF_QUEUE_DEPTH           = 0xA  # Average queue depth
+    AXI_PERF_BURST_EFFICIENCY      = 0xB  # Burst efficiency metric
+    AXI_PERF_RESERVED_C            = 0xC
+    AXI_PERF_RESERVED_D            = 0xD
+    AXI_PERF_READ_WRITE_RATIO      = 0xE  # Read/Write transaction ratio
+    AXI_PERF_USER_DEFINED          = 0xF
+
+
+class AXIAddrMatchCode(IntEnum):
+    """Auto-extracted from monitor_amba4_pkg::axi_addr_match_code_t."""
+    AXI_ADDR_EXACT_MATCH           = 0x0  # Exact address match
+    AXI_ADDR_RANGE_MATCH           = 0x1  # Address within range
+    AXI_ADDR_MASK_MATCH             = 0x2  # Address mask match
+    AXI_ADDR_PATTERN_MATCH         = 0x3  # Address pattern match
+    AXI_ADDR_SEQUENTIAL            = 0x4  # Sequential address access
+    AXI_ADDR_STRIDE_MATCH          = 0x5  # Stride pattern match
+    AXI_ADDR_HOTSPOT               = 0x6  # Address hotspot detected
+    AXI_ADDR_CONFLICT              = 0x7  # Address conflict detected
+    AXI_ADDR_RESERVED_8            = 0x8
+    AXI_ADDR_RESERVED_9            = 0x9
+    AXI_ADDR_RESERVED_A            = 0xA
+    AXI_ADDR_RESERVED_B            = 0xB
+    AXI_ADDR_RESERVED_C            = 0xC
+    AXI_ADDR_RESERVED_D            = 0xD
+    AXI_ADDR_RESERVED_E            = 0xE
+    AXI_ADDR_USER_DEFINED          = 0xF
+
+
+class AXIDebugCode(IntEnum):
+    """Auto-extracted from monitor_amba4_pkg::axi_debug_code_t."""
+    AXI_DEBUG_STATE_CHANGE         = 0x0  # AXI state machine change
+    AXI_DEBUG_PIPELINE_STALL       = 0x1  # Pipeline stall event
+    AXI_DEBUG_BACKPRESSURE         = 0x2  # Backpressure event
+    AXI_DEBUG_OUTSTANDING          = 0x3  # Outstanding transaction count
+    AXI_DEBUG_REORDER_BUFFER       = 0x4  # Reorder buffer status
+    AXI_DEBUG_ID_ALLOCATION        = 0x5  # Transaction ID allocation
+    AXI_DEBUG_QOS_ESCALATION       = 0x6  # QoS escalation event
+    AXI_DEBUG_HANDSHAKE            = 0x7  # Handshake timing event
+    AXI_DEBUG_QUEUE_STATUS         = 0x8  # Queue status change
+    AXI_DEBUG_COUNTER              = 0x9  # Counter snapshot
+    AXI_DEBUG_FIFO_STATUS          = 0xA  # FIFO status
+    AXI_DEBUG_RESERVED_B           = 0xB
+    AXI_DEBUG_RESERVED_C           = 0xC
+    AXI_DEBUG_RESERVED_D           = 0xD
+    AXI_DEBUG_RESERVED_E           = 0xE
+    AXI_DEBUG_USER_DEFINED         = 0xF
 
 
 # =============================================================================
-# APB PROTOCOL EVENT CODES (Partial - for reference)
+# APB PROTOCOL EVENT CODES - FULL 16-ENTRY COVERAGE
 # =============================================================================
 
 class APBErrorCode(IntEnum):
-    """APB Error Event Codes"""
-    APB_ERR_PSLVERR            = 0x0  # Peripheral slave error
-    APB_ERR_SETUP_VIOLATION    = 0x1  # Setup phase protocol violation
-    APB_ERR_ACCESS_VIOLATION   = 0x2  # Access phase protocol violation
+    """Auto-extracted from monitor_amba4_pkg::apb_error_code_t."""
+    APB_ERR_PSLVERR                = 0x0  # Peripheral slave error
+    APB_ERR_SETUP_VIOLATION        = 0x1  # Setup phase protocol violation
+    APB_ERR_ACCESS_VIOLATION       = 0x2  # Access phase protocol violation
+    APB_ERR_STROBE_ERROR           = 0x3  # Write strobe error
+    APB_ERR_ADDR_DECODE            = 0x4  # Address decode error
+    APB_ERR_PROT_VIOLATION         = 0x5  # Protection violation (PPROT)
+    APB_ERR_ENABLE_ERROR           = 0x6  # Enable phase error
+    APB_ERR_READY_ERROR            = 0x7  # PREADY protocol error
+    APB_ERR_ADDR_RANGE             = 0x8  # Address-range violation
+    APB_ERR_RESERVED_9             = 0x9
+    APB_ERR_RESERVED_A             = 0xA
+    APB_ERR_RESERVED_B             = 0xB
+    APB_ERR_RESERVED_C             = 0xC
+    APB_ERR_RESERVED_D             = 0xD
+    APB_ERR_RESERVED_E             = 0xE
+    APB_ERR_USER_DEFINED           = 0xF
+
+
+class APBTimeoutCode(IntEnum):
+    """Auto-extracted from monitor_amba4_pkg::apb_timeout_code_t."""
+    APB_TIMEOUT_SETUP              = 0x0
+    APB_TIMEOUT_ACCESS             = 0x1
+    APB_TIMEOUT_ENABLE             = 0x2
+    APB_TIMEOUT_PREADY_STUCK       = 0x3
+    APB_TIMEOUT_TRANSFER           = 0x4
+    APB_TIMEOUT_RESERVED_5         = 0x5
+    APB_TIMEOUT_RESERVED_6         = 0x6
+    APB_TIMEOUT_RESERVED_7         = 0x7
+    APB_TIMEOUT_RESERVED_8         = 0x8
+    APB_TIMEOUT_RESERVED_9         = 0x9
+    APB_TIMEOUT_RESERVED_A         = 0xA
+    APB_TIMEOUT_RESERVED_B         = 0xB
+    APB_TIMEOUT_RESERVED_C         = 0xC
+    APB_TIMEOUT_RESERVED_D         = 0xD
+    APB_TIMEOUT_RESERVED_E         = 0xE
+    APB_TIMEOUT_USER_DEFINED       = 0xF
+
+
+class APBCompletionCode(IntEnum):
+    """Auto-extracted from monitor_amba4_pkg::apb_completion_code_t."""
+    APB_COMPL_TRANS_COMPLETE       = 0x0
+    APB_COMPL_READ_COMPLETE        = 0x1
+    APB_COMPL_WRITE_COMPLETE       = 0x2
+    APB_COMPL_RESERVED_3           = 0x3
+    APB_COMPL_RESERVED_4           = 0x4
+    APB_COMPL_RESERVED_5           = 0x5
+    APB_COMPL_RESERVED_6           = 0x6
+    APB_COMPL_RESERVED_7           = 0x7
+    APB_COMPL_RESERVED_8           = 0x8
+    APB_COMPL_RESERVED_9           = 0x9
+    APB_COMPL_RESERVED_A           = 0xA
+    APB_COMPL_RESERVED_B           = 0xB
+    APB_COMPL_RESERVED_C           = 0xC
+    APB_COMPL_RESERVED_D           = 0xD
+    APB_COMPL_RESERVED_E           = 0xE
+    APB_COMPL_USER_DEFINED         = 0xF
+
+
+class APBThresholdCode(IntEnum):
+    """Auto-extracted from monitor_amba4_pkg::apb_threshold_code_t."""
+    APB_THRESH_LATENCY             = 0x0
+    APB_THRESH_ERROR_RATE          = 0x1
+    APB_THRESH_ACTIVE_COUNT        = 0x2
+    APB_THRESH_THROUGHPUT          = 0x3
+    APB_THRESH_RESERVED_4          = 0x4
+    APB_THRESH_RESERVED_5          = 0x5
+    APB_THRESH_RESERVED_6          = 0x6
+    APB_THRESH_RESERVED_7          = 0x7
+    APB_THRESH_RESERVED_8          = 0x8
+    APB_THRESH_RESERVED_9          = 0x9
+    APB_THRESH_RESERVED_A          = 0xA
+    APB_THRESH_RESERVED_B          = 0xB
+    APB_THRESH_RESERVED_C          = 0xC
+    APB_THRESH_RESERVED_D          = 0xD
+    APB_THRESH_RESERVED_E          = 0xE
+    APB_THRESH_USER_DEFINED        = 0xF
+
+
+class APBPerformanceCode(IntEnum):
+    """Auto-extracted from monitor_amba4_pkg::apb_performance_code_t."""
+    APB_PERF_READ_LATENCY          = 0x0
+    APB_PERF_WRITE_LATENCY         = 0x1
+    APB_PERF_THROUGHPUT            = 0x2
+    APB_PERF_ERROR_RATE            = 0x3
+    APB_PERF_ACTIVE_COUNT          = 0x4
+    APB_PERF_COMPLETED_COUNT       = 0x5
+    APB_PERF_RESERVED_6            = 0x6
+    APB_PERF_RESERVED_7            = 0x7
+    APB_PERF_RESERVED_8            = 0x8
+    APB_PERF_RESERVED_9            = 0x9
+    APB_PERF_RESERVED_A            = 0xA
+    APB_PERF_RESERVED_B            = 0xB
+    APB_PERF_RESERVED_C            = 0xC
+    APB_PERF_RESERVED_D            = 0xD
+    APB_PERF_RESERVED_E            = 0xE
+    APB_PERF_USER_DEFINED          = 0xF
+
+
+class APBDebugCode(IntEnum):
+    """Auto-extracted from monitor_amba4_pkg::apb_debug_code_t."""
+    APB_DEBUG_STATE_CHANGE         = 0x0
+    APB_DEBUG_SETUP_PHASE          = 0x1
+    APB_DEBUG_ACCESS_PHASE         = 0x2
+    APB_DEBUG_ENABLE_PHASE         = 0x3
+    APB_DEBUG_PSEL_TRACE           = 0x4
+    APB_DEBUG_PENABLE_TRACE        = 0x5
+    APB_DEBUG_PREADY_TRACE         = 0x6
+    APB_DEBUG_PPROT_TRACE          = 0x7
+    APB_DEBUG_PSTRB_TRACE          = 0x8
+    APB_DEBUG_RESERVED_9           = 0x9
+    APB_DEBUG_RESERVED_A           = 0xA
+    APB_DEBUG_RESERVED_B           = 0xB
+    APB_DEBUG_RESERVED_C           = 0xC
+    APB_DEBUG_RESERVED_D           = 0xD
+    APB_DEBUG_RESERVED_E           = 0xE
+    APB_DEBUG_USER_DEFINED         = 0xF
 
 
 # =============================================================================
-# AXIS PROTOCOL EVENT CODES (Partial - for reference)
+# AXIS PROTOCOL EVENT CODES - FULL 16-ENTRY COVERAGE
 # =============================================================================
 
 class AXISErrorCode(IntEnum):
-    """AXIS Error Event Codes"""
-    AXIS_ERR_PROTOCOL          = 0x0  # Protocol violation
-    AXIS_ERR_READY_TIMING      = 0x1  # TREADY timing violation
-    AXIS_ERR_VALID_TIMING      = 0x2  # TVALID timing violation
+    """Auto-extracted from monitor_amba4_pkg::axis_error_code_t."""
+    AXIS_ERR_PROTOCOL              = 0x0
+    AXIS_ERR_READY_TIMING          = 0x1
+    AXIS_ERR_VALID_TIMING          = 0x2
+    AXIS_ERR_LAST_MISSING          = 0x3
+    AXIS_ERR_LAST_ORPHAN           = 0x4
+    AXIS_ERR_STRB_INVALID          = 0x5
+    AXIS_ERR_KEEP_INVALID          = 0x6
+    AXIS_ERR_DATA_ALIGNMENT        = 0x7
+    AXIS_ERR_ID_VIOLATION          = 0x8
+    AXIS_ERR_DEST_VIOLATION        = 0x9
+    AXIS_ERR_USER_VIOLATION        = 0xA
+    AXIS_ERR_RESERVED_B            = 0xB
+    AXIS_ERR_RESERVED_C            = 0xC
+    AXIS_ERR_RESERVED_D            = 0xD
+    AXIS_ERR_RESERVED_E            = 0xE
+    AXIS_ERR_USER_DEFINED          = 0xF
+
+
+class AXISTimeoutCode(IntEnum):
+    """Auto-extracted from monitor_amba4_pkg::axis_timeout_code_t."""
+    AXIS_TIMEOUT_HANDSHAKE         = 0x0
+    AXIS_TIMEOUT_STREAM            = 0x1
+    AXIS_TIMEOUT_PACKET            = 0x2
+    AXIS_TIMEOUT_BACKPRESSURE      = 0x3
+    AXIS_TIMEOUT_BUFFER            = 0x4
+    AXIS_TIMEOUT_STALL             = 0x5
+    AXIS_TIMEOUT_RESERVED_6        = 0x6
+    AXIS_TIMEOUT_RESERVED_7        = 0x7
+    AXIS_TIMEOUT_RESERVED_8        = 0x8
+    AXIS_TIMEOUT_RESERVED_9        = 0x9
+    AXIS_TIMEOUT_RESERVED_A        = 0xA
+    AXIS_TIMEOUT_RESERVED_B        = 0xB
+    AXIS_TIMEOUT_RESERVED_C        = 0xC
+    AXIS_TIMEOUT_RESERVED_D        = 0xD
+    AXIS_TIMEOUT_RESERVED_E        = 0xE
+    AXIS_TIMEOUT_USER_DEFINED      = 0xF
+
+
+class AXISCompletionCode(IntEnum):
+    """Auto-extracted from monitor_amba4_pkg::axis_completion_code_t."""
+    AXIS_COMPL_STREAM_END          = 0x0
+    AXIS_COMPL_PACKET_SENT         = 0x1
+    AXIS_COMPL_TRANSFER            = 0x2
+    AXIS_COMPL_BURST_END           = 0x3
+    AXIS_COMPL_HANDSHAKE           = 0x4
+    AXIS_COMPL_RESERVED_5          = 0x5
+    AXIS_COMPL_RESERVED_6          = 0x6
+    AXIS_COMPL_RESERVED_7          = 0x7
+    AXIS_COMPL_RESERVED_8          = 0x8
+    AXIS_COMPL_RESERVED_9          = 0x9
+    AXIS_COMPL_RESERVED_A          = 0xA
+    AXIS_COMPL_RESERVED_B          = 0xB
+    AXIS_COMPL_RESERVED_C          = 0xC
+    AXIS_COMPL_RESERVED_D          = 0xD
+    AXIS_COMPL_RESERVED_E          = 0xE
+    AXIS_COMPL_USER_DEFINED        = 0xF
+
+
+class AXISCreditCode(IntEnum):
+    """Auto-extracted from monitor_amba4_pkg::axis_credit_code_t."""
+    AXIS_CREDIT_READY_ASSERT       = 0x0
+    AXIS_CREDIT_READY_DEASSERT     = 0x1
+    AXIS_CREDIT_BUFFER_AVAILABLE   = 0x2
+    AXIS_CREDIT_BUFFER_FULL        = 0x3
+    AXIS_CREDIT_FLOW_CONTROL       = 0x4
+    AXIS_CREDIT_BACKPRESSURE       = 0x5
+    AXIS_CREDIT_THROUGHPUT         = 0x6
+    AXIS_CREDIT_EFFICIENCY         = 0x7
+    AXIS_CREDIT_RESERVED_8         = 0x8
+    AXIS_CREDIT_RESERVED_9         = 0x9
+    AXIS_CREDIT_RESERVED_A         = 0xA
+    AXIS_CREDIT_RESERVED_B         = 0xB
+    AXIS_CREDIT_RESERVED_C         = 0xC
+    AXIS_CREDIT_RESERVED_D         = 0xD
+    AXIS_CREDIT_RESERVED_E         = 0xE
+    AXIS_CREDIT_USER_DEFINED       = 0xF
+
+
+class AXISChannelCode(IntEnum):
+    """Auto-extracted from monitor_amba4_pkg::axis_channel_code_t."""
+    AXIS_CHAN_CONNECT              = 0x0
+    AXIS_CHAN_DISCONNECT           = 0x1
+    AXIS_CHAN_STALL                = 0x2
+    AXIS_CHAN_RESUME               = 0x3
+    AXIS_CHAN_CONGESTION           = 0x4
+    AXIS_CHAN_ID_CHANGE            = 0x5
+    AXIS_CHAN_DEST_CHANGE          = 0x6
+    AXIS_CHAN_CONFIG_CHANGE        = 0x7
+    AXIS_CHAN_RESERVED_8           = 0x8
+    AXIS_CHAN_RESERVED_9           = 0x9
+    AXIS_CHAN_RESERVED_A           = 0xA
+    AXIS_CHAN_RESERVED_B           = 0xB
+    AXIS_CHAN_RESERVED_C           = 0xC
+    AXIS_CHAN_RESERVED_D           = 0xD
+    AXIS_CHAN_RESERVED_E           = 0xE
+    AXIS_CHAN_USER_DEFINED         = 0xF
+
+
+class AXISStreamCode(IntEnum):
+    """Auto-extracted from monitor_amba4_pkg::axis_stream_code_t."""
+    AXIS_STREAM_START              = 0x0
+    AXIS_STREAM_END                = 0x1
+    AXIS_STREAM_PAUSE              = 0x2
+    AXIS_STREAM_RESUME             = 0x3
+    AXIS_STREAM_OVERFLOW           = 0x4
+    AXIS_STREAM_UNDERFLOW          = 0x5
+    AXIS_STREAM_TRANSFER           = 0x6
+    AXIS_STREAM_IDLE               = 0x7
+    AXIS_STREAM_RESERVED_8         = 0x8
+    AXIS_STREAM_RESERVED_9         = 0x9
+    AXIS_STREAM_RESERVED_A         = 0xA
+    AXIS_STREAM_RESERVED_B         = 0xB
+    AXIS_STREAM_RESERVED_C         = 0xC
+    AXIS_STREAM_RESERVED_D         = 0xD
+    AXIS_STREAM_RESERVED_E         = 0xE
+    AXIS_STREAM_USER_DEFINED       = 0xF
 
 
 # =============================================================================
@@ -322,43 +678,74 @@ def is_valid_packet_type(packet_type: int) -> bool:
     return packet_type in [p.value for p in PktType]
 
 
+# (protocol, packet_type) -> IntEnum class that maps event_code -> name.
+# Keep in lockstep with the monitor_amba4_pkg.sv enum coverage.
+_EVENT_CODE_ENUM_LOOKUP = {
+    (ProtocolType.PROTOCOL_ARB,  PktType.PktTypeError):      ARBErrorCode,
+    (ProtocolType.PROTOCOL_ARB,  PktType.PktTypeTimeout):    ARBTimeoutCode,
+    (ProtocolType.PROTOCOL_ARB,  PktType.PktTypeCompletion): ARBCompletionCode,
+    (ProtocolType.PROTOCOL_ARB,  PktType.PktTypeThreshold):  ARBThresholdCode,
+    (ProtocolType.PROTOCOL_ARB,  PktType.PktTypePerf):       ARBPerformanceCode,
+    (ProtocolType.PROTOCOL_ARB,  PktType.PktTypeDebug):      ARBDebugCode,
+
+    (ProtocolType.PROTOCOL_AXI,  PktType.PktTypeError):      AXIErrorCode,
+    (ProtocolType.PROTOCOL_AXI,  PktType.PktTypeTimeout):    AXITimeoutCode,
+    (ProtocolType.PROTOCOL_AXI,  PktType.PktTypeCompletion): AXICompletionCode,
+    (ProtocolType.PROTOCOL_AXI,  PktType.PktTypeThreshold):  AXIThresholdCode,
+    (ProtocolType.PROTOCOL_AXI,  PktType.PktTypePerf):       AXIPerformanceCode,
+    (ProtocolType.PROTOCOL_AXI,  PktType.PktTypeAddrMatch):  AXIAddrMatchCode,
+    (ProtocolType.PROTOCOL_AXI,  PktType.PktTypeDebug):      AXIDebugCode,
+
+    (ProtocolType.PROTOCOL_APB,  PktType.PktTypeError):      APBErrorCode,
+    (ProtocolType.PROTOCOL_APB,  PktType.PktTypeTimeout):    APBTimeoutCode,
+    (ProtocolType.PROTOCOL_APB,  PktType.PktTypeCompletion): APBCompletionCode,
+    (ProtocolType.PROTOCOL_APB,  PktType.PktTypeThreshold):  APBThresholdCode,
+    (ProtocolType.PROTOCOL_APB,  PktType.PktTypePerf):       APBPerformanceCode,
+    (ProtocolType.PROTOCOL_APB,  PktType.PktTypeDebug):      APBDebugCode,
+
+    (ProtocolType.PROTOCOL_AXIS, PktType.PktTypeError):      AXISErrorCode,
+    (ProtocolType.PROTOCOL_AXIS, PktType.PktTypeTimeout):    AXISTimeoutCode,
+    (ProtocolType.PROTOCOL_AXIS, PktType.PktTypeCompletion): AXISCompletionCode,
+    (ProtocolType.PROTOCOL_AXIS, PktType.PktTypeCredit):     AXISCreditCode,
+    (ProtocolType.PROTOCOL_AXIS, PktType.PktTypeChannel):    AXISChannelCode,
+    (ProtocolType.PROTOCOL_AXIS, PktType.PktTypeStream):     AXISStreamCode,
+}
+
+
 def get_event_code_enum(protocol: int, packet_type: int, event_code: int):
-    """Get the appropriate enum for an event code"""
-    if protocol == ProtocolType.PROTOCOL_ARB:
-        if packet_type == PktType.PktTypeError:
-            return ARBErrorCode(event_code)
-        elif packet_type == PktType.PktTypeTimeout:
-            return ARBTimeoutCode(event_code)
-        elif packet_type == PktType.PktTypeCompletion:
-            return ARBCompletionCode(event_code)
-        elif packet_type == PktType.PktTypeThreshold:
-            return ARBThresholdCode(event_code)
-        elif packet_type == PktType.PktTypePerf:
-            return ARBPerformanceCode(event_code)
-        elif packet_type == PktType.PktTypeDebug:
-            return ARBDebugCode(event_code)
-    # Add other protocols as needed
-    return None
+    """Return the IntEnum member matching (protocol, packet_type,
+    event_code). Returns None when the (protocol, packet_type) pair
+    has no Python enum defined or when event_code is out of range."""
+    try:
+        enum_cls = _EVENT_CODE_ENUM_LOOKUP.get(
+            (ProtocolType(protocol), PktType(packet_type))
+        )
+    except ValueError:
+        return None
+    if enum_cls is None:
+        return None
+    try:
+        return enum_cls(event_code)
+    except ValueError:
+        return None
 
 
 def is_valid_event_code(protocol: int, packet_type: int, event_code: int) -> bool:
-    """Check if an event code is valid for the given protocol and packet type"""
-    try:
-        enum_obj = get_event_code_enum(protocol, packet_type, event_code)
-        return enum_obj is not None
-    except ValueError:
-        return False
+    """Check if an event code is valid for the given protocol and packet type."""
+    return get_event_code_enum(protocol, packet_type, event_code) is not None
 
 
 def get_event_code_name(protocol: int, packet_type: int, event_code: int) -> str:
-    """Get human-readable name for an event code"""
-    try:
-        enum_obj = get_event_code_enum(protocol, packet_type, event_code)
-        if enum_obj:
-            return enum_obj.name
-        return f"UNKNOWN_EVENT_{event_code:X}"
-    except ValueError:
-        return f"INVALID_EVENT_{event_code:X}"
+    """Get human-readable name for an event code.
+
+    Note: use `is not None` rather than truthiness, because the
+    event_code=0 enum member is itself falsy (IntEnum inherits int
+    truthiness), and the first entry in every code group is value 0.
+    """
+    enum_obj = get_event_code_enum(protocol, packet_type, event_code)
+    if enum_obj is not None:
+        return enum_obj.name
+    return f"UNKNOWN_EVENT_{event_code:X}"
 
 
 def get_protocol_name(protocol: int) -> str:
@@ -433,6 +820,33 @@ class MonitorPacket:
             is_valid_packet_type(self.packet_type) and
             is_valid_event_code(self.protocol, self.packet_type, self.event_code)
         )
+
+    def matches(self, **criteria) -> bool:
+        """Return True if every keyword argument matches the equivalent
+        attribute on this packet. Useful for filtering a captured
+        stream:
+
+            error_pkts = [p for p in stream if p.matches(
+                packet_type=PktType.PktTypeError,
+                unit_id=2,                  # master-side wrappers
+            )]
+
+        Unknown attribute names raise AttributeError -- catches typos
+        at filter-write time."""
+        for key, expected in criteria.items():
+            if not hasattr(self, key):
+                raise AttributeError(
+                    f"MonitorPacket has no attribute {key!r}; "
+                    f"valid fields: packet_type, protocol, event_code, "
+                    f"channel_id, unit_id, agent_id, event_data"
+                )
+            actual = getattr(self, key)
+            # Normalise IntEnum vs raw int comparisons so callers can
+            # mix-and-match (e.g. matches(packet_type=PktType.PktTypeError)
+            # works against the raw int stored on the packet).
+            if int(actual) != int(expected):
+                return False
+        return True
 
     def __str__(self) -> str:
         """Human-readable string representation"""
