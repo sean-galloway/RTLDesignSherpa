@@ -39,7 +39,8 @@ class SlaveAdapterGenerator:
     """
 
     def __init__(self, bridge_name: str, slave_config: SlaveInfo, channels: str,
-                 id_width: int = 4, data_width: int = 32):
+                 id_width: int = 4, data_width: int = 32,
+                 enable_monitoring: bool = False, slave_index: int = 0):
         """
         Initialize slave adapter generator.
 
@@ -49,12 +50,19 @@ class SlaveAdapterGenerator:
             channels: Channel type ("wr", "rd", or "rw")
             id_width: AXI4 ID width (crossbar internal width)
             data_width: Crossbar internal data width
+            enable_monitoring: Use axi4_master_*_mon timing-wrapper variants
+                (only affects AXI4 slaves -- APB/AXIL shims are unchanged).
+            slave_index: Index of this slave (0..N-1). When monitoring is
+                on, used to derive the per-port AGENT_ID so each slave-side
+                wrapper produces uniquely identifiable monbus packets.
         """
         self.bridge_name = bridge_name
         self.slave = slave_config
         self.channels = channels
         self.id_width = id_width
         self.data_width = data_width
+        self.enable_monitoring = enable_monitoring
+        self.slave_index = slave_index
 
         # Determine which channels we have
         self.has_write = channels in ["wr", "rw"]
@@ -697,6 +705,13 @@ class SlaveAdapterGenerator:
         typed Axi4TimingWrapper component."""
         from ..components.axi4_timing_wrapper_component import Axi4TimingWrapper
 
+        # Monitor identity: UNIT_ID=1 marks every slave-side wrapper
+        # (axi4_master_*_mon -- the bridge looks like a master to the
+        # external slave); AGENT_ID = (slave_index << 4) | 0x1 for wr.
+        # Matches the SV defaults' UNIT_ID=1 family.
+        unit_id = 1 if self.enable_monitoring else None
+        agent_id = ((self.slave_index << 4) | 0x1) if self.enable_monitoring else None
+
         wrapper = Axi4TimingWrapper(
             side='master', channel='wr',
             instance_name='u_master_wr',
@@ -706,6 +721,9 @@ class SlaveAdapterGenerator:
             skid_depth_ax=str(self.skid_depth_aw),
             skid_depth_data=str(self.skid_depth_w),
             skid_depth_resp=str(self.skid_depth_b),
+            mon=self.enable_monitoring,
+            unit_id=unit_id,
+            agent_id=agent_id,
         )
         wrapper.connect_clocks_and_resets()
         wrapper.connect_bridge_internal(connector_prefix=crossbar_prefix)
@@ -718,6 +736,10 @@ class SlaveAdapterGenerator:
         typed Axi4TimingWrapper component."""
         from ..components.axi4_timing_wrapper_component import Axi4TimingWrapper
 
+        # UNIT_ID=1 for slave side; AGENT_ID = (slave_index << 4) | 0x0 for rd.
+        unit_id = 1 if self.enable_monitoring else None
+        agent_id = ((self.slave_index << 4) | 0x0) if self.enable_monitoring else None
+
         wrapper = Axi4TimingWrapper(
             side='master', channel='rd',
             instance_name='u_master_rd',
@@ -726,6 +748,9 @@ class SlaveAdapterGenerator:
             data_width=self.slave.data_width,
             skid_depth_ax=str(self.skid_depth_ar),
             skid_depth_data=str(self.skid_depth_r),
+            mon=self.enable_monitoring,
+            unit_id=unit_id,
+            agent_id=agent_id,
         )
         wrapper.connect_clocks_and_resets()
         wrapper.connect_bridge_internal(connector_prefix=crossbar_prefix)

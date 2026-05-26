@@ -51,7 +51,11 @@ class BridgeConfig:
 
     # Interface wrapper configuration
     enable_interface_wrappers: bool = True   # Use axi4_master/slave wrappers (timing)
-    enable_monitoring: bool = False          # Use *_mon versions (debugging)
+    # use_monitor: explicit per-bridge switch driven by the TOML
+    # `[bridge].use_monitor` field. The TOML loader REQUIRES the field
+    # (no default) -- this Python-level default exists only for the
+    # legacy CSV path, which has no concept of monitors.
+    use_monitor: bool = False                # Use *_mon AXI4 wrapper variants
 
     # Skid buffer depths (per wrapper)
     skid_depth_ar: int = 2    # AR channel buffer depth
@@ -60,7 +64,7 @@ class BridgeConfig:
     skid_depth_r: int = 2     # R channel buffer depth
     skid_depth_b: int = 2     # B channel buffer depth
 
-    # Monitor configuration (only used if enable_monitoring=True)
+    # Monitor configuration (only used if use_monitor=True)
     mon_error_enable: bool = True
     mon_compl_enable: bool = True
     mon_timeout_enable: bool = True

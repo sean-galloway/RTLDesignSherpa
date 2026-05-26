@@ -408,8 +408,14 @@ def generate_bridge(ports_file, connectivity_file, name=None, output_dir="../rtl
             )
             slave_infos.append(slave_info)
 
-        # Create BridgeModuleGenerator with new adapter architecture
-        gen = BridgeModuleGenerator(bridge_name=output_name, enable_monitoring=False)
+        # Create BridgeModuleGenerator with new adapter architecture.
+        # use_monitor is set from the TOML's mandatory [bridge].use_monitor
+        # field; the legacy CSV path leaves it at the BridgeConfig default
+        # (False) since CSV configs have no monitor concept.
+        gen = BridgeModuleGenerator(
+            bridge_name=output_name,
+            enable_monitoring=config.use_monitor,
+        )
 
         for master in master_configs:
             gen.add_master(master)

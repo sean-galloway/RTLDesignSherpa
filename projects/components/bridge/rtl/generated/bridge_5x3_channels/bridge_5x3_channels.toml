@@ -3,6 +3,7 @@
 
 [bridge]
 name = "bridge_5x3_channels"
+use_monitor = false
 description = "5x3 bridge configuration"
 
 [bridge.defaults.skid_depths]

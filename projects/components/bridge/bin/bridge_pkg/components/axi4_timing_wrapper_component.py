@@ -45,6 +45,13 @@ class Axi4TimingWrapper:
         skid_depth_ax: str = '2',
         skid_depth_data: str = '4',
         skid_depth_resp: str = '2',
+        # Monitor identity -- only honoured when mon=True. Both override
+        # the SV module's hard-coded defaults so every per-port wrapper
+        # instance puts a traceable {UNIT_ID, AGENT_ID} tuple in its
+        # monbus packets. Leaving them None falls back to the SV defaults,
+        # which is fine for non-monitored builds.
+        unit_id: Optional[int] = None,
+        agent_id: Optional[int] = None,
     ):
         if side not in ('master', 'slave'):
             raise ValueError(f"side must be 'master' or 'slave', got {side!r}")
@@ -79,6 +86,16 @@ class Axi4TimingWrapper:
                 f"parameter int AXI_ADDR_WIDTH  = {addr_width}, "
                 f"parameter int AXI_DATA_WIDTH  = {data_width}, "
                 f"parameter int AXI_USER_WIDTH  = {user_width}"
+            )
+        # When the monitored variant is used, the caller can override the
+        # SV module's hard-coded UNIT_ID / AGENT_ID defaults so monbus
+        # packets identify exactly which per-port wrapper produced them.
+        # Skip on non-monitored variants -- those modules don't declare
+        # the parameters and would lint-fail on an override.
+        if mon and unit_id is not None and agent_id is not None:
+            param_str += (
+                f", parameter int UNIT_ID         = {unit_id}, "
+                f"parameter int AGENT_ID        = {agent_id}"
             )
         self.module.params.add_param_string(param_str)
         self._sections: List[tuple] = []

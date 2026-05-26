@@ -90,9 +90,11 @@ class BridgeModuleGenerator:
                 f.write(adapter_src)
             generated_files[f'adapter_{master.name}'] = adapter_path
 
-        # 3. Generate slave adapter modules
-        for slave in self.slaves:
-            slave_adapter_src = self._generate_slave_adapter(slave)
+        # 3. Generate slave adapter modules. Pass the enumerated index so
+        # SlaveAdapterGenerator can derive per-port AGENT_ID values for
+        # monbus packet tagging.
+        for slave_idx, slave in enumerate(self.slaves):
+            slave_adapter_src = self._generate_slave_adapter(slave, slave_idx)
             slave_adapter_path = os.path.join(output_dir, f"{slave.name}_adapter.sv")
             with open(slave_adapter_path, 'w') as f:
                 f.write(slave_adapter_src)
@@ -161,12 +163,14 @@ class BridgeModuleGenerator:
         )
         return adapter_gen.generate()
 
-    def _generate_slave_adapter(self, slave: SlaveInfo) -> str:
+    def _generate_slave_adapter(self, slave: SlaveInfo, slave_index: int = 0) -> str:
         """
         Generate slave adapter module for a slave port.
 
         Args:
             slave: Slave configuration
+            slave_index: Index of this slave in self.slaves; used by the
+                slave-side wrapper to derive its monbus AGENT_ID.
 
         Returns:
             SystemVerilog slave adapter module source
@@ -195,7 +199,9 @@ class BridgeModuleGenerator:
             slave_config=slave,
             channels=channels,
             id_width=crossbar_id_width,
-            data_width=crossbar_data_width
+            data_width=crossbar_data_width,
+            enable_monitoring=self.enable_monitoring,
+            slave_index=slave_index,
         )
         return slave_adapter_gen.generate()
 

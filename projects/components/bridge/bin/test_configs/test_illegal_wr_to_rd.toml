@@ -4,6 +4,7 @@
 
 [bridge]
 name = "illegal_wr_to_rd"
+use_monitor = false
 description = "ILLEGAL: Write-only master cannot connect to read-only slave"
 
 [[bridge.masters]]

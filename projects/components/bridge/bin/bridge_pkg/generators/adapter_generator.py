@@ -413,6 +413,15 @@ class AdapterGenerator:
         if signal_prefix and not signal_prefix.endswith("_"):
             signal_prefix = signal_prefix + "_"
 
+        # Monitor identity: UNIT_ID=2 marks every master-side wrapper
+        # (axi4_slave_*_mon -- the bridge looks like a slave to the
+        # external master), AGENT_ID = (master_index << 4) | channel_bit
+        # so each per-port wrapper produces uniquely tagged monbus packets.
+        # channel_bit: 0 = rd, 1 = wr. Mirrors the SV defaults' UNIT_ID=2.
+        master_unit_id = 2 if self.enable_monitoring else None
+        wr_agent_id = ((self.master_index << 4) | 0x1) if self.enable_monitoring else None
+        rd_agent_id = ((self.master_index << 4) | 0x0) if self.enable_monitoring else None
+
         # Write wrapper
         if self.master.channels in ["wr", "rw"]:
             wrapper = Axi4TimingWrapper(
@@ -427,6 +436,8 @@ class AdapterGenerator:
                 skid_depth_ax='SKID_DEPTH_AW',
                 skid_depth_data='SKID_DEPTH_W',
                 skid_depth_resp='SKID_DEPTH_B',
+                unit_id=master_unit_id,
+                agent_id=wr_agent_id,
             )
             wrapper.connect_clocks_and_resets()
             # External side comes from the master's prefix (slave-of-
@@ -449,6 +460,8 @@ class AdapterGenerator:
                 data_width=self.master.data_width,
                 skid_depth_ax='SKID_DEPTH_AR',
                 skid_depth_data='SKID_DEPTH_R',
+                unit_id=master_unit_id,
+                agent_id=rd_agent_id,
             )
             wrapper.connect_clocks_and_resets()
             wrapper.connect_external(connector_prefix=signal_prefix)

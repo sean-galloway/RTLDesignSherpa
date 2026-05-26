@@ -4,6 +4,7 @@
 
 [bridge]
 name = "bridge_1x3_rd"
+use_monitor = false
 description = "1 master x 3 slave read-only bridge with mixed data widths"
 
 [[bridge.masters]]

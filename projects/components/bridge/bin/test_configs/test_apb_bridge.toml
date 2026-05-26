@@ -4,6 +4,7 @@
 
 [bridge]
 name = "apb_bridge"
+use_monitor = false
 description = "1 AXI4 master x 1 APB slave bridge with width conversion"
 
 [[bridge.masters]]
