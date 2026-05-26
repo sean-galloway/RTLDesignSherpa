@@ -151,6 +151,12 @@ module axi4_slave_rd_mon
 );
 
     // -------------------------------------------------------------------------
+    // Monitor backpressure plumbing (see axi4_master_rd_mon for full rationale)
+    // -------------------------------------------------------------------------
+    logic w_core_s_axi_arready;
+    logic w_block_ready;
+
+    // -------------------------------------------------------------------------
     // Instantiate AXI4 Slave Read Core
     // -------------------------------------------------------------------------
     axi4_slave_rd #(
@@ -178,7 +184,7 @@ module axi4_slave_rd_mon
         .s_axi_arregion          (s_axi_arregion),
         .s_axi_aruser            (s_axi_aruser),
         .s_axi_arvalid           (s_axi_arvalid),
-        .s_axi_arready           (s_axi_arready),
+        .s_axi_arready           (w_core_s_axi_arready),    // gated below
 
         .s_axi_rid               (s_axi_rid),
         .s_axi_rdata             (s_axi_rdata),
@@ -291,10 +297,10 @@ module axi4_slave_rd_mon
             .monbus_packet           (monbus_packet),
 
             // Status outputs
-            // TODO(block_ready): unconnected — see axi4_master_rd_mon.sv.
-            //   Should backpressure s_axi_arready when monitor FIFO is full.
+            // block_ready stalls new ARs at s_axi_arready when the monitor
+            // FIFO is full (wire ANDed into the wrapper output below).
+            .block_ready             (w_block_ready),
             /* verilator lint_off PINCONNECTEMPTY */
-            .block_ready             (),                    // BUG: see TODO(block_ready)
             .busy                    (),                    // Unused (using slave busy)
             /* verilator lint_on PINCONNECTEMPTY */
             .active_count            (active_transactions),
@@ -307,7 +313,11 @@ module axi4_slave_rd_mon
         assign monbus_packet       = 64'h0;
         assign active_transactions = 8'h0;
         assign cfg_conflict_error  = 1'b0;
+        assign w_block_ready       = 1'b1;
     end
+
+    // Gate the upstream AR handshake on monitor block_ready.
+    assign s_axi_arready = w_core_s_axi_arready & w_block_ready;
 
     // error_count / transaction_count: not exposed by axi_monitor_filtered;
     // tied to 0 in both monitor-on and monitor-off cases.

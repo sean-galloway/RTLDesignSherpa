@@ -167,6 +167,12 @@ module axi4_master_wr_mon
 );
 
     // -------------------------------------------------------------------------
+    // Monitor backpressure plumbing (see master_rd_mon for full rationale)
+    // -------------------------------------------------------------------------
+    logic w_core_fub_axi_awready;
+    logic w_block_ready;
+
+    // -------------------------------------------------------------------------
     // Instantiate AXI4 Master Write Core
     // -------------------------------------------------------------------------
     axi4_master_wr #(
@@ -195,7 +201,7 @@ module axi4_master_wr_mon
         .fub_axi_awregion        (fub_axi_awregion),
         .fub_axi_awuser          (fub_axi_awuser),
         .fub_axi_awvalid         (fub_axi_awvalid),
-        .fub_axi_awready         (fub_axi_awready),
+        .fub_axi_awready         (w_core_fub_axi_awready),  // gated below
 
         .fub_axi_wdata           (fub_axi_wdata),
         .fub_axi_wstrb           (fub_axi_wstrb),
@@ -316,11 +322,10 @@ module axi4_master_wr_mon
             .monbus_packet           (monbus_packet),
 
             // Status outputs
-            // TODO(block_ready): unconnected — see axi4_master_rd_mon.sv for
-            //   the full rationale. block_ready should backpressure the AW
-            //   handshake so a saturated monitor FIFO doesn't drop events.
+            // block_ready stalls new AWs at fub_axi_awready when the monitor
+            // FIFO is full (wire ANDed into the wrapper output below).
+            .block_ready             (w_block_ready),
             /* verilator lint_off PINCONNECTEMPTY */
-            .block_ready             (),                    // BUG: see TODO(block_ready)
             .busy                    (),                    // Unused (using master busy)
             /* verilator lint_on PINCONNECTEMPTY */
             .active_count            (active_transactions),
@@ -333,7 +338,11 @@ module axi4_master_wr_mon
         assign monbus_packet       = 64'h0;
         assign active_transactions = 8'h0;
         assign cfg_conflict_error  = 1'b0;
+        assign w_block_ready       = 1'b1;
     end
+
+    // Gate the upstream AW handshake on monitor block_ready.
+    assign fub_axi_awready = w_core_fub_axi_awready & w_block_ready;
 
     // error_count / transaction_count: not exposed by axi_monitor_filtered;
     // tied to 0 in both monitor-on and monitor-off cases.

@@ -156,6 +156,18 @@ module axi4_master_rd_mon
 );
 
     // -------------------------------------------------------------------------
+    // Monitor backpressure plumbing
+    // -------------------------------------------------------------------------
+    // The monitor exposes block_ready: high while its internal FIFO can
+    // accept a new in-flight transaction, low when it's saturated. We
+    // intercept the core's fub_axi_arready and AND it with block_ready so
+    // a saturated monitor stalls new ARs at the upstream handshake instead
+    // of silently losing events. With USE_MONITOR=0 the no-monitor branch
+    // forces w_block_ready=1 (no stall, full bandwidth).
+    logic w_core_fub_axi_arready;
+    logic w_block_ready;
+
+    // -------------------------------------------------------------------------
     // Instantiate AXI4 Master Read Core
     // -------------------------------------------------------------------------
     axi4_master_rd #(
@@ -183,7 +195,7 @@ module axi4_master_rd_mon
         .fub_axi_arregion        (fub_axi_arregion),
         .fub_axi_aruser          (fub_axi_aruser),
         .fub_axi_arvalid         (fub_axi_arvalid),
-        .fub_axi_arready         (fub_axi_arready),
+        .fub_axi_arready         (w_core_fub_axi_arready),  // gated below
 
         .fub_axi_rid             (fub_axi_rid),
         .fub_axi_rdata           (fub_axi_rdata),
@@ -300,15 +312,11 @@ module axi4_master_rd_mon
             .monbus_packet           (monbus_packet),
 
             // Status outputs
-            // TODO(block_ready): block_ready is the monitor's "internal
-            //   buffer not full" backpressure to the protocol path. Leaving
-            //   it unconnected drops the safety so a saturated monitor FIFO
-            //   silently loses events. Should be ANDed into fub_axi_arready
-            //   (and/or used to gate the AR handshake at the master core) so
-            //   AR is held until the monitor can accept the new in-flight
-            //   transaction. Tracked for fix in a follow-up pass.
+            // block_ready stalls new ARs at fub_axi_arready when the
+            // monitor FIFO is full (wire ANDed into the wrapper output
+            // below). busy is unused (the master core provides it).
+            .block_ready             (w_block_ready),
             /* verilator lint_off PINCONNECTEMPTY */
-            .block_ready             (),                    // BUG: see TODO(block_ready) above
             .busy                    (),                    // Unused (using master busy)
             /* verilator lint_on PINCONNECTEMPTY */
             .active_count            (active_transactions),
@@ -319,11 +327,16 @@ module axi4_master_rd_mon
     end else begin : gen_no_monitor
         // Tie monitor outputs to safe defaults so consumers see "nothing to
         // report" and never stall. monbus_ready is an input — nothing to drive.
+        // w_block_ready=1 → no monitor backpressure → wrapper runs at full BW.
         assign monbus_valid        = 1'b0;
         assign monbus_packet       = 64'h0;
         assign active_transactions = 8'h0;
         assign cfg_conflict_error  = 1'b0;
+        assign w_block_ready       = 1'b1;
     end
+
+    // Gate the upstream AR handshake on monitor block_ready.
+    assign fub_axi_arready = w_core_fub_axi_arready & w_block_ready;
 
     // Note: error_count and transaction_count are not directly available from
     // axi_monitor_filtered; they are tied to 0 in both monitor-on and
