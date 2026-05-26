@@ -32,6 +32,7 @@ module apb_monitor
     import monitor_common_pkg::*;  // For PROTOCOL_APB, PktType*, transaction states
     import monitor_amba4_pkg::*;   // For APB_ERR_*, APB_TIMEOUT_*, etc.
 #(
+    parameter bit USE_MONITOR         = 1'b1,  // 0 = omit monitor body, tie outputs
     parameter int ADDR_WIDTH          = 32,
     parameter int DATA_WIDTH          = 32,
     // Literals sized to 32 bits for Verilator int-parameter width check
@@ -97,6 +98,15 @@ module apb_monitor
     output logic [15:0]              error_count,             // Total error count
     output logic [31:0]              transaction_count        // Total transaction count
 );
+
+    // -------------------------------------------------------------------------
+    // Monitor body (optional, USE_MONITOR)
+    // -------------------------------------------------------------------------
+    // USE_MONITOR=1: full monitor pipeline synthesised below.
+    // USE_MONITOR=0: monitor omitted; outputs tied to safe non-blocking
+    //   defaults so the rest of the system runs at full APB throughput.
+    //   See gen_no_monitor block near the endmodule.
+    if (USE_MONITOR) begin : gen_monitor
 
     // -------------------------------------------------------------------------
     // Internal Signals
@@ -617,5 +627,14 @@ module apb_monitor
         .rd_count      ()
         /* verilator lint_on PINCONNECTEMPTY */
     );
+
+    end else begin : gen_no_monitor
+        // Monitor omitted: tie outputs to non-blocking defaults.
+        assign monbus_valid      = 1'b0;
+        assign monbus_packet     = 64'h0;
+        assign active_count      = 8'h0;
+        assign error_count       = 16'h0;
+        assign transaction_count = 32'h0;
+    end
 
 endmodule : apb_monitor

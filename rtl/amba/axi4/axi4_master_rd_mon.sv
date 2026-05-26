@@ -30,6 +30,10 @@
  * - Error detection and timeout monitoring
  * - Performance metrics collection
  * - Configuration validation with error flagging
+ * - USE_MONITOR: synthesis-time enable. When 0, the monitor is omitted and
+ *   its outputs are tied to safe non-blocking defaults so the wrapped
+ *   axi4_master_rd core runs unencumbered (for FPGA / production / PPA
+ *   characterization). Upstream macro wrappers may OR a force-on signal.
  */
 module axi4_master_rd_mon
     import monitor_pkg::*;
@@ -46,6 +50,7 @@ module axi4_master_rd_mon
     // Monitor parameters
     // Literals explicitly sized to 32 bits to satisfy Verilator's
     // int-parameter width checks.
+    parameter bit USE_MONITOR       = 1'b1,  // 0 = omit monitor, tie outputs
     parameter int UNIT_ID           = 32'd1,     // 4-bit Unit ID for monitor packets
     parameter int AGENT_ID          = 32'd10,    // 8-bit Agent ID for monitor packets
     parameter int MAX_TRANSACTIONS  = 16,    // Maximum outstanding transactions to monitor
@@ -215,92 +220,115 @@ module axi4_master_rd_mon
     );
 
     // -------------------------------------------------------------------------
-    // Instantiate AXI Monitor with Filtering
+    // Instantiate AXI Monitor with Filtering (optional)
     // -------------------------------------------------------------------------
-    axi_monitor_filtered #(
-        .UNIT_ID                 (UNIT_ID),
-        .AGENT_ID                (AGENT_ID),
-        .MAX_TRANSACTIONS        (MAX_TRANSACTIONS),
-        .ADDR_WIDTH              (AW),
-        .ID_WIDTH                (IW),
-        .IS_READ                 (1'b1),             // This is a read monitor
-        .IS_AXI                  (1'b1),             // AXI4 protocol
-        .ENABLE_PERF_PACKETS     (1'b1),
-        .ENABLE_DEBUG_MODULE     (1'b0),
-        .ENABLE_FILTERING        (ENABLE_FILTERING),
-        .ADD_PIPELINE_STAGE      (ADD_PIPELINE_STAGE)
-    ) axi_monitor_inst (
-        .aclk                    (aclk),
-        .aresetn                 (aresetn),
+    // USE_MONITOR=1: filtered monitor is instantiated, drives monbus_*,
+    //                active_transactions, cfg_conflict_error.
+    // USE_MONITOR=0: monitor omitted; outputs tied to safe defaults. The
+    //                monitor here is a snooper only — it does not gate the
+    //                AXI path — so disabling has no functional effect on
+    //                the wrapped axi4_master_rd core.
+    if (USE_MONITOR) begin : gen_monitor
+        axi_monitor_filtered #(
+            .UNIT_ID                 (UNIT_ID),
+            .AGENT_ID                (AGENT_ID),
+            .MAX_TRANSACTIONS        (MAX_TRANSACTIONS),
+            .ADDR_WIDTH              (AW),
+            .ID_WIDTH                (IW),
+            .IS_READ                 (1'b1),             // This is a read monitor
+            .IS_AXI                  (1'b1),             // AXI4 protocol
+            .ENABLE_PERF_PACKETS     (1'b1),
+            .ENABLE_DEBUG_MODULE     (1'b0),
+            .ENABLE_FILTERING        (ENABLE_FILTERING),
+            .ADD_PIPELINE_STAGE      (ADD_PIPELINE_STAGE)
+        ) axi_monitor_inst (
+            .aclk                    (aclk),
+            .aresetn                 (aresetn),
 
-        // Command interface (AR channel)
-        .cmd_addr                (m_axi_araddr),
-        .cmd_id                  (m_axi_arid),
-        .cmd_len                 (m_axi_arlen),
-        .cmd_size                (m_axi_arsize),
-        .cmd_burst               (m_axi_arburst),
-        .cmd_valid               (m_axi_arvalid),
-        .cmd_ready               (m_axi_arready),
+            // Command interface (AR channel)
+            .cmd_addr                (m_axi_araddr),
+            .cmd_id                  (m_axi_arid),
+            .cmd_len                 (m_axi_arlen),
+            .cmd_size                (m_axi_arsize),
+            .cmd_burst               (m_axi_arburst),
+            .cmd_valid               (m_axi_arvalid),
+            .cmd_ready               (m_axi_arready),
 
-        // Data interface (R channel)
-        .data_id                 (m_axi_rid),
-        .data_last               (m_axi_rlast),
-        .data_resp               (m_axi_rresp),
-        .data_valid              (m_axi_rvalid),
-        .data_ready              (m_axi_rready),
+            // Data interface (R channel)
+            .data_id                 (m_axi_rid),
+            .data_last               (m_axi_rlast),
+            .data_resp               (m_axi_rresp),
+            .data_valid              (m_axi_rvalid),
+            .data_ready              (m_axi_rready),
 
-        // Response interface (same as data for reads)
-        .resp_id                 (m_axi_rid),
-        .resp_code               (m_axi_rresp),
-        .resp_valid              (m_axi_rvalid && m_axi_rlast),
-        .resp_ready              (m_axi_rready),
+            // Response interface (same as data for reads)
+            .resp_id                 (m_axi_rid),
+            .resp_code               (m_axi_rresp),
+            .resp_valid              (m_axi_rvalid && m_axi_rlast),
+            .resp_ready              (m_axi_rready),
 
-        // Configuration
-        .cfg_freq_sel            (4'b0001),            // Use aclk frequency
-        .cfg_addr_cnt            (4'd15),              // Count 16 address events
-        .cfg_data_cnt            (4'd15),              // Count 16 data events
-        .cfg_resp_cnt            (4'd15),              // Count 16 response events
-        .cfg_error_enable        (cfg_error_enable),
-        .cfg_compl_enable        (cfg_monitor_enable),
-        .cfg_threshold_enable    (cfg_perf_enable),
-        .cfg_timeout_enable      (cfg_timeout_enable),
-        .cfg_perf_enable         (cfg_perf_enable),
-        .cfg_debug_enable        (1'b0),              // Disable debug by default
-        .cfg_debug_level         (4'h0),
-        .cfg_debug_mask          (16'h0),
-        .cfg_active_trans_threshold(16'd8),           // Alert if >8 active transactions
-        .cfg_latency_threshold   (cfg_latency_threshold),
+            // Configuration
+            .cfg_freq_sel            (4'b0001),            // Use aclk frequency
+            .cfg_addr_cnt            (4'd15),              // Count 16 address events
+            .cfg_data_cnt            (4'd15),              // Count 16 data events
+            .cfg_resp_cnt            (4'd15),              // Count 16 response events
+            .cfg_error_enable        (cfg_error_enable),
+            .cfg_compl_enable        (cfg_monitor_enable),
+            .cfg_threshold_enable    (cfg_perf_enable),
+            .cfg_timeout_enable      (cfg_timeout_enable),
+            .cfg_perf_enable         (cfg_perf_enable),
+            .cfg_debug_enable        (1'b0),              // Disable debug by default
+            .cfg_debug_level         (4'h0),
+            .cfg_debug_mask          (16'h0),
+            .cfg_active_trans_threshold(16'd8),           // Alert if >8 active transactions
+            .cfg_latency_threshold   (cfg_latency_threshold),
 
-        // AXI Protocol Filtering Configuration
-        .cfg_axi_pkt_mask        (cfg_axi_pkt_mask),
-        .cfg_axi_err_select      (cfg_axi_err_select),
-        .cfg_axi_error_mask      (cfg_axi_error_mask),
-        .cfg_axi_timeout_mask    (cfg_axi_timeout_mask),
-        .cfg_axi_compl_mask      (cfg_axi_compl_mask),
-        .cfg_axi_thresh_mask     (cfg_axi_thresh_mask),
-        .cfg_axi_perf_mask       (cfg_axi_perf_mask),
-        .cfg_axi_addr_mask       (cfg_axi_addr_mask),
-        .cfg_axi_debug_mask      (cfg_axi_debug_mask),
+            // AXI Protocol Filtering Configuration
+            .cfg_axi_pkt_mask        (cfg_axi_pkt_mask),
+            .cfg_axi_err_select      (cfg_axi_err_select),
+            .cfg_axi_error_mask      (cfg_axi_error_mask),
+            .cfg_axi_timeout_mask    (cfg_axi_timeout_mask),
+            .cfg_axi_compl_mask      (cfg_axi_compl_mask),
+            .cfg_axi_thresh_mask     (cfg_axi_thresh_mask),
+            .cfg_axi_perf_mask       (cfg_axi_perf_mask),
+            .cfg_axi_addr_mask       (cfg_axi_addr_mask),
+            .cfg_axi_debug_mask      (cfg_axi_debug_mask),
 
-        // Monitor bus output
-        .monbus_valid            (monbus_valid),
-        .monbus_ready            (monbus_ready),
-        .monbus_packet           (monbus_packet),
+            // Monitor bus output
+            .monbus_valid            (monbus_valid),
+            .monbus_ready            (monbus_ready),
+            .monbus_packet           (monbus_packet),
 
-        // Status outputs
-        /* verilator lint_off PINCONNECTEMPTY */
-        .block_ready             (),                    // Unused
-        .busy                    (),                    // Unused (using master busy)
-        /* verilator lint_on PINCONNECTEMPTY */
-        .active_count            (active_transactions),
+            // Status outputs
+            // TODO(block_ready): block_ready is the monitor's "internal
+            //   buffer not full" backpressure to the protocol path. Leaving
+            //   it unconnected drops the safety so a saturated monitor FIFO
+            //   silently loses events. Should be ANDed into fub_axi_arready
+            //   (and/or used to gate the AR handshake at the master core) so
+            //   AR is held until the monitor can accept the new in-flight
+            //   transaction. Tracked for fix in a follow-up pass.
+            /* verilator lint_off PINCONNECTEMPTY */
+            .block_ready             (),                    // BUG: see TODO(block_ready) above
+            .busy                    (),                    // Unused (using master busy)
+            /* verilator lint_on PINCONNECTEMPTY */
+            .active_count            (active_transactions),
 
-        // Configuration error flags
-        .cfg_conflict_error      (cfg_conflict_error)
-    );
+            // Configuration error flags
+            .cfg_conflict_error      (cfg_conflict_error)
+        );
+    end else begin : gen_no_monitor
+        // Tie monitor outputs to safe defaults so consumers see "nothing to
+        // report" and never stall. monbus_ready is an input — nothing to drive.
+        assign monbus_valid        = 1'b0;
+        assign monbus_packet       = 64'h0;
+        assign active_transactions = 8'h0;
+        assign cfg_conflict_error  = 1'b0;
+    end
 
-    // Note: error_count and transaction_count are not directly available from axi_monitor_filtered
-    // These would need to be implemented separately or the monitor would need enhancement
-    assign error_count = 16'h0;         // Placeholder - not available from filtered monitor
-    assign transaction_count = 32'h0;   // Placeholder - not available from filtered monitor
+    // Note: error_count and transaction_count are not directly available from
+    // axi_monitor_filtered; they are tied to 0 in both monitor-on and
+    // monitor-off cases (would need a monitor-side counter to populate).
+    assign error_count = 16'h0;
+    assign transaction_count = 32'h0;
 
 endmodule : axi4_master_rd_mon

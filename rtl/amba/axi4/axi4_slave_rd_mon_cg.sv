@@ -43,6 +43,7 @@ module axi4_slave_rd_mon_cg
     parameter int AXI_WSTRB_WIDTH   = AXI_DATA_WIDTH / 8,
 
     // Monitor parameters
+    parameter bit USE_MONITOR       = 1'b1,  // 0 = omit monitor in inner mon; outputs tied
     parameter int UNIT_ID           = 2,     // 4-bit Unit ID for monitor packets
     parameter int AGENT_ID          = 20,    // 8-bit Agent ID for monitor packets
     parameter int MAX_TRANSACTIONS  = 16,    // Maximum outstanding transactions to monitor
@@ -330,6 +331,7 @@ module axi4_slave_rd_mon_cg
         .AXI_DATA_WIDTH          (AXI_DATA_WIDTH),
         .AXI_USER_WIDTH          (AXI_USER_WIDTH),
         .AXI_WSTRB_WIDTH         (AXI_WSTRB_WIDTH),
+        .USE_MONITOR             (USE_MONITOR),
         .UNIT_ID                 (UNIT_ID),
         .AGENT_ID                (AGENT_ID),
         .MAX_TRANSACTIONS        (MAX_TRANSACTIONS),

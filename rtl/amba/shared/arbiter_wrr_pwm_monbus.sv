@@ -71,6 +71,9 @@ Weight Configuration:
 */
 
 module arbiter_wrr_pwm_monbus #(
+    // Monitor enable: 1 = telemetry on, 0 = omit monbus block (arbiter+PWM stay).
+    parameter bit USE_MONITOR = 1'b1,
+
     // User-configurable arbiter parameters
     parameter int MAX_LEVELS = 16,                  // Maximum weight levels per client (1-64)
     parameter int CLIENTS = 4,                      // Number of arbitration clients (1-64)
@@ -191,59 +194,74 @@ module arbiter_wrr_pwm_monbus #(
     );
 
     // =========================================================================
-    // Common Monitor Bus Instance (Standardized Fixed Configuration)
+    // Common Monitor Bus Instance (Standardized Fixed Configuration, optional)
     // =========================================================================
+    // USE_MONITOR=1: arbiter_monbus_common synthesised. USE_MONITOR=0: omitted;
+    //   arbiter+PWM unchanged (monitor is pure snooper; block_arb is PWM-driven
+    //   only). Telemetry and debug outputs tied to non-blocking defaults.
+    if (USE_MONITOR) begin : gen_monitor
+        arbiter_monbus_common #(
+            .CLIENTS                 (CLIENTS),                    // User configurable
+            .WAIT_GNT_ACK            (WAIT_GNT_ACK),              // ACK protocol support
+            .WEIGHTED_MODE           (1),                          // Enable weighted mode
+            .MAX_LEVELS              (MAX_LEVELS),                 // Pass WRR MAX_LEVELS parameter
+            .MON_AGENT_ID            (MON_AGENT_ID),              // User configurable (default 8'h10)
+            .MON_UNIT_ID             (MON_UNIT_ID),               // User configurable (default 4'h0)
+            .MON_FIFO_DEPTH          (MON_FIFO_DEPTH),            // Standardized to 16
+            .MON_FIFO_ALMOST_MARGIN  (MON_FIFO_ALMOST_MARGIN),   // Standardized to 2
+            .FAIRNESS_REPORT_CYCLES  (FAIRNESS_REPORT_CYCLES),    // Standardized to 256
+            .MIN_GRANTS_FOR_FAIRNESS (MIN_GRANTS_FOR_FAIRNESS)    // Standardized to 64
+        ) u_monitor (
+            .clk                     (clk),
+            .rst_n                   (rst_n),
 
-    arbiter_monbus_common #(
-        .CLIENTS                 (CLIENTS),                    // User configurable
-        .WAIT_GNT_ACK            (WAIT_GNT_ACK),              // ACK protocol support
-        .WEIGHTED_MODE           (1),                          // Enable weighted mode
-        .MAX_LEVELS              (MAX_LEVELS),                 // Pass WRR MAX_LEVELS parameter
-        .MON_AGENT_ID            (MON_AGENT_ID),              // User configurable (default 8'h10)
-        .MON_UNIT_ID             (MON_UNIT_ID),               // User configurable (default 4'h0)
-        .MON_FIFO_DEPTH          (MON_FIFO_DEPTH),            // Standardized to 16
-        .MON_FIFO_ALMOST_MARGIN  (MON_FIFO_ALMOST_MARGIN),   // Standardized to 2
-        .FAIRNESS_REPORT_CYCLES  (FAIRNESS_REPORT_CYCLES),    // Standardized to 256
-        .MIN_GRANTS_FOR_FAIRNESS (MIN_GRANTS_FOR_FAIRNESS)    // Standardized to 64
-    ) u_monitor (
-        .clk                     (clk),
-        .rst_n                   (rst_n),
+            // Arbiter interface - using standardized signal names
+            .cfg_max_thresh          (cfg_arb_max_thresh),        // Weight thresholds
+            .request                 (request),
+            .grant_valid             (grant_valid),
+            .grant                   (grant),
+            .grant_id                (grant_id),
+            .grant_ack               (grant_ack),                 // ACK signals
+            .block_arb               (block_arb_internal),
 
-        // Arbiter interface - using standardized signal names
-        .cfg_max_thresh          (cfg_arb_max_thresh),        // Weight thresholds
-        .request                 (request),
-        .grant_valid             (grant_valid),
-        .grant                   (grant),
-        .grant_id                (grant_id),
-        .grant_ack               (grant_ack),                 // ACK signals
-        .block_arb               (block_arb_internal),
+            // Monitor configuration - modern interface names
+            .cfg_mon_enable          (cfg_mon_enable),
+            .cfg_mon_pkt_type_enable (cfg_mon_pkt_type_enable),
+            .cfg_mon_latency_thresh  (cfg_mon_latency_thresh),
+            .cfg_mon_starvation_thresh (cfg_mon_starvation_thresh),
+            .cfg_mon_fairness_thresh (cfg_mon_fairness_thresh),
+            .cfg_mon_active_thresh   (cfg_mon_active_thresh),
+            .cfg_mon_ack_timeout_thresh (cfg_mon_ack_timeout_thresh),
+            .cfg_mon_efficiency_thresh (cfg_mon_efficiency_thresh),
+            .cfg_mon_sample_period   (cfg_mon_sample_period),
 
-        // Monitor configuration - modern interface names
-        .cfg_mon_enable          (cfg_mon_enable),
-        .cfg_mon_pkt_type_enable (cfg_mon_pkt_type_enable),
-        .cfg_mon_latency_thresh  (cfg_mon_latency_thresh),
-        .cfg_mon_starvation_thresh (cfg_mon_starvation_thresh),
-        .cfg_mon_fairness_thresh (cfg_mon_fairness_thresh),
-        .cfg_mon_active_thresh   (cfg_mon_active_thresh),
-        .cfg_mon_ack_timeout_thresh (cfg_mon_ack_timeout_thresh),
-        .cfg_mon_efficiency_thresh (cfg_mon_efficiency_thresh),
-        .cfg_mon_sample_period   (cfg_mon_sample_period),
+            // Monitor bus output
+            .monbus_valid            (monbus_valid),
+            .monbus_ready            (monbus_ready),
+            .monbus_packet           (monbus_packet),
 
-        // Monitor bus output
-        .monbus_valid            (monbus_valid),
-        .monbus_ready            (monbus_ready),
-        .monbus_packet           (monbus_packet),
-
-        // Enhanced debug outputs
-        .debug_fifo_count        (debug_fifo_count),
-        .debug_packet_count      (debug_packet_count),
-        .debug_ack_timeout       (debug_ack_timeout),
-        .debug_protocol_violations (debug_protocol_violations),
-        .debug_grant_efficiency  (debug_grant_efficiency),
-        .debug_client_starvation (debug_client_starvation),
-        .debug_fairness_deviation (debug_fairness_deviation),
-        .debug_monitor_state     (debug_monitor_state)
-    );
+            // Enhanced debug outputs
+            .debug_fifo_count        (debug_fifo_count),
+            .debug_packet_count      (debug_packet_count),
+            .debug_ack_timeout       (debug_ack_timeout),
+            .debug_protocol_violations (debug_protocol_violations),
+            .debug_grant_efficiency  (debug_grant_efficiency),
+            .debug_client_starvation (debug_client_starvation),
+            .debug_fairness_deviation (debug_fairness_deviation),
+            .debug_monitor_state     (debug_monitor_state)
+        );
+    end else begin : gen_no_monitor
+        assign monbus_valid              = 1'b0;
+        assign monbus_packet             = 64'h0;
+        assign debug_fifo_count          = '0;
+        assign debug_packet_count        = 16'h0;
+        assign debug_ack_timeout         = '0;
+        assign debug_protocol_violations = 16'h0;
+        assign debug_grant_efficiency    = 16'h0;
+        assign debug_client_starvation   = '0;
+        assign debug_fairness_deviation  = 16'h0;
+        assign debug_monitor_state       = 3'h0;
+    end
 
     // =========================================================================
     // Assertions For Parameter Validation

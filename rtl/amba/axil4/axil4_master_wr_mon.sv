@@ -46,6 +46,7 @@ module axil4_master_wr_mon
     parameter int AXIL_DATA_WIDTH   = 32,
 
     // Monitor parameters (literals sized to 32 bits for Verilator int-parameter width check)
+    parameter bit USE_MONITOR       = 1'b1,  // 0 = omit monitor, tie outputs
     parameter int UNIT_ID           = 32'd1,     // 4-bit Unit ID for monitor packets
     parameter int AGENT_ID          = 32'd11,    // 8-bit Agent ID for monitor packets
     parameter int MAX_TRANSACTIONS  = 8,     // Maximum outstanding transactions (reduced for AXIL)
@@ -180,92 +181,101 @@ module axil4_master_wr_mon
     );
 
     // -------------------------------------------------------------------------
-    // Instantiate AXI Monitor with Filtering (configured for AXIL4)
+    // Instantiate AXI Monitor with Filtering (configured for AXIL4, optional)
     // -------------------------------------------------------------------------
-    axi_monitor_filtered #(
-        .UNIT_ID                 (UNIT_ID),
-        .AGENT_ID                (AGENT_ID),
-        .MAX_TRANSACTIONS        (MAX_TRANSACTIONS),
-        .ADDR_WIDTH              (AW),
-        .ID_WIDTH                (32'd1),            // Fixed ID width for AXIL
-        .IS_READ                 (1'b0),             // This is a write monitor
-        .IS_AXI                  (1'b1),             // AXI protocol (AXIL is subset)
-        .ENABLE_PERF_PACKETS     (1'b1),
-        .ENABLE_DEBUG_MODULE     (1'b0),
-        .ENABLE_FILTERING        (ENABLE_FILTERING),
-        .ADD_PIPELINE_STAGE      (ADD_PIPELINE_STAGE)
-    ) axi_monitor_inst (
-        .aclk                    (aclk),
-        .aresetn                 (aresetn),
+    if (USE_MONITOR) begin : gen_monitor
+        axi_monitor_filtered #(
+            .UNIT_ID                 (UNIT_ID),
+            .AGENT_ID                (AGENT_ID),
+            .MAX_TRANSACTIONS        (MAX_TRANSACTIONS),
+            .ADDR_WIDTH              (AW),
+            .ID_WIDTH                (32'd1),            // Fixed ID width for AXIL
+            .IS_READ                 (1'b0),             // This is a write monitor
+            .IS_AXI                  (1'b1),             // AXI protocol (AXIL is subset)
+            .ENABLE_PERF_PACKETS     (1'b1),
+            .ENABLE_DEBUG_MODULE     (1'b0),
+            .ENABLE_FILTERING        (ENABLE_FILTERING),
+            .ADD_PIPELINE_STAGE      (ADD_PIPELINE_STAGE)
+        ) axi_monitor_inst (
+            .aclk                    (aclk),
+            .aresetn                 (aresetn),
 
-        // Command interface (AW channel) - AXIL simplified
-        .cmd_addr                (m_axil_awaddr),
-        .cmd_id                  (1'b0),             // Fixed ID=0 for AXIL
-        .cmd_len                 (8'h00),            // Single-beat: len=0
-        .cmd_size                (3'b010),           // 4 bytes (32-bit)
-        .cmd_burst               (2'b01),            // INCR burst type
-        .cmd_valid               (m_axil_awvalid),
-        .cmd_ready               (m_axil_awready),
+            // Command interface (AW channel) - AXIL simplified
+            .cmd_addr                (m_axil_awaddr),
+            .cmd_id                  (1'b0),             // Fixed ID=0 for AXIL
+            .cmd_len                 (8'h00),            // Single-beat: len=0
+            .cmd_size                (3'b010),           // 4 bytes (32-bit)
+            .cmd_burst               (2'b01),            // INCR burst type
+            .cmd_valid               (m_axil_awvalid),
+            .cmd_ready               (m_axil_awready),
 
-        // Data interface (W channel) - AXIL simplified
-        .data_id                 (1'b0),             // Fixed ID=0 for AXIL
-        .data_last               (1'b1),             // Always last for AXIL
-        .data_resp               (2'b00),            // No response in W channel
-        .data_valid              (m_axil_wvalid),
-        .data_ready              (m_axil_wready),
+            // Data interface (W channel) - AXIL simplified
+            .data_id                 (1'b0),             // Fixed ID=0 for AXIL
+            .data_last               (1'b1),             // Always last for AXIL
+            .data_resp               (2'b00),            // No response in W channel
+            .data_valid              (m_axil_wvalid),
+            .data_ready              (m_axil_wready),
 
-        // Response interface (B channel)
-        .resp_id                 (1'b0),             // Fixed ID=0 for AXIL
-        .resp_code               (m_axil_bresp),
-        .resp_valid              (m_axil_bvalid),
-        .resp_ready              (m_axil_bready),
+            // Response interface (B channel)
+            .resp_id                 (1'b0),             // Fixed ID=0 for AXIL
+            .resp_code               (m_axil_bresp),
+            .resp_valid              (m_axil_bvalid),
+            .resp_ready              (m_axil_bready),
 
-        // Configuration
-        .cfg_freq_sel            (4'b0001),          // Use aclk frequency
-        .cfg_addr_cnt            (4'd15),            // Count 16 address events
-        .cfg_data_cnt            (4'd15),            // Count 16 data events
-        .cfg_resp_cnt            (4'd15),            // Count 16 response events
-        .cfg_error_enable        (cfg_error_enable),
-        .cfg_compl_enable        (cfg_monitor_enable),
-        .cfg_threshold_enable    (cfg_perf_enable),
-        .cfg_timeout_enable      (cfg_timeout_enable),
-        .cfg_perf_enable         (cfg_perf_enable),
-        .cfg_debug_enable        (1'b0),            // Disable debug by default
-        .cfg_debug_level         (4'h0),
-        .cfg_debug_mask          (16'h0),
-        .cfg_active_trans_threshold(16'd4),         // Alert if >4 active transactions (AXIL)
-        .cfg_latency_threshold   (cfg_latency_threshold),
+            // Configuration
+            .cfg_freq_sel            (4'b0001),          // Use aclk frequency
+            .cfg_addr_cnt            (4'd15),            // Count 16 address events
+            .cfg_data_cnt            (4'd15),            // Count 16 data events
+            .cfg_resp_cnt            (4'd15),            // Count 16 response events
+            .cfg_error_enable        (cfg_error_enable),
+            .cfg_compl_enable        (cfg_monitor_enable),
+            .cfg_threshold_enable    (cfg_perf_enable),
+            .cfg_timeout_enable      (cfg_timeout_enable),
+            .cfg_perf_enable         (cfg_perf_enable),
+            .cfg_debug_enable        (1'b0),            // Disable debug by default
+            .cfg_debug_level         (4'h0),
+            .cfg_debug_mask          (16'h0),
+            .cfg_active_trans_threshold(16'd4),         // Alert if >4 active transactions (AXIL)
+            .cfg_latency_threshold   (cfg_latency_threshold),
 
-        // AXI Protocol Filtering Configuration
-        .cfg_axi_pkt_mask        (cfg_axi_pkt_mask),
-        .cfg_axi_err_select      (cfg_axi_err_select),
-        .cfg_axi_error_mask      (cfg_axi_error_mask),
-        .cfg_axi_timeout_mask    (cfg_axi_timeout_mask),
-        .cfg_axi_compl_mask      (cfg_axi_compl_mask),
-        .cfg_axi_thresh_mask     (cfg_axi_thresh_mask),
-        .cfg_axi_perf_mask       (cfg_axi_perf_mask),
-        .cfg_axi_addr_mask       (cfg_axi_addr_mask),
-        .cfg_axi_debug_mask      (cfg_axi_debug_mask),
+            // AXI Protocol Filtering Configuration
+            .cfg_axi_pkt_mask        (cfg_axi_pkt_mask),
+            .cfg_axi_err_select      (cfg_axi_err_select),
+            .cfg_axi_error_mask      (cfg_axi_error_mask),
+            .cfg_axi_timeout_mask    (cfg_axi_timeout_mask),
+            .cfg_axi_compl_mask      (cfg_axi_compl_mask),
+            .cfg_axi_thresh_mask     (cfg_axi_thresh_mask),
+            .cfg_axi_perf_mask       (cfg_axi_perf_mask),
+            .cfg_axi_addr_mask       (cfg_axi_addr_mask),
+            .cfg_axi_debug_mask      (cfg_axi_debug_mask),
 
-        // Monitor bus output
-        .monbus_valid            (monbus_valid),
-        .monbus_ready            (monbus_ready),
-        .monbus_packet           (monbus_packet),
+            // Monitor bus output
+            .monbus_valid            (monbus_valid),
+            .monbus_ready            (monbus_ready),
+            .monbus_packet           (monbus_packet),
 
-        // Status outputs
-        /* verilator lint_off PINCONNECTEMPTY */
-        .block_ready             (),                 // Unused
-        .busy                    (),                 // Unused (using master busy)
-        /* verilator lint_on PINCONNECTEMPTY */
-        .active_count            (active_transactions),
+            // Status outputs
+            // TODO(block_ready): unconnected — see axi4_master_rd_mon.sv.
+            //   Should backpressure m_axil_awready when monitor FIFO is full.
+            /* verilator lint_off PINCONNECTEMPTY */
+            .block_ready             (),                 // BUG: see TODO(block_ready)
+            .busy                    (),                 // Unused (using master busy)
+            /* verilator lint_on PINCONNECTEMPTY */
+            .active_count            (active_transactions),
 
-        // Configuration error flags
-        .cfg_conflict_error      (cfg_conflict_error)
-    );
+            // Configuration error flags
+            .cfg_conflict_error      (cfg_conflict_error)
+        );
+    end else begin : gen_no_monitor
+        assign monbus_valid        = 1'b0;
+        assign monbus_packet       = 64'h0;
+        assign active_transactions = 8'h0;
+        assign cfg_conflict_error  = 1'b0;
+    end
 
-    // Note: error_count and transaction_count are not directly available from axi_monitor_filtered
-    // These would need to be implemented separately or the monitor would need enhancement
-    assign error_count = 16'h0;         // Placeholder - not available from filtered monitor
-    assign transaction_count = 32'h0;   // Placeholder - not available from filtered monitor
+    // error_count / transaction_count: not exposed by axi_monitor_filtered;
+    // tied to 0 in both monitor-on and monitor-off cases.
+    assign error_count = 16'h0;
+    assign transaction_count = 32'h0;
 
 endmodule : axil4_master_wr_mon

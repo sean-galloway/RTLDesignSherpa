@@ -32,6 +32,7 @@ module apb5_monitor
     import monitor_amba4_pkg::*;
     import monitor_amba5_pkg::*;
 #(
+    parameter bit USE_MONITOR         = 1'b1,  // 0 = omit monitor body, tie outputs
     parameter int ADDR_WIDTH          = 32,
     parameter int DATA_WIDTH          = 32,
     parameter int AUSER_WIDTH         = 4,
@@ -117,6 +118,13 @@ module apb5_monitor
     output logic [31:0]              transaction_count,
     output logic                     wakeup_active
 );
+
+    // -------------------------------------------------------------------------
+    // Monitor body (optional, USE_MONITOR)
+    // -------------------------------------------------------------------------
+    // USE_MONITOR=1: full APB5 monitor pipeline synthesised below.
+    // USE_MONITOR=0: monitor omitted; outputs tied. See gen_no_monitor block.
+    if (USE_MONITOR) begin : gen_monitor
 
     // -------------------------------------------------------------------------
     // Internal Signals
@@ -670,5 +678,15 @@ module apb5_monitor
         .rd_count      ()
         /* verilator lint_on PINCONNECTEMPTY */
     );
+
+    end else begin : gen_no_monitor
+        // Monitor omitted: tie outputs to non-blocking defaults.
+        assign monbus_valid      = 1'b0;
+        assign monbus_packet     = 64'h0;
+        assign active_count      = 8'h0;
+        assign error_count       = 16'h0;
+        assign transaction_count = 32'h0;
+        assign wakeup_active     = 1'b0;
+    end
 
 endmodule : apb5_monitor

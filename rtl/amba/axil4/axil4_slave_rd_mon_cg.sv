@@ -40,6 +40,7 @@ module axil4_slave_rd_mon_cg
     parameter int AXIL_DATA_WIDTH   = 32,
 
     // Monitor parameters
+    parameter bit USE_MONITOR       = 1'b1,  // 0 = omit monitor in inner mon; outputs tied
     parameter int UNIT_ID           = 2,     // 4-bit Unit ID for monitor packets
     parameter int AGENT_ID          = 20,    // 8-bit Agent ID for monitor packets
     parameter int MAX_TRANSACTIONS  = 8,     // Maximum outstanding transactions (reduced for AXIL)
@@ -136,6 +137,7 @@ module axil4_slave_rd_mon_cg
         .SKID_DEPTH_R            (SKID_DEPTH_R),
         .AXIL_ADDR_WIDTH         (AXIL_ADDR_WIDTH),
         .AXIL_DATA_WIDTH         (AXIL_DATA_WIDTH),
+        .USE_MONITOR             (USE_MONITOR),
         .UNIT_ID                 (UNIT_ID),
         .AGENT_ID                (AGENT_ID),
         .MAX_TRANSACTIONS        (MAX_TRANSACTIONS),

@@ -45,6 +45,7 @@ module axi5_master_wr_mon_cg
     parameter bit ENABLE_MTE        = 1,
     parameter bit ENABLE_POISON     = 1,
 
+    parameter bit USE_MONITOR       = 1'b1,  // 0 = omit monitor in inner mon; outputs tied
     parameter int UNIT_ID           = 1,
     parameter int AGENT_ID          = 11,
     parameter int MAX_TRANSACTIONS  = 16,
@@ -210,6 +211,7 @@ module axi5_master_wr_mon_cg
         .ENABLE_TRACE(ENABLE_TRACE), .ENABLE_MPAM(ENABLE_MPAM),
         .ENABLE_MECID(ENABLE_MECID), .ENABLE_UNIQUE(ENABLE_UNIQUE),
         .ENABLE_MTE(ENABLE_MTE), .ENABLE_POISON(ENABLE_POISON),
+        .USE_MONITOR(USE_MONITOR),
         .UNIT_ID(UNIT_ID), .AGENT_ID(AGENT_ID), .MAX_TRANSACTIONS(MAX_TRANSACTIONS),
         .ENABLE_FILTERING(ENABLE_FILTERING), .ADD_PIPELINE_STAGE(ADD_PIPELINE_STAGE)
     ) i_axi5_master_wr_mon (

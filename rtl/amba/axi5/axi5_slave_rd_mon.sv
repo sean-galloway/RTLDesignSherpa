@@ -42,6 +42,7 @@ module axi5_slave_rd_mon
     parameter bit ENABLE_MTE        = 1,
     parameter bit ENABLE_POISON     = 1,
 
+    parameter bit USE_MONITOR       = 1'b1,  // 0 = omit monitor, tie outputs
     parameter int UNIT_ID           = 1,
     parameter int AGENT_ID          = 12,
     parameter int MAX_TRANSACTIONS  = 16,
@@ -201,37 +202,47 @@ module axi5_slave_rd_mon
         .busy(busy)
     );
 
-    axi_monitor_filtered #(
-        .UNIT_ID(UNIT_ID), .AGENT_ID(AGENT_ID), .MAX_TRANSACTIONS(MAX_TRANSACTIONS),
-        .ADDR_WIDTH(AW), .ID_WIDTH(IW), .IS_READ(1), .IS_AXI(1),
-        .ENABLE_PERF_PACKETS(1), .ENABLE_DEBUG_MODULE(0),
-        .ENABLE_FILTERING(ENABLE_FILTERING), .ADD_PIPELINE_STAGE(ADD_PIPELINE_STAGE)
-    ) axi_monitor_inst (
-        .aclk(aclk), .aresetn(aresetn),
-        .cmd_addr(fub_axi_araddr), .cmd_id(fub_axi_arid), .cmd_len(fub_axi_arlen),
-        .cmd_size(fub_axi_arsize), .cmd_burst(fub_axi_arburst),
-        .cmd_valid(fub_axi_arvalid), .cmd_ready(fub_axi_arready),
-        .data_id(fub_axi_rid), .data_last(fub_axi_rlast), .data_resp(fub_axi_rresp),
-        .data_valid(fub_axi_rvalid), .data_ready(fub_axi_rready),
-        .resp_id(fub_axi_rid), .resp_code(fub_axi_rresp),
-        .resp_valid(fub_axi_rvalid && fub_axi_rlast), .resp_ready(fub_axi_rready),
-        .cfg_freq_sel(4'b0001), .cfg_addr_cnt(4'd15), .cfg_data_cnt(4'd15), .cfg_resp_cnt(4'd15),
-        .cfg_error_enable(cfg_error_enable), .cfg_compl_enable(cfg_monitor_enable),
-        .cfg_threshold_enable(cfg_perf_enable), .cfg_timeout_enable(cfg_timeout_enable),
-        .cfg_perf_enable(cfg_perf_enable), .cfg_debug_enable(1'b0),
-        .cfg_debug_level(4'h0), .cfg_debug_mask(16'h0),
-        .cfg_active_trans_threshold(16'd8), .cfg_latency_threshold(cfg_latency_threshold),
-        .cfg_axi_pkt_mask(cfg_axi_pkt_mask), .cfg_axi_err_select(cfg_axi_err_select),
-        .cfg_axi_error_mask(cfg_axi_error_mask), .cfg_axi_timeout_mask(cfg_axi_timeout_mask),
-        .cfg_axi_compl_mask(cfg_axi_compl_mask), .cfg_axi_thresh_mask(cfg_axi_thresh_mask),
-        .cfg_axi_perf_mask(cfg_axi_perf_mask), .cfg_axi_addr_mask(cfg_axi_addr_mask),
-        .cfg_axi_debug_mask(cfg_axi_debug_mask),
-        .monbus_valid(monbus_valid), .monbus_ready(monbus_ready), .monbus_packet(monbus_packet),
-        /* verilator lint_off PINCONNECTEMPTY */
-        .block_ready(), .busy(),
-        /* verilator lint_on PINCONNECTEMPTY */
-        .active_count(active_transactions), .cfg_conflict_error(cfg_conflict_error)
-    );
+    if (USE_MONITOR) begin : gen_monitor
+        axi_monitor_filtered #(
+            .UNIT_ID(UNIT_ID), .AGENT_ID(AGENT_ID), .MAX_TRANSACTIONS(MAX_TRANSACTIONS),
+            .ADDR_WIDTH(AW), .ID_WIDTH(IW), .IS_READ(1), .IS_AXI(1),
+            .ENABLE_PERF_PACKETS(1), .ENABLE_DEBUG_MODULE(0),
+            .ENABLE_FILTERING(ENABLE_FILTERING), .ADD_PIPELINE_STAGE(ADD_PIPELINE_STAGE)
+        ) axi_monitor_inst (
+            .aclk(aclk), .aresetn(aresetn),
+            .cmd_addr(fub_axi_araddr), .cmd_id(fub_axi_arid), .cmd_len(fub_axi_arlen),
+            .cmd_size(fub_axi_arsize), .cmd_burst(fub_axi_arburst),
+            .cmd_valid(fub_axi_arvalid), .cmd_ready(fub_axi_arready),
+            .data_id(fub_axi_rid), .data_last(fub_axi_rlast), .data_resp(fub_axi_rresp),
+            .data_valid(fub_axi_rvalid), .data_ready(fub_axi_rready),
+            .resp_id(fub_axi_rid), .resp_code(fub_axi_rresp),
+            .resp_valid(fub_axi_rvalid && fub_axi_rlast), .resp_ready(fub_axi_rready),
+            .cfg_freq_sel(4'b0001), .cfg_addr_cnt(4'd15), .cfg_data_cnt(4'd15), .cfg_resp_cnt(4'd15),
+            .cfg_error_enable(cfg_error_enable), .cfg_compl_enable(cfg_monitor_enable),
+            .cfg_threshold_enable(cfg_perf_enable), .cfg_timeout_enable(cfg_timeout_enable),
+            .cfg_perf_enable(cfg_perf_enable), .cfg_debug_enable(1'b0),
+            .cfg_debug_level(4'h0), .cfg_debug_mask(16'h0),
+            .cfg_active_trans_threshold(16'd8), .cfg_latency_threshold(cfg_latency_threshold),
+            .cfg_axi_pkt_mask(cfg_axi_pkt_mask), .cfg_axi_err_select(cfg_axi_err_select),
+            .cfg_axi_error_mask(cfg_axi_error_mask), .cfg_axi_timeout_mask(cfg_axi_timeout_mask),
+            .cfg_axi_compl_mask(cfg_axi_compl_mask), .cfg_axi_thresh_mask(cfg_axi_thresh_mask),
+            .cfg_axi_perf_mask(cfg_axi_perf_mask), .cfg_axi_addr_mask(cfg_axi_addr_mask),
+            .cfg_axi_debug_mask(cfg_axi_debug_mask),
+            .monbus_valid(monbus_valid), .monbus_ready(monbus_ready), .monbus_packet(monbus_packet),
+            // TODO(block_ready): unconnected — see axi4_master_rd_mon.sv. Should
+            //   backpressure fub_axi_arready when monitor FIFO is full.
+            /* verilator lint_off PINCONNECTEMPTY */
+            .block_ready(),                                            // BUG: see TODO(block_ready)
+            .busy(),
+            /* verilator lint_on PINCONNECTEMPTY */
+            .active_count(active_transactions), .cfg_conflict_error(cfg_conflict_error)
+        );
+    end else begin : gen_no_monitor
+        assign monbus_valid        = 1'b0;
+        assign monbus_packet       = 64'h0;
+        assign active_transactions = 8'h0;
+        assign cfg_conflict_error  = 1'b0;
+    end
 
     assign error_count = 16'h0;
     assign transaction_count = 32'h0;
