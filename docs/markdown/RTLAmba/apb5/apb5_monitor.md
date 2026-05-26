@@ -105,6 +105,7 @@ flowchart TB
 | MAX_TRANSACTIONS | int | 4 | Maximum concurrent transactions |
 | MONITOR_FIFO_DEPTH | int | 8 | Monitor packet FIFO depth |
 | ENABLE_PARITY_MON | bit | 0 | Enable parity monitoring |
+| USE_MONITOR | bit | 1 | Synthesis-time monitor enable. 0 = omit monitor and tie outputs to safe non-blocking defaults; 1 = full monitor functionality. |
 
 ---
 

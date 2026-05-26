@@ -46,7 +46,19 @@ Combines **[axil4_slave_wr](axil4_slave_wr.md)** with **axi_monitor_filtered** f
 
 - `UNIT_ID = 2` (slaves)
 - `AGENT_ID = 21` (slave write agent)
+- `USE_MONITOR` (synthesis-time monitor enable)
 - Others same as master monitors
+
+---
+
+## Monitor Backpressure (block_ready)
+
+The monitor exposes a `block_ready` signal that goes low when its internal FIFO is saturated and cannot accept a new in-flight transaction. The wrapper ANDs `block_ready` into the upstream-facing `s_axil_awready` so a saturated monitor stalls new transactions on the wire instead of dropping events.
+
+- **Where the stall lands**: the upstream `s_axil_awready` is forced low until the monitor drains.
+- **When `USE_MONITOR=0`**: `block_ready` is internally tied high, so the wrapper imposes no stall and runs at full bandwidth.
+
+This replaces a previous bug where `block_ready` was left unconnected and a full monitor FIFO would silently lose events.
 
 ---
 

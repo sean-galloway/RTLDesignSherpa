@@ -53,13 +53,14 @@ The `axi4_slave_wr_mon_cg` module adds power optimization to `axi4_slave_wr_mon`
 
 ## Common Parameters
 
-In addition to all [axi4_slave_wr_mon](./axi4_slave_wr_mon.md) parameters:
+In addition to all [axi4_slave_wr_mon](./axi4_slave_wr_mon.md) parameters (including `USE_MONITOR`):
 
 | Parameter | Default | Description |
 |-----------|---------|-------------|
 | `ENABLE_CLOCK_GATING` | 1 | Master enable (0=disable, identical to base) |
 | `CG_IDLE_CYCLES` | 8 | Cycles before clock gating activates |
 | `CG_GATE_*` | 1 | Domain-specific gating enables |
+| `USE_MONITOR` | 1 | Synthesis-time monitor enable (forwarded to inner monitor). |
 
 ---
 

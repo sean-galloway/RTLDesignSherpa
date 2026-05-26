@@ -74,6 +74,14 @@ In addition to all parameters from [axi4_master_rd_mon](./axi4_master_rd_mon.md)
 | `CG_GATE_REPORTER` | bit | 1 | Enable clock gating for packet reporter |
 | `CG_GATE_TIMERS` | bit | 1 | Enable clock gating for timeout timers |
 
+### Base Module Parameters
+
+All parameters from [axi4_master_rd_mon](./axi4_master_rd_mon.md) are supported, including:
+
+| Parameter | Type | Default | Description |
+|-----------|------|---------|-------------|
+| `USE_MONITOR` | bit | 1 | Synthesis-time monitor enable. 0 = omit monitor and tie outputs to safe non-blocking defaults; 1 = full monitor functionality. |
+
 ### Parameter Relationships
 
 - **`ENABLE_CLOCK_GATING = 0`**: Disables all clock gating, module behaves identically to base

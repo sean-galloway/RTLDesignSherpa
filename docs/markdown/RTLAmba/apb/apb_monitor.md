@@ -111,6 +111,7 @@ module apb_monitor
 | AGENT_ID | int | 10 | 8-bit Agent identifier for monitor packets |
 | MAX_TRANSACTIONS | int | 4 | Maximum concurrent transactions (APB typically 1-4) |
 | MONITOR_FIFO_DEPTH | int | 8 | Internal FIFO depth for monitor packets |
+| USE_MONITOR | bit | 1 | Synthesis-time monitor enable. 0 = omit monitor and tie outputs to safe non-blocking defaults; 1 = full monitor functionality. |
 
 ## Ports
 

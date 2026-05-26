@@ -53,6 +53,18 @@ Combines **[axil4_master_rd](axil4_master_rd.md)** with the core **axi_monitor_f
 | `MAX_TRANSACTIONS` | int | 8 | Max outstanding transactions (reduced for AXIL) |
 | `ENABLE_FILTERING` | bit | 1 | Enable 3-level packet filtering |
 | `ADD_PIPELINE_STAGE` | bit | 0 | Add register stage for timing closure |
+| `USE_MONITOR` | bit | 1 | Synthesis-time monitor enable. 0 = omit monitor and tie outputs to safe non-blocking defaults; 1 = full monitor functionality. |
+
+---
+
+## Monitor Backpressure (block_ready)
+
+The monitor exposes a `block_ready` signal that goes low when its internal FIFO is saturated and cannot accept a new in-flight transaction. The wrapper ANDs `block_ready` into the upstream-facing `fub_axil_arready` so a saturated monitor stalls new transactions on the wire instead of dropping events.
+
+- **Where the stall lands**: the upstream `fub_axil_arready` is forced low until the monitor drains.
+- **When `USE_MONITOR=0`**: `block_ready` is internally tied high, so the wrapper imposes no stall and runs at full bandwidth.
+
+This replaces a previous bug where `block_ready` was left unconnected and a full monitor FIFO would silently lose events.
 
 ---
 

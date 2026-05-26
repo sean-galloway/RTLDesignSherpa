@@ -63,6 +63,7 @@ The PWM integration allows temporal control of arbiter availability, enabling TD
 | WAIT_GNT_ACK | int | 0 | ACK protocol enable (0=disable, 1=enable) |
 | MON_AGENT_ID | logic [7:0] | 8'h10 | Monitor agent identifier |
 | MON_UNIT_ID | logic [3:0] | 4'h0 | Monitor unit identifier |
+| USE_MONITOR | bit | 1 | Synthesis-time monitor enable. When 0, omits monbus telemetry block (arbiter and PWM remain intact). When 1, full monitoring. |
 
 ### Fixed Internal Configurations (Not User-Configurable)
 

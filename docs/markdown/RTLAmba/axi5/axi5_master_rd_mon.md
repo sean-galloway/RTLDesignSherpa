@@ -143,6 +143,19 @@ flowchart TB
 | **MAX_TRANSACTIONS** | int | 16 | Transaction table size |
 | **ENABLE_FILTERING** | bit | 1 | Enable 3-level packet filtering |
 | **ADD_PIPELINE_STAGE** | bit | 0 | Add pipeline stage in monitor (latency vs. timing) |
+| **USE_MONITOR** | bit | 1 | Synthesis-time monitor enable. 0 = omit monitor and tie outputs to safe non-blocking defaults; 1 = full monitor functionality. |
+
+---
+
+## Monitor Backpressure (block_ready)
+
+The monitor exposes a `block_ready` signal that goes low when its internal FIFO is saturated and cannot accept a new in-flight transaction. The wrapper ANDs `block_ready` into the upstream-facing `fub_axi_arready` so a saturated monitor stalls new transactions on the wire instead of dropping events.
+
+- **Where the stall lands**: the upstream `fub_axi_arready` is forced low until the monitor drains.
+- **When `USE_MONITOR=0`**: `block_ready` is internally tied high, so the wrapper imposes no stall and runs at full bandwidth.
+- **For axi5 slave variants** (only applies to axi5_slave_rd_mon): the monitor watches the FUB-side handshake, so there is a `SKID_DEPTH_AR` cycle lag between block_ready going low and new events ceasing. `MAX_TRANSACTIONS` should be sized to cover this margin.
+
+This replaces a previous bug where `block_ready` was left unconnected and a full monitor FIFO would silently lose events.
 
 ---
 

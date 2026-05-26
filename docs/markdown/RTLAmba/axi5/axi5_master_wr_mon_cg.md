@@ -136,6 +136,7 @@ flowchart TB
 | MAX_TRANSACTIONS | int | 16 | Transaction table size |
 | ENABLE_FILTERING | bit | 1 | Enable 3-level packet filtering |
 | ADD_PIPELINE_STAGE | bit | 0 | Add pipeline stage in monitor |
+| USE_MONITOR | bit | 1 | Synthesis-time monitor enable (forwarded to inner monitor). |
 | **CG_IDLE_COUNT_WIDTH** | int | 4 | Width of idle counter (max 2^N-1 cycles) |
 
 ---

@@ -64,7 +64,7 @@ All other functionality is identical to the base module. See [axil4_master_rd_mo
 
 ## Clock Gating Parameters
 
-In addition to all parameters from [axil4_master_rd_mon](./axil4_master_rd_mon.md), this module adds:
+In addition to all parameters from [axil4_master_rd_mon](./axil4_master_rd_mon.md) (including `USE_MONITOR`), this module adds:
 
 | Parameter | Type | Default | Description |
 |-----------|------|---------|-------------|
