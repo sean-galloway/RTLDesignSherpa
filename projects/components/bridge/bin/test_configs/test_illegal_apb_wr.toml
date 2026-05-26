@@ -4,7 +4,7 @@
 
 [bridge]
 name = "illegal_apb_wr"
-use_monitor = false
+variants = ["no"]
 description = "ILLEGAL: APB slave must have channels='rw'"
 
 [[bridge.masters]]

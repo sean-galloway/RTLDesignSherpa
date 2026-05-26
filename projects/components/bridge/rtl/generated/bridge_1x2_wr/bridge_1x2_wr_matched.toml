@@ -4,7 +4,7 @@
 
 [bridge]
 name = "bridge_1x2_wr"
-use_monitor = false
+variants = ["no"]
 description = "1 master x 2 slave write-only bridge"
 
 [[bridge.masters]]

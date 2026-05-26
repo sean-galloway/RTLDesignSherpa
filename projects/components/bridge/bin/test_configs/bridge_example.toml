@@ -3,7 +3,7 @@
 
 [bridge]
 name = "bridge_example"
-use_monitor = false
+variants = ["no"]
 description = "3x5 bridge configuration"
 
 [bridge.defaults.skid_depths]

@@ -4,7 +4,7 @@
 
 [bridge]
 name = "bridge_2x2_rw"
-use_monitor = false
+variants = ["no"]
 description = "2 master x 2 slave full read/write bridge with timing isolation"
 
 # Global defaults for skid buffer depths (can be overridden per port)

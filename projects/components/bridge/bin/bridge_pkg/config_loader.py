@@ -45,7 +45,7 @@ except ImportError:
         print("  Install with: pip install tomli")
 
 
-def load_toml_ports(toml_path: str) -> Tuple[List[PortSpec], List[PortSpec], Optional[Dict], Optional[Dict], str, bool]:
+def load_toml_ports(toml_path: str) -> Tuple[List[PortSpec], List[PortSpec], Optional[Dict], Optional[Dict], str, List[str]]:
     """
     Load port configuration from TOML file.
 
@@ -70,7 +70,7 @@ def load_toml_ports(toml_path: str) -> Tuple[List[PortSpec], List[PortSpec], Opt
     return _parse_port_data(data, toml_path)
 
 
-def load_yaml_ports(yaml_path: str) -> Tuple[List[PortSpec], List[PortSpec], Optional[Dict], Optional[Dict], str, bool]:
+def load_yaml_ports(yaml_path: str) -> Tuple[List[PortSpec], List[PortSpec], Optional[Dict], Optional[Dict], str, List[str]]:
     """
     Load port configuration from YAML file.
 
@@ -88,7 +88,7 @@ def load_yaml_ports(yaml_path: str) -> Tuple[List[PortSpec], List[PortSpec], Opt
     return _parse_port_data(data, yaml_path)
 
 
-def _parse_port_data(data: Dict, config_path: str) -> Tuple[List[PortSpec], List[PortSpec], Optional[Dict], Optional[Dict], str, bool]:
+def _parse_port_data(data: Dict, config_path: str) -> Tuple[List[PortSpec], List[PortSpec], Optional[Dict], Optional[Dict], str, List[str]]:
     """
     Parse port data from loaded config (YAML or TOML).
 
@@ -111,22 +111,44 @@ def _parse_port_data(data: Dict, config_path: str) -> Tuple[List[PortSpec], List
     bridge_name = bridge_data.get('name', 'unnamed_bridge')
     print(f"  Bridge: {bridge_name}")
 
-    # use_monitor is a MANDATORY top-level switch -- the user has to
-    # consciously choose 0 or 1, no silent default. Missing the field
-    # is a configuration error, not an opportunity to guess.
-    if 'use_monitor' not in bridge_data:
+    # variants is a MANDATORY top-level list -- the user has to
+    # consciously pick which monitor variants to emit; missing the
+    # field is a configuration error, not an opportunity to guess.
+    # Allowed entries: "no" (no-monitor, emits bare <bridge_name>),
+    # "mon" (monitored, emits <bridge_name>_mon). Duplicates are
+    # rejected.
+    if 'variants' not in bridge_data:
         raise ValueError(
             f"{config_path}: [bridge] is missing required field "
-            f"'use_monitor'. Set it explicitly to true or false at "
-            f"the [bridge] table -- the generator will not guess."
+            f"'variants'. Set it explicitly at the [bridge] table to "
+            f'a non-empty list whose entries come from ["no", "mon"] '
+            f"-- the generator will not guess."
         )
-    use_monitor = bridge_data['use_monitor']
-    if not isinstance(use_monitor, bool):
+    variants = bridge_data['variants']
+    if not isinstance(variants, list) or not variants:
         raise ValueError(
-            f"{config_path}: [bridge].use_monitor must be a boolean "
-            f"(true or false), got {type(use_monitor).__name__}: "
-            f"{use_monitor!r}"
+            f"{config_path}: [bridge].variants must be a non-empty "
+            f"list, got {type(variants).__name__}: {variants!r}"
         )
+    allowed_variants = ("no", "mon")
+    seen = set()
+    for v in variants:
+        if not isinstance(v, str):
+            raise ValueError(
+                f"{config_path}: [bridge].variants entries must be "
+                f"strings, found {type(v).__name__}: {v!r}"
+            )
+        if v not in allowed_variants:
+            raise ValueError(
+                f"{config_path}: [bridge].variants entry {v!r} is not "
+                f"one of {list(allowed_variants)}"
+            )
+        if v in seen:
+            raise ValueError(
+                f"{config_path}: [bridge].variants has duplicate "
+                f"entry {v!r}"
+            )
+        seen.add(v)
 
     # Get defaults (for future interface module usage)
     defaults = bridge_data.get('defaults')
@@ -228,13 +250,13 @@ def _parse_port_data(data: Dict, config_path: str) -> Tuple[List[PortSpec], List
         print(f"  Found embedded connectivity in config file")
 
     print(f"  Total: {len(masters)} masters, {len(slaves)} slaves")
-    print(f"  use_monitor: {use_monitor}")
+    print(f"  variants: {variants}")
     # Surface the TOML [bridge].name so load_config can wire it onto the
     # returned BridgeConfig -- generate_bridge() uses it instead of the
     # auto-named topology fallback, so a TOML saying
     # name = "bridge_5x3_channels" no longer produces "bridge_5x3_rw".
     bridge_name = bridge_data.get('name', '')
-    return masters, slaves, defaults, connectivity_data, bridge_name, use_monitor
+    return masters, slaves, defaults, connectivity_data, bridge_name, variants
 
 
 def find_connectivity_csv(yaml_path: str) -> Optional[str]:
@@ -328,9 +350,9 @@ def load_config(config_path: str, connectivity_csv: Optional[str] = None) -> Bri
     # Auto-detect format based on file extension
     config_file = Path(config_path)
     if config_file.suffix == '.toml':
-        masters, slaves, defaults, embedded_connectivity, bridge_name, use_monitor = load_toml_ports(config_path)
+        masters, slaves, defaults, embedded_connectivity, bridge_name, variants = load_toml_ports(config_path)
     elif config_file.suffix in ['.yaml', '.yml']:
-        masters, slaves, defaults, embedded_connectivity, bridge_name, use_monitor = load_yaml_ports(config_path)
+        masters, slaves, defaults, embedded_connectivity, bridge_name, variants = load_yaml_ports(config_path)
     else:
         raise ValueError(f"Unsupported config format: {config_file.suffix}. Use .toml, .yaml, or .yml")
 
@@ -358,7 +380,7 @@ def load_config(config_path: str, connectivity_csv: Optional[str] = None) -> Bri
         masters=masters,
         slaves=slaves,
         connectivity=connectivity,
-        use_monitor=use_monitor
+        variants=variants,
     )
 
     # Validate configuration

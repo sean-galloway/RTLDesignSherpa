@@ -3,7 +3,7 @@
 
 [bridge]
 name = "bridge_4x4_rw"
-use_monitor = false
+variants = ["no"]
 description = "4x4 bridge configuration"
 
 [bridge.defaults.skid_depths]

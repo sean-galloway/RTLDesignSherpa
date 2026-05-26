@@ -1,6 +1,6 @@
 [bridge]
 name = "bridge_1x5_wr"
-use_monitor = false
+variants = ["no"]
 description = "1 master x 5 slave write-only bridge with AXI4-Lite slave"
 
 # Clock configuration for testing

@@ -291,7 +291,10 @@ def generate_bridge(ports_file, connectivity_file, name=None, output_dir="../rtl
         expose_arbiter: Whether to expose arbiter grant signals (currently ignored in V2)
 
     Returns:
-        tuple: (success: bool, bridge_name: str or None)
+        tuple: (success: bool, emitted_variants: list of (name, is_mon)
+        tuples). `emitted_variants` is empty on failure. Each TOML's
+        [bridge].variants entry produces one tuple -- "no" -> (<name>,
+        False); "mon" -> (<name>_mon, True).
     """
     try:
         # Validate ports file exists
@@ -334,14 +337,17 @@ def generate_bridge(ports_file, connectivity_file, name=None, output_dir="../rtl
                 connectivity=connectivity
             )
 
-        # Generate output module name. Precedence:
+        # Compute the base bridge name. Each variant emits to a
+        # directory <base_name><suffix>, where the "no" variant uses
+        # the bare base_name and the "mon" variant appends "_mon".
+        # Precedence:
         #   1. --name CLI override / bulk-mode `name` column
         #   2. [bridge].name from the TOML/YAML config (set on BridgeConfig)
         #   3. Auto-generated topology fallback: bridge_<M>x<S>_<channels>
         if name:
-            output_name = name
+            base_name = name
         elif is_config_file and getattr(config, 'name', '').strip():
-            output_name = config.name.strip()
+            base_name = config.name.strip()
         else:
             channel_types = set(m.channels for m in masters)
             if len(channel_types) == 1:
@@ -352,282 +358,310 @@ def generate_bridge(ports_file, connectivity_file, name=None, output_dir="../rtl
                 channel_suffix = 'rw'
             else:
                 channel_suffix = 'rw'
-            output_name = f"bridge_{len(masters)}x{len(slaves)}_{channel_suffix}"
+            base_name = f"bridge_{len(masters)}x{len(slaves)}_{channel_suffix}"
 
-        # Create bridge-specific subdirectory (clean first if exists)
-        bridge_dir = os.path.join(output_dir, output_name)
-
-        # CRITICAL: Remove existing bridge directory to ensure clean regeneration
-        if os.path.exists(bridge_dir):
-            print(f"  Removing existing bridge directory: {bridge_dir}")
-            shutil.rmtree(bridge_dir)
-
-        os.makedirs(bridge_dir, exist_ok=True)
-
-        # Convert PortSpec to MasterConfig/SlaveInfo format
-        master_configs = []
-        slave_infos = []
-
-        for master_spec in masters:
-            # Build slave connection list (indices of slaves this master connects to)
-            slave_connections = []
-            # Get list of slaves this master connects to
-            connected_slave_names = connectivity.get(master_spec.port_name, [])
-            for slave_idx, slave_spec in enumerate(slaves):
-                # Check if this slave is in the master's connection list
-                if slave_spec.port_name in connected_slave_names:
-                    slave_connections.append(slave_idx)
-
-            # Normalise prefix at the boundary: many downstream emitters
-            # build signal names as `f"{prefix}{signal}"` and break if the
-            # config forgot the trailing underscore (e.g. "cpu_m_axi" →
-            # "cpu_m_axiawid"). Doing it here means every consumer sees the
-            # well-formed prefix without having to remember to normalise.
-            master_prefix = _normalize_prefix(master_spec.prefix)
-            master_config = MasterConfig(
-                name=master_spec.port_name,
-                prefix=master_prefix,
-                data_width=master_spec.data_width,
-                addr_width=master_spec.addr_width,
-                id_width=master_spec.id_width,
-                channels=master_spec.channels,
-                slave_connections=slave_connections
+        emitted_variants = []
+        for variant in config.variants:
+            suffix = '_mon' if variant == 'mon' else ''
+            output_name = f"{base_name}{suffix}"
+            use_monitor = (variant == 'mon')
+            print(f"\n  === Variant {variant!r} -> {output_name} (use_monitor={use_monitor}) ===")
+            _emit_bridge_variant(
+                output_name=output_name,
+                use_monitor=use_monitor,
+                output_dir=output_dir,
+                config=config,
+                masters=masters,
+                slaves=slaves,
+                connectivity=connectivity,
+                ports_file=ports_file,
+                connectivity_file=connectivity_file,
             )
-            master_configs.append(master_config)
+            emitted_variants.append((output_name, use_monitor))
 
-        for slave_spec in slaves:
-            slave_prefix = _normalize_prefix(slave_spec.prefix)
-            slave_info = SlaveInfo(
-                name=slave_spec.port_name,
-                prefix=slave_prefix,  # Pass slave prefix from config
-                base_addr=slave_spec.base_addr,
-                addr_range=slave_spec.addr_range,
-                data_width=slave_spec.data_width,
-                addr_width=slave_spec.addr_width,
-                protocol=slave_spec.protocol
-            )
-            slave_infos.append(slave_info)
-
-        # Create BridgeModuleGenerator with new adapter architecture.
-        # use_monitor is set from the TOML's mandatory [bridge].use_monitor
-        # field; the legacy CSV path leaves it at the BridgeConfig default
-        # (False) since CSV configs have no monitor concept.
-        gen = BridgeModuleGenerator(
-            bridge_name=output_name,
-            enable_monitoring=config.use_monitor,
-        )
-
-        for master in master_configs:
-            gen.add_master(master)
-        for slave in slave_infos:
-            gen.add_slave(slave)
-
-        # Generate all files (package + adapters + bridge)
-        generated_files = gen.generate_all(bridge_dir)
-
-        print(f"  ✓ Generated bridge package: {generated_files['package']}")
-        for master in master_configs:
-            adapter_key = f"adapter_{master.name}"
-            if adapter_key in generated_files:
-                print(f"  ✓ Generated adapter: {generated_files[adapter_key]}")
-        print(f"  ✓ Generated bridge: {generated_files['bridge']}")
-
-        # Copy configuration files to bridge directory for reference
-        if ports_file:
-            config_copy = os.path.join(bridge_dir, os.path.basename(ports_file))
-            shutil.copy2(ports_file, config_copy)
-            print(f"  ✓ Copied config: {config_copy}")
-
-        if connectivity_file:
-            conn_copy = os.path.join(bridge_dir, os.path.basename(connectivity_file))
-            shutil.copy2(connectivity_file, conn_copy)
-            print(f"  ✓ Copied connectivity: {conn_copy}")
-
-        # Generate filelist with dependencies
-        #
-        # Directory structure:
-        #   rtl/
-        #     generated/
-        #       bridge_1x2_wr/  <- bridge_dir
-        #         bridge_1x2_wr_pkg.sv
-        #         cpu_adapter.sv
-        #         bridge_1x2_wr.sv
-        #     filelists/  <- filelist_dir (two levels up from bridge_dir, then into filelists/)
-        #       bridge_1x2_wr.f
-        #
-        # Filelist paths use $REPO_ROOT environment variable for robustness
-        # Set in env_python before running tools
-        #
-        filelist_lines = []
-
-        # Add include directory first
-        filelist_lines.append("# Include directories")
-        filelist_lines.append("+incdir+$REPO_ROOT/rtl/amba/includes")
-        filelist_lines.append("")
-
-        filelist_lines.append("# Bridge RTL files (generated)")
-
-        # Compute filelist directory: two levels up from bridge_dir, then into filelists/
-        # bridge_dir = rtl/generated/bridge_1x2_wr
-        # parent of bridge_dir = rtl/generated
-        # parent of parent = rtl
-        # filelist_dir = rtl/filelists
-        rtl_dir = os.path.dirname(os.path.dirname(bridge_dir))  # Go up 2 levels to rtl/
-        filelist_dir = os.path.join(rtl_dir, "filelists")
-
-        # Anchor every emitted bridge-file path on $REPO_ROOT (when we can
-        # find a git root above the output dir). Bare relative paths break
-        # whenever the bridge filelist is `-f`-included from another
-        # filelist whose base dir is somewhere else — both consumers
-        # (Vivado's tcl/filelist_utils.tcl and TBClasses/shared/
-        # filelist_utils.py via FileListProcessor) flatten nested filelists
-        # against the outer filelist's base, so a nested `generated/...`
-        # path resolves wrong. Using $REPO_ROOT-anchored paths matches
-        # every other entry in the filelist (axi4_slave_*, gaxi_*, ...).
-        try:
-            repo_root_for_bridge = str(get_repo_root_for_path(Path(bridge_dir)))
-        except (RuntimeError, OSError):
-            repo_root_for_bridge = None
-
-        def _bridge_file_path(fp: str) -> str:
-            if repo_root_for_bridge:
-                try:
-                    rel = Path(fp).resolve().relative_to(repo_root_for_bridge)
-                    return f"$REPO_ROOT/{rel.as_posix()}"
-                except ValueError:
-                    pass  # bridge_dir lives outside the repo for some reason
-            return os.path.relpath(fp, rtl_dir)
-
-        # Package must be first for compile order
-        if 'package' in generated_files:
-            filelist_lines.append(_bridge_file_path(generated_files['package']))
-
-        # Then other files (adapters, bridge)
-        for file_key in sorted(generated_files.keys()):
-            if file_key != 'package':  # Skip package (already added)
-                filelist_lines.append(_bridge_file_path(generated_files[file_key]))
-
-        filelist_lines.append("")
-        filelist_lines.append("# AXI4 Wrapper modules (timing isolation)")
-        filelist_lines.append("# Master adapters use axi4_slave_* (act as AXI slave to external master)")
-        filelist_lines.append("$REPO_ROOT/rtl/amba/axi4/axi4_slave_wr.sv")
-        filelist_lines.append("$REPO_ROOT/rtl/amba/axi4/axi4_slave_rd.sv")
-        filelist_lines.append("# Slave adapters use axi4_master_* (act as AXI master to external slave)")
-        filelist_lines.append("$REPO_ROOT/rtl/amba/axi4/axi4_master_wr.sv")
-        filelist_lines.append("$REPO_ROOT/rtl/amba/axi4/axi4_master_rd.sv")
-
-        filelist_lines.append("")
-        filelist_lines.append("# GAXI skid buffers (used by wrappers and converters)")
-        filelist_lines.append("$REPO_ROOT/rtl/amba/gaxi/gaxi_skid_buffer.sv")
-
-        filelist_lines.append("")
-        filelist_lines.append("# Width converters (for data width adaptation).")
-        filelist_lines.append("# axi_data_{upsize,dnsize} are validated primitives used by the")
-        filelist_lines.append("# axi4_dwidth_converter_{rd,wr} wrappers for the W/R data path.")
-        filelist_lines.append("$REPO_ROOT/projects/components/converters/rtl/axi_data_upsize.sv")
-        filelist_lines.append("$REPO_ROOT/projects/components/converters/rtl/axi_data_dnsize.sv")
-        filelist_lines.append("$REPO_ROOT/projects/components/converters/rtl/axi4_dwidth_converter_rd.sv")
-        filelist_lines.append("$REPO_ROOT/projects/components/converters/rtl/axi4_dwidth_converter_wr.sv")
-
-        # Check if any slaves use APB protocol
-        has_apb = any(slave.protocol.lower() == 'apb' for slave in config.slaves)
-        if has_apb:
-            filelist_lines.append("")
-            filelist_lines.append("# APB protocol converter dependencies (in dependency order)")
-            filelist_lines.append("# Common dependencies first")
-            filelist_lines.append("$REPO_ROOT/rtl/common/counter_bin.sv")
-            filelist_lines.append("$REPO_ROOT/rtl/common/fifo_control.sv")
-            filelist_lines.append("")
-            filelist_lines.append("# AMBA shared modules")
-            filelist_lines.append("$REPO_ROOT/rtl/amba/shared/axi_gen_addr.sv")
-            filelist_lines.append("$REPO_ROOT/rtl/amba/gaxi/gaxi_fifo_sync.sv")
-            filelist_lines.append("")
-            filelist_lines.append("# AXI4 stubs")
-            filelist_lines.append("$REPO_ROOT/rtl/amba/axi4/stubs/axi4_slave_wr_stub.sv")
-            filelist_lines.append("$REPO_ROOT/rtl/amba/axi4/stubs/axi4_slave_rd_stub.sv")
-            filelist_lines.append("$REPO_ROOT/rtl/amba/axi4/stubs/axi4_slave_stub.sv")
-            filelist_lines.append("")
-            filelist_lines.append("# APB modules")
-            filelist_lines.append("$REPO_ROOT/rtl/amba/apb/apb_master.sv")
-            filelist_lines.append("$REPO_ROOT/rtl/amba/shared/cdc_2_phase_handshake.sv")
-            filelist_lines.append("$REPO_ROOT/rtl/amba/shared/cdc_4_phase_handshake.sv")
-            filelist_lines.append("$REPO_ROOT/projects/components/converters/rtl/axi4_to_apb_convert.sv")
-            filelist_lines.append("$REPO_ROOT/rtl/amba/apb/apb_master_stub.sv")
-            filelist_lines.append("")
-            filelist_lines.append("# APB protocol converter (AXI4 to APB)")
-            filelist_lines.append("$REPO_ROOT/projects/components/converters/rtl/axi4_to_apb_shim.sv")
-
-        # Check if any slaves use AXI4-Lite protocol
-        has_axil = any(slave.protocol.lower() == 'axil' for slave in config.slaves)
-        if has_axil:
-            filelist_lines.append("")
-            filelist_lines.append("# AXI4-Lite protocol converter dependencies")
-            filelist_lines.append("$REPO_ROOT/projects/components/converters/rtl/axi4_to_axil4_rd.sv")
-            filelist_lines.append("$REPO_ROOT/projects/components/converters/rtl/axi4_to_axil4_wr.sv")
-
-        # Monitor-aggregation dependencies. Only added when the TOML
-        # opts in via [bridge].use_monitor = true. Pulls in the _mon
-        # wrapper variants, the shared axi_monitor_* core, the monbus
-        # arbiter + axil_group, and the AXIL4 modules the group uses.
-        if config.use_monitor:
-            filelist_lines.append("")
-            filelist_lines.append("# Monitor-aggregation infrastructure (use_monitor=true)")
-            filelist_lines.append("# Header files with macros (already compiled if AMBA pkg path included)")
-            filelist_lines.append("$REPO_ROOT/rtl/amba/includes/reset_defs.svh")
-            filelist_lines.append("$REPO_ROOT/rtl/amba/includes/fifo_defs.svh")
-            filelist_lines.append("# Monitor packages -- must precede module compilation")
-            filelist_lines.append("$REPO_ROOT/rtl/amba/includes/monitor_common_pkg.sv")
-            filelist_lines.append("$REPO_ROOT/rtl/amba/includes/monitor_arbiter_pkg.sv")
-            filelist_lines.append("$REPO_ROOT/rtl/amba/includes/monitor_amba4_pkg.sv")
-            filelist_lines.append("$REPO_ROOT/rtl/amba/includes/monitor_amba5_pkg.sv")
-            filelist_lines.append("$REPO_ROOT/rtl/amba/includes/monitor_pkg.sv")
-            filelist_lines.append("# Common arbitration primitives (used by axi_monitor_*)")
-            filelist_lines.append("$REPO_ROOT/rtl/common/arbiter_priority_encoder.sv")
-            filelist_lines.append("$REPO_ROOT/rtl/common/arbiter_round_robin.sv")
-            filelist_lines.append("# Common counters & FIFO control (used by gaxi_fifo_sync + axi_monitor_timer)")
-            filelist_lines.append("$REPO_ROOT/rtl/common/counter_bin.sv")
-            filelist_lines.append("$REPO_ROOT/rtl/common/counter_load_clear.sv")
-            filelist_lines.append("$REPO_ROOT/rtl/common/counter_freq_invariant.sv")
-            filelist_lines.append("$REPO_ROOT/rtl/common/fifo_control.sv")
-            filelist_lines.append("# axi_monitor_* shared infrastructure (order matters)")
-            filelist_lines.append("$REPO_ROOT/rtl/amba/shared/axi_monitor_trans_mgr.sv")
-            filelist_lines.append("$REPO_ROOT/rtl/amba/shared/axi_monitor_timer.sv")
-            filelist_lines.append("$REPO_ROOT/rtl/amba/shared/axi_monitor_timeout.sv")
-            filelist_lines.append("$REPO_ROOT/rtl/amba/shared/axi_monitor_reporter.sv")
-            filelist_lines.append("$REPO_ROOT/rtl/amba/shared/axi_monitor_base.sv")
-            filelist_lines.append("$REPO_ROOT/rtl/amba/shared/axi_monitor_filtered.sv")
-            filelist_lines.append("# _mon wrapper variants (instantiated by adapters when use_monitor=true)")
-            filelist_lines.append("$REPO_ROOT/rtl/amba/axi4/axi4_slave_wr_mon.sv")
-            filelist_lines.append("$REPO_ROOT/rtl/amba/axi4/axi4_slave_rd_mon.sv")
-            filelist_lines.append("$REPO_ROOT/rtl/amba/axi4/axi4_master_wr_mon.sv")
-            filelist_lines.append("$REPO_ROOT/rtl/amba/axi4/axi4_master_rd_mon.sv")
-            filelist_lines.append("# Monbus aggregator + AXIL group")
-            filelist_lines.append("$REPO_ROOT/rtl/amba/gaxi/gaxi_fifo_sync.sv")
-            filelist_lines.append("$REPO_ROOT/rtl/amba/shared/monbus_arbiter.sv")
-            filelist_lines.append("$REPO_ROOT/rtl/amba/axil4/axil4_slave_rd.sv")
-            filelist_lines.append("$REPO_ROOT/rtl/amba/axil4/axil4_master_wr.sv")
-            filelist_lines.append("$REPO_ROOT/projects/components/stream/rtl/macro/monbus_axil_group.sv")
-
-        # Note: Width converters are included even if not used in this specific bridge
-        # because they're needed when master/slave data widths differ.
-        # The synthesizer will optimize away unused instances.
-
-        filelist_content = '\n'.join(filelist_lines)
-        os.makedirs(filelist_dir, exist_ok=True)
-
-        filelist_path = os.path.join(filelist_dir, f"{output_name}.f")
-        with open(filelist_path, 'w') as f:
-            f.write(filelist_content)
-
-        print(f"  ✓ Generated filelist: {filelist_path}")
-
-        return (True, output_name)
+        return (True, emitted_variants)
 
     except Exception as e:
         print(f"  ✗ Bridge generation failed: {e}")
         import traceback
         traceback.print_exc()
-        return (False, None)
+        return (False, [])
+
+
+def _emit_bridge_variant(
+    *, output_name, use_monitor, output_dir,
+    config, masters, slaves, connectivity,
+    ports_file, connectivity_file,
+):
+    """Emit one variant (no or mon) of a bridge: package + adapters +
+    crossbar + top, plus its filelist. Each variant gets its own
+    `<output_dir>/<output_name>/` directory and its own filelist."""
+    bridge_dir = os.path.join(output_dir, output_name)
+
+    # CRITICAL: Remove existing bridge directory to ensure clean regeneration
+    if os.path.exists(bridge_dir):
+        print(f"  Removing existing bridge directory: {bridge_dir}")
+        shutil.rmtree(bridge_dir)
+
+    os.makedirs(bridge_dir, exist_ok=True)
+
+    # Convert PortSpec to MasterConfig/SlaveInfo format
+    master_configs = []
+    slave_infos = []
+
+    for master_spec in masters:
+        # Build slave connection list (indices of slaves this master connects to)
+        slave_connections = []
+        # Get list of slaves this master connects to
+        connected_slave_names = connectivity.get(master_spec.port_name, [])
+        for slave_idx, slave_spec in enumerate(slaves):
+            # Check if this slave is in the master's connection list
+            if slave_spec.port_name in connected_slave_names:
+                slave_connections.append(slave_idx)
+
+        # Normalise prefix at the boundary: many downstream emitters
+        # build signal names as `f"{prefix}{signal}"` and break if the
+        # config forgot the trailing underscore (e.g. "cpu_m_axi" →
+        # "cpu_m_axiawid"). Doing it here means every consumer sees the
+        # well-formed prefix without having to remember to normalise.
+        master_prefix = _normalize_prefix(master_spec.prefix)
+        master_config = MasterConfig(
+            name=master_spec.port_name,
+            prefix=master_prefix,
+            data_width=master_spec.data_width,
+            addr_width=master_spec.addr_width,
+            id_width=master_spec.id_width,
+            channels=master_spec.channels,
+            slave_connections=slave_connections
+        )
+        master_configs.append(master_config)
+
+    for slave_spec in slaves:
+        slave_prefix = _normalize_prefix(slave_spec.prefix)
+        slave_info = SlaveInfo(
+            name=slave_spec.port_name,
+            prefix=slave_prefix,  # Pass slave prefix from config
+            base_addr=slave_spec.base_addr,
+            addr_range=slave_spec.addr_range,
+            data_width=slave_spec.data_width,
+            addr_width=slave_spec.addr_width,
+            protocol=slave_spec.protocol
+        )
+        slave_infos.append(slave_info)
+
+    # Create BridgeModuleGenerator with new adapter architecture.
+    # use_monitor is set per-variant by the caller (generate_bridge
+    # loops over config.variants). The "no" variant emits an
+    # unmonitored bridge; "mon" emits a monitored bridge.
+    gen = BridgeModuleGenerator(
+        bridge_name=output_name,
+        enable_monitoring=use_monitor,
+    )
+
+    for master in master_configs:
+        gen.add_master(master)
+    for slave in slave_infos:
+        gen.add_slave(slave)
+
+    # Generate all files (package + adapters + bridge)
+    generated_files = gen.generate_all(bridge_dir)
+
+    print(f"  ✓ Generated bridge package: {generated_files['package']}")
+    for master in master_configs:
+        adapter_key = f"adapter_{master.name}"
+        if adapter_key in generated_files:
+            print(f"  ✓ Generated adapter: {generated_files[adapter_key]}")
+    print(f"  ✓ Generated bridge: {generated_files['bridge']}")
+
+    # Copy configuration files to bridge directory for reference
+    if ports_file:
+        config_copy = os.path.join(bridge_dir, os.path.basename(ports_file))
+        shutil.copy2(ports_file, config_copy)
+        print(f"  ✓ Copied config: {config_copy}")
+
+    if connectivity_file:
+        conn_copy = os.path.join(bridge_dir, os.path.basename(connectivity_file))
+        shutil.copy2(connectivity_file, conn_copy)
+        print(f"  ✓ Copied connectivity: {conn_copy}")
+
+    # Generate filelist with dependencies
+    #
+    # Directory structure:
+    #   rtl/
+    #     generated/
+    #       bridge_1x2_wr/  <- bridge_dir
+    #         bridge_1x2_wr_pkg.sv
+    #         cpu_adapter.sv
+    #         bridge_1x2_wr.sv
+    #     filelists/  <- filelist_dir (two levels up from bridge_dir, then into filelists/)
+    #       bridge_1x2_wr.f
+    #
+    # Filelist paths use $REPO_ROOT environment variable for robustness
+    # Set in env_python before running tools
+    #
+    filelist_lines = []
+
+    # Add include directory first
+    filelist_lines.append("# Include directories")
+    filelist_lines.append("+incdir+$REPO_ROOT/rtl/amba/includes")
+    filelist_lines.append("")
+
+    filelist_lines.append("# Bridge RTL files (generated)")
+
+    # Compute filelist directory: two levels up from bridge_dir, then into filelists/
+    # bridge_dir = rtl/generated/bridge_1x2_wr
+    # parent of bridge_dir = rtl/generated
+    # parent of parent = rtl
+    # filelist_dir = rtl/filelists
+    rtl_dir = os.path.dirname(os.path.dirname(bridge_dir))  # Go up 2 levels to rtl/
+    filelist_dir = os.path.join(rtl_dir, "filelists")
+
+    # Anchor every emitted bridge-file path on $REPO_ROOT (when we can
+    # find a git root above the output dir). Bare relative paths break
+    # whenever the bridge filelist is `-f`-included from another
+    # filelist whose base dir is somewhere else — both consumers
+    # (Vivado's tcl/filelist_utils.tcl and TBClasses/shared/
+    # filelist_utils.py via FileListProcessor) flatten nested filelists
+    # against the outer filelist's base, so a nested `generated/...`
+    # path resolves wrong. Using $REPO_ROOT-anchored paths matches
+    # every other entry in the filelist (axi4_slave_*, gaxi_*, ...).
+    try:
+        repo_root_for_bridge = str(get_repo_root_for_path(Path(bridge_dir)))
+    except (RuntimeError, OSError):
+        repo_root_for_bridge = None
+
+    def _bridge_file_path(fp: str) -> str:
+        if repo_root_for_bridge:
+            try:
+                rel = Path(fp).resolve().relative_to(repo_root_for_bridge)
+                return f"$REPO_ROOT/{rel.as_posix()}"
+            except ValueError:
+                pass  # bridge_dir lives outside the repo for some reason
+        return os.path.relpath(fp, rtl_dir)
+
+    # Package must be first for compile order
+    if 'package' in generated_files:
+        filelist_lines.append(_bridge_file_path(generated_files['package']))
+
+    # Then other files (adapters, bridge)
+    for file_key in sorted(generated_files.keys()):
+        if file_key != 'package':  # Skip package (already added)
+            filelist_lines.append(_bridge_file_path(generated_files[file_key]))
+
+    filelist_lines.append("")
+    filelist_lines.append("# AXI4 Wrapper modules (timing isolation)")
+    filelist_lines.append("# Master adapters use axi4_slave_* (act as AXI slave to external master)")
+    filelist_lines.append("$REPO_ROOT/rtl/amba/axi4/axi4_slave_wr.sv")
+    filelist_lines.append("$REPO_ROOT/rtl/amba/axi4/axi4_slave_rd.sv")
+    filelist_lines.append("# Slave adapters use axi4_master_* (act as AXI master to external slave)")
+    filelist_lines.append("$REPO_ROOT/rtl/amba/axi4/axi4_master_wr.sv")
+    filelist_lines.append("$REPO_ROOT/rtl/amba/axi4/axi4_master_rd.sv")
+
+    filelist_lines.append("")
+    filelist_lines.append("# GAXI skid buffers (used by wrappers and converters)")
+    filelist_lines.append("$REPO_ROOT/rtl/amba/gaxi/gaxi_skid_buffer.sv")
+
+    filelist_lines.append("")
+    filelist_lines.append("# Width converters (for data width adaptation).")
+    filelist_lines.append("# axi_data_{upsize,dnsize} are validated primitives used by the")
+    filelist_lines.append("# axi4_dwidth_converter_{rd,wr} wrappers for the W/R data path.")
+    filelist_lines.append("$REPO_ROOT/projects/components/converters/rtl/axi_data_upsize.sv")
+    filelist_lines.append("$REPO_ROOT/projects/components/converters/rtl/axi_data_dnsize.sv")
+    filelist_lines.append("$REPO_ROOT/projects/components/converters/rtl/axi4_dwidth_converter_rd.sv")
+    filelist_lines.append("$REPO_ROOT/projects/components/converters/rtl/axi4_dwidth_converter_wr.sv")
+
+    # Check if any slaves use APB protocol
+    has_apb = any(slave.protocol.lower() == 'apb' for slave in config.slaves)
+    if has_apb:
+        filelist_lines.append("")
+        filelist_lines.append("# APB protocol converter dependencies (in dependency order)")
+        filelist_lines.append("# Common dependencies first")
+        filelist_lines.append("$REPO_ROOT/rtl/common/counter_bin.sv")
+        filelist_lines.append("$REPO_ROOT/rtl/common/fifo_control.sv")
+        filelist_lines.append("")
+        filelist_lines.append("# AMBA shared modules")
+        filelist_lines.append("$REPO_ROOT/rtl/amba/shared/axi_gen_addr.sv")
+        filelist_lines.append("$REPO_ROOT/rtl/amba/gaxi/gaxi_fifo_sync.sv")
+        filelist_lines.append("")
+        filelist_lines.append("# AXI4 stubs")
+        filelist_lines.append("$REPO_ROOT/rtl/amba/axi4/stubs/axi4_slave_wr_stub.sv")
+        filelist_lines.append("$REPO_ROOT/rtl/amba/axi4/stubs/axi4_slave_rd_stub.sv")
+        filelist_lines.append("$REPO_ROOT/rtl/amba/axi4/stubs/axi4_slave_stub.sv")
+        filelist_lines.append("")
+        filelist_lines.append("# APB modules")
+        filelist_lines.append("$REPO_ROOT/rtl/amba/apb/apb_master.sv")
+        filelist_lines.append("$REPO_ROOT/rtl/amba/shared/cdc_2_phase_handshake.sv")
+        filelist_lines.append("$REPO_ROOT/rtl/amba/shared/cdc_4_phase_handshake.sv")
+        filelist_lines.append("$REPO_ROOT/projects/components/converters/rtl/axi4_to_apb_convert.sv")
+        filelist_lines.append("$REPO_ROOT/rtl/amba/apb/apb_master_stub.sv")
+        filelist_lines.append("")
+        filelist_lines.append("# APB protocol converter (AXI4 to APB)")
+        filelist_lines.append("$REPO_ROOT/projects/components/converters/rtl/axi4_to_apb_shim.sv")
+
+    # Check if any slaves use AXI4-Lite protocol
+    has_axil = any(slave.protocol.lower() == 'axil' for slave in config.slaves)
+    if has_axil:
+        filelist_lines.append("")
+        filelist_lines.append("# AXI4-Lite protocol converter dependencies")
+        filelist_lines.append("$REPO_ROOT/projects/components/converters/rtl/axi4_to_axil4_rd.sv")
+        filelist_lines.append("$REPO_ROOT/projects/components/converters/rtl/axi4_to_axil4_wr.sv")
+
+    # Monitor-aggregation dependencies. Only added for the "mon"
+    # variant -- the "no" variant uses the non-_mon wrappers and has
+    # no monbus arbiter/group. Pulls in the _mon wrapper variants,
+    # the shared axi_monitor_* core, the monbus arbiter + axil_group,
+    # and the AXIL4 modules the group uses.
+    if use_monitor:
+        filelist_lines.append("")
+        filelist_lines.append("# Monitor-aggregation infrastructure (variant=mon)")
+        filelist_lines.append("# Header files with macros (already compiled if AMBA pkg path included)")
+        filelist_lines.append("$REPO_ROOT/rtl/amba/includes/reset_defs.svh")
+        filelist_lines.append("$REPO_ROOT/rtl/amba/includes/fifo_defs.svh")
+        filelist_lines.append("# Monitor packages -- must precede module compilation")
+        filelist_lines.append("$REPO_ROOT/rtl/amba/includes/monitor_common_pkg.sv")
+        filelist_lines.append("$REPO_ROOT/rtl/amba/includes/monitor_arbiter_pkg.sv")
+        filelist_lines.append("$REPO_ROOT/rtl/amba/includes/monitor_amba4_pkg.sv")
+        filelist_lines.append("$REPO_ROOT/rtl/amba/includes/monitor_amba5_pkg.sv")
+        filelist_lines.append("$REPO_ROOT/rtl/amba/includes/monitor_pkg.sv")
+        filelist_lines.append("# Common arbitration primitives (used by axi_monitor_*)")
+        filelist_lines.append("$REPO_ROOT/rtl/common/arbiter_priority_encoder.sv")
+        filelist_lines.append("$REPO_ROOT/rtl/common/arbiter_round_robin.sv")
+        filelist_lines.append("# Common counters & FIFO control (used by gaxi_fifo_sync + axi_monitor_timer)")
+        filelist_lines.append("$REPO_ROOT/rtl/common/counter_bin.sv")
+        filelist_lines.append("$REPO_ROOT/rtl/common/counter_load_clear.sv")
+        filelist_lines.append("$REPO_ROOT/rtl/common/counter_freq_invariant.sv")
+        filelist_lines.append("$REPO_ROOT/rtl/common/fifo_control.sv")
+        filelist_lines.append("# axi_monitor_* shared infrastructure (order matters)")
+        filelist_lines.append("$REPO_ROOT/rtl/amba/shared/axi_monitor_trans_mgr.sv")
+        filelist_lines.append("$REPO_ROOT/rtl/amba/shared/axi_monitor_timer.sv")
+        filelist_lines.append("$REPO_ROOT/rtl/amba/shared/axi_monitor_timeout.sv")
+        filelist_lines.append("$REPO_ROOT/rtl/amba/shared/axi_monitor_reporter.sv")
+        filelist_lines.append("$REPO_ROOT/rtl/amba/shared/axi_monitor_base.sv")
+        filelist_lines.append("$REPO_ROOT/rtl/amba/shared/axi_monitor_filtered.sv")
+        filelist_lines.append("# _mon wrapper variants (instantiated by adapters when use_monitor=true)")
+        filelist_lines.append("$REPO_ROOT/rtl/amba/axi4/axi4_slave_wr_mon.sv")
+        filelist_lines.append("$REPO_ROOT/rtl/amba/axi4/axi4_slave_rd_mon.sv")
+        filelist_lines.append("$REPO_ROOT/rtl/amba/axi4/axi4_master_wr_mon.sv")
+        filelist_lines.append("$REPO_ROOT/rtl/amba/axi4/axi4_master_rd_mon.sv")
+        filelist_lines.append("# Monbus aggregator + AXIL group")
+        filelist_lines.append("$REPO_ROOT/rtl/amba/gaxi/gaxi_fifo_sync.sv")
+        filelist_lines.append("$REPO_ROOT/rtl/amba/shared/monbus_arbiter.sv")
+        filelist_lines.append("$REPO_ROOT/rtl/amba/axil4/axil4_slave_rd.sv")
+        filelist_lines.append("$REPO_ROOT/rtl/amba/axil4/axil4_master_wr.sv")
+        filelist_lines.append("$REPO_ROOT/projects/components/stream/rtl/macro/monbus_axil_group.sv")
+
+    # Note: Width converters are included even if not used in this specific bridge
+    # because they're needed when master/slave data widths differ.
+    # The synthesizer will optimize away unused instances.
+
+    filelist_content = '\n'.join(filelist_lines)
+    os.makedirs(filelist_dir, exist_ok=True)
+
+    filelist_path = os.path.join(filelist_dir, f"{output_name}.f")
+    with open(filelist_path, 'w') as f:
+        f.write(filelist_content)
+
+    print(f"  ✓ Generated filelist: {filelist_path}")
 
 
 def parse_bulk_csv(bulk_file):
@@ -763,8 +797,8 @@ Bulk Generation CSV Format:
             print(f"  Ports: {config['ports']}")
             print(f"  Connectivity: {config['connectivity']}")
 
-            # Generate RTL
-            success, bridge_name = generate_bridge(
+            # Generate RTL (returns list of (variant_name, is_mon) tuples)
+            success, emitted_variants = generate_bridge(
                 ports_file=config['ports'],
                 connectivity_file=config['connectivity'],
                 name=config['name'],
@@ -775,20 +809,29 @@ Bulk Generation CSV Format:
             if success:
                 success_count += 1
 
-                # Generate tests if requested
-                if args.generate_tests and bridge_name:
-                    print(f"  Generating tests for {bridge_name}...")
-                    test_success = generate_tests(
-                        ports_file=config['ports'],
-                        connectivity_file=config['connectivity'],
-                        bridge_name=bridge_name,
-                        output_tb_dir=config['output_tb'],
-                        output_test_dir=config['output_test'],
-                        enable_ooo=True,
-                        output_rtl_dir=config['output_dir']
-                    )
-                    if not test_success:
-                        print(f"  ⚠ Test generation failed for {bridge_name}")
+                # Generate tests if requested -- only for non-monitor
+                # variants. The "mon" variant has a much larger top-
+                # level port surface (per-port cfg, AXIL, IRQ) that
+                # the cocotb test generator doesn't know how to drive;
+                # those need a hand-written or future-auto-generated
+                # tie-off wrapper before a real test can attach.
+                if args.generate_tests:
+                    for variant_name, is_mon in emitted_variants:
+                        if is_mon:
+                            print(f"  Skipping test generation for monitored variant {variant_name}")
+                            continue
+                        print(f"  Generating tests for {variant_name}...")
+                        test_success = generate_tests(
+                            ports_file=config['ports'],
+                            connectivity_file=config['connectivity'],
+                            bridge_name=variant_name,
+                            output_tb_dir=config['output_tb'],
+                            output_test_dir=config['output_test'],
+                            enable_ooo=True,
+                            output_rtl_dir=config['output_dir']
+                        )
+                        if not test_success:
+                            print(f"  ⚠ Test generation failed for {variant_name}")
             else:
                 fail_count += 1
 
@@ -815,8 +858,8 @@ Bulk Generation CSV Format:
         print("Single generation mode")
         print("")
 
-        # Generate RTL
-        success, bridge_name = generate_bridge(
+        # Generate RTL (returns list of (variant_name, is_mon) tuples)
+        success, emitted_variants = generate_bridge(
             ports_file=args.ports,
             connectivity_file=args.connectivity,  # Can be None for YAML
             name=args.name,
@@ -831,21 +874,26 @@ Bulk Generation CSV Format:
             print("="*70)
             sys.exit(1)
 
-        # Generate tests if requested
-        if args.generate_tests and bridge_name:
-            print("")
-            print(f"Generating tests for {bridge_name}...")
-            test_success = generate_tests(
-                ports_file=args.ports,
-                connectivity_file=args.connectivity,
-                bridge_name=bridge_name,
-                output_tb_dir=args.output_tb,
-                output_test_dir=args.output_test,
-                enable_ooo=True,
-                output_rtl_dir=args.output_dir
-            )
-            if not test_success:
-                print("  ⚠ Test generation failed")
+        # Generate tests if requested -- only for non-monitor variants
+        # (see bulk mode for rationale).
+        if args.generate_tests:
+            for variant_name, is_mon in emitted_variants:
+                if is_mon:
+                    print(f"Skipping test generation for monitored variant {variant_name}")
+                    continue
+                print("")
+                print(f"Generating tests for {variant_name}...")
+                test_success = generate_tests(
+                    ports_file=args.ports,
+                    connectivity_file=args.connectivity,
+                    bridge_name=variant_name,
+                    output_tb_dir=args.output_tb,
+                    output_test_dir=args.output_test,
+                    enable_ooo=True,
+                    output_rtl_dir=args.output_dir
+                )
+                if not test_success:
+                    print("  ⚠ Test generation failed")
 
         print("")
         print("="*70)

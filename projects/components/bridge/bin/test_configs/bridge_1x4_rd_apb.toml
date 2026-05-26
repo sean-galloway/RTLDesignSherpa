@@ -3,7 +3,7 @@
 
 [bridge]
 name = "bridge_1x4_rd"
-use_monitor = false
+variants = ["no"]
 description = "1 master x 4 slave read-only bridge with APB slave"
 
 # Clock configuration for testing
