@@ -135,6 +135,12 @@ module axil4_slave_wr_mon
 );
 
     // -------------------------------------------------------------------------
+    // Monitor backpressure plumbing (see axi4_master_rd_mon for full rationale)
+    // -------------------------------------------------------------------------
+    logic w_core_s_axil_awready;
+    logic w_block_ready;
+
+    // -------------------------------------------------------------------------
     // Instantiate AXIL4 Slave Write Core
     // -------------------------------------------------------------------------
     axil4_slave_wr #(
@@ -151,7 +157,7 @@ module axil4_slave_wr_mon
         .s_axil_awaddr           (s_axil_awaddr),
         .s_axil_awprot           (s_axil_awprot),
         .s_axil_awvalid          (s_axil_awvalid),
-        .s_axil_awready          (s_axil_awready),
+        .s_axil_awready          (w_core_s_axil_awready),    // gated below
 
         .s_axil_wdata            (s_axil_wdata),
         .s_axil_wstrb            (s_axil_wstrb),
@@ -255,10 +261,10 @@ module axil4_slave_wr_mon
             .monbus_packet           (monbus_packet),
 
             // Status outputs
-            // TODO(block_ready): unconnected — see axi4_master_rd_mon.sv.
-            //   Should backpressure s_axil_awready when monitor FIFO is full.
+            // block_ready stalls new AWs at s_axil_awready when the monitor
+            // FIFO is full (wire ANDed into the wrapper output below).
+            .block_ready             (w_block_ready),
             /* verilator lint_off PINCONNECTEMPTY */
-            .block_ready             (),                 // BUG: see TODO(block_ready)
             .busy                    (),                 // Unused (using slave busy)
             /* verilator lint_on PINCONNECTEMPTY */
             .active_count            (active_transactions),
@@ -271,7 +277,11 @@ module axil4_slave_wr_mon
         assign monbus_packet       = 64'h0;
         assign active_transactions = 8'h0;
         assign cfg_conflict_error  = 1'b0;
+        assign w_block_ready       = 1'b1;
     end
+
+    // Gate the upstream AW handshake on monitor block_ready.
+    assign s_axil_awready = w_core_s_axil_awready & w_block_ready;
 
     // error_count / transaction_count: not exposed by axi_monitor_filtered;
     // tied to 0 in both monitor-on and monitor-off cases.

@@ -172,6 +172,10 @@ module axi5_slave_wr_mon
     output logic                       cfg_conflict_error
 );
 
+    // Monitor backpressure plumbing (see axi4_master_rd_mon for full rationale)
+    logic w_core_s_axi_awready;
+    logic w_block_ready;
+
     axi5_slave_wr #(
         .SKID_DEPTH_AW(SKID_DEPTH_AW), .SKID_DEPTH_W(SKID_DEPTH_W), .SKID_DEPTH_B(SKID_DEPTH_B),
         .AXI_ID_WIDTH(AXI_ID_WIDTH), .AXI_ADDR_WIDTH(AXI_ADDR_WIDTH),
@@ -188,7 +192,7 @@ module axi5_slave_wr_mon
         .s_axi_awid(s_axi_awid), .s_axi_awaddr(s_axi_awaddr), .s_axi_awlen(s_axi_awlen),
         .s_axi_awsize(s_axi_awsize), .s_axi_awburst(s_axi_awburst), .s_axi_awlock(s_axi_awlock),
         .s_axi_awcache(s_axi_awcache), .s_axi_awprot(s_axi_awprot), .s_axi_awqos(s_axi_awqos),
-        .s_axi_awuser(s_axi_awuser), .s_axi_awvalid(s_axi_awvalid), .s_axi_awready(s_axi_awready),
+        .s_axi_awuser(s_axi_awuser), .s_axi_awvalid(s_axi_awvalid), .s_axi_awready(w_core_s_axi_awready),  // gated below
         .s_axi_awatop(s_axi_awatop), .s_axi_awnsaid(s_axi_awnsaid), .s_axi_awtrace(s_axi_awtrace),
         .s_axi_awmpam(s_axi_awmpam), .s_axi_awmecid(s_axi_awmecid), .s_axi_awunique(s_axi_awunique),
         .s_axi_awtagop(s_axi_awtagop), .s_axi_awtag(s_axi_awtag),
@@ -241,10 +245,12 @@ module axi5_slave_wr_mon
             .cfg_axi_perf_mask(cfg_axi_perf_mask), .cfg_axi_addr_mask(cfg_axi_addr_mask),
             .cfg_axi_debug_mask(cfg_axi_debug_mask),
             .monbus_valid(monbus_valid), .monbus_ready(monbus_ready), .monbus_packet(monbus_packet),
-            // TODO(block_ready): unconnected — see axi4_master_rd_mon.sv. Should
-            //   backpressure fub_axi_awready when monitor FIFO is full.
+            // block_ready stalls new AWs at s_axi_awready when monitor FIFO is
+            // full. Note: monitor here watches the FUB-side handshake, so the
+            // gating point and watchpoint are separated by the slave_wr core's
+            // pipeline (SKID_DEPTH_AW beats of lag).
+            .block_ready(w_block_ready),
             /* verilator lint_off PINCONNECTEMPTY */
-            .block_ready(),                                            // BUG: see TODO(block_ready)
             .busy(),
             /* verilator lint_on PINCONNECTEMPTY */
             .active_count(active_transactions), .cfg_conflict_error(cfg_conflict_error)
@@ -254,7 +260,11 @@ module axi5_slave_wr_mon
         assign monbus_packet       = 64'h0;
         assign active_transactions = 8'h0;
         assign cfg_conflict_error  = 1'b0;
+        assign w_block_ready       = 1'b1;
     end
+
+    // Gate the upstream AW handshake on monitor block_ready.
+    assign s_axi_awready = w_core_s_axi_awready & w_block_ready;
 
     assign error_count = 16'h0;
     assign transaction_count = 32'h0;

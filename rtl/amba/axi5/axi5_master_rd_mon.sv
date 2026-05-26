@@ -200,6 +200,10 @@ module axi5_master_rd_mon
     output logic                       cfg_conflict_error
 );
 
+    // Monitor backpressure plumbing (see axi4_master_rd_mon for full rationale)
+    logic w_core_fub_axi_arready;
+    logic w_block_ready;
+
     // Instantiate AXI5 Master Read Core
     axi5_master_rd #(
         .SKID_DEPTH_AR       (SKID_DEPTH_AR),
@@ -238,7 +242,7 @@ module axi5_master_rd_mon
         .fub_axi_arqos       (fub_axi_arqos),
         .fub_axi_aruser      (fub_axi_aruser),
         .fub_axi_arvalid     (fub_axi_arvalid),
-        .fub_axi_arready     (fub_axi_arready),
+        .fub_axi_arready     (w_core_fub_axi_arready),  // gated below
         .fub_axi_arnsaid     (fub_axi_arnsaid),
         .fub_axi_artrace     (fub_axi_artrace),
         .fub_axi_armpam      (fub_axi_armpam),
@@ -366,10 +370,10 @@ module axi5_master_rd_mon
             .monbus_ready        (monbus_ready),
             .monbus_packet       (monbus_packet),
 
-            // TODO(block_ready): unconnected — see axi4_master_rd_mon.sv.
-            //   Should backpressure m_axi_arready when monitor FIFO is full.
+            // block_ready stalls new ARs at fub_axi_arready when the monitor
+            // FIFO is full (wire ANDed into the wrapper output below).
+            .block_ready         (w_block_ready),
             /* verilator lint_off PINCONNECTEMPTY */
-            .block_ready         (),                                // BUG: see TODO(block_ready)
             .busy                (),
             /* verilator lint_on PINCONNECTEMPTY */
             .active_count        (active_transactions),
@@ -381,7 +385,11 @@ module axi5_master_rd_mon
         assign monbus_packet       = 64'h0;
         assign active_transactions = 8'h0;
         assign cfg_conflict_error  = 1'b0;
+        assign w_block_ready       = 1'b1;
     end
+
+    // Gate the upstream AR handshake on monitor block_ready.
+    assign fub_axi_arready = w_core_fub_axi_arready & w_block_ready;
 
     // Placeholder counters (tied to 0 in both monitor-on and monitor-off cases)
     assign error_count = 16'h0;

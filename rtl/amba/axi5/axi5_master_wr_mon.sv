@@ -184,6 +184,10 @@ module axi5_master_wr_mon
     output logic                       cfg_conflict_error
 );
 
+    // Monitor backpressure plumbing (see axi4_master_rd_mon for full rationale)
+    logic w_core_fub_axi_awready;
+    logic w_block_ready;
+
     axi5_master_wr #(
         .SKID_DEPTH_AW       (SKID_DEPTH_AW),
         .SKID_DEPTH_W        (SKID_DEPTH_W),
@@ -213,7 +217,7 @@ module axi5_master_wr_mon
         .fub_axi_awburst(fub_axi_awburst), .fub_axi_awlock(fub_axi_awlock),
         .fub_axi_awcache(fub_axi_awcache), .fub_axi_awprot(fub_axi_awprot),
         .fub_axi_awqos(fub_axi_awqos), .fub_axi_awuser(fub_axi_awuser),
-        .fub_axi_awvalid(fub_axi_awvalid), .fub_axi_awready(fub_axi_awready),
+        .fub_axi_awvalid(fub_axi_awvalid), .fub_axi_awready(w_core_fub_axi_awready),  // gated below
         .fub_axi_awatop(fub_axi_awatop), .fub_axi_awnsaid(fub_axi_awnsaid),
         .fub_axi_awtrace(fub_axi_awtrace), .fub_axi_awmpam(fub_axi_awmpam),
         .fub_axi_awmecid(fub_axi_awmecid), .fub_axi_awunique(fub_axi_awunique),
@@ -276,10 +280,10 @@ module axi5_master_wr_mon
             .cfg_axi_perf_mask(cfg_axi_perf_mask), .cfg_axi_addr_mask(cfg_axi_addr_mask),
             .cfg_axi_debug_mask(cfg_axi_debug_mask),
             .monbus_valid(monbus_valid), .monbus_ready(monbus_ready), .monbus_packet(monbus_packet),
-            // TODO(block_ready): unconnected — see axi4_master_rd_mon.sv. Should
-            //   backpressure m_axi_awready when monitor FIFO is full.
+            // block_ready stalls new AWs at fub_axi_awready when monitor FIFO
+            // is full (wire ANDed into the wrapper output below).
+            .block_ready(w_block_ready),
             /* verilator lint_off PINCONNECTEMPTY */
-            .block_ready(),                                            // BUG: see TODO(block_ready)
             .busy(),
             /* verilator lint_on PINCONNECTEMPTY */
             .active_count(active_transactions), .cfg_conflict_error(cfg_conflict_error)
@@ -289,7 +293,11 @@ module axi5_master_wr_mon
         assign monbus_packet       = 64'h0;
         assign active_transactions = 8'h0;
         assign cfg_conflict_error  = 1'b0;
+        assign w_block_ready       = 1'b1;
     end
+
+    // Gate the upstream AW handshake on monitor block_ready.
+    assign fub_axi_awready = w_core_fub_axi_awready & w_block_ready;
 
     assign error_count = 16'h0;
     assign transaction_count = 32'h0;
