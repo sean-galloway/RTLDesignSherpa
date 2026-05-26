@@ -12,6 +12,9 @@
 //   P3: Protocol field in monbus_packet is AXI (3'b000) when valid
 //   P4: active_transactions bounded by MAX_TRANSACTIONS
 //   P5: cfg_conflict_error is combinational: |(pkt_mask & err_select)
+//   P6: Monitor backpressure gating — when w_block_ready is low, the
+//       wrapper output s_axi_arready must be low (so upstream AR
+//       handshake cannot complete and the monitor cannot lose events).
 
 module formal_axi4_slave_rd_mon (
     input wire clk,
@@ -264,6 +267,16 @@ module formal_axi4_slave_rd_mon (
     always @(*) begin
         ap_conflict_combinational:
             assert (cfg_conflict_error == (|(cfg_axi_pkt_mask & cfg_axi_err_select)));
+    end
+
+    // =========================================================================
+    // P6: Monitor backpressure gating — combinational invariant from the
+    //     assign at the bottom of axi4_slave_rd_mon:
+    //         s_axi_arready = w_core_s_axi_arready & w_block_ready;
+    // =========================================================================
+    always @(*) begin
+        if (rst_n && !dut.w_block_ready)
+            ap_block_ready_gating: assert (s_axi_arready == 1'b0);
     end
 
     // =========================================================================
