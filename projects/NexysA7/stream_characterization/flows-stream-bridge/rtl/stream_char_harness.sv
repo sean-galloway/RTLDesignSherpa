@@ -168,9 +168,9 @@ module stream_char_harness #(
 
     // ---- Host-side AXI4 wires (bridge expects AXI4; we have AXIL) ----------
     logic        host_axi_awid;
-    logic        host_axi_bid;
+    logic [3:0]  host_axi_bid;  // width matches bridge port (id_width=4)
     logic        host_axi_arid;
-    logic        host_axi_rid;
+    logic [3:0]  host_axi_rid;  // width matches bridge port (id_width=4)
     logic        host_axi_buser;
     logic        host_axi_ruser;
     logic        host_axi_rlast;
@@ -803,9 +803,12 @@ module stream_char_harness #(
     logic        mon_awvalid, mon_awready;
     logic [31:0] mon_awaddr;
     logic [2:0]  mon_awprot;
+    // 64-bit AXIL write data matches stream_top_ch8.m_axil_mon_w* and
+    // debug_sram's widened write port. The 3-beat monbus record streams
+    // through 3 × 64-bit beats without any truncation.
     logic        mon_wvalid,  mon_wready;
-    logic [31:0] mon_wdata;
-    logic [3:0]  mon_wstrb;
+    logic [63:0] mon_wdata;
+    logic [7:0]  mon_wstrb;
     logic        mon_bvalid,  mon_bready;
     logic [1:0]  mon_bresp;
 

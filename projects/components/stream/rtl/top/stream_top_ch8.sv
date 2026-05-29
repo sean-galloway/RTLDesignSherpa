@@ -1694,41 +1694,41 @@ module stream_top_ch8 #(
                 //---------------------------------------------------------------------
                 // Protocol 0 Configuration - Descriptor AXI Monitor (DAXMON)
                 //---------------------------------------------------------------------
-                .cfg_axi_pkt_mask       ({8'h00, hwif_out.DAXMON_PKT_MASK.PKT_MASK.value}),
-                .cfg_axi_err_select     ({12'h000, hwif_out.DAXMON_ERR_CFG.ERR_SELECT.value}),
-                .cfg_axi_error_mask     ({8'h00, hwif_out.DAXMON_ERR_CFG.ERR_MASK.value}),
-                .cfg_axi_timeout_mask   ({8'h00, hwif_out.DAXMON_MASK1.TIMEOUT_MASK.value}),
-                .cfg_axi_compl_mask     ({8'h00, hwif_out.DAXMON_MASK1.COMPL_MASK.value}),
-                .cfg_axi_thresh_mask    ({8'h00, hwif_out.DAXMON_MASK2.THRESH_MASK.value}),
-                .cfg_axi_perf_mask      ({8'h00, hwif_out.DAXMON_MASK2.PERF_MASK.value}),
-                .cfg_axi_addr_mask      ({8'h00, hwif_out.DAXMON_MASK3.ADDR_MASK.value}),
-                .cfg_axi_debug_mask     ({8'h00, hwif_out.DAXMON_MASK3.DEBUG_MASK.value}),
+                .cfg_axi_pkt_mask       (hwif_out.DAXMON_PKT_MASK.PKT_MASK.value),
+                .cfg_axi_err_select     (hwif_out.DAXMON_ERR_CFG.ERR_SELECT.value),
+                .cfg_axi_error_mask     (hwif_out.DAXMON_ERR_CFG.ERR_MASK.value),
+                .cfg_axi_timeout_mask   (hwif_out.DAXMON_MASK1.TIMEOUT_MASK.value),
+                .cfg_axi_compl_mask     (hwif_out.DAXMON_MASK1.COMPL_MASK.value),
+                .cfg_axi_thresh_mask    (hwif_out.DAXMON_MASK2.THRESH_MASK.value),
+                .cfg_axi_perf_mask      (hwif_out.DAXMON_MASK2.PERF_MASK.value),
+                .cfg_axi_addr_mask      (hwif_out.DAXMON_MASK3.ADDR_MASK.value),
+                .cfg_axi_debug_mask     (hwif_out.DAXMON_MASK3.DEBUG_MASK.value),
 
                 //---------------------------------------------------------------------
                 // Protocol 1 Configuration - Read Engine Monitor (RDMON)
                 // Note: Using AXIS ports for read engine AXI monitor (protocol reuse)
                 //---------------------------------------------------------------------
-                .cfg_axis_pkt_mask      ({8'h00, hwif_out.RDMON_PKT_MASK.PKT_MASK.value}),
-                .cfg_axis_err_select    ({12'h000, hwif_out.RDMON_ERR_CFG.ERR_SELECT.value}),
-                .cfg_axis_error_mask    ({8'h00, hwif_out.RDMON_ERR_CFG.ERR_MASK.value}),
-                .cfg_axis_timeout_mask  ({8'h00, hwif_out.RDMON_MASK1.TIMEOUT_MASK.value}),
-                .cfg_axis_compl_mask    ({8'h00, hwif_out.RDMON_MASK1.COMPL_MASK.value}),
-                .cfg_axis_credit_mask   ({8'h00, hwif_out.RDMON_MASK2.THRESH_MASK.value}),   // Thresh → Credit
-                .cfg_axis_channel_mask  ({8'h00, hwif_out.RDMON_MASK2.PERF_MASK.value}),     // Perf → Channel
-                .cfg_axis_stream_mask   ({8'h00, hwif_out.RDMON_MASK3.ADDR_MASK.value}),     // Addr → Stream
+                .cfg_axis_pkt_mask      (hwif_out.RDMON_PKT_MASK.PKT_MASK.value),
+                .cfg_axis_err_select    (hwif_out.RDMON_ERR_CFG.ERR_SELECT.value),
+                .cfg_axis_error_mask    (hwif_out.RDMON_ERR_CFG.ERR_MASK.value),
+                .cfg_axis_timeout_mask  (hwif_out.RDMON_MASK1.TIMEOUT_MASK.value),
+                .cfg_axis_compl_mask    (hwif_out.RDMON_MASK1.COMPL_MASK.value),
+                .cfg_axis_credit_mask   (hwif_out.RDMON_MASK2.THRESH_MASK.value),   // Thresh → Credit
+                .cfg_axis_channel_mask  (hwif_out.RDMON_MASK2.PERF_MASK.value),     // Perf → Channel
+                .cfg_axis_stream_mask   (hwif_out.RDMON_MASK3.ADDR_MASK.value),     // Addr → Stream
 
                 //---------------------------------------------------------------------
                 // Protocol 2 Configuration - Write Engine Monitor (WRMON)
                 // Note: Using CORE ports for write engine AXI monitor (protocol reuse)
                 //---------------------------------------------------------------------
-                .cfg_core_pkt_mask      ({8'h00, hwif_out.WRMON_PKT_MASK.PKT_MASK.value}),
-                .cfg_core_err_select    ({12'h000, hwif_out.WRMON_ERR_CFG.ERR_SELECT.value}),
-                .cfg_core_error_mask    ({8'h00, hwif_out.WRMON_ERR_CFG.ERR_MASK.value}),
-                .cfg_core_timeout_mask  ({8'h00, hwif_out.WRMON_MASK1.TIMEOUT_MASK.value}),
-                .cfg_core_compl_mask    ({8'h00, hwif_out.WRMON_MASK1.COMPL_MASK.value}),
-                .cfg_core_thresh_mask   ({8'h00, hwif_out.WRMON_MASK2.THRESH_MASK.value}),
-                .cfg_core_perf_mask     ({8'h00, hwif_out.WRMON_MASK2.PERF_MASK.value}),
-                .cfg_core_debug_mask    ({8'h00, hwif_out.WRMON_MASK3.DEBUG_MASK.value}),
+                .cfg_core_pkt_mask      (hwif_out.WRMON_PKT_MASK.PKT_MASK.value),
+                .cfg_core_err_select    (hwif_out.WRMON_ERR_CFG.ERR_SELECT.value),
+                .cfg_core_error_mask    (hwif_out.WRMON_ERR_CFG.ERR_MASK.value),
+                .cfg_core_timeout_mask  (hwif_out.WRMON_MASK1.TIMEOUT_MASK.value),
+                .cfg_core_compl_mask    (hwif_out.WRMON_MASK1.COMPL_MASK.value),
+                .cfg_core_thresh_mask   (hwif_out.WRMON_MASK2.THRESH_MASK.value),
+                .cfg_core_perf_mask     (hwif_out.WRMON_MASK2.PERF_MASK.value),
+                .cfg_core_debug_mask    (hwif_out.WRMON_MASK3.DEBUG_MASK.value),
 
                 //---------------------------------------------------------------------
                 // Status Outputs
