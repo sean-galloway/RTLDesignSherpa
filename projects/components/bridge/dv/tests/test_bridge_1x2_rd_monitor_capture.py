@@ -18,8 +18,10 @@
 #     handshake and records the 64-bit wdata word
 #   - Drives a small number of AXI4 reads
 #   - Stops the monitor and reassembles the captured words into 128-bit
-#     packets (packets-only mode: cfg_ts_append_enable=0, 16-byte
-#     records = 2 × 64-bit beats per packet)
+#     packets. Each on-the-wire record is fixed at 24 bytes (3 × 64-bit
+#     beats): [packet[63:0], packet[127:64], source_ts[63:0]]. The
+#     source_ts beat is recorded but not used by the assertions here --
+#     the IRQ test exercises the timestamp decode separately.
 #   - Parses each packet via TBClasses.monbus.parse
 #   - Asserts at least one completion packet appears from each side of
 #     the bridge: the master-side wrapper (UNIT_ID=2) and the slave-
@@ -117,30 +119,32 @@ async def cocotb_test_bridge_1x2_rd_mon_capture(dut):
     snoop_task.kill()
 
     tb.log.info(f"Captured {len(captured_words)} m_mon_axil_w beats")
-    assert len(captured_words) >= 4, (
-        f"Expected at least 4 wdata beats (2 packets * 2 beats per "
-        f"packet-only record), got {len(captured_words)}"
+    assert len(captured_words) >= 6, (
+        f"Expected at least 6 wdata beats (2 packets * 3 beats per "
+        f"record), got {len(captured_words)}"
     )
-    assert len(captured_words) % 2 == 0, (
-        f"Expected an even number of beats (2 per packet record), "
+    assert len(captured_words) % 3 == 0, (
+        f"Expected beat count divisible by 3 (3 beats per record), "
         f"got {len(captured_words)}"
     )
 
     # ---- Reassemble + parse -----------------------------------------
-    # cfg_ts_append_enable=0 in the wrapper -> packets-only, 16-byte
-    # records = 2 × 64-bit beats. Beat 0 = packet[63:0], beat 1 =
-    # packet[127:64].
+    # Each record is always 3 × 64-bit beats:
+    #   beat 0 = packet[63:0]
+    #   beat 1 = packet[127:64]
+    #   beat 2 = source_ts[63:0]   (sampled, not asserted on here)
     packets = []
-    for i in range(0, len(captured_words), 2):
+    for i in range(0, len(captured_words), 3):
         beat_lo = captured_words[i]
         beat_hi = captured_words[i + 1]
+        src_ts  = captured_words[i + 2]
         raw = ((beat_hi & ((1 << 64) - 1)) << 64) | (beat_lo & ((1 << 64) - 1))
         if raw == 0:
-            tb.log.warning(f"  beat-pair {i}/{i+1} all-zero, skipping")
+            tb.log.warning(f"  beat-triple {i}/{i+1}/{i+2} all-zero, skipping")
             continue
         pkt = parse(raw)
         packets.append(pkt)
-        tb.log.info(f"  pkt #{len(packets)}: {pkt}")
+        tb.log.info(f"  pkt #{len(packets)}: {pkt}  ts=0x{src_ts:016x}")
 
     assert len(packets) >= 2, (
         f"Expected at least 2 valid monbus packets, got {len(packets)}"

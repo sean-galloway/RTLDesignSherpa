@@ -62,10 +62,6 @@ module monbus_axil_group_2in
     // Free-running monitor-time output
     output monbus_timestamp_t             mon_time_out,
 
-    // Timestamp-append configuration
-    input  logic                          cfg_ts_append_enable,
-    input  logic [1:0]                    cfg_ts_append_mode,
-
     // Error/Interrupt FIFO (Slave Read Interface)
     input  logic                          s_axil_arvalid,
     output logic                          s_axil_arready,
@@ -201,9 +197,6 @@ module monbus_axil_group_2in
         .monbus_timestamp       (arb_monbus_source_ts),
 
         .mon_time_out           (mon_time_out),
-
-        .cfg_ts_append_enable   (cfg_ts_append_enable),
-        .cfg_ts_append_mode     (cfg_ts_append_mode),
 
         .s_axil_arvalid         (s_axil_arvalid),
         .s_axil_arready         (s_axil_arready),

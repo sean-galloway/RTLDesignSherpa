@@ -42,16 +42,23 @@ Features:
 Packet width is locked at 128 bits via monitor_common_pkg::MONBUS_PKT_WIDTH.
 Side-band timestamp width is locked at 64 bits via monitor_common_pkg::MONBUS_TS_WIDTH.
 
-Timestamping (see MON-PKT-64-to-128-plan.md sec 4.4.1):
+Timestamping:
 - Free-running 64-bit counter inside the group is driven OUT on mon_time_out
-  to every wrapper's i_mon_time input.
-- Wrappers sample on emission and return the source timestamp on the
+  to every wrapper's i_mon_time input. The group is the single timestamp
+  authority for the whole monitor subsystem.
+- Wrappers sample on emission and return that timestamp on the
   monbus_timestamp side-band, which arrives here paired with the packet.
-- On the input handshake, the group also captures an arrival timestamp from
-  its own counter.
-- The write FIFO carries {packet[127:0], source_ts[63:0], arrival_ts[63:0]}.
-- The AXIL master write FSM emits 2-4 64-bit beats per record depending on
-  cfg_ts_append_enable / cfg_ts_append_mode.
+- Both FIFOs (err and write) store the same 192-bit record:
+  {packet[127:0], source_ts[63:0]}. The m_axil master write FSM and the
+  s_axil slave read drain both emit/consume that record as exactly three
+  64-bit beats: [packet[63:0], packet[127:64], source_ts[63:0]].
+- The variable-size append-mode used in earlier revisions (16/24/32-byte
+  records selected by cfg_ts_append_enable / cfg_ts_append_mode) is GONE.
+  The endpoints (parser, host dump scripts) treat the timestamp as an
+  opaque ordering key -- they do not care where it originates -- which
+  leaves room for a future hybrid scheme (global us counter + local
+  per-wrapper resolution) without touching the transport. See the
+  monitor system whitepaper stub for the design space.
 
 Configuration Registers (per protocol):
 - pkt_mask[15:0]     - Drop packets when bit[pkt_type] = 1
@@ -87,10 +94,6 @@ module monbus_axil_group
 
     // Free-running monitor-time output (drive to every wrapper's i_mon_time)
     output monbus_timestamp_t             mon_time_out,
-
-    // Timestamp-append configuration
-    input  logic                          cfg_ts_append_enable,
-    input  logic [1:0]                    cfg_ts_append_mode,
 
     // Error/Interrupt FIFO (Slave Read Interface) — 32-bit CPU reads
     input  logic                          s_axil_arvalid,
@@ -170,15 +173,15 @@ module monbus_axil_group
     localparam int ERR_FIFO_ADDR_WIDTH   = $clog2(FIFO_DEPTH_ERR);
     localparam int WRITE_FIFO_ADDR_WIDTH = $clog2(FIFO_DEPTH_WRITE);
 
-    // Combined write-FIFO record: {packet[127:0], source_ts[63:0], arrival_ts[63:0]}
-    localparam int WRITE_REC_WIDTH = MONBUS_PKT_WIDTH + MONBUS_TS_WIDTH + MONBUS_TS_WIDTH;
-
-    // Error-FIFO record: {source_ts[63:0], packet[127:0]} = 192 bits.
-    // The CPU drains via the 64-bit s_axil read port in exactly three
-    // beats (slice 0: packet[63:0]; slice 1: packet[127:64]; slice 2:
-    // source_ts[63:0]). Layout chosen so packet bits are contiguous in
-    // the low half, matching the natural byte-order expectation.
-    localparam int ERR_FIFO_REC_WIDTH = MONBUS_PKT_WIDTH + MONBUS_TS_WIDTH;
+    // Both FIFOs store the same 192-bit record: {source_ts, packet}.
+    // s_axil drains in three 64-bit beats (slice 0: packet[63:0]; slice 1:
+    // packet[127:64]; slice 2: source_ts[63:0]); the m_axil writer emits
+    // the same three beats in the same order to memory. Layout chosen so
+    // packet bits are contiguous in the low half, matching the natural
+    // byte-order expectation.
+    localparam int FIFO_REC_WIDTH       = MONBUS_PKT_WIDTH + MONBUS_TS_WIDTH;
+    localparam int ERR_FIFO_REC_WIDTH   = FIFO_REC_WIDTH;
+    localparam int WRITE_REC_WIDTH      = FIFO_REC_WIDTH;
 
     // =======================================================================
     // Internal Signals
@@ -232,7 +235,6 @@ module monbus_axil_group
     // Unpacked record at FIFO output
     monitor_packet_t                 wr_rec_packet;
     monbus_timestamp_t               wr_rec_source_ts;
-    monbus_timestamp_t               wr_rec_arrival_ts;
 
     // Backend interfaces for AXI-Lite slave read (32-bit CPU side)
     logic [ADDR_WIDTH-1:0]           fub_rd_araddr;
@@ -424,15 +426,14 @@ module monbus_axil_group
     assign err_fifo_count = {{(8-ERR_FIFO_ADDR_WIDTH-1){1'b0}}, err_fifo_count_full};
 
     // =======================================================================
-    // Master Write FIFO (combined record: packet + source_ts + arrival_ts)
+    // Master Write FIFO (record: packet + source_ts -- same as err FIFO)
     // =======================================================================
 
     assign write_fifo_wr_valid = input_monbus_valid && pkt_to_write_fifo && !pkt_drop;
-    // Pack: {packet[127:0], source_ts[63:0], arrival_ts[63:0]}
-    // arrival_ts is sampled on the input handshake — by construction
-    // write_fifo_wr_valid implies the handshake cycle, so r_ts_counter at this
-    // moment is the arrival time.
-    assign write_fifo_wr_data  = {input_monbus_packet, input_monbus_source_ts, r_ts_counter};
+    // Pack: {source_ts[63:0], packet[127:0]} -- mirrors err_fifo_wr_data so
+    // both FIFOs feed the m_axil writer / s_axil drainer with an identical
+    // 3-beat layout (packet[63:0], packet[127:64], source_ts[63:0]).
+    assign write_fifo_wr_data  = {input_monbus_source_ts, input_monbus_packet};
 
     gaxi_fifo_sync #(
         .REGISTERED     (0),
@@ -450,10 +451,9 @@ module monbus_axil_group
         .count          (write_fifo_count_full)
     );
 
-    // Unpack record at FIFO output
-    assign wr_rec_arrival_ts = write_fifo_rd_data[MONBUS_TS_WIDTH-1:0];
-    assign wr_rec_source_ts  = write_fifo_rd_data[2*MONBUS_TS_WIDTH-1:MONBUS_TS_WIDTH];
-    assign wr_rec_packet     = write_fifo_rd_data[WRITE_REC_WIDTH-1:2*MONBUS_TS_WIDTH];
+    // Unpack record at FIFO output (matches the err FIFO layout)
+    assign wr_rec_packet    = write_fifo_rd_data[MONBUS_PKT_WIDTH-1:0];
+    assign wr_rec_source_ts = write_fifo_rd_data[WRITE_REC_WIDTH-1:MONBUS_PKT_WIDTH];
 
     assign write_fifo_empty = !write_fifo_rd_valid;
     assign write_fifo_full  = !write_fifo_wr_ready;
@@ -597,87 +597,47 @@ module monbus_axil_group
     );
 
     // =======================================================================
-    // Write FSM — 64-bit master, variable record size
+    // Write FSM — 64-bit master, fixed 3-beat record
     //
-    // Beat order per record (always +8 bytes per beat):
+    // Beat order per record (always +8 bytes per beat, total 24 B/record):
+    //   beat 0 = packet[63:0]
+    //   beat 1 = packet[127:64]
+    //   beat 2 = source_ts[63:0]
     //
-    //   append_enable=0:            beat0=pkt[63:0]    beat1=pkt[127:64]                              (16 B)
-    //   append_enable=1, mode=01:   beat0=pkt[63:0]    beat1=pkt[127:64]   beat2=source_ts            (24 B)
-    //   append_enable=1, mode=10:   beat0=pkt[63:0]    beat1=pkt[127:64]   beat2=arrival_ts           (24 B)
-    //   append_enable=1, mode=11:   beat0=pkt[63:0]    beat1=pkt[127:64]   beat2=source_ts   beat3=arrival_ts  (32 B)
+    // Matches the s_axil slice-counter drain layout exactly, so a host
+    // walking the SRAM ring and a CPU IRQ handler draining via s_axil
+    // both see the same record format.
     //
     // Address-window wrap:
-    //   The cfg_base_addr / cfg_limit_addr window is intended to be a
-    //   record-aligned ring. We use a "next-record-fits" check at the
-    //   start of each record only: if the current_write_addr + record_size
-    //   would exceed cfg_limit_addr, rewind to cfg_base_addr first. Once a
-    //   record is in flight we DO NOT wrap mid-record, even if a beat
-    //   address crosses the limit — partial records corrupt the data layout
-    //   in memory. The strict interpretation (rewind only between records)
-    //   matches the spec note in section 4.4.1.
+    //   The cfg_base_addr / cfg_limit_addr window is a record-aligned
+    //   ring. "Next-record-fits" check at the start of each record only:
+    //   if the current_write_addr + 24 bytes would exceed cfg_limit_addr,
+    //   rewind to cfg_base_addr before issuing the first AW. We do NOT
+    //   wrap mid-record -- partial records would corrupt the layout in
+    //   memory.
     // =======================================================================
 
     typedef enum logic [2:0] {
         WRITE_IDLE   = 3'd0,
-        WRITE_LOAD   = 3'd1,  // 1 cycle: latch record from FIFO, compute size, maybe wrap addr
+        WRITE_LOAD   = 3'd1,  // 1 cycle: latch record from FIFO, maybe wrap addr
         WRITE_AW     = 3'd2,
         WRITE_W      = 3'd3,
         WRITE_B      = 3'd4
     } write_state_t;
 
+    localparam logic [1:0] TOTAL_BEATS = 2'd3;  // 3 beats per record, fixed
+    // 1-beat addr stride in bytes (8 for a 64-bit master).
+    localparam int         BEAT_STRIDE_INT = M_AXIL_DATA_WIDTH / 8;
+    // Total bytes per record: 3 * 8 = 24.
+    localparam int         REC_SIZE_INT    = 3 * BEAT_STRIDE_INT;
+
     write_state_t                    write_state;
     monitor_packet_t                 current_packet;
     monbus_timestamp_t               current_source_ts;
-    monbus_timestamp_t               current_arrival_ts;
 
-    logic                            cur_append_enable;
-    logic [1:0]                      cur_append_mode;
-
-    // Beat counters — 3 bits because total_beats can be 4 (mode 11)
-    logic [2:0]                      total_beats;     // 2, 3, or 4
-    logic [2:0]                      beat_idx;        // 0..total_beats-1
-
-    // 1-beat addr stride in bytes (8 for a 64-bit master).
-    localparam int             BEAT_STRIDE_INT = M_AXIL_DATA_WIDTH / 8;
-
-    // Compute beats for a given (en, mode) combo
-    function automatic logic [2:0] record_beats(input logic en, input logic [1:0] mode);
-        if (!en)                  return 3'd2;
-        if (mode == 2'b11)        return 3'd4; // both
-        if (mode == 2'b01 || mode == 2'b10) return 3'd3;
-        return 3'd2;  // mode 00 with en=1 is treated as packet-only
-    endfunction
-
-    // Compute current beat's data based on beat index + mode.
-    // Beat slot mapping:
-    //   slot 0 -> packet[63:0]
-    //   slot 1 -> packet[127:64]
-    //   slot 2 -> source_ts   (if mode==01 or 11)
-    //          OR arrival_ts  (if mode==10)
-    //   slot 3 -> arrival_ts  (mode==11 only)
-    function automatic logic [M_AXIL_DATA_WIDTH-1:0] beat_data(
-        input logic [2:0]              idx,
-        input logic                    en,
-        input logic [1:0]              mode,
-        input monitor_packet_t         pkt,
-        input monbus_timestamp_t       src_ts,
-        input monbus_timestamp_t       arr_ts
-    );
-        case (idx)
-            3'd0: return pkt[63:0];
-            3'd1: return pkt[127:64];
-            3'd2: begin
-                if (!en)                 return '0;
-                if (mode == 2'b10)       return arr_ts;
-                return src_ts; // 01 or 11
-            end
-            3'd3: return arr_ts; // only valid when mode==11
-            default: return '0;
-        endcase
-    endfunction
+    logic [1:0]                      beat_idx;  // 0..2
 
     // Combinational helpers for the WRITE_LOAD next-record-fits check.
-    logic [ADDR_WIDTH-1:0]   rec_size_bytes;
     logic [ADDR_WIDTH-1:0]   load_start_addr;
     logic [ADDR_WIDTH-1:0]   load_last_byte_addr;
     logic                    load_needs_rewind;
@@ -685,18 +645,13 @@ module monbus_axil_group
     logic                    last_beat_of_record;
 
     always_comb begin
-        // Total bytes in the record currently being launched.
-        // total_beats is at most 4, BEAT_STRIDE_INT is 8 -> max 32, fits any
-        // reasonable ADDR_WIDTH. Zero-extend the multiplicands.
-        rec_size_bytes       = {{(ADDR_WIDTH-3){1'b0}}, total_beats} *
-                               ADDR_WIDTH'(BEAT_STRIDE_INT);
         load_start_addr      = current_write_addr;
-        load_last_byte_addr  = load_start_addr + rec_size_bytes - {{(ADDR_WIDTH-1){1'b0}}, 1'b1};
+        load_last_byte_addr  = load_start_addr + ADDR_WIDTH'(REC_SIZE_INT)
+                             - {{(ADDR_WIDTH-1){1'b0}}, 1'b1};
         load_needs_rewind    = (load_last_byte_addr > cfg_limit_addr) ||
                                (load_start_addr     < cfg_base_addr);
         load_effective_start = load_needs_rewind ? cfg_base_addr : load_start_addr;
-
-        last_beat_of_record  = (beat_idx + 3'd1) == total_beats;
+        last_beat_of_record  = (beat_idx == 2'd2);
     end
 
     // FSM
@@ -705,25 +660,16 @@ module monbus_axil_group
             write_state        <= WRITE_IDLE;
             current_packet     <= '0;
             current_source_ts  <= '0;
-            current_arrival_ts <= '0;
-            cur_append_enable  <= 1'b0;
-            cur_append_mode    <= 2'b00;
-            total_beats        <= 3'd2;
-            beat_idx           <= 3'd0;
+            beat_idx           <= 2'd0;
             current_write_addr <= '0;
         end else begin
             case (write_state)
                 WRITE_IDLE: begin
                     if (write_fifo_rd_valid) begin
-                        // Latch record + capture cfg snapshot for this record
-                        current_packet     <= wr_rec_packet;
-                        current_source_ts  <= wr_rec_source_ts;
-                        current_arrival_ts <= wr_rec_arrival_ts;
-                        cur_append_enable  <= cfg_ts_append_enable;
-                        cur_append_mode    <= cfg_ts_append_mode;
-                        total_beats        <= record_beats(cfg_ts_append_enable, cfg_ts_append_mode);
-                        beat_idx           <= 3'd0;
-                        write_state        <= WRITE_LOAD;
+                        current_packet    <= wr_rec_packet;
+                        current_source_ts <= wr_rec_source_ts;
+                        beat_idx          <= 2'd0;
+                        write_state       <= WRITE_LOAD;
                     end
                 end
 
@@ -748,13 +694,12 @@ module monbus_axil_group
 
                 WRITE_B: begin
                     if (fub_wr_bvalid && fub_wr_bready) begin
-                        // Beat retired
                         current_write_addr <= current_write_addr + ADDR_WIDTH'(BEAT_STRIDE_INT);
                         if (last_beat_of_record) begin
-                            beat_idx    <= 3'd0;
+                            beat_idx    <= 2'd0;
                             write_state <= WRITE_IDLE;
                         end else begin
-                            beat_idx    <= beat_idx + 3'd1;
+                            beat_idx    <= beat_idx + 2'd1;
                             write_state <= WRITE_AW;
                         end
                     end
@@ -774,12 +719,14 @@ module monbus_axil_group
     assign fub_wr_awprot  = 3'b000;
 
     assign fub_wr_wvalid  = (write_state == WRITE_W);
-    assign fub_wr_wdata   = beat_data(beat_idx,
-                                       cur_append_enable,
-                                       cur_append_mode,
-                                       current_packet,
-                                       current_source_ts,
-                                       current_arrival_ts);
+    always_comb begin
+        unique case (beat_idx)
+            2'd0:    fub_wr_wdata = current_packet[63:0];
+            2'd1:    fub_wr_wdata = current_packet[MONBUS_PKT_WIDTH-1:64];
+            2'd2:    fub_wr_wdata = current_source_ts;
+            default: fub_wr_wdata = '0;
+        endcase
+    end
     assign fub_wr_wstrb   = {(M_AXIL_DATA_WIDTH/8){1'b1}}; // All bytes valid
 
     assign fub_wr_bready  = (write_state == WRITE_B);

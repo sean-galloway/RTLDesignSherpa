@@ -19,7 +19,7 @@ sys.path.insert(0, str(_repo_root / "projects/components/converters/bin"))
 os.environ.setdefault("REPO_ROOT", str(_repo_root))
 
 from dump_monbus_sram import (  # noqa: E402
-    MODE_TO_STRIDE_BYTES,
+    RECORD_BYTES,
     words32_to_words64,
     read_sram_region,
     parse_records,
@@ -40,15 +40,16 @@ from TBClasses.monbus import (  # noqa: E402
 # Helpers
 # ---------------------------------------------------------------------------
 
-def _record_words(raw_pkt, source_ts=None, arrival_ts=None):
+def _record_words(raw_pkt, source_ts=0):
     """Serialize one record into 32-bit words exactly as
-    monbus_axil_group's m_axil master would write them to memory."""
-    beats = [raw_pkt & ((1 << 64) - 1),
-             (raw_pkt >> 64) & ((1 << 64) - 1)]
-    if source_ts is not None:
-        beats.append(source_ts & ((1 << 64) - 1))
-    if arrival_ts is not None:
-        beats.append(arrival_ts & ((1 << 64) - 1))
+    monbus_axil_group's m_axil master would write them to memory.
+    Layout is fixed at 3 × 64-bit beats: {packet[63:0],
+    packet[127:64], source_ts[63:0]}."""
+    beats = [
+        raw_pkt & ((1 << 64) - 1),
+        (raw_pkt >> 64) & ((1 << 64) - 1),
+        source_ts & ((1 << 64) - 1),
+    ]
     out = []
     for b in beats:
         out.extend([b & 0xFFFF_FFFF, (b >> 32) & 0xFFFF_FFFF])
@@ -128,69 +129,39 @@ def test_read_sram_region_raises_on_short_read():
 
 
 # ---------------------------------------------------------------------------
-# parse_records -- one record at each ts_mode
+# parse_records -- always 3-beat / 24-byte records
 # ---------------------------------------------------------------------------
 
-def test_parse_records_mode_0_packet_only():
+def test_parse_records_extracts_packet_and_ts():
     raw = _axi_err_packet()
-    words = _record_words(raw)  # no timestamps
-    recs = parse_records(words, ts_mode=0)
-    assert len(recs) == 1
-    assert recs[0].raw_packet == raw   # MonitorPacket (no TimestampedPacket wrapper)
-
-
-def test_parse_records_mode_3_packet_plus_both_ts():
-    raw = _axi_err_packet()
-    words = _record_words(raw, source_ts=0x1234, arrival_ts=0x5678)
-    recs = parse_records(words, ts_mode=3)
+    words = _record_words(raw, source_ts=0x5678)
+    recs = parse_records(words)
     assert len(recs) == 1
     rec = recs[0]
     assert isinstance(rec, TimestampedPacket)
     assert rec.packet.raw_packet == raw
-    assert rec.source_ts == 0x1234
-    assert rec.arrival_ts == 0x5678
+    assert rec.source_ts == 0x5678
 
 
 def test_parse_records_skips_zero_padding():
     raw = _axi_err_packet()
-    # Memory layout: one all-zero 32-byte slot (mode 3), then a real record
-    words = [0] * 8 + _record_words(raw, source_ts=0x99, arrival_ts=0xAA)
-    recs = parse_records(words, ts_mode=3)
+    # Memory layout: one all-zero 24-byte slot, then a real record.
+    words = [0] * 6 + _record_words(raw, source_ts=0xAA)
+    recs = parse_records(words)
     assert len(recs) == 1
     assert recs[0].packet.raw_packet == raw
-    assert recs[0].source_ts == 0x99
-    assert recs[0].arrival_ts == 0xAA
-
-
-def test_parse_records_rejects_invalid_ts_mode():
-    with pytest.raises(ValueError):
-        parse_records([0] * 8, ts_mode=7)
+    assert recs[0].source_ts == 0xAA
 
 
 # ---------------------------------------------------------------------------
-# format_timestamped -- shape only
+# format_timestamped
 # ---------------------------------------------------------------------------
 
-def test_format_timestamped_mode_3_includes_drift():
+def test_format_timestamped_renders_event_and_ts():
     raw = _axi_err_packet()
-    rec = parse_records(
-        _record_words(raw, source_ts=0x100, arrival_ts=0x150),
-        ts_mode=3,
-    )[0]
+    rec = parse_records(_record_words(raw, source_ts=0x100))[0]
     line = format_timestamped(rec)
     assert "AXI_ERR_RESP_SLVERR" in line
-    assert "arr=0x0000000000000150" in line
-    assert "drift=80" in line  # 0x150 - 0x100 = 80
-
-
-def test_format_timestamped_mode_0_no_extra_fields():
-    raw = _axi_err_packet()
-    rec = parse_records(_record_words(raw), ts_mode=0)[0]
-    line = format_timestamped(rec)
-    # Should still surface the event code and an @0x... zero timestamp.
-    assert "AXI_ERR_RESP_SLVERR" in line
-    assert "arr=" not in line
-    assert "drift=" not in line
 
 
 # ---------------------------------------------------------------------------
@@ -209,20 +180,21 @@ def test_dump_emits_one_line_per_record():
         event_data=0x42,
     )
     words = (
-        _record_words(raw0, source_ts=0x100, arrival_ts=0x110)
-        + _record_words(raw1, source_ts=0x200, arrival_ts=0x205)
+        _record_words(raw0, source_ts=0x100)
+        + _record_words(raw1, source_ts=0x200)
     )
     bridge = MockBridge(words)
     out = io.StringIO()
     n = dump(bridge,
              base_addr=0x0004_0000,
              n_bytes=len(words) * 4,
-             ts_mode=3,
              out=out)
     assert n == 2
     lines = out.getvalue().strip().splitlines()
     assert len(lines) == 2
     assert "AXI_ERR_RESP_SLVERR" in lines[0]
-    assert "drift=16" in lines[0]  # 0x110 - 0x100
     assert "AXI_PERF_TOTAL_LATENCY" in lines[1]
-    assert "drift=5" in lines[1]
+
+
+def test_record_geometry_is_24_bytes():
+    assert RECORD_BYTES == 24

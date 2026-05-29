@@ -369,18 +369,13 @@ class BridgeModuleGenerator:
         for base, width in self._MON_GROUP_CFG:
             width_decl = "       " if width == 1 else f"[{width-1}:0]"
             lines.append(f"    input  logic {width_decl} cfg_mon_group_{base},")
-        # Timestamp-append config -- SoC integrator chooses whether
-        # bulk-trace records include source_ts (mode 01), arrival_ts
-        # (mode 10), or both (mode 11). Driving append_enable=0 keeps
-        # records at the bare 16-byte (2 × 64-bit beat) shape, which
-        # is what the bridge's cocotb capture test assumes when it
-        # groups m_mon_axil_w beats in pairs. Surfacing as ports
-        # rather than hard-coded inside the instantiation lets each
-        # consumer pick its own mode without regenerating the bridge.
-        lines.append("    // monbus_axil_group timestamp-append config")
-        lines.append("    input  logic        cfg_mon_group_ts_append_enable,")
-        lines.append("    input  logic [1:0]  cfg_mon_group_ts_append_mode,")
-        lines.append("")
+        # Note: cfg_mon_group_ts_append_* ports are no longer surfaced.
+        # The monbus_axil_group now emits a fixed 3-beat 24-byte record
+        # (packet[63:0], packet[127:64], source_ts[63:0]) regardless of
+        # what the integrator wants. Removing the cfg pair simplifies
+        # both the bridge top and every downstream consumer (host dump
+        # script, cocotb capture test) -- one record shape everywhere.
+        #
         # IRQ output -- last port, no trailing comma.
         lines.append("    // IRQ (asserted while error FIFO non-empty)")
         lines.append("    output logic        mon_irq_out")
@@ -507,8 +502,9 @@ class BridgeModuleGenerator:
         lines.append("        // S_AXIL_DATA_WIDTH=64: the unified group drains one")
         lines.append("        // err_fifo entry ({packet[127:0], source_ts[63:0]} = 192 bits)")
         lines.append("        // over three 64-bit reads via an internal slice counter.")
-        lines.append("        // M_AXIL_DATA_WIDTH defaults to 64 — module emits two 64-bit beats")
-        lines.append("        // per 128-bit packet plus optional timestamp beats per cfg_ts_append_mode.")
+        lines.append("        // M_AXIL_DATA_WIDTH defaults to 64 — module emits the same")
+        lines.append("        // 24-byte record on the bulk-trace write path: three 64-bit")
+        lines.append("        // beats {packet[63:0], packet[127:64], source_ts[63:0]}.")
         lines.append("        .NUM_PROTOCOLS     (3)")
         lines.append("    ) u_mon_axil_group (")
         lines.append("        .axi_aclk          (aclk),")
@@ -520,13 +516,6 @@ class BridgeModuleGenerator:
         lines.append("        .monbus_timestamp  (mon_arb_monbus_timestamp),")
         lines.append("        // Free-running timestamp shared with every wrapper's i_mon_time")
         lines.append("        .mon_time_out      (mon_time_w),")
-        lines.append("        // Timestamp append config: driven from bridge-top inputs so")
-        lines.append("        // each SoC integrator chooses whether to append source / arrival /")
-        lines.append("        // both / neither. Default (cocotb-undriven) is 0 / 00 -> packets")
-        lines.append("        // only, 2 beats per record -- which is what the bridge cocotb")
-        lines.append("        // capture test's pair-grouping assumes.")
-        lines.append("        .cfg_ts_append_enable (cfg_mon_group_ts_append_enable),")
-        lines.append("        .cfg_ts_append_mode   (cfg_mon_group_ts_append_mode),")
         lines.append("        // AXIL slave")
         for s in ('arvalid','arready','araddr','arprot','rvalid','rready','rdata','rresp'):
             lines.append(f"        .s_axil_{s}      (s_mon_axil_{s}),")

@@ -383,14 +383,12 @@ module bridge_1x2_rd_mon_smoke #(
         .cfg_mon_group_core_perf_mask    (16'h0),
         .cfg_mon_group_core_debug_mask   (16'h0),
 
-        // Timestamp append: disabled in the wrapper so each m_mon_axil
-        // write record is just the 128-bit packet (= 2 × 64-bit beats).
-        // The cocotb capture test groups beats in pairs and parses each
-        // pair as one packet, which only works when append is off.
-        // SoC integrators that want source / arrival timestamps in
-        // memory drive these inputs at instantiation time.
-        .cfg_mon_group_ts_append_enable  (1'b0),
-        .cfg_mon_group_ts_append_mode    (2'b00),
+        // Timestamp append: no longer configurable. Every m_mon_axil
+        // write record is fixed at 24 bytes (3 × 64-bit beats):
+        //   beat 0 = packet[63:0]
+        //   beat 1 = packet[127:64]
+        //   beat 2 = source_ts[63:0]
+        // Matches the s_axil slice-counter drain layout.
 
         // IRQ output: wired to an internal logic net so cocotb tests
         // can probe `dut.mon_irq_out` directly. The wrapper does

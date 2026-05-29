@@ -1616,8 +1616,9 @@ module stream_top_ch8 #(
                 .FIFO_DEPTH_WRITE   (32),    // Write data FIFO depth
                 .ADDR_WIDTH         (32),    // AXI-Lite address width
                 .S_AXIL_DATA_WIDTH  (32),    // CPU-facing slave (IRQ status)
-                // M_AXIL_DATA_WIDTH defaults to 64 — 128-bit packet emits in 2
-                // beats + optional timestamp beats per cfg_ts_append_mode.
+                // M_AXIL_DATA_WIDTH defaults to 64 — every record on the
+                // bulk-trace write path is 24 bytes: 3 × 64-bit beats
+                // (packet[63:0], packet[127:64], source_ts[63:0]).
                 .NUM_PROTOCOLS      (3)      // 3 protocols: desc, rd, wr
             ) u_monbus_axil_group (
                 .axi_aclk           (aclk),
@@ -1631,10 +1632,6 @@ module stream_top_ch8 #(
 
                 // Free-running timestamp counter — broadcast to wrappers
                 .mon_time_out       (mon_time_w),
-
-                // Timestamp append config — default mode 11 (both ts) per plan §8.6
-                .cfg_ts_append_enable (1'b1),
-                .cfg_ts_append_mode   (2'b11),
 
                 // Error/Interrupt FIFO - Slave Read Interface (AXI-Lite)
                 .s_axil_arvalid     (s_axil_err_arvalid),

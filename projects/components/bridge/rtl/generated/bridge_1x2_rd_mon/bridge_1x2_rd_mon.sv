@@ -200,10 +200,6 @@ module bridge_1x2_rd_mon (
     input  logic [15:0] cfg_mon_group_core_thresh_mask,
     input  logic [15:0] cfg_mon_group_core_perf_mask,
     input  logic [15:0] cfg_mon_group_core_debug_mask,
-    // monbus_axil_group timestamp-append config
-    input  logic        cfg_mon_group_ts_append_enable,
-    input  logic [1:0]  cfg_mon_group_ts_append_mode,
-
     // IRQ (asserted while error FIFO non-empty)
     output logic        mon_irq_out
 );
@@ -645,8 +641,9 @@ module bridge_1x2_rd_mon (
         // S_AXIL_DATA_WIDTH=64: the unified group drains one
         // err_fifo entry ({packet[127:0], source_ts[63:0]} = 192 bits)
         // over three 64-bit reads via an internal slice counter.
-        // M_AXIL_DATA_WIDTH defaults to 64 — module emits two 64-bit beats
-        // per 128-bit packet plus optional timestamp beats per cfg_ts_append_mode.
+        // M_AXIL_DATA_WIDTH defaults to 64 — module emits the same
+        // 24-byte record on the bulk-trace write path: three 64-bit
+        // beats {packet[63:0], packet[127:64], source_ts[63:0]}.
         .NUM_PROTOCOLS     (3)
     ) u_mon_axil_group (
         .axi_aclk          (aclk),
@@ -658,13 +655,6 @@ module bridge_1x2_rd_mon (
         .monbus_timestamp  (mon_arb_monbus_timestamp),
         // Free-running timestamp shared with every wrapper's i_mon_time
         .mon_time_out      (mon_time_w),
-        // Timestamp append config: driven from bridge-top inputs so
-        // each SoC integrator chooses whether to append source / arrival /
-        // both / neither. Default (cocotb-undriven) is 0 / 00 -> packets
-        // only, 2 beats per record -- which is what the bridge cocotb
-        // capture test's pair-grouping assumes.
-        .cfg_ts_append_enable (cfg_mon_group_ts_append_enable),
-        .cfg_ts_append_mode   (cfg_mon_group_ts_append_mode),
         // AXIL slave
         .s_axil_arvalid      (s_mon_axil_arvalid),
         .s_axil_arready      (s_mon_axil_arready),
