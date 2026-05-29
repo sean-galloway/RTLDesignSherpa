@@ -64,4 +64,4 @@ $REPO_ROOT/rtl/amba/gaxi/gaxi_fifo_sync.sv
 $REPO_ROOT/rtl/amba/shared/monbus_arbiter.sv
 $REPO_ROOT/rtl/amba/axil4/axil4_slave_rd.sv
 $REPO_ROOT/rtl/amba/axil4/axil4_master_wr.sv
-$REPO_ROOT/projects/components/stream/rtl/macro/monbus_axil_group.sv
+$REPO_ROOT/rtl/amba/shared/monbus_axil_group.sv

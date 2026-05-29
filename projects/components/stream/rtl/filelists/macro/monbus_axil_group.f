@@ -36,5 +36,5 @@ $REPO_ROOT/rtl/amba/gaxi/gaxi_skid_buffer.sv
 $REPO_ROOT/rtl/amba/axil4/axil4_slave_rd.sv
 $REPO_ROOT/rtl/amba/axil4/axil4_master_wr.sv
 
-# Macro Component - This module
-$STREAM_ROOT/rtl/macro/monbus_axil_group.sv
+# Macro Component - This module (unified under rtl/amba/shared/)
+$REPO_ROOT/rtl/amba/shared/monbus_axil_group.sv

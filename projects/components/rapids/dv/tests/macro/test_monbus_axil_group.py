@@ -165,7 +165,13 @@ def run_monbus_axil_test(testcase_name, fifo_depth_err, fifo_depth_write, addr_w
         'rtl_macro': '../../rtl/macro',
     })
 
-    dut_name = "monbus_axil_group"
+    # The RAPIDS test exercises a 2-input variant. With monbus_axil_group
+    # itself unified to a single-input shared module under
+    # rtl/amba/shared/, the 2-input behaviour now lives in a thin wrapper
+    # (monbus_axil_group_2in) that instantiates monbus_arbiter(CLIENTS=2)
+    # feeding the shared group. The wrapper preserves the source_/sink_
+    # port surface the TB drives, so this test's TB needs no changes.
+    dut_name = "monbus_axil_group_2in"
 
     # Get Verilog sources and includes from hierarchical file list
     verilog_sources, includes = get_sources_from_filelist(

@@ -659,7 +659,7 @@ def _emit_bridge_variant(
         filelist_lines.append("$REPO_ROOT/rtl/amba/shared/monbus_arbiter.sv")
         filelist_lines.append("$REPO_ROOT/rtl/amba/axil4/axil4_slave_rd.sv")
         filelist_lines.append("$REPO_ROOT/rtl/amba/axil4/axil4_master_wr.sv")
-        filelist_lines.append("$REPO_ROOT/projects/components/stream/rtl/macro/monbus_axil_group.sv")
+        filelist_lines.append("$REPO_ROOT/rtl/amba/shared/monbus_axil_group.sv")
 
     # Note: Width converters are included even if not used in this specific bridge
     # because they're needed when master/slave data widths differ.

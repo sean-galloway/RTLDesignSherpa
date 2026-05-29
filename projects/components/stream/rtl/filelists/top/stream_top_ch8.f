@@ -60,7 +60,8 @@ $REPO_ROOT/projects/components/converters/rtl/peakrdl_to_cmdrsp.sv
 -f $STREAM_ROOT/rtl/filelists/macro/stream_core.f
 
 # MonBus to AXI-Lite converter (used when USE_AXI_MONITORS=1)
-$STREAM_ROOT/rtl/macro/monbus_axil_group.sv
+# Unified under rtl/amba/shared/ -- shared with bridge and rapids.
+$REPO_ROOT/rtl/amba/shared/monbus_axil_group.sv
 
 # Top-level wrapper files (unique to this filelist)
 $STREAM_ROOT/rtl/top/stream_config_block.sv

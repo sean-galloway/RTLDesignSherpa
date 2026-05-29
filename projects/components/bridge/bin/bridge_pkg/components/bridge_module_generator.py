@@ -277,7 +277,7 @@ class BridgeModuleGenerator:
     # per-port wrapper cfg). Surfaced as `cfg_mon_group_<base>` at the
     # bridge top so the SoC integrator drives the post-arbiter filter
     # behaviour. Mirrors monbus_axil_group's port list in
-    # projects/components/stream/rtl/macro/monbus_axil_group.sv.
+    # rtl/amba/shared/monbus_axil_group.sv (unified location).
     _MON_GROUP_CFG = (
         # Address window for the AXIL master write region
         ('base_addr',           32),

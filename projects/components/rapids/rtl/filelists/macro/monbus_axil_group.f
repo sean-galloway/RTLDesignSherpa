@@ -33,5 +33,8 @@ $REPO_ROOT/rtl/amba/gaxi/gaxi_skid_buffer.sv
 $REPO_ROOT/rtl/common/arbiter_round_robin.sv
 $REPO_ROOT/rtl/common/arbiter_priority_encoder.sv
 
-# DUT module
-$REPO_ROOT/projects/components/rapids/rtl/macro/monbus_axil_group.sv
+# Shared single-input AXIL group (rtl/amba/shared/)
+$REPO_ROOT/rtl/amba/shared/monbus_axil_group.sv
+
+# RAPIDS 2-input wrapper: monbus_arbiter(2) + the shared group above
+$REPO_ROOT/projects/components/rapids/rtl/macro/monbus_axil_group_2in.sv

@@ -7,8 +7,8 @@
 // Module: monbus_axil_group
 // Purpose: Monbus Axil Group module
 //
-// Documentation: projects/components/rapids_macro/PRD.md
-// Subsystem: rapids_macro
+// Documentation: rtl/amba/PRD.md
+// Subsystem: amba
 //
 // Author: sean galloway
 // Created: 2025-10-18
@@ -17,18 +17,22 @@
 
 /*
 ================================================================================
-Monitor Bus AXI-Lite Group (RAPIDS)
+Monitor Bus AXI-Lite Group  (shared AMBA building block)
 ================================================================================
+Single monbus input -- consumers that need N-way arbitration (RAPIDS source +
+sink, the bridge's per-port wrappers) instantiate a separate monbus_arbiter
+upstream and feed this group with the merged stream. That keeps arbitration
+and capture as orthogonal concerns and means this module never has to
+duplicate the arbiter for each consumer's input count.
 
-This module aggregates monitor bus streams from source and sink paths,
+This module receives a single monbus stream,
 applies configurable filtering based on protocol and packet types, and
 routes filtered packets to either:
 - Error/Interrupt FIFO (slave read interface) - generates interrupt when not empty
 - Master Write FIFO - writes to configurable address range
 
 Features:
-- Round-robin arbitration between source and sink monitor streams (each carrying
-  both a 128-bit packet and a 64-bit side-band timestamp)
+- Single monitor bus input (no arbitration needed)
 - Per-protocol configurable packet filtering (drop, error/interrupt, master write)
 - Separate FIFOs for error/interrupt vs master write paths
 - Configurable address range for master write operations
@@ -42,10 +46,9 @@ Timestamping (see MON-PKT-64-to-128-plan.md sec 4.4.1):
 - Free-running 64-bit counter inside the group is driven OUT on mon_time_out
   to every wrapper's i_mon_time input.
 - Wrappers sample on emission and return the source timestamp on the
-  monbus_timestamp side-band, which arrives here (after arbitration) paired
-  with the packet.
-- On the input handshake (post-arbiter), the group also captures an arrival
-  timestamp from its own counter.
+  monbus_timestamp side-band, which arrives here paired with the packet.
+- On the input handshake, the group also captures an arrival timestamp from
+  its own counter.
 - The write FIFO carries {packet[127:0], source_ts[63:0], arrival_ts[63:0]}.
 - The AXIL master write FSM emits 2-4 64-bit beats per record depending on
   cfg_ts_append_enable / cfg_ts_append_mode.
@@ -74,17 +77,11 @@ module monbus_axil_group
     input  logic                          axi_aclk,
     input  logic                          axi_aresetn,
 
-    // Source Monitor Bus Input
-    input  logic                          source_monbus_valid,
-    output logic                          source_monbus_ready,
-    input  monitor_packet_t               source_monbus_packet,
-    input  monbus_timestamp_t             source_monbus_timestamp,
-
-    // Sink Monitor Bus Input
-    input  logic                          sink_monbus_valid,
-    output logic                          sink_monbus_ready,
-    input  monitor_packet_t               sink_monbus_packet,
-    input  monbus_timestamp_t             sink_monbus_timestamp,
+    // Monitor Bus Input (single input - STREAM is memory-to-memory only)
+    input  logic                          monbus_valid,
+    output logic                          monbus_ready,
+    input  monitor_packet_t               monbus_packet,
+    input  monbus_timestamp_t             monbus_timestamp,
 
     // Free-running monitor-time output (drive to every wrapper's i_mon_time)
     output monbus_timestamp_t             mon_time_out,
@@ -178,17 +175,11 @@ module monbus_axil_group
     // Internal Signals
     // =======================================================================
 
-    // Arbitrated monitor bus (post-arbiter)
-    logic                            arb_monbus_valid;
-    logic                            arb_monbus_ready;
-    monitor_packet_t                 arb_monbus_packet;
-    monbus_timestamp_t               arb_monbus_source_ts;
-
-    // Arbiter input arrays (unpacked, length 2: source and sink)
-    logic                            arb_in_valid     [2];
-    logic                            arb_in_ready     [2];
-    monitor_packet_t                 arb_in_packet    [2];
-    monbus_timestamp_t               arb_in_timestamp [2];
+    // Input monitor bus (no arbitration - single input)
+    logic                            input_monbus_valid;
+    logic                            input_monbus_ready;
+    monitor_packet_t                 input_monbus_packet;
+    monbus_timestamp_t               input_monbus_source_ts;
 
     // Packet analysis
     logic [3:0]                      pkt_type;
@@ -273,58 +264,24 @@ module monbus_axil_group
     assign mon_time_out = r_ts_counter;
 
     // =======================================================================
-    // Monitor Bus Arbitration (source + sink, packet+timestamp side-band)
+    // Monitor Bus Input (No Arbitration Needed - Single Input)
     // =======================================================================
 
-    // Build unpacked arrays for the arbiter (index 0 = source, 1 = sink)
-    assign arb_in_valid    [0] = source_monbus_valid;
-    assign arb_in_valid    [1] = sink_monbus_valid;
-    assign source_monbus_ready = arb_in_ready[0];
-    assign sink_monbus_ready   = arb_in_ready[1];
-    assign arb_in_packet   [0] = source_monbus_packet;
-    assign arb_in_packet   [1] = sink_monbus_packet;
-    assign arb_in_timestamp[0] = source_monbus_timestamp;
-    assign arb_in_timestamp[1] = sink_monbus_timestamp;
-
-    monbus_arbiter #(
-        .CLIENTS            (2),
-        .INPUT_SKID_ENABLE  (1),
-        .OUTPUT_SKID_ENABLE (1),
-        .INPUT_SKID_DEPTH   (2),
-        .OUTPUT_SKID_DEPTH  (2)
-    ) u_arbiter (
-        .axi_aclk           (axi_aclk),
-        .axi_aresetn        (axi_aresetn),
-        .block_arb          (1'b0),
-
-        // Inputs
-        .monbus_valid_in    (arb_in_valid),
-        .monbus_ready_in    (arb_in_ready),
-        .monbus_packet_in   (arb_in_packet),
-        .monbus_timestamp_in(arb_in_timestamp),
-
-        // Output
-        .monbus_valid       (arb_monbus_valid),
-        .monbus_ready       (arb_monbus_ready),
-        .monbus_packet      (arb_monbus_packet),
-        .monbus_timestamp   (arb_monbus_source_ts),
-
-        // Debug (unused)
-        .grant_valid        (),
-        .grant              (),
-        .grant_id           (),
-        .last_grant         ()
-    );
+    // Direct connection - no arbitration needed for single input
+    assign input_monbus_valid     = monbus_valid;
+    assign monbus_ready           = input_monbus_ready;
+    assign input_monbus_packet    = monbus_packet;
+    assign input_monbus_source_ts = monbus_timestamp;
 
     // =======================================================================
     // Packet Analysis and Filtering
     // =======================================================================
 
     // Extract packet fields (new 128-bit layout)
-    assign pkt_type       = get_packet_type(arb_monbus_packet);
-    assign pkt_protocol   = arb_monbus_packet[108:105]; // 4-bit protocol field
-    assign pkt_event_code = get_event_code(arb_monbus_packet);
-    assign pkt_event_data = get_event_data(arb_monbus_packet);
+    assign pkt_type       = get_packet_type(input_monbus_packet);
+    assign pkt_protocol   = input_monbus_packet[108:105]; // 4-bit protocol field
+    assign pkt_event_code = get_event_code(input_monbus_packet);
+    assign pkt_event_data = get_event_data(input_monbus_packet);
 
     // Event-code is now 8 bits but the per-event mask registers stayed 16 bits
     // for backward-compat with the existing register map. Index with the low
@@ -346,7 +303,7 @@ module monbus_axil_group
         pkt_to_write_fifo = 1'b0;
         pkt_event_masked  = 1'b0;
 
-        if (arb_monbus_valid) begin
+        if (input_monbus_valid) begin
             // Protocol-specific filtering. Use the package enum values
             // (PROTOCOL_AXI=0, PROTOCOL_AXIS=1, PROTOCOL_CORE=4).
             case (pkt_protocol)
@@ -418,17 +375,17 @@ module monbus_axil_group
         end
     end
 
-    // Arbitrated ready based on FIFO availability
-    assign arb_monbus_ready = pkt_drop ||
-                              (pkt_to_err_fifo   && err_fifo_wr_ready) ||
-                              (pkt_to_write_fifo && write_fifo_wr_ready);
+    // Input ready based on FIFO availability
+    assign input_monbus_ready = pkt_drop ||
+                                (pkt_to_err_fifo   && err_fifo_wr_ready) ||
+                                (pkt_to_write_fifo && write_fifo_wr_ready);
 
     // =======================================================================
     // Error/Interrupt FIFO (packet-only, no timestamps)
     // =======================================================================
 
-    assign err_fifo_wr_valid = arb_monbus_valid && pkt_to_err_fifo && !pkt_drop;
-    assign err_fifo_wr_data  = arb_monbus_packet;
+    assign err_fifo_wr_valid = input_monbus_valid && pkt_to_err_fifo && !pkt_drop;
+    assign err_fifo_wr_data  = input_monbus_packet;
 
     gaxi_fifo_sync #(
         .REGISTERED     (0),
@@ -456,12 +413,12 @@ module monbus_axil_group
     // Master Write FIFO (combined record: packet + source_ts + arrival_ts)
     // =======================================================================
 
-    assign write_fifo_wr_valid = arb_monbus_valid && pkt_to_write_fifo && !pkt_drop;
+    assign write_fifo_wr_valid = input_monbus_valid && pkt_to_write_fifo && !pkt_drop;
     // Pack: {packet[127:0], source_ts[63:0], arrival_ts[63:0]}
     // arrival_ts is sampled on the input handshake — by construction
     // write_fifo_wr_valid implies the handshake cycle, so r_ts_counter at this
     // moment is the arrival time.
-    assign write_fifo_wr_data  = {arb_monbus_packet, arb_monbus_source_ts, r_ts_counter};
+    assign write_fifo_wr_data  = {input_monbus_packet, input_monbus_source_ts, r_ts_counter};
 
     gaxi_fifo_sync #(
         .REGISTERED     (0),
@@ -626,7 +583,7 @@ module monbus_axil_group
     logic                            cur_append_enable;
     logic [1:0]                      cur_append_mode;
 
-    // Beat counters
+    // Beat counters — 3 bits because total_beats can be 4 (mode 11)
     logic [2:0]                      total_beats;     // 2, 3, or 4
     logic [2:0]                      beat_idx;        // 0..total_beats-1
 
