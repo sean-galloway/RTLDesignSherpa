@@ -23,6 +23,11 @@
 //                              [0]   stream_irq      (latched)
 //                              [1]   any_error       (sticky; cleared by clear_stats)
 //                              [2]   trace_overflow  (sticky)
+//                              [3]   clear_busy      (1 while debug_sram wipe runs)
+//                                                    Software polls this after
+//                                                    writing CTRL.clear_stats and
+//                                                    must wait for 0 before
+//                                                    starting the next capture.
 //
 //   0x08  DBG_WR_PTR      R   Number of 32-bit words written to debug_sram
 //   0x0C  DBG_OVERFLOW    R   Sticky overflow flag as a full word
@@ -161,6 +166,7 @@ module harness_csr #(
     input  logic            i_any_error,
     input  logic [31:0]     i_dbg_wr_ptr,
     input  logic            i_dbg_overflow,
+    input  logic            i_dbg_clear_busy,
     input  logic [31:0]     i_crc_rd_expected,
     input  logic [31:0]     i_crc_wr_expected,
     input  logic [31:0]     i_crc_wr_computed,
@@ -474,7 +480,7 @@ module harness_csr #(
                     if (int_arvalid) begin
                         case (w_raddr)
                             8'h00: r_rdata <= {28'd0, 1'b0, r_freeze_trace, 2'b00};
-                            8'h04: r_rdata <= {28'd0, 1'b0, i_dbg_overflow, r_any_error_sticky, r_irq_latched};
+                            8'h04: r_rdata <= {28'd0, i_dbg_clear_busy, i_dbg_overflow, r_any_error_sticky, r_irq_latched};
                             8'h08: r_rdata <= i_dbg_wr_ptr;
                             8'h0C: r_rdata <= {31'd0, i_dbg_overflow};
                             8'h10: r_rdata <= i_crc_rd_expected;

@@ -21,6 +21,13 @@
 //   - wr_ptr counter tracks number of captured packets since last clear
 //   - "freeze" input gates writes (but read port is always live)
 //   - "overflow" sticky bit if a write occurs when wr_ptr is saturated
+//   - "clear_pulse" zeros wr_ptr/overflow AND wipes the BRAM at FPGA
+//     speed. The clear engine walks DEPTH_WORDS addresses one per cycle;
+//     for the default 64K words that's ~656 us at 100 MHz, vs ~18 s if
+//     the host tried to do it through the UART AXIL bridge. Both AXIL
+//     ports are backpressured (awready=0, wready=0, arready=0) while
+//     clearing, and o_clear_busy is asserted so software can poll for
+//     completion before starting a fresh capture.
 
 `timescale 1ns / 1ps
 
@@ -39,10 +46,11 @@ module debug_sram #(
     input  logic            aresetn,
 
     input  logic            i_freeze,           // latch: stop writes when high
-    input  logic            i_clear_pulse,      // one-cycle: clear wr_ptr/overflow
+    input  logic            i_clear_pulse,      // one-cycle: kick off a wipe
 
     output logic [31:0]     o_wr_ptr,           // words written since last clear
     output logic            o_overflow,         // sticky
+    output logic            o_clear_busy,       // 1 while clear engine running
 
     // =====================================================================
     // Write-only AXI4-Lite slave (from STREAM m_axil_mon)
@@ -109,6 +117,45 @@ module debug_sram #(
     // =========================================================================
     (* ram_style = "block" *)
     logic [31:0] r_mem [DEPTH_WORDS];
+
+    // =========================================================================
+    // Clear engine: zeros every word of r_mem at one word per cycle
+    //
+    // Latched on i_clear_pulse. While r_clear_busy is high, both AXIL ports
+    // are held off (awready=wready=arready=0) so concurrent writes / reads
+    // can't race the wipe -- they wait until the engine releases the bus.
+    // The write port to BRAM is shared with the normal write engine via a
+    // mux on r_w_idx / r_w_data; when r_clear_busy, the mux selects
+    // r_clr_idx + 32'h0 instead of the AXIL payload.
+    //
+    // Worst-case duration: DEPTH_WORDS cycles. For the default 64K words at
+    // 100 MHz, that's 65536 * 10 ns ~= 656 us. Software issues the clear
+    // pulse, polls o_clear_busy, then begins capture.
+    // =========================================================================
+    logic                 r_clear_busy;
+    logic [ADDR_BITS-1:0] r_clr_idx;
+
+    `ALWAYS_FF_RST(aclk, aresetn,
+        if (`RST_ASSERTED(aresetn)) begin
+            r_clear_busy <= 1'b0;
+            r_clr_idx    <= '0;
+        end else begin
+            if (i_clear_pulse) begin
+                // Start (or restart) a clear. Begin at index 0.
+                r_clear_busy <= 1'b1;
+                r_clr_idx    <= '0;
+            end else if (r_clear_busy) begin
+                if (r_clr_idx == ADDR_BITS'(DEPTH_WORDS - 1)) begin
+                    // Final word committed this cycle in the BRAM block
+                    // below; drop busy on the next cycle.
+                    r_clear_busy <= 1'b0;
+                end
+                r_clr_idx <= r_clr_idx + 1'b1;
+            end
+        end
+    )
+
+    assign o_clear_busy = r_clear_busy;
 
     // =========================================================================
     // Write port: AW / W / B skid buffers
@@ -199,9 +246,17 @@ module debug_sram #(
             r_w_strb      <= '0;
             r_w_did_write <= 1'b0;
         end else begin
+            // Clear engine owns the BRAM write port while r_clear_busy
+            // is high. AXIL backpressure (see wfub_awready / wfub_wready
+            // below) keeps the FSM in WS_IDLE during the wipe, so there's
+            // no contention between the two write paths.
+            if (r_clear_busy) begin
+                r_mem[r_clr_idx] <= 32'h0;
+            end
+
             case (r_wstate)
                 WS_IDLE: begin
-                    if (wfub_awvalid && wfub_wvalid) begin
+                    if (!r_clear_busy && wfub_awvalid && wfub_wvalid) begin
                         r_w_idx       <= wfub_awaddr[ADDR_BITS+1:2];
                         r_w_data      <= wfub_wdata;
                         r_w_strb      <= wfub_wstrb;
@@ -225,8 +280,11 @@ module debug_sram #(
         end
     )
 
-    assign wfub_awready = (r_wstate == WS_IDLE) && wfub_wvalid;
-    assign wfub_wready  = (r_wstate == WS_IDLE) && wfub_awvalid;
+    // AXIL backpressure during clear -- holds AW/W off until the wipe
+    // finishes, so the FSM never sees a new transaction mid-wipe and the
+    // BRAM port stays uncontested.
+    assign wfub_awready = !r_clear_busy && (r_wstate == WS_IDLE) && wfub_wvalid;
+    assign wfub_wready  = !r_clear_busy && (r_wstate == WS_IDLE) && wfub_awvalid;
     assign wfub_bvalid  = (r_wstate == WS_BRESP);
     assign wfub_b_pkt   = 2'b00;  // OKAY
 
@@ -356,7 +414,10 @@ module debug_sram #(
         end
     )
 
-    assign rfub_arready = (r_rstate == RS_IDLE);
+    // Backpressure host AR during the clear engine's wipe -- the host
+    // would otherwise read a half-cleared snapshot. Read responses
+    // already in flight (rstate != IDLE) drain normally.
+    assign rfub_arready = !r_clear_busy && (r_rstate == RS_IDLE);
     assign rfub_rvalid  = (r_rstate == RS_RRESP);
     assign rfub_r_pkt   = {r_r_data, 2'b00};  // OKAY
 

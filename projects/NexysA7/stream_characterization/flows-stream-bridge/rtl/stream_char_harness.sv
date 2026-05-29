@@ -411,6 +411,7 @@ module stream_char_harness #(
     logic [31:0] csr_timer_expected_beats;
     logic [31:0] dbg_wr_ptr;
     logic        dbg_overflow;
+    logic        dbg_clear_busy;
     // Per-channel CRC + beat-count outputs from the slaves. The slaves
     // demux off s_axi_arid / s_axi_wuser low-bits and keep independent
     // LFSR/CRC state per channel, so multi-channel runs verify integrity
@@ -495,6 +496,7 @@ module stream_char_harness #(
         .i_any_error        (any_error),
         .i_dbg_wr_ptr       (dbg_wr_ptr),
         .i_dbg_overflow     (dbg_overflow),
+        .i_dbg_clear_busy   (dbg_clear_busy),
         // Aggregate scalars (back-compat at 0x10/0x14/0x18/0x1C): channel-0
         // CRC plus any-active/all-active reductions across channels.
         .i_crc_rd_expected  (read_crc_value[0]),
@@ -774,6 +776,7 @@ module stream_char_harness #(
         .i_clear_pulse(csr_clear_pulse),
         .o_wr_ptr     (dbg_wr_ptr),
         .o_overflow   (dbg_overflow),
+        .o_clear_busy (dbg_clear_busy),
         // Write-only port from STREAM monbus AXIL master
         .wr_awaddr (mon_awaddr), .wr_awprot(mon_awprot),
         .wr_awvalid(mon_awvalid), .wr_awready(mon_awready),
