@@ -258,7 +258,11 @@ def test_axi4_dwidth_converter_wr(request, params):
         'COCOTB_LOG_LEVEL': 'DEBUG',
         'COCOTB_RESULTS_FILE': results_path,
         'COCOTB_TEST_TIMEOUT': str(timeout_ms),
-        'SEED': str(random.randint(0, 1000000)),
+        # Honour caller-supplied SEED for reproducible failure debug; only
+        # roll a fresh seed when the caller didn't pin one. Without this
+        # the wrapper overwrites SEED every run, making failures impossible
+        # to reproduce via `SEED=<n> pytest ...`.
+        'SEED': os.environ.get('SEED', str(random.randint(0, 1000000))),
         'TEST_LEVEL': test_level,
         'S_AXI_DATA_WIDTH': str(s_data_width),
         'M_AXI_DATA_WIDTH': str(m_data_width),

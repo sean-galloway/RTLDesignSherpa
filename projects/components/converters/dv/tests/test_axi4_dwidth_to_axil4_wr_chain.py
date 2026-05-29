@@ -170,7 +170,7 @@ def test_axi4_dwidth_to_axil4_wr_chain(request, params):
         'COCOTB_LOG_LEVEL': 'INFO',
         'COCOTB_RESULTS_FILE': results_path,
         'COCOTB_TEST_TIMEOUT': str(timeout_ms),
-        'SEED': str(random.randint(0, 1000000)),
+        'SEED': os.environ.get('SEED', str(random.randint(0, 1000000))),
         'TEST_LEVEL': test_level,
         'S_AXI_DATA_WIDTH':  str(s_data_width),
         'M_AXIL_DATA_WIDTH': str(m_data_width),

@@ -98,6 +98,34 @@ module axi_data_upsize #(
     // Accumulator State Machine
     //==========================================================================
 
+    // Single-cycle next-state for r_wide_valid / r_last_buffered.
+    //
+    // The old structure had two separate if-blocks in one always_ff:
+    //   1) narrow-accept block that did `r_wide_valid <= 1'b1` when a
+    //      group completed (full WIDTH_RATIO beats or narrow_last);
+    //   2) wide-accept block that did `r_wide_valid <= 1'b0` when the
+    //      wide side fired.
+    // When BOTH happened in the same cycle (legal & expected: master
+    // accepts wide beat N at the same time a narrow beat completes
+    // group N+1) both NBAs targeted r_wide_valid. The wide-accept block
+    // appeared lexically later, so its `<= 1'b0` won and the freshly-
+    // completed group's valid was clobbered. The accumulator still
+    // held the new wide beat but it was silently dropped.
+    //
+    // This exploded the upsize whenever a burst's tail produced a
+    // partial-last wide beat (e.g. 5-beat 64-bit burst at 4:1 ratio
+    // emits 1 full + 1 partial wide beat — the partial one was lost).
+    //
+    // Fix: collapse both conditions into a single NBA selection so the
+    // "new group ready" case dominates the "old group accepted" case
+    // when they collide on the same cycle. Same goes for r_last_buffered.
+    logic narrow_completes_group;
+    assign narrow_completes_group = narrow_valid && narrow_ready &&
+                                    (r_beat_ptr == PTR_WIDTH'(WIDTH_RATIO-1) ||
+                                     narrow_last);
+    logic wide_accept;
+    assign wide_accept = r_wide_valid && wide_ready;
+
     `ALWAYS_FF_RST(aclk, aresetn,
         if (`RST_ASSERTED(aresetn)) begin
             r_data_accumulator <= '0;
@@ -127,21 +155,24 @@ module axi_data_upsize #(
                     r_data_accumulator[r_beat_ptr*NARROW_WIDTH +: NARROW_WIDTH] <= narrow_data;
                 end
 
-                // Check if accumulation complete
-                if (r_beat_ptr == PTR_WIDTH'(WIDTH_RATIO-1) || narrow_last) begin
-                    // Buffer full or early termination (narrow_last)
-                    r_wide_valid <= 1'b1;
+                // Beat-pointer advance: rolls to 0 on group completion,
+                // otherwise increments. Doesn't race with wide-accept.
+                if (narrow_completes_group) begin
                     r_beat_ptr <= '0;
-                    r_last_buffered <= narrow_last;
                 end else begin
-                    // More narrow beats needed
                     r_beat_ptr <= r_beat_ptr + 1'b1;
                 end
             end
 
-            // Wide side accepts accumulated beat
-            if (r_wide_valid && wide_ready) begin
-                r_wide_valid <= 1'b0;
+            // Single point of control for r_wide_valid / r_last_buffered.
+            // Priority: a newly-completed group dominates an in-flight
+            // wide accept; otherwise the wide accept clears valid;
+            // otherwise hold.
+            if (narrow_completes_group) begin
+                r_wide_valid    <= 1'b1;
+                r_last_buffered <= narrow_last;
+            end else if (wide_accept) begin
+                r_wide_valid    <= 1'b0;
                 r_last_buffered <= 1'b0;
             end
         end

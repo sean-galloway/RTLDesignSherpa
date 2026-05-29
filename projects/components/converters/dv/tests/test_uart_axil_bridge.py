@@ -235,7 +235,7 @@ def test_uart_axil_bridge(request, params):
         'COCOTB_LOG_LEVEL': 'DEBUG',
         'COCOTB_RESULTS_FILE': results_path,
         'COCOTB_TEST_TIMEOUT': str(timeout_ms),
-        'SEED': str(random.randint(0, 1000000)),
+        'SEED': os.environ.get('SEED', str(random.randint(0, 1000000))),
         'TEST_LEVEL': test_level,
         'AXIL_DATA_WIDTH': str(axil_data_width),
         'AXIL_ADDR_WIDTH': str(axil_addr_width),
