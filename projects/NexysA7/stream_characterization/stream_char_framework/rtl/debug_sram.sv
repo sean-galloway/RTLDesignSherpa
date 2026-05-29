@@ -238,6 +238,9 @@ module debug_sram #(
     logic [3:0]           r_w_strb;
     logic                 r_w_did_write;
 
+    // FSM bookkeeping only -- the BRAM write itself moves into its own
+    // process below so Vivado can infer block RAM (it requires exactly
+    // one write port per always block).
     `ALWAYS_FF_RST(aclk, aresetn,
         if (`RST_ASSERTED(aresetn)) begin
             r_wstate      <= WS_IDLE;
@@ -246,14 +249,6 @@ module debug_sram #(
             r_w_strb      <= '0;
             r_w_did_write <= 1'b0;
         end else begin
-            // Clear engine owns the BRAM write port while r_clear_busy
-            // is high. AXIL backpressure (see wfub_awready / wfub_wready
-            // below) keeps the FSM in WS_IDLE during the wipe, so there's
-            // no contention between the two write paths.
-            if (r_clear_busy) begin
-                r_mem[r_clr_idx] <= 32'h0;
-            end
-
             case (r_wstate)
                 WS_IDLE: begin
                     if (!r_clear_busy && wfub_awvalid && wfub_wvalid) begin
@@ -264,21 +259,54 @@ module debug_sram #(
                         r_wstate      <= WS_WRITE;
                     end
                 end
-                WS_WRITE: begin
-                    if (r_w_did_write) begin
-                        for (int b = 0; b < 4; b++) begin
-                            if (r_w_strb[b]) r_mem[r_w_idx][8*b +: 8] <= r_w_data[8*b +: 8];
-                        end
-                    end
-                    r_wstate <= WS_BRESP;
-                end
-                WS_BRESP: begin
-                    if (wfub_bready) r_wstate <= WS_IDLE;
-                end
-                default: r_wstate <= WS_IDLE;
+                WS_WRITE: r_wstate <= WS_BRESP;
+                WS_BRESP: if (wfub_bready) r_wstate <= WS_IDLE;
+                default:  r_wstate <= WS_IDLE;
             endcase
         end
     )
+
+    // ---------------------------------------------------------------------
+    // BRAM write port -- single always_ff with a muxed input, per Xilinx
+    // BRAM inference rules. AXIL backpressure (see wfub_awready /
+    // wfub_wready below) keeps the FSM in WS_IDLE during a wipe, so
+    // r_clear_busy and (r_wstate == WS_WRITE && r_w_did_write) are
+    // mutually exclusive. The mux selects which source feeds the port.
+    //
+    // No reset on r_mem: BRAM cells aren't initialized at reset on 7-series.
+    // r_clear_busy on the i_clear_pulse path does the explicit wipe instead.
+    // ---------------------------------------------------------------------
+    logic                 w_bram_we;
+    logic [ADDR_BITS-1:0] w_bram_addr;
+    logic [31:0]          w_bram_data;
+    logic [3:0]           w_bram_strb;
+
+    always_comb begin
+        if (r_clear_busy) begin
+            w_bram_we   = 1'b1;
+            w_bram_addr = r_clr_idx;
+            w_bram_data = 32'h0;
+            w_bram_strb = 4'b1111;
+        end else if ((r_wstate == WS_WRITE) && r_w_did_write) begin
+            w_bram_we   = 1'b1;
+            w_bram_addr = r_w_idx;
+            w_bram_data = r_w_data;
+            w_bram_strb = r_w_strb;
+        end else begin
+            w_bram_we   = 1'b0;
+            w_bram_addr = '0;
+            w_bram_data = '0;
+            w_bram_strb = '0;
+        end
+    end
+
+    always_ff @(posedge aclk) begin
+        if (w_bram_we) begin
+            for (int b = 0; b < 4; b++) begin
+                if (w_bram_strb[b]) r_mem[w_bram_addr][8*b +: 8] <= w_bram_data[8*b +: 8];
+            end
+        end
+    end
 
     // AXIL backpressure during clear -- holds AW/W off until the wipe
     // finishes, so the FSM never sees a new transaction mid-wipe and the
