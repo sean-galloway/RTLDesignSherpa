@@ -226,6 +226,17 @@ module stream_top_ch8 #(
     output logic                                    stream_irq,
 
     //-------------------------------------------------------------------------
+    // Monitor capture region (used by monbus_axil_group's master writes when
+    // USE_AXI_MONITORS=1). The SoC integrator points these at whatever
+    // memory region collects the dumped packets -- in stream_char that's
+    // debug_sram at 0x0004_0000+. Defaults to {0,0} (writes pinned to
+    // address 0; effectively disables capture) so the existing tests
+    // that don't drive these ports still get the legacy behaviour.
+    // Ignored when USE_AXI_MONITORS=0.
+    input  logic [31:0]                             cfg_mon_base_addr,
+    input  logic [31:0]                             cfg_mon_limit_addr,
+
+    //-------------------------------------------------------------------------
     // Debug Outputs - expose hwif_in values for testbench probing
     //-------------------------------------------------------------------------
     output logic [7:0]                              debug_hwif_scheduler_idle,
@@ -1651,10 +1662,14 @@ module stream_top_ch8 #(
                 // Interrupt Output
                 .irq_out            (stream_irq),
 
-                // Configuration - Base/Limit Addresses
-                // TODO: Add registers for monitor write base/limit addresses
-                .cfg_base_addr      (32'h0000_0000),  // Temporary: disabled
-                .cfg_limit_addr     (32'h0000_0000),  // Temporary: disabled
+                // Configuration - Base/Limit Addresses driven from
+                // top-level inputs so the SoC integrator (stream_char
+                // harness, etc.) can point the monitor write region at
+                // whatever memory captures the dumped packets. Default
+                // is {0,0} via the implicit input default -- behaves
+                // the same as the previous hard-coded tie-off.
+                .cfg_base_addr      (cfg_mon_base_addr),
+                .cfg_limit_addr     (cfg_mon_limit_addr),
 
                 //---------------------------------------------------------------------
                 // Protocol 0 Configuration - Descriptor AXI Monitor (DAXMON)

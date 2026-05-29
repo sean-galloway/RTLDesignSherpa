@@ -1080,6 +1080,14 @@ module stream_char_harness #(
         // Interrupt out
         .stream_irq        (stream_irq),
 
+        // Monitor capture region: point monbus_axil_group's master
+        // writes at debug_sram (0x0004_0000, 256 KB). cfg_ts_append
+        // is on in stream_top_ch8 with mode 11 (both source + arrival
+        // timestamps), so records are 32 bytes; the window holds
+        // 65536/8 = 8192 records before wrap.
+        .cfg_mon_base_addr  (32'h0004_0000),
+        .cfg_mon_limit_addr (32'h0004_0000 + 32'(DEBUG_SRAM_WORDS) * 32'h4 - 32'h1),
+
         // Debug outputs (unconnected at top level)
         .debug_hwif_scheduler_idle  (),
         .debug_hwif_desc_engine_idle(),
