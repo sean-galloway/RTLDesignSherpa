@@ -42,7 +42,18 @@ module bridge_1x2_rd_mon_smoke #(
     // ENABLE': 1} flow through verilator without a WIDTHTRUNC warning
     // (cocotb-test passes a 32-bit constant). Treat 0 as off, non-zero
     // as on.
-    parameter int MONITOR_ENABLE = 0
+    parameter int MONITOR_ENABLE = 0,
+
+    // When non-zero, ties cfg_mon_group_axi_err_select bit 1 (=
+    // PktTypeCompletion) high so completion packets route to the err
+    // FIFO instead of the bulk-trace write FIFO. The first completion
+    // landing in the err FIFO drives mon_irq_out high. The companion
+    // test (test_bridge_1x2_rd_monitor_irq.py) uses this to exercise
+    // the IRQ + s_mon_axil drain path end-to-end without needing a
+    // deliberate-bus-error injection mechanism. Default 0 (errors
+    // path off, all packets stream out the bulk-trace path) keeps
+    // the existing smoke + capture tests behaving as before.
+    parameter int ROUTE_COMPL_TO_ERR_FIFO = 0
 ) (
     input  logic aclk,
     input  logic aresetn,
@@ -135,6 +146,31 @@ module bridge_1x2_rd_mon_smoke #(
     // through the master-write path. Leaving them as `()` would make
     // the signals open / unhandled from the simulator's perspective
     // and the cocotb test couldn't see them.
+    logic        mon_irq_out;
+
+    // s_mon_axil_* (slave AXIL read into the err FIFO drain path).
+    // Internal nets so cocotb tests can drive the AR/R signals --
+    // tying to literal constants in the instantiation makes the pins
+    // unhandled from cocotb's perspective. Default values are set
+    // in the initial block below: arvalid=0, rready=0 keeps the
+    // interface idle for the basic smoke / capture tests; the IRQ
+    // test deposits non-zero values at runtime to issue real reads.
+    logic        s_mon_axil_arvalid;
+    logic [31:0] s_mon_axil_araddr;
+    logic [2:0]  s_mon_axil_arprot;
+    logic        s_mon_axil_rready;
+    logic        s_mon_axil_arready;
+    logic        s_mon_axil_rvalid;
+    logic [63:0] s_mon_axil_rdata;
+    logic [1:0]  s_mon_axil_rresp;
+
+    initial begin
+        s_mon_axil_arvalid = 1'b0;
+        s_mon_axil_araddr  = '0;
+        s_mon_axil_arprot  = '0;
+        s_mon_axil_rready  = 1'b0;
+    end
+
     logic        m_mon_axil_awvalid;
     logic [31:0] m_mon_axil_awaddr;
     logic [2:0]  m_mon_axil_awprot;
@@ -275,14 +311,14 @@ module bridge_1x2_rd_mon_smoke #(
         .cfg_sram_rd_1_rd_axi_debug_mask    (16'h0),
 
         // monbus_axil_group AXIL slave (idle)
-        .s_mon_axil_arvalid (1'b0),
-        .s_mon_axil_arready (),
-        .s_mon_axil_araddr  (32'h0),
-        .s_mon_axil_arprot  (3'h0),
-        .s_mon_axil_rvalid  (),
-        .s_mon_axil_rready  (1'b0),
-        .s_mon_axil_rdata   (),
-        .s_mon_axil_rresp   (),
+        .s_mon_axil_arvalid (s_mon_axil_arvalid),
+        .s_mon_axil_arready (s_mon_axil_arready),
+        .s_mon_axil_araddr  (s_mon_axil_araddr),
+        .s_mon_axil_arprot  (s_mon_axil_arprot),
+        .s_mon_axil_rvalid  (s_mon_axil_rvalid),
+        .s_mon_axil_rready  (s_mon_axil_rready),
+        .s_mon_axil_rdata   (s_mon_axil_rdata),
+        .s_mon_axil_rresp   (s_mon_axil_rresp),
 
         // monbus_axil_group AXIL master (always-ready slave)
         .m_mon_axil_awvalid (m_mon_axil_awvalid),
@@ -301,7 +337,16 @@ module bridge_1x2_rd_mon_smoke #(
         .cfg_mon_group_base_addr         (32'h0),
         .cfg_mon_group_limit_addr        (32'hFFFF_FFFF),
         .cfg_mon_group_axi_pkt_mask      (16'h0),
-        .cfg_mon_group_axi_err_select    (16'h0),
+        // Bit 1 (PktTypeCompletion) routed to err FIFO when ROUTE_
+        // COMPL_TO_ERR_FIFO != 0. Every other bit stays 0 so all
+        // other packet types continue to drain via the bulk-trace
+        // write path. "Mix, not flood": one packet per transaction
+        // lands in the err FIFO and asserts mon_irq_out, but the
+        // perf / debug / timeout types (which fire at much higher
+        // rates) keep streaming out the master-write path.
+        .cfg_mon_group_axi_err_select    (
+            (ROUTE_COMPL_TO_ERR_FIFO != 0) ? 16'h0002 : 16'h0000
+        ),
         .cfg_mon_group_axi_error_mask    (16'h0),
         .cfg_mon_group_axi_timeout_mask  (16'h0),
         .cfg_mon_group_axi_compl_mask    (16'h0),
@@ -327,7 +372,11 @@ module bridge_1x2_rd_mon_smoke #(
         .cfg_mon_group_core_debug_mask   (16'h0),
 
         // IRQ (unconnected)
-        .mon_irq_out ()
+        // IRQ output: wired to an internal logic net so cocotb tests
+        // can probe `dut.mon_irq_out` directly. The wrapper does
+        // nothing else with it -- a real SoC integrator would tie
+        // this to an interrupt-controller input.
+        .mon_irq_out (mon_irq_out)
     );
 
 endmodule : bridge_1x2_rd_mon_smoke
