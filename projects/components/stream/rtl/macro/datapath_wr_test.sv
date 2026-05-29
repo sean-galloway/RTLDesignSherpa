@@ -427,7 +427,14 @@ module datapath_wr_test #(
 
         // Debug interface
         .dbg_aw_transactions    (dbg_aw_transactions),
-        .dbg_w_beats            (dbg_w_beats)
+        .dbg_w_beats            (dbg_w_beats),
+
+        // Sideband for FPGA characterization axi_bus_meter (unused in
+        // this testbench wrapper -- leave the new outputs dangling).
+        /* verilator lint_off PINCONNECTEMPTY */
+        .o_active_channel_id    (),
+        .o_active_channel_valid ()
+        /* verilator lint_on PINCONNECTEMPTY */
     );
 
     //=========================================================================

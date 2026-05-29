@@ -412,6 +412,27 @@ module stream_char_harness #(
     logic [31:0] dbg_wr_ptr;
     logic        dbg_overflow;
     logic        dbg_clear_busy;
+
+    // axi_bus_meter outputs (per-engine R + W). CHW = local channel-id width.
+    localparam int CHW = (NUM_CHANNELS > 1) ? $clog2(NUM_CHANNELS) : 1;
+    logic [CHW-1:0] wr_active_channel_id;
+    logic           wr_active_channel_valid;
+    // Read meter aggregate + per-channel
+    logic [31:0]                    rd_meter_agg_prod, rd_meter_agg_bp,
+                                    rd_meter_agg_starv, rd_meter_agg_idle;
+    logic [15:0]                    rd_meter_ch_prod   [NUM_CHANNELS];
+    logic [15:0]                    rd_meter_ch_bp     [NUM_CHANNELS];
+    logic [15:0]                    rd_meter_ch_starv  [NUM_CHANNELS];
+    logic [15:0]                    rd_meter_ch_idle   [NUM_CHANNELS];
+    logic [NUM_CHANNELS*4-1:0]      rd_meter_ch_overflow;
+    // Write meter aggregate + per-channel
+    logic [31:0]                    wr_meter_agg_prod, wr_meter_agg_bp,
+                                    wr_meter_agg_starv, wr_meter_agg_idle;
+    logic [15:0]                    wr_meter_ch_prod   [NUM_CHANNELS];
+    logic [15:0]                    wr_meter_ch_bp     [NUM_CHANNELS];
+    logic [15:0]                    wr_meter_ch_starv  [NUM_CHANNELS];
+    logic [15:0]                    wr_meter_ch_idle   [NUM_CHANNELS];
+    logic [NUM_CHANNELS*4-1:0]      wr_meter_ch_overflow;
     // Per-channel CRC + beat-count outputs from the slaves. The slaves
     // demux off s_axi_arid / s_axi_wuser low-bits and keep independent
     // LFSR/CRC state per channel, so multi-channel runs verify integrity
@@ -528,7 +549,27 @@ module stream_char_harness #(
 
         // Kick-burst outputs (CH_KICK_ADDR @ 0xB0+4*ch, KICK_GO @ 0xC0)
         .o_kick_burst_mask     (csr_kick_burst_mask),
-        .o_kick_burst_addr     (csr_kick_burst_addr)
+        .o_kick_burst_addr     (csr_kick_burst_addr),
+
+        // AXI bus meter readback (R-meter at CSR 0x100, W-meter at 0x180)
+        .i_rd_meter_agg_prod    (rd_meter_agg_prod),
+        .i_rd_meter_agg_bp      (rd_meter_agg_bp),
+        .i_rd_meter_agg_starv   (rd_meter_agg_starv),
+        .i_rd_meter_agg_idle    (rd_meter_agg_idle),
+        .i_rd_meter_ch_prod     (rd_meter_ch_prod),
+        .i_rd_meter_ch_bp       (rd_meter_ch_bp),
+        .i_rd_meter_ch_starv    (rd_meter_ch_starv),
+        .i_rd_meter_ch_idle     (rd_meter_ch_idle),
+        .i_rd_meter_ch_overflow (rd_meter_ch_overflow),
+        .i_wr_meter_agg_prod    (wr_meter_agg_prod),
+        .i_wr_meter_agg_bp      (wr_meter_agg_bp),
+        .i_wr_meter_agg_starv   (wr_meter_agg_starv),
+        .i_wr_meter_agg_idle    (wr_meter_agg_idle),
+        .i_wr_meter_ch_prod     (wr_meter_ch_prod),
+        .i_wr_meter_ch_bp       (wr_meter_ch_bp),
+        .i_wr_meter_ch_starv    (wr_meter_ch_starv),
+        .i_wr_meter_ch_idle     (wr_meter_ch_idle),
+        .i_wr_meter_ch_overflow (wr_meter_ch_overflow)
     );
 
     // =========================================================================
@@ -1119,7 +1160,11 @@ module stream_char_harness #(
         .debug_apb_rsp_prdata_captured(),
         .debug_apb_rd_count           (),
         .debug_peakrdl_rd_count       (),
-        .debug_regblk_rd_count        ()
+        .debug_regblk_rd_count        (),
+
+        // Sideband from write engine for axi_bus_meter per-channel demux
+        .o_wr_active_channel_id    (wr_active_channel_id),
+        .o_wr_active_channel_valid (wr_active_channel_valid)
     );
 
     // =========================================================================
@@ -1143,6 +1188,66 @@ module stream_char_harness #(
     // Characterization timer outputs to the board top for LED PASS/FAIL.
     assign o_timer_done = timer_done;
     assign o_timer_pass = timer_pass;
+
+    // =========================================================================
+    // AXI bus meters -- per-cycle valid/ready bucket counters for the read
+    // engine's R bus and the write engine's W bus. Cleared by the same
+    // csr_clear_pulse that wipes debug_sram, so a single CSR write
+    // (CTRL.clear_stats) gives the host an atomic reset of the entire
+    // measurement substrate.
+    // =========================================================================
+
+    axi_bus_meter #(
+        .NUM_CHANNELS(NUM_CHANNELS)
+    ) u_rd_bus_meter (
+        .aclk             (aclk),
+        .aresetn          (aresetn),
+        .i_clear          (csr_clear_pulse),
+        // Watch the read engine's R channel. rid carries the channel index
+        // on every beat; per-channel attribution is meaningful exactly when
+        // rvalid is high (master driving R).
+        .i_valid          (rd_rvalid),
+        .i_ready          (rd_rready),
+        .i_channel_id     (rd_rid[CHW-1:0]),
+        .i_channel_valid  (rd_rvalid),
+        // Aggregate
+        .o_agg_productive   (rd_meter_agg_prod),
+        .o_agg_backpressure (rd_meter_agg_bp),
+        .o_agg_starvation   (rd_meter_agg_starv),
+        .o_agg_idle         (rd_meter_agg_idle),
+        // Per-channel
+        .o_ch_productive    (rd_meter_ch_prod),
+        .o_ch_backpressure  (rd_meter_ch_bp),
+        .o_ch_starvation    (rd_meter_ch_starv),
+        .o_ch_idle          (rd_meter_ch_idle),
+        .o_ch_overflow      (rd_meter_ch_overflow)
+    );
+
+    axi_bus_meter #(
+        .NUM_CHANNELS(NUM_CHANNELS)
+    ) u_wr_bus_meter (
+        .aclk             (aclk),
+        .aresetn          (aresetn),
+        .i_clear          (csr_clear_pulse),
+        // Watch the write engine's W channel. W beats carry no id in AXI4,
+        // so attribution comes from stream_top_ch8's sideband (driven from
+        // the write engine's r_w_channel_id / r_w_active).
+        .i_valid          (wr_wvalid),
+        .i_ready          (wr_wready),
+        .i_channel_id     (wr_active_channel_id),
+        .i_channel_valid  (wr_active_channel_valid),
+        // Aggregate
+        .o_agg_productive   (wr_meter_agg_prod),
+        .o_agg_backpressure (wr_meter_agg_bp),
+        .o_agg_starvation   (wr_meter_agg_starv),
+        .o_agg_idle         (wr_meter_agg_idle),
+        // Per-channel
+        .o_ch_productive    (wr_meter_ch_prod),
+        .o_ch_backpressure  (wr_meter_ch_bp),
+        .o_ch_starvation    (wr_meter_ch_starv),
+        .o_ch_idle          (wr_meter_ch_idle),
+        .o_ch_overflow      (wr_meter_ch_overflow)
+    );
 
     // Prevent unused signal warnings
     /* verilator lint_off UNUSED */

@@ -309,7 +309,16 @@ module stream_core #(
     output logic                                    mon_valid,
     input  logic                                    mon_ready,
     output monitor_common_pkg::monitor_packet_t     mon_packet,
-    output monitor_common_pkg::monbus_timestamp_t   mon_timestamp
+    output monitor_common_pkg::monbus_timestamp_t   mon_timestamp,
+
+    //=========================================================================
+    // Sideband for FPGA-characterization axi_bus_meter (W channel demux).
+    // The W bus in AXI4 has no wid; this sideband mirrors the write engine's
+    // internal r_w_channel_id / r_w_active so a bus meter at the wrapper
+    // level can attribute per-W-beat activity to the correct channel.
+    //=========================================================================
+    output logic [$clog2(NC)-1:0]                   o_wr_active_channel_id,
+    output logic                                    o_wr_active_channel_valid
 );
 
     //=========================================================================
@@ -850,7 +859,12 @@ module stream_core #(
 
         // Debug
         .dbg_aw_transactions    (),
-        .dbg_w_beats            ()
+        .dbg_w_beats            (),
+
+        // Sideband to stream_core's external port surface so the FPGA
+        // characterization harness can wire axi_bus_meter directly.
+        .o_active_channel_id    (o_wr_active_channel_id),
+        .o_active_channel_valid (o_wr_active_channel_valid)
     );
 
     //=========================================================================

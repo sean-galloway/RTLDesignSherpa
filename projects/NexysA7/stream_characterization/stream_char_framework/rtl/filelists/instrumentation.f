@@ -17,6 +17,12 @@ $FRAMEWORK_ROOT/rtl/axi_response_delay.sv
 # Harness CSRs (kick-burst, response-delay programming, cycle timer, status).
 $FRAMEWORK_ROOT/rtl/harness_csr.sv
 
+# Per-cycle valid/ready bucket counter for DMA bus characterization.
+# Two instances live in stream_char_harness (one on the read engine R bus,
+# one on the write engine W bus); their counters are exposed via harness_csr
+# at 0x100 (R) and 0x180 (W).
+$FRAMEWORK_ROOT/rtl/axi_bus_meter.sv
+
 # Generic memory blocks (descriptor RAM and monitor trace SRAM).
 $FRAMEWORK_ROOT/rtl/desc_ram.sv
 $FRAMEWORK_ROOT/rtl/debug_sram.sv

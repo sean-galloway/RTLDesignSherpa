@@ -273,7 +273,14 @@ module stream_top_ch8 #(
     // Sticky counters - count total reads at each stage
     output logic [7:0]                              debug_apb_rd_count,
     output logic [7:0]                              debug_peakrdl_rd_count,
-    output logic [7:0]                              debug_regblk_rd_count
+    output logic [7:0]                              debug_regblk_rd_count,
+
+    // Sideband for FPGA characterization. Mirrors the write engine's
+    // r_w_channel_id / r_w_active so an external axi_bus_meter can
+    // attribute per-W-beat activity to a channel. Unused / left
+    // dangling in non-characterization SoC integrations.
+    output logic [$clog2(NUM_CHANNELS)-1:0]         o_wr_active_channel_id,
+    output logic                                    o_wr_active_channel_valid
 );
 
     //=========================================================================
@@ -463,6 +470,14 @@ module stream_top_ch8 #(
     monitor_common_pkg::monitor_packet_t           mon_packet;
     monitor_common_pkg::monbus_timestamp_t         mon_timestamp;
     monitor_common_pkg::monbus_timestamp_t         mon_time_w;
+
+    //-------------------------------------------------------------------------
+    // Sideband from stream_core to expose write-engine's active channel for
+    // FPGA-characterization axi_bus_meter (driven by both stream_core variants
+    // via the generate block below; consumed at the bridge-side harness).
+    //-------------------------------------------------------------------------
+    logic [$clog2(NUM_CHANNELS)-1:0]              wr_active_channel_id;
+    logic                                         wr_active_channel_valid;
 
     //-------------------------------------------------------------------------
     // Configuration Signals - from stream_config_block
@@ -1366,7 +1381,11 @@ module stream_top_ch8 #(
                 .mon_valid                  (mon_valid),
                 .mon_ready                  (mon_ready),
                 .mon_packet                 (mon_packet),
-                .mon_timestamp              (mon_timestamp)
+                .mon_timestamp              (mon_timestamp),
+
+                // Sideband for FPGA-characterization axi_bus_meter
+                .o_wr_active_channel_id     (wr_active_channel_id),
+                .o_wr_active_channel_valid  (wr_active_channel_valid)
             );
         end else begin : g_stream_core
             // Instantiate stream_core with monitors disabled
@@ -1588,7 +1607,11 @@ module stream_top_ch8 #(
                 .mon_valid                  (mon_valid),
                 .mon_ready                  (1'b1),  // Always ready (no backpressure)
                 .mon_packet                 (mon_packet),
-                .mon_timestamp              (mon_timestamp)
+                .mon_timestamp              (mon_timestamp),
+
+                // Sideband for FPGA-characterization axi_bus_meter
+                .o_wr_active_channel_id     (wr_active_channel_id),
+                .o_wr_active_channel_valid  (wr_active_channel_valid)
             );
         end
     endgenerate
@@ -1742,6 +1765,12 @@ module stream_top_ch8 #(
             assign mon_write_fifo_count = 8'h00;
         end
     endgenerate
+
+    // Drive the top-level write-engine sideband outputs. Both stream_core
+    // variants feed wr_active_channel_id / wr_active_channel_valid via the
+    // generate block above, so the assigns below pass them straight out.
+    assign o_wr_active_channel_id    = wr_active_channel_id;
+    assign o_wr_active_channel_valid = wr_active_channel_valid;
 
 endmodule : stream_top_ch8
 

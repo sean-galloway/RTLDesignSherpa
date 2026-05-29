@@ -145,7 +145,16 @@ module axi_write_engine #(
     //=========================================================================
     output logic [NC-1:0]               dbg_wr_all_complete,   // All writes complete (no outstanding txns)
     output logic [31:0]                 dbg_aw_transactions,   // Total AW transactions issued
-    output logic [31:0]                 dbg_w_beats            // Total W beats written to AXI
+    output logic [31:0]                 dbg_w_beats,           // Total W beats written to AXI
+
+    // Sideband for per-channel bus instrumentation (axi_bus_meter).
+    // o_active_channel_id holds the channel index whose burst is currently
+    // driving (or about to drive) the W bus. o_active_channel_valid is
+    // high during a W burst (between the W-phase FSM accepting a txn and
+    // completing it). When low, W bus activity is not attributable to any
+    // channel and per-channel counters should not be incremented.
+    output logic [CIW-1:0]              o_active_channel_id,
+    output logic                        o_active_channel_valid
 );
 
     //=========================================================================
@@ -820,6 +829,10 @@ module axi_write_engine #(
 
     assign dbg_aw_transactions = r_aw_transactions;
     assign dbg_w_beats = r_w_beats;
+
+    // Sideband to axi_bus_meter -- mirrors the W-phase FSM state.
+    assign o_active_channel_id    = r_w_channel_id;
+    assign o_active_channel_valid = r_w_active;
 
     //=========================================================================
     // Assertions for Verification

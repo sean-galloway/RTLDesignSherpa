@@ -104,6 +104,30 @@
 //                                       bit for one cycle. Reads as 0.
 //
 //   0xC4 - 0xFF           --  Reserved (read as 0)
+//
+//   AXI bus meter readback. Two meters live in this CSR space:
+//     R-meter at 0x100  -- watches the read engine's R bus
+//     W-meter at 0x180  -- watches the write engine's W bus
+//   Both share the same layout, base + offset:
+//
+//   +0x00  AGG_PRODUCTIVE     R  Cycles with (valid && ready)
+//   +0x04  AGG_BACKPRESSURE   R  Cycles with (valid && !ready)
+//   +0x08  AGG_STARVATION     R  Cycles with (!valid && ready)
+//   +0x0C  AGG_IDLE           R  Cycles with (!valid && !ready)
+//   +0x10  CH_OVERFLOW        R  Per-(channel, bucket) sticky overflow mask.
+//                                Bit layout (NUM_CHANNELS=8):
+//                                [3:0]    = ch0 {prod, bp, starv, idle}
+//                                [7:4]    = ch1 ...
+//                                [31:28]  = ch7 ...
+//                                If any bit is set, the corresponding 16-bit
+//                                per-channel counter wrapped past 65535
+//                                cycles (~655 us at 100 MHz). Discard that
+//                                channel's per-bucket value for the run.
+//   +0x20+4*ch  CH[ch]_PROD_BP    R  {bp[15:0], productive[15:0]}
+//   +0x40+4*ch  CH[ch]_STARV_IDLE R  {idle[15:0], starvation[15:0]}
+//
+//   All bus-meter counters clear synchronously on CTRL.clear_stats, in lock
+//   step with debug_sram and the CRC state. No separate clear-bit needed.
 
 `timescale 1ns / 1ps
 
@@ -167,6 +191,33 @@ module harness_csr #(
     input  logic [31:0]     i_dbg_wr_ptr,
     input  logic            i_dbg_overflow,
     input  logic            i_dbg_clear_busy,
+
+    // =====================================================================
+    // AXI bus meter readback ports (per-engine, R then W).
+    // Aggregate counters are 32-bit free-running, cleared by CTRL.clear_stats
+    // alongside debug_sram and the per-channel CRC state. Per-channel are
+    // 16-bit; ch_overflow is a sticky packed mask of (channel, bucket)
+    // pairs that wrapped past 16-bit.
+    // =====================================================================
+    input  logic [31:0]                       i_rd_meter_agg_prod,
+    input  logic [31:0]                       i_rd_meter_agg_bp,
+    input  logic [31:0]                       i_rd_meter_agg_starv,
+    input  logic [31:0]                       i_rd_meter_agg_idle,
+    input  logic [15:0]                       i_rd_meter_ch_prod   [NUM_CHANNELS],
+    input  logic [15:0]                       i_rd_meter_ch_bp     [NUM_CHANNELS],
+    input  logic [15:0]                       i_rd_meter_ch_starv  [NUM_CHANNELS],
+    input  logic [15:0]                       i_rd_meter_ch_idle   [NUM_CHANNELS],
+    input  logic [NUM_CHANNELS*4-1:0]         i_rd_meter_ch_overflow,
+
+    input  logic [31:0]                       i_wr_meter_agg_prod,
+    input  logic [31:0]                       i_wr_meter_agg_bp,
+    input  logic [31:0]                       i_wr_meter_agg_starv,
+    input  logic [31:0]                       i_wr_meter_agg_idle,
+    input  logic [15:0]                       i_wr_meter_ch_prod   [NUM_CHANNELS],
+    input  logic [15:0]                       i_wr_meter_ch_bp     [NUM_CHANNELS],
+    input  logic [15:0]                       i_wr_meter_ch_starv  [NUM_CHANNELS],
+    input  logic [15:0]                       i_wr_meter_ch_idle   [NUM_CHANNELS],
+    input  logic [NUM_CHANNELS*4-1:0]         i_wr_meter_ch_overflow,
     input  logic [31:0]     i_crc_rd_expected,
     input  logic [31:0]     i_crc_wr_expected,
     input  logic [31:0]     i_crc_wr_computed,
@@ -393,7 +444,10 @@ module harness_csr #(
             case (r_wstate)
                 W_IDLE: begin
                     if (int_awvalid && int_wvalid) begin
-                        case (int_awaddr[7:0])
+                        // Use the same 9-bit slice as the read path so the
+                        // meter region 0x100-0x1FF stays read-only (no write
+                        // case-match means write goes to default = ignore).
+                        case (int_awaddr[8:0])
                             8'h00: begin
                                 r_start_pulse       <= int_wdata[0];
                                 r_clear_stats_pulse <= int_wdata[1];
@@ -467,8 +521,9 @@ module harness_csr #(
     r_state_t r_rstate;
     logic [31:0] r_rdata;
 
-    logic [7:0] w_raddr;
-    assign w_raddr = int_araddr[7:0];
+    // 9-bit decode to span 0x000-0x1FF (meter readback lives at 0x100+).
+    logic [8:0] w_raddr;
+    assign w_raddr = int_araddr[8:0];
 
     `ALWAYS_FF_RST(aclk, aresetn,
         if (`RST_ASSERTED(aresetn)) begin
@@ -535,6 +590,71 @@ module harness_csr #(
                             8'hC8: r_rdata <= r_kick_addr[5];
                             8'hCC: r_rdata <= r_kick_addr[6];
                             8'hD0: r_rdata <= r_kick_addr[7];
+
+                            // =================================================
+                            // AXI bus meter readback. R-meter at 0x100, W-meter
+                            // at 0x180. Each meter has the same layout:
+                            //   +0x00 AGG_PROD       (32 b)
+                            //   +0x04 AGG_BP         (32 b)
+                            //   +0x08 AGG_STARV      (32 b)
+                            //   +0x0C AGG_IDLE       (32 b)
+                            //   +0x10 CH_OVERFLOW    (NUM_CHANNELS*4 packed,
+                            //                         {ch7..ch0} of {prod,
+                            //                         bp, starv, idle})
+                            //   +0x20+4*ch  CH[ch]   {bp[15:0],   prod[15:0]}
+                            //   +0x40+4*ch  CH[ch]   {idle[15:0], starv[15:0]}
+                            // =================================================
+
+                            // ---- R-meter aggregate ----
+                            9'h100: r_rdata <= i_rd_meter_agg_prod;
+                            9'h104: r_rdata <= i_rd_meter_agg_bp;
+                            9'h108: r_rdata <= i_rd_meter_agg_starv;
+                            9'h10C: r_rdata <= i_rd_meter_agg_idle;
+                            9'h110: r_rdata <= {{(32-NUM_CHANNELS*4){1'b0}}, i_rd_meter_ch_overflow};
+                            // ---- R-meter per-channel {bp, prod} ----
+                            9'h120: r_rdata <= {i_rd_meter_ch_bp[0], i_rd_meter_ch_prod[0]};
+                            9'h124: r_rdata <= {i_rd_meter_ch_bp[1], i_rd_meter_ch_prod[1]};
+                            9'h128: r_rdata <= {i_rd_meter_ch_bp[2], i_rd_meter_ch_prod[2]};
+                            9'h12C: r_rdata <= {i_rd_meter_ch_bp[3], i_rd_meter_ch_prod[3]};
+                            9'h130: r_rdata <= {i_rd_meter_ch_bp[4], i_rd_meter_ch_prod[4]};
+                            9'h134: r_rdata <= {i_rd_meter_ch_bp[5], i_rd_meter_ch_prod[5]};
+                            9'h138: r_rdata <= {i_rd_meter_ch_bp[6], i_rd_meter_ch_prod[6]};
+                            9'h13C: r_rdata <= {i_rd_meter_ch_bp[7], i_rd_meter_ch_prod[7]};
+                            // ---- R-meter per-channel {idle, starv} ----
+                            9'h140: r_rdata <= {i_rd_meter_ch_idle[0], i_rd_meter_ch_starv[0]};
+                            9'h144: r_rdata <= {i_rd_meter_ch_idle[1], i_rd_meter_ch_starv[1]};
+                            9'h148: r_rdata <= {i_rd_meter_ch_idle[2], i_rd_meter_ch_starv[2]};
+                            9'h14C: r_rdata <= {i_rd_meter_ch_idle[3], i_rd_meter_ch_starv[3]};
+                            9'h150: r_rdata <= {i_rd_meter_ch_idle[4], i_rd_meter_ch_starv[4]};
+                            9'h154: r_rdata <= {i_rd_meter_ch_idle[5], i_rd_meter_ch_starv[5]};
+                            9'h158: r_rdata <= {i_rd_meter_ch_idle[6], i_rd_meter_ch_starv[6]};
+                            9'h15C: r_rdata <= {i_rd_meter_ch_idle[7], i_rd_meter_ch_starv[7]};
+
+                            // ---- W-meter aggregate ----
+                            9'h180: r_rdata <= i_wr_meter_agg_prod;
+                            9'h184: r_rdata <= i_wr_meter_agg_bp;
+                            9'h188: r_rdata <= i_wr_meter_agg_starv;
+                            9'h18C: r_rdata <= i_wr_meter_agg_idle;
+                            9'h190: r_rdata <= {{(32-NUM_CHANNELS*4){1'b0}}, i_wr_meter_ch_overflow};
+                            // ---- W-meter per-channel {bp, prod} ----
+                            9'h1A0: r_rdata <= {i_wr_meter_ch_bp[0], i_wr_meter_ch_prod[0]};
+                            9'h1A4: r_rdata <= {i_wr_meter_ch_bp[1], i_wr_meter_ch_prod[1]};
+                            9'h1A8: r_rdata <= {i_wr_meter_ch_bp[2], i_wr_meter_ch_prod[2]};
+                            9'h1AC: r_rdata <= {i_wr_meter_ch_bp[3], i_wr_meter_ch_prod[3]};
+                            9'h1B0: r_rdata <= {i_wr_meter_ch_bp[4], i_wr_meter_ch_prod[4]};
+                            9'h1B4: r_rdata <= {i_wr_meter_ch_bp[5], i_wr_meter_ch_prod[5]};
+                            9'h1B8: r_rdata <= {i_wr_meter_ch_bp[6], i_wr_meter_ch_prod[6]};
+                            9'h1BC: r_rdata <= {i_wr_meter_ch_bp[7], i_wr_meter_ch_prod[7]};
+                            // ---- W-meter per-channel {idle, starv} ----
+                            9'h1C0: r_rdata <= {i_wr_meter_ch_idle[0], i_wr_meter_ch_starv[0]};
+                            9'h1C4: r_rdata <= {i_wr_meter_ch_idle[1], i_wr_meter_ch_starv[1]};
+                            9'h1C8: r_rdata <= {i_wr_meter_ch_idle[2], i_wr_meter_ch_starv[2]};
+                            9'h1CC: r_rdata <= {i_wr_meter_ch_idle[3], i_wr_meter_ch_starv[3]};
+                            9'h1D0: r_rdata <= {i_wr_meter_ch_idle[4], i_wr_meter_ch_starv[4]};
+                            9'h1D4: r_rdata <= {i_wr_meter_ch_idle[5], i_wr_meter_ch_starv[5]};
+                            9'h1D8: r_rdata <= {i_wr_meter_ch_idle[6], i_wr_meter_ch_starv[6]};
+                            9'h1DC: r_rdata <= {i_wr_meter_ch_idle[7], i_wr_meter_ch_starv[7]};
+
                             default: r_rdata <= 32'h0000_0000;
                         endcase
                         r_rstate <= R_RRESP;
