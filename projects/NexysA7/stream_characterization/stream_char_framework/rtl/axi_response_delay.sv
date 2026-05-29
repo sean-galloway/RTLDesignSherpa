@@ -141,18 +141,40 @@ module axi_response_delay #(
     wire [CYC_W-1:0] delay_extended  = {{(CYC_W-DELAY_W){1'b0}}, i_delay_cycles};
     wire             head_ready      = ~empty && (head_dwell >= delay_extended);
 
-    assign m_valid = head_ready;
-    assign m_data  = r_data[r_head];
+    // ---- Output register stage ---------------------------------------------
+    // The 256-deep r_data[r_head] mux is a 15-LUT-level path; driving m_data
+    // and m_valid combinationally from it lets the wide select fan out to the
+    // consumer's CE/load network with no flop boundary between, and stream_char's
+    // 100 MHz timing closes by single-digit picoseconds without one. Register
+    // the externally-visible outputs in a 1-deep stage:
+    //     - stage_load fires when downstream took the previous beat (or no
+    //       beat is currently held) AND the FIFO head has met its dwell. It
+    //       drives the FIFO's deq, so r_head advances exactly when we latch.
+    //     - the deep r_data[r_head] mux now terminates at a flop's D, not at
+    //       the external m_data port.
+    // Latency adds 1 aclk cycle, which is invisible to the test-side delay
+    // model: i_delay_cycles is "min dwell"; the configured value can be
+    // decremented by 1 if the absolute count matters.
+    logic [DATA_WIDTH-1:0] r_out_data;
+    logic                  r_out_valid;
+
+    wire stage_consume = r_out_valid && m_ready;
+    wire stage_load    = head_ready  && (!r_out_valid || stage_consume);
+
+    assign m_data  = r_out_data;
+    assign m_valid = r_out_valid;
 
     wire enq = s_valid & s_ready;
-    wire deq = m_valid & m_ready;
+    wire deq = stage_load;
 
     // ---- Pointer / count update -------------------------------------------
     `ALWAYS_FF_RST(aclk, aresetn,
         if (`RST_ASSERTED(aresetn)) begin
-            r_head  <= '0;
-            r_tail  <= '0;
-            r_count <= '0;
+            r_head      <= '0;
+            r_tail      <= '0;
+            r_count     <= '0;
+            r_out_data  <= '0;
+            r_out_valid <= 1'b0;
         end else begin
             if (enq) begin
                 r_data[r_tail] <= s_data;
@@ -167,6 +189,15 @@ module axi_response_delay #(
                 2'b01:   r_count <= r_count - 1'b1;
                 default: r_count <= r_count;      // 2'b00 or 2'b11
             endcase
+
+            // Output register stage: load on stage_load, drop r_out_valid on
+            // a consume that isn't immediately followed by another load.
+            if (stage_load) begin
+                r_out_data  <= r_data[r_head];
+                r_out_valid <= 1'b1;
+            end else if (stage_consume) begin
+                r_out_valid <= 1'b0;
+            end
         end
     )
 
