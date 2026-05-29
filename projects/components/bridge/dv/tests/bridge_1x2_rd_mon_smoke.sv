@@ -26,7 +26,24 @@
 
 `timescale 1ns / 1ps
 
-module bridge_1x2_rd_mon_smoke (
+module bridge_1x2_rd_mon_smoke #(
+    // When 0 (default), every cfg_*_*_monitor_enable input on the
+    // monitored bridge is tied low -- the monitors stay quiescent and
+    // emit no packets. The basic smoke test runs this way: it proves
+    // the monitored generator output elaborates and that the monitor
+    // tie-offs don't break ordinary AXI4 traffic.
+    //
+    // When 1, every cfg_*_*_monitor_enable is tied high so packets
+    // actually fire. A companion test (test_bridge_1x2_rd_monitor_
+    // capture.py) overrides this parameter, snoops m_mon_axil_* as
+    // packets drain out of the write FIFO, and asserts decoded
+    // packet content via the TBClasses.monbus parser library.
+    // Declared as int (not bit) so cocotb-test's parameters={'MONITOR_
+    // ENABLE': 1} flow through verilator without a WIDTHTRUNC warning
+    // (cocotb-test passes a 32-bit constant). Treat 0 as off, non-zero
+    // as on.
+    parameter int MONITOR_ENABLE = 0
+) (
     input  logic aclk,
     input  logic aresetn,
 
@@ -111,10 +128,21 @@ module bridge_1x2_rd_mon_smoke (
     // unconnected (`()`) so it is width-agnostic and remains correct;
     // no internal/loopback memory is wired to the master here, so no
     // explicit widening is required in this wrapper.
-    logic m_mon_axil_awvalid;
-    logic m_mon_axil_wvalid;
-    logic m_mon_axil_bready;
-    logic m_mon_axil_bvalid_q;
+    // monbus_axil_group's m_mon_axil_master is 64-bit data (8-bit
+    // wstrb). The tie-off does not loop the writes back into any
+    // memory model -- the wires below are PROBEABLE FROM COCOTB so a
+    // test that turns on monitoring can snoop packets as they drain
+    // through the master-write path. Leaving them as `()` would make
+    // the signals open / unhandled from the simulator's perspective
+    // and the cocotb test couldn't see them.
+    logic        m_mon_axil_awvalid;
+    logic [31:0] m_mon_axil_awaddr;
+    logic [2:0]  m_mon_axil_awprot;
+    logic        m_mon_axil_wvalid;
+    logic [63:0] m_mon_axil_wdata;
+    logic [7:0]  m_mon_axil_wstrb;
+    logic        m_mon_axil_bready;
+    logic        m_mon_axil_bvalid_q;
 
     always_ff @(posedge aclk or negedge aresetn) begin
         if (!aresetn) begin
@@ -198,7 +226,7 @@ module bridge_1x2_rd_mon_smoke (
 
         // Per-port cfg (all zeroed -- monitors stay quiet)
         // cpu_rd (master idx 0, rd channel)
-        .cfg_cpu_rd_0_rd_monitor_enable    (1'b0),
+        .cfg_cpu_rd_0_rd_monitor_enable    (MONITOR_ENABLE != 0),
         .cfg_cpu_rd_0_rd_error_enable      (1'b0),
         .cfg_cpu_rd_0_rd_timeout_enable    (1'b0),
         .cfg_cpu_rd_0_rd_perf_enable       (1'b0),
@@ -214,7 +242,7 @@ module bridge_1x2_rd_mon_smoke (
         .cfg_cpu_rd_0_rd_axi_addr_mask     (16'h0),
         .cfg_cpu_rd_0_rd_axi_debug_mask    (16'h0),
         // ddr_rd (slave idx 0, rd channel)
-        .cfg_ddr_rd_0_rd_monitor_enable    (1'b0),
+        .cfg_ddr_rd_0_rd_monitor_enable    (MONITOR_ENABLE != 0),
         .cfg_ddr_rd_0_rd_error_enable      (1'b0),
         .cfg_ddr_rd_0_rd_timeout_enable    (1'b0),
         .cfg_ddr_rd_0_rd_perf_enable       (1'b0),
@@ -230,7 +258,7 @@ module bridge_1x2_rd_mon_smoke (
         .cfg_ddr_rd_0_rd_axi_addr_mask     (16'h0),
         .cfg_ddr_rd_0_rd_axi_debug_mask    (16'h0),
         // sram_rd (slave idx 1, rd channel)
-        .cfg_sram_rd_1_rd_monitor_enable    (1'b0),
+        .cfg_sram_rd_1_rd_monitor_enable    (MONITOR_ENABLE != 0),
         .cfg_sram_rd_1_rd_error_enable      (1'b0),
         .cfg_sram_rd_1_rd_timeout_enable    (1'b0),
         .cfg_sram_rd_1_rd_perf_enable       (1'b0),
@@ -259,12 +287,12 @@ module bridge_1x2_rd_mon_smoke (
         // monbus_axil_group AXIL master (always-ready slave)
         .m_mon_axil_awvalid (m_mon_axil_awvalid),
         .m_mon_axil_awready (1'b1),
-        .m_mon_axil_awaddr  (),
-        .m_mon_axil_awprot  (),
+        .m_mon_axil_awaddr  (m_mon_axil_awaddr),
+        .m_mon_axil_awprot  (m_mon_axil_awprot),
         .m_mon_axil_wvalid  (m_mon_axil_wvalid),
         .m_mon_axil_wready  (1'b1),
-        .m_mon_axil_wdata   (),
-        .m_mon_axil_wstrb   (),
+        .m_mon_axil_wdata   (m_mon_axil_wdata),
+        .m_mon_axil_wstrb   (m_mon_axil_wstrb),
         .m_mon_axil_bvalid  (m_mon_axil_bvalid_q),
         .m_mon_axil_bready  (m_mon_axil_bready),
         .m_mon_axil_bresp   (2'b00),
