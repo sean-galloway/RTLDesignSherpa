@@ -142,13 +142,17 @@ async def cocotb_test_stress(dut):
 def generate_monbus_axil_test_params():
     """Generate test parameters for monbus_axil_group tests.
 
-    Note: DATA_WIDTH is fixed at 32 bits for FPGA implementation.
-    64-bit support requires RTL fixes for proper width handling.
+    Note: S_AXIL_DATA_WIDTH is now fixed at 64 bits. The slave AXIL read
+    path uses a 3-beat slice-counter pattern to drain one err_fifo entry
+    ({packet[127:0], source_ts[63:0]} = 192 bits) over three 64-bit
+    reads. The unified module's read slicer assumes 64-bit data and is
+    not adaptive -- the parameter is here for API stability, not
+    runtime configurability.
     """
     return [
         # (fifo_depth_err, fifo_depth_write, addr_width, data_width, num_protocols)
-        (64, 32, 32, 32, 3),   # Standard configuration
-        (128, 64, 32, 32, 3),  # Larger FIFOs, 32-bit data width
+        (64, 32, 32, 64, 3),   # Standard configuration
+        (128, 64, 32, 64, 3),  # Larger FIFOs
     ]
 
 monbus_axil_params = generate_monbus_axil_test_params()

@@ -149,14 +149,14 @@ module bridge_1x2_rd_mon (
     // ============================================================
     // monbus_axil_group access ports + config + IRQ
     // ============================================================
-    // AXIL slave (IRQ-status reads)
+    // AXIL slave (IRQ-status reads, 64-bit data)
     input  logic        s_mon_axil_arvalid,
     output logic        s_mon_axil_arready,
     input  logic [31:0] s_mon_axil_araddr,
     input  logic [2:0]  s_mon_axil_arprot,
     output logic        s_mon_axil_rvalid,
     input  logic        s_mon_axil_rready,
-    output logic [31:0] s_mon_axil_rdata,
+    output logic [63:0] s_mon_axil_rdata,
     output logic [1:0]  s_mon_axil_rresp,
 
     // AXIL master (packet log writes)
@@ -638,7 +638,10 @@ module bridge_1x2_rd_mon (
         .FIFO_DEPTH_ERR    (64),
         .FIFO_DEPTH_WRITE  (32),
         .ADDR_WIDTH        (32),
-        .S_AXIL_DATA_WIDTH (32),
+        .S_AXIL_DATA_WIDTH (64),
+        // S_AXIL_DATA_WIDTH=64: the unified group drains one
+        // err_fifo entry ({packet[127:0], source_ts[63:0]} = 192 bits)
+        // over three 64-bit reads via an internal slice counter.
         // M_AXIL_DATA_WIDTH defaults to 64 — module emits two 64-bit beats
         // per 128-bit packet plus optional timestamp beats per cfg_ts_append_mode.
         .NUM_PROTOCOLS     (3)

@@ -353,12 +353,19 @@ class MonbusAxilGroupTB(TBBase):
             return False
 
     async def check_error_fifo_status(self) -> Dict[str, Any]:
-        """Check error FIFO status signals"""
+        """Check error FIFO status signals.
+
+        After the monbus_axil_group unification, the DUT (when this TB
+        runs) is monbus_axil_group_2in -- a thin wrapper around the
+        shared single-input monbus_axil_group at instance u_group.
+        err_fifo_full / err_fifo_count remain on the wrapper port
+        list; err_fifo_empty / err_fifo_rd_valid are internal to the
+        shared group and live one level deeper at dut.u_group.*."""
         status = {
-            'empty': int(self.dut.err_fifo_empty.value),
+            'empty': int(self.dut.u_group.err_fifo_empty.value),
             'full': int(self.dut.err_fifo_full.value),
             'count': int(self.dut.err_fifo_count.value),
-            'rd_valid': int(self.dut.err_fifo_rd_valid.value),
+            'rd_valid': int(self.dut.u_group.err_fifo_rd_valid.value),
             'irq_out': int(self.dut.irq_out.value)
         }
         return status
@@ -550,10 +557,12 @@ class MonbusAxilGroupTB(TBBase):
 
         if status['empty']:
             self.log.error("ERROR: FIFO is empty after sending packets - filtering may not be working!")
-            # Debug: Check internal filtering signals
+            # Debug: Check internal filtering signals. arb_monbus_valid
+            # lives on the wrapper (post-arbiter); pkt_to_err_fifo and
+            # err_fifo_wr_valid are filter-stage signals inside u_group.
             self.log.error(f"Debug - arb_monbus_valid: {int(self.dut.arb_monbus_valid.value)}")
-            self.log.error(f"Debug - pkt_to_err_fifo: {int(self.dut.pkt_to_err_fifo.value)}")
-            self.log.error(f"Debug - err_fifo_wr_valid: {int(self.dut.err_fifo_wr_valid.value)}")
+            self.log.error(f"Debug - pkt_to_err_fifo: {int(self.dut.u_group.pkt_to_err_fifo.value)}")
+            self.log.error(f"Debug - err_fifo_wr_valid: {int(self.dut.u_group.err_fifo_wr_valid.value)}")
 
         # Wait for interrupt to assert if FIFO has data
         if not status['empty'] and status['irq_out']:

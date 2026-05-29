@@ -69,7 +69,9 @@ module monbus_axil_group
     parameter int FIFO_DEPTH_ERR     = 64,   // Error/interrupt FIFO depth
     parameter int FIFO_DEPTH_WRITE   = 32,   // Master write FIFO depth
     parameter int ADDR_WIDTH         = 32,   // AXI address width
-    parameter int S_AXIL_DATA_WIDTH  = 32,   // Slave AXI-Lite data width (CPU read)
+    parameter int S_AXIL_DATA_WIDTH  = 64,   // Slave AXI-Lite data width (CPU read)
+                                             // Locked at 64: drains a {packet,
+                                             // source_ts} record in 3 beats.
     parameter int M_AXIL_DATA_WIDTH  = 64,   // Master AXI-Lite data width (capture writes)
     parameter int NUM_PROTOCOLS      = 3     // AXI, AXIS, CORE
 ) (
@@ -171,6 +173,13 @@ module monbus_axil_group
     // Combined write-FIFO record: {packet[127:0], source_ts[63:0], arrival_ts[63:0]}
     localparam int WRITE_REC_WIDTH = MONBUS_PKT_WIDTH + MONBUS_TS_WIDTH + MONBUS_TS_WIDTH;
 
+    // Error-FIFO record: {source_ts[63:0], packet[127:0]} = 192 bits.
+    // The CPU drains via the 64-bit s_axil read port in exactly three
+    // beats (slice 0: packet[63:0]; slice 1: packet[127:64]; slice 2:
+    // source_ts[63:0]). Layout chosen so packet bits are contiguous in
+    // the low half, matching the natural byte-order expectation.
+    localparam int ERR_FIFO_REC_WIDTH = MONBUS_PKT_WIDTH + MONBUS_TS_WIDTH;
+
     // =======================================================================
     // Internal Signals
     // =======================================================================
@@ -198,13 +207,15 @@ module monbus_axil_group
     // Free-running timestamp counter (this module is the counter authority)
     monbus_timestamp_t               r_ts_counter;
 
-    // Error FIFO signals (packet-only, no timestamps in the IRQ path)
+    // Error FIFO signals -- carries {source_ts, packet} per entry so the
+    // CPU IRQ handler reading via s_axil gets the source timestamp
+    // alongside the packet body without going to the SRAM dump path.
     logic                            err_fifo_wr_valid;
     logic                            err_fifo_wr_ready;
-    monitor_packet_t                 err_fifo_wr_data;
+    logic [ERR_FIFO_REC_WIDTH-1:0]   err_fifo_wr_data;
     logic                            err_fifo_rd_valid;
     logic                            err_fifo_rd_ready;
-    monitor_packet_t                 err_fifo_rd_data;
+    logic [ERR_FIFO_REC_WIDTH-1:0]   err_fifo_rd_data;
     logic                            err_fifo_empty;
     logic [ERR_FIFO_ADDR_WIDTH:0]    err_fifo_count_full;
 
@@ -385,11 +396,14 @@ module monbus_axil_group
     // =======================================================================
 
     assign err_fifo_wr_valid = input_monbus_valid && pkt_to_err_fifo && !pkt_drop;
-    assign err_fifo_wr_data  = input_monbus_packet;
+    // Pack: {source_ts[63:0], packet[127:0]}. source_ts arrives paired
+    // with the packet on the monbus_timestamp side-band; captured on the
+    // same input handshake that fills the FIFO entry.
+    assign err_fifo_wr_data  = {input_monbus_source_ts, input_monbus_packet};
 
     gaxi_fifo_sync #(
         .REGISTERED     (0),
-        .DATA_WIDTH     (MONBUS_PKT_WIDTH),
+        .DATA_WIDTH     (ERR_FIFO_REC_WIDTH),
         .DEPTH          (FIFO_DEPTH_ERR)
     ) u_err_fifo (
         .axi_aclk       (axi_aclk),
@@ -481,23 +495,59 @@ module monbus_axil_group
         .busy            () // Unused
     );
 
-    // Connect backend to error FIFO - simple read interface
+    // ---------------------------------------------------------------
+    // 192-bit err_fifo record drained over 3 × 64-bit CPU beats.
+    //
+    // An internal slice counter (r_slice_idx) tracks which 64-bit chunk
+    // of the current head-of-FIFO entry the next read should return:
+    //   slice 0: packet[63:0]
+    //   slice 1: packet[127:64]
+    //   slice 2: source_ts[63:0]
+    // The slice counter advances on each successful read; the FIFO entry
+    // is popped only when the third slice fires. The CPU therefore
+    // drains one packet by issuing three reads in a row -- the read
+    // address is ignored for slice selection so reads can target the
+    // same offset or different offsets, the slicer doesn't care.
+    //
+    // arready stalls while the FIFO is empty (no entry to slice).
+    // Once a drain is in progress (r_slice_idx != 0) the head entry
+    // stays put until the wrap, so the CPU can pause between beats
+    // without losing the in-flight packet.
+    // ---------------------------------------------------------------
+    typedef enum logic [1:0] {
+        SLICE_PKT_LO = 2'd0,
+        SLICE_PKT_HI = 2'd1,
+        SLICE_SRC_TS = 2'd2,
+        SLICE_RSVD   = 2'd3
+    } read_slice_t;
+
+    read_slice_t r_slice_idx;
+
+    `ALWAYS_FF_RST(axi_aclk, axi_aresetn,
+        if (`RST_ASSERTED(axi_aresetn)) begin
+            r_slice_idx <= SLICE_PKT_LO;
+        end else if (fub_rd_rvalid && fub_rd_rready) begin
+            r_slice_idx <= (r_slice_idx == SLICE_SRC_TS)
+                           ? SLICE_PKT_LO
+                           : read_slice_t'(r_slice_idx + 2'd1);
+        end
+    )
+
     assign fub_rd_arready    = !err_fifo_empty;
     assign fub_rd_rvalid     = fub_rd_arvalid && fub_rd_arready;
-    assign err_fifo_rd_ready = fub_rd_rvalid && fub_rd_rready;
+    // Pop only when the third slice (source_ts) is read -- the FIFO
+    // advances every 3 reads, not every read.
+    assign err_fifo_rd_ready = fub_rd_rvalid && fub_rd_rready
+                            && (r_slice_idx == SLICE_SRC_TS);
 
-    // 128-bit packet exposed to a 32-bit CPU read. Use bits [3:2] of the
-    // word offset within the packet to select one of four 32-bit slices.
-    // Word 0 = [31:0], Word 1 = [63:32], Word 2 = [95:64], Word 3 = [127:96].
     always_comb begin
         fub_rd_rdata = {S_AXIL_DATA_WIDTH{1'b0}};
         if (!err_fifo_empty) begin
-            case (fub_rd_araddr[3:2])
-                2'b00:   fub_rd_rdata = err_fifo_rd_data[31:0];
-                2'b01:   fub_rd_rdata = err_fifo_rd_data[63:32];
-                2'b10:   fub_rd_rdata = err_fifo_rd_data[95:64];
-                2'b11:   fub_rd_rdata = err_fifo_rd_data[127:96];
-                default: fub_rd_rdata = '0;
+            unique case (r_slice_idx)
+                SLICE_PKT_LO: fub_rd_rdata = err_fifo_rd_data[63:0];
+                SLICE_PKT_HI: fub_rd_rdata = err_fifo_rd_data[MONBUS_PKT_WIDTH-1:64];
+                SLICE_SRC_TS: fub_rd_rdata = err_fifo_rd_data[ERR_FIFO_REC_WIDTH-1:MONBUS_PKT_WIDTH];
+                default:      fub_rd_rdata = '0;
             endcase
         end
     end

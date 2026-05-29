@@ -334,15 +334,17 @@ class BridgeModuleGenerator:
         lines.append("    // ============================================================")
         lines.append("    // monbus_axil_group access ports + config + IRQ")
         lines.append("    // ============================================================")
-        # AXIL slave (config / IRQ status reads)
-        lines.append("    // AXIL slave (IRQ-status reads)")
+        # AXIL slave (config / IRQ status reads). 64-bit data: a CPU
+        # drains one error packet (packet + source_ts) in 3 beats via
+        # the unified monbus_axil_group's slice-counter read path.
+        lines.append("    // AXIL slave (IRQ-status reads, 64-bit data)")
         lines.append("    input  logic        s_mon_axil_arvalid,")
         lines.append("    output logic        s_mon_axil_arready,")
         lines.append("    input  logic [31:0] s_mon_axil_araddr,")
         lines.append("    input  logic [2:0]  s_mon_axil_arprot,")
         lines.append("    output logic        s_mon_axil_rvalid,")
         lines.append("    input  logic        s_mon_axil_rready,")
-        lines.append("    output logic [31:0] s_mon_axil_rdata,")
+        lines.append("    output logic [63:0] s_mon_axil_rdata,")
         lines.append("    output logic [1:0]  s_mon_axil_rresp,")
         lines.append("")
         # AXIL master (packet log writes). The monbus_axil_group module
@@ -490,7 +492,10 @@ class BridgeModuleGenerator:
         lines.append("        .FIFO_DEPTH_ERR    (64),")
         lines.append("        .FIFO_DEPTH_WRITE  (32),")
         lines.append("        .ADDR_WIDTH        (32),")
-        lines.append("        .S_AXIL_DATA_WIDTH (32),")
+        lines.append("        .S_AXIL_DATA_WIDTH (64),")
+        lines.append("        // S_AXIL_DATA_WIDTH=64: the unified group drains one")
+        lines.append("        // err_fifo entry ({packet[127:0], source_ts[63:0]} = 192 bits)")
+        lines.append("        // over three 64-bit reads via an internal slice counter.")
         lines.append("        // M_AXIL_DATA_WIDTH defaults to 64 — module emits two 64-bit beats")
         lines.append("        // per 128-bit packet plus optional timestamp beats per cfg_ts_append_mode.")
         lines.append("        .NUM_PROTOCOLS     (3)")
