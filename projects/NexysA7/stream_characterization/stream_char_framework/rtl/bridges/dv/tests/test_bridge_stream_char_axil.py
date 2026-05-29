@@ -33,26 +33,30 @@ from projects.NexysA7.stream_characterization.stream_char_framework.rtl.bridges.
 
 
 # ============================================================================
-# CocoTB Test Functions (prefixed with cocotb_test_* to prevent pytest collection)
+# CocoTB Test Functions
 # ============================================================================
+#
+# Each cocotb test function is named with the rtl_module_name baked in
+# (cocotb_test_<module>_<phase>) so that when pytest collects the full
+# bridge suite — every test_bridge_*.py imported into the same Python
+# process — no two files share a cocotb-registered test name. Sharing
+# names causes cross-test state pollution (one config's cocotb.test
+# registration overwrites another's, and tests that pass in isolation
+# fail in the full regression). Stream's per-module naming was the
+# reference.
 
 @cocotb.test(timeout_time=200, timeout_unit="ms")
-async def cocotb_test_basic_connectivity(dut):
+async def cocotb_test_bridge_stream_char_axil_basic_connectivity(dut):
     """
-    Basic connectivity test - verify master-to-slave routing
+    Basic connectivity — every (master, slave) pair gets one write and/or
+    one read at a non-base offset inside the slave's window. Reads check
+    against the pre-seeded slave memory pattern; writes verify the bytes
+    landed in the slave's memory at the expected offset.
 
-    Test plan:
-    1. Initialize testbench
-    2. For each master:
-        - Send write to each connected slave
-        - Verify address decode routes to correct slave
-        - Slave responds with OKAY
-        - Verify response reaches master
-    3. For each master:
-        - Send read to each connected slave
-        - Verify address decode routes to correct slave
-        - Slave responds with data
-        - Verify response reaches master
+    The slave BFMs auto-respond from their MemoryModel honoring whatever
+    ARSIZE/ARLEN/ARADDR (or AWSIZE/AWLEN/AWADDR) the bridge forwards, so
+    the same test body works across direct, width-converted, and
+    AXIL-shimmed paths — the bridge moves bytes, we read the bytes back.
     """
     tb = BridgeStreamCharAxilTB(dut)
     await tb.setup_clocks_and_reset()
@@ -62,518 +66,155 @@ async def cocotb_test_basic_connectivity(dut):
     tb.log.info(f"Configuration: 1M x 6S, RW channels")
     tb.log.info("=" * 80)
 
-    # Write connectivity test
-    tb.log.info(f"Testing master 0 (host) write connectivity")
-
+    # ---- Write connectivity --------------------------------------------
+    tb.log.info(f"Master 0 (host) — writes")
     # Master 0 → Slave 0 (stream_apb)
-    test_addr = 0x00000000
-    # Use a 32-bit-or-less data pattern so it fits any slave's data path.
-    # The original 0xDEADBEEFXX form was 40 bits and got truncated by the
-    # narrowest slave BFM (e.g. a 32-bit APB/AXIL slave), which then broke
-    # the data-equality assertion downstream. Master-width masking didn't
-    # help because the data still has to ride the slave's BFM first.
-    test_data = (0xDEADBE00 | 0x00)
-    tb.log.info(f"  Write: addr=0x{test_addr:08x}, data=0x{test_data:08x}")
-
-    # Master sends write transaction
-    await tb.write_transaction(
-        master_idx=0,
-        address=test_addr,
-        data=test_data,
-        txn_id=0
-    )
-
-    # Verify the bridge actually routed the AW to *this* slave (and only
-    # this slave). Catches silent misroutes that the old version of this
-    # test missed by responding from the expected slave without first
-    # checking it had received anything.
-    await tb.expect_aw_at_slave(
-        slave_idx=0,
-        expected_addr=test_addr,
-        expected_id=0
-    )
-
-    # Slave responds
-    await tb.slave_respond_write(
-        slave_idx=0,
-        txn_id=0,
-        resp=0  # OKAY
-    )
-
-    # Verify the B response actually came back to the originating master.
-    await tb.expect_b_at_master(
-        master_idx=0,
-        expected_id=0,
-        expected_resp=0
-    )
-
-    tb.log.info(f"  Write completed successfully (routing + response verified)")
-
-    # Master 0 → Slave 1 (harness_csr)
-    test_addr = 0x00010000
-    # Use a 32-bit-or-less data pattern so it fits any slave's data path.
-    # The original 0xDEADBEEFXX form was 40 bits and got truncated by the
-    # narrowest slave BFM (e.g. a 32-bit APB/AXIL slave), which then broke
-    # the data-equality assertion downstream. Master-width masking didn't
-    # help because the data still has to ride the slave's BFM first.
-    test_data = (0xDEADBE00 | 0x01)
-    tb.log.info(f"  Write: addr=0x{test_addr:08x}, data=0x{test_data:08x}")
-
-    # Master sends write transaction
-    await tb.write_transaction(
-        master_idx=0,
-        address=test_addr,
-        data=test_data,
-        txn_id=0
-    )
-
-    # Verify the bridge actually routed the AW to *this* slave (and only
-    # this slave). Catches silent misroutes that the old version of this
-    # test missed by responding from the expected slave without first
-    # checking it had received anything.
-    await tb.expect_aw_at_slave(
-        slave_idx=1,
-        expected_addr=test_addr,
-        expected_id=0
-    )
-
-    # Slave responds
-    await tb.slave_respond_write(
-        slave_idx=1,
-        txn_id=0,
-        resp=0  # OKAY
-    )
-
-    # Verify the B response actually came back to the originating master.
-    await tb.expect_b_at_master(
-        master_idx=0,
-        expected_id=0,
-        expected_resp=0
-    )
-
-    tb.log.info(f"  Write completed successfully (routing + response verified)")
-
-    # Master 0 → Slave 2 (desc_ram)
-    test_addr = 0x00020000
-    # Use a 32-bit-or-less data pattern so it fits any slave's data path.
-    # The original 0xDEADBEEFXX form was 40 bits and got truncated by the
-    # narrowest slave BFM (e.g. a 32-bit APB/AXIL slave), which then broke
-    # the data-equality assertion downstream. Master-width masking didn't
-    # help because the data still has to ride the slave's BFM first.
-    test_data = (0xDEADBE00 | 0x02)
-    tb.log.info(f"  Write: addr=0x{test_addr:08x}, data=0x{test_data:08x}")
-
-    # Master sends write transaction
-    await tb.write_transaction(
-        master_idx=0,
-        address=test_addr,
-        data=test_data,
-        txn_id=0
-    )
-
-    # Verify the bridge actually routed the AW to *this* slave (and only
-    # this slave). Catches silent misroutes that the old version of this
-    # test missed by responding from the expected slave without first
-    # checking it had received anything.
-    await tb.expect_aw_at_slave(
-        slave_idx=2,
-        expected_addr=test_addr,
-        expected_id=0
-    )
-
-    # Slave responds
-    await tb.slave_respond_write(
-        slave_idx=2,
-        txn_id=0,
-        resp=0  # OKAY
-    )
-
-    # Verify the B response actually came back to the originating master.
-    await tb.expect_b_at_master(
-        master_idx=0,
-        expected_id=0,
-        expected_resp=0
-    )
-
-    tb.log.info(f"  Write completed successfully (routing + response verified)")
-
-    # Master 0 → Slave 3 (stream_err)
-    test_addr = 0x00030000
-    # Use a 32-bit-or-less data pattern so it fits any slave's data path.
-    # The original 0xDEADBEEFXX form was 40 bits and got truncated by the
-    # narrowest slave BFM (e.g. a 32-bit APB/AXIL slave), which then broke
-    # the data-equality assertion downstream. Master-width masking didn't
-    # help because the data still has to ride the slave's BFM first.
-    test_data = (0xDEADBE00 | 0x03)
-    tb.log.info(f"  Write: addr=0x{test_addr:08x}, data=0x{test_data:08x}")
-
-    # Master sends write transaction
-    await tb.write_transaction(
-        master_idx=0,
-        address=test_addr,
-        data=test_data,
-        txn_id=0
-    )
-
-    # Verify the bridge actually routed the AW to *this* slave (and only
-    # this slave). Catches silent misroutes that the old version of this
-    # test missed by responding from the expected slave without first
-    # checking it had received anything.
-    await tb.expect_aw_at_slave(
-        slave_idx=3,
-        expected_addr=test_addr,
-        expected_id=0
-    )
-
-    # Slave responds
-    await tb.slave_respond_write(
-        slave_idx=3,
-        txn_id=0,
-        resp=0  # OKAY
-    )
-
-    # Verify the B response actually came back to the originating master.
-    await tb.expect_b_at_master(
-        master_idx=0,
-        expected_id=0,
-        expected_resp=0
-    )
-
-    tb.log.info(f"  Write completed successfully (routing + response verified)")
-
-    # Master 0 → Slave 4 (debug_sram)
-    test_addr = 0x00040000
-    # Use a 32-bit-or-less data pattern so it fits any slave's data path.
-    # The original 0xDEADBEEFXX form was 40 bits and got truncated by the
-    # narrowest slave BFM (e.g. a 32-bit APB/AXIL slave), which then broke
-    # the data-equality assertion downstream. Master-width masking didn't
-    # help because the data still has to ride the slave's BFM first.
-    test_data = (0xDEADBE00 | 0x04)
-    tb.log.info(f"  Write: addr=0x{test_addr:08x}, data=0x{test_data:08x}")
-
-    # Master sends write transaction
-    await tb.write_transaction(
-        master_idx=0,
-        address=test_addr,
-        data=test_data,
-        txn_id=0
-    )
-
-    # Verify the bridge actually routed the AW to *this* slave (and only
-    # this slave). Catches silent misroutes that the old version of this
-    # test missed by responding from the expected slave without first
-    # checking it had received anything.
-    await tb.expect_aw_at_slave(
-        slave_idx=4,
-        expected_addr=test_addr,
-        expected_id=0
-    )
-
-    # Slave responds
-    await tb.slave_respond_write(
-        slave_idx=4,
-        txn_id=0,
-        resp=0  # OKAY
-    )
-
-    # Verify the B response actually came back to the originating master.
-    await tb.expect_b_at_master(
-        master_idx=0,
-        expected_id=0,
-        expected_resp=0
-    )
-
-    tb.log.info(f"  Write completed successfully (routing + response verified)")
-
-    # Master 0 → Slave 5 (dma_axil)
-    test_addr = 0x00080000
-    # Use a 32-bit-or-less data pattern so it fits any slave's data path.
-    # The original 0xDEADBEEFXX form was 40 bits and got truncated by the
-    # narrowest slave BFM (e.g. a 32-bit APB/AXIL slave), which then broke
-    # the data-equality assertion downstream. Master-width masking didn't
-    # help because the data still has to ride the slave's BFM first.
-    test_data = (0xDEADBE00 | 0x05)
-    tb.log.info(f"  Write: addr=0x{test_addr:08x}, data=0x{test_data:08x}")
-
-    # Master sends write transaction
-    await tb.write_transaction(
-        master_idx=0,
-        address=test_addr,
-        data=test_data,
-        txn_id=0
-    )
-
-    # Verify the bridge actually routed the AW to *this* slave (and only
-    # this slave). Catches silent misroutes that the old version of this
-    # test missed by responding from the expected slave without first
-    # checking it had received anything.
-    await tb.expect_aw_at_slave(
-        slave_idx=5,
-        expected_addr=test_addr,
-        expected_id=0
-    )
-
-    # Slave responds
-    await tb.slave_respond_write(
-        slave_idx=5,
-        txn_id=0,
-        resp=0  # OKAY
-    )
-
-    # Verify the B response actually came back to the originating master.
-    await tb.expect_b_at_master(
-        master_idx=0,
-        expected_id=0,
-        expected_resp=0
-    )
-
-    tb.log.info(f"  Write completed successfully (routing + response verified)")
-    # Read connectivity test    tb.log.info(f"Testing master 0 (host) read connectivity")
-    # Master 0 → Slave 0 (stream_apb)
-    # Probe a non-base offset (catches decoders that ignore the low bits).
-    # The config validator enforces addr_range is a multiple of 4 KB, so
-    # +0x100 is always safely inside every slave's window.
     test_addr = 0x00000100
-    # 32-bit-or-less value (see DEADBEEF comment above for rationale).
-    test_data = (0xCAFEBA00 | 0x00)
-    tb.log.info(f"  Read: addr=0x{test_addr:08x}, expect_data=0x{test_data:08x}")
-
-    # Master sends read transaction
-    await tb.read_transaction(
-        master_idx=0,
-        address=test_addr,
-        txn_id=0
-    )
-
-    # Verify AR routed to expected slave only.
-    await tb.expect_ar_at_slave(
-        slave_idx=0,
-        expected_addr=test_addr,
-        expected_id=0
-    )
-
-    # Slave responds with data
-    await tb.slave_respond_read(
-        slave_idx=0,
-        data=test_data,
-        txn_id=0,
-        resp=0  # OKAY
-    )
-
-    # Verify R response (data + id) returned to originating master.
-    await tb.expect_r_at_master(
-        master_idx=0,
-        expected_id=0,
-        expected_data=test_data,
-        expected_resp=0
-    )
-
-    tb.log.info(f"  Read completed successfully (routing + response verified)")
-
+    # Non-pattern data: upper byte 0xDE so it can't be confused with any
+    # slave's seed pattern (which uses 0x01..0xFF in the upper byte for
+    # the slave ID). Lower byte tags the (master, slave) pair for debug.
+    test_data = (0xDE000000 | (0 << 12) | 0)
+    tb.log.info(f"  W slave=0 addr=0x{test_addr:08x} data=0x{test_data:08x}")
+    await tb.master_write(0, test_addr, test_data)
+    # Read back at master 0's width — only the bytes the master
+    # actually wrote should be compared; trailing bytes are still the seed.
+    actual = tb.slave_mem_read(0, test_addr, master_idx=0)
+    assert actual == test_data, (
+        f"Slave 0 memory mismatch at 0x{test_addr:08x}: "
+        f"got 0x{actual:08x}, expected 0x{test_data:08x}")
     # Master 0 → Slave 1 (harness_csr)
-    # Probe a non-base offset (catches decoders that ignore the low bits).
-    # The config validator enforces addr_range is a multiple of 4 KB, so
-    # +0x100 is always safely inside every slave's window.
     test_addr = 0x00010100
-    # 32-bit-or-less value (see DEADBEEF comment above for rationale).
-    test_data = (0xCAFEBA00 | 0x01)
-    tb.log.info(f"  Read: addr=0x{test_addr:08x}, expect_data=0x{test_data:08x}")
-
-    # Master sends read transaction
-    await tb.read_transaction(
-        master_idx=0,
-        address=test_addr,
-        txn_id=0
-    )
-
-    # Verify AR routed to expected slave only.
-    await tb.expect_ar_at_slave(
-        slave_idx=1,
-        expected_addr=test_addr,
-        expected_id=0
-    )
-
-    # Slave responds with data
-    await tb.slave_respond_read(
-        slave_idx=1,
-        data=test_data,
-        txn_id=0,
-        resp=0  # OKAY
-    )
-
-    # Verify R response (data + id) returned to originating master.
-    await tb.expect_r_at_master(
-        master_idx=0,
-        expected_id=0,
-        expected_data=test_data,
-        expected_resp=0
-    )
-
-    tb.log.info(f"  Read completed successfully (routing + response verified)")
-
+    # Non-pattern data: upper byte 0xDE so it can't be confused with any
+    # slave's seed pattern (which uses 0x01..0xFF in the upper byte for
+    # the slave ID). Lower byte tags the (master, slave) pair for debug.
+    test_data = (0xDE000000 | (0 << 12) | 1)
+    tb.log.info(f"  W slave=1 addr=0x{test_addr:08x} data=0x{test_data:08x}")
+    await tb.master_write(0, test_addr, test_data)
+    # Read back at master 0's width — only the bytes the master
+    # actually wrote should be compared; trailing bytes are still the seed.
+    actual = tb.slave_mem_read(1, test_addr, master_idx=0)
+    assert actual == test_data, (
+        f"Slave 1 memory mismatch at 0x{test_addr:08x}: "
+        f"got 0x{actual:08x}, expected 0x{test_data:08x}")
     # Master 0 → Slave 2 (desc_ram)
-    # Probe a non-base offset (catches decoders that ignore the low bits).
-    # The config validator enforces addr_range is a multiple of 4 KB, so
-    # +0x100 is always safely inside every slave's window.
     test_addr = 0x00020100
-    # 32-bit-or-less value (see DEADBEEF comment above for rationale).
-    test_data = (0xCAFEBA00 | 0x02)
-    tb.log.info(f"  Read: addr=0x{test_addr:08x}, expect_data=0x{test_data:08x}")
-
-    # Master sends read transaction
-    await tb.read_transaction(
-        master_idx=0,
-        address=test_addr,
-        txn_id=0
-    )
-
-    # Verify AR routed to expected slave only.
-    await tb.expect_ar_at_slave(
-        slave_idx=2,
-        expected_addr=test_addr,
-        expected_id=0
-    )
-
-    # Slave responds with data
-    await tb.slave_respond_read(
-        slave_idx=2,
-        data=test_data,
-        txn_id=0,
-        resp=0  # OKAY
-    )
-
-    # Verify R response (data + id) returned to originating master.
-    await tb.expect_r_at_master(
-        master_idx=0,
-        expected_id=0,
-        expected_data=test_data,
-        expected_resp=0
-    )
-
-    tb.log.info(f"  Read completed successfully (routing + response verified)")
-
+    # Non-pattern data: upper byte 0xDE so it can't be confused with any
+    # slave's seed pattern (which uses 0x01..0xFF in the upper byte for
+    # the slave ID). Lower byte tags the (master, slave) pair for debug.
+    test_data = (0xDE000000 | (0 << 12) | 2)
+    tb.log.info(f"  W slave=2 addr=0x{test_addr:08x} data=0x{test_data:08x}")
+    await tb.master_write(0, test_addr, test_data)
+    # Read back at master 0's width — only the bytes the master
+    # actually wrote should be compared; trailing bytes are still the seed.
+    actual = tb.slave_mem_read(2, test_addr, master_idx=0)
+    assert actual == test_data, (
+        f"Slave 2 memory mismatch at 0x{test_addr:08x}: "
+        f"got 0x{actual:08x}, expected 0x{test_data:08x}")
     # Master 0 → Slave 3 (stream_err)
-    # Probe a non-base offset (catches decoders that ignore the low bits).
-    # The config validator enforces addr_range is a multiple of 4 KB, so
-    # +0x100 is always safely inside every slave's window.
     test_addr = 0x00030100
-    # 32-bit-or-less value (see DEADBEEF comment above for rationale).
-    test_data = (0xCAFEBA00 | 0x03)
-    tb.log.info(f"  Read: addr=0x{test_addr:08x}, expect_data=0x{test_data:08x}")
-
-    # Master sends read transaction
-    await tb.read_transaction(
-        master_idx=0,
-        address=test_addr,
-        txn_id=0
-    )
-
-    # Verify AR routed to expected slave only.
-    await tb.expect_ar_at_slave(
-        slave_idx=3,
-        expected_addr=test_addr,
-        expected_id=0
-    )
-
-    # Slave responds with data
-    await tb.slave_respond_read(
-        slave_idx=3,
-        data=test_data,
-        txn_id=0,
-        resp=0  # OKAY
-    )
-
-    # Verify R response (data + id) returned to originating master.
-    await tb.expect_r_at_master(
-        master_idx=0,
-        expected_id=0,
-        expected_data=test_data,
-        expected_resp=0
-    )
-
-    tb.log.info(f"  Read completed successfully (routing + response verified)")
-
+    # Non-pattern data: upper byte 0xDE so it can't be confused with any
+    # slave's seed pattern (which uses 0x01..0xFF in the upper byte for
+    # the slave ID). Lower byte tags the (master, slave) pair for debug.
+    test_data = (0xDE000000 | (0 << 12) | 3)
+    tb.log.info(f"  W slave=3 addr=0x{test_addr:08x} data=0x{test_data:08x}")
+    await tb.master_write(0, test_addr, test_data)
+    # Read back at master 0's width — only the bytes the master
+    # actually wrote should be compared; trailing bytes are still the seed.
+    actual = tb.slave_mem_read(3, test_addr, master_idx=0)
+    assert actual == test_data, (
+        f"Slave 3 memory mismatch at 0x{test_addr:08x}: "
+        f"got 0x{actual:08x}, expected 0x{test_data:08x}")
     # Master 0 → Slave 4 (debug_sram)
-    # Probe a non-base offset (catches decoders that ignore the low bits).
-    # The config validator enforces addr_range is a multiple of 4 KB, so
-    # +0x100 is always safely inside every slave's window.
     test_addr = 0x00040100
-    # 32-bit-or-less value (see DEADBEEF comment above for rationale).
-    test_data = (0xCAFEBA00 | 0x04)
-    tb.log.info(f"  Read: addr=0x{test_addr:08x}, expect_data=0x{test_data:08x}")
-
-    # Master sends read transaction
-    await tb.read_transaction(
-        master_idx=0,
-        address=test_addr,
-        txn_id=0
-    )
-
-    # Verify AR routed to expected slave only.
-    await tb.expect_ar_at_slave(
-        slave_idx=4,
-        expected_addr=test_addr,
-        expected_id=0
-    )
-
-    # Slave responds with data
-    await tb.slave_respond_read(
-        slave_idx=4,
-        data=test_data,
-        txn_id=0,
-        resp=0  # OKAY
-    )
-
-    # Verify R response (data + id) returned to originating master.
-    await tb.expect_r_at_master(
-        master_idx=0,
-        expected_id=0,
-        expected_data=test_data,
-        expected_resp=0
-    )
-
-    tb.log.info(f"  Read completed successfully (routing + response verified)")
-
+    # Non-pattern data: upper byte 0xDE so it can't be confused with any
+    # slave's seed pattern (which uses 0x01..0xFF in the upper byte for
+    # the slave ID). Lower byte tags the (master, slave) pair for debug.
+    test_data = (0xDE000000 | (0 << 12) | 4)
+    tb.log.info(f"  W slave=4 addr=0x{test_addr:08x} data=0x{test_data:08x}")
+    await tb.master_write(0, test_addr, test_data)
+    # Read back at master 0's width — only the bytes the master
+    # actually wrote should be compared; trailing bytes are still the seed.
+    actual = tb.slave_mem_read(4, test_addr, master_idx=0)
+    assert actual == test_data, (
+        f"Slave 4 memory mismatch at 0x{test_addr:08x}: "
+        f"got 0x{actual:08x}, expected 0x{test_data:08x}")
     # Master 0 → Slave 5 (dma_axil)
-    # Probe a non-base offset (catches decoders that ignore the low bits).
-    # The config validator enforces addr_range is a multiple of 4 KB, so
-    # +0x100 is always safely inside every slave's window.
     test_addr = 0x00080100
-    # 32-bit-or-less value (see DEADBEEF comment above for rationale).
-    test_data = (0xCAFEBA00 | 0x05)
-    tb.log.info(f"  Read: addr=0x{test_addr:08x}, expect_data=0x{test_data:08x}")
+    # Non-pattern data: upper byte 0xDE so it can't be confused with any
+    # slave's seed pattern (which uses 0x01..0xFF in the upper byte for
+    # the slave ID). Lower byte tags the (master, slave) pair for debug.
+    test_data = (0xDE000000 | (0 << 12) | 5)
+    tb.log.info(f"  W slave=5 addr=0x{test_addr:08x} data=0x{test_data:08x}")
+    await tb.master_write(0, test_addr, test_data)
+    # Read back at master 0's width — only the bytes the master
+    # actually wrote should be compared; trailing bytes are still the seed.
+    actual = tb.slave_mem_read(5, test_addr, master_idx=0)
+    assert actual == test_data, (
+        f"Slave 5 memory mismatch at 0x{test_addr:08x}: "
+        f"got 0x{actual:08x}, expected 0x{test_data:08x}")
 
-    # Master sends read transaction
-    await tb.read_transaction(
-        master_idx=0,
-        address=test_addr,
-        txn_id=0
-    )
-
-    # Verify AR routed to expected slave only.
-    await tb.expect_ar_at_slave(
-        slave_idx=5,
-        expected_addr=test_addr,
-        expected_id=0
-    )
-
-    # Slave responds with data
-    await tb.slave_respond_read(
-        slave_idx=5,
-        data=test_data,
-        txn_id=0,
-        resp=0  # OKAY
-    )
-
-    # Verify R response (data + id) returned to originating master.
-    await tb.expect_r_at_master(
-        master_idx=0,
-        expected_id=0,
-        expected_data=test_data,
-        expected_resp=0
-    )
-
-    tb.log.info(f"  Read completed successfully (routing + response verified)")
+    # ---- Read connectivity ---------------------------------------------
+    tb.log.info(f"Master 0 (host) — reads")
+    # Master 0 → Slave 0 (stream_apb)
+    # Probe a non-base offset; addr_range is 4 KB-aligned by validator so
+    # +0x100 is always safely inside the slave's window.
+    test_addr = 0x00000100
+    expected = tb.slave_mem_read(0, test_addr, master_idx=0)
+    tb.log.info(f"  R slave=0 addr=0x{test_addr:08x} expect=0x{expected:08x}")
+    actual = await tb.master_read(0, test_addr)
+    assert actual == expected, (
+        f"Read mismatch master 0 ← slave 0 at 0x{test_addr:08x}: "
+        f"got 0x{actual:08x}, expected 0x{expected:08x} (seeded pattern)")
+    # Master 0 → Slave 1 (harness_csr)
+    # Probe a non-base offset; addr_range is 4 KB-aligned by validator so
+    # +0x100 is always safely inside the slave's window.
+    test_addr = 0x00010100
+    expected = tb.slave_mem_read(1, test_addr, master_idx=0)
+    tb.log.info(f"  R slave=1 addr=0x{test_addr:08x} expect=0x{expected:08x}")
+    actual = await tb.master_read(0, test_addr)
+    assert actual == expected, (
+        f"Read mismatch master 0 ← slave 1 at 0x{test_addr:08x}: "
+        f"got 0x{actual:08x}, expected 0x{expected:08x} (seeded pattern)")
+    # Master 0 → Slave 2 (desc_ram)
+    # Probe a non-base offset; addr_range is 4 KB-aligned by validator so
+    # +0x100 is always safely inside the slave's window.
+    test_addr = 0x00020100
+    expected = tb.slave_mem_read(2, test_addr, master_idx=0)
+    tb.log.info(f"  R slave=2 addr=0x{test_addr:08x} expect=0x{expected:08x}")
+    actual = await tb.master_read(0, test_addr)
+    assert actual == expected, (
+        f"Read mismatch master 0 ← slave 2 at 0x{test_addr:08x}: "
+        f"got 0x{actual:08x}, expected 0x{expected:08x} (seeded pattern)")
+    # Master 0 → Slave 3 (stream_err)
+    # Probe a non-base offset; addr_range is 4 KB-aligned by validator so
+    # +0x100 is always safely inside the slave's window.
+    test_addr = 0x00030100
+    expected = tb.slave_mem_read(3, test_addr, master_idx=0)
+    tb.log.info(f"  R slave=3 addr=0x{test_addr:08x} expect=0x{expected:08x}")
+    actual = await tb.master_read(0, test_addr)
+    assert actual == expected, (
+        f"Read mismatch master 0 ← slave 3 at 0x{test_addr:08x}: "
+        f"got 0x{actual:08x}, expected 0x{expected:08x} (seeded pattern)")
+    # Master 0 → Slave 4 (debug_sram)
+    # Probe a non-base offset; addr_range is 4 KB-aligned by validator so
+    # +0x100 is always safely inside the slave's window.
+    test_addr = 0x00040100
+    expected = tb.slave_mem_read(4, test_addr, master_idx=0)
+    tb.log.info(f"  R slave=4 addr=0x{test_addr:08x} expect=0x{expected:08x}")
+    actual = await tb.master_read(0, test_addr)
+    assert actual == expected, (
+        f"Read mismatch master 0 ← slave 4 at 0x{test_addr:08x}: "
+        f"got 0x{actual:08x}, expected 0x{expected:08x} (seeded pattern)")
+    # Master 0 → Slave 5 (dma_axil)
+    # Probe a non-base offset; addr_range is 4 KB-aligned by validator so
+    # +0x100 is always safely inside the slave's window.
+    test_addr = 0x00080100
+    expected = tb.slave_mem_read(5, test_addr, master_idx=0)
+    tb.log.info(f"  R slave=5 addr=0x{test_addr:08x} expect=0x{expected:08x}")
+    actual = await tb.master_read(0, test_addr)
+    assert actual == expected, (
+        f"Read mismatch master 0 ← slave 5 at 0x{test_addr:08x}: "
+        f"got 0x{actual:08x}, expected 0x{expected:08x} (seeded pattern)")
 
     await ClockCycles(tb.clock, 20)
     tb.log.info("=" * 80)
@@ -582,104 +223,200 @@ async def cocotb_test_basic_connectivity(dut):
 
 
 @cocotb.test(timeout_time=500, timeout_unit="ms")
-async def cocotb_test_address_decode(dut):
+async def cocotb_test_bridge_stream_char_axil_boundary_probe(dut):
     """
-    Address decode verification test
+    Boundary probe — for each (master, slave) pair, probe three offsets
+    per page (bottom / middle / top of the page) back-to-back, at either
+    the boundary pages of the slave window (default) or every page
+    (BRIDGE_BOUNDARY_PROBE_MODE=all).
 
-    Test plan:
-    1. For each master:
-        - Send transactions to boundary addresses of each slave region
-        - Verify correct slave is selected via address decode
-        - Test: base_addr, base_addr + range - 1, out-of-range addresses
+    NB: previously named "address_decode". The failure modes it surfaces
+    are not in the address decoder (which is per-bridge generated inline
+    in <master>_adapter.sv and is fine across all configs); they're in
+    the downstream protocol shims — axi4_to_axil4_{wr,rd}, axi4_to_apb
+    — stressed by the b2b page probes that the simpler basic_connectivity
+    test never reaches.
+
+    Routing IS the data round-trip: a misroute lands the write at a
+    different slave or different offset and the seed pattern shows
+    through instead of the tagged write data. Data verification is
+    skipped for probes past the SLAVE_MEM_CAP_BYTES seeded region —
+    the slave BFM silently drops OOR writes and fakes reads with
+    data=addr, so OOR probes still exercise the decoder pathway but
+    can't be data-checked. If/when we want explicit AW/AR routing
+    monitors, wire them up at the bridge slave ports separately.
+
+    Set BRIDGE_BOUNDARY_PROBE_MODE=all in the environment to walk every
+    page instead of bottom/mid/top — useful for small-window slaves
+    under regression, exhausting for GB-class DDR.
     """
     tb = BridgeStreamCharAxilTB(dut)
     await tb.setup_clocks_and_reset()
 
+    mode = os.environ.get('BRIDGE_BOUNDARY_PROBE_MODE', 'boundary').lower()
+    if mode not in ('boundary', 'all'):
+        tb.log.warning(f"Unknown BRIDGE_BOUNDARY_PROBE_MODE={mode!r}, falling back to 'boundary'")
+        mode = 'boundary'
+
     tb.log.info("=" * 80)
-    tb.log.info("Starting address decode test")
-    tb.log.info("=" * 80)    # Master 0: host
-    tb.log.info(f"Testing master 0 address decode")
-    # Slave 0: stream_apb
-    # Range: 0x00000000 - 0x00000fff
-    tb.log.info(f"  Slave 0 (stream_apb): 0x00000000-0x00000fff")    # Test base address
-    await tb.write_transaction(0, 0x00000000, 0x00000000, txn_id=0)
-    await ClockCycles(tb.clock, 3)
-    await tb.slave_respond_write(0, txn_id=0)
-    await ClockCycles(tb.clock, 3)
+    tb.log.info(f"Starting boundary probe test (mode={mode})")
+    tb.log.info("=" * 80)
 
-    # Test end address
-    await tb.write_transaction(0, 0x00000ffc, 0x11111111, txn_id=0)
-    await ClockCycles(tb.clock, 3)
-    await tb.slave_respond_write(0, txn_id=0)
-    await ClockCycles(tb.clock, 3)
-    # Slave 1: harness_csr
-    # Range: 0x00010000 - 0x00010fff
-    tb.log.info(f"  Slave 1 (harness_csr): 0x00010000-0x00010fff")    # Test base address
-    await tb.write_transaction(0, 0x00010000, 0x00000001, txn_id=0)
-    await ClockCycles(tb.clock, 3)
-    await tb.slave_respond_write(1, txn_id=0)
-    await ClockCycles(tb.clock, 3)
+    tb.log.info(f"Master 0 (host)")
+    # Slave 0 (stream_apb): 0x00000000-0x00000fff
+    pages_0_0 = tb.slave_probe_pages(0, mode=mode)
+    in_page_0_0 = tb.page_probe_offsets(0, master_idx=0)
+    tb.log.info(f"  slave 0: {len(pages_0_0)} pages x 3 probes/page")
+    for page_idx, page_base in enumerate(pages_0_0):
+        for probe_idx, probe_off in enumerate(in_page_0_0):
+            addr = page_base + probe_off
+            # Tag data with (master, slave, page_idx, probe_idx) — every
+            # probe within an (M,S) pair gets a unique 16-bit ID so a
+            # misroute (write lands at wrong slave / wrong offset) is
+            # visible at a glance in the failure message.
+            d = (0xDE000000 | (0 << 20) | (0 << 16)
+                 | ((page_idx & 0xFFF) << 4) | (probe_idx & 0xF))
+            await tb.master_write(0, addr, d)
+            # Data round-trip IS the routing check: a misrouted write
+            # lands at a different slave (or different offset) and the
+            # seed pattern shows through instead of d. Skip the check
+            # for non-seeded probes (write still exercises the decode
+            # path, framework just drops OOR memory writes silently).
+            if tb.is_seeded(0, addr):
+                got = tb.slave_mem_read(0, addr, master_idx=0)
+                assert got == d, (
+                    f"M0→S0 data mismatch at "
+                    f"0x{addr:08x} (page=0x{page_base:08x}, off=0x{probe_off:x}): "
+                    f"got 0x{got:08x}, expected 0x{d:08x}")
+    # Slave 1 (harness_csr): 0x00010000-0x00010fff
+    pages_0_1 = tb.slave_probe_pages(1, mode=mode)
+    in_page_0_1 = tb.page_probe_offsets(1, master_idx=0)
+    tb.log.info(f"  slave 1: {len(pages_0_1)} pages x 3 probes/page")
+    for page_idx, page_base in enumerate(pages_0_1):
+        for probe_idx, probe_off in enumerate(in_page_0_1):
+            addr = page_base + probe_off
+            # Tag data with (master, slave, page_idx, probe_idx) — every
+            # probe within an (M,S) pair gets a unique 16-bit ID so a
+            # misroute (write lands at wrong slave / wrong offset) is
+            # visible at a glance in the failure message.
+            d = (0xDE000000 | (0 << 20) | (1 << 16)
+                 | ((page_idx & 0xFFF) << 4) | (probe_idx & 0xF))
+            await tb.master_write(0, addr, d)
+            # Data round-trip IS the routing check: a misrouted write
+            # lands at a different slave (or different offset) and the
+            # seed pattern shows through instead of d. Skip the check
+            # for non-seeded probes (write still exercises the decode
+            # path, framework just drops OOR memory writes silently).
+            if tb.is_seeded(1, addr):
+                got = tb.slave_mem_read(1, addr, master_idx=0)
+                assert got == d, (
+                    f"M0→S1 data mismatch at "
+                    f"0x{addr:08x} (page=0x{page_base:08x}, off=0x{probe_off:x}): "
+                    f"got 0x{got:08x}, expected 0x{d:08x}")
+    # Slave 2 (desc_ram): 0x00020000-0x0002ffff
+    pages_0_2 = tb.slave_probe_pages(2, mode=mode)
+    in_page_0_2 = tb.page_probe_offsets(2, master_idx=0)
+    tb.log.info(f"  slave 2: {len(pages_0_2)} pages x 3 probes/page")
+    for page_idx, page_base in enumerate(pages_0_2):
+        for probe_idx, probe_off in enumerate(in_page_0_2):
+            addr = page_base + probe_off
+            # Tag data with (master, slave, page_idx, probe_idx) — every
+            # probe within an (M,S) pair gets a unique 16-bit ID so a
+            # misroute (write lands at wrong slave / wrong offset) is
+            # visible at a glance in the failure message.
+            d = (0xDE000000 | (0 << 20) | (2 << 16)
+                 | ((page_idx & 0xFFF) << 4) | (probe_idx & 0xF))
+            await tb.master_write(0, addr, d)
+            # Data round-trip IS the routing check: a misrouted write
+            # lands at a different slave (or different offset) and the
+            # seed pattern shows through instead of d. Skip the check
+            # for non-seeded probes (write still exercises the decode
+            # path, framework just drops OOR memory writes silently).
+            if tb.is_seeded(2, addr):
+                got = tb.slave_mem_read(2, addr, master_idx=0)
+                assert got == d, (
+                    f"M0→S2 data mismatch at "
+                    f"0x{addr:08x} (page=0x{page_base:08x}, off=0x{probe_off:x}): "
+                    f"got 0x{got:08x}, expected 0x{d:08x}")
+    # Slave 3 (stream_err): 0x00030000-0x00030fff
+    pages_0_3 = tb.slave_probe_pages(3, mode=mode)
+    in_page_0_3 = tb.page_probe_offsets(3, master_idx=0)
+    tb.log.info(f"  slave 3: {len(pages_0_3)} pages x 3 probes/page")
+    for page_idx, page_base in enumerate(pages_0_3):
+        for probe_idx, probe_off in enumerate(in_page_0_3):
+            addr = page_base + probe_off
+            # Tag data with (master, slave, page_idx, probe_idx) — every
+            # probe within an (M,S) pair gets a unique 16-bit ID so a
+            # misroute (write lands at wrong slave / wrong offset) is
+            # visible at a glance in the failure message.
+            d = (0xDE000000 | (0 << 20) | (3 << 16)
+                 | ((page_idx & 0xFFF) << 4) | (probe_idx & 0xF))
+            await tb.master_write(0, addr, d)
+            # Data round-trip IS the routing check: a misrouted write
+            # lands at a different slave (or different offset) and the
+            # seed pattern shows through instead of d. Skip the check
+            # for non-seeded probes (write still exercises the decode
+            # path, framework just drops OOR memory writes silently).
+            if tb.is_seeded(3, addr):
+                got = tb.slave_mem_read(3, addr, master_idx=0)
+                assert got == d, (
+                    f"M0→S3 data mismatch at "
+                    f"0x{addr:08x} (page=0x{page_base:08x}, off=0x{probe_off:x}): "
+                    f"got 0x{got:08x}, expected 0x{d:08x}")
+    # Slave 4 (debug_sram): 0x00040000-0x0007ffff
+    pages_0_4 = tb.slave_probe_pages(4, mode=mode)
+    in_page_0_4 = tb.page_probe_offsets(4, master_idx=0)
+    tb.log.info(f"  slave 4: {len(pages_0_4)} pages x 3 probes/page")
+    for page_idx, page_base in enumerate(pages_0_4):
+        for probe_idx, probe_off in enumerate(in_page_0_4):
+            addr = page_base + probe_off
+            # Tag data with (master, slave, page_idx, probe_idx) — every
+            # probe within an (M,S) pair gets a unique 16-bit ID so a
+            # misroute (write lands at wrong slave / wrong offset) is
+            # visible at a glance in the failure message.
+            d = (0xDE000000 | (0 << 20) | (4 << 16)
+                 | ((page_idx & 0xFFF) << 4) | (probe_idx & 0xF))
+            await tb.master_write(0, addr, d)
+            # Data round-trip IS the routing check: a misrouted write
+            # lands at a different slave (or different offset) and the
+            # seed pattern shows through instead of d. Skip the check
+            # for non-seeded probes (write still exercises the decode
+            # path, framework just drops OOR memory writes silently).
+            if tb.is_seeded(4, addr):
+                got = tb.slave_mem_read(4, addr, master_idx=0)
+                assert got == d, (
+                    f"M0→S4 data mismatch at "
+                    f"0x{addr:08x} (page=0x{page_base:08x}, off=0x{probe_off:x}): "
+                    f"got 0x{got:08x}, expected 0x{d:08x}")
+    # Slave 5 (dma_axil): 0x00080000-0x00080fff
+    pages_0_5 = tb.slave_probe_pages(5, mode=mode)
+    in_page_0_5 = tb.page_probe_offsets(5, master_idx=0)
+    tb.log.info(f"  slave 5: {len(pages_0_5)} pages x 3 probes/page")
+    for page_idx, page_base in enumerate(pages_0_5):
+        for probe_idx, probe_off in enumerate(in_page_0_5):
+            addr = page_base + probe_off
+            # Tag data with (master, slave, page_idx, probe_idx) — every
+            # probe within an (M,S) pair gets a unique 16-bit ID so a
+            # misroute (write lands at wrong slave / wrong offset) is
+            # visible at a glance in the failure message.
+            d = (0xDE000000 | (0 << 20) | (5 << 16)
+                 | ((page_idx & 0xFFF) << 4) | (probe_idx & 0xF))
+            await tb.master_write(0, addr, d)
+            # Data round-trip IS the routing check: a misrouted write
+            # lands at a different slave (or different offset) and the
+            # seed pattern shows through instead of d. Skip the check
+            # for non-seeded probes (write still exercises the decode
+            # path, framework just drops OOR memory writes silently).
+            if tb.is_seeded(5, addr):
+                got = tb.slave_mem_read(5, addr, master_idx=0)
+                assert got == d, (
+                    f"M0→S5 data mismatch at "
+                    f"0x{addr:08x} (page=0x{page_base:08x}, off=0x{probe_off:x}): "
+                    f"got 0x{got:08x}, expected 0x{d:08x}")
 
-    # Test end address
-    await tb.write_transaction(0, 0x00010ffc, 0x11111112, txn_id=0)
-    await ClockCycles(tb.clock, 3)
-    await tb.slave_respond_write(1, txn_id=0)
-    await ClockCycles(tb.clock, 3)
-    # Slave 2: desc_ram
-    # Range: 0x00020000 - 0x0002ffff
-    tb.log.info(f"  Slave 2 (desc_ram): 0x00020000-0x0002ffff")    # Test base address
-    await tb.write_transaction(0, 0x00020000, 0x00000002, txn_id=0)
-    await ClockCycles(tb.clock, 3)
-    await tb.slave_respond_write(2, txn_id=0)
-    await ClockCycles(tb.clock, 3)
-
-    # Test end address
-    await tb.write_transaction(0, 0x0002fffc, 0x11111113, txn_id=0)
-    await ClockCycles(tb.clock, 3)
-    await tb.slave_respond_write(2, txn_id=0)
-    await ClockCycles(tb.clock, 3)
-    # Slave 3: stream_err
-    # Range: 0x00030000 - 0x00030fff
-    tb.log.info(f"  Slave 3 (stream_err): 0x00030000-0x00030fff")    # Test base address
-    await tb.write_transaction(0, 0x00030000, 0x00000003, txn_id=0)
-    await ClockCycles(tb.clock, 3)
-    await tb.slave_respond_write(3, txn_id=0)
-    await ClockCycles(tb.clock, 3)
-
-    # Test end address
-    await tb.write_transaction(0, 0x00030ffc, 0x11111114, txn_id=0)
-    await ClockCycles(tb.clock, 3)
-    await tb.slave_respond_write(3, txn_id=0)
-    await ClockCycles(tb.clock, 3)
-    # Slave 4: debug_sram
-    # Range: 0x00040000 - 0x0007ffff
-    tb.log.info(f"  Slave 4 (debug_sram): 0x00040000-0x0007ffff")    # Test base address
-    await tb.write_transaction(0, 0x00040000, 0x00000004, txn_id=0)
-    await ClockCycles(tb.clock, 3)
-    await tb.slave_respond_write(4, txn_id=0)
-    await ClockCycles(tb.clock, 3)
-
-    # Test end address
-    await tb.write_transaction(0, 0x0007fffc, 0x11111115, txn_id=0)
-    await ClockCycles(tb.clock, 3)
-    await tb.slave_respond_write(4, txn_id=0)
-    await ClockCycles(tb.clock, 3)
-    # Slave 5: dma_axil
-    # Range: 0x00080000 - 0x00080fff
-    tb.log.info(f"  Slave 5 (dma_axil): 0x00080000-0x00080fff")    # Test base address
-    await tb.write_transaction(0, 0x00080000, 0x00000005, txn_id=0)
-    await ClockCycles(tb.clock, 3)
-    await tb.slave_respond_write(5, txn_id=0)
-    await ClockCycles(tb.clock, 3)
-
-    # Test end address
-    await tb.write_transaction(0, 0x00080ffc, 0x11111116, txn_id=0)
-    await ClockCycles(tb.clock, 3)
-    await tb.slave_respond_write(5, txn_id=0)
-    await ClockCycles(tb.clock, 3)
     await ClockCycles(tb.clock, 20)
     tb.log.info("=" * 80)
-    tb.log.info("Address decode test PASSED")
+    tb.log.info("Boundary probe test PASSED")
     tb.log.info("=" * 80)
 
 # ============================================================================
@@ -738,7 +475,7 @@ def test_bridge_stream_char_axil_basic_connectivity(request):
         includes=includes,
         toplevel=dut_name,
         module=module,
-        testcase="cocotb_test_basic_connectivity",
+        testcase="cocotb_test_bridge_stream_char_axil_basic_connectivity",
         sim_build=sim_build,
         waves=False,            # cocotb-test compile flags handled via extra_args
         extra_args=extra_args,
@@ -747,8 +484,8 @@ def test_bridge_stream_char_axil_basic_connectivity(request):
     )
 
 
-def test_bridge_stream_char_axil_address_decode(request):
-    """Pytest wrapper for address decode test"""
+def test_bridge_stream_char_axil_boundary_probe(request):
+    """Pytest wrapper for boundary probe test"""
 
     module, repo_root, tests_dir, log_dir, rtl_dict = get_paths({
         'rtl_bridge': '../../../../rtl/bridge',
@@ -765,7 +502,7 @@ def test_bridge_stream_char_axil_address_decode(request):
 
     worker_id = os.environ.get('PYTEST_XDIST_WORKER', '')
     worker_suffix = f"_{worker_id}" if worker_id else ""
-    test_name_plus_params = f"test_{dut_name}_address_decode"
+    test_name_plus_params = f"test_{dut_name}_boundary_probe"
     sim_build_name = f"{test_name_plus_params}{worker_suffix}"
 
     log_path = os.path.join(log_dir, f'{sim_build_name}.log')
@@ -790,7 +527,7 @@ def test_bridge_stream_char_axil_address_decode(request):
         includes=includes,
         toplevel=dut_name,
         module=module,
-        testcase="cocotb_test_address_decode",
+        testcase="cocotb_test_bridge_stream_char_axil_boundary_probe",
         sim_build=sim_build,
         waves=False,
         extra_args=extra_args,

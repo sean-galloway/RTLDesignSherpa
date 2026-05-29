@@ -27,6 +27,11 @@
 [bridge]
 name = "bridge_stream_char_axil"
 description = "1xM AXIL bridge for stream_characterization harness (5 harness slaves + 1 DMA AXIL port)"
+# Non-monitored fan-out bridge only -- the stream_char harness already
+# instantiates monbus_axil_group inside stream_top_ch8, so an extra
+# monitor-wrapped variant of this AXIL bridge would just add area for
+# no observability gain. Only the "no" variant is emitted.
+variants = ["no"]
 
 [bridge.clock]
 name = "aclk"
