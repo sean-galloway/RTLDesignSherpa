@@ -95,11 +95,30 @@ def parse_declarations(content: str, start_line: int = 1) -> Dict[str, SignalInf
     lines = content.split('\n')
 
     # Pattern for signal declarations
-    # Matches: logic/wire/reg [signed] [width] signal_name [array] [, more_signals]
+    # Matches: keyword [signed] [width] [type[::type]] [width] signal [array]
+    #
+    # The optional "type" group between the keyword and the signal name lets
+    # ports written as e.g. `input logic foo`, `input mytype_t foo`, or
+    # `input pkg::type_t foo` all extract the actual signal name as the
+    # captured (\w+) — not the type or package qualifier. Without this group
+    # the regex captures the package name (or type name) as if it were the
+    # signal, which both populates the signals dict with a non-signal AND
+    # misses the real signal.
+    #
+    # The type group is optional so existing matches keep working:
+    #   `input foo`              -> captures foo
+    #   `logic [7:0] foo`        -> captures foo
+    #   `input logic foo`        -> captures foo (type group eats `logic`)
+    #   `input mytype_t foo`     -> captures foo (type group eats `mytype_t`)
+    #   `input pkg::ty_t foo`    -> captures foo (type group eats `pkg::ty_t`)
     decl_pattern = re.compile(
         r'\b(logic|wire|reg|input|output|inout)\b'
         r'(?:\s+signed)?'                           # Optional signed
         r'(?:\s*\[[^\]]+\])*'                       # Optional packed dimensions
+        r'(?:'                                      # Optional type expression:
+        r'\s+\w+(?:\s*::\s*\w+)?'                   #   ident or pkg::ident
+        r'(?:\s*\[[^\]]+\])*'                       #   + optional dims after type
+        r')?'
         r'\s+'
         r'(\w+)'                                     # Signal name
         r'(?:\s*\[[^\]]+\])*'                       # Optional unpacked dimensions
