@@ -57,7 +57,9 @@
 module axi_monitor_trans_mgr
     import monitor_common_pkg::*;
     import monitor_amba4_pkg::*;
-    import monitor_pkg::*;
+    // NOTE: `import monitor_pkg::*;` intentionally omitted -- its helper
+    // functions (get_packet_type etc.) duplicate monitor_common_pkg's, and
+    // Vivado flags the duplicates as ambiguous under wildcard imports.
 #(
     parameter int MAX_TRANSACTIONS    = 16,   // Maximum outstanding transactions
     parameter int ADDR_WIDTH          = 32,   // Width of address bus

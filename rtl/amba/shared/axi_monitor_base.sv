@@ -142,7 +142,9 @@ module axi_monitor_base
     // (monitor_common_pkg already imported at module-header level for the typedefs
     // used in the port list)
     import monitor_amba4_pkg::*;
-    import monitor_pkg::*;
+    // NOTE: `import monitor_pkg::*;` intentionally omitted -- its helper
+    // functions (get_packet_type etc.) duplicate monitor_common_pkg's, and
+    // Vivado flags the duplicates as ambiguous under wildcard imports.
 
     // Transaction tracking table - Fixed: Use unpacked array consistently
     bus_transaction_t w_trans_table[MAX_TRANSACTIONS];

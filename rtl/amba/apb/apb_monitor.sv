@@ -28,9 +28,11 @@
 
 `include "reset_defs.svh"
 module apb_monitor
-    import monitor_pkg::*;
     import monitor_common_pkg::*;  // For PROTOCOL_APB, PktType*, transaction states
     import monitor_amba4_pkg::*;   // For APB_ERR_*, APB_TIMEOUT_*, etc.
+    // NOTE: `import monitor_pkg::*;` intentionally omitted -- its helper
+    // functions (get_packet_type etc.) duplicate monitor_common_pkg's, and
+    // Vivado flags the duplicates as ambiguous under wildcard imports.
 #(
     parameter bit USE_MONITOR         = 1'b1,  // 0 = omit monitor body, tie outputs
     parameter int N_ADDR_RANGES       = 0,     // 0 = address-range checker disabled

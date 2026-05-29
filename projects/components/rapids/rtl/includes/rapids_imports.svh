@@ -23,7 +23,9 @@
 import monitor_common_pkg::*;
 import monitor_amba4_pkg::*;
 import monitor_arbiter_pkg::*;
-import monitor_pkg::*;
+// NOTE: `import monitor_pkg::*;` intentionally omitted -- its helper
+// functions (get_packet_type etc.) duplicate monitor_common_pkg's, and
+// Vivado flags the duplicates as ambiguous under wildcard imports.
 `endif // MONITOR_PKG_IMPORTED
 
 // Include guard for RAPIDS package
