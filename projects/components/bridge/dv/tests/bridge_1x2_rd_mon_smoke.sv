@@ -371,7 +371,15 @@ module bridge_1x2_rd_mon_smoke #(
         .cfg_mon_group_core_perf_mask    (16'h0),
         .cfg_mon_group_core_debug_mask   (16'h0),
 
-        // IRQ (unconnected)
+        // Timestamp append: disabled in the wrapper so each m_mon_axil
+        // write record is just the 128-bit packet (= 2 × 64-bit beats).
+        // The cocotb capture test groups beats in pairs and parses each
+        // pair as one packet, which only works when append is off.
+        // SoC integrators that want source / arrival timestamps in
+        // memory drive these inputs at instantiation time.
+        .cfg_mon_group_ts_append_enable  (1'b0),
+        .cfg_mon_group_ts_append_mode    (2'b00),
+
         // IRQ output: wired to an internal logic net so cocotb tests
         // can probe `dut.mon_irq_out` directly. The wrapper does
         // nothing else with it -- a real SoC integrator would tie

@@ -369,6 +369,17 @@ class BridgeModuleGenerator:
         for base, width in self._MON_GROUP_CFG:
             width_decl = "       " if width == 1 else f"[{width-1}:0]"
             lines.append(f"    input  logic {width_decl} cfg_mon_group_{base},")
+        # Timestamp-append config -- SoC integrator chooses whether
+        # bulk-trace records include source_ts (mode 01), arrival_ts
+        # (mode 10), or both (mode 11). Driving append_enable=0 keeps
+        # records at the bare 16-byte (2 × 64-bit beat) shape, which
+        # is what the bridge's cocotb capture test assumes when it
+        # groups m_mon_axil_w beats in pairs. Surfacing as ports
+        # rather than hard-coded inside the instantiation lets each
+        # consumer pick its own mode without regenerating the bridge.
+        lines.append("    // monbus_axil_group timestamp-append config")
+        lines.append("    input  logic        cfg_mon_group_ts_append_enable,")
+        lines.append("    input  logic [1:0]  cfg_mon_group_ts_append_mode,")
         lines.append("")
         # IRQ output -- last port, no trailing comma.
         lines.append("    // IRQ (asserted while error FIFO non-empty)")
@@ -509,10 +520,13 @@ class BridgeModuleGenerator:
         lines.append("        .monbus_timestamp  (mon_arb_monbus_timestamp),")
         lines.append("        // Free-running timestamp shared with every wrapper's i_mon_time")
         lines.append("        .mon_time_out      (mon_time_w),")
-        lines.append("        // Timestamp append config — default at reset is mode 11 (both ts) per plan §8.6.")
-        lines.append("        // Override by surfacing these as bridge top-level inputs in a follow-up.")
-        lines.append("        .cfg_ts_append_enable (1'b1),")
-        lines.append("        .cfg_ts_append_mode   (2'b11),")
+        lines.append("        // Timestamp append config: driven from bridge-top inputs so")
+        lines.append("        // each SoC integrator chooses whether to append source / arrival /")
+        lines.append("        // both / neither. Default (cocotb-undriven) is 0 / 00 -> packets")
+        lines.append("        // only, 2 beats per record -- which is what the bridge cocotb")
+        lines.append("        // capture test's pair-grouping assumes.")
+        lines.append("        .cfg_ts_append_enable (cfg_mon_group_ts_append_enable),")
+        lines.append("        .cfg_ts_append_mode   (cfg_mon_group_ts_append_mode),")
         lines.append("        // AXIL slave")
         for s in ('arvalid','arready','araddr','arprot','rvalid','rready','rdata','rresp'):
             lines.append(f"        .s_axil_{s}      (s_mon_axil_{s}),")
