@@ -282,6 +282,27 @@ run-all-full:
 	REG_LEVEL=FULL $(PYTEST) $(ALL_TESTS) $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE)
 
 # ==============================================================================
+# Parallel target aliases (required by projects/components/Makefile orchestrator)
+# ==============================================================================
+# Bridge tests run SERIALLY ONLY -- see the comment at the top of this file
+# for the OOM + state-leakage rationale. These targets exist so the top-level
+# regression driver (which calls `make -C ... run-all-full-parallel` across
+# every component) does not error with `No rule to make target`. They simply
+# delegate to the serial versions; parallelism is intentionally suppressed.
+
+.PHONY: run-all-parallel
+run-all-parallel: run-all
+
+.PHONY: run-all-gate-parallel
+run-all-gate-parallel: run-all-gate
+
+.PHONY: run-all-func-parallel
+run-all-func-parallel: run-all-func
+
+.PHONY: run-all-full-parallel
+run-all-full-parallel: run-all-full
+
+# ==============================================================================
 # Utility Targets
 # ==============================================================================
 
