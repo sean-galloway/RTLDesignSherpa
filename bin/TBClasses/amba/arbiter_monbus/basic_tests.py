@@ -23,7 +23,7 @@ updated to work with the new monitor_pkg.sv packet format.
 KEY UPDATES:
 - All packet parsing uses new field positions
 - Protocol field validation for 3-bit range
-- Event data validation for 35-bit range
+- Event data validation for 64-bit range (128-bit packet)
 - Enhanced packet validation and debug output
 - Support for CORE protocol testing
 
@@ -155,45 +155,45 @@ class BasicFunctionalityTest:
                 format_errors.append(f"Packet {i}: Invalid protocol type {packet.protocol}")
             
             # Test 3: Packet type should be 4 bits (0-15)
-            if packet.packet_type > 15:
+            if packet.packet_type > 0xF:
                 format_errors.append(f"Packet {i}: Packet type {packet.packet_type} exceeds 4-bit range")
-            
-            # Test 4: Event code should be 4 bits (0-15)
-            if packet.event_code > 15:
-                format_errors.append(f"Packet {i}: Event code {packet.event_code} exceeds 4-bit range")
-            
-            # Test 5: Channel ID should be 6 bits (0-63)
-            if packet.channel_id > 63:
-                format_errors.append(f"Packet {i}: Channel ID {packet.channel_id} exceeds 6-bit range")
-            
-            # Test 6: Unit ID should be 4 bits (0-15)
-            if packet.unit_id > 15:
-                format_errors.append(f"Packet {i}: Unit ID {packet.unit_id} exceeds 4-bit range")
-            
-            # Test 7: Agent ID should be 8 bits (0-255)
-            if packet.agent_id > 255:
-                format_errors.append(f"Packet {i}: Agent ID {packet.agent_id} exceeds 8-bit range")
-            
-            # Test 8: Event data should be 35 bits (0 to 0x7FFFFFFFF) ✅ UPDATED
-            max_35_bit = (1 << 35) - 1  # 0x7FFFFFFFF
-            if packet.event_data > max_35_bit:
-                format_errors.append(f"Packet {i}: Event data 0x{packet.event_data:X} exceeds 35-bit range (max 0x{max_35_bit:X})")
-            
+
+            # Test 4: Event code should be 8 bits (0-255) — 128-bit packet
+            if packet.event_code > 0xFF:
+                format_errors.append(f"Packet {i}: Event code {packet.event_code} exceeds 8-bit range")
+
+            # Test 5: Channel ID should be 9 bits (0-511)
+            if packet.channel_id > 0x1FF:
+                format_errors.append(f"Packet {i}: Channel ID {packet.channel_id} exceeds 9-bit range")
+
+            # Test 6: Unit ID should be 8 bits (0-255)
+            if packet.unit_id > 0xFF:
+                format_errors.append(f"Packet {i}: Unit ID {packet.unit_id} exceeds 8-bit range")
+
+            # Test 7: Agent ID should be 16 bits (0-65535)
+            if packet.agent_id > 0xFFFF:
+                format_errors.append(f"Packet {i}: Agent ID {packet.agent_id} exceeds 16-bit range")
+
+            # Test 8: Event data should be 64 bits
+            max_64_bit = (1 << 64) - 1
+            if packet.event_data > max_64_bit:
+                format_errors.append(f"Packet {i}: Event data 0x{packet.event_data:X} exceeds 64-bit range")
+
             # Test 9: Agent and Unit IDs should match expected configuration
             if packet.agent_id != self.config.mon_agent_id:
-                format_errors.append(f"Packet {i}: Agent ID mismatch - expected 0x{self.config.mon_agent_id:02X}, got 0x{packet.agent_id:02X}")
-            
+                format_errors.append(f"Packet {i}: Agent ID mismatch - expected 0x{self.config.mon_agent_id:04X}, got 0x{packet.agent_id:04X}")
+
             if packet.unit_id != self.config.mon_unit_id:
-                format_errors.append(f"Packet {i}: Unit ID mismatch - expected 0x{self.config.mon_unit_id:X}, got 0x{packet.unit_id:X}")
-            
+                format_errors.append(f"Packet {i}: Unit ID mismatch - expected 0x{self.config.mon_unit_id:02X}, got 0x{packet.unit_id:02X}")
+
             # Test 10: For ARB protocol packets, verify field positions using bit extraction
             if packet.protocol == ProtocolType.PROTOCOL_ARB:
                 raw_packet = packet.raw_packet
-                
-                # Verify field extraction matches parsed values ✅ UPDATED bit positions
-                extracted_protocol = (raw_packet >> 57) & 0x7     # [59:57] - 3 bits
-                extracted_event_code = (raw_packet >> 53) & 0xF   # [56:53] - 4 bits
-                extracted_data = raw_packet & 0x7FFFFFFFF         # [34:0] - 35 bits
+
+                # Verify field extraction matches parsed values (128-bit layout)
+                extracted_protocol  = (raw_packet >> 105) & 0xF      # [108:105] - 4 bits
+                extracted_event_code = (raw_packet >>  97) & 0xFF    # [104: 97] - 8 bits
+                extracted_data      =  raw_packet         & ((1 << 64) - 1)  # [63:0] - 64 bits
                 
                 if extracted_protocol != packet.protocol:
                     format_errors.append(f"Packet {i}: Protocol field extraction mismatch")
@@ -217,15 +217,16 @@ class BasicFunctionalityTest:
             
             raise AssertionError(f"Packet format validation failed with {len(format_errors)} errors")
         
-        self.log.info(f"✅ All {len(packets)} packets passed format validation")
-        self.log.info("✅ Updated 64-bit packet format confirmed:")
-        self.log.info("  - [63:60] packet_type: 4 bits")
-        self.log.info("  - [59:57] protocol: 3 bits ✅ UPDATED")
-        self.log.info("  - [56:53] event_code: 4 bits ✅ UPDATED")
-        self.log.info("  - [52:47] channel_id: 6 bits")
-        self.log.info("  - [46:43] unit_id: 4 bits")
-        self.log.info("  - [42:35] agent_id: 8 bits")
-        self.log.info("  - [34:0] event_data: 35 bits ✅ UPDATED")
+        self.log.info(f"All {len(packets)} packets passed format validation")
+        self.log.info("128-bit packet format confirmed:")
+        self.log.info("  - [127:124] packet_type:  4 bits")
+        self.log.info("  - [123:109] reserved:    15 bits")
+        self.log.info("  - [108:105] protocol:     4 bits")
+        self.log.info("  - [104: 97] event_code:   8 bits")
+        self.log.info("  - [ 96: 88] channel_id:   9 bits")
+        self.log.info("  - [ 87: 72] agent_id:    16 bits")
+        self.log.info("  - [ 71: 64] unit_id:      8 bits")
+        self.log.info("  - [ 63:  0] event_data:  64 bits")
     
     async def test_arb_protocol_packets(self):
         """Test ARB protocol specific packet generation"""

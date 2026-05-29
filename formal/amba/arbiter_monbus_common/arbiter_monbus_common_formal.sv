@@ -58,8 +58,8 @@ module arbiter_monbus_common #(
     parameter int WAIT_GNT_ACK = 0,                    // ACK enable parameter
     parameter int WEIGHTED_MODE = 0,
     /* verilator lint_off WIDTHTRUNC */
-    parameter logic [7:0] MON_AGENT_ID = 8'h10,
-    parameter logic [3:0] MON_UNIT_ID = 4'h0,
+    parameter logic [15:0] MON_AGENT_ID = 16'h0010,
+    parameter logic [7:0]  MON_UNIT_ID  = 8'h00,
     /* verilator lint_on WIDTHTRUNC */
     parameter int MON_FIFO_DEPTH = 8,
     parameter int MON_FIFO_ALMOST_MARGIN = 1,
@@ -99,10 +99,14 @@ module arbiter_monbus_common #(
     input  logic [15:0]                   cfg_mon_efficiency_thresh,    // Grant efficiency threshold
     input  logic [7:0]                    cfg_mon_sample_period,
 
-    // Monitor bus output - 64-bit event packet interface
+    // Free-running monitor-time broadcast
+    input  logic [63:0]                   i_mon_time,
+
+    // Monitor bus output - 128-bit packet + 64-bit side-band timestamp
     output logic                          monbus_valid,
     input  logic                          monbus_ready,
-    output logic [63:0]                   monbus_packet,
+    output logic [127:0]                  monbus_packet,
+    output logic [63:0]                   monbus_timestamp,
 
     // Enhanced debug outputs for silicon debug
     output logic [$clog2(MON_FIFO_DEPTH):0] debug_fifo_count,
@@ -115,39 +119,39 @@ module arbiter_monbus_common #(
     output logic [2:0]                      debug_monitor_state        // Monitor internal state
 );
 
-    // Inline constants from monitor packages (yosys does not support import)
-    localparam logic [2:0] PROTOCOL_ARB = 3'b011;
+    // Inline constants from monitor packages (yosys does not support import).
+    // Widths match monitor_common_pkg.sv 128-bit packet layout.
+    localparam logic [3:0] PROTOCOL_ARB = 4'h3;       // was 3 bits
     localparam logic [3:0] PktTypeError      = 4'h0;
     localparam logic [3:0] PktTypeCompletion = 4'h1;
     localparam logic [3:0] PktTypeThreshold  = 4'h2;
     localparam logic [3:0] PktTypeTimeout    = 4'h3;
     localparam logic [3:0] PktTypePerf       = 4'h4;
     localparam logic [3:0] PktTypeDebug      = 4'hF;
-    // ARB error codes
-    localparam logic [3:0] ARB_ERR_STARVATION = 4'h0;
-    // ARB timeout codes
-    localparam logic [3:0] ARB_TIMEOUT_GRANT_ACK = 4'h0;
-    // ARB completion codes
-    localparam logic [3:0] ARB_COMPL_TRANSACTION = 4'h2;
-    // ARB threshold codes
-    localparam logic [3:0] ARB_THRESH_REQUEST_LATENCY = 4'h0;
-    localparam logic [3:0] ARB_THRESH_FAIRNESS_DEV = 4'h2;
-    localparam logic [3:0] ARB_THRESH_ACTIVE_REQUESTS = 4'h3;
-    localparam logic [3:0] ARB_THRESH_EFFICIENCY = 4'h5;
-    // ARB performance codes
-    localparam logic [3:0] ARB_PERF_GRANT_ISSUED = 4'h0;
+    // Event codes — now 8 bits in the 128-bit packet
+    localparam logic [7:0] ARB_ERR_STARVATION        = 8'h00;
+    localparam logic [7:0] ARB_TIMEOUT_GRANT_ACK     = 8'h00;
+    localparam logic [7:0] ARB_COMPL_TRANSACTION     = 8'h02;
+    localparam logic [7:0] ARB_THRESH_REQUEST_LATENCY = 8'h00;
+    localparam logic [7:0] ARB_THRESH_FAIRNESS_DEV   = 8'h02;
+    localparam logic [7:0] ARB_THRESH_ACTIVE_REQUESTS = 8'h03;
+    localparam logic [7:0] ARB_THRESH_EFFICIENCY     = 8'h05;
+    localparam logic [7:0] ARB_PERF_GRANT_ISSUED     = 8'h00;
 
-    // Inline create_monitor_packet function
-    function automatic logic [63:0] create_monitor_packet(
+    // Inline create_monitor_packet — 128-bit format. Layout:
+    // {pkt_type[4], 15'h0 reserved, protocol[4], event_code[8],
+    //  channel_id[9], agent_id[16], unit_id[8], event_data[64]}
+    function automatic logic [127:0] create_monitor_packet(
         input logic [3:0]  packet_type,
-        input logic [2:0]  protocol,
-        input logic [3:0]  event_code,
-        input logic [5:0]  channel_id,
-        input logic [3:0]  unit_id,
-        input logic [7:0]  agent_id,
-        input logic [34:0] event_data
+        input logic [3:0]  protocol,
+        input logic [7:0]  event_code,
+        input logic [8:0]  channel_id,
+        input logic [7:0]  unit_id,
+        input logic [15:0] agent_id,
+        input logic [63:0] event_data
     );
-        create_monitor_packet = {packet_type, protocol, event_code, channel_id, unit_id, agent_id, event_data};
+        create_monitor_packet = {packet_type, 15'h0, protocol, event_code,
+                                  channel_id, agent_id, unit_id, event_data};
     endfunction
 
     // =========================================================================
@@ -172,13 +176,13 @@ module arbiter_monbus_common #(
     logic [15:0]                    w_current_efficiency;
     logic                           w_completion_event_detected;
     logic [N-1:0]                   w_completion_client;
-    logic [34-ACTIVE_COUNT_WIDTH:0] w_evt_pad0;  // ✅ UPDATED: Padding to make exactly 35 bits total
+    logic [63-ACTIVE_COUNT_WIDTH:0] w_evt_pad0;  // 64-bit event_data padding
 
     // Sample timing
     logic                            w_sample_event;
 
-    // FIFO and packet management
-    logic [63:0]                     w_event_packet;
+    // FIFO and packet management (128-bit packet)
+    logic [127:0]                    w_event_packet;
     logic                            w_event_valid;
     logic                            w_fifo_wr_valid;
     logic                            w_fifo_wr_ready;
@@ -187,24 +191,24 @@ module arbiter_monbus_common #(
     logic                            w_fifo_write_transfer;
     logic                            w_fifo_read_transfer;
     logic [$clog2(MON_FIFO_DEPTH):0] w_fifo_count;
-    logic [63:0]                     w_fifo_data_out;
+    logic [127:0]                    w_fifo_data_out;
 
-    // Raw debug wires for packet fields - w_packet_* prefix
-    logic [3:0]  w_packet_pkt_type;
-    logic [2:0]  w_packet_protocol;  // ✅ CORRECT: 3 bits [59:57]
-    logic [3:0]  w_packet_event_code;
-    logic [5:0]  w_packet_channel_id;
-    logic [3:0]  w_packet_unit_id;
-    logic [7:0]  w_packet_agent_id;
-    logic [34:0] w_packet_data;      // ✅ CORRECT: 35 bits [34:0]
+    // Raw debug wires for packet fields - 128-bit layout
+    logic [3:0]   w_packet_pkt_type;
+    logic [3:0]   w_packet_protocol;
+    logic [7:0]   w_packet_event_code;
+    logic [8:0]   w_packet_channel_id;
+    logic [7:0]   w_packet_unit_id;
+    logic [15:0]  w_packet_agent_id;
+    logic [63:0]  w_packet_data;
 
-    // Enum versions for human-readable waveforms - w_packet_enum_* prefix
-    logic [2:0]             w_packet_enum_protocol;
-    logic [3:0]             w_packet_enum_arb_error;
-    logic [3:0]             w_packet_enum_arb_timeout;
-    logic [3:0]             w_packet_enum_arb_completion;
-    logic [3:0]             w_packet_enum_arb_threshold;
-    logic [3:0]             w_packet_enum_arb_performance;
+    // Enum versions for human-readable waveforms - widened to match
+    logic [3:0]             w_packet_enum_protocol;
+    logic [7:0]             w_packet_enum_arb_error;
+    logic [7:0]             w_packet_enum_arb_timeout;
+    logic [7:0]             w_packet_enum_arb_completion;
+    logic [7:0]             w_packet_enum_arb_threshold;
+    logic [7:0]             w_packet_enum_arb_performance;
 
     // Event priority and selection logic - w_packet_* prefix for consistency
     logic w_packet_starvation_pkt_en;
@@ -220,7 +224,7 @@ module arbiter_monbus_common #(
     logic [7:0] w_packet_enable_mask;
 
     // Optional: Additional debug wires to see packet breakdown in waveforms
-    logic [63:0] w_packet_debug_fields;
+    logic [127:0] w_packet_debug_fields;
 
     // =========================================================================
     // Client Weights - Use CLIENTS parameter
@@ -785,73 +789,65 @@ module arbiter_monbus_common #(
                           w_packet_fairness_violation_pkt_en || w_packet_efficiency_thresh_pkt_en || w_packet_active_thresh_pkt_en ||
                           w_packet_completion_pkt_en || w_packet_grant_perf_pkt_en;
 
-    // Packet field assignments (priority-encoded)
+    // Packet field assignments (priority-encoded) — 128-bit layout
     always_comb begin
         // Default values
         w_packet_pkt_type    = 4'h0;
         w_packet_protocol    = PROTOCOL_ARB;  // Always ARB protocol for this monitor
-        w_packet_event_code  = 4'h0;
-        w_packet_channel_id  = 6'h0;
-        w_packet_unit_id     = MON_UNIT_ID;   // Always use module's unit ID
-        w_packet_agent_id    = MON_AGENT_ID;  // Always use module's agent ID
-        w_packet_data        = 35'h0;         // ✅ CORRECT: 35 bits
+        w_packet_event_code  = 8'h0;
+        w_packet_channel_id  = 9'h0;
+        w_packet_unit_id     = MON_UNIT_ID;
+        w_packet_agent_id    = MON_AGENT_ID;
+        w_packet_data        = 64'h0;
 
         // Priority-encoded packet type selection
         if (w_packet_starvation_pkt_en) begin
-            // ARB starvation error packet
             w_packet_pkt_type   = PktTypeError;
             w_packet_event_code = ARB_ERR_STARVATION;
-            w_packet_channel_id = 6'(r_starvation_client);
-            w_packet_data       = {19'h0, r_starvation_counters[r_starvation_client]};  // ✅ CORRECT: 19+16=35 bits
+            w_packet_channel_id = 9'(r_starvation_client);
+            w_packet_data       = 64'(r_starvation_counters[r_starvation_client]);
 
         end else if (w_packet_ack_timeout_pkt_en) begin
-            // ARB ACK timeout packet
             w_packet_pkt_type   = PktTypeTimeout;
             w_packet_event_code = ARB_TIMEOUT_GRANT_ACK;
-            w_packet_channel_id = 6'(r_ack_timeout_client);
-            w_packet_data       = {19'h0, r_ack_timers[r_ack_timeout_client]};         // ✅ CORRECT: 19+16=35 bits
+            w_packet_channel_id = 9'(r_ack_timeout_client);
+            w_packet_data       = 64'(r_ack_timers[r_ack_timeout_client]);
 
         end else if (w_packet_latency_thresh_pkt_en) begin
-            // ARB latency threshold packet
             w_packet_pkt_type   = PktTypeThreshold;
             w_packet_event_code = ARB_THRESH_REQUEST_LATENCY;
-            w_packet_channel_id = 6'(r_latency_client);
-            w_packet_data       = {19'h0, r_latency_counters[r_latency_client]};       // ✅ CORRECT: 19+16=35 bits
+            w_packet_channel_id = 9'(r_latency_client);
+            w_packet_data       = 64'(r_latency_counters[r_latency_client]);
 
         end else if (w_packet_fairness_violation_pkt_en) begin
-            // ARB fairness violation packet
             w_packet_pkt_type   = PktTypeThreshold;
             w_packet_event_code = ARB_THRESH_FAIRNESS_DEV;
-            w_packet_channel_id = 6'h0;
-            w_packet_data       = {19'h0, r_max_fairness_deviation};                   // ✅ CORRECT: 19+16=35 bits
+            w_packet_channel_id = 9'h0;
+            w_packet_data       = 64'(r_max_fairness_deviation);
 
         end else if (w_packet_efficiency_thresh_pkt_en) begin
-            // ARB efficiency threshold packet
             w_packet_pkt_type   = PktTypeThreshold;
             w_packet_event_code = ARB_THRESH_EFFICIENCY;
-            w_packet_channel_id = 6'h0;
-            w_packet_data       = {19'h0, w_current_efficiency};                       // ✅ CORRECT: 19+16=35 bits
+            w_packet_channel_id = 9'h0;
+            w_packet_data       = 64'(w_current_efficiency);
 
         end else if (w_packet_active_thresh_pkt_en) begin
-            // ARB active request threshold packet
             w_packet_pkt_type   = PktTypeThreshold;
             w_packet_event_code = ARB_THRESH_ACTIVE_REQUESTS;
-            w_packet_channel_id = 6'h0;
-            w_packet_data       = {w_evt_pad0, w_active_request_count};                // ✅ CORRECT: Total 35 bits
+            w_packet_channel_id = 9'h0;
+            w_packet_data       = 64'(w_active_request_count);
 
         end else if (w_packet_completion_pkt_en) begin
-            // ARB transaction completion packet
             w_packet_pkt_type   = PktTypeCompletion;
             w_packet_event_code = ARB_COMPL_TRANSACTION;
-            w_packet_channel_id = 6'(r_completion_client);
-            w_packet_data       = {19'h0, r_completed_grants[r_completion_client]};    // ✅ CORRECT: 19+16=35 bits
+            w_packet_channel_id = 9'(r_completion_client);
+            w_packet_data       = 64'(r_completed_grants[r_completion_client]);
 
         end else if (w_packet_grant_perf_pkt_en) begin
-            // ARB grant issued performance packet
             w_packet_pkt_type   = PktTypePerf;
             w_packet_event_code = ARB_PERF_GRANT_ISSUED;
-            w_packet_channel_id = 6'(r_grant_client_id);
-            w_packet_data       = {19'h0, r_grant_counters[r_grant_client_id]};        // ✅ CORRECT: 19+16=35 bits
+            w_packet_channel_id = 9'(r_grant_client_id);
+            w_packet_data       = 64'(r_grant_counters[r_grant_client_id]);
         end
     end
 
@@ -866,15 +862,16 @@ module arbiter_monbus_common #(
         w_packet_data
     );
 
-    // Optional: Additional debug wires to see packet breakdown in waveforms
+    // Debug wires (128-bit layout — matches create_monitor_packet above)
     assign w_packet_debug_fields = {
-        w_packet_pkt_type,    // [63:60]
-        w_packet_protocol,    // [59:57] ✅ CORRECT: 3 bits
-        w_packet_event_code,  // [56:53]
-        w_packet_channel_id,  // [52:47]
-        w_packet_unit_id,     // [46:43]
-        w_packet_agent_id,    // [42:35]
-        w_packet_data         // [34:0] ✅ CORRECT: 35 bits
+        w_packet_pkt_type,    // [127:124]
+        15'h0,                // [123:109] reserved
+        w_packet_protocol,    // [108:105]
+        w_packet_event_code,  // [104: 97]
+        w_packet_channel_id,  // [ 96: 88]
+        w_packet_agent_id,    // [ 87: 72]
+        w_packet_unit_id,     // [ 71: 64]
+        w_packet_data         // [ 63:  0]
     };
 
     // Debug enable mask for waveform visibility
@@ -900,7 +897,7 @@ module arbiter_monbus_common #(
 
     gaxi_fifo_sync #(
         .REGISTERED         (0),                    // 0 = mux mode
-        .DATA_WIDTH         (64),                   // 64-bit monitor packets
+        .DATA_WIDTH         (128),                  // 128-bit monitor packets
         .DEPTH              (MON_FIFO_DEPTH),       // Configurable FIFO depth
         .ALMOST_WR_MARGIN   (MON_FIFO_ALMOST_MARGIN),
         .ALMOST_RD_MARGIN   (MON_FIFO_ALMOST_MARGIN)
@@ -920,8 +917,10 @@ module arbiter_monbus_common #(
     // Monitor Bus Output Interface
     // =========================================================================
 
-    assign monbus_valid = w_fifo_rd_valid;
-    assign monbus_packet = w_fifo_data_out;
+    // Packet rides out of the FIFO; timestamp is sampled fresh on emission.
+    assign monbus_valid     = w_fifo_rd_valid;
+    assign monbus_packet    = w_fifo_data_out;
+    assign monbus_timestamp = i_mon_time;
 
     // =========================================================================
     // Debug Output Generation

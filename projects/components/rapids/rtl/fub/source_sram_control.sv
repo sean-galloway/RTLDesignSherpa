@@ -31,9 +31,9 @@ module source_sram_control #(
     parameter int OVERFLOW_MARGIN = 8,
     parameter int DEADLOCK_PREVENTION_MARGIN = 32,
     // Monitor Bus Parameters
-    parameter logic [7:0] MON_AGENT_ID = 8'h21,      // SRAM Control Agent ID
-    parameter logic [3:0] MON_UNIT_ID = 4'h3,        // Unit identifier
-    parameter logic [5:0] MON_CHANNEL_ID = 6'h0      // Base channel ID
+    parameter logic [15:0] MON_AGENT_ID  = 16'h0021,  // SRAM Control Agent ID (16-bit, 128-bit packet)
+    parameter logic [7:0]  MON_UNIT_ID   = 8'h03,     // Unit identifier (8-bit)
+    parameter logic [8:0]  MON_CHANNEL_ID = 9'h000    // Base channel ID (9-bit)
 ) (
     // Clock and Reset
     input  logic                        clk,
@@ -83,10 +83,12 @@ module source_sram_control #(
     output logic [COUNT_BITS-1:0]       available_lines [CHANNELS],
     output logic [CHANNELS-1:0]         channel_ready_for_prealloc,
 
-    // Monitor Bus Interface
-    output logic                        mon_valid,
-    input  logic                        mon_ready,
-    output logic [63:0]                 mon_packet
+    // Monitor Bus Interface (128-bit packet + 64-bit side-band timestamp)
+    input  monitor_common_pkg::monbus_timestamp_t  i_mon_time,
+    output logic                                   mon_valid,
+    input  logic                                   mon_ready,
+    output monitor_common_pkg::monitor_packet_t    mon_packet,
+    output monitor_common_pkg::monbus_timestamp_t  mon_timestamp
 );
 
     // Monitor event codes - AXIS optimized
@@ -154,7 +156,8 @@ module source_sram_control #(
 
     // Monitor packet generation
     logic r_mon_valid;
-    logic [63:0] r_mon_packet;
+    monitor_common_pkg::monitor_packet_t   r_mon_packet;
+    monitor_common_pkg::monbus_timestamp_t r_mon_timestamp;
 
     //=========================================================================
     // Channel Availability Calculation (For AXI Read Engine Flow Control)
@@ -543,51 +546,56 @@ module source_sram_control #(
 
     always_ff @(posedge clk) begin
         if (!rst_n) begin
-            r_mon_valid <= 1'b0;
-            r_mon_packet <= 64'h0;
+            r_mon_valid     <= 1'b0;
+            r_mon_packet    <= '0;
+            r_mon_timestamp <= '0;
         end else begin
-            r_mon_valid <= 1'b0; // Default
+            r_mon_valid  <= 1'b0; // Default
+            r_mon_packet <= '0;
 
             // EOS storage events (highest priority)
             if (w_sram_wr_en && w_wr_grant_valid && wr_eos[w_wr_grant_id]) begin
-                r_mon_valid <= 1'b1;
-                r_mon_packet <= create_monitor_packet(
+                r_mon_valid     <= 1'b1;
+                r_mon_packet    <= create_monitor_packet(
                     PktTypeStream,
                     PROTOCOL_AXIS,
                     MON_EOS_STORED,
-                    MON_CHANNEL_ID + w_wr_grant_id,
+                    MON_CHANNEL_ID + 9'(w_wr_grant_id),
                     MON_UNIT_ID,
                     MON_AGENT_ID,
-                    {17'h0, wr_type[w_wr_grant_id], 16'h0}  // FIXED: pad to 35 bits
+                    {46'h0, wr_type[w_wr_grant_id], 16'h0}  // type at [17:16] preserved
                 );
+                r_mon_timestamp <= i_mon_time;
             end
 
             // Overflow warning events (use priority encoder result)
             if (!r_mon_valid && w_overflow_found) begin
-                r_mon_valid <= 1'b1;
-                r_mon_packet <= create_monitor_packet(
+                r_mon_valid     <= 1'b1;
+                r_mon_packet    <= create_monitor_packet(
                     PktTypeThreshold,
                     PROTOCOL_CORE,
                     MON_OVERFLOW_WARNING,
-                    MON_CHANNEL_ID + w_overflow_channel_encoded,
+                    MON_CHANNEL_ID + 9'(w_overflow_channel_encoded),
                     MON_UNIT_ID,
                     MON_AGENT_ID,
-                    {27'h0, r_used_count[w_overflow_channel_encoded]}  // FIXED: pad to 35 bits (27+8=35)
+                    64'(r_used_count[w_overflow_channel_encoded])  // count at low bits
                 );
+                r_mon_timestamp <= i_mon_time;
             end
 
             // Preallocation blocked events
             if (!r_mon_valid && r_prealloc_blocked) begin
-                r_mon_valid <= 1'b1;
-                r_mon_packet <= create_monitor_packet(
+                r_mon_valid     <= 1'b1;
+                r_mon_packet    <= create_monitor_packet(
                     PktTypeError,
                     PROTOCOL_CORE,
                     MON_PREALLOC_BLOCKED,
-                    MON_CHANNEL_ID + prealloc_channel,
+                    MON_CHANNEL_ID + 9'(prealloc_channel),
                     MON_UNIT_ID,
                     MON_AGENT_ID,
-                    {27'h0, prealloc_beats}  // FIXED: pad to 35 bits (27+8=35)
+                    64'(prealloc_beats)  // beats at low bits
                 );
+                r_mon_timestamp <= i_mon_time;
             end
         end
     end
@@ -597,7 +605,8 @@ module source_sram_control #(
     //=========================================================================
 
     assign mon_valid = r_mon_valid;
-    assign mon_packet = r_mon_packet;
+    assign mon_packet    = r_mon_packet;
+    assign mon_timestamp = r_mon_timestamp;
 
     //=========================================================================
     // Assertions for Verification

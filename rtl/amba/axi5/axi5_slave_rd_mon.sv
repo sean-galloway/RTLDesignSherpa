@@ -44,8 +44,8 @@ module axi5_slave_rd_mon
 
     parameter bit USE_MONITOR       = 1'b1,  // 0 = omit monitor, tie outputs
     parameter int N_ADDR_RANGES     = 0,         // 0 = address-range checker disabled
-    parameter int UNIT_ID           = 1,
-    parameter int AGENT_ID          = 12,
+    parameter logic [7:0]  UNIT_ID  = 8'h01,
+    parameter logic [15:0] AGENT_ID = 16'h000C,
     parameter int MAX_TRANSACTIONS  = 16,
     parameter bit ENABLE_FILTERING  = 1,
     parameter bit ADD_PIPELINE_STAGE = 0,
@@ -159,9 +159,14 @@ module axi5_slave_rd_mon
     input  logic [(N_ADDR_RANGES > 0 ? N_ADDR_RANGES : 1)-1:0][AW-1:0] cfg_addr_range_low,
     input  logic [(N_ADDR_RANGES > 0 ? N_ADDR_RANGES : 1)-1:0][AW-1:0] cfg_addr_range_high,
 
-    output logic                       monbus_valid,
-    input  logic                       monbus_ready,
-    output logic [63:0]                monbus_packet,
+    // Free-running monitor-time broadcast from monbus_axil_group
+    input  monitor_common_pkg::monbus_timestamp_t   i_mon_time,
+
+    // Monitor Bus Output
+    output logic                                    monbus_valid,            // Monitor bus valid
+    input  logic                                    monbus_ready,            // Monitor bus ready
+    output monitor_common_pkg::monitor_packet_t     monbus_packet,           // Monitor packet (128-bit)
+    output monitor_common_pkg::monbus_timestamp_t   monbus_timestamp,        // Side-band sampled time
     output logic                       busy,
     output logic [7:0]                 active_transactions,
     output logic [15:0]                error_count,
@@ -222,6 +227,7 @@ module axi5_slave_rd_mon
             .N_ADDR_RANGES(N_ADDR_RANGES)
         ) axi_monitor_inst (
             .aclk(aclk), .aresetn(aresetn),
+            .i_mon_time(i_mon_time),
             .cmd_addr(fub_axi_araddr), .cmd_id(fub_axi_arid), .cmd_len(fub_axi_arlen),
             .cmd_size(fub_axi_arsize), .cmd_burst(fub_axi_arburst),
             .cmd_valid(fub_axi_arvalid), .cmd_ready(fub_axi_arready),
@@ -246,6 +252,7 @@ module axi5_slave_rd_mon
             .cfg_addr_range_low(cfg_addr_range_low),
             .cfg_addr_range_high(cfg_addr_range_high),
             .monbus_valid(monbus_valid), .monbus_ready(monbus_ready), .monbus_packet(monbus_packet),
+            .monbus_timestamp(monbus_timestamp),
             // block_ready stalls new ARs at s_axi_arready when monitor FIFO is
             // full. Note: monitor here watches the FUB-side handshake, so the
             // gating point and watchpoint are separated by the slave_rd core's
@@ -258,7 +265,8 @@ module axi5_slave_rd_mon
         );
     end else begin : gen_no_monitor
         assign monbus_valid        = 1'b0;
-        assign monbus_packet       = 64'h0;
+        assign monbus_packet       = '0;
+        assign monbus_timestamp    = '0;
         assign active_transactions = 8'h0;
         assign cfg_conflict_error  = 1'b0;
         assign w_block_ready       = 1'b1;

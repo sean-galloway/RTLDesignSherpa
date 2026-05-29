@@ -506,6 +506,20 @@ def _emit_bridge_variant(
     filelist_lines.append("+incdir+$REPO_ROOT/rtl/amba/includes")
     filelist_lines.append("")
 
+    # Monitor packages MUST be compiled before the bridge adapters when
+    # use_monitor=True — the adapter port lists reference
+    # `monitor_common_pkg::monitor_packet_t` and
+    # `monitor_common_pkg::monbus_timestamp_t` by fully-qualified name, so
+    # the package symbol has to be visible at adapter parse time.
+    if use_monitor:
+        filelist_lines.append("# Monitor packages (must precede any module that references them)")
+        filelist_lines.append("$REPO_ROOT/rtl/amba/includes/monitor_common_pkg.sv")
+        filelist_lines.append("$REPO_ROOT/rtl/amba/includes/monitor_amba4_pkg.sv")
+        filelist_lines.append("$REPO_ROOT/rtl/amba/includes/monitor_amba5_pkg.sv")
+        filelist_lines.append("$REPO_ROOT/rtl/amba/includes/monitor_arbiter_pkg.sv")
+        filelist_lines.append("$REPO_ROOT/rtl/amba/includes/monitor_pkg.sv")
+        filelist_lines.append("")
+
     filelist_lines.append("# Bridge RTL files (generated)")
 
     # Compute filelist directory: two levels up from bridge_dir, then into filelists/
@@ -617,12 +631,9 @@ def _emit_bridge_variant(
         filelist_lines.append("# Header files with macros (already compiled if AMBA pkg path included)")
         filelist_lines.append("$REPO_ROOT/rtl/amba/includes/reset_defs.svh")
         filelist_lines.append("$REPO_ROOT/rtl/amba/includes/fifo_defs.svh")
-        filelist_lines.append("# Monitor packages -- must precede module compilation")
-        filelist_lines.append("$REPO_ROOT/rtl/amba/includes/monitor_common_pkg.sv")
-        filelist_lines.append("$REPO_ROOT/rtl/amba/includes/monitor_arbiter_pkg.sv")
-        filelist_lines.append("$REPO_ROOT/rtl/amba/includes/monitor_amba4_pkg.sv")
-        filelist_lines.append("$REPO_ROOT/rtl/amba/includes/monitor_amba5_pkg.sv")
-        filelist_lines.append("$REPO_ROOT/rtl/amba/includes/monitor_pkg.sv")
+        # Monitor packages already emitted near the top of the filelist
+        # (see "Monitor packages (must precede ...)" block above) — do
+        # not re-list them here or verilator will MODDUP-warn.
         filelist_lines.append("# Common arbitration primitives (used by axi_monitor_*)")
         filelist_lines.append("$REPO_ROOT/rtl/common/arbiter_priority_encoder.sv")
         filelist_lines.append("$REPO_ROOT/rtl/common/arbiter_round_robin.sv")

@@ -54,6 +54,10 @@ class MonitoredWrapper:
     def monbus_packet(self) -> str:
         return f"monbus_{self.top_prefix}_packet"
 
+    @property
+    def monbus_timestamp(self) -> str:
+        return f"monbus_{self.top_prefix}_timestamp"
+
     def cfg_signal(self, base: str) -> str:
         """`cfg_<port>_<idx>_<wr|rd>_<base>` for a cfg signal whose
         wrapper-side port name is `cfg_<base>`."""
@@ -341,7 +345,10 @@ class BridgeModuleGenerator:
         lines.append("    output logic [31:0] s_mon_axil_rdata,")
         lines.append("    output logic [1:0]  s_mon_axil_rresp,")
         lines.append("")
-        # AXIL master (packet log writes)
+        # AXIL master (packet log writes). The monbus_axil_group module
+        # exposes a 64-bit master (M_AXIL_DATA_WIDTH=64) so the captured
+        # write records are wide enough for the 128-bit packet split
+        # across two beats; bump wdata 32->64 and wstrb 4->8 to match.
         lines.append("    // AXIL master (packet log writes)")
         lines.append("    output logic        m_mon_axil_awvalid,")
         lines.append("    input  logic        m_mon_axil_awready,")
@@ -349,8 +356,8 @@ class BridgeModuleGenerator:
         lines.append("    output logic [2:0]  m_mon_axil_awprot,")
         lines.append("    output logic        m_mon_axil_wvalid,")
         lines.append("    input  logic        m_mon_axil_wready,")
-        lines.append("    output logic [31:0] m_mon_axil_wdata,")
-        lines.append("    output logic [3:0]  m_mon_axil_wstrb,")
+        lines.append("    output logic [63:0] m_mon_axil_wdata,")
+        lines.append("    output logic [7:0]  m_mon_axil_wstrb,")
         lines.append("    input  logic        m_mon_axil_bvalid,")
         lines.append("    output logic        m_mon_axil_bready,")
         lines.append("    input  logic [1:0]  m_mon_axil_bresp,")
@@ -368,21 +375,36 @@ class BridgeModuleGenerator:
 
     def _generate_monitor_internal_signals(self, wrappers: List[MonitoredWrapper]) -> List[str]:
         """Per-wrapper monbus internal wires + the arbiter's output
-        net. Each wrapper's adapter output feeds a unique 3-wire stream
-        named monbus_<port>_<idx>_<chan>_{valid,ready,packet}."""
+        net. Each wrapper's adapter output feeds a unique 4-wire stream
+        named monbus_<port>_<idx>_<chan>_{valid,ready,packet,timestamp}.
+
+        Packet uses monitor_common_pkg::monitor_packet_t (128-bit typedef).
+        Timestamp is monitor_common_pkg::monbus_timestamp_t (64-bit), a
+        side-band that travels alongside the packet.
+
+        A single shared `mon_time_w` net is also declared here -- the
+        monbus_axil_group drives it (mon_time_out) and every wrapper
+        consumes it through its i_mon_time input."""
         lines: List[str] = []
         lines.append("    // ============================================================")
         lines.append("    // Per-wrapper monbus streams (adapter -> arbiter input)")
         lines.append("    // ============================================================")
+        # Shared timestamp net: monbus_axil_group's mon_time_out feeds
+        # every wrapper's i_mon_time input.
+        lines.append("    // Shared free-running timestamp from monbus_axil_group")
+        lines.append("    monitor_common_pkg::monbus_timestamp_t mon_time_w;")
+        lines.append("")
         for w in wrappers:
-            lines.append(f"    logic        {w.monbus_valid};")
-            lines.append(f"    logic        {w.monbus_ready};")
-            lines.append(f"    logic [63:0] {w.monbus_packet};")
+            lines.append(f"    logic                                  {w.monbus_valid};")
+            lines.append(f"    logic                                  {w.monbus_ready};")
+            lines.append(f"    monitor_common_pkg::monitor_packet_t   {w.monbus_packet};")
+            lines.append(f"    monitor_common_pkg::monbus_timestamp_t {w.monbus_timestamp};")
         lines.append("")
         lines.append("    // Arbiter output (-> monbus_axil_group input)")
-        lines.append("    logic        mon_arb_monbus_valid;")
-        lines.append("    logic        mon_arb_monbus_ready;")
-        lines.append("    logic [63:0] mon_arb_monbus_packet;")
+        lines.append("    logic                                  mon_arb_monbus_valid;")
+        lines.append("    logic                                  mon_arb_monbus_ready;")
+        lines.append("    monitor_common_pkg::monitor_packet_t   mon_arb_monbus_packet;")
+        lines.append("    monitor_common_pkg::monbus_timestamp_t mon_arb_monbus_timestamp;")
         lines.append("")
         return lines
 
@@ -390,15 +412,24 @@ class BridgeModuleGenerator:
         """Adapter-instantiation port connections for this master's
         monbus + cfg ports. The adapter exposes channel-suffixed names
         (monbus_wr_valid, cfg_rd_axi_pkt_mask, ...) and the bridge top
-        binds them to {port}_{idx}_{chan}-prefixed nets."""
+        binds them to {port}_{idx}_{chan}-prefixed nets.
+
+        The shared `i_mon_time` net is bound once (not per channel) since
+        the underlying wrappers share the same free-running counter from
+        monbus_axil_group's mon_time_out. The per-wrapper
+        `monbus_timestamp` side-band is paired with the matching packet
+        wire so the arbiter can keep timestamps aligned with packets."""
         lines: List[str] = []
         # Sort so wr comes before rd (matches port-list order)
         ordered = sorted(wrappers, key=lambda w: 0 if w.channel == 'wr' else 1)
         all_pairs: List[tuple] = []  # (adapter_port, bridge_connector)
+        # Single shared monitor-time input on the adapter -- bind once.
+        all_pairs.append(('i_mon_time', 'mon_time_w'))
         for w in ordered:
-            all_pairs.append((f'monbus_{w.channel}_valid',  w.monbus_valid))
-            all_pairs.append((f'monbus_{w.channel}_ready',  w.monbus_ready))
-            all_pairs.append((f'monbus_{w.channel}_packet', w.monbus_packet))
+            all_pairs.append((f'monbus_{w.channel}_valid',     w.monbus_valid))
+            all_pairs.append((f'monbus_{w.channel}_ready',     w.monbus_ready))
+            all_pairs.append((f'monbus_{w.channel}_packet',    w.monbus_packet))
+            all_pairs.append((f'monbus_{w.channel}_timestamp', w.monbus_timestamp))
             for sig in Axi4TimingWrapper.MONITOR_CFG_SIGNALS:
                 base = sig[len('cfg_'):]
                 adapter_port = f'cfg_{w.channel}_{base}'
@@ -419,13 +450,15 @@ class BridgeModuleGenerator:
         lines.append(f"    // Monitor aggregator -- {n} client(s) -> arbiter -> axil_group")
         lines.append("    // ============================================================")
         # monbus_arbiter: unpacked-array inputs across CLIENTS
-        lines.append("    logic        mon_arb_monbus_valid_in [{}];".format(n))
-        lines.append("    logic        mon_arb_monbus_ready_in [{}];".format(n))
-        lines.append("    logic [63:0] mon_arb_monbus_packet_in [{}];".format(n))
+        lines.append("    logic                                  mon_arb_monbus_valid_in     [{}];".format(n))
+        lines.append("    logic                                  mon_arb_monbus_ready_in     [{}];".format(n))
+        lines.append("    monitor_common_pkg::monitor_packet_t   mon_arb_monbus_packet_in    [{}];".format(n))
+        lines.append("    monitor_common_pkg::monbus_timestamp_t mon_arb_monbus_timestamp_in [{}];".format(n))
         for i, w in enumerate(wrappers):
-            lines.append(f"    assign mon_arb_monbus_valid_in[{i}]  = {w.monbus_valid};")
+            lines.append(f"    assign mon_arb_monbus_valid_in[{i}]     = {w.monbus_valid};")
             lines.append(f"    assign {w.monbus_ready} = mon_arb_monbus_ready_in[{i}];")
-            lines.append(f"    assign mon_arb_monbus_packet_in[{i}] = {w.monbus_packet};")
+            lines.append(f"    assign mon_arb_monbus_packet_in[{i}]    = {w.monbus_packet};")
+            lines.append(f"    assign mon_arb_monbus_timestamp_in[{i}] = {w.monbus_timestamp};")
         lines.append("")
         lines.append("    monbus_arbiter #(")
         lines.append(f"        .CLIENTS            ({n}),")
@@ -434,20 +467,22 @@ class BridgeModuleGenerator:
         lines.append("        .INPUT_SKID_DEPTH   (2),")
         lines.append("        .OUTPUT_SKID_DEPTH  (2)")
         lines.append("    ) u_mon_arbiter (")
-        lines.append("        .axi_aclk          (aclk),")
-        lines.append("        .axi_aresetn       (aresetn),")
-        lines.append("        .block_arb         (1'b0),")
-        lines.append("        .monbus_valid_in   (mon_arb_monbus_valid_in),")
-        lines.append("        .monbus_ready_in   (mon_arb_monbus_ready_in),")
-        lines.append("        .monbus_packet_in  (mon_arb_monbus_packet_in),")
-        lines.append("        .monbus_valid      (mon_arb_monbus_valid),")
-        lines.append("        .monbus_ready      (mon_arb_monbus_ready),")
-        lines.append("        .monbus_packet     (mon_arb_monbus_packet),")
+        lines.append("        .axi_aclk            (aclk),")
+        lines.append("        .axi_aresetn         (aresetn),")
+        lines.append("        .block_arb           (1'b0),")
+        lines.append("        .monbus_valid_in     (mon_arb_monbus_valid_in),")
+        lines.append("        .monbus_ready_in     (mon_arb_monbus_ready_in),")
+        lines.append("        .monbus_packet_in    (mon_arb_monbus_packet_in),")
+        lines.append("        .monbus_timestamp_in (mon_arb_monbus_timestamp_in),")
+        lines.append("        .monbus_valid        (mon_arb_monbus_valid),")
+        lines.append("        .monbus_ready        (mon_arb_monbus_ready),")
+        lines.append("        .monbus_packet       (mon_arb_monbus_packet),")
+        lines.append("        .monbus_timestamp    (mon_arb_monbus_timestamp),")
         lines.append("        /* verilator lint_off PINCONNECTEMPTY */")
-        lines.append("        .grant_valid       (),")
-        lines.append("        .grant             (),")
-        lines.append("        .grant_id          (),")
-        lines.append("        .last_grant        ()")
+        lines.append("        .grant_valid         (),")
+        lines.append("        .grant               (),")
+        lines.append("        .grant_id            (),")
+        lines.append("        .last_grant          ()")
         lines.append("        /* verilator lint_on PINCONNECTEMPTY */")
         lines.append("    );")
         lines.append("")
@@ -455,15 +490,24 @@ class BridgeModuleGenerator:
         lines.append("        .FIFO_DEPTH_ERR    (64),")
         lines.append("        .FIFO_DEPTH_WRITE  (32),")
         lines.append("        .ADDR_WIDTH        (32),")
-        lines.append("        .DATA_WIDTH        (32),")
+        lines.append("        .S_AXIL_DATA_WIDTH (32),")
+        lines.append("        // M_AXIL_DATA_WIDTH defaults to 64 — module emits two 64-bit beats")
+        lines.append("        // per 128-bit packet plus optional timestamp beats per cfg_ts_append_mode.")
         lines.append("        .NUM_PROTOCOLS     (3)")
         lines.append("    ) u_mon_axil_group (")
         lines.append("        .axi_aclk          (aclk),")
         lines.append("        .axi_aresetn       (aresetn),")
-        lines.append("        // Arbiter output as the single monbus input")
+        lines.append("        // Arbiter output as the single monbus input + side-band timestamp")
         lines.append("        .monbus_valid      (mon_arb_monbus_valid),")
         lines.append("        .monbus_ready      (mon_arb_monbus_ready),")
         lines.append("        .monbus_packet     (mon_arb_monbus_packet),")
+        lines.append("        .monbus_timestamp  (mon_arb_monbus_timestamp),")
+        lines.append("        // Free-running timestamp shared with every wrapper's i_mon_time")
+        lines.append("        .mon_time_out      (mon_time_w),")
+        lines.append("        // Timestamp append config — default at reset is mode 11 (both ts) per plan §8.6.")
+        lines.append("        // Override by surfacing these as bridge top-level inputs in a follow-up.")
+        lines.append("        .cfg_ts_append_enable (1'b1),")
+        lines.append("        .cfg_ts_append_mode   (2'b11),")
         lines.append("        // AXIL slave")
         for s in ('arvalid','arready','araddr','arprot','rvalid','rready','rdata','rresp'):
             lines.append(f"        .s_axil_{s}      (s_mon_axil_{s}),")

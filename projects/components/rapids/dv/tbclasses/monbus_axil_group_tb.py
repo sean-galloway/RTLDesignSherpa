@@ -325,7 +325,7 @@ class MonbusAxilGroupTB(TBBase):
             'channel_id': channel_id,
             'unit_id': unit_id,
             'agent_id': agent_id,
-            'data': data & 0x7FFFFFFFF  # Clamp to 35 bits
+            'data': data & ((1 << 64) - 1)  # 64-bit event_data field
         }
 
     async def send_source_packet(self, packet_dict: Dict[str, Any]) -> bool:

@@ -22,9 +22,9 @@ now use ARB protocol codes with updated field mappings.
 
 UPDATED FOR NEW MONITOR PACKAGE:
 - Protocol field now 3 bits [59:57] supporting 5 protocols
-- Event data field now 35 bits [34:0]
+- Event data field now 64 bits [63:0] (128-bit packet)
 - Added comprehensive CORE protocol event factories
-- Updated all data field constraints for 35-bit limit
+- Updated all data field constraints for 64-bit limit
 - Corrected all imports to match actual monbus_types.py definitions
 """
 
@@ -51,11 +51,11 @@ from .monbus_types import (
 # =============================================================================
 
 def validate_data_field(data: int) -> int:
-    """Validate and clamp data field to 35-bit maximum"""
-    max_35_bit = (1 << 35) - 1  # 0x7FFFFFFFF
-    if data > max_35_bit:
-        raise ValueError(f"Data field {data:X} exceeds 35-bit maximum {max_35_bit:X}")
-    return data & max_35_bit
+    """Validate and clamp data field to 64-bit maximum (post 128-bit packet widening)."""
+    max_64_bit = (1 << 64) - 1
+    if data > max_64_bit:
+        raise ValueError(f"Data field {data:X} exceeds 64-bit maximum {max_64_bit:X}")
+    return data & max_64_bit
 
 
 # =============================================================================
@@ -963,20 +963,20 @@ def validate_event_dict(event_dict: Dict[str, Any]) -> bool:
         if field not in event_dict:
             return False
 
-    # Basic range validation - UPDATED
-    if not (0 <= event_dict['pkt_type'] <= 0xF):
+    # Range validation — 128-bit packet field widths
+    if not (0 <= event_dict['pkt_type']   <= 0xF):                 # 4 bits
         return False
-    if not (0 <= event_dict['protocol'] <= 0x7):  # ✅ CORRECTED: 3 bits = 0-7 range
+    if not (0 <= event_dict['protocol']   <= 0xF):                 # 4 bits
         return False
-    if not (0 <= event_dict['event_code'] <= 0xF):
+    if not (0 <= event_dict['event_code'] <= 0xFF):                # 8 bits
         return False
-    if not (0 <= event_dict['channel_id'] <= 0x3F):
+    if not (0 <= event_dict['channel_id'] <= 0x1FF):               # 9 bits
         return False
-    if not (0 <= event_dict['unit_id'] <= 0xF):
+    if not (0 <= event_dict['unit_id']    <= 0xFF):                # 8 bits
         return False
-    if not (0 <= event_dict['agent_id'] <= 0xFF):
+    if not (0 <= event_dict['agent_id']   <= 0xFFFF):              # 16 bits
         return False
-    if not (0 <= event_dict['data'] <= 0x7FFFFFFFF):  # ✅ CORRECTED: 35-bit max
+    if not (0 <= event_dict['data']       <= ((1 << 64) - 1)):     # 64 bits
         return False
 
     return True
@@ -989,11 +989,11 @@ def get_event_description(event_dict: Dict[str, Any]) -> str:
         packet_type = PktType(event_dict['pkt_type'])
 
         desc = f"{protocol.name}_{packet_type.name}"
-        desc += f" code=0x{event_dict['event_code']:X}"
-        desc += f" ch=0x{event_dict['channel_id']:02X}"
-        desc += f" unit=0x{event_dict['unit_id']:X}"
-        desc += f" agent=0x{event_dict['agent_id']:02X}"
-        desc += f" data=0x{event_dict['data']:09X}"
+        desc += f" code=0x{event_dict['event_code']:02X}"
+        desc += f" ch=0x{event_dict['channel_id']:03X}"
+        desc += f" unit=0x{event_dict['unit_id']:02X}"
+        desc += f" agent=0x{event_dict['agent_id']:04X}"
+        desc += f" data=0x{event_dict['data']:016X}"
 
         return desc
     except (ValueError, KeyError):

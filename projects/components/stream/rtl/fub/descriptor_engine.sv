@@ -60,9 +60,9 @@ module descriptor_engine #(
     parameter int DESC_ADDR_FIFO_DEPTH = 2,          // NEW: Descriptor read address FIFO depth
     parameter int TIMEOUT_CYCLES = 1000,
     // Monitor Bus Parameters
-    parameter logic [7:0] MON_AGENT_ID = 8'h10,      // Descriptor Engine Agent ID
-    parameter logic [3:0] MON_UNIT_ID = 4'h1,        // Unit identifier
-    parameter logic [5:0] MON_CHANNEL_ID = 6'h0      // Base channel ID
+    parameter logic [15:0] MON_AGENT_ID = 16'h0010,  // Descriptor Engine Agent ID
+    parameter logic [7:0]  MON_UNIT_ID = 8'h01,      // Unit identifier
+    parameter logic [8:0]  MON_CHANNEL_ID = 9'h000   // Base channel ID
 ) (
     // Clock and Reset
     input  logic                        clk,
@@ -122,10 +122,14 @@ module descriptor_engine #(
     // Status Interface
     output logic                        descriptor_engine_idle,
 
-    // Monitor Bus Interface
-    output logic                        mon_valid,
-    input  logic                        mon_ready,
-    output logic [63:0]                 mon_packet
+    // Free-running monitor-time broadcast (sampled on packet emit)
+    input  monitor_common_pkg::monbus_timestamp_t   i_mon_time,
+
+    // Monitor Bus Interface (128-bit packet + 64-bit side-band timestamp)
+    output logic                                    mon_valid,
+    input  logic                                    mon_ready,
+    output monitor_common_pkg::monitor_packet_t     mon_packet,
+    output monitor_common_pkg::monbus_timestamp_t   mon_timestamp
 );
 
     //=========================================================================
@@ -239,9 +243,10 @@ module descriptor_engine #(
     logic r_channel_idle_prev;            // Previous cycle channel_idle for edge detection
 
     // Monitor packet generation
-    // Registered MonBus outputs
-    logic r_mon_valid;
-    logic [63:0] r_mon_packet;
+    // Registered MonBus outputs (128-bit packet + 64-bit side-band timestamp)
+    logic                                       r_mon_valid;
+    monitor_common_pkg::monitor_packet_t        r_mon_packet;
+    monitor_common_pkg::monbus_timestamp_t      r_mon_timestamp;
 
     //=========================================================================
     // FIXED: Channel Reset Management
@@ -760,42 +765,50 @@ module descriptor_engine #(
 
     `ALWAYS_FF_RST(clk, rst_n,
         if (`RST_ASSERTED(rst_n)) begin
-            r_mon_valid <= 1'b0;
-            r_mon_packet <= 64'h0;
+            r_mon_valid     <= 1'b0;
+            r_mon_packet    <= '0;
+            r_mon_timestamp <= '0;
         end else begin
             // Default: clear monitor packet
-            r_mon_valid <= 1'b0;
-            r_mon_packet <= 64'h0;
+            r_mon_valid  <= 1'b0;
+            r_mon_packet <= '0;
+            // Sample i_mon_time on the cycle a packet is emitted; otherwise
+            // hold the previous timestamp value so consumers see a stable
+            // side-band when r_mon_valid is low.
 
             case (r_current_state)
                 RD_COMPLETE: begin
                     // Log successful descriptor fetch
-                    r_mon_valid <= 1'b1;
-                    r_mon_packet <= create_monitor_packet(
+                    r_mon_valid     <= 1'b1;
+                    r_mon_timestamp <= i_mon_time;
+                    r_mon_packet    <= create_monitor_packet(
                         PktTypeCompletion,
                         PROTOCOL_CORE,
                         CORE_COMPL_DESCRIPTOR_LOADED,
                         MON_CHANNEL_ID,
                         MON_UNIT_ID,
                         MON_AGENT_ID,
-                        // event_data is 35 bits; zero-extend (or truncate)
-                        // r_axi_read_addr to fit. Direct [34:0] slice breaks
-                        // synthesis when ADDR_WIDTH < 35 (e.g. FPGA 32-bit).
-                        35'(r_axi_read_addr)
+                        // event_data is 64 bits; carry the full descriptor
+                        // fetch address (zero-extend if ADDR_WIDTH < 64).
+                        64'(r_axi_read_addr)
                     );
                 end
 
                 RD_ERROR: begin
                     // Log descriptor fetch error
-                    r_mon_valid <= 1'b1;
-                    r_mon_packet <= create_monitor_packet(
+                    r_mon_valid     <= 1'b1;
+                    r_mon_timestamp <= i_mon_time;
+                    r_mon_packet    <= create_monitor_packet(
                         PktTypeError,
                         PROTOCOL_CORE,
                         CORE_ERR_DESCRIPTOR_ENGINE,
                         MON_CHANNEL_ID,
                         MON_UNIT_ID,
                         MON_AGENT_ID,
-                        {16'h0, r_axi_read_resp, 17'h0}
+                        // Pack 2-bit AXI response at bits [17:16] of the
+                        // 64-bit event_data field (same offset as before,
+                        // just widened upper zero-padding).
+                        {46'h0, r_axi_read_resp, 16'h0}
                     );
                 end
 
@@ -860,8 +873,9 @@ module descriptor_engine #(
     assign descriptor_type = w_desc_fifo_rd_data.pkt_type;
 
     // Monitor bus output
-    assign mon_valid = r_mon_valid;
-    assign mon_packet = r_mon_packet;
+    assign mon_valid     = r_mon_valid;
+    assign mon_packet    = r_mon_packet;
+    assign mon_timestamp = r_mon_timestamp;
 
     //=========================================================================
     // Assertions for Verification

@@ -31,9 +31,9 @@ module source_axi_read_engine #(
     parameter int COUNT_BITS = 8,
     // Monitor Bus Parameters
     /* verilator lint_off WIDTHTRUNC */
-    parameter logic [7:0] MON_AGENT_ID = 8'h40,
-    parameter logic [3:0] MON_UNIT_ID = 4'h1,
-    parameter logic [5:0] MON_CHANNEL_ID = 6'h0
+    parameter logic [15:0] MON_AGENT_ID  = 16'h0040,  // 16-bit agent ID (128-bit packet)
+    parameter logic [7:0]  MON_UNIT_ID   = 8'h01,     // 8-bit unit ID
+    parameter logic [8:0]  MON_CHANNEL_ID = 9'h000    // 9-bit base channel ID
     /* verilator lint_on WIDTHTRUNC */
 ) (
     // Clock and Reset
@@ -110,15 +110,30 @@ module source_axi_read_engine #(
     output logic                        engine_idle,
     output logic                        engine_busy,
 
-    // Monitor Bus Interface
-    output logic                        mon_valid,
-    input  logic                        mon_ready,
-    output logic [63:0]                 mon_packet
+    // Monitor Bus Interface (128-bit packet + 64-bit side-band timestamp)
+    input  monitor_common_pkg::monbus_timestamp_t  i_mon_time,
+    output logic                                   mon_valid,
+    input  logic                                   mon_ready,
+    output monitor_common_pkg::monitor_packet_t    mon_packet,
+    output monitor_common_pkg::monbus_timestamp_t  mon_timestamp
 );
 
     //=========================================================================
     // Pure Pipeline Architecture - No FSM!
     //=========================================================================
+
+    //=========================================================================
+    // Forward declarations for signals used across pipeline stages
+    //=========================================================================
+    // These pipeline-handshake wires are driven by the prealloc/address/
+    // response stages below but referenced earlier by the channel arbiter
+    // (grant_ack release) and the address-progression FSM. Strict
+    // declare-before-use tools (Cadence, repo pre-commit hook) require
+    // the declarations here.
+    logic                       w_prealloc_accepted;
+    logic                       w_address_accepted;
+    logic                       w_response_complete;
+    logic [CHAN_WIDTH-1:0]      w_response_channel;
 
     //=========================================================================
     // Channel Arbitration (Pure Combinational)
@@ -306,7 +321,7 @@ module source_axi_read_engine #(
     end
 
     // IMMEDIATE Preallocation (same cycle as arbitration!)
-    logic w_prealloc_accepted;
+    // w_prealloc_accepted forward-declared near top of module.
     assign prealloc_valid = w_grant_valid;  // Preallocate immediately when granted
     assign prealloc_beats = w_current_burst_len;
     assign prealloc_type = w_current_type;
@@ -359,7 +374,7 @@ module source_axi_read_engine #(
     assign w_axi_id = {{(AXI_ID_WIDTH-CHAN_WIDTH){1'b0}}, r_prealloc_channel};
 
     // FIXED: AXI Address Issue with Dynamic Sizing
-    logic w_address_accepted;
+    // w_address_accepted forward-declared near top of module.
     assign ar_valid = r_prealloc_valid;  // Issue address when prealloc complete
     assign ar_addr = r_prealloc_addr;
     assign ar_len = r_prealloc_burst_len - 8'h1;  // AXI length encoding
@@ -409,8 +424,8 @@ module source_axi_read_engine #(
     end
 
     // Beat counter for burst tracking
+    // w_response_complete forward-declared near top of module.
     logic [7:0] r_response_beat_count;
-    logic w_response_complete;
 
     always_ff @(posedge clk) begin
         if (!rst_n) begin
@@ -427,7 +442,7 @@ module source_axi_read_engine #(
     assign w_response_complete = r_valid && r_ready && r_last;
 
     // Response channel extraction
-    logic [CHAN_WIDTH-1:0] w_response_channel;
+    // w_response_channel forward-declared near top of module.
     logic w_our_response;
     logic w_axi_error;
 
@@ -550,46 +565,52 @@ module source_axi_read_engine #(
 
     // Simple monitor packet generation
     logic r_mon_valid;
-    logic [63:0] r_mon_packet;
+    monitor_common_pkg::monitor_packet_t   r_mon_packet;
+    monitor_common_pkg::monbus_timestamp_t r_mon_timestamp;
 
     always_ff @(posedge clk) begin
         if (!rst_n) begin
-            r_mon_valid <= 1'b0;
-            r_mon_packet <= 64'h0;
+            r_mon_valid     <= 1'b0;
+            r_mon_packet    <= '0;
+            r_mon_timestamp <= '0;
         end else begin
-            r_mon_valid <= 1'b0;  // Default
+            r_mon_valid  <= 1'b0;  // Default
+            r_mon_packet <= '0;
 
             // Monitor address acceptance with transfer type info
             if (w_address_accepted) begin
-                r_mon_valid <= 1'b1;
-                r_mon_packet <= create_monitor_packet(
+                r_mon_valid     <= 1'b1;
+                r_mon_packet    <= create_monitor_packet(
                     PktTypePerf,
                     PROTOCOL_AXI,
                     AXI_PERF_ADDR_LATENCY,
                     MON_CHANNEL_ID,
                     MON_UNIT_ID,
                     MON_AGENT_ID,
-                    35'({3'h0, r_prealloc_axi_size, 8'h0, r_prealloc_burst_len, 12'h0, r_prealloc_channel})
+                    64'({3'h0, r_prealloc_axi_size, 8'h0, r_prealloc_burst_len, 12'h0, r_prealloc_channel})
                 );
+                r_mon_timestamp <= i_mon_time;
             end
             // Monitor completion
             else if (|data_done_strobe) begin
-                r_mon_valid <= 1'b1;
-                r_mon_packet <= create_monitor_packet(
+                r_mon_valid     <= 1'b1;
+                r_mon_packet    <= create_monitor_packet(
                     PktTypeCompletion,
                     PROTOCOL_AXI,
                     AXI_COMPL_READ_COMPLETE,
                     MON_CHANNEL_ID,
                     MON_UNIT_ID,
                     MON_AGENT_ID,
-                    35'h0
+                    64'h0
                 );
+                r_mon_timestamp <= i_mon_time;
             end
         end
     end
 
     assign mon_valid = r_mon_valid;
-    assign mon_packet = r_mon_packet;
+    assign mon_packet    = r_mon_packet;
+    assign mon_timestamp = r_mon_timestamp;
 
     //=========================================================================
     // Verification Assertions for Alignment Requirements

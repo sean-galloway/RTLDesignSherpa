@@ -183,7 +183,14 @@ class SlaveAdapterGenerator:
         """Per-wrapper monbus output + cfg input ports for this slave
         adapter. Mirrors AdapterGenerator._generate_monitor_ports() so
         the bridge top can wire master/slave adapters with the same
-        connector-naming scheme."""
+        connector-naming scheme.
+
+        After the 64->128-bit packet widening, every channel also gets a
+        64-bit `monbus_<chan>_timestamp` side-band output (paired with
+        the packet). A single shared `i_mon_time` input is declared once
+        per adapter (not per channel) because every wrapper instance
+        consumes the same free-running counter from monbus_axil_group's
+        `mon_time_out`."""
         from ..components.axi4_timing_wrapper_component import Axi4TimingWrapper
         from .adapter_generator import _MONITOR_CFG_WIDTHS
 
@@ -194,12 +201,20 @@ class SlaveAdapterGenerator:
         if self.channels in ("rd", "rw"):
             channels.append("rd")
 
+        # Shared free-running monitor-time -- one input shared by every
+        # internal wrapper instance.
+        if channels:
+            lines.append("    // Shared free-running monitor-time (from monbus_axil_group.mon_time_out)")
+            lines.append("    input  monitor_common_pkg::monbus_timestamp_t i_mon_time,")
+            lines.append("")
+
         last_chan = channels[-1] if channels else None
         for chan in channels:
             lines.append(f"    // Monitor side-band: {chan} wrapper")
-            lines.append(f"    output logic        monbus_{chan}_valid,")
-            lines.append(f"    input  logic        monbus_{chan}_ready,")
-            lines.append(f"    output logic [63:0] monbus_{chan}_packet,")
+            lines.append(f"    output logic                                  monbus_{chan}_valid,")
+            lines.append(f"    input  logic                                  monbus_{chan}_ready,")
+            lines.append(f"    output monitor_common_pkg::monitor_packet_t   monbus_{chan}_packet,")
+            lines.append(f"    output monitor_common_pkg::monbus_timestamp_t monbus_{chan}_timestamp,")
             lines.append("")
             for i, sig in enumerate(Axi4TimingWrapper.MONITOR_CFG_SIGNALS):
                 is_final_cfg = (chan == last_chan and i == len(Axi4TimingWrapper.MONITOR_CFG_SIGNALS) - 1)
@@ -776,6 +791,8 @@ class SlaveAdapterGenerator:
                 valid='monbus_wr_valid',
                 ready='monbus_wr_ready',
                 packet='monbus_wr_packet',
+                timestamp='monbus_wr_timestamp',
+                mon_time='i_mon_time',
             )
             wrapper.connect_cfg(connector_prefix='cfg_wr_')
         return ["    // AXI4 Master Write Timing Wrapper"] + wrapper.generate_lines()
@@ -810,6 +827,8 @@ class SlaveAdapterGenerator:
                 valid='monbus_rd_valid',
                 ready='monbus_rd_ready',
                 packet='monbus_rd_packet',
+                timestamp='monbus_rd_timestamp',
+                mon_time='i_mon_time',
             )
             wrapper.connect_cfg(connector_prefix='cfg_rd_')
         return ["    // AXI4 Master Read Timing Wrapper"] + wrapper.generate_lines()

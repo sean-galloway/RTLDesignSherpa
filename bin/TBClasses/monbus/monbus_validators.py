@@ -21,7 +21,7 @@ for MonBus packet validation and testing with complete ARB and CORE protocol sup
 
 UPDATED FOR NEW MONITOR PACKAGE:
 - Protocol field now 3 bits [59:57] supporting 5 protocols including CORE
-- Event data field now 35 bits [34:0]
+- Event data field now 64 bits [63:0] (post 128-bit packet widening)
 - Updated range validations and event code mappings
 - Added comprehensive CORE protocol support
 - Updated all field range validations for new packet format
@@ -153,15 +153,15 @@ def validate_packet_consistency(packet: MonbusPacket) -> List[str]:
     """
     errors = []
 
-    # Check basic field ranges - UPDATED
+    # Field ranges — 128-bit packet layout
     field_ranges = {
-        'protocol': (0, 7),           # 3 bits ✅ CORRECTED: 0-7 range
-        'pkt_type': (0, 15),          # 4 bits
-        'event_code': (0, 15),        # 4 bits
-        'unit_id': (0, 15),           # 4 bits
-        'channel_id': (0, 63),        # 6 bits
-        'agent_id': (0, 255),         # 8 bits
-        'data': (0, (1 << 35) - 1)    # 35 bits ✅ CORRECTED: 35-bit max
+        'pkt_type'  : (0, (1 <<  4) - 1),  # 4 bits
+        'protocol'  : (0, (1 <<  4) - 1),  # 4 bits
+        'event_code': (0, (1 <<  8) - 1),  # 8 bits
+        'channel_id': (0, (1 <<  9) - 1),  # 9 bits
+        'unit_id'   : (0, (1 <<  8) - 1),  # 8 bits
+        'agent_id'  : (0, (1 << 16) - 1),  # 16 bits
+        'data'      : (0, (1 << 64) - 1),  # 64 bits
     }
 
     errors.extend(validate_packet_range(packet, field_ranges))
@@ -317,7 +317,7 @@ def create_packet_matcher(protocol: Union[ProtocolType, int] = None,
 
     Args:
         Various packet fields to match (None means don't check that field)
-        data_mask: Optional mask for data field comparison (35-bit max)
+        data_mask: Optional mask for data field comparison (64-bit max)
 
     Returns:
         Function that takes a MonbusPacket and returns True if it matches

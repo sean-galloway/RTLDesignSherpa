@@ -6,7 +6,7 @@
 # https://github.com/sean-galloway/RTLDesignSherpa
 #
 # Module: MonbusPacket
-# Purpose: MonBus Packet Implementation - UPDATED FOR 3-BIT PROTOCOL FIELD
+# Purpose: MonBus packet (128-bit) implementation for cocotb tests
 #
 # Documentation: cocotb-framework PyPI package
 # Subsystem: framework
@@ -15,19 +15,20 @@
 # Created: 2025-10-18
 
 """
-MonBus Packet Implementation - UPDATED FOR 3-BIT PROTOCOL FIELD
+MonBus Packet Implementation — 128-bit format
 
 Defines MonbusPacket class and field configuration for monitor bus packets.
 Supports all protocol types including ARB and CORE with comprehensive validation.
 
-UPDATED FOR NEW MONITOR PACKAGE:
-- Protocol field INCREASED to 3 bits [59:57] (was 2 bits)
-- Event code at [56:53] (4 bits) 
-- Channel ID at [52:47] (6 bits)
-- Unit ID at [46:43] (4 bits)
-- Agent ID at [42:35] (8 bits)
-- Event data REDUCED to 35 bits [34:0] (was 36 bits)
-- Added CORE protocol support
+128-bit field layout (mirrors monitor_common_pkg.sv):
+  [127:124] pkt_type    4 bits
+  [123:109] reserved   15 bits
+  [108:105] protocol    4 bits
+  [104: 97] event_code  8 bits
+  [ 96: 88] channel_id  9 bits
+  [ 87: 72] agent_id   16 bits
+  [ 71: 64] unit_id     8 bits
+  [ 63:  0] data       64 bits
 """
 
 from typing import Dict, Any, Optional
@@ -37,25 +38,27 @@ from .monbus_types import ProtocolType, PktType
 
 
 def create_monbus_field_config() -> FieldConfig:
-    """Create field configuration for MonBus packets - UPDATED FOR NEW FORMAT"""
+    """Create field configuration for MonBus packets (128-bit format)."""
     config = FieldConfig()
 
-    # MonBus packet format (64-bit total) - UPDATED:
-    # [63:60] - pkt_type: 4 bits (error, timeout, completion, etc.)
-    # [59:57] - protocol: 3 bits (AXI/AXIS/APB/ARB/CORE) ✅ UPDATED: 3 bits
-    # [56:53] - event_code: 4 bits (specific error or event code) ✅ UPDATED position
-    # [52:47] - channel_id: 6 bits (channel ID and AXI ID)
-    # [46:43] - unit_id: 4 bits (subsystem identifier)
-    # [42:35] - agent_id: 8 bits (module identifier)
-    # [34:0]  - data: 35 bits (event-specific data) ✅ UPDATED: 35 bits
+    # 128-bit MonBus packet layout (mirrors monitor_common_pkg.sv):
+    # [127:124] - pkt_type    4 bits
+    # [123:109] - reserved   15 bits
+    # [108:105] - protocol    4 bits
+    # [104: 97] - event_code  8 bits
+    # [ 96: 88] - channel_id  9 bits
+    # [ 87: 72] - agent_id   16 bits
+    # [ 71: 64] - unit_id     8 bits
+    # [ 63:  0] - data       64 bits
 
-    config.add_field(FieldDefinition(name="pkt_type",   bits=4,  format="hex")) # 63-60
-    config.add_field(FieldDefinition(name="protocol",   bits=3,  format="hex")) # 59-57 ✅ UPDATED: 3 bits
-    config.add_field(FieldDefinition(name="event_code", bits=4,  format="hex")) # 56-53 ✅ UPDATED position
-    config.add_field(FieldDefinition(name="channel_id", bits=6,  format="hex")) # 52-47
-    config.add_field(FieldDefinition(name="unit_id",    bits=4,  format="hex")) # 46-43
-    config.add_field(FieldDefinition(name="agent_id",   bits=8,  format="hex")) # 42-35
-    config.add_field(FieldDefinition(name="data",       bits=35, format="hex")) # 34-0 ✅ UPDATED: 35 bits
+    config.add_field(FieldDefinition(name="pkt_type",   bits=4,  format="hex"))
+    config.add_field(FieldDefinition(name="reserved",   bits=15, format="hex"))
+    config.add_field(FieldDefinition(name="protocol",   bits=4,  format="hex"))
+    config.add_field(FieldDefinition(name="event_code", bits=8,  format="hex"))
+    config.add_field(FieldDefinition(name="channel_id", bits=9,  format="hex"))
+    config.add_field(FieldDefinition(name="agent_id",   bits=16, format="hex"))
+    config.add_field(FieldDefinition(name="unit_id",    bits=8,  format="hex"))
+    config.add_field(FieldDefinition(name="data",       bits=64, format="hex"))
 
     return config
 
@@ -85,32 +88,32 @@ class MonbusPacket:
 
     @property
     def protocol(self) -> int:
-        """Protocol type (3 bits) - UPDATED"""
+        """Protocol type (4 bits)"""
         return getattr(self._gaxi_packet, 'protocol', 0)
 
     @property
     def event_code(self) -> int:
-        """Event code (4 bits)"""
+        """Event code (8 bits)"""
         return getattr(self._gaxi_packet, 'event_code', 0)
 
     @property
     def channel_id(self) -> int:
-        """Channel ID (6 bits)"""
+        """Channel ID (9 bits)"""
         return getattr(self._gaxi_packet, 'channel_id', 0)
 
     @property
     def unit_id(self) -> int:
-        """Unit ID (4 bits)"""
+        """Unit ID (8 bits)"""
         return getattr(self._gaxi_packet, 'unit_id', 0)
 
     @property
     def agent_id(self) -> int:
-        """Agent ID (8 bits)"""
+        """Agent ID (16 bits)"""
         return getattr(self._gaxi_packet, 'agent_id', 0)
 
     @property
     def data(self) -> int:
-        """Event data (35 bits) - UPDATED"""
+        """Event data (64 bits)"""
         return getattr(self._gaxi_packet, 'data', 0)
 
     @property
@@ -119,22 +122,21 @@ class MonbusPacket:
         return getattr(self._gaxi_packet, 'timestamp', 0.0)
 
     def validate_fields(self) -> bool:
-        """Validate all field values are within expected ranges - UPDATED"""
+        """Validate all field values are within expected ranges (128-bit layout)."""
         try:
-            # Check field ranges - UPDATED
-            if not (0 <= self.pkt_type <= 15):  # 4 bits
+            if not (0 <= self.pkt_type <= 0xF):                # 4 bits
                 return False
-            if not (0 <= self.protocol <= 7):   # 3 bits ✅ UPDATED: 0-7 range
+            if not (0 <= self.protocol <= 0xF):                # 4 bits
                 return False
-            if not (0 <= self.event_code <= 15): # 4 bits
+            if not (0 <= self.event_code <= 0xFF):             # 8 bits
                 return False
-            if not (0 <= self.channel_id <= 63): # 6 bits
+            if not (0 <= self.channel_id <= 0x1FF):            # 9 bits
                 return False
-            if not (0 <= self.unit_id <= 15):   # 4 bits
+            if not (0 <= self.unit_id <= 0xFF):                # 8 bits
                 return False
-            if not (0 <= self.agent_id <= 255): # 8 bits
+            if not (0 <= self.agent_id <= 0xFFFF):             # 16 bits
                 return False
-            if not (0 <= self.data <= 0x7FFFFFFFF): # 35 bits ✅ UPDATED: 35-bit max
+            if not (0 <= self.data <= ((1 << 64) - 1)):        # 64 bits
                 return False
 
             return True
@@ -223,52 +225,53 @@ class MonbusPacket:
         }
 
     def format_for_display(self) -> str:
-        """Format packet for human-readable display"""
+        """Format packet for human-readable display (128-bit layout)"""
         protocol_name = self.get_protocol_name()
         pkt_type_name = self.get_packet_type_name()
 
         return (f"{protocol_name}_{pkt_type_name}("
-                f"event_code=0x{self.event_code:X}, "
-                f"channel_id=0x{self.channel_id:02X}, "
-                f"unit_id=0x{self.unit_id:X}, "
-                f"agent_id=0x{self.agent_id:02X}, "
-                f"data=0x{self.data:09X})")
+                f"event_code=0x{self.event_code:02X}, "
+                f"channel_id=0x{self.channel_id:03X}, "
+                f"unit_id=0x{self.unit_id:02X}, "
+                f"agent_id=0x{self.agent_id:04X}, "
+                f"data=0x{self.data:016X})")
 
     def format_detailed(self) -> str:
-        """Format packet with full details"""
+        """Format packet with full details (128-bit layout)"""
         return (f"MonbusPacket(\n"
                 f"  pkt_type=0x{self.pkt_type:X} ({self.get_packet_type_name()}),\n"
                 f"  protocol=0x{self.protocol:X} ({self.get_protocol_name()}),\n"
-                f"  event_code=0x{self.event_code:X},\n"
-                f"  channel_id=0x{self.channel_id:02X},\n"
-                f"  unit_id=0x{self.unit_id:X},\n"
-                f"  agent_id=0x{self.agent_id:02X},\n"
-                f"  data=0x{self.data:09X},\n"
+                f"  event_code=0x{self.event_code:02X},\n"
+                f"  channel_id=0x{self.channel_id:03X},\n"
+                f"  unit_id=0x{self.unit_id:02X},\n"
+                f"  agent_id=0x{self.agent_id:04X},\n"
+                f"  data=0x{self.data:016X},\n"
                 f"  timestamp={self.timestamp:.1f}ns\n"
                 f")")
 
     def format_bit_breakdown(self) -> str:
-        """Format packet showing bit field breakdown - UPDATED"""
-        # Reconstruct 64-bit value for bit analysis
-        raw_64bit = (
-            (self.pkt_type << 60) |      # [63:60] - 4 bits
-            (self.protocol << 57) |      # [59:57] - 3 bits ✅ UPDATED
-            (self.event_code << 53) |    # [56:53] - 4 bits ✅ UPDATED
-            (self.channel_id << 47) |    # [52:47] - 6 bits
-            (self.unit_id << 43) |       # [46:43] - 4 bits
-            (self.agent_id << 35) |      # [42:35] - 8 bits
-            (self.data & 0x7FFFFFFFF)    # [34:0] - 35 bits ✅ UPDATED
+        """Format packet showing bit field breakdown (128-bit layout)."""
+        # Reconstruct 128-bit value for bit analysis
+        raw_128bit = (
+            ((self.pkt_type   & 0xF)    << 124) |  # [127:124]
+            # bits [123:109] reserved — zero
+            ((self.protocol   & 0xF)    << 105) |  # [108:105]
+            ((self.event_code & 0xFF)   <<  97) |  # [104: 97]
+            ((self.channel_id & 0x1FF)  <<  88) |  # [ 96: 88]
+            ((self.agent_id   & 0xFFFF) <<  72) |  # [ 87: 72]
+            ((self.unit_id    & 0xFF)   <<  64) |  # [ 71: 64]
+            (self.data & ((1 << 64) - 1))           # [ 63:  0]
         )
-        
+
         return (
-            f"Raw Packet: 0x{raw_64bit:016X}\n"
-            f"  [63:60] pkt_type   = 0x{self.pkt_type:X} ({self.get_packet_type_name()})\n"
-            f"  [59:57] protocol   = 0x{self.protocol:X} ({self.get_protocol_name()}) ✅ 3-bit\n"
-            f"  [56:53] event_code = 0x{self.event_code:X} ✅ moved\n"
-            f"  [52:47] channel_id = 0x{self.channel_id:02X}\n"
-            f"  [46:43] unit_id    = 0x{self.unit_id:X}\n"
-            f"  [42:35] agent_id   = 0x{self.agent_id:02X}\n"
-            f"  [34:0]  data       = 0x{self.data:09X} ✅ 35-bit"
+            f"Raw Packet: 0x{raw_128bit:032X}\n"
+            f"  [127:124] pkt_type   = 0x{self.pkt_type:X} ({self.get_packet_type_name()})\n"
+            f"  [108:105] protocol   = 0x{self.protocol:X} ({self.get_protocol_name()})\n"
+            f"  [104: 97] event_code = 0x{self.event_code:02X}\n"
+            f"  [ 96: 88] channel_id = 0x{self.channel_id:03X}\n"
+            f"  [ 87: 72] agent_id   = 0x{self.agent_id:04X}\n"
+            f"  [ 71: 64] unit_id    = 0x{self.unit_id:02X}\n"
+            f"  [ 63:  0] data       = 0x{self.data:016X}"
         )
 
     def __str__(self) -> str:
@@ -305,7 +308,7 @@ def create_arb_error_packet(error_code, channel_id: int = 0, unit_id: int = 0,
         'channel_id': channel_id,
         'unit_id': unit_id,
         'agent_id': agent_id,
-        'data': data & 0x7FFFFFFFF  # ✅ UPDATED: Clamp to 35 bits
+        'data': data & ((1 << 64) - 1)  # Clamp to 64 bits
     }
 
 
@@ -319,7 +322,7 @@ def create_arb_completion_packet(completion_code, channel_id: int = 0, unit_id: 
         'channel_id': channel_id,
         'unit_id': unit_id,
         'agent_id': agent_id,
-        'data': data & 0x7FFFFFFFF  # ✅ UPDATED: Clamp to 35 bits
+        'data': data & ((1 << 64) - 1)  # Clamp to 64 bits
     }
 
 
@@ -333,7 +336,7 @@ def create_arb_performance_packet(perf_code, channel_id: int = 0, unit_id: int =
         'channel_id': channel_id,
         'unit_id': unit_id,
         'agent_id': agent_id,
-        'data': data & 0x7FFFFFFFF  # ✅ UPDATED: Clamp to 35 bits
+        'data': data & ((1 << 64) - 1)  # Clamp to 64 bits
     }
 
 
@@ -347,61 +350,53 @@ def create_core_error_packet(error_code, channel_id: int = 0, unit_id: int = 1, 
         'channel_id': channel_id,
         'unit_id': unit_id,
         'agent_id': agent_id,
-        'data': data & 0x7FFFFFFFF  # ✅ UPDATED: Clamp to 35 bits
+        'data': data & ((1 << 64) - 1)  # Clamp to 64 bits
     }
 
 
 def validate_packet_field_ranges(packet: MonbusPacket) -> list:
-    """Validate all packet fields are within proper ranges - UPDATED"""
+    """Validate all packet fields are within ranges (128-bit packet layout)."""
     errors = []
-    
-    # Check all field ranges for updated format
-    if packet.pkt_type > 15:  # 4 bits
-        errors.append(f"pkt_type {packet.pkt_type} exceeds 4-bit range (0-15)")
-        
-    if packet.protocol > 7:  # 3 bits ✅ UPDATED
-        errors.append(f"protocol {packet.protocol} exceeds 3-bit range (0-7)")
-        
-    if packet.event_code > 15:  # 4 bits
-        errors.append(f"event_code {packet.event_code} exceeds 4-bit range (0-15)")
-        
-    if packet.channel_id > 63:  # 6 bits
-        errors.append(f"channel_id {packet.channel_id} exceeds 6-bit range (0-63)")
-        
-    if packet.unit_id > 15:  # 4 bits
-        errors.append(f"unit_id {packet.unit_id} exceeds 4-bit range (0-15)")
-        
-    if packet.agent_id > 255:  # 8 bits
-        errors.append(f"agent_id {packet.agent_id} exceeds 8-bit range (0-255)")
-        
-    if packet.data > 0x7FFFFFFFF:  # 35 bits ✅ UPDATED
-        errors.append(f"data 0x{packet.data:X} exceeds 35-bit range (0-0x7FFFFFFFF)")
-    
+
+    if packet.pkt_type   > 0xF:                  # 4 bits
+        errors.append(f"pkt_type {packet.pkt_type} exceeds 4-bit range")
+    if packet.protocol   > 0xF:                  # 4 bits
+        errors.append(f"protocol {packet.protocol} exceeds 4-bit range")
+    if packet.event_code > 0xFF:                 # 8 bits
+        errors.append(f"event_code {packet.event_code} exceeds 8-bit range")
+    if packet.channel_id > 0x1FF:                # 9 bits
+        errors.append(f"channel_id {packet.channel_id} exceeds 9-bit range")
+    if packet.unit_id    > 0xFF:                 # 8 bits
+        errors.append(f"unit_id {packet.unit_id} exceeds 8-bit range")
+    if packet.agent_id   > 0xFFFF:               # 16 bits
+        errors.append(f"agent_id {packet.agent_id} exceeds 16-bit range")
+    if packet.data       > ((1 << 64) - 1):      # 64 bits
+        errors.append(f"data 0x{packet.data:X} exceeds 64-bit range")
+
     return errors
 
 
 def analyze_packet_bit_usage(packet: MonbusPacket) -> Dict[str, Any]:
-    """Analyze how packet uses the 64-bit format - UPDATED"""
-    # Calculate bit positions and ranges
+    """Analyze how packet uses the 128-bit format."""
     analysis = {
-        'total_bits': 64,
+        'total_bits': 128,
         'field_breakdown': {
-            'pkt_type': {'bits': 4, 'position': '[63:60]', 'value': packet.pkt_type},
-            'protocol': {'bits': 3, 'position': '[59:57]', 'value': packet.protocol},  # ✅ UPDATED
-            'event_code': {'bits': 4, 'position': '[56:53]', 'value': packet.event_code},  # ✅ UPDATED
-            'channel_id': {'bits': 6, 'position': '[52:47]', 'value': packet.channel_id},
-            'unit_id': {'bits': 4, 'position': '[46:43]', 'value': packet.unit_id},
-            'agent_id': {'bits': 8, 'position': '[42:35]', 'value': packet.agent_id},
-            'data': {'bits': 35, 'position': '[34:0]', 'value': packet.data}  # ✅ UPDATED
+            'pkt_type'  : {'bits':  4, 'position': '[127:124]', 'value': packet.pkt_type},
+            'protocol'  : {'bits':  4, 'position': '[108:105]', 'value': packet.protocol},
+            'event_code': {'bits':  8, 'position': '[104: 97]', 'value': packet.event_code},
+            'channel_id': {'bits':  9, 'position': '[ 96: 88]', 'value': packet.channel_id},
+            'agent_id'  : {'bits': 16, 'position': '[ 87: 72]', 'value': packet.agent_id},
+            'unit_id'   : {'bits':  8, 'position': '[ 71: 64]', 'value': packet.unit_id},
+            'data'      : {'bits': 64, 'position': '[ 63:  0]', 'value': packet.data},
         },
         'utilization': {
-            'protocol_utilization': f"{packet.protocol}/7 ({packet.protocol/7*100:.1f}%)",  # ✅ UPDATED
-            'data_utilization': f"0x{packet.data:X} / 0x7FFFFFFFF ({packet.data/0x7FFFFFFFF*100:.1f}%)"  # ✅ UPDATED
+            'protocol_utilization': f"{packet.protocol}/15 ({packet.protocol/15*100:.1f}%)",
+            'data_utilization': f"0x{packet.data:X} / 0xFFFFFFFFFFFFFFFF ({packet.data/((1<<64)-1)*100:.1f}%)"
         },
         'validation': {
             'all_fields_valid': packet.validate_fields(),
             'field_range_errors': validate_packet_field_ranges(packet)
         }
     }
-    
+
     return analysis

@@ -166,8 +166,8 @@ module bridge_1x2_rd_mon (
     output logic [2:0]  m_mon_axil_awprot,
     output logic        m_mon_axil_wvalid,
     input  logic        m_mon_axil_wready,
-    output logic [31:0] m_mon_axil_wdata,
-    output logic [3:0]  m_mon_axil_wstrb,
+    output logic [63:0] m_mon_axil_wdata,
+    output logic [7:0]  m_mon_axil_wstrb,
     input  logic        m_mon_axil_bvalid,
     output logic        m_mon_axil_bready,
     input  logic [1:0]  m_mon_axil_bresp,
@@ -272,20 +272,27 @@ module bridge_1x2_rd_mon (
     // ============================================================
     // Per-wrapper monbus streams (adapter -> arbiter input)
     // ============================================================
-    logic        monbus_cpu_rd_0_rd_valid;
-    logic        monbus_cpu_rd_0_rd_ready;
-    logic [63:0] monbus_cpu_rd_0_rd_packet;
-    logic        monbus_ddr_rd_0_rd_valid;
-    logic        monbus_ddr_rd_0_rd_ready;
-    logic [63:0] monbus_ddr_rd_0_rd_packet;
-    logic        monbus_sram_rd_1_rd_valid;
-    logic        monbus_sram_rd_1_rd_ready;
-    logic [63:0] monbus_sram_rd_1_rd_packet;
+    // Shared free-running timestamp from monbus_axil_group
+    monitor_common_pkg::monbus_timestamp_t mon_time_w;
+
+    logic                                  monbus_cpu_rd_0_rd_valid;
+    logic                                  monbus_cpu_rd_0_rd_ready;
+    monitor_common_pkg::monitor_packet_t   monbus_cpu_rd_0_rd_packet;
+    monitor_common_pkg::monbus_timestamp_t monbus_cpu_rd_0_rd_timestamp;
+    logic                                  monbus_ddr_rd_0_rd_valid;
+    logic                                  monbus_ddr_rd_0_rd_ready;
+    monitor_common_pkg::monitor_packet_t   monbus_ddr_rd_0_rd_packet;
+    monitor_common_pkg::monbus_timestamp_t monbus_ddr_rd_0_rd_timestamp;
+    logic                                  monbus_sram_rd_1_rd_valid;
+    logic                                  monbus_sram_rd_1_rd_ready;
+    monitor_common_pkg::monitor_packet_t   monbus_sram_rd_1_rd_packet;
+    monitor_common_pkg::monbus_timestamp_t monbus_sram_rd_1_rd_timestamp;
 
     // Arbiter output (-> monbus_axil_group input)
-    logic        mon_arb_monbus_valid;
-    logic        mon_arb_monbus_ready;
-    logic [63:0] mon_arb_monbus_packet;
+    logic                                  mon_arb_monbus_valid;
+    logic                                  mon_arb_monbus_ready;
+    monitor_common_pkg::monitor_packet_t   mon_arb_monbus_packet;
+    monitor_common_pkg::monbus_timestamp_t mon_arb_monbus_timestamp;
 
     // ================================================================
     // CPU_RD Adapter
@@ -329,9 +336,11 @@ module bridge_1x2_rd_mon (
         .cpu_rd_32b_rready(cpu_rd_32b_rready),
 
         // Monitor side-band
+        .i_mon_time(mon_time_w),
         .monbus_rd_valid(monbus_cpu_rd_0_rd_valid),
         .monbus_rd_ready(monbus_cpu_rd_0_rd_ready),
         .monbus_rd_packet(monbus_cpu_rd_0_rd_packet),
+        .monbus_rd_timestamp(monbus_cpu_rd_0_rd_timestamp),
         .cfg_rd_monitor_enable(cfg_cpu_rd_0_rd_monitor_enable),
         .cfg_rd_error_enable(cfg_cpu_rd_0_rd_error_enable),
         .cfg_rd_timeout_enable(cfg_cpu_rd_0_rd_timeout_enable),
@@ -480,9 +489,11 @@ module bridge_1x2_rd_mon (
         .rid_valid(ddr_rd_axi_rid_valid),
 
         // Monitor side-band
+        .i_mon_time(mon_time_w),
         .monbus_rd_valid(monbus_ddr_rd_0_rd_valid),
         .monbus_rd_ready(monbus_ddr_rd_0_rd_ready),
         .monbus_rd_packet(monbus_ddr_rd_0_rd_packet),
+        .monbus_rd_timestamp(monbus_ddr_rd_0_rd_timestamp),
         .cfg_rd_monitor_enable(cfg_ddr_rd_0_rd_monitor_enable),
         .cfg_rd_error_enable(cfg_ddr_rd_0_rd_error_enable),
         .cfg_rd_timeout_enable(cfg_ddr_rd_0_rd_timeout_enable),
@@ -555,9 +566,11 @@ module bridge_1x2_rd_mon (
         .rid_valid(sram_rd_axi_rid_valid),
 
         // Monitor side-band
+        .i_mon_time(mon_time_w),
         .monbus_rd_valid(monbus_sram_rd_1_rd_valid),
         .monbus_rd_ready(monbus_sram_rd_1_rd_ready),
         .monbus_rd_packet(monbus_sram_rd_1_rd_packet),
+        .monbus_rd_timestamp(monbus_sram_rd_1_rd_timestamp),
         .cfg_rd_monitor_enable(cfg_sram_rd_1_rd_monitor_enable),
         .cfg_rd_error_enable(cfg_sram_rd_1_rd_error_enable),
         .cfg_rd_timeout_enable(cfg_sram_rd_1_rd_timeout_enable),
@@ -578,18 +591,22 @@ module bridge_1x2_rd_mon (
     // ============================================================
     // Monitor aggregator -- 3 client(s) -> arbiter -> axil_group
     // ============================================================
-    logic        mon_arb_monbus_valid_in [3];
-    logic        mon_arb_monbus_ready_in [3];
-    logic [63:0] mon_arb_monbus_packet_in [3];
-    assign mon_arb_monbus_valid_in[0]  = monbus_cpu_rd_0_rd_valid;
+    logic                                  mon_arb_monbus_valid_in     [3];
+    logic                                  mon_arb_monbus_ready_in     [3];
+    monitor_common_pkg::monitor_packet_t   mon_arb_monbus_packet_in    [3];
+    monitor_common_pkg::monbus_timestamp_t mon_arb_monbus_timestamp_in [3];
+    assign mon_arb_monbus_valid_in[0]     = monbus_cpu_rd_0_rd_valid;
     assign monbus_cpu_rd_0_rd_ready = mon_arb_monbus_ready_in[0];
-    assign mon_arb_monbus_packet_in[0] = monbus_cpu_rd_0_rd_packet;
-    assign mon_arb_monbus_valid_in[1]  = monbus_ddr_rd_0_rd_valid;
+    assign mon_arb_monbus_packet_in[0]    = monbus_cpu_rd_0_rd_packet;
+    assign mon_arb_monbus_timestamp_in[0] = monbus_cpu_rd_0_rd_timestamp;
+    assign mon_arb_monbus_valid_in[1]     = monbus_ddr_rd_0_rd_valid;
     assign monbus_ddr_rd_0_rd_ready = mon_arb_monbus_ready_in[1];
-    assign mon_arb_monbus_packet_in[1] = monbus_ddr_rd_0_rd_packet;
-    assign mon_arb_monbus_valid_in[2]  = monbus_sram_rd_1_rd_valid;
+    assign mon_arb_monbus_packet_in[1]    = monbus_ddr_rd_0_rd_packet;
+    assign mon_arb_monbus_timestamp_in[1] = monbus_ddr_rd_0_rd_timestamp;
+    assign mon_arb_monbus_valid_in[2]     = monbus_sram_rd_1_rd_valid;
     assign monbus_sram_rd_1_rd_ready = mon_arb_monbus_ready_in[2];
-    assign mon_arb_monbus_packet_in[2] = monbus_sram_rd_1_rd_packet;
+    assign mon_arb_monbus_packet_in[2]    = monbus_sram_rd_1_rd_packet;
+    assign mon_arb_monbus_timestamp_in[2] = monbus_sram_rd_1_rd_timestamp;
 
     monbus_arbiter #(
         .CLIENTS            (3),
@@ -598,20 +615,22 @@ module bridge_1x2_rd_mon (
         .INPUT_SKID_DEPTH   (2),
         .OUTPUT_SKID_DEPTH  (2)
     ) u_mon_arbiter (
-        .axi_aclk          (aclk),
-        .axi_aresetn       (aresetn),
-        .block_arb         (1'b0),
-        .monbus_valid_in   (mon_arb_monbus_valid_in),
-        .monbus_ready_in   (mon_arb_monbus_ready_in),
-        .monbus_packet_in  (mon_arb_monbus_packet_in),
-        .monbus_valid      (mon_arb_monbus_valid),
-        .monbus_ready      (mon_arb_monbus_ready),
-        .monbus_packet     (mon_arb_monbus_packet),
+        .axi_aclk            (aclk),
+        .axi_aresetn         (aresetn),
+        .block_arb           (1'b0),
+        .monbus_valid_in     (mon_arb_monbus_valid_in),
+        .monbus_ready_in     (mon_arb_monbus_ready_in),
+        .monbus_packet_in    (mon_arb_monbus_packet_in),
+        .monbus_timestamp_in (mon_arb_monbus_timestamp_in),
+        .monbus_valid        (mon_arb_monbus_valid),
+        .monbus_ready        (mon_arb_monbus_ready),
+        .monbus_packet       (mon_arb_monbus_packet),
+        .monbus_timestamp    (mon_arb_monbus_timestamp),
         /* verilator lint_off PINCONNECTEMPTY */
-        .grant_valid       (),
-        .grant             (),
-        .grant_id          (),
-        .last_grant        ()
+        .grant_valid         (),
+        .grant               (),
+        .grant_id            (),
+        .last_grant          ()
         /* verilator lint_on PINCONNECTEMPTY */
     );
 
@@ -619,15 +638,24 @@ module bridge_1x2_rd_mon (
         .FIFO_DEPTH_ERR    (64),
         .FIFO_DEPTH_WRITE  (32),
         .ADDR_WIDTH        (32),
-        .DATA_WIDTH        (32),
+        .S_AXIL_DATA_WIDTH (32),
+        // M_AXIL_DATA_WIDTH defaults to 64 — module emits two 64-bit beats
+        // per 128-bit packet plus optional timestamp beats per cfg_ts_append_mode.
         .NUM_PROTOCOLS     (3)
     ) u_mon_axil_group (
         .axi_aclk          (aclk),
         .axi_aresetn       (aresetn),
-        // Arbiter output as the single monbus input
+        // Arbiter output as the single monbus input + side-band timestamp
         .monbus_valid      (mon_arb_monbus_valid),
         .monbus_ready      (mon_arb_monbus_ready),
         .monbus_packet     (mon_arb_monbus_packet),
+        .monbus_timestamp  (mon_arb_monbus_timestamp),
+        // Free-running timestamp shared with every wrapper's i_mon_time
+        .mon_time_out      (mon_time_w),
+        // Timestamp append config — default at reset is mode 11 (both ts) per plan §8.6.
+        // Override by surfacing these as bridge top-level inputs in a follow-up.
+        .cfg_ts_append_enable (1'b1),
+        .cfg_ts_append_mode   (2'b11),
         // AXIL slave
         .s_axil_arvalid      (s_mon_axil_arvalid),
         .s_axil_arready      (s_mon_axil_arready),

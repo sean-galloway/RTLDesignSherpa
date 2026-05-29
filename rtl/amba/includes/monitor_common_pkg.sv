@@ -21,25 +21,32 @@
  * protocols including protocol type enumeration, packet type constants,
  * packet structure, and manipulation functions.
  *
- * Key Design Principle:
- * For each protocol, each packet type has exactly 16 event codes (4 bits).
- * This creates a clean categorization where:
- * - packet_type [63:60] defines the category (error, timeout, completion, etc.)
- * - protocol [59:57] defines which protocol (AXI, AXIS, APB, ARB, CORE)
- * - event_code [56:53] defines the specific event within that category
+ * Packet width is locked at 128 bits via MONBUS_PKT_WIDTH (this file).
+ * Side-band timestamp width is locked at 64 bits via MONBUS_TS_WIDTH.
+ * Neither is exposed as a per-module parameter — there's exactly one
+ * packet format and one timestamp format in the codebase.
  */
 package monitor_common_pkg;
 
+    // -------------------------------------------------------------------------
+    // Single source of truth: monitor bus packet + timestamp widths
+    // -------------------------------------------------------------------------
+    // ANY consumer that declares a bus or FIFO holding a packet MUST reference
+    // these localparams, not hard-code 128 / 64. See MON-PKT-64-to-128-plan.md.
+    localparam int MONBUS_PKT_WIDTH = 128;
+    localparam int MONBUS_TS_WIDTH  = 64;
+
     // Protocol type enumeration for multi-protocol support
-    typedef enum logic [2:0] {
-        PROTOCOL_AXI    = 3'b000,
-        PROTOCOL_AXIS   = 3'b001,  // AXI4-Stream
-        PROTOCOL_APB    = 3'b010,  // Advanced Peripheral Bus
-        PROTOCOL_ARB    = 3'b011,  // Arbiter specific packets
-        PROTOCOL_CORE   = 3'b100   // Core specific packets
+    // 4 bits — 16 protocols max
+    typedef enum logic [3:0] {
+        PROTOCOL_AXI    = 4'h0,
+        PROTOCOL_AXIS   = 4'h1,  // AXI4-Stream
+        PROTOCOL_APB    = 4'h2,  // Advanced Peripheral Bus
+        PROTOCOL_ARB    = 4'h3,  // Arbiter specific packets
+        PROTOCOL_CORE   = 4'h4   // Core specific packets
     } protocol_type_t;
 
-    // Monitor bus packet types (used in packet_type field [63:60])
+    // Monitor bus packet types (used in packet_type field [127:124])
     localparam logic [3:0] PktTypeError      = 4'h0;  // Error event
     localparam logic [3:0] PktTypeCompletion = 4'h1;  // Transaction completion
     localparam logic [3:0] PktTypeThreshold  = 4'h2;  // Threshold crossed
@@ -61,55 +68,67 @@ package monitor_common_pkg;
     // MONITOR PACKET STRUCTURE AND HELPER FUNCTIONS
     // =============================================================================
 
-    // Enhanced 64-bit monitor packet format:
-    // [63:60] - packet_type: 4 bits (error, timeout, completion, etc.)
-    // [59:57] - protocol:    3 bits (AXI/AXIS/APB/ARB/CORE)
-    // [56:53] - event_code:  4 bits (specific error or event code)
-    // [52:47] - channel_id:  6 bits (channel ID and AXI ID)
-    // [46:43] - unit_id:     4 bits (subsystem identifier)
-    // [42:35] - agent_id:    8 bits (module identifier)
-    // [34:0]  - event_data:  35 bits (event-specific data)
-    typedef logic [63:0] monitor_packet_t;
+    // 128-bit monitor packet format:
+    // [127:124] - packet_type:  4 bits (error, timeout, completion, etc.)
+    // [123:109] - reserved:    15 bits (forward-compat slack)
+    // [108:105] - protocol:     4 bits (AXI/AXIS/APB/ARB/CORE)
+    // [104: 97] - event_code:   8 bits (specific error or event code)
+    // [ 96: 88] - channel_id:   9 bits (channel ID and AXI ID)
+    // [ 87: 72] - agent_id:    16 bits (module identifier)
+    // [ 71: 64] - unit_id:      8 bits (subsystem identifier)
+    // [ 63:  0] - event_data:  64 bits (event-specific data, full 64-bit address)
+    typedef logic [MONBUS_PKT_WIDTH-1:0] monitor_packet_t;
+
+    // Side-band timestamp paired with each packet through the arbiter to the
+    // monbus_axil_group. Sampled by the wrapper at emission time.
+    typedef logic [MONBUS_TS_WIDTH-1:0]  monbus_timestamp_t;
 
     // Helper functions for monitor packet manipulation
     function automatic logic [3:0] get_packet_type(monitor_packet_t pkt);
-        return pkt[63:60];
+        return pkt[127:124];
+    endfunction
+
+    function automatic logic [14:0] get_reserved(monitor_packet_t pkt);
+        return pkt[123:109];
     endfunction
 
     function automatic protocol_type_t get_protocol_type(monitor_packet_t pkt);
-        return protocol_type_t'(pkt[59:57]);
+        return protocol_type_t'(pkt[108:105]);
     endfunction
 
-    function automatic logic [3:0] get_event_code(monitor_packet_t pkt);
-        return pkt[56:53];
+    function automatic logic [7:0] get_event_code(monitor_packet_t pkt);
+        return pkt[104:97];
     endfunction
 
-    function automatic logic [5:0] get_channel_id(monitor_packet_t pkt);
-        return pkt[52:47];
+    function automatic logic [8:0] get_channel_id(monitor_packet_t pkt);
+        return pkt[96:88];
     endfunction
 
-    function automatic logic [3:0] get_unit_id(monitor_packet_t pkt);
-        return pkt[46:43];
+    function automatic logic [15:0] get_agent_id(monitor_packet_t pkt);
+        return pkt[87:72];
     endfunction
 
-    function automatic logic [7:0] get_agent_id(monitor_packet_t pkt);
-        return pkt[42:35];
+    function automatic logic [7:0] get_unit_id(monitor_packet_t pkt);
+        return pkt[71:64];
     endfunction
 
-    function automatic logic [34:0] get_event_data(monitor_packet_t pkt);
-        return pkt[34:0];
+    function automatic logic [63:0] get_event_data(monitor_packet_t pkt);
+        return pkt[63:0];
     endfunction
 
     function automatic monitor_packet_t create_monitor_packet(
         logic [3:0]     packet_type,
         protocol_type_t protocol,
-        logic [3:0]     event_code,
-        logic [5:0]     channel_id,
-        logic [3:0]     unit_id,
-        logic [7:0]     agent_id,
-        logic [34:0]    event_data
+        logic [7:0]     event_code,
+        logic [8:0]     channel_id,
+        logic [7:0]     unit_id,
+        logic [15:0]    agent_id,
+        logic [63:0]    event_data
     );
-        return {packet_type, protocol, event_code, channel_id, unit_id, agent_id, event_data};
+        // Layout: {packet_type[4], reserved[15], protocol[4], event_code[8],
+        //         channel_id[9], agent_id[16], unit_id[8], event_data[64]}
+        return {packet_type, 15'h0, protocol, event_code,
+                channel_id, agent_id, unit_id, event_data};
     endfunction
 
     // =============================================================================

@@ -19,17 +19,26 @@
  *
  * Mirror of axi_monitor_addr_check for the APB monitor pipeline. Watches
  * the cmd_valid/cmd_ready handshake the apb_monitor already snoops and
- * emits a PktTypeError packet with event code APB_ERR_ADDR_RANGE (4'h8)
+ * emits a PktTypeError packet with event code APB_ERR_ADDR_RANGE (8'h08)
  * when an accepted command's paddr falls within any of N configured
  * [low, high] inclusive ranges.
  *
- * Differences vs the AXI variant:
- *   - protocol field is PROTOCOL_APB (3'b010)
- *   - event_code is APB_ERR_ADDR_RANGE (4'h8)
- *   - channel_id slot in the packet is fixed at 0 (APB has no ID concept)
- *   - is_read flag in event_data reflects cmd_pwrite (0 for read, 1 for write)
- *     — encoded as !cmd_pwrite so the field matches the AXI semantics
- *     (1 = read, 0 = write).
+ * Encoding (128-bit packet, 64-bit event_data):
+ *   - protocol = PROTOCOL_APB (4'h2)
+ *   - event_code = APB_ERR_ADDR_RANGE (8'h08)
+ *   - channel_id = 0 (APB has no ID concept)
+ *   - event_data[63:60] = range_index (4 bits, 16 ranges)
+ *   - event_data[59]    = is_read (1 = read, 0 = write) — kept for APB
+ *   - event_data[58: 0] = cmd_paddr (zero-padded if narrower than 59 bits)
+ *
+ * The is_read bit is preserved here (carve-out from the 60-bit address
+ * slot) because APB has no separate AR/AW channels — the same monitor
+ * sees both directions and consumers need a way to disambiguate. The
+ * AXI variant drops this bit since direction is implied by which
+ * monitor (AR vs AW) emitted the packet.
+ *
+ * Side-band timestamp: same scheme as the AXI variant — sample
+ * `i_mon_time` on emission, drive on `addr_pkt_timestamp`.
  *
  * Set both addr_low[i] and addr_high[i] equal for exact-match semantics.
  */
@@ -39,14 +48,17 @@ module apb_monitor_addr_check
 #(
     parameter int N_ADDR_RANGES = 4,
     parameter int ADDR_WIDTH    = 32,
-    parameter int UNIT_ID       = 4'h0,
-    parameter int AGENT_ID      = 8'h00,
+    parameter logic [7:0]  UNIT_ID  = 8'h00,
+    parameter logic [15:0] AGENT_ID = 16'h0000,
 
     parameter int M = ADDR_WIDTH
 )
 (
     input  logic                                       clk,
     input  logic                                       aresetn,
+
+    // Free-running counter from monbus_axil_group, broadcast to every wrapper
+    input  monbus_timestamp_t                          i_mon_time,
 
     // Snooped APB command stream
     input  logic [M-1:0]                               cmd_paddr,
@@ -63,7 +75,8 @@ module apb_monitor_addr_check
     // Outgoing monbus packet
     output logic                                       addr_pkt_valid,
     input  logic                                       addr_pkt_ready,
-    output logic [63:0]                                addr_pkt_data
+    output monitor_packet_t                            addr_pkt_data,
+    output monbus_timestamp_t                          addr_pkt_timestamp
 );
 
     // -------------------------------------------------------------------------
@@ -91,15 +104,15 @@ module apb_monitor_addr_check
 
     logic [N_ADDR_RANGES-1:0]  emit_oh;
     logic                      emit_any;
-    logic [4:0]                emit_idx;
+    logic [3:0]                emit_idx;
     assign emit_any = |r_pending;
     always_comb begin
         emit_oh  = '0;
-        emit_idx = 5'h0;
+        emit_idx = 4'h0;
         for (int i = 0; i < N_ADDR_RANGES; i++) begin
             if (r_pending[i] && emit_oh == '0) begin
                 emit_oh[i] = 1'b1;
-                emit_idx   = 5'(i);
+                emit_idx   = 4'(i);
             end
         end
     end
@@ -130,15 +143,19 @@ module apb_monitor_addr_check
     )
 
     // -------------------------------------------------------------------------
-    // Pack the emitted packet
+    // Pack the emitted packet (128-bit format, 64-bit event_data)
     // -------------------------------------------------------------------------
+    // event_data[63:60] = range_index (4 bits, 16 ranges)
+    // event_data[59]    = is_read flag
+    // event_data[58: 0] = cmd_paddr (zero-padded if narrower than 59 bits)
     localparam logic [3:0] PKT_TYPE_FIELD = PktTypeError;
-    localparam logic [2:0] PROTOCOL_FIELD = 3'b010;                  // PROTOCOL_APB
-    localparam logic [3:0] EVENT_CODE     = APB_ERR_ADDR_RANGE;      // 4'h8
+    localparam logic [3:0] PROTOCOL_FIELD = PROTOCOL_APB;            // 4'h2
+    localparam logic [7:0] EVENT_CODE     = APB_ERR_ADDR_RANGE;      // 8'h08
 
     logic [M-1:0]  emit_addr;
     logic          emit_is_read;
-    logic [34:0]   event_data_field;
+    logic [63:0]   event_data_field;
+    logic [58:0]   addr_payload;
 
     always_comb begin
         emit_addr    = '0;
@@ -151,16 +168,24 @@ module apb_monitor_addr_check
         end
     end
 
-    assign event_data_field = {emit_idx[4:0], emit_is_read, emit_addr[28:0]};
+    if (M >= 59) begin : g_addr_wide
+        assign addr_payload = emit_addr[58:0];
+    end else begin : g_addr_narrow
+        assign addr_payload = {{(59-M){1'b0}}, emit_addr};
+    end
+
+    assign event_data_field = {emit_idx[3:0], emit_is_read, addr_payload};
 
     assign addr_pkt_data = create_monitor_packet(
         PKT_TYPE_FIELD,
         protocol_type_t'(PROTOCOL_FIELD),
         EVENT_CODE,
-        6'h0,                            // channel_id: APB has no ID
-        UNIT_ID[3:0],
-        AGENT_ID[7:0],
+        9'h0,                            // channel_id: APB has no ID
+        UNIT_ID,
+        AGENT_ID,
         event_data_field
     );
+
+    assign addr_pkt_timestamp = i_mon_time;
 
 endmodule : apb_monitor_addr_check

@@ -309,11 +309,13 @@ module stream_core_mon #(
     output logic                                cfg_sts_data_wr_skid_busy,
 
     //=========================================================================
-    // Unified Monitor Bus Interface
+    // Unified Monitor Bus Interface (128-bit packet + 64-bit side-band ts)
     //=========================================================================
-    output logic                                mon_valid,
-    input  logic                                mon_ready,
-    output logic [63:0]                         mon_packet
+    input  monitor_common_pkg::monbus_timestamp_t   i_mon_time,
+    output logic                                    mon_valid,
+    input  logic                                    mon_ready,
+    output monitor_common_pkg::monitor_packet_t     mon_packet,
+    output monitor_common_pkg::monbus_timestamp_t   mon_timestamp
 );
 
     //=========================================================================
@@ -426,19 +428,22 @@ module stream_core_mon #(
     // Internal Signals - Monitor Bus
     //=========================================================================
     // Scheduler group monitor bus (from scheduler_group_array)
-    logic                        schedgrp_mon_valid;
-    logic                        schedgrp_mon_ready;
-    logic [63:0]                 schedgrp_mon_packet;
+    logic                                     schedgrp_mon_valid;
+    logic                                     schedgrp_mon_ready;
+    monitor_common_pkg::monitor_packet_t      schedgrp_mon_packet;
+    monitor_common_pkg::monbus_timestamp_t    schedgrp_mon_timestamp;
 
     // Read engine monitor bus
-    logic                        axi_rdeng_mon_valid;
-    logic                        axi_rdeng_mon_ready;
-    logic [63:0]                 axi_rdeng_mon_packet;
+    logic                                     axi_rdeng_mon_valid;
+    logic                                     axi_rdeng_mon_ready;
+    monitor_common_pkg::monitor_packet_t      axi_rdeng_mon_packet;
+    monitor_common_pkg::monbus_timestamp_t    axi_rdeng_mon_timestamp;
 
     // Write engine monitor bus
-    logic                        axi_wreng_mon_valid;
-    logic                        axi_wreng_mon_ready;
-    logic [63:0]                 axi_wreng_mon_packet;
+    logic                                     axi_wreng_mon_valid;
+    logic                                     axi_wreng_mon_ready;
+    monitor_common_pkg::monitor_packet_t      axi_wreng_mon_packet;
+    monitor_common_pkg::monbus_timestamp_t    axi_wreng_mon_timestamp;
 
     //=========================================================================
     // Tie-offs for Unused Outputs
@@ -562,10 +567,14 @@ module stream_core_mon #(
         .sched_rd_error         (sched_rd_error),
         .sched_wr_error         (sched_wr_error),
 
+        // Free-running monitor-time broadcast
+        .i_mon_time             (i_mon_time),
+
         // Monitor bus output (scheduler group monitor)
         .mon_valid              (schedgrp_mon_valid),
         .mon_ready              (schedgrp_mon_ready),
-        .mon_packet             (schedgrp_mon_packet)
+        .mon_packet             (schedgrp_mon_packet),
+        .mon_timestamp          (schedgrp_mon_timestamp)
     );
 
     //=========================================================================
@@ -882,10 +891,20 @@ module stream_core_mon #(
         .cfg_axi_addr_mask      (cfg_rdeng_mon_addr_mask),
         .cfg_axi_debug_mask     (cfg_rdeng_mon_debug_mask),
 
-        // Monitor bus
+        // Address-range checker — disabled (default N_ADDR_RANGES=0)
+        .cfg_addr_check_enable  (1'b0),
+        .cfg_addr_range_enable  (1'b0),
+        .cfg_addr_range_low     ('0),
+        .cfg_addr_range_high    ('0),
+
+        // Free-running monitor-time broadcast
+        .i_mon_time             (i_mon_time),
+
+        // Monitor bus (128-bit packet + side-band timestamp)
         .monbus_valid           (axi_rdeng_mon_valid),
         .monbus_ready           (axi_rdeng_mon_ready),
         .monbus_packet          (axi_rdeng_mon_packet),
+        .monbus_timestamp       (axi_rdeng_mon_timestamp),
 
         // Status outputs
         .busy                   (cfg_sts_rdeng_skid_busy),
@@ -1000,10 +1019,20 @@ module stream_core_mon #(
         .cfg_axi_addr_mask      (cfg_wreng_mon_addr_mask),
         .cfg_axi_debug_mask     (cfg_wreng_mon_debug_mask),
 
-        // Monitor bus
+        // Address-range checker — disabled (default N_ADDR_RANGES=0)
+        .cfg_addr_check_enable  (1'b0),
+        .cfg_addr_range_enable  (1'b0),
+        .cfg_addr_range_low     ('0),
+        .cfg_addr_range_high    ('0),
+
+        // Free-running monitor-time broadcast
+        .i_mon_time             (i_mon_time),
+
+        // Monitor bus (128-bit packet + side-band timestamp)
         .monbus_valid           (axi_wreng_mon_valid),
         .monbus_ready           (axi_wreng_mon_ready),
         .monbus_packet          (axi_wreng_mon_packet),
+        .monbus_timestamp       (axi_wreng_mon_timestamp),
 
         // Status outputs
         .busy                   (cfg_sts_wreng_skid_busy),
@@ -1021,6 +1050,24 @@ module stream_core_mon #(
     // 2. Read engine AXI monitor (from axi4_master_rd_mon wrapper)
     // 3. Write engine AXI monitor (from axi4_master_wr_mon wrapper)
 
+    // Unpacked-array wires for the arbiter's per-client inputs.
+    logic                                  arb_valid_in    [3];
+    logic                                  arb_ready_in    [3];
+    monitor_common_pkg::monitor_packet_t   arb_packet_in   [3];
+    monitor_common_pkg::monbus_timestamp_t arb_ts_in       [3];
+    assign arb_valid_in [0] = schedgrp_mon_valid;
+    assign arb_valid_in [1] = axi_rdeng_mon_valid;
+    assign arb_valid_in [2] = axi_wreng_mon_valid;
+    assign schedgrp_mon_ready   = arb_ready_in[0];
+    assign axi_rdeng_mon_ready  = arb_ready_in[1];
+    assign axi_wreng_mon_ready  = arb_ready_in[2];
+    assign arb_packet_in[0] = schedgrp_mon_packet;
+    assign arb_packet_in[1] = axi_rdeng_mon_packet;
+    assign arb_packet_in[2] = axi_wreng_mon_packet;
+    assign arb_ts_in    [0] = schedgrp_mon_timestamp;
+    assign arb_ts_in    [1] = axi_rdeng_mon_timestamp;
+    assign arb_ts_in    [2] = axi_wreng_mon_timestamp;
+
     monbus_arbiter #(
         .CLIENTS            (3),
         .INPUT_SKID_ENABLE  (1),
@@ -1032,15 +1079,17 @@ module stream_core_mon #(
         .axi_aresetn        (rst_n),
         .block_arb          (1'b0),
 
-        // Inputs from three monitor sources
-        .monbus_valid_in    ({axi_wreng_mon_valid, axi_rdeng_mon_valid, schedgrp_mon_valid}),
-        .monbus_ready_in    ({axi_wreng_mon_ready, axi_rdeng_mon_ready, schedgrp_mon_ready}),
-        .monbus_packet_in   ({axi_wreng_mon_packet, axi_rdeng_mon_packet, schedgrp_mon_packet}),
+        // Inputs from three monitor sources (per-client unpacked arrays)
+        .monbus_valid_in     (arb_valid_in),
+        .monbus_ready_in     (arb_ready_in),
+        .monbus_packet_in    (arb_packet_in),
+        .monbus_timestamp_in (arb_ts_in),
 
-        // Aggregated output to top-level
+        // Aggregated output to top-level (with side-band timestamp)
         .monbus_valid       (mon_valid),
         .monbus_ready       (mon_ready),
         .monbus_packet      (mon_packet),
+        .monbus_timestamp   (mon_timestamp),
 
         // Debug/status
         .grant_valid        (),

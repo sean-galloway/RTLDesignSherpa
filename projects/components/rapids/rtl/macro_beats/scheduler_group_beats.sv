@@ -118,10 +118,15 @@ module scheduler_group_beats #(
     input  logic                        sched_rd_error,
     input  logic                        sched_wr_error,
 
-    // Unified Monitor Bus Interface
-    output logic                        mon_valid,
-    input  logic                        mon_ready,
-    output logic [63:0]                 mon_packet
+    // Free-running monitor-time broadcast (forwarded to all sub-reporters
+    // and to the monbus arbiter timestamp side-band).
+    input  monitor_common_pkg::monbus_timestamp_t   i_mon_time,
+
+    // Unified Monitor Bus Interface (128-bit packet + 64-bit side-band timestamp)
+    output logic                                    mon_valid,
+    input  logic                                    mon_ready,
+    output monitor_common_pkg::monitor_packet_t     mon_packet,
+    output monitor_common_pkg::monbus_timestamp_t   mon_timestamp
 );
 
     //=========================================================================
@@ -148,13 +153,17 @@ module scheduler_group_beats #(
     //=========================================================================
     // Use component-specific names to avoid conflicts with external AXI signals
 
-    logic                        desceng_mon_valid;
-    logic                        desceng_mon_ready;
-    logic [63:0]                 desceng_mon_packet;
+    // Underlying *_beats reporters now emit native 128-bit packets and
+    // expose per-packet side-band timestamps. Direct connection — no bridge.
+    logic                                       desceng_mon_valid;
+    logic                                       desceng_mon_ready;
+    monitor_common_pkg::monitor_packet_t        desceng_mon_packet;
+    monitor_common_pkg::monbus_timestamp_t      desceng_mon_timestamp;
 
-    logic                        sched_mon_valid;
-    logic                        sched_mon_ready;
-    logic [63:0]                 sched_mon_packet;
+    logic                                       sched_mon_valid;
+    logic                                       sched_mon_ready;
+    monitor_common_pkg::monitor_packet_t        sched_mon_packet;
+    monitor_common_pkg::monbus_timestamp_t      sched_mon_timestamp;
 
     //=========================================================================
     // Component Instantiations
@@ -162,15 +171,19 @@ module scheduler_group_beats #(
 
     // Single Descriptor Engine Instance
     // Note: descriptor_engine uses FIXED 256-bit descriptors (no DATA_WIDTH parameter)
+    // NOTE: descriptor_engine_beats still has the legacy 4/8/6-bit MON_*
+    // parameter widths and emits a 64-bit packet. Parameter casts are kept
+    // narrow to match its declared widths; the bridge above widens the
+    // packet output to 128 bits for the arbiter.
     descriptor_engine_beats #(
         .CHANNEL_ID             (CHANNEL_ID),
         .NUM_CHANNELS           (NUM_CHANNELS),
         .CHAN_WIDTH             (CHAN_WIDTH),
         .ADDR_WIDTH             (ADDR_WIDTH),
         .AXI_ID_WIDTH           (AXI_ID_WIDTH),
-        .MON_AGENT_ID           (8'(DESC_MON_AGENT_ID)),
-        .MON_UNIT_ID            (4'(MON_UNIT_ID)),
-        .MON_CHANNEL_ID         (6'(MON_CHANNEL_ID))
+        .MON_AGENT_ID           (16'(DESC_MON_AGENT_ID)),
+        .MON_UNIT_ID            (8'(MON_UNIT_ID)),
+        .MON_CHANNEL_ID         (9'(MON_CHANNEL_ID))
     ) u_descriptor_engine (
         .clk                    (clk),
         .rst_n                  (rst_n),
@@ -225,10 +238,12 @@ module scheduler_group_beats #(
         // Status
         .descriptor_engine_idle (descriptor_engine_idle),
 
-        // Monitor bus
+        // Monitor bus (native 128-bit packet + side-band timestamp)
+        .i_mon_time             (i_mon_time),
         .mon_valid              (desceng_mon_valid),
         .mon_ready              (desceng_mon_ready),
-        .mon_packet             (desceng_mon_packet)
+        .mon_packet             (desceng_mon_packet),
+        .mon_timestamp          (desceng_mon_timestamp)
     );
 
     // Single Scheduler Instance (Simplified for RAPIDS Beats Phase 1)
@@ -247,9 +262,9 @@ module scheduler_group_beats #(
         .CHAN_WIDTH             (CHAN_WIDTH),
         .ADDR_WIDTH             (ADDR_WIDTH),
         .DATA_WIDTH             (DATA_WIDTH),
-        .MON_AGENT_ID           (8'(SCHED_MON_AGENT_ID)),
-        .MON_UNIT_ID            (4'(MON_UNIT_ID)),
-        .MON_CHANNEL_ID         (6'(MON_CHANNEL_ID))
+        .MON_AGENT_ID           (16'(SCHED_MON_AGENT_ID)),
+        .MON_UNIT_ID            (8'(MON_UNIT_ID)),
+        .MON_CHANNEL_ID         (9'(MON_CHANNEL_ID))
     ) u_scheduler (
         .clk                    (clk),
         .rst_n                  (rst_n),
@@ -292,10 +307,12 @@ module scheduler_group_beats #(
         .sched_rd_error         (sched_rd_error),
         .sched_wr_error         (sched_wr_error),
 
-        // Monitor bus
+        // Monitor bus (native 128-bit packet + side-band timestamp)
+        .i_mon_time             (i_mon_time),
         .mon_valid              (sched_mon_valid),
         .mon_ready              (sched_mon_ready),
-        .mon_packet             (sched_mon_packet)
+        .mon_packet             (sched_mon_packet),
+        .mon_timestamp          (sched_mon_timestamp)
     );
 
     // Connect scheduler idle to descriptor engine channel_idle input
@@ -315,13 +332,16 @@ module scheduler_group_beats #(
         .axi_aclk               (clk),
         .axi_aresetn            (rst_n),
         .block_arb              (1'b0),
-        // Direct connection to individual signals (2 sources only)
-        .monbus_valid_in        ('{desceng_mon_valid, sched_mon_valid}),
-        .monbus_ready_in        ('{desceng_mon_ready, sched_mon_ready}),
-        .monbus_packet_in       ('{desceng_mon_packet, sched_mon_packet}),
+        // Direct connection to individual signals (2 sources only).
+        // Each client now carries packet + side-band timestamp atomically.
+        .monbus_valid_in        ('{desceng_mon_valid,     sched_mon_valid}),
+        .monbus_ready_in        ('{desceng_mon_ready,     sched_mon_ready}),
+        .monbus_packet_in       ('{desceng_mon_packet,    sched_mon_packet}),
+        .monbus_timestamp_in    ('{desceng_mon_timestamp, sched_mon_timestamp}),
         .monbus_valid           (mon_valid),
         .monbus_ready           (mon_ready),
         .monbus_packet          (mon_packet),
+        .monbus_timestamp       (mon_timestamp),
         .grant_valid            (/* UNUSED */),
         .grant                  (/* UNUSED */),
         .grant_id               (/* UNUSED */),

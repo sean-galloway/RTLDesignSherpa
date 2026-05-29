@@ -235,18 +235,29 @@ class Axi4TimingWrapper:
         'cfg_axi_debug_mask',
     )
 
-    def connect_monbus(self, valid: str, ready: str, packet: str) -> None:
-        """Wire the wrapper's monitor-bus output trio. Only meaningful
-        on `_mon` variants -- non-mon modules have no such ports."""
+    def connect_monbus(self, valid: str, ready: str, packet: str,
+                       timestamp: str, mon_time: str = 'mon_time_w') -> None:
+        """Wire the wrapper's monitor-bus output set. Only meaningful
+        on `_mon` variants -- non-mon modules have no such ports.
+
+        After the 64->128-bit packet widening, every `_mon` wrapper also
+        gets a 64-bit `monbus_timestamp` side-band output (captured by
+        the arbiter alongside the packet) and an `i_mon_time` input that
+        carries the free-running time from monbus_axil_group's
+        `mon_time_out`. The default `mon_time_w` matches the shared net
+        declared by BridgeModuleGenerator._generate_monitor_internal_signals().
+        """
         if '_mon' not in self.module.module_name:
             raise RuntimeError(
                 f"connect_monbus() called on non-mon wrapper "
                 f"{self.module.module_name!r}; caller must gate on mon=True."
             )
         self._sections.append(("Monitor bus output", [
-            ('monbus_valid',  valid),
-            ('monbus_ready',  ready),
-            ('monbus_packet', packet),
+            ('i_mon_time',       mon_time),
+            ('monbus_valid',     valid),
+            ('monbus_ready',     ready),
+            ('monbus_packet',    packet),
+            ('monbus_timestamp', timestamp),
         ]))
 
     def connect_cfg(self, connector_prefix: str) -> None:

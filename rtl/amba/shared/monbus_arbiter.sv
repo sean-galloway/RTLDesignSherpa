@@ -29,13 +29,16 @@ Key Features:
 - ACK mode operation (grants held until acknowledged)
 - Optional input skid buffers per client
 - Optional output skid buffer
-- 64-bit monitor bus packet interface
+- 128-bit monitor bus packet + 64-bit side-band timestamp interface.
+  Both fields ride the same grant cycle via a single skid buffer with
+  DATA_WIDTH = MONBUS_PKT_WIDTH + MONBUS_TS_WIDTH (192 bits per client).
 - Parameterizable number of clients
 
 Interface Mapping:
 - Requests: monbus_valid_in signals from clients
 - Grant ACK: grant && monbus_valid_in (client accepts the grant)
-- Data: monbus_packet_in from winning client passed to output
+- Data: monbus_packet_in + monbus_timestamp_in from winning client
+        passed to output
 
 Parameters:
 - CLIENTS: Number of monitor bus clients
@@ -47,13 +50,19 @@ Parameters:
 ================================================================================
 */
 
-module monbus_arbiter #(
+module monbus_arbiter
+    import monitor_common_pkg::*;
+#(
     parameter int CLIENTS            = 4,
     parameter int INPUT_SKID_ENABLE  = 1,        // Keep as int but convert internally
     parameter int OUTPUT_SKID_ENABLE = 1,        // Keep as int but convert internally
     parameter int INPUT_SKID_DEPTH   = 2,        // Must be one of {2, 4, 6, 8}
     parameter int OUTPUT_SKID_DEPTH  = 2,        // Must be one of {2, 4, 6, 8}
-    parameter int N = $clog2(CLIENTS)
+    parameter int N = $clog2(CLIENTS),
+
+    // Combined (packet + timestamp) width carried atomically through the
+    // skid buffers. Derived from package localparams — not a configurable.
+    parameter int SKID_DATA_WIDTH = MONBUS_PKT_WIDTH + MONBUS_TS_WIDTH
 ) (
     // Global Clock and Reset
     input  logic                    axi_aclk,
@@ -62,15 +71,17 @@ module monbus_arbiter #(
     // Optional block arbitration
     input  logic                    block_arb,
 
-    // Monitor bus inputs from clients
-    input  logic                    monbus_valid_in[CLIENTS],
-    output logic                    monbus_ready_in[CLIENTS],
-    input  logic [63:0]             monbus_packet_in[CLIENTS],
+    // Monitor bus inputs from clients (packet + side-band timestamp)
+    input  logic                    monbus_valid_in     [CLIENTS],
+    output logic                    monbus_ready_in     [CLIENTS],
+    input  monitor_packet_t         monbus_packet_in    [CLIENTS],
+    input  monbus_timestamp_t       monbus_timestamp_in [CLIENTS],
 
-    // Monitor bus output - arbitrated result
+    // Monitor bus output - arbitrated result (packet + side-band timestamp)
     output logic                    monbus_valid,
     input  logic                    monbus_ready,
-    output logic [63:0]             monbus_packet,
+    output monitor_packet_t         monbus_packet,
+    output monbus_timestamp_t       monbus_timestamp,
 
     // Debug/Status outputs
     output logic                    grant_valid,
@@ -90,9 +101,10 @@ module monbus_arbiter #(
     // Internal signals for input skid buffers
     // =======================================================================
 
-    logic                    int_monbus_valid_in[CLIENTS];
-    logic                    int_monbus_ready_in[CLIENTS];
-    logic [63:0]             int_monbus_packet_in[CLIENTS];
+    logic                    int_monbus_valid_in    [CLIENTS];
+    logic                    int_monbus_ready_in    [CLIENTS];
+    monitor_packet_t         int_monbus_packet_in   [CLIENTS];
+    monbus_timestamp_t       int_monbus_timestamp_in[CLIENTS];
 
     // =======================================================================
     // Internal signals for output (before optional output skid buffer)
@@ -100,7 +112,8 @@ module monbus_arbiter #(
 
     logic                    int_monbus_valid;
     logic                    int_monbus_ready;
-    logic [63:0]             int_monbus_packet;
+    monitor_packet_t         int_monbus_packet;
+    monbus_timestamp_t       int_monbus_timestamp;
 
     // =======================================================================
     // Input Skid Buffers (Optional)
@@ -109,18 +122,26 @@ module monbus_arbiter #(
     generate
         for (genvar i = 0; i < CLIENTS; i++) begin : gen_input_skid
             if (INPUT_SKID_EN == 1'b1) begin : gen_input_skid_enabled
+                // Pack {timestamp, packet} into the skid; unpack on the
+                // far side. Same grant cycle multiplexes both atomically.
+                logic [SKID_DATA_WIDTH-1:0] skid_wr_data;
+                logic [SKID_DATA_WIDTH-1:0] skid_rd_data;
+                assign skid_wr_data = {monbus_timestamp_in[i], monbus_packet_in[i]};
+                assign int_monbus_packet_in   [i] = skid_rd_data[MONBUS_PKT_WIDTH-1:0];
+                assign int_monbus_timestamp_in[i] = skid_rd_data[SKID_DATA_WIDTH-1:MONBUS_PKT_WIDTH];
+
                 gaxi_skid_buffer #(
-                    .DATA_WIDTH   (64),
+                    .DATA_WIDTH   (SKID_DATA_WIDTH),
                     .DEPTH        (INPUT_SKID_DEPTH)
                 ) u_input_skid (
                     .axi_aclk     (axi_aclk),
                     .axi_aresetn  (axi_aresetn),
                     .wr_valid     (monbus_valid_in[i]),
                     .wr_ready     (monbus_ready_in[i]),
-                    .wr_data      (monbus_packet_in[i]),
+                    .wr_data      (skid_wr_data),
                     .rd_valid     (int_monbus_valid_in[i]),
                     .rd_ready     (int_monbus_ready_in[i]),
-                    .rd_data      (int_monbus_packet_in[i]),
+                    .rd_data      (skid_rd_data),
                     /* verilator lint_off PINCONNECTEMPTY */
                     .count        (), // Unused
                     .rd_count     ()  // Unused
@@ -128,9 +149,10 @@ module monbus_arbiter #(
                 );
             end else begin : gen_input_skid_disabled
                 // Direct connection when skid buffer disabled
-                assign int_monbus_valid_in[i]  = monbus_valid_in[i];
-                assign monbus_ready_in[i]      = int_monbus_ready_in[i];
-                assign int_monbus_packet_in[i] = monbus_packet_in[i];
+                assign int_monbus_valid_in    [i] = monbus_valid_in[i];
+                assign monbus_ready_in        [i] = int_monbus_ready_in[i];
+                assign int_monbus_packet_in   [i] = monbus_packet_in[i];
+                assign int_monbus_timestamp_in[i] = monbus_timestamp_in[i];
             end
         end
     endgenerate
@@ -193,13 +215,15 @@ module monbus_arbiter #(
     // Output Multiplexer
     // =======================================================================
 
-    // Select data from the granted client
+    // Select data from the granted client (packet + side-band timestamp)
     always_comb begin
-        int_monbus_valid  = grant_valid;
-        int_monbus_packet = '0;  // Default to zero
+        int_monbus_valid     = grant_valid;
+        int_monbus_packet    = '0;
+        int_monbus_timestamp = '0;
 
         if (grant_valid) begin
-            int_monbus_packet = int_monbus_packet_in[grant_id];
+            int_monbus_packet    = int_monbus_packet_in   [grant_id];
+            int_monbus_timestamp = int_monbus_timestamp_in[grant_id];
         end
     end
 
@@ -209,18 +233,24 @@ module monbus_arbiter #(
 
     generate
         if (OUTPUT_SKID_EN == 1'b1) begin : gen_output_skid_enabled
+            logic [SKID_DATA_WIDTH-1:0] out_skid_wr_data;
+            logic [SKID_DATA_WIDTH-1:0] out_skid_rd_data;
+            assign out_skid_wr_data = {int_monbus_timestamp, int_monbus_packet};
+            assign monbus_packet    = out_skid_rd_data[MONBUS_PKT_WIDTH-1:0];
+            assign monbus_timestamp = out_skid_rd_data[SKID_DATA_WIDTH-1:MONBUS_PKT_WIDTH];
+
             gaxi_skid_buffer #(
-                .DATA_WIDTH   (64),
+                .DATA_WIDTH   (SKID_DATA_WIDTH),
                 .DEPTH        (OUTPUT_SKID_DEPTH)
             ) u_output_skid (
                 .axi_aclk     (axi_aclk),
                 .axi_aresetn  (axi_aresetn),
                 .wr_valid     (int_monbus_valid),
                 .wr_ready     (int_monbus_ready),
-                .wr_data      (int_monbus_packet),
+                .wr_data      (out_skid_wr_data),
                 .rd_valid     (monbus_valid),
                 .rd_ready     (monbus_ready),
-                .rd_data      (monbus_packet),
+                .rd_data      (out_skid_rd_data),
                 /* verilator lint_off PINCONNECTEMPTY */
                 .count        (), // Unused
                 .rd_count     ()  // Unused
@@ -231,6 +261,7 @@ module monbus_arbiter #(
             assign monbus_valid     = int_monbus_valid;
             assign int_monbus_ready = monbus_ready;
             assign monbus_packet    = int_monbus_packet;
+            assign monbus_timestamp = int_monbus_timestamp;
         end
     endgenerate
 

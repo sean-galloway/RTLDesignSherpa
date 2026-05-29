@@ -24,8 +24,8 @@ module formal_axi_monitor_filtered (
     // =========================================================================
     // Parameters (small for tractability)
     // =========================================================================
-    localparam integer UNIT_ID          = 1;
-    localparam integer AGENT_ID         = 10;
+    localparam [7:0]   UNIT_ID  = 8'h01;
+    localparam [15:0]  AGENT_ID = 16'h000A;
     localparam integer MAX_TRANSACTIONS = 2;
     localparam integer ADDR_WIDTH       = 16;
     localparam integer ID_WIDTH         = 4;
@@ -74,15 +74,19 @@ module formal_axi_monitor_filtered (
     (* anyseq *) reg [15:0]           cfg_axi_debug_mask;
     (* anyseq *) reg                  monbus_ready;
 
+    // Broadcast monitor time
+    (* anyseq *) reg [63:0] i_mon_time;
+
     // =========================================================================
-    // DUT outputs
+    // DUT outputs (128-bit packet + 64-bit side-band timestamp)
     // =========================================================================
-    wire        monbus_valid;
-    wire [63:0] monbus_packet;
-    wire        block_ready;
-    wire        busy;
-    wire [7:0]  active_count;
-    wire        cfg_conflict_error;
+    wire         monbus_valid;
+    wire [127:0] monbus_packet;
+    wire [63:0]  monbus_timestamp;
+    wire         block_ready;
+    wire         busy;
+    wire [7:0]   active_count;
+    wire         cfg_conflict_error;
 
     // =========================================================================
     // DUT instantiation
@@ -102,6 +106,7 @@ module formal_axi_monitor_filtered (
     ) dut (
         .aclk                       (clk),
         .aresetn                    (rst_n),
+        .i_mon_time                 (i_mon_time),
         .cmd_addr                   (cmd_addr),
         .cmd_id                     (cmd_id),
         .cmd_len                    (cmd_len),
@@ -144,6 +149,7 @@ module formal_axi_monitor_filtered (
         .monbus_valid               (monbus_valid),
         .monbus_ready               (monbus_ready),
         .monbus_packet              (monbus_packet),
+        .monbus_timestamp           (monbus_timestamp),
         .block_ready                (block_ready),
         .busy                       (busy),
         .active_count               (active_count),

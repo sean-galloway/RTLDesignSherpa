@@ -28,6 +28,8 @@ module formal_apb5_monitor (
     localparam int BUW = 1;
     localparam int MAX_TRANS = 2;
     localparam int FIFO_DEPTH = 4;
+    localparam logic [7:0]  UNIT_ID  = 8'h01;
+    localparam logic [15:0] AGENT_ID = 16'h000A;
 
     // =========================================================================
     // Free inputs
@@ -70,11 +72,15 @@ module formal_apb5_monitor (
 
     (* anyseq *) reg              monbus_ready;
 
+    // Broadcast monitor time
+    (* anyseq *) reg [63:0]       i_mon_time;
+
     // =========================================================================
     // DUT outputs
     // =========================================================================
     wire              monbus_valid;
-    wire [63:0]       monbus_packet;
+    wire [127:0]      monbus_packet;
+    wire [63:0]       monbus_timestamp;
     wire [7:0]        active_count;
     wire [15:0]       error_count;
     wire [31:0]       transaction_count;
@@ -90,14 +96,15 @@ module formal_apb5_monitor (
         .WUSER_WIDTH        (WUW),
         .RUSER_WIDTH        (RUW),
         .BUSER_WIDTH        (BUW),
-        .UNIT_ID            (1),
-        .AGENT_ID           (10),
+        .UNIT_ID            (UNIT_ID),
+        .AGENT_ID           (AGENT_ID),
         .MAX_TRANSACTIONS   (MAX_TRANS),
         .MONITOR_FIFO_DEPTH (FIFO_DEPTH),
         .ENABLE_PARITY_MON  (0)
     ) dut (
         .aclk                   (clk),
         .aresetn                (rst_n),
+        .i_mon_time             (i_mon_time),
         .cmd_valid              (cmd_valid),
         .cmd_ready              (cmd_ready),
         .cmd_pwrite             (cmd_pwrite),
@@ -133,6 +140,7 @@ module formal_apb5_monitor (
         .monbus_valid           (monbus_valid),
         .monbus_ready           (monbus_ready),
         .monbus_packet          (monbus_packet),
+        .monbus_timestamp       (monbus_timestamp),
         .active_count           (active_count),
         .error_count            (error_count),
         .transaction_count      (transaction_count),
@@ -160,7 +168,7 @@ module formal_apb5_monitor (
     // P2: monbus_packet protocol field is APB when valid
     always @(posedge clk) begin
         if (rst_n && monbus_valid)
-            ap_protocol_apb: assert (monbus_packet[59:57] == 3'b010);
+            ap_protocol_apb: assert (monbus_packet[108:105] == 4'h2);
     end
 
     // P3: monbus_valid handshake -- once asserted, held until ready
@@ -179,7 +187,7 @@ module formal_apb5_monitor (
             cp_cmd_handshake:  cover (cmd_valid && cmd_ready);
             cp_rsp_handshake:  cover (rsp_valid && rsp_ready);
             cp_wakeup_rising:  cover (apb5_pwakeup && wakeup_active);
-            cp_error_event:    cover (monbus_valid && monbus_packet[63:60] == 4'h0);
+            cp_error_event:    cover (monbus_valid && monbus_packet[127:124] == 4'h0);
         end
     end
 

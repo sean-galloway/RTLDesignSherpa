@@ -93,16 +93,16 @@ package rapids_pkg;
     //=========================================================================
     // NOTE: PktType* and PROTOCOL_* constants are imported from monitor_common_pkg
     // via rapids_imports.svh. Do NOT redefine them here to avoid conflicts.
-    // Uses standard 64-bit MonBus format from monitor_pkg
-    parameter logic [3:0] RAPIDS_EVENT_DESC_START     = 4'h0;  // Descriptor started
-    parameter logic [3:0] RAPIDS_EVENT_DESC_COMPLETE  = 4'h1;  // Descriptor completed
-    parameter logic [3:0] RAPIDS_EVENT_READ_START     = 4'h2;  // Read phase started
-    parameter logic [3:0] RAPIDS_EVENT_READ_COMPLETE  = 4'h3;  // Read phase completed
-    parameter logic [3:0] RAPIDS_EVENT_WRITE_START    = 4'h4;  // Write phase started
-    parameter logic [3:0] RAPIDS_EVENT_WRITE_COMPLETE = 4'h5;  // Write phase completed
-    parameter logic [3:0] RAPIDS_EVENT_CHAIN_FETCH    = 4'h6;  // Chained descriptor fetch
-    parameter logic [3:0] RAPIDS_EVENT_IRQ            = 4'h7;  // Interrupt request generated
-    parameter logic [3:0] RAPIDS_EVENT_ERROR          = 4'hF;  // Error occurred
+    // Uses standard 128-bit MonBus format (event_code is 8 bits [104:97]).
+    parameter logic [7:0] RAPIDS_EVENT_DESC_START     = 8'h00;  // Descriptor started
+    parameter logic [7:0] RAPIDS_EVENT_DESC_COMPLETE  = 8'h01;  // Descriptor completed
+    parameter logic [7:0] RAPIDS_EVENT_READ_START     = 8'h02;  // Read phase started
+    parameter logic [7:0] RAPIDS_EVENT_READ_COMPLETE  = 8'h03;  // Read phase completed
+    parameter logic [7:0] RAPIDS_EVENT_WRITE_START    = 8'h04;  // Write phase started
+    parameter logic [7:0] RAPIDS_EVENT_WRITE_COMPLETE = 8'h05;  // Write phase completed
+    parameter logic [7:0] RAPIDS_EVENT_CHAIN_FETCH    = 8'h06;  // Chained descriptor fetch
+    parameter logic [7:0] RAPIDS_EVENT_IRQ            = 8'h07;  // Interrupt request generated
+    parameter logic [7:0] RAPIDS_EVENT_ERROR          = 8'h0F;  // Error occurred
 
     //=========================================================================
     // Transfer Phase Enumeration

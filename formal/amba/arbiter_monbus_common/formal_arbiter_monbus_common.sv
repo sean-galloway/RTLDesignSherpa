@@ -56,11 +56,15 @@ module formal_arbiter_monbus_common #(
 
     logic                monbus_ready;
 
+    // Broadcast monitor time
+    logic [63:0]         i_mon_time;
+
     // =========================================================================
-    // DUT outputs
+    // DUT outputs (128-bit packet + 64-bit side-band timestamp)
     // =========================================================================
     logic                monbus_valid;
-    logic [63:0]         monbus_packet;
+    logic [127:0]        monbus_packet;
+    logic [63:0]         monbus_timestamp;
     logic [$clog2(MON_FIFO_DEPTH):0] debug_fifo_count;
     logic [15:0]         debug_packet_count;
     logic [CLIENTS-1:0]  debug_ack_timeout;
@@ -77,8 +81,8 @@ module formal_arbiter_monbus_common #(
         .CLIENTS                 (CLIENTS),
         .WAIT_GNT_ACK            (0),
         .WEIGHTED_MODE           (0),
-        .MON_AGENT_ID            (8'h10),
-        .MON_UNIT_ID             (4'h0),
+        .MON_AGENT_ID            (16'h0010),
+        .MON_UNIT_ID             (8'h00),
         .MON_FIFO_DEPTH          (MON_FIFO_DEPTH),
         .MON_FIFO_ALMOST_MARGIN  (1),
         .FAIRNESS_REPORT_CYCLES  (32),
@@ -102,9 +106,11 @@ module formal_arbiter_monbus_common #(
         .cfg_mon_ack_timeout_thresh(cfg_mon_ack_timeout_thresh),
         .cfg_mon_efficiency_thresh (cfg_mon_efficiency_thresh),
         .cfg_mon_sample_period     (cfg_mon_sample_period),
+        .i_mon_time                (i_mon_time),
         .monbus_valid              (monbus_valid),
         .monbus_ready              (monbus_ready),
         .monbus_packet             (monbus_packet),
+        .monbus_timestamp          (monbus_timestamp),
         .debug_fifo_count          (debug_fifo_count),
         .debug_packet_count        (debug_packet_count),
         .debug_ack_timeout         (debug_ack_timeout),
@@ -210,10 +216,11 @@ module formal_arbiter_monbus_common #(
             ap_reset_packet_count: assert (debug_packet_count == 16'h0);
     end
 
-    // P10: monbus_packet protocol field is always PROTOCOL_ARB (3'b011) when valid
+    // P10: monbus_packet protocol field is always PROTOCOL_ARB (4'h3) when valid
+    //      (bits [108:105] in the 128-bit packet)
     always @(posedge clk) begin
         if (rst_n && monbus_valid)
-            ap_protocol_arb: assert (monbus_packet[59:57] == 3'b011);
+            ap_protocol_arb: assert (monbus_packet[108:105] == 4'h3);
     end
 
     // =========================================================================

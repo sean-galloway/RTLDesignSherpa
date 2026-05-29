@@ -32,9 +32,9 @@ module sink_axi_write_engine #(
     parameter int CHUNKS_PER_BEAT = 16,
     // Monitor Bus Parameters
     /* verilator lint_off WIDTHTRUNC */
-    parameter logic [7:0] MON_AGENT_ID = 8'h50,
-    parameter logic [3:0] MON_UNIT_ID = 4'h1,
-    parameter logic [5:0] MON_CHANNEL_ID = 6'h0
+    parameter logic [15:0] MON_AGENT_ID  = 16'h0050,  // 16-bit agent ID (128-bit packet)
+    parameter logic [7:0]  MON_UNIT_ID   = 8'h01,     // 8-bit unit ID
+    parameter logic [8:0]  MON_CHANNEL_ID = 9'h000    // 9-bit base channel ID
     /* verilator lint_on WIDTHTRUNC */
 ) (
     // Clock and Reset
@@ -108,15 +108,27 @@ module sink_axi_write_engine #(
     output logic                        engine_busy,
     output logic [15:0]                 outstanding_count,
 
-    // Monitor Bus Interface
-    output logic                        mon_valid,
-    input  logic                        mon_ready,
-    output logic [63:0]                 mon_packet
+    // Monitor Bus Interface (128-bit packet + 64-bit side-band timestamp)
+    input  monitor_common_pkg::monbus_timestamp_t  i_mon_time,
+    output logic                                   mon_valid,
+    input  logic                                   mon_ready,
+    output monitor_common_pkg::monitor_packet_t    mon_packet,
+    output monitor_common_pkg::monbus_timestamp_t  mon_timestamp
 );
 
     //=========================================================================
     // Pure Pipeline Architecture - No FSM!
     //=========================================================================
+
+    //=========================================================================
+    // Forward declarations for signals used across pipeline stages
+    //=========================================================================
+    // These pipeline-handshake wires are driven by the AXI address/data/resp
+    // stages below but referenced by the channel arbiter above for grant_ack
+    // release. Strict declare-before-use tools (Cadence, the repo pre-commit
+    // hook) require the declarations here.
+    logic w_address_accepted;
+    logic w_data_complete;
 
     //=========================================================================
     // Channel Arbitration (Pure Combinational)
@@ -229,7 +241,7 @@ module sink_axi_write_engine #(
     end
 
     // IMMEDIATE AXI Address Issue (same cycle as arbitration!)
-    logic w_address_accepted;
+    // w_address_accepted forward-declared near top of module.
     assign aw_valid = w_grant_valid;  // Issue address immediately when granted
     assign aw_addr = w_current_addr;
     assign aw_len = w_current_burst_len - 1;  // AXI length encoding
@@ -276,8 +288,8 @@ module sink_axi_write_engine #(
     end
 
     // Beat counter for burst tracking
+    // w_data_complete forward-declared near top of module.
     logic [7:0] r_beat_count;
-    logic w_data_complete;
 
     always_ff @(posedge clk) begin
         if (!rst_n) begin
@@ -429,46 +441,52 @@ module sink_axi_write_engine #(
 
     // Simple monitor packet generation - FIXED: Use correct monitor constants and widths
     logic r_mon_valid;
-    logic [63:0] r_mon_packet;
+    monitor_common_pkg::monitor_packet_t   r_mon_packet;
+    monitor_common_pkg::monbus_timestamp_t r_mon_timestamp;
 
     always_ff @(posedge clk) begin
         if (!rst_n) begin
-            r_mon_valid <= 1'b0;
-            r_mon_packet <= 64'h0;
+            r_mon_valid     <= 1'b0;
+            r_mon_packet    <= '0;
+            r_mon_timestamp <= '0;
         end else begin
-            r_mon_valid <= 1'b0;  // Default
+            r_mon_valid  <= 1'b0;  // Default
+            r_mon_packet <= '0;
 
-            // Monitor address acceptance - FIXED: Use correct constants and exact 35-bit width
+            // Monitor address acceptance
             if (w_address_accepted) begin
-                r_mon_valid <= 1'b1;
-                r_mon_packet <= create_monitor_packet(
-                    PktTypePerf,                    // FIXED: Use correct constant name
+                r_mon_valid     <= 1'b1;
+                r_mon_packet    <= create_monitor_packet(
+                    PktTypePerf,
                     PROTOCOL_AXI,
-                    AXI_PERF_ADDR_LATENCY,         // FIXED: Use existing constant
+                    AXI_PERF_ADDR_LATENCY,
                     MON_CHANNEL_ID,
                     MON_UNIT_ID,
                     MON_AGENT_ID,
-                    35'({8'h0, w_current_burst_len, 12'h0, w_grant_id})  // FIXED: Explicit 35-bit width
+                    64'({8'h0, w_current_burst_len, 12'h0, w_grant_id})
                 );
+                r_mon_timestamp <= i_mon_time;
             end
-            // Monitor completion - FIXED: Use correct constants and exact 35-bit width
+            // Monitor completion
             else if (|data_done_strobe) begin
-                r_mon_valid <= 1'b1;
-                r_mon_packet <= create_monitor_packet(
+                r_mon_valid     <= 1'b1;
+                r_mon_packet    <= create_monitor_packet(
                     PktTypeCompletion,
                     PROTOCOL_AXI,
-                    AXI_COMPL_WRITE_COMPLETE,      // FIXED: Use existing constant
+                    AXI_COMPL_WRITE_COMPLETE,
                     MON_CHANNEL_ID,
                     MON_UNIT_ID,
                     MON_AGENT_ID,
-                    35'h0                           // FIXED: Explicit 35-bit zero
+                    64'h0
                 );
+                r_mon_timestamp <= i_mon_time;
             end
         end
     end
 
     assign mon_valid = r_mon_valid;
-    assign mon_packet = r_mon_packet;
+    assign mon_packet    = r_mon_packet;
+    assign mon_timestamp = r_mon_timestamp;
 
     //=========================================================================
     // Performance Analysis Comments

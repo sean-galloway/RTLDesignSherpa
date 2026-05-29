@@ -183,11 +183,14 @@ def test_monbus_axil_group(request, test_type, fifo_depth_err, fifo_depth_write,
     os.makedirs(sim_build, exist_ok=True)
     os.makedirs(log_dir, exist_ok=True)
 
+    # The monbus_axil_group module split DATA_WIDTH into S_AXIL_DATA_WIDTH
+    # (slave / IRQ-status side, stays 32) and M_AXIL_DATA_WIDTH (master /
+    # packet-log side, defaults to 64 for the 128-bit packet).
     rtl_parameters = {
         'FIFO_DEPTH_ERR': fifo_depth_err,
         'FIFO_DEPTH_WRITE': fifo_depth_write,
         'ADDR_WIDTH': addr_width,
-        'DATA_WIDTH': data_width,
+        'S_AXIL_DATA_WIDTH': data_width,
         'NUM_PROTOCOLS': num_protocols,
     }
 

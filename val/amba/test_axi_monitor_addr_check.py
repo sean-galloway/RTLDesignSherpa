@@ -13,8 +13,9 @@
 # formal/amba/axi_monitor_addr_check/). This test verifies wrapper
 # integration: that with N_ADDR_RANGES=2 the parameters and config inputs
 # reach the comparator, and an AR address that lands in a configured
-# range produces a PktTypeError + AXI_ERR_ADDR_RANGE (4'hD) packet on
-# monbus with the correct range_index, is_read, and address fields.
+# range produces a PktTypeError + AXI_ERR_ADDR_RANGE (8'h0D) packet on
+# monbus with the correct range_index and address fields. (is_read was
+# dropped from the AXI variant — implied by the IS_READ build param.)
 
 import os
 import random
@@ -31,18 +32,24 @@ from TBClasses.shared.utilities import get_paths
 # Packet decoder
 # ============================================================================
 def decode_monbus(pkt):
-    """Decode a 64-bit monbus packet into a dict per the modern layout."""
+    """Decode a 128-bit monbus packet into a dict per the new layout.
+
+    AXI addr_check encoding inside event_data[63:0]:
+      [63:60] range_index (4 bits, 16 ranges)
+      [59: 0] full cmd_addr (zero-padded if address narrower)
+    The is_read flag is no longer encoded in the AXI variant — it's
+    implied by the IS_READ parameter on the monitor instance.
+    """
     return {
-        'packet_type': (pkt >> 60) & 0xF,
-        'protocol':    (pkt >> 57) & 0x7,
-        'event_code':  (pkt >> 53) & 0xF,
-        'channel_id':  (pkt >> 47) & 0x3F,
-        'unit_id':     (pkt >> 43) & 0xF,
-        'agent_id':    (pkt >> 35) & 0xFF,
-        'range_index': (pkt >> 30) & 0x1F,
-        'is_read':     (pkt >> 29) & 0x1,
-        'addr':        pkt & 0x1FFFFFFF,
-        'raw':         pkt,
+        'packet_type': (pkt >> 124) & 0xF,
+        'protocol':    (pkt >> 105) & 0xF,
+        'event_code':  (pkt >>  97) & 0xFF,
+        'channel_id':  (pkt >>  88) & 0x1FF,
+        'agent_id':    (pkt >>  72) & 0xFFFF,
+        'unit_id':     (pkt >>  64) & 0xFF,
+        'range_index': (pkt >>  60) & 0xF,
+        'addr':         pkt         & ((1 << 60) - 1),
+        'raw':          pkt,
     }
 
 
@@ -97,6 +104,10 @@ async def axi_monitor_addr_check_test(dut):
     dut.cfg_axi_perf_mask.value      = 0xFFFF
     dut.cfg_axi_addr_mask.value      = 0
     dut.cfg_axi_debug_mask.value     = 0xFFFF
+
+    # Free-running monitor-time broadcast (driven externally in real use;
+    # tie low for this test — it's the side-band timestamp, not the packet).
+    dut.i_mon_time.value             = 0
 
     # Address-range checker config:
     #   range 0 : [0x1000, 0x1FFF]  inclusive
@@ -184,35 +195,33 @@ async def axi_monitor_addr_check_test(dut):
         await RisingEdge(dut.aclk)
 
     # --- Verify ------------------------------------------------------------
-    # Filter to addr-range packets only
+    # Filter to addr-range packets only (event_code is now 8 bits: 0x0D)
     range_pkts = [
         (cyc, p) for (cyc, p) in captured
-        if p['packet_type'] == 0 and p['event_code'] == 0xD
+        if p['packet_type'] == 0 and p['event_code'] == 0x0D
     ]
 
     dut._log.info(f"Captured {len(captured)} monbus packets total")
     for cyc, p in captured:
         dut._log.info(f"  cyc={cyc} pkt_type={p['packet_type']:#x} "
-                      f"evcode={p['event_code']:#x} range={p['range_index']} "
-                      f"is_read={p['is_read']} addr={p['addr']:#010x}")
+                      f"evcode={p['event_code']:#04x} range={p['range_index']} "
+                      f"addr={p['addr']:#010x}")
 
     assert len(range_pkts) == 2, (
         f"Expected exactly 2 ADDR_RANGE packets, got {len(range_pkts)}. "
         f"All packets: {captured}"
     )
 
-    # First range hit: address 0x1200, range 0, is_read=1
+    # First range hit: address 0x1200, range 0
     cyc0, pkt0 = range_pkts[0]
     assert pkt0['protocol']    == 0,         f"protocol expected AXI(0), got {pkt0['protocol']}"
-    assert pkt0['event_code']  == 0xD,       f"event_code expected ADDR_RANGE(0xD), got {pkt0['event_code']:#x}"
+    assert pkt0['event_code']  == 0x0D,      f"event_code expected ADDR_RANGE(0x0D), got {pkt0['event_code']:#04x}"
     assert pkt0['range_index'] == 0,         f"range_index expected 0, got {pkt0['range_index']}"
-    assert pkt0['is_read']     == 1,         f"is_read expected 1, got {pkt0['is_read']}"
     assert pkt0['addr']        == 0x1200,    f"addr expected 0x1200, got {pkt0['addr']:#x}"
 
-    # Second range hit: address 0x8000, range 1, is_read=1
+    # Second range hit: address 0x8000, range 1
     cyc1, pkt1 = range_pkts[1]
     assert pkt1['range_index'] == 1,         f"range_index expected 1, got {pkt1['range_index']}"
-    assert pkt1['is_read']     == 1,         f"is_read expected 1, got {pkt1['is_read']}"
     assert pkt1['addr']        == 0x8000,    f"addr expected 0x8000, got {pkt1['addr']:#x}"
 
     dut._log.info(f"PASS: 2 ADDR_RANGE packets at cycles {cyc0} and {cyc1}")

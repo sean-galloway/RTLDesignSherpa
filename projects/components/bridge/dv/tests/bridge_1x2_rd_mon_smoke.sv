@@ -104,6 +104,13 @@ module bridge_1x2_rd_mon_smoke (
     // Drives bvalid one cycle after the W handshake completes so the
     // axil4_master_wr FSM inside monbus_axil_group can drain any
     // packets if monitoring is ever enabled mid-test.
+    //
+    // Post-MON-PKT-64-to-128: monbus_axil_group's master AXIL is now
+    // 64-bit data / 8-bit wstrb (M_AXIL_DATA_WIDTH=64) -- the bridge top
+    // surfaces matching widths. The tie-off below leaves wdata/wstrb
+    // unconnected (`()`) so it is width-agnostic and remains correct;
+    // no internal/loopback memory is wired to the master here, so no
+    // explicit widening is required in this wrapper.
     logic m_mon_axil_awvalid;
     logic m_mon_axil_wvalid;
     logic m_mon_axil_bready;

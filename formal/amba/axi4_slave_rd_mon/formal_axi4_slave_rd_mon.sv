@@ -30,6 +30,8 @@ module formal_axi4_slave_rd_mon (
     localparam integer UW = 1;
     localparam integer SW = DW / 8;
     localparam integer MAX_TRANSACTIONS = 2;
+    localparam logic [7:0]  UNIT_ID  = 8'h02;
+    localparam logic [15:0] AGENT_ID = 16'h0014;
 
     // =========================================================================
     // Free inputs -- slave-side AXI (s_axi_*)
@@ -79,6 +81,9 @@ module formal_axi4_slave_rd_mon (
     // Free inputs -- monbus downstream
     (* anyseq *) reg           monbus_ready;
 
+    // Broadcast monitor time
+    (* anyseq *) reg [63:0]    i_mon_time;
+
     // =========================================================================
     // DUT outputs
     // =========================================================================
@@ -103,7 +108,8 @@ module formal_axi4_slave_rd_mon (
     wire                fub_axi_arvalid;
     wire                fub_axi_rready;
     wire                monbus_valid;
-    wire [63:0]         monbus_packet;
+    wire [127:0]        monbus_packet;
+    wire [63:0]         monbus_timestamp;
     wire                busy;
     wire [7:0]          active_transactions;
     wire [15:0]         error_count;
@@ -120,14 +126,15 @@ module formal_axi4_slave_rd_mon (
         .AXI_ADDR_WIDTH     (AW),
         .AXI_DATA_WIDTH     (DW),
         .AXI_USER_WIDTH     (UW),
-        .UNIT_ID            (2),
-        .AGENT_ID           (20),
+        .UNIT_ID            (UNIT_ID),
+        .AGENT_ID           (AGENT_ID),
         .MAX_TRANSACTIONS   (MAX_TRANSACTIONS),
         .ENABLE_FILTERING   (1),
         .ADD_PIPELINE_STAGE (0)
     ) dut (
         .aclk                   (clk),
         .aresetn                (rst_n),
+        .i_mon_time             (i_mon_time),
         // Slave side (input)
         .s_axi_arid             (s_axi_arid),
         .s_axi_araddr           (s_axi_araddr),
@@ -191,6 +198,7 @@ module formal_axi4_slave_rd_mon (
         .monbus_valid           (monbus_valid),
         .monbus_ready           (monbus_ready),
         .monbus_packet          (monbus_packet),
+        .monbus_timestamp       (monbus_timestamp),
         // Status
         .busy                   (busy),
         .active_transactions    (active_transactions),
@@ -246,11 +254,11 @@ module formal_axi4_slave_rd_mon (
     end
 
     // =========================================================================
-    // P3: Protocol field is AXI (3'b000) when monbus_valid
+    // P3: Protocol field is AXI (4'h0) when monbus_valid
     // =========================================================================
     always @(posedge clk) begin
         if (rst_n && monbus_valid)
-            ap_protocol_axi: assert (monbus_packet[59:57] == 3'b000);
+            ap_protocol_axi: assert (monbus_packet[108:105] == 4'h0);
     end
 
     // =========================================================================

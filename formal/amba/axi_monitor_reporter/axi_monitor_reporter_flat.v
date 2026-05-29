@@ -315,14 +315,14 @@ module axi_monitor_reporter (
 	reg _sv2v_0;
 	parameter signed [31:0] MAX_TRANSACTIONS = 16;
 	parameter signed [31:0] ADDR_WIDTH = 32;
-	parameter signed [31:0] UNIT_ID = 9;
-	parameter signed [31:0] AGENT_ID = 99;
+	parameter [7:0] UNIT_ID = 8'h09;
+	parameter [15:0] AGENT_ID = 16'h0063;
 	parameter [0:0] IS_READ = 1'b1;
 	parameter [0:0] ENABLE_PERF_PACKETS = 1'b0;
 	parameter signed [31:0] INTR_FIFO_DEPTH = 8;
 	input wire aclk;
 	input wire aresetn;
-	input wire [(MAX_TRANSACTIONS * 281) - 1:0] trans_table;
+	input wire [(MAX_TRANSACTIONS * 285) - 1:0] trans_table;
 	input wire [MAX_TRANSACTIONS - 1:0] timeout_detected;
 	input wire cfg_error_enable;
 	input wire cfg_compl_enable;
@@ -332,24 +332,24 @@ module axi_monitor_reporter (
 	input wire cfg_debug_enable;
 	input wire monbus_ready;
 	output reg monbus_valid;
-	output reg [63:0] monbus_packet;
+	localparam signed [31:0] monitor_common_pkg_MONBUS_PKT_WIDTH = 128;
+	output reg [127:0] monbus_packet;
 	output wire [15:0] event_count;
 	output wire [15:0] perf_completed_count;
 	output wire [15:0] perf_error_count;
 	input wire [15:0] active_trans_threshold;
 	input wire [31:0] latency_threshold;
 	output wire [MAX_TRANSACTIONS - 1:0] event_reported_flags;
-	reg [(MAX_TRANSACTIONS * 281) - 1:0] r_trans_table_local;
+	reg [(MAX_TRANSACTIONS * 285) - 1:0] r_trans_table_local;
 	reg [MAX_TRANSACTIONS - 1:0] r_event_reported;
 	assign event_reported_flags = r_event_reported;
-	localparam signed [31:0] ADDR_PAD_WIDTH = (ADDR_WIDTH <= 38 ? 38 - ADDR_WIDTH : 0);
-	localparam [0:0] ADDR_NEEDS_TRUNCATE = ADDR_WIDTH > 38;
-	function automatic [37:0] pad_address;
-		input reg [ADDR_WIDTH - 1:0] addr;
-		if (ADDR_NEEDS_TRUNCATE)
-			pad_address = addr[37:0];
-		else
-			pad_address = {{ADDR_PAD_WIDTH {1'b0}}, addr};
+	function automatic [63:0] sv2v_cast_64;
+		input reg [63:0] inp;
+		sv2v_cast_64 = inp;
+	endfunction
+	function automatic [63:0] pad_address;
+		input reg [31:0] addr;
+		pad_address = sv2v_cast_64(addr);
 	endfunction
 	reg r_active_threshold_crossed;
 	reg r_latency_threshold_crossed;
@@ -362,14 +362,14 @@ module axi_monitor_reporter (
 	reg [2:0] r_perf_report_state;
 	reg w_fifo_wr_valid;
 	wire w_fifo_wr_ready;
-	reg [51:0] w_fifo_wr_data;
+	reg [84:0] w_fifo_wr_data;
 	wire w_fifo_rd_valid;
 	wire w_fifo_rd_ready;
-	wire [51:0] w_fifo_rd_data;
+	wire [84:0] w_fifo_rd_data;
 	wire [$clog2(INTR_FIFO_DEPTH):0] w_fifo_count;
 	gaxi_fifo_sync #(
 		.REGISTERED(1),
-		.DATA_WIDTH(52),
+		.DATA_WIDTH(85),
 		.DEPTH(INTR_FIFO_DEPTH),
 		.ALMOST_WR_MARGIN(1),
 		.ALMOST_RD_MARGIN(1)
@@ -385,9 +385,9 @@ module axi_monitor_reporter (
 		.rd_data(w_fifo_rd_data)
 	);
 	reg [3:0] r_packet_type;
-	reg [3:0] r_event_code;
-	reg [37:0] r_event_data;
-	reg [5:0] r_event_channel;
+	reg [7:0] r_event_code;
+	reg [63:0] r_event_data;
+	reg [8:0] r_event_channel;
 	reg [MAX_TRANSACTIONS - 1:0] w_error_events_detected;
 	reg [MAX_TRANSACTIONS - 1:0] w_timeout_events_detected;
 	reg [MAX_TRANSACTIONS - 1:0] w_completion_events_detected;
@@ -407,6 +407,8 @@ module axi_monitor_reporter (
 	reg w_has_latency_event;
 	reg [31:0] w_total_latency;
 	reg [31:0] w_selected_latency_value;
+	reg [31:0] r_latency [0:MAX_TRANSACTIONS - 1];
+	reg [MAX_TRANSACTIONS - 1:0] r_latency_over_thresh;
 	reg w_generate_perf_packet_completed;
 	reg w_generate_perf_packet_errors;
 	reg [2:0] w_next_perf_report_state;
@@ -419,7 +421,7 @@ module axi_monitor_reporter (
 		begin : sv2v_autoblock_1
 			reg signed [31:0] idx;
 			for (idx = 0; idx < MAX_TRANSACTIONS; idx = idx + 1)
-				if (((r_trans_table_local[(((MAX_TRANSACTIONS - 1) - idx) * 281) + 280] && !r_event_reported[idx]) && cfg_error_enable) && (((r_trans_table_local[(((MAX_TRANSACTIONS - 1) - idx) * 281) + 273-:3] == 3'h4) && !timeout_detected[idx]) || (r_trans_table_local[(((MAX_TRANSACTIONS - 1) - idx) * 281) + 273-:3] == 3'h5)))
+				if (((r_trans_table_local[(((MAX_TRANSACTIONS - 1) - idx) * 285) + 284] && !r_event_reported[idx]) && cfg_error_enable) && (((r_trans_table_local[(((MAX_TRANSACTIONS - 1) - idx) * 285) + 277-:3] == 3'h4) && !timeout_detected[idx]) || (r_trans_table_local[(((MAX_TRANSACTIONS - 1) - idx) * 285) + 277-:3] == 3'h5)))
 					w_error_events_detected[idx] = 1'b1;
 		end
 		begin : sv2v_autoblock_2
@@ -440,7 +442,7 @@ module axi_monitor_reporter (
 		begin : sv2v_autoblock_3
 			reg signed [31:0] idx;
 			for (idx = 0; idx < MAX_TRANSACTIONS; idx = idx + 1)
-				if ((((r_trans_table_local[(((MAX_TRANSACTIONS - 1) - idx) * 281) + 280] && !r_event_reported[idx]) && (r_trans_table_local[(((MAX_TRANSACTIONS - 1) - idx) * 281) + 273-:3] == 3'h4)) && cfg_timeout_enable) && timeout_detected[idx])
+				if ((((r_trans_table_local[(((MAX_TRANSACTIONS - 1) - idx) * 285) + 284] && !r_event_reported[idx]) && (r_trans_table_local[(((MAX_TRANSACTIONS - 1) - idx) * 285) + 277-:3] == 3'h4)) && cfg_timeout_enable) && timeout_detected[idx])
 					w_timeout_events_detected[idx] = 1'b1;
 		end
 		begin : sv2v_autoblock_4
@@ -461,7 +463,7 @@ module axi_monitor_reporter (
 		begin : sv2v_autoblock_5
 			reg signed [31:0] idx;
 			for (idx = 0; idx < MAX_TRANSACTIONS; idx = idx + 1)
-				if (((r_trans_table_local[(((MAX_TRANSACTIONS - 1) - idx) * 281) + 280] && !r_event_reported[idx]) && (r_trans_table_local[(((MAX_TRANSACTIONS - 1) - idx) * 281) + 273-:3] == 3'h3)) && cfg_compl_enable)
+				if (((r_trans_table_local[(((MAX_TRANSACTIONS - 1) - idx) * 285) + 284] && !r_event_reported[idx]) && (r_trans_table_local[(((MAX_TRANSACTIONS - 1) - idx) * 285) + 277-:3] == 3'h3)) && cfg_compl_enable)
 					w_completion_events_detected[idx] = 1'b1;
 		end
 		begin : sv2v_autoblock_6
@@ -473,7 +475,7 @@ module axi_monitor_reporter (
 				end
 		end
 	end
-	localparam [3:0] monitor_amba4_pkg_EVT_TRANS_COMPLETE = 4'h0;
+	localparam [7:0] monitor_amba4_pkg_EVT_TRANS_COMPLETE = 8'h00;
 	localparam [3:0] monitor_common_pkg_PktTypeCompletion = 4'h1;
 	localparam [3:0] monitor_common_pkg_PktTypeError = 4'h0;
 	localparam [3:0] monitor_common_pkg_PktTypeTimeout = 4'h3;
@@ -481,27 +483,27 @@ module axi_monitor_reporter (
 		if (_sv2v_0)
 			;
 		w_fifo_wr_valid = 1'b0;
-		w_fifo_wr_data = 52'b0000000000000000000000000000000000000000000000000000;
+		w_fifo_wr_data = 85'b0000000000000000000000000000000000000000000000000000000000000000000000000000000000000;
 		if (w_has_error_event) begin
 			w_fifo_wr_valid = 1'b1;
-			w_fifo_wr_data[51-:4] = monitor_common_pkg_PktTypeError;
-			w_fifo_wr_data[47-:4] = r_trans_table_local[(((MAX_TRANSACTIONS - 1) - w_selected_error_idx) * 281) + 3-:4];
-			w_fifo_wr_data[43-:6] = r_trans_table_local[(((MAX_TRANSACTIONS - 1) - w_selected_error_idx) * 281) + 217-:6];
-			w_fifo_wr_data[37-:38] = pad_address(r_trans_table_local[(((MAX_TRANSACTIONS - 1) - w_selected_error_idx) * 281) + 270-:32]);
+			w_fifo_wr_data[84-:4] = monitor_common_pkg_PktTypeError;
+			w_fifo_wr_data[80-:8] = r_trans_table_local[(((MAX_TRANSACTIONS - 1) - w_selected_error_idx) * 285) + 7-:8];
+			w_fifo_wr_data[72-:9] = {3'b000, r_trans_table_local[(((MAX_TRANSACTIONS - 1) - w_selected_error_idx) * 285) + 221-:6]};
+			w_fifo_wr_data[63-:64] = pad_address(r_trans_table_local[(((MAX_TRANSACTIONS - 1) - w_selected_error_idx) * 285) + 274-:32]);
 		end
 		else if (w_has_timeout_event) begin
 			w_fifo_wr_valid = 1'b1;
-			w_fifo_wr_data[51-:4] = monitor_common_pkg_PktTypeTimeout;
-			w_fifo_wr_data[47-:4] = r_trans_table_local[(((MAX_TRANSACTIONS - 1) - w_selected_timeout_idx) * 281) + 3-:4];
-			w_fifo_wr_data[43-:6] = r_trans_table_local[(((MAX_TRANSACTIONS - 1) - w_selected_timeout_idx) * 281) + 217-:6];
-			w_fifo_wr_data[37-:38] = pad_address(r_trans_table_local[(((MAX_TRANSACTIONS - 1) - w_selected_timeout_idx) * 281) + 270-:32]);
+			w_fifo_wr_data[84-:4] = monitor_common_pkg_PktTypeTimeout;
+			w_fifo_wr_data[80-:8] = r_trans_table_local[(((MAX_TRANSACTIONS - 1) - w_selected_timeout_idx) * 285) + 7-:8];
+			w_fifo_wr_data[72-:9] = {3'b000, r_trans_table_local[(((MAX_TRANSACTIONS - 1) - w_selected_timeout_idx) * 285) + 221-:6]};
+			w_fifo_wr_data[63-:64] = pad_address(r_trans_table_local[(((MAX_TRANSACTIONS - 1) - w_selected_timeout_idx) * 285) + 274-:32]);
 		end
 		else if (w_has_completion_event) begin
 			w_fifo_wr_valid = 1'b1;
-			w_fifo_wr_data[51-:4] = monitor_common_pkg_PktTypeCompletion;
-			w_fifo_wr_data[47-:4] = monitor_amba4_pkg_EVT_TRANS_COMPLETE;
-			w_fifo_wr_data[43-:6] = r_trans_table_local[(((MAX_TRANSACTIONS - 1) - w_selected_completion_idx) * 281) + 217-:6];
-			w_fifo_wr_data[37-:38] = pad_address(r_trans_table_local[(((MAX_TRANSACTIONS - 1) - w_selected_completion_idx) * 281) + 270-:32]);
+			w_fifo_wr_data[84-:4] = monitor_common_pkg_PktTypeCompletion;
+			w_fifo_wr_data[80-:8] = monitor_amba4_pkg_EVT_TRANS_COMPLETE;
+			w_fifo_wr_data[72-:9] = {3'b000, r_trans_table_local[(((MAX_TRANSACTIONS - 1) - w_selected_completion_idx) * 285) + 221-:6]};
+			w_fifo_wr_data[63-:64] = pad_address(r_trans_table_local[(((MAX_TRANSACTIONS - 1) - w_selected_completion_idx) * 285) + 274-:32]);
 		end
 	end
 	assign w_fifo_rd_ready = monbus_ready && monbus_valid;
@@ -514,12 +516,12 @@ module axi_monitor_reporter (
 		begin : sv2v_autoblock_7
 			reg signed [31:0] idx;
 			for (idx = 0; idx < MAX_TRANSACTIONS; idx = idx + 1)
-				if (r_trans_table_local[(((MAX_TRANSACTIONS - 1) - idx) * 281) + 280]) begin
-					if ((((((r_trans_table_local[(((MAX_TRANSACTIONS - 1) - idx) * 281) + 273-:3] == 3'h4) || (r_trans_table_local[(((MAX_TRANSACTIONS - 1) - idx) * 281) + 273-:3] == 3'h5)) || (r_trans_table_local[(((MAX_TRANSACTIONS - 1) - idx) * 281) + 273-:3] == 3'h3)) && !r_event_reported[idx]) && w_fifo_wr_valid) && w_fifo_wr_ready) begin
+				if (r_trans_table_local[(((MAX_TRANSACTIONS - 1) - idx) * 285) + 284]) begin
+					if ((((((r_trans_table_local[(((MAX_TRANSACTIONS - 1) - idx) * 285) + 277-:3] == 3'h4) || (r_trans_table_local[(((MAX_TRANSACTIONS - 1) - idx) * 285) + 277-:3] == 3'h5)) || (r_trans_table_local[(((MAX_TRANSACTIONS - 1) - idx) * 285) + 277-:3] == 3'h3)) && !r_event_reported[idx]) && w_fifo_wr_valid) && w_fifo_wr_ready) begin
 						w_events_to_mark[idx] = 1'b1;
-						if ((r_trans_table_local[(((MAX_TRANSACTIONS - 1) - idx) * 281) + 273-:3] == 3'h4) || (r_trans_table_local[(((MAX_TRANSACTIONS - 1) - idx) * 281) + 273-:3] == 3'h5))
+						if ((r_trans_table_local[(((MAX_TRANSACTIONS - 1) - idx) * 285) + 277-:3] == 3'h4) || (r_trans_table_local[(((MAX_TRANSACTIONS - 1) - idx) * 285) + 277-:3] == 3'h5))
 							w_error_events[idx] = 1'b1;
-						else if (r_trans_table_local[(((MAX_TRANSACTIONS - 1) - idx) * 281) + 273-:3] == 3'h3)
+						else if (r_trans_table_local[(((MAX_TRANSACTIONS - 1) - idx) * 285) + 277-:3] == 3'h3)
 							w_completion_events[idx] = 1'b1;
 					end
 				end
@@ -532,7 +534,7 @@ module axi_monitor_reporter (
 		begin : sv2v_autoblock_8
 			reg signed [31:0] idx;
 			for (idx = 0; idx < MAX_TRANSACTIONS; idx = idx + 1)
-				if ((r_trans_table_local[(((MAX_TRANSACTIONS - 1) - idx) * 281) + 280] && (r_trans_table_local[(((MAX_TRANSACTIONS - 1) - idx) * 281) + 273-:3] != 3'h3)) && (r_trans_table_local[(((MAX_TRANSACTIONS - 1) - idx) * 281) + 273-:3] != 3'h4))
+				if ((r_trans_table_local[(((MAX_TRANSACTIONS - 1) - idx) * 285) + 284] && (r_trans_table_local[(((MAX_TRANSACTIONS - 1) - idx) * 285) + 277-:3] != 3'h3)) && (r_trans_table_local[(((MAX_TRANSACTIONS - 1) - idx) * 285) + 277-:3] != 3'h4))
 					w_active_count_current = w_active_count_current + 1'b1;
 		end
 		w_active_threshold_detection = ((({8'h00, w_active_count_current} > active_trans_threshold) && !r_active_threshold_crossed) && !monbus_valid) && (w_fifo_rd_valid == 0);
@@ -545,19 +547,8 @@ module axi_monitor_reporter (
 		w_has_latency_event = 1'b0;
 		w_total_latency = 1'sb0;
 		if ((ENABLE_PERF_PACKETS && cfg_perf_enable) && cfg_threshold_enable) begin
+			w_latency_threshold_events = r_latency_over_thresh;
 			begin : sv2v_autoblock_9
-				reg signed [31:0] idx;
-				for (idx = 0; idx < MAX_TRANSACTIONS; idx = idx + 1)
-					if (r_trans_table_local[(((MAX_TRANSACTIONS - 1) - idx) * 281) + 280] && (r_trans_table_local[(((MAX_TRANSACTIONS - 1) - idx) * 281) + 273-:3] == 3'h3)) begin
-						if (IS_READ)
-							w_total_latency = r_trans_table_local[(((MAX_TRANSACTIONS - 1) - idx) * 281) + 83-:32] - r_trans_table_local[(((MAX_TRANSACTIONS - 1) - idx) * 281) + 115-:32];
-						else
-							w_total_latency = r_trans_table_local[(((MAX_TRANSACTIONS - 1) - idx) * 281) + 51-:32] - r_trans_table_local[(((MAX_TRANSACTIONS - 1) - idx) * 281) + 115-:32];
-						if ((w_total_latency > latency_threshold) && !r_latency_threshold_crossed)
-							w_latency_threshold_events[idx] = 1'b1;
-					end
-			end
-			begin : sv2v_autoblock_10
 				reg signed [31:0] idx;
 				for (idx = 0; idx < MAX_TRANSACTIONS; idx = idx + 1)
 					if (w_latency_threshold_events[idx] && !w_has_latency_event) begin
@@ -571,12 +562,8 @@ module axi_monitor_reporter (
 		if (_sv2v_0)
 			;
 		w_selected_latency_value = 1'sb0;
-		if (w_has_latency_event) begin
-			if (IS_READ)
-				w_selected_latency_value = r_trans_table_local[(((MAX_TRANSACTIONS - 1) - w_selected_latency_idx) * 281) + 83-:32] - r_trans_table_local[(((MAX_TRANSACTIONS - 1) - w_selected_latency_idx) * 281) + 115-:32];
-			else
-				w_selected_latency_value = r_trans_table_local[(((MAX_TRANSACTIONS - 1) - w_selected_latency_idx) * 281) + 51-:32] - r_trans_table_local[(((MAX_TRANSACTIONS - 1) - w_selected_latency_idx) * 281) + 115-:32];
-		end
+		if (w_has_latency_event)
+			w_selected_latency_value = r_latency[w_selected_latency_idx];
 	end
 	always @(*) begin
 		if (_sv2v_0)
@@ -602,12 +589,12 @@ module axi_monitor_reporter (
 				default: w_next_perf_report_state = 3'h0;
 			endcase
 	end
-	localparam [3:0] monitor_amba4_pkg_EVT_NONE = 4'h0;
+	localparam [7:0] monitor_amba4_pkg_EVT_NONE = 8'h00;
 	localparam [3:0] monitor_common_pkg_PktTypePerf = 4'h4;
 	localparam [3:0] monitor_common_pkg_PktTypeThreshold = 4'h2;
 	always @(posedge aclk)
 		if (!aresetn) begin
-			r_trans_table_local <= {MAX_TRANSACTIONS {281'b0}};
+			r_trans_table_local <= {MAX_TRANSACTIONS {285'b0}};
 			monbus_valid <= 1'b0;
 			r_event_count <= 1'sb0;
 			r_event_reported <= 1'sb0;
@@ -615,6 +602,12 @@ module axi_monitor_reporter (
 			r_perf_error_count <= 1'sb0;
 			r_active_threshold_crossed <= 1'b0;
 			r_latency_threshold_crossed <= 1'b0;
+			begin : sv2v_autoblock_10
+				reg signed [31:0] idx;
+				for (idx = 0; idx < MAX_TRANSACTIONS; idx = idx + 1)
+					r_latency[idx] <= 1'sb0;
+			end
+			r_latency_over_thresh <= 1'sb0;
 			r_packet_type <= monitor_common_pkg_PktTypeError;
 			r_event_code <= monitor_amba4_pkg_EVT_NONE;
 			r_event_data <= 1'sb0;
@@ -625,22 +618,35 @@ module axi_monitor_reporter (
 			begin : sv2v_autoblock_11
 				reg signed [31:0] idx;
 				for (idx = 0; idx < MAX_TRANSACTIONS; idx = idx + 1)
-					r_trans_table_local[((MAX_TRANSACTIONS - 1) - idx) * 281+:281] <= trans_table[((MAX_TRANSACTIONS - 1) - idx) * 281+:281];
+					r_trans_table_local[((MAX_TRANSACTIONS - 1) - idx) * 285+:285] <= trans_table[((MAX_TRANSACTIONS - 1) - idx) * 285+:285];
+			end
+			begin : sv2v_autoblock_12
+				reg signed [31:0] idx;
+				for (idx = 0; idx < MAX_TRANSACTIONS; idx = idx + 1)
+					begin : g_lat
+						reg [31:0] lat;
+						if (IS_READ)
+							lat = trans_table[(((MAX_TRANSACTIONS - 1) - idx) * 285) + 87-:32] - trans_table[(((MAX_TRANSACTIONS - 1) - idx) * 285) + 119-:32];
+						else
+							lat = trans_table[(((MAX_TRANSACTIONS - 1) - idx) * 285) + 55-:32] - trans_table[(((MAX_TRANSACTIONS - 1) - idx) * 285) + 119-:32];
+						r_latency[idx] <= lat;
+						r_latency_over_thresh[idx] <= ((trans_table[(((MAX_TRANSACTIONS - 1) - idx) * 285) + 284] && (trans_table[(((MAX_TRANSACTIONS - 1) - idx) * 285) + 277-:3] == 3'h3)) && (lat > latency_threshold)) && !r_latency_threshold_crossed;
+					end
 			end
 			if (monbus_valid && monbus_ready)
 				monbus_valid <= 1'b0;
 			if (!monbus_valid && w_fifo_rd_valid) begin
 				monbus_valid <= 1'b1;
-				r_packet_type <= w_fifo_rd_data[51-:4];
-				r_event_code <= w_fifo_rd_data[47-:4];
-				r_event_data <= w_fifo_rd_data[37-:38];
-				r_event_channel <= w_fifo_rd_data[43-:6];
+				r_packet_type <= w_fifo_rd_data[84-:4];
+				r_event_code <= w_fifo_rd_data[80-:8];
+				r_event_data <= w_fifo_rd_data[63-:64];
+				r_event_channel <= w_fifo_rd_data[72-:9];
 			end
-			begin : sv2v_autoblock_12
+			begin : sv2v_autoblock_13
 				reg signed [31:0] idx;
 				for (idx = 0; idx < MAX_TRANSACTIONS; idx = idx + 1)
 					begin
-						if (!r_trans_table_local[(((MAX_TRANSACTIONS - 1) - idx) * 281) + 280])
+						if (!r_trans_table_local[(((MAX_TRANSACTIONS - 1) - idx) * 285) + 284])
 							r_event_reported[idx] <= 1'b0;
 						else if (w_events_to_mark[idx]) begin
 							r_event_reported[idx] <= 1'b1;
@@ -658,8 +664,8 @@ module axi_monitor_reporter (
 				if (w_active_threshold_detection) begin
 					monbus_valid <= 1'b1;
 					r_packet_type <= monitor_common_pkg_PktTypeThreshold;
-					r_event_code <= 4'h0;
-					r_event_data <= {30'h00000000, w_active_count_current};
+					r_event_code <= 8'h00;
+					r_event_data <= sv2v_cast_64(w_active_count_current);
 					r_event_channel <= 1'sb0;
 					r_active_threshold_crossed <= 1'b1;
 					r_event_count <= r_event_count + 1'b1;
@@ -669,9 +675,9 @@ module axi_monitor_reporter (
 				if ((w_has_latency_event && !monbus_valid) && (w_fifo_rd_valid == 0)) begin
 					monbus_valid <= 1'b1;
 					r_packet_type <= monitor_common_pkg_PktTypeThreshold;
-					r_event_code <= 4'h1;
+					r_event_code <= 8'h01;
 					r_event_data <= pad_address(w_selected_latency_value);
-					r_event_channel <= r_trans_table_local[(((MAX_TRANSACTIONS - 1) - w_selected_latency_idx) * 281) + 217-:6];
+					r_event_channel <= {3'b000, r_trans_table_local[(((MAX_TRANSACTIONS - 1) - w_selected_latency_idx) * 285) + 221-:6]};
 					r_latency_threshold_crossed <= 1'b1;
 					r_event_count <= r_event_count + 1'b1;
 				end
@@ -679,29 +685,33 @@ module axi_monitor_reporter (
 			if (w_generate_perf_packet_completed) begin
 				monbus_valid <= 1'b1;
 				r_packet_type <= monitor_common_pkg_PktTypePerf;
-				r_event_code <= 4'h7;
-				r_event_data <= {22'h000000, r_perf_completed_count};
+				r_event_code <= 8'h07;
+				r_event_data <= sv2v_cast_64(r_perf_completed_count);
 				r_event_channel <= 1'sb0;
 			end
 			if (w_generate_perf_packet_errors) begin
 				monbus_valid <= 1'b1;
 				r_packet_type <= monitor_common_pkg_PktTypePerf;
-				r_event_code <= 4'h8;
-				r_event_data <= {22'h000000, r_perf_error_count};
+				r_event_code <= 8'h08;
+				r_event_data <= sv2v_cast_64(r_perf_error_count);
 				r_event_channel <= 1'sb0;
 			end
 			r_perf_report_state <= w_next_perf_report_state;
 		end
+	function automatic [127:0] monitor_common_pkg_create_monitor_packet;
+		input reg [3:0] packet_type;
+		input reg [3:0] protocol;
+		input reg [7:0] event_code;
+		input reg [8:0] channel_id;
+		input reg [7:0] unit_id;
+		input reg [15:0] agent_id;
+		input reg [63:0] event_data;
+		monitor_common_pkg_create_monitor_packet = {packet_type, 15'h0000, protocol, event_code, channel_id, agent_id, unit_id, event_data};
+	endfunction
 	always @(*) begin
 		if (_sv2v_0)
 			;
-		monbus_packet[63:60] = r_packet_type;
-		monbus_packet[59:57] = 3'b000;
-		monbus_packet[56:53] = r_event_code;
-		monbus_packet[52:47] = r_event_channel;
-		monbus_packet[46:43] = UNIT_ID[3:0];
-		monbus_packet[42:35] = AGENT_ID[7:0];
-		monbus_packet[34:0] = r_event_data[34:0];
+		monbus_packet = monitor_common_pkg_create_monitor_packet(r_packet_type, 4'h0, r_event_code, r_event_channel, UNIT_ID, AGENT_ID, r_event_data);
 	end
 	initial _sv2v_0 = 0;
 endmodule

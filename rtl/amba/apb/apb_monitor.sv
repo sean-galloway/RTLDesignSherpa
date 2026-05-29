@@ -36,9 +36,8 @@ module apb_monitor
     parameter int N_ADDR_RANGES       = 0,     // 0 = address-range checker disabled
     parameter int ADDR_WIDTH          = 32,
     parameter int DATA_WIDTH          = 32,
-    // Literals sized to 32 bits for Verilator int-parameter width check
-    parameter int UNIT_ID             = 32'd1,     // 4-bit Unit ID
-    parameter int AGENT_ID            = 32'd10,    // 8-bit Agent ID
+    parameter logic [7:0]  UNIT_ID    = 8'h01,     // 8-bit Unit ID
+    parameter logic [15:0] AGENT_ID   = 16'h000A,  // 16-bit Agent ID
     parameter int MAX_TRANSACTIONS    = 4,     // APB is typically single outstanding
     parameter int MONITOR_FIFO_DEPTH  = 8,    // Monitor packet FIFO depth
 
@@ -95,10 +94,14 @@ module apb_monitor
     input  logic [(N_ADDR_RANGES > 0 ? N_ADDR_RANGES : 1)-1:0][AW-1:0]        cfg_addr_range_low,
     input  logic [(N_ADDR_RANGES > 0 ? N_ADDR_RANGES : 1)-1:0][AW-1:0]        cfg_addr_range_high,
 
-    // Consolidated 64-bit event packet interface (monitor bus)
-    output logic                     monbus_valid,            // Monitor bus valid
-    input  logic                     monbus_ready,            // Monitor bus ready
-    output logic [63:0]              monbus_packet,           // Consolidated monitor packet
+    // Free-running monitor-time broadcast from monbus_axil_group
+    input  monitor_common_pkg::monbus_timestamp_t   i_mon_time,
+
+    // Consolidated 128-bit event packet interface (monitor bus)
+    output logic                                    monbus_valid,            // Monitor bus valid
+    input  logic                                    monbus_ready,            // Monitor bus ready
+    output monitor_common_pkg::monitor_packet_t     monbus_packet,           // Consolidated monitor packet (128-bit)
+    output monitor_common_pkg::monbus_timestamp_t   monbus_timestamp,        // Side-band sampled time
 
     // Status outputs
     output logic [7:0]               active_count,            // Number of active transactions
@@ -597,32 +600,34 @@ module apb_monitor
     // Monitor Bus Packet Construction and Skid Buffer Output
     // -------------------------------------------------------------------------
 
-    // Monitor bus packet construction and buffering
-    logic                w_monbus_pkt_valid;
-    logic                w_monbus_pkt_ready;
-    logic [63:0]         w_monbus_pkt_data;
+    // Monitor bus packet construction and buffering (128-bit packet + 64-bit ts)
+    logic                                    w_monbus_pkt_valid;
+    logic                                    w_monbus_pkt_ready;
+    monitor_common_pkg::monitor_packet_t     w_monbus_pkt_data;
+    monitor_common_pkg::monbus_timestamp_t   w_monbus_pkt_ts;
 
-    // FIFO-side packet (reconstructed from monitor_entry_t)
-    logic [63:0]         w_fifo_pkt_data;
+    // FIFO-side packet (reconstructed from monitor_entry_t into the 128-bit layout)
+    monitor_common_pkg::monitor_packet_t     w_fifo_pkt_data;
 
-    // Construct 64-bit monitor packet according to modern monitor_pkg format
-    assign w_fifo_pkt_data[63:60] = w_fifo_rd_data.packet_type;    // packet_type
-    assign w_fifo_pkt_data[59:57] = PROTOCOL_APB;                  // protocol (3-bit, modern format)
-    assign w_fifo_pkt_data[56:53] = w_fifo_rd_data.event_code;     // event_code (shifted due to 3-bit protocol)
-    assign w_fifo_pkt_data[52:47] = 6'h0;                          // channel_id (not used for APB, shifted)
-    assign w_fifo_pkt_data[46:43] = UNIT_ID[3:0];                  // unit_id (shifted)
-    assign w_fifo_pkt_data[42:35] = AGENT_ID[7:0];                 // agent_id (shifted)
-    assign w_fifo_pkt_data[34:3]  = w_fifo_rd_data.event_data;     // event_data[31:0] (shifted)
-    assign w_fifo_pkt_data[2:0]   = w_fifo_rd_data.aux_data[2:0];  // aux_data[2:0] (reduced due to shifts)
+    assign w_fifo_pkt_data = monitor_common_pkg::create_monitor_packet(
+        w_fifo_rd_data.packet_type,                                // 4-bit packet_type
+        monitor_common_pkg::PROTOCOL_APB,                          // 4-bit protocol
+        {4'h0, w_fifo_rd_data.event_code},                         // 8-bit event_code
+        9'h0,                                                      // 9-bit channel_id (unused for APB)
+        UNIT_ID,                                                   // 8-bit unit_id
+        AGENT_ID,                                                  // 16-bit agent_id
+        {24'h0, w_fifo_rd_data.aux_data, w_fifo_rd_data.event_data} // 64-bit event_data
+    );
 
     // -------------------------------------------------------------------------
     // Address-range checker (optional, gated by N_ADDR_RANGES)
     // -------------------------------------------------------------------------
     // Priority: FIFO (regular events) > addr_check (range violations).
     // addr_check stalls until the FIFO drains, then drains itself.
-    logic        w_addr_pkt_valid;
-    logic [63:0] w_addr_pkt_data;
-    logic        w_addr_pkt_ready;
+    logic                                    w_addr_pkt_valid;
+    monitor_common_pkg::monitor_packet_t     w_addr_pkt_data;
+    monitor_common_pkg::monbus_timestamp_t   w_addr_pkt_timestamp;
+    logic                                    w_addr_pkt_ready;
 
     if (N_ADDR_RANGES > 0) begin : gen_addr_check
         apb_monitor_addr_check #(
@@ -633,6 +638,7 @@ module apb_monitor
         ) addr_check (
             .clk                   (aclk),
             .aresetn               (aresetn),
+            .i_mon_time            (i_mon_time),
             .cmd_paddr             (cmd_paddr),
             .cmd_pwrite            (cmd_pwrite),
             .cmd_valid             (cmd_valid),
@@ -643,52 +649,69 @@ module apb_monitor
             .cfg_addr_range_high   (cfg_addr_range_high),
             .addr_pkt_valid        (w_addr_pkt_valid),
             .addr_pkt_ready        (w_addr_pkt_ready),
-            .addr_pkt_data         (w_addr_pkt_data)
+            .addr_pkt_data         (w_addr_pkt_data),
+            .addr_pkt_timestamp    (w_addr_pkt_timestamp)
         );
     end else begin : gen_no_addr_check
-        assign w_addr_pkt_valid = 1'b0;
-        assign w_addr_pkt_data  = 64'h0;
+        assign w_addr_pkt_valid     = 1'b0;
+        assign w_addr_pkt_data      = '0;
+        assign w_addr_pkt_timestamp = '0;
     end
 
     // 2:1 priority merge — FIFO has priority over the addr_check stream.
+    // FIFO events sample i_mon_time on emission; addr_check carries its own ts.
     always_comb begin
         if (w_fifo_rd_valid) begin
             w_monbus_pkt_valid = 1'b1;
             w_monbus_pkt_data  = w_fifo_pkt_data;
+            w_monbus_pkt_ts    = i_mon_time;
         end else if (w_addr_pkt_valid) begin
             w_monbus_pkt_valid = 1'b1;
             w_monbus_pkt_data  = w_addr_pkt_data;
+            w_monbus_pkt_ts    = w_addr_pkt_timestamp;
         end else begin
             w_monbus_pkt_valid = 1'b0;
-            w_monbus_pkt_data  = 64'h0;
+            w_monbus_pkt_data  = '0;
+            w_monbus_pkt_ts    = '0;
         end
     end
     assign w_fifo_rd_ready   = w_monbus_pkt_ready && w_fifo_rd_valid;
     assign w_addr_pkt_ready  = w_monbus_pkt_ready && !w_fifo_rd_valid;
 
-    // Monitor bus output skid buffer
+    // Monitor bus output skid buffer — carries {packet[128], timestamp[64]}.
+    localparam int MONBUS_TOTAL_W =
+        monitor_common_pkg::MONBUS_PKT_WIDTH + monitor_common_pkg::MONBUS_TS_WIDTH;
+
+    logic [MONBUS_TOTAL_W-1:0] w_skid_wr_data;
+    logic [MONBUS_TOTAL_W-1:0] w_skid_rd_data;
+    assign w_skid_wr_data = {w_monbus_pkt_data, w_monbus_pkt_ts};
+
     gaxi_skid_buffer #(
-        .DATA_WIDTH    (64),
+        .DATA_WIDTH    (MONBUS_TOTAL_W),
         .DEPTH         (2)
     ) monbus_skid_buffer (
         .axi_aclk      (aclk),
         .axi_aresetn   (aresetn),
         .wr_valid      (w_monbus_pkt_valid),
         .wr_ready      (w_monbus_pkt_ready),
-        .wr_data       (w_monbus_pkt_data),
+        .wr_data       (w_skid_wr_data),
         .rd_valid      (monbus_valid),
         .rd_ready      (monbus_ready),
-        .rd_data       (monbus_packet),
+        .rd_data       (w_skid_rd_data),
         /* verilator lint_off PINCONNECTEMPTY */
         .count         (),
         .rd_count      ()
         /* verilator lint_on PINCONNECTEMPTY */
     );
 
+    assign monbus_packet    = w_skid_rd_data[MONBUS_TOTAL_W-1 -: monitor_common_pkg::MONBUS_PKT_WIDTH];
+    assign monbus_timestamp = w_skid_rd_data[monitor_common_pkg::MONBUS_TS_WIDTH-1 : 0];
+
     end else begin : gen_no_monitor
         // Monitor omitted: tie outputs to non-blocking defaults.
         assign monbus_valid      = 1'b0;
-        assign monbus_packet     = 64'h0;
+        assign monbus_packet     = '0;
+        assign monbus_timestamp  = '0;
         assign active_count      = 8'h0;
         assign error_count       = 16'h0;
         assign transaction_count = 32'h0;

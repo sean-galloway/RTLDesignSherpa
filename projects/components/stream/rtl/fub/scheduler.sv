@@ -69,9 +69,9 @@ module scheduler #(
     parameter int ADDR_WIDTH = 64,
     parameter int DATA_WIDTH = 512,
     // Monitor Bus Parameters
-    parameter logic [7:0] MON_AGENT_ID = 8'h40,      // STREAM Scheduler Agent ID
-    parameter logic [3:0] MON_UNIT_ID = 4'h1,        // Unit identifier
-    parameter logic [5:0] MON_CHANNEL_ID = 6'h0,     // Base channel ID
+    parameter logic [15:0] MON_AGENT_ID = 16'h0040,  // STREAM Scheduler Agent ID
+    parameter logic [7:0]  MON_UNIT_ID = 8'h01,      // Unit identifier
+    parameter logic [8:0]  MON_CHANNEL_ID = 9'h000,  // Base channel ID
     // Descriptor Width (FIXED at 256-bit for STREAM)
     // NOTE: This scheduler is STREAM-only (simple memory-to-memory)
     //       For RAPIDS features (producer/consumer, ctrl_rd/ctrl_wr), use rapids_scheduler
@@ -121,10 +121,14 @@ module scheduler #(
     input  logic                        sched_wr_error,         // Write engine error
     output logic                        sched_error,            // Scheduler error output (sticky)
 
-    // Monitor Bus Interface
-    output logic                        mon_valid,
-    input  logic                        mon_ready,
-    output logic [63:0]                 mon_packet
+    // Free-running monitor-time broadcast (sampled on packet emit)
+    input  monitor_common_pkg::monbus_timestamp_t   i_mon_time,
+
+    // Monitor Bus Interface (128-bit packet + 64-bit side-band timestamp)
+    output logic                                    mon_valid,
+    input  logic                                    mon_ready,
+    output monitor_common_pkg::monitor_packet_t     mon_packet,
+    output monitor_common_pkg::monbus_timestamp_t   mon_timestamp
 );
 
     //=========================================================================
@@ -227,9 +231,10 @@ module scheduler #(
     logic r_descriptor_error;                     // Descriptor engine or internal error
 
     // Monitor packet generation
-    // Registered outputs for MonBus interface
-    logic r_mon_valid;
-    logic [63:0] r_mon_packet;
+    // Registered outputs for MonBus interface (128-bit packet + side-band ts)
+    logic                                       r_mon_valid;
+    monitor_common_pkg::monitor_packet_t        r_mon_packet;
+    monitor_common_pkg::monbus_timestamp_t      r_mon_timestamp;
 
     // Completion flags
     // Combinational checks for phase completion (beats_remaining == 0)
@@ -640,26 +645,29 @@ module scheduler #(
 
     `ALWAYS_FF_RST(clk, rst_n,
         if (`RST_ASSERTED(rst_n)) begin
-            r_mon_valid <= 1'b0;
-            r_mon_packet <= 64'h0;
+            r_mon_valid     <= 1'b0;
+            r_mon_packet    <= '0;
+            r_mon_timestamp <= '0;
         end else begin
             // Default: Clear monitor packet (single-cycle pulse)
-            r_mon_valid <= 1'b0;
-            r_mon_packet <= 64'h0;
+            r_mon_valid  <= 1'b0;
+            r_mon_packet <= '0;
+            // Sample i_mon_time on emit; hold previous between pulses.
 
             case (r_current_state)
                 CH_FETCH_DESC: begin
                     // Event: Descriptor processing started
                     // Payload: Transfer length in beats
-                    r_mon_valid <= 1'b1;
-                    r_mon_packet <= create_monitor_packet(
+                    r_mon_valid     <= 1'b1;
+                    r_mon_timestamp <= i_mon_time;
+                    r_mon_packet    <= create_monitor_packet(
                         PktTypeCompletion,
                         PROTOCOL_CORE,
                         STREAM_EVENT_DESC_START,
                         MON_CHANNEL_ID,
                         MON_UNIT_ID,
                         MON_AGENT_ID,
-                        {3'h0, r_descriptor.length}  // Payload: 32-bit length
+                        {32'h0, r_descriptor.length}  // Payload: 32-bit length zero-extended to 64
                     );
                 end
 
@@ -675,7 +683,8 @@ module scheduler #(
                     //
                     // Note: With concurrent transfer, we only generate completion event
                     //       when BOTH read and write are done (cleaner semantics)
-                    r_mon_valid <= 1'b1;
+                    r_mon_valid     <= 1'b1;
+                    r_mon_timestamp <= i_mon_time;
                     if (r_descriptor.gen_irq) begin
                         // IRQ event: Descriptor completed with interrupt request
                         // Payload: Descriptor length (for context)
@@ -686,7 +695,7 @@ module scheduler #(
                             MON_CHANNEL_ID,
                             MON_UNIT_ID,
                             MON_AGENT_ID,
-                            {3'h0, r_descriptor.length}  // Payload: 32-bit length
+                            {32'h0, r_descriptor.length}  // Payload: 32-bit length zero-extended to 64
                         );
                     end else begin
                         // Normal completion event (no IRQ)
@@ -698,23 +707,27 @@ module scheduler #(
                             MON_CHANNEL_ID,
                             MON_UNIT_ID,
                             MON_AGENT_ID,
-                            {3'h0, r_descriptor.length}  // Payload: 32-bit length
+                            {32'h0, r_descriptor.length}  // Payload: 32-bit length zero-extended to 64
                         );
                     end
                 end
 
                 CH_ERROR: begin
                     // Event: Error detected (any source)
-                    // Payload: Error flags [35] = write_error, [34] = read_error
-                    r_mon_valid <= 1'b1;
-                    r_mon_packet <= create_monitor_packet(
+                    // Payload: Error flags packed in upper bits of the 64-bit field.
+                    // Position preserved to match the original 35-bit layout —
+                    // write_error at bit [34], read_error at bit [33]; remainder
+                    // is zero padded to 64 bits.
+                    r_mon_valid     <= 1'b1;
+                    r_mon_timestamp <= i_mon_time;
+                    r_mon_packet    <= create_monitor_packet(
                         PktTypeError,
                         PROTOCOL_CORE,
                         STREAM_EVENT_ERROR,
                         MON_CHANNEL_ID,
                         MON_UNIT_ID,
                         MON_AGENT_ID,
-                        {r_write_error_sticky, r_read_error_sticky, 33'h0}  // Error flags
+                        {29'h0, r_write_error_sticky, r_read_error_sticky, 33'h0}
                     );
                 end
 
@@ -735,8 +748,9 @@ module scheduler #(
     assign sched_error = w_state_error;  // Sticky error output
 
     // Monitor bus output
-    assign mon_valid = r_mon_valid;
-    assign mon_packet = r_mon_packet;
+    assign mon_valid     = r_mon_valid;
+    assign mon_packet    = r_mon_packet;
+    assign mon_timestamp = r_mon_timestamp;
 
     //=========================================================================
     // Assertions for Verification

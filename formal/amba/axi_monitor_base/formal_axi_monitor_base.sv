@@ -13,8 +13,8 @@ module formal_axi_monitor_base (
     // =========================================================================
     // Parameters (small for tractability)
     // =========================================================================
-    localparam int UNIT_ID          = 9;
-    localparam int AGENT_ID         = 99;
+    localparam logic [7:0]  UNIT_ID  = 8'h09;
+    localparam logic [15:0] AGENT_ID = 16'h0063;
     localparam int MAX_TRANSACTIONS = 2;
     localparam int ADDR_WIDTH       = 16;
     localparam int ID_WIDTH         = 4;
@@ -67,11 +67,15 @@ module formal_axi_monitor_base (
 
     (* anyseq *) reg                   monbus_ready;
 
+    // Broadcast monitor time
+    (* anyseq *) reg [63:0]            i_mon_time;
+
     // =========================================================================
-    // DUT outputs
+    // DUT outputs (128-bit packet + 64-bit side-band timestamp)
     // =========================================================================
     wire                monbus_valid_o;
-    wire [63:0]         monbus_packet_o;
+    wire [127:0]        monbus_packet_o;
+    wire [63:0]         monbus_timestamp_o;
     wire                block_ready_o;
     wire                busy_o;
     wire [7:0]          active_count_o;
@@ -95,6 +99,7 @@ module formal_axi_monitor_base (
     ) dut (
         .aclk                      (clk),
         .aresetn                   (rst_n),
+        .i_mon_time                (i_mon_time),
         .cmd_addr                  (cmd_addr),
         .cmd_id                    (cmd_id),
         .cmd_len                   (cmd_len),
@@ -128,6 +133,7 @@ module formal_axi_monitor_base (
         .monbus_valid              (monbus_valid_o),
         .monbus_ready              (monbus_ready),
         .monbus_packet             (monbus_packet_o),
+        .monbus_timestamp          (monbus_timestamp_o),
         .block_ready               (block_ready_o),
         .busy                      (busy_o),
         .active_count              (active_count_o)
@@ -237,7 +243,7 @@ module formal_axi_monitor_base (
     // =========================================================================
     always @(*) begin
         if (!monbus_valid_o)
-            ap_packet_zero_when_invalid: assert (monbus_packet_o == 64'h0);
+            ap_packet_zero_when_invalid: assert (monbus_packet_o == 128'h0);
     end
 
     // =========================================================================

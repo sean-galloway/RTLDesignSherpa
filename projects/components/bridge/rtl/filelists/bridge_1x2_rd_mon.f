@@ -1,6 +1,13 @@
 # Include directories
 +incdir+$REPO_ROOT/rtl/amba/includes
 
+# Monitor packages (must precede any module that references them)
+$REPO_ROOT/rtl/amba/includes/monitor_common_pkg.sv
+$REPO_ROOT/rtl/amba/includes/monitor_amba4_pkg.sv
+$REPO_ROOT/rtl/amba/includes/monitor_amba5_pkg.sv
+$REPO_ROOT/rtl/amba/includes/monitor_arbiter_pkg.sv
+$REPO_ROOT/rtl/amba/includes/monitor_pkg.sv
+
 # Bridge RTL files (generated)
 $REPO_ROOT/projects/components/bridge/rtl/generated/bridge_1x2_rd_mon/bridge_1x2_rd_mon_pkg.sv
 $REPO_ROOT/projects/components/bridge/rtl/generated/bridge_1x2_rd_mon/cpu_rd_adapter.sv
@@ -32,12 +39,6 @@ $REPO_ROOT/projects/components/converters/rtl/axi4_dwidth_converter_wr.sv
 # Header files with macros (already compiled if AMBA pkg path included)
 $REPO_ROOT/rtl/amba/includes/reset_defs.svh
 $REPO_ROOT/rtl/amba/includes/fifo_defs.svh
-# Monitor packages -- must precede module compilation
-$REPO_ROOT/rtl/amba/includes/monitor_common_pkg.sv
-$REPO_ROOT/rtl/amba/includes/monitor_arbiter_pkg.sv
-$REPO_ROOT/rtl/amba/includes/monitor_amba4_pkg.sv
-$REPO_ROOT/rtl/amba/includes/monitor_amba5_pkg.sv
-$REPO_ROOT/rtl/amba/includes/monitor_pkg.sv
 # Common arbitration primitives (used by axi_monitor_*)
 $REPO_ROOT/rtl/common/arbiter_priority_encoder.sv
 $REPO_ROOT/rtl/common/arbiter_round_robin.sv

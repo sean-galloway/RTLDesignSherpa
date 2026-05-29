@@ -150,10 +150,15 @@ module scheduler_group_array_beats #(
     input  logic [NUM_CHANNELS-1:0]                     sched_rd_error,
     input  logic [NUM_CHANNELS-1:0]                     sched_wr_error,
 
-    // Unified Monitor Bus Interface
-    output logic                        mon_valid,
-    input  logic                        mon_ready,
-    output logic [63:0]                 mon_packet
+    // Free-running monitor-time broadcast (forwarded to all sub-blocks and
+    // to the AXI master monitor; consumed by the monbus arbiter side-band).
+    input  monitor_common_pkg::monbus_timestamp_t   i_mon_time,
+
+    // Unified Monitor Bus Interface (128-bit packet + 64-bit side-band timestamp)
+    output logic                                    mon_valid,
+    input  logic                                    mon_ready,
+    output monitor_common_pkg::monitor_packet_t     mon_packet,
+    output monitor_common_pkg::monbus_timestamp_t   mon_timestamp
 );
 
     //=========================================================================
@@ -187,9 +192,10 @@ module scheduler_group_array_beats #(
     // Internal Signals - Monitor Bus (per channel)
     //=========================================================================
 
-    logic [NUM_CHANNELS-1:0]                     mon_valid_ch;
-    logic [NUM_CHANNELS-1:0]                     mon_ready_ch;
-    logic [NUM_CHANNELS-1:0][63:0]               mon_packet_ch;
+    logic [NUM_CHANNELS-1:0]                                mon_valid_ch;
+    logic [NUM_CHANNELS-1:0]                                mon_ready_ch;
+    monitor_common_pkg::monitor_packet_t                    mon_packet_ch     [NUM_CHANNELS];
+    monitor_common_pkg::monbus_timestamp_t                  mon_timestamp_ch  [NUM_CHANNELS];
 
     //=========================================================================
     // Internal Signals - Descriptor AXI Arbitration
@@ -225,17 +231,19 @@ module scheduler_group_array_beats #(
     // Internal Signals - Monitor Bus Aggregation
     //=========================================================================
 
-    // MonBus from descriptor AXI monitor
-    logic                                        desc_axi_mon_valid;
-    logic                                        desc_axi_mon_ready;
-    logic [63:0]                                 desc_axi_mon_packet;
+    // MonBus from descriptor AXI monitor (packet + side-band timestamp)
+    logic                                       desc_axi_mon_valid;
+    logic                                       desc_axi_mon_ready;
+    monitor_common_pkg::monitor_packet_t        desc_axi_mon_packet;
+    monitor_common_pkg::monbus_timestamp_t      desc_axi_mon_timestamp;
 
     // Combined MonBus arrays (9 sources: 8 channels + 1 desc AXI monitor)
     localparam int MONBUS_SOURCES = NUM_CHANNELS + 1;
     // Use unpacked arrays to match monbus_arbiter port types
-    logic                    monbus_valid_all[MONBUS_SOURCES];
-    logic                    monbus_ready_all[MONBUS_SOURCES];
-    logic [63:0]             monbus_packet_all[MONBUS_SOURCES];
+    logic                                       monbus_valid_all     [MONBUS_SOURCES];
+    logic                                       monbus_ready_all     [MONBUS_SOURCES];
+    monitor_common_pkg::monitor_packet_t        monbus_packet_all    [MONBUS_SOURCES];
+    monitor_common_pkg::monbus_timestamp_t      monbus_timestamp_all [MONBUS_SOURCES];
 
     //=========================================================================
     // Beats Scheduler Group Array Instantiation
@@ -250,10 +258,10 @@ module scheduler_group_array_beats #(
                 .ADDR_WIDTH             (ADDR_WIDTH),
                 .DATA_WIDTH             (DATA_WIDTH),
                 .AXI_ID_WIDTH           (AXI_ID_WIDTH),
-                .DESC_MON_AGENT_ID      (8'(DESC_MON_BASE_AGENT_ID + ch)),
-                .SCHED_MON_AGENT_ID     (8'(SCHED_MON_BASE_AGENT_ID + ch)),
-                .MON_UNIT_ID            (4'(MON_UNIT_ID)),
-                .MON_CHANNEL_ID         (6'(ch))
+                .DESC_MON_AGENT_ID      (16'(DESC_MON_BASE_AGENT_ID + ch)),
+                .SCHED_MON_AGENT_ID     (16'(SCHED_MON_BASE_AGENT_ID + ch)),
+                .MON_UNIT_ID            (8'(MON_UNIT_ID)),
+                .MON_CHANNEL_ID         (9'(ch))
             ) u_beats_scheduler_group (
                 .clk                    (clk),
                 .rst_n                  (rst_n),
@@ -330,10 +338,12 @@ module scheduler_group_array_beats #(
                 .sched_rd_error         (sched_rd_error[ch]),
                 .sched_wr_error         (sched_wr_error[ch]),
 
-                // Monitor bus (per channel)
+                // Monitor bus (per channel, with side-band timestamp)
+                .i_mon_time             (i_mon_time),
                 .mon_valid              (mon_valid_ch[ch]),
                 .mon_ready              (mon_ready_ch[ch]),
-                .mon_packet             (mon_packet_ch[ch])
+                .mon_packet             (mon_packet_ch[ch]),
+                .mon_timestamp          (mon_timestamp_ch[ch])
             );
         end
     endgenerate
@@ -447,8 +457,8 @@ module scheduler_group_array_beats #(
         .AXI_ADDR_WIDTH         (ADDR_WIDTH),
         .AXI_DATA_WIDTH         (256),  // FIXED 256-bit for descriptor size
         .AXI_USER_WIDTH         (1),
-        .UNIT_ID                (4'(MON_UNIT_ID)),
-        .AGENT_ID               (8'(DESC_AXI_MON_AGENT_ID)),
+        .UNIT_ID                (8'(MON_UNIT_ID)),
+        .AGENT_ID               (16'(DESC_AXI_MON_AGENT_ID)),
         .MAX_TRANSACTIONS       (MON_MAX_TRANSACTIONS),
         .ENABLE_FILTERING       (1)
     ) u_desc_axi_monitor (
@@ -520,10 +530,21 @@ module scheduler_group_array_beats #(
         .cfg_axi_addr_mask      (cfg_desc_mon_addr_mask),
         .cfg_axi_debug_mask     (cfg_desc_mon_debug_mask),
 
-        // Monitor bus
+        // Address-range checker — disabled (default N_ADDR_RANGES=0).
+        // The wrapper exposes these even when disabled, so tie them off.
+        .cfg_addr_check_enable  (1'b0),
+        .cfg_addr_range_enable  (1'b0),
+        .cfg_addr_range_low     ('0),
+        .cfg_addr_range_high    ('0),
+
+        // Free-running monitor time broadcast
+        .i_mon_time             (i_mon_time),
+
+        // Monitor bus (with side-band timestamp)
         .monbus_valid           (desc_axi_mon_valid),
         .monbus_ready           (desc_axi_mon_ready),
         .monbus_packet          (desc_axi_mon_packet),
+        .monbus_timestamp       (desc_axi_mon_timestamp),
 
         // Status outputs
         .busy                   (cfg_sts_desc_mon_busy),
@@ -538,21 +559,24 @@ module scheduler_group_array_beats #(
     //=========================================================================
 
     // Combine channel monitor buses + descriptor AXI monitor
+    // Each source contributes packet + side-band timestamp.
     always_comb begin
         // 8 channel monitors
         for (int ch = 0; ch < NUM_CHANNELS; ch++) begin
-            monbus_valid_all[ch] = mon_valid_ch[ch];
-            mon_ready_ch[ch] = monbus_ready_all[ch];
-            monbus_packet_all[ch] = mon_packet_ch[ch];
+            monbus_valid_all[ch]     = mon_valid_ch[ch];
+            mon_ready_ch[ch]         = monbus_ready_all[ch];
+            monbus_packet_all[ch]    = mon_packet_ch[ch];
+            monbus_timestamp_all[ch] = mon_timestamp_ch[ch];
         end
 
         // Descriptor AXI monitor (source 8)
-        monbus_valid_all[NUM_CHANNELS] = desc_axi_mon_valid;
-        desc_axi_mon_ready = monbus_ready_all[NUM_CHANNELS];
-        monbus_packet_all[NUM_CHANNELS] = desc_axi_mon_packet;
+        monbus_valid_all[NUM_CHANNELS]     = desc_axi_mon_valid;
+        desc_axi_mon_ready                 = monbus_ready_all[NUM_CHANNELS];
+        monbus_packet_all[NUM_CHANNELS]    = desc_axi_mon_packet;
+        monbus_timestamp_all[NUM_CHANNELS] = desc_axi_mon_timestamp;
     end
 
-    // Aggregate all monitor sources
+    // Aggregate all monitor sources (packet + side-band timestamp)
     monbus_arbiter #(
         .CLIENTS                (MONBUS_SOURCES),
         .INPUT_SKID_ENABLE      (1),
@@ -566,9 +590,11 @@ module scheduler_group_array_beats #(
         .monbus_valid_in        (monbus_valid_all),
         .monbus_ready_in        (monbus_ready_all),
         .monbus_packet_in       (monbus_packet_all),
+        .monbus_timestamp_in    (monbus_timestamp_all),
         .monbus_valid           (mon_valid),
         .monbus_ready           (mon_ready),
         .monbus_packet          (mon_packet),
+        .monbus_timestamp       (mon_timestamp),
         .grant_valid            (/* unused */),
         .grant                  (/* unused */),
         .grant_id               (/* unused */),

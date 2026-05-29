@@ -303,11 +303,13 @@ module stream_core #(
     output logic                                cfg_sts_wreng_mon_conflict_error,
 
     //=========================================================================
-    // Unified Monitor Bus Interface
+    // Unified Monitor Bus Interface (128-bit packet + 64-bit side-band ts)
     //=========================================================================
-    output logic                                mon_valid,
-    input  logic                                mon_ready,
-    output logic [63:0]                         mon_packet
+    input  monitor_common_pkg::monbus_timestamp_t   i_mon_time,
+    output logic                                    mon_valid,
+    input  logic                                    mon_ready,
+    output monitor_common_pkg::monitor_packet_t     mon_packet,
+    output monitor_common_pkg::monbus_timestamp_t   mon_timestamp
 );
 
     //=========================================================================
@@ -419,9 +421,10 @@ module stream_core #(
     //=========================================================================
     // Internal Signals - Scheduler Group Monitor Bus (from scheduler_group_array)
     //=========================================================================
-    logic                        schedgrp_mon_valid;
-    logic                        schedgrp_mon_ready;
-    logic [63:0]                 schedgrp_mon_packet;
+    logic                                     schedgrp_mon_valid;
+    logic                                     schedgrp_mon_ready;
+    monitor_common_pkg::monitor_packet_t      schedgrp_mon_packet;
+    monitor_common_pkg::monbus_timestamp_t    schedgrp_mon_timestamp;
 
     //=========================================================================
     // Internal Signals - Monitor Configuration (conditional based on USE_AXI_MONITORS)
@@ -690,18 +693,23 @@ module stream_core #(
         .sched_rd_error         (sched_rd_error),
         .sched_wr_error         (sched_wr_error),
 
+        // Free-running monitor-time broadcast
+        .i_mon_time             (i_mon_time),
+
         // Monitor bus output (scheduler group monitor - directly to top-level)
         .mon_valid              (schedgrp_mon_valid),
         .mon_ready              (schedgrp_mon_ready),
-        .mon_packet             (schedgrp_mon_packet)
+        .mon_packet             (schedgrp_mon_packet),
+        .mon_timestamp          (schedgrp_mon_timestamp)
     );
 
     //=========================================================================
     // Monitor Bus - Direct connection (no arbiter needed with single source)
     //=========================================================================
-    assign mon_valid = schedgrp_mon_valid;
+    assign mon_valid          = schedgrp_mon_valid;
     assign schedgrp_mon_ready = mon_ready;
-    assign mon_packet = schedgrp_mon_packet;
+    assign mon_packet         = schedgrp_mon_packet;
+    assign mon_timestamp      = schedgrp_mon_timestamp;
 
     //=========================================================================
     // Component Instantiation - AXI Read Engine

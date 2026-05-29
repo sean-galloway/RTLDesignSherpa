@@ -17,7 +17,7 @@
 
 /*
 ================================================================================
-Monitor Bus AXI-Lite Group
+Monitor Bus AXI-Lite Group (RAPIDS)
 ================================================================================
 
 This module aggregates monitor bus streams from source and sink paths,
@@ -27,12 +27,28 @@ routes filtered packets to either:
 - Master Write FIFO - writes to configurable address range
 
 Features:
-- Round-robin arbitration between source and sink monitor streams
+- Round-robin arbitration between source and sink monitor streams (each carrying
+  both a 128-bit packet and a 64-bit side-band timestamp)
 - Per-protocol configurable packet filtering (drop, error/interrupt, master write)
 - Separate FIFOs for error/interrupt vs master write paths
 - Configurable address range for master write operations
-- Protocol support: AXI, Network, CORE (3 protocols)
+- Protocol support: AXI, AXIS, CORE (3 protocols)
 - Built-in AXI-Lite skid buffering for timing closure
+
+Packet width is locked at 128 bits via monitor_common_pkg::MONBUS_PKT_WIDTH.
+Side-band timestamp width is locked at 64 bits via monitor_common_pkg::MONBUS_TS_WIDTH.
+
+Timestamping (see MON-PKT-64-to-128-plan.md sec 4.4.1):
+- Free-running 64-bit counter inside the group is driven OUT on mon_time_out
+  to every wrapper's i_mon_time input.
+- Wrappers sample on emission and return the source timestamp on the
+  monbus_timestamp side-band, which arrives here (after arbitration) paired
+  with the packet.
+- On the input handshake (post-arbiter), the group also captures an arrival
+  timestamp from its own counter.
+- The write FIFO carries {packet[127:0], source_ts[63:0], arrival_ts[63:0]}.
+- The AXIL master write FSM emits 2-4 64-bit beats per record depending on
+  cfg_ts_append_enable / cfg_ts_append_mode.
 
 Configuration Registers (per protocol):
 - pkt_mask[15:0]     - Drop packets when bit[pkt_type] = 1
@@ -44,178 +60,231 @@ Configuration Registers (per protocol):
 
 `include "reset_defs.svh"
 
-module monbus_axil_group #(
-    parameter int FIFO_DEPTH_ERR    = 64,   // Error/interrupt FIFO depth
-    parameter int FIFO_DEPTH_WRITE  = 32,   // Master write FIFO depth
-    parameter int ADDR_WIDTH        = 32,   // AXI address width
-    parameter int DATA_WIDTH        = 32,   // AXI data width (for master write)
-    parameter int NUM_PROTOCOLS     = 3     // AXI, Network, CORE
+module monbus_axil_group
+    import monitor_common_pkg::*;
+#(
+    parameter int FIFO_DEPTH_ERR     = 64,   // Error/interrupt FIFO depth
+    parameter int FIFO_DEPTH_WRITE   = 32,   // Master write FIFO depth
+    parameter int ADDR_WIDTH         = 32,   // AXI address width
+    parameter int S_AXIL_DATA_WIDTH  = 32,   // Slave AXI-Lite data width (CPU read)
+    parameter int M_AXIL_DATA_WIDTH  = 64,   // Master AXI-Lite data width (capture writes)
+    parameter int NUM_PROTOCOLS      = 3     // AXI, AXIS, CORE
 ) (
     // Clock and Reset
-    input  logic                    axi_aclk,
-    input  logic                    axi_aresetn,
+    input  logic                          axi_aclk,
+    input  logic                          axi_aresetn,
 
     // Source Monitor Bus Input
-    input  logic                    source_monbus_valid,
-    output logic                    source_monbus_ready,
-    input  logic [63:0]             source_monbus_packet,
+    input  logic                          source_monbus_valid,
+    output logic                          source_monbus_ready,
+    input  monitor_packet_t               source_monbus_packet,
+    input  monbus_timestamp_t             source_monbus_timestamp,
 
     // Sink Monitor Bus Input
-    input  logic                    sink_monbus_valid,
-    output logic                    sink_monbus_ready,
-    input  logic [63:0]             sink_monbus_packet,
+    input  logic                          sink_monbus_valid,
+    output logic                          sink_monbus_ready,
+    input  monitor_packet_t               sink_monbus_packet,
+    input  monbus_timestamp_t             sink_monbus_timestamp,
 
-    // Error/Interrupt FIFO (Slave Read Interface)
-    input  logic                    s_axil_arvalid,
-    output logic                    s_axil_arready,
-    input  logic [ADDR_WIDTH-1:0]   s_axil_araddr,
-    input  logic [2:0]              s_axil_arprot,
+    // Free-running monitor-time output (drive to every wrapper's i_mon_time)
+    output monbus_timestamp_t             mon_time_out,
 
-    output logic                    s_axil_rvalid,
-    input  logic                    s_axil_rready,
-    output logic [DATA_WIDTH-1:0]   s_axil_rdata,
-    output logic [1:0]              s_axil_rresp,
+    // Timestamp-append configuration
+    input  logic                          cfg_ts_append_enable,
+    input  logic [1:0]                    cfg_ts_append_mode,
 
-    // Master Write Interface
-    output logic                    m_axil_awvalid,
-    input  logic                    m_axil_awready,
-    output logic [ADDR_WIDTH-1:0]   m_axil_awaddr,
-    output logic [2:0]              m_axil_awprot,
+    // Error/Interrupt FIFO (Slave Read Interface) — 32-bit CPU reads
+    input  logic                          s_axil_arvalid,
+    output logic                          s_axil_arready,
+    input  logic [ADDR_WIDTH-1:0]         s_axil_araddr,
+    input  logic [2:0]                    s_axil_arprot,
 
-    output logic                    m_axil_wvalid,
-    input  logic                    m_axil_wready,
-    output logic [DATA_WIDTH-1:0]   m_axil_wdata,
-    output logic [DATA_WIDTH/8-1:0] m_axil_wstrb,
+    output logic                          s_axil_rvalid,
+    input  logic                          s_axil_rready,
+    output logic [S_AXIL_DATA_WIDTH-1:0]  s_axil_rdata,
+    output logic [1:0]                    s_axil_rresp,
 
-    input  logic                    m_axil_bvalid,
-    output logic                    m_axil_bready,
-    input  logic [1:0]              m_axil_bresp,
+    // Master Write Interface — 64-bit captures
+    output logic                          m_axil_awvalid,
+    input  logic                          m_axil_awready,
+    output logic [ADDR_WIDTH-1:0]         m_axil_awaddr,
+    output logic [2:0]                    m_axil_awprot,
+
+    output logic                          m_axil_wvalid,
+    input  logic                          m_axil_wready,
+    output logic [M_AXIL_DATA_WIDTH-1:0]  m_axil_wdata,
+    output logic [M_AXIL_DATA_WIDTH/8-1:0] m_axil_wstrb,
+
+    input  logic                          m_axil_bvalid,
+    output logic                          m_axil_bready,
+    input  logic [1:0]                    m_axil_bresp,
 
     // Interrupt Output (renamed from 'interrupt' to avoid C++ keyword)
-    output logic                    irq_out,
+    output logic                          irq_out,
 
     // Configuration Interface (simplified - could be expanded to full AXI-Lite)
-    input  logic [ADDR_WIDTH-1:0]   cfg_base_addr,       // Base address for master writes
-    input  logic [ADDR_WIDTH-1:0]   cfg_limit_addr,      // Limit address for master writes
+    input  logic [ADDR_WIDTH-1:0]         cfg_base_addr,       // Base address for master writes
+    input  logic [ADDR_WIDTH-1:0]         cfg_limit_addr,      // Limit address for master writes
 
     // Protocol Configuration - AXI (protocol 0)
-    input  logic [15:0]             cfg_axi_pkt_mask,     // Drop mask for packet types
-    input  logic [15:0]             cfg_axi_err_select,   // Error FIFO select for packet types
-    input  logic [15:0]             cfg_axi_error_mask,   // Individual error event mask
-    input  logic [15:0]             cfg_axi_timeout_mask, // Individual timeout event mask
-    input  logic [15:0]             cfg_axi_compl_mask,   // Individual completion event mask
-    input  logic [15:0]             cfg_axi_thresh_mask,  // Individual threshold event mask
-    input  logic [15:0]             cfg_axi_perf_mask,    // Individual performance event mask
-    input  logic [15:0]             cfg_axi_addr_mask,    // Individual address match event mask
-    input  logic [15:0]             cfg_axi_debug_mask,   // Individual debug event mask
+    input  logic [15:0]                   cfg_axi_pkt_mask,     // Drop mask for packet types
+    input  logic [15:0]                   cfg_axi_err_select,   // Error FIFO select for packet types
+    input  logic [15:0]                   cfg_axi_error_mask,   // Individual error event mask
+    input  logic [15:0]                   cfg_axi_timeout_mask, // Individual timeout event mask
+    input  logic [15:0]                   cfg_axi_compl_mask,   // Individual completion event mask
+    input  logic [15:0]                   cfg_axi_thresh_mask,  // Individual threshold event mask
+    input  logic [15:0]                   cfg_axi_perf_mask,    // Individual performance event mask
+    input  logic [15:0]                   cfg_axi_addr_mask,    // Individual address match event mask
+    input  logic [15:0]                   cfg_axi_debug_mask,   // Individual debug event mask
 
     // Protocol Configuration - AXIS (protocol 1)
-    input  logic [15:0]             cfg_axis_pkt_mask,
-    input  logic [15:0]             cfg_axis_err_select,
-    input  logic [15:0]             cfg_axis_error_mask,
-    input  logic [15:0]             cfg_axis_timeout_mask,
-    input  logic [15:0]             cfg_axis_compl_mask,
-    input  logic [15:0]             cfg_axis_credit_mask,
-    input  logic [15:0]             cfg_axis_channel_mask,
-    input  logic [15:0]             cfg_axis_stream_mask,
+    input  logic [15:0]                   cfg_axis_pkt_mask,
+    input  logic [15:0]                   cfg_axis_err_select,
+    input  logic [15:0]                   cfg_axis_error_mask,
+    input  logic [15:0]                   cfg_axis_timeout_mask,
+    input  logic [15:0]                   cfg_axis_compl_mask,
+    input  logic [15:0]                   cfg_axis_credit_mask,
+    input  logic [15:0]                   cfg_axis_channel_mask,
+    input  logic [15:0]                   cfg_axis_stream_mask,
 
-    // Protocol Configuration - CORE (protocol 2)
-    input  logic [15:0]             cfg_core_pkt_mask,
-    input  logic [15:0]             cfg_core_err_select,
-    input  logic [15:0]             cfg_core_error_mask,
-    input  logic [15:0]             cfg_core_timeout_mask,
-    input  logic [15:0]             cfg_core_compl_mask,
-    input  logic [15:0]             cfg_core_thresh_mask,
-    input  logic [15:0]             cfg_core_perf_mask,
-    input  logic [15:0]             cfg_core_debug_mask,
+    // Protocol Configuration - CORE (protocol 4 — PROTOCOL_CORE)
+    input  logic [15:0]                   cfg_core_pkt_mask,
+    input  logic [15:0]                   cfg_core_err_select,
+    input  logic [15:0]                   cfg_core_error_mask,
+    input  logic [15:0]                   cfg_core_timeout_mask,
+    input  logic [15:0]                   cfg_core_compl_mask,
+    input  logic [15:0]                   cfg_core_thresh_mask,
+    input  logic [15:0]                   cfg_core_perf_mask,
+    input  logic [15:0]                   cfg_core_debug_mask,
 
     // Debug/Status
-    output logic                    err_fifo_full,
-    output logic                    write_fifo_full,
-    output logic [7:0]              err_fifo_count,
-    output logic [7:0]              write_fifo_count
+    output logic                          err_fifo_full,
+    output logic                          write_fifo_full,
+    output logic [7:0]                    err_fifo_count,
+    output logic [7:0]                    write_fifo_count
 );
-
-    import monitor_pkg::*;
 
     // =======================================================================
     // Local Parameters
     // =======================================================================
 
-    localparam int ERR_FIFO_ADDR_WIDTH = $clog2(FIFO_DEPTH_ERR);
+    localparam int ERR_FIFO_ADDR_WIDTH   = $clog2(FIFO_DEPTH_ERR);
     localparam int WRITE_FIFO_ADDR_WIDTH = $clog2(FIFO_DEPTH_WRITE);
+
+    // Combined write-FIFO record: {packet[127:0], source_ts[63:0], arrival_ts[63:0]}
+    localparam int WRITE_REC_WIDTH = MONBUS_PKT_WIDTH + MONBUS_TS_WIDTH + MONBUS_TS_WIDTH;
 
     // =======================================================================
     // Internal Signals
     // =======================================================================
 
-    // Arbitrated monitor bus
-    logic                    arb_monbus_valid;
-    logic                    arb_monbus_ready;
-    logic [63:0]             arb_monbus_packet;
+    // Arbitrated monitor bus (post-arbiter)
+    logic                            arb_monbus_valid;
+    logic                            arb_monbus_ready;
+    monitor_packet_t                 arb_monbus_packet;
+    monbus_timestamp_t               arb_monbus_source_ts;
+
+    // Arbiter input arrays (unpacked, length 2: source and sink)
+    logic                            arb_in_valid     [2];
+    logic                            arb_in_ready     [2];
+    monitor_packet_t                 arb_in_packet    [2];
+    monbus_timestamp_t               arb_in_timestamp [2];
 
     // Packet analysis
-    logic [3:0]              pkt_type;
-    logic [2:0]              pkt_protocol;
-    logic [3:0]              pkt_event_code;
-    logic [34:0]             pkt_event_data;
+    logic [3:0]                      pkt_type;
+    logic [3:0]                      pkt_protocol;
+    logic [7:0]                      pkt_event_code;
+    logic [3:0]                      ec_idx;       // event-code index into 16-bit masks
+    logic                            ec_in_mask_range;
+    logic [63:0]                     pkt_event_data;
 
     // Filter decisions
-    logic                    pkt_drop;
-    logic                    pkt_to_err_fifo;
-    logic                    pkt_to_write_fifo;
-    logic                    pkt_event_masked;
+    logic                            pkt_drop;
+    logic                            pkt_to_err_fifo;
+    logic                            pkt_to_write_fifo;
+    logic                            pkt_event_masked;
 
-    // Error FIFO signals
-    logic                    err_fifo_wr_valid;
-    logic                    err_fifo_wr_ready;
-    logic [63:0]             err_fifo_wr_data;
-    logic                    err_fifo_rd_valid;
-    logic                    err_fifo_rd_ready;
-    logic [63:0]             err_fifo_rd_data;
-    logic                    err_fifo_empty;
-    logic [ERR_FIFO_ADDR_WIDTH:0] err_fifo_count_full;
+    // Free-running timestamp counter (this module is the counter authority)
+    monbus_timestamp_t               r_ts_counter;
 
-    // Write FIFO signals
-    logic                    write_fifo_wr_valid;
-    logic                    write_fifo_wr_ready;
-    logic [63:0]             write_fifo_wr_data;
-    logic                    write_fifo_rd_valid;
-    logic                    write_fifo_rd_ready;
-    logic [63:0]             write_fifo_rd_data;
-    logic                    write_fifo_empty;
-    logic [WRITE_FIFO_ADDR_WIDTH:0] write_fifo_count_full;
+    // Error FIFO signals (packet-only, no timestamps in the IRQ path)
+    logic                            err_fifo_wr_valid;
+    logic                            err_fifo_wr_ready;
+    monitor_packet_t                 err_fifo_wr_data;
+    logic                            err_fifo_rd_valid;
+    logic                            err_fifo_rd_ready;
+    monitor_packet_t                 err_fifo_rd_data;
+    logic                            err_fifo_empty;
+    logic [ERR_FIFO_ADDR_WIDTH:0]    err_fifo_count_full;
 
-    // Backend interfaces for AXI-Lite modules
-    logic [ADDR_WIDTH-1:0]   fub_rd_araddr;
-    logic [2:0]              fub_rd_arprot;
-    logic                    fub_rd_arvalid;
-    logic                    fub_rd_arready;
-    logic [DATA_WIDTH-1:0]   fub_rd_rdata;
-    logic [1:0]              fub_rd_rresp;
-    logic                    fub_rd_rvalid;
-    logic                    fub_rd_rready;
+    // Write FIFO signals (carries combined record)
+    logic                            write_fifo_wr_valid;
+    logic                            write_fifo_wr_ready;
+    logic [WRITE_REC_WIDTH-1:0]      write_fifo_wr_data;
+    logic                            write_fifo_rd_valid;
+    logic                            write_fifo_rd_ready;
+    logic [WRITE_REC_WIDTH-1:0]      write_fifo_rd_data;
+    logic                            write_fifo_empty;
+    logic [WRITE_FIFO_ADDR_WIDTH:0]  write_fifo_count_full;
 
-    logic [ADDR_WIDTH-1:0]   fub_wr_awaddr;
-    logic [2:0]              fub_wr_awprot;
-    logic                    fub_wr_awvalid;
-    logic                    fub_wr_awready;
-    logic [DATA_WIDTH-1:0]   fub_wr_wdata;
-    logic [DATA_WIDTH/8-1:0] fub_wr_wstrb;
-    logic                    fub_wr_wvalid;
-    logic                    fub_wr_wready;
-    logic [1:0]              fub_wr_bresp;
-    logic                    fub_wr_bvalid;
-    logic                    fub_wr_bready;
+    // Unpacked record at FIFO output
+    monitor_packet_t                 wr_rec_packet;
+    monbus_timestamp_t               wr_rec_source_ts;
+    monbus_timestamp_t               wr_rec_arrival_ts;
+
+    // Backend interfaces for AXI-Lite slave read (32-bit CPU side)
+    logic [ADDR_WIDTH-1:0]           fub_rd_araddr;
+    logic [2:0]                      fub_rd_arprot;
+    logic                            fub_rd_arvalid;
+    logic                            fub_rd_arready;
+    logic [S_AXIL_DATA_WIDTH-1:0]    fub_rd_rdata;
+    logic [1:0]                      fub_rd_rresp;
+    logic                            fub_rd_rvalid;
+    logic                            fub_rd_rready;
+
+    // Backend interfaces for AXI-Lite master write (64-bit capture side)
+    logic [ADDR_WIDTH-1:0]            fub_wr_awaddr;
+    logic [2:0]                       fub_wr_awprot;
+    logic                             fub_wr_awvalid;
+    logic                             fub_wr_awready;
+    logic [M_AXIL_DATA_WIDTH-1:0]     fub_wr_wdata;
+    logic [M_AXIL_DATA_WIDTH/8-1:0]   fub_wr_wstrb;
+    logic                             fub_wr_wvalid;
+    logic                             fub_wr_wready;
+    logic [1:0]                       fub_wr_bresp;
+    logic                             fub_wr_bvalid;
+    logic                             fub_wr_bready;
 
     // Address generation for master writes
-    logic [ADDR_WIDTH-1:0]   current_write_addr;
-    logic [ADDR_WIDTH-1:0]   next_write_addr;
-    logic                    addr_counter_enable;
+    logic [ADDR_WIDTH-1:0]            current_write_addr;
 
     // =======================================================================
-    // Monitor Bus Arbitration
+    // Free-running Timestamp Counter
     // =======================================================================
+
+    `ALWAYS_FF_RST(axi_aclk, axi_aresetn,
+        if (`RST_ASSERTED(axi_aresetn)) begin
+            r_ts_counter <= '0;
+        end else begin
+            r_ts_counter <= r_ts_counter + 1'b1;
+        end
+    )
+
+    assign mon_time_out = r_ts_counter;
+
+    // =======================================================================
+    // Monitor Bus Arbitration (source + sink, packet+timestamp side-band)
+    // =======================================================================
+
+    // Build unpacked arrays for the arbiter (index 0 = source, 1 = sink)
+    assign arb_in_valid    [0] = source_monbus_valid;
+    assign arb_in_valid    [1] = sink_monbus_valid;
+    assign source_monbus_ready = arb_in_ready[0];
+    assign sink_monbus_ready   = arb_in_ready[1];
+    assign arb_in_packet   [0] = source_monbus_packet;
+    assign arb_in_packet   [1] = sink_monbus_packet;
+    assign arb_in_timestamp[0] = source_monbus_timestamp;
+    assign arb_in_timestamp[1] = sink_monbus_timestamp;
 
     monbus_arbiter #(
         .CLIENTS            (2),
@@ -229,14 +298,16 @@ module monbus_axil_group #(
         .block_arb          (1'b0),
 
         // Inputs
-        .monbus_valid_in    ({sink_monbus_valid, source_monbus_valid}),
-        .monbus_ready_in    ({sink_monbus_ready, source_monbus_ready}),
-        .monbus_packet_in   ({sink_monbus_packet, source_monbus_packet}),
+        .monbus_valid_in    (arb_in_valid),
+        .monbus_ready_in    (arb_in_ready),
+        .monbus_packet_in   (arb_in_packet),
+        .monbus_timestamp_in(arb_in_timestamp),
 
         // Output
         .monbus_valid       (arb_monbus_valid),
         .monbus_ready       (arb_monbus_ready),
         .monbus_packet      (arb_monbus_packet),
+        .monbus_timestamp   (arb_monbus_source_ts),
 
         // Debug (unused)
         .grant_valid        (),
@@ -249,82 +320,96 @@ module monbus_axil_group #(
     // Packet Analysis and Filtering
     // =======================================================================
 
-    // Extract packet fields
-    assign pkt_type = get_packet_type(arb_monbus_packet);
-    assign pkt_protocol = arb_monbus_packet[59:57]; // 3-bit protocol field
+    // Extract packet fields (new 128-bit layout)
+    assign pkt_type       = get_packet_type(arb_monbus_packet);
+    assign pkt_protocol   = arb_monbus_packet[108:105]; // 4-bit protocol field
     assign pkt_event_code = get_event_code(arb_monbus_packet);
     assign pkt_event_data = get_event_data(arb_monbus_packet);
 
-    // Filter logic
+    // Event-code is now 8 bits but the per-event mask registers stayed 16 bits
+    // for backward-compat with the existing register map. Index with the low
+    // nibble; codes >= 16 are treated as "not in mask" (no event masking).
+    assign ec_idx           = pkt_event_code[3:0];
+    assign ec_in_mask_range = (pkt_event_code[7:4] == 4'h0);
+
+    // Filter logic. Protocols are NOT contiguous (AXI=0, AXIS=1, APB=2, ARB=3,
+    // CORE=4) so we don't gate on `< NUM_PROTOCOLS` — the case statement's
+    // default branch drops anything we don't have config registers for.
+    // NUM_PROTOCOLS is kept as a parameter for backward-compat but is now
+    // informational only.
+    /* verilator lint_off UNUSEDPARAM */
+    // (NUM_PROTOCOLS retained for API stability)
+    /* verilator lint_on UNUSEDPARAM */
     always_comb begin
-        pkt_drop = 1'b0;
-        pkt_to_err_fifo = 1'b0;
+        pkt_drop          = 1'b0;
+        pkt_to_err_fifo   = 1'b0;
         pkt_to_write_fifo = 1'b0;
-        pkt_event_masked = 1'b0;
+        pkt_event_masked  = 1'b0;
 
-        // Only process supported protocols - fix width expansion warning
-        if ({29'b0, pkt_protocol} < NUM_PROTOCOLS && arb_monbus_valid) begin
-
-            // Protocol-specific filtering
+        if (arb_monbus_valid) begin
+            // Protocol-specific filtering. Use the package enum values
+            // (PROTOCOL_AXI=0, PROTOCOL_AXIS=1, PROTOCOL_CORE=4).
             case (pkt_protocol)
-                3'b000: begin // AXI
-                    // Check if packet type is dropped
-                    pkt_drop = cfg_axi_pkt_mask[pkt_type];
-
-                    // Check if packet type goes to error FIFO
+                PROTOCOL_AXI: begin // AXI
+                    pkt_drop        = cfg_axi_pkt_mask[pkt_type];
                     pkt_to_err_fifo = cfg_axi_err_select[pkt_type] && !pkt_drop;
 
-                    // Check individual event masking
-                    case (pkt_type)
-                        monitor_pkg::PktTypeError:     pkt_event_masked = cfg_axi_error_mask[pkt_event_code];
-                        monitor_pkg::PktTypeTimeout:   pkt_event_masked = cfg_axi_timeout_mask[pkt_event_code];
-                        monitor_pkg::PktTypeCompletion: pkt_event_masked = cfg_axi_compl_mask[pkt_event_code];
-                        monitor_pkg::PktTypeThreshold: pkt_event_masked = cfg_axi_thresh_mask[pkt_event_code];
-                        monitor_pkg::PktTypePerf:      pkt_event_masked = cfg_axi_perf_mask[pkt_event_code];
-                        monitor_pkg::PktTypeAddrMatch: pkt_event_masked = cfg_axi_addr_mask[pkt_event_code];
-                        monitor_pkg::PktTypeDebug:     pkt_event_masked = cfg_axi_debug_mask[pkt_event_code];
-                        default:                       pkt_event_masked = 1'b0;
-                    endcase
+                    if (ec_in_mask_range) begin
+                        case (pkt_type)
+                            PktTypeError:      pkt_event_masked = cfg_axi_error_mask  [ec_idx];
+                            PktTypeTimeout:    pkt_event_masked = cfg_axi_timeout_mask[ec_idx];
+                            PktTypeCompletion: pkt_event_masked = cfg_axi_compl_mask  [ec_idx];
+                            PktTypeThreshold:  pkt_event_masked = cfg_axi_thresh_mask [ec_idx];
+                            PktTypePerf:       pkt_event_masked = cfg_axi_perf_mask   [ec_idx];
+                            PktTypeAddrMatch:  pkt_event_masked = cfg_axi_addr_mask   [ec_idx];
+                            PktTypeDebug:      pkt_event_masked = cfg_axi_debug_mask  [ec_idx];
+                            default:           pkt_event_masked = 1'b0;
+                        endcase
+                    end
                 end
 
-                3'b001: begin // AXIS (AXI4-Stream)
-                    pkt_drop = cfg_axis_pkt_mask[pkt_type];
+                PROTOCOL_AXIS: begin // AXIS (AXI4-Stream)
+                    pkt_drop        = cfg_axis_pkt_mask[pkt_type];
                     pkt_to_err_fifo = cfg_axis_err_select[pkt_type] && !pkt_drop;
 
-                    case (pkt_type)
-                        monitor_pkg::PktTypeError:     pkt_event_masked = cfg_axis_error_mask[pkt_event_code];
-                        monitor_pkg::PktTypeTimeout:   pkt_event_masked = cfg_axis_timeout_mask[pkt_event_code];
-                        monitor_pkg::PktTypeCompletion: pkt_event_masked = cfg_axis_compl_mask[pkt_event_code];
-                        monitor_pkg::PktTypeCredit:    pkt_event_masked = cfg_axis_credit_mask[pkt_event_code];
-                        monitor_pkg::PktTypeChannel:   pkt_event_masked = cfg_axis_channel_mask[pkt_event_code];
-                        monitor_pkg::PktTypeStream:    pkt_event_masked = cfg_axis_stream_mask[pkt_event_code];
-                        default:                       pkt_event_masked = 1'b0;
-                    endcase
+                    if (ec_in_mask_range) begin
+                        case (pkt_type)
+                            PktTypeError:      pkt_event_masked = cfg_axis_error_mask  [ec_idx];
+                            PktTypeTimeout:    pkt_event_masked = cfg_axis_timeout_mask[ec_idx];
+                            PktTypeCompletion: pkt_event_masked = cfg_axis_compl_mask  [ec_idx];
+                            PktTypeCredit:     pkt_event_masked = cfg_axis_credit_mask [ec_idx];
+                            PktTypeChannel:    pkt_event_masked = cfg_axis_channel_mask[ec_idx];
+                            PktTypeStream:     pkt_event_masked = cfg_axis_stream_mask [ec_idx];
+                            default:           pkt_event_masked = 1'b0;
+                        endcase
+                    end
                 end
 
-                3'b010: begin // CORE (fixed from 3'b100)
-                    pkt_drop = cfg_core_pkt_mask[pkt_type];
+                PROTOCOL_CORE: begin // CORE
+                    pkt_drop        = cfg_core_pkt_mask[pkt_type];
                     pkt_to_err_fifo = cfg_core_err_select[pkt_type] && !pkt_drop;
 
-                    case (pkt_type)
-                        monitor_pkg::PktTypeError:     pkt_event_masked = cfg_core_error_mask[pkt_event_code];
-                        monitor_pkg::PktTypeTimeout:   pkt_event_masked = cfg_core_timeout_mask[pkt_event_code];
-                        monitor_pkg::PktTypeCompletion: pkt_event_masked = cfg_core_compl_mask[pkt_event_code];
-                        monitor_pkg::PktTypeThreshold: pkt_event_masked = cfg_core_thresh_mask[pkt_event_code];
-                        monitor_pkg::PktTypePerf:      pkt_event_masked = cfg_core_perf_mask[pkt_event_code];
-                        monitor_pkg::PktTypeDebug:     pkt_event_masked = cfg_core_debug_mask[pkt_event_code];
-                        default:                       pkt_event_masked = 1'b0;
-                    endcase
+                    if (ec_in_mask_range) begin
+                        case (pkt_type)
+                            PktTypeError:      pkt_event_masked = cfg_core_error_mask  [ec_idx];
+                            PktTypeTimeout:    pkt_event_masked = cfg_core_timeout_mask[ec_idx];
+                            PktTypeCompletion: pkt_event_masked = cfg_core_compl_mask  [ec_idx];
+                            PktTypeThreshold:  pkt_event_masked = cfg_core_thresh_mask [ec_idx];
+                            PktTypePerf:       pkt_event_masked = cfg_core_perf_mask   [ec_idx];
+                            PktTypeDebug:      pkt_event_masked = cfg_core_debug_mask  [ec_idx];
+                            default:           pkt_event_masked = 1'b0;
+                        endcase
+                    end
                 end
 
                 default: begin
-                    pkt_drop = 1'b1; // Drop unsupported protocols
+                    pkt_drop = 1'b1; // Drop unsupported protocols (APB, ARB, etc.)
                 end
             endcase
 
             // Final decision - apply event masking
             if (pkt_event_masked) begin
-                pkt_drop = 1'b1;
+                pkt_drop        = 1'b1;
                 pkt_to_err_fifo = 1'b0;
             end
 
@@ -335,19 +420,19 @@ module monbus_axil_group #(
 
     // Arbitrated ready based on FIFO availability
     assign arb_monbus_ready = pkt_drop ||
-                            (pkt_to_err_fifo && err_fifo_wr_ready) ||
-                            (pkt_to_write_fifo && write_fifo_wr_ready);
+                              (pkt_to_err_fifo   && err_fifo_wr_ready) ||
+                              (pkt_to_write_fifo && write_fifo_wr_ready);
 
     // =======================================================================
-    // Error/Interrupt FIFO
+    // Error/Interrupt FIFO (packet-only, no timestamps)
     // =======================================================================
 
     assign err_fifo_wr_valid = arb_monbus_valid && pkt_to_err_fifo && !pkt_drop;
-    assign err_fifo_wr_data = arb_monbus_packet;
+    assign err_fifo_wr_data  = arb_monbus_packet;
 
     gaxi_fifo_sync #(
         .REGISTERED     (0),
-        .DATA_WIDTH     (64),
+        .DATA_WIDTH     (MONBUS_PKT_WIDTH),
         .DEPTH          (FIFO_DEPTH_ERR)
     ) u_err_fifo (
         .axi_aclk       (axi_aclk),
@@ -362,21 +447,25 @@ module monbus_axil_group #(
     );
 
     assign err_fifo_empty = !err_fifo_rd_valid;
-    assign err_fifo_full = !err_fifo_wr_ready;
-    assign irq_out = !err_fifo_empty; // Interrupt when FIFO not empty
-    // Zero-extend FIFO count to 8 bits (FIFO count is ERR_FIFO_ADDR_WIDTH+1 bits)
+    assign err_fifo_full  = !err_fifo_wr_ready;
+    assign irq_out        = !err_fifo_empty; // Interrupt when FIFO not empty
+    // Zero-extend FIFO count to 8 bits
     assign err_fifo_count = {{(8-ERR_FIFO_ADDR_WIDTH-1){1'b0}}, err_fifo_count_full};
 
     // =======================================================================
-    // Master Write FIFO
+    // Master Write FIFO (combined record: packet + source_ts + arrival_ts)
     // =======================================================================
 
     assign write_fifo_wr_valid = arb_monbus_valid && pkt_to_write_fifo && !pkt_drop;
-    assign write_fifo_wr_data = arb_monbus_packet;
+    // Pack: {packet[127:0], source_ts[63:0], arrival_ts[63:0]}
+    // arrival_ts is sampled on the input handshake — by construction
+    // write_fifo_wr_valid implies the handshake cycle, so r_ts_counter at this
+    // moment is the arrival time.
+    assign write_fifo_wr_data  = {arb_monbus_packet, arb_monbus_source_ts, r_ts_counter};
 
     gaxi_fifo_sync #(
         .REGISTERED     (0),
-        .DATA_WIDTH     (64),
+        .DATA_WIDTH     (WRITE_REC_WIDTH),
         .DEPTH          (FIFO_DEPTH_WRITE)
     ) u_write_fifo (
         .axi_aclk       (axi_aclk),
@@ -390,18 +479,22 @@ module monbus_axil_group #(
         .count          (write_fifo_count_full)
     );
 
+    // Unpack record at FIFO output
+    assign wr_rec_arrival_ts = write_fifo_rd_data[MONBUS_TS_WIDTH-1:0];
+    assign wr_rec_source_ts  = write_fifo_rd_data[2*MONBUS_TS_WIDTH-1:MONBUS_TS_WIDTH];
+    assign wr_rec_packet     = write_fifo_rd_data[WRITE_REC_WIDTH-1:2*MONBUS_TS_WIDTH];
+
     assign write_fifo_empty = !write_fifo_rd_valid;
-    assign write_fifo_full = !write_fifo_wr_ready;
-    // Zero-extend FIFO count to 8 bits (FIFO count is WRITE_FIFO_ADDR_WIDTH+1 bits)
+    assign write_fifo_full  = !write_fifo_wr_ready;
     assign write_fifo_count = {{(8-WRITE_FIFO_ADDR_WIDTH-1){1'b0}}, write_fifo_count_full};
 
     // =======================================================================
-    // AXI-Lite Slave Read Interface (Error/Interrupt FIFO Access)
+    // AXI-Lite Slave Read Interface (Error/Interrupt FIFO Access, 32-bit)
     // =======================================================================
 
     axil4_slave_rd #(
         .AXIL_ADDR_WIDTH (ADDR_WIDTH),
-        .AXIL_DATA_WIDTH (DATA_WIDTH),
+        .AXIL_DATA_WIDTH (S_AXIL_DATA_WIDTH),
         .SKID_DEPTH_AR   (2),
         .SKID_DEPTH_R    (4)
     ) u_slave_rd (
@@ -432,60 +525,34 @@ module monbus_axil_group #(
     );
 
     // Connect backend to error FIFO - simple read interface
-    assign fub_rd_arready = !err_fifo_empty;
-    assign fub_rd_rvalid = fub_rd_arvalid && fub_rd_arready;
+    assign fub_rd_arready    = !err_fifo_empty;
+    assign fub_rd_rvalid     = fub_rd_arvalid && fub_rd_arready;
     assign err_fifo_rd_ready = fub_rd_rvalid && fub_rd_rready;
 
-    // Return either the packet data or zero if FIFO empty - fix width issues
+    // 128-bit packet exposed to a 32-bit CPU read. Use bits [3:2] of the
+    // word offset within the packet to select one of four 32-bit slices.
+    // Word 0 = [31:0], Word 1 = [63:32], Word 2 = [95:64], Word 3 = [127:96].
     always_comb begin
-        fub_rd_rdata = {DATA_WIDTH{1'b0}};  // Default to zero
+        fub_rd_rdata = {S_AXIL_DATA_WIDTH{1'b0}};
         if (!err_fifo_empty) begin
-            if (DATA_WIDTH == 64) begin
-                fub_rd_rdata = err_fifo_rd_data[DATA_WIDTH-1:0];
-            end else begin
-                // For 32-bit data width, select upper or lower word based on address bit [2]
-                // Zero-extend to DATA_WIDTH to avoid width mismatch warnings
-                fub_rd_rdata = {{(DATA_WIDTH-32){1'b0}},
-                                (fub_rd_araddr[2] ? err_fifo_rd_data[63:32] : err_fifo_rd_data[31:0])};
-            end
+            case (fub_rd_araddr[3:2])
+                2'b00:   fub_rd_rdata = err_fifo_rd_data[31:0];
+                2'b01:   fub_rd_rdata = err_fifo_rd_data[63:32];
+                2'b10:   fub_rd_rdata = err_fifo_rd_data[95:64];
+                2'b11:   fub_rd_rdata = err_fifo_rd_data[127:96];
+                default: fub_rd_rdata = '0;
+            endcase
         end
     end
     assign fub_rd_rresp = 2'b00; // OKAY response
 
     // =======================================================================
-    // Address Counter for Master Writes
-    // =======================================================================
-
-    // Calculate next address - fix off-by-one issue
-    always_comb begin
-        if (DATA_WIDTH == 64) begin
-            next_write_addr = current_write_addr + 8;
-        end else begin
-            next_write_addr = current_write_addr + 4;
-        end
-
-        // Check if next address would exceed limit, if so wrap to base
-        if (next_write_addr > cfg_limit_addr) begin
-            next_write_addr = cfg_base_addr;
-        end
-    end
-
-    `ALWAYS_FF_RST(axi_aclk, axi_aresetn,
-        if (`RST_ASSERTED(axi_aresetn)) begin
-            current_write_addr <= cfg_base_addr;
-        end else if (addr_counter_enable) begin
-            current_write_addr <= next_write_addr;
-        end
-    )
-
-
-    // =======================================================================
-    // AXI-Lite Master Write Interface
+    // AXI-Lite Master Write Interface (64-bit captures)
     // =======================================================================
 
     axil4_master_wr #(
         .AXIL_ADDR_WIDTH (ADDR_WIDTH),
-        .AXIL_DATA_WIDTH (DATA_WIDTH),
+        .AXIL_DATA_WIDTH (M_AXIL_DATA_WIDTH),
         .SKID_DEPTH_AW   (2),
         .SKID_DEPTH_W    (2),
         .SKID_DEPTH_B    (2)
@@ -523,57 +590,165 @@ module monbus_axil_group #(
     );
 
     // =======================================================================
-    // Write FIFO to Master Write Interface Logic
+    // Write FSM — 64-bit master, variable record size
+    //
+    // Beat order per record (always +8 bytes per beat):
+    //
+    //   append_enable=0:            beat0=pkt[63:0]    beat1=pkt[127:64]                              (16 B)
+    //   append_enable=1, mode=01:   beat0=pkt[63:0]    beat1=pkt[127:64]   beat2=source_ts            (24 B)
+    //   append_enable=1, mode=10:   beat0=pkt[63:0]    beat1=pkt[127:64]   beat2=arrival_ts           (24 B)
+    //   append_enable=1, mode=11:   beat0=pkt[63:0]    beat1=pkt[127:64]   beat2=source_ts   beat3=arrival_ts  (32 B)
+    //
+    // Address-window wrap:
+    //   The cfg_base_addr / cfg_limit_addr window is intended to be a
+    //   record-aligned ring. We use a "next-record-fits" check at the
+    //   start of each record only: if the current_write_addr + record_size
+    //   would exceed cfg_limit_addr, rewind to cfg_base_addr first. Once a
+    //   record is in flight we DO NOT wrap mid-record, even if a beat
+    //   address crosses the limit — partial records corrupt the data layout
+    //   in memory. The strict interpretation (rewind only between records)
+    //   matches the spec note in section 4.4.1.
     // =======================================================================
 
     typedef enum logic [2:0] {
-        WRITE_IDLE       = 3'b000,
-        WRITE_ADDR       = 3'b001,
-        WRITE_DATA_LOW   = 3'b010,
-        WRITE_DATA_HIGH  = 3'b011,
-        WRITE_RESP       = 3'b100
+        WRITE_IDLE   = 3'd0,
+        WRITE_LOAD   = 3'd1,  // 1 cycle: latch record from FIFO, compute size, maybe wrap addr
+        WRITE_AW     = 3'd2,
+        WRITE_W      = 3'd3,
+        WRITE_B      = 3'd4
     } write_state_t;
 
-    write_state_t write_state;
-    logic [63:0]  current_packet;
-    logic         upper_word_pending;
+    write_state_t                    write_state;
+    monitor_packet_t                 current_packet;
+    monbus_timestamp_t               current_source_ts;
+    monbus_timestamp_t               current_arrival_ts;
 
+    logic                            cur_append_enable;
+    logic [1:0]                      cur_append_mode;
+
+    // Beat counters
+    logic [2:0]                      total_beats;     // 2, 3, or 4
+    logic [2:0]                      beat_idx;        // 0..total_beats-1
+
+    // 1-beat addr stride in bytes (8 for a 64-bit master).
+    localparam int             BEAT_STRIDE_INT = M_AXIL_DATA_WIDTH / 8;
+
+    // Compute beats for a given (en, mode) combo
+    function automatic logic [2:0] record_beats(input logic en, input logic [1:0] mode);
+        if (!en)                  return 3'd2;
+        if (mode == 2'b11)        return 3'd4; // both
+        if (mode == 2'b01 || mode == 2'b10) return 3'd3;
+        return 3'd2;  // mode 00 with en=1 is treated as packet-only
+    endfunction
+
+    // Compute current beat's data based on beat index + mode.
+    // Beat slot mapping:
+    //   slot 0 -> packet[63:0]
+    //   slot 1 -> packet[127:64]
+    //   slot 2 -> source_ts   (if mode==01 or 11)
+    //          OR arrival_ts  (if mode==10)
+    //   slot 3 -> arrival_ts  (mode==11 only)
+    function automatic logic [M_AXIL_DATA_WIDTH-1:0] beat_data(
+        input logic [2:0]              idx,
+        input logic                    en,
+        input logic [1:0]              mode,
+        input monitor_packet_t         pkt,
+        input monbus_timestamp_t       src_ts,
+        input monbus_timestamp_t       arr_ts
+    );
+        case (idx)
+            3'd0: return pkt[63:0];
+            3'd1: return pkt[127:64];
+            3'd2: begin
+                if (!en)                 return '0;
+                if (mode == 2'b10)       return arr_ts;
+                return src_ts; // 01 or 11
+            end
+            3'd3: return arr_ts; // only valid when mode==11
+            default: return '0;
+        endcase
+    endfunction
+
+    // Combinational helpers for the WRITE_LOAD next-record-fits check.
+    logic [ADDR_WIDTH-1:0]   rec_size_bytes;
+    logic [ADDR_WIDTH-1:0]   load_start_addr;
+    logic [ADDR_WIDTH-1:0]   load_last_byte_addr;
+    logic                    load_needs_rewind;
+    logic [ADDR_WIDTH-1:0]   load_effective_start;
+    logic                    last_beat_of_record;
+
+    always_comb begin
+        // Total bytes in the record currently being launched.
+        // total_beats is at most 4, BEAT_STRIDE_INT is 8 -> max 32, fits any
+        // reasonable ADDR_WIDTH. Zero-extend the multiplicands.
+        rec_size_bytes       = {{(ADDR_WIDTH-3){1'b0}}, total_beats} *
+                               ADDR_WIDTH'(BEAT_STRIDE_INT);
+        load_start_addr      = current_write_addr;
+        load_last_byte_addr  = load_start_addr + rec_size_bytes - {{(ADDR_WIDTH-1){1'b0}}, 1'b1};
+        load_needs_rewind    = (load_last_byte_addr > cfg_limit_addr) ||
+                               (load_start_addr     < cfg_base_addr);
+        load_effective_start = load_needs_rewind ? cfg_base_addr : load_start_addr;
+
+        last_beat_of_record  = (beat_idx + 3'd1) == total_beats;
+    end
+
+    // FSM
     `ALWAYS_FF_RST(axi_aclk, axi_aresetn,
         if (`RST_ASSERTED(axi_aresetn)) begin
-            write_state <= WRITE_IDLE;
-            current_packet <= '0;
-            upper_word_pending <= 1'b0;
+            write_state        <= WRITE_IDLE;
+            current_packet     <= '0;
+            current_source_ts  <= '0;
+            current_arrival_ts <= '0;
+            cur_append_enable  <= 1'b0;
+            cur_append_mode    <= 2'b00;
+            total_beats        <= 3'd2;
+            beat_idx           <= 3'd0;
+            current_write_addr <= '0;
         end else begin
-            case (write_state) // Fix case incomplete warning
+            case (write_state)
                 WRITE_IDLE: begin
                     if (write_fifo_rd_valid) begin
-                        current_packet <= write_fifo_rd_data;
-                        write_state <= WRITE_ADDR;
-                        upper_word_pending <= (DATA_WIDTH == 32);
+                        // Latch record + capture cfg snapshot for this record
+                        current_packet     <= wr_rec_packet;
+                        current_source_ts  <= wr_rec_source_ts;
+                        current_arrival_ts <= wr_rec_arrival_ts;
+                        cur_append_enable  <= cfg_ts_append_enable;
+                        cur_append_mode    <= cfg_ts_append_mode;
+                        total_beats        <= record_beats(cfg_ts_append_enable, cfg_ts_append_mode);
+                        beat_idx           <= 3'd0;
+                        write_state        <= WRITE_LOAD;
                     end
                 end
 
-                WRITE_ADDR: begin
+                WRITE_LOAD: begin
+                    // Decide whether the next full record fits in the window;
+                    // if not, rewind to base BEFORE issuing the first AW.
+                    current_write_addr <= load_effective_start;
+                    write_state        <= WRITE_AW;
+                end
+
+                WRITE_AW: begin
                     if (fub_wr_awvalid && fub_wr_awready) begin
-                        write_state <= WRITE_DATA_LOW;
+                        write_state <= WRITE_W;
                     end
                 end
 
-                WRITE_DATA_LOW: begin
+                WRITE_W: begin
                     if (fub_wr_wvalid && fub_wr_wready) begin
-                        write_state <= WRITE_RESP;
+                        write_state <= WRITE_B;
                     end
                 end
 
-                WRITE_RESP: begin
+                WRITE_B: begin
                     if (fub_wr_bvalid && fub_wr_bready) begin
-                        if (upper_word_pending && DATA_WIDTH == 32) begin
-                            // Need to write upper 32 bits
-                            write_state <= WRITE_ADDR;
-                            upper_word_pending <= 1'b0;
-                        end else begin
-                            // Transaction complete
+                        // Beat retired
+                        current_write_addr <= current_write_addr + ADDR_WIDTH'(BEAT_STRIDE_INT);
+                        if (last_beat_of_record) begin
+                            beat_idx    <= 3'd0;
                             write_state <= WRITE_IDLE;
+                        end else begin
+                            beat_idx    <= beat_idx + 3'd1;
+                            write_state <= WRITE_AW;
                         end
                     end
                 end
@@ -587,33 +762,22 @@ module monbus_axil_group #(
 
 
     // Backend interface control
-    assign fub_wr_awvalid = (write_state == WRITE_ADDR);
-    assign fub_wr_awaddr = current_write_addr;
-    assign fub_wr_awprot = 3'b000;
+    assign fub_wr_awvalid = (write_state == WRITE_AW);
+    assign fub_wr_awaddr  = current_write_addr;
+    assign fub_wr_awprot  = 3'b000;
 
-    assign fub_wr_wvalid = (write_state == WRITE_DATA_LOW);
+    assign fub_wr_wvalid  = (write_state == WRITE_W);
+    assign fub_wr_wdata   = beat_data(beat_idx,
+                                       cur_append_enable,
+                                       cur_append_mode,
+                                       current_packet,
+                                       current_source_ts,
+                                       current_arrival_ts);
+    assign fub_wr_wstrb   = {(M_AXIL_DATA_WIDTH/8){1'b1}}; // All bytes valid
 
-    // Fix width issues for write data assignment
-    always_comb begin
-        if (DATA_WIDTH == 64) begin
-            fub_wr_wdata = current_packet[DATA_WIDTH-1:0];
-        end else begin
-            // For 32-bit data width, send lower or upper word
-            // Zero-extend to DATA_WIDTH to avoid width mismatch warnings
-            fub_wr_wdata = {{(DATA_WIDTH-32){1'b0}},
-                           (upper_word_pending ? current_packet[31:0] : current_packet[63:32])};
-        end
-    end
+    assign fub_wr_bready  = (write_state == WRITE_B);
 
-    assign fub_wr_wstrb = {(DATA_WIDTH/8){1'b1}}; // All bytes valid
-
-    assign fub_wr_bready = (write_state == WRITE_RESP);
-
-    // FIFO read control - read when starting a new transaction
+    // FIFO read control - pop one record per WRITE_IDLE->WRITE_LOAD transition
     assign write_fifo_rd_ready = (write_state == WRITE_IDLE) && write_fifo_rd_valid;
-
-    // Address counter enable - increment after each completed write
-    assign addr_counter_enable = (write_state == WRITE_RESP) && fub_wr_bvalid && fub_wr_bready &&
-                                (!upper_word_pending || DATA_WIDTH == 64);
 
 endmodule : monbus_axil_group

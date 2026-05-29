@@ -14,24 +14,21 @@
 # Created: 2025-10-18
 
 """
-Monitor Bus Type Definitions - Updated for 3-bit Protocol Field
+Monitor Bus Type Definitions — 128-bit packet format
 
-This module provides synchronized type definitions that match monitor_pkg.sv.
-All packet parsing and field extraction functions have been updated for the new format.
+This module provides synchronized type definitions that match
+monitor_common_pkg.sv. All packet parsing and field-extraction
+functions operate on the new 128-bit layout.
 
-UPDATED PACKET FORMAT (64 bits total):
-- [63:60] - packet_type: 4 bits (error, timeout, completion, etc.)
-- [59:57] - protocol:    3 bits (AXI/AXIS/APB/ARB/CORE) - ✅ INCREASED from 2 to 3 bits
-- [56:53] - event_code:  4 bits (specific error or event code) - ✅ MOVED from [57:54]
-- [52:47] - channel_id:  6 bits (channel ID and AXI ID) - ✅ UNCHANGED
-- [46:43] - unit_id:     4 bits (subsystem identifier) - ✅ UNCHANGED
-- [42:35] - agent_id:    8 bits (module identifier) - ✅ UNCHANGED
-- [34:0]  - event_data:  35 bits (event-specific data) - ✅ REDUCED from 36 to 35 bits
-
-Key Changes from Previous Version:
-1. Protocol field expanded to 3 bits to support more protocols
-2. Event data field reduced by 1 bit to accommodate protocol expansion
-3. All field extraction functions updated for new bit positions
+128-bit packet layout:
+- [127:124] packet_type   4 bits
+- [123:109] reserved     15 bits
+- [108:105] protocol      4 bits
+- [104: 97] event_code    8 bits
+- [ 96: 88] channel_id    9 bits
+- [ 87: 72] agent_id     16 bits
+- [ 71: 64] unit_id       8 bits
+- [ 63:  0] event_data   64 bits
 """
 
 from enum import IntEnum
@@ -611,56 +608,76 @@ class AXISStreamCode(IntEnum):
 
 
 # =============================================================================
-# PACKET FIELD EXTRACTION FUNCTIONS - UPDATED FOR NEW FORMAT
+# PACKET FIELD EXTRACTION FUNCTIONS — 128-bit format
 # =============================================================================
+#
+# 128-bit on-wire layout (mirrors monitor_common_pkg.sv):
+#   [127:124] - packet_type   4 bits
+#   [123:109] - reserved     15 bits
+#   [108:105] - protocol      4 bits
+#   [104: 97] - event_code    8 bits
+#   [ 96: 88] - channel_id    9 bits
+#   [ 87: 72] - agent_id     16 bits
+#   [ 71: 64] - unit_id       8 bits
+#   [ 63:  0] - event_data   64 bits
+
+MONBUS_PKT_WIDTH = 128
+MONBUS_TS_WIDTH  = 64
+
 
 def get_packet_type(packet: int) -> int:
-    """Extract packet type from 64-bit monitor packet"""
-    return (packet >> 60) & 0xF
+    """Extract packet type (4 bits) from 128-bit monitor packet."""
+    return (packet >> 124) & 0xF
 
 
 def get_protocol(packet: int) -> int:
-    """Extract protocol from 64-bit monitor packet - ✅ UPDATED for 3-bit field"""
-    return (packet >> 57) & 0x7  # ✅ CHANGED: Now 3 bits at [59:57]
+    """Extract protocol (4 bits) from 128-bit monitor packet."""
+    return (packet >> 105) & 0xF
 
 
 def get_event_code(packet: int) -> int:
-    """Extract event code from 64-bit monitor packet - ✅ UPDATED bit position"""
-    return (packet >> 53) & 0xF  # ✅ CHANGED: Now at [56:53] (was [57:54])
+    """Extract event_code (8 bits) from 128-bit monitor packet."""
+    return (packet >> 97) & 0xFF
 
 
 def get_channel_id(packet: int) -> int:
-    """Extract channel ID from 64-bit monitor packet"""
-    return (packet >> 47) & 0x3F  # ✅ UNCHANGED: 6 bits at [52:47]
-
-
-def get_unit_id(packet: int) -> int:
-    """Extract unit ID from 64-bit monitor packet"""
-    return (packet >> 43) & 0xF  # ✅ UNCHANGED: 4 bits at [46:43]
+    """Extract channel_id (9 bits) from 128-bit monitor packet."""
+    return (packet >> 88) & 0x1FF
 
 
 def get_agent_id(packet: int) -> int:
-    """Extract agent ID from 64-bit monitor packet"""
-    return (packet >> 35) & 0xFF  # ✅ UNCHANGED: 8 bits at [42:35]
+    """Extract agent_id (16 bits) from 128-bit monitor packet."""
+    return (packet >> 72) & 0xFFFF
+
+
+def get_unit_id(packet: int) -> int:
+    """Extract unit_id (8 bits) from 128-bit monitor packet."""
+    return (packet >> 64) & 0xFF
 
 
 def get_event_data(packet: int) -> int:
-    """Extract event data from 64-bit monitor packet - ✅ UPDATED for 35-bit field"""
-    return packet & 0x7FFFFFFFF  # ✅ CHANGED: Now 35 bits [34:0] (was 36 bits)
+    """Extract event_data (64 bits) from 128-bit monitor packet."""
+    return packet & ((1 << 64) - 1)
 
 
-def create_monitor_packet(packet_type: int, protocol: int, event_code: int, 
-                         channel_id: int, unit_id: int, agent_id: int, 
-                         event_data: int) -> int:
-    """Create a 64-bit monitor packet from individual fields - ✅ UPDATED"""
+def get_reserved(packet: int) -> int:
+    """Extract reserved (15 bits) from 128-bit monitor packet — informational."""
+    return (packet >> 109) & 0x7FFF
+
+
+def create_monitor_packet(packet_type: int, protocol: int, event_code: int,
+                          channel_id: int, unit_id: int, agent_id: int,
+                          event_data: int) -> int:
+    """Compose a 128-bit monitor packet from individual fields."""
     return (
-        ((packet_type & 0xF) << 60) |      # [63:60] - 4 bits
-        ((protocol & 0x7) << 57) |         # [59:57] - 3 bits ✅ UPDATED
-        ((event_code & 0xF) << 53) |       # [56:53] - 4 bits ✅ UPDATED
-        ((channel_id & 0x3F) << 47) |      # [52:47] - 6 bits
-        ((unit_id & 0xF) << 43) |          # [46:43] - 4 bits
-        ((agent_id & 0xFF) << 35) |        # [42:35] - 8 bits
-        (event_data & 0x7FFFFFFFF)         # [34:0] - 35 bits ✅ UPDATED
+        ((packet_type & 0xF)              << 124) |  # [127:124]
+        # bits [123:109] reserved — zero
+        ((protocol & 0xF)                 << 105) |  # [108:105]
+        ((event_code & 0xFF)              <<  97) |  # [104: 97]
+        ((channel_id & 0x1FF)             <<  88) |  # [ 96: 88]
+        ((agent_id & 0xFFFF)              <<  72) |  # [ 87: 72]
+        ((unit_id & 0xFF)                 <<  64) |  # [ 71: 64]
+        (event_data & ((1 << 64) - 1))                # [ 63:  0]
     )
 
 
@@ -782,7 +799,7 @@ class MonitorPacket:
 
     @classmethod
     def from_raw(cls, raw_packet: int) -> 'MonitorPacket':
-        """Create MonitorPacket from raw 64-bit value"""
+        """Create MonitorPacket from raw 128-bit value"""
         return cls(
             packet_type=get_packet_type(raw_packet),
             protocol=get_protocol(raw_packet),
@@ -795,7 +812,7 @@ class MonitorPacket:
         )
 
     def to_raw(self) -> int:
-        """Convert back to raw 64-bit value"""
+        """Convert back to raw 128-bit value"""
         return create_monitor_packet(
             self.packet_type, self.protocol, self.event_code,
             self.channel_id, self.unit_id, self.agent_id, self.event_data
@@ -872,17 +889,18 @@ def validate_monitor_packet(packet: int) -> bool:
 
 
 def debug_packet_bits(packet: int) -> str:
-    """Return detailed bit-level breakdown of a monitor packet for debugging"""
+    """Return detailed bit-level breakdown of a monitor packet for debugging (128-bit layout)."""
     lines = []
-    lines.append(f"Raw packet: 0x{packet:016X} (64-bit)")
+    lines.append(f"Raw packet: 0x{packet:032X} (128-bit)")
     lines.append("Bit-level breakdown:")
-    lines.append(f"  [63:60] packet_type = 0b{(packet >> 60) & 0xF:04b} (0x{(packet >> 60) & 0xF:X})")
-    lines.append(f"  [59:57] protocol    = 0b{(packet >> 57) & 0x7:03b} (0x{(packet >> 57) & 0x7:X})")
-    lines.append(f"  [56:53] event_code  = 0b{(packet >> 53) & 0xF:04b} (0x{(packet >> 53) & 0xF:X})")
-    lines.append(f"  [52:47] channel_id  = 0b{(packet >> 47) & 0x3F:06b} (0x{(packet >> 47) & 0x3F:02X})")
-    lines.append(f"  [46:43] unit_id     = 0b{(packet >> 43) & 0xF:04b} (0x{(packet >> 43) & 0xF:X})")
-    lines.append(f"  [42:35] agent_id    = 0b{(packet >> 35) & 0xFF:08b} (0x{(packet >> 35) & 0xFF:02X})")
-    lines.append(f"  [34:0]  event_data  = 0x{packet & 0x7FFFFFFFF:09X} ({packet & 0x7FFFFFFFF})")
+    lines.append(f"  [127:124] packet_type = 0x{(packet >> 124) & 0xF:X}")
+    lines.append(f"  [123:109] reserved    = 0x{(packet >> 109) & 0x7FFF:04X}")
+    lines.append(f"  [108:105] protocol    = 0x{(packet >> 105) & 0xF:X}")
+    lines.append(f"  [104: 97] event_code  = 0x{(packet >> 97) & 0xFF:02X}")
+    lines.append(f"  [ 96: 88] channel_id  = 0x{(packet >> 88) & 0x1FF:03X}")
+    lines.append(f"  [ 87: 72] agent_id    = 0x{(packet >> 72) & 0xFFFF:04X}")
+    lines.append(f"  [ 71: 64] unit_id     = 0x{(packet >> 64) & 0xFF:02X}")
+    lines.append(f"  [ 63:  0] event_data  = 0x{packet & ((1<<64)-1):016X}")
 
     # Try to parse and show human-readable names
     try:

@@ -59,6 +59,9 @@ module formal_arbiter_wrr_pwm_monbus #(
 
     logic                monbus_ready;
 
+    // Broadcast monitor time
+    (* anyseq *) logic [63:0]  i_mon_time;
+
     // =========================================================================
     // DUT outputs
     // =========================================================================
@@ -68,7 +71,8 @@ module formal_arbiter_wrr_pwm_monbus #(
     logic                cfg_pwm_sts_done;
     logic                pwm_out;
     logic                monbus_valid;
-    logic [63:0]         monbus_packet;
+    logic [127:0]        monbus_packet;
+    logic [63:0]         monbus_timestamp;
     logic [$clog2(MON_FIFO_DEPTH):0] debug_fifo_count;
     logic [15:0]         debug_packet_count;
     logic [CLIENTS-1:0]  debug_ack_timeout;
@@ -85,11 +89,12 @@ module formal_arbiter_wrr_pwm_monbus #(
         .MAX_LEVELS   (MAX_LEVELS),
         .CLIENTS      (CLIENTS),
         .WAIT_GNT_ACK (0),
-        .MON_AGENT_ID (8'h10),
-        .MON_UNIT_ID  (4'h0)
+        .MON_AGENT_ID (16'h0010),
+        .MON_UNIT_ID  (8'h00)
     ) dut (
         .clk                       (clk),
         .rst_n                     (rst_n),
+        .i_mon_time                (i_mon_time),
         .cfg_arb_max_thresh        (cfg_arb_max_thresh),
         .request                   (request),
         .grant_valid               (grant_valid),
@@ -115,6 +120,7 @@ module formal_arbiter_wrr_pwm_monbus #(
         .monbus_valid              (monbus_valid),
         .monbus_ready              (monbus_ready),
         .monbus_packet             (monbus_packet),
+        .monbus_timestamp          (monbus_timestamp),
         .debug_fifo_count          (debug_fifo_count),
         .debug_packet_count        (debug_packet_count),
         .debug_ack_timeout         (debug_ack_timeout),

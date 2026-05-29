@@ -19,27 +19,34 @@
  *
  * Watches the cmd_addr / cmd_valid / cmd_ready handshake already snooped by
  * axi_monitor_base and emits a PktTypeError packet with event code
- * AXI_ERR_ADDR_RANGE (4'hD) whenever an accepted command's address falls
+ * AXI_ERR_ADDR_RANGE (8'h0D) whenever an accepted command's address falls
  * inside one of N user-configured [low, high] inclusive ranges.
  *
- * Encoding:
+ * Encoding (128-bit packet, 64-bit event_data):
  *   - packet_type = PktTypeError (4'h0)
- *   - protocol    = PROTOCOL_AXI (3'b000)
- *   - event_code  = AXI_ERR_ADDR_RANGE (4'hD)
- *   - event_data[34:30] = range_index (5 bits, supports up to 32 ranges)
- *   - event_data[29]    = is_read flag (1 = AR, 0 = AW)
- *   - event_data[28: 0] = lower 29 bits of cmd_addr that hit
+ *   - protocol    = PROTOCOL_AXI (4'h0)
+ *   - event_code  = AXI_ERR_ADDR_RANGE (8'h0D)
+ *   - event_data[63:60] = range_index (4 bits low) — see below
+ *   - event_data[59: 0] = full cmd_addr (zero-padded if narrower than 60 bits)
+ *
+ * The is_read flag is dropped from the encoding — read vs. write is recovered
+ * from the IS_READ build parameter and the (unit_id, agent_id) of the
+ * emitting monitor. Range index is allocated 4 bits in the high nibble of
+ * event_data (up to 16 ranges), and the address occupies the low 60 bits.
+ * If N_ADDR_RANGES grows beyond 16, widen the index field by chopping
+ * address bits.
  *
  * Per-range coalescing:
  *   When a command hits range i, the address is latched into per-range state
  *   and a pending bit is set. If new commands hit range i before its event
  *   has been emitted, the latched address is overwritten (the latest hit
  *   wins). One emission per cycle drains the pending mask via a lowest-
- *   index priority encoder. This guarantees no event loss for distinct
- *   ranges and a bounded N-cycle drain to clear all pending under sustained
- *   load.
+ *   index priority encoder.
  *
- * Set both addr_low[i] and addr_high[i] equal for exact-match semantics.
+ * Side-band timestamp:
+ *   The free-running `i_mon_time` arrives from monbus_axil_group via the
+ *   shared mon_time_w net. It is sampled on the same cycle as `addr_pkt_valid`
+ *   asserts and driven out on `addr_pkt_timestamp` alongside the packet.
  *
  * When cfg_addr_check_enable is 0 the module is fully quiescent
  * (addr_pkt_valid stays low, no flops update).
@@ -50,9 +57,9 @@ module axi_monitor_addr_check
 #(
     parameter int N_ADDR_RANGES = 4,             // number of independent ranges (>=1)
     parameter int ADDR_WIDTH    = 32,            // address width
-    parameter int ID_WIDTH      = 6,             // cmd_id width (clipped to 6 bits for channel_id)
-    parameter int UNIT_ID       = 4'h0,          // 4-bit Unit ID in monitor packets
-    parameter int AGENT_ID      = 8'h00,         // 8-bit Agent ID in monitor packets
+    parameter int ID_WIDTH      = 6,             // cmd_id width (clipped to 9 bits for channel_id)
+    parameter logic [7:0]  UNIT_ID  = 8'h00,     // 8-bit Unit ID in monitor packets
+    parameter logic [15:0] AGENT_ID = 16'h0000,  // 16-bit Agent ID in monitor packets
     parameter bit IS_READ       = 1'b1,          // 1 if this monitor watches reads (AR), 0 if writes (AW)
 
     // Local widths
@@ -62,6 +69,9 @@ module axi_monitor_addr_check
 (
     input  logic                                       clk,
     input  logic                                       aresetn,
+
+    // Free-running counter from monbus_axil_group, broadcast to every wrapper
+    input  monbus_timestamp_t                          i_mon_time,
 
     // Snooped command stream (tap point: same wires as axi_monitor_base sees)
     input  logic [M-1:0]                               cmd_addr,
@@ -78,7 +88,8 @@ module axi_monitor_addr_check
     // Outgoing monbus packet (consumer typically merges with reporter stream)
     output logic                                       addr_pkt_valid,
     input  logic                                       addr_pkt_ready,
-    output logic [63:0]                                addr_pkt_data
+    output monitor_packet_t                            addr_pkt_data,
+    output monbus_timestamp_t                          addr_pkt_timestamp
 );
 
     // -------------------------------------------------------------------------
@@ -109,15 +120,15 @@ module axi_monitor_addr_check
     // Lowest-index pending: priority encoder picks the next range to emit
     logic [N_ADDR_RANGES-1:0] emit_oh;
     logic                     emit_any;
-    logic [4:0]               emit_idx;       // 5-bit range_index, supports up to 32 ranges
+    logic [3:0]               emit_idx;       // 4-bit range_index, supports up to 16 ranges
     assign emit_any = |r_pending;
     always_comb begin
         emit_oh  = '0;
-        emit_idx = 5'h0;
+        emit_idx = 4'h0;
         for (int i = 0; i < N_ADDR_RANGES; i++) begin
             if (r_pending[i] && emit_oh == '0) begin
                 emit_oh[i] = 1'b1;
-                emit_idx   = 5'(i);
+                emit_idx   = 4'(i);
             end
         end
     end
@@ -156,17 +167,19 @@ module axi_monitor_addr_check
     )
 
     // -------------------------------------------------------------------------
-    // Pack the emitted packet
+    // Pack the emitted packet (128-bit format, 64-bit event_data)
     // -------------------------------------------------------------------------
-    // event_data[34:30] = range_index, [29] = is_read, [28:0] = lower addr bits
+    // event_data[63:60] = range_index (4 bits, 16 ranges)
+    // event_data[59: 0] = cmd_addr (full address, zero-padded if narrower)
     localparam logic [3:0] PKT_TYPE_FIELD = PktTypeError;
-    localparam logic [2:0] PROTOCOL_FIELD = 3'b000;                  // PROTOCOL_AXI
-    localparam logic [3:0] EVENT_CODE     = AXI_ERR_ADDR_RANGE;      // 4'hD
+    localparam logic [3:0] PROTOCOL_FIELD = PROTOCOL_AXI;            // 4'h0
+    localparam logic [7:0] EVENT_CODE     = AXI_ERR_ADDR_RANGE;     // 8'h0D
 
     logic [M-1:0]   emit_addr;
     logic [IW-1:0]  emit_id;
-    logic [5:0]     channel_id_field;
-    logic [34:0]    event_data_field;
+    logic [8:0]     channel_id_field;
+    logic [63:0]    event_data_field;
+    logic [59:0]    addr_payload;
 
     always_comb begin
         emit_addr = '0;
@@ -179,26 +192,37 @@ module axi_monitor_addr_check
         end
     end
 
-    // channel_id is 6 bits in the packet — clip or zero-extend cmd_id.
+    // channel_id is 9 bits in the packet — clip or zero-extend cmd_id.
     // Done as a generate-if so the dead branch's replication count never
-    // goes negative when IW >= 6 (Verilator elaborates both arms of a
-    // ternary and flags the negative {{(6-IW){...}}} otherwise).
-    if (IW >= 6) begin : g_chan_id_wide
-        assign channel_id_field = emit_id[5:0];
+    // goes negative when IW >= 9 (Verilator elaborates both arms of a
+    // ternary and flags the negative {{(9-IW){...}}} otherwise).
+    if (IW >= 9) begin : g_chan_id_wide
+        assign channel_id_field = emit_id[8:0];
     end else begin : g_chan_id_narrow
-        assign channel_id_field = {{(6-IW){1'b0}}, emit_id};
+        assign channel_id_field = {{(9-IW){1'b0}}, emit_id};
     end
 
-    assign event_data_field = {emit_idx[4:0], IS_READ, emit_addr[28:0]};
+    // Pad / truncate the address into the 60-bit payload slot.
+    if (M >= 60) begin : g_addr_wide
+        assign addr_payload = emit_addr[59:0];
+    end else begin : g_addr_narrow
+        assign addr_payload = {{(60-M){1'b0}}, emit_addr};
+    end
+
+    assign event_data_field = {emit_idx[3:0], addr_payload};
 
     assign addr_pkt_data = create_monitor_packet(
-        PKT_TYPE_FIELD,                  // [63:60] packet_type
-        protocol_type_t'(PROTOCOL_FIELD),// [59:57] protocol
-        EVENT_CODE,                      // [56:53] event_code
-        channel_id_field,                // [52:47] channel_id
-        UNIT_ID[3:0],                    // [46:43] unit_id
-        AGENT_ID[7:0],                   // [42:35] agent_id
-        event_data_field                 // [34: 0] event_data
+        PKT_TYPE_FIELD,                  // [127:124] packet_type
+        protocol_type_t'(PROTOCOL_FIELD),// [108:105] protocol
+        EVENT_CODE,                      // [104: 97] event_code
+        channel_id_field,                // [ 96: 88] channel_id
+        UNIT_ID,                         // [ 71: 64] unit_id
+        AGENT_ID,                        // [ 87: 72] agent_id
+        event_data_field                 // [ 63:  0] event_data
     );
+
+    // Sample the broadcast monitor time on the cycle the packet asserts valid
+    // (purely combinational pass-through — packet/timestamp move together).
+    assign addr_pkt_timestamp = i_mon_time;
 
 endmodule : axi_monitor_addr_check

@@ -79,10 +79,10 @@ module arbiter_wrr_pwm_monbus #(
     parameter int CLIENTS = 4,                      // Number of arbitration clients (1-64)
     parameter int WAIT_GNT_ACK = 0,                 // Acknowledge protocol: 0=disable, 1=enable
 
-    // User-configurable monitor identification (fixed bit widths per protocol)
+    // User-configurable monitor identification (widened for 128-bit packet)
     /* verilator lint_off WIDTHTRUNC */
-    parameter logic [7:0] MON_AGENT_ID = 8'h10,     // Agent ID (8-bit per monitor bus protocol)
-    parameter logic [3:0] MON_UNIT_ID = 4'h0,       // Unit ID (4-bit per monitor bus protocol)
+    parameter logic [15:0] MON_AGENT_ID = 16'h0010, // Agent ID (16-bit per monitor bus protocol)
+    parameter logic [7:0]  MON_UNIT_ID  = 8'h00,    // Unit ID (8-bit per monitor bus protocol)
     /* verilator lint_on WIDTHTRUNC */
 
     // STANDARDIZED FIXED INTERNAL CONFIGURATION (not user-configurable)
@@ -129,10 +129,14 @@ module arbiter_wrr_pwm_monbus #(
     input  logic [15:0]                   cfg_mon_efficiency_thresh,
     input  logic [7:0]                    cfg_mon_sample_period,
 
-    // Monitor bus output - 64-bit event packet interface
-    output logic                          monbus_valid,
-    input  logic                          monbus_ready,
-    output logic [63:0]                   monbus_packet,
+    // Free-running monitor-time broadcast from monbus_axil_group
+    input  monitor_common_pkg::monbus_timestamp_t   i_mon_time,
+
+    // Monitor bus output - 128-bit packet + 64-bit side-band timestamp
+    output logic                                    monbus_valid,
+    input  logic                                    monbus_ready,
+    output monitor_common_pkg::monitor_packet_t     monbus_packet,
+    output monitor_common_pkg::monbus_timestamp_t   monbus_timestamp,
 
     // Enhanced debug outputs for silicon debug (matching modern interface)
     output logic [$clog2(MON_FIFO_DEPTH):0] debug_fifo_count,
@@ -235,10 +239,12 @@ module arbiter_wrr_pwm_monbus #(
             .cfg_mon_efficiency_thresh (cfg_mon_efficiency_thresh),
             .cfg_mon_sample_period   (cfg_mon_sample_period),
 
-            // Monitor bus output
+            // Time + Monitor bus output (128-bit packet + 64-bit side-band)
+            .i_mon_time              (i_mon_time),
             .monbus_valid            (monbus_valid),
             .monbus_ready            (monbus_ready),
             .monbus_packet           (monbus_packet),
+            .monbus_timestamp        (monbus_timestamp),
 
             // Enhanced debug outputs
             .debug_fifo_count        (debug_fifo_count),
@@ -252,7 +258,8 @@ module arbiter_wrr_pwm_monbus #(
         );
     end else begin : gen_no_monitor
         assign monbus_valid              = 1'b0;
-        assign monbus_packet             = 64'h0;
+        assign monbus_packet             = '0;
+        assign monbus_timestamp          = '0;
         assign debug_fifo_count          = '0;
         assign debug_packet_count        = 16'h0;
         assign debug_ack_timeout         = '0;

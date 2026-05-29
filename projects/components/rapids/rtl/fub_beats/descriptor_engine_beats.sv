@@ -60,9 +60,9 @@ module descriptor_engine_beats #(
     parameter int DESC_ADDR_FIFO_DEPTH = 2,          // NEW: Descriptor read address FIFO depth
     parameter int TIMEOUT_CYCLES = 1000,
     // Monitor Bus Parameters
-    parameter logic [7:0] MON_AGENT_ID = 8'h10,      // Descriptor Engine Agent ID
-    parameter logic [3:0] MON_UNIT_ID = 4'h1,        // Unit identifier
-    parameter logic [5:0] MON_CHANNEL_ID = 6'h0      // Base channel ID
+    parameter logic [15:0] MON_AGENT_ID  = 16'h0010,  // 16-bit agent ID (128-bit packet)
+    parameter logic [7:0]  MON_UNIT_ID   = 8'h01,     // 8-bit unit ID
+    parameter logic [8:0]  MON_CHANNEL_ID = 9'h000    // 9-bit base channel ID
 ) (
     // Clock and Reset
     input  logic                        clk,
@@ -122,10 +122,12 @@ module descriptor_engine_beats #(
     // Status Interface
     output logic                        descriptor_engine_idle,
 
-    // Monitor Bus Interface
-    output logic                        mon_valid,
-    input  logic                        mon_ready,
-    output logic [63:0]                 mon_packet
+    // Monitor Bus Interface (128-bit packet + 64-bit side-band timestamp)
+    input  monitor_common_pkg::monbus_timestamp_t  i_mon_time,
+    output logic                                   mon_valid,
+    input  logic                                   mon_ready,
+    output monitor_common_pkg::monitor_packet_t    mon_packet,
+    output monitor_common_pkg::monbus_timestamp_t  mon_timestamp
 );
 
     //=========================================================================
@@ -241,7 +243,8 @@ module descriptor_engine_beats #(
     // Monitor packet generation
     // Registered MonBus outputs
     logic r_mon_valid;
-    logic [63:0] r_mon_packet;
+    monitor_common_pkg::monitor_packet_t   r_mon_packet;
+    monitor_common_pkg::monbus_timestamp_t r_mon_timestamp;
 
     //=========================================================================
     // FIXED: Channel Reset Management
@@ -760,40 +763,41 @@ module descriptor_engine_beats #(
 
     `ALWAYS_FF_RST(clk, rst_n,
         if (`RST_ASSERTED(rst_n)) begin
-            r_mon_valid <= 1'b0;
-            r_mon_packet <= 64'h0;
+            r_mon_valid     <= 1'b0;
+            r_mon_packet    <= '0;
+            r_mon_timestamp <= '0;
         end else begin
             // Default: clear monitor packet
-            r_mon_valid <= 1'b0;
-            r_mon_packet <= 64'h0;
+            r_mon_valid  <= 1'b0;
+            r_mon_packet <= '0;
 
             case (r_current_state)
                 RD_COMPLETE: begin
-                    // Log successful descriptor fetch
-                    r_mon_valid <= 1'b1;
-                    r_mon_packet <= create_monitor_packet(
+                    r_mon_valid     <= 1'b1;
+                    r_mon_packet    <= create_monitor_packet(
                         PktTypeCompletion,
                         PROTOCOL_CORE,
                         CORE_COMPL_DESCRIPTOR_LOADED,
                         MON_CHANNEL_ID,
                         MON_UNIT_ID,
                         MON_AGENT_ID,
-                        r_axi_read_addr[34:0]
+                        64'(r_axi_read_addr)
                     );
+                    r_mon_timestamp <= i_mon_time;
                 end
 
                 RD_ERROR: begin
-                    // Log descriptor fetch error
-                    r_mon_valid <= 1'b1;
-                    r_mon_packet <= create_monitor_packet(
+                    r_mon_valid     <= 1'b1;
+                    r_mon_packet    <= create_monitor_packet(
                         PktTypeError,
                         PROTOCOL_CORE,
                         CORE_ERR_DESCRIPTOR_ENGINE,
                         MON_CHANNEL_ID,
                         MON_UNIT_ID,
                         MON_AGENT_ID,
-                        {16'h0, r_axi_read_resp, 17'h0}
+                        {46'h0, r_axi_read_resp, 16'h0}
                     );
+                    r_mon_timestamp <= i_mon_time;
                 end
 
                 default: begin
@@ -858,7 +862,8 @@ module descriptor_engine_beats #(
 
     // Monitor bus output
     assign mon_valid = r_mon_valid;
-    assign mon_packet = r_mon_packet;
+    assign mon_packet    = r_mon_packet;
+    assign mon_timestamp = r_mon_timestamp;
 
     //=========================================================================
     // Assertions for Verification

@@ -52,8 +52,8 @@ module axi4_master_rd_mon
     // int-parameter width checks.
     parameter bit USE_MONITOR       = 1'b1,  // 0 = omit monitor, tie outputs
     parameter int N_ADDR_RANGES     = 0,         // 0 = address-range checker disabled
-    parameter int UNIT_ID           = 32'd1,     // 4-bit Unit ID for monitor packets
-    parameter int AGENT_ID          = 32'd10,    // 8-bit Agent ID for monitor packets
+    parameter logic [7:0]  UNIT_ID  = 8'h01,     // 8-bit Unit ID for monitor packets
+    parameter logic [15:0] AGENT_ID = 16'h000A,  // 16-bit Agent ID for monitor packets
     parameter int MAX_TRANSACTIONS  = 16,    // Maximum outstanding transactions to monitor
 
     // Filtering parameters
@@ -147,10 +147,14 @@ module axi4_master_rd_mon
     input  logic [(N_ADDR_RANGES > 0 ? N_ADDR_RANGES : 1)-1:0][AW-1:0] cfg_addr_range_low,
     input  logic [(N_ADDR_RANGES > 0 ? N_ADDR_RANGES : 1)-1:0][AW-1:0] cfg_addr_range_high,
 
+    // Free-running monitor-time broadcast from monbus_axil_group
+    input  monitor_common_pkg::monbus_timestamp_t   i_mon_time,
+
     // Monitor Bus Output
-    output logic                       monbus_valid,            // Monitor bus valid
-    input  logic                       monbus_ready,            // Monitor bus ready
-    output logic [63:0]                monbus_packet,           // Monitor packet
+    output logic                                    monbus_valid,            // Monitor bus valid
+    input  logic                                    monbus_ready,            // Monitor bus ready
+    output monitor_common_pkg::monitor_packet_t     monbus_packet,           // Monitor packet (128-bit)
+    output monitor_common_pkg::monbus_timestamp_t   monbus_timestamp,        // Side-band sampled time
 
     // Status outputs for clock gating and monitoring
     output logic                       busy,
@@ -264,6 +268,7 @@ module axi4_master_rd_mon
         ) axi_monitor_inst (
             .aclk                    (aclk),
             .aresetn                 (aresetn),
+            .i_mon_time              (i_mon_time),
 
             // Command interface (AR channel)
             .cmd_addr                (m_axi_araddr),
@@ -324,6 +329,7 @@ module axi4_master_rd_mon
             .monbus_valid            (monbus_valid),
             .monbus_ready            (monbus_ready),
             .monbus_packet           (monbus_packet),
+            .monbus_timestamp        (monbus_timestamp),
 
             // Status outputs
             // block_ready stalls new ARs at fub_axi_arready when the
@@ -343,7 +349,8 @@ module axi4_master_rd_mon
         // report" and never stall. monbus_ready is an input — nothing to drive.
         // w_block_ready=1 → no monitor backpressure → wrapper runs at full BW.
         assign monbus_valid        = 1'b0;
-        assign monbus_packet       = 64'h0;
+        assign monbus_packet       = '0;
+        assign monbus_timestamp    = '0;
         assign active_transactions = 8'h0;
         assign cfg_conflict_error  = 1'b0;
         assign w_block_ready       = 1'b1;

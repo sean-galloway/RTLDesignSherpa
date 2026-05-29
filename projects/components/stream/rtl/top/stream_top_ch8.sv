@@ -214,8 +214,8 @@ module stream_top_ch8 #(
     output logic [2:0]                              m_axil_mon_awprot,
     output logic                                    m_axil_mon_wvalid,
     input  logic                                    m_axil_mon_wready,
-    output logic [31:0]                             m_axil_mon_wdata,
-    output logic [3:0]                              m_axil_mon_wstrb,
+    output logic [63:0]                             m_axil_mon_wdata,
+    output logic [7:0]                              m_axil_mon_wstrb,
     input  logic                                    m_axil_mon_bvalid,
     output logic                                    m_axil_mon_bready,
     input  logic [1:0]                              m_axil_mon_bresp,
@@ -447,9 +447,11 @@ module stream_top_ch8 #(
     //-------------------------------------------------------------------------
     // Monitor Bus (to monbus_axil_group)
     //-------------------------------------------------------------------------
-    logic                                   mon_valid;
-    logic                                   mon_ready;
-    logic [63:0]                            mon_packet;
+    logic                                          mon_valid;
+    logic                                          mon_ready;
+    monitor_common_pkg::monitor_packet_t           mon_packet;
+    monitor_common_pkg::monbus_timestamp_t         mon_timestamp;
+    monitor_common_pkg::monbus_timestamp_t         mon_time_w;
 
     //-------------------------------------------------------------------------
     // Configuration Signals - from stream_config_block
@@ -1347,11 +1349,13 @@ module stream_top_ch8 #(
                 .cfg_sts_wreng_mon_conflict_error(cfg_sts_wreng_mon_conflict_error),
 
                 //---------------------------------------------------------------------
-                // Unified Monitor Bus Interface
+                // Unified Monitor Bus Interface (128-bit + ts side-band)
                 //---------------------------------------------------------------------
+                .i_mon_time                 (mon_time_w),
                 .mon_valid                  (mon_valid),
                 .mon_ready                  (mon_ready),
-                .mon_packet                 (mon_packet)
+                .mon_packet                 (mon_packet),
+                .mon_timestamp              (mon_timestamp)
             );
         end else begin : g_stream_core
             // Instantiate stream_core with monitors disabled
@@ -1569,9 +1573,11 @@ module stream_top_ch8 #(
                 //---------------------------------------------------------------------
                 // Unified Monitor Bus Interface (inactive when monitors disabled)
                 //---------------------------------------------------------------------
+                .i_mon_time                 ('0),    // Monitors off — time tied low
                 .mon_valid                  (mon_valid),
                 .mon_ready                  (1'b1),  // Always ready (no backpressure)
-                .mon_packet                 (mon_packet)
+                .mon_packet                 (mon_packet),
+                .mon_timestamp              (mon_timestamp)
             );
         end
     endgenerate
@@ -1598,7 +1604,9 @@ module stream_top_ch8 #(
                 .FIFO_DEPTH_ERR     (64),    // Error/interrupt FIFO depth
                 .FIFO_DEPTH_WRITE   (32),    // Write data FIFO depth
                 .ADDR_WIDTH         (32),    // AXI-Lite address width
-                .DATA_WIDTH         (32),    // AXI-Lite data width
+                .S_AXIL_DATA_WIDTH  (32),    // CPU-facing slave (IRQ status)
+                // M_AXIL_DATA_WIDTH defaults to 64 — 128-bit packet emits in 2
+                // beats + optional timestamp beats per cfg_ts_append_mode.
                 .NUM_PROTOCOLS      (3)      // 3 protocols: desc, rd, wr
             ) u_monbus_axil_group (
                 .axi_aclk           (aclk),
@@ -1608,6 +1616,14 @@ module stream_top_ch8 #(
                 .monbus_valid       (mon_valid),
                 .monbus_ready       (mon_ready),
                 .monbus_packet      (mon_packet),
+                .monbus_timestamp   (mon_timestamp),
+
+                // Free-running timestamp counter — broadcast to wrappers
+                .mon_time_out       (mon_time_w),
+
+                // Timestamp append config — default mode 11 (both ts) per plan §8.6
+                .cfg_ts_append_enable (1'b1),
+                .cfg_ts_append_mode   (2'b11),
 
                 // Error/Interrupt FIFO - Slave Read Interface (AXI-Lite)
                 .s_axil_arvalid     (s_axil_err_arvalid),

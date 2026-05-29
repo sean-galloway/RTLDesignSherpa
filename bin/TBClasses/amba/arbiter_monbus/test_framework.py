@@ -29,7 +29,7 @@ Key Features:
 - TestConfiguration class for automatic DUT parameter detection  
 - TestFramework class that works with existing test classes
 - Clean integration with existing arbiter_monbus_common_tb.py
-- Updated for new 3-bit protocol and 35-bit data fields
+- Updated for 128-bit packet (4-bit protocol, 8-bit event_code, 9-bit channel_id, 64-bit data)
 """
 
 from dataclasses import dataclass
@@ -342,36 +342,35 @@ def create_expected_arb_packet(packet_type: PktType, event_code: int, channel_id
         'channel_id': channel_id,
         'unit_id': unit_id,
         'agent_id': agent_id,
-        'data': data & 0x7FFFFFFFF  # ✅ UPDATED: Clamp to 35 bits
+        'data': data & ((1 << 64) - 1)  # 64 bits
     }
 
 
 def validate_packet_format(packet_dict: Dict[str, Any]) -> List[str]:
-    """Validate packet fields are within updated format ranges"""
+    """Validate packet fields are within 128-bit packet ranges"""
     errors = []
-    
-    # Field range validations - UPDATED
-    if packet_dict.get('pkt_type', 0) > 15:  # 4 bits
+
+    if packet_dict.get('pkt_type', 0) > 0xF:                    # 4 bits
         errors.append(f"pkt_type {packet_dict['pkt_type']} exceeds 4-bit range")
-    
-    if packet_dict.get('protocol', 0) > 7:  # 3 bits ✅ UPDATED
-        errors.append(f"protocol {packet_dict['protocol']} exceeds 3-bit range")
-    
-    if packet_dict.get('event_code', 0) > 15:  # 4 bits
-        errors.append(f"event_code {packet_dict['event_code']} exceeds 4-bit range")
-    
-    if packet_dict.get('channel_id', 0) > 63:  # 6 bits
-        errors.append(f"channel_id {packet_dict['channel_id']} exceeds 6-bit range")
-    
-    if packet_dict.get('unit_id', 0) > 15:  # 4 bits
-        errors.append(f"unit_id {packet_dict['unit_id']} exceeds 4-bit range")
-    
-    if packet_dict.get('agent_id', 0) > 255:  # 8 bits
-        errors.append(f"agent_id {packet_dict['agent_id']} exceeds 8-bit range")
-    
-    if packet_dict.get('data', 0) > 0x7FFFFFFFF:  # 35 bits ✅ UPDATED
-        errors.append(f"data 0x{packet_dict['data']:X} exceeds 35-bit range")
-    
+
+    if packet_dict.get('protocol', 0) > 0xF:                    # 4 bits
+        errors.append(f"protocol {packet_dict['protocol']} exceeds 4-bit range")
+
+    if packet_dict.get('event_code', 0) > 0xFF:                 # 8 bits
+        errors.append(f"event_code {packet_dict['event_code']} exceeds 8-bit range")
+
+    if packet_dict.get('channel_id', 0) > 0x1FF:                # 9 bits
+        errors.append(f"channel_id {packet_dict['channel_id']} exceeds 9-bit range")
+
+    if packet_dict.get('unit_id', 0) > 0xFF:                    # 8 bits
+        errors.append(f"unit_id {packet_dict['unit_id']} exceeds 8-bit range")
+
+    if packet_dict.get('agent_id', 0) > 0xFFFF:                 # 16 bits
+        errors.append(f"agent_id {packet_dict['agent_id']} exceeds 16-bit range")
+
+    if packet_dict.get('data', 0) > ((1 << 64) - 1):            # 64 bits
+        errors.append(f"data 0x{packet_dict['data']:X} exceeds 64-bit range")
+
     return errors
 
 

@@ -28,9 +28,9 @@ module ctrlrd_engine #(
     parameter int AXI_DATA_WIDTH = 64,
     parameter int AXI_ID_WIDTH = 8,
     // Monitor Bus Parameters
-    parameter logic [7:0] MON_AGENT_ID = 8'h30,      // Ctrlrd Engine Agent ID
-    parameter logic [3:0] MON_UNIT_ID = 4'h2,        // Unit identifier
-    parameter logic [5:0] MON_CHANNEL_ID = 6'h0      // Base channel ID
+    parameter logic [15:0] MON_AGENT_ID  = 16'h0030,  // Ctrlrd Engine Agent ID (16-bit, 128-bit packet)
+    parameter logic [7:0]  MON_UNIT_ID   = 8'h02,     // Unit identifier (8-bit)
+    parameter logic [8:0]  MON_CHANNEL_ID = 9'h000    // Base channel ID (9-bit)
 ) (
     // Clock and Reset
     input  logic                        clk,
@@ -77,10 +77,12 @@ module ctrlrd_engine #(
     input  logic [1:0]                  r_resp,
     input  logic                        r_last,
 
-    // Monitor Bus Interface
-    output logic                        mon_valid,
-    input  logic                        mon_ready,
-    output logic [63:0]                 mon_packet
+    // Monitor Bus Interface (128-bit packet + 64-bit side-band timestamp)
+    input  monitor_common_pkg::monbus_timestamp_t  i_mon_time,
+    output logic                                   mon_valid,
+    input  logic                                   mon_ready,
+    output monitor_common_pkg::monitor_packet_t    mon_packet,
+    output monitor_common_pkg::monbus_timestamp_t  mon_timestamp
 );
 
     //=========================================================================
@@ -154,7 +156,8 @@ module ctrlrd_engine #(
 
     // Monitor packet generation
     logic r_mon_valid;
-    logic [63:0] r_mon_packet;
+    monitor_common_pkg::monitor_packet_t   r_mon_packet;
+    monitor_common_pkg::monbus_timestamp_t r_mon_timestamp;
 
     //=========================================================================
     // Channel Reset Management
@@ -442,70 +445,75 @@ module ctrlrd_engine #(
 
     `ALWAYS_FF_RST(clk, rst_n,
         if (`RST_ASSERTED(rst_n)) begin
-            r_mon_valid <= 1'b0;
-            r_mon_packet <= 64'h0;
+            r_mon_valid     <= 1'b0;
+            r_mon_packet    <= '0;
+            r_mon_timestamp <= '0;
         end else begin
             // Default: clear monitor packet
-            r_mon_valid <= 1'b0;
-            r_mon_packet <= 64'h0;
+            r_mon_valid  <= 1'b0;
+            r_mon_packet <= '0;
 
             case (r_current_state)
                 READ_ERROR: begin
                     if (w_axi_response_error) begin
                         // Log AXI response error
-                        r_mon_valid <= 1'b1;
-                        r_mon_packet <= create_monitor_packet(
+                        r_mon_valid     <= 1'b1;
+                        r_mon_packet    <= create_monitor_packet(
                             PktTypeError,
                             PROTOCOL_AXI,
                             (r_read_resp == 2'b10) ? AXI_ERR_RESP_SLVERR : AXI_ERR_RESP_DECERR,
                             MON_CHANNEL_ID,
                             MON_UNIT_ID,
                             MON_AGENT_ID,
-                            {16'h0, r_read_resp, 17'h0}
+                            {46'h0, r_read_resp, 16'h0}
                         );
+                        r_mon_timestamp <= i_mon_time;
                     end else begin
                         // Log max retries exceeded error
-                        r_mon_valid <= 1'b1;
-                        r_mon_packet <= create_monitor_packet(
+                        r_mon_valid     <= 1'b1;
+                        r_mon_packet    <= create_monitor_packet(
                             PktTypeError,
                             PROTOCOL_CORE,
                             CORE_ERR_CTRLRD_MAX_RETRIES,
                             MON_CHANNEL_ID,
                             MON_UNIT_ID,
                             MON_AGENT_ID,
-                            r_ctrlrd_addr[34:0]
+                            64'(r_ctrlrd_addr)
                         );
+                        r_mon_timestamp <= i_mon_time;
                     end
                 end
 
                 READ_MATCH: begin
                     if (!w_null_address) begin
                         // Log successful completion
-                        r_mon_valid <= 1'b1;
-                        r_mon_packet <= create_monitor_packet(
+                        r_mon_valid     <= 1'b1;
+                        r_mon_packet    <= create_monitor_packet(
                             PktTypeCompletion,
                             PROTOCOL_CORE,
                             CORE_COMPL_CTRLRD_COMPLETED,
                             MON_CHANNEL_ID,
                             MON_UNIT_ID,
                             MON_AGENT_ID,
-                            r_ctrlrd_addr[34:0]
+                            64'(r_ctrlrd_addr)
                         );
+                        r_mon_timestamp <= i_mon_time;
                     end
                 end
 
                 READ_RETRY_WAIT: begin
                     // Log retry attempt (using PktTypePerf for retry tracking)
-                    r_mon_valid <= 1'b1;
-                    r_mon_packet <= create_monitor_packet(
+                    r_mon_valid     <= 1'b1;
+                    r_mon_packet    <= create_monitor_packet(
                         PktTypePerf,
                         PROTOCOL_CORE,
                         CORE_PERF_CTRLRD_RETRY,
                         MON_CHANNEL_ID,
                         MON_UNIT_ID,
                         MON_AGENT_ID,
-                        {26'h0, r_retry_counter}
+                        64'(r_retry_counter)
                     );
+                    r_mon_timestamp <= i_mon_time;
                 end
 
                 default: begin
@@ -521,7 +529,8 @@ module ctrlrd_engine #(
     //=========================================================================
 
     assign mon_valid = r_mon_valid;
-    assign mon_packet = r_mon_packet;
+    assign mon_packet    = r_mon_packet;
+    assign mon_timestamp = r_mon_timestamp;
 
     //=========================================================================
     // Assertions for Verification

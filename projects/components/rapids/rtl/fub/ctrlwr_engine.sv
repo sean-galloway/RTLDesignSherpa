@@ -27,9 +27,9 @@ module ctrlwr_engine #(
     parameter int ADDR_WIDTH = 64,
     parameter int AXI_ID_WIDTH = 8,
     // Monitor Bus Parameters
-    parameter logic [7:0] MON_AGENT_ID = 8'h20,      // Ctrlwr Engine Agent ID
-    parameter logic [3:0] MON_UNIT_ID = 4'h1,        // Unit identifier
-    parameter logic [5:0] MON_CHANNEL_ID = 6'h0      // Base channel ID
+    parameter logic [15:0] MON_AGENT_ID  = 16'h0020,  // Ctrlwr Engine Agent ID (16-bit, 128-bit packet)
+    parameter logic [7:0]  MON_UNIT_ID   = 8'h01,     // Unit identifier (8-bit)
+    parameter logic [8:0]  MON_CHANNEL_ID = 9'h000    // Base channel ID (9-bit)
 ) (
     // Clock and Reset
     input  logic                        clk,
@@ -75,10 +75,12 @@ module ctrlwr_engine #(
     input  logic [AXI_ID_WIDTH-1:0]     b_id,
     input  logic [1:0]                  b_resp,
 
-    // Monitor Bus Interface
-    output logic                        mon_valid,
-    input  logic                        mon_ready,
-    output logic [63:0]                 mon_packet
+    // Monitor Bus Interface (128-bit packet + 64-bit side-band timestamp)
+    input  monitor_common_pkg::monbus_timestamp_t  i_mon_time,
+    output logic                                   mon_valid,
+    input  logic                                   mon_ready,
+    output monitor_common_pkg::monitor_packet_t    mon_packet,
+    output monitor_common_pkg::monbus_timestamp_t  mon_timestamp
 );
 
     //=========================================================================
@@ -143,7 +145,8 @@ module ctrlwr_engine #(
 
     // Monitor packet generation
     logic r_mon_valid;
-    logic [63:0] r_mon_packet;
+    monitor_common_pkg::monitor_packet_t   r_mon_packet;
+    monitor_common_pkg::monbus_timestamp_t r_mon_timestamp;
 
     //=========================================================================
     // FIXED: Channel Reset Management
@@ -403,56 +406,60 @@ module ctrlwr_engine #(
 
     `ALWAYS_FF_RST(clk, rst_n,
         if (`RST_ASSERTED(rst_n)) begin
-            r_mon_valid <= 1'b0;
-            r_mon_packet <= 64'h0;
+            r_mon_valid     <= 1'b0;
+            r_mon_packet    <= '0;
+            r_mon_timestamp <= '0;
         end else begin
             // Default: clear monitor packet
-            r_mon_valid <= 1'b0;
-            r_mon_packet <= 64'h0;
+            r_mon_valid  <= 1'b0;
+            r_mon_packet <= '0;
 
             case (r_current_state)
                 WRITE_ERROR: begin
                     if (w_address_error) begin
                         // Log address alignment error
-                        r_mon_valid <= 1'b1;
-                        r_mon_packet <= create_monitor_packet(
+                        r_mon_valid     <= 1'b1;
+                        r_mon_packet    <= create_monitor_packet(
                             PktTypeError,
                             PROTOCOL_CORE,
                             CORE_ERR_CTRLWR_ENGINE,
                             MON_CHANNEL_ID,
                             MON_UNIT_ID,
                             MON_AGENT_ID,
-                            r_ctrlwr_addr[34:0]
+                            64'(r_ctrlwr_addr)
                         );
+                        r_mon_timestamp <= i_mon_time;
                     end else if (r_ctrlwr_error) begin
                         // Log AXI response error (use registered flag since
                         // b_resp/b_valid are no longer asserted in this state)
-                        r_mon_valid <= 1'b1;
-                        r_mon_packet <= create_monitor_packet(
+                        r_mon_valid     <= 1'b1;
+                        r_mon_packet    <= create_monitor_packet(
                             PktTypeError,
                             PROTOCOL_AXI,
                             (r_write_resp == 2'b10) ? AXI_ERR_RESP_SLVERR : AXI_ERR_RESP_DECERR,
                             MON_CHANNEL_ID,
                             MON_UNIT_ID,
                             MON_AGENT_ID,
-                            {16'h0, r_write_resp, 17'h0}
+                            {46'h0, r_write_resp, 16'h0}
                         );
+                        r_mon_timestamp <= i_mon_time;
                     end
                 end
 
                 WRITE_COMPLETE: begin
                     if (!w_null_address) begin
                         // Log successful completion
-                        r_mon_valid <= 1'b1;
-                        r_mon_packet <= create_monitor_packet(
+                        r_mon_valid     <= 1'b1;
+                        r_mon_packet    <= create_monitor_packet(
                             PktTypeCompletion,
                             PROTOCOL_CORE,
                             CORE_COMPL_CTRLWR_COMPLETED,
                             MON_CHANNEL_ID,
                             MON_UNIT_ID,
                             MON_AGENT_ID,
-                            r_ctrlwr_addr[34:0]
+                            64'(r_ctrlwr_addr)
                         );
+                        r_mon_timestamp <= i_mon_time;
                     end
                 end
 
@@ -470,7 +477,8 @@ module ctrlwr_engine #(
 
     assign ctrlwr_error = r_ctrlwr_error;
     assign mon_valid = r_mon_valid;
-    assign mon_packet = r_mon_packet;
+    assign mon_packet    = r_mon_packet;
+    assign mon_timestamp = r_mon_timestamp;
 
     //=========================================================================
     // Assertions for Verification

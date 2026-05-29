@@ -3,18 +3,17 @@
 //
 // Formal proof for axi_monitor_addr_check
 //
-// Properties verified:
+// Properties verified (128-bit packet layout):
 //   P1: Reset deasserts addr_pkt_valid.
 //   P2: When cfg_addr_check_enable=0, addr_pkt_valid stays low.
-//   P3: An emitted packet's event_code is exactly AXI_ERR_ADDR_RANGE (4'hD)
+//   P3: An emitted packet's event_code is exactly AXI_ERR_ADDR_RANGE (8'h0D)
 //       and packet_type is PktTypeError (4'h0).
-//   P4: The range_index extracted from event_data points to a range that
-//       was enabled at the time of the hit (latched configuration).
-//   P5: The latched address embedded in event_data[28:0] is consistent
-//       with one of the enabled ranges' [low, high] bounds — i.e. the
-//       emitted address really did hit the range it claims.
-//   P6: addr_pkt_valid is stable (no glitches) — once asserted it stays
-//       asserted until accepted.
+//   P4: The range_index extracted from event_data[63:60] points to a range
+//       that was enabled at the time of the hit.
+//   P5: The latched address in event_data[59:0] (low ADDR_WIDTH bits)
+//       falls within the [low, high] bounds of the claimed range.
+//   P6: addr_pkt_valid is sticky — once asserted it stays asserted until
+//       accepted.
 
 module formal_axi_monitor_addr_check (
     input wire clk,
@@ -52,20 +51,25 @@ module formal_axi_monitor_addr_check (
         end
     endgenerate
 
-    // DUT outputs
-    wire        addr_pkt_valid;
-    wire [63:0] addr_pkt_data;
+    // Broadcast monitor time
+    (* anyseq *) reg [63:0] i_mon_time;
+
+    // DUT outputs (128-bit packet + 64-bit side-band timestamp)
+    wire         addr_pkt_valid;
+    wire [127:0] addr_pkt_data;
+    wire [63:0]  addr_pkt_timestamp;
 
     axi_monitor_addr_check #(
         .N_ADDR_RANGES (N),
         .ADDR_WIDTH    (M),
         .ID_WIDTH      (IW),
-        .UNIT_ID       (4'h0),
-        .AGENT_ID      (8'h00),
+        .UNIT_ID       (8'h00),
+        .AGENT_ID      (16'h0000),
         .IS_READ       (1'b1)
     ) dut (
         .clk                   (clk),
         .aresetn               (rst_n),
+        .i_mon_time            (i_mon_time),
         .cmd_addr              (cmd_addr),
         .cmd_id                (cmd_id),
         .cmd_valid             (cmd_valid),
@@ -76,7 +80,8 @@ module formal_axi_monitor_addr_check (
         .cfg_addr_range_high   (cfg_high_packed),
         .addr_pkt_valid        (addr_pkt_valid),
         .addr_pkt_ready        (addr_pkt_ready),
-        .addr_pkt_data         (addr_pkt_data)
+        .addr_pkt_data         (addr_pkt_data),
+        .addr_pkt_timestamp    (addr_pkt_timestamp)
     );
 
     // Reset bring-up
@@ -88,12 +93,12 @@ module formal_axi_monitor_addr_check (
         else                      assume (rst_n);
     end
 
-    // Decode the emitted packet
-    wire [3:0]  pkt_type     = addr_pkt_data[63:60];
-    wire [3:0]  pkt_evcode   = addr_pkt_data[56:53];
-    wire [4:0]  pkt_range_ix = addr_pkt_data[34:30];
-    wire        pkt_is_read  = addr_pkt_data[29];
-    wire [M-1:0] pkt_addr_lo = addr_pkt_data[M-1:0];
+    // Decode the emitted packet — 128-bit layout
+    wire [3:0]   pkt_type     = addr_pkt_data[127:124];
+    wire [3:0]   pkt_protocol = addr_pkt_data[108:105];
+    wire [7:0]   pkt_evcode   = addr_pkt_data[104: 97];
+    wire [3:0]   pkt_range_ix = addr_pkt_data[63:60];
+    wire [M-1:0] pkt_addr_lo  = addr_pkt_data[M-1:0];
 
     // =========================================================================
     // P1: Reset deasserts addr_pkt_valid (after at least one posedge has
@@ -118,8 +123,9 @@ module formal_axi_monitor_addr_check (
     // =========================================================================
     always @(*) begin
         if (rst_n && addr_pkt_valid) begin
-            ap_pkt_type_is_error: assert (pkt_type   == 4'h0);   // PktTypeError
-            ap_evcode_is_addr_range: assert (pkt_evcode == 4'hD); // AXI_ERR_ADDR_RANGE
+            ap_pkt_type_is_error:    assert (pkt_type   == 4'h0);    // PktTypeError
+            ap_protocol_is_axi:      assert (pkt_protocol == 4'h0);  // PROTOCOL_AXI
+            ap_evcode_is_addr_range: assert (pkt_evcode == 8'h0D);   // AXI_ERR_ADDR_RANGE
         end
     end
 
@@ -133,8 +139,8 @@ module formal_axi_monitor_addr_check (
 
     // =========================================================================
     // P5: The latched address falls within the claimed range's bounds.
-    //     event_data[28:0] holds the lower 29 bits of cmd_addr; with M<=29
-    //     it's the full address.
+    //     event_data[59:0] holds the full cmd_addr; with M<=60 it's the
+    //     full address.
     // =========================================================================
     always @(*) begin
         if (rst_n && addr_pkt_valid) begin

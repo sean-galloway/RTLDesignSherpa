@@ -63,10 +63,14 @@ module sram_rd_adapter #(
     input  logic         sram_rd_axi_rvalid,
     output  logic         sram_rd_axi_rready,
 
+    // Shared free-running monitor-time (from monbus_axil_group.mon_time_out)
+    input  monitor_common_pkg::monbus_timestamp_t i_mon_time,
+
     // Monitor side-band: rd wrapper
-    output logic        monbus_rd_valid,
-    input  logic        monbus_rd_ready,
-    output logic [63:0] monbus_rd_packet,
+    output logic                                  monbus_rd_valid,
+    input  logic                                  monbus_rd_ready,
+    output monitor_common_pkg::monitor_packet_t   monbus_rd_packet,
+    output monitor_common_pkg::monbus_timestamp_t monbus_rd_timestamp,
 
     input  logic         cfg_rd_monitor_enable,
     input  logic         cfg_rd_error_enable,
@@ -196,9 +200,11 @@ module sram_rd_adapter #(
         .busy(),
 
         // Monitor bus output
+        .i_mon_time(i_mon_time),
         .monbus_valid(monbus_rd_valid),
         .monbus_ready(monbus_rd_ready),
         .monbus_packet(monbus_rd_packet),
+        .monbus_timestamp(monbus_rd_timestamp),
 
         // Monitor cfg inputs
         .cfg_monitor_enable(cfg_rd_monitor_enable),

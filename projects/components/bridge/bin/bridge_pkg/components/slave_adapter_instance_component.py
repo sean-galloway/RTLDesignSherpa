@@ -168,10 +168,15 @@ class SlaveAdapterInstance:
             )
         pairs: List[tuple] = []
         ordered = sorted(wrappers, key=lambda w: 0 if w.channel == 'wr' else 1)
+        # Single shared free-running monitor-time net (driven by the
+        # bridge top's monbus_axil_group.mon_time_out). Same connector
+        # name as declared in BridgeModuleGenerator._generate_monitor_internal_signals.
+        pairs.append(('i_mon_time', 'mon_time_w'))
         for w in ordered:
-            pairs.append((f'monbus_{w.channel}_valid',  w.monbus_valid))
-            pairs.append((f'monbus_{w.channel}_ready',  w.monbus_ready))
-            pairs.append((f'monbus_{w.channel}_packet', w.monbus_packet))
+            pairs.append((f'monbus_{w.channel}_valid',     w.monbus_valid))
+            pairs.append((f'monbus_{w.channel}_ready',     w.monbus_ready))
+            pairs.append((f'monbus_{w.channel}_packet',    w.monbus_packet))
+            pairs.append((f'monbus_{w.channel}_timestamp', w.monbus_timestamp))
             for sig in Axi4TimingWrapper.MONITOR_CFG_SIGNALS:
                 base = sig[len('cfg_'):]
                 adapter_port = f'cfg_{w.channel}_{base}'

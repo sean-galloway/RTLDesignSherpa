@@ -29,27 +29,27 @@ from TBClasses.monbus import (  # noqa: E402
 
 
 # ---------------------------------------------------------------------------
-# Field-extraction helpers (work directly on raw 64-bit ints)
+# Field-extraction helpers (work directly on raw 128-bit ints)
 # ---------------------------------------------------------------------------
 
 def test_field_widths_match_sv_packet_layout():
     """Verify the bit slices match monitor_common_pkg.sv exactly:
-    [63:60] pkt_type, [59:57] protocol, [56:53] event_code,
-    [52:47] channel_id, [46:43] unit_id, [42:35] agent_id,
-    [34:0] event_data."""
+    [127:124] pkt_type, [123:109] reserved, [108:105] protocol,
+    [104:97] event_code, [96:88] channel_id, [87:72] agent_id,
+    [71:64] unit_id, [63:0] event_data."""
     # Set every field to its max value -- catches off-by-one slice bugs.
     raw = create_monitor_packet(
-        packet_type=0xF, protocol=0x7, event_code=0xF,
-        channel_id=0x3F, unit_id=0xF, agent_id=0xFF,
-        event_data=0x7FFFFFFFF,
+        packet_type=0xF, protocol=0xF, event_code=0xFF,
+        channel_id=0x1FF, unit_id=0xFF, agent_id=0xFFFF,
+        event_data=(1 << 64) - 1,
     )
     assert get_packet_type(raw) == 0xF
-    assert get_protocol(raw)    == 0x7
-    assert get_event_code(raw)  == 0xF
-    assert get_channel_id(raw)  == 0x3F
-    assert get_unit_id(raw)     == 0xF
-    assert get_agent_id(raw)    == 0xFF
-    assert get_event_data(raw)  == 0x7FFFFFFFF
+    assert get_protocol(raw)    == 0xF
+    assert get_event_code(raw)  == 0xFF
+    assert get_channel_id(raw)  == 0x1FF
+    assert get_unit_id(raw)     == 0xFF
+    assert get_agent_id(raw)    == 0xFFFF
+    assert get_event_data(raw)  == (1 << 64) - 1
 
 
 def test_field_widths_zero_packet():
@@ -59,15 +59,14 @@ def test_field_widths_zero_packet():
     assert p.packet_type == 0 and p.protocol == 0 and p.event_code == 0
 
 
-def test_event_data_is_35_bits_not_36():
-    """Regression: event_data is 35 bits ([34:0]), not 36. The 36-bit
-    mask 0xFFFFFFFFF (= 2**36-1) would clobber agent_id's LSB."""
-    # Set the bit just outside the event_data field; it must NOT
-    # appear in event_data.
-    raw = 1 << 35  # bit 35 belongs to agent_id, not event_data
+def test_event_data_is_64_bits_now():
+    """Regression: event_data is 64 bits ([63:0]) in the widened
+    packet. The bit just above (bit 64) belongs to unit_id, not
+    event_data."""
+    raw = 1 << 64  # bit 64 belongs to unit_id, not event_data
     p = parse(raw)
     assert p.event_data == 0
-    assert p.agent_id == 1
+    assert p.unit_id == 1
 
 
 # ---------------------------------------------------------------------------
@@ -178,11 +177,17 @@ def test_matches_unknown_attribute_raises():
 # parse_stream: post-processing a memory dump of monbus packets
 # ---------------------------------------------------------------------------
 
+def _split128(raw: int):
+    """Split a 128-bit packet into (lo64, hi64) — the order
+    monbus_axil_group writes them to memory (low half first)."""
+    return raw & ((1 << 64) - 1), (raw >> 64) & ((1 << 64) - 1)
+
+
 def test_parse_stream_filters_zero_padding():
-    """The bridge's m_mon_axil writes packets into a 32-bit-word
-    memory region; words that haven't been written yet remain 0. The
-    stream parser must skip those rather than emit a flood of bogus
-    PktTypeError/PROTOCOL_AXI/event_code=0 packets."""
+    """The bridge's m_mon_axil writes 128-bit packets in two 64-bit
+    beats. Beats that haven't been written remain 0. The stream parser
+    must skip all-zero records rather than emit bogus PktTypeError/
+    PROTOCOL_AXI/event_code=0 packets."""
     raw_err = create_monitor_packet(
         PktType.PktTypeError, ProtocolType.PROTOCOL_AXI,
         AXIErrorCode.AXI_ERR_DATA_ORPHAN, 0, 2, 0x10, 0xCAFE,
@@ -191,11 +196,48 @@ def test_parse_stream_filters_zero_padding():
         PktType.PktTypePerf, ProtocolType.PROTOCOL_AXI,
         AXIPerformanceCode.AXI_PERF_TOTAL_LATENCY, 0, 1, 0x00, 0x42,
     )
-    stream = [0, 0, raw_err, 0, raw_perf, 0]
-    parsed = list(parse_stream(stream))
+    # Each record is 2 beats (lo, hi); intersperse a zero record.
+    err_lo, err_hi = _split128(raw_err)
+    perf_lo, perf_hi = _split128(raw_perf)
+    stream = [0, 0,             # zero record  (skipped)
+              err_lo, err_hi,    # error record
+              0, 0,             # zero record  (skipped)
+              perf_lo, perf_hi]  # perf record
+    parsed = list(parse_stream(stream, stride_bytes=16, ts_mode=0))
     assert len(parsed) == 2
     assert parsed[0].get_event_code_name() == "AXI_ERR_DATA_ORPHAN"
     assert parsed[1].get_event_code_name() == "AXI_PERF_TOTAL_LATENCY"
+
+
+def test_parse_stream_with_source_timestamp():
+    """ts_mode=1: each record is packet + source_ts (3 beats, 24 B)."""
+    raw_err = create_monitor_packet(
+        PktType.PktTypeError, ProtocolType.PROTOCOL_AXI,
+        AXIErrorCode.AXI_ERR_DATA_ORPHAN, 0, 2, 0x10, 0xCAFE,
+    )
+    lo, hi = _split128(raw_err)
+    stream = [lo, hi, 0xDEADBEEF12345678]
+    parsed = list(parse_stream(stream, stride_bytes=24, ts_mode=1))
+    assert len(parsed) == 1
+    rec = parsed[0]
+    assert rec.packet.get_event_code_name() == "AXI_ERR_DATA_ORPHAN"
+    assert rec.source_ts == 0xDEADBEEF12345678
+    assert rec.arrival_ts is None
+
+
+def test_parse_stream_with_both_timestamps():
+    """ts_mode=3: packet + source_ts + arrival_ts (4 beats, 32 B)."""
+    raw_err = create_monitor_packet(
+        PktType.PktTypeError, ProtocolType.PROTOCOL_AXI,
+        AXIErrorCode.AXI_ERR_DATA_ORPHAN, 0, 2, 0x10, 0xCAFE,
+    )
+    lo, hi = _split128(raw_err)
+    stream = [lo, hi, 0x1111_2222_3333_4444, 0x5555_6666_7777_8888]
+    parsed = list(parse_stream(stream, stride_bytes=32, ts_mode=3))
+    assert len(parsed) == 1
+    rec = parsed[0]
+    assert rec.source_ts == 0x1111_2222_3333_4444
+    assert rec.arrival_ts == 0x5555_6666_7777_8888
 
 
 # ---------------------------------------------------------------------------

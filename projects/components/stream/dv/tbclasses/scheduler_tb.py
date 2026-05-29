@@ -47,6 +47,7 @@ from cocotb.utils import get_sim_time
 
 # Framework imports (shared infrastructure)
 from TBClasses.shared.tbbase import TBBase
+from TBClasses.monbus import parse as parse_monbus_packet  # shared 128-bit packet decoder
 from CocoTBFramework.components.gaxi.gaxi_factories import create_gaxi_master
 from CocoTBFramework.components.shared.field_config import FieldConfig, FieldDefinition
 from CocoTBFramework.components.shared.flex_randomizer import FlexRandomizer
@@ -715,22 +716,17 @@ class SchedulerTB(TBBase):
         self.log.info(f"\nAnalyzing {len(self.monitor_packets_received)} MonBus packets:")
 
         for idx, packet in enumerate(self.monitor_packets_received):
-            # Extract fields from MonBus packet format:
-            # {packet_type[3:0], protocol[2:0], event_code[3:0], channel_id[5:0], unit_id[3:0], agent_id[7:0], event_data[34:0]}
-            # [63:60] packet_type (4 bits)
-            # [59:57] protocol (3 bits) ← NOTE: 3 bits, not 2!
-            # [56:53] event_code (4 bits)
-            # [52:47] channel_id (6 bits)
-            # [46:43] unit_id (4 bits)
-            # [42:35] agent_id (8 bits)
-            # [34:0] event_data (35 bits)
-            packet_type = (packet >> 60) & 0xF
-            protocol = (packet >> 57) & 0x7      # Bits [59:57] - 3 bits!
-            event_code = (packet >> 53) & 0xF    # Bits [56:53]
-            channel_id = (packet >> 47) & 0x3F   # Bits [52:47]
-            unit_id = (packet >> 43) & 0xF       # Bits [46:43]
-            agent_id = (packet >> 35) & 0xFF     # Bits [42:35]
-            event_data = packet & 0x7FFFFFFFF    # Bits [34:0] - 35 bits!
+            # Use the shared monbus decoder from TBClasses.monbus —
+            # the on-wire packet format lives in monitor_common_pkg.sv
+            # (128-bit, with the layout documented in MonitorPacket).
+            p = parse_monbus_packet(packet)
+            packet_type = p.packet_type
+            protocol    = p.protocol
+            event_code  = p.event_code
+            channel_id  = p.channel_id
+            agent_id    = p.agent_id
+            unit_id     = p.unit_id
+            event_data  = p.event_data
 
             # Log all packets for debugging
             self.log.info(f"  Packet {idx}: event_code=0x{event_code:X}, channel={channel_id}, payload=0x{event_data:08X}, full=0x{packet:016X}")

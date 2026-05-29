@@ -165,10 +165,15 @@ module scheduler_group #(
     output transfer_phase_t             data_transfer_phase,
     output logic                        data_sequence_complete,
 
-    // Unified Monitor Bus Interface
-    output logic                        mon_valid,
-    input  logic                        mon_ready,
-    output logic [63:0]                 mon_packet,
+    // Free-running monitor-time broadcast (forwarded to all sub-reporters
+    // and to the monbus arbiter timestamp side-band).
+    input  monitor_common_pkg::monbus_timestamp_t   i_mon_time,
+
+    // Unified Monitor Bus Interface (128-bit packet + 64-bit side-band timestamp)
+    output logic                                    mon_valid,
+    input  logic                                    mon_ready,
+    output monitor_common_pkg::monitor_packet_t     mon_packet,
+    output monitor_common_pkg::monbus_timestamp_t   mon_timestamp,
 
     // Status and Error Outputs
     output logic [31:0]                 descriptor_credit_counter,
@@ -202,17 +207,20 @@ module scheduler_group #(
     // NOTE: Renamed to avoid conflicts with external AXI signals
     // Use component-specific names instead of prefix-based names
 
-    logic                        desceng_mon_valid;
-    logic                        desceng_mon_ready;
-    logic [63:0]                 desceng_mon_packet;
+    logic                                       desceng_mon_valid;
+    logic                                       desceng_mon_ready;
+    monitor_common_pkg::monitor_packet_t        desceng_mon_packet;
+    monitor_common_pkg::monbus_timestamp_t      desceng_mon_timestamp;
 
-    logic                        progeng_mon_valid;
-    logic                        progeng_mon_ready;
-    logic [63:0]                 progeng_mon_packet;
+    logic                                       progeng_mon_valid;
+    logic                                       progeng_mon_ready;
+    monitor_common_pkg::monitor_packet_t        progeng_mon_packet;
+    monitor_common_pkg::monbus_timestamp_t      progeng_mon_timestamp;
 
-    logic                        sched_mon_valid;
-    logic                        sched_mon_ready;
-    logic [63:0]                 sched_mon_packet;
+    logic                                       sched_mon_valid;
+    logic                                       sched_mon_ready;
+    monitor_common_pkg::monitor_packet_t        sched_mon_packet;
+    monitor_common_pkg::monbus_timestamp_t      sched_mon_timestamp;
 
     //=========================================================================
     // Component Instantiations
@@ -226,9 +234,10 @@ module scheduler_group #(
         .ADDR_WIDTH             (ADDR_WIDTH),
         .DATA_WIDTH             (DATA_WIDTH),
         .AXI_ID_WIDTH           (AXI_ID_WIDTH),
-        .MON_AGENT_ID           (8'(DESC_MON_AGENT_ID)),
-        .MON_UNIT_ID            (4'(MON_UNIT_ID)),
-        .MON_CHANNEL_ID         (6'(MON_CHANNEL_ID))
+        // Widened to match the 128-bit packet layout's MON_* field widths.
+        .MON_AGENT_ID           (16'(DESC_MON_AGENT_ID)),
+        .MON_UNIT_ID            (8'(MON_UNIT_ID)),
+        .MON_CHANNEL_ID         (9'(MON_CHANNEL_ID))
     ) u_descriptor_engine (
         .clk                    (clk),
         .rst_n                  (rst_n),
@@ -278,9 +287,12 @@ module scheduler_group #(
         .cfg_addr1_limit        (cfg_addr1_limit),
         .cfg_channel_reset      (cfg_channel_reset),
         .descriptor_engine_idle (descriptor_engine_idle),
+        // Monitor bus (with side-band timestamp)
+        .i_mon_time             (i_mon_time),
         .mon_valid              (desceng_mon_valid),
         .mon_ready              (desceng_mon_ready),
-        .mon_packet             (desceng_mon_packet)
+        .mon_packet             (desceng_mon_packet),
+        .mon_timestamp          (desceng_mon_timestamp)
     );
 
     // Program Engine Instance - REMOVED
@@ -306,10 +318,11 @@ module scheduler_group #(
     assign prog_w_last = '0;
     assign prog_b_ready = 1'b1;
 
-    // Tie off program engine idle status and monitor
-    assign program_engine_idle = 1'b1;
-    assign progeng_mon_valid = 1'b0;
-    assign progeng_mon_packet = '0;
+    // Tie off program engine idle status and monitor (packet + timestamp)
+    assign program_engine_idle    = 1'b1;
+    assign progeng_mon_valid      = 1'b0;
+    assign progeng_mon_packet     = '0;
+    assign progeng_mon_timestamp  = '0;
 
     // UPDATED: Single Scheduler Instance with Enhanced Data Interface and RAPIDS Types
     scheduler #(
@@ -321,9 +334,10 @@ module scheduler_group #(
         .CREDIT_WIDTH           (CREDIT_WIDTH),
         .TIMEOUT_CYCLES         (TIMEOUT_CYCLES),
         .EARLY_WARNING_THRESHOLD(EARLY_WARNING_THRESHOLD),
-        .MON_AGENT_ID           (8'(SCHED_MON_AGENT_ID)),
-        .MON_UNIT_ID            (4'(MON_UNIT_ID)),
-        .MON_CHANNEL_ID         (6'(MON_CHANNEL_ID))
+        // Widened to match the 128-bit packet layout's MON_* field widths.
+        .MON_AGENT_ID           (16'(SCHED_MON_AGENT_ID)),
+        .MON_UNIT_ID            (8'(MON_UNIT_ID)),
+        .MON_CHANNEL_ID         (9'(MON_CHANNEL_ID))
     ) u_scheduler (
         .clk                    (clk),
         .rst_n                  (rst_n),
@@ -392,9 +406,12 @@ module scheduler_group #(
         .cda_complete_valid     (cda_complete_valid),
         .cda_complete_ready     (cda_complete_ready),
         .cda_complete_channel   (cda_complete_channel),
+        // Monitor bus (with side-band timestamp)
+        .i_mon_time             (i_mon_time),
         .mon_valid              (sched_mon_valid),
         .mon_ready              (sched_mon_ready),
         .mon_packet             (sched_mon_packet),
+        .mon_timestamp          (sched_mon_timestamp),
         .scheduler_error        (scheduler_error),
         .backpressure_warning   (backpressure_warning)
     );
@@ -413,13 +430,17 @@ module scheduler_group #(
         .axi_aclk               (clk),
         .axi_aresetn            (rst_n),
         .block_arb              (1'b0),
-        // Direct connection to individual signals
-        .monbus_valid_in        ('{desceng_mon_valid, progeng_mon_valid, sched_mon_valid}),
-        .monbus_ready_in        ('{desceng_mon_ready, progeng_mon_ready, sched_mon_ready}),
-        .monbus_packet_in       ('{desceng_mon_packet, progeng_mon_packet, sched_mon_packet}),
+        // Direct connection to individual signals.
+        // Each client now provides packet + side-band timestamp on the same
+        // grant cycle (arbiter carries both through atomically).
+        .monbus_valid_in        ('{desceng_mon_valid,     progeng_mon_valid,     sched_mon_valid}),
+        .monbus_ready_in        ('{desceng_mon_ready,     progeng_mon_ready,     sched_mon_ready}),
+        .monbus_packet_in       ('{desceng_mon_packet,    progeng_mon_packet,    sched_mon_packet}),
+        .monbus_timestamp_in    ('{desceng_mon_timestamp, progeng_mon_timestamp, sched_mon_timestamp}),
         .monbus_valid           (mon_valid),
         .monbus_ready           (mon_ready),
         .monbus_packet          (mon_packet),
+        .monbus_timestamp       (mon_timestamp),
         .grant_valid            (/* UNUSED */),
         .grant                  (/* UNUSED */),
         .grant_id               (/* UNUSED */),

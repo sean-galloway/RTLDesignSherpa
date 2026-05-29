@@ -53,8 +53,9 @@ package monitor_pkg;
     // NOTE: Packet type constants are available via `import monitor_common_pkg::*;`
     // in consuming modules. The wildcard import brings PktTypeError, PktTypeCompletion, etc.
 
-    // Monitor packet type
+    // Monitor packet type + side-band timestamp
     typedef monitor_common_pkg::monitor_packet_t monitor_packet_t;
+    typedef monitor_common_pkg::monbus_timestamp_t monbus_timestamp_t;
 
     // Common state types
     typedef monitor_common_pkg::axis_transfer_type_t axis_transfer_type_t;
@@ -155,7 +156,7 @@ package monitor_pkg;
     // HELPER FUNCTIONS - DELEGATE TO APPROPRIATE PACKAGE
     // =============================================================================
 
-    // Packet manipulation functions (from common)
+    // Packet manipulation functions (from common, 128-bit layout)
     function automatic logic [3:0] get_packet_type(monitor_packet_t pkt);
         return monitor_common_pkg::get_packet_type(pkt);
     endfunction
@@ -164,34 +165,34 @@ package monitor_pkg;
         return monitor_common_pkg::get_protocol_type(pkt);
     endfunction
 
-    function automatic logic [3:0] get_event_code(monitor_packet_t pkt);
+    function automatic logic [7:0] get_event_code(monitor_packet_t pkt);
         return monitor_common_pkg::get_event_code(pkt);
     endfunction
 
-    function automatic logic [5:0] get_channel_id(monitor_packet_t pkt);
+    function automatic logic [8:0] get_channel_id(monitor_packet_t pkt);
         return monitor_common_pkg::get_channel_id(pkt);
     endfunction
 
-    function automatic logic [3:0] get_unit_id(monitor_packet_t pkt);
+    function automatic logic [7:0] get_unit_id(monitor_packet_t pkt);
         return monitor_common_pkg::get_unit_id(pkt);
     endfunction
 
-    function automatic logic [7:0] get_agent_id(monitor_packet_t pkt);
+    function automatic logic [15:0] get_agent_id(monitor_packet_t pkt);
         return monitor_common_pkg::get_agent_id(pkt);
     endfunction
 
-    function automatic logic [34:0] get_event_data(monitor_packet_t pkt);
+    function automatic logic [63:0] get_event_data(monitor_packet_t pkt);
         return monitor_common_pkg::get_event_data(pkt);
     endfunction
 
     function automatic monitor_packet_t create_monitor_packet(
         logic [3:0]     packet_type,
         protocol_type_t protocol,
-        logic [3:0]     event_code,
-        logic [5:0]     channel_id,
-        logic [3:0]     unit_id,
-        logic [7:0]     agent_id,
-        logic [34:0]    event_data
+        logic [7:0]     event_code,
+        logic [8:0]     channel_id,
+        logic [7:0]     unit_id,
+        logic [15:0]    agent_id,
+        logic [63:0]    event_data
     );
         return monitor_common_pkg::create_monitor_packet(
             packet_type, protocol, event_code, channel_id, unit_id, agent_id, event_data
@@ -386,7 +387,7 @@ package monitor_pkg;
     function automatic bit is_valid_event_for_packet_type(
         logic [3:0] packet_type,
         protocol_type_t protocol,
-        logic [3:0] event_code
+        logic [7:0] event_code
     );
         case (protocol)
             monitor_common_pkg::PROTOCOL_AXI,
@@ -408,7 +409,7 @@ package monitor_pkg;
     function automatic string get_event_name(
         logic [3:0] packet_type,
         protocol_type_t protocol,
-        logic [3:0] event_code
+        logic [7:0] event_code
     );
         string base_name;
 
@@ -519,19 +520,19 @@ package monitor_pkg;
 
     // Complete packet formatting function for human-readable output
     function automatic string format_monitor_packet(monitor_packet_t pkt);
-        protocol_type_t protocol = get_protocol_type(pkt);
-        logic [3:0] packet_type = get_packet_type(pkt);
-        logic [3:0] event_code = get_event_code(pkt);
-        logic [7:0] agent_id = get_agent_id(pkt);
-        logic [3:0] unit_id = get_unit_id(pkt);
-        logic [5:0] channel_id = get_channel_id(pkt);
-        logic [34:0] event_data = get_event_data(pkt);
+        protocol_type_t protocol   = get_protocol_type(pkt);
+        logic [3:0]     packet_type = get_packet_type(pkt);
+        logic [7:0]     event_code  = get_event_code(pkt);
+        logic [15:0]    agent_id    = get_agent_id(pkt);
+        logic [7:0]     unit_id     = get_unit_id(pkt);
+        logic [8:0]     channel_id  = get_channel_id(pkt);
+        logic [63:0]    event_data  = get_event_data(pkt);
 
-        string protocol_str = get_protocol_name(protocol);
+        string protocol_str    = get_protocol_name(protocol);
         string packet_type_str = get_packet_type_name(packet_type);
-        string event_name = get_event_name(packet_type, protocol, event_code);
+        string event_name      = get_event_name(packet_type, protocol, event_code);
 
-        return $sformatf("[%s_%s] %s | Agent:%02X Unit:%X Ch:%02X | Data:%09X",
+        return $sformatf("[%s_%s] %s | Agent:%04X Unit:%02X Ch:%03X | Data:%016X",
                         protocol_str, packet_type_str, event_name,
                         agent_id, unit_id, channel_id, event_data);
     endfunction

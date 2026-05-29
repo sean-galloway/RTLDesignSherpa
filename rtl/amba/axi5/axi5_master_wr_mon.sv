@@ -48,8 +48,8 @@ module axi5_master_wr_mon
     // Monitor parameters
     parameter bit USE_MONITOR       = 1'b1,  // 0 = omit monitor, tie outputs
     parameter int N_ADDR_RANGES     = 0,         // 0 = address-range checker disabled
-    parameter int UNIT_ID           = 1,
-    parameter int AGENT_ID          = 11,
+    parameter logic [7:0]  UNIT_ID  = 8'h01,
+    parameter logic [15:0] AGENT_ID = 16'h000B,
     parameter int MAX_TRANSACTIONS  = 16,
     parameter bit ENABLE_FILTERING  = 1,
     parameter bit ADD_PIPELINE_STAGE = 0,
@@ -180,9 +180,14 @@ module axi5_master_wr_mon
     input  logic [(N_ADDR_RANGES > 0 ? N_ADDR_RANGES : 1)-1:0][AW-1:0] cfg_addr_range_low,
     input  logic [(N_ADDR_RANGES > 0 ? N_ADDR_RANGES : 1)-1:0][AW-1:0] cfg_addr_range_high,
 
-    output logic                       monbus_valid,
-    input  logic                       monbus_ready,
-    output logic [63:0]                monbus_packet,
+    // Free-running monitor-time broadcast from monbus_axil_group
+    input  monitor_common_pkg::monbus_timestamp_t   i_mon_time,
+
+    // Monitor Bus Output
+    output logic                                    monbus_valid,            // Monitor bus valid
+    input  logic                                    monbus_ready,            // Monitor bus ready
+    output monitor_common_pkg::monitor_packet_t     monbus_packet,           // Monitor packet (128-bit)
+    output monitor_common_pkg::monbus_timestamp_t   monbus_timestamp,        // Side-band sampled time
 
     output logic                       busy,
     output logic [7:0]                 active_transactions,
@@ -269,6 +274,7 @@ module axi5_master_wr_mon
             .N_ADDR_RANGES(N_ADDR_RANGES)
         ) axi_monitor_inst (
             .aclk(aclk), .aresetn(aresetn),
+            .i_mon_time(i_mon_time),
             .cmd_addr(m_axi_awaddr), .cmd_id(m_axi_awid), .cmd_len(m_axi_awlen),
             .cmd_size(m_axi_awsize), .cmd_burst(m_axi_awburst),
             .cmd_valid(m_axi_awvalid), .cmd_ready(m_axi_awready),
@@ -293,6 +299,7 @@ module axi5_master_wr_mon
             .cfg_addr_range_low(cfg_addr_range_low),
             .cfg_addr_range_high(cfg_addr_range_high),
             .monbus_valid(monbus_valid), .monbus_ready(monbus_ready), .monbus_packet(monbus_packet),
+            .monbus_timestamp(monbus_timestamp),
             // block_ready stalls new AWs at fub_axi_awready when monitor FIFO
             // is full (wire ANDed into the wrapper output below).
             .block_ready(w_block_ready),
@@ -303,7 +310,8 @@ module axi5_master_wr_mon
         );
     end else begin : gen_no_monitor
         assign monbus_valid        = 1'b0;
-        assign monbus_packet       = 64'h0;
+        assign monbus_packet       = '0;
+        assign monbus_timestamp    = '0;
         assign active_transactions = 8'h0;
         assign cfg_conflict_error  = 1'b0;
         assign w_block_ready       = 1'b1;

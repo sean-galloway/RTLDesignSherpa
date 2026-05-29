@@ -32,8 +32,8 @@ module axi_monitor_reporter
 #(
     parameter int MAX_TRANSACTIONS    = 16,   // Maximum outstanding transactions
     parameter int ADDR_WIDTH          = 32,   // Width of address bus
-    parameter int UNIT_ID             = 9,    // Unit identifier (4 bits used)
-    parameter int AGENT_ID            = 99,   // Agent identifier (8 bits used)
+    parameter logic [7:0]  UNIT_ID    = 8'h09,    // 8-bit Unit identifier
+    parameter logic [15:0] AGENT_ID   = 16'h0063, // 16-bit Agent identifier
     parameter bit IS_READ             = 1'b1,    // 1 for read, 0 for write
     parameter bit ENABLE_PERF_PACKETS = 1'b0,    // Enable performance metrics tracking
     parameter int INTR_FIFO_DEPTH     = 8     // interrupt fifo depth
@@ -58,9 +58,9 @@ module axi_monitor_reporter
     input  logic                     cfg_debug_enable,    // Enable debug packets
 
     // Interrupt bus output interface
-    input  logic                     monbus_ready,  // Downstream ready
-    output logic                     monbus_valid,  // Interrupt valid
-    output logic [63:0]              monbus_packet, // Consolidated interrupt packet
+    input  logic                              monbus_ready,  // Downstream ready
+    output logic                              monbus_valid,  // Interrupt valid
+    output monitor_packet_t                   monbus_packet, // Consolidated interrupt packet
 
     // Statistics output
     output logic [15:0]              event_count,    // Total event count
@@ -86,12 +86,12 @@ module axi_monitor_reporter
     assign event_reported_flags = r_event_reported;
 
     // Helper function to pack a stored transaction-table address into the
-    // 38-bit packet data field. The trans-table stores addresses as a
+    // 64-bit packet data field. The trans-table stores addresses as a
     // fixed 32-bit value (see bus_transaction_t in monitor_amba4_pkg.sv),
     // so this is a simple zero-extension. A static cast is used to avoid
     // dead-branch width warnings from Verilator.
-    function automatic logic [37:0] pad_address(input logic [31:0] addr);
-        return 38'(addr);
+    function automatic logic [63:0] pad_address(input logic [31:0] addr);
+        return 64'(addr);
     endfunction
 
     // Threshold crossing flags (flopped)
@@ -113,12 +113,12 @@ module axi_monitor_reporter
     // Performance report state machine (flopped)
     logic [2:0] r_perf_report_state;
 
-    // Interrupt FIFO entry type - Updated with new packet format
+    // Interrupt FIFO entry type — 128-bit packet field layout
     typedef struct packed {
-        logic [3:0]            packet_type;  // Packet type (updated bit allocation)
-        logic [3:0]            event_code;   // Event code or metric type
-        logic [5:0]            channel;      // Channel information
-        logic [37:0]           data;         // Address or metric value (updated to 38 bits)
+        logic [3:0]            packet_type;  // Packet type (4 bits)
+        logic [7:0]            event_code;   // Event code or metric type (8 bits)
+        logic [8:0]            channel;      // Channel information (9 bits)
+        logic [63:0]           data;         // Address or metric value (64 bits, full event_data)
     } monbus_entry_t;
 
     // FIFO signals (combinational)
@@ -149,11 +149,11 @@ module axi_monitor_reporter
         .rd_data       (w_fifo_rd_data)
     );
 
-    // Output registers (flopped)
-    logic [3:0]  r_packet_type;
-    logic [3:0]  r_event_code;
-    logic [37:0] r_event_data;  // Updated to 38 bits to match new packet format
-    logic [5:0]  r_event_channel;
+    // Output registers (flopped) — sized for 128-bit packet fields
+    logic [3:0]  r_packet_type;   // 4-bit packet type
+    logic [7:0]  r_event_code;    // 8-bit event code
+    logic [63:0] r_event_data;    // 64-bit event_data slot
+    logic [8:0]  r_event_channel; // 9-bit channel_id
 
     // Event detection signals - One for each type of event to report (combinational)
     logic [MAX_TRANSACTIONS-1:0] w_error_events_detected;
@@ -294,19 +294,19 @@ module axi_monitor_reporter
             w_fifo_wr_valid = 1'b1;
             w_fifo_wr_data.packet_type = PktTypeError;
             w_fifo_wr_data.event_code = r_trans_table_local[w_selected_error_idx].event_code.raw_code;
-            w_fifo_wr_data.channel = r_trans_table_local[w_selected_error_idx].channel[5:0];
+            w_fifo_wr_data.channel = {3'b0, r_trans_table_local[w_selected_error_idx].channel[5:0]};
             w_fifo_wr_data.data = pad_address(r_trans_table_local[w_selected_error_idx].addr);
         end else if (w_has_timeout_event) begin
             w_fifo_wr_valid = 1'b1;
             w_fifo_wr_data.packet_type = PktTypeTimeout;
             w_fifo_wr_data.event_code = r_trans_table_local[w_selected_timeout_idx].event_code.raw_code;
-            w_fifo_wr_data.channel = r_trans_table_local[w_selected_timeout_idx].channel[5:0];
+            w_fifo_wr_data.channel = {3'b0, r_trans_table_local[w_selected_timeout_idx].channel[5:0]};
             w_fifo_wr_data.data = pad_address(r_trans_table_local[w_selected_timeout_idx].addr);
         end else if (w_has_completion_event) begin
             w_fifo_wr_valid = 1'b1;
             w_fifo_wr_data.packet_type = PktTypeCompletion;
             w_fifo_wr_data.event_code = EVT_TRANS_COMPLETE;
-            w_fifo_wr_data.channel = r_trans_table_local[w_selected_completion_idx].channel[5:0];
+            w_fifo_wr_data.channel = {3'b0, r_trans_table_local[w_selected_completion_idx].channel[5:0]};
             w_fifo_wr_data.data = pad_address(r_trans_table_local[w_selected_completion_idx].addr);
         end
     end
@@ -535,7 +535,7 @@ module axi_monitor_reporter
                     monbus_valid <= 1'b1;
                     r_packet_type <= PktTypeThreshold;
                     r_event_code <= AXI_THRESH_ACTIVE_COUNT;
-                    r_event_data <= {6'h0, {24'h0, w_active_count_current}};  // Zero-extend to 38 bits
+                    r_event_data <= 64'(w_active_count_current);  // Zero-extend 8 → 64
                     r_event_channel <= '0;
                     r_active_threshold_crossed <= 1'b1;
                     r_event_count <= r_event_count + 1'b1;
@@ -551,7 +551,7 @@ module axi_monitor_reporter
                     r_packet_type <= PktTypeThreshold;
                     r_event_code <= AXI_THRESH_LATENCY;
                     r_event_data <= pad_address(w_selected_latency_value);
-                    r_event_channel <= r_trans_table_local[w_selected_latency_idx].channel[5:0];
+                    r_event_channel <= {3'b0, r_trans_table_local[w_selected_latency_idx].channel[5:0]};
                     r_latency_threshold_crossed <= 1'b1;
                     r_event_count <= r_event_count + 1'b1;
                 end
@@ -562,7 +562,7 @@ module axi_monitor_reporter
                 monbus_valid <= 1'b1;
                 r_packet_type <= PktTypePerf;
                 r_event_code <= AXI_PERF_COMPLETED_COUNT;
-                r_event_data <= {6'h0, {16'h0, r_perf_completed_count}};  // Zero-extend to 38 bits
+                r_event_data <= 64'(r_perf_completed_count);  // Zero-extend 16 → 64
                 r_event_channel <= '0;
             end
 
@@ -570,7 +570,7 @@ module axi_monitor_reporter
                 monbus_valid <= 1'b1;
                 r_packet_type <= PktTypePerf;
                 r_event_code <= AXI_PERF_ERROR_COUNT;
-                r_event_data <= {6'h0, {16'h0, r_perf_error_count}};     // Zero-extend to 38 bits
+                r_event_data <= 64'(r_perf_error_count);  // Zero-extend 16 → 64
                 r_event_channel <= '0;
             end
 
@@ -580,26 +580,25 @@ module axi_monitor_reporter
     )
 
 
-    // Construct the 64-bit monitor bus packet - UPDATED for modern monitor_pkg format
+    // Construct the 128-bit monitor bus packet via package helper.
+    // Field widths come from monitor_common_pkg::create_monitor_packet:
+    //   packet_type  4 bits
+    //   protocol     4 bits  (PROTOCOL_AXI — this monitor is always AXI)
+    //   event_code   8 bits
+    //   channel_id   9 bits
+    //   unit_id      8 bits
+    //   agent_id    16 bits
+    //   event_data  64 bits
     always_comb begin
-        // MODERN 64-bit packet format from monitor_pkg.sv:
-        // - packet_type: 4 bits  [63:60] (error, completion, threshold, etc.)
-        // - protocol:    3 bits  [59:57] (AXI/AXIS/APB/ARB/CORE)
-        // - event_code:  4 bits  [56:53] (specific error or event code)
-        // - channel_id:  6 bits  [52:47] (channel ID and AXI ID)
-        // - unit_id:     4 bits  [46:43] (subsystem identifier)
-        // - agent_id:    8 bits  [42:35] (module identifier)
-        // - event_data:  35 bits [34:0]  (event-specific data)
-
-        monbus_packet[63:60] = r_packet_type;
-        monbus_packet[59:57] = PROTOCOL_AXI;        // Always AXI protocol for this monitor (3 bits)
-        monbus_packet[56:53] = r_event_code;
-        monbus_packet[52:47] = r_event_channel;
-        monbus_packet[46:43] = UNIT_ID[3:0];        // 4-bit Unit ID
-        monbus_packet[42:35] = AGENT_ID[7:0];       // 8-bit Agent ID
-
-        // Event data field (35 bits in modern format)
-        monbus_packet[34:0] = r_event_data[34:0];
+        monbus_packet = create_monitor_packet(
+            r_packet_type,
+            PROTOCOL_AXI,
+            r_event_code,
+            r_event_channel,
+            UNIT_ID,
+            AGENT_ID,
+            r_event_data
+        );
     end
 
 endmodule : axi_monitor_reporter

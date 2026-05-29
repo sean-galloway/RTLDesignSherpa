@@ -31,10 +31,11 @@
  * - Updated for multi-protocol monitor package
  */
 module axi_monitor_base
+    import monitor_common_pkg::*;
 #(
-    // Error Packet Identifiers
-    parameter int UNIT_ID             = 9,     // 4-bit Unit ID
-    parameter int AGENT_ID            = 99,    // 8-bit Agent ID
+    // Error Packet Identifiers (widened with 128-bit packet)
+    parameter logic [7:0]  UNIT_ID    = 8'h09,    // 8-bit Unit ID
+    parameter logic [15:0] AGENT_ID   = 16'h0063, // 16-bit Agent ID
 
     // General parameters
     parameter int MAX_TRANSACTIONS    = 16,    // Maximum outstanding transactions
@@ -122,10 +123,14 @@ module axi_monitor_base
     input  logic [(N_ADDR_RANGES > 0 ? N_ADDR_RANGES : 1)-1:0][AW-1:0] cfg_addr_range_low,
     input  logic [(N_ADDR_RANGES > 0 ? N_ADDR_RANGES : 1)-1:0][AW-1:0] cfg_addr_range_high,
 
-    // Consolidated 64-bit event packet interface (monitor bus)
-    output logic                     monbus_valid,  // Interrupt valid
-    input  logic                     monbus_ready,  // Interrupt ready
-    output logic [63:0]              monbus_packet, // Consolidated interrupt packet
+    // Free-running monitor-time counter, broadcast from monbus_axil_group
+    input  monbus_timestamp_t        i_mon_time,
+
+    // Consolidated 128-bit event packet interface (monitor bus)
+    output logic                     monbus_valid,      // Interrupt valid
+    input  logic                     monbus_ready,      // Interrupt ready
+    output monitor_packet_t          monbus_packet,     // Consolidated interrupt packet
+    output monbus_timestamp_t        monbus_timestamp,  // Side-band sampled time
 
     // Flow control and status
     output logic                     block_ready,    // Flow control signal
@@ -134,7 +139,8 @@ module axi_monitor_base
 );
 
     // Import standard monitor types and constants
-    import monitor_common_pkg::*;
+    // (monitor_common_pkg already imported at module-header level for the typedefs
+    // used in the port list)
     import monitor_amba4_pkg::*;
     import monitor_pkg::*;
 
@@ -161,11 +167,12 @@ module axi_monitor_base
 
     // Interrupt outputs from different modules (combinational)
     logic                     w_reporter_monbus_valid;
-    logic [63:0]              w_reporter_monbus_packet;
+    monitor_packet_t          w_reporter_monbus_packet;
     logic                     w_debug_monbus_valid;
-    logic [63:0]              w_debug_monbus_packet;
+    monitor_packet_t          w_debug_monbus_packet;
     logic                     w_addr_pkt_valid;
-    logic [63:0]              w_addr_pkt_data;
+    monitor_packet_t          w_addr_pkt_data;
+    monbus_timestamp_t        w_addr_pkt_timestamp;
     logic                     w_addr_pkt_ready;
 
     // Default: debug monbus disabled when ENABLE_DEBUG_MODULE=0.
@@ -290,6 +297,7 @@ module axi_monitor_base
         ) addr_check (
             .clk                   (aclk),
             .aresetn               (aresetn),
+            .i_mon_time            (i_mon_time),
             .cmd_addr              (cmd_addr),
             .cmd_id                (cmd_id),
             .cmd_valid             (cmd_valid),
@@ -300,11 +308,13 @@ module axi_monitor_base
             .cfg_addr_range_high   (cfg_addr_range_high),
             .addr_pkt_valid        (w_addr_pkt_valid),
             .addr_pkt_ready        (w_addr_pkt_ready),
-            .addr_pkt_data         (w_addr_pkt_data)
+            .addr_pkt_data         (w_addr_pkt_data),
+            .addr_pkt_timestamp    (w_addr_pkt_timestamp)
         );
     end else begin : gen_no_addr_check
-        assign w_addr_pkt_valid = 1'b0;
-        assign w_addr_pkt_data  = 64'h0;
+        assign w_addr_pkt_valid     = 1'b0;
+        assign w_addr_pkt_data      = '0;
+        assign w_addr_pkt_timestamp = '0;
     end
 
     // -------------------------------------------------------------------------
@@ -314,19 +324,24 @@ module axi_monitor_base
     // Priority: reporter > debug > addr_check.
     // Reporter handles existing error/timeout/compl/perf events; debug is for
     // trace; addr_check is a slow-rate violation stream that can wait.
+    // All branches sample the same broadcast i_mon_time on emission cycle.
     always_comb begin
         if (w_reporter_monbus_valid) begin
-            monbus_valid  = w_reporter_monbus_valid;
-            monbus_packet = w_reporter_monbus_packet;
+            monbus_valid     = w_reporter_monbus_valid;
+            monbus_packet    = w_reporter_monbus_packet;
+            monbus_timestamp = i_mon_time;
         end else if (w_debug_monbus_valid) begin
-            monbus_valid  = w_debug_monbus_valid;
-            monbus_packet = w_debug_monbus_packet;
+            monbus_valid     = w_debug_monbus_valid;
+            monbus_packet    = w_debug_monbus_packet;
+            monbus_timestamp = i_mon_time;
         end else if (w_addr_pkt_valid) begin
-            monbus_valid  = w_addr_pkt_valid;
-            monbus_packet = w_addr_pkt_data;
+            monbus_valid     = w_addr_pkt_valid;
+            monbus_packet    = w_addr_pkt_data;
+            monbus_timestamp = w_addr_pkt_timestamp;
         end else begin
-            monbus_valid  = 1'b0;
-            monbus_packet = '0;
+            monbus_valid     = 1'b0;
+            monbus_packet    = '0;
+            monbus_timestamp = '0;
         end
     end
 

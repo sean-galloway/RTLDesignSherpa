@@ -35,43 +35,43 @@ package monitor_amba5_pkg;
     // =============================================================================
 
     // AXI5 Atomic Operation Events (extends AXI4 completion codes)
-    typedef enum logic [3:0] {
-        AXI5_ATOMIC_LOAD             = 4'h0,  // Atomic load operation
-        AXI5_ATOMIC_SWAP             = 4'h1,  // Atomic swap operation
-        AXI5_ATOMIC_COMPARE          = 4'h2,  // Atomic compare operation
-        AXI5_ATOMIC_ADD              = 4'h3,  // Atomic add operation
-        AXI5_ATOMIC_CLR              = 4'h4,  // Atomic clear operation
-        AXI5_ATOMIC_XOR              = 4'h5,  // Atomic XOR operation
-        AXI5_ATOMIC_SET              = 4'h6,  // Atomic set operation
-        AXI5_ATOMIC_SMAX             = 4'h7,  // Atomic signed max
-        AXI5_ATOMIC_SMIN             = 4'h8,  // Atomic signed min
-        AXI5_ATOMIC_UMAX             = 4'h9,  // Atomic unsigned max
-        AXI5_ATOMIC_UMIN             = 4'hA,  // Atomic unsigned min
-        AXI5_ATOMIC_RESERVED_B       = 4'hB,  // Reserved
-        AXI5_ATOMIC_RESERVED_C       = 4'hC,  // Reserved
-        AXI5_ATOMIC_RESERVED_D       = 4'hD,  // Reserved
-        AXI5_ATOMIC_RESERVED_E       = 4'hE,  // Reserved
-        AXI5_ATOMIC_USER_DEFINED     = 4'hF   // User-defined atomic
+    typedef enum logic [7:0] {
+        AXI5_ATOMIC_LOAD             = 8'h0,  // Atomic load operation
+        AXI5_ATOMIC_SWAP             = 8'h1,  // Atomic swap operation
+        AXI5_ATOMIC_COMPARE          = 8'h2,  // Atomic compare operation
+        AXI5_ATOMIC_ADD              = 8'h3,  // Atomic add operation
+        AXI5_ATOMIC_CLR              = 8'h4,  // Atomic clear operation
+        AXI5_ATOMIC_XOR              = 8'h5,  // Atomic XOR operation
+        AXI5_ATOMIC_SET              = 8'h6,  // Atomic set operation
+        AXI5_ATOMIC_SMAX             = 8'h7,  // Atomic signed max
+        AXI5_ATOMIC_SMIN             = 8'h8,  // Atomic signed min
+        AXI5_ATOMIC_UMAX             = 8'h9,  // Atomic unsigned max
+        AXI5_ATOMIC_UMIN             = 8'hA,  // Atomic unsigned min
+        AXI5_ATOMIC_RESERVED_B       = 8'hB,  // Reserved
+        AXI5_ATOMIC_RESERVED_C       = 8'hC,  // Reserved
+        AXI5_ATOMIC_RESERVED_D       = 8'hD,  // Reserved
+        AXI5_ATOMIC_RESERVED_E       = 8'hE,  // Reserved
+        AXI5_ATOMIC_USER_DEFINED     = 8'hF   // User-defined atomic
     } axi5_atomic_code_t;
 
     // AXI5 QoS and Trace Events
-    typedef enum logic [3:0] {
-        AXI5_TRACE_START             = 4'h0,  // Trace session start
-        AXI5_TRACE_END               = 4'h1,  // Trace session end
-        AXI5_TRACE_DATA              = 4'h2,  // Trace data packet
-        AXI5_QOS_ESCALATION          = 4'h3,  // QoS level escalation
-        AXI5_QOS_DEESCALATION        = 4'h4,  // QoS level de-escalation
-        AXI5_POISON_DETECTED         = 4'h5,  // Poison bit detected
-        AXI5_LOOP_DETECTED           = 4'h6,  // Loop detection triggered
-        AXI5_MPAM_EVENT              = 4'h7,  // MPAM partition event
-        AXI5_RESERVED_8              = 4'h8,  // Reserved
-        AXI5_RESERVED_9              = 4'h9,  // Reserved
-        AXI5_RESERVED_A              = 4'hA,  // Reserved
-        AXI5_RESERVED_B              = 4'hB,  // Reserved
-        AXI5_RESERVED_C              = 4'hC,  // Reserved
-        AXI5_RESERVED_D              = 4'hD,  // Reserved
-        AXI5_RESERVED_E              = 4'hE,  // Reserved
-        AXI5_USER_DEFINED            = 4'hF   // User-defined
+    typedef enum logic [7:0] {
+        AXI5_TRACE_START             = 8'h0,  // Trace session start
+        AXI5_TRACE_END               = 8'h1,  // Trace session end
+        AXI5_TRACE_DATA              = 8'h2,  // Trace data packet
+        AXI5_QOS_ESCALATION          = 8'h3,  // QoS level escalation
+        AXI5_QOS_DEESCALATION        = 8'h4,  // QoS level de-escalation
+        AXI5_POISON_DETECTED         = 8'h5,  // Poison bit detected
+        AXI5_LOOP_DETECTED           = 8'h6,  // Loop detection triggered
+        AXI5_MPAM_EVENT              = 8'h7,  // MPAM partition event
+        AXI5_RESERVED_8              = 8'h8,  // Reserved
+        AXI5_RESERVED_9              = 8'h9,  // Reserved
+        AXI5_RESERVED_A              = 8'hA,  // Reserved
+        AXI5_RESERVED_B              = 8'hB,  // Reserved
+        AXI5_RESERVED_C              = 8'hC,  // Reserved
+        AXI5_RESERVED_D              = 8'hD,  // Reserved
+        AXI5_RESERVED_E              = 8'hE,  // Reserved
+        AXI5_USER_DEFINED            = 8'hF   // User-defined
     } axi5_trace_code_t;
 
     // =============================================================================
@@ -79,63 +79,63 @@ package monitor_amba5_pkg;
     // =============================================================================
 
     // APB5 Wake-up Events (new in APB5)
-    typedef enum logic [3:0] {
-        APB5_WAKEUP_REQUEST          = 4'h0,  // PWAKEUP asserted by slave
-        APB5_WAKEUP_ACKNOWLEDGED     = 4'h1,  // Wake-up acknowledged
-        APB5_WAKEUP_TIMEOUT          = 4'h2,  // Wake-up request timeout
-        APB5_WAKEUP_REJECTED         = 4'h3,  // Wake-up request rejected
-        APB5_SLEEP_REQUEST           = 4'h4,  // Sleep mode request
-        APB5_SLEEP_ENTERED           = 4'h5,  // Entered sleep mode
-        APB5_WAKEUP_RESERVED_6       = 4'h6,  // Reserved
-        APB5_WAKEUP_RESERVED_7       = 4'h7,  // Reserved
-        APB5_WAKEUP_RESERVED_8       = 4'h8,  // Reserved
-        APB5_WAKEUP_RESERVED_9       = 4'h9,  // Reserved
-        APB5_WAKEUP_RESERVED_A       = 4'hA,  // Reserved
-        APB5_WAKEUP_RESERVED_B       = 4'hB,  // Reserved
-        APB5_WAKEUP_RESERVED_C       = 4'hC,  // Reserved
-        APB5_WAKEUP_RESERVED_D       = 4'hD,  // Reserved
-        APB5_WAKEUP_RESERVED_E       = 4'hE,  // Reserved
-        APB5_WAKEUP_USER_DEFINED     = 4'hF   // User-defined wake-up
+    typedef enum logic [7:0] {
+        APB5_WAKEUP_REQUEST          = 8'h0,  // PWAKEUP asserted by slave
+        APB5_WAKEUP_ACKNOWLEDGED     = 8'h1,  // Wake-up acknowledged
+        APB5_WAKEUP_TIMEOUT          = 8'h2,  // Wake-up request timeout
+        APB5_WAKEUP_REJECTED         = 8'h3,  // Wake-up request rejected
+        APB5_SLEEP_REQUEST           = 8'h4,  // Sleep mode request
+        APB5_SLEEP_ENTERED           = 8'h5,  // Entered sleep mode
+        APB5_WAKEUP_RESERVED_6       = 8'h6,  // Reserved
+        APB5_WAKEUP_RESERVED_7       = 8'h7,  // Reserved
+        APB5_WAKEUP_RESERVED_8       = 8'h8,  // Reserved
+        APB5_WAKEUP_RESERVED_9       = 8'h9,  // Reserved
+        APB5_WAKEUP_RESERVED_A       = 8'hA,  // Reserved
+        APB5_WAKEUP_RESERVED_B       = 8'hB,  // Reserved
+        APB5_WAKEUP_RESERVED_C       = 8'hC,  // Reserved
+        APB5_WAKEUP_RESERVED_D       = 8'hD,  // Reserved
+        APB5_WAKEUP_RESERVED_E       = 8'hE,  // Reserved
+        APB5_WAKEUP_USER_DEFINED     = 8'hF   // User-defined wake-up
     } apb5_wakeup_code_t;
 
     // APB5 Parity Error Events (new in APB5)
-    typedef enum logic [3:0] {
-        APB5_PARITY_PWDATA_ERROR     = 4'h0,  // PWDATA parity error (PPARITY)
-        APB5_PARITY_PRDATA_ERROR     = 4'h1,  // PRDATA parity error (PRDATAPARITY)
-        APB5_PARITY_PREADY_ERROR     = 4'h2,  // PREADY parity error (PREADYPARITY)
-        APB5_PARITY_PSLVERR_ERROR    = 4'h3,  // PSLVERR parity error (PSLVERRPARITY)
-        APB5_PARITY_CORRECTED        = 4'h4,  // Parity error corrected
-        APB5_PARITY_UNCORRECTED      = 4'h5,  // Parity error uncorrectable
-        APB5_PARITY_CHECK_DISABLED   = 4'h6,  // Parity checking disabled
-        APB5_PARITY_CHECK_ENABLED    = 4'h7,  // Parity checking enabled
-        APB5_PARITY_RESERVED_8       = 4'h8,  // Reserved
-        APB5_PARITY_RESERVED_9       = 4'h9,  // Reserved
-        APB5_PARITY_RESERVED_A       = 4'hA,  // Reserved
-        APB5_PARITY_RESERVED_B       = 4'hB,  // Reserved
-        APB5_PARITY_RESERVED_C       = 4'hC,  // Reserved
-        APB5_PARITY_RESERVED_D       = 4'hD,  // Reserved
-        APB5_PARITY_RESERVED_E       = 4'hE,  // Reserved
-        APB5_PARITY_USER_DEFINED     = 4'hF   // User-defined parity
+    typedef enum logic [7:0] {
+        APB5_PARITY_PWDATA_ERROR     = 8'h0,  // PWDATA parity error (PPARITY)
+        APB5_PARITY_PRDATA_ERROR     = 8'h1,  // PRDATA parity error (PRDATAPARITY)
+        APB5_PARITY_PREADY_ERROR     = 8'h2,  // PREADY parity error (PREADYPARITY)
+        APB5_PARITY_PSLVERR_ERROR    = 8'h3,  // PSLVERR parity error (PSLVERRPARITY)
+        APB5_PARITY_CORRECTED        = 8'h4,  // Parity error corrected
+        APB5_PARITY_UNCORRECTED      = 8'h5,  // Parity error uncorrectable
+        APB5_PARITY_CHECK_DISABLED   = 8'h6,  // Parity checking disabled
+        APB5_PARITY_CHECK_ENABLED    = 8'h7,  // Parity checking enabled
+        APB5_PARITY_RESERVED_8       = 8'h8,  // Reserved
+        APB5_PARITY_RESERVED_9       = 8'h9,  // Reserved
+        APB5_PARITY_RESERVED_A       = 8'hA,  // Reserved
+        APB5_PARITY_RESERVED_B       = 8'hB,  // Reserved
+        APB5_PARITY_RESERVED_C       = 8'hC,  // Reserved
+        APB5_PARITY_RESERVED_D       = 8'hD,  // Reserved
+        APB5_PARITY_RESERVED_E       = 8'hE,  // Reserved
+        APB5_PARITY_USER_DEFINED     = 8'hF   // User-defined parity
     } apb5_parity_code_t;
 
     // APB5 User Signal Events (new in APB5)
-    typedef enum logic [3:0] {
-        APB5_USER_PUSER_VALID        = 4'h0,  // PUSER valid on master
-        APB5_USER_PSUSER_VALID       = 4'h1,  // PSUSER valid on slave
-        APB5_USER_SIGNAL_MISMATCH    = 4'h2,  // User signal mismatch
-        APB5_USER_RESERVED_3         = 4'h3,  // Reserved
-        APB5_USER_RESERVED_4         = 4'h4,  // Reserved
-        APB5_USER_RESERVED_5         = 4'h5,  // Reserved
-        APB5_USER_RESERVED_6         = 4'h6,  // Reserved
-        APB5_USER_RESERVED_7         = 4'h7,  // Reserved
-        APB5_USER_RESERVED_8         = 4'h8,  // Reserved
-        APB5_USER_RESERVED_9         = 4'h9,  // Reserved
-        APB5_USER_RESERVED_A         = 4'hA,  // Reserved
-        APB5_USER_RESERVED_B         = 4'hB,  // Reserved
-        APB5_USER_RESERVED_C         = 4'hC,  // Reserved
-        APB5_USER_RESERVED_D         = 4'hD,  // Reserved
-        APB5_USER_RESERVED_E         = 4'hE,  // Reserved
-        APB5_USER_USER_DEFINED       = 4'hF   // User-defined
+    typedef enum logic [7:0] {
+        APB5_USER_PUSER_VALID        = 8'h0,  // PUSER valid on master
+        APB5_USER_PSUSER_VALID       = 8'h1,  // PSUSER valid on slave
+        APB5_USER_SIGNAL_MISMATCH    = 8'h2,  // User signal mismatch
+        APB5_USER_RESERVED_3         = 8'h3,  // Reserved
+        APB5_USER_RESERVED_4         = 8'h4,  // Reserved
+        APB5_USER_RESERVED_5         = 8'h5,  // Reserved
+        APB5_USER_RESERVED_6         = 8'h6,  // Reserved
+        APB5_USER_RESERVED_7         = 8'h7,  // Reserved
+        APB5_USER_RESERVED_8         = 8'h8,  // Reserved
+        APB5_USER_RESERVED_9         = 8'h9,  // Reserved
+        APB5_USER_RESERVED_A         = 8'hA,  // Reserved
+        APB5_USER_RESERVED_B         = 8'hB,  // Reserved
+        APB5_USER_RESERVED_C         = 8'hC,  // Reserved
+        APB5_USER_RESERVED_D         = 8'hD,  // Reserved
+        APB5_USER_RESERVED_E         = 8'hE,  // Reserved
+        APB5_USER_USER_DEFINED       = 8'hF   // User-defined
     } apb5_user_code_t;
 
     // =============================================================================
@@ -143,63 +143,63 @@ package monitor_amba5_pkg;
     // =============================================================================
 
     // AXIS5 Wake-up Events (new in AXIS5)
-    typedef enum logic [3:0] {
-        AXIS5_WAKEUP_REQUEST         = 4'h0,  // TWAKEUP asserted
-        AXIS5_WAKEUP_ACKNOWLEDGED    = 4'h1,  // Wake-up acknowledged
-        AXIS5_WAKEUP_TIMEOUT         = 4'h2,  // Wake-up timeout
-        AXIS5_WAKEUP_ACTIVE          = 4'h3,  // Wake-up active, data pending
-        AXIS5_SLEEP_ENTERING         = 4'h4,  // Entering sleep mode
-        AXIS5_SLEEP_EXITING          = 4'h5,  // Exiting sleep mode
-        AXIS5_WAKEUP_RESERVED_6      = 4'h6,  // Reserved
-        AXIS5_WAKEUP_RESERVED_7      = 4'h7,  // Reserved
-        AXIS5_WAKEUP_RESERVED_8      = 4'h8,  // Reserved
-        AXIS5_WAKEUP_RESERVED_9      = 4'h9,  // Reserved
-        AXIS5_WAKEUP_RESERVED_A      = 4'hA,  // Reserved
-        AXIS5_WAKEUP_RESERVED_B      = 4'hB,  // Reserved
-        AXIS5_WAKEUP_RESERVED_C      = 4'hC,  // Reserved
-        AXIS5_WAKEUP_RESERVED_D      = 4'hD,  // Reserved
-        AXIS5_WAKEUP_RESERVED_E      = 4'hE,  // Reserved
-        AXIS5_WAKEUP_USER_DEFINED    = 4'hF   // User-defined wake-up
+    typedef enum logic [7:0] {
+        AXIS5_WAKEUP_REQUEST         = 8'h0,  // TWAKEUP asserted
+        AXIS5_WAKEUP_ACKNOWLEDGED    = 8'h1,  // Wake-up acknowledged
+        AXIS5_WAKEUP_TIMEOUT         = 8'h2,  // Wake-up timeout
+        AXIS5_WAKEUP_ACTIVE          = 8'h3,  // Wake-up active, data pending
+        AXIS5_SLEEP_ENTERING         = 8'h4,  // Entering sleep mode
+        AXIS5_SLEEP_EXITING          = 8'h5,  // Exiting sleep mode
+        AXIS5_WAKEUP_RESERVED_6      = 8'h6,  // Reserved
+        AXIS5_WAKEUP_RESERVED_7      = 8'h7,  // Reserved
+        AXIS5_WAKEUP_RESERVED_8      = 8'h8,  // Reserved
+        AXIS5_WAKEUP_RESERVED_9      = 8'h9,  // Reserved
+        AXIS5_WAKEUP_RESERVED_A      = 8'hA,  // Reserved
+        AXIS5_WAKEUP_RESERVED_B      = 8'hB,  // Reserved
+        AXIS5_WAKEUP_RESERVED_C      = 8'hC,  // Reserved
+        AXIS5_WAKEUP_RESERVED_D      = 8'hD,  // Reserved
+        AXIS5_WAKEUP_RESERVED_E      = 8'hE,  // Reserved
+        AXIS5_WAKEUP_USER_DEFINED    = 8'hF   // User-defined wake-up
     } axis5_wakeup_code_t;
 
     // AXIS5 Parity Events (new in AXIS5)
-    typedef enum logic [3:0] {
-        AXIS5_PARITY_TDATA_ERROR     = 4'h0,  // TDATA parity error (TPARITY)
-        AXIS5_PARITY_CORRECTED       = 4'h1,  // Parity error corrected
-        AXIS5_PARITY_UNCORRECTED     = 4'h2,  // Parity error uncorrectable
-        AXIS5_PARITY_CHECK_DISABLED  = 4'h3,  // Parity checking disabled
-        AXIS5_PARITY_CHECK_ENABLED   = 4'h4,  // Parity checking enabled
-        AXIS5_PARITY_RESERVED_5      = 4'h5,  // Reserved
-        AXIS5_PARITY_RESERVED_6      = 4'h6,  // Reserved
-        AXIS5_PARITY_RESERVED_7      = 4'h7,  // Reserved
-        AXIS5_PARITY_RESERVED_8      = 4'h8,  // Reserved
-        AXIS5_PARITY_RESERVED_9      = 4'h9,  // Reserved
-        AXIS5_PARITY_RESERVED_A      = 4'hA,  // Reserved
-        AXIS5_PARITY_RESERVED_B      = 4'hB,  // Reserved
-        AXIS5_PARITY_RESERVED_C      = 4'hC,  // Reserved
-        AXIS5_PARITY_RESERVED_D      = 4'hD,  // Reserved
-        AXIS5_PARITY_RESERVED_E      = 4'hE,  // Reserved
-        AXIS5_PARITY_USER_DEFINED    = 4'hF   // User-defined parity
+    typedef enum logic [7:0] {
+        AXIS5_PARITY_TDATA_ERROR     = 8'h0,  // TDATA parity error (TPARITY)
+        AXIS5_PARITY_CORRECTED       = 8'h1,  // Parity error corrected
+        AXIS5_PARITY_UNCORRECTED     = 8'h2,  // Parity error uncorrectable
+        AXIS5_PARITY_CHECK_DISABLED  = 8'h3,  // Parity checking disabled
+        AXIS5_PARITY_CHECK_ENABLED   = 8'h4,  // Parity checking enabled
+        AXIS5_PARITY_RESERVED_5      = 8'h5,  // Reserved
+        AXIS5_PARITY_RESERVED_6      = 8'h6,  // Reserved
+        AXIS5_PARITY_RESERVED_7      = 8'h7,  // Reserved
+        AXIS5_PARITY_RESERVED_8      = 8'h8,  // Reserved
+        AXIS5_PARITY_RESERVED_9      = 8'h9,  // Reserved
+        AXIS5_PARITY_RESERVED_A      = 8'hA,  // Reserved
+        AXIS5_PARITY_RESERVED_B      = 8'hB,  // Reserved
+        AXIS5_PARITY_RESERVED_C      = 8'hC,  // Reserved
+        AXIS5_PARITY_RESERVED_D      = 8'hD,  // Reserved
+        AXIS5_PARITY_RESERVED_E      = 8'hE,  // Reserved
+        AXIS5_PARITY_USER_DEFINED    = 8'hF   // User-defined parity
     } axis5_parity_code_t;
 
     // AXIS5 CRC Events (optional in AXIS5)
-    typedef enum logic [3:0] {
-        AXIS5_CRC_VALID              = 4'h0,  // CRC check passed
-        AXIS5_CRC_ERROR              = 4'h1,  // CRC error detected (TCRC_ERROR)
-        AXIS5_CRC_COMPUTED           = 4'h2,  // CRC computed and sent
-        AXIS5_CRC_DISABLED           = 4'h3,  // CRC checking disabled
-        AXIS5_CRC_ENABLED            = 4'h4,  // CRC checking enabled
-        AXIS5_CRC_RESERVED_5         = 4'h5,  // Reserved
-        AXIS5_CRC_RESERVED_6         = 4'h6,  // Reserved
-        AXIS5_CRC_RESERVED_7         = 4'h7,  // Reserved
-        AXIS5_CRC_RESERVED_8         = 4'h8,  // Reserved
-        AXIS5_CRC_RESERVED_9         = 4'h9,  // Reserved
-        AXIS5_CRC_RESERVED_A         = 4'hA,  // Reserved
-        AXIS5_CRC_RESERVED_B         = 4'hB,  // Reserved
-        AXIS5_CRC_RESERVED_C         = 4'hC,  // Reserved
-        AXIS5_CRC_RESERVED_D         = 4'hD,  // Reserved
-        AXIS5_CRC_RESERVED_E         = 4'hE,  // Reserved
-        AXIS5_CRC_USER_DEFINED       = 4'hF   // User-defined CRC
+    typedef enum logic [7:0] {
+        AXIS5_CRC_VALID              = 8'h0,  // CRC check passed
+        AXIS5_CRC_ERROR              = 8'h1,  // CRC error detected (TCRC_ERROR)
+        AXIS5_CRC_COMPUTED           = 8'h2,  // CRC computed and sent
+        AXIS5_CRC_DISABLED           = 8'h3,  // CRC checking disabled
+        AXIS5_CRC_ENABLED            = 8'h4,  // CRC checking enabled
+        AXIS5_CRC_RESERVED_5         = 8'h5,  // Reserved
+        AXIS5_CRC_RESERVED_6         = 8'h6,  // Reserved
+        AXIS5_CRC_RESERVED_7         = 8'h7,  // Reserved
+        AXIS5_CRC_RESERVED_8         = 8'h8,  // Reserved
+        AXIS5_CRC_RESERVED_9         = 8'h9,  // Reserved
+        AXIS5_CRC_RESERVED_A         = 8'hA,  // Reserved
+        AXIS5_CRC_RESERVED_B         = 8'hB,  // Reserved
+        AXIS5_CRC_RESERVED_C         = 8'hC,  // Reserved
+        AXIS5_CRC_RESERVED_D         = 8'hD,  // Reserved
+        AXIS5_CRC_RESERVED_E         = 8'hE,  // Reserved
+        AXIS5_CRC_USER_DEFINED       = 8'hF   // User-defined CRC
     } axis5_crc_code_t;
 
     // =============================================================================
@@ -221,8 +221,8 @@ package monitor_amba5_pkg;
         axis5_parity_code_t    axis5_parity;
         axis5_crc_code_t       axis5_crc;
 
-        // Raw 4-bit value for direct access
-        logic [3:0]            raw;
+        // Raw 8-bit value for direct access
+        logic [7:0]            raw;
     } amba5_event_code_t;
 
     // =============================================================================

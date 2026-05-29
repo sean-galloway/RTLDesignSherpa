@@ -3,16 +3,16 @@
 //
 // Formal proof for axi_monitor_reporter
 //
-// The reporter generates 64-bit monitor-bus packets from a transaction table
+// The reporter generates 128-bit monitor-bus packets from a transaction table
 // (after sv2v flattening the trans_table becomes a packed bus of
 // MAX_TRANSACTIONS * 281 bits).
 //
-// Properties verified (I/O observable only):
+// Properties verified (I/O observable only, 128-bit packet layout):
 //   P1: Reset clears monbus_valid
 //   P2: Reset clears event_count
 //   P3: Reset clears event_reported_flags
 //   P4: monbus_valid handshake -- once asserted, held until monbus_ready
-//   P5: monbus_packet protocol field is AXI (bits [59:57] == 3'b000)
+//   P5: monbus_packet protocol field is AXI (bits [108:105] == 4'h0)
 //       when monbus_valid is asserted
 
 module formal_axi_monitor_reporter (
@@ -25,8 +25,8 @@ module formal_axi_monitor_reporter (
     // =========================================================================
     localparam integer MAX_TRANSACTIONS = 2;
     localparam integer ADDR_WIDTH = 16;
-    localparam integer UNIT_ID = 1;
-    localparam integer AGENT_ID = 10;
+    localparam [7:0]   UNIT_ID  = 8'h01;
+    localparam [15:0]  AGENT_ID = 16'h000A;
     localparam integer INTR_FIFO_DEPTH = 4;
     localparam integer TRANS_ENTRY_WIDTH = 281;
     localparam integer TABLE_WIDTH = MAX_TRANSACTIONS * TRANS_ENTRY_WIDTH;
@@ -47,10 +47,10 @@ module formal_axi_monitor_reporter (
     (* anyseq *) reg [31:0]                  latency_threshold;
 
     // =========================================================================
-    // DUT outputs
+    // DUT outputs (128-bit packet)
     // =========================================================================
     wire                              monbus_valid;
-    wire [63:0]                       monbus_packet;
+    wire [127:0]                      monbus_packet;
     wire [15:0]                       event_count;
     wire [15:0]                       perf_completed_count;
     wire [15:0]                       perf_error_count;
@@ -138,10 +138,10 @@ module formal_axi_monitor_reporter (
                 ap_valid_held: assert (monbus_valid);
     end
 
-    // P5: When monbus_valid, protocol field is AXI (3'b000)
+    // P5: When monbus_valid, protocol field is AXI (4'h0) at bits [108:105]
     always @(posedge clk) begin
         if (rst_n && monbus_valid)
-            ap_protocol_axi: assert (monbus_packet[59:57] == 3'b000);
+            ap_protocol_axi: assert (monbus_packet[108:105] == 4'h0);
     end
 
     // =========================================================================

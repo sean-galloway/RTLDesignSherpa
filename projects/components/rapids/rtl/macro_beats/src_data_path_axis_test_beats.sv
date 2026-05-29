@@ -296,12 +296,13 @@ module src_data_path_axis_test_beats #(
                 .NUM_CHANNELS(NC),
                 .ADDR_WIDTH(AW),
                 .DATA_WIDTH(DW),
-                .MON_AGENT_ID(8'h40),
-                .MON_UNIT_ID(4'h1),
-                .MON_CHANNEL_ID(i)
+                .MON_AGENT_ID(16'h0040),
+                .MON_UNIT_ID(8'h01),
+                .MON_CHANNEL_ID(9'(i))
             ) u_scheduler (
                 .clk                    (clk),
                 .rst_n                  (rst_n),
+                .i_mon_time             ('0),
 
                 // Configuration (channel always enabled for test)
                 .cfg_channel_enable     (1'b1),
@@ -344,7 +345,8 @@ module src_data_path_axis_test_beats #(
                 // Monitor bus (tied off for test)
                 .mon_valid              (),
                 .mon_ready              (1'b1),
-                .mon_packet             ()
+                .mon_packet             (),
+                .mon_timestamp          ()
             );
         end
     endgenerate

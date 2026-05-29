@@ -463,29 +463,34 @@ class InterruptPacket(GAXIPacket):
         return cls(field_config=field_config, **data)
 
     @classmethod
-    def from_64bit_value(cls, value: int) -> 'InterruptPacket':
-        """Create packet from 64-bit interrupt bus value (updated format)"""
+    def from_128bit_value(cls, value: int) -> 'InterruptPacket':
+        """Create packet from 128-bit interrupt bus value."""
         return cls(
-            packet_type=(value >> 60) & 0xF,
-            protocol=(value >> 58) & 0x3,        # NEW: Protocol field
-            event_code=(value >> 54) & 0xF,       # Shifted
-            channel_id=(value >> 48) & 0x3F,      # Shifted
-            unit_id=(value >> 44) & 0xF,          # Shifted
-            agent_id=(value >> 36) & 0xFF,        # Shifted
-            data=value & 0xFFFFFFFFF              # 36 bits instead of 38
+            packet_type=(value >> 124) & 0xF,
+            protocol=  (value >> 105) & 0xF,
+            event_code=(value >>  97) & 0xFF,
+            channel_id=(value >>  88) & 0x1FF,
+            agent_id=  (value >>  72) & 0xFFFF,
+            unit_id=   (value >>  64) & 0xFF,
+            data=       value         & ((1 << 64) - 1),
         )
 
-    def to_64bit_value(self) -> int:
-        """Convert packet to 64-bit interrupt bus value (updated format)"""
+    # Back-compat alias for older callers; new code should use from_128bit_value.
+    from_64bit_value = from_128bit_value
+
+    def to_128bit_value(self) -> int:
+        """Convert packet to 128-bit interrupt bus value."""
         return (
-            (self.packet_type << 60) |
-            (self.protocol << 58) |        # NEW: Protocol field
-            (self.event_code << 54) |      # Shifted
-            (self.channel_id << 48) |      # Shifted
-            (self.unit_id << 44) |         # Shifted
-            (self.agent_id << 36) |        # Shifted
-            (self.data & 0xFFFFFFFFF)      # 36 bits instead of 38
+            ((self.packet_type & 0xF)    << 124) |
+            ((self.protocol & 0xF)       << 105) |
+            ((self.event_code & 0xFF)    <<  97) |
+            ((self.channel_id & 0x1FF)   <<  88) |
+            ((self.agent_id & 0xFFFF)    <<  72) |
+            ((self.unit_id & 0xFF)       <<  64) |
+            (self.data & ((1 << 64) - 1))
         )
+
+    to_64bit_value = to_128bit_value
 
     def get_protocol_name(self) -> str:
         """Get human-readable protocol name"""

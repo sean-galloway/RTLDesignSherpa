@@ -578,325 +578,319 @@ module axi_monitor_trans_mgr (
 	input wire [1:0] resp_code;
 	input wire [31:0] timestamp;
 	input wire [MAX_TRANSACTIONS - 1:0] i_event_reported_flags;
-	output wire [(MAX_TRANSACTIONS * 281) - 1:0] trans_table;
+	output wire [(MAX_TRANSACTIONS * 285) - 1:0] trans_table;
 	output wire [7:0] active_count;
 	output wire [MAX_TRANSACTIONS - 1:0] state_change;
-	reg [(MAX_TRANSACTIONS * 281) - 1:0] r_trans_table;
-	reg [(MAX_TRANSACTIONS * 281) - 1:0] r_trans_table_prev;
-	assign trans_table = r_trans_table;
+	localparam signed [31:0] N = MAX_TRANSACTIONS;
+	reg [(N * 285) - 1:0] r_trans_table;
+	reg [(N * 285) - 1:0] r_trans_table_prev;
 	reg [7:0] r_active_count;
+	reg [N - 1:0] r_state_change;
+	assign trans_table = r_trans_table;
 	assign active_count = r_active_count;
-	reg [MAX_TRANSACTIONS - 1:0] r_state_change;
 	assign state_change = r_state_change;
-	localparam signed [31:0] ADDR_PAD_BITS = (AW > 32 ? 0 : 32 - AW);
-	localparam [0:0] ADDR_NEEDS_TRUNC = AW > 32;
-	reg signed [31:0] w_addr_trans_idx;
-	reg signed [31:0] w_addr_free_idx;
-	reg signed [31:0] w_data_trans_idx;
-	reg signed [31:0] w_data_free_idx;
-	reg signed [31:0] w_resp_trans_idx;
-	reg w_addr_will_alloc;
-	reg w_data_will_alloc_orphan;
-	reg signed [31:0] w_resp_free_idx;
-	reg [5:0] w_addr_chan_idx;
-	reg [MAX_TRANSACTIONS - 1:0] w_can_cleanup;
+	(* keep = "true" *) reg [N - 1:0] addr_match_oh;
+	(* keep = "true" *) reg [N - 1:0] data_match_oh;
+	(* keep = "true" *) reg [N - 1:0] resp_match_oh;
+	(* keep = "true" *) reg [N - 1:0] free_oh;
 	always @(*) begin
 		if (_sv2v_0)
 			;
-		w_addr_trans_idx = -1;
 		begin : sv2v_autoblock_1
-			reg signed [31:0] idx;
-			for (idx = 0; idx < MAX_TRANSACTIONS; idx = idx + 1)
-				if (((w_addr_trans_idx == -1) && r_trans_table[(((MAX_TRANSACTIONS - 1) - idx) * 281) + 280]) && (r_trans_table[(((MAX_TRANSACTIONS - 1) - idx) * 281) + ((230 + IW) >= 231 ? 230 + IW : ((230 + IW) + ((230 + IW) >= 231 ? (230 + IW) - 230 : 232 - (230 + IW))) - 1)-:((230 + IW) >= 231 ? (230 + IW) - 230 : 232 - (230 + IW))] == cmd_id))
-					w_addr_trans_idx = idx;
+			reg signed [31:0] i;
+			for (i = 0; i < N; i = i + 1)
+				begin
+					addr_match_oh[i] = r_trans_table[(((N - 1) - i) * 285) + 284] && (r_trans_table[(((N - 1) - i) * 285) + ((234 + IW) >= 235 ? 234 + IW : ((234 + IW) + ((234 + IW) >= 235 ? (234 + IW) - 234 : 236 - (234 + IW))) - 1)-:((234 + IW) >= 235 ? (234 + IW) - 234 : 236 - (234 + IW))] == cmd_id);
+					resp_match_oh[i] = r_trans_table[(((N - 1) - i) * 285) + 284] && (r_trans_table[(((N - 1) - i) * 285) + ((234 + IW) >= 235 ? 234 + IW : ((234 + IW) + ((234 + IW) >= 235 ? (234 + IW) - 234 : 236 - (234 + IW))) - 1)-:((234 + IW) >= 235 ? (234 + IW) - 234 : 236 - (234 + IW))] == resp_id);
+					free_oh[i] = !r_trans_table[(((N - 1) - i) * 285) + 284];
+					if (IS_READ)
+						data_match_oh[i] = r_trans_table[(((N - 1) - i) * 285) + 284] && (r_trans_table[(((N - 1) - i) * 285) + ((234 + IW) >= 235 ? 234 + IW : ((234 + IW) + ((234 + IW) >= 235 ? (234 + IW) - 234 : 236 - (234 + IW))) - 1)-:((234 + IW) >= 235 ? (234 + IW) - 234 : 236 - (234 + IW))] == data_id);
+					else
+						data_match_oh[i] = ((r_trans_table[(((N - 1) - i) * 285) + 284] && ((r_trans_table[(((N - 1) - i) * 285) + 277-:3] == 3'h1) || (r_trans_table[(((N - 1) - i) * 285) + 277-:3] == 3'h2))) && r_trans_table[(((N - 1) - i) * 285) + 283]) && !r_trans_table[(((N - 1) - i) * 285) + 281];
+				end
 		end
-		w_addr_free_idx = -1;
+	end
+	reg [N - 1:0] data_match_first_oh;
+	reg addr_hit_any;
+	reg data_hit_any;
+	reg resp_hit_any;
+	always @(*) begin
+		if (_sv2v_0)
+			;
+		addr_hit_any = |addr_match_oh;
+		resp_hit_any = |resp_match_oh;
+		data_hit_any = |data_match_oh;
+		data_match_first_oh = 1'sb0;
 		begin : sv2v_autoblock_2
-			reg signed [31:0] idx;
-			for (idx = 0; idx < MAX_TRANSACTIONS; idx = idx + 1)
-				if ((w_addr_free_idx == -1) && !r_trans_table[(((MAX_TRANSACTIONS - 1) - idx) * 281) + 280])
-					w_addr_free_idx = idx;
+			reg signed [31:0] i;
+			for (i = 0; i < N; i = i + 1)
+				if (data_match_oh[i] && (data_match_first_oh == {N {1'sb0}}))
+					data_match_first_oh[i] = 1'b1;
 		end
-		w_addr_chan_idx = (IS_AXI ? {24'h000000, cmd_id} % 64 : 0);
-		if (IS_READ) begin
-			w_data_trans_idx = -1;
-			begin : sv2v_autoblock_3
-				reg signed [31:0] idx;
-				for (idx = 0; idx < MAX_TRANSACTIONS; idx = idx + 1)
-					if (((w_data_trans_idx == -1) && r_trans_table[(((MAX_TRANSACTIONS - 1) - idx) * 281) + 280]) && (r_trans_table[(((MAX_TRANSACTIONS - 1) - idx) * 281) + ((230 + IW) >= 231 ? 230 + IW : ((230 + IW) + ((230 + IW) >= 231 ? (230 + IW) - 230 : 232 - (230 + IW))) - 1)-:((230 + IW) >= 231 ? (230 + IW) - 230 : 232 - (230 + IW))] == data_id))
-						w_data_trans_idx = idx;
-			end
-		end
-		else begin
-			w_data_trans_idx = -1;
-			begin : sv2v_autoblock_4
-				reg signed [31:0] idx;
-				for (idx = 0; idx < MAX_TRANSACTIONS; idx = idx + 1)
-					if (((((w_data_trans_idx == -1) && r_trans_table[(((MAX_TRANSACTIONS - 1) - idx) * 281) + 280]) && ((r_trans_table[(((MAX_TRANSACTIONS - 1) - idx) * 281) + 273-:3] == 3'h1) || (r_trans_table[(((MAX_TRANSACTIONS - 1) - idx) * 281) + 273-:3] == 3'h2))) && r_trans_table[(((MAX_TRANSACTIONS - 1) - idx) * 281) + 279]) && !r_trans_table[(((MAX_TRANSACTIONS - 1) - idx) * 281) + 277])
-						w_data_trans_idx = idx;
-			end
-		end
-		w_addr_will_alloc = (cmd_valid && (w_addr_trans_idx < 0)) && (w_addr_free_idx >= 0);
-		w_data_free_idx = -1;
-		begin : sv2v_autoblock_5
-			reg signed [31:0] idx;
-			for (idx = 0; idx < MAX_TRANSACTIONS; idx = idx + 1)
-				if (((w_data_free_idx == -1) && !r_trans_table[(((MAX_TRANSACTIONS - 1) - idx) * 281) + 280]) && !(w_addr_will_alloc && (idx == w_addr_free_idx)))
-					w_data_free_idx = idx;
-		end
+	end
+	wire [N - 1:0] addr_update_oh;
+	wire [N - 1:0] data_update_oh;
+	wire [N - 1:0] resp_update_oh;
+	assign addr_update_oh = addr_match_oh;
+	assign data_update_oh = (IS_READ ? data_match_oh : data_match_first_oh);
+	assign resp_update_oh = resp_match_oh;
+	reg [N - 1:0] addr_alloc_oh;
+	reg [N - 1:0] data_alloc_oh;
+	reg [N - 1:0] resp_alloc_oh;
+	wire addr_wants_alloc;
+	reg data_wants_alloc;
+	reg resp_wants_alloc;
+	assign addr_wants_alloc = cmd_valid && !addr_hit_any;
+	always @(*) begin
+		if (_sv2v_0)
+			;
 		if (IS_READ)
-			w_data_will_alloc_orphan = ((data_valid && data_ready) && (w_data_trans_idx < 0)) && (w_data_free_idx >= 0);
+			data_wants_alloc = (data_valid && data_ready) && !data_hit_any;
 		else
-			w_data_will_alloc_orphan = (((data_valid && data_ready) && !IS_AXI) && (w_data_trans_idx < 0)) && (w_data_free_idx >= 0);
-		if (!IS_READ) begin
-			w_resp_trans_idx = -1;
+			data_wants_alloc = ((data_valid && data_ready) && !IS_AXI) && !data_hit_any;
+		resp_wants_alloc = ((!IS_READ && resp_valid) && resp_ready) && !resp_hit_any;
+	end
+	always @(*) begin : sv2v_autoblock_3
+		reg [N - 1:0] remaining;
+		reg taken;
+		if (_sv2v_0)
+			;
+		addr_alloc_oh = 1'sb0;
+		data_alloc_oh = 1'sb0;
+		resp_alloc_oh = 1'sb0;
+		taken = 1'b0;
+		remaining = free_oh;
+		if (addr_wants_alloc) begin
+			taken = 1'b0;
+			begin : sv2v_autoblock_4
+				reg signed [31:0] i;
+				for (i = 0; i < N; i = i + 1)
+					if (!taken && remaining[i]) begin
+						addr_alloc_oh[i] = 1'b1;
+						remaining[i] = 1'b0;
+						taken = 1'b1;
+					end
+			end
+		end
+		if (data_wants_alloc) begin
+			taken = 1'b0;
+			begin : sv2v_autoblock_5
+				reg signed [31:0] i;
+				for (i = 0; i < N; i = i + 1)
+					if (!taken && remaining[i]) begin
+						data_alloc_oh[i] = 1'b1;
+						remaining[i] = 1'b0;
+						taken = 1'b1;
+					end
+			end
+		end
+		if (resp_wants_alloc) begin
+			taken = 1'b0;
 			begin : sv2v_autoblock_6
-				reg signed [31:0] idx;
-				for (idx = 0; idx < MAX_TRANSACTIONS; idx = idx + 1)
-					if (((w_resp_trans_idx == -1) && r_trans_table[(((MAX_TRANSACTIONS - 1) - idx) * 281) + 280]) && (r_trans_table[(((MAX_TRANSACTIONS - 1) - idx) * 281) + ((230 + IW) >= 231 ? 230 + IW : ((230 + IW) + ((230 + IW) >= 231 ? (230 + IW) - 230 : 232 - (230 + IW))) - 1)-:((230 + IW) >= 231 ? (230 + IW) - 230 : 232 - (230 + IW))] == resp_id))
-						w_resp_trans_idx = idx;
-			end
-			w_resp_free_idx = -1;
-			begin : sv2v_autoblock_7
-				reg signed [31:0] idx;
-				for (idx = 0; idx < MAX_TRANSACTIONS; idx = idx + 1)
-					if ((((w_resp_free_idx == -1) && !r_trans_table[(((MAX_TRANSACTIONS - 1) - idx) * 281) + 280]) && !(w_addr_will_alloc && (idx == w_addr_free_idx))) && !(w_data_will_alloc_orphan && (idx == w_data_free_idx)))
-						w_resp_free_idx = idx;
+				reg signed [31:0] i;
+				for (i = 0; i < N; i = i + 1)
+					if (!taken && remaining[i]) begin
+						resp_alloc_oh[i] = 1'b1;
+						remaining[i] = 1'b0;
+						taken = 1'b1;
+					end
 			end
 		end
-		else begin
-			w_resp_trans_idx = -1;
-			w_resp_free_idx = -1;
-		end
-		begin : sv2v_autoblock_8
-			reg signed [31:0] idx;
-			for (idx = 0; idx < MAX_TRANSACTIONS; idx = idx + 1)
-				if (r_trans_table[(((MAX_TRANSACTIONS - 1) - idx) * 281) + 280])
-					case (r_trans_table[(((MAX_TRANSACTIONS - 1) - idx) * 281) + 273-:3])
-						3'h3: w_can_cleanup[idx] = r_trans_table[(((MAX_TRANSACTIONS - 1) - idx) * 281) + 275];
-						3'h4, 3'h5: w_can_cleanup[idx] = r_trans_table[(((MAX_TRANSACTIONS - 1) - idx) * 281) + 275];
-						default: w_can_cleanup[idx] = 1'b0;
+	end
+	reg [N - 1:0] w_can_cleanup;
+	always @(*) begin
+		if (_sv2v_0)
+			;
+		begin : sv2v_autoblock_7
+			reg signed [31:0] i;
+			for (i = 0; i < N; i = i + 1)
+				if (r_trans_table[(((N - 1) - i) * 285) + 284])
+					(* full_case, parallel_case *)
+					case (r_trans_table[(((N - 1) - i) * 285) + 277-:3])
+						3'h3, 3'h4, 3'h5: w_can_cleanup[i] = r_trans_table[(((N - 1) - i) * 285) + 279];
+						default: w_can_cleanup[i] = 1'b0;
 					endcase
 				else
-					w_can_cleanup[idx] = 1'b0;
+					w_can_cleanup[i] = 1'b0;
+		end
+	end
+	reg [5:0] w_addr_chan_idx;
+	always @(*) begin
+		if (_sv2v_0)
+			;
+		w_addr_chan_idx = (IS_AXI ? {24'h000000, cmd_id} % 64 : 0);
+	end
+	genvar _gv_gi_2;
+	localparam [7:0] monitor_amba4_pkg_EVT_DATA_ORPHAN = 8'h02;
+	localparam [7:0] monitor_amba4_pkg_EVT_PROTOCOL = 8'h04;
+	localparam [7:0] monitor_amba4_pkg_EVT_RESP_DECERR = 8'h01;
+	localparam [7:0] monitor_amba4_pkg_EVT_RESP_ORPHAN = 8'h03;
+	localparam [7:0] monitor_amba4_pkg_EVT_RESP_SLVERR = 8'h00;
+	function automatic [31:0] sv2v_cast_32;
+		input reg [31:0] inp;
+		sv2v_cast_32 = inp;
+	endfunction
+	generate
+		for (_gv_gi_2 = 0; _gv_gi_2 < N; _gv_gi_2 = _gv_gi_2 + 1) begin : g_entry
+			localparam gi = _gv_gi_2;
+			wire cmd_handshake;
+			assign cmd_handshake = cmd_valid && cmd_ready;
+			always @(posedge aclk)
+				if (!aresetn)
+					r_trans_table[((N - 1) - gi) * 285+:285] <= 1'sb0;
+				else begin
+					if (addr_alloc_oh[gi]) begin
+						r_trans_table[(((N - 1) - gi) * 285) + 284] <= 1'b1;
+						r_trans_table[(((N - 1) - gi) * 285) + 277-:3] <= 3'h1;
+						r_trans_table[(((N - 1) - gi) * 285) + 242-:8] <= 1'sb0;
+						r_trans_table[(((N - 1) - gi) * 285) + ((234 + IW) >= 235 ? 234 + IW : ((234 + IW) + ((234 + IW) >= 235 ? (234 + IW) - 234 : 236 - (234 + IW))) - 1)-:((234 + IW) >= 235 ? (234 + IW) - 234 : 236 - (234 + IW))] <= cmd_id;
+						r_trans_table[(((N - 1) - gi) * 285) + 274-:32] <= sv2v_cast_32(cmd_addr);
+						r_trans_table[(((N - 1) - gi) * 285) + 234-:8] <= cmd_len;
+						r_trans_table[(((N - 1) - gi) * 285) + 226-:3] <= cmd_size;
+						r_trans_table[(((N - 1) - gi) * 285) + 223-:2] <= cmd_burst;
+						r_trans_table[(((N - 1) - gi) * 285) + 283] <= cmd_ready;
+						r_trans_table[(((N - 1) - gi) * 285) + 215-:32] <= 1'sb0;
+						r_trans_table[(((N - 1) - gi) * 285) + 282] <= 1'b0;
+						r_trans_table[(((N - 1) - gi) * 285) + 281] <= 1'b0;
+						r_trans_table[(((N - 1) - gi) * 285) + 280] <= 1'b0;
+						r_trans_table[(((N - 1) - gi) * 285) + 7-:8] <= 4'h0;
+						r_trans_table[(((N - 1) - gi) * 285) + 279] <= 1'b0;
+						r_trans_table[(((N - 1) - gi) * 285) + 183-:32] <= 1'sb0;
+						r_trans_table[(((N - 1) - gi) * 285) + 151-:32] <= 1'sb0;
+						r_trans_table[(((N - 1) - gi) * 285) + 119-:32] <= timestamp;
+						r_trans_table[(((N - 1) - gi) * 285) + 23-:8] <= (IS_AXI ? cmd_len + 8'h01 : 8'h01);
+						r_trans_table[(((N - 1) - gi) * 285) + 15-:8] <= 1'sb0;
+						r_trans_table[(((N - 1) - gi) * 285) + 221-:6] <= w_addr_chan_idx;
+						r_trans_table[(((N - 1) - gi) * 285) + 278] <= 1'b0;
+					end
+					if (addr_update_oh[gi] && cmd_handshake) begin
+						r_trans_table[(((N - 1) - gi) * 285) + 283] <= 1'b1;
+						r_trans_table[(((N - 1) - gi) * 285) + 215-:32] <= 1'sb0;
+						r_trans_table[(((N - 1) - gi) * 285) + 119-:32] <= timestamp;
+					end
+					if (data_valid && data_ready) begin
+						if (data_update_oh[gi]) begin
+							r_trans_table[(((N - 1) - gi) * 285) + 282] <= 1'b1;
+							r_trans_table[(((N - 1) - gi) * 285) + 15-:8] <= r_trans_table[(((N - 1) - gi) * 285) + 15-:8] + 1'b1;
+							r_trans_table[(((N - 1) - gi) * 285) + 183-:32] <= 1'sb0;
+							if (r_trans_table[(((N - 1) - gi) * 285) + 277-:3] != 3'h4)
+								r_trans_table[(((N - 1) - gi) * 285) + 277-:3] <= 3'h2;
+							if (IS_READ) begin
+								if (data_last) begin
+									r_trans_table[(((N - 1) - gi) * 285) + 281] <= 1'b1;
+									r_trans_table[(((N - 1) - gi) * 285) + 87-:32] <= timestamp;
+								end
+								if (data_resp[1]) begin
+									r_trans_table[(((N - 1) - gi) * 285) + 277-:3] <= 3'h4;
+									r_trans_table[(((N - 1) - gi) * 285) + 7-:8] <= (data_resp[0] ? monitor_amba4_pkg_EVT_RESP_DECERR : monitor_amba4_pkg_EVT_RESP_SLVERR);
+								end
+								else if (data_last)
+									r_trans_table[(((N - 1) - gi) * 285) + 277-:3] <= 3'h3;
+							end
+							else if (data_last || ((r_trans_table[(((N - 1) - gi) * 285) + 15-:8] + 1) == r_trans_table[(((N - 1) - gi) * 285) + 23-:8])) begin
+								r_trans_table[(((N - 1) - gi) * 285) + 281] <= 1'b1;
+								r_trans_table[(((N - 1) - gi) * 285) + 87-:32] <= timestamp;
+							end
+						end
+						else if (data_alloc_oh[gi]) begin
+							r_trans_table[(((N - 1) - gi) * 285) + 284] <= 1'b1;
+							r_trans_table[(((N - 1) - gi) * 285) + 277-:3] <= 3'h5;
+							r_trans_table[(((N - 1) - gi) * 285) + 242-:8] <= 1'sb0;
+							if (IS_AXI) begin
+								r_trans_table[(((N - 1) - gi) * 285) + ((234 + IW) >= 235 ? 234 + IW : ((234 + IW) + ((234 + IW) >= 235 ? (234 + IW) - 234 : 236 - (234 + IW))) - 1)-:((234 + IW) >= 235 ? (234 + IW) - 234 : 236 - (234 + IW))] <= data_id;
+								r_trans_table[(((N - 1) - gi) * 285) + 221-:6] <= {24'h000000, data_id} % 64;
+								r_trans_table[(((N - 1) - gi) * 285) + 23-:8] <= (IS_READ ? 8'h00 : 8'h01);
+							end
+							else begin
+								r_trans_table[(((N - 1) - gi) * 285) + 23-:8] <= 8'h01;
+								r_trans_table[(((N - 1) - gi) * 285) + 221-:6] <= 6'h00;
+							end
+							r_trans_table[(((N - 1) - gi) * 285) + 282] <= 1'b1;
+							r_trans_table[(((N - 1) - gi) * 285) + 281] <= data_last;
+							r_trans_table[(((N - 1) - gi) * 285) + 15-:8] <= 8'h01;
+							r_trans_table[(((N - 1) - gi) * 285) + 87-:32] <= timestamp;
+							r_trans_table[(((N - 1) - gi) * 285) + 7-:8] <= monitor_amba4_pkg_EVT_DATA_ORPHAN;
+						end
+					end
+					if ((!IS_READ && resp_valid) && resp_ready) begin
+						if (resp_update_oh[gi]) begin
+							r_trans_table[(((N - 1) - gi) * 285) + 280] <= 1'b1;
+							r_trans_table[(((N - 1) - gi) * 285) + 55-:32] <= timestamp;
+							r_trans_table[(((N - 1) - gi) * 285) + 151-:32] <= 1'sb0;
+							if (resp_code[1]) begin
+								r_trans_table[(((N - 1) - gi) * 285) + 277-:3] <= 3'h4;
+								r_trans_table[(((N - 1) - gi) * 285) + 7-:8] <= (resp_code[0] ? monitor_amba4_pkg_EVT_RESP_DECERR : monitor_amba4_pkg_EVT_RESP_SLVERR);
+							end
+							else if (r_trans_table[(((N - 1) - gi) * 285) + 281]) begin
+								if (r_trans_table[(((N - 1) - gi) * 285) + 277-:3] != 3'h4)
+									r_trans_table[(((N - 1) - gi) * 285) + 277-:3] <= 3'h3;
+							end
+							else begin
+								r_trans_table[(((N - 1) - gi) * 285) + 277-:3] <= 3'h4;
+								r_trans_table[(((N - 1) - gi) * 285) + 7-:8] <= monitor_amba4_pkg_EVT_PROTOCOL;
+							end
+						end
+						else if (resp_alloc_oh[gi]) begin
+							r_trans_table[(((N - 1) - gi) * 285) + 284] <= 1'b1;
+							r_trans_table[(((N - 1) - gi) * 285) + 277-:3] <= 3'h5;
+							r_trans_table[(((N - 1) - gi) * 285) + 242-:8] <= 1'sb0;
+							if (IS_AXI) begin
+								r_trans_table[(((N - 1) - gi) * 285) + ((234 + IW) >= 235 ? 234 + IW : ((234 + IW) + ((234 + IW) >= 235 ? (234 + IW) - 234 : 236 - (234 + IW))) - 1)-:((234 + IW) >= 235 ? (234 + IW) - 234 : 236 - (234 + IW))] <= resp_id;
+								r_trans_table[(((N - 1) - gi) * 285) + 221-:6] <= resp_id % 64;
+							end
+							else
+								r_trans_table[(((N - 1) - gi) * 285) + 221-:6] <= 6'h00;
+							r_trans_table[(((N - 1) - gi) * 285) + 280] <= 1'b1;
+							r_trans_table[(((N - 1) - gi) * 285) + 55-:32] <= timestamp;
+							r_trans_table[(((N - 1) - gi) * 285) + 7-:8] <= monitor_amba4_pkg_EVT_RESP_ORPHAN;
+						end
+					end
+					if (r_trans_table[(((N - 1) - gi) * 285) + 284] && w_can_cleanup[gi])
+						r_trans_table[(((N - 1) - gi) * 285) + 284] <= 1'b0;
+					if (i_event_reported_flags[gi] && !r_trans_table[(((N - 1) - gi) * 285) + 279])
+						r_trans_table[(((N - 1) - gi) * 285) + 279] <= 1'b1;
+				end
+		end
+	endgenerate
+	reg [$clog2(N + 1) - 1:0] w_alloc_cnt;
+	reg [$clog2(N + 1) - 1:0] w_cleanup_cnt;
+	always @(*) begin
+		if (_sv2v_0)
+			;
+		w_alloc_cnt = 1'sb0;
+		begin : sv2v_autoblock_8
+			reg signed [31:0] i;
+			for (i = 0; i < N; i = i + 1)
+				w_alloc_cnt = ((w_alloc_cnt + {{$clog2(N + 1) - 1 {1'b0}}, addr_alloc_oh[i]}) + {{$clog2(N + 1) - 1 {1'b0}}, data_alloc_oh[i]}) + {{$clog2(N + 1) - 1 {1'b0}}, resp_alloc_oh[i]};
+		end
+		w_cleanup_cnt = 1'sb0;
+		begin : sv2v_autoblock_9
+			reg signed [31:0] i;
+			for (i = 0; i < N; i = i + 1)
+				w_cleanup_cnt = w_cleanup_cnt + {{$clog2(N + 1) - 1 {1'b0}}, r_trans_table[(((N - 1) - i) * 285) + 284] && w_can_cleanup[i]};
 		end
 	end
 	always @(posedge aclk)
+		if (!aresetn)
+			r_active_count <= 1'sb0;
+		else
+			r_active_count <= (r_active_count + {{8 - $clog2(N + 1) {1'b0}}, w_alloc_cnt}) - {{8 - $clog2(N + 1) {1'b0}}, w_cleanup_cnt};
+	always @(posedge aclk)
 		if (!aresetn) begin
-			begin : sv2v_autoblock_9
-				reg signed [31:0] idx;
-				for (idx = 0; idx < MAX_TRANSACTIONS; idx = idx + 1)
-					r_trans_table_prev[((MAX_TRANSACTIONS - 1) - idx) * 281+:281] <= 1'sb0;
+			begin : sv2v_autoblock_10
+				reg signed [31:0] i;
+				for (i = 0; i < N; i = i + 1)
+					r_trans_table_prev[((N - 1) - i) * 285+:285] <= 1'sb0;
 			end
 			r_state_change <= 1'sb0;
 		end
 		else begin
 			r_trans_table_prev <= r_trans_table;
-			begin : sv2v_autoblock_10
-				reg signed [31:0] idx;
-				for (idx = 0; idx < MAX_TRANSACTIONS; idx = idx + 1)
-					if (r_trans_table[(((MAX_TRANSACTIONS - 1) - idx) * 281) + 280] && r_trans_table_prev[(((MAX_TRANSACTIONS - 1) - idx) * 281) + 280]) begin
-						if (r_trans_table[(((MAX_TRANSACTIONS - 1) - idx) * 281) + 273-:3] != r_trans_table_prev[(((MAX_TRANSACTIONS - 1) - idx) * 281) + 273-:3])
-							r_state_change[idx] <= 1'b1;
-						else
-							r_state_change[idx] <= 1'b0;
-					end
-					else
-						r_state_change[idx] <= 1'b0;
-			end
-		end
-	reg [7:0] w_active_delta_inc;
-	reg [7:0] w_active_delta_dec;
-	localparam [3:0] monitor_amba4_pkg_EVT_DATA_ORPHAN = 4'h2;
-	localparam [3:0] monitor_amba4_pkg_EVT_PROTOCOL = 4'h4;
-	localparam [3:0] monitor_amba4_pkg_EVT_RESP_DECERR = 4'h1;
-	localparam [3:0] monitor_amba4_pkg_EVT_RESP_ORPHAN = 4'h3;
-	localparam [3:0] monitor_amba4_pkg_EVT_RESP_SLVERR = 4'h0;
-	function automatic [31:0] sv2v_cast_32;
-		input reg [31:0] inp;
-		sv2v_cast_32 = inp;
-	endfunction
-	always @(posedge aclk)
-		if (!aresetn) begin
 			begin : sv2v_autoblock_11
-				reg signed [31:0] idx;
-				for (idx = 0; idx < MAX_TRANSACTIONS; idx = idx + 1)
-					r_trans_table[((MAX_TRANSACTIONS - 1) - idx) * 281+:281] <= 1'sb0;
+				reg signed [31:0] i;
+				for (i = 0; i < N; i = i + 1)
+					r_state_change[i] <= (r_trans_table[(((N - 1) - i) * 285) + 284] && r_trans_table_prev[(((N - 1) - i) * 285) + 284]) && (r_trans_table[(((N - 1) - i) * 285) + 277-:3] != r_trans_table_prev[(((N - 1) - i) * 285) + 277-:3]);
 			end
-			r_active_count <= 1'sb0;
-		end
-		else begin
-			w_active_delta_inc = 1'sb0;
-			w_active_delta_dec = 1'sb0;
-			if (cmd_valid) begin
-				if ((w_addr_trans_idx < 0) && (w_addr_free_idx >= 0)) begin
-					r_trans_table[(((MAX_TRANSACTIONS - 1) - w_addr_free_idx) * 281) + 280] <= 1'b1;
-					r_trans_table[(((MAX_TRANSACTIONS - 1) - w_addr_free_idx) * 281) + 273-:3] <= 3'h1;
-					r_trans_table[(((MAX_TRANSACTIONS - 1) - w_addr_free_idx) * 281) + 238-:8] <= 1'sb0;
-					r_trans_table[(((MAX_TRANSACTIONS - 1) - w_addr_free_idx) * 281) + ((230 + IW) >= 231 ? 230 + IW : ((230 + IW) + ((230 + IW) >= 231 ? (230 + IW) - 230 : 232 - (230 + IW))) - 1)-:((230 + IW) >= 231 ? (230 + IW) - 230 : 232 - (230 + IW))] <= cmd_id;
-					r_trans_table[(((MAX_TRANSACTIONS - 1) - w_addr_free_idx) * 281) + 270-:32] <= sv2v_cast_32(cmd_addr);
-					r_trans_table[(((MAX_TRANSACTIONS - 1) - w_addr_free_idx) * 281) + 230-:8] <= cmd_len;
-					r_trans_table[(((MAX_TRANSACTIONS - 1) - w_addr_free_idx) * 281) + 222-:3] <= cmd_size;
-					r_trans_table[(((MAX_TRANSACTIONS - 1) - w_addr_free_idx) * 281) + 219-:2] <= cmd_burst;
-					r_trans_table[(((MAX_TRANSACTIONS - 1) - w_addr_free_idx) * 281) + 279] <= (cmd_ready ? 1'b1 : 1'b0);
-					r_trans_table[(((MAX_TRANSACTIONS - 1) - w_addr_free_idx) * 281) + 211-:32] <= 1'sb0;
-					r_trans_table[(((MAX_TRANSACTIONS - 1) - w_addr_free_idx) * 281) + 278] <= 1'b0;
-					r_trans_table[(((MAX_TRANSACTIONS - 1) - w_addr_free_idx) * 281) + 277] <= 1'b0;
-					r_trans_table[(((MAX_TRANSACTIONS - 1) - w_addr_free_idx) * 281) + 276] <= 1'b0;
-					r_trans_table[(((MAX_TRANSACTIONS - 1) - w_addr_free_idx) * 281) + 3-:4] <= 4'h0;
-					r_trans_table[(((MAX_TRANSACTIONS - 1) - w_addr_free_idx) * 281) + 275] <= 1'b0;
-					r_trans_table[(((MAX_TRANSACTIONS - 1) - w_addr_free_idx) * 281) + 179-:32] <= 1'sb0;
-					r_trans_table[(((MAX_TRANSACTIONS - 1) - w_addr_free_idx) * 281) + 147-:32] <= 1'sb0;
-					r_trans_table[(((MAX_TRANSACTIONS - 1) - w_addr_free_idx) * 281) + 115-:32] <= timestamp;
-					r_trans_table[(((MAX_TRANSACTIONS - 1) - w_addr_free_idx) * 281) + 19-:8] <= (IS_AXI ? cmd_len + 8'h01 : 8'h01);
-					r_trans_table[(((MAX_TRANSACTIONS - 1) - w_addr_free_idx) * 281) + 11-:8] <= 1'sb0;
-					r_trans_table[(((MAX_TRANSACTIONS - 1) - w_addr_free_idx) * 281) + 217-:6] <= w_addr_chan_idx;
-					r_trans_table[(((MAX_TRANSACTIONS - 1) - w_addr_free_idx) * 281) + 274] <= 1'b0;
-					w_active_delta_inc = w_active_delta_inc + 1'b1;
-				end
-			end
-			if (cmd_valid && cmd_ready) begin
-				if (w_addr_trans_idx >= 0) begin
-					r_trans_table[(((MAX_TRANSACTIONS - 1) - w_addr_trans_idx) * 281) + 279] <= 1'b1;
-					r_trans_table[(((MAX_TRANSACTIONS - 1) - w_addr_trans_idx) * 281) + 211-:32] <= 1'sb0;
-					r_trans_table[(((MAX_TRANSACTIONS - 1) - w_addr_trans_idx) * 281) + 115-:32] <= timestamp;
-				end
-			end
-			if (data_valid && data_ready) begin
-				if (IS_READ) begin
-					if (w_data_trans_idx >= 0) begin
-						r_trans_table[(((MAX_TRANSACTIONS - 1) - w_data_trans_idx) * 281) + 278] <= 1'b1;
-						r_trans_table[(((MAX_TRANSACTIONS - 1) - w_data_trans_idx) * 281) + 11-:8] <= r_trans_table[(((MAX_TRANSACTIONS - 1) - w_data_trans_idx) * 281) + 11-:8] + 1'b1;
-						r_trans_table[(((MAX_TRANSACTIONS - 1) - w_data_trans_idx) * 281) + 179-:32] <= 1'sb0;
-						if (r_trans_table[(((MAX_TRANSACTIONS - 1) - w_data_trans_idx) * 281) + 273-:3] != 3'h4)
-							r_trans_table[(((MAX_TRANSACTIONS - 1) - w_data_trans_idx) * 281) + 273-:3] <= 3'h2;
-						if (data_last) begin
-							r_trans_table[(((MAX_TRANSACTIONS - 1) - w_data_trans_idx) * 281) + 277] <= 1'b1;
-							r_trans_table[(((MAX_TRANSACTIONS - 1) - w_data_trans_idx) * 281) + 83-:32] <= timestamp;
-						end
-						if (data_resp[1]) begin
-							r_trans_table[(((MAX_TRANSACTIONS - 1) - w_data_trans_idx) * 281) + 273-:3] <= 3'h4;
-							r_trans_table[(((MAX_TRANSACTIONS - 1) - w_data_trans_idx) * 281) + 3-:4] <= (data_resp[0] ? monitor_amba4_pkg_EVT_RESP_DECERR : monitor_amba4_pkg_EVT_RESP_SLVERR);
-						end
-						else if (data_last) begin
-							r_trans_table[(((MAX_TRANSACTIONS - 1) - w_data_trans_idx) * 281) + 273-:3] <= 3'h3;
-							if (ENABLE_PERF_PACKETS)
-								;
-						end
-					end
-					else if (w_data_free_idx >= 0) begin
-						r_trans_table[(((MAX_TRANSACTIONS - 1) - w_data_free_idx) * 281) + 280] <= 1'b1;
-						r_trans_table[(((MAX_TRANSACTIONS - 1) - w_data_free_idx) * 281) + 273-:3] <= 3'h5;
-						if (IS_AXI) begin
-							r_trans_table[(((MAX_TRANSACTIONS - 1) - w_data_free_idx) * 281) + 238-:8] <= 1'sb0;
-							r_trans_table[(((MAX_TRANSACTIONS - 1) - w_data_free_idx) * 281) + ((230 + IW) >= 231 ? 230 + IW : ((230 + IW) + ((230 + IW) >= 231 ? (230 + IW) - 230 : 232 - (230 + IW))) - 1)-:((230 + IW) >= 231 ? (230 + IW) - 230 : 232 - (230 + IW))] <= data_id;
-							r_trans_table[(((MAX_TRANSACTIONS - 1) - w_data_free_idx) * 281) + 217-:6] <= {24'h000000, data_id} % 64;
-						end
-						else begin
-							r_trans_table[(((MAX_TRANSACTIONS - 1) - w_data_free_idx) * 281) + 238-:8] <= 1'sb0;
-							r_trans_table[(((MAX_TRANSACTIONS - 1) - w_data_free_idx) * 281) + 19-:8] <= 8'h01;
-							r_trans_table[(((MAX_TRANSACTIONS - 1) - w_data_free_idx) * 281) + 217-:6] <= 6'h00;
-						end
-						r_trans_table[(((MAX_TRANSACTIONS - 1) - w_data_free_idx) * 281) + 278] <= 1'b1;
-						r_trans_table[(((MAX_TRANSACTIONS - 1) - w_data_free_idx) * 281) + 277] <= data_last;
-						r_trans_table[(((MAX_TRANSACTIONS - 1) - w_data_free_idx) * 281) + 11-:8] <= 8'h01;
-						r_trans_table[(((MAX_TRANSACTIONS - 1) - w_data_free_idx) * 281) + 83-:32] <= timestamp;
-						r_trans_table[(((MAX_TRANSACTIONS - 1) - w_data_free_idx) * 281) + 3-:4] <= monitor_amba4_pkg_EVT_DATA_ORPHAN;
-						w_active_delta_inc = w_active_delta_inc + 1'b1;
-					end
-				end
-				else if (w_data_trans_idx >= 0) begin
-					r_trans_table[(((MAX_TRANSACTIONS - 1) - w_data_trans_idx) * 281) + 278] <= 1'b1;
-					r_trans_table[(((MAX_TRANSACTIONS - 1) - w_data_trans_idx) * 281) + 11-:8] <= r_trans_table[(((MAX_TRANSACTIONS - 1) - w_data_trans_idx) * 281) + 11-:8] + 1'b1;
-					r_trans_table[(((MAX_TRANSACTIONS - 1) - w_data_trans_idx) * 281) + 179-:32] <= 1'sb0;
-					if (r_trans_table[(((MAX_TRANSACTIONS - 1) - w_data_trans_idx) * 281) + 273-:3] != 3'h4)
-						r_trans_table[(((MAX_TRANSACTIONS - 1) - w_data_trans_idx) * 281) + 273-:3] <= 3'h2;
-					if (data_last || ((r_trans_table[(((MAX_TRANSACTIONS - 1) - w_data_trans_idx) * 281) + 11-:8] + 1) == r_trans_table[(((MAX_TRANSACTIONS - 1) - w_data_trans_idx) * 281) + 19-:8])) begin
-						r_trans_table[(((MAX_TRANSACTIONS - 1) - w_data_trans_idx) * 281) + 277] <= 1'b1;
-						r_trans_table[(((MAX_TRANSACTIONS - 1) - w_data_trans_idx) * 281) + 83-:32] <= timestamp;
-						if (ENABLE_PERF_PACKETS)
-							;
-					end
-				end
-				else if (!IS_AXI && (w_data_free_idx >= 0)) begin
-					r_trans_table[(((MAX_TRANSACTIONS - 1) - w_data_free_idx) * 281) + 280] <= 1'b1;
-					r_trans_table[(((MAX_TRANSACTIONS - 1) - w_data_free_idx) * 281) + 273-:3] <= 3'h5;
-					r_trans_table[(((MAX_TRANSACTIONS - 1) - w_data_free_idx) * 281) + 238-:8] <= 1'sb0;
-					r_trans_table[(((MAX_TRANSACTIONS - 1) - w_data_free_idx) * 281) + 278] <= 1'b1;
-					r_trans_table[(((MAX_TRANSACTIONS - 1) - w_data_free_idx) * 281) + 277] <= data_last;
-					r_trans_table[(((MAX_TRANSACTIONS - 1) - w_data_free_idx) * 281) + 11-:8] <= 8'h01;
-					r_trans_table[(((MAX_TRANSACTIONS - 1) - w_data_free_idx) * 281) + 19-:8] <= 8'h01;
-					r_trans_table[(((MAX_TRANSACTIONS - 1) - w_data_free_idx) * 281) + 83-:32] <= timestamp;
-					r_trans_table[(((MAX_TRANSACTIONS - 1) - w_data_free_idx) * 281) + 3-:4] <= monitor_amba4_pkg_EVT_DATA_ORPHAN;
-					r_trans_table[(((MAX_TRANSACTIONS - 1) - w_data_free_idx) * 281) + 217-:6] <= 6'h00;
-					w_active_delta_inc = w_active_delta_inc + 1'b1;
-				end
-			end
-			if (!IS_READ) begin
-				if (resp_valid && resp_ready) begin
-					if (w_resp_trans_idx >= 0) begin
-						r_trans_table[(((MAX_TRANSACTIONS - 1) - w_resp_trans_idx) * 281) + 276] <= 1'b1;
-						r_trans_table[(((MAX_TRANSACTIONS - 1) - w_resp_trans_idx) * 281) + 51-:32] <= timestamp;
-						r_trans_table[(((MAX_TRANSACTIONS - 1) - w_resp_trans_idx) * 281) + 147-:32] <= 1'sb0;
-						if (resp_code[1]) begin
-							r_trans_table[(((MAX_TRANSACTIONS - 1) - w_resp_trans_idx) * 281) + 273-:3] <= 3'h4;
-							r_trans_table[(((MAX_TRANSACTIONS - 1) - w_resp_trans_idx) * 281) + 3-:4] <= (resp_code[0] ? monitor_amba4_pkg_EVT_RESP_DECERR : monitor_amba4_pkg_EVT_RESP_SLVERR);
-						end
-						else if (r_trans_table[(((MAX_TRANSACTIONS - 1) - w_resp_trans_idx) * 281) + 277]) begin
-							if (r_trans_table[(((MAX_TRANSACTIONS - 1) - w_resp_trans_idx) * 281) + 273-:3] != 3'h4) begin
-								r_trans_table[(((MAX_TRANSACTIONS - 1) - w_resp_trans_idx) * 281) + 273-:3] <= 3'h3;
-								if (ENABLE_PERF_PACKETS)
-									;
-							end
-						end
-						else if (r_trans_table[(((MAX_TRANSACTIONS - 1) - w_resp_trans_idx) * 281) + 278]) begin
-							r_trans_table[(((MAX_TRANSACTIONS - 1) - w_resp_trans_idx) * 281) + 273-:3] <= 3'h4;
-							r_trans_table[(((MAX_TRANSACTIONS - 1) - w_resp_trans_idx) * 281) + 3-:4] <= monitor_amba4_pkg_EVT_PROTOCOL;
-						end
-						else begin
-							r_trans_table[(((MAX_TRANSACTIONS - 1) - w_resp_trans_idx) * 281) + 273-:3] <= 3'h4;
-							r_trans_table[(((MAX_TRANSACTIONS - 1) - w_resp_trans_idx) * 281) + 3-:4] <= monitor_amba4_pkg_EVT_PROTOCOL;
-						end
-					end
-					else if (w_resp_free_idx >= 0) begin
-						if (IS_AXI) begin
-							r_trans_table[(((MAX_TRANSACTIONS - 1) - w_resp_free_idx) * 281) + 280] <= 1'b1;
-							r_trans_table[(((MAX_TRANSACTIONS - 1) - w_resp_free_idx) * 281) + 273-:3] <= 3'h5;
-							r_trans_table[(((MAX_TRANSACTIONS - 1) - w_resp_free_idx) * 281) + 238-:8] <= 1'sb0;
-							r_trans_table[(((MAX_TRANSACTIONS - 1) - w_resp_free_idx) * 281) + ((230 + IW) >= 231 ? 230 + IW : ((230 + IW) + ((230 + IW) >= 231 ? (230 + IW) - 230 : 232 - (230 + IW))) - 1)-:((230 + IW) >= 231 ? (230 + IW) - 230 : 232 - (230 + IW))] <= resp_id;
-							r_trans_table[(((MAX_TRANSACTIONS - 1) - w_resp_free_idx) * 281) + 276] <= 1'b1;
-							r_trans_table[(((MAX_TRANSACTIONS - 1) - w_resp_free_idx) * 281) + 51-:32] <= timestamp;
-							r_trans_table[(((MAX_TRANSACTIONS - 1) - w_resp_free_idx) * 281) + 3-:4] <= monitor_amba4_pkg_EVT_RESP_ORPHAN;
-							r_trans_table[(((MAX_TRANSACTIONS - 1) - w_resp_free_idx) * 281) + 217-:6] <= resp_id % 64;
-						end
-						else begin
-							r_trans_table[(((MAX_TRANSACTIONS - 1) - w_resp_free_idx) * 281) + 280] <= 1'b1;
-							r_trans_table[(((MAX_TRANSACTIONS - 1) - w_resp_free_idx) * 281) + 273-:3] <= 3'h5;
-							r_trans_table[(((MAX_TRANSACTIONS - 1) - w_resp_free_idx) * 281) + 238-:8] <= 1'sb0;
-							r_trans_table[(((MAX_TRANSACTIONS - 1) - w_resp_free_idx) * 281) + 276] <= 1'b1;
-							r_trans_table[(((MAX_TRANSACTIONS - 1) - w_resp_free_idx) * 281) + 51-:32] <= timestamp;
-							r_trans_table[(((MAX_TRANSACTIONS - 1) - w_resp_free_idx) * 281) + 3-:4] <= monitor_amba4_pkg_EVT_RESP_ORPHAN;
-							r_trans_table[(((MAX_TRANSACTIONS - 1) - w_resp_free_idx) * 281) + 217-:6] <= 6'h00;
-						end
-						w_active_delta_inc = w_active_delta_inc + 1'b1;
-					end
-				end
-			end
-			begin : sv2v_autoblock_12
-				reg signed [31:0] idx;
-				for (idx = 0; idx < MAX_TRANSACTIONS; idx = idx + 1)
-					if (r_trans_table[(((MAX_TRANSACTIONS - 1) - idx) * 281) + 280] && w_can_cleanup[idx]) begin
-						r_trans_table[(((MAX_TRANSACTIONS - 1) - idx) * 281) + 280] <= 1'b0;
-						w_active_delta_dec = w_active_delta_dec + 1'b1;
-					end
-			end
-			begin : sv2v_autoblock_13
-				reg signed [31:0] idx;
-				for (idx = 0; idx < MAX_TRANSACTIONS; idx = idx + 1)
-					if (i_event_reported_flags[idx] && !r_trans_table[(((MAX_TRANSACTIONS - 1) - idx) * 281) + 275])
-						r_trans_table[(((MAX_TRANSACTIONS - 1) - idx) * 281) + 275] <= 1'b1;
-			end
-			r_active_count <= (r_active_count + w_active_delta_inc) - w_active_delta_dec;
 		end
 	initial _sv2v_0 = 0;
 endmodule
@@ -916,19 +910,19 @@ module axi_monitor_timeout (
 	parameter [0:0] IS_READ = 1;
 	input wire aclk;
 	input wire aresetn;
-	input wire [(MAX_TRANSACTIONS * 281) - 1:0] trans_table;
+	input wire [(MAX_TRANSACTIONS * 285) - 1:0] trans_table;
 	input wire timer_tick;
 	input wire [3:0] cfg_addr_cnt;
 	input wire [3:0] cfg_data_cnt;
 	input wire [3:0] cfg_resp_cnt;
 	input wire cfg_timeout_enable;
 	output wire [MAX_TRANSACTIONS - 1:0] timeout_detected;
-	reg [280:0] r_trans_table_local [0:MAX_TRANSACTIONS - 1];
+	reg [284:0] r_trans_table_local [0:MAX_TRANSACTIONS - 1];
 	reg [MAX_TRANSACTIONS - 1:0] r_timeout_detected;
 	assign timeout_detected = r_timeout_detected;
-	localparam [3:0] monitor_amba4_pkg_EVT_CMD_TIMEOUT = 4'h0;
-	localparam [3:0] monitor_amba4_pkg_EVT_DATA_TIMEOUT = 4'h1;
-	localparam [3:0] monitor_amba4_pkg_EVT_RESP_TIMEOUT = 4'h2;
+	localparam [7:0] monitor_amba4_pkg_EVT_CMD_TIMEOUT = 8'h00;
+	localparam [7:0] monitor_amba4_pkg_EVT_DATA_TIMEOUT = 8'h01;
+	localparam [7:0] monitor_amba4_pkg_EVT_RESP_TIMEOUT = 8'h02;
 	always @(posedge aclk)
 		if (!aresetn) begin
 			begin : sv2v_autoblock_1
@@ -943,36 +937,36 @@ module axi_monitor_timeout (
 				reg signed [31:0] idx;
 				for (idx = 0; idx < MAX_TRANSACTIONS; idx = idx + 1)
 					begin
-						r_trans_table_local[idx] <= trans_table[((MAX_TRANSACTIONS - 1) - idx) * 281+:281];
-						if (((trans_table[(((MAX_TRANSACTIONS - 1) - idx) * 281) + 273-:3] == 3'h3) || (trans_table[(((MAX_TRANSACTIONS - 1) - idx) * 281) + 273-:3] == 3'h4)) || (trans_table[(((MAX_TRANSACTIONS - 1) - idx) * 281) + 273-:3] == 3'h0))
+						r_trans_table_local[idx] <= trans_table[((MAX_TRANSACTIONS - 1) - idx) * 285+:285];
+						if (((trans_table[(((MAX_TRANSACTIONS - 1) - idx) * 285) + 277-:3] == 3'h3) || (trans_table[(((MAX_TRANSACTIONS - 1) - idx) * 285) + 277-:3] == 3'h4)) || (trans_table[(((MAX_TRANSACTIONS - 1) - idx) * 285) + 277-:3] == 3'h0))
 							r_timeout_detected[idx] <= 1'b0;
 					end
 			end
 			if (timer_tick) begin : sv2v_autoblock_3
 				reg signed [31:0] idx;
 				for (idx = 0; idx < MAX_TRANSACTIONS; idx = idx + 1)
-					if (r_trans_table_local[idx][280] && !r_timeout_detected[idx]) begin
-						if ((r_trans_table_local[idx][273-:3] == 3'h1) && !r_trans_table_local[idx][279]) begin
-							r_trans_table_local[idx][211-:32] <= r_trans_table_local[idx][211-:32] + 1'b1;
-							if (r_trans_table_local[idx][211-:32] >= {12'h000, cfg_addr_cnt}) begin
-								r_trans_table_local[idx][273-:3] <= 3'h4;
-								r_trans_table_local[idx][3-:4] <= monitor_amba4_pkg_EVT_CMD_TIMEOUT;
+					if (r_trans_table_local[idx][284] && !r_timeout_detected[idx]) begin
+						if ((r_trans_table_local[idx][277-:3] == 3'h1) && !r_trans_table_local[idx][283]) begin
+							r_trans_table_local[idx][215-:32] <= r_trans_table_local[idx][215-:32] + 1'b1;
+							if (r_trans_table_local[idx][215-:32] >= {12'h000, cfg_addr_cnt}) begin
+								r_trans_table_local[idx][277-:3] <= 3'h4;
+								r_trans_table_local[idx][7-:8] <= monitor_amba4_pkg_EVT_CMD_TIMEOUT;
 								r_timeout_detected[idx] <= 1'b1;
 							end
 						end
-						if (((((r_trans_table_local[idx][273-:3] == 3'h1) || (r_trans_table_local[idx][273-:3] == 3'h2)) && r_trans_table_local[idx][279]) && r_trans_table_local[idx][278]) && !r_trans_table_local[idx][277]) begin
-							r_trans_table_local[idx][179-:32] <= r_trans_table_local[idx][179-:32] + 1'b1;
-							if (r_trans_table_local[idx][179-:32] >= {12'h000, cfg_data_cnt}) begin
-								r_trans_table_local[idx][273-:3] <= 3'h4;
-								r_trans_table_local[idx][3-:4] <= monitor_amba4_pkg_EVT_DATA_TIMEOUT;
+						if (((((r_trans_table_local[idx][277-:3] == 3'h1) || (r_trans_table_local[idx][277-:3] == 3'h2)) && r_trans_table_local[idx][283]) && r_trans_table_local[idx][282]) && !r_trans_table_local[idx][281]) begin
+							r_trans_table_local[idx][183-:32] <= r_trans_table_local[idx][183-:32] + 1'b1;
+							if (r_trans_table_local[idx][183-:32] >= {12'h000, cfg_data_cnt}) begin
+								r_trans_table_local[idx][277-:3] <= 3'h4;
+								r_trans_table_local[idx][7-:8] <= monitor_amba4_pkg_EVT_DATA_TIMEOUT;
 								r_timeout_detected[idx] <= 1'b1;
 							end
 						end
-						if (((!IS_READ && (r_trans_table_local[idx][273-:3] == 3'h2)) && r_trans_table_local[idx][277]) && !r_trans_table_local[idx][276]) begin
-							r_trans_table_local[idx][147-:32] <= r_trans_table_local[idx][147-:32] + 1'b1;
-							if (r_trans_table_local[idx][147-:32] >= {12'h000, cfg_resp_cnt}) begin
-								r_trans_table_local[idx][273-:3] <= 3'h4;
-								r_trans_table_local[idx][3-:4] <= monitor_amba4_pkg_EVT_RESP_TIMEOUT;
+						if (((!IS_READ && (r_trans_table_local[idx][277-:3] == 3'h2)) && r_trans_table_local[idx][281]) && !r_trans_table_local[idx][280]) begin
+							r_trans_table_local[idx][151-:32] <= r_trans_table_local[idx][151-:32] + 1'b1;
+							if (r_trans_table_local[idx][151-:32] >= {12'h000, cfg_resp_cnt}) begin
+								r_trans_table_local[idx][277-:3] <= 3'h4;
+								r_trans_table_local[idx][7-:8] <= monitor_amba4_pkg_EVT_RESP_TIMEOUT;
 								r_timeout_detected[idx] <= 1'b1;
 							end
 						end
@@ -1004,14 +998,14 @@ module axi_monitor_reporter (
 	reg _sv2v_0;
 	parameter signed [31:0] MAX_TRANSACTIONS = 16;
 	parameter signed [31:0] ADDR_WIDTH = 32;
-	parameter signed [31:0] UNIT_ID = 9;
-	parameter signed [31:0] AGENT_ID = 99;
+	parameter [7:0] UNIT_ID = 8'h09;
+	parameter [15:0] AGENT_ID = 16'h0063;
 	parameter [0:0] IS_READ = 1'b1;
 	parameter [0:0] ENABLE_PERF_PACKETS = 1'b0;
 	parameter signed [31:0] INTR_FIFO_DEPTH = 8;
 	input wire aclk;
 	input wire aresetn;
-	input wire [(MAX_TRANSACTIONS * 281) - 1:0] trans_table;
+	input wire [(MAX_TRANSACTIONS * 285) - 1:0] trans_table;
 	input wire [MAX_TRANSACTIONS - 1:0] timeout_detected;
 	input wire cfg_error_enable;
 	input wire cfg_compl_enable;
@@ -1021,23 +1015,24 @@ module axi_monitor_reporter (
 	input wire cfg_debug_enable;
 	input wire monbus_ready;
 	output reg monbus_valid;
-	output reg [63:0] monbus_packet;
+	localparam signed [31:0] monitor_common_pkg_MONBUS_PKT_WIDTH = 128;
+	output reg [127:0] monbus_packet;
 	output wire [15:0] event_count;
 	output wire [15:0] perf_completed_count;
 	output wire [15:0] perf_error_count;
 	input wire [15:0] active_trans_threshold;
 	input wire [31:0] latency_threshold;
 	output wire [MAX_TRANSACTIONS - 1:0] event_reported_flags;
-	reg [(MAX_TRANSACTIONS * 281) - 1:0] r_trans_table_local;
+	reg [(MAX_TRANSACTIONS * 285) - 1:0] r_trans_table_local;
 	reg [MAX_TRANSACTIONS - 1:0] r_event_reported;
 	assign event_reported_flags = r_event_reported;
-	function automatic [37:0] sv2v_cast_38;
-		input reg [37:0] inp;
-		sv2v_cast_38 = inp;
+	function automatic [63:0] sv2v_cast_64;
+		input reg [63:0] inp;
+		sv2v_cast_64 = inp;
 	endfunction
-	function automatic [37:0] pad_address;
+	function automatic [63:0] pad_address;
 		input reg [31:0] addr;
-		pad_address = sv2v_cast_38(addr);
+		pad_address = sv2v_cast_64(addr);
 	endfunction
 	reg r_active_threshold_crossed;
 	reg r_latency_threshold_crossed;
@@ -1050,14 +1045,14 @@ module axi_monitor_reporter (
 	reg [2:0] r_perf_report_state;
 	reg w_fifo_wr_valid;
 	wire w_fifo_wr_ready;
-	reg [51:0] w_fifo_wr_data;
+	reg [84:0] w_fifo_wr_data;
 	wire w_fifo_rd_valid;
 	wire w_fifo_rd_ready;
-	wire [51:0] w_fifo_rd_data;
+	wire [84:0] w_fifo_rd_data;
 	wire [$clog2(INTR_FIFO_DEPTH):0] w_fifo_count;
 	gaxi_fifo_sync #(
 		.REGISTERED(1),
-		.DATA_WIDTH(52),
+		.DATA_WIDTH(85),
 		.DEPTH(INTR_FIFO_DEPTH),
 		.ALMOST_WR_MARGIN(1),
 		.ALMOST_RD_MARGIN(1)
@@ -1073,9 +1068,9 @@ module axi_monitor_reporter (
 		.rd_data(w_fifo_rd_data)
 	);
 	reg [3:0] r_packet_type;
-	reg [3:0] r_event_code;
-	reg [37:0] r_event_data;
-	reg [5:0] r_event_channel;
+	reg [7:0] r_event_code;
+	reg [63:0] r_event_data;
+	reg [8:0] r_event_channel;
 	reg [MAX_TRANSACTIONS - 1:0] w_error_events_detected;
 	reg [MAX_TRANSACTIONS - 1:0] w_timeout_events_detected;
 	reg [MAX_TRANSACTIONS - 1:0] w_completion_events_detected;
@@ -1095,6 +1090,8 @@ module axi_monitor_reporter (
 	reg w_has_latency_event;
 	reg [31:0] w_total_latency;
 	reg [31:0] w_selected_latency_value;
+	reg [31:0] r_latency [0:MAX_TRANSACTIONS - 1];
+	reg [MAX_TRANSACTIONS - 1:0] r_latency_over_thresh;
 	reg w_generate_perf_packet_completed;
 	reg w_generate_perf_packet_errors;
 	reg [2:0] w_next_perf_report_state;
@@ -1107,7 +1104,7 @@ module axi_monitor_reporter (
 		begin : sv2v_autoblock_1
 			reg signed [31:0] idx;
 			for (idx = 0; idx < MAX_TRANSACTIONS; idx = idx + 1)
-				if (((r_trans_table_local[(((MAX_TRANSACTIONS - 1) - idx) * 281) + 280] && !r_event_reported[idx]) && cfg_error_enable) && (((r_trans_table_local[(((MAX_TRANSACTIONS - 1) - idx) * 281) + 273-:3] == 3'h4) && !timeout_detected[idx]) || (r_trans_table_local[(((MAX_TRANSACTIONS - 1) - idx) * 281) + 273-:3] == 3'h5)))
+				if (((r_trans_table_local[(((MAX_TRANSACTIONS - 1) - idx) * 285) + 284] && !r_event_reported[idx]) && cfg_error_enable) && (((r_trans_table_local[(((MAX_TRANSACTIONS - 1) - idx) * 285) + 277-:3] == 3'h4) && !timeout_detected[idx]) || (r_trans_table_local[(((MAX_TRANSACTIONS - 1) - idx) * 285) + 277-:3] == 3'h5)))
 					w_error_events_detected[idx] = 1'b1;
 		end
 		begin : sv2v_autoblock_2
@@ -1128,7 +1125,7 @@ module axi_monitor_reporter (
 		begin : sv2v_autoblock_3
 			reg signed [31:0] idx;
 			for (idx = 0; idx < MAX_TRANSACTIONS; idx = idx + 1)
-				if ((((r_trans_table_local[(((MAX_TRANSACTIONS - 1) - idx) * 281) + 280] && !r_event_reported[idx]) && (r_trans_table_local[(((MAX_TRANSACTIONS - 1) - idx) * 281) + 273-:3] == 3'h4)) && cfg_timeout_enable) && timeout_detected[idx])
+				if ((((r_trans_table_local[(((MAX_TRANSACTIONS - 1) - idx) * 285) + 284] && !r_event_reported[idx]) && (r_trans_table_local[(((MAX_TRANSACTIONS - 1) - idx) * 285) + 277-:3] == 3'h4)) && cfg_timeout_enable) && timeout_detected[idx])
 					w_timeout_events_detected[idx] = 1'b1;
 		end
 		begin : sv2v_autoblock_4
@@ -1149,7 +1146,7 @@ module axi_monitor_reporter (
 		begin : sv2v_autoblock_5
 			reg signed [31:0] idx;
 			for (idx = 0; idx < MAX_TRANSACTIONS; idx = idx + 1)
-				if (((r_trans_table_local[(((MAX_TRANSACTIONS - 1) - idx) * 281) + 280] && !r_event_reported[idx]) && (r_trans_table_local[(((MAX_TRANSACTIONS - 1) - idx) * 281) + 273-:3] == 3'h3)) && cfg_compl_enable)
+				if (((r_trans_table_local[(((MAX_TRANSACTIONS - 1) - idx) * 285) + 284] && !r_event_reported[idx]) && (r_trans_table_local[(((MAX_TRANSACTIONS - 1) - idx) * 285) + 277-:3] == 3'h3)) && cfg_compl_enable)
 					w_completion_events_detected[idx] = 1'b1;
 		end
 		begin : sv2v_autoblock_6
@@ -1161,7 +1158,7 @@ module axi_monitor_reporter (
 				end
 		end
 	end
-	localparam [3:0] monitor_amba4_pkg_EVT_TRANS_COMPLETE = 4'h0;
+	localparam [7:0] monitor_amba4_pkg_EVT_TRANS_COMPLETE = 8'h00;
 	localparam [3:0] monitor_common_pkg_PktTypeCompletion = 4'h1;
 	localparam [3:0] monitor_common_pkg_PktTypeError = 4'h0;
 	localparam [3:0] monitor_common_pkg_PktTypeTimeout = 4'h3;
@@ -1169,27 +1166,27 @@ module axi_monitor_reporter (
 		if (_sv2v_0)
 			;
 		w_fifo_wr_valid = 1'b0;
-		w_fifo_wr_data = 52'b0000000000000000000000000000000000000000000000000000;
+		w_fifo_wr_data = 85'b0000000000000000000000000000000000000000000000000000000000000000000000000000000000000;
 		if (w_has_error_event) begin
 			w_fifo_wr_valid = 1'b1;
-			w_fifo_wr_data[51-:4] = monitor_common_pkg_PktTypeError;
-			w_fifo_wr_data[47-:4] = r_trans_table_local[(((MAX_TRANSACTIONS - 1) - w_selected_error_idx) * 281) + 3-:4];
-			w_fifo_wr_data[43-:6] = r_trans_table_local[(((MAX_TRANSACTIONS - 1) - w_selected_error_idx) * 281) + 217-:6];
-			w_fifo_wr_data[37-:38] = pad_address(r_trans_table_local[(((MAX_TRANSACTIONS - 1) - w_selected_error_idx) * 281) + 270-:32]);
+			w_fifo_wr_data[84-:4] = monitor_common_pkg_PktTypeError;
+			w_fifo_wr_data[80-:8] = r_trans_table_local[(((MAX_TRANSACTIONS - 1) - w_selected_error_idx) * 285) + 7-:8];
+			w_fifo_wr_data[72-:9] = {3'b000, r_trans_table_local[(((MAX_TRANSACTIONS - 1) - w_selected_error_idx) * 285) + 221-:6]};
+			w_fifo_wr_data[63-:64] = pad_address(r_trans_table_local[(((MAX_TRANSACTIONS - 1) - w_selected_error_idx) * 285) + 274-:32]);
 		end
 		else if (w_has_timeout_event) begin
 			w_fifo_wr_valid = 1'b1;
-			w_fifo_wr_data[51-:4] = monitor_common_pkg_PktTypeTimeout;
-			w_fifo_wr_data[47-:4] = r_trans_table_local[(((MAX_TRANSACTIONS - 1) - w_selected_timeout_idx) * 281) + 3-:4];
-			w_fifo_wr_data[43-:6] = r_trans_table_local[(((MAX_TRANSACTIONS - 1) - w_selected_timeout_idx) * 281) + 217-:6];
-			w_fifo_wr_data[37-:38] = pad_address(r_trans_table_local[(((MAX_TRANSACTIONS - 1) - w_selected_timeout_idx) * 281) + 270-:32]);
+			w_fifo_wr_data[84-:4] = monitor_common_pkg_PktTypeTimeout;
+			w_fifo_wr_data[80-:8] = r_trans_table_local[(((MAX_TRANSACTIONS - 1) - w_selected_timeout_idx) * 285) + 7-:8];
+			w_fifo_wr_data[72-:9] = {3'b000, r_trans_table_local[(((MAX_TRANSACTIONS - 1) - w_selected_timeout_idx) * 285) + 221-:6]};
+			w_fifo_wr_data[63-:64] = pad_address(r_trans_table_local[(((MAX_TRANSACTIONS - 1) - w_selected_timeout_idx) * 285) + 274-:32]);
 		end
 		else if (w_has_completion_event) begin
 			w_fifo_wr_valid = 1'b1;
-			w_fifo_wr_data[51-:4] = monitor_common_pkg_PktTypeCompletion;
-			w_fifo_wr_data[47-:4] = monitor_amba4_pkg_EVT_TRANS_COMPLETE;
-			w_fifo_wr_data[43-:6] = r_trans_table_local[(((MAX_TRANSACTIONS - 1) - w_selected_completion_idx) * 281) + 217-:6];
-			w_fifo_wr_data[37-:38] = pad_address(r_trans_table_local[(((MAX_TRANSACTIONS - 1) - w_selected_completion_idx) * 281) + 270-:32]);
+			w_fifo_wr_data[84-:4] = monitor_common_pkg_PktTypeCompletion;
+			w_fifo_wr_data[80-:8] = monitor_amba4_pkg_EVT_TRANS_COMPLETE;
+			w_fifo_wr_data[72-:9] = {3'b000, r_trans_table_local[(((MAX_TRANSACTIONS - 1) - w_selected_completion_idx) * 285) + 221-:6]};
+			w_fifo_wr_data[63-:64] = pad_address(r_trans_table_local[(((MAX_TRANSACTIONS - 1) - w_selected_completion_idx) * 285) + 274-:32]);
 		end
 	end
 	assign w_fifo_rd_ready = monbus_ready && monbus_valid;
@@ -1202,12 +1199,12 @@ module axi_monitor_reporter (
 		begin : sv2v_autoblock_7
 			reg signed [31:0] idx;
 			for (idx = 0; idx < MAX_TRANSACTIONS; idx = idx + 1)
-				if (r_trans_table_local[(((MAX_TRANSACTIONS - 1) - idx) * 281) + 280]) begin
-					if ((((((r_trans_table_local[(((MAX_TRANSACTIONS - 1) - idx) * 281) + 273-:3] == 3'h4) || (r_trans_table_local[(((MAX_TRANSACTIONS - 1) - idx) * 281) + 273-:3] == 3'h5)) || (r_trans_table_local[(((MAX_TRANSACTIONS - 1) - idx) * 281) + 273-:3] == 3'h3)) && !r_event_reported[idx]) && w_fifo_wr_valid) && w_fifo_wr_ready) begin
+				if (r_trans_table_local[(((MAX_TRANSACTIONS - 1) - idx) * 285) + 284]) begin
+					if ((((((r_trans_table_local[(((MAX_TRANSACTIONS - 1) - idx) * 285) + 277-:3] == 3'h4) || (r_trans_table_local[(((MAX_TRANSACTIONS - 1) - idx) * 285) + 277-:3] == 3'h5)) || (r_trans_table_local[(((MAX_TRANSACTIONS - 1) - idx) * 285) + 277-:3] == 3'h3)) && !r_event_reported[idx]) && w_fifo_wr_valid) && w_fifo_wr_ready) begin
 						w_events_to_mark[idx] = 1'b1;
-						if ((r_trans_table_local[(((MAX_TRANSACTIONS - 1) - idx) * 281) + 273-:3] == 3'h4) || (r_trans_table_local[(((MAX_TRANSACTIONS - 1) - idx) * 281) + 273-:3] == 3'h5))
+						if ((r_trans_table_local[(((MAX_TRANSACTIONS - 1) - idx) * 285) + 277-:3] == 3'h4) || (r_trans_table_local[(((MAX_TRANSACTIONS - 1) - idx) * 285) + 277-:3] == 3'h5))
 							w_error_events[idx] = 1'b1;
-						else if (r_trans_table_local[(((MAX_TRANSACTIONS - 1) - idx) * 281) + 273-:3] == 3'h3)
+						else if (r_trans_table_local[(((MAX_TRANSACTIONS - 1) - idx) * 285) + 277-:3] == 3'h3)
 							w_completion_events[idx] = 1'b1;
 					end
 				end
@@ -1220,7 +1217,7 @@ module axi_monitor_reporter (
 		begin : sv2v_autoblock_8
 			reg signed [31:0] idx;
 			for (idx = 0; idx < MAX_TRANSACTIONS; idx = idx + 1)
-				if ((r_trans_table_local[(((MAX_TRANSACTIONS - 1) - idx) * 281) + 280] && (r_trans_table_local[(((MAX_TRANSACTIONS - 1) - idx) * 281) + 273-:3] != 3'h3)) && (r_trans_table_local[(((MAX_TRANSACTIONS - 1) - idx) * 281) + 273-:3] != 3'h4))
+				if ((r_trans_table_local[(((MAX_TRANSACTIONS - 1) - idx) * 285) + 284] && (r_trans_table_local[(((MAX_TRANSACTIONS - 1) - idx) * 285) + 277-:3] != 3'h3)) && (r_trans_table_local[(((MAX_TRANSACTIONS - 1) - idx) * 285) + 277-:3] != 3'h4))
 					w_active_count_current = w_active_count_current + 1'b1;
 		end
 		w_active_threshold_detection = ((({8'h00, w_active_count_current} > active_trans_threshold) && !r_active_threshold_crossed) && !monbus_valid) && (w_fifo_rd_valid == 0);
@@ -1233,19 +1230,8 @@ module axi_monitor_reporter (
 		w_has_latency_event = 1'b0;
 		w_total_latency = 1'sb0;
 		if ((ENABLE_PERF_PACKETS && cfg_perf_enable) && cfg_threshold_enable) begin
+			w_latency_threshold_events = r_latency_over_thresh;
 			begin : sv2v_autoblock_9
-				reg signed [31:0] idx;
-				for (idx = 0; idx < MAX_TRANSACTIONS; idx = idx + 1)
-					if (r_trans_table_local[(((MAX_TRANSACTIONS - 1) - idx) * 281) + 280] && (r_trans_table_local[(((MAX_TRANSACTIONS - 1) - idx) * 281) + 273-:3] == 3'h3)) begin
-						if (IS_READ)
-							w_total_latency = r_trans_table_local[(((MAX_TRANSACTIONS - 1) - idx) * 281) + 83-:32] - r_trans_table_local[(((MAX_TRANSACTIONS - 1) - idx) * 281) + 115-:32];
-						else
-							w_total_latency = r_trans_table_local[(((MAX_TRANSACTIONS - 1) - idx) * 281) + 51-:32] - r_trans_table_local[(((MAX_TRANSACTIONS - 1) - idx) * 281) + 115-:32];
-						if ((w_total_latency > latency_threshold) && !r_latency_threshold_crossed)
-							w_latency_threshold_events[idx] = 1'b1;
-					end
-			end
-			begin : sv2v_autoblock_10
 				reg signed [31:0] idx;
 				for (idx = 0; idx < MAX_TRANSACTIONS; idx = idx + 1)
 					if (w_latency_threshold_events[idx] && !w_has_latency_event) begin
@@ -1259,12 +1245,8 @@ module axi_monitor_reporter (
 		if (_sv2v_0)
 			;
 		w_selected_latency_value = 1'sb0;
-		if (w_has_latency_event) begin
-			if (IS_READ)
-				w_selected_latency_value = r_trans_table_local[(((MAX_TRANSACTIONS - 1) - w_selected_latency_idx) * 281) + 83-:32] - r_trans_table_local[(((MAX_TRANSACTIONS - 1) - w_selected_latency_idx) * 281) + 115-:32];
-			else
-				w_selected_latency_value = r_trans_table_local[(((MAX_TRANSACTIONS - 1) - w_selected_latency_idx) * 281) + 51-:32] - r_trans_table_local[(((MAX_TRANSACTIONS - 1) - w_selected_latency_idx) * 281) + 115-:32];
-		end
+		if (w_has_latency_event)
+			w_selected_latency_value = r_latency[w_selected_latency_idx];
 	end
 	always @(*) begin
 		if (_sv2v_0)
@@ -1290,12 +1272,12 @@ module axi_monitor_reporter (
 				default: w_next_perf_report_state = 3'h0;
 			endcase
 	end
-	localparam [3:0] monitor_amba4_pkg_EVT_NONE = 4'h0;
+	localparam [7:0] monitor_amba4_pkg_EVT_NONE = 8'h00;
 	localparam [3:0] monitor_common_pkg_PktTypePerf = 4'h4;
 	localparam [3:0] monitor_common_pkg_PktTypeThreshold = 4'h2;
 	always @(posedge aclk)
 		if (!aresetn) begin
-			r_trans_table_local <= {MAX_TRANSACTIONS {281'b0}};
+			r_trans_table_local <= {MAX_TRANSACTIONS {285'b0}};
 			monbus_valid <= 1'b0;
 			r_event_count <= 1'sb0;
 			r_event_reported <= 1'sb0;
@@ -1303,6 +1285,12 @@ module axi_monitor_reporter (
 			r_perf_error_count <= 1'sb0;
 			r_active_threshold_crossed <= 1'b0;
 			r_latency_threshold_crossed <= 1'b0;
+			begin : sv2v_autoblock_10
+				reg signed [31:0] idx;
+				for (idx = 0; idx < MAX_TRANSACTIONS; idx = idx + 1)
+					r_latency[idx] <= 1'sb0;
+			end
+			r_latency_over_thresh <= 1'sb0;
 			r_packet_type <= monitor_common_pkg_PktTypeError;
 			r_event_code <= monitor_amba4_pkg_EVT_NONE;
 			r_event_data <= 1'sb0;
@@ -1313,22 +1301,35 @@ module axi_monitor_reporter (
 			begin : sv2v_autoblock_11
 				reg signed [31:0] idx;
 				for (idx = 0; idx < MAX_TRANSACTIONS; idx = idx + 1)
-					r_trans_table_local[((MAX_TRANSACTIONS - 1) - idx) * 281+:281] <= trans_table[((MAX_TRANSACTIONS - 1) - idx) * 281+:281];
+					r_trans_table_local[((MAX_TRANSACTIONS - 1) - idx) * 285+:285] <= trans_table[((MAX_TRANSACTIONS - 1) - idx) * 285+:285];
+			end
+			begin : sv2v_autoblock_12
+				reg signed [31:0] idx;
+				for (idx = 0; idx < MAX_TRANSACTIONS; idx = idx + 1)
+					begin : g_lat
+						reg [31:0] lat;
+						if (IS_READ)
+							lat = trans_table[(((MAX_TRANSACTIONS - 1) - idx) * 285) + 87-:32] - trans_table[(((MAX_TRANSACTIONS - 1) - idx) * 285) + 119-:32];
+						else
+							lat = trans_table[(((MAX_TRANSACTIONS - 1) - idx) * 285) + 55-:32] - trans_table[(((MAX_TRANSACTIONS - 1) - idx) * 285) + 119-:32];
+						r_latency[idx] <= lat;
+						r_latency_over_thresh[idx] <= ((trans_table[(((MAX_TRANSACTIONS - 1) - idx) * 285) + 284] && (trans_table[(((MAX_TRANSACTIONS - 1) - idx) * 285) + 277-:3] == 3'h3)) && (lat > latency_threshold)) && !r_latency_threshold_crossed;
+					end
 			end
 			if (monbus_valid && monbus_ready)
 				monbus_valid <= 1'b0;
 			if (!monbus_valid && w_fifo_rd_valid) begin
 				monbus_valid <= 1'b1;
-				r_packet_type <= w_fifo_rd_data[51-:4];
-				r_event_code <= w_fifo_rd_data[47-:4];
-				r_event_data <= w_fifo_rd_data[37-:38];
-				r_event_channel <= w_fifo_rd_data[43-:6];
+				r_packet_type <= w_fifo_rd_data[84-:4];
+				r_event_code <= w_fifo_rd_data[80-:8];
+				r_event_data <= w_fifo_rd_data[63-:64];
+				r_event_channel <= w_fifo_rd_data[72-:9];
 			end
-			begin : sv2v_autoblock_12
+			begin : sv2v_autoblock_13
 				reg signed [31:0] idx;
 				for (idx = 0; idx < MAX_TRANSACTIONS; idx = idx + 1)
 					begin
-						if (!r_trans_table_local[(((MAX_TRANSACTIONS - 1) - idx) * 281) + 280])
+						if (!r_trans_table_local[(((MAX_TRANSACTIONS - 1) - idx) * 285) + 284])
 							r_event_reported[idx] <= 1'b0;
 						else if (w_events_to_mark[idx]) begin
 							r_event_reported[idx] <= 1'b1;
@@ -1346,8 +1347,8 @@ module axi_monitor_reporter (
 				if (w_active_threshold_detection) begin
 					monbus_valid <= 1'b1;
 					r_packet_type <= monitor_common_pkg_PktTypeThreshold;
-					r_event_code <= 4'h0;
-					r_event_data <= {30'h00000000, w_active_count_current};
+					r_event_code <= 8'h00;
+					r_event_data <= sv2v_cast_64(w_active_count_current);
 					r_event_channel <= 1'sb0;
 					r_active_threshold_crossed <= 1'b1;
 					r_event_count <= r_event_count + 1'b1;
@@ -1357,9 +1358,9 @@ module axi_monitor_reporter (
 				if ((w_has_latency_event && !monbus_valid) && (w_fifo_rd_valid == 0)) begin
 					monbus_valid <= 1'b1;
 					r_packet_type <= monitor_common_pkg_PktTypeThreshold;
-					r_event_code <= 4'h1;
+					r_event_code <= 8'h01;
 					r_event_data <= pad_address(w_selected_latency_value);
-					r_event_channel <= r_trans_table_local[(((MAX_TRANSACTIONS - 1) - w_selected_latency_idx) * 281) + 217-:6];
+					r_event_channel <= {3'b000, r_trans_table_local[(((MAX_TRANSACTIONS - 1) - w_selected_latency_idx) * 285) + 221-:6]};
 					r_latency_threshold_crossed <= 1'b1;
 					r_event_count <= r_event_count + 1'b1;
 				end
@@ -1367,29 +1368,33 @@ module axi_monitor_reporter (
 			if (w_generate_perf_packet_completed) begin
 				monbus_valid <= 1'b1;
 				r_packet_type <= monitor_common_pkg_PktTypePerf;
-				r_event_code <= 4'h7;
-				r_event_data <= {22'h000000, r_perf_completed_count};
+				r_event_code <= 8'h07;
+				r_event_data <= sv2v_cast_64(r_perf_completed_count);
 				r_event_channel <= 1'sb0;
 			end
 			if (w_generate_perf_packet_errors) begin
 				monbus_valid <= 1'b1;
 				r_packet_type <= monitor_common_pkg_PktTypePerf;
-				r_event_code <= 4'h8;
-				r_event_data <= {22'h000000, r_perf_error_count};
+				r_event_code <= 8'h08;
+				r_event_data <= sv2v_cast_64(r_perf_error_count);
 				r_event_channel <= 1'sb0;
 			end
 			r_perf_report_state <= w_next_perf_report_state;
 		end
+	function automatic [127:0] monitor_common_pkg_create_monitor_packet;
+		input reg [3:0] packet_type;
+		input reg [3:0] protocol;
+		input reg [7:0] event_code;
+		input reg [8:0] channel_id;
+		input reg [7:0] unit_id;
+		input reg [15:0] agent_id;
+		input reg [63:0] event_data;
+		monitor_common_pkg_create_monitor_packet = {packet_type, 15'h0000, protocol, event_code, channel_id, agent_id, unit_id, event_data};
+	endfunction
 	always @(*) begin
 		if (_sv2v_0)
 			;
-		monbus_packet[63:60] = r_packet_type;
-		monbus_packet[59:57] = 3'b000;
-		monbus_packet[56:53] = r_event_code;
-		monbus_packet[52:47] = r_event_channel;
-		monbus_packet[46:43] = UNIT_ID[3:0];
-		monbus_packet[42:35] = AGENT_ID[7:0];
-		monbus_packet[34:0] = r_event_data[34:0];
+		monbus_packet = monitor_common_pkg_create_monitor_packet(r_packet_type, 4'h0, r_event_code, r_event_channel, UNIT_ID, AGENT_ID, r_event_data);
 	end
 	initial _sv2v_0 = 0;
 endmodule
@@ -1426,16 +1431,22 @@ module axi_monitor_base (
 	cfg_debug_mask,
 	cfg_active_trans_threshold,
 	cfg_latency_threshold,
+	cfg_addr_check_enable,
+	cfg_addr_range_enable,
+	cfg_addr_range_low,
+	cfg_addr_range_high,
+	i_mon_time,
 	monbus_valid,
 	monbus_ready,
 	monbus_packet,
+	monbus_timestamp,
 	block_ready,
 	busy,
 	active_count
 );
 	reg _sv2v_0;
-	parameter signed [31:0] UNIT_ID = 9;
-	parameter signed [31:0] AGENT_ID = 99;
+	parameter [7:0] UNIT_ID = 8'h09;
+	parameter [15:0] AGENT_ID = 16'h0063;
 	parameter signed [31:0] MAX_TRANSACTIONS = 16;
 	parameter signed [31:0] ADDR_WIDTH = 32;
 	parameter signed [31:0] ID_WIDTH = 8;
@@ -1446,6 +1457,7 @@ module axi_monitor_base (
 	parameter [0:0] ENABLE_DEBUG_MODULE = 1'b0;
 	parameter signed [31:0] INTR_FIFO_DEPTH = 8;
 	parameter signed [31:0] DEBUG_FIFO_DEPTH = 8;
+	parameter signed [31:0] N_ADDR_RANGES = 0;
 	parameter signed [31:0] AW = ADDR_WIDTH;
 	parameter signed [31:0] IW = ID_WIDTH;
 	parameter signed [31:0] ADDR_BITS = (ADDR_BITS_IN_PKT > AW ? AW : ADDR_BITS_IN_PKT);
@@ -1481,13 +1493,21 @@ module axi_monitor_base (
 	input wire [15:0] cfg_debug_mask;
 	input wire [15:0] cfg_active_trans_threshold;
 	input wire [31:0] cfg_latency_threshold;
+	input wire cfg_addr_check_enable;
+	input wire [(N_ADDR_RANGES > 0 ? N_ADDR_RANGES : 1) - 1:0] cfg_addr_range_enable;
+	input wire [((N_ADDR_RANGES > 0 ? N_ADDR_RANGES : 1) * AW) - 1:0] cfg_addr_range_low;
+	input wire [((N_ADDR_RANGES > 0 ? N_ADDR_RANGES : 1) * AW) - 1:0] cfg_addr_range_high;
+	localparam signed [31:0] monitor_common_pkg_MONBUS_TS_WIDTH = 64;
+	input wire [63:0] i_mon_time;
 	output reg monbus_valid;
 	input wire monbus_ready;
-	output reg [63:0] monbus_packet;
+	localparam signed [31:0] monitor_common_pkg_MONBUS_PKT_WIDTH = 128;
+	output reg [127:0] monbus_packet;
+	output reg [63:0] monbus_timestamp;
 	output wire block_ready;
 	output wire busy;
 	output wire [7:0] active_count;
-	wire [(MAX_TRANSACTIONS * 281) - 1:0] w_trans_table;
+	wire [(MAX_TRANSACTIONS * 285) - 1:0] w_trans_table;
 	wire [MAX_TRANSACTIONS - 1:0] w_event_reported_flags;
 	wire [7:0] w_active_count;
 	wire [15:0] w_event_count;
@@ -1497,9 +1517,13 @@ module axi_monitor_base (
 	wire [MAX_TRANSACTIONS - 1:0] w_state_change_detected;
 	wire [MAX_TRANSACTIONS - 1:0] w_timeout_detected;
 	wire w_reporter_monbus_valid;
-	wire [63:0] w_reporter_monbus_packet;
+	wire [127:0] w_reporter_monbus_packet;
 	wire w_debug_monbus_valid;
-	wire [63:0] w_debug_monbus_packet;
+	wire [127:0] w_debug_monbus_packet;
+	wire w_addr_pkt_valid;
+	wire [127:0] w_addr_pkt_data;
+	wire [63:0] w_addr_pkt_timestamp;
+	wire w_addr_pkt_ready;
 	generate
 		if (!ENABLE_DEBUG_MODULE) begin : gen_no_debug
 			assign w_debug_monbus_valid = 1'b0;
@@ -1591,23 +1615,65 @@ module axi_monitor_base (
 		.latency_threshold(cfg_latency_threshold),
 		.event_reported_flags(w_event_reported_flags)
 	);
+	generate
+		if (N_ADDR_RANGES > 0) begin : gen_addr_check
+			axi_monitor_addr_check #(
+				.N_ADDR_RANGES(N_ADDR_RANGES),
+				.ADDR_WIDTH(ADDR_WIDTH),
+				.ID_WIDTH((ID_WIDTH > 0 ? ID_WIDTH : 1)),
+				.UNIT_ID(UNIT_ID),
+				.AGENT_ID(AGENT_ID),
+				.IS_READ(IS_READ)
+			) addr_check(
+				.clk(aclk),
+				.aresetn(aresetn),
+				.i_mon_time(i_mon_time),
+				.cmd_addr(cmd_addr),
+				.cmd_id(cmd_id),
+				.cmd_valid(cmd_valid),
+				.cmd_ready(cmd_ready),
+				.cfg_addr_check_enable(cfg_addr_check_enable),
+				.cfg_addr_range_enable(cfg_addr_range_enable),
+				.cfg_addr_range_low(cfg_addr_range_low),
+				.cfg_addr_range_high(cfg_addr_range_high),
+				.addr_pkt_valid(w_addr_pkt_valid),
+				.addr_pkt_ready(w_addr_pkt_ready),
+				.addr_pkt_data(w_addr_pkt_data),
+				.addr_pkt_timestamp(w_addr_pkt_timestamp)
+			);
+		end
+		else begin : gen_no_addr_check
+			assign w_addr_pkt_valid = 1'b0;
+			assign w_addr_pkt_data = 1'sb0;
+			assign w_addr_pkt_timestamp = 1'sb0;
+		end
+	endgenerate
 	always @(*) begin
 		if (_sv2v_0)
 			;
 		if (w_reporter_monbus_valid) begin
 			monbus_valid = w_reporter_monbus_valid;
 			monbus_packet = w_reporter_monbus_packet;
+			monbus_timestamp = i_mon_time;
 		end
 		else if (w_debug_monbus_valid) begin
 			monbus_valid = w_debug_monbus_valid;
 			monbus_packet = w_debug_monbus_packet;
+			monbus_timestamp = i_mon_time;
+		end
+		else if (w_addr_pkt_valid) begin
+			monbus_valid = w_addr_pkt_valid;
+			monbus_packet = w_addr_pkt_data;
+			monbus_timestamp = w_addr_pkt_timestamp;
 		end
 		else begin
 			monbus_valid = 1'b0;
 			monbus_packet = 1'sb0;
+			monbus_timestamp = 1'sb0;
 		end
 	end
-	assign block_ready = (MAX_TRANSACTIONS > 2 ? {24'h000000, w_active_count} >= (MAX_TRANSACTIONS - 2) : 1'b0);
+	assign w_addr_pkt_ready = (monbus_ready && !w_reporter_monbus_valid) && !w_debug_monbus_valid;
+	assign block_ready = (MAX_TRANSACTIONS > 2 ? {24'h000000, w_active_count} < (MAX_TRANSACTIONS - 2) : 1'b1);
 	assign busy = w_active_count > 0;
 	assign active_count = w_active_count;
 	initial _sv2v_0 = 0;
@@ -1654,17 +1720,23 @@ module axi_monitor_filtered (
 	cfg_axi_perf_mask,
 	cfg_axi_addr_mask,
 	cfg_axi_debug_mask,
+	cfg_addr_check_enable,
+	cfg_addr_range_enable,
+	cfg_addr_range_low,
+	cfg_addr_range_high,
+	i_mon_time,
 	monbus_valid,
 	monbus_ready,
 	monbus_packet,
+	monbus_timestamp,
 	block_ready,
 	busy,
 	active_count,
 	cfg_conflict_error
 );
 	reg _sv2v_0;
-	parameter signed [31:0] UNIT_ID = 1;
-	parameter signed [31:0] AGENT_ID = 10;
+	parameter [7:0] UNIT_ID = 8'h01;
+	parameter [15:0] AGENT_ID = 16'h000a;
 	parameter signed [31:0] MAX_TRANSACTIONS = 16;
 	parameter signed [31:0] ADDR_WIDTH = 32;
 	parameter signed [31:0] ID_WIDTH = 8;
@@ -1674,6 +1746,7 @@ module axi_monitor_filtered (
 	parameter [0:0] ENABLE_DEBUG_MODULE = 1'b0;
 	parameter [0:0] ENABLE_FILTERING = 1;
 	parameter [0:0] ADD_PIPELINE_STAGE = 0;
+	parameter signed [31:0] N_ADDR_RANGES = 0;
 	input wire aclk;
 	input wire aresetn;
 	input wire [ADDR_WIDTH - 1:0] cmd_addr;
@@ -1715,25 +1788,35 @@ module axi_monitor_filtered (
 	input wire [15:0] cfg_axi_perf_mask;
 	input wire [15:0] cfg_axi_addr_mask;
 	input wire [15:0] cfg_axi_debug_mask;
+	input wire cfg_addr_check_enable;
+	input wire [(N_ADDR_RANGES > 0 ? N_ADDR_RANGES : 1) - 1:0] cfg_addr_range_enable;
+	input wire [((N_ADDR_RANGES > 0 ? N_ADDR_RANGES : 1) * ADDR_WIDTH) - 1:0] cfg_addr_range_low;
+	input wire [((N_ADDR_RANGES > 0 ? N_ADDR_RANGES : 1) * ADDR_WIDTH) - 1:0] cfg_addr_range_high;
+	localparam signed [31:0] monitor_common_pkg_MONBUS_TS_WIDTH = 64;
+	input wire [63:0] i_mon_time;
 	output wire monbus_valid;
 	input wire monbus_ready;
-	output wire [63:0] monbus_packet;
+	localparam signed [31:0] monitor_common_pkg_MONBUS_PKT_WIDTH = 128;
+	output wire [127:0] monbus_packet;
+	output wire [63:0] monbus_timestamp;
 	output wire block_ready;
 	output wire busy;
 	output wire [7:0] active_count;
 	output wire cfg_conflict_error;
 	wire base_monbus_valid;
 	wire base_monbus_ready;
-	wire [63:0] base_monbus_packet;
+	wire [127:0] base_monbus_packet;
+	wire [63:0] base_monbus_timestamp;
 	wire [3:0] pkt_type;
-	wire [2:0] pkt_protocol;
-	wire [3:0] pkt_event_code;
-	wire [34:0] pkt_event_data;
+	wire [3:0] pkt_protocol;
+	wire [7:0] pkt_event_code;
+	wire [63:0] pkt_event_data;
 	reg pkt_drop;
 	reg pkt_event_masked;
 	wire pipe_valid;
 	wire pipe_ready;
-	wire [63:0] pipe_packet;
+	wire [127:0] pipe_packet;
+	wire [63:0] pipe_timestamp;
 	assign cfg_conflict_error = |(cfg_axi_pkt_mask & cfg_axi_err_select);
 	axi_monitor_base #(
 		.UNIT_ID(UNIT_ID),
@@ -1744,10 +1827,12 @@ module axi_monitor_filtered (
 		.IS_READ(IS_READ),
 		.IS_AXI(IS_AXI),
 		.ENABLE_PERF_PACKETS(ENABLE_PERF_PACKETS),
-		.ENABLE_DEBUG_MODULE(ENABLE_DEBUG_MODULE)
+		.ENABLE_DEBUG_MODULE(ENABLE_DEBUG_MODULE),
+		.N_ADDR_RANGES(N_ADDR_RANGES)
 	) u_axi_monitor_base(
 		.aclk(aclk),
 		.aresetn(aresetn),
+		.i_mon_time(i_mon_time),
 		.cmd_addr(cmd_addr),
 		.cmd_id(cmd_id),
 		.cmd_len(cmd_len),
@@ -1778,29 +1863,36 @@ module axi_monitor_filtered (
 		.cfg_debug_mask(cfg_debug_mask),
 		.cfg_active_trans_threshold(cfg_active_trans_threshold),
 		.cfg_latency_threshold(cfg_latency_threshold),
+		.cfg_addr_check_enable(cfg_addr_check_enable),
+		.cfg_addr_range_enable(cfg_addr_range_enable),
+		.cfg_addr_range_low(cfg_addr_range_low),
+		.cfg_addr_range_high(cfg_addr_range_high),
 		.monbus_valid(base_monbus_valid),
 		.monbus_ready(base_monbus_ready),
 		.monbus_packet(base_monbus_packet),
+		.monbus_timestamp(base_monbus_timestamp),
 		.block_ready(block_ready),
 		.busy(busy),
 		.active_count(active_count)
 	);
 	function automatic [3:0] monitor_common_pkg_get_packet_type;
-		input reg [63:0] pkt;
-		monitor_common_pkg_get_packet_type = pkt[63:60];
+		input reg [127:0] pkt;
+		monitor_common_pkg_get_packet_type = pkt[127:124];
 	endfunction
 	assign pkt_type = monitor_common_pkg_get_packet_type(base_monbus_packet);
-	assign pkt_protocol = base_monbus_packet[59:57];
-	function automatic [3:0] monitor_common_pkg_get_event_code;
-		input reg [63:0] pkt;
-		monitor_common_pkg_get_event_code = pkt[56:53];
+	assign pkt_protocol = base_monbus_packet[108:105];
+	function automatic [7:0] monitor_common_pkg_get_event_code;
+		input reg [127:0] pkt;
+		monitor_common_pkg_get_event_code = pkt[104:97];
 	endfunction
 	assign pkt_event_code = monitor_common_pkg_get_event_code(base_monbus_packet);
-	function automatic [34:0] monitor_common_pkg_get_event_data;
-		input reg [63:0] pkt;
-		monitor_common_pkg_get_event_data = pkt[34:0];
+	function automatic [63:0] monitor_common_pkg_get_event_data;
+		input reg [127:0] pkt;
+		monitor_common_pkg_get_event_data = pkt[63:0];
 	endfunction
 	assign pkt_event_data = monitor_common_pkg_get_event_data(base_monbus_packet);
+	wire [3:0] ec_idx;
+	assign ec_idx = pkt_event_code[3:0];
 	localparam [3:0] monitor_common_pkg_PktTypeAddrMatch = 4'h8;
 	localparam [3:0] monitor_common_pkg_PktTypeCompletion = 4'h1;
 	localparam [3:0] monitor_common_pkg_PktTypeDebug = 4'hf;
@@ -1814,17 +1906,17 @@ module axi_monitor_filtered (
 		pkt_drop = 1'b0;
 		pkt_event_masked = 1'b0;
 		if (ENABLE_FILTERING && base_monbus_valid) begin
-			if (pkt_protocol == 3'b000) begin
+			if (pkt_protocol == 4'h0) begin
 				pkt_drop = cfg_axi_pkt_mask[pkt_type];
 				if (!pkt_drop) begin
 					case (pkt_type)
-						monitor_common_pkg_PktTypeError: pkt_event_masked = cfg_axi_error_mask[pkt_event_code];
-						monitor_common_pkg_PktTypeTimeout: pkt_event_masked = cfg_axi_timeout_mask[pkt_event_code];
-						monitor_common_pkg_PktTypeCompletion: pkt_event_masked = cfg_axi_compl_mask[pkt_event_code];
-						monitor_common_pkg_PktTypeThreshold: pkt_event_masked = cfg_axi_thresh_mask[pkt_event_code];
-						monitor_common_pkg_PktTypePerf: pkt_event_masked = cfg_axi_perf_mask[pkt_event_code];
-						monitor_common_pkg_PktTypeAddrMatch: pkt_event_masked = cfg_axi_addr_mask[pkt_event_code];
-						monitor_common_pkg_PktTypeDebug: pkt_event_masked = cfg_axi_debug_mask[pkt_event_code];
+						monitor_common_pkg_PktTypeError: pkt_event_masked = cfg_axi_error_mask[ec_idx];
+						monitor_common_pkg_PktTypeTimeout: pkt_event_masked = cfg_axi_timeout_mask[ec_idx];
+						monitor_common_pkg_PktTypeCompletion: pkt_event_masked = cfg_axi_compl_mask[ec_idx];
+						monitor_common_pkg_PktTypeThreshold: pkt_event_masked = cfg_axi_thresh_mask[ec_idx];
+						monitor_common_pkg_PktTypePerf: pkt_event_masked = cfg_axi_perf_mask[ec_idx];
+						monitor_common_pkg_PktTypeAddrMatch: pkt_event_masked = cfg_axi_addr_mask[ec_idx];
+						monitor_common_pkg_PktTypeDebug: pkt_event_masked = cfg_axi_debug_mask[ec_idx];
 						default: pkt_event_masked = 1'b0;
 					endcase
 					if (pkt_event_masked)
@@ -1839,25 +1931,31 @@ module axi_monitor_filtered (
 	generate
 		if (ADD_PIPELINE_STAGE) begin : gen_pipeline
 			reg pipe_valid_reg;
-			reg [63:0] pipe_packet_reg;
+			reg [127:0] pipe_packet_reg;
+			reg [63:0] pipe_timestamp_reg;
 			always @(posedge aclk)
 				if (!aresetn) begin
 					pipe_valid_reg <= 1'b0;
 					pipe_packet_reg <= 1'sb0;
+					pipe_timestamp_reg <= 1'sb0;
 				end
 				else if (pipe_ready) begin
 					pipe_valid_reg <= base_monbus_valid && !pkt_drop;
 					pipe_packet_reg <= base_monbus_packet;
+					pipe_timestamp_reg <= base_monbus_timestamp;
 				end
 			assign pipe_valid = pipe_valid_reg;
 			assign pipe_packet = pipe_packet_reg;
+			assign pipe_timestamp = pipe_timestamp_reg;
 			assign pipe_ready = !pipe_valid || monbus_ready;
 			assign monbus_valid = pipe_valid;
 			assign monbus_packet = pipe_packet;
+			assign monbus_timestamp = pipe_timestamp;
 		end
 		else begin : gen_no_pipeline
 			assign monbus_valid = base_monbus_valid && !pkt_drop;
 			assign monbus_packet = base_monbus_packet;
+			assign monbus_timestamp = base_monbus_timestamp;
 		end
 	endgenerate
 	initial _sv2v_0 = 0;
