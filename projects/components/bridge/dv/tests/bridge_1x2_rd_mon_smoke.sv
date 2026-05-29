@@ -53,7 +53,17 @@ module bridge_1x2_rd_mon_smoke #(
     // deliberate-bus-error injection mechanism. Default 0 (errors
     // path off, all packets stream out the bulk-trace path) keeps
     // the existing smoke + capture tests behaving as before.
-    parameter int ROUTE_COMPL_TO_ERR_FIFO = 0
+    parameter int ROUTE_COMPL_TO_ERR_FIFO = 0,
+
+    // When non-zero, enables the per-wrapper cfg_*_*_error_enable inputs
+    // and ORs PktTypeError (bit 0) into cfg_mon_group_axi_err_select so
+    // bus-response errors flow into the err FIFO and drive mon_irq_out.
+    // Companion test (test_bridge_1x2_rd_monitor_error_inject.py) uses
+    // this together with a slave-BFM override that returns RRESP=SLVERR
+    // to produce a real on-bus error, then drains and decodes the
+    // resulting AXI_ERR_RESP_SLVERR packet via the standalone monbus
+    // parser. Default 0 keeps the error-reporting path off.
+    parameter int ENABLE_ERROR_PATH = 0
 ) (
     input  logic aclk,
     input  logic aresetn,
@@ -263,7 +273,7 @@ module bridge_1x2_rd_mon_smoke #(
         // Per-port cfg (all zeroed -- monitors stay quiet)
         // cpu_rd (master idx 0, rd channel)
         .cfg_cpu_rd_0_rd_monitor_enable    (MONITOR_ENABLE != 0),
-        .cfg_cpu_rd_0_rd_error_enable      (1'b0),
+        .cfg_cpu_rd_0_rd_error_enable      (ENABLE_ERROR_PATH != 0),
         .cfg_cpu_rd_0_rd_timeout_enable    (1'b0),
         .cfg_cpu_rd_0_rd_perf_enable       (1'b0),
         .cfg_cpu_rd_0_rd_timeout_cycles    (16'h0),
@@ -279,7 +289,7 @@ module bridge_1x2_rd_mon_smoke #(
         .cfg_cpu_rd_0_rd_axi_debug_mask    (16'h0),
         // ddr_rd (slave idx 0, rd channel)
         .cfg_ddr_rd_0_rd_monitor_enable    (MONITOR_ENABLE != 0),
-        .cfg_ddr_rd_0_rd_error_enable      (1'b0),
+        .cfg_ddr_rd_0_rd_error_enable      (ENABLE_ERROR_PATH != 0),
         .cfg_ddr_rd_0_rd_timeout_enable    (1'b0),
         .cfg_ddr_rd_0_rd_perf_enable       (1'b0),
         .cfg_ddr_rd_0_rd_timeout_cycles    (16'h0),
@@ -295,7 +305,7 @@ module bridge_1x2_rd_mon_smoke #(
         .cfg_ddr_rd_0_rd_axi_debug_mask    (16'h0),
         // sram_rd (slave idx 1, rd channel)
         .cfg_sram_rd_1_rd_monitor_enable    (MONITOR_ENABLE != 0),
-        .cfg_sram_rd_1_rd_error_enable      (1'b0),
+        .cfg_sram_rd_1_rd_error_enable      (ENABLE_ERROR_PATH != 0),
         .cfg_sram_rd_1_rd_timeout_enable    (1'b0),
         .cfg_sram_rd_1_rd_perf_enable       (1'b0),
         .cfg_sram_rd_1_rd_timeout_cycles    (16'h0),
@@ -337,15 +347,17 @@ module bridge_1x2_rd_mon_smoke #(
         .cfg_mon_group_base_addr         (32'h0),
         .cfg_mon_group_limit_addr        (32'hFFFF_FFFF),
         .cfg_mon_group_axi_pkt_mask      (16'h0),
-        // Bit 1 (PktTypeCompletion) routed to err FIFO when ROUTE_
-        // COMPL_TO_ERR_FIFO != 0. Every other bit stays 0 so all
-        // other packet types continue to drain via the bulk-trace
-        // write path. "Mix, not flood": one packet per transaction
-        // lands in the err FIFO and asserts mon_irq_out, but the
-        // perf / debug / timeout types (which fire at much higher
-        // rates) keep streaming out the master-write path.
+        // Bit 0 (PktTypeError) routed to err FIFO when ENABLE_ERROR_PATH
+        // != 0. Bit 1 (PktTypeCompletion) routed to err FIFO when ROUTE_
+        // COMPL_TO_ERR_FIFO != 0. Every other bit stays 0 so all other
+        // packet types continue to drain via the bulk-trace write path.
+        // "Mix, not flood": one packet per transaction lands in the err
+        // FIFO and asserts mon_irq_out, but the perf / debug / timeout
+        // types (which fire at much higher rates) keep streaming out
+        // the master-write path.
         .cfg_mon_group_axi_err_select    (
-            (ROUTE_COMPL_TO_ERR_FIFO != 0) ? 16'h0002 : 16'h0000
+              ((ENABLE_ERROR_PATH       != 0) ? 16'h0001 : 16'h0000)
+            | ((ROUTE_COMPL_TO_ERR_FIFO != 0) ? 16'h0002 : 16'h0000)
         ),
         .cfg_mon_group_axi_error_mask    (16'h0),
         .cfg_mon_group_axi_timeout_mask  (16'h0),
