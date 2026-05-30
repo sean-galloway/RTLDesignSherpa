@@ -55,6 +55,16 @@ module axi_bus_meter #(
     // Synchronous clear pulse (one cycle wide).
     input  logic                          i_clear,
 
+    // Freeze input. When high, every counter and overflow sticky holds
+    // its value -- no productive/backpressure/starvation/idle increments,
+    // no overflow flag flips. Drive this from the characterization
+    // timer's 'done' so the measurement window closes the moment the
+    // workload finishes; otherwise the lifetime starvation count drifts
+    // upward at one bit per cycle for every cycle of post-burst
+    // host-side polling, contaminating the in-window utilization math.
+    // Hold low for unbounded free-running measurement.
+    input  logic                          i_freeze,
+
     // AXI bus snoop. For the read engine, wire i_valid=m_axi_rvalid,
     // i_ready=m_axi_rready, i_channel_id=m_axi_rid[CW-1:0], and
     // i_channel_valid=m_axi_rvalid (rid is only meaningful when rvalid).
@@ -107,7 +117,7 @@ module axi_bus_meter #(
             r_agg_bp    <= '0;
             r_agg_starv <= '0;
             r_agg_idle  <= '0;
-        end else begin
+        end else if (!i_freeze) begin
             if (w_prod)  r_agg_prod  <= r_agg_prod  + 32'd1;
             if (w_bp)    r_agg_bp    <= r_agg_bp    + 32'd1;
             if (w_starv) r_agg_starv <= r_agg_starv + 32'd1;
@@ -146,7 +156,7 @@ module axi_bus_meter #(
                 r_ch_idle    [c] <= '0;
                 r_ch_overflow[c] <= '0;
             end
-        end else if (i_channel_valid) begin
+        end else if (!i_freeze && i_channel_valid) begin
             // Only increment the channel pointed to by i_channel_id.
             // The other channels' counters are unchanged this cycle.
             if (w_prod)  begin

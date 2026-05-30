@@ -36,6 +36,19 @@ from typing import List
 HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, HERE)
 
+# Also add converters/bin so `from uart_axi_bridge import UARTAxiBridge`
+# resolves in main(). Mirror what dump_monbus_sram.py does -- walk up
+# until we find the repo root (the dir with a .git child).
+_repo_root = os.environ.get("REPO_ROOT")
+if not _repo_root:
+    _cand = HERE
+    while _cand != "/" and not os.path.isdir(os.path.join(_cand, ".git")):
+        _cand = os.path.dirname(_cand)
+    if os.path.isdir(os.path.join(_cand, ".git")):
+        _repo_root = _cand
+if _repo_root:
+    sys.path.insert(0, os.path.join(_repo_root, "projects/components/converters/bin"))
+
 from descriptor_builder import HARNESS_CSR_BASE  # noqa: E402
 
 
@@ -190,7 +203,11 @@ def format_snapshot(snaps: dict, file=sys.stdout) -> None:
 # ---------------------------------------------------------------------------
 
 def main(argv=None) -> int:
-    p = argparse.ArgumentParser(description=__doc__.splitlines()[3])
+    p = argparse.ArgumentParser(
+        description="Read stream_char's axi_bus_meter CSRs via UART AXIL "
+                    "bridge, decode, and print aggregate + per-channel "
+                    "utilization."
+    )
     p.add_argument("--port", required=True, help="UART device path, e.g. /dev/ttyUSB1")
     p.add_argument("--baud", type=int, default=115200)
     p.add_argument("--channels", type=int, default=8,

@@ -1206,6 +1206,10 @@ module stream_char_harness #(
         .aclk             (aclk),
         .aresetn          (aresetn),
         .i_clear          (csr_clear_pulse),
+        // Freeze the meter the moment the harness timer fires done.
+        // Closes the measurement window cleanly so the aggregate counts
+        // don't drift up during post-burst host polling.
+        .i_freeze         (timer_done),
         // Watch the read engine's R channel. rid carries the channel index
         // on every beat; per-channel attribution is meaningful exactly when
         // rvalid is high (master driving R).
@@ -1232,6 +1236,10 @@ module stream_char_harness #(
         .aclk             (aclk),
         .aresetn          (aresetn),
         .i_clear          (csr_clear_pulse),
+        // Freeze the meter the moment the harness timer fires done.
+        // Closes the measurement window cleanly so the aggregate counts
+        // don't drift up during post-burst host polling.
+        .i_freeze         (timer_done),
         // Watch the write engine's W channel. W beats carry no id in AXI4,
         // so attribution comes from stream_top_ch8's sideband (driven from
         // the write engine's r_w_channel_id / r_w_active).

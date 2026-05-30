@@ -41,9 +41,12 @@ import json
 from datetime import datetime
 from pathlib import Path
 
-# Add converters/bin to path for UARTAxiBridge
+# Add converters/bin to path for UARTAxiBridge.
+# host/ is five levels under the repo root:
+#   host -> flows-stream-bridge -> stream_characterization
+#         -> NexysA7 -> projects -> REPO_ROOT
 script_dir = Path(__file__).resolve().parent
-repo_root = script_dir.parent.parent.parent.parent
+repo_root = script_dir.parent.parent.parent.parent.parent
 sys.path.insert(0, str(repo_root / 'projects' / 'components' / 'converters' / 'bin'))
 
 from descriptor_builder import (
@@ -74,6 +77,37 @@ CSR_CH_KICK_ADDR_BASE  = HARNESS_CSR_BASE + 0xB0
 CSR_KICK_GO            = HARNESS_CSR_BASE + 0xC0
 CSR_SCRATCH         = HARNESS_CSR_BASE + 0x20
 CSR_BUILD_ID        = HARNESS_CSR_BASE + 0x24
+
+# Harness timer (the right "DMA is done" signal). The IRQ-on-completion
+# path is not wired by default -- descriptors don't set CTRL_INTERRUPT
+# and no monbus packet type is routed to the err FIFO at boot. The timer
+# fires when the write-side beat count reaches TIMER_EXPECTED_BEATS.
+CSR_TIMER_CTRL          = HARNESS_CSR_BASE + 0x28  # W: bit 0 = clear pulse
+CSR_TIMER_STATUS        = HARNESS_CSR_BASE + 0x2C  # R: [0]=done [1]=running [2]=pass
+CSR_TIMER_CYCLES_LO     = HARNESS_CSR_BASE + 0x30
+CSR_TIMER_CYCLES_HI     = HARNESS_CSR_BASE + 0x34
+CSR_TIMER_EXPECTED_BEATS= HARNESS_CSR_BASE + 0x38  # RW: stop when sink beat >= this
+
+# Per-engine first/last beat cycle stamps (steady-state datapath window).
+CSR_TIMER_R_FIRST_LO    = HARNESS_CSR_BASE + 0x40
+CSR_TIMER_R_FIRST_HI    = HARNESS_CSR_BASE + 0x44
+CSR_TIMER_R_LAST_LO     = HARNESS_CSR_BASE + 0x48
+CSR_TIMER_R_LAST_HI     = HARNESS_CSR_BASE + 0x4C
+CSR_TIMER_W_FIRST_LO    = HARNESS_CSR_BASE + 0x50
+CSR_TIMER_W_FIRST_HI    = HARNESS_CSR_BASE + 0x54
+CSR_TIMER_W_LAST_LO     = HARNESS_CSR_BASE + 0x58
+CSR_TIMER_W_LAST_HI     = HARNESS_CSR_BASE + 0x5C
+
+# axi_bus_meter readback bases (R = 0x100, W = 0x180); per-meter offsets
+# match read_bus_meters.py's OFF_* constants -- see that module for the
+# full per-(channel,bucket) map.
+CSR_RD_METER_BASE       = HARNESS_CSR_BASE + 0x100
+CSR_WR_METER_BASE       = HARNESS_CSR_BASE + 0x180
+
+# Engine data width in BYTES per beat. The DMA's AXI bus is 128 bits wide
+# (DATA_WIDTH parameter in stream_top_ch8 / stream_char_top), so each
+# beat moves 16 bytes. expected_beats = total_bytes // DATA_WIDTH_BYTES.
+DATA_WIDTH_BYTES = 16
 
 EXPECTED_BUILD_ID   = 0x5354_5243
 
@@ -199,28 +233,191 @@ class CharacterizationRunner:
         self.bridge.write(CSR_KICK_GO, mask)
         self.vlog(f"  Kick burst fired, mask=0x{mask:02X}")
 
+    # -----------------------------------------------------------------
+    # Methodology metrics capture (per DMA_UTILIZATION_MEASUREMENT.md)
+    # -----------------------------------------------------------------
+    @staticmethod
+    def _read64(bridge, lo_addr: int, hi_addr: int) -> int:
+        lo = bridge.read(lo_addr) or 0
+        hi = bridge.read(hi_addr) or 0
+        return ((hi & 0xFFFF_FFFF) << 32) | (lo & 0xFFFF_FFFF)
+
+    def read_run_metrics(self, num_channels: int) -> dict:
+        """Snapshot timer + bus meter state at the moment 'done' fired.
+
+        Computes the methodology-doc primitives:
+
+          - Datapath utilization, per side (Section 2.1 burst-only window)
+              R = R_prod_aggregate / (R_LAST - R_FIRST + 1)
+              W = W_prod_aggregate / (W_LAST - W_FIRST + 1)
+
+          - End-to-end utilization (Section 2.3, end event = timer 'done')
+              prod_bytes / (timer_cycles * data_width_bytes)
+
+          - 4-bucket bus breakdown (Section 3) -- aggregate counts on
+            each side as percentages of (R_LAST - R_FIRST + 1) and
+            (W_LAST - W_FIRST + 1) respectively.
+
+          - Per-channel productive / backpressure / starvation / idle
+            with the sticky overflow mask (one bit per (channel, bucket)
+            that wrapped the 16-bit per-channel counter).
+
+        The raw timer + meter snapshot is returned alongside the derived
+        ratios so the JSON output preserves everything for offline
+        analysis.
+        """
+        # Lazy import so the optional read_bus_meters module isn't a hard
+        # dep of run_characterization (e.g. for older bitstreams).
+        try:
+            from read_bus_meters import (
+                read_meter, R_METER_BASE, W_METER_BASE,
+            )
+        except ImportError:
+            return {'available': False, 'error': 'read_bus_meters import failed'}
+
+        # Timer values (cycle stamps captured by stream_char_harness)
+        cycles_total = self._read64(self.bridge,
+                                    CSR_TIMER_CYCLES_LO, CSR_TIMER_CYCLES_HI)
+        r_first = self._read64(self.bridge,
+                               CSR_TIMER_R_FIRST_LO, CSR_TIMER_R_FIRST_HI)
+        r_last  = self._read64(self.bridge,
+                               CSR_TIMER_R_LAST_LO,  CSR_TIMER_R_LAST_HI)
+        w_first = self._read64(self.bridge,
+                               CSR_TIMER_W_FIRST_LO, CSR_TIMER_W_FIRST_HI)
+        w_last  = self._read64(self.bridge,
+                               CSR_TIMER_W_LAST_LO,  CSR_TIMER_W_LAST_HI)
+
+        # Bus meter snapshots (aggregate + per-channel for both sides).
+        rd_meter = read_meter(self.bridge, R_METER_BASE, num_channels, 'R')
+        wr_meter = read_meter(self.bridge, W_METER_BASE, num_channels, 'W')
+
+        # Datapath windows: methodology Section 2.1 -- first-to-last beat
+        # on each engine. Steady-state utilization isolates the engine
+        # from descriptor-fetch + last-burst-drain overhead.
+        r_window = (r_last - r_first + 1) if r_last >= r_first and r_last > 0 else 0
+        w_window = (w_last - w_first + 1) if w_last >= w_first and w_last > 0 else 0
+
+        r_datapath_util = (rd_meter.aggregate.productive / r_window) if r_window else 0.0
+        w_datapath_util = (wr_meter.aggregate.productive / w_window) if w_window else 0.0
+
+        # End-to-end (Section 2.3, end = TIMER_STATUS.done). 'cycles_total'
+        # is the harness timer's free-running counter spanning the same
+        # window the meters accumulate over.
+        prod_beats = rd_meter.aggregate.productive  # = W productive for in-order DMA
+        ee_util    = (prod_beats / cycles_total) if cycles_total else 0.0
+
+        # 4-bucket aggregate breakdown (Section 3), expressed as fraction
+        # of the per-side window. The meters freeze at timer 'done' so
+        # all four bucket counts reflect only in-window cycles.
+        def buckets(meter, window):
+            if window == 0:
+                return {'productive': 0.0, 'backpressure': 0.0,
+                        'starvation':  0.0, 'idle':         0.0}
+            return {
+                'productive':   meter.aggregate.productive   / window,
+                'backpressure': meter.aggregate.backpressure / window,
+                'starvation':   meter.aggregate.starvation   / window,
+                'idle':         meter.aggregate.idle         / window,
+            }
+
+        return {
+            'available': True,
+            'cycles_total': cycles_total,
+            'r_first': r_first, 'r_last': r_last, 'r_window_cycles': r_window,
+            'w_first': w_first, 'w_last': w_last, 'w_window_cycles': w_window,
+            'datapath_utilization_r': r_datapath_util,
+            'datapath_utilization_w': w_datapath_util,
+            'end_to_end_utilization': ee_util,
+            'r_buckets_pct': buckets(rd_meter, r_window),
+            'w_buckets_pct': buckets(wr_meter, w_window),
+            'r_aggregate': {
+                'productive':   rd_meter.aggregate.productive,
+                'backpressure': rd_meter.aggregate.backpressure,
+                'starvation':   rd_meter.aggregate.starvation,
+                'idle':         rd_meter.aggregate.idle,
+            },
+            'w_aggregate': {
+                'productive':   wr_meter.aggregate.productive,
+                'backpressure': wr_meter.aggregate.backpressure,
+                'starvation':   wr_meter.aggregate.starvation,
+                'idle':         wr_meter.aggregate.idle,
+            },
+            'r_per_channel': [{
+                'channel': c.channel,
+                'productive': c.productive, 'backpressure': c.backpressure,
+                'starvation': c.starvation, 'idle': c.idle,
+                'overflow_mask': c.overflow,
+            } for c in rd_meter.per_channel],
+            'w_per_channel': [{
+                'channel': c.channel,
+                'productive': c.productive, 'backpressure': c.backpressure,
+                'starvation': c.starvation, 'idle': c.idle,
+                'overflow_mask': c.overflow,
+            } for c in wr_meter.per_channel],
+        }
+
+    def setup_timer(self, total_bytes: int) -> int:
+        """Program the harness timer's stop trigger and zero its counter.
+
+        Returns the expected beat count. Call after configure_stream and
+        before kick_channels. Polls clear_busy (STATUS[3]) to make sure the
+        debug_sram wipe + meter clear from a prior clear_stats has finished
+        before we arm the timer.
+        """
+        # Wait for any prior clear_stats to finish (debug_sram wipe takes
+        # ~656 us at 100 MHz, well under one UART round-trip; this is mostly
+        # belt-and-braces).
+        for _ in range(100):
+            st = self.bridge.read(CSR_STATUS)
+            if st is None or (st & 0x08) == 0:  # bit 3 = clear_busy
+                break
+            time.sleep(0.01)
+
+        expected_beats = total_bytes // DATA_WIDTH_BYTES
+        # Pulse-clear the timer counter + first/last latches, then arm the
+        # stop trigger. Order matters: clear first so a stale stop from a
+        # previous run can't immediately re-latch done.
+        self.bridge.write(CSR_TIMER_CTRL, 0x1)
+        self.bridge.write(CSR_TIMER_EXPECTED_BEATS, expected_beats)
+        self.vlog(f"  Timer armed: expected_beats={expected_beats} "
+                  f"(= {total_bytes} bytes / {DATA_WIDTH_BYTES} B/beat)")
+        return expected_beats
+
     def poll_completion(self, timeout_s: float = 30.0) -> dict:
-        """Poll harness STATUS register until done or timeout."""
+        """Poll harness TIMER_STATUS until 'done' or timeout.
+
+        The harness latches done = 1 when the write-side beat counter
+        reaches TIMER_EXPECTED_BEATS (programmed by setup_timer). We also
+        watch STATUS[1] (any_error sticky) so a bus-level error surfaces
+        even before the timer terminates.
+        """
         start = time.time()
         while (time.time() - start) < timeout_s:
-            status = self.bridge.read(CSR_STATUS)
-            if status is None:
+            ts = self.bridge.read(CSR_TIMER_STATUS)
+            st = self.bridge.read(CSR_STATUS)
+            if ts is None or st is None:
                 time.sleep(0.1)
                 continue
 
-            irq = bool(status & 0x01)
-            err = bool(status & 0x02)
-            overflow = bool(status & 0x04)
+            done    = bool(ts & 0x01)
+            running = bool(ts & 0x02)
+            tpass   = bool(ts & 0x04)
+            err     = bool(st & 0x02)
+            irq     = bool(st & 0x01)
+            overflow = bool(st & 0x04)
 
-            if irq or err:
+            if done or err:
                 elapsed = time.time() - start
                 return {
                     'completed': True,
                     'irq': irq,
                     'error': err,
                     'overflow': overflow,
+                    'timer_pass': tpass,
+                    'timer_running': running,
                     'elapsed_s': elapsed,
-                    'raw': status,
+                    'raw_timer': ts,
+                    'raw_status': st,
                 }
             time.sleep(0.05)
 
@@ -304,11 +501,16 @@ class CharacterizationRunner:
         # 3. Configure STREAM
         self.configure_stream(config.num_channels)
 
-        # 4. Kick channels
+        # 4. Arm the harness timer with the expected sink-side beat count.
+        # The timer fires "done" when the write-side beat counter reaches
+        # this value, which is how poll_completion knows the DMA is over.
+        self.setup_timer(test_data['total_bytes'])
+
+        # 5. Kick channels
         t0 = time.time()
         self.kick_channels(test_data['kick_addresses'])
 
-        # 5. Poll completion
+        # 6. Poll completion (TIMER_STATUS.done OR STATUS.any_error)
         completion = self.poll_completion(timeout_s=60.0)
         result['dma_time_s'] = time.time() - t0
         result['completion'] = completion
@@ -351,7 +553,36 @@ class CharacterizationRunner:
                 self.log(f"    ch{ch}: rd=0x{(rd_v or 0):08X} wr=0x{(wr_v or 0):08X} "
                          f"valid={(v_mask >> ch) & 1} match={(m_mask >> ch) & 1}")
 
-        # 7. Trace summary
+        # 7. Methodology metrics (datapath / end-to-end / 4-bucket)
+        metrics = self.read_run_metrics(num_channels=config.num_channels)
+        result['metrics'] = metrics
+        if metrics.get('available'):
+            r_pct = metrics['datapath_utilization_r'] * 100
+            w_pct = metrics['datapath_utilization_w'] * 100
+            ee_pct = metrics['end_to_end_utilization'] * 100
+            r_starv = metrics['r_buckets_pct']['starvation'] * 100
+            w_starv = metrics['w_buckets_pct']['starvation'] * 100
+            r_bp    = metrics['r_buckets_pct']['backpressure'] * 100
+            w_bp    = metrics['w_buckets_pct']['backpressure'] * 100
+            self.log(f"  Datapath util:  R={r_pct:5.1f}%  W={w_pct:5.1f}%  "
+                     f"End-to-end={ee_pct:5.1f}%")
+            self.log(f"  R bus: prod {r_pct:5.1f}%  bp {r_bp:4.1f}%  "
+                     f"starv {r_starv:5.1f}%")
+            self.log(f"  W bus: prod {w_pct:5.1f}%  bp {w_bp:4.1f}%  "
+                     f"starv {w_starv:5.1f}%")
+            # Flag per-channel overflows -- the 16-bit per-channel buckets
+            # wrap at 65536 cycles (655 us). If any are set, the
+            # per-channel numbers are unreliable for that channel.
+            r_overflowed = [c['channel'] for c in metrics['r_per_channel']
+                            if c['overflow_mask']]
+            w_overflowed = [c['channel'] for c in metrics['w_per_channel']
+                            if c['overflow_mask']]
+            if r_overflowed or w_overflowed:
+                self.log(f"  Per-channel 16-bit overflow: "
+                         f"R={r_overflowed} W={w_overflowed} -- aggregate is "
+                         f"authoritative for these channels")
+
+        # 8. Trace summary
         trace = self.read_trace_summary()
         result['trace'] = trace
         self.vlog(f"  Trace: {trace['wr_ptr']} packets, "
