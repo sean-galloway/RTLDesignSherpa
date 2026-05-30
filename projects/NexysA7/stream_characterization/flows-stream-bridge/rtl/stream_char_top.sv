@@ -78,7 +78,14 @@ module stream_char_top (
         .DATA_WIDTH            (128),
         .ADDR_WIDTH            (32),
         .SRAM_DEPTH            (256),
-        // NUM_CHANNELS shrunk from 8 to 4 to fit the Artix-7 100T BRAM budget.
+        // NUM_CHANNELS shrunk from 8 to 4. With 8 channels the design
+        // fits resource-wise (46% LUT, 22% FF, 11% BRAM, 0% DSP on the
+        // 100T) but timing misses badly at 100 MHz: WNS = -1.48 ns, 393
+        // failing endpoints, total negative slack -261 ns. The 8-channel
+        // scheduler array's arbitration and AXI-master fanout produce
+        // wide combinational mux/decode trees that need pipelining
+        // before the part can close at 100 MHz. Until that RTL work
+        // happens, stay at 4 channels.
         // Keep in lockstep with dv/tests/test_stream_char.py rtl_params.
         .NUM_CHANNELS          (4),
         // First-synth BRAM budget was 192 tiles / 135. Dominant consumers were

@@ -61,6 +61,10 @@ from descriptor_builder import (
 # =========================================================================
 CSR_CTRL            = HARNESS_CSR_BASE + 0x00
 CSR_STATUS          = HARNESS_CSR_BASE + 0x04
+# Response-delay knob -- per-beat hold time injected on R and B channels
+# by the axi_response_delay blocks. [15:0]=rd_delay, [31:16]=wr_delay,
+# in aclk cycles. 0 = bypass.
+CSR_RESP_DELAY      = HARNESS_CSR_BASE + 0x3C
 CSR_DBG_WR_PTR     = HARNESS_CSR_BASE + 0x08
 CSR_DBG_OVERFLOW    = HARNESS_CSR_BASE + 0x0C
 CSR_CRC_RD_EXPECTED = HARNESS_CSR_BASE + 0x10
@@ -177,6 +181,52 @@ class CharacterizationRunner:
         """Clear CRC/LFSR state and debug trace pointer."""
         self.bridge.write(CSR_CTRL, 0x02)  # clear_stats pulse
         time.sleep(0.01)
+
+    def set_resp_delay(self, rd_cyc: int, wr_cyc: int) -> None:
+        """Program the per-beat hold time injected by the harness's
+        axi_response_delay blocks. rd_cyc applies to the R channel,
+        wr_cyc to B. Both are clamped to 16 bits. 0 = bypass."""
+        rd = rd_cyc & 0xFFFF
+        wr = wr_cyc & 0xFFFF
+        self.bridge.write(CSR_RESP_DELAY, (wr << 16) | rd)
+        self.vlog(f"  RESP_DELAY = rd={rd}cyc wr={wr}cyc")
+
+    def run_resp_delay_sweep(self, configs, rd_delays, wr_delays):
+        """Run each config once per (rd_delay, wr_delay) pair, capturing
+        the methodology metrics at each operating point. All runs share
+        a single UART session.
+
+        rd_delays / wr_delays must be the same length; index i pairs
+        (rd_delays[i], wr_delays[i]) -- this lets callers sweep
+        symmetric (rd=wr=N) curves OR asymmetric ones in the same call.
+
+        Result schema:
+            [{'rd_delay': N, 'wr_delay': N, 'config': name, 'result': {...}}, ...]
+        """
+        if not configs:
+            return []
+        if not self.ping():
+            return [{'error': 'ping_failed'}]
+        if len(rd_delays) != len(wr_delays):
+            raise ValueError("rd_delays and wr_delays must have the same length")
+
+        sweep_results = []
+        for cfg in configs:
+            for rd, wr in zip(rd_delays, wr_delays):
+                self.log("")
+                self.log(f"--- {cfg.name}  rd_delay={rd}  wr_delay={wr} ---")
+                self.set_resp_delay(rd, wr)
+                # Let the new delay propagate through the AXI pipeline
+                # for a handful of aclk ticks before the next test starts.
+                time.sleep(0.005)
+                result = self.run_config(cfg)
+                sweep_results.append({
+                    'config': cfg.name,
+                    'rd_delay': rd,
+                    'wr_delay': wr,
+                    'result': result,
+                })
+        return sweep_results
 
     def load_descriptors(self, writes):
         """Write descriptor data to desc_ram."""
@@ -692,6 +742,22 @@ Examples:
                         help='Save results to JSON file')
     parser.add_argument('--verbose', '-v', action='store_true',
                         help='Verbose output')
+
+    # Response-delay sweep mode (methodology Section 6, "backpressure
+    # profile" axis). When --resp-delays is set, the listed configs are
+    # each run once per delay value; rd_delay = wr_delay for each entry
+    # unless --asymmetric-resp-delays is also given (then rd and wr are
+    # paired by position).
+    parser.add_argument('--resp-delays', type=str, default=None,
+                        help='Comma-separated list of resp-delay values '
+                             'in aclk cycles, e.g. "0,1,2,4,8,16,32,64" '
+                             '(0 = bypass). Each --configs run is '
+                             'repeated once per delay.')
+    parser.add_argument('--resp-delays-wr', type=str, default=None,
+                        help='Optional companion to --resp-delays for '
+                             'asymmetric sweeps. Must have the same '
+                             'length. If unset, wr_delay = rd_delay for '
+                             'each pair.')
     return parser.parse_args()
 
 
@@ -745,7 +811,17 @@ def main():
     with UARTAxiBridge(args.port, args.baud) as bridge:
         runner = CharacterizationRunner(
             bridge, data_width=128, verbose=args.verbose)
-        results = runner.run_matrix(configs)
+        if args.resp_delays:
+            rd = [int(s, 0) for s in args.resp_delays.split(',') if s.strip()]
+            if args.resp_delays_wr:
+                wr = [int(s, 0) for s in args.resp_delays_wr.split(',') if s.strip()]
+            else:
+                wr = list(rd)
+            print(f"\n=== RESP_DELAY sweep: {len(rd)} points x "
+                  f"{len(configs)} configs = {len(rd)*len(configs)} runs ===\n")
+            results = runner.run_resp_delay_sweep(configs, rd, wr)
+        else:
+            results = runner.run_matrix(configs)
 
     # Save results
     if args.output and results:
@@ -753,8 +829,12 @@ def main():
             json.dump(results, f, indent=2, default=str)
         print(f"\nResults saved to {args.output}")
 
-    # Exit code: 0 if all passed
-    all_pass = all(r.get('pass') for r in results) if results else False
+    # Exit code: 0 if all passed (for sweep mode, pass is on the inner result)
+    def _pass(r):
+        if 'result' in r:
+            return r['result'].get('pass', False)
+        return r.get('pass', False)
+    all_pass = all(_pass(r) for r in results) if results else False
     return 0 if all_pass else 1
 
 
