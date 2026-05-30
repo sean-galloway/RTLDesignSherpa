@@ -291,11 +291,27 @@ class CharacterizationRunner:
         rd_meter = read_meter(self.bridge, R_METER_BASE, num_channels, 'R')
         wr_meter = read_meter(self.bridge, W_METER_BASE, num_channels, 'W')
 
-        # Datapath windows: methodology Section 2.1 -- first-to-last beat
-        # on each engine. Steady-state utilization isolates the engine
-        # from descriptor-fetch + last-burst-drain overhead.
-        r_window = (r_last - r_first + 1) if r_last >= r_first and r_last > 0 else 0
-        w_window = (w_last - w_first + 1) if w_last >= w_first and w_last > 0 else 0
+        # First/last beat windows from the harness timer (methodology
+        # Section 2.1, expressed in aclk cycles). Reported alongside the
+        # bucket math so the JSON record preserves the precise burst span.
+        r_firstlast = (r_last - r_first + 1) if r_last >= r_first and r_last > 0 else 0
+        w_firstlast = (w_last - w_first + 1) if w_last >= w_first and w_last > 0 else 0
+
+        # Meter window = sum of all four buckets. With i_freeze gated on
+        # !timer_running, the meter only ticks during the harness timer's
+        # active window (first descriptor AR -> beat count reached). The
+        # bucket sum is then exactly the timer window, so dividing the
+        # productive count by it yields the methodology datapath number
+        # without needing to read TIMER_CYCLES separately. Falls back to
+        # the first/last span if the bucket sum is zero (e.g. a workload
+        # that never produced a productive beat).
+        def window_of(meter):
+            agg = meter.aggregate
+            s = agg.productive + agg.backpressure + agg.starvation + agg.idle
+            return s if s > 0 else 0
+
+        r_window = window_of(rd_meter) or r_firstlast
+        w_window = window_of(wr_meter) or w_firstlast
 
         r_datapath_util = (rd_meter.aggregate.productive / r_window) if r_window else 0.0
         w_datapath_util = (wr_meter.aggregate.productive / w_window) if w_window else 0.0
@@ -323,8 +339,12 @@ class CharacterizationRunner:
         return {
             'available': True,
             'cycles_total': cycles_total,
-            'r_first': r_first, 'r_last': r_last, 'r_window_cycles': r_window,
-            'w_first': w_first, 'w_last': w_last, 'w_window_cycles': w_window,
+            'r_first': r_first, 'r_last': r_last,
+            'r_window_cycles': r_window,
+            'r_firstlast_cycles': r_firstlast,
+            'w_first': w_first, 'w_last': w_last,
+            'w_window_cycles': w_window,
+            'w_firstlast_cycles': w_firstlast,
             'datapath_utilization_r': r_datapath_util,
             'datapath_utilization_w': w_datapath_util,
             'end_to_end_utilization': ee_util,
