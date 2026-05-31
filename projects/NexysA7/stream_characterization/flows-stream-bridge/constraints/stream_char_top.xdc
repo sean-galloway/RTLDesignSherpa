@@ -254,66 +254,36 @@ set_multicycle_path 1 -hold  -to $intr_fifo_dst
 ## any divergence is resolved by the next handshake cycle.
 ##
 ## Source: r_read_beats_remaining_reg* in every per-channel scheduler.
-## Destination: every flop inside the read engine's arbiter. The 4-channel
-## build only had r_pending_client_reg show up as the worst sibling of
-## this cone, but at 8 channels grant_reg / grant_id_reg / r_last_grant_id_reg
-## all land in the same ~14-level neighborhood. The same false-path
-## justification covers every arbiter state element: the size decrement
-## and the arbiter's state machine have no same-cycle dependency.
+## Destination: r_pending_client_reg in the read engine's arbiter.
+##
+## NB: scope deliberately limited to r_pending_client_reg. The arbiter's
+## grant_reg / grant_id_reg / grant_valid_reg form a valid/ready handshake
+## pair with the engine's grant_ack (line 442 of axi_write_engine:
+## w_arb_grant_ack = w_arb_grant & {NC{m_axi_awvalid && m_axi_awready}}).
+## Per AXI handshake rules, valid (grant) must hold coherent until ready
+## (grant_ack) fires; a stale-but-glitching grant value would let the
+## engine latch the wrong r_aw_channel_id (line 454) and issue an AW to
+## the wrong channel's address. So we do NOT false-path grant_*_reg.
+## r_pending_client_reg, by contrast, is internal arbiter bookkeeping --
+## tracking who has a pending ACK so the arbiter knows when it can rotate
+## -- and tolerates the next-cycle resolution model the prior author
+## documented. Per-channel "data available" / "can start" signals that
+## need to escape this same combinational cone are flopped at their
+## source instead (see sram_controller's registered avail outputs).
 set rd_beats_src [get_cells -hier -filter \
     {NAME =~ *u_scheduler/r_read_beats_remaining_reg*}]
 set rd_arb_dst [get_cells -hier -filter \
-    {NAME =~ *u_axi_read_engine/gen_multi_channel.u_arbiter/*_reg*}]
+    {NAME =~ *u_axi_read_engine/gen_multi_channel.u_arbiter/r_pending_client_reg*}]
 set_false_path -from $rd_beats_src -to $rd_arb_dst
 
 ## Symmetric situation on the write side: the same decrementer pattern
-## drives the write engine's arbiter. Constrain the entire arbiter state.
+## drives the write engine's arbiter pending-client. Scope limited to
+## r_pending_client_reg for the same handshake-safety reason as above.
 set wr_beats_src [get_cells -hier -filter \
     {NAME =~ *u_scheduler/r_write_beats_remaining_reg*}]
 set wr_arb_dst [get_cells -hier -filter \
-    {NAME =~ *u_axi_write_engine/gen_multi_channel.u_arbiter/*_reg*}]
+    {NAME =~ *u_axi_write_engine/gen_multi_channel.u_arbiter/r_pending_client_reg*}]
 set_false_path -from $wr_beats_src -to $wr_arb_dst
-
-##==============================================================================
-## False paths — additional sources into the write engine's arbiter
-##==============================================================================
-## The write engine's request to the arbiter is the AND of several per-
-## channel signals. At 8 channels two more sources end up on the critical
-## path into the same `u_arbiter/*_reg*` destination cone covered by the
-## constraint above:
-##
-##   (1) u_sram_controller's per-channel latency_bridge skid-buffer write
-##       pointer / drain-in-progress flop. The "this channel has enough
-##       beats buffered to start a drain" comparison feeds
-##       axi_wr_drain_data_avail[i] -> w_arb_request[i] -> arbiter.
-##
-##   (2) The write engine's own r_w_channel_id flop, which selects which
-##       channel currently owns the W datapath. Replicated and routed
-##       back into the arbiter's pending-client state at 15 levels.
-##
-## Both share the same justification as the scheduler-beats false_path:
-## the request-side signal is a "wants to be granted" indicator whose
-## consistency with the arbiter is maintained by the grant_ack handshake.
-## A stale grant self-resolves on the next cycle (the engine simply
-## doesn't issue AR if the requesting channel's data isn't actually
-## there yet, and the arbiter moves on). Costs at most one wasted
-## arbitration cycle per grant -- invisible in throughput.
-set wr_sram_drain_src [get_cells -hier -filter \
-    {NAME =~ *u_sram_controller/gen_channel_units*.u_channel_unit/u_latency_bridge/*_reg*}]
-set_false_path -from $wr_sram_drain_src -to $wr_arb_dst
-
-set wr_engine_chid_src [get_cells -hier -filter \
-    {NAME =~ *u_axi_write_engine/r_w_channel_id_reg*}]
-set_false_path -from $wr_engine_chid_src -to $wr_arb_dst
-
-## Third source into the same arbiter cone: the W-channel skid buffer's
-## wr_ready output. Fans out into per-channel "can start a burst" gating
-## in w_arb_request. Same false-path family: skid backpressure feedback
-## resolves into the arbiter through the grant_ack handshake; a one-
-## cycle stale ready costs at most one arbitration retry.
-set wr_skid_ready_src [get_cells -hier -filter \
-    {NAME =~ *u_wr_axi_skid/w_channel/wr_ready_reg*}]
-set_false_path -from $wr_skid_ready_src -to $wr_arb_dst
 
 ##==============================================================================
 ## Multi-cycle paths — DAXMON_ENABLE.MON_EN config bit

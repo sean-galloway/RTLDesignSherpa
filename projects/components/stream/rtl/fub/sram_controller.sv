@@ -54,7 +54,15 @@ module sram_controller #(
     input  logic                        axi_rd_alloc_req,        // Allocation request
     input  logic [7:0]                  axi_rd_alloc_size,       // Number of beats to allocate
     input  logic [CIW-1:0]              axi_rd_alloc_id,         // Channel ID for allocation
-    output logic [NC-1:0][SCW-1:0]      axi_rd_alloc_space_free, // Free space in each FIFO
+    // Per-channel free-space vector. Registered at this module's output
+    // boundary (see the always_ff near the bottom of this module) so
+    // downstream arbiters in the read engine see a stable, 1-cycle-old
+    // view rather than a combinational chain that crosses module
+    // boundaries and feeds wide priority encoders. At 8 channels the
+    // unregistered path could not close 100 MHz on the xc7a100t-1 and
+    // false-pathing it would have violated the grant valid/ready
+    // handshake. The 1-cycle latency is a no-op for AXI burst pacing.
+    output logic [NC-1:0][SCW-1:0]      axi_rd_alloc_space_free, // Free space in each FIFO (registered)
 
     //=========================================================================
     // Write Interface (AXI Read Engine → FIFO)
@@ -68,14 +76,16 @@ module sram_controller #(
     //=========================================================================
     // Drain Interface (Write Engine Flow Control)
     //=========================================================================
-    output logic [NC-1:0][SCW-1:0]      axi_wr_drain_data_avail,  // Available data after reservations
+    // Registered at module boundary -- see axi_rd_alloc_space_free comment.
+    output logic [NC-1:0][SCW-1:0]      axi_wr_drain_data_avail,  // Available data after reservations (registered)
     input  logic [NC-1:0]               axi_wr_drain_req,         // Per-channel drain request
     input  logic [NC-1:0][7:0]          axi_wr_drain_size,        // Per-channel drain size
 
     //=========================================================================
     // Read Interface (FIFO → AXI Write Engine)
     //=========================================================================
-    output logic [NC-1:0]               axi_wr_sram_valid,      // Per-channel valid (data available)
+    // Also registered at module boundary -- feeds write engine arbitration.
+    output logic [NC-1:0]               axi_wr_sram_valid,      // Per-channel valid (registered)
     input  logic                        axi_wr_sram_drain,      // Ready (consumer requests data)
     input  logic [CIW-1:0]              axi_wr_sram_id,         // Channel ID select
     output logic [DW-1:0]               axi_wr_sram_data,       // Data from selected channel
@@ -98,6 +108,14 @@ module sram_controller #(
     logic [NC-1:0] axi_wr_sram_drain_decoded;
     logic [NC-1:0][DW-1:0] axi_wr_sram_data_per_channel;
     logic [NC-1:0] axi_rd_alloc_req_decoded;
+
+    // Unregistered combinational versions of the per-channel availability
+    // outputs. The wrapper flops these into the externally-visible
+    // axi_{rd_alloc_space_free, wr_drain_data_avail, wr_sram_valid}
+    // ports so downstream arbiters see a stable, registered view.
+    logic [NC-1:0][SCW-1:0] axi_rd_alloc_space_free_comb;
+    logic [NC-1:0][SCW-1:0] axi_wr_drain_data_avail_comb;
+    logic [NC-1:0]          axi_wr_sram_valid_comb;
 
     // Write valid decode: axi_rd_sram_id selects which channel
     always_comb begin
@@ -176,20 +194,20 @@ module sram_controller #(
 
                 // Read interface (FIFO → Latency Bridge → AXI Write Engine)
                 // Decoded drain connects to ready (consumer requests data)
-                .axi_wr_sram_valid  (axi_wr_sram_valid[i]),  // Per-channel valid to top level
+                .axi_wr_sram_valid  (axi_wr_sram_valid_comb[i]),  // unreg -> flopped at wrapper output
                 .axi_wr_sram_ready  (axi_wr_sram_drain_decoded[i]),
                 .axi_wr_sram_data   (axi_wr_sram_data_per_channel[i]),
 
                 // Allocation interface (Read Engine Flow Control)
                 // Decoded from ID - only selected channel sees req
                 .axi_rd_alloc_req       (axi_rd_alloc_req_decoded[i]),
-                .axi_rd_alloc_size      (axi_rd_alloc_size),         // SHARED - all see same size
-                .axi_rd_alloc_space_free(axi_rd_alloc_space_free[i]),
+                .axi_rd_alloc_size      (axi_rd_alloc_size),                 // SHARED - all see same size
+                .axi_rd_alloc_space_free(axi_rd_alloc_space_free_comb[i]),   // unreg -> flopped at wrapper output
 
                 // Drain interface (Write Engine Flow Control)
                 .axi_wr_drain_req       (axi_wr_drain_req[i]),
                 .axi_wr_drain_size      (axi_wr_drain_size[i]),
-                .axi_wr_drain_data_avail(axi_wr_drain_data_avail[i]),
+                .axi_wr_drain_data_avail(axi_wr_drain_data_avail_comb[i]),   // unreg -> flopped at wrapper output
 
                 // Debug
                 .dbg_bridge_pending     (dbg_bridge_pending[i]),
@@ -197,5 +215,41 @@ module sram_controller #(
             );
         end
     endgenerate
+
+    //=========================================================================
+    // Output register stage on per-channel availability vectors
+    //=========================================================================
+    // The unregistered combinational versions feed the per-channel
+    // sram_controller_unit blocks; we flop them before they leave the
+    // module. Justification:
+    //
+    //   * Both axi_rd_alloc_space_free and axi_wr_drain_data_avail feed
+    //     wide priority-encode/arbitration trees inside the read and
+    //     write engines. At 8 channels the combinational distance from
+    //     the per-channel skid-buffer write pointer through the engine
+    //     arbiter's grant decision exceeds 14 LUT levels -- not closable
+    //     at 100 MHz on the xc7a100t-1.
+    //
+    //   * False-pathing the arbitration cone is unsafe because the
+    //     arbiter's grant_valid + grant_id form a valid/ready handshake
+    //     with the engine's grant_ack. A stale grant value would let the
+    //     engine latch the wrong r_aw_channel_id and issue an AW for the
+    //     wrong channel's address. So the path has to be properly closed,
+    //     and pipelining the source-side "available" signals is the
+    //     cleanest way to do that.
+    //
+    //   * Cost: 1 cycle of latency on "space free" / "data available"
+    //     reporting. Since AXI bursts of 16 beats already mask
+    //     single-cycle credit changes, the effect on throughput and
+    //     latency is below measurement noise.
+    //
+    // No reset needed on these: the combinational sources self-initialize
+    // from per-channel registers that DO reset, so the first valid cycle
+    // after reset already presents stable values.
+    always_ff @(posedge clk) begin
+        axi_rd_alloc_space_free <= axi_rd_alloc_space_free_comb;
+        axi_wr_drain_data_avail <= axi_wr_drain_data_avail_comb;
+        axi_wr_sram_valid       <= axi_wr_sram_valid_comb;
+    end
 
 endmodule : sram_controller
