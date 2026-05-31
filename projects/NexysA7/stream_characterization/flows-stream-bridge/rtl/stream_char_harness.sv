@@ -605,30 +605,57 @@ module stream_char_harness #(
     logic [2:0] r_settle_cnt;
     wire  w_desc_handshake      = desc_arvalid & desc_arready;
     wire  w_desc_handshake_rise = w_desc_handshake & ~r_desc_handshake_d;
-    wire  w_beat_count_reached  = (csr_timer_expected_beats != 32'd0) &&
-                                  (write_beat_count >= csr_timer_expected_beats);
 
+    // Pipeline the aggregate beat counts and the expected-beats threshold
+    // by one stage before doing the wide-comparison + AND-reduce that
+    // fires w_{rd,wr}_{first,last}_now. The aggregates come from
+    // u_{rd,wr}_crc_check.{read,write}_beat_count_total, which is itself
+    // an 8-channel adder tree. Without this register stage, at 8 channels
+    // the combinational path
+    //   per-ch beat count -> 8-way adder -> compare -> AND with running
+    //   -> timer_w_last_reg/CE + timer_cycles_reg/CE
+    // lands at 14 levels and blows -1.05 ns of slack at 100 MHz on the
+    // xc7a100t-1. Breaking it into two ~7-level halves around the new
+    // r_{rd,wr}_beat_count_q flop adds 1 cycle of measurement-side
+    // latency on the FIRST and LAST beat-stamps -- harmless for cycle-
+    // count measurements that span tens of thousands of cycles, and
+    // invisible to software since the host polls TIMER_STATUS for done.
+    logic [31:0] r_rd_beat_count_q;
+    logic [31:0] r_wr_beat_count_q;
+    logic [31:0] r_csr_exp_beats_q;
     `ALWAYS_FF_RST(aclk, aresetn,
         if (`RST_ASSERTED(aresetn)) begin
             r_desc_handshake_d <= 1'b0;
+            r_rd_beat_count_q  <= '0;
+            r_wr_beat_count_q  <= '0;
+            r_csr_exp_beats_q  <= '0;
         end else begin
             r_desc_handshake_d <= w_desc_handshake;
+            r_rd_beat_count_q  <= read_beat_count;
+            r_wr_beat_count_q  <= write_beat_count;
+            r_csr_exp_beats_q  <= csr_timer_expected_beats;
         end
     )
+
+    wire w_beat_count_reached = (r_csr_exp_beats_q != 32'd0) &&
+                                (r_wr_beat_count_q >= r_csr_exp_beats_q);
 
     // First/last beat detection on the slave side. read_beat_count and
     // write_beat_count both start at 0 and increment monotonically; we
     // latch cycle stamps on the first cycle each crosses 0 and on the
     // first cycle each reaches the programmed expected_beats target.
+    // All sources here are the *_q registered flavors above so the
+    // wide compare + AND lands on a flop boundary, not on the per-
+    // channel CRC counter.
     logic        r_rd_first_seen, r_wr_first_seen;
     logic        r_rd_last_seen,  r_wr_last_seen;
     wire         w_rd_first_now  = timer_running && !r_rd_first_seen
-                                                  && (read_beat_count != 32'd0);
+                                                  && (r_rd_beat_count_q != 32'd0);
     wire         w_wr_first_now  = timer_running && !r_wr_first_seen
-                                                  && (write_beat_count != 32'd0);
+                                                  && (r_wr_beat_count_q != 32'd0);
     wire         w_rd_last_now   = timer_running && !r_rd_last_seen
-                                                  && (csr_timer_expected_beats != 32'd0)
-                                                  && (read_beat_count >= csr_timer_expected_beats);
+                                                  && (r_csr_exp_beats_q != 32'd0)
+                                                  && (r_rd_beat_count_q >= r_csr_exp_beats_q);
     wire         w_wr_last_now   = timer_running && !r_wr_last_seen
                                                   && w_beat_count_reached;
 

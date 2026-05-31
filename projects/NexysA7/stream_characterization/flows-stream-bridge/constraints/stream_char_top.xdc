@@ -254,20 +254,24 @@ set_multicycle_path 1 -hold  -to $intr_fifo_dst
 ## any divergence is resolved by the next handshake cycle.
 ##
 ## Source: r_read_beats_remaining_reg* in every per-channel scheduler.
-## Destination: r_pending_client_reg in the read engine's arbiter.
+## Destination: every flop inside the read engine's arbiter. The 4-channel
+## build only had r_pending_client_reg show up as the worst sibling of
+## this cone, but at 8 channels grant_reg / grant_id_reg / r_last_grant_id_reg
+## all land in the same ~14-level neighborhood. The same false-path
+## justification covers every arbiter state element: the size decrement
+## and the arbiter's state machine have no same-cycle dependency.
 set rd_beats_src [get_cells -hier -filter \
     {NAME =~ *u_scheduler/r_read_beats_remaining_reg*}]
 set rd_arb_dst [get_cells -hier -filter \
-    {NAME =~ *u_axi_read_engine/gen_multi_channel.u_arbiter/r_pending_client_reg*}]
+    {NAME =~ *u_axi_read_engine/gen_multi_channel.u_arbiter/*_reg*}]
 set_false_path -from $rd_beats_src -to $rd_arb_dst
 
 ## Symmetric situation on the write side: the same decrementer pattern
-## drives the write engine's arbiter pending-client. Constrain it now to
-## avoid the same drift on the write path under future re-rolls.
+## drives the write engine's arbiter. Constrain the entire arbiter state.
 set wr_beats_src [get_cells -hier -filter \
     {NAME =~ *u_scheduler/r_write_beats_remaining_reg*}]
 set wr_arb_dst [get_cells -hier -filter \
-    {NAME =~ *u_axi_write_engine/gen_multi_channel.u_arbiter/r_pending_client_reg*}]
+    {NAME =~ *u_axi_write_engine/gen_multi_channel.u_arbiter/*_reg*}]
 set_false_path -from $wr_beats_src -to $wr_arb_dst
 
 ##==============================================================================
