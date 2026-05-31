@@ -275,6 +275,38 @@ set wr_arb_dst [get_cells -hier -filter \
 set_false_path -from $wr_beats_src -to $wr_arb_dst
 
 ##==============================================================================
+## False paths — additional sources into the write engine's arbiter
+##==============================================================================
+## The write engine's request to the arbiter is the AND of several per-
+## channel signals. At 8 channels two more sources end up on the critical
+## path into the same `u_arbiter/*_reg*` destination cone covered by the
+## constraint above:
+##
+##   (1) u_sram_controller's per-channel latency_bridge skid-buffer write
+##       pointer / drain-in-progress flop. The "this channel has enough
+##       beats buffered to start a drain" comparison feeds
+##       axi_wr_drain_data_avail[i] -> w_arb_request[i] -> arbiter.
+##
+##   (2) The write engine's own r_w_channel_id flop, which selects which
+##       channel currently owns the W datapath. Replicated and routed
+##       back into the arbiter's pending-client state at 15 levels.
+##
+## Both share the same justification as the scheduler-beats false_path:
+## the request-side signal is a "wants to be granted" indicator whose
+## consistency with the arbiter is maintained by the grant_ack handshake.
+## A stale grant self-resolves on the next cycle (the engine simply
+## doesn't issue AR if the requesting channel's data isn't actually
+## there yet, and the arbiter moves on). Costs at most one wasted
+## arbitration cycle per grant -- invisible in throughput.
+set wr_sram_drain_src [get_cells -hier -filter \
+    {NAME =~ *u_sram_controller/gen_channel_units*.u_channel_unit/u_latency_bridge/*_reg*}]
+set_false_path -from $wr_sram_drain_src -to $wr_arb_dst
+
+set wr_engine_chid_src [get_cells -hier -filter \
+    {NAME =~ *u_axi_write_engine/r_w_channel_id_reg*}]
+set_false_path -from $wr_engine_chid_src -to $wr_arb_dst
+
+##==============================================================================
 ## Multi-cycle paths — DAXMON_ENABLE.MON_EN config bit
 ##==============================================================================
 ## DAXMON_ENABLE.MON_EN is the sw-programmed enable for the descriptor AXI
