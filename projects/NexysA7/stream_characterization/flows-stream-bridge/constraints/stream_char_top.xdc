@@ -306,6 +306,15 @@ set wr_engine_chid_src [get_cells -hier -filter \
     {NAME =~ *u_axi_write_engine/r_w_channel_id_reg*}]
 set_false_path -from $wr_engine_chid_src -to $wr_arb_dst
 
+## Third source into the same arbiter cone: the W-channel skid buffer's
+## wr_ready output. Fans out into per-channel "can start a burst" gating
+## in w_arb_request. Same false-path family: skid backpressure feedback
+## resolves into the arbiter through the grant_ack handshake; a one-
+## cycle stale ready costs at most one arbitration retry.
+set wr_skid_ready_src [get_cells -hier -filter \
+    {NAME =~ *u_wr_axi_skid/w_channel/wr_ready_reg*}]
+set_false_path -from $wr_skid_ready_src -to $wr_arb_dst
+
 ##==============================================================================
 ## Multi-cycle paths — DAXMON_ENABLE.MON_EN config bit
 ##==============================================================================
