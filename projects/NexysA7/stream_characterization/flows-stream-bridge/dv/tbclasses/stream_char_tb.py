@@ -63,12 +63,29 @@ CSR_CRC_WR_PER_CH_BASE = HARNESS_CSR_BASE + 0x80   # 0x80+4*ch
 CSR_CRC_VALID_MASK     = HARNESS_CSR_BASE + 0xA0   # [NC-1:0]
 CSR_CRC_MATCH_MASK     = HARNESS_CSR_BASE + 0xA4   # [NC-1:0]
 
-# Kick-burst fast path: shadow addrs at 0xB0+4*ch (8 slots), trigger at 0xC0.
-# A single UART write to KICK_GO with a channel bitmask pulses the in-RTL
-# kick lines for every set bit on one aclk cycle — eliminates the multi-ms
-# UART gap between per-channel APB kick writes.
-CSR_CH_KICK_ADDR_BASE  = HARNESS_CSR_BASE + 0xB0   # 0xB0..0xBC, 0xC4..0xD0
+# Kick-burst fast path. A single UART write to KICK_GO with a channel bitmask
+# pulses the in-RTL kick lines for every set bit on one aclk cycle -- eliminates
+# the multi-ms UART gap between per-channel APB kick writes.
+#
+# KICK_GO sits at 0xC0 (in the middle of the kick-addr slot range), so the
+# per-channel kick-address slots are split into two banks:
+#   ch 0..3 -> 0xB0/0xB4/0xB8/0xBC  (4-byte stride from 0xB0)
+#   ch 4..7 -> 0xC4/0xC8/0xCC/0xD0  (4-byte stride from 0xC4)
+# A naive `4*ch` stride hits 0xC0 for ch=4 and writes the kick address into
+# KICK_GO -- it pulses a spurious kick for whichever channels the LSBs happen
+# to encode and never delivers the real address for channels >= 4. Use the
+# kick_addr_csr() helper below instead of the bare base + 4*ch.
 CSR_KICK_GO            = HARNESS_CSR_BASE + 0xC0
+
+
+def kick_addr_csr(ch: int) -> int:
+    """CSR address for the per-channel kick-address shadow register.
+
+    Skips the 0xC0 KICK_GO slot so the 8-channel layout is unambiguous.
+    """
+    if ch < 4:
+        return HARNESS_CSR_BASE + 0xB0 + 4 * ch          # ch 0..3
+    return HARNESS_CSR_BASE + 0xC4 + 4 * (ch - 4)        # ch 4..7
 CSR_SCRATCH        = HARNESS_CSR_BASE + 0x20
 CSR_BUILD_ID       = HARNESS_CSR_BASE + 0x24
 
@@ -582,7 +599,7 @@ class StreamCharTB(TBBase):
         # APB writes that would otherwise serialize multi-channel runs.
         kick_mask = 0
         for ch, kick_addr in sorted(test_data['kick_addresses'].items()):
-            await self.uart_write(CSR_CH_KICK_ADDR_BASE + 4 * ch,
+            await self.uart_write(kick_addr_csr(ch),
                                   kick_addr & 0xFFFF_FFFF)
             kick_mask |= (1 << ch)
             self.log.info(f"  Loaded ch{ch} kick addr 0x{kick_addr:08X}")

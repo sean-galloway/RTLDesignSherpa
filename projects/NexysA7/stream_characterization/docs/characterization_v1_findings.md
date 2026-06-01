@@ -142,15 +142,24 @@ initial bring-up (4-channel build), all in the data plane, none in the harness:
 
 Post-route: WNS = +0.296 ns, 0 failing endpoints, 0 hold violations.
 
-> **Open issue — 5+ active channels hang on this build.** Sweeps with
-> `ch_mask` >= 0x1F (5 or more channels enabled) time out after kick-off
-> with no progress events. Sweeps with up to 4 active channels pass with
-> 94 % datapath utilization (matching the 4-channel build's headline).
-> Channels 4–7 had no hardware presence in any prior build (NUM_CHANNELS=4
-> was the previous configuration), so this is a latent bug exposed by
-> instantiating the upper four channels for the first time, not a
-> regression in the timing-closure changes above. Investigation deferred;
-> the 1–4 channel results in §5 are valid for this build.
+> **Fixed — 5+ active channels were hanging due to a host-side CSR
+> address-map collision, not RTL.** The harness `KICK_GO` register sits at
+> `0xC0`, in the middle of the per-channel kick-address slot range. The
+> RTL splits the 8 kick-address slots into two banks (ch 0..3 at
+> 0xB0..0xBC, ch 4..7 at 0xC4..0xD0) and skips 0xC0. Both
+> `run_characterization.py` and the cocotb TB `stream_char_tb.py` were
+> computing the per-channel slot as `BASE + 4*ch`, which lands on 0xC0
+> for ch=4 — writing the kick address into `KICK_GO` instead. The low 8
+> bits of the address are interpreted as the kick-fire bitmask, so a
+> bogus single-cycle kick fires for whichever channel that byte happens
+> to encode (here channel 5, never loaded), and ch 4's real address never
+> reaches its slot. Channels 4 and 5 then kick to address 0, fetch
+> garbage descriptors, never produce the expected beats, and the timer
+> times out at 60 s. The bug never surfaced before because no prior build
+> had hardware presence for channels 4+ (NUM_CHANNELS=4 baseline).
+> Replaced the bare `BASE + 4*ch` with a `kick_addr_csr(ch)` helper in
+> both consumers that hops the 0xC0 slot; no RTL change, no rebuild. 5–8
+> channel runs now complete at 94 % datapath utilization, matching 1–4.
 
 ---
 

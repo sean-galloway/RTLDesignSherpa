@@ -547,7 +547,8 @@ module stream_char_harness #(
         .o_rd_resp_delay_cyc   (csr_rd_resp_delay_cyc),
         .o_wr_resp_delay_cyc   (csr_wr_resp_delay_cyc),
 
-        // Kick-burst outputs (CH_KICK_ADDR @ 0xB0+4*ch, KICK_GO @ 0xC0)
+        // Kick-burst outputs (CH_KICK_ADDR slots split around KICK_GO @ 0xC0;
+        // see harness_csr.sv address-map block for the per-channel offsets)
         .o_kick_burst_mask     (csr_kick_burst_mask),
         .o_kick_burst_addr     (csr_kick_burst_addr),
 

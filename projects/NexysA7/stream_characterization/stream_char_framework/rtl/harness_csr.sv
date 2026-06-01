@@ -97,13 +97,19 @@
 //        within one aclk cycle, so multi-channel runs actually pipeline
 //        rather than serializing on UART.
 //
-//   0xB0 + 4*ch:  CH_KICK_ADDR[ch]  RW  Per-channel descriptor address
-//                                       latch (NUM_CHANNELS slots).
-//   0xC0          KICK_GO          W   Bitmask: writing N pulses the
-//                                       hardware kick line for each set
-//                                       bit for one cycle. Reads as 0.
+//   CH_KICK_ADDR[ch]  RW  Per-channel descriptor address latch (8 slots).
+//                          Layout SKIPS 0xC0 (that slot is KICK_GO):
+//                          ch 0..3 -> 0xB0/0xB4/0xB8/0xBC
+//                          ch 4..7 -> 0xC4/0xC8/0xCC/0xD0
+//                          Host code must NOT use a bare "BASE + 4*ch"
+//                          stride -- that lands ch=4 on 0xC0 and writes
+//                          into KICK_GO, firing a spurious one-cycle
+//                          kick whose mask is the LSBs of the address.
+//   0xC0          KICK_GO  W  Bitmask: writing N pulses the hardware
+//                              kick line for each set bit for one cycle.
+//                              Reads as 0.
 //
-//   0xC4 - 0xFF           --  Reserved (read as 0)
+//   0xD4 - 0xFF           --  Reserved (read as 0)
 //
 //   AXI bus meter readback. Two meters live in this CSR space:
 //     R-meter at 0x100  -- watches the read engine's R bus
@@ -254,7 +260,8 @@ module harness_csr #(
     output logic [15:0]     o_wr_resp_delay_cyc,
 
     // =====================================================================
-    // Kick-burst fast path (CH_KICK_ADDR @ 0xB0+4*ch, KICK_GO @ 0xC0)
+    // Kick-burst fast path (CH_KICK_ADDR slots split around KICK_GO @ 0xC0;
+    // see address-map block at top of file for the layout)
     // =====================================================================
     output logic [NUM_CHANNELS-1:0]       o_kick_burst_mask,  // 1-cycle pulse
     output logic [NUM_CHANNELS-1:0][31:0] o_kick_burst_addr   // shadow values
@@ -373,9 +380,11 @@ module harness_csr #(
     logic [15:0] r_wr_resp_delay_cyc;
 
     // Kick-burst storage: per-channel address shadow + pulse-per-cycle
-    // trigger output. Writing CH_KICK_ADDR[ch] (0xB0+4*ch) latches an
-    // address; writing KICK_GO (0xC0) with a bitmask asserts
-    // o_kick_burst_mask for that bitmask for exactly one cycle.
+    // trigger output. Writing CH_KICK_ADDR[ch] latches an address; the
+    // address-map block at top of file shows the per-channel offsets
+    // (split around the 0xC0 KICK_GO slot). Writing KICK_GO (0xC0) with
+    // a bitmask asserts o_kick_burst_mask for that bitmask for exactly
+    // one cycle.
     logic [31:0] r_kick_addr [8];   // 8 fixed slots; only NUM_CHANNELS used
     logic [7:0]  r_kick_go_pulse;   // one-cycle pulse driven by 0xC0 write
 
