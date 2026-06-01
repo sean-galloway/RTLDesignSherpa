@@ -243,13 +243,21 @@ module sram_controller #(
     //     single-cycle credit changes, the effect on throughput and
     //     latency is below measurement noise.
     //
-    // No reset needed on these: the combinational sources self-initialize
-    // from per-channel registers that DO reset, so the first valid cycle
-    // after reset already presents stable values.
-    always_ff @(posedge clk) begin
-        axi_rd_alloc_space_free <= axi_rd_alloc_space_free_comb;
-        axi_wr_drain_data_avail <= axi_wr_drain_data_avail_comb;
-        axi_wr_sram_valid       <= axi_wr_sram_valid_comb;
-    end
+    // Reset to all-zeros: under reset the downstream engines see "no
+    // free space" and "no data available", so they will not attempt
+    // an arbitration grant before the first post-reset cycle latches
+    // the real combinational values. Matches the repo-wide rule that
+    // every always_ff carries an explicit reset.
+    `ALWAYS_FF_RST(clk, rst_n,
+        if (`RST_ASSERTED(rst_n)) begin
+            axi_rd_alloc_space_free <= '0;
+            axi_wr_drain_data_avail <= '0;
+            axi_wr_sram_valid       <= '0;
+        end else begin
+            axi_rd_alloc_space_free <= axi_rd_alloc_space_free_comb;
+            axi_wr_drain_data_avail <= axi_wr_drain_data_avail_comb;
+            axi_wr_sram_valid       <= axi_wr_sram_valid_comb;
+        end
+    )
 
 endmodule : sram_controller
