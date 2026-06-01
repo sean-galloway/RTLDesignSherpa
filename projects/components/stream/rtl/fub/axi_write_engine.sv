@@ -398,6 +398,39 @@ module axi_write_engine #(
     end
 
     //=========================================================================
+    // Arbiter Request Pipeline
+    //=========================================================================
+    // Register w_arb_request -> r_arb_request to break the long timing cone
+    // from r_write_beats_remaining (scheduler) and axi_wr_drain_data_avail
+    // (sram_controller) through the 32-bit comparators in w_data_ok into the
+    // arbiter priority encoder and out to grant_reg. Closes 100 MHz timing on
+    // the Nexys A7-100T (-1 part) at 8 channels; the unpipelined cone was
+    // ~16 levels of logic.
+    //
+    // Steady-state cost: 0. While sched_wr_valid stays high (the descriptor
+    // is actively transferring), r_arb_request tracks w_arb_request 1 cycle
+    // later -- the engine still pipelines AWs at the same rate and the
+    // arbiter still grants every cycle. Only the descriptor START sees an
+    // extra 1-cycle latency for the first AW.
+    //
+    // End-of-descriptor safety: when live sched_wr_valid drops, r_arb_request
+    // stays high for 1 stale cycle. Two complementary guards prevent that
+    // stale grant from being acted on:
+    //   1. AW-issue block below ANDs with live sched_wr_valid[w_arb_grant_id]
+    //      so no AW is captured for a channel that's no longer requesting.
+    //   2. w_arb_grant_ack auto-releases the arbiter when the grant is stale
+    //      (live valid = 0) so arbitration advances without waiting for an
+    //      AW handshake that will never come.
+    logic [NC-1:0] r_arb_request;
+    `ALWAYS_FF_RST(clk, rst_n,
+        if (`RST_ASSERTED(rst_n)) begin
+            r_arb_request <= '0;
+        end else begin
+            r_arb_request <= w_arb_request;
+        end
+    )
+
+    //=========================================================================
     // Round-Robin Arbiter (or Direct Grant for Single Channel)
     //=========================================================================
 
@@ -409,8 +442,8 @@ module axi_write_engine #(
     generate
         if (NC == 1) begin : gen_single_channel
             // Single channel - no arbitration needed, grant directly
-            assign w_arb_grant_valid = w_arb_request[0];
-            assign w_arb_grant = w_arb_request;  // Direct passthrough
+            assign w_arb_grant_valid = r_arb_request[0];
+            assign w_arb_grant = r_arb_request;  // Direct passthrough
             assign w_arb_grant_id = 1'b0;        // Always channel 0
             // ACK signal must still be driven for AW channel management
         end else begin : gen_multi_channel
@@ -422,7 +455,7 @@ module axi_write_engine #(
                 .clk          (clk),
                 .rst_n        (rst_n),
                 .block_arb    (1'b0),          // Never block arbitration
-                .request      (w_arb_request),
+                .request      (r_arb_request),
                 .grant_ack    (w_arb_grant_ack),
                 .grant_valid  (w_arb_grant_valid),
                 .grant        (w_arb_grant),
@@ -438,8 +471,15 @@ module axi_write_engine #(
     // (r_aw_len, r_aw_channel_id, r_aw_valid declared in forward-declarations
     // block at the top of the module)
 
-    // Acknowledge arbiter grant when AXI accepts AW command
-    assign w_arb_grant_ack = w_arb_grant & {NC{(m_axi_awvalid && m_axi_awready)}};
+    // Acknowledge arbiter grant when AXI accepts AW command, OR when the
+    // grant is stale (live sched_wr_valid dropped after the registered
+    // r_arb_request was captured). Stale-release prevents the arbiter from
+    // stalling on a channel that will never see its AW issued, since the
+    // AW-issue block below is gated by live sched_wr_valid[w_arb_grant_id].
+    logic [NC-1:0] w_stale_grant;
+    assign w_stale_grant = w_arb_grant & ~sched_wr_valid;
+    assign w_arb_grant_ack = (w_arb_grant & {NC{(m_axi_awvalid && m_axi_awready)}})
+                           | w_stale_grant;
 
     // AW channel issue logic
     `ALWAYS_FF_RST(clk, rst_n,
@@ -448,8 +488,10 @@ module axi_write_engine #(
             r_aw_len <= '0;
             r_aw_channel_id <= '0;
         end else begin
-            // Accept new command from arbiter
-            if (w_arb_grant_valid && !r_aw_valid) begin
+            // Accept new command from arbiter; gate by live sched_wr_valid so
+            // a stale grant (from the 1-cycle r_arb_request pipeline) cannot
+            // capture an AW for a channel the scheduler is no longer driving.
+            if (w_arb_grant_valid && !r_aw_valid && sched_wr_valid[w_arb_grant_id]) begin
                 r_aw_valid <= 1'b1;
                 r_aw_channel_id <= w_arb_grant_id;
                 r_aw_len <= w_transfer_size[w_arb_grant_id];  // cfg_axi_wr_xfer_beats stores AWLEN value directly
@@ -843,9 +885,11 @@ module axi_write_engine #(
     assert property (@(posedge clk) disable iff (!rst_n)
         $onehot0(w_arb_grant));
 
-    // Granted channel must have valid request
+    // Granted channel must have valid request (registered version: arbiter
+    // sees r_arb_request, not the live w_arb_request, after the request
+    // pipeline added for 8-channel 100 MHz timing closure).
     assert property (@(posedge clk) disable iff (!rst_n)
-        w_arb_grant_valid |-> (w_arb_request & w_arb_grant) != '0);
+        w_arb_grant_valid |-> (r_arb_request & w_arb_grant) != '0);
 
     // Drain request only when AW command issues
     assert property (@(posedge clk) disable iff (!rst_n)

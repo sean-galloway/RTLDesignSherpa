@@ -329,6 +329,34 @@ module axi_read_engine #(
     end
 
     //=========================================================================
+    // Arbiter Request Pipeline
+    //=========================================================================
+    // Register w_arb_request -> r_arb_request to break the long timing cone
+    // from r_read_beats_remaining (scheduler) and axi_rd_alloc_space_free
+    // (sram_controller) through the 32-bit comparators in w_space_ok into
+    // the arbiter priority encoder and out to grant_reg. Closes 100 MHz
+    // timing on the Nexys A7-100T (-1 part) at 8 channels; the unpipelined
+    // cone was ~16 levels of logic. Mirror of the write engine's r_arb_request
+    // stage -- see axi_write_engine.sv for the full rationale.
+    //
+    // Steady-state cost: 0. While sched_rd_valid stays high, r_arb_request
+    // tracks w_arb_request 1 cycle later -- ARs pipeline at the same rate.
+    // Only the descriptor START sees a 1-cycle extra latency on the first AR.
+    //
+    // End-of-descriptor safety: m_axi_arvalid is gated by live sched_rd_valid
+    // so a stale grant never drives an AR; w_arb_grant_ack auto-releases the
+    // arbiter on stale grants so it advances without waiting for an AR
+    // handshake that will never come.
+    logic [NC-1:0] r_arb_request;
+    `ALWAYS_FF_RST(clk, rst_n,
+        if (`RST_ASSERTED(rst_n)) begin
+            r_arb_request <= '0;
+        end else begin
+            r_arb_request <= w_arb_request;
+        end
+    )
+
+    //=========================================================================
     // Round-Robin Arbiter (or Direct Grant for Single Channel)
     //=========================================================================
     // (w_arb_grant_valid, w_arb_grant, w_arb_grant_id, w_arb_grant_ack
@@ -337,8 +365,8 @@ module axi_read_engine #(
     generate
         if (NC == 1) begin : gen_single_channel
             // Single channel - no arbitration needed, grant directly
-            assign w_arb_grant_valid = w_arb_request[0];
-            assign w_arb_grant = w_arb_request;  // Direct passthrough
+            assign w_arb_grant_valid = r_arb_request[0];
+            assign w_arb_grant = r_arb_request;  // Direct passthrough
             assign w_arb_grant_id = 1'b0;        // Always channel 0
             // ACK signal must still be driven for AR channel management
         end else begin : gen_multi_channel
@@ -350,7 +378,7 @@ module axi_read_engine #(
                 .clk          (clk),
                 .rst_n        (rst_n),
                 .block_arb    (1'b0),          // Never block arbitration
-                .request      (w_arb_request),
+                .request      (r_arb_request),
                 .grant_ack    (w_arb_grant_ack),
                 .grant_valid  (w_arb_grant_valid),
                 .grant        (w_arb_grant),
@@ -366,8 +394,11 @@ module axi_read_engine #(
     // FIX: Drive AR outputs combinationally from arbiter to avoid 1-cycle delay
     // When axi_rd_alloc_space_free goes to 0, arvalid must drop in the same cycle
 
-    // AXI AR outputs - COMBINATIONAL
-    assign m_axi_arvalid = w_arb_grant_valid;
+    // AXI AR outputs - COMBINATIONAL.
+    // m_axi_arvalid is gated by live sched_rd_valid[w_arb_grant_id] so a
+    // stale grant (from the 1-cycle r_arb_request pipeline) cannot fire an
+    // AR for a channel the scheduler is no longer driving.
+    assign m_axi_arvalid = w_arb_grant_valid && sched_rd_valid[w_arb_grant_id];
     assign m_axi_arid = {{(IW-CW){1'b0}}, w_arb_grant_id};  // Channel ID in lower bits
     // Address comes directly from scheduler (scheduler increments after each AR)
     assign m_axi_araddr = sched_rd_addr[w_arb_grant_id];
@@ -377,8 +408,15 @@ module axi_read_engine #(
     assign m_axi_arsize = 3'(AXSIZE);
     assign m_axi_arburst = 2'b01;  // INCR
 
-    // Acknowledge arbiter grant when AXI accepts AR command
-    assign w_arb_grant_ack = w_arb_grant & {NC{(m_axi_arvalid && m_axi_arready)}};
+    // Acknowledge arbiter grant when AXI accepts AR command, OR when the
+    // grant is stale (live sched_rd_valid dropped after the registered
+    // r_arb_request was captured). Stale-release prevents the arbiter from
+    // stalling on a channel whose AR will never fire because m_axi_arvalid
+    // is masked by live sched_rd_valid.
+    logic [NC-1:0] w_stale_grant;
+    assign w_stale_grant = w_arb_grant & ~sched_rd_valid;
+    assign w_arb_grant_ack = (w_arb_grant & {NC{(m_axi_arvalid && m_axi_arready)}})
+                           | w_stale_grant;
 
     //=========================================================================
     // SRAM Pre-Allocation
@@ -519,9 +557,11 @@ module axi_read_engine #(
     assert property (@(posedge clk) disable iff (!rst_n)
         $onehot0(w_arb_grant));
 
-    // Granted channel must have valid request
+    // Granted channel must have valid request (registered version: arbiter
+    // sees r_arb_request, not the live w_arb_request, after the request
+    // pipeline added for 8-channel 100 MHz timing closure).
     assert property (@(posedge clk) disable iff (!rst_n)
-        w_arb_grant_valid |-> (w_arb_request & w_arb_grant) != '0);
+        w_arb_grant_valid |-> (r_arb_request & w_arb_grant) != '0);
 
     // Allocation only when AR command issues
     assert property (@(posedge clk) disable iff (!rst_n)
