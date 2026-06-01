@@ -1,0 +1,33 @@
+flowchart TB
+    HOST([Host / FPGA host script])
+
+    subgraph HARNESS["stream_char_harness (FPGA)"]
+        direction TB
+        XBAR["bridge_stream_char_axil<br/>(AXIL xbar)"]
+        CSR["harness_csr (s1)"]
+        DESC["desc_ram (s2)"]
+        ERR["stream_err (s3)"]
+        DSRAM["debug_sram (s4)<br/>MonBus trace capture"]
+        DUT["stream_top_ch8<br/>(STREAM DUT — see next diagram)"]
+        RDLY["axi_response_delay<br/>(R / W back-pressure injectors)"]
+        METER["axi_bus_meter<br/>(per-cycle valid/ready counters)"]
+
+        XBAR --> CSR
+        XBAR --> DESC
+        XBAR --> ERR
+        XBAR --> DSRAM
+        XBAR -->|chan config / kick-off| DUT
+
+        DUT -->|memory AXI<br/>AR/AW/R/W| RDLY
+        RDLY -.->|tap| METER
+
+        DUT -->|"m_axil_mon (bulk trace)"| XBAR
+    end
+
+    HOST -->|UART → AXIL| XBAR
+    DUT -.->|"s_mon_axil + IRQ"| HOST
+
+    classDef drain  fill:#cce5ff,stroke:#0055aa,stroke-width:1px;
+    classDef tap    fill:#ffe4b5,stroke:#aa6622,stroke-width:1px;
+    class DSRAM drain;
+    class RDLY,METER tap;

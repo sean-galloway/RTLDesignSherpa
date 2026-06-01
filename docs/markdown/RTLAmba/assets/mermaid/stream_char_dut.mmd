@@ -1,0 +1,29 @@
+flowchart TB
+    subgraph DUT["stream_top_ch8 (STREAM DUT)"]
+        direction TB
+
+        subgraph DP["Data path (per engine)"]
+            direction LR
+            ENG_R["axi_read_engine"]
+            ENG_W["axi_write_engine"]
+            MON_R["axi4_master_rd_mon"]
+            MON_W["axi4_master_wr_mon"]
+            ENG_R --- MON_R
+            ENG_W --- MON_W
+        end
+
+        ARB["monbus_arbiter<br/>(192-bit atomic skid)"]
+        GROUP["monbus_axil_group<br/>(64-bit timestamp counter +<br/>m_axil_mon / s_mon_axil drains)"]
+
+        MON_R --> ARB
+        MON_W --> ARB
+        ARB --> GROUP
+    end
+
+    GROUP --> BULK[/"m_axil_mon → debug_sram<br/>(bulk trace capture)"/]
+    GROUP --> IRQ[/"s_mon_axil + IRQ<br/>(real-time consumption)"/]
+
+    classDef monitor fill:#ffe4b5,stroke:#aa6622,stroke-width:1px;
+    classDef drain   fill:#cce5ff,stroke:#0055aa,stroke-width:1px;
+    class MON_R,MON_W,ARB monitor;
+    class GROUP,BULK,IRQ drain;
