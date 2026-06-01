@@ -109,13 +109,23 @@ add_files -norecurse -fileset $cf \
     "$project_root/constraints/stream_char_top.xdc"
 
 # ----------------------------------------------------------------------------
-# Synthesis / implementation strategy — defaults are fine for first bring-up.
+# Synthesis / implementation strategy
+#
+# Synthesis: defaults (8-channel stream_char synthesizes cleanly without
+# strategy tuning).
+#
+# Implementation: Performance_Explore. Defaults left WNS at -17 ps on a single
+# endpoint in the descriptor AXI monitor's trans_mgr active-count carry chain
+# (a 13-level / 7.3 ns-routed cone). The path is observability-side and the
+# slack is well within seed noise, so an Explore strategy that tries a few
+# place/route variations closes it without RTL changes. If we ever need more
+# headroom, Performance_ExplorePostRoutePhysOpt adds an extra phys-opt pass.
 # ----------------------------------------------------------------------------
 set synth_run [get_runs synth_1]
 set_property strategy "Vivado Synthesis Defaults" $synth_run
 
 set impl_run [get_runs impl_1]
-set_property strategy "Vivado Implementation Defaults" $impl_run
+set_property strategy "Performance_Explore" $impl_run
 set_property steps.phys_opt_design.is_enabled true $impl_run
 
 puts "\nProject created: $project_root/$project_dir/${project_name}.xpr"
