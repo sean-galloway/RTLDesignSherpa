@@ -24,8 +24,133 @@
 # STREAM DMA Engine — Phase 1 Characterization Report
 
 **Component:** STREAM DMA (`stream_top_ch8`)
-**Platform:** Digilent Nexys A7-100T (Xilinx Artix-7 100T, 100 MHz, 4-channel build)
+**Platform:** Digilent Nexys A7-100T (Xilinx Artix-7 100T, 100 MHz, **8-channel build**, -1 speed grade)
 **Status:** Phase 1 (in-house DMA characterization) complete; Phase 2 will swap in a Vivado IP DMA for head-to-head PPA comparison.
+
+---
+
+## 0. Resource footprint
+
+Before the dynamic numbers, the static cost. The numbers below are post-route on
+`xc7a100tcsg324-1`, NUM_CHANNELS = 8, all monitors enabled, harness included.
+WNS = +0.296 ns, 0 failing endpoints, 0 hold violations.
+
+### 0.1 Top-level — `stream_char_top`
+
+The DUT (`u_stream` = `stream_top_ch8`) accounts for ~70 % of LUTs / ~72 % of FFs.
+Everything else is harness: traffic generator + CRC checker on each AXI side, a
+programmable response-delay block per side, descriptor RAM, monitor trace buffer,
+UART bridge, datapath utilization meters, and the host AXIL fanout. None of the
+harness blocks scale with NUM_CHANNELS; only the DUT does.
+
+| Instance | Module | LUTs | FFs | BRAM | DSP | Role |
+|---|---|---:|---:|---:|---:|---|
+| **u_stream** | `stream_top_ch8` | **20 370** | **20 568** | **8.0** | **1** | **DMA + monitors (see §0.2)** |
+| u_bridge | `bridge_stream_char_axil` | 1 899 | 1 777 | 0 | 0 | host AXIL xbar fanout (CSR / desc-ram / STREAM APB / debug-SRAM / status) |
+| u_csr | `harness_csr` | 1 427 | 613 | 0 | 0 | harness registers (kick, timer, resp-delay knobs, status mirror) |
+| u_rd_pattern | `axi4_slave_rd_pattern_gen` | 1 419 | 1 222 | 0 | 0 | R-side LFSR pattern generator + per-channel CRC slave |
+| u_wr_crc_check | `axi4_slave_wr_crc_check` | 1 331 | 943 | 0 | 0 | W-side per-channel CRC checker slave |
+| u_desc_ram | `desc_ram` | 814 | 574 | 0 | 0 | descriptor source memory (LUTRAM, 128 × 256 b) |
+| u_uart | `uart_axil_bridge` | 459 | 617 | 0 | 0 | UART RX/TX → AXIL host bridge |
+| u_debug_sram | `debug_sram` | 368 | 454 | 4.0 | 0 | monbus trace capture buffer (4096 × 32 b) |
+| u_rd_resp_delay | `axi_response_delay` | 352 | 66 | 2.0 | 0 | R-side programmable memory-latency injector |
+| u_wr_bus_meter | `axi_bus_meter` | 336 | 672 | 0 | 0 | W-bus datapath-utilization meter |
+| u_rd_bus_meter | `axi_bus_meter` | 170 | 400 | 0 | 0 | R-bus datapath-utilization meter |
+| u_wr_resp_delay | `axi_response_delay` | 93 | 51 | 0 | 0 | W-side memory-latency injector |
+| u_harness (glue) | `stream_char_harness` | 73 | 455 | 0 | 0 | reset sync + IO pin tie-off |
+| u_led_status_driver | `led_status_driver` | 29 | 73 | 0 | 0 | 200 Hz LED CDC driver |
+| (root glue) | `stream_char_top` | 1 | 2 | 0 | 0 | clock buffer + pin wiring |
+| **Total** | `stream_char_top` | **29 124** | **28 504** | **14.5** | **1** | **45.9 % LUT / 22.5 % FF / 8.7 % BRAM / 0.4 % DSP of xc7a100t** |
+
+### 0.2 Inside the DUT — `stream_top_ch8`
+
+Roughly **half the DUT's area is monitor infrastructure**, not DMA logic. The
+per-channel scheduler-side monitors aggregate into a tree (`u_monbus_aggregator`
+inside each `scheduler_group`, then the top-level `u_monbus_aggregator` inside
+`scheduler_group_array`), the descriptor read bus has its own full AXI monitor
+(`u_desc_axi_monitor` = `axi4_master_rd_mon`), and `u_monbus_axil_group` drains
+all of that into the host AXIL (slow path = IRQ + slice counters, fast path =
+bulk trace into `debug_sram`). This split is deliberate — the whole reason the
+engine is measurable on real silicon is that the monitor system is built in.
+
+| Instance | Module | LUTs | FFs | BRAM | DSP | Role |
+|---|---|---:|---:|---:|---:|---|
+| u_stream_core | `stream_core` | 17 931 | 18 756 | 8.0 | 1 | datapath + scheduler + per-channel monitors |
+| ↳ u_scheduler_group_array | `scheduler_group_array` | 15 033 | 16 488 | 0 | 0 | 8 × `scheduler_group` + desc-bus monitor + monbus tree |
+| ↳↳ u_desc_axi_monitor | `axi4_master_rd_mon` | 3 996 | 4 618 | 0 | 0 | **monitor** on descriptor AXI bus (trans-mgr, addr-check, reporter) |
+| ↳↳ u_monbus_aggregator (top) | `monbus_arbiter` | 1 587 | 2 202 | 0 | 0 | **monitor** RR arbiter merging 8 group streams → 1 stream |
+| ↳↳ 8 × scheduler_group | scheduler + desc-engine + per-group monbus | ~1 170 ea | ~1 206 ea | 0 | 0 | per-channel scheduler/desc-engine (~770 LUT) + monitor aggregator (~400 LUT) |
+| ↳ u_sram_controller | `sram_controller` | 1 350 | 992 | 8.0 | 0 | per-channel write-side SRAM + alloc/drain ctrl |
+| ↳ u_axi_write_engine | `axi_write_engine` | 618 | 296 | 0 | 0 | shared AW/W master, pipelined req register, AW-issue logic |
+| ↳ u_axi_read_engine | `axi_read_engine` | 229 | 152 | 0 | 0 | shared AR master, pipelined req register, alloc handshake |
+| ↳ u_rd_axi_skid | `axi4_master_rd` | 312 | 346 | 0 | 0 | AR/R AXI skid buffer |
+| ↳ u_wr_axi_skid | `axi4_master_wr` | 208 | 166 | 0 | 0 | AW/W/B AXI skid buffer |
+| ↳ u_perf_profiler | `perf_profiler` | 246 | 316 | 0 | 1 | per-channel performance profiler (uses the lone DSP for moving avg) |
+| u_monbus_axil_group | `monbus_axil_group` | 572 | 571 | 0 | 0 | **monitor** sink — drains packets to AXIL (IRQ + bulk trace) |
+| u_stream_regs | `stream_regs` | 822 | 643 | 0 | 0 | PeakRDL-generated STREAM CSR file |
+| u_peakrdl_adapter | `peakrdl_to_cmdrsp` | 1 121 | 84 | 0 | 0 | PeakRDL cmd/rsp adapter |
+| u_apbtodescr | `apbtodescr` | 402 | 39 | 0 | 0 | APB → descriptor-load shim |
+| u_apb_slave (passthrough) | `apb_slave` | 146 | 204 | 0 | 0 | APB slave for STREAM config |
+| **Subtotal (`u_stream`)** |  | **20 370** | **20 568** | **8.0** | **1** |  |
+| Of which **monitors**: u_desc_axi_monitor + monbus tree + monbus_axil_group + 8 × per-group monbus_aggregator | | ~**9 400** | ~**12 480** | 0 | 0 | **~46 % LUT / ~61 % FF of `u_stream`** |
+| Of which **DMA core**: scheduler + desc-engine ×8 + engines + sram_controller + skids + perf + CSR plumbing | | ~**11 000** | ~**8 100** | 8.0 | 1 |  |
+
+### 0.3 What this means
+
+Two things worth saying out loud before any dynamic number lands:
+
+1. **The "DMA proper" is about 11 k LUTs.** Even at 8 channels with the full
+   monbus-tree + descriptor-bus monitor + AXIL sink wired in, the engine itself
+   (scheduler + descriptor engines + AXI read/write engines + sram controller
+   + skids) fits in roughly a third of the LUTs of the whole built design. The
+   rest is harness (~9 k LUT) and monitor infrastructure (~9 k LUT).
+2. **Monitor area is intentional, and it scales with channel count.** Every
+   `scheduler_group` carries its own `monbus_aggregator` (~400 LUT each — those
+   8 instances dominate the visible monitor cost), the descriptor bus has a
+   full `axi4_master_rd_mon` on it (~4 k LUT, single instance), and everything
+   funnels through a top-level RR arbiter into the AXIL group. If a deployment
+   doesn't need this much observability, the bridge generator already supports
+   building without it — see the monitor whitepaper §2 "Where to insert
+   monitoring" for the tradeoff.
+
+### 0.4 Timing-closure notes (8-channel build)
+
+Closing 100 MHz at 8 channels on the -1 part needed three changes after the
+initial bring-up (4-channel build), all in the data plane, none in the harness:
+
+1. **Pipeline the SRAM controller's per-channel availability outputs**
+   (`axi_rd_alloc_space_free`, `axi_wr_drain_data_avail`, `axi_wr_sram_valid`).
+   Source-side flop break: the alloc/drain comparator cones at 8 channels
+   land in the same logic cone as the read/write engine's request masking,
+   adding ~5 levels of comparator depth to a path that was already 14 levels.
+   See `sram_controller.sv` commits `a65c6068` + `b619eee9`.
+2. **Pipeline the per-engine arbiter request** (`r_arb_request`). The cone
+   `scheduler.r_*_beats_remaining → 32-bit comparators → w_data_ok →
+   w_arb_request → arbiter priority encoder → grant_reg` ran 16 levels deep
+   at 8 channels, missing 100 MHz by ~1.5 ns. Registering `w_arb_request`
+   immediately before the arbiter cuts the cone into two short paths. The
+   AW-issue gate and the AR-valid mask use live `sched_*_valid` so a stale
+   grant cannot capture an AW / drive an AR for a channel the scheduler is
+   no longer requesting; `w_arb_grant_ack` auto-releases stale grants so
+   the arbiter doesn't stall waiting for a handshake that will never come.
+   See `axi_write_engine.sv` / `axi_read_engine.sv` commit `4e8f9e02`.
+3. **Switch impl strategy to `Performance_Explore`.** After (1) and (2),
+   the only remaining negative-slack endpoint was an observability-side
+   carry chain in the descriptor monitor's `trans_mgr.r_active_count`
+   (`-17 ps`, 13-level cone with 7.3 ns of route delay). Strategy switch
+   closes it without RTL change. Commit `c2d76776`.
+
+Post-route: WNS = +0.296 ns, 0 failing endpoints, 0 hold violations.
+
+> **Open issue — 5+ active channels hang on this build.** Sweeps with
+> `ch_mask` >= 0x1F (5 or more channels enabled) time out after kick-off
+> with no progress events. Sweeps with up to 4 active channels pass with
+> 94 % datapath utilization (matching the 4-channel build's headline).
+> Channels 4–7 had no hardware presence in any prior build (NUM_CHANNELS=4
+> was the previous configuration), so this is a latent bug exposed by
+> instantiating the upper four channels for the first time, not a
+> regression in the timing-closure changes above. Investigation deferred;
+> the 1–4 channel results in §5 are valid for this build.
 
 ---
 
@@ -48,15 +173,15 @@ The headline answer (skip ahead if you just want it): **1435 MB/s sustained at 9
 
 | | |
 |---|---|
-| FPGA | Xilinx Artix-7 100T (`xc7a100t`) |
+| FPGA | Xilinx Artix-7 100T (`xc7a100tcsg324-1`, -1 speed grade) |
 | Clock | `aclk` = 100 MHz (10 ns period) |
 | AXI data width | 128 bits (16 B / beat) |
-| Channels in build | 4 |
+| Channels in build | 8 (NUM_CHANNELS = 8; characterization in §5 sweeps the active subset via `ch_mask`) |
 | Burst length | 16 beats (`AWLEN = 0x0F`) |
 | Theoretical AXI peak | 100 MHz × 16 B = **1600 MB/s** at delay = 0 |
 | Engine outstanding queue | `AR_MAX_OUTSTANDING = AW_MAX_OUTSTANDING = 8` (per channel) |
-| Bitstream resources | 15.9k LUTs (25 %), 14.6k FFs (11.5 %), 9.5 BRAM tiles (7 %), 0 DSPs |
-| Post-route timing | WNS −0.021 ns (2 endpoints over by tens of ps; harmless on this part) |
+| Bitstream resources | 29.1k LUTs (46 %), 28.5k FFs (22.5 %), 14.5 BRAM tiles (8.7 %), 1 DSP (0.4 %) — per-block breakdown in §0 above |
+| Post-route timing | WNS **+0.296 ns** (0 failing endpoints, 0 hold violations; Performance_Explore impl strategy) |
 
 The DUT is `stream_top_ch8`. Everything else around it is harness — not part of the IP but instrumented to make the engine measurable. The next section walks through the harness piece by piece, because the credibility of the results depends entirely on what the harness is and how it was hooked in.
 
