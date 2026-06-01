@@ -77,7 +77,7 @@ The `axi_monitor_filtered` module is the core building block for:
 |------|-----------|-------|-------------|
 | `i_monbus_valid` | Input | 1 | Input packet valid |
 | `i_monbus_ready` | Output | 1 | Input packet ready |
-| `i_monbus_packet` | Input | 64 | Input monitor packet |
+| `i_monbus_packet` | Input | 128 | Input `monitor_packet_t` |
 
 ### Monitor Bus Output
 
@@ -85,7 +85,7 @@ The `axi_monitor_filtered` module is the core building block for:
 |------|-----------|-------|-------------|
 | `o_monbus_valid` | Output | 1 | Output packet valid |
 | `o_monbus_ready` | Input | 1 | Output packet ready |
-| `o_monbus_packet` | Output | 64 | Filtered monitor packet |
+| `o_monbus_packet` | Output | 128 | Filtered `monitor_packet_t` |
 
 ### Filter Configuration
 

@@ -239,7 +239,7 @@ Each documentation file should follow this structure (see axi_monitor_base.md as
 - Round-robin arbiter for monitor bus interfaces
 - Optional input and output skid buffers
 - ACK mode operation (grants held until acknowledged)
-- 64-bit monitor bus packet interface
+- 128-bit packet + 64-bit side-band timestamp, carried atomically through a 192-bit skid
 - Parameterizable number of clients
 
 ### AXI Utilities Modules

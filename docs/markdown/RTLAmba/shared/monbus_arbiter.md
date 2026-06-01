@@ -39,7 +39,7 @@ The Monitor Bus Round-Robin Arbiter aggregates monitor bus packet streams from m
 - ACK mode operation (grants held until acknowledged)
 - Optional input skid buffers per client (2, 4, 6, or 8 entry depth)
 - Optional output skid buffer (2, 4, 6, or 8 entry depth)
-- 64-bit monitor bus packet interface
+- 128-bit packet + 64-bit side-band timestamp, carried atomically through a 192-bit skid
 - Parameterizable client count (1-64)
 - Zero-latency pass-through when skid buffers disabled
 
@@ -86,7 +86,8 @@ The ACK protocol ensures that granted clients can complete their packet transmis
 |------|-----------|-------|-------------|
 | monbus_valid_in[CLIENTS] | input | CLIENTS | Per-client packet valid signals |
 | monbus_ready_in[CLIENTS] | output | CLIENTS | Per-client ready signals |
-| monbus_packet_in[CLIENTS] | input | CLIENTS * 64 | Per-client 64-bit packets |
+| monbus_packet_in[CLIENTS] | input | CLIENTS × 128 | Per-client `monitor_packet_t` packets |
+| monbus_timestamp_in[CLIENTS] | input | CLIENTS × 64 | Per-client `monbus_timestamp_t`, sampled at each client's emission time |
 
 ### Monitor Bus Output (Aggregated)
 
@@ -94,7 +95,8 @@ The ACK protocol ensures that granted clients can complete their packet transmis
 |------|-----------|-------|-------------|
 | monbus_valid | output | 1 | Aggregated packet valid |
 | monbus_ready | input | 1 | Aggregated ready from downstream |
-| monbus_packet | output | 64 | Aggregated 64-bit packet |
+| monbus_packet | output | 128 | Aggregated `monitor_packet_t` |
+| monbus_timestamp | output | 64 | Aggregated `monbus_timestamp_t`, paired atomically with `monbus_packet` |
 
 ### Debug/Status Outputs
 
@@ -151,14 +153,20 @@ if (grant_valid)
 
 ### Optional Skid Buffers
 
+All skid buffers in this arbiter carry the **packet and timestamp atomically**
+in a 192-bit payload (`MONBUS_PKT_WIDTH + MONBUS_TS_WIDTH = 128 + 64`). The
+arbiter never separates a packet from its sampled timestamp, so consumers
+downstream of `monbus_axil_group` see a coherent (pkt, ts) tuple even after
+multiple levels of skid.
+
 **Input Skid Buffers** (per client):
-- Uses gaxi_skid_buffer instances
+- Uses gaxi_skid_buffer instances configured for 192-bit data
 - Provides elasticity for clients with bursty traffic
 - Improves timing closure by breaking long paths
 - Depth configurable: 2, 4, 6, or 8 entries
 
 **Output Skid Buffer**:
-- Buffers aggregated stream before output
+- Buffers aggregated stream before output (also 192-bit)
 - Prevents backpressure propagation to arbiter
 - Same depth options as input buffers
 
@@ -184,15 +192,17 @@ monbus_arbiter #(
     .axi_aresetn         (rst_n),
     .block_arb           (1'b0),  // Not blocked
 
-    // Connect 4 client monitor bus streams
+    // Connect 4 client monitor bus streams (packet + timestamp per client)
     .monbus_valid_in     ('{mon0_valid, mon1_valid, mon2_valid, mon3_valid}),
     .monbus_ready_in     ('{mon0_ready, mon1_ready, mon2_ready, mon3_ready}),
     .monbus_packet_in    ('{mon0_packet, mon1_packet, mon2_packet, mon3_packet}),
+    .monbus_timestamp_in ('{mon0_ts,     mon1_ts,     mon2_ts,     mon3_ts}),
 
-    // Aggregated output stream
+    // Aggregated output stream (packet + timestamp paired atomically)
     .monbus_valid        (agg_valid),
     .monbus_ready        (agg_ready),
     .monbus_packet       (agg_packet),
+    .monbus_timestamp    (agg_ts),
 
     // Debug outputs
     .grant_valid         (arb_grant_valid),
@@ -201,20 +211,10 @@ monbus_arbiter #(
     .last_grant          (arb_last_grant)
 );
 
-// Downstream consumer (FIFO or packet decoder)
-gaxi_fifo_sync #(
-    .DATA_WIDTH (64),
-    .DEPTH      (256)
-) u_mon_aggregated_fifo (
-    .axi_aclk   (clk),
-    .axi_aresetn(rst_n),
-    .wr_valid   (agg_valid),
-    .wr_data    (agg_packet),
-    .wr_ready   (agg_ready),
-    .rd_valid   (fifo_valid),
-    .rd_data    (fifo_packet),
-    .rd_ready   (consumer_ready)
-);
+// Downstream consumer is typically monbus_axil_group, which expects the
+// 128-bit packet on monbus_packet and the 64-bit timestamp on
+// monbus_timestamp. No additional FIFO is needed at this boundary —
+// the group has its own ingress skid.
 ```
 
 ---

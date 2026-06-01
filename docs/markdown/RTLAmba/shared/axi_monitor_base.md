@@ -43,7 +43,7 @@ This is a **shared infrastructure module** used internally by AXI/AXIL monitors.
 - ✅ **Transaction-based tracking for AXI and AXI-Lite protocols:** Transaction-based tracking for AXI and AXI-Lite protocols
 - ✅ **Out-of-order transaction handling with ID-based tracking:** Out-of-order transaction handling with ID-based tracking
 - ✅ **Data-before-address support (slave-side scenarios):** Data-before-address support (slave-side scenarios)
-- ✅ **64-bit standardized monitor bus packet output:** 64-bit standardized monitor bus packet output
+- ✅ **128-bit standardized monitor bus packet output + 64-bit side-band timestamp**
 - ✅ **Configurable performance metrics tracking:** Configurable performance metrics tracking
 - ✅ **Timeout detection and threshold monitoring:** Timeout detection and threshold monitoring
 - ✅ **Debug trace support with verbosity levels:** Debug trace support with verbosity levels
@@ -56,7 +56,7 @@ The `axi_monitor_base` module is the core building block for:
 
 1. **Transaction Tracking:** Maintains state for all outstanding AXI/AXIL transactions
 2. **Event Detection:** Identifies protocol errors, timeouts, threshold violations
-3. **Packet Generation:** Creates standardized 64-bit monitor bus packets
+3. **Packet Generation:** Creates standardized 128-bit `monitor_packet_t` records paired with a 64-bit side-band timestamp
 4. **Flow Control:** Manages backpressure and transaction table exhaustion
 5. **Performance Metrics:** Optional latency and throughput tracking
 
@@ -66,8 +66,8 @@ The `axi_monitor_base` module is the core building block for:
 
 | Parameter | Type | Default | Description |
 |-----------|------|---------|-------------|
-| `UNIT_ID` | int | 9 | 4-bit unit identifier for packet routing |
-| `AGENT_ID` | int | 99 | 8-bit agent identifier for packet routing |
+| `UNIT_ID` | logic [7:0] | 8'h09 | 8-bit unit identifier in monitor packets |
+| `AGENT_ID` | logic [15:0] | 16'h0063 | 16-bit agent identifier in monitor packets |
 | `MAX_TRANSACTIONS` | int | 16 | Maximum outstanding transactions |
 | `ADDR_WIDTH` | int | 32 | Address bus width |
 | `ID_WIDTH` | int | 8 | Transaction ID width (0 for AXIL) |
@@ -126,16 +126,29 @@ The `axi_monitor_base` module is the core building block for:
 | `cfg_perf_enable` | Input | 1 | Enable performance packets |
 | `cfg_debug_enable` | Input | 1 | Enable debug packets |
 
+### Side-Band Timestamp Input
+
+| Port | Direction | Width | Description |
+|------|-----------|-------|-------------|
+| `i_mon_time` | Input | 64 | Free-running counter from `monbus_axil_group`, sampled at packet emission |
+
 ### Monitor Bus Output
 
 | Port | Direction | Width | Description |
 |------|-----------|-------|-------------|
 | `monbus_valid` | Output | 1 | Monitor packet valid |
 | `monbus_ready` | Input | 1 | Monitor packet ready (from downstream) |
-| `monbus_packet` | Output | 64 | Standardized monitor packet |
+| `monbus_packet` | Output | 128 | Standardized `monitor_packet_t` |
+| `monbus_timestamp` | Output | 64 | `monbus_timestamp_t` paired atomically with `monbus_packet` |
 | `block_ready` | Output | 1 | Flow control signal |
 | `busy` | Output | 1 | Monitor is busy indicator |
 | `active_count` | Output | 8 | Number of active transactions |
+
+The base module multiplexes three internal sources onto the monbus output —
+reporter packets (highest priority), debug packets, and addr_check error
+packets — driving `monbus_timestamp` from the source's sampled timestamp
+(`i_mon_time` for reporter/debug; `addr_pkt_timestamp` from the addr_check
+submodule).
 
 ---
 
@@ -153,7 +166,7 @@ flowchart TB
         to --> rpt["Reporter<br/>- Packet formatting<br/>- Event queuing"]
     end
 
-    rpt --> bus["Monitor Bus<br/>(64-bit)"]
+    rpt --> bus["Monitor Bus<br/>(128b packet + 64b timestamp)"]
 ```
 
 The module coordinates four sub-components:

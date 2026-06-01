@@ -129,7 +129,7 @@ The PWM integration allows temporal control of arbiter availability, enabling TD
 |------|-----------|-------|-------------|
 | monbus_valid | output | 1 | Monitor bus packet valid |
 | monbus_ready | input | 1 | Monitor bus ready (from downstream) |
-| monbus_packet | output | 64 | 64-bit event packet |
+| monbus_packet | output | 128 | `monitor_packet_t` event packet |
 
 ### Enhanced Debug Outputs
 

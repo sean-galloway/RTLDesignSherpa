@@ -51,7 +51,7 @@ The AXI5 Master Write with Monitor module combines the standard `axi5_master_wr`
 - **Error detection:** Protocol violations, SLVERR, DECERR
 - **Timeout monitoring:** Stuck transactions, stalled channels
 - **Performance metrics:** Latency, throughput, outstanding transactions
-- **MonBus output:** Standardized 64-bit monitor packet format
+- **MonBus output:** Standardized 128-bit monitor packet format paired with 64-bit side-band timestamp
 - **Configuration validation:** Detects filter conflicts
 
 ---
@@ -169,7 +169,7 @@ This replaces a previous bug where `block_ready` was left unconnected and a full
 
 ## Address-Range Checker
 
-The wrapper can be parameterized with `N_ADDR_RANGES > 0` to instantiate an N-comparator address-range checker that watches every accepted AW handshake and emits a `PktTypeError` monbus packet (event code `AXI_ERR_ADDR_RANGE = 4'hD`) when an address falls inside any of the configured `[low, high]` inclusive ranges.
+The wrapper can be parameterized with `N_ADDR_RANGES > 0` to instantiate an N-comparator address-range checker that watches every accepted AW handshake and emits a `PktTypeError` monbus packet (event code `AXI_ERR_ADDR_RANGE = 8'h0D`) when an address falls inside any of the configured `[low, high]` inclusive ranges.
 
 **Config inputs (active only when `N_ADDR_RANGES > 0`):**
 - `cfg_addr_check_enable` — master on/off for the checker.
@@ -177,13 +177,12 @@ The wrapper can be parameterized with `N_ADDR_RANGES > 0` to instantiate an N-co
 - `cfg_addr_range_low[N-1:0][AXI_ADDR_WIDTH-1:0]` — inclusive low bound for each range.
 - `cfg_addr_range_high[N-1:0][AXI_ADDR_WIDTH-1:0]` — inclusive high bound for each range.
 
-**Event encoding** (within the standard 64-bit monbus packet):
+**Event encoding** (within the standard 128-bit `monitor_packet_t`, event_data field):
 - `packet_type` = `PktTypeError` (4'h0)
 - `protocol`    = AXI (3'b000)
-- `event_code`  = `AXI_ERR_ADDR_RANGE` (4'hD)
-- `event_data[34:30]` = `range_index` (5 bits; supports up to 32 ranges)
-- `event_data[29]`    = `is_read` flag (0 = AW, 1 = AR)
-- `event_data[28:0]`  = lower 29 bits of the matched address
+- `event_code`  = `AXI_ERR_ADDR_RANGE` (8'h0D)
+- `event_data[63:60]` = `range_index` (4 bits; supports up to 16 ranges)
+- `event_data[59:0]`  = full matched address (up to 60 bits, zero-padded if narrower)
 
 **Exact match:** set `cfg_addr_range_low[i] == cfg_addr_range_high[i]`.
 
@@ -220,7 +219,9 @@ Same as `axi5_master_rd_mon` - see [AXI5 Master Read Monitor](axi5_master_rd_mon
 |------|-------|-----------|-------------|
 | monbus_valid | 1 | Output | Monitor packet valid |
 | monbus_ready | 1 | Input | Monitor packet ready (backpressure) |
-| monbus_packet | 64 | Output | Monitor packet data |
+| monbus_packet | 128 | Output | `monitor_packet_t` (see format below) |
+| monbus_timestamp | 64 | Output | `monbus_timestamp_t` paired atomically with `monbus_packet` |
+| i_mon_time | 64 | Input | Free-running counter from `monbus_axil_group`, sampled at packet emission |
 
 ### Status Outputs
 
@@ -238,7 +239,7 @@ Same as `axi5_master_rd_mon` - see [AXI5 Master Read Monitor](axi5_master_rd_mon
 
 ### Monitor Bus Packet Format
 
-Same 64-bit standardized format as read monitor - see [AXI5 Master Read Monitor](axi5_master_rd_mon.md).
+Same 128-bit standardized format (with 64-bit side-band timestamp) as read monitor - see [AXI5 Master Read Monitor](axi5_master_rd_mon.md).
 
 ### Write-Specific Monitoring Events
 

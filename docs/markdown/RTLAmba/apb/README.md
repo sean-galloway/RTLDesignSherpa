@@ -46,7 +46,7 @@ APB is a simple, low-power peripheral bus designed for connecting low-bandwidth 
 | **apb_master** | Full-featured APB master with command/response interface | [apb_master.md](apb_master.md) | ✅ Documented |
 | **apb_slave** | Complete APB slave with buffered cmd/rsp interface | [apb_slave.md](apb_slave.md) | ✅ Documented |
 | **apb_slave_cdc** | APB slave with clock domain crossing support | [apb_slave_cdc.md](apb_slave_cdc.md) | ✅ Documented |
-| **apb_monitor** | Transaction monitoring with 64-bit monitor bus output | [apb_monitor.md](apb_monitor.md) | ✅ Documented |
+| **apb_monitor** | Transaction monitoring with 128-bit monitor bus + 64-bit timestamp | [apb_monitor.md](apb_monitor.md) | ✅ Documented |
 
 ### Testbench Utilities
 
@@ -270,15 +270,18 @@ This separation enables:
 
 ### Monitor Bus Protocol
 
-The APB monitor outputs standardized 64-bit packets:
+The APB monitor outputs standardized 128-bit `monitor_packet_t` records, paired
+with a 64-bit side-band timestamp:
 
 ```
-[63:56] - Packet Type
-[55:48] - Protocol ID
-[47:40] - Event Code
-[39:32] - Unit ID
-[31:24] - Agent ID
-[23:0]  - Event Data
+[127:124] - Packet Type    (4 bits)
+[123:109] - Reserved       (15 bits, forward-compat slack)
+[108:105] - Protocol       (4 bits)
+[104:97]  - Event Code     (8 bits)
+[96:88]   - Channel ID     (9 bits)
+[87:72]   - Agent ID       (16 bits)
+[71:64]   - Unit ID        (8 bits)
+[63:0]    - Event Data     (64 bits)
 ```
 
 See [apb_monitor.md](apb_monitor.md) for detailed packet format.

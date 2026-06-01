@@ -40,7 +40,7 @@ This is a **shared infrastructure module** used internally by AXI/AXIL monitors.
 
 ## Key Features
 
-- ✅ **64-bit standardized packet formatting:** 64-bit standardized packet formatting
+- ✅ **128-bit standardized `monitor_packet_t` formatting**
 - ✅ **Packet type encoding (ERROR/COMPL/TIMEOUT/PERF/DEBUG):** Packet type encoding (ERROR/COMPL/TIMEOUT/PERF/DEBUG)
 - ✅ **Protocol identification (AXI/APB/AXIS):** Protocol identification (AXI/APB/AXIS)
 - ✅ **Event code and data field population:** Event code and data field population
@@ -54,7 +54,7 @@ This is a **shared infrastructure module** used internally by AXI/AXIL monitors.
 
 The `axi_monitor_reporter` module is the core building block for:
 
-1. **Packet Formatting:** Encodes events into 64-bit standardized format
+1. **Packet Formatting:** Encodes events into 128-bit `monitor_packet_t` format
 2. **Protocol Identification:** Tags packets with AXI/APB/AXIS protocol info
 3. **Routing Information:** Inserts Unit ID and Agent ID for downstream routing
 4. **Queuing:** Buffers packets when downstream is not ready
@@ -66,8 +66,8 @@ The `axi_monitor_reporter` module is the core building block for:
 
 | Parameter | Type | Default | Description |
 |-----------|------|---------|-------------|
-| `UNIT_ID` | int | 1 | 4-bit unit identifier |
-| `AGENT_ID` | int | 10 | 8-bit agent identifier |
+| `UNIT_ID` | logic [7:0] | 8'h01 | 8-bit unit identifier |
+| `AGENT_ID` | logic [15:0] | 16'h000A | 16-bit agent identifier |
 | `FIFO_DEPTH` | int | 8 | Reporter packet FIFO depth |
 
 ---
@@ -99,16 +99,21 @@ flowchart LR
     fifo --> out["monbus_*"]
 ```
 
-**Packet Format (64-bit):**
-| Bits | Field |
-|------|-------|
-| [63:60] | Packet Type |
-| [59:57] | Protocol |
-| [56:53] | Event Code |
-| [52:47] | Channel ID / Unit ID |
-| [46:43] | Reserved / Agent ID[7:4] |
-| [42:35] | Agent ID[7:0] |
-| [34:0] | Event Data (address, latency, etc.) |
+**Packet Format (128-bit `monitor_packet_t`):**
+| Bits | Width | Field |
+|------|-------|-------|
+| [127:124] | 4   | Packet Type (error / completion / timeout / perf / etc.) |
+| [123:109] | 15  | Reserved (forward-compat slack) |
+| [108:105] | 4   | Protocol (AXI / AXIS / APB / ARB / CORE) |
+| [104:97]  | 8   | Event Code (protocol-specific) |
+| [96:88]   | 9   | Channel ID (AXI ID or channel index) |
+| [87:72]   | 16  | Agent ID |
+| [71:64]   | 8   | Unit ID |
+| [63:0]    | 64  | Event Data (full address, latency, counter value, etc.) |
+
+The reporter drives `monbus_packet` (128b) and `monbus_timestamp` (64b)
+together so the side-band timestamp travels paired with each packet through
+the arbiter and into `monbus_axil_group`.
 
 ---
 

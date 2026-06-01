@@ -39,7 +39,7 @@ Combines **[axil4_master_rd](axil4_master_rd.md)** with the core **axi_monitor_f
 - ✅ **Integrated Monitoring:** Uses shared axi_monitor_filtered (rtl/amba/shared/)
 - ✅ **3-Level Filtering:** Packet type masks, error routing, event masking
 - ✅ **Error Detection:** Protocol violations, timeouts, orphans
-- ✅ **64-bit Monitor Bus:** Standardized packet format
+- ✅ **128-bit Monitor Bus:** Standardized packet format paired with 64-bit side-band timestamp
 - ✅ **Reduced Complexity:** MAX_TRANSACTIONS=8 (vs 16-32 for AXI4)
 
 ---
@@ -71,7 +71,7 @@ This replaces a previous bug where `block_ready` was left unconnected and a full
 
 ## Address-Range Checker
 
-The wrapper can be parameterized with `N_ADDR_RANGES > 0` to instantiate an N-comparator address-range checker that watches every accepted AR handshake and emits a `PktTypeError` monbus packet (event code `AXI_ERR_ADDR_RANGE = 4'hD`) when an address falls inside any of the configured `[low, high]` inclusive ranges.
+The wrapper can be parameterized with `N_ADDR_RANGES > 0` to instantiate an N-comparator address-range checker that watches every accepted AR handshake and emits a `PktTypeError` monbus packet (event code `AXI_ERR_ADDR_RANGE = 8'h0D`) when an address falls inside any of the configured `[low, high]` inclusive ranges.
 
 **Config inputs (active only when `N_ADDR_RANGES > 0`):**
 - `cfg_addr_check_enable` — master on/off for the checker.
@@ -79,13 +79,12 @@ The wrapper can be parameterized with `N_ADDR_RANGES > 0` to instantiate an N-co
 - `cfg_addr_range_low[N-1:0][AXIL_ADDR_WIDTH-1:0]` — inclusive low bound for each range.
 - `cfg_addr_range_high[N-1:0][AXIL_ADDR_WIDTH-1:0]` — inclusive high bound for each range.
 
-**Event encoding** (within the standard 64-bit monbus packet):
+**Event encoding** (within the standard 128-bit `monitor_packet_t`, event_data field):
 - `packet_type` = `PktTypeError` (4'h0)
 - `protocol`    = AXI (3'b000)
-- `event_code`  = `AXI_ERR_ADDR_RANGE` (4'hD)
-- `event_data[34:30]` = `range_index` (5 bits; supports up to 32 ranges)
-- `event_data[29]`    = `is_read` flag (1 = AR, 0 = AW)
-- `event_data[28:0]`  = lower 29 bits of the matched address
+- `event_code`  = `AXI_ERR_ADDR_RANGE` (8'h0D)
+- `event_data[63:60]` = `range_index` (4 bits; supports up to 16 ranges)
+- `event_data[59:0]`  = full matched address (up to 60 bits, zero-padded if narrower)
 
 **Exact match:** set `cfg_addr_range_low[i] == cfg_addr_range_high[i]`.
 
@@ -123,7 +122,9 @@ The wrapper can be parameterized with `N_ADDR_RANGES > 0` to instantiate an N-co
 |------|-----------|-------|-------------|
 | `monbus_pkt_valid` | Output | 1 | Monitor packet valid |
 | `monbus_pkt_ready` | Input | 1 | Downstream ready |
-| `monbus_pkt_data` | Output | 64 | Monitor packet (64-bit format) |
+| `monbus_pkt_data` | Output | 128 | `monitor_packet_t` (128-bit format) |
+| `monbus_timestamp` | Output | 64 | `monbus_timestamp_t` paired atomically with `monbus_pkt_data` |
+| `i_mon_time` | Input | 64 | Free-running counter from `monbus_axil_group`, sampled at packet emission |
 
 ### Status
 | Port | Direction | Width | Description |

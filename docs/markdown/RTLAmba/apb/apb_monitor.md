@@ -27,7 +27,7 @@ An Advanced Peripheral Bus (APB) transaction monitor that provides comprehensive
 
 ## Overview
 
-The `apb_monitor` module monitors APB command/response interfaces to detect protocol violations, track performance metrics, and report events via the 64-bit monitor bus protocol. It attaches to APB master cmd/rsp interfaces (timing-convenient proxies for APB signals) and generates standardized event packets for error detection, latency analysis, and transaction debugging.
+The `apb_monitor` module monitors APB command/response interfaces to detect protocol violations, track performance metrics, and report events via the 128-bit monitor bus protocol (paired with a 64-bit side-band timestamp). It attaches to APB master cmd/rsp interfaces (timing-convenient proxies for APB signals) and generates standardized event packets for error detection, latency analysis, and transaction debugging.
 
 ## Module Declaration
 
@@ -89,10 +89,12 @@ module apb_monitor
     input  logic [31:0]              cfg_latency_threshold,   // Latency threshold (cycles)
     input  logic [15:0]              cfg_throughput_threshold, // Throughput threshold
 
-    // Consolidated 64-bit event packet interface (monitor bus)
+    // Consolidated 128-bit event packet interface (monitor bus) + 64-bit side-band timestamp
     output logic                     monbus_valid,            // Monitor bus valid
     input  logic                     monbus_ready,            // Monitor bus ready
-    output logic [63:0]              monbus_packet,           // Consolidated monitor packet
+    output logic [127:0]             monbus_packet,           // Consolidated monitor packet (monitor_packet_t)
+    output logic [63:0]              monbus_timestamp,        // Side-band timestamp (monbus_timestamp_t)
+    input  logic [63:0]              i_mon_time,              // Free-running counter from monbus_axil_group
 
     // Status outputs
     output logic [7:0]               active_count,            // Number of active transactions
@@ -183,7 +185,9 @@ module apb_monitor
 |------|-------|-----------|-------------|
 | monbus_valid | 1 | Output | Monitor packet valid |
 | monbus_ready | 1 | Input | Monitor packet ready (backpressure) |
-| monbus_packet | 64 | Output | Consolidated 64-bit monitor packet |
+| monbus_packet | 128 | Output | Consolidated `monitor_packet_t` (see format below) |
+| monbus_timestamp | 64 | Output | `monbus_timestamp_t` paired atomically with `monbus_packet` |
+| i_mon_time | 64 | Input | Free-running counter from `monbus_axil_group`, sampled at packet emission |
 
 ### Status Outputs
 
@@ -211,7 +215,7 @@ The APB monitor tracks transactions through the command/response pipeline:
 
 ### Event Detection
 
-The monitor generates standardized 64-bit packets for:
+The monitor generates standardized 128-bit packets (paired with 64-bit side-band timestamps) for:
 
 **Error Events** (when cfg_error_enable = 1):
 - SLVERR responses (when cfg_slverr_enable = 1)
@@ -230,16 +234,25 @@ The monitor generates standardized 64-bit packets for:
 
 ### Monitor Packet Format
 
-The 64-bit monitor bus packet follows the standard format:
+The 128-bit `monbus_packet` (paired with the 64-bit `monbus_timestamp` side-band signal) follows the standardized APB monitor bus format. The layout is identical across protocols:
 
 ```
-[63:60] Packet Type  (0=ERROR, 1=COMPL, 2=TIMEOUT, 3=THRESH, 4=PERF, 5=DEBUG)
-[59:57] Protocol     (1=APB)
-[56:53] Event Code
-[52:47] Channel ID
-[46:43] Unit ID      (from UNIT_ID parameter)
-[42:35] Agent ID     (from AGENT_ID parameter)
-[34:0]  Event Data   (address, latency, error info, etc.)
+Bits [127:124] - Packet Type:
+  0x0 = ERROR      Error events (SLVERR, protocol violations)
+  0x1 = COMPL      Completion events (transaction finished)
+  0x2 = THRESH     Threshold events
+  0x3 = TIMEOUT    Timeout events
+  0x4 = PERF       Performance metrics
+  0x8 = ADDR_MATCH Address match events
+  0x9 = APB        APB-specific events
+  0xF = DEBUG      Debug events
+Bits [123:109] - Reserved (15 bits, forward-compat slack)
+Bits [108:105] - Protocol (4 bits): 0x0=AXI, 0x1=AXIS, 0x2=APB, 0x3=ARB, 0x4=CORE
+Bits [104:97]  - Event Code (8 bits, protocol-specific)
+Bits [96:88]   - Channel ID (9 bits)
+Bits [87:72]   - Agent ID (16 bits, from AGENT_ID parameter)
+Bits [71:64]   - Unit ID (8 bits, from UNIT_ID parameter)
+Bits [63:0]    - Event Data (64 bits — full address, latency, etc.)
 ```
 
 ## Configuration Strategies

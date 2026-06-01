@@ -41,7 +41,7 @@ The AXI5 Master Read with Monitor and Clock Gating module combines `axi5_master_
 - **Error detection:** Protocol violations, SLVERR, DECERR
 - **Timeout monitoring:** Stuck transactions, stalled channels
 - **Performance metrics:** Latency, throughput, outstanding transactions
-- **MonBus output:** Standardized 64-bit monitor packet format
+- **MonBus output:** Standardized 128-bit monitor packet format paired with 64-bit side-band timestamp
 - **Automatic clock gating** based on activity detection
 - **Configurable idle threshold** before clock gating activates
 - **Power savings** during idle periods
@@ -172,7 +172,9 @@ Same as `axi5_master_rd_mon` - see [AXI5 Master Read Monitor](axi5_master_rd_mon
 |------|-------|-----------|-------------|
 | monbus_valid | 1 | Output | Monitor packet valid |
 | monbus_ready | 1 | Input | Monitor packet ready (backpressure) |
-| monbus_packet | 64 | Output | Monitor packet data (64-bit format) |
+| monbus_packet | 128 | Output | `monitor_packet_t` (128-bit format) |
+| monbus_timestamp | 64 | Output | `monbus_timestamp_t` paired atomically with `monbus_packet` |
+| i_mon_time | 64 | Input | Free-running counter from `monbus_axil_group`, sampled at packet emission |
 
 ### Status Outputs
 

@@ -125,7 +125,7 @@ The standardized internal configurations (PWM width, FIFO depth, fairness interv
 |------|-----------|-------|-------------|
 | monbus_valid | output | 1 | Monitor bus packet valid |
 | monbus_ready | input | 1 | Monitor bus ready (from downstream) |
-| monbus_packet | output | 64 | 64-bit event packet |
+| monbus_packet | output | 128 | `monitor_packet_t` event packet |
 
 ### Debug Outputs
 

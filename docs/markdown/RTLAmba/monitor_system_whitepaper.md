@@ -41,10 +41,10 @@ below names one such axis, describes the *current default*, and sketches the
 
 ## 1. Identity space allocation
 
-The 128-bit monbus packet carries five identifiers: PROTOCOL, PKT_TYPE,
-EVENT_CODE, UNIT_ID, AGENT_ID, CHANNEL_ID. PROTOCOL / PKT_TYPE / EVENT_CODE
-are enums and largely fixed. **UNIT_ID, AGENT_ID, and CHANNEL_ID are the
-designer's to allocate.**
+The 128-bit monbus packet carries six identifiers: PROTOCOL (4b), PKT_TYPE
+(4b), EVENT_CODE (8b), UNIT_ID (8b), AGENT_ID (16b), CHANNEL_ID (9b).
+PROTOCOL / PKT_TYPE / EVENT_CODE are enums and largely fixed. **UNIT_ID,
+AGENT_ID, and CHANNEL_ID are the designer's to allocate.**
 
 ### UNIT_ID
 
@@ -64,12 +64,13 @@ designer's to allocate.**
 ### AGENT_ID
 
 - **Current use:** `(port_idx << 4) | chan_bit` inside the bridge generator,
-  where chan_bit selects write (1) vs. read (0). 8 bits total = up to 16
-  ports x 2 channels.
+  where chan_bit selects write (1) vs. read (0). The bridge consumes 5 of
+  the 16 bits — up to 16 ports x 2 channels — leaving the upper 11 bits
+  free.
 - **Tweak: per-port subagents.** When a port hosts multiple logical agents
   (e.g. a master that splits into descr / sink / source streams), use the
-  upper nibble for port_idx and the lower nibble for subagent. Today the
-  bridge generator only consumes 5 of the 8 bits; the other 3 are free for
+  upper bits for port_idx and the lower bits for subagent. Today the bridge
+  generator only consumes the lower 5 bits; the upper 11 are free for
   designer use.
 
 ### CHANNEL_ID

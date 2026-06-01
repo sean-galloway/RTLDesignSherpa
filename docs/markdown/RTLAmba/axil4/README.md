@@ -260,7 +260,7 @@ All core modules use `gaxi_skid_buffer`:
 Monitor modules combine functional core with verification:
 - Uses shared **axi_monitor_filtered** (rtl/amba/shared/)
 - 3-level filtering hierarchy
-- 64-bit monitor bus
+- 128-bit monitor bus + 64-bit side-band timestamp
 - Simplified for AXIL (MAX_TRANSACTIONS=8)
 
 ### Pattern 3: Clock Gating

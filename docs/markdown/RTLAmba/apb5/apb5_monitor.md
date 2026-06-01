@@ -42,7 +42,7 @@ The APB5 Monitor provides comprehensive protocol monitoring for APB5 interfaces 
 - Transaction timeout detection
 - Performance latency measurement
 - Protocol violation detection
-- 64-bit monitor bus packet output
+- 128-bit monitor bus packet output paired with 64-bit side-band timestamp
 
 ---
 
@@ -69,7 +69,7 @@ flowchart TB
     subgraph OUTPUT["Monitor Bus"]
         fifo["Monitor<br/>FIFO"]
         skid["Output<br/>Skid Buffer"]
-        monbus["64-bit<br/>Packet"]
+        monbus["128-bit<br/>Packet + 64-bit<br/>Timestamp"]
     end
 
     cmd --> trans_track
@@ -176,7 +176,9 @@ flowchart TB
 |------|-------|-----------|-------------|
 | monbus_valid | 1 | Output | Monitor packet valid |
 | monbus_ready | 1 | Input | Monitor bus ready |
-| monbus_packet | 64 | Output | Monitor packet data |
+| monbus_packet | 128 | Output | `monitor_packet_t` (see format below) |
+| monbus_timestamp | 64 | Output | `monbus_timestamp_t` paired atomically with `monbus_packet` |
+| i_mon_time | 64 | Input | Free-running counter from `monbus_axil_group`, sampled at packet emission |
 
 ### Status Outputs
 
@@ -191,20 +193,27 @@ flowchart TB
 
 ## Monitor Packet Format
 
-### 64-bit Packet Structure
+### 128-bit Packet Structure (paired with 64-bit side-band timestamp)
 
-```mermaid
-flowchart LR
-    subgraph PKT["Monitor Packet (64 bits)"]
-        type["Type<br/>[63:60]"]
-        proto["Protocol<br/>[59:57]"]
-        event["Event<br/>[56:53]"]
-        chan["Channel<br/>[52:47]"]
-        unit["Unit ID<br/>[46:43]"]
-        agent["Agent ID<br/>[42:35]"]
-        data["Event Data<br/>[34:3]"]
-        aux["Aux<br/>[2:0]"]
-    end
+The 128-bit `monbus_packet` (paired with the 64-bit `monbus_timestamp` side-band signal) follows the standardized APB monitor bus format. The layout is identical across protocols:
+
+```
+Bits [127:124] - Packet Type:
+  0x0 = ERROR      Error events (SLVERR, protocol violations)
+  0x1 = COMPL      Completion events (transaction finished)
+  0x2 = THRESH     Threshold events
+  0x3 = TIMEOUT    Timeout events
+  0x4 = PERF       Performance metrics
+  0x8 = ADDR_MATCH Address match events
+  0x9 = APB        APB-specific events
+  0xF = DEBUG      Debug events
+Bits [123:109] - Reserved (15 bits, forward-compat slack)
+Bits [108:105] - Protocol (4 bits): 0x0=AXI, 0x1=AXIS, 0x2=APB, 0x3=ARB, 0x4=CORE
+Bits [104:97]  - Event Code (8 bits, protocol-specific)
+Bits [96:88]   - Channel ID (9 bits)
+Bits [87:72]   - Agent ID (16 bits, from AGENT_ID parameter)
+Bits [71:64]   - Unit ID (8 bits, from UNIT_ID parameter)
+Bits [63:0]    - Event Data (64 bits — full address, latency, etc.)
 ```
 
 ### Packet Types

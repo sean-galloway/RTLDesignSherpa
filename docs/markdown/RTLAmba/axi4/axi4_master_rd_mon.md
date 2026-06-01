@@ -40,7 +40,7 @@ The AXI4 Master Read Monitor module combines a functional AXI4 master read inter
 - ✅ **Error Detection:** Protocol violations, SLVERR, DECERR, orphan transactions
 - ✅ **Timeout Monitoring:** Configurable timeout detection for stuck transactions
 - ✅ **Performance Metrics:** Latency tracking, transaction counting, throughput analysis
-- ✅ **Monitor Bus Output:** 64-bit standardized packets for system-level monitoring
+- ✅ **Monitor Bus Output:** 128-bit packets paired with 64-bit side-band timestamps
 - ✅ **Configuration Validation:** Detects conflicting configuration settings
 - ✅ **Clock Gating Support:** Busy signal for power management
 
@@ -123,7 +123,7 @@ This replaces a previous bug where `block_ready` was left unconnected and a full
 
 ## Address-Range Checker
 
-The wrapper can be parameterized with `N_ADDR_RANGES > 0` to instantiate an N-comparator address-range checker that watches every accepted AR handshake and emits a `PktTypeError` monbus packet (event code `AXI_ERR_ADDR_RANGE = 4'hD`) when an address falls inside any of the configured `[low, high]` inclusive ranges.
+The wrapper can be parameterized with `N_ADDR_RANGES > 0` to instantiate an N-comparator address-range checker that watches every accepted AR handshake and emits a `PktTypeError` monbus packet (event code `AXI_ERR_ADDR_RANGE = 8'h0D`) when an address falls inside any of the configured `[low, high]` inclusive ranges.
 
 **Config inputs (active only when `N_ADDR_RANGES > 0`):**
 - `cfg_addr_check_enable` — master on/off for the checker.
@@ -131,13 +131,12 @@ The wrapper can be parameterized with `N_ADDR_RANGES > 0` to instantiate an N-co
 - `cfg_addr_range_low[N-1:0][AXI_ADDR_WIDTH-1:0]` — inclusive low bound for each range.
 - `cfg_addr_range_high[N-1:0][AXI_ADDR_WIDTH-1:0]` — inclusive high bound for each range.
 
-**Event encoding** (within the standard 64-bit monbus packet):
+**Event encoding** (within the standard 128-bit `monitor_packet_t`, event_data field):
 - `packet_type` = `PktTypeError` (4'h0)
 - `protocol`    = AXI (3'b000)
-- `event_code`  = `AXI_ERR_ADDR_RANGE` (4'hD)
-- `event_data[34:30]` = `range_index` (5 bits; supports up to 32 ranges)
-- `event_data[29]`    = `is_read` flag (1 = AR, 0 = AW)
-- `event_data[28:0]`  = lower 29 bits of the matched address
+- `event_code`  = `AXI_ERR_ADDR_RANGE` (8'h0D)
+- `event_data[63:60]` = `range_index` (4 bits; supports up to 16 ranges)
+- `event_data[59:0]`  = full matched address (up to 60 bits, zero-padded if narrower)
 
 **Exact match:** set `cfg_addr_range_low[i] == cfg_addr_range_high[i]`.
 
@@ -203,7 +202,9 @@ The wrapper can be parameterized with `N_ADDR_RANGES > 0` to instantiate an N-co
 |------|-----------|-------|-------------|
 | `monbus_valid` | Output | 1 | Monitor packet valid |
 | `monbus_ready` | Input | 1 | Downstream ready to accept packet |
-| `monbus_packet` | Output | 64 | Monitor packet data (see format below) |
+| `monbus_packet` | Output | 128 | `monitor_packet_t` (see format below) |
+| `monbus_timestamp` | Output | 64 | `monbus_timestamp_t` paired atomically with `monbus_packet` |
+| `i_mon_time` | Input | 64 | Free-running counter from `monbus_axil_group`, sampled at packet emission |
 
 ### Status Outputs
 
@@ -219,24 +220,25 @@ The wrapper can be parameterized with `N_ADDR_RANGES > 0` to instantiate an N-co
 
 ## Monitor Packet Format
 
-The 64-bit `monbus_packet` follows the standardized AMBA monitor bus format:
+The 128-bit `monbus_packet` (paired with the 64-bit `monbus_timestamp` side-band signal) follows the standardized AMBA monitor bus format:
 
 ```
-Bits [63:60] - Packet Type:
+Bits [127:124] - Packet Type:
   0x0 = ERROR      Error events (SLVERR, DECERR, protocol violations)
   0x1 = COMPL      Completion events (transaction finished)
-  0x2 = TIMEOUT    Timeout events (transaction stuck)
-  0x3 = THRESH     Threshold events (latency exceeded)
+  0x2 = THRESH     Threshold events
+  0x3 = TIMEOUT    Timeout events
   0x4 = PERF       Performance metrics
-  0x5 = ADDR       Address match events
-  0x6 = DEBUG      Debug events
-
-Bits [59:57] - Protocol: 0x0 (AXI)
-Bits [56:53] - Event Code (specific to packet type)
-Bits [52:47] - Channel ID
-Bits [46:43] - Unit ID (from UNIT_ID parameter)
-Bits [42:35] - Agent ID (from AGENT_ID parameter)
-Bits [34:0]  - Event Data (address, latency, error info, etc.)
+  0x8 = ADDR_MATCH Address match events
+  0x9 = APB        APB-specific events
+  0xF = DEBUG      Debug events
+Bits [123:109] - Reserved (15 bits, forward-compat slack)
+Bits [108:105] - Protocol (4 bits): 0x0=AXI, 0x1=AXIS, 0x2=APB, 0x3=ARB, 0x4=CORE
+Bits [104:97]  - Event Code (8 bits, protocol-specific)
+Bits [96:88]   - Channel ID (9 bits — AXI ID or channel index)
+Bits [87:72]   - Agent ID (16 bits, from AGENT_ID parameter)
+Bits [71:64]   - Unit ID (8 bits, from UNIT_ID parameter)
+Bits [63:0]    - Event Data (64 bits — full address, latency, etc.)
 ```
 
 ---

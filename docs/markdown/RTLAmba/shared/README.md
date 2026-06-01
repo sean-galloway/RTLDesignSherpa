@@ -226,23 +226,24 @@ Instantiated within axi_monitor_base. Handles all transaction lifecycle manageme
 
 ### axi_monitor_reporter
 
-**Purpose:** Generate standardized 64-bit monitor bus packets
+**Purpose:** Generate standardized 128-bit `monitor_packet_t` records (paired with a 64-bit side-band timestamp)
 
 **Key Features:**
 - Consolidates events from trans_mgr and timeout modules
-- Formats packets according to monitor_pkg::event_packet_t
+- Formats packets according to `monitor_common_pkg::monitor_packet_t`
 - Handles packet priorities and arbitration
 - Integrates error flags, completion notifications, performance metrics
 
-**Packet Format (64 bits):**
+**Packet Format (128 bits):**
 ```
-[63:60] Packet Type (4 bits)
-[59:57] Protocol (3 bits)
-[56:53] Event Code (4 bits)
-[52:47] Channel ID (6 bits)
-[46:43] Unit ID (4 bits)
-[42:35] Agent ID (8 bits)
-[34:0]  Event Data (35 bits)
+[127:124] Packet Type (4 bits)
+[123:109] Reserved (15 bits, forward-compat slack)
+[108:105] Protocol (4 bits)
+[104:97]  Event Code (8 bits)
+[96:88]   Channel ID (9 bits)
+[87:72]   Agent ID (16 bits)
+[71:64]   Unit ID (8 bits)
+[63:0]    Event Data (64 bits)
 ```
 
 **Event Data Content (depends on packet type):**

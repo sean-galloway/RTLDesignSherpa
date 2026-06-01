@@ -32,7 +32,7 @@
 
 ## Overview
 
-The `axi_monitor_addr_check` module is a parallel address-range comparator instantiated within AXI monitor wrappers. It observes command-phase handshakes (AR/AW) and detects when addresses fall within user-configured inclusive ranges `[low, high]`, emitting `PktTypeError` monbus packets with event code `AXI_ERR_ADDR_RANGE = 4'hD`.
+The `axi_monitor_addr_check` module is a parallel address-range comparator instantiated within AXI monitor wrappers. It observes command-phase handshakes (AR/AW) and detects when addresses fall within user-configured inclusive ranges `[low, high]`, emitting `PktTypeError` monbus packets with event code `AXI_ERR_ADDR_RANGE = 8'h0D`.
 
 This is a **shared infrastructure module** used internally by AXI4/AXIL4/AXI5 monitor wrappers when parameterized with `N_ADDR_RANGES > 0`. It is not typically instantiated directly by users but is critical for address-space validation and security monitoring.
 
@@ -44,7 +44,7 @@ This is a **shared infrastructure module** used internally by AXI4/AXIL4/AXI5 mo
 - ✅ **Per-Range Enable:** Individual mask bit for each range
 - ✅ **Master Enable:** `cfg_addr_check_enable` gate for all comparators
 - ✅ **Zero-Area Synthesis:** When `N_ADDR_RANGES = 0`, module is completely omitted (no gates, no regs)
-- ✅ **Monbus Integration:** Standard error packet format with event code 4'hD
+- ✅ **Monbus Integration:** Standard error packet format with event code 8'h0D
 - ✅ **Per-Range Coalescing:** Latest address per range latched; one packet per cycle via priority encoder
 - ✅ **Formal Verification:** All 6 properties proven (PASS)
 
@@ -65,12 +65,12 @@ The `axi_monitor_addr_check` module enables:
 
 | Parameter | Type | Default | Description |
 |-----------|------|---------|-------------|
-| `N_ADDR_RANGES` | int | 0 | Number of address-range comparators. 0 = module omitted entirely. |
-| `ADDR_WIDTH` | int | 32 | Address bus width (matches AXI_ADDR_WIDTH of parent monitor). |
-| `ID_WIDTH` | int | 4 | Transaction ID width (unused in addr_check; present for consistency). |
-| `UNIT_ID` | int | 1 | 4-bit unit identifier in monitor packets. |
-| `AGENT_ID` | int | 0 | 8-bit agent identifier in monitor packets. |
-| `IS_READ` | bit | 1 | Flag indicating if this comparator monitors AR (1) or AW (0) channel. |
+| `N_ADDR_RANGES` | int | 4 | Number of address-range comparators (>= 1). Max 16 (4-bit range index). |
+| `ADDR_WIDTH` | int | 32 | Address bus width (matches AXI_ADDR_WIDTH of parent monitor). Must be <= 60 (fits the event_data address field). |
+| `ID_WIDTH` | int | 6 | Transaction ID width (clipped to 9 bits when copied into the packet's channel_id). |
+| `UNIT_ID` | logic [7:0] | 8'h00 | 8-bit unit identifier in monitor packets. |
+| `AGENT_ID` | logic [15:0] | 16'h0000 | 16-bit agent identifier in monitor packets. |
+| `IS_READ` | bit | 1 | Build-time flag: 1 if this monitor watches reads (AR), 0 for writes (AW). Drives direction recovery at the consumer (see Event Encoding). |
 
 ---
 
@@ -80,8 +80,14 @@ The `axi_monitor_addr_check` module enables:
 
 | Port | Direction | Width | Description |
 |------|-----------|-------|-------------|
-| `aclk` | Input | 1 | AXI clock |
+| `clk` | Input | 1 | AXI clock |
 | `aresetn` | Input | 1 | AXI active-low reset |
+
+### Side-Band Timestamp
+
+| Port | Direction | Width | Description |
+|------|-----------|-------|-------------|
+| `i_mon_time` | Input | 64 | Free-running counter from `monbus_axil_group`, broadcast to every wrapper via the shared `mon_time_w` net. Sampled when `addr_pkt_valid` asserts and driven out on `addr_pkt_timestamp`. |
 
 ### Command Interface (Snoop)
 
@@ -107,7 +113,8 @@ The `axi_monitor_addr_check` module enables:
 |------|-----------|-------|-------------|
 | `addr_pkt_valid` | Output | 1 | Address-check error packet valid |
 | `addr_pkt_ready` | Input | 1 | Downstream ready to accept packet |
-| `addr_pkt_data` | Output | 64 | Monitor packet (standard 64-bit format) |
+| `addr_pkt_data` | Output | 128 | Monitor packet (`monitor_packet_t`, 128-bit format) |
+| `addr_pkt_timestamp` | Output | 64 | Sampled `i_mon_time` paired atomically with `addr_pkt_data` |
 
 ---
 
@@ -117,9 +124,9 @@ The module instantiates N parallel comparators:
 
 1. **Per-Range Comparators:** Each range i computes a hit signal `hit[i] = (cfg_addr_range_enable[i] && cmd_valid && cmd_ready && (cmd_addr >= cfg_addr_range_low[i]) && (cmd_addr <= cfg_addr_range_high[i]))`
 
-2. **Per-Range Latch:** On a hit, `latched_addr[i]` captures the lower 29 bits of `cmd_addr`; a pending bit `pending[i]` is set. If another hit occurs before the packet is emitted, the address is overwritten (latest-win coalescing).
+2. **Per-Range Latch:** On a hit, `r_lat_addr[i]` captures the full `cmd_addr` (up to 60 bits) and `r_lat_id[i]` captures `cmd_id`; a pending bit `r_pending[i]` is set. If another hit occurs before the packet is emitted, the snapshot is overwritten (latest-win coalescing).
 
-3. **Packet Generator:** A lowest-index priority encoder scans `pending[N-1:0]` each cycle. When a pending range is found, a packet is generated on the monbus with the latched address, range index, and `is_read` flag. The pending bit is cleared after successful packet handshake.
+3. **Packet Generator:** A lowest-index priority encoder scans `r_pending[N-1:0]` each cycle. When a pending range is found, a packet is generated on the monbus carrying the latched address and 4-bit range index in `event_data`. Direction (read vs. write) is not embedded in the packet — the build-time `IS_READ` parameter determines which channel this instance watches, and consumers recover direction from the emitting monitor's `(UNIT_ID, AGENT_ID)`. The pending bit is cleared on packet handshake.
 
 This approach ensures:
 - **No event loss per range:** Distinct ranges never drop hits.
@@ -130,36 +137,46 @@ This approach ensures:
 
 ## Event Encoding
 
-Monitor bus packet format (64-bit):
+Monitor bus packet format (128-bit `monitor_packet_t`):
 
 ```
-Bits [63:60] - Packet Type:
-  0x0 = PktTypeError
+Bits [127:124] - Packet Type:
+  4'h0 = PktTypeError
 
-Bits [59:57] - Protocol:
-  0x0 = AXI
+Bits [123:109] - Reserved (15 bits)
 
-Bits [56:53] - Event Code:
-  4'hD = AXI_ERR_ADDR_RANGE
+Bits [108:105] - Protocol:
+  4'h0 = PROTOCOL_AXI
 
-Bits [52:47] - Channel ID:
-  Encoded from IS_READ and ID fields (reserved/debug)
+Bits [104:97] - Event Code:
+  8'h0D = AXI_ERR_ADDR_RANGE
 
-Bits [46:43] - Unit ID:
-  From UNIT_ID parameter
+Bits [96:88] - Channel ID:
+  cmd_id clipped/zero-extended to 9 bits
 
-Bits [42:35] - Agent ID:
-  From AGENT_ID parameter
+Bits [87:72] - Agent ID:
+  From AGENT_ID parameter (16 bits)
 
-Bits [34:30] - Range Index:
-  Which range (0 to N-1) generated this hit
+Bits [71:64] - Unit ID:
+  From UNIT_ID parameter (8 bits)
 
-Bits [29] - Is Read Flag:
-  1 = hit on AR (read address), 0 = hit on AW (write address)
+Bits [63:60] - Range Index:
+  Which range (0 to N-1) generated this hit (max 16 ranges)
 
-Bits [28:0] - Lower 29 Bits of Address:
-  Part of the matched address for diagnostic/debug purposes
+Bits [59:0] - Matched Address:
+  Full cmd_addr, zero-padded if narrower than 60 bits
 ```
+
+**`is_read` flag dropped:** Earlier revisions reserved a bit in event_data for
+read-vs-write direction. The 128-bit layout drops it because each AXI monitor
+instance watches a single direction (set at build time by `IS_READ`); consumers
+recover direction from `(UNIT_ID, AGENT_ID)`. Note: `apb_monitor_addr_check`
+still carries `is_read` since a single APB monitor sees both directions on the
+same channel.
+
+**Side-band timestamp:** `addr_pkt_timestamp` carries the sampled `i_mon_time`
+paired atomically with the packet through the arbiter and into
+`monbus_axil_group`.
 
 ---
 
@@ -245,7 +262,7 @@ Detect accesses to a single address:
 
 ## Filtering Integration
 
-The address-range checker output is a standard error packet with event code **4'hD** (`AXI_ERR_ADDR_RANGE`).
+The address-range checker output is a standard error packet with event code **8'h0D** (`AXI_ERR_ADDR_RANGE`).
 
 **Gating via existing error mask:**
 - Set `cfg_axi_error_mask[13]` to 1 in the parent monitor to suppress these packets.
@@ -273,19 +290,11 @@ The module is instantiated **inside** AXI monitor wrappers (`axi4_master_wr_mon`
 
 The monbus output should be fed into a standard FIFO (e.g., `gaxi_fifo_sync`) to prevent backpressure stalls:
 
-```systemverilog
-gaxi_fifo_sync #(
-    .DATA_WIDTH(64),
-    .DEPTH(256)
-) u_addr_check_fifo (
-    .i_clk(aclk),
-    .i_rst_n(aresetn),
-    .i_valid(addr_pkt_valid),
-    .i_data(addr_pkt_data),
-    .o_ready(addr_pkt_ready),
-    // ... downstream consumer ...
-);
-```
+In practice the addr_check output is merged with the reporter's main packet
+stream by an arbiter (`monbus_arbiter`) that carries packet+timestamp atomically
+through a 192-bit skid. The arbiter's downstream FIFO sits at the
+`monbus_axil_group` boundary, sized for the aggregate of all per-wrapper
+streams. A standalone FIFO on the addr_check output is normally not needed.
 
 ---
 

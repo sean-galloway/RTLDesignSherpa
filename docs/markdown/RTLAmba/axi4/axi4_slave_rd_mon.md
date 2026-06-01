@@ -40,7 +40,7 @@ The AXI4 Slave Read Monitor module combines a functional AXI4 slave read interfa
 - ✅ **Error Detection:** Protocol violations, SLVERR, DECERR, orphan transactions
 - ✅ **Timeout Monitoring:** Configurable timeout detection for stuck transactions
 - ✅ **Performance Metrics:** Latency tracking, transaction counting, throughput analysis
-- ✅ **Monitor Bus Output:** 64-bit standardized packets for system-level monitoring
+- ✅ **Monitor Bus Output:** 128-bit packets paired with 64-bit side-band timestamps
 - ✅ **Configuration Validation:** Detects conflicting configuration settings
 - ✅ **Clock Gating Support:** Busy signal for power management
 
@@ -123,7 +123,7 @@ This replaces a previous bug where `block_ready` was left unconnected and a full
 
 ## Address-Range Checker
 
-The wrapper can be parameterized with `N_ADDR_RANGES > 0` to instantiate an N-comparator address-range checker that watches every accepted AR handshake and emits a `PktTypeError` monbus packet (event code `AXI_ERR_ADDR_RANGE = 4'hD`) when an address falls inside any of the configured `[low, high]` inclusive ranges.
+The wrapper can be parameterized with `N_ADDR_RANGES > 0` to instantiate an N-comparator address-range checker that watches every accepted AR handshake and emits a `PktTypeError` monbus packet (event code `AXI_ERR_ADDR_RANGE = 8'h0D`) when an address falls inside any of the configured `[low, high]` inclusive ranges.
 
 **Config inputs (active only when `N_ADDR_RANGES > 0`):**
 - `cfg_addr_check_enable` — master on/off for the checker.
@@ -131,13 +131,12 @@ The wrapper can be parameterized with `N_ADDR_RANGES > 0` to instantiate an N-co
 - `cfg_addr_range_low[N-1:0][AXI_ADDR_WIDTH-1:0]` — inclusive low bound for each range.
 - `cfg_addr_range_high[N-1:0][AXI_ADDR_WIDTH-1:0]` — inclusive high bound for each range.
 
-**Event encoding** (within the standard 64-bit monbus packet):
+**Event encoding** (within the standard 128-bit `monitor_packet_t`, event_data field):
 - `packet_type` = `PktTypeError` (4'h0)
 - `protocol`    = AXI (3'b000)
-- `event_code`  = `AXI_ERR_ADDR_RANGE` (4'hD)
-- `event_data[34:30]` = `range_index` (5 bits; supports up to 32 ranges)
-- `event_data[29]`    = `is_read` flag (1 = AR, 0 = AW)
-- `event_data[28:0]`  = lower 29 bits of the matched address
+- `event_code`  = `AXI_ERR_ADDR_RANGE` (8'h0D)
+- `event_data[63:60]` = `range_index` (4 bits; supports up to 16 ranges)
+- `event_data[59:0]`  = full matched address (up to 60 bits, zero-padded if narrower)
 
 **Exact match:** set `cfg_addr_range_low[i] == cfg_addr_range_high[i]`.
 
@@ -171,7 +170,9 @@ Configuration ports are identical to other AXI4 monitors:
 |------|-----------|-------|-------------|
 | `monbus_valid` | Output | 1 | Monitor packet valid |
 | `monbus_ready` | Input | 1 | Downstream ready to accept packet |
-| `monbus_packet` | Output | 64 | Monitor packet data |
+| `monbus_packet` | Output | 128 | `monitor_packet_t` (see format below) |
+| `monbus_timestamp` | Output | 64 | `monbus_timestamp_t` paired atomically with `monbus_packet` |
+| `i_mon_time` | Input | 64 | Free-running counter from `monbus_axil_group`, sampled at packet emission |
 
 ### Status Outputs
 
@@ -187,7 +188,7 @@ Configuration ports are identical to other AXI4 monitors:
 
 ## Monitor Packet Format
 
-Identical 64-bit format as other AXI4 monitors. See [axi4_master_rd_mon](axi4_master_rd_mon.md) for complete specification.
+Identical 128-bit format (with 64-bit side-band timestamp) as other AXI4 monitors. See [axi4_master_rd_mon](axi4_master_rd_mon.md) for complete specification.
 
 ---
 

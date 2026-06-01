@@ -77,7 +77,7 @@ flowchart TB
 
     subgraph MONBUS["Monitor Bus"]
         mon_valid["monbus_valid"]
-        mon_packet["monbus_packet[63:0]"]
+        mon_packet["monbus_packet[127:0]"]
     end
 
     s_aw --> user_v
@@ -170,7 +170,9 @@ Same as `axi5_slave_wr_mon` - see [AXI5 Slave Write Monitor](axi5_slave_wr_mon.m
 |------|-------|-----------|-------------|
 | monbus_valid | 1 | Output | Monitor packet valid |
 | monbus_ready | 1 | Input | Monitor packet ready |
-| monbus_packet | 64 | Output | Monitor packet data |
+| monbus_packet | 128 | Output | `monitor_packet_t` (see format below) |
+| monbus_timestamp | 64 | Output | `monbus_timestamp_t` paired atomically with `monbus_packet` |
+| i_mon_time | 64 | Input | Free-running counter from `monbus_axil_group`, sampled at packet emission |
 
 ### Status Outputs
 

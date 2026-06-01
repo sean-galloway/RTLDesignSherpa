@@ -268,7 +268,7 @@ All core modules use `gaxi_skid_buffer` for elastic buffering:
 Monitor modules combine functional core with verification:
 - Non-invasive monitoring (tap signals)
 - 3-level filtering hierarchy
-- 64-bit standardized monitor bus
+- 128-bit standardized monitor bus + 64-bit side-band timestamp
 - Real-time error detection
 
 ### Pattern 3: Clock Gating

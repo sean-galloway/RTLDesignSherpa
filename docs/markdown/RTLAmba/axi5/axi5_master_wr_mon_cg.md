@@ -41,7 +41,7 @@ The AXI5 Master Write with Monitor and Clock Gating module combines `axi5_master
 - **Error detection:** Protocol violations, SLVERR, DECERR
 - **Timeout monitoring:** Stuck transactions, stalled channels
 - **Performance metrics:** Latency, throughput, outstanding transactions
-- **MonBus output:** Standardized 64-bit monitor packet format
+- **MonBus output:** Standardized 128-bit monitor packet format paired with 64-bit side-band timestamp
 - **Automatic clock gating** based on write activity detection
 - **Configurable idle threshold** before clock gating activates
 - **Power savings** during idle periods
@@ -176,7 +176,9 @@ Same as `axi5_master_wr_mon` - see [AXI5 Master Write Monitor](axi5_master_wr_mo
 |------|-------|-----------|-------------|
 | monbus_valid | 1 | Output | Monitor packet valid |
 | monbus_ready | 1 | Input | Monitor packet ready (backpressure) |
-| monbus_packet | 64 | Output | Monitor packet data (64-bit format) |
+| monbus_packet | 128 | Output | `monitor_packet_t` (128-bit format) |
+| monbus_timestamp | 64 | Output | `monbus_timestamp_t` paired atomically with `monbus_packet` |
+| i_mon_time | 64 | Input | Free-running counter from `monbus_axil_group`, sampled at packet emission |
 
 ### Status Outputs
 
@@ -356,22 +358,25 @@ always_ff @(posedge axi_clk or negedge axi_rst_n) begin
         total_write_latency <= '0;
         power_cycles_saved <= '0;
     end else begin
-        // Process monitor packets
+        // Process monitor packets (128-bit monitor_packet_t)
         if (mon_valid && mon_ready) begin
-            case (mon_pkt[63:60])  // Packet type
+            case (mon_pkt[127:124])  // Packet type
                 4'h0: begin  // ERROR
                     write_errors <= write_errors + 1;
-                    $display("Write Error: Type=%h, ID=%h, Addr=%h",
-                        mon_pkt[56:53], mon_pkt[52:47], mon_pkt[34:0]);
+                    $display("Write Error: EvtCode=%h, ChanID=%h, EvtData=%h",
+                        mon_pkt[104:97], mon_pkt[96:88], mon_pkt[63:0]);
                 end
                 4'h1: begin  // COMPL
                     write_count <= write_count + 1;
-                    total_write_latency <= total_write_latency + mon_pkt[34:0];
+                    total_write_latency <= total_write_latency + mon_pkt[63:0];
                 end
-                4'h2: begin  // TIMEOUT
+                4'h2: begin  // THRESH (was TIMEOUT in old layout)
+                    // see monitor_common_pkg for current packet-type mapping
+                end
+                4'h3: begin  // TIMEOUT
                     write_timeouts <= write_timeouts + 1;
-                    $display("Write Timeout: Channel=%h, ID=%h",
-                        mon_pkt[56:53], mon_pkt[52:47]);
+                    $display("Write Timeout: EvtCode=%h, ChanID=%h",
+                        mon_pkt[104:97], mon_pkt[96:88]);
                 end
             endcase
         end
