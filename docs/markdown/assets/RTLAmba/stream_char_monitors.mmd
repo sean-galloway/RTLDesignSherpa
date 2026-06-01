@@ -1,0 +1,50 @@
+flowchart LR
+    HOST([Host / FPGA host script]) -->|UART → AXIL| XBAR
+
+    subgraph HARNESS["stream_char_harness (FPGA)"]
+        direction LR
+        XBAR["bridge_stream_char_axil<br/>(AXIL xbar)"]
+        CSR["harness_csr<br/>(s1)"]
+        DESC["desc_ram<br/>(s2)"]
+        ERR["stream_err<br/>(s3)"]
+        DSRAM["debug_sram<br/>(s4 — MonBus trace)"]
+        RDLY1["axi_response_delay<br/>(R path)"]
+        RDLY2["axi_response_delay<br/>(W path)"]
+        METER_R["axi_bus_meter<br/>(read R)"]
+        METER_W["axi_bus_meter<br/>(write W)"]
+
+        subgraph DUT["stream_top_ch8 (DUT)"]
+            direction TB
+            ENG_R["axi_read_engine"]
+            ENG_W["axi_write_engine"]
+            MON_R["axi4_master_rd_mon"]
+            MON_W["axi4_master_wr_mon"]
+            ARB_INT["monbus_arbiter"]
+            GROUP["monbus_axil_group<br/>(timestamp + drain)"]
+
+            ENG_R --- MON_R
+            ENG_W --- MON_W
+            MON_R --> ARB_INT
+            MON_W --> ARB_INT
+            ARB_INT --> GROUP
+        end
+
+        XBAR --> CSR
+        XBAR --> DESC
+        XBAR --> ERR
+        XBAR --> DSRAM
+        XBAR -->|chan config / kick-off| DUT
+
+        DUT -->|AR/AW/R/W| RDLY1
+        DUT -->|AR/AW/R/W| RDLY2
+        RDLY1 -.->|tap| METER_R
+        RDLY2 -.->|tap| METER_W
+
+        GROUP -->|"m_axil_mon (bulk trace)"| XBAR
+        GROUP -.->|"s_mon_axil + IRQ"| HOST
+    end
+
+    classDef monitor fill:#ffe4b5,stroke:#aa6622,stroke-width:1px;
+    classDef drain   fill:#cce5ff,stroke:#0055aa,stroke-width:1px;
+    class MON_R,MON_W,ARB_INT,METER_R,METER_W monitor;
+    class GROUP,DSRAM drain;

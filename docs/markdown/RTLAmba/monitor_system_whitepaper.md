@@ -1,4 +1,5 @@
 <!-- RTL Design Sherpa Documentation Header -->
+
 <table>
 <tr>
 <td width="80">
@@ -39,12 +40,62 @@ below names one such axis, describes the *current default*, and sketches the
 
 ---
 
+## Where the pieces live in the repo
+
+There are too many wrapper variants to enumerate (8 × axi4, 8 × axi5,
+8 × axil4, 2 × apb, ×2 with `_cg` clock-gated siblings), but at the
+directory level the monitor system has a small fixed set of homes:
+
+| Path                                | What's there                                                                                                                                                                                                                                                                                                                                                  |
+| ----------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `rtl/amba/includes/`                | The four packages — `monitor_common_pkg`, `monitor_amba4_pkg`, `monitor_amba5_pkg`, `monitor_arbiter_pkg` — plus the legacy `monitor_pkg` wrapper. Single source of truth for packet/timestamp widths and all event-code enums.                                                                                                                               |
+| `rtl/amba/shared/`                  | Core monitor infrastructure: `axi_monitor_base`, `axi_monitor_reporter`, `axi_monitor_trans_mgr`, `axi_monitor_timeout`, `axi_monitor_addr_check`, `axi_monitor_filtered`, `monbus_arbiter`, `monbus_axil_group`, `arbiter_monbus_common`, `arbiter_{rr,wrr}_pwm_monbus`, `apb_monitor_addr_check`. Everything below is just per-protocol packaging of these. |
+| `rtl/amba/axi4/`, `axi5/`, `axil4/` | Per-protocol monitor wrappers (`{master,slave}_{rd,wr}_mon{,_cg}.sv`). Each wraps the shared core + a functional AXI master/slave behind one module.                                                                                                                                                                                                          |
+| `rtl/amba/apb/`, `apb5/`            | `apb_monitor.sv` / `apb5_monitor.sv` — the APB equivalent. APB only needs one wrapper per package since a single monitor sees both reads and writes.                                                                                                                                                                                                          |
+| `bin/TBClasses/monbus/`             | Python decoder (`parse`, `parse_stream`, `TimestampedPacket`, event factories). Used by every project-side TB; never inline the bit-shifts.                                                                                                                                                                                                                   |
+| `formal/amba/`                      | SymbiYosys harnesses for the per-protocol monitor wrappers (e.g. `axi4_master_rd_mon`). Properties cover transaction tracking, timeout detection, addr-range, and packet-format invariants.                                                                                                                                                                   |
+| `docs/markdown/RTLAmba/includes/`   | Reference docs for the four packages (this directory).                                                                                                                                                                                                                                                                                                        |
+| `docs/markdown/RTLAmba/shared/`     | Per-module specs for the core infrastructure under `rtl/amba/shared/`.                                                                                                                                                                                                                                                                                        |
+
+### Where the system shows up in real designs
+
+- **`projects/components/stream/`** — the STREAM DMA engine instantiates per-channel monitors on its descriptor / read / write AXI engines and aggregates everything onto a single `monbus_axil_group` that exposes both a slave-AXIL drain (for CPU/IRQ consumption) and a master-AXIL drain (for bulk-trace writes into a SoC-side capture region).
+- **`projects/NexysA7/stream_characterization/`** — wraps STREAM (`stream_top_ch8`) plus an `axi_response_delay` injector and per-engine `axi_bus_meter` instances inside a harness whose `m_axil_mon` drain lands in a `debug_sram` BRAM. This is the SoC built into the Nexys A7 image used for monitor-system characterization on real hardware. See the diagram in §2.
+- **`projects/components/bridge/`** — the bridge generator emits a tree of monitor wrappers at every external port and aggregates them through `monbus_arbiter` instances into a per-bridge `monbus_axil_group`. The bridge is the most heavily exercised consumer today; integration tests there are what catch most monitor-system regressions.
+
+---
+
 ## 1. Identity space allocation
 
-The 128-bit monbus packet carries six identifiers: PROTOCOL (4b), PKT_TYPE
-(4b), EVENT_CODE (8b), UNIT_ID (8b), AGENT_ID (16b), CHANNEL_ID (9b).
-PROTOCOL / PKT_TYPE / EVENT_CODE are enums and largely fixed. **UNIT_ID,
-AGENT_ID, and CHANNEL_ID are the designer's to allocate.**
+A single monbus record is two paired wires: a 128-bit packet
+(`monbus_packet`) plus a 64-bit side-band timestamp (`monbus_timestamp`),
+carried atomically through every level of the transport. 192 bits total.
+
+| Wire               | Bits      | Width | Field       | Owner                  | Notes                                                                                                            |
+| ------------------ | --------- | -----:| ----------- | ---------------------- | ---------------------------------------------------------------------------------------------------------------- |
+| `monbus_timestamp` | [63:0]    | 64    | timestamp   | system                 | Free-running counter from `monbus_axil_group`, sampled at emission. Treated as opaque ordering key by consumers. |
+| `monbus_packet`    | [127:124] | 4     | packet_type | enum (fixed)           | Error / Completion / Threshold / Timeout / Perf / AddrMatch / APB / Debug / etc.                                 |
+| `monbus_packet`    | [123:109] | 15    | reserved    | (forward-compat slack) | Currently emitted as zero.                                                                                       |
+| `monbus_packet`    | [108:105] | 4     | protocol    | enum (fixed)           | `PROTOCOL_AXI`, `_AXIS`, `_APB`, `_ARB`, `_CORE`.                                                                |
+| `monbus_packet`    | [104:97]  | 8     | event_code  | enum (fixed)           | Protocol-specific event/error code.                                                                              |
+| `monbus_packet`    | [96:88]   | 8     | channel_id  | **designer**           | AXI ID or channel index. See below.                                                                              |
+| `monbus_packet`    | [87:72]   | 16    | agent_id    | **designer**           | See below.                                                                                                       |
+| `monbus_packet`    | [71:64]   | 8     | unit_id     | **designer**           | See below.                                                                                                       |
+| `monbus_packet`    | [63:0]    | 64    | event_data  | payload                | Layout depends on (packet_type, event_code) — see below.                                                         |
+
+**event_data payload examples** (most common shapes):
+
+| packet_type                  | event_code                   | event_data layout                                            | Producer                 |
+| ---------------------------- | ---------------------------- | ------------------------------------------------------------ | ------------------------ |
+| Error                        | `AXI_ERR_ADDR_RANGE` (8'h0D) | `[63:60]`=range_index (4b), `[59:0]`=full matched address    | `axi_monitor_addr_check` |
+| Error                        | `APB_ERR_ADDR_RANGE` (8'h0D) | `[63:60]`=range_index (4b), `[59]`=is_read, `[58:0]`=address | `apb_monitor_addr_check` |
+| Error / Timeout / Completion | various                      | Full 64-bit address or zero-extended counter / latency value | `axi_monitor_reporter`   |
+| Perf                         | `AXI_PERF_*`                 | Zero-extended counter (completed/error counts, latencies)    | `axi_monitor_reporter`   |
+
+PROTOCOL / PKT_TYPE / EVENT_CODE are enums and largely fixed by the RTL
+type system. **UNIT_ID, AGENT_ID, and CHANNEL_ID are the designer's to
+allocate** — the three subsections below cover the conventions today and
+the tweaks an integrator can apply.
 
 ### UNIT_ID
 
@@ -93,26 +144,82 @@ AGENT_ID, and CHANNEL_ID are the designer's to allocate.**
 - **Tweak: root of tree.** Skip per-port monitors entirely and place a
   single monitor at the SoC's NoC root if the integrator cares only about
   aggregate behavior. Trades resolution for area.
+- **Important Note:** There is a parameter, USE_MONITOR, on all of the interface and arbiter modules that have monitoring. If USE_MONITOR is set to 1'b0, then only tie off signals are used. This gives one the flexibity to pull out the monitor logic with changes only to parameters.
+
+### Worked example: `stream_char` on Nexys A7
+
+The `stream_characterization` harness shows the "current default" topology
+in a real deployment — STREAM as the DUT, an APB-controlled harness around
+it, and a single `monbus_axil_group` that bulk-captures every emission into
+a debug SRAM so the host can pull it back out for offline analysis.
+
+![stream_char monitor topology](../assets/RTLAmba/stream_char_monitors.png)
+
+<sub>Source: [`docs/markdown/assets/RTLAmba/stream_char_monitors.mmd`](../assets/RTLAmba/stream_char_monitors.mmd) — regenerate with `mmdc -i stream_char_monitors.mmd -o stream_char_monitors.png -w 1600`.</sub>
+
+**Reading the diagram:**
+
+- **Per-engine wrappers (orange):** Inside the DUT, each AXI engine is
+  wrapped by a per-direction monitor (`axi4_master_rd_mon` /
+  `axi4_master_wr_mon`). These watch the actual memory-facing AXI bus,
+  not the internal datapath — that's where SLVERR / DECERR / timeout
+  events would surface.
+- **Internal arbiter (orange):** A `monbus_arbiter` inside the DUT
+  collapses all per-channel monitor streams into a single channel for
+  the group. Packet + timestamp travel atomically through its 192-bit
+  skid.
+- **Group + capture (blue):** `monbus_axil_group` runs the free-running
+  64-bit timestamp counter and stamps each arrival. It writes records
+  out on its `m_axil_mon` master port; the bridge xbar routes those
+  writes into `debug_sram`, which the host reads back later. The
+  `s_mon_axil` slave port (with IRQ) is wired in parallel for real-time
+  consumption, but the smoke tests primarily exercise the bulk path.
+- **Side-band (gray taps):** `axi_response_delay` deliberately injects
+  AR/AW/R/W back-pressure for characterization, and `axi_bus_meter`
+  counts handshakes per cycle — neither participates in the monbus
+  itself, they're observers on the same AXI buses the monitors see.
+
+This is the topology assumed by §2's "current default" bullet. The two
+tweaks below it (mid-fabric monitors, root-of-tree only) correspond to
+moving the orange boxes earlier or later in the data path.
 
 ---
 
 ## 3. Timestamp policy
 
 - **Current default:** monbus_axil_group runs a free-running 64-bit
-  counter and stamps each captured record with its own arrival time.
-  Records are always 3 beats: `[pkt[63:0], pkt[127:64], ts[63:0]]`. The
-  endpoints (parser, host scripts) do not care where the timestamp
-  originated -- they treat it as an opaque ordering key.
-- **Tweak: hybrid global + local.** A future direction is for the SoC to
-  distribute a single global microsecond counter to every monitor wrapper,
-  while each wrapper additionally keeps a higher-resolution local
-  cycle counter. The 64-bit ts field then splits, e.g.
-  `{global_us[47:0], local_cyc[15:0]}`, giving cross-subsystem
-  correlation (global) and per-wrapper resolution (local) in the same
-  field width. The transport layer stays unchanged.
-- **Tweak: external time source.** Some deployments want PTP / IEEE-1588
-  time. Replace the group's internal counter with a synchronizer onto
-  an external time bus; record layout stays 3 beats.
+  counter clocked off the **local clock domain** — so the timestamp is
+  effectively a cycle count, dense at the bottom (one tick per local
+  edge) and meaningless across clock domains. At today's 100 MHz that's
+  ~5.8 years before wrap, which is fine for any single capture window;
+  the limitation is that two captures from different domains can't be
+  correlated without re-syncing. Records are always 3 beats:
+  `[pkt[63:0], pkt[127:64], ts[63:0]]`. The endpoints (parser, host
+  scripts) do not care where the timestamp originated — they treat it
+  as an opaque ordering key.
+- **Tweak: global μsec upper bits.** The counter is contained entirely
+  inside `monbus_axil_group`; swapping its source is a localized RTL
+  change with no impact on the packet format, the arbiter, or the
+  consumer-side decoder. The most common upgrade path is to feed an
+  externally-provided microsecond counter into the top of the field and
+  keep the local cycle counter at the bottom, e.g.
+  `ts = {global_us[47:0], local_cyc[15:0]}`. Crossing the boundary needs
+  a one-time CDC synchronizer at the input of the group; once latched
+  there, the rest of the system stays unchanged. The split point is
+  configurable per deployment — `{usec[39:0], cyc[23:0]}` is a common
+  alternative when the local clock is slow enough that 24 bits of cycle
+  resolution covers an interesting window.
+- **Tweak: full external time source.** Some deployments want PTP /
+  IEEE-1588 time end-to-end. Replace the group's internal counter
+  entirely with a synchronizer onto the external time bus. Same drop-in
+  point as the hybrid case; record layout stays 3 beats.
+- **Tweak: hybrid global + local, formalized.** A natural extension of
+  the μsec-upper-bits direction is to distribute that global counter
+  to every monitor wrapper (not just the group) and have each wrapper
+  attach the global time at emission rather than at drain. This gains
+  cross-subsystem correlation precision (no jitter from arbiter delay)
+  at the cost of broadcasting a wide bus to every wrapper. The transport
+  layer still doesn't change.
 
 ---
 
@@ -123,7 +230,7 @@ AGENT_ID, and CHANNEL_ID are the designer's to allocate.**
     for CPU consumption.
   - `m_mon_axil_*` (master AXIL): bulk-trace writes to a memory region,
     intended for post-mortem capture (e.g. stream_char's debug_sram).
-  Per-packet-type routing is controlled by `cfg_*_err_select`.
+    Per-packet-type routing is controlled by `cfg_*_err_select`.
 - **Tweak: hybrid.** Route PktTypeError + PktTypeTimeout to the IRQ path
   (mix, not flood), everything else to the bulk path. This is what
   stream_char's smoke tests already exercise.
@@ -168,21 +275,136 @@ AGENT_ID, and CHANNEL_ID are the designer's to allocate.**
 
 ---
 
+## 7. Test, characterization, and verification
+
+The monitor system is exercised at four distinct levels, each catching a
+different class of bug. Integrators rolling out a new deployment should be
+aware of all four — the first three are required to ship; the fourth is
+where real-world numbers come from.
+
+### 7.1 Unit-level cocotb tests
+
+**Where:** `val/amba/test_axi4_*_mon.py`, `val/amba/test_apb_monitor.py`,
+`projects/components/{stream,bridge,rapids}/dv/tests/`.
+
+Each per-protocol wrapper has a directed cocotb test that drives the
+functional bus, injects faults (SLVERR / DECERR / orphan / range
+violation / starve-the-handshake), and asserts that the expected packets
+arrive on `monbus_packet` / `monbus_timestamp` with the right
+`(packet_type, event_code, agent_id)`. The Python decoder in
+`bin/TBClasses/monbus/` (`from TBClasses.monbus import parse,
+parse_stream`) is the canonical reader — never inline the bit-shifts in
+a TB, since the packet layout has been migrated once already and the
+decoder is the single point of update.
+
+Run pattern (always source `env_python` first, which sets
+`SIM=verilator`):
+
+```
+source env_python
+cd val/amba
+pytest -v test_axi4_master_rd_mon.py
+```
+
+### 7.2 Error-injection integration tests
+
+**Where:** `projects/components/bridge/dv/tests/test_bridge_*_monitor_error_inject*.py`.
+
+These wire up a real bridge instance with multiple monitor wrappers, drive
+a randomized traffic mix from the AXI master BFM, and have the slave BFM
+return SLVERR / DECERR responses on selected transactions. The assertion
+is that **every injected fault produces exactly one matching monbus
+packet at the right agent_id** — orphan packets, double-counting, or
+silently-dropped errors all fail the test. This is the level where most
+monitor-system regressions actually get caught, because it exercises the
+arbiter, the group, and the drain path under realistic backpressure.
+
+The pattern works equally well for STREAM and RAPIDS — the SLVERR
+injection harness in `bridge/dv/` is the canonical example.
+
+### 7.3 Formal proofs
+
+**Where:** `formal/amba/{axi4,axi5,axil4}_{master,slave}_{rd,wr}_mon/`.
+
+SymbiYosys harnesses prove the per-wrapper invariants: transaction
+tracking never loses an ID, timeout counters bound the response window,
+addr_check emits exactly one packet per range hit, the packet format
+satisfies its bit-allocation constraints. These are cheap to re-run on
+every RTL change and catch the class of bug where simulation didn't
+happen to hit the right interleaving:
+
+```
+source env_python
+cd formal/amba/axi4_master_rd_mon
+sby -f formal_axi4_master_rd_mon.sby
+```
+
+### 7.4 Hardware characterization
+
+**Where:** `projects/NexysA7/stream_characterization/`.
+
+The simulation tests prove correctness; characterization on the FPGA
+proves the monitor system survives realistic timing closure, sustained
+throughput, and burst patterns the simulators don't reach. The
+`stream_char` harness diagrammed in §2 captures every monbus emission
+into `debug_sram` during a deterministic workload, the host pulls the
+trace back, and the offline parser (`bin/TBClasses/monbus`) reconstructs
+the timing profile. Useful when you want to answer:
+
+- **How fast can the bulk drain absorb?** Packets/sec on `m_axil_mon`
+  before the group's ingress skid back-pressures.
+- **What's the IRQ rate under a realistic error budget?** Records/sec
+  on `s_mon_axil` with a representative fault-injection profile.
+- **Does the timestamp counter actually run at the expected cycle
+  rate?** Cross-check the delta between successive timestamps against
+  the known workload spacing.
+
+This is also where post-route SDC checks for the monbus paths live —
+the `axi_response_delay` and `axi_bus_meter` blocks are deliberately
+placed to stress the timing on both the AXI data path and the monitor
+output paths simultaneously.
+
+### Validation checklist for new deployments
+
+A new integration that touches the monitor system should not ship until:
+
+- [ ] Per-wrapper cocotb tests pass with the deployment's parameter set
+  
+      (especially `N_ADDR_RANGES`, `MAX_TRANSACTIONS`, `USE_MONITOR`).
+- [ ] One error-injection integration test exists at the
+  
+      bridge/subsystem level that confirms a SLVERR / DECERR / timeout
+      actually round-trips end-to-end through the deployment-specific
+      monbus tree.
+- [ ] The formal proofs for the wrappers in use still pass after any
+  
+      parameter change.
+- [ ] If a hardware target exists (FPGA / ASIC), a characterization
+  
+      run on representative workload has been captured at least once
+      so the team has baseline numbers to compare against later.
+
+---
+
 ## TODO (writing-up checklist)
 
-- [ ] Pull representative numbers from a real deployment (stream_char on
-      Nexys A7) for the perf section -- packets / sec on bulk path,
-      IRQ-rate on err path, etc.
-- [ ] Add one block diagram per section showing the as-built and the
-      tweaked configuration side-by-side.
+- [ ] Pull representative numbers from a real `stream_char` deployment
+  
+      on Nexys A7 for §7.4 — packets/sec on bulk path, IRQ rate on err
+      path, timestamp-delta vs expected workload spacing.
+- [ ] Add an "after tweak" diagram next to §2's "current default"
+  
+      example, showing what mid-fabric or root-of-tree placement looks
+      like for the same workload.
 - [ ] Cross-link each section to the relevant per-module spec under
-      `docs/markdown/RTLAmba/shared/`.
-- [ ] Expand the timestamp section into its own appendix once the
-      hybrid-global scheme is prototyped.
-- [ ] Add a section on test/verification considerations -- e.g. the
-      slave-BFM SLVERR-injection pattern used by
-      `test_bridge_1x2_rd_monitor_error_inject.py` -- so integrators
-      know how to validate their tweaks in simulation.
+  
+      `docs/markdown/RTLAmba/shared/` (most are linked already; sweep
+      for stragglers).
+- [ ] Expand §3 into its own appendix once a hybrid-global timestamp
+  
+      scheme has been prototyped on real silicon — pin down which clock
+      domain the global counter actually lives on, and the CDC
+      synchronizer choice.
 
 ---
 
