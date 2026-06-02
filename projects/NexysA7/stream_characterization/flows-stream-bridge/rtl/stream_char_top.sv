@@ -92,7 +92,15 @@ module stream_char_top (
         // channel count. Shrunk here to fit the 100T. Bump either when the
         // characterization campaign needs deeper descriptor chains or longer
         // trace captures — at the expense of BRAM headroom.
-        .DESC_RAM_ENTRIES      ( 128),   //  128 × 256 b =   4 KB → ~4 tiles
+        // DESC_RAM_ENTRIES = 256 covers 8 channels × 16 desc/channel with the
+        // DESC_INDEX_OFFSET = 1 reserved slot (max in-use index = 128). Was 128
+        // entries, which only covered up to ch=3 at 16 desc/ch; the host's
+        // descriptor_builder packs channel N at byte N * MAX_DESC_PER_CH * 32,
+        // so any 16-desc test with >= 4 channels wrapped ch4-7's descriptors
+        // on top of ch0-3's and the engine then read garbage chains. desc_ram
+        // is LUTRAM (Xilinx auto-infers distributed), so doubling adds ~800
+        // LUTs (was 814) and zero BRAM -- fits comfortably in the 100T.
+        .DESC_RAM_ENTRIES      ( 256),   //  256 × 256 b =   8 KB → ~0 BRAM (LUTRAM)
         .DEBUG_SRAM_WORDS      (4096),   // 4096 ×  32 b =  16 KB → ~4 tiles
         // Characterization knobs sourced from stream_char_cfg_pkg so a single
         // file controls the build's configuration (no module edits per sweep).

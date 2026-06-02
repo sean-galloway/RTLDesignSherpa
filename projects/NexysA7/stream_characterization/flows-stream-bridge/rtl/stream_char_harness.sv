@@ -413,6 +413,36 @@ module stream_char_harness #(
     logic        dbg_overflow;
     logic        dbg_clear_busy;
 
+    // =========================================================================
+    // Unit reset: pulse-extend csr_soft_reset and AND with aresetn so a
+    // single CSR write resets the whole DMA+harness unit (sram, bridge,
+    // monitors, scheduler, descriptor engine, meters, pattern_gen,
+    // crc_check, response-delay queues). Without this, the soft reset
+    // path the host has been using (STREAM.GLOBAL_RST) only resets
+    // per-channel state -- the monitor blocks and the SRAM controller
+    // accumulate state across matrix configs and eventually wedge the
+    // engines. Excluded from unit_aresetn: u_csr itself (must keep its
+    // own state through the pulse so the pulse can self-terminate),
+    // u_uart (would break the host serial connection), and u_bridge
+    // (must hold long enough to BRESP the write that triggered the
+    // pulse).
+    //
+    // 16 cycles is far more than needed for any sequential logic inside
+    // here to fully clear, and is short enough to be invisible at the
+    // host level (160 ns @ 100 MHz vs ~85 us / UART byte).
+    localparam int SOFT_RST_PULSE_CYCLES = 16;
+    logic [4:0] r_soft_rst_cnt;
+    `ALWAYS_FF_RST(aclk, aresetn,
+        if (`RST_ASSERTED(aresetn)) begin
+            r_soft_rst_cnt <= '0;
+        end else if (csr_soft_reset) begin
+            r_soft_rst_cnt <= 5'(SOFT_RST_PULSE_CYCLES);
+        end else if (r_soft_rst_cnt != 0) begin
+            r_soft_rst_cnt <= r_soft_rst_cnt - 5'd1;
+        end
+    )
+    wire unit_aresetn = aresetn & (r_soft_rst_cnt == 0);
+
     // axi_bus_meter outputs (per-engine R + W). CHW = local channel-id width.
     localparam int CHW = (NUM_CHANNELS > 1) ? $clog2(NUM_CHANNELS) : 1;
     logic [CHW-1:0] wr_active_channel_id;
@@ -780,7 +810,7 @@ module stream_char_harness #(
         .AXI_ADDR_WIDTH(ADDR_WIDTH),
         .DEPTH_256     (DESC_RAM_ENTRIES)
     ) u_desc_ram (
-        .aclk(aclk), .aresetn(aresetn),
+        .aclk(aclk), .aresetn(unit_aresetn),
         // AXIL write (from host decode S2)
         .s_axil_awaddr (s2_awaddr), .s_axil_awprot(s2_awprot),
         .s_axil_awvalid(s2_awvalid), .s_axil_awready(s2_awready),
@@ -862,7 +892,7 @@ module stream_char_harness #(
     debug_sram #(
         .DEPTH_WORDS(DEBUG_SRAM_WORDS)
     ) u_debug_sram (
-        .aclk(aclk), .aresetn(aresetn),
+        .aclk(aclk), .aresetn(unit_aresetn),
         .i_freeze     (csr_freeze),
         .i_clear_pulse(csr_clear_pulse),
         .o_wr_ptr     (dbg_wr_ptr),
@@ -931,7 +961,7 @@ module stream_char_harness #(
         .AXI_DATA_WIDTH(DATA_WIDTH),
         .AXI_USER_WIDTH(AXI_USER_WIDTH)
     ) u_rd_pattern (
-        .aclk(aclk), .aresetn(aresetn),
+        .aclk(aclk), .aresetn(unit_aresetn),
         .crc_lfsr_reset       (csr_clear_pulse),
         .read_crc_value       (read_crc_value),
         .read_crc_valid       (read_crc_valid),
@@ -968,7 +998,7 @@ module stream_char_harness #(
         .CAPACITY   (RESP_DELAY_R_CAPACITY)
     ) u_rd_resp_delay (
         .aclk          (aclk),
-        .aresetn       (aresetn),
+        .aresetn(unit_aresetn),
         .i_delay_cycles(csr_rd_resp_delay_cyc),
         .s_data        (s_rd_r_payload),
         .s_valid       (s_rd_rvalid),
@@ -1020,7 +1050,7 @@ module stream_char_harness #(
         .AXI_DATA_WIDTH(DATA_WIDTH),
         .AXI_USER_WIDTH(AXI_USER_WIDTH)
     ) u_wr_crc_check (
-        .aclk(aclk), .aresetn(aresetn),
+        .aclk(aclk), .aresetn(unit_aresetn),
         .crc_reset             (csr_clear_pulse),
         .write_crc_value       (write_crc_value),
         .write_crc_valid       (write_crc_valid),
@@ -1061,7 +1091,7 @@ module stream_char_harness #(
         .CAPACITY   (RESP_DELAY_B_CAPACITY)
     ) u_wr_resp_delay (
         .aclk          (aclk),
-        .aresetn       (aresetn),
+        .aresetn(unit_aresetn),
         .i_delay_cycles(csr_wr_resp_delay_cyc),
         .s_data        (s_wr_b_payload),
         .s_valid       (s_wr_bvalid),
@@ -1088,7 +1118,7 @@ module stream_char_harness #(
         .AR_MAX_OUTSTANDING (AR_MAX_OUTSTANDING),
         .AW_MAX_OUTSTANDING (AW_MAX_OUTSTANDING)
     ) u_stream (
-        .aclk    (aclk),   .aresetn(aresetn),
+        .aclk    (aclk),   .aresetn(unit_aresetn),
         .pclk    (aclk),   .presetn(aresetn),
 
         // Kick-burst fast path (1-cycle pulse from harness_csr KICK_GO,
@@ -1251,7 +1281,7 @@ module stream_char_harness #(
         .NUM_CHANNELS(NUM_CHANNELS)
     ) u_rd_bus_meter (
         .aclk             (aclk),
-        .aresetn          (aresetn),
+        .aresetn(unit_aresetn),
         .i_clear          (csr_clear_pulse),
         // Freeze when the harness timer is NOT running. The meter then
         // accumulates only during [first descriptor AR -> beat-count-
@@ -1283,7 +1313,7 @@ module stream_char_harness #(
         .NUM_CHANNELS(NUM_CHANNELS)
     ) u_wr_bus_meter (
         .aclk             (aclk),
-        .aresetn          (aresetn),
+        .aresetn(unit_aresetn),
         .i_clear          (csr_clear_pulse),
         // Freeze when the harness timer is NOT running. The meter then
         // accumulates only during [first descriptor AR -> beat-count-
@@ -1311,11 +1341,12 @@ module stream_char_harness #(
         .o_ch_overflow      (wr_meter_ch_overflow)
     );
 
-    // Prevent unused signal warnings
+    // Prevent unused signal warnings. csr_soft_reset is now consumed by
+    // the unit_aresetn pulse extender above, so it's removed from here.
     /* verilator lint_off UNUSED */
     wire _unused_ok = &{1'b0,
         read_beat_count,
-        csr_start_pulse, csr_soft_reset,
+        csr_start_pulse,
         1'b0};
     /* verilator lint_on UNUSED */
 

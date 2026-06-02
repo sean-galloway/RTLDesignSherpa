@@ -521,10 +521,15 @@ class StreamCharTB(TBBase):
         )
         test_data = builder.build_test(config)
 
-        # 1. Reset STREAM and clear CRC/stats
-        await self.uart_write(APB_GLOBAL_CTRL, 0x02)   # GLOBAL_RST
-        await self.wait_clocks(self.clk_name, 100)
-        await self.uart_write(APB_GLOBAL_CTRL, 0x00)   # clear reset
+        # 1. Soft-reset the whole DMA + harness unit via the harness CSR
+        # bit (CSR_CTRL[3]). This is the same call site as
+        # run_characterization.py.reset_stream() -- a single pulse on
+        # csr_soft_reset gets extended in the harness into ~16 clocks
+        # of reset on unit_aresetn, which fans out to u_stream + all
+        # the harness sub-blocks that hold cumulative state. Was just
+        # APB_GLOBAL_CTRL bit 1 (STREAM's GLOBAL_RST), which only
+        # resets per-channel state inside STREAM.
+        await self.uart_write(CSR_CTRL, 0x08)         # bit 3 = soft_reset_pulse
         await self.wait_clocks(self.clk_name, 100)
         await self.clear_stats()
         await self.wait_clocks(self.clk_name, 50)

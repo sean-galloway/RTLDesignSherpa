@@ -670,10 +670,23 @@ class CharacterizationRunner:
         result['hang_snapshot'] = snap
 
     def reset_stream(self):
-        """Soft-reset STREAM via global control."""
-        self.bridge.write(APB_GLOBAL_CTRL, 0x02)  # GLOBAL_RST
-        time.sleep(0.05)
-        self.bridge.write(APB_GLOBAL_CTRL, 0x00)  # clear
+        """Soft-reset the whole DMA+harness unit.
+
+        Writes CSR_CTRL[3] = 1 to fire the harness-side soft-reset pulse,
+        which the harness pulse-extends into ~16 clocks of reset on the
+        unit_aresetn line. That line fans out to u_stream, u_desc_ram,
+        u_debug_sram, u_rd_pattern, u_wr_crc_check, u_rd_resp_delay,
+        u_wr_resp_delay, u_rd_bus_meter, u_wr_bus_meter -- i.e. every
+        block whose internal state might wedge across matrix configs.
+        u_csr (harness CSR), u_uart, and u_bridge intentionally stay on
+        hardware aresetn so the soft reset can't break the host
+        connection or self-terminate the very pulse driving it.
+
+        Was: APB_GLOBAL_CTRL bit 1 (STREAM's GLOBAL_RST). That bit only
+        resets per-channel state inside STREAM; it does not reset the
+        monitors, the SRAM controller, or any harness sub-block.
+        """
+        self.bridge.write(CSR_CTRL, 0x08)   # bit 3 = soft_reset_pulse
         time.sleep(0.05)
 
     # -----------------------------------------------------------------

@@ -64,8 +64,24 @@ CTRL_VALID     = 1 << 0   # bit [192]
 CTRL_INTERRUPT = 1 << 1   # bit [193] gen_irq
 CTRL_LAST      = 1 << 2   # bit [194] last
 
-# Max descriptors per channel (layout constant — not an RTL limit)
-MAX_DESC_PER_CH = 32
+# Max descriptors per channel (host-side stride between channels in the
+# descriptor index space; not an RTL limit).
+#
+# IMPORTANT: This sets the stride channel-N descriptors are placed at
+# (index = OFFSET + ch * MAX_DESC_PER_CH + d), so it has to satisfy
+#   DESC_INDEX_OFFSET + (NUM_CHANNELS - 1) * MAX_DESC_PER_CH
+#                                          + (MAX_DESC_PER_CH - 1)
+#                                          <= DESC_RAM_ENTRIES - 1
+# At 8 channels with 16 desc/ch and DESC_RAM_ENTRIES = 256, that's
+# 1 + 7*16 + 15 = 128, well inside the 256-slot RAM.
+#
+# Was 32. With NUM_CHANNELS=8 and the previous 128-entry desc_ram, that
+# made ch4..ch7's descriptors alias on top of ch0..ch3's (the index
+# space mod 128 wrapped), so any sweep with >= 4 channels at 8+
+# descriptors per channel silently loaded corrupt chains. The fix pairs
+# this 32 -> 16 host change with bumping the RAM to 256 entries in
+# stream_char_top.sv.
+MAX_DESC_PER_CH = 16
 
 # Descriptor index offset: STREAM's descriptor_engine rejects AXI4
 # address 0 as invalid (apb_addr != 0 check). Start at index 1 so the
