@@ -1,0 +1,102 @@
+[
+  {
+    "name": "16desc_1ch_1MB",
+    "num_channels": 1,
+    "descriptors_per_channel": 16,
+    "transfer_bytes": 1048576,
+    "total_descriptors": 16,
+    "total_bytes": 16777216,
+    "load_time_s": 2.038076639175415,
+    "dma_time_s": 0.06406092643737793,
+    "completion": {
+      "completed": true,
+      "irq": true,
+      "error": false,
+      "overflow": false,
+      "timer_pass": true,
+      "timer_running": false,
+      "elapsed_s": 0.0320734977722168,
+      "raw_timer": 5,
+      "raw_status": 1
+    },
+    "crc": {
+      "rd_expected": 2474752289,
+      "wr_expected": 2474752289,
+      "wr_computed": 2474752289,
+      "match_reg": 3,
+      "rd_per_ch": [
+        2474752289
+      ],
+      "wr_per_ch": [
+        2474752289
+      ],
+      "valid_mask": 1,
+      "match_mask": 1
+    },
+    "metrics": {
+      "available": true,
+      "cycles_total": 1114705,
+      "r_first": 16,
+      "r_last": 1114681,
+      "r_window_cycles": 1114705,
+      "r_firstlast_cycles": 1114666,
+      "w_first": 40,
+      "w_last": 1114705,
+      "w_window_cycles": 1114705,
+      "w_firstlast_cycles": 1114666,
+      "datapath_utilization_r": 0.9406757841760824,
+      "datapath_utilization_w": 0.9406757841760824,
+      "end_to_end_utilization": 0.9406757841760824,
+      "r_buckets_pct": {
+        "productive": 0.9406757841760824,
+        "backpressure": 0.0,
+        "starvation": 0.05932421582391754,
+        "idle": 0.0
+      },
+      "w_buckets_pct": {
+        "productive": 0.9406757841760824,
+        "backpressure": 0.05874917579090432,
+        "starvation": 0.0005750400330132188,
+        "idle": 0.0
+      },
+      "r_aggregate": {
+        "productive": 1048576,
+        "backpressure": 0,
+        "starvation": 66129,
+        "idle": 0
+      },
+      "w_aggregate": {
+        "productive": 1048576,
+        "backpressure": 65488,
+        "starvation": 641,
+        "idle": 0
+      },
+      "r_per_channel": [
+        {
+          "channel": 0,
+          "productive": 0,
+          "backpressure": 0,
+          "starvation": 0,
+          "idle": 0,
+          "overflow_mask": 8
+        }
+      ],
+      "w_per_channel": [
+        {
+          "channel": 0,
+          "productive": 65488,
+          "backpressure": 65488,
+          "starvation": 16,
+          "idle": 0,
+          "overflow_mask": 8
+        }
+      ]
+    },
+    "trace": {
+      "wr_ptr": 0,
+      "overflow": 0
+    },
+    "throughput_mbps": 249.762232452892,
+    "pass": true
+  }
+]

@@ -51,10 +51,12 @@ from tbclasses.stream_char_tb import StreamCharTB
 # CocoTB test function
 # ==========================================================================
 
-# 50 ms caps the entire test. Realistic breakdown: UART setup ~2.5 ms of
-# sim time, poll window ~500 us, plus margin. Was 2000 ms; lowered so a
-# broken DMA surfaces as a cocotb timeout in seconds, not minutes.
-@cocotb.test(timeout_time=50, timeout_unit="ms")
+# Default 50 ms caps the entire test. Realistic breakdown: UART setup
+# ~2.5 ms of sim time, poll window ~500 us, plus margin. Was 2000 ms;
+# lowered so a broken DMA surfaces as a cocotb timeout in seconds, not
+# minutes. Override via SIM_TIMEOUT_MS env var for deep-chain repro runs
+# (16 desc x 2 ch needs ~200 ms sim time at 8 KB / desc).
+@cocotb.test(timeout_time=int(os.environ.get('SIM_TIMEOUT_MS', '50')), timeout_unit="ms")
 async def cocotb_test_stream_char(dut):
     """Unified stream characterization test — dispatches on TEST_TYPE."""
     test_type = os.environ.get('TEST_TYPE', 'ping')
@@ -118,8 +120,12 @@ BASE_RTL_PARAMS = {
     'ADDR_WIDTH': 32,
     'SRAM_DEPTH': 256,
     # NUM_CHANNELS shrunk from 8 to 4 to fit the Artix-7 100T BRAM budget.
-    # Keep in lockstep with rtl/stream_char_top.sv.
-    'NUM_CHANNELS': 4,
+    # Keep in lockstep with rtl/stream_char_top.sv. Override via
+    # SIM_NUM_CHANNELS env var when investigating bugs that may be tied
+    # to the 8-channel elab (e.g. the deep-chain hang first seen on the
+    # NUM_CHANNELS=8 FPGA build); Verilator doesn't care about BRAM
+    # tiles so bumping this for an investigation run is cheap.
+    'NUM_CHANNELS': int(os.environ.get('SIM_NUM_CHANNELS', '4')),
     # Harness memories were the dominant BRAM consumers. Mirror the FPGA
     # values so sim exercises the same sizes as silicon. Bump either when a
     # test needs deeper descriptor chains or longer trace captures.

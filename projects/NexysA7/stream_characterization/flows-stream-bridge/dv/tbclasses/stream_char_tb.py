@@ -77,6 +77,17 @@ CSR_CRC_MATCH_MASK     = HARNESS_CSR_BASE + 0xA4   # [NC-1:0]
 # kick_addr_csr() helper below instead of the bare base + 4*ch.
 CSR_KICK_GO            = HARNESS_CSR_BASE + 0xC0
 
+# Harness timer (matches run_characterization.py). The completion signal the
+# FPGA runner waits on is TIMER_STATUS.done, which fires when the sink-side
+# (write-engine) beat counter reaches CSR_TIMER_EXPECTED_BEATS. Polling this
+# (instead of stream_irq) is what makes a sim run an apples-to-apples copy
+# of an FPGA run -- the IRQ path fires on the first per-burst completion
+# packet, much earlier than the final beat, so sim that polls IRQ "completes"
+# even when the harness timer would still be waiting.
+CSR_TIMER_CTRL           = HARNESS_CSR_BASE + 0x28   # W: bit 0 = clear pulse
+CSR_TIMER_STATUS         = HARNESS_CSR_BASE + 0x2C   # R: [0]=done [1]=running [2]=pass
+CSR_TIMER_EXPECTED_BEATS = HARNESS_CSR_BASE + 0x38   # RW: stop when sink beat >= this
+
 
 def kick_addr_csr(ch: int) -> int:
     """CSR address for the per-channel kick-address shadow register.
@@ -577,6 +588,20 @@ class StreamCharTB(TBBase):
         await self.uart_write(APB_CHANNEL_ENABLE, ch_mask)  # channel mask
         self.log.info(f"  STREAM configured and enabled: ch_mask=0x{ch_mask:02X}")
 
+        # 4z. Arm the harness timer with the expected sink-side beat count,
+        # mirroring run_characterization.py.setup_timer() exactly. The FPGA
+        # runner waits on TIMER_STATUS.done (which fires when write-side
+        # beat counter reaches CSR_TIMER_EXPECTED_BEATS) -- if the sim
+        # doesn't arm this register the completion path diverges from
+        # hardware. Total expected_beats = bytes / 16 (DATA_WIDTH=128).
+        expected_beats_total = (transfer_bytes * num_channels *
+                                descriptors_per_channel) // 16
+        await self.uart_write(CSR_TIMER_CTRL, 0x1)        # clear pulse
+        await self.uart_write(CSR_TIMER_EXPECTED_BEATS, expected_beats_total)
+        self.log.info(
+            f"  Timer armed: expected_beats={expected_beats_total} "
+            f"(= {expected_beats_total * 16} bytes)")
+
         # 4a. Debug: read back key registers to confirm config took effect
         for name, addr in [
             ("GLOBAL_CTRL",       APB_GLOBAL_CTRL),
@@ -626,24 +651,52 @@ class StreamCharTB(TBBase):
             self.log.info(f"  [POST-KICK] {name:20s} @ 0x{addr:03X} = 0x{val:08X}" if val is not None
                           else f"  [POST-KICK] {name:20s} @ 0x{addr:03X} = READ FAILED")
 
-        # 6. Poll for completion (stream_irq or error in status register)
-        self.log.info(f"  Waiting for completion (up to {timeout_clocks} clocks)...")
+        # 6. Poll for completion the same way run_characterization.py does:
+        # watch TIMER_STATUS.done (bit 0), TIMER_STATUS.running (bit 1) and
+        # any_error in CSR_STATUS. The harness timer fires "done" when the
+        # sink-side beat counter hits CSR_TIMER_EXPECTED_BEATS. If the DMA
+        # is short by even one beat the FPGA hangs here forever -- exactly
+        # the failure signature of the deep-chain regression we're chasing.
+        self.log.info(f"  Waiting for harness timer.done (up to {timeout_clocks} clocks)...")
         completed = False
+        timer_pass = False
+        any_error  = False
         for _ in range(timeout_clocks // 100):
             await self.wait_clocks(self.clk_name, 100)
-            status = await self.read_status()
-            if status.get('stream_irq') or status.get('any_error'):
+            ts = await self.uart_read(CSR_TIMER_STATUS) or 0
+            st = await self.read_status() or {}
+            done    = bool(ts & 0x01)
+            running = bool(ts & 0x02)
+            tpass   = bool(ts & 0x04)
+            err     = bool(st.get('any_error'))
+            if done or err:
                 completed = True
+                timer_pass = tpass
+                any_error  = err
+                self.log.info(
+                    f"  Timer fired: done={done} running={running} "
+                    f"pass={tpass} any_error={err}")
                 break
 
         if not completed:
-            self.log.error("  DMA timeout — no IRQ or error detected")
-            status = await self.read_status()
-            self.log.error(f"  Final status: {status}")
+            # Match the FPGA "TIMEOUT after Ns" report and dump enough
+            # diagnostic state to localize the wedge.
+            self.log.error("  DMA timeout — TIMER_STATUS.done never asserted")
+            ts = await self.uart_read(CSR_TIMER_STATUS) or 0
+            st = await self.read_status() or {}
+            try:
+                wr_beats = int(self.dut.u_wr_crc_check.write_beat_count_total.value)
+                rd_beats = int(self.dut.u_rd_pattern.read_beat_count_total.value)
+            except Exception:
+                wr_beats = -1
+                rd_beats = -1
+            self.log.error(
+                f"  Final timer_status=0x{ts:08X} read_beats={rd_beats} "
+                f"write_beats={wr_beats} expected={expected_beats_total}")
             return False
 
-        if status.get('any_error'):
-            self.log.error(f"  DMA error flagged: {status}")
+        if any_error:
+            self.log.error(f"  DMA error flagged: status={st}")
             return False
 
         self.log.info("  DMA completed (IRQ received)")

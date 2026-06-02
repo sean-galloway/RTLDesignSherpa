@@ -496,13 +496,13 @@ addrmap stream_regs {
             desc = "Monitor enable - master enable for descriptor monitor";
             sw = rw;
             hw = r;
-        } MON_EN = 1'b1;
+        } MON_EN = 1'b0;
 
         field {
             desc = "Error enable - enable error detection";
             sw = rw;
             hw = r;
-        } ERR_EN = 1'b1;
+        } ERR_EN = 1'b0;
 
         field {
             desc = "Completion enable - enable completion packets";
@@ -514,7 +514,7 @@ addrmap stream_regs {
             desc = "Timeout enable - enable timeout detection";
             sw = rw;
             hw = r;
-        } TIMEOUT_EN = 1'b1;
+        } TIMEOUT_EN = 1'b0;
 
         field {
             desc = "Performance enable - enable performance packets";
@@ -686,13 +686,13 @@ addrmap stream_regs {
             desc = "Monitor enable - master enable for read monitor";
             sw = rw;
             hw = r;
-        } MON_EN = 1'b1;
+        } MON_EN = 1'b0;
 
         field {
             desc = "Error enable - enable error detection";
             sw = rw;
             hw = r;
-        } ERR_EN = 1'b1;
+        } ERR_EN = 1'b0;
 
         field {
             desc = "Completion enable - enable completion packets";
@@ -704,7 +704,7 @@ addrmap stream_regs {
             desc = "Timeout enable - enable timeout detection";
             sw = rw;
             hw = r;
-        } TIMEOUT_EN = 1'b1;
+        } TIMEOUT_EN = 1'b0;
 
         field {
             desc = "Performance enable - enable performance packets";
@@ -876,13 +876,13 @@ addrmap stream_regs {
             desc = "Monitor enable - master enable for write monitor";
             sw = rw;
             hw = r;
-        } MON_EN = 1'b1;
+        } MON_EN = 1'b0;
 
         field {
             desc = "Error enable - enable error detection";
             sw = rw;
             hw = r;
-        } ERR_EN = 1'b1;
+        } ERR_EN = 1'b0;
 
         field {
             desc = "Completion enable - enable completion packets";
@@ -894,7 +894,7 @@ addrmap stream_regs {
             desc = "Timeout enable - enable timeout detection";
             sw = rw;
             hw = r;
-        } TIMEOUT_EN = 1'b1;
+        } TIMEOUT_EN = 1'b0;
 
         field {
             desc = "Performance enable - enable performance packets";

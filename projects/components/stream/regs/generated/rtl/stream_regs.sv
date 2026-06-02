@@ -1233,7 +1233,7 @@ module stream_regs (
     end
     always_ff @(posedge clk) begin
         if(rst) begin
-            field_storage.DAXMON_ENABLE.MON_EN.value <= 1'h1;
+            field_storage.DAXMON_ENABLE.MON_EN.value <= 1'h0;
         end else begin
             if(field_combo.DAXMON_ENABLE.MON_EN.load_next) begin
                 field_storage.DAXMON_ENABLE.MON_EN.value <= field_combo.DAXMON_ENABLE.MON_EN.next;
@@ -1256,7 +1256,7 @@ module stream_regs (
     end
     always_ff @(posedge clk) begin
         if(rst) begin
-            field_storage.DAXMON_ENABLE.ERR_EN.value <= 1'h1;
+            field_storage.DAXMON_ENABLE.ERR_EN.value <= 1'h0;
         end else begin
             if(field_combo.DAXMON_ENABLE.ERR_EN.load_next) begin
                 field_storage.DAXMON_ENABLE.ERR_EN.value <= field_combo.DAXMON_ENABLE.ERR_EN.next;
@@ -1302,7 +1302,7 @@ module stream_regs (
     end
     always_ff @(posedge clk) begin
         if(rst) begin
-            field_storage.DAXMON_ENABLE.TIMEOUT_EN.value <= 1'h1;
+            field_storage.DAXMON_ENABLE.TIMEOUT_EN.value <= 1'h0;
         end else begin
             if(field_combo.DAXMON_ENABLE.TIMEOUT_EN.load_next) begin
                 field_storage.DAXMON_ENABLE.TIMEOUT_EN.value <= field_combo.DAXMON_ENABLE.TIMEOUT_EN.next;
@@ -1601,7 +1601,7 @@ module stream_regs (
     end
     always_ff @(posedge clk) begin
         if(rst) begin
-            field_storage.RDMON_ENABLE.MON_EN.value <= 1'h1;
+            field_storage.RDMON_ENABLE.MON_EN.value <= 1'h0;
         end else begin
             if(field_combo.RDMON_ENABLE.MON_EN.load_next) begin
                 field_storage.RDMON_ENABLE.MON_EN.value <= field_combo.RDMON_ENABLE.MON_EN.next;
@@ -1624,7 +1624,7 @@ module stream_regs (
     end
     always_ff @(posedge clk) begin
         if(rst) begin
-            field_storage.RDMON_ENABLE.ERR_EN.value <= 1'h1;
+            field_storage.RDMON_ENABLE.ERR_EN.value <= 1'h0;
         end else begin
             if(field_combo.RDMON_ENABLE.ERR_EN.load_next) begin
                 field_storage.RDMON_ENABLE.ERR_EN.value <= field_combo.RDMON_ENABLE.ERR_EN.next;
@@ -1670,7 +1670,7 @@ module stream_regs (
     end
     always_ff @(posedge clk) begin
         if(rst) begin
-            field_storage.RDMON_ENABLE.TIMEOUT_EN.value <= 1'h1;
+            field_storage.RDMON_ENABLE.TIMEOUT_EN.value <= 1'h0;
         end else begin
             if(field_combo.RDMON_ENABLE.TIMEOUT_EN.load_next) begin
                 field_storage.RDMON_ENABLE.TIMEOUT_EN.value <= field_combo.RDMON_ENABLE.TIMEOUT_EN.next;
@@ -1969,7 +1969,7 @@ module stream_regs (
     end
     always_ff @(posedge clk) begin
         if(rst) begin
-            field_storage.WRMON_ENABLE.MON_EN.value <= 1'h1;
+            field_storage.WRMON_ENABLE.MON_EN.value <= 1'h0;
         end else begin
             if(field_combo.WRMON_ENABLE.MON_EN.load_next) begin
                 field_storage.WRMON_ENABLE.MON_EN.value <= field_combo.WRMON_ENABLE.MON_EN.next;
@@ -1992,7 +1992,7 @@ module stream_regs (
     end
     always_ff @(posedge clk) begin
         if(rst) begin
-            field_storage.WRMON_ENABLE.ERR_EN.value <= 1'h1;
+            field_storage.WRMON_ENABLE.ERR_EN.value <= 1'h0;
         end else begin
             if(field_combo.WRMON_ENABLE.ERR_EN.load_next) begin
                 field_storage.WRMON_ENABLE.ERR_EN.value <= field_combo.WRMON_ENABLE.ERR_EN.next;
@@ -2038,7 +2038,7 @@ module stream_regs (
     end
     always_ff @(posedge clk) begin
         if(rst) begin
-            field_storage.WRMON_ENABLE.TIMEOUT_EN.value <= 1'h1;
+            field_storage.WRMON_ENABLE.TIMEOUT_EN.value <= 1'h0;
         end else begin
             if(field_combo.WRMON_ENABLE.TIMEOUT_EN.load_next) begin
                 field_storage.WRMON_ENABLE.TIMEOUT_EN.value <= field_combo.WRMON_ENABLE.TIMEOUT_EN.next;

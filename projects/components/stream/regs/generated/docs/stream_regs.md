@@ -668,18 +668,13 @@ Don't override. Generated from: $root
 
 <p>Timeout threshold in clock cycles (global for all channels)</p>
 
-| Bits|  Identifier  |Access|Reset|Name|
-|-----|--------------|------|-----|----|
-| 15:0|TIMEOUT_CYCLES|  rw  |0x3E8|  — |
-|31:16|     RSVD     |   r  | 0x0 |  — |
+|Bits|  Identifier  |Access|Reset|Name|
+|----|--------------|------|-----|----|
+|31:0|TIMEOUT_CYCLES|  rw  |0x3E8|  — |
 
 #### TIMEOUT_CYCLES field
 
-<p>Timeout cycles [15:0] - number of cycles before timeout</p>
-
-#### RSVD field
-
-<p>Reserved</p>
+<p>Timeout cycles [31:0] - number of cycles before timeout</p>
 
 ### SCHED_CONFIG register
 
@@ -827,10 +822,10 @@ Don't override. Generated from: $root
 
 |Bits|Identifier|Access|Reset|Name|
 |----|----------|------|-----|----|
-|  0 |  MON_EN  |  rw  | 0x1 |  — |
-|  1 |  ERR_EN  |  rw  | 0x1 |  — |
+|  0 |  MON_EN  |  rw  | 0x0 |  — |
+|  1 |  ERR_EN  |  rw  | 0x0 |  — |
 |  2 | COMPL_EN |  rw  | 0x0 |  — |
-|  3 |TIMEOUT_EN|  rw  | 0x1 |  — |
+|  3 |TIMEOUT_EN|  rw  | 0x0 |  — |
 |  4 |  PERF_EN |  rw  | 0x0 |  — |
 |31:5|   RSVD   |   r  | 0x0 |  — |
 
@@ -1030,10 +1025,10 @@ Don't override. Generated from: $root
 
 |Bits|Identifier|Access|Reset|Name|
 |----|----------|------|-----|----|
-|  0 |  MON_EN  |  rw  | 0x1 |  — |
-|  1 |  ERR_EN  |  rw  | 0x1 |  — |
+|  0 |  MON_EN  |  rw  | 0x0 |  — |
+|  1 |  ERR_EN  |  rw  | 0x0 |  — |
 |  2 | COMPL_EN |  rw  | 0x0 |  — |
-|  3 |TIMEOUT_EN|  rw  | 0x1 |  — |
+|  3 |TIMEOUT_EN|  rw  | 0x0 |  — |
 |  4 |  PERF_EN |  rw  | 0x0 |  — |
 |31:5|   RSVD   |   r  | 0x0 |  — |
 
@@ -1233,10 +1228,10 @@ Don't override. Generated from: $root
 
 |Bits|Identifier|Access|Reset|Name|
 |----|----------|------|-----|----|
-|  0 |  MON_EN  |  rw  | 0x1 |  — |
-|  1 |  ERR_EN  |  rw  | 0x1 |  — |
+|  0 |  MON_EN  |  rw  | 0x0 |  — |
+|  1 |  ERR_EN  |  rw  | 0x0 |  — |
 |  2 | COMPL_EN |  rw  | 0x0 |  — |
-|  3 |TIMEOUT_EN|  rw  | 0x1 |  — |
+|  3 |TIMEOUT_EN|  rw  | 0x0 |  — |
 |  4 |  PERF_EN |  rw  | 0x0 |  — |
 |31:5|   RSVD   |   r  | 0x0 |  — |
 

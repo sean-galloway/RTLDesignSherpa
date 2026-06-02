@@ -145,6 +145,34 @@ APB_AXI_XFER_CONFIG     = STREAM_APB_BASE + 0x2A0
 APB_CH_KICK_BASE        = STREAM_APB_BASE + 0x000
 APB_CH_KICK_STRIDE      = 0x08
 
+# Monitor configuration. The RDL default leaves PKT_MASK = 0xFFFF which
+# DROPS every packet type at monbus entry -- so the trace SRAM stays
+# empty and the whole monitor system is dark on every run unless we
+# explicitly clear masks + enable the monitors. The cocotb TB does this
+# (stream_char_tb.py); the runner missed it until now, which is why
+# every prior FPGA sweep reported "Trace: 0 packets, overflow=no".
+APB_DAXMON_ENABLE       = STREAM_APB_BASE + 0x240
+APB_DAXMON_PKT_MASK     = STREAM_APB_BASE + 0x24C
+APB_DAXMON_ERR_CFG      = STREAM_APB_BASE + 0x250
+APB_RDMON_ENABLE        = STREAM_APB_BASE + 0x260
+APB_RDMON_PKT_MASK      = STREAM_APB_BASE + 0x26C
+APB_RDMON_ERR_CFG       = STREAM_APB_BASE + 0x270
+APB_WRMON_ENABLE        = STREAM_APB_BASE + 0x280
+APB_WRMON_PKT_MASK      = STREAM_APB_BASE + 0x28C
+APB_WRMON_ERR_CFG       = STREAM_APB_BASE + 0x290
+
+# MON_PKT_MASK: 1 = drop packet of that type at the monbus entry.
+# 0x0000_FFF0 keeps Error (0), Completion (1), Threshold (2), Timeout (3)
+# flowing and drops everything above. Mirrors stream_char_tb.MON_PKT_MASK_ALLOW_BASIC.
+MON_PKT_MASK_ALLOW_BASIC = 0x0000_FFF0
+# MON_ENABLE: bit 0 = ERR_EN, 1 = TIMEOUT_EN, 2 = COMPL_EN, 3 = THRESH_EN.
+MON_ENABLE_COMPL_IRQ     = 0x0F
+# MON_ERR_CFG.ERR_SELECT bits route packet types to the err-FIFO IRQ
+# path (bulk monbus trace gets everything else). All bits set = every
+# packet type routes through the err FIFO; the bulk debug_sram path
+# still also receives every packet (it taps the post-arbiter stream).
+MON_ERR_CFG_ROUTE_ALL    = 0x0000_000F
+
 
 # =========================================================================
 # Test execution
@@ -280,6 +308,21 @@ class CharacterizationRunner:
         # AXI burst config (16 beats rd + 16 beats wr)
         axi_cfg = (15 & 0xFF) | ((15 & 0xFF) << 8)
         self.bridge.write(APB_AXI_XFER_CONFIG, axi_cfg)
+
+        # Unblock the monbus monitors so packets actually flow out into
+        # debug_sram (and the err FIFO IRQ path). RDL default leaves
+        # PKT_MASK = 0xFFFF which silently drops every packet at monbus
+        # entry; without clearing it the trace SRAM stays empty and we
+        # get zero observability when something hangs. Mirror the TB's
+        # sequence in stream_char_tb.run_dma_test step 3e.
+        for pkt_mask_reg, en_reg, err_reg in (
+            (APB_DAXMON_PKT_MASK, APB_DAXMON_ENABLE, APB_DAXMON_ERR_CFG),
+            (APB_RDMON_PKT_MASK,  APB_RDMON_ENABLE,  APB_RDMON_ERR_CFG),
+            (APB_WRMON_PKT_MASK,  APB_WRMON_ENABLE,  APB_WRMON_ERR_CFG),
+        ):
+            self.bridge.write(pkt_mask_reg, MON_PKT_MASK_ALLOW_BASIC)
+            self.bridge.write(en_reg,       MON_ENABLE_COMPL_IRQ)
+            self.bridge.write(err_reg,      MON_ERR_CFG_ROUTE_ALL)
 
         # Global enable + channels
         self.bridge.write(APB_GLOBAL_CTRL, 0x01)
@@ -543,6 +586,89 @@ class CharacterizationRunner:
         overflow = self.bridge.read(CSR_DBG_OVERFLOW)
         return {'wr_ptr': wr_ptr, 'overflow': overflow}
 
+    # ------------------------------------------------------------------
+    # Post-hang diagnostic snapshot. Called by run_config() on TIMEOUT.
+    # Pulls every STREAM idle/error register the harness can see, plus
+    # a head/tail of the monbus trace SRAM so we can read the last
+    # packets the monitors emitted before the wedge.
+    # ------------------------------------------------------------------
+    DEBUG_SRAM_BASE_HOST = 0x0004_0000  # see stream_char_harness.sv address map
+
+    # Per-monitor "monitor still alive" + sticky-state registers. The
+    # field block in stream_regs.rdl exposes each engine's outstanding /
+    # transaction-count / state-machine snapshots over the APB; reading
+    # them on a TIMEOUT tells us which engine got stuck and where.
+    _STREAM_STATUS_REGS = [
+        ("GLOBAL_STATUS",     STREAM_APB_BASE + 0x104),
+        ("CHANNEL_ENABLE",    STREAM_APB_BASE + 0x120),
+        ("CHANNEL_IDLE",      STREAM_APB_BASE + 0x140),
+        ("DESC_ENGINE_IDLE",  STREAM_APB_BASE + 0x144),
+        ("SCHEDULER_IDLE",    STREAM_APB_BASE + 0x148),
+        ("AXI_RD_COMPLETE",   STREAM_APB_BASE + 0x174),
+        ("AXI_WR_COMPLETE",   STREAM_APB_BASE + 0x178),
+        ("SCHED_ERROR",       STREAM_APB_BASE + 0x170),
+    ]
+
+    def _snapshot_on_hang(self, result: dict) -> None:
+        """Dump everything we can read after a TIMEOUT.
+
+        Records (into result['hang_snapshot']) the STREAM idle/error
+        regs, the harness trace counters (wr_ptr / overflow), and a head
+        + tail block of the debug_sram raw 32-bit words so we can decode
+        the last monbus packets the monitors emitted before the wedge.
+        """
+        snap: dict = {'stream_regs': {}, 'trace': {}, 'sram_head': [],
+                      'sram_tail': []}
+
+        # 1. STREAM idle/error registers
+        self.log("  --- Hang snapshot: STREAM status ---")
+        for name, addr in self._STREAM_STATUS_REGS:
+            val = self.bridge.read(addr)
+            snap['stream_regs'][name] = val
+            self.log(f"    {name:18s} @ 0x{addr:04X} = "
+                     f"{'0x%08X' % val if val is not None else 'READ_FAIL'}")
+
+        # 2. Trace SRAM counters
+        trace = self.read_trace_summary()
+        snap['trace'] = trace
+        self.log(f"  --- Trace counters: wr_ptr={trace['wr_ptr']} "
+                 f"overflow={trace['overflow']} ---")
+
+        # 3. Head / tail of the SRAM. The monbus_axil_group writes 32-bit
+        # words sequentially; wr_ptr counts WORDS (not bytes). Each
+        # monitor record is 3 words: pkt[31:0], pkt[63:32], timestamp[31:0]
+        # (plus another 3 for the 128-bit upper half + timestamp[63:32]
+        # depending on the group config) -- the offline parser in
+        # host/dump_monbus_sram.py knows the format; for the snapshot we
+        # just grab raw words so we have something to feed it.
+        wr_ptr = trace.get('wr_ptr') or 0
+        head_count = min(48, wr_ptr)
+        tail_start_words = max(wr_ptr - 48, 0)
+        tail_count = min(48, wr_ptr - tail_start_words)
+
+        for i in range(head_count):
+            v = self.bridge.read(self.DEBUG_SRAM_BASE_HOST + 4 * i)
+            snap['sram_head'].append(v)
+        for i in range(tail_count):
+            v = self.bridge.read(self.DEBUG_SRAM_BASE_HOST
+                                 + 4 * (tail_start_words + i))
+            snap['sram_tail'].append(v)
+
+        if snap['sram_head']:
+            self.log("  --- SRAM head (first 48 words) ---")
+            for j in range(0, len(snap['sram_head']), 8):
+                row = snap['sram_head'][j:j + 8]
+                self.log("    " + " ".join(
+                    f"{(w if w is not None else 0):08x}" for w in row))
+        if snap['sram_tail'] and tail_start_words > head_count:
+            self.log(f"  --- SRAM tail (words {tail_start_words}..{wr_ptr - 1}) ---")
+            for j in range(0, len(snap['sram_tail']), 8):
+                row = snap['sram_tail'][j:j + 8]
+                self.log("    " + " ".join(
+                    f"{(w if w is not None else 0):08x}" for w in row))
+
+        result['hang_snapshot'] = snap
+
     def reset_stream(self):
         """Soft-reset STREAM via global control."""
         self.bridge.write(APB_GLOBAL_CTRL, 0x02)  # GLOBAL_RST
@@ -613,6 +739,13 @@ class CharacterizationRunner:
 
         if not completion.get('completed'):
             self.log(f"  TIMEOUT after {completion['elapsed_s']:.1f}s")
+            # Snapshot monitor + STREAM diagnostic state at the moment of
+            # wedge. The monbus trace SRAM has every packet the monitors
+            # emitted up to the hang -- if a Threshold / Timeout / Error
+            # packet fired before the wedge it's in here. We also pull
+            # the STREAM idle/error registers so we can see which engine
+            # or scheduler is in a bad state.
+            self._snapshot_on_hang(result)
             result['pass'] = False
             result['error'] = 'timeout'
             return result
