@@ -260,7 +260,13 @@ class CharacterizationRunner:
         # Scheduler config
         sched_cfg = 0x0F  # SCHED_EN + TIMEOUT_EN + ERR_EN + COMPL_EN
         self.bridge.write(APB_SCHED_CONFIG, sched_cfg)
-        self.bridge.write(APB_SCHED_TIMEOUT_CYC, 0x0FFFFFFF)  # 28-bit, ~2.68s @ 100MHz
+        # SCHED_TIMEOUT_CYCLES is a 32-bit field. The earlier 0x0FFFFFFF
+        # (28-bit = ~2.68 s) was too tight for deep descriptor chains
+        # (16 desc x 1 MB) -- every such config in the matrix timed out
+        # because cumulative inter-descriptor stall exceeded the budget on
+        # at least one channel. Bump to the field maximum (~42.9 s @ 100 MHz)
+        # so the scheduler doesn't bail before the chain naturally completes.
+        self.bridge.write(APB_SCHED_TIMEOUT_CYC, 0xFFFFFFFF)  # 32-bit max, ~42.9s @ 100MHz
 
         # Descriptor engine config
         self.bridge.write(APB_DESCENG_CONFIG, 0x01)  # DESCENG_EN
@@ -595,8 +601,13 @@ class CharacterizationRunner:
         t0 = time.time()
         self.kick_channels(test_data['kick_addresses'])
 
-        # 6. Poll completion (TIMER_STATUS.done OR STATUS.any_error)
-        completion = self.poll_completion(timeout_s=60.0)
+        # 6. Poll completion (TIMER_STATUS.done OR STATUS.any_error). 120 s
+        # is the host wall-clock budget; deep-chain configs (16 desc per
+        # channel) need more than the prior 60 s, especially when paired
+        # with high channel count -- 16 desc x 8 ch x 1 MB = 128 MB total,
+        # which at observed ~250 MB/s aggregate wall throughput is ~0.5 s
+        # of DMA but several seconds of host-side per-channel overhead.
+        completion = self.poll_completion(timeout_s=120.0)
         result['dma_time_s'] = time.time() - t0
         result['completion'] = completion
 

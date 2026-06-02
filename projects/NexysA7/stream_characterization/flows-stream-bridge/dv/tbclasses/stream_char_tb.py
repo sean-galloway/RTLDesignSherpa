@@ -534,7 +534,12 @@ class StreamCharTB(TBBase):
         # 3a. Scheduler config: enable + timeout + error/completion reporting
         sched_cfg = 0x0F  # [0]=SCHED_EN, [1]=TIMEOUT_EN, [2]=ERR_EN, [3]=COMPL_EN
         await self.uart_write(APB_SCHED_CONFIG, sched_cfg)
-        await self.uart_write(APB_SCHED_TIMEOUT_CYC, 0x0FFFFFFF)  # 28-bit, ~2.68s @ 100MHz
+        # SCHED_TIMEOUT_CYCLES is a 32-bit field; use the full width.
+        # The earlier 0x0FFFFFFF (28-bit, ~2.68 s @ 100 MHz) was too tight
+        # for deep descriptor chains -- the scheduler would error out on
+        # cumulative inter-descriptor stall before the chain finished. The
+        # 32-bit max gives ~42.9 s of per-channel inactivity budget.
+        await self.uart_write(APB_SCHED_TIMEOUT_CYC, 0xFFFFFFFF)  # ~42.9s @ 100MHz
 
         # 3b. Descriptor engine config: enable (no prefetch for now)
         desceng_cfg = 0x01  # [0]=DESCENG_EN
