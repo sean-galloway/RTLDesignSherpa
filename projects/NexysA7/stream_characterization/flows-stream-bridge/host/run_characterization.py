@@ -167,11 +167,21 @@ APB_WRMON_ERR_CFG       = STREAM_APB_BASE + 0x290
 MON_PKT_MASK_ALLOW_BASIC = 0x0000_FFF0
 # MON_ENABLE: bit 0 = ERR_EN, 1 = TIMEOUT_EN, 2 = COMPL_EN, 3 = THRESH_EN.
 MON_ENABLE_COMPL_IRQ     = 0x0F
-# MON_ERR_CFG.ERR_SELECT bits route packet types to the err-FIFO IRQ
-# path (bulk monbus trace gets everything else). All bits set = every
-# packet type routes through the err FIFO; the bulk debug_sram path
-# still also receives every packet (it taps the post-arbiter stream).
-MON_ERR_CFG_ROUTE_ALL    = 0x0000_000F
+# MON_ERR_CFG.ERR_SELECT[15:0]: per-packet-type IRQ-vs-bulk route bit.
+#   bit[type] = 1  -> packet of that type goes to the err FIFO IRQ path
+#   bit[type] = 0  -> packet of that type goes to the bulk write FIFO,
+#                      which drains via m_mon_axil into debug_sram
+# Inside monbus_axil_group these are *exclusive*:
+#   pkt_to_write_fifo = !pkt_drop && !pkt_to_err_fifo
+# so any type routed to the err FIFO is NOT also captured in debug_sram.
+#
+# We want every emitted packet captured in the bulk trace SRAM so the
+# post-hang dump in run_config()._snapshot_on_hang() can show what the
+# monitors saw before the wedge. The runner polls TIMER_STATUS.done for
+# completion (not stream_irq), so silencing the IRQ path costs nothing.
+# Was 0x0000_000F (Error / Completion / Threshold / Timeout -> IRQ
+# path); now 0x0 so every type lands in debug_sram.
+MON_ERR_CFG_BULK_TRACE   = 0x0000_0000
 
 
 # =========================================================================
@@ -322,7 +332,7 @@ class CharacterizationRunner:
         ):
             self.bridge.write(pkt_mask_reg, MON_PKT_MASK_ALLOW_BASIC)
             self.bridge.write(en_reg,       MON_ENABLE_COMPL_IRQ)
-            self.bridge.write(err_reg,      MON_ERR_CFG_ROUTE_ALL)
+            self.bridge.write(err_reg,      MON_ERR_CFG_BULK_TRACE)
 
         # Global enable + channels
         self.bridge.write(APB_GLOBAL_CTRL, 0x01)
