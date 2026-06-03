@@ -248,8 +248,10 @@ module harness_csr #(
 
     // =====================================================================
     // desc_ram debug observability (custom monitor / FSM watch)
-    // Host writes mux_sel @ 0x60, reads data @ 0x64. Sentinel 0xDEAD_BEEF
+    // Host writes mux_sel @ 0xA0, reads data @ 0xA4. Sentinel 0xDEAD_BEEF
     // returned when mux_sel=15 confirms the obs path is alive end-to-end.
+    // (Originally placed at 0x60/0x64; moved to 0xA0/0xA4 to avoid the
+    // CRC view register slots that occupy 0x60-0x9C.)
     // =====================================================================
     output logic [3:0]      o_desc_ram_dbg_sel,
     input  logic [31:0]     i_desc_ram_dbg_data,
@@ -477,8 +479,9 @@ module harness_csr #(
                             8'h28: r_timer_clear_pulse <= int_wdata[0];
                             8'h38: r_timer_expected_beats <= int_wdata;
                             // desc_ram debug-mux select (bumped by host
-                            // to walk the 16-window obs set).
-                            8'h60: r_desc_ram_dbg_sel <= int_wdata[3:0];
+                            // to walk the 16-window obs set). 0xA0
+                            // because 0x60-0x9C are CRC view slots.
+                            8'hA0: r_desc_ram_dbg_sel <= int_wdata[3:0];
                             8'h3C: begin
                                 r_rd_resp_delay_cyc <= int_wdata[15:0];
                                 r_wr_resp_delay_cyc <= int_wdata[31:16];
@@ -582,11 +585,13 @@ module harness_csr #(
                             8'h54: r_rdata <= i_timer_w_first[63:32];
                             8'h58: r_rdata <= i_timer_w_last [31:0];
                             8'h5C: r_rdata <= i_timer_w_last [63:32];
-                            // desc_ram debug observability:
-                            //   0x60 W/R = mux select (4 bits)
-                            //   0x64 R   = current mux-selected 32b data
-                            8'h60: r_rdata <= {28'd0, r_desc_ram_dbg_sel};
-                            8'h64: r_rdata <= i_desc_ram_dbg_data;
+                            // desc_ram debug observability (moved
+                            // from 0x60/0x64 to 0xA0/0xA4 to clear the
+                            // CRC view slots at 0x60-0x9C):
+                            //   0xA0 W/R = mux select (4 bits)
+                            //   0xA4 R   = current mux-selected 32b data
+                            8'hA0: r_rdata <= {28'd0, r_desc_ram_dbg_sel};
+                            8'hA4: r_rdata <= i_desc_ram_dbg_data;
                             // Per-channel CRC values (NC up to CRC_VIEW_NC=8).
                             // 0x60..0x7C: read CRCs, 0x80..0x9C: write CRCs.
                             8'h60: r_rdata <= crc_rd_view[0];
