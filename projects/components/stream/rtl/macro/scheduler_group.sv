@@ -72,6 +72,11 @@ module scheduler_group #(
     output logic                        scheduler_idle,
     output logic [6:0]                  scheduler_state,  // ONE-HOT encoding (7 bits)
     output logic                        sched_error,       // Scheduler error (sticky)
+    // Per-channel sticky/timeout detail (exposed for OBS)
+    output logic                        dbg_descriptor_error,
+    output logic                        dbg_read_error_sticky,
+    output logic                        dbg_write_error_sticky,
+    output logic                        dbg_timeout_expired,
 
     // Descriptor Engine AXI4 Master Read Interface (256-bit descriptor fetch)
     output logic                        desc_ar_valid,
@@ -275,6 +280,11 @@ module scheduler_group #(
         .scheduler_idle         (scheduler_idle),
         .scheduler_state        (scheduler_state),
         .sched_error            (sched_error),
+        // Sticky/timeout detail for OBS
+        .dbg_descriptor_error   (dbg_descriptor_error),
+        .dbg_read_error_sticky  (dbg_read_error_sticky),
+        .dbg_write_error_sticky (dbg_write_error_sticky),
+        .dbg_timeout_expired    (dbg_timeout_expired),
 
         // Descriptor engine interface
         .descriptor_valid       (desceng_to_sched_valid),

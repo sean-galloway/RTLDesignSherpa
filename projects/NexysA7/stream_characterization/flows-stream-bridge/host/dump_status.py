@@ -81,14 +81,18 @@ OBS_FLAG_BITS = [
     (7,  "sched_rd_valid"),
     (8,  "sched_wr_valid"),
     (9,  "sched_wr_ready"),
-    (10, "sched_rd_error"),
-    (11, "sched_wr_error"),
+    (10, "sched_rd_err"),
+    (11, "sched_wr_err"),
     (12, "sched_error"),
     (13, "desc_engine_idle"),
     (14, "scheduler_idle"),
     (15, "ch_enable"),
     (16, "rd_all_complete"),
     (17, "wr_all_complete"),
+    (18, "STK:desc_err"),
+    (19, "STK:rd_err"),
+    (20, "STK:wr_err"),
+    (21, "timeout_expired"),
 ]
 
 OBS_CAT_NAMES = {0: "status", 1: "rd_addr", 2: "wr_addr", 3: "sram"}

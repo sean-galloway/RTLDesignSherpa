@@ -98,6 +98,11 @@ module scheduler_group_array #(
     output logic [NUM_CHANNELS-1:0]              scheduler_idle,
     output logic [NUM_CHANNELS-1:0][6:0]         scheduler_state,  // ONE-HOT encoding (7 bits)
     output logic [NUM_CHANNELS-1:0]              sched_error,       // Scheduler error (sticky)
+    // Per-channel sticky/timeout detail for OBS
+    output logic [NUM_CHANNELS-1:0]              dbg_descriptor_error,
+    output logic [NUM_CHANNELS-1:0]              dbg_read_error_sticky,
+    output logic [NUM_CHANNELS-1:0]              dbg_write_error_sticky,
+    output logic [NUM_CHANNELS-1:0]              dbg_timeout_expired,
 
     // Descriptor AXI Monitor Status
     output logic                                 cfg_sts_desc_mon_busy,
@@ -311,6 +316,10 @@ module scheduler_group_array #(
                 .scheduler_idle         (scheduler_idle[ch]),
                 .scheduler_state        (scheduler_state[ch]),
                 .sched_error            (sched_error[ch]),
+                .dbg_descriptor_error   (dbg_descriptor_error[ch]),
+                .dbg_read_error_sticky  (dbg_read_error_sticky[ch]),
+                .dbg_write_error_sticky (dbg_write_error_sticky[ch]),
+                .dbg_timeout_expired    (dbg_timeout_expired[ch]),
 
                 // Descriptor AXI (per channel, to arbiter)
                 .desc_ar_valid          (desc_ar_valid[ch]),

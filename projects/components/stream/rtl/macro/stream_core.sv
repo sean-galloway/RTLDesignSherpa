@@ -416,6 +416,11 @@ module stream_core #(
 
     // Error signals from engines to schedulers
     logic [NC-1:0]               sched_rd_error;
+    // Per-channel sticky/timeout detail from scheduler_group_array (for OBS)
+    logic [NC-1:0]               dbg_sched_desc_error;
+    logic [NC-1:0]               dbg_sched_rd_sticky;
+    logic [NC-1:0]               dbg_sched_wr_sticky;
+    logic [NC-1:0]               dbg_sched_timeout;
     logic [NC-1:0]               sched_wr_error;
 
     //=========================================================================
@@ -669,6 +674,11 @@ module stream_core #(
         .scheduler_idle         (scheduler_idle),
         .scheduler_state        (scheduler_state),
         .sched_error            (sched_error),
+        // Sticky/timeout detail for the channel-observation mux
+        .dbg_descriptor_error   (dbg_sched_desc_error),
+        .dbg_read_error_sticky  (dbg_sched_rd_sticky),
+        .dbg_write_error_sticky (dbg_sched_wr_sticky),
+        .dbg_timeout_expired    (dbg_sched_timeout),
 
         // Descriptor AXI Monitor Status
         .cfg_sts_desc_mon_busy          (cfg_sts_desc_mon_busy),
@@ -1135,15 +1145,19 @@ module stream_core #(
     //   [7]    sched_rd_valid
     //   [8]    sched_wr_valid
     //   [9]    sched_wr_ready
-    //   [10]   sched_rd_error
-    //   [11]   sched_wr_error
-    //   [12]   sched_error                (state==CH_ERROR)
+    //   [10]   sched_rd_error                (live engine error → scheduler)
+    //   [11]   sched_wr_error                (live engine error → scheduler)
+    //   [12]   sched_error                   (state==CH_ERROR)
     //   [13]   descriptor_engine_idle
     //   [14]   scheduler_idle
     //   [15]   cfg_channel_enable
     //   [16]   axi_rd_all_complete
     //   [17]   axi_wr_all_complete
-    //   [31:18] reserved (0)
+    //   [18]   dbg_descriptor_error          (sticky)
+    //   [19]   dbg_read_error_sticky         (sticky)
+    //   [20]   dbg_write_error_sticky        (sticky)
+    //   [21]   dbg_timeout_expired           (live)
+    //   [31:22] reserved (0)
     // Assumes NC <= 8; software just shouldn't probe channels >= NC.
     logic [2:0] w_obs_ch;
     assign w_obs_ch = cfg_obs_ch_sel;
@@ -1162,6 +1176,10 @@ module stream_core #(
         obs_flags[15]    = cfg_channel_enable[w_obs_ch];
         obs_flags[16]    = axi_rd_all_complete[w_obs_ch];
         obs_flags[17]    = axi_wr_all_complete[w_obs_ch];
+        obs_flags[18]    = dbg_sched_desc_error[w_obs_ch];
+        obs_flags[19]    = dbg_sched_rd_sticky[w_obs_ch];
+        obs_flags[20]    = dbg_sched_wr_sticky[w_obs_ch];
+        obs_flags[21]    = dbg_sched_timeout[w_obs_ch];
     end
 
     always_comb begin

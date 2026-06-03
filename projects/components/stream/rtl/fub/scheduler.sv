@@ -121,6 +121,14 @@ module scheduler #(
     input  logic                        sched_wr_error,         // Write engine error
     output logic                        sched_error,            // Scheduler error output (sticky)
 
+    // Sticky/latched error visibility — these survive a transient pulse so
+    // the host can decode *which* error tripped CH_ERROR. Cleared on
+    // CH_IDLE entry alongside the internal stickies. Exposed for OBS only.
+    output logic                        dbg_descriptor_error,   // r_descriptor_error
+    output logic                        dbg_read_error_sticky,  // r_read_error_sticky
+    output logic                        dbg_write_error_sticky, // r_write_error_sticky
+    output logic                        dbg_timeout_expired,    // w_timeout_expired (live)
+
     // Free-running monitor-time broadcast (sampled on packet emit)
     input  monitor_common_pkg::monbus_timestamp_t   i_mon_time,
 
@@ -765,6 +773,12 @@ module scheduler #(
                                 && !r_channel_reset_active;
     assign scheduler_state = r_current_state;
     assign sched_error = w_state_error;  // Sticky error output
+
+    // Stickies + live timeout exposed for the channel-observation mux.
+    assign dbg_descriptor_error   = r_descriptor_error;
+    assign dbg_read_error_sticky  = r_read_error_sticky;
+    assign dbg_write_error_sticky = r_write_error_sticky;
+    assign dbg_timeout_expired    = w_timeout_expired;
 
     // Monitor bus output
     assign mon_valid     = r_mon_valid;
