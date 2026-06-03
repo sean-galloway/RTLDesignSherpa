@@ -115,6 +115,10 @@ module stream_regs (
         logic WRMON_MASK3;
         logic AXI_XFER_CONFIG;
         logic PERF_CONFIG;
+        logic OBS_CTRL;
+        logic OBS_FLAGS;
+        logic OBS_DATA0;
+        logic OBS_DATA1;
     } decoded_reg_strb_t;
     decoded_reg_strb_t decoded_reg_strb;
     logic decoded_req;
@@ -172,6 +176,10 @@ module stream_regs (
         decoded_reg_strb.WRMON_MASK3 = cpuif_req_masked & (cpuif_addr == 10'h29c);
         decoded_reg_strb.AXI_XFER_CONFIG = cpuif_req_masked & (cpuif_addr == 10'h2a0);
         decoded_reg_strb.PERF_CONFIG = cpuif_req_masked & (cpuif_addr == 10'h2b0);
+        decoded_reg_strb.OBS_CTRL = cpuif_req_masked & (cpuif_addr == 10'h2c0);
+        decoded_reg_strb.OBS_FLAGS = cpuif_req_masked & (cpuif_addr == 10'h2c4);
+        decoded_reg_strb.OBS_DATA0 = cpuif_req_masked & (cpuif_addr == 10'h2c8);
+        decoded_reg_strb.OBS_DATA1 = cpuif_req_masked & (cpuif_addr == 10'h2cc);
     end
 
     // Pass down signals to next stage
@@ -536,6 +544,16 @@ module stream_regs (
                 logic load_next;
             } PERF_CLEAR;
         } PERF_CONFIG;
+        struct {
+            struct {
+                logic [2:0] next;
+                logic load_next;
+            } CH_SEL;
+            struct {
+                logic [1:0] next;
+                logic load_next;
+            } CAT_SEL;
+        } OBS_CTRL;
     } field_combo_t;
     field_combo_t field_combo;
 
@@ -822,6 +840,14 @@ module stream_regs (
                 logic value;
             } PERF_CLEAR;
         } PERF_CONFIG;
+        struct {
+            struct {
+                logic [2:0] value;
+            } CH_SEL;
+            struct {
+                logic [1:0] value;
+            } CAT_SEL;
+        } OBS_CTRL;
     } field_storage_t;
     field_storage_t field_storage;
 
@@ -2438,6 +2464,52 @@ module stream_regs (
     end
     assign hwif_out.PERF_CONFIG.PERF_CLEAR.value = field_storage.PERF_CONFIG.PERF_CLEAR.value;
     assign hwif_out.PERF_CONFIG.PERF_CLEAR.swmod = decoded_reg_strb.PERF_CONFIG && decoded_req_is_wr && |(decoded_wr_biten[2:2]);
+    // Field: stream_regs.OBS_CTRL.CH_SEL
+    always_comb begin
+        automatic logic [2:0] next_c;
+        automatic logic load_next_c;
+        next_c = field_storage.OBS_CTRL.CH_SEL.value;
+        load_next_c = '0;
+        if(decoded_reg_strb.OBS_CTRL && decoded_req_is_wr) begin // SW write
+            next_c = (field_storage.OBS_CTRL.CH_SEL.value & ~decoded_wr_biten[2:0]) | (decoded_wr_data[2:0] & decoded_wr_biten[2:0]);
+            load_next_c = '1;
+        end
+        field_combo.OBS_CTRL.CH_SEL.next = next_c;
+        field_combo.OBS_CTRL.CH_SEL.load_next = load_next_c;
+    end
+    always_ff @(posedge clk) begin
+        if(rst) begin
+            field_storage.OBS_CTRL.CH_SEL.value <= 3'h0;
+        end else begin
+            if(field_combo.OBS_CTRL.CH_SEL.load_next) begin
+                field_storage.OBS_CTRL.CH_SEL.value <= field_combo.OBS_CTRL.CH_SEL.next;
+            end
+        end
+    end
+    assign hwif_out.OBS_CTRL.CH_SEL.value = field_storage.OBS_CTRL.CH_SEL.value;
+    // Field: stream_regs.OBS_CTRL.CAT_SEL
+    always_comb begin
+        automatic logic [1:0] next_c;
+        automatic logic load_next_c;
+        next_c = field_storage.OBS_CTRL.CAT_SEL.value;
+        load_next_c = '0;
+        if(decoded_reg_strb.OBS_CTRL && decoded_req_is_wr) begin // SW write
+            next_c = (field_storage.OBS_CTRL.CAT_SEL.value & ~decoded_wr_biten[4:3]) | (decoded_wr_data[4:3] & decoded_wr_biten[4:3]);
+            load_next_c = '1;
+        end
+        field_combo.OBS_CTRL.CAT_SEL.next = next_c;
+        field_combo.OBS_CTRL.CAT_SEL.load_next = load_next_c;
+    end
+    always_ff @(posedge clk) begin
+        if(rst) begin
+            field_storage.OBS_CTRL.CAT_SEL.value <= 2'h0;
+        end else begin
+            if(field_combo.OBS_CTRL.CAT_SEL.load_next) begin
+                field_storage.OBS_CTRL.CAT_SEL.value <= field_combo.OBS_CTRL.CAT_SEL.next;
+            end
+        end
+    end
+    assign hwif_out.OBS_CTRL.CAT_SEL.value = field_storage.OBS_CTRL.CAT_SEL.value;
 
     //--------------------------------------------------------------------------
     // Write response
@@ -2455,7 +2527,7 @@ module stream_regs (
     logic [31:0] readback_data;
 
     // Assign readback values to a flattened array
-    logic [31:0] readback_array[54];
+    logic [31:0] readback_array[58];
     assign readback_array[0][0:0] = (decoded_reg_strb.GLOBAL_CTRL && !decoded_req_is_wr) ? field_storage.GLOBAL_CTRL.GLOBAL_EN.value : '0;
     assign readback_array[0][1:1] = (decoded_reg_strb.GLOBAL_CTRL && !decoded_req_is_wr) ? field_storage.GLOBAL_CTRL.GLOBAL_RST.value : '0;
     assign readback_array[0][31:2] = (decoded_reg_strb.GLOBAL_CTRL && !decoded_req_is_wr) ? 30'h0 : '0;
@@ -2583,6 +2655,12 @@ module stream_regs (
     assign readback_array[53][1:1] = (decoded_reg_strb.PERF_CONFIG && !decoded_req_is_wr) ? field_storage.PERF_CONFIG.PERF_MODE.value : '0;
     assign readback_array[53][2:2] = (decoded_reg_strb.PERF_CONFIG && !decoded_req_is_wr) ? field_storage.PERF_CONFIG.PERF_CLEAR.value : '0;
     assign readback_array[53][31:3] = (decoded_reg_strb.PERF_CONFIG && !decoded_req_is_wr) ? 29'h0 : '0;
+    assign readback_array[54][2:0] = (decoded_reg_strb.OBS_CTRL && !decoded_req_is_wr) ? field_storage.OBS_CTRL.CH_SEL.value : '0;
+    assign readback_array[54][4:3] = (decoded_reg_strb.OBS_CTRL && !decoded_req_is_wr) ? field_storage.OBS_CTRL.CAT_SEL.value : '0;
+    assign readback_array[54][31:5] = (decoded_reg_strb.OBS_CTRL && !decoded_req_is_wr) ? 27'h0 : '0;
+    assign readback_array[55][31:0] = (decoded_reg_strb.OBS_FLAGS && !decoded_req_is_wr) ? hwif_in.OBS_FLAGS.FLAGS.next : '0;
+    assign readback_array[56][31:0] = (decoded_reg_strb.OBS_DATA0 && !decoded_req_is_wr) ? hwif_in.OBS_DATA0.DATA.next : '0;
+    assign readback_array[57][31:0] = (decoded_reg_strb.OBS_DATA1 && !decoded_req_is_wr) ? hwif_in.OBS_DATA1.DATA.next : '0;
 
     // Reduce the array
     always_comb begin
@@ -2590,7 +2668,7 @@ module stream_regs (
         readback_done = decoded_req & ~decoded_req_is_wr;
         readback_err = '0;
         readback_data_var = '0;
-        for(int i=0; i<54; i++) readback_data_var |= readback_array[i];
+        for(int i=0; i<58; i++) readback_data_var |= readback_array[i];
         readback_data = readback_data_var;
     end
 

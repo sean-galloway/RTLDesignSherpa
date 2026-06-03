@@ -8,7 +8,7 @@ Don't override. Generated from: $root
 
 - Absolute Address: 0x0
 - Base Offset: 0x0
-- Size: 0x2B4
+- Size: 0x2D0
 
 <p>Configuration and status registers for 8-channel STREAM DMA engine with full monitor control</p>
 
@@ -68,6 +68,10 @@ Don't override. Generated from: $root
 | 0x29C|     WRMON_MASK3     |       Write Engine AXI Monitor Masks 3       |
 | 0x2A0|   AXI_XFER_CONFIG   |          AXI Transfer Configuration          |
 | 0x2B0|     PERF_CONFIG     |      Performance Profiler Configuration      |
+| 0x2C0|       OBS_CTRL      |            Observation Mux Control           |
+| 0x2C4|      OBS_FLAGS      |               Observation Flags              |
+| 0x2C8|      OBS_DATA0      |              Observation Data 0              |
+| 0x2CC|      OBS_DATA1      |              Observation Data 1              |
 
 ### GLOBAL_CTRL register
 
@@ -1477,3 +1481,77 @@ Don't override. Generated from: $root
 #### RSVD field
 
 <p>Reserved</p>
+
+### OBS_CTRL register
+
+- Absolute Address: 0x2C0
+- Base Offset: 0x2C0
+- Size: 0x4
+
+<p>Selects which channel and which category drive OBS_FLAGS / OBS_DATA0 / OBS_DATA1</p>
+
+|Bits|Identifier|Access|Reset|Name|
+|----|----------|------|-----|----|
+| 2:0|  CH_SEL  |  rw  | 0x0 |  — |
+| 4:3|  CAT_SEL |  rw  | 0x0 |  — |
+|31:5|   RSVD   |   r  | 0x0 |  — |
+
+#### CH_SEL field
+
+<p>Channel select (0..NUM_CHANNELS-1)</p>
+
+#### CAT_SEL field
+
+<p>Category select: 0=status (data0=sched_rd_beats, data1=sched_wr_beats), 1=rd_addr (data0=lo, data1=hi), 2=wr_addr (data0=lo, data1=hi), 3=sram (data0=rd_space_free, data1=wr_data_avail)</p>
+
+#### RSVD field
+
+<p>Reserved</p>
+
+### OBS_FLAGS register
+
+- Absolute Address: 0x2C4
+- Base Offset: 0x2C4
+- Size: 0x4
+
+<p>Combinational status vector for the channel selected by OBS_CTRL.CH_SEL. See stream_core.sv for the bit layout (scheduler_state, sched_rd/wr_valid, sched_wr_ready, error stickies, idle bits, cfg_channel_enable, axi_*_all_complete).</p>
+
+|Bits|Identifier|Access|Reset|Name|
+|----|----------|------|-----|----|
+|31:0|   FLAGS  |   r  |  —  |  — |
+
+#### FLAGS field
+
+<p>Observation flags</p>
+
+### OBS_DATA0 register
+
+- Absolute Address: 0x2C8
+- Base Offset: 0x2C8
+- Size: 0x4
+
+<p>Category-muxed data word 0 for the selected channel. Semantics depend on OBS_CTRL.CAT_SEL.</p>
+
+|Bits|Identifier|Access|Reset|Name|
+|----|----------|------|-----|----|
+|31:0|   DATA   |   r  |  —  |  — |
+
+#### DATA field
+
+<p>Observation data 0</p>
+
+### OBS_DATA1 register
+
+- Absolute Address: 0x2CC
+- Base Offset: 0x2CC
+- Size: 0x4
+
+<p>Category-muxed data word 1 for the selected channel. Semantics depend on OBS_CTRL.CAT_SEL.</p>
+
+|Bits|Identifier|Access|Reset|Name|
+|----|----------|------|-----|----|
+|31:0|   DATA   |   r  |  —  |  — |
+
+#### DATA field
+
+<p>Observation data 1</p>

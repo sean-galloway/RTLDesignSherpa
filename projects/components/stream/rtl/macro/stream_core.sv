@@ -192,6 +192,22 @@ module stream_core #(
     output logic [31:0]                         perf_fifo_data_high,
 
     //=========================================================================
+    // Channel-Observation Mux (internal — drives stream_regs OBS_* fields via
+    // stream_config_block). ch_sel + cat_sel select one lane of the per-
+    // channel arrays already collected here; three 32-bit words come back.
+    //   cat=0  status   data0=sched_rd_beats        data1=sched_wr_beats
+    //   cat=1  rd_addr  data0=src_addr[31:0]        data1=src_addr[63:32]
+    //   cat=2  wr_addr  data0=dst_addr[31:0]        data1=dst_addr[63:32]
+    //   cat=3  sram     data0=rd_alloc_space_free   data1=wr_drain_data_avail
+    // obs_flags is always live; see comment block above the mux for bit map.
+    //=========================================================================
+    input  logic [2:0]                          cfg_obs_ch_sel,
+    input  logic [1:0]                          cfg_obs_cat_sel,
+    output logic [31:0]                         obs_flags,
+    output logic [31:0]                         obs_data0,
+    output logic [31:0]                         obs_data1,
+
+    //=========================================================================
     // External AXI4 Master - Descriptor Fetch (FIXED 256-bit)
     //=========================================================================
     // AR channel
@@ -1110,5 +1126,65 @@ module stream_core #(
     //=========================================================================
     // System is idle when ALL schedulers are idle (AND reduction)
     assign system_idle = &scheduler_idle;
+
+    //=========================================================================
+    // Channel-Observation Mux
+    //=========================================================================
+    // obs_flags layout (always live for the selected channel):
+    //   [6:0]  scheduler_state (one-hot)
+    //   [7]    sched_rd_valid
+    //   [8]    sched_wr_valid
+    //   [9]    sched_wr_ready
+    //   [10]   sched_rd_error
+    //   [11]   sched_wr_error
+    //   [12]   sched_error                (state==CH_ERROR)
+    //   [13]   descriptor_engine_idle
+    //   [14]   scheduler_idle
+    //   [15]   cfg_channel_enable
+    //   [16]   axi_rd_all_complete
+    //   [17]   axi_wr_all_complete
+    //   [31:18] reserved (0)
+    // Assumes NC <= 8; software just shouldn't probe channels >= NC.
+    logic [2:0] w_obs_ch;
+    assign w_obs_ch = cfg_obs_ch_sel;
+
+    always_comb begin
+        obs_flags = '0;
+        obs_flags[6:0]   = scheduler_state[w_obs_ch];
+        obs_flags[7]     = sched_rd_valid[w_obs_ch];
+        obs_flags[8]     = sched_wr_valid[w_obs_ch];
+        obs_flags[9]     = sched_wr_ready[w_obs_ch];
+        obs_flags[10]    = sched_rd_error[w_obs_ch];
+        obs_flags[11]    = sched_wr_error[w_obs_ch];
+        obs_flags[12]    = sched_error[w_obs_ch];
+        obs_flags[13]    = descriptor_engine_idle[w_obs_ch];
+        obs_flags[14]    = scheduler_idle[w_obs_ch];
+        obs_flags[15]    = cfg_channel_enable[w_obs_ch];
+        obs_flags[16]    = axi_rd_all_complete[w_obs_ch];
+        obs_flags[17]    = axi_wr_all_complete[w_obs_ch];
+    end
+
+    always_comb begin
+        obs_data0 = '0;
+        obs_data1 = '0;
+        case (cfg_obs_cat_sel)
+            2'd0: begin  // status: beats remaining on rd / wr
+                obs_data0 = sched_rd_beats[w_obs_ch];
+                obs_data1 = sched_wr_beats[w_obs_ch];
+            end
+            2'd1: begin  // rd_addr: current 64-bit source address
+                obs_data0 = sched_rd_addr[w_obs_ch][31:0];
+                obs_data1 = (AW > 32) ? sched_rd_addr[w_obs_ch][AW-1:32] : 32'h0;
+            end
+            2'd2: begin  // wr_addr: current 64-bit destination address
+                obs_data0 = sched_wr_addr[w_obs_ch][31:0];
+                obs_data1 = (AW > 32) ? sched_wr_addr[w_obs_ch][AW-1:32] : 32'h0;
+            end
+            2'd3: begin  // sram: per-channel free / available beats
+                obs_data0 = {{(32-($clog2(FIFO_DEPTH)+1)){1'b0}}, axi_rd_space_free[w_obs_ch]};
+                obs_data1 = {{(32-($clog2(FIFO_DEPTH)+1)){1'b0}}, axi_wr_drain_data_avail[w_obs_ch]};
+            end
+        endcase
+    end
 
 endmodule : stream_core

@@ -486,6 +486,15 @@ module stream_top_ch8 #(
     logic [NUM_CHANNELS-1:0]                cfg_channel_enable;
     logic [NUM_CHANNELS-1:0]                cfg_channel_reset;
 
+    // Channel-Observation Mux (internal — between stream_config_block and
+    // stream_core). selector is sourced from hwif_out.OBS_CTRL; muxed words
+    // come back from stream_core and feed hwif_in.OBS_*.next.
+    logic [2:0]                             cfg_obs_ch_sel;
+    logic [1:0]                             cfg_obs_cat_sel;
+    logic [31:0]                            obs_flags;
+    logic [31:0]                            obs_data0;
+    logic [31:0]                            obs_data1;
+
     // Scheduler Configuration
     logic                                   cfg_sched_enable;
     logic [31:0]                            cfg_sched_timeout_cycles;
@@ -851,6 +860,12 @@ module stream_top_ch8 #(
         for (int i = 0; i < NUM_CHANNELS; i++) begin
             hwif_in.CH_STATE[i].STATE.STATE.next = hwif_ch_state[i];
         end
+
+        // Channel-Observation Mux readback (driven by stream_core via
+        // stream_config_block; see OBS_CTRL @ 0x2C0 for the selector).
+        hwif_in.OBS_FLAGS.FLAGS.next = obs_flags;
+        hwif_in.OBS_DATA0.DATA.next  = obs_data0;
+        hwif_in.OBS_DATA1.DATA.next  = obs_data1;
     end
 
     // Debug outputs - expose what stream_regs should see for hwif_in values
@@ -1083,6 +1098,15 @@ module stream_top_ch8 #(
         .reg_perf_config_perf_mode                  (hwif_out.PERF_CONFIG.PERF_MODE.value),
         .reg_perf_config_perf_clear                 (hwif_out.PERF_CONFIG.PERF_CLEAR.value),
 
+        // Observation Mux selector (host writes OBS_CTRL @ 0x2C0)
+        .reg_obs_ctrl_ch_sel                        (hwif_out.OBS_CTRL.CH_SEL.value),
+        .reg_obs_ctrl_cat_sel                       (hwif_out.OBS_CTRL.CAT_SEL.value),
+
+        // Observation Mux status (driven by stream_core; muxed to OBS_FLAGS/DATA*)
+        .i_obs_flags                        (obs_flags),
+        .i_obs_data0                        (obs_data0),
+        .i_obs_data1                        (obs_data1),
+
         //---------------------------------------------------------------------
         // STREAM Core Configuration Outputs
         //---------------------------------------------------------------------
@@ -1150,7 +1174,17 @@ module stream_top_ch8 #(
         .cfg_axi_wr_xfer_beats              (cfg_axi_wr_xfer_beats),
         .cfg_perf_enable                    (cfg_perf_enable),
         .cfg_perf_mode                      (cfg_perf_mode),
-        .cfg_perf_clear                     (cfg_perf_clear)
+        .cfg_perf_clear                     (cfg_perf_clear),
+
+        // Observation Mux selector — to stream_core
+        .cfg_obs_ch_sel                     (cfg_obs_ch_sel),
+        .cfg_obs_cat_sel                    (cfg_obs_cat_sel),
+
+        // Observation Mux status — already wired in via i_obs_*; expose
+        // here too so stream_top_ch8 can drive hwif_in.OBS_*.next directly.
+        .obs_flags_to_regs                  (/* hwif_in driven below */),
+        .obs_data0_to_regs                  (/* hwif_in driven below */),
+        .obs_data1_to_regs                  (/* hwif_in driven below */)
     );
 
     //=========================================================================
@@ -1385,7 +1419,14 @@ module stream_top_ch8 #(
 
                 // Sideband for FPGA-characterization axi_bus_meter
                 .o_wr_active_channel_id     (wr_active_channel_id),
-                .o_wr_active_channel_valid  (wr_active_channel_valid)
+                .o_wr_active_channel_valid  (wr_active_channel_valid),
+
+                // Channel-Observation Mux (internal — feeds stream_config_block)
+                .cfg_obs_ch_sel             (cfg_obs_ch_sel),
+                .cfg_obs_cat_sel            (cfg_obs_cat_sel),
+                .obs_flags                  (obs_flags),
+                .obs_data0                  (obs_data0),
+                .obs_data1                  (obs_data1)
             );
         end else begin : g_stream_core
             // Instantiate stream_core with monitors disabled
@@ -1611,7 +1652,14 @@ module stream_top_ch8 #(
 
                 // Sideband for FPGA-characterization axi_bus_meter
                 .o_wr_active_channel_id     (wr_active_channel_id),
-                .o_wr_active_channel_valid  (wr_active_channel_valid)
+                .o_wr_active_channel_valid  (wr_active_channel_valid),
+
+                // Channel-Observation Mux (internal — feeds stream_config_block)
+                .cfg_obs_ch_sel             (cfg_obs_ch_sel),
+                .cfg_obs_cat_sel            (cfg_obs_cat_sel),
+                .obs_flags                  (obs_flags),
+                .obs_data0                  (obs_data0),
+                .obs_data1                  (obs_data1)
             );
         end
     endgenerate

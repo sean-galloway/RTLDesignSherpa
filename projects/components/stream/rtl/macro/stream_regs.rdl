@@ -1117,4 +1117,72 @@ addrmap stream_regs {
 
     } PERF_CONFIG @ 0x2B0;
 
+    //=========================================================================
+    // Channel-Observation Mux (0x2C0 - 0x2CF)
+    //=========================================================================
+    // Lets software probe one (channel, category) lane of internal STREAM
+    // state at a time without touching the AXI monitor bus. The mux lives in
+    // stream_core; OBS_CTRL selects what stream_config_block forwards into
+    // the OBS_FLAGS / OBS_DATA0 / OBS_DATA1 read-back registers below.
+
+    reg {
+        name = "Observation Mux Control";
+        desc = "Selects which channel and which category drive OBS_FLAGS / OBS_DATA0 / OBS_DATA1";
+
+        field {
+            desc = "Channel select (0..NUM_CHANNELS-1)";
+            sw = rw;
+            hw = r;
+        } CH_SEL[2:0] = 3'b0;
+
+        field {
+            desc = "Category select: 0=status (data0=sched_rd_beats, data1=sched_wr_beats), 1=rd_addr (data0=lo, data1=hi), 2=wr_addr (data0=lo, data1=hi), 3=sram (data0=rd_space_free, data1=wr_data_avail)";
+            sw = rw;
+            hw = r;
+        } CAT_SEL[4:3] = 2'b0;
+
+        field {
+            desc = "Reserved";
+            sw = r;
+            hw = na;
+        } RSVD[31:5] = 27'h0;
+
+    } OBS_CTRL @ 0x2C0;
+
+    reg {
+        name = "Observation Flags";
+        desc = "Combinational status vector for the channel selected by OBS_CTRL.CH_SEL. See stream_core.sv for the bit layout (scheduler_state, sched_rd/wr_valid, sched_wr_ready, error stickies, idle bits, cfg_channel_enable, axi_*_all_complete).";
+
+        field {
+            desc = "Observation flags";
+            sw = r;
+            hw = w;
+        } FLAGS[31:0];
+
+    } OBS_FLAGS @ 0x2C4;
+
+    reg {
+        name = "Observation Data 0";
+        desc = "Category-muxed data word 0 for the selected channel. Semantics depend on OBS_CTRL.CAT_SEL.";
+
+        field {
+            desc = "Observation data 0";
+            sw = r;
+            hw = w;
+        } DATA[31:0];
+
+    } OBS_DATA0 @ 0x2C8;
+
+    reg {
+        name = "Observation Data 1";
+        desc = "Category-muxed data word 1 for the selected channel. Semantics depend on OBS_CTRL.CAT_SEL.";
+
+        field {
+            desc = "Observation data 1";
+            sw = r;
+            hw = w;
+        } DATA[31:0];
+
+    } OBS_DATA1 @ 0x2CC;
+
 };

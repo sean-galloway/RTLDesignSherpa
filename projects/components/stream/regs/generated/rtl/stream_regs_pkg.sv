@@ -5,7 +5,7 @@ package stream_regs_pkg;
 
     localparam STREAM_REGS_DATA_WIDTH = 32;
     localparam STREAM_REGS_MIN_ADDR_WIDTH = 10;
-    localparam STREAM_REGS_SIZE = 'h2b4;
+    localparam STREAM_REGS_SIZE = 'h2d0;
 
     typedef struct {
         logic next;
@@ -107,6 +107,30 @@ package stream_regs_pkg;
     } stream_regs__MON_FIFO_COUNT__in_t;
 
     typedef struct {
+        logic [31:0] next;
+    } stream_regs__OBS_FLAGS__FLAGS__in_t;
+
+    typedef struct {
+        stream_regs__OBS_FLAGS__FLAGS__in_t FLAGS;
+    } stream_regs__OBS_FLAGS__in_t;
+
+    typedef struct {
+        logic [31:0] next;
+    } stream_regs__OBS_DATA0__DATA__in_t;
+
+    typedef struct {
+        stream_regs__OBS_DATA0__DATA__in_t DATA;
+    } stream_regs__OBS_DATA0__in_t;
+
+    typedef struct {
+        logic [31:0] next;
+    } stream_regs__OBS_DATA1__DATA__in_t;
+
+    typedef struct {
+        stream_regs__OBS_DATA1__DATA__in_t DATA;
+    } stream_regs__OBS_DATA1__in_t;
+
+    typedef struct {
         stream_regs__GLOBAL_STATUS__in_t GLOBAL_STATUS;
         stream_regs__CHANNEL_IDLE__in_t CHANNEL_IDLE;
         stream_regs__DESC_ENGINE_IDLE__in_t DESC_ENGINE_IDLE;
@@ -117,6 +141,9 @@ package stream_regs_pkg;
         stream_regs__AXI_WR_COMPLETE__in_t AXI_WR_COMPLETE;
         stream_regs__MON_FIFO_STATUS__in_t MON_FIFO_STATUS;
         stream_regs__MON_FIFO_COUNT__in_t MON_FIFO_COUNT;
+        stream_regs__OBS_FLAGS__in_t OBS_FLAGS;
+        stream_regs__OBS_DATA0__in_t OBS_DATA0;
+        stream_regs__OBS_DATA1__in_t OBS_DATA1;
     } stream_regs__in_t;
 
     typedef struct {
@@ -581,6 +608,19 @@ package stream_regs_pkg;
     } stream_regs__PERF_CONFIG__out_t;
 
     typedef struct {
+        logic [2:0] value;
+    } stream_regs__OBS_CTRL__CH_SEL__out_t;
+
+    typedef struct {
+        logic [1:0] value;
+    } stream_regs__OBS_CTRL__CAT_SEL__out_t;
+
+    typedef struct {
+        stream_regs__OBS_CTRL__CH_SEL__out_t CH_SEL;
+        stream_regs__OBS_CTRL__CAT_SEL__out_t CAT_SEL;
+    } stream_regs__OBS_CTRL__out_t;
+
+    typedef struct {
         stream_regs__GLOBAL_CTRL__out_t GLOBAL_CTRL;
         stream_regs__CHANNEL_ENABLE__out_t CHANNEL_ENABLE;
         stream_regs__CHANNEL_RESET__out_t CHANNEL_RESET;
@@ -617,5 +657,6 @@ package stream_regs_pkg;
         stream_regs__WRMON_MASK3__out_t WRMON_MASK3;
         stream_regs__AXI_XFER_CONFIG__out_t AXI_XFER_CONFIG;
         stream_regs__PERF_CONFIG__out_t PERF_CONFIG;
+        stream_regs__OBS_CTRL__out_t OBS_CTRL;
     } stream_regs__out_t;
 endpackage

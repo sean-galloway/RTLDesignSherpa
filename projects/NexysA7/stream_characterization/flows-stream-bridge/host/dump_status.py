@@ -67,6 +67,32 @@ APB_MON_FIFO_STAT  = STREAM_APB_BASE + 0x180
 APB_DESCENG_CFG    = STREAM_APB_BASE + 0x220
 APB_AXI_XFER_CFG   = STREAM_APB_BASE + 0x2A0
 
+# STREAM channel-observation mux. Host writes OBS_CTRL with the channel
+# and category to probe, then reads the three OBS_* status registers.
+# bit [2:0] = ch_sel, bit [4:3] = cat_sel.
+APB_OBS_CTRL       = STREAM_APB_BASE + 0x2C0
+APB_OBS_FLAGS      = STREAM_APB_BASE + 0x2C4
+APB_OBS_DATA0      = STREAM_APB_BASE + 0x2C8
+APB_OBS_DATA1      = STREAM_APB_BASE + 0x2CC
+
+# OBS_FLAGS bit layout (see stream_core.sv obs mux block)
+OBS_FLAG_BITS = [
+    # bit, label
+    (7,  "sched_rd_valid"),
+    (8,  "sched_wr_valid"),
+    (9,  "sched_wr_ready"),
+    (10, "sched_rd_error"),
+    (11, "sched_wr_error"),
+    (12, "sched_error"),
+    (13, "desc_engine_idle"),
+    (14, "scheduler_idle"),
+    (15, "ch_enable"),
+    (16, "rd_all_complete"),
+    (17, "wr_all_complete"),
+]
+
+OBS_CAT_NAMES = {0: "status", 1: "rd_addr", 2: "wr_addr", 3: "sram"}
+
 
 def rd(b, addr, label):
     val = b.read(addr)
@@ -125,6 +151,33 @@ def main():
         if live is not None:
             asserted = [name for bit, name in DESC_VR_BITS if live & (1 << bit)]
             print(f"    live asserted: {', '.join(asserted) if asserted else '(none)'}")
+
+        # ---- STREAM channel-observation mux ----
+        # Walk all 8 channels under each of the 4 categories, printing the
+        # decoded obs_flags + the two cat-dependent data words. This is the
+        # primary tool for answering "why is ch0 stuck?" since the mux
+        # surfaces scheduler FSM state, read/write valid/ready, beats
+        # remaining, addresses, and per-channel SRAM occupancy.
+        print("\n=== STREAM channel-observation mux (0x2C0..0x2CC) ===")
+        for ch in range(8):
+            for cat in range(4):
+                b.write(APB_OBS_CTRL, (cat << 3) | (ch & 0x7))
+                flags = b.read(APB_OBS_FLAGS)
+                d0    = b.read(APB_OBS_DATA0)
+                d1    = b.read(APB_OBS_DATA1)
+                cat_name = OBS_CAT_NAMES.get(cat, f"cat{cat}")
+                state = flags & 0x7F
+                hot_bits = [name for bit, name in OBS_FLAG_BITS if flags & (1 << bit)]
+                if cat == 0:
+                    print(f"  ch{ch} {cat_name:<7}  state={state:#04x}  "
+                          f"rd_beats={d0:#x}  wr_beats={d1:#x}  "
+                          f"flags=[{', '.join(hot_bits)}]")
+                elif cat == 1:
+                    print(f"  ch{ch} {cat_name:<7}  src_addr=0x{d1:08X}{d0:08X}")
+                elif cat == 2:
+                    print(f"  ch{ch} {cat_name:<7}  dst_addr=0x{d1:08X}{d0:08X}")
+                elif cat == 3:
+                    print(f"  ch{ch} {cat_name:<7}  rd_space_free={d0}  wr_data_avail={d1}")
 
         # Diagnose where the desc path is stuck. If you only see one of
         # these prints, that's the loudest signal.

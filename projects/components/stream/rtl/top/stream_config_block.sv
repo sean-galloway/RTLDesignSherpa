@@ -136,6 +136,15 @@ module stream_config_block #(
     input  logic                        reg_perf_config_perf_mode,
     input  logic                        reg_perf_config_perf_clear,
 
+    // Channel-Observation Mux (from OBS_CTRL register; routed into stream_core)
+    input  logic [2:0]                  reg_obs_ctrl_ch_sel,
+    input  logic [1:0]                  reg_obs_ctrl_cat_sel,
+
+    // Channel-Observation Mux (from stream_core; drives OBS_FLAGS/DATA0/DATA1)
+    input  logic [31:0]                 i_obs_flags,
+    input  logic [31:0]                 i_obs_data0,
+    input  logic [31:0]                 i_obs_data1,
+
     //=========================================================================
     // STREAM Core Configuration Outputs
     //=========================================================================
@@ -219,7 +228,16 @@ module stream_config_block #(
     // Performance Profiler Configuration
     output logic                        cfg_perf_enable,
     output logic                        cfg_perf_mode,
-    output logic                        cfg_perf_clear
+    output logic                        cfg_perf_clear,
+
+    // Channel-Observation Mux Selector (drives stream_core)
+    output logic [2:0]                  cfg_obs_ch_sel,
+    output logic [1:0]                  cfg_obs_cat_sel,
+
+    // Channel-Observation Mux Status (forwarded to hwif_in.OBS_*)
+    output logic [31:0]                 obs_flags_to_regs,
+    output logic [31:0]                 obs_data0_to_regs,
+    output logic [31:0]                 obs_data1_to_regs
 );
 
     //=========================================================================
@@ -337,5 +355,16 @@ module stream_config_block #(
     assign cfg_perf_enable = reg_perf_config_perf_en & reg_global_ctrl_global_en;
     assign cfg_perf_mode = reg_perf_config_perf_mode;
     assign cfg_perf_clear = reg_perf_config_perf_clear;
+
+    //-------------------------------------------------------------------------
+    // Channel-Observation Mux
+    //-------------------------------------------------------------------------
+    // Forward OBS_CTRL fields straight into stream_core, and bring the muxed
+    // status back out to stream_top_ch8 (which drives hwif_in.OBS_*.next).
+    assign cfg_obs_ch_sel    = reg_obs_ctrl_ch_sel;
+    assign cfg_obs_cat_sel   = reg_obs_ctrl_cat_sel;
+    assign obs_flags_to_regs = i_obs_flags;
+    assign obs_data0_to_regs = i_obs_data0;
+    assign obs_data1_to_regs = i_obs_data1;
 
 endmodule : stream_config_block
