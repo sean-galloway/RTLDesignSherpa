@@ -461,9 +461,19 @@ module axi_monitor_trans_mgr
     //
     // Kept in their own always_ff blocks (single driver for r_active_count
     // and r_state_change) so they don't re-fuse into the per-entry cones.
+    //
+    // Pipeline the sum-of-OH adder trees (w_alloc_cnt, w_cleanup_cnt) one
+    // cycle so the long combinational path AR-skid r_data -> addr_alloc_oh
+    // -> 48-input adder tree -> r_active_count_reg/D closes at 100 MHz on
+    // the Artix-7 -1 part. The status output lags by one cycle; it's a
+    // diagnostic counter feeding monbus packets, not a control loop, so
+    // the one-cycle delay is invisible to downstream consumers.
     // =========================================================================
     logic [$clog2(N+1)-1:0] w_alloc_cnt;
     logic [$clog2(N+1)-1:0] w_cleanup_cnt;
+    logic [$clog2(N+1)-1:0] r_alloc_cnt;
+    logic [$clog2(N+1)-1:0] r_cleanup_cnt;
+
     always_comb begin
         w_alloc_cnt = '0;
         for (int i = 0; i < N; i++) begin
@@ -480,13 +490,25 @@ module axi_monitor_trans_mgr
         end
     end
 
+    // Pipeline stage 1: register the combinational adder-tree outputs.
+    `ALWAYS_FF_RST(aclk, aresetn,
+        if (`RST_ASSERTED(aresetn)) begin
+            r_alloc_cnt   <= '0;
+            r_cleanup_cnt <= '0;
+        end else begin
+            r_alloc_cnt   <= w_alloc_cnt;
+            r_cleanup_cnt <= w_cleanup_cnt;
+        end
+    )
+
+    // Pipeline stage 2: only the small +/- update lands at r_active_count.
     `ALWAYS_FF_RST(aclk, aresetn,
         if (`RST_ASSERTED(aresetn)) begin
             r_active_count <= '0;
         end else begin
             r_active_count <= r_active_count +
-                              {{(8-$clog2(N+1)){1'b0}}, w_alloc_cnt} -
-                              {{(8-$clog2(N+1)){1'b0}}, w_cleanup_cnt};
+                              {{(8-$clog2(N+1)){1'b0}}, r_alloc_cnt} -
+                              {{(8-$clog2(N+1)){1'b0}}, r_cleanup_cnt};
         end
     )
 
