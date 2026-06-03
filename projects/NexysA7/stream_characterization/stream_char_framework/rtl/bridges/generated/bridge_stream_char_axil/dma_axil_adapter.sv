@@ -296,7 +296,7 @@ module dma_axil_adapter #(
         .m_axil_rready(dma_axil_rready)
     );
 
-    // Wire converter outputs back to crossbar interface
+    // Wire converter outputs back to shim's crossbar-facing interface
     assign xbar_dma_axil_axi_bvalid = converter_bvalid;
     assign converter_bready = xbar_dma_axil_axi_bready;
     assign xbar_dma_axil_axi_rvalid = converter_rvalid;

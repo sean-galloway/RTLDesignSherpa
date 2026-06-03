@@ -570,6 +570,7 @@ class AdapterGenerator:
                     mon_time='i_mon_time',
                 )
                 wrapper.connect_cfg(connector_prefix='cfg_wr_')
+                wrapper.add_addr_range_tieoff()
             lines.append("    // ================================================================")
             lines.append(f"    // Timing isolation wrapper (axi4_slave_wr{'_mon' if self.enable_monitoring else ''})")
             lines.append("    // ================================================================")
@@ -604,6 +605,7 @@ class AdapterGenerator:
                     mon_time='i_mon_time',
                 )
                 wrapper.connect_cfg(connector_prefix='cfg_rd_')
+                wrapper.add_addr_range_tieoff()
             lines.append("    // ================================================================")
             lines.append(f"    // Timing isolation wrapper (axi4_slave_rd{'_mon' if self.enable_monitoring else ''})")
             lines.append("    // ================================================================")

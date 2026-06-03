@@ -819,6 +819,7 @@ class SlaveAdapterGenerator:
                 mon_time='i_mon_time',
             )
             wrapper.connect_cfg(connector_prefix='cfg_wr_')
+            wrapper.add_addr_range_tieoff()
         return ["    // AXI4 Master Write Timing Wrapper"] + wrapper.generate_lines()
 
     def _generate_master_rd_wrapper(self, crossbar_prefix: str, slave_prefix: str) -> List[str]:
@@ -858,6 +859,7 @@ class SlaveAdapterGenerator:
                 mon_time='i_mon_time',
             )
             wrapper.connect_cfg(connector_prefix='cfg_rd_')
+            wrapper.add_addr_range_tieoff()
         return ["    // AXI4 Master Read Timing Wrapper"] + wrapper.generate_lines()
 
     def _generate_apb_converter(self) -> List[str]:

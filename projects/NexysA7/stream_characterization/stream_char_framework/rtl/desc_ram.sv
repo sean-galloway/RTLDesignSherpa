@@ -18,17 +18,6 @@
 // Storage is a dual-port BRAM organized as DEPTH_256 x 256-bit. The AXIL
 // write path does read-modify-write because the BRAM is 256-bit wide and
 // the AXIL writes are 32-bit.
-//
-// TODO -- ARCHITECTURAL RULE: every AXI/AXIL agent must use the standard
-// protocol modules under rtl/amba/. The hand-rolled AR/R + AW/W/B skid
-// buffers below are NON-COMPLIANT. Refactor to wrap:
-//     - axi4_slave_rd_mon  on the AXI4 read side  (STREAM <- desc_ram)
-//     - axil4_slave_wr_mon on the AXI-Lite write side (host -> desc_ram)
-// and drive the dual-port BRAM from each module's fub_axi_* user interface.
-// Doing this also adds a slave-side monitor on the descriptor fetch path
-// "for free" -- complements the existing master-side monitor on stream's
-// m_axi_desc, making timeouts trivially localizable to bridge vs slave vs
-// master. Tracked as task #77.
 
 `timescale 1ns / 1ps
 
@@ -99,18 +88,7 @@ module desc_ram #(
     output logic                        s_axi_rlast,
     output logic [AXI_USER_WIDTH-1:0]   s_axi_ruser,
     output logic                        s_axi_rvalid,
-    input  logic                        s_axi_rready,
-
-    // =====================================================================
-    // Debug observability: host-driven mux selects a 32-bit window onto
-    // internal state (FSMs, counters, last-seen addresses/data, BRAM
-    // pointers). harness_csr drives i_dbg_mux_sel and reads o_dbg_data
-    // -- the host bumps mux_sel and reads o_dbg_data sequentially to
-    // walk the full observation set. Use sel=15 to get a sentinel
-    // (32'hDEAD_BEEF) confirming the harness wiring is alive.
-    // =====================================================================
-    input  logic [3:0]                  i_dbg_mux_sel,
-    output logic [31:0]                 o_dbg_data
+    input  logic                        s_axi_rready
 );
 
     localparam int ADDR_BITS_256 = $clog2(DEPTH_256);
@@ -390,79 +368,6 @@ module desc_ram #(
     assign int4_rvalid  = (r_ar_state == AR_RESP);
     // {rid, rdata, rresp, rlast, ruser}
     assign int4_r_pkt   = {r_ar_id, r_ar_data, 2'b00, 1'b1, r_ar_user};
-
-    // =========================================================================
-    // Debug observability: capture last-seen transaction values + running
-    // handshake counters, then mux 12 32-bit windows onto o_dbg_data based
-    // on i_dbg_mux_sel. Lets the host poll desc_ram internal state during
-    // a wedge investigation without touching the AXI data paths.
-    // =========================================================================
-    logic [31:0] r_last_ar_addr;        // last STREAM AR address (256-bit AXI4)
-    logic [31:0] r_last_r_data_lo;      // last R data [31:0] returned to STREAM
-    logic [31:0] r_last_r_data_hi;      // last R data [63:32]
-    logic [31:0] r_last_axil_aw_addr;   // last AXIL AW address (host write)
-    logic [31:0] r_ar_count;            // AR handshakes seen on s_axi
-    logic [31:0] r_r_count;             // R handshakes (beats) seen on s_axi
-    logic [31:0] r_aw_count;            // AW handshakes seen on s_axil
-    logic [31:0] r_w_count;             // W handshakes seen on s_axil
-    logic [31:0] r_b_count;             // B handshakes seen on s_axil
-
-    `ALWAYS_FF_RST(aclk, aresetn,
-        if (`RST_ASSERTED(aresetn)) begin
-            r_last_ar_addr      <= '0;
-            r_last_r_data_lo    <= '0;
-            r_last_r_data_hi    <= '0;
-            r_last_axil_aw_addr <= '0;
-            r_ar_count          <= '0;
-            r_r_count           <= '0;
-            r_aw_count          <= '0;
-            r_w_count           <= '0;
-            r_b_count           <= '0;
-        end else begin
-            if (s_axi_arvalid && s_axi_arready) begin
-                r_last_ar_addr <= s_axi_araddr[31:0];
-                r_ar_count     <= r_ar_count + 32'd1;
-            end
-            if (s_axi_rvalid && s_axi_rready) begin
-                r_last_r_data_lo <= s_axi_rdata[31:0];
-                r_last_r_data_hi <= s_axi_rdata[63:32];
-                r_r_count        <= r_r_count + 32'd1;
-            end
-            if (s_axil_awvalid && s_axil_awready) begin
-                r_last_axil_aw_addr <= s_axil_awaddr;
-                r_aw_count          <= r_aw_count + 32'd1;
-            end
-            if (s_axil_wvalid && s_axil_wready) r_w_count <= r_w_count + 32'd1;
-            if (s_axil_bvalid && s_axil_bready) r_b_count <= r_b_count + 32'd1;
-        end
-    )
-
-    always_comb begin
-        case (i_dbg_mux_sel)
-            // Window 0: FSM states + status flags. Layout
-            //   [1:0]   r_ar_state (2'd0=IDLE, 2'd1=READ, 2'd2=RESP)
-            //   [3:2]   r_aw_state (2'd0=IDLE, 2'd1=RMW,  2'd2=BRESP)
-            //   [4]     r_ar_latch (AXIL read-side dummy latch)
-            //   [31:5]  reserved 0
-            4'h0: o_dbg_data = {27'h0, r_ar_latch,
-                                2'(r_aw_state), 2'(r_ar_state)};
-            4'h1: o_dbg_data = r_last_ar_addr;
-            4'h2: o_dbg_data = r_last_r_data_lo;
-            4'h3: o_dbg_data = r_last_r_data_hi;
-            4'h4: o_dbg_data = r_ar_count;
-            4'h5: o_dbg_data = r_r_count;
-            4'h6: o_dbg_data = r_aw_count;
-            4'h7: o_dbg_data = r_w_count;
-            // BRAM word indices (low N bits of internal pointers).
-            4'h8: o_dbg_data = 32'(r_aw_word_idx);
-            4'h9: o_dbg_data = 32'(r_ar_word_idx);
-            4'hA: o_dbg_data = r_b_count;
-            4'hB: o_dbg_data = r_last_axil_aw_addr;
-            // Sentinel (host pokes sel=15 to confirm the obs path is live)
-            4'hF: o_dbg_data = 32'hDEAD_BEEF;
-            default: o_dbg_data = 32'h0;
-        endcase
-    end
 
     // Prevent unused signal warnings (skid buffers pass these through untouched)
     /* verilator lint_off UNUSED */

@@ -40,15 +40,6 @@ module stream_char_harness #(
     // campaign needs to capture.
     parameter int DESC_RAM_ENTRIES = 2048,   // 2048 × 256 b  = 64 KB
     parameter int DEBUG_SRAM_WORDS = 65536,  //  64K ×  32 b  = 256 KB
-    // Bridge-monitor trace SRAM (mon variant only). Sized smaller than
-    // DEBUG_SRAM because bridge-port traffic is lower-volume than
-    // STREAM's per-channel monitors. 16K 32-bit words = 64 KB =
-    // ~2730 records at 24 bytes each, plenty for a wedge snapshot.
-    parameter int BRIDGE_TRACE_SRAM_WORDS = 16384,
-    // Phase 2: dedicated trace SRAM for the external slave-side
-    // desc-path monitor (axi4_slave_rd_mon between STREAM and
-    // desc_ram). Single-monitor stream, low volume.
-    parameter int DESC_MON_TRACE_WORDS    = 16384,
 
     // axi_response_delay pipeline depths (in beats). Each delay block
     // models a real memory controller: every beat dwells exactly L cycles
@@ -200,23 +191,15 @@ module stream_char_harness #(
     logic s2_awvalid, s2_awready, s2_wvalid, s2_wready, s2_bvalid, s2_bready;
     logic s2_arvalid, s2_arready, s2_rvalid, s2_rready;
 
-    // s3_* (stream_err) and s4_* (debug_sram) carry 64-bit data per the
-    // monbus-on-AXI rule -- stream_err terminates at STREAM's
-    // monbus_axil_group s_axil_err (64-bit rdata), debug_sram is the
-    // SRAM that collects STREAM's monbus packets (64-bit rd port).
-    // The bridge's internal 32->64 upsize at the host adapter feeds
-    // these two slave fanouts; the 32-bit host stays unaware.
-    logic [31:0] s3_awaddr, s3_araddr;
-    logic [63:0] s3_wdata, s3_rdata;
-    logic [7:0]  s3_wstrb;
+    logic [31:0] s3_awaddr, s3_wdata, s3_araddr, s3_rdata;
+    logic [3:0]  s3_wstrb;
     logic [2:0]  s3_awprot, s3_arprot;
     logic [1:0]  s3_bresp, s3_rresp;
     logic s3_awvalid, s3_awready, s3_wvalid, s3_wready, s3_bvalid, s3_bready;
     logic s3_arvalid, s3_arready, s3_rvalid, s3_rready;
 
-    logic [31:0] s4_awaddr, s4_araddr;
-    logic [63:0] s4_wdata, s4_rdata;
-    logic [7:0]  s4_wstrb;
+    logic [31:0] s4_awaddr, s4_wdata, s4_araddr, s4_rdata;
+    logic [3:0]  s4_wstrb;
     logic [2:0]  s4_awprot, s4_arprot;
     logic [1:0]  s4_bresp, s4_rresp;
     logic s4_awvalid, s4_awready, s4_wvalid, s4_wready, s4_bvalid, s4_bready;
@@ -243,89 +226,8 @@ module stream_char_harness #(
     // AXIL signals wire straight to s1_*/s2_*/s3_*/s4_*. One bridge
     // handles every port — no external converter glue.
 
-    // ---- desc_mon_trace_sram slave-port wires (Phase 2: BOTH ends of 256b desc path)
-    // The bridge's desc_mon_trace_sram_axi_* AXIL output drives the rd_*
-    // side of a dedicated debug_sram instance. The wr_* side comes from a
-    // dedicated monbus_axil_group that consumes the new axi4_slave_rd_mon
-    // packets. 64-bit data per the monbus-on-AXI rule.
-    logic [31:0] dmt_awaddr, dmt_araddr;
-    logic [63:0] dmt_wdata, dmt_rdata;
-    logic [7:0]  dmt_wstrb;
-    logic [2:0]  dmt_awprot, dmt_arprot;
-    logic [1:0]  dmt_bresp, dmt_rresp;
-    logic dmt_awvalid, dmt_awready, dmt_wvalid, dmt_wready, dmt_bvalid, dmt_bready;
-    logic dmt_arvalid, dmt_arready, dmt_rvalid, dmt_rready;
-
-    // Dedicated monbus_axil_group's m_axil master that writes the bulk
-    // trace records into desc_mon_trace_sram.wr_*.
-    logic        dmt_m_axil_awvalid, dmt_m_axil_awready;
-    logic [31:0] dmt_m_axil_awaddr;
-    logic [2:0]  dmt_m_axil_awprot;
-    logic        dmt_m_axil_wvalid, dmt_m_axil_wready;
-    logic [63:0] dmt_m_axil_wdata;
-    logic [7:0]  dmt_m_axil_wstrb;
-    logic        dmt_m_axil_bvalid, dmt_m_axil_bready;
-    logic [1:0]  dmt_m_axil_bresp;
-
-    // ---- bridge_trace_sram slave-port wires (mon variant) ------------------
-    // The bridge's bridge_trace_sram_axi_* AXIL output drives the rd_*
-    // (host-read) side of a dedicated debug_sram instance. The wr_*
-    // (bridge-write) side comes from the bridge's m_mon_axil_* output
-    // -- see "Bridge monitor side-band" below. Every AXI port on this
-    // SRAM is 64-bit per the monbus-on-AXI rule.
-    logic [31:0] btr_awaddr, btr_araddr;
-    logic [63:0] btr_wdata, btr_rdata;
-    logic [7:0]  btr_wstrb;
-    logic [2:0]  btr_awprot, btr_arprot;
-    logic [1:0]  btr_bresp, btr_rresp;
-    logic btr_awvalid, btr_awready, btr_wvalid, btr_wready, btr_bvalid, btr_bready;
-    logic btr_arvalid, btr_arready, btr_rvalid, btr_rready;
-
-    // ---- Bridge monitor side-band wires (mon variant) ----------------------
-    // m_mon_axil_*: 64-bit AXIL master from the bridge's internal
-    // monbus_axil_group; drives the bridge_trace_sram's 64-bit wr_*
-    // port directly (bypassing the bridge fabric).
-    logic        bmon_m_axil_awvalid, bmon_m_axil_awready;
-    logic [31:0] bmon_m_axil_awaddr;
-    logic [2:0]  bmon_m_axil_awprot;
-    logic        bmon_m_axil_wvalid, bmon_m_axil_wready;
-    logic [63:0] bmon_m_axil_wdata;
-    logic [7:0]  bmon_m_axil_wstrb;
-    logic        bmon_m_axil_bvalid, bmon_m_axil_bready;
-    logic [1:0]  bmon_m_axil_bresp;
-
-    // mon_irq_out: bridge raises when its err FIFO is non-empty. We OR
-    // it into the harness IRQ path so a bridge-side error trips the
-    // same status bit STREAM uses.
-    logic bridge_mon_irq;
-
-    // ---- Bridge instance (mon variant) -------------------------------------
-    // Uses internal monbus_axil_group (internal_axil_group=true in TOML)
-    // -- the bridge does its own per-port monitor + arbiter + AXIL
-    // group end-to-end. m_mon_axil writes the bulk trace to a dedicated
-    // debug_sram; s_mon_axil (IRQ-status FIFO drain) is tied off
-    // because it's 64-bit and we don't yet have a host-side path that
-    // can talk 64-bit AXIL -- the bulk trace + mon_irq_out is enough
-    // for the current debug needs.
-    //
-    // Monitor configuration (parameter overrides; TOML provides defaults
-    // but we flip per-port knobs here so the bridge stays regen-free in
-    // production):
-    //   - Only desc_ram_rd live: catches the host's descriptor read-back
-    //     path during the wedge investigation. STREAM-internal DAXMON
-    //     already covers the STREAM-side 256-bit descriptor fetch.
-    //   - Everything else off to fit the -1 part with timing margin.
-    //   - To turn on more monitors at next iteration, override additional
-    //     USE_MONITOR_<port>_<wr|rd> bits below, or use the global
-    //     USE_ALL_MONITORS / USE_NO_MONITORS knobs.
-    bridge_stream_char_axil_mon #(
-        .USE_MONITOR_desc_ram_wr (1'b0),  // disable wr; only rd is the user's spec
-        .USE_MONITOR_desc_ram_rd (1'b1)   // host descriptor read-back visibility
-        // All other USE_MONITOR_* default to 1'b0 from the TOML --
-        // leaving them unset here means "use TOML default".
-        // Global knobs (USE_ALL_MONITORS / USE_NO_MONITORS) also
-        // default to 1'b0 from the TOML; flip here to override.
-    ) u_bridge (
+    // ---- Bridge instance ---------------------------------------------------
+    bridge_stream_char_axil u_bridge (
         .aclk    (aclk),
         .aresetn (aresetn),
 
@@ -497,158 +399,7 @@ module stream_char_harness #(
         .dma_axil_rdata    (32'hDEAD_BEEF),
         .dma_axil_rresp    (2'b11),
         .dma_axil_rvalid   (1'b0),
-        .dma_axil_rready   (),
-
-        // Slave 6: bridge_trace_sram (host reads bulk trace via this fanout port)
-        .bridge_trace_sram_awaddr   (btr_awaddr),
-        .bridge_trace_sram_awprot   (btr_awprot),
-        .bridge_trace_sram_awvalid  (btr_awvalid),
-        .bridge_trace_sram_awready  (btr_awready),
-        .bridge_trace_sram_wdata    (btr_wdata),
-        .bridge_trace_sram_wstrb    (btr_wstrb),
-        .bridge_trace_sram_wvalid   (btr_wvalid),
-        .bridge_trace_sram_wready   (btr_wready),
-        .bridge_trace_sram_bresp    (btr_bresp),
-        .bridge_trace_sram_bvalid   (btr_bvalid),
-        .bridge_trace_sram_bready   (btr_bready),
-        .bridge_trace_sram_araddr   (btr_araddr),
-        .bridge_trace_sram_arprot   (btr_arprot),
-        .bridge_trace_sram_arvalid  (btr_arvalid),
-        .bridge_trace_sram_arready  (btr_arready),
-        .bridge_trace_sram_rdata    (btr_rdata),
-        .bridge_trace_sram_rresp    (btr_rresp),
-        .bridge_trace_sram_rvalid   (btr_rvalid),
-        .bridge_trace_sram_rready   (btr_rready),
-
-        // Slave 7: desc_mon_trace_sram (Phase 2 -- host reads bulk
-        // trace from the slave-side desc-path monitor)
-        .desc_mon_trace_sram_awaddr  (dmt_awaddr),
-        .desc_mon_trace_sram_awprot  (dmt_awprot),
-        .desc_mon_trace_sram_awvalid (dmt_awvalid),
-        .desc_mon_trace_sram_awready (dmt_awready),
-        .desc_mon_trace_sram_wdata   (dmt_wdata),
-        .desc_mon_trace_sram_wstrb   (dmt_wstrb),
-        .desc_mon_trace_sram_wvalid  (dmt_wvalid),
-        .desc_mon_trace_sram_wready  (dmt_wready),
-        .desc_mon_trace_sram_bresp   (dmt_bresp),
-        .desc_mon_trace_sram_bvalid  (dmt_bvalid),
-        .desc_mon_trace_sram_bready  (dmt_bready),
-        .desc_mon_trace_sram_araddr  (dmt_araddr),
-        .desc_mon_trace_sram_arprot  (dmt_arprot),
-        .desc_mon_trace_sram_arvalid (dmt_arvalid),
-        .desc_mon_trace_sram_arready (dmt_arready),
-        .desc_mon_trace_sram_rdata   (dmt_rdata),
-        .desc_mon_trace_sram_rresp   (dmt_rresp),
-        .desc_mon_trace_sram_rvalid  (dmt_rvalid),
-        .desc_mon_trace_sram_rready  (dmt_rready),
-
-        // -----------------------------------------------------------------
-        // Monitor side-band -- per-wrapper cfg, monbus_axil_group ports,
-        // and IRQ. The cfg defaults below put every wrapper into "trace
-        // everything" mode: monitor/error/timeout enabled, perf disabled
-        // (perf + compl together overruns the packet path -- see
-        // docs/AXI_Monitor_Configuration_Guide.md), err_select=0 so
-        // every packet flows to the write FIFO (bulk trace) and none
-        // to the err FIFO (IRQ). Runtime control of these can be
-        // exposed via harness_csr later.
-        // -----------------------------------------------------------------
-        `define BRIDGE_MON_CFG_DEFAULTS(P)                          \
-            .cfg_``P``_monitor_enable    (1'b1),                    \
-            .cfg_``P``_error_enable      (1'b1),                    \
-            .cfg_``P``_timeout_enable    (1'b1),                    \
-            .cfg_``P``_perf_enable       (1'b0),                    \
-            .cfg_``P``_timeout_cycles    (16'hFFFF),                \
-            .cfg_``P``_latency_threshold (32'hFFFF_FFFF),           \
-            .cfg_``P``_axi_pkt_mask      (16'h0000),                \
-            .cfg_``P``_axi_err_select    (16'h0000),                \
-            .cfg_``P``_axi_error_mask    (16'h0000),                \
-            .cfg_``P``_axi_timeout_mask  (16'h0000),                \
-            .cfg_``P``_axi_compl_mask    (16'h0000),                \
-            .cfg_``P``_axi_thresh_mask   (16'h0000),                \
-            .cfg_``P``_axi_perf_mask     (16'h0000),                \
-            .cfg_``P``_axi_addr_mask     (16'h0000),                \
-            .cfg_``P``_axi_debug_mask    (16'h0000)
-
-        `BRIDGE_MON_CFG_DEFAULTS(host_0_wr),
-        `BRIDGE_MON_CFG_DEFAULTS(host_0_rd),
-        `BRIDGE_MON_CFG_DEFAULTS(stream_apb_0_wr),
-        `BRIDGE_MON_CFG_DEFAULTS(stream_apb_0_rd),
-        `BRIDGE_MON_CFG_DEFAULTS(harness_csr_1_wr),
-        `BRIDGE_MON_CFG_DEFAULTS(harness_csr_1_rd),
-        `BRIDGE_MON_CFG_DEFAULTS(desc_ram_2_wr),
-        `BRIDGE_MON_CFG_DEFAULTS(desc_ram_2_rd),
-        `BRIDGE_MON_CFG_DEFAULTS(stream_err_3_wr),
-        `BRIDGE_MON_CFG_DEFAULTS(stream_err_3_rd),
-        `BRIDGE_MON_CFG_DEFAULTS(debug_sram_4_wr),
-        `BRIDGE_MON_CFG_DEFAULTS(debug_sram_4_rd),
-        `BRIDGE_MON_CFG_DEFAULTS(dma_axil_5_wr),
-        `BRIDGE_MON_CFG_DEFAULTS(dma_axil_5_rd),
-        `BRIDGE_MON_CFG_DEFAULTS(bridge_trace_sram_6_wr),
-        `BRIDGE_MON_CFG_DEFAULTS(bridge_trace_sram_6_rd),
-        `BRIDGE_MON_CFG_DEFAULTS(desc_mon_trace_sram_7_wr),
-        `BRIDGE_MON_CFG_DEFAULTS(desc_mon_trace_sram_7_rd),
-
-        // AXIL slave for IRQ-status FIFO drains -- 64-bit data. We tie
-        // it off because the host-side path is 32-bit AXIL today; the
-        // bulk trace (m_mon_axil + bridge_trace_sram) carries every
-        // packet anyway, so IRQ-FIFO inspection isn't load-bearing.
-        .s_mon_axil_arvalid (1'b0),
-        .s_mon_axil_arready (),
-        .s_mon_axil_araddr  (32'h0),
-        .s_mon_axil_arprot  (3'h0),
-        .s_mon_axil_rvalid  (),
-        .s_mon_axil_rready  (1'b1),
-        .s_mon_axil_rdata   (),
-        .s_mon_axil_rresp   (),
-
-        // AXIL master for bulk trace writes -- drives bridge_trace_sram's
-        // 64-bit wr_* port directly (bypassing the bridge fabric).
-        .m_mon_axil_awvalid (bmon_m_axil_awvalid),
-        .m_mon_axil_awready (bmon_m_axil_awready),
-        .m_mon_axil_awaddr  (bmon_m_axil_awaddr),
-        .m_mon_axil_awprot  (bmon_m_axil_awprot),
-        .m_mon_axil_wvalid  (bmon_m_axil_wvalid),
-        .m_mon_axil_wready  (bmon_m_axil_wready),
-        .m_mon_axil_wdata   (bmon_m_axil_wdata),
-        .m_mon_axil_wstrb   (bmon_m_axil_wstrb),
-        .m_mon_axil_bvalid  (bmon_m_axil_bvalid),
-        .m_mon_axil_bready  (bmon_m_axil_bready),
-        .m_mon_axil_bresp   (bmon_m_axil_bresp),
-
-        // monbus_axil_group cfg -- base/limit point at the trace SRAM's
-        // host-side window so writes land at the same byte indexes the
-        // host reads from. Filter masks all zero = pass everything.
-        .cfg_mon_group_base_addr      (32'h000c_0000),
-        .cfg_mon_group_limit_addr     (32'h000c_0000 +
-                                       32'(BRIDGE_TRACE_SRAM_WORDS) * 32'h4 - 32'h1),
-        .cfg_mon_group_axi_pkt_mask   (16'h0000),
-        .cfg_mon_group_axi_err_select (16'h0000),
-        .cfg_mon_group_axi_error_mask (16'h0000),
-        .cfg_mon_group_axi_timeout_mask (16'h0000),
-        .cfg_mon_group_axi_compl_mask (16'h0000),
-        .cfg_mon_group_axi_thresh_mask (16'h0000),
-        .cfg_mon_group_axi_perf_mask  (16'h0000),
-        .cfg_mon_group_axi_addr_mask  (16'h0000),
-        .cfg_mon_group_axi_debug_mask (16'h0000),
-        .cfg_mon_group_axis_pkt_mask  (16'h0000),
-        .cfg_mon_group_axis_err_select (16'h0000),
-        .cfg_mon_group_axis_error_mask (16'h0000),
-        .cfg_mon_group_axis_timeout_mask (16'h0000),
-        .cfg_mon_group_axis_compl_mask (16'h0000),
-        .cfg_mon_group_axis_credit_mask (16'h0000),
-        .cfg_mon_group_axis_channel_mask (16'h0000),
-        .cfg_mon_group_axis_stream_mask (16'h0000),
-        .cfg_mon_group_core_pkt_mask  (16'h0000),
-        .cfg_mon_group_core_err_select (16'h0000),
-        .cfg_mon_group_core_error_mask (16'h0000),
-        .cfg_mon_group_core_timeout_mask (16'h0000),
-        .cfg_mon_group_core_compl_mask (16'h0000),
-        .cfg_mon_group_core_thresh_mask (16'h0000),
-        .cfg_mon_group_core_perf_mask (16'h0000),
-        .cfg_mon_group_core_debug_mask (16'h0000),
-
-        // IRQ -- routed via bridge_mon_irq below.
-        .mon_irq_out (bridge_mon_irq)
+        .dma_axil_rready   ()
     );
 
 
@@ -795,9 +546,6 @@ module stream_char_harness #(
     // Wires from harness_csr → stream_top_ch8 (kick-burst fast path).
     logic [NUM_CHANNELS-1:0]       csr_kick_burst_mask;
     logic [NUM_CHANNELS-1:0][31:0] csr_kick_burst_addr;
-    // desc_ram debug observability path: harness_csr writes sel, reads data.
-    logic [3:0]  csr_desc_ram_dbg_sel;
-    logic [31:0] desc_ram_dbg_data;
 
     harness_csr #(.AW(32), .DW(32), .NUM_CHANNELS(NUM_CHANNELS)) u_csr (
         .aclk(aclk), .aresetn(aresetn),
@@ -871,11 +619,7 @@ module stream_char_harness #(
         .i_wr_meter_ch_bp       (wr_meter_ch_bp),
         .i_wr_meter_ch_starv    (wr_meter_ch_starv),
         .i_wr_meter_ch_idle     (wr_meter_ch_idle),
-        .i_wr_meter_ch_overflow (wr_meter_ch_overflow),
-
-        // desc_ram debug observability (host @ 0x60/0x64)
-        .o_desc_ram_dbg_sel     (csr_desc_ram_dbg_sel),
-        .i_desc_ram_dbg_data    (desc_ram_dbg_data)
+        .i_wr_meter_ch_overflow (wr_meter_ch_overflow)
     );
 
     // =========================================================================
@@ -1060,111 +804,6 @@ module stream_char_harness #(
     logic [AXI_USER_WIDTH-1:0]  desc_ruser;
     logic                       desc_rvalid, desc_rready;
 
-    // ---- axi4_slave_rd_mon on the 256-bit descriptor read path -----------
-    // Sandwiched between STREAM's m_axi_desc (drives the desc_* wires)
-    // and desc_ram.s_axi_*. desc_* is now the monitor's s_axi (slave-side
-    // input) and desc_to_ram_* is the monitor's fub_axi (master-side
-    // output, going to desc_ram). Per the user's spec, BOTH ends of the
-    // 256-bit path are monitored: STREAM-internal DAXMON catches the
-    // master side, and this external slave-side monitor catches the
-    // SRAM side. The two should report essentially identical packets
-    // (same wire), with the slave-side monitor providing redundancy +
-    // verification.
-    //
-    // Its monbus output drives a dedicated monbus_axil_group below
-    // (separate from STREAM's and the bridge's, so this trace stays
-    // independent and won't perturb the existing capture paths).
-    logic [AXI_ID_WIDTH-1:0]    desc_to_ram_arid;
-    logic [ADDR_WIDTH-1:0]      desc_to_ram_araddr;
-    logic [7:0]                 desc_to_ram_arlen;
-    logic [2:0]                 desc_to_ram_arsize;
-    logic [1:0]                 desc_to_ram_arburst;
-    logic                       desc_to_ram_arlock;
-    logic [3:0]                 desc_to_ram_arcache;
-    logic [2:0]                 desc_to_ram_arprot;
-    logic [3:0]                 desc_to_ram_arqos;
-    logic [3:0]                 desc_to_ram_arregion;
-    logic [AXI_USER_WIDTH-1:0]  desc_to_ram_aruser;
-    logic                       desc_to_ram_arvalid, desc_to_ram_arready;
-    logic [AXI_ID_WIDTH-1:0]    desc_to_ram_rid;
-    logic [255:0]               desc_to_ram_rdata;
-    logic [1:0]                 desc_to_ram_rresp;
-    logic                       desc_to_ram_rlast;
-    logic [AXI_USER_WIDTH-1:0]  desc_to_ram_ruser;
-    logic                       desc_to_ram_rvalid, desc_to_ram_rready;
-
-    // Monbus output from the new slave-side monitor + free-running
-    // time shared between the monitor and the dedicated axil_group.
-    logic                                  desc_mon_monbus_valid;
-    logic                                  desc_mon_monbus_ready;
-    monitor_common_pkg::monitor_packet_t   desc_mon_monbus_packet;
-    monitor_common_pkg::monbus_timestamp_t desc_mon_monbus_timestamp;
-    monitor_common_pkg::monbus_timestamp_t desc_mon_mon_time;
-    logic desc_mon_irq;
-
-    axi4_slave_rd_mon #(
-        .AXI_ID_WIDTH    (AXI_ID_WIDTH),
-        .AXI_ADDR_WIDTH  (ADDR_WIDTH),
-        .AXI_DATA_WIDTH  (256),
-        .AXI_USER_WIDTH  (AXI_USER_WIDTH),
-        // Unit/Agent IDs identify this monitor in the trace records.
-        // UNIT_ID=3 = "desc-path slave-side" (distinct from STREAM's
-        // DAXMON UNIT_ID and the bridge's per-port UNIT_IDs).
-        .UNIT_ID         (8'h03),
-        .AGENT_ID        (16'h0000),
-        .MAX_TRANSACTIONS(32'd16)
-    ) u_desc_mon (
-        .aclk(aclk), .aresetn(unit_aresetn),
-        // s_axi side: from STREAM (desc_* wires)
-        .s_axi_arid     (desc_arid),    .s_axi_araddr  (desc_araddr),
-        .s_axi_arlen    (desc_arlen),   .s_axi_arsize  (desc_arsize),
-        .s_axi_arburst  (desc_arburst), .s_axi_arlock  (desc_arlock),
-        .s_axi_arcache  (desc_arcache), .s_axi_arprot  (desc_arprot),
-        .s_axi_arqos    (desc_arqos),   .s_axi_arregion(desc_arregion),
-        .s_axi_aruser   (desc_aruser),
-        .s_axi_arvalid  (desc_arvalid), .s_axi_arready (desc_arready),
-        .s_axi_rid      (desc_rid),     .s_axi_rdata   (desc_rdata),
-        .s_axi_rresp    (desc_rresp),   .s_axi_rlast   (desc_rlast),
-        .s_axi_ruser    (desc_ruser),
-        .s_axi_rvalid   (desc_rvalid),  .s_axi_rready  (desc_rready),
-        // fub_axi side: to desc_ram (desc_to_ram_* wires)
-        .fub_axi_arid    (desc_to_ram_arid),    .fub_axi_araddr  (desc_to_ram_araddr),
-        .fub_axi_arlen   (desc_to_ram_arlen),   .fub_axi_arsize  (desc_to_ram_arsize),
-        .fub_axi_arburst (desc_to_ram_arburst), .fub_axi_arlock  (desc_to_ram_arlock),
-        .fub_axi_arcache (desc_to_ram_arcache), .fub_axi_arprot  (desc_to_ram_arprot),
-        .fub_axi_arqos   (desc_to_ram_arqos),   .fub_axi_arregion(desc_to_ram_arregion),
-        .fub_axi_aruser  (desc_to_ram_aruser),
-        .fub_axi_arvalid (desc_to_ram_arvalid), .fub_axi_arready (desc_to_ram_arready),
-        .fub_axi_rid     (desc_to_ram_rid),     .fub_axi_rdata   (desc_to_ram_rdata),
-        .fub_axi_rresp   (desc_to_ram_rresp),   .fub_axi_rlast   (desc_to_ram_rlast),
-        .fub_axi_ruser   (desc_to_ram_ruser),
-        .fub_axi_rvalid  (desc_to_ram_rvalid),  .fub_axi_rready  (desc_to_ram_rready),
-        // cfg: trace everything (host can refine later via runtime cfg)
-        .cfg_monitor_enable    (1'b1),
-        .cfg_error_enable      (1'b1),
-        .cfg_timeout_enable    (1'b1),
-        .cfg_perf_enable       (1'b0),  // never compl+perf together
-        .cfg_timeout_cycles    (16'hFFFF),
-        .cfg_latency_threshold (32'hFFFF_FFFF),
-        .cfg_axi_pkt_mask      (16'h0000),
-        .cfg_axi_err_select    (16'h0000),  // route every packet to bulk-trace
-        .cfg_axi_error_mask    (16'h0000),
-        .cfg_axi_timeout_mask  (16'h0000),
-        .cfg_axi_compl_mask    (16'h0000),
-        .cfg_axi_thresh_mask   (16'h0000),
-        .cfg_axi_perf_mask     (16'h0000),
-        .cfg_axi_addr_mask     (16'h0000),
-        .cfg_axi_debug_mask    (16'h0000),
-        // No address-range checker (N_ADDR_RANGES=0 default → tied-off inputs)
-        .cfg_addr_check_enable (1'b0),
-        // monbus output + shared time
-        .i_mon_time            (desc_mon_mon_time),
-        .monbus_valid          (desc_mon_monbus_valid),
-        .monbus_ready          (desc_mon_monbus_ready),
-        .monbus_packet         (desc_mon_monbus_packet),
-        .monbus_timestamp      (desc_mon_monbus_timestamp)
-    );
-
     desc_ram #(
         .AXI_ID_WIDTH  (AXI_ID_WIDTH),
         .AXI_USER_WIDTH(AXI_USER_WIDTH),
@@ -1182,23 +821,18 @@ module stream_char_harness #(
         .s_axil_arvalid(s2_arvalid), .s_axil_arready(s2_arready),
         .s_axil_rdata  (s2_rdata), .s_axil_rresp(s2_rresp),
         .s_axil_rvalid (s2_rvalid), .s_axil_rready(s2_rready),
-        // AXI4 read: now from monitor's fub_axi (no longer direct from STREAM)
-        .s_axi_arid   (desc_to_ram_arid),   .s_axi_araddr(desc_to_ram_araddr),
-        .s_axi_arlen  (desc_to_ram_arlen),  .s_axi_arsize(desc_to_ram_arsize),
-        .s_axi_arburst(desc_to_ram_arburst),.s_axi_arlock(desc_to_ram_arlock),
-        .s_axi_arcache(desc_to_ram_arcache),.s_axi_arprot(desc_to_ram_arprot),
-        .s_axi_arqos  (desc_to_ram_arqos),  .s_axi_arregion(desc_to_ram_arregion),
-        .s_axi_aruser (desc_to_ram_aruser), .s_axi_arvalid(desc_to_ram_arvalid),
-        .s_axi_arready(desc_to_ram_arready),
-        .s_axi_rid    (desc_to_ram_rid),    .s_axi_rdata(desc_to_ram_rdata),
-        .s_axi_rresp  (desc_to_ram_rresp),  .s_axi_rlast(desc_to_ram_rlast),
-        .s_axi_ruser  (desc_to_ram_ruser),  .s_axi_rvalid(desc_to_ram_rvalid),
-        .s_axi_rready (desc_to_ram_rready),
-        // Debug observability: harness_csr drives the mux select and
-        // reads the data word -- host bumps sel + reads to walk the
-        // internal state set.
-        .i_dbg_mux_sel(csr_desc_ram_dbg_sel),
-        .o_dbg_data   (desc_ram_dbg_data)
+        // AXI4 read (from STREAM m_axi_desc)
+        .s_axi_arid   (desc_arid),   .s_axi_araddr(desc_araddr),
+        .s_axi_arlen  (desc_arlen),  .s_axi_arsize(desc_arsize),
+        .s_axi_arburst(desc_arburst),.s_axi_arlock(desc_arlock),
+        .s_axi_arcache(desc_arcache),.s_axi_arprot(desc_arprot),
+        .s_axi_arqos  (desc_arqos),  .s_axi_arregion(desc_arregion),
+        .s_axi_aruser (desc_aruser), .s_axi_arvalid(desc_arvalid),
+        .s_axi_arready(desc_arready),
+        .s_axi_rid    (desc_rid),    .s_axi_rdata(desc_rdata),
+        .s_axi_rresp  (desc_rresp),  .s_axi_rlast(desc_rlast),
+        .s_axi_ruser  (desc_ruser),  .s_axi_rvalid(desc_rvalid),
+        .s_axi_rready (desc_rready)
     );
 
     // =========================================================================
@@ -1211,8 +845,7 @@ module stream_char_harness #(
     logic [31:0] s3_err_araddr;
     logic [2:0]  s3_err_arprot;
     logic        s3_err_rvalid,  s3_err_rready;
-    // 64-bit per monbus-on-AXI rule -- STREAM's s_axil_err_rdata is now 64-bit.
-    logic [63:0] s3_err_rdata;
+    logic [31:0] s3_err_rdata;
     logic [1:0]  s3_err_rresp;
 
     assign s3_err_arvalid = s3_arvalid;
@@ -1275,7 +908,7 @@ module stream_char_harness #(
         .wr_arvalid(1'b0), .wr_arready(),
         .wr_rdata  (), .wr_rresp(),
         .wr_rvalid (), .wr_rready(1'b1),
-        // Read-only port from host decoder S4 (64-bit per monbus-on-AXI rule)
+        // Read-only port from host decoder S4
         .rd_awaddr (s4_awaddr), .rd_awprot(s4_awprot),
         .rd_awvalid(s4_awvalid), .rd_awready(s4_awready),
         .rd_wdata  (s4_wdata), .rd_wstrb(s4_wstrb),
@@ -1285,147 +918,6 @@ module stream_char_harness #(
         .rd_arvalid(s4_arvalid), .rd_arready(s4_arready),
         .rd_rdata  (s4_rdata), .rd_rresp(s4_rresp),
         .rd_rvalid (s4_rvalid), .rd_rready(s4_rready)
-    );
-
-    // =========================================================================
-    // bridge_trace_sram: same debug_sram module instantiated smaller for the
-    // bridge's own monbus trace. The bridge's m_mon_axil_* (64-bit) drives
-    // wr_* directly (bypassing the bridge fabric); host reads through the
-    // bridge_trace_sram bridge slave fanout, which the bridge widens from
-    // the host's 32-bit to 64-bit via the auto-inserted dwidth converter.
-    // Wired to csr_freeze / csr_clear_pulse so a single clear_stats pulse
-    // wipes both this SRAM and STREAM's debug_sram together.
-    // =========================================================================
-    logic        btr_dbg_overflow, btr_dbg_clear_busy;
-    logic [31:0] btr_dbg_wr_ptr;
-
-    debug_sram #(
-        .DEPTH_WORDS(BRIDGE_TRACE_SRAM_WORDS)
-    ) u_bridge_trace_sram (
-        .aclk(aclk), .aresetn(unit_aresetn),
-        .i_freeze     (csr_freeze),
-        .i_clear_pulse(csr_clear_pulse),
-        .o_wr_ptr     (btr_dbg_wr_ptr),
-        .o_overflow   (btr_dbg_overflow),
-        .o_clear_busy (btr_dbg_clear_busy),
-        // Write-only port from bridge's monbus_axil_group AXIL master
-        .wr_awaddr (bmon_m_axil_awaddr), .wr_awprot(bmon_m_axil_awprot),
-        .wr_awvalid(bmon_m_axil_awvalid), .wr_awready(bmon_m_axil_awready),
-        .wr_wdata  (bmon_m_axil_wdata), .wr_wstrb(bmon_m_axil_wstrb),
-        .wr_wvalid (bmon_m_axil_wvalid), .wr_wready(bmon_m_axil_wready),
-        .wr_bresp  (bmon_m_axil_bresp), .wr_bvalid(bmon_m_axil_bvalid), .wr_bready(bmon_m_axil_bready),
-        .wr_araddr (32'h0), .wr_arprot(3'h0),
-        .wr_arvalid(1'b0), .wr_arready(),
-        .wr_rdata  (), .wr_rresp(),
-        .wr_rvalid (), .wr_rready(1'b1),
-        // Read-only port from host via bridge slave fanout (64-bit)
-        .rd_awaddr (btr_awaddr), .rd_awprot(btr_awprot),
-        .rd_awvalid(btr_awvalid), .rd_awready(btr_awready),
-        .rd_wdata  (btr_wdata), .rd_wstrb(btr_wstrb),
-        .rd_wvalid (btr_wvalid), .rd_wready(btr_wready),
-        .rd_bresp  (btr_bresp), .rd_bvalid(btr_bvalid), .rd_bready(btr_bready),
-        .rd_araddr (btr_araddr), .rd_arprot(btr_arprot),
-        .rd_arvalid(btr_arvalid), .rd_arready(btr_arready),
-        .rd_rdata  (btr_rdata), .rd_rresp(btr_rresp),
-        .rd_rvalid (btr_rvalid), .rd_rready(btr_rready)
-    );
-
-    // =========================================================================
-    // desc_mon_trace_sram + dedicated monbus_axil_group for the new
-    // slave-side desc-path monitor (Phase 2). Same record layout as the
-    // other trace regions (24-byte = 3 x 64-bit beats), but isolated so
-    // host can dump it independently with dump_monbus_sram.py --base
-    // 0x000d_0000. Sized small (16K x 32b = 64KB ~= 2730 records) -- a
-    // single-monitor stream is low-volume.
-    // =========================================================================
-    monbus_axil_group #(
-        .FIFO_DEPTH_ERR    (64),
-        .FIFO_DEPTH_WRITE  (32),
-        .ADDR_WIDTH        (32),
-        .S_AXIL_DATA_WIDTH (64),
-        .M_AXIL_DATA_WIDTH (64),
-        .NUM_PROTOCOLS     (1)        // only AXI-protocol packets land here
-    ) u_desc_mon_axil_group (
-        .axi_aclk          (aclk),
-        .axi_aresetn       (unit_aresetn),
-        // monbus input from the new slave-side desc-path monitor
-        .monbus_valid      (desc_mon_monbus_valid),
-        .monbus_ready      (desc_mon_monbus_ready),
-        .monbus_packet     (desc_mon_monbus_packet),
-        .monbus_timestamp  (desc_mon_monbus_timestamp),
-        .mon_time_out      (desc_mon_mon_time),
-        // AXIL slave -- tied off (no host 64-bit AXIL path today; bulk
-        // trace + IRQ is enough).
-        .s_axil_arvalid    (1'b0),
-        .s_axil_arready    (),
-        .s_axil_araddr     (32'h0),
-        .s_axil_arprot     (3'h0),
-        .s_axil_rvalid     (),
-        .s_axil_rready     (1'b1),
-        .s_axil_rdata      (),
-        .s_axil_rresp      (),
-        // AXIL master -- writes bulk trace records to desc_mon_trace_sram.wr_*
-        .m_axil_awvalid    (dmt_m_axil_awvalid),
-        .m_axil_awready    (dmt_m_axil_awready),
-        .m_axil_awaddr     (dmt_m_axil_awaddr),
-        .m_axil_awprot     (dmt_m_axil_awprot),
-        .m_axil_wvalid     (dmt_m_axil_wvalid),
-        .m_axil_wready     (dmt_m_axil_wready),
-        .m_axil_wdata      (dmt_m_axil_wdata),
-        .m_axil_wstrb      (dmt_m_axil_wstrb),
-        .m_axil_bvalid     (dmt_m_axil_bvalid),
-        .m_axil_bready     (dmt_m_axil_bready),
-        .m_axil_bresp      (dmt_m_axil_bresp),
-        // IRQ
-        .irq_out           (desc_mon_irq),
-        // Window for the trace dumps -- 0x000d_0000 + 64KB.
-        .cfg_base_addr     (32'h000d_0000),
-        .cfg_limit_addr    (32'h000d_0000 + 32'(DESC_MON_TRACE_WORDS) * 32'h4 - 32'h1),
-        // Protocol 0 cfg: trace everything (host can refine via cfg later).
-        .cfg_axi_pkt_mask     (16'h0000),
-        .cfg_axi_err_select   (16'h0000),
-        .cfg_axi_error_mask   (16'h0000),
-        .cfg_axi_timeout_mask (16'h0000),
-        .cfg_axi_compl_mask   (16'h0000),
-        .cfg_axi_thresh_mask  (16'h0000),
-        .cfg_axi_perf_mask    (16'h0000),
-        .cfg_axi_addr_mask    (16'h0000),
-        .cfg_axi_debug_mask   (16'h0000),
-        /* verilator lint_off PINCONNECTEMPTY */
-        .err_fifo_full        (),
-        .write_fifo_full      (),
-        .err_fifo_count       (),
-        .write_fifo_count     ()
-        /* verilator lint_on PINCONNECTEMPTY */
-    );
-
-    debug_sram #(
-        .DEPTH_WORDS(DESC_MON_TRACE_WORDS)
-    ) u_desc_mon_trace_sram (
-        .aclk(aclk), .aresetn(unit_aresetn),
-        .i_freeze     (csr_freeze),
-        .i_clear_pulse(csr_clear_pulse),
-        .o_wr_ptr     (), .o_overflow(), .o_clear_busy(),
-        // wr_*: from dedicated monbus_axil_group
-        .wr_awaddr (dmt_m_axil_awaddr), .wr_awprot(dmt_m_axil_awprot),
-        .wr_awvalid(dmt_m_axil_awvalid), .wr_awready(dmt_m_axil_awready),
-        .wr_wdata  (dmt_m_axil_wdata), .wr_wstrb(dmt_m_axil_wstrb),
-        .wr_wvalid (dmt_m_axil_wvalid), .wr_wready(dmt_m_axil_wready),
-        .wr_bresp  (dmt_m_axil_bresp), .wr_bvalid(dmt_m_axil_bvalid), .wr_bready(dmt_m_axil_bready),
-        .wr_araddr (32'h0), .wr_arprot(3'h0),
-        .wr_arvalid(1'b0), .wr_arready(),
-        .wr_rdata  (), .wr_rresp(),
-        .wr_rvalid (), .wr_rready(1'b1),
-        // rd_*: host reads through bridge slave (64-bit per rule)
-        .rd_awaddr (dmt_awaddr), .rd_awprot(dmt_awprot),
-        .rd_awvalid(dmt_awvalid), .rd_awready(dmt_awready),
-        .rd_wdata  (dmt_wdata), .rd_wstrb(dmt_wstrb),
-        .rd_wvalid (dmt_wvalid), .rd_wready(dmt_wready),
-        .rd_bresp  (dmt_bresp), .rd_bvalid(dmt_bvalid), .rd_bready(dmt_bready),
-        .rd_araddr (dmt_araddr), .rd_arprot(dmt_arprot),
-        .rd_arvalid(dmt_arvalid), .rd_arready(dmt_arready),
-        .rd_rdata  (dmt_rdata), .rd_rresp(dmt_rresp),
-        .rd_rvalid (dmt_rvalid), .rd_rready(dmt_rready)
     );
 
     // =========================================================================

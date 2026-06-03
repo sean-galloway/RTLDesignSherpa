@@ -296,7 +296,7 @@ module debug_sram_adapter #(
         .m_axil_rready(debug_sram_axi_rready)
     );
 
-    // Wire converter outputs back to crossbar interface
+    // Wire converter outputs back to shim's crossbar-facing interface
     assign xbar_debug_sram_axi_bvalid = converter_bvalid;
     assign converter_bready = xbar_debug_sram_axi_bready;
     assign xbar_debug_sram_axi_rvalid = converter_rvalid;

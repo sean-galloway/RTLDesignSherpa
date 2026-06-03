@@ -9,15 +9,10 @@
 # Pipelined memory-controller delay queue (timestamp FIFO).
 $FRAMEWORK_ROOT/rtl/axi_response_delay.sv
 
-# AXIL fabric: generator-driven 1->7 AXIL bridge (mon variant). Per-port
-# axi4_master_*_mon wrappers emit monbus packets to an internal
-# monbus_axil_group whose master writes the bulk trace into a
-# bridge_trace_sram (a separate debug_sram instance at 0x000c_0000).
-# stream_apb is the APB shim; harness_csr/desc_ram/dma_axil are 32-bit
-# AXIL; stream_err/debug_sram/bridge_trace_sram are 64-bit AXIL per
-# the monbus-on-AXI rule (bridge auto-inserts 32->64 width converters
-# on the host->slave path).
--f $FRAMEWORK_ROOT/rtl/bridges/filelists/bridge_stream_char_axil_mon.f
+# AXIL fabric: generator-driven 1->6 AXIL bridge with APB auto-conversion
+# on the STREAM config slot and an AXIL bridge port (S5 = dma_axil) for the
+# Vivado MCDMA / future Vivado bridge flows.
+-f $FRAMEWORK_ROOT/rtl/bridges/filelists/bridge_stream_char_axil.f
 
 # Harness CSRs (kick-burst, response-delay programming, cycle timer, status).
 $FRAMEWORK_ROOT/rtl/harness_csr.sv

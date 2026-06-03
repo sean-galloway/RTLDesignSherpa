@@ -241,9 +241,41 @@ class Axi4TimingWrapper:
         ))
 
     def add_status(self, busy_connector: str = "") -> None:
-        """Attach the wrapper's .busy() status output (default unconnected)."""
-        self._sections.append(("Status (unconnected = clock-gating tie-off)",
-                               [('busy', busy_connector)]))
+        """Attach the wrapper's .busy() status output (default unconnected).
+        ALSO emits tie-offs for the other status outputs the wrapper
+        exposes -- active_transactions, error_count, transaction_count,
+        cfg_conflict_error -- because Verilator (and good practice)
+        require every port to be explicitly bound. Without these binds
+        the cocotb sim flow errors on PINMISSING even though Vivado
+        tolerates it (which is what masked a UART-silence bug for a
+        full bitstream cycle once)."""
+        pairs = [('busy', busy_connector)]
+        # Monitor-only status outputs (only present on _mon variants).
+        if '_mon' in self.module.module_name:
+            pairs.extend([
+                ('active_transactions', ''),
+                ('error_count',         ''),
+                ('transaction_count',   ''),
+                ('cfg_conflict_error',  ''),
+            ])
+        self._sections.append(
+            ("Status (empty connector = unconnected tie-off)", pairs))
+
+    def add_addr_range_tieoff(self) -> None:
+        """Bind the address-range checker config inputs to 0. With the
+        SV module's N_ADDR_RANGES=0 default the checker is disabled,
+        but the input ports still exist and Verilator errors on
+        PINMISSING if they aren't bound. Until the bridge cfg
+        subsystem (PeakRDL regblock) wires these to runtime knobs,
+        tie them off explicitly."""
+        if '_mon' not in self.module.module_name:
+            return
+        self._sections.append(("Address-range checker (disabled at N_ADDR_RANGES=0)", [
+            ('cfg_addr_check_enable', "1'b0"),
+            ('cfg_addr_range_enable', "1'b0"),
+            ('cfg_addr_range_low',    "{32{1'b0}}"),
+            ('cfg_addr_range_high',   "{32{1'b0}}"),
+        ]))
 
     # --- monitor-only port groups (only valid when mon=True) -----------
 

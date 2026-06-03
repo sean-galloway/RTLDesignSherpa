@@ -268,7 +268,7 @@ module stream_apb_adapter #(
         .m_apb_PREADY(stream_apb_PREADY)
     );
 
-    // Wire converter outputs back to crossbar interface
+    // Wire converter outputs back to shim's crossbar-facing interface
     assign xbar_stream_apb_axi_bvalid = converter_bvalid;
     assign converter_bready = xbar_stream_apb_axi_bready;
     assign xbar_stream_apb_axi_rvalid = converter_rvalid;

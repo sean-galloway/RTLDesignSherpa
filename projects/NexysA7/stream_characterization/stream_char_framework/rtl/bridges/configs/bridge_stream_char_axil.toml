@@ -26,42 +26,20 @@
 
 [bridge]
 name = "bridge_stream_char_axil"
-description = "1xM AXIL bridge for stream_characterization harness (5 harness slaves + 1 DMA AXIL port + 1 bridge-monitor trace slave)"
-# Monitored fan-out bridge with per-port use_monitor granularity. The
-# bridge generator emits axi4_master_*_mon wrappers on every port (the
-# port-surface stays uniform regardless of which ports actually run a
-# monitor), and synthesis omits axi_monitor_filtered on the ports
-# that set `use_monitor = false` (gen_no_monitor branch ties outputs
-# to safe defaults; arbiter sees those clients as inert). This keeps
-# the area cost on -1-part Nexys A7-100T manageable while still
-# exposing the per-port cfg surface for runtime tuning.
-#
-# Today only `desc_ram` runs a live monitor -- the wedge investigation
-# wants visibility on the host's descriptor read-back path. STREAM's
-# internal DAXMON/RDMON/WRMON (inside stream_top_ch8) cover the
-# STREAM-side AXI4 masters already. Add monitors to other bridge
-# ports here as needed by setting `use_monitor = true`.
-#
-# Topology: internal_axil_group=true (default) -- bridge owns its
-# monbus_axil_group, m_mon_axil writes bulk trace to a dedicated
-# bridge_trace_sram, s_mon_axil exposes the IRQ FIFO (tied off in
-# harness for now). STREAM's standalone monbus_axil_group is
-# untouched so the two trace regions stay independent and the host's
-# dump_monbus_sram.py works on either.
-variants = ["mon"]
+description = "1xM AXIL bridge for stream_characterization harness (5 harness slaves + 1 DMA AXIL port)"
+# Non-monitored fan-out bridge only -- the stream_char harness already
+# instantiates monbus_axil_group inside stream_top_ch8, so an extra
+# monitor-wrapped variant of this AXIL bridge would just add area for
+# no observability gain. Only the "no" variant is emitted.
+variants = ["no"]
 
 [bridge.clock]
 name = "aclk"
 frequency_mhz = 100
 
 # ---- Master ----------------------------------------------------------------
-# use_monitor = false: host->bridge traffic is just UART CSR access. The
-# STREAM-internal monitors (DAXMON etc.) catch the load-bearing DMA
-# activity; bridge-side host visibility is low-value for the wedge
-# investigation, so save the LUTs.
 [[bridge.masters]]
 name        = "host"
-use_monitor = false
 # `host_axi_` matches the wiring in flows-stream-bridge/rtl/stream_char_harness.sv
 # (the harness instantiates the bridge with `.host_axi_<sig>(...)` connections,
 # carried over from the pre-Bug-C generator that hardcoded the `_axi_` infix).
@@ -94,7 +72,6 @@ data_width  = 32
 user_width  = 0
 base_addr   = "0x00000000"
 addr_range  = "0x00001000"     # 4 KB
-use_monitor = false             # STREAM-internal monitors cover APB-reached blocks
 
 [[bridge.slaves]]
 name        = "harness_csr"
@@ -111,7 +88,6 @@ base_addr   = "0x00010000"
 # CSR block itself still uses only the first few bytes, but the
 # decode window has to be page-granular.
 addr_range  = "0x00001000"     # 4 KB
-use_monitor = false             # CSR access is low-value for wedge debug
 
 [[bridge.slaves]]
 name        = "desc_ram"
@@ -124,10 +100,6 @@ data_width  = 32
 user_width  = 0
 base_addr   = "0x00020000"
 addr_range  = "0x00010000"     # 64 KB
-# LIVE monitor: catches the host's descriptor read-back path during
-# the wedge investigation. STREAM's DAXMON covers the STREAM-side
-# 256-bit fetch; this catches the host-side 32-bit AXIL traffic.
-use_monitor = true
 
 [[bridge.slaves]]
 name        = "stream_err"
@@ -136,17 +108,12 @@ protocol    = "axil"
 channels    = "rw"
 id_width    = 4
 addr_width  = 32
-# 64-bit data per the monbus-on-AXI rule: this slave terminates at
-# STREAM's monbus_axil_group s_axil_err port, which is 64-bit. The
-# bridge generator auto-inserts a 32->64 width converter on the
-# host->stream_err path for the 32-bit master.
-data_width  = 64
+data_width  = 32
 user_width  = 0
 base_addr   = "0x00030000"
 # Bumped from 64 B to a 4 KB page. The err FIFO only uses a few bytes
 # but its decode window has to be page-granular like every other slave.
 addr_range  = "0x00001000"     # 4 KB
-use_monitor = false             # host IRQ drain; not on wedge path
 
 [[bridge.slaves]]
 name        = "debug_sram"
@@ -155,17 +122,10 @@ protocol    = "axil"
 channels    = "rw"
 id_width    = 4
 addr_width  = 32
-# 64-bit data per the monbus-on-AXI rule: debug_sram is the SRAM that
-# collects STREAM's monbus packets, so every AXI port on it (write
-# from monbus_axil_group + read from the host) must be 64-bit. The
-# bridge auto-inserts a 32->64 converter on the host->debug_sram
-# fanout path so the 32-bit host still reaches it via the same UART
-# bridge.
-data_width  = 64
+data_width  = 32
 user_width  = 0
 base_addr   = "0x00040000"
 addr_range  = "0x00040000"     # 256 KB
-use_monitor = false             # host trace drain; not on wedge path
 
 [[bridge.slaves]]
 name        = "dma_axil"
@@ -181,60 +141,3 @@ data_width  = 32
 user_width  = 0
 base_addr   = "0x00080000"
 addr_range  = "0x00001000"     # 4 KB (DMA s_axi_lite window)
-use_monitor = false             # currently tied off; future MCDMA
-
-# ---- Bridge-monitor trace SRAM (mon variant only) ----------------------------
-# Exposes the bridge's bulk-trace SRAM to the host via a normal bridge
-# fanout port. The harness instantiates a debug_sram whose 64-bit
-# wr_* port is wired DIRECTLY to the bridge's m_mon_axil_* output
-# (bypassing the bridge fabric -- the wires are top-level inside the
-# harness), while its 32-bit rd_* port is reached through this slave
-# entry. Both ports of debug_sram see addresses in [0x000c_0000,
-# 0x000c_FFFF] and use the low bits to index BRAM, so the host's
-# reads and the bridge's writes land on the same word.
-#
-# The bridge's s_mon_axil_* (64-bit IRQ-status FIFO drain) is tied off
-# in the harness for now -- the bridge's mon_irq_out is wired to a
-# harness IRQ/LED so the host knows when an error packet lands, and
-# the bulk trace itself carries every error packet (cfg_axi_err_select
-# = 0 routes everything to the write FIFO). Surfacing the IRQ FIFO
-# read path would require either a 64-bit fanout slave (the generator
-# uses 64-bit for the err-drain optimisation) or an external 32<->64
-# AXIL width adapter -- deferred until needed.
-
-[[bridge.slaves]]
-name        = "bridge_trace_sram"
-prefix      = "bridge_trace_sram_"
-protocol    = "axil"
-channels    = "rw"
-id_width    = 4
-addr_width  = 32
-# 64-bit data width: every port on the bridge_trace_sram (and every
-# monbus path going out on AXI) is 64 bits. The bridge generator
-# inserts a 32->64 width converter at this slave port so the host's
-# 32-bit AXIL fabric can still read it (two host beats per 64-bit
-# trace word, just like the monbus_axil_group's slice-counter pattern
-# on STREAM's debug_sram -- but here the underlying BRAM is wide
-# rather than narrowed in the SRAM module).
-data_width  = 64
-user_width  = 0
-base_addr   = "0x000c0000"
-addr_range  = "0x00010000"     # 64 KB (bulk-trace BRAM, host read-only)
-use_monitor = false             # host trace drain; not on wedge path
-
-# Phase 2 — dedicated trace SRAM for the slave-side axi4_slave_rd_mon
-# inserted between STREAM's m_axi_desc and desc_ram.s_axi. Same shape
-# as bridge_trace_sram (host-readable 64-bit AXIL), separate window
-# and SRAM so the desc-path trace stays independent.
-[[bridge.slaves]]
-name        = "desc_mon_trace_sram"
-prefix      = "desc_mon_trace_sram_"
-protocol    = "axil"
-channels    = "rw"
-id_width    = 4
-addr_width  = 32
-data_width  = 64
-user_width  = 0
-base_addr   = "0x000d0000"
-addr_range  = "0x00010000"     # 64 KB
-use_monitor = false             # host trace drain
