@@ -547,6 +547,18 @@ module stream_char_harness #(
     logic [NUM_CHANNELS-1:0]       csr_kick_burst_mask;
     logic [NUM_CHANNELS-1:0][31:0] csr_kick_burst_addr;
 
+    // desc_ram observation bus + handshake/stall counters (consumed by the
+    // harness_csr instance below; driven by always_ff next to the desc_ram
+    // instance further down). See desc_ram.sv (o_dbg_vr) for bit layout.
+    logic [15:0] w_desc_ram_dbg_vr;
+    logic [31:0] r_desc_ar_hs_cnt;
+    logic [31:0] r_desc_ar_stall_cnt;
+    logic [31:0] r_desc_r_hs_cnt;
+    logic [31:0] r_desc_r_stall_cnt;
+    logic [31:0] r_desc_aw_hs_cnt;
+    logic [31:0] r_desc_w_hs_cnt;
+    logic [31:0] r_desc_b_hs_cnt;
+
     harness_csr #(.AW(32), .DW(32), .NUM_CHANNELS(NUM_CHANNELS)) u_csr (
         .aclk(aclk), .aresetn(aresetn),
         .s_awaddr(s1_awaddr), .s_awprot(s1_awprot),
@@ -619,7 +631,17 @@ module stream_char_harness #(
         .i_wr_meter_ch_bp       (wr_meter_ch_bp),
         .i_wr_meter_ch_starv    (wr_meter_ch_starv),
         .i_wr_meter_ch_idle     (wr_meter_ch_idle),
-        .i_wr_meter_ch_overflow (wr_meter_ch_overflow)
+        .i_wr_meter_ch_overflow (wr_meter_ch_overflow),
+
+        // desc_ram observation counters (CSR readback at 0xE0-0xFC)
+        .i_desc_ar_hs    (r_desc_ar_hs_cnt),
+        .i_desc_ar_stall (r_desc_ar_stall_cnt),
+        .i_desc_r_hs     (r_desc_r_hs_cnt),
+        .i_desc_r_stall  (r_desc_r_stall_cnt),
+        .i_desc_aw_hs    (r_desc_aw_hs_cnt),
+        .i_desc_w_hs     (r_desc_w_hs_cnt),
+        .i_desc_b_hs     (r_desc_b_hs_cnt),
+        .i_desc_vr_live  (w_desc_ram_dbg_vr)
     );
 
     // =========================================================================
@@ -832,8 +854,59 @@ module stream_char_harness #(
         .s_axi_rid    (desc_rid),    .s_axi_rdata(desc_rdata),
         .s_axi_rresp  (desc_rresp),  .s_axi_rlast(desc_rlast),
         .s_axi_ruser  (desc_ruser),  .s_axi_rvalid(desc_rvalid),
-        .s_axi_rready (desc_rready)
+        .s_axi_rready (desc_rready),
+        .o_dbg_vr     (w_desc_ram_dbg_vr)
     );
+
+    // -------------------------------------------------------------------------
+    // desc_ram handshake / stall counters
+    //
+    // Bit map (matches desc_ram.sv o_dbg_vr):
+    //   [ 0] axil awvalid   [ 1] axil awready
+    //   [ 2] axil wvalid    [ 3] axil wready
+    //   [ 4] axil bvalid    [ 5] axil bready
+    //   [10] axi4 arvalid   [11] axi4 arready
+    //   [12] axi4 rvalid    [13] axi4 rready
+    //
+    // Lets the host answer "is the SRAM responding or is STREAM not
+    // accepting?" via plain UART reads — no trace SRAM needed.
+    // -------------------------------------------------------------------------
+    wire w_desc_ar_hs    = w_desc_ram_dbg_vr[10] &&  w_desc_ram_dbg_vr[11];
+    wire w_desc_ar_stall = w_desc_ram_dbg_vr[10] && !w_desc_ram_dbg_vr[11];
+    wire w_desc_r_hs     = w_desc_ram_dbg_vr[12] &&  w_desc_ram_dbg_vr[13];
+    wire w_desc_r_stall  = w_desc_ram_dbg_vr[12] && !w_desc_ram_dbg_vr[13];
+    wire w_desc_aw_hs    = w_desc_ram_dbg_vr[0]  &&  w_desc_ram_dbg_vr[1];
+    wire w_desc_w_hs     = w_desc_ram_dbg_vr[2]  &&  w_desc_ram_dbg_vr[3];
+    wire w_desc_b_hs     = w_desc_ram_dbg_vr[4]  &&  w_desc_ram_dbg_vr[5];
+
+    `ALWAYS_FF_RST(aclk, aresetn,
+        if (`RST_ASSERTED(aresetn)) begin
+            r_desc_ar_hs_cnt    <= '0;
+            r_desc_ar_stall_cnt <= '0;
+            r_desc_r_hs_cnt     <= '0;
+            r_desc_r_stall_cnt  <= '0;
+            r_desc_aw_hs_cnt    <= '0;
+            r_desc_w_hs_cnt     <= '0;
+            r_desc_b_hs_cnt     <= '0;
+        end else if (csr_clear_pulse) begin
+            r_desc_ar_hs_cnt    <= '0;
+            r_desc_ar_stall_cnt <= '0;
+            r_desc_r_hs_cnt     <= '0;
+            r_desc_r_stall_cnt  <= '0;
+            r_desc_aw_hs_cnt    <= '0;
+            r_desc_w_hs_cnt     <= '0;
+            r_desc_b_hs_cnt     <= '0;
+        end else begin
+            // 32-bit saturating — clamps at 2^32-1 instead of wrapping.
+            if (w_desc_ar_hs    && (r_desc_ar_hs_cnt    != 32'hFFFF_FFFF)) r_desc_ar_hs_cnt    <= r_desc_ar_hs_cnt    + 1'b1;
+            if (w_desc_ar_stall && (r_desc_ar_stall_cnt != 32'hFFFF_FFFF)) r_desc_ar_stall_cnt <= r_desc_ar_stall_cnt + 1'b1;
+            if (w_desc_r_hs     && (r_desc_r_hs_cnt     != 32'hFFFF_FFFF)) r_desc_r_hs_cnt     <= r_desc_r_hs_cnt     + 1'b1;
+            if (w_desc_r_stall  && (r_desc_r_stall_cnt  != 32'hFFFF_FFFF)) r_desc_r_stall_cnt  <= r_desc_r_stall_cnt  + 1'b1;
+            if (w_desc_aw_hs    && (r_desc_aw_hs_cnt    != 32'hFFFF_FFFF)) r_desc_aw_hs_cnt    <= r_desc_aw_hs_cnt    + 1'b1;
+            if (w_desc_w_hs     && (r_desc_w_hs_cnt     != 32'hFFFF_FFFF)) r_desc_w_hs_cnt     <= r_desc_w_hs_cnt     + 1'b1;
+            if (w_desc_b_hs     && (r_desc_b_hs_cnt     != 32'hFFFF_FFFF)) r_desc_b_hs_cnt     <= r_desc_b_hs_cnt     + 1'b1;
+        end
+    )
 
     // =========================================================================
     // S3: STREAM err FIFO AXIL slave (wired to stream.s_axil_err_*)

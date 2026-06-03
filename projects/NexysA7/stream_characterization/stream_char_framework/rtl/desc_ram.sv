@@ -88,7 +88,22 @@ module desc_ram #(
     output logic                        s_axi_rlast,
     output logic [AXI_USER_WIDTH-1:0]   s_axi_ruser,
     output logic                        s_axi_rvalid,
-    input  logic                        s_axi_rready
+    input  logic                        s_axi_rready,
+
+    // =====================================================================
+    // Observation: every external valid/ready exposed combinationally.
+    // Lets the harness count handshakes / stalls without poking into the
+    // SRAM hierarchy. Order is fixed; do NOT renumber.
+    //   [ 0] s_axil_awvalid    [ 1] s_axil_awready
+    //   [ 2] s_axil_wvalid     [ 3] s_axil_wready
+    //   [ 4] s_axil_bvalid     [ 5] s_axil_bready
+    //   [ 6] s_axil_arvalid    [ 7] s_axil_arready
+    //   [ 8] s_axil_rvalid     [ 9] s_axil_rready
+    //   [10] s_axi_arvalid     [11] s_axi_arready
+    //   [12] s_axi_rvalid      [13] s_axi_rready
+    //   [15:14] reserved (0)
+    // =====================================================================
+    output logic [15:0]                 o_dbg_vr
 );
 
     localparam int ADDR_BITS_256 = $clog2(DEPTH_256);
@@ -377,5 +392,26 @@ module desc_ram #(
         int4_arprot, int4_arqos, int4_arregion,
         1'b0};
     /* verilator lint_on UNUSED */
+
+    // =========================================================================
+    // Observation port: raw external valid/ready bits, combinational tap.
+    // =========================================================================
+    assign o_dbg_vr = {
+        2'b00,             // [15:14] reserved
+        s_axi_rready,      // [13]
+        s_axi_rvalid,      // [12]
+        s_axi_arready,     // [11]
+        s_axi_arvalid,     // [10]
+        s_axil_rready,     // [ 9]
+        s_axil_rvalid,     // [ 8]
+        s_axil_arready,    // [ 7]
+        s_axil_arvalid,    // [ 6]
+        s_axil_bready,     // [ 5]
+        s_axil_bvalid,     // [ 4]
+        s_axil_wready,     // [ 3]
+        s_axil_wvalid,     // [ 2]
+        s_axil_awready,    // [ 1]
+        s_axil_awvalid     // [ 0]
+    };
 
 endmodule : desc_ram

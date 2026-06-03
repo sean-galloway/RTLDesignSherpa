@@ -109,7 +109,25 @@
 //                              kick line for each set bit for one cycle.
 //                              Reads as 0.
 //
-//   0xD4 - 0xFF           --  Reserved (read as 0)
+//   0xD4 - 0xDF           --  Reserved (read as 0)
+//
+//   desc_ram observation counters. Track AXI4 (STREAM ↔ desc_ram) and
+//   AXIL (host ↔ desc_ram) valid/ready activity. All 32-bit, saturate at
+//   2^32-1, clear on CTRL.clear_stats. Lets the host answer "is the SRAM
+//   responding or is STREAM not accepting?" without touching the trace SRAM.
+//
+//   0xE0  DESC_AR_HS       R  AXI4 AR accepted (arvalid && arready)
+//   0xE4  DESC_AR_STALL    R  AXI4 AR stalled (arvalid && !arready)
+//                              -- if nonzero, desc_ram failed to grant AR
+//   0xE8  DESC_R_HS        R  AXI4 R delivered (rvalid && rready)
+//   0xEC  DESC_R_STALL     R  AXI4 R stalled (rvalid && !rready)
+//                              -- if nonzero, STREAM failed to accept R
+//   0xF0  DESC_AW_HS       R  AXIL AW accepted (awvalid && awready)
+//   0xF4  DESC_W_HS        R  AXIL W accepted (wvalid && wready)
+//   0xF8  DESC_B_HS        R  AXIL B delivered (bvalid && bready)
+//   0xFC  DESC_VR_LIVE     R  Live single-cycle snapshot of o_dbg_vr[15:0]
+//                              from desc_ram (zero-extended). See desc_ram.sv
+//                              for the per-bit layout.
 //
 //   AXI bus meter readback. Two meters live in this CSR space:
 //     R-meter at 0x100  -- watches the read engine's R bus
@@ -264,7 +282,21 @@ module harness_csr #(
     // see address-map block at top of file for the layout)
     // =====================================================================
     output logic [NUM_CHANNELS-1:0]       o_kick_burst_mask,  // 1-cycle pulse
-    output logic [NUM_CHANNELS-1:0][31:0] o_kick_burst_addr   // shadow values
+    output logic [NUM_CHANNELS-1:0][31:0] o_kick_burst_addr,  // shadow values
+
+    // =====================================================================
+    // desc_ram observation counters (read at 0xE0-0xFC, cleared by
+    // CTRL.clear_stats inside the harness). All free-running 32-bit
+    // saturating counters; per-bit live snapshot is also exposed.
+    // =====================================================================
+    input  logic [31:0]                   i_desc_ar_hs,
+    input  logic [31:0]                   i_desc_ar_stall,
+    input  logic [31:0]                   i_desc_r_hs,
+    input  logic [31:0]                   i_desc_r_stall,
+    input  logic [31:0]                   i_desc_aw_hs,
+    input  logic [31:0]                   i_desc_w_hs,
+    input  logic [31:0]                   i_desc_b_hs,
+    input  logic [15:0]                   i_desc_vr_live
 );
 
     localparam int AW_PKT_W = AW + 3;
@@ -589,6 +621,16 @@ module harness_csr #(
                             8'h9C: r_rdata <= crc_wr_view[7];
                             8'hA0: r_rdata <= w_crc_valid_word;
                             8'hA4: r_rdata <= w_crc_match_word;
+                            // desc_ram observation counters / live valid-ready
+                            // snapshot (see address-map docstring 0xE0..0xFC).
+                            8'hE0: r_rdata <= i_desc_ar_hs;
+                            8'hE4: r_rdata <= i_desc_ar_stall;
+                            8'hE8: r_rdata <= i_desc_r_hs;
+                            8'hEC: r_rdata <= i_desc_r_stall;
+                            8'hF0: r_rdata <= i_desc_aw_hs;
+                            8'hF4: r_rdata <= i_desc_w_hs;
+                            8'hF8: r_rdata <= i_desc_b_hs;
+                            8'hFC: r_rdata <= {16'h0, i_desc_vr_live};
                             // Kick-burst shadow registers (read-back)
                             8'hB0: r_rdata <= r_kick_addr[0];
                             8'hB4: r_rdata <= r_kick_addr[1];

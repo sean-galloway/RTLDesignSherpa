@@ -33,6 +33,29 @@ CSR_CRC_WR_COMP   = HARNESS_CSR_BASE + 0x18
 CSR_CRC_MATCH     = HARNESS_CSR_BASE + 0x1C
 CSR_BUILD_ID      = HARNESS_CSR_BASE + 0x24
 
+# desc_ram observation counters (see harness_csr.sv 0xE0..0xFC). 32-bit
+# saturating; clear on CTRL.clear_stats. The AR/R pair is the primary
+# decoder for "is the SRAM responding or is STREAM not accepting?".
+CSR_DESC_AR_HS    = HARNESS_CSR_BASE + 0xE0
+CSR_DESC_AR_STALL = HARNESS_CSR_BASE + 0xE4
+CSR_DESC_R_HS     = HARNESS_CSR_BASE + 0xE8
+CSR_DESC_R_STALL  = HARNESS_CSR_BASE + 0xEC
+CSR_DESC_AW_HS    = HARNESS_CSR_BASE + 0xF0
+CSR_DESC_W_HS     = HARNESS_CSR_BASE + 0xF4
+CSR_DESC_B_HS     = HARNESS_CSR_BASE + 0xF8
+CSR_DESC_VR_LIVE  = HARNESS_CSR_BASE + 0xFC
+
+# desc_ram o_dbg_vr live bit labels (bit -> short name, used for decode).
+DESC_VR_BITS = [
+    (0,  "axil_awvalid"), (1,  "axil_awready"),
+    (2,  "axil_wvalid"),  (3,  "axil_wready"),
+    (4,  "axil_bvalid"),  (5,  "axil_bready"),
+    (6,  "axil_arvalid"), (7,  "axil_arready"),
+    (8,  "axil_rvalid"),  (9,  "axil_rready"),
+    (10, "axi_arvalid"),  (11, "axi_arready"),
+    (12, "axi_rvalid"),   (13, "axi_rready"),
+]
+
 # STREAM APB offsets (from stream_regmap.py)
 APB_GLOBAL_CTRL    = STREAM_APB_BASE + 0x100
 APB_GLOBAL_STATUS  = STREAM_APB_BASE + 0x104
@@ -88,6 +111,33 @@ def main():
         print("\n=== Channel kick LOW words (last written values) ===")
         for ch in range(8):
             rd(b, STREAM_APB_BASE + ch * 0x08, f"CH{ch}_KICK_LO")
+
+        print("\n=== desc_ram observation (host AXIL writes / STREAM AXI4 reads) ===")
+        ar_hs   = rd(b, CSR_DESC_AR_HS,    "DESC_AR_HS")
+        ar_st   = rd(b, CSR_DESC_AR_STALL, "DESC_AR_STALL")
+        r_hs    = rd(b, CSR_DESC_R_HS,     "DESC_R_HS")
+        r_st    = rd(b, CSR_DESC_R_STALL,  "DESC_R_STALL")
+        rd(b, CSR_DESC_AW_HS, "DESC_AW_HS")
+        rd(b, CSR_DESC_W_HS,  "DESC_W_HS")
+        rd(b, CSR_DESC_B_HS,  "DESC_B_HS")
+        live = rd(b, CSR_DESC_VR_LIVE, "DESC_VR_LIVE")
+
+        if live is not None:
+            asserted = [name for bit, name in DESC_VR_BITS if live & (1 << bit)]
+            print(f"    live asserted: {', '.join(asserted) if asserted else '(none)'}")
+
+        # Diagnose where the desc path is stuck. If you only see one of
+        # these prints, that's the loudest signal.
+        if ar_hs is not None and ar_hs == 0 and ar_st is not None and ar_st > 0:
+            print(f"** desc_ram never granted AR ({ar_st} stall cycles) "
+                  "— SRAM stuck or upstream arbiter blocking.")
+        elif ar_hs is not None and ar_hs > 0 and r_hs is not None and r_hs == 0:
+            print(f"** desc_ram accepted {ar_hs} AR but produced 0 R "
+                  "— SRAM is the bottleneck.")
+        elif r_hs is not None and r_st is not None and r_st > 0 and r_hs > 0 \
+                and r_st > r_hs * 4:
+            print(f"** STREAM stalled R for {r_st} cycles vs {r_hs} delivered "
+                  "— STREAM read path / desc skid full.")
 
         print()
         if sts is not None and (sts & 0x02):

@@ -236,6 +236,11 @@ module scheduler #(
     monitor_common_pkg::monitor_packet_t        r_mon_packet;
     monitor_common_pkg::monbus_timestamp_t      r_mon_timestamp;
 
+    // CH_ERROR is sticky-until-reset; without this gate the packet generator
+    // would emit STREAM_EVENT_ERROR every cycle and drown DAXMON/RDMON/WRMON
+    // traffic in the monbus trace. Latch on first emit, clear on CH_IDLE.
+    logic                                       r_error_pkt_sent;
+
     // Completion flags
     // Combinational checks for phase completion (beats_remaining == 0)
     logic w_read_complete;                        // All source data read
@@ -645,14 +650,21 @@ module scheduler #(
 
     `ALWAYS_FF_RST(clk, rst_n,
         if (`RST_ASSERTED(rst_n)) begin
-            r_mon_valid     <= 1'b0;
-            r_mon_packet    <= '0;
-            r_mon_timestamp <= '0;
+            r_mon_valid       <= 1'b0;
+            r_mon_packet      <= '0;
+            r_mon_timestamp   <= '0;
+            r_error_pkt_sent  <= 1'b0;
         end else begin
             // Default: Clear monitor packet (single-cycle pulse)
             r_mon_valid  <= 1'b0;
             r_mon_packet <= '0;
             // Sample i_mon_time on emit; hold previous between pulses.
+
+            // Clear the one-shot when the FSM leaves CH_ERROR (CH_IDLE on
+            // recovery / reset path); next CH_ERROR visit will emit again.
+            if (r_current_state == CH_IDLE) begin
+                r_error_pkt_sent <= 1'b0;
+            end
 
             case (r_current_state)
                 CH_FETCH_DESC: begin
@@ -718,17 +730,24 @@ module scheduler #(
                     // Position preserved to match the original 35-bit layout —
                     // write_error at bit [34], read_error at bit [33]; remainder
                     // is zero padded to 64 bits.
-                    r_mon_valid     <= 1'b1;
-                    r_mon_timestamp <= i_mon_time;
-                    r_mon_packet    <= create_monitor_packet(
-                        PktTypeError,
-                        PROTOCOL_CORE,
-                        STREAM_EVENT_ERROR,
-                        MON_CHANNEL_ID,
-                        MON_UNIT_ID,
-                        MON_AGENT_ID,
-                        {29'h0, r_write_error_sticky, r_read_error_sticky, 33'h0}
-                    );
+                    //
+                    // One-shot: CH_ERROR is sticky, so guard against re-emitting
+                    // the same error packet every cycle (it would otherwise drown
+                    // the trace SRAM).
+                    if (!r_error_pkt_sent) begin
+                        r_mon_valid      <= 1'b1;
+                        r_mon_timestamp  <= i_mon_time;
+                        r_mon_packet     <= create_monitor_packet(
+                            PktTypeError,
+                            PROTOCOL_CORE,
+                            STREAM_EVENT_ERROR,
+                            MON_CHANNEL_ID,
+                            MON_UNIT_ID,
+                            MON_AGENT_ID,
+                            {29'h0, r_write_error_sticky, r_read_error_sticky, 33'h0}
+                        );
+                        r_error_pkt_sent <= 1'b1;
+                    end
                 end
 
                 default: begin
