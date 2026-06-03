@@ -77,6 +77,11 @@ class SlaveAdapterInstance:
         self.module = Module(module_name=f"{slave_name}_adapter",
                              instance_name=f"u_{slave_name}_adapter")
         self._sections: List[tuple] = []
+        # USE_MONITOR_WR / USE_MONITOR_RD parameter overrides emitted
+        # at instantiation. Populated by connect_monitor_params() when
+        # the bridge variant is monitored; left empty otherwise so the
+        # instantiation drops the `#(...)` block entirely.
+        self._mon_param_overrides: List[tuple] = []  # (param_name, expr)
 
     # --- connection helpers --------------------------------------------
 
@@ -154,18 +159,17 @@ class SlaveAdapterInstance:
                 f"External AXI4 interface ({self.slave_prefix}*)", pairs))
 
     def connect_monitor(self, wrappers) -> None:
-        """Wire the AXI4 slave adapter's monbus + cfg ports. `wrappers`
-        is a list of MonitoredWrapper entries belonging to this slave;
-        each contributes one channel-suffixed monbus trio plus its 15
-        cfg inputs. Only meaningful when the adapter generator emitted
-        the matching ports (use_monitor=true + protocol=axi4)."""
+        """Wire the slave adapter's monbus + cfg ports. `wrappers` is a
+        list of MonitoredWrapper entries belonging to this slave; each
+        contributes one channel-suffixed monbus trio plus its 15 cfg
+        inputs. Identical port surface across protocols: AXI4 slaves
+        wire the wrapper around their external interface; AXIL/APB
+        slaves wire an axi4_master_*_mon inserted upstream of their
+        converter shim. The connector list is the same in both cases
+        because every protocol's adapter exposes the same per-port
+        monbus + cfg surface."""
         from .axi4_timing_wrapper_component import Axi4TimingWrapper
 
-        if self.protocol != 'axi4':
-            raise RuntimeError(
-                f"connect_monitor() on non-axi4 slave {self.slave_name!r}: "
-                f"the converter shims have no monitor ports today."
-            )
         pairs: List[tuple] = []
         ordered = sorted(wrappers, key=lambda w: 0 if w.channel == 'wr' else 1)
         # Single shared free-running monitor-time net (driven by the
@@ -204,6 +208,17 @@ class SlaveAdapterInstance:
 
     # --- formatting ----------------------------------------------------
 
+    def set_use_monitor_params(self, eff_wr: str = None, eff_rd: str = None) -> None:
+        """Register the bridge-top EFF_USE_MON_* localparam names this
+        slave adapter should inherit. Each pair becomes a `.USE_MONITOR_*`
+        override in the instantiation -- the adapter exposes those
+        parameters in its own module declaration when monitored, so
+        the bridge top's runtime knobs propagate to the wrapper."""
+        if eff_wr is not None and self.has_write:
+            self._mon_param_overrides.append(('USE_MONITOR_WR', eff_wr))
+        if eff_rd is not None and self.has_read:
+            self._mon_param_overrides.append(('USE_MONITOR_RD', eff_rd))
+
     def generate_lines(self) -> List[str]:
         all_pairs: List[tuple] = []
         for _, pairs in self._sections:
@@ -214,7 +229,14 @@ class SlaveAdapterInstance:
         lines: List[str] = []
         lines.append(f"    // {self.slave_name} adapter "
                      f"({self.protocol.upper()}, crossbar → external slave)")
-        lines.append(f"    {self.module.module_name} {self.module.instance_name} (")
+        if self._mon_param_overrides:
+            lines.append(f"    {self.module.module_name} #(")
+            for i, (pname, expr) in enumerate(self._mon_param_overrides):
+                sep = "," if i < len(self._mon_param_overrides) - 1 else ""
+                lines.append(f"        .{pname}({expr}){sep}")
+            lines.append(f"    ) {self.module.instance_name} (")
+        else:
+            lines.append(f"    {self.module.module_name} {self.module.instance_name} (")
 
         last_idx = len(all_pairs) - 1
         running = 0

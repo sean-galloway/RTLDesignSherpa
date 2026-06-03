@@ -52,6 +52,21 @@ class Axi4TimingWrapper:
         # which is fine for non-monitored builds.
         unit_id: Optional[int] = None,
         agent_id: Optional[int] = None,
+        # use_monitor -- per-instance USE_MONITOR override on the _mon
+        # variant. Only meaningful when mon=True AND use_monitor_param
+        # is None (the legacy hardcoded-bake path). When False here,
+        # the wrapper emits `.USE_MONITOR(1'b0)` directly -- monitor
+        # omitted at synth, monbus outputs tied to safe defaults.
+        use_monitor: bool = True,
+        # use_monitor_param -- preferred mode for production. When set
+        # to a parameter-name string (e.g. 'USE_MONITOR_WR'), the
+        # wrapper emits `.USE_MONITOR(<param_name>)` instead of a
+        # hardcoded literal, so the *enclosing* module (typically the
+        # per-port adapter) owns the parameter and the *outer* enclosing
+        # module (bridge top) can override it at instantiation. Lets
+        # production builds flip monitor enables at integration time
+        # without regenerating the bridge.
+        use_monitor_param: Optional[str] = None,
     ):
         if side not in ('master', 'slave'):
             raise ValueError(f"side must be 'master' or 'slave', got {side!r}")
@@ -97,6 +112,24 @@ class Axi4TimingWrapper:
                 f", parameter int UNIT_ID         = {unit_id}, "
                 f"parameter int AGENT_ID        = {agent_id}"
             )
+        # Per-instance USE_MONITOR override (only on _mon variants -- the
+        # non-mon modules don't declare the parameter). Two modes:
+        #   - use_monitor_param set: emit a parameter-name reference so
+        #     the enclosing adapter owns the parameter and the bridge
+        #     top can override it at instantiation. Preferred for
+        #     production builds.
+        #   - use_monitor_param None, use_monitor=False: hardcoded
+        #     `1'b0` override (legacy bake path). For tests or one-off
+        #     bridges with no expected reconfig at integration time.
+        if mon:
+            if use_monitor_param is not None:
+                param_str += (
+                    f", parameter bit USE_MONITOR     = {use_monitor_param}"
+                )
+            elif not use_monitor:
+                param_str += (
+                    ", parameter bit USE_MONITOR     = 1'b0"
+                )
         self.module.params.add_param_string(param_str)
         self._sections: List[tuple] = []
 

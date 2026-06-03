@@ -80,16 +80,39 @@ class BridgeModuleGenerator:
         gen.generate_all("/output/dir")
     """
 
-    def __init__(self, bridge_name: str, enable_monitoring: bool = False):
+    def __init__(self, bridge_name: str, enable_monitoring: bool = False,
+                 internal_axil_group: bool = True,
+                 use_all_monitors: bool = False,
+                 use_no_monitors:  bool = False):
         """
         Initialize bridge generator.
 
         Args:
             bridge_name: Name of bridge (e.g., "bridge_1x2_wr")
             enable_monitoring: Use *_mon wrapper versions
+            internal_axil_group: When True (default, backward-compatible),
+                the bridge instantiates its own monbus_arbiter +
+                monbus_axil_group internally, and exposes the group's
+                AXIL slave/master, cfg, and IRQ at the bridge top --
+                drop-in monitoring for a fresh SoC. When False, the
+                bridge still instantiates the per-port arbiter but
+                skips the AXIL group; instead it exposes a single
+                aggregated monbus stream (monbus_agg_*) at the top
+                so the integrator can merge it with an EXTERNAL
+                monbus_axil_group that already exists in the SoC
+                (the stream_char harness uses STREAM's internal
+                group, for example). When False, the bridge requires
+                `i_mon_time` as a top-level INPUT (fed from the
+                external group's `mon_time_out`).
         """
         self.bridge_name = bridge_name
         self.enable_monitoring = enable_monitoring
+        self.internal_axil_group = internal_axil_group
+        # Defaults for the bridge-top USE_ALL_MONITORS / USE_NO_MONITORS
+        # SV parameters. The harness can still override these at
+        # instantiation -- the TOML just picks the build-time default.
+        self.use_all_monitors = use_all_monitors
+        self.use_no_monitors  = use_no_monitors
         self.masters: List[MasterConfig] = []
         self.slaves: List[SlaveInfo] = []
 
@@ -251,10 +274,15 @@ class BridgeModuleGenerator:
 
     def _collect_monitored_wrappers(self) -> List[MonitoredWrapper]:
         """Enumerate every per-port AXI4 _mon wrapper instance in the
-        bridge, ordered master-side first then slave-side. APB and AXIL
-        slaves contribute nothing -- their converter shims have no
-        monitor support today. The order here defines the indexing of
-        monbus_arbiter inputs at the bridge top."""
+        bridge, ordered master-side first then slave-side. Every slave
+        adapter -- AXI4, AXIL, or APB -- contributes a wrapper: AXI4
+        slaves wrap their axi4_master_*_mon timing isolation between
+        xbar and external; AXIL/APB slaves insert axi4_master_*_mon on
+        the bridge-internal AXI4 path upstream of their converter shim
+        (the crossbar fabric is always AXI4, so the AXI4 monitor sees
+        the same traffic regardless of the slave's external protocol).
+        The order here defines the indexing of monbus_arbiter inputs at
+        the bridge top."""
         wrappers: List[MonitoredWrapper] = []
         for m_idx, m in enumerate(self.masters):
             if m.channels in ('wr', 'rw'):
@@ -262,8 +290,6 @@ class BridgeModuleGenerator:
             if m.channels in ('rd', 'rw'):
                 wrappers.append(MonitoredWrapper(m.name, m_idx, 'master', 'rd'))
         for s_idx, s in enumerate(self.slaves):
-            if s.protocol != 'axi4':
-                continue
             connecting = self._get_masters_connecting_to_slave(s)
             has_write = any(m.channels in ('wr', 'rw') for m in connecting)
             has_read = any(m.channels in ('rd', 'rw') for m in connecting)
@@ -330,55 +356,70 @@ class BridgeModuleGenerator:
                 lines.append(f"    input  logic {width_decl} {w.cfg_signal(base)},")
             lines.append("")
 
-        # monbus_axil_group ports -- the post-arbiter consumer.
-        lines.append("    // ============================================================")
-        lines.append("    // monbus_axil_group access ports + config + IRQ")
-        lines.append("    // ============================================================")
-        # AXIL slave (config / IRQ status reads). 64-bit data: a CPU
-        # drains one error packet (packet + source_ts) in 3 beats via
-        # the unified monbus_axil_group's slice-counter read path.
-        lines.append("    // AXIL slave (IRQ-status reads, 64-bit data)")
-        lines.append("    input  logic        s_mon_axil_arvalid,")
-        lines.append("    output logic        s_mon_axil_arready,")
-        lines.append("    input  logic [31:0] s_mon_axil_araddr,")
-        lines.append("    input  logic [2:0]  s_mon_axil_arprot,")
-        lines.append("    output logic        s_mon_axil_rvalid,")
-        lines.append("    input  logic        s_mon_axil_rready,")
-        lines.append("    output logic [63:0] s_mon_axil_rdata,")
-        lines.append("    output logic [1:0]  s_mon_axil_rresp,")
-        lines.append("")
-        # AXIL master (packet log writes). The monbus_axil_group module
-        # exposes a 64-bit master (M_AXIL_DATA_WIDTH=64) so the captured
-        # write records are wide enough for the 128-bit packet split
-        # across two beats; bump wdata 32->64 and wstrb 4->8 to match.
-        lines.append("    // AXIL master (packet log writes)")
-        lines.append("    output logic        m_mon_axil_awvalid,")
-        lines.append("    input  logic        m_mon_axil_awready,")
-        lines.append("    output logic [31:0] m_mon_axil_awaddr,")
-        lines.append("    output logic [2:0]  m_mon_axil_awprot,")
-        lines.append("    output logic        m_mon_axil_wvalid,")
-        lines.append("    input  logic        m_mon_axil_wready,")
-        lines.append("    output logic [63:0] m_mon_axil_wdata,")
-        lines.append("    output logic [7:0]  m_mon_axil_wstrb,")
-        lines.append("    input  logic        m_mon_axil_bvalid,")
-        lines.append("    output logic        m_mon_axil_bready,")
-        lines.append("    input  logic [1:0]  m_mon_axil_bresp,")
-        lines.append("")
-        # monbus_axil_group cfg
-        lines.append("    // monbus_axil_group cfg")
-        for base, width in self._MON_GROUP_CFG:
-            width_decl = "       " if width == 1 else f"[{width-1}:0]"
-            lines.append(f"    input  logic {width_decl} cfg_mon_group_{base},")
-        # Note: cfg_mon_group_ts_append_* ports are no longer surfaced.
-        # The monbus_axil_group now emits a fixed 3-beat 24-byte record
-        # (packet[63:0], packet[127:64], source_ts[63:0]) regardless of
-        # what the integrator wants. Removing the cfg pair simplifies
-        # both the bridge top and every downstream consumer (host dump
-        # script, cocotb capture test) -- one record shape everywhere.
-        #
-        # IRQ output -- last port, no trailing comma.
-        lines.append("    // IRQ (asserted while error FIFO non-empty)")
-        lines.append("    output logic        mon_irq_out")
+        if self.internal_axil_group:
+            # monbus_axil_group ports -- the post-arbiter consumer.
+            lines.append("    // ============================================================")
+            lines.append("    // monbus_axil_group access ports + config + IRQ")
+            lines.append("    // ============================================================")
+            # AXIL slave (config / IRQ status reads). 64-bit data: a CPU
+            # drains one error packet (packet + source_ts) in 3 beats via
+            # the unified monbus_axil_group's slice-counter read path.
+            lines.append("    // AXIL slave (IRQ-status reads, 64-bit data)")
+            lines.append("    input  logic        s_mon_axil_arvalid,")
+            lines.append("    output logic        s_mon_axil_arready,")
+            lines.append("    input  logic [31:0] s_mon_axil_araddr,")
+            lines.append("    input  logic [2:0]  s_mon_axil_arprot,")
+            lines.append("    output logic        s_mon_axil_rvalid,")
+            lines.append("    input  logic        s_mon_axil_rready,")
+            lines.append("    output logic [63:0] s_mon_axil_rdata,")
+            lines.append("    output logic [1:0]  s_mon_axil_rresp,")
+            lines.append("")
+            # AXIL master (packet log writes). The monbus_axil_group module
+            # exposes a 64-bit master (M_AXIL_DATA_WIDTH=64) so the captured
+            # write records are wide enough for the 128-bit packet split
+            # across two beats; bump wdata 32->64 and wstrb 4->8 to match.
+            lines.append("    // AXIL master (packet log writes)")
+            lines.append("    output logic        m_mon_axil_awvalid,")
+            lines.append("    input  logic        m_mon_axil_awready,")
+            lines.append("    output logic [31:0] m_mon_axil_awaddr,")
+            lines.append("    output logic [2:0]  m_mon_axil_awprot,")
+            lines.append("    output logic        m_mon_axil_wvalid,")
+            lines.append("    input  logic        m_mon_axil_wready,")
+            lines.append("    output logic [63:0] m_mon_axil_wdata,")
+            lines.append("    output logic [7:0]  m_mon_axil_wstrb,")
+            lines.append("    input  logic        m_mon_axil_bvalid,")
+            lines.append("    output logic        m_mon_axil_bready,")
+            lines.append("    input  logic [1:0]  m_mon_axil_bresp,")
+            lines.append("")
+            # monbus_axil_group cfg
+            lines.append("    // monbus_axil_group cfg")
+            for base, width in self._MON_GROUP_CFG:
+                width_decl = "       " if width == 1 else f"[{width-1}:0]"
+                lines.append(f"    input  logic {width_decl} cfg_mon_group_{base},")
+            # IRQ output -- last port, no trailing comma.
+            lines.append("    // IRQ (asserted while error FIFO non-empty)")
+            lines.append("    output logic        mon_irq_out")
+        else:
+            # External-aggregator mode: bridge does per-port monitoring +
+            # arbitration but expects the integrator's existing
+            # monbus_axil_group to consume the merged stream. We surface
+            # the aggregated monbus output plus a free-running monitor-
+            # time input the external group must drive.
+            lines.append("    // ============================================================")
+            lines.append("    // Aggregated monbus output (consumed by external axil_group)")
+            lines.append("    // ============================================================")
+            lines.append("    // Free-running monitor-time INPUT -- drive from external")
+            lines.append("    // monbus_axil_group's mon_time_out so every internal wrapper")
+            lines.append("    // and the external group share one timebase.")
+            lines.append("    input  monitor_common_pkg::monbus_timestamp_t i_mon_time,")
+            lines.append("")
+            lines.append("    // Post-arbiter aggregated stream (merge externally with other")
+            lines.append("    // monbus sources, e.g. STREAM's monbus_axil_group input).")
+            lines.append("    output logic                                  monbus_agg_valid,")
+            lines.append("    input  logic                                  monbus_agg_ready,")
+            lines.append("    output monitor_common_pkg::monitor_packet_t   monbus_agg_packet,")
+            lines.append("    // Last port -- no trailing comma.")
+            lines.append("    output monitor_common_pkg::monbus_timestamp_t monbus_agg_timestamp")
         return lines
 
     def _generate_monitor_internal_signals(self, wrappers: List[MonitoredWrapper]) -> List[str]:
@@ -449,13 +490,19 @@ class BridgeModuleGenerator:
         return lines
 
     def _generate_monitor_aggregator(self, wrappers: List[MonitoredWrapper]) -> List[str]:
-        """Instantiate monbus_arbiter + monbus_axil_group at the bridge
-        top. Adapter outputs feed the arbiter; arbiter output feeds the
-        axil_group whose AXIL/cfg/IRQ ports are surfaced at module top."""
+        """Instantiate monbus_arbiter (always) and monbus_axil_group
+        (only when internal_axil_group=True). With internal_axil_group=
+        False the arbiter's aggregated output is surfaced at the bridge
+        top via monbus_agg_* so the integrator can merge with an
+        existing external axil_group."""
         lines: List[str] = []
         n = len(wrappers)
         lines.append("    // ============================================================")
-        lines.append(f"    // Monitor aggregator -- {n} client(s) -> arbiter -> axil_group")
+        if self.internal_axil_group:
+            lines.append(f"    // Monitor aggregator -- {n} client(s) -> arbiter -> axil_group")
+        else:
+            lines.append(f"    // Monitor aggregator -- {n} client(s) -> arbiter -> top-level monbus_agg_*")
+            lines.append("    // (axil_group lives outside the bridge; integrator merges this stream)")
         lines.append("    // ============================================================")
         # monbus_arbiter: unpacked-array inputs across CLIENTS
         lines.append("    logic                                  mon_arb_monbus_valid_in     [{}];".format(n))
@@ -494,47 +541,61 @@ class BridgeModuleGenerator:
         lines.append("        /* verilator lint_on PINCONNECTEMPTY */")
         lines.append("    );")
         lines.append("")
-        lines.append("    monbus_axil_group #(")
-        lines.append("        .FIFO_DEPTH_ERR    (64),")
-        lines.append("        .FIFO_DEPTH_WRITE  (32),")
-        lines.append("        .ADDR_WIDTH        (32),")
-        lines.append("        .S_AXIL_DATA_WIDTH (64),")
-        lines.append("        // S_AXIL_DATA_WIDTH=64: the unified group drains one")
-        lines.append("        // err_fifo entry ({packet[127:0], source_ts[63:0]} = 192 bits)")
-        lines.append("        // over three 64-bit reads via an internal slice counter.")
-        lines.append("        // M_AXIL_DATA_WIDTH defaults to 64 — module emits the same")
-        lines.append("        // 24-byte record on the bulk-trace write path: three 64-bit")
-        lines.append("        // beats {packet[63:0], packet[127:64], source_ts[63:0]}.")
-        lines.append("        .NUM_PROTOCOLS     (3)")
-        lines.append("    ) u_mon_axil_group (")
-        lines.append("        .axi_aclk          (aclk),")
-        lines.append("        .axi_aresetn       (aresetn),")
-        lines.append("        // Arbiter output as the single monbus input + side-band timestamp")
-        lines.append("        .monbus_valid      (mon_arb_monbus_valid),")
-        lines.append("        .monbus_ready      (mon_arb_monbus_ready),")
-        lines.append("        .monbus_packet     (mon_arb_monbus_packet),")
-        lines.append("        .monbus_timestamp  (mon_arb_monbus_timestamp),")
-        lines.append("        // Free-running timestamp shared with every wrapper's i_mon_time")
-        lines.append("        .mon_time_out      (mon_time_w),")
-        lines.append("        // AXIL slave")
-        for s in ('arvalid','arready','araddr','arprot','rvalid','rready','rdata','rresp'):
-            lines.append(f"        .s_axil_{s}      (s_mon_axil_{s}),")
-        lines.append("        // AXIL master")
-        for s in ('awvalid','awready','awaddr','awprot','wvalid','wready','wdata','wstrb','bvalid','bready','bresp'):
-            lines.append(f"        .m_axil_{s}      (m_mon_axil_{s}),")
-        lines.append("        // IRQ")
-        lines.append("        .irq_out           (mon_irq_out),")
-        lines.append("        // Group-level cfg")
-        for base, _width in self._MON_GROUP_CFG:
-            lines.append(f"        .cfg_{base}     (cfg_mon_group_{base}),")
-        lines.append("        /* verilator lint_off PINCONNECTEMPTY */")
-        lines.append("        .err_fifo_full     (),")
-        lines.append("        .write_fifo_full   (),")
-        lines.append("        .err_fifo_count    (),")
-        lines.append("        .write_fifo_count  ()")
-        lines.append("        /* verilator lint_on PINCONNECTEMPTY */")
-        lines.append("    );")
-        lines.append("")
+        if self.internal_axil_group:
+            lines.append("    monbus_axil_group #(")
+            lines.append("        .FIFO_DEPTH_ERR    (64),")
+            lines.append("        .FIFO_DEPTH_WRITE  (32),")
+            lines.append("        .ADDR_WIDTH        (32),")
+            lines.append("        .S_AXIL_DATA_WIDTH (64),")
+            lines.append("        // S_AXIL_DATA_WIDTH=64: the unified group drains one")
+            lines.append("        // err_fifo entry ({packet[127:0], source_ts[63:0]} = 192 bits)")
+            lines.append("        // over three 64-bit reads via an internal slice counter.")
+            lines.append("        // M_AXIL_DATA_WIDTH defaults to 64 — module emits the same")
+            lines.append("        // 24-byte record on the bulk-trace write path: three 64-bit")
+            lines.append("        // beats {packet[63:0], packet[127:64], source_ts[63:0]}.")
+            lines.append("        .NUM_PROTOCOLS     (3)")
+            lines.append("    ) u_mon_axil_group (")
+            lines.append("        .axi_aclk          (aclk),")
+            lines.append("        .axi_aresetn       (aresetn),")
+            lines.append("        // Arbiter output as the single monbus input + side-band timestamp")
+            lines.append("        .monbus_valid      (mon_arb_monbus_valid),")
+            lines.append("        .monbus_ready      (mon_arb_monbus_ready),")
+            lines.append("        .monbus_packet     (mon_arb_monbus_packet),")
+            lines.append("        .monbus_timestamp  (mon_arb_monbus_timestamp),")
+            lines.append("        // Free-running timestamp shared with every wrapper's i_mon_time")
+            lines.append("        .mon_time_out      (mon_time_w),")
+            lines.append("        // AXIL slave")
+            for s in ('arvalid','arready','araddr','arprot','rvalid','rready','rdata','rresp'):
+                lines.append(f"        .s_axil_{s}      (s_mon_axil_{s}),")
+            lines.append("        // AXIL master")
+            for s in ('awvalid','awready','awaddr','awprot','wvalid','wready','wdata','wstrb','bvalid','bready','bresp'):
+                lines.append(f"        .m_axil_{s}      (m_mon_axil_{s}),")
+            lines.append("        // IRQ")
+            lines.append("        .irq_out           (mon_irq_out),")
+            lines.append("        // Group-level cfg")
+            for base, _width in self._MON_GROUP_CFG:
+                lines.append(f"        .cfg_{base}     (cfg_mon_group_{base}),")
+            lines.append("        /* verilator lint_off PINCONNECTEMPTY */")
+            lines.append("        .err_fifo_full     (),")
+            lines.append("        .write_fifo_full   (),")
+            lines.append("        .err_fifo_count    (),")
+            lines.append("        .write_fifo_count  ()")
+            lines.append("        /* verilator lint_on PINCONNECTEMPTY */")
+            lines.append("    );")
+            lines.append("")
+        else:
+            # No internal monbus_axil_group: surface the arbiter's
+            # aggregated stream + shared timestamp net to the bridge top.
+            lines.append("    // Surface the arbiter's aggregated monbus stream at the bridge top.")
+            lines.append("    // i_mon_time is an INPUT here (driven by external monbus_axil_group.mon_time_out)")
+            lines.append("    // and is also assigned to the shared mon_time_w net that every wrapper")
+            lines.append("    // consumes via its i_mon_time input.")
+            lines.append("    assign mon_time_w           = i_mon_time;")
+            lines.append("    assign monbus_agg_valid     = mon_arb_monbus_valid;")
+            lines.append("    assign mon_arb_monbus_ready = monbus_agg_ready;")
+            lines.append("    assign monbus_agg_packet    = mon_arb_monbus_packet;")
+            lines.append("    assign monbus_agg_timestamp = mon_arb_monbus_timestamp;")
+            lines.append("")
         return lines
 
     def _generate_crossbar(self) -> str:
@@ -622,10 +683,58 @@ class BridgeModuleGenerator:
         ]
 
     def _generate_module_declaration(self) -> List[str]:
-        """Generate module declaration with all ports."""
+        """Generate module declaration with all ports.
+
+        For monitored bridges, exposes a parameter block on the top:
+        - Per-wrapper USE_MONITOR_<port>_<wr|rd> with TOML defaults
+        - Global USE_ALL_MONITORS, USE_NO_MONITORS (both default 1'b0)
+
+        The integrator (harness) overrides any of these at instantiation
+        to flip monitor enables without regenerating the bridge. Effective
+        per-wrapper values are computed via localparam EFF_USE_MON_*
+        right after the port list and passed down to adapter instances."""
         lines = []
 
-        lines.append(f"module {self.bridge_name} (")
+        # Collect wrappers up-front so we know whether to emit a
+        # parameter block before the port list.
+        mon_wrappers = (self._collect_monitored_wrappers()
+                        if self.enable_monitoring else [])
+
+        if mon_wrappers:
+            lines.append(f"module {self.bridge_name} #(")
+            param_lines: List[str] = []
+            param_lines.append("    // Per-wrapper USE_MONITOR knobs (TOML defaults; override at instantiation)")
+            for w in mon_wrappers:
+                if w.side == 'master':
+                    default_bit = self.masters[w.port_idx].use_monitor
+                else:
+                    default_bit = self.slaves[w.port_idx].use_monitor
+                default_lit = "1'b1" if default_bit else "1'b0"
+                pname = f"USE_MONITOR_{w.port_name}_{w.channel}"
+                param_lines.append(f"    parameter bit {pname} = {default_lit}")
+            param_lines.append("    // Global overrides (mutually exclusive; both 0 = use per-port)")
+            use_all_lit = "1'b1" if self.use_all_monitors else "1'b0"
+            use_no_lit  = "1'b1" if self.use_no_monitors  else "1'b0"
+            param_lines.append(f"   ,parameter bit USE_ALL_MONITORS = {use_all_lit}")
+            param_lines.append(f"   ,parameter bit USE_NO_MONITORS  = {use_no_lit}")
+            # Join with commas (the parameter-block doesn't use a
+            # trailing comma; we already use leading commas on the
+            # globals). Add commas between consecutive parameters.
+            for i in range(1, len(param_lines)):
+                stripped = param_lines[i].lstrip()
+                if not stripped.startswith(("//", ",")):
+                    # This is a parameter line; previous emitted line
+                    # needs a trailing comma if it was also a parameter.
+                    prev = param_lines[i - 1].rstrip()
+                    if (not prev.lstrip().startswith("//")
+                            and not prev.endswith(",")
+                            and not prev.endswith("(")):
+                        param_lines[i - 1] = prev + ","
+            lines.extend(param_lines)
+            lines.append(") (")
+        else:
+            lines.append(f"module {self.bridge_name} (")
+
         lines.append("    input  logic aclk,")
         lines.append("    input  logic aresetn,")
         lines.append("")
@@ -664,6 +773,25 @@ class BridgeModuleGenerator:
         # Localparams
         lines.append(f"    localparam NUM_SLAVES = {len(self.slaves)};")
         lines.append("")
+
+        # Effective per-wrapper USE_MONITOR after applying the global
+        # USE_ALL_MONITORS / USE_NO_MONITORS overrides. These localparams
+        # are referenced when instantiating each adapter so a single
+        # bridge can be reconfigured at integration time -- no regen.
+        if mon_wrappers:
+            lines.append("    // ============================================================")
+            lines.append("    // Effective per-wrapper USE_MONITOR (after global override)")
+            lines.append("    // ============================================================")
+            for w in mon_wrappers:
+                src_param = f"USE_MONITOR_{w.port_name}_{w.channel}"
+                eff_param = f"EFF_USE_MON_{w.port_name}_{w.channel}"
+                lines.append(
+                    f"    localparam bit {eff_param} = "
+                    f"USE_NO_MONITORS  ? 1'b0 : "
+                    f"USE_ALL_MONITORS ? 1'b1 : "
+                    f"{src_param};"
+                )
+            lines.append("")
 
         return lines
 
@@ -1119,11 +1247,32 @@ class BridgeModuleGenerator:
         lines = []
         monitored = monitored or []
 
-        for master in self.masters:
+        for m_idx, master in enumerate(self.masters):
             lines.append("    // ================================================================")
             lines.append(f"    // {master.name.upper()} Adapter")
             lines.append("    // ================================================================")
-            lines.append(f"    {master.name}_adapter u_{master.name}_adapter (")
+            # Parameter override block -- pass the bridge-top's effective
+            # USE_MONITOR localparams down to the adapter so per-port
+            # monitor enables can be flipped at bridge instantiation
+            # without regenerating. Only emitted on monitored variants.
+            mon_params: List[str] = []
+            if self.enable_monitoring:
+                if master.channels in ("wr", "rw"):
+                    mon_params.append(
+                        f"        .USE_MONITOR_WR(EFF_USE_MON_{master.name}_wr)"
+                    )
+                if master.channels in ("rd", "rw"):
+                    mon_params.append(
+                        f"        .USE_MONITOR_RD(EFF_USE_MON_{master.name}_rd)"
+                    )
+            if mon_params:
+                lines.append(f"    {master.name}_adapter #(")
+                for i, p in enumerate(mon_params):
+                    sep = "," if i < len(mon_params) - 1 else ""
+                    lines.append(p + sep)
+                lines.append(f"    ) u_{master.name}_adapter (")
+            else:
+                lines.append(f"    {master.name}_adapter u_{master.name}_adapter (")
             lines.append("        .aclk(aclk),")
             lines.append("        .aresetn(aresetn),")
             lines.append("")
@@ -1425,6 +1574,16 @@ class BridgeModuleGenerator:
                               if w.side == 'slave' and w.port_name == slave.name]
             if slave_wrappers:
                 inst.connect_monitor(slave_wrappers)
+                # Pass bridge-top EFF_USE_MON_* localparams down to the
+                # adapter's USE_MONITOR_WR / USE_MONITOR_RD parameters so
+                # the integrator's runtime knobs reach every wrapper.
+                eff_wr = (f"EFF_USE_MON_{slave.name}_wr"
+                          if any(w.channel == 'wr' for w in slave_wrappers)
+                          else None)
+                eff_rd = (f"EFF_USE_MON_{slave.name}_rd"
+                          if any(w.channel == 'rd' for w in slave_wrappers)
+                          else None)
+                inst.set_use_monitor_params(eff_wr=eff_wr, eff_rd=eff_rd)
             lines.extend(inst.generate_lines())
 
         return lines

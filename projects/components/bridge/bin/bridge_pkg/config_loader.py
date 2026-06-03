@@ -45,7 +45,7 @@ except ImportError:
         print("  Install with: pip install tomli")
 
 
-def load_toml_ports(toml_path: str) -> Tuple[List[PortSpec], List[PortSpec], Optional[Dict], Optional[Dict], str, List[str]]:
+def load_toml_ports(toml_path: str) -> Tuple[List[PortSpec], List[PortSpec], Optional[Dict], Optional[Dict], str, List[str], bool, bool, bool]:
     """
     Load port configuration from TOML file.
 
@@ -70,7 +70,7 @@ def load_toml_ports(toml_path: str) -> Tuple[List[PortSpec], List[PortSpec], Opt
     return _parse_port_data(data, toml_path)
 
 
-def load_yaml_ports(yaml_path: str) -> Tuple[List[PortSpec], List[PortSpec], Optional[Dict], Optional[Dict], str, List[str]]:
+def load_yaml_ports(yaml_path: str) -> Tuple[List[PortSpec], List[PortSpec], Optional[Dict], Optional[Dict], str, List[str], bool, bool, bool]:
     """
     Load port configuration from YAML file.
 
@@ -88,7 +88,7 @@ def load_yaml_ports(yaml_path: str) -> Tuple[List[PortSpec], List[PortSpec], Opt
     return _parse_port_data(data, yaml_path)
 
 
-def _parse_port_data(data: Dict, config_path: str) -> Tuple[List[PortSpec], List[PortSpec], Optional[Dict], Optional[Dict], str, List[str]]:
+def _parse_port_data(data: Dict, config_path: str) -> Tuple[List[PortSpec], List[PortSpec], Optional[Dict], Optional[Dict], str, List[str], bool, bool, bool]:
     """
     Parse port data from loaded config (YAML or TOML).
 
@@ -181,13 +181,15 @@ def _parse_port_data(data: Dict, config_path: str) -> Tuple[List[PortSpec], List
             data_width=data_width,
             addr_width=addr_width,
             id_width=id_width,
-            enable_ooo=False  # Masters don't use OOO flag
+            enable_ooo=False,  # Masters don't use OOO flag
+            use_monitor=bool(m.get('use_monitor', True))
         )
 
         masters.append(port)
         channels_str = f"[{channels.upper()}]" if channels != 'rw' else ""
         interface_str = f" [IF: {interface_config['type']}]" if interface_config else ""
-        print(f"  Master: {port_name} ({protocol.upper()}, {data_width}b data, {channels.upper()}, prefix: {prefix}){interface_str}")
+        mon_str = "" if port.use_monitor else " [USE_MONITOR=0]"
+        print(f"  Master: {port_name} ({protocol.upper()}, {data_width}b data, {channels.upper()}, prefix: {prefix}){interface_str}{mon_str}")
 
     # Parse slaves
     for s in bridge_data.get('slaves', []):
@@ -235,14 +237,16 @@ def _parse_port_data(data: Dict, config_path: str) -> Tuple[List[PortSpec], List
             id_width=id_width,
             base_addr=base_addr,
             addr_range=addr_range,
-            enable_ooo=enable_ooo
+            enable_ooo=enable_ooo,
+            use_monitor=bool(s.get('use_monitor', True))
         )
 
         slaves.append(port)
         ooo_str = " [OOO]" if enable_ooo else ""
         interface_str = f" [IF: {interface_config['type']}]" if interface_config else ""
         addr_str = f" [0x{base_addr:08X}+0x{addr_range:X}]" if addr_range > 0 else ""
-        print(f"  Slave:  {port_name} ({protocol.upper()}, {data_width}b data, prefix: {prefix}){addr_str}{ooo_str}{interface_str}")
+        mon_str = "" if port.use_monitor else " [USE_MONITOR=0]"
+        print(f"  Slave:  {port_name} ({protocol.upper()}, {data_width}b data, prefix: {prefix}){addr_str}{ooo_str}{interface_str}{mon_str}")
 
     # Parse connectivity section if present (TOML embedded connectivity)
     connectivity_data = data.get('connectivity')
@@ -256,7 +260,28 @@ def _parse_port_data(data: Dict, config_path: str) -> Tuple[List[PortSpec], List
     # auto-named topology fallback, so a TOML saying
     # name = "bridge_5x3_channels" no longer produces "bridge_5x3_rw".
     bridge_name = bridge_data.get('name', '')
-    return masters, slaves, defaults, connectivity_data, bridge_name, variants
+    # Optional per-bridge monbus topology selector (mon variant only).
+    # True = self-contained, internal monbus_axil_group.
+    # False = surface aggregated stream so an external group consumes it.
+    internal_axil_group = bool(bridge_data.get('internal_axil_group', True))
+    if 'internal_axil_group' in bridge_data:
+        print(f"  internal_axil_group: {internal_axil_group}")
+
+    # Bridge-level monitor override switches (mon variant only).
+    use_all_monitors = bool(bridge_data.get('use_all_monitors', False))
+    use_no_monitors  = bool(bridge_data.get('use_no_monitors',  False))
+    if use_all_monitors and use_no_monitors:
+        raise ValueError(
+            f"{config_path}: [bridge].use_all_monitors and "
+            f"[bridge].use_no_monitors are mutually exclusive -- "
+            f"both cannot be True at the same time."
+        )
+    if use_all_monitors:
+        print("  use_all_monitors: True (forces every port USE_MONITOR=1)")
+    if use_no_monitors:
+        print("  use_no_monitors:  True (forces every port USE_MONITOR=0)")
+    return (masters, slaves, defaults, connectivity_data, bridge_name,
+            variants, internal_axil_group, use_all_monitors, use_no_monitors)
 
 
 def find_connectivity_csv(yaml_path: str) -> Optional[str]:
@@ -350,9 +375,13 @@ def load_config(config_path: str, connectivity_csv: Optional[str] = None) -> Bri
     # Auto-detect format based on file extension
     config_file = Path(config_path)
     if config_file.suffix == '.toml':
-        masters, slaves, defaults, embedded_connectivity, bridge_name, variants = load_toml_ports(config_path)
+        (masters, slaves, defaults, embedded_connectivity, bridge_name,
+         variants, internal_axil_group,
+         use_all_monitors, use_no_monitors) = load_toml_ports(config_path)
     elif config_file.suffix in ['.yaml', '.yml']:
-        masters, slaves, defaults, embedded_connectivity, bridge_name, variants = load_yaml_ports(config_path)
+        (masters, slaves, defaults, embedded_connectivity, bridge_name,
+         variants, internal_axil_group,
+         use_all_monitors, use_no_monitors) = load_yaml_ports(config_path)
     else:
         raise ValueError(f"Unsupported config format: {config_file.suffix}. Use .toml, .yaml, or .yml")
 
@@ -381,6 +410,9 @@ def load_config(config_path: str, connectivity_csv: Optional[str] = None) -> Bri
         slaves=slaves,
         connectivity=connectivity,
         variants=variants,
+        internal_axil_group=internal_axil_group,
+        use_all_monitors=use_all_monitors,
+        use_no_monitors=use_no_monitors,
     )
 
     # Validate configuration

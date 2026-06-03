@@ -246,6 +246,14 @@ module harness_csr #(
     input  logic            i_timer_pass,
     input  logic [63:0]     i_timer_cycles,
 
+    // =====================================================================
+    // desc_ram debug observability (custom monitor / FSM watch)
+    // Host writes mux_sel @ 0x60, reads data @ 0x64. Sentinel 0xDEAD_BEEF
+    // returned when mux_sel=15 confirms the obs path is alive end-to-end.
+    // =====================================================================
+    output logic [3:0]      o_desc_ram_dbg_sel,
+    input  logic [31:0]     i_desc_ram_dbg_data,
+
     // Per-engine first/last beat cycle stamps (sampled from i_timer_cycles).
     // Subtract first from last to get pure engine throughput windows.
     input  logic [63:0]     i_timer_r_first,
@@ -386,6 +394,7 @@ module harness_csr #(
     // a bitmask asserts o_kick_burst_mask for that bitmask for exactly
     // one cycle.
     logic [31:0] r_kick_addr [8];   // 8 fixed slots; only NUM_CHANNELS used
+    logic [3:0]  r_desc_ram_dbg_sel; // 0x60 W: desc_ram debug-mux select
     logic [7:0]  r_kick_go_pulse;   // one-cycle pulse driven by 0xC0 write
 
     // Fixed-shape views over per-channel CRC arrays so the read-decode
@@ -443,6 +452,7 @@ module harness_csr #(
             r_wr_resp_delay_cyc    <= '0;
             for (int i = 0; i < 8; i++) r_kick_addr[i] <= '0;
             r_kick_go_pulse        <= '0;
+            r_desc_ram_dbg_sel     <= '0;
         end else begin
             r_start_pulse          <= 1'b0;
             r_clear_stats_pulse    <= 1'b0;
@@ -466,6 +476,9 @@ module harness_csr #(
                             8'h20: r_scratch <= int_wdata;
                             8'h28: r_timer_clear_pulse <= int_wdata[0];
                             8'h38: r_timer_expected_beats <= int_wdata;
+                            // desc_ram debug-mux select (bumped by host
+                            // to walk the 16-window obs set).
+                            8'h60: r_desc_ram_dbg_sel <= int_wdata[3:0];
                             8'h3C: begin
                                 r_rd_resp_delay_cyc <= int_wdata[15:0];
                                 r_wr_resp_delay_cyc <= int_wdata[31:16];
@@ -569,6 +582,11 @@ module harness_csr #(
                             8'h54: r_rdata <= i_timer_w_first[63:32];
                             8'h58: r_rdata <= i_timer_w_last [31:0];
                             8'h5C: r_rdata <= i_timer_w_last [63:32];
+                            // desc_ram debug observability:
+                            //   0x60 W/R = mux select (4 bits)
+                            //   0x64 R   = current mux-selected 32b data
+                            8'h60: r_rdata <= {28'd0, r_desc_ram_dbg_sel};
+                            8'h64: r_rdata <= i_desc_ram_dbg_data;
                             // Per-channel CRC values (NC up to CRC_VIEW_NC=8).
                             // 0x60..0x7C: read CRCs, 0x80..0x9C: write CRCs.
                             8'h60: r_rdata <= crc_rd_view[0];
@@ -690,6 +708,7 @@ module harness_csr #(
     assign o_timer_expected_beats = r_timer_expected_beats;
     assign o_rd_resp_delay_cyc    = r_rd_resp_delay_cyc;
     assign o_wr_resp_delay_cyc    = r_wr_resp_delay_cyc;
+    assign o_desc_ram_dbg_sel     = r_desc_ram_dbg_sel;
 
     // Kick-burst outputs: pulse the mask exactly when KICK_GO was just
     // written (one aclk cycle), and broadcast the per-channel shadow

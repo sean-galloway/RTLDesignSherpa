@@ -3,6 +3,14 @@
 //==============================================================================
 // Module: axi4_slave_wr_crc_check
 //==============================================================================
+//
+// TODO -- ARCHITECTURAL RULE: every AXI/AXIL agent must use the standard
+// protocol modules under rtl/amba/. The AW/W/B protocol logic in this
+// module is hand-rolled and therefore NON-COMPLIANT. Refactor to wrap
+// `axi4_slave_wr_mon` (which already bundles `axi4_slave_wr` + filtered
+// monitor) and drive the CRC accumulator from its fub_axi_aw* / fub_axi_w*
+// / fub_axi_b* user interface. Tracked as task #79.
+//
 // Description:
 //   AXI4 write-only slave that computes CRC-32 on received data for DMA
 //   validation. Combines axi4_slave_wr protocol handler with CRC checker.

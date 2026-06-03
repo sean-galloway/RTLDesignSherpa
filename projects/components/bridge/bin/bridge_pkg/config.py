@@ -21,6 +21,14 @@ class PortSpec:
     base_addr: int = 0      # Slave base address (masters don't use)
     addr_range: int = 0     # Slave address range (masters don't use)
     enable_ooo: bool = False  # Slave supports out-of-order responses
+    # Per-port USE_MONITOR override. Only meaningful on bridges whose
+    # variant is "mon". Default True keeps the existing behaviour; set
+    # to False on individual ports to omit their axi_monitor_filtered
+    # instance at synthesis (area savings) while preserving the bridge-
+    # top monbus/cfg surface so the harness wiring stays uniform. The
+    # disabled wrapper's monbus_valid stays 0 -- the arbiter sees it
+    # as an inert client.
+    use_monitor: bool = True
 
     def has_write_channels(self) -> bool:
         """Returns True if this port has write channels (AW, W, B)"""
@@ -58,6 +66,36 @@ class BridgeConfig:
     # least one entry; the Python default exists only for the legacy
     # CSV path, which has no concept of monitor variants.
     variants: List[str] = field(default_factory=lambda: ["no"])
+
+    # internal_axil_group: per-bridge selector for the monbus
+    # aggregation topology used by the "mon" variant. When True
+    # (default, backward-compatible) the bridge instantiates its own
+    # monbus_arbiter + monbus_axil_group and exposes the group's AXIL
+    # slave/master, cfg, and IRQ at the bridge top. When False the
+    # bridge still arbitrates per-port packets internally but skips
+    # the AXIL group; it surfaces the arbiter's aggregated stream as
+    # monbus_agg_* at the top so the integrator can merge with an
+    # existing external monbus_axil_group (e.g., STREAM's internal
+    # group in the stream_char harness). Has no effect on the "no"
+    # variant.
+    internal_axil_group: bool = True
+
+    # Bridge-level monitor override switches (matching STREAM's pattern).
+    # Both default False. When True, override every port's per-port
+    # `use_monitor` field. Mutually exclusive -- both True is a config
+    # error.
+    #   use_all_monitors = true  -> every wrapper USE_MONITOR=1
+    #                               (overrides per-port `use_monitor=false`)
+    #   use_no_monitors  = true  -> every wrapper USE_MONITOR=0
+    #                               (overrides per-port `use_monitor=true`)
+    # Per the user's spec: eventually, when use_no_monitors=true the
+    # bridge should also omit the monbus_arbiter + monbus_axil_group
+    # entirely and tie off the top-level monitor surface. That second-
+    # level optimisation is not implemented yet -- today the arbiter +
+    # group are still emitted, but every client wrapper ties
+    # monbus_valid=0 so they pass no traffic.
+    use_all_monitors: bool = False
+    use_no_monitors: bool = False
 
     # Skid buffer depths (per wrapper)
     skid_depth_ar: int = 2    # AR channel buffer depth

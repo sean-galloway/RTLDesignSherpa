@@ -48,6 +48,8 @@ from pathlib import Path
 script_dir = Path(__file__).resolve().parent
 repo_root = script_dir.parent.parent.parent.parent.parent
 sys.path.insert(0, str(repo_root / 'projects' / 'components' / 'converters' / 'bin'))
+sys.path.insert(0, str(repo_root / 'bin'))                            # TBClasses.monbus
+sys.path.insert(0, str(script_dir))                                   # dump_monbus_sram helpers
 
 from descriptor_builder import (
     DescriptorBuilder, CharConfig, build_char_matrix, load_configs_from_csv,
@@ -55,6 +57,13 @@ from descriptor_builder import (
     HARNESS_CSR_BASE, STREAM_APB_BASE, DESC_RAM_BASE,
     CTRL_VALID, CTRL_LAST, CTRL_INTERRUPT,
 )
+# Re-use the in-tree monbus decoder so hang snapshots show decoded
+# packets, not raw hex. parse_records groups 32-bit SRAM words into
+# the 24-byte records (packet[63:0], packet[127:64], source_ts[63:0])
+# the group emits and skips zero-padding; format_timestamped renders
+# each record using the same per-protocol field decode that
+# dump_monbus drains print at the command line.
+from dump_monbus_sram import parse_records, format_timestamped  # noqa: E402
 
 # =========================================================================
 # Harness CSR addresses
@@ -230,10 +239,48 @@ class CharacterizationRunner:
         self.log(f"Ping OK (build_id=0x{bid:08X})")
         return True
 
-    def clear_stats(self):
-        """Clear CRC/LFSR state and debug trace pointer."""
+    def clear_stats(self, timeout_s: float = 1.0):
+        """Clear CRC/LFSR state and debug trace pointer, then WAIT for
+        debug_sram scrub to finish.
+
+        Setup ordering invariant: every setup step must be observably
+        complete before the next begins, so the DMA only starts on a
+        known-good state. Here that means we don't just kick the wipe
+        and hope -- we poll STATUS[3] (clear_busy) until it clears.
+
+        The default debug_sram wipe is one 64-bit word per cycle
+        (~656 us at 100 MHz for the 64Ki-word default), so 1 s is
+        generous. Raises RuntimeError on timeout rather than silently
+        proceeding -- a stuck clear_busy means something upstream is
+        broken and the descriptor load that follows would race the
+        scrub.
+
+        Note: read failures (st is None) are RETRIED, not treated as
+        scrub-done. A prior version broke out of the loop on the first
+        None and would silently skip the wait on a UART hiccup.
+        """
         self.bridge.write(CSR_CTRL, 0x02)  # clear_stats pulse
-        time.sleep(0.01)
+        # Give the pulse one CSR-write round-trip to land in the harness.
+        time.sleep(0.001)
+
+        deadline = time.time() + timeout_s
+        polls = 0
+        while time.time() < deadline:
+            st = self.bridge.read(CSR_STATUS)
+            polls += 1
+            if st is None:
+                # UART hiccup -- retry, don't assume scrub finished.
+                time.sleep(0.005)
+                continue
+            if (st & 0x08) == 0:  # bit 3 = clear_busy
+                self.vlog(f"  clear_stats: scrub done in {polls} poll(s)")
+                return
+            time.sleep(0.001)
+        raise RuntimeError(
+            f"clear_stats: debug_sram scrub did not complete within "
+            f"{timeout_s}s (STATUS[3] stuck high). Aborting -- "
+            f"descriptor load would race the wipe."
+        )
 
     def set_resp_delay(self, rd_cyc: int, wr_cyc: int) -> None:
         """Program the per-beat hold time injected by the harness's
@@ -503,20 +550,13 @@ class CharacterizationRunner:
     def setup_timer(self, total_bytes: int) -> int:
         """Program the harness timer's stop trigger and zero its counter.
 
-        Returns the expected beat count. Call after configure_stream and
-        before kick_channels. Polls clear_busy (STATUS[3]) to make sure the
-        debug_sram wipe + meter clear from a prior clear_stats has finished
-        before we arm the timer.
+        Returns the expected beat count. Call after configure_stream
+        and before kick_channels. The debug_sram scrub-done check
+        lives in clear_stats() now (which blocks until STATUS[3]==0)
+        so by the time we get here every preceding setup step is
+        observably complete -- the timer is armed against a known-good
+        state right before the DMA kick.
         """
-        # Wait for any prior clear_stats to finish (debug_sram wipe takes
-        # ~656 us at 100 MHz, well under one UART round-trip; this is mostly
-        # belt-and-braces).
-        for _ in range(100):
-            st = self.bridge.read(CSR_STATUS)
-            if st is None or (st & 0x08) == 0:  # bit 3 = clear_busy
-                break
-            time.sleep(0.01)
-
         expected_beats = total_bytes // DATA_WIDTH_BYTES
         # Pulse-clear the timer counter + first/last latches, then arm the
         # stop trigger. Order matters: clear first so a stale stop from a
@@ -648,34 +688,57 @@ class CharacterizationRunner:
         # words sequentially; wr_ptr counts WORDS (not bytes). Each
         # monitor record is 3 words: pkt[31:0], pkt[63:32], timestamp[31:0]
         # (plus another 3 for the 128-bit upper half + timestamp[63:32]
-        # depending on the group config) -- the offline parser in
-        # host/dump_monbus_sram.py knows the format; for the snapshot we
-        # just grab raw words so we have something to feed it.
+        # depending on the group config); we drain the SRAM directly into
+        # the in-tree parser (parse_records / format_timestamped) so the
+        # snapshot shows decoded packets (packet_type, protocol,
+        # event_code, channel_id, agent_id, event_data, timestamp)
+        # instead of raw hex words.
         wr_ptr = trace.get('wr_ptr') or 0
-        head_count = min(48, wr_ptr)
-        tail_start_words = max(wr_ptr - 48, 0)
-        tail_count = min(48, wr_ptr - tail_start_words)
+        # 6 words per 24-byte record. Cap how many we read so a fully
+        # overflowed trace SRAM doesn't spend forever on the UART.
+        max_records_head = 32
+        max_records_tail = 32
+        head_word_count = min(6 * max_records_head, wr_ptr)
+        tail_record_count = min(max_records_tail,
+                                max(0, wr_ptr - head_word_count) // 6)
+        tail_start_words = wr_ptr - 6 * tail_record_count
 
-        for i in range(head_count):
+        for i in range(head_word_count):
             v = self.bridge.read(self.DEBUG_SRAM_BASE_HOST + 4 * i)
-            snap['sram_head'].append(v)
-        for i in range(tail_count):
+            snap['sram_head'].append(v if v is not None else 0)
+        for i in range(6 * tail_record_count):
             v = self.bridge.read(self.DEBUG_SRAM_BASE_HOST
                                  + 4 * (tail_start_words + i))
-            snap['sram_tail'].append(v)
+            snap['sram_tail'].append(v if v is not None else 0)
+
+        snap['decoded_head'] = []
+        snap['decoded_tail'] = []
 
         if snap['sram_head']:
-            self.log("  --- SRAM head (first 48 words) ---")
-            for j in range(0, len(snap['sram_head']), 8):
-                row = snap['sram_head'][j:j + 8]
-                self.log("    " + " ".join(
-                    f"{(w if w is not None else 0):08x}" for w in row))
-        if snap['sram_tail'] and tail_start_words > head_count:
-            self.log(f"  --- SRAM tail (words {tail_start_words}..{wr_ptr - 1}) ---")
-            for j in range(0, len(snap['sram_tail']), 8):
-                row = snap['sram_tail'][j:j + 8]
-                self.log("    " + " ".join(
-                    f"{(w if w is not None else 0):08x}" for w in row))
+            try:
+                head_records = list(parse_records(snap['sram_head']))
+            except Exception as exc:                       # noqa: BLE001
+                self.log(f"  --- decode error on head: {exc} ---")
+                head_records = []
+            self.log(f"  --- Decoded monbus head ({len(head_records)} records) ---")
+            for r in head_records:
+                line = format_timestamped(r)
+                snap['decoded_head'].append(line)
+                self.log(f"    {line}")
+
+        if snap['sram_tail'] and tail_start_words > head_word_count:
+            try:
+                tail_records = list(parse_records(snap['sram_tail']))
+            except Exception as exc:                       # noqa: BLE001
+                self.log(f"  --- decode error on tail: {exc} ---")
+                tail_records = []
+            self.log(f"  --- Decoded monbus tail "
+                     f"(records {tail_start_words // 6}..{wr_ptr // 6 - 1}, "
+                     f"{len(tail_records)} entries) ---")
+            for r in tail_records:
+                line = format_timestamped(r)
+                snap['decoded_tail'].append(line)
+                self.log(f"    {line}")
 
         result['hang_snapshot'] = snap
 
@@ -723,11 +786,26 @@ class CharacterizationRunner:
             'total_bytes': test_data['total_bytes'],
         }
 
-        # 1. Reset
+        # ----- Setup ordering invariant -----
+        # Every setup step MUST be observably complete (not just kicked
+        # off) before the next begins, and the DMA only starts on a
+        # known-good state. Order is fixed:
+        #   1. Soft-reset + scrub debug_sram. Wait for scrub_done.
+        #   2. Program all descriptors. Wait for every bresp.
+        #   3. Other setup (STREAM config, timer arm, monitor cfg).
+        #   4. Kick the DMA.
+        # bridge.write() is synchronous (waits for UART OK after AXIL
+        # bresp), so step 2 is naturally serialised. Step 1's wait
+        # lives inside clear_stats() (polls STATUS[3] until clear).
+
+        # 1. Soft-reset all unit_aresetn-fanned blocks, then kick the
+        #    debug_sram scrub and BLOCK until clear_busy drops.
         self.reset_stream()
         self.clear_stats()
 
-        # 2. Load descriptors
+        # 2. Load descriptors. Each bridge.write() blocks on bresp via
+        #    the UART OK ack, so on return every descriptor word is
+        #    committed in desc_ram.
         t0 = time.time()
         ok = self.load_descriptors(test_data['descriptor_writes'])
         result['load_time_s'] = time.time() - t0
@@ -738,15 +816,16 @@ class CharacterizationRunner:
         self.log(f"  Descriptors loaded in {result['load_time_s']:.1f}s "
                  f"({len(test_data['descriptor_writes'])} writes)")
 
-        # 3. Configure STREAM
+        # 3a. Configure STREAM.
         self.configure_stream(config.num_channels)
 
-        # 4. Arm the harness timer with the expected sink-side beat count.
-        # The timer fires "done" when the write-side beat counter reaches
-        # this value, which is how poll_completion knows the DMA is over.
+        # 3b. Arm the harness timer with the expected sink-side beat
+        # count. The timer fires "done" when the write-side beat
+        # counter reaches this value -- that's how poll_completion
+        # knows the DMA is over.
         self.setup_timer(test_data['total_bytes'])
 
-        # 5. Kick channels
+        # 4. Kick channels (DMA starts here).
         t0 = time.time()
         self.kick_channels(test_data['kick_addresses'])
 

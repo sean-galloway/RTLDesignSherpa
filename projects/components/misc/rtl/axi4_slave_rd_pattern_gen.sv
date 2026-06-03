@@ -3,6 +3,14 @@
 //==============================================================================
 // Module: axi4_slave_rd_pattern_gen
 //==============================================================================
+//
+// TODO -- ARCHITECTURAL RULE: every AXI/AXIL agent must use the standard
+// protocol modules under rtl/amba/. The AR/R protocol logic in this module
+// is hand-rolled and therefore NON-COMPLIANT. Refactor to wrap
+// `axi4_slave_rd_mon` (which already bundles `axi4_slave_rd` + filtered
+// monitor) and drive the LFSR pattern generator + CRC accumulator from
+// its fub_axi_ar* / fub_axi_r* user interface. Tracked as task #78.
+//
 // Description:
 //   AXI4 read-only slave that generates pseudo-random patterns using LFSR
 //   and computes CRC-32 for DMA validation. Combines axi4_slave_rd protocol

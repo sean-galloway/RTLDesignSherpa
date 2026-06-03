@@ -119,6 +119,36 @@ from TBClasses.shared.tbbase import TBBase
 
 ---
 
+### Rule #2b: AXI/AXIL Protocol Modules ARE the Interface (MANDATORY)
+
+**Every AXI4 / AXI-Lite agent under `projects/components/misc/` MUST use
+the standard protocol modules from `rtl/amba/` -- do not hand-roll the
+AR/R/AW/W/B handshake, skid buffers, or transaction tracking.**
+
+| Agent role | Required wrapper | Adds for free |
+|---|---|---|
+| AXI4 slave, read-only  | `axi4_slave_rd_mon`  | filtered monitor |
+| AXI4 slave, write-only | `axi4_slave_wr_mon`  | filtered monitor |
+| AXIL slave, read-only  | `axil4_slave_rd_mon` | filtered monitor |
+| AXIL slave, write-only | `axil4_slave_wr_mon` | filtered monitor |
+| AXI4 master, rd / wr   | `axi4_master_rd_mon` / `axi4_master_wr_mon` | filtered monitor |
+
+User logic (BRAM, LFSR, CRC accumulator, etc.) lives on the wrapper's
+`fub_axi_*` user-side queue and never touches the AXI handshake directly.
+
+Existing non-compliant modules tracked for refactor:
+  - `projects/components/misc/rtl/axi4_slave_rd_pattern_gen.sv` (task #78)
+  - `projects/components/misc/rtl/axi4_slave_wr_crc_check.sv`   (task #79)
+  - `projects/NexysA7/stream_characterization/stream_char_framework/rtl/desc_ram.sv` (task #77)
+
+These hand-rolled protocol layers are the reason the deep-chain hang on
+the FPGA was hard to localize -- with no slave-side monitor on the
+descriptor-fetch path we could see the master complaining but couldn't
+confirm whether the request reached the slave. Refactoring closes that
+observability gap permanently.
+
+---
+
 ### Rule #3: Three Mandatory TB Methods
 
 **📖 See:** `/GLOBAL_REQUIREMENTS.md` Section 2.2

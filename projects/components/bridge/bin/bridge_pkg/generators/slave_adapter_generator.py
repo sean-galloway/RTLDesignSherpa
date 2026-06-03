@@ -25,6 +25,7 @@ class SlaveInfo:
     addr_width: int
     protocol: str = 'axi4'  # 'axi4', 'apb', or 'axil'
     enable_ooo: bool = False  # Slave supports out-of-order responses (use CAM vs FIFO)
+    use_monitor: bool = True  # Per-port USE_MONITOR override (see PortSpec)
 
 
 class SlaveAdapterGenerator:
@@ -144,8 +145,24 @@ class SlaveAdapterGenerator:
         # ceil(log2(NUM_MASTERS)). Earlier the adapter declared its own
         # `parameter int BRIDGE_ID_WIDTH = 1` which shadowed the package
         # value and clipped multi-master bridges to a 1-bit routing tag.
+        # Adapter parameters. ID_WIDTH always present; USE_MONITOR_WR
+        # and USE_MONITOR_RD are emitted only when the variant is
+        # monitored (enable_monitoring=True) so non-mon bridges keep a
+        # clean port list. Defaults come from the TOML's per-slave
+        # `use_monitor` field but the bridge top always overrides them
+        # with the effective-after-global-knobs value, so the default
+        # only matters for standalone instantiation. The wrapper's
+        # `.USE_MONITOR(...)` override references these parameters by
+        # name so the bridge top can flip them at integration time
+        # without regenerating.
         lines.append(f"module {self.slave.name}_adapter #(")
         lines.append(f"    parameter int ID_WIDTH = {self.id_width}")
+        if self.enable_monitoring:
+            default_lit = "1'b1" if self.slave.use_monitor else "1'b0"
+            if self.has_write:
+                lines.append(f"   ,parameter bit USE_MONITOR_WR = {default_lit}")
+            if self.has_read:
+                lines.append(f"   ,parameter bit USE_MONITOR_RD = {default_lit}")
         lines.append(f") (")
         lines.append("    input  logic aclk,")
         lines.append("    input  logic aresetn,")
@@ -165,10 +182,12 @@ class SlaveAdapterGenerator:
         lines.append(f"    // External slave interface ({self.slave.protocol.upper()})")
         lines.extend(self._generate_external_interface_ports())
 
-        # Monitor side-band: only AXI4 slaves use _mon-capable timing
-        # wrappers; APB/AXIL shims have no monitor support today, so we
-        # add the per-port monbus + cfg surface only on AXI4 slaves.
-        if self.enable_monitoring and self.slave.protocol == 'axi4':
+        # Monitor side-band: AXI4 slaves use _mon timing wrappers on the
+        # external path; AXIL/APB slaves insert an axi4_master_*_mon on
+        # the crossbar-side AXI4 path upstream of their converter shim
+        # (the fabric is always AXI4, so the same Axi4TimingWrapper +
+        # MonitoredWrapper plumbing covers every protocol).
+        if self.enable_monitoring:
             from .adapter_generator import _ensure_trailing_comma
             _ensure_trailing_comma(lines)
             lines.append("")
@@ -781,6 +800,11 @@ class SlaveAdapterGenerator:
             mon=self.enable_monitoring,
             unit_id=unit_id,
             agent_id=agent_id,
+            # Reference the adapter-level parameter so the bridge top
+            # can override it at instantiation without regenerating.
+            use_monitor_param=(
+                'USE_MONITOR_WR' if self.enable_monitoring else None
+            ),
         )
         wrapper.connect_clocks_and_resets()
         wrapper.connect_bridge_internal(connector_prefix=crossbar_prefix)
@@ -817,6 +841,9 @@ class SlaveAdapterGenerator:
             mon=self.enable_monitoring,
             unit_id=unit_id,
             agent_id=agent_id,
+            use_monitor_param=(
+                'USE_MONITOR_RD' if self.enable_monitoring else None
+            ),
         )
         wrapper.connect_clocks_and_resets()
         wrapper.connect_bridge_internal(connector_prefix=crossbar_prefix)
@@ -837,10 +864,30 @@ class SlaveAdapterGenerator:
         """Generate AXI4-to-APB converter instantiation via the typed
         Axi4ToApbShim component. The component owns the param list,
         port list, and tie-off widths, so the call site can't mistype
-        AXI_DATA_WIDTH or an 8'b0 tie-off (both regressed here before)."""
+        AXI_DATA_WIDTH or an 8'b0 tie-off (both regressed here before).
+
+        When monitoring is enabled, sandwiches the shim downstream of an
+        `axi4_master_*_mon` wrapper -- the wrapper observes the
+        bridge-internal AXI4 traffic before it's converted to APB.
+        Identical pattern to _generate_axil_converter."""
         from ..components.axi4_to_apb_shim_component import Axi4ToApbShim
 
-        crossbar_prefix = f"xbar_{self.slave.name}_axi_"
+        xbar_prefix = f"xbar_{self.slave.name}_axi_"
+        lines: List[str] = []
+
+        if self.enable_monitoring:
+            shim_prefix = f"{self.slave.name}_mon_axi_"
+            lines.append("    // ============================================================")
+            lines.append("    // axi4_master_*_mon wrapper(s) between crossbar and APB shim")
+            lines.append("    // ============================================================")
+            lines.extend(self._shim_axi_intermediate_signal_decls(shim_prefix))
+            lines.append("")
+            if self.has_write:
+                lines.extend(self._generate_master_wr_wrapper(xbar_prefix, shim_prefix))
+            if self.has_read:
+                lines.extend(self._generate_master_rd_wrapper(xbar_prefix, shim_prefix))
+        else:
+            shim_prefix = xbar_prefix
 
         shim = Axi4ToApbShim(
             instance_name=f"u_{self.slave.name}_apb_converter",
@@ -855,7 +902,7 @@ class SlaveAdapterGenerator:
 
         if self.has_write:
             shim.connect_axi_write_channel(
-                crossbar_prefix=crossbar_prefix,
+                crossbar_prefix=shim_prefix,
                 bvalid_intercept='converter_bvalid',
                 bready_intercept='converter_bready',
             )
@@ -864,7 +911,7 @@ class SlaveAdapterGenerator:
 
         if self.has_read:
             shim.connect_axi_read_channel(
-                crossbar_prefix=crossbar_prefix,
+                crossbar_prefix=shim_prefix,
                 rvalid_intercept='converter_rvalid',
                 rready_intercept='converter_rready',
                 rlast_intercept='converter_rlast',
@@ -874,21 +921,22 @@ class SlaveAdapterGenerator:
 
         shim.connect_apb_master(prefix=self.slave.prefix)
 
-        lines: List[str] = ["    // AXI4-to-APB converter shim"]
+        lines.append("    // AXI4-to-APB converter shim")
         lines.extend(shim.generate_lines())
 
-        # Wire the intercept signals (converter_*) back to the crossbar
-        # interface. The component pulls bvalid/bready/rvalid/rready/rlast
-        # off into intermediate signals so the bridge_id-tracking FIFO
-        # can monitor them; we still need the crossbar to see those.
-        lines.append("    // Wire converter outputs back to crossbar interface")
+        # Wire the intercept signals (converter_*) back to the shim's
+        # crossbar-facing interface. With monitoring off this is the
+        # bare xbar; with monitoring on it's the intermediate wires
+        # between wrapper and shim (the wrapper passes the response
+        # through to xbar). One pattern handles both via `shim_prefix`.
+        lines.append("    // Wire converter outputs back to shim's crossbar-facing interface")
         if self.has_write:
-            lines.append(f"    assign {crossbar_prefix}bvalid = converter_bvalid;")
-            lines.append(f"    assign converter_bready = {crossbar_prefix}bready;")
+            lines.append(f"    assign {shim_prefix}bvalid = converter_bvalid;")
+            lines.append(f"    assign converter_bready = {shim_prefix}bready;")
         if self.has_read:
-            lines.append(f"    assign {crossbar_prefix}rvalid = converter_rvalid;")
-            lines.append(f"    assign converter_rready = {crossbar_prefix}rready;")
-            lines.append(f"    assign {crossbar_prefix}rlast = converter_rlast;")
+            lines.append(f"    assign {shim_prefix}rvalid = converter_rvalid;")
+            lines.append(f"    assign converter_rready = {shim_prefix}rready;")
+            lines.append(f"    assign {shim_prefix}rlast = converter_rlast;")
         lines.append("")
 
         return lines
@@ -896,6 +944,14 @@ class SlaveAdapterGenerator:
     def _generate_axil_converter(self) -> List[str]:
         """Generate AXI4-to-AXI4-Lite converter instantiation(s) via the
         typed Axi4ToAxilShim component.
+
+        When monitoring is enabled, the shim is sandwiched downstream of
+        an `axi4_master_*_mon` timing wrapper. The wrapper observes the
+        bridge-internal AXI4 traffic (same fabric every protocol uses
+        inside the crossbar) and emits monbus packets identifying this
+        slave port. The shim downstream of it does the AXI4->AXIL
+        protocol conversion at the external boundary. With monitoring
+        off, the shim wires directly to the xbar (legacy behaviour).
 
         Routes B / R responses through `converter_*` intercept signals
         so the bridge_id-tracking FIFO can monitor the shim's s_axi
@@ -906,7 +962,28 @@ class SlaveAdapterGenerator:
         """
         from ..components.axi4_to_axil_shim_component import Axi4ToAxilShim
 
-        crossbar_prefix = f"xbar_{self.slave.name}_axi_"
+        xbar_prefix = f"xbar_{self.slave.name}_axi_"
+        lines: List[str] = []
+
+        if self.enable_monitoring:
+            # Intermediate AXI4 nets between the wrapper's m_axi side
+            # and the shim's s_axi side. The bridge_id-tracking FIFO
+            # continues to push on the xbar interface (wrapper.fub_axi)
+            # and pops on the shim response (converter_*) -- exactly
+            # the same handshakes as before, just with a wrapper in
+            # the middle that adds skid and emits monbus packets.
+            shim_prefix = f"{self.slave.name}_mon_axi_"
+            lines.append("    // ============================================================")
+            lines.append("    // axi4_master_*_mon wrapper(s) between crossbar and AXIL shim")
+            lines.append("    // ============================================================")
+            lines.extend(self._shim_axi_intermediate_signal_decls(shim_prefix))
+            lines.append("")
+            if self.has_write:
+                lines.extend(self._generate_master_wr_wrapper(xbar_prefix, shim_prefix))
+            if self.has_read:
+                lines.extend(self._generate_master_rd_wrapper(xbar_prefix, shim_prefix))
+        else:
+            shim_prefix = xbar_prefix
 
         shim = Axi4ToAxilShim(
             instance_base=f"u_{self.slave.name}_axil_converter",
@@ -925,14 +1002,14 @@ class SlaveAdapterGenerator:
 
         if self.has_write:
             shim.connect_axi_write_channel(
-                crossbar_prefix=crossbar_prefix,
+                crossbar_prefix=shim_prefix,
                 bvalid_intercept='converter_bvalid',
                 bready_intercept='converter_bready',
             )
 
         if self.has_read:
             shim.connect_axi_read_channel(
-                crossbar_prefix=crossbar_prefix,
+                crossbar_prefix=shim_prefix,
                 rvalid_intercept='converter_rvalid',
                 rready_intercept='converter_rready',
                 rlast_intercept='converter_rlast',
@@ -940,24 +1017,89 @@ class SlaveAdapterGenerator:
 
         shim.connect_axil_master(prefix=self.slave.prefix)
 
-        lines: List[str] = ["    // AXI4-to-AXI4-Lite converter shim"]
+        lines.append("    // AXI4-to-AXI4-Lite converter shim")
         lines.extend(shim.generate_lines())
 
-        # Wire the intercept signals (converter_*) back to the crossbar
-        # interface. The shim's s_axi_bvalid/bready/rvalid/rready/rlast
-        # go to the converter_* nets so the bridge_id-tracking FIFO can
-        # monitor them; we still need the crossbar to see those, so we
-        # assign them back here. Mirrors the APB pattern.
-        lines.append("    // Wire converter outputs back to crossbar interface")
+        # Wire the intercept signals (converter_*) back to the shim's
+        # crossbar-facing side. With monitoring off, that side is the
+        # bare xbar interface -- assignments drive xbar directly. With
+        # monitoring on, that side is the intermediate wires between
+        # wrapper and shim -- the wrapper passes the response through
+        # to xbar transparently. Same pattern works for both, the only
+        # thing that flips is `shim_prefix`.
+        lines.append("    // Wire converter outputs back to shim's crossbar-facing interface")
         if self.has_write:
-            lines.append(f"    assign {crossbar_prefix}bvalid = converter_bvalid;")
-            lines.append(f"    assign converter_bready = {crossbar_prefix}bready;")
+            lines.append(f"    assign {shim_prefix}bvalid = converter_bvalid;")
+            lines.append(f"    assign converter_bready = {shim_prefix}bready;")
         if self.has_read:
-            lines.append(f"    assign {crossbar_prefix}rvalid = converter_rvalid;")
-            lines.append(f"    assign converter_rready = {crossbar_prefix}rready;")
-            lines.append(f"    assign {crossbar_prefix}rlast = converter_rlast;")
+            lines.append(f"    assign {shim_prefix}rvalid = converter_rvalid;")
+            lines.append(f"    assign converter_rready = {shim_prefix}rready;")
+            lines.append(f"    assign {shim_prefix}rlast = converter_rlast;")
         lines.append("")
 
+        return lines
+
+    def _shim_axi_intermediate_signal_decls(self, prefix: str) -> List[str]:
+        """Emit `logic [W-1:0] {prefix}{sig};` declarations for the AXI4
+        channel set that sits between the axi4_master_*_mon wrapper and
+        the converter shim. Widths match the wrapper params (id_width
+        is the crossbar's internal id_width; data/strb track the slave's
+        data_width because the wrapper preserves widths end-to-end)."""
+        aw = self.slave.addr_width
+        dw = self.slave.data_width
+        id_w = self.id_width
+        sw = dw // 8
+        lines: List[str] = []
+        if self.has_write:
+            lines += [
+                f"    logic [{id_w-1}:0] {prefix}awid;",
+                f"    logic [{aw-1}:0] {prefix}awaddr;",
+                f"    logic [7:0]  {prefix}awlen;",
+                f"    logic [2:0]  {prefix}awsize;",
+                f"    logic [1:0]  {prefix}awburst;",
+                f"    logic        {prefix}awlock;",
+                f"    logic [3:0]  {prefix}awcache;",
+                f"    logic [2:0]  {prefix}awprot;",
+                f"    logic [3:0]  {prefix}awqos;",
+                f"    logic [3:0]  {prefix}awregion;",
+                f"    logic        {prefix}awuser;",
+                f"    logic        {prefix}awvalid;",
+                f"    logic        {prefix}awready;",
+                f"    logic [{dw-1}:0] {prefix}wdata;",
+                f"    logic [{sw-1}:0] {prefix}wstrb;",
+                f"    logic        {prefix}wlast;",
+                f"    logic        {prefix}wuser;",
+                f"    logic        {prefix}wvalid;",
+                f"    logic        {prefix}wready;",
+                f"    logic [{id_w-1}:0] {prefix}bid;",
+                f"    logic [1:0]  {prefix}bresp;",
+                f"    logic        {prefix}buser;",
+                f"    logic        {prefix}bvalid;",
+                f"    logic        {prefix}bready;",
+            ]
+        if self.has_read:
+            lines += [
+                f"    logic [{id_w-1}:0] {prefix}arid;",
+                f"    logic [{aw-1}:0] {prefix}araddr;",
+                f"    logic [7:0]  {prefix}arlen;",
+                f"    logic [2:0]  {prefix}arsize;",
+                f"    logic [1:0]  {prefix}arburst;",
+                f"    logic        {prefix}arlock;",
+                f"    logic [3:0]  {prefix}arcache;",
+                f"    logic [2:0]  {prefix}arprot;",
+                f"    logic [3:0]  {prefix}arqos;",
+                f"    logic [3:0]  {prefix}arregion;",
+                f"    logic        {prefix}aruser;",
+                f"    logic        {prefix}arvalid;",
+                f"    logic        {prefix}arready;",
+                f"    logic [{id_w-1}:0] {prefix}rid;",
+                f"    logic [{dw-1}:0] {prefix}rdata;",
+                f"    logic [1:0]  {prefix}rresp;",
+                f"    logic        {prefix}rlast;",
+                f"    logic        {prefix}ruser;",
+                f"    logic        {prefix}rvalid;",
+                f"    logic        {prefix}rready;",
+            ]
         return lines
 
 

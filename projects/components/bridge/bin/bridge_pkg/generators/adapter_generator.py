@@ -71,6 +71,7 @@ class SlaveInfo:
     addr_width: int  # Address width in bits
     protocol: str = 'axi4'  # Protocol type: 'axi4' or 'apb'
     enable_ooo: bool = False  # Slave supports out-of-order responses (use CAM vs FIFO)
+    use_monitor: bool = True  # Per-port USE_MONITOR override (see PortSpec)
 
 
 @dataclass
@@ -83,6 +84,7 @@ class MasterConfig:
     id_width: int
     channels: str  # "wr", "rd", or "rw"
     slave_connections: List[int]  # Indices of connected slaves
+    use_monitor: bool = True  # Per-port USE_MONITOR override (see PortSpec)
 
 
 class AdapterGenerator:
@@ -198,6 +200,18 @@ class AdapterGenerator:
                 lines.append("    ,")  # Add comma if both wr and rd
             lines.append(f"    parameter SKID_DEPTH_AR = {self.skid_depth_ar},")
             lines.append(f"    parameter SKID_DEPTH_R = {self.skid_depth_r}")
+
+        # USE_MONITOR_WR / USE_MONITOR_RD parameters (mon variant only).
+        # Default from the TOML's per-master `use_monitor` field but the
+        # bridge top overrides them with the effective-after-global-knobs
+        # value at instantiation -- the default only matters when the
+        # adapter is instantiated standalone for unit tests.
+        if self.enable_monitoring:
+            default_lit = "1'b1" if self.master.use_monitor else "1'b0"
+            if self.master.channels in ("wr", "rw"):
+                lines.append(f"   ,parameter bit USE_MONITOR_WR = {default_lit}")
+            if self.master.channels in ("rd", "rw"):
+                lines.append(f"   ,parameter bit USE_MONITOR_RD = {default_lit}")
 
         lines.append(") (")
         lines.append("    input  logic aclk,")
@@ -537,6 +551,9 @@ class AdapterGenerator:
                 skid_depth_resp='SKID_DEPTH_B',
                 unit_id=master_unit_id,
                 agent_id=wr_agent_id,
+                use_monitor_param=(
+                    'USE_MONITOR_WR' if self.enable_monitoring else None
+                ),
             )
             wrapper.connect_clocks_and_resets()
             # External side comes from the master's prefix (slave-of-
@@ -570,6 +587,9 @@ class AdapterGenerator:
                 skid_depth_data='SKID_DEPTH_R',
                 unit_id=master_unit_id,
                 agent_id=rd_agent_id,
+                use_monitor_param=(
+                    'USE_MONITOR_RD' if self.enable_monitoring else None
+                ),
             )
             wrapper.connect_clocks_and_resets()
             wrapper.connect_external(connector_prefix=signal_prefix)

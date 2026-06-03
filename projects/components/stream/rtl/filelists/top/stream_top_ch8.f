@@ -42,8 +42,10 @@ $REPO_ROOT/rtl/amba/shared/cdc_2_phase_handshake.sv
 $REPO_ROOT/rtl/amba/shared/cdc_4_phase_handshake.sv
 
 # APB slave modules (conditional CDC based on CDC_ENABLE parameter)
-$REPO_ROOT/rtl/amba/apb/apb_slave_cdc.sv  # With CDC (pclk ≠ aclk)
-$REPO_ROOT/rtl/amba/apb/apb_slave.sv      # Without CDC (pclk = aclk)
+# - apb_slave_cdc: with CDC, used when pclk and aclk differ
+# - apb_slave:     without CDC, used when pclk and aclk are the same
+$REPO_ROOT/rtl/amba/apb/apb_slave_cdc.sv
+$REPO_ROOT/rtl/amba/apb/apb_slave.sv
 
 # CMD/RSP router (routes CMD/RSP from apb_slave_cdc to apbtodescr or peakrdl_to_cmdrsp)
 # Address map: 0x000-0x03F → apbtodescr, 0x100-0x3FF → peakrdl_to_cmdrsp

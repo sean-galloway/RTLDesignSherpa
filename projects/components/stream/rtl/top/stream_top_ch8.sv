@@ -201,7 +201,9 @@ module stream_top_ch8 #(
     input  logic [2:0]                              s_axil_err_arprot,
     output logic                                    s_axil_err_rvalid,
     input  logic                                    s_axil_err_rready,
-    output logic [31:0]                             s_axil_err_rdata,
+    // 64-bit per monbus-on-AXI rule (output from monbus_axil_group).
+    // The integrator widens upstream as needed.
+    output logic [63:0]                             s_axil_err_rdata,
     output logic [1:0]                              s_axil_err_rresp,
 
     //-------------------------------------------------------------------------
@@ -1638,10 +1640,15 @@ module stream_top_ch8 #(
                 .FIFO_DEPTH_ERR     (64),    // Error/interrupt FIFO depth
                 .FIFO_DEPTH_WRITE   (32),    // Write data FIFO depth
                 .ADDR_WIDTH         (32),    // AXI-Lite address width
-                .S_AXIL_DATA_WIDTH  (32),    // CPU-facing slave (IRQ status)
-                // M_AXIL_DATA_WIDTH defaults to 64 — every record on the
-                // bulk-trace write path is 24 bytes: 3 × 64-bit beats
-                // (packet[63:0], packet[127:64], source_ts[63:0]).
+                // Both AXI data paths off this group are 64-bit per the
+                // monbus-on-AXI rule: every output (s_axil_rdata for
+                // IRQ-status reads + m_axil_wdata for bulk-trace writes)
+                // carries 64-bit beats. The integrator (stream_char
+                // harness) bridges a 32-bit host fabric to this 64-bit
+                // slave via the bridge generator's auto-inserted
+                // 32->64 width converter on the stream_err slave port.
+                .S_AXIL_DATA_WIDTH  (64),
+                .M_AXIL_DATA_WIDTH  (64),
                 .NUM_PROTOCOLS      (3)      // 3 protocols: desc, rd, wr
             ) u_monbus_axil_group (
                 .axi_aclk           (aclk),
@@ -1743,19 +1750,19 @@ module stream_top_ch8 #(
             assign mon_ready = 1'b1;  // Always ready (backpressure disabled)
             assign stream_irq = 1'b0;  // No interrupts
 
-            // Tie off AXI-Lite slave interface (error FIFO reads)
+            // Tie off AXI-Lite slave interface (error FIFO reads) -- 64-bit rdata
             assign s_axil_err_arready = 1'b1;
             assign s_axil_err_rvalid = 1'b0;
-            assign s_axil_err_rdata = 32'h0;
+            assign s_axil_err_rdata = 64'h0;
             assign s_axil_err_rresp = 2'b00;
 
-            // Tie off AXI-Lite master interface (monitor writes)
+            // Tie off AXI-Lite master interface (monitor writes) -- 64-bit wdata
             assign m_axil_mon_awvalid = 1'b0;
             assign m_axil_mon_awaddr = 32'h0;
             assign m_axil_mon_awprot = 3'b000;
             assign m_axil_mon_wvalid = 1'b0;
-            assign m_axil_mon_wdata = 32'h0;
-            assign m_axil_mon_wstrb = 4'h0;
+            assign m_axil_mon_wdata = 64'h0;
+            assign m_axil_mon_wstrb = 8'h0;
             assign m_axil_mon_bready = 1'b0;
 
             // Tie off status signals

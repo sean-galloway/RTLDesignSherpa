@@ -38,10 +38,13 @@
 `include "reset_defs.svh"
 
 module debug_sram #(
-    // DEPTH_WORDS is in 32-bit-word units, so the host's view of "how big
-    // is this region" stays in the same units it always was. Internal
-    // BRAM is half this many 64-bit words.
-    parameter int DEPTH_WORDS = 65536,    // 64K x 32b = 256 KB
+    // DEPTH_WORDS is in 32-bit-word units (legacy parameter naming kept
+    // for backward compat with the harness's DEBUG_SRAM_WORDS parameter
+    // and the host's "how many 32-bit words can I address" view). The
+    // internal BRAM stores DEPTH_WORDS/2 64-bit words; both AXI ports
+    // are 64-bit symmetric, so the host issues DEPTH_WORDS/2 64-bit
+    // reads to drain the trace.
+    parameter int DEPTH_WORDS = 65536,    // 64K x 32b = 256 KB = 32K x 64b BRAM
 
     parameter int SKID_DEPTH_AW = 2,
     parameter int SKID_DEPTH_W  = 2,
@@ -87,14 +90,18 @@ module debug_sram #(
     input  logic            wr_rready,
 
     // =====================================================================
-    // Read-only AXI4-Lite slave (32-bit, from host via axil_decode_5s)
+    // Read-only AXI4-Lite slave (64-bit, from host via the bridge fanout)
+    // -- both AXI ports on this SRAM are 64-bit per the monbus-on-AXI rule:
+    // every path that collects monbus packets or lets the host read them
+    // carries 64-bit beats. The integrator widens upstream as needed
+    // (the bridge auto-inserts a 32->64 width converter at the slave port).
     // =====================================================================
     input  logic [31:0]     rd_awaddr,
     input  logic [2:0]      rd_awprot,
     input  logic            rd_awvalid,
     output logic            rd_awready,
-    input  logic [31:0]     rd_wdata,
-    input  logic [3:0]      rd_wstrb,
+    input  logic [63:0]     rd_wdata,
+    input  logic [7:0]      rd_wstrb,
     input  logic            rd_wvalid,
     output logic            rd_wready,
     output logic [1:0]      rd_bresp,
@@ -106,7 +113,7 @@ module debug_sram #(
     input  logic            rd_arvalid,
     output logic            rd_arready,
 
-    output logic [31:0]     rd_rdata,
+    output logic [63:0]     rd_rdata,
     output logic [1:0]      rd_rresp,
     output logic            rd_rvalid,
     input  logic            rd_rready
@@ -121,10 +128,10 @@ module debug_sram #(
     localparam int W_PKT_W  = 64 + 8;             // wr_wdata + wr_wstrb
     localparam int B_PKT_W  = 2;                  // wr_bresp
     localparam int AR_PKT_W = 32 + 3;             // rd_araddr + rd_arprot
-    localparam int R_PKT_W  = 32 + 2;             // rd_rdata + rd_rresp
+    localparam int R_PKT_W  = 64 + 2;             // rd_rdata + rd_rresp (64-bit symmetric)
 
     // =========================================================================
-    // BRAM storage (true dual-port, asymmetric: 64-bit write, 32-bit read)
+    // BRAM storage (true dual-port, symmetric 64-bit on every AXI port)
     // =========================================================================
     (* ram_style = "block" *)
     logic [63:0] r_mem [DEPTH_WORDS_64];
@@ -402,8 +409,11 @@ module debug_sram #(
     );
 
     // =========================================================================
-    // Read engine: 1-cycle BRAM read (64-bit), then mux down to 32-bit
-    // based on rfub_araddr[2] (low vs high half of the 64-bit word).
+    // Read engine: 1-cycle BRAM read returning the full 64-bit word per beat
+    // (symmetric with the 64-bit write side -- no slice counter, no half-word
+    // muxing). The host-side byte address bits [ADDR_BITS_64+3-1:3] select
+    // the 64-bit BRAM word; bits [2:0] within the word are don't-care for
+    // aligned AXIL reads.
     // =========================================================================
     typedef enum logic [1:0] {
         RS_IDLE  = 2'd0,
@@ -414,23 +424,19 @@ module debug_sram #(
     r_state_t                 r_rstate;
     logic [63:0]              r_r_data;       // full 64-bit BRAM word
     logic [ADDR_BITS_64-1:0]  r_r_idx;
-    logic                     r_r_half;       // 0 = low 32b, 1 = high 32b
-    logic [31:0]              w_rd_half;
 
     `ALWAYS_FF_RST(aclk, aresetn,
         if (`RST_ASSERTED(aresetn)) begin
             r_rstate <= RS_IDLE;
             r_r_data <= '0;
             r_r_idx  <= '0;
-            r_r_half <= 1'b0;
         end else begin
             case (r_rstate)
                 RS_IDLE: begin
                     if (rfub_arvalid) begin
-                        // bit [2] of byte address picks the half within the
-                        // 64-bit BRAM word; bits [ADDR_BITS_64+2:3] index it.
+                        // Bits [ADDR_BITS_64+2:3] of the byte address index
+                        // the 64-bit BRAM word.
                         r_r_idx  <= rfub_araddr[ADDR_BITS_64+2:3];
-                        r_r_half <= rfub_araddr[2];
                         r_rstate <= RS_RD1;
                     end
                 end
@@ -446,10 +452,9 @@ module debug_sram #(
         end
     )
 
-    assign w_rd_half    = r_r_half ? r_r_data[63:32] : r_r_data[31:0];
     assign rfub_arready = !r_clear_busy && (r_rstate == RS_IDLE);
     assign rfub_rvalid  = (r_rstate == RS_RRESP);
-    assign rfub_r_pkt   = {w_rd_half, 2'b00};  // OKAY
+    assign rfub_r_pkt   = {r_r_data, 2'b00};  // {64-bit data, OKAY}
 
     // =========================================================================
     // Read port write side: DECERR (host cannot write via this slot)

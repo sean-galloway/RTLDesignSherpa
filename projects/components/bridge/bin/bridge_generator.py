@@ -425,6 +425,10 @@ def _emit_bridge_variant(
         # "cpu_m_axiawid"). Doing it here means every consumer sees the
         # well-formed prefix without having to remember to normalise.
         master_prefix = _normalize_prefix(master_spec.prefix)
+        # Per-port use_monitor goes straight to the SV parameter default;
+        # global use_all / use_no live as SV parameters on the bridge
+        # top (passed below) so the TOML stays purely a generation-time
+        # source and the harness flips knobs without regen.
         master_config = MasterConfig(
             name=master_spec.port_name,
             prefix=master_prefix,
@@ -432,7 +436,8 @@ def _emit_bridge_variant(
             addr_width=master_spec.addr_width,
             id_width=master_spec.id_width,
             channels=master_spec.channels,
-            slave_connections=slave_connections
+            slave_connections=slave_connections,
+            use_monitor=getattr(master_spec, 'use_monitor', True)
         )
         master_configs.append(master_config)
 
@@ -445,7 +450,9 @@ def _emit_bridge_variant(
             addr_range=slave_spec.addr_range,
             data_width=slave_spec.data_width,
             addr_width=slave_spec.addr_width,
-            protocol=slave_spec.protocol
+            protocol=slave_spec.protocol,
+            enable_ooo=slave_spec.enable_ooo,
+            use_monitor=getattr(slave_spec, 'use_monitor', True)
         )
         slave_infos.append(slave_info)
 
@@ -453,9 +460,21 @@ def _emit_bridge_variant(
     # use_monitor is set per-variant by the caller (generate_bridge
     # loops over config.variants). The "no" variant emits an
     # unmonitored bridge; "mon" emits a monitored bridge.
+    #
+    # internal_axil_group: from [bridge].internal_axil_group in the
+    # TOML, defaults to True for backward compat. When False, the
+    # bridge skips its own monbus_axil_group instantiation and
+    # exposes the arbiter's aggregated stream as a top-level output
+    # (monbus_agg_*) so the integrator can merge with an existing
+    # external monbus_axil_group -- the stream_char harness uses
+    # STREAM's internal group, for instance.
+    internal_axil_group = getattr(config, 'internal_axil_group', True)
     gen = BridgeModuleGenerator(
         bridge_name=output_name,
         enable_monitoring=use_monitor,
+        internal_axil_group=internal_axil_group,
+        use_all_monitors=getattr(config, 'use_all_monitors', False),
+        use_no_monitors=getattr(config, 'use_no_monitors', False),
     )
 
     for master in master_configs:
