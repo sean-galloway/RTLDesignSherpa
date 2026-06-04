@@ -243,6 +243,14 @@ class DescriptorBuilder:
         total_desc = config.num_channels * config.descriptors_per_channel
         total_bytes = total_desc * config.transfer_bytes
 
+        # Belt-and-suspenders check: every descriptor's word 6 (which holds
+        # the 256-bit descriptor bits [223:192], i.e. bit 192 = CTRL_VALID)
+        # must have bit 0 set. If even one descriptor lands with VALID=0
+        # in desc_ram, the descriptor_engine will raise descriptor_error
+        # and the channel falls into CH_ERROR. We catch that here on the
+        # host before kicking — no need to wait for the FPGA to wedge.
+        self._assert_all_descriptors_valid(all_writes, config)
+
         return {
             'descriptor_writes': all_writes,
             'kick_addresses': kick_addrs,
@@ -250,6 +258,53 @@ class DescriptorBuilder:
             'total_descriptors': total_desc,
             'total_bytes': total_bytes,
         }
+
+    def _assert_all_descriptors_valid(
+        self,
+        writes: List[Tuple[int, int]],
+        config: CharConfig,
+    ) -> None:
+        """Verify bit 192 (CTRL_VALID) is set on every descriptor we
+        generated. Walks the (addr, data) write list, groups by
+        descriptor index using the host-side host_addr layout, and
+        asserts word 6 (the control word) has bit 0 high. Also flags
+        cases where word 6 is missing or duplicated."""
+
+        # Group writes by descriptor index. host_addr is byte-addressed:
+        # 32 bytes per descriptor (8 words * 4 bytes), aligned at
+        # _host_base + idx * 32. Word index inside the descriptor is
+        # (addr & 0x1F) >> 2.
+        per_desc: dict[int, dict[int, int]] = {}
+        for addr, data in writes:
+            idx = addr >> 5                  # 32-byte stride
+            word_idx = (addr & 0x1F) >> 2    # 0..7
+            per_desc.setdefault(idx, {})[word_idx] = data
+
+        expected_descs = config.num_channels * config.descriptors_per_channel
+        if len(per_desc) != expected_descs:
+            raise AssertionError(
+                f"Descriptor count mismatch: built {len(per_desc)} but "
+                f"config requested {expected_descs} "
+                f"({config.num_channels} ch x {config.descriptors_per_channel} desc/ch)"
+            )
+
+        bad: List[Tuple[int, int]] = []  # (desc_index, ctrl_word)
+        for idx, words in per_desc.items():
+            ctrl = words.get(_W_CONTROL)
+            if ctrl is None:
+                bad.append((idx, -1))                # missing control word
+            elif (ctrl & CTRL_VALID) == 0:
+                bad.append((idx, ctrl))
+
+        if bad:
+            preview = ", ".join(
+                f"idx={i}: ctrl=0x{c:08X}" if c >= 0 else f"idx={i}: MISSING"
+                for i, c in bad[:6]
+            )
+            raise AssertionError(
+                f"{len(bad)} of {expected_descs} descriptors built without "
+                f"CTRL_VALID (bit 192) set. First few: {preview}"
+            )
 
 
 # =====================================================================
