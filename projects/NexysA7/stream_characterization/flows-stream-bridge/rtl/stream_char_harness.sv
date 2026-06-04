@@ -167,13 +167,43 @@ module stream_char_harness #(
     // =========================================================================
 
     // ---- Host-side AXI4 wires (bridge expects AXI4; we have AXIL) ----------
-    logic        host_axi_awid;
-    logic [3:0]  host_axi_bid;  // width matches bridge port (id_width=4)
-    logic        host_axi_arid;
-    logic [3:0]  host_axi_rid;  // width matches bridge port (id_width=4)
-    logic        host_axi_buser;
-    logic        host_axi_ruser;
-    logic        host_axi_rlast;
+    // host master is AXIL — the AXI4 extras (id/buser/rid/ruser/rlast)
+    // that used to be tied off here are now handled inside the bridge
+    // generator (master.protocol="axil" emits AXIL-only top ports).
+
+    // STREAM m_axil_mon master signals (declared early so the bridge
+    // instance port-map at the next section can reach them; stream_top_ch8
+    // drives them from its monbus_axil_group output further down).
+    logic        mon_awvalid, mon_awready;
+    logic [31:0] mon_awaddr;
+    logic [2:0]  mon_awprot;
+    logic        mon_wvalid,  mon_wready;
+    logic [63:0] mon_wdata;
+    logic [7:0]  mon_wstrb;
+    logic        mon_bvalid,  mon_bready;
+    logic [1:0]  mon_bresp;
+
+    // STREAM m_axi_desc master signals (declared early so the bridge's
+    // stream_desc_* master port-map can reach them; stream_top_ch8 drives
+    // them as a 256-bit AXI4 master further down).
+    logic [AXI_ID_WIDTH-1:0]    desc_arid;
+    logic [ADDR_WIDTH-1:0]      desc_araddr;
+    logic [7:0]                 desc_arlen;
+    logic [2:0]                 desc_arsize;
+    logic [1:0]                 desc_arburst;
+    logic                       desc_arlock;
+    logic [3:0]                 desc_arcache;
+    logic [2:0]                 desc_arprot;
+    logic [3:0]                 desc_arqos;
+    logic [3:0]                 desc_arregion;
+    logic [AXI_USER_WIDTH-1:0]  desc_aruser;
+    logic                       desc_arvalid, desc_arready;
+    logic [AXI_ID_WIDTH-1:0]    desc_rid;
+    logic [255:0]               desc_rdata;
+    logic [1:0]                 desc_rresp;
+    logic                       desc_rlast;
+    logic [AXI_USER_WIDTH-1:0]  desc_ruser;
+    logic                       desc_rvalid, desc_rready;
 
     // ---- Slave-side AXIL wires consumed by the rest of the harness ---------
     // (s1_* harness_csr, s2_* desc_ram, s3_* stream_err, s4_* debug_sram)
@@ -184,8 +214,11 @@ module stream_char_harness #(
     logic s1_awvalid, s1_awready, s1_wvalid, s1_wready, s1_bvalid, s1_bready;
     logic s1_arvalid, s1_arready, s1_rvalid, s1_rready;
 
-    logic [31:0] s2_awaddr, s2_wdata, s2_araddr, s2_rdata;
-    logic [3:0]  s2_wstrb;
+    // Slave 2 (desc_ram): bridge now delivers 64-bit AXIL — generator
+    // handles host 32->64 upsize and STREAM 256->64 downsize internally.
+    logic [31:0] s2_awaddr, s2_araddr;
+    logic [63:0] s2_wdata, s2_rdata;
+    logic [7:0]  s2_wstrb;
     logic [2:0]  s2_awprot, s2_arprot;
     logic [1:0]  s2_bresp, s2_rresp;
     logic s2_awvalid, s2_awready, s2_wvalid, s2_wready, s2_bvalid, s2_bready;
@@ -198,8 +231,12 @@ module stream_char_harness #(
     logic s3_awvalid, s3_awready, s3_wvalid, s3_wready, s3_bvalid, s3_bready;
     logic s3_arvalid, s3_arready, s3_rvalid, s3_rready;
 
-    logic [31:0] s4_awaddr, s4_wdata, s4_araddr, s4_rdata;
-    logic [3:0]  s4_wstrb;
+    // Slave 4 (debug_sram): bridge now delivers 64-bit AXIL — monbus is
+    // a native 64b master through the bridge; host reads go through the
+    // bridge's 32->64 upsize.
+    logic [31:0] s4_awaddr, s4_araddr;
+    logic [63:0] s4_wdata, s4_rdata;
+    logic [7:0]  s4_wstrb;
     logic [2:0]  s4_awprot, s4_arprot;
     logic [1:0]  s4_bresp, s4_rresp;
     logic s4_awvalid, s4_awready, s4_wvalid, s4_wready, s4_bvalid, s4_bready;
@@ -231,53 +268,25 @@ module stream_char_harness #(
         .aclk    (aclk),
         .aresetn (aresetn),
 
-        // Master 0: host (bridge expects AXI4; we drive AXIL semantics)
-        .host_axi_awid     (1'b0),
+        // Master 0: host — AXI4-Lite. Bridge top exposes only AXIL
+        // signals (generator branches on master.protocol="axil").
         .host_axi_awaddr   (uart_awaddr),
-        .host_axi_awlen    (8'd0),
-        .host_axi_awsize   (3'd2),
-        .host_axi_awburst  (2'b01),
-        .host_axi_awlock   (1'b0),
-        .host_axi_awcache  (4'd0),
         .host_axi_awprot   (uart_awprot),
-        .host_axi_awqos    (4'd0),
-        .host_axi_awregion (4'd0),
-        .host_axi_awuser   (1'b0),
         .host_axi_awvalid  (uart_awvalid),
         .host_axi_awready  (uart_awready),
-
         .host_axi_wdata    (uart_wdata),
         .host_axi_wstrb    (uart_wstrb),
-        .host_axi_wlast    (1'b1),  // single-beat (len=0)
-        .host_axi_wuser    (1'b0),
         .host_axi_wvalid   (uart_wvalid),
         .host_axi_wready   (uart_wready),
-
-        .host_axi_bid      (host_axi_bid),     // ignored (id_width=1, always 0)
         .host_axi_bresp    (uart_bresp),
-        .host_axi_buser    (host_axi_buser),   // ignored
         .host_axi_bvalid   (uart_bvalid),
         .host_axi_bready   (uart_bready),
-
-        .host_axi_arid     (1'b0),
         .host_axi_araddr   (uart_araddr),
-        .host_axi_arlen    (8'd0),
-        .host_axi_arsize   (3'd2),
-        .host_axi_arburst  (2'b01),
-        .host_axi_arlock   (1'b0),
-        .host_axi_arcache  (4'd0),
         .host_axi_arprot   (uart_arprot),
-        .host_axi_arqos    (4'd0),
-        .host_axi_arregion (4'd0),
-        .host_axi_aruser   (1'b0),
         .host_axi_arvalid  (uart_arvalid),
         .host_axi_arready  (uart_arready),
-
-        .host_axi_rid      (host_axi_rid),     // ignored
         .host_axi_rdata    (uart_rdata),
         .host_axi_rresp    (uart_rresp),
-        .host_axi_rlast    (host_axi_rlast),   // ignored (single-beat)
-        .host_axi_ruser    (host_axi_ruser),   // ignored
         .host_axi_rvalid   (uart_rvalid),
         .host_axi_rready   (uart_rready),
 
@@ -399,8 +408,83 @@ module stream_char_harness #(
         .dma_axil_rdata    (32'hDEAD_BEEF),
         .dma_axil_rresp    (2'b11),
         .dma_axil_rvalid   (1'b0),
-        .dma_axil_rready   ()
+        .dma_axil_rready   (),
+
+        // Master 1: stream_desc — STREAM's m_axi_desc, 256-bit AXI4, read-only.
+        // Write channels are tied off (STREAM never writes descriptors).
+        .stream_desc_awid     (8'h0),
+        .stream_desc_awaddr   (32'h0),
+        .stream_desc_awlen    (8'h0),
+        .stream_desc_awsize   (3'h0),
+        .stream_desc_awburst  (2'h0),
+        .stream_desc_awlock   (1'b0),
+        .stream_desc_awcache  (4'h0),
+        .stream_desc_awprot   (3'h0),
+        .stream_desc_awqos    (4'h0),
+        .stream_desc_awregion (4'h0),
+        .stream_desc_awuser   (1'b0),
+        .stream_desc_awvalid  (1'b0),
+        .stream_desc_awready  (),
+        .stream_desc_wdata    (256'h0),
+        .stream_desc_wstrb    (32'h0),
+        .stream_desc_wlast    (1'b0),
+        .stream_desc_wuser    (1'b0),
+        .stream_desc_wvalid   (1'b0),
+        .stream_desc_wready   (),
+        .stream_desc_bid      (),
+        .stream_desc_bresp    (),
+        .stream_desc_buser    (),
+        .stream_desc_bvalid   (),
+        .stream_desc_bready   (1'b1),
+
+        // STREAM AXI_ID_WIDTH=8 matches bridge id_width=8; user_width
+        // (clog2(NUM_CHANNELS=8)=3) matches bridge user_width=3.
+        .stream_desc_arid     (desc_arid),
+        .stream_desc_araddr   (desc_araddr),
+        .stream_desc_arlen    (desc_arlen),
+        .stream_desc_arsize   (desc_arsize),
+        .stream_desc_arburst  (desc_arburst),
+        .stream_desc_arlock   (desc_arlock),
+        .stream_desc_arcache  (desc_arcache),
+        .stream_desc_arprot   (desc_arprot),
+        .stream_desc_arqos    (desc_arqos),
+        .stream_desc_arregion (desc_arregion),
+        .stream_desc_aruser   (desc_aruser),
+        .stream_desc_arvalid  (desc_arvalid),
+        .stream_desc_arready  (desc_arready),
+
+        .stream_desc_rid      (desc_rid),
+        .stream_desc_rdata    (desc_rdata),
+        .stream_desc_rresp    (desc_rresp),
+        .stream_desc_rlast    (desc_rlast),
+        .stream_desc_ruser    (desc_ruser),
+        .stream_desc_rvalid   (desc_rvalid),
+        .stream_desc_rready   (desc_rready),
+
+        // Master 2: monbus_wr — STREAM's m_axil_mon, 64-bit AXIL.
+        // Bridge top exposes only AXIL signals (generator branches on
+        // master.protocol="axil" — see _generate_master_ports).
+        .monbus_wr_awaddr     (mon_awaddr),
+        .monbus_wr_awprot     (mon_awprot),
+        .monbus_wr_awvalid    (mon_awvalid),
+        .monbus_wr_awready    (mon_awready),
+        .monbus_wr_wdata      (mon_wdata),
+        .monbus_wr_wstrb      (mon_wstrb),
+        .monbus_wr_wvalid     (mon_wvalid),
+        .monbus_wr_wready     (mon_wready),
+        .monbus_wr_bresp      (mon_bresp),
+        .monbus_wr_bvalid     (mon_bvalid),
+        .monbus_wr_bready     (mon_bready),
+        .monbus_wr_araddr     (32'h0),
+        .monbus_wr_arprot     (3'h0),
+        .monbus_wr_arvalid    (1'b0),
+        .monbus_wr_arready    (),
+        .monbus_wr_rdata      (),
+        .monbus_wr_rresp      (),
+        .monbus_wr_rvalid     (),
+        .monbus_wr_rready     (1'b1)
     );
+
 
 
     // =========================================================================
@@ -548,9 +632,28 @@ module stream_char_harness #(
     logic [NUM_CHANNELS-1:0][31:0] csr_kick_burst_addr;
 
     // desc_ram observation bus + handshake/stall counters (consumed by the
-    // harness_csr instance below; driven by always_ff next to the desc_ram
-    // instance further down). See desc_ram.sv (o_dbg_vr) for bit layout.
+    // harness_csr instance below; counters use w_desc_*_hs / *_stall wires
+    // derived in the obs-counter block further down).
+    // Bit layout:
+    //   [ 0] s2_awvalid  [ 1] s2_awready  (bridge -> desc_ram host writes)
+    //   [ 2] s2_wvalid   [ 3] s2_wready
+    //   [ 4] s2_bvalid   [ 5] s2_bready
+    //   [ 6] s2_arvalid  [ 7] s2_arready  (bridge -> desc_ram, host reads)
+    //   [ 8] s2_rvalid   [ 9] s2_rready
+    //   [10] desc_arvalid [11] desc_arready  (STREAM 256b AXI4 master)
+    //   [12] desc_rvalid  [13] desc_rready
+    //   [15:14] reserved
     logic [15:0] w_desc_ram_dbg_vr;
+    assign w_desc_ram_dbg_vr = {
+        2'b00,
+        desc_rready,  desc_rvalid,
+        desc_arready, desc_arvalid,
+        s2_rready,    s2_rvalid,
+        s2_arready,   s2_arvalid,
+        s2_bready,    s2_bvalid,
+        s2_wready,    s2_wvalid,
+        s2_awready,   s2_awvalid
+    };
     logic [31:0] r_desc_ar_hs_cnt;
     logic [31:0] r_desc_ar_stall_cnt;
     logic [31:0] r_desc_r_hs_cnt;
@@ -804,58 +907,46 @@ module stream_char_harness #(
     )
 
     // =========================================================================
-    // S2: desc_ram  (AXIL write + AXI4 read)
+    // S2: desc_ram — axil_sdpram_slave at 64-bit data, single AXIL port.
+    //
+    // Both host (writes) and STREAM (reads) go through the bridge, which
+    // arbitrates and width-adjusts.  No direct AXI4 256b port on the SRAM
+    // any more.
     // =========================================================================
-    // AXI4 read side wired to STREAM m_axi_desc
-    logic [AXI_ID_WIDTH-1:0]    desc_arid;
-    logic [ADDR_WIDTH-1:0]      desc_araddr;
-    logic [7:0]                 desc_arlen;
-    logic [2:0]                 desc_arsize;
-    logic [1:0]                 desc_arburst;
-    logic                       desc_arlock;
-    logic [3:0]                 desc_arcache;
-    logic [2:0]                 desc_arprot;
-    logic [3:0]                 desc_arqos;
-    logic [3:0]                 desc_arregion;
-    logic [AXI_USER_WIDTH-1:0]  desc_aruser;
-    logic                       desc_arvalid, desc_arready;
-    logic [AXI_ID_WIDTH-1:0]    desc_rid;
-    logic [255:0]               desc_rdata;
-    logic [1:0]                 desc_rresp;
-    logic                       desc_rlast;
-    logic [AXI_USER_WIDTH-1:0]  desc_ruser;
-    logic                       desc_rvalid, desc_rready;
+    // desc_* master signals are declared early (near the mon_* block)
+    // so the bridge's stream_desc_* master port-map can reach them.
 
-    desc_ram #(
-        .AXI_ID_WIDTH  (AXI_ID_WIDTH),
-        .AXI_USER_WIDTH(AXI_USER_WIDTH),
-        .AXI_ADDR_WIDTH(ADDR_WIDTH),
-        .DEPTH_256     (DESC_RAM_ENTRIES)
+    // Internal obs port from axil_sdpram_slave (10b raw valid/ready).
+    logic [9:0] w_desc_ram_dbg_vr_axil;
+    /* verilator lint_off UNUSED */
+    logic [9:0] w_desc_ram_dbg_fub_vr;
+    logic w_desc_ram_dbg_bram_wr_pulse, w_desc_ram_dbg_bram_rd_pulse;
+    logic w_desc_ram_dbg_busy_wr, w_desc_ram_dbg_busy_rd;
+    /* verilator lint_on UNUSED */
+
+    axil_sdpram_slave #(
+        .ADDR_WIDTH (32),
+        .DATA_WIDTH (64),
+        .MEM_DEPTH  (DESC_RAM_ENTRIES * 4)   // 256b->64b: x4 entries
     ) u_desc_ram (
         .aclk(aclk), .aresetn(unit_aresetn),
-        // AXIL write (from host decode S2)
+        // Single AXIL slave port driven by bridge S2
         .s_axil_awaddr (s2_awaddr), .s_axil_awprot(s2_awprot),
         .s_axil_awvalid(s2_awvalid), .s_axil_awready(s2_awready),
-        .s_axil_wdata  (s2_wdata), .s_axil_wstrb(s2_wstrb),
+        .s_axil_wdata  (s2_wdata),  .s_axil_wstrb(s2_wstrb),
         .s_axil_wvalid (s2_wvalid), .s_axil_wready(s2_wready),
-        .s_axil_bresp  (s2_bresp), .s_axil_bvalid(s2_bvalid), .s_axil_bready(s2_bready),
+        .s_axil_bresp  (s2_bresp),  .s_axil_bvalid(s2_bvalid),  .s_axil_bready(s2_bready),
         .s_axil_araddr (s2_araddr), .s_axil_arprot(s2_arprot),
-        .s_axil_arvalid(s2_arvalid), .s_axil_arready(s2_arready),
-        .s_axil_rdata  (s2_rdata), .s_axil_rresp(s2_rresp),
+        .s_axil_arvalid(s2_arvalid),.s_axil_arready(s2_arready),
+        .s_axil_rdata  (s2_rdata),  .s_axil_rresp(s2_rresp),
         .s_axil_rvalid (s2_rvalid), .s_axil_rready(s2_rready),
-        // AXI4 read (from STREAM m_axi_desc)
-        .s_axi_arid   (desc_arid),   .s_axi_araddr(desc_araddr),
-        .s_axi_arlen  (desc_arlen),  .s_axi_arsize(desc_arsize),
-        .s_axi_arburst(desc_arburst),.s_axi_arlock(desc_arlock),
-        .s_axi_arcache(desc_arcache),.s_axi_arprot(desc_arprot),
-        .s_axi_arqos  (desc_arqos),  .s_axi_arregion(desc_arregion),
-        .s_axi_aruser (desc_aruser), .s_axi_arvalid(desc_arvalid),
-        .s_axi_arready(desc_arready),
-        .s_axi_rid    (desc_rid),    .s_axi_rdata(desc_rdata),
-        .s_axi_rresp  (desc_rresp),  .s_axi_rlast(desc_rlast),
-        .s_axi_ruser  (desc_ruser),  .s_axi_rvalid(desc_rvalid),
-        .s_axi_rready (desc_rready),
-        .o_dbg_vr     (w_desc_ram_dbg_vr)
+        // Obs
+        .o_dbg_vr      (w_desc_ram_dbg_vr_axil),
+        .o_dbg_fub_vr  (w_desc_ram_dbg_fub_vr),
+        .o_dbg_bram_wr (w_desc_ram_dbg_bram_wr_pulse),
+        .o_dbg_bram_rd (w_desc_ram_dbg_bram_rd_pulse),
+        .o_dbg_busy_wr (w_desc_ram_dbg_busy_wr),
+        .o_dbg_busy_rd (w_desc_ram_dbg_busy_rd)
     );
 
     // -------------------------------------------------------------------------
@@ -947,51 +1038,74 @@ module stream_char_harness #(
     assign s3_bresp   = 2'b10;  // SLVERR
 
     // =========================================================================
-    // S4: debug_sram (host read port) + STREAM m_axil_mon writes
+    // S4: debug_sram — axil_sdpram_slave at 64-bit, single AXIL port.
+    //
+    // Both host (reads) and monbus (writes) go through the bridge now.
+    // STREAM's m_axil_mon output drives the bridge's monbus_wr_* master
+    // port; the bridge arbitrates monbus writes against host reads/writes
+    // and forwards both to this slave at 64-bit AXIL.
     // =========================================================================
-    // STREAM m_axil_mon AXIL master signals
-    logic        mon_awvalid, mon_awready;
-    logic [31:0] mon_awaddr;
-    logic [2:0]  mon_awprot;
-    // 64-bit AXIL write data matches stream_top_ch8.m_axil_mon_w* and
-    // debug_sram's widened write port. The 3-beat monbus record streams
-    // through 3 × 64-bit beats without any truncation.
-    logic        mon_wvalid,  mon_wready;
-    logic [63:0] mon_wdata;
-    logic [7:0]  mon_wstrb;
-    logic        mon_bvalid,  mon_bready;
-    logic [1:0]  mon_bresp;
+    // mon_* signals are declared up near the bridge instance (search
+    // "// STREAM m_axil_mon master signals (declared early"). They have
+    // to live before the bridge port-map, which references them.
 
-    debug_sram #(
-        .DEPTH_WORDS(DEBUG_SRAM_WORDS)
+    // Internal obs port from axil_sdpram_slave (10b raw valid/ready).
+    /* verilator lint_off UNUSED */
+    logic [9:0] w_debug_sram_dbg_vr_axil;
+    logic [9:0] w_debug_sram_dbg_fub_vr;
+    logic w_debug_sram_dbg_bram_wr_pulse, w_debug_sram_dbg_bram_rd_pulse;
+    logic w_debug_sram_dbg_busy_wr, w_debug_sram_dbg_busy_rd;
+    /* verilator lint_on UNUSED */
+
+    axil_sdpram_slave #(
+        .ADDR_WIDTH (32),
+        .DATA_WIDTH (64),
+        .MEM_DEPTH  (DEBUG_SRAM_WORDS / 2)   // 32b->64b: halve entries
     ) u_debug_sram (
         .aclk(aclk), .aresetn(unit_aresetn),
-        .i_freeze     (csr_freeze),
-        .i_clear_pulse(csr_clear_pulse),
-        .o_wr_ptr     (dbg_wr_ptr),
-        .o_overflow   (dbg_overflow),
-        .o_clear_busy (dbg_clear_busy),
-        // Write-only port from STREAM monbus AXIL master
-        .wr_awaddr (mon_awaddr), .wr_awprot(mon_awprot),
-        .wr_awvalid(mon_awvalid), .wr_awready(mon_awready),
-        .wr_wdata  (mon_wdata), .wr_wstrb(mon_wstrb),
-        .wr_wvalid (mon_wvalid), .wr_wready(mon_wready),
-        .wr_bresp  (mon_bresp), .wr_bvalid(mon_bvalid), .wr_bready(mon_bready),
-        .wr_araddr (32'h0), .wr_arprot(3'h0),
-        .wr_arvalid(1'b0), .wr_arready(),
-        .wr_rdata  (), .wr_rresp(),
-        .wr_rvalid (), .wr_rready(1'b1),
-        // Read-only port from host decoder S4
-        .rd_awaddr (s4_awaddr), .rd_awprot(s4_awprot),
-        .rd_awvalid(s4_awvalid), .rd_awready(s4_awready),
-        .rd_wdata  (s4_wdata), .rd_wstrb(s4_wstrb),
-        .rd_wvalid (s4_wvalid), .rd_wready(s4_wready),
-        .rd_bresp  (s4_bresp), .rd_bvalid(s4_bvalid), .rd_bready(s4_bready),
-        .rd_araddr (s4_araddr), .rd_arprot(s4_arprot),
-        .rd_arvalid(s4_arvalid), .rd_arready(s4_arready),
-        .rd_rdata  (s4_rdata), .rd_rresp(s4_rresp),
-        .rd_rvalid (s4_rvalid), .rd_rready(s4_rready)
+        // Single AXIL slave port driven by bridge S4
+        .s_axil_awaddr (s4_awaddr), .s_axil_awprot(s4_awprot),
+        .s_axil_awvalid(s4_awvalid), .s_axil_awready(s4_awready),
+        .s_axil_wdata  (s4_wdata),  .s_axil_wstrb(s4_wstrb),
+        .s_axil_wvalid (s4_wvalid), .s_axil_wready(s4_wready),
+        .s_axil_bresp  (s4_bresp),  .s_axil_bvalid(s4_bvalid),  .s_axil_bready(s4_bready),
+        .s_axil_araddr (s4_araddr), .s_axil_arprot(s4_arprot),
+        .s_axil_arvalid(s4_arvalid),.s_axil_arready(s4_arready),
+        .s_axil_rdata  (s4_rdata),  .s_axil_rresp(s4_rresp),
+        .s_axil_rvalid (s4_rvalid), .s_axil_rready(s4_rready),
+        // Obs
+        .o_dbg_vr      (w_debug_sram_dbg_vr_axil),
+        .o_dbg_fub_vr  (w_debug_sram_dbg_fub_vr),
+        .o_dbg_bram_wr (w_debug_sram_dbg_bram_wr_pulse),
+        .o_dbg_bram_rd (w_debug_sram_dbg_bram_rd_pulse),
+        .o_dbg_busy_wr (w_debug_sram_dbg_busy_wr),
+        .o_dbg_busy_rd (w_debug_sram_dbg_busy_rd)
     );
+
+    // Legacy csr-side wr_ptr / overflow / clear_busy: derive from the
+    // BRAM write pulse counter. The old clear engine is gone; the host
+    // can re-program with bridge writes if needed.
+    logic [31:0] r_dbg_wr_ptr;
+    logic        r_dbg_overflow;
+    `ALWAYS_FF_RST(aclk, unit_aresetn,
+        if (`RST_ASSERTED(unit_aresetn)) begin
+            r_dbg_wr_ptr   <= '0;
+            r_dbg_overflow <= 1'b0;
+        end else if (csr_clear_pulse) begin
+            r_dbg_wr_ptr   <= '0;
+            r_dbg_overflow <= 1'b0;
+        end else if (w_debug_sram_dbg_bram_wr_pulse) begin
+            // Each 64-bit BRAM write equals 2 host-visible 32-bit words.
+            if (r_dbg_wr_ptr >= DEBUG_SRAM_WORDS - 1) begin
+                r_dbg_overflow <= 1'b1;
+            end else begin
+                r_dbg_wr_ptr <= r_dbg_wr_ptr + 32'd2;
+            end
+        end
+    )
+    assign dbg_wr_ptr     = r_dbg_wr_ptr;
+    assign dbg_overflow   = r_dbg_overflow;
+    assign dbg_clear_busy = 1'b0;
 
     // =========================================================================
     // DMA source: axi4_slave_rd_pattern_gen (wired to STREAM m_axi_rd)

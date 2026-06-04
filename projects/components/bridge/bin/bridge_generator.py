@@ -437,7 +437,8 @@ def _emit_bridge_variant(
             id_width=master_spec.id_width,
             channels=master_spec.channels,
             slave_connections=slave_connections,
-            use_monitor=getattr(master_spec, 'use_monitor', True)
+            use_monitor=getattr(master_spec, 'use_monitor', True),
+            protocol=master_spec.protocol
         )
         master_configs.append(master_config)
 

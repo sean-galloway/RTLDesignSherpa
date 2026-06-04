@@ -4,6 +4,8 @@
 # Bridge RTL files (generated)
 $REPO_ROOT/projects/NexysA7/stream_characterization/stream_char_framework/rtl/bridges/generated/bridge_stream_char_axil/bridge_stream_char_axil_pkg.sv
 $REPO_ROOT/projects/NexysA7/stream_characterization/stream_char_framework/rtl/bridges/generated/bridge_stream_char_axil/host_adapter.sv
+$REPO_ROOT/projects/NexysA7/stream_characterization/stream_char_framework/rtl/bridges/generated/bridge_stream_char_axil/monbus_wr_adapter.sv
+$REPO_ROOT/projects/NexysA7/stream_characterization/stream_char_framework/rtl/bridges/generated/bridge_stream_char_axil/stream_desc_adapter.sv
 $REPO_ROOT/projects/NexysA7/stream_characterization/stream_char_framework/rtl/bridges/generated/bridge_stream_char_axil/bridge_stream_char_axil.sv
 $REPO_ROOT/projects/NexysA7/stream_characterization/stream_char_framework/rtl/bridges/generated/bridge_stream_char_axil/bridge_stream_char_axil_xbar.sv
 $REPO_ROOT/projects/NexysA7/stream_characterization/stream_char_framework/rtl/bridges/generated/bridge_stream_char_axil/debug_sram_adapter.sv

@@ -60,6 +60,35 @@ addr_width  = 32
 data_width  = 32
 user_width  = 0
 
+# ---- Master: stream_desc -------------------------------------------------
+# STREAM's m_axi_desc — fetches descriptors from desc_ram. Native 256-bit
+# AXI4 single-beat reads (the descriptor format is exactly 256 bits). The
+# bridge handles width downsize 256 → 64 on the way into desc_ram and
+# packs the response back to 256 on the return path.
+[[bridge.masters]]
+name        = "stream_desc"
+prefix      = "stream_desc_"
+protocol    = "axi4"
+channels    = "r"
+id_width    = 8
+addr_width  = 32
+data_width  = 256
+user_width  = 3
+
+# ---- Master: monbus_wr ---------------------------------------------------
+# Monbus_axil_group's m_axil_mon master — streams 64-bit MonBus packet
+# beats into debug_sram. Native 64-bit AXIL writes. No width conversion
+# needed at the slave (debug_sram is also 64-bit).
+[[bridge.masters]]
+name        = "monbus_wr"
+prefix      = "monbus_wr_"
+protocol    = "axil"
+channels    = "w"
+id_width    = 4
+addr_width  = 32
+data_width  = 64
+user_width  = 0
+
 # ---- Slaves ----------------------------------------------------------------
 [[bridge.slaves]]
 name        = "stream_apb"
@@ -96,7 +125,11 @@ protocol    = "axil"
 channels    = "rw"
 id_width    = 4
 addr_width  = 32
-data_width  = 32
+# Widened from 32 to 64 alongside the SRAM rewrite. A single
+# axil_sdpram_slave instance backs this slot now (64-bit native AXIL
+# port + SDP BRAM). Host writes go through the bridge's 32->64 upsize;
+# STREAM's 256-bit reads go through the 256->64 downsize.
+data_width  = 64
 user_width  = 0
 base_addr   = "0x00020000"
 addr_range  = "0x00010000"     # 64 KB
@@ -122,7 +155,10 @@ protocol    = "axil"
 channels    = "rw"
 id_width    = 4
 addr_width  = 32
-data_width  = 32
+# Widened to 64 alongside the SRAM rewrite. axil_sdpram_slave backs
+# this slot; monbus's 64-bit AXIL master connects directly, host
+# reads go through the bridge's 32->64 upsize.
+data_width  = 64
 user_width  = 0
 base_addr   = "0x00040000"
 addr_range  = "0x00040000"     # 256 KB

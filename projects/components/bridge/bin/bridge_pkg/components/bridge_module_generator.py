@@ -803,6 +803,14 @@ class BridgeModuleGenerator:
         external master. Port directions are INVERTED from the master's perspective:
         - Request signals (awid, awaddr, etc.): INPUT to bridge (from external master)
         - Response signals (awready, bid, etc.): OUTPUT from bridge (to external master)
+
+        Protocol branching: an 'axil' master exposes ONLY the AXIL signal
+        set on the bridge top (addr/prot/data/strb/resp/valid/ready). The
+        internal crossbar is still AXI4; the master's adapter does the
+        AXIL->AXI4 promotion. Without this branch, the bridge top forced
+        every master into the full AXI4 signal set even when the .toml
+        declared the master as axil — making the SoC integrator dummy out
+        a dozen unused signals per AXIL master.
         """
         lines = []
 
@@ -815,7 +823,45 @@ class BridgeModuleGenerator:
             'USER_WIDTH': 1
         }
 
-        lines.append(f"    // Master: {master.name} ({master.channels})")
+        lines.append(f"    // Master: {master.name} ({master.protocol}, {master.channels})")
+
+        if master.protocol == 'axil':
+            # AXIL master — emit only AXIL signals (no id/len/burst/cache/
+            # qos/region/user/last). Mirror of the AXIL slave port handling
+            # in _generate_slave_ports.
+            addr_w = master.addr_width
+            data_w = master.data_width
+            strb_w = data_w // 8
+            pfx    = master.prefix
+            has_write = master.channels in ('wr', 'rw')
+            has_read  = master.channels in ('rd', 'rw')
+
+            if has_write:
+                lines.append(f"    input  logic [{addr_w-1}:0] {pfx}awaddr,")
+                lines.append(f"    input  logic [2:0]            {pfx}awprot,")
+                lines.append(f"    input  logic                  {pfx}awvalid,")
+                lines.append(f"    output logic                  {pfx}awready,")
+                lines.append(f"    input  logic [{data_w-1}:0] {pfx}wdata,")
+                lines.append(f"    input  logic [{strb_w-1}:0] {pfx}wstrb,")
+                lines.append(f"    input  logic                  {pfx}wvalid,")
+                lines.append(f"    output logic                  {pfx}wready,")
+                lines.append(f"    output logic [1:0]            {pfx}bresp,")
+                lines.append(f"    output logic                  {pfx}bvalid,")
+                lines.append(f"    input  logic                  {pfx}bready,")
+            if has_read:
+                lines.append(f"    input  logic [{addr_w-1}:0] {pfx}araddr,")
+                lines.append(f"    input  logic [2:0]            {pfx}arprot,")
+                lines.append(f"    input  logic                  {pfx}arvalid,")
+                lines.append(f"    output logic                  {pfx}arready,")
+                lines.append(f"    output logic [{data_w-1}:0] {pfx}rdata,")
+                lines.append(f"    output logic [1:0]            {pfx}rresp,")
+                lines.append(f"    output logic                  {pfx}rvalid,")
+                lines.append(f"    input  logic                  {pfx}rready,")
+
+            # Trim trailing comma; caller re-appends if needed.
+            if lines and lines[-1].endswith(','):
+                lines[-1] = lines[-1][:-1]
+            return lines
 
         # Determine which channels to generate based on master type
         channels = SignalNaming.channels_from_type(master.channels)
@@ -1294,13 +1340,72 @@ class BridgeModuleGenerator:
             # Generate port connections using SignalNaming
             signal_db = AXI4_MASTER_SIGNALS  # Master direction
 
+            # Signals on the AXIL surface (the rest are AXI4 extras).
+            axil_surface = {
+                'awaddr', 'awprot', 'awvalid', 'awready',
+                'wdata',  'wstrb',  'wvalid',  'wready',
+                'bresp',  'bvalid', 'bready',
+                'araddr', 'arprot', 'arvalid', 'arready',
+                'rdata',  'rresp',  'rvalid',  'rready',
+            }
+            # Default literals for the AXI4 extras when an AXIL master's
+            # adapter still expects them. INCR burst, single-beat (len=0,
+            # last=1), and size = $clog2(DATA_WIDTH/8). Outputs from the
+            # bridge towards the master are dropped.
+            strb_w = master.data_width // 8
+            axsize_val = 0
+            while (1 << axsize_val) < strb_w:
+                axsize_val += 1
+            axi4_extra_defaults = {
+                'awid':     f"{master.id_width}'h0",
+                'awlen':    "8'h0",
+                'awsize':   f"3'd{axsize_val}",
+                'awburst':  "2'b01",
+                'awlock':   "1'b0",
+                'awcache':  "4'h0",
+                'awqos':    "4'h0",
+                'awregion': "4'h0",
+                'awuser':   "1'b0",
+                'wlast':    "1'b1",
+                'wuser':    "1'b0",
+                'arid':     f"{master.id_width}'h0",
+                'arlen':    "8'h0",
+                'arsize':   f"3'd{axsize_val}",
+                'arburst':  "2'b01",
+                'arlock':   "1'b0",
+                'arcache':  "4'h0",
+                'arqos':    "4'h0",
+                'arregion': "4'h0",
+                'aruser':   "1'b0",
+            }
+
             for channel in channels:
                 if channel not in signal_db:
                     continue
 
                 for sig_info in signal_db[channel]:
-                    sig_name = f"{signal_prefix}{channel.value}{sig_info.name}"
-                    lines.append(f"        .{sig_name}({sig_name}),")
+                    full_name = f"{channel.value}{sig_info.name}"
+                    sig_name = f"{signal_prefix}{full_name}"
+
+                    if master.protocol != 'axil' or full_name in axil_surface:
+                        # AXI4 master, or AXIL master & this signal IS on
+                        # the AXIL surface — wire directly to the top.
+                        lines.append(f"        .{sig_name}({sig_name}),")
+                    else:
+                        # AXIL master & this signal is an AXI4 extra. The
+                        # adapter still expects every AXI4 port, so we
+                        # default the inputs and leave outputs floating.
+                        if sig_info.direction == PortDirection.OUTPUT:
+                            # Master OUTPUT == bridge INPUT (master->bridge).
+                            # AXIL master can't drive this; supply a sane
+                            # default so the adapter sees valid semantics.
+                            default = axi4_extra_defaults.get(full_name, "1'b0")
+                            lines.append(f"        .{sig_name}({default}),")
+                        else:
+                            # Master INPUT == bridge OUTPUT (bridge->master).
+                            # AXIL master doesn't observe this; leave the
+                            # adapter port unconnected.
+                            lines.append(f"        .{sig_name}(),")
 
             lines.append("")
             lines.append("        // Decode outputs")

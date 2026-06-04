@@ -1,2 +1,4 @@
 master\slave,stream_apb,harness_csr,desc_ram,stream_err,debug_sram,dma_axil
 host,1,1,1,1,1,1
+stream_desc,0,0,1,0,0,0
+monbus_wr,0,0,0,0,1,0

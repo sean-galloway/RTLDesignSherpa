@@ -23,9 +23,12 @@ $FRAMEWORK_ROOT/rtl/harness_csr.sv
 # at 0x100 (R) and 0x180 (W).
 $FRAMEWORK_ROOT/rtl/axi_bus_meter.sv
 
-# Generic memory blocks (descriptor RAM and monitor trace SRAM).
-$FRAMEWORK_ROOT/rtl/desc_ram.sv
-$FRAMEWORK_ROOT/rtl/debug_sram.sv
+# Unified pipelined AXI4-Lite SDP-BRAM slave. Both desc_ram and
+# debug_sram in stream_char_harness are now instances of this one
+# module — see /home/seang/Downloads/AXIL_PIPELINED_SLAVE_SDPRAM.md.
+# Requires axil4_slave_rd/wr from rtl/amba/axil4 (already pulled in
+# via the bridge filelist that wraps these slaves).
+$FRAMEWORK_ROOT/rtl/axil_sdpram_slave.sv
 
 # Board-level status outputs (LED bank + 7-segment display) and their
 # upstream dependencies in the shared rtl/ tree.

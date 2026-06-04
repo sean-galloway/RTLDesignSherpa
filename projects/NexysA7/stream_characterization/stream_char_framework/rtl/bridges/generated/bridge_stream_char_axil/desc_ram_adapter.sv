@@ -9,13 +9,13 @@
 import bridge_stream_char_axil_pkg::*;
 
 module desc_ram_adapter #(
-    parameter int ID_WIDTH = 4
+    parameter int ID_WIDTH = 8
 ) (
     input  logic aclk,
     input  logic aresetn,
 
     // Crossbar interface (AXI4 from crossbar)
-    input  logic [3:0]  xbar_desc_ram_axi_awid,
+    input  logic [7:0]  xbar_desc_ram_axi_awid,
     input  logic [31:0]  xbar_desc_ram_axi_awaddr,
     input  logic [7:0]  xbar_desc_ram_axi_awlen,
     input  logic [2:0]  xbar_desc_ram_axi_awsize,
@@ -28,18 +28,18 @@ module desc_ram_adapter #(
     input  logic         xbar_desc_ram_axi_awuser,
     input  logic         xbar_desc_ram_axi_awvalid,
     output  logic         xbar_desc_ram_axi_awready,
-    input  logic [31:0]  xbar_desc_ram_axi_wdata,
-    input  logic [3:0]  xbar_desc_ram_axi_wstrb,
+    input  logic [63:0]  xbar_desc_ram_axi_wdata,
+    input  logic [7:0]  xbar_desc_ram_axi_wstrb,
     input  logic         xbar_desc_ram_axi_wlast,
     input  logic         xbar_desc_ram_axi_wuser,
     input  logic         xbar_desc_ram_axi_wvalid,
     output  logic         xbar_desc_ram_axi_wready,
-    output  logic [3:0]  xbar_desc_ram_axi_bid,
+    output  logic [7:0]  xbar_desc_ram_axi_bid,
     output  logic [1:0]  xbar_desc_ram_axi_bresp,
     output  logic         xbar_desc_ram_axi_buser,
     output  logic         xbar_desc_ram_axi_bvalid,
     input  logic         xbar_desc_ram_axi_bready,
-    input  logic [3:0]  xbar_desc_ram_axi_arid,
+    input  logic [7:0]  xbar_desc_ram_axi_arid,
     input  logic [31:0]  xbar_desc_ram_axi_araddr,
     input  logic [7:0]  xbar_desc_ram_axi_arlen,
     input  logic [2:0]  xbar_desc_ram_axi_arsize,
@@ -52,8 +52,8 @@ module desc_ram_adapter #(
     input  logic         xbar_desc_ram_axi_aruser,
     input  logic         xbar_desc_ram_axi_arvalid,
     output  logic         xbar_desc_ram_axi_arready,
-    output  logic [3:0]  xbar_desc_ram_axi_rid,
-    output  logic [31:0]  xbar_desc_ram_axi_rdata,
+    output  logic [7:0]  xbar_desc_ram_axi_rid,
+    output  logic [63:0]  xbar_desc_ram_axi_rdata,
     output  logic [1:0]  xbar_desc_ram_axi_rresp,
     output  logic         xbar_desc_ram_axi_rlast,
     output  logic         xbar_desc_ram_axi_ruser,
@@ -75,8 +75,8 @@ module desc_ram_adapter #(
     output logic                  desc_ram_axi_awvalid,
     input  logic                  desc_ram_axi_awready,
     // Write Data Channel
-    output logic [31:0] desc_ram_axi_wdata,
-    output logic [3:0] desc_ram_axi_wstrb,
+    output logic [63:0] desc_ram_axi_wdata,
+    output logic [7:0] desc_ram_axi_wstrb,
     output logic                  desc_ram_axi_wvalid,
     input  logic                  desc_ram_axi_wready,
     // Write Response Channel
@@ -89,7 +89,7 @@ module desc_ram_adapter #(
     output logic                  desc_ram_axi_arvalid,
     input  logic                  desc_ram_axi_arready,
     // Read Data Channel
-    input  logic [31:0] desc_ram_axi_rdata,
+    input  logic [63:0] desc_ram_axi_rdata,
     input  logic [1:0]            desc_ram_axi_rresp,
     input  logic                  desc_ram_axi_rvalid,
     output logic                  desc_ram_axi_rready
@@ -199,9 +199,9 @@ module desc_ram_adapter #(
 
     // AXI4-to-AXI4-Lite converter shim
     axi4_to_axil4_wr #(
-        .AXI_ID_WIDTH(4),
+        .AXI_ID_WIDTH(8),
         .AXI_ADDR_WIDTH(32),
-        .AXI_DATA_WIDTH(32),
+        .AXI_DATA_WIDTH(64),
         .AXI_USER_WIDTH(1),
         .SKID_DEPTH_AW(2),
         .SKID_DEPTH_W(4),
@@ -252,9 +252,9 @@ module desc_ram_adapter #(
     );
 
     axi4_to_axil4_rd #(
-        .AXI_ID_WIDTH(4),
+        .AXI_ID_WIDTH(8),
         .AXI_ADDR_WIDTH(32),
-        .AXI_DATA_WIDTH(32),
+        .AXI_DATA_WIDTH(64),
         .AXI_USER_WIDTH(1),
         .SKID_DEPTH_AR(2),
         .SKID_DEPTH_R(2)

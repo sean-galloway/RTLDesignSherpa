@@ -7,8 +7,8 @@
 package bridge_stream_char_axil_pkg;
 
     // Bridge Configuration Parameters
-    localparam int NUM_MASTERS = 1;
-    localparam int BRIDGE_ID_WIDTH = 1;  // $clog2(NUM_MASTERS)
+    localparam int NUM_MASTERS = 3;
+    localparam int BRIDGE_ID_WIDTH = 2;  // $clog2(NUM_MASTERS)
 
     // AXI4 Write Address Channel (width-independent)
     // Note: ID width is 4-bit for this bridge
@@ -49,6 +49,22 @@ package bridge_stream_char_axil_pkg;
         logic         user;    // User signal
     } axi4_w_32b_t;
 
+    // AXI4 Write Data Channel - 64-bit data width
+    typedef struct packed {
+        logic [63:0]  data;    // Write data
+        logic [7:0]   strb;    // Write strobes
+        logic         last;    // Last transfer in burst
+        logic         user;    // User signal
+    } axi4_w_64b_t;
+
+    // AXI4 Write Data Channel - 256-bit data width
+    typedef struct packed {
+        logic [255:0]  data;    // Write data
+        logic [31:0]   strb;    // Write strobes
+        logic         last;    // Last transfer in burst
+        logic         user;    // User signal
+    } axi4_w_256b_t;
+
     // AXI4 Write Response Channel (width-independent)
     typedef struct packed {
         logic [3:0]   id;      // Response ID
@@ -64,5 +80,23 @@ package bridge_stream_char_axil_pkg;
         logic         last;    // Last transfer in burst
         logic         user;    // User signal
     } axi4_r_32b_t;
+
+    // AXI4 Read Data Channel - 64-bit data width
+    typedef struct packed {
+        logic [3:0]   id;      // Response ID
+        logic [63:0]  data;    // Read data
+        logic [1:0]   resp;    // Read response
+        logic         last;    // Last transfer in burst
+        logic         user;    // User signal
+    } axi4_r_64b_t;
+
+    // AXI4 Read Data Channel - 256-bit data width
+    typedef struct packed {
+        logic [3:0]   id;      // Response ID
+        logic [255:0]  data;    // Read data
+        logic [1:0]   resp;    // Read response
+        logic         last;    // Last transfer in burst
+        logic         user;    // User signal
+    } axi4_r_256b_t;
 
 endpackage : bridge_stream_char_axil_pkg

@@ -85,6 +85,12 @@ class MasterConfig:
     channels: str  # "wr", "rd", or "rw"
     slave_connections: List[int]  # Indices of connected slaves
     use_monitor: bool = True  # Per-port USE_MONITOR override (see PortSpec)
+    # External protocol seen by the SoC integrator. The crossbar fabric
+    # is always AXI4 internally, but when this is 'axil' the bridge top
+    # exposes only AXIL signals on this master port (no id/len/burst/
+    # cache/qos/region/user/last). The host-side wrapper handles the
+    # AXIL->AXI4 translation when transactions enter the fabric.
+    protocol: str = 'axi4'
 
 
 class AdapterGenerator:
