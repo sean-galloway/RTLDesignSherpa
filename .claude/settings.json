@@ -1,6 +1,12 @@
 {
   "permissions": {
     "allow": [
+      "Bash(make regress:*)",
+      "Bash(vivado -mode batch:*)",
+      "Bash(vivado:*)",
+      "Bash(openocd:*)",
+      "Bash(./run_characterization.sh:*)",
+      "Bash(make char:*)",
       "Bash(REG_LEVEL=GATE python3 -m pytest test_grayj2bin.py -v -s)",
       "Bash(REG_LEVEL=GATE python3 -m pytest test_leading_one_trailing_one.py -v -s)",
       "Bash(REG_LEVEL=GATE python3 -m pytest test_fifo_buffer.py -v -s)",
