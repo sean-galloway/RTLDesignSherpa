@@ -77,25 +77,25 @@ module stream_desc_adapter #(
     output logic [BRIDGE_ID_WIDTH-1:0] bridge_id_ar,
 
     // 256b width outputs (to crossbar)
-    output axi4_aw_t     stream_desc_64b_aw,
-    output logic         stream_desc_64b_awvalid,
-    input  logic         stream_desc_64b_awready,
+    output axi4_aw_t     stream_desc_256b_aw,
+    output logic         stream_desc_256b_awvalid,
+    input  logic         stream_desc_256b_awready,
 
-    output axi4_w_64b_t  stream_desc_64b_w,
-    output logic         stream_desc_64b_wvalid,
-    input  logic         stream_desc_64b_wready,
+    output axi4_w_256b_t  stream_desc_256b_w,
+    output logic         stream_desc_256b_wvalid,
+    input  logic         stream_desc_256b_wready,
 
-    input  axi4_b_t      stream_desc_64b_b,
-    input  logic         stream_desc_64b_bvalid,
-    output logic         stream_desc_64b_bready,
+    input  axi4_b_t      stream_desc_256b_b,
+    input  logic         stream_desc_256b_bvalid,
+    output logic         stream_desc_256b_bready,
 
-    output axi4_ar_t     stream_desc_64b_ar,
-    output logic         stream_desc_64b_arvalid,
-    input  logic         stream_desc_64b_arready,
+    output axi4_ar_t     stream_desc_256b_ar,
+    output logic         stream_desc_256b_arvalid,
+    input  logic         stream_desc_256b_arready,
 
-    input  axi4_r_64b_t  stream_desc_64b_r,
-    input  logic         stream_desc_64b_rvalid,
-    output logic         stream_desc_64b_rready
+    input  axi4_r_256b_t  stream_desc_256b_r,
+    input  logic         stream_desc_256b_rvalid,
+    output logic         stream_desc_256b_rready
 );
 
     // ================================================================
@@ -321,156 +321,68 @@ module stream_desc_adapter #(
 
     // ================================================================
     // Width adaptation - Master: 256b
-    // Connected to slaves with widths: [64]
+    // Connected to slaves with widths: [256]
     // ================================================================
 
     // Per-width path-active gates (see comment in adapter_generator.py).
-    logic aw_path_active_64b;
-    assign aw_path_active_64b = comb_slave_select_aw[2];
-    logic w_path_active_64b;
-    assign w_path_active_64b = w_slave_select[2];
-    logic ar_path_active_64b;
-    assign ar_path_active_64b = comb_slave_select_ar[2];
+    logic aw_path_active_256b;
+    assign aw_path_active_256b = comb_slave_select_aw[2];
+    logic w_path_active_256b;
+    assign w_path_active_256b = w_slave_select[2];
+    logic ar_path_active_256b;
+    assign ar_path_active_256b = comb_slave_select_ar[2];
 
     // ================================================================
-    // Width converter: 256b → 64b
+    // Direct passthrough: 256b → 256b (no converter)
+    // Requests: fub_axi_* → stream_desc_256b_*
+    // Responses: stream_desc_256b_* → MUX → fub_axi_*
     // ================================================================
 
-    // Intermediate signals for 64b converter
-    logic conv_64b_awready;
-    logic conv_64b_wready;
-    logic [3:0] conv_64b_bid;
-    logic [1:0] conv_64b_bresp;
-    logic conv_64b_bvalid;
-    logic conv_64b_arready;
-    logic [3:0] conv_64b_rid;
-    logic [255:0] conv_64b_rdata;
-    logic [1:0] conv_64b_rresp;
-    logic conv_64b_rlast;
-    logic conv_64b_rvalid;
+    // AW channel (request: fub → output)
+    assign stream_desc_256b_aw.id     = fub_axi_awid;
+    assign stream_desc_256b_aw.addr   = fub_axi_awaddr;
+    assign stream_desc_256b_aw.len    = fub_axi_awlen;
+    assign stream_desc_256b_aw.size   = fub_axi_awsize;
+    assign stream_desc_256b_aw.burst  = fub_axi_awburst;
+    assign stream_desc_256b_aw.lock   = fub_axi_awlock;
+    assign stream_desc_256b_aw.cache  = fub_axi_awcache;
+    assign stream_desc_256b_aw.prot   = fub_axi_awprot;
+    assign stream_desc_256b_aw.qos    = 4'b0;  // Tie to 0
+    assign stream_desc_256b_aw.region = 4'b0;  // Tie to 0
+    assign stream_desc_256b_aw.user   = 1'b0;  // Tie to 0
+    assign stream_desc_256b_awvalid   = fub_axi_awvalid && aw_path_active_256b;
+    // awready routed via MUX
 
-    axi4_dwidth_converter_wr #(
-        .S_AXI_DATA_WIDTH(256),
-        .M_AXI_DATA_WIDTH(64),
-        .AXI_ID_WIDTH(4),
-        .AXI_ADDR_WIDTH(32),
-        .AXI_USER_WIDTH(1),
-        .SKID_DEPTH_AW(2),
-        .SKID_DEPTH_W(4),
-        .SKID_DEPTH_B(2)
-    ) u_wr_conv_64b (
-        .aclk(aclk),
-        .aresetn(aresetn),
+    // W channel (request: fub → output)
+    assign stream_desc_256b_w.data  = fub_axi_wdata;
+    assign stream_desc_256b_w.strb  = fub_axi_wstrb;
+    assign stream_desc_256b_w.last  = fub_axi_wlast;
+    assign stream_desc_256b_w.user  = 1'b0;  // Tie to 0
+    assign stream_desc_256b_wvalid  = fub_axi_wvalid && w_path_active_256b;
+    // wready routed via MUX
 
-        // Slave side (from wrapper) - BROADCAST requests; ready/B intercepted for FIFO
-        .s_axi_awid(fub_axi_awid),
-        .s_axi_awaddr(fub_axi_awaddr),
-        .s_axi_awlen(fub_axi_awlen),
-        .s_axi_awsize(fub_axi_awsize),
-        .s_axi_awburst(fub_axi_awburst),
-        .s_axi_awlock(fub_axi_awlock),
-        .s_axi_awcache(fub_axi_awcache),
-        .s_axi_awprot(fub_axi_awprot),
-        .s_axi_awqos(4'b0),
-        .s_axi_awregion(4'b0),
-        .s_axi_awuser(1'b0),
-        .s_axi_awvalid(fub_axi_awvalid && aw_path_active_64b),
-        .s_axi_awready(conv_64b_awready),
-        .s_axi_wdata(fub_axi_wdata),
-        .s_axi_wstrb(fub_axi_wstrb),
-        .s_axi_wlast(fub_axi_wlast),
-        .s_axi_wuser(1'b0),
-        .s_axi_wvalid(fub_axi_wvalid && w_path_active_64b),
-        .s_axi_wready(conv_64b_wready),
-        .s_axi_bid(conv_64b_bid),
-        .s_axi_bresp(conv_64b_bresp),
-        .s_axi_buser(),
-        .s_axi_bvalid(conv_64b_bvalid),
-        .s_axi_bready(fub_axi_bready),
+    // B channel (response: output → MUX → fub)
+    assign stream_desc_256b_bready = fub_axi_bready;
+    // bid, bresp, bvalid routed via MUX (user field ignored)
 
-        // Master side (to crossbar)
-        .m_axi_awid(stream_desc_64b_aw.id),
-        .m_axi_awaddr(stream_desc_64b_aw.addr),
-        .m_axi_awlen(stream_desc_64b_aw.len),
-        .m_axi_awsize(stream_desc_64b_aw.size),
-        .m_axi_awburst(stream_desc_64b_aw.burst),
-        .m_axi_awlock(stream_desc_64b_aw.lock),
-        .m_axi_awcache(stream_desc_64b_aw.cache),
-        .m_axi_awprot(stream_desc_64b_aw.prot),
-        .m_axi_awqos(stream_desc_64b_aw.qos),
-        .m_axi_awregion(stream_desc_64b_aw.region),
-        .m_axi_awuser(stream_desc_64b_aw.user),
-        .m_axi_awvalid(stream_desc_64b_awvalid),
-        .m_axi_awready(stream_desc_64b_awready),
-        .m_axi_wdata(stream_desc_64b_w.data),
-        .m_axi_wstrb(stream_desc_64b_w.strb),
-        .m_axi_wlast(stream_desc_64b_w.last),
-        .m_axi_wuser(stream_desc_64b_w.user),
-        .m_axi_wvalid(stream_desc_64b_wvalid),
-        .m_axi_wready(stream_desc_64b_wready),
-        .m_axi_bid(stream_desc_64b_b.id),
-        .m_axi_bresp(stream_desc_64b_b.resp),
-        .m_axi_buser(stream_desc_64b_b.user),
-        .m_axi_bvalid(stream_desc_64b_bvalid),
-        .m_axi_bready(stream_desc_64b_bready)
-    );
+    // AR channel (request: fub → output)
+    assign stream_desc_256b_ar.id     = fub_axi_arid;
+    assign stream_desc_256b_ar.addr   = fub_axi_araddr;
+    assign stream_desc_256b_ar.len    = fub_axi_arlen;
+    assign stream_desc_256b_ar.size   = fub_axi_arsize;
+    assign stream_desc_256b_ar.burst  = fub_axi_arburst;
+    assign stream_desc_256b_ar.lock   = fub_axi_arlock;
+    assign stream_desc_256b_ar.cache  = fub_axi_arcache;
+    assign stream_desc_256b_ar.prot   = fub_axi_arprot;
+    assign stream_desc_256b_ar.qos    = 4'b0;  // Tie to 0
+    assign stream_desc_256b_ar.region = 4'b0;  // Tie to 0
+    assign stream_desc_256b_ar.user   = 1'b0;  // Tie to 0
+    assign stream_desc_256b_arvalid   = fub_axi_arvalid && ar_path_active_256b;
+    // arready routed via MUX
 
-    axi4_dwidth_converter_rd #(
-        .S_AXI_DATA_WIDTH(256),
-        .M_AXI_DATA_WIDTH(64),
-        .AXI_ID_WIDTH(4),
-        .AXI_ADDR_WIDTH(32),
-        .AXI_USER_WIDTH(1),
-        .SKID_DEPTH_AR(2),
-        .SKID_DEPTH_R(4)
-    ) u_rd_conv_64b (
-        .aclk(aclk),
-        .aresetn(aresetn),
-
-        // Slave side (from wrapper) - BROADCAST requests; arready/R intercepted for FIFO
-        .s_axi_arid(fub_axi_arid),
-        .s_axi_araddr(fub_axi_araddr),
-        .s_axi_arlen(fub_axi_arlen),
-        .s_axi_arsize(fub_axi_arsize),
-        .s_axi_arburst(fub_axi_arburst),
-        .s_axi_arlock(fub_axi_arlock),
-        .s_axi_arcache(fub_axi_arcache),
-        .s_axi_arprot(fub_axi_arprot),
-        .s_axi_arqos(4'b0),
-        .s_axi_arregion(4'b0),
-        .s_axi_aruser(1'b0),
-        .s_axi_arvalid(fub_axi_arvalid && ar_path_active_64b),
-        .s_axi_arready(conv_64b_arready),
-        .s_axi_rid(conv_64b_rid),
-        .s_axi_rdata(conv_64b_rdata),
-        .s_axi_rresp(conv_64b_rresp),
-        .s_axi_rlast(conv_64b_rlast),
-        .s_axi_ruser(),
-        .s_axi_rvalid(conv_64b_rvalid),
-        .s_axi_rready(fub_axi_rready),
-
-        // Master side (to crossbar)
-        .m_axi_arid(stream_desc_64b_ar.id),
-        .m_axi_araddr(stream_desc_64b_ar.addr),
-        .m_axi_arlen(stream_desc_64b_ar.len),
-        .m_axi_arsize(stream_desc_64b_ar.size),
-        .m_axi_arburst(stream_desc_64b_ar.burst),
-        .m_axi_arlock(stream_desc_64b_ar.lock),
-        .m_axi_arcache(stream_desc_64b_ar.cache),
-        .m_axi_arprot(stream_desc_64b_ar.prot),
-        .m_axi_arqos(stream_desc_64b_ar.qos),
-        .m_axi_arregion(stream_desc_64b_ar.region),
-        .m_axi_aruser(stream_desc_64b_ar.user),
-        .m_axi_arvalid(stream_desc_64b_arvalid),
-        .m_axi_arready(stream_desc_64b_arready),
-        .m_axi_rid(stream_desc_64b_r.id),
-        .m_axi_rdata(stream_desc_64b_r.data),
-        .m_axi_rresp(stream_desc_64b_r.resp),
-        .m_axi_rlast(stream_desc_64b_r.last),
-        .m_axi_ruser(stream_desc_64b_r.user),
-        .m_axi_rvalid(stream_desc_64b_rvalid),
-        .m_axi_rready(stream_desc_64b_rready)
-    );
+    // R channel (response: output → MUX → fub)
+    assign stream_desc_256b_rready = fub_axi_rready;
+    // rid, rdata, rresp, rlast, rvalid routed via MUX (user field ignored)
 
     // ================================================================
     // Response MUX - Route responses from width-specific paths
@@ -588,8 +500,8 @@ module stream_desc_adapter #(
     always_comb begin
         fub_axi_awready = 1'b0;
         case (comb_slave_select_aw)
-            6'b000100: begin  // Slave 2 (64b)
-                fub_axi_awready = conv_64b_awready;
+            6'b000100: begin  // Slave 2 (256b)
+                fub_axi_awready = stream_desc_256b_awready;
             end
             default: begin
                 // No slave selected
@@ -601,8 +513,8 @@ module stream_desc_adapter #(
     always_comb begin
         fub_axi_wready = 1'b0;
         case (w_slave_select)
-            6'b000100: begin  // Slave 2 (64b)
-                fub_axi_wready = conv_64b_wready;
+            6'b000100: begin  // Slave 2 (256b)
+                fub_axi_wready = stream_desc_256b_wready;
             end
             default: begin
                 // No active W transaction
@@ -617,10 +529,10 @@ module stream_desc_adapter #(
         fub_axi_bvalid = 1'b0;
 
         case (b_slave_select)
-            6'b000100: begin  // Slave 2 (64b)
-                fub_axi_bid = conv_64b_bid;
-                fub_axi_bresp = conv_64b_bresp;
-                fub_axi_bvalid = conv_64b_bvalid;
+            6'b000100: begin  // Slave 2 (256b)
+                fub_axi_bid = stream_desc_256b_b.id;
+                fub_axi_bresp = stream_desc_256b_b.resp;
+                fub_axi_bvalid = stream_desc_256b_bvalid;
             end
             default: begin
                 // No slave selected - hold defaults
@@ -632,8 +544,8 @@ module stream_desc_adapter #(
     always_comb begin
         fub_axi_arready = 1'b0;
         case (comb_slave_select_ar)
-            6'b000100: begin  // Slave 2 (64b)
-                fub_axi_arready = conv_64b_arready;
+            6'b000100: begin  // Slave 2 (256b)
+                fub_axi_arready = stream_desc_256b_arready;
             end
             default: begin
                 // No slave selected
@@ -650,12 +562,12 @@ module stream_desc_adapter #(
         fub_axi_rvalid = 1'b0;
 
         case (r_slave_select)
-            6'b000100: begin  // Slave 2 (64b)
-                fub_axi_rid = conv_64b_rid;
-                fub_axi_rdata = conv_64b_rdata;
-                fub_axi_rresp = conv_64b_rresp;
-                fub_axi_rlast = conv_64b_rlast;
-                fub_axi_rvalid = conv_64b_rvalid;
+            6'b000100: begin  // Slave 2 (256b)
+                fub_axi_rid = stream_desc_256b_r.id;
+                fub_axi_rdata = stream_desc_256b_r.data;
+                fub_axi_rresp = stream_desc_256b_r.resp;
+                fub_axi_rlast = stream_desc_256b_r.last;
+                fub_axi_rvalid = stream_desc_256b_rvalid;
             end
             default: begin
                 // No slave selected - hold defaults

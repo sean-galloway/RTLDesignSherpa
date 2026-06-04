@@ -109,25 +109,37 @@
 //                              kick line for each set bit for one cycle.
 //                              Reads as 0.
 //
-//   0xD4 - 0xDF           --  Reserved (read as 0)
+//   0xD4  DESC_SRAM_AR_HS  R  AXIL AR handshake at the desc_ram SRAM port
+//                              (s2_arvalid && s2_arready). Localizes the
+//                              wedge to bridge-vs-SRAM: if SRAM_AR_HS counts
+//                              up but R_HS doesn't, the SRAM is stuck on
+//                              read; if DESC_AR_HS (STREAM 256b) increments
+//                              but SRAM_AR_HS doesn't, the bridge converter
+//                              (256→64 or AXI4→AXIL) is stalled internally.
+//   0xD8  DESC_SRAM_R_HS   R  AXIL R handshake at the SRAM port
+//                              (s2_rvalid && s2_rready).
+//   0xDC                   --  Reserved (read as 0)
 //
 //   desc_ram observation counters. Track AXI4 (STREAM ↔ desc_ram) and
 //   AXIL (host ↔ desc_ram) valid/ready activity. All 32-bit, saturate at
 //   2^32-1, clear on CTRL.clear_stats. Lets the host answer "is the SRAM
 //   responding or is STREAM not accepting?" without touching the trace SRAM.
 //
-//   0xE0  DESC_AR_HS       R  AXI4 AR accepted (arvalid && arready)
-//   0xE4  DESC_AR_STALL    R  AXI4 AR stalled (arvalid && !arready)
-//                              -- if nonzero, desc_ram failed to grant AR
-//   0xE8  DESC_R_HS        R  AXI4 R delivered (rvalid && rready)
-//   0xEC  DESC_R_STALL     R  AXI4 R stalled (rvalid && !rready)
+//   0xE0  DESC_AR_HS       R  AXI4 AR accepted at STREAM 256b master
+//                              (desc_arvalid && desc_arready)
+//   0xE4  DESC_AR_STALL    R  AXI4 AR stalled at STREAM 256b master
+//                              (desc_arvalid && !desc_arready)
+//                              -- if nonzero, the bridge front-end stalled
+//                                 on the STREAM-side AR.
+//   0xE8  DESC_R_HS        R  AXI4 R delivered at STREAM 256b master
+//                              (desc_rvalid && desc_rready)
+//   0xEC  DESC_R_STALL     R  AXI4 R stalled (desc_rvalid && !desc_rready)
 //                              -- if nonzero, STREAM failed to accept R
-//   0xF0  DESC_AW_HS       R  AXIL AW accepted (awvalid && awready)
-//   0xF4  DESC_W_HS        R  AXIL W accepted (wvalid && wready)
-//   0xF8  DESC_B_HS        R  AXIL B delivered (bvalid && bready)
-//   0xFC  DESC_VR_LIVE     R  Live single-cycle snapshot of o_dbg_vr[15:0]
-//                              from desc_ram (zero-extended). See desc_ram.sv
-//                              for the per-bit layout.
+//   0xF0  DESC_AW_HS       R  AXIL AW handshake at SRAM port (s2_aw*)
+//   0xF4  DESC_W_HS        R  AXIL W handshake at SRAM port (s2_w*)
+//   0xF8  DESC_B_HS        R  AXIL B handshake at SRAM port (s2_b*)
+//   0xFC  DESC_VR_LIVE     R  Live single-cycle snapshot of all live
+//                              valid/ready pairs (see harness for layout).
 //
 //   AXI bus meter readback. Two meters live in this CSR space:
 //     R-meter at 0x100  -- watches the read engine's R bus
@@ -285,10 +297,12 @@ module harness_csr #(
     output logic [NUM_CHANNELS-1:0][31:0] o_kick_burst_addr,  // shadow values
 
     // =====================================================================
-    // desc_ram observation counters (read at 0xE0-0xFC, cleared by
-    // CTRL.clear_stats inside the harness). All free-running 32-bit
-    // saturating counters; per-bit live snapshot is also exposed.
+    // desc_ram observation counters (read at 0xD4/0xD8 + 0xE0-0xFC,
+    // cleared by CTRL.clear_stats inside the harness). All free-running
+    // 32-bit saturating counters; per-bit live snapshot also exposed.
     // =====================================================================
+    input  logic [31:0]                   i_desc_sram_ar_hs,
+    input  logic [31:0]                   i_desc_sram_r_hs,
     input  logic [31:0]                   i_desc_ar_hs,
     input  logic [31:0]                   i_desc_ar_stall,
     input  logic [31:0]                   i_desc_r_hs,
@@ -621,6 +635,10 @@ module harness_csr #(
                             8'h9C: r_rdata <= crc_wr_view[7];
                             8'hA0: r_rdata <= w_crc_valid_word;
                             8'hA4: r_rdata <= w_crc_match_word;
+                            // SRAM-side desc_ram handshake counters
+                            // (see 0xD4/0xD8 in the address-map docstring).
+                            8'hD4: r_rdata <= i_desc_sram_ar_hs;
+                            8'hD8: r_rdata <= i_desc_sram_r_hs;
                             // desc_ram observation counters / live valid-ready
                             // snapshot (see address-map docstring 0xE0..0xFC).
                             8'hE0: r_rdata <= i_desc_ar_hs;

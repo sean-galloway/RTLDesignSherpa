@@ -135,8 +135,14 @@ class DescriptorBuilder:
         return DESC_INDEX_OFFSET + channel * MAX_DESC_PER_CH + desc_idx
 
     def _axi4_addr(self, index: int) -> int:
-        """AXI4-side byte address for a descriptor index."""
-        return index * 32
+        """STREAM-side absolute byte address for a descriptor index.
+
+        This is the address STREAM's m_axi_desc emits to fetch the
+        descriptor — DESC_RAM_BASE + index * 32. Used for the kick
+        address and for next_descriptor_ptr fields in chained
+        descriptors.
+        """
+        return DESC_RAM_BASE + index * 32
 
     def _host_addr(self, index: int, word: int) -> int:
         """Host AXIL byte address for word `word` of descriptor `index`."""

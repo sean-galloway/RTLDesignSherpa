@@ -129,11 +129,16 @@ protocol    = "axil"
 channels    = "rw"
 id_width    = 4
 addr_width  = 32
-# Widened from 32 to 64 alongside the SRAM rewrite. A single
-# axil_sdpram_slave instance backs this slot now (64-bit native AXIL
-# port + SDP BRAM). Host writes go through the bridge's 32->64 upsize;
-# STREAM's 256-bit reads go through the 256->64 downsize.
-data_width  = 64
+# Descriptor fetches are 256-bit end-to-end by design (one descriptor =
+# one beat at the slave). The SRAM instance behind this slot is the
+# same unified axil_sdpram_slave module used by debug_sram, but with
+# DATA_WIDTH=256 here (debug_sram stays 64). Host's 32-bit writes go
+# through the bridge's 32->256 upsize; STREAM's 256-bit reads pass
+# through with no width conversion at all (the 256->64 downsize +
+# axi4_to_axil4_rd path that landed here briefly wedged on the AR
+# inside the converter — descriptor path can't tolerate extra
+# converter stages).
+data_width  = 256
 user_width  = 0
 base_addr   = "0x00020000"
 addr_range  = "0x00010000"     # 64 KB
@@ -181,3 +186,4 @@ data_width  = 32
 user_width  = 0
 base_addr   = "0x00080000"
 addr_range  = "0x00001000"     # 4 KB (DMA s_axi_lite window)
+

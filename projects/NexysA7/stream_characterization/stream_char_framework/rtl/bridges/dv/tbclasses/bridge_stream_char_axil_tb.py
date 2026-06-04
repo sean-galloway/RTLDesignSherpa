@@ -89,7 +89,7 @@ class BridgeStreamCharAxilTB(TBBase):
         self.slave_info = {
             0: ('apb', 0x00000000, 0x00001000, 32),  # stream_apb
             1: ('axil', 0x00010000, 0x00001000, 32),  # harness_csr
-            2: ('axil', 0x00020000, 0x00010000, 64),  # desc_ram
+            2: ('axil', 0x00020000, 0x00010000, 256),  # desc_ram
             3: ('axil', 0x00030000, 0x00001000, 32),  # stream_err
             4: ('axil', 0x00040000, 0x00040000, 64),  # debug_sram
             5: ('axil', 0x00080000, 0x00001000, 32),  # dma_axil
@@ -400,11 +400,11 @@ class BridgeStreamCharAxilTB(TBBase):
         # pattern; AXIL4SlaveRead/Write auto-responds from it honoring
         # whatever ARADDR / AWADDR the bridge forwards (after burst
         # decomposition by axi4_to_axil4 shims, if any).
-        bytes_per_line = 64 // 8
+        bytes_per_line = 256 // 8
         addr_range = 0x00010000
         # Cap MemoryModel size — see SLAVE_MEM_CAP_BYTES comment.
         mem_bytes = min(addr_range, self.SLAVE_MEM_CAP_BYTES)
-        preset = self._build_preset(2, addr_range, 64)
+        preset = self._build_preset(2, addr_range, 256)
         self.slave_memory[2] = MemoryModel(
             num_lines=mem_bytes // bytes_per_line,
             bytes_per_line=bytes_per_line,
@@ -415,7 +415,7 @@ class BridgeStreamCharAxilTB(TBBase):
             self.dut, self.clock,
             prefix="desc_ram_axi_",
             log=self.log,
-            data_width=64,
+            data_width=256,
             addr_width=32,
             multi_sig=True,
             memory_model=self.slave_memory[2],
@@ -425,7 +425,7 @@ class BridgeStreamCharAxilTB(TBBase):
             self.dut, self.clock,
             prefix="desc_ram_axi_",
             log=self.log,
-            data_width=64,
+            data_width=256,
             addr_width=32,
             multi_sig=True,
             memory_model=self.slave_memory[2],

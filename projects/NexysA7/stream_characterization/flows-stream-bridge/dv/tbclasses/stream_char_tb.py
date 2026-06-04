@@ -698,6 +698,167 @@ class StreamCharTB(TBBase):
             self.log.error(
                 f"  Final timer_status=0x{ts:08X} read_beats={rd_beats} "
                 f"write_beats={wr_beats} expected={expected_beats_total}")
+
+            # Dump desc_ram observation counters (0xD4/0xD8 + 0xE0..0xFC).
+            # The pair (DESC_AR_HS, DESC_SRAM_AR_HS) bisects the wedge:
+            #   DESC_AR_HS > 0 & DESC_SRAM_AR_HS == 0  → bridge converter
+            #                                            stalled (256→64
+            #                                            or AXI4→AXIL).
+            #   DESC_SRAM_AR_HS > 0 & DESC_SRAM_R_HS == 0 → SRAM stuck
+            #                                              on read path.
+            #   DESC_SRAM_R_HS > 0 & DESC_R_HS == 0 → response packing
+            #                                         (64→256) stalled.
+            self.log.error("  desc_ram observation counters:")
+            for name, addr in [
+                ("DESC_SRAM_AR_HS", HARNESS_CSR_BASE + 0xD4),
+                ("DESC_SRAM_R_HS",  HARNESS_CSR_BASE + 0xD8),
+                ("DESC_AR_HS",      HARNESS_CSR_BASE + 0xE0),
+                ("DESC_AR_STALL",   HARNESS_CSR_BASE + 0xE4),
+                ("DESC_R_HS",       HARNESS_CSR_BASE + 0xE8),
+                ("DESC_R_STALL",    HARNESS_CSR_BASE + 0xEC),
+                ("DESC_AW_HS",      HARNESS_CSR_BASE + 0xF0),
+                ("DESC_W_HS",       HARNESS_CSR_BASE + 0xF4),
+                ("DESC_B_HS",       HARNESS_CSR_BASE + 0xF8),
+                ("DESC_VR_LIVE",    HARNESS_CSR_BASE + 0xFC),
+            ]:
+                val = await self.uart_read(addr)
+                self.log.error(f"    {name:16s} @ 0x{addr:08X} = {val}"
+                               if val is None
+                               else f"    {name:16s} @ 0x{addr:08X} = 0x{val:08X}")
+
+            # Peek the LATCHED first AR (harness r_first_desc_ar* regs).
+            # STREAM only drives desc_arvalid for the handshake cycle, so
+            # the live wires read 0; the latch holds the values captured
+            # at the moment of the handshake.
+            try:
+                seen   = int(self.dut.r_first_desc_ar_seen.value)
+                araddr = int(self.dut.r_first_desc_araddr.value)
+                arlen  = int(self.dut.r_first_desc_arlen.value)
+                arsize = int(self.dut.r_first_desc_arsize.value)
+                arburst = int(self.dut.r_first_desc_arburst.value)
+                arid    = int(self.dut.r_first_desc_arid.value)
+                self.log.error(
+                    f"  First STREAM m_axi_desc AR (latched): seen={seen} "
+                    f"addr=0x{araddr:08X} len={arlen} size={arsize} "
+                    f"burst={arburst} id={arid}")
+                in_desc_range = 0x00020000 <= araddr <= 0x0002FFFF
+                self.log.error(
+                    f"  Routes to desc_ram (0x00020000..0x0002FFFF)? "
+                    f"{in_desc_range}"
+                    + ("" if in_desc_range
+                       else " — bridge skid will wedge until AR drains"))
+            except Exception as e:
+                self.log.error(f"  Could not peek latched first AR: {e}")
+
+            # SRAM-side obs peeks. The SRAM module's o_dbg_vr is the
+            # external AXIL bus (should equal s2_* mirror); o_dbg_fub_vr
+            # is the SRAM-INTERNAL fub side, between the axil4_slave_*
+            # wrappers and the BRAM glue. If the SRAM's wrapper has an
+            # AR queued but the BRAM glue hasn't fired, the fub-side AR
+            # would be valid; if the wrapper itself never received an
+            # AR, all SRAM-side bits stay 0.
+            def _decode_dbg_vr(v: int) -> str:
+                names = [
+                    "awvalid", "awready", "wvalid", "wready",
+                    "bvalid",  "bready",
+                    "arvalid", "arready", "rvalid", "rready",
+                ]
+                return " ".join(f"{n}={(v >> i) & 1}"
+                                for i, n in enumerate(names))
+            try:
+                sram_axil   = int(self.dut.w_desc_ram_dbg_vr_axil.value)
+                sram_fub    = int(self.dut.w_desc_ram_dbg_fub_vr.value)
+                sram_busyrd = int(self.dut.w_desc_ram_dbg_busy_rd.value)
+                sram_busywr = int(self.dut.w_desc_ram_dbg_busy_wr.value)
+                self.log.error(
+                    f"  SRAM o_dbg_vr     (external AXIL bus): 0x{sram_axil:03X} "
+                    f"[{_decode_dbg_vr(sram_axil)}]")
+                self.log.error(
+                    f"  SRAM o_dbg_fub_vr (post-skid fub side): 0x{sram_fub:03X} "
+                    f"[{_decode_dbg_vr(sram_fub)}]")
+                self.log.error(
+                    f"  SRAM busy_rd={sram_busyrd} busy_wr={sram_busywr} "
+                    "(wrapper-internal AR/R/AW/W in flight)")
+            except Exception as e:
+                self.log.error(f"  Could not peek SRAM obs: {e}")
+
+            # Peek the SRAM's r_mem to see the actual descriptor bytes.
+            # If the host 32->256 upsize is misaligning byte strobes, the
+            # bytes will be at the wrong positions in the 256-bit word
+            # and STREAM's descriptor parser will see CTRL_VALID=0.
+            # Index 1 = descriptor 0 for ch0 (DESC_INDEX_OFFSET=1).
+            try:
+                mem = self.dut.u_desc_ram.r_mem
+                for i in [0, 1, 2]:
+                    word = int(mem[i].value)
+                    # Decode fields per STREAM descriptor layout
+                    src    = word & ((1 << 64) - 1)
+                    dst    = (word >> 64) & ((1 << 64) - 1)
+                    length = (word >> 128) & ((1 << 32) - 1)
+                    nxt    = (word >> 160) & ((1 << 32) - 1)
+                    ctrl   = (word >> 192) & ((1 << 32) - 1)
+                    valid  = (ctrl >> 0) & 1
+                    irq    = (ctrl >> 1) & 1
+                    last   = (ctrl >> 2) & 1
+                    chid   = (ctrl >> 4) & 0xF
+                    self.log.error(
+                        f"  SRAM r_mem[{i}] = 0x{word:064X}")
+                    self.log.error(
+                        f"    src=0x{src:016X} dst=0x{dst:016X} "
+                        f"len={length} next=0x{nxt:08X}")
+                    self.log.error(
+                        f"    ctrl=0x{ctrl:08X} valid={valid} "
+                        f"irq={irq} last={last} ch={chid}")
+            except Exception as e:
+                self.log.error(f"  Could not peek SRAM r_mem: {e}")
+
+            # Bridge stream_desc_adapter internals. fub_axi_ar* are the
+            # wrapper-skid HEAD signals (what the adapter sees AFTER the
+            # external arvalid/arready handshake has stowed the AR into
+            # the skid). If fub_axi_arvalid=1 here but xbar arready=0
+            # AND comb_slave_select_ar=0, the address decode is missing
+            # slave 2 → wedged forever.
+            try:
+                adp = self.dut.u_bridge.u_stream_desc_adapter
+                fub_arvalid = int(adp.fub_axi_arvalid.value)
+                fub_arready = int(adp.fub_axi_arready.value)
+                fub_araddr  = int(adp.fub_axi_araddr.value)
+                fub_arsize  = int(adp.fub_axi_arsize.value)
+                fub_arlen   = int(adp.fub_axi_arlen.value)
+                ss_ar = int(adp.comb_slave_select_ar.value)
+                xbar_arvalid = int(adp.stream_desc_256b_arvalid.value)
+                xbar_arready = int(adp.stream_desc_256b_arready.value)
+                self.log.error(
+                    f"  bridge stream_desc_adapter fub_axi: "
+                    f"arvalid={fub_arvalid} arready={fub_arready} "
+                    f"araddr=0x{fub_araddr:08X} size={fub_arsize} "
+                    f"len={fub_arlen}")
+                self.log.error(
+                    f"  comb_slave_select_ar=0b{ss_ar:06b} "
+                    f"(bit2=slave 2 desc_ram)")
+                self.log.error(
+                    f"  xbar-side stream_desc_256b_ar: "
+                    f"valid={xbar_arvalid} ready={xbar_arready}")
+            except Exception as e:
+                self.log.error(
+                    f"  Could not peek bridge stream_desc_adapter: {e}")
+
+            # STREAM internal status (CHANNEL_IDLE/DESC_ENGINE_IDLE/SCHED_ERROR)
+            # tells us whether the scheduler is stuck or has flagged an error.
+            self.log.error("  STREAM status registers:")
+            for name, addr in [
+                ("GLOBAL_STATUS",    APB_GLOBAL_STATUS),
+                ("CHANNEL_IDLE",     STREAM_APB_BASE + 0x140),
+                ("DESC_ENGINE_IDLE", STREAM_APB_BASE + 0x144),
+                ("SCHEDULER_IDLE",   STREAM_APB_BASE + 0x148),
+                ("SCHED_ERROR",      STREAM_APB_BASE + 0x170),
+                ("AXI_RD_COMPLETE",  STREAM_APB_BASE + 0x174),
+                ("AXI_WR_COMPLETE",  STREAM_APB_BASE + 0x178),
+            ]:
+                val = await self.uart_read(addr)
+                self.log.error(f"    {name:18s} @ 0x{addr:08X} = {val}"
+                               if val is None
+                               else f"    {name:18s} @ 0x{addr:08X} = 0x{val:08X}")
             return False
 
         if any_error:

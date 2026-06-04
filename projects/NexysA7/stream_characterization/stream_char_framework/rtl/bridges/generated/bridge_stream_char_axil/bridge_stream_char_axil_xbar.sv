@@ -49,28 +49,44 @@ module bridge_stream_char_axil_xbar (
     output axi4_r_64b_t  host_64b_r,
     output logic         host_64b_rvalid,
     input  logic         host_64b_rready,
+    // 256b path
+    input  axi4_aw_t     host_256b_aw,
+    input  logic         host_256b_awvalid,
+    output logic         host_256b_awready,
+    input  axi4_w_256b_t  host_256b_w,
+    input  logic         host_256b_wvalid,
+    output logic         host_256b_wready,
+    output axi4_b_t      host_256b_b,
+    output logic         host_256b_bvalid,
+    input  logic         host_256b_bready,
+    input  axi4_ar_t     host_256b_ar,
+    input  logic         host_256b_arvalid,
+    output logic         host_256b_arready,
+    output axi4_r_256b_t  host_256b_r,
+    output logic         host_256b_rvalid,
+    input  logic         host_256b_rready,
 
     // stream_desc adapter outputs (multiple width paths)
     input  logic [NUM_SLAVES-1:0] stream_desc_slave_select_aw,
     input  logic [BRIDGE_ID_WIDTH-1:0] stream_desc_bridge_id_aw,
     input  logic [NUM_SLAVES-1:0] stream_desc_slave_select_ar,
     input  logic [BRIDGE_ID_WIDTH-1:0] stream_desc_bridge_id_ar,
-    // 64b path
-    input  axi4_aw_t     stream_desc_64b_aw,
-    input  logic         stream_desc_64b_awvalid,
-    output logic         stream_desc_64b_awready,
-    input  axi4_w_64b_t  stream_desc_64b_w,
-    input  logic         stream_desc_64b_wvalid,
-    output logic         stream_desc_64b_wready,
-    output axi4_b_t      stream_desc_64b_b,
-    output logic         stream_desc_64b_bvalid,
-    input  logic         stream_desc_64b_bready,
-    input  axi4_ar_t     stream_desc_64b_ar,
-    input  logic         stream_desc_64b_arvalid,
-    output logic         stream_desc_64b_arready,
-    output axi4_r_64b_t  stream_desc_64b_r,
-    output logic         stream_desc_64b_rvalid,
-    input  logic         stream_desc_64b_rready,
+    // 256b path
+    input  axi4_aw_t     stream_desc_256b_aw,
+    input  logic         stream_desc_256b_awvalid,
+    output logic         stream_desc_256b_awready,
+    input  axi4_w_256b_t  stream_desc_256b_w,
+    input  logic         stream_desc_256b_wvalid,
+    output logic         stream_desc_256b_wready,
+    output axi4_b_t      stream_desc_256b_b,
+    output logic         stream_desc_256b_bvalid,
+    input  logic         stream_desc_256b_bready,
+    input  axi4_ar_t     stream_desc_256b_ar,
+    input  logic         stream_desc_256b_arvalid,
+    output logic         stream_desc_256b_arready,
+    output axi4_r_256b_t  stream_desc_256b_r,
+    output logic         stream_desc_256b_rvalid,
+    input  logic         stream_desc_256b_rready,
 
     // monbus_wr adapter outputs (multiple width paths)
     input  logic [NUM_SLAVES-1:0] monbus_wr_slave_select_aw,
@@ -233,8 +249,8 @@ module bridge_stream_char_axil_xbar (
     output  logic         desc_ram_axi_awvalid,
     input  logic         desc_ram_axi_awready,
 
-    output  logic [63:0]  desc_ram_axi_wdata,
-    output  logic [7:0]  desc_ram_axi_wstrb,
+    output  logic [255:0]  desc_ram_axi_wdata,
+    output  logic [31:0]  desc_ram_axi_wstrb,
     output  logic         desc_ram_axi_wlast,
     output  logic         desc_ram_axi_wuser,
     output  logic         desc_ram_axi_wvalid,
@@ -261,7 +277,7 @@ module bridge_stream_char_axil_xbar (
     input  logic         desc_ram_axi_arready,
 
     input  logic [3:0]  desc_ram_axi_rid,
-    input  logic [63:0]  desc_ram_axi_rdata,
+    input  logic [255:0]  desc_ram_axi_rdata,
     input  logic [1:0]  desc_ram_axi_rresp,
     input  logic         desc_ram_axi_rlast,
     input  logic         desc_ram_axi_ruser,
@@ -601,128 +617,128 @@ module bridge_stream_char_axil_xbar (
 
 
     // ================================================================
-    // Slave 2: desc_ram (64b)
+    // Slave 2: desc_ram (256b)
     // ================================================================
     // Multi-master (2 masters) → desc_ram
     //   - host (rw)
     //   - stream_desc (rw)
 
-    wire host_64b_aw_to_desc_ram = ((host_64b_aw.addr >= 32'h00020000) && (host_64b_aw.addr <= 32'h0002ffff));
-    wire host_64b_ar_to_desc_ram = ((host_64b_ar.addr >= 32'h00020000) && (host_64b_ar.addr <= 32'h0002ffff));
-    wire stream_desc_64b_aw_to_desc_ram = ((stream_desc_64b_aw.addr >= 32'h00020000) && (stream_desc_64b_aw.addr <= 32'h0002ffff));
-    wire stream_desc_64b_ar_to_desc_ram = ((stream_desc_64b_ar.addr >= 32'h00020000) && (stream_desc_64b_ar.addr <= 32'h0002ffff));
+    wire host_256b_aw_to_desc_ram = ((host_256b_aw.addr >= 32'h00020000) && (host_256b_aw.addr <= 32'h0002ffff));
+    wire host_256b_ar_to_desc_ram = ((host_256b_ar.addr >= 32'h00020000) && (host_256b_ar.addr <= 32'h0002ffff));
+    wire stream_desc_256b_aw_to_desc_ram = ((stream_desc_256b_aw.addr >= 32'h00020000) && (stream_desc_256b_aw.addr <= 32'h0002ffff));
+    wire stream_desc_256b_ar_to_desc_ram = ((stream_desc_256b_ar.addr >= 32'h00020000) && (stream_desc_256b_ar.addr <= 32'h0002ffff));
 
     // AW channel (OR-merged across writing masters)
-    assign desc_ram_axi_awid = ((host_64b_aw_to_desc_ram && host_64b_awvalid) ? host_64b_aw.id : '0) |
-        ((stream_desc_64b_aw_to_desc_ram && stream_desc_64b_awvalid) ? stream_desc_64b_aw.id : '0);
-    assign desc_ram_axi_awaddr = ((host_64b_aw_to_desc_ram && host_64b_awvalid) ? host_64b_aw.addr : '0) |
-        ((stream_desc_64b_aw_to_desc_ram && stream_desc_64b_awvalid) ? stream_desc_64b_aw.addr : '0);
-    assign desc_ram_axi_awlen = ((host_64b_aw_to_desc_ram && host_64b_awvalid) ? host_64b_aw.len : '0) |
-        ((stream_desc_64b_aw_to_desc_ram && stream_desc_64b_awvalid) ? stream_desc_64b_aw.len : '0);
-    assign desc_ram_axi_awsize = ((host_64b_aw_to_desc_ram && host_64b_awvalid) ? host_64b_aw.size : '0) |
-        ((stream_desc_64b_aw_to_desc_ram && stream_desc_64b_awvalid) ? stream_desc_64b_aw.size : '0);
-    assign desc_ram_axi_awburst = ((host_64b_aw_to_desc_ram && host_64b_awvalid) ? host_64b_aw.burst : '0) |
-        ((stream_desc_64b_aw_to_desc_ram && stream_desc_64b_awvalid) ? stream_desc_64b_aw.burst : '0);
-    assign desc_ram_axi_awlock = ((host_64b_aw_to_desc_ram && host_64b_awvalid) ? host_64b_aw.lock : '0) |
-        ((stream_desc_64b_aw_to_desc_ram && stream_desc_64b_awvalid) ? stream_desc_64b_aw.lock : '0);
-    assign desc_ram_axi_awcache = ((host_64b_aw_to_desc_ram && host_64b_awvalid) ? host_64b_aw.cache : '0) |
-        ((stream_desc_64b_aw_to_desc_ram && stream_desc_64b_awvalid) ? stream_desc_64b_aw.cache : '0);
-    assign desc_ram_axi_awprot = ((host_64b_aw_to_desc_ram && host_64b_awvalid) ? host_64b_aw.prot : '0) |
-        ((stream_desc_64b_aw_to_desc_ram && stream_desc_64b_awvalid) ? stream_desc_64b_aw.prot : '0);
-    assign desc_ram_axi_awvalid = ((host_64b_aw_to_desc_ram && host_64b_awvalid) ? host_64b_awvalid : '0) |
-        ((stream_desc_64b_aw_to_desc_ram && stream_desc_64b_awvalid) ? stream_desc_64b_awvalid : '0);
+    assign desc_ram_axi_awid = ((host_256b_aw_to_desc_ram && host_256b_awvalid) ? host_256b_aw.id : '0) |
+        ((stream_desc_256b_aw_to_desc_ram && stream_desc_256b_awvalid) ? stream_desc_256b_aw.id : '0);
+    assign desc_ram_axi_awaddr = ((host_256b_aw_to_desc_ram && host_256b_awvalid) ? host_256b_aw.addr : '0) |
+        ((stream_desc_256b_aw_to_desc_ram && stream_desc_256b_awvalid) ? stream_desc_256b_aw.addr : '0);
+    assign desc_ram_axi_awlen = ((host_256b_aw_to_desc_ram && host_256b_awvalid) ? host_256b_aw.len : '0) |
+        ((stream_desc_256b_aw_to_desc_ram && stream_desc_256b_awvalid) ? stream_desc_256b_aw.len : '0);
+    assign desc_ram_axi_awsize = ((host_256b_aw_to_desc_ram && host_256b_awvalid) ? host_256b_aw.size : '0) |
+        ((stream_desc_256b_aw_to_desc_ram && stream_desc_256b_awvalid) ? stream_desc_256b_aw.size : '0);
+    assign desc_ram_axi_awburst = ((host_256b_aw_to_desc_ram && host_256b_awvalid) ? host_256b_aw.burst : '0) |
+        ((stream_desc_256b_aw_to_desc_ram && stream_desc_256b_awvalid) ? stream_desc_256b_aw.burst : '0);
+    assign desc_ram_axi_awlock = ((host_256b_aw_to_desc_ram && host_256b_awvalid) ? host_256b_aw.lock : '0) |
+        ((stream_desc_256b_aw_to_desc_ram && stream_desc_256b_awvalid) ? stream_desc_256b_aw.lock : '0);
+    assign desc_ram_axi_awcache = ((host_256b_aw_to_desc_ram && host_256b_awvalid) ? host_256b_aw.cache : '0) |
+        ((stream_desc_256b_aw_to_desc_ram && stream_desc_256b_awvalid) ? stream_desc_256b_aw.cache : '0);
+    assign desc_ram_axi_awprot = ((host_256b_aw_to_desc_ram && host_256b_awvalid) ? host_256b_aw.prot : '0) |
+        ((stream_desc_256b_aw_to_desc_ram && stream_desc_256b_awvalid) ? stream_desc_256b_aw.prot : '0);
+    assign desc_ram_axi_awvalid = ((host_256b_aw_to_desc_ram && host_256b_awvalid) ? host_256b_awvalid : '0) |
+        ((stream_desc_256b_aw_to_desc_ram && stream_desc_256b_awvalid) ? stream_desc_256b_awvalid : '0);
 
     // AW->W tracking FIFO: host -> desc_ram
-    logic host_64b_w_to_desc_ram;
-    logic [3:0] host_64b_aw_to_desc_ram_w_wptr, host_64b_aw_to_desc_ram_w_rptr;
-    logic host_64b_aw_to_desc_ram_w_mem [16];
-    logic host_64b_aw_to_desc_ram_w_push, host_64b_aw_to_desc_ram_w_pop;
-    assign host_64b_aw_to_desc_ram_w_push = host_64b_awvalid && host_64b_awready && host_64b_aw_to_desc_ram;
-    assign host_64b_aw_to_desc_ram_w_pop  = host_64b_wvalid && host_64b_wready && host_64b_w.last && host_64b_w_to_desc_ram;
+    logic host_256b_w_to_desc_ram;
+    logic [3:0] host_256b_aw_to_desc_ram_w_wptr, host_256b_aw_to_desc_ram_w_rptr;
+    logic host_256b_aw_to_desc_ram_w_mem [16];
+    logic host_256b_aw_to_desc_ram_w_push, host_256b_aw_to_desc_ram_w_pop;
+    assign host_256b_aw_to_desc_ram_w_push = host_256b_awvalid && host_256b_awready && host_256b_aw_to_desc_ram;
+    assign host_256b_aw_to_desc_ram_w_pop  = host_256b_wvalid && host_256b_wready && host_256b_w.last && host_256b_w_to_desc_ram;
     always_ff @(posedge aclk or negedge aresetn) begin
         if (!aresetn) begin
-            host_64b_aw_to_desc_ram_w_wptr <= '0;
-            host_64b_aw_to_desc_ram_w_rptr <= '0;
+            host_256b_aw_to_desc_ram_w_wptr <= '0;
+            host_256b_aw_to_desc_ram_w_rptr <= '0;
         end else begin
-            if (host_64b_aw_to_desc_ram_w_push) begin
-                host_64b_aw_to_desc_ram_w_mem[host_64b_aw_to_desc_ram_w_wptr] <= 1'b1;
-                host_64b_aw_to_desc_ram_w_wptr <= host_64b_aw_to_desc_ram_w_wptr + 1'b1;
+            if (host_256b_aw_to_desc_ram_w_push) begin
+                host_256b_aw_to_desc_ram_w_mem[host_256b_aw_to_desc_ram_w_wptr] <= 1'b1;
+                host_256b_aw_to_desc_ram_w_wptr <= host_256b_aw_to_desc_ram_w_wptr + 1'b1;
             end
-            if (host_64b_aw_to_desc_ram_w_pop) begin
-                host_64b_aw_to_desc_ram_w_rptr <= host_64b_aw_to_desc_ram_w_rptr + 1'b1;
+            if (host_256b_aw_to_desc_ram_w_pop) begin
+                host_256b_aw_to_desc_ram_w_rptr <= host_256b_aw_to_desc_ram_w_rptr + 1'b1;
             end
         end
     end
-    assign host_64b_w_to_desc_ram = (host_64b_aw_to_desc_ram_w_wptr != host_64b_aw_to_desc_ram_w_rptr) ? host_64b_aw_to_desc_ram_w_mem[host_64b_aw_to_desc_ram_w_rptr] : 1'b0;
+    assign host_256b_w_to_desc_ram = (host_256b_aw_to_desc_ram_w_wptr != host_256b_aw_to_desc_ram_w_rptr) ? host_256b_aw_to_desc_ram_w_mem[host_256b_aw_to_desc_ram_w_rptr] : 1'b0;
 
     // AW->W tracking FIFO: stream_desc -> desc_ram
-    logic stream_desc_64b_w_to_desc_ram;
-    logic [3:0] stream_desc_64b_aw_to_desc_ram_w_wptr, stream_desc_64b_aw_to_desc_ram_w_rptr;
-    logic stream_desc_64b_aw_to_desc_ram_w_mem [16];
-    logic stream_desc_64b_aw_to_desc_ram_w_push, stream_desc_64b_aw_to_desc_ram_w_pop;
-    assign stream_desc_64b_aw_to_desc_ram_w_push = stream_desc_64b_awvalid && stream_desc_64b_awready && stream_desc_64b_aw_to_desc_ram;
-    assign stream_desc_64b_aw_to_desc_ram_w_pop  = stream_desc_64b_wvalid && stream_desc_64b_wready && stream_desc_64b_w.last && stream_desc_64b_w_to_desc_ram;
+    logic stream_desc_256b_w_to_desc_ram;
+    logic [3:0] stream_desc_256b_aw_to_desc_ram_w_wptr, stream_desc_256b_aw_to_desc_ram_w_rptr;
+    logic stream_desc_256b_aw_to_desc_ram_w_mem [16];
+    logic stream_desc_256b_aw_to_desc_ram_w_push, stream_desc_256b_aw_to_desc_ram_w_pop;
+    assign stream_desc_256b_aw_to_desc_ram_w_push = stream_desc_256b_awvalid && stream_desc_256b_awready && stream_desc_256b_aw_to_desc_ram;
+    assign stream_desc_256b_aw_to_desc_ram_w_pop  = stream_desc_256b_wvalid && stream_desc_256b_wready && stream_desc_256b_w.last && stream_desc_256b_w_to_desc_ram;
     always_ff @(posedge aclk or negedge aresetn) begin
         if (!aresetn) begin
-            stream_desc_64b_aw_to_desc_ram_w_wptr <= '0;
-            stream_desc_64b_aw_to_desc_ram_w_rptr <= '0;
+            stream_desc_256b_aw_to_desc_ram_w_wptr <= '0;
+            stream_desc_256b_aw_to_desc_ram_w_rptr <= '0;
         end else begin
-            if (stream_desc_64b_aw_to_desc_ram_w_push) begin
-                stream_desc_64b_aw_to_desc_ram_w_mem[stream_desc_64b_aw_to_desc_ram_w_wptr] <= 1'b1;
-                stream_desc_64b_aw_to_desc_ram_w_wptr <= stream_desc_64b_aw_to_desc_ram_w_wptr + 1'b1;
+            if (stream_desc_256b_aw_to_desc_ram_w_push) begin
+                stream_desc_256b_aw_to_desc_ram_w_mem[stream_desc_256b_aw_to_desc_ram_w_wptr] <= 1'b1;
+                stream_desc_256b_aw_to_desc_ram_w_wptr <= stream_desc_256b_aw_to_desc_ram_w_wptr + 1'b1;
             end
-            if (stream_desc_64b_aw_to_desc_ram_w_pop) begin
-                stream_desc_64b_aw_to_desc_ram_w_rptr <= stream_desc_64b_aw_to_desc_ram_w_rptr + 1'b1;
+            if (stream_desc_256b_aw_to_desc_ram_w_pop) begin
+                stream_desc_256b_aw_to_desc_ram_w_rptr <= stream_desc_256b_aw_to_desc_ram_w_rptr + 1'b1;
             end
         end
     end
-    assign stream_desc_64b_w_to_desc_ram = (stream_desc_64b_aw_to_desc_ram_w_wptr != stream_desc_64b_aw_to_desc_ram_w_rptr) ? stream_desc_64b_aw_to_desc_ram_w_mem[stream_desc_64b_aw_to_desc_ram_w_rptr] : 1'b0;
+    assign stream_desc_256b_w_to_desc_ram = (stream_desc_256b_aw_to_desc_ram_w_wptr != stream_desc_256b_aw_to_desc_ram_w_rptr) ? stream_desc_256b_aw_to_desc_ram_w_mem[stream_desc_256b_aw_to_desc_ram_w_rptr] : 1'b0;
 
     // W channel (OR-merged across writing masters, gated by w_to_<slave> FIFO)
-    assign desc_ram_axi_wdata = ((host_64b_w_to_desc_ram && host_64b_wvalid) ? host_64b_w.data : '0) |
-        ((stream_desc_64b_w_to_desc_ram && stream_desc_64b_wvalid) ? stream_desc_64b_w.data : '0);
-    assign desc_ram_axi_wstrb = ((host_64b_w_to_desc_ram && host_64b_wvalid) ? host_64b_w.strb : '0) |
-        ((stream_desc_64b_w_to_desc_ram && stream_desc_64b_wvalid) ? stream_desc_64b_w.strb : '0);
-    assign desc_ram_axi_wlast = ((host_64b_w_to_desc_ram && host_64b_wvalid) ? host_64b_w.last : '0) |
-        ((stream_desc_64b_w_to_desc_ram && stream_desc_64b_wvalid) ? stream_desc_64b_w.last : '0);
-    assign desc_ram_axi_wvalid = ((host_64b_w_to_desc_ram && host_64b_wvalid) ? host_64b_wvalid : '0) |
-        ((stream_desc_64b_w_to_desc_ram && stream_desc_64b_wvalid) ? stream_desc_64b_wvalid : '0);
+    assign desc_ram_axi_wdata = ((host_256b_w_to_desc_ram && host_256b_wvalid) ? host_256b_w.data : '0) |
+        ((stream_desc_256b_w_to_desc_ram && stream_desc_256b_wvalid) ? stream_desc_256b_w.data : '0);
+    assign desc_ram_axi_wstrb = ((host_256b_w_to_desc_ram && host_256b_wvalid) ? host_256b_w.strb : '0) |
+        ((stream_desc_256b_w_to_desc_ram && stream_desc_256b_wvalid) ? stream_desc_256b_w.strb : '0);
+    assign desc_ram_axi_wlast = ((host_256b_w_to_desc_ram && host_256b_wvalid) ? host_256b_w.last : '0) |
+        ((stream_desc_256b_w_to_desc_ram && stream_desc_256b_wvalid) ? stream_desc_256b_w.last : '0);
+    assign desc_ram_axi_wvalid = ((host_256b_w_to_desc_ram && host_256b_wvalid) ? host_256b_wvalid : '0) |
+        ((stream_desc_256b_w_to_desc_ram && stream_desc_256b_wvalid) ? stream_desc_256b_wvalid : '0);
 
     // Bready (slave → owning master, by bid_bridge_id)
-    assign desc_ram_axi_bready = ((desc_ram_axi_bid_bridge_id == 0) && desc_ram_axi_bid_valid ? host_64b_bready : '0) |
-        ((desc_ram_axi_bid_bridge_id == 1) && desc_ram_axi_bid_valid ? stream_desc_64b_bready : '0);
+    assign desc_ram_axi_bready = ((desc_ram_axi_bid_bridge_id == 0) && desc_ram_axi_bid_valid ? host_256b_bready : '0) |
+        ((desc_ram_axi_bid_bridge_id == 1) && desc_ram_axi_bid_valid ? stream_desc_256b_bready : '0);
 
     // Bridge ID (writes) — picks the originating master's id
-    assign desc_ram_axi_bridge_id_aw = ((host_64b_aw_to_desc_ram && host_64b_awvalid) ? host_bridge_id_aw : '0) |
-        ((stream_desc_64b_aw_to_desc_ram && stream_desc_64b_awvalid) ? stream_desc_bridge_id_aw : '0);
+    assign desc_ram_axi_bridge_id_aw = ((host_256b_aw_to_desc_ram && host_256b_awvalid) ? host_bridge_id_aw : '0) |
+        ((stream_desc_256b_aw_to_desc_ram && stream_desc_256b_awvalid) ? stream_desc_bridge_id_aw : '0);
 
     // AR channel (OR-merged across reading masters)
-    assign desc_ram_axi_arid = ((host_64b_ar_to_desc_ram && host_64b_arvalid) ? host_64b_ar.id : '0) |
-        ((stream_desc_64b_ar_to_desc_ram && stream_desc_64b_arvalid) ? stream_desc_64b_ar.id : '0);
-    assign desc_ram_axi_araddr = ((host_64b_ar_to_desc_ram && host_64b_arvalid) ? host_64b_ar.addr : '0) |
-        ((stream_desc_64b_ar_to_desc_ram && stream_desc_64b_arvalid) ? stream_desc_64b_ar.addr : '0);
-    assign desc_ram_axi_arlen = ((host_64b_ar_to_desc_ram && host_64b_arvalid) ? host_64b_ar.len : '0) |
-        ((stream_desc_64b_ar_to_desc_ram && stream_desc_64b_arvalid) ? stream_desc_64b_ar.len : '0);
-    assign desc_ram_axi_arsize = ((host_64b_ar_to_desc_ram && host_64b_arvalid) ? host_64b_ar.size : '0) |
-        ((stream_desc_64b_ar_to_desc_ram && stream_desc_64b_arvalid) ? stream_desc_64b_ar.size : '0);
-    assign desc_ram_axi_arburst = ((host_64b_ar_to_desc_ram && host_64b_arvalid) ? host_64b_ar.burst : '0) |
-        ((stream_desc_64b_ar_to_desc_ram && stream_desc_64b_arvalid) ? stream_desc_64b_ar.burst : '0);
-    assign desc_ram_axi_arlock = ((host_64b_ar_to_desc_ram && host_64b_arvalid) ? host_64b_ar.lock : '0) |
-        ((stream_desc_64b_ar_to_desc_ram && stream_desc_64b_arvalid) ? stream_desc_64b_ar.lock : '0);
-    assign desc_ram_axi_arcache = ((host_64b_ar_to_desc_ram && host_64b_arvalid) ? host_64b_ar.cache : '0) |
-        ((stream_desc_64b_ar_to_desc_ram && stream_desc_64b_arvalid) ? stream_desc_64b_ar.cache : '0);
-    assign desc_ram_axi_arprot = ((host_64b_ar_to_desc_ram && host_64b_arvalid) ? host_64b_ar.prot : '0) |
-        ((stream_desc_64b_ar_to_desc_ram && stream_desc_64b_arvalid) ? stream_desc_64b_ar.prot : '0);
-    assign desc_ram_axi_arvalid = ((host_64b_ar_to_desc_ram && host_64b_arvalid) ? host_64b_arvalid : '0) |
-        ((stream_desc_64b_ar_to_desc_ram && stream_desc_64b_arvalid) ? stream_desc_64b_arvalid : '0);
+    assign desc_ram_axi_arid = ((host_256b_ar_to_desc_ram && host_256b_arvalid) ? host_256b_ar.id : '0) |
+        ((stream_desc_256b_ar_to_desc_ram && stream_desc_256b_arvalid) ? stream_desc_256b_ar.id : '0);
+    assign desc_ram_axi_araddr = ((host_256b_ar_to_desc_ram && host_256b_arvalid) ? host_256b_ar.addr : '0) |
+        ((stream_desc_256b_ar_to_desc_ram && stream_desc_256b_arvalid) ? stream_desc_256b_ar.addr : '0);
+    assign desc_ram_axi_arlen = ((host_256b_ar_to_desc_ram && host_256b_arvalid) ? host_256b_ar.len : '0) |
+        ((stream_desc_256b_ar_to_desc_ram && stream_desc_256b_arvalid) ? stream_desc_256b_ar.len : '0);
+    assign desc_ram_axi_arsize = ((host_256b_ar_to_desc_ram && host_256b_arvalid) ? host_256b_ar.size : '0) |
+        ((stream_desc_256b_ar_to_desc_ram && stream_desc_256b_arvalid) ? stream_desc_256b_ar.size : '0);
+    assign desc_ram_axi_arburst = ((host_256b_ar_to_desc_ram && host_256b_arvalid) ? host_256b_ar.burst : '0) |
+        ((stream_desc_256b_ar_to_desc_ram && stream_desc_256b_arvalid) ? stream_desc_256b_ar.burst : '0);
+    assign desc_ram_axi_arlock = ((host_256b_ar_to_desc_ram && host_256b_arvalid) ? host_256b_ar.lock : '0) |
+        ((stream_desc_256b_ar_to_desc_ram && stream_desc_256b_arvalid) ? stream_desc_256b_ar.lock : '0);
+    assign desc_ram_axi_arcache = ((host_256b_ar_to_desc_ram && host_256b_arvalid) ? host_256b_ar.cache : '0) |
+        ((stream_desc_256b_ar_to_desc_ram && stream_desc_256b_arvalid) ? stream_desc_256b_ar.cache : '0);
+    assign desc_ram_axi_arprot = ((host_256b_ar_to_desc_ram && host_256b_arvalid) ? host_256b_ar.prot : '0) |
+        ((stream_desc_256b_ar_to_desc_ram && stream_desc_256b_arvalid) ? stream_desc_256b_ar.prot : '0);
+    assign desc_ram_axi_arvalid = ((host_256b_ar_to_desc_ram && host_256b_arvalid) ? host_256b_arvalid : '0) |
+        ((stream_desc_256b_ar_to_desc_ram && stream_desc_256b_arvalid) ? stream_desc_256b_arvalid : '0);
 
     // Rready (slave → owning master, by rid_bridge_id)
-    assign desc_ram_axi_rready = ((desc_ram_axi_rid_bridge_id == 0) && desc_ram_axi_rid_valid ? host_64b_rready : '0) |
-        ((desc_ram_axi_rid_bridge_id == 1) && desc_ram_axi_rid_valid ? stream_desc_64b_rready : '0);
+    assign desc_ram_axi_rready = ((desc_ram_axi_rid_bridge_id == 0) && desc_ram_axi_rid_valid ? host_256b_rready : '0) |
+        ((desc_ram_axi_rid_bridge_id == 1) && desc_ram_axi_rid_valid ? stream_desc_256b_rready : '0);
 
     // Bridge ID (reads) — picks the originating master's id
-    assign desc_ram_axi_bridge_id_ar = ((host_64b_ar_to_desc_ram && host_64b_arvalid) ? host_bridge_id_ar : '0) |
-        ((stream_desc_64b_ar_to_desc_ram && stream_desc_64b_arvalid) ? stream_desc_bridge_id_ar : '0);
+    assign desc_ram_axi_bridge_id_ar = ((host_256b_ar_to_desc_ram && host_256b_arvalid) ? host_bridge_id_ar : '0) |
+        ((stream_desc_256b_ar_to_desc_ram && stream_desc_256b_arvalid) ? stream_desc_bridge_id_ar : '0);
 
 
     // ================================================================
@@ -1076,82 +1092,106 @@ module bridge_stream_char_axil_xbar (
 
     // Master: host, Width path: 64b
     assign host_64b_awready = 
-        (host_64b_aw_to_desc_ram ? desc_ram_axi_awready : '0) |
         (host_64b_aw_to_debug_sram ? debug_sram_axi_awready : '0);
 
     assign host_64b_wready = 
-        (host_64b_w_to_desc_ram ? desc_ram_axi_wready : '0) |
         (host_64b_w_to_debug_sram ? debug_sram_axi_wready : '0);
 
     assign host_64b_b.id = 
-        ((desc_ram_axi_bid_bridge_id == 0) && desc_ram_axi_bid_valid ? desc_ram_axi_bid : '0) |
         ((debug_sram_axi_bid_bridge_id == 0) && debug_sram_axi_bid_valid ? debug_sram_axi_bid : '0);
 
     assign host_64b_b.resp = 
-        ((desc_ram_axi_bid_bridge_id == 0) && desc_ram_axi_bid_valid ? desc_ram_axi_bresp : '0) |
         ((debug_sram_axi_bid_bridge_id == 0) && debug_sram_axi_bid_valid ? debug_sram_axi_bresp : '0);
 
     assign host_64b_bvalid = 
-        ((desc_ram_axi_bid_bridge_id == 0) && desc_ram_axi_bid_valid ? desc_ram_axi_bvalid : '0) |
         ((debug_sram_axi_bid_bridge_id == 0) && debug_sram_axi_bid_valid ? debug_sram_axi_bvalid : '0);
 
     assign host_64b_arready = 
-        (host_64b_ar_to_desc_ram ? desc_ram_axi_arready : '0) |
         (host_64b_ar_to_debug_sram ? debug_sram_axi_arready : '0);
 
     assign host_64b_r.id = 
-        ((desc_ram_axi_rid_bridge_id == 0) && desc_ram_axi_rid_valid ? desc_ram_axi_rid : '0) |
         ((debug_sram_axi_rid_bridge_id == 0) && debug_sram_axi_rid_valid ? debug_sram_axi_rid : '0);
 
     assign host_64b_r.data = 
-        ((desc_ram_axi_rid_bridge_id == 0) && desc_ram_axi_rid_valid ? desc_ram_axi_rdata : 64'b0) |
         ((debug_sram_axi_rid_bridge_id == 0) && debug_sram_axi_rid_valid ? debug_sram_axi_rdata : 64'b0);
 
     assign host_64b_r.resp = 
-        ((desc_ram_axi_rid_bridge_id == 0) && desc_ram_axi_rid_valid ? desc_ram_axi_rresp : '0) |
         ((debug_sram_axi_rid_bridge_id == 0) && debug_sram_axi_rid_valid ? debug_sram_axi_rresp : '0);
 
     assign host_64b_r.last = 
-        ((desc_ram_axi_rid_bridge_id == 0) && desc_ram_axi_rid_valid ? desc_ram_axi_rlast : '0) |
         ((debug_sram_axi_rid_bridge_id == 0) && debug_sram_axi_rid_valid ? debug_sram_axi_rlast : '0);
 
     assign host_64b_rvalid = 
-        ((desc_ram_axi_rid_bridge_id == 0) && desc_ram_axi_rid_valid ? desc_ram_axi_rvalid : '0) |
         ((debug_sram_axi_rid_bridge_id == 0) && debug_sram_axi_rid_valid ? debug_sram_axi_rvalid : '0);
 
 
-    // Master: stream_desc, Width path: 64b
-    assign stream_desc_64b_awready = 
-        (stream_desc_64b_aw_to_desc_ram ? desc_ram_axi_awready : '0);
+    // Master: host, Width path: 256b
+    assign host_256b_awready = 
+        (host_256b_aw_to_desc_ram ? desc_ram_axi_awready : '0);
 
-    assign stream_desc_64b_wready = 
-        (stream_desc_64b_w_to_desc_ram ? desc_ram_axi_wready : '0);
+    assign host_256b_wready = 
+        (host_256b_w_to_desc_ram ? desc_ram_axi_wready : '0);
 
-    assign stream_desc_64b_b.id = 
+    assign host_256b_b.id = 
+        ((desc_ram_axi_bid_bridge_id == 0) && desc_ram_axi_bid_valid ? desc_ram_axi_bid : '0);
+
+    assign host_256b_b.resp = 
+        ((desc_ram_axi_bid_bridge_id == 0) && desc_ram_axi_bid_valid ? desc_ram_axi_bresp : '0);
+
+    assign host_256b_bvalid = 
+        ((desc_ram_axi_bid_bridge_id == 0) && desc_ram_axi_bid_valid ? desc_ram_axi_bvalid : '0);
+
+    assign host_256b_arready = 
+        (host_256b_ar_to_desc_ram ? desc_ram_axi_arready : '0);
+
+    assign host_256b_r.id = 
+        ((desc_ram_axi_rid_bridge_id == 0) && desc_ram_axi_rid_valid ? desc_ram_axi_rid : '0);
+
+    assign host_256b_r.data = 
+        ((desc_ram_axi_rid_bridge_id == 0) && desc_ram_axi_rid_valid ? desc_ram_axi_rdata : 256'b0);
+
+    assign host_256b_r.resp = 
+        ((desc_ram_axi_rid_bridge_id == 0) && desc_ram_axi_rid_valid ? desc_ram_axi_rresp : '0);
+
+    assign host_256b_r.last = 
+        ((desc_ram_axi_rid_bridge_id == 0) && desc_ram_axi_rid_valid ? desc_ram_axi_rlast : '0);
+
+    assign host_256b_rvalid = 
+        ((desc_ram_axi_rid_bridge_id == 0) && desc_ram_axi_rid_valid ? desc_ram_axi_rvalid : '0);
+
+
+    // Master: stream_desc, Width path: 256b
+    assign stream_desc_256b_awready = 
+        (stream_desc_256b_aw_to_desc_ram ? desc_ram_axi_awready : '0);
+
+    assign stream_desc_256b_wready = 
+        (stream_desc_256b_w_to_desc_ram ? desc_ram_axi_wready : '0);
+
+    assign stream_desc_256b_b.id = 
         ((desc_ram_axi_bid_bridge_id == 1) && desc_ram_axi_bid_valid ? desc_ram_axi_bid : '0);
 
-    assign stream_desc_64b_b.resp = 
+    assign stream_desc_256b_b.resp = 
         ((desc_ram_axi_bid_bridge_id == 1) && desc_ram_axi_bid_valid ? desc_ram_axi_bresp : '0);
 
-    assign stream_desc_64b_bvalid = 
+    assign stream_desc_256b_bvalid = 
         ((desc_ram_axi_bid_bridge_id == 1) && desc_ram_axi_bid_valid ? desc_ram_axi_bvalid : '0);
 
-    assign stream_desc_64b_arready = 
-        (stream_desc_64b_ar_to_desc_ram ? desc_ram_axi_arready : '0);
+    assign stream_desc_256b_arready = 
+        (stream_desc_256b_ar_to_desc_ram ? desc_ram_axi_arready : '0);
 
-    assign stream_desc_64b_r.id = 
+    assign stream_desc_256b_r.id = 
         ((desc_ram_axi_rid_bridge_id == 1) && desc_ram_axi_rid_valid ? desc_ram_axi_rid : '0);
 
-    assign stream_desc_64b_r.data = 
-        ((desc_ram_axi_rid_bridge_id == 1) && desc_ram_axi_rid_valid ? desc_ram_axi_rdata : 64'b0);
+    assign stream_desc_256b_r.data = 
+        ((desc_ram_axi_rid_bridge_id == 1) && desc_ram_axi_rid_valid ? desc_ram_axi_rdata : 256'b0);
 
-    assign stream_desc_64b_r.resp = 
+    assign stream_desc_256b_r.resp = 
         ((desc_ram_axi_rid_bridge_id == 1) && desc_ram_axi_rid_valid ? desc_ram_axi_rresp : '0);
 
-    assign stream_desc_64b_r.last = 
+    assign stream_desc_256b_r.last = 
         ((desc_ram_axi_rid_bridge_id == 1) && desc_ram_axi_rid_valid ? desc_ram_axi_rlast : '0);
 
-    assign stream_desc_64b_rvalid = 
+    assign stream_desc_256b_rvalid = 
         ((desc_ram_axi_rid_bridge_id == 1) && desc_ram_axi_rid_valid ? desc_ram_axi_rvalid : '0);
 
 

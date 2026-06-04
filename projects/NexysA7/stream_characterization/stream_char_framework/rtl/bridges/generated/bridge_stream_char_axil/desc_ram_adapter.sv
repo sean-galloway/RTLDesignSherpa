@@ -28,8 +28,8 @@ module desc_ram_adapter #(
     input  logic         xbar_desc_ram_axi_awuser,
     input  logic         xbar_desc_ram_axi_awvalid,
     output  logic         xbar_desc_ram_axi_awready,
-    input  logic [63:0]  xbar_desc_ram_axi_wdata,
-    input  logic [7:0]  xbar_desc_ram_axi_wstrb,
+    input  logic [255:0]  xbar_desc_ram_axi_wdata,
+    input  logic [31:0]  xbar_desc_ram_axi_wstrb,
     input  logic         xbar_desc_ram_axi_wlast,
     input  logic         xbar_desc_ram_axi_wuser,
     input  logic         xbar_desc_ram_axi_wvalid,
@@ -53,7 +53,7 @@ module desc_ram_adapter #(
     input  logic         xbar_desc_ram_axi_arvalid,
     output  logic         xbar_desc_ram_axi_arready,
     output  logic [3:0]  xbar_desc_ram_axi_rid,
-    output  logic [63:0]  xbar_desc_ram_axi_rdata,
+    output  logic [255:0]  xbar_desc_ram_axi_rdata,
     output  logic [1:0]  xbar_desc_ram_axi_rresp,
     output  logic         xbar_desc_ram_axi_rlast,
     output  logic         xbar_desc_ram_axi_ruser,
@@ -75,8 +75,8 @@ module desc_ram_adapter #(
     output logic                  desc_ram_axi_awvalid,
     input  logic                  desc_ram_axi_awready,
     // Write Data Channel
-    output logic [63:0] desc_ram_axi_wdata,
-    output logic [7:0] desc_ram_axi_wstrb,
+    output logic [255:0] desc_ram_axi_wdata,
+    output logic [31:0] desc_ram_axi_wstrb,
     output logic                  desc_ram_axi_wvalid,
     input  logic                  desc_ram_axi_wready,
     // Write Response Channel
@@ -89,7 +89,7 @@ module desc_ram_adapter #(
     output logic                  desc_ram_axi_arvalid,
     input  logic                  desc_ram_axi_arready,
     // Read Data Channel
-    input  logic [63:0] desc_ram_axi_rdata,
+    input  logic [255:0] desc_ram_axi_rdata,
     input  logic [1:0]            desc_ram_axi_rresp,
     input  logic                  desc_ram_axi_rvalid,
     output logic                  desc_ram_axi_rready
@@ -201,7 +201,7 @@ module desc_ram_adapter #(
     axi4_to_axil4_wr #(
         .AXI_ID_WIDTH(4),
         .AXI_ADDR_WIDTH(32),
-        .AXI_DATA_WIDTH(64),
+        .AXI_DATA_WIDTH(256),
         .AXI_USER_WIDTH(1),
         .SKID_DEPTH_AW(2),
         .SKID_DEPTH_W(4),
@@ -254,7 +254,7 @@ module desc_ram_adapter #(
     axi4_to_axil4_rd #(
         .AXI_ID_WIDTH(4),
         .AXI_ADDR_WIDTH(32),
-        .AXI_DATA_WIDTH(64),
+        .AXI_DATA_WIDTH(256),
         .AXI_USER_WIDTH(1),
         .SKID_DEPTH_AR(2),
         .SKID_DEPTH_R(2)

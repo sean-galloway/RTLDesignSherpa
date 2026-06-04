@@ -70,6 +70,25 @@ module axil_sdpram_slave #(
     input  logic                        s_axil_rready,
 
     // ---------------------------------------------------------------
+    // Bulk-clear control
+    //
+    // i_cfg_start_clear  1-cycle pulse: kick the clear FSM. While clearing,
+    //                    the AXIL write/read handshakes stall (fub_* readys
+    //                    held low) and port A of the BRAM is owned by the
+    //                    clear walker, which writes 0 to every word.
+    // o_cfg_done_clear   sticky 1 once the walker has retired the last
+    //                    word. Cleared by the next i_cfg_start_clear pulse.
+    //
+    // Restoring the old per-SRAM self-clear capability: the previous
+    // bespoke desc_ram / debug_sram modules each carried this; the
+    // unified slave dropped it. Bringing it back here means both SRAM
+    // instances regain the host-pokeable wipe without reintroducing
+    // bespoke RTL.
+    // ---------------------------------------------------------------
+    input  logic                        i_cfg_start_clear,
+    output logic                        o_cfg_done_clear,
+
+    // ---------------------------------------------------------------
     // Observation port (non-functional; for harness/CSR counters)
     //
     // o_dbg_vr      [9:0] raw external valid/ready pairs (AW, W, B, AR, R)
@@ -201,18 +220,77 @@ module axil_sdpram_slave #(
     );
 
     // ---------------------------------------------------------------
+    // Clear FSM — owns BRAM port A while w_clearing is asserted.
+    // Walks r_clear_addr 0..MEM_DEPTH-1 writing all-zeros on every
+    // cycle, then drops back to IDLE and asserts the sticky done flag.
+    //
+    // The cfg_start_clear pulse is sampled in IDLE only; arrivals
+    // during a clear are ignored (host should observe done first).
+    // r_done_clear is held high until the next start kicks the FSM
+    // back into BUSY, so a polling host can race-free detect
+    // completion.
+    // ---------------------------------------------------------------
+    typedef enum logic { CLR_IDLE = 1'b0, CLR_BUSY = 1'b1 } clr_state_e;
+    clr_state_e        r_clr_state;
+    logic [MEM_AW-1:0] r_clear_addr;
+    logic              r_done_clear;
+    wire               clr_last   = (r_clear_addr == MEM_AW'(MEM_DEPTH - 1));
+    wire               w_clearing = (r_clr_state == CLR_BUSY);
+
+    `ALWAYS_FF_RST(aclk, aresetn,
+        if (`RST_ASSERTED(aresetn)) begin
+            r_clr_state  <= CLR_IDLE;
+            r_clear_addr <= '0;
+            r_done_clear <= 1'b0;
+        end else begin
+            unique case (r_clr_state)
+                CLR_IDLE: begin
+                    if (i_cfg_start_clear) begin
+                        r_clr_state  <= CLR_BUSY;
+                        r_clear_addr <= '0;
+                        r_done_clear <= 1'b0;
+                    end
+                end
+                CLR_BUSY: begin
+                    if (clr_last) begin
+                        r_clr_state  <= CLR_IDLE;
+                        r_done_clear <= 1'b1;
+                    end else begin
+                        r_clear_addr <= r_clear_addr + 1'b1;
+                    end
+                end
+            endcase
+        end
+    )
+
+    assign o_cfg_done_clear = r_done_clear;
+
+    // ---------------------------------------------------------------
     // Write fire — combinational handshake against BRAM port A.
     // Fire when both AW and W heads valid AND downstream B skid can
     // absorb the response (its fub_bready is the wrapper's ready into
     // the B skid). All three handshakes complete the same cycle.
+    //
+    // The clear FSM owns port A while w_clearing is high, so AW/W/B
+    // are stalled (readys low, bvalid low) for the duration of a wipe.
     // ---------------------------------------------------------------
-    wire [WORD_AW-1:0] fub_aw_word_addr = fub_awaddr[ADDR_LSB +: WORD_AW];
-    wire write_addr_in_range = (fub_aw_word_addr < WORD_AW'(MEM_DEPTH));
-    wire [MEM_AW-1:0] write_bram_addr  = fub_awaddr[ADDR_LSB +: MEM_AW];
+    // Use only the MEM_AW low bits of the word-address as the BRAM
+    // index. High address bits are ignored (the address space aliases
+    // around the memory's natural size). The previous range check
+    // compared the FULL WORD_AW-bit slice against MEM_DEPTH, which
+    // marked every absolute address (e.g. 0x00020020 — bits [31:5]
+    // are 0x1001) out-of-range even though the row index (bits
+    // [11:5]) was valid. That caused silent SLVERR on every write
+    // while the uart_axil_bridge cheerfully returned "OK" upstream.
+    wire [MEM_AW-1:0]  write_bram_addr     = fub_awaddr[ADDR_LSB +: MEM_AW];
+    wire               write_addr_in_range = 1'b1;
+    /* verilator lint_off UNUSED */
+    wire [WORD_AW-1:0] fub_aw_word_addr    = fub_awaddr[ADDR_LSB +: WORD_AW];
+    /* verilator lint_on UNUSED */
 
-    wire write_fire = fub_awvalid && fub_wvalid && fub_bready;
-    assign fub_awready = fub_wvalid  && fub_bready;
-    assign fub_wready  = fub_awvalid && fub_bready;
+    wire write_fire = fub_awvalid && fub_wvalid && fub_bready && !w_clearing;
+    assign fub_awready = fub_wvalid  && fub_bready && !w_clearing;
+    assign fub_wready  = fub_awvalid && fub_bready && !w_clearing;
     assign fub_bvalid  = write_fire;
     assign fub_bresp   = write_addr_in_range ? 2'b00 : 2'b10;  // OKAY / SLVERR
 
@@ -227,16 +305,28 @@ module axil_sdpram_slave #(
     //       behind)
     //     - read in flight && downstream R skid will take the data
     //       this cycle → safe to fire (pipeline continues 1/cycle)
+    //
+    // arready is also gated by !w_clearing so the AR skid stalls
+    // for the duration of a wipe (port B's BRAM read is harmless
+    // mid-wipe, but issuing it would race the clear walker's port A
+    // writes from the same address and could surface stale data on
+    // the AXIL R channel).
     // ---------------------------------------------------------------
-    wire [WORD_AW-1:0] fub_ar_word_addr = fub_araddr[ADDR_LSB +: WORD_AW];
-    wire read_addr_in_range = (fub_ar_word_addr < WORD_AW'(MEM_DEPTH));
-    wire [MEM_AW-1:0] read_bram_addr   = fub_araddr[ADDR_LSB +: MEM_AW];
+    // Mirror the write-side fix: row index aliases by MEM_AW bits;
+    // high bits are ignored. The previous range check rejected every
+    // absolute address that had any bit above MEM_AW set, including
+    // STREAM's 0x00020020 descriptor fetches.
+    wire [MEM_AW-1:0]  read_bram_addr     = fub_araddr[ADDR_LSB +: MEM_AW];
+    wire               read_addr_in_range = 1'b1;
+    /* verilator lint_off UNUSED */
+    wire [WORD_AW-1:0] fub_ar_word_addr   = fub_araddr[ADDR_LSB +: WORD_AW];
+    /* verilator lint_on UNUSED */
 
     logic r_inflight;
     logic [1:0] r_inflight_rresp;
 
     wire read_issue = fub_arvalid && fub_arready;
-    assign fub_arready = !r_inflight || fub_rready;
+    assign fub_arready = !w_clearing && (!r_inflight || fub_rready);
 
     // ---------------------------------------------------------------
     // BRAM — inferred dual-port; one always_ff per port keeps Vivado
@@ -246,10 +336,13 @@ module axil_sdpram_slave #(
     (* ram_style = "auto" *)
     logic [DATA_WIDTH-1:0] r_mem [MEM_DEPTH];
 
-    // Port A: byte-enabled write. Single always_ff, no reset (BRAM
-    // contents persist across reset).
+    // Port A: clear FSM owns the port while w_clearing; otherwise
+    // byte-enabled AXIL write. No reset (BRAM contents persist
+    // across aresetn — bulk wipe is opt-in via cfg_start_clear).
     always_ff @(posedge aclk) begin
-        if (write_fire && write_addr_in_range) begin
+        if (w_clearing) begin
+            r_mem[r_clear_addr] <= '0;
+        end else if (write_fire && write_addr_in_range) begin
             for (int b = 0; b < STRB_W; b++) begin
                 if (fub_wstrb[b]) begin
                     r_mem[write_bram_addr][8*b +: 8] <= fub_wdata[8*b +: 8];

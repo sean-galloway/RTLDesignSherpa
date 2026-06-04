@@ -156,8 +156,8 @@ module bridge_stream_char_axil (
     output logic [2:0]            desc_ram_axi_awprot,
     output logic                  desc_ram_axi_awvalid,
     input  logic                  desc_ram_axi_awready,
-    output logic [63:0] desc_ram_axi_wdata,
-    output logic [7:0] desc_ram_axi_wstrb,
+    output logic [255:0] desc_ram_axi_wdata,
+    output logic [31:0] desc_ram_axi_wstrb,
     output logic                  desc_ram_axi_wvalid,
     input  logic                  desc_ram_axi_wready,
     input  logic [1:0]            desc_ram_axi_bresp,
@@ -167,7 +167,7 @@ module bridge_stream_char_axil (
     output logic [2:0]            desc_ram_axi_arprot,
     output logic                  desc_ram_axi_arvalid,
     input  logic                  desc_ram_axi_arready,
-    input  logic [63:0] desc_ram_axi_rdata,
+    input  logic [255:0] desc_ram_axi_rdata,
     input  logic [1:0]            desc_ram_axi_rresp,
     input  logic                  desc_ram_axi_rvalid,
     output logic                  desc_ram_axi_rready,
@@ -278,28 +278,44 @@ module bridge_stream_char_axil (
     axi4_r_64b_t  host_64b_r;
     logic         host_64b_rvalid;
     logic         host_64b_rready;
+    // 256b path
+    axi4_aw_t     host_256b_aw;
+    logic         host_256b_awvalid;
+    logic         host_256b_awready;
+    axi4_w_256b_t  host_256b_w;
+    logic         host_256b_wvalid;
+    logic         host_256b_wready;
+    axi4_b_t      host_256b_b;
+    logic         host_256b_bvalid;
+    logic         host_256b_bready;
+    axi4_ar_t     host_256b_ar;
+    logic         host_256b_arvalid;
+    logic         host_256b_arready;
+    axi4_r_256b_t  host_256b_r;
+    logic         host_256b_rvalid;
+    logic         host_256b_rready;
 
     // stream_desc Adapter outputs
     logic [NUM_SLAVES-1:0] stream_desc_slave_select_aw;
     logic [BRIDGE_ID_WIDTH-1:0] stream_desc_bridge_id_aw;
     logic [NUM_SLAVES-1:0] stream_desc_slave_select_ar;
     logic [BRIDGE_ID_WIDTH-1:0] stream_desc_bridge_id_ar;
-    // 64b path
-    axi4_aw_t     stream_desc_64b_aw;
-    logic         stream_desc_64b_awvalid;
-    logic         stream_desc_64b_awready;
-    axi4_w_64b_t  stream_desc_64b_w;
-    logic         stream_desc_64b_wvalid;
-    logic         stream_desc_64b_wready;
-    axi4_b_t      stream_desc_64b_b;
-    logic         stream_desc_64b_bvalid;
-    logic         stream_desc_64b_bready;
-    axi4_ar_t     stream_desc_64b_ar;
-    logic         stream_desc_64b_arvalid;
-    logic         stream_desc_64b_arready;
-    axi4_r_64b_t  stream_desc_64b_r;
-    logic         stream_desc_64b_rvalid;
-    logic         stream_desc_64b_rready;
+    // 256b path
+    axi4_aw_t     stream_desc_256b_aw;
+    logic         stream_desc_256b_awvalid;
+    logic         stream_desc_256b_awready;
+    axi4_w_256b_t  stream_desc_256b_w;
+    logic         stream_desc_256b_wvalid;
+    logic         stream_desc_256b_wready;
+    axi4_b_t      stream_desc_256b_b;
+    logic         stream_desc_256b_bvalid;
+    logic         stream_desc_256b_bready;
+    axi4_ar_t     stream_desc_256b_ar;
+    logic         stream_desc_256b_arvalid;
+    logic         stream_desc_256b_arready;
+    axi4_r_256b_t  stream_desc_256b_r;
+    logic         stream_desc_256b_rvalid;
+    logic         stream_desc_256b_rready;
 
     // monbus_wr Adapter outputs
     logic [NUM_SLAVES-1:0] monbus_wr_slave_select_aw;
@@ -428,7 +444,7 @@ module bridge_stream_char_axil (
     logic [BRIDGE_ID_WIDTH-1:0] harness_csr_axi_rid_bridge_id;
     logic                       harness_csr_axi_rid_valid;
 
-    // desc_ram (AXIL, 64b AXI4 interface)
+    // desc_ram (AXIL, 256b AXI4 interface)
     logic [3:0]            xbar_desc_ram_axi_awid;
     logic [31:0]               xbar_desc_ram_axi_awaddr;
     logic [7:0]                xbar_desc_ram_axi_awlen;
@@ -442,8 +458,8 @@ module bridge_stream_char_axil (
     logic                      xbar_desc_ram_axi_awuser;
     logic                      xbar_desc_ram_axi_awvalid;
     logic                      xbar_desc_ram_axi_awready;
-    logic [63:0] xbar_desc_ram_axi_wdata;
-    logic [7:0] xbar_desc_ram_axi_wstrb;
+    logic [255:0] xbar_desc_ram_axi_wdata;
+    logic [31:0] xbar_desc_ram_axi_wstrb;
     logic                      xbar_desc_ram_axi_wlast;
     logic                      xbar_desc_ram_axi_wuser;
     logic                      xbar_desc_ram_axi_wvalid;
@@ -467,7 +483,7 @@ module bridge_stream_char_axil (
     logic                      xbar_desc_ram_axi_arvalid;
     logic                      xbar_desc_ram_axi_arready;
     logic [3:0]            xbar_desc_ram_axi_rid;
-    logic [63:0] xbar_desc_ram_axi_rdata;
+    logic [255:0] xbar_desc_ram_axi_rdata;
     logic [1:0]                xbar_desc_ram_axi_rresp;
     logic                      xbar_desc_ram_axi_rlast;
     logic                      xbar_desc_ram_axi_ruser;
@@ -727,7 +743,24 @@ module bridge_stream_char_axil (
         .host_64b_arready(host_64b_arready),
         .host_64b_r(host_64b_r),
         .host_64b_rvalid(host_64b_rvalid),
-        .host_64b_rready(host_64b_rready)
+        .host_64b_rready(host_64b_rready),
+
+        // 256b path
+        .host_256b_aw(host_256b_aw),
+        .host_256b_awvalid(host_256b_awvalid),
+        .host_256b_awready(host_256b_awready),
+        .host_256b_w(host_256b_w),
+        .host_256b_wvalid(host_256b_wvalid),
+        .host_256b_wready(host_256b_wready),
+        .host_256b_b(host_256b_b),
+        .host_256b_bvalid(host_256b_bvalid),
+        .host_256b_bready(host_256b_bready),
+        .host_256b_ar(host_256b_ar),
+        .host_256b_arvalid(host_256b_arvalid),
+        .host_256b_arready(host_256b_arready),
+        .host_256b_r(host_256b_r),
+        .host_256b_rvalid(host_256b_rvalid),
+        .host_256b_rready(host_256b_rready)
     );
 
     // ================================================================
@@ -789,22 +822,22 @@ module bridge_stream_char_axil (
         .slave_select_ar(stream_desc_slave_select_ar),
         .bridge_id_ar(stream_desc_bridge_id_ar),
 
-        // 64b path
-        .stream_desc_64b_aw(stream_desc_64b_aw),
-        .stream_desc_64b_awvalid(stream_desc_64b_awvalid),
-        .stream_desc_64b_awready(stream_desc_64b_awready),
-        .stream_desc_64b_w(stream_desc_64b_w),
-        .stream_desc_64b_wvalid(stream_desc_64b_wvalid),
-        .stream_desc_64b_wready(stream_desc_64b_wready),
-        .stream_desc_64b_b(stream_desc_64b_b),
-        .stream_desc_64b_bvalid(stream_desc_64b_bvalid),
-        .stream_desc_64b_bready(stream_desc_64b_bready),
-        .stream_desc_64b_ar(stream_desc_64b_ar),
-        .stream_desc_64b_arvalid(stream_desc_64b_arvalid),
-        .stream_desc_64b_arready(stream_desc_64b_arready),
-        .stream_desc_64b_r(stream_desc_64b_r),
-        .stream_desc_64b_rvalid(stream_desc_64b_rvalid),
-        .stream_desc_64b_rready(stream_desc_64b_rready)
+        // 256b path
+        .stream_desc_256b_aw(stream_desc_256b_aw),
+        .stream_desc_256b_awvalid(stream_desc_256b_awvalid),
+        .stream_desc_256b_awready(stream_desc_256b_awready),
+        .stream_desc_256b_w(stream_desc_256b_w),
+        .stream_desc_256b_wvalid(stream_desc_256b_wvalid),
+        .stream_desc_256b_wready(stream_desc_256b_wready),
+        .stream_desc_256b_b(stream_desc_256b_b),
+        .stream_desc_256b_bvalid(stream_desc_256b_bvalid),
+        .stream_desc_256b_bready(stream_desc_256b_bready),
+        .stream_desc_256b_ar(stream_desc_256b_ar),
+        .stream_desc_256b_arvalid(stream_desc_256b_arvalid),
+        .stream_desc_256b_arready(stream_desc_256b_arready),
+        .stream_desc_256b_r(stream_desc_256b_r),
+        .stream_desc_256b_rvalid(stream_desc_256b_rvalid),
+        .stream_desc_256b_rready(stream_desc_256b_rready)
     );
 
     // ================================================================
@@ -928,28 +961,44 @@ module bridge_stream_char_axil (
         .host_64b_r(host_64b_r),
         .host_64b_rvalid(host_64b_rvalid),
         .host_64b_rready(host_64b_rready),
+        // 256b path
+        .host_256b_aw(host_256b_aw),
+        .host_256b_awvalid(host_256b_awvalid),
+        .host_256b_awready(host_256b_awready),
+        .host_256b_w(host_256b_w),
+        .host_256b_wvalid(host_256b_wvalid),
+        .host_256b_wready(host_256b_wready),
+        .host_256b_b(host_256b_b),
+        .host_256b_bvalid(host_256b_bvalid),
+        .host_256b_bready(host_256b_bready),
+        .host_256b_ar(host_256b_ar),
+        .host_256b_arvalid(host_256b_arvalid),
+        .host_256b_arready(host_256b_arready),
+        .host_256b_r(host_256b_r),
+        .host_256b_rvalid(host_256b_rvalid),
+        .host_256b_rready(host_256b_rready),
 
         // stream_desc adapter outputs
         .stream_desc_slave_select_aw(stream_desc_slave_select_aw),
         .stream_desc_bridge_id_aw(stream_desc_bridge_id_aw),
         .stream_desc_slave_select_ar(stream_desc_slave_select_ar),
         .stream_desc_bridge_id_ar(stream_desc_bridge_id_ar),
-        // 64b path
-        .stream_desc_64b_aw(stream_desc_64b_aw),
-        .stream_desc_64b_awvalid(stream_desc_64b_awvalid),
-        .stream_desc_64b_awready(stream_desc_64b_awready),
-        .stream_desc_64b_w(stream_desc_64b_w),
-        .stream_desc_64b_wvalid(stream_desc_64b_wvalid),
-        .stream_desc_64b_wready(stream_desc_64b_wready),
-        .stream_desc_64b_b(stream_desc_64b_b),
-        .stream_desc_64b_bvalid(stream_desc_64b_bvalid),
-        .stream_desc_64b_bready(stream_desc_64b_bready),
-        .stream_desc_64b_ar(stream_desc_64b_ar),
-        .stream_desc_64b_arvalid(stream_desc_64b_arvalid),
-        .stream_desc_64b_arready(stream_desc_64b_arready),
-        .stream_desc_64b_r(stream_desc_64b_r),
-        .stream_desc_64b_rvalid(stream_desc_64b_rvalid),
-        .stream_desc_64b_rready(stream_desc_64b_rready),
+        // 256b path
+        .stream_desc_256b_aw(stream_desc_256b_aw),
+        .stream_desc_256b_awvalid(stream_desc_256b_awvalid),
+        .stream_desc_256b_awready(stream_desc_256b_awready),
+        .stream_desc_256b_w(stream_desc_256b_w),
+        .stream_desc_256b_wvalid(stream_desc_256b_wvalid),
+        .stream_desc_256b_wready(stream_desc_256b_wready),
+        .stream_desc_256b_b(stream_desc_256b_b),
+        .stream_desc_256b_bvalid(stream_desc_256b_bvalid),
+        .stream_desc_256b_bready(stream_desc_256b_bready),
+        .stream_desc_256b_ar(stream_desc_256b_ar),
+        .stream_desc_256b_arvalid(stream_desc_256b_arvalid),
+        .stream_desc_256b_arready(stream_desc_256b_arready),
+        .stream_desc_256b_r(stream_desc_256b_r),
+        .stream_desc_256b_rvalid(stream_desc_256b_rvalid),
+        .stream_desc_256b_rready(stream_desc_256b_rready),
 
         // monbus_wr adapter outputs
         .monbus_wr_slave_select_aw(monbus_wr_slave_select_aw),

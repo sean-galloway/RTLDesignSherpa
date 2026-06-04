@@ -222,13 +222,22 @@ module stream_char_harness #(
     logic s1_awvalid, s1_awready, s1_wvalid, s1_wready, s1_bvalid, s1_bready;
     logic s1_arvalid, s1_arready, s1_rvalid, s1_rready;
 
-    // Slave 2 (desc_ram): bridge now delivers 64-bit AXIL — generator
-    // handles host 32->64 upsize and STREAM 256->64 downsize internally.
-    logic [31:0] s2_awaddr, s2_araddr;
-    logic [63:0] s2_wdata, s2_rdata;
-    logic [7:0]  s2_wstrb;
-    logic [2:0]  s2_awprot, s2_arprot;
-    logic [1:0]  s2_bresp, s2_rresp;
+    // Slave 2 (desc_ram): 256-bit AXIL end-to-end. Host's 32-bit AXIL
+    // writes upsize to 256b inside the bridge; STREAM's 256-bit reads
+    // pass through with zero conversion.
+    //
+    // NOTE: With the current bridge generator the 32→256 upsize path
+    // is an AGGREGATOR (axi_data_upsize) that doesn't align single-beat
+    // narrow AXIL writes by awaddr's low bits. Until the generator
+    // emits an ALIGNER for narrow AXIL masters, descriptor writes via
+    // this path land at byte offset 0 of every row (overwriting each
+    // other) and STREAM sees garbage. See projects/components/bridge
+    // axil_data_align fix.
+    logic [31:0]  s2_awaddr, s2_araddr;
+    logic [255:0] s2_wdata, s2_rdata;
+    logic [31:0]  s2_wstrb;
+    logic [2:0]   s2_awprot, s2_arprot;
+    logic [1:0]   s2_bresp, s2_rresp;
     logic s2_awvalid, s2_awready, s2_wvalid, s2_wready, s2_bvalid, s2_bready;
     logic s2_arvalid, s2_arready, s2_rvalid, s2_rready;
 
@@ -672,6 +681,13 @@ module stream_char_harness #(
     logic [31:0] r_desc_aw_hs_cnt;
     logic [31:0] r_desc_w_hs_cnt;
     logic [31:0] r_desc_b_hs_cnt;
+    // SRAM-side AXIL AR/R handshake counters. The bridge-side STREAM 256b
+    // counters (r_desc_ar_hs_cnt / r_desc_r_hs_cnt) say "did STREAM
+    // hand the bridge an AR?". These say "did the bridge ever drive an
+    // AXIL AR all the way to the SRAM port?". Combined, they bisect
+    // the wedge into a bridge-internal vs SRAM-internal failure.
+    logic [31:0] r_desc_sram_ar_hs_cnt;
+    logic [31:0] r_desc_sram_r_hs_cnt;
 
     harness_csr #(.AW(32), .DW(32), .NUM_CHANNELS(NUM_CHANNELS)) u_csr (
         .aclk(aclk), .aresetn(aresetn),
@@ -747,7 +763,9 @@ module stream_char_harness #(
         .i_wr_meter_ch_idle     (wr_meter_ch_idle),
         .i_wr_meter_ch_overflow (wr_meter_ch_overflow),
 
-        // desc_ram observation counters (CSR readback at 0xE0-0xFC)
+        // desc_ram observation counters (CSR readback at 0xD4/0xD8 + 0xE0-0xFC)
+        .i_desc_sram_ar_hs (r_desc_sram_ar_hs_cnt),
+        .i_desc_sram_r_hs  (r_desc_sram_r_hs_cnt),
         .i_desc_ar_hs    (r_desc_ar_hs_cnt),
         .i_desc_ar_stall (r_desc_ar_stall_cnt),
         .i_desc_r_hs     (r_desc_r_hs_cnt),
@@ -933,24 +951,34 @@ module stream_char_harness #(
     logic [9:0] w_desc_ram_dbg_fub_vr;
     logic w_desc_ram_dbg_bram_wr_pulse, w_desc_ram_dbg_bram_rd_pulse;
     logic w_desc_ram_dbg_busy_wr, w_desc_ram_dbg_busy_rd;
+    logic w_desc_ram_dbg_clear_done;
     /* verilator lint_on UNUSED */
 
     axil_sdpram_slave #(
         .ADDR_WIDTH (32),
-        .DATA_WIDTH (64),
-        .MEM_DEPTH  (DESC_RAM_ENTRIES * 4)   // 256b->64b: x4 entries
+        // 256b per the descriptor-fetch-must-be-256b-end-to-end rule.
+        // MEM_DEPTH = DESC_RAM_ENTRIES because each descriptor is one
+        // 256b beat.
+        .DATA_WIDTH (256),
+        .MEM_DEPTH  (DESC_RAM_ENTRIES)
     ) u_desc_ram (
         .aclk(aclk), .aresetn(unit_aresetn),
-        // Single AXIL slave port driven by bridge S2
         .s_axil_awaddr (s2_awaddr), .s_axil_awprot(s2_awprot),
         .s_axil_awvalid(s2_awvalid), .s_axil_awready(s2_awready),
         .s_axil_wdata  (s2_wdata),  .s_axil_wstrb(s2_wstrb),
         .s_axil_wvalid (s2_wvalid), .s_axil_wready(s2_wready),
-        .s_axil_bresp  (s2_bresp),  .s_axil_bvalid(s2_bvalid),  .s_axil_bready(s2_bready),
+        .s_axil_bresp  (s2_bresp),  .s_axil_bvalid(s2_bvalid),
+        .s_axil_bready (s2_bready),
         .s_axil_araddr (s2_araddr), .s_axil_arprot(s2_arprot),
         .s_axil_arvalid(s2_arvalid),.s_axil_arready(s2_arready),
         .s_axil_rdata  (s2_rdata),  .s_axil_rresp(s2_rresp),
         .s_axil_rvalid (s2_rvalid), .s_axil_rready(s2_rready),
+        // Bulk-clear control. The SRAM's clear-FSM is sticky-done; CSR
+        // plumbing for host-issued start pulses + done polling lives in
+        // harness_csr (CSR_CTRL[4] / CSR_STATUS[3]). Tied off here
+        // for now until that wiring lands.
+        .i_cfg_start_clear (1'b0),
+        .o_cfg_done_clear  (w_desc_ram_dbg_clear_done),
         // Obs
         .o_dbg_vr      (w_desc_ram_dbg_vr_axil),
         .o_dbg_fub_vr  (w_desc_ram_dbg_fub_vr),
@@ -973,40 +1001,83 @@ module stream_char_harness #(
     // Lets the host answer "is the SRAM responding or is STREAM not
     // accepting?" via plain UART reads — no trace SRAM needed.
     // -------------------------------------------------------------------------
-    wire w_desc_ar_hs    = w_desc_ram_dbg_vr[10] &&  w_desc_ram_dbg_vr[11];
-    wire w_desc_ar_stall = w_desc_ram_dbg_vr[10] && !w_desc_ram_dbg_vr[11];
-    wire w_desc_r_hs     = w_desc_ram_dbg_vr[12] &&  w_desc_ram_dbg_vr[13];
-    wire w_desc_r_stall  = w_desc_ram_dbg_vr[12] && !w_desc_ram_dbg_vr[13];
-    wire w_desc_aw_hs    = w_desc_ram_dbg_vr[0]  &&  w_desc_ram_dbg_vr[1];
-    wire w_desc_w_hs     = w_desc_ram_dbg_vr[2]  &&  w_desc_ram_dbg_vr[3];
-    wire w_desc_b_hs     = w_desc_ram_dbg_vr[4]  &&  w_desc_ram_dbg_vr[5];
+    wire w_desc_ar_hs      = w_desc_ram_dbg_vr[10] &&  w_desc_ram_dbg_vr[11];
+    wire w_desc_ar_stall   = w_desc_ram_dbg_vr[10] && !w_desc_ram_dbg_vr[11];
+    wire w_desc_r_hs       = w_desc_ram_dbg_vr[12] &&  w_desc_ram_dbg_vr[13];
+    wire w_desc_r_stall    = w_desc_ram_dbg_vr[12] && !w_desc_ram_dbg_vr[13];
+    wire w_desc_aw_hs      = w_desc_ram_dbg_vr[0]  &&  w_desc_ram_dbg_vr[1];
+    wire w_desc_w_hs       = w_desc_ram_dbg_vr[2]  &&  w_desc_ram_dbg_vr[3];
+    wire w_desc_b_hs       = w_desc_ram_dbg_vr[4]  &&  w_desc_ram_dbg_vr[5];
+    // SRAM-side AXIL AR/R from bits [6][7] and [8][9] of the bus
+    // (s2_arvalid/ready and s2_rvalid/ready at the SRAM port).
+    wire w_desc_sram_ar_hs = w_desc_ram_dbg_vr[6]  &&  w_desc_ram_dbg_vr[7];
+    wire w_desc_sram_r_hs  = w_desc_ram_dbg_vr[8]  &&  w_desc_ram_dbg_vr[9];
+
+    // Capture the first AR that STREAM hands to the bridge so we can
+    // see exactly what address/burst-shape it emitted at timeout.
+    // STREAM only drives desc_arvalid for the handshake cycle, so a
+    // live peek at the wires returns 0; this latch holds the values
+    // until reset/clear. cocotb reads via --public-flat-rw.
+    /* verilator lint_off UNUSED */
+    logic [ADDR_WIDTH-1:0]   r_first_desc_araddr;
+    logic [7:0]              r_first_desc_arlen;
+    logic [2:0]              r_first_desc_arsize;
+    logic [1:0]              r_first_desc_arburst;
+    logic [AXI_ID_WIDTH-1:0] r_first_desc_arid;
+    logic                    r_first_desc_ar_seen;
+    /* verilator lint_on UNUSED */
+    `ALWAYS_FF_RST(aclk, aresetn,
+        if (`RST_ASSERTED(aresetn)) begin
+            r_first_desc_ar_seen <= 1'b0;
+            r_first_desc_araddr  <= '0;
+            r_first_desc_arlen   <= '0;
+            r_first_desc_arsize  <= '0;
+            r_first_desc_arburst <= '0;
+            r_first_desc_arid    <= '0;
+        end else if (csr_clear_pulse) begin
+            r_first_desc_ar_seen <= 1'b0;
+        end else if (w_desc_ar_hs && !r_first_desc_ar_seen) begin
+            r_first_desc_ar_seen <= 1'b1;
+            r_first_desc_araddr  <= desc_araddr;
+            r_first_desc_arlen   <= desc_arlen;
+            r_first_desc_arsize  <= desc_arsize;
+            r_first_desc_arburst <= desc_arburst;
+            r_first_desc_arid    <= desc_arid;
+        end
+    )
 
     `ALWAYS_FF_RST(aclk, aresetn,
         if (`RST_ASSERTED(aresetn)) begin
-            r_desc_ar_hs_cnt    <= '0;
-            r_desc_ar_stall_cnt <= '0;
-            r_desc_r_hs_cnt     <= '0;
-            r_desc_r_stall_cnt  <= '0;
-            r_desc_aw_hs_cnt    <= '0;
-            r_desc_w_hs_cnt     <= '0;
-            r_desc_b_hs_cnt     <= '0;
+            r_desc_ar_hs_cnt      <= '0;
+            r_desc_ar_stall_cnt   <= '0;
+            r_desc_r_hs_cnt       <= '0;
+            r_desc_r_stall_cnt    <= '0;
+            r_desc_aw_hs_cnt      <= '0;
+            r_desc_w_hs_cnt       <= '0;
+            r_desc_b_hs_cnt       <= '0;
+            r_desc_sram_ar_hs_cnt <= '0;
+            r_desc_sram_r_hs_cnt  <= '0;
         end else if (csr_clear_pulse) begin
-            r_desc_ar_hs_cnt    <= '0;
-            r_desc_ar_stall_cnt <= '0;
-            r_desc_r_hs_cnt     <= '0;
-            r_desc_r_stall_cnt  <= '0;
-            r_desc_aw_hs_cnt    <= '0;
-            r_desc_w_hs_cnt     <= '0;
-            r_desc_b_hs_cnt     <= '0;
+            r_desc_ar_hs_cnt      <= '0;
+            r_desc_ar_stall_cnt   <= '0;
+            r_desc_r_hs_cnt       <= '0;
+            r_desc_r_stall_cnt    <= '0;
+            r_desc_aw_hs_cnt      <= '0;
+            r_desc_w_hs_cnt       <= '0;
+            r_desc_b_hs_cnt       <= '0;
+            r_desc_sram_ar_hs_cnt <= '0;
+            r_desc_sram_r_hs_cnt  <= '0;
         end else begin
             // 32-bit saturating — clamps at 2^32-1 instead of wrapping.
-            if (w_desc_ar_hs    && (r_desc_ar_hs_cnt    != 32'hFFFF_FFFF)) r_desc_ar_hs_cnt    <= r_desc_ar_hs_cnt    + 1'b1;
-            if (w_desc_ar_stall && (r_desc_ar_stall_cnt != 32'hFFFF_FFFF)) r_desc_ar_stall_cnt <= r_desc_ar_stall_cnt + 1'b1;
-            if (w_desc_r_hs     && (r_desc_r_hs_cnt     != 32'hFFFF_FFFF)) r_desc_r_hs_cnt     <= r_desc_r_hs_cnt     + 1'b1;
-            if (w_desc_r_stall  && (r_desc_r_stall_cnt  != 32'hFFFF_FFFF)) r_desc_r_stall_cnt  <= r_desc_r_stall_cnt  + 1'b1;
-            if (w_desc_aw_hs    && (r_desc_aw_hs_cnt    != 32'hFFFF_FFFF)) r_desc_aw_hs_cnt    <= r_desc_aw_hs_cnt    + 1'b1;
-            if (w_desc_w_hs     && (r_desc_w_hs_cnt     != 32'hFFFF_FFFF)) r_desc_w_hs_cnt     <= r_desc_w_hs_cnt     + 1'b1;
-            if (w_desc_b_hs     && (r_desc_b_hs_cnt     != 32'hFFFF_FFFF)) r_desc_b_hs_cnt     <= r_desc_b_hs_cnt     + 1'b1;
+            if (w_desc_ar_hs      && (r_desc_ar_hs_cnt      != 32'hFFFF_FFFF)) r_desc_ar_hs_cnt      <= r_desc_ar_hs_cnt      + 1'b1;
+            if (w_desc_ar_stall   && (r_desc_ar_stall_cnt   != 32'hFFFF_FFFF)) r_desc_ar_stall_cnt   <= r_desc_ar_stall_cnt   + 1'b1;
+            if (w_desc_r_hs       && (r_desc_r_hs_cnt       != 32'hFFFF_FFFF)) r_desc_r_hs_cnt       <= r_desc_r_hs_cnt       + 1'b1;
+            if (w_desc_r_stall    && (r_desc_r_stall_cnt    != 32'hFFFF_FFFF)) r_desc_r_stall_cnt    <= r_desc_r_stall_cnt    + 1'b1;
+            if (w_desc_aw_hs      && (r_desc_aw_hs_cnt      != 32'hFFFF_FFFF)) r_desc_aw_hs_cnt      <= r_desc_aw_hs_cnt      + 1'b1;
+            if (w_desc_w_hs       && (r_desc_w_hs_cnt       != 32'hFFFF_FFFF)) r_desc_w_hs_cnt       <= r_desc_w_hs_cnt       + 1'b1;
+            if (w_desc_b_hs       && (r_desc_b_hs_cnt       != 32'hFFFF_FFFF)) r_desc_b_hs_cnt       <= r_desc_b_hs_cnt       + 1'b1;
+            if (w_desc_sram_ar_hs && (r_desc_sram_ar_hs_cnt != 32'hFFFF_FFFF)) r_desc_sram_ar_hs_cnt <= r_desc_sram_ar_hs_cnt + 1'b1;
+            if (w_desc_sram_r_hs  && (r_desc_sram_r_hs_cnt  != 32'hFFFF_FFFF)) r_desc_sram_r_hs_cnt  <= r_desc_sram_r_hs_cnt  + 1'b1;
         end
     )
 
@@ -1066,6 +1137,7 @@ module stream_char_harness #(
     logic [9:0] w_debug_sram_dbg_fub_vr;
     logic w_debug_sram_dbg_bram_wr_pulse, w_debug_sram_dbg_bram_rd_pulse;
     logic w_debug_sram_dbg_busy_wr, w_debug_sram_dbg_busy_rd;
+    logic w_debug_sram_dbg_clear_done;
     /* verilator lint_on UNUSED */
 
     axil_sdpram_slave #(
@@ -1084,6 +1156,9 @@ module stream_char_harness #(
         .s_axil_arvalid(s4_arvalid),.s_axil_arready(s4_arready),
         .s_axil_rdata  (s4_rdata),  .s_axil_rresp(s4_rresp),
         .s_axil_rvalid (s4_rvalid), .s_axil_rready(s4_rready),
+        // Bulk-clear control (sticky-done FSM); CSR plumbing pending.
+        .i_cfg_start_clear (1'b0),
+        .o_cfg_done_clear  (w_debug_sram_dbg_clear_done),
         // Obs
         .o_dbg_vr      (w_debug_sram_dbg_vr_axil),
         .o_dbg_fub_vr  (w_debug_sram_dbg_fub_vr),
