@@ -62,7 +62,7 @@ Protocol conversion performs the following critical functions:
 - Expose full 5-channel AXI4 interface at the bridge boundary
 - Are documented as "axil" for user reference only
 
-Real AXI4-Lite protocol enforcement (burst length restriction, size field handling) is deferred to a future phase. Currently, AXIL slaves behave identically to AXI4 slaves from the bridge's perspective.
+The bridge now emits real AXI4-to-AXIL4 conversion shims (`axi4_to_axil4_{rd,wr}.sv`) at the slave boundary when `protocol = "axi4lite"` is specified in the TOML. These shims downgrade bursts to single beats and enforce AXIL protocol constraints transparently. See "Generator-Emitted Conversion Shims" below.
 
 ### Future Support (Phase 2+)
 
@@ -850,6 +850,45 @@ Use Case             Control registers          Peripherals
 - Very simple slave devices (GPIO, timers)
 - Low-bandwidth acceptable
 - Power optimization critical
+
+## 2.7.13 Generator-Emitted Conversion Shims
+
+The bridge generator automatically emits protocol conversion shims at the slave boundary based on the TOML configuration. These shims are instantiated between the crossbar core (uniformly AXI4 internally) and the external slave port.
+
+### AXI4 to AXI4-Lite Conversion
+
+When `protocol = "axi4lite"` is specified in the slave TOML:
+- Generator emits `axi4_to_axil4_rd.sv` (read path) and `axi4_to_axil4_wr.sv` (write path)
+- Shims downgrade bursts to single beats (set ARLEN/AWLEN = 0 on output)
+- Enforce single-beat semantics transparently
+- Data width remains unchanged (upsizing/downsizing done separately)
+- Shims are inserted **between crossbar and slave port** in the generated top-level module
+
+**Modules**: `projects/components/converters/rtl/axi4_to_axil4_{rd,wr}.sv`
+
+### AXI4 to APB Conversion
+
+When `protocol = "apb"` is specified in the slave TOML:
+- Generator emits `axi4_to_axil4` shim followed by an internal AXIL-to-APB bridge chain
+- APB operates on a single-beat protocol, so burst-to-single-beat reduction is mandatory
+- Data width conversion happens before the APB stage (if needed)
+- Slave port externally presents APB signals; internally the crossbar is AXI4
+
+**Modules**: `projects/components/converters/rtl/axi4_to_axil4*.sv` + internal APB bridge (if width mismatch)
+
+### Master-Side AXIL→Wider-Slave Alignment
+
+When an AXI4-Lite master interfaces with a wider AXI4 slave (e.g., 32-bit AXIL master to 64-bit AXI4 slave):
+- Generator emits `axil_to_axi4_wide_align_rd.sv` (read) and `axil_to_axi4_wide_align_wr.sv` (write) at the **master adapter output** (before crossbar core)
+- These modules handle **width alignment** (not protocol conversion — that's done at the slave boundary if needed)
+- Preserves AXIL's single-beat constraint on the master side
+- Properly aligns partial-word reads/writes on the wide slave side
+
+**Modules**: `projects/components/converters/rtl/axil_to_axi4_wide_align_{rd,wr}.sv`
+
+**Example**: 32-bit AXIL master → 64-bit AXI4 slave
+- Master writes to addr 0x04 with data 0xAABBCCDD → Master alignment shim combines into 0xXXXXAAAABBCCDD on 64-bit bus
+- Shim is inserted after master adapter, before crossbar
 
 ## 2.7.14 Future Protocol Support
 

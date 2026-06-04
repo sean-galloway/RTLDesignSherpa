@@ -208,7 +208,48 @@ Registers: ~520 (buffer + control)
 Logic: ~150 LEs (selection + control)
 ```
 
+## AXIL-to-Wider-Slave Master-Side Alignment Converters
+
+When an AXI4-Lite master connects to a wider AXI4 slave through the bridge, alignment issues arise: AXIL single-beat transactions are not inherently wide-alignment-aware. The bridge generator emits master-side alignment converters (`axil_to_axi4_wide_align_{rd,wr}.sv`) to handle partial-word alignment on the AXIL side while producing properly-aligned transactions on the wide slave side.
+
+### Use Case Example
+
+```
+32-bit AXIL Master → Bridge → 64-bit AXI4 Slave
+
+Master writes 32-bit word to offset 0x04:
+  Data = 0xAABBCCDD (on bits [31:0])
+  
+Alignment converter must place it on 64-bit slave at offset 0x04:
+  Slave sees: 0xXXXXAAAABBCCDD (on bits [63:0])
+  
+(The converter handles partial-byte-lane selection.)
+```
+
+### Architecture
+
+**Read Path**:
+- Master issues AXIL read (no burst, single beat)
+- Converter passes address to slave (unchanged)
+- Slave returns 64-bit word
+- Converter extracts the relevant 32-bit slice for the master
+
+**Write Path**:
+- Master issues AXIL write with address offset and 32-bit data
+- Converter computes byte-lane position within 64-bit word
+- Converter expands 32-bit strobe to 64-bit strobe (8 lanes)
+- Converter sends full 64-bit write to slave
+- Slave performs a 64-bit write with byte strobes
+
+### Modules
+
+- **`axil_to_axi4_wide_align_rd.sv`**: Read path (address → data conversion)
+- **`axil_to_axi4_wide_align_wr.sv`**: Write path (strobe expansion, data placement)
+
+**Note**: These converters handle **width alignment**, not **protocol bridging**. Protocol conversion (AXIL→AXI4 burst restriction) is applied separately at the slave boundary (via `axi4_to_axil4_*` shims if needed).
+
 ## Related Documentation
 
 - [Width Conversion Block](../ch02_blocks/06_width_conversion.md) - Block-level description
 - [APB Converters](02_apb_converters.md) - Protocol conversion
+- [Generator-Emitted Conversion Shims](../ch02_blocks/07_protocol_conversion.md#generator-emitted-conversion-shims) - Master-side vs. slave-side shim placement

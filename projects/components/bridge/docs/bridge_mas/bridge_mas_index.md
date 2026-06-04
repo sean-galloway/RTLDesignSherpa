@@ -24,8 +24,8 @@
 # Bridge Micro-Architecture Specification Index
 
 **Component:** Bridge (Multi-Protocol Crossbar Generator)
-**Version:** 1.0
-**Date:** 2026-01-03
+**Version:** 1.1
+**Date:** 2026-06-04
 **Purpose:** Detailed micro-architecture specification for Bridge component
 
 ---

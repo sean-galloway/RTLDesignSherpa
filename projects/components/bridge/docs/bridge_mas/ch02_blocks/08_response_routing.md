@@ -235,7 +235,35 @@ Trade-off:
   - +1-2 cycle latency
 ```
 
-## 2.8.6 Backpressure Management
+## 2.8.6 Independent Write-Tracker FIFO (W-Channel Deadlock Fix)
+
+Prior to commit `d24bd617`, the AW and W ready signals shared a single multiplexer at the write-address arbiter output. Under interleaved master traffic patterns, this could cause deadlock: a master's W channel could back up waiting for a non-granted write-address slot, preventing the arbiter from servicing other masters' AW transactions.
+
+The corrected design (current) uses an **independent W-tracker FIFO** alongside the AW tracker:
+
+```systemverilog
+// AW tracker FIFO (per master)
+always_ff @(posedge aclk) begin
+    if (master_awvalid && master_awready) begin
+        aw_trk_fifo <= address_decode(master_awaddr);  // Capture slave
+    end
+end
+
+// Independent W tracker and ready MUX
+logic aw_ready_mux, w_ready_mux;  // Separate paths (prior: shared)
+
+assign master_awready = aw_ready_mux;   // AW gets its own ready
+assign master_wready = w_ready_mux;      // W gets independent ready
+
+// W-tracker: Gate W valid against tracked slave select
+always_comb begin
+    w_ready_mux = (aw_trk_fifo != 0) && slave_wready;  // W independent
+end
+```
+
+**Result**: AW and W channels can assert independently without blocking each other, preventing deadlock during interleaved multi-master write bursts.
+
+## 2.8.7 Backpressure Management
 
 ### Ready Signal Routing
 

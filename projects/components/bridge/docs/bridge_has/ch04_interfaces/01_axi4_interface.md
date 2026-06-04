@@ -127,6 +127,20 @@ output logic [ID_WIDTH-1:0]   src_m_axi_rid,
 // NO AW, W, or B channels
 ```
 
+## Monitor Bus Output (when `variants` includes `mon`)
+
+When monitor collection is enabled (via the bridge TOML `variants` list including `"mon"`), each bridge instance exposes a unified monitor interface at the bridge top level:
+
+| Signal | Type | Width | Direction | Description |
+|--------|------|-------|-----------|-------------|
+| `s_mon_axil_*` | AXIL Slave | 32-bit addr, 64-bit data | Input | Monitor packet read interface for CPU consumption |
+| `m_axil_mon_*` | AXIL Master | 32-bit addr, 64-bit data | Output | Monitor packet write interface for bulk trace capture |
+| `stream_irq` | logic | 1-bit | Output | Interrupt signal (asserted when error FIFO has records) |
+
+The monitor system combines per-port collection from `axi4_master_{rd,wr}_mon` and `axi4_slave_{rd,wr}_mon` wrappers through a tree of `monbus_arbiter` instances and terminates in a single `monbus_axil_group` at the bridge top. The group provides a 64-bit free-running timestamp counter sampled at each packet arrival and exposes both a slave interface (for CPU read access) and a master interface (for bulk DMA writes to system memory).
+
+**Packet Format**: The canonical 128-bit packet layout and field definitions are documented in `docs/markdown/RTLAmba/includes/monitor_package_spec.md`. See that reference for complete bit-field descriptions, protocol-type enumerations, and packet-type codes.
+
 ## Handshake Protocol
 
 ### Valid/Ready Handshake

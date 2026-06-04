@@ -59,6 +59,7 @@
 | channels | enum | "rw", "wr", or "rd" |
 | data_width | int | Port data width |
 | id_width | int | Port ID width |
+| use_monitor | bool | **Mandatory.** Enable per-port monitor wrappers (true/false) |
 
 : Table 6.10: Master Port Configuration
 
@@ -72,6 +73,7 @@
 | data_width | int | Port data width |
 | base_addr | hex | Base address (must be 4K-aligned) |
 | addr_range | hex | Address range size (must be multiple of 4K) |
+| use_monitor | bool | **Mandatory.** Enable per-port monitor wrappers (true/false) |
 
 : Table 6.11: Slave Port Configuration
 
@@ -98,6 +100,33 @@ Rule 3: Non-Overlapping Windows
   Valid:   Slave0: 0x00000000-0x0FFFFFFF, Slave1: 0x10000000-0x1FFFFFFF
   Invalid: Slave0: 0x00000000-0x10000000, Slave1: 0x0FFFFFFF-0x1FFFFFFF
 ```
+
+## Top-Level Monitor Configuration
+
+When monitor collection is desired, the bridge TOML configuration includes:
+
+| Field | Type | Description |
+|-------|------|-------------|
+| variants | list | List of bridge variants to generate. Supported: `["no"]` (no monitor), `["mon"]` (monitor only), `["no", "mon"]` (both). Default: `["no"]` |
+
+### Monitor Identifiers
+
+Each monitored port gets a unique `(UNIT_ID, AGENT_ID)` pair for identification in monitor packets:
+
+```
+UNIT_ID Assignment:
+  - UNIT_ID = 1: Master-side monitor wrappers (axi4_master_{rd,wr}_mon)
+  - UNIT_ID = 2: Slave-side monitor wrappers (axi4_slave_{rd,wr}_mon)
+
+AGENT_ID Assignment (per port):
+  - AGENT_ID = (port_index << 4) | channel_bit
+  - channel_bit: 0 = read channel (AR/R), 1 = write channel (AW/W/B)
+  - Example: Master port 2, write direction → AGENT_ID = (2 << 4) | 1 = 0x21
+```
+
+### AXIL→Wider-Slave Master-Side Alignment
+
+When an AXI4-Lite master connects to a wider AXI4 slave through the bridge (e.g., 32-bit AXIL master to 64-bit AXI4 slave), the generator automatically emits a master-side alignment converter (`axil_to_axi4_wide_align_{rd,wr}` modules) between the master adapter and the crossbar core. This converter handles partial-word alignment on the narrow side while preserving AXIL's single-beat semantics, without changing the protocol from AXIL to AXI4 (protocol shims are applied separately at the slave boundary).
 
 **Why This Rule Exists**:
 - Real memory systems use 4K page boundaries (virtual memory, MMU)

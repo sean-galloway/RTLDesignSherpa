@@ -23,8 +23,8 @@
 
 # Bridge Hardware Architecture Specification Index
 
-**Version:** 1.0
-**Date:** 2026-01-03
+**Version:** 1.1
+**Date:** 2026-06-04
 **Purpose:** High-level hardware architecture specification for Bridge component
 
 ---

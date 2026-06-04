@@ -28,8 +28,8 @@
 | Property | Value |
 |----------|-------|
 | Document Title | Bridge Micro-Architecture Specification |
-| Version | 1.0 |
-| Date | January 3, 2026 |
+| Version | 1.1 |
+| Date | June 4, 2026 |
 | Status | Released |
 | Classification | Open Source - Apache 2.0 License |
 
@@ -38,6 +38,7 @@
 | Version | Date | Author | Description |
 |---------|------|--------|-------------|
 | 1.0 | 2026-01-03 | RTL Design Sherpa | Initial release - restructured from single spec |
+| 1.1 | 2026-06-04 | RTL Design Sherpa | Content sync to RTL state at 2026-06-04. Adds (1) monitor-aggregation discussion in the crossbar-core chapter — per-port `axi4_{master,slave}_{rd,wr}_mon` wrappers feed a `monbus_arbiter` tree into a single bridge-top `monbus_axil_group`, packet+timestamp carried atomically through a 192-bit skid; references the canonical 128-bit packet spec at `docs/markdown/RTLAmba/includes/monitor_package_spec.md`; (2) generator-emitted protocol-conversion shims at the slave boundary — `axi4_to_axil4_{rd,wr}` for AXIL slaves, chained with the AXIL→APB shim for APB slaves; (3) AXIL→wider-slave master-side alignment converters in the width-converters chapter (`axil_to_axi4_wide_align_{rd,wr}` — partial-word alignment, not protocol bridging); (4) generated-RTL chapter now lists monitor-variant module emission and per-port `(UNIT_ID, AGENT_ID)` assignment conventions; (5) verification-strategy chapter rewritten for protocol-BFM-only TBs with memory-backed slaves, the new `boundary_probe` test pattern, and the four `test_bridge_*_monitor_*.py` canonical patterns (smoke/capture/error_inject/irq); (6) response-routing chapter notes the independent W-tracker FIFO + split AW/W-ready MUX fix (commit `d24bd617`) that closed an interleaved-master deadlock. |
 
 ## Document Purpose
 

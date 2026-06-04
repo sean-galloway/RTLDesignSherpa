@@ -68,23 +68,31 @@ Test Bridge in target system:
 
 ## Test Infrastructure
 
-### CocoTB Framework
+### CocoTB Framework with Protocol-BFM-Only Driving
 
-Bridge uses CocoTB for verification:
+Bridge uses CocoTB for verification with a protocol-BFM-only approach: **all test stimulus is driven through protocol BFMs (AXI4Master, AXI4Slave, etc.) with no direct DUT signal manipulation**. Each slave port is backed by an in-memory model (`MemoryModel`), and verification is assertion-based (readback matches write) rather than routing-based.
 
 ```python
 from CocoTBFramework.components.axi4 import AXI4Master, AXI4Slave
+from TBClasses.shared.tbbase import TBBase
+
+class BridgeTB(TBBase):
+    def __init__(self, dut):
+        super().__init__(dut)
+        self.masters = [AXI4Master(dut, dut.clk, f"m{i}_axi") for i in range(NUM_MASTERS)]
+        self.slaves = [MemoryModel(dut, dut.clk, f"s{i}_axi") for i in range(NUM_SLAVES)]
 
 @cocotb.test()
-async def test_basic_write(dut):
+async def cocotb_test_basic_write(dut):
     tb = BridgeTB(dut)
     await tb.setup_clocks_and_reset()
 
-    # Write transaction
-    await tb.master[0].write(addr=0x1000, data=0xDEADBEEF)
-
-    # Verify
-    assert tb.slave[0].mem[0x1000] == 0xDEADBEEF
+    # Write transaction via BFM only
+    await tb.masters[0].write(addr=0x1000, data=0xDEADBEEF)
+    
+    # Verify: readback matches write (memory-model assertion)
+    readback = await tb.masters[0].read(addr=0x1000)
+    assert readback == 0xDEADBEEF
 ```
 
 ### Test Categories
@@ -94,10 +102,43 @@ async def test_basic_write(dut):
 | Basic | Single transactions | Read/write |
 | Burst | Multi-beat transactions | 16-beat burst |
 | Concurrent | Multiple masters active | M0 + M1 |
+| Boundary Probe | Address window edges | Top/mid/bottom of each slave page |
 | Stress | Maximum utilization | Back-to-back |
-| Error | Error conditions | OOR address |
+| Error | Error conditions | SLVERR injection, timeout |
+| Monitor | Monitor packet collection | Packet capture, IRQ assertion |
 
 : Table 6.16: Test Categories
+
+## Test Execution Model
+
+### Serial Execution
+
+Bridge tests run **serially only** (no parallel execution via pytest-xdist). Each test function is named per-module to avoid cross-test cocotb function name pollution:
+
+```python
+# Naming convention: test_bridge_{N}x{M}_{variant}_{scenario}
+def test_bridge_1x2_rd_basic(request):        # Test name indicates 1 master, 2 slaves, read-only
+def test_bridge_1x2_rd_monitor_smoke(request): # Monitor test on 1x2
+def test_bridge_4x4_rw_concurrent(request):    # Concurrent test on 4x4
+```
+
+Cocotb test functions inside each file follow the same naming pattern but with `cocotb_test_*` prefix to avoid pytest collection conflicts.
+
+### Boundary Probe Testing
+
+Address-window boundary testing probes the **top, middle, and bottom** of each slave's address window to catch address-decode logic errors at window edges:
+
+```python
+for slave_idx, (base, window_size) in enumerate(slave_windows):
+    # Probe bottom (base address)
+    await master.write(base + 0x000, data)
+    
+    # Probe middle (arbitrary address within window)
+    await master.write(base + window_size // 2, data)
+    
+    # Probe top (base + window_size - 1)
+    await master.write(base + window_size - 1, data)
+```
 
 ## Coverage Goals
 
@@ -105,10 +146,10 @@ async def test_basic_write(dut):
 
 | Category | Target |
 |----------|--------|
-| Address paths | 100% master-slave combinations |
-| Transaction types | Read, write, burst |
-| ID values | Full ID range |
-| Data patterns | Walking 1s/0s, random |
+| Address paths | 100% master-slave combinations via boundary probes |
+| Transaction types | Read, write, burst, error (SLVERR) |
+| Monitor modes | Enabled and disabled |
+| ID values | Full ID range (representative) |
 
 : Table 6.17: Functional Coverage Goals
 

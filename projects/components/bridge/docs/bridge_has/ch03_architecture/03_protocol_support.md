@@ -66,6 +66,17 @@ Low-power peripheral protocol:
 
 : Table 3.3: Protocol Conversion Matrix
 
+## Automatic Conversion Shims at Slave Boundary
+
+When a slave port's TOML configuration specifies a protocol other than native AXI4 (e.g., `protocol = "axi4lite"` or `protocol = "apb"`), the bridge generator automatically emits protocol conversion shims between the crossbar core and the slave port. These shims are generated once during design time and inserted transparently.
+
+**Supported Slave Protocols**:
+- **axi4**: Native AXI4 (no shim required)
+- **axi4lite**: AXI4-Lite protocol (emits `axi4_to_axil4_{rd,wr}` shims)
+- **apb**: APB3/APB4 protocol (emits `axi4_to_axil4` shim followed by internal AXIL-to-APB bridge)
+
+The shim modules are located in `projects/components/converters/rtl/` and are instantiated by the bridge generator in each generated top-level module. External to the bridge, slave ports still present the configured protocol (AXIL or APB); internally, the crossbar core is uniformly AXI4.
+
 ## AXI4 to APB Conversion
 
 ### Conversion Process

@@ -107,7 +107,39 @@ axi4_to_apb u_s2_apb_conv (...);
 
 // Response routing
 response_router u_resp_router (...);
+
+// Monitor system (when variants include "mon")
+axi4_master_rd_mon u_m0_rd_mon (...);    // Per-port monitor wrappers
+axi4_master_wr_mon u_m0_wr_mon (...);
+axi4_slave_rd_mon  u_s0_rd_mon (...);
+axi4_slave_wr_mon  u_s0_wr_mon (...);
+// ... (repeat for remaining ports)
+
+// Monitor aggregation tree (if multiple monitors)
+monbus_arbiter u_mon_arb0 (...);         // Aggregate master-side streams
+monbus_arbiter u_mon_arb1 (...);         // Aggregate slave-side streams
+
+// Monitor AXIL group at bridge top
+monbus_axil_group u_mon_group (
+    .s_mon_axil_*(s_mon_axil_*),  // Slave AXIL for CPU
+    .m_axil_mon_*(m_axil_mon_*),  // Master AXIL for DMA
+    .stream_irq(stream_irq)        // IRQ output
+);
 ```
+
+## Generated Variants
+
+When `variants` list in the bridge TOML includes multiple entries, the generator produces one complete `.sv` file per variant:
+
+```
+variants = ["no", "mon"]
+
+Generated files:
+  bridge_4x3.sv              (variants = "no", no monitor)
+  bridge_4x3_mon.sv          (variants = "mon", with monitor)
+```
+
+Each variant is a complete, standalone bridge module. Both can coexist in the same design or be selected at compile time.
 
 ## Signal Naming Convention
 

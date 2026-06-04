@@ -301,7 +301,30 @@ The crossbar maintains AXI ordering rules:
 - Master sees responses in slave-determined order
 - Multi-master OOO requires careful slave design
 
-## 2.3.7 Resource Utilization
+## 2.3.7 Monitor Aggregation at Bridge Top (when `variants` includes `mon`)
+
+When monitor collection is enabled, per-port monitor streams from `axi4_master_{rd,wr}_mon` and `axi4_slave_{rd,wr}_mon` wrappers are aggregated through a tree of `monbus_arbiter` instances. The final aggregated stream feeds a single `monbus_axil_group` instance at the bridge top level:
+
+**Aggregation Hierarchy**:
+```
+Master-side monitors → monbus_arbiter tree (if >2 masters)
+Slave-side monitors  → monbus_arbiter tree (if >2 slaves)
+                    ↓
+            monbus_axil_group
+                    ↓
+      s_mon_axil (slave), m_axil_mon (master), stream_irq
+```
+
+The `monbus_axil_group` instance:
+- Provides a 64-bit slave AXIL interface for CPU read access (`s_mon_axil_*`)
+- Provides a master AXIL interface for DMA writes to system memory (`m_axil_mon_*`)
+- Contains an error FIFO tracking packets with error flags
+- Exposes `stream_irq` (asserted when error FIFO has records)
+- Includes an internal 64-bit free-running timestamp counter sampled at each packet arrival
+
+**Reference**: See `docs/markdown/RTLAmba/monitor_system_whitepaper.md` for complete monitor design-surface documentation and `docs/markdown/RTLAmba/includes/monitor_package_spec.md` for 128-bit packet layout.
+
+## 2.3.8 Resource Utilization
 
 ### Crossbar Core Resources
 

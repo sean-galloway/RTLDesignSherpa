@@ -87,6 +87,21 @@ Full Functionality:
 - Maximum flexibility but larger resource footprint
 ```
 
+## 2.1.3b Per-Port Monitor Wrappers (when `use_monitor = true`)
+
+When the bridge TOML configuration sets `use_monitor = true` for a master port, the generator instantiates per-direction monitor wrappers immediately downstream of the master adapter:
+
+- **`axi4_master_rd_mon`**: Wraps the AR/R channels, emits packets with `UNIT_ID=1`
+- **`axi4_master_wr_mon`**: Wraps the AW/W/B channels, emits packets with `UNIT_ID=1`
+
+Each wrapper:
+- Samples all channel signals and timestamp at handshake points
+- Emits 128-bit monitor packets on internal monbus
+- Passes all signals through transparently (no stall)
+- Is instantiated only when requested (generator-time configuration)
+
+The generated per-port monbus streams are later aggregated by a tree of `monbus_arbiter` instances at the bridge top.
+
 ## 2.1.4 Skid Buffer Architecture
 
 Each AXI4 channel passes through a skid buffer for timing isolation. The skid buffer implements:

@@ -28,8 +28,8 @@
 | Property | Value |
 |----------|-------|
 | Document Title | Bridge Hardware Architecture Specification |
-| Version | 1.0 |
-| Date | January 3, 2026 |
+| Version | 1.1 |
+| Date | June 4, 2026 |
 | Status | Released |
 | Classification | Open Source - Apache 2.0 License |
 
@@ -38,6 +38,7 @@
 | Version | Date | Author | Description |
 |---------|------|--------|-------------|
 | 1.0 | 2026-01-03 | RTL Design Sherpa | Initial release - restructured from single spec |
+| 1.1 | 2026-06-04 | RTL Design Sherpa | Content sync to RTL state at 2026-06-04. Documents (1) the 64→128-bit monbus packet migration with new 64-bit side-band timestamp wire — referenced via `docs/markdown/RTLAmba/includes/monitor_package_spec.md`; (2) per-port + global SV-parameter monitor methodology with mandatory `use_monitor` TOML field and `variants = ["no","mon"]` generator selector; (3) generator-emitted AXI4↔AXIL conversion at the slave boundary (was external); (4) new AXIL→wider-slave master-side alignment converters (`axil_to_axi4_wide_align_{rd,wr}`); (5) verification-strategy rewrite to protocol-BFM-only TBs with memory-backed slaves, serial-only execution, per-module cocotb function names, boundary_probe (renamed from address_decode) tests; (6) note of the independent W-tracker FIFO + split AW/W-ready MUX fix (commit `d24bd617`) that closed an interleaved-master deadlock. |
 
 ## Document Purpose
 
