@@ -6,36 +6,38 @@
 //
 // Architecture (see /home/seang/Downloads/AXIL_PIPELINED_SLAVE_SDPRAM.md):
 //
-//   AW ─→ AW_queue ─┐
-//                   ├──→ port A (BRAM write)  ──→ B_queue → B
-//   W  ─→ W_queue  ─┘
+//   s_axil_aw/w/b ──→ [ axil4_slave_wr ] ──→ fub_aw/w/b ──→ BRAM port A
+//                       (skid buffers)
 //
-//   AR ─→ AR_queue ─→ port B (BRAM read, lat=1) ─┐
-//                                                ├─→ R_out_queue → R
-//                  rresp pre-computed at AR pop ─┘
+//   s_axil_ar/r   ──→ [ axil4_slave_rd ] ──→ fub_ar/r   ──→ BRAM port B
+//                       (skid buffers)
 //
-//   No FSMs. Every sequencer is a gaxi_fifo_sync, no shift registers.
-//   Read latency is BRAM_READ_LAT=1 (no output register) so the "slot
-//   tracker" between AR pop and BRAM data return collapses to a single
-//   one-cycle pipeline flop pair.
+// The protocol-side skid buffers live inside axil4_slave_wr / axil4_slave_rd
+// — this module owns only the BRAM glue. That means:
+//   - dropping in *_cg or *_mon variants is a one-line swap, with no
+//     re-verification of the protocol wrapper required;
+//   - we benefit from any future fixes to those wrappers automatically;
+//   - this file's job collapses to BRAM port A/B handshakes + a single
+//     in-flight read latency flop. No FSMs, no shift registers.
 //
-// Symmetric port: only one AXIL slave interface. Width conversion (32-bit
-// host writes vs wider STREAM reads) is the upstream bridge's problem.
+// Symmetric port: only one AXIL slave interface at parameterized DATA_WIDTH.
+// Width conversion (32b host writes vs 256b STREAM desc fetches) is the
+// upstream bridge's problem, not this module's.
 
 `timescale 1ns / 1ps
 
 `include "reset_defs.svh"
 
 module axil_sdpram_slave #(
-    parameter int ADDR_WIDTH = 32,
-    parameter int DATA_WIDTH = 64,           // power of two; 32 or 64 typical
-    parameter int MEM_DEPTH  = 2048,         // BRAM depth in DATA_WIDTH words
+    parameter int ADDR_WIDTH     = 32,
+    parameter int DATA_WIDTH     = 64,        // 32 / 64 typical
+    parameter int MEM_DEPTH      = 2048,      // BRAM depth in DATA_WIDTH words
 
-    parameter int AW_DEPTH   = 4,            // queue depths (all gaxi_fifo_sync)
-    parameter int W_DEPTH    = 4,
-    parameter int AR_DEPTH   = 4,
-    parameter int B_DEPTH    = 4,
-    parameter int R_DEPTH    = 4
+    parameter int SKID_DEPTH_AW  = 2,
+    parameter int SKID_DEPTH_W   = 2,
+    parameter int SKID_DEPTH_B   = 2,
+    parameter int SKID_DEPTH_AR  = 2,
+    parameter int SKID_DEPTH_R   = 4
 ) (
     input  logic                        aclk,
     input  logic                        aresetn,
@@ -43,360 +45,268 @@ module axil_sdpram_slave #(
     // ---------------------------------------------------------------
     // AXI4-Lite slave interface
     // ---------------------------------------------------------------
-    // Write address channel
     input  logic [ADDR_WIDTH-1:0]       s_axil_awaddr,
     input  logic [2:0]                  s_axil_awprot,
     input  logic                        s_axil_awvalid,
     output logic                        s_axil_awready,
 
-    // Write data channel
     input  logic [DATA_WIDTH-1:0]       s_axil_wdata,
     input  logic [DATA_WIDTH/8-1:0]     s_axil_wstrb,
     input  logic                        s_axil_wvalid,
     output logic                        s_axil_wready,
 
-    // Write response channel
     output logic [1:0]                  s_axil_bresp,
     output logic                        s_axil_bvalid,
     input  logic                        s_axil_bready,
 
-    // Read address channel
     input  logic [ADDR_WIDTH-1:0]       s_axil_araddr,
     input  logic [2:0]                  s_axil_arprot,
     input  logic                        s_axil_arvalid,
     output logic                        s_axil_arready,
 
-    // Read data channel
     output logic [DATA_WIDTH-1:0]       s_axil_rdata,
     output logic [1:0]                  s_axil_rresp,
     output logic                        s_axil_rvalid,
     input  logic                        s_axil_rready,
 
     // ---------------------------------------------------------------
-    // Observation bus — non-functional; for harness/CSR counters.
+    // Observation port (non-functional; for harness/CSR counters)
     //
-    // Layout (packed, all combinational unless noted):
-    //   o_dbg_vr    [9:0]  raw valid/ready bits for AW, W, B, AR, R
+    // o_dbg_vr      [9:0] raw external valid/ready pairs (AW, W, B, AR, R)
     //                       [0] awvalid  [1] awready
     //                       [2] wvalid   [3] wready
     //                       [4] bvalid   [5] bready
     //                       [6] arvalid  [7] arready
     //                       [8] rvalid   [9] rready
-    //   o_dbg_q_full[4:0]  one-bit per queue (AW, W, AR, B, R) — currently full
-    //   o_dbg_q_count_*    queue occupancy (0..DEPTH) for each queue
-    //   o_dbg_bram_wr      1 cycle pulse: BRAM port A wrote
-    //   o_dbg_bram_rd      1 cycle pulse: BRAM port B issued a read
+    // o_dbg_fub_vr  [9:0] same shape but on the fub-side (between the
+    //                       axil4_slave_* wrappers and the BRAM glue)
+    // o_dbg_bram_wr  1-cycle pulse on BRAM port-A write fire
+    // o_dbg_bram_rd  1-cycle pulse on BRAM port-B read fire
+    // o_dbg_busy_wr  axil4_slave_wr busy (skid activity)
+    // o_dbg_busy_rd  axil4_slave_rd busy (skid activity)
     // ---------------------------------------------------------------
     output logic [9:0]                  o_dbg_vr,
-    output logic [4:0]                  o_dbg_q_full,
-    output logic [$clog2(AW_DEPTH+1)-1:0] o_dbg_q_count_aw,
-    output logic [$clog2(W_DEPTH +1)-1:0] o_dbg_q_count_w,
-    output logic [$clog2(AR_DEPTH+1)-1:0] o_dbg_q_count_ar,
-    output logic [$clog2(B_DEPTH +1)-1:0] o_dbg_q_count_b,
-    output logic [$clog2(R_DEPTH +1)-1:0] o_dbg_q_count_r,
+    output logic [9:0]                  o_dbg_fub_vr,
     output logic                        o_dbg_bram_wr,
-    output logic                        o_dbg_bram_rd
+    output logic                        o_dbg_bram_rd,
+    output logic                        o_dbg_busy_wr,
+    output logic                        o_dbg_busy_rd
 );
 
     // ---------------------------------------------------------------
     // Derived constants
     // ---------------------------------------------------------------
-    localparam int STRB_W       = DATA_WIDTH / 8;
-    localparam int ADDR_LSB     = $clog2(STRB_W);    // byte-offset bits
-    localparam int MEM_AW       = $clog2(MEM_DEPTH); // BRAM addr width
-    localparam int AW_PKT_W     = ADDR_WIDTH + 3;            // addr + awprot
-    localparam int W_PKT_W      = DATA_WIDTH + STRB_W;       // data + wstrb
-    localparam int AR_PKT_W     = ADDR_WIDTH + 3;            // addr + arprot
+    localparam int STRB_W   = DATA_WIDTH / 8;
+    localparam int ADDR_LSB = $clog2(STRB_W);
+    localparam int MEM_AW   = $clog2(MEM_DEPTH);
+    localparam int WORD_AW  = ADDR_WIDTH - ADDR_LSB;
 
     // ---------------------------------------------------------------
-    // AW_queue : holds {addr, prot} until matched with a W_queue head.
+    // Fub-side write nets (between axil4_slave_wr skid and BRAM glue)
     // ---------------------------------------------------------------
-    logic                aw_q_wr_valid, aw_q_wr_ready;
-    logic                aw_q_rd_valid, aw_q_rd_ready;
-    logic [AW_PKT_W-1:0] aw_q_rd_pkt;
-    logic [$clog2(AW_DEPTH+1)-1:0] aw_q_count;
-
-    gaxi_fifo_sync #(
-        .DATA_WIDTH (AW_PKT_W),
-        .DEPTH      (AW_DEPTH)
-    ) u_aw_q (
-        .axi_aclk   (aclk),
-        .axi_aresetn(aresetn),
-        .wr_valid   (aw_q_wr_valid),
-        .wr_ready   (aw_q_wr_ready),
-        .wr_data    ({s_axil_awaddr, s_axil_awprot}),
-        .count      (aw_q_count),
-        .rd_valid   (aw_q_rd_valid),
-        .rd_ready   (aw_q_rd_ready),
-        .rd_data    (aw_q_rd_pkt)
-    );
-
-    // Push every accepted AW. AWREADY = NOT full.
-    assign aw_q_wr_valid  = s_axil_awvalid;
-    assign s_axil_awready = aw_q_wr_ready;
-
-    logic [ADDR_WIDTH-1:0] aw_q_head_addr;
+    logic [ADDR_WIDTH-1:0]   fub_awaddr;
     /* verilator lint_off UNUSED */
-    logic [2:0]            aw_q_head_prot;
+    logic [2:0]              fub_awprot;
     /* verilator lint_on UNUSED */
-    assign {aw_q_head_addr, aw_q_head_prot} = aw_q_rd_pkt;
+    logic                    fub_awvalid, fub_awready;
+    logic [DATA_WIDTH-1:0]   fub_wdata;
+    logic [STRB_W-1:0]       fub_wstrb;
+    logic                    fub_wvalid,  fub_wready;
+    logic [1:0]              fub_bresp;
+    logic                    fub_bvalid,  fub_bready;
 
-    // ---------------------------------------------------------------
-    // W_queue : holds {data, strb}.
-    // ---------------------------------------------------------------
-    logic               w_q_wr_valid, w_q_wr_ready;
-    logic               w_q_rd_valid, w_q_rd_ready;
-    logic [W_PKT_W-1:0] w_q_rd_pkt;
-    logic [$clog2(W_DEPTH+1)-1:0] w_q_count;
+    axil4_slave_wr #(
+        .AXIL_ADDR_WIDTH(ADDR_WIDTH),
+        .AXIL_DATA_WIDTH(DATA_WIDTH),
+        .SKID_DEPTH_AW  (SKID_DEPTH_AW),
+        .SKID_DEPTH_W   (SKID_DEPTH_W),
+        .SKID_DEPTH_B   (SKID_DEPTH_B)
+    ) u_axil_wr (
+        .aclk           (aclk),
+        .aresetn        (aresetn),
 
-    gaxi_fifo_sync #(
-        .DATA_WIDTH (W_PKT_W),
-        .DEPTH      (W_DEPTH)
-    ) u_w_q (
-        .axi_aclk   (aclk),
-        .axi_aresetn(aresetn),
-        .wr_valid   (w_q_wr_valid),
-        .wr_ready   (w_q_wr_ready),
-        .wr_data    ({s_axil_wdata, s_axil_wstrb}),
-        .count      (w_q_count),
-        .rd_valid   (w_q_rd_valid),
-        .rd_ready   (w_q_rd_ready),
-        .rd_data    (w_q_rd_pkt)
+        .s_axil_awaddr  (s_axil_awaddr),
+        .s_axil_awprot  (s_axil_awprot),
+        .s_axil_awvalid (s_axil_awvalid),
+        .s_axil_awready (s_axil_awready),
+
+        .s_axil_wdata   (s_axil_wdata),
+        .s_axil_wstrb   (s_axil_wstrb),
+        .s_axil_wvalid  (s_axil_wvalid),
+        .s_axil_wready  (s_axil_wready),
+
+        .s_axil_bresp   (s_axil_bresp),
+        .s_axil_bvalid  (s_axil_bvalid),
+        .s_axil_bready  (s_axil_bready),
+
+        .fub_awaddr     (fub_awaddr),
+        .fub_awprot     (fub_awprot),
+        .fub_awvalid    (fub_awvalid),
+        .fub_awready    (fub_awready),
+
+        .fub_wdata      (fub_wdata),
+        .fub_wstrb      (fub_wstrb),
+        .fub_wvalid     (fub_wvalid),
+        .fub_wready     (fub_wready),
+
+        .fub_bresp      (fub_bresp),
+        .fub_bvalid     (fub_bvalid),
+        .fub_bready     (fub_bready),
+
+        .busy           (o_dbg_busy_wr)
     );
 
-    assign w_q_wr_valid  = s_axil_wvalid;
-    assign s_axil_wready = w_q_wr_ready;
-
-    logic [DATA_WIDTH-1:0] w_q_head_data;
-    logic [STRB_W-1:0]     w_q_head_strb;
-    assign {w_q_head_data, w_q_head_strb} = w_q_rd_pkt;
-
     // ---------------------------------------------------------------
-    // B_queue : holds bresp until master pops it on the B channel.
+    // Fub-side read nets (between axil4_slave_rd skid and BRAM glue)
     // ---------------------------------------------------------------
-    logic       b_q_wr_valid, b_q_wr_ready;
-    logic [1:0] b_q_wr_data;
-    logic       b_q_rd_valid, b_q_rd_ready;
-    logic [1:0] b_q_rd_data;
-    logic [$clog2(B_DEPTH+1)-1:0] b_q_count;
-
-    gaxi_fifo_sync #(
-        .DATA_WIDTH (2),
-        .DEPTH      (B_DEPTH)
-    ) u_b_q (
-        .axi_aclk   (aclk),
-        .axi_aresetn(aresetn),
-        .wr_valid   (b_q_wr_valid),
-        .wr_ready   (b_q_wr_ready),
-        .wr_data    (b_q_wr_data),
-        .count      (b_q_count),
-        .rd_valid   (b_q_rd_valid),
-        .rd_ready   (b_q_rd_ready),
-        .rd_data    (b_q_rd_data)
-    );
-
-    assign s_axil_bvalid = b_q_rd_valid;
-    assign s_axil_bresp  = b_q_rd_data;
-    assign b_q_rd_ready  = s_axil_bready;
-
-    // ---------------------------------------------------------------
-    // Write fire — pop AW, W; push BRESP into B_queue.
-    // ---------------------------------------------------------------
-    // write_fire = AW head valid && W head valid && B has room.
-    // Same cycle: BRAM port A receives wr_en=1, addr=AW head, data=W head,
-    // byte enables = W strb. B_queue receives OKAY (or SLVERR if addr is
-    // beyond MEM_DEPTH).
-    logic                  write_fire;
-    logic                  write_addr_in_range;
-    logic [MEM_AW-1:0]     write_bram_addr;
-
-    localparam int WORD_AW = ADDR_WIDTH - ADDR_LSB;
-    wire [WORD_AW-1:0] aw_q_head_word_addr = aw_q_head_addr[ADDR_LSB +: WORD_AW];
-    assign write_addr_in_range = (aw_q_head_word_addr < WORD_AW'(MEM_DEPTH));
-    assign write_bram_addr = aw_q_head_addr[ADDR_LSB +: MEM_AW];
-
-    assign write_fire   = aw_q_rd_valid && w_q_rd_valid && b_q_wr_ready;
-    assign aw_q_rd_ready = write_fire;
-    assign w_q_rd_ready  = write_fire;
-    assign b_q_wr_valid  = write_fire;
-    assign b_q_wr_data   = write_addr_in_range ? 2'b00 : 2'b10;  // OKAY / SLVERR
-
-    // ---------------------------------------------------------------
-    // AR_queue : holds {addr, prot} pending BRAM read.
-    // ---------------------------------------------------------------
-    logic                 ar_q_wr_valid, ar_q_wr_ready;
-    logic                 ar_q_rd_valid, ar_q_rd_ready;
-    logic [AR_PKT_W-1:0]  ar_q_rd_pkt;
-    logic [$clog2(AR_DEPTH+1)-1:0] ar_q_count;
-
-    gaxi_fifo_sync #(
-        .DATA_WIDTH (AR_PKT_W),
-        .DEPTH      (AR_DEPTH)
-    ) u_ar_q (
-        .axi_aclk   (aclk),
-        .axi_aresetn(aresetn),
-        .wr_valid   (ar_q_wr_valid),
-        .wr_ready   (ar_q_wr_ready),
-        .wr_data    ({s_axil_araddr, s_axil_arprot}),
-        .count      (ar_q_count),
-        .rd_valid   (ar_q_rd_valid),
-        .rd_ready   (ar_q_rd_ready),
-        .rd_data    (ar_q_rd_pkt)
-    );
-
-    assign ar_q_wr_valid  = s_axil_arvalid;
-    assign s_axil_arready = ar_q_wr_ready;
-
-    logic [ADDR_WIDTH-1:0] ar_q_head_addr;
+    logic [ADDR_WIDTH-1:0]   fub_araddr;
     /* verilator lint_off UNUSED */
-    logic [2:0]            ar_q_head_prot;
+    logic [2:0]              fub_arprot;
     /* verilator lint_on UNUSED */
-    assign {ar_q_head_addr, ar_q_head_prot} = ar_q_rd_pkt;
+    logic                    fub_arvalid, fub_arready;
+    logic [DATA_WIDTH-1:0]   fub_rdata;
+    logic [1:0]              fub_rresp;
+    logic                    fub_rvalid,  fub_rready;
 
-    logic                  read_addr_in_range;
-    logic [MEM_AW-1:0]     read_bram_addr;
-    wire [WORD_AW-1:0] ar_q_head_word_addr = ar_q_head_addr[ADDR_LSB +: WORD_AW];
-    assign read_addr_in_range = (ar_q_head_word_addr < WORD_AW'(MEM_DEPTH));
-    assign read_bram_addr = ar_q_head_addr[ADDR_LSB +: MEM_AW];
+    axil4_slave_rd #(
+        .AXIL_ADDR_WIDTH(ADDR_WIDTH),
+        .AXIL_DATA_WIDTH(DATA_WIDTH),
+        .SKID_DEPTH_AR  (SKID_DEPTH_AR),
+        .SKID_DEPTH_R   (SKID_DEPTH_R)
+    ) u_axil_rd (
+        .aclk           (aclk),
+        .aresetn        (aresetn),
 
-    // ---------------------------------------------------------------
-    // R_out_queue : final R-channel skid. We push as BRAM data returns.
-    // ---------------------------------------------------------------
-    localparam int R_PKT_W = DATA_WIDTH + 2;       // {data, resp}
-    logic               r_q_wr_valid, r_q_wr_ready;
-    logic [R_PKT_W-1:0] r_q_wr_data;
-    logic               r_q_rd_valid, r_q_rd_ready;
-    logic [R_PKT_W-1:0] r_q_rd_data;
-    logic [$clog2(R_DEPTH+1)-1:0] r_q_count;
+        .s_axil_araddr  (s_axil_araddr),
+        .s_axil_arprot  (s_axil_arprot),
+        .s_axil_arvalid (s_axil_arvalid),
+        .s_axil_arready (s_axil_arready),
 
-    gaxi_fifo_sync #(
-        .DATA_WIDTH (R_PKT_W),
-        .DEPTH      (R_DEPTH)
-    ) u_r_q (
-        .axi_aclk   (aclk),
-        .axi_aresetn(aresetn),
-        .wr_valid   (r_q_wr_valid),
-        .wr_ready   (r_q_wr_ready),
-        .wr_data    (r_q_wr_data),
-        .count      (r_q_count),
-        .rd_valid   (r_q_rd_valid),
-        .rd_ready   (r_q_rd_ready),
-        .rd_data    (r_q_rd_data)
+        .s_axil_rdata   (s_axil_rdata),
+        .s_axil_rresp   (s_axil_rresp),
+        .s_axil_rvalid  (s_axil_rvalid),
+        .s_axil_rready  (s_axil_rready),
+
+        .fub_araddr     (fub_araddr),
+        .fub_arprot     (fub_arprot),
+        .fub_arvalid    (fub_arvalid),
+        .fub_arready    (fub_arready),
+
+        .fub_rdata      (fub_rdata),
+        .fub_rresp      (fub_rresp),
+        .fub_rvalid     (fub_rvalid),
+        .fub_rready     (fub_rready),
+
+        .busy           (o_dbg_busy_rd)
     );
 
-    assign s_axil_rvalid           = r_q_rd_valid;
-    assign {s_axil_rdata, s_axil_rresp} = r_q_rd_data;
-    assign r_q_rd_ready            = s_axil_rready;
+    // ---------------------------------------------------------------
+    // Write fire — combinational handshake against BRAM port A.
+    // Fire when both AW and W heads valid AND downstream B skid can
+    // absorb the response (its fub_bready is the wrapper's ready into
+    // the B skid). All three handshakes complete the same cycle.
+    // ---------------------------------------------------------------
+    wire [WORD_AW-1:0] fub_aw_word_addr = fub_awaddr[ADDR_LSB +: WORD_AW];
+    wire write_addr_in_range = (fub_aw_word_addr < WORD_AW'(MEM_DEPTH));
+    wire [MEM_AW-1:0] write_bram_addr  = fub_awaddr[ADDR_LSB +: MEM_AW];
+
+    wire write_fire = fub_awvalid && fub_wvalid && fub_bready;
+    assign fub_awready = fub_wvalid  && fub_bready;
+    assign fub_wready  = fub_awvalid && fub_bready;
+    assign fub_bvalid  = write_fire;
+    assign fub_bresp   = write_addr_in_range ? 2'b00 : 2'b10;  // OKAY / SLVERR
 
     // ---------------------------------------------------------------
-    // Read fire — pop AR_queue, drive BRAM port B, register the rresp
-    // for one cycle (BRAM_READ_LAT=1), pair with returning BRAM data
-    // next cycle and push into R_out_queue.
+    // Read path — BRAM_READ_LAT = 1. Single flop pair carries the
+    // in-flight rresp; r_bram_rdata + r_inflight_rresp pair to drive
+    // fub_rvalid/data/resp the cycle after AR pop.
     //
-    // We backpressure AR pop on r_q_wr_ready being able to absorb BOTH
-    // the next BRAM data return AND the one currently being issued —
-    // simplest gate: don't issue while a read is in flight AND R_queue
-    // is one slot away from full. With R_DEPTH=4 and 1-cycle latency
-    // this gives full 1-per-cycle throughput.
+    //   read_issue fires when fub_arvalid && we can absorb the next
+    //   BRAM data into the R skid. Concretely:
+    //     - no read in flight → safe to fire (skid is at-most-1
+    //       behind)
+    //     - read in flight && downstream R skid will take the data
+    //       this cycle → safe to fire (pipeline continues 1/cycle)
     // ---------------------------------------------------------------
-    logic       r_inflight;            // 1 = BRAM data arriving next cycle
-    logic [1:0] r_inflight_rresp;      // rresp tag for the in-flight read
+    wire [WORD_AW-1:0] fub_ar_word_addr = fub_araddr[ADDR_LSB +: WORD_AW];
+    wire read_addr_in_range = (fub_ar_word_addr < WORD_AW'(MEM_DEPTH));
+    wire [MEM_AW-1:0] read_bram_addr   = fub_araddr[ADDR_LSB +: MEM_AW];
 
-    logic       read_issue;            // AR-pop + BRAM read this cycle
+    logic r_inflight;
+    logic [1:0] r_inflight_rresp;
 
-    // Pop AR only if (R_queue has room for a push next cycle).
-    // r_q has space when count <= R_DEPTH - 1 - inflight_pushes.
-    // Approx: r_q_count + r_inflight < R_DEPTH.
-    wire r_queue_has_room =
-        (r_q_count + {{($clog2(R_DEPTH+1)-1){1'b0}}, r_inflight}) <
-        ($clog2(R_DEPTH+1))'(R_DEPTH);
-
-    assign read_issue   = ar_q_rd_valid && r_queue_has_room;
-    assign ar_q_rd_ready = read_issue;
-
-    // BRAM read enable on port B (combinational gate of read_issue).
-    logic bram_rd_en;
-    assign bram_rd_en = read_issue;
+    wire read_issue = fub_arvalid && fub_arready;
+    assign fub_arready = !r_inflight || fub_rready;
 
     // ---------------------------------------------------------------
-    // BRAM — inferred dual-port; one port write-only, one port read-only.
-    // Vivado synth picks distributed/BRAM based on size; explicit
-    // ram_style attribute keeps small builds in LUTRAM.
+    // BRAM — inferred dual-port; one always_ff per port keeps Vivado
+    // happy. ram_style left to "auto" so small builds drop into
+    // LUTRAM and big builds map to block RAM.
     // ---------------------------------------------------------------
     (* ram_style = "auto" *)
     logic [DATA_WIDTH-1:0] r_mem [MEM_DEPTH];
 
-    // Port A: write w/ byte enables (one always_ff so Vivado infers BRAM).
-    `ALWAYS_FF_RST(aclk, aresetn,
-        if (`RST_ASSERTED(aresetn)) begin
-            // BRAM has no reset (data persists). Intentional no-op.
-        end else begin
-            if (write_fire && write_addr_in_range) begin
-                for (int b = 0; b < STRB_W; b++) begin
-                    if (w_q_head_strb[b]) begin
-                        r_mem[write_bram_addr][8*b +: 8] <= w_q_head_data[8*b +: 8];
-                    end
+    // Port A: byte-enabled write. Single always_ff, no reset (BRAM
+    // contents persist across reset).
+    always_ff @(posedge aclk) begin
+        if (write_fire && write_addr_in_range) begin
+            for (int b = 0; b < STRB_W; b++) begin
+                if (fub_wstrb[b]) begin
+                    r_mem[write_bram_addr][8*b +: 8] <= fub_wdata[8*b +: 8];
                 end
             end
         end
-    )
+    end
 
-    // Port B: read (BRAM_READ_LAT=1).
+    // Port B: read with 1-cycle latency (no output register).
     logic [DATA_WIDTH-1:0] r_bram_rdata;
-    `ALWAYS_FF_RST(aclk, aresetn,
-        if (`RST_ASSERTED(aresetn)) begin
-            r_bram_rdata <= '0;
-        end else if (bram_rd_en) begin
+    always_ff @(posedge aclk) begin
+        if (read_issue) begin
             r_bram_rdata <= r_mem[read_bram_addr];
         end
-    )
+    end
 
-    // In-flight tracking: 1-cycle BRAM latency → 1 flop carries the
-    // rresp and a "data arriving next cycle" valid. No shift register.
+    // In-flight tracking (single flop pair, BRAM_READ_LAT=1).
     `ALWAYS_FF_RST(aclk, aresetn,
         if (`RST_ASSERTED(aresetn)) begin
             r_inflight       <= 1'b0;
             r_inflight_rresp <= 2'b00;
         end else begin
-            r_inflight       <= read_issue;
-            // OKAY if in-range, SLVERR if not (still drives a R beat so
-            // the master can't get orphaned).
-            r_inflight_rresp <= read_addr_in_range ? 2'b00 : 2'b10;
+            // Default: if data was just consumed, drop r_inflight unless
+            // we issued a new read this cycle.
+            if (r_inflight && fub_rready && !read_issue) begin
+                r_inflight <= 1'b0;
+            end else if (read_issue) begin
+                r_inflight       <= 1'b1;
+                r_inflight_rresp <= read_addr_in_range ? 2'b00 : 2'b10;
+            end
         end
     )
 
-    // R_queue push when BRAM data is valid (the cycle after read_issue).
-    // r_queue_has_room above guarantees r_q_wr_ready here.
-    assign r_q_wr_valid = r_inflight;
-    assign r_q_wr_data  = {r_bram_rdata, r_inflight_rresp};
+    assign fub_rvalid = r_inflight;
+    assign fub_rdata  = r_bram_rdata;
+    assign fub_rresp  = r_inflight_rresp;
 
     // ---------------------------------------------------------------
-    // Observation port wiring
+    // Observation wiring
     // ---------------------------------------------------------------
     assign o_dbg_vr = {
-        s_axil_rready, s_axil_rvalid,
+        s_axil_rready,  s_axil_rvalid,
         s_axil_arready, s_axil_arvalid,
-        s_axil_bready, s_axil_bvalid,
-        s_axil_wready, s_axil_wvalid,
+        s_axil_bready,  s_axil_bvalid,
+        s_axil_wready,  s_axil_wvalid,
         s_axil_awready, s_axil_awvalid
     };
 
-    // queue_full bits — convenient one-bit warnings for the host.
-    assign o_dbg_q_full = {
-        !r_q_wr_ready,
-        !b_q_wr_ready,
-        !ar_q_wr_ready,
-        !w_q_wr_ready,
-        !aw_q_wr_ready
+    assign o_dbg_fub_vr = {
+        fub_rready,  fub_rvalid,
+        fub_arready, fub_arvalid,
+        fub_bready,  fub_bvalid,
+        fub_wready,  fub_wvalid,
+        fub_awready, fub_awvalid
     };
 
-    assign o_dbg_q_count_aw = aw_q_count;
-    assign o_dbg_q_count_w  = w_q_count;
-    assign o_dbg_q_count_ar = ar_q_count;
-    assign o_dbg_q_count_b  = b_q_count;
-    assign o_dbg_q_count_r  = r_q_count;
-
     assign o_dbg_bram_wr = write_fire && write_addr_in_range;
-    assign o_dbg_bram_rd = bram_rd_en;
+    assign o_dbg_bram_rd = read_issue;
 
 endmodule : axil_sdpram_slave
