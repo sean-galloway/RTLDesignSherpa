@@ -1366,55 +1366,239 @@ class AdapterGenerator:
 
         struct_prefix = f"{self.master.name}_{suffix}"
 
+        # For an AXIL master upsizing to a wider slave, axi_data_upsize
+        # (the burst-counter aggregator inside axi4_dwidth_converter_wr/rd)
+        # always places the narrow beat at lane 0 of the wide bus and
+        # ignores awaddr's low bits. That violates AXI4 sub-wide byte-lane
+        # semantics — wstrb[b]=1 must enable wdata[8*b +: 8]. For real
+        # AXI4-compliant slaves (e.g. byte-strobed BRAMs) every narrow
+        # beat overwrites lane 0 of the row, corrupting prior writes.
+        # Substitute the dedicated master-side aligner modules instead;
+        # they emit one wide single-beat write/read with wdata/wstrb
+        # positioned at slot = awaddr[ROW_LSB-1:SLOT_LSB].
+        use_aligner = (self.master.protocol == 'axil') and \
+                      (master_width < slave_width)
+
         # Write converter
         if self.master.channels in ["wr", "rw"]:
-            conv_wr = Axi4DwidthConverter(
-                direction='wr',
-                instance_name=f'u_wr_conv_{suffix}',
-                s_data_width=master_width,
-                m_data_width=slave_width,
-                id_width=self.master.id_width,
-            )
-            conv_wr.connect_clocks_and_resets()
-            conv_wr.connect_s_axi_write(
-                fub_prefix='fub_axi_',
-                aw_valid_gate=f'fub_axi_awvalid && aw_path_active_{slave_width}b',
-                w_valid_gate=f'fub_axi_wvalid && w_path_active_{slave_width}b',
-                b_intercept_prefix=f'conv_{suffix}',
-            )
-            conv_wr.connect_m_axi_write(
-                struct_prefix=struct_prefix,
-                valid_signal=f'{struct_prefix}_awvalid',
-                ready_signal=f'{struct_prefix}_awready',
-                bvalid_signal=f'{struct_prefix}_bvalid',
-                bready_signal=f'{struct_prefix}_bready',
-            )
-            lines.extend(conv_wr.generate_lines())
+            if use_aligner:
+                lines.extend(self._generate_axil_align_wr_instance(
+                    instance_name=f'u_wr_conv_{suffix}',
+                    s_data_width=master_width,
+                    m_data_width=slave_width,
+                    id_width=self.master.id_width,
+                    user_width=getattr(self.master, 'user_width', 1) or 1,
+                    addr_width=getattr(self.master, 'addr_width', 32),
+                    suffix=suffix,
+                    struct_prefix=struct_prefix,
+                ))
+            else:
+                conv_wr = Axi4DwidthConverter(
+                    direction='wr',
+                    instance_name=f'u_wr_conv_{suffix}',
+                    s_data_width=master_width,
+                    m_data_width=slave_width,
+                    id_width=self.master.id_width,
+                )
+                conv_wr.connect_clocks_and_resets()
+                conv_wr.connect_s_axi_write(
+                    fub_prefix='fub_axi_',
+                    aw_valid_gate=f'fub_axi_awvalid && aw_path_active_{slave_width}b',
+                    w_valid_gate=f'fub_axi_wvalid && w_path_active_{slave_width}b',
+                    b_intercept_prefix=f'conv_{suffix}',
+                )
+                conv_wr.connect_m_axi_write(
+                    struct_prefix=struct_prefix,
+                    valid_signal=f'{struct_prefix}_awvalid',
+                    ready_signal=f'{struct_prefix}_awready',
+                    bvalid_signal=f'{struct_prefix}_bvalid',
+                    bready_signal=f'{struct_prefix}_bready',
+                )
+                lines.extend(conv_wr.generate_lines())
 
         # Read converter
         if self.master.channels in ["rd", "rw"]:
-            conv_rd = Axi4DwidthConverter(
-                direction='rd',
-                instance_name=f'u_rd_conv_{suffix}',
-                s_data_width=master_width,
-                m_data_width=slave_width,
-                id_width=self.master.id_width,
-            )
-            conv_rd.connect_clocks_and_resets()
-            conv_rd.connect_s_axi_read(
-                fub_prefix='fub_axi_',
-                ar_valid_gate=f'fub_axi_arvalid && ar_path_active_{slave_width}b',
-                r_intercept_prefix=f'conv_{suffix}',
-            )
-            conv_rd.connect_m_axi_read(
-                struct_prefix=struct_prefix,
-                arvalid_signal=f'{struct_prefix}_arvalid',
-                arready_signal=f'{struct_prefix}_arready',
-                rvalid_signal=f'{struct_prefix}_rvalid',
-                rready_signal=f'{struct_prefix}_rready',
-            )
-            lines.extend(conv_rd.generate_lines())
+            if use_aligner:
+                lines.extend(self._generate_axil_align_rd_instance(
+                    instance_name=f'u_rd_conv_{suffix}',
+                    s_data_width=master_width,
+                    m_data_width=slave_width,
+                    id_width=self.master.id_width,
+                    user_width=getattr(self.master, 'user_width', 1) or 1,
+                    addr_width=getattr(self.master, 'addr_width', 32),
+                    suffix=suffix,
+                    struct_prefix=struct_prefix,
+                ))
+            else:
+                conv_rd = Axi4DwidthConverter(
+                    direction='rd',
+                    instance_name=f'u_rd_conv_{suffix}',
+                    s_data_width=master_width,
+                    m_data_width=slave_width,
+                    id_width=self.master.id_width,
+                )
+                conv_rd.connect_clocks_and_resets()
+                conv_rd.connect_s_axi_read(
+                    fub_prefix='fub_axi_',
+                    ar_valid_gate=f'fub_axi_arvalid && ar_path_active_{slave_width}b',
+                    r_intercept_prefix=f'conv_{suffix}',
+                )
+                conv_rd.connect_m_axi_read(
+                    struct_prefix=struct_prefix,
+                    arvalid_signal=f'{struct_prefix}_arvalid',
+                    arready_signal=f'{struct_prefix}_arready',
+                    rvalid_signal=f'{struct_prefix}_rvalid',
+                    rready_signal=f'{struct_prefix}_rready',
+                )
+                lines.extend(conv_rd.generate_lines())
 
+        return lines
+
+    # ------------------------------------------------------------------
+    # AXIL-master alignment helpers (drop-in replacements for the
+    # axi_data_upsize-based dwidth converters when master.protocol=='axil'
+    # and we're upsizing into a wider slave). See
+    # projects/components/converters/rtl/axil_to_axi4_wide_align_{wr,rd}.sv
+    # for the SystemVerilog semantics.
+    # ------------------------------------------------------------------
+
+    def _generate_axil_align_wr_instance(self, *, instance_name: str,
+                                          s_data_width: int, m_data_width: int,
+                                          id_width: int, user_width: int,
+                                          addr_width: int, suffix: str,
+                                          struct_prefix: str) -> List[str]:
+        """Emit an axil_to_axi4_wide_align_wr instantiation with the
+        same slave-side and master-side wiring contract as
+        Axi4DwidthConverter('wr')."""
+        lines: List[str] = []
+        lines.append(f"    // Master-side AXIL alignment (no aggregation): every narrow")
+        lines.append(f"    // single-beat AXIL write becomes one wide AXI4 single-beat with")
+        lines.append(f"    // wdata/wstrb shifted by awaddr's low bits.")
+        lines.append(f"    axil_to_axi4_wide_align_wr #(")
+        lines.append(f"        .S_AXI_DATA_WIDTH({s_data_width}),")
+        lines.append(f"        .M_AXI_DATA_WIDTH({m_data_width}),")
+        lines.append(f"        .AXI_ID_WIDTH({id_width}),")
+        lines.append(f"        .AXI_ADDR_WIDTH({addr_width}),")
+        lines.append(f"        .AXI_USER_WIDTH({user_width})")
+        lines.append(f"    ) {instance_name} (")
+        lines.append(f"        .aclk(aclk),")
+        lines.append(f"        .aresetn(aresetn),")
+        # Slave side (from master via wrapper). awvalid/wvalid are gated
+        # by the per-width path-active signals; awready/wready are
+        # captured as conv_{suffix}_*ready so the wrapper sees them
+        # only when this path is selected.
+        lines.append(f"        .s_axi_awid(fub_axi_awid),")
+        lines.append(f"        .s_axi_awaddr(fub_axi_awaddr),")
+        lines.append(f"        .s_axi_awlen(fub_axi_awlen),")
+        lines.append(f"        .s_axi_awsize(fub_axi_awsize),")
+        lines.append(f"        .s_axi_awburst(fub_axi_awburst),")
+        lines.append(f"        .s_axi_awlock(fub_axi_awlock),")
+        lines.append(f"        .s_axi_awcache(fub_axi_awcache),")
+        lines.append(f"        .s_axi_awprot(fub_axi_awprot),")
+        lines.append(f"        .s_axi_awqos(4'b0),")
+        lines.append(f"        .s_axi_awregion(4'b0),")
+        lines.append(f"        .s_axi_awuser(1'b0),")
+        lines.append(f"        .s_axi_awvalid(fub_axi_awvalid && aw_path_active_{suffix}),")
+        lines.append(f"        .s_axi_awready(conv_{suffix}_awready),")
+        lines.append(f"        .s_axi_wdata(fub_axi_wdata),")
+        lines.append(f"        .s_axi_wstrb(fub_axi_wstrb),")
+        lines.append(f"        .s_axi_wlast(fub_axi_wlast),")
+        lines.append(f"        .s_axi_wuser(1'b0),")
+        lines.append(f"        .s_axi_wvalid(fub_axi_wvalid && w_path_active_{suffix}),")
+        lines.append(f"        .s_axi_wready(conv_{suffix}_wready),")
+        lines.append(f"        .s_axi_bid(conv_{suffix}_bid),")
+        lines.append(f"        .s_axi_bresp(conv_{suffix}_bresp),")
+        lines.append(f"        .s_axi_buser(),")
+        lines.append(f"        .s_axi_bvalid(conv_{suffix}_bvalid),")
+        lines.append(f"        .s_axi_bready(fub_axi_bready),")
+        # Master side (to crossbar) — struct fields.
+        lines.append(f"        .m_axi_awid({struct_prefix}_aw.id),")
+        lines.append(f"        .m_axi_awaddr({struct_prefix}_aw.addr),")
+        lines.append(f"        .m_axi_awlen({struct_prefix}_aw.len),")
+        lines.append(f"        .m_axi_awsize({struct_prefix}_aw.size),")
+        lines.append(f"        .m_axi_awburst({struct_prefix}_aw.burst),")
+        lines.append(f"        .m_axi_awlock({struct_prefix}_aw.lock),")
+        lines.append(f"        .m_axi_awcache({struct_prefix}_aw.cache),")
+        lines.append(f"        .m_axi_awprot({struct_prefix}_aw.prot),")
+        lines.append(f"        .m_axi_awqos({struct_prefix}_aw.qos),")
+        lines.append(f"        .m_axi_awregion({struct_prefix}_aw.region),")
+        lines.append(f"        .m_axi_awuser({struct_prefix}_aw.user),")
+        lines.append(f"        .m_axi_awvalid({struct_prefix}_awvalid),")
+        lines.append(f"        .m_axi_awready({struct_prefix}_awready),")
+        lines.append(f"        .m_axi_wdata({struct_prefix}_w.data),")
+        lines.append(f"        .m_axi_wstrb({struct_prefix}_w.strb),")
+        lines.append(f"        .m_axi_wlast({struct_prefix}_w.last),")
+        lines.append(f"        .m_axi_wuser({struct_prefix}_w.user),")
+        lines.append(f"        .m_axi_wvalid({struct_prefix}_wvalid),")
+        lines.append(f"        .m_axi_wready({struct_prefix}_wready),")
+        lines.append(f"        .m_axi_bid({struct_prefix}_b.id),")
+        lines.append(f"        .m_axi_bresp({struct_prefix}_b.resp),")
+        lines.append(f"        .m_axi_buser({struct_prefix}_b.user),")
+        lines.append(f"        .m_axi_bvalid({struct_prefix}_bvalid),")
+        lines.append(f"        .m_axi_bready({struct_prefix}_bready)")
+        lines.append(f"    );")
+        lines.append("")
+        return lines
+
+    def _generate_axil_align_rd_instance(self, *, instance_name: str,
+                                          s_data_width: int, m_data_width: int,
+                                          id_width: int, user_width: int,
+                                          addr_width: int, suffix: str,
+                                          struct_prefix: str) -> List[str]:
+        """Emit an axil_to_axi4_wide_align_rd instantiation."""
+        lines: List[str] = []
+        lines.append(f"    // Master-side AXIL alignment (read direction).")
+        lines.append(f"    axil_to_axi4_wide_align_rd #(")
+        lines.append(f"        .S_AXI_DATA_WIDTH({s_data_width}),")
+        lines.append(f"        .M_AXI_DATA_WIDTH({m_data_width}),")
+        lines.append(f"        .AXI_ID_WIDTH({id_width}),")
+        lines.append(f"        .AXI_ADDR_WIDTH({addr_width}),")
+        lines.append(f"        .AXI_USER_WIDTH({user_width})")
+        lines.append(f"    ) {instance_name} (")
+        lines.append(f"        .aclk(aclk),")
+        lines.append(f"        .aresetn(aresetn),")
+        lines.append(f"        .s_axi_arid(fub_axi_arid),")
+        lines.append(f"        .s_axi_araddr(fub_axi_araddr),")
+        lines.append(f"        .s_axi_arlen(fub_axi_arlen),")
+        lines.append(f"        .s_axi_arsize(fub_axi_arsize),")
+        lines.append(f"        .s_axi_arburst(fub_axi_arburst),")
+        lines.append(f"        .s_axi_arlock(fub_axi_arlock),")
+        lines.append(f"        .s_axi_arcache(fub_axi_arcache),")
+        lines.append(f"        .s_axi_arprot(fub_axi_arprot),")
+        lines.append(f"        .s_axi_arqos(4'b0),")
+        lines.append(f"        .s_axi_arregion(4'b0),")
+        lines.append(f"        .s_axi_aruser(1'b0),")
+        lines.append(f"        .s_axi_arvalid(fub_axi_arvalid && ar_path_active_{suffix}),")
+        lines.append(f"        .s_axi_arready(conv_{suffix}_arready),")
+        lines.append(f"        .s_axi_rid(conv_{suffix}_rid),")
+        lines.append(f"        .s_axi_rdata(conv_{suffix}_rdata),")
+        lines.append(f"        .s_axi_rresp(conv_{suffix}_rresp),")
+        lines.append(f"        .s_axi_rlast(conv_{suffix}_rlast),")
+        lines.append(f"        .s_axi_ruser(),")
+        lines.append(f"        .s_axi_rvalid(conv_{suffix}_rvalid),")
+        lines.append(f"        .s_axi_rready(fub_axi_rready),")
+        lines.append(f"        .m_axi_arid({struct_prefix}_ar.id),")
+        lines.append(f"        .m_axi_araddr({struct_prefix}_ar.addr),")
+        lines.append(f"        .m_axi_arlen({struct_prefix}_ar.len),")
+        lines.append(f"        .m_axi_arsize({struct_prefix}_ar.size),")
+        lines.append(f"        .m_axi_arburst({struct_prefix}_ar.burst),")
+        lines.append(f"        .m_axi_arlock({struct_prefix}_ar.lock),")
+        lines.append(f"        .m_axi_arcache({struct_prefix}_ar.cache),")
+        lines.append(f"        .m_axi_arprot({struct_prefix}_ar.prot),")
+        lines.append(f"        .m_axi_arqos({struct_prefix}_ar.qos),")
+        lines.append(f"        .m_axi_arregion({struct_prefix}_ar.region),")
+        lines.append(f"        .m_axi_aruser({struct_prefix}_ar.user),")
+        lines.append(f"        .m_axi_arvalid({struct_prefix}_arvalid),")
+        lines.append(f"        .m_axi_arready({struct_prefix}_arready),")
+        lines.append(f"        .m_axi_rid({struct_prefix}_r.id),")
+        lines.append(f"        .m_axi_rdata({struct_prefix}_r.data),")
+        lines.append(f"        .m_axi_rresp({struct_prefix}_r.resp),")
+        lines.append(f"        .m_axi_rlast({struct_prefix}_r.last),")
+        lines.append(f"        .m_axi_ruser({struct_prefix}_r.user),")
+        lines.append(f"        .m_axi_rvalid({struct_prefix}_rvalid),")
+        lines.append(f"        .m_axi_rready({struct_prefix}_rready)")
+        lines.append(f"    );")
+        lines.append("")
         return lines
 
     def _get_module_name(self) -> str:

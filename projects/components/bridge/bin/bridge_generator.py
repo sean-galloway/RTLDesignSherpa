@@ -603,6 +603,13 @@ def _emit_bridge_variant(
     filelist_lines.append("$REPO_ROOT/projects/components/converters/rtl/axi_data_dnsize.sv")
     filelist_lines.append("$REPO_ROOT/projects/components/converters/rtl/axi4_dwidth_converter_rd.sv")
     filelist_lines.append("$REPO_ROOT/projects/components/converters/rtl/axi4_dwidth_converter_wr.sv")
+    # AXIL-master alignment modules. Used by the adapter generator
+    # in place of axi4_dwidth_converter_{wr,rd} when an AXIL master
+    # upsizes into a wider slave (axi_data_upsize aggregates by beat
+    # counter, which is wrong for single-beat narrow → wide writes —
+    # see the modules' headers).
+    filelist_lines.append("$REPO_ROOT/projects/components/converters/rtl/axil_to_axi4_wide_align_wr.sv")
+    filelist_lines.append("$REPO_ROOT/projects/components/converters/rtl/axil_to_axi4_wide_align_rd.sv")
 
     # Check if any slaves use APB protocol
     has_apb = any(slave.protocol.lower() == 'apb' for slave in config.slaves)
