@@ -1188,13 +1188,11 @@ module stream_top_ch8 #(
     );
 
     //=========================================================================
-    // STREAM Core (Conditional: stream_core or stream_core_mon)
+    // STREAM Core (single instance; USE_AXI_MONITORS parameter switches the
+    // internal monitor block on/off without changing the module identity)
     //=========================================================================
     generate
-        if (USE_AXI_MONITORS == 1) begin : g_stream_core_mon
-            // Instantiate stream_core_mon with monitors enabled
-            // NOTE: stream_core_mon doesn't exist yet - this is a placeholder
-            // For now, instantiate stream_core with USE_AXI_MONITORS=1
+        if (USE_AXI_MONITORS == 1) begin : g_stream_core_mon_enabled
             stream_core #(
                 .NUM_CHANNELS(NUM_CHANNELS),
                 .DATA_WIDTH(DATA_WIDTH),

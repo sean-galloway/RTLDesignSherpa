@@ -54,7 +54,6 @@ help:
 	@echo "  make run-rd                     Run datapath_rd tests (FUNC level)"
 	@echo "  make run-wr                     Run datapath_wr tests (FUNC level)"
 	@echo "  make run-core                   Run stream_core tests (FUNC level)"
-	@echo "  make run-core-mon               Run stream_core_mon tests (FUNC level)"
 	@echo "  make run-all                    Run all tests (rd, wr, core)"
 	@echo ""
 	@echo "READ DATAPATH TARGETS (test_datapath_rd_test.py):"
@@ -120,20 +119,6 @@ help:
 	@echo "  make run-perf-parallel             Run performance profile tests in parallel"
 	@echo "  make run-perf-parallel-waves       Run performance profile tests parallel + waves"
 	@echo ""
-	@echo "STREAM CORE MONITOR TARGETS (test_stream_core_mon.py):"
-	@echo "  make run-core-mon-gate                Run monitor tests at GATE level"
-	@echo "  make run-core-mon-gate-waves          Run monitor tests at GATE level with waveforms"
-	@echo "  make run-core-mon-gate-parallel       Run monitor tests at GATE level in parallel"
-	@echo "  make run-core-mon-gate-parallel-waves Run monitor tests at GATE level parallel + waves"
-	@echo "  make run-core-mon-func                Run monitor tests at FUNC level (default)"
-	@echo "  make run-core-mon-func-waves          Run monitor tests at FUNC level with waveforms"
-	@echo "  make run-core-mon-func-parallel       Run monitor tests at FUNC level in parallel"
-	@echo "  make run-core-mon-func-parallel-waves Run monitor tests at FUNC level parallel + waves"
-	@echo "  make run-core-mon-full                Run monitor tests at FULL level"
-	@echo "  make run-core-mon-full-waves          Run monitor tests at FULL level with waveforms"
-	@echo "  make run-core-mon-full-parallel       Run monitor tests at FULL level in parallel"
-	@echo "  make run-core-mon-full-parallel-waves Run monitor tests at FULL level parallel + waves"
-	@echo ""
 	@echo "COMBINED TARGETS (rd, wr, and core):"
 	@echo "  make run-all-gate               Run all tests at GATE level"
 	@echo "  make run-all-gate-waves         Run all tests at GATE level with waveforms"
@@ -150,7 +135,6 @@ help:
 	@echo "  make collect-rd           Collect (don't run) rd tests"
 	@echo "  make collect-wr           Collect (don't run) wr tests"
 	@echo "  make collect-core         Collect (don't run) core tests"
-	@echo "  make collect-core-mon     Collect (don't run) monitor tests"
 	@echo "  make collect-perf         Collect (don't run) performance tests"
 	@echo "  make clean                Clean local artifacts"
 	@echo "  make clean-all            Clean all test artifacts"
@@ -429,79 +413,6 @@ run-perf-parallel-waves:
 	WAVES=1 $(PYTEST) test_stream_performance_profile.py $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE) $(PYTEST_XDIST) $(PYTEST_RERUNS)
 
 # ==============================================================================
-# Stream Core Monitor Targets (test_stream_core_mon.py)
-# ==============================================================================
-
-# Quick run target
-.PHONY: run-core-mon
-run-core-mon:
-	@echo "Running stream_core_mon tests (FUNC level)..."
-	TEST_LEVEL=FUNC $(PYTEST) test_stream_core_mon.py $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE)
-
-# GATE level
-.PHONY: run-core-mon-gate
-run-core-mon-gate:
-	@echo "Running stream_core_mon tests at GATE level..."
-	TEST_LEVEL=GATE $(PYTEST) test_stream_core_mon.py $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE)
-
-.PHONY: run-core-mon-gate-waves
-run-core-mon-gate-waves:
-	@echo "Running stream_core_mon tests at GATE level with waveforms..."
-	WAVES=1 TEST_LEVEL=GATE $(PYTEST) test_stream_core_mon.py $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE)
-
-.PHONY: run-core-mon-gate-parallel
-run-core-mon-gate-parallel:
-	@echo "Running stream_core_mon tests at GATE level in parallel..."
-	TEST_LEVEL=GATE $(PYTEST) test_stream_core_mon.py $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE) $(PYTEST_XDIST) $(PYTEST_RERUNS)
-
-.PHONY: run-core-mon-gate-parallel-waves
-run-core-mon-gate-parallel-waves:
-	@echo "Running stream_core_mon tests at GATE level in parallel with waveforms..."
-	WAVES=1 TEST_LEVEL=GATE $(PYTEST) test_stream_core_mon.py $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE) $(PYTEST_XDIST) $(PYTEST_RERUNS)
-
-# FUNC level
-.PHONY: run-core-mon-func
-run-core-mon-func:
-	@echo "Running stream_core_mon tests at FUNC level..."
-	TEST_LEVEL=FUNC $(PYTEST) test_stream_core_mon.py $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE)
-
-.PHONY: run-core-mon-func-waves
-run-core-mon-func-waves:
-	@echo "Running stream_core_mon tests at FUNC level with waveforms..."
-	WAVES=1 TEST_LEVEL=FUNC $(PYTEST) test_stream_core_mon.py $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE)
-
-.PHONY: run-core-mon-func-parallel
-run-core-mon-func-parallel:
-	@echo "Running stream_core_mon tests at FUNC level in parallel..."
-	TEST_LEVEL=FUNC $(PYTEST) test_stream_core_mon.py $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE) $(PYTEST_XDIST) $(PYTEST_RERUNS)
-
-.PHONY: run-core-mon-func-parallel-waves
-run-core-mon-func-parallel-waves:
-	@echo "Running stream_core_mon tests at FUNC level in parallel with waveforms..."
-	WAVES=1 TEST_LEVEL=FUNC $(PYTEST) test_stream_core_mon.py $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE) $(PYTEST_XDIST) $(PYTEST_RERUNS)
-
-# FULL level
-.PHONY: run-core-mon-full
-run-core-mon-full:
-	@echo "Running stream_core_mon tests at FULL level..."
-	TEST_LEVEL=FULL $(PYTEST) test_stream_core_mon.py $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE)
-
-.PHONY: run-core-mon-full-waves
-run-core-mon-full-waves:
-	@echo "Running stream_core_mon tests at FULL level with waveforms..."
-	WAVES=1 TEST_LEVEL=FULL $(PYTEST) test_stream_core_mon.py $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE)
-
-.PHONY: run-core-mon-full-parallel
-run-core-mon-full-parallel:
-	@echo "Running stream_core_mon tests at FULL level in parallel..."
-	TEST_LEVEL=FULL $(PYTEST) test_stream_core_mon.py $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE) $(PYTEST_XDIST) $(PYTEST_RERUNS)
-
-.PHONY: run-core-mon-full-parallel-waves
-run-core-mon-full-parallel-waves:
-	@echo "Running stream_core_mon tests at FULL level in parallel with waveforms..."
-	WAVES=1 TEST_LEVEL=FULL $(PYTEST) test_stream_core_mon.py $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE) $(PYTEST_XDIST) $(PYTEST_RERUNS)
-
-# ==============================================================================
 # Combined Targets (RD, WR, and Core)
 # ==============================================================================
 
@@ -509,65 +420,65 @@ run-core-mon-full-parallel-waves:
 .PHONY: run-all-gate
 run-all-gate:
 	@echo "Running all tests at GATE level..."
-	TEST_LEVEL=GATE $(PYTEST) test_datapath_rd_test.py test_datapath_wr_test.py test_stream_core.py test_stream_core_mon.py $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE)
+	TEST_LEVEL=GATE $(PYTEST) test_datapath_rd_test.py test_datapath_wr_test.py test_stream_core.py $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE)
 
 .PHONY: run-all-gate-waves
 run-all-gate-waves:
 	@echo "Running all tests at GATE level with waveforms..."
-	WAVES=1 TEST_LEVEL=GATE $(PYTEST) test_datapath_rd_test.py test_datapath_wr_test.py test_stream_core.py test_stream_core_mon.py $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE)
+	WAVES=1 TEST_LEVEL=GATE $(PYTEST) test_datapath_rd_test.py test_datapath_wr_test.py test_stream_core.py $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE)
 
 .PHONY: run-all-gate-parallel
 run-all-gate-parallel:
 	@echo "Running all tests at GATE level in parallel..."
-	TEST_LEVEL=GATE $(PYTEST) test_datapath_rd_test.py test_datapath_wr_test.py test_stream_core.py test_stream_core_mon.py $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE) $(PYTEST_XDIST) $(PYTEST_RERUNS)
+	TEST_LEVEL=GATE $(PYTEST) test_datapath_rd_test.py test_datapath_wr_test.py test_stream_core.py $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE) $(PYTEST_XDIST) $(PYTEST_RERUNS)
 
 # FUNC level
 .PHONY: run-all-func
 run-all-func:
 	@echo "Running all tests at FUNC level..."
-	TEST_LEVEL=FUNC $(PYTEST) test_datapath_rd_test.py test_datapath_wr_test.py test_stream_core.py test_stream_core_mon.py $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE)
+	TEST_LEVEL=FUNC $(PYTEST) test_datapath_rd_test.py test_datapath_wr_test.py test_stream_core.py $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE)
 
 .PHONY: run-all-func-waves
 run-all-func-waves:
 	@echo "Running all tests at FUNC level with waveforms..."
-	WAVES=1 TEST_LEVEL=FUNC $(PYTEST) test_datapath_rd_test.py test_datapath_wr_test.py test_stream_core.py test_stream_core_mon.py $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE)
+	WAVES=1 TEST_LEVEL=FUNC $(PYTEST) test_datapath_rd_test.py test_datapath_wr_test.py test_stream_core.py $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE)
 
 .PHONY: run-all-func-parallel
 run-all-func-parallel:
 	@echo "Running all tests at FUNC level in parallel..."
-	TEST_LEVEL=FUNC $(PYTEST) test_datapath_rd_test.py test_datapath_wr_test.py test_stream_core.py test_stream_core_mon.py $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE) $(PYTEST_XDIST) $(PYTEST_RERUNS)
+	TEST_LEVEL=FUNC $(PYTEST) test_datapath_rd_test.py test_datapath_wr_test.py test_stream_core.py $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE) $(PYTEST_XDIST) $(PYTEST_RERUNS)
 
 # FULL level
 .PHONY: run-all-full
 run-all-full:
 	@echo "Running ALL tests at FULL level..."
-	TEST_LEVEL=FULL $(PYTEST) test_datapath_rd_test.py test_datapath_wr_test.py test_stream_core.py test_stream_core_mon.py $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE)
+	TEST_LEVEL=FULL $(PYTEST) test_datapath_rd_test.py test_datapath_wr_test.py test_stream_core.py $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE)
 
 .PHONY: run-all-full-waves
 run-all-full-waves:
 	@echo "Running ALL tests at FULL level with waveforms..."
-	WAVES=1 TEST_LEVEL=FULL $(PYTEST) test_datapath_rd_test.py test_datapath_wr_test.py test_stream_core.py test_stream_core_mon.py $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE)
+	WAVES=1 TEST_LEVEL=FULL $(PYTEST) test_datapath_rd_test.py test_datapath_wr_test.py test_stream_core.py $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE)
 
 .PHONY: run-all-full-parallel
 run-all-full-parallel:
 	@echo "Running ALL tests at FULL level in parallel..."
-	TEST_LEVEL=FULL $(PYTEST) test_datapath_rd_test.py test_datapath_wr_test.py test_stream_core.py test_stream_core_mon.py $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE) $(PYTEST_XDIST) $(PYTEST_RERUNS)
+	TEST_LEVEL=FULL $(PYTEST) test_datapath_rd_test.py test_datapath_wr_test.py test_stream_core.py $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE) $(PYTEST_XDIST) $(PYTEST_RERUNS)
 
 .PHONY: run-all-full-parallel-waves
 run-all-full-parallel-waves:
 	@echo "Running ALL tests at FULL level in parallel with waveforms..."
-	WAVES=1 TEST_LEVEL=FULL $(PYTEST) test_datapath_rd_test.py test_datapath_wr_test.py test_stream_core.py test_stream_core_mon.py $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE) $(PYTEST_XDIST) $(PYTEST_RERUNS)
+	WAVES=1 TEST_LEVEL=FULL $(PYTEST) test_datapath_rd_test.py test_datapath_wr_test.py test_stream_core.py $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE) $(PYTEST_XDIST) $(PYTEST_RERUNS)
 
 # Missing run-all-* aliases for standardized naming convention
 .PHONY: run-all-gate-parallel-waves
 run-all-gate-parallel-waves:
 	@echo "Running all tests at GATE level in parallel with waveforms..."
-	WAVES=1 TEST_LEVEL=GATE $(PYTEST) test_datapath_rd_test.py test_datapath_wr_test.py test_stream_core.py test_stream_core_mon.py $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE) $(PYTEST_XDIST) $(PYTEST_RERUNS)
+	WAVES=1 TEST_LEVEL=GATE $(PYTEST) test_datapath_rd_test.py test_datapath_wr_test.py test_stream_core.py $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE) $(PYTEST_XDIST) $(PYTEST_RERUNS)
 
 .PHONY: run-all-func-parallel-waves
 run-all-func-parallel-waves:
 	@echo "Running all tests at FUNC level in parallel with waveforms..."
-	WAVES=1 TEST_LEVEL=FUNC $(PYTEST) test_datapath_rd_test.py test_datapath_wr_test.py test_stream_core.py test_stream_core_mon.py $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE) $(PYTEST_XDIST) $(PYTEST_RERUNS)
+	WAVES=1 TEST_LEVEL=FUNC $(PYTEST) test_datapath_rd_test.py test_datapath_wr_test.py test_stream_core.py $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE) $(PYTEST_XDIST) $(PYTEST_RERUNS)
 
 # ==============================================================================
 # Utility Targets
@@ -587,11 +498,6 @@ collect-wr:
 collect-core:
 	@echo "Collecting stream_core tests..."
 	$(PYTEST) test_stream_core.py --collect-only
-
-.PHONY: collect-core-mon
-collect-core-mon:
-	@echo "Collecting stream_core_mon tests..."
-	$(PYTEST) test_stream_core_mon.py --collect-only
 
 .PHONY: collect-perf
 collect-perf:
