@@ -70,7 +70,11 @@ name        = "stream_desc"
 prefix      = "stream_desc_"
 protocol    = "axi4"
 channels    = "r"
-id_width    = 8
+# id_width = 4 matches host and monbus_wr (mixed id_widths across
+# masters break the xbar's struct-typed channels). STREAM's
+# m_axi_desc is 8 bits at the SoC level; harness truncates the
+# upper 4 bits at the wiring boundary.
+id_width    = 4
 addr_width  = 32
 data_width  = 256
 user_width  = 3

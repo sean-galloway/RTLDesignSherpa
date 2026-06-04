@@ -21,7 +21,7 @@ module stream_desc_adapter #(
     input  logic aresetn,
 
     // External AXI interface (from stream_desc master)
-    input  logic [7:0]  stream_desc_awid,
+    input  logic [3:0]  stream_desc_awid,
     input  logic [31:0]  stream_desc_awaddr,
     input  logic [7:0]  stream_desc_awlen,
     input  logic [2:0]  stream_desc_awsize,
@@ -42,13 +42,13 @@ module stream_desc_adapter #(
     input  logic         stream_desc_wvalid,
     output  logic         stream_desc_wready,
 
-    output  logic [7:0]  stream_desc_bid,
+    output  logic [3:0]  stream_desc_bid,
     output  logic [1:0]  stream_desc_bresp,
     output  logic         stream_desc_buser,
     output  logic         stream_desc_bvalid,
     input  logic         stream_desc_bready,
 
-    input  logic [7:0]  stream_desc_arid,
+    input  logic [3:0]  stream_desc_arid,
     input  logic [31:0]  stream_desc_araddr,
     input  logic [7:0]  stream_desc_arlen,
     input  logic [2:0]  stream_desc_arsize,
@@ -62,7 +62,7 @@ module stream_desc_adapter #(
     input  logic         stream_desc_arvalid,
     output  logic         stream_desc_arready,
 
-    output  logic [7:0]  stream_desc_rid,
+    output  logic [3:0]  stream_desc_rid,
     output  logic [255:0]  stream_desc_rdata,
     output  logic [1:0]  stream_desc_rresp,
     output  logic         stream_desc_rlast,
@@ -103,13 +103,13 @@ module stream_desc_adapter #(
     // ================================================================
     localparam ADDR_WIDTH = 32;
     localparam DATA_WIDTH = 256;
-    localparam ID_WIDTH = 8;
+    localparam ID_WIDTH = 4;
 
     // ================================================================
     // Internal signals after wrapper (timing isolation)
-    // Note: ID width matches external (8-bit)
+    // Note: ID width matches external (4-bit)
     // ================================================================
-    logic [7:0]   fub_axi_awid;
+    logic [3:0]   fub_axi_awid;
     logic [31:0]  fub_axi_awaddr;
     logic [7:0]   fub_axi_awlen;
     logic [2:0]   fub_axi_awsize;
@@ -126,12 +126,12 @@ module stream_desc_adapter #(
     logic         fub_axi_wvalid;
     logic         fub_axi_wready;
 
-    logic [7:0]   fub_axi_bid;
+    logic [3:0]   fub_axi_bid;
     logic [1:0]   fub_axi_bresp;
     logic         fub_axi_bvalid;
     logic         fub_axi_bready;
 
-    logic [7:0]   fub_axi_arid;
+    logic [3:0]   fub_axi_arid;
     logic [31:0]  fub_axi_araddr;
     logic [7:0]   fub_axi_arlen;
     logic [2:0]   fub_axi_arsize;
@@ -142,7 +142,7 @@ module stream_desc_adapter #(
     logic         fub_axi_arvalid;
     logic         fub_axi_arready;
 
-    logic [7:0]   fub_axi_rid;
+    logic [3:0]   fub_axi_rid;
     logic [255:0]  fub_axi_rdata;
     logic [1:0]   fub_axi_rresp;
     logic         fub_axi_rlast;
@@ -159,7 +159,7 @@ module stream_desc_adapter #(
         .SKID_DEPTH_AW(SKID_DEPTH_AW),
         .SKID_DEPTH_W(SKID_DEPTH_W),
         .SKID_DEPTH_B(SKID_DEPTH_B),
-        .AXI_ID_WIDTH(8),
+        .AXI_ID_WIDTH(4),
         .AXI_ADDR_WIDTH(32),
         .AXI_DATA_WIDTH(256),
         .AXI_USER_WIDTH(1)
@@ -229,7 +229,7 @@ module stream_desc_adapter #(
     axi4_slave_rd #(
         .SKID_DEPTH_AR(SKID_DEPTH_AR),
         .SKID_DEPTH_R(SKID_DEPTH_R),
-        .AXI_ID_WIDTH(8),
+        .AXI_ID_WIDTH(4),
         .AXI_ADDR_WIDTH(32),
         .AXI_DATA_WIDTH(256),
         .AXI_USER_WIDTH(1)
@@ -339,11 +339,11 @@ module stream_desc_adapter #(
     // Intermediate signals for 64b converter
     logic conv_64b_awready;
     logic conv_64b_wready;
-    logic [7:0] conv_64b_bid;
+    logic [3:0] conv_64b_bid;
     logic [1:0] conv_64b_bresp;
     logic conv_64b_bvalid;
     logic conv_64b_arready;
-    logic [7:0] conv_64b_rid;
+    logic [3:0] conv_64b_rid;
     logic [255:0] conv_64b_rdata;
     logic [1:0] conv_64b_rresp;
     logic conv_64b_rlast;
@@ -352,7 +352,7 @@ module stream_desc_adapter #(
     axi4_dwidth_converter_wr #(
         .S_AXI_DATA_WIDTH(256),
         .M_AXI_DATA_WIDTH(64),
-        .AXI_ID_WIDTH(8),
+        .AXI_ID_WIDTH(4),
         .AXI_ADDR_WIDTH(32),
         .AXI_USER_WIDTH(1),
         .SKID_DEPTH_AW(2),
@@ -418,7 +418,7 @@ module stream_desc_adapter #(
     axi4_dwidth_converter_rd #(
         .S_AXI_DATA_WIDTH(256),
         .M_AXI_DATA_WIDTH(64),
-        .AXI_ID_WIDTH(8),
+        .AXI_ID_WIDTH(4),
         .AXI_ADDR_WIDTH(32),
         .AXI_USER_WIDTH(1),
         .SKID_DEPTH_AR(2),
@@ -612,7 +612,7 @@ module stream_desc_adapter #(
 
     // Write response MUX (B channel - uses b_slave_select FIFO head)
     always_comb begin
-        fub_axi_bid = 8'd0;
+        fub_axi_bid = 4'd0;
         fub_axi_bresp = 2'b00;
         fub_axi_bvalid = 1'b0;
 
@@ -643,7 +643,7 @@ module stream_desc_adapter #(
 
     // Read response MUX (R channel - uses r_slave_select FIFO head)
     always_comb begin
-        fub_axi_rid = 8'd0;
+        fub_axi_rid = 4'd0;
         fub_axi_rdata = 256'd0;
         fub_axi_rresp = 2'b00;
         fub_axi_rlast = 1'b0;
