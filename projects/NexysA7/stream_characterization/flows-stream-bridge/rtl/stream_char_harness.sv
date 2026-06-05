@@ -214,22 +214,28 @@ module stream_char_harness #(
     logic s1_awvalid, s1_awready, s1_wvalid, s1_wready, s1_bvalid, s1_bready;
     logic s1_arvalid, s1_arready, s1_rvalid, s1_rready;
 
-    // Slave 2 (desc_ram): 256-bit AXIL end-to-end. Host's 32-bit AXIL
-    // writes upsize to 256b inside the bridge; STREAM's 256-bit reads
-    // pass through with zero conversion.
-    //
-    // NOTE: With the current bridge generator the 32→256 upsize path
-    // is an AGGREGATOR (axi_data_upsize) that doesn't align single-beat
-    // narrow AXIL writes by awaddr's low bits. Until the generator
-    // emits an ALIGNER for narrow AXIL masters, descriptor writes via
-    // this path land at byte offset 0 of every row (overwriting each
-    // other) and STREAM sees garbage. See projects/components/bridge
-    // axil_data_align fix.
-    logic [31:0]  s2_awaddr, s2_araddr;
-    logic [255:0] s2_wdata, s2_rdata;
+    // Slave 2 (desc_ram): 256-bit AXI4 end-to-end. Host's 32-bit AXIL
+    // writes go through the bridge's axil_to_axi4_wide_align_wr (master
+    // adapter) and land here as single-beat 256b AXI4 writes positioned
+    // by awaddr's low bits. STREAM's 256b AXI4 reads pass through with
+    // zero conversion. The previous axi4_to_axil4_rd/wr converters at
+    // the bridge slave adapter are GONE — desc_ram is now AXI4 native.
+    logic [7:0]   s2_awid,    s2_arid,    s2_bid,     s2_rid;
+    logic [31:0]  s2_awaddr,  s2_araddr;
+    logic [7:0]   s2_awlen,   s2_arlen;
+    logic [2:0]   s2_awsize,  s2_arsize;
+    logic [1:0]   s2_awburst, s2_arburst;
+    logic         s2_awlock,  s2_arlock;
+    logic [3:0]   s2_awcache, s2_arcache;
+    logic [2:0]   s2_awprot,  s2_arprot;
+    logic [3:0]   s2_awqos,   s2_arqos;
+    logic [3:0]   s2_awregion,s2_arregion;
+    logic         s2_awuser,  s2_aruser;
+    logic [255:0] s2_wdata,   s2_rdata;
     logic [31:0]  s2_wstrb;
-    logic [2:0]   s2_awprot, s2_arprot;
-    logic [1:0]   s2_bresp, s2_rresp;
+    logic         s2_wlast,   s2_rlast;
+    logic         s2_wuser,   s2_ruser,   s2_buser;
+    logic [1:0]   s2_bresp,   s2_rresp;
     logic s2_awvalid, s2_awready, s2_wvalid, s2_wready, s2_bvalid, s2_bready;
     logic s2_arvalid, s2_arready, s2_rvalid, s2_rready;
 
@@ -332,24 +338,49 @@ module stream_char_harness #(
         .harness_csr_axi_rvalid   (s1_rvalid),
         .harness_csr_axi_rready   (s1_rready),
 
-        // Slave 2: desc_ram (native AXIL — wired directly to s2_*)
+        // Slave 2: desc_ram (native AXI4 256-bit — wired directly to s2_*)
+        .desc_ram_axi_awid     (s2_awid),
         .desc_ram_axi_awaddr   (s2_awaddr),
+        .desc_ram_axi_awlen    (s2_awlen),
+        .desc_ram_axi_awsize   (s2_awsize),
+        .desc_ram_axi_awburst  (s2_awburst),
+        .desc_ram_axi_awlock   (s2_awlock),
+        .desc_ram_axi_awcache  (s2_awcache),
         .desc_ram_axi_awprot   (s2_awprot),
+        .desc_ram_axi_awqos    (s2_awqos),
+        .desc_ram_axi_awregion (s2_awregion),
+        .desc_ram_axi_awuser   (s2_awuser),
         .desc_ram_axi_awvalid  (s2_awvalid),
         .desc_ram_axi_awready  (s2_awready),
         .desc_ram_axi_wdata    (s2_wdata),
         .desc_ram_axi_wstrb    (s2_wstrb),
+        .desc_ram_axi_wlast    (s2_wlast),
+        .desc_ram_axi_wuser    (s2_wuser),
         .desc_ram_axi_wvalid   (s2_wvalid),
         .desc_ram_axi_wready   (s2_wready),
+        .desc_ram_axi_bid      (s2_bid),
         .desc_ram_axi_bresp    (s2_bresp),
+        .desc_ram_axi_buser    (s2_buser),
         .desc_ram_axi_bvalid   (s2_bvalid),
         .desc_ram_axi_bready   (s2_bready),
+        .desc_ram_axi_arid     (s2_arid),
         .desc_ram_axi_araddr   (s2_araddr),
+        .desc_ram_axi_arlen    (s2_arlen),
+        .desc_ram_axi_arsize   (s2_arsize),
+        .desc_ram_axi_arburst  (s2_arburst),
+        .desc_ram_axi_arlock   (s2_arlock),
+        .desc_ram_axi_arcache  (s2_arcache),
         .desc_ram_axi_arprot   (s2_arprot),
+        .desc_ram_axi_arqos    (s2_arqos),
+        .desc_ram_axi_arregion (s2_arregion),
+        .desc_ram_axi_aruser   (s2_aruser),
         .desc_ram_axi_arvalid  (s2_arvalid),
         .desc_ram_axi_arready  (s2_arready),
+        .desc_ram_axi_rid      (s2_rid),
         .desc_ram_axi_rdata    (s2_rdata),
         .desc_ram_axi_rresp    (s2_rresp),
+        .desc_ram_axi_rlast    (s2_rlast),
+        .desc_ram_axi_ruser    (s2_ruser),
         .desc_ram_axi_rvalid   (s2_rvalid),
         .desc_ram_axi_rready   (s2_rready),
 
@@ -927,17 +958,19 @@ module stream_char_harness #(
     )
 
     // =========================================================================
-    // S2: desc_ram — axil_sdpram_slave at 64-bit data, single AXIL port.
+    // S2: desc_ram — axi4_sdpram_slave at 256-bit, AXI4 native.
     //
-    // Both host (writes) and STREAM (reads) go through the bridge, which
-    // arbitrates and width-adjusts.  No direct AXI4 256b port on the SRAM
-    // any more.
+    // Both host (writes) and STREAM (reads) go through the bridge to this
+    // slave. The bridge's stream_desc → desc_ram path is direct AXI4 256b
+    // (no converter). The host's AXIL 32b writes hit the bridge master
+    // adapter's axil_to_axi4_wide_align_wr, exit the bridge as AXI4 256b
+    // single-beat writes positioned by awaddr's low bits, and land here.
     // =========================================================================
     // desc_* master signals are declared early (near the mon_* block)
     // so the bridge's stream_desc_* master port-map can reach them.
 
-    // Internal obs port from axil_sdpram_slave (10b raw valid/ready).
-    logic [9:0] w_desc_ram_dbg_vr_axil;
+    // Internal obs port from axi4_sdpram_slave (10b raw valid/ready).
+    logic [9:0] w_desc_ram_dbg_vr_axi4;
     /* verilator lint_off UNUSED */
     logic [9:0] w_desc_ram_dbg_fub_vr;
     logic w_desc_ram_dbg_bram_wr_pulse, w_desc_ram_dbg_bram_rd_pulse;
@@ -945,25 +978,47 @@ module stream_char_harness #(
     logic w_desc_ram_dbg_clear_done;
     /* verilator lint_on UNUSED */
 
-    axil_sdpram_slave #(
-        .ADDR_WIDTH (32),
+    axi4_sdpram_slave #(
+        .AXI_ID_WIDTH (8),
+        .ADDR_WIDTH   (32),
         // 256b per the descriptor-fetch-must-be-256b-end-to-end rule.
         // MEM_DEPTH = DESC_RAM_ENTRIES because each descriptor is one
         // 256b beat.
-        .DATA_WIDTH (256),
-        .MEM_DEPTH  (DESC_RAM_ENTRIES)
+        .DATA_WIDTH   (256),
+        .USER_WIDTH   (1),
+        .MEM_DEPTH    (DESC_RAM_ENTRIES)
     ) u_desc_ram (
         .aclk(aclk), .aresetn(unit_aresetn),
-        .s_axil_awaddr (s2_awaddr), .s_axil_awprot(s2_awprot),
-        .s_axil_awvalid(s2_awvalid), .s_axil_awready(s2_awready),
-        .s_axil_wdata  (s2_wdata),  .s_axil_wstrb(s2_wstrb),
-        .s_axil_wvalid (s2_wvalid), .s_axil_wready(s2_wready),
-        .s_axil_bresp  (s2_bresp),  .s_axil_bvalid(s2_bvalid),
-        .s_axil_bready (s2_bready),
-        .s_axil_araddr (s2_araddr), .s_axil_arprot(s2_arprot),
-        .s_axil_arvalid(s2_arvalid),.s_axil_arready(s2_arready),
-        .s_axil_rdata  (s2_rdata),  .s_axil_rresp(s2_rresp),
-        .s_axil_rvalid (s2_rvalid), .s_axil_rready(s2_rready),
+
+        .s_axi_awid    (s2_awid),    .s_axi_awaddr  (s2_awaddr),
+        .s_axi_awlen   (s2_awlen),   .s_axi_awsize  (s2_awsize),
+        .s_axi_awburst (s2_awburst), .s_axi_awlock  (s2_awlock),
+        .s_axi_awcache (s2_awcache), .s_axi_awprot  (s2_awprot),
+        .s_axi_awqos   (s2_awqos),   .s_axi_awregion(s2_awregion),
+        .s_axi_awuser  (s2_awuser),
+        .s_axi_awvalid (s2_awvalid), .s_axi_awready (s2_awready),
+
+        .s_axi_wdata   (s2_wdata),   .s_axi_wstrb   (s2_wstrb),
+        .s_axi_wlast   (s2_wlast),   .s_axi_wuser   (s2_wuser),
+        .s_axi_wvalid  (s2_wvalid),  .s_axi_wready  (s2_wready),
+
+        .s_axi_bid     (s2_bid),     .s_axi_bresp   (s2_bresp),
+        .s_axi_buser   (s2_buser),
+        .s_axi_bvalid  (s2_bvalid),  .s_axi_bready  (s2_bready),
+
+        .s_axi_arid    (s2_arid),    .s_axi_araddr  (s2_araddr),
+        .s_axi_arlen   (s2_arlen),   .s_axi_arsize  (s2_arsize),
+        .s_axi_arburst (s2_arburst), .s_axi_arlock  (s2_arlock),
+        .s_axi_arcache (s2_arcache), .s_axi_arprot  (s2_arprot),
+        .s_axi_arqos   (s2_arqos),   .s_axi_arregion(s2_arregion),
+        .s_axi_aruser  (s2_aruser),
+        .s_axi_arvalid (s2_arvalid), .s_axi_arready (s2_arready),
+
+        .s_axi_rid     (s2_rid),     .s_axi_rdata   (s2_rdata),
+        .s_axi_rresp   (s2_rresp),   .s_axi_rlast   (s2_rlast),
+        .s_axi_ruser   (s2_ruser),
+        .s_axi_rvalid  (s2_rvalid),  .s_axi_rready  (s2_rready),
+
         // Bulk-clear control. The SRAM's clear-FSM is sticky-done; CSR
         // plumbing for host-issued start pulses + done polling lives in
         // harness_csr (CSR_CTRL[4] / CSR_STATUS[3]). Tied off here
@@ -971,7 +1026,7 @@ module stream_char_harness #(
         .i_cfg_start_clear (1'b0),
         .o_cfg_done_clear  (w_desc_ram_dbg_clear_done),
         // Obs
-        .o_dbg_vr      (w_desc_ram_dbg_vr_axil),
+        .o_dbg_vr      (w_desc_ram_dbg_vr_axi4),
         .o_dbg_fub_vr  (w_desc_ram_dbg_fub_vr),
         .o_dbg_bram_wr (w_desc_ram_dbg_bram_wr_pulse),
         .o_dbg_bram_rd (w_desc_ram_dbg_bram_rd_pulse),

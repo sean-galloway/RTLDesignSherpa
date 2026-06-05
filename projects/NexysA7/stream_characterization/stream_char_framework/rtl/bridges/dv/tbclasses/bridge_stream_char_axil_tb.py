@@ -89,7 +89,7 @@ class BridgeStreamCharAxilTB(TBBase):
         self.slave_info = {
             0: ('apb', 0x00000000, 0x00001000, 32),  # stream_apb
             1: ('axil', 0x00010000, 0x00001000, 32),  # harness_csr
-            2: ('axil', 0x00020000, 0x00010000, 256),  # desc_ram
+            2: ('axi4', 0x00020000, 0x00010000, 256),  # desc_ram
             3: ('axil', 0x00030000, 0x00001000, 32),  # stream_err
             4: ('axil', 0x00040000, 0x00040000, 64),  # debug_sram
             5: ('axil', 0x00080000, 0x00001000, 32),  # dma_axil
@@ -395,11 +395,8 @@ class BridgeStreamCharAxilTB(TBBase):
             base_addr=0x00010000,
         )
     def _setup_slave_2_desc_ram(self):
-        """Set up protocol BFM and pre-seeded MemoryModel for slave 2: desc_ram (protocol: axil)"""
-        # AXIL slave — own MemoryModel pre-seeded with the slave-specific
-        # pattern; AXIL4SlaveRead/Write auto-responds from it honoring
-        # whatever ARADDR / AWADDR the bridge forwards (after burst
-        # decomposition by axi4_to_axil4 shims, if any).
+        """Set up protocol BFM and pre-seeded MemoryModel for slave 2: desc_ram (protocol: axi4)"""
+        # AXI4 slave — full memory-backed BFM.
         bytes_per_line = 256 // 8
         addr_range = 0x00010000
         # Cap MemoryModel size — see SLAVE_MEM_CAP_BYTES comment.
@@ -411,22 +408,26 @@ class BridgeStreamCharAxilTB(TBBase):
             preset_values=list(preset),
             log=self.log,
         )
-        self.slave_rd[2] = AXIL4SlaveRead(
+        self.slave_rd[2] = AXI4SlaveRead(
             self.dut, self.clock,
             prefix="desc_ram_axi_",
             log=self.log,
             data_width=256,
             addr_width=32,
+            id_width=8,
+            user_width=1,
             multi_sig=True,
             memory_model=self.slave_memory[2],
             base_addr=0x00020000,
         )
-        self.slave_wr[2] = AXIL4SlaveWrite(
+        self.slave_wr[2] = AXI4SlaveWrite(
             self.dut, self.clock,
             prefix="desc_ram_axi_",
             log=self.log,
             data_width=256,
             addr_width=32,
+            id_width=8,
+            user_width=1,
             multi_sig=True,
             memory_model=self.slave_memory[2],
             base_addr=0x00020000,
