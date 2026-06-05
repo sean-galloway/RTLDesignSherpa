@@ -205,14 +205,6 @@ module stream_char_harness #(
     logic [AXI_USER_WIDTH-1:0]  desc_ruser;
     logic                       desc_rvalid, desc_rready;
 
-    // ID-width shims: bridge stream_desc_* uses id_width=4 (matches host
-    // and monbus_wr for xbar uniformity); STREAM's m_axi_desc is 8 bits.
-    // Truncate on the way to the bridge, zero-extend on the way back.
-    logic [3:0] bridge_stream_desc_arid;
-    logic [3:0] bridge_stream_desc_rid;
-    assign bridge_stream_desc_arid = desc_arid[3:0];
-    assign desc_rid                = {4'h0, bridge_stream_desc_rid};
-
     // ---- Slave-side AXIL wires consumed by the rest of the harness ---------
     // (s1_* harness_csr, s2_* desc_ram, s3_* stream_err, s4_* debug_sram)
     logic [31:0] s1_awaddr, s1_wdata, s1_araddr, s1_rdata;
@@ -454,12 +446,11 @@ module stream_char_harness #(
         .stream_desc_bvalid   (),
         .stream_desc_bready   (1'b1),
 
-        // Bridge stream_desc_arid is 4 bits (id_width=4 in TOML for
-        // xbar uniformity). STREAM's m_axi_desc is 8 bits. We truncate
-        // on the way in (upper bits are always 0 from STREAM anyway)
-        // and zero-extend on the way out — wired via small bridge_*
-        // shims below.
-        .stream_desc_arid     (bridge_stream_desc_arid),
+        // Bridge stream_desc port is now 8-bit AXI_ID_WIDTH end-to-end
+        // (matches STREAM's m_axi_desc natively — no truncation, no
+        // zero-extend). This eliminates a class of id-aliasing wedges
+        // on the shared 7-channel desc bus.
+        .stream_desc_arid     (desc_arid),
         .stream_desc_araddr   (desc_araddr),
         .stream_desc_arlen    (desc_arlen),
         .stream_desc_arsize   (desc_arsize),
@@ -473,7 +464,7 @@ module stream_char_harness #(
         .stream_desc_arvalid  (desc_arvalid),
         .stream_desc_arready  (desc_arready),
 
-        .stream_desc_rid      (bridge_stream_desc_rid),
+        .stream_desc_rid      (desc_rid),
         .stream_desc_rdata    (desc_rdata),
         .stream_desc_rresp    (desc_rresp),
         .stream_desc_rlast    (desc_rlast),

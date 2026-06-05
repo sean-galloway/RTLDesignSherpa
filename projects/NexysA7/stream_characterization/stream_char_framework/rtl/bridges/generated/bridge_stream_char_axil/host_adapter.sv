@@ -21,7 +21,7 @@ module host_adapter #(
     input  logic aresetn,
 
     // External AXI interface (from host master)
-    input  logic [3:0]  host_axi_awid,
+    input  logic [7:0]  host_axi_awid,
     input  logic [31:0]  host_axi_awaddr,
     input  logic [7:0]  host_axi_awlen,
     input  logic [2:0]  host_axi_awsize,
@@ -42,13 +42,13 @@ module host_adapter #(
     input  logic         host_axi_wvalid,
     output  logic         host_axi_wready,
 
-    output  logic [3:0]  host_axi_bid,
+    output  logic [7:0]  host_axi_bid,
     output  logic [1:0]  host_axi_bresp,
     output  logic         host_axi_buser,
     output  logic         host_axi_bvalid,
     input  logic         host_axi_bready,
 
-    input  logic [3:0]  host_axi_arid,
+    input  logic [7:0]  host_axi_arid,
     input  logic [31:0]  host_axi_araddr,
     input  logic [7:0]  host_axi_arlen,
     input  logic [2:0]  host_axi_arsize,
@@ -62,7 +62,7 @@ module host_adapter #(
     input  logic         host_axi_arvalid,
     output  logic         host_axi_arready,
 
-    output  logic [3:0]  host_axi_rid,
+    output  logic [7:0]  host_axi_rid,
     output  logic [31:0]  host_axi_rdata,
     output  logic [1:0]  host_axi_rresp,
     output  logic         host_axi_rlast,
@@ -143,13 +143,13 @@ module host_adapter #(
     // ================================================================
     localparam ADDR_WIDTH = 32;
     localparam DATA_WIDTH = 32;
-    localparam ID_WIDTH = 4;
+    localparam ID_WIDTH = 8;
 
     // ================================================================
     // Internal signals after wrapper (timing isolation)
-    // Note: ID width matches external (4-bit)
+    // Note: ID width matches external (8-bit)
     // ================================================================
-    logic [3:0]   fub_axi_awid;
+    logic [7:0]   fub_axi_awid;
     logic [31:0]  fub_axi_awaddr;
     logic [7:0]   fub_axi_awlen;
     logic [2:0]   fub_axi_awsize;
@@ -166,12 +166,12 @@ module host_adapter #(
     logic         fub_axi_wvalid;
     logic         fub_axi_wready;
 
-    logic [3:0]   fub_axi_bid;
+    logic [7:0]   fub_axi_bid;
     logic [1:0]   fub_axi_bresp;
     logic         fub_axi_bvalid;
     logic         fub_axi_bready;
 
-    logic [3:0]   fub_axi_arid;
+    logic [7:0]   fub_axi_arid;
     logic [31:0]  fub_axi_araddr;
     logic [7:0]   fub_axi_arlen;
     logic [2:0]   fub_axi_arsize;
@@ -182,7 +182,7 @@ module host_adapter #(
     logic         fub_axi_arvalid;
     logic         fub_axi_arready;
 
-    logic [3:0]   fub_axi_rid;
+    logic [7:0]   fub_axi_rid;
     logic [31:0]  fub_axi_rdata;
     logic [1:0]   fub_axi_rresp;
     logic         fub_axi_rlast;
@@ -199,7 +199,7 @@ module host_adapter #(
         .SKID_DEPTH_AW(SKID_DEPTH_AW),
         .SKID_DEPTH_W(SKID_DEPTH_W),
         .SKID_DEPTH_B(SKID_DEPTH_B),
-        .AXI_ID_WIDTH(4),
+        .AXI_ID_WIDTH(8),
         .AXI_ADDR_WIDTH(32),
         .AXI_DATA_WIDTH(32),
         .AXI_USER_WIDTH(1)
@@ -269,7 +269,7 @@ module host_adapter #(
     axi4_slave_rd #(
         .SKID_DEPTH_AR(SKID_DEPTH_AR),
         .SKID_DEPTH_R(SKID_DEPTH_R),
-        .AXI_ID_WIDTH(4),
+        .AXI_ID_WIDTH(8),
         .AXI_ADDR_WIDTH(32),
         .AXI_DATA_WIDTH(32),
         .AXI_USER_WIDTH(1)
@@ -483,11 +483,11 @@ module host_adapter #(
     // Intermediate signals for 64b converter
     logic conv_64b_awready;
     logic conv_64b_wready;
-    logic [3:0] conv_64b_bid;
+    logic [7:0] conv_64b_bid;
     logic [1:0] conv_64b_bresp;
     logic conv_64b_bvalid;
     logic conv_64b_arready;
-    logic [3:0] conv_64b_rid;
+    logic [7:0] conv_64b_rid;
     logic [31:0] conv_64b_rdata;
     logic [1:0] conv_64b_rresp;
     logic conv_64b_rlast;
@@ -499,7 +499,7 @@ module host_adapter #(
     axil_to_axi4_wide_align_wr #(
         .S_AXI_DATA_WIDTH(32),
         .M_AXI_DATA_WIDTH(64),
-        .AXI_ID_WIDTH(4),
+        .AXI_ID_WIDTH(8),
         .AXI_ADDR_WIDTH(32),
         .AXI_USER_WIDTH(1)
     ) u_wr_conv_64b (
@@ -559,7 +559,7 @@ module host_adapter #(
     axil_to_axi4_wide_align_rd #(
         .S_AXI_DATA_WIDTH(32),
         .M_AXI_DATA_WIDTH(64),
-        .AXI_ID_WIDTH(4),
+        .AXI_ID_WIDTH(8),
         .AXI_ADDR_WIDTH(32),
         .AXI_USER_WIDTH(1)
     ) u_rd_conv_64b (
@@ -614,11 +614,11 @@ module host_adapter #(
     // Intermediate signals for 256b converter
     logic conv_256b_awready;
     logic conv_256b_wready;
-    logic [3:0] conv_256b_bid;
+    logic [7:0] conv_256b_bid;
     logic [1:0] conv_256b_bresp;
     logic conv_256b_bvalid;
     logic conv_256b_arready;
-    logic [3:0] conv_256b_rid;
+    logic [7:0] conv_256b_rid;
     logic [31:0] conv_256b_rdata;
     logic [1:0] conv_256b_rresp;
     logic conv_256b_rlast;
@@ -630,7 +630,7 @@ module host_adapter #(
     axil_to_axi4_wide_align_wr #(
         .S_AXI_DATA_WIDTH(32),
         .M_AXI_DATA_WIDTH(256),
-        .AXI_ID_WIDTH(4),
+        .AXI_ID_WIDTH(8),
         .AXI_ADDR_WIDTH(32),
         .AXI_USER_WIDTH(1)
     ) u_wr_conv_256b (
@@ -690,7 +690,7 @@ module host_adapter #(
     axil_to_axi4_wide_align_rd #(
         .S_AXI_DATA_WIDTH(32),
         .M_AXI_DATA_WIDTH(256),
-        .AXI_ID_WIDTH(4),
+        .AXI_ID_WIDTH(8),
         .AXI_ADDR_WIDTH(32),
         .AXI_USER_WIDTH(1)
     ) u_rd_conv_256b (
@@ -908,7 +908,7 @@ module host_adapter #(
 
     // Write response MUX (B channel - uses b_slave_select FIFO head)
     always_comb begin
-        fub_axi_bid = 4'd0;
+        fub_axi_bid = 8'd0;
         fub_axi_bresp = 2'b00;
         fub_axi_bvalid = 1'b0;
 
@@ -979,7 +979,7 @@ module host_adapter #(
 
     // Read response MUX (R channel - uses r_slave_select FIFO head)
     always_comb begin
-        fub_axi_rid = 4'd0;
+        fub_axi_rid = 8'd0;
         fub_axi_rdata = 32'd0;
         fub_axi_rresp = 2'b00;
         fub_axi_rlast = 1'b0;

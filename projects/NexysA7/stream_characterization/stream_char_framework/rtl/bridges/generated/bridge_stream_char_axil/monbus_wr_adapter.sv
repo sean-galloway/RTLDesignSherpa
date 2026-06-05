@@ -21,7 +21,7 @@ module monbus_wr_adapter #(
     input  logic aresetn,
 
     // External AXI interface (from monbus_wr master)
-    input  logic [3:0]  monbus_wr_awid,
+    input  logic [7:0]  monbus_wr_awid,
     input  logic [31:0]  monbus_wr_awaddr,
     input  logic [7:0]  monbus_wr_awlen,
     input  logic [2:0]  monbus_wr_awsize,
@@ -42,13 +42,13 @@ module monbus_wr_adapter #(
     input  logic         monbus_wr_wvalid,
     output  logic         monbus_wr_wready,
 
-    output  logic [3:0]  monbus_wr_bid,
+    output  logic [7:0]  monbus_wr_bid,
     output  logic [1:0]  monbus_wr_bresp,
     output  logic         monbus_wr_buser,
     output  logic         monbus_wr_bvalid,
     input  logic         monbus_wr_bready,
 
-    input  logic [3:0]  monbus_wr_arid,
+    input  logic [7:0]  monbus_wr_arid,
     input  logic [31:0]  monbus_wr_araddr,
     input  logic [7:0]  monbus_wr_arlen,
     input  logic [2:0]  monbus_wr_arsize,
@@ -62,7 +62,7 @@ module monbus_wr_adapter #(
     input  logic         monbus_wr_arvalid,
     output  logic         monbus_wr_arready,
 
-    output  logic [3:0]  monbus_wr_rid,
+    output  logic [7:0]  monbus_wr_rid,
     output  logic [63:0]  monbus_wr_rdata,
     output  logic [1:0]  monbus_wr_rresp,
     output  logic         monbus_wr_rlast,
@@ -103,13 +103,13 @@ module monbus_wr_adapter #(
     // ================================================================
     localparam ADDR_WIDTH = 32;
     localparam DATA_WIDTH = 64;
-    localparam ID_WIDTH = 4;
+    localparam ID_WIDTH = 8;
 
     // ================================================================
     // Internal signals after wrapper (timing isolation)
-    // Note: ID width matches external (4-bit)
+    // Note: ID width matches external (8-bit)
     // ================================================================
-    logic [3:0]   fub_axi_awid;
+    logic [7:0]   fub_axi_awid;
     logic [31:0]  fub_axi_awaddr;
     logic [7:0]   fub_axi_awlen;
     logic [2:0]   fub_axi_awsize;
@@ -126,12 +126,12 @@ module monbus_wr_adapter #(
     logic         fub_axi_wvalid;
     logic         fub_axi_wready;
 
-    logic [3:0]   fub_axi_bid;
+    logic [7:0]   fub_axi_bid;
     logic [1:0]   fub_axi_bresp;
     logic         fub_axi_bvalid;
     logic         fub_axi_bready;
 
-    logic [3:0]   fub_axi_arid;
+    logic [7:0]   fub_axi_arid;
     logic [31:0]  fub_axi_araddr;
     logic [7:0]   fub_axi_arlen;
     logic [2:0]   fub_axi_arsize;
@@ -142,7 +142,7 @@ module monbus_wr_adapter #(
     logic         fub_axi_arvalid;
     logic         fub_axi_arready;
 
-    logic [3:0]   fub_axi_rid;
+    logic [7:0]   fub_axi_rid;
     logic [63:0]  fub_axi_rdata;
     logic [1:0]   fub_axi_rresp;
     logic         fub_axi_rlast;
@@ -159,7 +159,7 @@ module monbus_wr_adapter #(
         .SKID_DEPTH_AW(SKID_DEPTH_AW),
         .SKID_DEPTH_W(SKID_DEPTH_W),
         .SKID_DEPTH_B(SKID_DEPTH_B),
-        .AXI_ID_WIDTH(4),
+        .AXI_ID_WIDTH(8),
         .AXI_ADDR_WIDTH(32),
         .AXI_DATA_WIDTH(64),
         .AXI_USER_WIDTH(1)
@@ -229,7 +229,7 @@ module monbus_wr_adapter #(
     axi4_slave_rd #(
         .SKID_DEPTH_AR(SKID_DEPTH_AR),
         .SKID_DEPTH_R(SKID_DEPTH_R),
-        .AXI_ID_WIDTH(4),
+        .AXI_ID_WIDTH(8),
         .AXI_ADDR_WIDTH(32),
         .AXI_DATA_WIDTH(64),
         .AXI_USER_WIDTH(1)
@@ -524,7 +524,7 @@ module monbus_wr_adapter #(
 
     // Write response MUX (B channel - uses b_slave_select FIFO head)
     always_comb begin
-        fub_axi_bid = 4'd0;
+        fub_axi_bid = 8'd0;
         fub_axi_bresp = 2'b00;
         fub_axi_bvalid = 1'b0;
 
@@ -555,7 +555,7 @@ module monbus_wr_adapter #(
 
     // Read response MUX (R channel - uses r_slave_select FIFO head)
     always_comb begin
-        fub_axi_rid = 4'd0;
+        fub_axi_rid = 8'd0;
         fub_axi_rdata = 64'd0;
         fub_axi_rresp = 2'b00;
         fub_axi_rlast = 1'b0;

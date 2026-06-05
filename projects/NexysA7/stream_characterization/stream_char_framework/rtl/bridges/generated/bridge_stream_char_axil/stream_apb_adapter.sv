@@ -9,13 +9,13 @@
 import bridge_stream_char_axil_pkg::*;
 
 module stream_apb_adapter #(
-    parameter int ID_WIDTH = 4
+    parameter int ID_WIDTH = 8
 ) (
     input  logic aclk,
     input  logic aresetn,
 
     // Crossbar interface (AXI4 from crossbar)
-    input  logic [3:0]  xbar_stream_apb_axi_awid,
+    input  logic [7:0]  xbar_stream_apb_axi_awid,
     input  logic [31:0]  xbar_stream_apb_axi_awaddr,
     input  logic [7:0]  xbar_stream_apb_axi_awlen,
     input  logic [2:0]  xbar_stream_apb_axi_awsize,
@@ -34,12 +34,12 @@ module stream_apb_adapter #(
     input  logic         xbar_stream_apb_axi_wuser,
     input  logic         xbar_stream_apb_axi_wvalid,
     output  logic         xbar_stream_apb_axi_wready,
-    output  logic [3:0]  xbar_stream_apb_axi_bid,
+    output  logic [7:0]  xbar_stream_apb_axi_bid,
     output  logic [1:0]  xbar_stream_apb_axi_bresp,
     output  logic         xbar_stream_apb_axi_buser,
     output  logic         xbar_stream_apb_axi_bvalid,
     input  logic         xbar_stream_apb_axi_bready,
-    input  logic [3:0]  xbar_stream_apb_axi_arid,
+    input  logic [7:0]  xbar_stream_apb_axi_arid,
     input  logic [31:0]  xbar_stream_apb_axi_araddr,
     input  logic [7:0]  xbar_stream_apb_axi_arlen,
     input  logic [2:0]  xbar_stream_apb_axi_arsize,
@@ -52,7 +52,7 @@ module stream_apb_adapter #(
     input  logic         xbar_stream_apb_axi_aruser,
     input  logic         xbar_stream_apb_axi_arvalid,
     output  logic         xbar_stream_apb_axi_arready,
-    output  logic [3:0]  xbar_stream_apb_axi_rid,
+    output  logic [7:0]  xbar_stream_apb_axi_rid,
     output  logic [31:0]  xbar_stream_apb_axi_rdata,
     output  logic [1:0]  xbar_stream_apb_axi_rresp,
     output  logic         xbar_stream_apb_axi_rlast,
@@ -194,7 +194,7 @@ module stream_apb_adapter #(
         .SIDE_DEPTH(4),
         .APB_CMD_DEPTH(4),
         .APB_RSP_DEPTH(4),
-        .AXI_ID_WIDTH(4),
+        .AXI_ID_WIDTH(8),
         .AXI_ADDR_WIDTH(32),
         .AXI_DATA_WIDTH(32),
         .AXI_USER_WIDTH(1),

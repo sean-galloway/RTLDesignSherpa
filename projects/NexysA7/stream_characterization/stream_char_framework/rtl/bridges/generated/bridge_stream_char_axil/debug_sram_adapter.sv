@@ -9,13 +9,13 @@
 import bridge_stream_char_axil_pkg::*;
 
 module debug_sram_adapter #(
-    parameter int ID_WIDTH = 4
+    parameter int ID_WIDTH = 8
 ) (
     input  logic aclk,
     input  logic aresetn,
 
     // Crossbar interface (AXI4 from crossbar)
-    input  logic [3:0]  xbar_debug_sram_axi_awid,
+    input  logic [7:0]  xbar_debug_sram_axi_awid,
     input  logic [31:0]  xbar_debug_sram_axi_awaddr,
     input  logic [7:0]  xbar_debug_sram_axi_awlen,
     input  logic [2:0]  xbar_debug_sram_axi_awsize,
@@ -34,12 +34,12 @@ module debug_sram_adapter #(
     input  logic         xbar_debug_sram_axi_wuser,
     input  logic         xbar_debug_sram_axi_wvalid,
     output  logic         xbar_debug_sram_axi_wready,
-    output  logic [3:0]  xbar_debug_sram_axi_bid,
+    output  logic [7:0]  xbar_debug_sram_axi_bid,
     output  logic [1:0]  xbar_debug_sram_axi_bresp,
     output  logic         xbar_debug_sram_axi_buser,
     output  logic         xbar_debug_sram_axi_bvalid,
     input  logic         xbar_debug_sram_axi_bready,
-    input  logic [3:0]  xbar_debug_sram_axi_arid,
+    input  logic [7:0]  xbar_debug_sram_axi_arid,
     input  logic [31:0]  xbar_debug_sram_axi_araddr,
     input  logic [7:0]  xbar_debug_sram_axi_arlen,
     input  logic [2:0]  xbar_debug_sram_axi_arsize,
@@ -52,7 +52,7 @@ module debug_sram_adapter #(
     input  logic         xbar_debug_sram_axi_aruser,
     input  logic         xbar_debug_sram_axi_arvalid,
     output  logic         xbar_debug_sram_axi_arready,
-    output  logic [3:0]  xbar_debug_sram_axi_rid,
+    output  logic [7:0]  xbar_debug_sram_axi_rid,
     output  logic [63:0]  xbar_debug_sram_axi_rdata,
     output  logic [1:0]  xbar_debug_sram_axi_rresp,
     output  logic         xbar_debug_sram_axi_rlast,
@@ -199,7 +199,7 @@ module debug_sram_adapter #(
 
     // AXI4-to-AXI4-Lite converter shim
     axi4_to_axil4_wr #(
-        .AXI_ID_WIDTH(4),
+        .AXI_ID_WIDTH(8),
         .AXI_ADDR_WIDTH(32),
         .AXI_DATA_WIDTH(64),
         .AXI_USER_WIDTH(1),
@@ -252,7 +252,7 @@ module debug_sram_adapter #(
     );
 
     axi4_to_axil4_rd #(
-        .AXI_ID_WIDTH(4),
+        .AXI_ID_WIDTH(8),
         .AXI_ADDR_WIDTH(32),
         .AXI_DATA_WIDTH(64),
         .AXI_USER_WIDTH(1),

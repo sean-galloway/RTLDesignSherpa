@@ -119,7 +119,7 @@ module bridge_stream_char_axil_xbar (
     input  logic [BRIDGE_ID_WIDTH-1:0] stream_apb_axi_rid_bridge_id,
     input  logic                       stream_apb_axi_rid_valid,
 
-    output  logic [3:0]  stream_apb_axi_awid,
+    output  logic [7:0]  stream_apb_axi_awid,
     output  logic [31:0]  stream_apb_axi_awaddr,
     output  logic [7:0]  stream_apb_axi_awlen,
     output  logic [2:0]  stream_apb_axi_awsize,
@@ -140,13 +140,13 @@ module bridge_stream_char_axil_xbar (
     output  logic         stream_apb_axi_wvalid,
     input  logic         stream_apb_axi_wready,
 
-    input  logic [3:0]  stream_apb_axi_bid,
+    input  logic [7:0]  stream_apb_axi_bid,
     input  logic [1:0]  stream_apb_axi_bresp,
     input  logic         stream_apb_axi_buser,
     input  logic         stream_apb_axi_bvalid,
     output  logic         stream_apb_axi_bready,
 
-    output  logic [3:0]  stream_apb_axi_arid,
+    output  logic [7:0]  stream_apb_axi_arid,
     output  logic [31:0]  stream_apb_axi_araddr,
     output  logic [7:0]  stream_apb_axi_arlen,
     output  logic [2:0]  stream_apb_axi_arsize,
@@ -160,7 +160,7 @@ module bridge_stream_char_axil_xbar (
     output  logic         stream_apb_axi_arvalid,
     input  logic         stream_apb_axi_arready,
 
-    input  logic [3:0]  stream_apb_axi_rid,
+    input  logic [7:0]  stream_apb_axi_rid,
     input  logic [31:0]  stream_apb_axi_rdata,
     input  logic [1:0]  stream_apb_axi_rresp,
     input  logic         stream_apb_axi_rlast,
@@ -177,7 +177,7 @@ module bridge_stream_char_axil_xbar (
     input  logic [BRIDGE_ID_WIDTH-1:0] harness_csr_axi_rid_bridge_id,
     input  logic                       harness_csr_axi_rid_valid,
 
-    output  logic [3:0]  harness_csr_axi_awid,
+    output  logic [7:0]  harness_csr_axi_awid,
     output  logic [31:0]  harness_csr_axi_awaddr,
     output  logic [7:0]  harness_csr_axi_awlen,
     output  logic [2:0]  harness_csr_axi_awsize,
@@ -198,13 +198,13 @@ module bridge_stream_char_axil_xbar (
     output  logic         harness_csr_axi_wvalid,
     input  logic         harness_csr_axi_wready,
 
-    input  logic [3:0]  harness_csr_axi_bid,
+    input  logic [7:0]  harness_csr_axi_bid,
     input  logic [1:0]  harness_csr_axi_bresp,
     input  logic         harness_csr_axi_buser,
     input  logic         harness_csr_axi_bvalid,
     output  logic         harness_csr_axi_bready,
 
-    output  logic [3:0]  harness_csr_axi_arid,
+    output  logic [7:0]  harness_csr_axi_arid,
     output  logic [31:0]  harness_csr_axi_araddr,
     output  logic [7:0]  harness_csr_axi_arlen,
     output  logic [2:0]  harness_csr_axi_arsize,
@@ -218,7 +218,7 @@ module bridge_stream_char_axil_xbar (
     output  logic         harness_csr_axi_arvalid,
     input  logic         harness_csr_axi_arready,
 
-    input  logic [3:0]  harness_csr_axi_rid,
+    input  logic [7:0]  harness_csr_axi_rid,
     input  logic [31:0]  harness_csr_axi_rdata,
     input  logic [1:0]  harness_csr_axi_rresp,
     input  logic         harness_csr_axi_rlast,
@@ -235,7 +235,7 @@ module bridge_stream_char_axil_xbar (
     input  logic [BRIDGE_ID_WIDTH-1:0] desc_ram_axi_rid_bridge_id,
     input  logic                       desc_ram_axi_rid_valid,
 
-    output  logic [3:0]  desc_ram_axi_awid,
+    output  logic [7:0]  desc_ram_axi_awid,
     output  logic [31:0]  desc_ram_axi_awaddr,
     output  logic [7:0]  desc_ram_axi_awlen,
     output  logic [2:0]  desc_ram_axi_awsize,
@@ -256,13 +256,13 @@ module bridge_stream_char_axil_xbar (
     output  logic         desc_ram_axi_wvalid,
     input  logic         desc_ram_axi_wready,
 
-    input  logic [3:0]  desc_ram_axi_bid,
+    input  logic [7:0]  desc_ram_axi_bid,
     input  logic [1:0]  desc_ram_axi_bresp,
     input  logic         desc_ram_axi_buser,
     input  logic         desc_ram_axi_bvalid,
     output  logic         desc_ram_axi_bready,
 
-    output  logic [3:0]  desc_ram_axi_arid,
+    output  logic [7:0]  desc_ram_axi_arid,
     output  logic [31:0]  desc_ram_axi_araddr,
     output  logic [7:0]  desc_ram_axi_arlen,
     output  logic [2:0]  desc_ram_axi_arsize,
@@ -276,7 +276,7 @@ module bridge_stream_char_axil_xbar (
     output  logic         desc_ram_axi_arvalid,
     input  logic         desc_ram_axi_arready,
 
-    input  logic [3:0]  desc_ram_axi_rid,
+    input  logic [7:0]  desc_ram_axi_rid,
     input  logic [255:0]  desc_ram_axi_rdata,
     input  logic [1:0]  desc_ram_axi_rresp,
     input  logic         desc_ram_axi_rlast,
@@ -293,7 +293,7 @@ module bridge_stream_char_axil_xbar (
     input  logic [BRIDGE_ID_WIDTH-1:0] stream_err_axi_rid_bridge_id,
     input  logic                       stream_err_axi_rid_valid,
 
-    output  logic [3:0]  stream_err_axi_awid,
+    output  logic [7:0]  stream_err_axi_awid,
     output  logic [31:0]  stream_err_axi_awaddr,
     output  logic [7:0]  stream_err_axi_awlen,
     output  logic [2:0]  stream_err_axi_awsize,
@@ -314,13 +314,13 @@ module bridge_stream_char_axil_xbar (
     output  logic         stream_err_axi_wvalid,
     input  logic         stream_err_axi_wready,
 
-    input  logic [3:0]  stream_err_axi_bid,
+    input  logic [7:0]  stream_err_axi_bid,
     input  logic [1:0]  stream_err_axi_bresp,
     input  logic         stream_err_axi_buser,
     input  logic         stream_err_axi_bvalid,
     output  logic         stream_err_axi_bready,
 
-    output  logic [3:0]  stream_err_axi_arid,
+    output  logic [7:0]  stream_err_axi_arid,
     output  logic [31:0]  stream_err_axi_araddr,
     output  logic [7:0]  stream_err_axi_arlen,
     output  logic [2:0]  stream_err_axi_arsize,
@@ -334,7 +334,7 @@ module bridge_stream_char_axil_xbar (
     output  logic         stream_err_axi_arvalid,
     input  logic         stream_err_axi_arready,
 
-    input  logic [3:0]  stream_err_axi_rid,
+    input  logic [7:0]  stream_err_axi_rid,
     input  logic [31:0]  stream_err_axi_rdata,
     input  logic [1:0]  stream_err_axi_rresp,
     input  logic         stream_err_axi_rlast,
@@ -351,7 +351,7 @@ module bridge_stream_char_axil_xbar (
     input  logic [BRIDGE_ID_WIDTH-1:0] debug_sram_axi_rid_bridge_id,
     input  logic                       debug_sram_axi_rid_valid,
 
-    output  logic [3:0]  debug_sram_axi_awid,
+    output  logic [7:0]  debug_sram_axi_awid,
     output  logic [31:0]  debug_sram_axi_awaddr,
     output  logic [7:0]  debug_sram_axi_awlen,
     output  logic [2:0]  debug_sram_axi_awsize,
@@ -372,13 +372,13 @@ module bridge_stream_char_axil_xbar (
     output  logic         debug_sram_axi_wvalid,
     input  logic         debug_sram_axi_wready,
 
-    input  logic [3:0]  debug_sram_axi_bid,
+    input  logic [7:0]  debug_sram_axi_bid,
     input  logic [1:0]  debug_sram_axi_bresp,
     input  logic         debug_sram_axi_buser,
     input  logic         debug_sram_axi_bvalid,
     output  logic         debug_sram_axi_bready,
 
-    output  logic [3:0]  debug_sram_axi_arid,
+    output  logic [7:0]  debug_sram_axi_arid,
     output  logic [31:0]  debug_sram_axi_araddr,
     output  logic [7:0]  debug_sram_axi_arlen,
     output  logic [2:0]  debug_sram_axi_arsize,
@@ -392,7 +392,7 @@ module bridge_stream_char_axil_xbar (
     output  logic         debug_sram_axi_arvalid,
     input  logic         debug_sram_axi_arready,
 
-    input  logic [3:0]  debug_sram_axi_rid,
+    input  logic [7:0]  debug_sram_axi_rid,
     input  logic [63:0]  debug_sram_axi_rdata,
     input  logic [1:0]  debug_sram_axi_rresp,
     input  logic         debug_sram_axi_rlast,
@@ -409,7 +409,7 @@ module bridge_stream_char_axil_xbar (
     input  logic [BRIDGE_ID_WIDTH-1:0] dma_axil_axi_rid_bridge_id,
     input  logic                       dma_axil_axi_rid_valid,
 
-    output  logic [3:0]  dma_axil_axi_awid,
+    output  logic [7:0]  dma_axil_axi_awid,
     output  logic [31:0]  dma_axil_axi_awaddr,
     output  logic [7:0]  dma_axil_axi_awlen,
     output  logic [2:0]  dma_axil_axi_awsize,
@@ -430,13 +430,13 @@ module bridge_stream_char_axil_xbar (
     output  logic         dma_axil_axi_wvalid,
     input  logic         dma_axil_axi_wready,
 
-    input  logic [3:0]  dma_axil_axi_bid,
+    input  logic [7:0]  dma_axil_axi_bid,
     input  logic [1:0]  dma_axil_axi_bresp,
     input  logic         dma_axil_axi_buser,
     input  logic         dma_axil_axi_bvalid,
     output  logic         dma_axil_axi_bready,
 
-    output  logic [3:0]  dma_axil_axi_arid,
+    output  logic [7:0]  dma_axil_axi_arid,
     output  logic [31:0]  dma_axil_axi_araddr,
     output  logic [7:0]  dma_axil_axi_arlen,
     output  logic [2:0]  dma_axil_axi_arsize,
@@ -450,7 +450,7 @@ module bridge_stream_char_axil_xbar (
     output  logic         dma_axil_axi_arvalid,
     input  logic         dma_axil_axi_arready,
 
-    input  logic [3:0]  dma_axil_axi_rid,
+    input  logic [7:0]  dma_axil_axi_rid,
     input  logic [31:0]  dma_axil_axi_rdata,
     input  logic [1:0]  dma_axil_axi_rresp,
     input  logic         dma_axil_axi_rlast,

@@ -47,15 +47,13 @@ prefix      = "host_axi_"
 protocol    = "axil"
 channels    = "rw"
 # id_width=8 across the bridge so master-side and slave-side ID widths
-# match end-to-end. Setting it to 0 hits two generator quirks (TASK-011
-# in projects/components/bridge):
-#   1. host port emits invalid `[-1:0]` SV ranges.
-#   2. xbar's slave-side AXI4 carries IDs at the slave's id_width but
-#      a width-mismatched master triggers WIDTHEXPAND fatals in the
-#      generated connectivity test.
+# match end-to-end with STREAM's native 8-bit AXI_ID_WIDTH. ASIC-style
+# convention: every non-APB port uses the same 8-bit id field, so the
+# bridge's xbar id-routing and STREAM's per-channel id-routing
+# (CHANNEL_ID at low CHAN_WIDTH bits) never have to truncate or alias.
 # AXIL has no transaction IDs in its protocol; the host port ties its
 # 8 id bits to 0 at the wiring boundary.
-id_width    = 4
+id_width    = 8
 addr_width  = 32
 data_width  = 32
 user_width  = 0
@@ -70,11 +68,11 @@ name        = "stream_desc"
 prefix      = "stream_desc_"
 protocol    = "axi4"
 channels    = "r"
-# id_width = 4 matches host and monbus_wr (mixed id_widths across
-# masters break the xbar's struct-typed channels). STREAM's
-# m_axi_desc is 8 bits at the SoC level; harness truncates the
-# upper 4 bits at the wiring boundary.
-id_width    = 4
+# id_width = 8 to match STREAM's native AXI_ID_WIDTH end-to-end. No
+# more upper-bit truncation at the wiring boundary, and the bridge
+# carries the full r_id back so per-channel routing in
+# scheduler_group_array can never see an aliased id.
+id_width    = 8
 addr_width  = 32
 data_width  = 256
 user_width  = 3
@@ -88,7 +86,7 @@ name        = "monbus_wr"
 prefix      = "monbus_wr_"
 protocol    = "axil"
 channels    = "w"
-id_width    = 4
+id_width    = 8
 addr_width  = 32
 data_width  = 64
 user_width  = 0
@@ -111,7 +109,7 @@ name        = "harness_csr"
 prefix      = "harness_csr_axi_"
 protocol    = "axil"
 channels    = "rw"
-id_width    = 4
+id_width    = 8
 addr_width  = 32
 data_width  = 32
 user_width  = 0
@@ -127,7 +125,7 @@ name        = "desc_ram"
 prefix      = "desc_ram_axi_"
 protocol    = "axil"
 channels    = "rw"
-id_width    = 4
+id_width    = 8
 addr_width  = 32
 # Descriptor fetches are 256-bit end-to-end by design (one descriptor =
 # one beat at the slave). The SRAM instance behind this slot is the
@@ -148,7 +146,7 @@ name        = "stream_err"
 prefix      = "stream_err_axi_"
 protocol    = "axil"
 channels    = "rw"
-id_width    = 4
+id_width    = 8
 addr_width  = 32
 data_width  = 32
 user_width  = 0
@@ -162,7 +160,7 @@ name        = "debug_sram"
 prefix      = "debug_sram_axi_"
 protocol    = "axil"
 channels    = "rw"
-id_width    = 4
+id_width    = 8
 addr_width  = 32
 # Widened to 64 alongside the SRAM rewrite. axil_sdpram_slave backs
 # this slot; monbus's 64-bit AXIL master connects directly, host
@@ -180,7 +178,7 @@ name        = "dma_axil"
 prefix      = "dma_axil_"
 protocol    = "axil"
 channels    = "rw"
-id_width    = 4
+id_width    = 8
 addr_width  = 32
 data_width  = 32
 user_width  = 0

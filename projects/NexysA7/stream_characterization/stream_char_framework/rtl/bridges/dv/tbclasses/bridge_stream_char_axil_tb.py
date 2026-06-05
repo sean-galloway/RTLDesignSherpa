@@ -305,7 +305,7 @@ class BridgeStreamCharAxilTB(TBBase):
             log=self.log,
             data_width=256,
             addr_width=32,
-            id_width=4,
+            id_width=8,
             user_width=1,
             multi_sig=True,
         )
@@ -315,7 +315,7 @@ class BridgeStreamCharAxilTB(TBBase):
             log=self.log,
             data_width=256,
             addr_width=32,
-            id_width=4,
+            id_width=8,
             user_width=1,
             multi_sig=True,
         )
