@@ -84,8 +84,13 @@ module sram_controller #(
     //=========================================================================
     // Read Interface (FIFO → AXI Write Engine)
     //=========================================================================
-    // Also registered at module boundary -- feeds write engine arbitration.
+    // The registered version feeds wide arbitration trees in the write
+    // engine (timing closure needs the flop). The combinational version
+    // gates the actual m_axi_wvalid pulse so a 1-cycle-stale registered
+    // valid can't drag a bogus data beat onto the AXI bus when the
+    // latency-bridge skid empties between drains.
     output logic [NC-1:0]               axi_wr_sram_valid,      // Per-channel valid (registered)
+    output logic [NC-1:0]               axi_wr_sram_valid_comb, // Per-channel valid (combinational, data-valid gate)
     input  logic                        axi_wr_sram_drain,      // Ready (consumer requests data)
     input  logic [CIW-1:0]              axi_wr_sram_id,         // Channel ID select
     output logic [DW-1:0]               axi_wr_sram_data,       // Data from selected channel
@@ -113,9 +118,10 @@ module sram_controller #(
     // outputs. The wrapper flops these into the externally-visible
     // axi_{rd_alloc_space_free, wr_drain_data_avail, wr_sram_valid}
     // ports so downstream arbiters see a stable, registered view.
+    // axi_wr_sram_valid_comb is ALSO exposed as a port (see port list)
+    // for use as the WR engine's m_axi_wvalid gate.
     logic [NC-1:0][SCW-1:0] axi_rd_alloc_space_free_comb;
     logic [NC-1:0][SCW-1:0] axi_wr_drain_data_avail_comb;
-    logic [NC-1:0]          axi_wr_sram_valid_comb;
 
     // Write valid decode: axi_rd_sram_id selects which channel
     always_comb begin
@@ -259,5 +265,12 @@ module sram_controller #(
             axi_wr_sram_valid       <= axi_wr_sram_valid_comb;
         end
     )
+
+    // Combinational tap of the per-channel skid valid for the write
+    // engine's m_axi_wvalid gate. Already driven per-channel by the
+    // sram_controller_unit instantiations above (axi_wr_sram_valid
+    // port -> axi_wr_sram_valid_comb[i]). Exposed as a module port so
+    // the write engine can AND it with the registered valid -- see
+    // port-list comment for the motivation.
 
 endmodule : sram_controller

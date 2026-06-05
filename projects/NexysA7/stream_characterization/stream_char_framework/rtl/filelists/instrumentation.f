@@ -23,12 +23,24 @@ $FRAMEWORK_ROOT/rtl/harness_csr.sv
 # at 0x100 (R) and 0x180 (W).
 $FRAMEWORK_ROOT/rtl/axi_bus_meter.sv
 
-# Unified pipelined AXI4-Lite SDP-BRAM slave. Both desc_ram and
-# debug_sram in stream_char_harness are now instances of this one
-# module — see /home/seang/Downloads/AXIL_PIPELINED_SLAVE_SDPRAM.md.
+# Unified pipelined AXI4-Lite SDP-BRAM slave. debug_sram still uses this.
+# desc_ram switched to axi4_sdpram_slave to remove the bridge-internal
+# axi4_to_axil4 converter from the stream_desc → desc_ram path while
+# debugging the multi-channel wedge.
 # Requires axil4_slave_rd/wr from rtl/amba/axil4 (already pulled in
 # via the bridge filelist that wraps these slaves).
 $FRAMEWORK_ROOT/rtl/axil_sdpram_slave.sv
+
+# AXI4 native SDP-BRAM slave. desc_ram instance in stream_char_harness.
+# Mirrors axil_sdpram_slave's BRAM glue but uses axi4_slave_rd/wr from
+# rtl/amba/axi4 for the protocol-side skid wrappers.
+$FRAMEWORK_ROOT/rtl/axi4_sdpram_slave.sv
+
+# Sim-only scoreboard bound into stream_core's u_sram_controller. Catches
+# per-channel data swaps between the RD-engine deposit and WR-engine drain
+# sides. Pure `ifndef SYNTHESIS so FPGA build sees a zero-port module.
+$FRAMEWORK_ROOT/rtl/sram_chan_tracker.sv
+$FRAMEWORK_ROOT/rtl/sram_chan_tracker_bind.sv
 
 # Board-level status outputs (LED bank + 7-segment display) and their
 # upstream dependencies in the shared rtl/ tree.

@@ -443,7 +443,8 @@ module stream_core #(
     logic [NC-1:0][7:0]          axi_wr_drain_size;
     logic [NC-1:0][$clog2(FIFO_DEPTH)+1-1:0] axi_wr_drain_data_avail;  // SRAM → write engine
 
-    logic [NC-1:0]               axi_wr_sram_valid;           // Per-channel valid from SRAM
+    logic [NC-1:0]               axi_wr_sram_valid;           // Per-channel valid from SRAM (registered)
+    logic [NC-1:0]               axi_wr_sram_valid_comb;      // Per-channel valid from SRAM (combinational)
     logic                        axi_wr_sram_drain;           // Drain signal from write engine
     logic [CHAN_WIDTH-1:0]       axi_wr_sram_id;              // Channel ID from write engine
     logic [DW-1:0]               axi_wr_sram_data;            // Muxed data from SRAM
@@ -873,6 +874,7 @@ module stream_core #(
 
         // SRAM read interface (ID-based - direct connection)
         .axi_wr_sram_valid      (axi_wr_sram_valid),
+        .axi_wr_sram_valid_comb (axi_wr_sram_valid_comb),
         .axi_wr_sram_drain      (axi_wr_sram_drain),
         .axi_wr_sram_id         (axi_wr_sram_id),
         .axi_wr_sram_data       (axi_wr_sram_data),
@@ -922,7 +924,8 @@ module stream_core #(
         .axi_wr_drain_data_avail(axi_wr_drain_data_avail),
 
         // Read interface (to write engine - direct connection)
-        .axi_wr_sram_valid      (axi_wr_sram_valid),          // Per-channel valids from SRAM
+        .axi_wr_sram_valid      (axi_wr_sram_valid),          // Per-channel valids (registered, arbitration use)
+        .axi_wr_sram_valid_comb (axi_wr_sram_valid_comb),     // Per-channel valids (combinational, wvalid gate)
         .axi_wr_sram_drain      (axi_wr_sram_drain),          // Drain signal from write engine
         .axi_wr_sram_id         (axi_wr_sram_id),             // Channel ID from write engine
         .axi_wr_sram_data       (axi_wr_sram_data),           // Muxed data from SRAM

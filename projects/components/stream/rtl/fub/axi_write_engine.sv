@@ -101,7 +101,8 @@ module axi_write_engine #(
     // SRAM Read Interface (from SRAM Controller)
     // ID-based interface matching sram_controller output
     //=========================================================================
-    input  logic [NC-1:0]               axi_wr_sram_valid,   // Per-channel valid (data available)
+    input  logic [NC-1:0]               axi_wr_sram_valid,      // Per-channel valid (registered, for arbitration)
+    input  logic [NC-1:0]               axi_wr_sram_valid_comb, // Per-channel valid (combinational, for m_axi_wvalid gate)
     output logic                        axi_wr_sram_drain,   // Drain request (consumer ready)
     output logic [CIW-1:0]              axi_wr_sram_id,      // Channel ID select for drain
     input  logic [DW-1:0]               axi_wr_sram_data,    // Data from selected channel (muxed)
@@ -357,6 +358,56 @@ module axi_write_engine #(
     logic [NC-1:0][7:0] w_transfer_size;      // Masked requests to arbiter
     logic [NC-1:0]      w_final_burst;        // Final burst
 
+    //=========================================================================
+    // In-flight drain-request pipeline (closes the stale-data_avail race)
+    //=========================================================================
+    // axi_wr_drain_data_avail is registered twice on the way out of
+    // sram_controller (once inside sram_controller_unit, once at the
+    // wrapper boundary) for 100 MHz timing closure. That means the wr
+    // engine sees a 2-cycle-stale view: drain_reqs fired at cycles
+    // T-1 and T are NOT yet reflected in axi_wr_drain_data_avail(T).
+    //
+    // If the engine relied on the raw stale view, it could fire an AW
+    // (and a drain_req) for a channel whose actual drain_ctrl count is
+    // already exhausted by an in-flight prior drain_req for the same
+    // channel. drain_ctrl silently drops the second drain_req's rd_ptr
+    // advance (rd_empty=1 → advance gated off in stream_drain_ctrl).
+    // The wr engine then commits a phantom burst -- pre-fix it leaked
+    // bogus W beats onto the AXI bus; post-fix it just stalls forever.
+    //
+    // Fix: track per-channel drain_req sizes for the last 2 cycles
+    // (the exact width of the staleness window). Subtract those from
+    // the registered view so the arbitration check sees the "true"
+    // count that drain_ctrl will reach by the time our drain_req lands.
+    logic [NC-1:0][SCW-1:0] w_drain_t;          // drain_req size firing THIS cycle
+    logic [NC-1:0][SCW-1:0] r_drain_tminus1;    // drain_req size that fired LAST cycle
+    logic [NC-1:0][SCW-1:0] w_pending_drain;    // sum of in-flight (not yet in registered view)
+    logic [NC-1:0][SCW-1:0] w_effective_avail;  // registered avail minus in-flight
+
+    always_comb begin
+        w_drain_t = '{default:0};
+        if (m_axi_awvalid && m_axi_awready) begin
+            w_drain_t[r_aw_channel_id] = SCW'(m_axi_awlen) + SCW'(1);
+        end
+    end
+
+    `ALWAYS_FF_RST(clk, rst_n,
+        if (`RST_ASSERTED(rst_n)) begin
+            r_drain_tminus1 <= '{default:0};
+        end else begin
+            r_drain_tminus1 <= w_drain_t;
+        end
+    )
+
+    always_comb begin
+        for (int i = 0; i < NC; i++) begin
+            w_pending_drain[i] = r_drain_tminus1[i] + w_drain_t[i];
+            w_effective_avail[i] = (axi_wr_drain_data_avail[i] >= w_pending_drain[i])
+                                    ? (axi_wr_drain_data_avail[i] - w_pending_drain[i])
+                                    : '0;
+        end
+    end
+
     always_comb begin
         for (int i = 0; i < NC; i++) begin
 
@@ -367,13 +418,16 @@ module axi_write_engine #(
                 // sched_wr_beats uses 0==0 encoding, cfg_axi_wr_xfer_beats stores ARLEN (0==1 beat)
                 w_transfer_size[i] = 8'((sched_wr_beats[i] <= (32'(cfg_axi_wr_xfer_beats) + 32'd1)) ?
                             (sched_wr_beats[i] - 32'd1) : 32'(cfg_axi_wr_xfer_beats));
-                // Check if channel has enough data for configured burst size
-                // Convert ARLEN to beat count (+1) before comparing with SRAM amounts (which use 0==0 encoding)
-                w_has_data[i] = (SCW'(axi_wr_drain_data_avail[i]) >= SCW'(w_transfer_size[i] + 8'd1));
+                // Check if channel has enough data for configured burst size.
+                // Use w_effective_avail (= registered avail minus drain_reqs
+                // still in flight) so the stale-view race against drain_ctrl
+                // can't trigger a phantom burst.
+                w_has_data[i] = (SCW'(w_effective_avail[i]) >= SCW'(w_transfer_size[i] + 8'd1));
 
                 // OR if this is the final burst (remaining beats < burst size AND all data available)
                 w_final_burst[i] = (sched_wr_beats[i] > 0) &&
-                                    (sched_wr_beats[i] <= (32'(cfg_axi_wr_xfer_beats) + 32'd1));
+                                    (sched_wr_beats[i] <= (32'(cfg_axi_wr_xfer_beats) + 32'd1)) &&
+                                    (SCW'(w_effective_avail[i]) >= SCW'(sched_wr_beats[i]));
 
                 w_data_ok[i] = w_has_data[i] || w_final_burst[i];
             end else begin
@@ -628,7 +682,21 @@ module axi_write_engine #(
     assign axi_wr_sram_id = r_w_channel_id;
 
     // W channel outputs - use ID-based SRAM interface
-    assign m_axi_wvalid = r_w_active && axi_wr_sram_valid[r_w_channel_id];
+    //
+    // Gate m_axi_wvalid with BOTH the registered and the combinational
+    // per-channel valid. The registered valid is fine for arbitration
+    // decisions (it's the long-cone signal that needed pipelining), but
+    // it lags by 1 cycle relative to the actual data appearing on
+    // axi_wr_sram_data. If we used registered valid alone, the cycle
+    // after a ch's latency-bridge skid empties (drained on T-1, no new
+    // data pushed in T) the registered valid is still 1 in T but the
+    // muxed data wire shows stale skid contents. A spurious m_axi_wvalid
+    // pulse with stale data then leaks onto the AXI bus -- exactly the
+    // dma_2ch CRC-mismatch shape caught by sram_chan_tracker.
+    // ANDing in the combinational valid filters that 1-cycle dry window.
+    assign m_axi_wvalid = r_w_active
+                       && axi_wr_sram_valid[r_w_channel_id]
+                       && axi_wr_sram_valid_comb[r_w_channel_id];
     assign m_axi_wdata = axi_wr_sram_data;  // Muxed data from SRAM controller
     assign m_axi_wstrb = {(DW/8){1'b1}};  // All bytes valid
     assign m_axi_wlast = (r_w_beats_remaining == 8'd1);
@@ -879,6 +947,57 @@ module axi_write_engine #(
     //=========================================================================
     // Assertions for Verification
     //=========================================================================
+
+`ifdef ENHANCED_DEBUG
+    // synopsys translate_off
+    // Sim-only end-of-simulation state dump for the "drain-ctrl stale
+    // view" debug. Snapshots W-phase + AW + B-phase state per channel
+    // so the log shows what was in flight when the test ended.
+    //
+    // Gate: `define ENHANCED_DEBUG (or +define+ENHANCED_DEBUG on the
+    // simulator command line) to enable. Off by default.
+    int unsigned dbg_aw_per_ch [NC];
+    int unsigned dbg_b_per_ch  [NC];
+    int unsigned dbg_w_fifo_push_per_ch [NC];
+    initial for (int i = 0; i < NC; i++) begin
+        dbg_aw_per_ch[i] = 0;
+        dbg_b_per_ch[i]  = 0;
+        dbg_w_fifo_push_per_ch[i] = 0;
+    end
+    always_ff @(posedge clk) begin
+        if (m_axi_awvalid && m_axi_awready) begin
+            dbg_aw_per_ch[r_aw_channel_id] += 1;
+        end
+        if (m_axi_bvalid && m_axi_bready) begin
+            dbg_b_per_ch[m_axi_bid[CIW-1:0]] += 1;
+        end
+        if (w_phase_txn_fifo_wr && w_phase_txn_fifo_wr_ready) begin
+            dbg_w_fifo_push_per_ch[w_phase_txn_fifo_din.channel_id] += 1;
+        end
+    end
+
+    final begin
+        $display("[%0t] [WR_ENG] FINAL state:", $time);
+        $display("[%0t] [WR_ENG]   r_w_active=%b r_w_channel_id=%0d r_w_beats_remaining=%0d",
+                 $time, r_w_active, r_w_channel_id, r_w_beats_remaining);
+        $display("[%0t] [WR_ENG]   w_phase_txn_fifo empty=%b full=%b head_ch=%0d head_beats=%0d",
+                 $time, w_phase_txn_fifo_empty, w_phase_txn_fifo_full,
+                 w_phase_txn_fifo_dout.channel_id, w_phase_txn_fifo_dout.beats);
+        $display("[%0t] [WR_ENG]   GLOBAL: r_aw_transactions=%0d r_w_beats=%0d",
+                 $time, r_aw_transactions, r_w_beats);
+        for (int i = 0; i < NC; i++) begin
+            $display("[%0t] [WR_ENG]   ch%0d: aw=%0d b=%0d w_fifo_pushed=%0d sched_wr_valid=%b sched_wr_beats=%0d r_aw_valid=%b outstanding=%0d outstanding_limit=%b drain_data_avail=%0d has_data=%b final_burst=%b arb_request=%b r_beats_written=%0d",
+                     $time, i,
+                     dbg_aw_per_ch[i], dbg_b_per_ch[i], dbg_w_fifo_push_per_ch[i],
+                     sched_wr_valid[i], sched_wr_beats[i], (r_aw_valid && r_aw_channel_id == CIW'(i)),
+                     r_outstanding_count[i], r_outstanding_limit[i],
+                     axi_wr_drain_data_avail[i],
+                     w_has_data[i], w_final_burst[i], w_arb_request[i],
+                     r_beats_written[i]);
+        end
+    end
+    // synopsys translate_on
+`endif // ENHANCED_DEBUG
 
     `ifdef FORMAL
     // Only one arbiter grant at a time

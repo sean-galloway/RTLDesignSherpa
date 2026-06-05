@@ -1,0 +1,177 @@
+[*]
+[*] dma_2ch channel-id pickoff debug
+[*]
+[*] Target dump: local_sim_build/test_stream_char_harness_dma_2ch_FUNC/dump.fst
+[*]
+[*] CRC mismatches on BOTH ch0 and ch1 in dma_2ch (dma_1ch passes). Looking
+[*] for a channel-id tag mis-pickoff: read engine writing a R beat into the
+[*] SRAM tagged with the wrong channel, or write engine pulling SRAM data
+[*] under the wrong channel id at AW time.
+[*]
+[dumpfile] "/mnt/data/github/RTLDesignSherpa/projects/NexysA7/stream_characterization/flows-stream-bridge/dv/tests/local_sim_build/test_stream_char_harness_dma_2ch_FUNC/dump.fst"
+[savefile] "/mnt/data/github/RTLDesignSherpa/projects/NexysA7/stream_characterization/flows-stream-bridge/dv/tests/GTKW/dma_2ch_chan_id_pickoff.gtkw"
+[timestart] 0
+[size] 2628 1412
+[pos] 48 8
+[treeopen] .
+[treeopen] .stream_char_harness.
+[treeopen] .stream_char_harness.u_bridge.
+[treeopen] .stream_char_harness.u_stream.
+[sst_width] 409
+[signals_width] 420
+[sst_expanded] 1
+[sst_vpaned_height] 603
+@200
+-Clock_Reset
+@28
+stream_char_harness.u_bridge.aclk
+stream_char_harness.u_bridge.aresetn
+@200
+-SRAMctl_rd_engine_to_SRAM_tagging
+@28
+stream_char_harness.u_stream.g_stream_core_mon_enabled.u_stream_core.u_sram_controller.axi_rd_sram_valid
+stream_char_harness.u_stream.g_stream_core_mon_enabled.u_stream_core.u_sram_controller.axi_rd_sram_ready
+@22
+stream_char_harness.u_stream.g_stream_core_mon_enabled.u_stream_core.u_sram_controller.axi_rd_sram_id[0:0]
+stream_char_harness.u_stream.g_stream_core_mon_enabled.u_stream_core.u_sram_controller.axi_rd_sram_data[127:0]
+@28
+stream_char_harness.u_stream.g_stream_core_mon_enabled.u_stream_core.u_sram_controller.axi_rd_alloc_req
+@22
+stream_char_harness.u_stream.g_stream_core_mon_enabled.u_stream_core.u_sram_controller.axi_rd_alloc_id[0:0]
+stream_char_harness.u_stream.g_stream_core_mon_enabled.u_stream_core.u_sram_controller.axi_rd_alloc_size[7:0]
+stream_char_harness.u_stream.g_stream_core_mon_enabled.u_stream_core.u_sram_controller.axi_rd_sram_valid_decoded
+stream_char_harness.u_stream.g_stream_core_mon_enabled.u_stream_core.u_sram_controller.axi_rd_alloc_req_decoded
+@200
+-SRAMctl_wr_engine_drain_SELECTOR
+@28
+stream_char_harness.u_stream.g_stream_core_mon_enabled.u_stream_core.u_sram_controller.axi_wr_sram_drain
+@22
+stream_char_harness.u_stream.g_stream_core_mon_enabled.u_stream_core.u_sram_controller.axi_wr_sram_id[0:0]
+stream_char_harness.u_stream.g_stream_core_mon_enabled.u_stream_core.u_sram_controller.axi_wr_sram_data[127:0]
+stream_char_harness.u_stream.g_stream_core_mon_enabled.u_stream_core.u_sram_controller.axi_wr_sram_valid
+stream_char_harness.u_stream.g_stream_core_mon_enabled.u_stream_core.u_sram_controller.axi_wr_sram_drain_decoded
+stream_char_harness.u_stream.g_stream_core_mon_enabled.u_stream_core.u_sram_controller.axi_wr_drain_req
+stream_char_harness.u_stream.g_stream_core_mon_enabled.u_stream_core.u_sram_controller.axi_wr_drain_data_avail
+stream_char_harness.u_stream.g_stream_core_mon_enabled.u_stream_core.u_sram_controller.axi_rd_alloc_space_free
+@200
+-WRengine_internal_channel_select
+@28
+stream_char_harness.u_stream.g_stream_core_mon_enabled.u_stream_core.u_axi_write_engine.r_w_active
+@22
+stream_char_harness.u_stream.g_stream_core_mon_enabled.u_stream_core.u_axi_write_engine.r_w_channel_id[0:0]
+stream_char_harness.u_stream.g_stream_core_mon_enabled.u_stream_core.u_axi_write_engine.r_w_beats_remaining[7:0]
+@200
+-Bridge_stream_desc_AR_R
+@28
+stream_char_harness.u_bridge.stream_desc_arvalid
+stream_char_harness.u_bridge.stream_desc_arready
+@22
+stream_char_harness.u_bridge.stream_desc_arid[7:0]
+stream_char_harness.u_bridge.stream_desc_araddr[31:0]
+stream_char_harness.u_bridge.stream_desc_arlen[7:0]
+@28
+stream_char_harness.u_bridge.stream_desc_rvalid
+stream_char_harness.u_bridge.stream_desc_rready
+stream_char_harness.u_bridge.stream_desc_rlast
+@22
+stream_char_harness.u_bridge.stream_desc_rid[7:0]
+@29
+stream_char_harness.u_bridge.stream_desc_rresp[1:0]
+@22
+stream_char_harness.u_bridge.stream_desc_rdata[255:0]
+@200
+-Harness_desc_ram_S2_AR_R
+@28
+stream_char_harness.s2_arvalid
+stream_char_harness.s2_arready
+@22
+stream_char_harness.s2_arid[7:0]
+stream_char_harness.s2_araddr[31:0]
+@28
+stream_char_harness.s2_rvalid
+stream_char_harness.s2_rready
+stream_char_harness.s2_rlast
+@22
+stream_char_harness.s2_rid[7:0]
+@200
+-Harness_desc_master_to_bridge
+@28
+stream_char_harness.desc_arvalid
+stream_char_harness.desc_arready
+@22
+stream_char_harness.desc_arid[7:0]
+stream_char_harness.desc_araddr[31:0]
+@28
+stream_char_harness.desc_rvalid
+stream_char_harness.desc_rready
+@22
+stream_char_harness.desc_rid[7:0]
+@200
+-STREAM_rd_engine_m_axi_AR
+@28
+stream_char_harness.u_stream.g_stream_core_mon_enabled.u_stream_core.u_axi_read_engine.m_axi_arvalid
+stream_char_harness.u_stream.g_stream_core_mon_enabled.u_stream_core.u_axi_read_engine.m_axi_arready
+@22
+stream_char_harness.u_stream.g_stream_core_mon_enabled.u_stream_core.u_axi_read_engine.m_axi_arid[7:0]
+stream_char_harness.u_stream.g_stream_core_mon_enabled.u_stream_core.u_axi_read_engine.m_axi_araddr[31:0]
+stream_char_harness.u_stream.g_stream_core_mon_enabled.u_stream_core.u_axi_read_engine.m_axi_arlen[7:0]
+@200
+-STREAM_rd_engine_m_axi_R
+@28
+stream_char_harness.u_stream.g_stream_core_mon_enabled.u_stream_core.u_axi_read_engine.m_axi_rvalid
+stream_char_harness.u_stream.g_stream_core_mon_enabled.u_stream_core.u_axi_read_engine.m_axi_rready
+stream_char_harness.u_stream.g_stream_core_mon_enabled.u_stream_core.u_axi_read_engine.m_axi_rlast
+@22
+stream_char_harness.u_stream.g_stream_core_mon_enabled.u_stream_core.u_axi_read_engine.m_axi_rid[7:0]
+@29
+stream_char_harness.u_stream.g_stream_core_mon_enabled.u_stream_core.u_axi_read_engine.m_axi_rresp[1:0]
+@22
+stream_char_harness.u_stream.g_stream_core_mon_enabled.u_stream_core.u_axi_read_engine.m_axi_rdata[127:0]
+@200
+-STREAM_rd_engine_to_SRAM
+@28
+stream_char_harness.u_stream.g_stream_core_mon_enabled.u_stream_core.u_axi_read_engine.axi_rd_sram_valid
+stream_char_harness.u_stream.g_stream_core_mon_enabled.u_stream_core.u_axi_read_engine.axi_rd_sram_ready
+@22
+stream_char_harness.u_stream.g_stream_core_mon_enabled.u_stream_core.u_axi_read_engine.axi_rd_sram_id[2:0]
+stream_char_harness.u_stream.g_stream_core_mon_enabled.u_stream_core.u_axi_read_engine.axi_rd_sram_data[127:0]
+@28
+stream_char_harness.u_stream.g_stream_core_mon_enabled.u_stream_core.u_axi_read_engine.axi_rd_alloc_req
+@22
+stream_char_harness.u_stream.g_stream_core_mon_enabled.u_stream_core.u_axi_read_engine.axi_rd_alloc_id[2:0]
+@200
+-STREAM_wr_engine_m_axi_AW
+@28
+stream_char_harness.u_stream.g_stream_core_mon_enabled.u_stream_core.u_axi_write_engine.m_axi_awvalid
+stream_char_harness.u_stream.g_stream_core_mon_enabled.u_stream_core.u_axi_write_engine.m_axi_awready
+@22
+stream_char_harness.u_stream.g_stream_core_mon_enabled.u_stream_core.u_axi_write_engine.m_axi_awid[7:0]
+stream_char_harness.u_stream.g_stream_core_mon_enabled.u_stream_core.u_axi_write_engine.m_axi_awaddr[31:0]
+stream_char_harness.u_stream.g_stream_core_mon_enabled.u_stream_core.u_axi_write_engine.m_axi_awlen[7:0]
+@200
+-STREAM_wr_engine_m_axi_W
+@28
+stream_char_harness.u_stream.g_stream_core_mon_enabled.u_stream_core.u_axi_write_engine.m_axi_wvalid
+stream_char_harness.u_stream.g_stream_core_mon_enabled.u_stream_core.u_axi_write_engine.m_axi_wready
+stream_char_harness.u_stream.g_stream_core_mon_enabled.u_stream_core.u_axi_write_engine.m_axi_wlast
+@22
+stream_char_harness.u_stream.g_stream_core_mon_enabled.u_stream_core.u_axi_write_engine.m_axi_wdata[127:0]
+stream_char_harness.u_stream.g_stream_core_mon_enabled.u_stream_core.u_axi_write_engine.m_axi_wstrb[15:0]
+@200
+-STREAM_wr_engine_m_axi_B
+@28
+stream_char_harness.u_stream.g_stream_core_mon_enabled.u_stream_core.u_axi_write_engine.m_axi_bvalid
+stream_char_harness.u_stream.g_stream_core_mon_enabled.u_stream_core.u_axi_write_engine.m_axi_bready
+@22
+stream_char_harness.u_stream.g_stream_core_mon_enabled.u_stream_core.u_axi_write_engine.m_axi_bid[7:0]
+@29
+stream_char_harness.u_stream.g_stream_core_mon_enabled.u_stream_core.u_axi_write_engine.m_axi_bresp[1:0]
+@200
+-Scheduler_per_channel_vectors
+@22
+stream_char_harness.u_stream.g_stream_core_mon_enabled.u_stream_core.sched_rd_valid
+stream_char_harness.u_stream.g_stream_core_mon_enabled.u_stream_core.sched_rd_done_strobe
+stream_char_harness.u_stream.g_stream_core_mon_enabled.u_stream_core.sched_wr_valid
+stream_char_harness.u_stream.g_stream_core_mon_enabled.u_stream_core.sched_wr_done_strobe
+[pattern_trace] 1
+[pattern_trace] 0
