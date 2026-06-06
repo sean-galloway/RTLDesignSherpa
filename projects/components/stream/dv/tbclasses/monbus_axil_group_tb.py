@@ -111,6 +111,13 @@ class MonbusAxilGroupTB(TBBase):
         self.monbus_master = None
         self.error_fifo_reader = None
 
+        # Optional monbus sniffer for offline analysis with monbus_compressor.
+        # Activated when MONBUS_CAPTURE is set in the environment; output is
+        # written to that path (.json or .csv extension). Behavior is
+        # otherwise unchanged so existing tests are unaffected by default.
+        self.monbus_sniffer = None
+        self._monbus_capture_path = os.environ.get('MONBUS_CAPTURE', '').strip()
+
     # ========================================================================
     # MANDATORY: Clock and Reset Control Methods
     # ========================================================================
@@ -170,7 +177,47 @@ class MonbusAxilGroupTB(TBBase):
             log=self.log
         )
 
+        # Optional monbus sniffer (gated on MONBUS_CAPTURE env var).
+        if self._monbus_capture_path:
+            from TBClasses.monbus.sniffer import MonbusSniffer
+            self.monbus_sniffer = MonbusSniffer(
+                valid_sig     = self.dut.monbus_valid,
+                ready_sig     = self.dut.monbus_ready,
+                packet_sig    = self.dut.monbus_packet,
+                timestamp_sig = self.dut.monbus_timestamp,
+                clk_sig       = self.axi_aclk,
+                label         = "monbus_axil_group_tb",
+            )
+            self.monbus_sniffer.start()
+            self.log.info(
+                f"✅ MonbusSniffer started (will dump to {self._monbus_capture_path})"
+            )
+
         self.log.info("✅ All interfaces setup completed")
+
+    def finalize_monbus_capture(self):
+        """Call at end-of-test to flush the sniffer's records to disk.
+        No-op if MONBUS_CAPTURE env var was not set."""
+        if self.monbus_sniffer is None:
+            return
+        self.monbus_sniffer.stop()
+        path = self._monbus_capture_path
+        ext = os.path.splitext(path)[1].lower()
+        meta = {
+            "test": "test_monbus_axil_group",
+            "fifo_depth_err":   self.TEST_FIFO_DEPTH_ERR,
+            "fifo_depth_write": self.TEST_FIFO_DEPTH_WRITE,
+            "addr_width":       self.TEST_ADDR_WIDTH,
+            "data_width":       self.TEST_DATA_WIDTH,
+            "seed":             self.SEED,
+        }
+        if ext == ".csv":
+            self.monbus_sniffer.dump_csv(path)
+        else:
+            self.monbus_sniffer.dump_json(path, extra_meta=meta)
+        self.log.info(
+            f"✅ MonbusSniffer captured {self.monbus_sniffer.count} records → {path}"
+        )
 
     async def initialize_config_signals(self):
         """Initialize RTL configuration signals"""

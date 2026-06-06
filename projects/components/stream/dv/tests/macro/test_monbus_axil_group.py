@@ -106,6 +106,9 @@ async def cocotb_test_monbus_axil_group(dut):
     else:
         raise ValueError(f"Unknown TEST_TYPE: {test_type}")
 
+    # Flush monbus sniffer capture if enabled (no-op when MONBUS_CAPTURE unset).
+    tb.finalize_monbus_capture()
+
 
 # ===========================================================================
 # PARAMETER GENERATION
