@@ -178,7 +178,27 @@ module axi5_slave_rd_mon
     output logic [7:0]                 active_transactions,
     output logic [15:0]                error_count,
     output logic [31:0]                transaction_count,
-    output logic                       cfg_conflict_error
+    output logic                       cfg_conflict_error,
+
+    // Performance window control (Stage A of perfmon RFC). Wrapper-level
+    // ports pass straight through; the integrating block ties them off
+    // (3'b111 + 0s) when perfmon is unused.
+    input  logic [2:0]                 cfg_start_event_sel,
+    input  logic [2:0]                 cfg_end_event_sel,
+    input  logic                       cfg_start_trigger,
+    input  logic                       cfg_end_trigger,
+    input  logic                       cfg_window_force_close,
+
+    // Performance window status (Stage A) + cycle buckets + counters (Stage B).
+    output logic                       window_active,
+    output logic [31:0]                window_cycles,
+    output logic [31:0]                perf_prod_cycles,
+    output logic [31:0]                perf_bp_cycles,
+    output logic [31:0]                perf_starv_cycles,
+    output logic [31:0]                perf_idle_cycles,
+    output logic [31:0]                perf_beat_count,
+    output logic [63:0]                perf_byte_count,
+    output logic [31:0]                perf_burst_count
 );
 
     // Monitor backpressure plumbing (see axi4_master_rd_mon for full rationale)
@@ -273,7 +293,24 @@ module axi5_slave_rd_mon
             /* verilator lint_off PINCONNECTEMPTY */
             .busy(),
             /* verilator lint_on PINCONNECTEMPTY */
-            .active_count(active_transactions), .cfg_conflict_error(cfg_conflict_error)
+            .active_count(active_transactions), .cfg_conflict_error(cfg_conflict_error),
+
+            // Performance window control + status (Stage A) + buckets (Stage B).
+            .cfg_start_event_sel (cfg_start_event_sel),
+            .cfg_end_event_sel   (cfg_end_event_sel),
+            .cfg_start_trigger   (cfg_start_trigger),
+            .cfg_end_trigger     (cfg_end_trigger),
+            .cfg_window_force_close (cfg_window_force_close),
+            .window_active       (window_active),
+            .window_cycles       (window_cycles),
+            .perf_prod_cycles    (perf_prod_cycles),
+            .perf_bp_cycles      (perf_bp_cycles),
+            .perf_starv_cycles   (perf_starv_cycles),
+            .perf_idle_cycles    (perf_idle_cycles),
+            .perf_beat_count     (perf_beat_count),
+            .perf_byte_count     (perf_byte_count),
+            .perf_burst_count    (perf_burst_count)
+
         );
     end else begin : gen_no_monitor
         assign monbus_valid        = 1'b0;
@@ -282,6 +319,17 @@ module axi5_slave_rd_mon
         assign active_transactions = 8'h0;
         assign cfg_conflict_error  = 1'b0;
         assign w_block_ready       = 1'b1;
+
+        // Stage A/B perfmon outputs — tied to 0 when monitor disabled.
+        assign window_active       = 1'b0;
+        assign window_cycles       = 32'h0;
+        assign perf_prod_cycles    = 32'h0;
+        assign perf_bp_cycles      = 32'h0;
+        assign perf_starv_cycles   = 32'h0;
+        assign perf_idle_cycles    = 32'h0;
+        assign perf_beat_count     = 32'h0;
+        assign perf_byte_count     = 64'h0;
+        assign perf_burst_count    = 32'h0;
     end
 
     // Gate the upstream AR handshake on monitor block_ready.

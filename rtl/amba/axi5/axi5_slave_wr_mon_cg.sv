@@ -197,7 +197,24 @@ module axi5_slave_wr_mon_cg
     output logic [31:0]                transaction_count,
     output logic                       cfg_conflict_error,
     output logic                       cg_gating,
-    output logic                       cg_idle
+    output logic                       cg_idle,
+
+    // Performance window control (Stage A) + status (A) + buckets (B).
+    input  logic [2:0]                 cfg_start_event_sel,
+    input  logic [2:0]                 cfg_end_event_sel,
+    input  logic                       cfg_start_trigger,
+    input  logic                       cfg_end_trigger,
+    input  logic                       cfg_window_force_close,
+    output logic                       window_active,
+    output logic [31:0]                window_cycles,
+    output logic [31:0]                perf_prod_cycles,
+    output logic [31:0]                perf_bp_cycles,
+    output logic [31:0]                perf_starv_cycles,
+    output logic [31:0]                perf_idle_cycles,
+    output logic [31:0]                perf_beat_count,
+    output logic [63:0]                perf_byte_count,
+    output logic [31:0]                perf_burst_count
+
 );
 
     logic gated_aclk;
@@ -298,7 +315,22 @@ module axi5_slave_wr_mon_cg
         .monbus_timestamp(monbus_timestamp),
         .busy(int_busy), .active_transactions(active_transactions),
         .error_count(error_count), .transaction_count(transaction_count),
-        .cfg_conflict_error(cfg_conflict_error)
+        .cfg_conflict_error(cfg_conflict_error),
+        .cfg_start_event_sel(cfg_start_event_sel),
+        .cfg_end_event_sel(cfg_end_event_sel),
+        .cfg_start_trigger(cfg_start_trigger),
+        .cfg_end_trigger(cfg_end_trigger),
+        .cfg_window_force_close(cfg_window_force_close),
+        .window_active(window_active),
+        .window_cycles(window_cycles),
+        .perf_prod_cycles(perf_prod_cycles),
+        .perf_bp_cycles(perf_bp_cycles),
+        .perf_starv_cycles(perf_starv_cycles),
+        .perf_idle_cycles(perf_idle_cycles),
+        .perf_beat_count(perf_beat_count),
+        .perf_byte_count(perf_byte_count),
+        .perf_burst_count(perf_burst_count)
+
     );
 
     assign busy = int_busy;
