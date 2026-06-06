@@ -60,6 +60,7 @@ module axi5_master_wr_mon_cg
     parameter bit ENABLE_COMPL_LOGIC     = 1'b1,
     parameter bit ENABLE_THRESHOLD_LOGIC = 1'b1,
     parameter bit ENABLE_PERF_LOGIC      = 1'b1,
+    parameter bit ENABLE_DEBUG_LOGIC     = 1'b0,
     parameter int CG_IDLE_COUNT_WIDTH = 4,
 
     parameter int AW       = AXI_ADDR_WIDTH,
@@ -256,6 +257,7 @@ module axi5_master_wr_mon_cg
         .ENABLE_COMPL_LOGIC(ENABLE_COMPL_LOGIC),
         .ENABLE_THRESHOLD_LOGIC(ENABLE_THRESHOLD_LOGIC),
         .ENABLE_PERF_LOGIC(ENABLE_PERF_LOGIC),
+        .ENABLE_DEBUG_LOGIC(ENABLE_DEBUG_LOGIC),
         .N_ADDR_RANGES(N_ADDR_RANGES)
     ) i_axi5_master_wr_mon (
         .aclk(gated_aclk), .aresetn(aresetn),

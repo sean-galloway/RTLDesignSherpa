@@ -57,6 +57,7 @@ module axil4_master_rd_mon_cg
     parameter bit ENABLE_COMPL_LOGIC     = 1'b1,
     parameter bit ENABLE_THRESHOLD_LOGIC = 1'b1,
     parameter bit ENABLE_PERF_LOGIC      = 1'b1,
+    parameter bit ENABLE_DEBUG_LOGIC     = 1'b0,
 
     // Clock gating parameters (for AXIL)
     parameter bit ENABLE_CLOCK_GATING = 1,   // Enable clock gating
@@ -185,6 +186,7 @@ module axil4_master_rd_mon_cg
         .ENABLE_COMPL_LOGIC      (ENABLE_COMPL_LOGIC),
         .ENABLE_THRESHOLD_LOGIC  (ENABLE_THRESHOLD_LOGIC),
         .ENABLE_PERF_LOGIC       (ENABLE_PERF_LOGIC),
+        .ENABLE_DEBUG_LOGIC(ENABLE_DEBUG_LOGIC),
         .N_ADDR_RANGES           (N_ADDR_RANGES)
     ) axil4_master_rd_mon_inst (
         .aclk                    (aclk),

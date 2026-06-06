@@ -43,7 +43,7 @@ PROJECT  := $(SELF_DIR)/build/vivado_project/stream_char.xpr
 BITSTREAM:= $(SELF_DIR)/bitstream/stream_char.bit
 REPORTS  := $(SELF_DIR)/reports
 
-.PHONY: help project synth bitstream program utilization timing sim clean clean-all cleanall regen-bridges
+.PHONY: help project synth bitstream program utilization timing sim clean clean-all cleanall regen-bridges verify-sim
 
 # Regenerate every framework-owned bridge before any synthesis. Cheap
 # (~seconds), keeps the bridge RTL + filelist consistent with the .toml,
@@ -70,19 +70,38 @@ help:
 regen-bridges:
 	@$(REGEN_BRIDGES)
 
+# ---- Pre-bitstream sim verification ---------------------------------------
+# Runs the stream_char FUNC ping + csr_read sanity tests against the current
+# RTL. Catches the case where a refactor (e.g. monitor reporter sub-block
+# split, perfmon plumbing, bridge regen) breaks elaboration but the user
+# kicks off a 10-30 min bitstream build without noticing. ~2 minutes
+# on a warm cache; cheap insurance.
+#
+# Override:  make bitstream BITSTREAM_SKIP_VERIFY=1  to bypass.
+verify-sim:
+	@if [ "$(BITSTREAM_SKIP_VERIFY)" = "1" ]; then \
+	    echo "[verify-sim] skipped (BITSTREAM_SKIP_VERIFY=1)"; \
+	else \
+	    echo "[verify-sim] running stream_char FUNC ping + csr_read"; \
+	    cd $(REPO_ROOT) && . env_python && \
+	      pytest projects/NexysA7/stream_characterization/flows-stream-bridge/dv/tests/test_stream_char.py \
+	        -v -k "ping or csr_read" \
+	      || (echo "[verify-sim] FAILED — refusing to start synth/bitstream" && exit 1); \
+	fi
+
 # ---- Project creation ------------------------------------------------------
 project:
 	@echo "[create_project] REPO_ROOT=$(REPO_ROOT)"
 	cd $(SELF_DIR) && $(VIVADO_BATCH) -source $(TCL)/create_project.tcl
 
 # ---- Synthesis only --------------------------------------------------------
-synth: regen-bridges
+synth: regen-bridges verify-sim
 	@echo "[synth] synth_1 + utilization_synth.txt (skips place/route)"
 	cd $(SELF_DIR) && $(VIVADO_BATCH) -source $(TCL)/synth_only.tcl
 	@$(MAKE) --no-print-directory utilization
 
 # ---- Full build ------------------------------------------------------------
-bitstream: regen-bridges
+bitstream: regen-bridges verify-sim
 	@echo "[bitstream] full flow (~10-30 min depending on host)"
 	cd $(SELF_DIR) && $(VIVADO_BATCH) -source $(TCL)/build_all.tcl
 	@echo ""

@@ -63,6 +63,7 @@ module axi_monitor_base
     parameter bit ENABLE_COMPL_LOGIC     = 1'b1,
     parameter bit ENABLE_THRESHOLD_LOGIC = 1'b1,
     parameter bit ENABLE_PERF_LOGIC      = ENABLE_PERF_PACKETS,
+    parameter bit ENABLE_DEBUG_LOGIC     = 1'b0,
 
     // FIFO depths
     parameter int INTR_FIFO_DEPTH     = 8,     // Interrupt FIFO depth
@@ -335,7 +336,8 @@ module axi_monitor_base
         .ENABLE_TIMEOUT_LOGIC  (ENABLE_TIMEOUT_LOGIC),
         .ENABLE_COMPL_LOGIC    (ENABLE_COMPL_LOGIC),
         .ENABLE_THRESHOLD_LOGIC(ENABLE_THRESHOLD_LOGIC),
-        .ENABLE_PERF_LOGIC     (ENABLE_PERF_LOGIC)
+        .ENABLE_PERF_LOGIC     (ENABLE_PERF_LOGIC),
+        .ENABLE_DEBUG_LOGIC    (ENABLE_DEBUG_LOGIC)
     ) reporter(
         .aclk                  (aclk),
         .aresetn               (aresetn),

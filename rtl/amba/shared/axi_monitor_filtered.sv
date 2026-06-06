@@ -60,6 +60,7 @@ module axi_monitor_filtered
     parameter bit ENABLE_COMPL_LOGIC     = 1'b1,
     parameter bit ENABLE_THRESHOLD_LOGIC = 1'b1,
     parameter bit ENABLE_PERF_LOGIC      = ENABLE_PERF_PACKETS,
+    parameter bit ENABLE_DEBUG_LOGIC     = 1'b0,
 
     // Filtering parameters
     parameter bit ENABLE_FILTERING       = 1,     // Enable filtering logic
@@ -221,6 +222,7 @@ module axi_monitor_filtered
         .ENABLE_COMPL_LOGIC      (ENABLE_COMPL_LOGIC),
         .ENABLE_THRESHOLD_LOGIC  (ENABLE_THRESHOLD_LOGIC),
         .ENABLE_PERF_LOGIC       (ENABLE_PERF_LOGIC),
+        .ENABLE_DEBUG_LOGIC      (ENABLE_DEBUG_LOGIC),
         .N_ADDR_RANGES           (N_ADDR_RANGES)
     ) u_axi_monitor_base (
         .aclk                    (aclk),

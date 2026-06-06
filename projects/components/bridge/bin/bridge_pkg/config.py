@@ -12,12 +12,12 @@ from typing import List, Dict
 # each port's reporter sub-block enables (ENABLE_ERROR_LOGIC etc.) start
 # from the preset and apply the per-port additive `mon_add` on top.
 MON_PRESETS = {
-    "all":        {"error": True,  "timeout": True,  "compl": True,  "threshold": True,  "perf": True},
-    "error_only": {"error": True,  "timeout": False, "compl": False, "threshold": False, "perf": False},
-    "functional": {"error": True,  "timeout": True,  "compl": True,  "threshold": False, "perf": False},
-    "none":       {"error": False, "timeout": False, "compl": False, "threshold": False, "perf": False},
+    "all":        {"error": True,  "timeout": True,  "compl": True,  "threshold": True,  "perf": True,  "debug": True},
+    "error_only": {"error": True,  "timeout": False, "compl": False, "threshold": False, "perf": False, "debug": False},
+    "functional": {"error": True,  "timeout": True,  "compl": True,  "threshold": False, "perf": False, "debug": False},
+    "none":       {"error": False, "timeout": False, "compl": False, "threshold": False, "perf": False, "debug": False},
 }
-MON_CONES = ("error", "timeout", "compl", "threshold", "perf")
+MON_CONES = ("error", "timeout", "compl", "threshold", "perf", "debug")
 
 
 @dataclass

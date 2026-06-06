@@ -61,6 +61,7 @@ module axi4_slave_rd_mon
     parameter bit ENABLE_COMPL_LOGIC     = 1'b1,
     parameter bit ENABLE_THRESHOLD_LOGIC = 1'b1,
     parameter bit ENABLE_PERF_LOGIC      = 1'b1,
+    parameter bit ENABLE_DEBUG_LOGIC     = 1'b0,
 
     // Short and calculated params
     parameter int AW       = AXI_ADDR_WIDTH,
@@ -283,6 +284,7 @@ module axi4_slave_rd_mon
             .ENABLE_COMPL_LOGIC      (ENABLE_COMPL_LOGIC),
             .ENABLE_THRESHOLD_LOGIC  (ENABLE_THRESHOLD_LOGIC),
             .ENABLE_PERF_LOGIC       (ENABLE_PERF_LOGIC),
+            .ENABLE_DEBUG_LOGIC(ENABLE_DEBUG_LOGIC),
             .ENABLE_DEBUG_MODULE     (1'b0),
             .ENABLE_FILTERING        (ENABLE_FILTERING),
             .ADD_PIPELINE_STAGE      (ADD_PIPELINE_STAGE),

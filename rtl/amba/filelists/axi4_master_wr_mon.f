@@ -34,6 +34,7 @@ $REPO_ROOT/rtl/amba/shared/axi_monitor_reporter_timeout.sv
 $REPO_ROOT/rtl/amba/shared/axi_monitor_reporter_compl.sv
 $REPO_ROOT/rtl/amba/shared/axi_monitor_reporter_threshold.sv
 $REPO_ROOT/rtl/amba/shared/axi_monitor_reporter_perf.sv
+$REPO_ROOT/rtl/amba/shared/axi_monitor_reporter_debug.sv
 $REPO_ROOT/rtl/amba/shared/axi_monitor_reporter.sv
 $REPO_ROOT/rtl/amba/shared/axi_monitor_base.sv
 $REPO_ROOT/rtl/amba/shared/axi_monitor_filtered.sv

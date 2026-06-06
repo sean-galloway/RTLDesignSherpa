@@ -147,6 +147,7 @@ class Axi4TimingWrapper:
                     ('compl',     'ENABLE_COMPL_LOGIC'),
                     ('threshold', 'ENABLE_THRESHOLD_LOGIC'),
                     ('perf',      'ENABLE_PERF_LOGIC'),
+                    ('debug',     'ENABLE_DEBUG_LOGIC'),
                 )
                 for cone, param in cone_to_param:
                     val = "1'b1" if mon_enables.get(cone, True) else "1'b0"

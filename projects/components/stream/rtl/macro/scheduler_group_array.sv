@@ -492,7 +492,19 @@ module scheduler_group_array #(
         .UNIT_ID                (MON_UNIT_ID),
         .AGENT_ID               (DESC_AXI_MON_AGENT_ID),
         .MAX_TRANSACTIONS       (MON_MAX_TRANSACTIONS),
-        .ENABLE_FILTERING       (1)
+        .ENABLE_FILTERING       (1),
+        // Synthesize ALL reporter cones at the desc-bus monitor so the
+        // stream-level compression dataset has every packet class
+        // available. Runtime cfg knobs still gate emission; ENABLE_*_LOGIC
+        // just controls whether the silicon is there to emit. Debug
+        // cone in particular is needed for state-change traces to size
+        // Tier-2 compression methods on real DMA traffic.
+        .ENABLE_ERROR_LOGIC     (1'b1),
+        .ENABLE_TIMEOUT_LOGIC   (1'b1),
+        .ENABLE_COMPL_LOGIC     (1'b1),
+        .ENABLE_THRESHOLD_LOGIC (1'b1),
+        .ENABLE_PERF_LOGIC      (1'b1),
+        .ENABLE_DEBUG_LOGIC     (1'b1)
     ) u_desc_axi_monitor (
         .aclk                   (clk),
         .aresetn                (rst_n),

@@ -56,6 +56,7 @@ module axi5_slave_rd_mon
     parameter bit ENABLE_COMPL_LOGIC     = 1'b1,
     parameter bit ENABLE_THRESHOLD_LOGIC = 1'b1,
     parameter bit ENABLE_PERF_LOGIC      = 1'b1,
+    parameter bit ENABLE_DEBUG_LOGIC     = 1'b0,
 
     parameter int AW       = AXI_ADDR_WIDTH,
     parameter int DW       = AXI_DATA_WIDTH,
@@ -255,6 +256,7 @@ module axi5_slave_rd_mon
             .ENABLE_COMPL_LOGIC(ENABLE_COMPL_LOGIC),
             .ENABLE_THRESHOLD_LOGIC(ENABLE_THRESHOLD_LOGIC),
             .ENABLE_PERF_LOGIC(ENABLE_PERF_LOGIC),
+            .ENABLE_DEBUG_LOGIC(ENABLE_DEBUG_LOGIC),
             .ENABLE_FILTERING(ENABLE_FILTERING), .ADD_PIPELINE_STAGE(ADD_PIPELINE_STAGE),
             .N_ADDR_RANGES(N_ADDR_RANGES)
         ) axi_monitor_inst (

@@ -49,7 +49,14 @@ module axi_monitor_reporter
     parameter bit ENABLE_TIMEOUT_LOGIC   = 1'b1,
     parameter bit ENABLE_COMPL_LOGIC     = 1'b1,
     parameter bit ENABLE_THRESHOLD_LOGIC = 1'b1,
-    parameter bit ENABLE_PERF_LOGIC      = ENABLE_PERF_PACKETS
+    parameter bit ENABLE_PERF_LOGIC      = ENABLE_PERF_PACKETS,
+    // 6th cone — per-transaction state-change debug packets. Default
+    // OFF: debug packets are noisy and most integrators don't want
+    // them unless they're studying the FSM directly (e.g. compression
+    // analysis on debug-class traffic). Reporter_debug holds a
+    // MAX_TRANSACTIONS × 3-bit prev_state flop set, so dropping it
+    // when off is real area savings (16 slots × 3 bits = 48 flops).
+    parameter bit ENABLE_DEBUG_LOGIC     = 1'b0
 )
 (
     input  logic                     aclk,
@@ -362,7 +369,44 @@ module axi_monitor_reporter
     assign perf_error_count     = perf_error_count_w;
 
     // -------------------------------------------------------------------------
-    // Output mux + register: FIFO read > threshold > perf.
+    // Debug sub-block (per-transaction state-change emitter). Drops entirely
+    // when ENABLE_DEBUG_LOGIC=0 — saves MAX_TRANSACTIONS × 3 flops of
+    // prev_state plus the change-detect cone. Default off because debug
+    // packets are noisy.
+    // -------------------------------------------------------------------------
+    logic        debug_valid, debug_taken;
+    logic [3:0]  debug_type;
+    logic [7:0]  debug_code;
+    logic [8:0]  debug_chan;
+    logic [63:0] debug_data;
+
+    if (ENABLE_DEBUG_LOGIC) begin : g_debug
+        axi_monitor_reporter_debug #(
+            .MAX_TRANSACTIONS (MAX_TRANSACTIONS),
+            .IDX_W            (IDX_W)
+        ) u_debug (
+            .aclk             (aclk),
+            .aresetn          (aresetn),
+            .trans_table      (r_trans_table_local),
+            .cfg_debug_enable (cfg_debug_enable),
+            .output_busy      (w_output_busy),
+            .pkt_taken        (debug_taken),
+            .pkt_valid        (debug_valid),
+            .pkt_type         (debug_type),
+            .pkt_event_code   (debug_code),
+            .pkt_channel      (debug_chan),
+            .pkt_data         (debug_data)
+        );
+    end else begin : g_no_debug
+        assign debug_valid = 1'b0;
+        assign debug_type  = '0;
+        assign debug_code  = '0;
+        assign debug_chan  = '0;
+        assign debug_data  = '0;
+    end
+
+    // -------------------------------------------------------------------------
+    // Output mux + register: FIFO read > threshold > perf > debug.
     // -------------------------------------------------------------------------
     logic [3:0]  r_packet_type;
     logic [7:0]  r_event_code;
@@ -424,16 +468,24 @@ module axi_monitor_reporter
                 r_event_code    <= perf_code;
                 r_event_data    <= perf_data;
                 r_event_channel <= perf_chan;
+            end else if (debug_valid && !monbus_valid && !w_fifo_rd_valid) begin
+                monbus_valid    <= 1'b1;
+                r_packet_type   <= debug_type;
+                r_event_code    <= debug_code;
+                r_event_data    <= debug_data;
+                r_event_channel <= debug_chan;
             end
         end
     )
 
-    // pkt_taken pulses to threshold/perf when their packet was emitted.
-    // Threshold uses it to set edge-sticky crossed flags; perf currently
-    // ignores it (kept on the port for future back-pressure).
+    // pkt_taken pulses to threshold/perf/debug when their packet was emitted.
+    // Threshold uses it to set edge-sticky crossed flags; perf + debug
+    // currently ignore it (kept on the port for future back-pressure).
     assign thresh_taken = thresh_valid && !monbus_valid && !w_fifo_rd_valid;
     assign perf_taken   = perf_valid   && !monbus_valid && !w_fifo_rd_valid &&
                           !thresh_valid;
+    assign debug_taken  = debug_valid  && !monbus_valid && !w_fifo_rd_valid &&
+                          !thresh_valid && !perf_valid;
 
     // -------------------------------------------------------------------------
     // Construct the 128-bit monitor bus packet via package helper.

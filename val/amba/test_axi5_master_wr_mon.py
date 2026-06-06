@@ -129,6 +129,7 @@ def test_axi5_master_wr_mon(id_width, addr_width, data_width, user_width, max_tr
         os.path.join(rtl_dict['rtl_shared'], "axi_monitor_reporter_compl.sv"),
         os.path.join(rtl_dict['rtl_shared'], "axi_monitor_reporter_threshold.sv"),
         os.path.join(rtl_dict['rtl_shared'], "axi_monitor_reporter_perf.sv"),
+        os.path.join(rtl_dict['rtl_shared'], "axi_monitor_reporter_debug.sv"),
         os.path.join(rtl_dict['rtl_shared'], "axi_monitor_reporter.sv"),
         os.path.join(rtl_dict['rtl_shared'], "axi_monitor_base.sv"),
         os.path.join(rtl_dict['rtl_shared'], "axi_monitor_filtered.sv"),
