@@ -68,7 +68,20 @@ module stream_top_ch8 #(
     // historical stream_core values so existing instantiations are unchanged.
     // Override at the next level up to sweep latency-tolerance.
     parameter int AR_MAX_OUTSTANDING = 8,
-    parameter int AW_MAX_OUTSTANDING = 8
+    parameter int AW_MAX_OUTSTANDING = 8,
+
+    // Desc-bus monitor reporter sub-block enables. Pass-through to
+    // stream_core → scheduler_group_array → axi4_master_rd_mon.
+    // Defaults match the unit-level wrapper (5 cones on, debug on for
+    // stream's compression dataset use). Only meaningful when
+    // USE_AXI_MONITORS=1; ignored otherwise. Override at the harness
+    // level to drop cones for area on tight bitstreams.
+    parameter bit DESC_MON_ENABLE_ERROR_LOGIC     = 1'b1,
+    parameter bit DESC_MON_ENABLE_TIMEOUT_LOGIC   = 1'b1,
+    parameter bit DESC_MON_ENABLE_COMPL_LOGIC     = 1'b1,
+    parameter bit DESC_MON_ENABLE_THRESHOLD_LOGIC = 1'b1,
+    parameter bit DESC_MON_ENABLE_PERF_LOGIC      = 1'b1,
+    parameter bit DESC_MON_ENABLE_DEBUG_LOGIC     = 1'b1
 ) (
     //-------------------------------------------------------------------------
     // Clock and Reset
@@ -1201,7 +1214,13 @@ module stream_top_ch8 #(
                 .FIFO_DEPTH(SRAM_DEPTH),  // Pass SRAM_DEPTH as FIFO_DEPTH
                 .AR_MAX_OUTSTANDING(AR_MAX_OUTSTANDING),
                 .AW_MAX_OUTSTANDING(AW_MAX_OUTSTANDING),
-                .USE_AXI_MONITORS(1)      // Enable monitors
+                .USE_AXI_MONITORS(1),     // Enable monitors
+                .DESC_MON_ENABLE_ERROR_LOGIC     (DESC_MON_ENABLE_ERROR_LOGIC),
+                .DESC_MON_ENABLE_TIMEOUT_LOGIC   (DESC_MON_ENABLE_TIMEOUT_LOGIC),
+                .DESC_MON_ENABLE_COMPL_LOGIC     (DESC_MON_ENABLE_COMPL_LOGIC),
+                .DESC_MON_ENABLE_THRESHOLD_LOGIC (DESC_MON_ENABLE_THRESHOLD_LOGIC),
+                .DESC_MON_ENABLE_PERF_LOGIC      (DESC_MON_ENABLE_PERF_LOGIC),
+                .DESC_MON_ENABLE_DEBUG_LOGIC     (DESC_MON_ENABLE_DEBUG_LOGIC)
             ) u_stream_core (
                 .clk                        (aclk),
                 .rst_n                      (aresetn),

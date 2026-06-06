@@ -70,6 +70,17 @@ module stream_core #(
     parameter DESC_AXI_MON_AGENT_ID = 8,     // 0x08 - Descriptor AXI Master Monitor
     parameter MON_UNIT_ID = 1,               // 0x1
 
+    // Desc-bus monitor reporter sub-block enables. Pass-through to
+    // scheduler_group_array → axi4_master_rd_mon. Defaults match the
+    // unit-level wrapper (5 cones on, debug on for stream's
+    // compression dataset use).
+    parameter bit DESC_MON_ENABLE_ERROR_LOGIC     = 1'b1,
+    parameter bit DESC_MON_ENABLE_TIMEOUT_LOGIC   = 1'b1,
+    parameter bit DESC_MON_ENABLE_COMPL_LOGIC     = 1'b1,
+    parameter bit DESC_MON_ENABLE_THRESHOLD_LOGIC = 1'b1,
+    parameter bit DESC_MON_ENABLE_PERF_LOGIC      = 1'b1,
+    parameter bit DESC_MON_ENABLE_DEBUG_LOGIC     = 1'b1,
+
     // Short aliases
     parameter int NC = NUM_CHANNELS,
     parameter int AW = ADDR_WIDTH,
@@ -626,7 +637,13 @@ module stream_core #(
         .DESC_MON_BASE_AGENT_ID (DESC_MON_BASE_AGENT_ID),
         .SCHED_MON_BASE_AGENT_ID(SCHED_MON_BASE_AGENT_ID),
         .DESC_AXI_MON_AGENT_ID  (DESC_AXI_MON_AGENT_ID),
-        .MON_UNIT_ID            (MON_UNIT_ID)
+        .MON_UNIT_ID            (MON_UNIT_ID),
+        .DESC_MON_ENABLE_ERROR_LOGIC     (DESC_MON_ENABLE_ERROR_LOGIC),
+        .DESC_MON_ENABLE_TIMEOUT_LOGIC   (DESC_MON_ENABLE_TIMEOUT_LOGIC),
+        .DESC_MON_ENABLE_COMPL_LOGIC     (DESC_MON_ENABLE_COMPL_LOGIC),
+        .DESC_MON_ENABLE_THRESHOLD_LOGIC (DESC_MON_ENABLE_THRESHOLD_LOGIC),
+        .DESC_MON_ENABLE_PERF_LOGIC      (DESC_MON_ENABLE_PERF_LOGIC),
+        .DESC_MON_ENABLE_DEBUG_LOGIC     (DESC_MON_ENABLE_DEBUG_LOGIC)
     ) u_scheduler_group_array (
         .clk                    (clk),
         .rst_n                  (rst_n),

@@ -44,7 +44,19 @@ module scheduler_group_array #(
     parameter int SCHED_MON_BASE_AGENT_ID = 48,  // 0x30 - Schedulers (48-55)
     parameter int DESC_AXI_MON_AGENT_ID = 8,     // 0x08 - Descriptor AXI Master Monitor
     parameter int MON_UNIT_ID = 1,               // 0x1
-    parameter int MON_MAX_TRANSACTIONS = 16
+    parameter int MON_MAX_TRANSACTIONS = 16,
+
+    // Desc-bus monitor reporter sub-block enables. Defaults match the
+    // unit-level axi4_master_rd_mon defaults (5 cones on, debug on for
+    // stream's compression dataset use). Integrators climbing up
+    // through stream_core / stream_top_ch8 can override any of these
+    // for area savings without editing the macro.
+    parameter bit DESC_MON_ENABLE_ERROR_LOGIC     = 1'b1,
+    parameter bit DESC_MON_ENABLE_TIMEOUT_LOGIC   = 1'b1,
+    parameter bit DESC_MON_ENABLE_COMPL_LOGIC     = 1'b1,
+    parameter bit DESC_MON_ENABLE_THRESHOLD_LOGIC = 1'b1,
+    parameter bit DESC_MON_ENABLE_PERF_LOGIC      = 1'b1,
+    parameter bit DESC_MON_ENABLE_DEBUG_LOGIC     = 1'b1
 ) (
     // Clock and Reset
     input  logic                        clk,
@@ -493,18 +505,16 @@ module scheduler_group_array #(
         .AGENT_ID               (DESC_AXI_MON_AGENT_ID),
         .MAX_TRANSACTIONS       (MON_MAX_TRANSACTIONS),
         .ENABLE_FILTERING       (1),
-        // Synthesize ALL reporter cones at the desc-bus monitor so the
-        // stream-level compression dataset has every packet class
-        // available. Runtime cfg knobs still gate emission; ENABLE_*_LOGIC
-        // just controls whether the silicon is there to emit. Debug
-        // cone in particular is needed for state-change traces to size
-        // Tier-2 compression methods on real DMA traffic.
-        .ENABLE_ERROR_LOGIC     (1'b1),
-        .ENABLE_TIMEOUT_LOGIC   (1'b1),
-        .ENABLE_COMPL_LOGIC     (1'b1),
-        .ENABLE_THRESHOLD_LOGIC (1'b1),
-        .ENABLE_PERF_LOGIC      (1'b1),
-        .ENABLE_DEBUG_LOGIC     (1'b1)
+        // Reporter sub-block enables — propagated from the cluster-top
+        // DESC_MON_ENABLE_* parameters so integrators can drop cones
+        // for area without editing this macro. Default-all-on (debug
+        // included) for stream's compression dataset collection.
+        .ENABLE_ERROR_LOGIC     (DESC_MON_ENABLE_ERROR_LOGIC),
+        .ENABLE_TIMEOUT_LOGIC   (DESC_MON_ENABLE_TIMEOUT_LOGIC),
+        .ENABLE_COMPL_LOGIC     (DESC_MON_ENABLE_COMPL_LOGIC),
+        .ENABLE_THRESHOLD_LOGIC (DESC_MON_ENABLE_THRESHOLD_LOGIC),
+        .ENABLE_PERF_LOGIC      (DESC_MON_ENABLE_PERF_LOGIC),
+        .ENABLE_DEBUG_LOGIC     (DESC_MON_ENABLE_DEBUG_LOGIC)
     ) u_desc_axi_monitor (
         .aclk                   (clk),
         .aresetn                (rst_n),
