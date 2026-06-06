@@ -27,11 +27,27 @@
 [bridge]
 name = "bridge_stream_char_axil"
 description = "1xM AXIL bridge for stream_characterization harness (5 harness slaves + 1 DMA AXIL port)"
-# Non-monitored fan-out bridge only -- the stream_char harness already
-# instantiates monbus_axil_group inside stream_top_ch8, so an extra
-# monitor-wrapped variant of this AXIL bridge would just add area for
-# no observability gain. Only the "no" variant is emitted.
-variants = ["no"]
+# Both variants emitted:
+#   "no"  -- the production fan-out bridge with zero monitor area; this
+#             is what stream_top_ch8 currently instantiates because
+#             monbus_axil_group lives inside STREAM and the bridge
+#             adapters add no extra observability for normal builds.
+#   "mon" -- per-port axil4_*_mon wrappers on every adapter, used as a
+#             SECOND packet source for the compression-dataset
+#             collection (per-source isolation runs). Lets the harness
+#             swap in the monitored bridge for traces that need to see
+#             host-bus side traffic (separate from the desc-bus and
+#             scheduler monitors already inside stream_top_ch8). Not
+#             instantiated yet — adding to variants here lets the
+#             generator emit it so the harness can opt in later
+#             (per task #114 / per-source isolation prep).
+variants = ["no", "mon"]
+# mon_preset "all" gives every adapter port the full 6-cone reporter
+# (error + timeout + compl + threshold + perf + debug). The compression
+# agent's analysis needs every packet class available on every source;
+# overrides to drop cones per-port can be added below if a specific
+# port turns out to be too noisy.
+mon_preset = "all"
 
 [bridge.clock]
 name = "aclk"
