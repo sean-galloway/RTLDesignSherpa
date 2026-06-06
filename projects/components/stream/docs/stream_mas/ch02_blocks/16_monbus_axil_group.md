@@ -34,17 +34,17 @@
 
 ## Overview
 
-The `monbus_axil_group` module receives monitor bus packets from STREAM channels, applies configurable filtering, and routes filtered packets to either an error/interrupt FIFO (accessible via AXI-Lite slave) or a master write interface (writes to memory).
+The `monbus_axil_group` module is the canonical shared monitor bus processing block (RTL source: `rtl/amba/shared/monbus_axil_group.sv`) instantiated by STREAM for packet filtering and routing. It receives 128-bit monitor bus packets paired with 64-bit timestamps (192-bit atomic group through AXI-Lite skid), filters them per protocol/packet type, and routes to either error/interrupt FIFO or external memory.
 
 ### Key Features
 
-- **Single Monitor Bus Input:** STREAM is memory-to-memory (no network paths)
-- **Per-Protocol Filtering:** Configurable packet type masking
+- **128-bit Monitor Packets + 64-bit Timestamps:** Carried atomically through 192-bit AXI-Lite record (3 beats: [127:0] pkt, [63:0] ts, [63:0] spare)
+- **Per-Protocol Filtering:** Configurable packet type masking per AXI/AXIS/CORE protocol
 - **Dual Output Paths:**
-  - Error/Interrupt FIFO - generates interrupt when not empty
-  - Master Write FIFO - writes to configurable address range
-- **Protocol Support:** AXI, AXIS, CORE (3 protocols)
-- **Built-in AXI-Lite Skid Buffering:** For timing closure
+  - Error/Interrupt FIFO (64 entries) - generates interrupt when not empty
+  - Master Write FIFO (32 entries) - writes packets to configurable memory range
+- **Fixed AXI-Lite Record Format:** 3 beats per record (no configurable `cfg_ts_append_*` settings)
+- **Shared Building Block:** Source of truth at `rtl/amba/shared/monbus_axil_group.sv`; STREAM instantiates this with zero modifications (drift area 1, commit 13706d10)
 
 ### Simplified from RAPIDS
 
@@ -110,7 +110,8 @@ For each incoming packet:
 |--------|-----------|-------|-------------|
 | `monbus_valid` | input | 1 | Packet valid |
 | `monbus_ready` | output | 1 | Ready to accept |
-| `monbus_packet` | input | 64 | 64-bit monitor packet |
+| `monbus_packet` | input | 128 | 128-bit monitor packet (protocol-independent structure) |
+| `monbus_ts` | input | 64 | 64-bit side-band timestamp (cycle count at packet capture) |
 
 : Monitor Bus Input
 

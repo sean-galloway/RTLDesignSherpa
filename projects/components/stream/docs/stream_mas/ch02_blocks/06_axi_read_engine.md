@@ -376,6 +376,16 @@ axi_read_engine #(
 
 ---
 
+## Bug Fixes (v0.92)
+
+### w_arb_request Timing Closure (Commit 4e8f9e02)
+
+At 8 channels, the arbiter request combinational path from scheduler to AXI master became critical. The `w_arb_request` signal is now **registered** to add a single pipeline stage, closing timing at the cost of 1 cycle of latency on the scheduler→engine request path.
+
+**Impact:** ~1% throughput penalty in worst case, 100% timing closure margin gain. Highly beneficial for high-frequency designs.
+
+---
+
 ## Related Documentation
 
 - **Parent:** `01_stream_core.md` - Top-level integration

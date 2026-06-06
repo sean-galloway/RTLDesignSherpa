@@ -432,6 +432,22 @@ axi_write_engine #(
 
 ---
 
+## Bug Fixes (v0.92)
+
+### w_arb_request Timing Closure (Commit 4e8f9e02)
+
+At 8 channels, the arbiter request combinational path became critical. The `w_arb_request` signal is now **registered** to add a single pipeline stage, closing timing. See `06_axi_read_engine.md` for details.
+
+### W-Side Post-Flop Gating on wvalid (Commit a82627af)
+
+The write engine now uses **post-flop gating on wvalid** to defeat a stale-view race in the drain controller. Previously, the wvalid signal was generated before SRAM data had settled through the drain path's register, causing the drain controller to sample data one cycle stale.
+
+**Fix:** A register is placed after the W-path data multiplexer, and `wvalid` is only asserted after this flop. This ensures data stability before wvalid assertion, preventing premature consumption.
+
+**Cross-reference:** `11_stream_drain_ctrl.md` documents the matching half of this fix (invalidating the stale-view acknowledgment).
+
+---
+
 ## Related Documentation
 
 - **Parent:** `01_stream_core.md` - Top-level integration

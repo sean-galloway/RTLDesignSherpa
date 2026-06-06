@@ -366,6 +366,46 @@ descriptor_engine #(
 
 ---
 
+## Monitoring (BOTH-End Descriptor Path Observability)
+
+### Descriptor Fetch Monitoring (Master Side)
+
+The descriptor engine's AXI4 master interface is monitored by a dedicated AXI monitor wrapper with:
+- **Agent ID:** 8 (descriptor fetch monitor)
+- **Unit ID:** 1 (STREAM subsystem)
+- **Monitored Port:** `m_axi_desc_*` (AXI4 read burst for descriptor fetch)
+
+This monitor tracks:
+- Descriptor fetch initiation (address phase)
+- Fetch completion (data phase)
+- Fetch errors or timeouts (AXI SLVERR, no response)
+
+### Descriptor Consume Monitoring (Slave Side)
+
+The scheduler's consumption of descriptors (as a "slave" to the descriptor engine) is monitored separately with:
+- **Agent ID:** 48 + channel index (descriptor consume monitor, per-channel)
+- **Unit ID:** 1 (STREAM subsystem)
+- **Monitored Port:** `descriptor_valid` / `descriptor_ready` handshake
+
+This monitor tracks:
+- When the scheduler pops descriptors from the engine's output FIFO
+- Consume latency (time from engine ready to scheduler accept)
+- Consume stalls (scheduler not ready while descriptors pending)
+
+### Why Both Ends?
+
+With dual-end monitoring, software can distinguish:
+- **Fetch latency** (master-side agent): Time from kick-off to descriptor received
+- **Consume stall** (slave-side agent): Time descriptor sits in FIFO awaiting scheduler
+
+A slow transfer can be attributed to either:
+- Network/memory delay (fetch stall visible at master-side agent)
+- Scheduler queue full (consume stall visible at slave-side agent)
+
+Both monitors emit MonBus packets with identical protocol-independent structure but distinct agent IDs for granular root-cause analysis.
+
+---
+
 ## Related Documentation
 
 - **Parent:** `03_scheduler_group.md` - Channel wrapper

@@ -876,6 +876,25 @@ Cycle  State        Descriptor  sched_wr_beats  Notes
 
 ---
 
+## Observation and Diagnostics (v0.92+)
+
+### OBS_FLAGS Register Mapping
+
+The scheduler exposes two observation flags via the APB configuration block's `OBS_FLAGS` register:
+
+| Bit | Signal | Meaning |
+|-----|--------|---------|
+| [0] | `SCH_ERROR_STICKY` | Error sticky flag (descriptor invalid, descriptor address invalid, AXI error, or timeout detected) |
+| [1] | `SCH_TIMEOUT` | Timeout active flag (waiting on AXI master and timeout counter has elapsed) |
+
+Both flags are readable via APB `OBS_FLAGS[CHANNEL_SEL]` after selecting the channel via `OBS_CTRL`. The error sticky persists until `cfg_channel_reset` is asserted; the timeout flag clears when AXI activity resumes.
+
+### Observation Data Fields (OBS_DATA0 / OBS_DATA1)
+
+Channel-specific diagnostic data is mirrored into the APB registers to enable software monitoring without stopping the scheduler. Contents may include current beat counter state, descriptor pointer, or FSM state depending on the channel's execution phase.
+
+---
+
 ## Related Documentation
 
 - **Descriptor Engine:** `05_descriptor_engine.md` - Descriptor fetch

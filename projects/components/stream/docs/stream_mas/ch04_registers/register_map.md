@@ -67,7 +67,8 @@ Base Address (configurable parameter)
    ├─ 0x260 - 0x27F: Read Engine AXI Monitor Configuration
    ├─ 0x280 - 0x29F: Write Engine AXI Monitor Configuration
    ├─ 0x2A0 - 0x2AF: AXI Transfer Configuration
-   └─ 0x2B0 - 0x2BF: Performance Profiler Configuration
+   ├─ 0x2B0 - 0x2BF: Performance Profiler Configuration
+   └─ 0x2C0 - 0x2CF: Channel Observation (OBS_CTRL/OBS_FLAGS/OBS_DATA0/1)
 ```
 
 ## Register Details
@@ -893,6 +894,29 @@ peakrdl regblock stream_regs.rdl -o generated/
 This generates:
 - `stream_regs_pkg.sv` - Register definitions package
 - `stream_regs.sv` - APB slave register interface
+
+---
+
+### Channel Observation Registers (0x2C0 - 0x2CF)
+
+**New in v0.92** — Enables software to observe scheduler state without halting transfers (commit 4467554e).
+
+| Offset | Register | Type | Reset | Description |
+|--------|----------|------|-------|-------------|
+| 0x2C0 | OBS_CTRL | RW | 0x0 | Channel observation mux selector [2:0] = channel index |
+| 0x2C4 | OBS_FLAGS | RO | 0x0 | Observation flags for selected channel (error sticky, timeout) |
+| 0x2C8 | OBS_DATA0 | RO | 0x0 | Per-channel diagnostic data 0 (low 32 bits) |
+| 0x2CC | OBS_DATA1 | RO | 0x0 | Per-channel diagnostic data 1 (high 32 bits) |
+
+: Channel Observation Registers
+
+**Usage:**
+1. Write channel index (0-7) to OBS_CTRL[2:0]
+2. Read OBS_FLAGS, OBS_DATA0, OBS_DATA1 (muxed views of selected channel)
+3. OBS_FLAGS[0] = `SCH_ERROR_STICKY` (persists until cfg_channel_reset)
+4. OBS_FLAGS[1] = `SCH_TIMEOUT` (current timeout state)
+
+**Implementation:** `stream_config_block.sv` implements the 8:1 mux for per-channel state observation (commit 0c979c35 exposes scheduler error/timeout signals into OBS_FLAGS).
 
 ---
 

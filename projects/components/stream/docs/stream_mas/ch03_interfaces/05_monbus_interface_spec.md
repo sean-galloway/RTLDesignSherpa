@@ -37,7 +37,9 @@ All STREAM events use Unit ID = 1 and follow the standard 64-bit packet format d
 
 ## Overview
 
-The Monitor Bus architecture provides a unified, scalable framework for monitoring and error reporting across multiple bus protocols in complex SoC designs. This system supports AXI, APB, MNOC (Mesh Network on Chip), ARB (Arbiter), CORE, and custom protocols through a standardized 64-bit packet format with protocol-aware event categorization.
+The Monitor Bus architecture provides a unified, scalable framework for monitoring and error reporting across multiple bus protocols in complex SoC designs. This system supports AXI, APB, MNOC (Mesh Network on Chip), ARB (Arbiter), CORE, and custom protocols through a standardized **128-bit packet format** paired with **64-bit side-band timestamps**, both carried atomically through a single handshake interface.
+
+**STREAM Integration:** STREAM uses this unified MonBus for all event reporting (descriptor fetch, scheduler state, AXI transaction monitoring). See `docs/markdown/RTLAmba/includes/monitor_package_spec.md` for the canonical 128-bit packet layout.
 
 ## Interface Summary
 
@@ -52,16 +54,19 @@ The Monitor Bus architecture provides a unified, scalable framework for monitori
 
 | Parameter | Description | Valid Values | Default |
 |-----------|-------------|--------------|---------|
-| `PACKET_WIDTH` | Monitor bus packet width | 64 | 64 |
+| `PACKET_WIDTH` | Monitor bus packet width (FIXED) | 128 | 128 |
+| `TIMESTAMP_WIDTH` | Side-band timestamp width (FIXED) | 64 | 64 |
 | `PROTOCOL_WIDTH` | Protocol identifier width | 3 | 3 |
 | `EVENT_CODE_WIDTH` | Event code width | 4 | 4 |
 | `PACKET_TYPE_WIDTH` | Packet type width | 4 | 4 |
-| `CHANNEL_ID_WIDTH` | Channel identifier width | 6 | 6 |
-| `UNIT_ID_WIDTH` | Unit identifier width | 4 | 4 |
-| `AGENT_ID_WIDTH` | Agent identifier width | 8 | 8 |
-| `EVENT_DATA_WIDTH` | Event data width | 35 | 35 |
+| `CHANNEL_ID_WIDTH` | Channel identifier width | 9 | 9 |
+| `UNIT_ID_WIDTH` | Unit identifier width | 8 | 8 |
+| `AGENT_ID_WIDTH` | Agent identifier width | 16 | 16 |
+| `EVENT_DATA_WIDTH` | Event data width | 64 | 64 |
 
 : Interface Parameters
+
+**Note:** `PACKET_WIDTH`, `TIMESTAMP_WIDTH`, and other core dimensions are now **locked** across the codebase (see `rtl/amba/includes/monitor_common_pkg.sv`). Do not override these with per-module parameters.
 
 ## Core Design Assumptions
 
@@ -159,19 +164,34 @@ The Monitor Bus architecture provides a unified, scalable framework for monitori
 
 ## Packet Format and Field Allocation
 
-### 64-bit Monitor Bus Packet Structure
+### 128-bit Monitor Bus Packet Structure
+
+The 128-bit packet is the standard across all AMBA/STREAM monitoring. Full field definitions are in `docs/markdown/RTLAmba/includes/monitor_package_spec.md` and the SystemVerilog typedef `monitor_packet_t` in `rtl/amba/includes/monitor_common_pkg.sv`.
+
+**Quick Reference:**
 
 | Field | Bits | Width | Description |
 |-------|------|-------|-------------|
-| **Packet Type** | [63:60] | 4 | Event category (Error, Completion, etc.) |
-| **Protocol** | [59:57] | 3 | Bus protocol (AXI=0, MNOC=1, APB=2, ARB=3, CORE=4) |
-| **Event Code** | [56:53] | 4 | Specific events within category |
-| **Channel ID** | [52:47] | 6 | Transaction/channel identifier |
-| **Unit ID** | [46:43] | 4 | Subsystem identifier |
-| **Agent ID** | [42:35] | 8 | Module identifier |
-| **Event Data** | [34:0] | 35 | Event-specific payload |
+| **Packet Type** | [127:124] | 4 | Event category (Error=0x0, Completion=0x1, etc.) |
+| **Reserved** | [123:109] | 15 | Forward-compatibility slack |
+| **Protocol** | [108:105] | 4 | Bus protocol (AXI=0, AXIS=1, APB=2, ARB=3, CORE=4) |
+| **Event Code** | [104:97] | 8 | Specific events within category |
+| **Channel ID** | [96:88] | 9 | Transaction/channel identifier |
+| **Agent ID** | [87:72] | 16 | Module identifier (descriptor fetch=8, scheduler CH0=48, etc.) |
+| **Unit ID** | [71:64] | 8 | Subsystem identifier (STREAM=0x01) |
+| **Event Data** | [63:0] | 64 | Event-specific payload (addresses, counts, etc.) |
 
-: 64-bit Monitor Bus Packet Structure
+: 128-bit Monitor Bus Packet Structure
+
+### 64-bit Side-Band Timestamp
+
+The timestamp is carried in parallel with the packet (not within it) through the same valid/ready handshake:
+
+| Field | Bits | Width | Description |
+|-------|------|-------|-------------|
+| **Timestamp** | [63:0] | 64 | Cycle count at packet capture (hardware clock counter) |
+
+: 64-bit Side-Band Timestamp
 
 ### Packet Type Definitions
 

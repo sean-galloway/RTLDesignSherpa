@@ -70,6 +70,11 @@ STREAM provides an APB slave interface for software configuration and control. T
 | 0x0B0 | `CH7_CTRL` | RW | Channel 7 control |
 | 0x0B4 | `CH7_STATUS` | RO | Channel 7 status |
 | 0x0B8 | `CH7_DESC_PTR` | RO | Channel 7 current descriptor |
+| 0x0BC | Reserved | - | Reserved |
+| 0x0C0 | `OBS_CTRL` | RW | Channel observation mux select |
+| 0x0C4 | `OBS_FLAGS` | RO | Observation flags for selected channel |
+| 0x0C8 | `OBS_DATA0` | RO | Observation data 0 (low) |
+| 0x0CC | `OBS_DATA1` | RO | Observation data 1 (high) |
 
 ---
 
@@ -116,6 +121,30 @@ Writing to `CHn_CTRL` initiates a transfer:
 | [15:8] | `DESC_COUNT` | RO | Descriptors processed |
 | [23:16] | `ERR_CODE` | RO | Error code if ERROR set |
 | [31:24] | Reserved | - | Reserved |
+
+### Channel Observation Control (OBS_CTRL) - 0x0C0
+
+| Bits | Field | Access | Description |
+|------|-------|--------|-------------|
+| [2:0] | `CHANNEL_SEL` | RW | Channel index (0-7) for observation read |
+| [31:3] | Reserved | - | Reserved |
+
+Software writes the channel index to this register, then reads OBS_FLAGS and OBS_DATA0/DATA1 to observe that channel's internal state.
+
+### Channel Observation Flags (OBS_FLAGS) - 0x0C4
+
+| Bits | Field | Access | Description |
+|------|-------|--------|-------------|
+| [0] | `SCH_ERROR_STICKY` | RO | Scheduler error sticky (descriptor invalid, timeout, etc.) |
+| [1] | `SCH_TIMEOUT` | RO | Scheduler timeout state (waiting on AXI master) |
+| [7:2] | Reserved | - | Reserved |
+| [31:8] | Reserved | - | Reserved |
+
+These flags are driven by the scheduler's internal error and timeout monitoring. See `stream_mas/ch02_blocks/04_scheduler.md` for detailed definitions.
+
+### Channel Observation Data (OBS_DATA0, OBS_DATA1) - 0x0C8, 0x0CC
+
+Per-channel data such as descriptor state, current beat count, or other diagnostic fields. Exact contents vary by channel state; see the register map audit document for current field assignments.
 
 ---
 

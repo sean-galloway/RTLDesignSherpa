@@ -285,6 +285,22 @@ stream_drain_ctrl #(
 
 ---
 
+## Bug Fixes (v0.92)
+
+### Stale-View Race Closure (Commit a82627af)
+
+The drain controller was sampling a registered signal one cycle stale, producing `wvalid` before SRAM data had settled. This occurred because:
+
+1. SRAM read data changes on clock edge
+2. Drain controller samples that data combinationally in the same cycle
+3. Data fed to write engine, wvalid asserted → write engine consumes stale data
+
+**Fix:** A post-flop register is inserted after the drain mux (SRAM data path), and `wvalid` is only asserted after this register. This guarantees that data has settled before wvalid assertion.
+
+**Matching half:** Write engine (`12_axi_write_engine.md`) implements the post-flop gating on wvalid in coordination with this fix.
+
+---
+
 ## Related Documentation
 
 - **Parent:** `09_sram_controller_unit.md` - Integration context

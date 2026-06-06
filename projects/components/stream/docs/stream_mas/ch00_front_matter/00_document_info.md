@@ -94,7 +94,7 @@ Macro. An integration-level block that instantiates and connects multiple FUBs.
 
 **MonBus**
 
-Monitor Bus. A 64-bit internal bus for performance monitoring and debug event reporting.
+Monitor Bus. A 128-bit packet stream paired with a 64-bit side-band timestamp wire, used for performance monitoring and debug event reporting. Packet field layout is the canonical spec at `docs/markdown/RTLAmba/includes/monitor_package_spec.md`; the stream `monbus_axil_group` wraps the shared building block at `rtl/amba/shared/monbus_axil_group.sv` and emits 3-beat AXI-Lite records (`pkt[63:0]`, `pkt[127:64]`, `ts[63:0]`).
 
 **Outstanding Transaction**
 
@@ -124,10 +124,11 @@ Revisions follow the convention x.y, where x is the major version and y is the m
 | Rev | Date | Author | Notes |
 |-----|------|--------|-------|
 | 0.90 | 2025-11-22 | seang | Initial STREAM MAS structure and block documentation |
-| 0.91 | 2026-01-02 | seang | Added front matter, figure/table captions, document styling |
+| 0.91 | 2026-05-14 | seang | Sync to RTL changes since 2026-04-17 (commit `be4e5a91`); regenerate artifacts. |
+| 0.92 | 2026-06-05 | seang | Sync to RTL state at 2026-06-05 (17 commits since `be4e5a91`). Adds (1) 128-bit monbus packet + 64-bit side-band timestamp documentation in `ch02_blocks/16_monbus_axil_group.md` and `ch03_interfaces/05_monbus_interface_spec.md` — stream wrapper now instantiates the shared building block from `rtl/amba/shared/monbus_axil_group.sv`, `cfg_ts_append_*` removed, m_axil records locked to 3 beats; (2) channel-observation mux documentation in `ch02_blocks/14_apb_config.md` plus `ch04_registers/register_map.md` (OBS_CTRL/FLAGS/DATA0/DATA1 register set, fed by scheduler error stickies + timeout exposed in `ch02_blocks/04_scheduler.md`); (3) BOTH-end descriptor-path monitoring in `ch02_blocks/05_descriptor_engine.md` (distinct fetch-side / consume-side monitor wrappers); (4) Bug-fix notes for `ch02_blocks/06_axi_read_engine.md` + `12_axi_write_engine.md` (registered `w_arb_request`, commit `4e8f9e02`), `11_stream_drain_ctrl.md` + `12_axi_write_engine.md` (stale-view race + post-flop wvalid gate, commit `a82627af`), `08_sram_controller.md` (reset on registered avail outputs, commit `b619eee9`). |
 
 : STREAM MAS Document Revision History
 
 ---
 
-**Last Updated:** 2026-01-02
+**Last Updated:** 2026-06-05

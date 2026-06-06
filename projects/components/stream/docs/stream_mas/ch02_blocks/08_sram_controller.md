@@ -685,6 +685,18 @@ Notes:
 
 ---
 
+## Bug Fixes (v0.92)
+
+### Registered Avail Outputs Reset (Commit b619eee9)
+
+The registered availability outputs (`w_alloc_avail`, `w_drain_avail`) were missing explicit reset, causing:
+- X propagation in simulation (metastability)
+- Unknown post-reset state in synthesis (unmapped flops)
+
+**Fix:** Added explicit reset to both registered avail outputs. They now initialize to `'0` (no space available, no data available) on reset, preventing garbage values.
+
+---
+
 ## Related Documentation
 
 - **SRAM Controller Unit:** `09_sram_controller_unit.md` - Per-channel implementation

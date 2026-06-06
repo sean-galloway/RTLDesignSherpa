@@ -15,7 +15,7 @@ set -euo pipefail
 # ------------------------------------------------------------
 
 # Default values
-REV="0.90"
+REV="0.92"
 ASSETS="stream_mas/assets"
 SPEC_INDEX="stream_mas/stream_index.md"
 

@@ -25,7 +25,7 @@
 
 ## Overview
 
-STREAM provides a 64-bit Monitor Bus (MonBus) interface for debug and performance monitoring. This interface streams event packets capturing key operational events.
+STREAM provides a unified Monitor Bus (MonBus) interface for debug and performance monitoring. This interface streams event packets (128-bit) with paired 64-bit side-band timestamps, capturing key operational events from all internal blocks.
 
 ---
 
@@ -35,13 +35,14 @@ STREAM provides a 64-bit Monitor Bus (MonBus) interface for debug and performanc
 |--------|-----------|-------|-------------|
 | `monbus_pkt_valid` | Output | 1 | Packet valid |
 | `monbus_pkt_ready` | Input | 1 | Downstream ready |
-| `monbus_pkt_data` | Output | 64 | Packet data |
+| `monbus_pkt_data` | Output | 128 | Packet data (protocol-independent monitor packet) |
+| `monbus_ts_data` | Output | 64 | Side-band timestamp (cycle count at packet capture) |
 
 ---
 
 ## Packet Format
 
-Each 64-bit MonBus packet follows this format:
+The 128-bit MonBus packet and 64-bit timestamp are paired atomically and transmitted as a 192-bit group through AXI-Lite skid buffering. See the canonical packet specification at `docs/markdown/RTLAmba/includes/monitor_package_spec.md` for complete field definitions.
 
 | Bits | Field | Description |
 |------|-------|-------------|
@@ -53,44 +54,41 @@ Each 64-bit MonBus packet follows this format:
 
 ---
 
-## Event Types
+## Monitoring Architecture
 
-### Transfer Events (EVENT_TYPE = 0x01)
+### Descriptor Path Monitoring (Both Ends)
 
-| EVENT_CODE | Event | Payload |
-|------------|-------|---------|
-| 0x01 | `KICKOFF` | Descriptor address [31:0] |
-| 0x02 | `DESC_FETCH` | Descriptor address [31:0] |
-| 0x03 | `DESC_VALID` | Descriptor fields summary |
-| 0x04 | `READ_START` | Source address [31:0] |
-| 0x05 | `READ_DONE` | Beat count |
-| 0x06 | `WRITE_START` | Destination address [31:0] |
-| 0x07 | `WRITE_DONE` | Beat count |
-| 0x08 | `CHAIN_NEXT` | Next descriptor address |
-| 0x09 | `COMPLETE` | Total descriptors processed |
+STREAM monitors the descriptor fetch path at **both ends** for observability:
 
-### Error Events (EVENT_TYPE = 0x02)
+1. **Descriptor Fetch Master (Agent ID 8):** Monitors the AXI4 master that fetches descriptors from system memory
+2. **Descriptor Consume Side (Agent ID 48 + channel):** Monitors when the scheduler consumes the descriptor for processing
 
-| EVENT_CODE | Event | Payload |
-|------------|-------|---------|
-| 0x01 | `AXI_READ_ERR` | AXI response code |
-| 0x02 | `AXI_WRITE_ERR` | AXI response code |
-| 0x03 | `DESC_INVALID` | Validation failure code |
-| 0x04 | `ADDR_RANGE` | Offending address [31:0] |
-| 0x05 | `TIMEOUT` | Timeout counter value |
+This dual-end monitoring allows software to attribute descriptor path stalls to either fetch delay (master side) or consume delay (slave side), enabling faster root-cause analysis.
 
-### Performance Events (EVENT_TYPE = 0x03)
+### Global Monitor Enable Methodology
 
-| EVENT_CODE | Event | Payload |
-|------------|-------|---------|
-| 0x01 | `ARB_WAIT` | Wait cycles |
-| 0x02 | `READ_LATENCY` | First beat latency |
-| 0x03 | `WRITE_LATENCY` | First response latency |
-| 0x04 | `THROUGHPUT` | Bytes transferred |
+All internal monitors are gated by:
+- **Global SV parameter:** `USE_MONITOR` (default: enabled for analysis, disabled for area-optimized builds)
+- **Per-port SV parameters:** Individual monitor enable for each monitored port
+- **APB runtime configuration:** Masks for enabling/disabling packet types at run time
 
 ---
 
-## Event Generation
+## Event Types
+
+STREAM uses the unified MonBus event categorization defined in `docs/markdown/RTLAmba/includes/monitor_package_spec.md`:
+- **Error events (Type 0x0):** Protocol violations, timeouts, invalid descriptors
+- **Completion events (Type 0x1):** Successful transfer completion, descriptor processed
+- **Performance events (Type 0x4):** Latency metrics, throughput data
+- **Protocol-specific events:** AXI address-match, debug traces
+
+All STREAM events use **Unit ID = 1** and channel-specific **Agent IDs** for the source block (descriptor engine, scheduler, AXI monitor, etc.).
+
+Do not re-state the 128-bit packet layout here — refer to the canonical specification for field definitions and bit assignments.
+
+---
+
+## Event Configuration
 
 ### Configurable Events
 
