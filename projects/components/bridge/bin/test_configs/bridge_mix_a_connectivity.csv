@@ -1,0 +1,3 @@
+master\slave,ddr,axil_periph,apb_periph
+cpu_axi4,1,1,1
+host_axil,0,1,1

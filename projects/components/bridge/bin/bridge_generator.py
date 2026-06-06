@@ -680,6 +680,13 @@ def _emit_bridge_variant(
         filelist_lines.append("$REPO_ROOT/rtl/amba/shared/axi_monitor_trans_mgr.sv")
         filelist_lines.append("$REPO_ROOT/rtl/amba/shared/axi_monitor_timer.sv")
         filelist_lines.append("$REPO_ROOT/rtl/amba/shared/axi_monitor_timeout.sv")
+        # Reporter sub-blocks (must precede the reporter top wrapper).
+        # These are the 0.9-monitor refactor outputs (657e00b3).
+        filelist_lines.append("$REPO_ROOT/rtl/amba/shared/axi_monitor_reporter_error.sv")
+        filelist_lines.append("$REPO_ROOT/rtl/amba/shared/axi_monitor_reporter_timeout.sv")
+        filelist_lines.append("$REPO_ROOT/rtl/amba/shared/axi_monitor_reporter_compl.sv")
+        filelist_lines.append("$REPO_ROOT/rtl/amba/shared/axi_monitor_reporter_threshold.sv")
+        filelist_lines.append("$REPO_ROOT/rtl/amba/shared/axi_monitor_reporter_perf.sv")
         filelist_lines.append("$REPO_ROOT/rtl/amba/shared/axi_monitor_reporter.sv")
         filelist_lines.append("$REPO_ROOT/rtl/amba/shared/axi_monitor_base.sv")
         filelist_lines.append("$REPO_ROOT/rtl/amba/shared/axi_monitor_filtered.sv")
