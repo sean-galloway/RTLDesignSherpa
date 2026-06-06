@@ -183,10 +183,20 @@ module axi4_master_wr_mon
     output logic [31:0]                transaction_count,       // Total transaction count (not available from base monitor)
 
     // Performance window status (Stage A of perfmon RFC). Reflects the
-    // internal axi_monitor_base state machine. Stage B will surface the
-    // bucket counters via the MonBus output.
+    // internal axi_monitor_base state machine.
     output logic                       window_active,
     output logic [31:0]                window_cycles,
+
+    // Performance cycle buckets + counters (Stage B of perfmon RFC).
+    // Sample at WIN_CLOSING (drive cfg_end_trigger or wait for the
+    // configured end event, then read on the cycle window_active=0).
+    output logic [31:0]                perf_prod_cycles,
+    output logic [31:0]                perf_bp_cycles,
+    output logic [31:0]                perf_starv_cycles,
+    output logic [31:0]                perf_idle_cycles,
+    output logic [31:0]                perf_beat_count,
+    output logic [63:0]                perf_byte_count,
+    output logic [31:0]                perf_burst_count,
 
     // Configuration error flags
     output logic                       cfg_conflict_error       // Configuration conflict detected
@@ -374,6 +384,13 @@ module axi4_master_wr_mon
             /* verilator lint_on PINCONNECTEMPTY */
             .window_active           (window_active),
             .window_cycles           (window_cycles),
+            .perf_prod_cycles        (perf_prod_cycles),
+            .perf_bp_cycles          (perf_bp_cycles),
+            .perf_starv_cycles       (perf_starv_cycles),
+            .perf_idle_cycles        (perf_idle_cycles),
+            .perf_beat_count         (perf_beat_count),
+            .perf_byte_count         (perf_byte_count),
+            .perf_burst_count        (perf_burst_count),
             .active_count            (active_transactions),
 
             // Configuration error flags
@@ -389,6 +406,13 @@ module axi4_master_wr_mon
         // Perfmon disabled when ENABLE_MONITOR=0.
         assign window_active       = 1'b0;
         assign window_cycles       = 32'h0;
+        assign perf_prod_cycles    = 32'h0;
+        assign perf_bp_cycles      = 32'h0;
+        assign perf_starv_cycles   = 32'h0;
+        assign perf_idle_cycles    = 32'h0;
+        assign perf_beat_count     = 32'h0;
+        assign perf_byte_count     = 64'h0;
+        assign perf_burst_count    = 32'h0;
     end
 
     // Gate the upstream AW handshake on monitor block_ready.

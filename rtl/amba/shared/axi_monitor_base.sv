@@ -164,7 +164,33 @@ module axi_monitor_base
     //                  current window. Sampled by reporter at window
     //                  close into the WIN_END PerfWin packet (Stage B).
     output logic                     window_active,
-    output logic [31:0]              window_cycles
+    output logic [31:0]              window_cycles,
+
+    // Performance window cycle buckets (Stage B of perfmon RFC).
+    //
+    //   All counters are accumulators that run while window_active=1
+    //   and reset on window-start. Sampled at WIN_CLOSING by the
+    //   integrating block (or future reporter; see RFC Stage B/F).
+    //
+    //   Per DMA_UTILIZATION_MEASUREMENT.md Section 3 four-bucket model,
+    //   counted on the DATA bus (R for read monitors, W for write
+    //   monitors). The cmd-bus burst handshake count is also exposed
+    //   separately (perf_burst_count) so the integrator can compute
+    //   burst_count and bytes-per-burst.
+    //
+    //   perf_byte_count uses cmd_size (AXSIZE) captured at the most
+    //   recent address-phase handshake; assumes axsize is constant
+    //   within a burst (AXI4 mandate). 64-bit width prevents wrap on
+    //   long windows at wide buses.
+    //
+    //   Stage C will replicate these per-channel for id-aware monitors.
+    output logic [31:0]              perf_prod_cycles,   // data valid && ready
+    output logic [31:0]              perf_bp_cycles,     // data valid && !ready (back-pressure)
+    output logic [31:0]              perf_starv_cycles,  // !data valid && ready (starvation)
+    output logic [31:0]              perf_idle_cycles,   // !data valid && !ready
+    output logic [31:0]              perf_beat_count,    // = perf_prod_cycles (1 beat/cycle)
+    output logic [63:0]              perf_byte_count,    // beats x (1<<axsize_latched)
+    output logic [31:0]              perf_burst_count    // AR/AW handshake count
 );
 
     // Import standard monitor types and constants
@@ -518,5 +544,95 @@ module axi_monitor_base
 
     assign window_active = (r_win_state == WIN_ACTIVE_S);
     assign window_cycles = r_window_cycles;
+
+    // =========================================================================
+    // Performance cycle bucket + beat/byte/burst counters (Stage B)
+    //
+    //   Per RFC Stage B and DMA_UTILIZATION_MEASUREMENT.md Section 3,
+    //   the cycle-bucket counters classify every cycle of the data bus
+    //   into one of four mutually-exclusive buckets, then accumulate
+    //   the bytes-moved tally separately. All counters reset on
+    //   window-start and are stable from WIN_CLOSING -> WIN_IDLE so
+    //   the integrating block can sample them.
+    //
+    //   Byte counter uses the latched axsize from the most recent
+    //   address-phase handshake. This is correct for AXI/AXI-Lite
+    //   where axsize is fixed for the lifetime of a burst.
+    //
+    //   Stage C will gate each counter by id-decoded channel for
+    //   per-channel buckets; for Stage B we keep aggregate-only.
+    // =========================================================================
+    logic [31:0] r_prod_cycles;
+    logic [31:0] r_bp_cycles;
+    logic [31:0] r_starv_cycles;
+    logic [31:0] r_idle_cycles;
+    logic [31:0] r_burst_count;
+    logic [63:0] r_byte_count;
+    logic [2:0]  r_axsize_latched;
+    logic        w_window_starting;
+
+    assign w_window_starting = (r_win_state == WIN_IDLE_S) && w_start_event;
+
+    // Latch axsize on every command handshake while the window is open;
+    // outside the window we still track it so it's stable at window-open
+    // time. Defaults to 3'h0 (1 byte / beat) before any AR/AW.
+    always_ff @(posedge aclk or negedge aresetn) begin
+        if (!aresetn) begin
+            r_axsize_latched <= 3'h0;
+        end else if (w_cmd_handshake) begin
+            r_axsize_latched <= cmd_size;
+        end
+    end
+
+    always_ff @(posedge aclk or negedge aresetn) begin
+        if (!aresetn) begin
+            r_prod_cycles  <= 32'h0;
+            r_bp_cycles    <= 32'h0;
+            r_starv_cycles <= 32'h0;
+            r_idle_cycles  <= 32'h0;
+            r_burst_count  <= 32'h0;
+            r_byte_count   <= 64'h0;
+        end else if (w_window_starting) begin
+            // Reset all accumulators at window start (synchronous with
+            // r_window_cycles going to 1).
+            r_prod_cycles  <= 32'h0;
+            r_bp_cycles    <= 32'h0;
+            r_starv_cycles <= 32'h0;
+            r_idle_cycles  <= 32'h0;
+            r_burst_count  <= 32'h0;
+            r_byte_count   <= 64'h0;
+        end else if (r_win_state == WIN_ACTIVE_S) begin
+            // Four mutually-exclusive cycle buckets on the data bus.
+            // Sum of the four equals window_cycles by construction.
+            if (data_valid && data_ready) begin
+                r_prod_cycles <= r_prod_cycles + 32'h1;
+                // Byte count: one beat moves (1<<axsize) bytes. Explicit
+                // parens — verilog + has higher precedence than <<.
+                r_byte_count  <= r_byte_count + (64'h1 << r_axsize_latched);
+            end else if (data_valid && !data_ready) begin
+                r_bp_cycles    <= r_bp_cycles    + 32'h1;
+            end else if (!data_valid && data_ready) begin
+                r_starv_cycles <= r_starv_cycles + 32'h1;
+            end else begin
+                r_idle_cycles  <= r_idle_cycles  + 32'h1;
+            end
+
+            // Burst count = address-phase handshakes inside the window.
+            if (w_cmd_handshake) begin
+                r_burst_count <= r_burst_count + 32'h1;
+            end
+        end
+        // In WIN_CLOSING and WIN_IDLE the counters hold their values so
+        // the integrating block can sample them after seeing
+        // window_active deassert.
+    end
+
+    assign perf_prod_cycles  = r_prod_cycles;
+    assign perf_bp_cycles    = r_bp_cycles;
+    assign perf_starv_cycles = r_starv_cycles;
+    assign perf_idle_cycles  = r_idle_cycles;
+    assign perf_beat_count   = r_prod_cycles; // one beat per productive cycle
+    assign perf_byte_count   = r_byte_count;
+    assign perf_burst_count  = r_burst_count;
 
 endmodule : axi_monitor_base

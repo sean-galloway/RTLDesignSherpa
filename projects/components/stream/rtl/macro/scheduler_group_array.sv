@@ -603,6 +603,13 @@ module scheduler_group_array #(
         /* verilator lint_off PINCONNECTEMPTY */
         .window_active          (),                 // Stage E will wire
         .window_cycles          (),                 // Stage E will wire
+        .perf_prod_cycles       (),                 // Stage E will wire
+        .perf_bp_cycles         (),                 // Stage E will wire
+        .perf_starv_cycles      (),                 // Stage E will wire
+        .perf_idle_cycles       (),                 // Stage E will wire
+        .perf_beat_count        (),                 // Stage E will wire
+        .perf_byte_count        (),                 // Stage E will wire
+        .perf_burst_count       (),                 // Stage E will wire
         /* verilator lint_on PINCONNECTEMPTY */
         .cfg_conflict_error     (cfg_sts_desc_mon_conflict_error)
     );

@@ -147,6 +147,15 @@ module axi_monitor_filtered
     output logic                        window_active,
     output logic [31:0]                 window_cycles,
 
+    // Performance cycle buckets + counters (Stage B of perfmon RFC).
+    output logic [31:0]                 perf_prod_cycles,
+    output logic [31:0]                 perf_bp_cycles,
+    output logic [31:0]                 perf_starv_cycles,
+    output logic [31:0]                 perf_idle_cycles,
+    output logic [31:0]                 perf_beat_count,
+    output logic [63:0]                 perf_byte_count,
+    output logic [31:0]                 perf_burst_count,
+
     // Configuration error flags
     output logic                        cfg_conflict_error     // Configuration conflict detected
 );
@@ -269,7 +278,16 @@ module axi_monitor_filtered
 
         // Performance window status
         .window_active           (window_active),
-        .window_cycles           (window_cycles)
+        .window_cycles           (window_cycles),
+
+        // Performance counters (Stage B)
+        .perf_prod_cycles        (perf_prod_cycles),
+        .perf_bp_cycles          (perf_bp_cycles),
+        .perf_starv_cycles       (perf_starv_cycles),
+        .perf_idle_cycles        (perf_idle_cycles),
+        .perf_beat_count         (perf_beat_count),
+        .perf_byte_count         (perf_byte_count),
+        .perf_burst_count        (perf_burst_count)
     );
 
     // =========================================================================
