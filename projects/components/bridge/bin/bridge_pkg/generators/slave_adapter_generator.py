@@ -805,6 +805,8 @@ class SlaveAdapterGenerator:
             use_monitor_param=(
                 'USE_MONITOR_WR' if self.enable_monitoring else None
             ),
+            mon_enables=(getattr(self.slave, 'mon_enables', None)
+                         if self.enable_monitoring else None),
         )
         wrapper.connect_clocks_and_resets()
         wrapper.connect_bridge_internal(connector_prefix=crossbar_prefix)
@@ -820,6 +822,7 @@ class SlaveAdapterGenerator:
             )
             wrapper.connect_cfg(connector_prefix='cfg_wr_')
             wrapper.add_addr_range_tieoff()
+            wrapper.add_perfmon_tieoff()
         return ["    // AXI4 Master Write Timing Wrapper"] + wrapper.generate_lines()
 
     def _generate_master_rd_wrapper(self, crossbar_prefix: str, slave_prefix: str) -> List[str]:
@@ -845,6 +848,8 @@ class SlaveAdapterGenerator:
             use_monitor_param=(
                 'USE_MONITOR_RD' if self.enable_monitoring else None
             ),
+            mon_enables=(getattr(self.slave, 'mon_enables', None)
+                         if self.enable_monitoring else None),
         )
         wrapper.connect_clocks_and_resets()
         wrapper.connect_bridge_internal(connector_prefix=crossbar_prefix)
@@ -860,6 +865,7 @@ class SlaveAdapterGenerator:
             )
             wrapper.connect_cfg(connector_prefix='cfg_rd_')
             wrapper.add_addr_range_tieoff()
+            wrapper.add_perfmon_tieoff()
         return ["    // AXI4 Master Read Timing Wrapper"] + wrapper.generate_lines()
 
     def _generate_apb_converter(self) -> List[str]:

@@ -45,7 +45,7 @@ except ImportError:
         print("  Install with: pip install tomli")
 
 
-def load_toml_ports(toml_path: str) -> Tuple[List[PortSpec], List[PortSpec], Optional[Dict], Optional[Dict], str, List[str], bool, bool, bool]:
+def load_toml_ports(toml_path: str) -> Tuple[List[PortSpec], List[PortSpec], Optional[Dict], Optional[Dict], str, List[str], bool, bool, bool, str]:
     """
     Load port configuration from TOML file.
 
@@ -70,7 +70,7 @@ def load_toml_ports(toml_path: str) -> Tuple[List[PortSpec], List[PortSpec], Opt
     return _parse_port_data(data, toml_path)
 
 
-def load_yaml_ports(yaml_path: str) -> Tuple[List[PortSpec], List[PortSpec], Optional[Dict], Optional[Dict], str, List[str], bool, bool, bool]:
+def load_yaml_ports(yaml_path: str) -> Tuple[List[PortSpec], List[PortSpec], Optional[Dict], Optional[Dict], str, List[str], bool, bool, bool, str]:
     """
     Load port configuration from YAML file.
 
@@ -182,7 +182,9 @@ def _parse_port_data(data: Dict, config_path: str) -> Tuple[List[PortSpec], List
             addr_width=addr_width,
             id_width=id_width,
             enable_ooo=False,  # Masters don't use OOO flag
-            use_monitor=bool(m.get('use_monitor', True))
+            use_monitor=bool(m.get('use_monitor', True)),
+            mon_add=list(m.get('mon_add', [])),
+            mon_remove=list(m.get('mon_remove', [])),
         )
 
         masters.append(port)
@@ -238,7 +240,9 @@ def _parse_port_data(data: Dict, config_path: str) -> Tuple[List[PortSpec], List
             base_addr=base_addr,
             addr_range=addr_range,
             enable_ooo=enable_ooo,
-            use_monitor=bool(s.get('use_monitor', True))
+            use_monitor=bool(s.get('use_monitor', True)),
+            mon_add=list(s.get('mon_add', [])),
+            mon_remove=list(s.get('mon_remove', [])),
         )
 
         slaves.append(port)
@@ -280,8 +284,19 @@ def _parse_port_data(data: Dict, config_path: str) -> Tuple[List[PortSpec], List
         print("  use_all_monitors: True (forces every port USE_MONITOR=1)")
     if use_no_monitors:
         print("  use_no_monitors:  True (forces every port USE_MONITOR=0)")
+
+    # Bridge-level mon_preset baseline (post-Stage-A.5 / 0.9 monitor).
+    from .config import MON_PRESETS
+    mon_preset = bridge_data.get('mon_preset', 'error_only')
+    if mon_preset not in MON_PRESETS:
+        raise ValueError(
+            f"{config_path}: [bridge].mon_preset = {mon_preset!r} is "
+            f"not one of {sorted(MON_PRESETS.keys())}"
+        )
+    print(f"  mon_preset: {mon_preset}")
     return (masters, slaves, defaults, connectivity_data, bridge_name,
-            variants, internal_axil_group, use_all_monitors, use_no_monitors)
+            variants, internal_axil_group, use_all_monitors,
+            use_no_monitors, mon_preset)
 
 
 def find_connectivity_csv(yaml_path: str) -> Optional[str]:
@@ -377,11 +392,11 @@ def load_config(config_path: str, connectivity_csv: Optional[str] = None) -> Bri
     if config_file.suffix == '.toml':
         (masters, slaves, defaults, embedded_connectivity, bridge_name,
          variants, internal_axil_group,
-         use_all_monitors, use_no_monitors) = load_toml_ports(config_path)
+         use_all_monitors, use_no_monitors, mon_preset) = load_toml_ports(config_path)
     elif config_file.suffix in ['.yaml', '.yml']:
         (masters, slaves, defaults, embedded_connectivity, bridge_name,
          variants, internal_axil_group,
-         use_all_monitors, use_no_monitors) = load_yaml_ports(config_path)
+         use_all_monitors, use_no_monitors, mon_preset) = load_yaml_ports(config_path)
     else:
         raise ValueError(f"Unsupported config format: {config_file.suffix}. Use .toml, .yaml, or .yml")
 
@@ -413,6 +428,7 @@ def load_config(config_path: str, connectivity_csv: Optional[str] = None) -> Bri
         internal_axil_group=internal_axil_group,
         use_all_monitors=use_all_monitors,
         use_no_monitors=use_no_monitors,
+        mon_preset=mon_preset,
     )
 
     # Validate configuration

@@ -7,6 +7,19 @@
 from dataclasses import dataclass, field
 from typing import List, Dict
 
+
+# Valid bridge-level monitor presets. Drive `BridgeConfig.mon_preset` —
+# each port's reporter sub-block enables (ENABLE_ERROR_LOGIC etc.) start
+# from the preset and apply the per-port additive `mon_add` on top.
+MON_PRESETS = {
+    "all":        {"error": True,  "timeout": True,  "compl": True,  "threshold": True,  "perf": True},
+    "error_only": {"error": True,  "timeout": False, "compl": False, "threshold": False, "perf": False},
+    "functional": {"error": True,  "timeout": True,  "compl": True,  "threshold": False, "perf": False},
+    "none":       {"error": False, "timeout": False, "compl": False, "threshold": False, "perf": False},
+}
+MON_CONES = ("error", "timeout", "compl", "threshold", "perf")
+
+
 @dataclass
 class PortSpec:
     """Specification for a single AXI4 port (master or slave)"""
@@ -29,6 +42,42 @@ class PortSpec:
     # disabled wrapper's monbus_valid stays 0 -- the arbiter sees it
     # as an inert client.
     use_monitor: bool = True
+    # Per-port additive list of reporter sub-block enables. Names come
+    # from MON_CONES. The bridge-level mon_preset sets the baseline; for
+    # ports that want extras (e.g. a CPU port that needs perf rollups
+    # while the other ports stay error-only), name them here:
+    #   [[bridge.masters]]
+    #   name = "cpu"
+    #   mon_add = ["perf", "compl"]
+    # mon_remove subtracts cones from the preset (rarely needed).
+    mon_add: List[str] = field(default_factory=list)
+    mon_remove: List[str] = field(default_factory=list)
+
+    def get_mon_enables(self, preset: str) -> Dict[str, bool]:
+        """Compute the 5 ENABLE_*_LOGIC values for this port: preset
+        baseline + mon_add - mon_remove. Returns a dict keyed by cone
+        name (error/timeout/compl/threshold/perf)."""
+        if preset not in MON_PRESETS:
+            raise ValueError(
+                f"unknown mon_preset {preset!r}; expected one of "
+                f"{sorted(MON_PRESETS.keys())}"
+            )
+        enables = dict(MON_PRESETS[preset])
+        for c in self.mon_add:
+            if c not in MON_CONES:
+                raise ValueError(
+                    f"port {self.port_name!r}: mon_add entry {c!r} not "
+                    f"in {list(MON_CONES)}"
+                )
+            enables[c] = True
+        for c in self.mon_remove:
+            if c not in MON_CONES:
+                raise ValueError(
+                    f"port {self.port_name!r}: mon_remove entry {c!r} not "
+                    f"in {list(MON_CONES)}"
+                )
+            enables[c] = False
+        return enables
 
     def has_write_channels(self) -> bool:
         """Returns True if this port has write channels (AW, W, B)"""
@@ -109,6 +158,16 @@ class BridgeConfig:
     mon_compl_enable: bool = True
     mon_timeout_enable: bool = True
     mon_perf_enable: bool = False  # Avoid packet congestion
+
+    # Bridge-level monitor preset — sets the baseline ENABLE_*_LOGIC for
+    # every adapter port's _mon wrapper. Per-port `mon_add` / `mon_remove`
+    # adjust from there. "error_only" is the default bridge area-minimum
+    # build per the post-Stage-A.5 0.9-monitor refactor; integrators
+    # opt in to compl/timeout/threshold/perf cones per-port (e.g. CPU
+    # port gets "perf", the rest stay error-only).
+    #
+    # Valid: "all", "error_only", "functional", "none". See MON_PRESETS.
+    mon_preset: str = "error_only"
 
     def num_masters(self) -> int:
         return len(self.masters)

@@ -438,7 +438,13 @@ def _emit_bridge_variant(
             channels=master_spec.channels,
             slave_connections=slave_connections,
             use_monitor=getattr(master_spec, 'use_monitor', True),
-            protocol=master_spec.protocol
+            protocol=master_spec.protocol,
+            # Resolve per-port reporter sub-block enables from the bridge
+            # preset + the port's mon_add / mon_remove. The Axi4TimingWrapper
+            # turns these into `.ENABLE_*_LOGIC(1'bX)` overrides on the
+            # _mon variant so the genvar-if inside axi_monitor_reporter
+            # drops the unused detection cones at synthesis.
+            mon_enables=master_spec.get_mon_enables(config.mon_preset),
         )
         master_configs.append(master_config)
 
@@ -453,7 +459,8 @@ def _emit_bridge_variant(
             addr_width=slave_spec.addr_width,
             protocol=slave_spec.protocol,
             enable_ooo=slave_spec.enable_ooo,
-            use_monitor=getattr(slave_spec, 'use_monitor', True)
+            use_monitor=getattr(slave_spec, 'use_monitor', True),
+            mon_enables=slave_spec.get_mon_enables(config.mon_preset),
         )
         slave_infos.append(slave_info)
 

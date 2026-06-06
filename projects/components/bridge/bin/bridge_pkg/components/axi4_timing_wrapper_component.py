@@ -67,6 +67,13 @@ class Axi4TimingWrapper:
         # production builds flip monitor enables at integration time
         # without regenerating the bridge.
         use_monitor_param: Optional[str] = None,
+        # Reporter sub-block enables -- dict keyed by cone name
+        # (error/timeout/compl/threshold/perf) with bool values. Each
+        # becomes a `.ENABLE_<NAME>_LOGIC(1'b<x>)` parameter override
+        # on the _mon variant so the genvar-if inside the reporter
+        # actually drops the cone at synthesis. Only meaningful when
+        # mon=True. Pass None to leave the SV defaults in place (all 1).
+        mon_enables: Optional[dict] = None,
     ):
         if side not in ('master', 'slave'):
             raise ValueError(f"side must be 'master' or 'slave', got {side!r}")
@@ -130,6 +137,20 @@ class Axi4TimingWrapper:
                 param_str += (
                     ", parameter bit USE_MONITOR     = 1'b0"
                 )
+            # Reporter sub-block ENABLE_*_LOGIC overrides. Drives the
+            # genvar-if inside axi_monitor_reporter (committed in
+            # 657e00b3) so the unused cones are gone at synthesis.
+            if mon_enables is not None:
+                cone_to_param = (
+                    ('error',     'ENABLE_ERROR_LOGIC'),
+                    ('timeout',   'ENABLE_TIMEOUT_LOGIC'),
+                    ('compl',     'ENABLE_COMPL_LOGIC'),
+                    ('threshold', 'ENABLE_THRESHOLD_LOGIC'),
+                    ('perf',      'ENABLE_PERF_LOGIC'),
+                )
+                for cone, param in cone_to_param:
+                    val = "1'b1" if mon_enables.get(cone, True) else "1'b0"
+                    param_str += f", parameter bit {param} = {val}"
         self.module.params.add_param_string(param_str)
         self._sections: List[tuple] = []
 
@@ -275,6 +296,34 @@ class Axi4TimingWrapper:
             ('cfg_addr_range_enable', "1'b0"),
             ('cfg_addr_range_low',    "{32{1'b0}}"),
             ('cfg_addr_range_high',   "{32{1'b0}}"),
+        ]))
+
+    def add_perfmon_tieoff(self) -> None:
+        """Bind the Stage A (window control) and Stage B (cycle bucket
+        + counter) ports added in f4542a9d / ca2d2334. With perfmon off
+        the cfg inputs are all dead-event selectors (3'b111) and the
+        triggers are 0; outputs are left unconnected. When the bridge
+        cfg subsystem (PeakRDL regblock) lands, replace this tie-off
+        with real per-port cfg routing -- but only when the integrator
+        actually plans to drive a window. Until then, PINMISSING-safe."""
+        if '_mon' not in self.module.module_name:
+            return
+        self._sections.append(("Perfmon Stage A/B (tied off -- no window driven)", [
+            ('cfg_start_event_sel',    "3'b111"),  # never-fire
+            ('cfg_end_event_sel',      "3'b111"),
+            ('cfg_start_trigger',      "1'b0"),
+            ('cfg_end_trigger',        "1'b0"),
+            ('cfg_window_force_close', "1'b0"),
+            # Stage A status + Stage B counters: outputs, left open.
+            ('window_active',          ""),
+            ('window_cycles',          ""),
+            ('perf_prod_cycles',       ""),
+            ('perf_bp_cycles',         ""),
+            ('perf_starv_cycles',      ""),
+            ('perf_idle_cycles',       ""),
+            ('perf_beat_count',        ""),
+            ('perf_byte_count',        ""),
+            ('perf_burst_count',       ""),
         ]))
 
     # --- monitor-only port groups (only valid when mon=True) -----------

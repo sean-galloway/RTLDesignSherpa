@@ -12,7 +12,7 @@ Author: RTL Design Sherpa
 Date: 2025-11-03
 """
 
-from typing import List, Dict, Tuple
+from typing import List, Dict, Optional, Tuple
 from dataclasses import dataclass
 from ..components.apb_shim_adapter import ApbShimAdapter
 from ..signal_naming import SignalNaming, Direction, AXI4Channel, AXI4_MASTER_SIGNALS, PortDirection, SignalInfo
@@ -72,6 +72,10 @@ class SlaveInfo:
     protocol: str = 'axi4'  # Protocol type: 'axi4' or 'apb'
     enable_ooo: bool = False  # Slave supports out-of-order responses (use CAM vs FIFO)
     use_monitor: bool = True  # Per-port USE_MONITOR override (see PortSpec)
+    # Reporter sub-block enables (preset + add - remove resolved upstream).
+    # Keys: error/timeout/compl/threshold/perf. Default all True keeps
+    # legacy behaviour; bridge generator overrides per-port from TOML.
+    mon_enables: Optional[Dict[str, bool]] = None
 
 
 @dataclass
@@ -91,6 +95,8 @@ class MasterConfig:
     # cache/qos/region/user/last). The host-side wrapper handles the
     # AXIL->AXI4 translation when transactions enter the fabric.
     protocol: str = 'axi4'
+    # Reporter sub-block enables (preset + add - remove resolved upstream).
+    mon_enables: Optional[Dict[str, bool]] = None
 
 
 class AdapterGenerator:
@@ -560,6 +566,8 @@ class AdapterGenerator:
                 use_monitor_param=(
                     'USE_MONITOR_WR' if self.enable_monitoring else None
                 ),
+                mon_enables=(self.master.mon_enables
+                             if self.enable_monitoring else None),
             )
             wrapper.connect_clocks_and_resets()
             # External side comes from the master's prefix (slave-of-
@@ -577,6 +585,7 @@ class AdapterGenerator:
                 )
                 wrapper.connect_cfg(connector_prefix='cfg_wr_')
                 wrapper.add_addr_range_tieoff()
+                wrapper.add_perfmon_tieoff()
             lines.append("    // ================================================================")
             lines.append(f"    // Timing isolation wrapper (axi4_slave_wr{'_mon' if self.enable_monitoring else ''})")
             lines.append("    // ================================================================")
@@ -597,6 +606,8 @@ class AdapterGenerator:
                 use_monitor_param=(
                     'USE_MONITOR_RD' if self.enable_monitoring else None
                 ),
+                mon_enables=(self.master.mon_enables
+                             if self.enable_monitoring else None),
             )
             wrapper.connect_clocks_and_resets()
             wrapper.connect_external(connector_prefix=signal_prefix)
@@ -612,6 +623,7 @@ class AdapterGenerator:
                 )
                 wrapper.connect_cfg(connector_prefix='cfg_rd_')
                 wrapper.add_addr_range_tieoff()
+                wrapper.add_perfmon_tieoff()
             lines.append("    // ================================================================")
             lines.append(f"    // Timing isolation wrapper (axi4_slave_rd{'_mon' if self.enable_monitoring else ''})")
             lines.append("    // ================================================================")
