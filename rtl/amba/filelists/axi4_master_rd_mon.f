@@ -28,6 +28,12 @@ $REPO_ROOT/rtl/common/arbiter_round_robin.sv
 $REPO_ROOT/rtl/amba/shared/axi_monitor_trans_mgr.sv
 $REPO_ROOT/rtl/amba/shared/axi_monitor_timer.sv
 $REPO_ROOT/rtl/amba/shared/axi_monitor_timeout.sv
+# Reporter sub-blocks (must precede the reporter top wrapper)
+$REPO_ROOT/rtl/amba/shared/axi_monitor_reporter_error.sv
+$REPO_ROOT/rtl/amba/shared/axi_monitor_reporter_timeout.sv
+$REPO_ROOT/rtl/amba/shared/axi_monitor_reporter_compl.sv
+$REPO_ROOT/rtl/amba/shared/axi_monitor_reporter_threshold.sv
+$REPO_ROOT/rtl/amba/shared/axi_monitor_reporter_perf.sv
 $REPO_ROOT/rtl/amba/shared/axi_monitor_reporter.sv
 $REPO_ROOT/rtl/amba/shared/axi_monitor_base.sv
 $REPO_ROOT/rtl/amba/shared/axi_monitor_filtered.sv

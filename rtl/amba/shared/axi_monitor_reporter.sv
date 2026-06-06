@@ -4,27 +4,30 @@
 // RTL Design Sherpa - Industry-Standard RTL Design and Verification
 // https://github.com/sean-galloway/RTLDesignSherpa
 //
-// Module: axi_monitor_reporter
-// Purpose: Axi Monitor Reporter module
+// Module: axi_monitor_reporter (0.9 refactor)
+// Purpose: Thin top reporter — multiplexes per-packet-type sub-blocks
+//          into the shared monbus FIFO + output register, marks events
+//          as reported back to trans_mgr, and constructs the final
+//          128-bit monitor_packet via the package helper.
 //
-// Documentation: rtl/amba/PRD.md
-// Subsystem: amba
+// Per-packet-type detection lives in sub-blocks so integrators can drop
+// any combination via ENABLE_*_LOGIC parameters and pay zero LUT/FF cost:
+//   ENABLE_ERROR_LOGIC     : axi_monitor_reporter_error      (combinational)
+//   ENABLE_TIMEOUT_LOGIC   : axi_monitor_reporter_timeout    (combinational)
+//   ENABLE_COMPL_LOGIC     : axi_monitor_reporter_compl      (combinational)
+//   ENABLE_THRESHOLD_LOGIC : axi_monitor_reporter_threshold  (16 latency flops + edge flags)
+//   ENABLE_PERF_LOGIC      : axi_monitor_reporter_perf       (counters + 5-state FSM)
 //
+// Bridge case: set ERROR=1, all others 0 → ~70% of reporter LUT/FF drops.
+//
+// Documentation: rtl/amba/PRD/RFCs/RFC-perfmon-window-buckets.md
 // Author: sean galloway
-// Created: 2025-10-18
+// Created: 2025-10-18 (original) / 2026-06-06 (sub-block refactor)
 
 `timescale 1ns / 1ps
 
-/**
- * AXI Monitor Bus Reporter - Updated for Generic Monitor Package
- *
- * This module reports events and errors through a shared monitor bus.
- * It detects conditions from the AXI transaction table and formats them into
- * standard 64-bit interrupt packet format for system-wide event notification.
- * Updated to work with the enhanced monitor_pkg that supports multiple protocols.
- */
-
 `include "reset_defs.svh"
+
 module axi_monitor_reporter
     import monitor_common_pkg::*;
     import monitor_amba4_pkg::*;
@@ -32,565 +35,409 @@ module axi_monitor_reporter
     // functions (get_packet_type etc.) duplicate monitor_common_pkg's, and
     // Vivado flags the duplicates as ambiguous under wildcard imports.
 #(
-    parameter int MAX_TRANSACTIONS    = 16,   // Maximum outstanding transactions
-    parameter int ADDR_WIDTH          = 32,   // Width of address bus
-    parameter logic [7:0]  UNIT_ID    = 8'h09,    // 8-bit Unit identifier
-    parameter logic [15:0] AGENT_ID   = 16'h0063, // 16-bit Agent identifier
-    parameter bit IS_READ             = 1'b1,    // 1 for read, 0 for write
-    parameter bit ENABLE_PERF_PACKETS = 1'b0,    // Enable performance metrics tracking
-    parameter int INTR_FIFO_DEPTH     = 8     // interrupt fifo depth
+    parameter int MAX_TRANSACTIONS    = 16,
+    parameter int ADDR_WIDTH          = 32,
+    parameter logic [7:0]  UNIT_ID    = 8'h09,
+    parameter logic [15:0] AGENT_ID   = 16'h0063,
+    parameter bit IS_READ             = 1'b1,
+    parameter bit ENABLE_PERF_PACKETS = 1'b0,    // legacy alias for ENABLE_PERF_LOGIC compat
+    parameter int INTR_FIFO_DEPTH     = 8,
+    // Sub-block enables — gate the LOGIC, not just packet emission. Default
+    // 1'b1 preserves legacy behavior; integrators (e.g. bridge) set 0 to
+    // synthesize away unused detection cones.
+    parameter bit ENABLE_ERROR_LOGIC     = 1'b1,
+    parameter bit ENABLE_TIMEOUT_LOGIC   = 1'b1,
+    parameter bit ENABLE_COMPL_LOGIC     = 1'b1,
+    parameter bit ENABLE_THRESHOLD_LOGIC = 1'b1,
+    parameter bit ENABLE_PERF_LOGIC      = ENABLE_PERF_PACKETS
 )
 (
-    // Global Clock and Reset
     input  logic                     aclk,
     input  logic                     aresetn,
 
-    // Transaction table (read-only access) - Fixed: Use unpacked array
     input  bus_transaction_t         trans_table[MAX_TRANSACTIONS],
-
-    // Timeout detection flags from timeout module
     input  logic [MAX_TRANSACTIONS-1:0] timeout_detected,
 
-    // Configuration enables for different packet types
-    input  logic                     cfg_error_enable,    // Enable error packets
-    input  logic                     cfg_compl_enable,    // Enable completion packets
-    input  logic                     cfg_threshold_enable,// Enable threshold packets
-    input  logic                     cfg_timeout_enable,  // Enable timeout packets
-    input  logic                     cfg_perf_enable,     // Enable performance packets
-    input  logic                     cfg_debug_enable,    // Enable debug packets
+    input  logic                     cfg_error_enable,
+    input  logic                     cfg_compl_enable,
+    input  logic                     cfg_threshold_enable,
+    input  logic                     cfg_timeout_enable,
+    input  logic                     cfg_perf_enable,
+    input  logic                     cfg_debug_enable,    // reserved — debug emitter is future work
 
-    // Interrupt bus output interface
-    input  logic                              monbus_ready,  // Downstream ready
-    output logic                              monbus_valid,  // Interrupt valid
-    output monitor_packet_t                   monbus_packet, // Consolidated interrupt packet
+    input  logic                              monbus_ready,
+    output logic                              monbus_valid,
+    output monitor_packet_t                   monbus_packet,
 
-    // Statistics output
-    output logic [15:0]              event_count,    // Total event count
+    output logic [15:0]              event_count,
+    output logic [15:0]              perf_completed_count,
+    output logic [15:0]              perf_error_count,
 
-    // Performance metrics (only used when ENABLE_PERF_PACKETS=1)
-    output logic [15:0]              perf_completed_count, // Number of completed transactions
-    output logic [15:0]              perf_error_count,     // Number of error transactions
-
-    // Performance metric thresholds
     input  logic [15:0]              active_trans_threshold,
     input  logic [31:0]              latency_threshold,
 
-    // Event reported feedback to trans_mgr (FIX-001)
     output logic [MAX_TRANSACTIONS-1:0] event_reported_flags
 );
 
-    // Local version of transaction table for processing (flopped)
-    bus_transaction_t r_trans_table_local[MAX_TRANSACTIONS];
+    localparam int IDX_W = $clog2(MAX_TRANSACTIONS);
 
-    // Flag to track if event has been reported for each transaction (flopped)
+    // -------------------------------------------------------------------------
+    // Shared state: registered trans_table, event_reported, event_count.
+    // -------------------------------------------------------------------------
+    bus_transaction_t            r_trans_table_local [MAX_TRANSACTIONS];
     logic [MAX_TRANSACTIONS-1:0] r_event_reported;
-    // FIX-001: Connect internal flag to output port for trans_mgr feedback
+    logic [15:0]                 r_event_count;
     assign event_reported_flags = r_event_reported;
+    assign event_count          = r_event_count;
 
-    // Helper function to pack a stored transaction-table address into the
-    // 64-bit packet data field. The trans-table stores addresses as a
-    // fixed 32-bit value (see bus_transaction_t in monitor_amba4_pkg.sv),
-    // so this is a simple zero-extension. A static cast is used to avoid
-    // dead-branch width warnings from Verilator.
-    function automatic logic [63:0] pad_address(input logic [31:0] addr);
-        return 64'(addr);
-    endfunction
+    // Reserved-for-future debug input.
+    /* verilator lint_off UNUSED */
+    logic unused_cfg_debug_enable;
+    assign unused_cfg_debug_enable = cfg_debug_enable;
+    /* verilator lint_on UNUSED */
 
-    // Threshold crossing flags (flopped)
-    logic r_active_threshold_crossed;
-    logic r_latency_threshold_crossed;
-
-    // Event count (flopped)
-    logic [15:0] r_event_count;
-    assign event_count = r_event_count;
-
-    // Performance metrics counters (flopped)
-    logic [15:0] r_perf_completed_count;
-    logic [15:0] r_perf_error_count;
-
-    // Assign performance metrics outputs
-    assign perf_completed_count = r_perf_completed_count;
-    assign perf_error_count = r_perf_error_count;
-
-    // Performance report state machine (flopped)
-    logic [2:0] r_perf_report_state;
-
-    // Interrupt FIFO entry type — 128-bit packet field layout
+    // -------------------------------------------------------------------------
+    // FIFO entry type (local — sub-blocks export raw fields).
+    // -------------------------------------------------------------------------
     typedef struct packed {
-        logic [3:0]            packet_type;  // Packet type (4 bits)
-        logic [7:0]            event_code;   // Event code or metric type (8 bits)
-        logic [8:0]            channel;      // Channel information (9 bits)
-        logic [63:0]           data;         // Address or metric value (64 bits, full event_data)
+        logic [3:0]  packet_type;
+        logic [7:0]  event_code;
+        logic [8:0]  channel;
+        logic [63:0] data;
     } monbus_entry_t;
 
-    // FIFO signals (combinational)
-    logic                                 w_fifo_wr_valid;
-    logic                                 w_fifo_wr_ready;
-    monbus_entry_t                        w_fifo_wr_data;
-    logic                                 w_fifo_rd_valid;
-    logic                                 w_fifo_rd_ready;
-    monbus_entry_t                        w_fifo_rd_data;
-    logic [$clog2(INTR_FIFO_DEPTH):0]     w_fifo_count;  // Proper width calculation
+    logic                             w_fifo_wr_valid;
+    logic                             w_fifo_wr_ready;
+    monbus_entry_t                    w_fifo_wr_data;
+    logic                             w_fifo_rd_valid;
+    logic                             w_fifo_rd_ready;
+    monbus_entry_t                    w_fifo_rd_data;
+    logic [$clog2(INTR_FIFO_DEPTH):0] w_fifo_count;
 
-    // Use gaxi_fifo_sync for the interrupt packet FIFO
     gaxi_fifo_sync #(
         .REGISTERED      (1),
         .DATA_WIDTH      ($bits(monbus_entry_t)),
         .DEPTH           (INTR_FIFO_DEPTH),
         .ALMOST_WR_MARGIN(1),
         .ALMOST_RD_MARGIN(1)
-    ) intr_fifo(
-        .axi_aclk      (aclk),
-        .axi_aresetn   (aresetn),
-        .wr_valid      (w_fifo_wr_valid),
-        .wr_ready      (w_fifo_wr_ready),
-        .wr_data       (w_fifo_wr_data),
-        .rd_ready      (w_fifo_rd_ready),
-        .count        (w_fifo_count),
-        .rd_valid      (w_fifo_rd_valid),
-        .rd_data       (w_fifo_rd_data)
+    ) intr_fifo (
+        .axi_aclk    (aclk),
+        .axi_aresetn (aresetn),
+        .wr_valid    (w_fifo_wr_valid),
+        .wr_ready    (w_fifo_wr_ready),
+        .wr_data     (w_fifo_wr_data),
+        .rd_ready    (w_fifo_rd_ready),
+        .count       (w_fifo_count),
+        .rd_valid    (w_fifo_rd_valid),
+        .rd_data     (w_fifo_rd_data)
     );
 
-    // Output registers (flopped) — sized for 128-bit packet fields
-    logic [3:0]  r_packet_type;   // 4-bit packet type
-    logic [7:0]  r_event_code;    // 8-bit event code
-    logic [63:0] r_event_data;    // 64-bit event_data slot
-    logic [8:0]  r_event_channel; // 9-bit channel_id
+    // -------------------------------------------------------------------------
+    // Sub-block outputs (tied to 0 when disabled by ENABLE_*).
+    // -------------------------------------------------------------------------
+    logic              err_valid,  to_valid,  compl_valid;
+    logic [3:0]        err_type,   to_type,   compl_type;
+    logic [7:0]        err_code,   to_code,   compl_code;
+    logic [8:0]        err_chan,   to_chan,   compl_chan;
+    logic [63:0]       err_data,   to_data,   compl_data;
+    logic [IDX_W-1:0]  err_idx,    to_idx,    compl_idx;
 
-    // Event detection signals - One for each type of event to report (combinational)
-    logic [MAX_TRANSACTIONS-1:0] w_error_events_detected;
-    logic [MAX_TRANSACTIONS-1:0] w_timeout_events_detected;
-    logic [MAX_TRANSACTIONS-1:0] w_completion_events_detected;
-    logic [$clog2(MAX_TRANSACTIONS)-1:0] w_selected_error_idx;
-    logic [$clog2(MAX_TRANSACTIONS)-1:0] w_selected_timeout_idx;
-    logic [$clog2(MAX_TRANSACTIONS)-1:0] w_selected_completion_idx;
-    logic w_has_error_event;
-    logic w_has_timeout_event;
-    logic w_has_completion_event;
+    if (ENABLE_ERROR_LOGIC) begin : g_err
+        axi_monitor_reporter_error #(
+            .MAX_TRANSACTIONS (MAX_TRANSACTIONS),
+            .IDX_W            (IDX_W)
+        ) u_err (
+            .trans_table     (r_trans_table_local),
+            .event_reported  (r_event_reported),
+            .timeout_detected(timeout_detected),
+            .cfg_error_enable(cfg_error_enable),
+            .pkt_valid       (err_valid),
+            .pkt_type        (err_type),
+            .pkt_event_code  (err_code),
+            .pkt_channel     (err_chan),
+            .pkt_data        (err_data),
+            .sel_idx         (err_idx)
+        );
+    end else begin : g_no_err
+        assign err_valid = 1'b0;
+        assign err_type  = '0;
+        assign err_code  = '0;
+        assign err_chan  = '0;
+        assign err_data  = '0;
+        assign err_idx   = '0;
+    end
 
-    // Event marking signals (combinational)
+    if (ENABLE_TIMEOUT_LOGIC) begin : g_to
+        axi_monitor_reporter_timeout #(
+            .MAX_TRANSACTIONS  (MAX_TRANSACTIONS),
+            .IDX_W             (IDX_W)
+        ) u_to (
+            .trans_table       (r_trans_table_local),
+            .event_reported    (r_event_reported),
+            .timeout_detected  (timeout_detected),
+            .cfg_timeout_enable(cfg_timeout_enable),
+            .pkt_valid         (to_valid),
+            .pkt_type          (to_type),
+            .pkt_event_code    (to_code),
+            .pkt_channel       (to_chan),
+            .pkt_data          (to_data),
+            .sel_idx           (to_idx)
+        );
+    end else begin : g_no_to
+        assign to_valid = 1'b0;
+        assign to_type  = '0;
+        assign to_code  = '0;
+        assign to_chan  = '0;
+        assign to_data  = '0;
+        assign to_idx   = '0;
+    end
+
+    if (ENABLE_COMPL_LOGIC) begin : g_compl
+        axi_monitor_reporter_compl #(
+            .MAX_TRANSACTIONS(MAX_TRANSACTIONS),
+            .IDX_W           (IDX_W)
+        ) u_compl (
+            .trans_table     (r_trans_table_local),
+            .event_reported  (r_event_reported),
+            .cfg_compl_enable(cfg_compl_enable),
+            .pkt_valid       (compl_valid),
+            .pkt_type        (compl_type),
+            .pkt_event_code  (compl_code),
+            .pkt_channel     (compl_chan),
+            .pkt_data        (compl_data),
+            .sel_idx         (compl_idx)
+        );
+    end else begin : g_no_compl
+        assign compl_valid = 1'b0;
+        assign compl_type  = '0;
+        assign compl_code  = '0;
+        assign compl_chan  = '0;
+        assign compl_data  = '0;
+        assign compl_idx   = '0;
+    end
+
+    // -------------------------------------------------------------------------
+    // FIFO write mux: priority error > timeout > compl (matches legacy).
+    // -------------------------------------------------------------------------
+    always_comb begin
+        w_fifo_wr_valid       = 1'b0;
+        w_fifo_wr_data        = '{default: '0};
+        if (err_valid) begin
+            w_fifo_wr_valid       = 1'b1;
+            w_fifo_wr_data.packet_type = err_type;
+            w_fifo_wr_data.event_code  = err_code;
+            w_fifo_wr_data.channel     = err_chan;
+            w_fifo_wr_data.data        = err_data;
+        end else if (to_valid) begin
+            w_fifo_wr_valid       = 1'b1;
+            w_fifo_wr_data.packet_type = to_type;
+            w_fifo_wr_data.event_code  = to_code;
+            w_fifo_wr_data.channel     = to_chan;
+            w_fifo_wr_data.data        = to_data;
+        end else if (compl_valid) begin
+            w_fifo_wr_valid       = 1'b1;
+            w_fifo_wr_data.packet_type = compl_type;
+            w_fifo_wr_data.event_code  = compl_code;
+            w_fifo_wr_data.channel     = compl_chan;
+            w_fifo_wr_data.data        = compl_data;
+        end
+    end
+
+    assign w_fifo_rd_ready = monbus_ready && monbus_valid;
+
+    // -------------------------------------------------------------------------
+    // Event marking + counter feedback masks.
+    //   - w_error_events / w_compl_events drive the perf sub-block counters
+    //     AND the r_event_reported flop.
+    //   - Marking is gated on FIFO accept (w_fifo_wr_valid & w_fifo_wr_ready)
+    //     to match legacy behavior: a successful FIFO write marks all matching
+    //     events as reported in that cycle.
+    // -------------------------------------------------------------------------
     logic [MAX_TRANSACTIONS-1:0] w_events_to_mark;
     logic [MAX_TRANSACTIONS-1:0] w_error_events;
     logic [MAX_TRANSACTIONS-1:0] w_completion_events;
-
-    // Active transaction count for threshold detection (combinational)
-    logic [7:0] w_active_count_current;
-    logic w_active_threshold_detection;
-
-    // Latency threshold detection signals (combinational)
-    logic [MAX_TRANSACTIONS-1:0] w_latency_threshold_events;
-    logic [$clog2(MAX_TRANSACTIONS)-1:0] w_selected_latency_idx;
-    logic w_has_latency_event;
-
-    // Pre-declare latency calculation variables to avoid latch inference
-    logic [31:0] w_total_latency;
-    logic [31:0] w_selected_latency_value;
-
-    // Per-slot registered latency + threshold-exceeded flags.
-    //
-    // The original code computed `r_trans_table_local[idx].data_timestamp -
-    // addr_timestamp` combinationally for every slot, compared with
-    // `latency_threshold`, priority-encoded the winner, then did ANOTHER
-    // subtract on the winning slot to produce `r_event_data`. All one
-    // cone: 16-wide CARRY chain + ~10 LUTs, route-dominated.
-    //
-    // Registering the per-slot subtract and threshold comparison here
-    // splits that cone across a cycle — selection/mux now operates on
-    // registered values. Adds 1 cycle of latency to threshold-event
-    // packets, which is transparent to monitor consumers (the packet
-    // still carries the correct latency for the selected slot).
-    logic [31:0]                 r_latency [MAX_TRANSACTIONS];
-    logic [MAX_TRANSACTIONS-1:0] r_latency_over_thresh;
-
-    // Performance packet state and selection (combinational)
-    logic w_generate_perf_packet_completed;
-    logic w_generate_perf_packet_errors;
-    logic [2:0] w_next_perf_report_state;
-
-    // Error event detection - Updated to use unified event codes
     always_comb begin
-        w_error_events_detected = '0;
-        w_selected_error_idx = '0;
-        w_has_error_event = 1'b0;
-
-        // Scan for error events (exclude timeouts, include orphans)
-        // Use timeout_detected signal to distinguish errors from timeouts
-        for (int idx = 0; idx < MAX_TRANSACTIONS; idx++) begin
-            if (r_trans_table_local[idx].valid && !r_event_reported[idx] && cfg_error_enable &&
-                    ((r_trans_table_local[idx].state == TRANS_ERROR && !timeout_detected[idx]) ||  // Error but not timeout
-                     (r_trans_table_local[idx].state == TRANS_ORPHANED))) begin  // Orphaned transaction
-                w_error_events_detected[idx] = 1'b1;
-            end
-        end
-
-        // Priority encoder to select the first detected error
-        for (int idx = 0; idx < MAX_TRANSACTIONS; idx++) begin
-            if (w_error_events_detected[idx] && !w_has_error_event) begin
-                /* verilator lint_off WIDTHTRUNC */
-                w_selected_error_idx = idx[$clog2(MAX_TRANSACTIONS)-1:0];
-                /* verilator lint_on WIDTHTRUNC */
-                w_has_error_event = 1'b1;
-            end
-        end
-    end
-
-    // Timeout event detection - Updated to use unified event codes
-    always_comb begin
-        w_timeout_events_detected = '0;
-        w_selected_timeout_idx = '0;
-        w_has_timeout_event = 1'b0;
-
-        // Scan for timeout events
-        // Use timeout_detected signal from timeout module
-        for (int idx = 0; idx < MAX_TRANSACTIONS; idx++) begin
-            if (r_trans_table_local[idx].valid && !r_event_reported[idx] &&
-                r_trans_table_local[idx].state == TRANS_ERROR && cfg_timeout_enable &&
-                timeout_detected[idx]) begin  // Is a timeout
-                w_timeout_events_detected[idx] = 1'b1;
-            end
-        end
-
-        // Priority encoder to select the first detected timeout
-        for (int idx = 0; idx < MAX_TRANSACTIONS; idx++) begin
-            if (w_timeout_events_detected[idx] && !w_has_timeout_event) begin
-                /* verilator lint_off WIDTHTRUNC */
-                w_selected_timeout_idx = idx[$clog2(MAX_TRANSACTIONS)-1:0];
-                /* verilator lint_on WIDTHTRUNC */
-                w_has_timeout_event = 1'b1;
-            end
-        end
-    end
-
-    // Completion event detection
-    always_comb begin
-        w_completion_events_detected = '0;
-        w_selected_completion_idx = '0;
-        w_has_completion_event = 1'b0;
-
-        // Scan for completion events
-        for (int idx = 0; idx < MAX_TRANSACTIONS; idx++) begin
-            if (r_trans_table_local[idx].valid && !r_event_reported[idx] &&
-                r_trans_table_local[idx].state == TRANS_COMPLETE && cfg_compl_enable) begin
-                w_completion_events_detected[idx] = 1'b1;
-            end
-        end
-
-        // Priority encoder to select the first detected completion
-        for (int idx = 0; idx < MAX_TRANSACTIONS; idx++) begin
-            if (w_completion_events_detected[idx] && !w_has_completion_event) begin
-                /* verilator lint_off WIDTHTRUNC */
-                w_selected_completion_idx = idx[$clog2(MAX_TRANSACTIONS)-1:0];
-                /* verilator lint_on WIDTHTRUNC */
-                w_has_completion_event = 1'b1;
-            end
-        end
-    end
-
-    // FIFO write interface - combines all event detections - Updated to use unified event codes
-    always_comb begin
-        w_fifo_wr_valid = 1'b0;
-        w_fifo_wr_data = '{default: '0};
-
-        // Priority: Error > Timeout > Completion
-        if (w_has_error_event) begin
-            w_fifo_wr_valid = 1'b1;
-            w_fifo_wr_data.packet_type = PktTypeError;
-            w_fifo_wr_data.event_code = r_trans_table_local[w_selected_error_idx].event_code.raw_code;
-            w_fifo_wr_data.channel = {3'b0, r_trans_table_local[w_selected_error_idx].channel[5:0]};
-            w_fifo_wr_data.data = pad_address(r_trans_table_local[w_selected_error_idx].addr);
-        end else if (w_has_timeout_event) begin
-            w_fifo_wr_valid = 1'b1;
-            w_fifo_wr_data.packet_type = PktTypeTimeout;
-            w_fifo_wr_data.event_code = r_trans_table_local[w_selected_timeout_idx].event_code.raw_code;
-            w_fifo_wr_data.channel = {3'b0, r_trans_table_local[w_selected_timeout_idx].channel[5:0]};
-            w_fifo_wr_data.data = pad_address(r_trans_table_local[w_selected_timeout_idx].addr);
-        end else if (w_has_completion_event) begin
-            w_fifo_wr_valid = 1'b1;
-            w_fifo_wr_data.packet_type = PktTypeCompletion;
-            w_fifo_wr_data.event_code = EVT_TRANS_COMPLETE;
-            w_fifo_wr_data.channel = {3'b0, r_trans_table_local[w_selected_completion_idx].channel[5:0]};
-            w_fifo_wr_data.data = pad_address(r_trans_table_local[w_selected_completion_idx].addr);
-        end
-    end
-
-    // FIFO read interface and event processing
-    assign w_fifo_rd_ready = monbus_ready && monbus_valid;
-
-    // Detect events that need to be marked as reported
-    always_comb begin
-        w_events_to_mark = '0;
-        w_error_events = '0;
+        w_events_to_mark    = '0;
+        w_error_events      = '0;
         w_completion_events = '0;
-
-        for (int idx = 0; idx < MAX_TRANSACTIONS; idx++) begin
-            if (r_trans_table_local[idx].valid) begin
-                if ((r_trans_table_local[idx].state == TRANS_ERROR ||
-                        r_trans_table_local[idx].state == TRANS_ORPHANED ||
-                        r_trans_table_local[idx].state == TRANS_COMPLETE) &&
-                        !r_event_reported[idx] && w_fifo_wr_valid && w_fifo_wr_ready) begin
-
-                    w_events_to_mark[idx] = 1'b1;
-
-                    if (r_trans_table_local[idx].state == TRANS_ERROR ||
-                        r_trans_table_local[idx].state == TRANS_ORPHANED) begin
-                        w_error_events[idx] = 1'b1;
-                    end else if (r_trans_table_local[idx].state == TRANS_COMPLETE) begin
-                        w_completion_events[idx] = 1'b1;
-                    end
-                end
-            end
-        end
-    end
-
-    // Active transaction count calculation
-    always_comb begin
-        w_active_count_current = '0;
-
         for (int idx = 0; idx < MAX_TRANSACTIONS; idx++) begin
             if (r_trans_table_local[idx].valid &&
-                r_trans_table_local[idx].state != TRANS_COMPLETE &&
-                r_trans_table_local[idx].state != TRANS_ERROR) begin
-                w_active_count_current = w_active_count_current + 1'b1;
-            end
-        end
-
-        /* verilator lint_off WIDTHEXPAND */
-        w_active_threshold_detection = (({8'h0, w_active_count_current} > active_trans_threshold) &&
-                                        !r_active_threshold_crossed &&
-                                        !monbus_valid &&
-                                        (w_fifo_rd_valid == 0));
-        /* verilator lint_on WIDTHEXPAND */
-    end
-
-    // Latency threshold detection — now consumes the REGISTERED per-slot
-    // latency + threshold flags (r_latency / r_latency_over_thresh) so the
-    // combinational cone shrinks to priority-encode + mux only. The
-    // 32-bit subtract and threshold comparison run one cycle earlier, in
-    // the main always_ff below.
-    always_comb begin
-        w_latency_threshold_events = '0;
-        w_selected_latency_idx = '0;
-        w_has_latency_event = 1'b0;
-        w_total_latency = '0;  // legacy signal, retained for waveform debug
-
-        if (ENABLE_PERF_PACKETS && cfg_perf_enable && cfg_threshold_enable) begin
-            w_latency_threshold_events = r_latency_over_thresh;
-
-            // Priority encoder to select the first latency threshold event
-            for (int idx = 0; idx < MAX_TRANSACTIONS; idx++) begin
-                if (w_latency_threshold_events[idx] && !w_has_latency_event) begin
-                    /* verilator lint_off WIDTHTRUNC */
-                    w_selected_latency_idx = idx[$clog2(MAX_TRANSACTIONS)-1:0];
-                    /* verilator lint_on WIDTHTRUNC */
-                    w_has_latency_event = 1'b1;
+                (r_trans_table_local[idx].state == TRANS_ERROR ||
+                 r_trans_table_local[idx].state == TRANS_ORPHANED ||
+                 r_trans_table_local[idx].state == TRANS_COMPLETE) &&
+                !r_event_reported[idx] && w_fifo_wr_valid && w_fifo_wr_ready) begin
+                w_events_to_mark[idx] = 1'b1;
+                if (r_trans_table_local[idx].state == TRANS_ERROR ||
+                    r_trans_table_local[idx].state == TRANS_ORPHANED) begin
+                    w_error_events[idx] = 1'b1;
+                end else if (r_trans_table_local[idx].state == TRANS_COMPLETE) begin
+                    w_completion_events[idx] = 1'b1;
                 end
             end
         end
     end
 
-    // Calculate latency value for selected transaction (combinational) —
-    // mux from the registered per-slot latencies instead of re-subtracting.
-    always_comb begin
-        w_selected_latency_value = '0;
-        if (w_has_latency_event) begin
-            w_selected_latency_value = r_latency[w_selected_latency_idx];
-        end
+    // -------------------------------------------------------------------------
+    // Threshold sub-block (stateful — 16 latency flops + 2 edge flags + active
+    // count detection). Drops entirely when ENABLE_THRESHOLD_LOGIC=0.
+    // -------------------------------------------------------------------------
+    logic        thresh_valid, thresh_taken;
+    logic [3:0]  thresh_type;
+    logic [7:0]  thresh_code;
+    logic [8:0]  thresh_chan;
+    logic [63:0] thresh_data;
+    logic        w_output_busy;
+    assign w_output_busy = monbus_valid || w_fifo_rd_valid;
+
+    if (ENABLE_THRESHOLD_LOGIC) begin : g_thresh
+        axi_monitor_reporter_threshold #(
+            .MAX_TRANSACTIONS      (MAX_TRANSACTIONS),
+            .IS_READ               (IS_READ),
+            .IDX_W                 (IDX_W)
+        ) u_thresh (
+            .aclk                   (aclk),
+            .aresetn                (aresetn),
+            .trans_table            (r_trans_table_local),
+            .cfg_threshold_enable   (cfg_threshold_enable),
+            .active_trans_threshold (active_trans_threshold),
+            .latency_threshold      (latency_threshold),
+            .output_busy            (w_output_busy),
+            .pkt_taken              (thresh_taken),
+            .pkt_valid              (thresh_valid),
+            .pkt_type               (thresh_type),
+            .pkt_event_code         (thresh_code),
+            .pkt_channel            (thresh_chan),
+            .pkt_data               (thresh_data)
+        );
+    end else begin : g_no_thresh
+        assign thresh_valid = 1'b0;
+        assign thresh_type  = '0;
+        assign thresh_code  = '0;
+        assign thresh_chan  = '0;
+        assign thresh_data  = '0;
     end
 
-    // Performance packet state and selection (combinational)
-    always_comb begin
-        w_next_perf_report_state = 3'h0;
-        w_generate_perf_packet_completed = 1'b0;
-        w_generate_perf_packet_errors = 1'b0;
+    // -------------------------------------------------------------------------
+    // Perf sub-block (legacy completion/error count rollups). Drops entirely
+    // when ENABLE_PERF_LOGIC=0; Stage A/B window perfmon is independent.
+    // -------------------------------------------------------------------------
+    logic        perf_valid, perf_taken;
+    logic [3:0]  perf_type;
+    logic [7:0]  perf_code;
+    logic [8:0]  perf_chan;
+    logic [63:0] perf_data;
+    logic [15:0] perf_completed_count_w;
+    logic [15:0] perf_error_count_w;
 
-        if (ENABLE_PERF_PACKETS && cfg_perf_enable && !monbus_valid && w_fifo_rd_valid == 0) begin
-            case (r_perf_report_state)
-                3'h0: begin // ADDR_LATENCY
-                    w_next_perf_report_state = 3'h1;
-                end
-                3'h1: begin // DATA_LATENCY
-                    w_next_perf_report_state = 3'h2;
-                end
-                3'h2: begin // TOTAL_LATENCY
-                    w_next_perf_report_state = 3'h3;
-                end
-                3'h3: begin // COMPLETED_COUNT
-                    w_next_perf_report_state = 3'h4;
-                    if (r_perf_completed_count > 0) begin
-                        w_generate_perf_packet_completed = 1'b1;
-                    end
-                end
-                3'h4: begin // ERROR_COUNT
-                    w_next_perf_report_state = 3'h0;
-                    if (r_perf_error_count > 0) begin
-                        w_generate_perf_packet_errors = 1'b1;
-                    end
-                end
-                default: w_next_perf_report_state = 3'h0;
-            endcase
-        end
+    if (ENABLE_PERF_LOGIC) begin : g_perf
+        axi_monitor_reporter_perf #(
+            .MAX_TRANSACTIONS(MAX_TRANSACTIONS)
+        ) u_perf (
+            .aclk                (aclk),
+            .aresetn             (aresetn),
+            .cfg_perf_enable     (cfg_perf_enable),
+            .output_busy         (w_output_busy),
+            .pkt_taken           (perf_taken),
+            .error_marked_mask   (w_error_events),
+            .compl_marked_mask   (w_completion_events),
+            .pkt_valid           (perf_valid),
+            .pkt_type            (perf_type),
+            .pkt_event_code      (perf_code),
+            .pkt_channel         (perf_chan),
+            .pkt_data            (perf_data),
+            .perf_completed_count(perf_completed_count_w),
+            .perf_error_count    (perf_error_count_w)
+        );
+    end else begin : g_no_perf
+        assign perf_valid             = 1'b0;
+        assign perf_type              = '0;
+        assign perf_code              = '0;
+        assign perf_chan              = '0;
+        assign perf_data              = '0;
+        assign perf_completed_count_w = '0;
+        assign perf_error_count_w     = '0;
     end
 
-    // Event reporting logic - sequential logic only
+    assign perf_completed_count = perf_completed_count_w;
+    assign perf_error_count     = perf_error_count_w;
+
+    // -------------------------------------------------------------------------
+    // Output mux + register: FIFO read > threshold > perf.
+    // -------------------------------------------------------------------------
+    logic [3:0]  r_packet_type;
+    logic [7:0]  r_event_code;
+    logic [63:0] r_event_data;
+    logic [8:0]  r_event_channel;
+
     `ALWAYS_FF_RST(aclk, aresetn,
         if (`RST_ASSERTED(aresetn)) begin
-            // Reset local table and reporting state
-            r_trans_table_local <= '{default: '0};
-            monbus_valid <= 1'b0;
-            r_event_count <= '0;
-            r_event_reported <= '0;
-
-            // Reset performance counters
-            r_perf_completed_count <= '0;
-            r_perf_error_count <= '0;
-
-            // Reset threshold flags
-            r_active_threshold_crossed <= 1'b0;
-            r_latency_threshold_crossed <= 1'b0;
-
-            // Reset per-slot latency pipeline registers
             for (int idx = 0; idx < MAX_TRANSACTIONS; idx++) begin
-                r_latency[idx] <= '0;
+                r_trans_table_local[idx] <= '0;
             end
-            r_latency_over_thresh <= '0;
-
-            // Initialize packet construction registers
-            r_packet_type <= PktTypeError;
-            r_event_code <= EVT_NONE;
-            r_event_data <= '0;
-            r_event_channel <= '0;
-
-            // Initialize performance report state
-            r_perf_report_state <= 3'h0;
+            monbus_valid     <= 1'b0;
+            r_event_count    <= '0;
+            r_event_reported <= '0;
+            r_packet_type    <= PktTypeError;
+            r_event_code     <= EVT_NONE;
+            r_event_data     <= '0;
+            r_event_channel  <= '0;
         end else begin
-            // Update local transaction table element by element to avoid width issues
+            // Snapshot trans_table.
             for (int idx = 0; idx < MAX_TRANSACTIONS; idx++) begin
                 r_trans_table_local[idx] <= trans_table[idx];
             end
 
-            // Per-slot latency pipeline. Computed from the LIVE (unregistered)
-            // trans_table input so r_latency[idx] is in-sync with
-            // r_trans_table_local[idx] on the NEXT cycle. The 32-bit subtract
-            // runs in parallel for all slots here, then priority encoding
-            // and mux happen combinationally from these registered values.
-            for (int idx = 0; idx < MAX_TRANSACTIONS; idx++) begin : g_lat
-                logic [31:0] lat;
-                if (IS_READ) begin
-                    lat = trans_table[idx].data_timestamp -
-                          trans_table[idx].addr_timestamp;
-                end else begin
-                    lat = trans_table[idx].resp_timestamp -
-                          trans_table[idx].addr_timestamp;
-                end
-                r_latency[idx] <= lat;
-                // Threshold flag: gated by valid+TRANS_COMPLETE to match
-                // the original "only score completed transactions" rule,
-                // and by r_latency_threshold_crossed to keep the edge-
-                // sticky behaviour.
-                r_latency_over_thresh[idx] <=
-                    trans_table[idx].valid &&
-                    (trans_table[idx].state == TRANS_COMPLETE) &&
-                    (lat > latency_threshold) &&
-                    !r_latency_threshold_crossed;
-            end
-
-            // Handle packet output
+            // Dequeue current output once accepted.
             if (monbus_valid && monbus_ready) begin
                 monbus_valid <= 1'b0;
             end
 
-            // Present next packet from FIFO
-            if (!monbus_valid && w_fifo_rd_valid) begin
-                monbus_valid <= 1'b1;
-                r_packet_type <= w_fifo_rd_data.packet_type;
-                r_event_code <= w_fifo_rd_data.event_code;
-                r_event_data <= w_fifo_rd_data.data;
-                r_event_channel <= w_fifo_rd_data.channel;
-            end
-
-            // Mark events as reported and update counters
+            // Mark events as reported + bump count.
             for (int idx = 0; idx < MAX_TRANSACTIONS; idx++) begin
-                // FIX-001: Clear event_reported flag when transaction becomes invalid
-                // This allows the flag to be reused when the transaction slot is reused
                 if (!r_trans_table_local[idx].valid) begin
-                    r_event_reported[idx] <= 1'b0;
+                    r_event_reported[idx] <= 1'b0;        // FIX-001: reuse slot
                 end else if (w_events_to_mark[idx]) begin
                     r_event_reported[idx] <= 1'b1;
-                    r_event_count <= r_event_count + 1'b1;
-                end
-
-                // Update performance counters
-                if (ENABLE_PERF_PACKETS) begin
-                    if (w_error_events[idx]) begin
-                        r_perf_error_count <= r_perf_error_count + 1'b1;
-                    end
-                    if (w_completion_events[idx]) begin
-                        r_perf_completed_count <= r_perf_completed_count + 1'b1;
-                    end
+                    r_event_count         <= r_event_count + 1'b1;
                 end
             end
 
-            // Generate threshold packets if enabled
-            if (cfg_threshold_enable) begin
-                // Active transaction count threshold
-                if (w_active_threshold_detection) begin
-                    monbus_valid <= 1'b1;
-                    r_packet_type <= PktTypeThreshold;
-                    r_event_code <= AXI_THRESH_ACTIVE_COUNT;
-                    r_event_data <= 64'(w_active_count_current);  // Zero-extend 8 → 64
-                    r_event_channel <= '0;
-                    r_active_threshold_crossed <= 1'b1;
-                    r_event_count <= r_event_count + 1'b1;
-                /* verilator lint_off WIDTHEXPAND */
-                end else if (({8'h0, w_active_count_current} <= active_trans_threshold)) begin
-                /* verilator lint_on WIDTHEXPAND */
-                    r_active_threshold_crossed <= 1'b0;
-                end
-
-                // Latency threshold
-                if (w_has_latency_event && !monbus_valid && w_fifo_rd_valid == 0) begin
-                    monbus_valid <= 1'b1;
-                    r_packet_type <= PktTypeThreshold;
-                    r_event_code <= AXI_THRESH_LATENCY;
-                    r_event_data <= pad_address(w_selected_latency_value);
-                    r_event_channel <= {3'b0, r_trans_table_local[w_selected_latency_idx].channel[5:0]};
-                    r_latency_threshold_crossed <= 1'b1;
-                    r_event_count <= r_event_count + 1'b1;
-                end
+            // Priority emit: FIFO -> threshold -> perf. Only one source per
+            // cycle; threshold/perf gate on (!monbus_valid && !w_fifo_rd_valid)
+            // via output_busy inside the sub-blocks.
+            if (!monbus_valid && w_fifo_rd_valid) begin
+                monbus_valid    <= 1'b1;
+                r_packet_type   <= w_fifo_rd_data.packet_type;
+                r_event_code    <= w_fifo_rd_data.event_code;
+                r_event_data    <= w_fifo_rd_data.data;
+                r_event_channel <= w_fifo_rd_data.channel;
+            end else if (thresh_valid && !monbus_valid && !w_fifo_rd_valid) begin
+                monbus_valid    <= 1'b1;
+                r_packet_type   <= thresh_type;
+                r_event_code    <= thresh_code;
+                r_event_data    <= thresh_data;
+                r_event_channel <= thresh_chan;
+                r_event_count   <= r_event_count + 1'b1;
+            end else if (perf_valid && !monbus_valid && !w_fifo_rd_valid) begin
+                monbus_valid    <= 1'b1;
+                r_packet_type   <= perf_type;
+                r_event_code    <= perf_code;
+                r_event_data    <= perf_data;
+                r_event_channel <= perf_chan;
             end
-
-            // Generate performance packets if enabled
-            if (w_generate_perf_packet_completed) begin
-                monbus_valid <= 1'b1;
-                r_packet_type <= PktTypePerf;
-                r_event_code <= AXI_PERF_COMPLETED_COUNT;
-                r_event_data <= 64'(r_perf_completed_count);  // Zero-extend 16 → 64
-                r_event_channel <= '0;
-            end
-
-            if (w_generate_perf_packet_errors) begin
-                monbus_valid <= 1'b1;
-                r_packet_type <= PktTypePerf;
-                r_event_code <= AXI_PERF_ERROR_COUNT;
-                r_event_data <= 64'(r_perf_error_count);  // Zero-extend 16 → 64
-                r_event_channel <= '0;
-            end
-
-            // Update performance report state
-            r_perf_report_state <= w_next_perf_report_state;
         end
     )
 
+    // pkt_taken pulses to threshold/perf when their packet was emitted.
+    // Threshold uses it to set edge-sticky crossed flags; perf currently
+    // ignores it (kept on the port for future back-pressure).
+    assign thresh_taken = thresh_valid && !monbus_valid && !w_fifo_rd_valid;
+    assign perf_taken   = perf_valid   && !monbus_valid && !w_fifo_rd_valid &&
+                          !thresh_valid;
 
+    // -------------------------------------------------------------------------
     // Construct the 128-bit monitor bus packet via package helper.
-    // Field widths come from monitor_common_pkg::create_monitor_packet:
-    //   packet_type  4 bits
-    //   protocol     4 bits  (PROTOCOL_AXI — this monitor is always AXI)
-    //   event_code   8 bits
-    //   channel_id   9 bits
-    //   unit_id      8 bits
-    //   agent_id    16 bits
-    //   event_data  64 bits
+    // -------------------------------------------------------------------------
     always_comb begin
         monbus_packet = create_monitor_packet(
             r_packet_type,
@@ -602,5 +449,12 @@ module axi_monitor_reporter
             r_event_data
         );
     end
+
+    // w_fifo_count is observed by the FIFO instance only — tie it
+    // through an unused-bit sink to keep the linter quiet.
+    /* verilator lint_off UNUSED */
+    logic unused_fifo_count;
+    assign unused_fifo_count = |w_fifo_count;
+    /* verilator lint_on UNUSED */
 
 endmodule : axi_monitor_reporter

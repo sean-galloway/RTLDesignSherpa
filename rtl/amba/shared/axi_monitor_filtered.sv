@@ -53,6 +53,14 @@ module axi_monitor_filtered
     parameter bit ENABLE_PERF_PACKETS    = 1'b1,
     parameter bit ENABLE_DEBUG_MODULE    = 1'b0,
 
+    // Reporter sub-block enables (passed through to axi_monitor_base).
+    // ENABLE_PERF_LOGIC defaults to ENABLE_PERF_PACKETS for back-compat.
+    parameter bit ENABLE_ERROR_LOGIC     = 1'b1,
+    parameter bit ENABLE_TIMEOUT_LOGIC   = 1'b1,
+    parameter bit ENABLE_COMPL_LOGIC     = 1'b1,
+    parameter bit ENABLE_THRESHOLD_LOGIC = 1'b1,
+    parameter bit ENABLE_PERF_LOGIC      = ENABLE_PERF_PACKETS,
+
     // Filtering parameters
     parameter bit ENABLE_FILTERING       = 1,     // Enable filtering logic
     parameter bit ADD_PIPELINE_STAGE     = 0,     // Add register stage for timing
@@ -208,6 +216,11 @@ module axi_monitor_filtered
         .IS_AXI                  (IS_AXI),
         .ENABLE_PERF_PACKETS     (ENABLE_PERF_PACKETS),
         .ENABLE_DEBUG_MODULE     (ENABLE_DEBUG_MODULE),
+        .ENABLE_ERROR_LOGIC      (ENABLE_ERROR_LOGIC),
+        .ENABLE_TIMEOUT_LOGIC    (ENABLE_TIMEOUT_LOGIC),
+        .ENABLE_COMPL_LOGIC      (ENABLE_COMPL_LOGIC),
+        .ENABLE_THRESHOLD_LOGIC  (ENABLE_THRESHOLD_LOGIC),
+        .ENABLE_PERF_LOGIC       (ENABLE_PERF_LOGIC),
         .N_ADDR_RANGES           (N_ADDR_RANGES)
     ) u_axi_monitor_base (
         .aclk                    (aclk),

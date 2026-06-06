@@ -53,6 +53,17 @@ module axi_monitor_base
     parameter bit ENABLE_PERF_PACKETS = 1'b0, // Enable performance metrics tracking
     parameter bit ENABLE_DEBUG_MODULE = 1'b0, // Enable debug tracking module
 
+    // Reporter sub-block enables — gate the LOGIC, not just packet emission.
+    // Default 1 preserves legacy behavior; integrators set 0 to synthesize
+    // away unused detection cones. ENABLE_TIMEOUT_LOGIC also drops the
+    // axi_monitor_timeout instance. ENABLE_PERF_LOGIC defaults to
+    // ENABLE_PERF_PACKETS for back-compat with the older switch.
+    parameter bit ENABLE_ERROR_LOGIC     = 1'b1,
+    parameter bit ENABLE_TIMEOUT_LOGIC   = 1'b1,
+    parameter bit ENABLE_COMPL_LOGIC     = 1'b1,
+    parameter bit ENABLE_THRESHOLD_LOGIC = 1'b1,
+    parameter bit ENABLE_PERF_LOGIC      = ENABLE_PERF_PACKETS,
+
     // FIFO depths
     parameter int INTR_FIFO_DEPTH     = 8,     // Interrupt FIFO depth
     parameter int DEBUG_FIFO_DEPTH    = 8,     // Debug FIFO depth
@@ -290,22 +301,26 @@ module axi_monitor_base
         .timestamp     (r_timestamp)
     );
 
-    // Timeout Detector
-    axi_monitor_timeout #(
-        .MAX_TRANSACTIONS    (MAX_TRANSACTIONS),
-        .ADDR_WIDTH          (ADDR_WIDTH),
-        .IS_READ             (IS_READ)
-    ) timeout(
-        .aclk                (aclk),
-        .aresetn             (aresetn),
-        .trans_table         (w_trans_table),
-        .timer_tick          (w_timer_tick),
-        .cfg_addr_cnt        (cfg_addr_cnt),
-        .cfg_data_cnt        (cfg_data_cnt),
-        .cfg_resp_cnt        (cfg_resp_cnt),
-        .cfg_timeout_enable  (cfg_timeout_enable),
-        .timeout_detected    (w_timeout_detected)
-    );
+    // Timeout Detector — drops entirely when ENABLE_TIMEOUT_LOGIC=0.
+    if (ENABLE_TIMEOUT_LOGIC) begin : gen_timeout
+        axi_monitor_timeout #(
+            .MAX_TRANSACTIONS    (MAX_TRANSACTIONS),
+            .ADDR_WIDTH          (ADDR_WIDTH),
+            .IS_READ             (IS_READ)
+        ) timeout(
+            .aclk                (aclk),
+            .aresetn             (aresetn),
+            .trans_table         (w_trans_table),
+            .timer_tick          (w_timer_tick),
+            .cfg_addr_cnt        (cfg_addr_cnt),
+            .cfg_data_cnt        (cfg_data_cnt),
+            .cfg_resp_cnt        (cfg_resp_cnt),
+            .cfg_timeout_enable  (cfg_timeout_enable),
+            .timeout_detected    (w_timeout_detected)
+        );
+    end else begin : gen_no_timeout
+        assign w_timeout_detected = '0;
+    end
 
     // Interrupt Reporter with gaxi_fifo_sync
     axi_monitor_reporter #(
@@ -315,7 +330,12 @@ module axi_monitor_base
         .AGENT_ID              (AGENT_ID),
         .IS_READ               (IS_READ),
         .ENABLE_PERF_PACKETS   (ENABLE_PERF_PACKETS),
-        .INTR_FIFO_DEPTH       (INTR_FIFO_DEPTH)
+        .INTR_FIFO_DEPTH       (INTR_FIFO_DEPTH),
+        .ENABLE_ERROR_LOGIC    (ENABLE_ERROR_LOGIC),
+        .ENABLE_TIMEOUT_LOGIC  (ENABLE_TIMEOUT_LOGIC),
+        .ENABLE_COMPL_LOGIC    (ENABLE_COMPL_LOGIC),
+        .ENABLE_THRESHOLD_LOGIC(ENABLE_THRESHOLD_LOGIC),
+        .ENABLE_PERF_LOGIC     (ENABLE_PERF_LOGIC)
     ) reporter(
         .aclk                  (aclk),
         .aresetn               (aresetn),
