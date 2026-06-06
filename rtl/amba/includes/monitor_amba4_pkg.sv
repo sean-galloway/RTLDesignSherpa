@@ -133,6 +133,68 @@ package monitor_amba4_pkg;
         AXI_PERF_USER_DEFINED      = 8'hF   // User-defined performance
     } axi_performance_code_t;
 
+    // AXI PerfWin Events (packet_type = PktTypePerfWin, protocol = PROTOCOL_AXI)
+    //
+    // Emitted on window close (see axi_monitor_base.sv window state machine).
+    // Each event_code carries a single 64-bit value in event_data; software
+    // computes utilization ratios (productive/total, etc.) from the raw
+    // counters per DMA_UTILIZATION_MEASUREMENT.md Section 4 policy.
+    //
+    // The channel_id field of the packet header carries the channel for
+    // CHAN_* codes; for aggregate codes channel_id is ignored.
+    typedef enum logic [7:0] {
+        AXI_PERFWIN_WIN_END        = 8'h0,  // Window close + total window cycles
+        AXI_PERFWIN_PROD_CYCLES    = 8'h1,  // valid && ready
+        AXI_PERFWIN_BP_CYCLES      = 8'h2,  // valid && !ready (backpressure)
+        AXI_PERFWIN_STARV_CYCLES   = 8'h3,  // !valid && ready (starvation)
+        AXI_PERFWIN_IDLE_CYCLES    = 8'h4,  // !valid && !ready (idle)
+        AXI_PERFWIN_BEAT_COUNT     = 8'h5,  // productive beats
+        AXI_PERFWIN_BYTE_COUNT     = 8'h6,  // beats × (1<<axsize), masked by strb
+        AXI_PERFWIN_BURST_COUNT    = 8'h7,  // AW/AR handshake count
+        AXI_PERFWIN_WIN_START      = 8'h8,  // Window start timestamp snapshot
+        AXI_PERFWIN_CHAN_PROD      = 8'h9,  // Per-channel productive cycles
+        AXI_PERFWIN_CHAN_STARV     = 8'hA,  // Per-channel starvation cycles
+        AXI_PERFWIN_CHAN_BP        = 8'hB,  // Per-channel backpressure cycles
+        AXI_PERFWIN_RESERVED_C     = 8'hC,  // Reserved
+        AXI_PERFWIN_RESERVED_D     = 8'hD,  // Reserved
+        AXI_PERFWIN_RESERVED_E     = 8'hE,  // Reserved
+        AXI_PERFWIN_USER_DEFINED   = 8'hF   // User-defined window metric
+    } axi_perfwin_code_t;
+
+    // AXI PerfHist Events (packet_type = PktTypePerfHist, protocol = PROTOCOL_AXI)
+    //
+    // event_code[7:4] = histogram select:
+    //   0x0 : ADDR_LATENCY    (AR/AW handshake to first data beat)
+    //   0x1 : DATA_LATENCY    (first data beat to last data beat)
+    //   0x2 : RESP_LATENCY    (last data beat to B / last R)
+    //   0x3..0xF : reserved
+    //
+    // event_code[3:0] = bucket index 0..15 with log2 cycle thresholds:
+    //   0:<2, 1:<4, 2:<8, 3:<16, 4:<32, 5:<64, 6:<128, 7:<256,
+    //   8:<512, 9:<1024, 10:<2048, 11:<4096, 12:<8192, 13:<16384,
+    //   14:<32768, 15:>=32768
+    //
+    // Each packet carries that bucket's count in event_data (24-32 bit).
+    // Channel_id carries the per-channel subdivision when enabled.
+    typedef enum logic [3:0] {
+        AXI_PERFHIST_SEL_ADDR      = 4'h0,  // addr-phase latency histogram
+        AXI_PERFHIST_SEL_DATA      = 4'h1,  // data-phase latency histogram
+        AXI_PERFHIST_SEL_RESP      = 4'h2,  // resp-phase latency histogram
+        AXI_PERFHIST_SEL_RESERVED3 = 4'h3,
+        AXI_PERFHIST_SEL_RESERVED4 = 4'h4,
+        AXI_PERFHIST_SEL_RESERVED5 = 4'h5,
+        AXI_PERFHIST_SEL_RESERVED6 = 4'h6,
+        AXI_PERFHIST_SEL_RESERVED7 = 4'h7,
+        AXI_PERFHIST_SEL_RESERVED8 = 4'h8,
+        AXI_PERFHIST_SEL_RESERVED9 = 4'h9,
+        AXI_PERFHIST_SEL_RESERVEDA = 4'hA,
+        AXI_PERFHIST_SEL_RESERVEDB = 4'hB,
+        AXI_PERFHIST_SEL_RESERVEDC = 4'hC,
+        AXI_PERFHIST_SEL_RESERVEDD = 4'hD,
+        AXI_PERFHIST_SEL_RESERVEDE = 4'hE,
+        AXI_PERFHIST_SEL_USER      = 4'hF   // User-defined histogram
+    } axi_perfhist_select_t;
+
     // AXI Address Match Events (packet_type = PktTypeAddrMatch, protocol = PROTOCOL_AXI)
     typedef enum logic [7:0] {
         AXI_ADDR_EXACT_MATCH     = 8'h0,  // Exact address match
@@ -675,6 +737,8 @@ package monitor_amba4_pkg;
                     PktTypeThreshold : return 1'b1;
                     PktTypePerf      : return 1'b1;
                     PktTypeAddrMatch : return 1'b1;
+                    PktTypePerfWin   : return 1'b1;  // window-aggregate counters
+                    PktTypePerfHist  : return 1'b1;  // latency histogram
                     PktTypeDebug     : return 1'b1;
                     default          : return 1'b0;
                 endcase

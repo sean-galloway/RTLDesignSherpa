@@ -155,6 +155,15 @@ module axi4_slave_wr_mon
     input  logic [(N_ADDR_RANGES > 0 ? N_ADDR_RANGES : 1)-1:0][AW-1:0] cfg_addr_range_low,
     input  logic [(N_ADDR_RANGES > 0 ? N_ADDR_RANGES : 1)-1:0][AW-1:0] cfg_addr_range_high,
 
+    // Performance window control (Stage A of perfmon RFC). Wire to the
+    // integrating block's perfmon CSR; tie 3'b111 + 1'b0 if perfmon is
+    // unused at this instance.
+    input  logic [2:0]                              cfg_start_event_sel,
+    input  logic [2:0]                              cfg_end_event_sel,
+    input  logic                                    cfg_start_trigger,
+    input  logic                                    cfg_end_trigger,
+    input  logic                                    cfg_window_force_close,
+
     // Free-running monitor-time broadcast from monbus_axil_group
     input  monitor_common_pkg::monbus_timestamp_t   i_mon_time,
 
@@ -169,6 +178,11 @@ module axi4_slave_wr_mon
     output logic [7:0]                 active_transactions,     // Number of active transactions
     output logic [15:0]                error_count,             // Total error count (not available from base monitor)
     output logic [31:0]                transaction_count,       // Total transaction count (not available from base monitor)
+
+    // Performance window status (Stage A of perfmon RFC). Reflects the
+    // internal axi_monitor_base state machine.
+    output logic                       window_active,
+    output logic [31:0]                window_cycles,
 
     // Configuration error flags
     output logic                       cfg_conflict_error       // Configuration conflict detected
@@ -332,6 +346,15 @@ module axi4_slave_wr_mon
             .cfg_addr_range_low      (cfg_addr_range_low),
             .cfg_addr_range_high     (cfg_addr_range_high),
 
+            // Performance window control (Stage A of perfmon RFC).
+            // Wrapper-level ports pass straight through; the integrating
+            // block ties them off (3'b111 + 0s) when perfmon is unused.
+            .cfg_start_event_sel     (cfg_start_event_sel),
+            .cfg_end_event_sel       (cfg_end_event_sel),
+            .cfg_start_trigger       (cfg_start_trigger),
+            .cfg_end_trigger         (cfg_end_trigger),
+            .cfg_window_force_close  (cfg_window_force_close),
+
             // Monitor bus output
             .monbus_valid            (monbus_valid),
             .monbus_ready            (monbus_ready),
@@ -345,6 +368,8 @@ module axi4_slave_wr_mon
             /* verilator lint_off PINCONNECTEMPTY */
             .busy                    (),                    // Unused (using slave busy)
             /* verilator lint_on PINCONNECTEMPTY */
+            .window_active           (window_active),
+            .window_cycles           (window_cycles),
             .active_count            (active_transactions),
 
             // Configuration error flags
@@ -357,6 +382,9 @@ module axi4_slave_wr_mon
         assign active_transactions = 8'h0;
         assign cfg_conflict_error  = 1'b0;
         assign w_block_ready       = 1'b1;
+        // Perfmon disabled when ENABLE_MONITOR=0.
+        assign window_active       = 1'b0;
+        assign window_cycles       = 32'h0;
     end
 
     // Gate the upstream AW handshake on monitor block_ready.

@@ -123,6 +123,25 @@ module axi_monitor_base
     input  logic [(N_ADDR_RANGES > 0 ? N_ADDR_RANGES : 1)-1:0][AW-1:0] cfg_addr_range_low,
     input  logic [(N_ADDR_RANGES > 0 ? N_ADDR_RANGES : 1)-1:0][AW-1:0] cfg_addr_range_high,
 
+    // Performance window control (Stage A of perfmon RFC).
+    //   See rtl/amba/PRD/RFCs/RFC-perfmon-window-buckets.md for the full
+    //   start/end-event encoding. Stage B will wire the four cycle bucket
+    //   counters to gate on window_active; Stage D wires the latency
+    //   histograms. Stage A only manages the lifecycle.
+    //
+    //   start_event_sel / end_event_sel encoding:
+    //     3'b000  software trigger (cfg_*_trigger pulse)
+    //     3'b001  first cmd handshake (start) / last data_last|resp (end)
+    //     3'b010  cfg_perf_enable edge (rising/falling)
+    //     3'b011  first productive beat (start) / counter saturate (end)
+    //     3'b100  external trigger (same path as 3'b000 today)
+    //     others  reserved (treated as never-fires)
+    input  logic [2:0]               cfg_start_event_sel,
+    input  logic [2:0]               cfg_end_event_sel,
+    input  logic                     cfg_start_trigger,   // pulse from engine/CSR
+    input  logic                     cfg_end_trigger,
+    input  logic                     cfg_window_force_close, // software override
+
     // Free-running monitor-time counter, broadcast from monbus_axil_group
     input  monbus_timestamp_t        i_mon_time,
 
@@ -135,7 +154,17 @@ module axi_monitor_base
     // Flow control and status
     output logic                     block_ready,    // Flow control signal
     output logic                     busy,           // Monitor is busy
-    output logic [7:0]               active_count    // Number of active transactions
+    output logic [7:0]               active_count,   // Number of active transactions
+
+    // Performance window status (Stage A of perfmon RFC).
+    //   window_active: high while a measurement window is open. Stage B
+    //                  counters gate on this. Stage E integration can
+    //                  drive software-visible CSR status from this.
+    //   window_cycles: free-running counter of cycles elapsed inside the
+    //                  current window. Sampled by reporter at window
+    //                  close into the WIN_END PerfWin packet (Stage B).
+    output logic                     window_active,
+    output logic [31:0]              window_cycles
 );
 
     // Import standard monitor types and constants
@@ -372,5 +401,122 @@ module axi_monitor_base
 
     // Active transaction count
     assign active_count = w_active_count;
+
+    // =========================================================================
+    // Performance window state machine (Stage A of perfmon RFC)
+    //
+    // Drives window_active / window_cycles based on the start/end-event
+    // selector inputs. Stage B will gate the four cycle bucket counters
+    // (productive/bp/starv/idle) on window_active. Stage D wires the
+    // latency-histogram bucket counters the same way. Stage A only
+    // manages the lifecycle so the rest of the perfmon work has a
+    // stable window framework to hang off of.
+    //
+    // States:
+    //   WIN_IDLE    : waiting for start event. window_active=0.
+    //   WIN_ACTIVE  : window open. window_cycles ticking. counters (Stage B+)
+    //                 gate on window_active.
+    //   WIN_CLOSING : one-cycle hold before re-arming. In Stage A this is
+    //                 just a transition state; Stage B holds it long
+    //                 enough for the reporter to drain WIN_END + counter
+    //                 packets without losing them to a re-open.
+    // =========================================================================
+    typedef enum logic [1:0] {
+        WIN_IDLE_S    = 2'b00,
+        WIN_ACTIVE_S  = 2'b01,
+        WIN_CLOSING_S = 2'b10
+    } win_state_e;
+
+    win_state_e  r_win_state;
+    logic [31:0] r_window_cycles;
+    logic        r_perf_enable_d1;
+    logic        w_perf_enable_rising;
+    logic        w_perf_enable_falling;
+    logic        w_cmd_handshake;
+    logic        w_data_handshake;
+    logic        w_resp_handshake;
+    logic        w_window_saturate;
+    logic        w_start_event;
+    logic        w_end_event;
+
+    assign w_cmd_handshake  = cmd_valid  && cmd_ready;
+    assign w_data_handshake = data_valid && data_ready;
+    assign w_resp_handshake = resp_valid && resp_ready;
+    // Saturate one cycle before max so the bump-by-1 below doesn't wrap
+    // through 0 and confuse the reporter on the same cycle.
+    assign w_window_saturate = (r_window_cycles == 32'hFFFF_FFFE);
+
+    // Edge detect on cfg_perf_enable for sel modes 010/011
+    always_ff @(posedge aclk or negedge aresetn) begin
+        if (!aresetn) r_perf_enable_d1 <= 1'b0;
+        else          r_perf_enable_d1 <= cfg_perf_enable;
+    end
+    assign w_perf_enable_rising  =  cfg_perf_enable && !r_perf_enable_d1;
+    assign w_perf_enable_falling = !cfg_perf_enable &&  r_perf_enable_d1;
+
+    // Start-event mux. Codes 3'b000 and 3'b100 both map to the trigger
+    // input for now -- one is software-CSR, the other is the external
+    // trigger pin convention; the integrating block can choose to mux
+    // an external pin into cfg_start_trigger.
+    always_comb begin
+        case (cfg_start_event_sel)
+            3'b000:  w_start_event = cfg_start_trigger;
+            3'b001:  w_start_event = w_cmd_handshake;
+            3'b010:  w_start_event = w_perf_enable_rising;
+            3'b011:  w_start_event = w_data_handshake;
+            3'b100:  w_start_event = cfg_start_trigger;
+            default: w_start_event = 1'b0;
+        endcase
+    end
+
+    // End-event mux. For mode 3'b001 the "last data" semantic differs by
+    // direction: reads end at RLAST handshake, writes end at B handshake.
+    always_comb begin
+        case (cfg_end_event_sel)
+            3'b000:  w_end_event = cfg_end_trigger;
+            3'b001:  w_end_event = IS_READ ? (w_data_handshake && data_last)
+                                           :  w_resp_handshake;
+            3'b010:  w_end_event = w_window_saturate;
+            3'b011:  w_end_event = w_perf_enable_falling;
+            3'b100:  w_end_event = cfg_end_trigger;
+            default: w_end_event = 1'b0;
+        endcase
+    end
+
+    always_ff @(posedge aclk or negedge aresetn) begin
+        if (!aresetn) begin
+            r_win_state     <= WIN_IDLE_S;
+            r_window_cycles <= 32'h0;
+        end else begin
+            unique case (r_win_state)
+                WIN_IDLE_S: begin
+                    if (w_start_event) begin
+                        r_win_state     <= WIN_ACTIVE_S;
+                        // Start at 1 so the WIN_END packet's window_cycles
+                        // value counts inclusive of the first cycle.
+                        r_window_cycles <= 32'h0000_0001;
+                    end
+                end
+                WIN_ACTIVE_S: begin
+                    r_window_cycles <= r_window_cycles + 32'h1;
+                    if (w_end_event || cfg_window_force_close) begin
+                        r_win_state <= WIN_CLOSING_S;
+                    end
+                end
+                WIN_CLOSING_S: begin
+                    // Stage A: immediate transition. Stage B will hold here
+                    // until the reporter ACKs draining the window packets.
+                    r_win_state     <= WIN_IDLE_S;
+                    r_window_cycles <= 32'h0;
+                end
+                default: begin
+                    r_win_state <= WIN_IDLE_S;
+                end
+            endcase
+        end
+    end
+
+    assign window_active = (r_win_state == WIN_ACTIVE_S);
+    assign window_cycles = r_window_cycles;
 
 endmodule : axi_monitor_base

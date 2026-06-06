@@ -120,6 +120,15 @@ module axi_monitor_filtered
     input  logic [(N_ADDR_RANGES > 0 ? N_ADDR_RANGES : 1)-1:0][ADDR_WIDTH-1:0] cfg_addr_range_low,
     input  logic [(N_ADDR_RANGES > 0 ? N_ADDR_RANGES : 1)-1:0][ADDR_WIDTH-1:0] cfg_addr_range_high,
 
+    // Performance window control (Stage A of perfmon RFC). Wire to the
+    // integrating block's perfmon CSR; tie 3'b111 + 1'b0 if perfmon is
+    // unused at this instance.
+    input  logic [2:0]                  cfg_start_event_sel,
+    input  logic [2:0]                  cfg_end_event_sel,
+    input  logic                        cfg_start_trigger,
+    input  logic                        cfg_end_trigger,
+    input  logic                        cfg_window_force_close,
+
     // Free-running monitor-time broadcast from monbus_axil_group
     input  monitor_common_pkg::monbus_timestamp_t   i_mon_time,
 
@@ -133,6 +142,10 @@ module axi_monitor_filtered
     output logic                        block_ready,
     output logic                        busy,
     output logic [7:0]                  active_count,
+
+    // Performance window status (Stage A of perfmon RFC).
+    output logic                        window_active,
+    output logic [31:0]                 window_cycles,
 
     // Configuration error flags
     output logic                        cfg_conflict_error     // Configuration conflict detected
@@ -236,6 +249,13 @@ module axi_monitor_filtered
         .cfg_addr_range_low      (cfg_addr_range_low),
         .cfg_addr_range_high     (cfg_addr_range_high),
 
+        // Performance window control (Stage A of perfmon RFC)
+        .cfg_start_event_sel     (cfg_start_event_sel),
+        .cfg_end_event_sel       (cfg_end_event_sel),
+        .cfg_start_trigger       (cfg_start_trigger),
+        .cfg_end_trigger         (cfg_end_trigger),
+        .cfg_window_force_close  (cfg_window_force_close),
+
         // Monitor bus output (unfiltered, 128-bit + side-band ts)
         .monbus_valid            (base_monbus_valid),
         .monbus_ready            (base_monbus_ready),
@@ -245,7 +265,11 @@ module axi_monitor_filtered
         // Status outputs
         .block_ready             (block_ready),
         .busy                    (busy),
-        .active_count            (active_count)
+        .active_count            (active_count),
+
+        // Performance window status
+        .window_active           (window_active),
+        .window_cycles           (window_cycles)
     );
 
     // =========================================================================

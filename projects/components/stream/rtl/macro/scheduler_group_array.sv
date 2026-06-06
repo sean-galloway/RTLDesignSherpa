@@ -577,6 +577,15 @@ module scheduler_group_array #(
         .cfg_addr_range_low     ('0),
         .cfg_addr_range_high    ('0),
 
+        // Performance window control (Stage A of perfmon RFC). Tied to
+        // "perfmon off" for the desc-bus monitor; Stage E will wire these
+        // to the STREAM perf-CSR if desc-bus perfmon is desired.
+        .cfg_start_event_sel    (3'b111),  // never fire
+        .cfg_end_event_sel      (3'b111),  // never fire
+        .cfg_start_trigger      (1'b0),
+        .cfg_end_trigger        (1'b0),
+        .cfg_window_force_close (1'b0),
+
         // Free-running monitor time broadcast
         .i_mon_time             (i_mon_time),
 
@@ -591,6 +600,10 @@ module scheduler_group_array #(
         .active_transactions    (cfg_sts_desc_mon_active_txns),
         .error_count            (cfg_sts_desc_mon_error_count),
         .transaction_count      (cfg_sts_desc_mon_txn_count),
+        /* verilator lint_off PINCONNECTEMPTY */
+        .window_active          (),                 // Stage E will wire
+        .window_cycles          (),                 // Stage E will wire
+        /* verilator lint_on PINCONNECTEMPTY */
         .cfg_conflict_error     (cfg_sts_desc_mon_conflict_error)
     );
 

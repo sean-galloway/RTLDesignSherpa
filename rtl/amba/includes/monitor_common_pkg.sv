@@ -60,8 +60,15 @@ package monitor_common_pkg;
     localparam logic [3:0] PktTypeReservedA  = 4'hA;  // Reserved
     localparam logic [3:0] PktTypeReservedB  = 4'hB;  // Reserved
     localparam logic [3:0] PktTypeReservedC  = 4'hC;  // Reserved
-    localparam logic [3:0] PktTypeReservedD  = 4'hD;  // Reserved
-    localparam logic [3:0] PktTypeReservedE  = 4'hE;  // Reserved
+    // PerfWin: window-aggregate performance — cycle buckets, byte/beat
+    //   counters. One packet per metric, emitted on window close. See
+    //   rtl/amba/PRD/RFCs/RFC-perfmon-window-buckets.md for event_code
+    //   assignments per protocol package (e.g. AXI_PERFWIN_* enum).
+    localparam logic [3:0] PktTypePerfWin    = 4'hD;
+    // PerfHist: histogram bucket counts. event_code[7:4]=histogram select,
+    //   event_code[3:0]=bucket index (0..15, log2 cycle thresholds).
+    //   See RFC for full encoding.
+    localparam logic [3:0] PktTypePerfHist   = 4'hE;
     localparam logic [3:0] PktTypeDebug      = 4'hF;  // Debug/trace event
 
     // =============================================================================
@@ -217,6 +224,8 @@ package monitor_common_pkg;
             PktTypeStream    : return "STREAM";
             PktTypeAddrMatch : return "ADDR_MATCH";
             PktTypeAPB       : return "APB";
+            PktTypePerfWin   : return "PERFWIN";
+            PktTypePerfHist  : return "PERFHIST";
             PktTypeDebug     : return "DEBUG";
             default          : return "UNKNOWN";
         endcase
