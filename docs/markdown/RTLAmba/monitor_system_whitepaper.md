@@ -281,10 +281,13 @@ moving the orange boxes earlier or later in the data path.
   edge) and meaningless across clock domains. At today's 100 MHz that's
   ~5.8 years before wrap, which is fine for any single capture window;
   the limitation is that two captures from different domains can't be
-  correlated without re-syncing. Records are always 3 beats:
-  `[pkt[63:0], pkt[127:64], ts[63:0]]`. The endpoints (parser, host
-  scripts) do not care where the timestamp originated — they treat it
-  as an opaque ordering key.
+  correlated without re-syncing. Records are 3 beats with the
+  tag-bearing timestamp beat first:
+  `[{tag[3:0], ts[59:0]}, pkt[127:64], pkt[63:0]]`. `tag = 4'h0` means
+  "raw, no compression" (current behavior); non-zero tags are reserved
+  for a future compression encoder that drops in upstream of the bulk
+  writer without changing the wire framing. The endpoints (parser,
+  host scripts) treat the timestamp as an opaque ordering key.
 - **Tweak: global μsec upper bits.** The counter is contained entirely
   inside `monbus_axil_group`; swapping its source is a localized RTL
   change with no impact on the packet format, the arbiter, or the

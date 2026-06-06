@@ -51,7 +51,23 @@ Timestamping:
 - Both FIFOs (err and write) store the same 192-bit record:
   {packet[127:0], source_ts[63:0]}. The m_axil master write FSM and the
   s_axil slave read drain both emit/consume that record as exactly three
-  64-bit beats: [packet[63:0], packet[127:64], source_ts[63:0]].
+  64-bit beats, with the timestamp beat leading and carrying a 4-bit
+  encoding tag in its top 4 bits:
+    beat 0 = {tag[3:0], source_ts[59:0]}
+             tag = 4'h0  raw 3-beat record (no compression, this writer)
+             tag = 4'h1  reserved -- future Tier-1 compression format A
+             tag = 4'h2  reserved -- future Tier-1 compression format B
+             tag = 4'h3  reserved -- future Tier-1 compression format C
+             tag = 4'h4-4'hF  reserved for future use
+             The current writer hardwires tag = 4'h0; an optional
+             compressor block in front of this writer can populate the
+             other codes without changing the wire format.
+    beat 1 = packet[127:64]
+    beat 2 = packet[63:0]
+  Putting the tag-bearing beat first lets a decoder read one 64-bit
+  word, look at the top 4 bits, and immediately know the record length
+  and format without lookahead. The 60-bit truncated timestamp wraps at
+  2^60 cycles (~117 days at 100 MHz, plenty for any capture window).
 - The variable-size append-mode used in earlier revisions (16/24/32-byte
   records selected by cfg_ts_append_enable / cfg_ts_append_mode) is GONE.
   The endpoints (parser, host dump scripts) treat the timestamp as an
@@ -174,11 +190,13 @@ module monbus_axil_group
     localparam int WRITE_FIFO_ADDR_WIDTH = $clog2(FIFO_DEPTH_WRITE);
 
     // Both FIFOs store the same 192-bit record: {source_ts, packet}.
-    // s_axil drains in three 64-bit beats (slice 0: packet[63:0]; slice 1:
-    // packet[127:64]; slice 2: source_ts[63:0]); the m_axil writer emits
-    // the same three beats in the same order to memory. Layout chosen so
-    // packet bits are contiguous in the low half, matching the natural
-    // byte-order expectation.
+    // s_axil drains in three 64-bit beats (slice 0: {tag[3:0],
+    // source_ts[59:0]}; slice 1: packet[127:64]; slice 2: packet[63:0]);
+    // the m_axil writer emits the same three beats in the same order to
+    // memory. Putting the timestamp slice first reserves the top 4 bits
+    // for a future on-the-wire compression tag without changing FIFO
+    // contents (FIFO still holds raw 192-bit records; tag is asserted
+    // by the writer/drainer as a constant 4'h0 today).
     localparam int FIFO_REC_WIDTH       = MONBUS_PKT_WIDTH + MONBUS_TS_WIDTH;
     localparam int ERR_FIFO_REC_WIDTH   = FIFO_REC_WIDTH;
     localparam int WRITE_REC_WIDTH      = FIFO_REC_WIDTH;
@@ -432,7 +450,9 @@ module monbus_axil_group
     assign write_fifo_wr_valid = input_monbus_valid && pkt_to_write_fifo && !pkt_drop;
     // Pack: {source_ts[63:0], packet[127:0]} -- mirrors err_fifo_wr_data so
     // both FIFOs feed the m_axil writer / s_axil drainer with an identical
-    // 3-beat layout (packet[63:0], packet[127:64], source_ts[63:0]).
+    // 3-beat layout: slice 0 = {tag[3:0], source_ts[59:0]}, slice 1 =
+    // packet[127:64], slice 2 = packet[63:0]. The tag is asserted by the
+    // writer/drainer (4'h0 today, reserved for future compression).
     assign write_fifo_wr_data  = {input_monbus_source_ts, input_monbus_packet};
 
     gaxi_fifo_sync #(
@@ -499,25 +519,35 @@ module monbus_axil_group
     // 192-bit err_fifo record drained over 3 × 64-bit CPU beats.
     //
     // An internal slice counter (r_slice_idx) tracks which 64-bit chunk
-    // of the current head-of-FIFO entry the next read should return:
-    //   slice 0: packet[63:0]
+    // of the current head-of-FIFO entry the next read should return.
+    // The slice order mirrors the m_axil bulk-writer:
+    //   slice 0: {tag[3:0], source_ts[59:0]}   tag = 4'h0 (raw, no compression)
     //   slice 1: packet[127:64]
-    //   slice 2: source_ts[63:0]
+    //   slice 2: packet[63:0]
     // The slice counter advances on each successful read; the FIFO entry
     // is popped only when the third slice fires. The CPU therefore
     // drains one packet by issuing three reads in a row -- the read
     // address is ignored for slice selection so reads can target the
     // same offset or different offsets, the slicer doesn't care.
     //
+    // The top 4 bits of slice 0 reserve space for a future on-the-wire
+    // compression encoding (see file header). Today the s_axil drain
+    // always emits tag = 4'h0 because the FIFO holds raw 192-bit
+    // records; a future compressor that lives upstream of both FIFOs
+    // would change this.
+    //
     // arready stalls while the FIFO is empty (no entry to slice).
     // Once a drain is in progress (r_slice_idx != 0) the head entry
     // stays put until the wrap, so the CPU can pause between beats
     // without losing the in-flight packet.
     // ---------------------------------------------------------------
+    // Slice ordering: source_ts (with tag) first, then packet high, then
+    // packet low. Matches the m_axil bulk-writer beat order so a host
+    // walking the SRAM ring and a CPU IRQ handler get identical records.
     typedef enum logic [1:0] {
-        SLICE_PKT_LO = 2'd0,
+        SLICE_SRC_TS = 2'd0,
         SLICE_PKT_HI = 2'd1,
-        SLICE_SRC_TS = 2'd2,
+        SLICE_PKT_LO = 2'd2,
         SLICE_RSVD   = 2'd3
     } read_slice_t;
 
@@ -525,28 +555,32 @@ module monbus_axil_group
 
     `ALWAYS_FF_RST(axi_aclk, axi_aresetn,
         if (`RST_ASSERTED(axi_aresetn)) begin
-            r_slice_idx <= SLICE_PKT_LO;
+            r_slice_idx <= SLICE_SRC_TS;
         end else if (fub_rd_rvalid && fub_rd_rready) begin
-            r_slice_idx <= (r_slice_idx == SLICE_SRC_TS)
-                           ? SLICE_PKT_LO
+            r_slice_idx <= (r_slice_idx == SLICE_PKT_LO)
+                           ? SLICE_SRC_TS
                            : read_slice_t'(r_slice_idx + 2'd1);
         end
     )
 
     assign fub_rd_arready    = !err_fifo_empty;
     assign fub_rd_rvalid     = fub_rd_arvalid && fub_rd_arready;
-    // Pop only when the third slice (source_ts) is read -- the FIFO
+    // Pop only when the third slice (packet low) is read -- the FIFO
     // advances every 3 reads, not every read.
     assign err_fifo_rd_ready = fub_rd_rvalid && fub_rd_rready
-                            && (r_slice_idx == SLICE_SRC_TS);
+                            && (r_slice_idx == SLICE_PKT_LO);
 
+    // Tag hardwired to 4'h0 for the raw (uncompressed) record format.
+    // Matches the m_axil bulk-writer WRITE_TAG_RAW constant.
+    localparam logic [3:0] READ_TAG_RAW = 4'h0;
     always_comb begin
         fub_rd_rdata = {S_AXIL_DATA_WIDTH{1'b0}};
         if (!err_fifo_empty) begin
             unique case (r_slice_idx)
-                SLICE_PKT_LO: fub_rd_rdata = err_fifo_rd_data[63:0];
+                SLICE_SRC_TS: fub_rd_rdata = {READ_TAG_RAW,
+                                              err_fifo_rd_data[MONBUS_PKT_WIDTH+59:MONBUS_PKT_WIDTH]};
                 SLICE_PKT_HI: fub_rd_rdata = err_fifo_rd_data[MONBUS_PKT_WIDTH-1:64];
-                SLICE_SRC_TS: fub_rd_rdata = err_fifo_rd_data[ERR_FIFO_REC_WIDTH-1:MONBUS_PKT_WIDTH];
+                SLICE_PKT_LO: fub_rd_rdata = err_fifo_rd_data[63:0];
                 default:      fub_rd_rdata = '0;
             endcase
         end
@@ -600,9 +634,17 @@ module monbus_axil_group
     // Write FSM — 64-bit master, fixed 3-beat record
     //
     // Beat order per record (always +8 bytes per beat, total 24 B/record):
-    //   beat 0 = packet[63:0]
+    //   beat 0 = {tag[3:0], source_ts[59:0]}   tag = 4'h0 (raw, no compression)
     //   beat 1 = packet[127:64]
-    //   beat 2 = source_ts[63:0]
+    //   beat 2 = packet[63:0]
+    //
+    // The tag field reserves the top 4 bits of the timestamp beat for a
+    // future on-the-wire compression encoding (see file header). Today
+    // it is always 4'h0 -- raw record, three full beats. A compressor
+    // dropped into the bulk-trace path can emit non-zero tags + a
+    // shortened payload without changing this writer's framing
+    // (compressor sits upstream of the WRITE_LOAD stage and is the only
+    // block that knows about tags > 0).
     //
     // Matches the s_axil slice-counter drain layout exactly, so a host
     // walking the SRAM ring and a CPU IRQ handler draining via s_axil
@@ -719,11 +761,17 @@ module monbus_axil_group
     assign fub_wr_awprot  = 3'b000;
 
     assign fub_wr_wvalid  = (write_state == WRITE_W);
+    // Beat 0 carries the 4-bit encoding tag in the top of the timestamp
+    // beat. Tag is hardwired 4'h0 ("raw, no compression") here; a future
+    // compressor in front of WRITE_LOAD will populate non-zero codes.
+    // Tag MSBs occupy ts bits [63:60]; the lower 60 bits carry source_ts[59:0]
+    // (timestamp truncated from 64 to 60 bits, wraps at 2^60 cycles).
+    localparam logic [3:0] WRITE_TAG_RAW = 4'h0;
     always_comb begin
         unique case (beat_idx)
-            2'd0:    fub_wr_wdata = current_packet[63:0];
+            2'd0:    fub_wr_wdata = {WRITE_TAG_RAW, current_source_ts[59:0]};
             2'd1:    fub_wr_wdata = current_packet[MONBUS_PKT_WIDTH-1:64];
-            2'd2:    fub_wr_wdata = current_source_ts;
+            2'd2:    fub_wr_wdata = current_packet[63:0];
             default: fub_wr_wdata = '0;
         endcase
     end

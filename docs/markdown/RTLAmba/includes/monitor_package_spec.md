@@ -234,7 +234,7 @@ typedef logic [MONBUS_TS_WIDTH-1:0] monbus_timestamp_t;  // 64 bits
 | Source | `i_mon_time` | A free-running counter generated in `monbus_axil_group` and broadcast to every wrapper via the shared `mon_time_w` net. |
 | Sampling | `addr_pkt_timestamp` / `monbus_timestamp` | Each producer (addr_check, reporter, debug) samples `i_mon_time` on the cycle its packet asserts valid. |
 | Transport | `monbus_arbiter` | The arbiter carries `(packet, timestamp)` atomically through a 192-bit skid so consumers never see a mismatched pair. |
-| Drain | `monbus_axil_group` | Emits a 3-beat record on `m_mon_axil` (`[pkt[63:0], pkt[127:64], ts[63:0]]`) for bulk capture, or single-record reads via `s_mon_axil` for IRQ-driven consumption. |
+| Drain | `monbus_axil_group` | Emits a 3-beat record on `m_mon_axil` for bulk capture: beat 0 = `{tag[3:0], source_ts[59:0]}` (tag = `4'h0` raw; non-zero tags reserved for a future on-the-wire compression encoder), beat 1 = `packet[127:64]`, beat 2 = `packet[63:0]`. Single-record reads via `s_mon_axil` use the same slice order for IRQ-driven consumption. |
 
 Consumers (host scripts, parsers, the `bin/TBClasses/monbus` decoder) treat
 the timestamp as an opaque ordering key — its semantics (cycle counter,

@@ -178,9 +178,16 @@ def test_matches_unknown_attribute_raises():
 # ---------------------------------------------------------------------------
 
 def _split128(raw: int):
-    """Split a 128-bit packet into (lo64, hi64) — the order
-    monbus_axil_group writes them to memory (low half first)."""
-    return raw & ((1 << 64) - 1), (raw >> 64) & ((1 << 64) - 1)
+    """Split a 128-bit packet into (hi64, lo64) — the order
+    monbus_axil_group writes them to memory after the timestamp beat
+    (high half first, then low half)."""
+    return (raw >> 64) & ((1 << 64) - 1), raw & ((1 << 64) - 1)
+
+
+def _tag_ts(ts60: int, tag: int = 0x0):
+    """Build the tagged-timestamp beat 0 of a 3-beat record:
+    {tag[3:0], ts[59:0]}. tag = 0 means raw (no compression)."""
+    return ((tag & 0xF) << 60) | (ts60 & ((1 << 60) - 1))
 
 
 def test_parse_stream_filters_zero_padding():
@@ -196,13 +203,13 @@ def test_parse_stream_filters_zero_padding():
         PktType.PktTypePerf, ProtocolType.PROTOCOL_AXI,
         AXIPerformanceCode.AXI_PERF_TOTAL_LATENCY, 0, 1, 0x00, 0x42,
     )
-    # Each record is 2 beats (lo, hi); intersperse a zero record.
-    err_lo, err_hi = _split128(raw_err)
-    perf_lo, perf_hi = _split128(raw_perf)
+    # ts_mode=0: each record is 2 beats (hi, lo) -- no timestamp.
+    err_hi, err_lo = _split128(raw_err)
+    perf_hi, perf_lo = _split128(raw_perf)
     stream = [0, 0,             # zero record  (skipped)
-              err_lo, err_hi,    # error record
+              err_hi, err_lo,    # error record
               0, 0,             # zero record  (skipped)
-              perf_lo, perf_hi]  # perf record
+              perf_hi, perf_lo]  # perf record
     parsed = list(parse_stream(stream, stride_bytes=16, ts_mode=0))
     assert len(parsed) == 2
     assert parsed[0].get_event_code_name() == "AXI_ERR_DATA_ORPHAN"
@@ -210,34 +217,57 @@ def test_parse_stream_filters_zero_padding():
 
 
 def test_parse_stream_with_source_timestamp():
-    """ts_mode=1: each record is packet + source_ts (3 beats, 24 B)."""
+    """ts_mode=1: each record is {tag,source_ts}, packet_hi, packet_lo
+    (3 beats, 24 B). Today tag is always 0 (raw)."""
     raw_err = create_monitor_packet(
         PktType.PktTypeError, ProtocolType.PROTOCOL_AXI,
         AXIErrorCode.AXI_ERR_DATA_ORPHAN, 0, 2, 0x10, 0xCAFE,
     )
-    lo, hi = _split128(raw_err)
-    stream = [lo, hi, 0xDEADBEEF12345678]
+    hi, lo = _split128(raw_err)
+    ts60 = 0x0_EADBEEF_12345678  # 60-bit timestamp
+    stream = [_tag_ts(ts60), hi, lo]
     parsed = list(parse_stream(stream, stride_bytes=24, ts_mode=1))
     assert len(parsed) == 1
     rec = parsed[0]
     assert rec.packet.get_event_code_name() == "AXI_ERR_DATA_ORPHAN"
-    assert rec.source_ts == 0xDEADBEEF12345678
+    assert rec.source_ts == ts60
     assert rec.arrival_ts is None
 
 
-def test_parse_stream_with_both_timestamps():
-    """ts_mode=3: packet + source_ts + arrival_ts (4 beats, 32 B)."""
+def test_parse_stream_skips_unknown_tags():
+    """Records with tag != 0 are reserved for a future compression
+    encoder. The parser skips them silently for now (no decoder yet)."""
     raw_err = create_monitor_packet(
         PktType.PktTypeError, ProtocolType.PROTOCOL_AXI,
         AXIErrorCode.AXI_ERR_DATA_ORPHAN, 0, 2, 0x10, 0xCAFE,
     )
-    lo, hi = _split128(raw_err)
-    stream = [lo, hi, 0x1111_2222_3333_4444, 0x5555_6666_7777_8888]
+    hi, lo = _split128(raw_err)
+    ts60 = 0x123_4567_89AB_CDEF
+    stream = [
+        _tag_ts(ts60, tag=0x1), hi, lo,    # tag=1 -- skipped (reserved)
+        _tag_ts(ts60, tag=0x0), hi, lo,    # tag=0 -- decoded
+    ]
+    parsed = list(parse_stream(stream, stride_bytes=24, ts_mode=1))
+    assert len(parsed) == 1
+    assert parsed[0].source_ts == ts60
+
+
+def test_parse_stream_with_both_timestamps():
+    """ts_mode=3: {tag,source_ts}, {tag,arrival_ts}, packet_hi, packet_lo
+    (4 beats, 32 B)."""
+    raw_err = create_monitor_packet(
+        PktType.PktTypeError, ProtocolType.PROTOCOL_AXI,
+        AXIErrorCode.AXI_ERR_DATA_ORPHAN, 0, 2, 0x10, 0xCAFE,
+    )
+    hi, lo = _split128(raw_err)
+    src_ts60 = 0x111_2222_3333_4444
+    arr_ts60 = 0x555_6666_7777_8888
+    stream = [_tag_ts(src_ts60), _tag_ts(arr_ts60), hi, lo]
     parsed = list(parse_stream(stream, stride_bytes=32, ts_mode=3))
     assert len(parsed) == 1
     rec = parsed[0]
-    assert rec.source_ts == 0x1111_2222_3333_4444
-    assert rec.arrival_ts == 0x5555_6666_7777_8888
+    assert rec.source_ts == src_ts60
+    assert rec.arrival_ts == arr_ts60
 
 
 # ---------------------------------------------------------------------------
