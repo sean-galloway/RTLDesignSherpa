@@ -69,6 +69,14 @@ module axi5_master_rd_mon
     parameter bit ENABLE_FILTERING  = 1,
     parameter bit ADD_PIPELINE_STAGE = 0,
 
+    // Reporter sub-block enables (default 1'b1 = legacy behavior). Set to 0
+    // to drop the detection cone at synthesis via generate-if.
+    parameter bit ENABLE_ERROR_LOGIC     = 1'b1,
+    parameter bit ENABLE_TIMEOUT_LOGIC   = 1'b1,
+    parameter bit ENABLE_COMPL_LOGIC     = 1'b1,
+    parameter bit ENABLE_THRESHOLD_LOGIC = 1'b1,
+    parameter bit ENABLE_PERF_LOGIC      = 1'b1,
+
     // Short params
     parameter int AW       = AXI_ADDR_WIDTH,
     parameter int DW       = AXI_DATA_WIDTH,
@@ -326,6 +334,11 @@ module axi5_master_rd_mon
             .IS_READ             (1),
             .IS_AXI              (1),
             .ENABLE_PERF_PACKETS (1),
+            .ENABLE_ERROR_LOGIC      (ENABLE_ERROR_LOGIC),
+            .ENABLE_TIMEOUT_LOGIC    (ENABLE_TIMEOUT_LOGIC),
+            .ENABLE_COMPL_LOGIC      (ENABLE_COMPL_LOGIC),
+            .ENABLE_THRESHOLD_LOGIC  (ENABLE_THRESHOLD_LOGIC),
+            .ENABLE_PERF_LOGIC       (ENABLE_PERF_LOGIC),
             .ENABLE_DEBUG_MODULE (0),
             .ENABLE_FILTERING    (ENABLE_FILTERING),
             .ADD_PIPELINE_STAGE  (ADD_PIPELINE_STAGE),
