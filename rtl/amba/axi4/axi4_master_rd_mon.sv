@@ -60,6 +60,15 @@ module axi4_master_rd_mon
     parameter bit ENABLE_FILTERING  = 1,     // Enable packet filtering
     parameter bit ADD_PIPELINE_STAGE = 0,    // Add register stage for timing closure
 
+    // Reporter sub-block enables (default 1'b1 = legacy behavior). Setting any
+    // to 0 drops the corresponding detection cone at synthesis time via
+    // generate-if inside axi_monitor_reporter — area saving is real.
+    parameter bit ENABLE_ERROR_LOGIC     = 1'b1,
+    parameter bit ENABLE_TIMEOUT_LOGIC   = 1'b1,
+    parameter bit ENABLE_COMPL_LOGIC     = 1'b1,
+    parameter bit ENABLE_THRESHOLD_LOGIC = 1'b1,
+    parameter bit ENABLE_PERF_LOGIC      = 1'b1,
+
     // Short and calculated params
     parameter int AW       = AXI_ADDR_WIDTH,
     parameter int DW       = AXI_DATA_WIDTH,
@@ -287,6 +296,11 @@ module axi4_master_rd_mon
             .IS_AXI                  (1'b1),             // AXI4 protocol
             .ENABLE_PERF_PACKETS     (1'b1),
             .ENABLE_DEBUG_MODULE     (1'b0),
+            .ENABLE_ERROR_LOGIC      (ENABLE_ERROR_LOGIC),
+            .ENABLE_TIMEOUT_LOGIC    (ENABLE_TIMEOUT_LOGIC),
+            .ENABLE_COMPL_LOGIC      (ENABLE_COMPL_LOGIC),
+            .ENABLE_THRESHOLD_LOGIC  (ENABLE_THRESHOLD_LOGIC),
+            .ENABLE_PERF_LOGIC       (ENABLE_PERF_LOGIC),
             .ENABLE_FILTERING        (ENABLE_FILTERING),
             .ADD_PIPELINE_STAGE      (ADD_PIPELINE_STAGE),
             .N_ADDR_RANGES           (N_ADDR_RANGES)
