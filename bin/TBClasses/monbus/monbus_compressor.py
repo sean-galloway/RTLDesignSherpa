@@ -29,24 +29,32 @@ Tag 0x0 — Raw / no compression / Tier-0 escape (3 beats):
     beat 2: packet[63:0]
 
 Tag 0x1 — Tier-1 format A (template hit, small payload, 1 beat):
-    beat 0: {tag=0x1, tmpl_idx[3:0], delta_ts[15:0], event_data[39:0]}
-    Covers: Δts ≤ 64K cycles, event_data ≤ 40 bits
+    beat 0: {tag=0x1, tmpl_idx[4:0], delta_ts[14:0], event_data[39:0]}
+    Covers: Δts ≤ 32K cycles, event_data ≤ 40 bits
 
 Tag 0x2 — Tier-1 format B (template hit, big delta_ts, 1 beat):
-    beat 0: {tag=0x2, tmpl_idx[3:0], delta_ts[23:0], event_data[31:0]}
-    Covers: Δts ≤ 16M cycles, event_data ≤ 32 bits
+    beat 0: {tag=0x2, tmpl_idx[4:0], delta_ts[22:0], event_data[31:0]}
+    Covers: Δts ≤ 8M cycles, event_data ≤ 32 bits
 
 Tag 0x3 — Tier-1 format C (template hit, event_data delta, 1 beat):
-    beat 0: {tag=0x3, tmpl_idx[3:0], delta_ts[15:0], ed_delta[39:0] signed}
-    Covers: Δts ≤ 64K cycles, monotonic counters / sequential addresses
+    beat 0: {tag=0x3, tmpl_idx[4:0], delta_ts[14:0], ed_delta[39:0] signed}
+    Covers: Δts ≤ 32K cycles, monotonic counters / sequential addresses
 
 Tags 0x4-0xF — Reserved for future use.
 
-CAM: 16 entries by default. Each entry stores a template
-(packet_type, protocol, event_code, channel_id, agent_id, unit_id)
-plus the most-recent event_data observed for that template. Eviction
-policy is LRU (least-recently-used); insertion happens on a Tier-0
-escape (CAM miss).
+CAM: 32 entries by default (locked 2026-06-06 based on real desc-bus
+captures — see fpga_stream_char_v1 dataset). Heavy workloads with up to
+~8 channels × ~3 reporter cones plateau at ~17 hot templates that
+account for >33% of records; cold tail has too much inter-arrival gap
+to benefit from a larger CAM at any practical size (analyzed up to 128,
+no incremental gain past 32). The 5-bit template index steals one bit
+from delta_ts in each of formats A/B/C — measured at 99% in-band on
+real captures, the few overflows were already SRAM-wrap noise.
+
+Each entry stores a template (packet_type, protocol, event_code,
+channel_id, agent_id, unit_id) plus the most-recent event_data observed
+for that template. Eviction policy is LRU; insertion happens on a
+Tier-0 escape (CAM miss).
 ----------------------------------------------------------------------
 """
 
@@ -68,15 +76,21 @@ TAG_FORMAT_B  = 0x2
 TAG_FORMAT_C  = 0x3
 
 TS_BITS       = 60                  # timestamp width in compressed beats
-DELTA_TS_A    = 16                  # format A: 16-bit delta_ts
-DELTA_TS_B    = 24                  # format B: 24-bit delta_ts
-DELTA_TS_C    = 16                  # format C: 16-bit delta_ts
+DELTA_TS_A    = 15                  # format A: 15-bit delta_ts (~328 µs @ 100 MHz)
+DELTA_TS_B    = 23                  # format B: 23-bit delta_ts (~84 ms @ 100 MHz)
+DELTA_TS_C    = 15                  # format C: 15-bit delta_ts
 EVENT_DATA_A  = 40                  # format A: 40-bit event_data low bits
 EVENT_DATA_B  = 32                  # format B: 32-bit event_data low bits
 EVENT_DATA_C_DELTA = 40             # format C: 40-bit signed delta
-TMPL_IDX_BITS = 4                   # 4-bit template index → 16-entry CAM
+TMPL_IDX_BITS = 5                   # 5-bit template index → 32-entry CAM
 
-DEFAULT_CAM_SIZE = 16
+DEFAULT_CAM_SIZE = 32
+
+# Derived: idx field starts at bit 55 (under the 4-bit tag at 63:60 +
+# 1-bit idx growth from the legacy 4-bit packing). All Tier-1 slot
+# packers shift idx into [59:55] and mask with TMPL_IDX_MASK.
+TMPL_IDX_MASK = (1 << TMPL_IDX_BITS) - 1
+TMPL_IDX_SHIFT = 64 - 4 - TMPL_IDX_BITS  # 64 - 4 (tag) - 5 (idx) = 55
 
 # Packet field positions (see monitor_common_pkg.sv)
 _PKT_TYPE_HI, _PKT_TYPE_LO     = 127, 124
@@ -349,30 +363,30 @@ class Encoder:
 
     @staticmethod
     def _pack_format_a(idx: int, delta_ts: int, event_data: int) -> int:
-        # [63:60] tag, [59:56] idx, [55:40] delta_ts, [39:0] event_data
+        # [63:60] tag, [59:55] idx, [54:40] delta_ts (15b), [39:0] event_data
         return (
             (TAG_FORMAT_A << 60)
-            | ((idx & 0xF) << 56)
+            | ((idx & TMPL_IDX_MASK) << TMPL_IDX_SHIFT)
             | ((delta_ts & ((1 << DELTA_TS_A) - 1)) << EVENT_DATA_A)
             | (event_data & ((1 << EVENT_DATA_A) - 1))
         )
 
     @staticmethod
     def _pack_format_b(idx: int, delta_ts: int, event_data: int) -> int:
-        # [63:60] tag, [59:56] idx, [55:32] delta_ts, [31:0] event_data
+        # [63:60] tag, [59:55] idx, [54:32] delta_ts (23b), [31:0] event_data
         return (
             (TAG_FORMAT_B << 60)
-            | ((idx & 0xF) << 56)
+            | ((idx & TMPL_IDX_MASK) << TMPL_IDX_SHIFT)
             | ((delta_ts & ((1 << DELTA_TS_B) - 1)) << EVENT_DATA_B)
             | (event_data & ((1 << EVENT_DATA_B) - 1))
         )
 
     @staticmethod
     def _pack_format_c(idx: int, delta_ts: int, ed_delta: int) -> int:
-        # [63:60] tag, [59:56] idx, [55:40] delta_ts, [39:0] signed ed_delta
+        # [63:60] tag, [59:55] idx, [54:40] delta_ts (15b), [39:0] signed ed_delta
         return (
             (TAG_FORMAT_C << 60)
-            | ((idx & 0xF) << 56)
+            | ((idx & TMPL_IDX_MASK) << TMPL_IDX_SHIFT)
             | ((delta_ts & ((1 << DELTA_TS_C) - 1)) << EVENT_DATA_C_DELTA)
             | (ed_delta & ((1 << EVENT_DATA_C_DELTA) - 1))
         )
@@ -422,19 +436,19 @@ class Decoder:
                 yield packet, ts60
 
             elif tag == TAG_FORMAT_A:
-                idx = (beat0 >> 56) & 0xF
+                idx = (beat0 >> TMPL_IDX_SHIFT) & TMPL_IDX_MASK
                 delta_ts = (beat0 >> EVENT_DATA_A) & ((1 << DELTA_TS_A) - 1)
                 event_data = beat0 & ((1 << EVENT_DATA_A) - 1)
                 yield self._reconstruct(idx, delta_ts, event_data)
 
             elif tag == TAG_FORMAT_B:
-                idx = (beat0 >> 56) & 0xF
+                idx = (beat0 >> TMPL_IDX_SHIFT) & TMPL_IDX_MASK
                 delta_ts = (beat0 >> EVENT_DATA_B) & ((1 << DELTA_TS_B) - 1)
                 event_data = beat0 & ((1 << EVENT_DATA_B) - 1)
                 yield self._reconstruct(idx, delta_ts, event_data)
 
             elif tag == TAG_FORMAT_C:
-                idx = (beat0 >> 56) & 0xF
+                idx = (beat0 >> TMPL_IDX_SHIFT) & TMPL_IDX_MASK
                 delta_ts = (beat0 >> EVENT_DATA_C_DELTA) & ((1 << DELTA_TS_C) - 1)
                 ed_delta = _sign_extend(beat0 & ((1 << EVENT_DATA_C_DELTA) - 1),
                                         EVENT_DATA_C_DELTA)

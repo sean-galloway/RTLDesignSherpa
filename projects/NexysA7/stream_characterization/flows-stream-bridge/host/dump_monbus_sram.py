@@ -152,7 +152,7 @@ def read_sram_region(
     return out
 
 
-def parse_records(words32: Iterable[int]) -> List:
+def parse_records(words32: Iterable[int], *, validate: bool = True) -> List:
     """Pack 32-bit words into 64-bit beats and parse fixed 24-byte
     records (packet[63:0], packet[127:64], source_ts[63:0]) via
     parse_stream. Zero-padding records (all-zero packet body) are
@@ -161,11 +161,27 @@ def parse_records(words32: Iterable[int]) -> List:
     Returns TimestampedPacket objects with source_ts populated and
     arrival_ts set to None (the group no longer captures a separate
     arrival timestamp).
+
+    When `validate=True` (default), additionally drops any record whose
+    parsed packet fails MonitorPacket.is_valid() — catches stale SRAM
+    bytes from previous boots that happen to decode into legal-looking
+    24-byte chunks but with garbage (protocol, packet_type, event_code)
+    tuples. Set False if you specifically want raw SRAM contents for
+    debugging.
     """
     beats = words32_to_words64(words32)
     # ts_mode=1 = packet + source_ts (24-byte records, matches the
     # group's fixed output format).
-    return list(parse_stream(beats, stride_bytes=RECORD_BYTES, ts_mode=1))
+    parsed = list(parse_stream(beats, stride_bytes=RECORD_BYTES, ts_mode=1))
+    if not validate:
+        return parsed
+    out = []
+    for rec in parsed:
+        pkt = rec.packet if hasattr(rec, "packet") else rec
+        if hasattr(pkt, "is_valid") and not pkt.is_valid():
+            continue
+        out.append(rec)
+    return out
 
 
 def format_timestamped(rec) -> str:
