@@ -106,16 +106,27 @@ def read_sram_region(
     reader: Callable[[int], Optional[int]],
     base_addr: int,
     n_bytes: int,
+    *,
+    progress: bool = True,
+    progress_every: int = 256,
+    progress_label: str = "sram",
 ) -> List[int]:
     """Read `n_bytes` worth of 32-bit words starting at `base_addr`.
     Returns the list of 32-bit words in linear order. `reader` is any
-    callable with UARTAxiBridge.read's signature."""
+    callable with UARTAxiBridge.read's signature.
+
+    When `progress=True` (default), prints a `\\r`-updated counter to
+    stderr every `progress_every` words so the operator sees the drain
+    progressing. A full 256 KB drain over UART is many seconds; sitting
+    silent makes it look hung.
+    """
     if n_bytes % 4 != 0:
         raise ValueError(
             f"n_bytes must be a multiple of 4 (32-bit words), got {n_bytes}"
         )
     n_words = n_bytes // 4
     out: List[int] = []
+    show = progress and n_words > progress_every
     for i in range(n_words):
         addr = base_addr + (i * 4)
         val = reader(addr)
@@ -125,6 +136,19 @@ def read_sram_region(
                 f"(word {i} of {n_words})"
             )
         out.append(val & 0xFFFF_FFFF)
+        if show and (i % progress_every == 0):
+            pct = 100.0 * i / n_words
+            sys.stderr.write(
+                f"\r  [{progress_label}] read {i:>7}/{n_words} words "
+                f"({pct:5.1f}%)"
+            )
+            sys.stderr.flush()
+    if show:
+        sys.stderr.write(
+            f"\r  [{progress_label}] read {n_words}/{n_words} words "
+            f"(100.0%) done\n"
+        )
+        sys.stderr.flush()
     return out
 
 

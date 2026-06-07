@@ -206,17 +206,24 @@ def run_workload(workload_cmd: Optional[str], dry_run: bool) -> int:
     """Kick whatever workload is supposed to exercise the source's
     monitor. workload_cmd is a shell command (e.g.
     "python3 run_characterization.py --configs 1desc_1ch"). Returns the
-    exit code of the workload, or 0 if no workload was requested."""
+    exit code of the workload, or 0 if no workload was requested.
+
+    Workload subprocess inherits stderr/stdout so its progress is
+    visible live (no hidden silent-run window)."""
     if workload_cmd is None:
         print("  [workload] none requested (--no-kick)", file=sys.stderr)
         return 0
     if dry_run:
         print(f"  [workload] dry-run: {workload_cmd}", file=sys.stderr)
         return 0
-    print(f"  [workload] {workload_cmd}", file=sys.stderr)
-    return subprocess.run(
+    print(f"  [workload] kicking: {workload_cmd}", file=sys.stderr)
+    t0 = time.time()
+    rc = subprocess.run(
         shlex.split(workload_cmd), check=False,
     ).returncode
+    print(f"  [workload] returned rc={rc} after {time.time() - t0:.1f}s",
+          file=sys.stderr)
+    return rc
 
 
 def capture_one(
@@ -235,7 +242,9 @@ def capture_one(
     print(f"  {source.description}", file=sys.stderr)
 
     if not dry_run:
+        print("  [setup] clearing all monitor enables", file=sys.stderr)
         clear_all_sources(bridge)
+        print(f"  [setup] configuring source {source.name!r}", file=sys.stderr)
         source.setup(bridge)
 
     rc = run_workload(workload_cmd, dry_run)
@@ -244,7 +253,11 @@ def capture_one(
               file=sys.stderr)
     # Let in-flight packets drain to the SRAM before reading it back.
     if not dry_run:
+        print(f"  [settle] sleeping {workload_settle_s}s for in-flight "
+              f"packets", file=sys.stderr)
         time.sleep(workload_settle_s)
+        print(f"  [dump] reading 0x{dump_bytes:x} bytes from 0x{dump_base:08x}",
+              file=sys.stderr)
 
     ts = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
     out_path = output_dir / f"per_source_{source.name}_{ts}.json"
