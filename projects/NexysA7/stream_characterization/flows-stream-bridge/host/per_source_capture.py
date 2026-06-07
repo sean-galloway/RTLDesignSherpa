@@ -82,6 +82,12 @@ HARNESS_CSR_BASE = 0x0001_0000  # bridge slave 1
 DEBUG_SRAM_BASE = 0x0004_0000  # bridge slave 4 (256 KB monbus trace)
 DEBUG_SRAM_BYTES = 0x40000     # full 256 KB
 
+# harness_csr offsets we actually use here.
+# 0x00 CTRL  (W): bit[1] = clear_stats_pulse (clears trace SRAM write pointer)
+# 0x08 DBG_WR_PTR (R): trace SRAM write pointer in 32-bit words
+CSR_CTRL        = HARNESS_CSR_BASE + 0x00
+CSR_DBG_WR_PTR  = HARNESS_CSR_BASE + 0x08
+
 # STREAM APB register offsets — desc-bus monitor (DAXMON_*).
 # See projects/components/stream/regs/generated/rtl/stream_regs.sv:
 #   0x240 DAXMON_ENABLE    [MON_EN, ERR_EN, COMPL_EN, TIMEOUT_EN, PERF_EN]
@@ -191,15 +197,26 @@ SOURCES: Dict[str, Source] = {
 def clear_all_sources(bridge: BridgeIO) -> None:
     """Zero every monitor enable on every source. Run before each
     isolation iteration so the previous source's cones don't bleed
-    into the next trace."""
+    into the next trace, AND so the trace SRAM write pointer is
+    reset to 0 so DBG_WR_PTR bounds the next read correctly."""
     # desc_axi: bare cfg_mon_enable wipe shuts every cone off.
     bridge.write(DAXMON_ENABLE, 0)
-    # Reset the trace SRAM write pointer + clear sticky overflow so each
-    # source's trace starts clean. CTRL bit[1] = clear_stats_pulse.
-    bridge.write(HARNESS_CSR_BASE + 0x00, 0x2)
-    # Hardware clears auto — give it a few UART roundtrips before we
-    # start programming the next source.
+    # CTRL bit[1] = clear_stats_pulse. Resets the trace SRAM write
+    # pointer + clears sticky overflow. Hardware self-clears.
+    bridge.write(CSR_CTRL, 0x2)
     time.sleep(0.05)
+
+
+def read_live_trace_bytes(bridge: BridgeIO, dump_bytes_max: int) -> int:
+    """Return the number of bytes of live trace data in debug_sram
+    (i.e. how much the FPGA actually wrote since last clear). Bounded
+    by `dump_bytes_max` (typically the full SRAM size) so we never
+    over-read if DBG_WR_PTR wrapped or the harness is mis-reporting."""
+    wr_ptr_words = bridge.read(CSR_DBG_WR_PTR)
+    if wr_ptr_words is None:
+        return dump_bytes_max
+    live_bytes = (wr_ptr_words & 0xFFFF_FFFF) * 4
+    return min(live_bytes, dump_bytes_max)
 
 
 def run_workload(workload_cmd: Optional[str], dry_run: bool) -> int:
@@ -252,12 +269,27 @@ def capture_one(
         print(f"  [workload] non-zero exit {rc}; capturing anyway",
               file=sys.stderr)
     # Let in-flight packets drain to the SRAM before reading it back.
+    live_bytes = dump_bytes
     if not dry_run:
         print(f"  [settle] sleeping {workload_settle_s}s for in-flight "
               f"packets", file=sys.stderr)
         time.sleep(workload_settle_s)
-        print(f"  [dump] reading 0x{dump_bytes:x} bytes from 0x{dump_base:08x}",
-              file=sys.stderr)
+        # Bound the dump to the live region the FPGA actually wrote.
+        # DBG_WR_PTR reset to 0 in clear_all_sources, so this is the
+        # legitimate trace-data length. Anything past it in SRAM is
+        # stale bytes from previous boots that decode into structured
+        # "valid" garbage (channel_id=101, sequential agent_ids, etc.).
+        live_bytes = read_live_trace_bytes(
+            bridge, dump_bytes_max=dump_bytes,
+        )
+        print(f"  [dump] live region 0x{live_bytes:x} bytes "
+              f"(DBG_WR_PTR-bounded, max 0x{dump_bytes:x}) from "
+              f"0x{dump_base:08x}", file=sys.stderr)
+        if live_bytes == 0:
+            print(f"  [dump] WARNING: 0-byte live region — no trace "
+                  f"emitted. Check cfg_*_enable + workload activity.",
+                  file=sys.stderr)
+            live_bytes = 0  # explicit; dump_json handles 0 cleanly
 
     ts = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
     out_path = output_dir / f"per_source_{source.name}_{ts}.json"
@@ -273,10 +305,11 @@ def capture_one(
         "captured": ts,
         "workload_cmd": workload_cmd,
         "dump_base": f"0x{dump_base:08x}",
-        "dump_bytes": f"0x{dump_bytes:x}",
+        "dump_bytes_max": f"0x{dump_bytes:x}",
+        "live_bytes": f"0x{live_bytes:x}",
     }
     n = dump_sram_to_json(
-        bridge._bridge, dump_base, dump_bytes,
+        bridge._bridge, dump_base, live_bytes,
         str(out_path), extra_meta=extra_meta,
     )
     print(f"  [dump] {n} record(s) -> {out_path}", file=sys.stderr)
