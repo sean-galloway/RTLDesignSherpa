@@ -83,7 +83,7 @@ verify-sim:
 	    echo "[verify-sim] skipped (BITSTREAM_SKIP_VERIFY=1)"; \
 	else \
 	    echo "[verify-sim] running stream_char FUNC ping + csr_read"; \
-	    cd $(REPO_ROOT) && . env_python && \
+	    cd $(REPO_ROOT) && . ./env_python && \
 	      pytest projects/NexysA7/stream_characterization/flows-stream-bridge/dv/tests/test_stream_char.py \
 	        -v -k "ping or csr_read" \
 	      || (echo "[verify-sim] FAILED — refusing to start synth/bitstream" && exit 1); \
