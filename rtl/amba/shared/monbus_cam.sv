@@ -5,79 +5,81 @@
 // https://github.com/sean-galloway/RTLDesignSherpa
 //
 // Module: monbus_cam
-// Purpose: Caching CAM for the monbus bulk-trace compressor.
+// Purpose: True-LRU caching CAM for the monbus bulk-trace compressor.
 //
 // Documentation: docs/markdown/RTLAmba/shared/monbus_cam.md  (TBD)
 // Subsystem: amba
 //
 // Author: sean galloway
 // Created: 2026-06-06
+// Revised: 2026-06-07 — FIFO eviction replaced by true LRU with
+//          position-indexed storage. Bit-exact mirror of the Python
+//          `Cam` class in bin/TBClasses/monbus/monbus_compressor.py
+//          so the RTL compressor can produce a byte-identical slot
+//          stream against the Python `Encoder` golden.
 //
 // ============================================================================
 // Module: monbus_cam
 // ============================================================================
 //
-// What this is
-// ------------
-// A parameterizable Content-Addressable Memory designed for the monbus
-// bulk-trace compressor that sits inside monbus_axil_group. Stores
-// template entries keyed by a wide tuple (typical use:
-//   {packet_type[4], protocol[4], event_code[8], channel_id[9],
-//    agent_id[16], unit_id[8]}  =  49 bits)
-// alongside a payload (typical: last_event_data[64]) used for the
-// compressor's delta-encoding formats.
+// Storage model
+// -------------
+// Entries are indexed by **LRU position rank**, not by physical slot:
 //
-// Why not q32_axi_id_cam or cam_tag
-// ---------------------------------
-// The existing CAMs in the tree (rtl/common/cam_tag.sv,
-// projects/.../q32_axi_id_cam.sv) are allocate/free designs: the
-// upstream module explicitly issues a deallocate when an entry is
-// done. The compressor has no such signal -- monbus templates are
-// "cached" by access patterns, not owned. When the CAM fills, a new
-// template MUST be installed by evicting an existing entry, never
-// refused. This module handles that case internally.
+//   r_entry[0]            most-recently-used (MRU)
+//   r_entry[1..count-1]   in LRU order, newer first
+//   r_entry[count..DEPTH-1]  invalid (empty slots)
 //
-// Eviction policy (current cut: FIFO)
-// -----------------------------------
-// On install-when-full, the entry installed earliest is evicted.
-// Implemented with a single insertion-order ring pointer rather than
-// per-entry LRU age counters -- N-1 entries don't have to be touched
-// every cycle, and the eviction-victim lookup is a single index, not a
-// max-over-N. Trade-off: worse hit rate than true LRU when traffic is
-// bursty for one template then quiet for a while. The Python encoder
-// model in bin/TBClasses/monbus/monbus_compressor.py supports both
-// policies; if real traces show FIFO is insufficient, an LRU variant
-// (or a parameterized policy selector) can land in a follow-up.
+// This matches the Python golden's `entries` list exactly:
+//   - `lookup(key)` returns the current position rank
+//   - on TOUCH/INSTALL the matched (or new) entry moves to position 0
+//   - older entries shift down by 1 position
+//   - the LRU victim (when full) is whoever was at position DEPTH-1
+//
+// The `access_idx` returned to the caller IS the position rank that
+// gets encoded into the compressed slot's `tmpl_idx` field — both
+// encoder and decoder agree on it because both maintain the same
+// position-indexed state through identical (action, key, data)
+// sequences.
 //
 // Interface model
 // ---------------
-// One access port per cycle. The caller drives a lookup key, sees the
-// combinational hit/miss result, and in the same cycle commits one of:
-//   - NO-OP        (action = ACTION_NONE)         -- pure lookup
-//   - TOUCH-update (action = ACTION_TOUCH)        -- hit, refresh payload
-//   - INSTALL      (action = ACTION_INSTALL)      -- miss, install (may evict)
+// One access port per cycle. Caller drives `access_key`, sees the
+// combinational hit/idx/old_data, and in the same cycle commits one of:
+//   - NONE     (action = ACTION_NONE)        pure lookup, no state change
+//   - TOUCH    (action = ACTION_TOUCH)       hit; refresh payload + move-to-front
+//   - INSTALL  (action = ACTION_INSTALL)     miss; install at MRU (evict LRU if full)
 //
-// Combinational lookup result available the SAME cycle the key is
-// driven; the registered state update happens on the next rising edge.
-// This matches a pipelined caller doing:
-//   stage 0: produce key from input record
-//   stage 1: look up + decide format + assert action
-//   stage 2: see CAM state update reflected
+// Commit takes effect on the next rising edge of `clk`.
+//
+// Eviction
+// --------
+// On INSTALL when cam_full: the entry at position DEPTH-1 is evicted
+// and the `evicted` output pulses high for that cycle. All other
+// entries shift down one position; the new entry lands at position 0.
 //
 // Status outputs
 // --------------
-// cam_full     -- all DEPTH slots in use
-// cam_count    -- current occupancy (for stats / CSR readback)
-// evicted     -- pulses 1 on a cycle an install caused eviction (for
-//                  the compressor's escape-reason counter)
+// cam_full   — count == DEPTH (combinational)
+// cam_count  — current occupancy 0..DEPTH (combinational)
+// evicted    — pulses high on a full-CAM INSTALL cycle (combinational)
 //
-// Reset behavior
-// --------------
-// All entries marked invalid. r_install_ptr = 0. cam_count = 0.
+// Reset
+// -----
+// All entries marked invalid. cam_count = 0.
+//
+// Caller protocol assertions (SIMULATION only)
+// --------------------------------------------
+// - ACTION_TOUCH must coincide with a hit (otherwise $error).
+// - ACTION_INSTALL must coincide with a miss (otherwise $error -- the
+//   match would create a duplicate-key entry, which violates the
+//   one-hot-match invariant). The encoder dispatches TOUCH on hit and
+//   INSTALL on miss, so this is the natural caller pattern.
+// - Match vector must be at most one-hot.
 //
 // Testing
 // -------
-// Companion cocotb test: val/amba/test_monbus_cam.py  (TBD)
+// Companion cocotb test: val/amba/test_monbus_cam.py
 // Python golden model: bin/TBClasses/monbus/monbus_compressor.py (Cam class)
 // ============================================================================
 
@@ -87,8 +89,8 @@
 
 module monbus_cam #(
     parameter int KEY_WIDTH  = 49,      // template-key width
-    parameter int DATA_WIDTH = 64,      // payload width (e.g. last_event_data)
-    parameter int DEPTH      = 16,      // number of CAM entries
+    parameter int DATA_WIDTH = 64,      // payload width (last_event_data)
+    parameter int DEPTH      = 32,      // number of CAM entries (locked spec: 32)
     // localparams
     parameter int IDX_WIDTH  = (DEPTH > 1) ? $clog2(DEPTH) : 1,
     parameter int CNT_WIDTH  = $clog2(DEPTH + 1)
@@ -97,16 +99,15 @@ module monbus_cam #(
     input  logic                    rst_n,
 
     // === Access port (single port, lookup + commit in one cycle) ===
-    // Lookup (combinational on this cycle's inputs):
     input  logic [KEY_WIDTH-1:0]    access_key,
     output logic                    access_hit,
-    output logic [IDX_WIDTH-1:0]    access_idx,      // valid only when access_hit
-    output logic [DATA_WIDTH-1:0]   access_old_data, // current payload at access_idx (valid only when access_hit)
+    output logic [IDX_WIDTH-1:0]    access_idx,      // LRU position rank, valid only when access_hit
+    output logic [DATA_WIDTH-1:0]   access_old_data, // last_event_data at access_idx, valid only when access_hit
 
     // Commit (sampled on rising edge; takes effect cycle N+1):
-    // 2'b00 ACTION_NONE     -- no state change (pure lookup)
-    // 2'b01 ACTION_TOUCH    -- entry at access_idx gets access_new_data written; no key change
-    // 2'b10 ACTION_INSTALL  -- access_key + access_new_data installed; if full, oldest entry evicted
+    // 2'b00 ACTION_NONE     -- no state change
+    // 2'b01 ACTION_TOUCH    -- caller saw a hit; move matched entry to MRU, update its data
+    // 2'b10 ACTION_INSTALL  -- caller saw a miss; insert new entry at MRU (evict LRU if full)
     // 2'b11 reserved
     input  logic [1:0]              access_action,
     input  logic [DATA_WIDTH-1:0]   access_new_data,
@@ -115,36 +116,34 @@ module monbus_cam #(
     output logic                    cam_full,
     output logic [CNT_WIDTH-1:0]    cam_count,
 
-    // === Eviction notification (combinational pulse on commit cycle) ===
-    output logic                    evicted          // 1 when this cycle's INSTALL evicts an existing entry
+    // === Eviction pulse (combinational; high on full-CAM INSTALL) ===
+    output logic                    evicted
 );
 
     // ------------------------------------------------------------------------
-    // Action encoding (must match the access_action input above).
+    // Action encoding (must match access_action above and the Python golden).
     // ------------------------------------------------------------------------
     localparam logic [1:0] ACTION_NONE    = 2'b00;
     localparam logic [1:0] ACTION_TOUCH   = 2'b01;
     localparam logic [1:0] ACTION_INSTALL = 2'b10;
-    // 2'b11 reserved
 
     // ------------------------------------------------------------------------
-    // Entry storage: valid bit, key, payload, plus an insertion-order ring.
-    // r_install_ptr names the slot where the NEXT install will land. On a
-    // miss-with-full, that slot's existing contents are the FIFO victim.
-    // On miss-with-not-full, that slot is necessarily invalid (the install
-    // pointer wraps after DEPTH installs, never sooner than the CAM fills).
+    // Position-indexed entry storage. r_entry[0] = MRU at any time.
+    // r_valid[i] tracks whether slot i is occupied; for i < cam_count
+    // this is always 1, for i >= cam_count always 0. r_valid is kept
+    // explicit (rather than derived from cam_count) for symmetry with
+    // the per-slot update logic below.
     // ------------------------------------------------------------------------
-    logic                    r_valid     [DEPTH];
-    logic [KEY_WIDTH-1:0]    r_key       [DEPTH];
-    logic [DATA_WIDTH-1:0]   r_data      [DEPTH];
-    logic [IDX_WIDTH-1:0]    r_install_ptr;
+    logic                    r_valid [DEPTH];
+    logic [KEY_WIDTH-1:0]    r_key   [DEPTH];
+    logic [DATA_WIDTH-1:0]   r_data  [DEPTH];
     logic [CNT_WIDTH-1:0]    r_count;
 
     // ------------------------------------------------------------------------
-    // Combinational match vector + priority encoder for lookup hit.
-    // Lowest index wins on duplicate matches (shouldn't happen by design --
-    // each template tuple is unique by construction in the compressor -- but
-    // the encoder is well-defined either way).
+    // Combinational match vector + index encoder.
+    // Returns the position rank of the matching entry (priority: lowest-
+    // index wins, which equals "most recently touched" since lower
+    // indices are more recent in the position-indexed storage).
     // ------------------------------------------------------------------------
     logic [DEPTH-1:0] w_match_oh;
     always_comb begin
@@ -171,31 +170,63 @@ module monbus_cam #(
     // ------------------------------------------------------------------------
     assign cam_count = r_count;
     assign cam_full  = (r_count == CNT_WIDTH'(DEPTH));
+    assign evicted   = (access_action == ACTION_INSTALL) && cam_full;
 
-    // Eviction notification: pulses high on the cycle of a full-CAM install.
-    assign evicted = (access_action == ACTION_INSTALL) && cam_full;
+    // ------------------------------------------------------------------------
+    // Per-slot next-state shift logic.
+    //
+    // TOUCH at position P (the matched position, equal to access_idx):
+    //   slot 0:       new entry  = (access_key, access_new_data, valid=1)
+    //   slot 1..P:    new entry  = old entry [slot-1]
+    //   slot P+1..N:  new entry  = old entry [slot] (unchanged)
+    //
+    // INSTALL when !cam_full at insertion_pos = cam_count:
+    //   slot 0:       new entry  = (access_key, access_new_data, valid=1)
+    //   slot 1..cam_count:    new entry = old entry [slot-1]   (shift down)
+    //   slot cam_count+1..N:  new entry = old entry [slot]     (still invalid)
+    //   r_count++
+    //
+    // INSTALL when cam_full (insertion_pos = DEPTH-1, evicting LRU):
+    //   slot 0:       new entry  = (access_key, access_new_data, valid=1)
+    //   slot 1..DEPTH-1:  new entry = old entry [slot-1]   (shift down, evicting [DEPTH-1])
+    //   r_count stays at DEPTH
+    //
+    // NONE (or reserved): all slots hold.
+    //
+    // The TOUCH and INSTALL cases share the same shift-down structure;
+    // they differ only in the "insertion position" (where the shift
+    // stops). Below, `shift_to` is the highest slot that gets a new
+    // value via shift-down (slots above `shift_to` are unchanged).
+    // ------------------------------------------------------------------------
+    logic [CNT_WIDTH-1:0]   shift_to;
+    logic                   do_shift;
+    logic [KEY_WIDTH-1:0]   new_key;
+    logic [DATA_WIDTH-1:0]  new_data;
+
+    always_comb begin
+        do_shift = 1'b0;
+        shift_to = '0;
+        new_key  = access_key;
+        new_data = access_new_data;
+
+        unique case (access_action)
+            ACTION_TOUCH: begin
+                if (access_hit) begin
+                    do_shift = 1'b1;
+                    shift_to = CNT_WIDTH'(access_idx);
+                end
+            end
+            ACTION_INSTALL: begin
+                do_shift = 1'b1;
+                shift_to = cam_full ? CNT_WIDTH'(DEPTH-1) : r_count;
+            end
+            default: ; // NONE / reserved -- no shift
+        endcase
+    end
 
     // ------------------------------------------------------------------------
     // Registered state update.
-    //
-    // Touch:    overwrite r_data[access_idx]; valid stays 1; key stays the
-    //           same. No effect on r_install_ptr / r_count.
-    //
-    // Install (CAM not full): land at r_install_ptr (guaranteed invalid),
-    //           advance the pointer (mod DEPTH), bump r_count.
-    //
-    // Install (CAM full): land at r_install_ptr (the FIFO victim), advance
-    //           the pointer, r_count stays at DEPTH. The victim's old data
-    //           is silently overwritten -- the compressor caller has already
-    //           consumed it via access_old_data on the lookup match (if any)
-    //           or doesn't need it (miss path emits a raw escape that doesn't
-    //           reference templates).
-    //
-    // Action collision (caller asserts both TOUCH and INSTALL simultaneously)
-    // is undefined by the access_action enum; the case statement below
-    // covers the two valid update actions and ignores the rest.
     // ------------------------------------------------------------------------
-
     `ALWAYS_FF_RST(clk, rst_n,
         if (`RST_ASSERTED(rst_n)) begin
             for (int i = 0; i < DEPTH; i++) begin
@@ -203,48 +234,40 @@ module monbus_cam #(
                 r_key[i]   <= '0;
                 r_data[i]  <= '0;
             end
-            r_install_ptr <= '0;
-            r_count       <= '0;
-        end else begin
-            unique case (access_action)
-                ACTION_TOUCH: begin
-                    // Touch only takes effect when the lookup actually hit.
-                    // If the caller asserts touch without a hit, this is a
-                    // no-op (the protocol is "touch the entry you just hit").
-                    if (access_hit) begin
-                        r_data[access_idx] <= access_new_data;
-                    end
-                end
+            r_count <= '0;
+        end else if (do_shift) begin
+            // Slot 0 always becomes the touched/installed entry.
+            r_valid[0] <= 1'b1;
+            r_key[0]   <= new_key;
+            r_data[0]  <= new_data;
 
-                ACTION_INSTALL: begin
-                    r_valid[r_install_ptr] <= 1'b1;
-                    r_key[r_install_ptr]   <= access_key;
-                    r_data[r_install_ptr]  <= access_new_data;
-                    // Advance install pointer (wraps via mod-DEPTH).
-                    if (r_install_ptr == IDX_WIDTH'(DEPTH-1)) begin
-                        r_install_ptr <= '0;
-                    end else begin
-                        r_install_ptr <= r_install_ptr + 1'b1;
-                    end
-                    // Only bump count when filling a previously-invalid slot.
-                    if (!cam_full) begin
-                        r_count <= r_count + 1'b1;
-                    end
+            // Slots 1..shift_to: shift down from i-1.
+            for (int i = 1; i < DEPTH; i++) begin
+                if (CNT_WIDTH'(i) <= shift_to) begin
+                    r_valid[i] <= r_valid[i-1];
+                    r_key[i]   <= r_key[i-1];
+                    r_data[i]  <= r_data[i-1];
                 end
+                // Slots above shift_to are unchanged (no else branch).
+            end
 
-                default: begin
-                    // ACTION_NONE or reserved -- no state change.
-                end
-            endcase
+            // Count update.
+            //   TOUCH: count unchanged (entry was already valid)
+            //   INSTALL !full: count++
+            //   INSTALL full: count stays at DEPTH
+            if (access_action == ACTION_INSTALL && !cam_full) begin
+                r_count <= r_count + 1'b1;
+            end
         end
+        // ACTION_NONE / TOUCH-without-hit / reserved: hold all state.
     )
 
     // ========================================================================
-    // Assertions (simulation only)
+    // Caller-protocol assertions (simulation only)
     // ========================================================================
 
 `ifdef SIMULATION
-    // Touch without hit is a protocol violation by the caller -- flag it.
+    // TOUCH without hit is a caller bug.
     always @(posedge clk) begin
         if (rst_n && (access_action == ACTION_TOUCH) && !access_hit) begin
             $error("monbus_cam: ACTION_TOUCH asserted but lookup missed (key=0x%h)",
@@ -252,8 +275,17 @@ module monbus_cam #(
         end
     end
 
-    // Match vector should be at most one-hot (templates are unique by
-    // construction; if two slots match, something has gone wrong).
+    // INSTALL when key is already present would create a duplicate.
+    // (Encoder dispatches TOUCH-on-hit and INSTALL-on-miss, so this is
+    // the natural caller pattern; the assertion catches caller bugs.)
+    always @(posedge clk) begin
+        if (rst_n && (access_action == ACTION_INSTALL) && access_hit) begin
+            $error("monbus_cam: ACTION_INSTALL asserted but key already in CAM (key=0x%h)",
+                   access_key);
+        end
+    end
+
+    // Match vector must be at most one-hot.
     always @(posedge clk) begin
         if (rst_n) begin
             int match_count;

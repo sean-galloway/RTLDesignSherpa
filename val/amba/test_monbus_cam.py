@@ -14,14 +14,15 @@
 # Created: 2026-06-06
 
 """
-FUB tests for monbus_cam — the caching CAM that will be used by the
-future monbus bulk-trace compressor.
+FUB tests for monbus_cam — the true-LRU caching CAM that backs the
+monbus bulk-trace compressor.
 
-The RTL uses FIFO eviction (oldest installed entry is the victim on a
-full-CAM install). The existing Python Cam class in
-bin/TBClasses/monbus/monbus_compressor.py is LRU and is NOT a bit-exact
-mirror — this test file maintains its own FIFO-model golden inline
-(_FifoCamModel) so the comparison is apples-to-apples.
+The RTL uses position-indexed storage (slot 0 = MRU, slot DEPTH-1 = LRU).
+Touch and install both move the matched/new entry to slot 0 and shift
+older entries down by one position. This is a bit-exact mirror of the
+Python `Cam` class in bin/TBClasses/monbus/monbus_compressor.py, so the
+RTL compressor (when it lands) can use the Python Encoder as its
+acceptance-test golden.
 
 Test sequence (run in order by monbus_cam_test):
   1.  reset state             — all invalid, count=0, no eviction
@@ -29,10 +30,10 @@ Test sequence (run in order by monbus_cam_test):
   3.  fill without overflow   — install DEPTH-1 keys, count tracks, all hit
   4.  touch updates payload   — hit, TOUCH with new data, next lookup returns new
   5.  cam_full asserts        — Nth install asserts cam_full one cycle later
-  6.  FIFO eviction           — install (DEPTH+1)th key, oldest evicted, new hits
+  6.  LRU eviction            — install (DEPTH+1)th key, LRU victim removed
   7.  evicted pulse           — pulses high exactly the cycle an install-on-full fires
   8.  miss on absent key      — hit=0, no state change
-  9.  random stress           — random install/touch/lookup mix vs. _FifoCamModel
+  9.  random stress           — random install/touch/lookup mix vs. _LruCamModel
 
 Pattern A (val/amba convention): single cocotb test that dispatches the
 sub-sequences, parameterized at the pytest level on (KEY_WIDTH,
@@ -64,43 +65,46 @@ ACTION_INSTALL = 0b10
 
 
 # ----------------------------------------------------------------------------
-# Inline FIFO-eviction golden model
+# Inline LRU-eviction golden model — bit-exact mirror of the RTL
+#
+# The RTL uses position-indexed storage (slot 0 = MRU, slot DEPTH-1 = LRU).
+# Touch / install move the matched (or new) entry to slot 0 and shift
+# the older entries down by one position. This matches the Python `Cam`
+# class in bin/TBClasses/monbus/monbus_compressor.py exactly, so the
+# encoder/decoder Python golden can be used as a higher-level reference
+# for the integration test in test_monbus_compressor.py.
 # ----------------------------------------------------------------------------
 @dataclass
-class _FifoCamEntry:
+class _LruCamEntry:
     key:  int
     data: int
 
 
-class _FifoCamModel:
-    """Mirrors the RTL's FIFO behavior exactly.
+class _LruCamModel:
+    """Mirrors the RTL's true-LRU position-indexed storage.
 
-    State: ring-buffer of DEPTH slots; install_ptr names the next slot
-    to write. cam_count saturates at DEPTH. On install-when-full, the
-    slot at install_ptr is the victim (overwritten) and evicted pulses.
+    State: list of entries; index 0 is MRU, index count-1 is LRU,
+    indices count..DEPTH-1 are empty. Touch/install move the matched
+    or new entry to position 0; older entries shift down by one.
     """
 
     def __init__(self, depth: int):
-        self.depth        = depth
-        self.entries: List[Optional[_FifoCamEntry]] = [None] * depth
-        self.install_ptr  = 0
-        self.count        = 0
+        self.depth = depth
+        self.entries: List[_LruCamEntry] = []
 
     # ---- access port ------------------------------------------------------
 
     def lookup(self, key: int) -> Tuple[bool, int, int]:
-        """Returns (hit, idx, old_data) — exactly the combinational
-        outputs of the RTL.
-
-        The RTL loops i = DEPTH-1 down to 0 and overwrites on each
-        match (no early break), so the LOWEST matching index wins.
-        Mirror that here by iterating low-to-high and breaking on
-        first match."""
-        for i in range(self.depth):
-            e = self.entries[i]
-            if e is not None and e.key == key:
+        """Returns (hit, idx, old_data) — the combinational outputs of
+        the RTL. `idx` is the entry's current position rank (0=MRU)."""
+        for i, e in enumerate(self.entries):
+            if e.key == key:
                 return True, i, e.data
         return False, 0, 0
+
+    @property
+    def count(self) -> int:
+        return len(self.entries)
 
     def cam_full(self) -> bool:
         return self.count == self.depth
@@ -110,20 +114,20 @@ class _FifoCamModel:
         return action == ACTION_INSTALL and self.cam_full()
 
     def commit(self, action: int, key: int, new_data: int):
-        """Apply the registered state update — matches the RTL's
-        always_ff on the rising edge."""
+        """Apply the registered state update on the rising edge."""
         if action == ACTION_TOUCH:
-            hit, idx, _ = self.lookup(key)
-            if hit:
-                self.entries[idx].data = new_data
-            # else: silent no-op (RTL flags assertion error in sim)
-
+            # Find the matching entry, move to front, update data.
+            for i, e in enumerate(self.entries):
+                if e.key == key:
+                    self.entries.pop(i)
+                    self.entries.insert(0, _LruCamEntry(key=key, data=new_data))
+                    return
+            # Silent no-op if no match (RTL flags an $error).
         elif action == ACTION_INSTALL:
-            self.entries[self.install_ptr] = _FifoCamEntry(key=key, data=new_data)
-            if not self.cam_full():
-                self.count += 1
-            self.install_ptr = (self.install_ptr + 1) % self.depth
-
+            # Evict LRU if full; insert new entry at front.
+            if self.cam_full():
+                self.entries.pop()
+            self.entries.insert(0, _LruCamEntry(key=key, data=new_data))
         # ACTION_NONE / reserved: no state change
 
 
@@ -137,7 +141,7 @@ class MonbusCamConfig:
     depth:      int = 16
 
     def __post_init__(self):
-        assert self.depth >= 2, "DEPTH must be at least 2 for FIFO semantics"
+        assert self.depth >= 2, "DEPTH must be at least 2 for LRU semantics"
         assert self.key_width >= 1
         assert self.data_width >= 1
 
@@ -147,7 +151,7 @@ class MonbusCamConfig:
 # ----------------------------------------------------------------------------
 class MonbusCamTB(TBBase):
     """Lightweight TB — drive the single access port, sample combinational
-    outputs, compare against the FIFO golden."""
+    outputs, compare against the LRU golden."""
 
     def __init__(self, dut):
         super().__init__(dut)
@@ -160,7 +164,7 @@ class MonbusCamTB(TBBase):
 
         random.seed(self.SEED)
         self.cfg   = MonbusCamConfig(self.KEY_WIDTH, self.DATA_WIDTH, self.DEPTH)
-        self.model = _FifoCamModel(self.DEPTH)
+        self.model = _LruCamModel(self.DEPTH)
 
         self._key_mask  = (1 << self.KEY_WIDTH)  - 1
         self._data_mask = (1 << self.DATA_WIDTH) - 1
@@ -184,7 +188,7 @@ class MonbusCamTB(TBBase):
         await self.wait_clocks('clk', 5)
         self.dut.rst_n.value = 1
         await self.wait_clocks('clk', 2)
-        self.model = _FifoCamModel(self.DEPTH)
+        self.model = _LruCamModel(self.DEPTH)
         self.log.debug("reset_dut: done")
 
     async def _step(self, key: int, action: int, new_data: int = 0):
@@ -309,27 +313,31 @@ class MonbusCamTB(TBBase):
         assert full_post == 1, "t5: cam_full not asserted after DEPTH installs"
         self.log.info("=== t5: PASS ===")
 
-    async def t6_fifo_eviction(self):
-        self.log.info("=== t6: FIFO eviction ===")
-        # Install DEPTH unique keys; track the order of install (slot 0
-        # is the oldest because install_ptr starts at 0 and wraps).
+    async def t6_lru_eviction(self):
+        self.log.info("=== t6: LRU eviction ===")
+        # Install DEPTH unique keys back-to-back, no intervening touches.
+        # Under LRU, the first-installed key is also the least-recently-
+        # used at the end of the sequence (slot 0 = MRU = last-installed,
+        # slot DEPTH-1 = LRU = first-installed). So the (DEPTH+1)th
+        # install evicts installed_keys[0] -- the same outcome FIFO
+        # would produce, since there have been no access reorderings.
         installed_keys = []
         for i in range(self.DEPTH):
             k = 0x0003_0000 + i
             d = (0xBEEF_0000 + i) & self._data_mask
             installed_keys.append((k, d))
             await self._step(key=k, action=ACTION_INSTALL, new_data=d)
-        # Install one more key → install_ptr is back at 0, so the oldest
-        # entry (installed_keys[0]) is evicted. evicted pulse must fire.
+        # Install one more key -> LRU victim (installed_keys[0]) evicted.
+        # evicted pulse must fire.
         new_k, new_d = 0xFEED_F00D, 0xDEAD_DEAD_DEAD_DEAD & self._data_mask
         _, _, _, full, _, evicted = await self._step(
             key=new_k, action=ACTION_INSTALL, new_data=new_d
         )
         assert full,    "t6: cam_full not asserted before eviction install"
         assert evicted, "t6: evicted pulse did NOT fire on full-CAM install"
-        # The oldest key is no longer present.
+        # The LRU (first-installed) key is no longer present.
         hit, *_ = await self._step(key=installed_keys[0][0], action=ACTION_NONE)
-        assert not hit, "t6: oldest key still present after eviction"
+        assert not hit, "t6: LRU key still present after eviction"
         # The new key IS present with correct data.
         hit, _, old, *_ = await self._step(key=new_k, action=ACTION_NONE)
         assert hit and old == new_d, \
@@ -387,7 +395,37 @@ class MonbusCamTB(TBBase):
         assert not evicted
         self.log.info("=== t8: PASS ===")
 
-    async def t9_random_stress(self, n_ops: int = 500):
+    async def t9_touch_moves_to_mru(self):
+        """LRU-specific: TOUCH on a non-MRU entry must move it to slot 0,
+        shifting newer entries down. Verifies the position-rank update
+        and the bit-exact behavior against the Python golden's
+        move-to-front semantics."""
+        self.log.info("=== t9: TOUCH moves entry to MRU ===")
+        # Fill the CAM with N unique keys. After installing in order,
+        # position 0 = last-installed (MRU), position N-1 = first-installed (LRU).
+        keys = [0x0008_0000 + i for i in range(self.DEPTH)]
+        datas = [(0xCAFE_0000 + i) & self._data_mask for i in range(self.DEPTH)]
+        for k, d in zip(keys, datas):
+            await self._step(key=k, action=ACTION_INSTALL, new_data=d)
+        # The LRU entry (keys[0]) is at position DEPTH-1.
+        hit, idx, _, _, _, _ = await self._step(key=keys[0], action=ACTION_NONE)
+        assert hit and idx == self.DEPTH - 1, \
+            f"t9: pre-touch LRU lookup expected idx={self.DEPTH-1}, got {idx}"
+        # TOUCH it. After commit it must be at position 0 (MRU).
+        new_d = 0x5A5A_5A5A_5A5A_5A5A & self._data_mask
+        await self._step(key=keys[0], action=ACTION_TOUCH, new_data=new_d)
+        # Now lookup it again: should be at idx 0 with new data.
+        hit, idx, old, _, _, _ = await self._step(key=keys[0], action=ACTION_NONE)
+        assert hit and idx == 0, f"t9: post-touch idx expected 0, got {idx}"
+        assert old == new_d, \
+            f"t9: post-touch data expected 0x{new_d:x}, got 0x{old:x}"
+        # The previously-MRU entry (keys[-1]) has shifted to position 1.
+        hit, idx, _, _, _, _ = await self._step(key=keys[-1], action=ACTION_NONE)
+        assert hit and idx == 1, \
+            f"t9: previously-MRU key now expected idx=1, got {idx}"
+        self.log.info("=== t9: PASS ===")
+
+    async def t10_random_stress(self, n_ops: int = 500):
         self.log.info(f"=== t9: random stress, {n_ops} ops ===")
         # Respects the caller protocol: only INSTALL on miss, only TOUCH
         # on hit. Otherwise the RTL's $error assertions for duplicate
@@ -443,7 +481,7 @@ async def monbus_cam_test(dut):
     await tb.t5_cam_full_asserts()
     await tb.reset_dut()
 
-    await tb.t6_fifo_eviction()
+    await tb.t6_lru_eviction()
     await tb.reset_dut()
 
     await tb.t7_evicted_pulse_only_on_full_install()
@@ -452,7 +490,10 @@ async def monbus_cam_test(dut):
     await tb.t8_miss_on_absent_key()
     await tb.reset_dut()
 
-    await tb.t9_random_stress(n_ops=n_stress_ops)
+    await tb.t9_touch_moves_to_mru()
+    await tb.reset_dut()
+
+    await tb.t10_random_stress(n_ops=n_stress_ops)
 
     tb.log.info("=== ALL TESTS PASSED ===")
 
@@ -461,14 +502,27 @@ async def monbus_cam_test(dut):
 # Pytest parametric wrapper
 # ----------------------------------------------------------------------------
 def get_monbus_cam_params():
-    """REG_LEVEL gates the parameter sweep depth."""
+    """REG_LEVEL gates the parameter sweep depth.
+
+    Default (49b key, 64b data, depth 32) matches the locked spec in
+    bin/TBClasses/monbus/monbus_compressor.py and the compression
+    dataset README. Smaller depths exercise the LRU shift logic at the
+    boundary and confirm the parametric sweep works.
+    """
     reg_level = os.environ.get('REG_LEVEL', 'FUNC').upper()
     if reg_level == 'GATE':
-        return [(49, 64, 8)]
+        return [(49, 64, 32)]  # locked default
     elif reg_level == 'FUNC':
-        return [(49, 64, 16), (32, 32, 8)]
+        return [(49, 64, 32), (49, 64, 8)]  # locked + small
     else:  # FULL
-        return [(49, 64, 16), (49, 64, 32), (32, 32, 8), (16, 16, 4), (64, 64, 16)]
+        return [
+            (49, 64, 32),   # locked default
+            (49, 64, 16),
+            (49, 64, 8),
+            (32, 32, 8),
+            (16, 16, 4),
+            (64, 64, 16),
+        ]
 
 
 @pytest.mark.parametrize("key_width, data_width, depth", get_monbus_cam_params())
