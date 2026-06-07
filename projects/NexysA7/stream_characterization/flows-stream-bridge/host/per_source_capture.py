@@ -71,7 +71,7 @@ THIS_DIR = Path(__file__).resolve().parent
 sys.path.insert(0, str(THIS_DIR))
 
 from dump_monbus_sram import (  # noqa: E402
-    dump as dump_sram_to_file,
+    dump_json as dump_sram_to_json,
 )
 
 # Address constants — sourced from harness_csr.sv + stream_regs.sv via
@@ -247,20 +247,25 @@ def capture_one(
         time.sleep(workload_settle_s)
 
     ts = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
-    out_path = output_dir / f"per_source_{source.name}_{ts}.txt"
+    out_path = output_dir / f"per_source_{source.name}_{ts}.json"
     if dry_run:
         print(f"  [dump] dry-run: would write {out_path}", file=sys.stderr)
         return out_path
 
-    with open(out_path, "w") as f:
-        f.write(f"# source: {source.name}\n")
-        f.write(f"# description: {source.description}\n")
-        f.write(f"# captured: {ts}\n")
-        f.write(f"# workload_cmd: {workload_cmd!r}\n")
-        f.write(f"# dump_base: 0x{dump_base:08X}\n")
-        f.write(f"# dump_bytes: 0x{dump_bytes:X}\n")
-        f.write("# format: dump_monbus_sram.format_timestamped()\n")
-        n = dump_sram_to_file(bridge._bridge, dump_base, dump_bytes, out=f)
+    # JSON schema matches sniffer.MonbusSniffer.dump_json -> load_capture
+    # round-trip — feeds straight into the compression encoder model.
+    extra_meta = {
+        "label": source.name,
+        "description": source.description,
+        "captured": ts,
+        "workload_cmd": workload_cmd,
+        "dump_base": f"0x{dump_base:08x}",
+        "dump_bytes": f"0x{dump_bytes:x}",
+    }
+    n = dump_sram_to_json(
+        bridge._bridge, dump_base, dump_bytes,
+        str(out_path), extra_meta=extra_meta,
+    )
     print(f"  [dump] {n} record(s) -> {out_path}", file=sys.stderr)
     return out_path
 

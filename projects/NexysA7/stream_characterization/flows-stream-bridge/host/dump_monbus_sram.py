@@ -174,6 +174,100 @@ def dump(
     return len(records)
 
 
+def _rec_to_raw_pair(rec):
+    """Reconstruct (packet_128bit_int, timestamp_64bit_int) from a
+    TimestampedPacket. Mirrors MonbusSniffer.records semantics so the
+    JSON / CSV output formats are byte-identical to sniffer.dump_*().
+
+    Uses MonitorPacket.raw_packet (the as-captured int) rather than
+    .to_raw() — the latter reconstructs from parsed fields and silently
+    drops bits not in the field spec, which corrupts the bytes the
+    compression encoder needs to see verbatim.
+    """
+    if hasattr(rec.packet, "raw_packet"):
+        pkt_raw = rec.packet.raw_packet
+    elif hasattr(rec.packet, "to_raw"):
+        pkt_raw = rec.packet.to_raw()
+    else:
+        pkt_raw = int(rec.packet)
+    ts = rec.source_ts if rec.source_ts is not None else 0
+    return pkt_raw, ts
+
+
+def dump_json(
+    bridge,
+    base_addr: int,
+    n_bytes: int,
+    path: str,
+    extra_meta: Optional[dict] = None,
+) -> int:
+    """Read the SRAM region and write records as the JSON schema that
+    `bin/TBClasses/monbus/sniffer.load_capture()` round-trips into the
+    compression encoder. Schema (see sniffer.MonbusSniffer.dump_json):
+
+        {
+          "meta": {"label": ..., "schema_version": 1, "record_count": N, ...},
+          "records": [
+              {"packet": "0x<32 hex>", "timestamp": "0x<16 hex>"},
+              ...
+          ]
+        }
+
+    extra_meta is merged into the meta block — caller typically provides
+    a {"label": "<source_name>", ...} dict so the run is identifiable.
+    """
+    import json
+    words = read_sram_region(bridge.read, base_addr, n_bytes)
+    records = parse_records(words)
+    pairs = [_rec_to_raw_pair(r) for r in records]
+
+    meta = {
+        "label": "monbus_sram_dump",
+        "schema_version": 1,
+        "record_count": len(pairs),
+        "source_format": "monbus_axil_group_24B_ts_mode_1",
+        "dump_base_addr": f"0x{base_addr:08x}",
+        "dump_n_bytes": f"0x{n_bytes:x}",
+    }
+    if extra_meta:
+        meta.update(extra_meta)
+
+    doc = {
+        "meta": meta,
+        "records": [
+            {"packet": f"0x{p:032x}", "timestamp": f"0x{ts:016x}"}
+            for p, ts in pairs
+        ],
+    }
+    os.makedirs(os.path.dirname(os.path.abspath(path)) or ".", exist_ok=True)
+    with open(path, "w") as f:
+        json.dump(doc, f, indent=2)
+    return len(pairs)
+
+
+def dump_csv(
+    bridge,
+    base_addr: int,
+    n_bytes: int,
+    path: str,
+) -> int:
+    """Read the SRAM region and write records as a 2-column CSV
+    (packet_hex, timestamp_hex). Matches sniffer.MonbusSniffer.dump_csv()
+    so `load_capture()` picks it up unchanged."""
+    import csv
+    words = read_sram_region(bridge.read, base_addr, n_bytes)
+    records = parse_records(words)
+    pairs = [_rec_to_raw_pair(r) for r in records]
+
+    os.makedirs(os.path.dirname(os.path.abspath(path)) or ".", exist_ok=True)
+    with open(path, "w", newline="") as f:
+        w = csv.writer(f)
+        w.writerow(["packet_hex", "timestamp_hex"])
+        for p, ts in pairs:
+            w.writerow([f"0x{p:032x}", f"0x{ts:016x}"])
+    return len(pairs)
+
+
 def main(argv=None) -> int:
     p = argparse.ArgumentParser(description=__doc__.splitlines()[3])
     p.add_argument("--port", required=True,
@@ -186,12 +280,44 @@ def main(argv=None) -> int:
                    type=lambda s: int(s, 0), required=True,
                    help="Number of bytes to read (in stream_char: 0x40000 "
                         "for the full 256 KB debug_sram)")
+    p.add_argument("--format", dest="fmt",
+                   choices=("text", "json", "csv"), default="text",
+                   help="Output format. text (default) prints one "
+                        "human-readable line per record to --output (or "
+                        "stdout). json/csv write the schema accepted by "
+                        "bin/TBClasses/monbus/sniffer.load_capture() — "
+                        "drop-in input to the compression encoder.")
+    p.add_argument("--output", "-o",
+                   help="Output file path. Required for --format=json|csv; "
+                        "optional for --format=text (defaults to stdout).")
+    p.add_argument("--label",
+                   help="JSON-only: 'label' string written into the meta "
+                        "block (typically the source/run name).")
     args = p.parse_args(argv)
+
+    if args.fmt in ("json", "csv") and not args.output:
+        p.error(f"--format={args.fmt} requires --output")
 
     from uart_axi_bridge import UARTAxiBridge  # noqa: E402
     with UARTAxiBridge(port=args.port, baudrate=args.baud) as bridge:
-        n = dump(bridge, args.base, args.n_bytes)
-        print(f"# {n} record(s) dumped", file=sys.stderr)
+        if args.fmt == "text":
+            out_stream = sys.stdout
+            close_after = False
+            if args.output:
+                out_stream = open(args.output, "w")
+                close_after = True
+            try:
+                n = dump(bridge, args.base, args.n_bytes, out=out_stream)
+            finally:
+                if close_after:
+                    out_stream.close()
+        elif args.fmt == "json":
+            extra = {"label": args.label} if args.label else None
+            n = dump_json(bridge, args.base, args.n_bytes,
+                          args.output, extra_meta=extra)
+        else:  # csv
+            n = dump_csv(bridge, args.base, args.n_bytes, args.output)
+        print(f"# {n} record(s) dumped ({args.fmt})", file=sys.stderr)
     return 0
 
 
