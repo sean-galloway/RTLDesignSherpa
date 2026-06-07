@@ -710,7 +710,15 @@ module bridge_1x2_rd_mon (
         .err_fifo_full     (),
         .write_fifo_full   (),
         .err_fifo_count    (),
-        .write_fifo_count  ()
+        .write_fifo_count  (),
+        .mon_compressor_stat_tier1_a        (),
+        .mon_compressor_stat_tier1_b        (),
+        .mon_compressor_stat_tier1_c        (),
+        .mon_compressor_stat_tier0          (),
+        .mon_compressor_stat_cam_miss       (),
+        .mon_compressor_stat_delta_ts_ovf   (),
+        .mon_compressor_stat_event_data_ovf (),
+        .mon_compressor_stat_ed_delta_ovf   ()
         /* verilator lint_on PINCONNECTEMPTY */
     );
 

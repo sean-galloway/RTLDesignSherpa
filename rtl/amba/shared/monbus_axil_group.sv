@@ -96,7 +96,14 @@ module monbus_axil_group
                                              // Locked at 64: drains a {packet,
                                              // source_ts} record in 3 beats.
     parameter int M_AXIL_DATA_WIDTH  = 64,   // Master AXI-Lite data width (capture writes)
-    parameter int NUM_PROTOCOLS      = 3     // AXI, AXIS, CORE
+    parameter int NUM_PROTOCOLS      = 3,    // AXI, AXIS, CORE
+    // Bulk-trace compressor select (off by default for back-compat).
+    //   0: raw 3-beat-per-record writer (existing behaviour, tag=4'h0)
+    //   1: monbus_compressor sits in front of the writer; the writer
+    //      becomes a per-slot 1-beat AXIL emitter and each beat carries
+    //      its own 4-bit format tag in bits [63:60]. Stat counters are
+    //      exposed via mon_compressor_stat_*.
+    parameter int USE_COMPRESSION    = 0
 ) (
     // Clock and Reset
     input  logic                          axi_aclk,
@@ -179,7 +186,19 @@ module monbus_axil_group
     output logic                          err_fifo_full,
     output logic                          write_fifo_full,
     output logic [7:0]                    err_fifo_count,
-    output logic [7:0]                    write_fifo_count
+    output logic [7:0]                    write_fifo_count,
+
+    // Compressor statistics (valid only when USE_COMPRESSION == 1;
+    // tied to 0 in the raw-writer build so the wrapper layer sees
+    // consistent ports regardless of build option).
+    output logic [31:0]                   mon_compressor_stat_tier1_a,
+    output logic [31:0]                   mon_compressor_stat_tier1_b,
+    output logic [31:0]                   mon_compressor_stat_tier1_c,
+    output logic [31:0]                   mon_compressor_stat_tier0,
+    output logic [31:0]                   mon_compressor_stat_cam_miss,
+    output logic [31:0]                   mon_compressor_stat_delta_ts_ovf,
+    output logic [31:0]                   mon_compressor_stat_event_data_ovf,
+    output logic [31:0]                   mon_compressor_stat_ed_delta_ovf
 );
 
     // =======================================================================
@@ -631,155 +650,289 @@ module monbus_axil_group
     );
 
     // =======================================================================
-    // Write FSM — 64-bit master, fixed 3-beat record
+    // Write Path -- selected at elaboration via USE_COMPRESSION
     //
-    // Beat order per record (always +8 bytes per beat, total 24 B/record):
-    //   beat 0 = {tag[3:0], source_ts[59:0]}   tag = 4'h0 (raw, no compression)
-    //   beat 1 = packet[127:64]
-    //   beat 2 = packet[63:0]
+    //   USE_COMPRESSION == 0 (default): raw 3-beat-per-record writer.
+    //     Beat order per record (+8 bytes per beat, 24 B/record):
+    //       beat 0 = {tag=4'h0, source_ts[59:0]}
+    //       beat 1 = packet[127:64]
+    //       beat 2 = packet[63:0]
+    //     Identical to the s_axil drain slice order.
     //
-    // The tag field reserves the top 4 bits of the timestamp beat for a
-    // future on-the-wire compression encoding (see file header). Today
-    // it is always 4'h0 -- raw record, three full beats. A compressor
-    // dropped into the bulk-trace path can emit non-zero tags + a
-    // shortened payload without changing this writer's framing
-    // (compressor sits upstream of the WRITE_LOAD stage and is the only
-    // block that knows about tags > 0).
+    //   USE_COMPRESSION == 1: bulk-trace compressor (monbus_compressor)
+    //     consumes raw records and emits 64-bit slots; the writer below
+    //     becomes a per-slot 1-beat AXIL emitter (+8 bytes per slot).
+    //     Each slot carries its own 4-bit format tag in bits [63:60]
+    //     (4'h0 = RAW expansion beat, 4'h1/4'h2/4'h3 = Tier-1 formats),
+    //     so a host walking the SRAM ring can decode one slot at a time
+    //     without lookahead. The compressor's CAM lives upstream of this
+    //     writer, so the wire framing here stays trivial.
     //
-    // Matches the s_axil slice-counter drain layout exactly, so a host
-    // walking the SRAM ring and a CPU IRQ handler draining via s_axil
-    // both see the same record format.
-    //
-    // Address-window wrap:
-    //   The cfg_base_addr / cfg_limit_addr window is a record-aligned
-    //   ring. "Next-record-fits" check at the start of each record only:
-    //   if the current_write_addr + 24 bytes would exceed cfg_limit_addr,
-    //   rewind to cfg_base_addr before issuing the first AW. We do NOT
-    //   wrap mid-record -- partial records would corrupt the layout in
-    //   memory.
+    // Address-window wrap (both modes):
+    //   The cfg_base_addr / cfg_limit_addr window is treated as a
+    //   record-aligned ring. We compute a "next-record-fits" check at
+    //   the *start* of each transaction (record in raw mode, slot in
+    //   compressed mode) and rewind to base before issuing the first AW
+    //   if it would not fit. Mid-record/mid-burst wrap is forbidden --
+    //   that would corrupt the layout in memory.
     // =======================================================================
 
-    typedef enum logic [2:0] {
-        WRITE_IDLE   = 3'd0,
-        WRITE_LOAD   = 3'd1,  // 1 cycle: latch record from FIFO, maybe wrap addr
-        WRITE_AW     = 3'd2,
-        WRITE_W      = 3'd3,
-        WRITE_B      = 3'd4
-    } write_state_t;
+    generate
+    if (USE_COMPRESSION == 0) begin : gen_writer_raw
 
-    localparam logic [1:0] TOTAL_BEATS = 2'd3;  // 3 beats per record, fixed
-    // 1-beat addr stride in bytes (8 for a 64-bit master).
-    localparam int         BEAT_STRIDE_INT = M_AXIL_DATA_WIDTH / 8;
-    // Total bytes per record: 3 * 8 = 24.
-    localparam int         REC_SIZE_INT    = 3 * BEAT_STRIDE_INT;
+        // -----------------------------------------------------------------
+        // Raw 3-beat-per-record writer (legacy behaviour).
+        // -----------------------------------------------------------------
+        typedef enum logic [2:0] {
+            WRITE_IDLE   = 3'd0,
+            WRITE_LOAD   = 3'd1,  // 1 cycle: latch record from FIFO, maybe wrap addr
+            WRITE_AW     = 3'd2,
+            WRITE_W      = 3'd3,
+            WRITE_B      = 3'd4
+        } write_state_t;
 
-    write_state_t                    write_state;
-    monitor_packet_t                 current_packet;
-    monbus_timestamp_t               current_source_ts;
+        // 1-beat addr stride in bytes (8 for a 64-bit master).
+        localparam int  BEAT_STRIDE_INT = M_AXIL_DATA_WIDTH / 8;
+        // Total bytes per record: 3 * 8 = 24.
+        localparam int  REC_SIZE_INT    = 3 * BEAT_STRIDE_INT;
+        // Tag hardwired 4'h0 for the raw (uncompressed) record format.
+        localparam logic [3:0] WRITE_TAG_RAW = 4'h0;
 
-    logic [1:0]                      beat_idx;  // 0..2
+        write_state_t                    write_state;
+        monitor_packet_t                 current_packet;
+        monbus_timestamp_t               current_source_ts;
+        logic [1:0]                      beat_idx;  // 0..2
 
-    // Combinational helpers for the WRITE_LOAD next-record-fits check.
-    logic [ADDR_WIDTH-1:0]   load_start_addr;
-    logic [ADDR_WIDTH-1:0]   load_last_byte_addr;
-    logic                    load_needs_rewind;
-    logic [ADDR_WIDTH-1:0]   load_effective_start;
-    logic                    last_beat_of_record;
+        // Combinational helpers for the WRITE_LOAD next-record-fits check.
+        logic [ADDR_WIDTH-1:0]   load_start_addr;
+        logic [ADDR_WIDTH-1:0]   load_last_byte_addr;
+        logic                    load_needs_rewind;
+        logic [ADDR_WIDTH-1:0]   load_effective_start;
+        logic                    last_beat_of_record;
 
-    always_comb begin
-        load_start_addr      = current_write_addr;
-        load_last_byte_addr  = load_start_addr + ADDR_WIDTH'(REC_SIZE_INT)
-                             - {{(ADDR_WIDTH-1){1'b0}}, 1'b1};
-        load_needs_rewind    = (load_last_byte_addr > cfg_limit_addr) ||
-                               (load_start_addr     < cfg_base_addr);
-        load_effective_start = load_needs_rewind ? cfg_base_addr : load_start_addr;
-        last_beat_of_record  = (beat_idx == 2'd2);
-    end
+        always_comb begin
+            load_start_addr      = current_write_addr;
+            load_last_byte_addr  = load_start_addr + ADDR_WIDTH'(REC_SIZE_INT)
+                                 - {{(ADDR_WIDTH-1){1'b0}}, 1'b1};
+            load_needs_rewind    = (load_last_byte_addr > cfg_limit_addr) ||
+                                   (load_start_addr     < cfg_base_addr);
+            load_effective_start = load_needs_rewind ? cfg_base_addr : load_start_addr;
+            last_beat_of_record  = (beat_idx == 2'd2);
+        end
 
-    // FSM
-    `ALWAYS_FF_RST(axi_aclk, axi_aresetn,
-        if (`RST_ASSERTED(axi_aresetn)) begin
-            write_state        <= WRITE_IDLE;
-            current_packet     <= '0;
-            current_source_ts  <= '0;
-            beat_idx           <= 2'd0;
-            current_write_addr <= '0;
-        end else begin
-            case (write_state)
-                WRITE_IDLE: begin
-                    if (write_fifo_rd_valid) begin
-                        current_packet    <= wr_rec_packet;
-                        current_source_ts <= wr_rec_source_ts;
-                        beat_idx          <= 2'd0;
-                        write_state       <= WRITE_LOAD;
-                    end
-                end
-
-                WRITE_LOAD: begin
-                    // Decide whether the next full record fits in the window;
-                    // if not, rewind to base BEFORE issuing the first AW.
-                    current_write_addr <= load_effective_start;
-                    write_state        <= WRITE_AW;
-                end
-
-                WRITE_AW: begin
-                    if (fub_wr_awvalid && fub_wr_awready) begin
-                        write_state <= WRITE_W;
-                    end
-                end
-
-                WRITE_W: begin
-                    if (fub_wr_wvalid && fub_wr_wready) begin
-                        write_state <= WRITE_B;
-                    end
-                end
-
-                WRITE_B: begin
-                    if (fub_wr_bvalid && fub_wr_bready) begin
-                        current_write_addr <= current_write_addr + ADDR_WIDTH'(BEAT_STRIDE_INT);
-                        if (last_beat_of_record) begin
-                            beat_idx    <= 2'd0;
-                            write_state <= WRITE_IDLE;
-                        end else begin
-                            beat_idx    <= beat_idx + 2'd1;
-                            write_state <= WRITE_AW;
+        `ALWAYS_FF_RST(axi_aclk, axi_aresetn,
+            if (`RST_ASSERTED(axi_aresetn)) begin
+                write_state        <= WRITE_IDLE;
+                current_packet     <= '0;
+                current_source_ts  <= '0;
+                beat_idx           <= 2'd0;
+                current_write_addr <= '0;
+            end else begin
+                case (write_state)
+                    WRITE_IDLE: begin
+                        if (write_fifo_rd_valid) begin
+                            current_packet    <= wr_rec_packet;
+                            current_source_ts <= wr_rec_source_ts;
+                            beat_idx          <= 2'd0;
+                            write_state       <= WRITE_LOAD;
                         end
                     end
-                end
 
-                default: begin
-                    write_state <= WRITE_IDLE;
-                end
+                    WRITE_LOAD: begin
+                        current_write_addr <= load_effective_start;
+                        write_state        <= WRITE_AW;
+                    end
+
+                    WRITE_AW: begin
+                        if (fub_wr_awvalid && fub_wr_awready) begin
+                            write_state <= WRITE_W;
+                        end
+                    end
+
+                    WRITE_W: begin
+                        if (fub_wr_wvalid && fub_wr_wready) begin
+                            write_state <= WRITE_B;
+                        end
+                    end
+
+                    WRITE_B: begin
+                        if (fub_wr_bvalid && fub_wr_bready) begin
+                            current_write_addr <= current_write_addr + ADDR_WIDTH'(BEAT_STRIDE_INT);
+                            if (last_beat_of_record) begin
+                                beat_idx    <= 2'd0;
+                                write_state <= WRITE_IDLE;
+                            end else begin
+                                beat_idx    <= beat_idx + 2'd1;
+                                write_state <= WRITE_AW;
+                            end
+                        end
+                    end
+
+                    default: begin
+                        write_state <= WRITE_IDLE;
+                    end
+                endcase
+            end
+        )
+
+        // Backend interface control
+        assign fub_wr_awvalid = (write_state == WRITE_AW);
+        assign fub_wr_awaddr  = current_write_addr;
+        assign fub_wr_awprot  = 3'b000;
+
+        assign fub_wr_wvalid  = (write_state == WRITE_W);
+        always_comb begin
+            unique case (beat_idx)
+                2'd0:    fub_wr_wdata = {WRITE_TAG_RAW, current_source_ts[59:0]};
+                2'd1:    fub_wr_wdata = current_packet[MONBUS_PKT_WIDTH-1:64];
+                2'd2:    fub_wr_wdata = current_packet[63:0];
+                default: fub_wr_wdata = '0;
             endcase
         end
-    )
+        assign fub_wr_wstrb   = {(M_AXIL_DATA_WIDTH/8){1'b1}};
+        assign fub_wr_bready  = (write_state == WRITE_B);
 
+        // FIFO read control - pop one record per WRITE_IDLE->WRITE_LOAD transition
+        assign write_fifo_rd_ready = (write_state == WRITE_IDLE) && write_fifo_rd_valid;
 
-    // Backend interface control
-    assign fub_wr_awvalid = (write_state == WRITE_AW);
-    assign fub_wr_awaddr  = current_write_addr;
-    assign fub_wr_awprot  = 3'b000;
+        // Compressor stats are not used in raw mode.
+        assign mon_compressor_stat_tier1_a        = 32'd0;
+        assign mon_compressor_stat_tier1_b        = 32'd0;
+        assign mon_compressor_stat_tier1_c        = 32'd0;
+        assign mon_compressor_stat_tier0          = 32'd0;
+        assign mon_compressor_stat_cam_miss       = 32'd0;
+        assign mon_compressor_stat_delta_ts_ovf   = 32'd0;
+        assign mon_compressor_stat_event_data_ovf = 32'd0;
+        assign mon_compressor_stat_ed_delta_ovf   = 32'd0;
 
-    assign fub_wr_wvalid  = (write_state == WRITE_W);
-    // Beat 0 carries the 4-bit encoding tag in the top of the timestamp
-    // beat. Tag is hardwired 4'h0 ("raw, no compression") here; a future
-    // compressor in front of WRITE_LOAD will populate non-zero codes.
-    // Tag MSBs occupy ts bits [63:60]; the lower 60 bits carry source_ts[59:0]
-    // (timestamp truncated from 64 to 60 bits, wraps at 2^60 cycles).
-    localparam logic [3:0] WRITE_TAG_RAW = 4'h0;
-    always_comb begin
-        unique case (beat_idx)
-            2'd0:    fub_wr_wdata = {WRITE_TAG_RAW, current_source_ts[59:0]};
-            2'd1:    fub_wr_wdata = current_packet[MONBUS_PKT_WIDTH-1:64];
-            2'd2:    fub_wr_wdata = current_packet[63:0];
-            default: fub_wr_wdata = '0;
-        endcase
+    end else begin : gen_writer_compressed
+
+        // -----------------------------------------------------------------
+        // monbus_compressor + per-slot 1-beat AXIL emitter.
+        //
+        // The compressor consumes (packet, source_ts) records via its
+        // in_valid/in_ready handshake and produces 64-bit slots via
+        // out_valid/out_ready. A Tier-1 record collapses to a single
+        // slot; a RAW (uncompressed) record expands into three slots.
+        // The writer below issues one AW+W+B per slot, with the same
+        // base/limit wrap rule applied per-slot (8 bytes per slot).
+        // -----------------------------------------------------------------
+        typedef enum logic [1:0] {
+            SLOT_IDLE = 2'd0,
+            SLOT_AW   = 2'd1,
+            SLOT_W    = 2'd2,
+            SLOT_B    = 2'd3
+        } slot_state_t;
+
+        // 1-beat addr stride in bytes (8 for a 64-bit master).
+        localparam int  SLOT_STRIDE_INT = M_AXIL_DATA_WIDTH / 8;
+
+        // Compressor handshake
+        logic                    comp_in_valid;
+        logic                    comp_in_ready;
+        logic                    comp_out_valid;
+        logic                    comp_out_ready;
+        logic [63:0]             comp_out_slot;
+
+        assign comp_in_valid       = write_fifo_rd_valid;
+        assign write_fifo_rd_ready = comp_in_ready;
+
+        monbus_compressor u_compressor (
+            .clk                  (axi_aclk),
+            .rst_n                (axi_aresetn),
+
+            .in_valid             (comp_in_valid),
+            .in_ready             (comp_in_ready),
+            .in_packet            (wr_rec_packet),
+            .in_source_ts         (wr_rec_source_ts),
+
+            .out_valid            (comp_out_valid),
+            .out_ready            (comp_out_ready),
+            .out_slot             (comp_out_slot),
+
+            .stat_tier1_a         (mon_compressor_stat_tier1_a),
+            .stat_tier1_b         (mon_compressor_stat_tier1_b),
+            .stat_tier1_c         (mon_compressor_stat_tier1_c),
+            .stat_tier0           (mon_compressor_stat_tier0),
+            .stat_cam_miss        (mon_compressor_stat_cam_miss),
+            .stat_delta_ts_ovf    (mon_compressor_stat_delta_ts_ovf),
+            .stat_event_data_ovf  (mon_compressor_stat_event_data_ovf),
+            .stat_ed_delta_ovf    (mon_compressor_stat_ed_delta_ovf)
+        );
+
+        // Per-slot writer FSM
+        slot_state_t             slot_state;
+        logic [63:0]             current_slot;
+
+        // Per-slot wrap check (8 bytes need to fit).
+        logic [ADDR_WIDTH-1:0]   slot_last_byte_addr;
+        logic                    slot_needs_rewind;
+        logic [ADDR_WIDTH-1:0]   slot_effective_start;
+
+        always_comb begin
+            slot_last_byte_addr  = current_write_addr + ADDR_WIDTH'(SLOT_STRIDE_INT)
+                                 - {{(ADDR_WIDTH-1){1'b0}}, 1'b1};
+            slot_needs_rewind    = (slot_last_byte_addr > cfg_limit_addr) ||
+                                   (current_write_addr  < cfg_base_addr);
+            slot_effective_start = slot_needs_rewind ? cfg_base_addr : current_write_addr;
+        end
+
+        `ALWAYS_FF_RST(axi_aclk, axi_aresetn,
+            if (`RST_ASSERTED(axi_aresetn)) begin
+                slot_state         <= SLOT_IDLE;
+                current_slot       <= 64'd0;
+                current_write_addr <= '0;
+            end else begin
+                case (slot_state)
+                    SLOT_IDLE: begin
+                        if (comp_out_valid) begin
+                            current_slot       <= comp_out_slot;
+                            current_write_addr <= slot_effective_start;
+                            slot_state         <= SLOT_AW;
+                        end
+                    end
+
+                    SLOT_AW: begin
+                        if (fub_wr_awvalid && fub_wr_awready) begin
+                            slot_state <= SLOT_W;
+                        end
+                    end
+
+                    SLOT_W: begin
+                        if (fub_wr_wvalid && fub_wr_wready) begin
+                            slot_state <= SLOT_B;
+                        end
+                    end
+
+                    SLOT_B: begin
+                        if (fub_wr_bvalid && fub_wr_bready) begin
+                            current_write_addr <= current_write_addr + ADDR_WIDTH'(SLOT_STRIDE_INT);
+                            slot_state         <= SLOT_IDLE;
+                        end
+                    end
+
+                    default: slot_state <= SLOT_IDLE;
+                endcase
+            end
+        )
+
+        // Compressor output handshake: accept a slot only when the
+        // writer is idle (we register it that cycle and transition
+        // to AW). This means the compressor's internal buffering
+        // sets the back-pressure shape, not the AXIL bus.
+        assign comp_out_ready = (slot_state == SLOT_IDLE);
+
+        assign fub_wr_awvalid = (slot_state == SLOT_AW);
+        assign fub_wr_awaddr  = current_write_addr;
+        assign fub_wr_awprot  = 3'b000;
+
+        assign fub_wr_wvalid  = (slot_state == SLOT_W);
+        assign fub_wr_wdata   = current_slot;
+        assign fub_wr_wstrb   = {(M_AXIL_DATA_WIDTH/8){1'b1}};
+
+        assign fub_wr_bready  = (slot_state == SLOT_B);
+
     end
-    assign fub_wr_wstrb   = {(M_AXIL_DATA_WIDTH/8){1'b1}}; // All bytes valid
-
-    assign fub_wr_bready  = (write_state == WRITE_B);
-
-    // FIFO read control - pop one record per WRITE_IDLE->WRITE_LOAD transition
-    assign write_fifo_rd_ready = (write_state == WRITE_IDLE) && write_fifo_rd_valid;
+    endgenerate
 
 endmodule : monbus_axil_group

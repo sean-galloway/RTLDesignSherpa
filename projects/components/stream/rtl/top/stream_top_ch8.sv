@@ -64,6 +64,12 @@ module stream_top_ch8 #(
     parameter int AXI_USER_WIDTH = 3,    // $clog2(NUM_CHANNELS) for channel ID
     parameter int USE_AXI_MONITORS = 0,  // 0 = Disable monitors, 1 = Enable monitors
     parameter int CDC_ENABLE = 1,        // 0 = Same clock (pclk=aclk), 1 = Different clocks (CDC)
+    // Bulk-trace MonBus compressor select. Only meaningful when
+    // USE_AXI_MONITORS=1; pass-through to monbus_axil_group.USE_COMPRESSION.
+    //   0: raw 3-beat-per-record writer (default, byte-exact prior behaviour)
+    //   1: 32-entry LRU CAM-based compressor in front of the writer, 1 beat
+    //      per slot with a 4-bit format tag in bits [63:60] of each slot.
+    parameter int USE_MON_COMPRESSION = 0,
     // Engine-side outstanding queue (side-Q) depths. Defaulted to the
     // historical stream_core values so existing instantiations are unchanged.
     // Override at the next level up to sweep latency-tolerance.
@@ -1707,7 +1713,8 @@ module stream_top_ch8 #(
                 // M_AXIL_DATA_WIDTH defaults to 64 — every record on the
                 // bulk-trace write path is 24 bytes: 3 × 64-bit beats
                 // (packet[63:0], packet[127:64], source_ts[63:0]).
-                .NUM_PROTOCOLS      (3)      // 3 protocols: desc, rd, wr
+                .NUM_PROTOCOLS      (3),     // 3 protocols: desc, rd, wr
+                .USE_COMPRESSION    (USE_MON_COMPRESSION)
             ) u_monbus_axil_group (
                 .axi_aclk           (aclk),
                 .axi_aresetn        (aresetn),
@@ -1801,7 +1808,21 @@ module stream_top_ch8 #(
                 .err_fifo_full      (mon_err_fifo_full),
                 .write_fifo_full    (mon_write_fifo_full),
                 .err_fifo_count     (mon_err_fifo_count),
-                .write_fifo_count   (mon_write_fifo_count)
+                .write_fifo_count   (mon_write_fifo_count),
+
+                // Compressor stats (tied to 0 internally when USE_COMPRESSION=0;
+                // leave dangling -- top-level harness can hook them later for
+                // FPGA characterization once compression is the default).
+                /* verilator lint_off PINCONNECTEMPTY */
+                .mon_compressor_stat_tier1_a        (),
+                .mon_compressor_stat_tier1_b        (),
+                .mon_compressor_stat_tier1_c        (),
+                .mon_compressor_stat_tier0          (),
+                .mon_compressor_stat_cam_miss       (),
+                .mon_compressor_stat_delta_ts_ovf   (),
+                .mon_compressor_stat_event_data_ovf (),
+                .mon_compressor_stat_ed_delta_ovf   ()
+                /* verilator lint_on PINCONNECTEMPTY */
             );
         end else begin : g_monbus_tieoff
             // Monitors disabled - tie off monitor bus and AXI-Lite interfaces

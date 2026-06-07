@@ -180,7 +180,20 @@ module formal_monbus_axil_group (
         .err_fifo_full     (err_fifo_full_o),
         .write_fifo_full   (write_fifo_full_o),
         .err_fifo_count    (err_fifo_count_o),
-        .write_fifo_count  (write_fifo_count_o)
+        .write_fifo_count  (write_fifo_count_o),
+
+        // Compressor stats -- formal harness uses USE_COMPRESSION=0 (default);
+        // leave dangling.
+        /* verilator lint_off PINCONNECTEMPTY */
+        .mon_compressor_stat_tier1_a        (),
+        .mon_compressor_stat_tier1_b        (),
+        .mon_compressor_stat_tier1_c        (),
+        .mon_compressor_stat_tier0          (),
+        .mon_compressor_stat_cam_miss       (),
+        .mon_compressor_stat_delta_ts_ovf   (),
+        .mon_compressor_stat_event_data_ovf (),
+        .mon_compressor_stat_ed_delta_ovf   ()
+        /* verilator lint_on PINCONNECTEMPTY */
     );
 
     // =========================================================================
