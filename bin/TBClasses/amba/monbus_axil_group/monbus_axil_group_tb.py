@@ -5,32 +5,33 @@
 # https://github.com/sean-galloway/RTLDesignSherpa
 #
 # Module: MonbusAxilGroupTB
-# Purpose: STREAM MonBus AXIL Group Testbench - v1.0
+# Purpose: MonBus AXIL Group testbench (shared rtl/amba/shared module).
 #
-# Documentation: projects/components/stream/PRD.md
-# Subsystem: stream
+# Documentation: rtl/amba/PRD.md
+# Subsystem: amba (shared)
 #
 # Author: sean galloway
-# Created: 2025-10-19
+# Created: 2025-10-19 (originally STREAM-local); moved here 2026-06-08
+#          to colocate with the shared rtl/amba/shared/monbus_axil_group.sv
+#          module it tests.
 
 """
-STREAM MonBus AXIL Group Testbench - v1.0
+MonBus AXIL Group testbench — covers the canonical 1-input
+`rtl/amba/shared/monbus_axil_group.sv` module. The 2-input wrapper
+that RAPIDS owns (`projects/components/rapids/rtl/macro/monbus_axil_group_2in.sv`)
+keeps its own TB in the RAPIDS project area because it tests a
+rapids-specific wrapper, not the shared module.
 
-Simplified testbench for STREAM's monbus_axil_group module. Based on RAPIDS
-implementation but simplified for STREAM's memory-only architecture.
-
-SIMPLIFICATIONS FROM RAPIDS:
-- NO AXIS protocol filtering (STREAM has no network interfaces)
-- AXI protocol packets only (no Network/AXIS event codes)
-- Simpler configuration (fewer protocol types)
-
-Features:
+Scope (AXI protocol only — matches what the shared module supports):
 - Monitor bus packet aggregation from data paths
 - AXI protocol packet filtering and validation
 - Error/Interrupt FIFO testing via AXI-Lite slave read interface
 - Master write FIFO testing via AXI-Lite master write interface
 - Configuration register testing
 - Stress testing with concurrent packet streams
+
+Originally written as STREAM's simplified port of the RAPIDS TB; lifted
+here so val/amba tests can reuse it without crossing project areas.
 """
 
 import os

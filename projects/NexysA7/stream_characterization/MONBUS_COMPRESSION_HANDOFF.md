@@ -92,9 +92,12 @@ env var — default behavior unchanged when the var is unset, but with
 it set the test dumps a capture file at end-of-test:
 
 ```bash
-cd projects/components/stream/dv/tests/macro
+cd val/amba
 MONBUS_CAPTURE=/tmp/sim_capture.json pytest test_monbus_axil_group.py -v
 ```
+
+*(Test + TB moved to `val/amba/` + `bin/TBClasses/amba/monbus_axil_group/`
+on 2026-06-08 so they live next to the shared module they target.)*
 
 That's the **only** sim source wired so far. Adding the same hook to
 other monbus-using tests (the rapids equivalents, the bridge monitor
@@ -280,8 +283,8 @@ the original records.
 | `rtl/amba/shared/monbus_axil_group.sv` | New beat order + tag scaffolding |
 | `docs/markdown/RTLAmba/includes/monitor_package_spec.md` | Spec doc — needs update after format lock |
 | `docs/markdown/RTLAmba/monitor_system_whitepaper.md` | §3 timestamp policy mentions the new beat order |
-| `projects/components/stream/dv/tbclasses/monbus_axil_group_tb.py` | Sniffer wired in behind `MONBUS_CAPTURE` env var |
-| `projects/components/stream/dv/tests/macro/test_monbus_axil_group.py` | Calls `finalize_monbus_capture` at end-of-test |
+| `bin/TBClasses/amba/monbus_axil_group/monbus_axil_group_tb.py` | Sniffer wired in behind `MONBUS_CAPTURE` env var (moved here from STREAM project area on 2026-06-08) |
+| `val/amba/test_monbus_axil_group.py` | Calls `finalize_monbus_capture` at end-of-test (moved from STREAM project area on 2026-06-08) |
 | `projects/NexysA7/stream_characterization/flows-stream-bridge/host/dump_monbus_sram.py` | Existing FPGA-side capture path — extend to write the JSON/CSV format above |
 
 ---

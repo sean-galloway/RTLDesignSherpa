@@ -32,7 +32,7 @@ Test Types:
 - 'error_fifo': Error FIFO functionality tests (AXI-Lite slave read)
 
 This test file imports the reusable MonbusAxilGroupTB class from:
-  projects/components/stream/dv/tbclasses/monbus_axil_group_tb.py
+  bin/TBClasses/amba/monbus_axil_group/monbus_axil_group_tb.py
 
 STRUCTURE FOLLOWS REPOSITORY STANDARD:
   - Single CocoTB test function (dispatches based on TEST_TYPE)
@@ -54,10 +54,13 @@ from TBClasses.shared.filelist_utils import get_sources_from_filelist
 repo_root = get_repo_root()
 sys.path.insert(0, repo_root)
 
-# Import from project area
-from projects.components.stream.dv.tbclasses.monbus_axil_group_tb import MonbusAxilGroupTB
+# Import the shared TB from bin/TBClasses (colocated with the shared
+# rtl/amba/shared/monbus_axil_group.sv module the test targets).
+from TBClasses.amba.monbus_axil_group.monbus_axil_group_tb import MonbusAxilGroupTB
 
-# Coverage integration - optional import
+# Coverage integration - optional import. Lives in the STREAM project
+# area because that's where its instrumentation/scoreboards are tuned;
+# val/amba tests degrade gracefully when it's not importable.
 try:
     from projects.components.stream.dv.stream_coverage import (
         CoverageHelper,
@@ -157,16 +160,33 @@ def test_monbus_axil_group(request, test_type, fifo_depth_err, fifo_depth_write,
     enable_waves = bool(int(os.environ.get('WAVES', '0')))
     """Pytest wrapper for MonBus AXIL Group tests - handles all test types."""
     module, repo_root, tests_dir, log_dir, rtl_dict = get_paths({
-        'rtl_stream_macro': '../../rtl/macro',
+        'rtl_includes': 'rtl/amba/includes',
+        'rtl_shared':   'rtl/amba/shared',
+        'rtl_axil4':    'rtl/amba/axil4',
+        'rtl_gaxi':     'rtl/amba/gaxi',
+        'rtl_common':   'rtl/common',
     })
 
     dut_name = "monbus_axil_group"
 
-    # Get Verilog sources and includes from filelist
-    verilog_sources, includes = get_sources_from_filelist(
-        repo_root=repo_root,
-        filelist_path='projects/components/stream/rtl/filelists/macro/monbus_axil_group.f'
-    )
+    # Sources inlined (no STREAM-specific filelist dep) — the test
+    # targets the shared rtl/amba/shared module so we can list its
+    # actual dependency tree directly. Mirrors the existing
+    # test_monbus_axil_group_compressed.py convention.
+    verilog_sources = [
+        os.path.join(rtl_dict['rtl_includes'], "monitor_common_pkg.sv"),
+        os.path.join(rtl_dict['rtl_includes'], "monitor_arbiter_pkg.sv"),
+        os.path.join(rtl_dict['rtl_common'],   "counter_bin.sv"),
+        os.path.join(rtl_dict['rtl_common'],   "fifo_control.sv"),
+        os.path.join(rtl_dict['rtl_gaxi'],     "gaxi_fifo_sync.sv"),
+        os.path.join(rtl_dict['rtl_gaxi'],     "gaxi_skid_buffer.sv"),
+        os.path.join(rtl_dict['rtl_axil4'],    "axil4_slave_rd.sv"),
+        os.path.join(rtl_dict['rtl_axil4'],    "axil4_master_wr.sv"),
+        os.path.join(rtl_dict['rtl_shared'],   f"{dut_name}.sv"),
+    ]
+    for src in verilog_sources:
+        if not os.path.exists(src):
+            raise FileNotFoundError(f"RTL source not found: {src}")
 
     # Format parameters for unique test name
     fde_str = TBBase.format_dec(fifo_depth_err, 3)
@@ -185,6 +205,7 @@ def test_monbus_axil_group(request, test_type, fifo_depth_err, fifo_depth_write,
     sim_build = os.path.join(tests_dir, 'local_sim_build', test_name_plus_params)
     os.makedirs(sim_build, exist_ok=True)
     os.makedirs(log_dir, exist_ok=True)
+    includes = [rtl_dict['rtl_includes'], rtl_dict['rtl_common'], sim_build]
 
     # The monbus_axil_group module split DATA_WIDTH into S_AXIL_DATA_WIDTH
     # (slave / IRQ-status side, stays 32) and M_AXIL_DATA_WIDTH (master /
