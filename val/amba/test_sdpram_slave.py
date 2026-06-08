@@ -245,9 +245,146 @@ async def cocotb_test_sdpram_slave(dut):
         log.info(f"  OK: FIXED burst, last beat 0x{last_written:x} retained")
 
     # ------------------------------------------------------------------
-    # Phase 4 — random single-beat fill, then read back
+    # Phase 4 — stream stability stress: ready signals don't glitch
+    # within a burst.
+    #
+    # Drives sustained back-to-back INCR bursts of length 8, holding
+    # s_axi_wvalid / s_axi_rready stable through each burst. Samples
+    # s_axi_wready and s_axi_rvalid every cycle from AW/AR accept to
+    # the last beat and counts 1→0 transitions. The contract: once
+    # wready (resp. rvalid) goes high inside a burst window, it stays
+    # high until the burst's last beat is consumed.
+    #
+    # The clear FSM was gated on no-active-bursts as part of this
+    # contract; this phase is the regression for that fix. AXI4-only.
     # ------------------------------------------------------------------
-    log.info("Phase 4: random_fill_check")
+    if wr_proto == "AXI4" and rd_proto == "AXI4":
+        log.info("Phase 4b: stream_stability_stress")
+
+        STRESS_BURSTS = 16
+        BEATS_PER_BURST = 8
+
+        # ----- write side -----
+        wready_dips_in_burst = 0
+        wr_base = 16 * word_bytes
+
+        for b in range(STRESS_BURSTS):
+            base = (wr_base + b * BEATS_PER_BURST * word_bytes) % (depth * word_bytes)
+            beats_data = [(0xC0DE000000000000 | ((b << 8) | i)) & mask
+                          for i in range(BEATS_PER_BURST)]
+            # AW phase
+            dut.s_axi_awid.value     = 0
+            dut.s_axi_awaddr.value   = base
+            dut.s_axi_awlen.value    = BEATS_PER_BURST - 1
+            dut.s_axi_awsize.value   = size_log2
+            dut.s_axi_awburst.value  = 1
+            dut.s_axi_awvalid.value  = 1
+            dut.s_axi_bready.value   = 1
+            while True:
+                await ReadOnly()
+                if int(dut.s_axi_awvalid.value) and int(dut.s_axi_awready.value):
+                    await RisingEdge(dut.aclk)
+                    dut.s_axi_awvalid.value = 0
+                    break
+                await RisingEdge(dut.aclk)
+
+            # W phase — hold wvalid stable throughout. Sample wready
+            # every cycle once it first rises.
+            wready_was_high = False
+            beat_idx = 0
+            full_strb = (1 << (dw // 8)) - 1
+            dut.s_axi_wdata.value  = beats_data[0]
+            dut.s_axi_wstrb.value  = full_strb
+            dut.s_axi_wlast.value  = 1 if BEATS_PER_BURST == 1 else 0
+            dut.s_axi_wvalid.value = 1
+            while beat_idx < BEATS_PER_BURST:
+                await ReadOnly()
+                wr = int(dut.s_axi_wready.value)
+                if wr == 1:
+                    if not wready_was_high:
+                        wready_was_high = True
+                elif wready_was_high:
+                    wready_dips_in_burst += 1
+                    wready_was_high = False  # only count one dip per re-rise
+                handshake = int(dut.s_axi_wvalid.value) and wr
+                await RisingEdge(dut.aclk)
+                if handshake:
+                    beat_idx += 1
+                    if beat_idx < BEATS_PER_BURST:
+                        dut.s_axi_wdata.value = beats_data[beat_idx]
+                        dut.s_axi_wlast.value = 1 if beat_idx == BEATS_PER_BURST - 1 else 0
+            dut.s_axi_wvalid.value = 0
+            dut.s_axi_wlast.value  = 0
+
+            # Drain B
+            while True:
+                await ReadOnly()
+                if int(dut.s_axi_bvalid.value) and int(dut.s_axi_bready.value):
+                    await RisingEdge(dut.aclk)
+                    break
+                await RisingEdge(dut.aclk)
+            dut.s_axi_bready.value = 0
+
+        assert wready_dips_in_burst == 0, (
+            f"wready de-asserted mid-burst {wready_dips_in_burst} times "
+            f"across {STRESS_BURSTS} bursts × {BEATS_PER_BURST} beats — "
+            "slave isn't streaming"
+        )
+        log.info(
+            f"  OK: wready stayed high through every burst across "
+            f"{STRESS_BURSTS}×{BEATS_PER_BURST}={STRESS_BURSTS*BEATS_PER_BURST} beats"
+        )
+
+        # ----- read side -----
+        rvalid_dips_in_burst = 0
+        rd_base = wr_base
+        for b in range(STRESS_BURSTS):
+            base = (rd_base + b * BEATS_PER_BURST * word_bytes) % (depth * word_bytes)
+            dut.s_axi_arid.value    = 0
+            dut.s_axi_araddr.value  = base
+            dut.s_axi_arlen.value   = BEATS_PER_BURST - 1
+            dut.s_axi_arsize.value  = size_log2
+            dut.s_axi_arburst.value = 1
+            dut.s_axi_arvalid.value = 1
+            dut.s_axi_rready.value  = 1
+            while True:
+                await ReadOnly()
+                if int(dut.s_axi_arvalid.value) and int(dut.s_axi_arready.value):
+                    await RisingEdge(dut.aclk)
+                    dut.s_axi_arvalid.value = 0
+                    break
+                await RisingEdge(dut.aclk)
+
+            rvalid_was_high = False
+            beats_seen = 0
+            while beats_seen < BEATS_PER_BURST:
+                await ReadOnly()
+                rv = int(dut.s_axi_rvalid.value)
+                rr = int(dut.s_axi_rready.value)
+                if rv == 1:
+                    if not rvalid_was_high:
+                        rvalid_was_high = True
+                elif rvalid_was_high:
+                    rvalid_dips_in_burst += 1
+                    rvalid_was_high = False
+                if rv and rr:
+                    beats_seen += 1
+                await RisingEdge(dut.aclk)
+            dut.s_axi_rready.value = 0
+
+        assert rvalid_dips_in_burst == 0, (
+            f"rvalid de-asserted mid-burst {rvalid_dips_in_burst} times "
+            f"across {STRESS_BURSTS} bursts — slave isn't streaming"
+        )
+        log.info(
+            f"  OK: rvalid stayed high through every burst across "
+            f"{STRESS_BURSTS}×{BEATS_PER_BURST}={STRESS_BURSTS*BEATS_PER_BURST} beats"
+        )
+
+    # ------------------------------------------------------------------
+    # Phase 5 — random single-beat fill, then read back
+    # ------------------------------------------------------------------
+    log.info("Phase 5: random_fill_check")
     random.seed(0xBEEF)
     expected = {}
     for i in range(depth):

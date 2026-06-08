@@ -456,6 +456,16 @@ module sdpram_slave #(
     endgenerate
 
     // ---------------------------------------------------------------
+    // Forward-declare burst-tracker flags so the clear FSM below can
+    // gate i_cfg_start_clear on "both sides idle". Driven by the
+    // write-side and read-side tracker blocks further down.
+    // ---------------------------------------------------------------
+    logic r_wr_active;
+    logic r_b_pending;
+    logic r_rd_active;
+    logic r_inflight;
+
+    // ---------------------------------------------------------------
     // Clear FSM — owns BRAM port A while w_clearing is asserted.
     // Walks r_clear_addr 0..MEM_DEPTH-1 writing zeros each cycle, then
     // drops back to IDLE and asserts the sticky done flag.
@@ -475,7 +485,13 @@ module sdpram_slave #(
         end else begin
             unique case (r_clr_state)
                 CLR_IDLE: begin
-                    if (i_cfg_start_clear) begin
+                    // Defer the bulk-clear start until both sides are
+                    // idle. Otherwise w_clearing could go high mid-
+                    // burst and strip fub_wready / fub_arready, which
+                    // breaks the slave's no-ready-glitch contract that
+                    // sustains AXI4 streaming throughput.
+                    if (i_cfg_start_clear && !r_wr_active && !r_b_pending
+                                          && !r_rd_active && !r_inflight) begin
                         r_clr_state  <= CLR_BUSY;
                         r_clear_addr <= '0;
                         r_done_clear <= 1'b0;
@@ -513,14 +529,14 @@ module sdpram_slave #(
     // two outstanding B responses; this trades a tiny bit of W→AW
     // pipelining for simpler bookkeeping.
     // ---------------------------------------------------------------
-    logic                       r_wr_active;
+    // r_wr_active forward-declared earlier (clear FSM gate).
     logic [AXI_ID_WIDTH-1:0]    r_wr_id;
     logic [ADDR_WIDTH-1:0]      r_wr_addr;
     logic [7:0]                 r_wr_beats_left;
     logic [2:0]                 r_wr_size;
     logic [1:0]                 r_wr_burst;
 
-    logic                       r_b_pending;
+    // r_b_pending forward-declared earlier (clear FSM gate).
     logic [AXI_ID_WIDTH-1:0]    r_b_id;
     logic [1:0]                 r_b_resp;
 
@@ -623,15 +639,15 @@ module sdpram_slave #(
     wire [WORD_AW-1:0] fub_ar_word_addr = fub_araddr[ADDR_LSB +: WORD_AW];
     /* verilator lint_on UNUSED */
 
-    logic                       r_rd_active;
+    // r_rd_active forward-declared earlier (clear FSM gate).
     logic [AXI_ID_WIDTH-1:0]    r_rd_id;
     logic [ADDR_WIDTH-1:0]      r_rd_addr;
     logic [7:0]                 r_rd_beats_left;
     logic [2:0]                 r_rd_size;
     logic [1:0]                 r_rd_burst;
 
-    // Inflight (this-beat-on-fub_r) registers
-    logic                       r_inflight;
+    // Inflight (this-beat-on-fub_r) registers.
+    // r_inflight forward-declared earlier (clear FSM gate).
     logic [AXI_ID_WIDTH-1:0]    r_inflight_rid;
     logic [1:0]                 r_inflight_rresp;
     logic                       r_inflight_rlast;
