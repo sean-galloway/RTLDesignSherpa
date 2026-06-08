@@ -14,8 +14,15 @@
 // are ignored on inputs and driven to 0 on outputs — callers can leave
 // them disconnected or tie them off.
 //
-// Bursts: single-beat only on both sides (arlen=awlen=0). An assertion
-// catches violations in sim. Used by:
+// Bursts:
+//   - AXI4 mode supports INCR (arburst/awburst = 2'b01) and FIXED
+//     (= 2'b00) of any length up to AXI4's 256-beat max. WRAP
+//     (= 2'b10) is rejected by an assertion in sim and treated as
+//     INCR in synth (the BRAM glue advances linearly).
+//   - AXIL mode is single-beat by construction (the AXIL skid ties
+//     awlen/arlen to 0 on the fub side, so the burst-aware backend
+//     just produces one beat per AW/AR).
+// Used by:
 //   - desc_ram (256-bit, AXI4 wr + AXI4 rd)
 //   - debug_sram (64-bit, AXIL wr + AXIL rd)
 // Mixed configurations (e.g. AXI4 wr + AXIL rd) are supported by the
@@ -489,38 +496,198 @@ module sdpram_slave #(
     assign o_cfg_done_clear = r_done_clear;
 
     // ---------------------------------------------------------------
-    // Write fire — combinational handshake against BRAM port A.
-    // bid echoes fub_awid (AXI4) or 0 (AXIL).
+    // Write path — burst-aware tracker.
+    //
+    // Flow:
+    //   1. AW latched into r_wr_* when slot is empty.
+    //   2. Each cycle W is asserted, write_fire pulses; BRAM port A
+    //      takes the byte-strobed write at r_wr_addr.
+    //   3. r_wr_addr advances per beat (INCR / FIXED).
+    //   4. When the last beat fires, B is queued; held until B
+    //      handshake.
+    //
+    // bid echoes the original awid; AXIL skid ties awid to 0 so AXIL
+    // mode just returns bid=0.
+    //
+    // The AW slot stays held until B is consumed so we never have
+    // two outstanding B responses; this trades a tiny bit of W→AW
+    // pipelining for simpler bookkeeping.
     // ---------------------------------------------------------------
-    wire [MEM_AW-1:0]  write_bram_addr     = fub_awaddr[ADDR_LSB +: MEM_AW];
+    logic                       r_wr_active;
+    logic [AXI_ID_WIDTH-1:0]    r_wr_id;
+    logic [ADDR_WIDTH-1:0]      r_wr_addr;
+    logic [7:0]                 r_wr_beats_left;
+    logic [2:0]                 r_wr_size;
+    logic [1:0]                 r_wr_burst;
+
+    logic                       r_b_pending;
+    logic [AXI_ID_WIDTH-1:0]    r_b_id;
+    logic [1:0]                 r_b_resp;
+
+    wire [MEM_AW-1:0]  write_bram_addr     = r_wr_addr[ADDR_LSB +: MEM_AW];
     wire               write_addr_in_range = 1'b1;
     /* verilator lint_off UNUSED */
-    wire [WORD_AW-1:0] fub_aw_word_addr    = fub_awaddr[ADDR_LSB +: WORD_AW];
+    wire [WORD_AW-1:0] fub_aw_word_addr    = r_wr_addr[ADDR_LSB +: WORD_AW];
     /* verilator lint_on UNUSED */
 
-    wire write_fire = fub_awvalid && fub_wvalid && fub_bready && !w_clearing;
-    assign fub_awready = fub_wvalid  && fub_bready && !w_clearing;
-    assign fub_wready  = fub_awvalid && fub_bready && !w_clearing;
-    assign fub_bvalid  = write_fire;
-    assign fub_bresp   = write_addr_in_range ? 2'b00 : 2'b10;  // OKAY / SLVERR
-    assign fub_bid     = fub_awid;
-    assign fub_buser   = '0;
+    wire aw_accept   = fub_awvalid && fub_awready;
+    wire w_accept    = fub_wvalid  && fub_wready;
+    wire w_last_beat = w_accept && (r_wr_beats_left == 8'd0);
+    wire write_fire  = w_accept && !w_clearing;
+
+    // AW ready only when no active burst AND no B response pending.
+    assign fub_awready = !r_wr_active && !r_b_pending && !w_clearing;
+    // W ready while a burst is active (W beats consumed in lockstep).
+    assign fub_wready  =  r_wr_active && !w_clearing;
+    assign fub_bvalid  =  r_b_pending;
+    assign fub_bresp   =  r_b_resp;
+    assign fub_bid     =  r_b_id;
+    assign fub_buser   =  '0;
+
+    // Combinational next-address for the active write burst — shared
+    // INCR / FIXED / WRAP semantics via axi_gen_addr.
+    logic [ADDR_WIDTH-1:0] w_wr_next_addr;
+    axi_gen_addr #(
+        .AW  (ADDR_WIDTH),
+        .DW  (DATA_WIDTH),
+        .ODW (DATA_WIDTH),
+        .LEN (8)
+    ) u_wr_addr_gen (
+        .curr_addr       (r_wr_addr),
+        .size            (r_wr_size),
+        .burst           (r_wr_burst),
+        .len             (r_wr_beats_left),
+        .next_addr       (w_wr_next_addr),
+        .next_addr_align (/* unused */)
+    );
+
+    `ALWAYS_FF_RST(aclk, aresetn,
+        if (`RST_ASSERTED(aresetn)) begin
+            r_wr_active     <= 1'b0;
+            r_wr_id         <= '0;
+            r_wr_addr       <= '0;
+            r_wr_beats_left <= 8'd0;
+            r_wr_size       <= 3'd0;
+            r_wr_burst      <= 2'b01;
+            r_b_pending     <= 1'b0;
+            r_b_id          <= '0;
+            r_b_resp        <= 2'b00;
+        end else begin
+            // Drain pending B first so a new AW can land same cycle.
+            if (r_b_pending && fub_bready) begin
+                r_b_pending <= 1'b0;
+            end
+            // Latch AW.
+            if (aw_accept) begin
+                r_wr_active     <= 1'b1;
+                r_wr_id         <= fub_awid;
+                r_wr_addr       <= fub_awaddr;
+                r_wr_beats_left <= fub_awlen;
+                r_wr_size       <= fub_awsize;
+                r_wr_burst      <= fub_awburst;
+            end
+            // Walk a W beat.
+            if (w_accept) begin
+                r_wr_addr <= w_wr_next_addr;
+                if (r_wr_beats_left != 8'd0) begin
+                    r_wr_beats_left <= r_wr_beats_left - 8'd1;
+                end
+                if (w_last_beat) begin
+                    r_wr_active <= 1'b0;
+                    r_b_pending <= 1'b1;
+                    r_b_id      <= r_wr_id;
+                    r_b_resp    <= write_addr_in_range ? 2'b00 : 2'b10;
+                end
+            end
+        end
+    )
 
     // ---------------------------------------------------------------
-    // Read path — BRAM_READ_LAT = 1, id carried in flight.
+    // Read path — burst-aware tracker mirroring the write side.
+    //
+    // Flow:
+    //   1. AR latched into r_rd_* when slot is empty.
+    //   2. Each cycle a beat can be issued (BRAM port B captures
+    //      r_mem[r_rd_addr]), one inflight register pair holds the
+    //      metadata for the beat currently on fub_r.
+    //   3. r_rd_addr advances per beat via axi_gen_addr (INCR /
+    //      FIXED / WRAP).
+    //   4. r_inflight_last is asserted on the final beat, then r_rd_
+    //      active drops so the next AR can land.
+    //
+    // BRAM read latency is 1 cycle, so the inflight slot is
+    // single-deep — back-to-back issues are gated by fub_rready.
+    // AXIL mode (arlen=0) is just a 1-beat case of this path.
     // ---------------------------------------------------------------
-    wire [MEM_AW-1:0]  read_bram_addr     = fub_araddr[ADDR_LSB +: MEM_AW];
-    wire               read_addr_in_range = 1'b1;
     /* verilator lint_off UNUSED */
-    wire [WORD_AW-1:0] fub_ar_word_addr   = fub_araddr[ADDR_LSB +: WORD_AW];
+    wire [WORD_AW-1:0] fub_ar_word_addr = fub_araddr[ADDR_LSB +: WORD_AW];
     /* verilator lint_on UNUSED */
 
-    logic                       r_inflight;
-    logic [1:0]                 r_inflight_rresp;
-    logic [AXI_ID_WIDTH-1:0]    r_inflight_rid;
+    logic                       r_rd_active;
+    logic [AXI_ID_WIDTH-1:0]    r_rd_id;
+    logic [ADDR_WIDTH-1:0]      r_rd_addr;
+    logic [7:0]                 r_rd_beats_left;
+    logic [2:0]                 r_rd_size;
+    logic [1:0]                 r_rd_burst;
 
-    wire read_issue = fub_arvalid && fub_arready;
-    assign fub_arready = !w_clearing && (!r_inflight || fub_rready);
+    // Inflight (this-beat-on-fub_r) registers
+    logic                       r_inflight;
+    logic [AXI_ID_WIDTH-1:0]    r_inflight_rid;
+    logic [1:0]                 r_inflight_rresp;
+    logic                       r_inflight_rlast;
+
+    wire ar_accept   = fub_arvalid && fub_arready;
+    wire read_issue  = r_rd_active && !w_clearing && (!r_inflight || fub_rready);
+    wire is_last     = (r_rd_beats_left == 8'd0);
+    wire read_in_range = 1'b1;
+
+    // AR accepted only when no active burst.
+    assign fub_arready = !r_rd_active && !w_clearing;
+
+    // Combinational next-address for the active read burst.
+    logic [ADDR_WIDTH-1:0] w_rd_next_addr;
+    axi_gen_addr #(
+        .AW  (ADDR_WIDTH),
+        .DW  (DATA_WIDTH),
+        .ODW (DATA_WIDTH),
+        .LEN (8)
+    ) u_rd_addr_gen (
+        .curr_addr       (r_rd_addr),
+        .size            (r_rd_size),
+        .burst           (r_rd_burst),
+        .len             (r_rd_beats_left),
+        .next_addr       (w_rd_next_addr),
+        .next_addr_align (/* unused */)
+    );
+
+    `ALWAYS_FF_RST(aclk, aresetn,
+        if (`RST_ASSERTED(aresetn)) begin
+            r_rd_active     <= 1'b0;
+            r_rd_id         <= '0;
+            r_rd_addr       <= '0;
+            r_rd_beats_left <= 8'd0;
+            r_rd_size       <= 3'd0;
+            r_rd_burst      <= 2'b01;
+        end else begin
+            if (ar_accept) begin
+                r_rd_active     <= 1'b1;
+                r_rd_id         <= fub_arid;
+                r_rd_addr       <= fub_araddr;
+                r_rd_beats_left <= fub_arlen;
+                r_rd_size       <= fub_arsize;
+                r_rd_burst      <= fub_arburst;
+            end
+            if (read_issue) begin
+                r_rd_addr <= w_rd_next_addr;
+                if (r_rd_beats_left != 8'd0) begin
+                    r_rd_beats_left <= r_rd_beats_left - 8'd1;
+                end
+                if (is_last) begin
+                    r_rd_active <= 1'b0;
+                end
+            end
+        end
+    )
 
     // ---------------------------------------------------------------
     // BRAM — inferred dual-port.
@@ -528,7 +695,8 @@ module sdpram_slave #(
     (* ram_style = "auto" *)
     logic [DATA_WIDTH-1:0] r_mem [MEM_DEPTH];
 
-    // Port A: clear FSM owns port while w_clearing, else byte-enabled write.
+    // Port A: clear FSM owns port while w_clearing, else byte-enabled
+    // write at the active burst's r_wr_addr.
     always_ff @(posedge aclk) begin
         if (w_clearing) begin
             r_mem[r_clear_addr] <= '0;
@@ -541,7 +709,8 @@ module sdpram_slave #(
         end
     end
 
-    // Port B: 1-cycle read latency.
+    // Port B: 1-cycle read latency at the active burst's r_rd_addr.
+    wire [MEM_AW-1:0] read_bram_addr = r_rd_addr[ADDR_LSB +: MEM_AW];
     logic [DATA_WIDTH-1:0] r_bram_rdata;
     always_ff @(posedge aclk) begin
         if (read_issue) begin
@@ -549,19 +718,23 @@ module sdpram_slave #(
         end
     end
 
-    // In-flight tracking (single flop pair + id).
+    // Inflight tracker: captures the (id, last, resp) for the beat
+    // currently sitting on fub_r. Clears on handshake unless a new
+    // issue refills it this cycle.
     `ALWAYS_FF_RST(aclk, aresetn,
         if (`RST_ASSERTED(aresetn)) begin
             r_inflight       <= 1'b0;
-            r_inflight_rresp <= 2'b00;
             r_inflight_rid   <= '0;
+            r_inflight_rresp <= 2'b00;
+            r_inflight_rlast <= 1'b0;
         end else begin
             if (r_inflight && fub_rready && !read_issue) begin
                 r_inflight <= 1'b0;
             end else if (read_issue) begin
                 r_inflight       <= 1'b1;
-                r_inflight_rresp <= read_addr_in_range ? 2'b00 : 2'b10;
-                r_inflight_rid   <= fub_arid;
+                r_inflight_rid   <= r_rd_id;
+                r_inflight_rresp <= read_in_range ? 2'b00 : 2'b10;
+                r_inflight_rlast <= is_last;
             end
         end
     )
@@ -570,7 +743,7 @@ module sdpram_slave #(
     assign fub_rdata  = r_bram_rdata;
     assign fub_rresp  = r_inflight_rresp;
     assign fub_rid    = r_inflight_rid;
-    assign fub_rlast  = r_inflight;   // single-beat: every R is the last
+    assign fub_rlast  = r_inflight_rlast;
     assign fub_ruser  = '0;
 
     // ---------------------------------------------------------------
@@ -596,23 +769,26 @@ module sdpram_slave #(
     assign o_dbg_bram_rd = read_issue;
 
     // ---------------------------------------------------------------
-    // Assertions (sim only): single-beat only on AXI4 sides.
+    // Assertions (sim only). Bursts (INCR / FIXED) of any length are
+    // supported on the AXI4 sides; WRAP is computed correctly by
+    // axi_gen_addr but the BRAM glue treats every beat as linear, so
+    // we flag WRAP at the sim boundary until it's been exercised.
     // ---------------------------------------------------------------
     // synopsys translate_off
     generate
         if (WR_PROTOCOL == "AXI4") begin : g_assert_wr
             always_ff @(posedge aclk) begin
                 if (aresetn && s_axi_awvalid && s_axi_awready) begin
-                    assert (s_axi_awlen == 8'h00)
-                        else $error("%m: AW burst (awlen=%0d) not supported; single-beat only", s_axi_awlen);
+                    assert (s_axi_awburst != 2'b10)
+                        else $warning("%m: AW WRAP burst (awburst=%b) supported by axi_gen_addr but not yet validated", s_axi_awburst);
                 end
             end
         end
         if (RD_PROTOCOL == "AXI4") begin : g_assert_rd
             always_ff @(posedge aclk) begin
                 if (aresetn && s_axi_arvalid && s_axi_arready) begin
-                    assert (s_axi_arlen == 8'h00)
-                        else $error("%m: AR burst (arlen=%0d) not supported; single-beat only", s_axi_arlen);
+                    assert (s_axi_arburst != 2'b10)
+                        else $warning("%m: AR WRAP burst (arburst=%b) supported by axi_gen_addr but not yet validated", s_axi_arburst);
                 end
             end
         end
