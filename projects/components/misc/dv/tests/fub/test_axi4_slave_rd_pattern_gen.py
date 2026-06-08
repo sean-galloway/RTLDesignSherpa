@@ -98,7 +98,7 @@ def test_axi4_slave_rd_pattern_gen(request, test_type, data_width, id_width,
                                     user_width, test_level):
     enable_waves = bool(int(os.environ.get('WAVES', '0')))
     module, repo_root_path, tests_dir, log_dir, rtl_dict = get_paths({
-        'rtl_misc': 'projects/components/misc/rtl',
+        'rtl_amba_shared': 'rtl/amba/shared',
         'rtl_amba_axi4': 'rtl/amba/axi4',
         'rtl_amba_gaxi': 'rtl/amba/gaxi',
         'rtl_amba_includes': 'rtl/amba/includes',
@@ -117,7 +117,7 @@ def test_axi4_slave_rd_pattern_gen(request, test_type, data_width, id_width,
         os.path.join(rtl_dict['rtl_amba_gaxi'], 'gaxi_skid_buffer.sv'),
         os.path.join(rtl_dict['rtl_amba_axi4'], 'axi4_slave_rd.sv'),
         # DUT
-        os.path.join(rtl_dict['rtl_misc'], 'axi4_slave_rd_pattern_gen.sv'),
+        os.path.join(rtl_dict['rtl_amba_shared'], 'axi4_slave_rd_pattern_gen.sv'),
     ]
 
     includes = [

@@ -24,8 +24,8 @@ $REPO_ROOT/rtl/common/dataint_crc.sv
 $REPO_ROOT/rtl/common/shifter_lfsr_fibonacci.sv
 $REPO_ROOT/rtl/amba/axi4/axi4_slave_rd.sv
 $REPO_ROOT/rtl/amba/axi4/axi4_slave_wr.sv
-$MISC_ROOT/rtl/axi4_slave_rd_pattern_gen.sv
-$MISC_ROOT/rtl/axi4_slave_wr_crc_check.sv
+$REPO_ROOT/rtl/amba/shared/axi4_slave_rd_pattern_gen.sv
+$REPO_ROOT/rtl/amba/shared/axi4_slave_wr_crc_check.sv
 
 # Shared instrumentation library (axi_response_delay, harness_csr, decoder,
 # bridges, RAMs, board-level status drivers).
