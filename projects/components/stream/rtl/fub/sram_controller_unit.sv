@@ -205,7 +205,14 @@ module sram_controller_unit #(
     //==========================================================================
 
     gaxi_fifo_sync #(
-        .MEM_STYLE(FIFO_AUTO),          // Let tool decide RAM type
+        // Force block-RAM inference. The FIFO's REGISTERED=1 read output
+        // already matches BRAM's natural synchronous-read timing, so this
+        // is a drop-in swap with no consumer-side changes. The default
+        // FIFO_AUTO lets Vivado fall back to LUTRAM on the 512x512
+        // aspect ratio, which burned ~9.9K LUTs as distributed RAM on
+        // the xc7a100t-1 stream-char build. Forcing FIFO_BRAM frees
+        // those LUTs and uses ~64 RAMB36 (47% of 135 available).
+        .MEM_STYLE(FIFO_BRAM),
         .REGISTERED(1),                 // Registered read (mimics real SRAM behavior)
         .DATA_WIDTH(DW),
         .DEPTH(SD)
