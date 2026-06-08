@@ -53,9 +53,10 @@ PKT_TYPE_SHIFT = 60
 PKT_TYPE_MASK = 0xF
 PKT_ERROR     = 0x0
 PKT_COMPL     = 0x1
-PKT_TIMEOUT   = 0x2
-PKT_THRESHOLD = 0x3
+PKT_THRESHOLD = 0x2
+PKT_TIMEOUT   = 0x3
 PKT_PERF      = 0x4
+PKT_DEBUG     = 0xF
 
 
 def _packet_type(pkt: int) -> int:
@@ -77,11 +78,23 @@ async def axi4_master_rd_mon_enable_sweep_test(dut):
         "compl":     int(os.environ.get("TEST_EN_COMPL",     "1")),
         "threshold": int(os.environ.get("TEST_EN_THRESHOLD", "1")),
         "perf":      int(os.environ.get("TEST_EN_PERF",      "1")),
+        "debug":     int(os.environ.get("TEST_EN_DEBUG",     "0")),  # default OFF (legacy)
     }
     n_txns = int(os.environ.get("TEST_TXN_COUNT", "8"))
 
     tb = AXI4MasterMonitorTB(dut, is_write=False, aclk=dut.aclk, aresetn=dut.aresetn)
     await tb.initialize()
+
+    # initialize() sets cfg_debug_enable=0 by default (TB matches legacy
+    # wrapper hardwire). The debug-on path of the sweep needs an explicit
+    # override so the wrapper's runtime gate matches the parameter-set
+    # under test. Also flip cfg_threshold_enable here for the same reason
+    # (TB defaults it to 0).
+    if enables["debug"] == 1:
+        dut.cfg_debug_enable.value = 1
+    if enables["threshold"] == 1:
+        dut.cfg_threshold_enable.value = 1
+    await tb.base_tb.wait_clocks("aclk", 2)
 
     # Drive enough clean transactions to give COMPL + PERF a fair chance to
     # emit packets. Spread the addresses so timeout cones see steady state.
@@ -103,6 +116,7 @@ async def axi4_master_rd_mon_enable_sweep_test(dut):
         PKT_TIMEOUT:   0,
         PKT_THRESHOLD: 0,
         PKT_PERF:      0,
+        PKT_DEBUG:     0,
     }
     for pkt in tb.mon_slave.received_packets:
         ptype = int(getattr(pkt, "pkt_type", -1))
@@ -133,6 +147,10 @@ async def axi4_master_rd_mon_enable_sweep_test(dut):
         raise AssertionError(
             f"ENABLE_PERF_LOGIC=0 but {counts[PKT_PERF]} perf packets observed"
         )
+    if enables["debug"] == 0 and counts[PKT_DEBUG] != 0:
+        raise AssertionError(
+            f"ENABLE_DEBUG_LOGIC=0 but {counts[PKT_DEBUG]} debug packets observed"
+        )
 
     # ENABLE=1 + clean traffic → expect at least one COMPL packet (every
     # clean read finishes), so we use that as a positive check. Other
@@ -141,6 +159,16 @@ async def axi4_master_rd_mon_enable_sweep_test(dut):
     if enables["compl"] == 1 and counts[PKT_COMPL] == 0:
         raise AssertionError(
             "ENABLE_COMPL_LOGIC=1 with N clean reads but no completion packets observed"
+        )
+    # Debug positive: each AXI transaction passes through multiple FSM
+    # states (IDLE→ADDR_PHASE→DATA_PHASE→COMPLETE), so each clean read
+    # generates several debug packets when the cone is on. Require at
+    # least one — silently emitting zero would mean the cone is wired
+    # but inert.
+    if enables["debug"] == 1 and counts[PKT_DEBUG] == 0:
+        raise AssertionError(
+            "ENABLE_DEBUG_LOGIC=1 with N clean reads but no debug packets "
+            "observed (state-change emitter should fire on every transition)"
         )
 
     tb.log.info("✓ ENABLE_*_LOGIC parameter sweep PASS")
@@ -152,7 +180,7 @@ async def axi4_master_rd_mon_enable_sweep_test(dut):
 def _bits(*names):
     """Helper: build a dict of ENABLE_* values from names. Anything not
     listed defaults to 0; name 'all' sets every cone to 1."""
-    e = {"error": 0, "timeout": 0, "compl": 0, "threshold": 0, "perf": 0}
+    e = {"error": 0, "timeout": 0, "compl": 0, "threshold": 0, "perf": 0, "debug": 0}
     if "all" in names:
         return {k: 1 for k in e}
     for n in names:
@@ -166,12 +194,17 @@ def generate_enable_sweep_params():
     txn_count, label) tuples.
 
     Each label is a short slug used for test_name + assertion logs. The
-    enables dict carries the 5 ENABLE_*_LOGIC settings for that combo.
+    enables dict carries the 6 ENABLE_*_LOGIC settings for that combo
+    (error / timeout / compl / threshold / perf / debug).
 
     REG_LEVEL scaling:
-      GATE: 3 combos  — legacy default + bridge (error-only) + all-off.
-      FUNC: 8 combos  — adds each single-cone + functional minimums.
-      FULL: 16+ combos — adds pair/triple mixes for fuller coverage.
+      GATE: 4 combos  — legacy default (all-on incl debug) + bridge
+                        (error-only) + debug-only + all-off.
+      FUNC: 10 combos — adds each single-cone + functional minimums +
+                        error+debug pairing.
+      FULL: 18 combos — adds pair/triple mixes for fuller coverage,
+                        including a "no_debug" leaf for explicit pre-#114
+                        legacy behavior.
     """
     reg_level = os.environ.get("REG_LEVEL", "FUNC").upper()
 
@@ -190,6 +223,7 @@ def generate_enable_sweep_params():
     combos += [
         cfg(_bits("all"),                  "all_on"),
         cfg(_bits("error"),                "error_only"),       # bridge case
+        cfg(_bits("debug"),                "debug_only"),       # state-change emitter
         cfg(_bits(),                       "all_off"),          # elaboration only
     ]
     if reg_level == "GATE":
@@ -202,6 +236,7 @@ def generate_enable_sweep_params():
         cfg(_bits("threshold"),            "threshold_only"),
         cfg(_bits("perf"),                 "perf_only"),
         cfg(_bits("error", "compl"),       "error_compl"),       # functional debug
+        cfg(_bits("error", "debug"),       "error_debug"),       # compression dataset
     ]
     if reg_level == "FUNC":
         return combos
@@ -216,6 +251,9 @@ def generate_enable_sweep_params():
         cfg(_bits("error", "compl", "threshold", "perf"),       "no_timeout"),
         cfg(_bits("error", "timeout", "threshold", "perf"),     "no_compl"),
         cfg(_bits("compl", "timeout", "threshold", "perf"),     "no_error"),
+        # Debug-paired triples + the pre-#114 legacy "all-but-debug" leaf.
+        cfg(_bits("error", "compl", "timeout", "threshold", "perf"),  "no_debug"),
+        cfg(_bits("error", "compl", "debug"),                          "err_compl_debug"),
     ]
     return combos
 
@@ -319,6 +357,7 @@ def test_axi4_master_rd_mon_enable_sweep(
         "ENABLE_COMPL_LOGIC":     str(enables["compl"]),
         "ENABLE_THRESHOLD_LOGIC": str(enables["threshold"]),
         "ENABLE_PERF_LOGIC":      str(enables["perf"]),
+        "ENABLE_DEBUG_LOGIC":     str(enables["debug"]),
     }
 
     extra_env = {
@@ -336,6 +375,7 @@ def test_axi4_master_rd_mon_enable_sweep(
         "TEST_EN_COMPL":      str(enables["compl"]),
         "TEST_EN_THRESHOLD":  str(enables["threshold"]),
         "TEST_EN_PERF":       str(enables["perf"]),
+        "TEST_EN_DEBUG":      str(enables["debug"]),
         "TEST_TXN_COUNT":     str(txn_count),
     }
 
