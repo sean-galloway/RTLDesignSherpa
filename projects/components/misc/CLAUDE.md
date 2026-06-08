@@ -136,16 +136,15 @@ AR/R/AW/W/B handshake, skid buffers, or transaction tracking.**
 User logic (BRAM, LFSR, CRC accumulator, etc.) lives on the wrapper's
 `fub_axi_*` user-side queue and never touches the AXI handshake directly.
 
-Existing non-compliant modules tracked for refactor:
-  - `projects/components/misc/rtl/axi4_slave_rd_pattern_gen.sv` (task #78)
-  - `projects/components/misc/rtl/axi4_slave_wr_crc_check.sv`   (task #79)
-  - `projects/NexysA7/stream_characterization/stream_char_framework/rtl/desc_ram.sv` (task #77)
-
-These hand-rolled protocol layers are the reason the deep-chain hang on
-the FPGA was hard to localize -- with no slave-side monitor on the
-descriptor-fetch path we could see the master complaining but couldn't
-confirm whether the request reached the slave. Refactoring closes that
-observability gap permanently.
+The two synthetic test slaves used by `stream_char_harness`
+(`axi4_slave_rd_pattern_gen.sv` and `axi4_slave_wr_crc_check.sv`)
+have been promoted into `rtl/amba/shared/` so they're reusable across
+projects. Their AXI4 handshake is hand-rolled around the standard
+`axi4_slave_rd` / `axi4_slave_wr` skids and doesn't go through the
+monitor wrappers — that's intentional: they are characterization
+peers, not production agents. The observation gap on the
+descriptor-fetch path is covered by the existing `o_dbg_vr`
+handshake counters in `desc_ram`, not by additional monitors.
 
 ---
 
