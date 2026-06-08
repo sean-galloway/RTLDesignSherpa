@@ -569,6 +569,17 @@ module scheduler_group_array #(
         .cfg_monitor_enable     (cfg_desc_mon_enable),
         .cfg_error_enable       (cfg_desc_mon_err_enable),
         .cfg_perf_enable        (cfg_desc_mon_perf_enable),
+        // Wrapper exposes compl / threshold / debug as dedicated ports
+        // post-#114. Until the STREAM register file grows separate cfg
+        // bits, tie them to the existing aliases so legacy behavior is
+        // preserved: compl follows monitor-enable, threshold follows
+        // perf, debug stays off (the reporter_debug sub-block still
+        // exists in silicon — flip cfg_debug_enable to 1'b1 at the
+        // integrator level when running compression-dataset captures
+        // that need state-change traces).
+        .cfg_compl_enable       (cfg_desc_mon_enable),
+        .cfg_threshold_enable   (cfg_desc_mon_perf_enable),
+        .cfg_debug_enable       (1'b0),
         .cfg_timeout_enable     (cfg_desc_mon_timeout_enable),
         // Monitor port is 16-bit; our register is 32-bit. Software is
         // responsible for programming a value that fits in 16 cycles

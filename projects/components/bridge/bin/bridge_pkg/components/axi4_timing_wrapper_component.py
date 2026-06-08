@@ -337,6 +337,14 @@ class Axi4TimingWrapper:
         'cfg_error_enable',
         'cfg_timeout_enable',
         'cfg_perf_enable',
+        # New dedicated cfg ports (#114). Bridge top exposes these as
+        # adapter inputs so the bridge cfg subsystem (#90) can route
+        # them per-port when it lands; until then the integrator ties
+        # them off (compl/threshold follow legacy aliases via the
+        # bridge top, debug stays 0).
+        'cfg_compl_enable',
+        'cfg_threshold_enable',
+        'cfg_debug_enable',
         'cfg_timeout_cycles',
         'cfg_latency_threshold',
         'cfg_axi_pkt_mask',

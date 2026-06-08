@@ -115,6 +115,9 @@ module axil4_slave_wr_mon
     input  logic                       cfg_error_enable,        // Enable error detection
     input  logic                       cfg_timeout_enable,      // Enable timeout detection
     input  logic                       cfg_perf_enable,         // Enable performance monitoring
+    input  logic                       cfg_compl_enable,     // Enable completion packets
+    input  logic                       cfg_threshold_enable, // Enable threshold packets
+    input  logic                       cfg_debug_enable,     // Enable debug packets
     input  logic [15:0]                cfg_timeout_cycles,      // Timeout threshold in cycles
     input  logic [31:0]                cfg_latency_threshold,   // Latency threshold for alerts
 
@@ -282,11 +285,11 @@ module axil4_slave_wr_mon
             .cfg_data_cnt            (4'd15),            // Count 16 data events
             .cfg_resp_cnt            (4'd15),            // Count 16 response events
             .cfg_error_enable        (cfg_error_enable),
-            .cfg_compl_enable        (cfg_monitor_enable),
-            .cfg_threshold_enable    (cfg_perf_enable),
+            .cfg_compl_enable        (cfg_compl_enable),
+            .cfg_threshold_enable    (cfg_threshold_enable),
             .cfg_timeout_enable      (cfg_timeout_enable),
             .cfg_perf_enable         (cfg_perf_enable),
-            .cfg_debug_enable        (1'b0),            // Disable debug by default
+            .cfg_debug_enable        (cfg_debug_enable),
             .cfg_debug_level         (4'h0),
             .cfg_debug_mask          (16'h0),
             .cfg_active_trans_threshold(16'd4),         // Alert if >4 active transactions (AXIL)

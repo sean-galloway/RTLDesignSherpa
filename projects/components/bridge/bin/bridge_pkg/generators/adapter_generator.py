@@ -26,6 +26,10 @@ _MONITOR_CFG_WIDTHS = {
     'cfg_error_enable':         1,
     'cfg_timeout_enable':       1,
     'cfg_perf_enable':          1,
+    # Added post-#114 — wrapper-level dedicated cfg inputs.
+    'cfg_compl_enable':         1,
+    'cfg_threshold_enable':     1,
+    'cfg_debug_enable':         1,
     'cfg_timeout_cycles':      16,
     'cfg_latency_threshold':   32,
     'cfg_axi_pkt_mask':        16,

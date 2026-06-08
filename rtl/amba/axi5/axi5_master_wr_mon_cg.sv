@@ -302,6 +302,8 @@ module axi5_master_wr_mon_cg
         .m_axi_btag(m_axi_btag), .m_axi_btagmatch(m_axi_btagmatch),
         .cfg_monitor_enable(cfg_monitor_enable), .cfg_error_enable(cfg_error_enable),
         .cfg_timeout_enable(cfg_timeout_enable), .cfg_perf_enable(cfg_perf_enable),
+        .cfg_compl_enable(cfg_compl_enable), .cfg_threshold_enable(cfg_threshold_enable),
+        .cfg_debug_enable(cfg_debug_enable),
         .cfg_timeout_cycles(cfg_timeout_cycles), .cfg_latency_threshold(cfg_latency_threshold),
         .cfg_axi_pkt_mask(cfg_axi_pkt_mask), .cfg_axi_err_select(cfg_axi_err_select),
         .cfg_axi_error_mask(cfg_axi_error_mask), .cfg_axi_timeout_mask(cfg_axi_timeout_mask),

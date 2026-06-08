@@ -84,11 +84,18 @@ class AXI4MasterMonitorTB:
         # Start clock
         await self.base_tb.start_clock('aclk', self.base_tb.TEST_CLK_PERIOD, 'ns')
 
-        # Configure monitor (all features enabled, minimal filtering)
+        # Configure monitor (all features enabled, minimal filtering).
+        # Post-#114 cfg_compl_enable / cfg_threshold_enable / cfg_debug_enable
+        # are dedicated wrapper inputs. Mirror the pre-#114 wrapper aliases
+        # so the legacy test behavior is preserved: compl follows
+        # monitor_enable, threshold follows perf_enable, debug stays off.
         self.dut.cfg_monitor_enable.value = 1
         self.dut.cfg_error_enable.value = 1
         self.dut.cfg_timeout_enable.value = 1
         self.dut.cfg_perf_enable.value = 0  # Disable perf (can cause packet congestion)
+        self.dut.cfg_compl_enable.value = 1
+        self.dut.cfg_threshold_enable.value = 0
+        self.dut.cfg_debug_enable.value = 0
         self.dut.cfg_timeout_cycles.value = 1000
         self.dut.cfg_latency_threshold.value = 500
 
