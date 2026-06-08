@@ -10,7 +10,7 @@ Created: 2026-04-18
 """
 
 import cocotb
-from cocotb.triggers import RisingEdge
+from cocotb.triggers import RisingEdge, ReadOnly
 
 from TBClasses.shared.tbbase import TBBase
 
@@ -205,3 +205,86 @@ class AXI4SlaveWrCrcCheckTB(TBBase):
         assert beat_count == burst_len, f"Expected {burst_len} beats, got {beat_count}"
         assert crc_valid == 1, "CRC should be valid after writes"
         self.log.info("  PASS")
+
+    async def run_stream_stability_test(self, num_bursts=16, burst_len=8):
+        """Stress: wready must not deassert mid-burst.
+
+        Drives back-to-back INCR write bursts with wvalid held high
+        across all beats. Samples wready every cycle from AW-accept to
+        the burst's last W beat and counts 1->0 transitions. The
+        contract: once wready first goes high inside a burst window,
+        it stays high until the last beat is consumed.
+        """
+        self.log.info(
+            f"=== Stream Stability Test ({num_bursts} bursts x "
+            f"{burst_len} beats) ==="
+        )
+        await self.reset_crc()
+        dut = self.dut
+        full_strb = (1 << (int(dut.s_axi_wdata.value.n_bits) // 8)) - 1
+        wready_dips = 0
+
+        for b in range(num_bursts):
+            base_addr = 0x8000 + b * 0x100
+            beats_data = [
+                (0xD15A0000 | ((b << 8) | i)) & 0xFFFFFFFF
+                for i in range(burst_len)
+            ]
+
+            # AW
+            dut.s_axi_awid.value     = b & 0xF
+            dut.s_axi_awaddr.value   = base_addr
+            dut.s_axi_awlen.value    = burst_len - 1
+            dut.s_axi_awsize.value   = 2
+            dut.s_axi_awburst.value  = 1
+            dut.s_axi_awvalid.value  = 1
+            dut.s_axi_bready.value   = 1
+            while True:
+                await ReadOnly()
+                if int(dut.s_axi_awvalid.value) and int(dut.s_axi_awready.value):
+                    await RisingEdge(dut.aclk)
+                    dut.s_axi_awvalid.value = 0
+                    break
+                await RisingEdge(dut.aclk)
+
+            # W
+            beat_idx = 0
+            dut.s_axi_wdata.value  = beats_data[0]
+            dut.s_axi_wstrb.value  = full_strb
+            dut.s_axi_wlast.value  = 1 if burst_len == 1 else 0
+            dut.s_axi_wvalid.value = 1
+            wready_was_high = False
+            while beat_idx < burst_len:
+                await ReadOnly()
+                wr = int(dut.s_axi_wready.value)
+                if wr == 1:
+                    wready_was_high = True
+                elif wready_was_high:
+                    wready_dips += 1
+                    wready_was_high = False
+                handshake = int(dut.s_axi_wvalid.value) and wr
+                await RisingEdge(dut.aclk)
+                if handshake:
+                    beat_idx += 1
+                    if beat_idx < burst_len:
+                        dut.s_axi_wdata.value = beats_data[beat_idx]
+                        dut.s_axi_wlast.value = 1 if beat_idx == burst_len - 1 else 0
+            dut.s_axi_wvalid.value = 0
+            dut.s_axi_wlast.value  = 0
+
+            # B
+            while True:
+                await ReadOnly()
+                if int(dut.s_axi_bvalid.value) and int(dut.s_axi_bready.value):
+                    await RisingEdge(dut.aclk)
+                    break
+                await RisingEdge(dut.aclk)
+
+        assert wready_dips == 0, (
+            f"wready deasserted mid-burst {wready_dips} times across "
+            f"{num_bursts} x {burst_len} beats — slave isn't streaming"
+        )
+        self.log.info(
+            f"  OK: wready stayed high through every burst across "
+            f"{num_bursts}x{burst_len}={num_bursts*burst_len} beats"
+        )

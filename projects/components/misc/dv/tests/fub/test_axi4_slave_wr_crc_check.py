@@ -53,12 +53,16 @@ async def cocotb_test_axi4_slave_wr_crc_check(dut):
     elif test_type == 'crc':
         await tb.run_crc_test(burst_len=16)
 
+    elif test_type == 'stream_stability':
+        await tb.run_stream_stability_test(num_bursts=16, burst_len=8)
+
     elif test_type == 'all':
         await tb.run_single_beat_test()
         await tb.run_burst_test(burst_len=4)
         await tb.run_burst_test(burst_len=16)
         await tb.run_back_to_back_test(num_writes=4, burst_len=4)
         await tb.run_crc_test(burst_len=16)
+        await tb.run_stream_stability_test(num_bursts=16, burst_len=8)
 
     else:
         raise ValueError(f"Unknown test_type: {test_type}")
@@ -69,7 +73,7 @@ async def cocotb_test_axi4_slave_wr_crc_check(dut):
 # ===========================================================================
 
 def generate_params():
-    test_types = ['single', 'burst', 'back_to_back', 'crc', 'all']
+    test_types = ['single', 'burst', 'back_to_back', 'crc', 'stream_stability', 'all']
     configs = [
         # (data_width, id_width, user_width)
         (128, 8, 3),   # Match characterization harness

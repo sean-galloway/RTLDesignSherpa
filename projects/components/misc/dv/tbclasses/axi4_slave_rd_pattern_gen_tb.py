@@ -10,7 +10,7 @@ Created: 2026-04-17
 """
 
 import cocotb
-from cocotb.triggers import RisingEdge
+from cocotb.triggers import RisingEdge, ReadOnly
 
 from TBClasses.shared.tbbase import TBBase
 
@@ -190,3 +190,62 @@ class AXI4SlaveRdPatternGenTB(TBBase):
         assert crc_valid == 1, "CRC should be valid after reads"
         assert beat_count > 0, "Beat count should be non-zero"
         self.log.info("  PASS")
+
+    async def run_stream_stability_test(self, num_bursts=16, burst_len=8):
+        """Stress: rvalid must not deassert mid-burst.
+
+        Drives back-to-back INCR bursts with rready held high. Samples
+        rvalid every cycle from AR-accept to the burst's last beat and
+        counts 1->0 transitions. The contract: once rvalid first goes
+        high inside a burst window, it stays high until the last beat
+        is consumed.
+        """
+        self.log.info(
+            f"=== Stream Stability Test ({num_bursts} bursts x "
+            f"{burst_len} beats) ==="
+        )
+        await self.reset_crc_lfsr()
+        dut = self.dut
+        rvalid_dips = 0
+
+        for b in range(num_bursts):
+            dut.s_axi_arid.value     = b & 0xF
+            dut.s_axi_araddr.value   = 0x8000 + b * 0x100
+            dut.s_axi_arlen.value    = burst_len - 1
+            dut.s_axi_arsize.value   = 2
+            dut.s_axi_arburst.value  = 1
+            dut.s_axi_arvalid.value  = 1
+            dut.s_axi_rready.value   = 1
+            while True:
+                await ReadOnly()
+                if int(dut.s_axi_arvalid.value) and int(dut.s_axi_arready.value):
+                    await RisingEdge(dut.aclk)
+                    dut.s_axi_arvalid.value = 0
+                    break
+                await RisingEdge(dut.aclk)
+
+            rvalid_was_high = False
+            beats_seen = 0
+            while beats_seen < burst_len:
+                await ReadOnly()
+                rv = int(dut.s_axi_rvalid.value)
+                rr = int(dut.s_axi_rready.value)
+                if rv == 1:
+                    rvalid_was_high = True
+                elif rvalid_was_high:
+                    rvalid_dips += 1
+                    rvalid_was_high = False
+                if rv and rr:
+                    beats_seen += 1
+                await RisingEdge(dut.aclk)
+            dut.s_axi_rready.value = 0
+            await self.wait_clocks(self.clk_name, 1)
+
+        assert rvalid_dips == 0, (
+            f"rvalid deasserted mid-burst {rvalid_dips} times across "
+            f"{num_bursts} x {burst_len} beats — slave isn't streaming"
+        )
+        self.log.info(
+            f"  OK: rvalid stayed high through every burst across "
+            f"{num_bursts}x{burst_len}={num_bursts*burst_len} beats"
+        )
