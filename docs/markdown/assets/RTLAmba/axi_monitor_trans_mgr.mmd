@@ -1,40 +1,55 @@
 %%{init: {'theme': 'neutral', 'themeVariables': { 'fontSize': '14px'}}}%%
 flowchart TB
-    subgraph Inputs["Transaction Inputs"]
-        CMD["cmd_valid, cmd_id\ncmd_addr, cmd_len"]
-        DATA["data_valid, data_id\ndata_last, data_resp"]
-        RESP["resp_valid, resp_id\nresp_code"]
+    subgraph Inputs["Monitored Channel Inputs"]
+        CMD["cmd_valid/ready/id/<br/>addr/len/size/burst"]
+        DATA["data_valid/ready/id/<br/>last/resp"]
+        RESP["resp_valid/ready/id/<br/>code (writes only)"]
+        TS["timestamp[31:0]"]
+        EVT_FB["i_event_reported_flags<br/>(from reporter)"]
     end
 
-    subgraph axi_monitor_trans_mgr["axi_monitor_trans_mgr"]
-        subgraph Table["Transaction Table"]
-            ENTRY["Entry[MAX_TRANS-1:0]\n- id, addr, len\n- beat_count\n- start_time\n- state"]
-        end
+    subgraph axi_monitor_trans_mgr["axi_monitor_trans_mgr (CAM-backed)"]
+        WID_MATCH["WID-less write<br/>data-channel match<br/>(state predicate)"]
 
-        subgraph Lookup["ID Lookup"]
-            FIND["Find entry by ID\nO(1) direct index or\nO(n) CAM search"]
-        end
+        WANTS["wants_alloc derivation<br/>= handshake AND !hit_any"]
 
-        subgraph State["State Machine"]
-            FSM["IDLE -> CMD_PHASE\n-> DATA_PHASE\n-> RESP_PHASE\n-> COMPLETE"]
-        end
+        CAM_INST["monitor_trans_cam<br/>(3 lookup + alloc + storage)"]
 
-        subgraph Alloc["Allocation"]
-            ALLOC["Find free entry\nHandle table full"]
-        end
+        NEXT_STATE["Per-slot next-payload<br/>combinational<br/>(generate loop)"]
+
+        CLEANUP["Cleanup +<br/>event_reported feedback"]
+
+        COUNT_PIPE["active_count<br/>2-stage pipeline"]
+
+        STATE_CHG["state_change<br/>1-cycle compare"]
     end
 
-    subgraph Outputs["Status Outputs"]
-        EVENTS["event_complete\nevent_error\nevent_timeout"]
-        COUNT["active_count\ntable_full"]
+    subgraph Outputs["Outputs"]
+        TT["trans_table[N]<br/>bus_transaction_t"]
+        AC["active_count[7:0]"]
+        SC["state_change[N-1:0]"]
     end
 
-    CMD --> Lookup
-    CMD --> Alloc
-    DATA --> Lookup
-    RESP --> Lookup
-    Lookup --> Table
-    Alloc --> Table
-    Table --> State
-    State --> EVENTS
-    Table --> COUNT
+    CMD --> WANTS
+    DATA --> WANTS
+    RESP --> WANTS
+    CMD --> CAM_INST
+    DATA --> CAM_INST
+    RESP --> CAM_INST
+    WANTS --> CAM_INST
+    DATA --> WID_MATCH
+    CAM_INST --> WID_MATCH
+    CAM_INST --> NEXT_STATE
+    WID_MATCH --> NEXT_STATE
+    CMD --> NEXT_STATE
+    DATA --> NEXT_STATE
+    RESP --> NEXT_STATE
+    TS --> NEXT_STATE
+    EVT_FB --> NEXT_STATE
+    CLEANUP --> NEXT_STATE
+    NEXT_STATE -.write port.-> CAM_INST
+    CAM_INST --> TT
+    CAM_INST --> COUNT_PIPE
+    COUNT_PIPE --> AC
+    TT --> STATE_CHG
+    STATE_CHG --> SC

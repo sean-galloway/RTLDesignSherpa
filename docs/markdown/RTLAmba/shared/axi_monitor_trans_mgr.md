@@ -66,22 +66,60 @@ for rollback or timing comparison.
 
 ## Architecture
 
-```
-                                    +-----------------+
-   cmd_valid/ready/id/addr ────►   │                 │
-   data_valid/ready/id/last ───►   │ axi_monitor_   │  ──► trans_table[N]
-   resp_valid/ready/id/code ───►   │ trans_mgr      │       (bus_transaction_t)
-   timestamp ─────────────────►   │                 │  ──► active_count
-   event_reported_flags ──────►   │                 │  ──► state_change[N]
-                                    +-----------------+
-                                         │
-                                         ▼
-                                +------------------+
-                                │ monitor_trans_cam │
-                                │   ID lookup      │
-                                │   alloc encoder  │
-                                │   per-slot store │
-                                +------------------+
+![axi_monitor_trans_mgr block diagram](../../assets/RTLAmba/axi_monitor_trans_mgr.svg)
+
+Source: [`axi_monitor_trans_mgr.mmd`](../../assets/RTLAmba/axi_monitor_trans_mgr.mmd)
+
+```mermaid
+%%{init: {'theme': 'neutral', 'themeVariables': { 'fontSize': '14px'}}}%%
+flowchart TB
+    subgraph Inputs["Monitored Channel Inputs"]
+        CMD["cmd_valid/ready/id/<br/>addr/len/size/burst"]
+        DATA["data_valid/ready/id/<br/>last/resp"]
+        RESP["resp_valid/ready/id/<br/>code (writes only)"]
+        TS["timestamp[31:0]"]
+        EVT_FB["i_event_reported_flags<br/>(from reporter)"]
+    end
+
+    subgraph axi_monitor_trans_mgr["axi_monitor_trans_mgr (CAM-backed)"]
+        WID_MATCH["WID-less write<br/>data-channel match<br/>(state predicate)"]
+        WANTS["wants_alloc derivation<br/>= handshake AND !hit_any"]
+        CAM_INST["monitor_trans_cam<br/>(3 lookup + alloc + storage)"]
+        NEXT_STATE["Per-slot next-payload<br/>combinational<br/>(generate loop)"]
+        CLEANUP["Cleanup +<br/>event_reported feedback"]
+        COUNT_PIPE["active_count<br/>2-stage pipeline"]
+        STATE_CHG["state_change<br/>1-cycle compare"]
+    end
+
+    subgraph Outputs["Outputs"]
+        TT["trans_table[N]<br/>bus_transaction_t"]
+        AC["active_count[7:0]"]
+        SC["state_change[N-1:0]"]
+    end
+
+    CMD --> WANTS
+    DATA --> WANTS
+    RESP --> WANTS
+    CMD --> CAM_INST
+    DATA --> CAM_INST
+    RESP --> CAM_INST
+    WANTS --> CAM_INST
+    DATA --> WID_MATCH
+    CAM_INST --> WID_MATCH
+    CAM_INST --> NEXT_STATE
+    WID_MATCH --> NEXT_STATE
+    CMD --> NEXT_STATE
+    DATA --> NEXT_STATE
+    RESP --> NEXT_STATE
+    TS --> NEXT_STATE
+    EVT_FB --> NEXT_STATE
+    CLEANUP --> NEXT_STATE
+    NEXT_STATE -.write port.-> CAM_INST
+    CAM_INST --> TT
+    CAM_INST --> COUNT_PIPE
+    COUNT_PIPE --> AC
+    TT --> STATE_CHG
+    STATE_CHG --> SC
 ```
 
 The trans_mgr owns:

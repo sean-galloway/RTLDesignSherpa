@@ -50,23 +50,48 @@ DMA writes (bulk-trace, high-rate) on the master port.
 
 ## Architecture
 
-```
-                                            +--------------------+
-   monbus_valid/ready ──────────────►       │  monbus_axil_group │
-   monbus_packet (128b)             ─►      │                    │
-   monbus_timestamp (64b)           ─►      │  per-protocol      │
-                                            │  filter            │
-                                            │   │                │
-                                            │   ├──► err FIFO ──► s_axil slave port (CPU/IRQ)
-                                            │   │                │
-                                            │   └──► write FIFO ─► writer ──► m_axil master (memory)
-                                            │                    │   ↑
-                                            │   USE_COMPRESSION=0: raw 3-beat record
-                                            │   USE_COMPRESSION=1: monbus_compressor + 1-slot writer
-                                            +--------------------+
+![monbus_axil_group block diagram](../../assets/RTLAmba/monbus_axil_group.svg)
 
-                              (free-running 64-bit timestamp counter
-                                  drives mon_time_out to wrappers)
+Source: [`monbus_axil_group.mmd`](../../assets/RTLAmba/monbus_axil_group.mmd)
+
+```mermaid
+%%{init: {'theme': 'neutral', 'themeVariables': { 'fontSize': '14px'}}}%%
+flowchart TB
+    subgraph MonInput["Monitor Bus Input"]
+        MONBUS["monbus_valid/ready<br/>monbus_packet (128b)<br/>monbus_timestamp (64b)"]
+    end
+
+    subgraph monbus_axil_group["monbus_axil_group"]
+        FILTER["Per-protocol filter<br/>(drop / err / write)<br/>+ per-event masks"]
+        ERR_FIFO["Err FIFO<br/>192-bit records"]
+        WRITE_FIFO["Write FIFO<br/>192-bit records"]
+        TS_CTR["Free-running 64-bit<br/>timestamp counter"]
+
+        subgraph WriterSelect["Writer (USE_COMPRESSION gated)"]
+            RAW["USE_COMPRESSION=0:<br/>5-state FSM<br/>3 beats/record<br/>tag = 4'h0"]
+            COMP["USE_COMPRESSION=1:<br/>monbus_compressor<br/>+ per-slot writer<br/>tag = 4'h0..4'h3"]
+        end
+
+        S_AXIL_RD["s_axil slave port<br/>(slice counter)<br/>3 beats per record"]
+        M_AXIL_WR["m_axil master port<br/>base/limit wrap"]
+    end
+
+    subgraph Consumers["Consumers"]
+        CPU["CPU (IRQ-driven<br/>err FIFO drain)"]
+        MEM["Memory ring<br/>(bulk-trace dump)"]
+    end
+
+    MONBUS --> FILTER
+    FILTER -- "err_select=1<br/>not dropped" --> ERR_FIFO
+    FILTER -- "default route" --> WRITE_FIFO
+    TS_CTR -.mon_time_out.-> MONBUS
+    ERR_FIFO --> S_AXIL_RD
+    WRITE_FIFO --> RAW
+    WRITE_FIFO --> COMP
+    RAW --> M_AXIL_WR
+    COMP --> M_AXIL_WR
+    S_AXIL_RD --> CPU
+    M_AXIL_WR --> MEM
 ```
 
 The module has **no built-in arbitration** — it is a single-input block.

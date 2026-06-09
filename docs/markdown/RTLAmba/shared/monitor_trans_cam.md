@@ -68,6 +68,65 @@ The module is intentionally distinct from [`monbus_cam`](monbus_cam.md):
 
 ---
 
+## Architecture
+
+![monitor_trans_cam block diagram](../../assets/RTLAmba/monitor_trans_cam.svg)
+
+Source: [`monitor_trans_cam.mmd`](../../assets/RTLAmba/monitor_trans_cam.mmd)
+
+```mermaid
+%%{init: {'theme': 'neutral', 'themeVariables': { 'fontSize': '14px'}}}%%
+flowchart TB
+    subgraph LookupPorts["Lookup Ports (combinational, 3-way parallel)"]
+        LU_AID["lookup_addr_id"]
+        LU_DID["lookup_data_id"]
+        LU_RID["lookup_resp_id"]
+    end
+
+    subgraph WritePort["Write Port (per-slot, one-hot)"]
+        WE["entry_we[DEPTH]"]
+        WVN["entry_valid_next[DEPTH]"]
+        WIN["entry_id_next[DEPTH]"]
+        WPN["entry_payload_next[DEPTH]"]
+    end
+
+    subgraph monitor_trans_cam["monitor_trans_cam"]
+        subgraph Storage["Registered Storage (generate-loop per slot)"]
+            R_VALID["r_valid[DEPTH]"]
+            R_ID["r_id[DEPTH]"]
+            R_PAYLOAD["r_payload[DEPTH]"]
+        end
+        MATCH["Parallel one-hot match<br/>(* keep = 'true' *)<br/>1 LUT/bit/port"]
+        FREE["free_oh = ~r_valid"]
+        ALLOC["3-way mutex<br/>priority encoder<br/>(addr → data → resp)"]
+    end
+
+    subgraph Outputs["Outputs"]
+        AMATCH["addr_match_oh / data_match_oh /<br/>resp_match_oh / data_match_first_oh"]
+        FREEOUT["free_oh"]
+        ALLOCOUT["addr_alloc_oh / data_alloc_oh /<br/>resp_alloc_oh"]
+        ENTRY["entry_valid / entry_id /<br/>entry_payload (per slot)"]
+    end
+
+    LU_AID --> MATCH
+    LU_DID --> MATCH
+    LU_RID --> MATCH
+    R_VALID --> MATCH
+    R_ID --> MATCH
+    R_VALID --> FREE
+    FREE --> ALLOC
+    MATCH --> AMATCH
+    FREE --> FREEOUT
+    ALLOC --> ALLOCOUT
+    Storage --> ENTRY
+    WE --> Storage
+    WVN --> Storage
+    WIN --> Storage
+    WPN --> Storage
+```
+
+---
+
 ## Top-level Interface
 
 ```systemverilog

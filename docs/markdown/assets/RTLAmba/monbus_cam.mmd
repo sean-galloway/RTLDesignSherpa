@@ -1,0 +1,43 @@
+%%{init: {'theme': 'neutral', 'themeVariables': { 'fontSize': '14px'}}}%%
+flowchart TB
+    subgraph Access["Access Port (1 lookup + 1 commit per cycle)"]
+        KEY["access_key[KEY_WIDTH-1:0]"]
+        ACTION["access_action[1:0]<br/>NONE / TOUCH / INSTALL"]
+        NEWDATA["access_new_data[DATA_WIDTH-1:0]"]
+    end
+
+    subgraph monbus_cam["monbus_cam (position-indexed LRU)"]
+        subgraph Storage["Storage (slot 0 = MRU)"]
+            S0["r_entry[0] = MRU"]
+            S1["r_entry[1]"]
+            SD["r_entry[2..DEPTH-2]"]
+            SE["r_entry[DEPTH-1] = LRU"]
+        end
+
+        MATCH["Parallel match:<br/>w_match_oh[i] =<br/>r_valid[i] && (r_key[i] == access_key)"]
+
+        SHIFT["Per-slot shift logic:<br/>TOUCH: shift down 0..idx<br/>INSTALL: shift down 0..count or 0..DEPTH-1<br/>(LRU evicted if full)"]
+    end
+
+    subgraph Outputs["Outputs"]
+        HIT["access_hit"]
+        IDX["access_idx<br/>(position rank == tmpl_idx)"]
+        OLD["access_old_data"]
+        FULL["cam_full"]
+        COUNT["cam_count"]
+        EVICTED["evicted (pulses<br/>on full-CAM INSTALL)"]
+    end
+
+    KEY --> MATCH
+    Storage --> MATCH
+    MATCH --> HIT
+    MATCH --> IDX
+    MATCH --> OLD
+    ACTION --> SHIFT
+    NEWDATA --> SHIFT
+    MATCH --> SHIFT
+    SHIFT --> Storage
+    Storage --> COUNT
+    COUNT --> FULL
+    ACTION --> EVICTED
+    FULL --> EVICTED

@@ -1,0 +1,38 @@
+%%{init: {'theme': 'neutral', 'themeVariables': { 'fontSize': '14px'}}}%%
+flowchart TB
+    subgraph Inputs["Inputs (one valid/ready handshake per record)"]
+        IN_PKT["in_packet[127:0]<br/>monitor_packet_t"]
+        IN_TS["in_source_ts[63:0]<br/>monbus_timestamp_t"]
+    end
+
+    subgraph monbus_compressor["monbus_compressor"]
+        KEY["Build 49-bit key:<br/>(pkt_type, protocol,<br/>event_code, channel_id,<br/>agent_id, unit_id)"]
+
+        DELTA["delta_ts =<br/>(in_source_ts - r_last_ts)<br/>mod 2^60"]
+
+        CAM["monbus_cam<br/>(32-entry true LRU)<br/>access_hit / access_idx /<br/>access_old_data"]
+
+        FMT_SEL["Format selector:<br/>A → B → C priority<br/>(width-tiered)"]
+
+        FSM["3-state FSM<br/>IDLE / RAW1 / RAW2"]
+
+        PACK["Slot packer<br/>(4-bit tag + payload)"]
+
+        STATS["Statistics:<br/>tier1_a/b/c, tier0,<br/>cam_miss, *_ovf"]
+    end
+
+    subgraph Output["Output (1 slot/cycle Tier-1, 3 slots/cycle Tier-0)"]
+        OUT_SLOT["out_slot[63:0]<br/>4-bit tag + payload"]
+    end
+
+    IN_PKT --> KEY
+    IN_PKT --> CAM
+    IN_TS --> DELTA
+    KEY --> CAM
+    CAM --> FMT_SEL
+    DELTA --> FMT_SEL
+    FMT_SEL --> FSM
+    FSM --> PACK
+    CAM -.payload feedback.-> FMT_SEL
+    PACK --> OUT_SLOT
+    FSM --> STATS
