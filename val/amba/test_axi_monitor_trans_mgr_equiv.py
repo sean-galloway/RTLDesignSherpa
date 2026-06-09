@@ -392,11 +392,9 @@ def _run_trans_mgr(*,
 
     dut_name = "axi_monitor_trans_mgr"
     flavor = f"{variant}_{'rd' if is_read else 'wr'}_{'axi4' if is_axi else 'axil'}"
-    test_name = (f"test_{dut_name}_equiv_{flavor}_mt{max_trans:02d}"
+    worker_id = os.environ.get('PYTEST_XDIST_WORKER', 'gw0')
+    test_name = (f"test_{worker_id}_{dut_name}_equiv_{flavor}_mt{max_trans:02d}"
                  f"_iw{id_width:02d}_sc{stim_cycles:04d}_seed{stim_seed}")
-    worker_id = os.environ.get('PYTEST_XDIST_WORKER', '')
-    if worker_id:
-        test_name = f"{test_name}_{worker_id}"
 
     log_path  = os.path.join(log_dir, f'{test_name}.log')
     sim_build = os.path.join(tests_dir, 'local_sim_build', test_name)

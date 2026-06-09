@@ -539,12 +539,8 @@ def test_monbus_cam(request, key_width, data_width, depth):
     kw_str = TBBase.format_dec(key_width,  2)
     dw_str = TBBase.format_dec(data_width, 2)
     de_str = TBBase.format_dec(depth,      3)
-    test_name = f"test_{dut_name}_kw{kw_str}_dw{dw_str}_d{de_str}_{reg_level}"
-
-    worker_id = os.environ.get('PYTEST_XDIST_WORKER', '')
-    if worker_id:
-        test_name = f"{test_name}_{worker_id}"
-
+    worker_id = os.environ.get('PYTEST_XDIST_WORKER', 'gw0')
+    test_name = f"test_{worker_id}_{dut_name}_kw{kw_str}_dw{dw_str}_d{de_str}_{reg_level}"
     log_path  = os.path.join(log_dir, f'{test_name}.log')
     sim_build = os.path.join(tests_dir, 'local_sim_build', test_name)
     enable_waves = bool(int(os.environ.get('WAVES', '0')))

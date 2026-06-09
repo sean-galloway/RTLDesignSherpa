@@ -243,10 +243,8 @@ def test_monbus_compressor(request):
 
     dut_name = "monbus_compressor"
     reg_level = os.environ.get('REG_LEVEL', 'FUNC').upper()
-    test_name = f"test_{dut_name}_{reg_level}"
-    worker_id = os.environ.get('PYTEST_XDIST_WORKER', '')
-    if worker_id:
-        test_name = f"{test_name}_{worker_id}"
+    worker_id = os.environ.get('PYTEST_XDIST_WORKER', 'gw0')
+    test_name = f"test_{worker_id}_{dut_name}_{reg_level}"
 
     log_path  = os.path.join(log_dir, f'{test_name}.log')
     sim_build = os.path.join(tests_dir, 'local_sim_build', test_name)

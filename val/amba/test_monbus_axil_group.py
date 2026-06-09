@@ -194,12 +194,8 @@ def test_monbus_axil_group(request, test_type, fifo_depth_err, fifo_depth_write,
     aw_str = TBBase.format_dec(addr_width, 2)
     dw_str = TBBase.format_dec(data_width, 2)
     np_str = TBBase.format_dec(num_protocols, 1)
-    test_name_plus_params = f"test_{dut_name}_{test_type}_fde{fde_str}_fdw{fdw_str}_aw{aw_str}_dw{dw_str}_np{np_str}"
-
-    # Handle pytest-xdist parallel execution
-    worker_id = os.environ.get('PYTEST_XDIST_WORKER', '')
-    if worker_id:
-        test_name_plus_params = f"{test_name_plus_params}_{worker_id}"
+    worker_id = os.environ.get('PYTEST_XDIST_WORKER', 'gw0')
+    test_name_plus_params = f"test_{worker_id}_{dut_name}_{test_type}_fde{fde_str}_fdw{fdw_str}_aw{aw_str}_dw{dw_str}_np{np_str}"
 
     log_path = os.path.join(log_dir, f'{test_name_plus_params}.log')
     sim_build = os.path.join(tests_dir, 'local_sim_build', test_name_plus_params)
