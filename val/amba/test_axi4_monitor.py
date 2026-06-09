@@ -511,7 +511,7 @@ def test_axi4_monitor(iw, aw, max_transactions, is_read, is_axi4, test_mode):
     protocol = "axi4" if is_axi4 else "lite"
     direction = "rd" if is_read else "wr"
 
-    test_name = f"test_{worker_id}_{worker_id}_axi_monitor_{test_mode}_iw{iw}_aw{aw}_mt{max_transactions}_{protocol}_{direction}"
+    test_name = f"test_{worker_id}_axi_monitor_{test_mode}_iw{iw}_aw{aw}_mt{max_transactions}_{protocol}_{direction}"
     log_path = os.path.join(log_dir, f'{test_name}.log')
     sim_build = os.path.join(tests_dir, 'local_sim_build', test_name)
     enable_waves = bool(int(os.environ.get('WAVES', '0')))

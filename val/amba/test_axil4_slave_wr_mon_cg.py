@@ -110,7 +110,7 @@ def test_axil4_slave_wr_mon_cg(test_level):
 
     dut_name = "axil4_slave_wr_mon_cg"
     reg_level = os.environ.get("REG_LEVEL", "FUNC").upper()
-    test_name = f"test_{worker_id}_{worker_id}_{dut_name}_{test_level}_{reg_level}"
+    test_name = f"test_{worker_id}_{dut_name}_{test_level}_{reg_level}"
 
     log_path = os.path.join(log_dir, f'{test_name}.log')
     sim_build = os.path.join(tests_dir, 'local_sim_build', test_name)

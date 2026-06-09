@@ -244,7 +244,7 @@ def test_axi_monitor_addr_check():
     })
 
     dut_name  = "axi4_master_rd_mon"
-    test_name = f"test_axi_monitor_addr_check_{worker_id}"
+    test_name = f"test_{worker_id}_axi_monitor_addr_check"
 
     log_path  = os.path.join(log_dir, f'{test_name}.log')
     sim_build = os.path.join(tests_dir, 'local_sim_build', test_name)

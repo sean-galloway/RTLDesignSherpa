@@ -826,14 +826,12 @@ def test_monitor_trans_cam(request, id_width, payload_width, depth):
     dut_name  = "monitor_trans_cam"
     reg_level = os.environ.get('REG_LEVEL', 'FUNC').upper()
 
+    worker_id = os.environ.get('PYTEST_XDIST_WORKER', 'gw0')
+
     iw_str = TBBase.format_dec(id_width,      2)
     pw_str = TBBase.format_dec(payload_width, 3)
     de_str = TBBase.format_dec(depth,         3)
-    test_name = f"test_{dut_name}_iw{iw_str}_pw{pw_str}_d{de_str}_{reg_level}"
-
-    worker_id = os.environ.get('PYTEST_XDIST_WORKER', '')
-    if worker_id:
-        test_name = f"{test_name}_{worker_id}"
+    test_name = f"test_{worker_id}_{dut_name}_iw{iw_str}_pw{pw_str}_d{de_str}_{reg_level}"
 
     log_path  = os.path.join(log_dir, f'{test_name}.log')
     sim_build = os.path.join(tests_dir, 'local_sim_build', test_name)

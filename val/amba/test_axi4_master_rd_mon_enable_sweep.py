@@ -290,7 +290,8 @@ def test_axi4_master_rd_mon_enable_sweep(
 
     dut_name = "axi4_master_rd_mon"
     reg_level = os.environ.get("REG_LEVEL", "FUNC").upper()
-    test_name = f"test_{dut_name}_ensweep_{label}_{reg_level}"
+    worker_id = os.environ.get('PYTEST_XDIST_WORKER', 'gw0')
+    test_name = f"test_{worker_id}_{dut_name}_ensweep_{label}_{reg_level}"
 
     log_path = os.path.join(log_dir, f"{test_name}.log")
     sim_build = os.path.join(tests_dir, "local_sim_build", test_name)
