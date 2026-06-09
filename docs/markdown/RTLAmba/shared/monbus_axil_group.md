@@ -430,6 +430,57 @@ compressor for the next FPGA characterization run.
 
 ---
 
+## Memory-ring backend
+
+The `m_axil_*` master writer drains the write FIFO (or the compressor
+output, when `USE_COMPRESSION=1`) into a memory ring. On the FPGA the
+ring is typically a BRAM-backed simple-dual-port SRAM. The shared
+`sdpram_slave` family provides four protocol-specific wrappers; the
+canonical pick for this writer is **`sdpram_slave_axil_axil`** because:
+
+- Both the `monbus_axil_group` master writer port AND the host CPU read
+  path are AXIL — neither side needs the AXI4 id/len/size/burst/lock/
+  cache/qos/region/user fields.
+- The wrapper's port list contains only `s_axil_aw*/w*/b*` + `s_axil_ar*/r*`,
+  matching the chosen protocol exactly; no spurious AXI4-only fields
+  for the caller to tie off.
+
+A typical pairing on the harness looks like:
+
+```systemverilog
+monbus_axil_group #(.USE_COMPRESSION(1)) u_mon ( ... );
+
+sdpram_slave_axil_axil #(
+    .ADDR_WIDTH (32),
+    .DATA_WIDTH (64),
+    .MEM_DEPTH  (DUMP_RING_WORDS)
+) u_dump_ring (
+    .aclk           (aclk),
+    .aresetn        (aresetn),
+
+    // monbus_axil_group's master writer -> SRAM ring's slave write side
+    .s_axil_awaddr  (m_axil_mon_awaddr),
+    .s_axil_awprot  (m_axil_mon_awprot),
+    .s_axil_awvalid (m_axil_mon_awvalid),
+    .s_axil_awready (m_axil_mon_awready),
+    .s_axil_wdata   (m_axil_mon_wdata),
+    .s_axil_wstrb   (m_axil_mon_wstrb),
+    .s_axil_wvalid  (m_axil_mon_wvalid),
+    .s_axil_wready  (m_axil_mon_wready),
+    .s_axil_bresp   (m_axil_mon_bresp),
+    .s_axil_bvalid  (m_axil_mon_bvalid),
+    .s_axil_bready  (m_axil_mon_bready),
+
+    // CPU read side
+    .s_axil_araddr  (cpu_axil_araddr),
+    ...
+);
+```
+
+See [`sdpram_slave.md`](sdpram_slave.md) for the full family.
+
+---
+
 ## Related Modules
 
 | Module | Role |
@@ -437,5 +488,6 @@ compressor for the next FPGA characterization run.
 | [`monbus_compressor`](monbus_compressor.md) | The optional compression encoder |
 | [`monbus_cam`](monbus_cam.md) | The 32-entry LRU CAM inside the compressor |
 | [`monbus_arbiter`](monbus_arbiter.md) | Upstream merge — instantiated by callers with N input streams |
-| `axil4_slave_rd` / `axil4_master_wr` | The two AXIL backends |
+| [`sdpram_slave_axil_axil`](sdpram_slave.md) | Canonical SRAM-ring backend for the `m_axil_*` master writer |
+| `axil4_slave_rd` / `axil4_master_wr` | The two AXIL backends inside this module |
 | `gaxi_fifo_sync` | The err + write FIFOs |

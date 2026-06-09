@@ -71,6 +71,23 @@ The path from in-flight monitor packets to host-visible memory and CPU IRQs:
 | **monbus_compressor** | Bulk-trace encoder | 32-entry LRU CAM, 4-tag slot format, 2.66× ratio, bit-exact to Python golden | [monbus_compressor.md](monbus_compressor.md) |
 | **monbus_cam** | LRU CAM for compressor | 32-entry, position-indexed, true LRU, 49b key + 64b payload | [monbus_cam.md](monbus_cam.md) |
 
+### Memory / BRAM Slave (sdpram_slave family)
+
+Simple dual-port BRAM slave with independent protocol choice on each
+side. Most commonly used as the memory-dump ring backend for
+`monbus_axil_group`. One common backend + four protocol-specific
+wrappers (since SystemVerilog can't conditionally include/exclude
+ports in a single module's port list, each combination gets its own
+wrapper module name).
+
+| Module | Purpose | Wr / Rd ports | Documentation |
+|--------|---------|---|---|
+| **sdpram_slave** | Common backend (BRAM glue, clear FSM, protocol skids) | AXI4 superset (parameterized) | [sdpram_slave.md](sdpram_slave.md) |
+| **sdpram_slave_axi4_axi4** | Wrapper — pure AXI4 | `s_axi_*` / `s_axi_*` | (same) |
+| **sdpram_slave_axi4_axil** | Wrapper — AXI4 wr + AXIL rd | `s_axi_*` / `s_axil_*` | (same) |
+| **sdpram_slave_axil_axi4** | Wrapper — AXIL wr + AXI4 rd | `s_axil_*` / `s_axi_*` | (same) |
+| **sdpram_slave_axil_axil** | Wrapper — pure AXIL (canonical SRAM-ring backend) | `s_axil_*` / `s_axil_*` | (same) |
+
 ### Arbitration (4 modules)
 
 Monitor bus arbiters for aggregating packets from multiple monitors:

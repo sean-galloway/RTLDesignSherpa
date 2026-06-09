@@ -542,6 +542,7 @@ The dataset and acceptance recipe live at
 |---|---|
 | [`monbus_cam`](monbus_cam.md) | 32-entry LRU CAM (template index store) |
 | [`monbus_axil_group`](monbus_axil_group.md) | Host of the compressor, plus the AXIL writer that drains slots to memory |
+| [`sdpram_slave_axil_axil`](sdpram_slave.md) | Typical SRAM-ring backend for the compressed slot stream |
 | `bin/TBClasses/monbus/monbus_compressor.py` | Python golden encoder/decoder — the format spec |
 
 ---

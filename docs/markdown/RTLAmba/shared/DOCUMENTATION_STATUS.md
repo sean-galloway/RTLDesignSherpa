@@ -65,6 +65,15 @@
     - Per-protocol filter rules
     - USE_COMPRESSION elaboration knob covered with both writer paths
 
+16. **sdpram_slave.md** - COMPLETE (new 2026-06-09)
+    - Covers the full 5-file family: 1 backend + 4 protocol-specific
+      wrappers (axi4_axi4 / axi4_axil / axil_axi4 / axil_axil).
+    - Documents why the split exists (SystemVerilog cannot conditionally
+      include/exclude ports in a single module declaration).
+    - Migration recipe from bare `sdpram_slave` to the matching wrapper.
+    - Cross-links from monbus_axil_group.md and monbus_compressor.md
+      (the memory-dump ring's canonical backend is `sdpram_slave_axil_axil`).
+
 ### Remaining Documentation (15 modules)
 
 The following modules require documentation following the same pattern as axi_monitor_base.md:
@@ -82,6 +91,11 @@ The following modules require documentation following the same pattern as axi_mo
    - monbus_compressor.md - **COMPLETE** (new 2026-06-08, see #13)
    - monbus_cam.md - **COMPLETE** (new 2026-06-08, see #14)
    - monitor_trans_cam.md - **COMPLETE** (new 2026-06-08, see #12)
+
+#### Memory / BRAM Slave (NEW SECTION)
+   - sdpram_slave.md - **COMPLETE** (new 2026-06-09, see #16)
+     - Covers backend (sdpram_slave.sv) + 4 wrappers (axi4_axi4, axi4_axil,
+       axil_axi4, axil_axil) in a single doc.
 
 #### Monitor Bus Arbitration (4 modules)
 7. arbiter_monbus_common.md - PENDING
