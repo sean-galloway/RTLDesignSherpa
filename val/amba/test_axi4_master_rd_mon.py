@@ -30,6 +30,32 @@ from TBClasses.axi4.monitor.axi4_master_monitor_tb import AXI4MasterMonitorTB
 from TBClasses.shared.utilities import get_paths
 
 
+def _trans_mgr_sources(rtl_dict):
+    """Returns the verilog source(s) for the AXI monitor transaction manager.
+
+    Env-var knob:
+      TRANS_MGR_VARIANT=prod  (default) -> rtl/amba/shared/axi_monitor_trans_mgr.sv
+                                          (production, inline parallel-match
+                                          + per-entry generate-loop storage)
+      TRANS_MGR_VARIANT=stage           -> rtl/amba/shared/mon_temp/
+                                          axi_monitor_trans_mgr.sv (CAM-backed
+                                          rewrite) + monitor_trans_cam.sv
+
+    Bit-exact differential equivalence between prod and stage is proven by
+    val/amba/test_axi_monitor_trans_mgr_equiv.py on 500 cycles of random
+    stimulus; this knob runs the full axi4_master_rd_mon regression
+    against either build for additional confidence.
+    """
+    variant = os.environ.get('TRANS_MGR_VARIANT', 'prod').lower()
+    if variant == 'stage':
+        return [
+            os.path.join(rtl_dict['rtl_shared'], "monitor_trans_cam.sv"),
+            os.path.join(rtl_dict['rtl_shared'], "mon_temp",
+                         "axi_monitor_trans_mgr.sv"),
+        ]
+    return [os.path.join(rtl_dict['rtl_shared'], "axi_monitor_trans_mgr.sv")]
+
+
 @cocotb.test(timeout_time=30, timeout_unit="sec")
 async def axi4_master_rd_mon_test(dut):
     """AXI4 master read monitor integration test"""
@@ -177,7 +203,7 @@ def test_axi4_master_rd_mon(id_width, addr_width, data_width, user_width, max_tr
         os.path.join(rtl_dict['rtl_gaxi'], "gaxi_fifo_sync.sv"),
         os.path.join(rtl_dict['rtl_gaxi'], "gaxi_skid_buffer.sv"),
         os.path.join(rtl_dict['rtl_axi4'], "axi4_master_rd.sv"),
-        os.path.join(rtl_dict['rtl_shared'], "axi_monitor_trans_mgr.sv"),
+        *_trans_mgr_sources(rtl_dict),
         os.path.join(rtl_dict['rtl_shared'], "axi_monitor_timer.sv"),
         os.path.join(rtl_dict['rtl_shared'], "axi_monitor_timeout.sv"),
         os.path.join(rtl_dict['rtl_shared'], "axi_monitor_reporter_error.sv"),
@@ -516,7 +542,7 @@ def test_axi4_master_rd_mon_wavedrom(id_width, addr_width, data_width):
         os.path.join(rtl_dict['rtl_gaxi'], "gaxi_fifo_sync.sv"),
         os.path.join(rtl_dict['rtl_gaxi'], "gaxi_skid_buffer.sv"),
         os.path.join(rtl_dict['rtl_axi4'], "axi4_master_rd.sv"),
-        os.path.join(rtl_dict['rtl_shared'], "axi_monitor_trans_mgr.sv"),
+        *_trans_mgr_sources(rtl_dict),
         os.path.join(rtl_dict['rtl_shared'], "axi_monitor_timer.sv"),
         os.path.join(rtl_dict['rtl_shared'], "axi_monitor_timeout.sv"),
         os.path.join(rtl_dict['rtl_shared'], "axi_monitor_reporter_error.sv"),

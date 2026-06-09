@@ -26,4 +26,38 @@ hierarchy edits in the parents (e.g. `axi_monitor_base.sv`).
 
 | Module                   | Source        | Status      |
 |--------------------------|---------------|-------------|
-| `axi_monitor_trans_mgr.sv` | this dir    | WIP, not validated |
+| `axi_monitor_trans_mgr.sv` | this dir    | passes differential equivalence + full `axi4_master_rd_mon` regression (2026-06-08) |
+
+## How to validate
+
+Two layers of confidence, both passing today:
+
+1. **Bit-exact differential equivalence** (500 cycles random stim, all
+   `bus_transaction_t` fields cross-checked):
+
+   ```
+   pytest val/amba/test_axi_monitor_trans_mgr_equiv.py -v
+   ```
+
+   Two pytest entries: `test_a_*_prod` captures cycle-by-cycle outputs
+   from the production trans_mgr; `test_b_*_stage` runs the same
+   stimulus against the staging file and asserts every snapshot
+   matches. FULL sweep covers AXI4/AXI-Lite read + write, MAX_TRANS
+   8/16, ID_WIDTH 4/8.
+
+2. **Full monitor regression with the swap flipped** (env-var knob):
+
+   ```
+   # Default: production trans_mgr
+   pytest val/amba/test_axi4_master_rd_mon.py -v
+
+   # Same regression, staging trans_mgr + monitor_trans_cam
+   TRANS_MGR_VARIANT=stage pytest val/amba/test_axi4_master_rd_mon.py -v
+   ```
+
+   The `_trans_mgr_sources(rtl_dict)` helper in
+   `test_axi4_master_rd_mon.py` swaps the source set based on the
+   `TRANS_MGR_VARIANT` env var (`prod` default, `stage` opt-in). Other
+   monitor regression test files (`test_axi4_master_wr_mon.py`,
+   `test_axi4_slave_*_mon.py`, `*_cg.py`, the enable-sweep) still pin
+   the production file -- copy the helper to extend the swap there.
