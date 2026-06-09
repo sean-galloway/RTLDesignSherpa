@@ -24,7 +24,8 @@
 # Shared Infrastructure Documentation Status
 
 **Generated:** 2025-10-23
-**Location:** `/mnt/data/github/rtldesignsherpa/docs/markdown/RTLAmba/shared/`
+**Last updated:** 2026-06-09 (added bulk-trace compression + trans_mgr family)
+**Location:** `/mnt/data/github/RTLDesignSherpa/docs/markdown/RTLAmba/shared/`
 
 ---
 
@@ -38,16 +39,49 @@
    - Design notes included
    - Cross-references added
 
+11. **axi_monitor_trans_mgr.md** - COMPLETE (rewritten 2026-06-08)
+    - Reflects CAM-backed revision (delegates to monitor_trans_cam)
+    - Documents synthesis properties carried from the 2026-04-23 WNS fix
+    - Equivalence test + TRANS_MGR_VARIANT rollback knob covered
+
+12. **monitor_trans_cam.md** - COMPLETE (new 2026-06-08)
+    - Multi-port ID CAM with opaque payload
+    - 3 lookup ports + 3-way mutex alloc priority encoder
+    - Synthesis notes (keep="true" anchors, per-slot generate-loop storage)
+
+13. **monbus_compressor.md** - COMPLETE (new 2026-06-08)
+    - Hardware bulk-trace encoder, ~2.66× compression
+    - Full coverage of all 5 compression techniques (template extraction,
+      delta-ts, width-tiered Tier-1, differential payload, Tier-0 RAW)
+    - Bit layouts, encoder decision tree, pipeline/timing/synthesis notes
+
+14. **monbus_cam.md** - COMPLETE (new 2026-06-08)
+    - 32-entry true-LRU caching CAM (position-indexed storage)
+    - Backs monbus_compressor's template indexing
+    - Caller protocol (NONE/TOUCH/INSTALL), eviction semantics
+
+15. **monbus_axil_group.md** - COMPLETE (new 2026-06-08)
+    - AXI-Lite delivery layer (err FIFO + write FIFO + timestamp authority)
+    - Per-protocol filter rules
+    - USE_COMPRESSION elaboration knob covered with both writer paths
+
 ### Remaining Documentation (15 modules)
 
 The following modules require documentation following the same pattern as axi_monitor_base.md:
 
-#### Monitor Infrastructure (5 modules remaining)
+#### Monitor Infrastructure
 2. axi_monitor_filtered.md - PENDING
 3. axi_monitor_reporter.md - PENDING
 4. axi_monitor_timeout.md - PENDING
 5. axi_monitor_timer.md - PENDING
-6. axi_monitor_trans_mgr.md - PENDING
+6. axi_monitor_trans_mgr.md - **COMPLETE** (rewritten 2026-06-08)
+   - See #11 in Completed Documentation above
+
+#### Monitor Bus Delivery + Bulk-Trace Compression (NEW SECTION)
+   - monbus_axil_group.md - **COMPLETE** (new 2026-06-08, see #15)
+   - monbus_compressor.md - **COMPLETE** (new 2026-06-08, see #13)
+   - monbus_cam.md - **COMPLETE** (new 2026-06-08, see #14)
+   - monitor_trans_cam.md - **COMPLETE** (new 2026-06-08, see #12)
 
 #### Monitor Bus Arbitration (4 modules)
 7. arbiter_monbus_common.md - PENDING

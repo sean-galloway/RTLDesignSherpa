@@ -477,6 +477,436 @@ A new integration that touches the monitor system should not ship until:
 
 ---
 
+## Bulk-trace compression
+
+The bulk-trace path (write FIFO → `monbus_axil_group` master writer → SRAM
+ring) is the dominant byte-budget consumer in any monitor deployment.
+A naive layout stores each 24-byte record (128-bit packet + 60-bit
+timestamp + 4-bit tag) verbatim into the ring; at modest event rates
+that fills a typical SRAM region in milliseconds.
+
+`monbus_axil_group` exposes a compressor option that compresses the
+write-side stream **~2.66×** on representative real-silicon traffic.
+The decoder is bit-exact mirror — no out-of-band sync needed.
+
+**How it works (summary; see [`monbus_compressor.md`](shared/monbus_compressor.md) for the full spec):**
+
+1. **Template extraction.** Six low-entropy fields of the monitor packet
+   `(packet_type, protocol, event_code, channel_id, agent_id, unit_id)`
+   form a 49-bit "template key" that repeats heavily across events from
+   the same agent. The compressor stashes the first occurrence of each
+   template in a 32-entry caching CAM ([`monbus_cam`](shared/monbus_cam.md))
+   and from then on sends only a 5-bit index instead of the 49-bit key.
+2. **Delta-encoded timestamp.** Absolute 60-bit timestamps deltad against
+   the previous record; typical deltas fit in 15 bits.
+3. **Width-tiered Tier-1 formats.** Three single-beat formats (A/B/C)
+   pack `(tmpl_idx, delta_ts, event_data)` into 64 bits at different
+   width trade-offs. The encoder picks the first format that fits.
+4. **Differential payload encoding.** Format C carries the **signed
+   delta** of `event_data` against the last-seen value for the same
+   template — covers monotonic counters / sequential addresses cleanly.
+5. **Tier-0 RAW escape.** Three-beat fallback when none of the Tier-1
+   formats fit (CAM miss or all overflows). Beat 0 carries a 4-bit tag
+   so the decoder reads one beat, recognises the format, and knows
+   exactly how many more beats to fetch.
+
+| Slot tag | Meaning | Beats |
+|---|---|---|
+| `0x0` | RAW Tier-0 escape (3-beat record) | 3 |
+| `0x1` | Tier-1 Format A (15b ΔTS + 40b event_data) | 1 |
+| `0x2` | Tier-1 Format B (23b ΔTS + 32b event_data) | 1 |
+| `0x3` | Tier-1 Format C (15b ΔTS + 40b signed event_data delta) | 1 |
+| `0x4..0xF` | Reserved | — |
+
+The wire format is locked at commit `5bbb83d1`. Validation dataset
+(`desc_axi_16desc_8ch_1MB`, 682 records of descriptor-fetch traffic) hits
+93.5 % Tier-1 (628 A + 10 B + 0 C) and escapes 6.5 % (32 CAM misses +
+12 delta_ts overflows). Bit-exact equivalence against the Python golden
+in `bin/TBClasses/monbus/monbus_compressor.py` is the RTL acceptance
+criterion; the host decoder is the same Python class run with
+`Decoder.decode()`.
+
+The compressor adds **~480 bytes of CAM storage** (32 entries × ~119
+bits) and a small FSM. The wrapper instantiates it only when
+`USE_COMPRESSION=1` is set on `monbus_axil_group`; the default is the
+raw 3-beat-per-record path.
+
+Eight statistics counters (per-tier hit counts plus per-escape-reason
+breakdowns) are exposed to the host firmware so each capture session
+can characterise its own compression effectiveness:
+
+| Counter | Increments when |
+|---|---|
+| `stat_tier1_a` / `_b` / `_c` | Corresponding Tier-1 slot emitted |
+| `stat_tier0` | Tier-0 RAW escape (any reason) |
+| `stat_cam_miss` | Escape caused by CAM miss (template install) |
+| `stat_delta_ts_ovf` | Escape caused by `delta_ts > 2²³` |
+| `stat_event_data_ovf` | Escape caused by `event_data > 2⁴⁰` (delta_ts fit) |
+| `stat_ed_delta_ovf` | Escape caused by `ed_delta` out of ±2³⁹ |
+
+---
+
+## Event catalog
+
+The 16 distinct `(protocol, packet_type, event_code)` tuples covered by
+the monitor packet format are split across the protocol packages in
+`rtl/amba/includes/`. The lists below show the **non-reserved** event
+codes per `(protocol, packet_type)` pair; `0x0..0xE` slots not shown
+are reserved, and `0xF` is always `*_USER_DEFINED`.
+
+### AXI4 (and AXI-Lite — same enums, `PROTOCOL_AXI = 0`)
+
+Source: [`monitor_amba4_pkg.sv`](includes/monitor_amba4_pkg.md)
+
+**AXI Error events** (`PktTypeError`):
+
+- `AXI_ERR_RESP_SLVERR` (0x0) — slave error response (RRESP/BRESP = 10)
+- `AXI_ERR_RESP_DECERR` (0x1) — decode error response (RRESP/BRESP = 11)
+- `AXI_ERR_DATA_ORPHAN` (0x2) — data beat without command
+- `AXI_ERR_RESP_ORPHAN` (0x3) — response without outstanding transaction
+- `AXI_ERR_PROTOCOL` (0x4) — generic protocol violation (e.g. resp before data complete)
+- `AXI_ERR_BURST_LENGTH` (0x5) — invalid burst length encoding
+- `AXI_ERR_BURST_SIZE` (0x6) — invalid burst size encoding
+- `AXI_ERR_BURST_TYPE` (0x7) — invalid burst type encoding
+- `AXI_ERR_ID_COLLISION` (0x8) — same ID issued before prior completed
+- `AXI_ERR_WRITE_BEFORE_ADDR` (0x9) — W data before AW handshake (AXI4 illegal)
+- `AXI_ERR_RESP_BEFORE_DATA` (0xA) — B response before W last beat
+- `AXI_ERR_LAST_MISSING` (0xB) — `last` not asserted on final beat
+- `AXI_ERR_STROBE_ERROR` (0xC) — write strobe pattern invalid
+- `AXI_ERR_ADDR_RANGE` (0xD) — address-range violation (from `axi_monitor_addr_check`)
+
+**AXI Timeout events** (`PktTypeTimeout`):
+
+- `AXI_TIMEOUT_CMD` (0x0) — AR/AW channel held without handshake
+- `AXI_TIMEOUT_DATA` (0x1) — R/W channel held without handshake
+- `AXI_TIMEOUT_RESP` (0x2) — B channel held without handshake
+- `AXI_TIMEOUT_HANDSHAKE` (0x3) — valid/ready stuck on some channel
+- `AXI_TIMEOUT_BURST` (0x4) — burst not completing within budget
+- `AXI_TIMEOUT_EXCLUSIVE` (0x5) — exclusive access in flight too long
+
+**AXI Completion events** (`PktTypeCompletion`):
+
+- `AXI_COMPL_TRANS_COMPLETE` (0x0) — transaction succeeded (generic)
+- `AXI_COMPL_READ_COMPLETE` (0x1) — read completed (last R + OK resp)
+- `AXI_COMPL_WRITE_COMPLETE` (0x2) — write completed (B with OK resp)
+- `AXI_COMPL_BURST_COMPLETE` (0x3) — multi-beat burst completed
+- `AXI_COMPL_EXCLUSIVE_OK` (0x4) — exclusive access succeeded (RRESP/BRESP = 01)
+- `AXI_COMPL_EXCLUSIVE_FAIL` (0x5) — exclusive access failed (RRESP/BRESP = 00)
+- `AXI_COMPL_ATOMIC_OK` (0x6) — atomic op succeeded
+- `AXI_COMPL_ATOMIC_FAIL` (0x7) — atomic op failed
+
+**AXI Threshold events** (`PktTypeThreshold`):
+
+- `AXI_THRESH_ACTIVE_COUNT` (0x0) — outstanding transaction count over watermark
+- `AXI_THRESH_LATENCY` (0x1) — latency over `cfg_latency_threshold`
+- `AXI_THRESH_ERROR_RATE` (0x2) — error rate over threshold
+- `AXI_THRESH_THROUGHPUT` (0x3) — throughput over/under threshold
+- `AXI_THRESH_QUEUE_DEPTH` (0x4) — internal queue depth threshold
+- `AXI_THRESH_BANDWIDTH` (0x5) — bandwidth utilization threshold
+- `AXI_THRESH_OUTSTANDING` (0x6) — outstanding-id watermark
+- `AXI_THRESH_BURST_SIZE` (0x7) — average burst size threshold
+
+**AXI Performance events** (`PktTypePerf`):
+
+- `AXI_PERF_ADDR_LATENCY` (0x0) — addr phase latency (cmd_valid → cmd_ready)
+- `AXI_PERF_DATA_LATENCY` (0x1) — data phase latency
+- `AXI_PERF_RESP_LATENCY` (0x2) — resp phase latency (write only)
+- `AXI_PERF_TOTAL_LATENCY` (0x3) — addr-to-resp end-to-end latency
+- `AXI_PERF_THROUGHPUT` (0x4) — transaction throughput sample
+- `AXI_PERF_ERROR_RATE` (0x5) — error rate sample
+- `AXI_PERF_ACTIVE_COUNT` (0x6) — current active count
+- `AXI_PERF_COMPLETED_COUNT` (0x7) — completed-transaction tally
+- `AXI_PERF_ERROR_COUNT` (0x8) — error-transaction tally
+- `AXI_PERF_BANDWIDTH_UTIL` (0x9) — bandwidth utilization sample
+- `AXI_PERF_QUEUE_DEPTH` (0xA) — average queue depth
+- `AXI_PERF_BURST_EFFICIENCY` (0xB) — burst efficiency metric
+- `AXI_PERF_READ_WRITE_RATIO` (0xE) — read vs write balance
+
+**AXI PerfWin events** (`PktTypePerfWin`) — emitted on window close by
+`axi_monitor_base`'s window state machine; one event_code per metric,
+event_data carries the 64-bit raw counter:
+
+- `AXI_PERFWIN_WIN_END` (0x0) — window close + total window cycles
+- `AXI_PERFWIN_PROD_CYCLES` (0x1) — valid && ready (productive)
+- `AXI_PERFWIN_BP_CYCLES` (0x2) — valid && !ready (backpressure)
+- `AXI_PERFWIN_STARV_CYCLES` (0x3) — !valid && ready (starvation)
+- `AXI_PERFWIN_IDLE_CYCLES` (0x4) — !valid && !ready (idle)
+- `AXI_PERFWIN_BEAT_COUNT` (0x5) — productive beats
+- `AXI_PERFWIN_BYTE_COUNT` (0x6) — bytes (beats × 1<<axsize, masked by strb)
+- `AXI_PERFWIN_BURST_COUNT` (0x7) — AW/AR handshakes
+- `AXI_PERFWIN_WIN_START` (0x8) — window start timestamp snapshot
+- `AXI_PERFWIN_CHAN_PROD` (0x9) — per-channel productive cycles
+- `AXI_PERFWIN_CHAN_STARV` (0xA) — per-channel starvation cycles
+- `AXI_PERFWIN_CHAN_BP` (0xB) — per-channel backpressure cycles
+
+**AXI PerfHist events** (`PktTypePerfHist`) — latency histograms, 16 buckets:
+
+- `event_code[7:4]` = histogram select: `0x0` ADDR, `0x1` DATA, `0x2` RESP
+- `event_code[3:0]` = bucket 0..15 with log₂ cycle thresholds (0:<2, 1:<4, …, 14:<32K, 15:≥32K)
+- Each packet carries that bucket's count in event_data
+
+**AXI Address-match events** (`PktTypeAddrMatch`) — from `axi_monitor_addr_check`:
+
+- `AXI_ADDR_EXACT_MATCH` (0x0) — exact address match
+- `AXI_ADDR_RANGE_MATCH` (0x1) — within configured range
+- `AXI_ADDR_MASK_MATCH` (0x2) — masked match
+- `AXI_ADDR_PATTERN_MATCH` (0x3) — pattern match
+- `AXI_ADDR_SEQUENTIAL` (0x4) — sequential pattern detected
+- `AXI_ADDR_STRIDE_MATCH` (0x5) — stride pattern detected
+- `AXI_ADDR_HOTSPOT` (0x6) — hotspot address detected
+- `AXI_ADDR_CONFLICT` (0x7) — conflict (e.g. AR-during-write to same line)
+
+**AXI Debug events** (`PktTypeDebug`):
+
+- `AXI_DEBUG_STATE_CHANGE` (0x0) — trans_mgr FSM state transition
+- `AXI_DEBUG_PIPELINE_STALL` (0x1) — pipeline stall event
+- `AXI_DEBUG_BACKPRESSURE` (0x2) — backpressure pulse
+- `AXI_DEBUG_OUTSTANDING` (0x3) — outstanding count change
+- `AXI_DEBUG_REORDER_BUFFER` (0x4) — reorder buffer status
+- `AXI_DEBUG_ID_ALLOCATION` (0x5) — ID allocation in trans table
+- `AXI_DEBUG_QOS_ESCALATION` (0x6) — QoS escalation pulse
+- `AXI_DEBUG_HANDSHAKE` (0x7) — handshake timing event
+- `AXI_DEBUG_QUEUE_STATUS` (0x8) — queue status change
+- `AXI_DEBUG_COUNTER` (0x9) — counter snapshot
+- `AXI_DEBUG_FIFO_STATUS` (0xA) — FIFO status change
+
+### APB (`PROTOCOL_APB = 2`)
+
+Source: [`monitor_amba4_pkg.sv`](includes/monitor_amba4_pkg.md)
+
+**APB Error events** (`PktTypeError`):
+
+- `APB_ERR_PSLVERR` (0x0) — peripheral asserted `PSLVERR`
+- `APB_ERR_SETUP_VIOLATION` (0x1) — setup-phase protocol violation
+- `APB_ERR_ACCESS_VIOLATION` (0x2) — access-phase protocol violation
+- `APB_ERR_STROBE_ERROR` (0x3) — write strobe pattern invalid
+- `APB_ERR_ADDR_DECODE` (0x4) — address decode error
+- `APB_ERR_PROT_VIOLATION` (0x5) — `PPROT` violation
+- `APB_ERR_ENABLE_ERROR` (0x6) — enable-phase error
+- `APB_ERR_READY_ERROR` (0x7) — `PREADY` protocol error
+- `APB_ERR_ADDR_RANGE` (0x8) — address-range violation (from `apb_monitor_addr_check`)
+
+**APB Timeout events**: `APB_TIMEOUT_SETUP / ACCESS / ENABLE / PREADY_STUCK / TRANSFER`
+(0x0..0x4)
+
+**APB Completion events**: `APB_COMPL_TRANS_COMPLETE / READ_COMPLETE / WRITE_COMPLETE`
+(0x0..0x2)
+
+**APB Threshold events**: `APB_THRESH_LATENCY / ERROR_RATE / ACTIVE_COUNT / THROUGHPUT`
+(0x0..0x3)
+
+**APB Performance events**: `APB_PERF_READ_LATENCY / WRITE_LATENCY / THROUGHPUT /
+ERROR_RATE / ACTIVE_COUNT / COMPLETED_COUNT` (0x0..0x5)
+
+**APB Debug events**:
+
+- `APB_DEBUG_STATE_CHANGE` (0x0) — APB state machine change
+- `APB_DEBUG_SETUP_PHASE` (0x1) — setup-phase event
+- `APB_DEBUG_ACCESS_PHASE` (0x2) — access-phase event
+- `APB_DEBUG_ENABLE_PHASE` (0x3) — enable-phase event
+- `APB_DEBUG_PSEL_TRACE` (0x4) — `PSEL` trace
+- `APB_DEBUG_PENABLE_TRACE` (0x5) — `PENABLE` trace
+- `APB_DEBUG_PREADY_TRACE` (0x6) — `PREADY` trace
+- `APB_DEBUG_PPROT_TRACE` (0x7) — `PPROT` trace
+- `APB_DEBUG_PSTRB_TRACE` (0x8) — `PSTRB` trace
+
+### AXI-Stream (`PROTOCOL_AXIS = 1`)
+
+Source: [`monitor_amba4_pkg.sv`](includes/monitor_amba4_pkg.md)
+
+**AXIS Error events**:
+
+- `AXIS_ERR_PROTOCOL` (0x0), `READY_TIMING` (0x1), `VALID_TIMING` (0x2)
+- `LAST_MISSING` (0x3), `LAST_ORPHAN` (0x4)
+- `STRB_INVALID` (0x5), `KEEP_INVALID` (0x6), `DATA_ALIGNMENT` (0x7)
+- `ID_VIOLATION` (0x8), `DEST_VIOLATION` (0x9), `USER_VIOLATION` (0xA)
+
+**AXIS Timeout events**: `HANDSHAKE / STREAM / PACKET / BACKPRESSURE /
+BUFFER / STALL` (0x0..0x5)
+
+**AXIS Completion events**: `STREAM_END / PACKET_SENT / TRANSFER /
+BURST_END / HANDSHAKE` (0x0..0x4)
+
+**AXIS Credit events** (`PktTypeCredit`):
+
+- `READY_ASSERT / READY_DEASSERT` (0x0/0x1)
+- `BUFFER_AVAILABLE / BUFFER_FULL` (0x2/0x3)
+- `FLOW_CONTROL / BACKPRESSURE` (0x4/0x5)
+- `THROUGHPUT / EFFICIENCY` (0x6/0x7)
+
+**AXIS Channel events** (`PktTypeChannel`):
+
+- `CONNECT / DISCONNECT / STALL / RESUME / CONGESTION` (0x0..0x4)
+- `ID_CHANGE / DEST_CHANGE / CONFIG_CHANGE` (0x5..0x7)
+
+**AXIS Stream events** (`PktTypeStream`):
+
+- `START / END / PAUSE / RESUME` (0x0..0x3)
+- `OVERFLOW / UNDERFLOW` (0x4/0x5)
+- `TRANSFER / IDLE` (0x6/0x7)
+
+### AXI5 extensions
+
+Source: [`monitor_amba5_pkg.sv`](includes/monitor_amba5_pkg.md)
+
+AXI5 reuses the AXI4 error/timeout/completion/threshold/perf/debug enums
+unchanged, and adds two AXI5-specific enums for new packet types:
+
+**AXI5 Atomic ops** (extends completion):
+
+- `LOAD / SWAP / COMPARE / ADD / CLR / XOR / SET` (0x0..0x6)
+- `SMAX / SMIN / UMAX / UMIN` (0x7..0xA)
+
+**AXI5 QoS / Trace events**:
+
+- `TRACE_START / TRACE_END / TRACE_DATA` (0x0..0x2)
+- `QOS_ESCALATION / QOS_DEESCALATION` (0x3/0x4)
+- `POISON_DETECTED` (0x5) — poison bit detected
+- `LOOP_DETECTED` (0x6) — loop detection triggered
+- `MPAM_EVENT` (0x7) — MPAM partition event
+
+### APB5 extensions
+
+Source: [`monitor_amba5_pkg.sv`](includes/monitor_amba5_pkg.md)
+
+**APB5 Wake-up events**: `WAKEUP_REQUEST / ACKNOWLEDGED / TIMEOUT /
+REJECTED` (0x0..0x3), `SLEEP_REQUEST / ENTERED` (0x4/0x5).
+
+**APB5 Parity events**: `PWDATA_ERROR / PRDATA_ERROR / PREADY_ERROR /
+PSLVERR_ERROR` (0x0..0x3), `CORRECTED / UNCORRECTED` (0x4/0x5),
+`CHECK_DISABLED / ENABLED` (0x6/0x7).
+
+**APB5 User-signal events**: `PUSER_VALID / PSUSER_VALID /
+SIGNAL_MISMATCH` (0x0..0x2).
+
+### AXIS5 extensions
+
+Source: [`monitor_amba5_pkg.sv`](includes/monitor_amba5_pkg.md)
+
+**AXIS5 Wake-up events**: `WAKEUP_REQUEST / ACKNOWLEDGED / TIMEOUT /
+ACTIVE` (0x0..0x3), `SLEEP_ENTERING / EXITING` (0x4/0x5).
+
+**AXIS5 Parity events**: `TDATA_ERROR / CORRECTED / UNCORRECTED`
+(0x0..0x2), `CHECK_DISABLED / ENABLED` (0x3/0x4).
+
+**AXIS5 CRC events**: `VALID / ERROR / COMPUTED` (0x0..0x2), `DISABLED /
+ENABLED` (0x3/0x4).
+
+### Arbiter (`PROTOCOL_ARB = 3`)
+
+Source: [`monitor_arbiter_pkg.sv`](includes/monitor_arbiter_pkg.md)
+
+**ARB Error events**:
+
+- `STARVATION` (0x0) — client request never granted
+- `ACK_TIMEOUT` (0x1) — grant ACK timeout
+- `PROTOCOL_VIOLATION` (0x2) — ACK protocol violation
+- `CREDIT_VIOLATION` (0x3) — credit system violation
+- `FAIRNESS_VIOLATION` (0x4) — weighted fairness violation
+- `WEIGHT_UNDERFLOW` (0x5) — weight credit underflow
+- `CONCURRENT_GRANTS` (0x6) — multiple simultaneous grants
+- `INVALID_GRANT_ID` (0x7) — invalid grant ID
+- `ORPHAN_ACK` (0x8) — ACK without pending grant
+- `GRANT_OVERLAP` (0x9) — overlapping grant periods
+- `MASK_ERROR` (0xA) — round-robin mask error
+- `STATE_MACHINE` (0xB) — FSM state error
+- `CONFIGURATION` (0xC) — invalid configuration
+
+**ARB Timeout events**: `GRANT_ACK / REQUEST_HOLD / WEIGHT_UPDATE /
+BLOCK_RELEASE / CREDIT_UPDATE / STATE_CHANGE` (0x0..0x5).
+
+**ARB Completion events**: `GRANT_ISSUED / ACK_RECEIVED / TRANSACTION /
+WEIGHT_UPDATE / CREDIT_CYCLE / FAIRNESS_PERIOD / BLOCK_PERIOD` (0x0..0x6).
+
+**ARB Threshold events**: `REQUEST_LATENCY / ACK_LATENCY / FAIRNESS_DEV /
+ACTIVE_REQUESTS / GRANT_RATE / EFFICIENCY / CREDIT_LOW /
+WEIGHT_IMBALANCE / STARVATION_TIME` (0x0..0x8).
+
+**ARB Performance events**:
+
+- `GRANT_ISSUED / ACK_RECEIVED` (0x0/0x1)
+- `GRANT_EFFICIENCY / FAIRNESS_METRIC` (0x2/0x3)
+- `THROUGHPUT / LATENCY_AVG` (0x4/0x5)
+- `WEIGHT_COMPLIANCE / CREDIT_UTILIZATION` (0x6/0x7)
+- `CLIENT_ACTIVITY / STARVATION_COUNT / BLOCK_EFFICIENCY` (0x8..0xA)
+
+**ARB Debug events**:
+
+- `STATE_CHANGE` (0x0) — arbiter FSM change
+- `MASK_UPDATE` (0x1) — round-robin mask update
+- `WEIGHT_CHANGE` (0x2) — weight configuration change
+- `CREDIT_UPDATE` (0x3) — credit level update
+- `CLIENT_MASK` (0x4) — client enable/disable mask
+- `PRIORITY_CHANGE` (0x5) — priority level change
+- `BLOCK_EVENT` (0x6) — block / unblock
+- `QUEUE_STATUS` (0x7) — request queue status
+- `COUNTER_SNAPSHOT` (0x8) — counter values snapshot
+- `FIFO_STATUS` (0x9) — FIFO status change
+- `FAIRNESS_STATE` (0xA) — fairness tracking state
+- `ACK_STATE` (0xB) — ACK protocol state
+
+### CORE (`PROTOCOL_CORE = 4`)
+
+The CORE protocol is used by custom-engine monitors (e.g. RAPIDS,
+STREAM scheduler/descriptor engines). Source:
+[`monitor_arbiter_pkg.sv`](includes/monitor_arbiter_pkg.md) (CORE codes
+live in the arbiter package alongside ARB for historical reasons).
+
+**CORE Error events**:
+
+- `DESCRIPTOR_MALFORMED` (0x0) — missing magic number (`0x900dc0de`)
+- `DESCRIPTOR_BAD_ADDR` (0x1) — invalid descriptor address
+- `DATA_BAD_ADDR` (0x2) — invalid data address
+- `FLAG_COMPARISON` (0x3) — flag mask/compare mismatch
+- `CREDIT_UNDERFLOW` (0x4) — credit system violation
+- `STATE_MACHINE` (0x5) — invalid FSM state transition
+- `DESCRIPTOR_ENGINE` (0x6), `FLAG_ENGINE` (0x7), `CTRLWR_ENGINE` (0x8),
+  `DATA_ENGINE` (0x9), `CTRLRD_ENGINE` (0xE) — per-engine FSM errors
+- `CHANNEL_INVALID` (0xA) — invalid channel ID
+- `CONTROL_VIOLATION` (0xB) — control register violation
+- `OVERFLOW` (0xC) — generic overflow
+- `CTRLRD_MAX_RETRIES` (0xD) — control read max retries exceeded
+
+**CORE Timeout events**:
+
+- `DESCRIPTOR_FETCH` (0x0), `CTRLRD_RETRY` (0x1), `CTRLWR_WRITE` (0x2)
+- `DATA_TRANSFER` (0x3), `CREDIT_WAIT` (0x4), `CONTROL_WAIT` (0x5)
+- `ENGINE_RESPONSE` (0x6), `STATE_TRANSITION` (0x7)
+
+**CORE Completion events**: `DESCRIPTOR_LOADED / DESCRIPTOR_CHAIN /
+CTRLRD_COMPLETED / CTRLWR_COMPLETED / DATA_TRANSFER / CREDIT_CYCLE /
+CHANNEL_COMPLETE / ENGINE_READY` (0x0..0x7).
+
+**CORE Threshold events**: `DESCRIPTOR_QUEUE / CREDIT_LOW /
+FLAG_RETRY_COUNT / LATENCY / ERROR_RATE / THROUGHPUT / ACTIVE_CHANNELS /
+PROGRAM_LATENCY / DATA_RATE` (0x0..0x8).
+
+**CORE Performance events**:
+
+- `END_OF_DATA` (0x0) — stream continuation
+- `END_OF_STREAM` (0x1) — stream termination
+- `ENTERING_IDLE` (0x2) — FSM returning to idle
+- `CREDIT_INCREMENTED` (0x3) — credit added by software
+- `CREDIT_EXHAUSTED` (0x4) — credit blocking execution
+- `STATE_TRANSITION` (0x5) — FSM state change
+- `DESCRIPTOR_ACTIVE` (0x6) — data processing started
+- `CTRLRD_RETRY` (0x7) — control read retry attempt
+- `CHANNEL_ENABLE / DISABLE` (0x8/0x9)
+- `CREDIT_UTILIZATION` (0xA)
+- `PROCESSING_LATENCY` (0xB)
+- `QUEUE_DEPTH` (0xC)
+
+**CORE Debug events**:
+
+- `FSM_STATE_CHANGE` (0x0) — descriptor FSM state change
+- `DESCRIPTOR_CONTENT` (0x1) — descriptor content trace
+- `CTRLRD_ENGINE_STATE / CTRLWR_ENGINE_STATE` (0x2/0x3)
+- `CREDIT_OPERATION` (0x4), `CONTROL_REGISTER` (0x5)
+- `ENGINE_HANDSHAKE` (0x6), `QUEUE_STATUS` (0x7)
+- `COUNTER_SNAPSHOT` (0x8), `ADDRESS_TRACE` (0x9), `PAYLOAD_TRACE` (0xA)
+
+---
+
 ## TODO (writing-up checklist)
 
 - [ ] Pull representative numbers from a real `stream_char` deployment
