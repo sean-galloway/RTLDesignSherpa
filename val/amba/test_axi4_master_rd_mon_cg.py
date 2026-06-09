@@ -193,6 +193,7 @@ def test_axi4_master_rd_mon_cg(id_width, addr_width, data_width, user_width, max
         os.path.join(rtl_dict['rtl_gaxi'], "gaxi_fifo_sync.sv"),
         os.path.join(rtl_dict['rtl_gaxi'], "gaxi_skid_buffer.sv"),
         os.path.join(rtl_dict['rtl_axi4'], "axi4_master_rd.sv"),
+        os.path.join(rtl_dict['rtl_shared'], "monitor_trans_cam.sv"),
         os.path.join(rtl_dict['rtl_shared'], "axi_monitor_trans_mgr.sv"),
         os.path.join(rtl_dict['rtl_shared'], "axi_monitor_timer.sv"),
         os.path.join(rtl_dict['rtl_shared'], "axi_monitor_timeout.sv"),

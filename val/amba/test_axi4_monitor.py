@@ -531,6 +531,7 @@ def test_axi4_monitor(iw, aw, max_transactions, is_read, is_axi4, test_mode):
         os.path.join(rtl_dict['rtl_common'], "counter_freq_invariant.sv"),
         os.path.join(rtl_dict['rtl_gaxi'], "gaxi_fifo_sync.sv"),
         os.path.join(rtl_dict['rtl_gaxi'], "gaxi_skid_buffer.sv"),
+        os.path.join(rtl_dict['rtl_shared'], "monitor_trans_cam.sv"),
         os.path.join(rtl_dict['rtl_shared'], "axi_monitor_trans_mgr.sv"),
         os.path.join(rtl_dict['rtl_shared'], "axi_monitor_timer.sv"),
         os.path.join(rtl_dict['rtl_shared'], "axi_monitor_timeout.sv"),

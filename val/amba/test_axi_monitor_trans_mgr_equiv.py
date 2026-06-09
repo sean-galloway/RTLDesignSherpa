@@ -358,14 +358,17 @@ def _common_sources():
 
 
 def _prod_sources():
+    """Current production = CAM-backed trans_mgr (rtl/amba/shared/)."""
     return _common_sources() + [
+        "rtl/amba/shared/monitor_trans_cam.sv",
         "rtl/amba/shared/axi_monitor_trans_mgr.sv",
     ]
 
 
 def _stage_sources():
+    """Legacy in-place trans_mgr, parked in mon_temp/. Kept as the
+    equivalence reference for rollback / synth-shape comparison."""
     return _common_sources() + [
-        "rtl/amba/shared/monitor_trans_cam.sv",
         "rtl/amba/shared/mon_temp/axi_monitor_trans_mgr.sv",
     ]
 

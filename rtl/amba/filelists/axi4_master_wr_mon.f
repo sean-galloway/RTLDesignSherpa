@@ -25,6 +25,7 @@ $REPO_ROOT/rtl/common/arbiter_priority_encoder.sv
 $REPO_ROOT/rtl/common/arbiter_round_robin.sv
 
 # Dependencies - Monitor Infrastructure (order matters - base modules first)
+$REPO_ROOT/rtl/amba/shared/monitor_trans_cam.sv
 $REPO_ROOT/rtl/amba/shared/axi_monitor_trans_mgr.sv
 $REPO_ROOT/rtl/amba/shared/axi_monitor_timer.sv
 $REPO_ROOT/rtl/amba/shared/axi_monitor_timeout.sv
