@@ -83,7 +83,8 @@ class BridgeModuleGenerator:
     def __init__(self, bridge_name: str, enable_monitoring: bool = False,
                  internal_axil_group: bool = True,
                  use_all_monitors: bool = False,
-                 use_no_monitors:  bool = False):
+                 use_no_monitors:  bool = False,
+                 use_cfg_regblock: bool = False):
         """
         Initialize bridge generator.
 
@@ -108,6 +109,11 @@ class BridgeModuleGenerator:
         self.bridge_name = bridge_name
         self.enable_monitoring = enable_monitoring
         self.internal_axil_group = internal_axil_group
+        # When True (task 90.3), the bridge top drops the 351 individual
+        # cfg_* input ports in favour of a single s_cfg_axil_* AXIL
+        # slave, and instantiates the peakrdl-generated cfg regblock
+        # (task 90.2) whose hwif_out fields drive the internal cfg nets.
+        self.use_cfg_regblock = use_cfg_regblock
         # Defaults for the bridge-top USE_ALL_MONITORS / USE_NO_MONITORS
         # SV parameters. The harness can still override these at
         # instantiation -- the TOML just picks the build-time default.
@@ -342,18 +348,49 @@ class BridgeModuleGenerator:
         already ensured a trailing comma after the prior port group."""
         lines: List[str] = []
 
-        # Per-wrapper cfg inputs (15 sigs each)
-        lines.append("")
-        lines.append("    // ============================================================")
-        lines.append("    // Monitor per-port cfg inputs (use_monitor=true)")
-        lines.append("    // ============================================================")
-        for w in wrappers:
-            lines.append(f"    // {w.side} {w.port_name} (idx {w.port_idx}, {w.channel})")
-            for sig in Axi4TimingWrapper.MONITOR_CFG_SIGNALS:
-                base = sig[len('cfg_'):]
-                width = _MONITOR_CFG_WIDTHS[sig]
-                width_decl = "       " if width == 1 else f"[{width-1}:0]"
-                lines.append(f"    input  logic {width_decl} {w.cfg_signal(base)},")
+        # Per-wrapper cfg inputs (18 sigs each) — only when NOT using
+        # the cfg regblock. When use_cfg_regblock=True the cfg nets are
+        # declared as internal `logic` later (next to the regblock
+        # instance) and driven from hwif_out fields.
+        if not self.use_cfg_regblock:
+            lines.append("")
+            lines.append("    // ============================================================")
+            lines.append("    // Monitor per-port cfg inputs (use_monitor=true)")
+            lines.append("    // ============================================================")
+            for w in wrappers:
+                lines.append(f"    // {w.side} {w.port_name} (idx {w.port_idx}, {w.channel})")
+                for sig in Axi4TimingWrapper.MONITOR_CFG_SIGNALS:
+                    base = sig[len('cfg_'):]
+                    width = _MONITOR_CFG_WIDTHS[sig]
+                    width_decl = "       " if width == 1 else f"[{width-1}:0]"
+                    lines.append(f"    input  logic {width_decl} {w.cfg_signal(base)},")
+                lines.append("")
+        else:
+            # Single AXIL slave port replaces the 351 individual cfg
+            # inputs; cfg regblock backs it and fans out internally.
+            lines.append("")
+            lines.append("    // ============================================================")
+            lines.append("    // Monitor cfg subsystem AXIL slave (regblock-backed, 90.3)")
+            lines.append("    // ============================================================")
+            lines.append("    input  logic        s_cfg_axil_awvalid,")
+            lines.append("    output logic        s_cfg_axil_awready,")
+            lines.append("    input  logic [31:0] s_cfg_axil_awaddr,")
+            lines.append("    input  logic [2:0]  s_cfg_axil_awprot,")
+            lines.append("    input  logic        s_cfg_axil_wvalid,")
+            lines.append("    output logic        s_cfg_axil_wready,")
+            lines.append("    input  logic [31:0] s_cfg_axil_wdata,")
+            lines.append("    input  logic [3:0]  s_cfg_axil_wstrb,")
+            lines.append("    output logic        s_cfg_axil_bvalid,")
+            lines.append("    input  logic        s_cfg_axil_bready,")
+            lines.append("    output logic [1:0]  s_cfg_axil_bresp,")
+            lines.append("    input  logic        s_cfg_axil_arvalid,")
+            lines.append("    output logic        s_cfg_axil_arready,")
+            lines.append("    input  logic [31:0] s_cfg_axil_araddr,")
+            lines.append("    input  logic [2:0]  s_cfg_axil_arprot,")
+            lines.append("    output logic        s_cfg_axil_rvalid,")
+            lines.append("    input  logic        s_cfg_axil_rready,")
+            lines.append("    output logic [31:0] s_cfg_axil_rdata,")
+            lines.append("    output logic [1:0]  s_cfg_axil_rresp,")
             lines.append("")
 
         if self.internal_axil_group:
@@ -391,11 +428,13 @@ class BridgeModuleGenerator:
             lines.append("    output logic        m_mon_axil_bready,")
             lines.append("    input  logic [1:0]  m_mon_axil_bresp,")
             lines.append("")
-            # monbus_axil_group cfg
-            lines.append("    // monbus_axil_group cfg")
-            for base, width in self._MON_GROUP_CFG:
-                width_decl = "       " if width == 1 else f"[{width-1}:0]"
-                lines.append(f"    input  logic {width_decl} cfg_mon_group_{base},")
+            # monbus_axil_group cfg — skipped when use_cfg_regblock=True
+            # (the regblock backs these too; see _generate_cfg_regblock_*).
+            if not self.use_cfg_regblock:
+                lines.append("    // monbus_axil_group cfg")
+                for base, width in self._MON_GROUP_CFG:
+                    width_decl = "       " if width == 1 else f"[{width-1}:0]"
+                    lines.append(f"    input  logic {width_decl} cfg_mon_group_{base},")
             # IRQ output -- last port, no trailing comma.
             lines.append("    // IRQ (asserted while error FIFO non-empty)")
             lines.append("    output logic        mon_irq_out")
@@ -487,6 +526,88 @@ class BridgeModuleGenerator:
         for i, (port, conn) in enumerate(all_pairs):
             sep = '' if i == last_idx else ','
             lines.append(f"        .{port}({conn}){sep}")
+        return lines
+
+    def _generate_cfg_regblock_instance(self,
+                                        wrappers: List[MonitoredWrapper]) -> List[str]:
+        """Emit the cfg regblock instance + internal cfg_* wire decls +
+        hwif_out -> cfg_* drives. Only called when use_cfg_regblock=True
+        (task 90.3). The regblock SV file is generated by
+        cfg_rdl_generator (task 90.2) and named
+        '<bridge_name>_cfg.sv' / '<bridge_name>_cfg_pkg.sv' — the bridge
+        filelist must include both.
+        """
+        from .cfg_field_map import (
+            PER_MON_FIELD_MAP, per_mon_hwif_ref, group_hwif_ref,
+        )
+        lines: List[str] = []
+        lines.append("")
+        lines.append("    // ============================================================")
+        lines.append("    // Monitor cfg subsystem -- regblock + hwif_out fan-out (90.3)")
+        lines.append("    // ============================================================")
+        # Internal cfg net declarations (per wrapper)
+        for w in wrappers:
+            lines.append(f"    // cfg nets for {w.side} {w.port_name} (idx {w.port_idx}, {w.channel})")
+            for sig in Axi4TimingWrapper.MONITOR_CFG_SIGNALS:
+                base = sig[len('cfg_'):]
+                width = _MONITOR_CFG_WIDTHS[sig]
+                width_decl = "       " if width == 1 else f"[{width-1}:0]"
+                lines.append(f"    logic {width_decl} {w.cfg_signal(base)};")
+            lines.append("")
+
+        # Group cfg net decls
+        if self.internal_axil_group:
+            lines.append("    // cfg_mon_group_* nets")
+            for base, width in self._MON_GROUP_CFG:
+                width_decl = "       " if width == 1 else f"[{width-1}:0]"
+                lines.append(f"    logic {width_decl} cfg_mon_group_{base};")
+            lines.append("")
+
+        # Regblock instance
+        lines.append(
+            f"    {self.bridge_name}_cfg_pkg::{self.bridge_name}_cfg__out_t hwif_out;"
+        )
+        lines.append(f"    {self.bridge_name}_cfg u_bridge_cfg (")
+        lines.append("        .clk            (aclk),")
+        lines.append("        .rst            (~aresetn),")
+        lines.append("        .s_axil_awvalid (s_cfg_axil_awvalid),")
+        lines.append("        .s_axil_awready (s_cfg_axil_awready),")
+        lines.append("        .s_axil_awaddr  (s_cfg_axil_awaddr),")
+        lines.append("        .s_axil_awprot  (s_cfg_axil_awprot),")
+        lines.append("        .s_axil_wvalid  (s_cfg_axil_wvalid),")
+        lines.append("        .s_axil_wready  (s_cfg_axil_wready),")
+        lines.append("        .s_axil_wdata   (s_cfg_axil_wdata),")
+        lines.append("        .s_axil_wstrb   (s_cfg_axil_wstrb),")
+        lines.append("        .s_axil_bvalid  (s_cfg_axil_bvalid),")
+        lines.append("        .s_axil_bready  (s_cfg_axil_bready),")
+        lines.append("        .s_axil_bresp   (s_cfg_axil_bresp),")
+        lines.append("        .s_axil_arvalid (s_cfg_axil_arvalid),")
+        lines.append("        .s_axil_arready (s_cfg_axil_arready),")
+        lines.append("        .s_axil_araddr  (s_cfg_axil_araddr),")
+        lines.append("        .s_axil_arprot  (s_cfg_axil_arprot),")
+        lines.append("        .s_axil_rvalid  (s_cfg_axil_rvalid),")
+        lines.append("        .s_axil_rready  (s_cfg_axil_rready),")
+        lines.append("        .s_axil_rdata   (s_cfg_axil_rdata),")
+        lines.append("        .s_axil_rresp   (s_cfg_axil_rresp),")
+        lines.append("        .hwif_out       (hwif_out)")
+        lines.append("    );")
+        lines.append("")
+
+        # hwif_out -> cfg net assigns
+        lines.append("    // Fan out regblock outputs to per-port cfg nets")
+        for w in wrappers:
+            for sig in Axi4TimingWrapper.MONITOR_CFG_SIGNALS:
+                base = sig[len('cfg_'):]
+                hwif = per_mon_hwif_ref(w.top_prefix, base)
+                lines.append(f"    assign {w.cfg_signal(base)} = {hwif};")
+            lines.append("")
+
+        if self.internal_axil_group:
+            lines.append("    // Fan out regblock outputs to mon_group cfg nets")
+            for base, _width in self._MON_GROUP_CFG:
+                hwif = group_hwif_ref(base, self._MON_GROUP_CFG)
+                lines.append(f"    assign cfg_mon_group_{base} = {hwif};")
+            lines.append("")
         return lines
 
     def _generate_monitor_aggregator(self, wrappers: List[MonitoredWrapper]) -> List[str]:
@@ -656,6 +777,10 @@ class BridgeModuleGenerator:
         # used to direct-instantiate axi4_to_apb_shim here, which left
         # rid_*/bid_* undriven and broke APB responses end-to-end.
         lines.extend(self._generate_slave_adapter_instantiations(monitored))
+
+        # Cfg subsystem (regblock + hwif_out fan-out).
+        if self.enable_monitoring and monitored and self.use_cfg_regblock:
+            lines.extend(self._generate_cfg_regblock_instance(monitored))
 
         # Monitor aggregator (monbus_arbiter + monbus_axil_group).
         if self.enable_monitoring and monitored:

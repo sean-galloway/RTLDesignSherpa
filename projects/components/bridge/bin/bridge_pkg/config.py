@@ -145,6 +145,8 @@ class BridgeConfig:
     # monbus_valid=0 so they pass no traffic.
     use_all_monitors: bool = False
     use_no_monitors: bool = False
+    # Task 90.3: opt-in PeakRDL regblock-backed cfg subsystem.
+    use_cfg_regblock: bool = False
 
     # Skid buffer depths (per wrapper)
     skid_depth_ar: int = 2    # AR channel buffer depth

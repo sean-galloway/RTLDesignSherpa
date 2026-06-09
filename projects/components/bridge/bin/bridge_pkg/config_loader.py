@@ -70,7 +70,7 @@ def load_toml_ports(toml_path: str) -> Tuple[List[PortSpec], List[PortSpec], Opt
     return _parse_port_data(data, toml_path)
 
 
-def load_yaml_ports(yaml_path: str) -> Tuple[List[PortSpec], List[PortSpec], Optional[Dict], Optional[Dict], str, List[str], bool, bool, bool, str]:
+def load_yaml_ports(yaml_path: str) -> Tuple[List[PortSpec], List[PortSpec], Optional[Dict], Optional[Dict], str, List[str], bool, bool, bool, str, bool]:
     """
     Load port configuration from YAML file.
 
@@ -285,6 +285,11 @@ def _parse_port_data(data: Dict, config_path: str) -> Tuple[List[PortSpec], List
     if use_no_monitors:
         print("  use_no_monitors:  True (forces every port USE_MONITOR=0)")
 
+    # Task 90.3: opt-in PeakRDL regblock-backed cfg subsystem.
+    use_cfg_regblock = bool(bridge_data.get('use_cfg_regblock', False))
+    if use_cfg_regblock:
+        print("  use_cfg_regblock: True (drop 351 cfg_* ports for one AXIL slave)")
+
     # Bridge-level mon_preset baseline (post-Stage-A.5 / 0.9 monitor).
     from .config import MON_PRESETS
     mon_preset = bridge_data.get('mon_preset', 'error_only')
@@ -296,7 +301,7 @@ def _parse_port_data(data: Dict, config_path: str) -> Tuple[List[PortSpec], List
     print(f"  mon_preset: {mon_preset}")
     return (masters, slaves, defaults, connectivity_data, bridge_name,
             variants, internal_axil_group, use_all_monitors,
-            use_no_monitors, mon_preset)
+            use_no_monitors, mon_preset, use_cfg_regblock)
 
 
 def find_connectivity_csv(yaml_path: str) -> Optional[str]:
@@ -392,11 +397,13 @@ def load_config(config_path: str, connectivity_csv: Optional[str] = None) -> Bri
     if config_file.suffix == '.toml':
         (masters, slaves, defaults, embedded_connectivity, bridge_name,
          variants, internal_axil_group,
-         use_all_monitors, use_no_monitors, mon_preset) = load_toml_ports(config_path)
+         use_all_monitors, use_no_monitors, mon_preset,
+         use_cfg_regblock) = load_toml_ports(config_path)
     elif config_file.suffix in ['.yaml', '.yml']:
         (masters, slaves, defaults, embedded_connectivity, bridge_name,
          variants, internal_axil_group,
-         use_all_monitors, use_no_monitors, mon_preset) = load_yaml_ports(config_path)
+         use_all_monitors, use_no_monitors, mon_preset,
+         use_cfg_regblock) = load_yaml_ports(config_path)
     else:
         raise ValueError(f"Unsupported config format: {config_file.suffix}. Use .toml, .yaml, or .yml")
 
@@ -429,6 +436,7 @@ def load_config(config_path: str, connectivity_csv: Optional[str] = None) -> Bri
         use_all_monitors=use_all_monitors,
         use_no_monitors=use_no_monitors,
         mon_preset=mon_preset,
+        use_cfg_regblock=use_cfg_regblock,
     )
 
     # Validate configuration

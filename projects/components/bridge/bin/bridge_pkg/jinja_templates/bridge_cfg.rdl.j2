@@ -125,50 +125,22 @@ addrmap {{ bridge_name }}_cfg {
 {% endfor %}
     // ----------------------------------------------------------------
     // Group cfg — shared across all monitors at the monbus_axil_group.
+    // Emitted from the bridge generator's _MON_GROUP_CFG tuple: 32-bit
+    // fields each get their own MON_GROUP_<NAME> register; 16-bit
+    // mask fields are packed two per register as MON_GROUP_PACK_<N>.
     // ----------------------------------------------------------------
+{% for entry in group_regs %}
     reg {
-        name = "mon_group BASE_ADDR";
-        field { reset = 32'h00000000; } base_addr[31:0];
-    } MON_GROUP_BASE_ADDR;
+        name = "{{ entry.reg }}";
+        desc = "{{ entry.desc }}";
+{% if entry.width == 32 %}
+        field { reset = 32'h00000000; } {{ entry.field }}[31:0];
+{% else %}
+{% for f in entry.fields %}
+        field { reset = 16'h0000; } {{ f.name }}[{{ f.hi }}:{{ f.lo }}];
+{% endfor %}
+{% endif %}
+    } {{ entry.reg }};
 
-    reg {
-        name = "mon_group LIMIT_ADDR";
-        field { reset = 32'h00000000; } limit_addr[31:0];
-    } MON_GROUP_LIMIT_ADDR;
-
-    reg {
-        name = "mon_group AXI masks A";
-        field { reset = 16'h0000; } axi_pkt_mask[15:0];
-        field { reset = 16'h0000; } axi_err_select[31:16];
-    } MON_GROUP_AXI_MASKS_A;
-
-    reg {
-        name = "mon_group AXI masks B";
-        field { reset = 16'h0000; } axi_error_mask[15:0];
-        field { reset = 16'h0000; } axi_timeout_mask[31:16];
-    } MON_GROUP_AXI_MASKS_B;
-
-    reg {
-        name = "mon_group AXI masks C";
-        field { reset = 16'h0000; } axi_compl_mask[15:0];
-        field { reset = 16'h0000; } axi_thresh_mask[31:16];
-    } MON_GROUP_AXI_MASKS_C;
-
-    reg {
-        name = "mon_group AXI masks D";
-        field { reset = 16'h0000; } axi_perf_mask[15:0];
-        field { reset = 16'h0000; } axi_addr_mask[31:16];
-    } MON_GROUP_AXI_MASKS_D;
-
-    reg {
-        name = "mon_group AXI masks E";
-        field { reset = 16'h0000; } axi_debug_mask[15:0];
-        field { reset = 16'h0000; } axis_channel_mask[31:16];
-    } MON_GROUP_AXI_MASKS_E;
-
-    reg {
-        name = "mon_group AXIS / ARB / CORE masks F";
-        field { reset = 16'h0000; } axis_compl_mask[15:0];
-        field { reset = 16'h0000; } reserved[31:16];
-    } MON_GROUP_AXI_MASKS_F;
+{% endfor %}
 };

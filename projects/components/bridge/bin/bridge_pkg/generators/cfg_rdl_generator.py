@@ -57,6 +57,62 @@ class CfgAdapterPort:
 class CfgRdlGenerator:
     bridge_name: str
     adapters: List[CfgAdapterPort] = field(default_factory=list)
+    # Tuple of (base_name, width) for each mon_group_* cfg signal.
+    # Pass the bridge generator's _MON_GROUP_CFG list here.
+    mon_group_cfg: tuple = ()
+
+    def _build_group_regs(self) -> list:
+        """Pack mon_group_cfg into 32-bit register descriptors that the
+        Jinja template can iterate. 32-bit fields each get their own
+        MON_GROUP_<NAME> reg; 16-bit fields are packed two per register
+        as MON_GROUP_PACK_<N>."""
+        regs = []
+        pack_idx = 0
+        pending = None  # (base, width)
+        for base, width in self.mon_group_cfg:
+            if width == 32:
+                regs.append({
+                    'reg': f"MON_GROUP_{base.upper()}",
+                    'desc': f"mon_group {base} (32-bit)",
+                    'width': 32,
+                    'field': base,
+                })
+                if pending is not None:
+                    regs.append({
+                        'reg': f"MON_GROUP_PACK_{pack_idx}",
+                        'desc': f"mon_group pack #{pack_idx} (low half only)",
+                        'width': 16,
+                        'fields': [{'name': pending[0], 'hi': 15, 'lo': 0}],
+                    })
+                    pack_idx += 1
+                    pending = None
+            elif width == 16:
+                if pending is None:
+                    pending = (base, width)
+                else:
+                    regs.append({
+                        'reg': f"MON_GROUP_PACK_{pack_idx}",
+                        'desc': f"mon_group pack #{pack_idx}: {pending[0]} + {base}",
+                        'width': 16,
+                        'fields': [
+                            {'name': pending[0], 'hi': 15, 'lo': 0},
+                            {'name': base,       'hi': 31, 'lo': 16},
+                        ],
+                    })
+                    pack_idx += 1
+                    pending = None
+            else:
+                raise NotImplementedError(
+                    f"mon_group field {base!r} unsupported width {width}"
+                )
+        if pending is not None:
+            regs.append({
+                'reg': f"MON_GROUP_PACK_{pack_idx}",
+                'desc': f"mon_group pack #{pack_idx} (low half only)",
+                'width': 16,
+                'fields': [{'name': pending[0], 'hi': 15, 'lo': 0}],
+            })
+        return regs
 
     def render_rdl(self, template_dir: Optional[Path] = None) -> str:
         """Render the bridge_cfg.rdl.j2 template into RDL text."""
@@ -74,6 +130,7 @@ class CfgRdlGenerator:
         return template.render(
             bridge_name=self.bridge_name,
             adapters=self.adapters,
+            group_regs=self._build_group_regs(),
         )
 
     def write_rdl(self, output_dir: Path) -> Path:

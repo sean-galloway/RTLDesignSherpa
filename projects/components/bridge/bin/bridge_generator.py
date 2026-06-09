@@ -483,6 +483,11 @@ def _emit_bridge_variant(
         internal_axil_group=internal_axil_group,
         use_all_monitors=getattr(config, 'use_all_monitors', False),
         use_no_monitors=getattr(config, 'use_no_monitors', False),
+        # Task 90.3: opt-in PeakRDL regblock-backed cfg subsystem.
+        # When True the bridge top drops the 351 individual cfg_* ports,
+        # instantiates the regblock from cfg_rdl_generator (90.2), and
+        # routes hwif_out fields to the internal cfg nets.
+        use_cfg_regblock=getattr(config, 'use_cfg_regblock', False),
     )
 
     for master in master_configs:
@@ -492,6 +497,47 @@ def _emit_bridge_variant(
 
     # Generate all files (package + adapters + bridge)
     generated_files = gen.generate_all(bridge_dir)
+
+    # Task 90.3: when the bridge uses the cfg regblock, emit the
+    # PeakRDL-generated regblock SV alongside the bridge top.
+    if getattr(gen, 'use_cfg_regblock', False) and use_monitor:
+        from bridge_pkg.generators.cfg_rdl_generator import (
+            CfgRdlGenerator, CfgAdapterPort,
+        )
+        adapter_ports = []
+        for m_idx, m in enumerate(master_configs):
+            adapter_ports.append(CfgAdapterPort(
+                name=m.name, idx=m_idx,
+                has_wr=(m.channels in ('wr', 'rw')),
+                has_rd=(m.channels in ('rd', 'rw')),
+                perfmon_enabled=(m.mon_enables or {}).get('perf', False),
+                n_addr_ranges=0,
+                addr_width=m.addr_width,
+            ))
+        for s_idx, s in enumerate(slave_infos):
+            adapter_ports.append(CfgAdapterPort(
+                name=s.name, idx=s_idx,
+                has_wr=True, has_rd=True,
+                perfmon_enabled=False,
+                n_addr_ranges=0,
+                addr_width=getattr(s, 'addr_width', 32),
+            ))
+        # Single source of truth for mon_group_* cfg fields lives in
+        # BridgeModuleGenerator._MON_GROUP_CFG; pass it through so the
+        # RDL schema and the bridge top's hwif_out fan-out stay aligned.
+        from bridge_pkg.components.bridge_module_generator import (
+            BridgeModuleGenerator as _BridgeModGen,
+        )
+        cfg_gen = CfgRdlGenerator(
+            bridge_name=output_name,
+            adapters=adapter_ports,
+            mon_group_cfg=_BridgeModGen._MON_GROUP_CFG,
+        )
+        from pathlib import Path as _Path
+        cfg_out = cfg_gen.generate(_Path(bridge_dir), run_peakrdl=True)
+        print(f"  ✓ Generated cfg RDL:      {cfg_out['rdl_path']}")
+        for p in cfg_out['sv_paths']:
+            print(f"  ✓ Generated cfg regblock: {p}")
 
     print(f"  ✓ Generated bridge package: {generated_files['package']}")
     for master in master_configs:
