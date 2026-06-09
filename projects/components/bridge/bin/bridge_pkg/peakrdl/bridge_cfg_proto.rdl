@@ -1,0 +1,151 @@
+// SPDX-License-Identifier: MIT
+// SPDX-FileCopyrightText: 2026 sean galloway
+//
+// Prototype RDL schema for the bridge_stream_char_axil_mon cfg space —
+// covers one adapter port (host_0, both wr + rd directions). This is the
+// 90.1 sanity-check: validates the field-packing convention before the
+// generator extension auto-emits the full 9-adapter version.
+//
+// Convention:
+//   - 7 boolean enables are packed into bits[6:0] of a CTRL register
+//   - timeout_cycles (16b) goes into bits[31:16] of CTRL
+//   - latency_threshold (32b) gets its own register
+//   - The 9 × 16-bit axi_*_mask fields are packed two per register
+//
+// Field reset values match the bridge generator's current defaults
+// (monitor_enable=1, error_enable=1, others=0; masks=all-zeros = no drop).
+//
+// Address-range cfg and the window-cfg ports (start/end_event_sel,
+// triggers, window_force_close) aren't on this bridge variant, so they
+// aren't represented here. The generator extension will skip them
+// conditionally per adapter.
+
+addrmap bridge_cfg_proto {
+    name = "Bridge monitor cfg (prototype: host_0 only)";
+    desc = "AXIL-mapped cfg backing the bridge's monitor cone enables and masks for host_0 (both directions). Outputs fanout to bridge_stream_char_axil_mon's internal cfg_host_0_*_* nets.";
+
+    default regwidth = 32;
+    default accesswidth = 32;
+
+    // -------------------------------------------------------------------
+    // host_0 write direction
+    // -------------------------------------------------------------------
+    reg {
+        name = "host_0 write CTRL";
+        desc = "Per-cone enables (bits [6:0]) and timeout_cycles (bits [31:16]).";
+        default sw = rw; default hw = r;
+
+        field { sw = rw; hw = r; reset = 1'h1; } monitor_enable[0:0];
+        field { sw = rw; hw = r; reset = 1'h1; } error_enable[1:1];
+        field { sw = rw; hw = r; reset = 1'h0; } timeout_enable[2:2];
+        field { sw = rw; hw = r; reset = 1'h0; } perf_enable[3:3];
+        field { sw = rw; hw = r; reset = 1'h0; } compl_enable[4:4];
+        field { sw = rw; hw = r; reset = 1'h0; } threshold_enable[5:5];
+        field { sw = rw; hw = r; reset = 1'h0; } debug_enable[6:6];
+        field { sw = rw; hw = r; reset = 16'h0400; } timeout_cycles[31:16];
+    } HOST_0_WR_CTRL;
+
+    reg {
+        name = "host_0 write LATENCY";
+        desc = "Latency-threshold for the THRESHOLD cone.";
+        default sw = rw; default hw = r;
+        field { sw = rw; hw = r; reset = 32'h00000200; } latency_threshold[31:0];
+    } HOST_0_WR_LATENCY;
+
+    reg {
+        name = "host_0 write MASKS_A";
+        desc = "axi_pkt_mask (drop) + axi_err_select (route).";
+        default sw = rw; default hw = r;
+        field { sw = rw; hw = r; reset = 16'h0000; } axi_pkt_mask[15:0];
+        field { sw = rw; hw = r; reset = 16'h0000; } axi_err_select[31:16];
+    } HOST_0_WR_MASKS_A;
+
+    reg {
+        name = "host_0 write MASKS_B";
+        desc = "axi_error_mask + axi_timeout_mask.";
+        default sw = rw; default hw = r;
+        field { sw = rw; hw = r; reset = 16'h0000; } axi_error_mask[15:0];
+        field { sw = rw; hw = r; reset = 16'h0000; } axi_timeout_mask[31:16];
+    } HOST_0_WR_MASKS_B;
+
+    reg {
+        name = "host_0 write MASKS_C";
+        desc = "axi_compl_mask + axi_thresh_mask.";
+        default sw = rw; default hw = r;
+        field { sw = rw; hw = r; reset = 16'h0000; } axi_compl_mask[15:0];
+        field { sw = rw; hw = r; reset = 16'h0000; } axi_thresh_mask[31:16];
+    } HOST_0_WR_MASKS_C;
+
+    reg {
+        name = "host_0 write MASKS_D";
+        desc = "axi_perf_mask + axi_addr_mask.";
+        default sw = rw; default hw = r;
+        field { sw = rw; hw = r; reset = 16'h0000; } axi_perf_mask[15:0];
+        field { sw = rw; hw = r; reset = 16'h0000; } axi_addr_mask[31:16];
+    } HOST_0_WR_MASKS_D;
+
+    reg {
+        name = "host_0 write MASKS_E";
+        desc = "axi_debug_mask (only one 16-bit field; upper half reserved).";
+        default sw = rw; default hw = r;
+        field { sw = rw; hw = r; reset = 16'h0000; } axi_debug_mask[15:0];
+    } HOST_0_WR_MASKS_E;
+
+    // -------------------------------------------------------------------
+    // host_0 read direction (same layout, _RD suffix)
+    // -------------------------------------------------------------------
+    reg {
+        name = "host_0 read CTRL";
+        desc = "Per-cone enables and timeout_cycles for the read direction.";
+        default sw = rw; default hw = r;
+        field { sw = rw; hw = r; reset = 1'h1; } monitor_enable[0:0];
+        field { sw = rw; hw = r; reset = 1'h1; } error_enable[1:1];
+        field { sw = rw; hw = r; reset = 1'h0; } timeout_enable[2:2];
+        field { sw = rw; hw = r; reset = 1'h0; } perf_enable[3:3];
+        field { sw = rw; hw = r; reset = 1'h0; } compl_enable[4:4];
+        field { sw = rw; hw = r; reset = 1'h0; } threshold_enable[5:5];
+        field { sw = rw; hw = r; reset = 1'h0; } debug_enable[6:6];
+        field { sw = rw; hw = r; reset = 16'h0400; } timeout_cycles[31:16];
+    } HOST_0_RD_CTRL;
+
+    reg {
+        name = "host_0 read LATENCY";
+        desc = "Latency-threshold for the THRESHOLD cone (read side).";
+        default sw = rw; default hw = r;
+        field { sw = rw; hw = r; reset = 32'h00000200; } latency_threshold[31:0];
+    } HOST_0_RD_LATENCY;
+
+    reg {
+        name = "host_0 read MASKS_A";
+        default sw = rw; default hw = r;
+        field { sw = rw; hw = r; reset = 16'h0000; } axi_pkt_mask[15:0];
+        field { sw = rw; hw = r; reset = 16'h0000; } axi_err_select[31:16];
+    } HOST_0_RD_MASKS_A;
+
+    reg {
+        name = "host_0 read MASKS_B";
+        default sw = rw; default hw = r;
+        field { sw = rw; hw = r; reset = 16'h0000; } axi_error_mask[15:0];
+        field { sw = rw; hw = r; reset = 16'h0000; } axi_timeout_mask[31:16];
+    } HOST_0_RD_MASKS_B;
+
+    reg {
+        name = "host_0 read MASKS_C";
+        default sw = rw; default hw = r;
+        field { sw = rw; hw = r; reset = 16'h0000; } axi_compl_mask[15:0];
+        field { sw = rw; hw = r; reset = 16'h0000; } axi_thresh_mask[31:16];
+    } HOST_0_RD_MASKS_C;
+
+    reg {
+        name = "host_0 read MASKS_D";
+        default sw = rw; default hw = r;
+        field { sw = rw; hw = r; reset = 16'h0000; } axi_perf_mask[15:0];
+        field { sw = rw; hw = r; reset = 16'h0000; } axi_addr_mask[31:16];
+    } HOST_0_RD_MASKS_D;
+
+    reg {
+        name = "host_0 read MASKS_E";
+        default sw = rw; default hw = r;
+        field { sw = rw; hw = r; reset = 16'h0000; } axi_debug_mask[15:0];
+    } HOST_0_RD_MASKS_E;
+};
