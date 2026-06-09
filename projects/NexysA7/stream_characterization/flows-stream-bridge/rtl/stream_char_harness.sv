@@ -958,7 +958,7 @@ module stream_char_harness #(
     )
 
     // =========================================================================
-    // S2: desc_ram — axi4_sdpram_slave at 256-bit, AXI4 native.
+    // S2: desc_ram — sdpram_slave at 256-bit, AXI4 wr + AXI4 rd.
     //
     // Both host (writes) and STREAM (reads) go through the bridge to this
     // slave. The bridge's stream_desc → desc_ram path is direct AXI4 256b
@@ -969,7 +969,7 @@ module stream_char_harness #(
     // desc_* master signals are declared early (near the mon_* block)
     // so the bridge's stream_desc_* master port-map can reach them.
 
-    // Internal obs port from axi4_sdpram_slave (10b raw valid/ready).
+    // Internal obs port from sdpram_slave (10b raw valid/ready).
     logic [9:0] w_desc_ram_dbg_vr_axi4;
     /* verilator lint_off UNUSED */
     logic [9:0] w_desc_ram_dbg_fub_vr;
@@ -978,7 +978,9 @@ module stream_char_harness #(
     logic w_desc_ram_dbg_clear_done;
     /* verilator lint_on UNUSED */
 
-    axi4_sdpram_slave #(
+    sdpram_slave #(
+        .WR_PROTOCOL  ("AXI4"),
+        .RD_PROTOCOL  ("AXI4"),
         .AXI_ID_WIDTH (8),
         .ADDR_WIDTH   (32),
         // 256b per the descriptor-fetch-must-be-256b-end-to-end rule.
@@ -1166,7 +1168,7 @@ module stream_char_harness #(
     assign s3_bresp   = 2'b10;  // SLVERR
 
     // =========================================================================
-    // S4: debug_sram — axil_sdpram_slave at 64-bit, single AXIL port.
+    // S4: debug_sram — sdpram_slave at 64-bit, AXIL wr + AXIL rd.
     //
     // Both host (reads) and monbus (writes) go through the bridge now.
     // STREAM's m_axil_mon output drives the bridge's monbus_wr_* master
@@ -1177,7 +1179,7 @@ module stream_char_harness #(
     // "// STREAM m_axil_mon master signals (declared early"). They have
     // to live before the bridge port-map, which references them.
 
-    // Internal obs port from axil_sdpram_slave (10b raw valid/ready).
+    // Internal obs port from sdpram_slave (10b raw valid/ready).
     /* verilator lint_off UNUSED */
     logic [9:0] w_debug_sram_dbg_vr_axil;
     logic [9:0] w_debug_sram_dbg_fub_vr;
@@ -1186,25 +1188,73 @@ module stream_char_harness #(
     logic w_debug_sram_dbg_clear_done;
     /* verilator lint_on UNUSED */
 
-    axil_sdpram_slave #(
-        .ADDR_WIDTH (32),
-        .DATA_WIDTH (64),
-        .MEM_DEPTH  (DEBUG_SRAM_WORDS / 2)   // 32b->64b: halve entries
+    sdpram_slave #(
+        .WR_PROTOCOL  ("AXIL"),
+        .RD_PROTOCOL  ("AXIL"),
+        .AXI_ID_WIDTH (1),                    // unused in AXIL mode
+        .ADDR_WIDTH   (32),
+        .DATA_WIDTH   (64),
+        .USER_WIDTH   (1),
+        .MEM_DEPTH    (DEBUG_SRAM_WORDS / 2)  // 32b->64b: halve entries
     ) u_debug_sram (
         .aclk(aclk), .aresetn(unit_aresetn),
-        // Single AXIL slave port driven by bridge S4
-        .s_axil_awaddr (s4_awaddr), .s_axil_awprot(s4_awprot),
-        .s_axil_awvalid(s4_awvalid), .s_axil_awready(s4_awready),
-        .s_axil_wdata  (s4_wdata),  .s_axil_wstrb(s4_wstrb),
-        .s_axil_wvalid (s4_wvalid), .s_axil_wready(s4_wready),
-        .s_axil_bresp  (s4_bresp),  .s_axil_bvalid(s4_bvalid),  .s_axil_bready(s4_bready),
-        .s_axil_araddr (s4_araddr), .s_axil_arprot(s4_arprot),
-        .s_axil_arvalid(s4_arvalid),.s_axil_arready(s4_arready),
-        .s_axil_rdata  (s4_rdata),  .s_axil_rresp(s4_rresp),
-        .s_axil_rvalid (s4_rvalid), .s_axil_rready(s4_rready),
+
+        // AXI4-shape port (AXIL mode ignores id/len/size/burst/lock/
+        // cache/qos/region/user). Drive the AXIL channel onto the
+        // AXI4-named ports and tie off the AXI4-only fields.
+        .s_axi_awid    (1'b0),
+        .s_axi_awaddr  (s4_awaddr),
+        .s_axi_awlen   (8'h0),
+        .s_axi_awsize  (3'h0),
+        .s_axi_awburst (2'b01),
+        .s_axi_awlock  (1'b0),
+        .s_axi_awcache (4'h0),
+        .s_axi_awprot  (s4_awprot),
+        .s_axi_awqos   (4'h0),
+        .s_axi_awregion(4'h0),
+        .s_axi_awuser  (1'b0),
+        .s_axi_awvalid (s4_awvalid),
+        .s_axi_awready (s4_awready),
+
+        .s_axi_wdata   (s4_wdata),
+        .s_axi_wstrb   (s4_wstrb),
+        .s_axi_wlast   (1'b1),
+        .s_axi_wuser   (1'b0),
+        .s_axi_wvalid  (s4_wvalid),
+        .s_axi_wready  (s4_wready),
+
+        .s_axi_bid     (),
+        .s_axi_bresp   (s4_bresp),
+        .s_axi_buser   (),
+        .s_axi_bvalid  (s4_bvalid),
+        .s_axi_bready  (s4_bready),
+
+        .s_axi_arid    (1'b0),
+        .s_axi_araddr  (s4_araddr),
+        .s_axi_arlen   (8'h0),
+        .s_axi_arsize  (3'h0),
+        .s_axi_arburst (2'b01),
+        .s_axi_arlock  (1'b0),
+        .s_axi_arcache (4'h0),
+        .s_axi_arprot  (s4_arprot),
+        .s_axi_arqos   (4'h0),
+        .s_axi_arregion(4'h0),
+        .s_axi_aruser  (1'b0),
+        .s_axi_arvalid (s4_arvalid),
+        .s_axi_arready (s4_arready),
+
+        .s_axi_rid     (),
+        .s_axi_rdata   (s4_rdata),
+        .s_axi_rresp   (s4_rresp),
+        .s_axi_rlast   (),
+        .s_axi_ruser   (),
+        .s_axi_rvalid  (s4_rvalid),
+        .s_axi_rready  (s4_rready),
+
         // Bulk-clear control (sticky-done FSM); CSR plumbing pending.
         .i_cfg_start_clear (1'b0),
         .o_cfg_done_clear  (w_debug_sram_dbg_clear_done),
+
         // Obs
         .o_dbg_vr      (w_debug_sram_dbg_vr_axil),
         .o_dbg_fub_vr  (w_debug_sram_dbg_fub_vr),
