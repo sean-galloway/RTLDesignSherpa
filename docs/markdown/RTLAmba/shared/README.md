@@ -54,11 +54,22 @@ Core modules that implement the AXI/APB monitoring functionality:
 |--------|---------|--------------|---------------|
 | **axi_monitor_base** | Core monitor logic | Transaction tracking, timeout detection, event generation | [axi_monitor_base.md](axi_monitor_base.md) |
 | **axi_monitor_filtered** | Monitor wrapper with filtering | 3-level packet filtering, configuration validation | [axi_monitor_filtered.md](axi_monitor_filtered.md) |
-| **axi_monitor_trans_mgr** | Transaction table management | Out-of-order tracking, ID management | [axi_monitor_trans_mgr.md](axi_monitor_trans_mgr.md) |
+| **axi_monitor_trans_mgr** | Transaction table management (CAM-backed) | Out-of-order tracking, ID management | [axi_monitor_trans_mgr.md](axi_monitor_trans_mgr.md) |
+| **monitor_trans_cam** | Multi-port ID CAM with payload | 3 lookup ports, 3-way alloc mutex, used by trans_mgr | [monitor_trans_cam.md](monitor_trans_cam.md) |
 | **axi_monitor_reporter** | Event packet generation | Error/completion/performance packets | [axi_monitor_reporter.md](axi_monitor_reporter.md) |
 | **axi_monitor_timeout** | Timeout detection | Configurable thresholds, multi-channel monitoring | [axi_monitor_timeout.md](axi_monitor_timeout.md) |
 | **axi_monitor_timer** | Frequency-invariant timer | Configurable tick generation | [axi_monitor_timer.md](axi_monitor_timer.md) |
 | **amba_clock_gate_ctrl** | Clock gating control | Dynamic gating, idle detection | [amba_clock_gate_ctrl.md](amba_clock_gate_ctrl.md) |
+
+### Monitor Bus Delivery + Bulk-Trace Compression
+
+The path from in-flight monitor packets to host-visible memory and CPU IRQs:
+
+| Module | Purpose | Key Features | Documentation |
+|--------|---------|--------------|---------------|
+| **monbus_axil_group** | Monitor bus → AXI-Lite slave+master | Per-protocol filter, err FIFO + write FIFO, optional bulk-trace compression | [monbus_axil_group.md](monbus_axil_group.md) |
+| **monbus_compressor** | Bulk-trace encoder | 32-entry LRU CAM, 4-tag slot format, 2.66× ratio, bit-exact to Python golden | [monbus_compressor.md](monbus_compressor.md) |
+| **monbus_cam** | LRU CAM for compressor | 32-entry, position-indexed, true LRU, 49b key + 64b payload | [monbus_cam.md](monbus_cam.md) |
 
 ### Arbitration (4 modules)
 
