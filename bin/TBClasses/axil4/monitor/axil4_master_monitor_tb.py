@@ -157,6 +157,13 @@ class AXIL4MasterMonitorTB(TBBase):
         self.dut.cfg_error_enable.value = 1
         self.dut.cfg_timeout_enable.value = 1
         self.dut.cfg_perf_enable.value = 0  # Disable perf (can cause packet congestion)
+        # Post-#114: dedicated wrapper inputs for the completion /
+        # threshold / debug reporter sub-blocks. Must be driven or the
+        # sub-blocks stay gated off and the basic-connectivity guard
+        # (`if packets == 0`) trips. Matches the AXI4 master TB.
+        self.dut.cfg_compl_enable.value = 1
+        self.dut.cfg_threshold_enable.value = 0
+        self.dut.cfg_debug_enable.value = 0
         self.dut.cfg_timeout_cycles.value = 1000
         self.dut.cfg_latency_threshold.value = 500
 

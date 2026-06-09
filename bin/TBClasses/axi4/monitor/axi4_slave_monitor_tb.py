@@ -54,6 +54,14 @@ class AXI4SlaveMonitorTB:
         self.dut.cfg_error_enable.value = 1
         self.dut.cfg_timeout_enable.value = 1
         self.dut.cfg_perf_enable.value = 0
+        # Post-#114 (commit 9b45f196): cfg_compl_enable / cfg_threshold_enable /
+        # cfg_debug_enable are dedicated wrapper inputs. Driving them is
+        # required -- the AXI4 master TB drives the same set; the slave TB
+        # was missing them, which silenced completion packets and caused
+        # _test_basic_connectivity's `if packets == 0` guard to raise.
+        self.dut.cfg_compl_enable.value = 1
+        self.dut.cfg_threshold_enable.value = 0
+        self.dut.cfg_debug_enable.value = 0
         self.dut.cfg_timeout_cycles.value = 1000
         self.dut.cfg_latency_threshold.value = 500
 
