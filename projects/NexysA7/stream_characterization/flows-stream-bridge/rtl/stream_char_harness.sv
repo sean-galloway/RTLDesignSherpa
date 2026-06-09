@@ -1290,7 +1290,9 @@ module stream_char_harness #(
     assign dbg_clear_busy = 1'b0;
 
     // =========================================================================
-    // DMA source: axi4_slave_rd_pattern_gen (wired to STREAM m_axi_rd)
+    // DMA source + sink: axi4_dma_slaves (LFSR pattern gen on AR/R,
+    // CRC accumulator on AW/W/B). Wraps the previous side-by-side
+    // u_rd_pattern + u_wr_crc_check pair into a single instance.
     // =========================================================================
     logic [AXI_ID_WIDTH-1:0]    rd_arid;
     logic [ADDR_WIDTH-1:0]      rd_araddr;
@@ -1323,33 +1325,8 @@ module stream_char_harness #(
     logic                      s_rd_rvalid;
     logic                      s_rd_rready;
 
-    axi4_slave_rd_pattern_gen #(
-        .NUM_CHANNELS  (NUM_CHANNELS),
-        .AXI_ID_WIDTH  (AXI_ID_WIDTH),
-        .AXI_ADDR_WIDTH(ADDR_WIDTH),
-        .AXI_DATA_WIDTH(DATA_WIDTH),
-        .AXI_USER_WIDTH(AXI_USER_WIDTH)
-    ) u_rd_pattern (
-        .aclk(aclk), .aresetn(unit_aresetn),
-        .crc_lfsr_reset       (csr_clear_pulse),
-        .read_crc_value       (read_crc_value),
-        .read_crc_valid       (read_crc_valid),
-        .read_beat_count      (read_beat_count_per_ch),
-        .read_beat_count_total(read_beat_count),
-        .s_axi_arid    (rd_arid),    .s_axi_araddr(rd_araddr),
-        .s_axi_arlen   (rd_arlen),   .s_axi_arsize(rd_arsize),
-        .s_axi_arburst (rd_arburst), .s_axi_arlock(rd_arlock),
-        .s_axi_arcache (rd_arcache), .s_axi_arprot(rd_arprot),
-        .s_axi_arqos   (rd_arqos),   .s_axi_arregion(rd_arregion),
-        .s_axi_aruser  (rd_aruser),  .s_axi_arvalid(rd_arvalid),
-        .s_axi_arready (rd_arready),
-        // R channel routed through u_rd_resp_delay (below)
-        .s_axi_rid     (s_rd_rid),    .s_axi_rdata(s_rd_rdata),
-        .s_axi_rresp   (s_rd_rresp),  .s_axi_rlast(s_rd_rlast),
-        .s_axi_ruser   (s_rd_ruser),  .s_axi_rvalid(s_rd_rvalid),
-        .s_axi_rready  (s_rd_rready),
-        .busy          ()
-    );
+    // (axi4_dma_slaves instance moved below the AW/W/B wire decls so
+    // both port halves are visible at instantiation time.)
 
     // Optional per-beat response delay on the R channel. Bypass when
     // i_rd_resp_delay_en is 0 (zero added latency). When asserted, each beat
@@ -1378,7 +1355,8 @@ module stream_char_harness #(
     );
 
     // =========================================================================
-    // DMA sink: axi4_slave_wr_crc_check (wired to STREAM m_axi_wr)
+    // DMA sink-side wire decls + axi4_dma_slaves instance (combines
+    // pat_gen + crc_check; AR/R wires declared above).
     // =========================================================================
     logic [AXI_ID_WIDTH-1:0]    wr_awid;
     logic [ADDR_WIDTH-1:0]      wr_awaddr;
@@ -1412,34 +1390,61 @@ module stream_char_harness #(
     logic                      s_wr_bvalid;
     logic                      s_wr_bready;
 
-    axi4_slave_wr_crc_check #(
+    axi4_dma_slaves #(
         .NUM_CHANNELS  (NUM_CHANNELS),
         .AXI_ID_WIDTH  (AXI_ID_WIDTH),
         .AXI_ADDR_WIDTH(ADDR_WIDTH),
         .AXI_DATA_WIDTH(DATA_WIDTH),
         .AXI_USER_WIDTH(AXI_USER_WIDTH)
-    ) u_wr_crc_check (
+    ) u_dma_slaves (
         .aclk(aclk), .aresetn(unit_aresetn),
-        .crc_reset             (csr_clear_pulse),
-        .write_crc_value       (write_crc_value),
-        .write_crc_valid       (write_crc_valid),
-        .write_beat_count      (write_beat_count_per_ch),
-        .write_beat_count_total(write_beat_count),
-        .s_axi_awid   (wr_awid),   .s_axi_awaddr(wr_awaddr),
-        .s_axi_awlen  (wr_awlen),  .s_axi_awsize(wr_awsize),
-        .s_axi_awburst(wr_awburst),.s_axi_awlock(wr_awlock),
-        .s_axi_awcache(wr_awcache),.s_axi_awprot(wr_awprot),
-        .s_axi_awqos  (wr_awqos),  .s_axi_awregion(wr_awregion),
-        .s_axi_awuser (wr_awuser), .s_axi_awvalid(wr_awvalid),
-        .s_axi_awready(wr_awready),
-        .s_axi_wdata  (wr_wdata),  .s_axi_wstrb(wr_wstrb),
-        .s_axi_wlast  (wr_wlast),  .s_axi_wuser(wr_wuser),
-        .s_axi_wvalid (wr_wvalid), .s_axi_wready(wr_wready),
-        // B channel routed through u_wr_resp_delay (below)
-        .s_axi_bid    (s_wr_bid),    .s_axi_bresp(s_wr_bresp),
-        .s_axi_buser  (s_wr_buser),  .s_axi_bvalid(s_wr_bvalid),
-        .s_axi_bready (s_wr_bready),
-        .busy         ()
+
+        // Resets — both sides re-armed by the same CSR clear pulse.
+        .read_lfsr_reset       (csr_clear_pulse),
+        .write_crc_reset       (csr_clear_pulse),
+
+        // Read-side observation
+        .read_crc_value        (read_crc_value),
+        .read_crc_valid        (read_crc_valid),
+        .read_beat_count       (read_beat_count_per_ch),
+        .read_beat_count_total (read_beat_count),
+
+        // Write-side observation
+        .write_crc_value        (write_crc_value),
+        .write_crc_valid        (write_crc_valid),
+        .write_beat_count       (write_beat_count_per_ch),
+        .write_beat_count_total (write_beat_count),
+
+        // AR/R (slave-side R wires fed through u_rd_resp_delay below)
+        .s_axi_arid    (rd_arid),     .s_axi_araddr  (rd_araddr),
+        .s_axi_arlen   (rd_arlen),    .s_axi_arsize  (rd_arsize),
+        .s_axi_arburst (rd_arburst),  .s_axi_arlock  (rd_arlock),
+        .s_axi_arcache (rd_arcache),  .s_axi_arprot  (rd_arprot),
+        .s_axi_arqos   (rd_arqos),    .s_axi_arregion(rd_arregion),
+        .s_axi_aruser  (rd_aruser),   .s_axi_arvalid (rd_arvalid),
+        .s_axi_arready (rd_arready),
+        .s_axi_rid     (s_rd_rid),    .s_axi_rdata   (s_rd_rdata),
+        .s_axi_rresp   (s_rd_rresp),  .s_axi_rlast   (s_rd_rlast),
+        .s_axi_ruser   (s_rd_ruser),  .s_axi_rvalid  (s_rd_rvalid),
+        .s_axi_rready  (s_rd_rready),
+
+        // AW/W (slave-side B wires fed through u_wr_resp_delay below)
+        .s_axi_awid    (wr_awid),     .s_axi_awaddr  (wr_awaddr),
+        .s_axi_awlen   (wr_awlen),    .s_axi_awsize  (wr_awsize),
+        .s_axi_awburst (wr_awburst),  .s_axi_awlock  (wr_awlock),
+        .s_axi_awcache (wr_awcache),  .s_axi_awprot  (wr_awprot),
+        .s_axi_awqos   (wr_awqos),    .s_axi_awregion(wr_awregion),
+        .s_axi_awuser  (wr_awuser),   .s_axi_awvalid (wr_awvalid),
+        .s_axi_awready (wr_awready),
+        .s_axi_wdata   (wr_wdata),    .s_axi_wstrb   (wr_wstrb),
+        .s_axi_wlast   (wr_wlast),    .s_axi_wuser   (wr_wuser),
+        .s_axi_wvalid  (wr_wvalid),   .s_axi_wready  (wr_wready),
+        .s_axi_bid     (s_wr_bid),    .s_axi_bresp   (s_wr_bresp),
+        .s_axi_buser   (s_wr_buser),  .s_axi_bvalid  (s_wr_bvalid),
+        .s_axi_bready  (s_wr_bready),
+
+        .busy_rd       (),
+        .busy_wr       ()
     );
 
     // Optional per-beat response delay on the B channel. Bypass when

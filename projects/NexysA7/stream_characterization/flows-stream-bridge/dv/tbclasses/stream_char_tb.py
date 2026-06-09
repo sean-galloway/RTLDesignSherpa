@@ -690,8 +690,8 @@ class StreamCharTB(TBBase):
             ts = await self.uart_read(CSR_TIMER_STATUS) or 0
             st = await self.read_status() or {}
             try:
-                wr_beats = int(self.dut.u_wr_crc_check.write_beat_count_total.value)
-                rd_beats = int(self.dut.u_rd_pattern.read_beat_count_total.value)
+                wr_beats = int(self.dut.u_dma_slaves.u_wr_crc_check.write_beat_count_total.value)
+                rd_beats = int(self.dut.u_dma_slaves.u_rd_pattern_gen.read_beat_count_total.value)
             except Exception:
                 wr_beats = -1
                 rd_beats = -1
@@ -879,8 +879,8 @@ class StreamCharTB(TBBase):
         max_extra_clocks = max(timeout_clocks, expected_total * 4)
         elapsed = 0
         while elapsed < max_extra_clocks:
-            rd_beats = int(self.dut.u_rd_pattern.read_beat_count_total.value)
-            wr_beats = int(self.dut.u_wr_crc_check.write_beat_count_total.value)
+            rd_beats = int(self.dut.u_dma_slaves.u_rd_pattern_gen.read_beat_count_total.value)
+            wr_beats = int(self.dut.u_dma_slaves.u_wr_crc_check.write_beat_count_total.value)
             if wr_beats >= expected_total and rd_beats >= expected_total:
                 self.log.info(f"  Beats reached expected ({expected_total}) after {elapsed} extra clocks")
                 break
@@ -965,8 +965,8 @@ class StreamCharTB(TBBase):
         # are now per-channel packed arrays — read the aggregate `_total`
         # outputs instead of treating the array as a scalar.
         try:
-            rd_beats = int(self.dut.u_rd_pattern.read_beat_count_total.value)
-            wr_beats = int(self.dut.u_wr_crc_check.write_beat_count_total.value)
+            rd_beats = int(self.dut.u_dma_slaves.u_rd_pattern_gen.read_beat_count_total.value)
+            wr_beats = int(self.dut.u_dma_slaves.u_wr_crc_check.write_beat_count_total.value)
             expected_beats = transfer_bytes // 16  # DATA_WIDTH=128 → 16 B/beat
             self.log.info(
                 f"  Beat counts: read={rd_beats} write={wr_beats} "

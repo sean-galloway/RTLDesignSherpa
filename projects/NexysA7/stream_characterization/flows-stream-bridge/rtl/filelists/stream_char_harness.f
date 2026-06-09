@@ -26,6 +26,7 @@ $REPO_ROOT/rtl/amba/axi4/axi4_slave_rd.sv
 $REPO_ROOT/rtl/amba/axi4/axi4_slave_wr.sv
 $REPO_ROOT/rtl/amba/shared/axi4_slave_rd_pattern_gen.sv
 $REPO_ROOT/rtl/amba/shared/axi4_slave_wr_crc_check.sv
+$REPO_ROOT/rtl/amba/shared/axi4_dma_slaves.sv
 
 # Shared instrumentation library (axi_response_delay, harness_csr, decoder,
 # bridges, RAMs, board-level status drivers).
