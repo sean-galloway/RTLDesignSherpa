@@ -1,27 +1,20 @@
 // SPDX-License-Identifier: MIT
 // SPDX-FileCopyrightText: 2026 sean galloway
 //
-// Module: sdpram_slave_axil
-// Purpose: Thin wrapper around sdpram_slave that fixes both sides to
-//          AXIL and exposes ONLY AXIL-shaped ports. Use this when the
-//          caller's fabric is pure AXIL -- the port list contains no
-//          AXI4-only fields (no awid/awlen/awsize/awburst/awlock/
-//          awcache/awqos/awregion/awuser/wlast/wuser/bid/buser nor the
-//          AR/R equivalents), and the port names use the `s_axil_*`
-//          prefix per AXIL convention.
+// Module: sdpram_slave_axil_axil
+// Purpose: AXIL write + AXIL read shape of sdpram_slave. Exposes only
+//          AXIL ports (s_axil_aw*/w*/b*/ar*/r*); no AXI4-only fields.
+//          One of the four protocol permutations -- see header in
+//          `sdpram_slave_axi4_axi4.sv` for the full set. All four share
+//          the same backend (`sdpram_slave.sv`).
 //
 // Subsystem: amba
 // Author: sean galloway
 // Created: 2026-06-09
-//
-// For pure AXI4 fabrics, see `sdpram_slave_axi4.sv`. For heterogeneous
-// configurations (AXI4 write + AXIL read or vice versa), instantiate
-// `sdpram_slave` directly with the desired WR_PROTOCOL / RD_PROTOCOL
-// string parameters.
 
 `timescale 1ns / 1ps
 
-module sdpram_slave_axil #(
+module sdpram_slave_axil_axil #(
     parameter int    ADDR_WIDTH    = 32,
     parameter int    DATA_WIDTH    = 64,
     parameter int    MEM_DEPTH     = 1024,
@@ -182,4 +175,4 @@ module sdpram_slave_axil #(
                           r_dummy_user, r_dummy_rlast};
     /* verilator lint_on UNUSED */
 
-endmodule : sdpram_slave_axil
+endmodule : sdpram_slave_axil_axil

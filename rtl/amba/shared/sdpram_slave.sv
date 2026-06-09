@@ -8,6 +8,21 @@
 //          protocol independently via the WR_PROTOCOL / RD_PROTOCOL
 //          string parameters.
 //
+// Role in the file family:
+//          This is the **common-logic + memory backend**. It owns the
+//          two protocol-select generate blocks (axi4 vs axil skid), the
+//          BRAM port-A/B glue, the bulk-clear FSM, and the burst
+//          tracker. Four thin wrapper modules expose the four protocol
+//          permutations with the exact correct port list:
+//            sdpram_slave_axi4_axi4.sv  -- AXI4 wr, AXI4 rd
+//            sdpram_slave_axi4_axil.sv  -- AXI4 wr, AXIL rd
+//            sdpram_slave_axil_axi4.sv  -- AXIL wr, AXI4 rd
+//            sdpram_slave_axil_axil.sv  -- AXIL wr, AXIL rd
+//          Callers should instantiate the wrapper matching their
+//          fabric. This bare module is callable too (with its
+//          AXI4-shaped superset port list); the wrappers are just
+//          ergonomics.
+//
 // Top-level ports are declared in full AXI4 shape so both protocols use
 // the same module signature. In AXIL mode the AXI4-only signals on the
 // configured side (id, len, size, burst, lock, cache, qos, region, user)

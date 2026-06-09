@@ -1,24 +1,29 @@
 // SPDX-License-Identifier: MIT
 // SPDX-FileCopyrightText: 2026 sean galloway
 //
-// Module: sdpram_slave_axi4
-// Purpose: Thin wrapper around sdpram_slave that fixes both sides to
-//          AXI4 and exposes ONLY AXI4-shaped ports. Use this when the
-//          caller's fabric is pure AXI4 -- the wrapper makes the port
-//          list match the protocol exactly (no AXIL-shape ambiguity).
+// Module: sdpram_slave_axi4_axi4
+// Purpose: AXI4 write + AXI4 read shape of sdpram_slave. Exposes only
+//          AXI4 ports (s_axi_aw*/w*/b*/ar*/r* with the full AXI4 field
+//          set). One of the four protocol permutations:
+//            sdpram_slave_axi4_axi4    -- AXI4 wr,  AXI4 rd
+//            sdpram_slave_axi4_axil    -- AXI4 wr,  AXIL rd
+//            sdpram_slave_axil_axi4    -- AXIL wr,  AXI4 rd
+//            sdpram_slave_axil_axil    -- AXIL wr,  AXIL rd
+//
+//          All four are thin shims around the common backend
+//          `sdpram_slave.sv`, which owns the BRAM glue, clear FSM, and
+//          protocol-skid generate blocks. SystemVerilog has no way to
+//          conditionally include/exclude module ports at elaboration,
+//          so the four files give each protocol combination its own
+//          exact port shape.
 //
 // Subsystem: amba
 // Author: sean galloway
 // Created: 2026-06-09
-//
-// For pure AXIL fabrics, see `sdpram_slave_axil.sv` (AXIL-only ports,
-// `s_axil_*` naming). For heterogeneous configurations (AXI4 write +
-// AXIL read or vice versa), instantiate `sdpram_slave` directly with
-// the desired WR_PROTOCOL / RD_PROTOCOL string parameters.
 
 `timescale 1ns / 1ps
 
-module sdpram_slave_axi4 #(
+module sdpram_slave_axi4_axi4 #(
     parameter int    AXI_ID_WIDTH = 8,
     parameter int    ADDR_WIDTH   = 32,
     parameter int    DATA_WIDTH   = 256,
@@ -175,4 +180,4 @@ module sdpram_slave_axi4 #(
         .o_dbg_busy_rd     (o_dbg_busy_rd)
     );
 
-endmodule : sdpram_slave_axi4
+endmodule : sdpram_slave_axi4_axi4
