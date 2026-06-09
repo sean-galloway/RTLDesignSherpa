@@ -291,367 +291,27 @@ module bridge_stream_char_axil_mon #(
     output logic                  dma_axil_rready,
 
     // ============================================================
-    // Monitor per-port cfg inputs (use_monitor=true)
+    // Monitor cfg subsystem AXIL slave (regblock-backed, 90.3)
     // ============================================================
-    // master host (idx 0, wr)
-    input  logic         cfg_host_0_wr_monitor_enable,
-    input  logic         cfg_host_0_wr_error_enable,
-    input  logic         cfg_host_0_wr_timeout_enable,
-    input  logic         cfg_host_0_wr_perf_enable,
-    input  logic         cfg_host_0_wr_compl_enable,
-    input  logic         cfg_host_0_wr_threshold_enable,
-    input  logic         cfg_host_0_wr_debug_enable,
-    input  logic [15:0] cfg_host_0_wr_timeout_cycles,
-    input  logic [31:0] cfg_host_0_wr_latency_threshold,
-    input  logic [15:0] cfg_host_0_wr_axi_pkt_mask,
-    input  logic [15:0] cfg_host_0_wr_axi_err_select,
-    input  logic [15:0] cfg_host_0_wr_axi_error_mask,
-    input  logic [15:0] cfg_host_0_wr_axi_timeout_mask,
-    input  logic [15:0] cfg_host_0_wr_axi_compl_mask,
-    input  logic [15:0] cfg_host_0_wr_axi_thresh_mask,
-    input  logic [15:0] cfg_host_0_wr_axi_perf_mask,
-    input  logic [15:0] cfg_host_0_wr_axi_addr_mask,
-    input  logic [15:0] cfg_host_0_wr_axi_debug_mask,
-
-    // master host (idx 0, rd)
-    input  logic         cfg_host_0_rd_monitor_enable,
-    input  logic         cfg_host_0_rd_error_enable,
-    input  logic         cfg_host_0_rd_timeout_enable,
-    input  logic         cfg_host_0_rd_perf_enable,
-    input  logic         cfg_host_0_rd_compl_enable,
-    input  logic         cfg_host_0_rd_threshold_enable,
-    input  logic         cfg_host_0_rd_debug_enable,
-    input  logic [15:0] cfg_host_0_rd_timeout_cycles,
-    input  logic [31:0] cfg_host_0_rd_latency_threshold,
-    input  logic [15:0] cfg_host_0_rd_axi_pkt_mask,
-    input  logic [15:0] cfg_host_0_rd_axi_err_select,
-    input  logic [15:0] cfg_host_0_rd_axi_error_mask,
-    input  logic [15:0] cfg_host_0_rd_axi_timeout_mask,
-    input  logic [15:0] cfg_host_0_rd_axi_compl_mask,
-    input  logic [15:0] cfg_host_0_rd_axi_thresh_mask,
-    input  logic [15:0] cfg_host_0_rd_axi_perf_mask,
-    input  logic [15:0] cfg_host_0_rd_axi_addr_mask,
-    input  logic [15:0] cfg_host_0_rd_axi_debug_mask,
-
-    // master stream_desc (idx 1, wr)
-    input  logic         cfg_stream_desc_1_wr_monitor_enable,
-    input  logic         cfg_stream_desc_1_wr_error_enable,
-    input  logic         cfg_stream_desc_1_wr_timeout_enable,
-    input  logic         cfg_stream_desc_1_wr_perf_enable,
-    input  logic         cfg_stream_desc_1_wr_compl_enable,
-    input  logic         cfg_stream_desc_1_wr_threshold_enable,
-    input  logic         cfg_stream_desc_1_wr_debug_enable,
-    input  logic [15:0] cfg_stream_desc_1_wr_timeout_cycles,
-    input  logic [31:0] cfg_stream_desc_1_wr_latency_threshold,
-    input  logic [15:0] cfg_stream_desc_1_wr_axi_pkt_mask,
-    input  logic [15:0] cfg_stream_desc_1_wr_axi_err_select,
-    input  logic [15:0] cfg_stream_desc_1_wr_axi_error_mask,
-    input  logic [15:0] cfg_stream_desc_1_wr_axi_timeout_mask,
-    input  logic [15:0] cfg_stream_desc_1_wr_axi_compl_mask,
-    input  logic [15:0] cfg_stream_desc_1_wr_axi_thresh_mask,
-    input  logic [15:0] cfg_stream_desc_1_wr_axi_perf_mask,
-    input  logic [15:0] cfg_stream_desc_1_wr_axi_addr_mask,
-    input  logic [15:0] cfg_stream_desc_1_wr_axi_debug_mask,
-
-    // master stream_desc (idx 1, rd)
-    input  logic         cfg_stream_desc_1_rd_monitor_enable,
-    input  logic         cfg_stream_desc_1_rd_error_enable,
-    input  logic         cfg_stream_desc_1_rd_timeout_enable,
-    input  logic         cfg_stream_desc_1_rd_perf_enable,
-    input  logic         cfg_stream_desc_1_rd_compl_enable,
-    input  logic         cfg_stream_desc_1_rd_threshold_enable,
-    input  logic         cfg_stream_desc_1_rd_debug_enable,
-    input  logic [15:0] cfg_stream_desc_1_rd_timeout_cycles,
-    input  logic [31:0] cfg_stream_desc_1_rd_latency_threshold,
-    input  logic [15:0] cfg_stream_desc_1_rd_axi_pkt_mask,
-    input  logic [15:0] cfg_stream_desc_1_rd_axi_err_select,
-    input  logic [15:0] cfg_stream_desc_1_rd_axi_error_mask,
-    input  logic [15:0] cfg_stream_desc_1_rd_axi_timeout_mask,
-    input  logic [15:0] cfg_stream_desc_1_rd_axi_compl_mask,
-    input  logic [15:0] cfg_stream_desc_1_rd_axi_thresh_mask,
-    input  logic [15:0] cfg_stream_desc_1_rd_axi_perf_mask,
-    input  logic [15:0] cfg_stream_desc_1_rd_axi_addr_mask,
-    input  logic [15:0] cfg_stream_desc_1_rd_axi_debug_mask,
-
-    // master monbus_wr (idx 2, wr)
-    input  logic         cfg_monbus_wr_2_wr_monitor_enable,
-    input  logic         cfg_monbus_wr_2_wr_error_enable,
-    input  logic         cfg_monbus_wr_2_wr_timeout_enable,
-    input  logic         cfg_monbus_wr_2_wr_perf_enable,
-    input  logic         cfg_monbus_wr_2_wr_compl_enable,
-    input  logic         cfg_monbus_wr_2_wr_threshold_enable,
-    input  logic         cfg_monbus_wr_2_wr_debug_enable,
-    input  logic [15:0] cfg_monbus_wr_2_wr_timeout_cycles,
-    input  logic [31:0] cfg_monbus_wr_2_wr_latency_threshold,
-    input  logic [15:0] cfg_monbus_wr_2_wr_axi_pkt_mask,
-    input  logic [15:0] cfg_monbus_wr_2_wr_axi_err_select,
-    input  logic [15:0] cfg_monbus_wr_2_wr_axi_error_mask,
-    input  logic [15:0] cfg_monbus_wr_2_wr_axi_timeout_mask,
-    input  logic [15:0] cfg_monbus_wr_2_wr_axi_compl_mask,
-    input  logic [15:0] cfg_monbus_wr_2_wr_axi_thresh_mask,
-    input  logic [15:0] cfg_monbus_wr_2_wr_axi_perf_mask,
-    input  logic [15:0] cfg_monbus_wr_2_wr_axi_addr_mask,
-    input  logic [15:0] cfg_monbus_wr_2_wr_axi_debug_mask,
-
-    // master monbus_wr (idx 2, rd)
-    input  logic         cfg_monbus_wr_2_rd_monitor_enable,
-    input  logic         cfg_monbus_wr_2_rd_error_enable,
-    input  logic         cfg_monbus_wr_2_rd_timeout_enable,
-    input  logic         cfg_monbus_wr_2_rd_perf_enable,
-    input  logic         cfg_monbus_wr_2_rd_compl_enable,
-    input  logic         cfg_monbus_wr_2_rd_threshold_enable,
-    input  logic         cfg_monbus_wr_2_rd_debug_enable,
-    input  logic [15:0] cfg_monbus_wr_2_rd_timeout_cycles,
-    input  logic [31:0] cfg_monbus_wr_2_rd_latency_threshold,
-    input  logic [15:0] cfg_monbus_wr_2_rd_axi_pkt_mask,
-    input  logic [15:0] cfg_monbus_wr_2_rd_axi_err_select,
-    input  logic [15:0] cfg_monbus_wr_2_rd_axi_error_mask,
-    input  logic [15:0] cfg_monbus_wr_2_rd_axi_timeout_mask,
-    input  logic [15:0] cfg_monbus_wr_2_rd_axi_compl_mask,
-    input  logic [15:0] cfg_monbus_wr_2_rd_axi_thresh_mask,
-    input  logic [15:0] cfg_monbus_wr_2_rd_axi_perf_mask,
-    input  logic [15:0] cfg_monbus_wr_2_rd_axi_addr_mask,
-    input  logic [15:0] cfg_monbus_wr_2_rd_axi_debug_mask,
-
-    // slave stream_apb (idx 0, wr)
-    input  logic         cfg_stream_apb_0_wr_monitor_enable,
-    input  logic         cfg_stream_apb_0_wr_error_enable,
-    input  logic         cfg_stream_apb_0_wr_timeout_enable,
-    input  logic         cfg_stream_apb_0_wr_perf_enable,
-    input  logic         cfg_stream_apb_0_wr_compl_enable,
-    input  logic         cfg_stream_apb_0_wr_threshold_enable,
-    input  logic         cfg_stream_apb_0_wr_debug_enable,
-    input  logic [15:0] cfg_stream_apb_0_wr_timeout_cycles,
-    input  logic [31:0] cfg_stream_apb_0_wr_latency_threshold,
-    input  logic [15:0] cfg_stream_apb_0_wr_axi_pkt_mask,
-    input  logic [15:0] cfg_stream_apb_0_wr_axi_err_select,
-    input  logic [15:0] cfg_stream_apb_0_wr_axi_error_mask,
-    input  logic [15:0] cfg_stream_apb_0_wr_axi_timeout_mask,
-    input  logic [15:0] cfg_stream_apb_0_wr_axi_compl_mask,
-    input  logic [15:0] cfg_stream_apb_0_wr_axi_thresh_mask,
-    input  logic [15:0] cfg_stream_apb_0_wr_axi_perf_mask,
-    input  logic [15:0] cfg_stream_apb_0_wr_axi_addr_mask,
-    input  logic [15:0] cfg_stream_apb_0_wr_axi_debug_mask,
-
-    // slave stream_apb (idx 0, rd)
-    input  logic         cfg_stream_apb_0_rd_monitor_enable,
-    input  logic         cfg_stream_apb_0_rd_error_enable,
-    input  logic         cfg_stream_apb_0_rd_timeout_enable,
-    input  logic         cfg_stream_apb_0_rd_perf_enable,
-    input  logic         cfg_stream_apb_0_rd_compl_enable,
-    input  logic         cfg_stream_apb_0_rd_threshold_enable,
-    input  logic         cfg_stream_apb_0_rd_debug_enable,
-    input  logic [15:0] cfg_stream_apb_0_rd_timeout_cycles,
-    input  logic [31:0] cfg_stream_apb_0_rd_latency_threshold,
-    input  logic [15:0] cfg_stream_apb_0_rd_axi_pkt_mask,
-    input  logic [15:0] cfg_stream_apb_0_rd_axi_err_select,
-    input  logic [15:0] cfg_stream_apb_0_rd_axi_error_mask,
-    input  logic [15:0] cfg_stream_apb_0_rd_axi_timeout_mask,
-    input  logic [15:0] cfg_stream_apb_0_rd_axi_compl_mask,
-    input  logic [15:0] cfg_stream_apb_0_rd_axi_thresh_mask,
-    input  logic [15:0] cfg_stream_apb_0_rd_axi_perf_mask,
-    input  logic [15:0] cfg_stream_apb_0_rd_axi_addr_mask,
-    input  logic [15:0] cfg_stream_apb_0_rd_axi_debug_mask,
-
-    // slave harness_csr (idx 1, wr)
-    input  logic         cfg_harness_csr_1_wr_monitor_enable,
-    input  logic         cfg_harness_csr_1_wr_error_enable,
-    input  logic         cfg_harness_csr_1_wr_timeout_enable,
-    input  logic         cfg_harness_csr_1_wr_perf_enable,
-    input  logic         cfg_harness_csr_1_wr_compl_enable,
-    input  logic         cfg_harness_csr_1_wr_threshold_enable,
-    input  logic         cfg_harness_csr_1_wr_debug_enable,
-    input  logic [15:0] cfg_harness_csr_1_wr_timeout_cycles,
-    input  logic [31:0] cfg_harness_csr_1_wr_latency_threshold,
-    input  logic [15:0] cfg_harness_csr_1_wr_axi_pkt_mask,
-    input  logic [15:0] cfg_harness_csr_1_wr_axi_err_select,
-    input  logic [15:0] cfg_harness_csr_1_wr_axi_error_mask,
-    input  logic [15:0] cfg_harness_csr_1_wr_axi_timeout_mask,
-    input  logic [15:0] cfg_harness_csr_1_wr_axi_compl_mask,
-    input  logic [15:0] cfg_harness_csr_1_wr_axi_thresh_mask,
-    input  logic [15:0] cfg_harness_csr_1_wr_axi_perf_mask,
-    input  logic [15:0] cfg_harness_csr_1_wr_axi_addr_mask,
-    input  logic [15:0] cfg_harness_csr_1_wr_axi_debug_mask,
-
-    // slave harness_csr (idx 1, rd)
-    input  logic         cfg_harness_csr_1_rd_monitor_enable,
-    input  logic         cfg_harness_csr_1_rd_error_enable,
-    input  logic         cfg_harness_csr_1_rd_timeout_enable,
-    input  logic         cfg_harness_csr_1_rd_perf_enable,
-    input  logic         cfg_harness_csr_1_rd_compl_enable,
-    input  logic         cfg_harness_csr_1_rd_threshold_enable,
-    input  logic         cfg_harness_csr_1_rd_debug_enable,
-    input  logic [15:0] cfg_harness_csr_1_rd_timeout_cycles,
-    input  logic [31:0] cfg_harness_csr_1_rd_latency_threshold,
-    input  logic [15:0] cfg_harness_csr_1_rd_axi_pkt_mask,
-    input  logic [15:0] cfg_harness_csr_1_rd_axi_err_select,
-    input  logic [15:0] cfg_harness_csr_1_rd_axi_error_mask,
-    input  logic [15:0] cfg_harness_csr_1_rd_axi_timeout_mask,
-    input  logic [15:0] cfg_harness_csr_1_rd_axi_compl_mask,
-    input  logic [15:0] cfg_harness_csr_1_rd_axi_thresh_mask,
-    input  logic [15:0] cfg_harness_csr_1_rd_axi_perf_mask,
-    input  logic [15:0] cfg_harness_csr_1_rd_axi_addr_mask,
-    input  logic [15:0] cfg_harness_csr_1_rd_axi_debug_mask,
-
-    // slave desc_ram (idx 2, wr)
-    input  logic         cfg_desc_ram_2_wr_monitor_enable,
-    input  logic         cfg_desc_ram_2_wr_error_enable,
-    input  logic         cfg_desc_ram_2_wr_timeout_enable,
-    input  logic         cfg_desc_ram_2_wr_perf_enable,
-    input  logic         cfg_desc_ram_2_wr_compl_enable,
-    input  logic         cfg_desc_ram_2_wr_threshold_enable,
-    input  logic         cfg_desc_ram_2_wr_debug_enable,
-    input  logic [15:0] cfg_desc_ram_2_wr_timeout_cycles,
-    input  logic [31:0] cfg_desc_ram_2_wr_latency_threshold,
-    input  logic [15:0] cfg_desc_ram_2_wr_axi_pkt_mask,
-    input  logic [15:0] cfg_desc_ram_2_wr_axi_err_select,
-    input  logic [15:0] cfg_desc_ram_2_wr_axi_error_mask,
-    input  logic [15:0] cfg_desc_ram_2_wr_axi_timeout_mask,
-    input  logic [15:0] cfg_desc_ram_2_wr_axi_compl_mask,
-    input  logic [15:0] cfg_desc_ram_2_wr_axi_thresh_mask,
-    input  logic [15:0] cfg_desc_ram_2_wr_axi_perf_mask,
-    input  logic [15:0] cfg_desc_ram_2_wr_axi_addr_mask,
-    input  logic [15:0] cfg_desc_ram_2_wr_axi_debug_mask,
-
-    // slave desc_ram (idx 2, rd)
-    input  logic         cfg_desc_ram_2_rd_monitor_enable,
-    input  logic         cfg_desc_ram_2_rd_error_enable,
-    input  logic         cfg_desc_ram_2_rd_timeout_enable,
-    input  logic         cfg_desc_ram_2_rd_perf_enable,
-    input  logic         cfg_desc_ram_2_rd_compl_enable,
-    input  logic         cfg_desc_ram_2_rd_threshold_enable,
-    input  logic         cfg_desc_ram_2_rd_debug_enable,
-    input  logic [15:0] cfg_desc_ram_2_rd_timeout_cycles,
-    input  logic [31:0] cfg_desc_ram_2_rd_latency_threshold,
-    input  logic [15:0] cfg_desc_ram_2_rd_axi_pkt_mask,
-    input  logic [15:0] cfg_desc_ram_2_rd_axi_err_select,
-    input  logic [15:0] cfg_desc_ram_2_rd_axi_error_mask,
-    input  logic [15:0] cfg_desc_ram_2_rd_axi_timeout_mask,
-    input  logic [15:0] cfg_desc_ram_2_rd_axi_compl_mask,
-    input  logic [15:0] cfg_desc_ram_2_rd_axi_thresh_mask,
-    input  logic [15:0] cfg_desc_ram_2_rd_axi_perf_mask,
-    input  logic [15:0] cfg_desc_ram_2_rd_axi_addr_mask,
-    input  logic [15:0] cfg_desc_ram_2_rd_axi_debug_mask,
-
-    // slave stream_err (idx 3, wr)
-    input  logic         cfg_stream_err_3_wr_monitor_enable,
-    input  logic         cfg_stream_err_3_wr_error_enable,
-    input  logic         cfg_stream_err_3_wr_timeout_enable,
-    input  logic         cfg_stream_err_3_wr_perf_enable,
-    input  logic         cfg_stream_err_3_wr_compl_enable,
-    input  logic         cfg_stream_err_3_wr_threshold_enable,
-    input  logic         cfg_stream_err_3_wr_debug_enable,
-    input  logic [15:0] cfg_stream_err_3_wr_timeout_cycles,
-    input  logic [31:0] cfg_stream_err_3_wr_latency_threshold,
-    input  logic [15:0] cfg_stream_err_3_wr_axi_pkt_mask,
-    input  logic [15:0] cfg_stream_err_3_wr_axi_err_select,
-    input  logic [15:0] cfg_stream_err_3_wr_axi_error_mask,
-    input  logic [15:0] cfg_stream_err_3_wr_axi_timeout_mask,
-    input  logic [15:0] cfg_stream_err_3_wr_axi_compl_mask,
-    input  logic [15:0] cfg_stream_err_3_wr_axi_thresh_mask,
-    input  logic [15:0] cfg_stream_err_3_wr_axi_perf_mask,
-    input  logic [15:0] cfg_stream_err_3_wr_axi_addr_mask,
-    input  logic [15:0] cfg_stream_err_3_wr_axi_debug_mask,
-
-    // slave stream_err (idx 3, rd)
-    input  logic         cfg_stream_err_3_rd_monitor_enable,
-    input  logic         cfg_stream_err_3_rd_error_enable,
-    input  logic         cfg_stream_err_3_rd_timeout_enable,
-    input  logic         cfg_stream_err_3_rd_perf_enable,
-    input  logic         cfg_stream_err_3_rd_compl_enable,
-    input  logic         cfg_stream_err_3_rd_threshold_enable,
-    input  logic         cfg_stream_err_3_rd_debug_enable,
-    input  logic [15:0] cfg_stream_err_3_rd_timeout_cycles,
-    input  logic [31:0] cfg_stream_err_3_rd_latency_threshold,
-    input  logic [15:0] cfg_stream_err_3_rd_axi_pkt_mask,
-    input  logic [15:0] cfg_stream_err_3_rd_axi_err_select,
-    input  logic [15:0] cfg_stream_err_3_rd_axi_error_mask,
-    input  logic [15:0] cfg_stream_err_3_rd_axi_timeout_mask,
-    input  logic [15:0] cfg_stream_err_3_rd_axi_compl_mask,
-    input  logic [15:0] cfg_stream_err_3_rd_axi_thresh_mask,
-    input  logic [15:0] cfg_stream_err_3_rd_axi_perf_mask,
-    input  logic [15:0] cfg_stream_err_3_rd_axi_addr_mask,
-    input  logic [15:0] cfg_stream_err_3_rd_axi_debug_mask,
-
-    // slave debug_sram (idx 4, wr)
-    input  logic         cfg_debug_sram_4_wr_monitor_enable,
-    input  logic         cfg_debug_sram_4_wr_error_enable,
-    input  logic         cfg_debug_sram_4_wr_timeout_enable,
-    input  logic         cfg_debug_sram_4_wr_perf_enable,
-    input  logic         cfg_debug_sram_4_wr_compl_enable,
-    input  logic         cfg_debug_sram_4_wr_threshold_enable,
-    input  logic         cfg_debug_sram_4_wr_debug_enable,
-    input  logic [15:0] cfg_debug_sram_4_wr_timeout_cycles,
-    input  logic [31:0] cfg_debug_sram_4_wr_latency_threshold,
-    input  logic [15:0] cfg_debug_sram_4_wr_axi_pkt_mask,
-    input  logic [15:0] cfg_debug_sram_4_wr_axi_err_select,
-    input  logic [15:0] cfg_debug_sram_4_wr_axi_error_mask,
-    input  logic [15:0] cfg_debug_sram_4_wr_axi_timeout_mask,
-    input  logic [15:0] cfg_debug_sram_4_wr_axi_compl_mask,
-    input  logic [15:0] cfg_debug_sram_4_wr_axi_thresh_mask,
-    input  logic [15:0] cfg_debug_sram_4_wr_axi_perf_mask,
-    input  logic [15:0] cfg_debug_sram_4_wr_axi_addr_mask,
-    input  logic [15:0] cfg_debug_sram_4_wr_axi_debug_mask,
-
-    // slave debug_sram (idx 4, rd)
-    input  logic         cfg_debug_sram_4_rd_monitor_enable,
-    input  logic         cfg_debug_sram_4_rd_error_enable,
-    input  logic         cfg_debug_sram_4_rd_timeout_enable,
-    input  logic         cfg_debug_sram_4_rd_perf_enable,
-    input  logic         cfg_debug_sram_4_rd_compl_enable,
-    input  logic         cfg_debug_sram_4_rd_threshold_enable,
-    input  logic         cfg_debug_sram_4_rd_debug_enable,
-    input  logic [15:0] cfg_debug_sram_4_rd_timeout_cycles,
-    input  logic [31:0] cfg_debug_sram_4_rd_latency_threshold,
-    input  logic [15:0] cfg_debug_sram_4_rd_axi_pkt_mask,
-    input  logic [15:0] cfg_debug_sram_4_rd_axi_err_select,
-    input  logic [15:0] cfg_debug_sram_4_rd_axi_error_mask,
-    input  logic [15:0] cfg_debug_sram_4_rd_axi_timeout_mask,
-    input  logic [15:0] cfg_debug_sram_4_rd_axi_compl_mask,
-    input  logic [15:0] cfg_debug_sram_4_rd_axi_thresh_mask,
-    input  logic [15:0] cfg_debug_sram_4_rd_axi_perf_mask,
-    input  logic [15:0] cfg_debug_sram_4_rd_axi_addr_mask,
-    input  logic [15:0] cfg_debug_sram_4_rd_axi_debug_mask,
-
-    // slave dma_axil (idx 5, wr)
-    input  logic         cfg_dma_axil_5_wr_monitor_enable,
-    input  logic         cfg_dma_axil_5_wr_error_enable,
-    input  logic         cfg_dma_axil_5_wr_timeout_enable,
-    input  logic         cfg_dma_axil_5_wr_perf_enable,
-    input  logic         cfg_dma_axil_5_wr_compl_enable,
-    input  logic         cfg_dma_axil_5_wr_threshold_enable,
-    input  logic         cfg_dma_axil_5_wr_debug_enable,
-    input  logic [15:0] cfg_dma_axil_5_wr_timeout_cycles,
-    input  logic [31:0] cfg_dma_axil_5_wr_latency_threshold,
-    input  logic [15:0] cfg_dma_axil_5_wr_axi_pkt_mask,
-    input  logic [15:0] cfg_dma_axil_5_wr_axi_err_select,
-    input  logic [15:0] cfg_dma_axil_5_wr_axi_error_mask,
-    input  logic [15:0] cfg_dma_axil_5_wr_axi_timeout_mask,
-    input  logic [15:0] cfg_dma_axil_5_wr_axi_compl_mask,
-    input  logic [15:0] cfg_dma_axil_5_wr_axi_thresh_mask,
-    input  logic [15:0] cfg_dma_axil_5_wr_axi_perf_mask,
-    input  logic [15:0] cfg_dma_axil_5_wr_axi_addr_mask,
-    input  logic [15:0] cfg_dma_axil_5_wr_axi_debug_mask,
-
-    // slave dma_axil (idx 5, rd)
-    input  logic         cfg_dma_axil_5_rd_monitor_enable,
-    input  logic         cfg_dma_axil_5_rd_error_enable,
-    input  logic         cfg_dma_axil_5_rd_timeout_enable,
-    input  logic         cfg_dma_axil_5_rd_perf_enable,
-    input  logic         cfg_dma_axil_5_rd_compl_enable,
-    input  logic         cfg_dma_axil_5_rd_threshold_enable,
-    input  logic         cfg_dma_axil_5_rd_debug_enable,
-    input  logic [15:0] cfg_dma_axil_5_rd_timeout_cycles,
-    input  logic [31:0] cfg_dma_axil_5_rd_latency_threshold,
-    input  logic [15:0] cfg_dma_axil_5_rd_axi_pkt_mask,
-    input  logic [15:0] cfg_dma_axil_5_rd_axi_err_select,
-    input  logic [15:0] cfg_dma_axil_5_rd_axi_error_mask,
-    input  logic [15:0] cfg_dma_axil_5_rd_axi_timeout_mask,
-    input  logic [15:0] cfg_dma_axil_5_rd_axi_compl_mask,
-    input  logic [15:0] cfg_dma_axil_5_rd_axi_thresh_mask,
-    input  logic [15:0] cfg_dma_axil_5_rd_axi_perf_mask,
-    input  logic [15:0] cfg_dma_axil_5_rd_axi_addr_mask,
-    input  logic [15:0] cfg_dma_axil_5_rd_axi_debug_mask,
+    input  logic        s_cfg_axil_awvalid,
+    output logic        s_cfg_axil_awready,
+    input  logic [31:0] s_cfg_axil_awaddr,
+    input  logic [2:0]  s_cfg_axil_awprot,
+    input  logic        s_cfg_axil_wvalid,
+    output logic        s_cfg_axil_wready,
+    input  logic [31:0] s_cfg_axil_wdata,
+    input  logic [3:0]  s_cfg_axil_wstrb,
+    output logic        s_cfg_axil_bvalid,
+    input  logic        s_cfg_axil_bready,
+    output logic [1:0]  s_cfg_axil_bresp,
+    input  logic        s_cfg_axil_arvalid,
+    output logic        s_cfg_axil_arready,
+    input  logic [31:0] s_cfg_axil_araddr,
+    input  logic [2:0]  s_cfg_axil_arprot,
+    output logic        s_cfg_axil_rvalid,
+    input  logic        s_cfg_axil_rready,
+    output logic [31:0] s_cfg_axil_rdata,
+    output logic [1:0]  s_cfg_axil_rresp,
 
     // ============================================================
     // monbus_axil_group access ports + config + IRQ
@@ -679,34 +339,6 @@ module bridge_stream_char_axil_mon #(
     output logic        m_mon_axil_bready,
     input  logic [1:0]  m_mon_axil_bresp,
 
-    // monbus_axil_group cfg
-    input  logic [31:0] cfg_mon_group_base_addr,
-    input  logic [31:0] cfg_mon_group_limit_addr,
-    input  logic [15:0] cfg_mon_group_axi_pkt_mask,
-    input  logic [15:0] cfg_mon_group_axi_err_select,
-    input  logic [15:0] cfg_mon_group_axi_error_mask,
-    input  logic [15:0] cfg_mon_group_axi_timeout_mask,
-    input  logic [15:0] cfg_mon_group_axi_compl_mask,
-    input  logic [15:0] cfg_mon_group_axi_thresh_mask,
-    input  logic [15:0] cfg_mon_group_axi_perf_mask,
-    input  logic [15:0] cfg_mon_group_axi_addr_mask,
-    input  logic [15:0] cfg_mon_group_axi_debug_mask,
-    input  logic [15:0] cfg_mon_group_axis_pkt_mask,
-    input  logic [15:0] cfg_mon_group_axis_err_select,
-    input  logic [15:0] cfg_mon_group_axis_error_mask,
-    input  logic [15:0] cfg_mon_group_axis_timeout_mask,
-    input  logic [15:0] cfg_mon_group_axis_compl_mask,
-    input  logic [15:0] cfg_mon_group_axis_credit_mask,
-    input  logic [15:0] cfg_mon_group_axis_channel_mask,
-    input  logic [15:0] cfg_mon_group_axis_stream_mask,
-    input  logic [15:0] cfg_mon_group_core_pkt_mask,
-    input  logic [15:0] cfg_mon_group_core_err_select,
-    input  logic [15:0] cfg_mon_group_core_error_mask,
-    input  logic [15:0] cfg_mon_group_core_timeout_mask,
-    input  logic [15:0] cfg_mon_group_core_compl_mask,
-    input  logic [15:0] cfg_mon_group_core_thresh_mask,
-    input  logic [15:0] cfg_mon_group_core_perf_mask,
-    input  logic [15:0] cfg_mon_group_core_debug_mask,
     // IRQ (asserted while error FIFO non-empty)
     output logic        mon_irq_out
 );
@@ -2878,6 +2510,797 @@ module bridge_stream_char_axil_mon #(
         .cfg_rd_axi_addr_mask(cfg_dma_axil_5_rd_axi_addr_mask),
         .cfg_rd_axi_debug_mask(cfg_dma_axil_5_rd_axi_debug_mask)
     );
+
+
+    // ============================================================
+    // Monitor cfg subsystem -- regblock + hwif_out fan-out (90.3)
+    // ============================================================
+    // cfg nets for master host (idx 0, wr)
+    logic         cfg_host_0_wr_monitor_enable;
+    logic         cfg_host_0_wr_error_enable;
+    logic         cfg_host_0_wr_timeout_enable;
+    logic         cfg_host_0_wr_perf_enable;
+    logic         cfg_host_0_wr_compl_enable;
+    logic         cfg_host_0_wr_threshold_enable;
+    logic         cfg_host_0_wr_debug_enable;
+    logic [15:0] cfg_host_0_wr_timeout_cycles;
+    logic [31:0] cfg_host_0_wr_latency_threshold;
+    logic [15:0] cfg_host_0_wr_axi_pkt_mask;
+    logic [15:0] cfg_host_0_wr_axi_err_select;
+    logic [15:0] cfg_host_0_wr_axi_error_mask;
+    logic [15:0] cfg_host_0_wr_axi_timeout_mask;
+    logic [15:0] cfg_host_0_wr_axi_compl_mask;
+    logic [15:0] cfg_host_0_wr_axi_thresh_mask;
+    logic [15:0] cfg_host_0_wr_axi_perf_mask;
+    logic [15:0] cfg_host_0_wr_axi_addr_mask;
+    logic [15:0] cfg_host_0_wr_axi_debug_mask;
+
+    // cfg nets for master host (idx 0, rd)
+    logic         cfg_host_0_rd_monitor_enable;
+    logic         cfg_host_0_rd_error_enable;
+    logic         cfg_host_0_rd_timeout_enable;
+    logic         cfg_host_0_rd_perf_enable;
+    logic         cfg_host_0_rd_compl_enable;
+    logic         cfg_host_0_rd_threshold_enable;
+    logic         cfg_host_0_rd_debug_enable;
+    logic [15:0] cfg_host_0_rd_timeout_cycles;
+    logic [31:0] cfg_host_0_rd_latency_threshold;
+    logic [15:0] cfg_host_0_rd_axi_pkt_mask;
+    logic [15:0] cfg_host_0_rd_axi_err_select;
+    logic [15:0] cfg_host_0_rd_axi_error_mask;
+    logic [15:0] cfg_host_0_rd_axi_timeout_mask;
+    logic [15:0] cfg_host_0_rd_axi_compl_mask;
+    logic [15:0] cfg_host_0_rd_axi_thresh_mask;
+    logic [15:0] cfg_host_0_rd_axi_perf_mask;
+    logic [15:0] cfg_host_0_rd_axi_addr_mask;
+    logic [15:0] cfg_host_0_rd_axi_debug_mask;
+
+    // cfg nets for master stream_desc (idx 1, wr)
+    logic         cfg_stream_desc_1_wr_monitor_enable;
+    logic         cfg_stream_desc_1_wr_error_enable;
+    logic         cfg_stream_desc_1_wr_timeout_enable;
+    logic         cfg_stream_desc_1_wr_perf_enable;
+    logic         cfg_stream_desc_1_wr_compl_enable;
+    logic         cfg_stream_desc_1_wr_threshold_enable;
+    logic         cfg_stream_desc_1_wr_debug_enable;
+    logic [15:0] cfg_stream_desc_1_wr_timeout_cycles;
+    logic [31:0] cfg_stream_desc_1_wr_latency_threshold;
+    logic [15:0] cfg_stream_desc_1_wr_axi_pkt_mask;
+    logic [15:0] cfg_stream_desc_1_wr_axi_err_select;
+    logic [15:0] cfg_stream_desc_1_wr_axi_error_mask;
+    logic [15:0] cfg_stream_desc_1_wr_axi_timeout_mask;
+    logic [15:0] cfg_stream_desc_1_wr_axi_compl_mask;
+    logic [15:0] cfg_stream_desc_1_wr_axi_thresh_mask;
+    logic [15:0] cfg_stream_desc_1_wr_axi_perf_mask;
+    logic [15:0] cfg_stream_desc_1_wr_axi_addr_mask;
+    logic [15:0] cfg_stream_desc_1_wr_axi_debug_mask;
+
+    // cfg nets for master stream_desc (idx 1, rd)
+    logic         cfg_stream_desc_1_rd_monitor_enable;
+    logic         cfg_stream_desc_1_rd_error_enable;
+    logic         cfg_stream_desc_1_rd_timeout_enable;
+    logic         cfg_stream_desc_1_rd_perf_enable;
+    logic         cfg_stream_desc_1_rd_compl_enable;
+    logic         cfg_stream_desc_1_rd_threshold_enable;
+    logic         cfg_stream_desc_1_rd_debug_enable;
+    logic [15:0] cfg_stream_desc_1_rd_timeout_cycles;
+    logic [31:0] cfg_stream_desc_1_rd_latency_threshold;
+    logic [15:0] cfg_stream_desc_1_rd_axi_pkt_mask;
+    logic [15:0] cfg_stream_desc_1_rd_axi_err_select;
+    logic [15:0] cfg_stream_desc_1_rd_axi_error_mask;
+    logic [15:0] cfg_stream_desc_1_rd_axi_timeout_mask;
+    logic [15:0] cfg_stream_desc_1_rd_axi_compl_mask;
+    logic [15:0] cfg_stream_desc_1_rd_axi_thresh_mask;
+    logic [15:0] cfg_stream_desc_1_rd_axi_perf_mask;
+    logic [15:0] cfg_stream_desc_1_rd_axi_addr_mask;
+    logic [15:0] cfg_stream_desc_1_rd_axi_debug_mask;
+
+    // cfg nets for master monbus_wr (idx 2, wr)
+    logic         cfg_monbus_wr_2_wr_monitor_enable;
+    logic         cfg_monbus_wr_2_wr_error_enable;
+    logic         cfg_monbus_wr_2_wr_timeout_enable;
+    logic         cfg_monbus_wr_2_wr_perf_enable;
+    logic         cfg_monbus_wr_2_wr_compl_enable;
+    logic         cfg_monbus_wr_2_wr_threshold_enable;
+    logic         cfg_monbus_wr_2_wr_debug_enable;
+    logic [15:0] cfg_monbus_wr_2_wr_timeout_cycles;
+    logic [31:0] cfg_monbus_wr_2_wr_latency_threshold;
+    logic [15:0] cfg_monbus_wr_2_wr_axi_pkt_mask;
+    logic [15:0] cfg_monbus_wr_2_wr_axi_err_select;
+    logic [15:0] cfg_monbus_wr_2_wr_axi_error_mask;
+    logic [15:0] cfg_monbus_wr_2_wr_axi_timeout_mask;
+    logic [15:0] cfg_monbus_wr_2_wr_axi_compl_mask;
+    logic [15:0] cfg_monbus_wr_2_wr_axi_thresh_mask;
+    logic [15:0] cfg_monbus_wr_2_wr_axi_perf_mask;
+    logic [15:0] cfg_monbus_wr_2_wr_axi_addr_mask;
+    logic [15:0] cfg_monbus_wr_2_wr_axi_debug_mask;
+
+    // cfg nets for master monbus_wr (idx 2, rd)
+    logic         cfg_monbus_wr_2_rd_monitor_enable;
+    logic         cfg_monbus_wr_2_rd_error_enable;
+    logic         cfg_monbus_wr_2_rd_timeout_enable;
+    logic         cfg_monbus_wr_2_rd_perf_enable;
+    logic         cfg_monbus_wr_2_rd_compl_enable;
+    logic         cfg_monbus_wr_2_rd_threshold_enable;
+    logic         cfg_monbus_wr_2_rd_debug_enable;
+    logic [15:0] cfg_monbus_wr_2_rd_timeout_cycles;
+    logic [31:0] cfg_monbus_wr_2_rd_latency_threshold;
+    logic [15:0] cfg_monbus_wr_2_rd_axi_pkt_mask;
+    logic [15:0] cfg_monbus_wr_2_rd_axi_err_select;
+    logic [15:0] cfg_monbus_wr_2_rd_axi_error_mask;
+    logic [15:0] cfg_monbus_wr_2_rd_axi_timeout_mask;
+    logic [15:0] cfg_monbus_wr_2_rd_axi_compl_mask;
+    logic [15:0] cfg_monbus_wr_2_rd_axi_thresh_mask;
+    logic [15:0] cfg_monbus_wr_2_rd_axi_perf_mask;
+    logic [15:0] cfg_monbus_wr_2_rd_axi_addr_mask;
+    logic [15:0] cfg_monbus_wr_2_rd_axi_debug_mask;
+
+    // cfg nets for slave stream_apb (idx 0, wr)
+    logic         cfg_stream_apb_0_wr_monitor_enable;
+    logic         cfg_stream_apb_0_wr_error_enable;
+    logic         cfg_stream_apb_0_wr_timeout_enable;
+    logic         cfg_stream_apb_0_wr_perf_enable;
+    logic         cfg_stream_apb_0_wr_compl_enable;
+    logic         cfg_stream_apb_0_wr_threshold_enable;
+    logic         cfg_stream_apb_0_wr_debug_enable;
+    logic [15:0] cfg_stream_apb_0_wr_timeout_cycles;
+    logic [31:0] cfg_stream_apb_0_wr_latency_threshold;
+    logic [15:0] cfg_stream_apb_0_wr_axi_pkt_mask;
+    logic [15:0] cfg_stream_apb_0_wr_axi_err_select;
+    logic [15:0] cfg_stream_apb_0_wr_axi_error_mask;
+    logic [15:0] cfg_stream_apb_0_wr_axi_timeout_mask;
+    logic [15:0] cfg_stream_apb_0_wr_axi_compl_mask;
+    logic [15:0] cfg_stream_apb_0_wr_axi_thresh_mask;
+    logic [15:0] cfg_stream_apb_0_wr_axi_perf_mask;
+    logic [15:0] cfg_stream_apb_0_wr_axi_addr_mask;
+    logic [15:0] cfg_stream_apb_0_wr_axi_debug_mask;
+
+    // cfg nets for slave stream_apb (idx 0, rd)
+    logic         cfg_stream_apb_0_rd_monitor_enable;
+    logic         cfg_stream_apb_0_rd_error_enable;
+    logic         cfg_stream_apb_0_rd_timeout_enable;
+    logic         cfg_stream_apb_0_rd_perf_enable;
+    logic         cfg_stream_apb_0_rd_compl_enable;
+    logic         cfg_stream_apb_0_rd_threshold_enable;
+    logic         cfg_stream_apb_0_rd_debug_enable;
+    logic [15:0] cfg_stream_apb_0_rd_timeout_cycles;
+    logic [31:0] cfg_stream_apb_0_rd_latency_threshold;
+    logic [15:0] cfg_stream_apb_0_rd_axi_pkt_mask;
+    logic [15:0] cfg_stream_apb_0_rd_axi_err_select;
+    logic [15:0] cfg_stream_apb_0_rd_axi_error_mask;
+    logic [15:0] cfg_stream_apb_0_rd_axi_timeout_mask;
+    logic [15:0] cfg_stream_apb_0_rd_axi_compl_mask;
+    logic [15:0] cfg_stream_apb_0_rd_axi_thresh_mask;
+    logic [15:0] cfg_stream_apb_0_rd_axi_perf_mask;
+    logic [15:0] cfg_stream_apb_0_rd_axi_addr_mask;
+    logic [15:0] cfg_stream_apb_0_rd_axi_debug_mask;
+
+    // cfg nets for slave harness_csr (idx 1, wr)
+    logic         cfg_harness_csr_1_wr_monitor_enable;
+    logic         cfg_harness_csr_1_wr_error_enable;
+    logic         cfg_harness_csr_1_wr_timeout_enable;
+    logic         cfg_harness_csr_1_wr_perf_enable;
+    logic         cfg_harness_csr_1_wr_compl_enable;
+    logic         cfg_harness_csr_1_wr_threshold_enable;
+    logic         cfg_harness_csr_1_wr_debug_enable;
+    logic [15:0] cfg_harness_csr_1_wr_timeout_cycles;
+    logic [31:0] cfg_harness_csr_1_wr_latency_threshold;
+    logic [15:0] cfg_harness_csr_1_wr_axi_pkt_mask;
+    logic [15:0] cfg_harness_csr_1_wr_axi_err_select;
+    logic [15:0] cfg_harness_csr_1_wr_axi_error_mask;
+    logic [15:0] cfg_harness_csr_1_wr_axi_timeout_mask;
+    logic [15:0] cfg_harness_csr_1_wr_axi_compl_mask;
+    logic [15:0] cfg_harness_csr_1_wr_axi_thresh_mask;
+    logic [15:0] cfg_harness_csr_1_wr_axi_perf_mask;
+    logic [15:0] cfg_harness_csr_1_wr_axi_addr_mask;
+    logic [15:0] cfg_harness_csr_1_wr_axi_debug_mask;
+
+    // cfg nets for slave harness_csr (idx 1, rd)
+    logic         cfg_harness_csr_1_rd_monitor_enable;
+    logic         cfg_harness_csr_1_rd_error_enable;
+    logic         cfg_harness_csr_1_rd_timeout_enable;
+    logic         cfg_harness_csr_1_rd_perf_enable;
+    logic         cfg_harness_csr_1_rd_compl_enable;
+    logic         cfg_harness_csr_1_rd_threshold_enable;
+    logic         cfg_harness_csr_1_rd_debug_enable;
+    logic [15:0] cfg_harness_csr_1_rd_timeout_cycles;
+    logic [31:0] cfg_harness_csr_1_rd_latency_threshold;
+    logic [15:0] cfg_harness_csr_1_rd_axi_pkt_mask;
+    logic [15:0] cfg_harness_csr_1_rd_axi_err_select;
+    logic [15:0] cfg_harness_csr_1_rd_axi_error_mask;
+    logic [15:0] cfg_harness_csr_1_rd_axi_timeout_mask;
+    logic [15:0] cfg_harness_csr_1_rd_axi_compl_mask;
+    logic [15:0] cfg_harness_csr_1_rd_axi_thresh_mask;
+    logic [15:0] cfg_harness_csr_1_rd_axi_perf_mask;
+    logic [15:0] cfg_harness_csr_1_rd_axi_addr_mask;
+    logic [15:0] cfg_harness_csr_1_rd_axi_debug_mask;
+
+    // cfg nets for slave desc_ram (idx 2, wr)
+    logic         cfg_desc_ram_2_wr_monitor_enable;
+    logic         cfg_desc_ram_2_wr_error_enable;
+    logic         cfg_desc_ram_2_wr_timeout_enable;
+    logic         cfg_desc_ram_2_wr_perf_enable;
+    logic         cfg_desc_ram_2_wr_compl_enable;
+    logic         cfg_desc_ram_2_wr_threshold_enable;
+    logic         cfg_desc_ram_2_wr_debug_enable;
+    logic [15:0] cfg_desc_ram_2_wr_timeout_cycles;
+    logic [31:0] cfg_desc_ram_2_wr_latency_threshold;
+    logic [15:0] cfg_desc_ram_2_wr_axi_pkt_mask;
+    logic [15:0] cfg_desc_ram_2_wr_axi_err_select;
+    logic [15:0] cfg_desc_ram_2_wr_axi_error_mask;
+    logic [15:0] cfg_desc_ram_2_wr_axi_timeout_mask;
+    logic [15:0] cfg_desc_ram_2_wr_axi_compl_mask;
+    logic [15:0] cfg_desc_ram_2_wr_axi_thresh_mask;
+    logic [15:0] cfg_desc_ram_2_wr_axi_perf_mask;
+    logic [15:0] cfg_desc_ram_2_wr_axi_addr_mask;
+    logic [15:0] cfg_desc_ram_2_wr_axi_debug_mask;
+
+    // cfg nets for slave desc_ram (idx 2, rd)
+    logic         cfg_desc_ram_2_rd_monitor_enable;
+    logic         cfg_desc_ram_2_rd_error_enable;
+    logic         cfg_desc_ram_2_rd_timeout_enable;
+    logic         cfg_desc_ram_2_rd_perf_enable;
+    logic         cfg_desc_ram_2_rd_compl_enable;
+    logic         cfg_desc_ram_2_rd_threshold_enable;
+    logic         cfg_desc_ram_2_rd_debug_enable;
+    logic [15:0] cfg_desc_ram_2_rd_timeout_cycles;
+    logic [31:0] cfg_desc_ram_2_rd_latency_threshold;
+    logic [15:0] cfg_desc_ram_2_rd_axi_pkt_mask;
+    logic [15:0] cfg_desc_ram_2_rd_axi_err_select;
+    logic [15:0] cfg_desc_ram_2_rd_axi_error_mask;
+    logic [15:0] cfg_desc_ram_2_rd_axi_timeout_mask;
+    logic [15:0] cfg_desc_ram_2_rd_axi_compl_mask;
+    logic [15:0] cfg_desc_ram_2_rd_axi_thresh_mask;
+    logic [15:0] cfg_desc_ram_2_rd_axi_perf_mask;
+    logic [15:0] cfg_desc_ram_2_rd_axi_addr_mask;
+    logic [15:0] cfg_desc_ram_2_rd_axi_debug_mask;
+
+    // cfg nets for slave stream_err (idx 3, wr)
+    logic         cfg_stream_err_3_wr_monitor_enable;
+    logic         cfg_stream_err_3_wr_error_enable;
+    logic         cfg_stream_err_3_wr_timeout_enable;
+    logic         cfg_stream_err_3_wr_perf_enable;
+    logic         cfg_stream_err_3_wr_compl_enable;
+    logic         cfg_stream_err_3_wr_threshold_enable;
+    logic         cfg_stream_err_3_wr_debug_enable;
+    logic [15:0] cfg_stream_err_3_wr_timeout_cycles;
+    logic [31:0] cfg_stream_err_3_wr_latency_threshold;
+    logic [15:0] cfg_stream_err_3_wr_axi_pkt_mask;
+    logic [15:0] cfg_stream_err_3_wr_axi_err_select;
+    logic [15:0] cfg_stream_err_3_wr_axi_error_mask;
+    logic [15:0] cfg_stream_err_3_wr_axi_timeout_mask;
+    logic [15:0] cfg_stream_err_3_wr_axi_compl_mask;
+    logic [15:0] cfg_stream_err_3_wr_axi_thresh_mask;
+    logic [15:0] cfg_stream_err_3_wr_axi_perf_mask;
+    logic [15:0] cfg_stream_err_3_wr_axi_addr_mask;
+    logic [15:0] cfg_stream_err_3_wr_axi_debug_mask;
+
+    // cfg nets for slave stream_err (idx 3, rd)
+    logic         cfg_stream_err_3_rd_monitor_enable;
+    logic         cfg_stream_err_3_rd_error_enable;
+    logic         cfg_stream_err_3_rd_timeout_enable;
+    logic         cfg_stream_err_3_rd_perf_enable;
+    logic         cfg_stream_err_3_rd_compl_enable;
+    logic         cfg_stream_err_3_rd_threshold_enable;
+    logic         cfg_stream_err_3_rd_debug_enable;
+    logic [15:0] cfg_stream_err_3_rd_timeout_cycles;
+    logic [31:0] cfg_stream_err_3_rd_latency_threshold;
+    logic [15:0] cfg_stream_err_3_rd_axi_pkt_mask;
+    logic [15:0] cfg_stream_err_3_rd_axi_err_select;
+    logic [15:0] cfg_stream_err_3_rd_axi_error_mask;
+    logic [15:0] cfg_stream_err_3_rd_axi_timeout_mask;
+    logic [15:0] cfg_stream_err_3_rd_axi_compl_mask;
+    logic [15:0] cfg_stream_err_3_rd_axi_thresh_mask;
+    logic [15:0] cfg_stream_err_3_rd_axi_perf_mask;
+    logic [15:0] cfg_stream_err_3_rd_axi_addr_mask;
+    logic [15:0] cfg_stream_err_3_rd_axi_debug_mask;
+
+    // cfg nets for slave debug_sram (idx 4, wr)
+    logic         cfg_debug_sram_4_wr_monitor_enable;
+    logic         cfg_debug_sram_4_wr_error_enable;
+    logic         cfg_debug_sram_4_wr_timeout_enable;
+    logic         cfg_debug_sram_4_wr_perf_enable;
+    logic         cfg_debug_sram_4_wr_compl_enable;
+    logic         cfg_debug_sram_4_wr_threshold_enable;
+    logic         cfg_debug_sram_4_wr_debug_enable;
+    logic [15:0] cfg_debug_sram_4_wr_timeout_cycles;
+    logic [31:0] cfg_debug_sram_4_wr_latency_threshold;
+    logic [15:0] cfg_debug_sram_4_wr_axi_pkt_mask;
+    logic [15:0] cfg_debug_sram_4_wr_axi_err_select;
+    logic [15:0] cfg_debug_sram_4_wr_axi_error_mask;
+    logic [15:0] cfg_debug_sram_4_wr_axi_timeout_mask;
+    logic [15:0] cfg_debug_sram_4_wr_axi_compl_mask;
+    logic [15:0] cfg_debug_sram_4_wr_axi_thresh_mask;
+    logic [15:0] cfg_debug_sram_4_wr_axi_perf_mask;
+    logic [15:0] cfg_debug_sram_4_wr_axi_addr_mask;
+    logic [15:0] cfg_debug_sram_4_wr_axi_debug_mask;
+
+    // cfg nets for slave debug_sram (idx 4, rd)
+    logic         cfg_debug_sram_4_rd_monitor_enable;
+    logic         cfg_debug_sram_4_rd_error_enable;
+    logic         cfg_debug_sram_4_rd_timeout_enable;
+    logic         cfg_debug_sram_4_rd_perf_enable;
+    logic         cfg_debug_sram_4_rd_compl_enable;
+    logic         cfg_debug_sram_4_rd_threshold_enable;
+    logic         cfg_debug_sram_4_rd_debug_enable;
+    logic [15:0] cfg_debug_sram_4_rd_timeout_cycles;
+    logic [31:0] cfg_debug_sram_4_rd_latency_threshold;
+    logic [15:0] cfg_debug_sram_4_rd_axi_pkt_mask;
+    logic [15:0] cfg_debug_sram_4_rd_axi_err_select;
+    logic [15:0] cfg_debug_sram_4_rd_axi_error_mask;
+    logic [15:0] cfg_debug_sram_4_rd_axi_timeout_mask;
+    logic [15:0] cfg_debug_sram_4_rd_axi_compl_mask;
+    logic [15:0] cfg_debug_sram_4_rd_axi_thresh_mask;
+    logic [15:0] cfg_debug_sram_4_rd_axi_perf_mask;
+    logic [15:0] cfg_debug_sram_4_rd_axi_addr_mask;
+    logic [15:0] cfg_debug_sram_4_rd_axi_debug_mask;
+
+    // cfg nets for slave dma_axil (idx 5, wr)
+    logic         cfg_dma_axil_5_wr_monitor_enable;
+    logic         cfg_dma_axil_5_wr_error_enable;
+    logic         cfg_dma_axil_5_wr_timeout_enable;
+    logic         cfg_dma_axil_5_wr_perf_enable;
+    logic         cfg_dma_axil_5_wr_compl_enable;
+    logic         cfg_dma_axil_5_wr_threshold_enable;
+    logic         cfg_dma_axil_5_wr_debug_enable;
+    logic [15:0] cfg_dma_axil_5_wr_timeout_cycles;
+    logic [31:0] cfg_dma_axil_5_wr_latency_threshold;
+    logic [15:0] cfg_dma_axil_5_wr_axi_pkt_mask;
+    logic [15:0] cfg_dma_axil_5_wr_axi_err_select;
+    logic [15:0] cfg_dma_axil_5_wr_axi_error_mask;
+    logic [15:0] cfg_dma_axil_5_wr_axi_timeout_mask;
+    logic [15:0] cfg_dma_axil_5_wr_axi_compl_mask;
+    logic [15:0] cfg_dma_axil_5_wr_axi_thresh_mask;
+    logic [15:0] cfg_dma_axil_5_wr_axi_perf_mask;
+    logic [15:0] cfg_dma_axil_5_wr_axi_addr_mask;
+    logic [15:0] cfg_dma_axil_5_wr_axi_debug_mask;
+
+    // cfg nets for slave dma_axil (idx 5, rd)
+    logic         cfg_dma_axil_5_rd_monitor_enable;
+    logic         cfg_dma_axil_5_rd_error_enable;
+    logic         cfg_dma_axil_5_rd_timeout_enable;
+    logic         cfg_dma_axil_5_rd_perf_enable;
+    logic         cfg_dma_axil_5_rd_compl_enable;
+    logic         cfg_dma_axil_5_rd_threshold_enable;
+    logic         cfg_dma_axil_5_rd_debug_enable;
+    logic [15:0] cfg_dma_axil_5_rd_timeout_cycles;
+    logic [31:0] cfg_dma_axil_5_rd_latency_threshold;
+    logic [15:0] cfg_dma_axil_5_rd_axi_pkt_mask;
+    logic [15:0] cfg_dma_axil_5_rd_axi_err_select;
+    logic [15:0] cfg_dma_axil_5_rd_axi_error_mask;
+    logic [15:0] cfg_dma_axil_5_rd_axi_timeout_mask;
+    logic [15:0] cfg_dma_axil_5_rd_axi_compl_mask;
+    logic [15:0] cfg_dma_axil_5_rd_axi_thresh_mask;
+    logic [15:0] cfg_dma_axil_5_rd_axi_perf_mask;
+    logic [15:0] cfg_dma_axil_5_rd_axi_addr_mask;
+    logic [15:0] cfg_dma_axil_5_rd_axi_debug_mask;
+
+    // cfg_mon_group_* nets
+    logic [31:0] cfg_mon_group_base_addr;
+    logic [31:0] cfg_mon_group_limit_addr;
+    logic [15:0] cfg_mon_group_axi_pkt_mask;
+    logic [15:0] cfg_mon_group_axi_err_select;
+    logic [15:0] cfg_mon_group_axi_error_mask;
+    logic [15:0] cfg_mon_group_axi_timeout_mask;
+    logic [15:0] cfg_mon_group_axi_compl_mask;
+    logic [15:0] cfg_mon_group_axi_thresh_mask;
+    logic [15:0] cfg_mon_group_axi_perf_mask;
+    logic [15:0] cfg_mon_group_axi_addr_mask;
+    logic [15:0] cfg_mon_group_axi_debug_mask;
+    logic [15:0] cfg_mon_group_axis_pkt_mask;
+    logic [15:0] cfg_mon_group_axis_err_select;
+    logic [15:0] cfg_mon_group_axis_error_mask;
+    logic [15:0] cfg_mon_group_axis_timeout_mask;
+    logic [15:0] cfg_mon_group_axis_compl_mask;
+    logic [15:0] cfg_mon_group_axis_credit_mask;
+    logic [15:0] cfg_mon_group_axis_channel_mask;
+    logic [15:0] cfg_mon_group_axis_stream_mask;
+    logic [15:0] cfg_mon_group_core_pkt_mask;
+    logic [15:0] cfg_mon_group_core_err_select;
+    logic [15:0] cfg_mon_group_core_error_mask;
+    logic [15:0] cfg_mon_group_core_timeout_mask;
+    logic [15:0] cfg_mon_group_core_compl_mask;
+    logic [15:0] cfg_mon_group_core_thresh_mask;
+    logic [15:0] cfg_mon_group_core_perf_mask;
+    logic [15:0] cfg_mon_group_core_debug_mask;
+
+    bridge_stream_char_axil_mon_cfg_pkg::bridge_stream_char_axil_mon_cfg__out_t hwif_out;
+    bridge_stream_char_axil_mon_cfg u_bridge_cfg (
+        .clk            (aclk),
+        .rst            (~aresetn),
+        .s_axil_awvalid (s_cfg_axil_awvalid),
+        .s_axil_awready (s_cfg_axil_awready),
+        .s_axil_awaddr  (s_cfg_axil_awaddr),
+        .s_axil_awprot  (s_cfg_axil_awprot),
+        .s_axil_wvalid  (s_cfg_axil_wvalid),
+        .s_axil_wready  (s_cfg_axil_wready),
+        .s_axil_wdata   (s_cfg_axil_wdata),
+        .s_axil_wstrb   (s_cfg_axil_wstrb),
+        .s_axil_bvalid  (s_cfg_axil_bvalid),
+        .s_axil_bready  (s_cfg_axil_bready),
+        .s_axil_bresp   (s_cfg_axil_bresp),
+        .s_axil_arvalid (s_cfg_axil_arvalid),
+        .s_axil_arready (s_cfg_axil_arready),
+        .s_axil_araddr  (s_cfg_axil_araddr),
+        .s_axil_arprot  (s_cfg_axil_arprot),
+        .s_axil_rvalid  (s_cfg_axil_rvalid),
+        .s_axil_rready  (s_cfg_axil_rready),
+        .s_axil_rdata   (s_cfg_axil_rdata),
+        .s_axil_rresp   (s_cfg_axil_rresp),
+        .hwif_out       (hwif_out)
+    );
+
+    // Fan out regblock outputs to per-port cfg nets
+    assign cfg_host_0_wr_monitor_enable = hwif_out.HOST_0_WR_CTRL.monitor_enable.value;
+    assign cfg_host_0_wr_error_enable = hwif_out.HOST_0_WR_CTRL.error_enable.value;
+    assign cfg_host_0_wr_timeout_enable = hwif_out.HOST_0_WR_CTRL.timeout_enable.value;
+    assign cfg_host_0_wr_perf_enable = hwif_out.HOST_0_WR_CTRL.perf_enable.value;
+    assign cfg_host_0_wr_compl_enable = hwif_out.HOST_0_WR_CTRL.compl_enable.value;
+    assign cfg_host_0_wr_threshold_enable = hwif_out.HOST_0_WR_CTRL.threshold_enable.value;
+    assign cfg_host_0_wr_debug_enable = hwif_out.HOST_0_WR_CTRL.debug_enable.value;
+    assign cfg_host_0_wr_timeout_cycles = hwif_out.HOST_0_WR_CTRL.timeout_cycles.value;
+    assign cfg_host_0_wr_latency_threshold = hwif_out.HOST_0_WR_LATENCY.latency_threshold.value;
+    assign cfg_host_0_wr_axi_pkt_mask = hwif_out.HOST_0_WR_MASKS_A.axi_pkt_mask.value;
+    assign cfg_host_0_wr_axi_err_select = hwif_out.HOST_0_WR_MASKS_A.axi_err_select.value;
+    assign cfg_host_0_wr_axi_error_mask = hwif_out.HOST_0_WR_MASKS_B.axi_error_mask.value;
+    assign cfg_host_0_wr_axi_timeout_mask = hwif_out.HOST_0_WR_MASKS_B.axi_timeout_mask.value;
+    assign cfg_host_0_wr_axi_compl_mask = hwif_out.HOST_0_WR_MASKS_C.axi_compl_mask.value;
+    assign cfg_host_0_wr_axi_thresh_mask = hwif_out.HOST_0_WR_MASKS_C.axi_thresh_mask.value;
+    assign cfg_host_0_wr_axi_perf_mask = hwif_out.HOST_0_WR_MASKS_D.axi_perf_mask.value;
+    assign cfg_host_0_wr_axi_addr_mask = hwif_out.HOST_0_WR_MASKS_D.axi_addr_mask.value;
+    assign cfg_host_0_wr_axi_debug_mask = hwif_out.HOST_0_WR_MASKS_E.axi_debug_mask.value;
+
+    assign cfg_host_0_rd_monitor_enable = hwif_out.HOST_0_RD_CTRL.monitor_enable.value;
+    assign cfg_host_0_rd_error_enable = hwif_out.HOST_0_RD_CTRL.error_enable.value;
+    assign cfg_host_0_rd_timeout_enable = hwif_out.HOST_0_RD_CTRL.timeout_enable.value;
+    assign cfg_host_0_rd_perf_enable = hwif_out.HOST_0_RD_CTRL.perf_enable.value;
+    assign cfg_host_0_rd_compl_enable = hwif_out.HOST_0_RD_CTRL.compl_enable.value;
+    assign cfg_host_0_rd_threshold_enable = hwif_out.HOST_0_RD_CTRL.threshold_enable.value;
+    assign cfg_host_0_rd_debug_enable = hwif_out.HOST_0_RD_CTRL.debug_enable.value;
+    assign cfg_host_0_rd_timeout_cycles = hwif_out.HOST_0_RD_CTRL.timeout_cycles.value;
+    assign cfg_host_0_rd_latency_threshold = hwif_out.HOST_0_RD_LATENCY.latency_threshold.value;
+    assign cfg_host_0_rd_axi_pkt_mask = hwif_out.HOST_0_RD_MASKS_A.axi_pkt_mask.value;
+    assign cfg_host_0_rd_axi_err_select = hwif_out.HOST_0_RD_MASKS_A.axi_err_select.value;
+    assign cfg_host_0_rd_axi_error_mask = hwif_out.HOST_0_RD_MASKS_B.axi_error_mask.value;
+    assign cfg_host_0_rd_axi_timeout_mask = hwif_out.HOST_0_RD_MASKS_B.axi_timeout_mask.value;
+    assign cfg_host_0_rd_axi_compl_mask = hwif_out.HOST_0_RD_MASKS_C.axi_compl_mask.value;
+    assign cfg_host_0_rd_axi_thresh_mask = hwif_out.HOST_0_RD_MASKS_C.axi_thresh_mask.value;
+    assign cfg_host_0_rd_axi_perf_mask = hwif_out.HOST_0_RD_MASKS_D.axi_perf_mask.value;
+    assign cfg_host_0_rd_axi_addr_mask = hwif_out.HOST_0_RD_MASKS_D.axi_addr_mask.value;
+    assign cfg_host_0_rd_axi_debug_mask = hwif_out.HOST_0_RD_MASKS_E.axi_debug_mask.value;
+
+    assign cfg_stream_desc_1_wr_monitor_enable = hwif_out.STREAM_DESC_1_WR_CTRL.monitor_enable.value;
+    assign cfg_stream_desc_1_wr_error_enable = hwif_out.STREAM_DESC_1_WR_CTRL.error_enable.value;
+    assign cfg_stream_desc_1_wr_timeout_enable = hwif_out.STREAM_DESC_1_WR_CTRL.timeout_enable.value;
+    assign cfg_stream_desc_1_wr_perf_enable = hwif_out.STREAM_DESC_1_WR_CTRL.perf_enable.value;
+    assign cfg_stream_desc_1_wr_compl_enable = hwif_out.STREAM_DESC_1_WR_CTRL.compl_enable.value;
+    assign cfg_stream_desc_1_wr_threshold_enable = hwif_out.STREAM_DESC_1_WR_CTRL.threshold_enable.value;
+    assign cfg_stream_desc_1_wr_debug_enable = hwif_out.STREAM_DESC_1_WR_CTRL.debug_enable.value;
+    assign cfg_stream_desc_1_wr_timeout_cycles = hwif_out.STREAM_DESC_1_WR_CTRL.timeout_cycles.value;
+    assign cfg_stream_desc_1_wr_latency_threshold = hwif_out.STREAM_DESC_1_WR_LATENCY.latency_threshold.value;
+    assign cfg_stream_desc_1_wr_axi_pkt_mask = hwif_out.STREAM_DESC_1_WR_MASKS_A.axi_pkt_mask.value;
+    assign cfg_stream_desc_1_wr_axi_err_select = hwif_out.STREAM_DESC_1_WR_MASKS_A.axi_err_select.value;
+    assign cfg_stream_desc_1_wr_axi_error_mask = hwif_out.STREAM_DESC_1_WR_MASKS_B.axi_error_mask.value;
+    assign cfg_stream_desc_1_wr_axi_timeout_mask = hwif_out.STREAM_DESC_1_WR_MASKS_B.axi_timeout_mask.value;
+    assign cfg_stream_desc_1_wr_axi_compl_mask = hwif_out.STREAM_DESC_1_WR_MASKS_C.axi_compl_mask.value;
+    assign cfg_stream_desc_1_wr_axi_thresh_mask = hwif_out.STREAM_DESC_1_WR_MASKS_C.axi_thresh_mask.value;
+    assign cfg_stream_desc_1_wr_axi_perf_mask = hwif_out.STREAM_DESC_1_WR_MASKS_D.axi_perf_mask.value;
+    assign cfg_stream_desc_1_wr_axi_addr_mask = hwif_out.STREAM_DESC_1_WR_MASKS_D.axi_addr_mask.value;
+    assign cfg_stream_desc_1_wr_axi_debug_mask = hwif_out.STREAM_DESC_1_WR_MASKS_E.axi_debug_mask.value;
+
+    assign cfg_stream_desc_1_rd_monitor_enable = hwif_out.STREAM_DESC_1_RD_CTRL.monitor_enable.value;
+    assign cfg_stream_desc_1_rd_error_enable = hwif_out.STREAM_DESC_1_RD_CTRL.error_enable.value;
+    assign cfg_stream_desc_1_rd_timeout_enable = hwif_out.STREAM_DESC_1_RD_CTRL.timeout_enable.value;
+    assign cfg_stream_desc_1_rd_perf_enable = hwif_out.STREAM_DESC_1_RD_CTRL.perf_enable.value;
+    assign cfg_stream_desc_1_rd_compl_enable = hwif_out.STREAM_DESC_1_RD_CTRL.compl_enable.value;
+    assign cfg_stream_desc_1_rd_threshold_enable = hwif_out.STREAM_DESC_1_RD_CTRL.threshold_enable.value;
+    assign cfg_stream_desc_1_rd_debug_enable = hwif_out.STREAM_DESC_1_RD_CTRL.debug_enable.value;
+    assign cfg_stream_desc_1_rd_timeout_cycles = hwif_out.STREAM_DESC_1_RD_CTRL.timeout_cycles.value;
+    assign cfg_stream_desc_1_rd_latency_threshold = hwif_out.STREAM_DESC_1_RD_LATENCY.latency_threshold.value;
+    assign cfg_stream_desc_1_rd_axi_pkt_mask = hwif_out.STREAM_DESC_1_RD_MASKS_A.axi_pkt_mask.value;
+    assign cfg_stream_desc_1_rd_axi_err_select = hwif_out.STREAM_DESC_1_RD_MASKS_A.axi_err_select.value;
+    assign cfg_stream_desc_1_rd_axi_error_mask = hwif_out.STREAM_DESC_1_RD_MASKS_B.axi_error_mask.value;
+    assign cfg_stream_desc_1_rd_axi_timeout_mask = hwif_out.STREAM_DESC_1_RD_MASKS_B.axi_timeout_mask.value;
+    assign cfg_stream_desc_1_rd_axi_compl_mask = hwif_out.STREAM_DESC_1_RD_MASKS_C.axi_compl_mask.value;
+    assign cfg_stream_desc_1_rd_axi_thresh_mask = hwif_out.STREAM_DESC_1_RD_MASKS_C.axi_thresh_mask.value;
+    assign cfg_stream_desc_1_rd_axi_perf_mask = hwif_out.STREAM_DESC_1_RD_MASKS_D.axi_perf_mask.value;
+    assign cfg_stream_desc_1_rd_axi_addr_mask = hwif_out.STREAM_DESC_1_RD_MASKS_D.axi_addr_mask.value;
+    assign cfg_stream_desc_1_rd_axi_debug_mask = hwif_out.STREAM_DESC_1_RD_MASKS_E.axi_debug_mask.value;
+
+    assign cfg_monbus_wr_2_wr_monitor_enable = hwif_out.MONBUS_WR_2_WR_CTRL.monitor_enable.value;
+    assign cfg_monbus_wr_2_wr_error_enable = hwif_out.MONBUS_WR_2_WR_CTRL.error_enable.value;
+    assign cfg_monbus_wr_2_wr_timeout_enable = hwif_out.MONBUS_WR_2_WR_CTRL.timeout_enable.value;
+    assign cfg_monbus_wr_2_wr_perf_enable = hwif_out.MONBUS_WR_2_WR_CTRL.perf_enable.value;
+    assign cfg_monbus_wr_2_wr_compl_enable = hwif_out.MONBUS_WR_2_WR_CTRL.compl_enable.value;
+    assign cfg_monbus_wr_2_wr_threshold_enable = hwif_out.MONBUS_WR_2_WR_CTRL.threshold_enable.value;
+    assign cfg_monbus_wr_2_wr_debug_enable = hwif_out.MONBUS_WR_2_WR_CTRL.debug_enable.value;
+    assign cfg_monbus_wr_2_wr_timeout_cycles = hwif_out.MONBUS_WR_2_WR_CTRL.timeout_cycles.value;
+    assign cfg_monbus_wr_2_wr_latency_threshold = hwif_out.MONBUS_WR_2_WR_LATENCY.latency_threshold.value;
+    assign cfg_monbus_wr_2_wr_axi_pkt_mask = hwif_out.MONBUS_WR_2_WR_MASKS_A.axi_pkt_mask.value;
+    assign cfg_monbus_wr_2_wr_axi_err_select = hwif_out.MONBUS_WR_2_WR_MASKS_A.axi_err_select.value;
+    assign cfg_monbus_wr_2_wr_axi_error_mask = hwif_out.MONBUS_WR_2_WR_MASKS_B.axi_error_mask.value;
+    assign cfg_monbus_wr_2_wr_axi_timeout_mask = hwif_out.MONBUS_WR_2_WR_MASKS_B.axi_timeout_mask.value;
+    assign cfg_monbus_wr_2_wr_axi_compl_mask = hwif_out.MONBUS_WR_2_WR_MASKS_C.axi_compl_mask.value;
+    assign cfg_monbus_wr_2_wr_axi_thresh_mask = hwif_out.MONBUS_WR_2_WR_MASKS_C.axi_thresh_mask.value;
+    assign cfg_monbus_wr_2_wr_axi_perf_mask = hwif_out.MONBUS_WR_2_WR_MASKS_D.axi_perf_mask.value;
+    assign cfg_monbus_wr_2_wr_axi_addr_mask = hwif_out.MONBUS_WR_2_WR_MASKS_D.axi_addr_mask.value;
+    assign cfg_monbus_wr_2_wr_axi_debug_mask = hwif_out.MONBUS_WR_2_WR_MASKS_E.axi_debug_mask.value;
+
+    assign cfg_monbus_wr_2_rd_monitor_enable = hwif_out.MONBUS_WR_2_RD_CTRL.monitor_enable.value;
+    assign cfg_monbus_wr_2_rd_error_enable = hwif_out.MONBUS_WR_2_RD_CTRL.error_enable.value;
+    assign cfg_monbus_wr_2_rd_timeout_enable = hwif_out.MONBUS_WR_2_RD_CTRL.timeout_enable.value;
+    assign cfg_monbus_wr_2_rd_perf_enable = hwif_out.MONBUS_WR_2_RD_CTRL.perf_enable.value;
+    assign cfg_monbus_wr_2_rd_compl_enable = hwif_out.MONBUS_WR_2_RD_CTRL.compl_enable.value;
+    assign cfg_monbus_wr_2_rd_threshold_enable = hwif_out.MONBUS_WR_2_RD_CTRL.threshold_enable.value;
+    assign cfg_monbus_wr_2_rd_debug_enable = hwif_out.MONBUS_WR_2_RD_CTRL.debug_enable.value;
+    assign cfg_monbus_wr_2_rd_timeout_cycles = hwif_out.MONBUS_WR_2_RD_CTRL.timeout_cycles.value;
+    assign cfg_monbus_wr_2_rd_latency_threshold = hwif_out.MONBUS_WR_2_RD_LATENCY.latency_threshold.value;
+    assign cfg_monbus_wr_2_rd_axi_pkt_mask = hwif_out.MONBUS_WR_2_RD_MASKS_A.axi_pkt_mask.value;
+    assign cfg_monbus_wr_2_rd_axi_err_select = hwif_out.MONBUS_WR_2_RD_MASKS_A.axi_err_select.value;
+    assign cfg_monbus_wr_2_rd_axi_error_mask = hwif_out.MONBUS_WR_2_RD_MASKS_B.axi_error_mask.value;
+    assign cfg_monbus_wr_2_rd_axi_timeout_mask = hwif_out.MONBUS_WR_2_RD_MASKS_B.axi_timeout_mask.value;
+    assign cfg_monbus_wr_2_rd_axi_compl_mask = hwif_out.MONBUS_WR_2_RD_MASKS_C.axi_compl_mask.value;
+    assign cfg_monbus_wr_2_rd_axi_thresh_mask = hwif_out.MONBUS_WR_2_RD_MASKS_C.axi_thresh_mask.value;
+    assign cfg_monbus_wr_2_rd_axi_perf_mask = hwif_out.MONBUS_WR_2_RD_MASKS_D.axi_perf_mask.value;
+    assign cfg_monbus_wr_2_rd_axi_addr_mask = hwif_out.MONBUS_WR_2_RD_MASKS_D.axi_addr_mask.value;
+    assign cfg_monbus_wr_2_rd_axi_debug_mask = hwif_out.MONBUS_WR_2_RD_MASKS_E.axi_debug_mask.value;
+
+    assign cfg_stream_apb_0_wr_monitor_enable = hwif_out.STREAM_APB_0_WR_CTRL.monitor_enable.value;
+    assign cfg_stream_apb_0_wr_error_enable = hwif_out.STREAM_APB_0_WR_CTRL.error_enable.value;
+    assign cfg_stream_apb_0_wr_timeout_enable = hwif_out.STREAM_APB_0_WR_CTRL.timeout_enable.value;
+    assign cfg_stream_apb_0_wr_perf_enable = hwif_out.STREAM_APB_0_WR_CTRL.perf_enable.value;
+    assign cfg_stream_apb_0_wr_compl_enable = hwif_out.STREAM_APB_0_WR_CTRL.compl_enable.value;
+    assign cfg_stream_apb_0_wr_threshold_enable = hwif_out.STREAM_APB_0_WR_CTRL.threshold_enable.value;
+    assign cfg_stream_apb_0_wr_debug_enable = hwif_out.STREAM_APB_0_WR_CTRL.debug_enable.value;
+    assign cfg_stream_apb_0_wr_timeout_cycles = hwif_out.STREAM_APB_0_WR_CTRL.timeout_cycles.value;
+    assign cfg_stream_apb_0_wr_latency_threshold = hwif_out.STREAM_APB_0_WR_LATENCY.latency_threshold.value;
+    assign cfg_stream_apb_0_wr_axi_pkt_mask = hwif_out.STREAM_APB_0_WR_MASKS_A.axi_pkt_mask.value;
+    assign cfg_stream_apb_0_wr_axi_err_select = hwif_out.STREAM_APB_0_WR_MASKS_A.axi_err_select.value;
+    assign cfg_stream_apb_0_wr_axi_error_mask = hwif_out.STREAM_APB_0_WR_MASKS_B.axi_error_mask.value;
+    assign cfg_stream_apb_0_wr_axi_timeout_mask = hwif_out.STREAM_APB_0_WR_MASKS_B.axi_timeout_mask.value;
+    assign cfg_stream_apb_0_wr_axi_compl_mask = hwif_out.STREAM_APB_0_WR_MASKS_C.axi_compl_mask.value;
+    assign cfg_stream_apb_0_wr_axi_thresh_mask = hwif_out.STREAM_APB_0_WR_MASKS_C.axi_thresh_mask.value;
+    assign cfg_stream_apb_0_wr_axi_perf_mask = hwif_out.STREAM_APB_0_WR_MASKS_D.axi_perf_mask.value;
+    assign cfg_stream_apb_0_wr_axi_addr_mask = hwif_out.STREAM_APB_0_WR_MASKS_D.axi_addr_mask.value;
+    assign cfg_stream_apb_0_wr_axi_debug_mask = hwif_out.STREAM_APB_0_WR_MASKS_E.axi_debug_mask.value;
+
+    assign cfg_stream_apb_0_rd_monitor_enable = hwif_out.STREAM_APB_0_RD_CTRL.monitor_enable.value;
+    assign cfg_stream_apb_0_rd_error_enable = hwif_out.STREAM_APB_0_RD_CTRL.error_enable.value;
+    assign cfg_stream_apb_0_rd_timeout_enable = hwif_out.STREAM_APB_0_RD_CTRL.timeout_enable.value;
+    assign cfg_stream_apb_0_rd_perf_enable = hwif_out.STREAM_APB_0_RD_CTRL.perf_enable.value;
+    assign cfg_stream_apb_0_rd_compl_enable = hwif_out.STREAM_APB_0_RD_CTRL.compl_enable.value;
+    assign cfg_stream_apb_0_rd_threshold_enable = hwif_out.STREAM_APB_0_RD_CTRL.threshold_enable.value;
+    assign cfg_stream_apb_0_rd_debug_enable = hwif_out.STREAM_APB_0_RD_CTRL.debug_enable.value;
+    assign cfg_stream_apb_0_rd_timeout_cycles = hwif_out.STREAM_APB_0_RD_CTRL.timeout_cycles.value;
+    assign cfg_stream_apb_0_rd_latency_threshold = hwif_out.STREAM_APB_0_RD_LATENCY.latency_threshold.value;
+    assign cfg_stream_apb_0_rd_axi_pkt_mask = hwif_out.STREAM_APB_0_RD_MASKS_A.axi_pkt_mask.value;
+    assign cfg_stream_apb_0_rd_axi_err_select = hwif_out.STREAM_APB_0_RD_MASKS_A.axi_err_select.value;
+    assign cfg_stream_apb_0_rd_axi_error_mask = hwif_out.STREAM_APB_0_RD_MASKS_B.axi_error_mask.value;
+    assign cfg_stream_apb_0_rd_axi_timeout_mask = hwif_out.STREAM_APB_0_RD_MASKS_B.axi_timeout_mask.value;
+    assign cfg_stream_apb_0_rd_axi_compl_mask = hwif_out.STREAM_APB_0_RD_MASKS_C.axi_compl_mask.value;
+    assign cfg_stream_apb_0_rd_axi_thresh_mask = hwif_out.STREAM_APB_0_RD_MASKS_C.axi_thresh_mask.value;
+    assign cfg_stream_apb_0_rd_axi_perf_mask = hwif_out.STREAM_APB_0_RD_MASKS_D.axi_perf_mask.value;
+    assign cfg_stream_apb_0_rd_axi_addr_mask = hwif_out.STREAM_APB_0_RD_MASKS_D.axi_addr_mask.value;
+    assign cfg_stream_apb_0_rd_axi_debug_mask = hwif_out.STREAM_APB_0_RD_MASKS_E.axi_debug_mask.value;
+
+    assign cfg_harness_csr_1_wr_monitor_enable = hwif_out.HARNESS_CSR_1_WR_CTRL.monitor_enable.value;
+    assign cfg_harness_csr_1_wr_error_enable = hwif_out.HARNESS_CSR_1_WR_CTRL.error_enable.value;
+    assign cfg_harness_csr_1_wr_timeout_enable = hwif_out.HARNESS_CSR_1_WR_CTRL.timeout_enable.value;
+    assign cfg_harness_csr_1_wr_perf_enable = hwif_out.HARNESS_CSR_1_WR_CTRL.perf_enable.value;
+    assign cfg_harness_csr_1_wr_compl_enable = hwif_out.HARNESS_CSR_1_WR_CTRL.compl_enable.value;
+    assign cfg_harness_csr_1_wr_threshold_enable = hwif_out.HARNESS_CSR_1_WR_CTRL.threshold_enable.value;
+    assign cfg_harness_csr_1_wr_debug_enable = hwif_out.HARNESS_CSR_1_WR_CTRL.debug_enable.value;
+    assign cfg_harness_csr_1_wr_timeout_cycles = hwif_out.HARNESS_CSR_1_WR_CTRL.timeout_cycles.value;
+    assign cfg_harness_csr_1_wr_latency_threshold = hwif_out.HARNESS_CSR_1_WR_LATENCY.latency_threshold.value;
+    assign cfg_harness_csr_1_wr_axi_pkt_mask = hwif_out.HARNESS_CSR_1_WR_MASKS_A.axi_pkt_mask.value;
+    assign cfg_harness_csr_1_wr_axi_err_select = hwif_out.HARNESS_CSR_1_WR_MASKS_A.axi_err_select.value;
+    assign cfg_harness_csr_1_wr_axi_error_mask = hwif_out.HARNESS_CSR_1_WR_MASKS_B.axi_error_mask.value;
+    assign cfg_harness_csr_1_wr_axi_timeout_mask = hwif_out.HARNESS_CSR_1_WR_MASKS_B.axi_timeout_mask.value;
+    assign cfg_harness_csr_1_wr_axi_compl_mask = hwif_out.HARNESS_CSR_1_WR_MASKS_C.axi_compl_mask.value;
+    assign cfg_harness_csr_1_wr_axi_thresh_mask = hwif_out.HARNESS_CSR_1_WR_MASKS_C.axi_thresh_mask.value;
+    assign cfg_harness_csr_1_wr_axi_perf_mask = hwif_out.HARNESS_CSR_1_WR_MASKS_D.axi_perf_mask.value;
+    assign cfg_harness_csr_1_wr_axi_addr_mask = hwif_out.HARNESS_CSR_1_WR_MASKS_D.axi_addr_mask.value;
+    assign cfg_harness_csr_1_wr_axi_debug_mask = hwif_out.HARNESS_CSR_1_WR_MASKS_E.axi_debug_mask.value;
+
+    assign cfg_harness_csr_1_rd_monitor_enable = hwif_out.HARNESS_CSR_1_RD_CTRL.monitor_enable.value;
+    assign cfg_harness_csr_1_rd_error_enable = hwif_out.HARNESS_CSR_1_RD_CTRL.error_enable.value;
+    assign cfg_harness_csr_1_rd_timeout_enable = hwif_out.HARNESS_CSR_1_RD_CTRL.timeout_enable.value;
+    assign cfg_harness_csr_1_rd_perf_enable = hwif_out.HARNESS_CSR_1_RD_CTRL.perf_enable.value;
+    assign cfg_harness_csr_1_rd_compl_enable = hwif_out.HARNESS_CSR_1_RD_CTRL.compl_enable.value;
+    assign cfg_harness_csr_1_rd_threshold_enable = hwif_out.HARNESS_CSR_1_RD_CTRL.threshold_enable.value;
+    assign cfg_harness_csr_1_rd_debug_enable = hwif_out.HARNESS_CSR_1_RD_CTRL.debug_enable.value;
+    assign cfg_harness_csr_1_rd_timeout_cycles = hwif_out.HARNESS_CSR_1_RD_CTRL.timeout_cycles.value;
+    assign cfg_harness_csr_1_rd_latency_threshold = hwif_out.HARNESS_CSR_1_RD_LATENCY.latency_threshold.value;
+    assign cfg_harness_csr_1_rd_axi_pkt_mask = hwif_out.HARNESS_CSR_1_RD_MASKS_A.axi_pkt_mask.value;
+    assign cfg_harness_csr_1_rd_axi_err_select = hwif_out.HARNESS_CSR_1_RD_MASKS_A.axi_err_select.value;
+    assign cfg_harness_csr_1_rd_axi_error_mask = hwif_out.HARNESS_CSR_1_RD_MASKS_B.axi_error_mask.value;
+    assign cfg_harness_csr_1_rd_axi_timeout_mask = hwif_out.HARNESS_CSR_1_RD_MASKS_B.axi_timeout_mask.value;
+    assign cfg_harness_csr_1_rd_axi_compl_mask = hwif_out.HARNESS_CSR_1_RD_MASKS_C.axi_compl_mask.value;
+    assign cfg_harness_csr_1_rd_axi_thresh_mask = hwif_out.HARNESS_CSR_1_RD_MASKS_C.axi_thresh_mask.value;
+    assign cfg_harness_csr_1_rd_axi_perf_mask = hwif_out.HARNESS_CSR_1_RD_MASKS_D.axi_perf_mask.value;
+    assign cfg_harness_csr_1_rd_axi_addr_mask = hwif_out.HARNESS_CSR_1_RD_MASKS_D.axi_addr_mask.value;
+    assign cfg_harness_csr_1_rd_axi_debug_mask = hwif_out.HARNESS_CSR_1_RD_MASKS_E.axi_debug_mask.value;
+
+    assign cfg_desc_ram_2_wr_monitor_enable = hwif_out.DESC_RAM_2_WR_CTRL.monitor_enable.value;
+    assign cfg_desc_ram_2_wr_error_enable = hwif_out.DESC_RAM_2_WR_CTRL.error_enable.value;
+    assign cfg_desc_ram_2_wr_timeout_enable = hwif_out.DESC_RAM_2_WR_CTRL.timeout_enable.value;
+    assign cfg_desc_ram_2_wr_perf_enable = hwif_out.DESC_RAM_2_WR_CTRL.perf_enable.value;
+    assign cfg_desc_ram_2_wr_compl_enable = hwif_out.DESC_RAM_2_WR_CTRL.compl_enable.value;
+    assign cfg_desc_ram_2_wr_threshold_enable = hwif_out.DESC_RAM_2_WR_CTRL.threshold_enable.value;
+    assign cfg_desc_ram_2_wr_debug_enable = hwif_out.DESC_RAM_2_WR_CTRL.debug_enable.value;
+    assign cfg_desc_ram_2_wr_timeout_cycles = hwif_out.DESC_RAM_2_WR_CTRL.timeout_cycles.value;
+    assign cfg_desc_ram_2_wr_latency_threshold = hwif_out.DESC_RAM_2_WR_LATENCY.latency_threshold.value;
+    assign cfg_desc_ram_2_wr_axi_pkt_mask = hwif_out.DESC_RAM_2_WR_MASKS_A.axi_pkt_mask.value;
+    assign cfg_desc_ram_2_wr_axi_err_select = hwif_out.DESC_RAM_2_WR_MASKS_A.axi_err_select.value;
+    assign cfg_desc_ram_2_wr_axi_error_mask = hwif_out.DESC_RAM_2_WR_MASKS_B.axi_error_mask.value;
+    assign cfg_desc_ram_2_wr_axi_timeout_mask = hwif_out.DESC_RAM_2_WR_MASKS_B.axi_timeout_mask.value;
+    assign cfg_desc_ram_2_wr_axi_compl_mask = hwif_out.DESC_RAM_2_WR_MASKS_C.axi_compl_mask.value;
+    assign cfg_desc_ram_2_wr_axi_thresh_mask = hwif_out.DESC_RAM_2_WR_MASKS_C.axi_thresh_mask.value;
+    assign cfg_desc_ram_2_wr_axi_perf_mask = hwif_out.DESC_RAM_2_WR_MASKS_D.axi_perf_mask.value;
+    assign cfg_desc_ram_2_wr_axi_addr_mask = hwif_out.DESC_RAM_2_WR_MASKS_D.axi_addr_mask.value;
+    assign cfg_desc_ram_2_wr_axi_debug_mask = hwif_out.DESC_RAM_2_WR_MASKS_E.axi_debug_mask.value;
+
+    assign cfg_desc_ram_2_rd_monitor_enable = hwif_out.DESC_RAM_2_RD_CTRL.monitor_enable.value;
+    assign cfg_desc_ram_2_rd_error_enable = hwif_out.DESC_RAM_2_RD_CTRL.error_enable.value;
+    assign cfg_desc_ram_2_rd_timeout_enable = hwif_out.DESC_RAM_2_RD_CTRL.timeout_enable.value;
+    assign cfg_desc_ram_2_rd_perf_enable = hwif_out.DESC_RAM_2_RD_CTRL.perf_enable.value;
+    assign cfg_desc_ram_2_rd_compl_enable = hwif_out.DESC_RAM_2_RD_CTRL.compl_enable.value;
+    assign cfg_desc_ram_2_rd_threshold_enable = hwif_out.DESC_RAM_2_RD_CTRL.threshold_enable.value;
+    assign cfg_desc_ram_2_rd_debug_enable = hwif_out.DESC_RAM_2_RD_CTRL.debug_enable.value;
+    assign cfg_desc_ram_2_rd_timeout_cycles = hwif_out.DESC_RAM_2_RD_CTRL.timeout_cycles.value;
+    assign cfg_desc_ram_2_rd_latency_threshold = hwif_out.DESC_RAM_2_RD_LATENCY.latency_threshold.value;
+    assign cfg_desc_ram_2_rd_axi_pkt_mask = hwif_out.DESC_RAM_2_RD_MASKS_A.axi_pkt_mask.value;
+    assign cfg_desc_ram_2_rd_axi_err_select = hwif_out.DESC_RAM_2_RD_MASKS_A.axi_err_select.value;
+    assign cfg_desc_ram_2_rd_axi_error_mask = hwif_out.DESC_RAM_2_RD_MASKS_B.axi_error_mask.value;
+    assign cfg_desc_ram_2_rd_axi_timeout_mask = hwif_out.DESC_RAM_2_RD_MASKS_B.axi_timeout_mask.value;
+    assign cfg_desc_ram_2_rd_axi_compl_mask = hwif_out.DESC_RAM_2_RD_MASKS_C.axi_compl_mask.value;
+    assign cfg_desc_ram_2_rd_axi_thresh_mask = hwif_out.DESC_RAM_2_RD_MASKS_C.axi_thresh_mask.value;
+    assign cfg_desc_ram_2_rd_axi_perf_mask = hwif_out.DESC_RAM_2_RD_MASKS_D.axi_perf_mask.value;
+    assign cfg_desc_ram_2_rd_axi_addr_mask = hwif_out.DESC_RAM_2_RD_MASKS_D.axi_addr_mask.value;
+    assign cfg_desc_ram_2_rd_axi_debug_mask = hwif_out.DESC_RAM_2_RD_MASKS_E.axi_debug_mask.value;
+
+    assign cfg_stream_err_3_wr_monitor_enable = hwif_out.STREAM_ERR_3_WR_CTRL.monitor_enable.value;
+    assign cfg_stream_err_3_wr_error_enable = hwif_out.STREAM_ERR_3_WR_CTRL.error_enable.value;
+    assign cfg_stream_err_3_wr_timeout_enable = hwif_out.STREAM_ERR_3_WR_CTRL.timeout_enable.value;
+    assign cfg_stream_err_3_wr_perf_enable = hwif_out.STREAM_ERR_3_WR_CTRL.perf_enable.value;
+    assign cfg_stream_err_3_wr_compl_enable = hwif_out.STREAM_ERR_3_WR_CTRL.compl_enable.value;
+    assign cfg_stream_err_3_wr_threshold_enable = hwif_out.STREAM_ERR_3_WR_CTRL.threshold_enable.value;
+    assign cfg_stream_err_3_wr_debug_enable = hwif_out.STREAM_ERR_3_WR_CTRL.debug_enable.value;
+    assign cfg_stream_err_3_wr_timeout_cycles = hwif_out.STREAM_ERR_3_WR_CTRL.timeout_cycles.value;
+    assign cfg_stream_err_3_wr_latency_threshold = hwif_out.STREAM_ERR_3_WR_LATENCY.latency_threshold.value;
+    assign cfg_stream_err_3_wr_axi_pkt_mask = hwif_out.STREAM_ERR_3_WR_MASKS_A.axi_pkt_mask.value;
+    assign cfg_stream_err_3_wr_axi_err_select = hwif_out.STREAM_ERR_3_WR_MASKS_A.axi_err_select.value;
+    assign cfg_stream_err_3_wr_axi_error_mask = hwif_out.STREAM_ERR_3_WR_MASKS_B.axi_error_mask.value;
+    assign cfg_stream_err_3_wr_axi_timeout_mask = hwif_out.STREAM_ERR_3_WR_MASKS_B.axi_timeout_mask.value;
+    assign cfg_stream_err_3_wr_axi_compl_mask = hwif_out.STREAM_ERR_3_WR_MASKS_C.axi_compl_mask.value;
+    assign cfg_stream_err_3_wr_axi_thresh_mask = hwif_out.STREAM_ERR_3_WR_MASKS_C.axi_thresh_mask.value;
+    assign cfg_stream_err_3_wr_axi_perf_mask = hwif_out.STREAM_ERR_3_WR_MASKS_D.axi_perf_mask.value;
+    assign cfg_stream_err_3_wr_axi_addr_mask = hwif_out.STREAM_ERR_3_WR_MASKS_D.axi_addr_mask.value;
+    assign cfg_stream_err_3_wr_axi_debug_mask = hwif_out.STREAM_ERR_3_WR_MASKS_E.axi_debug_mask.value;
+
+    assign cfg_stream_err_3_rd_monitor_enable = hwif_out.STREAM_ERR_3_RD_CTRL.monitor_enable.value;
+    assign cfg_stream_err_3_rd_error_enable = hwif_out.STREAM_ERR_3_RD_CTRL.error_enable.value;
+    assign cfg_stream_err_3_rd_timeout_enable = hwif_out.STREAM_ERR_3_RD_CTRL.timeout_enable.value;
+    assign cfg_stream_err_3_rd_perf_enable = hwif_out.STREAM_ERR_3_RD_CTRL.perf_enable.value;
+    assign cfg_stream_err_3_rd_compl_enable = hwif_out.STREAM_ERR_3_RD_CTRL.compl_enable.value;
+    assign cfg_stream_err_3_rd_threshold_enable = hwif_out.STREAM_ERR_3_RD_CTRL.threshold_enable.value;
+    assign cfg_stream_err_3_rd_debug_enable = hwif_out.STREAM_ERR_3_RD_CTRL.debug_enable.value;
+    assign cfg_stream_err_3_rd_timeout_cycles = hwif_out.STREAM_ERR_3_RD_CTRL.timeout_cycles.value;
+    assign cfg_stream_err_3_rd_latency_threshold = hwif_out.STREAM_ERR_3_RD_LATENCY.latency_threshold.value;
+    assign cfg_stream_err_3_rd_axi_pkt_mask = hwif_out.STREAM_ERR_3_RD_MASKS_A.axi_pkt_mask.value;
+    assign cfg_stream_err_3_rd_axi_err_select = hwif_out.STREAM_ERR_3_RD_MASKS_A.axi_err_select.value;
+    assign cfg_stream_err_3_rd_axi_error_mask = hwif_out.STREAM_ERR_3_RD_MASKS_B.axi_error_mask.value;
+    assign cfg_stream_err_3_rd_axi_timeout_mask = hwif_out.STREAM_ERR_3_RD_MASKS_B.axi_timeout_mask.value;
+    assign cfg_stream_err_3_rd_axi_compl_mask = hwif_out.STREAM_ERR_3_RD_MASKS_C.axi_compl_mask.value;
+    assign cfg_stream_err_3_rd_axi_thresh_mask = hwif_out.STREAM_ERR_3_RD_MASKS_C.axi_thresh_mask.value;
+    assign cfg_stream_err_3_rd_axi_perf_mask = hwif_out.STREAM_ERR_3_RD_MASKS_D.axi_perf_mask.value;
+    assign cfg_stream_err_3_rd_axi_addr_mask = hwif_out.STREAM_ERR_3_RD_MASKS_D.axi_addr_mask.value;
+    assign cfg_stream_err_3_rd_axi_debug_mask = hwif_out.STREAM_ERR_3_RD_MASKS_E.axi_debug_mask.value;
+
+    assign cfg_debug_sram_4_wr_monitor_enable = hwif_out.DEBUG_SRAM_4_WR_CTRL.monitor_enable.value;
+    assign cfg_debug_sram_4_wr_error_enable = hwif_out.DEBUG_SRAM_4_WR_CTRL.error_enable.value;
+    assign cfg_debug_sram_4_wr_timeout_enable = hwif_out.DEBUG_SRAM_4_WR_CTRL.timeout_enable.value;
+    assign cfg_debug_sram_4_wr_perf_enable = hwif_out.DEBUG_SRAM_4_WR_CTRL.perf_enable.value;
+    assign cfg_debug_sram_4_wr_compl_enable = hwif_out.DEBUG_SRAM_4_WR_CTRL.compl_enable.value;
+    assign cfg_debug_sram_4_wr_threshold_enable = hwif_out.DEBUG_SRAM_4_WR_CTRL.threshold_enable.value;
+    assign cfg_debug_sram_4_wr_debug_enable = hwif_out.DEBUG_SRAM_4_WR_CTRL.debug_enable.value;
+    assign cfg_debug_sram_4_wr_timeout_cycles = hwif_out.DEBUG_SRAM_4_WR_CTRL.timeout_cycles.value;
+    assign cfg_debug_sram_4_wr_latency_threshold = hwif_out.DEBUG_SRAM_4_WR_LATENCY.latency_threshold.value;
+    assign cfg_debug_sram_4_wr_axi_pkt_mask = hwif_out.DEBUG_SRAM_4_WR_MASKS_A.axi_pkt_mask.value;
+    assign cfg_debug_sram_4_wr_axi_err_select = hwif_out.DEBUG_SRAM_4_WR_MASKS_A.axi_err_select.value;
+    assign cfg_debug_sram_4_wr_axi_error_mask = hwif_out.DEBUG_SRAM_4_WR_MASKS_B.axi_error_mask.value;
+    assign cfg_debug_sram_4_wr_axi_timeout_mask = hwif_out.DEBUG_SRAM_4_WR_MASKS_B.axi_timeout_mask.value;
+    assign cfg_debug_sram_4_wr_axi_compl_mask = hwif_out.DEBUG_SRAM_4_WR_MASKS_C.axi_compl_mask.value;
+    assign cfg_debug_sram_4_wr_axi_thresh_mask = hwif_out.DEBUG_SRAM_4_WR_MASKS_C.axi_thresh_mask.value;
+    assign cfg_debug_sram_4_wr_axi_perf_mask = hwif_out.DEBUG_SRAM_4_WR_MASKS_D.axi_perf_mask.value;
+    assign cfg_debug_sram_4_wr_axi_addr_mask = hwif_out.DEBUG_SRAM_4_WR_MASKS_D.axi_addr_mask.value;
+    assign cfg_debug_sram_4_wr_axi_debug_mask = hwif_out.DEBUG_SRAM_4_WR_MASKS_E.axi_debug_mask.value;
+
+    assign cfg_debug_sram_4_rd_monitor_enable = hwif_out.DEBUG_SRAM_4_RD_CTRL.monitor_enable.value;
+    assign cfg_debug_sram_4_rd_error_enable = hwif_out.DEBUG_SRAM_4_RD_CTRL.error_enable.value;
+    assign cfg_debug_sram_4_rd_timeout_enable = hwif_out.DEBUG_SRAM_4_RD_CTRL.timeout_enable.value;
+    assign cfg_debug_sram_4_rd_perf_enable = hwif_out.DEBUG_SRAM_4_RD_CTRL.perf_enable.value;
+    assign cfg_debug_sram_4_rd_compl_enable = hwif_out.DEBUG_SRAM_4_RD_CTRL.compl_enable.value;
+    assign cfg_debug_sram_4_rd_threshold_enable = hwif_out.DEBUG_SRAM_4_RD_CTRL.threshold_enable.value;
+    assign cfg_debug_sram_4_rd_debug_enable = hwif_out.DEBUG_SRAM_4_RD_CTRL.debug_enable.value;
+    assign cfg_debug_sram_4_rd_timeout_cycles = hwif_out.DEBUG_SRAM_4_RD_CTRL.timeout_cycles.value;
+    assign cfg_debug_sram_4_rd_latency_threshold = hwif_out.DEBUG_SRAM_4_RD_LATENCY.latency_threshold.value;
+    assign cfg_debug_sram_4_rd_axi_pkt_mask = hwif_out.DEBUG_SRAM_4_RD_MASKS_A.axi_pkt_mask.value;
+    assign cfg_debug_sram_4_rd_axi_err_select = hwif_out.DEBUG_SRAM_4_RD_MASKS_A.axi_err_select.value;
+    assign cfg_debug_sram_4_rd_axi_error_mask = hwif_out.DEBUG_SRAM_4_RD_MASKS_B.axi_error_mask.value;
+    assign cfg_debug_sram_4_rd_axi_timeout_mask = hwif_out.DEBUG_SRAM_4_RD_MASKS_B.axi_timeout_mask.value;
+    assign cfg_debug_sram_4_rd_axi_compl_mask = hwif_out.DEBUG_SRAM_4_RD_MASKS_C.axi_compl_mask.value;
+    assign cfg_debug_sram_4_rd_axi_thresh_mask = hwif_out.DEBUG_SRAM_4_RD_MASKS_C.axi_thresh_mask.value;
+    assign cfg_debug_sram_4_rd_axi_perf_mask = hwif_out.DEBUG_SRAM_4_RD_MASKS_D.axi_perf_mask.value;
+    assign cfg_debug_sram_4_rd_axi_addr_mask = hwif_out.DEBUG_SRAM_4_RD_MASKS_D.axi_addr_mask.value;
+    assign cfg_debug_sram_4_rd_axi_debug_mask = hwif_out.DEBUG_SRAM_4_RD_MASKS_E.axi_debug_mask.value;
+
+    assign cfg_dma_axil_5_wr_monitor_enable = hwif_out.DMA_AXIL_5_WR_CTRL.monitor_enable.value;
+    assign cfg_dma_axil_5_wr_error_enable = hwif_out.DMA_AXIL_5_WR_CTRL.error_enable.value;
+    assign cfg_dma_axil_5_wr_timeout_enable = hwif_out.DMA_AXIL_5_WR_CTRL.timeout_enable.value;
+    assign cfg_dma_axil_5_wr_perf_enable = hwif_out.DMA_AXIL_5_WR_CTRL.perf_enable.value;
+    assign cfg_dma_axil_5_wr_compl_enable = hwif_out.DMA_AXIL_5_WR_CTRL.compl_enable.value;
+    assign cfg_dma_axil_5_wr_threshold_enable = hwif_out.DMA_AXIL_5_WR_CTRL.threshold_enable.value;
+    assign cfg_dma_axil_5_wr_debug_enable = hwif_out.DMA_AXIL_5_WR_CTRL.debug_enable.value;
+    assign cfg_dma_axil_5_wr_timeout_cycles = hwif_out.DMA_AXIL_5_WR_CTRL.timeout_cycles.value;
+    assign cfg_dma_axil_5_wr_latency_threshold = hwif_out.DMA_AXIL_5_WR_LATENCY.latency_threshold.value;
+    assign cfg_dma_axil_5_wr_axi_pkt_mask = hwif_out.DMA_AXIL_5_WR_MASKS_A.axi_pkt_mask.value;
+    assign cfg_dma_axil_5_wr_axi_err_select = hwif_out.DMA_AXIL_5_WR_MASKS_A.axi_err_select.value;
+    assign cfg_dma_axil_5_wr_axi_error_mask = hwif_out.DMA_AXIL_5_WR_MASKS_B.axi_error_mask.value;
+    assign cfg_dma_axil_5_wr_axi_timeout_mask = hwif_out.DMA_AXIL_5_WR_MASKS_B.axi_timeout_mask.value;
+    assign cfg_dma_axil_5_wr_axi_compl_mask = hwif_out.DMA_AXIL_5_WR_MASKS_C.axi_compl_mask.value;
+    assign cfg_dma_axil_5_wr_axi_thresh_mask = hwif_out.DMA_AXIL_5_WR_MASKS_C.axi_thresh_mask.value;
+    assign cfg_dma_axil_5_wr_axi_perf_mask = hwif_out.DMA_AXIL_5_WR_MASKS_D.axi_perf_mask.value;
+    assign cfg_dma_axil_5_wr_axi_addr_mask = hwif_out.DMA_AXIL_5_WR_MASKS_D.axi_addr_mask.value;
+    assign cfg_dma_axil_5_wr_axi_debug_mask = hwif_out.DMA_AXIL_5_WR_MASKS_E.axi_debug_mask.value;
+
+    assign cfg_dma_axil_5_rd_monitor_enable = hwif_out.DMA_AXIL_5_RD_CTRL.monitor_enable.value;
+    assign cfg_dma_axil_5_rd_error_enable = hwif_out.DMA_AXIL_5_RD_CTRL.error_enable.value;
+    assign cfg_dma_axil_5_rd_timeout_enable = hwif_out.DMA_AXIL_5_RD_CTRL.timeout_enable.value;
+    assign cfg_dma_axil_5_rd_perf_enable = hwif_out.DMA_AXIL_5_RD_CTRL.perf_enable.value;
+    assign cfg_dma_axil_5_rd_compl_enable = hwif_out.DMA_AXIL_5_RD_CTRL.compl_enable.value;
+    assign cfg_dma_axil_5_rd_threshold_enable = hwif_out.DMA_AXIL_5_RD_CTRL.threshold_enable.value;
+    assign cfg_dma_axil_5_rd_debug_enable = hwif_out.DMA_AXIL_5_RD_CTRL.debug_enable.value;
+    assign cfg_dma_axil_5_rd_timeout_cycles = hwif_out.DMA_AXIL_5_RD_CTRL.timeout_cycles.value;
+    assign cfg_dma_axil_5_rd_latency_threshold = hwif_out.DMA_AXIL_5_RD_LATENCY.latency_threshold.value;
+    assign cfg_dma_axil_5_rd_axi_pkt_mask = hwif_out.DMA_AXIL_5_RD_MASKS_A.axi_pkt_mask.value;
+    assign cfg_dma_axil_5_rd_axi_err_select = hwif_out.DMA_AXIL_5_RD_MASKS_A.axi_err_select.value;
+    assign cfg_dma_axil_5_rd_axi_error_mask = hwif_out.DMA_AXIL_5_RD_MASKS_B.axi_error_mask.value;
+    assign cfg_dma_axil_5_rd_axi_timeout_mask = hwif_out.DMA_AXIL_5_RD_MASKS_B.axi_timeout_mask.value;
+    assign cfg_dma_axil_5_rd_axi_compl_mask = hwif_out.DMA_AXIL_5_RD_MASKS_C.axi_compl_mask.value;
+    assign cfg_dma_axil_5_rd_axi_thresh_mask = hwif_out.DMA_AXIL_5_RD_MASKS_C.axi_thresh_mask.value;
+    assign cfg_dma_axil_5_rd_axi_perf_mask = hwif_out.DMA_AXIL_5_RD_MASKS_D.axi_perf_mask.value;
+    assign cfg_dma_axil_5_rd_axi_addr_mask = hwif_out.DMA_AXIL_5_RD_MASKS_D.axi_addr_mask.value;
+    assign cfg_dma_axil_5_rd_axi_debug_mask = hwif_out.DMA_AXIL_5_RD_MASKS_E.axi_debug_mask.value;
+
+    // Fan out regblock outputs to mon_group cfg nets
+    assign cfg_mon_group_base_addr = hwif_out.MON_GROUP_BASE_ADDR.base_addr.value;
+    assign cfg_mon_group_limit_addr = hwif_out.MON_GROUP_LIMIT_ADDR.limit_addr.value;
+    assign cfg_mon_group_axi_pkt_mask = hwif_out.MON_GROUP_PACK_0.axi_pkt_mask.value;
+    assign cfg_mon_group_axi_err_select = hwif_out.MON_GROUP_PACK_0.axi_err_select.value;
+    assign cfg_mon_group_axi_error_mask = hwif_out.MON_GROUP_PACK_1.axi_error_mask.value;
+    assign cfg_mon_group_axi_timeout_mask = hwif_out.MON_GROUP_PACK_1.axi_timeout_mask.value;
+    assign cfg_mon_group_axi_compl_mask = hwif_out.MON_GROUP_PACK_2.axi_compl_mask.value;
+    assign cfg_mon_group_axi_thresh_mask = hwif_out.MON_GROUP_PACK_2.axi_thresh_mask.value;
+    assign cfg_mon_group_axi_perf_mask = hwif_out.MON_GROUP_PACK_3.axi_perf_mask.value;
+    assign cfg_mon_group_axi_addr_mask = hwif_out.MON_GROUP_PACK_3.axi_addr_mask.value;
+    assign cfg_mon_group_axi_debug_mask = hwif_out.MON_GROUP_PACK_4.axi_debug_mask.value;
+    assign cfg_mon_group_axis_pkt_mask = hwif_out.MON_GROUP_PACK_4.axis_pkt_mask.value;
+    assign cfg_mon_group_axis_err_select = hwif_out.MON_GROUP_PACK_5.axis_err_select.value;
+    assign cfg_mon_group_axis_error_mask = hwif_out.MON_GROUP_PACK_5.axis_error_mask.value;
+    assign cfg_mon_group_axis_timeout_mask = hwif_out.MON_GROUP_PACK_6.axis_timeout_mask.value;
+    assign cfg_mon_group_axis_compl_mask = hwif_out.MON_GROUP_PACK_6.axis_compl_mask.value;
+    assign cfg_mon_group_axis_credit_mask = hwif_out.MON_GROUP_PACK_7.axis_credit_mask.value;
+    assign cfg_mon_group_axis_channel_mask = hwif_out.MON_GROUP_PACK_7.axis_channel_mask.value;
+    assign cfg_mon_group_axis_stream_mask = hwif_out.MON_GROUP_PACK_8.axis_stream_mask.value;
+    assign cfg_mon_group_core_pkt_mask = hwif_out.MON_GROUP_PACK_8.core_pkt_mask.value;
+    assign cfg_mon_group_core_err_select = hwif_out.MON_GROUP_PACK_9.core_err_select.value;
+    assign cfg_mon_group_core_error_mask = hwif_out.MON_GROUP_PACK_9.core_error_mask.value;
+    assign cfg_mon_group_core_timeout_mask = hwif_out.MON_GROUP_PACK_10.core_timeout_mask.value;
+    assign cfg_mon_group_core_compl_mask = hwif_out.MON_GROUP_PACK_10.core_compl_mask.value;
+    assign cfg_mon_group_core_thresh_mask = hwif_out.MON_GROUP_PACK_11.core_thresh_mask.value;
+    assign cfg_mon_group_core_perf_mask = hwif_out.MON_GROUP_PACK_11.core_perf_mask.value;
+    assign cfg_mon_group_core_debug_mask = hwif_out.MON_GROUP_PACK_12.core_debug_mask.value;
 
     // ============================================================
     // Monitor aggregator -- 18 client(s) -> arbiter -> axil_group

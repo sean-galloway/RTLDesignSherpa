@@ -48,6 +48,14 @@ variants = ["no", "mon"]
 # overrides to drop cones per-port can be added below if a specific
 # port turns out to be too noisy.
 mon_preset = "all"
+# Task 90.4: opt into the PeakRDL regblock-backed cfg subsystem on the
+# mon variant. Drops the 351 individual cfg_* input ports in favour of
+# a single s_cfg_axil_* AXIL slave; the regblock fans out hwif_out
+# fields to the per-port monitors and the monbus_axil_group cfg.
+# Tied off in stream_char_harness for now until address-routing lands
+# (the harness wires s_cfg_axil_aw/ar valid=0, ready=1 with reset
+# defaults the regblock initialises every cfg field to).
+use_cfg_regblock = true
 
 [bridge.clock]
 name = "aclk"
