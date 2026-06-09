@@ -310,8 +310,16 @@ module axi_monitor_trans_mgr
                 next_id  = cam_entry_payload[gi].id[IW-1:0];
 
                 // --- ADDR PHASE ---
+                //
+                // Field-by-field write to mirror the production module
+                // exactly: fields that production touches via NBA are
+                // assigned here; fields that production leaves alone
+                // (data_timestamp, resp_timestamp on addr_alloc) MUST
+                // be preserved across the alloc, so we do NOT pre-zero
+                // `next`. Same rule applies to data_alloc and resp_alloc
+                // below -- the equivalence test (this file's reason for
+                // existing) catches any clobbered field.
                 if (addr_alloc_oh[gi]) begin
-                    next                       = '0;
                     next.valid                 = 1'b1;
                     next.state                 = TRANS_ADDR_PHASE;
                     next.id                    = '0;
@@ -380,7 +388,12 @@ module axi_monitor_trans_mgr
                         end
                         next_we = 1'b1;
                     end else if (data_alloc_oh[gi]) begin
-                        next                       = '0;
+                        // Production touches: valid, state, id, channel,
+                        // expected_beats, data_started, data_completed,
+                        // data_beat_count, data_timestamp,
+                        // event_code.axi_error. All other fields are
+                        // preserved across the alloc (notably
+                        // event_reported, addr/len/size/burst, timers).
                         next.valid                 = 1'b1;
                         next.state                 = TRANS_ORPHANED;
                         next.id                    = '0;
@@ -405,6 +418,15 @@ module axi_monitor_trans_mgr
                 end
 
                 // --- RESP PHASE (write only) ---
+                //
+                // For AXI4 writes the same slot can take BOTH a data
+                // beat and the B response in the same cycle. Production
+                // uses NBA, so the resp-update condition tests below
+                // see the OLD (pre-cycle) value of data_completed and
+                // state. With blocking writes we must explicitly read
+                // from cam_entry_payload (the registered/old value),
+                // not from `next` (which may already reflect the data
+                // phase's update). The equivalence test catches this.
                 if (!IS_READ && resp_valid && resp_ready) begin
                     if (resp_update_oh[gi]) begin
                         next.resp_received  = 1'b1;
@@ -414,8 +436,8 @@ module axi_monitor_trans_mgr
                             next.state = TRANS_ERROR;
                             next.event_code.axi_error =
                                 (resp_code[0]) ? EVT_RESP_DECERR : EVT_RESP_SLVERR;
-                        end else if (next.data_completed) begin
-                            if (next.state != TRANS_ERROR) begin
+                        end else if (cam_entry_payload[gi].data_completed) begin
+                            if (cam_entry_payload[gi].state != TRANS_ERROR) begin
                                 next.state = TRANS_COMPLETE;
                             end
                         end else begin
@@ -426,7 +448,10 @@ module axi_monitor_trans_mgr
                         end
                         next_we = 1'b1;
                     end else if (resp_alloc_oh[gi]) begin
-                        next                       = '0;
+                        // Production touches: valid, state, id, channel,
+                        // resp_received, resp_timestamp,
+                        // event_code.axi_error. All other fields are
+                        // preserved (notably event_reported).
                         next.valid                 = 1'b1;
                         next.state                 = TRANS_ORPHANED;
                         next.id                    = '0;
