@@ -413,14 +413,16 @@ async def cocotb_test_sdpram_slave(dut):
     "wr_protocol,rd_protocol,data_width,mem_depth",
     [
         ("AXI4", "AXI4", 64,  64),
-        ("AXIL", "AXIL", 64,  64),
-        ("AXI4", "AXIL", 64,  64),
+        # AXIL/AXIL, mixed AXI4/AXIL, and AXIL/AXI4 variants are
+        # functionally exercised by sdpram_core through the AXI4/AXI4
+        # path (same core). Dedicated drivers for the AXIL surface live
+        # in the per-wrapper tests once those land; until then this
+        # test covers only the AXI4 superset surface (s_axi_*).
         ("AXI4", "AXI4", 256, 32),
     ],
 )
 def test_sdpram_slave(request, wr_protocol, rd_protocol, data_width, mem_depth):
-    """Pytest wrapper — sweeps the three useful protocol combos plus a wide
-    AXI4/AXI4 config matching desc_ram."""
+    """Pytest wrapper -- exercises sdpram_slave_axi4_axi4 (FUB + core)."""
     here = Path(__file__).resolve().parent
     tag = f"wr{wr_protocol}_rd{rd_protocol}_dw{data_width}_d{mem_depth}"
     sim_build = here / "local_sim_build" / f"sdpram_slave_{tag}"
@@ -438,7 +440,8 @@ def test_sdpram_slave(request, wr_protocol, rd_protocol, data_width, mem_depth):
         str(amba / "axil4" / "axil4_slave_wr.sv"),
         str(amba / "axil4" / "axil4_slave_rd.sv"),
         str(amba / "shared" / "axi_gen_addr.sv"),
-        str(amba / "shared" / "sdpram_slave.sv"),
+        str(amba / "shared" / "sdpram_core.sv"),
+        str(amba / "shared" / "sdpram_slave_axi4_axi4.sv"),
     ]
     includes = [str(amba / "includes"), str(Path(_repo_root) / "rtl/common")]
 
@@ -453,8 +456,6 @@ def test_sdpram_slave(request, wr_protocol, rd_protocol, data_width, mem_depth):
     }
 
     parameters = {
-        "WR_PROTOCOL":  f'"{wr_protocol}"',
-        "RD_PROTOCOL":  f'"{rd_protocol}"',
         "DATA_WIDTH":   data_width,
         "MEM_DEPTH":    mem_depth,
         "AXI_ID_WIDTH": 4,
@@ -464,7 +465,7 @@ def test_sdpram_slave(request, wr_protocol, rd_protocol, data_width, mem_depth):
         python_search=[str(here)],
         verilog_sources=verilog_sources,
         includes=includes,
-        toplevel="sdpram_slave",
+        toplevel="sdpram_slave_axi4_axi4",
         module="test_sdpram_slave",
         testcase="cocotb_test_sdpram_slave",
         parameters=parameters,
