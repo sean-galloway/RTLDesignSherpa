@@ -1,0 +1,85 @@
+name: Bug report
+description: RTL doesn't behave as documented, a test fails unexpectedly, or a generator produces broken output.
+title: "[bug] <short summary>"
+labels: ["bug", "triage"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for taking the time to file a bug report. Please search
+        [existing issues](https://github.com/sean-galloway/RTLDesignSherpa/issues?q=is%3Aissue)
+        first — and check the `KNOWN_ISSUES/` directory under the
+        affected subsystem.
+
+  - type: input
+    id: subsystem
+    attributes:
+      label: Subsystem / module
+      description: Which area is affected? (e.g., `rtl/amba/shared/monbus_group_core.sv`, `projects/components/bridge`, `val/common/test_counter_bin.py`)
+      placeholder: rtl/amba/shared/monbus_group_core.sv
+    validations:
+      required: true
+
+  - type: textarea
+    id: description
+    attributes:
+      label: What happened
+      description: A clear description of the bug and what you expected instead.
+      placeholder: |
+        I ran X, and observed Y. I expected Z because the documentation/test says…
+    validations:
+      required: true
+
+  - type: textarea
+    id: repro
+    attributes:
+      label: Reproduction steps
+      description: Exact commands, including the `pytest …` invocation if applicable. The more specific, the faster this gets resolved.
+      placeholder: |
+        1. source env_python
+        2. pytest val/amba/test_monbus_axil_group.py -v
+        3. Observe failure at …
+      render: shell
+    validations:
+      required: true
+
+  - type: textarea
+    id: log
+    attributes:
+      label: Full output / traceback
+      description: The complete log, not just the last line. Paste in the code block below.
+      render: text
+
+  - type: input
+    id: simulator
+    attributes:
+      label: Simulator + version
+      placeholder: "Verilator 5.020 2024-01-01"
+    validations:
+      required: true
+
+  - type: input
+    id: python
+    attributes:
+      label: Python + CocoTB versions
+      placeholder: "Python 3.11.5, cocotb 1.9.2"
+    validations:
+      required: true
+
+  - type: input
+    id: os
+    attributes:
+      label: OS / platform
+      placeholder: "Ubuntu 24.04 (x86_64)"
+
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: Pre-flight checks
+      options:
+        - label: I searched existing issues for duplicates.
+          required: true
+        - label: I checked the `KNOWN_ISSUES/` directory for the affected subsystem.
+          required: true
+        - label: I ran the test (if applicable) with a freshly sourced `env_python`.
+          required: false

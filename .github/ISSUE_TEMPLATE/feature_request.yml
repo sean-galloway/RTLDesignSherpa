@@ -1,0 +1,72 @@
+name: Feature request
+description: Propose a new RTL module, test, generator capability, or documentation page.
+title: "[feat] <short summary>"
+labels: ["enhancement", "triage"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for proposing an idea. For larger changes, please align on
+        the approach in this issue *before* writing code — that saves
+        time for everyone.
+
+  - type: dropdown
+    id: category
+    attributes:
+      label: Category
+      options:
+        - New RTL module
+        - New verification test / scoreboard
+        - Generator improvement (PeakRDL / bridge_generator / etc.)
+        - Documentation
+        - Tooling / CI / build
+        - Other
+    validations:
+      required: true
+
+  - type: input
+    id: subsystem
+    attributes:
+      label: Subsystem / target location
+      description: Where would this live? (e.g., `rtl/common/`, `projects/components/<new>`, `docs/markdown/RTLAmba/`)
+      placeholder: rtl/amba/shared/
+    validations:
+      required: true
+
+  - type: textarea
+    id: motivation
+    attributes:
+      label: Motivation
+      description: What problem does this solve? What learning outcome or production need does it serve?
+    validations:
+      required: true
+
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposed approach
+      description: High-level design sketch. Interfaces, parameters, key state, test plan.
+    validations:
+      required: true
+
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives considered
+      description: Other ways to solve this, and why you prefer the proposal. Existing modules you considered reusing/extending.
+
+  - type: textarea
+    id: references
+    attributes:
+      label: References
+      description: Specs, papers, prior art, related modules in this repo or elsewhere.
+
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: Pre-flight checks
+      options:
+        - label: I searched existing issues for similar proposals.
+          required: true
+        - label: I searched the repo for existing modules that solve part or all of this problem (`grep -r`, `find rtl/`).
+          required: true

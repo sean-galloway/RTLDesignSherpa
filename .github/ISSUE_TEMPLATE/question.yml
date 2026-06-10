@@ -1,0 +1,41 @@
+name: Question / discussion
+description: Usage questions, design discussions, "why is it done this way?" — anything that isn't a bug or feature request.
+title: "[question] <short summary>"
+labels: ["question"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Questions are welcome. They often surface gaps in the docs or
+        spawn feature requests. Please check the
+        [Documentation Index](https://github.com/sean-galloway/RTLDesignSherpa/blob/main/docs/DOCUMENTATION_INDEX.md),
+        the relevant subsystem `PRD.md`, and `CLAUDE.md` first.
+
+  - type: input
+    id: subsystem
+    attributes:
+      label: Subsystem / area (optional)
+      description: Which part of the repo does this relate to?
+      placeholder: rtl/amba/shared/, projects/components/stream, docs, …
+
+  - type: textarea
+    id: question
+    attributes:
+      label: Your question
+      description: Be as specific as you can — link to lines of code or doc sections where useful.
+    validations:
+      required: true
+
+  - type: textarea
+    id: context
+    attributes:
+      label: What you've already tried / read
+      description: Helps avoid pointing you back at things you've already seen.
+
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: Pre-flight checks
+      options:
+        - label: I searched existing issues and discussions for similar questions.
+          required: true

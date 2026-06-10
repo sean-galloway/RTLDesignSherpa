@@ -1,0 +1,14 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Documentation Index
+    url: https://github.com/sean-galloway/RTLDesignSherpa/blob/main/docs/DOCUMENTATION_INDEX.md
+    about: Browse the complete documentation index before opening an issue.
+  - name: Repository Conventions (CLAUDE.md)
+    url: https://github.com/sean-galloway/RTLDesignSherpa/blob/main/CLAUDE.md
+    about: Naming, reset/clock conventions, testbench patterns, generator rules.
+  - name: Global Requirements
+    url: https://github.com/sean-galloway/RTLDesignSherpa/blob/main/GLOBAL_REQUIREMENTS.md
+    about: Mandatory standards every PR must satisfy.
+  - name: Verification Framework (RTLDesignSherpa-DV)
+    url: https://github.com/sean-galloway/RTLDesignSherpa-DV
+    about: Issues about CocoTBFramework BFMs / scoreboards belong in the DV repo.
