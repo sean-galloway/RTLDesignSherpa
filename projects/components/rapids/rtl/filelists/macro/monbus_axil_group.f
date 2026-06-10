@@ -33,8 +33,15 @@ $REPO_ROOT/rtl/amba/gaxi/gaxi_skid_buffer.sv
 $REPO_ROOT/rtl/common/arbiter_round_robin.sv
 $REPO_ROOT/rtl/common/arbiter_priority_encoder.sv
 
-# Shared single-input AXIL group (rtl/amba/shared/)
-$REPO_ROOT/rtl/amba/shared/monbus_axil_group.sv
+# Compressor (optional; selected by USE_COMPRESSION=1 in the core)
+$REPO_ROOT/rtl/amba/shared/monbus_cam.sv
+$REPO_ROOT/rtl/amba/shared/monbus_compressor.sv
 
-# RAPIDS 2-input wrapper: monbus_arbiter(2) + the shared group above
+# Protocol-agnostic core + AXIL/AXIL wrapper (replaces legacy monbus_axil_group.sv).
+# Other variants in the monbus_<p1>_<p2>_group family live alongside:
+#   monbus_axil_axi4_group.sv, monbus_axi4_axil_group.sv, monbus_axi4_axi4_group.sv
+$REPO_ROOT/rtl/amba/shared/monbus_group_core.sv
+$REPO_ROOT/rtl/amba/shared/monbus_axil_axil_group.sv
+
+# RAPIDS 2-input wrapper: monbus_arbiter(2) + the shared AXIL/AXIL group
 $REPO_ROOT/projects/components/rapids/rtl/macro/monbus_axil_group_2in.sv

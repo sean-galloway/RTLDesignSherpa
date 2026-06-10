@@ -36,5 +36,12 @@ $REPO_ROOT/rtl/amba/gaxi/gaxi_skid_buffer.sv
 $REPO_ROOT/rtl/amba/axil4/axil4_slave_rd.sv
 $REPO_ROOT/rtl/amba/axil4/axil4_master_wr.sv
 
-# Macro Component - This module (unified under rtl/amba/shared/)
-$REPO_ROOT/rtl/amba/shared/monbus_axil_group.sv
+# Compressor (used optionally by the core; USE_COMPRESSION=1 selects it)
+$REPO_ROOT/rtl/amba/shared/monbus_cam.sv
+$REPO_ROOT/rtl/amba/shared/monbus_compressor.sv
+
+# Protocol-agnostic core + AXIL/AXIL wrapper (replaces legacy monbus_axil_group.sv).
+# Other variants in the monbus_<p1>_<p2>_group family live alongside:
+#   monbus_axil_axi4_group.sv, monbus_axi4_axil_group.sv, monbus_axi4_axi4_group.sv
+$REPO_ROOT/rtl/amba/shared/monbus_group_core.sv
+$REPO_ROOT/rtl/amba/shared/monbus_axil_axil_group.sv

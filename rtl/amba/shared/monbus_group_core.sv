@@ -1,0 +1,845 @@
+// SPDX-License-Identifier: MIT
+// SPDX-FileCopyrightText: 2026 sean galloway
+//
+// Module: monbus_group_core
+// Purpose: Protocol-agnostic monitor-bus capture core.
+//
+//   Receives a single monbus stream + side-band timestamp, applies
+//   per-protocol filter masks, and routes accepted packets to either:
+//
+//     (a) Error / interrupt FIFO  -- drained over an AXI4-shaped slave
+//         read FUB (supports burst AR). Stored 192 bits per record
+//         (one packet + one timestamp). The CPU IRQ handler walks
+//         records as 3 x 64-bit beats; arlen may request multiple
+//         records per burst.
+//
+//     (b) Master-write FIFO       -- beat-granular (one queue entry =
+//         one 64-bit beat). Drained over an AXI4-shaped master-write
+//         FUB with watermark + timeout flush and bursts as big as
+//         FIFO contents / MAX_BURST_BEATS / 4KB boundary / address
+//         window wrap permit. Raw-mode bursts emit complete 24-byte
+//         (3-beat) records; compressed-mode bursts emit any number of
+//         self-tagged 8-byte slots.
+//
+//   FUB shape on both sides is AXI4: id / awlen / awsize / awburst /
+//   wlast / arlen / rlast / etc. Wrappers (monbus_<p1>_<p2>_group.sv)
+//   bridge the FUB into protocol-specific leaf skids: pass through for
+//   AXI4 sides, supply single-beat defaults (len=0, size=$clog2(8),
+//   burst=INCR, id=0) and parameter MAX_BURST_BEATS=1 on AXIL sides.
+//
+//   This file is the single source of truth for filtering, FIFO
+//   management, compression, and the burst writer / slicer state
+//   machines. The wrappers are pure structural adapters.
+//
+// Beat layout (raw mode, USE_COMPRESSION == 0):
+//   beat 0 = {tag[3:0]=4'h0, source_ts[59:0]}
+//   beat 1 = packet[127:64]
+//   beat 2 = packet[63:0]
+// Beat layout (compressed mode, USE_COMPRESSION == 1):
+//   beat n = monbus_compressor slot; tag in bits [63:60].
+//
+// Subsystem: amba
+// Author: sean galloway
+
+`timescale 1ns / 1ps
+
+`include "reset_defs.svh"
+
+module monbus_group_core
+    import monitor_common_pkg::*;
+#(
+    parameter int FIFO_DEPTH_ERR        = 64,      // entries (192-bit records)
+    parameter int FIFO_DEPTH_WRITE      = 96,      // beats (64-bit each) -- beat-granular
+    parameter int ADDR_WIDTH            = 32,
+    parameter int AXI_ID_WIDTH_M        = 1,       // master-write id (1 in AXIL builds)
+    parameter int AXI_ID_WIDTH_S        = 1,       // slave-read   id (1 in AXIL builds)
+    parameter int MAX_BURST_BEATS       = 1,       // master-write max beats/burst
+                                                   //   AXIL builds: 1, AXI4 builds: up to 256
+    parameter int FLUSH_TIMEOUT_CYCLES  = 1024,    // cycles since last beat to force flush
+    parameter int NUM_PROTOCOLS         = 3,       // informational
+    parameter int USE_COMPRESSION       = 0        // 0 = raw 3-beat records, 1 = compressor
+) (
+    input  logic                          axi_aclk,
+    input  logic                          axi_aresetn,
+
+    // ------------------------------------------------------------------
+    // Monitor-bus input (single stream; upstream arbitration if any)
+    // ------------------------------------------------------------------
+    input  logic                          monbus_valid,
+    output logic                          monbus_ready,
+    input  monitor_packet_t               monbus_packet,
+    input  monbus_timestamp_t             monbus_timestamp,
+
+    // Free-running timestamp out (drive to every wrapper's i_mon_time)
+    output monbus_timestamp_t             mon_time_out,
+
+    // ------------------------------------------------------------------
+    // Status / IRQ / debug
+    // ------------------------------------------------------------------
+    output logic                          irq_out,
+    output logic                          err_fifo_full,
+    output logic                          write_fifo_full,
+    output logic [15:0]                   err_fifo_count,    // records
+    output logic [15:0]                   write_fifo_count,  // beats
+
+    // ------------------------------------------------------------------
+    // Address window + flush thresholds for master writes
+    // ------------------------------------------------------------------
+    input  logic [ADDR_WIDTH-1:0]         cfg_base_addr,
+    input  logic [ADDR_WIDTH-1:0]         cfg_limit_addr,
+    input  logic [15:0]                   cfg_flush_watermark, // beats
+
+    // ------------------------------------------------------------------
+    // Per-protocol filter masks (same shape as legacy monbus_axil_group)
+    // ------------------------------------------------------------------
+    // AXI (protocol 0)
+    input  logic [15:0]                   cfg_axi_pkt_mask,
+    input  logic [15:0]                   cfg_axi_err_select,
+    input  logic [15:0]                   cfg_axi_error_mask,
+    input  logic [15:0]                   cfg_axi_timeout_mask,
+    input  logic [15:0]                   cfg_axi_compl_mask,
+    input  logic [15:0]                   cfg_axi_thresh_mask,
+    input  logic [15:0]                   cfg_axi_perf_mask,
+    input  logic [15:0]                   cfg_axi_addr_mask,
+    input  logic [15:0]                   cfg_axi_debug_mask,
+    // AXIS (protocol 1)
+    input  logic [15:0]                   cfg_axis_pkt_mask,
+    input  logic [15:0]                   cfg_axis_err_select,
+    input  logic [15:0]                   cfg_axis_error_mask,
+    input  logic [15:0]                   cfg_axis_timeout_mask,
+    input  logic [15:0]                   cfg_axis_compl_mask,
+    input  logic [15:0]                   cfg_axis_credit_mask,
+    input  logic [15:0]                   cfg_axis_channel_mask,
+    input  logic [15:0]                   cfg_axis_stream_mask,
+    // CORE (protocol 4)
+    input  logic [15:0]                   cfg_core_pkt_mask,
+    input  logic [15:0]                   cfg_core_err_select,
+    input  logic [15:0]                   cfg_core_error_mask,
+    input  logic [15:0]                   cfg_core_timeout_mask,
+    input  logic [15:0]                   cfg_core_compl_mask,
+    input  logic [15:0]                   cfg_core_thresh_mask,
+    input  logic [15:0]                   cfg_core_perf_mask,
+    input  logic [15:0]                   cfg_core_debug_mask,
+
+    // ------------------------------------------------------------------
+    // Compressor stats (zero in raw mode; live when USE_COMPRESSION == 1)
+    // ------------------------------------------------------------------
+    output logic [31:0]                   mon_compressor_stat_tier1_a,
+    output logic [31:0]                   mon_compressor_stat_tier1_b,
+    output logic [31:0]                   mon_compressor_stat_tier1_c,
+    output logic [31:0]                   mon_compressor_stat_tier0,
+    output logic [31:0]                   mon_compressor_stat_cam_miss,
+    output logic [31:0]                   mon_compressor_stat_delta_ts_ovf,
+    output logic [31:0]                   mon_compressor_stat_event_data_ovf,
+    output logic [31:0]                   mon_compressor_stat_ed_delta_ovf,
+
+    // ------------------------------------------------------------------
+    // AXI4-shaped master-write FUB (driven by core, bridged by wrapper)
+    // ------------------------------------------------------------------
+    output logic [AXI_ID_WIDTH_M-1:0]     fub_m_awid,
+    output logic [ADDR_WIDTH-1:0]         fub_m_awaddr,
+    output logic [7:0]                    fub_m_awlen,
+    output logic [2:0]                    fub_m_awsize,
+    output logic [1:0]                    fub_m_awburst,
+    output logic                          fub_m_awvalid,
+    input  logic                          fub_m_awready,
+
+    output logic [63:0]                   fub_m_wdata,
+    output logic [7:0]                    fub_m_wstrb,
+    output logic                          fub_m_wlast,
+    output logic                          fub_m_wvalid,
+    input  logic                          fub_m_wready,
+
+    input  logic [AXI_ID_WIDTH_M-1:0]     fub_m_bid,    // ignored
+    input  logic [1:0]                    fub_m_bresp,  // ignored
+    input  logic                          fub_m_bvalid,
+    output logic                          fub_m_bready,
+
+    // ------------------------------------------------------------------
+    // AXI4-shaped slave-read FUB (driven by wrapper, answered by core)
+    // ------------------------------------------------------------------
+    input  logic [AXI_ID_WIDTH_S-1:0]     fub_s_arid,
+    input  logic [ADDR_WIDTH-1:0]         fub_s_araddr,
+    input  logic [7:0]                    fub_s_arlen,
+    input  logic [2:0]                    fub_s_arsize,
+    input  logic [1:0]                    fub_s_arburst,
+    input  logic                          fub_s_arvalid,
+    output logic                          fub_s_arready,
+
+    output logic [AXI_ID_WIDTH_S-1:0]     fub_s_rid,
+    output logic [63:0]                   fub_s_rdata,
+    output logic [1:0]                    fub_s_rresp,
+    output logic                          fub_s_rlast,
+    output logic                          fub_s_rvalid,
+    input  logic                          fub_s_rready
+);
+
+    // ==================================================================
+    // Local parameters
+    // ==================================================================
+
+    localparam int BYTES_PER_BEAT   = 8;                   // 64-bit beats
+    localparam int BEATS_PER_UNIT   = (USE_COMPRESSION == 0) ? 3 : 1;
+    localparam int BYTES_PER_UNIT   = BEATS_PER_UNIT * BYTES_PER_BEAT;
+    localparam logic [3:0] WRITE_TAG_RAW = 4'h0;
+
+    localparam int ERR_REC_WIDTH    = MONBUS_PKT_WIDTH + MONBUS_TS_WIDTH;
+    localparam int WRITE_FIFO_AW    = $clog2(FIFO_DEPTH_WRITE);
+
+    // Suppress lint warnings on params held for API stability
+    /* verilator lint_off UNUSEDPARAM */
+    localparam int NUM_PROTOCOLS_LP = NUM_PROTOCOLS;
+    /* verilator lint_on UNUSEDPARAM */
+
+    // ==================================================================
+    // Internal signals
+    // ==================================================================
+
+    // Filtering
+    logic [3:0]                      pkt_type;
+    logic [3:0]                      pkt_protocol;
+    logic [7:0]                      pkt_event_code;
+    logic [3:0]                      ec_idx;
+    logic                            ec_in_mask_range;
+    /* verilator lint_off UNUSED */
+    logic [63:0]                     pkt_event_data;
+    /* verilator lint_on UNUSED */
+    logic                            pkt_drop;
+    logic                            pkt_to_err_fifo;
+    logic                            pkt_to_write_path;
+    logic                            pkt_event_masked;
+
+    monbus_timestamp_t               r_ts_counter;
+
+    // Err FIFO (record-granular, 192-bit)
+    logic                            err_fifo_wr_valid;
+    logic                            err_fifo_wr_ready;
+    logic [ERR_REC_WIDTH-1:0]        err_fifo_wr_data;
+    logic                            err_fifo_rd_valid;
+    logic                            err_fifo_rd_ready;
+    logic [ERR_REC_WIDTH-1:0]        err_fifo_rd_data;
+    logic                            err_fifo_empty;
+    logic [$clog2(FIFO_DEPTH_ERR):0] err_fifo_count_full;
+
+    // Write FIFO (beat-granular, 64-bit)
+    logic                            write_fifo_wr_valid;
+    logic                            write_fifo_wr_ready;
+    logic [63:0]                     write_fifo_wr_data;
+    logic                            write_fifo_rd_valid;
+    logic                            write_fifo_rd_ready;
+    logic [63:0]                     write_fifo_rd_data;
+    logic                            write_fifo_empty;
+    logic [WRITE_FIFO_AW:0]          write_fifo_beat_count;
+
+    // ==================================================================
+    // Free-running timestamp counter
+    // ==================================================================
+
+    `ALWAYS_FF_RST(axi_aclk, axi_aresetn,
+        if (`RST_ASSERTED(axi_aresetn)) begin
+            r_ts_counter <= '0;
+        end else begin
+            r_ts_counter <= r_ts_counter + 1'b1;
+        end
+    )
+
+    assign mon_time_out = r_ts_counter;
+
+    // ==================================================================
+    // Packet analysis + filter
+    // ==================================================================
+
+    assign pkt_type       = get_packet_type(monbus_packet);
+    assign pkt_protocol   = monbus_packet[108:105];
+    assign pkt_event_code = get_event_code(monbus_packet);
+    assign pkt_event_data = get_event_data(monbus_packet);
+
+    assign ec_idx           = pkt_event_code[3:0];
+    assign ec_in_mask_range = (pkt_event_code[7:4] == 4'h0);
+
+    always_comb begin
+        pkt_drop          = 1'b0;
+        pkt_to_err_fifo   = 1'b0;
+        pkt_to_write_path = 1'b0;
+        pkt_event_masked  = 1'b0;
+
+        if (monbus_valid) begin
+            case (pkt_protocol)
+                PROTOCOL_AXI: begin
+                    pkt_drop        = cfg_axi_pkt_mask[pkt_type];
+                    pkt_to_err_fifo = cfg_axi_err_select[pkt_type] && !pkt_drop;
+                    if (ec_in_mask_range) begin
+                        case (pkt_type)
+                            PktTypeError:      pkt_event_masked = cfg_axi_error_mask  [ec_idx];
+                            PktTypeTimeout:    pkt_event_masked = cfg_axi_timeout_mask[ec_idx];
+                            PktTypeCompletion: pkt_event_masked = cfg_axi_compl_mask  [ec_idx];
+                            PktTypeThreshold:  pkt_event_masked = cfg_axi_thresh_mask [ec_idx];
+                            PktTypePerf:       pkt_event_masked = cfg_axi_perf_mask   [ec_idx];
+                            PktTypeAddrMatch:  pkt_event_masked = cfg_axi_addr_mask   [ec_idx];
+                            PktTypeDebug:      pkt_event_masked = cfg_axi_debug_mask  [ec_idx];
+                            default:           pkt_event_masked = 1'b0;
+                        endcase
+                    end
+                end
+                PROTOCOL_AXIS: begin
+                    pkt_drop        = cfg_axis_pkt_mask[pkt_type];
+                    pkt_to_err_fifo = cfg_axis_err_select[pkt_type] && !pkt_drop;
+                    if (ec_in_mask_range) begin
+                        case (pkt_type)
+                            PktTypeError:      pkt_event_masked = cfg_axis_error_mask  [ec_idx];
+                            PktTypeTimeout:    pkt_event_masked = cfg_axis_timeout_mask[ec_idx];
+                            PktTypeCompletion: pkt_event_masked = cfg_axis_compl_mask  [ec_idx];
+                            PktTypeCredit:     pkt_event_masked = cfg_axis_credit_mask [ec_idx];
+                            PktTypeChannel:    pkt_event_masked = cfg_axis_channel_mask[ec_idx];
+                            PktTypeStream:     pkt_event_masked = cfg_axis_stream_mask [ec_idx];
+                            default:           pkt_event_masked = 1'b0;
+                        endcase
+                    end
+                end
+                PROTOCOL_CORE: begin
+                    pkt_drop        = cfg_core_pkt_mask[pkt_type];
+                    pkt_to_err_fifo = cfg_core_err_select[pkt_type] && !pkt_drop;
+                    if (ec_in_mask_range) begin
+                        case (pkt_type)
+                            PktTypeError:      pkt_event_masked = cfg_core_error_mask  [ec_idx];
+                            PktTypeTimeout:    pkt_event_masked = cfg_core_timeout_mask[ec_idx];
+                            PktTypeCompletion: pkt_event_masked = cfg_core_compl_mask  [ec_idx];
+                            PktTypeThreshold:  pkt_event_masked = cfg_core_thresh_mask [ec_idx];
+                            PktTypePerf:       pkt_event_masked = cfg_core_perf_mask   [ec_idx];
+                            PktTypeDebug:      pkt_event_masked = cfg_core_debug_mask  [ec_idx];
+                            default:           pkt_event_masked = 1'b0;
+                        endcase
+                    end
+                end
+                default: pkt_drop = 1'b1;
+            endcase
+
+            if (pkt_event_masked) begin
+                pkt_drop        = 1'b1;
+                pkt_to_err_fifo = 1'b0;
+            end
+
+            pkt_to_write_path = !pkt_drop && !pkt_to_err_fifo;
+        end
+    end
+
+    // ==================================================================
+    // Err FIFO (record-granular 192-bit; same layout as legacy module)
+    // ==================================================================
+
+    assign err_fifo_wr_valid = monbus_valid && pkt_to_err_fifo && !pkt_drop;
+    assign err_fifo_wr_data  = {monbus_timestamp, monbus_packet};
+
+    gaxi_fifo_sync #(
+        .REGISTERED (0),
+        .DATA_WIDTH (ERR_REC_WIDTH),
+        .DEPTH      (FIFO_DEPTH_ERR)
+    ) u_err_fifo (
+        .axi_aclk    (axi_aclk),
+        .axi_aresetn (axi_aresetn),
+        .wr_valid    (err_fifo_wr_valid),
+        .wr_ready    (err_fifo_wr_ready),
+        .wr_data     (err_fifo_wr_data),
+        .rd_valid    (err_fifo_rd_valid),
+        .rd_ready    (err_fifo_rd_ready),
+        .rd_data     (err_fifo_rd_data),
+        .count       (err_fifo_count_full)
+    );
+
+    assign err_fifo_empty = !err_fifo_rd_valid;
+    assign err_fifo_full  = !err_fifo_wr_ready;
+    assign irq_out        = !err_fifo_empty;
+    assign err_fifo_count = {{(16-$clog2(FIFO_DEPTH_ERR)-1){1'b0}}, err_fifo_count_full};
+
+    // ==================================================================
+    // Slave-read drain  (AXI4-shaped FUB, supports burst AR)
+    //
+    // A burst of (arlen+1) beats slices `(arlen+1)` 64-bit chunks out of
+    // consecutive 192-bit err-FIFO records. Slice order is:
+    //   slice 0 = {tag=4'h0, source_ts[59:0]}
+    //   slice 1 = packet[127:64]
+    //   slice 2 = packet[63:0]
+    // The FIFO record is popped on slice 2. The CPU should size arlen as
+    // a multiple-of-3 minus one to cleanly land on record boundaries
+    // (the slicer doesn't enforce this; misaligned bursts simply leave
+    // the next AR pointing mid-record).
+    //
+    // AR is accepted only when the slicer is at slice 0 AND the FIFO
+    // has at least one record buffered. rvalid drops mid-burst if the
+    // FIFO underruns (the slicer waits at slice 0 until a new record
+    // arrives, then resumes). rlast asserts on the (arlen+1)-th beat.
+    // ==================================================================
+
+    typedef enum logic [1:0] {
+        SLICE_SRC_TS = 2'd0,
+        SLICE_PKT_HI = 2'd1,
+        SLICE_PKT_LO = 2'd2,
+        SLICE_RSVD   = 2'd3
+    } read_slice_t;
+
+    read_slice_t                   r_slice_idx;
+    logic [8:0]                    r_rd_beats_remaining;   // arlen is 8 bits -> need 9 bits for "arlen+1"
+    logic                          r_rd_in_burst;
+    logic [AXI_ID_WIDTH_S-1:0]     r_rd_burst_id;
+
+    // arready: accept a new burst only when we're idle (no burst in flight)
+    assign fub_s_arready = !r_rd_in_burst;
+
+    // rvalid: a slice is available whenever a burst is active AND the
+    // err FIFO has a record we can slice from.
+    assign fub_s_rvalid  = r_rd_in_burst && !err_fifo_empty;
+
+    // rlast on the final beat of the burst (r_rd_beats_remaining == 1)
+    assign fub_s_rlast   = r_rd_in_burst && (r_rd_beats_remaining == 9'd1);
+
+    // rid echoes the burst id throughout the burst
+    assign fub_s_rid     = r_rd_burst_id;
+    assign fub_s_rresp   = 2'b00; // OKAY
+
+    // rdata multiplexer
+    always_comb begin
+        unique case (r_slice_idx)
+            SLICE_SRC_TS: fub_s_rdata = {WRITE_TAG_RAW,
+                                         err_fifo_rd_data[MONBUS_PKT_WIDTH+59:MONBUS_PKT_WIDTH]};
+            SLICE_PKT_HI: fub_s_rdata = err_fifo_rd_data[MONBUS_PKT_WIDTH-1:64];
+            SLICE_PKT_LO: fub_s_rdata = err_fifo_rd_data[63:0];
+            default:      fub_s_rdata = '0;
+        endcase
+    end
+
+    // Pop FIFO only when the slicer completes a record (slice 2 fires)
+    assign err_fifo_rd_ready = fub_s_rvalid && fub_s_rready
+                            && (r_slice_idx == SLICE_PKT_LO);
+
+    `ALWAYS_FF_RST(axi_aclk, axi_aresetn,
+        if (`RST_ASSERTED(axi_aresetn)) begin
+            r_slice_idx          <= SLICE_SRC_TS;
+            r_rd_beats_remaining <= 9'd0;
+            r_rd_in_burst        <= 1'b0;
+            r_rd_burst_id        <= '0;
+        end else begin
+            // Start of burst: latch arlen+1 and id
+            if (fub_s_arvalid && fub_s_arready) begin
+                r_rd_in_burst        <= 1'b1;
+                r_rd_beats_remaining <= {1'b0, fub_s_arlen} + 9'd1;
+                r_rd_burst_id        <= fub_s_arid;
+            end
+
+            // Beat retire
+            if (fub_s_rvalid && fub_s_rready) begin
+                r_rd_beats_remaining <= r_rd_beats_remaining - 9'd1;
+                if (r_slice_idx == SLICE_PKT_LO) begin
+                    r_slice_idx <= SLICE_SRC_TS;
+                end else begin
+                    r_slice_idx <= read_slice_t'(r_slice_idx + 2'd1);
+                end
+                // End of burst
+                if (r_rd_beats_remaining == 9'd1) begin
+                    r_rd_in_burst <= 1'b0;
+                end
+            end
+        end
+    )
+
+    // Suppress lint: arsize/arburst not used (we always emit 64-bit INCR)
+    /* verilator lint_off UNUSED */
+    logic [2:0] _unused_arsize  = fub_s_arsize;
+    logic [1:0] _unused_arburst = fub_s_arburst;
+    logic [ADDR_WIDTH-1:0] _unused_araddr = fub_s_araddr;
+    /* verilator lint_on UNUSED */
+
+    // ==================================================================
+    // Write path -- one of two implementations selected at elaboration
+    //
+    //   USE_COMPRESSION == 0: a 3-state expander pushes the {ts, pkt_hi,
+    //     pkt_lo} beats into the 64-bit write FIFO atomically (gated by
+    //     "3 slots free" so we never split a record across backpressure).
+    //
+    //   USE_COMPRESSION == 1: monbus_compressor sits between the input
+    //     and the write FIFO; each emitted slot is one beat directly
+    //     into the FIFO.
+    // ==================================================================
+
+    generate
+    if (USE_COMPRESSION == 0) begin : gen_expander_raw
+
+        // 3-state expander
+        typedef enum logic [1:0] {
+            EXP_TS   = 2'd0,
+            EXP_HI   = 2'd1,
+            EXP_LO   = 2'd2,
+            EXP_RSVD = 2'd3
+        } exp_state_t;
+
+        exp_state_t                  r_exp_state;
+        monitor_packet_t             r_lat_packet;
+        monbus_timestamp_t           r_lat_source_ts;
+
+        // Once the expander starts a record (EXP_TS handshake), it
+        // commits to driving the other two beats of that record into
+        // the FIFO with wvalid held high until each beat is accepted.
+        // Atomicity is preserved by *not polling* monbus_valid in
+        // EXP_HI/EXP_LO -- so a new record is never started until the
+        // current one has been fully pushed. We rely on per-beat
+        // wr_ready here (not a "3 slots free" precheck) to avoid the
+        // count -> wr_valid -> count combinational loop.
+        logic exp_accepting_now;
+        assign exp_accepting_now = (r_exp_state == EXP_TS)
+                                && monbus_valid && pkt_to_write_path;
+
+        // Drive the FIFO write port
+        always_comb begin
+            write_fifo_wr_valid = 1'b0;
+            write_fifo_wr_data  = 64'd0;
+            unique case (r_exp_state)
+                EXP_TS:   if (exp_accepting_now) begin
+                              write_fifo_wr_valid = 1'b1;
+                              write_fifo_wr_data  = {WRITE_TAG_RAW, monbus_timestamp[59:0]};
+                          end
+                EXP_HI:   begin
+                              write_fifo_wr_valid = 1'b1;
+                              write_fifo_wr_data  = r_lat_packet[MONBUS_PKT_WIDTH-1:64];
+                          end
+                EXP_LO:   begin
+                              write_fifo_wr_valid = 1'b1;
+                              write_fifo_wr_data  = r_lat_packet[63:0];
+                          end
+                default:  ;
+            endcase
+        end
+
+        `ALWAYS_FF_RST(axi_aclk, axi_aresetn,
+            if (`RST_ASSERTED(axi_aresetn)) begin
+                r_exp_state     <= EXP_TS;
+                r_lat_packet    <= '0;
+                r_lat_source_ts <= '0;
+            end else begin
+                unique case (r_exp_state)
+                    EXP_TS: if (exp_accepting_now && write_fifo_wr_ready) begin
+                                r_lat_packet    <= monbus_packet;
+                                r_lat_source_ts <= monbus_timestamp;
+                                r_exp_state     <= EXP_HI;
+                            end
+                    EXP_HI: if (write_fifo_wr_ready) r_exp_state <= EXP_LO;
+                    EXP_LO: if (write_fifo_wr_ready) r_exp_state <= EXP_TS;
+                    default: r_exp_state <= EXP_TS;
+                endcase
+            end
+        )
+
+        // monbus_ready: pkt_to_write_path consumed only when the
+        // expander accepts the input handshake.
+        assign monbus_ready = pkt_drop
+                           || (pkt_to_err_fifo   && err_fifo_wr_ready)
+                           || (pkt_to_write_path && exp_accepting_now && write_fifo_wr_ready);
+
+        // No compressor in raw mode
+        assign mon_compressor_stat_tier1_a        = 32'd0;
+        assign mon_compressor_stat_tier1_b        = 32'd0;
+        assign mon_compressor_stat_tier1_c        = 32'd0;
+        assign mon_compressor_stat_tier0          = 32'd0;
+        assign mon_compressor_stat_cam_miss       = 32'd0;
+        assign mon_compressor_stat_delta_ts_ovf   = 32'd0;
+        assign mon_compressor_stat_event_data_ovf = 32'd0;
+        assign mon_compressor_stat_ed_delta_ovf   = 32'd0;
+
+        // Keep the latched source ts visible to lint (used only in EXP_HI
+        // currently via r_lat_packet; latch kept for future format work)
+        /* verilator lint_off UNUSED */
+        monbus_timestamp_t _unused_lat_ts = r_lat_source_ts;
+        /* verilator lint_on UNUSED */
+
+    end else begin : gen_compressor
+
+        // monbus_compressor consumes (packet, source_ts) records and
+        // emits 64-bit self-tagged slots. Each slot becomes one beat in
+        // the write FIFO.
+        logic        comp_in_valid;
+        logic        comp_in_ready;
+        logic        comp_out_valid;
+        logic        comp_out_ready;
+        logic [63:0] comp_out_slot;
+
+        assign comp_in_valid = monbus_valid && pkt_to_write_path && !pkt_drop;
+
+        monbus_compressor u_compressor (
+            .clk                 (axi_aclk),
+            .rst_n               (axi_aresetn),
+
+            .in_valid            (comp_in_valid),
+            .in_ready            (comp_in_ready),
+            .in_packet           (monbus_packet),
+            .in_source_ts        (monbus_timestamp),
+
+            .out_valid           (comp_out_valid),
+            .out_ready           (comp_out_ready),
+            .out_slot            (comp_out_slot),
+
+            .stat_tier1_a        (mon_compressor_stat_tier1_a),
+            .stat_tier1_b        (mon_compressor_stat_tier1_b),
+            .stat_tier1_c        (mon_compressor_stat_tier1_c),
+            .stat_tier0          (mon_compressor_stat_tier0),
+            .stat_cam_miss       (mon_compressor_stat_cam_miss),
+            .stat_delta_ts_ovf   (mon_compressor_stat_delta_ts_ovf),
+            .stat_event_data_ovf (mon_compressor_stat_event_data_ovf),
+            .stat_ed_delta_ovf   (mon_compressor_stat_ed_delta_ovf)
+        );
+
+        // Compressor output drives FIFO write
+        assign write_fifo_wr_valid = comp_out_valid;
+        assign write_fifo_wr_data  = comp_out_slot;
+        assign comp_out_ready      = write_fifo_wr_ready;
+
+        // monbus_ready
+        assign monbus_ready = pkt_drop
+                           || (pkt_to_err_fifo   && err_fifo_wr_ready)
+                           || (pkt_to_write_path && comp_in_ready);
+
+    end
+    endgenerate
+
+    // ==================================================================
+    // Write FIFO -- beat-granular (one queue entry = one 64-bit beat)
+    // ==================================================================
+
+    gaxi_fifo_sync #(
+        .REGISTERED (0),
+        .DATA_WIDTH (64),
+        .DEPTH      (FIFO_DEPTH_WRITE)
+    ) u_write_fifo (
+        .axi_aclk    (axi_aclk),
+        .axi_aresetn (axi_aresetn),
+        .wr_valid    (write_fifo_wr_valid),
+        .wr_ready    (write_fifo_wr_ready),
+        .wr_data     (write_fifo_wr_data),
+        .rd_valid    (write_fifo_rd_valid),
+        .rd_ready    (write_fifo_rd_ready),
+        .rd_data     (write_fifo_rd_data),
+        .count       (write_fifo_beat_count)
+    );
+
+    assign write_fifo_empty = !write_fifo_rd_valid;
+    assign write_fifo_full  = !write_fifo_wr_ready;
+    assign write_fifo_count = {{(16-WRITE_FIFO_AW-1){1'b0}}, write_fifo_beat_count};
+
+    // ==================================================================
+    // Master-write burst writer
+    //
+    //   Triggers a flush burst when either:
+    //     (a) write_fifo_beat_count >= cfg_flush_watermark
+    //     (b) timeout: FLUSH_TIMEOUT_CYCLES since the last accepted W
+    //         handshake AND the FIFO holds at least BEATS_PER_UNIT beats.
+    //
+    //   Burst length (in beats), chosen at the start of each burst:
+    //     beats = min(write_fifo_beat_count,
+    //                 MAX_BURST_BEATS,
+    //                 beats_to_limit,         // staying inside cfg_limit
+    //                 beats_to_4kb_boundary)
+    //     beats = (beats / BEATS_PER_UNIT) * BEATS_PER_UNIT
+    //   If beats < BEATS_PER_UNIT after rounding, attempt a rewind to
+    //   cfg_base_addr and re-check. If still 0, give up this cycle (wait
+    //   for more data or for the address window to allow a unit).
+    //
+    //   No mid-burst wrap: the burst is sized so the last byte is <=
+    //   cfg_limit_addr AND does not cross the 4KB boundary AXI4 demands.
+    // ==================================================================
+
+    typedef enum logic [2:0] {
+        WR_IDLE  = 3'd0,
+        WR_AW    = 3'd1,
+        WR_W     = 3'd2,
+        WR_B     = 3'd3
+    } wr_state_t;
+
+    wr_state_t                   r_wr_state;
+    logic [ADDR_WIDTH-1:0]       r_wr_addr;
+    logic [ADDR_WIDTH-1:0]       r_aw_addr;          // latched AW address
+    logic [7:0]                  r_aw_len;           // latched awlen (=beats-1)
+    logic [8:0]                  r_w_beats_remaining; // beats left in current burst W
+    logic [31:0]                 r_timeout_cnt;
+
+    // Beats geometry (combinational; uses current r_wr_addr).
+    //
+    // Width policy: every burst-cap quantity is widened to 16 bits so
+    // we can compare them uniformly. Final burst length lives in
+    // beats_planned_units (16 bits) but only the low 9 bits go to AWLEN
+    // (AXI4: arlen+1, max 256 beats), and the W FSM tracks via the
+    // 9-bit r_w_beats_remaining (max 256).
+    logic [15:0]                 beats_in_fifo;
+    logic [ADDR_WIDTH-1:0]       bytes_to_limit;
+    logic [12:0]                 bytes_to_4kb;
+    logic [15:0]                 beats_to_limit;
+    logic [15:0]                 beats_to_4kb;
+    logic [15:0]                 beats_cap_geometry;
+    logic [15:0]                 beats_cap_max;
+    logic [15:0]                 beats_planned;
+    logic [15:0]                 beats_planned_units;
+    logic                        need_rewind;
+    logic [ADDR_WIDTH-1:0]       eff_addr;
+    logic                        flush_trigger_watermark;
+    logic                        flush_trigger_timeout;
+    logic                        have_one_unit;
+    logic                        do_flush;
+
+    assign beats_in_fifo = {{(16-WRITE_FIFO_AW-1){1'b0}}, write_fifo_beat_count};
+
+    // Bytes available before cfg_limit_addr boundary (inclusive).
+    // If r_wr_addr is below cfg_base_addr (uninitialised after reset) or
+    // above cfg_limit_addr, treat as zero and rewind below.
+    always_comb begin
+        if (r_wr_addr > cfg_limit_addr || r_wr_addr < cfg_base_addr) begin
+            bytes_to_limit = '0;
+        end else begin
+            bytes_to_limit = cfg_limit_addr - r_wr_addr + ADDR_WIDTH'(1);
+        end
+    end
+
+    // 4KB AXI burst boundary: bytes left until next 4096-byte boundary
+    assign bytes_to_4kb = 13'h1000 - {1'b0, r_wr_addr[11:0]};
+
+    // Convert byte caps to beat caps (8B per beat). Saturate to 16b.
+    always_comb begin
+        // bytes_to_limit is ADDR_WIDTH wide; once we shift right by 3
+        // it's still ADDR_WIDTH wide. Saturate to 16b on the way out.
+        logic [ADDR_WIDTH-1:0] btol_shifted;
+        btol_shifted = bytes_to_limit >> 3;
+        beats_to_limit = (btol_shifted > ADDR_WIDTH'(16'hFFFF))
+                       ? 16'hFFFF
+                       : btol_shifted[15:0];
+        beats_to_4kb   = {6'd0, bytes_to_4kb[12:3]};
+    end
+
+    // Burst-size policy: 16-bit min-cap pipeline.
+    //   MAX_BURST_BEATS is 1..256 (compile-time).
+    always_comb begin
+        logic [15:0] cap_fifo;
+        logic [15:0] cap_limit;
+        logic [15:0] cap_4kb;
+        logic [15:0] cap_max;
+
+        cap_fifo  = beats_in_fifo;
+        cap_limit = beats_to_limit;
+        cap_4kb   = beats_to_4kb;
+        cap_max   = 16'(MAX_BURST_BEATS);
+
+        beats_cap_geometry = (cap_limit < cap_4kb)  ? cap_limit          : cap_4kb;
+        beats_cap_max      = (cap_max   < cap_fifo) ? cap_max             : cap_fifo;
+        beats_planned      = (beats_cap_geometry < beats_cap_max)
+                           ? beats_cap_geometry
+                           : beats_cap_max;
+    end
+
+    // Round down to multiple of BEATS_PER_UNIT
+    always_comb begin
+        if (BEATS_PER_UNIT == 1) begin
+            beats_planned_units = beats_planned;
+        end else begin
+            // BEATS_PER_UNIT == 3 (raw mode): integer-divide and re-multiply.
+            beats_planned_units = (beats_planned / 16'd3) * 16'd3;
+        end
+    end
+
+    // Need to rewind if we're outside [base, limit] or if a unit doesn't
+    // fit in what remains of the address window.
+    assign need_rewind = (r_wr_addr < cfg_base_addr)
+                      || (r_wr_addr > cfg_limit_addr)
+                      || (beats_planned_units < 16'(BEATS_PER_UNIT));
+    assign eff_addr    = need_rewind ? cfg_base_addr : r_wr_addr;
+
+    // Triggers: watermark / timeout
+    assign have_one_unit            = (beats_in_fifo >= 16'(BEATS_PER_UNIT));
+    assign flush_trigger_watermark  = (beats_in_fifo >= cfg_flush_watermark);
+    assign flush_trigger_timeout    = (r_timeout_cnt >= 32'(FLUSH_TIMEOUT_CYCLES));
+
+    assign do_flush = (flush_trigger_watermark || flush_trigger_timeout) && have_one_unit;
+
+    // AW / W / B drive
+    assign fub_m_awid    = '0;
+    assign fub_m_awsize  = 3'd3;          // 2^3 = 8 bytes
+    assign fub_m_awburst = 2'b01;         // INCR
+    assign fub_m_awvalid = (r_wr_state == WR_AW);
+    assign fub_m_awaddr  = r_aw_addr;
+    assign fub_m_awlen   = r_aw_len;
+
+    assign fub_m_wvalid  = (r_wr_state == WR_W) && write_fifo_rd_valid;
+    assign fub_m_wdata   = write_fifo_rd_data;
+    assign fub_m_wstrb   = 8'hFF;
+    assign fub_m_wlast   = (r_wr_state == WR_W) && (r_w_beats_remaining == 9'd1);
+
+    assign fub_m_bready  = (r_wr_state == WR_B);
+
+    // Pop a beat from the FIFO on each accepted W beat
+    assign write_fifo_rd_ready = (r_wr_state == WR_W) && fub_m_wready && write_fifo_rd_valid;
+
+    // FSM
+    `ALWAYS_FF_RST(axi_aclk, axi_aresetn,
+        if (`RST_ASSERTED(axi_aresetn)) begin
+            r_wr_state          <= WR_IDLE;
+            r_wr_addr           <= '0;
+            r_aw_addr           <= '0;
+            r_aw_len            <= 8'd0;
+            r_w_beats_remaining <= 9'd0;
+            r_timeout_cnt       <= 32'd0;
+        end else begin
+            // Timeout counter: count up while the FIFO has data and we're
+            // not currently emitting; clear on W handshake or when empty.
+            if (write_fifo_empty) begin
+                r_timeout_cnt <= 32'd0;
+            end else if (r_wr_state == WR_W && fub_m_wvalid && fub_m_wready) begin
+                r_timeout_cnt <= 32'd0;
+            end else if (r_timeout_cnt < 32'(FLUSH_TIMEOUT_CYCLES)) begin
+                r_timeout_cnt <= r_timeout_cnt + 32'd1;
+            end
+
+            case (r_wr_state)
+                WR_IDLE: begin
+                    if (do_flush && (beats_planned_units >= 16'(BEATS_PER_UNIT))) begin
+                        // Possibly rewind -- effective addr becomes eff_addr.
+                        // beats_planned_units was computed off the current
+                        // r_wr_addr; if need_rewind asserted, eff_addr is
+                        // base. We rely on cfg_limit-cfg_base >= BYTES_PER_UNIT
+                        // (a sanity-check on the address window the host
+                        // configured) so that at least one unit fits at base.
+                        r_wr_addr  <= eff_addr;
+                        r_aw_addr  <= eff_addr;
+                        r_aw_len   <= 8'(beats_planned_units - 16'd1);
+                        r_w_beats_remaining <= 9'(beats_planned_units);
+                        r_wr_state <= WR_AW;
+                    end
+                end
+
+                WR_AW: begin
+                    if (fub_m_awvalid && fub_m_awready) begin
+                        r_wr_state <= WR_W;
+                    end
+                end
+
+                WR_W: begin
+                    if (fub_m_wvalid && fub_m_wready) begin
+                        // Advance address one beat
+                        r_wr_addr           <= r_wr_addr + ADDR_WIDTH'(BYTES_PER_BEAT);
+                        r_w_beats_remaining <= r_w_beats_remaining - 9'd1;
+                        if (r_w_beats_remaining == 9'd1) begin
+                            r_wr_state <= WR_B;
+                        end
+                    end
+                end
+
+                WR_B: begin
+                    if (fub_m_bvalid && fub_m_bready) begin
+                        r_wr_state <= WR_IDLE;
+                    end
+                end
+
+                default: r_wr_state <= WR_IDLE;
+            endcase
+        end
+    )
+
+    // Lint: bresp/bid not used internally
+    /* verilator lint_off UNUSED */
+    logic [AXI_ID_WIDTH_M-1:0] _unused_bid   = fub_m_bid;
+    logic [1:0]                _unused_bresp = fub_m_bresp;
+    /* verilator lint_on UNUSED */
+
+endmodule : monbus_group_core

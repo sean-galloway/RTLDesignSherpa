@@ -2,7 +2,10 @@
 // SPDX-FileCopyrightText: 2024-2025 sean galloway
 //
 // Module: monbus_axil_group_2in
-// Purpose: RAPIDS 2-input wrapper around the shared monbus_axil_group.
+// Purpose: RAPIDS 2-input wrapper around the shared monbus_axil_axil_group
+//          (member of the monbus_<p1>_<p2>_group family; this 2in
+//          wrapper merges source + sink monbus streams via monbus_arbiter
+//          before feeding the AXIL/AXIL shared group).
 //
 // Documentation: rtl/amba/PRD.md
 // Subsystem: rapids_macro
@@ -36,12 +39,12 @@ and add this file to their compile order.
 module monbus_axil_group_2in
     import monitor_common_pkg::*;
 #(
-    parameter int FIFO_DEPTH_ERR     = 64,
-    parameter int FIFO_DEPTH_WRITE   = 32,
-    parameter int ADDR_WIDTH         = 32,
-    parameter int S_AXIL_DATA_WIDTH  = 32,
-    parameter int M_AXIL_DATA_WIDTH  = 64,
-    parameter int NUM_PROTOCOLS      = 3
+    parameter int FIFO_DEPTH_ERR       = 64,
+    parameter int FIFO_DEPTH_WRITE     = 96,    // beats (beat-granular write FIFO)
+    parameter int ADDR_WIDTH           = 32,
+    parameter int FLUSH_TIMEOUT_CYCLES = 1024,
+    parameter int NUM_PROTOCOLS        = 3,
+    parameter int USE_COMPRESSION      = 0
 ) (
     // Clock and Reset
     input  logic                          axi_aclk,
@@ -69,18 +72,18 @@ module monbus_axil_group_2in
     input  logic [2:0]                    s_axil_arprot,
     output logic                          s_axil_rvalid,
     input  logic                          s_axil_rready,
-    output logic [S_AXIL_DATA_WIDTH-1:0]  s_axil_rdata,
+    output logic [63:0]                   s_axil_rdata,
     output logic [1:0]                    s_axil_rresp,
 
-    // Master Write Interface
+    // Master Write Interface (64-bit captures)
     output logic                          m_axil_awvalid,
     input  logic                          m_axil_awready,
     output logic [ADDR_WIDTH-1:0]         m_axil_awaddr,
     output logic [2:0]                    m_axil_awprot,
     output logic                          m_axil_wvalid,
     input  logic                          m_axil_wready,
-    output logic [M_AXIL_DATA_WIDTH-1:0]  m_axil_wdata,
-    output logic [M_AXIL_DATA_WIDTH/8-1:0] m_axil_wstrb,
+    output logic [63:0]                   m_axil_wdata,
+    output logic [7:0]                    m_axil_wstrb,
     input  logic                          m_axil_bvalid,
     output logic                          m_axil_bready,
     input  logic [1:0]                    m_axil_bresp,
@@ -91,6 +94,7 @@ module monbus_axil_group_2in
     // Configuration
     input  logic [ADDR_WIDTH-1:0]         cfg_base_addr,
     input  logic [ADDR_WIDTH-1:0]         cfg_limit_addr,
+    input  logic [15:0]                   cfg_flush_watermark, // beats
 
     // Per-protocol filtering
     input  logic [15:0]                   cfg_axi_pkt_mask,
@@ -124,8 +128,8 @@ module monbus_axil_group_2in
     // Debug/Status
     output logic                          err_fifo_full,
     output logic                          write_fifo_full,
-    output logic [7:0]                    err_fifo_count,
-    output logic [7:0]                    write_fifo_count
+    output logic [15:0]                   err_fifo_count,    // records
+    output logic [15:0]                   write_fifo_count   // beats
 );
 
     // ----------------------------------------------------------------
@@ -180,13 +184,13 @@ module monbus_axil_group_2in
     // ----------------------------------------------------------------
     // Shared single-input AXIL group consumes the arbitrated stream
     // ----------------------------------------------------------------
-    monbus_axil_group #(
-        .FIFO_DEPTH_ERR     (FIFO_DEPTH_ERR),
-        .FIFO_DEPTH_WRITE   (FIFO_DEPTH_WRITE),
-        .ADDR_WIDTH         (ADDR_WIDTH),
-        .S_AXIL_DATA_WIDTH  (S_AXIL_DATA_WIDTH),
-        .M_AXIL_DATA_WIDTH  (M_AXIL_DATA_WIDTH),
-        .NUM_PROTOCOLS      (NUM_PROTOCOLS)
+    monbus_axil_axil_group #(
+        .FIFO_DEPTH_ERR       (FIFO_DEPTH_ERR),
+        .FIFO_DEPTH_WRITE     (FIFO_DEPTH_WRITE),
+        .ADDR_WIDTH           (ADDR_WIDTH),
+        .FLUSH_TIMEOUT_CYCLES (FLUSH_TIMEOUT_CYCLES),
+        .NUM_PROTOCOLS        (NUM_PROTOCOLS),
+        .USE_COMPRESSION      (USE_COMPRESSION)
     ) u_group (
         .axi_aclk               (axi_aclk),
         .axi_aresetn            (axi_aresetn),
@@ -223,6 +227,7 @@ module monbus_axil_group_2in
 
         .cfg_base_addr          (cfg_base_addr),
         .cfg_limit_addr         (cfg_limit_addr),
+        .cfg_flush_watermark    (cfg_flush_watermark),
 
         .cfg_axi_pkt_mask       (cfg_axi_pkt_mask),
         .cfg_axi_err_select     (cfg_axi_err_select),
