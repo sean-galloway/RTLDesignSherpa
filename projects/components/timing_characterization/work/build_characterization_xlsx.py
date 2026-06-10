@@ -364,12 +364,119 @@ def build_blocks_sheet(wb: Workbook):
     ))
 
 
+def build_stream_sheet(wb: Workbook):
+    """Per-input signal-path trace for a small STREAM FUB.
+
+    Walked stream_latency_bridge.sv by hand. Each non-clock/reset input is
+    traced through the local combinational network until it either:
+      - terminates at a flop's D pin (r_drain_ip), OR
+      - terminates at an output port, OR
+      - enters a building block (gaxi_fifo_sync u_skid_buffer); the BB row in
+        the 'building blocks' sheet covers the cost from that boundary inward.
+
+    Local NAND depth/count = combinational gate-equivalents traversed in this
+    FUB only. Local delay = depth * per_NAND[corner] (from characterization).
+    """
+    ws = wb.create_sheet("stream")
+
+    header = [
+        "FUB", "input signal", "building block crossed",
+        "local NAND depth", "local NAND count",
+        "terminator (flop / output / BB port)",
+        "local delay TT (ps)", "local delay FF (ps)", "local delay SS (ps)",
+        "notes",
+    ]
+    ws.append(header)
+    for c in range(1, len(header) + 1):
+        cell = ws.cell(row=1, column=c)
+        cell.font = HDR_FONT
+        cell.fill = HDR_FILL
+        cell.alignment = CENTER
+        cell.border = BOX
+
+    # Path trace of stream_latency_bridge (rtl/fub/stream_latency_bridge.sv)
+    # Logic from lines 100-194 of the SV. Each row = one (input, end-point) pair.
+    FUB = "stream_latency_bridge"
+    rows = [
+        # input        bb_crossed                  depth count terminator                                          notes
+        ("s_valid",    "",                          1,    1,   "r_drain_ip (flop D)",
+         "s_valid AND s_ready -> w_drain_fifo -> flop D"),
+        ("s_data[DW-1:0]", "gaxi_fifo_sync",        0,    0,   "u_skid_buffer.wr_data",
+         "direct wire to FIFO write port; cost inside BB row"),
+        ("m_ready (path 1)", "",                    2,    2,   "s_ready (output port)",
+         "m_ready AND m_valid -> w_draining_now -> OR w_room_available -> s_ready"),
+        ("m_ready (path 2)", "gaxi_fifo_sync",      0,    0,   "u_skid_buffer.rd_ready",
+         "direct wire to FIFO read port"),
+        # Internal flop outputs that fan to outputs/BB
+        ("r_drain_ip (Q)", "",                      0,    0,   "u_skid_buffer.wr_valid",
+         "skid_wr_valid = r_drain_ip; pure wire"),
+        ("r_drain_ip (Q)", "",                      0,    0,   "dbg_r_pending (output)",
+         "dbg_r_pending = r_drain_ip; pure wire"),
+        # FIFO outputs back through this FUB to the boundary
+        ("u_skid_buffer.rd_valid", "gaxi_fifo_sync", 0,   0,   "m_valid (output)",
+         "wire from FIFO rd_valid; m_valid = u_skid_buffer.rd_valid"),
+        ("u_skid_buffer.rd_data",  "gaxi_fifo_sync", 0,   0,   "m_data[DW-1:0] (output)",
+         "wire from FIFO rd_data"),
+        ("u_skid_buffer.count",    "gaxi_fifo_sync", 3,   6,   "s_ready (output port)",
+         "skid_count + write_stalled (3b adder) -> magnitude cmp < SKID_DEPTH -> OR -> s_ready"),
+        ("u_skid_buffer.count",    "gaxi_fifo_sync", 0,   0,   "occupancy[2:0] (output)",
+         "occupancy = skid_count; direct wire"),
+    ]
+
+    PARAM_FILL = PatternFill("solid", fgColor="FFF2CC")
+    FORMULA_FILL = PatternFill("solid", fgColor="E7E6E6")
+
+    # Characterization refs for per_NAND in each corner
+    REFS = {"TT": "$D$11", "FF": "$G$11", "SS": "$J$11"}
+
+    for (sig, bb, depth, count, term, note) in rows:
+        r = ws.max_row + 1
+        ws.cell(row=r, column=1, value=FUB)
+        ws.cell(row=r, column=2, value=sig)
+        ws.cell(row=r, column=3, value=bb)
+        # Editable depth / count cells (yellow)
+        c = ws.cell(row=r, column=4, value=depth); c.fill = PARAM_FILL; c.alignment = CENTER
+        c = ws.cell(row=r, column=5, value=count); c.fill = PARAM_FILL; c.alignment = CENTER
+        ws.cell(row=r, column=6, value=term)
+        # Delay formulas referencing the characterization per-NAND cells
+        for off, corner in enumerate(("TT", "FF", "SS")):
+            f = f"=D{r}*characterization!{REFS[corner]}"
+            cell = ws.cell(row=r, column=7 + off, value=f)
+            cell.fill = FORMULA_FILL; cell.alignment = CENTER
+        ws.cell(row=r, column=10, value=note)
+
+    # Column widths
+    widths = [1, 28, 24, 26, 16, 16, 30, 18, 18, 18, 80]
+    for c, w in enumerate(widths[1:], start=1):
+        ws.column_dimensions[get_column_letter(c)].width = w
+
+    # Notes block under the table
+    r = ws.max_row + 2
+    ws.cell(row=r, column=1, value="Methodology").font = SECTION_FONT
+    notes = [
+        "One row per (input signal, end-point) pair. End-point is one of: a flop's D pin, "
+        "an output port, or a building-block port (whose internal cost is captured on the "
+        "'building blocks' sheet).",
+        "'local NAND depth' = combinational gate-equivalents on the path *within this FUB*. "
+        "Walked by hand from the RTL.",
+        "'local delay' = depth * per_NAND[corner] (from characterization sheet). "
+        "Underestimates wide-bus buffering - same caveat as 'building blocks' SWAG.",
+        "When a signal enters a BB, the row's depth/count is for the wires only; the BB row "
+        "in the 'building blocks' sheet adds the internal cost.",
+    ]
+    for n in notes:
+        r += 1
+        ws.cell(row=r, column=1, value=n)
+        ws.merge_cells(start_row=r, end_row=r, start_column=1, end_column=10)
+
+
 def main():
     probes = read_probes()
     per_level, tflop = derive(probes)
     wb = Workbook()
     build_sheet(wb, per_level, tflop)
     build_blocks_sheet(wb)
+    build_stream_sheet(wb)
     OUT.parent.mkdir(parents=True, exist_ok=True)
     wb.save(OUT)
     print(f"wrote {OUT}")
