@@ -179,11 +179,197 @@ def section_header_row(ws, text, n_cols):
     ws.cell(row=r, column=1).fill = SECTION_FILL
 
 
+def build_blocks_sheet(wb: Workbook):
+    """Per-block structural estimator that scales from the characterization sheet.
+
+    Each block is one row. Cells B..G are editable params (highlighted yellow).
+    Flop count / NAND-equivalent gate count / data-to-D combinational delay
+    are formulas that scale automatically when the user edits the params.
+
+    Cell refs into 'characterization':
+      Tflop per corner:  $D$3 (TT)  $G$3 (FF)  $J$3 (SS)
+      per NAND delay:    $D$11 (TT) $G$11 (FF) $J$11 (SS)
+      per MUX  delay:    $D$13 (TT) $G$13 (FF) $J$13 (SS)
+    """
+    ws = wb.create_sheet("building blocks")
+    PARAM_FILL = PatternFill("solid", fgColor="FFF2CC")  # yellow = editable
+    FORMULA_FILL = PatternFill("solid", fgColor="E7E6E6")  # grey = computed
+
+    header = [
+        "block",
+        "P1", "P2", "P3", "P4", "P5", "P6",       # editable params (B..G)
+        "params",                                  # H = labels for the row
+        "flop_count",                              # I
+        "NAND_eq_gates",                           # J
+        "MUX_levels",                              # K  (critical data->D path)
+        "NAND_levels",                             # L
+        "data->D TT (ps)", "data->D FF (ps)", "data->D SS (ps)",   # M, N, O
+        "fmax TT (MHz)",   "fmax FF (MHz)",   "fmax SS (MHz)",     # P, Q, R
+        "notes",                                   # S
+    ]
+    ws.append(header)
+    for c in range(1, len(header) + 1):
+        cell = ws.cell(row=1, column=c)
+        cell.font = HDR_FONT
+        cell.fill = HDR_FILL
+        cell.alignment = CENTER
+        cell.border = BOX
+
+    # ----------------------------------------------------------------------- #
+    # Block definitions
+    #   params: tuple of (label, base_value) — written to B..G in order
+    #   flops:  Excel formula using {R} as the current row index for self-refs
+    #   nand:   Excel formula for NAND-equivalent combinational gates
+    #   mux_lv: Excel formula or literal int — MUX levels on data->D path
+    #   nand_lv: Excel formula or literal int — NAND levels on data->D path
+    #   notes:  string
+    # ----------------------------------------------------------------------- #
+    BLOCKS = [
+        dict(
+            name="gaxi_skid_buffer",
+            params=[("W", 1), ("D", 2)],
+            flops="=B{R}*C{R} + C{R} + 2",
+            nand="=B{R}*C{R}*4 + 10",
+            mux_lv=1,
+            nand_lv=1,
+            notes="data->D path is the bypass MUX2 (1 level). "
+                  "Flops = W*D storage + D valid + 2 control.",
+        ),
+        dict(
+            name="gaxi_fifo_sync (REG=0)",
+            params=[("W", 1), ("D", 2)],
+            flops="=B{R}*C{R} + 3*CEILING(LOG(C{R},2),1) + 1",
+            nand="=B{R}*C{R}*6 + CEILING(LOG(C{R},2),1)*8 + 20",
+            mux_lv="=CEILING(LOG(C{R},2),1)",      # read mux depth (output side)
+            nand_lv=2,                              # full/empty cmp
+            notes="Critical path is the READ mux tree, depth=log2(D). "
+                  "Flops = W*D storage + 3*log2(D) ptrs/count + 1 state.",
+        ),
+        dict(
+            name="gaxi_fifo_sync (REG=1)",
+            params=[("W", 1), ("D", 2)],
+            flops="=B{R}*C{R} + 3*CEILING(LOG(C{R},2),1) + B{R} + 1",
+            nand="=B{R}*C{R}*6 + CEILING(LOG(C{R},2),1)*8 + 20",
+            mux_lv=0,                               # output reg hides the mux
+            nand_lv=1,                              # just downstream handshake AND
+            notes="REGISTERED=1 adds an output flop bank (W flops); "
+                  "the read mux is hidden behind it so data->D shrinks to ~1 NAND.",
+        ),
+        dict(
+            name="arbiter_round_robin",
+            params=[("N", 2)],
+            flops="=B{R} + 2",
+            nand="=B{R}*8",
+            mux_lv="=CEILING(LOG(B{R},2),1)",
+            nand_lv=1,
+            notes="Priority encoder is log2(N) MUX levels. "
+                  "Flops = N (last-grant tracker) + 2 (state).",
+        ),
+        dict(
+            name="axi4_master_rd",
+            params=[("AW", 32), ("DW", 32), ("IW", 4), ("UW", 1),
+                    ("SKID_AR", 2), ("SKID_R", 2)],
+            # AR slot width = AW+IW+UW+29 (per axi4_master_rd ARSize formula);
+            # R slot width  = IW+DW+UW+3 (per RSize).
+            flops="=F{R}*(B{R}+D{R}+E{R}+29) + G{R}*(D{R}+C{R}+E{R}+3)",
+            nand="=4*(F{R}*(B{R}+D{R}+E{R}+29) + G{R}*(D{R}+C{R}+E{R}+3))",
+            mux_lv=1,
+            nand_lv=1,
+            notes="Two skid buffers in series (AR + R). data->D path is the "
+                  "skid bypass MUX. Flops scale with SKID_AR*ARw + SKID_R*Rw.",
+        ),
+        dict(
+            name="axi4_master_wr",
+            params=[("AW", 32), ("DW", 32), ("IW", 4), ("UW", 1),
+                    ("SKID_AW", 2), ("SKID_W", 2)],
+            # AW slot width = AW+IW+UW+29; W slot width = DW + DW/8 + UW + 1;
+            # B slot width = IW + UW + 2.  Assume SKID_B=2 for the constant.
+            flops="=F{R}*(B{R}+D{R}+E{R}+29) + G{R}*(C{R}+C{R}/8+E{R}+1) + 2*(D{R}+E{R}+2)",
+            nand="=4*(F{R}*(B{R}+D{R}+E{R}+29) + G{R}*(C{R}+C{R}/8+E{R}+1) + 2*(D{R}+E{R}+2))",
+            mux_lv=1,
+            nand_lv=1,
+            notes="Three skid buffers (AW + W + B); SKID_B fixed at 2 in this row. "
+                  "data->D path is the skid bypass MUX.",
+        ),
+    ]
+
+    # Characterization cell refs (per_NAND / per_MUX / Tflop, by corner)
+    REFS = {
+        "TT": {"nand": "$D$11", "mux": "$D$13", "tflop": "$D$3"},
+        "FF": {"nand": "$G$11", "mux": "$G$13", "tflop": "$G$3"},
+        "SS": {"nand": "$J$11", "mux": "$J$13", "tflop": "$J$3"},
+    }
+
+    for b in BLOCKS:
+        r = ws.max_row + 1  # current target row
+        params = b["params"]
+        # Block name (col A)
+        ws.cell(row=r, column=1, value=b["name"]).font = SECTION_FONT
+        # Params P1..P6 (cols B..G)
+        for i, (_lbl, v) in enumerate(params):
+            cell = ws.cell(row=r, column=2 + i, value=v)
+            cell.fill = PARAM_FILL
+            cell.alignment = CENTER
+        # Param-label string (col H)
+        ws.cell(row=r, column=8,
+                value=", ".join(f"P{i+1}={lbl}" for i, (lbl, _) in enumerate(params)))
+        # Formulas — use .format(R=r) to splice the row index
+        ws.cell(row=r, column=9,  value=b["flops"].format(R=r))      # I flops
+        ws.cell(row=r, column=10, value=b["nand"].format(R=r))       # J NAND eq
+        # MUX / NAND level counts can be literal int or formula string
+        for col, key in ((11, "mux_lv"), (12, "nand_lv")):
+            v = b[key]
+            if isinstance(v, str):
+                v = v.format(R=r)
+            ws.cell(row=r, column=col, value=v)
+        # data->D combo delay per corner (cols M, N, O)
+        for off, corner in enumerate(("TT", "FF", "SS")):
+            ref = REFS[corner]
+            f = (f"=K{r}*characterization!{ref['mux']} "
+                 f"+ L{r}*characterization!{ref['nand']}")
+            cell = ws.cell(row=r, column=13 + off, value=f)
+            cell.alignment = CENTER
+            cell.fill = FORMULA_FILL
+        # fmax per corner (cols P, Q, R)  = 1e6 / (combo + Tflop)
+        for off, corner in enumerate(("TT", "FF", "SS")):
+            ref = REFS[corner]
+            combo_col = chr(ord("M") + off)  # M, N, O
+            f = f"=ROUND(1000000/({combo_col}{r} + characterization!{ref['tflop']}), 0)"
+            cell = ws.cell(row=r, column=16 + off, value=f)
+            cell.alignment = CENTER
+            cell.fill = FORMULA_FILL
+        # Notes (col S)
+        ws.cell(row=r, column=19, value=b["notes"])
+
+    # Column widths
+    widths = {1: 26, 8: 38, 9: 11, 10: 13, 11: 7, 12: 8,
+              13: 16, 14: 16, 15: 16, 16: 13, 17: 13, 18: 13, 19: 60}
+    for c in range(2, 8):
+        widths.setdefault(c, 8)
+    for c, w in widths.items():
+        ws.column_dimensions[get_column_letter(c)].width = w
+
+    # Legend
+    legend_row = ws.max_row + 2
+    ws.cell(row=legend_row, column=1, value="Cell coding").font = SECTION_FONT
+    ws.cell(row=legend_row + 1, column=1, value="Yellow = editable param").fill = PARAM_FILL
+    ws.cell(row=legend_row + 2, column=1, value="Grey = derived formula").fill = FORMULA_FILL
+    ws.cell(row=legend_row + 4, column=1, value=(
+        "data->D = critical combinational delay on the path that loads the "
+        "downstream flop. Compare against (period - Tflop) to size for a freq."
+    ))
+    ws.cell(row=legend_row + 5, column=1, value=(
+        "Estimates are first-order: structural flop/gate counts + characterization "
+        "per-level delays. Treat them as design-time SWAGs, not post-synth truth."
+    ))
+
+
 def main():
     probes = read_probes()
     per_level, tflop = derive(probes)
     wb = Workbook()
     build_sheet(wb, per_level, tflop)
+    build_blocks_sheet(wb)
     OUT.parent.mkdir(parents=True, exist_ok=True)
     wb.save(OUT)
     print(f"wrote {OUT}")
