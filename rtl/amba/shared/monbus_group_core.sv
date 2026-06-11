@@ -654,8 +654,9 @@ module monbus_group_core
     wr_state_t                   r_wr_state;
     logic [ADDR_WIDTH-1:0]       r_wr_addr;
     logic [ADDR_WIDTH-1:0]       r_aw_addr;          // latched AW address
-    logic [7:0]                  r_aw_len;           // latched awlen (=beats-1)
-    logic [8:0]                  r_w_beats_remaining; // beats left in current burst W
+    logic [7:0]                  r_aw_len;           // latched awlen (=sub-burst beats-1)
+    logic [8:0]                  r_w_beats_remaining; // beats left in current sub-burst W
+    logic [15:0]                 r_unit_remaining;   // beats left in this drain cycle
     logic [31:0]                 r_timeout_cnt;
 
     // Beats geometry (combinational; uses current r_wr_addr).
@@ -666,7 +667,6 @@ module monbus_group_core
     // (AXI4: arlen+1, max 256 beats), and the W FSM tracks via the
     // 9-bit r_w_beats_remaining (max 256).
     logic [15:0]                 beats_in_fifo;
-    logic [ADDR_WIDTH-1:0]       bytes_to_limit;
     logic [12:0]                 bytes_to_4kb;
     logic [15:0]                 beats_to_limit;
     logic [15:0]                 beats_to_4kb;
@@ -694,41 +694,63 @@ module monbus_group_core
                     && (r_wr_addr <= cfg_limit_addr);
     assign geom_addr = in_window ? r_wr_addr : cfg_base_addr;
 
-    // Bytes available before cfg_limit_addr boundary (inclusive),
-    // measured from geom_addr.
-    assign bytes_to_limit = cfg_limit_addr - geom_addr + ADDR_WIDTH'(1);
-
     // 4KB AXI burst boundary: bytes left until next 4096-byte boundary,
     // measured from geom_addr.
+    //
+    // Note: bytes_to_limit (a ADDR_WIDTH-bit version of "bytes left in
+    // the address window") used to be computed as
+    //   cfg_limit_addr - geom_addr + 1
+    // and then shifted. That expression overflows ADDR_WIDTH when
+    // limit=0xFFFF_FFFF and geom=0 (the +1 wraps to 0 and the writer
+    // wedges). The replacement geometry below computes beats_to_limit
+    // directly via ((limit - 7 - geom) >> 3) + 1, which keeps every
+    // intermediate inside ADDR_WIDTH bits.
+    // See MONBUS_GROUP_AXIL_MASTER_RAWMODE_FLUSH_BUG.md "Secondary defect".
     assign bytes_to_4kb = 13'h1000 - {1'b0, geom_addr[11:0]};
 
     // Convert byte caps to beat caps (8B per beat). Saturate to 16b.
     always_comb begin
-        // bytes_to_limit is ADDR_WIDTH wide; once we shift right by 3
-        // it's still ADDR_WIDTH wide. Saturate to 16b on the way out.
-        logic [ADDR_WIDTH-1:0] btol_shifted;
-        btol_shifted = bytes_to_limit >> 3;
-        beats_to_limit = (btol_shifted > ADDR_WIDTH'(16'hFFFF))
+        // limit - geom - 7 must be non-negative for at least one beat to fit.
+        // We compute beats_to_limit = ((limit - geom - 7) >> 3) + 1 when
+        // limit >= geom + 7, else 0. This avoids the +1 overflow on the
+        // ADDR_WIDTH'(1) addition that the legacy formulation hit.
+        logic [ADDR_WIDTH-1:0] diff;
+        logic [ADDR_WIDTH-1:0] beats_raw;
+        diff = cfg_limit_addr - geom_addr;
+        if (diff < ADDR_WIDTH'(7)) begin
+            beats_raw = '0;
+        end else begin
+            beats_raw = ((diff - ADDR_WIDTH'(7)) >> 3) + ADDR_WIDTH'(1);
+        end
+        beats_to_limit = (beats_raw > ADDR_WIDTH'(16'hFFFF))
                        ? 16'hFFFF
-                       : btol_shifted[15:0];
+                       : beats_raw[15:0];
         beats_to_4kb   = {6'd0, bytes_to_4kb[12:3]};
     end
 
-    // Burst-size policy: 16-bit min-cap pipeline.
-    //   MAX_BURST_BEATS is 1..256 (compile-time).
+    // Drain-cycle plan, in beats. Each WR_IDLE -> ... -> WR_IDLE cycle
+    // emits `beats_planned_units` beats total, sliced into one or more
+    // AW + N x W + B sub-bursts based on MAX_BURST_BEATS (see FSM below).
+    //
+    // The MAX_BURST_BEATS cap applies *per sub-burst inside the FSM*, NOT
+    // here -- so the drain plan can span multiple records even when the
+    // master leaf can only issue one beat per AW (AXIL case).
+    //
+    // The unit-rounding step ((/BEATS_PER_UNIT)*BEATS_PER_UNIT) keeps
+    // each drain cycle's boundary on a whole-record boundary so the
+    // memory image looks like back-to-back records, never a partial
+    // record stretched across the window-wrap boundary.
     always_comb begin
         logic [15:0] cap_fifo;
         logic [15:0] cap_limit;
         logic [15:0] cap_4kb;
-        logic [15:0] cap_max;
 
         cap_fifo  = beats_in_fifo;
         cap_limit = beats_to_limit;
         cap_4kb   = beats_to_4kb;
-        cap_max   = 16'(MAX_BURST_BEATS);
 
-        beats_cap_geometry = (cap_limit < cap_4kb)  ? cap_limit          : cap_4kb;
-        beats_cap_max      = (cap_max   < cap_fifo) ? cap_max             : cap_fifo;
+        beats_cap_geometry = (cap_limit < cap_4kb)  ? cap_limit : cap_4kb;
+        beats_cap_max      = cap_fifo;
         beats_planned      = (beats_cap_geometry < beats_cap_max)
                            ? beats_cap_geometry
                            : beats_cap_max;
@@ -782,6 +804,22 @@ module monbus_group_core
     assign write_fifo_rd_ready = (r_wr_state == WR_W) && fub_m_wready && write_fifo_rd_valid;
 
     // FSM
+    //
+    // A drain cycle is launched from WR_IDLE when do_flush asserts and
+    // beats_planned_units >= BEATS_PER_UNIT. The cycle commits to
+    // emitting `beats_planned_units` total beats at consecutive
+    // 8-byte-stride addresses starting at eff_addr.
+    //
+    // Each sub-burst inside the drain cycle is bounded by MAX_BURST_BEATS
+    // (the per-AW limit imposed by the master leaf). The cycle emits as
+    // many AW + N x W + B sub-bursts as needed: AXI4 with
+    // MAX_BURST_BEATS=64 typically emits a single large sub-burst per
+    // cycle, while AXIL with MAX_BURST_BEATS=1 emits one sub-burst per
+    // beat. The address advances per beat regardless.
+    //
+    // r_unit_remaining tracks how many beats are left in this drain
+    // cycle. r_w_beats_remaining tracks how many beats are left in the
+    // current sub-burst (for wlast assertion).
     `ALWAYS_FF_RST(axi_aclk, axi_aresetn,
         if (`RST_ASSERTED(axi_aresetn)) begin
             r_wr_state          <= WR_IDLE;
@@ -789,6 +827,7 @@ module monbus_group_core
             r_aw_addr           <= '0;
             r_aw_len            <= 8'd0;
             r_w_beats_remaining <= 9'd0;
+            r_unit_remaining    <= 16'd0;
             r_timeout_cnt       <= 32'd0;
         end else begin
             // Timeout counter: count up while the FIFO has data and we're
@@ -804,16 +843,20 @@ module monbus_group_core
             case (r_wr_state)
                 WR_IDLE: begin
                     if (do_flush && (beats_planned_units >= 16'(BEATS_PER_UNIT))) begin
-                        // Possibly rewind -- effective addr becomes eff_addr.
-                        // beats_planned_units was computed off the current
-                        // r_wr_addr; if need_rewind asserted, eff_addr is
-                        // base. We rely on cfg_limit-cfg_base >= BYTES_PER_UNIT
-                        // (a sanity-check on the address window the host
-                        // configured) so that at least one unit fits at base.
+                        // Start a new drain cycle. eff_addr handles the
+                        // out-of-window rewind to cfg_base_addr.
+                        // First sub-burst length is min(MAX_BURST_BEATS,
+                        // beats_planned_units).
+                        logic [15:0] first_sub_burst;
+                        first_sub_burst = (beats_planned_units < 16'(MAX_BURST_BEATS))
+                                        ? beats_planned_units
+                                        : 16'(MAX_BURST_BEATS);
+
                         r_wr_addr  <= eff_addr;
                         r_aw_addr  <= eff_addr;
-                        r_aw_len   <= 8'(beats_planned_units - 16'd1);
-                        r_w_beats_remaining <= 9'(beats_planned_units);
+                        r_aw_len   <= 8'(first_sub_burst - 16'd1);
+                        r_w_beats_remaining <= 9'(first_sub_burst);
+                        r_unit_remaining    <= beats_planned_units;
                         r_wr_state <= WR_AW;
                     end
                 end
@@ -826,9 +869,12 @@ module monbus_group_core
 
                 WR_W: begin
                     if (fub_m_wvalid && fub_m_wready) begin
-                        // Advance address one beat
+                        // Advance address one beat. r_unit_remaining counts
+                        // total beats in this drain cycle; r_w_beats_remaining
+                        // counts beats in the current sub-burst (for wlast).
                         r_wr_addr           <= r_wr_addr + ADDR_WIDTH'(BYTES_PER_BEAT);
                         r_w_beats_remaining <= r_w_beats_remaining - 9'd1;
+                        r_unit_remaining    <= r_unit_remaining - 16'd1;
                         if (r_w_beats_remaining == 9'd1) begin
                             r_wr_state <= WR_B;
                         end
@@ -837,7 +883,21 @@ module monbus_group_core
 
                 WR_B: begin
                     if (fub_m_bvalid && fub_m_bready) begin
-                        r_wr_state <= WR_IDLE;
+                        if (r_unit_remaining > 16'd0) begin
+                            // More beats to emit in this drain cycle --
+                            // launch the next sub-burst at r_wr_addr (which
+                            // has been advancing per W beat).
+                            logic [15:0] next_sub_burst;
+                            next_sub_burst = (r_unit_remaining < 16'(MAX_BURST_BEATS))
+                                           ? r_unit_remaining
+                                           : 16'(MAX_BURST_BEATS);
+                            r_aw_addr  <= r_wr_addr;
+                            r_aw_len   <= 8'(next_sub_burst - 16'd1);
+                            r_w_beats_remaining <= 9'(next_sub_burst);
+                            r_wr_state <= WR_AW;
+                        end else begin
+                            r_wr_state <= WR_IDLE;
+                        end
                     end
                 end
 
