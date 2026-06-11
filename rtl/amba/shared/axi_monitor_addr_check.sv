@@ -44,7 +44,7 @@
  *   index priority encoder.
  *
  * Side-band timestamp:
- *   The free-running `i_mon_time` arrives from monbus_axil_group via the
+ *   The free-running `i_mon_time` arrives from the monbus_group family via the
  *   shared mon_time_w net. It is sampled on the same cycle as `addr_pkt_valid`
  *   asserts and driven out on `addr_pkt_timestamp` alongside the packet.
  *
@@ -70,7 +70,7 @@ module axi_monitor_addr_check
     input  logic                                       clk,
     input  logic                                       aresetn,
 
-    // Free-running counter from monbus_axil_group, broadcast to every wrapper
+    // Free-running counter from the monbus_group family, broadcast to every wrapper
     input  monbus_timestamp_t                          i_mon_time,
 
     // Snooped command stream (tap point: same wires as axi_monitor_base sees)

@@ -169,7 +169,7 @@ module axi4_master_rd_mon
     input  logic                                    cfg_end_trigger,
     input  logic                                    cfg_window_force_close,
 
-    // Free-running monitor-time broadcast from monbus_axil_group
+    // Free-running monitor-time broadcast from the monbus_group family
     input  monitor_common_pkg::monbus_timestamp_t   i_mon_time,
 
     // Monitor Bus Output

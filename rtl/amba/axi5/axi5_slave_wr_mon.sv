@@ -180,7 +180,7 @@ module axi5_slave_wr_mon
     input  logic [(N_ADDR_RANGES > 0 ? N_ADDR_RANGES : 1)-1:0][AW-1:0] cfg_addr_range_low,
     input  logic [(N_ADDR_RANGES > 0 ? N_ADDR_RANGES : 1)-1:0][AW-1:0] cfg_addr_range_high,
 
-    // Free-running monitor-time broadcast from monbus_axil_group
+    // Free-running monitor-time broadcast from the monbus_group family
     input  monitor_common_pkg::monbus_timestamp_t   i_mon_time,
 
     // Monitor Bus Output

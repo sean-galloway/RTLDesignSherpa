@@ -7,7 +7,7 @@
 // Module: monbus_compressor
 // Purpose: Hardware encoder for the bulk-trace monbus compression
 //          format locked in commit 5bbb83d1. Sits in front of the
-//          AXIL writer inside monbus_axil_group when the wrapper
+//          master writer inside the monbus_group family when a wrapper
 //          opts in via USE_COMPRESSION.
 //
 // Documentation:

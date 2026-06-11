@@ -1186,7 +1186,7 @@ spine, here are the axes, here are the tweaks."
 2. **Where to insert monitoring** -- per-port (current default), mid-fabric
    (for localizing fabric-internal violations), root-of-tree (aggregate
    only, trades resolution for area).
-3. **Timestamp policy** -- current locked to monbus_axil_group's local
+3. **Timestamp policy** -- current locked to the monbus_group family's local
    counter. Future direction: hybrid `{global_us[47:0], local_cyc[15:0]}`
    so cross-subsystem correlation and per-wrapper resolution share the
    same 64-bit field. Also a note on PTP / external time-source variant.

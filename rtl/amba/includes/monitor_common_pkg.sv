@@ -87,7 +87,7 @@ package monitor_common_pkg;
     typedef logic [MONBUS_PKT_WIDTH-1:0] monitor_packet_t;
 
     // Side-band timestamp paired with each packet through the arbiter to the
-    // monbus_axil_group. Sampled by the wrapper at emission time.
+    // the monbus_group family. Sampled by the wrapper at emission time.
     typedef logic [MONBUS_TS_WIDTH-1:0]  monbus_timestamp_t;
 
     // Helper functions for monitor packet manipulation

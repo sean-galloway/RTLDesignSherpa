@@ -154,7 +154,7 @@ module axi_monitor_base
     input  logic                     cfg_end_trigger,
     input  logic                     cfg_window_force_close, // software override
 
-    // Free-running monitor-time counter, broadcast from monbus_axil_group
+    // Free-running monitor-time counter, broadcast from the monbus_group family
     input  monbus_timestamp_t        i_mon_time,
 
     // Consolidated 128-bit event packet interface (monitor bus)

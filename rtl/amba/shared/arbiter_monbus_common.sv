@@ -99,7 +99,7 @@ module arbiter_monbus_common #(
     input  logic [15:0]                   cfg_mon_efficiency_thresh,    // Grant efficiency threshold
     input  logic [7:0]                    cfg_mon_sample_period,
 
-    // Free-running monitor-time broadcast from monbus_axil_group
+    // Free-running monitor-time broadcast from the monbus_group family
     input  monitor_common_pkg::monbus_timestamp_t i_mon_time,
 
     // Monitor bus output - 128-bit event packet + side-band timestamp

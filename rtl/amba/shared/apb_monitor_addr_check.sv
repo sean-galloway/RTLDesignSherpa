@@ -57,7 +57,7 @@ module apb_monitor_addr_check
     input  logic                                       clk,
     input  logic                                       aresetn,
 
-    // Free-running counter from monbus_axil_group, broadcast to every wrapper
+    // Free-running counter from the monbus_group family, broadcast to every wrapper
     input  monbus_timestamp_t                          i_mon_time,
 
     // Snooped APB command stream

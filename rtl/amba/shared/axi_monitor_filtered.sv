@@ -19,7 +19,7 @@
  * AXI Monitor with Integrated Filtering
  *
  * This module wraps the standard axi_monitor_base with configurable packet filtering
- * based on the filtering architecture from monbus_axil_group. Provides 3-level
+ * based on the filtering architecture from the monbus_group family. Provides 3-level
  * filtering hierarchy:
  *
  * Level 1: Packet type masking (pkt_mask) - drop entire packet types
@@ -138,7 +138,7 @@ module axi_monitor_filtered
     input  logic                        cfg_end_trigger,
     input  logic                        cfg_window_force_close,
 
-    // Free-running monitor-time broadcast from monbus_axil_group
+    // Free-running monitor-time broadcast from the monbus_group family
     input  monitor_common_pkg::monbus_timestamp_t   i_mon_time,
 
     // Monitor bus output (filtered, 128-bit packet)

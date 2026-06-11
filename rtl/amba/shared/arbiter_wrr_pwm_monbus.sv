@@ -129,7 +129,7 @@ module arbiter_wrr_pwm_monbus #(
     input  logic [15:0]                   cfg_mon_efficiency_thresh,
     input  logic [7:0]                    cfg_mon_sample_period,
 
-    // Free-running monitor-time broadcast from monbus_axil_group
+    // Free-running monitor-time broadcast from the monbus_group family
     input  monitor_common_pkg::monbus_timestamp_t   i_mon_time,
 
     // Monitor bus output - 128-bit packet + 64-bit side-band timestamp
