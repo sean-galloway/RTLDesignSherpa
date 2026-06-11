@@ -4,23 +4,23 @@
 # RTL Design Sherpa - Industry-Standard RTL Design and Verification
 # https://github.com/sean-galloway/RTLDesignSherpa
 #
-# Module: MonbusAxilGroupTB
-# Purpose: MonBus AXIL Group testbench (shared rtl/amba/shared module).
+# Module: MonbusAxilAxilGroupTB
+# Purpose: MonBus AXIL/AXIL Group testbench. Drives the AXIL-slave-read +
+#          AXIL-master-write member of the monbus_<p1>_<p2>_group family.
 #
 # Documentation: rtl/amba/PRD.md
 # Subsystem: amba (shared)
 #
 # Author: sean galloway
-# Created: 2025-10-19 (originally STREAM-local); moved here 2026-06-08
-#          to colocate with the shared rtl/amba/shared/monbus_axil_group.sv
-#          module it tests.
+# Created: 2025-10-19 (originally STREAM-local); moved to bin/TBClasses
+#          2026-06-08; renamed 2026-06-10 to track the family refactor.
 
 """
-MonBus AXIL Group testbench — covers the canonical 1-input
-`rtl/amba/shared/monbus_axil_group.sv` module. The 2-input wrapper
-that RAPIDS owns (`projects/components/rapids/rtl/macro/monbus_axil_group_2in.sv`)
-keeps its own TB in the RAPIDS project area because it tests a
-rapids-specific wrapper, not the shared module.
+MonBus AXIL/AXIL Group testbench — covers the AXIL-slave-read +
+AXIL-master-write member of the monbus_<p1>_<p2>_group family
+(`rtl/amba/shared/monbus_axil_axil_group.sv`). The other family
+members (axil_axi4, axi4_axil, axi4_axi4) have separate TBs / tests
+because their port surfaces differ.
 
 Scope (AXI protocol only — matches what the shared module supports):
 - Monitor bus packet aggregation from data paths
@@ -62,27 +62,34 @@ from TBClasses.monbus.monbus_packet import create_monbus_field_config
 from CocoTBFramework.components.gaxi.gaxi_factories import create_gaxi_master
 
 
-class MonbusAxilGroupTB(TBBase):
+class MonbusAxilAxilGroupTB(TBBase):
     """
-    STREAM MonBus AXIL Group testbench (simplified from RAPIDS).
+    MonBus AXIL/AXIL Group testbench.
 
     Tests:
-    - Monitor bus packet arbitration (simpler than RAPIDS - fewer sources)
-    - AXI protocol packet filtering only (no AXIS/Network)
-    - Error/Interrupt FIFO via AXI-Lite slave read interface
-    - Master write operations via AXI-Lite master write interface
-    - Configuration register functionality
+    - Monitor bus packet ingestion via the input stream (single-input;
+      upstream arbitration if any is the caller's responsibility).
+    - AXI protocol packet filtering (AXIS / CORE also supported by the
+      RTL but not exercised here).
+    - Error / interrupt FIFO drain via the AXIL slave-read interface.
+    - The master-write side is allowed to flush via watermark / timeout
+      but is not consumed at the test layer in this minimal TB (the
+      AXIL master outputs are tied off in the test wrapper). A
+      dedicated AXIL/AXI4 burst test covers the master-write path
+      with a real consumer.
     """
 
     def __init__(self, dut, axi_aclk=None, axi_aresetn=None):
         super().__init__(dut)
 
-        # Test configuration from environment
-        self.TEST_FIFO_DEPTH_ERR = int(os.environ.get('TEST_FIFO_DEPTH_ERR', '64'))
-        self.TEST_FIFO_DEPTH_WRITE = int(os.environ.get('TEST_FIFO_DEPTH_WRITE', '32'))
-        self.TEST_ADDR_WIDTH = int(os.environ.get('TEST_ADDR_WIDTH', '32'))
-        self.TEST_DATA_WIDTH = int(os.environ.get('TEST_DATA_WIDTH', '32'))
-        self.TEST_NUM_PROTOCOLS = int(os.environ.get('TEST_NUM_PROTOCOLS', '3'))
+        # Test configuration from environment.
+        # FIFO_DEPTH_WRITE is now in BEATS (one queue entry == one 64-bit beat).
+        self.TEST_FIFO_DEPTH_ERR     = int(os.environ.get('TEST_FIFO_DEPTH_ERR', '64'))
+        self.TEST_FIFO_DEPTH_WRITE   = int(os.environ.get('TEST_FIFO_DEPTH_WRITE', '96'))
+        self.TEST_ADDR_WIDTH         = int(os.environ.get('TEST_ADDR_WIDTH', '32'))
+        self.TEST_NUM_PROTOCOLS      = int(os.environ.get('TEST_NUM_PROTOCOLS', '3'))
+        self.TEST_FLUSH_WATERMARK    = int(os.environ.get('TEST_FLUSH_WATERMARK', '24'))   # beats
+        self.TEST_FLUSH_TIMEOUT_CYC  = int(os.environ.get('TEST_FLUSH_TIMEOUT_CYC', '1024'))
         self.SEED = int(os.environ.get('SEED', '12345'))
 
         random.seed(self.SEED)
@@ -150,7 +157,7 @@ class MonbusAxilGroupTB(TBBase):
 
     async def setup_interfaces(self):
         """Setup all interface components"""
-        self.log.info("Setting up STREAM MonBus AXIL Group interfaces...")
+        self.log.info("Setting up MonBus AXIL/AXIL Group interfaces...")
 
         # Initialize configuration signals
         await self.initialize_config_signals()
@@ -205,11 +212,11 @@ class MonbusAxilGroupTB(TBBase):
         path = self._monbus_capture_path
         ext = os.path.splitext(path)[1].lower()
         meta = {
-            "test": "test_monbus_axil_group",
+            "test": "test_monbus_axil_axil_group",
             "fifo_depth_err":   self.TEST_FIFO_DEPTH_ERR,
-            "fifo_depth_write": self.TEST_FIFO_DEPTH_WRITE,
+            "fifo_depth_write": self.TEST_FIFO_DEPTH_WRITE,    # beats
             "addr_width":       self.TEST_ADDR_WIDTH,
-            "data_width":       self.TEST_DATA_WIDTH,
+            "flush_watermark":  self.TEST_FLUSH_WATERMARK,
             "seed":             self.SEED,
         }
         if ext == ".csv":
@@ -224,12 +231,56 @@ class MonbusAxilGroupTB(TBBase):
         """Initialize RTL configuration signals"""
         self.log.info("Initializing configuration signals...")
 
-        # AXI protocol (only protocol in STREAM): Route errors to error FIFO
+        # AXI protocol: Route errors to error FIFO
         self.dut.cfg_axi_pkt_mask.value = 0x0000  # Don't drop packets
         self.dut.cfg_axi_err_select.value = 0x0001  # Route ERROR packets to error FIFO
 
+        # Master-write window. Default to a 16 KiB scratch range starting
+        # at 0x0000_1000 -- well within ADDR_WIDTH=32 and aligned for
+        # 8-byte beats. Watermark default 24 beats (= 8 records in raw
+        # mode) keeps the writer relatively eager so tests don't have to
+        # wait for the timeout to see master-write activity.
+        self.dut.cfg_base_addr.value       = 0x0000_1000
+        self.dut.cfg_limit_addr.value      = 0x0000_5000 - 1
+        self.dut.cfg_flush_watermark.value = self.TEST_FLUSH_WATERMARK
+
+        # Master-write side is unconsumed in this minimal TB. Drive
+        # awready/wready high (so the burst writer drains freely into
+        # the void) and inject a synthetic bvalid for each AW issued.
+        # This stops the writer's FSM from stalling indefinitely.
+        self.dut.m_axil_awready.value = 1
+        self.dut.m_axil_wready.value  = 1
+        self.dut.m_axil_bvalid.value  = 0
+        self.dut.m_axil_bresp.value   = 0
+
+        # Spawn a background task that mirrors awvalid -> bvalid one
+        # cycle later. The DUT issues one B per AW (single-beat in this
+        # AXIL/AXIL build), so this is a sufficient sink.
+        cocotb.start_soon(self._drive_master_write_sink())
+
         await self.wait_clocks(self.clk_name, 1)
         self.log.info("✅ Configuration signals initialized")
+
+    async def _drive_master_write_sink(self):
+        """Minimal AXIL slave sink for the m_axil_* outputs.
+        Mirrors awvalid -> bvalid one cycle later; bready clears bvalid."""
+        from cocotb.triggers import RisingEdge
+        while True:
+            await RisingEdge(self.axi_aclk)
+            try:
+                aw_handshake = (int(self.dut.m_axil_awvalid.value) == 1
+                                and int(self.dut.m_axil_awready.value) == 1)
+                b_handshake  = (int(self.dut.m_axil_bvalid.value)  == 1
+                                and int(self.dut.m_axil_bready.value)  == 1)
+            except Exception:
+                # During reset some signals are X; just wait it out.
+                continue
+
+            if b_handshake:
+                self.dut.m_axil_bvalid.value = 0
+            if aw_handshake and int(self.dut.m_axil_bvalid.value) == 0:
+                self.dut.m_axil_bvalid.value = 1
+                self.dut.m_axil_bresp.value  = 0  # OKAY
 
     # ========================================================================
     # Test Methods
@@ -329,7 +380,7 @@ class MonbusAxilGroupTB(TBBase):
         duration = self.stats['test_end_time'] - self.stats['test_start_time']
 
         self.log.info("="*60)
-        self.log.info("STREAM MONBUS AXIL GROUP TEST STATISTICS")
+        self.log.info("MONBUS AXIL/AXIL GROUP TEST STATISTICS")
         self.log.info("="*60)
         self.log.info(f"Test duration: {duration:.2f} seconds")
         self.log.info(f"Total packets sent: {self.stats['packets_sent']}")

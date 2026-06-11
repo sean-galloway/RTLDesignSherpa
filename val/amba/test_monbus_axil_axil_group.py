@@ -4,35 +4,33 @@
 # RTL Design Sherpa - Industry-Standard RTL Design and Verification
 # https://github.com/sean-galloway/RTLDesignSherpa
 #
-# Module: test_monbus_axil_group
-# Purpose: STREAM MonBus AXIL Group Integration Test
+# Module: test_monbus_axil_axil_group
+# Purpose: MonBus AXIL/AXIL Group integration test (AXIL slave-read +
+#          AXIL master-write member of the monbus_<p1>_<p2>_group family).
 #
-# Documentation: projects/components/stream/PRD.md
-# Subsystem: stream
+# Documentation: rtl/amba/PRD.md
+# Subsystem: amba (shared)
 #
 # Author: sean galloway
-# Created: 2025-10-19
+# Created: 2025-10-19 (originally test_monbus_axil_group.py); renamed
+#          + retargeted 2026-06-10 for the family refactor.
 
 """
-STREAM MonBus AXIL Group Integration Test
+MonBus AXIL/AXIL Group Integration Test
 
-Simplified test suite for the monbus_axil_group module (STREAM version).
-Tests monitor bus aggregation from data paths and provides:
-- AXI-Lite slave read interface (error/interrupt FIFO)
-- AXI-Lite master write interface (master write FIFO)
-- AXI protocol packet filtering only (no AXIS/Network)
-
-Simplified from RAPIDS:
-- No AXIS/Network protocol filtering
-- AXI packets only
-- Simpler test scenarios
+Test suite for `rtl/amba/shared/monbus_axil_axil_group.sv` -- the
+AXIL/AXIL member of the monbus_<p1>_<p2>_group family. Drives the
+single-input monitor bus, drains the error FIFO via the AXIL slave-read
+interface, and lets the master-write side flush into a synthetic sink
+inside the TB (no master-write assertions in this minimal test; see the
+dedicated AXIL/AXI4 burst test for master-write coverage).
 
 Test Types:
-- 'basic_flow': Basic packet flow tests (AXI protocol only)
-- 'error_fifo': Error FIFO functionality tests (AXI-Lite slave read)
+- 'basic_flow': Basic packet flow tests
+- 'error_fifo': Error FIFO functionality tests
 
-This test file imports the reusable MonbusAxilGroupTB class from:
-  bin/TBClasses/amba/monbus_axil_group/monbus_axil_group_tb.py
+The reusable TB class lives at
+  bin/TBClasses/amba/monbus_axil_axil_group/monbus_axil_axil_group_tb.py
 
 STRUCTURE FOLLOWS REPOSITORY STANDARD:
   - Single CocoTB test function (dispatches based on TEST_TYPE)
@@ -55,8 +53,8 @@ repo_root = get_repo_root()
 sys.path.insert(0, repo_root)
 
 # Import the shared TB from bin/TBClasses (colocated with the shared
-# rtl/amba/shared/monbus_axil_group.sv module the test targets).
-from TBClasses.amba.monbus_axil_group.monbus_axil_group_tb import MonbusAxilGroupTB
+# rtl/amba/shared/monbus_axil_axil_group.sv module the test targets).
+from TBClasses.amba.monbus_axil_axil_group.monbus_axil_axil_group_tb import MonbusAxilAxilGroupTB
 
 # Coverage integration - optional import. Lives in the STREAM project
 # area because that's where its instrumentation/scoreboards are tuned;
@@ -85,15 +83,15 @@ except ImportError:
 # ===========================================================================
 
 @cocotb.test(timeout_time=100, timeout_unit="ms")
-async def cocotb_test_monbus_axil_group(dut):
-    """Unified MonBus AXIL Group test - handles all test types via TEST_TYPE env var.
+async def cocotb_test_monbus_axil_axil_group(dut):
+    """Unified MonBus AXIL/AXIL Group test -- handles all test types via TEST_TYPE env var.
 
     Test Types:
-    - 'basic_flow': Test basic packet flow through monitor bus (AXI protocol only)
-    - 'error_fifo': Test error/interrupt FIFO via AXI-Lite slave read interface
+    - 'basic_flow': Test basic packet flow through monitor bus
+    - 'error_fifo': Test error/interrupt FIFO via AXIL slave-read interface
     """
     test_type = os.environ.get('TEST_TYPE', 'basic_flow')
-    tb = MonbusAxilGroupTB(dut)
+    tb = MonbusAxilAxilGroupTB(dut)
     await tb.setup_clocks_and_reset()
     await tb.setup_interfaces()
 
@@ -117,28 +115,26 @@ async def cocotb_test_monbus_axil_group(dut):
 # PARAMETER GENERATION
 # ===========================================================================
 
-def generate_monbus_axil_test_params():
-    """Generate test parameters for STREAM monbus_axil_group tests.
+def generate_monbus_axil_axil_test_params():
+    """Generate test parameters for monbus_axil_axil_group tests.
 
-    STREAM Simplifications:
-    - Fixed 32-bit data width (STREAM uses 32-bit AXIL)
-    - Fixed address width (32-bit)
-    - Standard FIFO depths (64 for error, 32 for write)
-    - NUM_PROTOCOLS fixed at 3 (AXI, AXIS, CORE) - RTL supports all 3
+    Notes on the new family:
+    - Data width is locked at 64 bits in the family (no more
+      S_AXIL_DATA_WIDTH / M_AXIL_DATA_WIDTH parameters).
+    - FIFO_DEPTH_WRITE is in BEATS, not records (one queue entry =
+      one 64-bit beat; the raw-mode expander pushes 3 beats/record).
+    - NUM_PROTOCOLS is informational (3 = AXI, AXIS, CORE).
 
-    Parameters: (test_type, fifo_depth_err, fifo_depth_write, addr_width, data_width, num_protocols)
-
-    Test Types:
-        - 'basic_flow': Basic packet flow through monitor bus
-        - 'error_fifo': Error/interrupt FIFO functionality
+    Parameters:
+        (test_type, fifo_depth_err, fifo_depth_write, addr_width,
+         num_protocols)
     """
     test_types = ['basic_flow', 'error_fifo']
     base_params = [
-        # (fifo_depth_err, fifo_depth_write, addr_width, data_width, num_protocols)
-        (64, 32, 32, 32, 3),   # Standard STREAM configuration
+        # (fifo_depth_err, fifo_depth_write [beats], addr_width, num_protocols)
+        (64, 96, 32, 3),   # Standard configuration
     ]
 
-    # Generate final params by adding test_type to each base config
     params = []
     for test_type in test_types:
         for base in base_params:
@@ -147,18 +143,18 @@ def generate_monbus_axil_test_params():
     return params
 
 
-monbus_axil_params = generate_monbus_axil_test_params()
+monbus_axil_axil_params = generate_monbus_axil_axil_test_params()
 
 
 # ===========================================================================
 # PYTEST WRAPPER FUNCTION - Single wrapper for all test types
 # ===========================================================================
 
-@pytest.mark.parametrize("test_type, fifo_depth_err, fifo_depth_write, addr_width, data_width, num_protocols",
-                         monbus_axil_params)
-def test_monbus_axil_group(request, test_type, fifo_depth_err, fifo_depth_write, addr_width, data_width, num_protocols):
+@pytest.mark.parametrize("test_type, fifo_depth_err, fifo_depth_write, addr_width, num_protocols",
+                         monbus_axil_axil_params)
+def test_monbus_axil_axil_group(request, test_type, fifo_depth_err, fifo_depth_write, addr_width, num_protocols):
     enable_waves = bool(int(os.environ.get('WAVES', '0')))
-    """Pytest wrapper for MonBus AXIL Group tests - handles all test types."""
+    """Pytest wrapper for MonBus AXIL/AXIL Group tests - handles all test types."""
     module, repo_root, tests_dir, log_dir, rtl_dict = get_paths({
         'rtl_includes': 'rtl/amba/includes',
         'rtl_shared':   'rtl/amba/shared',
@@ -167,12 +163,12 @@ def test_monbus_axil_group(request, test_type, fifo_depth_err, fifo_depth_write,
         'rtl_common':   'rtl/common',
     })
 
-    dut_name = "monbus_axil_group"
+    dut_name = "monbus_axil_axil_group"
 
-    # Sources inlined (no STREAM-specific filelist dep) — the test
-    # targets the shared rtl/amba/shared module so we can list its
-    # actual dependency tree directly. Mirrors the existing
-    # test_monbus_axil_group_compressed.py convention.
+    # Dependency tree for the AXIL/AXIL member of the
+    # monbus_<p1>_<p2>_group family. Includes the optional compressor
+    # so USE_COMPRESSION=1 builds also compile (raw-mode tests just
+    # don't instantiate it).
     verilog_sources = [
         os.path.join(rtl_dict['rtl_includes'], "monitor_common_pkg.sv"),
         os.path.join(rtl_dict['rtl_includes'], "monitor_arbiter_pkg.sv"),
@@ -182,6 +178,9 @@ def test_monbus_axil_group(request, test_type, fifo_depth_err, fifo_depth_write,
         os.path.join(rtl_dict['rtl_gaxi'],     "gaxi_skid_buffer.sv"),
         os.path.join(rtl_dict['rtl_axil4'],    "axil4_slave_rd.sv"),
         os.path.join(rtl_dict['rtl_axil4'],    "axil4_master_wr.sv"),
+        os.path.join(rtl_dict['rtl_shared'],   "monbus_cam.sv"),
+        os.path.join(rtl_dict['rtl_shared'],   "monbus_compressor.sv"),
+        os.path.join(rtl_dict['rtl_shared'],   "monbus_group_core.sv"),
         os.path.join(rtl_dict['rtl_shared'],   f"{dut_name}.sv"),
     ]
     for src in verilog_sources:
@@ -192,10 +191,9 @@ def test_monbus_axil_group(request, test_type, fifo_depth_err, fifo_depth_write,
     fde_str = TBBase.format_dec(fifo_depth_err, 3)
     fdw_str = TBBase.format_dec(fifo_depth_write, 3)
     aw_str = TBBase.format_dec(addr_width, 2)
-    dw_str = TBBase.format_dec(data_width, 2)
     np_str = TBBase.format_dec(num_protocols, 1)
     worker_id = os.environ.get('PYTEST_XDIST_WORKER', 'gw0')
-    test_name_plus_params = f"test_{worker_id}_{dut_name}_{test_type}_fde{fde_str}_fdw{fdw_str}_aw{aw_str}_dw{dw_str}_np{np_str}"
+    test_name_plus_params = f"test_{worker_id}_{dut_name}_{test_type}_fde{fde_str}_fdw{fdw_str}_aw{aw_str}_np{np_str}"
 
     log_path = os.path.join(log_dir, f'{test_name_plus_params}.log')
     sim_build = os.path.join(tests_dir, 'local_sim_build', test_name_plus_params)
@@ -203,32 +201,29 @@ def test_monbus_axil_group(request, test_type, fifo_depth_err, fifo_depth_write,
     os.makedirs(log_dir, exist_ok=True)
     includes = [rtl_dict['rtl_includes'], rtl_dict['rtl_common'], sim_build]
 
-    # The monbus_axil_group module split DATA_WIDTH into S_AXIL_DATA_WIDTH
-    # (slave / IRQ-status side, stays 32) and M_AXIL_DATA_WIDTH (master /
-    # packet-log side, defaults to 64 for the 128-bit packet).
+    # Family port surface: no more S_AXIL_DATA_WIDTH / M_AXIL_DATA_WIDTH
+    # (data width is locked at 64). FIFO_DEPTH_WRITE is in beats.
     rtl_parameters = {
-        'FIFO_DEPTH_ERR': fifo_depth_err,
+        'FIFO_DEPTH_ERR':   fifo_depth_err,
         'FIFO_DEPTH_WRITE': fifo_depth_write,
-        'ADDR_WIDTH': addr_width,
-        'S_AXIL_DATA_WIDTH': data_width,
-        'NUM_PROTOCOLS': num_protocols,
+        'ADDR_WIDTH':       addr_width,
+        'NUM_PROTOCOLS':    num_protocols,
     }
 
     extra_env = {
         'LOG_PATH': log_path,
-        'TEST_TYPE': test_type,  # ← Pass test type to cocotb
-        'TEST_FIFO_DEPTH_ERR': str(fifo_depth_err),
+        'TEST_TYPE': test_type,
+        'TEST_FIFO_DEPTH_ERR':   str(fifo_depth_err),
         'TEST_FIFO_DEPTH_WRITE': str(fifo_depth_write),
-        'TEST_ADDR_WIDTH': str(addr_width),
-        'TEST_DATA_WIDTH': str(data_width),
-        'TEST_NUM_PROTOCOLS': str(num_protocols),
+        'TEST_ADDR_WIDTH':       str(addr_width),
+        'TEST_NUM_PROTOCOLS':    str(num_protocols),
     }
 
     # Add coverage environment variables if coverage is enabled
     coverage_env = get_coverage_env(test_name_plus_params, sim_build=sim_build)
     extra_env.update(coverage_env)
 
-    cmd_filename = create_view_cmd(log_dir, log_path, sim_build, 'test_monbus_axil_group', test_name_plus_params)
+    cmd_filename = create_view_cmd(log_dir, log_path, sim_build, 'test_monbus_axil_axil_group', test_name_plus_params)
 
     # Build args conditionally based on waves
     waves_enabled = False
@@ -248,8 +243,8 @@ def test_monbus_axil_group(request, test_type, fifo_depth_err, fifo_depth_write,
             verilog_sources=verilog_sources,
             includes=includes,
             toplevel=dut_name,
-            module='test_monbus_axil_group',
-            testcase="cocotb_test_monbus_axil_group",  # ← Single cocotb test
+            module='test_monbus_axil_axil_group',
+            testcase="cocotb_test_monbus_axil_axil_group",
             parameters=rtl_parameters,
             sim_build=sim_build,
             extra_env=extra_env,
@@ -260,8 +255,8 @@ def test_monbus_axil_group(request, test_type, fifo_depth_err, fifo_depth_write,
             sim_args=sim_args,
             plus_args=['--trace'] if enable_waves else [],
         )
-        print(f"✓ MonBus AXIL {test_type} test PASSED! Logs: {log_path}")
+        print(f"✓ MonBus AXIL/AXIL {test_type} test PASSED! Logs: {log_path}")
     except Exception as e:
-        print(f"✗ MonBus AXIL {test_type} test FAILED: {str(e)}")
+        print(f"✗ MonBus AXIL/AXIL {test_type} test FAILED: {str(e)}")
         print(f"Logs: {log_path}")
         raise

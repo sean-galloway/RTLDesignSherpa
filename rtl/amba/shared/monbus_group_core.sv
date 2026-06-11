@@ -674,6 +674,8 @@ module monbus_group_core
     logic [15:0]                 beats_cap_max;
     logic [15:0]                 beats_planned;
     logic [15:0]                 beats_planned_units;
+    logic                        in_window;
+    logic [ADDR_WIDTH-1:0]       geom_addr;
     logic                        need_rewind;
     logic [ADDR_WIDTH-1:0]       eff_addr;
     logic                        flush_trigger_watermark;
@@ -683,19 +685,22 @@ module monbus_group_core
 
     assign beats_in_fifo = {{(16-WRITE_FIFO_AW-1){1'b0}}, write_fifo_beat_count};
 
-    // Bytes available before cfg_limit_addr boundary (inclusive).
-    // If r_wr_addr is below cfg_base_addr (uninitialised after reset) or
-    // above cfg_limit_addr, treat as zero and rewind below.
-    always_comb begin
-        if (r_wr_addr > cfg_limit_addr || r_wr_addr < cfg_base_addr) begin
-            bytes_to_limit = '0;
-        end else begin
-            bytes_to_limit = cfg_limit_addr - r_wr_addr + ADDR_WIDTH'(1);
-        end
-    end
+    // Whether r_wr_addr is already inside the [base, limit] window. At
+    // reset r_wr_addr = 0 which is below cfg_base_addr, so the very first
+    // flush always rewinds. We compute geometry against geom_addr (the
+    // rewound view) so beats_planned_units != 0 at the first flush,
+    // which lets the FSM's IDLE -> AW guard actually fire.
+    assign in_window = (r_wr_addr >= cfg_base_addr)
+                    && (r_wr_addr <= cfg_limit_addr);
+    assign geom_addr = in_window ? r_wr_addr : cfg_base_addr;
 
-    // 4KB AXI burst boundary: bytes left until next 4096-byte boundary
-    assign bytes_to_4kb = 13'h1000 - {1'b0, r_wr_addr[11:0]};
+    // Bytes available before cfg_limit_addr boundary (inclusive),
+    // measured from geom_addr.
+    assign bytes_to_limit = cfg_limit_addr - geom_addr + ADDR_WIDTH'(1);
+
+    // 4KB AXI burst boundary: bytes left until next 4096-byte boundary,
+    // measured from geom_addr.
+    assign bytes_to_4kb = 13'h1000 - {1'b0, geom_addr[11:0]};
 
     // Convert byte caps to beat caps (8B per beat). Saturate to 16b.
     always_comb begin
@@ -740,9 +745,14 @@ module monbus_group_core
     end
 
     // Need to rewind if we're outside [base, limit] or if a unit doesn't
-    // fit in what remains of the address window.
-    assign need_rewind = (r_wr_addr < cfg_base_addr)
-                      || (r_wr_addr > cfg_limit_addr)
+    // fit in what remains of the address window from r_wr_addr.
+    //
+    // beats_planned_units was computed against geom_addr (the rewound
+    // view), so this last term collapses to "false" once we're in
+    // window and at least one unit fits at the rewind start. The
+    // assumption (cfg_limit - cfg_base >= BYTES_PER_UNIT) is the host's
+    // responsibility -- the writer can't make forward progress if not.
+    assign need_rewind = !in_window
                       || (beats_planned_units < 16'(BEATS_PER_UNIT));
     assign eff_addr    = need_rewind ? cfg_base_addr : r_wr_addr;
 

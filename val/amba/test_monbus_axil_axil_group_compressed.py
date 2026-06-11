@@ -4,17 +4,20 @@
 # RTL Design Sherpa - Industry-Standard RTL Design and Verification
 # https://github.com/sean-galloway/RTLDesignSherpa
 #
-# Module: test_monbus_axil_group_compressed
-# Purpose: End-to-end acceptance test for monbus_axil_group with
+# Module: test_monbus_axil_axil_group_compressed
+# Purpose: End-to-end acceptance test for monbus_axil_axil_group with
 #          USE_COMPRESSION=1. Drives monbus records in, captures the
 #          AXIL master write stream out, and asserts the captured slot
 #          sequence is byte-identical to the Python Encoder golden.
 #
 # Author: sean galloway
-# Created: 2026-06-07
+# Created: 2026-06-07; retargeted 2026-06-10 for the family refactor
+#          (monbus_axil_group -> monbus_axil_axil_group; beat-granular
+#          write FIFO; cfg_flush_watermark = 1 keeps the per-slot
+#          drain shape identical to the legacy module).
 
 """
-End-to-end test for monbus_axil_group's compressed write path.
+End-to-end test for monbus_axil_axil_group's compressed write path.
 
 The monbus_compressor sub-module is already byte-exact against the
 Python golden (val/amba/test_monbus_compressor.py). This test closes
@@ -91,7 +94,7 @@ def synth_small_stream() -> List[Tuple[int, int]]:
 # Testbench
 # ----------------------------------------------------------------------------
 
-class MonbusAxilGroupTB(TBBase):
+class MonbusAxilAxilGroupTB(TBBase):
     """Drive records into the monbus input, capture every AXIL write
     on the master interface, and compare against the Python golden."""
 
@@ -144,6 +147,11 @@ class MonbusAxilGroupTB(TBBase):
         # Window.
         self.dut.cfg_base_addr.value  = base_addr
         self.dut.cfg_limit_addr.value = limit_addr
+        # Eagerly flush every slot so this slot-by-slot golden compare
+        # works the same way it did against the pre-family monolithic
+        # writer. With a beat-granular FIFO, watermark=1 means a single
+        # compressed-mode slot in the FIFO triggers a flush immediately.
+        self.dut.cfg_flush_watermark.value = 1
         self._tie_off_config()
         # Reset pulse.
         self.dut.axi_aresetn.value = 0
@@ -283,8 +291,8 @@ class MonbusAxilGroupTB(TBBase):
 # ----------------------------------------------------------------------------
 
 @cocotb.test(timeout_time=300, timeout_unit="ms")
-async def monbus_axil_group_compressed_test(dut):
-    tb = MonbusAxilGroupTB(dut)
+async def monbus_axil_axil_group_compressed_test(dut):
+    tb = MonbusAxilAxilGroupTB(dut)
     await tb.start_clock('axi_aclk', 10, 'ns')
 
     # ---- Phase 1: small synthesized stream, generous window ----
@@ -348,7 +356,7 @@ async def monbus_axil_group_compressed_test(dut):
 # Pytest wrapper
 # ----------------------------------------------------------------------------
 
-def test_monbus_axil_group_compressed(request):
+def test_monbus_axil_axil_group_compressed(request):
     module, repo_root, tests_dir, log_dir, rtl_dict = get_paths({
         'rtl_shared':   'rtl/amba/shared',
         'rtl_includes': 'rtl/amba/includes',
@@ -357,7 +365,7 @@ def test_monbus_axil_group_compressed(request):
         'rtl_common':   'rtl/common',
     })
 
-    dut_name = "monbus_axil_group"
+    dut_name = "monbus_axil_axil_group"
     reg_level = os.environ.get('REG_LEVEL', 'FUNC').upper()
     worker_id = os.environ.get('PYTEST_XDIST_WORKER', 'gw0')
     test_name = f"test_{worker_id}_{dut_name}_compressed_{reg_level}"
@@ -382,6 +390,7 @@ def test_monbus_axil_group_compressed(request):
         os.path.join(rtl_dict['rtl_axil4'],    "axil4_master_wr.sv"),
         os.path.join(rtl_dict['rtl_shared'],   "monbus_cam.sv"),
         os.path.join(rtl_dict['rtl_shared'],   "monbus_compressor.sv"),
+        os.path.join(rtl_dict['rtl_shared'],   "monbus_group_core.sv"),
         os.path.join(rtl_dict['rtl_shared'],   f"{dut_name}.sv"),
     ]
     for src in verilog_sources:
