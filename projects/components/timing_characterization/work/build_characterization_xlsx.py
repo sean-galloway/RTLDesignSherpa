@@ -185,6 +185,40 @@ def build_sheet(wb: Workbook, per_level: dict, tflop: dict, single_pt: dict):
                 row.append(round(d, 2))
         ws.append(row)
 
+    # ---------------------------------------------------------------------- #
+    # Wire delay per mm by metal layer.  ASAP7 NLDM has no wire_load table, so
+    # ABC reports WireLoad = "none" on every gate-delay run above.  These are
+    # 7nm industry rules-of-thumb for *buffered* routes:
+    #   M2/M3   intermediate, used for short FUB-internal nets
+    #   M4/M5   semi-global, used for FUB-to-FUB inside a partition
+    #   M6/M7   global, used for partition-to-partition
+    #   M8/M9   thick, clock/power/bus
+    # Corner scaling: FF ~ 0.80 x TT, SS ~ 1.30 x TT (R rises with temp).
+    # Numbers are freq-independent (distance-based), repeated across freq cols
+    # to keep the sheet shape uniform.
+    # ---------------------------------------------------------------------- #
+    WIRE_PS_PER_MM_TT = {
+        "M2/M3 (local / intermediate)": 120.0,
+        "M4/M5 (semi-global)":          65.0,
+        "M6/M7 (global)":               40.0,
+        "M8/M9 (thick)":                22.0,
+    }
+    CORNER_WIRE_SCALE = {"TT": 1.0, "FF": 0.8, "SS": 1.3}
+
+    ws.append([""] * len(col_headers))
+    section_header_row(
+        ws,
+        "Wire delay per mm by metal layer (buffered route, ps/mm) - "
+        "cross-partition route estimate",
+        len(col_headers))
+    for layer, tt_val in WIRE_PS_PER_MM_TT.items():
+        row = [layer]
+        for corner in CORNERS:
+            v = tt_val * CORNER_WIRE_SCALE[corner]
+            for _ in FREQS:
+                row.append(round(v, 1))
+        ws.append(row)
+
     # Notes
     ws.append([""] * len(col_headers))
     ws.append(["Notes"])
@@ -203,6 +237,10 @@ def build_sheet(wb: Workbook, per_level: dict, tflop: dict, single_pt: dict):
         "Single-point delay is reported in the reference table.",
         "CLK_DIV: critical path is intra-stage (counter + pickoff), so NUM_STAGES "
         "doesn't move lev. Single-point delay is reported in the reference table.",
+        "Wire delays are 7nm industry rule-of-thumb for buffered routes; the "
+        "ASAP7 NLDM ships no wire_load table so ABC measured gate delay only. "
+        "For partition-to-partition output budgeting, look up the destination "
+        "metal layer and multiply by route length (mm).",
         "Raw probe data is in work/timing_char_data.csv. Reproducer is "
         "work/timing_char_sweep.py.",
     ]
