@@ -31,11 +31,20 @@ OUT     = Path("/mnt/data/github/RTLDesignSherpa/projects/components/timing_char
 CORNERS = ["TT", "FF", "SS"]
 FREQS   = [500, 750, 1000]  # MHz
 
-# Primitives used for the per-level lookup. INV is excluded — ABC collapses
-# inverter pairs, so the chain depth is not preserved across the optimization
-# pass and the two-point probe doesn't yield a meaningful slope.
-GATE_PRIMS  = ["NAND", "XOR", "MUX"]
-TFLOP_PROBE = "NAND"  # canonical probe for Tcq+Tsu (smallest, most uniform map)
+# Primitives used for the per-level lookup, in display order.
+# - NAND/XOR/MUX: the most useful gates (clean two-point slope, simple to reason about)
+# - CARRY/MULT/GRAY_CTR/QUEUE: scale cleanly with their probe param
+# - MULT is the RECOMMENDED PROXY for "mixed-bag" combinational logic - a real
+#   multiplier tree contains AND, XOR, full adder, and carry cells, so its per-
+#   level delay is a sensible blended estimate for generic combinational stuff.
+# - INV and CLK_DIV are listed in 'Reference single-point measurements' but
+#   excluded from the per-level / max-levels tables because their lev count does
+#   not change between the two probe sizes (INV: ABC collapses pairs;
+#   CLK_DIV: critical path is intra-stage, not depth-scaled by NUM_STAGES).
+GATE_PRIMS         = ["NAND", "XOR", "MUX", "CARRY", "MULT", "GRAY_CTR", "QUEUE"]
+DEGENERATE_PRIMS   = ["INV", "CLK_DIV"]
+TFLOP_PROBE        = "NAND"
+MIXED_PROXY        = "MULT"  # highlight this row as the generic-mixed-logic proxy
 
 # ---------------------------------------------------------------------------- #
 HDR_FONT = Font(bold=True, color="FFFFFF")
@@ -61,27 +70,33 @@ def read_probes() -> dict:
     return probes
 
 
-def derive(probes: dict) -> tuple[dict, dict]:
-    """Return (per_level, tflop) keyed by (gate, corner) and corner."""
+def derive(probes: dict) -> tuple[dict, dict, dict]:
+    """Return (per_level, tflop, single_point_d) keyed by (gate, corner)/corner."""
     per_level: dict = {}
     tflop: dict = {}
-    for prim in GATE_PRIMS:
+    single_pt: dict = {}  # smallest-size delay for degenerate-slope prims
+    all_prims = GATE_PRIMS + DEGENERATE_PRIMS
+    for prim in all_prims:
         for corner in CORNERS:
             ps = probes.get((prim, corner))
-            if not ps or len(ps) < 2:
+            if not ps:
                 continue
             ps_sorted = sorted(ps, key=lambda x: x[0])
-            (v1, d1, lev1), (v2, d2, lev2) = ps_sorted[0], ps_sorted[-1]
-            if lev2 == lev1:
+            (_v1, d1, lev1) = ps_sorted[0]
+            single_pt[(prim, corner)] = (d1, lev1)
+            if len(ps) < 2:
                 continue
+            (_v2, d2, lev2) = ps_sorted[-1]
+            if lev2 == lev1:
+                continue  # degenerate slope (INV pairs, CLK_DIV intra-stage)
             per_lv = (d2 - d1) / (lev2 - lev1)
             per_level[(prim, corner)] = per_lv
             if prim == TFLOP_PROBE:
                 tflop[corner] = d1 - lev1 * per_lv
-    return per_level, tflop
+    return per_level, tflop, single_pt
 
 
-def build_sheet(wb: Workbook, per_level: dict, tflop: dict):
+def build_sheet(wb: Workbook, per_level: dict, tflop: dict, single_pt: dict):
     ws = wb.active
     ws.title = "characterization"
 
@@ -116,7 +131,10 @@ def build_sheet(wb: Workbook, per_level: dict, tflop: dict):
     # Per-gate-type max-level rows
     section_header_row(ws, "Max combinational levels per cycle", len(col_headers))
     for gate in GATE_PRIMS:
-        row = [f"Max {gate} levels"]
+        label = f"Max {gate} levels"
+        if gate == MIXED_PROXY:
+            label += "  (PROXY for mixed-bag logic)"
+        row = [label]
         for corner in CORNERS:
             per_lv = per_level.get((gate, corner), 0)
             tf = tflop.get(corner, 0)
@@ -128,17 +146,43 @@ def build_sheet(wb: Workbook, per_level: dict, tflop: dict):
                 else:
                     row.append("")
         ws.append(row)
+        # Highlight the MULT row to visually call it out as the mixed-bag proxy
+        if gate == MIXED_PROXY:
+            for c in range(1, len(col_headers) + 1):
+                ws.cell(row=ws.max_row, column=c).fill = PatternFill(
+                    "solid", fgColor="FFF2CC")
 
     ws.append([""] * len(col_headers))
 
     # Per-level delay table (constants per corner)
     section_header_row(ws, "Per-level gate delay (ps)  - freq-independent", len(col_headers))
     for gate in GATE_PRIMS:
-        row = [f"per {gate} delay (ps)"]
+        label = f"per {gate} delay (ps)"
+        if gate == MIXED_PROXY:
+            label += "  (PROXY)"
+        row = [label]
         for corner in CORNERS:
             v = per_level.get((gate, corner), 0)
             for _ in FREQS:
                 row.append(round(v, 2))
+        ws.append(row)
+        if gate == MIXED_PROXY:
+            for c in range(1, len(col_headers) + 1):
+                ws.cell(row=ws.max_row, column=c).fill = PatternFill(
+                    "solid", fgColor="FFF2CC")
+
+    # Reference single-point measurements for degenerate-slope primitives
+    ws.append([""] * len(col_headers))
+    section_header_row(
+        ws,
+        "Reference single-point delays (ps) - degenerate slope, no per-level number",
+        len(col_headers))
+    for gate in DEGENERATE_PRIMS:
+        row = [f"{gate} flop-to-flop delay (ps)"]
+        for corner in CORNERS:
+            d, _lev = single_pt.get((gate, corner), (0, 0))
+            for _ in FREQS:
+                row.append(round(d, 2))
         ws.append(row)
 
     # Notes
@@ -151,9 +195,14 @@ def build_sheet(wb: Workbook, per_level: dict, tflop: dict):
         f"Tflop = Tcq + Tsu derived from {TFLOP_PROBE} chain two-point probe "
         "(LEVELS={3,6}).",
         "max_levels = floor((period_ps - Tflop) / per_level_delay).",
-        "INV chain omitted: ABC's strash collapses inverter pairs, so the chain "
-        "depth is not preserved through optimization and the two-point probe is "
-        "degenerate (delta_D = 0). Use NAND or MUX as the buffer-cost proxy.",
+        f"** When the critical path is a mixed bag of cells (typical for "
+        f"datapath / FSM next-state / arbitration logic), use the {MIXED_PROXY} "
+        f"per-level number. It bakes in AND / XOR / full-adder / carry mix.",
+        "INV: ABC's strash collapses inverter pairs across the chain, so lev "
+        "doesn't change between probe sizes - per-level slope is degenerate. "
+        "Single-point delay is reported in the reference table.",
+        "CLK_DIV: critical path is intra-stage (counter + pickoff), so NUM_STAGES "
+        "doesn't move lev. Single-point delay is reported in the reference table.",
         "Raw probe data is in work/timing_char_data.csv. Reproducer is "
         "work/timing_char_sweep.py.",
     ]
@@ -472,17 +521,22 @@ def build_stream_sheet(wb: Workbook):
 
 def main():
     probes = read_probes()
-    per_level, tflop = derive(probes)
+    per_level, tflop, single_pt = derive(probes)
     wb = Workbook()
-    build_sheet(wb, per_level, tflop)
+    build_sheet(wb, per_level, tflop, single_pt)
     build_blocks_sheet(wb)
     build_stream_sheet(wb)
     OUT.parent.mkdir(parents=True, exist_ok=True)
     wb.save(OUT)
     print(f"wrote {OUT}")
     print(f"  Tflop: {tflop}")
-    print(f"  per-level (TT only): "
-          f"{ {g: round(per_level.get((g, 'TT'), 0), 2) for g in GATE_PRIMS} }")
+    print("  per-level (TT only):")
+    for g in GATE_PRIMS:
+        print(f"     {g:9s}: {per_level.get((g, 'TT'), 0):6.2f} ps")
+    print("  degenerate single-point (TT, smallest size):")
+    for g in DEGENERATE_PRIMS:
+        d, lev = single_pt.get((g, "TT"), (0, 0))
+        print(f"     {g:9s}: {d:6.2f} ps (lev={lev})")
 
 
 if __name__ == "__main__":
