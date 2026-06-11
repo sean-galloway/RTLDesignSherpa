@@ -130,7 +130,7 @@ The `axi_monitor_base` module is the core building block for:
 
 | Port | Direction | Width | Description |
 |------|-----------|-------|-------------|
-| `i_mon_time` | Input | 64 | Free-running counter from `monbus_axil_group`, sampled at packet emission |
+| `i_mon_time` | Input | 64 | Free-running counter from the `monbus_group` family (any wrapper), sampled at packet emission |
 
 ### Monitor Bus Output
 

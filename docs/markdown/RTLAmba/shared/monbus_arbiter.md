@@ -156,8 +156,8 @@ if (grant_valid)
 All skid buffers in this arbiter carry the **packet and timestamp atomically**
 in a 192-bit payload (`MONBUS_PKT_WIDTH + MONBUS_TS_WIDTH = 128 + 64`). The
 arbiter never separates a packet from its sampled timestamp, so consumers
-downstream of `monbus_axil_group` see a coherent (pkt, ts) tuple even after
-multiple levels of skid.
+downstream of the [`monbus_group` family](monbus_group.md) see a coherent
+(pkt, ts) tuple even after multiple levels of skid.
 
 **Input Skid Buffers** (per client):
 - Uses gaxi_skid_buffer instances configured for 192-bit data
@@ -211,7 +211,7 @@ monbus_arbiter #(
     .last_grant          (arb_last_grant)
 );
 
-// Downstream consumer is typically monbus_axil_group, which expects the
+// Downstream consumer is typically the monbus_group family, which expects the
 // 128-bit packet on monbus_packet and the 64-bit timestamp on
 // monbus_timestamp. No additional FIFO is needed at this boundary —
 // the group has its own ingress skid.

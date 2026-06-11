@@ -46,9 +46,13 @@ The shared subsystem provides foundational infrastructure modules used throughou
 
 ## Module Categories
 
-### Monitor Infrastructure (7 modules)
+### Monitor Infrastructure
 
-Core modules that implement the AXI/APB monitoring functionality:
+Core modules that implement the AXI/APB monitoring functionality. The
+reporter (`axi_monitor_reporter`) is now a thin dispatcher around six
+packet-type-specific sub-blocks (error / timeout / compl / threshold /
+perf / debug); each is gated by an `ENABLE_*_LOGIC` parameter so an
+integrator that only needs error packets pays no LUT/FF for the others.
 
 | Module | Purpose | Key Features | Documentation |
 |--------|---------|--------------|---------------|
@@ -56,18 +60,27 @@ Core modules that implement the AXI/APB monitoring functionality:
 | **axi_monitor_filtered** | Monitor wrapper with filtering | 3-level packet filtering, configuration validation | [axi_monitor_filtered.md](axi_monitor_filtered.md) |
 | **axi_monitor_trans_mgr** | Transaction table management (CAM-backed) | Out-of-order tracking, ID management | [axi_monitor_trans_mgr.md](axi_monitor_trans_mgr.md) |
 | **monitor_trans_cam** | Multi-port ID CAM with payload | 3 lookup ports, 3-way alloc mutex, used by trans_mgr | [monitor_trans_cam.md](monitor_trans_cam.md) |
-| **axi_monitor_reporter** | Event packet generation | Error/completion/performance packets | [axi_monitor_reporter.md](axi_monitor_reporter.md) |
+| **axi_monitor_reporter** | Event packet dispatcher | Top-level mux over 6 detection sub-blocks (error / timeout / compl / threshold / perf / debug), each gated by `ENABLE_*_LOGIC` | [axi_monitor_reporter.md](axi_monitor_reporter.md) |
+| `axi_monitor_reporter_{error,timeout,compl,threshold,perf,debug}` | Per-packet-type detection sub-blocks | Private to the reporter family — see the reporter doc | (covered in [axi_monitor_reporter.md](axi_monitor_reporter.md)) |
 | **axi_monitor_timeout** | Timeout detection | Configurable thresholds, multi-channel monitoring | [axi_monitor_timeout.md](axi_monitor_timeout.md) |
 | **axi_monitor_timer** | Frequency-invariant timer | Configurable tick generation | [axi_monitor_timer.md](axi_monitor_timer.md) |
+| **axi_monitor_addr_check** | Address-match watchpoints | Per-channel address compare and event emission | [axi_monitor_addr_check.md](axi_monitor_addr_check.md) |
 | **amba_clock_gate_ctrl** | Clock gating control | Dynamic gating, idle detection | [amba_clock_gate_ctrl.md](amba_clock_gate_ctrl.md) |
 
 ### Monitor Bus Delivery + Bulk-Trace Compression
 
-The path from in-flight monitor packets to host-visible memory and CPU IRQs:
+The path from in-flight monitor packets to host-visible memory and CPU IRQs.
+The monbus_group family pattern matches sdpram_slave — one protocol-agnostic
+core plus four wrappers that adapt the slave-read / master-write surfaces to
+the matching fabric without spurious AXI4-only fields on AXIL sides.
 
 | Module | Purpose | Key Features | Documentation |
 |--------|---------|--------------|---------------|
-| **monbus_axil_group** | Monitor bus → AXI-Lite slave+master | Per-protocol filter, err FIFO + write FIFO, optional bulk-trace compression | [monbus_axil_group.md](monbus_axil_group.md) |
+| **monbus_group_core** | Protocol-agnostic core | Per-protocol filter, err FIFO (record-granular), write FIFO (beat-granular), watermark+timeout burst writer, 4KB-boundary aware, optional bulk-trace compression | [monbus_group.md](monbus_group.md) |
+| **monbus_axil_axil_group** | Wrapper — AXIL/AXIL | Slave-read + master-write both AXIL (single-beat). Replaces legacy monbus_axil_group. | (same) |
+| **monbus_axil_axi4_group** | Wrapper — AXIL/AXI4 | AXIL slave-read + AXI4 burst master-write (up to 256 beats/burst) | (same) |
+| **monbus_axi4_axil_group** | Wrapper — AXI4/AXIL | AXI4 burst slave-read + AXIL master-write | (same) |
+| **monbus_axi4_axi4_group** | Wrapper — AXI4/AXI4 | Burst on both sides | (same) |
 | **monbus_compressor** | Bulk-trace encoder | 32-entry LRU CAM, 4-tag slot format, 2.66× ratio, bit-exact to Python golden | [monbus_compressor.md](monbus_compressor.md) |
 | **monbus_cam** | LRU CAM for compressor | 32-entry, position-indexed, true LRU, 49b key + 64b payload | [monbus_cam.md](monbus_cam.md) |
 
@@ -75,7 +88,7 @@ The path from in-flight monitor packets to host-visible memory and CPU IRQs:
 
 Simple dual-port BRAM slave with independent protocol choice on each
 side. Most commonly used as the memory-dump ring backend for
-`monbus_axil_group`. One common backend + four protocol-specific
+`monbus_axil_axil_group`. One common backend + four protocol-specific
 wrappers (since SystemVerilog can't conditionally include/exclude
 ports in a single module's port list, each combination gets its own
 wrapper module name).

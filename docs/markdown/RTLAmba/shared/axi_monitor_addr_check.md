@@ -87,7 +87,7 @@ The `axi_monitor_addr_check` module enables:
 
 | Port | Direction | Width | Description |
 |------|-----------|-------|-------------|
-| `i_mon_time` | Input | 64 | Free-running counter from `monbus_axil_group`, broadcast to every wrapper via the shared `mon_time_w` net. Sampled when `addr_pkt_valid` asserts and driven out on `addr_pkt_timestamp`. |
+| `i_mon_time` | Input | 64 | Free-running counter from `monbus group`, broadcast to every wrapper via the shared `mon_time_w` net. Sampled when `addr_pkt_valid` asserts and driven out on `addr_pkt_timestamp`. |
 
 ### Command Interface (Snoop)
 
@@ -176,7 +176,7 @@ same channel.
 
 **Side-band timestamp:** `addr_pkt_timestamp` carries the sampled `i_mon_time`
 paired atomically with the packet through the arbiter and into
-`monbus_axil_group`.
+`monbus group`.
 
 ---
 
@@ -293,7 +293,7 @@ The monbus output should be fed into a standard FIFO (e.g., `gaxi_fifo_sync`) to
 In practice the addr_check output is merged with the reporter's main packet
 stream by an arbiter (`monbus_arbiter`) that carries packet+timestamp atomically
 through a 192-bit skid. The arbiter's downstream FIFO sits at the
-`monbus_axil_group` boundary, sized for the aggregate of all per-wrapper
+`monbus group` boundary, sized for the aggregate of all per-wrapper
 streams. A standalone FIFO on the addr_check output is normally not needed.
 
 ---

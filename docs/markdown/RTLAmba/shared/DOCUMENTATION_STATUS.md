@@ -24,7 +24,7 @@
 # Shared Infrastructure Documentation Status
 
 **Generated:** 2025-10-23
-**Last updated:** 2026-06-09 (added bulk-trace compression + trans_mgr family)
+**Last updated:** 2026-06-11 (monbus_<p1>_<p2>_group family rewrite + reporter dispatcher rewrite)
 **Location:** `/mnt/data/github/RTLDesignSherpa/docs/markdown/RTLAmba/shared/`
 
 ---
@@ -60,10 +60,17 @@
     - Backs monbus_compressor's template indexing
     - Caller protocol (NONE/TOUCH/INSTALL), eviction semantics
 
-15. **monbus_axil_group.md** - COMPLETE (new 2026-06-08)
-    - AXI-Lite delivery layer (err FIFO + write FIFO + timestamp authority)
-    - Per-protocol filter rules
-    - USE_COMPRESSION elaboration knob covered with both writer paths
+15. **monbus_group.md** - COMPLETE (rewritten 2026-06-11, was monbus_axil_group.md)
+    - Renamed from monbus_axil_group.md to reflect the new family.
+    - Covers the full 5-file family: 1 protocol-agnostic core
+      (monbus_group_core.sv) + 4 protocol-permutation wrappers
+      (axil_axil / axil_axi4 / axi4_axil / axi4_axi4).
+    - Documents the beat-granular write FIFO, watermark + timeout
+      burst writer (4KB-boundary aware), and AXI4 burst behavior.
+    - Migration recipe from the legacy single monbus_axil_group module
+      (port-surface changes: cfg_flush_watermark added, FIFO counts
+      widened to 16 bits, FIFO_DEPTH_WRITE now in beats, locked 64-bit
+      data width).
 
 16. **sdpram_slave.md** - COMPLETE (new 2026-06-09)
     - Covers the full 5-file family: 1 backend + 4 protocol-specific
@@ -71,8 +78,19 @@
     - Documents why the split exists (SystemVerilog cannot conditionally
       include/exclude ports in a single module declaration).
     - Migration recipe from bare `sdpram_slave` to the matching wrapper.
-    - Cross-links from monbus_axil_group.md and monbus_compressor.md
+    - Cross-links from monbus_group.md and monbus_compressor.md
       (the memory-dump ring's canonical backend is `sdpram_slave_axil_axil`).
+
+17. **axi_monitor_reporter.md** - COMPLETE (rewritten 2026-06-11)
+    - Reflects the 2026-06-06 sub-block refactor (thin dispatcher +
+      6 ENABLE_*_LOGIC-gated detection sub-blocks).
+    - Lists the six sub-blocks (error / timeout / compl / threshold /
+      perf / debug), their logic shapes, and their gate parameters.
+    - Notes the bridge-case savings (ENABLE_ERROR_LOGIC=1, others 0
+      drops ~70% LUT/FF).
+    - The six sub-block files (axi_monitor_reporter_*.sv) are
+      explicitly covered here rather than as individual doc pages,
+      since they are private to the reporter family.
 
 ### Remaining Documentation (15 modules)
 
@@ -80,14 +98,20 @@ The following modules require documentation following the same pattern as axi_mo
 
 #### Monitor Infrastructure
 2. axi_monitor_filtered.md - PENDING
-3. axi_monitor_reporter.md - PENDING
+3. axi_monitor_reporter.md - **COMPLETE** (rewritten 2026-06-11, see #17)
+   - Now describes the dispatcher + 6 sub-blocks (error / timeout /
+     compl / threshold / perf / debug). The six sub-block files
+     (axi_monitor_reporter_*.sv) are covered here, not as separate
+     doc pages.
 4. axi_monitor_timeout.md - PENDING
 5. axi_monitor_timer.md - PENDING
 6. axi_monitor_trans_mgr.md - **COMPLETE** (rewritten 2026-06-08)
    - See #11 in Completed Documentation above
 
 #### Monitor Bus Delivery + Bulk-Trace Compression (NEW SECTION)
-   - monbus_axil_group.md - **COMPLETE** (new 2026-06-08, see #15)
+   - monbus_group.md - **COMPLETE** (rewritten 2026-06-11, see #15)
+     - Renamed from monbus_axil_group.md; covers the new 5-file
+       family (core + 4 wrappers).
    - monbus_compressor.md - **COMPLETE** (new 2026-06-08, see #13)
    - monbus_cam.md - **COMPLETE** (new 2026-06-08, see #14)
    - monitor_trans_cam.md - **COMPLETE** (new 2026-06-08, see #12)

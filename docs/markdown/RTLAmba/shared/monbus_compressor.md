@@ -38,8 +38,8 @@ heavy templating that real workloads exhibit, and emits a 64-bit slot stream tha
 compresses by roughly **2.6×** with **byte-identical** equivalence to a Python
 golden encoder.
 
-The compressor sits in front of the AXIL writer inside
-[`monbus_axil_group`](monbus_axil_group.md) when the wrapper opts in via the
+The compressor sits in front of the master writer inside the
+[`monbus_group` family](monbus_group.md) when a wrapper opts in via the
 `USE_COMPRESSION=1` parameter. The slot stream is what eventually lands in the
 SRAM dump ring on the FPGA, so smaller slots → longer recording windows
 in the same memory budget.
@@ -474,13 +474,13 @@ INFO  === ALL PHASES PASSED ===
 ### 2. Integration-level (compressor + AXIL writer + base/limit wrap)
 
 ```bash
-pytest val/amba/test_monbus_axil_group_compressed.py -v
+pytest val/amba/test_monbus_axil_axil_group_compressed.py -v
 ```
 
 Three phases:
 - Generous window (no wrap): 9 slots from the synthesized stream
 - Tight 8-slot window: forces a mid-stream wrap back to `cfg_base_addr`
-- Real-silicon dataset: 770 slots through the full `monbus_axil_group`
+- Real-silicon dataset: 770 slots through the full `monbus_axil_axil_group`
   with `USE_COMPRESSION=1`
 
 Both layers run as part of the standard amba regression and must pass before
@@ -541,7 +541,7 @@ The dataset and acceptance recipe live at
 | Module | Role |
 |---|---|
 | [`monbus_cam`](monbus_cam.md) | 32-entry LRU CAM (template index store) |
-| [`monbus_axil_group`](monbus_axil_group.md) | Host of the compressor, plus the AXIL writer that drains slots to memory |
+| [`monbus_group` family](monbus_group.md) | Host of the compressor, plus the master writer that drains slots to memory |
 | [`sdpram_slave_axil_axil`](sdpram_slave.md) | Typical SRAM-ring backend for the compressed slot stream |
 | `bin/TBClasses/monbus/monbus_compressor.py` | Python golden encoder/decoder — the format spec |
 
@@ -550,7 +550,7 @@ The dataset and acceptance recipe live at
 ## Test
 
 - **Acceptance (byte-identical vs golden):** `val/amba/test_monbus_compressor.py`
-- **End-to-end (with AXIL writer + wrap):** `val/amba/test_monbus_axil_group_compressed.py`
+- **End-to-end (with AXIL writer + wrap):** `val/amba/test_monbus_axil_axil_group_compressed.py`
 - **CAM sub-module:** `val/amba/test_monbus_cam.py`
 
 Run all three:
@@ -558,5 +558,5 @@ Run all three:
 ```bash
 pytest val/amba/test_monbus_cam.py \
        val/amba/test_monbus_compressor.py \
-       val/amba/test_monbus_axil_group_compressed.py -v
+       val/amba/test_monbus_axil_axil_group_compressed.py -v
 ```

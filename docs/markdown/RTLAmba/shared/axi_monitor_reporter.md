@@ -21,44 +21,93 @@
 
 <!-- End Header -->
 
-# AXI Monitor Reporter
+# AXI Monitor Reporter (Dispatcher + 6 Sub-blocks)
 
-**Module:** `axi_monitor_reporter.sv`
+**Modules:**
+- `axi_monitor_reporter.sv` — thin top-level dispatcher
+- `axi_monitor_reporter_error.sv` — error-packet detection (combinational)
+- `axi_monitor_reporter_timeout.sv` — timeout-packet detection (combinational)
+- `axi_monitor_reporter_compl.sv` — completion-packet detection (combinational)
+- `axi_monitor_reporter_threshold.sv` — threshold-packet detection (16 latency flops + edge flags)
+- `axi_monitor_reporter_perf.sv` — performance-packet generation (counters + 5-state FSM)
+- `axi_monitor_reporter_debug.sv` — debug-packet generation
+
 **Location:** `rtl/amba/shared/`
 **Category:** Core Infrastructure
-**Status:** ✅ Production Ready
+**Status:** Production Ready (refactored to sub-blocks 2026-06-06)
 
 ---
 
 ## Overview
 
-The `axi_monitor_reporter` module provides Monitor bus packet formatting and generation.
+The `axi_monitor_reporter` family generates Monitor-bus packets. The
+top-level `axi_monitor_reporter.sv` is a **thin dispatcher** that
+multiplexes one packet stream out of (up to) six packet-type-specific
+sub-blocks into the shared monbus FIFO and 128-bit output register. It
+also reports each emitted event back to `axi_monitor_trans_mgr` so the
+transaction table can release entries.
 
-This is a **shared infrastructure module** used internally by AXI/AXIL monitors. It is not typically instantiated directly by users but is critical for understanding the monitor architecture.
+Per-packet-type detection lives in the six sub-blocks. The dispatcher
+gates each sub-block via an `ENABLE_*_LOGIC` parameter, so integrators
+can drop any combination at elaboration time and pay zero LUT/FF cost
+for the unused detection cones.
+
+> The bridge case (`ENABLE_ERROR_LOGIC=1`, all others `0`) drops
+> roughly 70% of the reporter's LUT/FF.
 
 ---
 
 ## Key Features
 
-- ✅ **128-bit standardized `monitor_packet_t` formatting**
-- ✅ **Packet type encoding (ERROR/COMPL/TIMEOUT/PERF/DEBUG):** Packet type encoding (ERROR/COMPL/TIMEOUT/PERF/DEBUG)
-- ✅ **Protocol identification (AXI/APB/AXIS):** Protocol identification (AXI/APB/AXIS)
-- ✅ **Event code and data field population:** Event code and data field population
-- ✅ **Unit ID and Agent ID insertion:** Unit ID and Agent ID insertion
-- ✅ **Packet valid/ready handshaking:** Packet valid/ready handshaking
-- ✅ **Internal FIFO for packet queuing:** Internal FIFO for packet queuing
+- 128-bit standardized `monitor_packet_t` formatting (via package helpers)
+- Packet type multiplexing across six sub-blocks (error / timeout /
+  compl / threshold / perf / debug) with per-type elaboration gates
+- Protocol identification (AXI4, AXI5, APB, AXIS, CORE)
+- Event code and data field population from the active sub-block
+- Unit ID and Agent ID insertion (caller-configured constants)
+- Packet valid/ready handshaking
+- Internal monbus FIFO for packet queuing
+- Event-reported feedback to `axi_monitor_trans_mgr` (closes the
+  transaction-table loop documented in FIX-001)
+
+---
+
+## Sub-blocks
+
+| Sub-block | Gate parameter | Generates `pkt_type` | Logic shape |
+|---|---|---|---|
+| `axi_monitor_reporter_error` | `ENABLE_ERROR_LOGIC` | `PktTypeError` | combinational |
+| `axi_monitor_reporter_timeout` | `ENABLE_TIMEOUT_LOGIC` | `PktTypeTimeout` | combinational |
+| `axi_monitor_reporter_compl` | `ENABLE_COMPL_LOGIC` | `PktTypeCompletion` | combinational |
+| `axi_monitor_reporter_threshold` | `ENABLE_THRESHOLD_LOGIC` | `PktTypeThreshold` | 16 latency flops + edge detect |
+| `axi_monitor_reporter_perf` | `ENABLE_PERF_LOGIC` (alias `ENABLE_PERF_PACKETS`) | `PktTypePerf` | window counters + 5-state FSM |
+| `axi_monitor_reporter_debug` | `ENABLE_DEBUG_LOGIC` (default `0`) | `PktTypeDebug` | event-encoded debug points |
+
+Each sub-block presents the same "raise a request with packet payload"
+contract to the dispatcher, which arbitrates and pipes the winner into
+the FIFO. None of them are intended to be instantiated directly by
+integrators — they are private to the reporter family.
 
 ---
 
 ## Module Purpose
 
-The `axi_monitor_reporter` module is the core building block for:
+The reporter dispatcher provides:
 
-1. **Packet Formatting:** Encodes events into 128-bit `monitor_packet_t` format
-2. **Protocol Identification:** Tags packets with AXI/APB/AXIS protocol info
-3. **Routing Information:** Inserts Unit ID and Agent ID for downstream routing
-4. **Queuing:** Buffers packets when downstream is not ready
-5. **Handshaking:** Manages valid/ready flow control
+1. **Per-type detection gating** — only the enabled sub-blocks consume
+   LUT/FF, so a single-purpose deployment (e.g. error-only on the
+   bridge) is lean.
+2. **Packet formatting** — pulls type / protocol / event code / event
+   data / channel id from the active sub-block and packs into the
+   128-bit `monitor_packet_t`.
+3. **Routing IDs** — inserts the static `UNIT_ID` / `AGENT_ID` so the
+   downstream arbiter and the host can route packets back to their
+   source.
+4. **Queuing** — buffers up to `INTR_FIFO_DEPTH` packets when the
+   downstream monbus is back-pressured.
+5. **Event acknowledge** — drives `event_reported_*` back to
+   `axi_monitor_trans_mgr` so the transaction table can release its
+   entry once the packet is in the FIFO.
 
 ---
 
@@ -66,9 +115,18 @@ The `axi_monitor_reporter` module is the core building block for:
 
 | Parameter | Type | Default | Description |
 |-----------|------|---------|-------------|
-| `UNIT_ID` | logic [7:0] | 8'h01 | 8-bit unit identifier |
-| `AGENT_ID` | logic [15:0] | 16'h000A | 16-bit agent identifier |
-| `FIFO_DEPTH` | int | 8 | Reporter packet FIFO depth |
+| `MAX_TRANSACTIONS` | int | 16 | Transaction-table size shared with `axi_monitor_trans_mgr` |
+| `ADDR_WIDTH` | int | 32 | Address width carried in event_data |
+| `UNIT_ID` | logic [7:0] | `8'h09` | 8-bit unit identifier (static) |
+| `AGENT_ID` | logic [15:0] | `16'h0063` | 16-bit agent identifier (static) |
+| `IS_READ` | bit | 1 | 1 = read-channel monitor, 0 = write-channel |
+| `INTR_FIFO_DEPTH` | int | 8 | Reporter packet FIFO depth |
+| `ENABLE_ERROR_LOGIC` | bit | 1 | Instantiate the error detection sub-block |
+| `ENABLE_TIMEOUT_LOGIC` | bit | 1 | Instantiate the timeout detection sub-block |
+| `ENABLE_COMPL_LOGIC` | bit | 1 | Instantiate the completion detection sub-block |
+| `ENABLE_THRESHOLD_LOGIC` | bit | 1 | Instantiate the threshold detection sub-block |
+| `ENABLE_PERF_LOGIC` | bit | (alias) | Instantiate the perf sub-block; defaults to `ENABLE_PERF_PACKETS` for legacy compat |
+| `ENABLE_DEBUG_LOGIC` | bit | 0 | Instantiate the debug sub-block |
 
 ---
 
@@ -113,7 +171,7 @@ flowchart LR
 
 The reporter drives `monbus_packet` (128b) and `monbus_timestamp` (64b)
 together so the side-band timestamp travels paired with each packet through
-the arbiter and into `monbus_axil_group`.
+the arbiter and into the [`monbus_group` family](monbus_group.md).
 
 ---
 
