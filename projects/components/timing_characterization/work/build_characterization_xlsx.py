@@ -309,7 +309,9 @@ def build_blocks_sheet(wb: Workbook):
         "flop->out TT (ps)", "flop->out FF (ps)", "flop->out SS (ps)",  # R, S, T
         # ---- fmax = worst of the two internal halves ----
         "fmax TT (MHz)", "fmax FF (MHz)", "fmax SS (MHz)",  # U, V, W
-        "notes",                                       # X
+        # ---- chain accumulator (TT corner, simple add-up) ----
+        "delay_in TT (ps)", "delay_out TT (ps)",       # X, Y
+        "notes",                                       # Z
     ]
     ws.append(header)
     for c in range(1, len(header) + 1):
@@ -320,6 +322,15 @@ def build_blocks_sheet(wb: Workbook):
         cell.border = BOX
 
     NCOL = len(header)
+
+    # ---------- Config row 2: target period and 30% default delay_in ---------- #
+    ws.cell(row=2, column=1, value="CONFIG -> target period (ps):").font = SECTION_FONT
+    c = ws.cell(row=2, column=2, value=1000); c.fill = PARAM_FILL; c.alignment = CENTER
+    ws.cell(row=2, column=3, value="30% default delay_in (ps):").font = SECTION_FONT
+    c = ws.cell(row=2, column=4, value="=B2*0.3"); c.fill = FORMULA_FILL; c.alignment = CENTER
+    ws.cell(row=2, column=5, value=(
+        "  delay_in defaults to 0.3*period (external). Overwrite a cell with "
+        "=Y_prev to chain from the previous block's delay_out."))
 
     def emit_section_header(label: str):
         r = ws.max_row + 1
@@ -504,8 +515,14 @@ def build_blocks_sheet(wb: Workbook):
             cell = ws.cell(row=r, column=21 + off, value=f)
             cell.alignment = CENTER
             cell.fill = FORMULA_FILL
-        # X: notes
-        ws.cell(row=r, column=24, value=b["notes"])
+        # X: delay_in TT — default = 0.3 * target period (external arrival).
+        #    Designer overrides with =Y_prev to chain from a previous block.
+        c = ws.cell(row=r, column=24, value="=$D$2"); c.fill = PARAM_FILL; c.alignment = CENTER
+        # Y: delay_out TT = delay_in + (data->D TT + flop->out TT)
+        c = ws.cell(row=r, column=25, value=f"=X{r} + M{r} + R{r}")
+        c.fill = FORMULA_FILL; c.alignment = CENTER
+        # Z: notes
+        ws.cell(row=r, column=26, value=b["notes"])
 
     # Emit SRAMs section
     emit_section_header("SRAMs")
@@ -517,22 +534,19 @@ def build_blocks_sheet(wb: Workbook):
     for b in BUILDING_BLOCKS:
         write_block(b)
 
-    # Add a small "Storage bits" reference row under each SRAM block.  Use a
-    # row with merged cells showing the formula = W * D so designers can see
-    # the macro size scaling.
-    # (Note: openpyxl doesn't reorder rows easily, so we just append a summary
-    # at the bottom referencing the SRAM rows.)
+    # Storage-size reference at the bottom. After adding the config row at 2,
+    # the SRAM rows now live at rows 4 and 5 (banner=3, raw=4, REG=1=5).
     r = ws.max_row + 2
     ws.cell(row=r, column=1, value="SRAM storage size reference").font = SECTION_FONT
     ws.cell(row=r + 1, column=1, value="SRAM raw macro: storage bits = W * D = ")
-    ws.cell(row=r + 1, column=4, value="=B3*C3")    # row 3 = SRAM raw row
+    ws.cell(row=r + 1, column=4, value="=B4*C4")
     ws.cell(row=r + 1, column=5, value="bits =")
-    ws.cell(row=r + 1, column=6, value="=B3*C3/8/1024")
+    ws.cell(row=r + 1, column=6, value="=B4*C4/8/1024")
     ws.cell(row=r + 1, column=7, value="KB")
     ws.cell(row=r + 2, column=1, value="FIFO REG=1 SRAM-backed: storage bits = W * D = ")
-    ws.cell(row=r + 2, column=4, value="=B4*C4")    # row 4 = FIFO REG=1 row
+    ws.cell(row=r + 2, column=4, value="=B5*C5")
     ws.cell(row=r + 2, column=5, value="bits =")
-    ws.cell(row=r + 2, column=6, value="=B4*C4/8/1024")
+    ws.cell(row=r + 2, column=6, value="=B5*C5/8/1024")
     ws.cell(row=r + 2, column=7, value="KB")
 
     # Column widths
@@ -542,7 +556,8 @@ def build_blocks_sheet(wb: Workbook):
               16: 8, 17: 9,                          # P, Q  out mux/nand lv
               18: 15, 19: 15, 20: 15,                # R, S, T flop->out
               21: 13, 22: 13, 23: 13,                # U, V, W fmax
-              24: 60}                                # X notes
+              24: 15, 25: 15,                        # X, Y delay_in/_out TT
+              26: 60}                                # Z notes
     for c in range(2, 8):
         widths.setdefault(c, 9)
     for c, w in widths.items():
@@ -596,11 +611,12 @@ def build_stream_sheet(wb: Workbook):
     BIG_HDR_FONT = Font(bold=True, size=14, color="000000")
 
     header = [
-        "FUB", "port", "dir", "building block crossed",
-        "MUX lv", "NAND lv",
-        "source/sink flop or BB port",
-        "local delay TT (ps)", "local delay FF (ps)", "local delay SS (ps)",
-        "places it goes (consumer / producer)",
+        "FUB", "port", "dir", "building block crossed",          # A-D
+        "MUX lv", "NAND lv",                                     # E, F
+        "source/sink flop or BB port",                           # G
+        "local delay TT (ps)", "local delay FF (ps)", "local delay SS (ps)",  # H, I, J
+        "delay_in TT (ps)", "delay_out TT (ps)",                 # K, L
+        "places it goes (consumer / producer)",                  # M
     ]
     ws.append(header)
     NCOL = len(header)
@@ -610,6 +626,15 @@ def build_stream_sheet(wb: Workbook):
         cell.fill = HDR_FILL
         cell.alignment = CENTER
         cell.border = BOX
+
+    # Config row 2: target period
+    ws.cell(row=2, column=1, value="CONFIG -> target period (ps):").font = SECTION_FONT
+    c = ws.cell(row=2, column=2, value=1000); c.fill = PARAM_FILL; c.alignment = CENTER
+    ws.cell(row=2, column=3, value="30% default delay_in (ps):").font = SECTION_FONT
+    c = ws.cell(row=2, column=4, value="=B2*0.3"); c.fill = FORMULA_FILL; c.alignment = CENTER
+    ws.cell(row=2, column=5, value=(
+        "  delay_in defaults to 0.3*period; chain by setting delay_in = "
+        "=L_prev_row from the previous block's delay_out."))
 
     def emit_fub_banner(label: str):
         r = ws.max_row + 1
@@ -639,7 +664,14 @@ def build_stream_sheet(wb: Workbook):
                  f"+ F{r}*characterization!{REFS[corner]['nand']}")
             c = ws.cell(row=r, column=8 + off, value=f)
             c.fill = FORMULA_FILL; c.alignment = CENTER
-        ws.cell(row=r, column=11, value=goes)
+        # K: delay_in TT - default = config 30%-of-period cell (D2);
+        #    designer overwrites with =L_prev to chain.
+        c = ws.cell(row=r, column=11, value="=$D$2"); c.fill = PARAM_FILL; c.alignment = CENTER
+        # L: delay_out TT = delay_in + local TT delay
+        c = ws.cell(row=r, column=12, value=f"=K{r} + H{r}")
+        c.fill = FORMULA_FILL; c.alignment = CENTER
+        # M: places it goes
+        ws.cell(row=r, column=13, value=goes)
 
     # ----------------------------------------------------------------------- #
     # FUB definitions
@@ -847,7 +879,9 @@ def build_stream_sheet(wb: Workbook):
 
     # Column widths
     widths = {1: 22, 2: 30, 3: 5, 4: 19, 5: 7, 6: 8,
-              7: 32, 8: 16, 9: 16, 10: 16, 11: 50}
+              7: 32, 8: 16, 9: 16, 10: 16,
+              11: 15, 12: 15,                        # K, L delay_in/out TT
+              13: 50}                                # M places it goes
     for c, w in widths.items():
         ws.column_dimensions[get_column_letter(c)].width = w
 
