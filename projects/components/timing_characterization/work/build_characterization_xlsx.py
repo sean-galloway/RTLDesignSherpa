@@ -24,6 +24,8 @@ from pathlib import Path
 from openpyxl import Workbook
 from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
 from openpyxl.utils import get_column_letter
+from openpyxl.formatting.rule import CellIsRule
+from openpyxl.styles.differential import DifferentialStyle
 
 CSV_IN  = Path("/tmp/charwork/asap7/timing_char_data.csv")
 OUT     = Path("/mnt/data/github/RTLDesignSherpa/projects/components/timing_characterization/work/asap7_characterization.xlsx")
@@ -647,6 +649,15 @@ def build_blocks_sheet(wb: Workbook):
     for b in BUILDING_BLOCKS:
         write_block(b)
 
+    # Conditional formatting: bold red font on the slack column (AF) when < 0.
+    # Range spans from the first data row to the last; we just bound it
+    # generously (rows 3..ws.max_row+1).
+    last_data_row = ws.max_row
+    ws.conditional_formatting.add(
+        f"AF3:AF{last_data_row}",
+        CellIsRule(operator="lessThan", formula=["0"],
+                   font=Font(bold=True, color="C00000")))
+
     # Storage-size reference at the bottom.
     r = ws.max_row + 2
     ws.cell(row=r, column=1, value="SRAM storage size reference").font = SECTION_FONT
@@ -1127,6 +1138,13 @@ def build_stream_sheet(wb: Workbook):
         emit_fub_banner(fub_name)
         for (port, direction, bb, mux_lv, nand_lv, flop, goes) in ports:
             emit_row(fub_name, port, direction, bb, mux_lv, nand_lv, flop, goes)
+
+    # Conditional formatting: bold red font on the slack column (R) when < 0.
+    last_data_row = ws.max_row
+    ws.conditional_formatting.add(
+        f"R3:R{last_data_row}",
+        CellIsRule(operator="lessThan", formula=["0"],
+                   font=Font(bold=True, color="C00000")))
 
     # Column widths
     widths = {1: 22, 2: 30, 3: 11,                   # FUB, port, clock
