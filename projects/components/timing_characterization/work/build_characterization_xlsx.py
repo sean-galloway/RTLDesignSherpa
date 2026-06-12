@@ -29,7 +29,7 @@ CSV_IN  = Path("/tmp/charwork/asap7/timing_char_data.csv")
 OUT     = Path("/mnt/data/github/RTLDesignSherpa/projects/components/timing_characterization/work/asap7_characterization.xlsx")
 
 CORNERS = ["TT", "FF", "SS"]
-FREQS   = [500, 750, 1000]  # MHz
+FREQS   = [1000, 1250, 1500, 1750, 2000]  # MHz - sweep where modern designs fail
 
 # Primitives used for the per-level lookup, in display order.
 # - NAND/XOR/MUX: the most useful gates (clean two-point slope, simple to reason about)
@@ -529,12 +529,14 @@ def build_blocks_sheet(wb: Workbook):
     ]
 
     # Characterization cell refs (per_NAND / per_MUX / Tflop, by corner).
-    # NOTE: After expanding to 7 gate types, per_NAND moved to row 15 and
-    # per_MUX moved to row 17 on the characterization sheet.
+    # Values are freq-independent (repeated across freq cols within a corner)
+    # so we just pick the FIRST col of each corner block.
+    # Layout: col 1 = metric, then len(FREQS) cols per corner.
+    # With 5 freqs: TT=B..F, FF=G..K, SS=L..P.
     REFS = {
-        "TT": {"nand": "$D$15", "mux": "$D$17", "tflop": "$D$3"},
+        "TT": {"nand": "$B$15", "mux": "$B$17", "tflop": "$B$3"},
         "FF": {"nand": "$G$15", "mux": "$G$17", "tflop": "$G$3"},
-        "SS": {"nand": "$J$15", "mux": "$J$17", "tflop": "$J$3"},
+        "SS": {"nand": "$L$15", "mux": "$L$17", "tflop": "$L$3"},
     }
 
     def write_block(b):
@@ -765,9 +767,9 @@ def build_stream_sheet(wb: Workbook):
         cell.alignment = Alignment(horizontal="left", vertical="center")
         ws.row_dimensions[r].height = 22
 
-    REFS = {"TT": {"nand": "$D$15", "mux": "$D$17"},
+    REFS = {"TT": {"nand": "$B$15", "mux": "$B$17"},
             "FF": {"nand": "$G$15", "mux": "$G$17"},
-            "SS": {"nand": "$J$15", "mux": "$J$17"}}
+            "SS": {"nand": "$L$15", "mux": "$L$17"}}
 
     def emit_row(fub, port, direction, bb, mux_lv, nand_lv, flop, goes, clock="clk_main"):
         r = ws.max_row + 1
