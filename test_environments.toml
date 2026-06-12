@@ -129,6 +129,6 @@ coverage = false
 # No root Makefile; only fub/ and top/ sub-areas.
 [env.timing-char]
 description = "Timing characterization"
-directory = "projects/components/timing_characterization/dv/tests"
+directory = "projects/NexysA7/timing_characterization/dv/tests"
 coverage = false
 sub_areas = ["fub", "top"]

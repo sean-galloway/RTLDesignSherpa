@@ -1,0 +1,74 @@
+# ==============================================================================
+# Yosys synthesis script for char_top (ASIC, open-source flow).
+#
+# Invoked from the Makefile via:
+#   yosys -p "tcl yosys_synth.ys <TOP> <LIB_PATH> <BUILD_DIR> <INCDIR> \
+#                                 <YOSYS_GENERIC_DEFINES...> <SOURCES...>"
+#
+# Stages:
+#   1. read_verilog -sv  each source with the user's -D EN_<FUB>=<0|1> defines
+#   2. hierarchy -top    elaborate from TOP
+#   3. proc; flatten     normalise procedural blocks, inline submodules
+#   4. opt; fsm; memory  generic optimisations
+#   5. techmap           generic tech-independent mapping
+#   6. dfflibmap         map flops to Liberty cells
+#   7. abc -liberty      tech-map combinational logic against the Liberty file
+#   8. clean             remove redundant nets / cells
+#   9. write_verilog     emit the post-synth gate-level netlist
+#  10. stat              area / cell-count summary
+# ==============================================================================
+
+# Pull positional args off the front, then everything else is sources.
+set TOP        [lindex $argv 0]
+set LIB        [lindex $argv 1]
+set BUILD      [lindex $argv 2]
+set INCDIR     [lindex $argv 3]
+set REST       [lrange $argv 4 end]
+
+# Separate -D defines from .sv sources so we can pass each to read_verilog.
+set DEFINES    [list]
+set SOURCES    [list]
+foreach item $REST {
+    if {[string match "-D*" $item]} {
+        lappend DEFINES $item
+    } else {
+        lappend SOURCES $item
+    }
+}
+
+# ---- Read sources ------------------------------------------------------------
+yosys log "==> read_verilog: [llength $SOURCES] source(s)"
+foreach src $SOURCES {
+    yosys read_verilog -sv -I $INCDIR {*}$DEFINES $src
+}
+
+# ---- Elaborate + early optimise ---------------------------------------------
+yosys hierarchy -check -top $TOP
+yosys proc
+yosys opt -fast
+yosys fsm
+yosys memory
+yosys opt
+
+# ---- Generic mapping ---------------------------------------------------------
+yosys techmap
+yosys opt
+
+# ---- Liberty-driven mapping --------------------------------------------------
+yosys log "==> dfflibmap + abc against $LIB"
+yosys dfflibmap -liberty $LIB
+yosys abc -liberty $LIB
+yosys clean
+
+# ---- Emit outputs ------------------------------------------------------------
+set NETLIST  "$BUILD/$TOP.netlist.v"
+set JSON_OUT "$BUILD/$TOP.json"
+set STAT     "$BUILD/$TOP.stat.txt"
+
+yosys write_verilog -noattr $NETLIST
+yosys write_json $JSON_OUT
+yosys tee -o $STAT stat -liberty $LIB
+
+yosys log "==> netlist  $NETLIST"
+yosys log "==> json     $JSON_OUT"
+yosys log "==> stat     $STAT"

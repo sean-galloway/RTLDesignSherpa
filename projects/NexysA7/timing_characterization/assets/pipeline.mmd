@@ -1,0 +1,14 @@
+sequenceDiagram
+    autonumber
+    participant LFSR as LFSR (Edge N)
+    participant FUB_IN as FUB input flop (Edge N+1)
+    participant COMB as Combinational logic
+    participant FUB_OUT as FUB output flop (Edge N+2)
+    participant PAD as Top-level port
+
+    LFSR->>FUB_IN: r_lfsr captured at edge N
+    Note right of FUB_IN: 1 clock period
+    FUB_IN->>COMB: drive combinational
+    COMB->>FUB_OUT: settle within period
+    Note right of FUB_OUT: edge N+2 -- this is the path STA reports
+    FUB_OUT->>PAD: routed to output port

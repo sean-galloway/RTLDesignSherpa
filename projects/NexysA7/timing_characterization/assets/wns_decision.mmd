@@ -1,0 +1,8 @@
+flowchart TB
+    SLACK{WNS sign?}
+    SLACK -->|positive| MEET[Path meets timing<br/>increase depth or freq<br/>until WNS approaches zero]
+    SLACK -->|near zero| LIMIT[At the technology's<br/>budget for this shape<br/>--> publish this point]
+    SLACK -->|negative| BUDGET[Path misses by abs WNS ns<br/>--> marginal cost of this depth]
+    MEET --> SWEEP[Sweep next parameter point]
+    LIMIT --> SWEEP
+    BUDGET --> SWEEP

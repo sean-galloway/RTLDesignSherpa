@@ -1,0 +1,9 @@
+flowchart LR
+    SAME[Same FUBs<br/>same LFSR<br/>same pipeline]
+    SAME --> UPSTREAM[rtl/<br/>macro-driven<br/>multi-topology flops]
+    SAME --> ASIC[rtl/asic_only/<br/>macro-free, ASIC-fixed]
+
+    UPSTREAM --> ASIC_BACKEND[Commercial ASIC<br/>DC / Genus]
+    UPSTREAM --> OSS_BACKEND[Open-source ASIC<br/>Yosys + OpenSTA]
+    ASIC --> ASIC_BACKEND
+    ASIC --> OSS_BACKEND

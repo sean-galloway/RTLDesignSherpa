@@ -1,0 +1,13 @@
+flowchart TB
+    subgraph DEFENCES[Anti-optimisation defences]
+        LFSR_DEF[1. LFSR-driven inputs<br/>maximal-length pseudo-random<br/>no constant propagation]
+        PIN_DEF[2. All outputs at top-level pins<br/>tool cannot prune unused outputs]
+        ATTR_DEF[3. dont_touch attribute<br/>on every chain net]
+        DECOR_DEF["4. Dual-input decorrelation<br/>operand B = lfsr[ b+16 mod 32 ]<br/>blocks CSE on two-op FUBs"]
+    end
+
+    LFSR_DEF --> CHAIN[Combinational chain<br/>preserved through map + opt]
+    PIN_DEF --> CHAIN
+    ATTR_DEF --> CHAIN
+    DECOR_DEF --> CHAIN
+    CHAIN --> REPORT[STA reports honest slack<br/>for the structure you wrote]

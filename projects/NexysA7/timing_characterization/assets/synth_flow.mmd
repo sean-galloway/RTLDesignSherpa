@@ -1,0 +1,10 @@
+flowchart LR
+    SRC[SV sources + char_top.sdc]
+    SRC --> YOSYS[Yosys<br/>read_verilog + opt + abc -liberty]
+    SRC --> DC[Synopsys DC<br/>compile_ultra]
+    SRC --> GENUS[Cadence Genus<br/>syn_generic + syn_map]
+    YOSYS -->|"netlist + json"| OPENSTA[OpenSTA<br/>per-FUB report_checks]
+    DC --> RPT["reports/*.rpt"]
+    GENUS --> RPT
+    OPENSTA --> CMP[Cross-library<br/>cross-corner comparison]
+    RPT --> CMP

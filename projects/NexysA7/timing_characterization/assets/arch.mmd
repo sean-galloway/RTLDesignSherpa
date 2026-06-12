@@ -1,0 +1,42 @@
+flowchart LR
+    subgraph EXT[External]
+        SEED[i_seed_valid<br/>i_seed_data]
+    end
+
+    subgraph CHAR_TOP[char_top]
+        LFSR[32-bit Galois LFSR<br/>x^32+x^22+x^2+x+1]
+        subgraph FUBS[9 Functional Unit Blocks]
+            NC[nand_chain]
+            IC[inverter_chain]
+            XT[xor_tree]
+            CC[carry_chain]
+            MT[multiplier_tree]
+            MX[mux_tree]
+            QD[queue_depth]
+            CD[clock_divider_chain]
+            GC[gray_counter_chain]
+        end
+    end
+
+    SEED -->|seed load| LFSR
+    LFSR -->|"r_lfsr[31:0]"| NC
+    LFSR --> IC
+    LFSR --> XT
+    LFSR --> CC
+    LFSR --> MT
+    LFSR --> MX
+    LFSR --> QD
+    LFSR --> CD
+    LFSR --> GC
+
+    NC -->|"o_nand"| OUT
+    IC -->|"o_inverter"| OUT
+    XT -->|"o_xor"| OUT
+    CC -->|"o_carry[*]"| OUT
+    MT -->|"o_mult[*]"| OUT
+    MX -->|"o_mux"| OUT
+    QD -->|"o_queue_*"| OUT
+    CD -->|"o_clk_div[*]"| OUT
+    GC -->|"o_gray_*"| OUT
+
+    OUT[(Top-level output ports)]

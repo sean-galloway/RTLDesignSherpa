@@ -1,0 +1,6 @@
+flowchart LR
+    TB[dv/tbclasses/timing_char_tb.py<br/>LFSR reference model]
+    TB --> FUB[34 FUB tests<br/>dv/tests/fub/]
+    TB --> TOP[11 char_top tests<br/>dv/tests/top/]
+    FUB --> RES[45 passing]
+    TOP --> RES
