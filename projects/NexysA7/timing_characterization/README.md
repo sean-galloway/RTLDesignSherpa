@@ -36,8 +36,8 @@ characterization run + budget worksheet live under `work/`.
 99-row ASAP7 sweep at TT/FF/SS clean.)
 
 > An FPGA-side companion -- with the same workflow and an analogous
-> spreadsheet -- is published as a separate addendum README.  This
-> document is ASIC-only.
+> spreadsheet -- is published as [`README_FPGA.md`](README_FPGA.md) in
+> this same directory.  This document is ASIC-only.
 
 ---
 
