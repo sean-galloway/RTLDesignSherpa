@@ -61,9 +61,16 @@ $REPO_ROOT/projects/components/converters/rtl/peakrdl_to_cmdrsp.sv
 # Note: stream_top_ch8 instantiates stream_core with USE_AXI_MONITORS=0
 -f $STREAM_ROOT/rtl/filelists/macro/stream_core.f
 
-# MonBus to AXI-Lite converter (used when USE_AXI_MONITORS=1)
-# Unified under rtl/amba/shared/ -- shared with bridge and rapids.
-$REPO_ROOT/rtl/amba/shared/monbus_axil_group.sv
+# MonBus AXIL/AXIL group (used when USE_AXI_MONITORS=1) -- the
+# monbus_<p1>_<p2>_group family under rtl/amba/shared/, shared with
+# bridge and rapids (replaces the legacy monbus_axil_group.sv).
+# axil4_slave_rd.sv comes from stream_char_harness.f; gaxi_fifo_sync.sv
+# is already listed above.
+$REPO_ROOT/rtl/amba/axil4/axil4_master_wr.sv
+$REPO_ROOT/rtl/amba/shared/monbus_cam.sv
+$REPO_ROOT/rtl/amba/shared/monbus_compressor.sv
+$REPO_ROOT/rtl/amba/shared/monbus_group_core.sv
+$REPO_ROOT/rtl/amba/shared/monbus_axil_axil_group.sv
 
 # Top-level wrapper files (unique to this filelist)
 $STREAM_ROOT/rtl/top/stream_config_block.sv

@@ -254,6 +254,11 @@ module stream_top_ch8 #(
     // Ignored when USE_AXI_MONITORS=0.
     input  logic [31:0]                             cfg_mon_base_addr,
     input  logic [31:0]                             cfg_mon_limit_addr,
+    // Master-write flush watermark (beats): the monbus group fires a
+    // bulk-trace burst once this many beats are buffered (or on
+    // FLUSH_TIMEOUT_CYCLES). Config input like base/limit; default 0
+    // (implicit input default) means flush-eagerly per record.
+    input  logic [15:0]                             cfg_mon_flush_watermark,
 
     //-------------------------------------------------------------------------
     // Debug Outputs - expose hwif_in values for testbench probing
@@ -1705,13 +1710,14 @@ module stream_top_ch8 #(
     // Conditional instantiation: Only when USE_AXI_MONITORS=1
     generate
         if (USE_AXI_MONITORS == 1) begin : g_monbus_axil
-            monbus_axil_group #(
+            monbus_axil_axil_group #(
                 .FIFO_DEPTH_ERR     (64),    // Error/interrupt FIFO depth
-                .FIFO_DEPTH_WRITE   (32),    // Write data FIFO depth
+                .FIFO_DEPTH_WRITE   (96),    // Write data FIFO depth (BEATS)
                 .ADDR_WIDTH         (32),    // AXI-Lite address width
-                .S_AXIL_DATA_WIDTH  (32),    // CPU-facing slave (IRQ status)
-                // M_AXIL_DATA_WIDTH defaults to 64 — every record on the
-                // bulk-trace write path is 24 bytes: 3 × 64-bit beats
+                // Slave-read (CPU IRQ status) and master-write are locked
+                // at 64-bit data in the monbus_<p1>_<p2>_group family
+                // (S_AXIL_DATA_WIDTH/M_AXIL_DATA_WIDTH params dropped).
+                // Every bulk-trace record is 3 × 64-bit beats
                 // (packet[63:0], packet[127:64], source_ts[63:0]).
                 .NUM_PROTOCOLS      (3),     // 3 protocols: desc, rd, wr
                 .USE_COMPRESSION    (USE_MON_COMPRESSION)
@@ -1762,6 +1768,9 @@ module stream_top_ch8 #(
                 // the same as the previous hard-coded tie-off.
                 .cfg_base_addr      (cfg_mon_base_addr),
                 .cfg_limit_addr     (cfg_mon_limit_addr),
+                // Flush watermark (beats) -- driven from the top-level
+                // cfg input alongside base/limit (no hardcoded constant).
+                .cfg_flush_watermark (cfg_mon_flush_watermark),
 
                 //---------------------------------------------------------------------
                 // Protocol 0 Configuration - Descriptor AXI Monitor (DAXMON)
