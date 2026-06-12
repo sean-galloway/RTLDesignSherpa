@@ -636,6 +636,7 @@ def build_blocks_sheet(wb: Workbook):
                            f'{CLOCK_TABLE_RANGE}, 6, FALSE) - VLOOKUP(X{r}, '
                            f'{CLOCK_TABLE_RANGE}, 7, FALSE), "")'))
         c.fill = FORMULA_FILL; c.alignment = CENTER
+        c.number_format = "0.000"
         # AG: notes
         ws.cell(row=r, column=33, value=b["notes"])
 
@@ -738,24 +739,23 @@ def build_stream_sheet(wb: Workbook):
     BIG_HDR_FILL = PatternFill("solid", fgColor="FFC000")
     BIG_HDR_FONT = Font(bold=True, size=14, color="000000")
 
-    # Header strip - clock col now holds a clock NAME from the design clocks
-    # table on the characterization sheet.  3 new columns pulled via VLOOKUP:
-    # target period (ps), target corner (TT/FF/SS), target local delay (ps).
+    # Header strip - the per-corner reference columns (TT/FF/SS) were dropped
+    # since the corner is chosen once on the characterization sheet's Design
+    # clocks table.  Only the picked-corner local delay is shown.
     header = [
-        "FUB", "port", "clock", "dir", "building block crossed",        # A-E
-        "MUX lv", "NAND lv",                                            # F, G
-        "source/sink flop or BB port",                                  # H
-        "local delay TT (ps)", "local delay FF (ps)", "local delay SS (ps)",  # I, J, K
+        "FUB", "port", "clock", "dir", "building block crossed",  # A-E
+        "MUX lv", "NAND lv",                                      # F, G
+        "source/sink flop or BB port",                            # H
         # ---- per-row clock lookup ----
-        "target period (ps)",                                           # L  VLOOKUP freq->period
-        "target corner",                                                # M  VLOOKUP corner
-        "target local delay (ps)",                                      # N  picks I/J/K by corner
-        # ---- chain accumulator (single corner per row, picked by clock) ----
-        "delay_in (ps)",                                                # O
-        "delay_out (ps)",                                               # P
-        "",                                                             # Q blank gap
-        "slack (ps)",                                                   # R
-        "places it goes (consumer / producer)",                         # S
+        "target period (ps)",                                     # I VLOOKUP freq->period
+        "target corner",                                          # J VLOOKUP corner
+        "local delay (ps)",                                       # K = F*per_MUX + G*per_NAND, corner-aware
+        # ---- chain accumulator ----
+        "delay_in (ps)",                                          # L
+        "delay_out (ps)",                                         # M
+        "",                                                       # N blank gap
+        "slack (ps)",                                             # O
+        "places it goes (consumer / producer)",                   # P
     ]
     ws.append(header)
     NCOL = len(header)
@@ -788,6 +788,10 @@ def build_stream_sheet(wb: Workbook):
             "FF": {"nand": "$G$15", "mux": "$G$17"},
             "SS": {"nand": "$L$15", "mux": "$L$17"}}
 
+    # Per-corner per_NAND/per_MUX cell refs for the inline IF in col K.
+    pn_TT, pn_FF, pn_SS = REFS["TT"]["nand"], REFS["FF"]["nand"], REFS["SS"]["nand"]
+    pm_TT, pm_FF, pm_SS = REFS["TT"]["mux"],  REFS["FF"]["mux"],  REFS["SS"]["mux"]
+
     def emit_row(fub, port, direction, bb, mux_lv, nand_lv, flop, goes, clock="clk_main"):
         r = ws.max_row + 1
         ws.cell(row=r, column=1, value=fub)
@@ -798,40 +802,38 @@ def build_stream_sheet(wb: Workbook):
         c = ws.cell(row=r, column=6, value=mux_lv); c.fill = PARAM_FILL; c.alignment = CENTER
         c = ws.cell(row=r, column=7, value=nand_lv); c.fill = PARAM_FILL; c.alignment = CENTER
         ws.cell(row=r, column=8, value=flop)
-        # I, J, K: local delay TT/FF/SS reference numbers (still useful to see)
-        for off, corner in enumerate(("TT", "FF", "SS")):
-            f = (f"=F{r}*characterization!{REFS[corner]['mux']} "
-                 f"+ G{r}*characterization!{REFS[corner]['nand']}")
-            c = ws.cell(row=r, column=9 + off, value=f)
-            c.fill = FORMULA_FILL; c.alignment = CENTER
-        # L: target period (ps) - VLOOKUP from Design clocks table
-        c = ws.cell(row=r, column=12,
+        # I: target period (ps) - VLOOKUP from Design clocks table
+        c = ws.cell(row=r, column=9,
                     value=f'=IFERROR(VLOOKUP(C{r}, {CLOCK_TABLE_RANGE}, 4, FALSE), "")')
         c.fill = FORMULA_FILL; c.alignment = CENTER
-        # M: target corner - VLOOKUP
-        c = ws.cell(row=r, column=13,
+        # J: target corner - VLOOKUP
+        c = ws.cell(row=r, column=10,
                     value=f'=IFERROR(VLOOKUP(C{r}, {CLOCK_TABLE_RANGE}, 3, FALSE), "")')
         c.fill = FORMULA_FILL; c.alignment = CENTER
-        # N: target local delay (ps) - pick I/J/K by corner string
-        c = ws.cell(row=r, column=14,
-                    value=f'=IF(M{r}="TT",I{r},IF(M{r}="FF",J{r},IF(M{r}="SS",K{r},"")))')
+        # K: local delay (ps) - corner-aware = F * per_MUX(corner) + G * per_NAND(corner)
+        c = ws.cell(row=r, column=11,
+                    value=(f'=F{r}*IF(J{r}="TT",characterization!{pm_TT},'
+                           f'IF(J{r}="FF",characterization!{pm_FF},characterization!{pm_SS}))'
+                           f'+G{r}*IF(J{r}="TT",characterization!{pn_TT},'
+                           f'IF(J{r}="FF",characterization!{pn_FF},characterization!{pn_SS}))'))
         c.fill = FORMULA_FILL; c.alignment = CENTER
-        # O: delay_in - default = 60% of target period (VLOOKUP col 5)
-        c = ws.cell(row=r, column=15,
+        # L: delay_in - default = 30% of target period
+        c = ws.cell(row=r, column=12,
                     value=f'=IFERROR(VLOOKUP(C{r}, {CLOCK_TABLE_RANGE}, 4, FALSE)*0.3, "")')
         c.fill = PARAM_FILL; c.alignment = CENTER
-        # P: delay_out = delay_in + target local delay
-        c = ws.cell(row=r, column=16, value=f"=O{r} + N{r}")
+        # M: delay_out = delay_in + local delay
+        c = ws.cell(row=r, column=13, value=f"=L{r} + K{r}")
         c.fill = FORMULA_FILL; c.alignment = CENTER
-        # Q (col 17) intentionally blank as separator
-        # R: slack = target period - delay_out - output_delay - wire_per_hop
-        c = ws.cell(row=r, column=18,
-                    value=(f'=IFERROR(L{r} - P{r} - VLOOKUP(C{r}, '
+        # N (col 14) intentionally blank as separator
+        # O: slack = target period - delay_out - output_delay - wire_per_hop
+        c = ws.cell(row=r, column=15,
+                    value=(f'=IFERROR(I{r} - M{r} - VLOOKUP(C{r}, '
                            f'{CLOCK_TABLE_RANGE}, 6, FALSE) - VLOOKUP(C{r}, '
                            f'{CLOCK_TABLE_RANGE}, 7, FALSE), "")'))
         c.fill = FORMULA_FILL; c.alignment = CENTER
-        # S: places it goes
-        ws.cell(row=r, column=19, value=goes)
+        c.number_format = "0.000"
+        # P: places it goes
+        ws.cell(row=r, column=16, value=goes)
 
     # ----------------------------------------------------------------------- #
     # FUB definitions
@@ -1139,22 +1141,22 @@ def build_stream_sheet(wb: Workbook):
         for (port, direction, bb, mux_lv, nand_lv, flop, goes) in ports:
             emit_row(fub_name, port, direction, bb, mux_lv, nand_lv, flop, goes)
 
-    # Conditional formatting: bold red font on the slack column (R) when < 0.
+    # Conditional formatting: bold red font on the slack column (O) when < 0.
     last_data_row = ws.max_row
     ws.conditional_formatting.add(
-        f"R3:R{last_data_row}",
+        f"O3:O{last_data_row}",
         CellIsRule(operator="lessThan", formula=["0"],
                    font=Font(bold=True, color="C00000")))
 
-    # Column widths
+    # Column widths (post drop of TT/FF/SS reference cols)
     widths = {1: 22, 2: 30, 3: 11,                   # FUB, port, clock
               4: 5, 5: 19, 6: 7, 7: 8,               # dir, BB, mux_lv, nand_lv
-              8: 32, 9: 16, 10: 16, 11: 16,          # source flop, local delays
-              12: 14, 13: 12, 14: 18,                # target period/corner/local
-              15: 13, 16: 13,                        # delay_in, delay_out
-              17: 3,                                 # blank gap
-              18: 13,                                # slack
-              19: 50}                                # places it goes
+              8: 32,                                 # source flop
+              9: 14, 10: 12, 11: 14,                 # target period/corner/local
+              12: 13, 13: 13,                        # delay_in, delay_out
+              14: 3,                                 # blank gap
+              15: 13,                                # slack
+              16: 50}                                # places it goes
     for c, w in widths.items():
         ws.column_dimensions[get_column_letter(c)].width = w
 
