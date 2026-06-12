@@ -978,9 +978,7 @@ module stream_char_harness #(
     logic w_desc_ram_dbg_clear_done;
     /* verilator lint_on UNUSED */
 
-    sdpram_slave #(
-        .WR_PROTOCOL  ("AXI4"),
-        .RD_PROTOCOL  ("AXI4"),
+    sdpram_slave_axi4_axi4 #(
         .AXI_ID_WIDTH (8),
         .ADDR_WIDTH   (32),
         // 256b per the descriptor-fetch-must-be-256b-end-to-end rule.
@@ -1188,68 +1186,37 @@ module stream_char_harness #(
     logic w_debug_sram_dbg_clear_done;
     /* verilator lint_on UNUSED */
 
-    sdpram_slave #(
-        .WR_PROTOCOL  ("AXIL"),
-        .RD_PROTOCOL  ("AXIL"),
-        .AXI_ID_WIDTH (1),                    // unused in AXIL mode
+    sdpram_slave_axil_axil #(
         .ADDR_WIDTH   (32),
         .DATA_WIDTH   (64),
-        .USER_WIDTH   (1),
         .MEM_DEPTH    (DEBUG_SRAM_WORDS / 2)  // 32b->64b: halve entries
     ) u_debug_sram (
         .aclk(aclk), .aresetn(unit_aresetn),
 
-        // AXI4-shape port (AXIL mode ignores id/len/size/burst/lock/
-        // cache/qos/region/user). Drive the AXIL channel onto the
-        // AXI4-named ports and tie off the AXI4-only fields.
-        .s_axi_awid    (1'b0),
-        .s_axi_awaddr  (s4_awaddr),
-        .s_axi_awlen   (8'h0),
-        .s_axi_awsize  (3'h0),
-        .s_axi_awburst (2'b01),
-        .s_axi_awlock  (1'b0),
-        .s_axi_awcache (4'h0),
-        .s_axi_awprot  (s4_awprot),
-        .s_axi_awqos   (4'h0),
-        .s_axi_awregion(4'h0),
-        .s_axi_awuser  (1'b0),
-        .s_axi_awvalid (s4_awvalid),
-        .s_axi_awready (s4_awready),
+        // Native AXIL surface -- no AXI4 fakery here anymore.
+        .s_axil_awaddr  (s4_awaddr),
+        .s_axil_awprot  (s4_awprot),
+        .s_axil_awvalid (s4_awvalid),
+        .s_axil_awready (s4_awready),
 
-        .s_axi_wdata   (s4_wdata),
-        .s_axi_wstrb   (s4_wstrb),
-        .s_axi_wlast   (1'b1),
-        .s_axi_wuser   (1'b0),
-        .s_axi_wvalid  (s4_wvalid),
-        .s_axi_wready  (s4_wready),
+        .s_axil_wdata   (s4_wdata),
+        .s_axil_wstrb   (s4_wstrb),
+        .s_axil_wvalid  (s4_wvalid),
+        .s_axil_wready  (s4_wready),
 
-        .s_axi_bid     (),
-        .s_axi_bresp   (s4_bresp),
-        .s_axi_buser   (),
-        .s_axi_bvalid  (s4_bvalid),
-        .s_axi_bready  (s4_bready),
+        .s_axil_bresp   (s4_bresp),
+        .s_axil_bvalid  (s4_bvalid),
+        .s_axil_bready  (s4_bready),
 
-        .s_axi_arid    (1'b0),
-        .s_axi_araddr  (s4_araddr),
-        .s_axi_arlen   (8'h0),
-        .s_axi_arsize  (3'h0),
-        .s_axi_arburst (2'b01),
-        .s_axi_arlock  (1'b0),
-        .s_axi_arcache (4'h0),
-        .s_axi_arprot  (s4_arprot),
-        .s_axi_arqos   (4'h0),
-        .s_axi_arregion(4'h0),
-        .s_axi_aruser  (1'b0),
-        .s_axi_arvalid (s4_arvalid),
-        .s_axi_arready (s4_arready),
+        .s_axil_araddr  (s4_araddr),
+        .s_axil_arprot  (s4_arprot),
+        .s_axil_arvalid (s4_arvalid),
+        .s_axil_arready (s4_arready),
 
-        .s_axi_rid     (),
-        .s_axi_rdata   (s4_rdata),
-        .s_axi_rresp   (s4_rresp),
-        .s_axi_rlast   (),
-        .s_axi_ruser   (),
-        .s_axi_rvalid  (s4_rvalid),
-        .s_axi_rready  (s4_rready),
+        .s_axil_rdata   (s4_rdata),
+        .s_axil_rresp   (s4_rresp),
+        .s_axil_rvalid  (s4_rvalid),
+        .s_axil_rready  (s4_rready),
 
         // Bulk-clear control (sticky-done FSM); CSR plumbing pending.
         .i_cfg_start_clear (1'b0),
@@ -1585,6 +1552,9 @@ module stream_char_harness #(
         // records before wrap.
         .cfg_mon_base_addr  (32'h0004_0000),
         .cfg_mon_limit_addr (32'h0004_0000 + 32'(DEBUG_SRAM_WORDS) * 32'h4 - 32'h1),
+        // Flush a bulk-trace burst once 24 beats (8 records) are buffered;
+        // FLUSH_TIMEOUT_CYCLES backstops a partial tail.
+        .cfg_mon_flush_watermark (16'd24),
 
         // Debug outputs (unconnected at top level)
         .debug_hwif_scheduler_idle  (),

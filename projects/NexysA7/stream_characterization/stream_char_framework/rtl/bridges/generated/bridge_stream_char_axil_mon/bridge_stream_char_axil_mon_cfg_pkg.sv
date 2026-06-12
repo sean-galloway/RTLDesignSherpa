@@ -2191,165 +2191,170 @@ package bridge_stream_char_axil_mon_cfg_pkg;
 
     typedef struct {
         logic [15:0] value;
-    } bridge_stream_char_axil_mon_cfg__MON_GROUP_PACK_0__axi_pkt_mask__out_t;
+    } bridge_stream_char_axil_mon_cfg__MON_GROUP_PACK_0__flush_watermark__out_t;
 
     typedef struct {
         logic [15:0] value;
-    } bridge_stream_char_axil_mon_cfg__MON_GROUP_PACK_0__axi_err_select__out_t;
+    } bridge_stream_char_axil_mon_cfg__MON_GROUP_PACK_0__axi_pkt_mask__out_t;
 
     typedef struct {
+        bridge_stream_char_axil_mon_cfg__MON_GROUP_PACK_0__flush_watermark__out_t flush_watermark;
         bridge_stream_char_axil_mon_cfg__MON_GROUP_PACK_0__axi_pkt_mask__out_t axi_pkt_mask;
-        bridge_stream_char_axil_mon_cfg__MON_GROUP_PACK_0__axi_err_select__out_t axi_err_select;
     } bridge_stream_char_axil_mon_cfg__MON_GROUP_PACK_0__out_t;
+
+    typedef struct {
+        logic [15:0] value;
+    } bridge_stream_char_axil_mon_cfg__MON_GROUP_PACK_1__axi_err_select__out_t;
 
     typedef struct {
         logic [15:0] value;
     } bridge_stream_char_axil_mon_cfg__MON_GROUP_PACK_1__axi_error_mask__out_t;
 
     typedef struct {
-        logic [15:0] value;
-    } bridge_stream_char_axil_mon_cfg__MON_GROUP_PACK_1__axi_timeout_mask__out_t;
+        bridge_stream_char_axil_mon_cfg__MON_GROUP_PACK_1__axi_err_select__out_t axi_err_select;
+        bridge_stream_char_axil_mon_cfg__MON_GROUP_PACK_1__axi_error_mask__out_t axi_error_mask;
+    } bridge_stream_char_axil_mon_cfg__MON_GROUP_PACK_1__out_t;
 
     typedef struct {
-        bridge_stream_char_axil_mon_cfg__MON_GROUP_PACK_1__axi_error_mask__out_t axi_error_mask;
-        bridge_stream_char_axil_mon_cfg__MON_GROUP_PACK_1__axi_timeout_mask__out_t axi_timeout_mask;
-    } bridge_stream_char_axil_mon_cfg__MON_GROUP_PACK_1__out_t;
+        logic [15:0] value;
+    } bridge_stream_char_axil_mon_cfg__MON_GROUP_PACK_2__axi_timeout_mask__out_t;
 
     typedef struct {
         logic [15:0] value;
     } bridge_stream_char_axil_mon_cfg__MON_GROUP_PACK_2__axi_compl_mask__out_t;
 
     typedef struct {
-        logic [15:0] value;
-    } bridge_stream_char_axil_mon_cfg__MON_GROUP_PACK_2__axi_thresh_mask__out_t;
+        bridge_stream_char_axil_mon_cfg__MON_GROUP_PACK_2__axi_timeout_mask__out_t axi_timeout_mask;
+        bridge_stream_char_axil_mon_cfg__MON_GROUP_PACK_2__axi_compl_mask__out_t axi_compl_mask;
+    } bridge_stream_char_axil_mon_cfg__MON_GROUP_PACK_2__out_t;
 
     typedef struct {
-        bridge_stream_char_axil_mon_cfg__MON_GROUP_PACK_2__axi_compl_mask__out_t axi_compl_mask;
-        bridge_stream_char_axil_mon_cfg__MON_GROUP_PACK_2__axi_thresh_mask__out_t axi_thresh_mask;
-    } bridge_stream_char_axil_mon_cfg__MON_GROUP_PACK_2__out_t;
+        logic [15:0] value;
+    } bridge_stream_char_axil_mon_cfg__MON_GROUP_PACK_3__axi_thresh_mask__out_t;
 
     typedef struct {
         logic [15:0] value;
     } bridge_stream_char_axil_mon_cfg__MON_GROUP_PACK_3__axi_perf_mask__out_t;
 
     typedef struct {
-        logic [15:0] value;
-    } bridge_stream_char_axil_mon_cfg__MON_GROUP_PACK_3__axi_addr_mask__out_t;
+        bridge_stream_char_axil_mon_cfg__MON_GROUP_PACK_3__axi_thresh_mask__out_t axi_thresh_mask;
+        bridge_stream_char_axil_mon_cfg__MON_GROUP_PACK_3__axi_perf_mask__out_t axi_perf_mask;
+    } bridge_stream_char_axil_mon_cfg__MON_GROUP_PACK_3__out_t;
 
     typedef struct {
-        bridge_stream_char_axil_mon_cfg__MON_GROUP_PACK_3__axi_perf_mask__out_t axi_perf_mask;
-        bridge_stream_char_axil_mon_cfg__MON_GROUP_PACK_3__axi_addr_mask__out_t axi_addr_mask;
-    } bridge_stream_char_axil_mon_cfg__MON_GROUP_PACK_3__out_t;
+        logic [15:0] value;
+    } bridge_stream_char_axil_mon_cfg__MON_GROUP_PACK_4__axi_addr_mask__out_t;
 
     typedef struct {
         logic [15:0] value;
     } bridge_stream_char_axil_mon_cfg__MON_GROUP_PACK_4__axi_debug_mask__out_t;
 
     typedef struct {
-        logic [15:0] value;
-    } bridge_stream_char_axil_mon_cfg__MON_GROUP_PACK_4__axis_pkt_mask__out_t;
+        bridge_stream_char_axil_mon_cfg__MON_GROUP_PACK_4__axi_addr_mask__out_t axi_addr_mask;
+        bridge_stream_char_axil_mon_cfg__MON_GROUP_PACK_4__axi_debug_mask__out_t axi_debug_mask;
+    } bridge_stream_char_axil_mon_cfg__MON_GROUP_PACK_4__out_t;
 
     typedef struct {
-        bridge_stream_char_axil_mon_cfg__MON_GROUP_PACK_4__axi_debug_mask__out_t axi_debug_mask;
-        bridge_stream_char_axil_mon_cfg__MON_GROUP_PACK_4__axis_pkt_mask__out_t axis_pkt_mask;
-    } bridge_stream_char_axil_mon_cfg__MON_GROUP_PACK_4__out_t;
+        logic [15:0] value;
+    } bridge_stream_char_axil_mon_cfg__MON_GROUP_PACK_5__axis_pkt_mask__out_t;
 
     typedef struct {
         logic [15:0] value;
     } bridge_stream_char_axil_mon_cfg__MON_GROUP_PACK_5__axis_err_select__out_t;
 
     typedef struct {
-        logic [15:0] value;
-    } bridge_stream_char_axil_mon_cfg__MON_GROUP_PACK_5__axis_error_mask__out_t;
+        bridge_stream_char_axil_mon_cfg__MON_GROUP_PACK_5__axis_pkt_mask__out_t axis_pkt_mask;
+        bridge_stream_char_axil_mon_cfg__MON_GROUP_PACK_5__axis_err_select__out_t axis_err_select;
+    } bridge_stream_char_axil_mon_cfg__MON_GROUP_PACK_5__out_t;
 
     typedef struct {
-        bridge_stream_char_axil_mon_cfg__MON_GROUP_PACK_5__axis_err_select__out_t axis_err_select;
-        bridge_stream_char_axil_mon_cfg__MON_GROUP_PACK_5__axis_error_mask__out_t axis_error_mask;
-    } bridge_stream_char_axil_mon_cfg__MON_GROUP_PACK_5__out_t;
+        logic [15:0] value;
+    } bridge_stream_char_axil_mon_cfg__MON_GROUP_PACK_6__axis_error_mask__out_t;
 
     typedef struct {
         logic [15:0] value;
     } bridge_stream_char_axil_mon_cfg__MON_GROUP_PACK_6__axis_timeout_mask__out_t;
 
     typedef struct {
-        logic [15:0] value;
-    } bridge_stream_char_axil_mon_cfg__MON_GROUP_PACK_6__axis_compl_mask__out_t;
+        bridge_stream_char_axil_mon_cfg__MON_GROUP_PACK_6__axis_error_mask__out_t axis_error_mask;
+        bridge_stream_char_axil_mon_cfg__MON_GROUP_PACK_6__axis_timeout_mask__out_t axis_timeout_mask;
+    } bridge_stream_char_axil_mon_cfg__MON_GROUP_PACK_6__out_t;
 
     typedef struct {
-        bridge_stream_char_axil_mon_cfg__MON_GROUP_PACK_6__axis_timeout_mask__out_t axis_timeout_mask;
-        bridge_stream_char_axil_mon_cfg__MON_GROUP_PACK_6__axis_compl_mask__out_t axis_compl_mask;
-    } bridge_stream_char_axil_mon_cfg__MON_GROUP_PACK_6__out_t;
+        logic [15:0] value;
+    } bridge_stream_char_axil_mon_cfg__MON_GROUP_PACK_7__axis_compl_mask__out_t;
 
     typedef struct {
         logic [15:0] value;
     } bridge_stream_char_axil_mon_cfg__MON_GROUP_PACK_7__axis_credit_mask__out_t;
 
     typedef struct {
-        logic [15:0] value;
-    } bridge_stream_char_axil_mon_cfg__MON_GROUP_PACK_7__axis_channel_mask__out_t;
+        bridge_stream_char_axil_mon_cfg__MON_GROUP_PACK_7__axis_compl_mask__out_t axis_compl_mask;
+        bridge_stream_char_axil_mon_cfg__MON_GROUP_PACK_7__axis_credit_mask__out_t axis_credit_mask;
+    } bridge_stream_char_axil_mon_cfg__MON_GROUP_PACK_7__out_t;
 
     typedef struct {
-        bridge_stream_char_axil_mon_cfg__MON_GROUP_PACK_7__axis_credit_mask__out_t axis_credit_mask;
-        bridge_stream_char_axil_mon_cfg__MON_GROUP_PACK_7__axis_channel_mask__out_t axis_channel_mask;
-    } bridge_stream_char_axil_mon_cfg__MON_GROUP_PACK_7__out_t;
+        logic [15:0] value;
+    } bridge_stream_char_axil_mon_cfg__MON_GROUP_PACK_8__axis_channel_mask__out_t;
 
     typedef struct {
         logic [15:0] value;
     } bridge_stream_char_axil_mon_cfg__MON_GROUP_PACK_8__axis_stream_mask__out_t;
 
     typedef struct {
-        logic [15:0] value;
-    } bridge_stream_char_axil_mon_cfg__MON_GROUP_PACK_8__core_pkt_mask__out_t;
+        bridge_stream_char_axil_mon_cfg__MON_GROUP_PACK_8__axis_channel_mask__out_t axis_channel_mask;
+        bridge_stream_char_axil_mon_cfg__MON_GROUP_PACK_8__axis_stream_mask__out_t axis_stream_mask;
+    } bridge_stream_char_axil_mon_cfg__MON_GROUP_PACK_8__out_t;
 
     typedef struct {
-        bridge_stream_char_axil_mon_cfg__MON_GROUP_PACK_8__axis_stream_mask__out_t axis_stream_mask;
-        bridge_stream_char_axil_mon_cfg__MON_GROUP_PACK_8__core_pkt_mask__out_t core_pkt_mask;
-    } bridge_stream_char_axil_mon_cfg__MON_GROUP_PACK_8__out_t;
+        logic [15:0] value;
+    } bridge_stream_char_axil_mon_cfg__MON_GROUP_PACK_9__core_pkt_mask__out_t;
 
     typedef struct {
         logic [15:0] value;
     } bridge_stream_char_axil_mon_cfg__MON_GROUP_PACK_9__core_err_select__out_t;
 
     typedef struct {
-        logic [15:0] value;
-    } bridge_stream_char_axil_mon_cfg__MON_GROUP_PACK_9__core_error_mask__out_t;
+        bridge_stream_char_axil_mon_cfg__MON_GROUP_PACK_9__core_pkt_mask__out_t core_pkt_mask;
+        bridge_stream_char_axil_mon_cfg__MON_GROUP_PACK_9__core_err_select__out_t core_err_select;
+    } bridge_stream_char_axil_mon_cfg__MON_GROUP_PACK_9__out_t;
 
     typedef struct {
-        bridge_stream_char_axil_mon_cfg__MON_GROUP_PACK_9__core_err_select__out_t core_err_select;
-        bridge_stream_char_axil_mon_cfg__MON_GROUP_PACK_9__core_error_mask__out_t core_error_mask;
-    } bridge_stream_char_axil_mon_cfg__MON_GROUP_PACK_9__out_t;
+        logic [15:0] value;
+    } bridge_stream_char_axil_mon_cfg__MON_GROUP_PACK_10__core_error_mask__out_t;
 
     typedef struct {
         logic [15:0] value;
     } bridge_stream_char_axil_mon_cfg__MON_GROUP_PACK_10__core_timeout_mask__out_t;
 
     typedef struct {
-        logic [15:0] value;
-    } bridge_stream_char_axil_mon_cfg__MON_GROUP_PACK_10__core_compl_mask__out_t;
+        bridge_stream_char_axil_mon_cfg__MON_GROUP_PACK_10__core_error_mask__out_t core_error_mask;
+        bridge_stream_char_axil_mon_cfg__MON_GROUP_PACK_10__core_timeout_mask__out_t core_timeout_mask;
+    } bridge_stream_char_axil_mon_cfg__MON_GROUP_PACK_10__out_t;
 
     typedef struct {
-        bridge_stream_char_axil_mon_cfg__MON_GROUP_PACK_10__core_timeout_mask__out_t core_timeout_mask;
-        bridge_stream_char_axil_mon_cfg__MON_GROUP_PACK_10__core_compl_mask__out_t core_compl_mask;
-    } bridge_stream_char_axil_mon_cfg__MON_GROUP_PACK_10__out_t;
+        logic [15:0] value;
+    } bridge_stream_char_axil_mon_cfg__MON_GROUP_PACK_11__core_compl_mask__out_t;
 
     typedef struct {
         logic [15:0] value;
     } bridge_stream_char_axil_mon_cfg__MON_GROUP_PACK_11__core_thresh_mask__out_t;
 
     typedef struct {
-        logic [15:0] value;
-    } bridge_stream_char_axil_mon_cfg__MON_GROUP_PACK_11__core_perf_mask__out_t;
+        bridge_stream_char_axil_mon_cfg__MON_GROUP_PACK_11__core_compl_mask__out_t core_compl_mask;
+        bridge_stream_char_axil_mon_cfg__MON_GROUP_PACK_11__core_thresh_mask__out_t core_thresh_mask;
+    } bridge_stream_char_axil_mon_cfg__MON_GROUP_PACK_11__out_t;
 
     typedef struct {
-        bridge_stream_char_axil_mon_cfg__MON_GROUP_PACK_11__core_thresh_mask__out_t core_thresh_mask;
-        bridge_stream_char_axil_mon_cfg__MON_GROUP_PACK_11__core_perf_mask__out_t core_perf_mask;
-    } bridge_stream_char_axil_mon_cfg__MON_GROUP_PACK_11__out_t;
+        logic [15:0] value;
+    } bridge_stream_char_axil_mon_cfg__MON_GROUP_PACK_12__core_perf_mask__out_t;
 
     typedef struct {
         logic [15:0] value;
     } bridge_stream_char_axil_mon_cfg__MON_GROUP_PACK_12__core_debug_mask__out_t;
 
     typedef struct {
+        bridge_stream_char_axil_mon_cfg__MON_GROUP_PACK_12__core_perf_mask__out_t core_perf_mask;
         bridge_stream_char_axil_mon_cfg__MON_GROUP_PACK_12__core_debug_mask__out_t core_debug_mask;
     } bridge_stream_char_axil_mon_cfg__MON_GROUP_PACK_12__out_t;
 

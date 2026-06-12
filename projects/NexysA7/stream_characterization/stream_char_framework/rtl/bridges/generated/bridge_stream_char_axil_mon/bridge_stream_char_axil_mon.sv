@@ -314,30 +314,30 @@ module bridge_stream_char_axil_mon #(
     output logic [1:0]  s_cfg_axil_rresp,
 
     // ============================================================
-    // monbus_axil_group access ports + config + IRQ
+    // monbus_axil_axil_group access ports + config + IRQ
     // ============================================================
-    // AXIL slave (IRQ-status reads, 64-bit data)
-    input  logic        s_mon_axil_arvalid,
-    output logic        s_mon_axil_arready,
+    // Slave-read port (axil, IRQ-status reads, 64-bit data)
+    input  logic         s_mon_axil_arvalid,
+    output logic         s_mon_axil_arready,
     input  logic [31:0] s_mon_axil_araddr,
-    input  logic [2:0]  s_mon_axil_arprot,
-    output logic        s_mon_axil_rvalid,
-    input  logic        s_mon_axil_rready,
+    input  logic [2:0] s_mon_axil_arprot,
+    output logic         s_mon_axil_rvalid,
+    input  logic         s_mon_axil_rready,
     output logic [63:0] s_mon_axil_rdata,
-    output logic [1:0]  s_mon_axil_rresp,
+    output logic [1:0] s_mon_axil_rresp,
 
-    // AXIL master (packet log writes)
-    output logic        m_mon_axil_awvalid,
-    input  logic        m_mon_axil_awready,
+    // Master-write port (axil, packet log writes)
+    output logic         m_mon_axil_awvalid,
+    input  logic         m_mon_axil_awready,
     output logic [31:0] m_mon_axil_awaddr,
-    output logic [2:0]  m_mon_axil_awprot,
-    output logic        m_mon_axil_wvalid,
-    input  logic        m_mon_axil_wready,
+    output logic [2:0] m_mon_axil_awprot,
+    output logic         m_mon_axil_wvalid,
+    input  logic         m_mon_axil_wready,
     output logic [63:0] m_mon_axil_wdata,
-    output logic [7:0]  m_mon_axil_wstrb,
-    input  logic        m_mon_axil_bvalid,
-    output logic        m_mon_axil_bready,
-    input  logic [1:0]  m_mon_axil_bresp,
+    output logic [7:0] m_mon_axil_wstrb,
+    input  logic         m_mon_axil_bvalid,
+    output logic         m_mon_axil_bready,
+    input  logic [1:0] m_mon_axil_bresp,
 
     // IRQ (asserted while error FIFO non-empty)
     output logic        mon_irq_out
@@ -1230,6 +1230,7 @@ module bridge_stream_char_axil_mon #(
     // cfg_mon_group_* nets
     logic [31:0] cfg_mon_group_base_addr;
     logic [31:0] cfg_mon_group_limit_addr;
+    logic [15:0] cfg_mon_group_flush_watermark;
     logic [15:0] cfg_mon_group_axi_pkt_mask;
     logic [15:0] cfg_mon_group_axi_err_select;
     logic [15:0] cfg_mon_group_axi_error_mask;
@@ -3280,30 +3281,31 @@ module bridge_stream_char_axil_mon #(
     // Fan out regblock outputs to mon_group cfg nets
     assign cfg_mon_group_base_addr = hwif_out.MON_GROUP_BASE_ADDR.base_addr.value;
     assign cfg_mon_group_limit_addr = hwif_out.MON_GROUP_LIMIT_ADDR.limit_addr.value;
+    assign cfg_mon_group_flush_watermark = hwif_out.MON_GROUP_PACK_0.flush_watermark.value;
     assign cfg_mon_group_axi_pkt_mask = hwif_out.MON_GROUP_PACK_0.axi_pkt_mask.value;
-    assign cfg_mon_group_axi_err_select = hwif_out.MON_GROUP_PACK_0.axi_err_select.value;
+    assign cfg_mon_group_axi_err_select = hwif_out.MON_GROUP_PACK_1.axi_err_select.value;
     assign cfg_mon_group_axi_error_mask = hwif_out.MON_GROUP_PACK_1.axi_error_mask.value;
-    assign cfg_mon_group_axi_timeout_mask = hwif_out.MON_GROUP_PACK_1.axi_timeout_mask.value;
+    assign cfg_mon_group_axi_timeout_mask = hwif_out.MON_GROUP_PACK_2.axi_timeout_mask.value;
     assign cfg_mon_group_axi_compl_mask = hwif_out.MON_GROUP_PACK_2.axi_compl_mask.value;
-    assign cfg_mon_group_axi_thresh_mask = hwif_out.MON_GROUP_PACK_2.axi_thresh_mask.value;
+    assign cfg_mon_group_axi_thresh_mask = hwif_out.MON_GROUP_PACK_3.axi_thresh_mask.value;
     assign cfg_mon_group_axi_perf_mask = hwif_out.MON_GROUP_PACK_3.axi_perf_mask.value;
-    assign cfg_mon_group_axi_addr_mask = hwif_out.MON_GROUP_PACK_3.axi_addr_mask.value;
+    assign cfg_mon_group_axi_addr_mask = hwif_out.MON_GROUP_PACK_4.axi_addr_mask.value;
     assign cfg_mon_group_axi_debug_mask = hwif_out.MON_GROUP_PACK_4.axi_debug_mask.value;
-    assign cfg_mon_group_axis_pkt_mask = hwif_out.MON_GROUP_PACK_4.axis_pkt_mask.value;
+    assign cfg_mon_group_axis_pkt_mask = hwif_out.MON_GROUP_PACK_5.axis_pkt_mask.value;
     assign cfg_mon_group_axis_err_select = hwif_out.MON_GROUP_PACK_5.axis_err_select.value;
-    assign cfg_mon_group_axis_error_mask = hwif_out.MON_GROUP_PACK_5.axis_error_mask.value;
+    assign cfg_mon_group_axis_error_mask = hwif_out.MON_GROUP_PACK_6.axis_error_mask.value;
     assign cfg_mon_group_axis_timeout_mask = hwif_out.MON_GROUP_PACK_6.axis_timeout_mask.value;
-    assign cfg_mon_group_axis_compl_mask = hwif_out.MON_GROUP_PACK_6.axis_compl_mask.value;
+    assign cfg_mon_group_axis_compl_mask = hwif_out.MON_GROUP_PACK_7.axis_compl_mask.value;
     assign cfg_mon_group_axis_credit_mask = hwif_out.MON_GROUP_PACK_7.axis_credit_mask.value;
-    assign cfg_mon_group_axis_channel_mask = hwif_out.MON_GROUP_PACK_7.axis_channel_mask.value;
+    assign cfg_mon_group_axis_channel_mask = hwif_out.MON_GROUP_PACK_8.axis_channel_mask.value;
     assign cfg_mon_group_axis_stream_mask = hwif_out.MON_GROUP_PACK_8.axis_stream_mask.value;
-    assign cfg_mon_group_core_pkt_mask = hwif_out.MON_GROUP_PACK_8.core_pkt_mask.value;
+    assign cfg_mon_group_core_pkt_mask = hwif_out.MON_GROUP_PACK_9.core_pkt_mask.value;
     assign cfg_mon_group_core_err_select = hwif_out.MON_GROUP_PACK_9.core_err_select.value;
-    assign cfg_mon_group_core_error_mask = hwif_out.MON_GROUP_PACK_9.core_error_mask.value;
+    assign cfg_mon_group_core_error_mask = hwif_out.MON_GROUP_PACK_10.core_error_mask.value;
     assign cfg_mon_group_core_timeout_mask = hwif_out.MON_GROUP_PACK_10.core_timeout_mask.value;
-    assign cfg_mon_group_core_compl_mask = hwif_out.MON_GROUP_PACK_10.core_compl_mask.value;
+    assign cfg_mon_group_core_compl_mask = hwif_out.MON_GROUP_PACK_11.core_compl_mask.value;
     assign cfg_mon_group_core_thresh_mask = hwif_out.MON_GROUP_PACK_11.core_thresh_mask.value;
-    assign cfg_mon_group_core_perf_mask = hwif_out.MON_GROUP_PACK_11.core_perf_mask.value;
+    assign cfg_mon_group_core_perf_mask = hwif_out.MON_GROUP_PACK_12.core_perf_mask.value;
     assign cfg_mon_group_core_debug_mask = hwif_out.MON_GROUP_PACK_12.core_debug_mask.value;
 
     // ============================================================
@@ -3412,18 +3414,15 @@ module bridge_stream_char_axil_mon #(
         /* verilator lint_on PINCONNECTEMPTY */
     );
 
-    monbus_axil_group #(
-        .FIFO_DEPTH_ERR    (64),
-        .FIFO_DEPTH_WRITE  (32),
-        .ADDR_WIDTH        (32),
-        .S_AXIL_DATA_WIDTH (64),
-        // S_AXIL_DATA_WIDTH=64: the unified group drains one
-        // err_fifo entry ({packet[127:0], source_ts[63:0]} = 192 bits)
-        // over three 64-bit reads via an internal slice counter.
-        // M_AXIL_DATA_WIDTH defaults to 64 — module emits the same
-        // 24-byte record on the bulk-trace write path: three 64-bit
-        // beats {packet[63:0], packet[127:64], source_ts[63:0]}.
-        .NUM_PROTOCOLS     (3)
+    monbus_axil_axil_group #(
+        // FIFO_DEPTH_WRITE is in BEATS in the monbus group family;
+        // the master-write burst fires on cfg_flush_watermark or timeout.
+        .FIFO_DEPTH_ERR      (64),
+        .FIFO_DEPTH_WRITE    (96),
+        .ADDR_WIDTH          (32),
+        .FLUSH_TIMEOUT_CYCLES(1024),
+        .NUM_PROTOCOLS       (3),
+        .USE_COMPRESSION     (0)
     ) u_mon_axil_group (
         .axi_aclk          (aclk),
         .axi_aresetn       (aresetn),
@@ -3434,32 +3433,33 @@ module bridge_stream_char_axil_mon #(
         .monbus_timestamp  (mon_arb_monbus_timestamp),
         // Free-running timestamp shared with every wrapper's i_mon_time
         .mon_time_out      (mon_time_w),
-        // AXIL slave
-        .s_axil_arvalid      (s_mon_axil_arvalid),
-        .s_axil_arready      (s_mon_axil_arready),
-        .s_axil_araddr      (s_mon_axil_araddr),
-        .s_axil_arprot      (s_mon_axil_arprot),
-        .s_axil_rvalid      (s_mon_axil_rvalid),
-        .s_axil_rready      (s_mon_axil_rready),
-        .s_axil_rdata      (s_mon_axil_rdata),
-        .s_axil_rresp      (s_mon_axil_rresp),
-        // AXIL master
-        .m_axil_awvalid      (m_mon_axil_awvalid),
-        .m_axil_awready      (m_mon_axil_awready),
-        .m_axil_awaddr      (m_mon_axil_awaddr),
-        .m_axil_awprot      (m_mon_axil_awprot),
-        .m_axil_wvalid      (m_mon_axil_wvalid),
-        .m_axil_wready      (m_mon_axil_wready),
-        .m_axil_wdata      (m_mon_axil_wdata),
-        .m_axil_wstrb      (m_mon_axil_wstrb),
-        .m_axil_bvalid      (m_mon_axil_bvalid),
-        .m_axil_bready      (m_mon_axil_bready),
-        .m_axil_bresp      (m_mon_axil_bresp),
+        // Slave-read port (axil)
+        .s_axil_arvalid (s_mon_axil_arvalid),
+        .s_axil_arready (s_mon_axil_arready),
+        .s_axil_araddr (s_mon_axil_araddr),
+        .s_axil_arprot (s_mon_axil_arprot),
+        .s_axil_rvalid (s_mon_axil_rvalid),
+        .s_axil_rready (s_mon_axil_rready),
+        .s_axil_rdata (s_mon_axil_rdata),
+        .s_axil_rresp (s_mon_axil_rresp),
+        // Master-write port (axil)
+        .m_axil_awvalid (m_mon_axil_awvalid),
+        .m_axil_awready (m_mon_axil_awready),
+        .m_axil_awaddr (m_mon_axil_awaddr),
+        .m_axil_awprot (m_mon_axil_awprot),
+        .m_axil_wvalid (m_mon_axil_wvalid),
+        .m_axil_wready (m_mon_axil_wready),
+        .m_axil_wdata (m_mon_axil_wdata),
+        .m_axil_wstrb (m_mon_axil_wstrb),
+        .m_axil_bvalid (m_mon_axil_bvalid),
+        .m_axil_bready (m_mon_axil_bready),
+        .m_axil_bresp (m_mon_axil_bresp),
         // IRQ
         .irq_out           (mon_irq_out),
         // Group-level cfg
         .cfg_base_addr     (cfg_mon_group_base_addr),
         .cfg_limit_addr     (cfg_mon_group_limit_addr),
+        .cfg_flush_watermark     (cfg_mon_group_flush_watermark),
         .cfg_axi_pkt_mask     (cfg_mon_group_axi_pkt_mask),
         .cfg_axi_err_select     (cfg_mon_group_axi_err_select),
         .cfg_axi_error_mask     (cfg_mon_group_axi_error_mask),

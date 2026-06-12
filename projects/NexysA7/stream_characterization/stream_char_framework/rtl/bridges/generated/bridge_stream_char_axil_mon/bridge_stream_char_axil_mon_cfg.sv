@@ -2236,123 +2236,127 @@ module bridge_stream_char_axil_mon_cfg (
             struct {
                 logic [15:0] next;
                 logic load_next;
-            } axi_pkt_mask;
+            } flush_watermark;
             struct {
                 logic [15:0] next;
                 logic load_next;
-            } axi_err_select;
+            } axi_pkt_mask;
         } MON_GROUP_PACK_0;
         struct {
             struct {
                 logic [15:0] next;
                 logic load_next;
-            } axi_error_mask;
+            } axi_err_select;
             struct {
                 logic [15:0] next;
                 logic load_next;
-            } axi_timeout_mask;
+            } axi_error_mask;
         } MON_GROUP_PACK_1;
         struct {
             struct {
                 logic [15:0] next;
                 logic load_next;
-            } axi_compl_mask;
+            } axi_timeout_mask;
             struct {
                 logic [15:0] next;
                 logic load_next;
-            } axi_thresh_mask;
+            } axi_compl_mask;
         } MON_GROUP_PACK_2;
         struct {
             struct {
                 logic [15:0] next;
                 logic load_next;
-            } axi_perf_mask;
+            } axi_thresh_mask;
             struct {
                 logic [15:0] next;
                 logic load_next;
-            } axi_addr_mask;
+            } axi_perf_mask;
         } MON_GROUP_PACK_3;
         struct {
             struct {
                 logic [15:0] next;
                 logic load_next;
-            } axi_debug_mask;
+            } axi_addr_mask;
             struct {
                 logic [15:0] next;
                 logic load_next;
-            } axis_pkt_mask;
+            } axi_debug_mask;
         } MON_GROUP_PACK_4;
         struct {
             struct {
                 logic [15:0] next;
                 logic load_next;
-            } axis_err_select;
+            } axis_pkt_mask;
             struct {
                 logic [15:0] next;
                 logic load_next;
-            } axis_error_mask;
+            } axis_err_select;
         } MON_GROUP_PACK_5;
         struct {
             struct {
                 logic [15:0] next;
                 logic load_next;
-            } axis_timeout_mask;
+            } axis_error_mask;
             struct {
                 logic [15:0] next;
                 logic load_next;
-            } axis_compl_mask;
+            } axis_timeout_mask;
         } MON_GROUP_PACK_6;
         struct {
             struct {
                 logic [15:0] next;
                 logic load_next;
-            } axis_credit_mask;
+            } axis_compl_mask;
             struct {
                 logic [15:0] next;
                 logic load_next;
-            } axis_channel_mask;
+            } axis_credit_mask;
         } MON_GROUP_PACK_7;
         struct {
             struct {
                 logic [15:0] next;
                 logic load_next;
-            } axis_stream_mask;
+            } axis_channel_mask;
             struct {
                 logic [15:0] next;
                 logic load_next;
-            } core_pkt_mask;
+            } axis_stream_mask;
         } MON_GROUP_PACK_8;
         struct {
             struct {
                 logic [15:0] next;
                 logic load_next;
-            } core_err_select;
+            } core_pkt_mask;
             struct {
                 logic [15:0] next;
                 logic load_next;
-            } core_error_mask;
+            } core_err_select;
         } MON_GROUP_PACK_9;
         struct {
             struct {
                 logic [15:0] next;
                 logic load_next;
-            } core_timeout_mask;
+            } core_error_mask;
             struct {
                 logic [15:0] next;
                 logic load_next;
-            } core_compl_mask;
+            } core_timeout_mask;
         } MON_GROUP_PACK_10;
         struct {
             struct {
                 logic [15:0] next;
                 logic load_next;
+            } core_compl_mask;
+            struct {
+                logic [15:0] next;
+                logic load_next;
             } core_thresh_mask;
+        } MON_GROUP_PACK_11;
+        struct {
             struct {
                 logic [15:0] next;
                 logic load_next;
             } core_perf_mask;
-        } MON_GROUP_PACK_11;
-        struct {
             struct {
                 logic [15:0] next;
                 logic load_next;
@@ -3701,100 +3705,103 @@ module bridge_stream_char_axil_mon_cfg (
         struct {
             struct {
                 logic [15:0] value;
-            } axi_pkt_mask;
+            } flush_watermark;
             struct {
                 logic [15:0] value;
-            } axi_err_select;
+            } axi_pkt_mask;
         } MON_GROUP_PACK_0;
         struct {
             struct {
                 logic [15:0] value;
-            } axi_error_mask;
+            } axi_err_select;
             struct {
                 logic [15:0] value;
-            } axi_timeout_mask;
+            } axi_error_mask;
         } MON_GROUP_PACK_1;
         struct {
             struct {
                 logic [15:0] value;
-            } axi_compl_mask;
+            } axi_timeout_mask;
             struct {
                 logic [15:0] value;
-            } axi_thresh_mask;
+            } axi_compl_mask;
         } MON_GROUP_PACK_2;
         struct {
             struct {
                 logic [15:0] value;
-            } axi_perf_mask;
+            } axi_thresh_mask;
             struct {
                 logic [15:0] value;
-            } axi_addr_mask;
+            } axi_perf_mask;
         } MON_GROUP_PACK_3;
         struct {
             struct {
                 logic [15:0] value;
-            } axi_debug_mask;
+            } axi_addr_mask;
             struct {
                 logic [15:0] value;
-            } axis_pkt_mask;
+            } axi_debug_mask;
         } MON_GROUP_PACK_4;
         struct {
             struct {
                 logic [15:0] value;
-            } axis_err_select;
+            } axis_pkt_mask;
             struct {
                 logic [15:0] value;
-            } axis_error_mask;
+            } axis_err_select;
         } MON_GROUP_PACK_5;
         struct {
             struct {
                 logic [15:0] value;
-            } axis_timeout_mask;
+            } axis_error_mask;
             struct {
                 logic [15:0] value;
-            } axis_compl_mask;
+            } axis_timeout_mask;
         } MON_GROUP_PACK_6;
         struct {
             struct {
                 logic [15:0] value;
-            } axis_credit_mask;
+            } axis_compl_mask;
             struct {
                 logic [15:0] value;
-            } axis_channel_mask;
+            } axis_credit_mask;
         } MON_GROUP_PACK_7;
         struct {
             struct {
                 logic [15:0] value;
-            } axis_stream_mask;
+            } axis_channel_mask;
             struct {
                 logic [15:0] value;
-            } core_pkt_mask;
+            } axis_stream_mask;
         } MON_GROUP_PACK_8;
         struct {
             struct {
                 logic [15:0] value;
-            } core_err_select;
+            } core_pkt_mask;
             struct {
                 logic [15:0] value;
-            } core_error_mask;
+            } core_err_select;
         } MON_GROUP_PACK_9;
         struct {
             struct {
                 logic [15:0] value;
-            } core_timeout_mask;
+            } core_error_mask;
             struct {
                 logic [15:0] value;
-            } core_compl_mask;
+            } core_timeout_mask;
         } MON_GROUP_PACK_10;
         struct {
             struct {
                 logic [15:0] value;
+            } core_compl_mask;
+            struct {
+                logic [15:0] value;
             } core_thresh_mask;
+        } MON_GROUP_PACK_11;
+        struct {
             struct {
                 logic [15:0] value;
             } core_perf_mask;
-        } MON_GROUP_PACK_11;
-        struct {
             struct {
                 logic [15:0] value;
             } core_debug_mask;
@@ -11990,6 +11997,29 @@ module bridge_stream_char_axil_mon_cfg (
         end
     end
     assign hwif_out.MON_GROUP_LIMIT_ADDR.limit_addr.value = field_storage.MON_GROUP_LIMIT_ADDR.limit_addr.value;
+    // Field: bridge_stream_char_axil_mon_cfg.MON_GROUP_PACK_0.flush_watermark
+    always_comb begin
+        automatic logic [15:0] next_c;
+        automatic logic load_next_c;
+        next_c = field_storage.MON_GROUP_PACK_0.flush_watermark.value;
+        load_next_c = '0;
+        if(decoded_reg_strb.MON_GROUP_PACK_0 && decoded_req_is_wr) begin // SW write
+            next_c = (field_storage.MON_GROUP_PACK_0.flush_watermark.value & ~decoded_wr_biten[15:0]) | (decoded_wr_data[15:0] & decoded_wr_biten[15:0]);
+            load_next_c = '1;
+        end
+        field_combo.MON_GROUP_PACK_0.flush_watermark.next = next_c;
+        field_combo.MON_GROUP_PACK_0.flush_watermark.load_next = load_next_c;
+    end
+    always_ff @(posedge clk) begin
+        if(rst) begin
+            field_storage.MON_GROUP_PACK_0.flush_watermark.value <= 16'h0;
+        end else begin
+            if(field_combo.MON_GROUP_PACK_0.flush_watermark.load_next) begin
+                field_storage.MON_GROUP_PACK_0.flush_watermark.value <= field_combo.MON_GROUP_PACK_0.flush_watermark.next;
+            end
+        end
+    end
+    assign hwif_out.MON_GROUP_PACK_0.flush_watermark.value = field_storage.MON_GROUP_PACK_0.flush_watermark.value;
     // Field: bridge_stream_char_axil_mon_cfg.MON_GROUP_PACK_0.axi_pkt_mask
     always_comb begin
         automatic logic [15:0] next_c;
@@ -11997,7 +12027,7 @@ module bridge_stream_char_axil_mon_cfg (
         next_c = field_storage.MON_GROUP_PACK_0.axi_pkt_mask.value;
         load_next_c = '0;
         if(decoded_reg_strb.MON_GROUP_PACK_0 && decoded_req_is_wr) begin // SW write
-            next_c = (field_storage.MON_GROUP_PACK_0.axi_pkt_mask.value & ~decoded_wr_biten[15:0]) | (decoded_wr_data[15:0] & decoded_wr_biten[15:0]);
+            next_c = (field_storage.MON_GROUP_PACK_0.axi_pkt_mask.value & ~decoded_wr_biten[31:16]) | (decoded_wr_data[31:16] & decoded_wr_biten[31:16]);
             load_next_c = '1;
         end
         field_combo.MON_GROUP_PACK_0.axi_pkt_mask.next = next_c;
@@ -12013,29 +12043,29 @@ module bridge_stream_char_axil_mon_cfg (
         end
     end
     assign hwif_out.MON_GROUP_PACK_0.axi_pkt_mask.value = field_storage.MON_GROUP_PACK_0.axi_pkt_mask.value;
-    // Field: bridge_stream_char_axil_mon_cfg.MON_GROUP_PACK_0.axi_err_select
+    // Field: bridge_stream_char_axil_mon_cfg.MON_GROUP_PACK_1.axi_err_select
     always_comb begin
         automatic logic [15:0] next_c;
         automatic logic load_next_c;
-        next_c = field_storage.MON_GROUP_PACK_0.axi_err_select.value;
+        next_c = field_storage.MON_GROUP_PACK_1.axi_err_select.value;
         load_next_c = '0;
-        if(decoded_reg_strb.MON_GROUP_PACK_0 && decoded_req_is_wr) begin // SW write
-            next_c = (field_storage.MON_GROUP_PACK_0.axi_err_select.value & ~decoded_wr_biten[31:16]) | (decoded_wr_data[31:16] & decoded_wr_biten[31:16]);
+        if(decoded_reg_strb.MON_GROUP_PACK_1 && decoded_req_is_wr) begin // SW write
+            next_c = (field_storage.MON_GROUP_PACK_1.axi_err_select.value & ~decoded_wr_biten[15:0]) | (decoded_wr_data[15:0] & decoded_wr_biten[15:0]);
             load_next_c = '1;
         end
-        field_combo.MON_GROUP_PACK_0.axi_err_select.next = next_c;
-        field_combo.MON_GROUP_PACK_0.axi_err_select.load_next = load_next_c;
+        field_combo.MON_GROUP_PACK_1.axi_err_select.next = next_c;
+        field_combo.MON_GROUP_PACK_1.axi_err_select.load_next = load_next_c;
     end
     always_ff @(posedge clk) begin
         if(rst) begin
-            field_storage.MON_GROUP_PACK_0.axi_err_select.value <= 16'h0;
+            field_storage.MON_GROUP_PACK_1.axi_err_select.value <= 16'h0;
         end else begin
-            if(field_combo.MON_GROUP_PACK_0.axi_err_select.load_next) begin
-                field_storage.MON_GROUP_PACK_0.axi_err_select.value <= field_combo.MON_GROUP_PACK_0.axi_err_select.next;
+            if(field_combo.MON_GROUP_PACK_1.axi_err_select.load_next) begin
+                field_storage.MON_GROUP_PACK_1.axi_err_select.value <= field_combo.MON_GROUP_PACK_1.axi_err_select.next;
             end
         end
     end
-    assign hwif_out.MON_GROUP_PACK_0.axi_err_select.value = field_storage.MON_GROUP_PACK_0.axi_err_select.value;
+    assign hwif_out.MON_GROUP_PACK_1.axi_err_select.value = field_storage.MON_GROUP_PACK_1.axi_err_select.value;
     // Field: bridge_stream_char_axil_mon_cfg.MON_GROUP_PACK_1.axi_error_mask
     always_comb begin
         automatic logic [15:0] next_c;
@@ -12043,7 +12073,7 @@ module bridge_stream_char_axil_mon_cfg (
         next_c = field_storage.MON_GROUP_PACK_1.axi_error_mask.value;
         load_next_c = '0;
         if(decoded_reg_strb.MON_GROUP_PACK_1 && decoded_req_is_wr) begin // SW write
-            next_c = (field_storage.MON_GROUP_PACK_1.axi_error_mask.value & ~decoded_wr_biten[15:0]) | (decoded_wr_data[15:0] & decoded_wr_biten[15:0]);
+            next_c = (field_storage.MON_GROUP_PACK_1.axi_error_mask.value & ~decoded_wr_biten[31:16]) | (decoded_wr_data[31:16] & decoded_wr_biten[31:16]);
             load_next_c = '1;
         end
         field_combo.MON_GROUP_PACK_1.axi_error_mask.next = next_c;
@@ -12059,29 +12089,29 @@ module bridge_stream_char_axil_mon_cfg (
         end
     end
     assign hwif_out.MON_GROUP_PACK_1.axi_error_mask.value = field_storage.MON_GROUP_PACK_1.axi_error_mask.value;
-    // Field: bridge_stream_char_axil_mon_cfg.MON_GROUP_PACK_1.axi_timeout_mask
+    // Field: bridge_stream_char_axil_mon_cfg.MON_GROUP_PACK_2.axi_timeout_mask
     always_comb begin
         automatic logic [15:0] next_c;
         automatic logic load_next_c;
-        next_c = field_storage.MON_GROUP_PACK_1.axi_timeout_mask.value;
+        next_c = field_storage.MON_GROUP_PACK_2.axi_timeout_mask.value;
         load_next_c = '0;
-        if(decoded_reg_strb.MON_GROUP_PACK_1 && decoded_req_is_wr) begin // SW write
-            next_c = (field_storage.MON_GROUP_PACK_1.axi_timeout_mask.value & ~decoded_wr_biten[31:16]) | (decoded_wr_data[31:16] & decoded_wr_biten[31:16]);
+        if(decoded_reg_strb.MON_GROUP_PACK_2 && decoded_req_is_wr) begin // SW write
+            next_c = (field_storage.MON_GROUP_PACK_2.axi_timeout_mask.value & ~decoded_wr_biten[15:0]) | (decoded_wr_data[15:0] & decoded_wr_biten[15:0]);
             load_next_c = '1;
         end
-        field_combo.MON_GROUP_PACK_1.axi_timeout_mask.next = next_c;
-        field_combo.MON_GROUP_PACK_1.axi_timeout_mask.load_next = load_next_c;
+        field_combo.MON_GROUP_PACK_2.axi_timeout_mask.next = next_c;
+        field_combo.MON_GROUP_PACK_2.axi_timeout_mask.load_next = load_next_c;
     end
     always_ff @(posedge clk) begin
         if(rst) begin
-            field_storage.MON_GROUP_PACK_1.axi_timeout_mask.value <= 16'h0;
+            field_storage.MON_GROUP_PACK_2.axi_timeout_mask.value <= 16'h0;
         end else begin
-            if(field_combo.MON_GROUP_PACK_1.axi_timeout_mask.load_next) begin
-                field_storage.MON_GROUP_PACK_1.axi_timeout_mask.value <= field_combo.MON_GROUP_PACK_1.axi_timeout_mask.next;
+            if(field_combo.MON_GROUP_PACK_2.axi_timeout_mask.load_next) begin
+                field_storage.MON_GROUP_PACK_2.axi_timeout_mask.value <= field_combo.MON_GROUP_PACK_2.axi_timeout_mask.next;
             end
         end
     end
-    assign hwif_out.MON_GROUP_PACK_1.axi_timeout_mask.value = field_storage.MON_GROUP_PACK_1.axi_timeout_mask.value;
+    assign hwif_out.MON_GROUP_PACK_2.axi_timeout_mask.value = field_storage.MON_GROUP_PACK_2.axi_timeout_mask.value;
     // Field: bridge_stream_char_axil_mon_cfg.MON_GROUP_PACK_2.axi_compl_mask
     always_comb begin
         automatic logic [15:0] next_c;
@@ -12089,7 +12119,7 @@ module bridge_stream_char_axil_mon_cfg (
         next_c = field_storage.MON_GROUP_PACK_2.axi_compl_mask.value;
         load_next_c = '0;
         if(decoded_reg_strb.MON_GROUP_PACK_2 && decoded_req_is_wr) begin // SW write
-            next_c = (field_storage.MON_GROUP_PACK_2.axi_compl_mask.value & ~decoded_wr_biten[15:0]) | (decoded_wr_data[15:0] & decoded_wr_biten[15:0]);
+            next_c = (field_storage.MON_GROUP_PACK_2.axi_compl_mask.value & ~decoded_wr_biten[31:16]) | (decoded_wr_data[31:16] & decoded_wr_biten[31:16]);
             load_next_c = '1;
         end
         field_combo.MON_GROUP_PACK_2.axi_compl_mask.next = next_c;
@@ -12105,29 +12135,29 @@ module bridge_stream_char_axil_mon_cfg (
         end
     end
     assign hwif_out.MON_GROUP_PACK_2.axi_compl_mask.value = field_storage.MON_GROUP_PACK_2.axi_compl_mask.value;
-    // Field: bridge_stream_char_axil_mon_cfg.MON_GROUP_PACK_2.axi_thresh_mask
+    // Field: bridge_stream_char_axil_mon_cfg.MON_GROUP_PACK_3.axi_thresh_mask
     always_comb begin
         automatic logic [15:0] next_c;
         automatic logic load_next_c;
-        next_c = field_storage.MON_GROUP_PACK_2.axi_thresh_mask.value;
+        next_c = field_storage.MON_GROUP_PACK_3.axi_thresh_mask.value;
         load_next_c = '0;
-        if(decoded_reg_strb.MON_GROUP_PACK_2 && decoded_req_is_wr) begin // SW write
-            next_c = (field_storage.MON_GROUP_PACK_2.axi_thresh_mask.value & ~decoded_wr_biten[31:16]) | (decoded_wr_data[31:16] & decoded_wr_biten[31:16]);
+        if(decoded_reg_strb.MON_GROUP_PACK_3 && decoded_req_is_wr) begin // SW write
+            next_c = (field_storage.MON_GROUP_PACK_3.axi_thresh_mask.value & ~decoded_wr_biten[15:0]) | (decoded_wr_data[15:0] & decoded_wr_biten[15:0]);
             load_next_c = '1;
         end
-        field_combo.MON_GROUP_PACK_2.axi_thresh_mask.next = next_c;
-        field_combo.MON_GROUP_PACK_2.axi_thresh_mask.load_next = load_next_c;
+        field_combo.MON_GROUP_PACK_3.axi_thresh_mask.next = next_c;
+        field_combo.MON_GROUP_PACK_3.axi_thresh_mask.load_next = load_next_c;
     end
     always_ff @(posedge clk) begin
         if(rst) begin
-            field_storage.MON_GROUP_PACK_2.axi_thresh_mask.value <= 16'h0;
+            field_storage.MON_GROUP_PACK_3.axi_thresh_mask.value <= 16'h0;
         end else begin
-            if(field_combo.MON_GROUP_PACK_2.axi_thresh_mask.load_next) begin
-                field_storage.MON_GROUP_PACK_2.axi_thresh_mask.value <= field_combo.MON_GROUP_PACK_2.axi_thresh_mask.next;
+            if(field_combo.MON_GROUP_PACK_3.axi_thresh_mask.load_next) begin
+                field_storage.MON_GROUP_PACK_3.axi_thresh_mask.value <= field_combo.MON_GROUP_PACK_3.axi_thresh_mask.next;
             end
         end
     end
-    assign hwif_out.MON_GROUP_PACK_2.axi_thresh_mask.value = field_storage.MON_GROUP_PACK_2.axi_thresh_mask.value;
+    assign hwif_out.MON_GROUP_PACK_3.axi_thresh_mask.value = field_storage.MON_GROUP_PACK_3.axi_thresh_mask.value;
     // Field: bridge_stream_char_axil_mon_cfg.MON_GROUP_PACK_3.axi_perf_mask
     always_comb begin
         automatic logic [15:0] next_c;
@@ -12135,7 +12165,7 @@ module bridge_stream_char_axil_mon_cfg (
         next_c = field_storage.MON_GROUP_PACK_3.axi_perf_mask.value;
         load_next_c = '0;
         if(decoded_reg_strb.MON_GROUP_PACK_3 && decoded_req_is_wr) begin // SW write
-            next_c = (field_storage.MON_GROUP_PACK_3.axi_perf_mask.value & ~decoded_wr_biten[15:0]) | (decoded_wr_data[15:0] & decoded_wr_biten[15:0]);
+            next_c = (field_storage.MON_GROUP_PACK_3.axi_perf_mask.value & ~decoded_wr_biten[31:16]) | (decoded_wr_data[31:16] & decoded_wr_biten[31:16]);
             load_next_c = '1;
         end
         field_combo.MON_GROUP_PACK_3.axi_perf_mask.next = next_c;
@@ -12151,29 +12181,29 @@ module bridge_stream_char_axil_mon_cfg (
         end
     end
     assign hwif_out.MON_GROUP_PACK_3.axi_perf_mask.value = field_storage.MON_GROUP_PACK_3.axi_perf_mask.value;
-    // Field: bridge_stream_char_axil_mon_cfg.MON_GROUP_PACK_3.axi_addr_mask
+    // Field: bridge_stream_char_axil_mon_cfg.MON_GROUP_PACK_4.axi_addr_mask
     always_comb begin
         automatic logic [15:0] next_c;
         automatic logic load_next_c;
-        next_c = field_storage.MON_GROUP_PACK_3.axi_addr_mask.value;
+        next_c = field_storage.MON_GROUP_PACK_4.axi_addr_mask.value;
         load_next_c = '0;
-        if(decoded_reg_strb.MON_GROUP_PACK_3 && decoded_req_is_wr) begin // SW write
-            next_c = (field_storage.MON_GROUP_PACK_3.axi_addr_mask.value & ~decoded_wr_biten[31:16]) | (decoded_wr_data[31:16] & decoded_wr_biten[31:16]);
+        if(decoded_reg_strb.MON_GROUP_PACK_4 && decoded_req_is_wr) begin // SW write
+            next_c = (field_storage.MON_GROUP_PACK_4.axi_addr_mask.value & ~decoded_wr_biten[15:0]) | (decoded_wr_data[15:0] & decoded_wr_biten[15:0]);
             load_next_c = '1;
         end
-        field_combo.MON_GROUP_PACK_3.axi_addr_mask.next = next_c;
-        field_combo.MON_GROUP_PACK_3.axi_addr_mask.load_next = load_next_c;
+        field_combo.MON_GROUP_PACK_4.axi_addr_mask.next = next_c;
+        field_combo.MON_GROUP_PACK_4.axi_addr_mask.load_next = load_next_c;
     end
     always_ff @(posedge clk) begin
         if(rst) begin
-            field_storage.MON_GROUP_PACK_3.axi_addr_mask.value <= 16'h0;
+            field_storage.MON_GROUP_PACK_4.axi_addr_mask.value <= 16'h0;
         end else begin
-            if(field_combo.MON_GROUP_PACK_3.axi_addr_mask.load_next) begin
-                field_storage.MON_GROUP_PACK_3.axi_addr_mask.value <= field_combo.MON_GROUP_PACK_3.axi_addr_mask.next;
+            if(field_combo.MON_GROUP_PACK_4.axi_addr_mask.load_next) begin
+                field_storage.MON_GROUP_PACK_4.axi_addr_mask.value <= field_combo.MON_GROUP_PACK_4.axi_addr_mask.next;
             end
         end
     end
-    assign hwif_out.MON_GROUP_PACK_3.axi_addr_mask.value = field_storage.MON_GROUP_PACK_3.axi_addr_mask.value;
+    assign hwif_out.MON_GROUP_PACK_4.axi_addr_mask.value = field_storage.MON_GROUP_PACK_4.axi_addr_mask.value;
     // Field: bridge_stream_char_axil_mon_cfg.MON_GROUP_PACK_4.axi_debug_mask
     always_comb begin
         automatic logic [15:0] next_c;
@@ -12181,7 +12211,7 @@ module bridge_stream_char_axil_mon_cfg (
         next_c = field_storage.MON_GROUP_PACK_4.axi_debug_mask.value;
         load_next_c = '0;
         if(decoded_reg_strb.MON_GROUP_PACK_4 && decoded_req_is_wr) begin // SW write
-            next_c = (field_storage.MON_GROUP_PACK_4.axi_debug_mask.value & ~decoded_wr_biten[15:0]) | (decoded_wr_data[15:0] & decoded_wr_biten[15:0]);
+            next_c = (field_storage.MON_GROUP_PACK_4.axi_debug_mask.value & ~decoded_wr_biten[31:16]) | (decoded_wr_data[31:16] & decoded_wr_biten[31:16]);
             load_next_c = '1;
         end
         field_combo.MON_GROUP_PACK_4.axi_debug_mask.next = next_c;
@@ -12197,29 +12227,29 @@ module bridge_stream_char_axil_mon_cfg (
         end
     end
     assign hwif_out.MON_GROUP_PACK_4.axi_debug_mask.value = field_storage.MON_GROUP_PACK_4.axi_debug_mask.value;
-    // Field: bridge_stream_char_axil_mon_cfg.MON_GROUP_PACK_4.axis_pkt_mask
+    // Field: bridge_stream_char_axil_mon_cfg.MON_GROUP_PACK_5.axis_pkt_mask
     always_comb begin
         automatic logic [15:0] next_c;
         automatic logic load_next_c;
-        next_c = field_storage.MON_GROUP_PACK_4.axis_pkt_mask.value;
+        next_c = field_storage.MON_GROUP_PACK_5.axis_pkt_mask.value;
         load_next_c = '0;
-        if(decoded_reg_strb.MON_GROUP_PACK_4 && decoded_req_is_wr) begin // SW write
-            next_c = (field_storage.MON_GROUP_PACK_4.axis_pkt_mask.value & ~decoded_wr_biten[31:16]) | (decoded_wr_data[31:16] & decoded_wr_biten[31:16]);
+        if(decoded_reg_strb.MON_GROUP_PACK_5 && decoded_req_is_wr) begin // SW write
+            next_c = (field_storage.MON_GROUP_PACK_5.axis_pkt_mask.value & ~decoded_wr_biten[15:0]) | (decoded_wr_data[15:0] & decoded_wr_biten[15:0]);
             load_next_c = '1;
         end
-        field_combo.MON_GROUP_PACK_4.axis_pkt_mask.next = next_c;
-        field_combo.MON_GROUP_PACK_4.axis_pkt_mask.load_next = load_next_c;
+        field_combo.MON_GROUP_PACK_5.axis_pkt_mask.next = next_c;
+        field_combo.MON_GROUP_PACK_5.axis_pkt_mask.load_next = load_next_c;
     end
     always_ff @(posedge clk) begin
         if(rst) begin
-            field_storage.MON_GROUP_PACK_4.axis_pkt_mask.value <= 16'h0;
+            field_storage.MON_GROUP_PACK_5.axis_pkt_mask.value <= 16'h0;
         end else begin
-            if(field_combo.MON_GROUP_PACK_4.axis_pkt_mask.load_next) begin
-                field_storage.MON_GROUP_PACK_4.axis_pkt_mask.value <= field_combo.MON_GROUP_PACK_4.axis_pkt_mask.next;
+            if(field_combo.MON_GROUP_PACK_5.axis_pkt_mask.load_next) begin
+                field_storage.MON_GROUP_PACK_5.axis_pkt_mask.value <= field_combo.MON_GROUP_PACK_5.axis_pkt_mask.next;
             end
         end
     end
-    assign hwif_out.MON_GROUP_PACK_4.axis_pkt_mask.value = field_storage.MON_GROUP_PACK_4.axis_pkt_mask.value;
+    assign hwif_out.MON_GROUP_PACK_5.axis_pkt_mask.value = field_storage.MON_GROUP_PACK_5.axis_pkt_mask.value;
     // Field: bridge_stream_char_axil_mon_cfg.MON_GROUP_PACK_5.axis_err_select
     always_comb begin
         automatic logic [15:0] next_c;
@@ -12227,7 +12257,7 @@ module bridge_stream_char_axil_mon_cfg (
         next_c = field_storage.MON_GROUP_PACK_5.axis_err_select.value;
         load_next_c = '0;
         if(decoded_reg_strb.MON_GROUP_PACK_5 && decoded_req_is_wr) begin // SW write
-            next_c = (field_storage.MON_GROUP_PACK_5.axis_err_select.value & ~decoded_wr_biten[15:0]) | (decoded_wr_data[15:0] & decoded_wr_biten[15:0]);
+            next_c = (field_storage.MON_GROUP_PACK_5.axis_err_select.value & ~decoded_wr_biten[31:16]) | (decoded_wr_data[31:16] & decoded_wr_biten[31:16]);
             load_next_c = '1;
         end
         field_combo.MON_GROUP_PACK_5.axis_err_select.next = next_c;
@@ -12243,29 +12273,29 @@ module bridge_stream_char_axil_mon_cfg (
         end
     end
     assign hwif_out.MON_GROUP_PACK_5.axis_err_select.value = field_storage.MON_GROUP_PACK_5.axis_err_select.value;
-    // Field: bridge_stream_char_axil_mon_cfg.MON_GROUP_PACK_5.axis_error_mask
+    // Field: bridge_stream_char_axil_mon_cfg.MON_GROUP_PACK_6.axis_error_mask
     always_comb begin
         automatic logic [15:0] next_c;
         automatic logic load_next_c;
-        next_c = field_storage.MON_GROUP_PACK_5.axis_error_mask.value;
+        next_c = field_storage.MON_GROUP_PACK_6.axis_error_mask.value;
         load_next_c = '0;
-        if(decoded_reg_strb.MON_GROUP_PACK_5 && decoded_req_is_wr) begin // SW write
-            next_c = (field_storage.MON_GROUP_PACK_5.axis_error_mask.value & ~decoded_wr_biten[31:16]) | (decoded_wr_data[31:16] & decoded_wr_biten[31:16]);
+        if(decoded_reg_strb.MON_GROUP_PACK_6 && decoded_req_is_wr) begin // SW write
+            next_c = (field_storage.MON_GROUP_PACK_6.axis_error_mask.value & ~decoded_wr_biten[15:0]) | (decoded_wr_data[15:0] & decoded_wr_biten[15:0]);
             load_next_c = '1;
         end
-        field_combo.MON_GROUP_PACK_5.axis_error_mask.next = next_c;
-        field_combo.MON_GROUP_PACK_5.axis_error_mask.load_next = load_next_c;
+        field_combo.MON_GROUP_PACK_6.axis_error_mask.next = next_c;
+        field_combo.MON_GROUP_PACK_6.axis_error_mask.load_next = load_next_c;
     end
     always_ff @(posedge clk) begin
         if(rst) begin
-            field_storage.MON_GROUP_PACK_5.axis_error_mask.value <= 16'h0;
+            field_storage.MON_GROUP_PACK_6.axis_error_mask.value <= 16'h0;
         end else begin
-            if(field_combo.MON_GROUP_PACK_5.axis_error_mask.load_next) begin
-                field_storage.MON_GROUP_PACK_5.axis_error_mask.value <= field_combo.MON_GROUP_PACK_5.axis_error_mask.next;
+            if(field_combo.MON_GROUP_PACK_6.axis_error_mask.load_next) begin
+                field_storage.MON_GROUP_PACK_6.axis_error_mask.value <= field_combo.MON_GROUP_PACK_6.axis_error_mask.next;
             end
         end
     end
-    assign hwif_out.MON_GROUP_PACK_5.axis_error_mask.value = field_storage.MON_GROUP_PACK_5.axis_error_mask.value;
+    assign hwif_out.MON_GROUP_PACK_6.axis_error_mask.value = field_storage.MON_GROUP_PACK_6.axis_error_mask.value;
     // Field: bridge_stream_char_axil_mon_cfg.MON_GROUP_PACK_6.axis_timeout_mask
     always_comb begin
         automatic logic [15:0] next_c;
@@ -12273,7 +12303,7 @@ module bridge_stream_char_axil_mon_cfg (
         next_c = field_storage.MON_GROUP_PACK_6.axis_timeout_mask.value;
         load_next_c = '0;
         if(decoded_reg_strb.MON_GROUP_PACK_6 && decoded_req_is_wr) begin // SW write
-            next_c = (field_storage.MON_GROUP_PACK_6.axis_timeout_mask.value & ~decoded_wr_biten[15:0]) | (decoded_wr_data[15:0] & decoded_wr_biten[15:0]);
+            next_c = (field_storage.MON_GROUP_PACK_6.axis_timeout_mask.value & ~decoded_wr_biten[31:16]) | (decoded_wr_data[31:16] & decoded_wr_biten[31:16]);
             load_next_c = '1;
         end
         field_combo.MON_GROUP_PACK_6.axis_timeout_mask.next = next_c;
@@ -12289,29 +12319,29 @@ module bridge_stream_char_axil_mon_cfg (
         end
     end
     assign hwif_out.MON_GROUP_PACK_6.axis_timeout_mask.value = field_storage.MON_GROUP_PACK_6.axis_timeout_mask.value;
-    // Field: bridge_stream_char_axil_mon_cfg.MON_GROUP_PACK_6.axis_compl_mask
+    // Field: bridge_stream_char_axil_mon_cfg.MON_GROUP_PACK_7.axis_compl_mask
     always_comb begin
         automatic logic [15:0] next_c;
         automatic logic load_next_c;
-        next_c = field_storage.MON_GROUP_PACK_6.axis_compl_mask.value;
+        next_c = field_storage.MON_GROUP_PACK_7.axis_compl_mask.value;
         load_next_c = '0;
-        if(decoded_reg_strb.MON_GROUP_PACK_6 && decoded_req_is_wr) begin // SW write
-            next_c = (field_storage.MON_GROUP_PACK_6.axis_compl_mask.value & ~decoded_wr_biten[31:16]) | (decoded_wr_data[31:16] & decoded_wr_biten[31:16]);
+        if(decoded_reg_strb.MON_GROUP_PACK_7 && decoded_req_is_wr) begin // SW write
+            next_c = (field_storage.MON_GROUP_PACK_7.axis_compl_mask.value & ~decoded_wr_biten[15:0]) | (decoded_wr_data[15:0] & decoded_wr_biten[15:0]);
             load_next_c = '1;
         end
-        field_combo.MON_GROUP_PACK_6.axis_compl_mask.next = next_c;
-        field_combo.MON_GROUP_PACK_6.axis_compl_mask.load_next = load_next_c;
+        field_combo.MON_GROUP_PACK_7.axis_compl_mask.next = next_c;
+        field_combo.MON_GROUP_PACK_7.axis_compl_mask.load_next = load_next_c;
     end
     always_ff @(posedge clk) begin
         if(rst) begin
-            field_storage.MON_GROUP_PACK_6.axis_compl_mask.value <= 16'h0;
+            field_storage.MON_GROUP_PACK_7.axis_compl_mask.value <= 16'h0;
         end else begin
-            if(field_combo.MON_GROUP_PACK_6.axis_compl_mask.load_next) begin
-                field_storage.MON_GROUP_PACK_6.axis_compl_mask.value <= field_combo.MON_GROUP_PACK_6.axis_compl_mask.next;
+            if(field_combo.MON_GROUP_PACK_7.axis_compl_mask.load_next) begin
+                field_storage.MON_GROUP_PACK_7.axis_compl_mask.value <= field_combo.MON_GROUP_PACK_7.axis_compl_mask.next;
             end
         end
     end
-    assign hwif_out.MON_GROUP_PACK_6.axis_compl_mask.value = field_storage.MON_GROUP_PACK_6.axis_compl_mask.value;
+    assign hwif_out.MON_GROUP_PACK_7.axis_compl_mask.value = field_storage.MON_GROUP_PACK_7.axis_compl_mask.value;
     // Field: bridge_stream_char_axil_mon_cfg.MON_GROUP_PACK_7.axis_credit_mask
     always_comb begin
         automatic logic [15:0] next_c;
@@ -12319,7 +12349,7 @@ module bridge_stream_char_axil_mon_cfg (
         next_c = field_storage.MON_GROUP_PACK_7.axis_credit_mask.value;
         load_next_c = '0;
         if(decoded_reg_strb.MON_GROUP_PACK_7 && decoded_req_is_wr) begin // SW write
-            next_c = (field_storage.MON_GROUP_PACK_7.axis_credit_mask.value & ~decoded_wr_biten[15:0]) | (decoded_wr_data[15:0] & decoded_wr_biten[15:0]);
+            next_c = (field_storage.MON_GROUP_PACK_7.axis_credit_mask.value & ~decoded_wr_biten[31:16]) | (decoded_wr_data[31:16] & decoded_wr_biten[31:16]);
             load_next_c = '1;
         end
         field_combo.MON_GROUP_PACK_7.axis_credit_mask.next = next_c;
@@ -12335,29 +12365,29 @@ module bridge_stream_char_axil_mon_cfg (
         end
     end
     assign hwif_out.MON_GROUP_PACK_7.axis_credit_mask.value = field_storage.MON_GROUP_PACK_7.axis_credit_mask.value;
-    // Field: bridge_stream_char_axil_mon_cfg.MON_GROUP_PACK_7.axis_channel_mask
+    // Field: bridge_stream_char_axil_mon_cfg.MON_GROUP_PACK_8.axis_channel_mask
     always_comb begin
         automatic logic [15:0] next_c;
         automatic logic load_next_c;
-        next_c = field_storage.MON_GROUP_PACK_7.axis_channel_mask.value;
+        next_c = field_storage.MON_GROUP_PACK_8.axis_channel_mask.value;
         load_next_c = '0;
-        if(decoded_reg_strb.MON_GROUP_PACK_7 && decoded_req_is_wr) begin // SW write
-            next_c = (field_storage.MON_GROUP_PACK_7.axis_channel_mask.value & ~decoded_wr_biten[31:16]) | (decoded_wr_data[31:16] & decoded_wr_biten[31:16]);
+        if(decoded_reg_strb.MON_GROUP_PACK_8 && decoded_req_is_wr) begin // SW write
+            next_c = (field_storage.MON_GROUP_PACK_8.axis_channel_mask.value & ~decoded_wr_biten[15:0]) | (decoded_wr_data[15:0] & decoded_wr_biten[15:0]);
             load_next_c = '1;
         end
-        field_combo.MON_GROUP_PACK_7.axis_channel_mask.next = next_c;
-        field_combo.MON_GROUP_PACK_7.axis_channel_mask.load_next = load_next_c;
+        field_combo.MON_GROUP_PACK_8.axis_channel_mask.next = next_c;
+        field_combo.MON_GROUP_PACK_8.axis_channel_mask.load_next = load_next_c;
     end
     always_ff @(posedge clk) begin
         if(rst) begin
-            field_storage.MON_GROUP_PACK_7.axis_channel_mask.value <= 16'h0;
+            field_storage.MON_GROUP_PACK_8.axis_channel_mask.value <= 16'h0;
         end else begin
-            if(field_combo.MON_GROUP_PACK_7.axis_channel_mask.load_next) begin
-                field_storage.MON_GROUP_PACK_7.axis_channel_mask.value <= field_combo.MON_GROUP_PACK_7.axis_channel_mask.next;
+            if(field_combo.MON_GROUP_PACK_8.axis_channel_mask.load_next) begin
+                field_storage.MON_GROUP_PACK_8.axis_channel_mask.value <= field_combo.MON_GROUP_PACK_8.axis_channel_mask.next;
             end
         end
     end
-    assign hwif_out.MON_GROUP_PACK_7.axis_channel_mask.value = field_storage.MON_GROUP_PACK_7.axis_channel_mask.value;
+    assign hwif_out.MON_GROUP_PACK_8.axis_channel_mask.value = field_storage.MON_GROUP_PACK_8.axis_channel_mask.value;
     // Field: bridge_stream_char_axil_mon_cfg.MON_GROUP_PACK_8.axis_stream_mask
     always_comb begin
         automatic logic [15:0] next_c;
@@ -12365,7 +12395,7 @@ module bridge_stream_char_axil_mon_cfg (
         next_c = field_storage.MON_GROUP_PACK_8.axis_stream_mask.value;
         load_next_c = '0;
         if(decoded_reg_strb.MON_GROUP_PACK_8 && decoded_req_is_wr) begin // SW write
-            next_c = (field_storage.MON_GROUP_PACK_8.axis_stream_mask.value & ~decoded_wr_biten[15:0]) | (decoded_wr_data[15:0] & decoded_wr_biten[15:0]);
+            next_c = (field_storage.MON_GROUP_PACK_8.axis_stream_mask.value & ~decoded_wr_biten[31:16]) | (decoded_wr_data[31:16] & decoded_wr_biten[31:16]);
             load_next_c = '1;
         end
         field_combo.MON_GROUP_PACK_8.axis_stream_mask.next = next_c;
@@ -12381,29 +12411,29 @@ module bridge_stream_char_axil_mon_cfg (
         end
     end
     assign hwif_out.MON_GROUP_PACK_8.axis_stream_mask.value = field_storage.MON_GROUP_PACK_8.axis_stream_mask.value;
-    // Field: bridge_stream_char_axil_mon_cfg.MON_GROUP_PACK_8.core_pkt_mask
+    // Field: bridge_stream_char_axil_mon_cfg.MON_GROUP_PACK_9.core_pkt_mask
     always_comb begin
         automatic logic [15:0] next_c;
         automatic logic load_next_c;
-        next_c = field_storage.MON_GROUP_PACK_8.core_pkt_mask.value;
+        next_c = field_storage.MON_GROUP_PACK_9.core_pkt_mask.value;
         load_next_c = '0;
-        if(decoded_reg_strb.MON_GROUP_PACK_8 && decoded_req_is_wr) begin // SW write
-            next_c = (field_storage.MON_GROUP_PACK_8.core_pkt_mask.value & ~decoded_wr_biten[31:16]) | (decoded_wr_data[31:16] & decoded_wr_biten[31:16]);
+        if(decoded_reg_strb.MON_GROUP_PACK_9 && decoded_req_is_wr) begin // SW write
+            next_c = (field_storage.MON_GROUP_PACK_9.core_pkt_mask.value & ~decoded_wr_biten[15:0]) | (decoded_wr_data[15:0] & decoded_wr_biten[15:0]);
             load_next_c = '1;
         end
-        field_combo.MON_GROUP_PACK_8.core_pkt_mask.next = next_c;
-        field_combo.MON_GROUP_PACK_8.core_pkt_mask.load_next = load_next_c;
+        field_combo.MON_GROUP_PACK_9.core_pkt_mask.next = next_c;
+        field_combo.MON_GROUP_PACK_9.core_pkt_mask.load_next = load_next_c;
     end
     always_ff @(posedge clk) begin
         if(rst) begin
-            field_storage.MON_GROUP_PACK_8.core_pkt_mask.value <= 16'h0;
+            field_storage.MON_GROUP_PACK_9.core_pkt_mask.value <= 16'h0;
         end else begin
-            if(field_combo.MON_GROUP_PACK_8.core_pkt_mask.load_next) begin
-                field_storage.MON_GROUP_PACK_8.core_pkt_mask.value <= field_combo.MON_GROUP_PACK_8.core_pkt_mask.next;
+            if(field_combo.MON_GROUP_PACK_9.core_pkt_mask.load_next) begin
+                field_storage.MON_GROUP_PACK_9.core_pkt_mask.value <= field_combo.MON_GROUP_PACK_9.core_pkt_mask.next;
             end
         end
     end
-    assign hwif_out.MON_GROUP_PACK_8.core_pkt_mask.value = field_storage.MON_GROUP_PACK_8.core_pkt_mask.value;
+    assign hwif_out.MON_GROUP_PACK_9.core_pkt_mask.value = field_storage.MON_GROUP_PACK_9.core_pkt_mask.value;
     // Field: bridge_stream_char_axil_mon_cfg.MON_GROUP_PACK_9.core_err_select
     always_comb begin
         automatic logic [15:0] next_c;
@@ -12411,7 +12441,7 @@ module bridge_stream_char_axil_mon_cfg (
         next_c = field_storage.MON_GROUP_PACK_9.core_err_select.value;
         load_next_c = '0;
         if(decoded_reg_strb.MON_GROUP_PACK_9 && decoded_req_is_wr) begin // SW write
-            next_c = (field_storage.MON_GROUP_PACK_9.core_err_select.value & ~decoded_wr_biten[15:0]) | (decoded_wr_data[15:0] & decoded_wr_biten[15:0]);
+            next_c = (field_storage.MON_GROUP_PACK_9.core_err_select.value & ~decoded_wr_biten[31:16]) | (decoded_wr_data[31:16] & decoded_wr_biten[31:16]);
             load_next_c = '1;
         end
         field_combo.MON_GROUP_PACK_9.core_err_select.next = next_c;
@@ -12427,29 +12457,29 @@ module bridge_stream_char_axil_mon_cfg (
         end
     end
     assign hwif_out.MON_GROUP_PACK_9.core_err_select.value = field_storage.MON_GROUP_PACK_9.core_err_select.value;
-    // Field: bridge_stream_char_axil_mon_cfg.MON_GROUP_PACK_9.core_error_mask
+    // Field: bridge_stream_char_axil_mon_cfg.MON_GROUP_PACK_10.core_error_mask
     always_comb begin
         automatic logic [15:0] next_c;
         automatic logic load_next_c;
-        next_c = field_storage.MON_GROUP_PACK_9.core_error_mask.value;
+        next_c = field_storage.MON_GROUP_PACK_10.core_error_mask.value;
         load_next_c = '0;
-        if(decoded_reg_strb.MON_GROUP_PACK_9 && decoded_req_is_wr) begin // SW write
-            next_c = (field_storage.MON_GROUP_PACK_9.core_error_mask.value & ~decoded_wr_biten[31:16]) | (decoded_wr_data[31:16] & decoded_wr_biten[31:16]);
+        if(decoded_reg_strb.MON_GROUP_PACK_10 && decoded_req_is_wr) begin // SW write
+            next_c = (field_storage.MON_GROUP_PACK_10.core_error_mask.value & ~decoded_wr_biten[15:0]) | (decoded_wr_data[15:0] & decoded_wr_biten[15:0]);
             load_next_c = '1;
         end
-        field_combo.MON_GROUP_PACK_9.core_error_mask.next = next_c;
-        field_combo.MON_GROUP_PACK_9.core_error_mask.load_next = load_next_c;
+        field_combo.MON_GROUP_PACK_10.core_error_mask.next = next_c;
+        field_combo.MON_GROUP_PACK_10.core_error_mask.load_next = load_next_c;
     end
     always_ff @(posedge clk) begin
         if(rst) begin
-            field_storage.MON_GROUP_PACK_9.core_error_mask.value <= 16'h0;
+            field_storage.MON_GROUP_PACK_10.core_error_mask.value <= 16'h0;
         end else begin
-            if(field_combo.MON_GROUP_PACK_9.core_error_mask.load_next) begin
-                field_storage.MON_GROUP_PACK_9.core_error_mask.value <= field_combo.MON_GROUP_PACK_9.core_error_mask.next;
+            if(field_combo.MON_GROUP_PACK_10.core_error_mask.load_next) begin
+                field_storage.MON_GROUP_PACK_10.core_error_mask.value <= field_combo.MON_GROUP_PACK_10.core_error_mask.next;
             end
         end
     end
-    assign hwif_out.MON_GROUP_PACK_9.core_error_mask.value = field_storage.MON_GROUP_PACK_9.core_error_mask.value;
+    assign hwif_out.MON_GROUP_PACK_10.core_error_mask.value = field_storage.MON_GROUP_PACK_10.core_error_mask.value;
     // Field: bridge_stream_char_axil_mon_cfg.MON_GROUP_PACK_10.core_timeout_mask
     always_comb begin
         automatic logic [15:0] next_c;
@@ -12457,7 +12487,7 @@ module bridge_stream_char_axil_mon_cfg (
         next_c = field_storage.MON_GROUP_PACK_10.core_timeout_mask.value;
         load_next_c = '0;
         if(decoded_reg_strb.MON_GROUP_PACK_10 && decoded_req_is_wr) begin // SW write
-            next_c = (field_storage.MON_GROUP_PACK_10.core_timeout_mask.value & ~decoded_wr_biten[15:0]) | (decoded_wr_data[15:0] & decoded_wr_biten[15:0]);
+            next_c = (field_storage.MON_GROUP_PACK_10.core_timeout_mask.value & ~decoded_wr_biten[31:16]) | (decoded_wr_data[31:16] & decoded_wr_biten[31:16]);
             load_next_c = '1;
         end
         field_combo.MON_GROUP_PACK_10.core_timeout_mask.next = next_c;
@@ -12473,29 +12503,29 @@ module bridge_stream_char_axil_mon_cfg (
         end
     end
     assign hwif_out.MON_GROUP_PACK_10.core_timeout_mask.value = field_storage.MON_GROUP_PACK_10.core_timeout_mask.value;
-    // Field: bridge_stream_char_axil_mon_cfg.MON_GROUP_PACK_10.core_compl_mask
+    // Field: bridge_stream_char_axil_mon_cfg.MON_GROUP_PACK_11.core_compl_mask
     always_comb begin
         automatic logic [15:0] next_c;
         automatic logic load_next_c;
-        next_c = field_storage.MON_GROUP_PACK_10.core_compl_mask.value;
+        next_c = field_storage.MON_GROUP_PACK_11.core_compl_mask.value;
         load_next_c = '0;
-        if(decoded_reg_strb.MON_GROUP_PACK_10 && decoded_req_is_wr) begin // SW write
-            next_c = (field_storage.MON_GROUP_PACK_10.core_compl_mask.value & ~decoded_wr_biten[31:16]) | (decoded_wr_data[31:16] & decoded_wr_biten[31:16]);
+        if(decoded_reg_strb.MON_GROUP_PACK_11 && decoded_req_is_wr) begin // SW write
+            next_c = (field_storage.MON_GROUP_PACK_11.core_compl_mask.value & ~decoded_wr_biten[15:0]) | (decoded_wr_data[15:0] & decoded_wr_biten[15:0]);
             load_next_c = '1;
         end
-        field_combo.MON_GROUP_PACK_10.core_compl_mask.next = next_c;
-        field_combo.MON_GROUP_PACK_10.core_compl_mask.load_next = load_next_c;
+        field_combo.MON_GROUP_PACK_11.core_compl_mask.next = next_c;
+        field_combo.MON_GROUP_PACK_11.core_compl_mask.load_next = load_next_c;
     end
     always_ff @(posedge clk) begin
         if(rst) begin
-            field_storage.MON_GROUP_PACK_10.core_compl_mask.value <= 16'h0;
+            field_storage.MON_GROUP_PACK_11.core_compl_mask.value <= 16'h0;
         end else begin
-            if(field_combo.MON_GROUP_PACK_10.core_compl_mask.load_next) begin
-                field_storage.MON_GROUP_PACK_10.core_compl_mask.value <= field_combo.MON_GROUP_PACK_10.core_compl_mask.next;
+            if(field_combo.MON_GROUP_PACK_11.core_compl_mask.load_next) begin
+                field_storage.MON_GROUP_PACK_11.core_compl_mask.value <= field_combo.MON_GROUP_PACK_11.core_compl_mask.next;
             end
         end
     end
-    assign hwif_out.MON_GROUP_PACK_10.core_compl_mask.value = field_storage.MON_GROUP_PACK_10.core_compl_mask.value;
+    assign hwif_out.MON_GROUP_PACK_11.core_compl_mask.value = field_storage.MON_GROUP_PACK_11.core_compl_mask.value;
     // Field: bridge_stream_char_axil_mon_cfg.MON_GROUP_PACK_11.core_thresh_mask
     always_comb begin
         automatic logic [15:0] next_c;
@@ -12503,7 +12533,7 @@ module bridge_stream_char_axil_mon_cfg (
         next_c = field_storage.MON_GROUP_PACK_11.core_thresh_mask.value;
         load_next_c = '0;
         if(decoded_reg_strb.MON_GROUP_PACK_11 && decoded_req_is_wr) begin // SW write
-            next_c = (field_storage.MON_GROUP_PACK_11.core_thresh_mask.value & ~decoded_wr_biten[15:0]) | (decoded_wr_data[15:0] & decoded_wr_biten[15:0]);
+            next_c = (field_storage.MON_GROUP_PACK_11.core_thresh_mask.value & ~decoded_wr_biten[31:16]) | (decoded_wr_data[31:16] & decoded_wr_biten[31:16]);
             load_next_c = '1;
         end
         field_combo.MON_GROUP_PACK_11.core_thresh_mask.next = next_c;
@@ -12519,29 +12549,29 @@ module bridge_stream_char_axil_mon_cfg (
         end
     end
     assign hwif_out.MON_GROUP_PACK_11.core_thresh_mask.value = field_storage.MON_GROUP_PACK_11.core_thresh_mask.value;
-    // Field: bridge_stream_char_axil_mon_cfg.MON_GROUP_PACK_11.core_perf_mask
+    // Field: bridge_stream_char_axil_mon_cfg.MON_GROUP_PACK_12.core_perf_mask
     always_comb begin
         automatic logic [15:0] next_c;
         automatic logic load_next_c;
-        next_c = field_storage.MON_GROUP_PACK_11.core_perf_mask.value;
+        next_c = field_storage.MON_GROUP_PACK_12.core_perf_mask.value;
         load_next_c = '0;
-        if(decoded_reg_strb.MON_GROUP_PACK_11 && decoded_req_is_wr) begin // SW write
-            next_c = (field_storage.MON_GROUP_PACK_11.core_perf_mask.value & ~decoded_wr_biten[31:16]) | (decoded_wr_data[31:16] & decoded_wr_biten[31:16]);
+        if(decoded_reg_strb.MON_GROUP_PACK_12 && decoded_req_is_wr) begin // SW write
+            next_c = (field_storage.MON_GROUP_PACK_12.core_perf_mask.value & ~decoded_wr_biten[15:0]) | (decoded_wr_data[15:0] & decoded_wr_biten[15:0]);
             load_next_c = '1;
         end
-        field_combo.MON_GROUP_PACK_11.core_perf_mask.next = next_c;
-        field_combo.MON_GROUP_PACK_11.core_perf_mask.load_next = load_next_c;
+        field_combo.MON_GROUP_PACK_12.core_perf_mask.next = next_c;
+        field_combo.MON_GROUP_PACK_12.core_perf_mask.load_next = load_next_c;
     end
     always_ff @(posedge clk) begin
         if(rst) begin
-            field_storage.MON_GROUP_PACK_11.core_perf_mask.value <= 16'h0;
+            field_storage.MON_GROUP_PACK_12.core_perf_mask.value <= 16'h0;
         end else begin
-            if(field_combo.MON_GROUP_PACK_11.core_perf_mask.load_next) begin
-                field_storage.MON_GROUP_PACK_11.core_perf_mask.value <= field_combo.MON_GROUP_PACK_11.core_perf_mask.next;
+            if(field_combo.MON_GROUP_PACK_12.core_perf_mask.load_next) begin
+                field_storage.MON_GROUP_PACK_12.core_perf_mask.value <= field_combo.MON_GROUP_PACK_12.core_perf_mask.next;
             end
         end
     end
-    assign hwif_out.MON_GROUP_PACK_11.core_perf_mask.value = field_storage.MON_GROUP_PACK_11.core_perf_mask.value;
+    assign hwif_out.MON_GROUP_PACK_12.core_perf_mask.value = field_storage.MON_GROUP_PACK_12.core_perf_mask.value;
     // Field: bridge_stream_char_axil_mon_cfg.MON_GROUP_PACK_12.core_debug_mask
     always_comb begin
         automatic logic [15:0] next_c;
@@ -12549,7 +12579,7 @@ module bridge_stream_char_axil_mon_cfg (
         next_c = field_storage.MON_GROUP_PACK_12.core_debug_mask.value;
         load_next_c = '0;
         if(decoded_reg_strb.MON_GROUP_PACK_12 && decoded_req_is_wr) begin // SW write
-            next_c = (field_storage.MON_GROUP_PACK_12.core_debug_mask.value & ~decoded_wr_biten[15:0]) | (decoded_wr_data[15:0] & decoded_wr_biten[15:0]);
+            next_c = (field_storage.MON_GROUP_PACK_12.core_debug_mask.value & ~decoded_wr_biten[31:16]) | (decoded_wr_data[31:16] & decoded_wr_biten[31:16]);
             load_next_c = '1;
         end
         field_combo.MON_GROUP_PACK_12.core_debug_mask.next = next_c;
@@ -12981,32 +13011,32 @@ module bridge_stream_char_axil_mon_cfg (
     assign readback_array[131][31:16] = '0;
     assign readback_array[132][31:0] = (decoded_reg_strb.MON_GROUP_BASE_ADDR && !decoded_req_is_wr) ? field_storage.MON_GROUP_BASE_ADDR.base_addr.value : '0;
     assign readback_array[133][31:0] = (decoded_reg_strb.MON_GROUP_LIMIT_ADDR && !decoded_req_is_wr) ? field_storage.MON_GROUP_LIMIT_ADDR.limit_addr.value : '0;
-    assign readback_array[134][15:0] = (decoded_reg_strb.MON_GROUP_PACK_0 && !decoded_req_is_wr) ? field_storage.MON_GROUP_PACK_0.axi_pkt_mask.value : '0;
-    assign readback_array[134][31:16] = (decoded_reg_strb.MON_GROUP_PACK_0 && !decoded_req_is_wr) ? field_storage.MON_GROUP_PACK_0.axi_err_select.value : '0;
-    assign readback_array[135][15:0] = (decoded_reg_strb.MON_GROUP_PACK_1 && !decoded_req_is_wr) ? field_storage.MON_GROUP_PACK_1.axi_error_mask.value : '0;
-    assign readback_array[135][31:16] = (decoded_reg_strb.MON_GROUP_PACK_1 && !decoded_req_is_wr) ? field_storage.MON_GROUP_PACK_1.axi_timeout_mask.value : '0;
-    assign readback_array[136][15:0] = (decoded_reg_strb.MON_GROUP_PACK_2 && !decoded_req_is_wr) ? field_storage.MON_GROUP_PACK_2.axi_compl_mask.value : '0;
-    assign readback_array[136][31:16] = (decoded_reg_strb.MON_GROUP_PACK_2 && !decoded_req_is_wr) ? field_storage.MON_GROUP_PACK_2.axi_thresh_mask.value : '0;
-    assign readback_array[137][15:0] = (decoded_reg_strb.MON_GROUP_PACK_3 && !decoded_req_is_wr) ? field_storage.MON_GROUP_PACK_3.axi_perf_mask.value : '0;
-    assign readback_array[137][31:16] = (decoded_reg_strb.MON_GROUP_PACK_3 && !decoded_req_is_wr) ? field_storage.MON_GROUP_PACK_3.axi_addr_mask.value : '0;
-    assign readback_array[138][15:0] = (decoded_reg_strb.MON_GROUP_PACK_4 && !decoded_req_is_wr) ? field_storage.MON_GROUP_PACK_4.axi_debug_mask.value : '0;
-    assign readback_array[138][31:16] = (decoded_reg_strb.MON_GROUP_PACK_4 && !decoded_req_is_wr) ? field_storage.MON_GROUP_PACK_4.axis_pkt_mask.value : '0;
-    assign readback_array[139][15:0] = (decoded_reg_strb.MON_GROUP_PACK_5 && !decoded_req_is_wr) ? field_storage.MON_GROUP_PACK_5.axis_err_select.value : '0;
-    assign readback_array[139][31:16] = (decoded_reg_strb.MON_GROUP_PACK_5 && !decoded_req_is_wr) ? field_storage.MON_GROUP_PACK_5.axis_error_mask.value : '0;
-    assign readback_array[140][15:0] = (decoded_reg_strb.MON_GROUP_PACK_6 && !decoded_req_is_wr) ? field_storage.MON_GROUP_PACK_6.axis_timeout_mask.value : '0;
-    assign readback_array[140][31:16] = (decoded_reg_strb.MON_GROUP_PACK_6 && !decoded_req_is_wr) ? field_storage.MON_GROUP_PACK_6.axis_compl_mask.value : '0;
-    assign readback_array[141][15:0] = (decoded_reg_strb.MON_GROUP_PACK_7 && !decoded_req_is_wr) ? field_storage.MON_GROUP_PACK_7.axis_credit_mask.value : '0;
-    assign readback_array[141][31:16] = (decoded_reg_strb.MON_GROUP_PACK_7 && !decoded_req_is_wr) ? field_storage.MON_GROUP_PACK_7.axis_channel_mask.value : '0;
-    assign readback_array[142][15:0] = (decoded_reg_strb.MON_GROUP_PACK_8 && !decoded_req_is_wr) ? field_storage.MON_GROUP_PACK_8.axis_stream_mask.value : '0;
-    assign readback_array[142][31:16] = (decoded_reg_strb.MON_GROUP_PACK_8 && !decoded_req_is_wr) ? field_storage.MON_GROUP_PACK_8.core_pkt_mask.value : '0;
-    assign readback_array[143][15:0] = (decoded_reg_strb.MON_GROUP_PACK_9 && !decoded_req_is_wr) ? field_storage.MON_GROUP_PACK_9.core_err_select.value : '0;
-    assign readback_array[143][31:16] = (decoded_reg_strb.MON_GROUP_PACK_9 && !decoded_req_is_wr) ? field_storage.MON_GROUP_PACK_9.core_error_mask.value : '0;
-    assign readback_array[144][15:0] = (decoded_reg_strb.MON_GROUP_PACK_10 && !decoded_req_is_wr) ? field_storage.MON_GROUP_PACK_10.core_timeout_mask.value : '0;
-    assign readback_array[144][31:16] = (decoded_reg_strb.MON_GROUP_PACK_10 && !decoded_req_is_wr) ? field_storage.MON_GROUP_PACK_10.core_compl_mask.value : '0;
-    assign readback_array[145][15:0] = (decoded_reg_strb.MON_GROUP_PACK_11 && !decoded_req_is_wr) ? field_storage.MON_GROUP_PACK_11.core_thresh_mask.value : '0;
-    assign readback_array[145][31:16] = (decoded_reg_strb.MON_GROUP_PACK_11 && !decoded_req_is_wr) ? field_storage.MON_GROUP_PACK_11.core_perf_mask.value : '0;
-    assign readback_array[146][15:0] = (decoded_reg_strb.MON_GROUP_PACK_12 && !decoded_req_is_wr) ? field_storage.MON_GROUP_PACK_12.core_debug_mask.value : '0;
-    assign readback_array[146][31:16] = '0;
+    assign readback_array[134][15:0] = (decoded_reg_strb.MON_GROUP_PACK_0 && !decoded_req_is_wr) ? field_storage.MON_GROUP_PACK_0.flush_watermark.value : '0;
+    assign readback_array[134][31:16] = (decoded_reg_strb.MON_GROUP_PACK_0 && !decoded_req_is_wr) ? field_storage.MON_GROUP_PACK_0.axi_pkt_mask.value : '0;
+    assign readback_array[135][15:0] = (decoded_reg_strb.MON_GROUP_PACK_1 && !decoded_req_is_wr) ? field_storage.MON_GROUP_PACK_1.axi_err_select.value : '0;
+    assign readback_array[135][31:16] = (decoded_reg_strb.MON_GROUP_PACK_1 && !decoded_req_is_wr) ? field_storage.MON_GROUP_PACK_1.axi_error_mask.value : '0;
+    assign readback_array[136][15:0] = (decoded_reg_strb.MON_GROUP_PACK_2 && !decoded_req_is_wr) ? field_storage.MON_GROUP_PACK_2.axi_timeout_mask.value : '0;
+    assign readback_array[136][31:16] = (decoded_reg_strb.MON_GROUP_PACK_2 && !decoded_req_is_wr) ? field_storage.MON_GROUP_PACK_2.axi_compl_mask.value : '0;
+    assign readback_array[137][15:0] = (decoded_reg_strb.MON_GROUP_PACK_3 && !decoded_req_is_wr) ? field_storage.MON_GROUP_PACK_3.axi_thresh_mask.value : '0;
+    assign readback_array[137][31:16] = (decoded_reg_strb.MON_GROUP_PACK_3 && !decoded_req_is_wr) ? field_storage.MON_GROUP_PACK_3.axi_perf_mask.value : '0;
+    assign readback_array[138][15:0] = (decoded_reg_strb.MON_GROUP_PACK_4 && !decoded_req_is_wr) ? field_storage.MON_GROUP_PACK_4.axi_addr_mask.value : '0;
+    assign readback_array[138][31:16] = (decoded_reg_strb.MON_GROUP_PACK_4 && !decoded_req_is_wr) ? field_storage.MON_GROUP_PACK_4.axi_debug_mask.value : '0;
+    assign readback_array[139][15:0] = (decoded_reg_strb.MON_GROUP_PACK_5 && !decoded_req_is_wr) ? field_storage.MON_GROUP_PACK_5.axis_pkt_mask.value : '0;
+    assign readback_array[139][31:16] = (decoded_reg_strb.MON_GROUP_PACK_5 && !decoded_req_is_wr) ? field_storage.MON_GROUP_PACK_5.axis_err_select.value : '0;
+    assign readback_array[140][15:0] = (decoded_reg_strb.MON_GROUP_PACK_6 && !decoded_req_is_wr) ? field_storage.MON_GROUP_PACK_6.axis_error_mask.value : '0;
+    assign readback_array[140][31:16] = (decoded_reg_strb.MON_GROUP_PACK_6 && !decoded_req_is_wr) ? field_storage.MON_GROUP_PACK_6.axis_timeout_mask.value : '0;
+    assign readback_array[141][15:0] = (decoded_reg_strb.MON_GROUP_PACK_7 && !decoded_req_is_wr) ? field_storage.MON_GROUP_PACK_7.axis_compl_mask.value : '0;
+    assign readback_array[141][31:16] = (decoded_reg_strb.MON_GROUP_PACK_7 && !decoded_req_is_wr) ? field_storage.MON_GROUP_PACK_7.axis_credit_mask.value : '0;
+    assign readback_array[142][15:0] = (decoded_reg_strb.MON_GROUP_PACK_8 && !decoded_req_is_wr) ? field_storage.MON_GROUP_PACK_8.axis_channel_mask.value : '0;
+    assign readback_array[142][31:16] = (decoded_reg_strb.MON_GROUP_PACK_8 && !decoded_req_is_wr) ? field_storage.MON_GROUP_PACK_8.axis_stream_mask.value : '0;
+    assign readback_array[143][15:0] = (decoded_reg_strb.MON_GROUP_PACK_9 && !decoded_req_is_wr) ? field_storage.MON_GROUP_PACK_9.core_pkt_mask.value : '0;
+    assign readback_array[143][31:16] = (decoded_reg_strb.MON_GROUP_PACK_9 && !decoded_req_is_wr) ? field_storage.MON_GROUP_PACK_9.core_err_select.value : '0;
+    assign readback_array[144][15:0] = (decoded_reg_strb.MON_GROUP_PACK_10 && !decoded_req_is_wr) ? field_storage.MON_GROUP_PACK_10.core_error_mask.value : '0;
+    assign readback_array[144][31:16] = (decoded_reg_strb.MON_GROUP_PACK_10 && !decoded_req_is_wr) ? field_storage.MON_GROUP_PACK_10.core_timeout_mask.value : '0;
+    assign readback_array[145][15:0] = (decoded_reg_strb.MON_GROUP_PACK_11 && !decoded_req_is_wr) ? field_storage.MON_GROUP_PACK_11.core_compl_mask.value : '0;
+    assign readback_array[145][31:16] = (decoded_reg_strb.MON_GROUP_PACK_11 && !decoded_req_is_wr) ? field_storage.MON_GROUP_PACK_11.core_thresh_mask.value : '0;
+    assign readback_array[146][15:0] = (decoded_reg_strb.MON_GROUP_PACK_12 && !decoded_req_is_wr) ? field_storage.MON_GROUP_PACK_12.core_perf_mask.value : '0;
+    assign readback_array[146][31:16] = (decoded_reg_strb.MON_GROUP_PACK_12 && !decoded_req_is_wr) ? field_storage.MON_GROUP_PACK_12.core_debug_mask.value : '0;
 
     // Reduce the array
     always_comb begin

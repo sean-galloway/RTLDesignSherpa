@@ -23,16 +23,18 @@ $FRAMEWORK_ROOT/rtl/harness_csr.sv
 # at 0x100 (R) and 0x180 (W).
 $FRAMEWORK_ROOT/rtl/axi_bus_meter.sv
 
-# Unified SDP-BRAM slave with per-port AXI4/AXIL protocol select.
-# Both desc_ram (AXI4/AXI4, 256-bit) and debug_sram (AXIL/AXIL, 64-bit)
-# instances in stream_char_harness use this single module via the
-# WR_PROTOCOL / RD_PROTOCOL parameters. Replaces the two predecessor
-# modules (axi4_sdpram_slave, axil_sdpram_slave).
+# Unified SDP-BRAM slave -- protocol-agnostic compute kernel + thin
+# per-permutation wrappers (no string-switch generate plumbing).
+#   sdpram_core            -- BRAM + axi_gen_addr + clear FSM + obs
+#   sdpram_slave_axi4_axi4 -- desc_ram (256-bit AXI4 wr + AXI4 rd)
+#   sdpram_slave_axil_axil -- debug_sram (64-bit AXIL wr + AXIL rd)
 # Requires axi_gen_addr (combinational per-beat address generator) and
 # the standard axi4_slave_rd/wr + axil4_slave_rd/wr protocol skids
 # (already pulled in via the bridge filelist).
 $REPO_ROOT/rtl/amba/shared/axi_gen_addr.sv
-$REPO_ROOT/rtl/amba/shared/sdpram_slave.sv
+$REPO_ROOT/rtl/amba/shared/sdpram_core.sv
+$REPO_ROOT/rtl/amba/shared/sdpram_slave_axi4_axi4.sv
+$REPO_ROOT/rtl/amba/shared/sdpram_slave_axil_axil.sv
 
 # Sim-only scoreboard bound into stream_core's u_sram_controller. Catches
 # per-channel data swaps between the RD-engine deposit and WR-engine drain

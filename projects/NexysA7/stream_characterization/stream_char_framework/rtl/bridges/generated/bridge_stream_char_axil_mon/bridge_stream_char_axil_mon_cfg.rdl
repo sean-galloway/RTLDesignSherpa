@@ -1019,92 +1019,93 @@ addrmap bridge_stream_char_axil_mon_cfg {
 
     reg {
         name = "MON_GROUP_PACK_0";
-        desc = "mon_group pack #0: axi_pkt_mask + axi_err_select";
-        field { reset = 16'h0000; } axi_pkt_mask[15:0];
-        field { reset = 16'h0000; } axi_err_select[31:16];
+        desc = "mon_group pack #0: flush_watermark + axi_pkt_mask";
+        field { reset = 16'h0000; } flush_watermark[15:0];
+        field { reset = 16'h0000; } axi_pkt_mask[31:16];
     } MON_GROUP_PACK_0;
 
     reg {
         name = "MON_GROUP_PACK_1";
-        desc = "mon_group pack #1: axi_error_mask + axi_timeout_mask";
-        field { reset = 16'h0000; } axi_error_mask[15:0];
-        field { reset = 16'h0000; } axi_timeout_mask[31:16];
+        desc = "mon_group pack #1: axi_err_select + axi_error_mask";
+        field { reset = 16'h0000; } axi_err_select[15:0];
+        field { reset = 16'h0000; } axi_error_mask[31:16];
     } MON_GROUP_PACK_1;
 
     reg {
         name = "MON_GROUP_PACK_2";
-        desc = "mon_group pack #2: axi_compl_mask + axi_thresh_mask";
-        field { reset = 16'h0000; } axi_compl_mask[15:0];
-        field { reset = 16'h0000; } axi_thresh_mask[31:16];
+        desc = "mon_group pack #2: axi_timeout_mask + axi_compl_mask";
+        field { reset = 16'h0000; } axi_timeout_mask[15:0];
+        field { reset = 16'h0000; } axi_compl_mask[31:16];
     } MON_GROUP_PACK_2;
 
     reg {
         name = "MON_GROUP_PACK_3";
-        desc = "mon_group pack #3: axi_perf_mask + axi_addr_mask";
-        field { reset = 16'h0000; } axi_perf_mask[15:0];
-        field { reset = 16'h0000; } axi_addr_mask[31:16];
+        desc = "mon_group pack #3: axi_thresh_mask + axi_perf_mask";
+        field { reset = 16'h0000; } axi_thresh_mask[15:0];
+        field { reset = 16'h0000; } axi_perf_mask[31:16];
     } MON_GROUP_PACK_3;
 
     reg {
         name = "MON_GROUP_PACK_4";
-        desc = "mon_group pack #4: axi_debug_mask + axis_pkt_mask";
-        field { reset = 16'h0000; } axi_debug_mask[15:0];
-        field { reset = 16'h0000; } axis_pkt_mask[31:16];
+        desc = "mon_group pack #4: axi_addr_mask + axi_debug_mask";
+        field { reset = 16'h0000; } axi_addr_mask[15:0];
+        field { reset = 16'h0000; } axi_debug_mask[31:16];
     } MON_GROUP_PACK_4;
 
     reg {
         name = "MON_GROUP_PACK_5";
-        desc = "mon_group pack #5: axis_err_select + axis_error_mask";
-        field { reset = 16'h0000; } axis_err_select[15:0];
-        field { reset = 16'h0000; } axis_error_mask[31:16];
+        desc = "mon_group pack #5: axis_pkt_mask + axis_err_select";
+        field { reset = 16'h0000; } axis_pkt_mask[15:0];
+        field { reset = 16'h0000; } axis_err_select[31:16];
     } MON_GROUP_PACK_5;
 
     reg {
         name = "MON_GROUP_PACK_6";
-        desc = "mon_group pack #6: axis_timeout_mask + axis_compl_mask";
-        field { reset = 16'h0000; } axis_timeout_mask[15:0];
-        field { reset = 16'h0000; } axis_compl_mask[31:16];
+        desc = "mon_group pack #6: axis_error_mask + axis_timeout_mask";
+        field { reset = 16'h0000; } axis_error_mask[15:0];
+        field { reset = 16'h0000; } axis_timeout_mask[31:16];
     } MON_GROUP_PACK_6;
 
     reg {
         name = "MON_GROUP_PACK_7";
-        desc = "mon_group pack #7: axis_credit_mask + axis_channel_mask";
-        field { reset = 16'h0000; } axis_credit_mask[15:0];
-        field { reset = 16'h0000; } axis_channel_mask[31:16];
+        desc = "mon_group pack #7: axis_compl_mask + axis_credit_mask";
+        field { reset = 16'h0000; } axis_compl_mask[15:0];
+        field { reset = 16'h0000; } axis_credit_mask[31:16];
     } MON_GROUP_PACK_7;
 
     reg {
         name = "MON_GROUP_PACK_8";
-        desc = "mon_group pack #8: axis_stream_mask + core_pkt_mask";
-        field { reset = 16'h0000; } axis_stream_mask[15:0];
-        field { reset = 16'h0000; } core_pkt_mask[31:16];
+        desc = "mon_group pack #8: axis_channel_mask + axis_stream_mask";
+        field { reset = 16'h0000; } axis_channel_mask[15:0];
+        field { reset = 16'h0000; } axis_stream_mask[31:16];
     } MON_GROUP_PACK_8;
 
     reg {
         name = "MON_GROUP_PACK_9";
-        desc = "mon_group pack #9: core_err_select + core_error_mask";
-        field { reset = 16'h0000; } core_err_select[15:0];
-        field { reset = 16'h0000; } core_error_mask[31:16];
+        desc = "mon_group pack #9: core_pkt_mask + core_err_select";
+        field { reset = 16'h0000; } core_pkt_mask[15:0];
+        field { reset = 16'h0000; } core_err_select[31:16];
     } MON_GROUP_PACK_9;
 
     reg {
         name = "MON_GROUP_PACK_10";
-        desc = "mon_group pack #10: core_timeout_mask + core_compl_mask";
-        field { reset = 16'h0000; } core_timeout_mask[15:0];
-        field { reset = 16'h0000; } core_compl_mask[31:16];
+        desc = "mon_group pack #10: core_error_mask + core_timeout_mask";
+        field { reset = 16'h0000; } core_error_mask[15:0];
+        field { reset = 16'h0000; } core_timeout_mask[31:16];
     } MON_GROUP_PACK_10;
 
     reg {
         name = "MON_GROUP_PACK_11";
-        desc = "mon_group pack #11: core_thresh_mask + core_perf_mask";
-        field { reset = 16'h0000; } core_thresh_mask[15:0];
-        field { reset = 16'h0000; } core_perf_mask[31:16];
+        desc = "mon_group pack #11: core_compl_mask + core_thresh_mask";
+        field { reset = 16'h0000; } core_compl_mask[15:0];
+        field { reset = 16'h0000; } core_thresh_mask[31:16];
     } MON_GROUP_PACK_11;
 
     reg {
         name = "MON_GROUP_PACK_12";
-        desc = "mon_group pack #12 (low half only)";
-        field { reset = 16'h0000; } core_debug_mask[15:0];
+        desc = "mon_group pack #12: core_perf_mask + core_debug_mask";
+        field { reset = 16'h0000; } core_perf_mask[15:0];
+        field { reset = 16'h0000; } core_debug_mask[31:16];
     } MON_GROUP_PACK_12;
 
 };
