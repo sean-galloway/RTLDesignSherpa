@@ -96,6 +96,7 @@ help:
 	@echo "GENERATION TARGETS:"
 	@echo "  make rtl              Generate all bridges (same as 'make all')"
 	@echo "  make all              Generate all bridges from bridge_batch.csv"
+	@echo "  make regen            Rule #0 full regen: clean + all (use after generator changes)"
 	@echo "  make single           Generate single bridge (see variables below)"
 	@echo "  make batch            Create/update bridge_batch.csv with defaults"
 	@echo ""
@@ -141,6 +142,15 @@ all: $(BATCH_FILE)
 
 .PHONY: rtl
 rtl: all
+
+# Full Rule #0 regeneration: delete every generated bridge dir, then
+# regenerate the complete batch (all *_mon variants included). Use this
+# after ANY change to the generator or a shared RTL module the bridges
+# pull in (e.g. the monbus_<p1>_<p2>_group family).
+.PHONY: regen
+regen: clean all
+	@echo ""
+	@echo "✓ Full regeneration complete (clean + all)."
 
 .PHONY: single
 single:

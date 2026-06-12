@@ -270,7 +270,7 @@ module ddr_controller_adapter #(
         .m_axi_bvalid(ddr_controller_axi_bvalid),
         .m_axi_bready(ddr_controller_axi_bready),
 
-        // Status (unconnected = clock-gating tie-off)
+        // Status (empty connector = unconnected tie-off)
         .busy()
     );
 
@@ -330,7 +330,7 @@ module ddr_controller_adapter #(
         .m_axi_rvalid(ddr_controller_axi_rvalid),
         .m_axi_rready(ddr_controller_axi_rready),
 
-        // Status (unconnected = clock-gating tie-off)
+        // Status (empty connector = unconnected tie-off)
         .busy()
     );
 

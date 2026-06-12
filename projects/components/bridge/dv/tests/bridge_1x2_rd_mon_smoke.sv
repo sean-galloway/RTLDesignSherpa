@@ -276,6 +276,13 @@ module bridge_1x2_rd_mon_smoke #(
         .cfg_cpu_rd_0_rd_error_enable      (ENABLE_ERROR_PATH != 0),
         .cfg_cpu_rd_0_rd_timeout_enable    (1'b0),
         .cfg_cpu_rd_0_rd_perf_enable       (1'b0),
+        // compl/threshold/debug cones added by task #114.  Drive
+        // compl_enable from MONITOR_ENABLE so the capture test still
+        // sees completion packets.  Keep threshold/debug off to match
+        // the legacy smoke/capture posture.
+        .cfg_cpu_rd_0_rd_compl_enable      (MONITOR_ENABLE != 0),
+        .cfg_cpu_rd_0_rd_threshold_enable  (1'b0),
+        .cfg_cpu_rd_0_rd_debug_enable      (1'b0),
         .cfg_cpu_rd_0_rd_timeout_cycles    (16'h0),
         .cfg_cpu_rd_0_rd_latency_threshold (32'h0),
         .cfg_cpu_rd_0_rd_axi_pkt_mask      (16'h0),
@@ -292,6 +299,9 @@ module bridge_1x2_rd_mon_smoke #(
         .cfg_ddr_rd_0_rd_error_enable      (ENABLE_ERROR_PATH != 0),
         .cfg_ddr_rd_0_rd_timeout_enable    (1'b0),
         .cfg_ddr_rd_0_rd_perf_enable       (1'b0),
+        .cfg_ddr_rd_0_rd_compl_enable      (MONITOR_ENABLE != 0),
+        .cfg_ddr_rd_0_rd_threshold_enable  (1'b0),
+        .cfg_ddr_rd_0_rd_debug_enable      (1'b0),
         .cfg_ddr_rd_0_rd_timeout_cycles    (16'h0),
         .cfg_ddr_rd_0_rd_latency_threshold (32'h0),
         .cfg_ddr_rd_0_rd_axi_pkt_mask      (16'h0),
@@ -308,6 +318,9 @@ module bridge_1x2_rd_mon_smoke #(
         .cfg_sram_rd_1_rd_error_enable      (ENABLE_ERROR_PATH != 0),
         .cfg_sram_rd_1_rd_timeout_enable    (1'b0),
         .cfg_sram_rd_1_rd_perf_enable       (1'b0),
+        .cfg_sram_rd_1_rd_compl_enable      (MONITOR_ENABLE != 0),
+        .cfg_sram_rd_1_rd_threshold_enable  (1'b0),
+        .cfg_sram_rd_1_rd_debug_enable      (1'b0),
         .cfg_sram_rd_1_rd_timeout_cycles    (16'h0),
         .cfg_sram_rd_1_rd_latency_threshold (32'h0),
         .cfg_sram_rd_1_rd_axi_pkt_mask      (16'h0),
@@ -344,8 +357,19 @@ module bridge_1x2_rd_mon_smoke #(
         .m_mon_axil_bresp   (2'b00),
 
         // monbus_axil_group cfg (zeros = pass-through)
-        .cfg_mon_group_base_addr         (32'h0),
-        .cfg_mon_group_limit_addr        (32'hFFFF_FFFF),
+        // Bounded master-write window. The monbus group's burst writer
+        // computes flush geometry against [base, limit); a degenerate
+        // base=0 / limit=0xFFFF_FFFF window stalls it (do_flush asserts
+        // but no AW/W issues). Use a small bounded window like the
+        // module's own val test (val/amba/test_monbus_axil_axil_group).
+        .cfg_mon_group_base_addr         (32'h0000_1000),
+        .cfg_mon_group_limit_addr        (32'h0000_5000 - 1),
+        // Flush watermark (beats): new cfg port in the monbus group
+        // family. One record = BEATS_PER_UNIT (3) beats, so flush as
+        // soon as a full record is buffered. MUST be driven -- an
+        // undriven input floats to x and the watermark compare never
+        // fires, so the master-write path produces no beats.
+        .cfg_mon_group_flush_watermark   (16'd3),
         .cfg_mon_group_axi_pkt_mask      (16'h0),
         // Bit 0 (PktTypeError) routed to err FIFO when ENABLE_ERROR_PATH
         // != 0. Bit 1 (PktTypeCompletion) routed to err FIFO when ROUTE_

@@ -29,7 +29,7 @@ import yaml
 import sys
 from pathlib import Path
 from typing import List, Dict, Tuple, Optional
-from .config import PortSpec, BridgeConfig
+from .config import PortSpec, BridgeConfig, MonGroupConfig
 from .csv_parser import parse_connectivity_csv
 from .config_validator import validate_config, ValidationError
 
@@ -43,6 +43,34 @@ except ImportError:
         tomllib = None
         print("WARNING: Neither tomllib nor tomli available. TOML support disabled.")
         print("  Install with: pip install tomli")
+
+
+def _parse_mon_group(raw, config_path: str) -> MonGroupConfig:
+    """Build a MonGroupConfig from a TOML/YAML [bridge.mon_group] dict.
+
+    `raw` is None (table omitted -> all defaults = axil/axil) or a dict
+    of overrides. Unknown keys are rejected so typos surface loudly.
+    """
+    if raw is None:
+        return MonGroupConfig()
+    if not isinstance(raw, dict):
+        raise ValueError(
+            f"{config_path}: [bridge.mon_group] must be a table, got "
+            f"{type(raw).__name__}"
+        )
+    known = {
+        'slave_protocol', 'master_protocol', 'fifo_depth_err',
+        'fifo_depth_write', 'flush_timeout_cycles', 'use_compression',
+        'axi_id_width', 'axi_user_width', 'max_burst_beats',
+    }
+    unknown = set(raw) - known
+    if unknown:
+        raise ValueError(
+            f"{config_path}: [bridge.mon_group] has unknown key(s) "
+            f"{sorted(unknown)}; valid keys are {sorted(known)}"
+        )
+    # MonGroupConfig.__post_init__ validates the protocol strings.
+    return MonGroupConfig(**raw)
 
 
 def load_toml_ports(toml_path: str) -> Tuple[List[PortSpec], List[PortSpec], Optional[Dict], Optional[Dict], str, List[str], bool, bool, bool, str]:
@@ -271,6 +299,16 @@ def _parse_port_data(data: Dict, config_path: str) -> Tuple[List[PortSpec], List
     if 'internal_axil_group' in bridge_data:
         print(f"  internal_axil_group: {internal_axil_group}")
 
+    # Optional [bridge.mon_group] sub-table: selects the monbus group's
+    # slave-read / master-write protocols (axil|axi4) and AXI4 sizing.
+    # Absent -> axil/axil (legacy group), so existing configs are
+    # untouched.
+    mon_group = _parse_mon_group(bridge_data.get('mon_group'), config_path)
+    if bridge_data.get('mon_group'):
+        print(f"  mon_group: {mon_group.module_name} "
+              f"(slave={mon_group.slave_protocol}, "
+              f"master={mon_group.master_protocol})")
+
     # Bridge-level monitor override switches (mon variant only).
     use_all_monitors = bool(bridge_data.get('use_all_monitors', False))
     use_no_monitors  = bool(bridge_data.get('use_no_monitors',  False))
@@ -301,7 +339,7 @@ def _parse_port_data(data: Dict, config_path: str) -> Tuple[List[PortSpec], List
     print(f"  mon_preset: {mon_preset}")
     return (masters, slaves, defaults, connectivity_data, bridge_name,
             variants, internal_axil_group, use_all_monitors,
-            use_no_monitors, mon_preset, use_cfg_regblock)
+            use_no_monitors, mon_preset, use_cfg_regblock, mon_group)
 
 
 def find_connectivity_csv(yaml_path: str) -> Optional[str]:
@@ -398,12 +436,12 @@ def load_config(config_path: str, connectivity_csv: Optional[str] = None) -> Bri
         (masters, slaves, defaults, embedded_connectivity, bridge_name,
          variants, internal_axil_group,
          use_all_monitors, use_no_monitors, mon_preset,
-         use_cfg_regblock) = load_toml_ports(config_path)
+         use_cfg_regblock, mon_group) = load_toml_ports(config_path)
     elif config_file.suffix in ['.yaml', '.yml']:
         (masters, slaves, defaults, embedded_connectivity, bridge_name,
          variants, internal_axil_group,
          use_all_monitors, use_no_monitors, mon_preset,
-         use_cfg_regblock) = load_yaml_ports(config_path)
+         use_cfg_regblock, mon_group) = load_yaml_ports(config_path)
     else:
         raise ValueError(f"Unsupported config format: {config_file.suffix}. Use .toml, .yaml, or .yml")
 
@@ -437,6 +475,7 @@ def load_config(config_path: str, connectivity_csv: Optional[str] = None) -> Bri
         use_no_monitors=use_no_monitors,
         mon_preset=mon_preset,
         use_cfg_regblock=use_cfg_regblock,
+        mon_group=mon_group,
     )
 
     # Validate configuration

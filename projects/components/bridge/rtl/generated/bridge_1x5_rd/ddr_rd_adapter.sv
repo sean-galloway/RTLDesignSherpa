@@ -169,7 +169,7 @@ module ddr_rd_adapter #(
         .m_axi_rvalid(ddr_rd_axi_rvalid),
         .m_axi_rready(ddr_rd_axi_rready),
 
-        // Status (unconnected = clock-gating tie-off)
+        // Status (empty connector = unconnected tie-off)
         .busy()
     );
 

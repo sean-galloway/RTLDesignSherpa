@@ -156,7 +156,7 @@ module axil_periph_adapter #(
         .m_axil_rready(axil_periph_axi_rready)
     );
 
-    // Wire converter outputs back to crossbar interface
+    // Wire converter outputs back to shim's crossbar-facing interface
     assign xbar_axil_periph_axi_rvalid = converter_rvalid;
     assign converter_rready = xbar_axil_periph_axi_rready;
     assign xbar_axil_periph_axi_rlast = converter_rlast;

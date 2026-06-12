@@ -1,0 +1,56 @@
+# Minimal Bridge Configuration: 1x2 Read-Only Bridge -- REGBLOCK variant
+#
+# Mirrors bridge_1x2_rd_matched.toml but flips use_cfg_regblock=true so
+# the PeakRDL regblock-backed cfg path is exercised end-to-end:
+#
+#   - 351 per-port cfg_* inputs disappear from the bridge port surface
+#   - A single s_cfg_axil_* AXIL slave appears in their place
+#   - The bridge top instantiates bridge_1x2_rd_regblock_cfg (regblock)
+#     and fans out hwif_out fields to every monitor and to the
+#     monbus_axil_group cfg
+#
+# This config exists explicitly to close the validation hole flagged
+# during stream_char_axil integration: prior to its addition NO config
+# in components/bridge set use_cfg_regblock=true, so the regblock cfg
+# path had never been simulated against real AXI traffic.
+#
+# Only the "mon" variant is emitted -- the regblock is a monitor-side
+# subsystem; the no-monitor variant has no cfg signals to back.
+
+[bridge]
+name = "bridge_1x2_rd_regblock"
+variants = ["mon"]
+description = "1x2 read-only bridge exercising PeakRDL regblock cfg path"
+use_cfg_regblock = true
+mon_preset = "all"
+
+[[bridge.masters]]
+name = "cpu_rd"
+prefix = "cpu_rd_axi_"
+id_width = 4
+addr_width = 32
+data_width = 32
+user_width = 1
+channels = "rd"
+
+[[bridge.slaves]]
+name = "ddr_rd"
+prefix = "ddr_rd_axi_"
+id_width = 4
+addr_width = 32
+data_width = 32
+user_width = 1
+channels = "rd"
+base_addr = "0x00000000"
+addr_range = "0x80000000"
+
+[[bridge.slaves]]
+name = "sram_rd"
+prefix = "sram_rd_axi_"
+id_width = 4
+addr_width = 32
+data_width = 32
+user_width = 1
+channels = "rd"
+base_addr = "0x80000000"
+addr_range = "0x80000000"

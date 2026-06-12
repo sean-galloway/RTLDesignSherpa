@@ -1,0 +1,98 @@
+#==============================================================================
+# bridge_mix_b.toml — mixed-protocol bridge, "functional" preset + per-port add
+#==============================================================================
+#
+# 3 masters (2 axi4 + 1 axil) → 3 slaves (2 axi4 + 1 apb).
+# Bridge preset gives every port {error, timeout, compl} — the standard
+# functional-debug mix. The CPU master gets `mon_add = ["perf"]` so it
+# also rolls up perf counts; the DDR slave gets `mon_add = ["threshold"]`
+# to act as a latency watchdog without paying for perf on every port.
+#==============================================================================
+
+[bridge]
+name = "bridge_mix_b"
+description = "mixed axi4/axil masters → axi4/apb slaves, mon_preset=functional"
+variants = ["no", "mon"]
+mon_preset = "functional"
+
+[bridge.clock]
+name = "aclk"
+frequency_mhz = 100
+
+# ---------------------------------------------------------------- masters ---
+
+# CPU — gets extra perf rollups on top of the functional baseline.
+[[bridge.masters]]
+name      = "cpu_axi4"
+prefix    = "cpu_axi4_"
+protocol  = "axi4"
+channels  = "rw"
+id_width  = 4
+addr_width = 32
+data_width = 64
+user_width = 1
+mon_add   = ["perf"]
+
+# DMA — keeps the functional baseline as-is.
+[[bridge.masters]]
+name      = "dma_axi4"
+prefix    = "dma_axi4_"
+protocol  = "axi4"
+channels  = "rw"
+id_width  = 4
+addr_width = 32
+data_width = 128
+user_width = 1
+
+# Host AXIL — keeps the functional baseline.
+[[bridge.masters]]
+name      = "host_axil"
+prefix    = "host_axil_"
+protocol  = "axil"
+channels  = "rw"
+id_width  = 0
+addr_width = 32
+data_width = 32
+user_width = 1
+
+# ---------------------------------------------------------------- slaves ----
+
+# DDR — adds threshold (active-count + latency watchdog) on top of preset.
+[[bridge.slaves]]
+name      = "ddr"
+prefix    = "ddr_s_axi_"
+protocol  = "axi4"
+channels  = "rw"
+id_width  = 4
+addr_width = 32
+data_width = 128
+user_width = 1
+base_addr  = "0x00000000"
+addr_range = "0x40000000"
+mon_add    = ["threshold"]
+
+# Scratchpad — functional baseline (no add).
+[[bridge.slaves]]
+name      = "scratch"
+prefix    = "scratch_s_axi_"
+protocol  = "axi4"
+channels  = "rw"
+id_width  = 4
+addr_width = 32
+data_width = 64
+user_width = 1
+base_addr  = "0x40000000"
+addr_range = "0x00100000"  # 1 MB
+
+# APB peripheral — functional baseline.
+[[bridge.slaves]]
+name      = "apb_periph"
+prefix    = "apb_periph_"
+protocol  = "apb"
+channels  = "rw"
+id_width  = 0
+addr_width = 32
+data_width = 32
+user_width = 0
+base_addr  = "0x40100000"
+addr_range = "0x00010000"

@@ -268,7 +268,7 @@ module apb_periph_adapter #(
         .m_apb_PREADY(apb_periph_PREADY)
     );
 
-    // Wire converter outputs back to crossbar interface
+    // Wire converter outputs back to shim's crossbar-facing interface
     assign xbar_apb_periph_axi_bvalid = converter_bvalid;
     assign converter_bready = xbar_apb_periph_axi_bready;
     assign xbar_apb_periph_axi_rvalid = converter_rvalid;

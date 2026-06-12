@@ -270,7 +270,7 @@ module ddr0_slave_adapter #(
         .m_axi_bvalid(ddr0_slave_axi_bvalid),
         .m_axi_bready(ddr0_slave_axi_bready),
 
-        // Status (unconnected = clock-gating tie-off)
+        // Status (empty connector = unconnected tie-off)
         .busy()
     );
 
@@ -330,7 +330,7 @@ module ddr0_slave_adapter #(
         .m_axi_rvalid(ddr0_slave_axi_rvalid),
         .m_axi_rready(ddr0_slave_axi_rready),
 
-        // Status (unconnected = clock-gating tie-off)
+        // Status (empty connector = unconnected tie-off)
         .busy()
     );
 

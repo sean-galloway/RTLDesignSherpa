@@ -488,6 +488,9 @@ def _emit_bridge_variant(
         # instantiates the regblock from cfg_rdl_generator (90.2), and
         # routes hwif_out fields to the internal cfg nets.
         use_cfg_regblock=getattr(config, 'use_cfg_regblock', False),
+        # [bridge.mon_group]: selects the monbus_<p1>_<p2>_group variant
+        # (axil/axi4 on each port) the internal aggregator instantiates.
+        mon_group=getattr(config, 'mon_group', None),
     )
 
     for master in master_configs:
@@ -538,6 +541,14 @@ def _emit_bridge_variant(
         print(f"  ✓ Generated cfg RDL:      {cfg_out['rdl_path']}")
         for p in cfg_out['sv_paths']:
             print(f"  ✓ Generated cfg regblock: {p}")
+        # Task 90.4: insert cfg pkg + regblock into generated_files so
+        # the filelist (built below) picks them up in compile order.
+        # The double-underscore prefix sorts BEFORE 'adapter_*' but
+        # after 'package' (which the filelist code handles specially
+        # before the sorted loop).
+        for p in cfg_out['sv_paths']:
+            tag = '__cfg_a_pkg' if p.name.endswith('_pkg.sv') else '__cfg_b_body'
+            generated_files[tag] = str(p)
 
     print(f"  ✓ Generated bridge package: {generated_files['package']}")
     for master in master_configs:
@@ -723,6 +734,10 @@ def _emit_bridge_variant(
         filelist_lines.append("$REPO_ROOT/rtl/common/counter_freq_invariant.sv")
         filelist_lines.append("$REPO_ROOT/rtl/common/fifo_control.sv")
         filelist_lines.append("# axi_monitor_* shared infrastructure (order matters)")
+        # monitor_trans_cam backs axi_monitor_trans_mgr's transaction
+        # table -- listed before trans_mgr so verilator finds the module
+        # at the point trans_mgr instantiates it.
+        filelist_lines.append("$REPO_ROOT/rtl/amba/shared/monitor_trans_cam.sv")
         filelist_lines.append("$REPO_ROOT/rtl/amba/shared/axi_monitor_trans_mgr.sv")
         filelist_lines.append("$REPO_ROOT/rtl/amba/shared/axi_monitor_timer.sv")
         filelist_lines.append("$REPO_ROOT/rtl/amba/shared/axi_monitor_timeout.sv")
@@ -733,6 +748,10 @@ def _emit_bridge_variant(
         filelist_lines.append("$REPO_ROOT/rtl/amba/shared/axi_monitor_reporter_compl.sv")
         filelist_lines.append("$REPO_ROOT/rtl/amba/shared/axi_monitor_reporter_threshold.sv")
         filelist_lines.append("$REPO_ROOT/rtl/amba/shared/axi_monitor_reporter_perf.sv")
+        # debug cone -- pulled in by axi_monitor_reporter when the
+        # adapter exposes cfg_debug_enable (task 114). Must precede
+        # the reporter top wrapper that instantiates it.
+        filelist_lines.append("$REPO_ROOT/rtl/amba/shared/axi_monitor_reporter_debug.sv")
         filelist_lines.append("$REPO_ROOT/rtl/amba/shared/axi_monitor_reporter.sv")
         filelist_lines.append("$REPO_ROOT/rtl/amba/shared/axi_monitor_base.sv")
         filelist_lines.append("$REPO_ROOT/rtl/amba/shared/axi_monitor_filtered.sv")
@@ -741,12 +760,41 @@ def _emit_bridge_variant(
         filelist_lines.append("$REPO_ROOT/rtl/amba/axi4/axi4_slave_rd_mon.sv")
         filelist_lines.append("$REPO_ROOT/rtl/amba/axi4/axi4_master_wr_mon.sv")
         filelist_lines.append("$REPO_ROOT/rtl/amba/axi4/axi4_master_rd_mon.sv")
-        filelist_lines.append("# Monbus aggregator + AXIL group")
+        # Monbus aggregator. The arbiter (+ its sync FIFO) is always
+        # instantiated; the monbus_<p1>_<p2>_group family + its leaf skids
+        # are only pulled in when the bridge owns an internal group
+        # (internal_axil_group=True). Protocol of each group port comes
+        # from [bridge.mon_group] (axil/axil legacy default).
+        filelist_lines.append("# Monbus arbiter (always present in mon variant)")
         filelist_lines.append("$REPO_ROOT/rtl/amba/gaxi/gaxi_fifo_sync.sv")
         filelist_lines.append("$REPO_ROOT/rtl/amba/shared/monbus_arbiter.sv")
-        filelist_lines.append("$REPO_ROOT/rtl/amba/axil4/axil4_slave_rd.sv")
-        filelist_lines.append("$REPO_ROOT/rtl/amba/axil4/axil4_master_wr.sv")
-        filelist_lines.append("$REPO_ROOT/rtl/amba/shared/monbus_axil_group.sv")
+        if getattr(config, 'internal_axil_group', True):
+            mg = getattr(config, 'mon_group', None)
+            slave_axi4 = bool(mg and mg.slave_protocol == 'axi4')
+            master_axi4 = bool(mg and mg.master_protocol == 'axi4')
+            module_name = mg.module_name if mg else 'monbus_axil_axil_group'
+            slave_leaf = ('axi4/axi4_slave_rd' if slave_axi4
+                          else 'axil4/axil4_slave_rd')
+            master_leaf = ('axi4/axi4_master_wr' if master_axi4
+                           else 'axil4/axil4_master_wr')
+            filelist_lines.append(
+                f"# Monbus group ({module_name}) + its leaf skids + core")
+            # Leaf skids may already be in the filelist (the axi4 ones are
+            # also width-converter deps); dedup so we don't emit a
+            # duplicate module declaration (verilator MODDUP).
+            group_srcs = [
+                f"$REPO_ROOT/rtl/amba/{slave_leaf}.sv",
+                f"$REPO_ROOT/rtl/amba/{master_leaf}.sv",
+                # Compressor (USE_COMPRESSION=1 path) + its CAM, then the
+                # protocol-agnostic core, then the selected wrapper.
+                "$REPO_ROOT/rtl/amba/shared/monbus_cam.sv",
+                "$REPO_ROOT/rtl/amba/shared/monbus_compressor.sv",
+                "$REPO_ROOT/rtl/amba/shared/monbus_group_core.sv",
+                f"$REPO_ROOT/rtl/amba/shared/{module_name}.sv",
+            ]
+            for src in group_srcs:
+                if src not in filelist_lines:
+                    filelist_lines.append(src)
 
     # Note: Width converters are included even if not used in this specific bridge
     # because they're needed when master/slave data widths differ.

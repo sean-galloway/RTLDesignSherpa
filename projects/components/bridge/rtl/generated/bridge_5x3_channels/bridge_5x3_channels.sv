@@ -21,7 +21,7 @@ module bridge_5x3_channels (
     input  logic aresetn,
 
     // Master 0: descr_wr_master (wr)
-    // Master: descr_wr_master (wr)
+    // Master: descr_wr_master (axi4, wr)
     input  logic [7:0]  descr_axi_awid,
     input  logic [31:0]  descr_axi_awaddr,
     input  logic [7:0]  descr_axi_awlen,
@@ -50,7 +50,7 @@ module bridge_5x3_channels (
     input  logic         descr_axi_bready,
 
     // Master 1: sink_wr_master (wr)
-    // Master: sink_wr_master (wr)
+    // Master: sink_wr_master (axi4, wr)
     input  logic [7:0]  sink_axi_awid,
     input  logic [31:0]  sink_axi_awaddr,
     input  logic [7:0]  sink_axi_awlen,
@@ -79,7 +79,7 @@ module bridge_5x3_channels (
     input  logic         sink_axi_bready,
 
     // Master 2: src_rd_master (rd)
-    // Master: src_rd_master (rd)
+    // Master: src_rd_master (axi4, rd)
     input  logic [7:0]  src_axi_arid,
     input  logic [31:0]  src_axi_araddr,
     input  logic [7:0]  src_axi_arlen,
@@ -103,7 +103,7 @@ module bridge_5x3_channels (
     input  logic         src_axi_rready,
 
     // Master 3: stream_master (rw)
-    // Master: stream_master (rw)
+    // Master: stream_master (axi4, rw)
     input  logic [7:0]  stream_axi_awid,
     input  logic [31:0]  stream_axi_awaddr,
     input  logic [7:0]  stream_axi_awlen,
@@ -154,7 +154,7 @@ module bridge_5x3_channels (
     input  logic         stream_axi_rready,
 
     // Master 4: cpu_master (rw)
-    // Master: cpu_master (rw)
+    // Master: cpu_master (axi4, rw)
     input  logic [7:0]  cpu_axi_awid,
     input  logic [31:0]  cpu_axi_awaddr,
     input  logic [7:0]  cpu_axi_awlen,

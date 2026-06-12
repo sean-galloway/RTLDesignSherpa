@@ -1,0 +1,89 @@
+#==============================================================================
+# bridge_mix_d.toml — mixed-protocol bridge, "none" preset + per-port opt-in
+#==============================================================================
+#
+# 2 masters (1 axi4 + 1 axil) → 3 slaves (1 axi4 + 1 axil + 1 apb).
+# Preset disables every cone. The bridge starts as a "monitor surface only"
+# (monbus arbitration/AXIL group still emitted), then specific ports opt
+# back in via `mon_add`. This is the area-absolute-minimum starting point
+# for a board that doesn't need observability at all but wants the option
+# to enable individual ports later via regen.
+#==============================================================================
+
+[bridge]
+name = "bridge_mix_d"
+description = "mixed axi4/axil masters → axi4/axil/apb slaves, mon_preset=none + selective add"
+variants = ["no", "mon"]
+mon_preset = "none"
+
+[bridge.clock]
+name = "aclk"
+frequency_mhz = 100
+
+# ---------------------------------------------------------------- masters ---
+
+# CPU — opt in to error tracking only (typical "did something break?" use).
+[[bridge.masters]]
+name      = "cpu_axi4"
+prefix    = "cpu_axi4_"
+protocol  = "axi4"
+channels  = "rw"
+id_width  = 4
+addr_width = 32
+data_width = 64
+user_width = 1
+mon_add   = ["error"]
+
+# Trace AXIL — fully silent (no cones enabled). Reports nothing on monbus.
+[[bridge.masters]]
+name      = "trace_axil"
+prefix    = "trace_axil_"
+protocol  = "axil"
+channels  = "rw"
+id_width  = 0
+addr_width = 32
+data_width = 32
+user_width = 1
+
+# ---------------------------------------------------------------- slaves ----
+
+# DDR — full observability (every cone).
+[[bridge.slaves]]
+name      = "ddr"
+prefix    = "ddr_s_axi_"
+protocol  = "axi4"
+channels  = "rw"
+id_width  = 4
+addr_width = 32
+data_width = 64
+user_width = 1
+base_addr  = "0x00000000"
+addr_range = "0x40000000"
+mon_add    = ["error", "compl", "timeout", "threshold", "perf"]
+
+# AXIL doorbell — silent.
+[[bridge.slaves]]
+name      = "doorbell"
+prefix    = "doorbell_"
+protocol  = "axil"
+channels  = "rw"
+id_width  = 0
+addr_width = 32
+data_width = 32
+user_width = 1
+base_addr  = "0x40000000"
+addr_range = "0x00001000"
+
+# APB peripheral — error + timeout only (catch hangs).
+[[bridge.slaves]]
+name      = "apb_periph"
+prefix    = "apb_periph_"
+protocol  = "apb"
+channels  = "rw"
+id_width  = 0
+addr_width = 32
+data_width = 32
+user_width = 0
+base_addr  = "0x40001000"
+addr_range = "0x00010000"
+mon_add    = ["error", "timeout"]

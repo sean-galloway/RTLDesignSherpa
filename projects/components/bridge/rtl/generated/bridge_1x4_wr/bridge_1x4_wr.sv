@@ -21,7 +21,7 @@ module bridge_1x4_wr (
     input  logic aresetn,
 
     // Master 0: cpu_wr (wr)
-    // Master: cpu_wr (wr)
+    // Master: cpu_wr (axi4, wr)
     input  logic [3:0]  cpu_wr_axi_awid,
     input  logic [31:0]  cpu_wr_axi_awaddr,
     input  logic [7:0]  cpu_wr_axi_awlen,

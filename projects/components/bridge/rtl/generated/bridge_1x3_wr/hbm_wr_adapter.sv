@@ -186,7 +186,7 @@ module hbm_wr_adapter #(
         .m_axi_bvalid(hbm_wr_axi_bvalid),
         .m_axi_bready(hbm_wr_axi_bready),
 
-        // Status (unconnected = clock-gating tie-off)
+        // Status (empty connector = unconnected tie-off)
         .busy()
     );
 

@@ -21,7 +21,7 @@ module bridge_1x2_rd (
     input  logic aresetn,
 
     // Master 0: cpu_rd (rd)
-    // Master: cpu_rd (rd)
+    // Master: cpu_rd (axi4, rd)
     input  logic [3:0]  cpu_rd_axi_arid,
     input  logic [31:0]  cpu_rd_axi_araddr,
     input  logic [7:0]  cpu_rd_axi_arlen,

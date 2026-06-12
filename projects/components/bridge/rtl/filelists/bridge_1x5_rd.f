@@ -30,6 +30,8 @@ $REPO_ROOT/projects/components/converters/rtl/axi_data_upsize.sv
 $REPO_ROOT/projects/components/converters/rtl/axi_data_dnsize.sv
 $REPO_ROOT/projects/components/converters/rtl/axi4_dwidth_converter_rd.sv
 $REPO_ROOT/projects/components/converters/rtl/axi4_dwidth_converter_wr.sv
+$REPO_ROOT/projects/components/converters/rtl/axil_to_axi4_wide_align_wr.sv
+$REPO_ROOT/projects/components/converters/rtl/axil_to_axi4_wide_align_rd.sv
 
 # APB protocol converter dependencies (in dependency order)
 # Common dependencies first

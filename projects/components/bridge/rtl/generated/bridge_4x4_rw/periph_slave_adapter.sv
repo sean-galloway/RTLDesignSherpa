@@ -270,7 +270,7 @@ module periph_slave_adapter #(
         .m_axi_bvalid(periph_slave_axi_bvalid),
         .m_axi_bready(periph_slave_axi_bready),
 
-        // Status (unconnected = clock-gating tie-off)
+        // Status (empty connector = unconnected tie-off)
         .busy()
     );
 
@@ -330,7 +330,7 @@ module periph_slave_adapter #(
         .m_axi_rvalid(periph_slave_axi_rvalid),
         .m_axi_rready(periph_slave_axi_rready),
 
-        // Status (unconnected = clock-gating tie-off)
+        // Status (empty connector = unconnected tie-off)
         .busy()
     );
 

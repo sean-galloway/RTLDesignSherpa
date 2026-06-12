@@ -10,6 +10,7 @@ import bridge_1x2_rd_mon_pkg::*;
 
 module ddr_rd_adapter #(
     parameter int ID_WIDTH = 4
+   ,parameter bit USE_MONITOR_RD = 1'b1
 ) (
     input  logic aclk,
     input  logic aresetn,
@@ -76,6 +77,9 @@ module ddr_rd_adapter #(
     input  logic         cfg_rd_error_enable,
     input  logic         cfg_rd_timeout_enable,
     input  logic         cfg_rd_perf_enable,
+    input  logic         cfg_rd_compl_enable,
+    input  logic         cfg_rd_threshold_enable,
+    input  logic         cfg_rd_debug_enable,
     input  logic [15:0] cfg_rd_timeout_cycles,
     input  logic [31:0] cfg_rd_latency_threshold,
     input  logic [15:0] cfg_rd_axi_pkt_mask,
@@ -147,7 +151,14 @@ module ddr_rd_adapter #(
         .AXI_DATA_WIDTH(32),
         .AXI_USER_WIDTH(1),
         .UNIT_ID(1),
-        .AGENT_ID(0)
+        .AGENT_ID(0),
+        .USE_MONITOR(USE_MONITOR_RD),
+        .ENABLE_ERROR_LOGIC(1'b1),
+        .ENABLE_TIMEOUT_LOGIC(1'b0),
+        .ENABLE_COMPL_LOGIC(1'b1),
+        .ENABLE_THRESHOLD_LOGIC(1'b0),
+        .ENABLE_PERF_LOGIC(1'b0),
+        .ENABLE_DEBUG_LOGIC(1'b0)
     ) u_master_rd (
         .aclk(aclk),
         .aresetn(aresetn),
@@ -196,8 +207,12 @@ module ddr_rd_adapter #(
         .m_axi_rvalid(ddr_rd_axi_rvalid),
         .m_axi_rready(ddr_rd_axi_rready),
 
-        // Status (unconnected = clock-gating tie-off)
+        // Status (empty connector = unconnected tie-off)
         .busy(),
+        .active_transactions(),
+        .error_count(),
+        .transaction_count(),
+        .cfg_conflict_error(),
 
         // Monitor bus output
         .i_mon_time(i_mon_time),
@@ -211,6 +226,9 @@ module ddr_rd_adapter #(
         .cfg_error_enable(cfg_rd_error_enable),
         .cfg_timeout_enable(cfg_rd_timeout_enable),
         .cfg_perf_enable(cfg_rd_perf_enable),
+        .cfg_compl_enable(cfg_rd_compl_enable),
+        .cfg_threshold_enable(cfg_rd_threshold_enable),
+        .cfg_debug_enable(cfg_rd_debug_enable),
         .cfg_timeout_cycles(cfg_rd_timeout_cycles),
         .cfg_latency_threshold(cfg_rd_latency_threshold),
         .cfg_axi_pkt_mask(cfg_rd_axi_pkt_mask),
@@ -221,7 +239,29 @@ module ddr_rd_adapter #(
         .cfg_axi_thresh_mask(cfg_rd_axi_thresh_mask),
         .cfg_axi_perf_mask(cfg_rd_axi_perf_mask),
         .cfg_axi_addr_mask(cfg_rd_axi_addr_mask),
-        .cfg_axi_debug_mask(cfg_rd_axi_debug_mask)
+        .cfg_axi_debug_mask(cfg_rd_axi_debug_mask),
+
+        // Address-range checker (disabled at N_ADDR_RANGES=0)
+        .cfg_addr_check_enable(1'b0),
+        .cfg_addr_range_enable(1'b0),
+        .cfg_addr_range_low({32{1'b0}}),
+        .cfg_addr_range_high({32{1'b0}}),
+
+        // Perfmon Stage A/B (tied off -- no window driven)
+        .cfg_start_event_sel(3'b111),
+        .cfg_end_event_sel(3'b111),
+        .cfg_start_trigger(1'b0),
+        .cfg_end_trigger(1'b0),
+        .cfg_window_force_close(1'b0),
+        .window_active(),
+        .window_cycles(),
+        .perf_prod_cycles(),
+        .perf_bp_cycles(),
+        .perf_starv_cycles(),
+        .perf_idle_cycles(),
+        .perf_beat_count(),
+        .perf_byte_count(),
+        .perf_burst_count()
     );
 
 endmodule : ddr_rd_adapter

@@ -21,7 +21,7 @@ module bridge_4x4_rw (
     input  logic aresetn,
 
     // Master 0: cpu_master (rw)
-    // Master: cpu_master (rw)
+    // Master: cpu_master (axi4, rw)
     input  logic [3:0]  cpu_axi_awid,
     input  logic [31:0]  cpu_axi_awaddr,
     input  logic [7:0]  cpu_axi_awlen,
@@ -72,7 +72,7 @@ module bridge_4x4_rw (
     input  logic         cpu_axi_rready,
 
     // Master 1: dma0_master (rw)
-    // Master: dma0_master (rw)
+    // Master: dma0_master (axi4, rw)
     input  logic [3:0]  dma0_axi_awid,
     input  logic [31:0]  dma0_axi_awaddr,
     input  logic [7:0]  dma0_axi_awlen,
@@ -123,7 +123,7 @@ module bridge_4x4_rw (
     input  logic         dma0_axi_rready,
 
     // Master 2: dma1_master (rw)
-    // Master: dma1_master (rw)
+    // Master: dma1_master (axi4, rw)
     input  logic [3:0]  dma1_axi_awid,
     input  logic [31:0]  dma1_axi_awaddr,
     input  logic [7:0]  dma1_axi_awlen,
@@ -174,7 +174,7 @@ module bridge_4x4_rw (
     input  logic         dma1_axi_rready,
 
     // Master 3: gpu_master (rw)
-    // Master: gpu_master (rw)
+    // Master: gpu_master (axi4, rw)
     input  logic [3:0]  gpu_axi_awid,
     input  logic [31:0]  gpu_axi_awaddr,
     input  logic [7:0]  gpu_axi_awlen,

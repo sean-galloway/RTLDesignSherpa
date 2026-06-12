@@ -21,7 +21,7 @@ module bridge_2x2_rw (
     input  logic aresetn,
 
     // Master 0: cpu (rw)
-    // Master: cpu (rw)
+    // Master: cpu (axi4, rw)
     input  logic [3:0]  cpu_m_axi_awid,
     input  logic [31:0]  cpu_m_axi_awaddr,
     input  logic [7:0]  cpu_m_axi_awlen,
@@ -72,7 +72,7 @@ module bridge_2x2_rw (
     input  logic         cpu_m_axi_rready,
 
     // Master 1: dma (rw)
-    // Master: dma (rw)
+    // Master: dma (axi4, rw)
     input  logic [3:0]  dma_m_axi_awid,
     input  logic [31:0]  dma_m_axi_awaddr,
     input  logic [7:0]  dma_m_axi_awlen,

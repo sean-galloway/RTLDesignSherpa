@@ -21,6 +21,65 @@ MON_CONES = ("error", "timeout", "compl", "threshold", "perf", "debug")
 
 
 @dataclass
+class MonGroupConfig:
+    """Protocol + sizing config for the bridge's internal monbus group.
+
+    The post-arbiter aggregator is the monbus_<p1>_<p2>_group family in
+    rtl/amba/shared/ (commit 3d91e4de), where p1 = slave-read protocol
+    (the IRQ-status / error-FIFO read port the SoC polls) and p2 =
+    master-write protocol (the packet-log write port to memory). Each
+    side is independently "axil" or "axi4", giving four permutations:
+      monbus_axil_axil_group  monbus_axil_axi4_group
+      monbus_axi4_axil_group  monbus_axi4_axi4_group
+
+    Configured per-bridge via the TOML [bridge.mon_group] sub-table:
+      [bridge.mon_group]
+      slave_protocol  = "axil"   # "axil" | "axi4"
+      master_protocol = "axi4"   # "axil" | "axi4"
+      axi_id_width    = 8        # used when either side is axi4
+      max_burst_beats = 64       # used when master is axi4
+
+    Defaults reproduce the legacy axil/axil group so configs that omit
+    the table keep their existing top-level surface and tests.
+    """
+    slave_protocol: str = "axil"      # "axil" | "axi4" -- s_mon read port
+    master_protocol: str = "axil"     # "axil" | "axi4" -- m_mon write port
+    # Core sizing (passed as module parameters).
+    fifo_depth_err: int = 64
+    fifo_depth_write: int = 96        # beats (new family default)
+    flush_timeout_cycles: int = 1024
+    use_compression: int = 0
+    # AXI4-only sizing -- ignored when both sides are axil.
+    axi_id_width: int = 8             # slave-read and/or master-write id
+    axi_user_width: int = 1
+    max_burst_beats: int = 64         # master-write burst cap (axi4 master)
+
+    _VALID_PROTOCOLS = ("axil", "axi4")
+
+    def __post_init__(self):
+        for label, p in (("slave_protocol", self.slave_protocol),
+                         ("master_protocol", self.master_protocol)):
+            if p not in self._VALID_PROTOCOLS:
+                raise ValueError(
+                    f"[bridge.mon_group].{label} = {p!r} is not one of "
+                    f"{list(self._VALID_PROTOCOLS)}"
+                )
+
+    @property
+    def module_name(self) -> str:
+        """Wrapper module from the monbus_<p1>_<p2>_group family."""
+        return f"monbus_{self.slave_protocol}_{self.master_protocol}_group"
+
+    @property
+    def slave_is_axi4(self) -> bool:
+        return self.slave_protocol == "axi4"
+
+    @property
+    def master_is_axi4(self) -> bool:
+        return self.master_protocol == "axi4"
+
+
+@dataclass
 class PortSpec:
     """Specification for a single AXI4 port (master or slave)"""
     port_name: str          # Unique identifier (e.g., "cpu_master", "ddr_slave")
@@ -128,6 +187,14 @@ class BridgeConfig:
     # group in the stream_char harness). Has no effect on the "no"
     # variant.
     internal_axil_group: bool = True
+
+    # mon_group: protocol + sizing for the internal monbus group used by
+    # the "mon" variant when internal_axil_group=True. Selects which
+    # member of the monbus_<p1>_<p2>_group family is instantiated and
+    # what slave-read / master-write surface the bridge top exposes.
+    # Defaults to axil/axil (the legacy group) so configs that omit the
+    # [bridge.mon_group] table are unchanged.
+    mon_group: MonGroupConfig = field(default_factory=MonGroupConfig)
 
     # Bridge-level monitor override switches (matching STREAM's pattern).
     # Both default False. When True, override every port's per-port

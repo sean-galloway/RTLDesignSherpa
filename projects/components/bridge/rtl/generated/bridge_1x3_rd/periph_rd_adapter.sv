@@ -169,7 +169,7 @@ module periph_rd_adapter #(
         .m_axi_rvalid(periph_rd_axi_rvalid),
         .m_axi_rready(periph_rd_axi_rready),
 
-        // Status (unconnected = clock-gating tie-off)
+        // Status (empty connector = unconnected tie-off)
         .busy()
     );
 

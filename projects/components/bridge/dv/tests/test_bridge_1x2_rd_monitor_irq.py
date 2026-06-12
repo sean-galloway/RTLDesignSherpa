@@ -167,7 +167,10 @@ async def cocotb_test_bridge_1x2_rd_mon_irq(dut):
     # ---- More diagnostics: did anything land in err_fifo? -----------
     err_count = int(dut.u_dut.u_mon_axil_group.err_fifo_count.value)
     wr_count = int(dut.u_dut.u_mon_axil_group.write_fifo_count.value)
-    err_empty = int(dut.u_dut.u_mon_axil_group.err_fifo_empty.value)
+    # The monbus_<p1>_<p2>_group family exposes err_fifo_count (no
+    # standalone err_fifo_empty port like the legacy monbus_axil_group);
+    # derive emptiness from the count.
+    err_empty = int(err_count == 0)
     irq = int(dut.mon_irq_out.value)
     tb.log.info(f"  err_fifo_count = {err_count}, empty = {err_empty}")
     tb.log.info(f"  write_fifo_count = {wr_count}")

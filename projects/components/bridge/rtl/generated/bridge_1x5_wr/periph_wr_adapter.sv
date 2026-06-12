@@ -186,7 +186,7 @@ module periph_wr_adapter #(
         .m_axi_bvalid(periph_wr_axi_bvalid),
         .m_axi_bready(periph_wr_axi_bready),
 
-        // Status (unconnected = clock-gating tie-off)
+        // Status (empty connector = unconnected tie-off)
         .busy()
     );
 

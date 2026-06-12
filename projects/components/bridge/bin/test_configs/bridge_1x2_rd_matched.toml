@@ -15,6 +15,11 @@ addr_width = 32
 data_width = 32
 user_width = 1
 channels = "rd"  # Read-only (AR, R channels)
+# Add the completion cone on top of the error_only baseline. The
+# monitor capture/irq tests assert on completion packets at every
+# wrapper boundary (the most reliably-produced packet type), so the
+# compl cone must be enabled on each monitored port.
+mon_add = ["compl"]
 # No interface module = direct connection (for testing)
 
 [[bridge.slaves]]
@@ -25,6 +30,7 @@ addr_width = 32
 data_width = 32
 user_width = 1
 channels = "rd"  # Read-only (AR, R channels) - must match master
+mon_add = ["compl"]  # completion cone for monitor capture/irq tests
 base_addr = "0x00000000"
 addr_range = "0x80000000"  # 2GB
 # No interface module = direct connection
@@ -37,6 +43,7 @@ addr_width = 32
 data_width = 32
 user_width = 1
 channels = "rd"  # Read-only (AR, R channels) - must match master
+mon_add = ["compl"]  # completion cone for monitor capture/irq tests
 base_addr = "0x80000000"
 addr_range = "0x80000000"  # 2GB
 # No interface module = direct connection

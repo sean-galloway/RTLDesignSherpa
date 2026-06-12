@@ -165,7 +165,7 @@ module sink_wr_master_adapter #(
         .fub_axi_bvalid(fub_axi_bvalid),
         .fub_axi_bready(fub_axi_bready),
 
-        // Status (unconnected = clock-gating tie-off)
+        // Status (empty connector = unconnected tie-off)
         .busy(wrapper_wr_busy)
     );
 

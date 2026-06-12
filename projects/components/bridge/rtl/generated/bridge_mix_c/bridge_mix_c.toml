@@ -1,0 +1,87 @@
+#==============================================================================
+# bridge_mix_c.toml — mixed-protocol bridge, "all" preset + per-port mon_remove
+#==============================================================================
+#
+# 2 masters (1 axi4 + 1 axil) → 3 slaves (1 axi4 + 1 axil + 1 apb).
+# Bridge preset turns ON every reporter sub-block at every port (worst-case
+# area; useful for early bring-up). Two ports then opt OUT specific cones
+# via `mon_remove`, exercising the subtractive path through
+# PortSpec.get_mon_enables().
+#==============================================================================
+
+[bridge]
+name = "bridge_mix_c"
+description = "mixed axi4/axil masters → axi4/axil/apb slaves, mon_preset=all + mon_remove"
+variants = ["no", "mon"]
+mon_preset = "all"
+
+[bridge.clock]
+name = "aclk"
+frequency_mhz = 100
+
+# ---------------------------------------------------------------- masters ---
+
+# CPU — keeps everything (worst-case observability).
+[[bridge.masters]]
+name      = "cpu_axi4"
+prefix    = "cpu_axi4_"
+protocol  = "axi4"
+channels  = "rw"
+id_width  = 4
+addr_width = 32
+data_width = 64
+user_width = 1
+
+# Host AXIL — drop perf + threshold (we don't need rollups on a config port).
+[[bridge.masters]]
+name      = "host_axil"
+prefix    = "host_axil_"
+protocol  = "axil"
+channels  = "rw"
+id_width  = 0
+addr_width = 32
+data_width = 32
+user_width = 1
+mon_remove = ["perf", "threshold"]
+
+# ---------------------------------------------------------------- slaves ----
+
+# DDR — keep everything.
+[[bridge.slaves]]
+name      = "ddr"
+prefix    = "ddr_s_axi_"
+protocol  = "axi4"
+channels  = "rw"
+id_width  = 4
+addr_width = 32
+data_width = 64
+user_width = 1
+base_addr  = "0x00000000"
+addr_range = "0x40000000"
+
+# AXIL config registers — drop the heavy cones (perf + threshold + timeout).
+[[bridge.slaves]]
+name      = "cfg_regs"
+prefix    = "cfg_regs_"
+protocol  = "axil"
+channels  = "rw"
+id_width  = 0
+addr_width = 32
+data_width = 32
+user_width = 1
+base_addr  = "0x40000000"
+addr_range = "0x00010000"
+mon_remove = ["perf", "threshold", "timeout"]
+
+# APB peripheral — keep everything (small block, area cost is tiny).
+[[bridge.slaves]]
+name      = "apb_periph"
+prefix    = "apb_periph_"
+protocol  = "apb"
+channels  = "rw"
+id_width  = 0
+addr_width = 32
+data_width = 32
+user_width = 0
+base_addr  = "0x40010000"
+addr_range = "0x00010000"

@@ -16,12 +16,20 @@
 
 import bridge_1x2_rd_mon_pkg::*;
 
-module bridge_1x2_rd_mon (
+module bridge_1x2_rd_mon #(
+    // Per-wrapper USE_MONITOR knobs (TOML defaults; override at instantiation)
+    parameter bit USE_MONITOR_cpu_rd_rd = 1'b1,
+    parameter bit USE_MONITOR_ddr_rd_rd = 1'b1,
+    parameter bit USE_MONITOR_sram_rd_rd = 1'b1
+    // Global overrides (mutually exclusive; both 0 = use per-port)
+   ,parameter bit USE_ALL_MONITORS = 1'b0
+   ,parameter bit USE_NO_MONITORS  = 1'b0
+) (
     input  logic aclk,
     input  logic aresetn,
 
     // Master 0: cpu_rd (rd)
-    // Master: cpu_rd (rd)
+    // Master: cpu_rd (axi4, rd)
     input  logic [3:0]  cpu_rd_axi_arid,
     input  logic [31:0]  cpu_rd_axi_araddr,
     input  logic [7:0]  cpu_rd_axi_arlen,
@@ -100,6 +108,9 @@ module bridge_1x2_rd_mon (
     input  logic         cfg_cpu_rd_0_rd_error_enable,
     input  logic         cfg_cpu_rd_0_rd_timeout_enable,
     input  logic         cfg_cpu_rd_0_rd_perf_enable,
+    input  logic         cfg_cpu_rd_0_rd_compl_enable,
+    input  logic         cfg_cpu_rd_0_rd_threshold_enable,
+    input  logic         cfg_cpu_rd_0_rd_debug_enable,
     input  logic [15:0] cfg_cpu_rd_0_rd_timeout_cycles,
     input  logic [31:0] cfg_cpu_rd_0_rd_latency_threshold,
     input  logic [15:0] cfg_cpu_rd_0_rd_axi_pkt_mask,
@@ -117,6 +128,9 @@ module bridge_1x2_rd_mon (
     input  logic         cfg_ddr_rd_0_rd_error_enable,
     input  logic         cfg_ddr_rd_0_rd_timeout_enable,
     input  logic         cfg_ddr_rd_0_rd_perf_enable,
+    input  logic         cfg_ddr_rd_0_rd_compl_enable,
+    input  logic         cfg_ddr_rd_0_rd_threshold_enable,
+    input  logic         cfg_ddr_rd_0_rd_debug_enable,
     input  logic [15:0] cfg_ddr_rd_0_rd_timeout_cycles,
     input  logic [31:0] cfg_ddr_rd_0_rd_latency_threshold,
     input  logic [15:0] cfg_ddr_rd_0_rd_axi_pkt_mask,
@@ -134,6 +148,9 @@ module bridge_1x2_rd_mon (
     input  logic         cfg_sram_rd_1_rd_error_enable,
     input  logic         cfg_sram_rd_1_rd_timeout_enable,
     input  logic         cfg_sram_rd_1_rd_perf_enable,
+    input  logic         cfg_sram_rd_1_rd_compl_enable,
+    input  logic         cfg_sram_rd_1_rd_threshold_enable,
+    input  logic         cfg_sram_rd_1_rd_debug_enable,
     input  logic [15:0] cfg_sram_rd_1_rd_timeout_cycles,
     input  logic [31:0] cfg_sram_rd_1_rd_latency_threshold,
     input  logic [15:0] cfg_sram_rd_1_rd_axi_pkt_mask,
@@ -147,34 +164,35 @@ module bridge_1x2_rd_mon (
     input  logic [15:0] cfg_sram_rd_1_rd_axi_debug_mask,
 
     // ============================================================
-    // monbus_axil_group access ports + config + IRQ
+    // monbus_axil_axil_group access ports + config + IRQ
     // ============================================================
-    // AXIL slave (IRQ-status reads, 64-bit data)
-    input  logic        s_mon_axil_arvalid,
-    output logic        s_mon_axil_arready,
+    // Slave-read port (axil, IRQ-status reads, 64-bit data)
+    input  logic         s_mon_axil_arvalid,
+    output logic         s_mon_axil_arready,
     input  logic [31:0] s_mon_axil_araddr,
-    input  logic [2:0]  s_mon_axil_arprot,
-    output logic        s_mon_axil_rvalid,
-    input  logic        s_mon_axil_rready,
+    input  logic [2:0] s_mon_axil_arprot,
+    output logic         s_mon_axil_rvalid,
+    input  logic         s_mon_axil_rready,
     output logic [63:0] s_mon_axil_rdata,
-    output logic [1:0]  s_mon_axil_rresp,
+    output logic [1:0] s_mon_axil_rresp,
 
-    // AXIL master (packet log writes)
-    output logic        m_mon_axil_awvalid,
-    input  logic        m_mon_axil_awready,
+    // Master-write port (axil, packet log writes)
+    output logic         m_mon_axil_awvalid,
+    input  logic         m_mon_axil_awready,
     output logic [31:0] m_mon_axil_awaddr,
-    output logic [2:0]  m_mon_axil_awprot,
-    output logic        m_mon_axil_wvalid,
-    input  logic        m_mon_axil_wready,
+    output logic [2:0] m_mon_axil_awprot,
+    output logic         m_mon_axil_wvalid,
+    input  logic         m_mon_axil_wready,
     output logic [63:0] m_mon_axil_wdata,
-    output logic [7:0]  m_mon_axil_wstrb,
-    input  logic        m_mon_axil_bvalid,
-    output logic        m_mon_axil_bready,
-    input  logic [1:0]  m_mon_axil_bresp,
+    output logic [7:0] m_mon_axil_wstrb,
+    input  logic         m_mon_axil_bvalid,
+    output logic         m_mon_axil_bready,
+    input  logic [1:0] m_mon_axil_bresp,
 
     // monbus_axil_group cfg
     input  logic [31:0] cfg_mon_group_base_addr,
     input  logic [31:0] cfg_mon_group_limit_addr,
+    input  logic [15:0] cfg_mon_group_flush_watermark,
     input  logic [15:0] cfg_mon_group_axi_pkt_mask,
     input  logic [15:0] cfg_mon_group_axi_err_select,
     input  logic [15:0] cfg_mon_group_axi_error_mask,
@@ -205,6 +223,13 @@ module bridge_1x2_rd_mon (
 );
 
     localparam NUM_SLAVES = 2;
+
+    // ============================================================
+    // Effective per-wrapper USE_MONITOR (after global override)
+    // ============================================================
+    localparam bit EFF_USE_MON_cpu_rd_rd = USE_NO_MONITORS  ? 1'b0 : USE_ALL_MONITORS ? 1'b1 : USE_MONITOR_cpu_rd_rd;
+    localparam bit EFF_USE_MON_ddr_rd_rd = USE_NO_MONITORS  ? 1'b0 : USE_ALL_MONITORS ? 1'b1 : USE_MONITOR_ddr_rd_rd;
+    localparam bit EFF_USE_MON_sram_rd_rd = USE_NO_MONITORS  ? 1'b0 : USE_ALL_MONITORS ? 1'b1 : USE_MONITOR_sram_rd_rd;
 
     // cpu_rd Adapter outputs
     logic [NUM_SLAVES-1:0] cpu_rd_slave_select_ar;
@@ -296,7 +321,9 @@ module bridge_1x2_rd_mon (
     // ================================================================
     // CPU_RD Adapter
     // ================================================================
-    cpu_rd_adapter u_cpu_rd_adapter (
+    cpu_rd_adapter #(
+        .USE_MONITOR_RD(EFF_USE_MON_cpu_rd_rd)
+    ) u_cpu_rd_adapter (
         .aclk(aclk),
         .aresetn(aresetn),
 
@@ -344,6 +371,9 @@ module bridge_1x2_rd_mon (
         .cfg_rd_error_enable(cfg_cpu_rd_0_rd_error_enable),
         .cfg_rd_timeout_enable(cfg_cpu_rd_0_rd_timeout_enable),
         .cfg_rd_perf_enable(cfg_cpu_rd_0_rd_perf_enable),
+        .cfg_rd_compl_enable(cfg_cpu_rd_0_rd_compl_enable),
+        .cfg_rd_threshold_enable(cfg_cpu_rd_0_rd_threshold_enable),
+        .cfg_rd_debug_enable(cfg_cpu_rd_0_rd_debug_enable),
         .cfg_rd_timeout_cycles(cfg_cpu_rd_0_rd_timeout_cycles),
         .cfg_rd_latency_threshold(cfg_cpu_rd_0_rd_latency_threshold),
         .cfg_rd_axi_pkt_mask(cfg_cpu_rd_0_rd_axi_pkt_mask),
@@ -434,7 +464,9 @@ module bridge_1x2_rd_mon (
     // ================================================================
 
     // ddr_rd adapter (AXI4, crossbar → external slave)
-    ddr_rd_adapter u_ddr_rd_adapter (
+    ddr_rd_adapter #(
+        .USE_MONITOR_RD(EFF_USE_MON_ddr_rd_rd)
+    ) u_ddr_rd_adapter (
         .aclk(aclk),
         .aresetn(aresetn),
 
@@ -497,6 +529,9 @@ module bridge_1x2_rd_mon (
         .cfg_rd_error_enable(cfg_ddr_rd_0_rd_error_enable),
         .cfg_rd_timeout_enable(cfg_ddr_rd_0_rd_timeout_enable),
         .cfg_rd_perf_enable(cfg_ddr_rd_0_rd_perf_enable),
+        .cfg_rd_compl_enable(cfg_ddr_rd_0_rd_compl_enable),
+        .cfg_rd_threshold_enable(cfg_ddr_rd_0_rd_threshold_enable),
+        .cfg_rd_debug_enable(cfg_ddr_rd_0_rd_debug_enable),
         .cfg_rd_timeout_cycles(cfg_ddr_rd_0_rd_timeout_cycles),
         .cfg_rd_latency_threshold(cfg_ddr_rd_0_rd_latency_threshold),
         .cfg_rd_axi_pkt_mask(cfg_ddr_rd_0_rd_axi_pkt_mask),
@@ -511,7 +546,9 @@ module bridge_1x2_rd_mon (
     );
 
     // sram_rd adapter (AXI4, crossbar → external slave)
-    sram_rd_adapter u_sram_rd_adapter (
+    sram_rd_adapter #(
+        .USE_MONITOR_RD(EFF_USE_MON_sram_rd_rd)
+    ) u_sram_rd_adapter (
         .aclk(aclk),
         .aresetn(aresetn),
 
@@ -574,6 +611,9 @@ module bridge_1x2_rd_mon (
         .cfg_rd_error_enable(cfg_sram_rd_1_rd_error_enable),
         .cfg_rd_timeout_enable(cfg_sram_rd_1_rd_timeout_enable),
         .cfg_rd_perf_enable(cfg_sram_rd_1_rd_perf_enable),
+        .cfg_rd_compl_enable(cfg_sram_rd_1_rd_compl_enable),
+        .cfg_rd_threshold_enable(cfg_sram_rd_1_rd_threshold_enable),
+        .cfg_rd_debug_enable(cfg_sram_rd_1_rd_debug_enable),
         .cfg_rd_timeout_cycles(cfg_sram_rd_1_rd_timeout_cycles),
         .cfg_rd_latency_threshold(cfg_sram_rd_1_rd_latency_threshold),
         .cfg_rd_axi_pkt_mask(cfg_sram_rd_1_rd_axi_pkt_mask),
@@ -633,18 +673,15 @@ module bridge_1x2_rd_mon (
         /* verilator lint_on PINCONNECTEMPTY */
     );
 
-    monbus_axil_group #(
-        .FIFO_DEPTH_ERR    (64),
-        .FIFO_DEPTH_WRITE  (32),
-        .ADDR_WIDTH        (32),
-        .S_AXIL_DATA_WIDTH (64),
-        // S_AXIL_DATA_WIDTH=64: the unified group drains one
-        // err_fifo entry ({packet[127:0], source_ts[63:0]} = 192 bits)
-        // over three 64-bit reads via an internal slice counter.
-        // M_AXIL_DATA_WIDTH defaults to 64 — module emits the same
-        // 24-byte record on the bulk-trace write path: three 64-bit
-        // beats {packet[63:0], packet[127:64], source_ts[63:0]}.
-        .NUM_PROTOCOLS     (3)
+    monbus_axil_axil_group #(
+        // FIFO_DEPTH_WRITE is in BEATS in the monbus group family;
+        // the master-write burst fires on cfg_flush_watermark or timeout.
+        .FIFO_DEPTH_ERR      (64),
+        .FIFO_DEPTH_WRITE    (96),
+        .ADDR_WIDTH          (32),
+        .FLUSH_TIMEOUT_CYCLES(1024),
+        .NUM_PROTOCOLS       (3),
+        .USE_COMPRESSION     (0)
     ) u_mon_axil_group (
         .axi_aclk          (aclk),
         .axi_aresetn       (aresetn),
@@ -655,32 +692,33 @@ module bridge_1x2_rd_mon (
         .monbus_timestamp  (mon_arb_monbus_timestamp),
         // Free-running timestamp shared with every wrapper's i_mon_time
         .mon_time_out      (mon_time_w),
-        // AXIL slave
-        .s_axil_arvalid      (s_mon_axil_arvalid),
-        .s_axil_arready      (s_mon_axil_arready),
-        .s_axil_araddr      (s_mon_axil_araddr),
-        .s_axil_arprot      (s_mon_axil_arprot),
-        .s_axil_rvalid      (s_mon_axil_rvalid),
-        .s_axil_rready      (s_mon_axil_rready),
-        .s_axil_rdata      (s_mon_axil_rdata),
-        .s_axil_rresp      (s_mon_axil_rresp),
-        // AXIL master
-        .m_axil_awvalid      (m_mon_axil_awvalid),
-        .m_axil_awready      (m_mon_axil_awready),
-        .m_axil_awaddr      (m_mon_axil_awaddr),
-        .m_axil_awprot      (m_mon_axil_awprot),
-        .m_axil_wvalid      (m_mon_axil_wvalid),
-        .m_axil_wready      (m_mon_axil_wready),
-        .m_axil_wdata      (m_mon_axil_wdata),
-        .m_axil_wstrb      (m_mon_axil_wstrb),
-        .m_axil_bvalid      (m_mon_axil_bvalid),
-        .m_axil_bready      (m_mon_axil_bready),
-        .m_axil_bresp      (m_mon_axil_bresp),
+        // Slave-read port (axil)
+        .s_axil_arvalid (s_mon_axil_arvalid),
+        .s_axil_arready (s_mon_axil_arready),
+        .s_axil_araddr (s_mon_axil_araddr),
+        .s_axil_arprot (s_mon_axil_arprot),
+        .s_axil_rvalid (s_mon_axil_rvalid),
+        .s_axil_rready (s_mon_axil_rready),
+        .s_axil_rdata (s_mon_axil_rdata),
+        .s_axil_rresp (s_mon_axil_rresp),
+        // Master-write port (axil)
+        .m_axil_awvalid (m_mon_axil_awvalid),
+        .m_axil_awready (m_mon_axil_awready),
+        .m_axil_awaddr (m_mon_axil_awaddr),
+        .m_axil_awprot (m_mon_axil_awprot),
+        .m_axil_wvalid (m_mon_axil_wvalid),
+        .m_axil_wready (m_mon_axil_wready),
+        .m_axil_wdata (m_mon_axil_wdata),
+        .m_axil_wstrb (m_mon_axil_wstrb),
+        .m_axil_bvalid (m_mon_axil_bvalid),
+        .m_axil_bready (m_mon_axil_bready),
+        .m_axil_bresp (m_mon_axil_bresp),
         // IRQ
         .irq_out           (mon_irq_out),
         // Group-level cfg
         .cfg_base_addr     (cfg_mon_group_base_addr),
         .cfg_limit_addr     (cfg_mon_group_limit_addr),
+        .cfg_flush_watermark     (cfg_mon_group_flush_watermark),
         .cfg_axi_pkt_mask     (cfg_mon_group_axi_pkt_mask),
         .cfg_axi_err_select     (cfg_mon_group_axi_err_select),
         .cfg_axi_error_mask     (cfg_mon_group_axi_error_mask),

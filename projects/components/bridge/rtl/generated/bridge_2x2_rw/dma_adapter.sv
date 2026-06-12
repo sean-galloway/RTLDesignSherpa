@@ -219,7 +219,7 @@ module dma_adapter #(
         .fub_axi_bvalid(fub_axi_bvalid),
         .fub_axi_bready(fub_axi_bready),
 
-        // Status (unconnected = clock-gating tie-off)
+        // Status (empty connector = unconnected tie-off)
         .busy(wrapper_wr_busy)
     );
 
@@ -281,7 +281,7 @@ module dma_adapter #(
         .fub_axi_rvalid(fub_axi_rvalid),
         .fub_axi_rready(fub_axi_rready),
 
-        // Status (unconnected = clock-gating tie-off)
+        // Status (empty connector = unconnected tie-off)
         .busy(wrapper_rd_busy)
     );
 

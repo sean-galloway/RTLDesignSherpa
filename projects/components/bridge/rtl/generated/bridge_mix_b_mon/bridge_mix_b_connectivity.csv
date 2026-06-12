@@ -1,0 +1,4 @@
+master\slave,ddr,scratch,apb_periph
+cpu_axi4,1,1,1
+dma_axi4,1,1,0
+host_axil,0,1,1

@@ -157,15 +157,21 @@ class CfgRdlGenerator:
                 "Install with: pip install peakrdl peakrdl-regblock"
             )
         output_dir.mkdir(parents=True, exist_ok=True)
+        # peakrdl runs with cwd=output_dir.parent, so any relative paths
+        # we pass would resolve against that cwd, not the caller's.
+        # Resolve both to absolute paths so peakrdl always sees the same
+        # files regardless of where bridge_generator.py was invoked from.
+        rdl_abs = rdl_path.resolve()
+        out_abs = output_dir.resolve()
         cmd = [
             peakrdl_bin, 'regblock',
-            str(rdl_path),
+            str(rdl_abs),
             '--cpuif', 'axi4-lite-flat',
-            '-o', str(output_dir),
+            '-o', str(out_abs),
         ]
         env = os.environ.copy()
         result = subprocess.run(
-            cmd, cwd=str(output_dir.parent), env=env,
+            cmd, cwd=str(out_abs.parent), env=env,
             capture_output=True, text=True, check=False,
         )
         if result.returncode != 0:

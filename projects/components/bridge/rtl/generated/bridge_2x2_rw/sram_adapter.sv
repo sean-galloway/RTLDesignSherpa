@@ -270,7 +270,7 @@ module sram_adapter #(
         .m_axi_bvalid(sram_s_axi_bvalid),
         .m_axi_bready(sram_s_axi_bready),
 
-        // Status (unconnected = clock-gating tie-off)
+        // Status (empty connector = unconnected tie-off)
         .busy()
     );
 
@@ -330,7 +330,7 @@ module sram_adapter #(
         .m_axi_rvalid(sram_s_axi_rvalid),
         .m_axi_rready(sram_s_axi_rready),
 
-        // Status (unconnected = clock-gating tie-off)
+        // Status (empty connector = unconnected tie-off)
         .busy()
     );
 

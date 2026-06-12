@@ -84,7 +84,8 @@ class BridgeModuleGenerator:
                  internal_axil_group: bool = True,
                  use_all_monitors: bool = False,
                  use_no_monitors:  bool = False,
-                 use_cfg_regblock: bool = False):
+                 use_cfg_regblock: bool = False,
+                 mon_group=None):
         """
         Initialize bridge generator.
 
@@ -119,6 +120,15 @@ class BridgeModuleGenerator:
         # instantiation -- the TOML just picks the build-time default.
         self.use_all_monitors = use_all_monitors
         self.use_no_monitors  = use_no_monitors
+        # mon_group: MonGroupConfig selecting which monbus_<p1>_<p2>_group
+        # variant the internal aggregator instantiates and what slave-read
+        # / master-write surface the bridge top exposes. Imported lazily to
+        # avoid a hard dependency when callers pass one explicitly; None
+        # falls back to the legacy axil/axil default.
+        if mon_group is None:
+            from bridge_pkg.config import MonGroupConfig
+            mon_group = MonGroupConfig()
+        self.mon_group = mon_group
         self.masters: List[MasterConfig] = []
         self.slaves: List[SlaveInfo] = []
 
@@ -311,9 +321,13 @@ class BridgeModuleGenerator:
     # behaviour. Mirrors monbus_axil_group's port list in
     # rtl/amba/shared/monbus_axil_group.sv (unified location).
     _MON_GROUP_CFG = (
-        # Address window for the AXIL master write region
+        # Address window for the master write region
         ('base_addr',           32),
         ('limit_addr',          32),
+        # Flush watermark (beats): master-write burst fires when the
+        # write FIFO reaches this many beats (or on timeout). New port in
+        # the monbus_<p1>_<p2>_group family (commit 3d91e4de).
+        ('flush_watermark',     16),
         # Per-protocol filter masks (AXI, AXIS, CORE)
         ('axi_pkt_mask',        16),
         ('axi_err_select',      16),
@@ -341,6 +355,86 @@ class BridgeModuleGenerator:
         ('core_perf_mask',      16),
         ('core_debug_mask',     16),
     )
+
+    # Monbus group ADDR_WIDTH at the bridge top (matches the historical
+    # hard-coded 32-bit address window).
+    _MON_GROUP_ADDR_WIDTH = 32
+
+    def _mon_group_signals(self):
+        """Protocol-resolved port maps for the monbus group's slave-read
+        and master-write surfaces.
+
+        Returns a dict with, for each of 'slave'/'master', a list of
+        (suffix, direction, width) tuples plus the wrapper-side port
+        prefix ('s_axil'/'s_axi'/'m_axil'/'m_axi') and the bridge-top net
+        prefix ('s_mon_axil'/'s_mon_axi'/'m_mon_axil'/'m_mon_axi').
+
+        `direction` is from the bridge-top perspective and equals the
+        wrapper port direction (the group ports pass straight through).
+        `width` is a concrete bit count; AXI4 id/user resolve from the
+        configured mon_group widths.
+        """
+        mg = self.mon_group
+        AW = self._MON_GROUP_ADDR_WIDTH
+        ID = mg.axi_id_width
+        US = mg.axi_user_width
+
+        slave_axil = [
+            ('arvalid', 'input',  1), ('arready', 'output', 1),
+            ('araddr',  'input',  AW), ('arprot',  'input',  3),
+            ('rvalid',  'output', 1), ('rready',  'input',  1),
+            ('rdata',   'output', 64), ('rresp',   'output', 2),
+        ]
+        slave_axi4 = [
+            ('arid',    'input',  ID), ('araddr',  'input',  AW),
+            ('arlen',   'input',  8), ('arsize',  'input',  3),
+            ('arburst', 'input',  2), ('arlock',  'input',  1),
+            ('arcache', 'input',  4), ('arprot',  'input',  3),
+            ('arqos',   'input',  4), ('arregion','input',  4),
+            ('aruser',  'input',  US), ('arvalid', 'input',  1),
+            ('arready', 'output', 1),
+            ('rid',     'output', ID), ('rdata',   'output', 64),
+            ('rresp',   'output', 2), ('rlast',   'output', 1),
+            ('ruser',   'output', US), ('rvalid',  'output', 1),
+            ('rready',  'input',  1),
+        ]
+        master_axil = [
+            ('awvalid', 'output', 1), ('awready', 'input',  1),
+            ('awaddr',  'output', AW), ('awprot',  'output', 3),
+            ('wvalid',  'output', 1), ('wready',  'input',  1),
+            ('wdata',   'output', 64), ('wstrb',   'output', 8),
+            ('bvalid',  'input',  1), ('bready',  'output', 1),
+            ('bresp',   'input',  2),
+        ]
+        master_axi4 = [
+            ('awid',    'output', ID), ('awaddr',  'output', AW),
+            ('awlen',   'output', 8), ('awsize',  'output', 3),
+            ('awburst', 'output', 2), ('awlock',  'output', 1),
+            ('awcache', 'output', 4), ('awprot',  'output', 3),
+            ('awqos',   'output', 4), ('awregion','output', 4),
+            ('awuser',  'output', US), ('awvalid', 'output', 1),
+            ('awready', 'input',  1),
+            ('wdata',   'output', 64), ('wstrb',   'output', 8),
+            ('wlast',   'output', 1), ('wuser',   'output', US),
+            ('wvalid',  'output', 1), ('wready',  'input',  1),
+            ('bid',     'input',  ID), ('bresp',   'input',  2),
+            ('buser',   'input',  US), ('bvalid',  'input',  1),
+            ('bready',  'output', 1),
+        ]
+        return {
+            'slave':  slave_axi4 if mg.slave_is_axi4 else slave_axil,
+            'master': master_axi4 if mg.master_is_axi4 else master_axil,
+            's_wrap': 's_axi' if mg.slave_is_axi4 else 's_axil',
+            'm_wrap': 'm_axi' if mg.master_is_axi4 else 'm_axil',
+            's_net':  's_mon_axi' if mg.slave_is_axi4 else 's_mon_axil',
+            'm_net':  'm_mon_axi' if mg.master_is_axi4 else 'm_mon_axil',
+        }
+
+    @staticmethod
+    def _width_decl(width: int) -> str:
+        """SV width token for a port/net of `width` bits: padded blank for
+        a scalar, `[width-1:0]` otherwise."""
+        return "       " if width == 1 else f"[{width-1}:0]"
 
     def _generate_monitor_top_ports(self, wrappers: List[MonitoredWrapper]) -> List[str]:
         """Per-wrapper cfg inputs + monbus_axil_group's AXIL slave,
@@ -394,41 +488,36 @@ class BridgeModuleGenerator:
             lines.append("")
 
         if self.internal_axil_group:
-            # monbus_axil_group ports -- the post-arbiter consumer.
+            sig = self._mon_group_signals()
+            mod = self.mon_group.module_name
+            # monbus group ports -- the post-arbiter consumer. The
+            # slave-read / master-write protocols come from the
+            # [bridge.mon_group] TOML (axil/axil legacy default).
             lines.append("    // ============================================================")
-            lines.append("    // monbus_axil_group access ports + config + IRQ")
+            lines.append(f"    // {mod} access ports + config + IRQ")
             lines.append("    // ============================================================")
-            # AXIL slave (config / IRQ status reads). 64-bit data: a CPU
-            # drains one error packet (packet + source_ts) in 3 beats via
-            # the unified monbus_axil_group's slice-counter read path.
-            lines.append("    // AXIL slave (IRQ-status reads, 64-bit data)")
-            lines.append("    input  logic        s_mon_axil_arvalid,")
-            lines.append("    output logic        s_mon_axil_arready,")
-            lines.append("    input  logic [31:0] s_mon_axil_araddr,")
-            lines.append("    input  logic [2:0]  s_mon_axil_arprot,")
-            lines.append("    output logic        s_mon_axil_rvalid,")
-            lines.append("    input  logic        s_mon_axil_rready,")
-            lines.append("    output logic [63:0] s_mon_axil_rdata,")
-            lines.append("    output logic [1:0]  s_mon_axil_rresp,")
+            # Slave-read port (IRQ-status / error-FIFO reads). 64-bit data:
+            # a CPU drains one error packet (packet + source_ts) in 3 beats
+            # via the group's slice-counter read path.
+            lines.append(
+                f"    // Slave-read port ({self.mon_group.slave_protocol}, "
+                f"IRQ-status reads, 64-bit data)")
+            for suffix, direction, width in sig['slave']:
+                lines.append(
+                    f"    {direction:<6} logic {self._width_decl(width)} "
+                    f"{sig['s_net']}_{suffix},")
             lines.append("")
-            # AXIL master (packet log writes). The monbus_axil_group module
-            # exposes a 64-bit master (M_AXIL_DATA_WIDTH=64) so the captured
-            # write records are wide enough for the 128-bit packet split
-            # across two beats; bump wdata 32->64 and wstrb 4->8 to match.
-            lines.append("    // AXIL master (packet log writes)")
-            lines.append("    output logic        m_mon_axil_awvalid,")
-            lines.append("    input  logic        m_mon_axil_awready,")
-            lines.append("    output logic [31:0] m_mon_axil_awaddr,")
-            lines.append("    output logic [2:0]  m_mon_axil_awprot,")
-            lines.append("    output logic        m_mon_axil_wvalid,")
-            lines.append("    input  logic        m_mon_axil_wready,")
-            lines.append("    output logic [63:0] m_mon_axil_wdata,")
-            lines.append("    output logic [7:0]  m_mon_axil_wstrb,")
-            lines.append("    input  logic        m_mon_axil_bvalid,")
-            lines.append("    output logic        m_mon_axil_bready,")
-            lines.append("    input  logic [1:0]  m_mon_axil_bresp,")
+            # Master-write port (packet-log writes to memory). 64-bit data
+            # so a 128-bit packet record spans whole beats.
+            lines.append(
+                f"    // Master-write port ({self.mon_group.master_protocol}, "
+                f"packet log writes)")
+            for suffix, direction, width in sig['master']:
+                lines.append(
+                    f"    {direction:<6} logic {self._width_decl(width)} "
+                    f"{sig['m_net']}_{suffix},")
             lines.append("")
-            # monbus_axil_group cfg — skipped when use_cfg_regblock=True
+            # monbus group cfg — skipped when use_cfg_regblock=True
             # (the regblock backs these too; see _generate_cfg_regblock_*).
             if not self.use_cfg_regblock:
                 lines.append("    // monbus_axil_group cfg")
@@ -671,18 +760,42 @@ class BridgeModuleGenerator:
         lines.append("    );")
         lines.append("")
         if self.internal_axil_group:
-            lines.append("    monbus_axil_group #(")
-            lines.append("        .FIFO_DEPTH_ERR    (64),")
-            lines.append("        .FIFO_DEPTH_WRITE  (32),")
-            lines.append("        .ADDR_WIDTH        (32),")
-            lines.append("        .S_AXIL_DATA_WIDTH (64),")
-            lines.append("        // S_AXIL_DATA_WIDTH=64: the unified group drains one")
-            lines.append("        // err_fifo entry ({packet[127:0], source_ts[63:0]} = 192 bits)")
-            lines.append("        // over three 64-bit reads via an internal slice counter.")
-            lines.append("        // M_AXIL_DATA_WIDTH defaults to 64 — module emits the same")
-            lines.append("        // 24-byte record on the bulk-trace write path: three 64-bit")
-            lines.append("        // beats {packet[63:0], packet[127:64], source_ts[63:0]}.")
-            lines.append("        .NUM_PROTOCOLS     (3)")
+            mg = self.mon_group
+            sig = self._mon_group_signals()
+            # Parameter list -- id/user/burst params depend on which
+            # sides are axi4 (param names differ per family member).
+            params = [
+                ('FIFO_DEPTH_ERR',       mg.fifo_depth_err),
+                ('FIFO_DEPTH_WRITE',     mg.fifo_depth_write),
+                ('ADDR_WIDTH',           self._MON_GROUP_ADDR_WIDTH),
+                ('FLUSH_TIMEOUT_CYCLES', mg.flush_timeout_cycles),
+                ('NUM_PROTOCOLS',        3),
+                ('USE_COMPRESSION',      mg.use_compression),
+            ]
+            if mg.slave_is_axi4 and mg.master_is_axi4:
+                params += [
+                    ('AXI_ID_WIDTH_S',  mg.axi_id_width),
+                    ('AXI_ID_WIDTH_M',  mg.axi_id_width),
+                    ('AXI_USER_WIDTH',  mg.axi_user_width),
+                    ('MAX_BURST_BEATS', mg.max_burst_beats),
+                ]
+            elif mg.slave_is_axi4:
+                params += [
+                    ('AXI_ID_WIDTH',   mg.axi_id_width),
+                    ('AXI_USER_WIDTH', mg.axi_user_width),
+                ]
+            elif mg.master_is_axi4:
+                params += [
+                    ('AXI_ID_WIDTH',    mg.axi_id_width),
+                    ('AXI_USER_WIDTH',  mg.axi_user_width),
+                    ('MAX_BURST_BEATS', mg.max_burst_beats),
+                ]
+            lines.append(f"    {mg.module_name} #(")
+            lines.append("        // FIFO_DEPTH_WRITE is in BEATS in the monbus group family;")
+            lines.append("        // the master-write burst fires on cfg_flush_watermark or timeout.")
+            for i, (name, val) in enumerate(params):
+                sep = '' if i == len(params) - 1 else ','
+                lines.append(f"        .{name:<20}({val}){sep}")
             lines.append("    ) u_mon_axil_group (")
             lines.append("        .axi_aclk          (aclk),")
             lines.append("        .axi_aresetn       (aresetn),")
@@ -693,12 +806,14 @@ class BridgeModuleGenerator:
             lines.append("        .monbus_timestamp  (mon_arb_monbus_timestamp),")
             lines.append("        // Free-running timestamp shared with every wrapper's i_mon_time")
             lines.append("        .mon_time_out      (mon_time_w),")
-            lines.append("        // AXIL slave")
-            for s in ('arvalid','arready','araddr','arprot','rvalid','rready','rdata','rresp'):
-                lines.append(f"        .s_axil_{s}      (s_mon_axil_{s}),")
-            lines.append("        // AXIL master")
-            for s in ('awvalid','awready','awaddr','awprot','wvalid','wready','wdata','wstrb','bvalid','bready','bresp'):
-                lines.append(f"        .m_axil_{s}      (m_mon_axil_{s}),")
+            lines.append(f"        // Slave-read port ({mg.slave_protocol})")
+            for suffix, _dir, _w in sig['slave']:
+                lines.append(
+                    f"        .{sig['s_wrap']}_{suffix} ({sig['s_net']}_{suffix}),")
+            lines.append(f"        // Master-write port ({mg.master_protocol})")
+            for suffix, _dir, _w in sig['master']:
+                lines.append(
+                    f"        .{sig['m_wrap']}_{suffix} ({sig['m_net']}_{suffix}),")
             lines.append("        // IRQ")
             lines.append("        .irq_out           (mon_irq_out),")
             lines.append("        // Group-level cfg")

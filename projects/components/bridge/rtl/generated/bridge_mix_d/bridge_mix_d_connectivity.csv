@@ -1,0 +1,3 @@
+master\slave,ddr,doorbell,apb_periph
+cpu_axi4,1,1,1
+trace_axil,1,1,0
