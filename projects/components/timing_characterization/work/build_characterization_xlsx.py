@@ -376,14 +376,20 @@ def build_blocks_sheet(wb: Workbook):
         # ---- output-side: internal flop Q -> module output port ----
         "out MUX lv", "out NAND lv",                   # P, Q
         "flop->out TT (ps)", "flop->out FF (ps)", "flop->out SS (ps)",  # R, S, T
-        # ---- fmax = worst of the two internal halves ----
+        # ---- fmax reference (per-corner) ----
         "fmax TT (MHz)", "fmax FF (MHz)", "fmax SS (MHz)",  # U, V, W
-        # ---- chain accumulator (per-corner) ----
-        "delay_in (ps)",                                            # X
-        "delay_out TT", "delay_out FF", "delay_out SS",             # Y, Z, AA
-        "",                                                         # AB blank gap
-        "slack TT (ps)", "slack FF (ps)", "slack SS (ps)",          # AC, AD, AE
-        "notes",                                       # AF
+        # ---- per-row clock lookup (from characterization Design clocks table) ----
+        "clock",                                            # X  (designer enters name)
+        "target period (ps)",                               # Y
+        "target corner",                                    # Z
+        "target data->D (ps)",                              # AA
+        "target flop->out (ps)",                            # AB
+        # ---- chain accumulator (single-corner, picked by clock) ----
+        "delay_in (ps)",                                    # AC
+        "delay_out (ps)",                                   # AD
+        "",                                                 # AE blank gap
+        "slack (ps)",                                       # AF
+        "notes",                                            # AG
     ]
     ws.append(header)
     for c in range(1, len(header) + 1):
@@ -395,16 +401,15 @@ def build_blocks_sheet(wb: Workbook):
 
     NCOL = len(header)
 
-    # ---------- Config row 2: target period + 60% input / 40% output ---------- #
-    ws.cell(row=2, column=1, value="CONFIG -> target period (ps):").font = SECTION_FONT
-    c = ws.cell(row=2, column=2, value=1000); c.fill = PARAM_FILL; c.alignment = CENTER
-    ws.cell(row=2, column=3, value="input delay 60% (ps):").font = SECTION_FONT
-    c = ws.cell(row=2, column=4, value="=B2*0.6"); c.fill = FORMULA_FILL; c.alignment = CENTER
-    ws.cell(row=2, column=5, value="output delay 40% (ps):").font = SECTION_FONT
-    c = ws.cell(row=2, column=6, value="=B2*0.4"); c.fill = FORMULA_FILL; c.alignment = CENTER
-    ws.cell(row=2, column=7, value=(
-        "  delay_in defaults to 0.6*period (STA input arrival). Chain by "
-        "=Y_prev. slack reserves 0.4*period for downstream output delay."))
+    # Config row 2 - explanation only; per-row 'clock' column drives all lookups
+    # via the characterization sheet's Design clocks table.
+    ws.cell(row=2, column=1, value="CONFIG").font = SECTION_FONT
+    ws.cell(row=2, column=2, value=(
+        "Each row's 'clock' cell (col X) holds a name from characterization's "
+        "Design clocks table. Period, corner, input 60%, output 40% are all "
+        "VLOOKUP'd per row. Change the table entry to plan a new freq/corner "
+        "and watch the slack column flip from negative (fail) to positive (pass)."))
+    ws.merge_cells(start_row=2, start_column=2, end_row=2, end_column=NCOL)
 
     def emit_section_header(label: str):
         r = ws.max_row + 1
@@ -589,26 +594,39 @@ def build_blocks_sheet(wb: Workbook):
             cell = ws.cell(row=r, column=21 + off, value=f)
             cell.alignment = CENTER
             cell.fill = FORMULA_FILL
-        # X: delay_in - default = 0.6 * target period (STA input arrival 60%).
-        c = ws.cell(row=r, column=24, value="=$D$2"); c.fill = PARAM_FILL; c.alignment = CENTER
-        # Y, Z, AA: delay_out TT/FF/SS = delay_in + (data->D + flop->out) per corner
-        for off, in_col, out_col in (
-            (0, "M", "R"),   # TT
-            (1, "N", "S"),   # FF
-            (2, "O", "T"),   # SS
-        ):
-            c = ws.cell(row=r, column=25 + off,
-                        value=f"=X{r} + {in_col}{r} + {out_col}{r}")
-            c.fill = FORMULA_FILL; c.alignment = CENTER
-        # AB (col 28) intentionally blank as separator
-        # AC, AD, AE: slack TT/FF/SS = period - delay_out - output_delay(40%)
-        for off in range(3):
-            out_col = get_column_letter(25 + off)  # Y, Z, AA (handles multi-letter)
-            c = ws.cell(row=r, column=29 + off,
-                        value=f"=$B$2 - {out_col}{r} - $F$2")
-            c.fill = FORMULA_FILL; c.alignment = CENTER
-        # AF: notes
-        ws.cell(row=r, column=32, value=b["notes"])
+        # X: clock name (yellow, default clk_main)
+        c = ws.cell(row=r, column=24, value="clk_main"); c.fill = PARAM_FILL; c.alignment = CENTER
+        # Y: target period (ps)  =VLOOKUP(clock, table, 4)
+        c = ws.cell(row=r, column=25,
+                    value=f'=IFERROR(VLOOKUP(X{r}, {CLOCK_TABLE_RANGE}, 4, FALSE), "")')
+        c.fill = FORMULA_FILL; c.alignment = CENTER
+        # Z: target corner  =VLOOKUP(clock, table, 3)
+        c = ws.cell(row=r, column=26,
+                    value=f'=IFERROR(VLOOKUP(X{r}, {CLOCK_TABLE_RANGE}, 3, FALSE), "")')
+        c.fill = FORMULA_FILL; c.alignment = CENTER
+        # AA: target data->D = picks M/N/O based on Z (TT/FF/SS)
+        c = ws.cell(row=r, column=27,
+                    value=f'=IF(Z{r}="TT",M{r},IF(Z{r}="FF",N{r},IF(Z{r}="SS",O{r},"")))')
+        c.fill = FORMULA_FILL; c.alignment = CENTER
+        # AB: target flop->out = picks R/S/T based on Z
+        c = ws.cell(row=r, column=28,
+                    value=f'=IF(Z{r}="TT",R{r},IF(Z{r}="FF",S{r},IF(Z{r}="SS",T{r},"")))')
+        c.fill = FORMULA_FILL; c.alignment = CENTER
+        # AC: delay_in (ps)  =VLOOKUP(clock, table, 5)  -> 60% of target period
+        c = ws.cell(row=r, column=29,
+                    value=f'=IFERROR(VLOOKUP(X{r}, {CLOCK_TABLE_RANGE}, 5, FALSE), "")')
+        c.fill = PARAM_FILL; c.alignment = CENTER
+        # AD: delay_out = delay_in + target data->D + target flop->out
+        c = ws.cell(row=r, column=30, value=f"=AC{r} + AA{r} + AB{r}")
+        c.fill = FORMULA_FILL; c.alignment = CENTER
+        # AE: blank gap (col 31)
+        # AF: slack = target period - delay_out - VLOOKUP output 40%
+        c = ws.cell(row=r, column=32,
+                    value=(f'=IFERROR(Y{r} - AD{r} - VLOOKUP(X{r}, '
+                           f'{CLOCK_TABLE_RANGE}, 6, FALSE), "")'))
+        c.fill = FORMULA_FILL; c.alignment = CENTER
+        # AG: notes
+        ws.cell(row=r, column=33, value=b["notes"])
 
     # Emit SRAMs section
     emit_section_header("SRAMs")
@@ -620,8 +638,7 @@ def build_blocks_sheet(wb: Workbook):
     for b in BUILDING_BLOCKS:
         write_block(b)
 
-    # Storage-size reference at the bottom. After adding the config row at 2,
-    # the SRAM rows now live at rows 4 and 5 (banner=3, raw=4, REG=1=5).
+    # Storage-size reference at the bottom.
     r = ws.max_row + 2
     ws.cell(row=r, column=1, value="SRAM storage size reference").font = SECTION_FONT
     ws.cell(row=r + 1, column=1, value="SRAM raw macro: storage bits = W * D = ")
@@ -638,15 +655,17 @@ def build_blocks_sheet(wb: Workbook):
     # Column widths
     widths = {1: 32, 8: 38, 9: 11, 10: 13,
               11: 8, 12: 9,                          # K, L  in mux/nand lv
-              13: 15, 14: 15, 15: 15,                # M, N, O data->D
+              13: 15, 14: 15, 15: 15,                # M, N, O data->D TT/FF/SS
               16: 8, 17: 9,                          # P, Q  out mux/nand lv
-              18: 15, 19: 15, 20: 15,                # R, S, T flop->out
-              21: 13, 22: 13, 23: 13,                # U, V, W fmax
-              24: 14,                                # X delay_in
-              25: 14, 26: 14, 27: 14,                # Y, Z, AA delay_out TT/FF/SS
-              28: 3,                                 # AB blank gap
-              29: 13, 30: 13, 31: 13,                # AC, AD, AE slack TT/FF/SS
-              32: 60}                                # AF notes
+              18: 15, 19: 15, 20: 15,                # R, S, T flop->out TT/FF/SS
+              21: 13, 22: 13, 23: 13,                # U, V, W fmax TT/FF/SS
+              24: 11,                                # X  clock name
+              25: 14, 26: 12, 27: 18, 28: 18,        # Y target period | Z corner |
+                                                     #   AA target data->D | AB target flop->out
+              29: 13, 30: 13,                        # AC delay_in | AD delay_out
+              31: 3,                                 # AE blank gap
+              32: 13,                                # AF slack
+              33: 60}                                # AG notes
     for c in range(2, 8):
         widths.setdefault(c, 9)
     for c, w in widths.items():
