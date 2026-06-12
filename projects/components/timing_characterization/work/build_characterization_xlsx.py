@@ -186,6 +186,40 @@ def build_sheet(wb: Workbook, per_level: dict, tflop: dict, single_pt: dict):
         ws.append(row)
 
     # ---------------------------------------------------------------------- #
+    # Clocks defined for this methodology (the three target frequencies).
+    # ---------------------------------------------------------------------- #
+    ws.append([""] * len(col_headers))
+    section_header_row(ws, "Clocks defined", len(col_headers))
+    for f in FREQS:
+        period = round(1_000_000 / f, 1)
+        label = f"clk_{f}MHz  ({f} MHz)"
+        row = [label]
+        # show period across all 9 cells of the row
+        for _ in range(len(CORNERS) * len(FREQS)):
+            row.append(period)
+        ws.append(row)
+
+    # ---------------------------------------------------------------------- #
+    # STA boundary timing budget defaults (input delay 60%, output delay 40%).
+    # These are reference cells the building-blocks / stream sheets pull from
+    # via the configurable target_period.  Each corner_freq column shows the
+    # ps budget for that specific freq.
+    # ---------------------------------------------------------------------- #
+    ws.append([""] * len(col_headers))
+    section_header_row(ws,
+        "STA boundary timing budget defaults  -  input 60% / output 40% of period",
+        len(col_headers))
+    for label, pct in (
+        ("Input delay  (60% of period, ps)",  0.60),
+        ("Output delay (40% of period, ps)",  0.40),
+    ):
+        row = [label]
+        for corner in CORNERS:
+            for f in FREQS:
+                row.append(round(1_000_000 / f * pct, 1))
+        ws.append(row)
+
+    # ---------------------------------------------------------------------- #
     # Wire delay per mm by metal layer.  ASAP7 NLDM has no wire_load table, so
     # ABC reports WireLoad = "none" on every gate-delay run above.  These are
     # 7nm industry rules-of-thumb for *buffered* routes:
@@ -309,9 +343,12 @@ def build_blocks_sheet(wb: Workbook):
         "flop->out TT (ps)", "flop->out FF (ps)", "flop->out SS (ps)",  # R, S, T
         # ---- fmax = worst of the two internal halves ----
         "fmax TT (MHz)", "fmax FF (MHz)", "fmax SS (MHz)",  # U, V, W
-        # ---- chain accumulator (TT corner, simple add-up) ----
-        "delay_in TT (ps)", "delay_out TT (ps)",       # X, Y
-        "notes",                                       # Z
+        # ---- chain accumulator (per-corner) ----
+        "delay_in (ps)",                                            # X
+        "delay_out TT", "delay_out FF", "delay_out SS",             # Y, Z, AA
+        "",                                                         # AB blank gap
+        "slack TT (ps)", "slack FF (ps)", "slack SS (ps)",          # AC, AD, AE
+        "notes",                                       # AF
     ]
     ws.append(header)
     for c in range(1, len(header) + 1):
@@ -323,14 +360,16 @@ def build_blocks_sheet(wb: Workbook):
 
     NCOL = len(header)
 
-    # ---------- Config row 2: target period and 30% default delay_in ---------- #
+    # ---------- Config row 2: target period + 60% input / 40% output ---------- #
     ws.cell(row=2, column=1, value="CONFIG -> target period (ps):").font = SECTION_FONT
     c = ws.cell(row=2, column=2, value=1000); c.fill = PARAM_FILL; c.alignment = CENTER
-    ws.cell(row=2, column=3, value="30% default delay_in (ps):").font = SECTION_FONT
-    c = ws.cell(row=2, column=4, value="=B2*0.3"); c.fill = FORMULA_FILL; c.alignment = CENTER
-    ws.cell(row=2, column=5, value=(
-        "  delay_in defaults to 0.3*period (external). Overwrite a cell with "
-        "=Y_prev to chain from the previous block's delay_out."))
+    ws.cell(row=2, column=3, value="input delay 60% (ps):").font = SECTION_FONT
+    c = ws.cell(row=2, column=4, value="=B2*0.6"); c.fill = FORMULA_FILL; c.alignment = CENTER
+    ws.cell(row=2, column=5, value="output delay 40% (ps):").font = SECTION_FONT
+    c = ws.cell(row=2, column=6, value="=B2*0.4"); c.fill = FORMULA_FILL; c.alignment = CENTER
+    ws.cell(row=2, column=7, value=(
+        "  delay_in defaults to 0.6*period (STA input arrival). Chain by "
+        "=Y_prev. slack reserves 0.4*period for downstream output delay."))
 
     def emit_section_header(label: str):
         r = ws.max_row + 1
@@ -515,14 +554,26 @@ def build_blocks_sheet(wb: Workbook):
             cell = ws.cell(row=r, column=21 + off, value=f)
             cell.alignment = CENTER
             cell.fill = FORMULA_FILL
-        # X: delay_in TT — default = 0.3 * target period (external arrival).
-        #    Designer overrides with =Y_prev to chain from a previous block.
+        # X: delay_in - default = 0.6 * target period (STA input arrival 60%).
         c = ws.cell(row=r, column=24, value="=$D$2"); c.fill = PARAM_FILL; c.alignment = CENTER
-        # Y: delay_out TT = delay_in + (data->D TT + flop->out TT)
-        c = ws.cell(row=r, column=25, value=f"=X{r} + M{r} + R{r}")
-        c.fill = FORMULA_FILL; c.alignment = CENTER
-        # Z: notes
-        ws.cell(row=r, column=26, value=b["notes"])
+        # Y, Z, AA: delay_out TT/FF/SS = delay_in + (data->D + flop->out) per corner
+        for off, in_col, out_col in (
+            (0, "M", "R"),   # TT
+            (1, "N", "S"),   # FF
+            (2, "O", "T"),   # SS
+        ):
+            c = ws.cell(row=r, column=25 + off,
+                        value=f"=X{r} + {in_col}{r} + {out_col}{r}")
+            c.fill = FORMULA_FILL; c.alignment = CENTER
+        # AB (col 28) intentionally blank as separator
+        # AC, AD, AE: slack TT/FF/SS = period - delay_out - output_delay(40%)
+        for off in range(3):
+            out_col = get_column_letter(25 + off)  # Y, Z, AA (handles multi-letter)
+            c = ws.cell(row=r, column=29 + off,
+                        value=f"=$B$2 - {out_col}{r} - $F$2")
+            c.fill = FORMULA_FILL; c.alignment = CENTER
+        # AF: notes
+        ws.cell(row=r, column=32, value=b["notes"])
 
     # Emit SRAMs section
     emit_section_header("SRAMs")
@@ -556,8 +607,11 @@ def build_blocks_sheet(wb: Workbook):
               16: 8, 17: 9,                          # P, Q  out mux/nand lv
               18: 15, 19: 15, 20: 15,                # R, S, T flop->out
               21: 13, 22: 13, 23: 13,                # U, V, W fmax
-              24: 15, 25: 15,                        # X, Y delay_in/_out TT
-              26: 60}                                # Z notes
+              24: 14,                                # X delay_in
+              25: 14, 26: 14, 27: 14,                # Y, Z, AA delay_out TT/FF/SS
+              28: 3,                                 # AB blank gap
+              29: 13, 30: 13, 31: 13,                # AC, AD, AE slack TT/FF/SS
+              32: 60}                                # AF notes
     for c in range(2, 8):
         widths.setdefault(c, 9)
     for c, w in widths.items():
@@ -611,12 +665,15 @@ def build_stream_sheet(wb: Workbook):
     BIG_HDR_FONT = Font(bold=True, size=14, color="000000")
 
     header = [
-        "FUB", "port", "dir", "building block crossed",          # A-D
-        "MUX lv", "NAND lv",                                     # E, F
-        "source/sink flop or BB port",                           # G
-        "local delay TT (ps)", "local delay FF (ps)", "local delay SS (ps)",  # H, I, J
-        "delay_in TT (ps)", "delay_out TT (ps)",                 # K, L
-        "places it goes (consumer / producer)",                  # M
+        "FUB", "port", "clock", "dir", "building block crossed",        # A-E
+        "MUX lv", "NAND lv",                                            # F, G
+        "source/sink flop or BB port",                                  # H
+        "local delay TT (ps)", "local delay FF (ps)", "local delay SS (ps)",  # I, J, K
+        "delay_in (ps)",                                                # L
+        "delay_out TT", "delay_out FF", "delay_out SS",                 # M, N, O
+        "",                                                             # P blank gap
+        "slack TT (ps)", "slack FF (ps)", "slack SS (ps)",              # Q, R, S
+        "places it goes (consumer / producer)",                         # T
     ]
     ws.append(header)
     NCOL = len(header)
@@ -627,14 +684,16 @@ def build_stream_sheet(wb: Workbook):
         cell.alignment = CENTER
         cell.border = BOX
 
-    # Config row 2: target period
+    # Config row 2: target period + 60/40 boundary defaults
     ws.cell(row=2, column=1, value="CONFIG -> target period (ps):").font = SECTION_FONT
     c = ws.cell(row=2, column=2, value=1000); c.fill = PARAM_FILL; c.alignment = CENTER
-    ws.cell(row=2, column=3, value="30% default delay_in (ps):").font = SECTION_FONT
-    c = ws.cell(row=2, column=4, value="=B2*0.3"); c.fill = FORMULA_FILL; c.alignment = CENTER
-    ws.cell(row=2, column=5, value=(
-        "  delay_in defaults to 0.3*period; chain by setting delay_in = "
-        "=L_prev_row from the previous block's delay_out."))
+    ws.cell(row=2, column=3, value="input 60% (ps):").font = SECTION_FONT
+    c = ws.cell(row=2, column=4, value="=B2*0.6"); c.fill = FORMULA_FILL; c.alignment = CENTER
+    ws.cell(row=2, column=5, value="output 40% (ps):").font = SECTION_FONT
+    c = ws.cell(row=2, column=6, value="=B2*0.4"); c.fill = FORMULA_FILL; c.alignment = CENTER
+    ws.cell(row=2, column=7, value=(
+        "delay_in defaults to 0.6*period; chain by =M_prev. slack reserves "
+        "0.4*period for downstream output delay."))
 
     def emit_fub_banner(label: str):
         r = ws.max_row + 1
@@ -650,28 +709,38 @@ def build_stream_sheet(wb: Workbook):
             "FF": {"nand": "$G$15", "mux": "$G$17"},
             "SS": {"nand": "$J$15", "mux": "$J$17"}}
 
-    def emit_row(fub, port, direction, bb, mux_lv, nand_lv, flop, goes):
+    def emit_row(fub, port, direction, bb, mux_lv, nand_lv, flop, goes, clock="clk"):
         r = ws.max_row + 1
         ws.cell(row=r, column=1, value=fub)
         ws.cell(row=r, column=2, value=port)
-        ws.cell(row=r, column=3, value=direction).alignment = CENTER
-        ws.cell(row=r, column=4, value=bb)
-        c = ws.cell(row=r, column=5, value=mux_lv); c.fill = PARAM_FILL; c.alignment = CENTER
-        c = ws.cell(row=r, column=6, value=nand_lv); c.fill = PARAM_FILL; c.alignment = CENTER
-        ws.cell(row=r, column=7, value=flop)
+        ws.cell(row=r, column=3, value=clock).alignment = CENTER
+        ws.cell(row=r, column=4, value=direction).alignment = CENTER
+        ws.cell(row=r, column=5, value=bb)
+        c = ws.cell(row=r, column=6, value=mux_lv); c.fill = PARAM_FILL; c.alignment = CENTER
+        c = ws.cell(row=r, column=7, value=nand_lv); c.fill = PARAM_FILL; c.alignment = CENTER
+        ws.cell(row=r, column=8, value=flop)
+        # I, J, K: local delay TT/FF/SS  (mux_lv col=F, nand_lv col=G)
         for off, corner in enumerate(("TT", "FF", "SS")):
-            f = (f"=E{r}*characterization!{REFS[corner]['mux']} "
-                 f"+ F{r}*characterization!{REFS[corner]['nand']}")
-            c = ws.cell(row=r, column=8 + off, value=f)
+            f = (f"=F{r}*characterization!{REFS[corner]['mux']} "
+                 f"+ G{r}*characterization!{REFS[corner]['nand']}")
+            c = ws.cell(row=r, column=9 + off, value=f)
             c.fill = FORMULA_FILL; c.alignment = CENTER
-        # K: delay_in TT - default = config 30%-of-period cell (D2);
-        #    designer overwrites with =L_prev to chain.
-        c = ws.cell(row=r, column=11, value="=$D$2"); c.fill = PARAM_FILL; c.alignment = CENTER
-        # L: delay_out TT = delay_in + local TT delay
-        c = ws.cell(row=r, column=12, value=f"=K{r} + H{r}")
-        c.fill = FORMULA_FILL; c.alignment = CENTER
-        # M: places it goes
-        ws.cell(row=r, column=13, value=goes)
+        # L: delay_in (single cell, default 60% of period)
+        c = ws.cell(row=r, column=12, value="=$D$2"); c.fill = PARAM_FILL; c.alignment = CENTER
+        # M, N, O: delay_out TT/FF/SS = delay_in + local TT/FF/SS delay
+        for off in range(3):
+            local_col = chr(ord("I") + off)  # I, J, K
+            c = ws.cell(row=r, column=13 + off, value=f"=L{r} + {local_col}{r}")
+            c.fill = FORMULA_FILL; c.alignment = CENTER
+        # P (col 16) intentionally blank as separator
+        # Q, R, S: slack TT/FF/SS = period - delay_out - output_delay(40%)
+        for off in range(3):
+            out_col = chr(ord("M") + off)  # M, N, O
+            c = ws.cell(row=r, column=17 + off,
+                        value=f"=$B$2 - {out_col}{r} - $F$2")
+            c.fill = FORMULA_FILL; c.alignment = CENTER
+        # T: places it goes
+        ws.cell(row=r, column=20, value=goes)
 
     # ----------------------------------------------------------------------- #
     # FUB definitions
@@ -980,10 +1049,14 @@ def build_stream_sheet(wb: Workbook):
             emit_row(fub_name, port, direction, bb, mux_lv, nand_lv, flop, goes)
 
     # Column widths
-    widths = {1: 22, 2: 30, 3: 5, 4: 19, 5: 7, 6: 8,
-              7: 32, 8: 16, 9: 16, 10: 16,
-              11: 15, 12: 15,                        # K, L delay_in/out TT
-              13: 50}                                # M places it goes
+    widths = {1: 22, 2: 30, 3: 9,                    # FUB, port, clock
+              4: 5, 5: 19, 6: 7, 7: 8,               # dir, BB, mux_lv, nand_lv
+              8: 32, 9: 16, 10: 16, 11: 16,          # source flop, local delays
+              12: 13,                                # delay_in
+              13: 13, 14: 13, 15: 13,                # delay_out TT/FF/SS
+              16: 3,                                 # blank gap
+              17: 12, 18: 12, 19: 12,                # slack TT/FF/SS
+              20: 50}                                # places it goes
     for c, w in widths.items():
         ws.column_dimensions[get_column_letter(c)].width = w
 
