@@ -46,8 +46,10 @@ DEGENERATE_PRIMS   = ["INV", "CLK_DIV"]
 TFLOP_PROBE        = "NAND"
 MIXED_PROXY        = "MULT"  # highlight this row as the generic-mixed-logic proxy
 
-# Filled in by build_sheet() so other sheets can pin to the design-clock cells.
-DESIGN_CLOCK_ROW   = None
+# Filled in by build_sheet() so other sheets can build VLOOKUP formulas.
+CLOCK_TABLE_RANGE        = None  # e.g. "characterization!$A$29:$F$34"
+CLOCK_TABLE_FIRST_ROW_G  = None
+CLOCK_TABLE_LAST_ROW_G   = None
 
 # ---------------------------------------------------------------------------- #
 HDR_FONT = Font(bold=True, color="000000")
@@ -193,44 +195,64 @@ def build_sheet(wb: Workbook, per_level: dict, tflop: dict, single_pt: dict):
         ws.append(row)
 
     # ---------------------------------------------------------------------- #
-    # Design clock: one cell defines THE target frequency for the design.
-    # The sheet's 9 corner_freq columns above are a SWEEP - this section
-    # picks the single design target that the other sheets reference.
-    # ---------------------------------------------------------------------- #
-    ws.append([""] * len(col_headers))
-    section_header_row(ws, "Design clock  -  single configurable target",
-                       len(col_headers))
-    # Editable frequency cell + derived period.  Place them in cols A..C so
-    # they're easy to spot.  Other sheets can reference these directly.
-    r = ws.max_row + 1
-    ws.cell(row=r, column=1, value="Target clock frequency (MHz):")
-    c = ws.cell(row=r, column=2, value=1000); c.fill = PARAM_FILL; c.alignment = CENTER
-    ws.cell(row=r, column=3, value="Target clock period (ps):")
-    c = ws.cell(row=r, column=4, value=f"=1000000/B{r}"); c.fill = FORMULA_FILL; c.alignment = CENTER
-    # Stash row number so other sheets can reference the design clock cells.
-    # Period cell is at characterization!$D${design_clock_row}.
-    global DESIGN_CLOCK_ROW
-    DESIGN_CLOCK_ROW = r
-
-    # ---------------------------------------------------------------------- #
-    # STA boundary timing budget defaults (input delay 60%, output delay 40%).
+    # Design clocks table - up to 6 clocks the design uses.
+    # Other sheets reference this table by clock NAME via VLOOKUP to pull
+    # the target frequency, period, and corner (TT/FF/SS).
+    # Layout:
+    #   row N:   section banner
+    #   row N+1: column headers (clock name | freq MHz | corner | period ps |
+    #                            input delay ps | output delay ps)
+    #   row N+2..N+7: 6 editable slots (the first one pre-filled)
     # ---------------------------------------------------------------------- #
     ws.append([""] * len(col_headers))
     section_header_row(ws,
-        "STA boundary timing budget defaults  -  input 60% / output 40% of design period",
+        "Design clocks  -  one row per clock; other sheets VLOOKUP by clock name",
         len(col_headers))
+    # Column headers for the clocks table
     r = ws.max_row + 1
-    ws.cell(row=r, column=1, value="Input delay (60% of design period, ps):")
-    c = ws.cell(row=r, column=2, value=f"=D{DESIGN_CLOCK_ROW}*0.6")
-    c.fill = FORMULA_FILL; c.alignment = CENTER
-    ws.cell(row=r + 1, column=1, value="Output delay (40% of design period, ps):")
-    c = ws.cell(row=r + 1, column=2, value=f"=D{DESIGN_CLOCK_ROW}*0.4")
-    c.fill = FORMULA_FILL; c.alignment = CENTER
-    INPUT_DELAY_ROW = r
-    OUTPUT_DELAY_ROW = r + 1
-    # Stash the row numbers for later cross-sheet references (only used inside
-    # this function; other sheets pin to characterization!$B${row}).
-    ws._design_clock_period_ref = f"characterization!$D${DESIGN_CLOCK_ROW}"
+    clock_hdr = ["clock name", "freq (MHz)", "target corner",
+                 "period (ps)", "input delay 60% (ps)", "output delay 40% (ps)"]
+    for i, h in enumerate(clock_hdr):
+        cell = ws.cell(row=r, column=1 + i, value=h)
+        cell.font = SECTION_FONT
+        cell.fill = SECTION_FILL
+        cell.alignment = CENTER
+
+    # Six editable slots; first row pre-filled with a sensible default.
+    CLOCK_TABLE_FIRST_ROW = r + 1
+    defaults = [
+        ("clk_main", 1000, "TT"),
+        # 5 empty slots — designer adds clocks here.
+        ("", "", ""),
+        ("", "", ""),
+        ("", "", ""),
+        ("", "", ""),
+        ("", "", ""),
+    ]
+    for i, (name, freq, corner) in enumerate(defaults):
+        rr = CLOCK_TABLE_FIRST_ROW + i
+        c = ws.cell(row=rr, column=1, value=name);   c.fill = PARAM_FILL; c.alignment = CENTER
+        c = ws.cell(row=rr, column=2, value=freq);   c.fill = PARAM_FILL; c.alignment = CENTER
+        c = ws.cell(row=rr, column=3, value=corner); c.fill = PARAM_FILL; c.alignment = CENTER
+        # Derived: period, input delay, output delay
+        c = ws.cell(row=rr, column=4,
+                    value=f'=IF(ISNUMBER(B{rr}), 1000000/B{rr}, "")')
+        c.fill = FORMULA_FILL; c.alignment = CENTER
+        c = ws.cell(row=rr, column=5,
+                    value=f'=IF(ISNUMBER(B{rr}), D{rr}*0.6, "")')
+        c.fill = FORMULA_FILL; c.alignment = CENTER
+        c = ws.cell(row=rr, column=6,
+                    value=f'=IF(ISNUMBER(B{rr}), D{rr}*0.4, "")')
+        c.fill = FORMULA_FILL; c.alignment = CENTER
+
+    CLOCK_TABLE_LAST_ROW = CLOCK_TABLE_FIRST_ROW + len(defaults) - 1
+    # Stash for downstream sheets to build VLOOKUP ranges.
+    global CLOCK_TABLE_RANGE, CLOCK_TABLE_FIRST_ROW_G, CLOCK_TABLE_LAST_ROW_G
+    CLOCK_TABLE_FIRST_ROW_G = CLOCK_TABLE_FIRST_ROW
+    CLOCK_TABLE_LAST_ROW_G = CLOCK_TABLE_LAST_ROW
+    CLOCK_TABLE_RANGE = (
+        f"characterization!$A${CLOCK_TABLE_FIRST_ROW}:$F${CLOCK_TABLE_LAST_ROW}"
+    )
 
     # ---------------------------------------------------------------------- #
     # Wire delay per mm by metal layer.  ASAP7 NLDM has no wire_load table, so
@@ -677,16 +699,24 @@ def build_stream_sheet(wb: Workbook):
     BIG_HDR_FILL = PatternFill("solid", fgColor="FFC000")
     BIG_HDR_FONT = Font(bold=True, size=14, color="000000")
 
+    # Header strip - clock col now holds a clock NAME from the design clocks
+    # table on the characterization sheet.  3 new columns pulled via VLOOKUP:
+    # target period (ps), target corner (TT/FF/SS), target local delay (ps).
     header = [
         "FUB", "port", "clock", "dir", "building block crossed",        # A-E
         "MUX lv", "NAND lv",                                            # F, G
         "source/sink flop or BB port",                                  # H
         "local delay TT (ps)", "local delay FF (ps)", "local delay SS (ps)",  # I, J, K
-        "delay_in (ps)",                                                # L
-        "delay_out TT", "delay_out FF", "delay_out SS",                 # M, N, O
-        "",                                                             # P blank gap
-        "slack TT (ps)", "slack FF (ps)", "slack SS (ps)",              # Q, R, S
-        "places it goes (consumer / producer)",                         # T
+        # ---- per-row clock lookup ----
+        "target period (ps)",                                           # L  VLOOKUP freq->period
+        "target corner",                                                # M  VLOOKUP corner
+        "target local delay (ps)",                                      # N  picks I/J/K by corner
+        # ---- chain accumulator (single corner per row, picked by clock) ----
+        "delay_in (ps)",                                                # O
+        "delay_out (ps)",                                               # P
+        "",                                                             # Q blank gap
+        "slack (ps)",                                                   # R
+        "places it goes (consumer / producer)",                         # S
     ]
     ws.append(header)
     NCOL = len(header)
@@ -697,16 +727,13 @@ def build_stream_sheet(wb: Workbook):
         cell.alignment = CENTER
         cell.border = BOX
 
-    # Config row 2: target period + 60/40 boundary defaults
-    ws.cell(row=2, column=1, value="CONFIG -> target period (ps):").font = SECTION_FONT
-    c = ws.cell(row=2, column=2, value=1000); c.fill = PARAM_FILL; c.alignment = CENTER
-    ws.cell(row=2, column=3, value="input 60% (ps):").font = SECTION_FONT
-    c = ws.cell(row=2, column=4, value="=B2*0.6"); c.fill = FORMULA_FILL; c.alignment = CENTER
-    ws.cell(row=2, column=5, value="output 40% (ps):").font = SECTION_FONT
-    c = ws.cell(row=2, column=6, value="=B2*0.4"); c.fill = FORMULA_FILL; c.alignment = CENTER
-    ws.cell(row=2, column=7, value=(
-        "delay_in defaults to 0.6*period; chain by =M_prev. slack reserves "
-        "0.4*period for downstream output delay."))
+    # Config row 2: explains the clock-driven flow.
+    ws.cell(row=2, column=1, value="CONFIG").font = SECTION_FONT
+    ws.cell(row=2, column=2, value=(
+        "clock cell holds a name from characterization!Design clocks table "
+        "(default clk_main). Period & corner are VLOOKUP'd per row. delay_in "
+        "defaults to 60% of target period; slack reserves 40% for output delay."))
+    ws.merge_cells(start_row=2, start_column=2, end_row=2, end_column=NCOL)
 
     def emit_fub_banner(label: str):
         r = ws.max_row + 1
@@ -722,38 +749,49 @@ def build_stream_sheet(wb: Workbook):
             "FF": {"nand": "$G$15", "mux": "$G$17"},
             "SS": {"nand": "$J$15", "mux": "$J$17"}}
 
-    def emit_row(fub, port, direction, bb, mux_lv, nand_lv, flop, goes, clock="clk"):
+    def emit_row(fub, port, direction, bb, mux_lv, nand_lv, flop, goes, clock="clk_main"):
         r = ws.max_row + 1
         ws.cell(row=r, column=1, value=fub)
         ws.cell(row=r, column=2, value=port)
-        ws.cell(row=r, column=3, value=clock).alignment = CENTER
+        c = ws.cell(row=r, column=3, value=clock); c.fill = PARAM_FILL; c.alignment = CENTER
         ws.cell(row=r, column=4, value=direction).alignment = CENTER
         ws.cell(row=r, column=5, value=bb)
         c = ws.cell(row=r, column=6, value=mux_lv); c.fill = PARAM_FILL; c.alignment = CENTER
         c = ws.cell(row=r, column=7, value=nand_lv); c.fill = PARAM_FILL; c.alignment = CENTER
         ws.cell(row=r, column=8, value=flop)
-        # I, J, K: local delay TT/FF/SS  (mux_lv col=F, nand_lv col=G)
+        # I, J, K: local delay TT/FF/SS reference numbers (still useful to see)
         for off, corner in enumerate(("TT", "FF", "SS")):
             f = (f"=F{r}*characterization!{REFS[corner]['mux']} "
                  f"+ G{r}*characterization!{REFS[corner]['nand']}")
             c = ws.cell(row=r, column=9 + off, value=f)
             c.fill = FORMULA_FILL; c.alignment = CENTER
-        # L: delay_in (single cell, default 60% of period)
-        c = ws.cell(row=r, column=12, value="=$D$2"); c.fill = PARAM_FILL; c.alignment = CENTER
-        # M, N, O: delay_out TT/FF/SS = delay_in + local TT/FF/SS delay
-        for off in range(3):
-            local_col = chr(ord("I") + off)  # I, J, K
-            c = ws.cell(row=r, column=13 + off, value=f"=L{r} + {local_col}{r}")
-            c.fill = FORMULA_FILL; c.alignment = CENTER
-        # P (col 16) intentionally blank as separator
-        # Q, R, S: slack TT/FF/SS = period - delay_out - output_delay(40%)
-        for off in range(3):
-            out_col = chr(ord("M") + off)  # M, N, O
-            c = ws.cell(row=r, column=17 + off,
-                        value=f"=$B$2 - {out_col}{r} - $F$2")
-            c.fill = FORMULA_FILL; c.alignment = CENTER
-        # T: places it goes
-        ws.cell(row=r, column=20, value=goes)
+        # L: target period (ps) - VLOOKUP from Design clocks table
+        c = ws.cell(row=r, column=12,
+                    value=f'=IFERROR(VLOOKUP(C{r}, {CLOCK_TABLE_RANGE}, 4, FALSE), "")')
+        c.fill = FORMULA_FILL; c.alignment = CENTER
+        # M: target corner - VLOOKUP
+        c = ws.cell(row=r, column=13,
+                    value=f'=IFERROR(VLOOKUP(C{r}, {CLOCK_TABLE_RANGE}, 3, FALSE), "")')
+        c.fill = FORMULA_FILL; c.alignment = CENTER
+        # N: target local delay (ps) - pick I/J/K by corner string
+        c = ws.cell(row=r, column=14,
+                    value=f'=IF(M{r}="TT",I{r},IF(M{r}="FF",J{r},IF(M{r}="SS",K{r},"")))')
+        c.fill = FORMULA_FILL; c.alignment = CENTER
+        # O: delay_in - default = 60% of target period (VLOOKUP col 5)
+        c = ws.cell(row=r, column=15,
+                    value=f'=IFERROR(VLOOKUP(C{r}, {CLOCK_TABLE_RANGE}, 5, FALSE), "")')
+        c.fill = PARAM_FILL; c.alignment = CENTER
+        # P: delay_out = delay_in + target local delay
+        c = ws.cell(row=r, column=16, value=f"=O{r} + N{r}")
+        c.fill = FORMULA_FILL; c.alignment = CENTER
+        # Q (col 17) intentionally blank as separator
+        # R: slack = target period - delay_out - output_delay (40% from VLOOKUP col 6)
+        c = ws.cell(row=r, column=18,
+                    value=(f'=IFERROR(L{r} - P{r} - VLOOKUP(C{r}, '
+                           f'{CLOCK_TABLE_RANGE}, 6, FALSE), "")'))
+        c.fill = FORMULA_FILL; c.alignment = CENTER
+        # S: places it goes
+        ws.cell(row=r, column=19, value=goes)
 
     # ----------------------------------------------------------------------- #
     # FUB definitions
@@ -1062,14 +1100,14 @@ def build_stream_sheet(wb: Workbook):
             emit_row(fub_name, port, direction, bb, mux_lv, nand_lv, flop, goes)
 
     # Column widths
-    widths = {1: 22, 2: 30, 3: 9,                    # FUB, port, clock
+    widths = {1: 22, 2: 30, 3: 11,                   # FUB, port, clock
               4: 5, 5: 19, 6: 7, 7: 8,               # dir, BB, mux_lv, nand_lv
               8: 32, 9: 16, 10: 16, 11: 16,          # source flop, local delays
-              12: 13,                                # delay_in
-              13: 13, 14: 13, 15: 13,                # delay_out TT/FF/SS
-              16: 3,                                 # blank gap
-              17: 12, 18: 12, 19: 12,                # slack TT/FF/SS
-              20: 50}                                # places it goes
+              12: 14, 13: 12, 14: 18,                # target period/corner/local
+              15: 13, 16: 13,                        # delay_in, delay_out
+              17: 3,                                 # blank gap
+              18: 13,                                # slack
+              19: 50}                                # places it goes
     for c, w in widths.items():
         ws.column_dimensions[get_column_letter(c)].width = w
 
