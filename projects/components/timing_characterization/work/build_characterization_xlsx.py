@@ -29,7 +29,7 @@ CSV_IN  = Path("/tmp/charwork/asap7/timing_char_data.csv")
 OUT     = Path("/mnt/data/github/RTLDesignSherpa/projects/components/timing_characterization/work/asap7_characterization.xlsx")
 
 CORNERS = ["TT", "FF", "SS"]
-FREQS   = [1000, 1250, 1500, 1750, 2000]  # MHz - sweep where modern designs fail
+FREQS   = [2000, 2250, 2500, 2750, 3000]  # MHz - sweep where modern designs fail
 
 # Primitives used for the per-level lookup, in display order.
 # - NAND/XOR/MUX: the most useful gates (clean two-point slope, simple to reason about)
