@@ -269,30 +269,47 @@ def section_header_row(ws, text, n_cols):
 def build_blocks_sheet(wb: Workbook):
     """Per-block structural estimator that scales from the characterization sheet.
 
-    Each block is one row. Cells B..G are editable params (highlighted yellow).
-    Flop count / NAND-equivalent gate count / data-to-D combinational delay
-    are formulas that scale automatically when the user edits the params.
+    Layout:
+      Header row (column titles)
+      'SRAMs' section header
+         - raw SRAM macro
+         - gaxi_fifo_sync (REG=1, SRAM-backed)
+      'Building blocks' section header
+         - gaxi_skid_buffer, gaxi_fifo_sync (REG=0), arbiter_RR,
+           axi4_master_rd, axi4_master_wr
+
+    Cells B..G are editable params (highlighted yellow). flop/gate/data->D
+    delay cells are formulas keyed off the characterization sheet's Tflop /
+    per_NAND / per_MUX cells.
 
     Cell refs into 'characterization':
       Tflop per corner:  $D$3 (TT)  $G$3 (FF)  $J$3 (SS)
-      per NAND delay:    $D$11 (TT) $G$11 (FF) $J$11 (SS)
-      per MUX  delay:    $D$13 (TT) $G$13 (FF) $J$13 (SS)
+      per NAND delay:    $D$15 (TT) $G$15 (FF) $J$15 (SS)
+      per MUX  delay:    $D$17 (TT) $G$17 (FF) $J$17 (SS)
     """
     ws = wb.create_sheet("building blocks")
     PARAM_FILL = PatternFill("solid", fgColor="FFF2CC")  # yellow = editable
     FORMULA_FILL = PatternFill("solid", fgColor="E7E6E6")  # grey = computed
+    # Section banners: black bold text on a high-contrast amber fill, so
+    # the heading is readable even if a viewer fails to render the fill.
+    BIG_HDR_FILL = PatternFill("solid", fgColor="FFC000")
+    BIG_HDR_FONT = Font(bold=True, size=14, color="000000")
 
     header = [
-        "block",
-        "P1", "P2", "P3", "P4", "P5", "P6",       # editable params (B..G)
-        "params",                                  # H = labels for the row
-        "flop_count",                              # I
-        "NAND_eq_gates",                           # J
-        "MUX_levels",                              # K  (critical data->D path)
-        "NAND_levels",                             # L
-        "data->D TT (ps)", "data->D FF (ps)", "data->D SS (ps)",   # M, N, O
-        "fmax TT (MHz)",   "fmax FF (MHz)",   "fmax SS (MHz)",     # P, Q, R
-        "notes",                                   # S
+        "block",                                       # A
+        "P1", "P2", "P3", "P4", "P5", "P6",            # B-G editable params
+        "params",                                      # H label string
+        "flop_count",                                  # I
+        "NAND_eq_gates",                               # J
+        # ---- input-side: data -> first capturing flop's D ----
+        "in MUX lv", "in NAND lv",                     # K, L
+        "data->D TT (ps)", "data->D FF (ps)", "data->D SS (ps)",  # M, N, O
+        # ---- output-side: internal flop Q -> module output port ----
+        "out MUX lv", "out NAND lv",                   # P, Q
+        "flop->out TT (ps)", "flop->out FF (ps)", "flop->out SS (ps)",  # R, S, T
+        # ---- fmax = worst of the two internal halves ----
+        "fmax TT (MHz)", "fmax FF (MHz)", "fmax SS (MHz)",  # U, V, W
+        "notes",                                       # X
     ]
     ws.append(header)
     for c in range(1, len(header) + 1):
@@ -301,6 +318,18 @@ def build_blocks_sheet(wb: Workbook):
         cell.fill = HDR_FILL
         cell.alignment = CENTER
         cell.border = BOX
+
+    NCOL = len(header)
+
+    def emit_section_header(label: str):
+        r = ws.max_row + 1
+        ws.append([label] + [""] * (NCOL - 1))
+        ws.merge_cells(start_row=r, end_row=r, start_column=1, end_column=NCOL)
+        cell = ws.cell(row=r, column=1)
+        cell.font = BIG_HDR_FONT
+        cell.fill = BIG_HDR_FILL
+        cell.alignment = Alignment(horizontal="left", vertical="center")
+        ws.row_dimensions[r].height = 22
 
     # ----------------------------------------------------------------------- #
     # Block definitions
@@ -311,15 +340,51 @@ def build_blocks_sheet(wb: Workbook):
     #   nand_lv: Excel formula or literal int — NAND levels on data->D path
     #   notes:  string
     # ----------------------------------------------------------------------- #
-    BLOCKS = [
+    # SRAM section: storage primitives and their BRAM-backed FIFO wrapper.
+    # For SRAM-backed designs the W*D data goes to a BRAM/SRAM macro - it is
+    # NOT in the flop count.  The flop_count formula on these rows only counts
+    # control flops (ptrs + count).
+    SRAM_BLOCKS = [
+        dict(
+            name="SRAM (raw macro)",
+            params=[("W", 512), ("D", 512)],
+            flops=0,                                # storage is in the macro
+            nand="=4*B{R} + 8*CEILING(LOG(C{R},2),1)",  # IO mux + addr decode
+            in_mux=0, in_nand=1,                    # write addr mux is shallow
+            out_mux=0, out_nand=1,                  # synchronous read - registered
+            notes="SRAM macro (single-port, synchronous read). Storage = W*D "
+                  "bits goes to the macro, not flop count. Read latency = 1 "
+                  "cycle (data appears next clock). Replace this row's per-bit "
+                  "delay with vendor SRAM datasheet for accurate timing.",
+        ),
+        dict(
+            name="gaxi_fifo_sync (REG=1, SRAM-backed)",
+            params=[("W", 512), ("D", 512)],
+            # Only control flops: 2*log2(D) for wr/rd ptrs + log2(D)+1 for count.
+            # Storage (W*D) lives in the BRAM/SRAM macro - not in flop count.
+            flops="=3*CEILING(LOG(C{R},2),1) + 1",
+            nand="=B{R}*4 + CEILING(LOG(C{R},2),1)*8 + 20",
+            in_mux=0, in_nand=1,                    # write side: small ptr mux
+            out_mux=0, out_nand=1,                  # registered out hides read mux
+            notes="REGISTERED=1 + MEM_STYLE=BRAM: storage is in an SRAM/BRAM "
+                  "macro, not flops. Used only by SRAM controller units in "
+                  "STREAM/RAPIDS. Storage bits = W*D. fmax is limited by "
+                  "the SRAM macro clock-to-Q, not by std-cell timing.",
+        ),
+    ]
+
+    BUILDING_BLOCKS = [
         dict(
             name="gaxi_skid_buffer",
             params=[("W", 1), ("D", 2)],
             flops="=B{R}*C{R} + C{R} + 2",
             nand="=B{R}*C{R}*4 + 10",
-            mux_lv=1,
-            nand_lv=1,
-            notes="data->D path is the bypass MUX2 (1 level). "
+            # Skid buffers: output is the registered head flop Q directly.
+            # NO output mux - the head data flop is what drives the output port.
+            in_mux=1,  in_nand=1,                   # bypass MUX2 on input
+            out_mux=0, out_nand=0,                  # direct Q to output port
+            notes="Skid buffer outputs come straight from the head flop Q - "
+                  "no output muxing. Input side has the bypass MUX2. "
                   "Flops = W*D storage + D valid + 2 control.",
         ),
         dict(
@@ -327,30 +392,23 @@ def build_blocks_sheet(wb: Workbook):
             params=[("W", 1), ("D", 2)],
             flops="=B{R}*C{R} + 3*CEILING(LOG(C{R},2),1) + 1",
             nand="=B{R}*C{R}*6 + CEILING(LOG(C{R},2),1)*8 + 20",
-            mux_lv="=CEILING(LOG(C{R},2),1)",      # read mux depth (output side)
-            nand_lv=2,                              # full/empty cmp
-            notes="Critical path is the READ mux tree, depth=log2(D). "
-                  "Flops = W*D storage + 3*log2(D) ptrs/count + 1 state.",
-        ),
-        dict(
-            name="gaxi_fifo_sync (REG=1)",
-            params=[("W", 1), ("D", 2)],
-            flops="=B{R}*C{R} + 3*CEILING(LOG(C{R},2),1) + B{R} + 1",
-            nand="=B{R}*C{R}*6 + CEILING(LOG(C{R},2),1)*8 + 20",
-            mux_lv=0,                               # output reg hides the mux
-            nand_lv=1,                              # just downstream handshake AND
-            notes="REGISTERED=1 adds an output flop bank (W flops); "
-                  "the read mux is hidden behind it so data->D shrinks to ~1 NAND.",
+            # Read mux is on the OUTPUT side - log2(D) levels of MUX
+            in_mux=1, in_nand=2,                                   # write decode + full cmp
+            out_mux="=CEILING(LOG(C{R},2),1)", out_nand=0,         # read mux tree
+            notes="Output critical path is the READ mux tree, depth=log2(D). "
+                  "Flops = W*D storage + 3*log2(D) ptrs/count + 1 state. "
+                  "Default FIFO in STREAM/RAPIDS (non-SRAM-backed).",
         ),
         dict(
             name="arbiter_round_robin",
             params=[("N", 2)],
             flops="=B{R} + 2",
             nand="=B{R}*8",
-            mux_lv="=CEILING(LOG(B{R},2),1)",
-            nand_lv=1,
-            notes="Priority encoder is log2(N) MUX levels. "
-                  "Flops = N (last-grant tracker) + 2 (state).",
+            # Priority encoder is output-side: req -> encode -> gnt
+            in_mux=0, in_nand=1,                                   # request register
+            out_mux="=CEILING(LOG(B{R},2),1)", out_nand=1,         # encoder tree
+            notes="Priority encoder is log2(N) MUX levels on the OUTPUT side "
+                  "(req -> encode -> gnt). Flops = N (last-grant tracker) + 2.",
         ),
         dict(
             name="axi4_master_rd",
@@ -360,10 +418,10 @@ def build_blocks_sheet(wb: Workbook):
             # R slot width  = IW+DW+UW+3 (per RSize).
             flops="=F{R}*(B{R}+D{R}+E{R}+29) + G{R}*(D{R}+C{R}+E{R}+3)",
             nand="=4*(F{R}*(B{R}+D{R}+E{R}+29) + G{R}*(D{R}+C{R}+E{R}+3))",
-            mux_lv=1,
-            nand_lv=1,
-            notes="Two skid buffers in series (AR + R). data->D path is the "
-                  "skid bypass MUX. Flops scale with SKID_AR*ARw + SKID_R*Rw.",
+            in_mux=1, in_nand=1,                    # input skid bypass MUX
+            out_mux=1, out_nand=1,                  # output side skid select MUX
+            notes="Two skid buffers in series (AR + R). Input bypass MUX2 + "
+                  "output select MUX2. Flops scale with SKID_AR*ARw + SKID_R*Rw.",
         ),
         dict(
             name="axi4_master_wr",
@@ -373,21 +431,23 @@ def build_blocks_sheet(wb: Workbook):
             # B slot width = IW + UW + 2.  Assume SKID_B=2 for the constant.
             flops="=F{R}*(B{R}+D{R}+E{R}+29) + G{R}*(C{R}+C{R}/8+E{R}+1) + 2*(D{R}+E{R}+2)",
             nand="=4*(F{R}*(B{R}+D{R}+E{R}+29) + G{R}*(C{R}+C{R}/8+E{R}+1) + 2*(D{R}+E{R}+2))",
-            mux_lv=1,
-            nand_lv=1,
-            notes="Three skid buffers (AW + W + B); SKID_B fixed at 2 in this row. "
-                  "data->D path is the skid bypass MUX.",
+            in_mux=1, in_nand=1,                    # input skid bypass MUX
+            out_mux=1, out_nand=1,                  # output side skid select MUX
+            notes="Three skid buffers (AW + W + B); SKID_B fixed at 2 in this "
+                  "row. Input bypass + output select MUXes; both are 1 level.",
         ),
     ]
 
-    # Characterization cell refs (per_NAND / per_MUX / Tflop, by corner)
+    # Characterization cell refs (per_NAND / per_MUX / Tflop, by corner).
+    # NOTE: After expanding to 7 gate types, per_NAND moved to row 15 and
+    # per_MUX moved to row 17 on the characterization sheet.
     REFS = {
-        "TT": {"nand": "$D$11", "mux": "$D$13", "tflop": "$D$3"},
-        "FF": {"nand": "$G$11", "mux": "$G$13", "tflop": "$G$3"},
-        "SS": {"nand": "$J$11", "mux": "$J$13", "tflop": "$J$3"},
+        "TT": {"nand": "$D$15", "mux": "$D$17", "tflop": "$D$3"},
+        "FF": {"nand": "$G$15", "mux": "$G$17", "tflop": "$G$3"},
+        "SS": {"nand": "$J$15", "mux": "$J$17", "tflop": "$J$3"},
     }
 
-    for b in BLOCKS:
+    def write_block(b):
         r = ws.max_row + 1  # current target row
         params = b["params"]
         # Block name (col A)
@@ -400,16 +460,19 @@ def build_blocks_sheet(wb: Workbook):
         # Param-label string (col H)
         ws.cell(row=r, column=8,
                 value=", ".join(f"P{i+1}={lbl}" for i, (lbl, _) in enumerate(params)))
-        # Formulas — use .format(R=r) to splice the row index
-        ws.cell(row=r, column=9,  value=b["flops"].format(R=r))      # I flops
-        ws.cell(row=r, column=10, value=b["nand"].format(R=r))       # J NAND eq
-        # MUX / NAND level counts can be literal int or formula string
-        for col, key in ((11, "mux_lv"), (12, "nand_lv")):
+        # I flops, J nand_eq — allow literal int (SRAM macro flops=0)
+        flops_v = b["flops"]
+        if isinstance(flops_v, str):
+            flops_v = flops_v.format(R=r)
+        ws.cell(row=r, column=9, value=flops_v)
+        ws.cell(row=r, column=10, value=b["nand"].format(R=r))
+        # K, L: input-side MUX/NAND levels
+        for col, key in ((11, "in_mux"), (12, "in_nand")):
             v = b[key]
             if isinstance(v, str):
                 v = v.format(R=r)
             ws.cell(row=r, column=col, value=v)
-        # data->D combo delay per corner (cols M, N, O)
+        # M, N, O: data->D combo delay per corner (input side)
         for off, corner in enumerate(("TT", "FF", "SS")):
             ref = REFS[corner]
             f = (f"=K{r}*characterization!{ref['mux']} "
@@ -417,22 +480,71 @@ def build_blocks_sheet(wb: Workbook):
             cell = ws.cell(row=r, column=13 + off, value=f)
             cell.alignment = CENTER
             cell.fill = FORMULA_FILL
-        # fmax per corner (cols P, Q, R)  = 1e6 / (combo + Tflop)
+        # P, Q: output-side MUX/NAND levels
+        for col, key in ((16, "out_mux"), (17, "out_nand")):
+            v = b[key]
+            if isinstance(v, str):
+                v = v.format(R=r)
+            ws.cell(row=r, column=col, value=v)
+        # R, S, T: flop->out combo delay per corner (output side)
         for off, corner in enumerate(("TT", "FF", "SS")):
             ref = REFS[corner]
-            combo_col = chr(ord("M") + off)  # M, N, O
-            f = f"=ROUND(1000000/({combo_col}{r} + characterization!{ref['tflop']}), 0)"
-            cell = ws.cell(row=r, column=16 + off, value=f)
+            f = (f"=P{r}*characterization!{ref['mux']} "
+                 f"+ Q{r}*characterization!{ref['nand']}")
+            cell = ws.cell(row=r, column=18 + off, value=f)
             cell.alignment = CENTER
             cell.fill = FORMULA_FILL
-        # Notes (col S)
-        ws.cell(row=r, column=19, value=b["notes"])
+        # U, V, W: fmax per corner — worst of (data->D, flop->out) + Tflop
+        for off, corner in enumerate(("TT", "FF", "SS")):
+            ref = REFS[corner]
+            in_col  = chr(ord("M") + off)  # M, N, O = data->D
+            out_col = chr(ord("R") + off)  # R, S, T = flop->out
+            f = (f"=ROUND(1000000/(MAX({in_col}{r},{out_col}{r}) "
+                 f"+ characterization!{ref['tflop']}), 0)")
+            cell = ws.cell(row=r, column=21 + off, value=f)
+            cell.alignment = CENTER
+            cell.fill = FORMULA_FILL
+        # X: notes
+        ws.cell(row=r, column=24, value=b["notes"])
+
+    # Emit SRAMs section
+    emit_section_header("SRAMs")
+    for b in SRAM_BLOCKS:
+        write_block(b)
+
+    # Emit Building Blocks section
+    emit_section_header("Building Blocks")
+    for b in BUILDING_BLOCKS:
+        write_block(b)
+
+    # Add a small "Storage bits" reference row under each SRAM block.  Use a
+    # row with merged cells showing the formula = W * D so designers can see
+    # the macro size scaling.
+    # (Note: openpyxl doesn't reorder rows easily, so we just append a summary
+    # at the bottom referencing the SRAM rows.)
+    r = ws.max_row + 2
+    ws.cell(row=r, column=1, value="SRAM storage size reference").font = SECTION_FONT
+    ws.cell(row=r + 1, column=1, value="SRAM raw macro: storage bits = W * D = ")
+    ws.cell(row=r + 1, column=4, value="=B3*C3")    # row 3 = SRAM raw row
+    ws.cell(row=r + 1, column=5, value="bits =")
+    ws.cell(row=r + 1, column=6, value="=B3*C3/8/1024")
+    ws.cell(row=r + 1, column=7, value="KB")
+    ws.cell(row=r + 2, column=1, value="FIFO REG=1 SRAM-backed: storage bits = W * D = ")
+    ws.cell(row=r + 2, column=4, value="=B4*C4")    # row 4 = FIFO REG=1 row
+    ws.cell(row=r + 2, column=5, value="bits =")
+    ws.cell(row=r + 2, column=6, value="=B4*C4/8/1024")
+    ws.cell(row=r + 2, column=7, value="KB")
 
     # Column widths
-    widths = {1: 26, 8: 38, 9: 11, 10: 13, 11: 7, 12: 8,
-              13: 16, 14: 16, 15: 16, 16: 13, 17: 13, 18: 13, 19: 60}
+    widths = {1: 32, 8: 38, 9: 11, 10: 13,
+              11: 8, 12: 9,                          # K, L  in mux/nand lv
+              13: 15, 14: 15, 15: 15,                # M, N, O data->D
+              16: 8, 17: 9,                          # P, Q  out mux/nand lv
+              18: 15, 19: 15, 20: 15,                # R, S, T flop->out
+              21: 13, 22: 13, 23: 13,                # U, V, W fmax
+              24: 60}                                # X notes
     for c in range(2, 8):
-        widths.setdefault(c, 8)
+        widths.setdefault(c, 9)
     for c, w in widths.items():
         ws.column_dimensions[get_column_letter(c)].width = w
 
@@ -449,112 +561,319 @@ def build_blocks_sheet(wb: Workbook):
         "Estimates are first-order: structural flop/gate counts + characterization "
         "per-level delays. Treat them as design-time SWAGs, not post-synth truth."
     ))
+    ws.cell(row=legend_row + 6, column=1, value=(
+        "REG=1 SRAM-backed FIFO is only used by SRAM controller units in "
+        "STREAM/RAPIDS (sram_controller_unit, src/snk_sram_controller_unit_beats). "
+        "Everywhere else uses REG=0 - that's why the Building Blocks section "
+        "lists only the REG=0 variant."
+    ))
 
 
 def build_stream_sheet(wb: Workbook):
-    """Per-input signal-path trace for a small STREAM FUB.
+    """Per-FUB port summary for every STREAM FUB.
 
-    Walked stream_latency_bridge.sv by hand. Each non-clock/reset input is
-    traced through the local combinational network until it either:
-      - terminates at a flop's D pin (r_drain_ip), OR
-      - terminates at an output port, OR
-      - enters a building block (gaxi_fifo_sync u_skid_buffer); the BB row in
-        the 'building blocks' sheet covers the cost from that boundary inward.
+    Each FUB gets its own banner row, then one row per significant port with:
+      - direction (in/out)
+      - building block crossed (if any)
+      - local NAND/MUX levels between port and nearest flop in this FUB
+      - source/sink flop or external port
+      - 'places it goes' = downstream consumer / upstream producer in the
+        wider STREAM hierarchy (stream_core / scheduler_group / etc.)
 
-    Local NAND depth/count = combinational gate-equivalents traversed in this
-    FUB only. Local delay = depth * per_NAND[corner] (from characterization).
+    Local NAND depth/count is hand-walked from the RTL. Levels reflect cost
+    *inside this FUB only*; building-block costs are on the 'building blocks'
+    sheet.
+
+    Refs (after 9-prim expansion):
+      per_NAND: characterization!$D$15 (TT)  $G$15 (FF)  $J$15 (SS)
+      per_MUX:  characterization!$D$17 (TT)  $G$17 (FF)  $J$17 (SS)
     """
     ws = wb.create_sheet("stream")
 
+    PARAM_FILL = PatternFill("solid", fgColor="FFF2CC")
+    FORMULA_FILL = PatternFill("solid", fgColor="E7E6E6")
+    BIG_HDR_FILL = PatternFill("solid", fgColor="FFC000")
+    BIG_HDR_FONT = Font(bold=True, size=14, color="000000")
+
     header = [
-        "FUB", "input signal", "building block crossed",
-        "local NAND depth", "local NAND count",
-        "terminator (flop / output / BB port)",
+        "FUB", "port", "dir", "building block crossed",
+        "MUX lv", "NAND lv",
+        "source/sink flop or BB port",
         "local delay TT (ps)", "local delay FF (ps)", "local delay SS (ps)",
-        "notes",
+        "places it goes (consumer / producer)",
     ]
     ws.append(header)
-    for c in range(1, len(header) + 1):
+    NCOL = len(header)
+    for c in range(1, NCOL + 1):
         cell = ws.cell(row=1, column=c)
         cell.font = HDR_FONT
         cell.fill = HDR_FILL
         cell.alignment = CENTER
         cell.border = BOX
 
-    # Path trace of stream_latency_bridge (rtl/fub/stream_latency_bridge.sv)
-    # Logic from lines 100-194 of the SV. Each row = one (input, end-point) pair.
-    FUB = "stream_latency_bridge"
-    rows = [
-        # input        bb_crossed                  depth count terminator                                          notes
-        ("s_valid",    "",                          1,    1,   "r_drain_ip (flop D)",
-         "s_valid AND s_ready -> w_drain_fifo -> flop D"),
-        ("s_data[DW-1:0]", "gaxi_fifo_sync",        0,    0,   "u_skid_buffer.wr_data",
-         "direct wire to FIFO write port; cost inside BB row"),
-        ("m_ready (path 1)", "",                    2,    2,   "s_ready (output port)",
-         "m_ready AND m_valid -> w_draining_now -> OR w_room_available -> s_ready"),
-        ("m_ready (path 2)", "gaxi_fifo_sync",      0,    0,   "u_skid_buffer.rd_ready",
-         "direct wire to FIFO read port"),
-        # Internal flop outputs that fan to outputs/BB
-        ("r_drain_ip (Q)", "",                      0,    0,   "u_skid_buffer.wr_valid",
-         "skid_wr_valid = r_drain_ip; pure wire"),
-        ("r_drain_ip (Q)", "",                      0,    0,   "dbg_r_pending (output)",
-         "dbg_r_pending = r_drain_ip; pure wire"),
-        # FIFO outputs back through this FUB to the boundary
-        ("u_skid_buffer.rd_valid", "gaxi_fifo_sync", 0,   0,   "m_valid (output)",
-         "wire from FIFO rd_valid; m_valid = u_skid_buffer.rd_valid"),
-        ("u_skid_buffer.rd_data",  "gaxi_fifo_sync", 0,   0,   "m_data[DW-1:0] (output)",
-         "wire from FIFO rd_data"),
-        ("u_skid_buffer.count",    "gaxi_fifo_sync", 3,   6,   "s_ready (output port)",
-         "skid_count + write_stalled (3b adder) -> magnitude cmp < SKID_DEPTH -> OR -> s_ready"),
-        ("u_skid_buffer.count",    "gaxi_fifo_sync", 0,   0,   "occupancy[2:0] (output)",
-         "occupancy = skid_count; direct wire"),
+    def emit_fub_banner(label: str):
+        r = ws.max_row + 1
+        ws.append([label] + [""] * (NCOL - 1))
+        ws.merge_cells(start_row=r, end_row=r, start_column=1, end_column=NCOL)
+        cell = ws.cell(row=r, column=1)
+        cell.font = BIG_HDR_FONT
+        cell.fill = BIG_HDR_FILL
+        cell.alignment = Alignment(horizontal="left", vertical="center")
+        ws.row_dimensions[r].height = 22
+
+    REFS = {"TT": {"nand": "$D$15", "mux": "$D$17"},
+            "FF": {"nand": "$G$15", "mux": "$G$17"},
+            "SS": {"nand": "$J$15", "mux": "$J$17"}}
+
+    def emit_row(fub, port, direction, bb, mux_lv, nand_lv, flop, goes):
+        r = ws.max_row + 1
+        ws.cell(row=r, column=1, value=fub)
+        ws.cell(row=r, column=2, value=port)
+        ws.cell(row=r, column=3, value=direction).alignment = CENTER
+        ws.cell(row=r, column=4, value=bb)
+        c = ws.cell(row=r, column=5, value=mux_lv); c.fill = PARAM_FILL; c.alignment = CENTER
+        c = ws.cell(row=r, column=6, value=nand_lv); c.fill = PARAM_FILL; c.alignment = CENTER
+        ws.cell(row=r, column=7, value=flop)
+        for off, corner in enumerate(("TT", "FF", "SS")):
+            f = (f"=E{r}*characterization!{REFS[corner]['mux']} "
+                 f"+ F{r}*characterization!{REFS[corner]['nand']}")
+            c = ws.cell(row=r, column=8 + off, value=f)
+            c.fill = FORMULA_FILL; c.alignment = CENTER
+        ws.cell(row=r, column=11, value=goes)
+
+    # ----------------------------------------------------------------------- #
+    # FUB definitions
+    # port, dir, building block crossed, mux_lv, nand_lv, source/sink flop, places it goes
+    # ----------------------------------------------------------------------- #
+    FUBS = [
+        ("stream_latency_bridge", [
+            ("s_valid",        "in",  "",                1, 1, "r_drain_ip flop D",
+             "from u_channel_fifo.rd_valid in sram_controller_unit"),
+            ("s_data[DW-1:0]", "in",  "gaxi_fifo_sync",  0, 0, "u_skid_buffer.wr_data",
+             "from u_channel_fifo.rd_data"),
+            ("s_ready",        "out", "",                1, 2, "comb of skid count + drain",
+             "to u_channel_fifo.rd_ready"),
+            ("m_valid",        "out", "gaxi_fifo_sync",  0, 0, "u_skid_buffer.rd_valid",
+             "to axi_write_engine.sram_rd_valid"),
+            ("m_data[DW-1:0]", "out", "gaxi_fifo_sync",  0, 0, "u_skid_buffer.rd_data",
+             "to axi_write_engine.sram_rd_data"),
+            ("m_ready",        "in",  "gaxi_fifo_sync",  0, 0, "u_skid_buffer.rd_ready",
+             "from axi_write_engine.sram_rd_ready"),
+            ("occupancy[2:0]", "out", "gaxi_fifo_sync",  0, 0, "u_skid_buffer.count",
+             "to scheduler (drain-IP backpressure)"),
+        ]),
+        ("stream_alloc_ctrl", [
+            ("wr_valid",       "in",  "",                0, 1, "r_wr_ptr flop D (+wr_size)",
+             "from axi_read_engine (allocate request)"),
+            ("wr_size[7:0]",   "in",  "",                0, 1, "r_wr_ptr adder input",
+             "from axi_read_engine"),
+            ("rd_valid",       "in",  "",                0, 1, "r_rd_ptr flop D",
+             "from sram_controller_unit (release event)"),
+            ("space_free[AW:0]","out","",                0, 0, "r_space_free (registered)",
+             "to axi_read_engine (sram_alloc_space_free)"),
+            ("wr_full",        "out", "",                0, 1, "comb of r_space_free",
+             "to axi_read_engine (back-pressure)"),
+            ("wr_almost_full", "out", "",                0, 1, "comb of r_space_free",
+             "to axi_read_engine (threshold)"),
+            ("rd_empty",       "out", "",                0, 1, "comb of r_space_free",
+             "unused (debug)"),
+        ]),
+        ("stream_drain_ctrl", [
+            ("wr_valid",       "in",  "",                0, 1, "r_wr_ptr flop D",
+             "from u_channel_fifo handshake in sram_controller_unit"),
+            ("rd_valid",       "in",  "",                0, 1, "r_rd_ptr flop D (+rd_size)",
+             "from axi_write_engine (drain reservation)"),
+            ("rd_size[7:0]",   "in",  "",                0, 1, "r_rd_ptr adder input",
+             "from axi_write_engine"),
+            ("data_available[AW:0]","out","",            0, 0, "r_data_available (registered)",
+             "to axi_write_engine"),
+            ("rd_empty",       "out", "",                0, 1, "comb of r_data_available",
+             "to axi_write_engine (no data)"),
+            ("wr_full",        "out", "",                0, 1, "comb of r_data_available",
+             "to sram_controller_unit (back-pressure)"),
+        ]),
+        ("sram_controller_unit", [
+            ("axi_rd_alloc_req",  "in",  "",             0, 1, "alloc_ctrl.wr_valid",
+             "from axi_read_engine (reserve burst space)"),
+            ("axi_rd_alloc_size[7:0]","in","",           0, 0, "alloc_ctrl.wr_size",
+             "from axi_read_engine"),
+            ("axi_rd_alloc_space_free[AW:0]","out","",   0, 0, "alloc_ctrl.space_free",
+             "to axi_read_engine"),
+            ("axi_rd_sram_valid","in",  "gaxi_fifo_sync",0, 0, "u_channel_fifo.wr_valid",
+             "from axi_read_engine (write data into SRAM FIFO)"),
+            ("axi_rd_sram_data[DW-1:0]","in","gaxi_fifo_sync",0,0,"u_channel_fifo.wr_data",
+             "from axi_read_engine"),
+            ("axi_rd_sram_ready","out","gaxi_fifo_sync", 0, 0, "u_channel_fifo.wr_ready",
+             "to axi_read_engine"),
+            ("axi_wr_sram_valid","out","gaxi_fifo_sync", 0, 0, "u_latency_bridge.m_valid",
+             "to axi_write_engine"),
+            ("axi_wr_sram_data[DW-1:0]","out","gaxi_fifo_sync",0,0,"u_latency_bridge.m_data",
+             "to axi_write_engine"),
+            ("axi_wr_sram_ready","in","",                0, 0, "u_latency_bridge.m_ready",
+             "from axi_write_engine"),
+            ("wr_drain_req",   "in",  "",                0, 1, "drain_ctrl.rd_valid",
+             "from axi_write_engine"),
+        ]),
+        ("sram_controller", [
+            ("ch_alloc_req[N-1:0]",  "in",  "",          1, 1, "per-ch sram_controller_unit",
+             "from axi_read_engine (N-channel fan-out)"),
+            ("ch_alloc_space_free[N-1:0][AW:0]","out","",1, 0, "per-ch alloc.space_free",
+             "to axi_read_engine"),
+            ("ch_rd_valid[N-1:0]","in", "",              1, 1, "per-ch SRAM FIFO wr",
+             "from axi_read_engine"),
+            ("ch_wr_valid[N-1:0]","out","",              1, 0, "per-ch SRAM FIFO read",
+             "to axi_write_engine"),
+            ("ch_wr_data[N-1:0][DW-1:0]","out","",       1, 0, "per-ch fifo rd_data",
+             "to axi_write_engine"),
+        ]),
+        ("perf_profiler", [
+            ("channel_idle[N-1:0]","in", "",             1, 1, "edge-detect flops",
+             "from scheduler (per-ch idle state)"),
+            ("cfg_enable",     "in",  "",                0, 1, "control flop",
+             "from APB CSR"),
+            ("cfg_clear",      "in",  "",                0, 1, "FIFO reset path",
+             "from APB CSR"),
+            ("perf_fifo_rd",   "in",  "gaxi_fifo_sync",  0, 0, "u_perf_fifo.rd_valid",
+             "from APB CSR pop strobe"),
+            ("perf_fifo_data_low[31:0]","out","gaxi_fifo_sync",0,0,"u_perf_fifo.rd_data[31:0]",
+             "to APB CSR (host read)"),
+            ("perf_fifo_data_high[31:0]","out","gaxi_fifo_sync",0,0,"u_perf_fifo.rd_data[63:32]",
+             "to APB CSR"),
+            ("perf_fifo_empty","out","gaxi_fifo_sync",   0, 0, "u_perf_fifo empty flag",
+             "to APB CSR"),
+            ("perf_fifo_count[15:0]","out","gaxi_fifo_sync",0,0,"u_perf_fifo.count",
+             "to APB CSR"),
+        ]),
+        ("apbtodescr", [
+            ("apb_cmd_valid",  "in",  "",                0, 1, "r_apb_cmd_valid",
+             "from APB master"),
+            ("apb_cmd_addr[ADDR_WIDTH-1:0]","in","",     0, 1, "address decoder",
+             "from APB master"),
+            ("apb_cmd_wdata[DATA_WIDTH-1:0]","in","",    1, 1, "per-ch desc address mux",
+             "from APB master (descriptor pointer write)"),
+            ("apb_cmd_ready",  "out", "",                0, 1, "comb (FIFO ready AND)",
+             "to APB master"),
+            ("apb_rsp_valid",  "out", "",                0, 1, "rsp pipeline flop",
+             "to APB master"),
+            ("desc_apb_valid[N-1:0]","out","",           1, 1, "per-ch valid demux",
+             "to descriptor_engine[N] (kick-off)"),
+            ("desc_apb_addr[N-1:0][DA-1:0]","out","",    0, 0, "per-ch addr flops",
+             "to descriptor_engine[N] (initial descriptor pointer)"),
+            ("desc_apb_ready[N-1:0]","in", "",           1, 1, "per-ch desc_engine ack",
+             "from descriptor_engine[N]"),
+        ]),
+        ("descriptor_engine", [
+            ("desc_apb_valid", "in",  "",                0, 1, "r_state IDLE -> FETCH",
+             "from apbtodescr (kick-off)"),
+            ("desc_apb_addr[DA-1:0]","in","",            0, 0, "r_desc_addr flop",
+             "from apbtodescr"),
+            ("desc_axi_ar_*",  "out", "gaxi_skid_buffer",0, 0, "AR skid head Q",
+             "to scheduler_group desc_axi master"),
+            ("desc_axi_r_*",   "in",  "gaxi_skid_buffer",0, 0, "R skid input",
+             "from scheduler_group desc_axi master"),
+            ("descriptor_valid","out","gaxi_fifo_sync",  0, 0, "i_descriptor_fifo.rd_valid",
+             "to scheduler (descriptor dispatch)"),
+            ("descriptor_data[256-1:0]","out","gaxi_fifo_sync",0,0,"i_descriptor_fifo.rd_data",
+             "to scheduler"),
+            ("descriptor_ready","in","gaxi_fifo_sync",   0, 0, "i_descriptor_fifo.rd_ready",
+             "from scheduler"),
+        ]),
+        ("scheduler", [
+            ("descriptor_valid","in", "",                0, 1, "r_state IDLE -> RUN",
+             "from descriptor_engine"),
+            ("descriptor_data[256-1:0]","in","",         0, 0, "r_descriptor latch",
+             "from descriptor_engine"),
+            ("axi_rd_req_valid","out","",                0, 1, "r_axi_rd_req state",
+             "to axi_read_engine (per-channel request)"),
+            ("axi_rd_req_addr[63:0]","out","",           0, 0, "r_src_addr+offset",
+             "to axi_read_engine"),
+            ("axi_wr_req_valid","out","",                0, 1, "r_axi_wr_req state",
+             "to axi_write_engine"),
+            ("axi_wr_req_addr[63:0]","out","",           0, 0, "r_dst_addr+offset",
+             "to axi_write_engine"),
+            ("ch_idle",        "out", "",                0, 1, "r_state == IDLE",
+             "to perf_profiler"),
+            ("ch_done_strobe", "out", "",                0, 1, "r_state -> DONE pulse",
+             "to monbus_reporter"),
+            ("monbus_pkt",     "out", "",                0, 1, "event-encode comb",
+             "to monbus group / reporter"),
+        ]),
+        ("axi_read_engine", [
+            ("sched_req_valid[N-1:0]","in","",           1, 1, "u_arbiter (CLIENTS=N)",
+             "from scheduler[N] (per-channel)"),
+            ("sched_req_addr[N-1:0][63:0]","in","",      1, 0, "u_arbiter granted addr mux",
+             "from scheduler[N]"),
+            ("m_axi_ar_*",     "out", "gaxi_skid_buffer",0, 0, "u_rd_axi_skid (AR side)",
+             "to AXI4 master read system bus"),
+            ("m_axi_r_*",      "in",  "gaxi_skid_buffer",0, 0, "u_rd_axi_skid (R side)",
+             "from AXI4 master read system bus"),
+            ("sram_alloc_req[N-1:0]","out","",           0, 1, "per-ch alloc req gen",
+             "to sram_controller_unit[N] (reserve burst space)"),
+            ("sram_alloc_space_free[N-1:0][AW:0]","in","",1, 0, "per-ch space cmp",
+             "from sram_controller_unit[N]"),
+            ("sram_wr_valid[N-1:0]","out","",            1, 0, "post-arbiter demux",
+             "to sram_controller_unit[N].wr"),
+            ("sram_wr_data[DW-1:0]","out","",            0, 0, "R-skid data wire",
+             "to sram_controller_unit[N].wr (channel-id muxed)"),
+        ]),
+        ("axi_write_engine", [
+            ("sched_req_valid[N-1:0]","in","",           1, 1, "arbiter granted",
+             "from scheduler[N]"),
+            ("sched_req_addr[N-1:0][63:0]","in","",      1, 0, "arbiter granted addr",
+             "from scheduler[N]"),
+            ("sram_rd_valid[N-1:0]","in","",             1, 1, "drain ready cmp",
+             "from sram_controller_unit[N] (data ready)"),
+            ("sram_rd_data[N-1:0][DW-1:0]","in","",      1, 0, "per-ch read mux",
+             "from sram_controller_unit[N]"),
+            ("sram_drain_req[N-1:0]","out","",           0, 1, "drain reservation gen",
+             "to sram_controller_unit[N]"),
+            ("m_axi_aw_*",     "out", "gaxi_skid_buffer",0, 0, "u_wr_axi_skid (AW side)",
+             "to AXI4 master write system bus"),
+            ("m_axi_w_*",      "out", "gaxi_skid_buffer",0, 0, "u_wr_axi_skid (W side)",
+             "to AXI4 master write system bus"),
+            ("m_axi_b_*",      "in",  "gaxi_skid_buffer",0, 0, "u_wr_axi_skid (B side)",
+             "from AXI4 master write system bus"),
+            ("u_b_phase_txn_fifo wr","internal","gaxi_fifo_sync",0,0,"b-phase txn capture",
+             "B-phase awaiting response"),
+            ("u_w_phase_txn_fifo wr","internal","gaxi_fifo_sync",0,0,"w-phase txn capture",
+             "W-phase awaiting last-beat"),
+        ]),
     ]
 
-    PARAM_FILL = PatternFill("solid", fgColor="FFF2CC")
-    FORMULA_FILL = PatternFill("solid", fgColor="E7E6E6")
-
-    # Characterization refs for per_NAND in each corner
-    REFS = {"TT": "$D$11", "FF": "$G$11", "SS": "$J$11"}
-
-    for (sig, bb, depth, count, term, note) in rows:
-        r = ws.max_row + 1
-        ws.cell(row=r, column=1, value=FUB)
-        ws.cell(row=r, column=2, value=sig)
-        ws.cell(row=r, column=3, value=bb)
-        # Editable depth / count cells (yellow)
-        c = ws.cell(row=r, column=4, value=depth); c.fill = PARAM_FILL; c.alignment = CENTER
-        c = ws.cell(row=r, column=5, value=count); c.fill = PARAM_FILL; c.alignment = CENTER
-        ws.cell(row=r, column=6, value=term)
-        # Delay formulas referencing the characterization per-NAND cells
-        for off, corner in enumerate(("TT", "FF", "SS")):
-            f = f"=D{r}*characterization!{REFS[corner]}"
-            cell = ws.cell(row=r, column=7 + off, value=f)
-            cell.fill = FORMULA_FILL; cell.alignment = CENTER
-        ws.cell(row=r, column=10, value=note)
+    for fub_name, ports in FUBS:
+        emit_fub_banner(fub_name)
+        for (port, direction, bb, mux_lv, nand_lv, flop, goes) in ports:
+            emit_row(fub_name, port, direction, bb, mux_lv, nand_lv, flop, goes)
 
     # Column widths
-    widths = [1, 28, 24, 26, 16, 16, 30, 18, 18, 18, 80]
-    for c, w in enumerate(widths[1:], start=1):
+    widths = {1: 22, 2: 30, 3: 5, 4: 19, 5: 7, 6: 8,
+              7: 32, 8: 16, 9: 16, 10: 16, 11: 50}
+    for c, w in widths.items():
         ws.column_dimensions[get_column_letter(c)].width = w
 
-    # Notes block under the table
+    # Methodology notes at the bottom
     r = ws.max_row + 2
     ws.cell(row=r, column=1, value="Methodology").font = SECTION_FONT
     notes = [
-        "One row per (input signal, end-point) pair. End-point is one of: a flop's D pin, "
-        "an output port, or a building-block port (whose internal cost is captured on the "
-        "'building blocks' sheet).",
-        "'local NAND depth' = combinational gate-equivalents on the path *within this FUB*. "
-        "Walked by hand from the RTL.",
-        "'local delay' = depth * per_NAND[corner] (from characterization sheet). "
-        "Underestimates wide-bus buffering - same caveat as 'building blocks' SWAG.",
-        "When a signal enters a BB, the row's depth/count is for the wires only; the BB row "
-        "in the 'building blocks' sheet adds the internal cost.",
+        "One row per port (or significant internal handshake) per FUB. "
+        "Hand-walked from the RTL.",
+        "MUX lv / NAND lv = combinational gate-equivalents on the path within "
+        "this FUB only - between the port and its nearest flop.",
+        "When a port enters/exits a building block (gaxi_fifo_sync, "
+        "gaxi_skid_buffer), the BB internal cost is captured on the 'building "
+        "blocks' sheet - no double-counting here.",
+        "'places it goes' lists the concrete consumer/producer in the wider "
+        "STREAM hierarchy (stream_core / scheduler_group / APB CSR / system "
+        "AXI bus).",
+        "AXI bus signals (m_axi_ar_*, m_axi_r_*, m_axi_aw_*, m_axi_w_*, "
+        "m_axi_b_*) are summarized as channel groups for brevity; each is a "
+        "set of skid buffer outputs whose detailed cost is in the building "
+        "blocks 'gaxi_skid_buffer' / 'axi4_master_rd/wr' rows.",
     ]
     for n in notes:
         r += 1
         ws.cell(row=r, column=1, value=n)
-        ws.merge_cells(start_row=r, end_row=r, start_column=1, end_column=10)
+        ws.merge_cells(start_row=r, end_row=r, start_column=1, end_column=NCOL)
 
 
 def main():
