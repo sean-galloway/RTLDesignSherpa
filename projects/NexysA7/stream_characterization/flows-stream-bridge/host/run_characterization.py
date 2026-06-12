@@ -48,6 +48,9 @@ from pathlib import Path
 script_dir = Path(__file__).resolve().parent
 repo_root = script_dir.parent.parent.parent.parent.parent
 sys.path.insert(0, str(repo_root / 'projects' / 'components' / 'converters' / 'bin'))
+sys.path.insert(0, str(script_dir))
+
+import mon_configs as mon_cfg  # noqa: E402  (named monitor presets)
 
 from descriptor_builder import (
     DescriptorBuilder, CharConfig, build_char_matrix, load_configs_from_csv,
@@ -192,11 +195,14 @@ class CharacterizationRunner:
     """Runs characterization tests on the FPGA via UART."""
 
     def __init__(self, bridge, data_width: int = 128,
-                 verbose: bool = False):
+                 verbose: bool = False, mon_config: str = None):
         self.bridge = bridge
         self.builder = DescriptorBuilder(data_width=data_width)
         self.verbose = verbose
         self.results = []
+        # Named monitor preset (mon_configs.CONFIGS) or None for the
+        # legacy "allow basic types" programming.
+        self.mon_config = mon_cfg.get(mon_config) if mon_config else None
 
     def log(self, msg: str):
         ts = datetime.now().strftime('%H:%M:%S')
@@ -325,14 +331,24 @@ class CharacterizationRunner:
         # entry; without clearing it the trace SRAM stays empty and we
         # get zero observability when something hangs. Mirror the TB's
         # sequence in stream_char_tb.run_dma_test step 3e.
-        for pkt_mask_reg, en_reg, err_reg in (
-            (APB_DAXMON_PKT_MASK, APB_DAXMON_ENABLE, APB_DAXMON_ERR_CFG),
-            (APB_RDMON_PKT_MASK,  APB_RDMON_ENABLE,  APB_RDMON_ERR_CFG),
-            (APB_WRMON_PKT_MASK,  APB_WRMON_ENABLE,  APB_WRMON_ERR_CFG),
-        ):
-            self.bridge.write(pkt_mask_reg, MON_PKT_MASK_ALLOW_BASIC)
-            self.bridge.write(en_reg,       MON_ENABLE_COMPL_IRQ)
-            self.bridge.write(err_reg,      MON_ERR_CFG_BULK_TRACE)
+        if self.mon_config is not None:
+            # Named preset (perf-mon / debug-*): programs ENABLE +
+            # PKT_MASK + every event-code mask on all three monitors.
+            self.mon_config.apply(self.bridge.write)
+            tag = " (compressed build expected)" if self.mon_config.compress else ""
+            self.vlog(f"  monitors: '{self.mon_config.name}' preset "
+                      f"[{', '.join(self.mon_config.cones)}]{tag}")
+        else:
+            # Legacy default: allow the basic packet types, route all to
+            # the bulk-trace SRAM. (Event-code masks left at reset.)
+            for pkt_mask_reg, en_reg, err_reg in (
+                (APB_DAXMON_PKT_MASK, APB_DAXMON_ENABLE, APB_DAXMON_ERR_CFG),
+                (APB_RDMON_PKT_MASK,  APB_RDMON_ENABLE,  APB_RDMON_ERR_CFG),
+                (APB_WRMON_PKT_MASK,  APB_WRMON_ENABLE,  APB_WRMON_ERR_CFG),
+            ):
+                self.bridge.write(pkt_mask_reg, MON_PKT_MASK_ALLOW_BASIC)
+                self.bridge.write(en_reg,       MON_ENABLE_COMPL_IRQ)
+                self.bridge.write(err_reg,      MON_ERR_CFG_BULK_TRACE)
 
         # Global enable + channels
         self.bridge.write(APB_GLOBAL_CTRL, 0x01)
@@ -908,6 +924,12 @@ Examples:
                         help='Serial port (default: /dev/ttyUSB1)')
     parser.add_argument('--baud', type=int, default=115200,
                         help='Baud rate (default: 115200)')
+    parser.add_argument('--mon-config', dest='mon_config',
+                        choices=sorted(mon_cfg.CONFIGS),
+                        help='Named monitor preset to program before the run '
+                             '(perf-mon = perf only, low rate; debug-* = '
+                             'richer mixes, high traffic / compressed build). '
+                             'Default: legacy "allow basic types".')
     parser.add_argument('--phase', type=int, choices=[1, 2],
                         help='Run only phase 1 or phase 2')
     parser.add_argument('--configs', nargs='+',
@@ -992,7 +1014,8 @@ def main():
     # Run
     with UARTAxiBridge(args.port, args.baud) as bridge:
         runner = CharacterizationRunner(
-            bridge, data_width=128, verbose=args.verbose)
+            bridge, data_width=128, verbose=args.verbose,
+            mon_config=args.mon_config)
         if args.resp_delays:
             rd = [int(s, 0) for s in args.resp_delays.split(',') if s.strip()]
             if args.resp_delays_wr:
