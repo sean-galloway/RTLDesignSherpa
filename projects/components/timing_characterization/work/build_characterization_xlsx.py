@@ -612,9 +612,10 @@ def build_blocks_sheet(wb: Workbook):
         c = ws.cell(row=r, column=28,
                     value=f'=IF(Z{r}="TT",R{r},IF(Z{r}="FF",S{r},IF(Z{r}="SS",T{r},"")))')
         c.fill = FORMULA_FILL; c.alignment = CENTER
-        # AC: delay_in (ps)  =VLOOKUP(clock, table, 5)  -> 60% of target period
+        # AC: delay_in (ps) - default = 30% of target period (external arrival).
+        # Override with =AD_prev to chain from a previous block.
         c = ws.cell(row=r, column=29,
-                    value=f'=IFERROR(VLOOKUP(X{r}, {CLOCK_TABLE_RANGE}, 5, FALSE), "")')
+                    value=f'=IFERROR(VLOOKUP(X{r}, {CLOCK_TABLE_RANGE}, 4, FALSE)*0.3, "")')
         c.fill = PARAM_FILL; c.alignment = CENTER
         # AD: delay_out = delay_in + target data->D + target flop->out
         c = ws.cell(row=r, column=30, value=f"=AC{r} + AA{r} + AB{r}")
@@ -798,7 +799,7 @@ def build_stream_sheet(wb: Workbook):
         c.fill = FORMULA_FILL; c.alignment = CENTER
         # O: delay_in - default = 60% of target period (VLOOKUP col 5)
         c = ws.cell(row=r, column=15,
-                    value=f'=IFERROR(VLOOKUP(C{r}, {CLOCK_TABLE_RANGE}, 5, FALSE), "")')
+                    value=f'=IFERROR(VLOOKUP(C{r}, {CLOCK_TABLE_RANGE}, 4, FALSE)*0.3, "")')
         c.fill = PARAM_FILL; c.alignment = CENTER
         # P: delay_out = delay_in + target local delay
         c = ws.cell(row=r, column=16, value=f"=O{r} + N{r}")
