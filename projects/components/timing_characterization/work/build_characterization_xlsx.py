@@ -208,10 +208,12 @@ def build_sheet(wb: Workbook, per_level: dict, tflop: dict, single_pt: dict):
     section_header_row(ws,
         "Design clocks  -  one row per clock; other sheets VLOOKUP by clock name",
         len(col_headers))
-    # Column headers for the clocks table
+    # Column headers for the clocks table - now includes wire-delay-per-hop
+    # as col 7 so wide-bus inter-FUB routing is accounted for in slack.
     r = ws.max_row + 1
     clock_hdr = ["clock name", "freq (MHz)", "target corner",
-                 "period (ps)", "input delay 60% (ps)", "output delay 40% (ps)"]
+                 "period (ps)", "input delay 60% (ps)", "output delay 40% (ps)",
+                 "wire/hop (ps)"]
     for i, h in enumerate(clock_hdr):
         cell = ws.cell(row=r, column=1 + i, value=h)
         cell.font = SECTION_FONT
@@ -219,17 +221,18 @@ def build_sheet(wb: Workbook, per_level: dict, tflop: dict, single_pt: dict):
         cell.alignment = CENTER
 
     # Six editable slots; first row pre-filled with a sensible default.
+    # wire/hop default = 100 ps - typical 7nm M3-M5 inter-FUB buffered route.
     CLOCK_TABLE_FIRST_ROW = r + 1
     defaults = [
-        ("clk_main", 1000, "TT"),
+        ("clk_main", 1000, "TT", 100),
         # 5 empty slots — designer adds clocks here.
-        ("", "", ""),
-        ("", "", ""),
-        ("", "", ""),
-        ("", "", ""),
-        ("", "", ""),
+        ("", "", "", ""),
+        ("", "", "", ""),
+        ("", "", "", ""),
+        ("", "", "", ""),
+        ("", "", "", ""),
     ]
-    for i, (name, freq, corner) in enumerate(defaults):
+    for i, (name, freq, corner, wire) in enumerate(defaults):
         rr = CLOCK_TABLE_FIRST_ROW + i
         c = ws.cell(row=rr, column=1, value=name);   c.fill = PARAM_FILL; c.alignment = CENTER
         c = ws.cell(row=rr, column=2, value=freq);   c.fill = PARAM_FILL; c.alignment = CENTER
@@ -244,14 +247,16 @@ def build_sheet(wb: Workbook, per_level: dict, tflop: dict, single_pt: dict):
         c = ws.cell(row=rr, column=6,
                     value=f'=IF(ISNUMBER(B{rr}), D{rr}*0.4, "")')
         c.fill = FORMULA_FILL; c.alignment = CENTER
+        # Wire delay per hop - editable.
+        c = ws.cell(row=rr, column=7, value=wire); c.fill = PARAM_FILL; c.alignment = CENTER
 
     CLOCK_TABLE_LAST_ROW = CLOCK_TABLE_FIRST_ROW + len(defaults) - 1
-    # Stash for downstream sheets to build VLOOKUP ranges.
+    # Stash for downstream sheets to build VLOOKUP ranges. Now 7 cols wide.
     global CLOCK_TABLE_RANGE, CLOCK_TABLE_FIRST_ROW_G, CLOCK_TABLE_LAST_ROW_G
     CLOCK_TABLE_FIRST_ROW_G = CLOCK_TABLE_FIRST_ROW
     CLOCK_TABLE_LAST_ROW_G = CLOCK_TABLE_LAST_ROW
     CLOCK_TABLE_RANGE = (
-        f"characterization!$A${CLOCK_TABLE_FIRST_ROW}:$F${CLOCK_TABLE_LAST_ROW}"
+        f"characterization!$A${CLOCK_TABLE_FIRST_ROW}:$G${CLOCK_TABLE_LAST_ROW}"
     )
 
     # ---------------------------------------------------------------------- #
@@ -623,10 +628,11 @@ def build_blocks_sheet(wb: Workbook):
         c = ws.cell(row=r, column=30, value=f"=AC{r} + AA{r} + AB{r}")
         c.fill = FORMULA_FILL; c.alignment = CENTER
         # AE: blank gap (col 31)
-        # AF: slack = target period - delay_out - VLOOKUP output 40%
+        # AF: slack = target period - delay_out - output_40 - wire_per_hop
         c = ws.cell(row=r, column=32,
                     value=(f'=IFERROR(Y{r} - AD{r} - VLOOKUP(X{r}, '
-                           f'{CLOCK_TABLE_RANGE}, 6, FALSE), "")'))
+                           f'{CLOCK_TABLE_RANGE}, 6, FALSE) - VLOOKUP(X{r}, '
+                           f'{CLOCK_TABLE_RANGE}, 7, FALSE), "")'))
         c.fill = FORMULA_FILL; c.alignment = CENTER
         # AG: notes
         ws.cell(row=r, column=33, value=b["notes"])
@@ -807,10 +813,11 @@ def build_stream_sheet(wb: Workbook):
         c = ws.cell(row=r, column=16, value=f"=O{r} + N{r}")
         c.fill = FORMULA_FILL; c.alignment = CENTER
         # Q (col 17) intentionally blank as separator
-        # R: slack = target period - delay_out - output_delay (40% from VLOOKUP col 6)
+        # R: slack = target period - delay_out - output_delay - wire_per_hop
         c = ws.cell(row=r, column=18,
                     value=(f'=IFERROR(L{r} - P{r} - VLOOKUP(C{r}, '
-                           f'{CLOCK_TABLE_RANGE}, 6, FALSE), "")'))
+                           f'{CLOCK_TABLE_RANGE}, 6, FALSE) - VLOOKUP(C{r}, '
+                           f'{CLOCK_TABLE_RANGE}, 7, FALSE), "")'))
         c.fill = FORMULA_FILL; c.alignment = CENTER
         # S: places it goes
         ws.cell(row=r, column=19, value=goes)
