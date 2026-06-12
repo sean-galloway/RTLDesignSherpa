@@ -24,7 +24,7 @@
 # Shared Infrastructure Documentation Status
 
 **Generated:** 2025-10-23
-**Last updated:** 2026-06-11 (monbus_<p1>_<p2>_group family rewrite + reporter dispatcher rewrite)
+**Last updated:** 2026-06-11 (monbus_group two-stage burst-sizing fix; new master-write + axi4_axil tests)
 **Location:** `/mnt/data/github/RTLDesignSherpa/docs/markdown/RTLAmba/shared/`
 
 ---
@@ -60,7 +60,8 @@
     - Backs monbus_compressor's template indexing
     - Caller protocol (NONE/TOUCH/INSTALL), eviction semantics
 
-15. **monbus_group.md** - COMPLETE (rewritten 2026-06-11, was monbus_axil_group.md)
+15. **monbus_group.md** - COMPLETE (rewritten 2026-06-11, was monbus_axil_group.md;
+                              refreshed same day for the two-stage burst-sizing fix)
     - Renamed from monbus_axil_group.md to reflect the new family.
     - Covers the full 5-file family: 1 protocol-agnostic core
       (monbus_group_core.sv) + 4 protocol-permutation wrappers
@@ -71,6 +72,12 @@
       (port-surface changes: cfg_flush_watermark added, FIFO counts
       widened to 16 bits, FIFO_DEPTH_WRITE now in beats, locked 64-bit
       data width).
+    - "Master-Write Behavior" section refreshed for the two-stage
+      drain plan (drain-cycle plans whole-record beats without a
+      MAX_BURST_BEATS cap; per-AW sub-bursts get the cap inside the
+      FSM). The "Test" section now lists all five tests in the suite,
+      including the new master-write coverage that closed the
+      AXIL-master raw-mode deadlock.
 
 16. **sdpram_slave.md** - COMPLETE (new 2026-06-09)
     - Covers the full 5-file family: 1 backend + 4 protocol-specific

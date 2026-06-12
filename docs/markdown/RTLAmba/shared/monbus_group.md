@@ -219,23 +219,53 @@ The burst writer fires when **either**:
 …and at least `BEATS_PER_UNIT` beats are available (3 in raw mode, 1
 in compressed mode).
 
-Burst length, in beats, is chosen at the start of each burst:
+Each flush trigger launches a **drain cycle** that emits a planned
+number of beats out of the master port. The drain cycle is sized in
+two stages:
 
 ```
-beats = min(write_fifo_count, MAX_BURST_BEATS,
+// Stage 1: drain-cycle plan -- total beats to emit this cycle.
+//          MAX_BURST_BEATS is NOT a cap here.
+beats = min(write_fifo_count,
             beats_to_limit,   // staying inside cfg_limit_addr
             beats_to_4kb)     // staying inside an AXI4 4KB boundary
-beats = floor(beats / BEATS_PER_UNIT) * BEATS_PER_UNIT  // record-aligned
+beats_planned_units = floor(beats / BEATS_PER_UNIT) * BEATS_PER_UNIT
+
+// Stage 2: per-AW sub-burst size inside the FSM.
+//          MAX_BURST_BEATS caps each AW. The drain cycle issues
+//          ceil(beats_planned_units / MAX_BURST_BEATS) sub-bursts.
+sub_burst_beats = min(remaining_in_cycle, MAX_BURST_BEATS)
+awlen = sub_burst_beats - 1
 ```
 
-If the rounded value would be zero (e.g., `r_wr_addr` is below
-`cfg_base_addr` or beyond `cfg_limit_addr`), the writer
-**rewinds** `r_wr_addr` to `cfg_base_addr` and re-evaluates. The
-geometry math is computed against a pre-rewound `geom_addr` so the
-first flush after reset (when `r_wr_addr=0`) doesn't deadlock.
+The two-stage structure is what makes the family work for both AXIL
+(`MAX_BURST_BEATS = 1`) and AXI4 (`MAX_BURST_BEATS` up to 256) masters
+in raw mode (`BEATS_PER_UNIT = 3`):
+
+- **AXI4 master, raw mode:** one drain cycle ~= one large sub-burst,
+  e.g. 24 beats = 8 records in a single AW + 24 x W + B. Throughput-
+  optimal.
+- **AXIL master, raw mode:** one drain cycle = N single-beat sub-bursts.
+  Each record requires three AW + 1 x W + B handshakes at consecutive
+  addresses. The memory image is identical to the AXI4 case; only the
+  address-channel handshake count differs.
+
+If `beats_planned_units` would be zero (e.g. `r_wr_addr` is below
+`cfg_base_addr` or beyond `cfg_limit_addr`), the writer **rewinds**
+`r_wr_addr` to `cfg_base_addr` and re-evaluates. The geometry math is
+computed against a pre-rewound `geom_addr` so the first flush after
+reset (when `r_wr_addr=0`) doesn't deadlock.
 
 `awsize` is fixed at 3 (8 bytes per beat) and `awburst` at INCR
-(`2'b01`). `awlen` is `beats-1`. `wlast` asserts on the final beat.
+(`2'b01`). `awlen` is `sub_burst_beats - 1`. `wlast` asserts on the
+final beat of each sub-burst.
+
+> **Note (2026-06-11):** The previous design folded `MAX_BURST_BEATS`
+> into the drain-cycle plan, which deadlocked the writer for the
+> AXIL-master / raw-mode case (`min(1, 3) = 1`, rounded to 3-multiple
+> = 0). See the resolved bug for the rationale behind the two-stage
+> split — the AXIL master now correctly emits one record as three
+> single-beat sub-bursts.
 
 ---
 
@@ -299,26 +329,39 @@ only their semantics differ.
 Verification lives in `val/amba/`:
 
 - `test_monbus_axil_axil_group.py` — basic flow + err-FIFO drain on
-  the AXIL/AXIL wrapper.
+  the AXIL/AXIL wrapper (slave-read coverage; master-write side is
+  driven into a synthetic sink in this test).
 - `test_monbus_axil_axil_group_compressed.py` — byte-exact compressed
   slot stream comparison against the Python `Encoder` golden across
   three phases (small synth stream, real-silicon 682-record dataset,
   wrap-window).
+- `test_monbus_axil_axil_group_master_write.py` — raw-mode
+  master-write coverage on the AXIL/AXIL wrapper. Three phases:
+  watermark-driven flush (asserts `3*N` beats at 8-byte stride
+  starting at `cfg_base_addr`), timeout-driven flush, window
+  wrap-back. The test that would have caught the AXIL-master raw-mode
+  flush deadlock fixed on 2026-06-11.
 - `test_monbus_axil_axi4_group.py` — AXI4 burst master-write
   coverage on the AXIL/AXI4 wrapper. Three phases: watermark-driven
   multi-beat burst, timeout-triggered flush, 4KB-boundary respect.
+- `test_monbus_axi4_axil_group.py` — dedicated AXI4-slave +
+  AXIL-master coverage. Phase 1 covers the master-write raw-mode
+  flush; Phase 2 covers the AXI4 burst slave-read drain (asserts
+  `rlast` timing across a 6-beat AR with custom `arid`).
 
 ```bash
 pytest val/amba/test_monbus_axil_axil_group.py \
        val/amba/test_monbus_axil_axil_group_compressed.py \
-       val/amba/test_monbus_axil_axi4_group.py -v
+       val/amba/test_monbus_axil_axil_group_master_write.py \
+       val/amba/test_monbus_axil_axi4_group.py \
+       val/amba/test_monbus_axi4_axil_group.py -v
 ```
 
-The AXI4 slave-read wrappers (`monbus_axi4_axil_group`,
-`monbus_axi4_axi4_group`) currently exercise their master-write side
-through the AXIL/AXI4 test only; their AXI4-burst-AR drain has
-identical structure to the AXIL slave-read path because the slicer
-emits one record at a time regardless of `arlen`.
+`monbus_axi4_axi4_group` does not yet have a dedicated test; its
+master-write path is covered by `test_monbus_axil_axi4_group.py` (same
+master leaf) and its AXI4-burst slave-read drain is covered by
+`test_monbus_axi4_axil_group.py` Phase 2 (same slave leaf). Adding a
+direct test for the pure-AXI4 wrapper is a future-work item.
 
 ---
 
