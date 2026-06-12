@@ -46,6 +46,9 @@ DEGENERATE_PRIMS   = ["INV", "CLK_DIV"]
 TFLOP_PROBE        = "NAND"
 MIXED_PROXY        = "MULT"  # highlight this row as the generic-mixed-logic proxy
 
+# Filled in by build_sheet() so other sheets can pin to the design-clock cells.
+DESIGN_CLOCK_ROW   = None
+
 # ---------------------------------------------------------------------------- #
 HDR_FONT = Font(bold=True, color="000000")
 HDR_FILL = PatternFill("solid", fgColor="D9E1F2")
@@ -99,6 +102,10 @@ def derive(probes: dict) -> tuple[dict, dict, dict]:
 def build_sheet(wb: Workbook, per_level: dict, tflop: dict, single_pt: dict):
     ws = wb.active
     ws.title = "characterization"
+
+    # Local style fills used by the design-clock cell.
+    PARAM_FILL = PatternFill("solid", fgColor="FFF2CC")
+    FORMULA_FILL = PatternFill("solid", fgColor="E7E6E6")
 
     # Column layout: row label | TT_500 | TT_750 | TT_1000 | FF_500 | ... | SS_1000
     col_headers = ["metric"] + [f"{c}_{f}MHz" for c in CORNERS for f in FREQS]
@@ -186,38 +193,44 @@ def build_sheet(wb: Workbook, per_level: dict, tflop: dict, single_pt: dict):
         ws.append(row)
 
     # ---------------------------------------------------------------------- #
-    # Clocks defined for this methodology (the three target frequencies).
+    # Design clock: one cell defines THE target frequency for the design.
+    # The sheet's 9 corner_freq columns above are a SWEEP - this section
+    # picks the single design target that the other sheets reference.
     # ---------------------------------------------------------------------- #
     ws.append([""] * len(col_headers))
-    section_header_row(ws, "Clocks defined", len(col_headers))
-    for f in FREQS:
-        period = round(1_000_000 / f, 1)
-        label = f"clk_{f}MHz  ({f} MHz)"
-        row = [label]
-        # show period across all 9 cells of the row
-        for _ in range(len(CORNERS) * len(FREQS)):
-            row.append(period)
-        ws.append(row)
+    section_header_row(ws, "Design clock  -  single configurable target",
+                       len(col_headers))
+    # Editable frequency cell + derived period.  Place them in cols A..C so
+    # they're easy to spot.  Other sheets can reference these directly.
+    r = ws.max_row + 1
+    ws.cell(row=r, column=1, value="Target clock frequency (MHz):")
+    c = ws.cell(row=r, column=2, value=1000); c.fill = PARAM_FILL; c.alignment = CENTER
+    ws.cell(row=r, column=3, value="Target clock period (ps):")
+    c = ws.cell(row=r, column=4, value=f"=1000000/B{r}"); c.fill = FORMULA_FILL; c.alignment = CENTER
+    # Stash row number so other sheets can reference the design clock cells.
+    # Period cell is at characterization!$D${design_clock_row}.
+    global DESIGN_CLOCK_ROW
+    DESIGN_CLOCK_ROW = r
 
     # ---------------------------------------------------------------------- #
     # STA boundary timing budget defaults (input delay 60%, output delay 40%).
-    # These are reference cells the building-blocks / stream sheets pull from
-    # via the configurable target_period.  Each corner_freq column shows the
-    # ps budget for that specific freq.
     # ---------------------------------------------------------------------- #
     ws.append([""] * len(col_headers))
     section_header_row(ws,
-        "STA boundary timing budget defaults  -  input 60% / output 40% of period",
+        "STA boundary timing budget defaults  -  input 60% / output 40% of design period",
         len(col_headers))
-    for label, pct in (
-        ("Input delay  (60% of period, ps)",  0.60),
-        ("Output delay (40% of period, ps)",  0.40),
-    ):
-        row = [label]
-        for corner in CORNERS:
-            for f in FREQS:
-                row.append(round(1_000_000 / f * pct, 1))
-        ws.append(row)
+    r = ws.max_row + 1
+    ws.cell(row=r, column=1, value="Input delay (60% of design period, ps):")
+    c = ws.cell(row=r, column=2, value=f"=D{DESIGN_CLOCK_ROW}*0.6")
+    c.fill = FORMULA_FILL; c.alignment = CENTER
+    ws.cell(row=r + 1, column=1, value="Output delay (40% of design period, ps):")
+    c = ws.cell(row=r + 1, column=2, value=f"=D{DESIGN_CLOCK_ROW}*0.4")
+    c.fill = FORMULA_FILL; c.alignment = CENTER
+    INPUT_DELAY_ROW = r
+    OUTPUT_DELAY_ROW = r + 1
+    # Stash the row numbers for later cross-sheet references (only used inside
+    # this function; other sheets pin to characterization!$B${row}).
+    ws._design_clock_period_ref = f"characterization!$D${DESIGN_CLOCK_ROW}"
 
     # ---------------------------------------------------------------------- #
     # Wire delay per mm by metal layer.  ASAP7 NLDM has no wire_load table, so
