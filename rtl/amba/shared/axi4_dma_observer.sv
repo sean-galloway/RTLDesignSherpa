@@ -19,10 +19,14 @@
 //   The DMA under test is not modified -- the observer sits inline
 //   on its AXI external pins. Same clock domain on both sides.
 //
-//   This v1 build uses a single set of filter / address-window /
-//   flush-watermark config inputs that feed the monbus_group's
-//   filtering stage. The per-leaf cfg_axi_*_mask inputs are tied to
-//   "let everything through" so all filtering happens centrally.
+//   Each tap (axi4_master_{rd,wr}_mon) is a pure observer: it watches
+//   its AXI4 bus and emits a monbus packet on every event match. All
+//   filtering of which packets ultimately reach the err FIFO or the
+//   write FIFO is done by the central monbus_group filter (one set of
+//   cfg_<proto>_*_mask + cfg_<proto>_err_select inputs at the observer
+//   top, fed directly into u_group). The per-leaf cfg_axi_*_mask
+//   inputs on each tap are tied to 0 ("don't pre-filter at the leaf")
+//   so the central filter is the single point of control.
 //
 // Subsystem: amba
 // Author: sean galloway
@@ -230,7 +234,24 @@ module axi4_dma_observer
     // Brought to the top so it always traces back to a real config bit.
     input  logic                                                cfg_compress_en,
 
-    // ----- AXI protocol filter masks -----
+    // ----- Per-protocol filter masks (one set per protocol id) -----
+    //
+    // The taps (axi4_master_{rd,wr}_mon) observe their AXI4 buses and
+    // emit a monbus packet on every match. Filtering of what reaches
+    // the err FIFO / write FIFO happens **here**, inside monbus_group:
+    //   cfg_<proto>_pkt_mask[i]        = 1 -> drop packets where pkt_type==i
+    //   cfg_<proto>_err_select[i]      = 1 -> route those packets to err FIFO
+    //                                          instead of write FIFO
+    //   cfg_<proto>_<event>_mask[i]    = 1 -> drop on event_code==i within
+    //                                          the named event class
+    //
+    // A monbus packet's protocol field selects which set the filter
+    // applies. The taps in this observer always emit protocol=AXI, so
+    // the AXIS / CORE sets only do work for an upstream caller that
+    // arbitrates this observer's monbus together with an AXIS or CORE
+    // monitor source -- but they're real filter inputs either way.
+
+    // ----- AXI -----
     input  logic [15:0]                                         cfg_axi_pkt_mask,
     input  logic [15:0]                                         cfg_axi_err_select,
     input  logic [15:0]                                         cfg_axi_error_mask,
@@ -241,12 +262,7 @@ module axi4_dma_observer
     input  logic [15:0]                                         cfg_axi_addr_mask,
     input  logic [15:0]                                         cfg_axi_debug_mask,
 
-    // ----- AXIS protocol filter masks -----
-    // The observer's own taps (axi4_master_{rd,wr}_mon) don't generate
-    // AXIS packets, so these have no effect on what THIS observer emits.
-    // They're surfaced for completeness so an upstream caller that
-    // arbitrates this observer's monbus alongside an AXIS source can
-    // configure both halves from one top-level.
+    // ----- AXIS -----
     input  logic [15:0]                                         cfg_axis_pkt_mask,
     input  logic [15:0]                                         cfg_axis_err_select,
     input  logic [15:0]                                         cfg_axis_error_mask,
@@ -256,9 +272,7 @@ module axi4_dma_observer
     input  logic [15:0]                                         cfg_axis_channel_mask,
     input  logic [15:0]                                         cfg_axis_stream_mask,
 
-    // ----- CORE protocol filter masks -----
-    // Same caveat as AXIS: no effect on observer-emitted packets, but
-    // wired through for the multi-source case.
+    // ----- CORE -----
     input  logic [15:0]                                         cfg_core_pkt_mask,
     input  logic [15:0]                                         cfg_core_err_select,
     input  logic [15:0]                                         cfg_core_error_mask,
