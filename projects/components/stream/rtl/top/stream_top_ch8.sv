@@ -245,6 +245,21 @@ module stream_top_ch8 #(
     output logic                                    stream_irq,
 
     //-------------------------------------------------------------------------
+    // MonBus compressor statistics. Live only when USE_MON_COMPRESSION=1
+    // (0 otherwise). Surfaced so the SoC integrator (stream_char harness)
+    // can expose them via harness_csr for in-hardware compression-ratio
+    // characterization.
+    //-------------------------------------------------------------------------
+    output logic [31:0]                             mon_compressor_stat_tier1_a,
+    output logic [31:0]                             mon_compressor_stat_tier1_b,
+    output logic [31:0]                             mon_compressor_stat_tier1_c,
+    output logic [31:0]                             mon_compressor_stat_tier0,
+    output logic [31:0]                             mon_compressor_stat_cam_miss,
+    output logic [31:0]                             mon_compressor_stat_delta_ts_ovf,
+    output logic [31:0]                             mon_compressor_stat_event_data_ovf,
+    output logic [31:0]                             mon_compressor_stat_ed_delta_ovf,
+
+    //-------------------------------------------------------------------------
     // Monitor capture region (used by monbus_axil_group's master writes when
     // USE_AXI_MONITORS=1). The SoC integrator points these at whatever
     // memory region collects the dumped packets -- in stream_char that's
@@ -1823,14 +1838,14 @@ module stream_top_ch8 #(
                 // leave dangling -- top-level harness can hook them later for
                 // FPGA characterization once compression is the default).
                 /* verilator lint_off PINCONNECTEMPTY */
-                .mon_compressor_stat_tier1_a        (),
-                .mon_compressor_stat_tier1_b        (),
-                .mon_compressor_stat_tier1_c        (),
-                .mon_compressor_stat_tier0          (),
-                .mon_compressor_stat_cam_miss       (),
-                .mon_compressor_stat_delta_ts_ovf   (),
-                .mon_compressor_stat_event_data_ovf (),
-                .mon_compressor_stat_ed_delta_ovf   ()
+                .mon_compressor_stat_tier1_a        (mon_compressor_stat_tier1_a),
+                .mon_compressor_stat_tier1_b        (mon_compressor_stat_tier1_b),
+                .mon_compressor_stat_tier1_c        (mon_compressor_stat_tier1_c),
+                .mon_compressor_stat_tier0          (mon_compressor_stat_tier0),
+                .mon_compressor_stat_cam_miss       (mon_compressor_stat_cam_miss),
+                .mon_compressor_stat_delta_ts_ovf   (mon_compressor_stat_delta_ts_ovf),
+                .mon_compressor_stat_event_data_ovf (mon_compressor_stat_event_data_ovf),
+                .mon_compressor_stat_ed_delta_ovf   (mon_compressor_stat_ed_delta_ovf)
                 /* verilator lint_on PINCONNECTEMPTY */
             );
         end else begin : g_monbus_tieoff
@@ -1858,6 +1873,16 @@ module stream_top_ch8 #(
             assign mon_write_fifo_full = 1'b0;
             assign mon_err_fifo_count = 8'h00;
             assign mon_write_fifo_count = 8'h00;
+
+            // Tie off compressor statistics (no monitors -> no compressor).
+            assign mon_compressor_stat_tier1_a        = 32'h0;
+            assign mon_compressor_stat_tier1_b        = 32'h0;
+            assign mon_compressor_stat_tier1_c        = 32'h0;
+            assign mon_compressor_stat_tier0          = 32'h0;
+            assign mon_compressor_stat_cam_miss       = 32'h0;
+            assign mon_compressor_stat_delta_ts_ovf   = 32'h0;
+            assign mon_compressor_stat_event_data_ovf = 32'h0;
+            assign mon_compressor_stat_ed_delta_ovf   = 32'h0;
         end
     endgenerate
 

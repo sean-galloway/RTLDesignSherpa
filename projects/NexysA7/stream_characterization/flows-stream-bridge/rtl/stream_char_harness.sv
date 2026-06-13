@@ -59,7 +59,11 @@ module stream_char_harness #(
     // the engines can hide. Defaults match stream_core's historical
     // values so this parameter is invisible unless overridden.
     parameter int AR_MAX_OUTSTANDING     = 8,
-    parameter int AW_MAX_OUTSTANDING     = 8
+    parameter int AW_MAX_OUTSTANDING     = 8,
+    // MonBus bulk-trace compression. 1 for this project -- whenever the
+    // monitors run, the compressor is in-path. The cocotb characterization
+    // test overrides this to 0 to measure the uncompressed baseline.
+    parameter int USE_MON_COMPRESSION    = 1
 ) (
     input  logic            aclk,
     input  logic            aresetn,
@@ -536,6 +540,10 @@ module stream_char_harness #(
     logic        csr_timer_clear_pulse;
     logic [31:0] csr_timer_expected_beats;
     logic [31:0] dbg_wr_ptr;
+    // MonBus compressor statistics: stream_top_ch8 -> harness_csr.
+    logic [31:0] mon_comp_tier1_a, mon_comp_tier1_b, mon_comp_tier1_c;
+    logic [31:0] mon_comp_tier0, mon_comp_cam_miss;
+    logic [31:0] mon_comp_delta_ts_ovf, mon_comp_event_data_ovf, mon_comp_ed_delta_ovf;
     logic        dbg_overflow;
     logic        dbg_clear_busy;
 
@@ -731,6 +739,15 @@ module stream_char_harness #(
         .i_dbg_wr_ptr       (dbg_wr_ptr),
         .i_dbg_overflow     (dbg_overflow),
         .i_dbg_clear_busy   (dbg_clear_busy),
+        // MonBus compressor statistics (0x1E0..0x1FC).
+        .i_mon_comp_tier1_a        (mon_comp_tier1_a),
+        .i_mon_comp_tier1_b        (mon_comp_tier1_b),
+        .i_mon_comp_tier1_c        (mon_comp_tier1_c),
+        .i_mon_comp_tier0          (mon_comp_tier0),
+        .i_mon_comp_cam_miss       (mon_comp_cam_miss),
+        .i_mon_comp_delta_ts_ovf   (mon_comp_delta_ts_ovf),
+        .i_mon_comp_event_data_ovf (mon_comp_event_data_ovf),
+        .i_mon_comp_ed_delta_ovf   (mon_comp_ed_delta_ovf),
         // Aggregate scalars (back-compat at 0x10/0x14/0x18/0x1C): channel-0
         // CRC plus any-active/all-active reductions across channels.
         .i_crc_rd_expected  (read_crc_value[0]),
@@ -1455,6 +1472,7 @@ module stream_char_harness #(
         .AXI_ID_WIDTH       (AXI_ID_WIDTH),
         .AXI_USER_WIDTH     (AXI_USER_WIDTH),
         .USE_AXI_MONITORS   (1),
+        .USE_MON_COMPRESSION(USE_MON_COMPRESSION),
         .CDC_ENABLE         (0),
         .AR_MAX_OUTSTANDING (AR_MAX_OUTSTANDING),
         .AW_MAX_OUTSTANDING (AW_MAX_OUTSTANDING)
@@ -1544,6 +1562,16 @@ module stream_char_harness #(
 
         // Interrupt out
         .stream_irq        (stream_irq),
+
+        // MonBus compressor statistics -> harness_csr (0x1E0..0x1FC).
+        .mon_compressor_stat_tier1_a        (mon_comp_tier1_a),
+        .mon_compressor_stat_tier1_b        (mon_comp_tier1_b),
+        .mon_compressor_stat_tier1_c        (mon_comp_tier1_c),
+        .mon_compressor_stat_tier0          (mon_comp_tier0),
+        .mon_compressor_stat_cam_miss       (mon_comp_cam_miss),
+        .mon_compressor_stat_delta_ts_ovf   (mon_comp_delta_ts_ovf),
+        .mon_compressor_stat_event_data_ovf (mon_comp_event_data_ovf),
+        .mon_compressor_stat_ed_delta_ovf   (mon_comp_ed_delta_ovf),
 
         // Monitor capture region: point monbus_axil_group's master
         // writes at debug_sram (0x0004_0000, 256 KB). Each record is

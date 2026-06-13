@@ -152,6 +152,10 @@ MON_PKT_MASK_ALLOW_BASIC = 0x0000_FFF0
 # to the err FIFO so irq_out fires on any of them. ERR_MASK[15:8] cleared to 0
 # (default is 0xFF = "mask all error codes 0-7"; we want them to pass through).
 MON_ERR_CFG_ROUTE_ALL   = 0x0000_000F
+# ERR_SELECT=0 routes every packet type to the bulk-trace write FIFO
+# (-> m_axil_mon -> debug_sram, through the compressor) instead of the
+# err FIFO IRQ path. Used by the compression-characterization workload.
+MON_ERR_CFG_BULK_TRACE  = 0x0000_0000
 
 
 class StreamCharTB(TBBase):
@@ -496,7 +500,12 @@ class StreamCharTB(TBBase):
     async def run_dma_test(self, num_channels: int,
                            descriptors_per_channel: int,
                            transfer_bytes: int,
-                           timeout_clocks: int = 50_000) -> bool:
+                           timeout_clocks: int = 50_000,
+                           mon_err_cfg: int = MON_ERR_CFG_ROUTE_ALL) -> bool:
+        # mon_err_cfg picks the monbus routing: ROUTE_ALL (default) sends
+        # packets to the err FIFO IRQ path; BULK_TRACE (0) sends them to the
+        # debug_sram bulk-trace path through the compressor -- used by the
+        # compression-characterization run.
         # timeout_clocks default = 50_000 ≈ 500 us of wait_clocks budget at a
         # 10 ns clock period. Reduced from 500_000 so failures surface fast;
         # bump it explicitly at the call site when a test legitimately needs
@@ -585,7 +594,7 @@ class StreamCharTB(TBBase):
         ):
             await self.uart_write(pkt_mask_reg, MON_PKT_MASK_ALLOW_BASIC)
             await self.uart_write(en_reg,       MON_ENABLE_COMPL_IRQ)
-            await self.uart_write(err_reg,      MON_ERR_CFG_ROUTE_ALL)
+            await self.uart_write(err_reg,      mon_err_cfg)
 
         # 4. Enable STREAM global + channels
         ch_mask = (1 << num_channels) - 1
@@ -994,6 +1003,32 @@ class StreamCharTB(TBBase):
                 f"w2w={w2w / max(beats_total,1):.2f}")
         except Exception as e:
             self.log.warning(f"  Timer cycles probe failed: {e}")
+
+        # MonBus bulk-trace summary: words written to debug_sram plus the
+        # compressor tier stats (live only on a USE_MON_COMPRESSION=1
+        # build; 0 otherwise). Lets the compression characterization compare
+        # records-out with vs without compression for the same workload.
+        try:
+            wr_words = await self.uart_read(CSR_DBG_WR_PTR)
+            base = HARNESS_CSR_BASE
+            t1a = await self.uart_read(base + 0x1E0)
+            t1b = await self.uart_read(base + 0x1E4)
+            t1c = await self.uart_read(base + 0x1E8)
+            t0  = await self.uart_read(base + 0x1EC)
+            cam = await self.uart_read(base + 0x1F0)
+            recs = t1a + t1b + t1c + t0
+            self.log.info(
+                f"  MonBus trace: dbg_wr_ptr={wr_words} words "
+                f"(~{wr_words // 6} raw-equiv records); "
+                f"compressor tier1={t1a}/{t1b}/{t1c} tier0={t0} "
+                f"cam_miss={cam} compressed_recs={recs}")
+            self._trace_summary = {
+                'dbg_wr_ptr_words': wr_words,
+                'tier1_a': t1a, 'tier1_b': t1b, 'tier1_c': t1c,
+                'tier0': t0, 'cam_miss': cam, 'compressed_records': recs,
+            }
+        except Exception as e:
+            self.log.warning(f"  MonBus trace probe failed: {e}")
 
         if crc.get('match') and crc.get('valid'):
             self.log.info(f"  DMA test PASSED")

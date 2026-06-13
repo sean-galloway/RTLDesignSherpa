@@ -98,6 +98,26 @@ async def cocotb_test_stream_char(dut):
             timeout_clocks=timeout_clocks,
         )
 
+    elif test_type == 'compress_char':
+        # Compression characterization: route monbus to the bulk-trace
+        # (debug_sram) path -- mon_err_cfg=0 -- so the compressor is
+        # exercised, run a DMA workload, then read dbg_wr_ptr + compressor
+        # stats (logged by run_dma_test). Run at USE_MON_COMPRESSION=1 and 0
+        # and diff dbg_wr_ptr to see the compression effect.
+        num_ch = BASE_RTL_PARAMS.get('NUM_CHANNELS', 4)
+        desc_per_ch = int(os.environ.get('DMA_DESC_PER_CH', '4'))
+        xfer_bytes = int(os.environ.get('DMA_XFER_BYTES', '8192'))
+        tb.log.info(f"=== Compression char: {num_ch}ch x {desc_per_ch}desc "
+                    f"(bulk-trace routing) ===")
+        ok = await tb.run_ping_test()
+        ok &= await tb.run_dma_test(
+            num_channels=num_ch,
+            descriptors_per_channel=desc_per_ch,
+            transfer_bytes=xfer_bytes,
+            timeout_clocks=int(os.environ.get('DMA_TIMEOUT_CLOCKS', '80000')),
+            mon_err_cfg=0,   # MON_ERR_CFG_BULK_TRACE -> debug_sram via compressor
+        )
+
     else:
         raise ValueError(f"Unknown TEST_TYPE: {test_type}")
 
@@ -131,6 +151,10 @@ BASE_RTL_PARAMS = {
     # test needs deeper descriptor chains or longer trace captures.
     'DESC_RAM_ENTRIES': 128,    # 128 × 256 b =  4 KB
     'DEBUG_SRAM_WORDS': 4096,   # 4K × 32 b   = 16 KB
+    # MonBus bulk-trace compression. Project default is 1 (compressor in
+    # path). Override with USE_MON_COMPRESSION=0 to build the uncompressed
+    # baseline for the with/without compression characterization.
+    'USE_MON_COMPRESSION': int(os.environ.get('USE_MON_COMPRESSION', '1')),
 }
 
 
@@ -152,6 +176,7 @@ def generate_stream_char_params():
     func_types = ['desc_load', 'csr_read', 'apb_config',
                   'dma_1ch', 'dma_2ch']
     full_types = [f'dma_{n}ch' for n in range(3, max_channels + 1)]
+    full_types += ['compress_char']   # compression characterization run
 
     # Accept both TEST_LEVEL (Makefile convention) and REG_LEVEL (legacy)
     level = os.environ.get('TEST_LEVEL',

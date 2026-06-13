@@ -164,6 +164,13 @@
 //
 //   All bus-meter counters clear synchronously on CTRL.clear_stats, in lock
 //   step with debug_sram and the CRC state. No separate clear-bit needed.
+//
+//   MonBus compressor statistics (R, from stream_top_ch8; 0 unless the
+//   build sets USE_MON_COMPRESSION=1):
+//     0x1E0 COMP_TIER1_A      0x1E4 COMP_TIER1_B    0x1E8 COMP_TIER1_C
+//     0x1EC COMP_TIER0        0x1F0 COMP_CAM_MISS   0x1F4 COMP_DELTA_TS_OVF
+//     0x1F8 COMP_EVENT_DATA_OVF                     0x1FC COMP_ED_DELTA_OVF
+//   Compression ratio ~= records_in / (tier1_a+tier1_b+tier1_c+tier0).
 
 `timescale 1ns / 1ps
 
@@ -227,6 +234,17 @@ module harness_csr #(
     input  logic [31:0]     i_dbg_wr_ptr,
     input  logic            i_dbg_overflow,
     input  logic            i_dbg_clear_busy,
+
+    // MonBus compressor statistics (from stream_top_ch8). Live only when
+    // USE_MON_COMPRESSION=1; read-only at 0x100..0x11C.
+    input  logic [31:0]     i_mon_comp_tier1_a,
+    input  logic [31:0]     i_mon_comp_tier1_b,
+    input  logic [31:0]     i_mon_comp_tier1_c,
+    input  logic [31:0]     i_mon_comp_tier0,
+    input  logic [31:0]     i_mon_comp_cam_miss,
+    input  logic [31:0]     i_mon_comp_delta_ts_ovf,
+    input  logic [31:0]     i_mon_comp_event_data_ovf,
+    input  logic [31:0]     i_mon_comp_ed_delta_ovf,
 
     // =====================================================================
     // AXI bus meter readback ports (per-engine, R then W).
@@ -723,6 +741,17 @@ module harness_csr #(
                             9'h1D4: r_rdata <= {i_wr_meter_ch_idle[5], i_wr_meter_ch_starv[5]};
                             9'h1D8: r_rdata <= {i_wr_meter_ch_idle[6], i_wr_meter_ch_starv[6]};
                             9'h1DC: r_rdata <= {i_wr_meter_ch_idle[7], i_wr_meter_ch_starv[7]};
+
+                            // MonBus compressor statistics (0 unless the
+                            // build has USE_MON_COMPRESSION=1).
+                            9'h1E0: r_rdata <= i_mon_comp_tier1_a;
+                            9'h1E4: r_rdata <= i_mon_comp_tier1_b;
+                            9'h1E8: r_rdata <= i_mon_comp_tier1_c;
+                            9'h1EC: r_rdata <= i_mon_comp_tier0;
+                            9'h1F0: r_rdata <= i_mon_comp_cam_miss;
+                            9'h1F4: r_rdata <= i_mon_comp_delta_ts_ovf;
+                            9'h1F8: r_rdata <= i_mon_comp_event_data_ovf;
+                            9'h1FC: r_rdata <= i_mon_comp_ed_delta_ovf;
 
                             default: r_rdata <= 32'h0000_0000;
                         endcase
