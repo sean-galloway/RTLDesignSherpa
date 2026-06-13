@@ -61,8 +61,22 @@ set top_filelist "$::env(TIMING_CHAR_ROOT)/rtl/filelists/char_top.f"
 puts "\nExpanding filelist: $top_filelist"
 lassign [filelist::flatten $top_filelist] sv_sources incdirs defines
 
-# Append the FPGA wrapper (not part of the ASIC filelist).
-lappend sv_sources "$::env(FPGA_FLOW_ROOT)/rtl/char_top_fpga.sv"
+# Select the FPGA top from $FPGA_TOP (defaults to the simple wrapper).
+# 'char_top_fpga'       single-clock board wrapper for normal builds.
+# 'char_top_fpga_mmcm'  MMCM sweep with four test clocks + signature accumulators
+#                       (see README_FPGA.md section 5).
+set fpga_top "char_top_fpga"
+if {[info exists ::env(FPGA_TOP)] && $::env(FPGA_TOP) ne ""} {
+    set fpga_top $::env(FPGA_TOP)
+}
+puts "FPGA_TOP:          $fpga_top"
+
+if {$fpga_top eq "char_top_fpga_mmcm"} {
+    lappend sv_sources "$::env(FPGA_FLOW_ROOT)/rtl/sig_accum.sv"
+    lappend sv_sources "$::env(FPGA_FLOW_ROOT)/rtl/char_top_fpga_mmcm.sv"
+} else {
+    lappend sv_sources "$::env(FPGA_FLOW_ROOT)/rtl/char_top_fpga.sv"
+}
 
 set src_fs [get_filesets sources_1]
 
@@ -90,19 +104,22 @@ if {[llength $defines] > 0} {
     set_property -name "verilog_define" -value $defines -objects $src_fs
 }
 
-# Top module
-set top_name "char_top_fpga"
+# Top module follows whichever wrapper we added above.
+set top_name $fpga_top
 set_property top $top_name $src_fs
 puts "\nTop module: $top_name"
 
 # ----------------------------------------------------------------------------
-# Constraints
+# Constraints - one XDC per FPGA top variant.
 # ----------------------------------------------------------------------------
 set cf [get_filesets constrs_1]
-add_files -norecurse -fileset $cf \
-    "$::env(FPGA_FLOW_ROOT)/constraints/char_top_fpga.xdc"
-set_property file_type XDC \
-    [get_files -of $cf "$::env(FPGA_FLOW_ROOT)/constraints/char_top_fpga.xdc"]
+if {$fpga_top eq "char_top_fpga_mmcm"} {
+    set xdc_path "$::env(FPGA_FLOW_ROOT)/constraints/char_top_fpga_mmcm.xdc"
+} else {
+    set xdc_path "$::env(FPGA_FLOW_ROOT)/constraints/char_top_fpga.xdc"
+}
+add_files -norecurse -fileset $cf $xdc_path
+set_property file_type XDC [get_files -of $cf $xdc_path]
 
 puts "\nProject created at $project_root/$project_dir"
 puts "========================================================================"

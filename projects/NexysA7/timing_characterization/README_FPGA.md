@@ -225,35 +225,87 @@ Negative slack renders **bold red**, three-decimal precision (`0.000`).
 
 ---
 
-## 5. The validation loop (planned)
+## 5. The validation loop
 
-The ASIC paper has STA as the ground truth -- run Yosys + ABC + OpenSTA
-and the delay numbers come out of `stime -c`.  On FPGA the equivalent is
-Vivado's post-route `report_timing_summary`, which is already what
-`make bitstream` emits.
+The ASIC paper has STA as the ground truth -- Yosys + ABC + OpenSTA and
+the delay numbers come out of `stime -c`.  On FPGA the equivalent is
+Vivado's post-route `report_timing_summary`, which `make bitstream`
+already emits.  The on-board sanity check that "does the spreadsheet
+match what the chip actually does at this clock?" is the **MMCM sweep**:
 
-The genuinely interesting closure -- "does the spreadsheet match the
-chip?" -- needs an on-board experiment.  Sketch:
+### 5.1 Wrapper
 
-1. **MMCM wrapper**.  An extra wrapper `char_top_fpga_mmcm.sv` takes the
-   100 MHz board clock and synthesises N test points (e.g. 200 / 250 /
-   300 / 350 MHz) through a Mixed-Mode Clock Manager.  Each test clock
-   feeds an isolated `char_top` instance with the same per-FUB enables
-   the spreadsheet predicted at.
-2. **Host-side golden model**.  The same LFSR reference model that the
-   ASIC TB (`dv/tbclasses/timing_char_tb.py`) already implements gets
-   replayed in software for every clock test point.  If the FPGA stops
-   producing the golden LED pattern at clock X, that's the chip
-   announcing functional failure at clock X.
-3. **Calibration table**.  Three columns: predicted-fail-freq
-   (spreadsheet), measured-fail-freq (chip), error (%).  A small error
-   means the spreadsheet's per-LUT / per-CARRY4 numbers are honest;
-   a big error means the seed values need updating with the post-route
-   data Vivado gave you.
+[`fpga/rtl/char_top_fpga_mmcm.sv`](fpga/rtl/char_top_fpga_mmcm.sv) wraps
+an `MMCME2_BASE` primitive with a VCO running at 1200 MHz, exposing four
+test clocks to four parallel `char_top` instances:
 
-None of this is built yet.  It's the natural next step once a real
-`make bitstream` run produces a real `timing_summary.txt` we can
-calibrate the spreadsheet against.
+| domain | divide | test freq |
+|---|---|---|
+| `clk_test_0` | /8 | 150 MHz |
+| `clk_test_1` | /6 | 200 MHz |
+| `clk_test_2` | /5 | 240 MHz |
+| `clk_test_3` | /4 | 300 MHz |
+
+Each instance gets the same LFSR seed nibble from `SW[1:0]`, so all four
+domains are doing the same work -- just at different clocks.  Per-domain
+reset is held until the MMCM locks, then released through a 2-flop
+synchroniser into each test clock.
+
+### 5.2 Signature accumulator
+
+[`fpga/rtl/sig_accum.sv`](fpga/rtl/sig_accum.sv) folds every char_top
+output bus (207 bits worth -- nand, inverter, xor, carry, mult, mux,
+queue, clk_div, gray) into a 32-bit XOR signature in the source domain.
+A free-running snapshot register updates every 2^16 source-clock cycles
+and the value crosses into the 100 MHz observation domain via a 2-flop
+CDC synchroniser (Xilinx `ASYNC_REG = "TRUE"` attributes preserve the
+metastability margin).
+
+### 5.3 On-board observation
+
+Eight user LEDs show:
+
+| LED | meaning |
+|---|---|
+| `LED[0]` | clk_test_0 (150 MHz) signature changed since last snapshot |
+| `LED[1]` | clk_test_1 (200 MHz) signature changed |
+| `LED[2]` | clk_test_2 (240 MHz) signature changed |
+| `LED[3]` | clk_test_3 (300 MHz) signature changed |
+| `LED[7:4]` | lower 4 bits of the signature for the selected clock |
+
+`SW[3:2]` selects which domain drives `LED[7:4]` for closer inspection.
+
+A failing clock domain's signature freezes (LED stays solid one way or the
+other instead of flickering at a few Hz), so a quick glance at LED[3:0]
+tells you which test clocks the chip is keeping up with.
+
+### 5.4 Vivado STA contract
+
+`fpga/constraints/char_top_fpga_mmcm.xdc` declares each MMCM output as a
+generated clock and groups them as asynchronous to the 100 MHz observation
+clock, so `make bitstream-mmcm` produces a `timing_summary.txt` with one
+WNS row per `clk_test_N` group.  Those WNS numbers are the calibration
+source: feed them back into `work/build_fpga_characterization_xlsx.py`'s
+`PRIM_PS` dict and regenerate the workbook.
+
+### 5.5 Quick command
+
+```bash
+cd projects/NexysA7/timing_characterization/fpga
+make bitstream-mmcm   # builds char_top_fpga_mmcm with 4 test clocks
+make program          # flash the board
+                      # watch LED[3:0] for clock-domain liveness
+```
+
+What the v0.1 sweep does NOT include yet:
+
+- **Host-side golden model**.  The signature is structural ("did the chip
+  keep producing changing data?"), not functional ("did the chip produce
+  THE RIGHT data?").  A UART or USB-blaster handshake out to the host's
+  LFSR reference model would close that gap.
+- **Automated calibration**.  Reading `timing_summary.txt` and writing
+  the per-LUT / per-CARRY4 numbers back into the spreadsheet builder
+  is still a copy-paste workflow; a small script could automate it.
 
 ---
 

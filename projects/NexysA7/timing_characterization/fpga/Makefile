@@ -22,6 +22,12 @@ export REPO_ROOT
 export TIMING_CHAR_ROOT := $(REPO_ROOT)/projects/NexysA7/timing_characterization
 export FPGA_FLOW_ROOT   := $(SELF_DIR)
 
+# Top-variant selector. Either:
+#   char_top_fpga       (default) - single-clock board wrapper
+#   char_top_fpga_mmcm  - MMCM sweep with 4 test clocks + signature accumulators
+FPGA_TOP ?= char_top_fpga
+export FPGA_TOP
+
 VIVADO ?= vivado
 VIVADO_BATCH = $(VIVADO) -mode batch -notrace
 
@@ -30,7 +36,7 @@ PROJECT   := $(SELF_DIR)/build/vivado_project/timing_char.xpr
 BITSTREAM := $(SELF_DIR)/bitstream/timing_char.bit
 REPORTS   := $(SELF_DIR)/reports
 
-.PHONY: help project synth bitstream program utilization timing clean clean-all cleanall
+.PHONY: help project synth bitstream bitstream-mmcm program utilization timing clean clean-all cleanall
 
 help:
 	@echo "Timing Characterization - Nexys A7-100T build targets"
@@ -56,11 +62,22 @@ synth:
 
 # ---- Full build ------------------------------------------------------------
 bitstream:
-	@echo "[bitstream] full flow (~10-30 min depending on host)"
+	@echo "[bitstream] FPGA_TOP=$(FPGA_TOP) (~10-30 min)"
 	cd $(SELF_DIR) && $(VIVADO_BATCH) -source $(TCL)/build_all.tcl
 	@echo ""
 	@echo "Bitstream: $(BITSTREAM)"
 	@echo "Reports:   $(REPORTS)"
+
+# ---- MMCM sweep build -----------------------------------------------------
+# Convenience target so a designer doesn't have to remember the env var.
+# Builds the char_top_fpga_mmcm top with four parallel char_top instances
+# at 150 / 200 / 240 / 300 MHz; Vivado's STA reports per-test-clock WNS
+# independently.  Compare those WNS values against the spreadsheet's
+# predicted slack to calibrate the seed numbers in
+# work/build_fpga_characterization_xlsx.py.
+bitstream-mmcm:
+	@echo "[bitstream-mmcm] FPGA_TOP=char_top_fpga_mmcm (4-clock sweep)"
+	$(MAKE) --no-print-directory bitstream FPGA_TOP=char_top_fpga_mmcm
 
 # ---- Program board ---------------------------------------------------------
 program:
