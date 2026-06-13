@@ -6,9 +6,12 @@
 ## Source: Nexys A7 master XDC, trimmed to clk + reset button + 4 SW + 8 LED
 ##==============================================================================
 
-## 100 MHz onboard oscillator
+## 100 MHz onboard oscillator (pin map only)
+##
+## create_clock is emitted dynamically by tcl/clock_constraint.tcl so the
+## Makefile sweep can tighten the period via TARGET_PERIOD_NS without
+## hand-editing this file.
 set_property -dict { PACKAGE_PIN E3   IOSTANDARD LVCMOS33 } [get_ports { CLK100MHZ }]
-create_clock -add -name sys_clk_pin -period 10.000 -waveform {0 5} [get_ports { CLK100MHZ }]
 
 ## CPU reset push-button (active-low)
 set_property -dict { PACKAGE_PIN C12  IOSTANDARD LVCMOS33 } [get_ports { CPU_RESETN }]

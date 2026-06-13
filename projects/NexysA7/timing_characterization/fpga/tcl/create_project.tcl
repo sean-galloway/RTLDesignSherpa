@@ -121,5 +121,9 @@ if {$fpga_top eq "char_top_fpga_mmcm"} {
 add_files -norecurse -fileset $cf $xdc_path
 set_property file_type XDC [get_files -of $cf $xdc_path]
 
+# Dynamic create_clock from TARGET_PERIOD_NS (default 10.0 = 100 MHz).
+# Used by `make bitstream-sweep` to tighten the period across runs.
+source "$script_dir/clock_constraint.tcl"
+
 puts "\nProject created at $project_root/$project_dir"
 puts "========================================================================"

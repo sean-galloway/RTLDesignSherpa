@@ -40,14 +40,17 @@ REPORTS   := $(SELF_DIR)/reports
 
 help:
 	@echo "Timing Characterization - Nexys A7-100T build targets"
-	@echo "  make project      Create Vivado project (no build)"
-	@echo "  make synth        Synth + utilization_synth.txt only"
-	@echo "  make bitstream    Full synth/impl/bitgen + all reports"
-	@echo "  make program      Flash the Nexys A7 via JTAG"
-	@echo "  make utilization  cat the latest utilization report"
-	@echo "  make timing       cat the latest post-route timing summary"
-	@echo "  make clean        Remove Vivado artifacts + reports"
-	@echo "  make clean-all    clean + sim caches + Python bytecode"
+	@echo "  make project          Create Vivado project (no build)"
+	@echo "  make synth            Synth + utilization_synth.txt only"
+	@echo "  make bitstream        Full synth/impl/bitgen + all reports"
+	@echo "  make bitstream-mmcm   MMCM variant with 4 parallel test clocks"
+	@echo "  make bitstream-sweep  Loop bitstream across FREQS_MHZ; emit CSV"
+	@echo "                          (override list: FREQS_MHZ=\"100 150 ...\")"
+	@echo "  make program          Flash the Nexys A7 via JTAG"
+	@echo "  make utilization      cat the latest utilization report"
+	@echo "  make timing           cat the latest post-route timing summary"
+	@echo "  make clean            Remove Vivado artifacts + reports"
+	@echo "  make clean-all        clean + sim caches + Python bytecode"
 
 # ---- Project creation ------------------------------------------------------
 project:
@@ -78,6 +81,41 @@ bitstream:
 bitstream-mmcm:
 	@echo "[bitstream-mmcm] FPGA_TOP=char_top_fpga_mmcm (4-clock sweep)"
 	$(MAKE) --no-print-directory bitstream FPGA_TOP=char_top_fpga_mmcm
+
+# ---- Target-frequency sweep (calibration loop) ----------------------------
+# Loops the simple char_top_fpga wrapper across multiple TARGET_PERIOD_NS
+# values, captures Vivado's per-clock-group WNS at each, and rolls them up
+# into reports/sweep_wns.csv for direct feedback into the spreadsheet
+# builder.
+#
+# Override the freq list with:
+#   make bitstream-sweep FREQS_MHZ="100 150 200 250 300"
+#
+# Runs N back-to-back full builds (~10-30 min each).  Each run's reports
+# get archived under reports/sweep_<F>MHz/ so they're kept separate.
+FREQS_MHZ ?= 100 150 200 250 300
+
+.PHONY: bitstream-sweep
+bitstream-sweep:
+	@echo "[bitstream-sweep] sweeping FREQS_MHZ=$(FREQS_MHZ)"
+	@for f in $(FREQS_MHZ); do \
+	    period=$$(awk "BEGIN {printf \"%.4f\", 1000.0 / $$f}"); \
+	    echo ""; \
+	    echo "================================================================"; \
+	    echo " sweep point: $$f MHz  (period $$period ns)"; \
+	    echo "================================================================"; \
+	    $(MAKE) --no-print-directory bitstream TARGET_PERIOD_NS=$$period \
+	        || (echo "bitstream-sweep: bailing at $$f MHz" && exit 1); \
+	    mkdir -p $(REPORTS)/sweep_$${f}MHz; \
+	    cp $(REPORTS)/timing_summary.txt   $(REPORTS)/sweep_$${f}MHz/ 2>/dev/null || true; \
+	    cp $(REPORTS)/timing_worst.txt     $(REPORTS)/sweep_$${f}MHz/ 2>/dev/null || true; \
+	    cp $(REPORTS)/utilization_impl.txt $(REPORTS)/sweep_$${f}MHz/ 2>/dev/null || true; \
+	done
+	@echo ""
+	@echo "[bitstream-sweep] aggregating WNS into reports/sweep_wns.csv"
+	@python3 $(SELF_DIR)/tools/parse_timing_sweep.py $(REPORTS) $(REPORTS)/sweep_wns.csv
+	@echo ""
+	@echo "Done. Feed reports/sweep_wns.csv into the spreadsheet builder."
 
 # ---- Program board ---------------------------------------------------------
 program:

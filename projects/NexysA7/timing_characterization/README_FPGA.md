@@ -297,15 +297,42 @@ make program          # flash the board
                       # watch LED[3:0] for clock-domain liveness
 ```
 
-What the v0.1 sweep does NOT include yet:
+### 5.6 The simpler sweep -- when STA is enough
 
-- **Host-side golden model**.  The signature is structural ("did the chip
-  keep producing changing data?"), not functional ("did the chip produce
-  THE RIGHT data?").  A UART or USB-blaster handshake out to the host's
-  LFSR reference model would close that gap.
-- **Automated calibration**.  Reading `timing_summary.txt` and writing
-  the per-LUT / per-CARRY4 numbers back into the spreadsheet builder
-  is still a copy-paste workflow; a small script could automate it.
+The MMCM build is only worth the extra silicon when you want to **observe
+on-chip behaviour** at multiple clocks from one bitstream.  If you only
+need Vivado's STA opinion to feed the spreadsheet, the simpler flow is
+the `bitstream-sweep` target -- it loops the regular `char_top_fpga`
+wrapper across a list of target periods, archives each run's reports
+under `reports/sweep_<F>MHz/`, and rolls per-clock-group WNS into a
+single `reports/sweep_wns.csv`:
+
+```bash
+make bitstream-sweep FREQS_MHZ="100 150 200 250 300"
+# ... runs N back-to-back full builds ...
+cat reports/sweep_wns.csv
+```
+
+CSV columns: `freq_mhz, period_ns, group, wns_ns, slack_status,
+utilization_luts, utilization_ffs, utilization_brams, utilization_dsps`.
+That's the direct input to recalibrating
+[`work/build_fpga_characterization_xlsx.py`](work/build_fpga_characterization_xlsx.py)'s
+`PRIM_PS` dict.
+
+Under the hood it's just a `TARGET_PERIOD_NS` env var that
+[`fpga/tcl/clock_constraint.tcl`](fpga/tcl/clock_constraint.tcl) reads at
+project-creation time and bakes into a fresh XDC fragment.  No MMCM, no
+sig_accum, no on-chip behaviour -- pure post-route Vivado STA.
+
+### 5.7 What v0.1 still doesn't do
+
+- **Host-side golden model.**  Both sweeps (MMCM and target-freq) report
+  structural / STA signals.  Neither asks "did the chip produce THE RIGHT
+  data?"  A UART or USB-blaster handshake out to the host's LFSR
+  reference model would close that gap.
+- **Spreadsheet auto-update.**  `parse_timing_sweep.py` produces
+  `sweep_wns.csv` but doesn't feed the values back into the workbook
+  builder's `PRIM_PS` dict; that's still a copy-paste workflow.
 
 ---
 
