@@ -10,11 +10,16 @@ Same 3-sheet shape as the ASIC companion (asap7_characterization.xlsx):
                      BRAM); clock-driven slack with bold-red conditional
                      formatting on negative
 
+A third sheet 'measured (sweep)' is appended automatically when a
+calibration CSV exists at work/sweep_wns.csv (produced by
+`make calibrate` in fpga/).  It shows the measured WNS Vivado reported
+at each target frequency so the designer can compare against the
+predicted slack on the building-blocks sheet.
+
 Seed data are Artix-7 primitive datasheet ballparks at -1/-2/-3 speed grades.
-Calibrate against real Vivado post-route reports (timing_summary.txt) when
-the fpga/Makefile gets real bitstream runs.
 """
 from __future__ import annotations
+import csv
 import math
 from pathlib import Path
 from openpyxl import Workbook
@@ -22,7 +27,11 @@ from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
 from openpyxl.utils import get_column_letter
 from openpyxl.formatting.rule import CellIsRule
 
-OUT = Path("/mnt/data/github/RTLDesignSherpa/projects/NexysA7/timing_characterization/work/artix7_characterization.xlsx")
+HERE = Path(__file__).resolve().parent
+OUT  = HERE / "artix7_characterization.xlsx"
+# Optional calibration CSV produced by `make calibrate` (or by hand).
+# Same column shape as fpga/tools/parse_timing_sweep.py's output.
+CALIBRATION_CSV = HERE / "sweep_wns.csv"
 
 CORNERS = ["sg-1", "sg-2", "sg-3"]
 FREQS   = [100, 150, 200, 250, 300]  # MHz - FPGA-typical sweep
@@ -414,13 +423,59 @@ def build_blocks_sheet(wb):
         ws.column_dimensions[get_column_letter(c)].width = w
 
 
+def build_measured_sheet(wb):
+    """Append a 'measured (sweep)' sheet from work/sweep_wns.csv.
+
+    Skips silently if no calibration CSV is present yet. The Makefile's
+    `make calibrate` target writes one after a `bitstream-sweep` finishes.
+    """
+    if not CALIBRATION_CSV.exists():
+        return
+    rows = list(csv.DictReader(CALIBRATION_CSV.open()))
+    if not rows:
+        return
+    ws = wb.create_sheet("measured (sweep)")
+    cols = list(rows[0].keys())
+    ws.append(cols)
+    for c in range(1, len(cols) + 1):
+        cell = ws.cell(row=1, column=c)
+        cell.font = HDR_FONT
+        cell.fill = HDR_FILL
+        cell.alignment = CENTER
+    for r in rows:
+        ws.append([r.get(c, "") for c in cols])
+    # Negative WNS in red so failing sweep points jump out the same way
+    # as the building-blocks slack column.
+    last = ws.max_row
+    wns_col = cols.index("wns_ns") + 1 if "wns_ns" in cols else None
+    if wns_col:
+        col_letter = get_column_letter(wns_col)
+        ws.conditional_formatting.add(
+            f"{col_letter}2:{col_letter}{last}",
+            CellIsRule(operator="lessThan", formula=["0"],
+                       font=Font(bold=True, color="C00000")))
+    for c in range(1, len(cols) + 1):
+        ws.column_dimensions[get_column_letter(c)].width = 18
+    # Footer pointing back at the source.
+    note_row = last + 2
+    ws.cell(row=note_row, column=1, value=(
+        f"Source: {CALIBRATION_CSV.name} (produced by `make calibrate` in "
+        f"fpga/). Re-run that target after edits to refresh."))
+    ws.cell(row=note_row, column=1).font = SECTION_FONT
+
+
 def main():
     wb = Workbook()
     build_characterization(wb)
     build_blocks_sheet(wb)
+    build_measured_sheet(wb)
     OUT.parent.mkdir(parents=True, exist_ok=True)
     wb.save(OUT)
+    sheets = ", ".join(wb.sheetnames)
     print(f"wrote {OUT}")
+    print(f"  sheets: {sheets}")
+    if not CALIBRATION_CSV.exists():
+        print(f"  (no calibration CSV at {CALIBRATION_CSV.name} - skipped 'measured' sheet)")
 
 
 if __name__ == "__main__":

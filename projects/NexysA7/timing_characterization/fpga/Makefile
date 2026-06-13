@@ -22,6 +22,10 @@ export REPO_ROOT
 export TIMING_CHAR_ROOT := $(REPO_ROOT)/projects/NexysA7/timing_characterization
 export FPGA_FLOW_ROOT   := $(SELF_DIR)
 
+# Companion artifacts (spreadsheet + whitepaper) live one level up.
+WORK_DIR := $(TIMING_CHAR_ROOT)/work
+DOCS_DIR := $(TIMING_CHAR_ROOT)/docs
+
 # Top-variant selector. Either:
 #   char_top_fpga       (default) - single-clock board wrapper
 #   char_top_fpga_mmcm  - MMCM sweep with 4 test clocks + signature accumulators
@@ -36,10 +40,15 @@ PROJECT   := $(SELF_DIR)/build/vivado_project/timing_char.xpr
 BITSTREAM := $(SELF_DIR)/bitstream/timing_char.bit
 REPORTS   := $(SELF_DIR)/reports
 
-.PHONY: help project synth bitstream bitstream-mmcm program utilization timing clean clean-all cleanall
+.PHONY: help project synth bitstream bitstream-mmcm bitstream-sweep program \
+        utilization timing clean clean-all cleanall \
+        xlsx xlsx-asic xlsx-fpga whitepaper whitepaper-asic whitepaper-fpga \
+        calibrate docs
 
 help:
 	@echo "Timing Characterization - Nexys A7-100T build targets"
+	@echo ""
+	@echo "Vivado flow:"
 	@echo "  make project          Create Vivado project (no build)"
 	@echo "  make synth            Synth + utilization_synth.txt only"
 	@echo "  make bitstream        Full synth/impl/bitgen + all reports"
@@ -47,8 +56,25 @@ help:
 	@echo "  make bitstream-sweep  Loop bitstream across FREQS_MHZ; emit CSV"
 	@echo "                          (override list: FREQS_MHZ=\"100 150 ...\")"
 	@echo "  make program          Flash the Nexys A7 via JTAG"
+	@echo ""
+	@echo "Reports:"
 	@echo "  make utilization      cat the latest utilization report"
 	@echo "  make timing           cat the latest post-route timing summary"
+	@echo ""
+	@echo "Methodology artifacts (no Vivado required):"
+	@echo "  make xlsx             Regen BOTH spreadsheets (asap7 + artix7)"
+	@echo "  make xlsx-asic        Regen the ASAP7 spreadsheet"
+	@echo "  make xlsx-fpga        Regen the Artix-7 spreadsheet"
+	@echo "  make whitepaper       Regen BOTH papers (ASIC + FPGA PDFs)"
+	@echo "  make whitepaper-asic  Regen the ASIC paper PDF"
+	@echo "  make whitepaper-fpga  Regen the FPGA paper PDF"
+	@echo ""
+	@echo "End-to-end calibration:"
+	@echo "  make calibrate        bitstream-sweep + copy CSV + xlsx-fpga"
+	@echo "                          (one command: Vivado WNS -> spreadsheet)"
+	@echo "  make docs             xlsx + whitepaper (all methodology output)"
+	@echo ""
+	@echo "Cleanup:"
 	@echo "  make clean            Remove Vivado artifacts + reports"
 	@echo "  make clean-all        clean + sim caches + Python bytecode"
 
@@ -162,3 +188,59 @@ clean-all: clean
 	@echo "[clean-all] done."
 
 cleanall: clean-all
+
+# ---- Spreadsheet regeneration --------------------------------------------
+# Pure Python; no Vivado, no board, no synth runs. The Artix-7 builder
+# automatically picks up work/sweep_wns.csv if one is present (written by
+# `make calibrate`) and appends a 'measured (sweep)' sheet.
+xlsx: xlsx-asic xlsx-fpga
+
+xlsx-asic:
+	@echo "[xlsx-asic] regenerating asap7_characterization.xlsx"
+	@python3 $(WORK_DIR)/build_characterization_xlsx.py
+
+xlsx-fpga:
+	@echo "[xlsx-fpga] regenerating artix7_characterization.xlsx"
+	@python3 $(WORK_DIR)/build_fpga_characterization_xlsx.py
+
+# ---- White paper regeneration --------------------------------------------
+# Wraps the existing generate_wp_*_pdf.sh scripts under docs/. Run from
+# wherever; the scripts cd into docs/ themselves.
+whitepaper: whitepaper-asic whitepaper-fpga
+
+whitepaper-asic:
+	@echo "[whitepaper-asic] regenerating Pre_Synth_Timing_Prediction_White_Paper PDF"
+	@cd $(DOCS_DIR) && ./generate_wp_pdf.sh
+
+whitepaper-fpga:
+	@echo "[whitepaper-fpga] regenerating Pre_Synth_Timing_Prediction_FPGA PDF"
+	@cd $(DOCS_DIR) && ./generate_wp_fpga_pdf.sh
+
+# ---- End-to-end calibration loop -----------------------------------------
+# 1. bitstream-sweep across FREQS_MHZ -> reports/sweep_wns.csv
+# 2. copy that CSV next to the FPGA spreadsheet builder
+# 3. regenerate the spreadsheet (now with a 'measured (sweep)' sheet)
+# 4. regenerate the FPGA white paper PDF for distribution
+#
+# Skip the synthesis runs if you already have a fresh sweep_wns.csv by
+# pointing at a cached one:
+#   make calibrate CALIBRATION_SRC=/path/to/sweep_wns.csv
+CALIBRATION_SRC ?= $(REPORTS)/sweep_wns.csv
+
+calibrate:
+	@if [ ! -f $(CALIBRATION_SRC) ]; then \
+	    echo "[calibrate] no $(CALIBRATION_SRC) yet - running bitstream-sweep first"; \
+	    $(MAKE) --no-print-directory bitstream-sweep; \
+	fi
+	@echo "[calibrate] using $(CALIBRATION_SRC)"
+	@cp $(CALIBRATION_SRC) $(WORK_DIR)/sweep_wns.csv
+	@$(MAKE) --no-print-directory xlsx-fpga
+	@$(MAKE) --no-print-directory whitepaper-fpga
+	@echo ""
+	@echo "Calibration done."
+	@echo "  Spreadsheet:  $(WORK_DIR)/artix7_characterization.xlsx"
+	@echo "  Sweep CSV:    $(WORK_DIR)/sweep_wns.csv"
+	@echo "  White paper:  $(DOCS_DIR)/Pre_Synth_Timing_Prediction_FPGA_v*.pdf"
+
+# ---- 'docs' rolls up everything that doesn't need Vivado -----------------
+docs: xlsx whitepaper
