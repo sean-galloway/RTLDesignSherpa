@@ -21,7 +21,7 @@ $FRAMEWORK_ROOT/rtl/harness_csr.sv
 # Two instances live in stream_char_harness (one on the read engine R bus,
 # one on the write engine W bus); their counters are exposed via harness_csr
 # at 0x100 (R) and 0x180 (W).
-$FRAMEWORK_ROOT/rtl/axi_bus_meter.sv
+$REPO_ROOT/rtl/amba/shared/axi_bus_meter.sv
 
 # Unified SDP-BRAM slave -- protocol-agnostic compute kernel + thin
 # per-permutation wrappers (no string-switch generate plumbing).
