@@ -133,13 +133,28 @@ class Axi4DmaObserverTB(TBBase):
         self.dut.cfg_base_addr.value       = base_addr
         self.dut.cfg_limit_addr.value      = limit_addr
         self.dut.cfg_flush_watermark.value = flush_watermark
-        # Let all packets through (no drop, no err-FIFO routing -> everything goes to write FIFO)
-        for sig in ['cfg_axi_pkt_mask', 'cfg_axi_err_select',
-                    'cfg_axi_error_mask', 'cfg_axi_timeout_mask',
-                    'cfg_axi_compl_mask', 'cfg_axi_thresh_mask',
-                    'cfg_axi_perf_mask', 'cfg_axi_addr_mask',
-                    'cfg_axi_debug_mask']:
+        # Let all packets through (no drop, no err-FIFO routing -> everything goes to write FIFO).
+        # AXIS / CORE masks are configurable from the top now too; we don't
+        # use those protocols in this smoke test so they stay all-zeros.
+        for sig in [
+            'cfg_axi_pkt_mask', 'cfg_axi_err_select',
+            'cfg_axi_error_mask', 'cfg_axi_timeout_mask',
+            'cfg_axi_compl_mask', 'cfg_axi_thresh_mask',
+            'cfg_axi_perf_mask', 'cfg_axi_addr_mask', 'cfg_axi_debug_mask',
+            'cfg_axis_pkt_mask', 'cfg_axis_err_select',
+            'cfg_axis_error_mask', 'cfg_axis_timeout_mask',
+            'cfg_axis_compl_mask', 'cfg_axis_credit_mask',
+            'cfg_axis_channel_mask', 'cfg_axis_stream_mask',
+            'cfg_core_pkt_mask', 'cfg_core_err_select',
+            'cfg_core_error_mask', 'cfg_core_timeout_mask',
+            'cfg_core_compl_mask', 'cfg_core_thresh_mask',
+            'cfg_core_perf_mask', 'cfg_core_debug_mask',
+        ]:
             getattr(self.dut, sig).value = 0
+
+        # USE_COMPRESSION=0 in this smoke test, so cfg_compress_en has no
+        # effect; still drive it so the port is initialized.
+        self.dut.cfg_compress_en.value = 0
 
         # ---- axi_bus_meter inputs ----
         self.dut.i_meter_clear.value  = 0

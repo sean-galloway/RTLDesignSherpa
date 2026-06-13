@@ -226,10 +226,11 @@ module axi4_dma_observer
     input  logic [ADDR_WIDTH-1:0]                               cfg_base_addr,
     input  logic [ADDR_WIDTH-1:0]                               cfg_limit_addr,
     input  logic [15:0]                                         cfg_flush_watermark,
+    // Runtime compression enable (only effective when USE_COMPRESSION==1).
+    // Brought to the top so it always traces back to a real config bit.
+    input  logic                                                cfg_compress_en,
 
-    // AXI protocol filter masks. AXIS and CORE protocol masks are also
-    // wired through monbus_group for completeness; this observer doesn't
-    // generate AXIS/CORE packets so those have no effect.
+    // ----- AXI protocol filter masks -----
     input  logic [15:0]                                         cfg_axi_pkt_mask,
     input  logic [15:0]                                         cfg_axi_err_select,
     input  logic [15:0]                                         cfg_axi_error_mask,
@@ -239,6 +240,33 @@ module axi4_dma_observer
     input  logic [15:0]                                         cfg_axi_perf_mask,
     input  logic [15:0]                                         cfg_axi_addr_mask,
     input  logic [15:0]                                         cfg_axi_debug_mask,
+
+    // ----- AXIS protocol filter masks -----
+    // The observer's own taps (axi4_master_{rd,wr}_mon) don't generate
+    // AXIS packets, so these have no effect on what THIS observer emits.
+    // They're surfaced for completeness so an upstream caller that
+    // arbitrates this observer's monbus alongside an AXIS source can
+    // configure both halves from one top-level.
+    input  logic [15:0]                                         cfg_axis_pkt_mask,
+    input  logic [15:0]                                         cfg_axis_err_select,
+    input  logic [15:0]                                         cfg_axis_error_mask,
+    input  logic [15:0]                                         cfg_axis_timeout_mask,
+    input  logic [15:0]                                         cfg_axis_compl_mask,
+    input  logic [15:0]                                         cfg_axis_credit_mask,
+    input  logic [15:0]                                         cfg_axis_channel_mask,
+    input  logic [15:0]                                         cfg_axis_stream_mask,
+
+    // ----- CORE protocol filter masks -----
+    // Same caveat as AXIS: no effect on observer-emitted packets, but
+    // wired through for the multi-source case.
+    input  logic [15:0]                                         cfg_core_pkt_mask,
+    input  logic [15:0]                                         cfg_core_err_select,
+    input  logic [15:0]                                         cfg_core_error_mask,
+    input  logic [15:0]                                         cfg_core_timeout_mask,
+    input  logic [15:0]                                         cfg_core_compl_mask,
+    input  logic [15:0]                                         cfg_core_thresh_mask,
+    input  logic [15:0]                                         cfg_core_perf_mask,
+    input  logic [15:0]                                         cfg_core_debug_mask,
 
     // Status
     output logic                                                err_fifo_full,
@@ -685,6 +713,7 @@ module axi4_dma_observer
         .cfg_base_addr        (cfg_base_addr),
         .cfg_limit_addr       (cfg_limit_addr),
         .cfg_flush_watermark  (cfg_flush_watermark),
+        .cfg_compress_en      (cfg_compress_en),
 
         .cfg_axi_pkt_mask     (cfg_axi_pkt_mask),
         .cfg_axi_err_select   (cfg_axi_err_select),
@@ -698,22 +727,22 @@ module axi4_dma_observer
 
         // AXIS / CORE protocol masks: this observer doesn't generate
         // AXIS or CORE packets, so tie all to 0 (no filtering).
-        .cfg_axis_pkt_mask     (16'h0000),
-        .cfg_axis_err_select   (16'h0000),
-        .cfg_axis_error_mask   (16'h0000),
-        .cfg_axis_timeout_mask (16'h0000),
-        .cfg_axis_compl_mask   (16'h0000),
-        .cfg_axis_credit_mask  (16'h0000),
-        .cfg_axis_channel_mask (16'h0000),
-        .cfg_axis_stream_mask  (16'h0000),
-        .cfg_core_pkt_mask     (16'h0000),
-        .cfg_core_err_select   (16'h0000),
-        .cfg_core_error_mask   (16'h0000),
-        .cfg_core_timeout_mask (16'h0000),
-        .cfg_core_compl_mask   (16'h0000),
-        .cfg_core_thresh_mask  (16'h0000),
-        .cfg_core_perf_mask    (16'h0000),
-        .cfg_core_debug_mask   (16'h0000),
+        .cfg_axis_pkt_mask     (cfg_axis_pkt_mask),
+        .cfg_axis_err_select   (cfg_axis_err_select),
+        .cfg_axis_error_mask   (cfg_axis_error_mask),
+        .cfg_axis_timeout_mask (cfg_axis_timeout_mask),
+        .cfg_axis_compl_mask   (cfg_axis_compl_mask),
+        .cfg_axis_credit_mask  (cfg_axis_credit_mask),
+        .cfg_axis_channel_mask (cfg_axis_channel_mask),
+        .cfg_axis_stream_mask  (cfg_axis_stream_mask),
+        .cfg_core_pkt_mask     (cfg_core_pkt_mask),
+        .cfg_core_err_select   (cfg_core_err_select),
+        .cfg_core_error_mask   (cfg_core_error_mask),
+        .cfg_core_timeout_mask (cfg_core_timeout_mask),
+        .cfg_core_compl_mask   (cfg_core_compl_mask),
+        .cfg_core_thresh_mask  (cfg_core_thresh_mask),
+        .cfg_core_perf_mask    (cfg_core_perf_mask),
+        .cfg_core_debug_mask   (cfg_core_debug_mask),
 
         .err_fifo_full      (err_fifo_full),
         .write_fifo_full    (write_fifo_full),
