@@ -36,7 +36,15 @@ report_utilization -file "$project_root/reports/utilization_synth.txt"
 close_design
 
 # ---- Implementation + bitstream ----
+# Enable physical optimization. The 100 MHz worst path is route-dominated
+# (the monbus aggregator output skid in stream_core to the compressor CAM
+# in monbus_axil_group land far apart), so phys_opt_design — which can
+# replicate/relocate the marginal endpoints — is the right lever for the
+# last few hundred ps. Both the post-place and post-route passes are
+# enabled; the post-route pass is the one that closes sub-100ps slack.
 puts "\n--- Implementation ---"
+set_property STEPS.PHYS_OPT_DESIGN.IS_ENABLED true [get_runs impl_1]
+set_property STEPS.POST_ROUTE_PHYS_OPT_DESIGN.IS_ENABLED true [get_runs impl_1]
 launch_runs impl_1 -to_step write_bitstream -jobs 4
 wait_on_run impl_1
 if {[get_property PROGRESS [get_runs impl_1]] != "100%"} {
