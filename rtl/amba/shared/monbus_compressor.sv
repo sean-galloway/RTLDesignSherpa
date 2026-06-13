@@ -47,18 +47,25 @@
 //   monbus_cam            -- 32-entry LRU CAM (sub-instance)
 //   FSM                   -- 3 states: IDLE / RAW1 / RAW2
 //
-// Pipeline
-// --------
-// Tier-1 records: 1 cycle in -> 1 slot out. Throughput 1 record/cycle
-//                 (assuming both handshakes are ready).
-// Tier-0 records: 1 cycle in -> 3 slots out (over 3 cycles). Throughput
-//                 1 record / 3 cycles.
+// Pipeline (2 stages)
+// -------------------
+// Stage 1 (lookup/commit): key build -> CAM lookup -> CAM commit + last_ts
+//          update. The CAM still does lookup+commit in a single cycle, so
+//          its update SEQUENCE (and the emitted slot stream) is bit-exact
+//          to the original single-cycle module.
+// Stage 2 (encode/emit): delta/fits/format-select -> slot pack -> output,
+//          plus RAW (tier-0) beat expansion.
 //
-// The combinational path on cycle 0 includes:
-//   key build -> CAM lookup -> delta_ts -> format select -> slot pack
-// Substantial logic depth; if timing closure becomes an issue, register
-// the CAM lookup result and add a "decide" pipeline stage. For typical
-// monbus traffic at 100 MHz this should close comfortably.
+// Throughput is unchanged from the single-cycle design:
+//   Tier-1 records: 1 record/cycle (1 slot out).
+//   Tier-0 records: 1 record / 3 cycles (3 slots out).
+// The encode is one cycle of added latency only -- bandwidth is preserved.
+//
+// Rationale: the fits/fmt/pack tail (a 65-bit signed subtract plus 60/64-bit
+// magnitude compares) was the 100 MHz critical path when fused with the CAM
+// lookup. Splitting it into stage 2 shortens both halves. There is no CAM
+// read-after-write hazard because the commit (action = hit ? TOUCH :
+// INSTALL) depends only on the stage-1 lookup, not on the stage-2 format.
 //
 // Statistics
 // ----------
@@ -186,33 +193,66 @@ module monbus_compressor
     );
 
     // ------------------------------------------------------------------------
-    // Format-fit decisions (combinational on this cycle's lookup result).
+    // Pipeline stage register (stage 1 lookup/commit -> stage 2 encode/emit).
+    //
+    // Timing background
+    // -----------------
+    // The original single-cycle datapath ran
+    //   in_packet -> in_key -> CAM 32-way match -> fits/fmt -> slot pack -> FIFO
+    // all in one clock. At 100 MHz on the Nexys A7 (-1 speed grade) the
+    // fits/fmt/pack tail (a 65-bit signed subtract plus several 60/64-bit
+    // magnitude compares) pushed this path negative.
+    //
+    // Splitting the encode off into its own cycle keeps the CAM
+    // lookup-and-commit in a single cycle (stage 1) -- so the CAM/last_ts
+    // update SEQUENCE is byte-for-byte identical to the original -- while
+    // the heavy arithmetic (fits/fmt/pack) and the RAW beat expansion move
+    // to stage 2. The emitted slot STREAM is bit-identical to the old
+    // module's, just delayed one cycle. Throughput is unchanged:
+    //   tier-1 : 1 record in -> 1 slot  out, 1 record/cycle
+    //   tier-0 : 1 record in -> 3 slots out, 1 record/3 cycles
+    //
+    // Why there is no CAM read-after-write hazard: stage 1 commits the CAM
+    // the same cycle it accepts a record (the action depends only on
+    // hit/miss, NOT on the stage-2 format decision), exactly as before. The
+    // next record's lookup is one cycle later and therefore sees the
+    // committed state -- identical ordering to the single-cycle design.
+    // ------------------------------------------------------------------------
+    localparam logic [1:0] BEAT0 = 2'd0;   // tier-1 slot, or RAW ts beat
+    localparam logic [1:0] BEAT1 = 2'd1;   // RAW pkt_hi
+    localparam logic [1:0] BEAT2 = 2'd2;   // RAW pkt_lo
+
+    logic                     p_valid;      // stage 2 holds a record
+    logic [1:0]               r_beat;       // current output beat
+    logic                     p_hit;
+    logic [TMPL_IDX_BITS-1:0] p_idx;
+    logic [63:0]              p_old_data;
+    logic [TS_BITS-1:0]       p_delta_ts;
+    logic [63:0]              p_event_data;
+    logic [TS_BITS-1:0]       p_src_ts60;
+    logic [127:0]             p_packet;
+
+    // ------------------------------------------------------------------------
+    // Stage 2: format-fit decisions (combinational on the REGISTERED stage-1
+    // lookup result, not the live CAM port).
     // ------------------------------------------------------------------------
     logic fits_a;
     logic fits_b;
     logic fits_c_ts;
     logic fits_c_ed;
     logic fits_c;
-    logic signed [40:0] ed_delta_s;   // 41-bit so we can range-check 40-bit signed
 
-    assign fits_a    = (delta_ts < (60'(1) << DELTA_TS_A_BITS)) &&
-                       (in_event_data < (64'(1) << EVENT_DATA_A_BITS));
-    assign fits_b    = (delta_ts < (60'(1) << DELTA_TS_B_BITS)) &&
-                       (in_event_data < (64'(1) << EVENT_DATA_B_BITS));
-    assign fits_c_ts = (delta_ts < (60'(1) << DELTA_TS_C_BITS));
+    assign fits_a    = (p_delta_ts < (60'(1) << DELTA_TS_A_BITS)) &&
+                       (p_event_data < (64'(1) << EVENT_DATA_A_BITS));
+    assign fits_b    = (p_delta_ts < (60'(1) << DELTA_TS_B_BITS)) &&
+                       (p_event_data < (64'(1) << EVENT_DATA_B_BITS));
+    assign fits_c_ts = (p_delta_ts < (60'(1) << DELTA_TS_C_BITS));
 
-    // Signed 41-bit subtract; in-range iff value sign-extends to fit 40 bits.
-    assign ed_delta_s = $signed({1'b0, in_event_data[39:0]})
-                      - $signed({1'b0, cam_access_old_data[39:0]});
-    // Above is for the low 40 bits only. For the FULL bit-exact signed
-    // delta in 64 bits, do it as:
-    //   ed_delta_full = $signed(in_event_data) - $signed(old);
-    //   fits_c_ed = (ed_delta_full >= -(1<<39)) && (ed_delta_full < (1<<39))
-    //
-    // ...which is the correct semantics per Python. Use that instead.
+    // Full bit-exact signed 64-bit event_data delta (matches Python's
+    // _pack_format_c semantics).
     logic signed [64:0] ed_delta_full;
-    assign ed_delta_full = $signed({1'b0, in_event_data})
-                         - $signed({1'b0, cam_access_old_data});
+    assign ed_delta_full = $signed({1'b0, p_event_data})
+                         - $signed({1'b0, p_old_data});
     assign fits_c_ed = (ed_delta_full >= -(65'sd1 <<< 39)) &&
                        (ed_delta_full <   (65'sd1 <<< 39));
     assign fits_c    = fits_c_ts && fits_c_ed;
@@ -227,11 +267,11 @@ module monbus_compressor
 
     fmt_t  fmt_sel;
     always_comb begin
-        if (cam_access_hit && fits_a) begin
+        if (p_hit && fits_a) begin
             fmt_sel = FMT_A;
-        end else if (cam_access_hit && fits_b) begin
+        end else if (p_hit && fits_b) begin
             fmt_sel = FMT_B;
-        end else if (cam_access_hit && fits_c) begin
+        end else if (p_hit && fits_c) begin
             fmt_sel = FMT_C;
         end else begin
             fmt_sel = FMT_RAW;
@@ -239,7 +279,8 @@ module monbus_compressor
     end
 
     // ------------------------------------------------------------------------
-    // Slot packers — match Python _pack_format_a/b/c verbatim.
+    // Slot packers — match Python _pack_format_a/b/c verbatim (now sourced
+    // from the registered stage-1 values).
     // ------------------------------------------------------------------------
     logic [63:0] slot_a;
     logic [63:0] slot_b;
@@ -247,117 +288,115 @@ module monbus_compressor
     logic [63:0] slot_raw0;    // tag=0 + ts60
 
     assign slot_a = {TAG_FORMAT_A,
-                     cam_access_idx,
-                     delta_ts[DELTA_TS_A_BITS-1:0],
-                     in_event_data[EVENT_DATA_A_BITS-1:0]};
+                     p_idx,
+                     p_delta_ts[DELTA_TS_A_BITS-1:0],
+                     p_event_data[EVENT_DATA_A_BITS-1:0]};
 
     assign slot_b = {TAG_FORMAT_B,
-                     cam_access_idx,
-                     delta_ts[DELTA_TS_B_BITS-1:0],
-                     in_event_data[EVENT_DATA_B_BITS-1:0]};
+                     p_idx,
+                     p_delta_ts[DELTA_TS_B_BITS-1:0],
+                     p_event_data[EVENT_DATA_B_BITS-1:0]};
 
     assign slot_c = {TAG_FORMAT_C,
-                     cam_access_idx,
-                     delta_ts[DELTA_TS_C_BITS-1:0],
+                     p_idx,
+                     p_delta_ts[DELTA_TS_C_BITS-1:0],
                      ed_delta_full[EVENT_DATA_C_DELTA-1:0]};
 
-    assign slot_raw0 = {TAG_RAW, in_src_ts60};
+    assign slot_raw0 = {TAG_RAW, p_src_ts60};
 
-    // ------------------------------------------------------------------------
-    // FSM: 3 states (IDLE, RAW1, RAW2). Tier-1 lives in IDLE entirely
-    // (single-cycle); Tier-0 occupies all three (one cycle per beat).
-    // ------------------------------------------------------------------------
-    typedef enum logic [1:0] {
-        S_IDLE = 2'd0,
-        S_RAW1 = 2'd1,
-        S_RAW2 = 2'd2
-    } state_t;
-
-    state_t r_state;
-    logic [127:0] r_pkt;   // latched packet for raw beats 1/2
-
-    // Combinational outputs.
-    logic        out_valid_idle;
-    logic [63:0] out_slot_idle;
+    // Beat-0 slot select (tier-1 slot, or RAW ts beat).
+    logic [63:0] beat0_slot;
     always_comb begin
         unique case (fmt_sel)
-            FMT_A:   out_slot_idle = slot_a;
-            FMT_B:   out_slot_idle = slot_b;
-            FMT_C:   out_slot_idle = slot_c;
-            FMT_RAW: out_slot_idle = slot_raw0;
-            default: out_slot_idle = 64'h0;
+            FMT_A:   beat0_slot = slot_a;
+            FMT_B:   beat0_slot = slot_b;
+            FMT_C:   beat0_slot = slot_c;
+            FMT_RAW: beat0_slot = slot_raw0;
+            default: beat0_slot = 64'h0;
         endcase
-        out_valid_idle = in_valid;
     end
 
+    // ------------------------------------------------------------------------
+    // Stage 2 output mux. Tier-1 emits beat 0 only; tier-0 (RAW) emits
+    // beat0 (ts), beat1 (pkt_hi), beat2 (pkt_lo) over three cycles.
+    // ------------------------------------------------------------------------
     always_comb begin
-        case (r_state)
-            S_IDLE: begin
-                out_valid = out_valid_idle;
-                out_slot  = out_slot_idle;
-            end
-            S_RAW1: begin
-                out_valid = 1'b1;
-                out_slot  = r_pkt[127:64];
-            end
-            S_RAW2: begin
-                out_valid = 1'b1;
-                out_slot  = r_pkt[63:0];
-            end
-            default: begin
-                out_valid = 1'b0;
-                out_slot  = 64'h0;
-            end
+        out_valid = p_valid;
+        unique case (r_beat)
+            BEAT0:   out_slot = beat0_slot;
+            BEAT1:   out_slot = p_packet[127:64];
+            BEAT2:   out_slot = p_packet[63:0];
+            default: out_slot = 64'h0;
         endcase
     end
 
-    // in_ready only when we can absorb a new record AND emit at least
-    // beat 0 in the same cycle.
-    assign in_ready = (r_state == S_IDLE) && out_ready;
+    // Stage 2 retires (and can take a new record) when it consumes its last
+    // beat: beat0 for tier-1, beat2 for tier-0 (RAW).
+    logic s2_retire;
+    logic s2_can_load;
+    logic accept;
+    assign s2_retire   = p_valid && out_ready &&
+                         (((r_beat == BEAT0) && (fmt_sel != FMT_RAW)) ||
+                          (r_beat == BEAT2));
+    assign s2_can_load = (!p_valid) || s2_retire;
+    assign in_ready    = s2_can_load;
+    assign accept      = in_valid && in_ready;
 
-    // CAM action (only meaningful in S_IDLE when we accept a record).
-    //   Tier-1 (any sub-format) -> TOUCH the matched entry with event_data.
-    //   Tier-0 with hit (overflow) -> still TOUCH (Python's install()
-    //                                  hits the existing entry and just
-    //                                  updates data + move-to-front).
-    //   Tier-0 with miss -> INSTALL the new entry.
+    // ------------------------------------------------------------------------
+    // Stage 1 CAM commit (only when we accept a record). The action depends
+    // SOLELY on hit/miss -- independent of the stage-2 format decision -- so
+    // the CAM remains a single-cycle lookup+commit and the update order is
+    // identical to the original module.
+    //   hit  -> TOUCH the matched entry with event_data (move-to-front).
+    //   miss -> INSTALL the new entry at MRU (evict LRU if full).
+    // ------------------------------------------------------------------------
     always_comb begin
         cam_access_action   = CAM_ACTION_NONE;
         cam_access_new_data = in_event_data;
-        if ((r_state == S_IDLE) && in_valid && in_ready) begin
+        if (accept) begin
             cam_access_action = cam_access_hit ? CAM_ACTION_TOUCH
                                                : CAM_ACTION_INSTALL;
         end
     end
 
     // ------------------------------------------------------------------------
-    // Sequential update (FSM + r_last_ts + r_pkt).
+    // Pipeline sequential update (stage-1 latch + last_ts + RAW beat walk).
     // ------------------------------------------------------------------------
     `ALWAYS_FF_RST(clk, rst_n,
         if (`RST_ASSERTED(rst_n)) begin
-            r_state   <= S_IDLE;
-            r_last_ts <= '0;
-            r_pkt     <= '0;
+            p_valid      <= 1'b0;
+            r_beat       <= BEAT0;
+            r_last_ts    <= '0;
+            p_hit        <= 1'b0;
+            p_idx        <= '0;
+            p_old_data   <= '0;
+            p_delta_ts   <= '0;
+            p_event_data <= '0;
+            p_src_ts60   <= '0;
+            p_packet     <= '0;
         end else begin
-            unique case (r_state)
-                S_IDLE: begin
-                    if (in_valid && in_ready) begin
-                        r_last_ts <= in_src_ts60;
-                        if (fmt_sel == FMT_RAW) begin
-                            r_pkt   <= in_packet;
-                            r_state <= S_RAW1;
-                        end
-                        // Tier-1: state stays IDLE; the slot was emitted.
-                    end
-                end
-                S_RAW1: begin
-                    if (out_ready) r_state <= S_RAW2;
-                end
-                S_RAW2: begin
-                    if (out_ready) r_state <= S_IDLE;
-                end
-                default: r_state <= S_IDLE;
-            endcase
+            if (accept) begin
+                // Stage 1 accepts a record: commit happens on the CAM port
+                // this cycle; latch the lookup result + advance last_ts.
+                r_last_ts    <= in_src_ts60;
+                p_valid      <= 1'b1;
+                r_beat       <= BEAT0;
+                p_hit        <= cam_access_hit;
+                p_idx        <= cam_access_idx;
+                p_old_data   <= cam_access_old_data;
+                p_delta_ts   <= delta_ts;
+                p_event_data <= in_event_data;
+                p_src_ts60   <= in_src_ts60;
+                p_packet     <= in_packet;
+            end else if (s2_retire) begin
+                // Stage 2 emptied with no new record to load.
+                p_valid <= 1'b0;
+            end else if (p_valid && out_ready) begin
+                // Mid-RAW beat advance (BEAT0 -> BEAT1 -> BEAT2). BEAT2's
+                // retire is handled by the s2_retire branch above.
+                if (r_beat == BEAT0)      r_beat <= BEAT1;
+                else if (r_beat == BEAT1) r_beat <= BEAT2;
+            end
         end
     )
 
@@ -373,6 +412,10 @@ module monbus_compressor
     logic [31:0] r_event_data_ovf;
     logic [31:0] r_ed_delta_ovf;
 
+    // Fires exactly once per record, the cycle stage 2 emits its beat 0.
+    logic s2_emit_beat0;
+    assign s2_emit_beat0 = p_valid && (r_beat == BEAT0) && out_ready;
+
     `ALWAYS_FF_RST(clk, rst_n,
         if (`RST_ASSERTED(rst_n)) begin
             r_tier1_a        <= '0;
@@ -383,7 +426,7 @@ module monbus_compressor
             r_delta_ts_ovf   <= '0;
             r_event_data_ovf <= '0;
             r_ed_delta_ovf   <= '0;
-        end else if ((r_state == S_IDLE) && in_valid && in_ready) begin
+        end else if (s2_emit_beat0) begin
             unique case (fmt_sel)
                 FMT_A: r_tier1_a <= r_tier1_a + 1;
                 FMT_B: r_tier1_b <= r_tier1_b + 1;
@@ -393,11 +436,11 @@ module monbus_compressor
                     // Per Python: classify the escape reason. Miss is
                     // exclusive of overflows; the overflow-priority
                     // mirrors Python's `if delta_ts >= 2^B elif ed >= 2^A`.
-                    if (!cam_access_hit) begin
+                    if (!p_hit) begin
                         r_cam_miss <= r_cam_miss + 1;
-                    end else if (delta_ts >= (60'(1) << DELTA_TS_B_BITS)) begin
+                    end else if (p_delta_ts >= (60'(1) << DELTA_TS_B_BITS)) begin
                         r_delta_ts_ovf <= r_delta_ts_ovf + 1;
-                    end else if (in_event_data >= (64'(1) << EVENT_DATA_A_BITS)) begin
+                    end else if (p_event_data >= (64'(1) << EVENT_DATA_A_BITS)) begin
                         r_event_data_ovf <= r_event_data_ovf + 1;
                     end else begin
                         r_ed_delta_ovf <= r_ed_delta_ovf + 1;
