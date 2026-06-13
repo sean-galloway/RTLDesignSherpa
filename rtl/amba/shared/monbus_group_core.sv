@@ -659,25 +659,37 @@ module monbus_group_core
     logic [15:0]                 r_unit_remaining;   // beats left in this drain cycle
     logic [31:0]                 r_timeout_cnt;
 
-    // Beats geometry (combinational; uses current r_wr_addr).
+    // Beats geometry. The drain-plan math (window / 4KB caps, the min
+    // tree, and the whole-record rounding) is a long combinational chain
+    // off r_wr_addr; doing it in the same cycle as the WR_IDLE -> WR_AW
+    // commit was the 100 MHz critical path (it fed straight back into
+    // r_wr_addr). r_wr_addr is STABLE while the writer sits in WR_IDLE
+    // (only WR_W advances it) and the write FIFO only GROWS there, so the
+    // math is pipelined over 3 registered stages and the FSM consumes the
+    // pre-computed plan (r_plan_*). geom_valid gates the commit until the
+    // pipeline reflects the settled r_wr_addr. A slightly stale plan is a
+    // conservative under-estimate of FIFO occupancy -- safe to commit.
     //
-    // Width policy: every burst-cap quantity is widened to 16 bits so
-    // we can compare them uniformly. Final burst length lives in
-    // beats_planned_units (16 bits) but only the low 9 bits go to AWLEN
-    // (AXI4: arlen+1, max 256 beats), and the W FSM tracks via the
-    // 9-bit r_w_beats_remaining (max 256).
+    // Final burst length lives in r_plan_units (16 bits) but only the low
+    // 9 bits go to AWLEN (AXI4 arlen+1, max 256 beats).
     logic [15:0]                 beats_in_fifo;
-    logic [12:0]                 bytes_to_4kb;
-    logic [15:0]                 beats_to_limit;
-    logic [15:0]                 beats_to_4kb;
-    logic [15:0]                 beats_cap_geometry;
-    logic [15:0]                 beats_cap_max;
-    logic [15:0]                 beats_planned;
-    logic [15:0]                 beats_planned_units;
-    logic                        in_window;
-    logic [ADDR_WIDTH-1:0]       geom_addr;
-    logic                        need_rewind;
-    logic [ADDR_WIDTH-1:0]       eff_addr;
+    // stage 1: per-cap geometry from a stable r_wr_addr
+    logic [15:0]                 s1_beats_to_limit;
+    logic [15:0]                 s1_beats_to_4kb;
+    logic                        s1_in_window;
+    logic [ADDR_WIDTH-1:0]       s1_wr_addr;
+    // stage 2: planned beats (geometry cap then FIFO cap)
+    logic [15:0]                 s2_beats_planned;
+    logic                        s2_in_window;
+    logic [ADDR_WIDTH-1:0]       s2_wr_addr;
+    // stage 3: whole-record rounding + effective start address
+    logic [15:0]                 r_plan_units;
+    logic [ADDR_WIDTH-1:0]       r_plan_addr;
+    logic                        r_plan_ok;
+    // pipeline settled against the current r_wr_addr
+    logic [1:0]                  r_geom_settle;
+    logic                        geom_valid;
+    // flush triggers (short combinational paths off beats_in_fifo / cnt)
     logic                        flush_trigger_watermark;
     logic                        flush_trigger_timeout;
     logic                        have_one_unit;
@@ -685,100 +697,80 @@ module monbus_group_core
 
     assign beats_in_fifo = {{(16-WRITE_FIFO_AW-1){1'b0}}, write_fifo_beat_count};
 
-    // Whether r_wr_addr is already inside the [base, limit] window. At
-    // reset r_wr_addr = 0 which is below cfg_base_addr, so the very first
-    // flush always rewinds. We compute geometry against geom_addr (the
-    // rewound view) so beats_planned_units != 0 at the first flush,
-    // which lets the FSM's IDLE -> AW guard actually fire.
-    assign in_window = (r_wr_addr >= cfg_base_addr)
-                    && (r_wr_addr <= cfg_limit_addr);
-    assign geom_addr = in_window ? r_wr_addr : cfg_base_addr;
+    // Pipeline reflects the settled r_wr_addr once it has been stable for
+    // the full pipeline depth (3 stages). r_geom_settle resets whenever
+    // the writer leaves WR_IDLE (r_wr_addr starts moving) in the FSM below.
+    assign geom_valid = (r_geom_settle == 2'd3);
 
-    // 4KB AXI burst boundary: bytes left until next 4096-byte boundary,
-    // measured from geom_addr.
-    //
-    // Note: bytes_to_limit (a ADDR_WIDTH-bit version of "bytes left in
-    // the address window") used to be computed as
-    //   cfg_limit_addr - geom_addr + 1
-    // and then shifted. That expression overflows ADDR_WIDTH when
-    // limit=0xFFFF_FFFF and geom=0 (the +1 wraps to 0 and the writer
-    // wedges). The replacement geometry below computes beats_to_limit
-    // directly via ((limit - 7 - geom) >> 3) + 1, which keeps every
-    // intermediate inside ADDR_WIDTH bits.
-    // See MONBUS_GROUP_AXIL_MASTER_RAWMODE_FLUSH_BUG.md "Secondary defect".
-    assign bytes_to_4kb = 13'h1000 - {1'b0, geom_addr[11:0]};
-
-    // Convert byte caps to beat caps (8B per beat). Saturate to 16b.
-    always_comb begin
-        // limit - geom - 7 must be non-negative for at least one beat to fit.
-        // We compute beats_to_limit = ((limit - geom - 7) >> 3) + 1 when
-        // limit >= geom + 7, else 0. This avoids the +1 overflow on the
-        // ADDR_WIDTH'(1) addition that the legacy formulation hit.
-        logic [ADDR_WIDTH-1:0] diff;
-        logic [ADDR_WIDTH-1:0] beats_raw;
-        diff = cfg_limit_addr - geom_addr;
-        if (diff < ADDR_WIDTH'(7)) begin
-            beats_raw = '0;
+    // 3-stage geometry pipeline. Each stage is a shallow slice of the old
+    // single-cycle chain that used to feed straight back into r_wr_addr
+    // (the 100 MHz critical path). Stage N reads stage N-1's registers, so
+    // the plan trails r_wr_addr by 3 cycles -- harmless because r_wr_addr
+    // is stable in WR_IDLE and the FIFO only grows there.
+    `ALWAYS_FF_RST(axi_aclk, axi_aresetn,
+        if (`RST_ASSERTED(axi_aresetn)) begin
+            s1_beats_to_limit <= 16'd0;
+            s1_beats_to_4kb   <= 16'd0;
+            s1_in_window      <= 1'b0;
+            s1_wr_addr        <= '0;
+            s2_beats_planned  <= 16'd0;
+            s2_in_window      <= 1'b0;
+            s2_wr_addr        <= '0;
+            r_plan_units      <= 16'd0;
+            r_plan_addr       <= '0;
+            r_plan_ok         <= 1'b0;
         end else begin
-            beats_raw = ((diff - ADDR_WIDTH'(7)) >> 3) + ADDR_WIDTH'(1);
+            // ---- stage 1: window test + per-cap geometry off r_wr_addr.
+            // beats_to_limit = ((limit - geom - 7) >> 3) + 1 when it fits,
+            // else 0 -- computed without the +1 overflow the legacy form
+            // hit at limit=0xFFFF_FFFF (see the flush-bug postmortem).
+            begin : stage1
+                logic                  in_w;
+                logic [ADDR_WIDTH-1:0] gaddr;
+                logic [ADDR_WIDTH-1:0] diff;
+                logic [ADDR_WIDTH-1:0] beats_raw;
+                logic [12:0]           bytes4;
+                in_w      = (r_wr_addr >= cfg_base_addr) && (r_wr_addr <= cfg_limit_addr);
+                gaddr     = in_w ? r_wr_addr : cfg_base_addr;
+                diff      = cfg_limit_addr - gaddr;
+                beats_raw = (diff < ADDR_WIDTH'(7)) ? '0
+                          : (((diff - ADDR_WIDTH'(7)) >> 3) + ADDR_WIDTH'(1));
+                bytes4    = 13'h1000 - {1'b0, gaddr[11:0]};
+                s1_in_window      <= in_w;
+                s1_wr_addr        <= r_wr_addr;
+                s1_beats_to_limit <= (beats_raw > ADDR_WIDTH'(16'hFFFF))
+                                     ? 16'hFFFF : beats_raw[15:0];
+                s1_beats_to_4kb   <= {6'd0, bytes4[12:3]};
+            end
+
+            // ---- stage 2: cap by geometry (min of window/4KB) then FIFO.
+            begin : stage2
+                logic [15:0] cap_geo;
+                cap_geo = (s1_beats_to_limit < s1_beats_to_4kb)
+                        ? s1_beats_to_limit : s1_beats_to_4kb;
+                s2_beats_planned <= (cap_geo < beats_in_fifo) ? cap_geo : beats_in_fifo;
+                s2_in_window     <= s1_in_window;
+                s2_wr_addr       <= s1_wr_addr;
+            end
+
+            // ---- stage 3: round down to whole records (keeps the memory
+            // image on record boundaries) + effective start address (rewind
+            // to base when out of window or a record doesn't fit).
+            begin : stage3
+                logic [15:0] units;
+                logic        rew;
+                units = (BEATS_PER_UNIT == 1)
+                      ? s2_beats_planned
+                      : (s2_beats_planned / 16'd3) * 16'd3;
+                rew   = !s2_in_window || (units < 16'(BEATS_PER_UNIT));
+                r_plan_units <= units;
+                r_plan_addr  <= rew ? cfg_base_addr : s2_wr_addr;
+                r_plan_ok    <= (units >= 16'(BEATS_PER_UNIT));
+            end
         end
-        beats_to_limit = (beats_raw > ADDR_WIDTH'(16'hFFFF))
-                       ? 16'hFFFF
-                       : beats_raw[15:0];
-        beats_to_4kb   = {6'd0, bytes_to_4kb[12:3]};
-    end
+    )
 
-    // Drain-cycle plan, in beats. Each WR_IDLE -> ... -> WR_IDLE cycle
-    // emits `beats_planned_units` beats total, sliced into one or more
-    // AW + N x W + B sub-bursts based on MAX_BURST_BEATS (see FSM below).
-    //
-    // The MAX_BURST_BEATS cap applies *per sub-burst inside the FSM*, NOT
-    // here -- so the drain plan can span multiple records even when the
-    // master leaf can only issue one beat per AW (AXIL case).
-    //
-    // The unit-rounding step ((/BEATS_PER_UNIT)*BEATS_PER_UNIT) keeps
-    // each drain cycle's boundary on a whole-record boundary so the
-    // memory image looks like back-to-back records, never a partial
-    // record stretched across the window-wrap boundary.
-    always_comb begin
-        logic [15:0] cap_fifo;
-        logic [15:0] cap_limit;
-        logic [15:0] cap_4kb;
-
-        cap_fifo  = beats_in_fifo;
-        cap_limit = beats_to_limit;
-        cap_4kb   = beats_to_4kb;
-
-        beats_cap_geometry = (cap_limit < cap_4kb)  ? cap_limit : cap_4kb;
-        beats_cap_max      = cap_fifo;
-        beats_planned      = (beats_cap_geometry < beats_cap_max)
-                           ? beats_cap_geometry
-                           : beats_cap_max;
-    end
-
-    // Round down to multiple of BEATS_PER_UNIT
-    always_comb begin
-        if (BEATS_PER_UNIT == 1) begin
-            beats_planned_units = beats_planned;
-        end else begin
-            // BEATS_PER_UNIT == 3 (raw mode): integer-divide and re-multiply.
-            beats_planned_units = (beats_planned / 16'd3) * 16'd3;
-        end
-    end
-
-    // Need to rewind if we're outside [base, limit] or if a unit doesn't
-    // fit in what remains of the address window from r_wr_addr.
-    //
-    // beats_planned_units was computed against geom_addr (the rewound
-    // view), so this last term collapses to "false" once we're in
-    // window and at least one unit fits at the rewind start. The
-    // assumption (cfg_limit - cfg_base >= BYTES_PER_UNIT) is the host's
-    // responsibility -- the writer can't make forward progress if not.
-    assign need_rewind = !in_window
-                      || (beats_planned_units < 16'(BEATS_PER_UNIT));
-    assign eff_addr    = need_rewind ? cfg_base_addr : r_wr_addr;
-
-    // Triggers: watermark / timeout
+    // Triggers: watermark / timeout (short combinational paths).
     assign have_one_unit            = (beats_in_fifo >= 16'(BEATS_PER_UNIT));
     assign flush_trigger_watermark  = (beats_in_fifo >= cfg_flush_watermark);
     assign flush_trigger_timeout    = (r_timeout_cnt >= 32'(FLUSH_TIMEOUT_CYCLES));
@@ -829,6 +821,7 @@ module monbus_group_core
             r_w_beats_remaining <= 9'd0;
             r_unit_remaining    <= 16'd0;
             r_timeout_cnt       <= 32'd0;
+            r_geom_settle       <= 2'd0;
         end else begin
             // Timeout counter: count up while the FIFO has data and we're
             // not currently emitting; clear on W handshake or when empty.
@@ -840,23 +833,34 @@ module monbus_group_core
                 r_timeout_cnt <= r_timeout_cnt + 32'd1;
             end
 
+            // Geometry-pipeline settle: r_wr_addr only moves outside
+            // WR_IDLE, so hold the plan-valid flag low until it has been
+            // stable for the full pipeline depth.
+            if (r_wr_state != WR_IDLE) begin
+                r_geom_settle <= 2'd0;
+            end else if (r_geom_settle != 2'd3) begin
+                r_geom_settle <= r_geom_settle + 2'd1;
+            end
+
             case (r_wr_state)
                 WR_IDLE: begin
-                    if (do_flush && (beats_planned_units >= 16'(BEATS_PER_UNIT))) begin
-                        // Start a new drain cycle. eff_addr handles the
-                        // out-of-window rewind to cfg_base_addr.
+                    // Consume the pre-computed plan (r_plan_*) instead of the
+                    // live geometry chain. geom_valid guarantees the plan was
+                    // computed from the current (settled) r_wr_addr.
+                    if (do_flush && geom_valid && r_plan_ok) begin
                         // First sub-burst length is min(MAX_BURST_BEATS,
-                        // beats_planned_units).
+                        // r_plan_units); r_plan_addr already handles the
+                        // out-of-window rewind to cfg_base_addr.
                         logic [15:0] first_sub_burst;
-                        first_sub_burst = (beats_planned_units < 16'(MAX_BURST_BEATS))
-                                        ? beats_planned_units
+                        first_sub_burst = (r_plan_units < 16'(MAX_BURST_BEATS))
+                                        ? r_plan_units
                                         : 16'(MAX_BURST_BEATS);
 
-                        r_wr_addr  <= eff_addr;
-                        r_aw_addr  <= eff_addr;
+                        r_wr_addr  <= r_plan_addr;
+                        r_aw_addr  <= r_plan_addr;
                         r_aw_len   <= 8'(first_sub_burst - 16'd1);
                         r_w_beats_remaining <= 9'(first_sub_burst);
-                        r_unit_remaining    <= beats_planned_units;
+                        r_unit_remaining    <= r_plan_units;
                         r_wr_state <= WR_AW;
                     end
                 end
