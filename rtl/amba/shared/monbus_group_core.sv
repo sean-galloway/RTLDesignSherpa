@@ -659,19 +659,29 @@ module monbus_group_core
     logic [15:0]                 r_unit_remaining;   // beats left in this drain cycle
     logic [31:0]                 r_timeout_cnt;
 
-    // Beats geometry. The drain-plan math (window / 4KB caps, the min
-    // tree, and the whole-record rounding) is a long combinational chain
-    // off r_wr_addr; doing it in the same cycle as the WR_IDLE -> WR_AW
-    // commit was the 100 MHz critical path (it fed straight back into
-    // r_wr_addr). r_wr_addr is STABLE while the writer sits in WR_IDLE
-    // (only WR_W advances it) and the write FIFO only GROWS there, so the
-    // math is pipelined over 3 registered stages and the FSM consumes the
-    // pre-computed plan (r_plan_*). geom_valid gates the commit until the
-    // pipeline reflects the settled r_wr_addr. A slightly stale plan is a
-    // conservative under-estimate of FIFO occupancy -- safe to commit.
+    // Beats geometry. The ADDRESS-derived drain-plan math (window / 4KB
+    // caps off r_wr_addr, the min tree, and the whole-record rounding) is a
+    // long combinational chain; doing it in the same cycle as the WR_IDLE
+    // -> WR_AW commit was the 100 MHz critical path (it fed straight back
+    // into r_wr_addr). r_wr_addr is STABLE while the writer sits in WR_IDLE
+    // (only WR_W advances it), so that math is pipelined over 3 registered
+    // stages and the FSM consumes the pre-computed plan (r_plan_*).
+    // geom_valid gates the commit until the pipeline reflects the settled
+    // r_wr_addr.
     //
-    // Final burst length lives in r_plan_units (16 bits) but only the low
-    // 9 bits go to AWLEN (AXI4 arlen+1, max 256 beats).
+    // IMPORTANT: the FIFO-occupancy cap is NOT pipelined -- the FIFO keeps
+    // filling while the writer sits in WR_IDLE, so a pipelined (3-cycle
+    // stale) FIFO count would short the burst (e.g. drain 21 of 24 beats
+    // when the watermark fires). Instead the pipeline produces a purely
+    // address-feasible whole-record count (r_plan_geo_units) and the FRESH
+    // FIFO cap is applied combinationally at commit. Because floor-to-whole-
+    // records is monotonic, min(round(geo), round(fifo)) == round(min) -- so
+    // rounding each side independently is exact. The fresh-FIFO path starts
+    // from a fast counter (no address subtract/shift), so it does not
+    // recreate the critical path.
+    //
+    // Final burst length is min(r_plan_geo_units, fifo_units) (16 bits) but
+    // only the low 9 bits go to AWLEN (AXI4 arlen+1, max 256 beats).
     logic [15:0]                 beats_in_fifo;
     // stage 1: per-cap geometry from a stable r_wr_addr
     logic [15:0]                 s1_beats_to_limit;
@@ -682,10 +692,11 @@ module monbus_group_core
     logic [15:0]                 s2_beats_planned;
     logic                        s2_in_window;
     logic [ADDR_WIDTH-1:0]       s2_wr_addr;
-    // stage 3: whole-record rounding + effective start address
-    logic [15:0]                 r_plan_units;
+    // stage 3: GEOMETRY-only whole-record cap + effective start address.
+    // (The FIFO cap is applied fresh at commit -- see header note.)
+    logic [15:0]                 r_plan_geo_units;   // address-feasible whole-record beats
     logic [ADDR_WIDTH-1:0]       r_plan_addr;
-    logic                        r_plan_ok;
+    logic                        r_plan_ok;          // geometry allows >= 1 record
     // pipeline settled against the current r_wr_addr
     logic [1:0]                  r_geom_settle;
     logic                        geom_valid;
@@ -716,7 +727,7 @@ module monbus_group_core
             s2_beats_planned  <= 16'd0;
             s2_in_window      <= 1'b0;
             s2_wr_addr        <= '0;
-            r_plan_units      <= 16'd0;
+            r_plan_geo_units  <= 16'd0;
             r_plan_addr       <= '0;
             r_plan_ok         <= 1'b0;
         end else begin
@@ -743,19 +754,23 @@ module monbus_group_core
                 s1_beats_to_4kb   <= {6'd0, bytes4[12:3]};
             end
 
-            // ---- stage 2: cap by geometry (min of window/4KB) then FIFO.
+            // ---- stage 2: cap by GEOMETRY only (min of window / 4KB). The
+            // FIFO cap is intentionally NOT applied here -- it is applied
+            // fresh at commit (see header note) so a stale FIFO count cannot
+            // short the burst.
             begin : stage2
                 logic [15:0] cap_geo;
                 cap_geo = (s1_beats_to_limit < s1_beats_to_4kb)
                         ? s1_beats_to_limit : s1_beats_to_4kb;
-                s2_beats_planned <= (cap_geo < beats_in_fifo) ? cap_geo : beats_in_fifo;
+                s2_beats_planned <= cap_geo;
                 s2_in_window     <= s1_in_window;
                 s2_wr_addr       <= s1_wr_addr;
             end
 
-            // ---- stage 3: round down to whole records (keeps the memory
-            // image on record boundaries) + effective start address (rewind
-            // to base when out of window or a record doesn't fit).
+            // ---- stage 3: round the geometry cap down to whole records
+            // (keeps the memory image on record boundaries) + effective
+            // start address (rewind to base when out of window or a record
+            // doesn't fit by geometry).
             begin : stage3
                 logic [15:0] units;
                 logic        rew;
@@ -763,9 +778,9 @@ module monbus_group_core
                       ? s2_beats_planned
                       : (s2_beats_planned / 16'd3) * 16'd3;
                 rew   = !s2_in_window || (units < 16'(BEATS_PER_UNIT));
-                r_plan_units <= units;
-                r_plan_addr  <= rew ? cfg_base_addr : s2_wr_addr;
-                r_plan_ok    <= (units >= 16'(BEATS_PER_UNIT));
+                r_plan_geo_units <= units;
+                r_plan_addr      <= rew ? cfg_base_addr : s2_wr_addr;
+                r_plan_ok        <= (units >= 16'(BEATS_PER_UNIT));
             end
         end
     )
@@ -844,23 +859,31 @@ module monbus_group_core
 
             case (r_wr_state)
                 WR_IDLE: begin
-                    // Consume the pre-computed plan (r_plan_*) instead of the
-                    // live geometry chain. geom_valid guarantees the plan was
-                    // computed from the current (settled) r_wr_addr.
+                    // Consume the pre-computed ADDRESS plan (r_plan_*) but
+                    // apply the FRESH FIFO-occupancy cap here so the burst
+                    // drains everything currently queued. geom_valid
+                    // guarantees the address plan was computed from the
+                    // settled r_wr_addr; r_plan_addr handles the out-of-
+                    // window rewind to cfg_base_addr.
                     if (do_flush && geom_valid && r_plan_ok) begin
-                        // First sub-burst length is min(MAX_BURST_BEATS,
-                        // r_plan_units); r_plan_addr already handles the
-                        // out-of-window rewind to cfg_base_addr.
+                        logic [15:0] fifo_units;    // fresh whole-record FIFO cap
+                        logic [15:0] total_units;   // beats this drain cycle
                         logic [15:0] first_sub_burst;
-                        first_sub_burst = (r_plan_units < 16'(MAX_BURST_BEATS))
-                                        ? r_plan_units
+
+                        fifo_units = (BEATS_PER_UNIT == 1)
+                                   ? beats_in_fifo
+                                   : (beats_in_fifo / 16'd3) * 16'd3;
+                        total_units = (r_plan_geo_units < fifo_units)
+                                    ? r_plan_geo_units : fifo_units;
+                        first_sub_burst = (total_units < 16'(MAX_BURST_BEATS))
+                                        ? total_units
                                         : 16'(MAX_BURST_BEATS);
 
                         r_wr_addr  <= r_plan_addr;
                         r_aw_addr  <= r_plan_addr;
                         r_aw_len   <= 8'(first_sub_burst - 16'd1);
                         r_w_beats_remaining <= 9'(first_sub_burst);
-                        r_unit_remaining    <= r_plan_units;
+                        r_unit_remaining    <= total_units;
                         r_wr_state <= WR_AW;
                     end
                 end
