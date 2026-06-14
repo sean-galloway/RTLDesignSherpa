@@ -67,9 +67,8 @@ $REPO_ROOT/projects/components/converters/rtl/peakrdl_to_cmdrsp.sv
 # axil4_slave_rd.sv comes from stream_char_harness.f; gaxi_fifo_sync.sv
 # is already listed above.
 $REPO_ROOT/rtl/amba/axil4/axil4_master_wr.sv
-$REPO_ROOT/rtl/amba/shared/monbus_cam.sv
-$REPO_ROOT/rtl/amba/shared/monbus_compressor.sv
-$REPO_ROOT/rtl/amba/shared/monbus_group_core.sv
+# Monbus group core family (cam/compressor/core + div-by-3 helper) -- shared.
+-f $REPO_ROOT/rtl/amba/filelists/monbus_group.f
 $REPO_ROOT/rtl/amba/shared/monbus_axil_axil_group.sv
 
 # Top-level wrapper files (unique to this filelist)

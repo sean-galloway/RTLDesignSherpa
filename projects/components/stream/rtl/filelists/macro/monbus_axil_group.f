@@ -36,12 +36,10 @@ $REPO_ROOT/rtl/amba/gaxi/gaxi_skid_buffer.sv
 $REPO_ROOT/rtl/amba/axil4/axil4_slave_rd.sv
 $REPO_ROOT/rtl/amba/axil4/axil4_master_wr.sv
 
-# Compressor (used optionally by the core; USE_COMPRESSION=1 selects it)
-$REPO_ROOT/rtl/amba/shared/monbus_cam.sv
-$REPO_ROOT/rtl/amba/shared/monbus_compressor.sv
+# Monbus group core family (cam + compressor + core + div-by-3 helper).
+# Shared canonical list so a new core dependency is added in ONE place.
+-f $REPO_ROOT/rtl/amba/filelists/monbus_group.f
 
-# Protocol-agnostic core + AXIL/AXIL wrapper (replaces legacy monbus_axil_group.sv).
-# Other variants in the monbus_<p1>_<p2>_group family live alongside:
-#   monbus_axil_axi4_group.sv, monbus_axi4_axil_group.sv, monbus_axi4_axi4_group.sv
-$REPO_ROOT/rtl/amba/shared/monbus_group_core.sv
+# AXIL/AXIL wrapper for this consumer (other family variants:
+# monbus_axil_axi4_group.sv, monbus_axi4_axil_group.sv, monbus_axi4_axi4_group.sv).
 $REPO_ROOT/rtl/amba/shared/monbus_axil_axil_group.sv
