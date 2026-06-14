@@ -233,6 +233,17 @@ Vivado's post-route `report_timing_summary`, which `make bitstream`
 already emits.  The on-board sanity check that "does the spreadsheet
 match what the chip actually does at this clock?" is the **MMCM sweep**:
 
+> **Honest assessment up front.** On Artix-7 at the frequencies in
+> this sweep (100--300 MHz), the FUBs are small enough that Vivado's
+> STA is generally trustworthy, and the simpler `bitstream-sweep`
+> target (§5.6) gives you everything you need to calibrate the
+> spreadsheet.  The MMCM sweep adds little beyond that -- it only
+> earns its keep on the rare outlier path where STA mis-modelled the
+> delay and silicon disagrees.  Keep it as the "is it real?" gut
+> check; do not treat it as the headline calibration loop.  Most
+> users should reach for `make bitstream-sweep`, not `make
+> bitstream-mmcm`.
+
 ### 5.1 Wrapper
 
 [`fpga/rtl/char_top_fpga_mmcm.sv`](fpga/rtl/char_top_fpga_mmcm.sv) wraps
