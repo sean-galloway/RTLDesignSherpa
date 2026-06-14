@@ -903,10 +903,16 @@ addrmap stream_regs {
         } PERF_EN = 1'b0;
 
         field {
+            desc = "Compression enable - 1=compress the monbus write stream, 0=raw 3-beat records. Only effective when the monbus group is built with USE_COMPRESSION=1. Program once before monitoring starts (must be stable while the write path is active).";
+            sw = rw;
+            hw = r;
+        } COMPRESS_EN = 1'b1;
+
+        field {
             desc = "Reserved";
             sw = r;
             hw = na;
-        } RSVD[31:5] = 27'h0;
+        } RSVD[31:6] = 26'h0;
 
     } WRMON_ENABLE @ 0x280;
 

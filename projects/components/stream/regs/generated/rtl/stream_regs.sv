@@ -461,6 +461,10 @@ module stream_regs (
                 logic next;
                 logic load_next;
             } PERF_EN;
+            struct {
+                logic next;
+                logic load_next;
+            } COMPRESS_EN;
         } WRMON_ENABLE;
         struct {
             struct {
@@ -773,6 +777,9 @@ module stream_regs (
             struct {
                 logic value;
             } PERF_EN;
+            struct {
+                logic value;
+            } COMPRESS_EN;
         } WRMON_ENABLE;
         struct {
             struct {
@@ -2095,6 +2102,29 @@ module stream_regs (
         end
     end
     assign hwif_out.WRMON_ENABLE.PERF_EN.value = field_storage.WRMON_ENABLE.PERF_EN.value;
+    // Field: stream_regs.WRMON_ENABLE.COMPRESS_EN
+    always_comb begin
+        automatic logic [0:0] next_c;
+        automatic logic load_next_c;
+        next_c = field_storage.WRMON_ENABLE.COMPRESS_EN.value;
+        load_next_c = '0;
+        if(decoded_reg_strb.WRMON_ENABLE && decoded_req_is_wr) begin // SW write
+            next_c = (field_storage.WRMON_ENABLE.COMPRESS_EN.value & ~decoded_wr_biten[5:5]) | (decoded_wr_data[5:5] & decoded_wr_biten[5:5]);
+            load_next_c = '1;
+        end
+        field_combo.WRMON_ENABLE.COMPRESS_EN.next = next_c;
+        field_combo.WRMON_ENABLE.COMPRESS_EN.load_next = load_next_c;
+    end
+    always_ff @(posedge clk) begin
+        if(rst) begin
+            field_storage.WRMON_ENABLE.COMPRESS_EN.value <= 1'h1;
+        end else begin
+            if(field_combo.WRMON_ENABLE.COMPRESS_EN.load_next) begin
+                field_storage.WRMON_ENABLE.COMPRESS_EN.value <= field_combo.WRMON_ENABLE.COMPRESS_EN.next;
+            end
+        end
+    end
+    assign hwif_out.WRMON_ENABLE.COMPRESS_EN.value = field_storage.WRMON_ENABLE.COMPRESS_EN.value;
     // Field: stream_regs.WRMON_TIMEOUT.TIMEOUT_CYCLES
     always_comb begin
         automatic logic [31:0] next_c;
@@ -2630,7 +2660,8 @@ module stream_regs (
     assign readback_array[44][2:2] = (decoded_reg_strb.WRMON_ENABLE && !decoded_req_is_wr) ? field_storage.WRMON_ENABLE.COMPL_EN.value : '0;
     assign readback_array[44][3:3] = (decoded_reg_strb.WRMON_ENABLE && !decoded_req_is_wr) ? field_storage.WRMON_ENABLE.TIMEOUT_EN.value : '0;
     assign readback_array[44][4:4] = (decoded_reg_strb.WRMON_ENABLE && !decoded_req_is_wr) ? field_storage.WRMON_ENABLE.PERF_EN.value : '0;
-    assign readback_array[44][31:5] = (decoded_reg_strb.WRMON_ENABLE && !decoded_req_is_wr) ? 27'h0 : '0;
+    assign readback_array[44][5:5] = (decoded_reg_strb.WRMON_ENABLE && !decoded_req_is_wr) ? field_storage.WRMON_ENABLE.COMPRESS_EN.value : '0;
+    assign readback_array[44][31:6] = (decoded_reg_strb.WRMON_ENABLE && !decoded_req_is_wr) ? 26'h0 : '0;
     assign readback_array[45][31:0] = (decoded_reg_strb.WRMON_TIMEOUT && !decoded_req_is_wr) ? field_storage.WRMON_TIMEOUT.TIMEOUT_CYCLES.value : '0;
     assign readback_array[46][31:0] = (decoded_reg_strb.WRMON_LATENCY_THRESH && !decoded_req_is_wr) ? field_storage.WRMON_LATENCY_THRESH.LATENCY_THRESH.value : '0;
     assign readback_array[47][15:0] = (decoded_reg_strb.WRMON_PKT_MASK && !decoded_req_is_wr) ? field_storage.WRMON_PKT_MASK.PKT_MASK.value : '0;

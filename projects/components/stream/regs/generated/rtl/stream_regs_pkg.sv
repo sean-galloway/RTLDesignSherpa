@@ -492,11 +492,16 @@ package stream_regs_pkg;
     } stream_regs__WRMON_ENABLE__PERF_EN__out_t;
 
     typedef struct {
+        logic value;
+    } stream_regs__WRMON_ENABLE__COMPRESS_EN__out_t;
+
+    typedef struct {
         stream_regs__WRMON_ENABLE__MON_EN__out_t MON_EN;
         stream_regs__WRMON_ENABLE__ERR_EN__out_t ERR_EN;
         stream_regs__WRMON_ENABLE__COMPL_EN__out_t COMPL_EN;
         stream_regs__WRMON_ENABLE__TIMEOUT_EN__out_t TIMEOUT_EN;
         stream_regs__WRMON_ENABLE__PERF_EN__out_t PERF_EN;
+        stream_regs__WRMON_ENABLE__COMPRESS_EN__out_t COMPRESS_EN;
     } stream_regs__WRMON_ENABLE__out_t;
 
     typedef struct {

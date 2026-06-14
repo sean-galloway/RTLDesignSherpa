@@ -1786,6 +1786,9 @@ module stream_top_ch8 #(
                 // Flush watermark (beats) -- driven from the top-level
                 // cfg input alongside base/limit (no hardcoded constant).
                 .cfg_flush_watermark (cfg_mon_flush_watermark),
+                // Runtime compression enable -- host-controllable via
+                // WRMON_ENABLE.COMPRESS_EN (1=compress, 0=raw 3-beat).
+                .cfg_compress_en     (hwif_out.WRMON_ENABLE.COMPRESS_EN.value),
 
                 //---------------------------------------------------------------------
                 // Protocol 0 Configuration - Descriptor AXI Monitor (DAXMON)
