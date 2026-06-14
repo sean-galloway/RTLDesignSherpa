@@ -1,0 +1,28 @@
+%%{init: {'theme': 'base', 'themeVariables': { 'primaryColor': '#e8f4e8', 'primaryTextColor': '#000', 'primaryBorderColor': '#228B22', 'lineColor': '#404040', 'secondaryColor': '#f0f0f0', 'tertiaryColor': '#fff'}}}%%
+graph TD
+    top["memctrl_top"]
+    top --> axi4_slave["axi4_slave<br/><i>AXI4 channel handshake</i>"]
+    top --> addr_mapper["addr_mapper<br/><i>AXI addr to bank/row/col</i>"]
+    top --> txn_queue["txn_queue<br/><i>pending transactions</i>"]
+    top --> scheduler["scheduler<br/><i>FR-FCFS picker</i>"]
+    top --> page_predictor["page_predictor<br/><i>HAPPY (optional)</i>"]
+    top --> bank_machines["bank_machine[N]<br/><i>per-bank FSM + timing</i>"]
+    top --> xbank_timers["xbank_timers<br/><i>cross-bank constraints</i>"]
+    top --> refresh_mgr["refresh_mgr<br/><i>tREFI, DARP, Elastic</i>"]
+    top --> power_state["power_state<br/><i>top-level FSM</i>"]
+    top --> init_engine["init_engine<br/><i>microprogram sequencer</i>"]
+    init_engine --> step_table["step_table<br/><i>memtype ROM</i>"]
+    top --> cmd_encoder["cmd_encoder<br/><i>command to DFI wires</i>"]
+    top --> gear_out["gear_out<br/><i>1-phase to N-phase</i>"]
+    top --> wdata_path["wdata_path<br/><i>CWL-aligned wrdata</i>"]
+    top --> rdata_path["rdata_path<br/><i>CL-aligned rddata</i>"]
+    top --> dfi_master["dfi_master<br/><i>final aggregation</i>"]
+    top --> csr_slave["csr_slave<br/><i>APB3 configuration</i>"]
+
+    classDef root fill:#404040,stroke:#228B22,stroke-width:2px,color:#fff
+    classDef branch fill:#e8f4e8,stroke:#228B22,stroke-width:1px,color:#000
+    classDef sub fill:#f0f0f0,stroke:#404040,stroke-width:1px,color:#000
+
+    class top root
+    class axi4_slave,addr_mapper,txn_queue,scheduler,page_predictor,bank_machines,xbank_timers,refresh_mgr,power_state,init_engine,cmd_encoder,gear_out,wdata_path,rdata_path,dfi_master,csr_slave branch
+    class step_table sub

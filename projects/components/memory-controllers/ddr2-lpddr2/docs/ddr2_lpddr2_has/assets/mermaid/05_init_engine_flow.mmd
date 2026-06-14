@@ -1,0 +1,26 @@
+%%{init: {'theme': 'base', 'themeVariables': { 'primaryColor': '#e8f4e8', 'primaryTextColor': '#000', 'primaryBorderColor': '#228B22', 'lineColor': '#404040', 'secondaryColor': '#f0f0f0', 'tertiaryColor': '#fff'}}}%%
+flowchart TD
+    start(["init_start asserted<br/>(power-state FSM enters INIT)"])
+    start --> load["Load step table<br/>(memtype-specific ROM)"]
+    load --> fetch["Fetch step N<br/>(step_type, payload, post_delay)"]
+    fetch --> decode{decode step_type}
+
+    decode -->|"SET_CTRL_BITS"| ctrl["Drive CKE / ODT / RESET_N<br/>per payload"]
+    decode -->|"DELAY"| delay["Wait post_delay cycles<br/>(scaled by SIM_INIT_SCALE)"]
+    decode -->|"MRS_LOAD"| mrs["Issue MRS:<br/>address = MR value<br/>bank = MR index"]
+    decode -->|"ISSUE_CMD"| cmd["Issue command<br/>(PREA, REF, ZQCS, etc.)"]
+    decode -->|"WAIT_FOR_BIT"| wait["Wait for signal<br/>(dfi_init_complete, etc.)<br/>timeout: 1ms"]
+    decode -->|"END"| done(["Assert init_done<br/>FSM transitions to ACTIVE"])
+
+    ctrl --> next_step
+    delay --> next_step
+    mrs --> next_step
+    cmd --> next_step
+    wait --> wait_check{success?}
+
+    wait_check -->|"yes"| next_step
+    wait_check -->|"timeout"| retry{"retry &lt;<br/>INIT_ZQ_RETRIES?"}
+    retry -->|"yes"| fetch
+    retry -->|"no"| err(["init_error<br/>FSM enters INIT_ERROR"])
+
+    next_step["N = N + 1"] --> fetch

@@ -1,0 +1,30 @@
+%%{init: {'theme': 'base', 'themeVariables': { 'primaryColor': '#e8f4e8', 'primaryTextColor': '#000', 'primaryBorderColor': '#228B22', 'lineColor': '#404040', 'secondaryColor': '#f0f0f0', 'tertiaryColor': '#fff'}}}%%
+stateDiagram-v2
+    [*] --> IDLE
+
+    IDLE --> WAIT_BANK_GNTS: wants_refresh<br/>(postponer fired)
+
+    WAIT_BANK_GNTS --> DO_REFRESH: all bank_machines<br/>asserted refresh_gnt
+
+    DO_REFRESH --> CHECK_ZQCS: refresh sequencer done<br/>(N refreshes issued)
+
+    CHECK_ZQCS --> DO_ZQCS: wants_zqcs<br/>(zqcs timer fired)
+    CHECK_ZQCS --> RELEASE: zqcs not due
+
+    DO_ZQCS --> RELEASE: ZQCS executer done
+
+    RELEASE --> IDLE: deassert refresh_req<br/>(banks can leave REFRESHING)
+
+    note right of DO_REFRESH
+      Sequencer issues N
+      back-to-back PRE_ALL +
+      AUTO_REF commands
+      (deterministic batching)
+    end note
+
+    note right of DO_ZQCS
+      Piggybacked on refresh:
+      reuses 'all banks idle'
+      guarantee, no separate
+      bus-blocking event
+    end note

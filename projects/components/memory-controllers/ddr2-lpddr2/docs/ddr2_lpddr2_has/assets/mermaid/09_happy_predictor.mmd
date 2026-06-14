@@ -1,0 +1,43 @@
+%%{init: {'theme': 'base', 'themeVariables': { 'primaryColor': '#e8f4e8', 'primaryTextColor': '#000', 'primaryBorderColor': '#228B22', 'lineColor': '#404040', 'secondaryColor': '#f0f0f0', 'tertiaryColor': '#fff'}}}%%
+flowchart LR
+    subgraph QUERY["Query Path (Scheduler tick)"]
+        direction TB
+        req["Current request:<br/>(bank, row, col)"]
+        hash1["Hash:<br/>bank xor row[low]"]
+        tab1["Table lookup<br/>(table[hash])"]
+        pred{"counter &ge; 2?"}
+        out1["Prediction:<br/>'next will hit'"]
+        out2["Prediction:<br/>'next will conflict'"]
+
+        req --> hash1
+        hash1 --> tab1
+        tab1 --> pred
+        pred -->|"yes"| out1
+        pred -->|"no"| out2
+    end
+
+    subgraph UPDATE["Update Path (Access completion)"]
+        direction TB
+        done["Access completed:<br/>was it a hit?"]
+        hash2["Hash:<br/>bank xor row[low]"]
+        tab2["Table lookup<br/>(table[hash])"]
+        adj{"Hit?"}
+        inc["counter = min(3, c+1)"]
+        dec["counter = max(0, c-1)"]
+        wr["Update entry"]
+
+        done --> hash2
+        hash2 --> tab2
+        tab2 --> adj
+        adj -->|"yes"| inc
+        adj -->|"no"| dec
+        inc --> wr
+        dec --> wr
+    end
+
+    subgraph PARAM["Sizing"]
+        sz["2 bits per entry<br/>2^PAGE_PREDICTOR_TABLE_BITS entries<br/>e.g., 12 bits = 4 KB table"]
+    end
+
+    out2 -.uses RDA / WRA variants.-> sched["Scheduler:<br/>auto-precharge<br/>this cycle"]
+    out1 -.uses bare RD / WR.-> sched

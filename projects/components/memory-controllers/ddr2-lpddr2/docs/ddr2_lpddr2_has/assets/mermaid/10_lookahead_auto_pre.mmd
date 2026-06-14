@@ -1,0 +1,26 @@
+%%{init: {'theme': 'base', 'themeVariables': { 'primaryColor': '#e8f4e8', 'primaryTextColor': '#000', 'primaryBorderColor': '#228B22', 'lineColor': '#404040', 'secondaryColor': '#f0f0f0', 'tertiaryColor': '#fff'}}}%%
+flowchart TD
+    issue(["scheduler picks column<br/>command (RD / WR)<br/>for bank B"])
+    issue --> lah_en{"LOOKAHEAD_DEPTH<br/>&gt; 0?"}
+
+    lah_en -->|"no"| pol{PAGE_POLICY}
+    lah_en -->|"yes"| peek["Peek next LOOKAHEAD_DEPTH<br/>requests in txn_queue<br/>targeting same bank B"]
+
+    peek --> found{"found a<br/>same-bank<br/>request?"}
+
+    found -->|"no"| pol
+    found -->|"yes"| same_row{"target row ==<br/>current open_row?"}
+
+    same_row -->|"yes (next is row-hit)"| keep_open["Issue bare RD / WR<br/>(keep row open)"]
+    same_row -->|"no (next is row-miss)"| auto_pre["Issue RDA / WRA<br/>(close row, save tRP later)"]
+
+    pol -->|"OPEN"| keep_open
+    pol -->|"CLOSE"| auto_pre
+    pol -->|"HAPPY_HYBRID"| pred["Query page_predictor<br/>(history-based)"]
+
+    pred --> pred_out{"predict<br/>conflict?"}
+    pred_out -->|"yes"| auto_pre
+    pred_out -->|"no"| keep_open
+
+    style keep_open fill:#d4edda,stroke:#228B22
+    style auto_pre fill:#fff3cd,stroke:#856404

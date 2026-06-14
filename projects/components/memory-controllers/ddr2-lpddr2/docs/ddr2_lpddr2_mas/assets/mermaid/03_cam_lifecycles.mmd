@@ -1,0 +1,20 @@
+%%{init: {'theme': 'base', 'themeVariables': { 'primaryColor': '#e8f4e8', 'primaryTextColor': '#000', 'primaryBorderColor': '#228B22', 'lineColor': '#404040', 'secondaryColor': '#f0f0f0', 'tertiaryColor': '#fff'}}}%%
+stateDiagram-v2
+    direction LR
+    state "rd_cmd_cam slot" as RD_GROUP {
+        [*] --> RD_EMPTY
+        RD_EMPTY --> RD_PEND : push from axi4_slave<br/>(rank,bank,row,col,len)
+        RD_PEND --> RD_ISSUED : scheduler picks
+        RD_ISSUED --> RD_RETURNING : first R beat<br/>from rd_data_path
+        RD_RETURNING --> RD_RETURNING : beat_we_i<br/>(beats_returned++)
+        RD_RETURNING --> RD_EMPTY : beats_returned == burst_len<br/>(entry_complete)
+    }
+
+    state "wr_cmd_cam slot" as WR_GROUP {
+        [*] --> WR_EMPTY
+        WR_EMPTY --> WR_PEND : push from axi4_slave<br/>(...,w_buf_ptr,strb_ptr)
+        WR_PEND --> WR_ISSUED : scheduler picks
+        WR_ISSUED --> WR_BEATS : beat_pull_o<br/>(beats_issued++)
+        WR_BEATS --> WR_BPENDING : beat_pull_last<br/>(b_pending_set)
+        WR_BPENDING --> WR_EMPTY : write window done<br/>(b_complete from xbank_timers)
+    }

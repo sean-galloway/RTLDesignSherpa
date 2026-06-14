@@ -1,0 +1,40 @@
+%%{init: {'theme': 'base', 'themeVariables': { 'primaryColor': '#e8f4e8', 'primaryTextColor': '#000', 'primaryBorderColor': '#228B22', 'lineColor': '#404040', 'secondaryColor': '#f0f0f0', 'tertiaryColor': '#fff'}}}%%
+stateDiagram-v2
+    [*] --> IDLE: reset
+
+    IDLE --> ACTIVATING: ACT cmd
+
+    ACTIVATING --> ACTIVE: tRCD elapsed
+
+    ACTIVE --> RD_BUSY: RD cmd
+    ACTIVE --> WR_BUSY: WR cmd
+    ACTIVE --> PRECHARGING: PRE cmd (tRAS met)
+
+    RD_BUSY --> ACTIVE: CL+BL beats done
+    RD_BUSY --> PRECHARGING: RDA (auto-pre)
+
+    WR_BUSY --> ACTIVE: CWL+BL beats done
+    WR_BUSY --> PRECHARGING: WRA (auto-pre)
+
+    PRECHARGING --> IDLE: tRP elapsed
+
+    IDLE --> REFRESHING: REFpb cmd (LPDDR2)
+    REFRESHING --> IDLE: tRFCpb elapsed
+
+    note right of ACTIVATING
+      Counts tRCD
+      open_row stored
+    end note
+
+    note right of WR_BUSY
+      Counts CWL pipeline
+      then BL beats
+      then tWR
+    end note
+
+    note left of PRECHARGING
+      Triggered by:
+      - explicit PRE
+      - RDA / WRA
+      - row conflict
+    end note

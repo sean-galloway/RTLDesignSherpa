@@ -1,0 +1,71 @@
+%%{init: {'theme': 'base', 'themeVariables': { 'primaryColor': '#e8f4e8', 'primaryTextColor': '#000', 'primaryBorderColor': '#228B22', 'lineColor': '#404040', 'secondaryColor': '#f0f0f0', 'tertiaryColor': '#fff'}}}%%
+flowchart LR
+    subgraph AXI_SLAVE["axi4_slave_fub"]
+        aw_in["AW intake"]
+        w_in["W intake"]
+        ar_in["AR intake"]
+        aw_buf["aw_buf"]
+        w_buf["w_buf<br/>(beat data)"]
+        ar_buf["ar_buf"]
+        id_side["id_side_table<br/>(awcache, awprot,<br/>awqos, awregion)"]
+        b_out["B return"]
+        r_out["R return"]
+    end
+
+    subgraph MAPPER["addr_mapper_fub (combinational)"]
+        scheme_mux["scheme mux<br/>(ROW_MAJOR /<br/>BANK_INTERLEAVE /<br/>XOR_HASH)"]
+        xor_net["XOR hash<br/>(seed + row taps)"]
+    end
+
+    subgraph CAMS["Read / Write Command CAMs"]
+        wr_cam["wr_cmd_cam_fub<br/>key: AXI ID<br/>data: (rank, bank, row, col,<br/>burst_len, w_buf_ptr,<br/>strb_ptr, b_pending)"]
+        rd_cam["rd_cmd_cam_fub<br/>key: AXI ID<br/>data: (rank, bank, row, col,<br/>burst_len, beats_returned)"]
+    end
+
+    txn_queue["txn_queue_fub<br/>(scheduling view:<br/>is_write, rank, bank, row,<br/>row_hit, age, cam_slot)"]
+    scheduler["scheduler_fub"]
+
+    M_AW[/"m_axi_aw*"/] --> aw_in
+    M_W[/"m_axi_w*"/] --> w_in
+    M_AR[/"m_axi_ar*"/] --> ar_in
+
+    aw_in --> aw_buf
+    aw_in --> id_side
+    w_in --> w_buf
+    ar_in --> ar_buf
+    ar_in --> id_side
+
+    aw_buf -- "axi_addr" --> scheme_mux
+    ar_buf -- "axi_addr" --> scheme_mux
+    scheme_mux --> xor_net
+    xor_net -- "(rank, bank, row, col)" --> wr_cam
+    xor_net -- "(rank, bank, row, col)" --> rd_cam
+
+    aw_buf -- "axi_id +<br/>burst_len" --> wr_cam
+    w_buf -- "w_buf_ptr +<br/>strb_ptr" --> wr_cam
+    ar_buf -- "axi_id +<br/>burst_len" --> rd_cam
+
+    wr_cam -- "push" --> txn_queue
+    rd_cam -- "push" --> txn_queue
+    txn_queue --> scheduler
+
+    scheduler -. "mark issued" .-> wr_cam
+    scheduler -. "mark issued" .-> rd_cam
+
+    wr_cam -- "entry_complete" --> id_side
+    rd_cam -- "beat / last" --> id_side
+    id_side --> b_out
+    id_side --> r_out
+
+    b_out --> M_B[/"m_axi_b*"/]
+    r_out --> M_R[/"m_axi_r*"/]
+
+    classDef axi fill:#e8f4e8,stroke:#228B22,stroke-width:2px
+    classDef mapper fill:#fef0e0,stroke:#B88B22,stroke-width:2px
+    classDef cam fill:#f0e8f4,stroke:#7B228B,stroke-width:2px
+    classDef sched fill:#e0e8fa,stroke:#3366CC,stroke-width:2px
+
+    class aw_in,w_in,ar_in,aw_buf,w_buf,ar_buf,id_side,b_out,r_out axi
+    class scheme_mux,xor_net mapper
+    class wr_cam,rd_cam cam
+    class txn_queue,scheduler sched

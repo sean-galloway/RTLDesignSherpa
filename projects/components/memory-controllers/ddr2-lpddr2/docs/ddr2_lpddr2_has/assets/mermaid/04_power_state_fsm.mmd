@@ -1,0 +1,39 @@
+%%{init: {'theme': 'base', 'themeVariables': { 'primaryColor': '#e8f4e8', 'primaryTextColor': '#000', 'primaryBorderColor': '#228B22', 'lineColor': '#404040', 'secondaryColor': '#f0f0f0', 'tertiaryColor': '#fff'}}}%%
+stateDiagram-v2
+    [*] --> RESET
+
+    RESET --> INIT: mc_rstn deasserted
+    INIT --> ACTIVE: init_done
+    INIT --> INIT_ERROR: init_error
+
+    ACTIVE --> ACTIVE_PD: req_low_power + banks open
+    ACTIVE --> PRECHARGE_PD: req_low_power + banks idle
+    ACTIVE --> SELF_REFRESH: req_self_refresh (DDR2 or LPDDR2)
+    ACTIVE --> DPD: req_dpd (LPDDR2 only)
+
+    ACTIVE_PD --> ACTIVE: req_active
+    PRECHARGE_PD --> ACTIVE: req_active
+
+    SELF_REFRESH --> ACTIVE: req_active + tXSNR elapsed
+
+    DPD --> INIT: req_active (full re-init required)
+
+    INIT_ERROR --> INIT: soft_reset via CSR
+
+    note right of SELF_REFRESH
+      CKE low
+      DRAM self-refreshes
+      Controller tREFI paused
+    end note
+
+    note right of DPD
+      LPDDR2 only
+      DRAM content lost
+      SoC must flush caches first
+    end note
+
+    note left of INIT
+      Microprogram engine
+      executes memtype-specific
+      step table
+    end note

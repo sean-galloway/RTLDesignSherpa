@@ -1,0 +1,30 @@
+%%{init: {'theme': 'base', 'themeVariables': { 'primaryColor': '#e8f4e8', 'primaryTextColor': '#000', 'primaryBorderColor': '#228B22', 'lineColor': '#404040', 'secondaryColor': '#f0f0f0', 'tertiaryColor': '#fff'}}}%%
+sequenceDiagram
+    autonumber
+    participant MC as scheduler
+    participant CE as cmd_encoder
+    participant RD as rdata_path
+    participant DM as dfi_master
+    participant PHY as PHY
+
+    Note over MC,PHY: T = cycle index relative to RD command issue
+
+    MC->>CE: cycle 0: issue RD (bank, col)
+    CE->>DM: cycle 1: drive (cs_n=0, ras_n=1, cas_n=0, we_n=1)
+    DM->>PHY: cycle 1: RD on dfi_address, dfi_bank
+
+    MC->>RD: cycle 0: alert (AXI ID, burst_len)
+    RD->>DM: cycle 0..CL-1: drive dfi_rddata_en=1 (anticipation)
+
+    Note over RD: countdown CL cycles
+
+    PHY->>DM: cycle CL: dfi_rddata_valid=1
+    PHY->>DM: cycle CL: dfi_rddata (beat 1)
+    PHY->>DM: cycle CL+1: dfi_rddata (beat 2)
+    Note over PHY,DM: ... up to BL beats
+    PHY->>DM: cycle CL+BL-1: dfi_rddata (last beat)
+
+    DM->>RD: cycle CL: latch beats
+    RD->>RD: tag beats with AXI ID
+
+    Note over RD: stream beats to AXI R channel<br/>with rlast on final beat

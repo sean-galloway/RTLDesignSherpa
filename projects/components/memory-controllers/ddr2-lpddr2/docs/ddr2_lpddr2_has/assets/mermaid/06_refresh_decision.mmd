@@ -1,0 +1,35 @@
+%%{init: {'theme': 'base', 'themeVariables': { 'primaryColor': '#e8f4e8', 'primaryTextColor': '#000', 'primaryBorderColor': '#228B22', 'lineColor': '#404040', 'secondaryColor': '#f0f0f0', 'tertiaryColor': '#fff'}}}%%
+flowchart TD
+    tick(["tREFI counter expires"])
+    tick --> incr["refresh_pending++<br/>(saturate at REFRESH_DEFER_MAX)"]
+    incr --> sched["Inform scheduler:<br/>refresh request available"]
+    sched --> prio{"refresh_pending<br/>vs thresholds"}
+
+    prio -->|"&lt; soft (idle)"| skip["Defer<br/>row-hits beat refresh"]
+    prio -->|"soft &le; pending &lt; critical"| medium["Boost priority<br/>(row-miss equivalent)"]
+    prio -->|"pending &ge; critical"| crit["Critical<br/>override all column cmds"]
+
+    skip --> chosen
+    medium --> chosen{"scheduler<br/>picks refresh"}
+    crit --> chosen
+
+    chosen -->|"yes"| memtype{MEMTYPE?}
+    chosen -->|"no"| skip
+
+    memtype -->|"DDR2"| refab["Wait all banks IDLE"]
+    memtype -->|"LPDDR2"| policy{REFPB_POLICY}
+
+    policy -->|"ROUND_ROBIN"| rr["Pick next cyclic bank<br/>(skip PASR-masked)"]
+    policy -->|"OLDEST_FIRST"| oldest["Pick max last_ref_age<br/>(skip PASR-masked)"]
+    policy -->|"DARP"| darp["Pick max last_ref_age<br/>among IDLE banks<br/>(skip PASR-masked)"]
+
+    darp -->|"none idle"| oldest_fallback["Fallback: OLDEST_FIRST"]
+    darp -->|"found idle bank"| issue_pb
+    oldest_fallback --> issue_pb
+
+    rr --> issue_pb["Issue REFpb to picked bank<br/>(wait for it to be IDLE)"]
+    oldest --> issue_pb
+
+    refab --> issue_ab["Issue REF (REFab)<br/>all banks REFRESHING"]
+    issue_ab --> dec["refresh_pending--"]
+    issue_pb --> dec
