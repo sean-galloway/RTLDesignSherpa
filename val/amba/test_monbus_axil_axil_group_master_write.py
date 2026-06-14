@@ -46,6 +46,7 @@ from cocotb_test.simulator import run
 
 from TBClasses.shared.tbbase import TBBase
 from TBClasses.shared.utilities import get_paths, create_view_cmd
+from TBClasses.shared.filelist_utils import get_sources_from_filelist
 
 
 BEATS_PER_RECORD = 3            # raw mode
@@ -336,9 +337,9 @@ def test_monbus_axil_axil_group_master_write(request):
         os.path.join(rtl_dict['rtl_gaxi'],     "gaxi_skid_buffer.sv"),
         os.path.join(rtl_dict['rtl_axil4'],    "axil4_slave_rd.sv"),
         os.path.join(rtl_dict['rtl_axil4'],    "axil4_master_wr.sv"),
-        os.path.join(rtl_dict['rtl_shared'],   "monbus_cam.sv"),
-        os.path.join(rtl_dict['rtl_shared'],   "monbus_compressor.sv"),
-        os.path.join(rtl_dict['rtl_shared'],   "monbus_group_core.sv"),
+        # Monbus group core family (cam/compressor/core + div-by-3 helper)
+        # from the shared canonical filelist -- one place for new deps.
+        *get_sources_from_filelist(repo_root, 'rtl/amba/filelists/monbus_group.f')[0],
         os.path.join(rtl_dict['rtl_shared'],   f"{dut_name}.sv"),
     ]
     for src in verilog_sources:

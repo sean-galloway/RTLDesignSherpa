@@ -204,21 +204,13 @@ module monbus_group_core
     logic [15:0] w_beats_per_unit;
     assign w_beats_per_unit = w_use_comp ? 16'd1 : 16'd3;
 
-    // Floor-divide by 3 via a reciprocal (magic-number) multiply. For any
-    // 16-bit v, floor(v/3) == (v * 43691) >> 17, exact over [0, 65535]
-    // (43691 = ceil(2^17 / 3)). Writing it explicitly maps to a single
-    // multiply (DSP/LUT) instead of the iterative-divider CARRY4 chain
-    // Vivado infers from the "/ 3" operator -- so the whole-record rounding
-    // stays a shallow combinational op and needs no extra pipeline stage.
-    function automatic logic [15:0] floor_div3(input logic [15:0] v);
-        // use_dsp="no": keep this as a LOCAL LUT constant-multiply. Left to
-        // Vivado it infers a DSP48, and a combinational path through a
-        // (far-placed) DSP adds ~4 ns prop + long routing -- catastrophic
-        // when this lands on a timing path.
-        (* use_dsp = "no" *) logic [31:0] prod;
-        prod = 32'(v) * 32'd43691;
-        floor_div3 = {1'b0, prod[31:17]};   // >> 17, result <= 21845 (15b)
-    endfunction
+    // Round-to-whole-record (raw mode) = X - (X mod 3). The mod-3 comes from
+    // mod_3_compress instances (u_mod3_geo / u_mod3_fifo, below): the div15
+    // carry-save-compressor idiom applied to the operation we actually need --
+    // a base-4 digit sum reduced by 3:2 compressors. A few LUTs, not a wide
+    // reciprocal-multiply tree by the compressor CAM.
+    logic [1:0] w_geo_rem3;     // s2_beats_planned mod 3
+    logic [1:0] w_fifo_rem3;    // r_fifo_beats     mod 3
 
     localparam int ERR_REC_WIDTH    = MONBUS_PKT_WIDTH + MONBUS_TS_WIDTH;
     localparam int WRITE_FIFO_AW    = $clog2(FIFO_DEPTH_WRITE);
@@ -590,22 +582,56 @@ module monbus_group_core
         // monbus_compressor consumes (packet, source_ts) records and
         // emits 64-bit self-tagged slots. Records are fed only while
         // compression is enabled (w_use_comp).
-        logic        comp_in_valid;
+        //
+        // Input skid: the monbus aggregator's output skid sits far from this
+        // compressor's CAM, so the combinational path aggregator -> in_key ->
+        // 32-way CAM match/commit was the route-dominated 100 MHz worst path
+        // (~74% routing). A 2-deep skid registers (source_ts, packet) right
+        // at the compressor boundary, so that long hop ends at a LOCAL flop
+        // and the CAM lookup starts fresh from it. Full throughput preserved
+        // (skid), +1 cycle latency on the compression path (sanctioned), and
+        // the record sequence is unchanged so the slot stream stays bit-exact.
+        localparam int COMP_IN_W = MONBUS_TS_WIDTH + MONBUS_PKT_WIDTH;
+        logic                 comp_skid_wr_valid;
+        logic                 comp_skid_wr_ready;
+        logic [COMP_IN_W-1:0] comp_skid_wr_data;
+        logic                 comp_skid_rd_valid;
+        logic                 comp_core_in_ready;
+        logic [COMP_IN_W-1:0] comp_skid_rd_data;
+        monitor_packet_t      comp_in_packet;
+        monbus_timestamp_t    comp_in_source_ts;
         logic        comp_out_valid;
         logic        comp_out_ready;
         logic [63:0] comp_out_slot;
 
-        assign comp_in_valid = monbus_valid && pkt_to_write_path
-                            && !pkt_drop && w_use_comp;
+        assign comp_skid_wr_valid = monbus_valid && pkt_to_write_path
+                                 && !pkt_drop && w_use_comp;
+        assign comp_skid_wr_data  = {monbus_timestamp, monbus_packet};
+
+        gaxi_skid_buffer #(.DATA_WIDTH(COMP_IN_W), .DEPTH(2)) u_comp_in_skid (
+            .axi_aclk    (axi_aclk),
+            .axi_aresetn (axi_aresetn),
+            .wr_valid    (comp_skid_wr_valid),
+            .wr_ready    (comp_skid_wr_ready),
+            .wr_data     (comp_skid_wr_data),
+            .count       (),
+            .rd_valid    (comp_skid_rd_valid),
+            .rd_ready    (comp_core_in_ready),
+            .rd_count    (),
+            .rd_data     (comp_skid_rd_data)
+        );
+        assign {comp_in_source_ts, comp_in_packet} = comp_skid_rd_data;
+        // A record is consumed off monbus when the skid accepts it.
+        assign comp_in_ready = comp_skid_wr_ready;
 
         monbus_compressor u_compressor (
             .clk                 (axi_aclk),
             .rst_n               (axi_aresetn),
 
-            .in_valid            (comp_in_valid),
-            .in_ready            (comp_in_ready),
-            .in_packet           (monbus_packet),
-            .in_source_ts        (monbus_timestamp),
+            .in_valid            (comp_skid_rd_valid),
+            .in_ready            (comp_core_in_ready),
+            .in_packet           (comp_in_packet),
+            .in_source_ts        (comp_in_source_ts),
 
             .out_valid           (comp_out_valid),
             .out_ready           (comp_out_ready),
@@ -838,14 +864,14 @@ module monbus_group_core
             // ---- stage 3: round the geometry cap down to whole records
             // (keeps the memory image on record boundaries) + effective
             // start address (rewind to base when out of window or a record
-            // doesn't fit by geometry). The /3 uses the magic-number
-            // reciprocal (floor_div3) so it stays a single shallow multiply.
+            // doesn't fit by geometry). Round-down = X - (X mod 3), with the
+            // mod-3 from u_mod3_geo.
             begin : stage3
                 logic [15:0] units;
                 logic        rew;
                 units = (w_beats_per_unit == 16'd1)
                       ? s2_beats_planned
-                      : (floor_div3(s2_beats_planned) * 16'd3);
+                      : (s2_beats_planned - 16'(w_geo_rem3));
                 rew   = !s2_in_window || (units < w_beats_per_unit);
                 r_plan_geo_units <= units;
                 r_plan_addr      <= rew ? cfg_base_addr : s2_wr_addr;
@@ -855,11 +881,23 @@ module monbus_group_core
     )
 
     // Whole-record FIFO cap, combinationally off the REGISTERED raw count
-    // (r_fifo_beats) -- short, local path, magic-number /3 in LUTs. Both the
-    // trigger and the commit derive from r_fifo_beats so they agree.
+    // (r_fifo_beats) -- short, local path; round-down = X - (X mod 3), mod-3
+    // from u_mod3_fifo. Both the trigger and the commit derive from
+    // r_fifo_beats so they agree.
     logic [15:0] w_fifo_units;
     assign w_fifo_units = w_use_comp ? r_fifo_beats
-                                     : (floor_div3(r_fifo_beats) * 16'd3);
+                                     : (r_fifo_beats - 16'(w_fifo_rem3));
+
+    // Compressor-style mod-3 instances (combinational); fed by the pipelined
+    // s2_beats_planned and the registered r_fifo_beats.
+    mod_3_compress u_mod3_geo (
+        .d_in    (s2_beats_planned),
+        .rem_out (w_geo_rem3)
+    );
+    mod_3_compress u_mod3_fifo (
+        .d_in    (r_fifo_beats),
+        .rem_out (w_fifo_rem3)
+    );
 
     // Triggers: watermark / timeout (short combinational paths). Watermark
     // uses the SAME registered count the cap uses (r_fifo_beats) -- a fresh

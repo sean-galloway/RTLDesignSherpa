@@ -35,6 +35,7 @@ from cocotb_test.simulator import run
 
 from TBClasses.shared.tbbase import TBBase
 from TBClasses.shared.utilities import get_paths, create_view_cmd
+from TBClasses.shared.filelist_utils import get_sources_from_filelist
 
 
 # ---------------------------------------------------------------------
@@ -566,10 +567,9 @@ def test_axi4_dma_observer(request):
         # AXI _mon wrappers
         os.path.join(rtl_dict['rtl_axi4'],     "axi4_master_rd_mon.sv"),
         os.path.join(rtl_dict['rtl_axi4'],     "axi4_master_wr_mon.sv"),
-        # Monbus delivery
-        os.path.join(rtl_dict['rtl_shared'],   "monbus_cam.sv"),
-        os.path.join(rtl_dict['rtl_shared'],   "monbus_compressor.sv"),
-        os.path.join(rtl_dict['rtl_shared'],   "monbus_group_core.sv"),
+        # Monbus delivery -- group core family (cam/compressor/core +
+        # div-by-3 helper) from the shared canonical filelist.
+        *get_sources_from_filelist(repo_root, 'rtl/amba/filelists/monbus_group.f')[0],
         os.path.join(rtl_dict['rtl_shared'],   "monbus_axil_axi4_group.sv"),
         os.path.join(rtl_dict['rtl_shared'],   "monbus_arbiter.sv"),
         # Per-cycle valid/ready bucket counter (moved into shared)
