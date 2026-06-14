@@ -1256,6 +1256,7 @@ module bridge_stream_char_axil_mon #(
     logic [15:0] cfg_mon_group_core_thresh_mask;
     logic [15:0] cfg_mon_group_core_perf_mask;
     logic [15:0] cfg_mon_group_core_debug_mask;
+    logic         cfg_mon_group_compress_en;
 
     // ================================================================
     // HOST Adapter
@@ -3307,6 +3308,7 @@ module bridge_stream_char_axil_mon #(
     assign cfg_mon_group_core_thresh_mask = hwif_out.MON_GROUP_PACK_11.core_thresh_mask.value;
     assign cfg_mon_group_core_perf_mask = hwif_out.MON_GROUP_PACK_12.core_perf_mask.value;
     assign cfg_mon_group_core_debug_mask = hwif_out.MON_GROUP_PACK_12.core_debug_mask.value;
+    assign cfg_mon_group_compress_en = hwif_out.MON_GROUP_COMPRESS_EN.compress_en.value;
 
     // ============================================================
     // Monitor aggregator -- 18 client(s) -> arbiter -> axil_group
@@ -3485,6 +3487,7 @@ module bridge_stream_char_axil_mon #(
         .cfg_core_thresh_mask     (cfg_mon_group_core_thresh_mask),
         .cfg_core_perf_mask     (cfg_mon_group_core_perf_mask),
         .cfg_core_debug_mask     (cfg_mon_group_core_debug_mask),
+        .cfg_compress_en     (cfg_mon_group_compress_en),
         /* verilator lint_off PINCONNECTEMPTY */
         .err_fifo_full     (),
         .write_fifo_full   (),

@@ -164,6 +164,10 @@ APB_WRMON_ENABLE        = STREAM_APB_BASE + 0x280
 APB_WRMON_PKT_MASK      = STREAM_APB_BASE + 0x28C
 APB_WRMON_ERR_CFG       = STREAM_APB_BASE + 0x290
 
+# WRMON_ENABLE.COMPRESS_EN (bit 5): 1 = compress the monbus write stream,
+# 0 = raw 3-beat records. Only effective on a USE_MON_COMPRESSION=1 build.
+WRMON_COMPRESS_EN_BIT   = 1 << 5
+
 # MON_PKT_MASK: 1 = drop packet of that type at the monbus entry.
 # 0x0000_FFF0 keeps Error (0), Completion (1), Threshold (2), Timeout (3)
 # flowing and drops everything above. Mirrors stream_char_tb.MON_PKT_MASK_ALLOW_BASIC.
@@ -195,14 +199,36 @@ class CharacterizationRunner:
     """Runs characterization tests on the FPGA via UART."""
 
     def __init__(self, bridge, data_width: int = 128,
-                 verbose: bool = False, mon_config: str = None):
+                 verbose: bool = False, mon_config: str = None,
+                 poll_interval_s: float = 0.001,
+                 aclk_hz: float = 100_000_000.0,
+                 compression: bool = True):
         self.bridge = bridge
         self.builder = DescriptorBuilder(data_width=data_width)
         self.verbose = verbose
         self.results = []
+        # Runtime monbus compression toggle. Drives WRMON_ENABLE.COMPRESS_EN
+        # (bit 5) after the monitor cones are programmed. Only meaningful on
+        # a USE_MON_COMPRESSION=1 bitstream (compressor hardware present);
+        # harmless otherwise.
+        self.compression = compression
         # Named monitor preset (mon_configs.CONFIGS) or None for the
         # legacy "allow basic types" programming.
         self.mon_config = mon_cfg.get(mon_config) if mon_config else None
+        # poll_interval_s is the gap between TIMER_STATUS polls in the
+        # host-side completion loop. Was hard-coded at 50 ms (5e-2),
+        # which dominated dma_time_s for short transfers (a 1 MB DMA
+        # finishes in <1 ms on the FPGA but the host only noticed on
+        # the next 50 ms tick). 1 ms makes the host poll cadence
+        # comparable to the UART round-trip cost and lets dma_time_s
+        # actually track the FPGA work. The on-chip timer (cycles_total)
+        # is now the authoritative bus-time source either way -- see
+        # bus_time_s / bus_throughput_mbps emitted by run_config.
+        self.poll_interval_s = poll_interval_s
+        # AXI clock the on-chip timer counts on. Used to convert
+        # cycles_total -> bus_time_s -> bus_throughput. Default 100 MHz
+        # matches the stream_char bitstream's create_clock.
+        self.aclk_hz = aclk_hz
 
     def log(self, msg: str):
         ts = datetime.now().strftime('%H:%M:%S')
@@ -349,6 +375,18 @@ class CharacterizationRunner:
                 self.bridge.write(pkt_mask_reg, MON_PKT_MASK_ALLOW_BASIC)
                 self.bridge.write(en_reg,       MON_ENABLE_COMPL_IRQ)
                 self.bridge.write(err_reg,      MON_ERR_CFG_BULK_TRACE)
+
+        # Runtime compression toggle. Done LAST because the cone-enable
+        # writes above land in the same WRMON_ENABLE register and would
+        # otherwise clobber COMPRESS_EN. Read-modify-write bit 5.
+        wrmon_en = self.bridge.read(APB_WRMON_ENABLE) or 0
+        if self.compression:
+            wrmon_en |= WRMON_COMPRESS_EN_BIT
+        else:
+            wrmon_en &= ~WRMON_COMPRESS_EN_BIT
+        self.bridge.write(APB_WRMON_ENABLE, wrmon_en)
+        self.vlog(f"  monbus compression: {'ON' if self.compression else 'OFF'} "
+                  f"(WRMON_ENABLE=0x{wrmon_en:02X})")
 
         # Global enable + channels
         self.bridge.write(APB_GLOBAL_CTRL, 0x01)
@@ -579,7 +617,7 @@ class CharacterizationRunner:
                     'raw_timer': ts,
                     'raw_status': st,
                 }
-            time.sleep(0.05)
+            time.sleep(self.poll_interval_s)
 
         return {'completed': False, 'elapsed_s': timeout_s}
 
@@ -857,12 +895,56 @@ class CharacterizationRunner:
                   f"overflow={'YES' if trace.get('overflow') else 'no'}")
 
         # 8. Throughput
+        #
+        # Two numbers, on purpose:
+        #
+        #   throughput_mbps        -- host wall clock (dma_time_s).
+        #                             Includes UART CSR round-trips and
+        #                             the poll-loop cadence. Useful for
+        #                             "how long did the whole DMA take
+        #                             end-to-end including the host"
+        #                             but NOT a bus-efficiency metric.
+        #
+        #   bus_throughput_mbps    -- FPGA on-chip timer (cycles_total
+        #                             at aclk_hz). No host overhead.
+        #                             This is what the AXI engine
+        #                             actually sustained on the bus.
+        #
+        # The bus number is the right one to quote when characterizing
+        # the engine. The wall number stays in the record for
+        # transparency / debugging.
         if result['dma_time_s'] > 0:
             mbps = (result['total_bytes'] / (1024 * 1024)) / result['dma_time_s']
             result['throughput_mbps'] = mbps
-            self.log(f"  Throughput: {mbps:.1f} MB/s "
+            self.log(f"  Wall throughput: {mbps:.1f} MB/s "
                      f"({result['total_bytes'] / (1024*1024):.0f} MB in "
-                     f"{result['dma_time_s']:.3f}s)")
+                     f"{result['dma_time_s']:.3f}s; includes UART overhead)")
+
+        # Bus-side throughput from the on-chip timer (cycles_total).
+        # End-to-end util comes from read_run_metrics already; we just
+        # surface it onto the top-level result so the CSV exporter has
+        # a single place to grab it.
+        if metrics.get('available'):
+            cycles_total = metrics.get('cycles_total', 0) or 0
+            if cycles_total > 0 and self.aclk_hz > 0:
+                bus_time_s = cycles_total / self.aclk_hz
+                bus_mbps   = (result['total_bytes'] / (1024 * 1024)) / bus_time_s
+                result['bus_time_s']         = bus_time_s
+                result['bus_throughput_mbps'] = bus_mbps
+                result['bus_cycles_total']    = cycles_total
+                result['bus_e2e_util_pct']   = metrics['end_to_end_utilization'] * 100
+                # Theoretical single-bus ceiling at this clock + bus
+                # width: aclk * data_width_bytes. The DMA reads then
+                # writes each byte, so the practical net-bytes-moved
+                # ceiling is half that.
+                bus_max_one_dir = self.aclk_hz * DATA_WIDTH_BYTES / (1024 * 1024)
+                result['bus_max_one_dir_mbps']    = bus_max_one_dir
+                result['bus_max_net_moved_mbps']  = bus_max_one_dir / 2
+                self.log(f"  Bus  throughput: {bus_mbps:.1f} MB/s "
+                         f"(FPGA timer {bus_time_s*1e3:.3f} ms; "
+                         f"E2E util {result['bus_e2e_util_pct']:.1f}%; "
+                         f"ceiling {result['bus_max_net_moved_mbps']:.0f} MB/s "
+                         f"net-moved at {self.aclk_hz/1e6:.0f} MHz)")
 
         result['pass'] = crc_match and crc_valid
         return result
@@ -930,6 +1012,12 @@ Examples:
                              '(perf-mon = perf only, low rate; debug-* = '
                              'richer mixes, high traffic / compressed build). '
                              'Default: legacy "allow basic types".')
+    parser.add_argument('--compression', dest='compression',
+                        choices=['on', 'off'], default='on',
+                        help='Runtime monbus compression (WRMON_ENABLE.COMPRESS_EN). '
+                             'on=compress the bulk-trace stream, off=raw 3-beat '
+                             'records. Only effective on a USE_MON_COMPRESSION=1 '
+                             'bitstream. Default: on.')
     parser.add_argument('--phase', type=int, choices=[1, 2],
                         help='Run only phase 1 or phase 2')
     parser.add_argument('--configs', nargs='+',
@@ -946,6 +1034,22 @@ Examples:
                         help='Save results to JSON file')
     parser.add_argument('--verbose', '-v', action='store_true',
                         help='Verbose output')
+
+    # On-chip / host clock plumbing. poll_interval_ms used to be fixed
+    # at 50 ms which dominated dma_time_s for short transfers; 1 ms
+    # default lets dma_time_s actually track the FPGA work, and the
+    # on-chip timer (cycles_total) is the authoritative bus-time source
+    # anyway.
+    parser.add_argument('--poll-interval-ms', type=float, default=1.0,
+                        help='Sleep between TIMER_STATUS polls in the '
+                             'host completion loop (default 1.0 ms; '
+                             'was 50 ms historically and polluted '
+                             'short-transfer wall-clock throughput).')
+    parser.add_argument('--aclk-mhz', type=float, default=100.0,
+                        help='AXI clock the on-chip timer counts on, '
+                             'in MHz (default 100). Used to convert '
+                             'cycles_total -> bus_time_s for the bus-'
+                             'side throughput metric.')
 
     # Response-delay sweep mode (methodology Section 6, "backpressure
     # profile" axis). When --resp-delays is set, the listed configs are
@@ -1015,7 +1119,10 @@ def main():
     with UARTAxiBridge(args.port, args.baud) as bridge:
         runner = CharacterizationRunner(
             bridge, data_width=128, verbose=args.verbose,
-            mon_config=args.mon_config)
+            mon_config=args.mon_config,
+            poll_interval_s=args.poll_interval_ms / 1000.0,
+            aclk_hz=args.aclk_mhz * 1_000_000.0,
+            compression=(args.compression == 'on'))
         if args.resp_delays:
             rd = [int(s, 0) for s in args.resp_delays.split(',') if s.strip()]
             if args.resp_delays_wr:

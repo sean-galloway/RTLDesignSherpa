@@ -1108,4 +1108,10 @@ addrmap bridge_stream_char_axil_mon_cfg {
         field { reset = 16'h0000; } core_debug_mask[31:16];
     } MON_GROUP_PACK_12;
 
+    reg {
+        name = "MON_GROUP_COMPRESS_EN";
+        desc = "mon_group compress_en (1-bit)";
+        field { reset = 1'h1; } compress_en[0:0];
+    } MON_GROUP_COMPRESS_EN;
+
 };

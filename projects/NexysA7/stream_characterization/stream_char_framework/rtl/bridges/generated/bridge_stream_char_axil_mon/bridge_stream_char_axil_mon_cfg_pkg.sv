@@ -5,7 +5,7 @@ package bridge_stream_char_axil_mon_cfg_pkg;
 
     localparam BRIDGE_STREAM_CHAR_AXIL_MON_CFG_DATA_WIDTH = 32;
     localparam BRIDGE_STREAM_CHAR_AXIL_MON_CFG_MIN_ADDR_WIDTH = 10;
-    localparam BRIDGE_STREAM_CHAR_AXIL_MON_CFG_SIZE = 'h24c;
+    localparam BRIDGE_STREAM_CHAR_AXIL_MON_CFG_SIZE = 'h250;
 
     typedef struct {
         logic value;
@@ -2359,6 +2359,14 @@ package bridge_stream_char_axil_mon_cfg_pkg;
     } bridge_stream_char_axil_mon_cfg__MON_GROUP_PACK_12__out_t;
 
     typedef struct {
+        logic value;
+    } bridge_stream_char_axil_mon_cfg__MON_GROUP_COMPRESS_EN__compress_en__out_t;
+
+    typedef struct {
+        bridge_stream_char_axil_mon_cfg__MON_GROUP_COMPRESS_EN__compress_en__out_t compress_en;
+    } bridge_stream_char_axil_mon_cfg__MON_GROUP_COMPRESS_EN__out_t;
+
+    typedef struct {
         bridge_stream_char_axil_mon_cfg__HOST_0_WR_CTRL__out_t HOST_0_WR_CTRL;
         bridge_stream_char_axil_mon_cfg__HOST_0_WR_LATENCY__out_t HOST_0_WR_LATENCY;
         bridge_stream_char_axil_mon_cfg__HOST_0_WR_MASKS_A__out_t HOST_0_WR_MASKS_A;
@@ -2506,5 +2514,6 @@ package bridge_stream_char_axil_mon_cfg_pkg;
         bridge_stream_char_axil_mon_cfg__MON_GROUP_PACK_10__out_t MON_GROUP_PACK_10;
         bridge_stream_char_axil_mon_cfg__MON_GROUP_PACK_11__out_t MON_GROUP_PACK_11;
         bridge_stream_char_axil_mon_cfg__MON_GROUP_PACK_12__out_t MON_GROUP_PACK_12;
+        bridge_stream_char_axil_mon_cfg__MON_GROUP_COMPRESS_EN__out_t MON_GROUP_COMPRESS_EN;
     } bridge_stream_char_axil_mon_cfg__out_t;
 endpackage
