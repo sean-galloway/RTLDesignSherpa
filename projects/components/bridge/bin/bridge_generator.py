@@ -785,11 +785,11 @@ def _emit_bridge_variant(
             group_srcs = [
                 f"$REPO_ROOT/rtl/amba/{slave_leaf}.sv",
                 f"$REPO_ROOT/rtl/amba/{master_leaf}.sv",
-                # Compressor (USE_COMPRESSION=1 path) + its CAM, then the
-                # protocol-agnostic core, then the selected wrapper.
-                "$REPO_ROOT/rtl/amba/shared/monbus_cam.sv",
-                "$REPO_ROOT/rtl/amba/shared/monbus_compressor.sv",
-                "$REPO_ROOT/rtl/amba/shared/monbus_group_core.sv",
+                # Monbus group core family (cam + compressor + core +
+                # div-by-3 helper) via the shared canonical filelist, so a
+                # new core dependency is added in ONE place. Then the
+                # selected protocol wrapper.
+                "-f $REPO_ROOT/rtl/amba/filelists/monbus_group.f",
                 f"$REPO_ROOT/rtl/amba/shared/{module_name}.sv",
             ]
             for src in group_srcs:

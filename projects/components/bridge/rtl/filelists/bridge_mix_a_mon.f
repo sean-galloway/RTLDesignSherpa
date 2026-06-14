@@ -104,7 +104,5 @@ $REPO_ROOT/rtl/amba/shared/monbus_arbiter.sv
 # Monbus group (monbus_axil_axil_group) + its leaf skids + core
 $REPO_ROOT/rtl/amba/axil4/axil4_slave_rd.sv
 $REPO_ROOT/rtl/amba/axil4/axil4_master_wr.sv
-$REPO_ROOT/rtl/amba/shared/monbus_cam.sv
-$REPO_ROOT/rtl/amba/shared/monbus_compressor.sv
-$REPO_ROOT/rtl/amba/shared/monbus_group_core.sv
+-f $REPO_ROOT/rtl/amba/filelists/monbus_group.f
 $REPO_ROOT/rtl/amba/shared/monbus_axil_axil_group.sv
