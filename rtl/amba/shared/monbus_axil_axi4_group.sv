@@ -93,6 +93,7 @@ module monbus_axil_axi4_group
     input  logic [ADDR_WIDTH-1:0]         cfg_base_addr,
     input  logic [ADDR_WIDTH-1:0]         cfg_limit_addr,
     input  logic [15:0]                   cfg_flush_watermark,
+    input  logic                          cfg_compress_en,
 
     // Per-protocol filter masks (same shape as the AXIL variant)
     input  logic [15:0]                   cfg_axi_pkt_mask,
@@ -315,6 +316,7 @@ module monbus_axil_axi4_group
         .cfg_base_addr        (cfg_base_addr),
         .cfg_limit_addr       (cfg_limit_addr),
         .cfg_flush_watermark  (cfg_flush_watermark),
+        .cfg_compress_en      (cfg_compress_en),
 
         .cfg_axi_pkt_mask     (cfg_axi_pkt_mask),
         .cfg_axi_err_select   (cfg_axi_err_select),

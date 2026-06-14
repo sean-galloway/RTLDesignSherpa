@@ -89,6 +89,15 @@ module monbus_group_core
     input  logic [ADDR_WIDTH-1:0]         cfg_limit_addr,
     input  logic [15:0]                   cfg_flush_watermark, // beats
 
+    // Runtime compression enable. Only meaningful when USE_COMPRESSION==1
+    // (the compressor hardware is present). 1 = compress, 0 = raw 3-beat
+    // records. MUST be held stable while the monitor write path is active:
+    // switching it mid-stream would mix formats in the write FIFO and
+    // change the burst record size (BEATS_PER_UNIT) mid-burst. Program it
+    // once before monitoring starts. Tied to a constant (or unused) in
+    // raw-only builds where USE_COMPRESSION==0.
+    input  logic                          cfg_compress_en,
+
     // ------------------------------------------------------------------
     // Per-protocol filter masks (same shape as legacy monbus_axil_group)
     // ------------------------------------------------------------------
@@ -179,9 +188,37 @@ module monbus_group_core
     // ==================================================================
 
     localparam int BYTES_PER_BEAT   = 8;                   // 64-bit beats
-    localparam int BEATS_PER_UNIT   = (USE_COMPRESSION == 0) ? 3 : 1;
-    localparam int BYTES_PER_UNIT   = BEATS_PER_UNIT * BYTES_PER_BEAT;
     localparam logic [3:0] WRITE_TAG_RAW = 4'h0;
+
+    // Runtime compression select. The compressor hardware exists only when
+    // USE_COMPRESSION==1; cfg_compress_en then picks compressed vs raw at
+    // run time. In raw-only builds w_use_comp is constant 0 (the
+    // USE_COMPRESSION!=0 term folds away), so cfg_compress_en is a
+    // don't-care and the expander path is always selected.
+    logic        w_use_comp;
+    assign w_use_comp = (USE_COMPRESSION != 0) && cfg_compress_en;
+
+    // Record size for the burst-writer geometry: raw records are 3 beats
+    // (ts, pkt_hi, pkt_lo); compressed slots are self-contained 1-beat
+    // units. Runtime now that compression is runtime-selectable.
+    logic [15:0] w_beats_per_unit;
+    assign w_beats_per_unit = w_use_comp ? 16'd1 : 16'd3;
+
+    // Floor-divide by 3 via a reciprocal (magic-number) multiply. For any
+    // 16-bit v, floor(v/3) == (v * 43691) >> 17, exact over [0, 65535]
+    // (43691 = ceil(2^17 / 3)). Writing it explicitly maps to a single
+    // multiply (DSP/LUT) instead of the iterative-divider CARRY4 chain
+    // Vivado infers from the "/ 3" operator -- so the whole-record rounding
+    // stays a shallow combinational op and needs no extra pipeline stage.
+    function automatic logic [15:0] floor_div3(input logic [15:0] v);
+        // use_dsp="no": keep this as a LOCAL LUT constant-multiply. Left to
+        // Vivado it infers a DSP48, and a combinational path through a
+        // (far-placed) DSP adds ~4 ns prop + long routing -- catastrophic
+        // when this lands on a timing path.
+        (* use_dsp = "no" *) logic [31:0] prod;
+        prod = 32'(v) * 32'd43691;
+        floor_div3 = {1'b0, prod[31:17]};   // >> 17, result <= 21845 (15b)
+    endfunction
 
     localparam int ERR_REC_WIDTH    = MONBUS_PKT_WIDTH + MONBUS_TS_WIDTH;
     localparam int WRITE_FIFO_AW    = $clog2(FIFO_DEPTH_WRITE);
@@ -449,118 +486,117 @@ module monbus_group_core
     /* verilator lint_on UNUSED */
 
     // ==================================================================
-    // Write path -- one of two implementations selected at elaboration
+    // Write path -- raw 3-beat expander and (optionally) the compressor
+    // both feed the 64-bit write FIFO; cfg_compress_en (via w_use_comp)
+    // selects which one is active at run time.
     //
-    //   USE_COMPRESSION == 0: a 3-state expander pushes the {ts, pkt_hi,
-    //     pkt_lo} beats into the 64-bit write FIFO atomically (gated by
-    //     "3 slots free" so we never split a record across backpressure).
+    //   raw  (w_use_comp == 0): a 3-state expander pushes {ts, pkt_hi,
+    //     pkt_lo} beats into the FIFO atomically (a record is never split
+    //     across backpressure).
+    //   comp (w_use_comp == 1): monbus_compressor sits between the input
+    //     and the FIFO; each emitted slot is one beat.
     //
-    //   USE_COMPRESSION == 1: monbus_compressor sits between the input
-    //     and the write FIFO; each emitted slot is one beat directly
-    //     into the FIFO.
+    // The expander is always elaborated (a cheap FSM). The compressor is
+    // elaborated only when USE_COMPRESSION==1 (it owns the CAM, the
+    // expensive part); in raw-only builds its nets are tied off and
+    // w_use_comp is constant 0. Only one path is ever active (gated by
+    // w_use_comp), so the two FIFO-write outputs are simply muxed.
     // ==================================================================
 
-    generate
-    if (USE_COMPRESSION == 0) begin : gen_expander_raw
+    // Expander outputs (active when !w_use_comp).
+    logic        exp_wr_valid;
+    logic [63:0] exp_wr_data;
+    logic        exp_term;        // "expander accepted the input this cycle"
+    // Compressor outputs (active when w_use_comp; tied 0 when absent).
+    logic        comp_wr_valid;
+    logic [63:0] comp_wr_data;
+    logic        comp_in_ready;
 
-        // 3-state expander
-        typedef enum logic [1:0] {
-            EXP_TS   = 2'd0,
-            EXP_HI   = 2'd1,
-            EXP_LO   = 2'd2,
-            EXP_RSVD = 2'd3
-        } exp_state_t;
+    // ---- Raw 3-beat expander (always present) ----
+    typedef enum logic [1:0] {
+        EXP_TS   = 2'd0,
+        EXP_HI   = 2'd1,
+        EXP_LO   = 2'd2,
+        EXP_RSVD = 2'd3
+    } exp_state_t;
 
-        exp_state_t                  r_exp_state;
-        monitor_packet_t             r_lat_packet;
-        monbus_timestamp_t           r_lat_source_ts;
+    exp_state_t                  r_exp_state;
+    monitor_packet_t             r_lat_packet;
+    monbus_timestamp_t           r_lat_source_ts;
 
-        // Once the expander starts a record (EXP_TS handshake), it
-        // commits to driving the other two beats of that record into
-        // the FIFO with wvalid held high until each beat is accepted.
-        // Atomicity is preserved by *not polling* monbus_valid in
-        // EXP_HI/EXP_LO -- so a new record is never started until the
-        // current one has been fully pushed. We rely on per-beat
-        // wr_ready here (not a "3 slots free" precheck) to avoid the
-        // count -> wr_valid -> count combinational loop.
-        logic exp_accepting_now;
-        assign exp_accepting_now = (r_exp_state == EXP_TS)
-                                && monbus_valid && pkt_to_write_path;
+    // Start a record only when raw mode is selected (!w_use_comp). Once
+    // started (EXP_TS handshake) the expander commits to driving the other
+    // two beats with wvalid held high until each is accepted (atomicity:
+    // monbus_valid is not polled in EXP_HI/EXP_LO). Per-beat wr_ready is
+    // used (not a "3 slots free" precheck) to avoid a count -> wr_valid ->
+    // count combinational loop. With compression enabled the expander sits
+    // idle in EXP_TS and drives nothing.
+    logic exp_accepting_now;
+    assign exp_accepting_now = (r_exp_state == EXP_TS)
+                            && monbus_valid && pkt_to_write_path && !w_use_comp;
 
-        // Drive the FIFO write port
-        always_comb begin
-            write_fifo_wr_valid = 1'b0;
-            write_fifo_wr_data  = 64'd0;
+    always_comb begin
+        exp_wr_valid = 1'b0;
+        exp_wr_data  = 64'd0;
+        unique case (r_exp_state)
+            EXP_TS:   if (exp_accepting_now) begin
+                          exp_wr_valid = 1'b1;
+                          exp_wr_data  = {WRITE_TAG_RAW, monbus_timestamp[59:0]};
+                      end
+            EXP_HI:   begin
+                          exp_wr_valid = 1'b1;
+                          exp_wr_data  = r_lat_packet[MONBUS_PKT_WIDTH-1:64];
+                      end
+            EXP_LO:   begin
+                          exp_wr_valid = 1'b1;
+                          exp_wr_data  = r_lat_packet[63:0];
+                      end
+            default:  ;
+        endcase
+    end
+
+    `ALWAYS_FF_RST(axi_aclk, axi_aresetn,
+        if (`RST_ASSERTED(axi_aresetn)) begin
+            r_exp_state     <= EXP_TS;
+            r_lat_packet    <= '0;
+            r_lat_source_ts <= '0;
+        end else begin
             unique case (r_exp_state)
-                EXP_TS:   if (exp_accepting_now) begin
-                              write_fifo_wr_valid = 1'b1;
-                              write_fifo_wr_data  = {WRITE_TAG_RAW, monbus_timestamp[59:0]};
-                          end
-                EXP_HI:   begin
-                              write_fifo_wr_valid = 1'b1;
-                              write_fifo_wr_data  = r_lat_packet[MONBUS_PKT_WIDTH-1:64];
-                          end
-                EXP_LO:   begin
-                              write_fifo_wr_valid = 1'b1;
-                              write_fifo_wr_data  = r_lat_packet[63:0];
-                          end
-                default:  ;
+                EXP_TS: if (exp_accepting_now && write_fifo_wr_ready) begin
+                            r_lat_packet    <= monbus_packet;
+                            r_lat_source_ts <= monbus_timestamp;
+                            r_exp_state     <= EXP_HI;
+                        end
+                EXP_HI: if (write_fifo_wr_ready) r_exp_state <= EXP_LO;
+                EXP_LO: if (write_fifo_wr_ready) r_exp_state <= EXP_TS;
+                default: r_exp_state <= EXP_TS;
             endcase
         end
+    )
 
-        `ALWAYS_FF_RST(axi_aclk, axi_aresetn,
-            if (`RST_ASSERTED(axi_aresetn)) begin
-                r_exp_state     <= EXP_TS;
-                r_lat_packet    <= '0;
-                r_lat_source_ts <= '0;
-            end else begin
-                unique case (r_exp_state)
-                    EXP_TS: if (exp_accepting_now && write_fifo_wr_ready) begin
-                                r_lat_packet    <= monbus_packet;
-                                r_lat_source_ts <= monbus_timestamp;
-                                r_exp_state     <= EXP_HI;
-                            end
-                    EXP_HI: if (write_fifo_wr_ready) r_exp_state <= EXP_LO;
-                    EXP_LO: if (write_fifo_wr_ready) r_exp_state <= EXP_TS;
-                    default: r_exp_state <= EXP_TS;
-                endcase
-            end
-        )
+    // raw-mode input handshake term for monbus_ready.
+    assign exp_term = exp_accepting_now && write_fifo_wr_ready;
 
-        // monbus_ready: pkt_to_write_path consumed only when the
-        // expander accepts the input handshake.
-        assign monbus_ready = pkt_drop
-                           || (pkt_to_err_fifo   && err_fifo_wr_ready)
-                           || (pkt_to_write_path && exp_accepting_now && write_fifo_wr_ready);
+    // Keep the latched source ts visible to lint (latch kept for future
+    // format work).
+    /* verilator lint_off UNUSED */
+    monbus_timestamp_t _unused_lat_ts = r_lat_source_ts;
+    /* verilator lint_on UNUSED */
 
-        // No compressor in raw mode
-        assign mon_compressor_stat_tier1_a        = 32'd0;
-        assign mon_compressor_stat_tier1_b        = 32'd0;
-        assign mon_compressor_stat_tier1_c        = 32'd0;
-        assign mon_compressor_stat_tier0          = 32'd0;
-        assign mon_compressor_stat_cam_miss       = 32'd0;
-        assign mon_compressor_stat_delta_ts_ovf   = 32'd0;
-        assign mon_compressor_stat_event_data_ovf = 32'd0;
-        assign mon_compressor_stat_ed_delta_ovf   = 32'd0;
-
-        // Keep the latched source ts visible to lint (used only in EXP_HI
-        // currently via r_lat_packet; latch kept for future format work)
-        /* verilator lint_off UNUSED */
-        monbus_timestamp_t _unused_lat_ts = r_lat_source_ts;
-        /* verilator lint_on UNUSED */
-
-    end else begin : gen_compressor
+    // ---- Compressor (present only when USE_COMPRESSION==1) ----
+    generate
+    if (USE_COMPRESSION != 0) begin : gen_compressor
 
         // monbus_compressor consumes (packet, source_ts) records and
-        // emits 64-bit self-tagged slots. Each slot becomes one beat in
-        // the write FIFO.
+        // emits 64-bit self-tagged slots. Records are fed only while
+        // compression is enabled (w_use_comp).
         logic        comp_in_valid;
-        logic        comp_in_ready;
         logic        comp_out_valid;
         logic        comp_out_ready;
         logic [63:0] comp_out_slot;
 
-        assign comp_in_valid = monbus_valid && pkt_to_write_path && !pkt_drop;
+        assign comp_in_valid = monbus_valid && pkt_to_write_path
+                            && !pkt_drop && w_use_comp;
 
         monbus_compressor u_compressor (
             .clk                 (axi_aclk),
@@ -585,18 +621,37 @@ module monbus_group_core
             .stat_ed_delta_ovf   (mon_compressor_stat_ed_delta_ovf)
         );
 
-        // Compressor output drives FIFO write
-        assign write_fifo_wr_valid = comp_out_valid;
-        assign write_fifo_wr_data  = comp_out_slot;
-        assign comp_out_ready      = write_fifo_wr_ready;
+        assign comp_wr_valid  = comp_out_valid;
+        assign comp_wr_data   = comp_out_slot;
+        assign comp_out_ready = write_fifo_wr_ready;
 
-        // monbus_ready
-        assign monbus_ready = pkt_drop
-                           || (pkt_to_err_fifo   && err_fifo_wr_ready)
-                           || (pkt_to_write_path && comp_in_ready);
+    end else begin : gen_no_compressor
+
+        // Compressor hardware absent; tie its nets off. w_use_comp is a
+        // constant 0 in this build, so these are never selected anyway.
+        assign comp_wr_valid = 1'b0;
+        assign comp_wr_data  = 64'd0;
+        assign comp_in_ready = 1'b0;
+        assign mon_compressor_stat_tier1_a        = 32'd0;
+        assign mon_compressor_stat_tier1_b        = 32'd0;
+        assign mon_compressor_stat_tier1_c        = 32'd0;
+        assign mon_compressor_stat_tier0          = 32'd0;
+        assign mon_compressor_stat_cam_miss       = 32'd0;
+        assign mon_compressor_stat_delta_ts_ovf   = 32'd0;
+        assign mon_compressor_stat_event_data_ovf = 32'd0;
+        assign mon_compressor_stat_ed_delta_ovf   = 32'd0;
 
     end
     endgenerate
+
+    // ---- Select the active path into the write FIFO ----
+    assign write_fifo_wr_valid = w_use_comp ? comp_wr_valid : exp_wr_valid;
+    assign write_fifo_wr_data  = w_use_comp ? comp_wr_data  : exp_wr_data;
+
+    assign monbus_ready = pkt_drop
+                       || (pkt_to_err_fifo && err_fifo_wr_ready)
+                       || (pkt_to_write_path && (w_use_comp ? comp_in_ready
+                                                            : exp_term));
 
     // ==================================================================
     // Write FIFO -- beat-granular (one queue entry = one 64-bit beat)
@@ -680,7 +735,7 @@ module monbus_group_core
     // from a fast counter (no address subtract/shift), so it does not
     // recreate the critical path.
     //
-    // Final burst length is min(r_plan_geo_units, fifo_units) (16 bits) but
+    // Final burst length is min(r_plan_geo_units, w_fifo_units) (16 bits) but
     // only the low 9 bits go to AWLEN (AXI4 arlen+1, max 256 beats).
     logic [15:0]                 beats_in_fifo;
     // stage 1: per-cap geometry from a stable r_wr_addr
@@ -688,7 +743,7 @@ module monbus_group_core
     logic [15:0]                 s1_beats_to_4kb;
     logic                        s1_in_window;
     logic [ADDR_WIDTH-1:0]       s1_wr_addr;
-    // stage 2: planned beats (geometry cap then FIFO cap)
+    // stage 2: planned beats (geometry cap only)
     logic [15:0]                 s2_beats_planned;
     logic                        s2_in_window;
     logic [ADDR_WIDTH-1:0]       s2_wr_addr;
@@ -697,6 +752,16 @@ module monbus_group_core
     logic [15:0]                 r_plan_geo_units;   // address-feasible whole-record beats
     logic [ADDR_WIDTH-1:0]       r_plan_addr;
     logic                        r_plan_ok;          // geometry allows >= 1 record
+    // Registered raw FIFO beat count. beats_in_fifo is combinationally live
+    // (it reflects the in-flight write, traced back through the packet
+    // filter and the far-placed config registers), so using it directly at
+    // commit put a deep cone -- plus the runtime /3 -- on the WR_IDLE
+    // critical path. Register the raw count once; BOTH the flush trigger
+    // and the burst cap derive from this same flop (see w_fifo_units), so
+    // they stay consistent (the earlier split -- fresh trigger vs lagged
+    // cap -- shorted the burst to 21/24). The whole-record rounding is then
+    // a short combinational op off this flop.
+    logic [15:0]                 r_fifo_beats;
     // pipeline settled against the current r_wr_addr
     logic [1:0]                  r_geom_settle;
     logic                        geom_valid;
@@ -730,7 +795,10 @@ module monbus_group_core
             r_plan_geo_units  <= 16'd0;
             r_plan_addr       <= '0;
             r_plan_ok         <= 1'b0;
+            r_fifo_beats      <= 16'd0;
         end else begin
+            // Registered raw FIFO beat count (the trigger + cap both use it).
+            r_fifo_beats <= beats_in_fifo;
             // ---- stage 1: window test + per-cap geometry off r_wr_addr.
             // beats_to_limit = ((limit - geom - 7) >> 3) + 1 when it fits,
             // else 0 -- computed without the +1 overflow the legacy form
@@ -770,24 +838,34 @@ module monbus_group_core
             // ---- stage 3: round the geometry cap down to whole records
             // (keeps the memory image on record boundaries) + effective
             // start address (rewind to base when out of window or a record
-            // doesn't fit by geometry).
+            // doesn't fit by geometry). The /3 uses the magic-number
+            // reciprocal (floor_div3) so it stays a single shallow multiply.
             begin : stage3
                 logic [15:0] units;
                 logic        rew;
-                units = (BEATS_PER_UNIT == 1)
+                units = (w_beats_per_unit == 16'd1)
                       ? s2_beats_planned
-                      : (s2_beats_planned / 16'd3) * 16'd3;
-                rew   = !s2_in_window || (units < 16'(BEATS_PER_UNIT));
+                      : (floor_div3(s2_beats_planned) * 16'd3);
+                rew   = !s2_in_window || (units < w_beats_per_unit);
                 r_plan_geo_units <= units;
                 r_plan_addr      <= rew ? cfg_base_addr : s2_wr_addr;
-                r_plan_ok        <= (units >= 16'(BEATS_PER_UNIT));
+                r_plan_ok        <= (units >= w_beats_per_unit);
             end
         end
     )
 
-    // Triggers: watermark / timeout (short combinational paths).
-    assign have_one_unit            = (beats_in_fifo >= 16'(BEATS_PER_UNIT));
-    assign flush_trigger_watermark  = (beats_in_fifo >= cfg_flush_watermark);
+    // Whole-record FIFO cap, combinationally off the REGISTERED raw count
+    // (r_fifo_beats) -- short, local path, magic-number /3 in LUTs. Both the
+    // trigger and the commit derive from r_fifo_beats so they agree.
+    logic [15:0] w_fifo_units;
+    assign w_fifo_units = w_use_comp ? r_fifo_beats
+                                     : (floor_div3(r_fifo_beats) * 16'd3);
+
+    // Triggers: watermark / timeout (short combinational paths). Watermark
+    // uses the SAME registered count the cap uses (r_fifo_beats) -- a fresh
+    // trigger against a registered cap shorted the burst (21/24).
+    assign have_one_unit            = (w_fifo_units >= w_beats_per_unit);
+    assign flush_trigger_watermark  = (r_fifo_beats >= cfg_flush_watermark);
     assign flush_trigger_timeout    = (r_timeout_cnt >= 32'(FLUSH_TIMEOUT_CYCLES));
 
     assign do_flush = (flush_trigger_watermark || flush_trigger_timeout) && have_one_unit;
@@ -859,22 +937,18 @@ module monbus_group_core
 
             case (r_wr_state)
                 WR_IDLE: begin
-                    // Consume the pre-computed ADDRESS plan (r_plan_*) but
-                    // apply the FRESH FIFO-occupancy cap here so the burst
-                    // drains everything currently queued. geom_valid
-                    // guarantees the address plan was computed from the
-                    // settled r_wr_addr; r_plan_addr handles the out-of-
-                    // window rewind to cfg_base_addr.
+                    // Consume the pre-computed ADDRESS plan (r_plan_*) and
+                    // the whole-record FIFO cap (w_fifo_units, off the
+                    // registered raw count) so the burst drains what is
+                    // queued. geom_valid guarantees the address plan was
+                    // computed from the settled r_wr_addr; r_plan_addr
+                    // handles the out-of-window rewind to cfg_base_addr.
                     if (do_flush && geom_valid && r_plan_ok) begin
-                        logic [15:0] fifo_units;    // fresh whole-record FIFO cap
                         logic [15:0] total_units;   // beats this drain cycle
                         logic [15:0] first_sub_burst;
 
-                        fifo_units = (BEATS_PER_UNIT == 1)
-                                   ? beats_in_fifo
-                                   : (beats_in_fifo / 16'd3) * 16'd3;
-                        total_units = (r_plan_geo_units < fifo_units)
-                                    ? r_plan_geo_units : fifo_units;
+                        total_units = (r_plan_geo_units < w_fifo_units)
+                                    ? r_plan_geo_units : w_fifo_units;
                         first_sub_burst = (total_units < 16'(MAX_BURST_BEATS))
                                         ? total_units
                                         : 16'(MAX_BURST_BEATS);

@@ -152,6 +152,9 @@ class MonbusAxilAxilGroupTB(TBBase):
         # writer. With a beat-granular FIFO, watermark=1 means a single
         # compressed-mode slot in the FIFO triggers a flush immediately.
         self.dut.cfg_flush_watermark.value = 1
+        # Compression is now runtime-selected; this group is built with the
+        # compressor hardware present (USE_COMPRESSION=1), so enable it.
+        self.dut.cfg_compress_en.value = 1
         self._tie_off_config()
         # Reset pulse.
         self.dut.axi_aresetn.value = 0
