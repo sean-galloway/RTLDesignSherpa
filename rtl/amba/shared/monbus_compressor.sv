@@ -43,29 +43,32 @@
 //
 // Internal state
 // --------------
-//   r_last_ts (60 bits)  -- timestamp of last record encoded
+//   per-template last_ts -- each CAM entry stores its own last timestamp
+//                           (low TS_STORE_BITS); delta_ts is measured per
+//                           template, so interleaved sources don't escape
 //   monbus_cam            -- 32-entry LRU CAM (sub-instance)
 //   FSM                   -- 3 states: IDLE / RAW1 / RAW2
 //
-// Pipeline (2 stages)
+// Pipeline (3 stages)
 // -------------------
-// Stage 1 (lookup/commit): key build -> CAM lookup -> CAM commit + last_ts
-//          update. The CAM still does lookup+commit in a single cycle, so
-//          its update SEQUENCE (and the emitted slot stream) is bit-exact
-//          to the original single-cycle module.
-// Stage 2 (encode/emit): delta/fits/format-select -> slot pack -> output,
-//          plus RAW (tier-0) beat expansion.
+// Stage 1 (lookup/commit, p_*): key build -> CAM lookup -> CAM commit (incl.
+//          this record's per-template timestamp). The CAM still does
+//          lookup+commit in a single cycle, so its update SEQUENCE (and the
+//          emitted slot stream) is bit-exact to the original module.
+// Stage 2a (encode register, q_*): delta/fits/format-select -> slot pack,
+//          REGISTERED. Registering the format decision keeps the 65-bit
+//          format-C ed_delta + fits off the stage-1 commit / input-handshake
+//          path -- that fused path was the 100 MHz critical path.
+// Stage 2b (output): drive the slot(s); RAW (tier-0) beat expansion.
 //
-// Throughput is unchanged from the single-cycle design:
+// Throughput is unchanged:
 //   Tier-1 records: 1 record/cycle (1 slot out).
 //   Tier-0 records: 1 record / 3 cycles (3 slots out).
-// The encode is one cycle of added latency only -- bandwidth is preserved.
+// The extra encode register adds one cycle of latency only -- bandwidth is
+// preserved, and the slot stream is identical (just delayed).
 //
-// Rationale: the fits/fmt/pack tail (a 65-bit signed subtract plus 60/64-bit
-// magnitude compares) was the 100 MHz critical path when fused with the CAM
-// lookup. Splitting it into stage 2 shortens both halves. There is no CAM
-// read-after-write hazard because the commit (action = hit ? TOUCH :
-// INSTALL) depends only on the stage-1 lookup, not on the stage-2 format.
+// No CAM read-after-write hazard: the commit (action = hit ? TOUCH : INSTALL)
+// depends only on the stage-1 lookup, not on the registered format decision.
 //
 // Statistics
 // ----------
@@ -150,13 +153,29 @@ module monbus_compressor
                      in_channel_id, in_agent_id, in_unit_id};
 
     // ------------------------------------------------------------------------
-    // Last timestamp register + delta computation.
+    // Per-template delta computation.
+    //
+    // delta_ts is measured against the matched template's OWN last timestamp
+    // (stored per CAM entry), NOT a single global last_ts. With multiple
+    // interleaved monitor sources (e.g. N channels) a global delta hops
+    // between sources and wraps negative, forcing ~1/3 of records to RAW;
+    // each source's own stream is monotonic, so a per-template delta stays
+    // small and positive and fits Tier-1. Only the low TS_STORE_BITS of the
+    // timestamp are kept per entry (enough to represent + detect-overflow any
+    // realistic in-template gap; gaps >= 2^TS_STORE_BITS cycles are beyond a
+    // run and would mis-compress, same caveat as any delta scheme).
     // ------------------------------------------------------------------------
-    logic [TS_BITS-1:0] r_last_ts;
-    logic [TS_BITS-1:0] in_src_ts60;
-    logic [TS_BITS-1:0] delta_ts;
-    assign in_src_ts60 = in_source_ts[TS_BITS-1:0];
-    assign delta_ts    = in_src_ts60 - r_last_ts;
+    localparam int TS_STORE_BITS = 24;
+    logic [TS_BITS-1:0]        in_src_ts60;
+    logic [TS_STORE_BITS-1:0]  in_src_ts_lo;
+    logic [TS_STORE_BITS-1:0]  cam_access_old_ts;
+    logic [TS_BITS-1:0]        delta_ts;
+    assign in_src_ts60  = in_source_ts[TS_BITS-1:0];
+    assign in_src_ts_lo = in_src_ts60[TS_STORE_BITS-1:0];
+    // Per-template delta (valid on a hit; on a miss the record goes RAW and
+    // delta_ts is unused). Zero-extended to TS_BITS for the fits checks.
+    assign delta_ts = {{(TS_BITS-TS_STORE_BITS){1'b0}},
+                       (in_src_ts_lo - cam_access_old_ts)};
 
     // ------------------------------------------------------------------------
     // CAM instance.
@@ -177,6 +196,7 @@ module monbus_compressor
     monbus_cam #(
         .KEY_WIDTH  (KEY_WIDTH),
         .DATA_WIDTH (64),
+        .TS_WIDTH   (TS_STORE_BITS),
         .DEPTH      (CAM_DEPTH)
     ) u_cam (
         .clk             (clk),
@@ -185,8 +205,10 @@ module monbus_compressor
         .access_hit      (cam_access_hit),
         .access_idx      (cam_access_idx),
         .access_old_data (cam_access_old_data),
+        .access_old_ts   (cam_access_old_ts),
         .access_action   (cam_access_action),
         .access_new_data (cam_access_new_data),
+        .access_new_ts   (in_src_ts_lo),
         .cam_full        (cam_full),
         .cam_count       (cam_count),
         .evicted         (cam_evicted)
@@ -222,8 +244,8 @@ module monbus_compressor
     localparam logic [1:0] BEAT1 = 2'd1;   // RAW pkt_hi
     localparam logic [1:0] BEAT2 = 2'd2;   // RAW pkt_lo
 
-    logic                     p_valid;      // stage 2 holds a record
-    logic [1:0]               r_beat;       // current output beat
+    // Stage 1 (lookup result, held until the encode stage takes it).
+    logic                     p_valid;
     logic                     p_hit;
     logic [TMPL_IDX_BITS-1:0] p_idx;
     logic [63:0]              p_old_data;
@@ -231,6 +253,16 @@ module monbus_compressor
     logic [63:0]              p_event_data;
     logic [TS_BITS-1:0]       p_src_ts60;
     logic [127:0]             p_packet;
+
+    // Stage 2a (REGISTERED encode result). Registering the format decision
+    // here keeps the 65-bit format-C ed_delta + fits/fmt off the stage-1 CAM
+    // commit / input-handshake path (it was the 100 MHz worst path). The
+    // output handshake below uses q_is_raw (registered), not the live fmt.
+    logic                     q_valid;
+    logic                     q_is_raw;     // 1 = RAW (3 beats), 0 = tier-1 (1 beat)
+    logic [63:0]              q_beat0;      // tier-1 slot, or RAW ts beat
+    logic [127:0]             q_packet;     // RAW beats 1/2
+    logic [1:0]               r_beat;       // stage-2b output beat counter
 
     // ------------------------------------------------------------------------
     // Stage 2: format-fit decisions (combinational on the REGISTERED stage-1
@@ -317,36 +349,41 @@ module monbus_compressor
     end
 
     // ------------------------------------------------------------------------
-    // Stage 2 output mux. Tier-1 emits beat 0 only; tier-0 (RAW) emits
-    // beat0 (ts), beat1 (pkt_hi), beat2 (pkt_lo) over three cycles.
+    // Stage 2b output mux (from the REGISTERED encode result q_*). Tier-1
+    // emits beat 0 only; RAW emits beat0 (ts), beat1 (pkt_hi), beat2 (pkt_lo).
     // ------------------------------------------------------------------------
     always_comb begin
-        out_valid = p_valid;
+        out_valid = q_valid;
         unique case (r_beat)
-            BEAT0:   out_slot = beat0_slot;
-            BEAT1:   out_slot = p_packet[127:64];
-            BEAT2:   out_slot = p_packet[63:0];
+            BEAT0:   out_slot = q_beat0;
+            BEAT1:   out_slot = q_packet[127:64];
+            BEAT2:   out_slot = q_packet[63:0];
             default: out_slot = 64'h0;
         endcase
     end
 
-    // Stage 2 retires (and can take a new record) when it consumes its last
-    // beat: beat0 for tier-1, beat2 for tier-0 (RAW).
-    logic s2_retire;
-    logic s2_can_load;
+    // Handshake. q (stage 2b) retires when it emits its last beat (beat0 for
+    // tier-1, beat2 for RAW); then it can take p's encoded record (q_can_load);
+    // then stage 1 (and the CAM commit) can accept a new input (p_can_load).
+    // q_is_raw is REGISTERED, so none of this passes through the format-C
+    // ed_delta -- that was the 100 MHz worst path.
+    logic q_retire;
+    logic q_can_load;
+    logic p_can_load;
+    logic enc_commit;     // a record is encoded into q this cycle
     logic accept;
-    assign s2_retire   = p_valid && out_ready &&
-                         (((r_beat == BEAT0) && (fmt_sel != FMT_RAW)) ||
-                          (r_beat == BEAT2));
-    assign s2_can_load = (!p_valid) || s2_retire;
-    assign in_ready    = s2_can_load;
-    assign accept      = in_valid && in_ready;
+    assign q_retire   = q_valid && out_ready &&
+                        (((r_beat == BEAT0) && !q_is_raw) || (r_beat == BEAT2));
+    assign q_can_load = (!q_valid) || q_retire;
+    assign enc_commit = p_valid && q_can_load;
+    assign p_can_load = (!p_valid) || q_can_load;
+    assign in_ready   = p_can_load;
+    assign accept     = in_valid && in_ready;
 
     // ------------------------------------------------------------------------
     // Stage 1 CAM commit (only when we accept a record). The action depends
-    // SOLELY on hit/miss -- independent of the stage-2 format decision -- so
-    // the CAM remains a single-cycle lookup+commit and the update order is
-    // identical to the original module.
+    // SOLELY on hit/miss -- independent of the format decision -- so the CAM
+    // stays a single-cycle lookup+commit and the update order is unchanged.
     //   hit  -> TOUCH the matched entry with event_data (move-to-front).
     //   miss -> INSTALL the new entry at MRU (evict LRU if full).
     // ------------------------------------------------------------------------
@@ -360,13 +397,13 @@ module monbus_compressor
     end
 
     // ------------------------------------------------------------------------
-    // Pipeline sequential update (stage-1 latch + last_ts + RAW beat walk).
+    // Pipeline sequential update: stage 1 lookup latch, stage 2a encode
+    // register, stage 2b output beat walk. (Per-template last_ts lives in the
+    // CAM via access_new_ts.)
     // ------------------------------------------------------------------------
     `ALWAYS_FF_RST(clk, rst_n,
         if (`RST_ASSERTED(rst_n)) begin
             p_valid      <= 1'b0;
-            r_beat       <= BEAT0;
-            r_last_ts    <= '0;
             p_hit        <= 1'b0;
             p_idx        <= '0;
             p_old_data   <= '0;
@@ -374,13 +411,16 @@ module monbus_compressor
             p_event_data <= '0;
             p_src_ts60   <= '0;
             p_packet     <= '0;
+            q_valid      <= 1'b0;
+            q_is_raw     <= 1'b0;
+            q_beat0      <= '0;
+            q_packet     <= '0;
+            r_beat       <= BEAT0;
         end else begin
+            // ---- Stage 1: accept a new record (the CAM commits this cycle,
+            // incl. this record's timestamp via access_new_ts).
             if (accept) begin
-                // Stage 1 accepts a record: commit happens on the CAM port
-                // this cycle; latch the lookup result + advance last_ts.
-                r_last_ts    <= in_src_ts60;
                 p_valid      <= 1'b1;
-                r_beat       <= BEAT0;
                 p_hit        <= cam_access_hit;
                 p_idx        <= cam_access_idx;
                 p_old_data   <= cam_access_old_data;
@@ -388,12 +428,23 @@ module monbus_compressor
                 p_event_data <= in_event_data;
                 p_src_ts60   <= in_src_ts60;
                 p_packet     <= in_packet;
-            end else if (s2_retire) begin
-                // Stage 2 emptied with no new record to load.
+            end else if (enc_commit) begin
+                // p's record moved into q with nothing new to take its place.
                 p_valid <= 1'b0;
-            end else if (p_valid && out_ready) begin
-                // Mid-RAW beat advance (BEAT0 -> BEAT1 -> BEAT2). BEAT2's
-                // retire is handled by the s2_retire branch above.
+            end
+
+            // ---- Stage 2a: register the encode result when q takes p's
+            // record (reads this cycle's combinational fmt_sel / beat0_slot).
+            if (enc_commit) begin
+                q_valid  <= 1'b1;
+                q_is_raw <= (fmt_sel == FMT_RAW);
+                q_beat0  <= beat0_slot;
+                q_packet <= p_packet;
+                r_beat   <= BEAT0;
+            end else if (q_retire) begin
+                q_valid <= 1'b0;
+            end else if (q_valid && out_ready) begin
+                // ---- Stage 2b: RAW beat advance (BEAT0 -> BEAT1 -> BEAT2).
                 if (r_beat == BEAT0)      r_beat <= BEAT1;
                 else if (r_beat == BEAT1) r_beat <= BEAT2;
             end
@@ -412,10 +463,8 @@ module monbus_compressor
     logic [31:0] r_event_data_ovf;
     logic [31:0] r_ed_delta_ovf;
 
-    // Fires exactly once per record, the cycle stage 2 emits its beat 0.
-    logic s2_emit_beat0;
-    assign s2_emit_beat0 = p_valid && (r_beat == BEAT0) && out_ready;
-
+    // Counted once per record, the cycle it is encoded into q (enc_commit),
+    // using that cycle's combinational fmt_sel / p_* values.
     `ALWAYS_FF_RST(clk, rst_n,
         if (`RST_ASSERTED(rst_n)) begin
             r_tier1_a        <= '0;
@@ -426,7 +475,7 @@ module monbus_compressor
             r_delta_ts_ovf   <= '0;
             r_event_data_ovf <= '0;
             r_ed_delta_ovf   <= '0;
-        end else if (s2_emit_beat0) begin
+        end else if (enc_commit) begin
             unique case (fmt_sel)
                 FMT_A: r_tier1_a <= r_tier1_a + 1;
                 FMT_B: r_tier1_b <= r_tier1_b + 1;

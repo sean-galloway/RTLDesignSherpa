@@ -90,6 +90,7 @@
 module monbus_cam #(
     parameter int KEY_WIDTH  = 49,      // template-key width
     parameter int DATA_WIDTH = 64,      // payload width (last_event_data)
+    parameter int TS_WIDTH   = 24,      // per-entry last_ts width (per-template delta_ts)
     parameter int DEPTH      = 32,      // number of CAM entries (locked spec: 32)
     // localparams
     parameter int IDX_WIDTH  = (DEPTH > 1) ? $clog2(DEPTH) : 1,
@@ -103,6 +104,7 @@ module monbus_cam #(
     output logic                    access_hit,
     output logic [IDX_WIDTH-1:0]    access_idx,      // LRU position rank, valid only when access_hit
     output logic [DATA_WIDTH-1:0]   access_old_data, // last_event_data at access_idx, valid only when access_hit
+    output logic [TS_WIDTH-1:0]     access_old_ts,   // last_ts at access_idx, valid only when access_hit
 
     // Commit (sampled on rising edge; takes effect cycle N+1):
     // 2'b00 ACTION_NONE     -- no state change
@@ -111,6 +113,7 @@ module monbus_cam #(
     // 2'b11 reserved
     input  logic [1:0]              access_action,
     input  logic [DATA_WIDTH-1:0]   access_new_data,
+    input  logic [TS_WIDTH-1:0]     access_new_ts,
 
     // === Status (combinational) ===
     output logic                    cam_full,
@@ -137,6 +140,7 @@ module monbus_cam #(
     logic                    r_valid [DEPTH];
     logic [KEY_WIDTH-1:0]    r_key   [DEPTH];
     logic [DATA_WIDTH-1:0]   r_data  [DEPTH];
+    logic [TS_WIDTH-1:0]     r_ts    [DEPTH];
     logic [CNT_WIDTH-1:0]    r_count;
 
     // ------------------------------------------------------------------------
@@ -156,11 +160,13 @@ module monbus_cam #(
         access_hit      = 1'b0;
         access_idx      = '0;
         access_old_data = '0;
+        access_old_ts   = '0;
         for (int i = DEPTH-1; i >= 0; i--) begin
             if (w_match_oh[i]) begin
                 access_hit      = 1'b1;
                 access_idx      = IDX_WIDTH'(i);
                 access_old_data = r_data[i];
+                access_old_ts   = r_ts[i];
             end
         end
     end
@@ -202,12 +208,14 @@ module monbus_cam #(
     logic                   do_shift;
     logic [KEY_WIDTH-1:0]   new_key;
     logic [DATA_WIDTH-1:0]  new_data;
+    logic [TS_WIDTH-1:0]    new_ts;
 
     always_comb begin
         do_shift = 1'b0;
         shift_to = '0;
         new_key  = access_key;
         new_data = access_new_data;
+        new_ts   = access_new_ts;
 
         unique case (access_action)
             ACTION_TOUCH: begin
@@ -233,6 +241,7 @@ module monbus_cam #(
                 r_valid[i] <= 1'b0;
                 r_key[i]   <= '0;
                 r_data[i]  <= '0;
+                r_ts[i]    <= '0;
             end
             r_count <= '0;
         end else if (do_shift) begin
@@ -240,6 +249,7 @@ module monbus_cam #(
             r_valid[0] <= 1'b1;
             r_key[0]   <= new_key;
             r_data[0]  <= new_data;
+            r_ts[0]    <= new_ts;
 
             // Slots 1..shift_to: shift down from i-1.
             for (int i = 1; i < DEPTH; i++) begin
@@ -247,6 +257,7 @@ module monbus_cam #(
                     r_valid[i] <= r_valid[i-1];
                     r_key[i]   <= r_key[i-1];
                     r_data[i]  <= r_data[i-1];
+                    r_ts[i]    <= r_ts[i-1];
                 end
                 // Slots above shift_to are unchanged (no else branch).
             end

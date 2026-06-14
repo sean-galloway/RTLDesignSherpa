@@ -76,6 +76,9 @@ TAG_FORMAT_B  = 0x2
 TAG_FORMAT_C  = 0x3
 
 TS_BITS       = 60                  # timestamp width in compressed beats
+TS_STORE      = 24                  # per-template last_ts width kept in the CAM
+                                    # (matches monbus_cam TS_WIDTH); delta_ts is
+                                    # computed modulo 2^TS_STORE
 DELTA_TS_A    = 15                  # format A: 15-bit delta_ts (~328 µs @ 100 MHz)
 DELTA_TS_B    = 23                  # format B: 23-bit delta_ts (~84 ms @ 100 MHz)
 DELTA_TS_C    = 15                  # format C: 15-bit delta_ts
@@ -150,6 +153,8 @@ class TemplateKey:
 class CamEntry:
     key:  TemplateKey
     last_event_data: int
+    last_ts: int = 0        # per-template last timestamp (encoder: low TS_STORE
+                            # bits, matches RTL; decoder: full absolute ts)
     hits: int = 0           # for stats
 
 
@@ -189,20 +194,22 @@ class Cam:
                 return 0
         return None
 
-    def install(self, key: TemplateKey, event_data: int) -> int:
+    def install(self, key: TemplateKey, event_data: int, last_ts: int = 0) -> int:
         """Install a new template (called on Tier-0 escape paths).
         Evicts the LRU entry if full. Returns the new index (always 0)."""
-        # If already present, just update event_data and move-to-front.
+        # If already present, just update event_data/last_ts and move-to-front.
         for i, e in enumerate(self.entries):
             if e.key == key:
                 e.last_event_data = event_data
+                e.last_ts = last_ts
                 e.hits += 1
                 self.entries.insert(0, self.entries.pop(i))
                 return 0
         # Insert at head; evict LRU (tail) if full.
         if len(self.entries) >= self.size:
             self.entries.pop()
-        self.entries.insert(0, CamEntry(key=key, last_event_data=event_data))
+        self.entries.insert(0, CamEntry(key=key, last_event_data=event_data,
+                                        last_ts=last_ts))
         return 0
 
     def update_event_data(self, idx: int, event_data: int):
@@ -269,12 +276,10 @@ class Encoder:
 
     def __init__(self, cam_size: int = DEFAULT_CAM_SIZE):
         self.cam = Cam(cam_size)
-        self.last_ts: int = 0
         self.stats = CompressorStats()
 
     def reset(self):
         self.cam.reset()
-        self.last_ts = 0
         self.stats = CompressorStats()
 
     def encode_one(self, packet: int, timestamp: int) -> List[int]:
@@ -285,27 +290,30 @@ class Encoder:
 
         key = _key_from_packet(packet)
         event_data = _field(packet, _EVENT_DATA_HI, _EVENT_DATA_LO)
-        delta_ts = (timestamp - self.last_ts) & ((1 << MONBUS_TS_WIDTH) - 1)
+        ts_lo = timestamp & ((1 << TS_STORE) - 1)
 
-        # Try CAM lookup (does NOT move-to-front; that's done by install
-        # for Tier-0 path, and we'll do it manually on Tier-1 hit below).
-        # We need a non-mutating lookup first to decide whether the
-        # candidate fits Tier-1; if it does we then commit via touch.
+        # Non-mutating lookup first so we can decide whether the candidate
+        # fits Tier-1; the move-to-front commit is done via _touch (hit) or
+        # install (miss) below.
         idx = self._cam_peek(key)
 
         if idx is not None:
+            # Per-template delta_ts: measured against THIS template's own last
+            # timestamp (CAM entry, low TS_STORE bits), not a global last_ts.
+            # Matches the RTL: (in_src_ts_lo - cam_access_old_ts) mod 2^TS_STORE.
+            old_ts = self.cam.entries[idx].last_ts
+            delta_ts = (ts_lo - old_ts) & ((1 << TS_STORE) - 1)
+
             # Format A: small delta_ts + small absolute event_data
             if delta_ts < (1 << DELTA_TS_A) and event_data < (1 << EVENT_DATA_A):
-                self._touch(idx, event_data)
-                self.last_ts = timestamp
+                self._touch(idx, event_data, ts_lo)
                 self.stats.tier1_a_hits += 1
                 self.stats.slots_emitted += 1
                 return [self._pack_format_a(idx, delta_ts, event_data)]
 
             # Format B: big delta_ts + smaller absolute event_data
             if delta_ts < (1 << DELTA_TS_B) and event_data < (1 << EVENT_DATA_B):
-                self._touch(idx, event_data)
-                self.last_ts = timestamp
+                self._touch(idx, event_data, ts_lo)
                 self.stats.tier1_b_hits += 1
                 self.stats.slots_emitted += 1
                 return [self._pack_format_b(idx, delta_ts, event_data)]
@@ -317,8 +325,7 @@ class Encoder:
                 lo = -(1 << (EVENT_DATA_C_DELTA - 1))
                 hi = (1 << (EVENT_DATA_C_DELTA - 1))
                 if lo <= ed_delta < hi:
-                    self._touch(idx, event_data)
-                    self.last_ts = timestamp
+                    self._touch(idx, event_data, ts_lo)
                     self.stats.tier1_c_hits += 1
                     self.stats.slots_emitted += 1
                     return [self._pack_format_c(idx, delta_ts, ed_delta)]
@@ -333,9 +340,9 @@ class Encoder:
         else:
             self.stats.bump_escape(EscapeReason.CAM_MISS)
 
-        # Tier-0 escape (raw 3-beat record).
-        self.cam.install(key, event_data)
-        self.last_ts = timestamp
+        # Tier-0 escape (raw 3-beat record). Install records this template's
+        # timestamp so its next occurrence gets a per-template delta.
+        self.cam.install(key, event_data, ts_lo)
         self.stats.tier0_escapes += 1
         self.stats.slots_emitted += 3
         return self._pack_raw(packet, timestamp)
@@ -353,11 +360,12 @@ class Encoder:
                 return i
         return None
 
-    def _touch(self, idx: int, new_event_data: int):
-        """Move CAM[idx] to front and update last_event_data — same
+    def _touch(self, idx: int, new_event_data: int, new_ts: int):
+        """Move CAM[idx] to front and update last_event_data + last_ts — same
         bookkeeping the decoder will do on the matching hit."""
         e = self.cam.entries.pop(idx)
         e.last_event_data = new_event_data
+        e.last_ts = new_ts
         e.hits += 1
         self.cam.entries.insert(0, e)
 
@@ -410,11 +418,11 @@ class Decoder:
 
     def __init__(self, cam_size: int = DEFAULT_CAM_SIZE):
         self.cam = Cam(cam_size)
-        self.last_ts: int = 0
+        # Per-template last_ts now lives in the CAM entries (full absolute ts,
+        # since the decoder reconstructs the absolute timestamp). No global.
 
     def reset(self):
         self.cam.reset()
-        self.last_ts = 0
 
     def decode(self, slots: Iterable[int]) -> Iterator[Tuple[int, int]]:
         """Decode a stream of 64-bit slots into (packet, timestamp) tuples."""
@@ -431,8 +439,9 @@ class Decoder:
                 # Mirror encoder: install template in CAM.
                 key = _key_from_packet(packet)
                 event_data = _field(packet, _EVENT_DATA_HI, _EVENT_DATA_LO)
-                self.cam.install(key, event_data)
-                self.last_ts = ts60
+                # Store the FULL absolute ts so this template's next (Tier-1)
+                # occurrence reconstructs as last_ts + delta_ts.
+                self.cam.install(key, event_data, last_ts=ts60)
                 yield packet, ts60
 
             elif tag == TAG_FORMAT_A:
@@ -471,13 +480,15 @@ class Decoder:
             unit_id     = e.key.unit_id,
             event_data  = event_data,
         )
-        ts = (self.last_ts + delta_ts) & ((1 << MONBUS_TS_WIDTH) - 1)
-        # Move-to-front + update event_data, mirroring encoder's _touch.
+        # Per-template reconstruction: absolute ts = this template's previous
+        # absolute ts + delta_ts (the field is the exact gap, < 2^field).
+        ts = (e.last_ts + delta_ts) & ((1 << MONBUS_TS_WIDTH) - 1)
+        # Move-to-front + update event_data/last_ts, mirroring encoder's _touch.
         self.cam.entries.pop(idx)
         e.last_event_data = event_data
+        e.last_ts = ts
         e.hits += 1
         self.cam.entries.insert(0, e)
-        self.last_ts = ts
         return packet, ts
 
 

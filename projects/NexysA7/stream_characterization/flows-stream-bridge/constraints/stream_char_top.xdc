@@ -326,3 +326,19 @@ set_property CFGBVS VCCO [current_design]
 set_property BITSTREAM.GENERAL.COMPRESS TRUE [current_design]
 set_property BITSTREAM.CONFIG.CONFIGRATE 33 [current_design]
 set_property BITSTREAM.CONFIG.SPI_BUSWIDTH 4 [current_design]
+
+##==============================================================================
+## Floorplan — separate MonBus group from the AXI monitors
+##==============================================================================
+## The per-template delta_ts CAM enlarged the monbus group, which was spilling
+## into the desc-monitor's column (X1) and forcing the monitor to spread, so its
+## internal trans_mgr/u_cam -> r_alloc_cnt path became route-dominated and missed
+## setup (~-0.30 ns). Pin the monbus group to the left-top clock regions (where it
+## already mostly lands) and out of column X1, freeing the monitor to recompact.
+## The monitor->group monbus crossing is registered through u_comp_in_skid, so the
+## longer inter-region hop is a registered (not combinational) path.
+create_pblock pblock_monbus
+add_cells_to_pblock pblock_monbus [get_cells u_harness/u_stream/g_monbus_axil.u_monbus_axil_group]
+resize_pblock pblock_monbus -add {CLOCKREGION_X0Y2:CLOCKREGION_X0Y3}
+## Placement-only: let routes leave the region (the crossing is registered).
+set_property CONTAIN_ROUTING 0 [get_pblocks pblock_monbus]
