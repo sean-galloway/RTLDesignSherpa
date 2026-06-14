@@ -70,13 +70,24 @@ class CfgRdlGenerator:
         pack_idx = 0
         pending = None  # (base, width)
         for base, width in self.mon_group_cfg:
-            if width == 32:
-                regs.append({
-                    'reg': f"MON_GROUP_{base.upper()}",
-                    'desc': f"mon_group {base} (32-bit)",
-                    'width': 32,
-                    'field': base,
-                })
+            if width in (1, 32):
+                if width == 32:
+                    regs.append({
+                        'reg': f"MON_GROUP_{base.upper()}",
+                        'desc': f"mon_group {base} (32-bit)",
+                        'width': 32,
+                        'field': base,
+                    })
+                else:  # width == 1: solo 1-bit register
+                    regs.append({
+                        'reg': f"MON_GROUP_{base.upper()}",
+                        'desc': f"mon_group {base} (1-bit)",
+                        'width': 1,
+                        'field': base,
+                        # Default compression ON (project rule: monitors in
+                        # use => compress). Harmless when no compressor HW.
+                        'reset': "1'h1",
+                    })
                 if pending is not None:
                     regs.append({
                         'reg': f"MON_GROUP_PACK_{pack_idx}",

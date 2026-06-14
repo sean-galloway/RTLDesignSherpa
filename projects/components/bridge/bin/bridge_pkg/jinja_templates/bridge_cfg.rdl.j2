@@ -135,6 +135,8 @@ addrmap {{ bridge_name }}_cfg {
         desc = "{{ entry.desc }}";
 {% if entry.width == 32 %}
         field { reset = 32'h00000000; } {{ entry.field }}[31:0];
+{% elif entry.width == 1 %}
+        field { reset = {{ entry.reset }}; } {{ entry.field }}[0:0];
 {% else %}
 {% for f in entry.fields %}
         field { reset = 16'h0000; } {{ f.name }}[{{ f.hi }}:{{ f.lo }}];

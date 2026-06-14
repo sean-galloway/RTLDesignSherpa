@@ -354,6 +354,12 @@ class BridgeModuleGenerator:
         ('core_thresh_mask',    16),
         ('core_perf_mask',      16),
         ('core_debug_mask',     16),
+        # Runtime compression enable (1-bit). Appended LAST so the existing
+        # 16-bit pack-register layout is undisturbed; it gets its own solo
+        # MON_GROUP_COMPRESS_EN register. Effective only when the group is
+        # built with USE_COMPRESSION=1 (compressor present); a harmless
+        # config bit otherwise.
+        ('compress_en',          1),
     )
 
     # Monbus group ADDR_WIDTH at the bridge top (matches the historical

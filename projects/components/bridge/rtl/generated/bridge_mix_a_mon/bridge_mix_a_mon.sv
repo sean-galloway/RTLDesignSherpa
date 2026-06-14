@@ -452,6 +452,7 @@ module bridge_mix_a_mon #(
     input  logic [15:0] cfg_mon_group_core_thresh_mask,
     input  logic [15:0] cfg_mon_group_core_perf_mask,
     input  logic [15:0] cfg_mon_group_core_debug_mask,
+    input  logic         cfg_mon_group_compress_en,
     // IRQ (asserted while error FIFO non-empty)
     output logic        mon_irq_out
 );
@@ -1801,6 +1802,7 @@ module bridge_mix_a_mon #(
         .cfg_core_thresh_mask     (cfg_mon_group_core_thresh_mask),
         .cfg_core_perf_mask     (cfg_mon_group_core_perf_mask),
         .cfg_core_debug_mask     (cfg_mon_group_core_debug_mask),
+        .cfg_compress_en     (cfg_mon_group_compress_en),
         /* verilator lint_off PINCONNECTEMPTY */
         .err_fifo_full     (),
         .write_fifo_full   (),

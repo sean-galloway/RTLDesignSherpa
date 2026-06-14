@@ -5,7 +5,7 @@ package bridge_1x2_rd_regblock_mon_cfg_pkg;
 
     localparam BRIDGE_1X2_RD_REGBLOCK_MON_CFG_DATA_WIDTH = 32;
     localparam BRIDGE_1X2_RD_REGBLOCK_MON_CFG_MIN_ADDR_WIDTH = 8;
-    localparam BRIDGE_1X2_RD_REGBLOCK_MON_CFG_SIZE = 'hcc;
+    localparam BRIDGE_1X2_RD_REGBLOCK_MON_CFG_SIZE = 'hd0;
 
     typedef struct {
         logic value;
@@ -776,6 +776,14 @@ package bridge_1x2_rd_regblock_mon_cfg_pkg;
     } bridge_1x2_rd_regblock_mon_cfg__MON_GROUP_PACK_12__out_t;
 
     typedef struct {
+        logic value;
+    } bridge_1x2_rd_regblock_mon_cfg__MON_GROUP_COMPRESS_EN__compress_en__out_t;
+
+    typedef struct {
+        bridge_1x2_rd_regblock_mon_cfg__MON_GROUP_COMPRESS_EN__compress_en__out_t compress_en;
+    } bridge_1x2_rd_regblock_mon_cfg__MON_GROUP_COMPRESS_EN__out_t;
+
+    typedef struct {
         bridge_1x2_rd_regblock_mon_cfg__CPU_RD_0_RD_CTRL__out_t CPU_RD_0_RD_CTRL;
         bridge_1x2_rd_regblock_mon_cfg__CPU_RD_0_RD_LATENCY__out_t CPU_RD_0_RD_LATENCY;
         bridge_1x2_rd_regblock_mon_cfg__CPU_RD_0_RD_MASKS_A__out_t CPU_RD_0_RD_MASKS_A;
@@ -827,5 +835,6 @@ package bridge_1x2_rd_regblock_mon_cfg_pkg;
         bridge_1x2_rd_regblock_mon_cfg__MON_GROUP_PACK_10__out_t MON_GROUP_PACK_10;
         bridge_1x2_rd_regblock_mon_cfg__MON_GROUP_PACK_11__out_t MON_GROUP_PACK_11;
         bridge_1x2_rd_regblock_mon_cfg__MON_GROUP_PACK_12__out_t MON_GROUP_PACK_12;
+        bridge_1x2_rd_regblock_mon_cfg__MON_GROUP_COMPRESS_EN__out_t MON_GROUP_COMPRESS_EN;
     } bridge_1x2_rd_regblock_mon_cfg__out_t;
 endpackage
