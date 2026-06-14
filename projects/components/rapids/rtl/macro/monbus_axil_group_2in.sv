@@ -95,6 +95,9 @@ module monbus_axil_group_2in
     input  logic [ADDR_WIDTH-1:0]         cfg_base_addr,
     input  logic [ADDR_WIDTH-1:0]         cfg_limit_addr,
     input  logic [15:0]                   cfg_flush_watermark, // beats
+    // Runtime compression enable (effective only when USE_COMPRESSION==1).
+    // Brought to the top so it always traces back to a real config bit.
+    input  logic                          cfg_compress_en,
 
     // Per-protocol filtering
     input  logic [15:0]                   cfg_axi_pkt_mask,
@@ -228,6 +231,7 @@ module monbus_axil_group_2in
         .cfg_base_addr          (cfg_base_addr),
         .cfg_limit_addr         (cfg_limit_addr),
         .cfg_flush_watermark    (cfg_flush_watermark),
+        .cfg_compress_en        (cfg_compress_en),
 
         .cfg_axi_pkt_mask       (cfg_axi_pkt_mask),
         .cfg_axi_err_select     (cfg_axi_err_select),
