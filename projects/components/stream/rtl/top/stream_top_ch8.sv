@@ -77,6 +77,10 @@ module stream_top_ch8 #(
     // 2-cycle pipelined compressor CAM (timing margin on the route-bound
     // 32-way CAM match). +1 record latency; slot stream unchanged.
     parameter int USE_MON_CAM_PIPELINE = 0,
+    // Pipeline the AXI monitor's transaction CAM alloc-count (timing margin on
+    // the route-bound desc-monitor trans_mgr path). active_count lags 1 cycle;
+    // block_ready uses MAX-3. Default 0.
+    parameter int USE_MON_TRANS_CAM_PIPELINE = 0,
     // Engine-side outstanding queue (side-Q) depths. Defaulted to the
     // historical stream_core values so existing instantiations are unchanged.
     // Override at the next level up to sweep latency-tolerance.
@@ -1248,6 +1252,7 @@ module stream_top_ch8 #(
                 .AR_MAX_OUTSTANDING(AR_MAX_OUTSTANDING),
                 .AW_MAX_OUTSTANDING(AW_MAX_OUTSTANDING),
                 .USE_AXI_MONITORS(1),     // Enable monitors
+                .MON_TRANS_CAM_PIPELINE(USE_MON_TRANS_CAM_PIPELINE),
                 .DESC_MON_ENABLE_ERROR_LOGIC     (DESC_MON_ENABLE_ERROR_LOGIC),
                 .DESC_MON_ENABLE_TIMEOUT_LOGIC   (DESC_MON_ENABLE_TIMEOUT_LOGIC),
                 .DESC_MON_ENABLE_COMPL_LOGIC     (DESC_MON_ENABLE_COMPL_LOGIC),

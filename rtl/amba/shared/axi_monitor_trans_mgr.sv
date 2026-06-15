@@ -74,6 +74,11 @@ module axi_monitor_trans_mgr
     parameter bit IS_READ             = 1'b1, // 1 for read, 0 for write
     parameter bit IS_AXI              = 1'b1, // 1 for AXI, 0 for AXI-Lite
     parameter bit ENABLE_PERF_PACKETS = 1'b0, // Enable performance metrics tracking
+    // 1 = register the alloc/cleanup one-hot vectors BEFORE the popcount adder
+    // trees, cutting the route-bound match -> alloc -> active_count path. Adds
+    // ONE cycle of latency to active_count, so the caller must widen its
+    // block_ready margin (MAX-3 instead of MAX-2). Default 0 = unchanged.
+    parameter bit TRANS_CAM_PIPELINE  = 1'b0,
 
     // Short params (kept for API compatibility with the production module)
     parameter int AW                  = ADDR_WIDTH,
@@ -518,19 +523,50 @@ module axi_monitor_trans_mgr
     logic [$clog2(N+1)-1:0] r_cleanup_cnt;
     logic [7:0]             r_active_count;
 
+    // Alloc/cleanup one-hot vectors feeding the popcount adder trees. When
+    // TRANS_CAM_PIPELINE, these are registered (q) so the popcount no longer
+    // sits on the route-bound match -> alloc critical path. alloc and cleanup
+    // are registered by the SAME amount so the active_count accounting (alloc -
+    // cleanup) stays consistent -- it just lags one extra cycle overall.
+    logic [N-1:0] w_cleanup_vec;
+    logic [N-1:0] q_addr_alloc_oh, q_data_alloc_oh, q_resp_alloc_oh, q_cleanup_vec;
+    always_comb begin
+        for (int i = 0; i < N; i++)
+            w_cleanup_vec[i] = cam_entry_valid[i] && w_can_cleanup[i];
+    end
+    generate
+    if (TRANS_CAM_PIPELINE) begin : gen_cnt_pipe
+        `ALWAYS_FF_RST(aclk, aresetn,
+            if (`RST_ASSERTED(aresetn)) begin
+                q_addr_alloc_oh <= '0; q_data_alloc_oh <= '0;
+                q_resp_alloc_oh <= '0; q_cleanup_vec   <= '0;
+            end else begin
+                q_addr_alloc_oh <= addr_alloc_oh;
+                q_data_alloc_oh <= data_alloc_oh;
+                q_resp_alloc_oh <= resp_alloc_oh;
+                q_cleanup_vec   <= w_cleanup_vec;
+            end
+        )
+    end else begin : gen_cnt_comb
+        assign q_addr_alloc_oh = addr_alloc_oh;
+        assign q_data_alloc_oh = data_alloc_oh;
+        assign q_resp_alloc_oh = resp_alloc_oh;
+        assign q_cleanup_vec   = w_cleanup_vec;
+    end
+    endgenerate
+
     always_comb begin
         w_alloc_cnt = '0;
         for (int i = 0; i < N; i++) begin
             w_alloc_cnt = w_alloc_cnt +
-                          {{($clog2(N+1)-1){1'b0}}, addr_alloc_oh[i]} +
-                          {{($clog2(N+1)-1){1'b0}}, data_alloc_oh[i]} +
-                          {{($clog2(N+1)-1){1'b0}}, resp_alloc_oh[i]};
+                          {{($clog2(N+1)-1){1'b0}}, q_addr_alloc_oh[i]} +
+                          {{($clog2(N+1)-1){1'b0}}, q_data_alloc_oh[i]} +
+                          {{($clog2(N+1)-1){1'b0}}, q_resp_alloc_oh[i]};
         end
         w_cleanup_cnt = '0;
         for (int i = 0; i < N; i++) begin
             w_cleanup_cnt = w_cleanup_cnt +
-                            {{($clog2(N+1)-1){1'b0}},
-                             (cam_entry_valid[i] && w_can_cleanup[i])};
+                            {{($clog2(N+1)-1){1'b0}}, q_cleanup_vec[i]};
         end
     end
 

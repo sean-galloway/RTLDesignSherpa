@@ -55,6 +55,7 @@ module axi4_master_rd_mon
     parameter logic [7:0]  UNIT_ID  = 8'h01,     // 8-bit Unit ID for monitor packets
     parameter logic [15:0] AGENT_ID = 16'h000A,  // 16-bit Agent ID for monitor packets
     parameter int MAX_TRANSACTIONS  = 16,    // Maximum outstanding transactions to monitor
+    parameter bit TRANS_CAM_PIPELINE = 1'b0,  // pipeline trans_mgr alloc count (timing)
 
     // Filtering parameters
     parameter bit ENABLE_FILTERING  = 1,     // Enable packet filtering
@@ -299,6 +300,7 @@ module axi4_master_rd_mon
             .IS_READ                 (1'b1),             // This is a read monitor
             .IS_AXI                  (1'b1),             // AXI4 protocol
             .ENABLE_PERF_PACKETS     (1'b1),
+            .TRANS_CAM_PIPELINE      (TRANS_CAM_PIPELINE),
             .ENABLE_DEBUG_MODULE     (1'b0),
             .ENABLE_ERROR_LOGIC      (ENABLE_ERROR_LOGIC),
             .ENABLE_TIMEOUT_LOGIC    (ENABLE_TIMEOUT_LOGIC),

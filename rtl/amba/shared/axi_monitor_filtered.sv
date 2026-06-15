@@ -51,6 +51,7 @@ module axi_monitor_filtered
     parameter bit IS_READ                = 1'b1,
     parameter bit IS_AXI                 = 1'b1,
     parameter bit ENABLE_PERF_PACKETS    = 1'b1,
+    parameter bit TRANS_CAM_PIPELINE     = 1'b0,
     parameter bit ENABLE_DEBUG_MODULE    = 1'b0,
 
     // Reporter sub-block enables (passed through to axi_monitor_base).
@@ -215,6 +216,7 @@ module axi_monitor_filtered
         .ID_WIDTH                (ID_WIDTH),
         .IS_READ                 (IS_READ),
         .IS_AXI                  (IS_AXI),
+        .TRANS_CAM_PIPELINE      (TRANS_CAM_PIPELINE),
         .ENABLE_PERF_PACKETS     (ENABLE_PERF_PACKETS),
         .ENABLE_DEBUG_MODULE     (ENABLE_DEBUG_MODULE),
         .ENABLE_ERROR_LOGIC      (ENABLE_ERROR_LOGIC),
