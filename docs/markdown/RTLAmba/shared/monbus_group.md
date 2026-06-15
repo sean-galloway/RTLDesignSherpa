@@ -306,14 +306,25 @@ AXIL (`MAX_BURST_BEATS = 1`) and AXI4 masters in raw mode
   consecutive addresses. The memory image is identical to the AXI4
   case; only the address-channel handshake count differs.
 
-### Rewind on out-of-window addresses
+### Address-window behavior: **wrap, not saturate**
 
-If the pipeline finds `r_wr_addr` outside `[cfg_base_addr, cfg_limit_addr]`,
-or that no whole record fits in what remains of the window, it computes
-the geometry against a pre-rewound `geom_addr = cfg_base_addr`. The
-final `r_plan_addr` reflects that rewind, so the first AW after reset
-(when `r_wr_addr = 0`) doesn't deadlock and rolling past the window's
-end naturally wraps back to `cfg_base_addr`.
+The master-write address is **circular** within `[cfg_base_addr,
+cfg_limit_addr]`. When the writer rolls past the window's end (or starts
+out of window, e.g. `r_wr_addr = 0` immediately after reset), the
+geometry pipeline finds `r_wr_addr` outside `[cfg_base_addr,
+cfg_limit_addr]` and computes against a pre-rewound `geom_addr =
+cfg_base_addr`. The final `r_plan_addr` reflects that rewind — so the
+next burst starts at `cfg_base_addr` and the dump ring keeps moving
+forever.
+
+This is **not** a saturation behavior. The writer never stalls at
+`cfg_limit_addr`; it always wraps. Any host-side bookkeeping
+(SRAM-dump write pointer, ring-buffer position cursor, etc.) **must
+match this wrap behavior** — saturating a host-visible pointer at the
+SRAM cap will desynchronize it from the actual ring state. The
+`stream_char_harness.sv` debug pointer was fixed for exactly this
+reason on 2026-06-14 (`d82b1e04`); see that commit message for the
+hardware-confirmed symptom.
 
 ### mod-3 rounding (no `/3` operator)
 
