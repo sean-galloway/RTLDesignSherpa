@@ -13,7 +13,9 @@
 
 module monbus_halfbeat_dut
     import monitor_common_pkg::*;
-(
+#(
+    parameter int CAM_PIPELINE = 0
+) (
     input  logic                clk,
     input  logic                rst_n,
 
@@ -42,13 +44,31 @@ module monbus_halfbeat_dut
     logic        c_half_valid;
     logic [29:0] c_half_slot;
 
-    monbus_compressor #(.HALF_BEAT_EN(1)) u_compressor (
+    // Input skid (DEPTH=2) mirroring monbus_group_core's u_comp_in_skid: the
+    // compressor's in_ready drives the skid rd_ready, and the skid's registered
+    // rd_valid/wr_ready timing is what the group sees (the bare cosim driving
+    // in_valid directly does NOT exercise this).
+    localparam int CW = MONBUS_TS_WIDTH + MONBUS_PKT_WIDTH;
+    logic            sk_rd_valid, sk_rd_ready;
+    logic [CW-1:0]   sk_rd_data;
+    monitor_packet_t   c_in_packet;
+    monbus_timestamp_t c_in_source_ts;
+    gaxi_skid_buffer #(.DATA_WIDTH(CW), .DEPTH(2)) u_in_skid (
+        .axi_aclk(clk), .axi_aresetn(rst_n),
+        .wr_valid(in_valid), .wr_ready(in_ready),
+        .wr_data({in_source_ts, in_packet}), .count(),
+        .rd_valid(sk_rd_valid), .rd_ready(sk_rd_ready),
+        .rd_count(), .rd_data(sk_rd_data)
+    );
+    assign {c_in_source_ts, c_in_packet} = sk_rd_data;
+
+    monbus_compressor #(.HALF_BEAT_EN(1), .CAM_PIPELINE(CAM_PIPELINE)) u_compressor (
         .clk                 (clk),
         .rst_n               (rst_n),
-        .in_valid            (in_valid),
-        .in_ready            (in_ready),
-        .in_packet           (in_packet),
-        .in_source_ts        (in_source_ts),
+        .in_valid            (sk_rd_valid),
+        .in_ready            (sk_rd_ready),
+        .in_packet           (c_in_packet),
+        .in_source_ts        (c_in_source_ts),
         .out_valid           (c_out_valid),
         .out_ready           (c_out_ready),
         .out_slot            (c_out_slot),

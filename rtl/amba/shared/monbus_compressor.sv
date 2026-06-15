@@ -90,7 +90,13 @@ module monbus_compressor
     //     unchanged; the sideband just tells the packer when a tier-1 record
     //     also fits a 30-bit half-slot (and supplies it). All half logic
     //     constant-folds away when HALF_BEAT_EN==0.
-    parameter int HALF_BEAT_EN = 0
+    parameter int HALF_BEAT_EN = 0,
+    // 0 = single-cycle monbus_cam (default; committed, timing-directive path).
+    // 1 = 2-cycle monbus_cam_pipe: splits the route-bound compare ->
+    //     priority-encode -> move-to-front-shift chain across two cycles with a
+    //     depth-1 forwarding CAM + a credit-gated result skid (full throughput).
+    //     +1 record latency on the compression path; slot stream bit-identical.
+    parameter int CAM_PIPELINE = 0
 ) (
     input  logic                    clk,
     input  logic                    rst_n,
@@ -216,26 +222,141 @@ module monbus_compressor
     localparam logic [1:0] CAM_ACTION_TOUCH   = 2'b01;
     localparam logic [1:0] CAM_ACTION_INSTALL = 2'b10;
 
-    monbus_cam #(
-        .KEY_WIDTH  (KEY_WIDTH),
-        .DATA_WIDTH (64),
-        .TS_WIDTH   (TS_STORE_BITS),
-        .DEPTH      (CAM_DEPTH)
-    ) u_cam (
-        .clk             (clk),
-        .rst_n           (rst_n),
-        .access_key      (in_key),
-        .access_hit      (cam_access_hit),
-        .access_idx      (cam_access_idx),
-        .access_old_data (cam_access_old_data),
-        .access_old_ts   (cam_access_old_ts),
-        .access_action   (cam_access_action),
-        .access_new_data (cam_access_new_data),
-        .access_new_ts   (in_src_ts_lo),
-        .cam_full        (cam_full),
-        .cam_count       (cam_count),
-        .evicted         (cam_evicted)
-    );
+    // Stage-1 result registers (p_*) and the handshake signals the CAM
+    // generate below references. DECLARED HERE, before the generate, so there
+    // is no forward reference: tools that bind generate-scope identifiers to
+    // implicit local nets (Vivado) would otherwise create phantom wires that
+    // never connect to the module-level signals (sim/synth divergence). The
+    // pre-commit check (bin/check_sv_decl_order.py) enforces this.
+    logic                     p_valid;
+    logic                     p_hit;
+    logic [TMPL_IDX_BITS-1:0] p_idx;
+    logic [63:0]              p_old_data;
+    logic [TS_BITS-1:0]       p_delta_ts;
+    logic [63:0]              p_event_data;
+    logic [TS_BITS-1:0]       p_src_ts60;
+    logic [127:0]             p_packet;
+    logic                     enc_commit;   // a record is encoded into q this cycle
+    logic                     cam_en;       // path-1 present-to-CAM (driven in gen_cam_pipe)
+
+    generate
+    if (CAM_PIPELINE == 0) begin : gen_cam_single
+        monbus_cam #(
+            .KEY_WIDTH  (KEY_WIDTH),
+            .DATA_WIDTH (64),
+            .TS_WIDTH   (TS_STORE_BITS),
+            .DEPTH      (CAM_DEPTH)
+        ) u_cam (
+            .clk             (clk),
+            .rst_n           (rst_n),
+            .access_key      (in_key),
+            .access_hit      (cam_access_hit),
+            .access_idx      (cam_access_idx),
+            .access_old_data (cam_access_old_data),
+            .access_old_ts   (cam_access_old_ts),
+            .access_action   (cam_access_action),
+            .access_new_data (cam_access_new_data),
+            .access_new_ts   (in_src_ts_lo),
+            .cam_full        (cam_full),
+            .cam_count       (cam_count),
+            .evicted         (cam_evicted)
+        );
+        assign cam_en = 1'b0;   // unused in the single-cycle path
+    end else begin : gen_cam_pipe
+        // ---- 2-cycle pipelined CAM + credit-gated result skid ----
+        // Present a record to the CAM at cycle T (cam_en); its result and a
+        // record-aligned copy of the fields arrive at T+1 and are pushed into
+        // a 2-deep skid. p_* are driven combinationally from the skid output,
+        // so stage 2 (q) is unchanged. A credit counter (in-flight + skid
+        // occupancy) gates cam_en so every autonomous result has a slot.
+        localparam int SKID_DEPTH = 2;
+        // p_hit + p_idx + p_old_data + p_delta_ts + p_event_data + p_src_ts60 + p_packet
+        localparam int P_W = 1 + TMPL_IDX_BITS + 64 + TS_BITS + 64 + TS_BITS + 128;
+
+        logic                      pipe_res_valid;
+        logic                      pipe_res_hit;
+        logic [TMPL_IDX_BITS-1:0]  pipe_res_idx;
+        logic [63:0]               pipe_res_old_data;
+        logic [TS_STORE_BITS-1:0]  pipe_res_old_ts;
+
+        // Credit: records presented but not yet popped from the skid (cam_en
+        // is the top-level present signal, muxed into in_ready above).
+        logic [2:0]                r_credit;
+        logic                      pop;            // skid read handshake
+        assign cam_en = in_valid && (r_credit < 3'(SKID_DEPTH));
+
+        monbus_cam_pipe #(
+            .KEY_WIDTH(KEY_WIDTH), .DATA_WIDTH(64),
+            .TS_WIDTH(TS_STORE_BITS), .DEPTH(CAM_DEPTH)
+        ) u_cam_pipe (
+            .clk(clk), .rst_n(rst_n),
+            .access_en(cam_en), .access_key(in_key),
+            .access_new_data(in_event_data), .access_new_ts(in_src_ts_lo),
+            .result_valid(pipe_res_valid), .result_hit(pipe_res_hit),
+            .result_idx(pipe_res_idx), .result_old_data(pipe_res_old_data),
+            .result_old_ts(pipe_res_old_ts),
+            .cam_full(), .cam_count()
+        );
+
+        // Record fields aligned with the result (registered when presented).
+        logic [127:0]              m_packet;
+        logic [63:0]               m_event_data;
+        logic [TS_BITS-1:0]        m_src_ts60;
+        logic [TS_STORE_BITS-1:0]  m_src_ts_lo;
+        `ALWAYS_FF_RST(clk, rst_n,
+            if (`RST_ASSERTED(rst_n)) begin
+                m_packet <= '0; m_event_data <= '0; m_src_ts60 <= '0; m_src_ts_lo <= '0;
+            end else if (cam_en) begin
+                m_packet     <= in_packet;
+                m_event_data <= in_event_data;
+                m_src_ts60   <= in_src_ts60;
+                m_src_ts_lo  <= in_src_ts_lo;
+            end
+        )
+
+        // Per-template delta off the registered result (short, off the path).
+        logic [TS_BITS-1:0] pipe_delta_ts;
+        assign pipe_delta_ts = {{(TS_BITS-TS_STORE_BITS){1'b0}},
+                                (m_src_ts_lo - pipe_res_old_ts)};
+
+        // Skid input payload = the full stage-1 result.
+        logic [P_W-1:0] skid_wr_data, skid_rd_data;
+        logic           skid_rd_valid, skid_wr_ready;
+        assign skid_wr_data = {pipe_res_hit, pipe_res_idx, pipe_res_old_data,
+                               pipe_delta_ts, m_event_data, m_src_ts60, m_packet};
+
+        gaxi_skid_buffer #(.DATA_WIDTH(P_W), .DEPTH(SKID_DEPTH)) u_res_skid (
+            .axi_aclk(clk), .axi_aresetn(rst_n),
+            .wr_valid(pipe_res_valid), .wr_ready(skid_wr_ready),
+            .wr_data(skid_wr_data), .count(),
+            .rd_valid(skid_rd_valid), .rd_ready(pop),
+            .rd_count(), .rd_data(skid_rd_data)
+        );
+
+        // p_* driven from the skid output; stage 2 consumes via enc_commit.
+        assign p_valid    = skid_rd_valid;
+        assign {p_hit, p_idx, p_old_data, p_delta_ts, p_event_data, p_src_ts60,
+                p_packet} = skid_rd_data;
+        assign pop        = enc_commit;
+
+        // credit = in-flight (presented, result pending) + skid occupancy.
+        `ALWAYS_FF_RST(clk, rst_n,
+            if (`RST_ASSERTED(rst_n)) r_credit <= 3'd0;
+            else r_credit <= r_credit + 3'(cam_en) - 3'(pop && skid_rd_valid);
+        )
+
+        // Unused single-cycle CAM nets in this path (cam_access_action /
+        // cam_access_new_data are driven by the shared always_comb; harmless
+        // here as no monbus_cam consumes them).
+        assign cam_access_hit      = 1'b0;
+        assign cam_access_idx      = '0;
+        assign cam_access_old_data = '0;
+        assign cam_access_old_ts   = '0;
+        assign cam_full            = 1'b0;
+        assign cam_count           = '0;
+        assign cam_evicted         = 1'b0;
+    end
+    endgenerate
 
     // ------------------------------------------------------------------------
     // Pipeline stage register (stage 1 lookup/commit -> stage 2 encode/emit).
@@ -267,15 +388,8 @@ module monbus_compressor
     localparam logic [1:0] BEAT1 = 2'd1;   // RAW pkt_hi
     localparam logic [1:0] BEAT2 = 2'd2;   // RAW pkt_lo
 
-    // Stage 1 (lookup result, held until the encode stage takes it).
-    logic                     p_valid;
-    logic                     p_hit;
-    logic [TMPL_IDX_BITS-1:0] p_idx;
-    logic [63:0]              p_old_data;
-    logic [TS_BITS-1:0]       p_delta_ts;
-    logic [63:0]              p_event_data;
-    logic [TS_BITS-1:0]       p_src_ts60;
-    logic [127:0]             p_packet;
+    // Stage 1 result registers (p_*) are declared above, before the CAM
+    // generate that references them.
 
     // Stage 2a (REGISTERED encode result). Registering the format decision
     // here keeps the 65-bit format-C ed_delta + fits/fmt off the stage-1 CAM
@@ -440,15 +554,18 @@ module monbus_compressor
     logic q_retire;
     logic q_can_load;
     logic p_can_load;
-    logic enc_commit;     // a record is encoded into q this cycle
     logic accept;
+    // enc_commit and cam_en are declared earlier (before the CAM generate).
     assign q_retire   = q_valid && out_ready &&
                         (((r_beat == BEAT0) && !q_is_raw) || (r_beat == BEAT2));
     assign q_can_load = (!q_valid) || q_retire;
     assign enc_commit = p_valid && q_can_load;
     assign p_can_load = (!p_valid) || q_can_load;
-    assign in_ready   = p_can_load;
-    assign accept     = in_valid && in_ready;
+    // Single-cycle: gate input on p free. Pipelined: gate on the CAM credit
+    // (cam_en, computed in gen_cam_pipe). p_valid is a register in the single
+    // path and the skid rd_valid in the pipelined path.
+    assign in_ready   = (CAM_PIPELINE != 0) ? cam_en : p_can_load;
+    assign accept     = in_valid && p_can_load;
 
     // ------------------------------------------------------------------------
     // Stage 1 CAM commit (only when we accept a record). The action depends
@@ -471,16 +588,44 @@ module monbus_compressor
     // register, stage 2b output beat walk. (Per-template last_ts lives in the
     // CAM via access_new_ts.)
     // ------------------------------------------------------------------------
+    // ---- Stage 1 register (p_*): forked by CAM_PIPELINE below. The
+    // single-cycle path drives p_* from this always_ff; the pipelined path
+    // drives p_* combinationally from its result skid (see the generate).
+    if (CAM_PIPELINE == 0) begin : gen_p_single
+        `ALWAYS_FF_RST(clk, rst_n,
+            if (`RST_ASSERTED(rst_n)) begin
+                p_valid      <= 1'b0;
+                p_hit        <= 1'b0;
+                p_idx        <= '0;
+                p_old_data   <= '0;
+                p_delta_ts   <= '0;
+                p_event_data <= '0;
+                p_src_ts60   <= '0;
+                p_packet     <= '0;
+            end else begin
+                // Stage 1: accept a new record (the CAM commits this cycle,
+                // incl. this record's timestamp via access_new_ts).
+                if (accept) begin
+                    p_valid      <= 1'b1;
+                    p_hit        <= cam_access_hit;
+                    p_idx        <= cam_access_idx;
+                    p_old_data   <= cam_access_old_data;
+                    p_delta_ts   <= delta_ts;
+                    p_event_data <= in_event_data;
+                    p_src_ts60   <= in_src_ts60;
+                    p_packet     <= in_packet;
+                end else if (enc_commit) begin
+                    // p's record moved into q with nothing new to replace it.
+                    p_valid <= 1'b0;
+                end
+            end
+        )
+    end
+
+    // ---- Stage 2 register (q_* / r_beat): common to both CAM variants. Reads
+    // p_* (single-cycle reg or pipelined skid output) the same way.
     `ALWAYS_FF_RST(clk, rst_n,
         if (`RST_ASSERTED(rst_n)) begin
-            p_valid      <= 1'b0;
-            p_hit        <= 1'b0;
-            p_idx        <= '0;
-            p_old_data   <= '0;
-            p_delta_ts   <= '0;
-            p_event_data <= '0;
-            p_src_ts60   <= '0;
-            p_packet     <= '0;
             q_valid      <= 1'b0;
             q_is_raw     <= 1'b0;
             q_beat0      <= '0;
@@ -489,24 +634,8 @@ module monbus_compressor
             q_half_valid <= 1'b0;
             q_half_slot  <= '0;
         end else begin
-            // ---- Stage 1: accept a new record (the CAM commits this cycle,
-            // incl. this record's timestamp via access_new_ts).
-            if (accept) begin
-                p_valid      <= 1'b1;
-                p_hit        <= cam_access_hit;
-                p_idx        <= cam_access_idx;
-                p_old_data   <= cam_access_old_data;
-                p_delta_ts   <= delta_ts;
-                p_event_data <= in_event_data;
-                p_src_ts60   <= in_src_ts60;
-                p_packet     <= in_packet;
-            end else if (enc_commit) begin
-                // p's record moved into q with nothing new to take its place.
-                p_valid <= 1'b0;
-            end
-
-            // ---- Stage 2a: register the encode result when q takes p's
-            // record (reads this cycle's combinational fmt_sel / beat0_slot).
+            // Stage 2a: register the encode result when q takes p's record
+            // (reads this cycle's combinational fmt_sel / beat0_slot).
             if (enc_commit) begin
                 q_valid      <= 1'b1;
                 q_is_raw     <= (fmt_sel == FMT_RAW);
@@ -518,7 +647,7 @@ module monbus_compressor
             end else if (q_retire) begin
                 q_valid <= 1'b0;
             end else if (q_valid && out_ready) begin
-                // ---- Stage 2b: RAW beat advance (BEAT0 -> BEAT1 -> BEAT2).
+                // Stage 2b: RAW beat advance (BEAT0 -> BEAT1 -> BEAT2).
                 if (r_beat == BEAT0)      r_beat <= BEAT1;
                 else if (r_beat == BEAT1) r_beat <= BEAT2;
             end

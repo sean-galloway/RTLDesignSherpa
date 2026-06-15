@@ -74,6 +74,9 @@ module stream_top_ch8 #(
     // the compressor (requires USE_MON_COMPRESSION=1). Breaks the 1-beat/record
     // 66.7% ceiling -> ~80%. 0 = one 64-bit slot/record (prior behaviour).
     parameter int USE_MON_HALFBEAT = 0,
+    // 2-cycle pipelined compressor CAM (timing margin on the route-bound
+    // 32-way CAM match). +1 record latency; slot stream unchanged.
+    parameter int USE_MON_CAM_PIPELINE = 0,
     // Engine-side outstanding queue (side-Q) depths. Defaulted to the
     // historical stream_core values so existing instantiations are unchanged.
     // Override at the next level up to sweep latency-tolerance.
@@ -1740,7 +1743,8 @@ module stream_top_ch8 #(
                 // (packet[63:0], packet[127:64], source_ts[63:0]).
                 .NUM_PROTOCOLS      (3),     // 3 protocols: desc, rd, wr
                 .USE_COMPRESSION    (USE_MON_COMPRESSION),
-                .HALF_BEAT_EN       (USE_MON_HALFBEAT)
+                .HALF_BEAT_EN       (USE_MON_HALFBEAT),
+                .CAM_PIPELINE       (USE_MON_CAM_PIPELINE)
             ) u_monbus_axil_group (
                 .axi_aclk           (aclk),
                 .axi_aresetn        (aresetn),

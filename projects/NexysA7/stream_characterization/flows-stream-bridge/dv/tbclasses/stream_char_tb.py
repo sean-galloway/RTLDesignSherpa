@@ -142,6 +142,11 @@ APB_WRMON_ERR_CFG       = STREAM_APB_BASE + 0x290
 # packet congestion). Matches <MON>_ENABLE bit layout: [0]=MON_EN, [1]=ERR_EN,
 # [2]=COMPL_EN, [3]=TIMEOUT_EN, [4]=PERF_EN.
 MON_ENABLE_COMPL_IRQ    = 0x0F
+# WRMON_ENABLE.COMPRESS_EN (bit 5): runtime monbus compression enable, exactly
+# as run_characterization.py sets it for "--compression on". Without it
+# w_use_comp=0 and the raw expander is selected -- the compressor is NOT
+# exercised (this is why earlier sims never caught the pipelined-CAM bug).
+WRMON_COMPRESS_EN_BIT   = 1 << 5
 
 # Per-type drop mask: clear bits 0..3 so Error/Completion/Threshold/Timeout
 # packets are NOT dropped at monbus entry. Keep bits 4..15 masked to avoid
@@ -501,7 +506,13 @@ class StreamCharTB(TBBase):
                            descriptors_per_channel: int,
                            transfer_bytes: int,
                            timeout_clocks: int = 50_000,
-                           mon_err_cfg: int = MON_ERR_CFG_ROUTE_ALL) -> bool:
+                           mon_err_cfg: int = MON_ERR_CFG_ROUTE_ALL,
+                           compress_en: bool = False) -> bool:
+        # compress_en=True sets WRMON_ENABLE.COMPRESS_EN (bit 5) so the
+        # compressor path (w_use_comp=1) is selected at runtime -- mirrors
+        # run_characterization.py "--compression on". Combined with
+        # mon_err_cfg=BULK_TRACE this exercises the compressor exactly as the
+        # FPGA does.
         # mon_err_cfg picks the monbus routing: ROUTE_ALL (default) sends
         # packets to the err FIFO IRQ path; BULK_TRACE (0) sends them to the
         # debug_sram bulk-trace path through the compressor -- used by the
@@ -593,7 +604,10 @@ class StreamCharTB(TBBase):
             (APB_WRMON_PKT_MASK,  APB_WRMON_ENABLE,  APB_WRMON_ERR_CFG),
         ):
             await self.uart_write(pkt_mask_reg, MON_PKT_MASK_ALLOW_BASIC)
-            await self.uart_write(en_reg,       MON_ENABLE_COMPL_IRQ)
+            en_val = MON_ENABLE_COMPL_IRQ
+            if compress_en and en_reg == APB_WRMON_ENABLE:
+                en_val |= WRMON_COMPRESS_EN_BIT   # runtime compression on
+            await self.uart_write(en_reg,       en_val)
             await self.uart_write(err_reg,      mon_err_cfg)
 
         # 4. Enable STREAM global + channels

@@ -259,6 +259,11 @@ def test_monbus_compressor(request):
         os.path.join(rtl_dict['rtl_includes'], "monitor_arbiter_pkg.sv"),
         os.path.join(rtl_dict['rtl_includes'], "monitor_pkg.sv"),
         os.path.join(rtl_dict['rtl_shared'],   "monbus_cam.sv"),
+        # pipelined-CAM path (used only when CAM_PIPELINE=1; harmless otherwise)
+        os.path.join(rtl_dict['rtl_shared'],   "monbus_cam_pipe.sv"),
+        os.path.join(repo_root, "rtl/common/counter_bin.sv"),
+        os.path.join(repo_root, "rtl/common/fifo_control.sv"),
+        os.path.join(repo_root, "rtl/amba/gaxi/gaxi_skid_buffer.sv"),
         os.path.join(rtl_dict['rtl_shared'],   f"{dut_name}.sv"),
     ]
     for src in verilog_sources:
@@ -291,6 +296,7 @@ def test_monbus_compressor(request):
             toplevel=dut_name,
             module=module,
             sim_build=sim_build,
+            parameters={'CAM_PIPELINE': int(os.environ.get('CAM_PIPELINE', '0'))},
             extra_env=extra_env,
             waves=enable_waves,
             keep_files=True,

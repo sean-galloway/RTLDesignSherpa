@@ -103,8 +103,21 @@ class MonbusHalfbeatTB(TBBase):
                 self.captured_slots.append(int(self.dut.out_slot.value))
             await RisingEdge(self.dut.clk)
 
+    async def _backpressure(self):
+        """Toggle out_ready (1 on / 2 off) to stress the compressor's output
+        backpressure path -- reproduces the group's write-FIFO stalls."""
+        import itertools
+        for v in itertools.cycle([1, 0, 0]):
+            self.dut.out_ready.value = v
+            await RisingEdge(self.dut.clk)
+
     async def run_records_through(self, records, expected_slots):
-        self.dut.out_ready.value = 1
+        bp = int(os.environ.get('BP', '0'))
+        if bp:
+            self.dut.out_ready.value = 0
+            cocotb.start_soon(self._backpressure())
+        else:
+            self.dut.out_ready.value = 1
         cap = cocotb.start_soon(self.capture_loop(len(expected_slots)))
         await self.drive_records_gapless(records)
         await cap
@@ -185,6 +198,10 @@ def test_monbus_halfbeat(request):
         os.path.join(rtl_dict['rtl_includes'], "monitor_arbiter_pkg.sv"),
         os.path.join(rtl_dict['rtl_includes'], "monitor_pkg.sv"),
         os.path.join(rtl_dict['rtl_shared'],   "monbus_cam.sv"),
+        os.path.join(rtl_dict['rtl_shared'],   "monbus_cam_pipe.sv"),
+        os.path.join(repo_root, "rtl/common/counter_bin.sv"),
+        os.path.join(repo_root, "rtl/common/fifo_control.sv"),
+        os.path.join(repo_root, "rtl/amba/gaxi/gaxi_skid_buffer.sv"),
         os.path.join(rtl_dict['rtl_shared'],   "monbus_compressor.sv"),
         os.path.join(rtl_dict['rtl_shared'],   "monbus_halfbeat_packer.sv"),
         os.path.join(rtl_dict['val_amba'],     f"{dut_name}.sv"),
@@ -219,6 +236,7 @@ def test_monbus_halfbeat(request):
             toplevel=dut_name,
             module=module,
             sim_build=sim_build,
+            parameters={'CAM_PIPELINE': int(os.environ.get('CAM_PIPELINE', '0'))},
             extra_env=extra_env,
             waves=enable_waves,
             keep_files=True,

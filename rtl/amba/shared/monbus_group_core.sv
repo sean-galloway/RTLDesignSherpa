@@ -58,8 +58,10 @@ module monbus_group_core
     parameter int FLUSH_TIMEOUT_CYCLES  = 1024,    // cycles since last beat to force flush
     parameter int NUM_PROTOCOLS         = 3,       // informational
     parameter int USE_COMPRESSION       = 0,       // 0 = raw 3-beat records, 1 = compressor
-    parameter int HALF_BEAT_EN          = 0        // 1 = pack two 30-bit slots/beat
+    parameter int HALF_BEAT_EN          = 0,       // 1 = pack two 30-bit slots/beat
                                                    //     (requires USE_COMPRESSION==1)
+    parameter int CAM_PIPELINE          = 0        // 1 = 2-cycle pipelined CAM in
+                                                   //     the compressor (timing margin)
 ) (
     input  logic                          axi_aclk,
     input  logic                          axi_aresetn,
@@ -629,7 +631,8 @@ module monbus_group_core
         assign comp_in_ready = comp_skid_wr_ready;
 
         monbus_compressor #(
-            .HALF_BEAT_EN        (HALF_BEAT_EN)
+            .HALF_BEAT_EN        (HALF_BEAT_EN),
+            .CAM_PIPELINE        (CAM_PIPELINE)
         ) u_compressor (
             .clk                 (axi_aclk),
             .rst_n               (axi_aresetn),

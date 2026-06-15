@@ -116,6 +116,7 @@ async def cocotb_test_stream_char(dut):
             transfer_bytes=xfer_bytes,
             timeout_clocks=int(os.environ.get('DMA_TIMEOUT_CLOCKS', '80000')),
             mon_err_cfg=0,   # MON_ERR_CFG_BULK_TRACE -> debug_sram via compressor
+            compress_en=True,  # set WRMON.COMPRESS_EN -> exercise the compressor
         )
 
     else:
@@ -155,6 +156,9 @@ BASE_RTL_PARAMS = {
     # path). Override with USE_MON_COMPRESSION=0 to build the uncompressed
     # baseline for the with/without compression characterization.
     'USE_MON_COMPRESSION': int(os.environ.get('USE_MON_COMPRESSION', '1')),
+    # 2-cycle pipelined compressor CAM (timing-margin experiment). Override via
+    # USE_MON_CAM_PIPELINE=1 to reproduce the full-FPGA pipelined-CAM behavior.
+    'USE_MON_CAM_PIPELINE': int(os.environ.get('USE_MON_CAM_PIPELINE', '0')),
 }
 
 
