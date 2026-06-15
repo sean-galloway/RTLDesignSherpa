@@ -234,11 +234,30 @@ Infrastructure components used across all AMBA protocols.
 
 ### AXI Monitoring and Analysis
 
-- **[axi_monitor_base](shared/axi_monitor_base.md)** - Base AXI protocol monitor
-- **[axi_monitor_reporter](shared/axi_monitor_reporter.md)** - AXI transaction reporting
+- **[axi_monitor_base](shared/axi_monitor_base.md)** - Base AXI/AXIL transaction monitor (per-DMA)
+- **[axi_monitor_reporter](shared/axi_monitor_reporter.md)** - Thin dispatcher + 6 packet-type sub-blocks (error / timeout / compl / threshold / perf / debug) gated by ENABLE_*_LOGIC
 - **[axi_monitor_timeout](shared/axi_monitor_timeout.md)** - AXI timeout detection
 - **[axi_monitor_timer](shared/axi_monitor_timer.md)** - AXI timing analysis
-- **[axi_monitor_trans_mgr](shared/axi_monitor_trans_mgr.md)** - AXI transaction management
+- **[axi_monitor_trans_mgr](shared/axi_monitor_trans_mgr.md)** - AXI transaction-table management (CAM-backed)
+- **[monitor_trans_cam](shared/monitor_trans_cam.md)** - Multi-port ID CAM with opaque payload (backs trans_mgr)
+- **[axi_monitor_addr_check](shared/axi_monitor_addr_check.md)** - Per-channel address-match watchpoints
+- **[axi4_dma_observer](shared/axi4_dma_observer.md)** - Standalone, DMA-agnostic observability harness (wraps any AXI4 DMA from outside; companion to the per-DMA `axi_monitor_*` family). Includes `axi_bus_meter` per port.
+
+### Monitor Bus Delivery + Bulk-Trace Compression
+
+Path from in-flight monitor packets to host-visible memory + CPU IRQs.
+
+- **[monbus_group (family)](shared/monbus_group.md)** - Protocol-agnostic core + four protocol-permutation wrappers:
+  - `monbus_axil_axil_group` (AXIL slave-read + AXIL master-write, replaces legacy `monbus_axil_group`)
+  - `monbus_axil_axi4_group` (AXIL slave-read + AXI4 burst master-write)
+  - `monbus_axi4_axil_group` (AXI4 burst slave-read + AXIL master-write)
+  - `monbus_axi4_axi4_group` (burst on both sides)
+- **[monbus_compressor](shared/monbus_compressor.md)** - Bulk-trace encoder, 2-stage pipeline, per-template `delta_ts`, bit-exact to Python golden (~2.6× ratio)
+- **[monbus_cam](shared/monbus_cam.md)** - 32-entry LRU CAM with per-entry 24b `last_ts` (backs the compressor)
+
+### Memory / BRAM Slave (sdpram_slave family)
+
+- **[sdpram_slave (family)](shared/sdpram_slave.md)** - Protocol-agnostic BRAM backend + four protocol-permutation wrappers (`sdpram_slave_axi4_axi4`, `sdpram_slave_axi4_axil`, `sdpram_slave_axil_axi4`, `sdpram_slave_axil_axil`). Canonical memory-dump-ring backend for the monbus group's master-write port.
 
 ### Address and Data Processing
 
