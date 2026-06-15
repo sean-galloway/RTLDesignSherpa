@@ -70,6 +70,10 @@ module stream_top_ch8 #(
     //   1: 32-entry LRU CAM-based compressor in front of the writer, 1 beat
     //      per slot with a 4-bit format tag in bits [63:60] of each slot.
     parameter int USE_MON_COMPRESSION = 0,
+    // Half-beat packing: pack two 30-bit slots per 64-bit beat downstream of
+    // the compressor (requires USE_MON_COMPRESSION=1). Breaks the 1-beat/record
+    // 66.7% ceiling -> ~80%. 0 = one 64-bit slot/record (prior behaviour).
+    parameter int USE_MON_HALFBEAT = 0,
     // Engine-side outstanding queue (side-Q) depths. Defaulted to the
     // historical stream_core values so existing instantiations are unchanged.
     // Override at the next level up to sweep latency-tolerance.
@@ -1735,7 +1739,8 @@ module stream_top_ch8 #(
                 // Every bulk-trace record is 3 × 64-bit beats
                 // (packet[63:0], packet[127:64], source_ts[63:0]).
                 .NUM_PROTOCOLS      (3),     // 3 protocols: desc, rd, wr
-                .USE_COMPRESSION    (USE_MON_COMPRESSION)
+                .USE_COMPRESSION    (USE_MON_COMPRESSION),
+                .HALF_BEAT_EN       (USE_MON_HALFBEAT)
             ) u_monbus_axil_group (
                 .axi_aclk           (aclk),
                 .axi_aresetn        (aresetn),

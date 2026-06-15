@@ -339,6 +339,12 @@ set_property BITSTREAM.CONFIG.SPI_BUSWIDTH 4 [current_design]
 ## longer inter-region hop is a registered (not combinational) path.
 create_pblock pblock_monbus
 add_cells_to_pblock pblock_monbus [get_cells u_harness/u_stream/g_monbus_axil.u_monbus_axil_group]
-resize_pblock pblock_monbus -add {CLOCKREGION_X0Y2:CLOCKREGION_X0Y3}
+## 3 left-column clock regions. 2 regions (X0Y2:X0Y3) closed the per-template
+## group at +0.012, but the half-beat packer + 30-bit sideband enlarged the
+## group; 2 regions over-packed it -> the compressor's own CAM->p_delta_ts
+## path went route-bound (WNS -0.538, 1315 endpoints). The 3rd region gives the
+## bigger group routing room while still keeping it out of column X1 (the desc
+## monitor's home), preserving the monitor/group separation.
+resize_pblock pblock_monbus -add {CLOCKREGION_X0Y1:CLOCKREGION_X0Y3}
 ## Placement-only: let routes leave the region (the crossing is registered).
 set_property CONTAIN_ROUTING 0 [get_pblocks pblock_monbus]

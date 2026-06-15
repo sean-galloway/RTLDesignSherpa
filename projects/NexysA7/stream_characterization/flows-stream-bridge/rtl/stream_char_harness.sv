@@ -63,7 +63,11 @@ module stream_char_harness #(
     // MonBus bulk-trace compression. 1 for this project -- whenever the
     // monitors run, the compressor is in-path. The cocotb characterization
     // test overrides this to 0 to measure the uncompressed baseline.
-    parameter int USE_MON_COMPRESSION    = 1
+    parameter int USE_MON_COMPRESSION    = 1,
+    // Half-beat packing on the compressed bulk-trace path: two 30-bit slots
+    // per 64-bit beat (~80% reduction vs the 66.7% one-slot ceiling). Only
+    // meaningful with USE_MON_COMPRESSION=1 and runtime cfg_compress_en.
+    parameter int USE_MON_HALFBEAT       = 1
 ) (
     input  logic            aclk,
     input  logic            aresetn,
@@ -1473,6 +1477,7 @@ module stream_char_harness #(
         .AXI_USER_WIDTH     (AXI_USER_WIDTH),
         .USE_AXI_MONITORS   (1),
         .USE_MON_COMPRESSION(USE_MON_COMPRESSION),
+        .USE_MON_HALFBEAT   (USE_MON_HALFBEAT),
         .CDC_ENABLE         (0),
         .AR_MAX_OUTSTANDING (AR_MAX_OUTSTANDING),
         .AW_MAX_OUTSTANDING (AW_MAX_OUTSTANDING)

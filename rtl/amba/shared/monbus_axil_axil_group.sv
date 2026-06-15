@@ -32,6 +32,7 @@ module monbus_axil_axil_group
     parameter int FLUSH_TIMEOUT_CYCLES = 1024,
     parameter int NUM_PROTOCOLS        = 3,
     parameter int USE_COMPRESSION      = 0,
+    parameter int HALF_BEAT_EN         = 0,
     parameter int SKID_DEPTH_AR        = 2,
     parameter int SKID_DEPTH_R         = 4,
     parameter int SKID_DEPTH_AW        = 2,
@@ -258,7 +259,8 @@ module monbus_axil_axil_group
         .MAX_BURST_BEATS      (1),   // AXIL master: single-beat
         .FLUSH_TIMEOUT_CYCLES (FLUSH_TIMEOUT_CYCLES),
         .NUM_PROTOCOLS        (NUM_PROTOCOLS),
-        .USE_COMPRESSION      (USE_COMPRESSION)
+        .USE_COMPRESSION      (USE_COMPRESSION),
+        .HALF_BEAT_EN         (HALF_BEAT_EN)
     ) u_core (
         .axi_aclk    (axi_aclk),
         .axi_aresetn (axi_aresetn),

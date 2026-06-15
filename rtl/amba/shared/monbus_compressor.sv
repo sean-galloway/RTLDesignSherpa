@@ -83,7 +83,15 @@
 
 module monbus_compressor
     import monitor_common_pkg::*;
-(
+#(
+    // 0 = 64-bit-slot codec only (default; the committed, timing-closed path).
+    // 1 = also expose a 30-bit half-slot sideband (out_half_*) for the
+    //     downstream monbus_halfbeat_packer. The slot STREAM out_slot is
+    //     unchanged; the sideband just tells the packer when a tier-1 record
+    //     also fits a 30-bit half-slot (and supplies it). All half logic
+    //     constant-folds away when HALF_BEAT_EN==0.
+    parameter int HALF_BEAT_EN = 0
+) (
     input  logic                    clk,
     input  logic                    rst_n,
 
@@ -97,6 +105,14 @@ module monbus_compressor
     output logic                    out_valid,
     input  logic                    out_ready,
     output logic [63:0]             out_slot,
+
+    // === Half-beat sideband (HALF_BEAT_EN==1; tied 0 otherwise) ===
+    // Valid alongside out_valid on a tier-1 beat that also fits a 30-bit
+    // half-slot. The packer buffers/pairs out_half_slot and ignores out_slot
+    // for that beat; when out_half_valid==0 the beat is a full 64-bit slot or
+    // a raw payload beat and the packer forwards out_slot verbatim.
+    output logic                    out_half_valid,
+    output logic [29:0]             out_half_slot,
 
     // === Statistics CSR outputs (combinational on the registers) ===
     output logic [31:0]             stat_tier1_a,
@@ -116,6 +132,13 @@ module monbus_compressor
     localparam logic [3:0] TAG_FORMAT_A  = 4'h1;
     localparam logic [3:0] TAG_FORMAT_B  = 4'h2;
     localparam logic [3:0] TAG_FORMAT_C  = 4'h3;
+
+    // Half-slot format (see monbus_compressor.py): a 30-bit slot is
+    // {sub[1:0], idx[4:0], delta_ts[HALF_DELTA_BITS-1:0], data[HALF_DATA_BITS-1:0]}.
+    localparam int         HALF_DELTA_BITS = 10;
+    localparam int         HALF_DATA_BITS  = 13;
+    localparam logic [1:0] HSUB_A          = 2'h1;
+    localparam logic [1:0] HSUB_C          = 2'h2;
 
     localparam int TS_BITS              = 60;
     localparam int DELTA_TS_A_BITS      = 15;   // ~328 us @ 100 MHz
@@ -263,6 +286,8 @@ module monbus_compressor
     logic [63:0]              q_beat0;      // tier-1 slot, or RAW ts beat
     logic [127:0]             q_packet;     // RAW beats 1/2
     logic [1:0]               r_beat;       // stage-2b output beat counter
+    logic                     q_half_valid; // registered half-slot sideband
+    logic [29:0]              q_half_slot;
 
     // ------------------------------------------------------------------------
     // Stage 2: format-fit decisions (combinational on the REGISTERED stage-1
@@ -349,6 +374,47 @@ module monbus_compressor
     end
 
     // ------------------------------------------------------------------------
+    // Half-beat sideband. A tier-1 hit that ALSO fits a 30-bit slot is offered
+    // to the downstream packer (which buffers two into one beat). Priority
+    // mirrors the Python golden: half-A, then half-C, then the full 64-bit
+    // formats. All of this constant-folds away when HALF_BEAT_EN==0.
+    // ------------------------------------------------------------------------
+    logic        half_a_fit;
+    logic        half_c_fit;
+    logic [29:0] half_slot_a;
+    logic [29:0] half_slot_c;
+    logic        half_valid_c;     // combinational "this record fits a half-slot"
+    logic [29:0] half_slot_sel;
+
+    assign half_a_fit = (HALF_BEAT_EN != 0) && p_hit &&
+                        (p_delta_ts   < (60'(1) << HALF_DELTA_BITS)) &&
+                        (p_event_data < (64'(1) << HALF_DATA_BITS));
+    assign half_c_fit = (HALF_BEAT_EN != 0) && p_hit &&
+                        (p_delta_ts < (60'(1) << HALF_DELTA_BITS)) &&
+                        (ed_delta_full >= -(65'sd1 <<< (HALF_DATA_BITS-1))) &&
+                        (ed_delta_full <   (65'sd1 <<< (HALF_DATA_BITS-1)));
+
+    assign half_slot_a = {HSUB_A, p_idx,
+                          p_delta_ts[HALF_DELTA_BITS-1:0],
+                          p_event_data[HALF_DATA_BITS-1:0]};
+    assign half_slot_c = {HSUB_C, p_idx,
+                          p_delta_ts[HALF_DELTA_BITS-1:0],
+                          ed_delta_full[HALF_DATA_BITS-1:0]};
+
+    assign half_valid_c  = half_a_fit || half_c_fit;
+    assign half_slot_sel = half_a_fit ? half_slot_a : half_slot_c;
+
+    // Classification used for the stat counters so a half-A counts as tier1_a
+    // and a half-C as tier1_c (matches the golden). Identical to fmt_sel when
+    // HALF_BEAT_EN==0.
+    fmt_t stat_class;
+    always_comb begin
+        if      (half_a_fit) stat_class = FMT_A;
+        else if (half_c_fit) stat_class = FMT_C;
+        else                 stat_class = fmt_sel;
+    end
+
+    // ------------------------------------------------------------------------
     // Stage 2b output mux (from the REGISTERED encode result q_*). Tier-1
     // emits beat 0 only; RAW emits beat0 (ts), beat1 (pkt_hi), beat2 (pkt_lo).
     // ------------------------------------------------------------------------
@@ -361,6 +427,10 @@ module monbus_compressor
             default: out_slot = 64'h0;
         endcase
     end
+
+    // Half-beat sideband: only meaningful on a tier-1 beat (beat0, !raw).
+    assign out_half_valid = q_valid && q_half_valid && (r_beat == BEAT0);
+    assign out_half_slot  = q_half_slot;
 
     // Handshake. q (stage 2b) retires when it emits its last beat (beat0 for
     // tier-1, beat2 for RAW); then it can take p's encoded record (q_can_load);
@@ -416,6 +486,8 @@ module monbus_compressor
             q_beat0      <= '0;
             q_packet     <= '0;
             r_beat       <= BEAT0;
+            q_half_valid <= 1'b0;
+            q_half_slot  <= '0;
         end else begin
             // ---- Stage 1: accept a new record (the CAM commits this cycle,
             // incl. this record's timestamp via access_new_ts).
@@ -436,11 +508,13 @@ module monbus_compressor
             // ---- Stage 2a: register the encode result when q takes p's
             // record (reads this cycle's combinational fmt_sel / beat0_slot).
             if (enc_commit) begin
-                q_valid  <= 1'b1;
-                q_is_raw <= (fmt_sel == FMT_RAW);
-                q_beat0  <= beat0_slot;
-                q_packet <= p_packet;
-                r_beat   <= BEAT0;
+                q_valid      <= 1'b1;
+                q_is_raw     <= (fmt_sel == FMT_RAW);
+                q_beat0      <= beat0_slot;
+                q_packet     <= p_packet;
+                r_beat       <= BEAT0;
+                q_half_valid <= half_valid_c;
+                q_half_slot  <= half_slot_sel;
             end else if (q_retire) begin
                 q_valid <= 1'b0;
             end else if (q_valid && out_ready) begin
@@ -476,7 +550,9 @@ module monbus_compressor
             r_event_data_ovf <= '0;
             r_ed_delta_ovf   <= '0;
         end else if (enc_commit) begin
-            unique case (fmt_sel)
+            // stat_class == fmt_sel when HALF_BEAT_EN==0; otherwise a half-A
+            // counts as tier1_a and a half-C as tier1_c (matches the golden).
+            unique case (stat_class)
                 FMT_A: r_tier1_a <= r_tier1_a + 1;
                 FMT_B: r_tier1_b <= r_tier1_b + 1;
                 FMT_C: r_tier1_c <= r_tier1_c + 1;

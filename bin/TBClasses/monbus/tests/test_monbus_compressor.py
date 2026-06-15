@@ -293,6 +293,71 @@ def test_round_trip_long_random_stream():
 
 
 # ---------------------------------------------------------------------------
+# Half-beat packing (TAG_HALF_PAIR)
+# ---------------------------------------------------------------------------
+
+def _round_trip_half(records):
+    enc = Encoder(half_beat=True)
+    dec = Decoder()
+    slots = list(enc.encode(records))   # encode() flushes the trailing half
+    return list(dec.decode(slots)), enc, slots
+
+
+def test_half_beat_pairs_two_records_per_beat():
+    """Two consecutive small-payload tier-1 hits pack into one beat."""
+    from TBClasses.monbus.monbus_compressor import TAG_HALF_PAIR
+    seed = _compl_packet(event_data=0x10)
+    recs = [(seed, 0)]                       # cold raw, installs template
+    for n in range(1, 5):
+        recs.append((_compl_packet(event_data=0x10), n))  # 4 half-A hits
+    out, enc, slots = _round_trip_half(recs)
+    assert out == recs
+    # 1 raw (3 beats) + 4 halves -> 2 half-pair beats = 5 beats total.
+    assert len(slots) == 5
+    assert (slots[-1] >> 60) == TAG_HALF_PAIR
+
+
+def test_half_beat_flushes_lone_half_at_end():
+    """An odd trailing half is emitted (NOP partner) by flush()."""
+    from TBClasses.monbus.monbus_compressor import TAG_HALF_PAIR
+    recs = [(_compl_packet(event_data=0x10), 0),     # raw install
+            (_compl_packet(event_data=0x10), 1)]     # one lone half
+    out, enc, slots = _round_trip_half(recs)
+    assert out == recs
+    assert (slots[-1] >> 60) == TAG_HALF_PAIR        # lone half flushed
+
+
+def test_half_beat_flushes_pending_before_raw():
+    """A pending half is flushed ahead of a following raw (order preserved)."""
+    recs = [(_compl_packet(event_data=0x10), 0),     # raw install (compl)
+            (_compl_packet(event_data=0x10), 1),     # pending half
+            (_err_packet(event_data=0x99), 2)]       # new template -> raw
+    out, enc, slots = _round_trip_half(recs)
+    assert out == recs
+
+
+def test_half_beat_round_trip_long_random_stream():
+    """Half-beat must be bit-exact on the same mixed stream as the 64-bit path."""
+    import random
+    random.seed(7)
+    records = []
+    agents = [0x10, 0x11, 0x12, 0x20, 0x21]
+    pkt_makers = [_err_packet, _perf_packet, _compl_packet]
+    ts = 0
+    for _ in range(200):
+        agent = random.choice(agents)
+        ed = random.randrange(0, 1 << 30)
+        maker = random.choice(pkt_makers)
+        records.append((maker(agent=agent, event_data=ed), ts))
+        ts += random.randrange(1, 500)
+    out, enc, slots = _round_trip_half(records)
+    assert out == records
+    # Packing must never produce MORE beats than the 64-bit codec.
+    base = list(Encoder().encode(records))
+    assert len(slots) <= len(base)
+
+
+# ---------------------------------------------------------------------------
 # Stats reporter
 # ---------------------------------------------------------------------------
 
@@ -385,10 +450,10 @@ def test_event_data_exactly_at_format_a_boundary():
 
 
 def test_decoder_rejects_unknown_tag():
-    """Tag 0x4..0xF are reserved; decoder raises."""
+    """Tag 0x5..0xF are reserved (0x4 is TAG_HALF_PAIR); decoder raises."""
     import pytest
     dec = Decoder()
-    bad_slot = (0x4 << 60) | 0x123
+    bad_slot = (0x5 << 60) | 0x123
     with pytest.raises(ValueError, match="unknown tag"):
         list(dec.decode([bad_slot]))
 

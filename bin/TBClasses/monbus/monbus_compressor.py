@@ -74,6 +74,7 @@ TAG_RAW       = 0x0
 TAG_FORMAT_A  = 0x1
 TAG_FORMAT_B  = 0x2
 TAG_FORMAT_C  = 0x3
+TAG_HALF_PAIR = 0x4                 # one beat = two 30-bit half-slots
 
 TS_BITS       = 60                  # timestamp width in compressed beats
 TS_STORE      = 24                  # per-template last_ts width kept in the CAM
@@ -94,6 +95,21 @@ DEFAULT_CAM_SIZE = 32
 # packers shift idx into [59:55] and mask with TMPL_IDX_MASK.
 TMPL_IDX_MASK = (1 << TMPL_IDX_BITS) - 1
 TMPL_IDX_SHIFT = 64 - 4 - TMPL_IDX_BITS  # 64 - 4 (tag) - 5 (idx) = 55
+
+# --- Half-beat packing (optional; gated by Encoder(half_beat=True) and the
+# RTL HALF_BEAT_EN parameter). A TAG_HALF_PAIR beat carries two 30-bit
+# half-slots: {tag[63:60]=0x4, slotA[59:30], slotB[29:0]}. Each half-slot is
+# {sub[29:28], idx[27:23], payload[22:0]}.
+HALF_SLOT_BITS  = 30
+HALF_SLOT_MASK  = (1 << HALF_SLOT_BITS) - 1
+HSUB_NOP        = 0x0               # padding slot (no record) — decoder skips
+HSUB_A          = 0x1               # small absolute event_data
+HSUB_C          = 0x2               # signed event_data delta (counters/addrs)
+HALF_SUB_SHIFT  = 28               # sub[29:28]
+HALF_IDX_SHIFT  = 23               # idx[27:23]
+HALF_DELTA_BITS = 10               # delta_ts in payload[22:13]
+HALF_DATA_BITS  = 13               # event_data / ed_delta in payload[12:0]
+NOP_SLOT        = HSUB_NOP << HALF_SUB_SHIFT
 
 # Packet field positions (see monitor_common_pkg.sv)
 _PKT_TYPE_HI, _PKT_TYPE_LO     = 127, 124
@@ -274,16 +290,27 @@ class CompressorStats:
 class Encoder:
     """Compresses a stream of (packet, timestamp) records to 64-bit slots."""
 
-    def __init__(self, cam_size: int = DEFAULT_CAM_SIZE):
+    def __init__(self, cam_size: int = DEFAULT_CAM_SIZE, half_beat: bool = False):
         self.cam = Cam(cam_size)
         self.stats = CompressorStats()
+        self.half_beat = half_beat
+        self._pending: Optional[int] = None   # one buffered 30-bit half-slot
 
     def reset(self):
         self.cam.reset()
         self.stats = CompressorStats()
+        self._pending = None
 
     def encode_one(self, packet: int, timestamp: int) -> List[int]:
-        """Encode one record. Returns a list of 1 or 3 64-bit slot ints."""
+        """Encode one record. Returns a list of 64-bit beats.
+
+        Default codec: 1 beat (tier-1) or 3 beats (raw escape).
+        half_beat codec: tier-1 records that fit a 30-bit slot are buffered
+        and two are packed into one TAG_HALF_PAIR beat (0.5 beat/record);
+        full-slot / raw records flush the buffered half first to preserve
+        order. Call flush() at end-of-stream to emit a trailing lone half."""
+        if self.half_beat:
+            return self._encode_one_half(packet, timestamp)
         self.stats.records_total += 1
         packet &= (1 << MONBUS_PKT_WIDTH) - 1
         timestamp &= (1 << MONBUS_TS_WIDTH) - 1
@@ -350,6 +377,107 @@ class Encoder:
     def encode(self, records: Iterable[Tuple[int, int]]) -> Iterator[int]:
         for pkt, ts in records:
             yield from self.encode_one(pkt, ts)
+        yield from self.flush()
+
+    def flush(self) -> List[int]:
+        """Emit any buffered half-slot (paired with a NOP). No-op unless in
+        half_beat mode with a pending half. Call once at end of stream."""
+        if self._pending is None:
+            return []
+        beat = (TAG_HALF_PAIR << 60) | (self._pending << HALF_SLOT_BITS) | NOP_SLOT
+        self._pending = None
+        self.stats.slots_emitted += 1
+        return [beat]
+
+    # ----- half-beat encode path -----
+
+    def _push_half(self, slot30: int) -> List[int]:
+        """Buffer a 30-bit half-slot; emit a paired beat when two accumulate."""
+        if self._pending is None:
+            self._pending = slot30 & HALF_SLOT_MASK
+            return []
+        beat = ((TAG_HALF_PAIR << 60)
+                | (self._pending << HALF_SLOT_BITS)
+                | (slot30 & HALF_SLOT_MASK))
+        self._pending = None
+        self.stats.slots_emitted += 1
+        return [beat]
+
+    def _flush_pending_pair(self) -> List[int]:
+        """Flush a buffered half (NOP partner) ahead of a full/raw record so
+        record order is preserved in the beat stream."""
+        return self.flush()
+
+    @staticmethod
+    def _pack_half(sub: int, idx: int, delta_ts: int, data: int) -> int:
+        return ((sub << HALF_SUB_SHIFT)
+                | ((idx & TMPL_IDX_MASK) << HALF_IDX_SHIFT)
+                | ((delta_ts & ((1 << HALF_DELTA_BITS) - 1)) << HALF_DATA_BITS)
+                | (data & ((1 << HALF_DATA_BITS) - 1)))
+
+    def _encode_one_half(self, packet: int, timestamp: int) -> List[int]:
+        self.stats.records_total += 1
+        packet &= (1 << MONBUS_PKT_WIDTH) - 1
+        timestamp &= (1 << MONBUS_TS_WIDTH) - 1
+        key = _key_from_packet(packet)
+        event_data = _field(packet, _EVENT_DATA_HI, _EVENT_DATA_LO)
+        ts_lo = timestamp & ((1 << TS_STORE) - 1)
+        idx = self._cam_peek(key)
+
+        if idx is not None:
+            old_ts = self.cam.entries[idx].last_ts
+            delta_ts = (ts_lo - old_ts) & ((1 << TS_STORE) - 1)
+            ed_delta = event_data - self.cam.entries[idx].last_event_data
+            half_lo = -(1 << (HALF_DATA_BITS - 1))
+            half_hi = (1 << (HALF_DATA_BITS - 1))
+
+            # Half-slot A: small delta_ts + small absolute event_data.
+            if delta_ts < (1 << HALF_DELTA_BITS) and event_data < (1 << HALF_DATA_BITS):
+                self._touch(idx, event_data, ts_lo)
+                self.stats.tier1_a_hits += 1
+                return self._push_half(self._pack_half(HSUB_A, idx, delta_ts, event_data))
+
+            # Half-slot C: small delta_ts + small signed event_data delta.
+            if delta_ts < (1 << HALF_DELTA_BITS) and half_lo <= ed_delta < half_hi:
+                self._touch(idx, event_data, ts_lo)
+                self.stats.tier1_c_hits += 1
+                return self._push_half(self._pack_half(HSUB_C, idx, delta_ts, ed_delta))
+
+            # Did not fit a half-slot — fall back to a full 64-bit tier-1 slot.
+            if delta_ts < (1 << DELTA_TS_A) and event_data < (1 << EVENT_DATA_A):
+                self._touch(idx, event_data, ts_lo)
+                self.stats.tier1_a_hits += 1
+                self.stats.slots_emitted += 1
+                return self._flush_pending_pair() + [self._pack_format_a(idx, delta_ts, event_data)]
+            if delta_ts < (1 << DELTA_TS_B) and event_data < (1 << EVENT_DATA_B):
+                self._touch(idx, event_data, ts_lo)
+                self.stats.tier1_b_hits += 1
+                self.stats.slots_emitted += 1
+                return self._flush_pending_pair() + [self._pack_format_b(idx, delta_ts, event_data)]
+            if delta_ts < (1 << DELTA_TS_C):
+                lo = -(1 << (EVENT_DATA_C_DELTA - 1))
+                hi = (1 << (EVENT_DATA_C_DELTA - 1))
+                if lo <= ed_delta < hi:
+                    self._touch(idx, event_data, ts_lo)
+                    self.stats.tier1_c_hits += 1
+                    self.stats.slots_emitted += 1
+                    return self._flush_pending_pair() + [self._pack_format_c(idx, delta_ts, ed_delta)]
+
+            if delta_ts >= (1 << DELTA_TS_B):
+                self.stats.bump_escape(EscapeReason.DELTA_TS_OVF)
+            elif event_data >= (1 << EVENT_DATA_A):
+                self.stats.bump_escape(EscapeReason.EVENT_DATA_OVF)
+            else:
+                self.stats.bump_escape(EscapeReason.ED_DELTA_OVF)
+        else:
+            self.stats.bump_escape(EscapeReason.CAM_MISS)
+
+        # Tier-0 raw escape — flush any pending half first to preserve order.
+        flushed = self._flush_pending_pair()
+        self.cam.install(key, event_data, ts_lo)
+        self.stats.tier0_escapes += 1
+        self.stats.slots_emitted += 3
+        return flushed + self._pack_raw(packet, timestamp)
 
     # ----- helpers -----
 
@@ -464,6 +592,24 @@ class Decoder:
                 last_ed = self.cam.entries[idx].last_event_data
                 event_data = (last_ed + ed_delta) & ((1 << 64) - 1)
                 yield self._reconstruct(idx, delta_ts, event_data)
+
+            elif tag == TAG_HALF_PAIR:
+                # Two 30-bit half-slots, slotA first (CAM order matters).
+                for slot in ((beat0 >> HALF_SLOT_BITS) & HALF_SLOT_MASK,
+                             beat0 & HALF_SLOT_MASK):
+                    sub = (slot >> HALF_SUB_SHIFT) & 0x3
+                    if sub == HSUB_NOP:
+                        continue
+                    idx = (slot >> HALF_IDX_SHIFT) & TMPL_IDX_MASK
+                    delta_ts = (slot >> HALF_DATA_BITS) & ((1 << HALF_DELTA_BITS) - 1)
+                    data = slot & ((1 << HALF_DATA_BITS) - 1)
+                    if sub == HSUB_A:
+                        event_data = data
+                    else:  # HSUB_C: signed event_data delta off the template
+                        ed_delta = _sign_extend(data, HALF_DATA_BITS)
+                        last_ed = self.cam.entries[idx].last_event_data
+                        event_data = (last_ed + ed_delta) & ((1 << 64) - 1)
+                    yield self._reconstruct(idx, delta_ts, event_data)
 
             else:
                 raise ValueError(f"Decoder: unknown tag 0x{tag:x} in slot 0x{beat0:016x}")

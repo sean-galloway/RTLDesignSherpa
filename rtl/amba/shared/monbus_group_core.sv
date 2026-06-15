@@ -57,7 +57,9 @@ module monbus_group_core
                                                    //   AXIL builds: 1, AXI4 builds: up to 256
     parameter int FLUSH_TIMEOUT_CYCLES  = 1024,    // cycles since last beat to force flush
     parameter int NUM_PROTOCOLS         = 3,       // informational
-    parameter int USE_COMPRESSION       = 0        // 0 = raw 3-beat records, 1 = compressor
+    parameter int USE_COMPRESSION       = 0,       // 0 = raw 3-beat records, 1 = compressor
+    parameter int HALF_BEAT_EN          = 0        // 1 = pack two 30-bit slots/beat
+                                                   //     (requires USE_COMPRESSION==1)
 ) (
     input  logic                          axi_aclk,
     input  logic                          axi_aresetn,
@@ -603,6 +605,8 @@ module monbus_group_core
         logic        comp_out_valid;
         logic        comp_out_ready;
         logic [63:0] comp_out_slot;
+        logic        comp_out_half_valid;
+        logic [29:0] comp_out_half_slot;
 
         assign comp_skid_wr_valid = monbus_valid && pkt_to_write_path
                                  && !pkt_drop && w_use_comp;
@@ -624,7 +628,9 @@ module monbus_group_core
         // A record is consumed off monbus when the skid accepts it.
         assign comp_in_ready = comp_skid_wr_ready;
 
-        monbus_compressor u_compressor (
+        monbus_compressor #(
+            .HALF_BEAT_EN        (HALF_BEAT_EN)
+        ) u_compressor (
             .clk                 (axi_aclk),
             .rst_n               (axi_aresetn),
 
@@ -636,6 +642,8 @@ module monbus_group_core
             .out_valid           (comp_out_valid),
             .out_ready           (comp_out_ready),
             .out_slot            (comp_out_slot),
+            .out_half_valid      (comp_out_half_valid),
+            .out_half_slot       (comp_out_half_slot),
 
             .stat_tier1_a        (mon_compressor_stat_tier1_a),
             .stat_tier1_b        (mon_compressor_stat_tier1_b),
@@ -647,9 +655,28 @@ module monbus_group_core
             .stat_ed_delta_ovf   (mon_compressor_stat_ed_delta_ovf)
         );
 
-        assign comp_wr_valid  = comp_out_valid;
-        assign comp_wr_data   = comp_out_slot;
-        assign comp_out_ready = write_fifo_wr_ready;
+        // ---- Optional half-beat packer (HALF_BEAT_EN==1) ----
+        // Packs two 30-bit half-slots per beat downstream of the compressor.
+        // When disabled the compressor drives the write FIFO directly (the
+        // committed, timing-closed path).
+        if (HALF_BEAT_EN != 0) begin : gen_halfbeat_packer
+            monbus_halfbeat_packer u_packer (
+                .clk           (axi_aclk),
+                .rst_n         (axi_aresetn),
+                .in_valid      (comp_out_valid),
+                .in_ready      (comp_out_ready),
+                .in_slot       (comp_out_slot),
+                .in_half_valid (comp_out_half_valid),
+                .in_half_slot  (comp_out_half_slot),
+                .out_valid     (comp_wr_valid),
+                .out_ready     (write_fifo_wr_ready),
+                .out_slot      (comp_wr_data)
+            );
+        end else begin : gen_no_halfbeat
+            assign comp_wr_valid  = comp_out_valid;
+            assign comp_wr_data   = comp_out_slot;
+            assign comp_out_ready = write_fifo_wr_ready;
+        end
 
     end else begin : gen_no_compressor
 
