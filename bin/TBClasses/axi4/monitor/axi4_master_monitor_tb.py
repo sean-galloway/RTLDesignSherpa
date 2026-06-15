@@ -185,14 +185,23 @@ class AXI4MasterMonitorTB:
             self.log.error("❌ Basic connectivity test FAILED!")
             raise RuntimeError("Basic connectivity failed")
 
-        # Wait for monitor packets
-        await self.base_tb.wait_clocks('aclk', 20)
-
-        packets = len(self.mon_slave.received_packets)
+        # Wait for the completion packet. The monitor asserts monbus_valid and
+        # HOLDS it until accepted (proper AXI handshake), so the packet is
+        # guaranteed to arrive -- but the MonbusSlave's ready can stall a few
+        # cycles. A fixed 20-cycle wait raced that stall and intermittently saw
+        # 0 packets for this single-transaction test (~12%); poll instead so we
+        # wait for the packet to actually drain (bounded), making it
+        # deterministic regardless of slave-ready backpressure timing.
+        packets = 0
+        for _ in range(100):
+            await self.base_tb.wait_clocks('aclk', 1)
+            packets = len(self.mon_slave.received_packets)
+            if packets > 0:
+                break
         self.log.info(f"Monitor packets after basic test: {packets}")
 
         if packets == 0:
-            self.log.error("❌ No monitor packets generated!")
+            self.log.error("❌ No monitor packets generated within 100 cycles!")
             raise RuntimeError("Monitor not generating packets")
 
         self.log.info("✅ TEST 1 PASSED")
