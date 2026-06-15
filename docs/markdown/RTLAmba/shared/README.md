@@ -81,8 +81,27 @@ the matching fabric without spurious AXI4-only fields on AXIL sides.
 | **monbus_axil_axi4_group** | Wrapper — AXIL/AXI4 | AXIL slave-read + AXI4 burst master-write (up to 256 beats/burst) | (same) |
 | **monbus_axi4_axil_group** | Wrapper — AXI4/AXIL | AXI4 burst slave-read + AXIL master-write | (same) |
 | **monbus_axi4_axi4_group** | Wrapper — AXI4/AXI4 | Burst on both sides | (same) |
-| **monbus_compressor** | Bulk-trace encoder | 32-entry LRU CAM, 4-tag slot format, 2.66× ratio, bit-exact to Python golden | [monbus_compressor.md](monbus_compressor.md) |
-| **monbus_cam** | LRU CAM for compressor | 32-entry, position-indexed, true LRU, 49b key + 64b payload | [monbus_cam.md](monbus_cam.md) |
+| **monbus_compressor** | Bulk-trace encoder | 32-entry LRU CAM, 4-tag slot format, ~2.6× ratio, 2-stage pipeline, per-template `delta_ts`, bit-exact to Python golden | [monbus_compressor.md](monbus_compressor.md) |
+| **monbus_cam** | LRU CAM for compressor | 32-entry, position-indexed, true LRU, 49b key + 64b payload + 24b per-entry `last_ts` | [monbus_cam.md](monbus_cam.md) |
+
+The group family uses a small carry-save-compressor helper
+(`rtl/common/mod_3_compress.sv`) for whole-record `X − (X mod 3)`
+rounding. A single canonical filelist
+`rtl/amba/filelists/monbus_group.f` enumerates the core's dependency
+tree so a new core dep lands in one place; every consumer
+`-f`-includes it.
+
+### Standalone DMA Observability
+
+The drop-in observer wraps any AXI4-master DMA's external pins from
+outside the DMA (non-intrusive), produces a monbus stream + IRQ FIFO
++ bulk-trace dump, and includes per-port valid/ready bucket counters.
+Companion piece to the per-DMA `axi_monitor_*` family.
+
+| Module | Purpose | Key Features | Documentation |
+|--------|---------|--------------|---------------|
+| **axi4_dma_observer** | Standalone DMA observability harness | NUM_RD + NUM_WR tap pairs, monbus_arbiter + monbus_axil_axi4_group, axi_bus_meter per tap with runtime rid → channel map | [axi4_dma_observer.md](axi4_dma_observer.md) |
+| **axi_bus_meter** | Per-cycle valid/ready bucket counter | 4 buckets (productive / backpressure / starvation / idle), aggregate + per-channel | (covered in axi4_dma_observer.md) |
 
 ### Memory / BRAM Slave (sdpram_slave family)
 

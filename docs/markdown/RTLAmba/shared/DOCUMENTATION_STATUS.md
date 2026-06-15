@@ -24,7 +24,7 @@
 # Shared Infrastructure Documentation Status
 
 **Generated:** 2025-10-23
-**Last updated:** 2026-06-11 (monbus_group two-stage burst-sizing fix; new master-write + axi4_axil tests)
+**Last updated:** 2026-06-15 (timing-closure refresh: 3-stage burst-writer pipeline, 2-stage compressor, per-template `delta_ts`, runtime `cfg_compress_en`, mod_3_compress helper, new axi4_dma_observer doc)
 **Location:** `/mnt/data/github/RTLDesignSherpa/docs/markdown/RTLAmba/shared/`
 
 ---
@@ -49,16 +49,25 @@
     - 3 lookup ports + 3-way mutex alloc priority encoder
     - Synthesis notes (keep="true" anchors, per-slot generate-loop storage)
 
-13. **monbus_compressor.md** - COMPLETE (new 2026-06-08)
-    - Hardware bulk-trace encoder, ~2.66× compression
+13. **monbus_compressor.md** - COMPLETE (new 2026-06-08; refreshed 2026-06-15)
+    - Hardware bulk-trace encoder, ~2.6× compression
     - Full coverage of all 5 compression techniques (template extraction,
       delta-ts, width-tiered Tier-1, differential payload, Tier-0 RAW)
     - Bit layouts, encoder decision tree, pipeline/timing/synthesis notes
+    - 2026-06-15 refresh: pipeline is now 2 stages (lookup/commit ->
+      encode/emit); delta_ts is per-template (matches the CAM's per-entry
+      r_ts[24]) rather than against a single global r_last_ts; added
+      compressor input skid + pblock_monbus floorplan note for the
+      Nexys A7 build
 
-14. **monbus_cam.md** - COMPLETE (new 2026-06-08)
+14. **monbus_cam.md** - COMPLETE (new 2026-06-08; refreshed 2026-06-15)
     - 32-entry true-LRU caching CAM (position-indexed storage)
     - Backs monbus_compressor's template indexing
     - Caller protocol (NONE/TOUCH/INSTALL), eviction semantics
+    - 2026-06-15 refresh: added per-entry r_ts[TS_WIDTH=24] storage
+      with access_old_ts / access_new_ts ports (shifts with the LRU
+      move-to-front). CAM is no longer pure opaque-payload -- the
+      caller must drive access_new_ts on every TOUCH/INSTALL.
 
 15. **monbus_group.md** - COMPLETE (rewritten 2026-06-11, was monbus_axil_group.md;
                               refreshed same day for the two-stage burst-sizing fix)
@@ -78,6 +87,16 @@
       FSM). The "Test" section now lists all five tests in the suite,
       including the new master-write coverage that closed the
       AXIL-master raw-mode deadlock.
+    - 2026-06-15 refresh: burst writer geometry is now a 3-stage
+      registered pipeline with a fresh-FIFO cap applied combinationally
+      at the WR_IDLE commit (necessary because the FIFO keeps filling
+      while WR_IDLE waits); mod-3 rounding moved to mod_3_compress
+      (rtl/common/, carry-save-compressor idiom) so synthesis no longer
+      infers a DSP48 or CARRY4 iterative divider for the /3 path;
+      runtime cfg_compress_en input added (USE_COMPRESSION=1 elaborates
+      the compressor, cfg_compress_en selects at runtime); canonical
+      rtl/amba/filelists/monbus_group.f introduced (one place to add
+      new core deps).
 
 16. **sdpram_slave.md** - COMPLETE (new 2026-06-09)
     - Covers the full 5-file family: 1 backend + 4 protocol-specific
@@ -98,6 +117,31 @@
     - The six sub-block files (axi_monitor_reporter_*.sv) are
       explicitly covered here rather than as individual doc pages,
       since they are private to the reporter family.
+
+18. **axi4_dma_observer.md** - COMPLETE (new 2026-06-15)
+    - Standalone, DMA-agnostic observability harness that wraps any
+      AXI4-master DMA from outside the DMA (non-intrusive). Companion
+      to the per-DMA axi_monitor_* family which wraps from inside.
+    - Covers the full instantiation pattern: NUM_RD + NUM_WR
+      axi4_master_*_mon taps, monbus_arbiter aggregator,
+      monbus_axil_axi4_group filter+dump, and axi_bus_meter per port.
+    - Documents the runtime rid -> channel map (cfg_rd_rid_per_channel)
+      for read-side per-channel attribution and the optional W-side
+      sideband (dma_wr_active_ch_*) for write-side attribution
+      (mirrors STREAM's axi_write_engine.o_active_channel_*).
+    - The companion module axi_bus_meter.sv is covered in this single
+      doc rather than its own page (small, only useful in context).
+
+### New shared infrastructure (no dedicated page, covered above)
+
+- `rtl/common/mod_3_compress.sv` - carry-save-compressor `X mod 3`
+  for 16-bit operands; used by monbus_group_core's whole-record
+  rounding. Covered in monbus_group.md "mod-3 rounding" section.
+- `rtl/amba/filelists/monbus_group.f` - canonical filelist enumerating
+  the group core's dependency tree (math_adder_carry_save_nbit +
+  mod_3_compress + monbus_cam + monbus_compressor + monbus_group_core).
+  All consumers `-f`-include it. Covered in monbus_group.md
+  "Canonical filelist" subsection.
 
 ### Remaining Documentation (15 modules)
 

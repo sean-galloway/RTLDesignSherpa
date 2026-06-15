@@ -150,8 +150,20 @@ where at least one side is AXI4):
 | `FLUSH_TIMEOUT_CYCLES` | 1024 | Cycles since the last accepted W handshake before the writer fires a timeout-driven flush. |
 | `MAX_BURST_BEATS` | 1 (AXIL master) / 64 (AXI4 master) | Maximum beats per master-write burst. AXI4 protocol max is 256. |
 | `NUM_PROTOCOLS` | 3 | Informational — AXI, AXIS, CORE filter configs are unconditional. |
-| `USE_COMPRESSION` | 0 | 0 = raw 3-beat-per-record path; 1 = `monbus_compressor` + per-slot path. |
+| `USE_COMPRESSION` | 0 | **Elaboration**: 0 omits the compressor entirely (raw-only build, minimum area); 1 elaborates the compressor so it can be selected at runtime via `cfg_compress_en`. The raw 3-beat-per-record path is always elaborated. |
 | `SKID_DEPTH_AR/R/AW/W/B` | 2/4/2/2/2 | Skid buffer depths for each channel. AXI4 wrappers default `SKID_DEPTH_W=4` to absorb burst W bursts. |
+
+### Runtime config
+
+In addition to the elaboration parameters, the group exposes runtime
+inputs that pick mode and shape on the fly:
+
+| Input | Width | Notes |
+|---|---|---|
+| `cfg_compress_en` | 1 | Runtime compression enable. Only effective when `USE_COMPRESSION=1` (otherwise the compressor isn't elaborated and the bit folds away). Must be stable while the write path is active. |
+| `cfg_base_addr` / `cfg_limit_addr` | `ADDR_WIDTH` | Master-write address window. |
+| `cfg_flush_watermark` | 16 | Master-write FIFO depth (in beats) at which a flush is triggered. |
+| `cfg_<proto>_*_mask` / `cfg_<proto>_err_select` | 16 each | Per-protocol filter and err-FIFO routing masks; see the dedicated section below. |
 
 ---
 
@@ -160,7 +172,7 @@ where at least one side is AXI4):
 The write-FIFO and slave-read drain are **beat-granular** (one queue
 entry = one 64-bit beat). Two emit modes:
 
-### `USE_COMPRESSION = 0` (default — raw 3-beat-per-record writer)
+### Raw mode (`cfg_compress_en = 0`, or `USE_COMPRESSION = 0` build)
 
 Each accepted monbus record becomes three sequential 64-bit beats in
 the write FIFO:
@@ -178,9 +190,9 @@ master-write burst writer can safely round burst lengths down to a
 multiple of 3.
 
 The `tag` nibble in beat 0 is reserved for future on-the-wire format
-variants. The current writer hardwires it to `4'h0` (raw).
+variants. The raw writer hardwires it to `4'h0`.
 
-### `USE_COMPRESSION = 1` (CAM-backed bulk-trace compressor)
+### Compressed mode (`cfg_compress_en = 1`, requires `USE_COMPRESSION = 1` build)
 
 `monbus_compressor` consumes `(packet, source_ts)` records via its
 in-handshake and emits 64-bit self-tagged slots via its
@@ -198,6 +210,21 @@ FIFO. Slot tags (bits `[63:60]`):
 See [`monbus_compressor.md`](monbus_compressor.md) for the encoder's
 internal state and the byte-exact Python golden.
 
+The raw expander is **always elaborated**; the compressor is elaborated
+only when `USE_COMPRESSION=1`. The two paths' FIFO-write outputs and
+`monbus_ready` are muxed on `w_use_comp = (USE_COMPRESSION != 0) && cfg_compress_en`.
+Only one path is ever active; the inactive one is gated off at its
+input. `BEATS_PER_UNIT` (3 in raw, 1 in compressed) is therefore a
+runtime quantity (`w_beats_per_unit`), feeding the burst-writer
+geometry described below.
+
+> **Note on switching modes:** `cfg_compress_en` must be stable while
+> there is unflushed data in the write FIFO. Toggling it mid-stream
+> would mix raw 3-beat records with compressed 1-beat slots at the
+> same memory addresses — the host decoder couldn't reassemble them.
+> Software should drain the FIFO (poll `write_fifo_count` to zero)
+> before flipping the bit.
+
 ### Slave-read drain (both modes)
 
 The slave-read port returns the same 3-beat layout per err-FIFO
@@ -213,59 +240,97 @@ AR returns one beat.
 
 The burst writer fires when **either**:
 
-- `flush_trigger_watermark`: `write_fifo_count >= cfg_flush_watermark`
+- `flush_trigger_watermark`: `r_fifo_beats >= cfg_flush_watermark`
 - `flush_trigger_timeout`: `r_timeout_cnt >= FLUSH_TIMEOUT_CYCLES`
 
 …and at least `BEATS_PER_UNIT` beats are available (3 in raw mode, 1
 in compressed mode).
 
-Each flush trigger launches a **drain cycle** that emits a planned
-number of beats out of the master port. The drain cycle is sized in
-two stages:
+### Burst geometry: 3-stage pipeline + fresh-FIFO cap at commit
+
+The drain-plan math was originally a single combinational chain off
+`r_wr_addr` feeding straight back into `r_wr_addr` — the 100 MHz
+critical path on Nexys A7 (-1) (WNS −7.06 ns post-route). Since
+`r_wr_addr` is stable while the writer sits in `WR_IDLE` (only `WR_W`
+advances it) and the write FIFO only grows there, the **address
+geometry** is now a **3-stage registered pipeline**:
 
 ```
-// Stage 1: drain-cycle plan -- total beats to emit this cycle.
-//          MAX_BURST_BEATS is NOT a cap here.
-beats = min(write_fifo_count,
-            beats_to_limit,   // staying inside cfg_limit_addr
-            beats_to_4kb)     // staying inside an AXI4 4KB boundary
-beats_planned_units = floor(beats / BEATS_PER_UNIT) * BEATS_PER_UNIT
+stage 1 (caps):           bytes_to_limit / bytes_to_4kb from r_wr_addr,
+                          plus the rewind decision (geom_addr).
+stage 2 (planned):        min-cap tree + whole-record /3 rounding
+                          via u_mod3_geo (see "mod-3 rounding" below).
+stage 3 (rounded + addr): r_plan_geo_units (address-feasible whole-
+                          record count) + r_plan_addr (eff_addr).
+```
 
-// Stage 2: per-AW sub-burst size inside the FSM.
-//          MAX_BURST_BEATS caps each AW. The drain cycle issues
-//          ceil(beats_planned_units / MAX_BURST_BEATS) sub-bursts.
+A `geom_valid` settle counter holds the plan invalid for the first
+few cycles after `r_wr_addr` moves so the pipeline can reflect the
+settled address before the FSM commits.
+
+The **FRESH FIFO-occupancy cap** is applied combinationally at the
+`WR_IDLE` commit (not inside the pipeline):
+
+```
+// Pipeline produces r_plan_geo_units = address-feasible whole-record beats.
+// At commit time, cap by the CURRENT FIFO contents:
+units_commit = min(r_plan_geo_units, w_fifo_units)
+```
+
+where `w_fifo_units = r_fifo_beats - (r_fifo_beats mod 3)` (or
+`r_fifo_beats` itself in compressed mode where the unit is 1 beat).
+This matters because the FIFO keeps filling while the writer sits in
+`WR_IDLE`; a stale (3-cycle-old) FIFO count would short the burst —
+for example, capping a watermark-triggered 24-beat plan to 21. The
+fresh path starts from a single counter (no address subtract/shift),
+so it doesn't recreate the critical path.
+
+Per-AW sub-burst sizing happens **inside the FSM**, capping each AW
+by `MAX_BURST_BEATS`:
+
+```
 sub_burst_beats = min(remaining_in_cycle, MAX_BURST_BEATS)
-awlen = sub_burst_beats - 1
+awlen           = sub_burst_beats - 1
 ```
 
-The two-stage structure is what makes the family work for both AXIL
-(`MAX_BURST_BEATS = 1`) and AXI4 (`MAX_BURST_BEATS` up to 256) masters
-in raw mode (`BEATS_PER_UNIT = 3`):
+The split between drain-cycle plan (whole records) and per-AW
+sub-burst (`MAX_BURST_BEATS`) is what makes the family work for both
+AXIL (`MAX_BURST_BEATS = 1`) and AXI4 masters in raw mode
+(`BEATS_PER_UNIT = 3`):
 
-- **AXI4 master, raw mode:** one drain cycle ~= one large sub-burst,
-  e.g. 24 beats = 8 records in a single AW + 24 x W + B. Throughput-
+- **AXI4 master, raw mode:** one drain cycle ≈ one large sub-burst.
+  e.g. 24 beats = 8 records in a single AW + 24 × W + B. Throughput-
   optimal.
-- **AXIL master, raw mode:** one drain cycle = N single-beat sub-bursts.
-  Each record requires three AW + 1 x W + B handshakes at consecutive
-  addresses. The memory image is identical to the AXI4 case; only the
-  address-channel handshake count differs.
+- **AXIL master, raw mode:** one drain cycle = N single-beat
+  sub-bursts. Each record requires three AW + 1 × W + B handshakes at
+  consecutive addresses. The memory image is identical to the AXI4
+  case; only the address-channel handshake count differs.
 
-If `beats_planned_units` would be zero (e.g. `r_wr_addr` is below
-`cfg_base_addr` or beyond `cfg_limit_addr`), the writer **rewinds**
-`r_wr_addr` to `cfg_base_addr` and re-evaluates. The geometry math is
-computed against a pre-rewound `geom_addr` so the first flush after
-reset (when `r_wr_addr=0`) doesn't deadlock.
+### Rewind on out-of-window addresses
+
+If the pipeline finds `r_wr_addr` outside `[cfg_base_addr, cfg_limit_addr]`,
+or that no whole record fits in what remains of the window, it computes
+the geometry against a pre-rewound `geom_addr = cfg_base_addr`. The
+final `r_plan_addr` reflects that rewind, so the first AW after reset
+(when `r_wr_addr = 0`) doesn't deadlock and rolling past the window's
+end naturally wraps back to `cfg_base_addr`.
+
+### mod-3 rounding (no `/3` operator)
+
+Rounding a beat count down to a whole record (`X − (X mod 3)`) is done
+by two `mod_3_compress` instances (`u_mod3_geo`, `u_mod3_fifo`) — a
+carry-save-compressor implementation of `X mod 3` via base-4 digit
+sum (each 2-bit group has weight `4^k ≡ 1 mod 3`). No `*` or `/`
+operators, so Vivado neither infers a DSP48 (a combinational path
+through a far-placed DSP was catastrophic) nor a CARRY4 iterative
+divider — both used to blow timing. Exhaustively verified for all
+65 536 inputs (`val/common/test_mod_3_compress.py`).
+
+### Final port behavior
 
 `awsize` is fixed at 3 (8 bytes per beat) and `awburst` at INCR
 (`2'b01`). `awlen` is `sub_burst_beats - 1`. `wlast` asserts on the
 final beat of each sub-burst.
-
-> **Note (2026-06-11):** The previous design folded `MAX_BURST_BEATS`
-> into the drain-cycle plan, which deadlocked the writer for the
-> AXIL-master / raw-mode case (`min(1, 3) = 1`, rounded to 3-multiple
-> = 0). See the resolved bug for the rationale behind the two-stage
-> split — the AXIL master now correctly emits one record as three
-> single-beat sub-bursts.
 
 ---
 
@@ -301,6 +366,24 @@ dropped.
 | `axi4_master_wr` / `axil4_master_wr` | Master-write skid (one per wrapper) |
 | `gaxi_fifo_sync` × 2 | Err FIFO + write FIFO inside the core |
 | `monbus_compressor` (conditional) | Compressed-mode encoder; only when `USE_COMPRESSION=1` |
+| `monbus_cam` (transitive) | LRU CAM used by the compressor (per-template `last_ts` storage) |
+| `mod_3_compress` × 2 (`rtl/common/`) | Geometry / FIFO whole-record rounding (X − (X mod 3)) |
+| `math_adder_carry_save_nbit` (transitive) | 3:2 compressor primitive used by `mod_3_compress` |
+| `gaxi_skid_buffer` (inside compressor) | Input skid on the `(source_ts, packet)` feed; breaks the aggregator → CAM long route |
+
+### Canonical filelist
+
+A single canonical filelist enumerates the group core's dependency
+tree so a new core dep lands in **one place**:
+
+```
+rtl/amba/filelists/monbus_group.f
+```
+
+It lists `math_adder_carry_save_nbit` + `mod_3_compress` + `monbus_cam` +
+`monbus_compressor` + `monbus_group_core`. All consumers (`val/amba`
+tests, RAPIDS / STREAM macro filelists) `-f`-include it rather than
+listing those sources inline.
 
 ---
 

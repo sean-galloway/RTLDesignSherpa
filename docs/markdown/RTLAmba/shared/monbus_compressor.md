@@ -417,25 +417,68 @@ and CAM state update happen on the same clock edge.
 
 ## Pipeline and Timing
 
+The encoder is split into **2 registered stages** (1 in, 1 register
+in the middle, 1 out — net latency 2 cycles). Throughput is unchanged
+from the original single-cycle design.
+
+| Stage | Logic |
+|---|---|
+| 1 — lookup / commit | key build → CAM lookup → CAM commit (including per-template `last_ts` update via `access_new_ts`) |
+| 2a — encode register (`q_*`) | delta_ts (per-template) / fits / format-select / slot pack — REGISTERED |
+| 2b — output | drive the slot(s); RAW (tier-0) 3-beat expansion |
+
 | Path | Latency | Throughput |
 |---|---|---|
-| Tier-1 record (CAM hit, Tier-1 fits) | 1 cycle in → 1 slot out | 1 record / cycle |
-| Tier-0 record (CAM miss, or all Tier-1 overflow) | 1 cycle in → 3 slots out | 1 record / 3 cycles |
+| Tier-1 record (CAM hit, Tier-1 fits) | 1 record → 1 slot, 2 cycles in flight | 1 record / cycle |
+| Tier-0 record (CAM miss, or all Tier-1 overflow) | 1 record → 3 slots, 2 cycles + 2 RAW beats | 1 record / 3 cycles |
 
-**Combinational depth on cycle 0** (the cycle a record arrives):
-```
-key build  →  CAM lookup  →  delta_ts compute
-           ↘                ↘
-            tmpl_idx select  →  format-select tree  →  slot packer
-```
+There is **no CAM read-after-write hazard**: the commit action depends
+only on hit/miss (the stage-1 lookup), not on the stage-2 format. The
+next record's lookup one cycle later sees the committed state —
+exactly as in the single-cycle design. Bit-exact slot stream against
+the Python golden either way.
 
-The CAM lookup itself is parallel one-hot (1 LUT per entry × 32 entries),
-followed by a 5:32 priority encoder for the position rank. On the xc7a100t-1
-at 100 MHz this closes comfortably (~10 LUT levels). For larger CAM sizes
-or higher clock targets, the cleanest break point is to register the
-`(hit, tmpl_idx, last_event_data)` triple between the CAM and the
-format-select logic — that adds one cycle of latency but turns the path
-into two short cones.
+### Per-template `delta_ts`
+
+Earlier revisions measured `delta_ts` against a single global
+`r_last_ts`. With interleaved templates from multiple sources (the
+4-channel STREAM characterization case), that global delta could go
+apparently-negative between two interleaved templates and escape to
+raw — collapsing compression.
+
+The current encoder measures `delta_ts` against **the matched CAM
+entry's stored `last_ts`** (`cam_access_old_ts`), and writes back the
+current record's `source_ts[23:0]` to that slot via `access_new_ts` in
+the same cycle. The CAM's per-entry `r_ts[TS_WIDTH=24]` shifts in
+lockstep with the LRU move-to-front. The Python encoder/decoder were
+updated in lockstep — 24 / 24 golden + 1 / 1 RTL compressor + 3 / 3
+group cosim tests pass, bit-exact.
+
+`TS_STORE_BITS = 24`. Format-B (the 23-bit-delta format) needs 24 to
+*detect* its overflow — 16 silently aliases large gaps to wrong
+encodes.
+
+### Input skid
+
+A 2-deep `gaxi_skid_buffer` registers the `(source_ts, packet)` feed
+into the compressor. The monbus aggregator's output skid sits far
+from this compressor's CAM in the Nexys A7 floorplan, and aggregator
+→ in_key → 32-way CAM match/commit was the route-dominated 100 MHz
+worst path (WNS swung ±0.25 ns on placement alone). The input skid
+ends that long hop at a local flop.
+
+### pblock (Nexys A7 build only)
+
+The expanded per-template CAM (32 entries × `TS_STORE_BITS=24`)
+crowded the descriptor monitor's column on Nexys A7 and pushed its
+internal `trans_mgr/u_cam → r_alloc_cnt` path route-bound. The
+characterization build adds a `pblock_monbus` constraint pinning
+the monbus group to `CLOCKREGION_X0Y2:X0Y3` (out of column X1), so
+the monitor can recompact. The monitor → group crossing is registered
+through the input skid above, so the longer inter-region hop is fine.
+100 MHz closes (WNS +0.012 ns, 0 failing endpoints).
+See `projects/NexysA7/stream_characterization/` for the constraint
+file and floorplan details.
 
 ---
 

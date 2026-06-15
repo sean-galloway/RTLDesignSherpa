@@ -51,6 +51,8 @@ two implementations is a regression.
 
 - 32-entry capacity (locked by the bulk-trace format spec)
 - 49-bit key, 64-bit payload (both parameterizable)
+- **Per-entry timestamp storage** (`TS_WIDTH=24`) for per-template
+  `delta_ts` — see the dedicated section below
 - Single combinational access port: lookup + commit in one cycle
 - True LRU eviction via **position-indexed storage** — the slot index IS the
   recency rank (slot 0 = MRU, slot `DEPTH-1` = LRU)
@@ -118,6 +120,7 @@ flowchart TB
 module monbus_cam #(
     parameter int KEY_WIDTH  = 49,
     parameter int DATA_WIDTH = 64,
+    parameter int TS_WIDTH   = 24,   // per-entry last_ts width (per-template delta_ts)
     parameter int DEPTH      = 32,
     parameter int IDX_WIDTH  = (DEPTH > 1) ? $clog2(DEPTH) : 1,
     parameter int CNT_WIDTH  = $clog2(DEPTH + 1)
@@ -130,9 +133,11 @@ module monbus_cam #(
     output logic                  access_hit,
     output logic [IDX_WIDTH-1:0]  access_idx,       // position rank (only valid on hit)
     output logic [DATA_WIDTH-1:0] access_old_data,  // pre-commit payload at access_idx
+    output logic [TS_WIDTH-1:0]   access_old_ts,    // pre-commit timestamp at access_idx
 
     input  logic [1:0]            access_action,
     input  logic [DATA_WIDTH-1:0] access_new_data,
+    input  logic [TS_WIDTH-1:0]   access_new_ts,    // timestamp to write on TOUCH / INSTALL
 
     // Status
     output logic                  cam_full,
@@ -207,6 +212,39 @@ A per-slot `generate` loop generates `DEPTH` independent `always_ff` updates,
 each gated by `do_shift && (CNT_WIDTH'(i) <= shift_to)`. This compiles to
 ~one LUT level per slot on the per-bit datapath — Vivado synthesises the
 whole shift as `DEPTH` parallel small update cones.
+
+---
+
+## Per-Entry Timestamp Storage
+
+Earlier revisions of the CAM stored only `(key, data)` per entry; the
+compressor measured `delta_ts` against a single global `r_last_ts`.
+That worked for single-source streams but collapsed compression to
+raw whenever multiple sources interleaved templates with non-monotonic
+absolute timestamps (the 4-channel STREAM characterization case).
+
+The current CAM adds a **per-entry `r_ts[TS_WIDTH=24]` array** that
+shifts in lockstep with the key and data on every `TOUCH` / `INSTALL`:
+
+```
+r_key[i], r_data[i], r_ts[i]   shift together when slot i moves
+```
+
+`access_old_ts` outputs the *pre-commit* timestamp at the matched slot
+(valid only when `access_hit`) — i.e. the timestamp of the previous
+record that used this template. The compressor uses it to compute
+`delta_ts = src_ts_lo - cam_access_old_ts`, then writes the current
+record's `source_ts[23:0]` back into the slot via `access_new_ts` in
+the same cycle.
+
+> **TS_WIDTH = 24 bits.** Format-B (the 23-bit-delta Tier-1 format)
+> needs 24 bits to *detect* its delta overflow. 16 bits silently
+> aliases large gaps to wrong encodes.
+
+The CAM is therefore no longer pure opaque-payload — its caller
+needs to drive `access_new_ts` along with `access_new_data` on every
+`TOUCH` / `INSTALL`. The compressor wires this directly from the
+incoming record's low 24 timestamp bits.
 
 ---
 
