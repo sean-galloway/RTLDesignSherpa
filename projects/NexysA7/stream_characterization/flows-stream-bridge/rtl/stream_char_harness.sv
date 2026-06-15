@@ -1266,7 +1266,14 @@ module stream_char_harness #(
             r_dbg_overflow <= 1'b0;
         end else if (w_debug_sram_dbg_bram_wr_pulse) begin
             // Each 64-bit BRAM write equals 2 host-visible 32-bit words.
-            if (r_dbg_wr_ptr >= DEBUG_SRAM_WORDS - 1) begin
+            // CIRCULAR: the monbus group's write address wraps to cfg_base
+            // when it reaches the window limit (overwrite-oldest), so this
+            // host-visible pointer MUST wrap to 0 too -- NOT saturate. A
+            // saturating pointer froze at the limit (host could never read a
+            // live position again until a soft-reset). overflow is a sticky
+            // "wrapped at least once" flag, not a stop.
+            if (r_dbg_wr_ptr >= DEBUG_SRAM_WORDS - 32'd2) begin
+                r_dbg_wr_ptr   <= 32'd0;
                 r_dbg_overflow <= 1'b1;
             end else begin
                 r_dbg_wr_ptr <= r_dbg_wr_ptr + 32'd2;

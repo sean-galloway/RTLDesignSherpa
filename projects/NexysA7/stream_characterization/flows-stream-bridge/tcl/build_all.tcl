@@ -43,8 +43,12 @@ close_design
 # last few hundred ps. Both the post-place and post-route passes are
 # enabled; the post-route pass is the one that closes sub-100ps slack.
 puts "\n--- Implementation ---"
-set_property STEPS.PHYS_OPT_DESIGN.IS_ENABLED true [get_runs impl_1]
-set_property STEPS.POST_ROUTE_PHYS_OPT_DESIGN.IS_ENABLED true [get_runs impl_1]
+set_property STEPS.PLACE_DESIGN.DIRECTIVE               ExtraTimingOpt    [get_runs impl_1]
+set_property STEPS.PHYS_OPT_DESIGN.IS_ENABLED           true              [get_runs impl_1]
+set_property STEPS.PHYS_OPT_DESIGN.DIRECTIVE            AggressiveExplore [get_runs impl_1]
+set_property STEPS.ROUTE_DESIGN.DIRECTIVE               Explore           [get_runs impl_1]
+set_property STEPS.POST_ROUTE_PHYS_OPT_DESIGN.IS_ENABLED  true            [get_runs impl_1]
+set_property STEPS.POST_ROUTE_PHYS_OPT_DESIGN.DIRECTIVE AggressiveExplore [get_runs impl_1]
 launch_runs impl_1 -to_step write_bitstream -jobs 4
 wait_on_run impl_1
 if {[get_property PROGRESS [get_runs impl_1]] != "100%"} {
