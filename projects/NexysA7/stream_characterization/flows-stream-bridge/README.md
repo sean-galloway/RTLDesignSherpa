@@ -74,9 +74,9 @@ at `NUM_CHANNELS`.
 | Offset | Name             | Access | Description                               |
 |--------|------------------|--------|-------------------------------------------|
 | `0x00` | `CTRL`           | RW     | `[0]` start, `[1]` clear_stats, `[2]` freeze_trace, `[3]` soft_reset |
-| `0x04` | `STATUS`         | R      | `[0]` stream_irq, `[1]` any_error, `[2]` trace_overflow |
-| `0x08` | `DBG_WR_PTR`     | R      | Words written to `debug_sram` since clear |
-| `0x0C` | `DBG_OVERFLOW`   | R      | Sticky overflow flag                      |
+| `0x04` | `STATUS`         | R      | `[0]` stream_irq, `[1]` any_error, `[2]` trace_overflow (sticky "wrapped ≥ 1×") |
+| `0x08` | `DBG_WR_PTR`     | R      | Trace SRAM write pointer in words. **Wraps to 0 at `DEBUG_SRAM_WORDS`**, matching the monbus group's circular dump address — read this modulo SRAM size, not as a monotonic word count. |
+| `0x0C` | `DBG_OVERFLOW`   | R      | Sticky "wrapped at least once" flag. **Writes continue past wrap** (oldest records overwritten); the flag only marks that wrap-around has happened so the host knows the trace is now a ring. Cleared by `clear_stats_pulse`. |
 | `0x10` | `CRC_RD_EXPECTED`| R      | Source-side CRC (from pattern gen)        |
 | `0x14` | `CRC_WR_EXPECTED`| R      | Expected sink-side CRC                    |
 | `0x18` | `CRC_WR_COMPUTED`| R      | Actual sink-side CRC                      |

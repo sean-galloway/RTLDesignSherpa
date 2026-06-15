@@ -29,9 +29,9 @@ Decoded from the address-map block at the top of
 | Offset | Name                  | RW | Bits / meaning                                                          |
 | ------ | --------------------- | -- | ----------------------------------------------------------------------- |
 | `0x00` | `CTRL`                | W  | `[0]` start_pulse, `[1]` clear_stats_pulse, `[2]` freeze_trace, `[3]` soft_reset_pulse |
-| `0x04` | `STATUS`              | R  | `[0]` stream_irq, `[1]` any_error, `[2]` trace_overflow                |
-| `0x08` | `DBG_WR_PTR`          | R  | trace SRAM write pointer (in words)                                    |
-| `0x0C` | `DBG_OVERFLOW`        | R  | sticky overflow flag                                                   |
+| `0x04` | `STATUS`              | R  | `[0]` stream_irq, `[1]` any_error, `[2]` trace_overflow (sticky "wrapped ≥ 1×") |
+| `0x08` | `DBG_WR_PTR`          | R  | Trace SRAM write pointer (in words). **Wraps to 0 at `DEBUG_SRAM_WORDS`** to match the monbus group's circular dump address — readers must treat the value modulo SRAM size, not as a monotonic word count. |
+| `0x0C` | `DBG_OVERFLOW`        | R  | Sticky "the trace has wrapped at least once" flag. **Does NOT stop writes** — writes continue, overwriting oldest records. Cleared by `clear_stats_pulse`. See `monbus_group.md` "Address-window behavior" for the matching monbus-side invariant. |
 | `0x10` | `CRC_RD_EXPECTED`     | R  | aggregate read CRC (back-compat = ch0)                                 |
 | `0x14` | `CRC_WR_EXPECTED`     | R  | aggregate expected write CRC                                           |
 | `0x18` | `CRC_WR_COMPUTED`     | R  | aggregate computed write CRC                                           |
