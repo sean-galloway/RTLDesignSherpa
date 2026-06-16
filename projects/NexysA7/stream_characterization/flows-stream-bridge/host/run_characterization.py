@@ -590,12 +590,33 @@ class CharacterizationRunner:
         even before the timer terminates.
         """
         start = time.time()
+        next_progress = 5.0   # PROGRESS_DEBUG: first heartbeat at 5 s
         while (time.time() - start) < timeout_s:
             ts = self.bridge.read(CSR_TIMER_STATUS)
             st = self.bridge.read(CSR_STATUS)
             if ts is None or st is None:
                 time.sleep(0.1)
                 continue
+
+            # PROGRESS_DEBUG: periodic heartbeat to tell a true deadlock
+            # (frozen R_LAST/W_LAST) from a severe throttle (advancing). The
+            # *_LAST regs hold the aclk cycle of the most recent R/W beat.
+            elapsed_now = time.time() - start
+            if elapsed_now >= next_progress:
+                def _rd64(lo, hi):
+                    l = self.bridge.read(lo) or 0
+                    h = self.bridge.read(hi) or 0
+                    return (h << 32) | (l & 0xFFFFFFFF)
+                r_last = _rd64(CSR_TIMER_R_LAST_LO, CSR_TIMER_R_LAST_HI)
+                w_last = _rd64(CSR_TIMER_W_LAST_LO, CSR_TIMER_W_LAST_HI)
+                cyc    = _rd64(CSR_TIMER_CYCLES_LO, CSR_TIMER_CYCLES_HI)
+                # vlog = verbose-only: a frozen r_last/w_last while timer_cyc
+                # advances is a hard deadlock (zero beats); advancing *_last is
+                # a throttle. Diagnostic for the debug-compl 4-7ch hang.
+                self.vlog(f"  [progress {elapsed_now:5.1f}s] timer_cyc={cyc} "
+                          f"r_last_beat_cyc={r_last} w_last_beat_cyc={w_last} "
+                          f"running={bool(ts & 0x02)} done={bool(ts & 0x01)}")
+                next_progress += 5.0
 
             done    = bool(ts & 0x01)
             running = bool(ts & 0x02)

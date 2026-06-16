@@ -147,31 +147,39 @@ measurement bug, not the codec:
   exact captured stream** (`val/amba/test_monbus_halfbeat.py`, Phase 2 +
   `DATASET_OVERRIDE`). The codec was never implicated.
 
-### 6.2 OPEN BUG — CRC mismatch at 4–7 active channels under heavy monitoring
+### 6.2 OPEN BUG — DMA hang at 4–7 active channels under heavy monitoring
 
 Separately, with the `debug-compl` monitor preset and **4, 5, 6, or 7**
-active channels, the data-path CRC **mismatches reproducibly**; 1, 2, 3,
-and 8 channels pass. The default-mon-config perf matrix passes *all* channel
-counts, so the trigger is the heavy monitor traffic, not plain data movement.
+active channels, the DMA **hangs** (reproducibly); 1, 2, 3, and 8 channels
+complete. The default-mon-config perf matrix passes *all* channel counts, so
+the trigger is the heavy monitor traffic, not plain data movement.
 
-| active ch (8desc) | CRC |
+| active ch (8desc) | result |
 |---|---|
-| 1, 2, 3 | ok |
-| **4, 5, 6, 7** | **MISMATCH** |
-| 8 | ok |
+| 1, 2, 3 | completes, CRC ok |
+| **4, 5, 6, 7** | **hang (timeout)** |
+| 8 | completes, CRC ok |
+
+It is a **hang, not data corruption.** The failing run times out at 120 s
+with `GLOBAL_STATUS=0`, `AXI_RD_COMPLETE=AXI_WR_COMPLETE=0` (zero
+completions), and `CHANNEL_IDLE=0xF1` — channel 0 finishes, channels 1/2/3
+are stuck mid-transfer; `SCHED_ERROR=0`; monbus trace flowing
+(`wr_ptr=242`, no overflow). The earlier "CRC mismatch" reported by
+`hb_measure` was a *consequence* of non-completion (stale CRC after
+timeout), not bad data.
 
 Suspected mechanism (under investigation): the monitors are **not** passive
-in this harness — `block_ready` (asserted when the monbus FIFO /
-transaction table saturates) gates `fub_axi_arready`/`fub_axi_awready`
-(`axi4_master_{rd,wr}_mon.sv`). Heavy monitoring backs the monbus up, which
-throttles the data-path AXI; `axi_monitor_base.sv:444` documents a prior
-`block_ready` form that could deadlock. A pure stall preserves data, so the
-corruption likely comes from a drop / premature-completion corner in that
-throttle path. The 4–7-fail-but-8-pass pattern points at a `block_ready` /
-`active_count` (MAX-3 margin) corner at *partial* channel population. This
-is a **real RTL bug, not a measurement artifact**, and is being reproduced
-in the `stream_char` cosim under forced monbus saturation. Until it closes,
-the 4–7-channel `debug-compl` reduction points are excluded as suspect.
+in this harness — `block_ready` (de-asserted as the transaction table fills
+while completion-reporting can't free entries) gates
+`fub_axi_arready`/`fub_axi_awready` (`axi4_master_{rd,wr}_mon.sv`), and
+`axi_monitor_base.sv:444` documents a prior `block_ready` form that
+deadlocked (`block_ready=0 → ready=0 → count never increments`). Heavy
+completion traffic at partial channel population appears to re-trip that
+corner so the shared engine stalls the non-first channels. The
+4–7-hang-but-8-complete pattern points at a `block_ready` / `active_count`
+(MAX-3 margin) corner. This is a **real RTL bug, not a measurement
+artifact**, being reproduced in the `stream_char` cosim. Until it closes,
+the 4–7-channel `debug-compl` points are excluded.
 
 ---
 
@@ -189,9 +197,10 @@ the 4–7-channel `debug-compl` reduction points are excluded as suspect.
    the model; the codec was never the bug. The earlier non-reproducibility
    was a `hb_measure` reset bug (fixed, §6.1).
 6. **Separate open bug (§6.2):** 4–7 active channels under `debug-compl`
-   corrupt the data-path CRC — a real RTL interaction (monbus backpressure
-   throttling the AXI via `block_ready`), under investigation. Not a codec
-   or measurement issue.
+   **hang the DMA** (channels 1+ stall, zero completions, 120 s timeout) —
+   a real RTL interaction (monitor `block_ready` / completion-feedback
+   deadlock), under investigation. Not a codec or measurement issue, and
+   not data corruption.
 
 ---
 

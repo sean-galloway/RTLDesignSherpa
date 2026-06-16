@@ -6,7 +6,19 @@ This directory tracks known bugs and issues in the AXI monitor subsystem.
 
 ## Active Issues
 
-### ✅ ALL ISSUES RESOLVED
+### 🔴 OPEN
+
+#### Issue: DMA hang at 4–7 active channels under heavy monitoring
+**File:** `axi_monitor_blockready_hang_partial_channels.md`
+**Status:** 🔴 OPEN — under investigation (reported 2026-06-16)
+**Severity:** HIGH — DMA deadlocks (hang, **not** data corruption)
+
+**Summary:** With the `debug-compl` monitor preset and 4–7 active DMA
+channels, the DMA hard-deadlocks (zero beats moved; channels 1+ stall;
+120 s timeout). 1/2/3/8 channels and the default monitor preset are
+unaffected. Suspected `block_ready` / completion-feedback corner in
+`axi_monitor_base.sv`. Workaround: default preset, or ≤3 / exactly 8
+channels for `debug-compl` runs.
 
 ---
 
