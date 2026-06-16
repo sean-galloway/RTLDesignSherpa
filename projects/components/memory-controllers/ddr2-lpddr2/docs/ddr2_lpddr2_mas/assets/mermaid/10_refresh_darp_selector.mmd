@@ -1,0 +1,61 @@
+%%{init: {'theme': 'base', 'themeVariables': { 'primaryColor': '#e8f4e8', 'primaryTextColor': '#000', 'primaryBorderColor': '#228B22', 'lineColor': '#404040', 'secondaryColor': '#f0f0f0', 'tertiaryColor': '#fff'}}}%%
+flowchart TB
+    subgraph INPUTS["Per-(rank,bank) inputs"]
+        ages["last_ref_age[NR][NB]<br/>(24-bit each, from bank_machine_fub)"]
+        states["bank_state[NR][NB]<br/>(from bank_machine_fub)"]
+        pasr["pasr_bank_mask[NR][NB]<br/>(from CSR, per-rank MR16)"]
+    end
+
+    subgraph S1["Stage 1 — Eligibility (combinational)"]
+        idle_mask["idle_mask[r][b] =<br/>(bank_state[r][b] == IDLE)"]
+        elig_mask["eligible[r][b] =<br/>NOT pasr_mask[r][b]<br/>AND (round_robin_select[r] when REFab)"]
+        idle_elig["idle_eligible[r][b] =<br/>idle_mask AND eligible"]
+        any_elig["any_eligible[r][b] =<br/>eligible"]
+    end
+
+    subgraph S2["Stage 2 — DARP selection (combinational)"]
+        idle_pe["age priority encoder<br/>over idle_eligible<br/>→ idle_winner (r,b,age)"]
+        any_pe["age priority encoder<br/>over any_eligible<br/>→ fallback_winner (r,b,age)"]
+    end
+
+    subgraph S3["Stage 3 — Pick (combinational mux)"]
+        pick["if (idle_winner is valid):<br/> pick = idle_winner   (DARP win)<br/>else:<br/> pick = fallback_winner  (oldest-first)"]
+    end
+
+    subgraph POLICY["Policy mux"]
+        mode["REFPB_POLICY runtime override<br/>(REFRESH_TUNING.refpb_policy_or)"]
+        rr_path["ROUND_ROBIN:<br/>cyclic (r,b) pointer<br/>skipping pasr_mask"]
+        oldest_path["OLDEST_FIRST:<br/>any_winner only"]
+        darp_path["DARP:<br/>pick above"]
+    end
+
+    pick_final["selected_(rank, bank)<br/>→ refresh sequencer"]
+
+    ages --> idle_pe
+    ages --> any_pe
+    states --> idle_mask
+    pasr --> elig_mask
+    idle_mask --> idle_elig
+    elig_mask --> idle_elig
+    elig_mask --> any_elig
+    idle_elig --> idle_pe
+    any_elig --> any_pe
+    idle_pe --> pick
+    any_pe --> pick
+    pick --> darp_path
+    rr_path --> pick_final
+    oldest_path --> pick_final
+    darp_path --> pick_final
+    mode --> pick_final
+
+    classDef inblock fill:#f0f0f0,stroke:#666666,stroke-width:2px
+    classDef s1 fill:#e8f4e8,stroke:#228B22,stroke-width:2px
+    classDef s2 fill:#fef0e0,stroke:#B88B22,stroke-width:2px
+    classDef s3 fill:#e0e8fa,stroke:#3366CC,stroke-width:2px
+    classDef pol fill:#f0e8f4,stroke:#7B228B,stroke-width:2px
+
+    class ages,states,pasr inblock
+    class idle_mask,elig_mask,idle_elig,any_elig s1
+    class idle_pe,any_pe s2
+    class pick s3
+    class mode,rr_path,oldest_path,darp_path,pick_final pol
