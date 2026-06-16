@@ -7,8 +7,32 @@ CSV exports of FPGA characterization measurements. Methodology: see
 
 | File | Source | Rows | Notes |
 |---|---|---|---|
-| `char_matrix_2026-06-05.csv` | full default matrix | 40 | desc x ch sweep at 1MB/desc |
+| `matrix_2026-06-15.csv` / `.json` | full default matrix | 40 | **current** — all-timing-fixes bitstream (see below) |
+| `char_matrix_2026-06-05.csv` | full default matrix | 40 | desc x ch sweep at 1MB/desc (pre-cleanup, see note) |
 | `respdelay_sweep_2026-06-05.csv` | resp-delay axis | 32 | 4 configs x 8 delays (0..64 cyc) |
+
+### `matrix_2026-06-15` — all-timing-fixes bitstream
+
+Captured on the bitstream that closes timing with **WNS +0.048 ns** at
+100 MHz (xc7a100t), carrying the full set of timing/feature work:
+both CAM pipelines (`monbus_cam_pipe` route-bound match + monitor
+`TRANS_CAM_PIPELINE` with gated MAX-3 block margin), half-beat packing,
+monbus compression, the wrapping trace write pointer, and the
+`pblock_monbus` floorplan + timing-directive build.
+
+Result: all 40 configs pass, datapath/bus end-to-end utilization sits in
+a **94.06–94.12 %** band across the entire desc×ch matrix (engine
+ceiling, flat regardless of channel count or descriptor depth), and net
+bus throughput is **1435–1436 MB/s** against the 1526 MB/s one-direction
+ceiling. The timing fixes change none of the functional throughput —
+they make the bitstream valid (positive slack) without regressing the
+94.1 % engine efficiency measured on earlier builds.
+
+The `trace.overflow` flag trips on the eight `16desc_*` configs because
+the on-chip debug trace SRAM is only 2048 beats deep (16 desc × 128
+beats > 2048). This is benign: it bounds only the captured waveform
+trace, not the `axi_bus_meter` counters or the timer window, so every
+efficiency number above is unaffected.
 
 > **Note on the 2026-06-05 CSVs.** These pre-date the runner cleanup
 > documented below. Their `throughput_MBps`, `E2E_util_pct`, and
@@ -119,5 +143,14 @@ python3 run_characterization.py --port /dev/ttyUSB2 \
     --poll-interval-ms 0.5 --aclk-mhz 200 --output fast.json
 ```
 
-The runner emits JSON; CSV is currently produced by hand from the JSON
-records (one row per `result` dict, fields above).
+The runner emits JSON; convert it to the column set above with:
+
+```bash
+cd flows-stream-bridge/host
+python3 perf_json_to_csv.py ../../reports/perf/matrix.json \
+    --out ../../reports/perf/matrix.csv --date 2026-06-15 --time 13:58:32
+```
+
+`perf_json_to_csv.py` maps one CSV row per result dict (bus-side columns
+first, host-side last). The `--date`/`--time` flags only stamp the
+run-identification columns; all measurements come from the JSON.
