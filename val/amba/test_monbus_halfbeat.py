@@ -27,9 +27,13 @@ from TBClasses.monbus.monbus_compressor import Encoder
 from TBClasses.monbus.sniffer import load_capture
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
-DATASET_PATH = (REPO_ROOT
+# DATASET_OVERRIDE lets the bit-exact RTL-vs-golden check be pointed at any
+# captured (packet, timestamp) stream (e.g. a per-run capture_raw_trace dump)
+# to recreate a specific on-silicon scenario in simulation.
+DATASET_PATH = Path(os.environ.get("DATASET_OVERRIDE", str(
+                REPO_ROOT
                 / "projects/NexysA7/stream_characterization"
-                / "reports/compression_dataset/desc_axi_16desc_8ch_1MB.json")
+                / "reports/compression_dataset/desc_axi_16desc_8ch_1MB.json")))
 
 
 def synth_small_stream() -> List[Tuple[int, int]]:

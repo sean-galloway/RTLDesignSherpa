@@ -24,6 +24,8 @@ H = 0x10000
 CSR_DBG_WR_PTR   = H + 0x08
 CSR_DBG_OVERFLOW = H + 0x0C
 DEBUG_SRAM_BASE  = 0x40000
+STREAM_APB_BASE  = 0x20000
+APB_CHANNEL_RESET = STREAM_APB_BASE + 0x124
 
 
 def main():
@@ -35,12 +37,28 @@ def main():
     ap.add_argument("--mon-config", default="debug-all")
     args = ap.parse_args()
 
-    # Soft-reset first: clear_stats (0x02) does NOT clear a trace that froze on
-    # a prior overflow; the soft_reset pulse (CTRL bit 3) does.
+    # Full cluster reset BEFORE the run. The soft-reset pulse alone (CTRL
+    # bit 3) is NOT enough between back-to-back invocations: per-channel
+    # STREAM state and the stat accumulators survive it, and that stale
+    # state perturbs the captured event stream (and thus the compressed
+    # beat count) run-to-run. Localization proved this: with soft-reset
+    # only, repeated 8desc_8ch runs gave 261 vs 405 beats; with the full
+    # reset below they are bit-identical (212 rec / 405 beats every run,
+    # CRC ok). The compressor itself is bit-exact to the golden model in
+    # cosim on the exact stream (val/amba/test_monbus_halfbeat.py), so the
+    # variation was reset, not the codec. Sequence: soft-reset pulse ->
+    # settle -> per-channel reset pulse -> clear_stats -> settle.
+    import time
     from uart_axi_bridge import UARTAxiBridge
     with contextlib.redirect_stdout(io.StringIO()):
         with UARTAxiBridge(port=args.port, baudrate=115200) as b:
-            b.write(H + 0x00, 0x08)
+            b.write(H + 0x00, 0x08)             # soft_reset pulse
+            time.sleep(0.15)
+            b.write(APB_CHANNEL_RESET, 0xFF)    # per-channel reset (all 8)
+            time.sleep(0.05)
+            b.write(APB_CHANNEL_RESET, 0x00)
+            b.write(H + 0x00, 0x02)             # clear_stats / trace ptr
+            time.sleep(0.15)
 
     # Run the compressed workload (run_characterization clears the trace ptr at
     # start and sets WRMON.COMPRESS_EN for --compression on).

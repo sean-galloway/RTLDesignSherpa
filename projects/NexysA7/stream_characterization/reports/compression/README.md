@@ -127,15 +127,51 @@ correct. 1-channel descriptor sweep (`debug-compl` monitor preset):
 The live curve tracks the offline warm-up curve (§5): reduction climbs with
 record count toward the full-capture 75.7 %.
 
-> **Measurement caveat (not a codec issue).** The live *multi-channel*
-> sweep was not reproducible: `8desc_4ch` returned a CRC mismatch and
-> `8desc_8ch` gave 405 beats one run vs 261 another for the identical
-> config. The cause is the known back-to-back-UART **cluster-reset
-> fragility** (separate `hb_measure` invocations wedge cluster state unless
-> fully reset between runs), *not* the compressor — which is bit-exact in
-> cosim and deterministic offline. Those points are excluded; the offline
-> model (§2–5) is the authoritative source. Investigating a robust
-> per-run cluster reset is tracked as follow-up.
+### 6.1 Reproducibility — root-caused (was a reset bug, now fixed)
+
+An earlier `hb_measure` run reported `8desc_8ch` as 261 beats one time and
+405 another for the *identical* config. This was **proven** to be a
+measurement bug, not the codec:
+
+- Localized on HW: 3 properly-reset runs give **bit-identical packets and
+  identical per-template timestamp deltas** (only the absolute timer base
+  shifts — it cancels in deltas), so the deterministic model yields the
+  same compression every time.
+- Root cause: `hb_measure` fired only the soft-reset pulse, leaving
+  per-channel + stat state stale between back-to-back invocations, which
+  perturbed the captured event stream. **Fixed** (`hb_measure` now does the
+  full cluster reset: soft-reset → per-channel reset → clear-stats); with
+  the fix, repeated `8desc_8ch` runs are bit-identical (212 rec / 405 beats
+  / 36.3 %, CRC ok, every run).
+- The compressor RTL is **bit-exact to the golden model in cosim on the
+  exact captured stream** (`val/amba/test_monbus_halfbeat.py`, Phase 2 +
+  `DATASET_OVERRIDE`). The codec was never implicated.
+
+### 6.2 OPEN BUG — CRC mismatch at 4–7 active channels under heavy monitoring
+
+Separately, with the `debug-compl` monitor preset and **4, 5, 6, or 7**
+active channels, the data-path CRC **mismatches reproducibly**; 1, 2, 3,
+and 8 channels pass. The default-mon-config perf matrix passes *all* channel
+counts, so the trigger is the heavy monitor traffic, not plain data movement.
+
+| active ch (8desc) | CRC |
+|---|---|
+| 1, 2, 3 | ok |
+| **4, 5, 6, 7** | **MISMATCH** |
+| 8 | ok |
+
+Suspected mechanism (under investigation): the monitors are **not** passive
+in this harness — `block_ready` (asserted when the monbus FIFO /
+transaction table saturates) gates `fub_axi_arready`/`fub_axi_awready`
+(`axi4_master_{rd,wr}_mon.sv`). Heavy monitoring backs the monbus up, which
+throttles the data-path AXI; `axi_monitor_base.sv:444` documents a prior
+`block_ready` form that could deadlock. A pure stall preserves data, so the
+corruption likely comes from a drop / premature-completion corner in that
+throttle path. The 4–7-fail-but-8-pass pattern points at a `block_ready` /
+`active_count` (MAX-3 margin) corner at *partial* channel population. This
+is a **real RTL bug, not a measurement artifact**, and is being reproduced
+in the `stream_char` cosim under forced monbus saturation. Until it closes,
+the 4–7-channel `debug-compl` reduction points are excluded as suspect.
 
 ---
 
@@ -150,8 +186,12 @@ record count toward the full-capture 75.7 %.
 4. **Warm-up is the real-world tax.** Short streams under-report; the cost
    is one 3-beat escape per distinct template, amortized over the run.
 5. **The HW codec is correct.** Live FPGA slots decode bit-exact and track
-   the model; the only live wobble is measurement-harness reset fragility,
-   not the RTL.
+   the model; the codec was never the bug. The earlier non-reproducibility
+   was a `hb_measure` reset bug (fixed, §6.1).
+6. **Separate open bug (§6.2):** 4–7 active channels under `debug-compl`
+   corrupt the data-path CRC — a real RTL interaction (monbus backpressure
+   throttling the AXI via `block_ready`), under investigation. Not a codec
+   or measurement issue.
 
 ---
 
