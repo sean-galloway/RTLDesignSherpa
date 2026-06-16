@@ -1,0 +1,46 @@
+%%{init: {'theme': 'base', 'themeVariables': { 'primaryColor': '#e8f4e8', 'primaryTextColor': '#000', 'primaryBorderColor': '#228B22', 'lineColor': '#404040', 'secondaryColor': '#f0f0f0', 'tertiaryColor': '#fff'}}}%%
+flowchart LR
+    subgraph GEAR["gear_dfi_fub"]
+        rd_lane["per-MC-cycle<br/>rd_beat_data,<br/>rd_beat_valid<br/>(captured at RDPHASE)"]
+    end
+
+    subgraph SCHED["scheduler_fub"]
+        rd_strobe["WR/WRA/RD/RDA<br/>issue strobe +<br/>id_tag (slot index)"]
+    end
+
+    subgraph RDP["rd_data_path_fub (streaming pipeline; NO FSM)"]
+        cl_pipe["CL-aware id_tag<br/>shift register<br/>(scheduler RD strobe<br/> shifts in,<br/> pops at CL+1 cycles)"]
+        inflight_q["inflight_q<br/>(small ring buffer of<br/> in-flight (slot, beats_left)<br/> tuples; not a FIFO ordering,<br/> CAM-indexed by AXI_ID)"]
+        width_unconv["Width converter<br/>(DFI_DW × NP -> AXI_DW)<br/>shift register pipeline,<br/> pure combinational+regs;<br/> NO sequence FSM"]
+        beat_route["Beat router:<br/>look up inflight_q by<br/> popped id_tag, decrement<br/> beats_left, drive AXI R<br/>(no decision FSM —<br/> flag-and-counter only)"]
+        beat_pipe["one-beat-per-MC-cycle<br/>output register<br/>(rid, rdata, rresp,<br/> rlast, rvalid)"]
+    end
+
+    subgraph CAM["rd_cmd_cam_fub"]
+        beat_done["beat_we strobe<br/>(decrement beats_returned;<br/> entry_complete when 0)"]
+    end
+
+    subgraph AXI["axi4_slave_fub"]
+        r_resp["r_response path<br/>+ id_side_table merge"]
+    end
+
+    rd_strobe --> cl_pipe
+    cl_pipe --> inflight_q
+    rd_lane --> width_unconv
+    width_unconv --> beat_route
+    inflight_q --> beat_route
+    beat_route --> beat_pipe
+    beat_pipe --> r_resp
+    beat_route --> beat_done
+
+    classDef gearblock fill:#e0e8fa,stroke:#3366CC,stroke-width:2px
+    classDef schedblock fill:#fef0e0,stroke:#B88B22,stroke-width:2px
+    classDef rdpblock fill:#e8f4e8,stroke:#228B22,stroke-width:2px
+    classDef camblock fill:#f0e8f4,stroke:#7B228B,stroke-width:2px
+    classDef axiblock fill:#f0f0f0,stroke:#666666,stroke-width:2px
+
+    class rd_lane gearblock
+    class rd_strobe schedblock
+    class cl_pipe,inflight_q,width_unconv,beat_route,beat_pipe rdpblock
+    class beat_done camblock
+    class r_resp axiblock
