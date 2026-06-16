@@ -1,0 +1,83 @@
+%%{init: {'theme': 'base', 'themeVariables': { 'primaryColor': '#e8f4e8', 'primaryTextColor': '#000', 'primaryBorderColor': '#228B22', 'lineColor': '#404040', 'secondaryColor': '#f0f0f0', 'tertiaryColor': '#fff'}}}%%
+flowchart TB
+    subgraph IN["Inputs (same cycle)"]
+        qsnap["txn_queue snapshot<br/>(N entries × meta)"]
+        bstate["bank_machine state<br/>[rank][bank]<br/>(idle/active/...,<br/>open_row, accepts_*)"]
+        xbank["xbank_timers<br/>(blocks_act, blocks_rd,<br/>blocks_wr, blocks_xrank)"]
+        refbus["refresh_mgr<br/>(wants_refresh,<br/>refresh_rank, refresh_bank)"]
+        cfgbits["CSR live regs<br/>(force_inorder, lookahead_active,<br/>page_policy_or, age_max)"]
+        pred["page_predictor<br/>(HAPPY hint, optional)"]
+    end
+
+    subgraph STAGE1["Stage 1 — Per-entry readiness (combinational, N parallel)"]
+        ready["ready[i] =<br/>bank_machine[r,b].accepts_X<br/>AND NOT xbank_blocks_X<br/>AND (NOT wants_refresh OR<br/>     refresh_done_for[r,b])"]
+        rowhit["row_hit[i] = entry.row_hit_cached<br/>(refreshed when bank state changes)"]
+        is_act["is_act[i] = NOT bank_active[r,b]<br/>     OR bank_open_row[r,b] != entry.row"]
+    end
+
+    subgraph STAGE2["Stage 2 — Priority masks (combinational)"]
+        init_gate["init_in_progress?<br/>→ mask all = 0"]
+        refresh_gate["wants_refresh?<br/>→ allow only completing<br/>  in-flight bursts"]
+        force_in["force_inorder?<br/>→ keep only oldest_ready[i]"]
+        hit_pri["row-hit set:<br/>ready AND row_hit AND NOT is_act"]
+        miss_pri["row-miss set:<br/>ready AND NOT row_hit<br/>(needs ACT or PRE+ACT)"]
+    end
+
+    subgraph STAGE3["Stage 3 — Selection (combinational)"]
+        sel_hit["age priority encoder<br/>over row-hit set"]
+        sel_miss["age priority encoder<br/>over row-miss set"]
+        pick["pick row-hit if any;<br/>else row-miss;<br/>else NOP"]
+    end
+
+    subgraph STAGE4["Stage 4 — Command formation (registered)"]
+        lookahead["lookahead window<br/>peek txn_queue[+1..LK]<br/>same (rank, bank)?"]
+        autopre["auto-precharge decision:<br/>lookahead conclusive<br/>else PAGE_POLICY"]
+        cmd_reg["issue_valid /<br/>issue_op /<br/>issue_(rank,bank,row,col,id)"]
+    end
+
+    qsnap --> ready
+    bstate --> ready
+    bstate --> rowhit
+    bstate --> is_act
+    xbank --> ready
+    refbus --> ready
+    refbus --> refresh_gate
+
+    ready --> init_gate
+    ready --> hit_pri
+    ready --> miss_pri
+    rowhit --> hit_pri
+    is_act --> miss_pri
+    cfgbits --> force_in
+    cfgbits --> init_gate
+
+    init_gate --> refresh_gate
+    refresh_gate --> force_in
+    force_in --> hit_pri
+    force_in --> miss_pri
+
+    hit_pri --> sel_hit
+    miss_pri --> sel_miss
+    sel_hit --> pick
+    sel_miss --> pick
+
+    pick --> lookahead
+    qsnap --> lookahead
+    cfgbits --> autopre
+    pred --> autopre
+    lookahead --> autopre
+    autopre --> cmd_reg
+
+    cmd_reg --> OUT[/"issue_* to<br/>cmd_encoder + CAMs"/]
+
+    classDef inblock fill:#f0f0f0,stroke:#666666,stroke-width:2px
+    classDef s1 fill:#e8f4e8,stroke:#228B22,stroke-width:2px
+    classDef s2 fill:#fef0e0,stroke:#B88B22,stroke-width:2px
+    classDef s3 fill:#f0e8f4,stroke:#7B228B,stroke-width:2px
+    classDef s4 fill:#e0e8fa,stroke:#3366CC,stroke-width:2px
+
+    class qsnap,bstate,xbank,refbus,cfgbits,pred inblock
+    class ready,rowhit,is_act s1
+    class init_gate,refresh_gate,force_in,hit_pri,miss_pri s2
+    class sel_hit,sel_miss,pick s3
+    class lookahead,autopre,cmd_reg s4
