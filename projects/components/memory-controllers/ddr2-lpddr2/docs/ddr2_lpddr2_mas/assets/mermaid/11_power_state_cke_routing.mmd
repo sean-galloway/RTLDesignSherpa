@@ -1,0 +1,64 @@
+%%{init: {'theme': 'base', 'themeVariables': { 'primaryColor': '#e8f4e8', 'primaryTextColor': '#000', 'primaryBorderColor': '#228B22', 'lineColor': '#404040', 'secondaryColor': '#f0f0f0', 'tertiaryColor': '#fff'}}}%%
+flowchart LR
+    subgraph INIT["init_engine_fub"]
+        init_cke["init_cke_o[NR]"]
+        init_in_prog["init_in_progress_o"]
+    end
+
+    subgraph PWR["power_state_fub"]
+        per_rank_fsm["per_rank_fsm[NR]<br/>(ACTIVE / APD /<br/>SR / DPD)"]
+        pwr_cke["pwr_cke_o[NR]"]
+        sr_active_per_rank["sr_active_per_rank[NR]<br/>(to refresh_mgr<br/>for t_refi_cnt pause)"]
+        quiet_pt["quiet_point detector<br/>(no in-flight cmds,<br/>refresh IDLE, all ranks ACTIVE)"]
+    end
+
+    subgraph MUX["CKE routing mux (in top integration)"]
+        cke_mux["per-rank mux:<br/>cke_to_dfi[r] =<br/> init_in_progress ? init_cke[r]<br/>                  : pwr_cke[r]"]
+    end
+
+    subgraph DOWN["Downstream consumers"]
+        odt["odt_ctrl_fub<br/>(reads CKE to gate<br/>ODT driving)"]
+        gear["gear_dfi_fub<br/>(packs into DFI<br/>per-phase frame)"]
+        dfi[/"dfi_cke[NR]<br/>(pin output)"/]
+    end
+
+    subgraph CSR["CSR control inputs"]
+        csr_ctrl["CTRL.pwr_req_low_power<br/>CTRL.pwr_req_dpd<br/>CTRL.pwr_req_active<br/>CTRL.pwr_req_self_refresh"]
+        csr_tune["POWER_TUNING<br/>apd_idle_threshold<br/>srf_idle_threshold<br/>dpd_enable"]
+    end
+
+    subgraph COORD["Refresh / scheduler coord"]
+        sr_entry_req["sr_entry_req →<br/>refresh_mgr"]
+        sr_entry_gnt["sr_entry_gnt ←<br/>refresh_mgr"]
+        sched_idle["scheduler idle hint<br/>(no pending entries)"]
+    end
+
+    init_cke --> cke_mux
+    pwr_cke --> cke_mux
+    init_in_prog --> cke_mux
+    cke_mux --> odt
+    cke_mux --> gear
+    gear --> dfi
+
+    csr_ctrl --> per_rank_fsm
+    csr_tune --> per_rank_fsm
+    sched_idle --> per_rank_fsm
+    per_rank_fsm --> sr_entry_req
+    sr_entry_gnt --> per_rank_fsm
+    per_rank_fsm --> sr_active_per_rank
+    per_rank_fsm --> quiet_pt
+    sched_idle --> quiet_pt
+
+    quiet_pt --> COMMIT[/"to csr_apb_fub<br/>quiet_point"/]
+
+    classDef initblock fill:#f0f0f0,stroke:#666666,stroke-width:2px
+    classDef pwrblock fill:#e8f4e8,stroke:#228B22,stroke-width:2px
+    classDef muxblock fill:#fef0e0,stroke:#B88B22,stroke-width:2px
+    classDef downblock fill:#e0e8fa,stroke:#3366CC,stroke-width:2px
+    classDef csrblock fill:#f0e8f4,stroke:#7B228B,stroke-width:2px
+
+    class init_cke,init_in_prog initblock
+    class per_rank_fsm,pwr_cke,sr_active_per_rank,quiet_pt pwrblock
+    class cke_mux muxblock
+    class odt,gear,dfi downblock
+    class csr_ctrl,csr_tune,sr_entry_req,sr_entry_gnt,sched_idle csrblock
