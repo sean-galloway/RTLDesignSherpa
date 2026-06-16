@@ -1,0 +1,25 @@
+%%{init: {'theme': 'base', 'themeVariables': { 'primaryColor': '#e8f4e8', 'primaryTextColor': '#000', 'primaryBorderColor': '#228B22', 'lineColor': '#404040', 'secondaryColor': '#f0f0f0', 'tertiaryColor': '#fff'}}}%%
+stateDiagram-v2
+    [*] --> FREE: reset
+
+    FREE --> PENDING: insert from CAM<br/>captures rank, bank, row,<br/>is_write, cam_slot_idx,<br/>row_hit_cached, age=0
+
+    PENDING --> ISSUED: scheduler picks<br/>pick_one_hot[i]
+
+    ISSUED --> COMPLETING: rd — first beat returns<br/>wr — last W beat issued
+
+    COMPLETING --> FREE: rd — beats_returned == len<br/>wr — b_complete from xbank<br/>cleared by CAM strobe
+
+    note right of PENDING
+      Visible to scheduler every cycle.
+      Each cycle: age++ (saturating).
+      row_hit_cached refreshes on
+      bank-state change (1-cycle lag).
+    end note
+
+    note right of ISSUED
+      Hidden from scheduler
+      (pick_valid_mask excludes
+      ISSUED + COMPLETING).
+      Slot still occupies queue cell.
+    end note
