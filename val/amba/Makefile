@@ -40,7 +40,7 @@ endif
 PYTEST = python3 -m pytest
 PYTEST_VERBOSE = -v
 PYTEST_QUIET = -q
-PYTEST_XDIST = -n 48  # parallel workers (48 with unique test names)
+PYTEST_XDIST = -n 48 --dist=loadgroup  # parallel workers; loadgroup keeps tests sharing @pytest.mark.xdist_group(name=...) on the same worker so producer/consumer pairs (e.g. trans_mgr_equiv prod -> stage) can't race. Tests without the mark distribute like the default --dist=load -- backwards compatible.
 PYTEST_TBSTYLE = --tb=short
 PYTEST_RERUNS = --reruns 3 --reruns-delay 1  # retry failed tests up to 3 times with 1s delay
 

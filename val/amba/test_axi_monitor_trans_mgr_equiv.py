@@ -501,8 +501,28 @@ def get_equiv_params():
 
 # ----------------------------------------------------------------------------
 # Pytest entries -- alphabetical order ensures prod runs before stage.
+#
+# Each (is_read, is_axi, max_trans, id_width) tuple is wrapped in a
+# pytest.param with a matching xdist_group mark so test_a and test_b
+# for the SAME tuple land on the SAME xdist worker. Without this,
+# pytest-xdist's default --dist=load can schedule test_b on a worker
+# before test_a finishes writing its capture JSON -- a race that ate
+# us once (test_b crashed with FileNotFoundError on the capture).
+# Requires the runner to use --dist=loadgroup (set in val/amba/Makefile
+# PYTEST_XDIST); falls back gracefully for non-xdist runs.
 # ----------------------------------------------------------------------------
-@pytest.mark.parametrize("is_read, is_axi, max_trans, id_width", get_equiv_params())
+def _equiv_params_grouped():
+    return [
+        pytest.param(
+            ir, ia, mt, iw,
+            marks=pytest.mark.xdist_group(name=f"trans_mgr_equiv_{ir}_{ia}_{mt}_{iw}"),
+            id=f"{ir}-{ia}-{mt}-{iw}",
+        )
+        for (ir, ia, mt, iw) in get_equiv_params()
+    ]
+
+
+@pytest.mark.parametrize("is_read, is_axi, max_trans, id_width", _equiv_params_grouped())
 def test_a_axi_monitor_trans_mgr_prod(request, is_read, is_axi, max_trans, id_width):
     """Run the random stress against the production trans_mgr, capture
     cycle-by-cycle outputs to JSON for the stage test to compare against."""
@@ -520,13 +540,13 @@ def test_a_axi_monitor_trans_mgr_prod(request, is_read, is_axi, max_trans, id_wi
     )
 
 
-@pytest.mark.parametrize("is_read, is_axi, max_trans, id_width", get_equiv_params())
+@pytest.mark.parametrize("is_read, is_axi, max_trans, id_width", _equiv_params_grouped())
 def test_b_axi_monitor_trans_mgr_stage(request, is_read, is_axi, max_trans, id_width):
     """Run the same stimulus against the CAM-backed staging trans_mgr,
     asserting every cycle's snapshot is bit-identical to the production
     capture. Requires test_a_axi_monitor_trans_mgr_prod to have run first
-    (pytest collects in source order by default, and the alphabetical
-    a/b prefix makes that explicit)."""
+    -- enforced under xdist by xdist_group + --dist=loadgroup (see above),
+    and by source order for non-xdist runs."""
     stim_cycles = int(os.environ.get('STIM_CYCLES', '500'))
     stim_seed   = int(os.environ.get('STIM_SEED',   '42'))
     _run_trans_mgr(
