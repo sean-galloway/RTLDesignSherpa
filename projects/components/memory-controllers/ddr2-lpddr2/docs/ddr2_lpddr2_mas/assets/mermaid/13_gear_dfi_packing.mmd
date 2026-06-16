@@ -1,0 +1,58 @@
+%%{init: {'theme': 'base', 'themeVariables': { 'primaryColor': '#e8f4e8', 'primaryTextColor': '#000', 'primaryBorderColor': '#228B22', 'lineColor': '#404040', 'secondaryColor': '#f0f0f0', 'tertiaryColor': '#fff'}}}%%
+flowchart TB
+    subgraph MC["MC clock domain (one issue per MC cycle)"]
+        cmd_in["cmd_encoder output:<br/>dfi_cs_n[NR], dfi_ras_n,<br/>dfi_cas_n, dfi_we_n,<br/>dfi_address, dfi_bank"]
+        wr_in["wr_data_path output:<br/>wr_burst beat data,<br/>byte mask, valid"]
+        rd_out["rd_data_path input:<br/>rddata + valid<br/>(arrives N+CL phases later)"]
+        cke_in["pre-muxed CKE[NR]"]
+        odt_in["odt_ctrl ODT[NR]"]
+    end
+
+    subgraph FRAME["MC cycle frame (N_PHASES slots)"]
+        slot0["Phase 0"]
+        slot1["Phase 1"]
+        slot2["Phase 2"]
+        slot3["Phase 3"]
+    end
+
+    subgraph CFG["Build-time"]
+        wrphase["WRPHASE<br/>(default 0)"]
+        rdphase["RDPHASE<br/>(default 0)"]
+        cmdphase["CMD always phase 0<br/>(spec convention)"]
+    end
+
+    subgraph DFI["DFI v2.1 per-phase output"]
+        dfi_cmd_p0["phase 0:<br/>dfi_address[0],<br/>dfi_cs_n[0][NR],<br/>dfi_ras_n[0], etc.<br/>(CMD slot, always)"]
+        dfi_cmd_pN["phases 1..N-1:<br/>dfi_address[i] = idle<br/>dfi_cs_n[i][*] = 1<br/>dfi_ras_n[i] etc. = 1<br/>(NOP slots)"]
+        dfi_wr_pW["phase WRPHASE:<br/>dfi_wrdata,<br/>dfi_wrdata_mask,<br/>dfi_wrdata_en"]
+        dfi_rd_pR["phase RDPHASE:<br/>dfi_rddata_en<br/>(strobed for capture)"]
+        dfi_cke["dfi_cke[NR]<br/>(cross-phase; held)"]
+        dfi_odt["dfi_odt[NR]<br/>(cross-phase; held)"]
+    end
+
+    cmd_in --> slot0
+    slot0 --> dfi_cmd_p0
+    slot1 --> dfi_cmd_pN
+    slot2 --> dfi_cmd_pN
+    slot3 --> dfi_cmd_pN
+
+    wr_in --> wrphase
+    wrphase --> dfi_wr_pW
+
+    rdphase --> dfi_rd_pR
+    dfi_rd_pR -.captured rddata.-> rd_out
+
+    cke_in --> dfi_cke
+    odt_in --> dfi_odt
+
+    cmdphase --> slot0
+
+    classDef inblock fill:#f0f0f0,stroke:#666666,stroke-width:2px
+    classDef frameblock fill:#fef0e0,stroke:#B88B22,stroke-width:2px
+    classDef cfgblock fill:#f0e8f4,stroke:#7B228B,stroke-width:2px
+    classDef dfiblock fill:#e8f4e8,stroke:#228B22,stroke-width:2px
+
+    class cmd_in,wr_in,rd_out,cke_in,odt_in inblock
+    class slot0,slot1,slot2,slot3 frameblock
+    class wrphase,rdphase,cmdphase cfgblock
+    class dfi_cmd_p0,dfi_cmd_pN,dfi_wr_pW,dfi_rd_pR,dfi_cke,dfi_odt dfiblock
