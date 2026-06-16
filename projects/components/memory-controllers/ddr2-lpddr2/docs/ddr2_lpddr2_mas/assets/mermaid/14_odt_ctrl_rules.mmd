@@ -1,0 +1,72 @@
+%%{init: {'theme': 'base', 'themeVariables': { 'primaryColor': '#e8f4e8', 'primaryTextColor': '#000', 'primaryBorderColor': '#228B22', 'lineColor': '#404040', 'secondaryColor': '#f0f0f0', 'tertiaryColor': '#fff'}}}%%
+flowchart TB
+    subgraph IN["Inputs"]
+        issue_op["issue_op<br/>(RD/RDA/WR/WRA/...)"]
+        issue_rank["issue_rank"]
+        issue_strobe["issue_strobe"]
+        cl_in["CL (from CSR live)"]
+        cwl_in["CWL (from CSR live)"]
+        bl_in["BL (from CSR live)"]
+        odt_rule["ODT_RULE_MULTIRANK<br/>+ runtime override<br/>RANK_TUNING.odt_rule_or"]
+    end
+
+    subgraph DECODE["Rule decoder (combinational)"]
+        decode["per-rank target mask:<br/><br/>JEDEC_DDR2:<br/> if RD: target = NOT issue_rank (other ranks)<br/> if WR: target = issue_rank<br/><br/>JEDEC_LPDDR2:<br/> if WR: target = issue_rank<br/> if RD: target = none<br/><br/>OFF: target = none (forced for NR=1)"]
+    end
+
+    subgraph TIMING["Per-rank pulse generators"]
+        pulse_r0["pulse_gen[0]<br/>ODT window:<br/> turn-on at issue+1<br/> hold for<br/>  RD: tAOND + BL/2<br/>  WR: tAOND + CWL + BL/2 + tAOFD"]
+        pulse_r1["pulse_gen[1]<br/>(same logic per rank)"]
+        pulse_rN["pulse_gen[NR-1]"]
+    end
+
+    subgraph GATE["CKE / power gate"]
+        cke_gate["odt_out[r] =<br/>pulse[r] AND cke[r]<br/>AND (NR > 1 implies<br/>     NOT OFF mode)"]
+    end
+
+    subgraph INIT["Init / power overrides"]
+        init_odt["init_engine init_odt[NR]"]
+        pwr_odt["power_state forced-off<br/>during SR/DPD"]
+    end
+
+    subgraph OUT_BLOCK["Outputs"]
+        odt_out["dfi_odt[NR]<br/>→ gear_dfi<br/>→ DFI pin"]
+    end
+
+    issue_op --> decode
+    issue_rank --> decode
+    odt_rule --> decode
+    issue_strobe --> decode
+
+    decode --> pulse_r0
+    decode --> pulse_r1
+    decode --> pulse_rN
+    cl_in --> pulse_r0
+    cwl_in --> pulse_r0
+    bl_in --> pulse_r0
+    cl_in --> pulse_r1
+    cwl_in --> pulse_r1
+    bl_in --> pulse_r1
+    cl_in --> pulse_rN
+    cwl_in --> pulse_rN
+    bl_in --> pulse_rN
+
+    pulse_r0 --> cke_gate
+    pulse_r1 --> cke_gate
+    pulse_rN --> cke_gate
+
+    init_odt --> cke_gate
+    pwr_odt --> cke_gate
+    cke_gate --> odt_out
+
+    classDef inblock fill:#f0f0f0,stroke:#666666,stroke-width:2px
+    classDef decblock fill:#fef0e0,stroke:#B88B22,stroke-width:2px
+    classDef pulseblock fill:#e8f4e8,stroke:#228B22,stroke-width:2px
+    classDef gateblock fill:#f0e8f4,stroke:#7B228B,stroke-width:2px
+    classDef ovblock fill:#e0e8fa,stroke:#3366CC,stroke-width:2px
+
+    class issue_op,issue_rank,issue_strobe,cl_in,cwl_in,bl_in,odt_rule inblock
+    class decode decblock
+    class pulse_r0,pulse_r1,pulse_rN pulseblock
+    class cke_gate,odt_out gateblock
+    class init_odt,pwr_odt ovblock
