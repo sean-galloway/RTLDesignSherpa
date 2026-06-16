@@ -1,0 +1,62 @@
+%%{init: {'theme': 'base', 'themeVariables': { 'primaryColor': '#e8f4e8', 'primaryTextColor': '#000', 'primaryBorderColor': '#228B22', 'lineColor': '#404040', 'secondaryColor': '#f0f0f0', 'tertiaryColor': '#fff'}}}%%
+flowchart LR
+    subgraph QUERY_IN["Query Inputs (from scheduler Stage 4)"]
+        q_rank["query_rank"]
+        q_bank["query_bank"]
+        q_row["query_row"]
+    end
+
+    subgraph UPD_IN["Update Inputs (from bank_machine row-change broadcast)"]
+        u_rank["update_rank"]
+        u_bank["update_bank"]
+        u_row_prev["prev_open_row"]
+        u_row_new["new_open_row"]
+        u_was_hit["was_hit<br/>(prev==new?)"]
+    end
+
+    subgraph HASH["Hash function (combinational)"]
+        hash_q["query_index =<br/>{q_rank, q_bank,<br/> q_row[low PAGE_BITS-NR-NB]} XOR<br/>q_row[high PAGE_BITS-NR-NB]"]
+        hash_u["update_index =<br/>same hash on (u_rank, u_bank,<br/> u_row_prev)"]
+    end
+
+    subgraph STORE["Table storage"]
+        table["table[2^PAGE_PREDICTOR_TABLE_BITS]<br/>2 bits per entry<br/>(00 strong-conflict,<br/> 01 weak-conflict,<br/> 10 weak-hit,<br/> 11 strong-hit)"]
+        warmup["warmup_cnt<br/>(global; from CSR<br/> PAGE_PRED_TUNING.warmup_cycles)"]
+        hyst["hysteresis_cnt<br/>per-entry small ctr;<br/> from CSR<br/> PAGE_PRED_TUNING.hysteresis"]
+    end
+
+    subgraph QUERY_OUT["Query Output"]
+        gate["if (warmup_cnt > 0<br/> OR happy_enable == 0)<br/> predict_hit = 1<br/> (default to OPEN)<br/>else<br/> predict_hit =<br/>  (table[query_index] &ge; 2)"]
+    end
+
+    subgraph UPD_LOGIC["Update Logic"]
+        upd["if (u_was_hit)<br/> table[update_index] =<br/>  min(3, c + 1)<br/>else<br/> table[update_index] =<br/>  max(0, c - 1)<br/>(gated by hysteresis_cnt)"]
+    end
+
+    q_rank --> hash_q
+    q_bank --> hash_q
+    q_row --> hash_q
+    u_rank --> hash_u
+    u_bank --> hash_u
+    u_row_prev --> hash_u
+
+    hash_q --> table
+    table --> gate
+    warmup --> gate
+    gate --> OUT_Q[/"to scheduler<br/>predict_hit"/]
+
+    hash_u --> table
+    u_was_hit --> upd
+    table --> upd
+    upd --> table
+    hyst --> upd
+
+    classDef inblock fill:#f0f0f0,stroke:#666666,stroke-width:2px
+    classDef hashblock fill:#fef0e0,stroke:#B88B22,stroke-width:2px
+    classDef storeblock fill:#e8f4e8,stroke:#228B22,stroke-width:2px
+    classDef outblock fill:#e0e8fa,stroke:#3366CC,stroke-width:2px
+
+    class q_rank,q_bank,q_row,u_rank,u_bank,u_row_prev,u_row_new,u_was_hit inblock
+    class hash_q,hash_u hashblock
+    class table,warmup,hyst storeblock
+    class gate,upd outblock
