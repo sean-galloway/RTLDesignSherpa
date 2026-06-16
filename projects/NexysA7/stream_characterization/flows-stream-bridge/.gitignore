@@ -1,0 +1,3 @@
+# Transient run-state breadcrumbs written by host/hb_orchestrate.sh
+# (phase markers, STATUS line, per-run logs). Regenerated each run.
+progress/
