@@ -1,0 +1,74 @@
+%%{init: {'theme': 'base', 'themeVariables': { 'primaryColor': '#e8f4e8', 'primaryTextColor': '#000', 'primaryBorderColor': '#228B22', 'lineColor': '#404040', 'secondaryColor': '#f0f0f0', 'tertiaryColor': '#fff'}}}%%
+flowchart LR
+    subgraph IN["Inputs"]
+        sch_iss["scheduler<br/>issue_op +<br/>issue_row +<br/>issue_col"]
+        sch_aut["scheduler<br/>auto_pre flag"]
+        xbk["xbank_timers<br/>blocks_act, blocks_rd,<br/>blocks_wr"]
+        ref_in["refresh_mgr<br/>refresh_req"]
+        init_in["init_engine<br/>init_cmd path"]
+    end
+
+    subgraph CORE["bank_machine_fub internals"]
+        subgraph CNT["Counter pool (all down-counters)"]
+            tRCD["t_rcd_cnt"]
+            tRAS["t_ras_cnt"]
+            tRP["t_rp_cnt"]
+            tRC["t_rc_cnt"]
+            tWR["t_wr_cnt"]
+            tRFC["t_rfcpb_cnt"]
+            tCL["t_cl_cnt<br/>(post-RD beat ctr)"]
+            tCWL["t_cwl_cnt<br/>(post-WR window)"]
+            age["last_ref_age<br/>(non-saturating wide)"]
+        end
+
+        FSM["FSM<br/>(per HAS §3.3<br/>IDLE / ACTIVATING /<br/>ACTIVE / RD_BUSY /<br/>WR_BUSY / PRECHARGING /<br/>REFRESHING)"]
+
+        OR_REG["open_row<br/>register"]
+    end
+
+    subgraph OUT["Outputs"]
+        st["state →<br/>scheduler matrix"]
+        orow["open_row →<br/>scheduler matrix +<br/>txn_queue watchpoint"]
+        accepts["accepts_act / accepts_rd /<br/>accepts_wr / accepts_pre /<br/>accepts_ref →<br/>scheduler readiness"]
+        broadcast["open_row_changed +<br/>new_open_row →<br/>txn_queue refresh"]
+        ref_out["refresh_gnt →<br/>refresh_mgr"]
+        last_ref["last_ref_age →<br/>refresh_mgr (DARP)"]
+    end
+
+    sch_iss --> FSM
+    sch_aut --> FSM
+    ref_in --> FSM
+    init_in --> FSM
+    xbk --> accepts
+
+    FSM --> tRCD
+    FSM --> tRAS
+    FSM --> tRP
+    FSM --> tRC
+    FSM --> tWR
+    FSM --> tRFC
+    FSM --> tCL
+    FSM --> tCWL
+    FSM --> age
+    FSM --> OR_REG
+    FSM --> st
+
+    tRCD --> accepts
+    tRAS --> accepts
+    tRP --> accepts
+    tWR --> accepts
+    OR_REG --> orow
+    OR_REG --> broadcast
+    FSM --> broadcast
+    FSM --> ref_out
+    age --> last_ref
+
+    classDef inblock fill:#f0f0f0,stroke:#666666,stroke-width:2px
+    classDef cntblock fill:#fef0e0,stroke:#B88B22,stroke-width:2px
+    classDef fsmblock fill:#e8f4e8,stroke:#228B22,stroke-width:2px
+    classDef outblock fill:#e0e8fa,stroke:#3366CC,stroke-width:2px
+
+    class sch_iss,sch_aut,xbk,ref_in,init_in inblock
+    class tRCD,tRAS,tRP,tRC,tWR,tRFC,tCL,tCWL,age cntblock
+    class FSM,OR_REG fsmblock
+    class st,orow,accepts,broadcast,ref_out,last_ref outblock
