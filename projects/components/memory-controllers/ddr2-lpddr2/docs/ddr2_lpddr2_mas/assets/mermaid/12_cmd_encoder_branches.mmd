@@ -1,0 +1,62 @@
+%%{init: {'theme': 'base', 'themeVariables': { 'primaryColor': '#e8f4e8', 'primaryTextColor': '#000', 'primaryBorderColor': '#228B22', 'lineColor': '#404040', 'secondaryColor': '#f0f0f0', 'tertiaryColor': '#fff'}}}%%
+flowchart TB
+    subgraph IN["Inputs (combined from scheduler / init / refresh / power)"]
+        op["issue_op[3:0]<br/>(ACT, RD, RDA, WR, WRA,<br/>PRE, PREA, REF, REFPB,<br/>MRS, ZQCS, ZQCL, SREFE,<br/>SREFX, DPDE, DPDX, NOP)"]
+        rank["issue_rank[clog2(NR)-1:0]"]
+        bank["issue_bank[clog2(NB)-1:0]"]
+        row_col["issue_row / issue_col<br/>(row for ACT, col for RD/WR,<br/> MR value for MRS, etc.)"]
+        autopre["auto_pre flag"]
+    end
+
+    subgraph BRANCH["Branch select<br/>(elaboration-time generate)"]
+        memtype["MEMTYPE parameter"]
+    end
+
+    subgraph DDR2["DDR2 branch — ras/cas/we strobe encoding"]
+        ddr2_lut["opcode → {ras_n, cas_n, we_n}<br/>via 16-entry lookup<br/>ACT  -> {0, 1, 1}<br/>RD   -> {1, 0, 1}<br/>WR   -> {1, 0, 0}<br/>PRE  -> {0, 1, 0}<br/>REF  -> {0, 0, 1}<br/>MRS  -> {0, 0, 0}<br/>NOP  -> {1, 1, 1}<br/>(+ all-bank variants via A10)"]
+        ddr2_addr["address operand:<br/>ACT -> row on dfi_address<br/>RD/WR -> col on dfi_address<br/>+ A10 for AP / all-bank<br/>MRS -> mr_value on dfi_address,<br/>      mr_index on dfi_bank"]
+        ddr2_out["dfi_ras_n,<br/>dfi_cas_n,<br/>dfi_we_n,<br/>dfi_address,<br/>dfi_bank,<br/>dfi_cs_n[r]"]
+    end
+
+    subgraph LPDDR2["LPDDR2 branch — 20-bit CA bus packing"]
+        lp_lut["opcode -> 10-bit CA0<br/>via DFI v2.1 §3.1 Table 1<br/>ACT  -> {bank, row[hi]}<br/>RD   -> {bank, col[hi]}<br/>WR   -> {bank, col[hi]}<br/>PRE  -> {bank, 0,...}<br/>REFpb -> {bank, ...}<br/>MRS  -> {mr_idx[hi]}<br/>(2-cycle protocol)"]
+        lp_pack["pack 2 CA cycles:<br/>ca0_cycle1 = first 10 bits<br/>ca1_cycle2 = next 10 bits<br/>auto_pre encoded in CA bit"]
+        lp_out["dfi_address[19:0]<br/> (= {ca_cycle2, ca_cycle1})<br/>dfi_bank (unused; tied)<br/>dfi_cs_n[r]<br/>dfi_ras_n / cas_n / we_n<br/>(unused; tied high)"]
+    end
+
+    subgraph SHARED["Shared output stage (post-branch)"]
+        cs_drive["CS_n drive per rank:<br/>cs_n[r] = 0 for target rank<br/>cs_n[r' != r] = 1<br/>(REFab variants drive multi-rank)"]
+        passthru["CKE pass-through<br/>(from power_state mux);<br/>ODT pass-through<br/>(from odt_ctrl)"]
+        to_gear[/"to gear_dfi_fub<br/>(per-phase packing)"/]
+    end
+
+    op --> memtype
+    rank --> memtype
+    bank --> memtype
+    row_col --> memtype
+    autopre --> memtype
+
+    memtype --> ddr2_lut
+    memtype --> lp_lut
+
+    ddr2_lut --> ddr2_addr
+    ddr2_addr --> ddr2_out
+    lp_lut --> lp_pack
+    lp_pack --> lp_out
+
+    ddr2_out --> cs_drive
+    lp_out --> cs_drive
+    cs_drive --> passthru
+    passthru --> to_gear
+
+    classDef inblock fill:#f0f0f0,stroke:#666666,stroke-width:2px
+    classDef branchblock fill:#fef0e0,stroke:#B88B22,stroke-width:2px
+    classDef ddr2block fill:#e8f4e8,stroke:#228B22,stroke-width:2px
+    classDef lpblock fill:#f0e8f4,stroke:#7B228B,stroke-width:2px
+    classDef shareblock fill:#e0e8fa,stroke:#3366CC,stroke-width:2px
+
+    class op,rank,bank,row_col,autopre inblock
+    class memtype branchblock
+    class ddr2_lut,ddr2_addr,ddr2_out ddr2block
+    class lp_lut,lp_pack,lp_out lpblock
+    class cs_drive,passthru,to_gear shareblock
