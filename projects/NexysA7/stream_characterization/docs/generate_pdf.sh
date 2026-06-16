@@ -8,6 +8,10 @@
 # Builds STREAM_CharacterizationReport_v<rev>.docx and .pdf from the
 # single-file Markdown source using bin/md_to_docx.py with the corporate
 # style sheet, header/footer, TOC, list-of-figures, and title page.
+#
+# House-style convention: see ./DOC_STYLE.md. All deliverable docs render
+# through this house pipeline; throwaway / tracking files stay plain
+# Markdown and are exempt.
 # ----------------------------------------------------------------------
 
 set -euo pipefail
