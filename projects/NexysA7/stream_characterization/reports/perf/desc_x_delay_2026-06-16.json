@@ -1,0 +1,5552 @@
+[
+  {
+    "config": "1desc_1ch_1MB",
+    "rd_delay": 0,
+    "wr_delay": 0,
+    "result": {
+      "name": "1desc_1ch_1MB",
+      "num_channels": 1,
+      "descriptors_per_channel": 1,
+      "transfer_bytes": 1048576,
+      "total_descriptors": 1,
+      "total_bytes": 1048576,
+      "load_time_s": 0.11808943748474121,
+      "dma_time_s": 0.06406807899475098,
+      "completion": {
+        "completed": true,
+        "irq": false,
+        "error": false,
+        "overflow": false,
+        "timer_pass": true,
+        "timer_running": false,
+        "elapsed_s": 0.03205728530883789,
+        "raw_timer": 5,
+        "raw_status": 0
+      },
+      "crc": {
+        "rd_expected": 1297375990,
+        "wr_expected": 1297375990,
+        "wr_computed": 1297375990,
+        "match_reg": 3,
+        "rd_per_ch": [
+          1297375990
+        ],
+        "wr_per_ch": [
+          1297375990
+        ],
+        "valid_mask": 1,
+        "match_mask": 1
+      },
+      "metrics": {
+        "available": true,
+        "cycles_total": 69675,
+        "r_first": 20,
+        "r_last": 69650,
+        "r_window_cycles": 69675,
+        "r_firstlast_cycles": 69631,
+        "w_first": 44,
+        "w_last": 69675,
+        "w_window_cycles": 69675,
+        "w_firstlast_cycles": 69632,
+        "datapath_utilization_r": 0.9405956225331898,
+        "datapath_utilization_w": 0.9405956225331898,
+        "end_to_end_utilization": 0.9405956225331898,
+        "r_buckets_pct": {
+          "productive": 0.9405956225331898,
+          "backpressure": 0.0,
+          "starvation": 0.05940437746681019,
+          "idle": 0.0
+        },
+        "w_buckets_pct": {
+          "productive": 0.9405956225331898,
+          "backpressure": 0.0,
+          "starvation": 0.05940437746681019,
+          "idle": 0.0
+        },
+        "r_aggregate": {
+          "productive": 65536,
+          "backpressure": 0,
+          "starvation": 4139,
+          "idle": 0
+        },
+        "w_aggregate": {
+          "productive": 65536,
+          "backpressure": 0,
+          "starvation": 4139,
+          "idle": 0
+        },
+        "r_per_channel": [
+          {
+            "channel": 0,
+            "productive": 0,
+            "backpressure": 0,
+            "starvation": 0,
+            "idle": 0,
+            "overflow_mask": 8
+          }
+        ],
+        "w_per_channel": [
+          {
+            "channel": 0,
+            "productive": 61440,
+            "backpressure": 0,
+            "starvation": 4096,
+            "idle": 0,
+            "overflow_mask": 0
+          }
+        ]
+      },
+      "trace": {
+        "wr_ptr": 24,
+        "overflow": 0
+      },
+      "throughput_mbps": 15.608396813051455,
+      "bus_time_s": 0.00069675,
+      "bus_throughput_mbps": 1435.2350197344815,
+      "bus_cycles_total": 69675,
+      "bus_e2e_util_pct": 94.05956225331899,
+      "bus_max_one_dir_mbps": 1525.87890625,
+      "bus_max_net_moved_mbps": 762.939453125,
+      "pass": true
+    }
+  },
+  {
+    "config": "1desc_1ch_1MB",
+    "rd_delay": 8,
+    "wr_delay": 8,
+    "result": {
+      "name": "1desc_1ch_1MB",
+      "num_channels": 1,
+      "descriptors_per_channel": 1,
+      "transfer_bytes": 1048576,
+      "total_descriptors": 1,
+      "total_bytes": 1048576,
+      "load_time_s": 0.11791563034057617,
+      "dma_time_s": 0.06398606300354004,
+      "completion": {
+        "completed": true,
+        "irq": false,
+        "error": false,
+        "overflow": false,
+        "timer_pass": true,
+        "timer_running": false,
+        "elapsed_s": 0.032050132751464844,
+        "raw_timer": 5,
+        "raw_status": 0
+      },
+      "crc": {
+        "rd_expected": 1297375990,
+        "wr_expected": 1297375990,
+        "wr_computed": 1297375990,
+        "match_reg": 3,
+        "rd_per_ch": [
+          1297375990
+        ],
+        "wr_per_ch": [
+          1297375990
+        ],
+        "valid_mask": 1,
+        "match_mask": 1
+      },
+      "metrics": {
+        "available": true,
+        "cycles_total": 69682,
+        "r_first": 20,
+        "r_last": 69650,
+        "r_window_cycles": 69682,
+        "r_firstlast_cycles": 69631,
+        "w_first": 51,
+        "w_last": 69682,
+        "w_window_cycles": 69682,
+        "w_firstlast_cycles": 69632,
+        "datapath_utilization_r": 0.9405011337217646,
+        "datapath_utilization_w": 0.9405011337217646,
+        "end_to_end_utilization": 0.9405011337217646,
+        "r_buckets_pct": {
+          "productive": 0.9405011337217646,
+          "backpressure": 0.0,
+          "starvation": 0.05949886627823541,
+          "idle": 0.0
+        },
+        "w_buckets_pct": {
+          "productive": 0.9405011337217646,
+          "backpressure": 0.0,
+          "starvation": 0.05949886627823541,
+          "idle": 0.0
+        },
+        "r_aggregate": {
+          "productive": 65536,
+          "backpressure": 0,
+          "starvation": 4146,
+          "idle": 0
+        },
+        "w_aggregate": {
+          "productive": 65536,
+          "backpressure": 0,
+          "starvation": 4146,
+          "idle": 0
+        },
+        "r_per_channel": [
+          {
+            "channel": 0,
+            "productive": 0,
+            "backpressure": 0,
+            "starvation": 0,
+            "idle": 0,
+            "overflow_mask": 8
+          }
+        ],
+        "w_per_channel": [
+          {
+            "channel": 0,
+            "productive": 61440,
+            "backpressure": 0,
+            "starvation": 4096,
+            "idle": 0,
+            "overflow_mask": 0
+          }
+        ]
+      },
+      "trace": {
+        "wr_ptr": 24,
+        "overflow": 0
+      },
+      "throughput_mbps": 15.628403328154052,
+      "bus_time_s": 0.00069682,
+      "bus_throughput_mbps": 1435.090841250251,
+      "bus_cycles_total": 69682,
+      "bus_e2e_util_pct": 94.05011337217645,
+      "bus_max_one_dir_mbps": 1525.87890625,
+      "bus_max_net_moved_mbps": 762.939453125,
+      "pass": true
+    }
+  },
+  {
+    "config": "1desc_1ch_1MB",
+    "rd_delay": 32,
+    "wr_delay": 32,
+    "result": {
+      "name": "1desc_1ch_1MB",
+      "num_channels": 1,
+      "descriptors_per_channel": 1,
+      "transfer_bytes": 1048576,
+      "total_descriptors": 1,
+      "total_bytes": 1048576,
+      "load_time_s": 0.11813092231750488,
+      "dma_time_s": 0.06399011611938477,
+      "completion": {
+        "completed": true,
+        "irq": false,
+        "error": false,
+        "overflow": false,
+        "timer_pass": true,
+        "timer_running": false,
+        "elapsed_s": 0.03197169303894043,
+        "raw_timer": 5,
+        "raw_status": 0
+      },
+      "crc": {
+        "rd_expected": 1297375990,
+        "wr_expected": 1297375990,
+        "wr_computed": 1297375990,
+        "match_reg": 3,
+        "rd_per_ch": [
+          1297375990
+        ],
+        "wr_per_ch": [
+          1297375990
+        ],
+        "valid_mask": 1,
+        "match_mask": 1
+      },
+      "metrics": {
+        "available": true,
+        "cycles_total": 69706,
+        "r_first": 20,
+        "r_last": 69650,
+        "r_window_cycles": 69706,
+        "r_firstlast_cycles": 69631,
+        "w_first": 75,
+        "w_last": 69706,
+        "w_window_cycles": 69706,
+        "w_firstlast_cycles": 69632,
+        "datapath_utilization_r": 0.9401773161564284,
+        "datapath_utilization_w": 0.9401773161564284,
+        "end_to_end_utilization": 0.9401773161564284,
+        "r_buckets_pct": {
+          "productive": 0.9401773161564284,
+          "backpressure": 0.0,
+          "starvation": 0.059822683843571575,
+          "idle": 0.0
+        },
+        "w_buckets_pct": {
+          "productive": 0.9401773161564284,
+          "backpressure": 0.0,
+          "starvation": 0.059822683843571575,
+          "idle": 0.0
+        },
+        "r_aggregate": {
+          "productive": 65536,
+          "backpressure": 0,
+          "starvation": 4170,
+          "idle": 0
+        },
+        "w_aggregate": {
+          "productive": 65536,
+          "backpressure": 0,
+          "starvation": 4170,
+          "idle": 0
+        },
+        "r_per_channel": [
+          {
+            "channel": 0,
+            "productive": 0,
+            "backpressure": 0,
+            "starvation": 0,
+            "idle": 0,
+            "overflow_mask": 8
+          }
+        ],
+        "w_per_channel": [
+          {
+            "channel": 0,
+            "productive": 61440,
+            "backpressure": 0,
+            "starvation": 4096,
+            "idle": 0,
+            "overflow_mask": 0
+          }
+        ]
+      },
+      "trace": {
+        "wr_ptr": 24,
+        "overflow": 0
+      },
+      "throughput_mbps": 15.627413429510346,
+      "bus_time_s": 0.00069706,
+      "bus_throughput_mbps": 1434.5967348578315,
+      "bus_cycles_total": 69706,
+      "bus_e2e_util_pct": 94.01773161564284,
+      "bus_max_one_dir_mbps": 1525.87890625,
+      "bus_max_net_moved_mbps": 762.939453125,
+      "pass": true
+    }
+  },
+  {
+    "config": "1desc_1ch_1MB",
+    "rd_delay": 64,
+    "wr_delay": 64,
+    "result": {
+      "name": "1desc_1ch_1MB",
+      "num_channels": 1,
+      "descriptors_per_channel": 1,
+      "transfer_bytes": 1048576,
+      "total_descriptors": 1,
+      "total_bytes": 1048576,
+      "load_time_s": 0.11786007881164551,
+      "dma_time_s": 0.0641031265258789,
+      "completion": {
+        "completed": true,
+        "irq": false,
+        "error": false,
+        "overflow": false,
+        "timer_pass": true,
+        "timer_running": false,
+        "elapsed_s": 0.032089948654174805,
+        "raw_timer": 5,
+        "raw_status": 0
+      },
+      "crc": {
+        "rd_expected": 1297375990,
+        "wr_expected": 1297375990,
+        "wr_computed": 1297375990,
+        "match_reg": 3,
+        "rd_per_ch": [
+          1297375990
+        ],
+        "wr_per_ch": [
+          1297375990
+        ],
+        "valid_mask": 1,
+        "match_mask": 1
+      },
+      "metrics": {
+        "available": true,
+        "cycles_total": 69738,
+        "r_first": 20,
+        "r_last": 69650,
+        "r_window_cycles": 69738,
+        "r_firstlast_cycles": 69631,
+        "w_first": 107,
+        "w_last": 69738,
+        "w_window_cycles": 69738,
+        "w_firstlast_cycles": 69632,
+        "datapath_utilization_r": 0.93974590610571,
+        "datapath_utilization_w": 0.93974590610571,
+        "end_to_end_utilization": 0.93974590610571,
+        "r_buckets_pct": {
+          "productive": 0.93974590610571,
+          "backpressure": 0.0,
+          "starvation": 0.06025409389429006,
+          "idle": 0.0
+        },
+        "w_buckets_pct": {
+          "productive": 0.93974590610571,
+          "backpressure": 0.0,
+          "starvation": 0.06025409389429006,
+          "idle": 0.0
+        },
+        "r_aggregate": {
+          "productive": 65536,
+          "backpressure": 0,
+          "starvation": 4202,
+          "idle": 0
+        },
+        "w_aggregate": {
+          "productive": 65536,
+          "backpressure": 0,
+          "starvation": 4202,
+          "idle": 0
+        },
+        "r_per_channel": [
+          {
+            "channel": 0,
+            "productive": 0,
+            "backpressure": 0,
+            "starvation": 0,
+            "idle": 0,
+            "overflow_mask": 8
+          }
+        ],
+        "w_per_channel": [
+          {
+            "channel": 0,
+            "productive": 61440,
+            "backpressure": 0,
+            "starvation": 4096,
+            "idle": 0,
+            "overflow_mask": 0
+          }
+        ]
+      },
+      "trace": {
+        "wr_ptr": 24,
+        "overflow": 0
+      },
+      "throughput_mbps": 15.599863129862982,
+      "bus_time_s": 0.00069738,
+      "bus_throughput_mbps": 1433.9384553614957,
+      "bus_cycles_total": 69738,
+      "bus_e2e_util_pct": 93.974590610571,
+      "bus_max_one_dir_mbps": 1525.87890625,
+      "bus_max_net_moved_mbps": 762.939453125,
+      "pass": true
+    }
+  },
+  {
+    "config": "1desc_1ch_1MB",
+    "rd_delay": 128,
+    "wr_delay": 128,
+    "result": {
+      "name": "1desc_1ch_1MB",
+      "num_channels": 1,
+      "descriptors_per_channel": 1,
+      "transfer_bytes": 1048576,
+      "total_descriptors": 1,
+      "total_bytes": 1048576,
+      "load_time_s": 0.11776041984558105,
+      "dma_time_s": 0.06397151947021484,
+      "completion": {
+        "completed": true,
+        "irq": false,
+        "error": false,
+        "overflow": false,
+        "timer_pass": true,
+        "timer_running": false,
+        "elapsed_s": 0.03197050094604492,
+        "raw_timer": 5,
+        "raw_status": 0
+      },
+      "crc": {
+        "rd_expected": 1297375990,
+        "wr_expected": 1297375990,
+        "wr_computed": 1297375990,
+        "match_reg": 3,
+        "rd_per_ch": [
+          1297375990
+        ],
+        "wr_per_ch": [
+          1297375990
+        ],
+        "valid_mask": 1,
+        "match_mask": 1
+      },
+      "metrics": {
+        "available": true,
+        "cycles_total": 79511,
+        "r_first": 20,
+        "r_last": 79205,
+        "r_window_cycles": 79511,
+        "r_firstlast_cycles": 79186,
+        "w_first": 171,
+        "w_last": 79511,
+        "w_window_cycles": 79511,
+        "w_firstlast_cycles": 79341,
+        "datapath_utilization_r": 0.8242381557268805,
+        "datapath_utilization_w": 0.8242381557268805,
+        "end_to_end_utilization": 0.8242381557268805,
+        "r_buckets_pct": {
+          "productive": 0.8242381557268805,
+          "backpressure": 0.0,
+          "starvation": 0.17576184427311944,
+          "idle": 0.0
+        },
+        "w_buckets_pct": {
+          "productive": 0.8242381557268805,
+          "backpressure": 0.0,
+          "starvation": 0.17576184427311944,
+          "idle": 0.0
+        },
+        "r_aggregate": {
+          "productive": 65536,
+          "backpressure": 0,
+          "starvation": 13975,
+          "idle": 0
+        },
+        "w_aggregate": {
+          "productive": 65536,
+          "backpressure": 0,
+          "starvation": 13975,
+          "idle": 0
+        },
+        "r_per_channel": [
+          {
+            "channel": 0,
+            "productive": 0,
+            "backpressure": 0,
+            "starvation": 0,
+            "idle": 0,
+            "overflow_mask": 8
+          }
+        ],
+        "w_per_channel": [
+          {
+            "channel": 0,
+            "productive": 63468,
+            "backpressure": 0,
+            "starvation": 2068,
+            "idle": 0,
+            "overflow_mask": 0
+          }
+        ]
+      },
+      "trace": {
+        "wr_ptr": 24,
+        "overflow": 0
+      },
+      "throughput_mbps": 15.631956349975402,
+      "bus_time_s": 0.00079511,
+      "bus_throughput_mbps": 1257.6876155500497,
+      "bus_cycles_total": 79511,
+      "bus_e2e_util_pct": 82.42381557268806,
+      "bus_max_one_dir_mbps": 1525.87890625,
+      "bus_max_net_moved_mbps": 762.939453125,
+      "pass": true
+    }
+  },
+  {
+    "config": "1desc_1ch_1MB",
+    "rd_delay": 256,
+    "wr_delay": 256,
+    "result": {
+      "name": "1desc_1ch_1MB",
+      "num_channels": 1,
+      "descriptors_per_channel": 1,
+      "transfer_bytes": 1048576,
+      "total_descriptors": 1,
+      "total_bytes": 1048576,
+      "load_time_s": 0.11786603927612305,
+      "dma_time_s": 0.06400084495544434,
+      "completion": {
+        "completed": true,
+        "irq": false,
+        "error": false,
+        "overflow": false,
+        "timer_pass": true,
+        "timer_running": false,
+        "elapsed_s": 0.03205227851867676,
+        "raw_timer": 5,
+        "raw_status": 0
+      },
+      "crc": {
+        "rd_expected": 1297375990,
+        "wr_expected": 1297375990,
+        "wr_computed": 1297375990,
+        "match_reg": 3,
+        "rd_per_ch": [
+          1297375990
+        ],
+        "wr_per_ch": [
+          1297375990
+        ],
+        "valid_mask": 1,
+        "match_mask": 1
+      },
+      "metrics": {
+        "available": true,
+        "cycles_total": 145047,
+        "r_first": 20,
+        "r_last": 144485,
+        "r_window_cycles": 145047,
+        "r_firstlast_cycles": 144466,
+        "w_first": 299,
+        "w_last": 145047,
+        "w_window_cycles": 145047,
+        "w_firstlast_cycles": 144749,
+        "datapath_utilization_r": 0.4518259598612863,
+        "datapath_utilization_w": 0.4518259598612863,
+        "end_to_end_utilization": 0.4518259598612863,
+        "r_buckets_pct": {
+          "productive": 0.4518259598612863,
+          "backpressure": 0.0,
+          "starvation": 0.5481740401387136,
+          "idle": 0.0
+        },
+        "w_buckets_pct": {
+          "productive": 0.4518259598612863,
+          "backpressure": 0.0,
+          "starvation": 0.5481740401387136,
+          "idle": 0.0
+        },
+        "r_aggregate": {
+          "productive": 65536,
+          "backpressure": 0,
+          "starvation": 79511,
+          "idle": 0
+        },
+        "w_aggregate": {
+          "productive": 65536,
+          "backpressure": 0,
+          "starvation": 79511,
+          "idle": 0
+        },
+        "r_per_channel": [
+          {
+            "channel": 0,
+            "productive": 0,
+            "backpressure": 0,
+            "starvation": 0,
+            "idle": 0,
+            "overflow_mask": 8
+          }
+        ],
+        "w_per_channel": [
+          {
+            "channel": 0,
+            "productive": 63468,
+            "backpressure": 0,
+            "starvation": 2068,
+            "idle": 0,
+            "overflow_mask": 0
+          }
+        ]
+      },
+      "trace": {
+        "wr_ptr": 24,
+        "overflow": 0
+      },
+      "throughput_mbps": 15.624793714773189,
+      "bus_time_s": 0.00145047,
+      "bus_throughput_mbps": 689.431701448496,
+      "bus_cycles_total": 145047,
+      "bus_e2e_util_pct": 45.18259598612863,
+      "bus_max_one_dir_mbps": 1525.87890625,
+      "bus_max_net_moved_mbps": 762.939453125,
+      "pass": true
+    }
+  },
+  {
+    "config": "1desc_1ch_1MB",
+    "rd_delay": 512,
+    "wr_delay": 512,
+    "result": {
+      "name": "1desc_1ch_1MB",
+      "num_channels": 1,
+      "descriptors_per_channel": 1,
+      "transfer_bytes": 1048576,
+      "total_descriptors": 1,
+      "total_bytes": 1048576,
+      "load_time_s": 0.11776590347290039,
+      "dma_time_s": 0.06415367126464844,
+      "completion": {
+        "completed": true,
+        "irq": false,
+        "error": false,
+        "overflow": false,
+        "timer_pass": true,
+        "timer_running": false,
+        "elapsed_s": 0.03215456008911133,
+        "raw_timer": 5,
+        "raw_status": 0
+      },
+      "crc": {
+        "rd_expected": 1297375990,
+        "wr_expected": 1297375990,
+        "wr_computed": 1297375990,
+        "match_reg": 3,
+        "rd_per_ch": [
+          1297375990
+        ],
+        "wr_per_ch": [
+          1297375990
+        ],
+        "valid_mask": 1,
+        "match_mask": 1
+      },
+      "metrics": {
+        "available": true,
+        "cycles_total": 276119,
+        "r_first": 20,
+        "r_last": 275045,
+        "r_window_cycles": 276119,
+        "r_firstlast_cycles": 275026,
+        "w_first": 555,
+        "w_last": 276119,
+        "w_window_cycles": 276119,
+        "w_firstlast_cycles": 275565,
+        "datapath_utilization_r": 0.2373469409928328,
+        "datapath_utilization_w": 0.2373469409928328,
+        "end_to_end_utilization": 0.2373469409928328,
+        "r_buckets_pct": {
+          "productive": 0.2373469409928328,
+          "backpressure": 0.0,
+          "starvation": 0.7626530590071672,
+          "idle": 0.0
+        },
+        "w_buckets_pct": {
+          "productive": 0.2373469409928328,
+          "backpressure": 0.0,
+          "starvation": 0.7626530590071672,
+          "idle": 0.0
+        },
+        "r_aggregate": {
+          "productive": 65536,
+          "backpressure": 0,
+          "starvation": 210583,
+          "idle": 0
+        },
+        "w_aggregate": {
+          "productive": 65536,
+          "backpressure": 0,
+          "starvation": 210583,
+          "idle": 0
+        },
+        "r_per_channel": [
+          {
+            "channel": 0,
+            "productive": 0,
+            "backpressure": 0,
+            "starvation": 0,
+            "idle": 0,
+            "overflow_mask": 8
+          }
+        ],
+        "w_per_channel": [
+          {
+            "channel": 0,
+            "productive": 63468,
+            "backpressure": 0,
+            "starvation": 2068,
+            "idle": 0,
+            "overflow_mask": 0
+          }
+        ]
+      },
+      "trace": {
+        "wr_ptr": 24,
+        "overflow": 0
+      },
+      "throughput_mbps": 15.587572469154155,
+      "bus_time_s": 0.00276119,
+      "bus_throughput_mbps": 362.16269072392697,
+      "bus_cycles_total": 276119,
+      "bus_e2e_util_pct": 23.734694099283278,
+      "bus_max_one_dir_mbps": 1525.87890625,
+      "bus_max_net_moved_mbps": 762.939453125,
+      "pass": true
+    }
+  },
+  {
+    "config": "1desc_1ch_1MB",
+    "rd_delay": 1024,
+    "wr_delay": 1024,
+    "result": {
+      "name": "1desc_1ch_1MB",
+      "num_channels": 1,
+      "descriptors_per_channel": 1,
+      "transfer_bytes": 1048576,
+      "total_descriptors": 1,
+      "total_bytes": 1048576,
+      "load_time_s": 0.11778545379638672,
+      "dma_time_s": 0.06409525871276855,
+      "completion": {
+        "completed": true,
+        "irq": false,
+        "error": false,
+        "overflow": false,
+        "timer_pass": true,
+        "timer_running": false,
+        "elapsed_s": 0.03214883804321289,
+        "raw_timer": 5,
+        "raw_status": 0
+      },
+      "crc": {
+        "rd_expected": 1297375990,
+        "wr_expected": 1297375990,
+        "wr_computed": 1297375990,
+        "match_reg": 3,
+        "rd_per_ch": [
+          1297375990
+        ],
+        "wr_per_ch": [
+          1297375990
+        ],
+        "valid_mask": 1,
+        "match_mask": 1
+      },
+      "metrics": {
+        "available": true,
+        "cycles_total": 538263,
+        "r_first": 20,
+        "r_last": 536165,
+        "r_window_cycles": 538263,
+        "r_firstlast_cycles": 536146,
+        "w_first": 1067,
+        "w_last": 538263,
+        "w_window_cycles": 538263,
+        "w_firstlast_cycles": 537197,
+        "datapath_utilization_r": 0.12175460694864779,
+        "datapath_utilization_w": 0.12175460694864779,
+        "end_to_end_utilization": 0.12175460694864779,
+        "r_buckets_pct": {
+          "productive": 0.12175460694864779,
+          "backpressure": 0.0,
+          "starvation": 0.8782453930513522,
+          "idle": 0.0
+        },
+        "w_buckets_pct": {
+          "productive": 0.12175460694864779,
+          "backpressure": 0.0,
+          "starvation": 0.8782453930513522,
+          "idle": 0.0
+        },
+        "r_aggregate": {
+          "productive": 65536,
+          "backpressure": 0,
+          "starvation": 472727,
+          "idle": 0
+        },
+        "w_aggregate": {
+          "productive": 65536,
+          "backpressure": 0,
+          "starvation": 472727,
+          "idle": 0
+        },
+        "r_per_channel": [
+          {
+            "channel": 0,
+            "productive": 0,
+            "backpressure": 0,
+            "starvation": 0,
+            "idle": 0,
+            "overflow_mask": 8
+          }
+        ],
+        "w_per_channel": [
+          {
+            "channel": 0,
+            "productive": 63468,
+            "backpressure": 0,
+            "starvation": 2068,
+            "idle": 0,
+            "overflow_mask": 0
+          }
+        ]
+      },
+      "trace": {
+        "wr_ptr": 24,
+        "overflow": 0
+      },
+      "throughput_mbps": 15.601778042293601,
+      "bus_time_s": 0.00538263,
+      "bus_throughput_mbps": 185.78278648170132,
+      "bus_cycles_total": 538263,
+      "bus_e2e_util_pct": 12.175460694864778,
+      "bus_max_one_dir_mbps": 1525.87890625,
+      "bus_max_net_moved_mbps": 762.939453125,
+      "pass": true
+    }
+  },
+  {
+    "config": "1desc_1ch_1MB",
+    "rd_delay": 2048,
+    "wr_delay": 2048,
+    "result": {
+      "name": "1desc_1ch_1MB",
+      "num_channels": 1,
+      "descriptors_per_channel": 1,
+      "transfer_bytes": 1048576,
+      "total_descriptors": 1,
+      "total_bytes": 1048576,
+      "load_time_s": 0.11802148818969727,
+      "dma_time_s": 0.06410646438598633,
+      "completion": {
+        "completed": true,
+        "irq": false,
+        "error": false,
+        "overflow": false,
+        "timer_pass": true,
+        "timer_running": false,
+        "elapsed_s": 0.03209805488586426,
+        "raw_timer": 5,
+        "raw_status": 0
+      },
+      "crc": {
+        "rd_expected": 1297375990,
+        "wr_expected": 1297375990,
+        "wr_computed": 1297375990,
+        "match_reg": 3,
+        "rd_per_ch": [
+          1297375990
+        ],
+        "wr_per_ch": [
+          1297375990
+        ],
+        "valid_mask": 1,
+        "match_mask": 1
+      },
+      "metrics": {
+        "available": true,
+        "cycles_total": 1062551,
+        "r_first": 20,
+        "r_last": 1058946,
+        "r_window_cycles": 1062551,
+        "r_firstlast_cycles": 1058927,
+        "w_first": 2091,
+        "w_last": 1062551,
+        "w_window_cycles": 1062551,
+        "w_firstlast_cycles": 1060461,
+        "datapath_utilization_r": 0.06167798063340019,
+        "datapath_utilization_w": 0.06167798063340019,
+        "end_to_end_utilization": 0.06167798063340019,
+        "r_buckets_pct": {
+          "productive": 0.06167798063340019,
+          "backpressure": 0.0,
+          "starvation": 0.9383220193665999,
+          "idle": 0.0
+        },
+        "w_buckets_pct": {
+          "productive": 0.06167798063340019,
+          "backpressure": 0.0,
+          "starvation": 0.9383220193665999,
+          "idle": 0.0
+        },
+        "r_aggregate": {
+          "productive": 65536,
+          "backpressure": 0,
+          "starvation": 997015,
+          "idle": 0
+        },
+        "w_aggregate": {
+          "productive": 65536,
+          "backpressure": 0,
+          "starvation": 997015,
+          "idle": 0
+        },
+        "r_per_channel": [
+          {
+            "channel": 0,
+            "productive": 0,
+            "backpressure": 0,
+            "starvation": 0,
+            "idle": 0,
+            "overflow_mask": 8
+          }
+        ],
+        "w_per_channel": [
+          {
+            "channel": 0,
+            "productive": 63468,
+            "backpressure": 0,
+            "starvation": 2068,
+            "idle": 0,
+            "overflow_mask": 0
+          }
+        ]
+      },
+      "trace": {
+        "wr_ptr": 24,
+        "overflow": 0
+      },
+      "throughput_mbps": 15.599050884774734,
+      "bus_time_s": 0.01062551,
+      "bus_throughput_mbps": 94.11312962860136,
+      "bus_cycles_total": 1062551,
+      "bus_e2e_util_pct": 6.167798063340019,
+      "bus_max_one_dir_mbps": 1525.87890625,
+      "bus_max_net_moved_mbps": 762.939453125,
+      "pass": true
+    }
+  },
+  {
+    "config": "1desc_1ch_1MB",
+    "rd_delay": 4096,
+    "wr_delay": 4096,
+    "result": {
+      "name": "1desc_1ch_1MB",
+      "num_channels": 1,
+      "descriptors_per_channel": 1,
+      "transfer_bytes": 1048576,
+      "total_descriptors": 1,
+      "total_bytes": 1048576,
+      "load_time_s": 0.11789226531982422,
+      "dma_time_s": 0.09607100486755371,
+      "completion": {
+        "completed": true,
+        "irq": false,
+        "error": false,
+        "overflow": false,
+        "timer_pass": true,
+        "timer_running": false,
+        "elapsed_s": 0.06399297714233398,
+        "raw_timer": 5,
+        "raw_status": 0
+      },
+      "crc": {
+        "rd_expected": 1297375990,
+        "wr_expected": 1297375990,
+        "wr_computed": 1297375990,
+        "match_reg": 3,
+        "rd_per_ch": [
+          1297375990
+        ],
+        "wr_per_ch": [
+          1297375990
+        ],
+        "valid_mask": 1,
+        "match_mask": 1
+      },
+      "metrics": {
+        "available": true,
+        "cycles_total": 2111127,
+        "r_first": 20,
+        "r_last": 2105474,
+        "r_window_cycles": 2111127,
+        "r_firstlast_cycles": 2105455,
+        "w_first": 4139,
+        "w_last": 2111127,
+        "w_window_cycles": 2111127,
+        "w_firstlast_cycles": 2106989,
+        "datapath_utilization_r": 0.03104313478061718,
+        "datapath_utilization_w": 0.03104313478061718,
+        "end_to_end_utilization": 0.03104313478061718,
+        "r_buckets_pct": {
+          "productive": 0.03104313478061718,
+          "backpressure": 0.0,
+          "starvation": 0.9689568652193828,
+          "idle": 0.0
+        },
+        "w_buckets_pct": {
+          "productive": 0.03104313478061718,
+          "backpressure": 0.0,
+          "starvation": 0.9689568652193828,
+          "idle": 0.0
+        },
+        "r_aggregate": {
+          "productive": 65536,
+          "backpressure": 0,
+          "starvation": 2045591,
+          "idle": 0
+        },
+        "w_aggregate": {
+          "productive": 65536,
+          "backpressure": 0,
+          "starvation": 2045591,
+          "idle": 0
+        },
+        "r_per_channel": [
+          {
+            "channel": 0,
+            "productive": 0,
+            "backpressure": 0,
+            "starvation": 0,
+            "idle": 0,
+            "overflow_mask": 8
+          }
+        ],
+        "w_per_channel": [
+          {
+            "channel": 0,
+            "productive": 63468,
+            "backpressure": 0,
+            "starvation": 2068,
+            "idle": 0,
+            "overflow_mask": 0
+          }
+        ]
+      },
+      "trace": {
+        "wr_ptr": 24,
+        "overflow": 0
+      },
+      "throughput_mbps": 10.408967839762155,
+      "bus_time_s": 0.02111127,
+      "bus_throughput_mbps": 47.36806454561947,
+      "bus_cycles_total": 2111127,
+      "bus_e2e_util_pct": 3.1043134780617176,
+      "bus_max_one_dir_mbps": 1525.87890625,
+      "bus_max_net_moved_mbps": 762.939453125,
+      "pass": true
+    }
+  },
+  {
+    "config": "2desc_1ch_1MB",
+    "rd_delay": 0,
+    "wr_delay": 0,
+    "result": {
+      "name": "2desc_1ch_1MB",
+      "num_channels": 1,
+      "descriptors_per_channel": 2,
+      "transfer_bytes": 1048576,
+      "total_descriptors": 2,
+      "total_bytes": 2097152,
+      "load_time_s": 0.2459394931793213,
+      "dma_time_s": 0.06414031982421875,
+      "completion": {
+        "completed": true,
+        "irq": false,
+        "error": false,
+        "overflow": false,
+        "timer_pass": true,
+        "timer_running": false,
+        "elapsed_s": 0.03213310241699219,
+        "raw_timer": 5,
+        "raw_status": 0
+      },
+      "crc": {
+        "rd_expected": 902547923,
+        "wr_expected": 902547923,
+        "wr_computed": 902547923,
+        "match_reg": 3,
+        "rd_per_ch": [
+          902547923
+        ],
+        "wr_per_ch": [
+          902547923
+        ],
+        "valid_mask": 1,
+        "match_mask": 1
+      },
+      "metrics": {
+        "available": true,
+        "cycles_total": 139345,
+        "r_first": 20,
+        "r_last": 139320,
+        "r_window_cycles": 139345,
+        "r_firstlast_cycles": 139301,
+        "w_first": 44,
+        "w_last": 139345,
+        "w_window_cycles": 139345,
+        "w_firstlast_cycles": 139302,
+        "datapath_utilization_r": 0.9406293731386128,
+        "datapath_utilization_w": 0.9406293731386128,
+        "end_to_end_utilization": 0.9406293731386128,
+        "r_buckets_pct": {
+          "productive": 0.9406293731386128,
+          "backpressure": 0.0,
+          "starvation": 0.05937062686138721,
+          "idle": 0.0
+        },
+        "w_buckets_pct": {
+          "productive": 0.9406293731386128,
+          "backpressure": 0.0,
+          "starvation": 0.05937062686138721,
+          "idle": 0.0
+        },
+        "r_aggregate": {
+          "productive": 131072,
+          "backpressure": 0,
+          "starvation": 8273,
+          "idle": 0
+        },
+        "w_aggregate": {
+          "productive": 131072,
+          "backpressure": 0,
+          "starvation": 8273,
+          "idle": 0
+        },
+        "r_per_channel": [
+          {
+            "channel": 0,
+            "productive": 0,
+            "backpressure": 0,
+            "starvation": 0,
+            "idle": 0,
+            "overflow_mask": 8
+          }
+        ],
+        "w_per_channel": [
+          {
+            "channel": 0,
+            "productive": 57344,
+            "backpressure": 0,
+            "starvation": 8192,
+            "idle": 0,
+            "overflow_mask": 8
+          }
+        ]
+      },
+      "trace": {
+        "wr_ptr": 34,
+        "overflow": 0
+      },
+      "throughput_mbps": 31.181634352325442,
+      "bus_time_s": 0.00139345,
+      "bus_throughput_mbps": 1435.2865190713696,
+      "bus_cycles_total": 139345,
+      "bus_e2e_util_pct": 94.06293731386128,
+      "bus_max_one_dir_mbps": 1525.87890625,
+      "bus_max_net_moved_mbps": 762.939453125,
+      "pass": true
+    }
+  },
+  {
+    "config": "2desc_1ch_1MB",
+    "rd_delay": 8,
+    "wr_delay": 8,
+    "result": {
+      "name": "2desc_1ch_1MB",
+      "num_channels": 1,
+      "descriptors_per_channel": 2,
+      "transfer_bytes": 1048576,
+      "total_descriptors": 2,
+      "total_bytes": 2097152,
+      "load_time_s": 0.2458031177520752,
+      "dma_time_s": 0.0641016960144043,
+      "completion": {
+        "completed": true,
+        "irq": false,
+        "error": false,
+        "overflow": false,
+        "timer_pass": true,
+        "timer_running": false,
+        "elapsed_s": 0.03215599060058594,
+        "raw_timer": 5,
+        "raw_status": 0
+      },
+      "crc": {
+        "rd_expected": 902547923,
+        "wr_expected": 902547923,
+        "wr_computed": 902547923,
+        "match_reg": 3,
+        "rd_per_ch": [
+          902547923
+        ],
+        "wr_per_ch": [
+          902547923
+        ],
+        "valid_mask": 1,
+        "match_mask": 1
+      },
+      "metrics": {
+        "available": true,
+        "cycles_total": 139366,
+        "r_first": 20,
+        "r_last": 139334,
+        "r_window_cycles": 139366,
+        "r_firstlast_cycles": 139315,
+        "w_first": 51,
+        "w_last": 139366,
+        "w_window_cycles": 139366,
+        "w_firstlast_cycles": 139316,
+        "datapath_utilization_r": 0.9404876368698247,
+        "datapath_utilization_w": 0.9404876368698247,
+        "end_to_end_utilization": 0.9404876368698247,
+        "r_buckets_pct": {
+          "productive": 0.9404876368698247,
+          "backpressure": 0.0,
+          "starvation": 0.05951236313017522,
+          "idle": 0.0
+        },
+        "w_buckets_pct": {
+          "productive": 0.9404876368698247,
+          "backpressure": 0.0,
+          "starvation": 0.05951236313017522,
+          "idle": 0.0
+        },
+        "r_aggregate": {
+          "productive": 131072,
+          "backpressure": 0,
+          "starvation": 8294,
+          "idle": 0
+        },
+        "w_aggregate": {
+          "productive": 131072,
+          "backpressure": 0,
+          "starvation": 8294,
+          "idle": 0
+        },
+        "r_per_channel": [
+          {
+            "channel": 0,
+            "productive": 0,
+            "backpressure": 0,
+            "starvation": 0,
+            "idle": 0,
+            "overflow_mask": 8
+          }
+        ],
+        "w_per_channel": [
+          {
+            "channel": 0,
+            "productive": 57344,
+            "backpressure": 0,
+            "starvation": 8192,
+            "idle": 0,
+            "overflow_mask": 8
+          }
+        ]
+      },
+      "trace": {
+        "wr_ptr": 34,
+        "overflow": 0
+      },
+      "throughput_mbps": 31.200422521591,
+      "bus_time_s": 0.00139366,
+      "bus_throughput_mbps": 1435.0702466885755,
+      "bus_cycles_total": 139366,
+      "bus_e2e_util_pct": 94.04876368698247,
+      "bus_max_one_dir_mbps": 1525.87890625,
+      "bus_max_net_moved_mbps": 762.939453125,
+      "pass": true
+    }
+  },
+  {
+    "config": "2desc_1ch_1MB",
+    "rd_delay": 32,
+    "wr_delay": 32,
+    "result": {
+      "name": "2desc_1ch_1MB",
+      "num_channels": 1,
+      "descriptors_per_channel": 2,
+      "transfer_bytes": 1048576,
+      "total_descriptors": 2,
+      "total_bytes": 2097152,
+      "load_time_s": 0.24599647521972656,
+      "dma_time_s": 0.06398653984069824,
+      "completion": {
+        "completed": true,
+        "irq": false,
+        "error": false,
+        "overflow": false,
+        "timer_pass": true,
+        "timer_running": false,
+        "elapsed_s": 0.032155513763427734,
+        "raw_timer": 5,
+        "raw_status": 0
+      },
+      "crc": {
+        "rd_expected": 902547923,
+        "wr_expected": 902547923,
+        "wr_computed": 902547923,
+        "match_reg": 3,
+        "rd_per_ch": [
+          902547923
+        ],
+        "wr_per_ch": [
+          902547923
+        ],
+        "valid_mask": 1,
+        "match_mask": 1
+      },
+      "metrics": {
+        "available": true,
+        "cycles_total": 139438,
+        "r_first": 20,
+        "r_last": 139382,
+        "r_window_cycles": 139438,
+        "r_firstlast_cycles": 139363,
+        "w_first": 75,
+        "w_last": 139438,
+        "w_window_cycles": 139438,
+        "w_firstlast_cycles": 139364,
+        "datapath_utilization_r": 0.9400020080609303,
+        "datapath_utilization_w": 0.9400020080609303,
+        "end_to_end_utilization": 0.9400020080609303,
+        "r_buckets_pct": {
+          "productive": 0.9400020080609303,
+          "backpressure": 0.0,
+          "starvation": 0.0599979919390697,
+          "idle": 0.0
+        },
+        "w_buckets_pct": {
+          "productive": 0.9400020080609303,
+          "backpressure": 0.0,
+          "starvation": 0.0599979919390697,
+          "idle": 0.0
+        },
+        "r_aggregate": {
+          "productive": 131072,
+          "backpressure": 0,
+          "starvation": 8366,
+          "idle": 0
+        },
+        "w_aggregate": {
+          "productive": 131072,
+          "backpressure": 0,
+          "starvation": 8366,
+          "idle": 0
+        },
+        "r_per_channel": [
+          {
+            "channel": 0,
+            "productive": 0,
+            "backpressure": 0,
+            "starvation": 0,
+            "idle": 0,
+            "overflow_mask": 8
+          }
+        ],
+        "w_per_channel": [
+          {
+            "channel": 0,
+            "productive": 57344,
+            "backpressure": 0,
+            "starvation": 8192,
+            "idle": 0,
+            "overflow_mask": 8
+          }
+        ]
+      },
+      "trace": {
+        "wr_ptr": 34,
+        "overflow": 0
+      },
+      "throughput_mbps": 31.256573725962166,
+      "bus_time_s": 0.00139438,
+      "bus_throughput_mbps": 1434.3292359328161,
+      "bus_cycles_total": 139438,
+      "bus_e2e_util_pct": 94.00020080609302,
+      "bus_max_one_dir_mbps": 1525.87890625,
+      "bus_max_net_moved_mbps": 762.939453125,
+      "pass": true
+    }
+  },
+  {
+    "config": "2desc_1ch_1MB",
+    "rd_delay": 64,
+    "wr_delay": 64,
+    "result": {
+      "name": "2desc_1ch_1MB",
+      "num_channels": 1,
+      "descriptors_per_channel": 2,
+      "transfer_bytes": 1048576,
+      "total_descriptors": 2,
+      "total_bytes": 2097152,
+      "load_time_s": 0.24592304229736328,
+      "dma_time_s": 0.06404662132263184,
+      "completion": {
+        "completed": true,
+        "irq": false,
+        "error": false,
+        "overflow": false,
+        "timer_pass": true,
+        "timer_running": false,
+        "elapsed_s": 0.03207707405090332,
+        "raw_timer": 5,
+        "raw_status": 0
+      },
+      "crc": {
+        "rd_expected": 902547923,
+        "wr_expected": 902547923,
+        "wr_computed": 902547923,
+        "match_reg": 3,
+        "rd_per_ch": [
+          902547923
+        ],
+        "wr_per_ch": [
+          902547923
+        ],
+        "valid_mask": 1,
+        "match_mask": 1
+      },
+      "metrics": {
+        "available": true,
+        "cycles_total": 139534,
+        "r_first": 20,
+        "r_last": 139446,
+        "r_window_cycles": 139534,
+        "r_firstlast_cycles": 139427,
+        "w_first": 107,
+        "w_last": 139534,
+        "w_window_cycles": 139534,
+        "w_firstlast_cycles": 139428,
+        "datapath_utilization_r": 0.9393552825834564,
+        "datapath_utilization_w": 0.9393552825834564,
+        "end_to_end_utilization": 0.9393552825834564,
+        "r_buckets_pct": {
+          "productive": 0.9393552825834564,
+          "backpressure": 0.0,
+          "starvation": 0.06064471741654364,
+          "idle": 0.0
+        },
+        "w_buckets_pct": {
+          "productive": 0.9393552825834564,
+          "backpressure": 0.0,
+          "starvation": 0.06064471741654364,
+          "idle": 0.0
+        },
+        "r_aggregate": {
+          "productive": 131072,
+          "backpressure": 0,
+          "starvation": 8462,
+          "idle": 0
+        },
+        "w_aggregate": {
+          "productive": 131072,
+          "backpressure": 0,
+          "starvation": 8462,
+          "idle": 0
+        },
+        "r_per_channel": [
+          {
+            "channel": 0,
+            "productive": 0,
+            "backpressure": 0,
+            "starvation": 0,
+            "idle": 0,
+            "overflow_mask": 8
+          }
+        ],
+        "w_per_channel": [
+          {
+            "channel": 0,
+            "productive": 57344,
+            "backpressure": 0,
+            "starvation": 8192,
+            "idle": 0,
+            "overflow_mask": 8
+          }
+        ]
+      },
+      "trace": {
+        "wr_ptr": 34,
+        "overflow": 0
+      },
+      "throughput_mbps": 31.227252253090672,
+      "bus_time_s": 0.00139534,
+      "bus_throughput_mbps": 1433.3424111686043,
+      "bus_cycles_total": 139534,
+      "bus_e2e_util_pct": 93.93552825834564,
+      "bus_max_one_dir_mbps": 1525.87890625,
+      "bus_max_net_moved_mbps": 762.939453125,
+      "pass": true
+    }
+  },
+  {
+    "config": "2desc_1ch_1MB",
+    "rd_delay": 128,
+    "wr_delay": 128,
+    "result": {
+      "name": "2desc_1ch_1MB",
+      "num_channels": 1,
+      "descriptors_per_channel": 2,
+      "transfer_bytes": 1048576,
+      "total_descriptors": 2,
+      "total_bytes": 2097152,
+      "load_time_s": 0.2459123134613037,
+      "dma_time_s": 0.06405067443847656,
+      "completion": {
+        "completed": true,
+        "irq": false,
+        "error": false,
+        "overflow": false,
+        "timer_pass": true,
+        "timer_running": false,
+        "elapsed_s": 0.032048940658569336,
+        "raw_timer": 5,
+        "raw_status": 0
+      },
+      "crc": {
+        "rd_expected": 902547923,
+        "wr_expected": 902547923,
+        "wr_computed": 902547923,
+        "match_reg": 3,
+        "rd_per_ch": [
+          902547923
+        ],
+        "wr_per_ch": [
+          902547923
+        ],
+        "valid_mask": 1,
+        "match_mask": 1
+      },
+      "metrics": {
+        "available": true,
+        "cycles_total": 159144,
+        "r_first": 20,
+        "r_last": 158838,
+        "r_window_cycles": 159144,
+        "r_firstlast_cycles": 158819,
+        "w_first": 171,
+        "w_last": 159144,
+        "w_window_cycles": 159144,
+        "w_firstlast_cycles": 158974,
+        "datapath_utilization_r": 0.8236062936711406,
+        "datapath_utilization_w": 0.8236062936711406,
+        "end_to_end_utilization": 0.8236062936711406,
+        "r_buckets_pct": {
+          "productive": 0.8236062936711406,
+          "backpressure": 0.0,
+          "starvation": 0.1763937063288594,
+          "idle": 0.0
+        },
+        "w_buckets_pct": {
+          "productive": 0.8236062936711406,
+          "backpressure": 0.0,
+          "starvation": 0.1763937063288594,
+          "idle": 0.0
+        },
+        "r_aggregate": {
+          "productive": 131072,
+          "backpressure": 0,
+          "starvation": 28072,
+          "idle": 0
+        },
+        "w_aggregate": {
+          "productive": 131072,
+          "backpressure": 0,
+          "starvation": 28072,
+          "idle": 0
+        },
+        "r_per_channel": [
+          {
+            "channel": 0,
+            "productive": 0,
+            "backpressure": 0,
+            "starvation": 0,
+            "idle": 0,
+            "overflow_mask": 8
+          }
+        ],
+        "w_per_channel": [
+          {
+            "channel": 0,
+            "productive": 61400,
+            "backpressure": 0,
+            "starvation": 4136,
+            "idle": 0,
+            "overflow_mask": 8
+          }
+        ]
+      },
+      "trace": {
+        "wr_ptr": 34,
+        "overflow": 0
+      },
+      "throughput_mbps": 31.225276197849976,
+      "bus_time_s": 0.00159144,
+      "bus_throughput_mbps": 1256.7234705675364,
+      "bus_cycles_total": 159144,
+      "bus_e2e_util_pct": 82.36062936711406,
+      "bus_max_one_dir_mbps": 1525.87890625,
+      "bus_max_net_moved_mbps": 762.939453125,
+      "pass": true
+    }
+  },
+  {
+    "config": "2desc_1ch_1MB",
+    "rd_delay": 256,
+    "wr_delay": 256,
+    "result": {
+      "name": "2desc_1ch_1MB",
+      "num_channels": 1,
+      "descriptors_per_channel": 2,
+      "transfer_bytes": 1048576,
+      "total_descriptors": 2,
+      "total_bytes": 2097152,
+      "load_time_s": 0.24582886695861816,
+      "dma_time_s": 0.06406021118164062,
+      "completion": {
+        "completed": true,
+        "irq": false,
+        "error": false,
+        "overflow": false,
+        "timer_pass": true,
+        "timer_running": false,
+        "elapsed_s": 0.03214073181152344,
+        "raw_timer": 5,
+        "raw_status": 0
+      },
+      "crc": {
+        "rd_expected": 902547923,
+        "wr_expected": 902547923,
+        "wr_computed": 902547923,
+        "match_reg": 3,
+        "rd_per_ch": [
+          902547923
+        ],
+        "wr_per_ch": [
+          902547923
+        ],
+        "valid_mask": 1,
+        "match_mask": 1
+      },
+      "metrics": {
+        "available": true,
+        "cycles_total": 290344,
+        "r_first": 20,
+        "r_last": 289782,
+        "r_window_cycles": 290344,
+        "r_firstlast_cycles": 289763,
+        "w_first": 299,
+        "w_last": 290344,
+        "w_window_cycles": 290344,
+        "w_firstlast_cycles": 290046,
+        "datapath_utilization_r": 0.4514369162097374,
+        "datapath_utilization_w": 0.4514369162097374,
+        "end_to_end_utilization": 0.4514369162097374,
+        "r_buckets_pct": {
+          "productive": 0.4514369162097374,
+          "backpressure": 0.0,
+          "starvation": 0.5485630837902626,
+          "idle": 0.0
+        },
+        "w_buckets_pct": {
+          "productive": 0.4514369162097374,
+          "backpressure": 0.0,
+          "starvation": 0.5485630837902626,
+          "idle": 0.0
+        },
+        "r_aggregate": {
+          "productive": 131072,
+          "backpressure": 0,
+          "starvation": 159272,
+          "idle": 0
+        },
+        "w_aggregate": {
+          "productive": 131072,
+          "backpressure": 0,
+          "starvation": 159272,
+          "idle": 0
+        },
+        "r_per_channel": [
+          {
+            "channel": 0,
+            "productive": 0,
+            "backpressure": 0,
+            "starvation": 0,
+            "idle": 0,
+            "overflow_mask": 8
+          }
+        ],
+        "w_per_channel": [
+          {
+            "channel": 0,
+            "productive": 61400,
+            "backpressure": 0,
+            "starvation": 4136,
+            "idle": 0,
+            "overflow_mask": 8
+          }
+        ]
+      },
+      "trace": {
+        "wr_ptr": 34,
+        "overflow": 0
+      },
+      "throughput_mbps": 31.220627642470077,
+      "bus_time_s": 0.00290344,
+      "bus_throughput_mbps": 688.8380679469869,
+      "bus_cycles_total": 290344,
+      "bus_e2e_util_pct": 45.14369162097374,
+      "bus_max_one_dir_mbps": 1525.87890625,
+      "bus_max_net_moved_mbps": 762.939453125,
+      "pass": true
+    }
+  },
+  {
+    "config": "2desc_1ch_1MB",
+    "rd_delay": 512,
+    "wr_delay": 512,
+    "result": {
+      "name": "2desc_1ch_1MB",
+      "num_channels": 1,
+      "descriptors_per_channel": 2,
+      "transfer_bytes": 1048576,
+      "total_descriptors": 2,
+      "total_bytes": 2097152,
+      "load_time_s": 0.24577999114990234,
+      "dma_time_s": 0.06416130065917969,
+      "completion": {
+        "completed": true,
+        "irq": false,
+        "error": false,
+        "overflow": false,
+        "timer_pass": true,
+        "timer_running": false,
+        "elapsed_s": 0.03215813636779785,
+        "raw_timer": 5,
+        "raw_status": 0
+      },
+      "crc": {
+        "rd_expected": 902547923,
+        "wr_expected": 902547923,
+        "wr_computed": 902547923,
+        "match_reg": 3,
+        "rd_per_ch": [
+          902547923
+        ],
+        "wr_per_ch": [
+          902547923
+        ],
+        "valid_mask": 1,
+        "match_mask": 1
+      },
+      "metrics": {
+        "available": true,
+        "cycles_total": 552744,
+        "r_first": 20,
+        "r_last": 551670,
+        "r_window_cycles": 552744,
+        "r_firstlast_cycles": 551651,
+        "w_first": 555,
+        "w_last": 552744,
+        "w_window_cycles": 552744,
+        "w_firstlast_cycles": 552190,
+        "datapath_utilization_r": 0.23712966581274514,
+        "datapath_utilization_w": 0.23712966581274514,
+        "end_to_end_utilization": 0.23712966581274514,
+        "r_buckets_pct": {
+          "productive": 0.23712966581274514,
+          "backpressure": 0.0,
+          "starvation": 0.7628703341872548,
+          "idle": 0.0
+        },
+        "w_buckets_pct": {
+          "productive": 0.23712966581274514,
+          "backpressure": 0.0,
+          "starvation": 0.7628703341872548,
+          "idle": 0.0
+        },
+        "r_aggregate": {
+          "productive": 131072,
+          "backpressure": 0,
+          "starvation": 421672,
+          "idle": 0
+        },
+        "w_aggregate": {
+          "productive": 131072,
+          "backpressure": 0,
+          "starvation": 421672,
+          "idle": 0
+        },
+        "r_per_channel": [
+          {
+            "channel": 0,
+            "productive": 0,
+            "backpressure": 0,
+            "starvation": 0,
+            "idle": 0,
+            "overflow_mask": 8
+          }
+        ],
+        "w_per_channel": [
+          {
+            "channel": 0,
+            "productive": 61400,
+            "backpressure": 0,
+            "starvation": 4136,
+            "idle": 0,
+            "overflow_mask": 8
+          }
+        ]
+      },
+      "trace": {
+        "wr_ptr": 34,
+        "overflow": 0
+      },
+      "throughput_mbps": 31.171437914325633,
+      "bus_time_s": 0.00552744,
+      "bus_throughput_mbps": 361.83115510977956,
+      "bus_cycles_total": 552744,
+      "bus_e2e_util_pct": 23.712966581274515,
+      "bus_max_one_dir_mbps": 1525.87890625,
+      "bus_max_net_moved_mbps": 762.939453125,
+      "pass": true
+    }
+  },
+  {
+    "config": "2desc_1ch_1MB",
+    "rd_delay": 1024,
+    "wr_delay": 1024,
+    "result": {
+      "name": "2desc_1ch_1MB",
+      "num_channels": 1,
+      "descriptors_per_channel": 2,
+      "transfer_bytes": 1048576,
+      "total_descriptors": 2,
+      "total_bytes": 2097152,
+      "load_time_s": 0.24591517448425293,
+      "dma_time_s": 0.06406664848327637,
+      "completion": {
+        "completed": true,
+        "irq": false,
+        "error": false,
+        "overflow": false,
+        "timer_pass": true,
+        "timer_running": false,
+        "elapsed_s": 0.03196120262145996,
+        "raw_timer": 5,
+        "raw_status": 0
+      },
+      "crc": {
+        "rd_expected": 902547923,
+        "wr_expected": 902547923,
+        "wr_computed": 902547923,
+        "match_reg": 3,
+        "rd_per_ch": [
+          902547923
+        ],
+        "wr_per_ch": [
+          902547923
+        ],
+        "valid_mask": 1,
+        "match_mask": 1
+      },
+      "metrics": {
+        "available": true,
+        "cycles_total": 1077544,
+        "r_first": 20,
+        "r_last": 1075446,
+        "r_window_cycles": 1077544,
+        "r_firstlast_cycles": 1075427,
+        "w_first": 1067,
+        "w_last": 1077544,
+        "w_window_cycles": 1077544,
+        "w_firstlast_cycles": 1076478,
+        "datapath_utilization_r": 0.12163958037908429,
+        "datapath_utilization_w": 0.12163958037908429,
+        "end_to_end_utilization": 0.12163958037908429,
+        "r_buckets_pct": {
+          "productive": 0.12163958037908429,
+          "backpressure": 0.0,
+          "starvation": 0.8783604196209157,
+          "idle": 0.0
+        },
+        "w_buckets_pct": {
+          "productive": 0.12163958037908429,
+          "backpressure": 0.0,
+          "starvation": 0.8783604196209157,
+          "idle": 0.0
+        },
+        "r_aggregate": {
+          "productive": 131072,
+          "backpressure": 0,
+          "starvation": 946472,
+          "idle": 0
+        },
+        "w_aggregate": {
+          "productive": 131072,
+          "backpressure": 0,
+          "starvation": 946472,
+          "idle": 0
+        },
+        "r_per_channel": [
+          {
+            "channel": 0,
+            "productive": 0,
+            "backpressure": 0,
+            "starvation": 0,
+            "idle": 0,
+            "overflow_mask": 8
+          }
+        ],
+        "w_per_channel": [
+          {
+            "channel": 0,
+            "productive": 61400,
+            "backpressure": 0,
+            "starvation": 4136,
+            "idle": 0,
+            "overflow_mask": 8
+          }
+        ]
+      },
+      "trace": {
+        "wr_ptr": 34,
+        "overflow": 0
+      },
+      "throughput_mbps": 31.21749064994511,
+      "bus_time_s": 0.01077544,
+      "bus_throughput_mbps": 185.60726986554607,
+      "bus_cycles_total": 1077544,
+      "bus_e2e_util_pct": 12.16395803790843,
+      "bus_max_one_dir_mbps": 1525.87890625,
+      "bus_max_net_moved_mbps": 762.939453125,
+      "pass": true
+    }
+  },
+  {
+    "config": "2desc_1ch_1MB",
+    "rd_delay": 2048,
+    "wr_delay": 2048,
+    "result": {
+      "name": "2desc_1ch_1MB",
+      "num_channels": 1,
+      "descriptors_per_channel": 2,
+      "transfer_bytes": 1048576,
+      "total_descriptors": 2,
+      "total_bytes": 2097152,
+      "load_time_s": 0.24585175514221191,
+      "dma_time_s": 0.09601783752441406,
+      "completion": {
+        "completed": true,
+        "irq": false,
+        "error": false,
+        "overflow": false,
+        "timer_pass": true,
+        "timer_running": false,
+        "elapsed_s": 0.06406974792480469,
+        "raw_timer": 5,
+        "raw_status": 0
+      },
+      "crc": {
+        "rd_expected": 902547923,
+        "wr_expected": 902547923,
+        "wr_computed": 902547923,
+        "match_reg": 3,
+        "rd_per_ch": [
+          902547923
+        ],
+        "wr_per_ch": [
+          902547923
+        ],
+        "valid_mask": 1,
+        "match_mask": 1
+      },
+      "metrics": {
+        "available": true,
+        "cycles_total": 2127144,
+        "r_first": 20,
+        "r_last": 2123539,
+        "r_window_cycles": 2127144,
+        "r_firstlast_cycles": 2123520,
+        "w_first": 2091,
+        "w_last": 2127144,
+        "w_window_cycles": 2127144,
+        "w_firstlast_cycles": 2125054,
+        "datapath_utilization_r": 0.061618771460700356,
+        "datapath_utilization_w": 0.061618771460700356,
+        "end_to_end_utilization": 0.061618771460700356,
+        "r_buckets_pct": {
+          "productive": 0.061618771460700356,
+          "backpressure": 0.0,
+          "starvation": 0.9383812285392996,
+          "idle": 0.0
+        },
+        "w_buckets_pct": {
+          "productive": 0.061618771460700356,
+          "backpressure": 0.0,
+          "starvation": 0.9383812285392996,
+          "idle": 0.0
+        },
+        "r_aggregate": {
+          "productive": 131072,
+          "backpressure": 0,
+          "starvation": 1996072,
+          "idle": 0
+        },
+        "w_aggregate": {
+          "productive": 131072,
+          "backpressure": 0,
+          "starvation": 1996072,
+          "idle": 0
+        },
+        "r_per_channel": [
+          {
+            "channel": 0,
+            "productive": 0,
+            "backpressure": 0,
+            "starvation": 0,
+            "idle": 0,
+            "overflow_mask": 8
+          }
+        ],
+        "w_per_channel": [
+          {
+            "channel": 0,
+            "productive": 61400,
+            "backpressure": 0,
+            "starvation": 4136,
+            "idle": 0,
+            "overflow_mask": 8
+          }
+        ]
+      },
+      "trace": {
+        "wr_ptr": 34,
+        "overflow": 0
+      },
+      "throughput_mbps": 20.82946306191772,
+      "bus_time_s": 0.02127144,
+      "bus_throughput_mbps": 94.02278360092218,
+      "bus_cycles_total": 2127144,
+      "bus_e2e_util_pct": 6.161877146070036,
+      "bus_max_one_dir_mbps": 1525.87890625,
+      "bus_max_net_moved_mbps": 762.939453125,
+      "pass": true
+    }
+  },
+  {
+    "config": "2desc_1ch_1MB",
+    "rd_delay": 4096,
+    "wr_delay": 4096,
+    "result": {
+      "name": "2desc_1ch_1MB",
+      "num_channels": 1,
+      "descriptors_per_channel": 2,
+      "transfer_bytes": 1048576,
+      "total_descriptors": 2,
+      "total_bytes": 2097152,
+      "load_time_s": 0.2454841136932373,
+      "dma_time_s": 0.09611964225769043,
+      "completion": {
+        "completed": true,
+        "irq": false,
+        "error": false,
+        "overflow": false,
+        "timer_pass": true,
+        "timer_running": false,
+        "elapsed_s": 0.06412005424499512,
+        "raw_timer": 5,
+        "raw_status": 0
+      },
+      "crc": {
+        "rd_expected": 902547923,
+        "wr_expected": 902547923,
+        "wr_computed": 902547923,
+        "match_reg": 3,
+        "rd_per_ch": [
+          902547923
+        ],
+        "wr_per_ch": [
+          902547923
+        ],
+        "valid_mask": 1,
+        "match_mask": 1
+      },
+      "metrics": {
+        "available": true,
+        "cycles_total": 4226344,
+        "r_first": 20,
+        "r_last": 4220691,
+        "r_window_cycles": 4226344,
+        "r_firstlast_cycles": 4220672,
+        "w_first": 4139,
+        "w_last": 4226344,
+        "w_window_cycles": 4226344,
+        "w_firstlast_cycles": 4222206,
+        "datapath_utilization_r": 0.03101309311310201,
+        "datapath_utilization_w": 0.03101309311310201,
+        "end_to_end_utilization": 0.03101309311310201,
+        "r_buckets_pct": {
+          "productive": 0.03101309311310201,
+          "backpressure": 0.0,
+          "starvation": 0.968986906886898,
+          "idle": 0.0
+        },
+        "w_buckets_pct": {
+          "productive": 0.03101309311310201,
+          "backpressure": 0.0,
+          "starvation": 0.968986906886898,
+          "idle": 0.0
+        },
+        "r_aggregate": {
+          "productive": 131072,
+          "backpressure": 0,
+          "starvation": 4095272,
+          "idle": 0
+        },
+        "w_aggregate": {
+          "productive": 131072,
+          "backpressure": 0,
+          "starvation": 4095272,
+          "idle": 0
+        },
+        "r_per_channel": [
+          {
+            "channel": 0,
+            "productive": 0,
+            "backpressure": 0,
+            "starvation": 0,
+            "idle": 0,
+            "overflow_mask": 8
+          }
+        ],
+        "w_per_channel": [
+          {
+            "channel": 0,
+            "productive": 61400,
+            "backpressure": 0,
+            "starvation": 4136,
+            "idle": 0,
+            "overflow_mask": 8
+          }
+        ]
+      },
+      "trace": {
+        "wr_ptr": 34,
+        "overflow": 0
+      },
+      "throughput_mbps": 20.807401619724423,
+      "bus_time_s": 0.04226344,
+      "bus_throughput_mbps": 47.3222245988495,
+      "bus_cycles_total": 4226344,
+      "bus_e2e_util_pct": 3.101309311310201,
+      "bus_max_one_dir_mbps": 1525.87890625,
+      "bus_max_net_moved_mbps": 762.939453125,
+      "pass": true
+    }
+  },
+  {
+    "config": "4desc_1ch_1MB",
+    "rd_delay": 0,
+    "wr_delay": 0,
+    "result": {
+      "name": "4desc_1ch_1MB",
+      "num_channels": 1,
+      "descriptors_per_channel": 4,
+      "transfer_bytes": 1048576,
+      "total_descriptors": 4,
+      "total_bytes": 4194304,
+      "load_time_s": 0.5018250942230225,
+      "dma_time_s": 0.06414651870727539,
+      "completion": {
+        "completed": true,
+        "irq": false,
+        "error": false,
+        "overflow": false,
+        "timer_pass": true,
+        "timer_running": false,
+        "elapsed_s": 0.03209638595581055,
+        "raw_timer": 5,
+        "raw_status": 0
+      },
+      "crc": {
+        "rd_expected": 2224190778,
+        "wr_expected": 2224190778,
+        "wr_computed": 2224190778,
+        "match_reg": 3,
+        "rd_per_ch": [
+          2224190778
+        ],
+        "wr_per_ch": [
+          2224190778
+        ],
+        "valid_mask": 1,
+        "match_mask": 1
+      },
+      "metrics": {
+        "available": true,
+        "cycles_total": 278685,
+        "r_first": 20,
+        "r_last": 278660,
+        "r_window_cycles": 278685,
+        "r_firstlast_cycles": 278641,
+        "w_first": 44,
+        "w_last": 278685,
+        "w_window_cycles": 278685,
+        "w_firstlast_cycles": 278642,
+        "datapath_utilization_r": 0.9406462493496242,
+        "datapath_utilization_w": 0.9406462493496242,
+        "end_to_end_utilization": 0.9406462493496242,
+        "r_buckets_pct": {
+          "productive": 0.9406462493496242,
+          "backpressure": 0.0,
+          "starvation": 0.059353750650375875,
+          "idle": 0.0
+        },
+        "w_buckets_pct": {
+          "productive": 0.9406462493496242,
+          "backpressure": 0.0,
+          "starvation": 0.059353750650375875,
+          "idle": 0.0
+        },
+        "r_aggregate": {
+          "productive": 262144,
+          "backpressure": 0,
+          "starvation": 16541,
+          "idle": 0
+        },
+        "w_aggregate": {
+          "productive": 262144,
+          "backpressure": 0,
+          "starvation": 16541,
+          "idle": 0
+        },
+        "r_per_channel": [
+          {
+            "channel": 0,
+            "productive": 0,
+            "backpressure": 0,
+            "starvation": 0,
+            "idle": 0,
+            "overflow_mask": 8
+          }
+        ],
+        "w_per_channel": [
+          {
+            "channel": 0,
+            "productive": 49152,
+            "backpressure": 0,
+            "starvation": 16384,
+            "idle": 0,
+            "overflow_mask": 8
+          }
+        ]
+      },
+      "trace": {
+        "wr_ptr": 46,
+        "overflow": 0
+      },
+      "throughput_mbps": 62.35724214829957,
+      "bus_time_s": 0.00278685,
+      "bus_throughput_mbps": 1435.3122701257691,
+      "bus_cycles_total": 278685,
+      "bus_e2e_util_pct": 94.06462493496241,
+      "bus_max_one_dir_mbps": 1525.87890625,
+      "bus_max_net_moved_mbps": 762.939453125,
+      "pass": true
+    }
+  },
+  {
+    "config": "4desc_1ch_1MB",
+    "rd_delay": 8,
+    "wr_delay": 8,
+    "result": {
+      "name": "4desc_1ch_1MB",
+      "num_channels": 1,
+      "descriptors_per_channel": 4,
+      "transfer_bytes": 1048576,
+      "total_descriptors": 4,
+      "total_bytes": 4194304,
+      "load_time_s": 0.502023458480835,
+      "dma_time_s": 0.06412148475646973,
+      "completion": {
+        "completed": true,
+        "irq": false,
+        "error": false,
+        "overflow": false,
+        "timer_pass": true,
+        "timer_running": false,
+        "elapsed_s": 0.03211808204650879,
+        "raw_timer": 5,
+        "raw_status": 0
+      },
+      "crc": {
+        "rd_expected": 2224190778,
+        "wr_expected": 2224190778,
+        "wr_computed": 2224190778,
+        "match_reg": 3,
+        "rd_per_ch": [
+          2224190778
+        ],
+        "wr_per_ch": [
+          2224190778
+        ],
+        "valid_mask": 1,
+        "match_mask": 1
+      },
+      "metrics": {
+        "available": true,
+        "cycles_total": 278734,
+        "r_first": 20,
+        "r_last": 278702,
+        "r_window_cycles": 278734,
+        "r_firstlast_cycles": 278683,
+        "w_first": 51,
+        "w_last": 278734,
+        "w_window_cycles": 278734,
+        "w_firstlast_cycles": 278684,
+        "datapath_utilization_r": 0.9404808885891208,
+        "datapath_utilization_w": 0.9404808885891208,
+        "end_to_end_utilization": 0.9404808885891208,
+        "r_buckets_pct": {
+          "productive": 0.9404808885891208,
+          "backpressure": 0.0,
+          "starvation": 0.05951911141087919,
+          "idle": 0.0
+        },
+        "w_buckets_pct": {
+          "productive": 0.9404808885891208,
+          "backpressure": 0.0,
+          "starvation": 0.05951911141087919,
+          "idle": 0.0
+        },
+        "r_aggregate": {
+          "productive": 262144,
+          "backpressure": 0,
+          "starvation": 16590,
+          "idle": 0
+        },
+        "w_aggregate": {
+          "productive": 262144,
+          "backpressure": 0,
+          "starvation": 16590,
+          "idle": 0
+        },
+        "r_per_channel": [
+          {
+            "channel": 0,
+            "productive": 0,
+            "backpressure": 0,
+            "starvation": 0,
+            "idle": 0,
+            "overflow_mask": 8
+          }
+        ],
+        "w_per_channel": [
+          {
+            "channel": 0,
+            "productive": 49152,
+            "backpressure": 0,
+            "starvation": 16384,
+            "idle": 0,
+            "overflow_mask": 8
+          }
+        ]
+      },
+      "trace": {
+        "wr_ptr": 46,
+        "overflow": 0
+      },
+      "throughput_mbps": 62.381587313391215,
+      "bus_time_s": 0.00278734,
+      "bus_throughput_mbps": 1435.0599496293958,
+      "bus_cycles_total": 278734,
+      "bus_e2e_util_pct": 94.04808885891208,
+      "bus_max_one_dir_mbps": 1525.87890625,
+      "bus_max_net_moved_mbps": 762.939453125,
+      "pass": true
+    }
+  },
+  {
+    "config": "4desc_1ch_1MB",
+    "rd_delay": 32,
+    "wr_delay": 32,
+    "result": {
+      "name": "4desc_1ch_1MB",
+      "num_channels": 1,
+      "descriptors_per_channel": 4,
+      "transfer_bytes": 1048576,
+      "total_descriptors": 4,
+      "total_bytes": 4194304,
+      "load_time_s": 0.5019056797027588,
+      "dma_time_s": 0.06411886215209961,
+      "completion": {
+        "completed": true,
+        "irq": false,
+        "error": false,
+        "overflow": false,
+        "timer_pass": true,
+        "timer_running": false,
+        "elapsed_s": 0.03209090232849121,
+        "raw_timer": 5,
+        "raw_status": 0
+      },
+      "crc": {
+        "rd_expected": 2224190778,
+        "wr_expected": 2224190778,
+        "wr_computed": 2224190778,
+        "match_reg": 3,
+        "rd_per_ch": [
+          2224190778
+        ],
+        "wr_per_ch": [
+          2224190778
+        ],
+        "valid_mask": 1,
+        "match_mask": 1
+      },
+      "metrics": {
+        "available": true,
+        "cycles_total": 278902,
+        "r_first": 20,
+        "r_last": 278846,
+        "r_window_cycles": 278902,
+        "r_firstlast_cycles": 278827,
+        "w_first": 75,
+        "w_last": 278902,
+        "w_window_cycles": 278902,
+        "w_firstlast_cycles": 278828,
+        "datapath_utilization_r": 0.9399143785272246,
+        "datapath_utilization_w": 0.9399143785272246,
+        "end_to_end_utilization": 0.9399143785272246,
+        "r_buckets_pct": {
+          "productive": 0.9399143785272246,
+          "backpressure": 0.0,
+          "starvation": 0.06008562147277538,
+          "idle": 0.0
+        },
+        "w_buckets_pct": {
+          "productive": 0.9399143785272246,
+          "backpressure": 0.0,
+          "starvation": 0.06008562147277538,
+          "idle": 0.0
+        },
+        "r_aggregate": {
+          "productive": 262144,
+          "backpressure": 0,
+          "starvation": 16758,
+          "idle": 0
+        },
+        "w_aggregate": {
+          "productive": 262144,
+          "backpressure": 0,
+          "starvation": 16758,
+          "idle": 0
+        },
+        "r_per_channel": [
+          {
+            "channel": 0,
+            "productive": 0,
+            "backpressure": 0,
+            "starvation": 0,
+            "idle": 0,
+            "overflow_mask": 8
+          }
+        ],
+        "w_per_channel": [
+          {
+            "channel": 0,
+            "productive": 49152,
+            "backpressure": 0,
+            "starvation": 16384,
+            "idle": 0,
+            "overflow_mask": 8
+          }
+        ]
+      },
+      "trace": {
+        "wr_ptr": 46,
+        "overflow": 0
+      },
+      "throughput_mbps": 62.38413885934839,
+      "bus_time_s": 0.00278902,
+      "bus_throughput_mbps": 1434.1955238757698,
+      "bus_cycles_total": 278902,
+      "bus_e2e_util_pct": 93.99143785272246,
+      "bus_max_one_dir_mbps": 1525.87890625,
+      "bus_max_net_moved_mbps": 762.939453125,
+      "pass": true
+    }
+  },
+  {
+    "config": "4desc_1ch_1MB",
+    "rd_delay": 64,
+    "wr_delay": 64,
+    "result": {
+      "name": "4desc_1ch_1MB",
+      "num_channels": 1,
+      "descriptors_per_channel": 4,
+      "transfer_bytes": 1048576,
+      "total_descriptors": 4,
+      "total_bytes": 4194304,
+      "load_time_s": 0.5018453598022461,
+      "dma_time_s": 0.06403350830078125,
+      "completion": {
+        "completed": true,
+        "irq": false,
+        "error": false,
+        "overflow": false,
+        "timer_pass": true,
+        "timer_running": false,
+        "elapsed_s": 0.03191971778869629,
+        "raw_timer": 5,
+        "raw_status": 0
+      },
+      "crc": {
+        "rd_expected": 2224190778,
+        "wr_expected": 2224190778,
+        "wr_computed": 2224190778,
+        "match_reg": 3,
+        "rd_per_ch": [
+          2224190778
+        ],
+        "wr_per_ch": [
+          2224190778
+        ],
+        "valid_mask": 1,
+        "match_mask": 1
+      },
+      "metrics": {
+        "available": true,
+        "cycles_total": 279126,
+        "r_first": 20,
+        "r_last": 279038,
+        "r_window_cycles": 279126,
+        "r_firstlast_cycles": 279019,
+        "w_first": 107,
+        "w_last": 279126,
+        "w_window_cycles": 279126,
+        "w_firstlast_cycles": 279020,
+        "datapath_utilization_r": 0.9391600925746796,
+        "datapath_utilization_w": 0.9391600925746796,
+        "end_to_end_utilization": 0.9391600925746796,
+        "r_buckets_pct": {
+          "productive": 0.9391600925746796,
+          "backpressure": 0.0,
+          "starvation": 0.060839907425320465,
+          "idle": 0.0
+        },
+        "w_buckets_pct": {
+          "productive": 0.9391600925746796,
+          "backpressure": 0.0,
+          "starvation": 0.060839907425320465,
+          "idle": 0.0
+        },
+        "r_aggregate": {
+          "productive": 262144,
+          "backpressure": 0,
+          "starvation": 16982,
+          "idle": 0
+        },
+        "w_aggregate": {
+          "productive": 262144,
+          "backpressure": 0,
+          "starvation": 16982,
+          "idle": 0
+        },
+        "r_per_channel": [
+          {
+            "channel": 0,
+            "productive": 0,
+            "backpressure": 0,
+            "starvation": 0,
+            "idle": 0,
+            "overflow_mask": 8
+          }
+        ],
+        "w_per_channel": [
+          {
+            "channel": 0,
+            "productive": 49152,
+            "backpressure": 0,
+            "starvation": 16384,
+            "idle": 0,
+            "overflow_mask": 8
+          }
+        ]
+      },
+      "trace": {
+        "wr_ptr": 46,
+        "overflow": 0
+      },
+      "throughput_mbps": 62.46729417371619,
+      "bus_time_s": 0.00279126,
+      "bus_throughput_mbps": 1433.0445748515008,
+      "bus_cycles_total": 279126,
+      "bus_e2e_util_pct": 93.91600925746796,
+      "bus_max_one_dir_mbps": 1525.87890625,
+      "bus_max_net_moved_mbps": 762.939453125,
+      "pass": true
+    }
+  },
+  {
+    "config": "4desc_1ch_1MB",
+    "rd_delay": 128,
+    "wr_delay": 128,
+    "result": {
+      "name": "4desc_1ch_1MB",
+      "num_channels": 1,
+      "descriptors_per_channel": 4,
+      "transfer_bytes": 1048576,
+      "total_descriptors": 4,
+      "total_bytes": 4194304,
+      "load_time_s": 0.5019328594207764,
+      "dma_time_s": 0.06466269493103027,
+      "completion": {
+        "completed": true,
+        "irq": false,
+        "error": false,
+        "overflow": false,
+        "timer_pass": true,
+        "timer_running": false,
+        "elapsed_s": 0.03265976905822754,
+        "raw_timer": 5,
+        "raw_status": 0
+      },
+      "crc": {
+        "rd_expected": 2224190778,
+        "wr_expected": 2224190778,
+        "wr_computed": 2224190778,
+        "match_reg": 3,
+        "rd_per_ch": [
+          2224190778
+        ],
+        "wr_per_ch": [
+          2224190778
+        ],
+        "valid_mask": 1,
+        "match_mask": 1
+      },
+      "metrics": {
+        "available": true,
+        "cycles_total": 318410,
+        "r_first": 20,
+        "r_last": 318104,
+        "r_window_cycles": 318410,
+        "r_firstlast_cycles": 318085,
+        "w_first": 171,
+        "w_last": 318410,
+        "w_window_cycles": 318410,
+        "w_firstlast_cycles": 318240,
+        "datapath_utilization_r": 0.8232907257937879,
+        "datapath_utilization_w": 0.8232907257937879,
+        "end_to_end_utilization": 0.8232907257937879,
+        "r_buckets_pct": {
+          "productive": 0.8232907257937879,
+          "backpressure": 0.0,
+          "starvation": 0.17670927420621213,
+          "idle": 0.0
+        },
+        "w_buckets_pct": {
+          "productive": 0.8232907257937879,
+          "backpressure": 0.0,
+          "starvation": 0.17670927420621213,
+          "idle": 0.0
+        },
+        "r_aggregate": {
+          "productive": 262144,
+          "backpressure": 0,
+          "starvation": 56266,
+          "idle": 0
+        },
+        "w_aggregate": {
+          "productive": 262144,
+          "backpressure": 0,
+          "starvation": 56266,
+          "idle": 0
+        },
+        "r_per_channel": [
+          {
+            "channel": 0,
+            "productive": 0,
+            "backpressure": 0,
+            "starvation": 0,
+            "idle": 0,
+            "overflow_mask": 8
+          }
+        ],
+        "w_per_channel": [
+          {
+            "channel": 0,
+            "productive": 57264,
+            "backpressure": 0,
+            "starvation": 8272,
+            "idle": 0,
+            "overflow_mask": 8
+          }
+        ]
+      },
+      "trace": {
+        "wr_ptr": 46,
+        "overflow": 0
+      },
+      "throughput_mbps": 61.85946942462622,
+      "bus_time_s": 0.0031841,
+      "bus_throughput_mbps": 1256.2419521999936,
+      "bus_cycles_total": 318410,
+      "bus_e2e_util_pct": 82.32907257937879,
+      "bus_max_one_dir_mbps": 1525.87890625,
+      "bus_max_net_moved_mbps": 762.939453125,
+      "pass": true
+    }
+  },
+  {
+    "config": "4desc_1ch_1MB",
+    "rd_delay": 256,
+    "wr_delay": 256,
+    "result": {
+      "name": "4desc_1ch_1MB",
+      "num_channels": 1,
+      "descriptors_per_channel": 4,
+      "transfer_bytes": 1048576,
+      "total_descriptors": 4,
+      "total_bytes": 4194304,
+      "load_time_s": 0.5020701885223389,
+      "dma_time_s": 0.06406855583190918,
+      "completion": {
+        "completed": true,
+        "irq": false,
+        "error": false,
+        "overflow": false,
+        "timer_pass": true,
+        "timer_running": false,
+        "elapsed_s": 0.03206825256347656,
+        "raw_timer": 5,
+        "raw_status": 0
+      },
+      "crc": {
+        "rd_expected": 2224190778,
+        "wr_expected": 2224190778,
+        "wr_computed": 2224190778,
+        "match_reg": 3,
+        "rd_per_ch": [
+          2224190778
+        ],
+        "wr_per_ch": [
+          2224190778
+        ],
+        "valid_mask": 1,
+        "match_mask": 1
+      },
+      "metrics": {
+        "available": true,
+        "cycles_total": 580938,
+        "r_first": 20,
+        "r_last": 580376,
+        "r_window_cycles": 580938,
+        "r_firstlast_cycles": 580357,
+        "w_first": 299,
+        "w_last": 580938,
+        "w_window_cycles": 580938,
+        "w_firstlast_cycles": 580640,
+        "datapath_utilization_r": 0.45124264551466764,
+        "datapath_utilization_w": 0.45124264551466764,
+        "end_to_end_utilization": 0.45124264551466764,
+        "r_buckets_pct": {
+          "productive": 0.45124264551466764,
+          "backpressure": 0.0,
+          "starvation": 0.5487573544853324,
+          "idle": 0.0
+        },
+        "w_buckets_pct": {
+          "productive": 0.45124264551466764,
+          "backpressure": 0.0,
+          "starvation": 0.5487573544853324,
+          "idle": 0.0
+        },
+        "r_aggregate": {
+          "productive": 262144,
+          "backpressure": 0,
+          "starvation": 318794,
+          "idle": 0
+        },
+        "w_aggregate": {
+          "productive": 262144,
+          "backpressure": 0,
+          "starvation": 318794,
+          "idle": 0
+        },
+        "r_per_channel": [
+          {
+            "channel": 0,
+            "productive": 0,
+            "backpressure": 0,
+            "starvation": 0,
+            "idle": 0,
+            "overflow_mask": 8
+          }
+        ],
+        "w_per_channel": [
+          {
+            "channel": 0,
+            "productive": 57264,
+            "backpressure": 0,
+            "starvation": 8272,
+            "idle": 0,
+            "overflow_mask": 8
+          }
+        ]
+      },
+      "trace": {
+        "wr_ptr": 46,
+        "overflow": 0
+      },
+      "throughput_mbps": 62.43312258347815,
+      "bus_time_s": 0.00580938,
+      "bus_throughput_mbps": 688.5416343912775,
+      "bus_cycles_total": 580938,
+      "bus_e2e_util_pct": 45.124264551466766,
+      "bus_max_one_dir_mbps": 1525.87890625,
+      "bus_max_net_moved_mbps": 762.939453125,
+      "pass": true
+    }
+  },
+  {
+    "config": "4desc_1ch_1MB",
+    "rd_delay": 512,
+    "wr_delay": 512,
+    "result": {
+      "name": "4desc_1ch_1MB",
+      "num_channels": 1,
+      "descriptors_per_channel": 4,
+      "transfer_bytes": 1048576,
+      "total_descriptors": 4,
+      "total_bytes": 4194304,
+      "load_time_s": 0.5016744136810303,
+      "dma_time_s": 0.06422543525695801,
+      "completion": {
+        "completed": true,
+        "irq": false,
+        "error": false,
+        "overflow": false,
+        "timer_pass": true,
+        "timer_running": false,
+        "elapsed_s": 0.032227277755737305,
+        "raw_timer": 5,
+        "raw_status": 0
+      },
+      "crc": {
+        "rd_expected": 2224190778,
+        "wr_expected": 2224190778,
+        "wr_computed": 2224190778,
+        "match_reg": 3,
+        "rd_per_ch": [
+          2224190778
+        ],
+        "wr_per_ch": [
+          2224190778
+        ],
+        "valid_mask": 1,
+        "match_mask": 1
+      },
+      "metrics": {
+        "available": true,
+        "cycles_total": 1105994,
+        "r_first": 20,
+        "r_last": 1104920,
+        "r_window_cycles": 1105994,
+        "r_firstlast_cycles": 1104901,
+        "w_first": 555,
+        "w_last": 1105994,
+        "w_window_cycles": 1105994,
+        "w_firstlast_cycles": 1105440,
+        "datapath_utilization_r": 0.23702117733007594,
+        "datapath_utilization_w": 0.23702117733007594,
+        "end_to_end_utilization": 0.23702117733007594,
+        "r_buckets_pct": {
+          "productive": 0.23702117733007594,
+          "backpressure": 0.0,
+          "starvation": 0.7629788226699241,
+          "idle": 0.0
+        },
+        "w_buckets_pct": {
+          "productive": 0.23702117733007594,
+          "backpressure": 0.0,
+          "starvation": 0.7629788226699241,
+          "idle": 0.0
+        },
+        "r_aggregate": {
+          "productive": 262144,
+          "backpressure": 0,
+          "starvation": 843850,
+          "idle": 0
+        },
+        "w_aggregate": {
+          "productive": 262144,
+          "backpressure": 0,
+          "starvation": 843850,
+          "idle": 0
+        },
+        "r_per_channel": [
+          {
+            "channel": 0,
+            "productive": 0,
+            "backpressure": 0,
+            "starvation": 0,
+            "idle": 0,
+            "overflow_mask": 8
+          }
+        ],
+        "w_per_channel": [
+          {
+            "channel": 0,
+            "productive": 57264,
+            "backpressure": 0,
+            "starvation": 8272,
+            "idle": 0,
+            "overflow_mask": 8
+          }
+        ]
+      },
+      "trace": {
+        "wr_ptr": 46,
+        "overflow": 0
+      },
+      "throughput_mbps": 62.28062112769646,
+      "bus_time_s": 0.01105994,
+      "bus_throughput_mbps": 361.6656148225035,
+      "bus_cycles_total": 1105994,
+      "bus_e2e_util_pct": 23.702117733007594,
+      "bus_max_one_dir_mbps": 1525.87890625,
+      "bus_max_net_moved_mbps": 762.939453125,
+      "pass": true
+    }
+  },
+  {
+    "config": "4desc_1ch_1MB",
+    "rd_delay": 1024,
+    "wr_delay": 1024,
+    "result": {
+      "name": "4desc_1ch_1MB",
+      "num_channels": 1,
+      "descriptors_per_channel": 4,
+      "transfer_bytes": 1048576,
+      "total_descriptors": 4,
+      "total_bytes": 4194304,
+      "load_time_s": 0.5019023418426514,
+      "dma_time_s": 0.0960545539855957,
+      "completion": {
+        "completed": true,
+        "irq": false,
+        "error": false,
+        "overflow": false,
+        "timer_pass": true,
+        "timer_running": false,
+        "elapsed_s": 0.06406545639038086,
+        "raw_timer": 5,
+        "raw_status": 0
+      },
+      "crc": {
+        "rd_expected": 2224190778,
+        "wr_expected": 2224190778,
+        "wr_computed": 2224190778,
+        "match_reg": 3,
+        "rd_per_ch": [
+          2224190778
+        ],
+        "wr_per_ch": [
+          2224190778
+        ],
+        "valid_mask": 1,
+        "match_mask": 1
+      },
+      "metrics": {
+        "available": true,
+        "cycles_total": 2156106,
+        "r_first": 20,
+        "r_last": 2154008,
+        "r_window_cycles": 2156106,
+        "r_firstlast_cycles": 2153989,
+        "w_first": 1067,
+        "w_last": 2156106,
+        "w_window_cycles": 2156106,
+        "w_firstlast_cycles": 2155040,
+        "datapath_utilization_r": 0.12158214855855881,
+        "datapath_utilization_w": 0.12158214855855881,
+        "end_to_end_utilization": 0.12158214855855881,
+        "r_buckets_pct": {
+          "productive": 0.12158214855855881,
+          "backpressure": 0.0,
+          "starvation": 0.8784178514414412,
+          "idle": 0.0
+        },
+        "w_buckets_pct": {
+          "productive": 0.12158214855855881,
+          "backpressure": 0.0,
+          "starvation": 0.8784178514414412,
+          "idle": 0.0
+        },
+        "r_aggregate": {
+          "productive": 262144,
+          "backpressure": 0,
+          "starvation": 1893962,
+          "idle": 0
+        },
+        "w_aggregate": {
+          "productive": 262144,
+          "backpressure": 0,
+          "starvation": 1893962,
+          "idle": 0
+        },
+        "r_per_channel": [
+          {
+            "channel": 0,
+            "productive": 0,
+            "backpressure": 0,
+            "starvation": 0,
+            "idle": 0,
+            "overflow_mask": 8
+          }
+        ],
+        "w_per_channel": [
+          {
+            "channel": 0,
+            "productive": 57264,
+            "backpressure": 0,
+            "starvation": 8272,
+            "idle": 0,
+            "overflow_mask": 8
+          }
+        ]
+      },
+      "trace": {
+        "wr_ptr": 46,
+        "overflow": 0
+      },
+      "throughput_mbps": 41.643002169369694,
+      "bus_time_s": 0.02156106,
+      "bus_throughput_mbps": 185.51963586205872,
+      "bus_cycles_total": 2156106,
+      "bus_e2e_util_pct": 12.158214855855881,
+      "bus_max_one_dir_mbps": 1525.87890625,
+      "bus_max_net_moved_mbps": 762.939453125,
+      "pass": true
+    }
+  },
+  {
+    "config": "4desc_1ch_1MB",
+    "rd_delay": 2048,
+    "wr_delay": 2048,
+    "result": {
+      "name": "4desc_1ch_1MB",
+      "num_channels": 1,
+      "descriptors_per_channel": 4,
+      "transfer_bytes": 1048576,
+      "total_descriptors": 4,
+      "total_bytes": 4194304,
+      "load_time_s": 0.5013928413391113,
+      "dma_time_s": 0.09606528282165527,
+      "completion": {
+        "completed": true,
+        "irq": false,
+        "error": false,
+        "overflow": false,
+        "timer_pass": true,
+        "timer_running": false,
+        "elapsed_s": 0.06406402587890625,
+        "raw_timer": 5,
+        "raw_status": 0
+      },
+      "crc": {
+        "rd_expected": 2224190778,
+        "wr_expected": 2224190778,
+        "wr_computed": 2224190778,
+        "match_reg": 3,
+        "rd_per_ch": [
+          2224190778
+        ],
+        "wr_per_ch": [
+          2224190778
+        ],
+        "valid_mask": 1,
+        "match_mask": 1
+      },
+      "metrics": {
+        "available": true,
+        "cycles_total": 4256330,
+        "r_first": 20,
+        "r_last": 4252725,
+        "r_window_cycles": 4256330,
+        "r_firstlast_cycles": 4252706,
+        "w_first": 2091,
+        "w_last": 4256330,
+        "w_window_cycles": 4256330,
+        "w_firstlast_cycles": 4254240,
+        "datapath_utilization_r": 0.06158920948328724,
+        "datapath_utilization_w": 0.06158920948328724,
+        "end_to_end_utilization": 0.06158920948328724,
+        "r_buckets_pct": {
+          "productive": 0.06158920948328724,
+          "backpressure": 0.0,
+          "starvation": 0.9384107905167127,
+          "idle": 0.0
+        },
+        "w_buckets_pct": {
+          "productive": 0.06158920948328724,
+          "backpressure": 0.0,
+          "starvation": 0.9384107905167127,
+          "idle": 0.0
+        },
+        "r_aggregate": {
+          "productive": 262144,
+          "backpressure": 0,
+          "starvation": 3994186,
+          "idle": 0
+        },
+        "w_aggregate": {
+          "productive": 262144,
+          "backpressure": 0,
+          "starvation": 3994186,
+          "idle": 0
+        },
+        "r_per_channel": [
+          {
+            "channel": 0,
+            "productive": 0,
+            "backpressure": 0,
+            "starvation": 0,
+            "idle": 0,
+            "overflow_mask": 8
+          }
+        ],
+        "w_per_channel": [
+          {
+            "channel": 0,
+            "productive": 57264,
+            "backpressure": 0,
+            "starvation": 8272,
+            "idle": 0,
+            "overflow_mask": 8
+          }
+        ]
+      },
+      "trace": {
+        "wr_ptr": 46,
+        "overflow": 0
+      },
+      "throughput_mbps": 41.6383513638947,
+      "bus_time_s": 0.0425633,
+      "bus_throughput_mbps": 93.97767560316048,
+      "bus_cycles_total": 4256330,
+      "bus_e2e_util_pct": 6.158920948328724,
+      "bus_max_one_dir_mbps": 1525.87890625,
+      "bus_max_net_moved_mbps": 762.939453125,
+      "pass": true
+    }
+  },
+  {
+    "config": "4desc_1ch_1MB",
+    "rd_delay": 4096,
+    "wr_delay": 4096,
+    "result": {
+      "name": "4desc_1ch_1MB",
+      "num_channels": 1,
+      "descriptors_per_channel": 4,
+      "transfer_bytes": 1048576,
+      "total_descriptors": 4,
+      "total_bytes": 4194304,
+      "load_time_s": 0.5019469261169434,
+      "dma_time_s": 0.16013288497924805,
+      "completion": {
+        "completed": true,
+        "irq": false,
+        "error": false,
+        "overflow": false,
+        "timer_pass": true,
+        "timer_running": false,
+        "elapsed_s": 0.1279613971710205,
+        "raw_timer": 5,
+        "raw_status": 0
+      },
+      "crc": {
+        "rd_expected": 2224190778,
+        "wr_expected": 2224190778,
+        "wr_computed": 2224190778,
+        "match_reg": 3,
+        "rd_per_ch": [
+          2224190778
+        ],
+        "wr_per_ch": [
+          2224190778
+        ],
+        "valid_mask": 1,
+        "match_mask": 1
+      },
+      "metrics": {
+        "available": true,
+        "cycles_total": 8456778,
+        "r_first": 20,
+        "r_last": 8451125,
+        "r_window_cycles": 8456778,
+        "r_firstlast_cycles": 8451106,
+        "w_first": 4139,
+        "w_last": 8456778,
+        "w_window_cycles": 8456778,
+        "w_firstlast_cycles": 8452640,
+        "datapath_utilization_r": 0.030998094073180115,
+        "datapath_utilization_w": 0.030998094073180115,
+        "end_to_end_utilization": 0.030998094073180115,
+        "r_buckets_pct": {
+          "productive": 0.030998094073180115,
+          "backpressure": 0.0,
+          "starvation": 0.9690019059268199,
+          "idle": 0.0
+        },
+        "w_buckets_pct": {
+          "productive": 0.030998094073180115,
+          "backpressure": 0.0,
+          "starvation": 0.9690019059268199,
+          "idle": 0.0
+        },
+        "r_aggregate": {
+          "productive": 262144,
+          "backpressure": 0,
+          "starvation": 8194634,
+          "idle": 0
+        },
+        "w_aggregate": {
+          "productive": 262144,
+          "backpressure": 0,
+          "starvation": 8194634,
+          "idle": 0
+        },
+        "r_per_channel": [
+          {
+            "channel": 0,
+            "productive": 0,
+            "backpressure": 0,
+            "starvation": 0,
+            "idle": 0,
+            "overflow_mask": 8
+          }
+        ],
+        "w_per_channel": [
+          {
+            "channel": 0,
+            "productive": 57264,
+            "backpressure": 0,
+            "starvation": 8272,
+            "idle": 0,
+            "overflow_mask": 8
+          }
+        ]
+      },
+      "trace": {
+        "wr_ptr": 46,
+        "overflow": 0
+      },
+      "throughput_mbps": 24.97925395223079,
+      "bus_time_s": 0.08456778,
+      "bus_throughput_mbps": 47.29933788021869,
+      "bus_cycles_total": 8456778,
+      "bus_e2e_util_pct": 3.0998094073180114,
+      "bus_max_one_dir_mbps": 1525.87890625,
+      "bus_max_net_moved_mbps": 762.939453125,
+      "pass": true
+    }
+  },
+  {
+    "config": "8desc_1ch_1MB",
+    "rd_delay": 0,
+    "wr_delay": 0,
+    "result": {
+      "name": "8desc_1ch_1MB",
+      "num_channels": 1,
+      "descriptors_per_channel": 8,
+      "transfer_bytes": 1048576,
+      "total_descriptors": 8,
+      "total_bytes": 8388608,
+      "load_time_s": 1.0138583183288574,
+      "dma_time_s": 0.06406569480895996,
+      "completion": {
+        "completed": true,
+        "irq": false,
+        "error": false,
+        "overflow": false,
+        "timer_pass": true,
+        "timer_running": false,
+        "elapsed_s": 0.031610965728759766,
+        "raw_timer": 5,
+        "raw_status": 0
+      },
+      "crc": {
+        "rd_expected": 2095802455,
+        "wr_expected": 2095802455,
+        "wr_computed": 2095802455,
+        "match_reg": 3,
+        "rd_per_ch": [
+          2095802455
+        ],
+        "wr_per_ch": [
+          2095802455
+        ],
+        "valid_mask": 1,
+        "match_mask": 1
+      },
+      "metrics": {
+        "available": true,
+        "cycles_total": 557365,
+        "r_first": 20,
+        "r_last": 557340,
+        "r_window_cycles": 557365,
+        "r_firstlast_cycles": 557321,
+        "w_first": 44,
+        "w_last": 557365,
+        "w_window_cycles": 557365,
+        "w_firstlast_cycles": 557322,
+        "datapath_utilization_r": 0.940654687682219,
+        "datapath_utilization_w": 0.940654687682219,
+        "end_to_end_utilization": 0.940654687682219,
+        "r_buckets_pct": {
+          "productive": 0.940654687682219,
+          "backpressure": 0.0,
+          "starvation": 0.059345312317780986,
+          "idle": 0.0
+        },
+        "w_buckets_pct": {
+          "productive": 0.940654687682219,
+          "backpressure": 0.0,
+          "starvation": 0.059345312317780986,
+          "idle": 0.0
+        },
+        "r_aggregate": {
+          "productive": 524288,
+          "backpressure": 0,
+          "starvation": 33077,
+          "idle": 0
+        },
+        "w_aggregate": {
+          "productive": 524288,
+          "backpressure": 0,
+          "starvation": 33077,
+          "idle": 0
+        },
+        "r_per_channel": [
+          {
+            "channel": 0,
+            "productive": 0,
+            "backpressure": 0,
+            "starvation": 0,
+            "idle": 0,
+            "overflow_mask": 8
+          }
+        ],
+        "w_per_channel": [
+          {
+            "channel": 0,
+            "productive": 32768,
+            "backpressure": 0,
+            "starvation": 32768,
+            "idle": 0,
+            "overflow_mask": 8
+          }
+        ]
+      },
+      "trace": {
+        "wr_ptr": 70,
+        "overflow": 0
+      },
+      "throughput_mbps": 124.8718213991984,
+      "bus_time_s": 0.00557365,
+      "bus_throughput_mbps": 1435.3251459994797,
+      "bus_cycles_total": 557365,
+      "bus_e2e_util_pct": 94.0654687682219,
+      "bus_max_one_dir_mbps": 1525.87890625,
+      "bus_max_net_moved_mbps": 762.939453125,
+      "pass": true
+    }
+  },
+  {
+    "config": "8desc_1ch_1MB",
+    "rd_delay": 8,
+    "wr_delay": 8,
+    "result": {
+      "name": "8desc_1ch_1MB",
+      "num_channels": 1,
+      "descriptors_per_channel": 8,
+      "transfer_bytes": 1048576,
+      "total_descriptors": 8,
+      "total_bytes": 8388608,
+      "load_time_s": 1.0138826370239258,
+      "dma_time_s": 0.06406807899475098,
+      "completion": {
+        "completed": true,
+        "irq": false,
+        "error": false,
+        "overflow": false,
+        "timer_pass": true,
+        "timer_running": false,
+        "elapsed_s": 0.032067060470581055,
+        "raw_timer": 5,
+        "raw_status": 0
+      },
+      "crc": {
+        "rd_expected": 2095802455,
+        "wr_expected": 2095802455,
+        "wr_computed": 2095802455,
+        "match_reg": 3,
+        "rd_per_ch": [
+          2095802455
+        ],
+        "wr_per_ch": [
+          2095802455
+        ],
+        "valid_mask": 1,
+        "match_mask": 1
+      },
+      "metrics": {
+        "available": true,
+        "cycles_total": 557470,
+        "r_first": 20,
+        "r_last": 557438,
+        "r_window_cycles": 557470,
+        "r_firstlast_cycles": 557419,
+        "w_first": 51,
+        "w_last": 557470,
+        "w_window_cycles": 557470,
+        "w_firstlast_cycles": 557420,
+        "datapath_utilization_r": 0.9404775144850844,
+        "datapath_utilization_w": 0.9404775144850844,
+        "end_to_end_utilization": 0.9404775144850844,
+        "r_buckets_pct": {
+          "productive": 0.9404775144850844,
+          "backpressure": 0.0,
+          "starvation": 0.0595224855149156,
+          "idle": 0.0
+        },
+        "w_buckets_pct": {
+          "productive": 0.9404775144850844,
+          "backpressure": 0.0,
+          "starvation": 0.0595224855149156,
+          "idle": 0.0
+        },
+        "r_aggregate": {
+          "productive": 524288,
+          "backpressure": 0,
+          "starvation": 33182,
+          "idle": 0
+        },
+        "w_aggregate": {
+          "productive": 524288,
+          "backpressure": 0,
+          "starvation": 33182,
+          "idle": 0
+        },
+        "r_per_channel": [
+          {
+            "channel": 0,
+            "productive": 0,
+            "backpressure": 0,
+            "starvation": 0,
+            "idle": 0,
+            "overflow_mask": 8
+          }
+        ],
+        "w_per_channel": [
+          {
+            "channel": 0,
+            "productive": 32768,
+            "backpressure": 0,
+            "starvation": 32768,
+            "idle": 0,
+            "overflow_mask": 8
+          }
+        ]
+      },
+      "trace": {
+        "wr_ptr": 70,
+        "overflow": 0
+      },
+      "throughput_mbps": 124.86717450441164,
+      "bus_time_s": 0.0055747,
+      "bus_throughput_mbps": 1435.0548011552191,
+      "bus_cycles_total": 557470,
+      "bus_e2e_util_pct": 94.04775144850845,
+      "bus_max_one_dir_mbps": 1525.87890625,
+      "bus_max_net_moved_mbps": 762.939453125,
+      "pass": true
+    }
+  },
+  {
+    "config": "8desc_1ch_1MB",
+    "rd_delay": 32,
+    "wr_delay": 32,
+    "result": {
+      "name": "8desc_1ch_1MB",
+      "num_channels": 1,
+      "descriptors_per_channel": 8,
+      "transfer_bytes": 1048576,
+      "total_descriptors": 8,
+      "total_bytes": 8388608,
+      "load_time_s": 1.0139174461364746,
+      "dma_time_s": 0.06397199630737305,
+      "completion": {
+        "completed": true,
+        "irq": false,
+        "error": false,
+        "overflow": false,
+        "timer_pass": true,
+        "timer_running": false,
+        "elapsed_s": 0.03204464912414551,
+        "raw_timer": 5,
+        "raw_status": 0
+      },
+      "crc": {
+        "rd_expected": 2095802455,
+        "wr_expected": 2095802455,
+        "wr_computed": 2095802455,
+        "match_reg": 3,
+        "rd_per_ch": [
+          2095802455
+        ],
+        "wr_per_ch": [
+          2095802455
+        ],
+        "valid_mask": 1,
+        "match_mask": 1
+      },
+      "metrics": {
+        "available": true,
+        "cycles_total": 557830,
+        "r_first": 20,
+        "r_last": 557774,
+        "r_window_cycles": 557830,
+        "r_firstlast_cycles": 557755,
+        "w_first": 75,
+        "w_last": 557830,
+        "w_window_cycles": 557830,
+        "w_firstlast_cycles": 557756,
+        "datapath_utilization_r": 0.9398705698868831,
+        "datapath_utilization_w": 0.9398705698868831,
+        "end_to_end_utilization": 0.9398705698868831,
+        "r_buckets_pct": {
+          "productive": 0.9398705698868831,
+          "backpressure": 0.0,
+          "starvation": 0.0601294301131169,
+          "idle": 0.0
+        },
+        "w_buckets_pct": {
+          "productive": 0.9398705698868831,
+          "backpressure": 0.0,
+          "starvation": 0.0601294301131169,
+          "idle": 0.0
+        },
+        "r_aggregate": {
+          "productive": 524288,
+          "backpressure": 0,
+          "starvation": 33542,
+          "idle": 0
+        },
+        "w_aggregate": {
+          "productive": 524288,
+          "backpressure": 0,
+          "starvation": 33542,
+          "idle": 0
+        },
+        "r_per_channel": [
+          {
+            "channel": 0,
+            "productive": 0,
+            "backpressure": 0,
+            "starvation": 0,
+            "idle": 0,
+            "overflow_mask": 8
+          }
+        ],
+        "w_per_channel": [
+          {
+            "channel": 0,
+            "productive": 32768,
+            "backpressure": 0,
+            "starvation": 32768,
+            "idle": 0,
+            "overflow_mask": 8
+          }
+        ]
+      },
+      "trace": {
+        "wr_ptr": 70,
+        "overflow": 0
+      },
+      "throughput_mbps": 125.05471865473058,
+      "bus_time_s": 0.0055783,
+      "bus_throughput_mbps": 1434.1286771955615,
+      "bus_cycles_total": 557830,
+      "bus_e2e_util_pct": 93.98705698868831,
+      "bus_max_one_dir_mbps": 1525.87890625,
+      "bus_max_net_moved_mbps": 762.939453125,
+      "pass": true
+    }
+  },
+  {
+    "config": "8desc_1ch_1MB",
+    "rd_delay": 64,
+    "wr_delay": 64,
+    "result": {
+      "name": "8desc_1ch_1MB",
+      "num_channels": 1,
+      "descriptors_per_channel": 8,
+      "transfer_bytes": 1048576,
+      "total_descriptors": 8,
+      "total_bytes": 8388608,
+      "load_time_s": 1.0138814449310303,
+      "dma_time_s": 0.06406903266906738,
+      "completion": {
+        "completed": true,
+        "irq": false,
+        "error": false,
+        "overflow": false,
+        "timer_pass": true,
+        "timer_running": false,
+        "elapsed_s": 0.03206634521484375,
+        "raw_timer": 5,
+        "raw_status": 0
+      },
+      "crc": {
+        "rd_expected": 2095802455,
+        "wr_expected": 2095802455,
+        "wr_computed": 2095802455,
+        "match_reg": 3,
+        "rd_per_ch": [
+          2095802455
+        ],
+        "wr_per_ch": [
+          2095802455
+        ],
+        "valid_mask": 1,
+        "match_mask": 1
+      },
+      "metrics": {
+        "available": true,
+        "cycles_total": 558310,
+        "r_first": 20,
+        "r_last": 558222,
+        "r_window_cycles": 558310,
+        "r_firstlast_cycles": 558203,
+        "w_first": 107,
+        "w_last": 558310,
+        "w_window_cycles": 558310,
+        "w_firstlast_cycles": 558204,
+        "datapath_utilization_r": 0.9390625279862442,
+        "datapath_utilization_w": 0.9390625279862442,
+        "end_to_end_utilization": 0.9390625279862442,
+        "r_buckets_pct": {
+          "productive": 0.9390625279862442,
+          "backpressure": 0.0,
+          "starvation": 0.0609374720137558,
+          "idle": 0.0
+        },
+        "w_buckets_pct": {
+          "productive": 0.9390625279862442,
+          "backpressure": 0.0,
+          "starvation": 0.0609374720137558,
+          "idle": 0.0
+        },
+        "r_aggregate": {
+          "productive": 524288,
+          "backpressure": 0,
+          "starvation": 34022,
+          "idle": 0
+        },
+        "w_aggregate": {
+          "productive": 524288,
+          "backpressure": 0,
+          "starvation": 34022,
+          "idle": 0
+        },
+        "r_per_channel": [
+          {
+            "channel": 0,
+            "productive": 0,
+            "backpressure": 0,
+            "starvation": 0,
+            "idle": 0,
+            "overflow_mask": 8
+          }
+        ],
+        "w_per_channel": [
+          {
+            "channel": 0,
+            "productive": 32768,
+            "backpressure": 0,
+            "starvation": 32768,
+            "idle": 0,
+            "overflow_mask": 8
+          }
+        ]
+      },
+      "trace": {
+        "wr_ptr": 70,
+        "overflow": 0
+      },
+      "throughput_mbps": 124.86531584333426,
+      "bus_time_s": 0.0055831,
+      "bus_throughput_mbps": 1432.8957031040104,
+      "bus_cycles_total": 558310,
+      "bus_e2e_util_pct": 93.90625279862442,
+      "bus_max_one_dir_mbps": 1525.87890625,
+      "bus_max_net_moved_mbps": 762.939453125,
+      "pass": true
+    }
+  },
+  {
+    "config": "8desc_1ch_1MB",
+    "rd_delay": 128,
+    "wr_delay": 128,
+    "result": {
+      "name": "8desc_1ch_1MB",
+      "num_channels": 1,
+      "descriptors_per_channel": 8,
+      "transfer_bytes": 1048576,
+      "total_descriptors": 8,
+      "total_bytes": 8388608,
+      "load_time_s": 1.013913869857788,
+      "dma_time_s": 0.06406664848327637,
+      "completion": {
+        "completed": true,
+        "irq": false,
+        "error": false,
+        "overflow": false,
+        "timer_pass": true,
+        "timer_running": false,
+        "elapsed_s": 0.03206634521484375,
+        "raw_timer": 5,
+        "raw_status": 0
+      },
+      "crc": {
+        "rd_expected": 2095802455,
+        "wr_expected": 2095802455,
+        "wr_computed": 2095802455,
+        "match_reg": 3,
+        "rd_per_ch": [
+          2095802455
+        ],
+        "wr_per_ch": [
+          2095802455
+        ],
+        "valid_mask": 1,
+        "match_mask": 1
+      },
+      "metrics": {
+        "available": true,
+        "cycles_total": 636942,
+        "r_first": 20,
+        "r_last": 636636,
+        "r_window_cycles": 636942,
+        "r_firstlast_cycles": 636617,
+        "w_first": 171,
+        "w_last": 636942,
+        "w_window_cycles": 636942,
+        "w_firstlast_cycles": 636772,
+        "datapath_utilization_r": 0.8231330325210144,
+        "datapath_utilization_w": 0.8231330325210144,
+        "end_to_end_utilization": 0.8231330325210144,
+        "r_buckets_pct": {
+          "productive": 0.8231330325210144,
+          "backpressure": 0.0,
+          "starvation": 0.17686696747898553,
+          "idle": 0.0
+        },
+        "w_buckets_pct": {
+          "productive": 0.8231330325210144,
+          "backpressure": 0.0,
+          "starvation": 0.17686696747898553,
+          "idle": 0.0
+        },
+        "r_aggregate": {
+          "productive": 524288,
+          "backpressure": 0,
+          "starvation": 112654,
+          "idle": 0
+        },
+        "w_aggregate": {
+          "productive": 524288,
+          "backpressure": 0,
+          "starvation": 112654,
+          "idle": 0
+        },
+        "r_per_channel": [
+          {
+            "channel": 0,
+            "productive": 0,
+            "backpressure": 0,
+            "starvation": 0,
+            "idle": 0,
+            "overflow_mask": 8
+          }
+        ],
+        "w_per_channel": [
+          {
+            "channel": 0,
+            "productive": 48992,
+            "backpressure": 0,
+            "starvation": 16544,
+            "idle": 0,
+            "overflow_mask": 8
+          }
+        ]
+      },
+      "trace": {
+        "wr_ptr": 70,
+        "overflow": 0
+      },
+      "throughput_mbps": 124.86996259978044,
+      "bus_time_s": 0.00636942,
+      "bus_throughput_mbps": 1256.0013313614113,
+      "bus_cycles_total": 636942,
+      "bus_e2e_util_pct": 82.31330325210145,
+      "bus_max_one_dir_mbps": 1525.87890625,
+      "bus_max_net_moved_mbps": 762.939453125,
+      "pass": true
+    }
+  },
+  {
+    "config": "8desc_1ch_1MB",
+    "rd_delay": 256,
+    "wr_delay": 256,
+    "result": {
+      "name": "8desc_1ch_1MB",
+      "num_channels": 1,
+      "descriptors_per_channel": 8,
+      "transfer_bytes": 1048576,
+      "total_descriptors": 8,
+      "total_bytes": 8388608,
+      "load_time_s": 1.0138909816741943,
+      "dma_time_s": 0.06406807899475098,
+      "completion": {
+        "completed": true,
+        "irq": false,
+        "error": false,
+        "overflow": false,
+        "timer_pass": true,
+        "timer_running": false,
+        "elapsed_s": 0.032067298889160156,
+        "raw_timer": 5,
+        "raw_status": 0
+      },
+      "crc": {
+        "rd_expected": 2095802455,
+        "wr_expected": 2095802455,
+        "wr_computed": 2095802455,
+        "match_reg": 3,
+        "rd_per_ch": [
+          2095802455
+        ],
+        "wr_per_ch": [
+          2095802455
+        ],
+        "valid_mask": 1,
+        "match_mask": 1
+      },
+      "metrics": {
+        "available": true,
+        "cycles_total": 1162126,
+        "r_first": 20,
+        "r_last": 1161564,
+        "r_window_cycles": 1162126,
+        "r_firstlast_cycles": 1161545,
+        "w_first": 299,
+        "w_last": 1162126,
+        "w_window_cycles": 1162126,
+        "w_firstlast_cycles": 1161828,
+        "datapath_utilization_r": 0.45114557285526696,
+        "datapath_utilization_w": 0.45114557285526696,
+        "end_to_end_utilization": 0.45114557285526696,
+        "r_buckets_pct": {
+          "productive": 0.45114557285526696,
+          "backpressure": 0.0,
+          "starvation": 0.548854427144733,
+          "idle": 0.0
+        },
+        "w_buckets_pct": {
+          "productive": 0.45114557285526696,
+          "backpressure": 0.0,
+          "starvation": 0.548854427144733,
+          "idle": 0.0
+        },
+        "r_aggregate": {
+          "productive": 524288,
+          "backpressure": 0,
+          "starvation": 637838,
+          "idle": 0
+        },
+        "w_aggregate": {
+          "productive": 524288,
+          "backpressure": 0,
+          "starvation": 637838,
+          "idle": 0
+        },
+        "r_per_channel": [
+          {
+            "channel": 0,
+            "productive": 0,
+            "backpressure": 0,
+            "starvation": 0,
+            "idle": 0,
+            "overflow_mask": 8
+          }
+        ],
+        "w_per_channel": [
+          {
+            "channel": 0,
+            "productive": 48992,
+            "backpressure": 0,
+            "starvation": 16544,
+            "idle": 0,
+            "overflow_mask": 8
+          }
+        ]
+      },
+      "trace": {
+        "wr_ptr": 70,
+        "overflow": 0
+      },
+      "throughput_mbps": 124.86717450441164,
+      "bus_time_s": 0.01162126,
+      "bus_throughput_mbps": 688.3935132679245,
+      "bus_cycles_total": 1162126,
+      "bus_e2e_util_pct": 45.11455728552669,
+      "bus_max_one_dir_mbps": 1525.87890625,
+      "bus_max_net_moved_mbps": 762.939453125,
+      "pass": true
+    }
+  },
+  {
+    "config": "8desc_1ch_1MB",
+    "rd_delay": 512,
+    "wr_delay": 512,
+    "result": {
+      "name": "8desc_1ch_1MB",
+      "num_channels": 1,
+      "descriptors_per_channel": 8,
+      "transfer_bytes": 1048576,
+      "total_descriptors": 8,
+      "total_bytes": 8388608,
+      "load_time_s": 1.0138423442840576,
+      "dma_time_s": 0.09608292579650879,
+      "completion": {
+        "completed": true,
+        "irq": false,
+        "error": false,
+        "overflow": false,
+        "timer_pass": true,
+        "timer_running": false,
+        "elapsed_s": 0.06410622596740723,
+        "raw_timer": 5,
+        "raw_status": 0
+      },
+      "crc": {
+        "rd_expected": 2095802455,
+        "wr_expected": 2095802455,
+        "wr_computed": 2095802455,
+        "match_reg": 3,
+        "rd_per_ch": [
+          2095802455
+        ],
+        "wr_per_ch": [
+          2095802455
+        ],
+        "valid_mask": 1,
+        "match_mask": 1
+      },
+      "metrics": {
+        "available": true,
+        "cycles_total": 2212494,
+        "r_first": 20,
+        "r_last": 2211420,
+        "r_window_cycles": 2212494,
+        "r_firstlast_cycles": 2211401,
+        "w_first": 555,
+        "w_last": 2212494,
+        "w_window_cycles": 2212494,
+        "w_firstlast_cycles": 2211940,
+        "datapath_utilization_r": 0.2369669703059082,
+        "datapath_utilization_w": 0.2369669703059082,
+        "end_to_end_utilization": 0.2369669703059082,
+        "r_buckets_pct": {
+          "productive": 0.2369669703059082,
+          "backpressure": 0.0,
+          "starvation": 0.7630330296940918,
+          "idle": 0.0
+        },
+        "w_buckets_pct": {
+          "productive": 0.2369669703059082,
+          "backpressure": 0.0,
+          "starvation": 0.7630330296940918,
+          "idle": 0.0
+        },
+        "r_aggregate": {
+          "productive": 524288,
+          "backpressure": 0,
+          "starvation": 1688206,
+          "idle": 0
+        },
+        "w_aggregate": {
+          "productive": 524288,
+          "backpressure": 0,
+          "starvation": 1688206,
+          "idle": 0
+        },
+        "r_per_channel": [
+          {
+            "channel": 0,
+            "productive": 0,
+            "backpressure": 0,
+            "starvation": 0,
+            "idle": 0,
+            "overflow_mask": 8
+          }
+        ],
+        "w_per_channel": [
+          {
+            "channel": 0,
+            "productive": 48992,
+            "backpressure": 0,
+            "starvation": 16544,
+            "idle": 0,
+            "overflow_mask": 8
+          }
+        ]
+      },
+      "trace": {
+        "wr_ptr": 70,
+        "overflow": 0
+      },
+      "throughput_mbps": 83.26141126200679,
+      "bus_time_s": 0.02212494,
+      "bus_throughput_mbps": 361.5829014677554,
+      "bus_cycles_total": 2212494,
+      "bus_e2e_util_pct": 23.69669703059082,
+      "bus_max_one_dir_mbps": 1525.87890625,
+      "bus_max_net_moved_mbps": 762.939453125,
+      "pass": true
+    }
+  },
+  {
+    "config": "8desc_1ch_1MB",
+    "rd_delay": 1024,
+    "wr_delay": 1024,
+    "result": {
+      "name": "8desc_1ch_1MB",
+      "num_channels": 1,
+      "descriptors_per_channel": 8,
+      "transfer_bytes": 1048576,
+      "total_descriptors": 8,
+      "total_bytes": 8388608,
+      "load_time_s": 1.013899326324463,
+      "dma_time_s": 0.0960538387298584,
+      "completion": {
+        "completed": true,
+        "irq": false,
+        "error": false,
+        "overflow": false,
+        "timer_pass": true,
+        "timer_running": false,
+        "elapsed_s": 0.06408429145812988,
+        "raw_timer": 5,
+        "raw_status": 0
+      },
+      "crc": {
+        "rd_expected": 2095802455,
+        "wr_expected": 2095802455,
+        "wr_computed": 2095802455,
+        "match_reg": 3,
+        "rd_per_ch": [
+          2095802455
+        ],
+        "wr_per_ch": [
+          2095802455
+        ],
+        "valid_mask": 1,
+        "match_mask": 1
+      },
+      "metrics": {
+        "available": true,
+        "cycles_total": 4313230,
+        "r_first": 20,
+        "r_last": 4311132,
+        "r_window_cycles": 4313230,
+        "r_firstlast_cycles": 4311113,
+        "w_first": 1067,
+        "w_last": 4313230,
+        "w_window_cycles": 4313230,
+        "w_firstlast_cycles": 4312164,
+        "datapath_utilization_r": 0.12155345298071284,
+        "datapath_utilization_w": 0.12155345298071284,
+        "end_to_end_utilization": 0.12155345298071284,
+        "r_buckets_pct": {
+          "productive": 0.12155345298071284,
+          "backpressure": 0.0,
+          "starvation": 0.8784465470192871,
+          "idle": 0.0
+        },
+        "w_buckets_pct": {
+          "productive": 0.12155345298071284,
+          "backpressure": 0.0,
+          "starvation": 0.8784465470192871,
+          "idle": 0.0
+        },
+        "r_aggregate": {
+          "productive": 524288,
+          "backpressure": 0,
+          "starvation": 3788942,
+          "idle": 0
+        },
+        "w_aggregate": {
+          "productive": 524288,
+          "backpressure": 0,
+          "starvation": 3788942,
+          "idle": 0
+        },
+        "r_per_channel": [
+          {
+            "channel": 0,
+            "productive": 0,
+            "backpressure": 0,
+            "starvation": 0,
+            "idle": 0,
+            "overflow_mask": 8
+          }
+        ],
+        "w_per_channel": [
+          {
+            "channel": 0,
+            "productive": 48992,
+            "backpressure": 0,
+            "starvation": 16544,
+            "idle": 0,
+            "overflow_mask": 8
+          }
+        ]
+      },
+      "trace": {
+        "wr_ptr": 70,
+        "overflow": 0
+      },
+      "throughput_mbps": 83.28662452001717,
+      "bus_time_s": 0.0431323,
+      "bus_throughput_mbps": 185.4758498851209,
+      "bus_cycles_total": 4313230,
+      "bus_e2e_util_pct": 12.155345298071284,
+      "bus_max_one_dir_mbps": 1525.87890625,
+      "bus_max_net_moved_mbps": 762.939453125,
+      "pass": true
+    }
+  },
+  {
+    "config": "8desc_1ch_1MB",
+    "rd_delay": 2048,
+    "wr_delay": 2048,
+    "result": {
+      "name": "8desc_1ch_1MB",
+      "num_channels": 1,
+      "descriptors_per_channel": 8,
+      "transfer_bytes": 1048576,
+      "total_descriptors": 8,
+      "total_bytes": 8388608,
+      "load_time_s": 1.0138957500457764,
+      "dma_time_s": 0.16057419776916504,
+      "completion": {
+        "completed": true,
+        "irq": false,
+        "error": false,
+        "overflow": false,
+        "timer_pass": true,
+        "timer_running": false,
+        "elapsed_s": 0.12834525108337402,
+        "raw_timer": 5,
+        "raw_status": 0
+      },
+      "crc": {
+        "rd_expected": 2095802455,
+        "wr_expected": 2095802455,
+        "wr_computed": 2095802455,
+        "match_reg": 3,
+        "rd_per_ch": [
+          2095802455
+        ],
+        "wr_per_ch": [
+          2095802455
+        ],
+        "valid_mask": 1,
+        "match_mask": 1
+      },
+      "metrics": {
+        "available": true,
+        "cycles_total": 8514702,
+        "r_first": 20,
+        "r_last": 8511097,
+        "r_window_cycles": 8514702,
+        "r_firstlast_cycles": 8511078,
+        "w_first": 2091,
+        "w_last": 8514702,
+        "w_window_cycles": 8514702,
+        "w_firstlast_cycles": 8512612,
+        "datapath_utilization_r": 0.06157443912893252,
+        "datapath_utilization_w": 0.06157443912893252,
+        "end_to_end_utilization": 0.06157443912893252,
+        "r_buckets_pct": {
+          "productive": 0.06157443912893252,
+          "backpressure": 0.0,
+          "starvation": 0.9384255608710674,
+          "idle": 0.0
+        },
+        "w_buckets_pct": {
+          "productive": 0.06157443912893252,
+          "backpressure": 0.0,
+          "starvation": 0.9384255608710674,
+          "idle": 0.0
+        },
+        "r_aggregate": {
+          "productive": 524288,
+          "backpressure": 0,
+          "starvation": 7990414,
+          "idle": 0
+        },
+        "w_aggregate": {
+          "productive": 524288,
+          "backpressure": 0,
+          "starvation": 7990414,
+          "idle": 0
+        },
+        "r_per_channel": [
+          {
+            "channel": 0,
+            "productive": 0,
+            "backpressure": 0,
+            "starvation": 0,
+            "idle": 0,
+            "overflow_mask": 8
+          }
+        ],
+        "w_per_channel": [
+          {
+            "channel": 0,
+            "productive": 48992,
+            "backpressure": 0,
+            "starvation": 16544,
+            "idle": 0,
+            "overflow_mask": 8
+          }
+        ]
+      },
+      "trace": {
+        "wr_ptr": 70,
+        "overflow": 0
+      },
+      "throughput_mbps": 49.82120484575284,
+      "bus_time_s": 0.08514702,
+      "bus_throughput_mbps": 93.95513783101275,
+      "bus_cycles_total": 8514702,
+      "bus_e2e_util_pct": 6.157443912893252,
+      "bus_max_one_dir_mbps": 1525.87890625,
+      "bus_max_net_moved_mbps": 762.939453125,
+      "pass": true
+    }
+  },
+  {
+    "config": "8desc_1ch_1MB",
+    "rd_delay": 4096,
+    "wr_delay": 4096,
+    "result": {
+      "name": "8desc_1ch_1MB",
+      "num_channels": 1,
+      "descriptors_per_channel": 8,
+      "transfer_bytes": 1048576,
+      "total_descriptors": 8,
+      "total_bytes": 8388608,
+      "load_time_s": 1.0138838291168213,
+      "dma_time_s": 0.2240746021270752,
+      "completion": {
+        "completed": true,
+        "irq": false,
+        "error": false,
+        "overflow": false,
+        "timer_pass": true,
+        "timer_running": false,
+        "elapsed_s": 0.19210362434387207,
+        "raw_timer": 5,
+        "raw_status": 0
+      },
+      "crc": {
+        "rd_expected": 2095802455,
+        "wr_expected": 2095802455,
+        "wr_computed": 2095802455,
+        "match_reg": 3,
+        "rd_per_ch": [
+          2095802455
+        ],
+        "wr_per_ch": [
+          2095802455
+        ],
+        "valid_mask": 1,
+        "match_mask": 1
+      },
+      "metrics": {
+        "available": true,
+        "cycles_total": 16917646,
+        "r_first": 20,
+        "r_last": 16911993,
+        "r_window_cycles": 16917646,
+        "r_firstlast_cycles": 16911974,
+        "w_first": 4139,
+        "w_last": 16917646,
+        "w_window_cycles": 16917646,
+        "w_firstlast_cycles": 16913508,
+        "datapath_utilization_r": 0.03099059999245758,
+        "datapath_utilization_w": 0.03099059999245758,
+        "end_to_end_utilization": 0.03099059999245758,
+        "r_buckets_pct": {
+          "productive": 0.03099059999245758,
+          "backpressure": 0.0,
+          "starvation": 0.9690094000075424,
+          "idle": 0.0
+        },
+        "w_buckets_pct": {
+          "productive": 0.03099059999245758,
+          "backpressure": 0.0,
+          "starvation": 0.9690094000075424,
+          "idle": 0.0
+        },
+        "r_aggregate": {
+          "productive": 524288,
+          "backpressure": 0,
+          "starvation": 16393358,
+          "idle": 0
+        },
+        "w_aggregate": {
+          "productive": 524288,
+          "backpressure": 0,
+          "starvation": 16393358,
+          "idle": 0
+        },
+        "r_per_channel": [
+          {
+            "channel": 0,
+            "productive": 0,
+            "backpressure": 0,
+            "starvation": 0,
+            "idle": 0,
+            "overflow_mask": 8
+          }
+        ],
+        "w_per_channel": [
+          {
+            "channel": 0,
+            "productive": 48992,
+            "backpressure": 0,
+            "starvation": 16544,
+            "idle": 0,
+            "overflow_mask": 8
+          }
+        ]
+      },
+      "trace": {
+        "wr_ptr": 70,
+        "overflow": 0
+      },
+      "throughput_mbps": 35.70239520257236,
+      "bus_time_s": 0.16917646,
+      "bus_throughput_mbps": 47.28790282052243,
+      "bus_cycles_total": 16917646,
+      "bus_e2e_util_pct": 3.0990599992457577,
+      "bus_max_one_dir_mbps": 1525.87890625,
+      "bus_max_net_moved_mbps": 762.939453125,
+      "pass": true
+    }
+  },
+  {
+    "config": "16desc_1ch_1MB",
+    "rd_delay": 0,
+    "wr_delay": 0,
+    "result": {
+      "name": "16desc_1ch_1MB",
+      "num_channels": 1,
+      "descriptors_per_channel": 16,
+      "transfer_bytes": 1048576,
+      "total_descriptors": 16,
+      "total_bytes": 16777216,
+      "load_time_s": 2.037616491317749,
+      "dma_time_s": 0.06406426429748535,
+      "completion": {
+        "completed": true,
+        "irq": false,
+        "error": false,
+        "overflow": true,
+        "timer_pass": true,
+        "timer_running": false,
+        "elapsed_s": 0.032062530517578125,
+        "raw_timer": 5,
+        "raw_status": 4
+      },
+      "crc": {
+        "rd_expected": 2474752289,
+        "wr_expected": 2474752289,
+        "wr_computed": 2474752289,
+        "match_reg": 3,
+        "rd_per_ch": [
+          2474752289
+        ],
+        "wr_per_ch": [
+          2474752289
+        ],
+        "valid_mask": 1,
+        "match_mask": 1
+      },
+      "metrics": {
+        "available": true,
+        "cycles_total": 1114725,
+        "r_first": 20,
+        "r_last": 1114700,
+        "r_window_cycles": 1114725,
+        "r_firstlast_cycles": 1114681,
+        "w_first": 44,
+        "w_last": 1114725,
+        "w_window_cycles": 1114725,
+        "w_firstlast_cycles": 1114682,
+        "datapath_utilization_r": 0.9406589069052905,
+        "datapath_utilization_w": 0.9406589069052905,
+        "end_to_end_utilization": 0.9406589069052905,
+        "r_buckets_pct": {
+          "productive": 0.9406589069052905,
+          "backpressure": 0.0,
+          "starvation": 0.05934109309470946,
+          "idle": 0.0
+        },
+        "w_buckets_pct": {
+          "productive": 0.9406589069052905,
+          "backpressure": 0.0,
+          "starvation": 0.05934109309470946,
+          "idle": 0.0
+        },
+        "r_aggregate": {
+          "productive": 1048576,
+          "backpressure": 0,
+          "starvation": 66149,
+          "idle": 0
+        },
+        "w_aggregate": {
+          "productive": 1048576,
+          "backpressure": 0,
+          "starvation": 66149,
+          "idle": 0
+        },
+        "r_per_channel": [
+          {
+            "channel": 0,
+            "productive": 0,
+            "backpressure": 0,
+            "starvation": 0,
+            "idle": 0,
+            "overflow_mask": 8
+          }
+        ],
+        "w_per_channel": [
+          {
+            "channel": 0,
+            "productive": 0,
+            "backpressure": 0,
+            "starvation": 0,
+            "idle": 0,
+            "overflow_mask": 10
+          }
+        ]
+      },
+      "trace": {
+        "wr_ptr": 1532,
+        "overflow": 1
+      },
+      "throughput_mbps": 249.7492194041793,
+      "bus_time_s": 0.01114725,
+      "bus_throughput_mbps": 1435.3315840229654,
+      "bus_cycles_total": 1114725,
+      "bus_e2e_util_pct": 94.06589069052906,
+      "bus_max_one_dir_mbps": 1525.87890625,
+      "bus_max_net_moved_mbps": 762.939453125,
+      "pass": true
+    }
+  },
+  {
+    "config": "16desc_1ch_1MB",
+    "rd_delay": 8,
+    "wr_delay": 8,
+    "result": {
+      "name": "16desc_1ch_1MB",
+      "num_channels": 1,
+      "descriptors_per_channel": 16,
+      "transfer_bytes": 1048576,
+      "total_descriptors": 16,
+      "total_bytes": 16777216,
+      "load_time_s": 2.037766695022583,
+      "dma_time_s": 0.06401729583740234,
+      "completion": {
+        "completed": true,
+        "irq": false,
+        "error": false,
+        "overflow": true,
+        "timer_pass": true,
+        "timer_running": false,
+        "elapsed_s": 0.031984806060791016,
+        "raw_timer": 5,
+        "raw_status": 4
+      },
+      "crc": {
+        "rd_expected": 2474752289,
+        "wr_expected": 2474752289,
+        "wr_computed": 2474752289,
+        "match_reg": 3,
+        "rd_per_ch": [
+          2474752289
+        ],
+        "wr_per_ch": [
+          2474752289
+        ],
+        "valid_mask": 1,
+        "match_mask": 1
+      },
+      "metrics": {
+        "available": true,
+        "cycles_total": 1114942,
+        "r_first": 20,
+        "r_last": 1114910,
+        "r_window_cycles": 1114942,
+        "r_firstlast_cycles": 1114891,
+        "w_first": 51,
+        "w_last": 1114942,
+        "w_window_cycles": 1114942,
+        "w_firstlast_cycles": 1114892,
+        "datapath_utilization_r": 0.940475827442145,
+        "datapath_utilization_w": 0.940475827442145,
+        "end_to_end_utilization": 0.940475827442145,
+        "r_buckets_pct": {
+          "productive": 0.940475827442145,
+          "backpressure": 0.0,
+          "starvation": 0.059524172557855026,
+          "idle": 0.0
+        },
+        "w_buckets_pct": {
+          "productive": 0.940475827442145,
+          "backpressure": 0.0,
+          "starvation": 0.059524172557855026,
+          "idle": 0.0
+        },
+        "r_aggregate": {
+          "productive": 1048576,
+          "backpressure": 0,
+          "starvation": 66366,
+          "idle": 0
+        },
+        "w_aggregate": {
+          "productive": 1048576,
+          "backpressure": 0,
+          "starvation": 66366,
+          "idle": 0
+        },
+        "r_per_channel": [
+          {
+            "channel": 0,
+            "productive": 0,
+            "backpressure": 0,
+            "starvation": 0,
+            "idle": 0,
+            "overflow_mask": 8
+          }
+        ],
+        "w_per_channel": [
+          {
+            "channel": 0,
+            "productive": 0,
+            "backpressure": 0,
+            "starvation": 0,
+            "idle": 0,
+            "overflow_mask": 10
+          }
+        ]
+      },
+      "trace": {
+        "wr_ptr": 1554,
+        "overflow": 1
+      },
+      "throughput_mbps": 249.93245638863647,
+      "bus_time_s": 0.01114942,
+      "bus_throughput_mbps": 1435.0522269319838,
+      "bus_cycles_total": 1114942,
+      "bus_e2e_util_pct": 94.0475827442145,
+      "bus_max_one_dir_mbps": 1525.87890625,
+      "bus_max_net_moved_mbps": 762.939453125,
+      "pass": true
+    }
+  },
+  {
+    "config": "16desc_1ch_1MB",
+    "rd_delay": 32,
+    "wr_delay": 32,
+    "result": {
+      "name": "16desc_1ch_1MB",
+      "num_channels": 1,
+      "descriptors_per_channel": 16,
+      "transfer_bytes": 1048576,
+      "total_descriptors": 16,
+      "total_bytes": 16777216,
+      "load_time_s": 2.0377230644226074,
+      "dma_time_s": 0.06401586532592773,
+      "completion": {
+        "completed": true,
+        "irq": false,
+        "error": false,
+        "overflow": true,
+        "timer_pass": true,
+        "timer_running": false,
+        "elapsed_s": 0.03209114074707031,
+        "raw_timer": 5,
+        "raw_status": 4
+      },
+      "crc": {
+        "rd_expected": 2474752289,
+        "wr_expected": 2474752289,
+        "wr_computed": 2474752289,
+        "match_reg": 3,
+        "rd_per_ch": [
+          2474752289
+        ],
+        "wr_per_ch": [
+          2474752289
+        ],
+        "valid_mask": 1,
+        "match_mask": 1
+      },
+      "metrics": {
+        "available": true,
+        "cycles_total": 1115686,
+        "r_first": 20,
+        "r_last": 1115630,
+        "r_window_cycles": 1115686,
+        "r_firstlast_cycles": 1115611,
+        "w_first": 75,
+        "w_last": 1115686,
+        "w_window_cycles": 1115686,
+        "w_firstlast_cycles": 1115612,
+        "datapath_utilization_r": 0.9398486670980903,
+        "datapath_utilization_w": 0.9398486670980903,
+        "end_to_end_utilization": 0.9398486670980903,
+        "r_buckets_pct": {
+          "productive": 0.9398486670980903,
+          "backpressure": 0.0,
+          "starvation": 0.060151332901909674,
+          "idle": 0.0
+        },
+        "w_buckets_pct": {
+          "productive": 0.9398486670980903,
+          "backpressure": 0.0,
+          "starvation": 0.060151332901909674,
+          "idle": 0.0
+        },
+        "r_aggregate": {
+          "productive": 1048576,
+          "backpressure": 0,
+          "starvation": 67110,
+          "idle": 0
+        },
+        "w_aggregate": {
+          "productive": 1048576,
+          "backpressure": 0,
+          "starvation": 67110,
+          "idle": 0
+        },
+        "r_per_channel": [
+          {
+            "channel": 0,
+            "productive": 0,
+            "backpressure": 0,
+            "starvation": 0,
+            "idle": 0,
+            "overflow_mask": 8
+          }
+        ],
+        "w_per_channel": [
+          {
+            "channel": 0,
+            "productive": 0,
+            "backpressure": 0,
+            "starvation": 0,
+            "idle": 0,
+            "overflow_mask": 10
+          }
+        ]
+      },
+      "trace": {
+        "wr_ptr": 1628,
+        "overflow": 1
+      },
+      "throughput_mbps": 249.938041429859,
+      "bus_time_s": 0.01115686,
+      "bus_throughput_mbps": 1434.0952561921545,
+      "bus_cycles_total": 1115686,
+      "bus_e2e_util_pct": 93.98486670980904,
+      "bus_max_one_dir_mbps": 1525.87890625,
+      "bus_max_net_moved_mbps": 762.939453125,
+      "pass": true
+    }
+  },
+  {
+    "config": "16desc_1ch_1MB",
+    "rd_delay": 64,
+    "wr_delay": 64,
+    "result": {
+      "name": "16desc_1ch_1MB",
+      "num_channels": 1,
+      "descriptors_per_channel": 16,
+      "transfer_bytes": 1048576,
+      "total_descriptors": 16,
+      "total_bytes": 16777216,
+      "load_time_s": 2.03780198097229,
+      "dma_time_s": 0.06406784057617188,
+      "completion": {
+        "completed": true,
+        "irq": false,
+        "error": false,
+        "overflow": true,
+        "timer_pass": true,
+        "timer_running": false,
+        "elapsed_s": 0.03206181526184082,
+        "raw_timer": 5,
+        "raw_status": 4
+      },
+      "crc": {
+        "rd_expected": 2474752289,
+        "wr_expected": 2474752289,
+        "wr_computed": 2474752289,
+        "match_reg": 3,
+        "rd_per_ch": [
+          2474752289
+        ],
+        "wr_per_ch": [
+          2474752289
+        ],
+        "valid_mask": 1,
+        "match_mask": 1
+      },
+      "metrics": {
+        "available": true,
+        "cycles_total": 1116678,
+        "r_first": 20,
+        "r_last": 1116590,
+        "r_window_cycles": 1116678,
+        "r_firstlast_cycles": 1116571,
+        "w_first": 107,
+        "w_last": 1116678,
+        "w_window_cycles": 1116678,
+        "w_firstlast_cycles": 1116572,
+        "datapath_utilization_r": 0.9390137532932502,
+        "datapath_utilization_w": 0.9390137532932502,
+        "end_to_end_utilization": 0.9390137532932502,
+        "r_buckets_pct": {
+          "productive": 0.9390137532932502,
+          "backpressure": 0.0,
+          "starvation": 0.06098624670674984,
+          "idle": 0.0
+        },
+        "w_buckets_pct": {
+          "productive": 0.9390137532932502,
+          "backpressure": 0.0,
+          "starvation": 0.06098624670674984,
+          "idle": 0.0
+        },
+        "r_aggregate": {
+          "productive": 1048576,
+          "backpressure": 0,
+          "starvation": 68102,
+          "idle": 0
+        },
+        "w_aggregate": {
+          "productive": 1048576,
+          "backpressure": 0,
+          "starvation": 68102,
+          "idle": 0
+        },
+        "r_per_channel": [
+          {
+            "channel": 0,
+            "productive": 0,
+            "backpressure": 0,
+            "starvation": 0,
+            "idle": 0,
+            "overflow_mask": 8
+          }
+        ],
+        "w_per_channel": [
+          {
+            "channel": 0,
+            "productive": 0,
+            "backpressure": 0,
+            "starvation": 0,
+            "idle": 0,
+            "overflow_mask": 10
+          }
+        ]
+      },
+      "trace": {
+        "wr_ptr": 1726,
+        "overflow": 1
+      },
+      "throughput_mbps": 249.73527835665377,
+      "bus_time_s": 0.01116678,
+      "bus_throughput_mbps": 1432.821278828812,
+      "bus_cycles_total": 1116678,
+      "bus_e2e_util_pct": 93.90137532932502,
+      "bus_max_one_dir_mbps": 1525.87890625,
+      "bus_max_net_moved_mbps": 762.939453125,
+      "pass": true
+    }
+  },
+  {
+    "config": "16desc_1ch_1MB",
+    "rd_delay": 128,
+    "wr_delay": 128,
+    "result": {
+      "name": "16desc_1ch_1MB",
+      "num_channels": 1,
+      "descriptors_per_channel": 16,
+      "transfer_bytes": 1048576,
+      "total_descriptors": 16,
+      "total_bytes": 16777216,
+      "load_time_s": 2.037851572036743,
+      "dma_time_s": 0.06410765647888184,
+      "completion": {
+        "completed": true,
+        "irq": false,
+        "error": false,
+        "overflow": true,
+        "timer_pass": true,
+        "timer_running": false,
+        "elapsed_s": 0.03210639953613281,
+        "raw_timer": 5,
+        "raw_status": 4
+      },
+      "crc": {
+        "rd_expected": 2474752289,
+        "wr_expected": 2474752289,
+        "wr_computed": 2474752289,
+        "match_reg": 3,
+        "rd_per_ch": [
+          2474752289
+        ],
+        "wr_per_ch": [
+          2474752289
+        ],
+        "valid_mask": 1,
+        "match_mask": 1
+      },
+      "metrics": {
+        "available": true,
+        "cycles_total": 1274006,
+        "r_first": 20,
+        "r_last": 1273700,
+        "r_window_cycles": 1274006,
+        "r_firstlast_cycles": 1273681,
+        "w_first": 171,
+        "w_last": 1274006,
+        "w_window_cycles": 1274006,
+        "w_firstlast_cycles": 1273836,
+        "datapath_utilization_r": 0.8230542085359096,
+        "datapath_utilization_w": 0.8230542085359096,
+        "end_to_end_utilization": 0.8230542085359096,
+        "r_buckets_pct": {
+          "productive": 0.8230542085359096,
+          "backpressure": 0.0,
+          "starvation": 0.17694579146409042,
+          "idle": 0.0
+        },
+        "w_buckets_pct": {
+          "productive": 0.8230542085359096,
+          "backpressure": 0.0,
+          "starvation": 0.17694579146409042,
+          "idle": 0.0
+        },
+        "r_aggregate": {
+          "productive": 1048576,
+          "backpressure": 0,
+          "starvation": 225430,
+          "idle": 0
+        },
+        "w_aggregate": {
+          "productive": 1048576,
+          "backpressure": 0,
+          "starvation": 225430,
+          "idle": 0
+        },
+        "r_per_channel": [
+          {
+            "channel": 0,
+            "productive": 0,
+            "backpressure": 0,
+            "starvation": 0,
+            "idle": 0,
+            "overflow_mask": 8
+          }
+        ],
+        "w_per_channel": [
+          {
+            "channel": 0,
+            "productive": 32448,
+            "backpressure": 0,
+            "starvation": 33088,
+            "idle": 0,
+            "overflow_mask": 8
+          }
+        ]
+      },
+      "trace": {
+        "wr_ptr": 566,
+        "overflow": 1
+      },
+      "throughput_mbps": 249.5801730838605,
+      "bus_time_s": 0.01274006,
+      "bus_throughput_mbps": 1255.8810555052332,
+      "bus_cycles_total": 1274006,
+      "bus_e2e_util_pct": 82.30542085359096,
+      "bus_max_one_dir_mbps": 1525.87890625,
+      "bus_max_net_moved_mbps": 762.939453125,
+      "pass": true
+    }
+  },
+  {
+    "config": "16desc_1ch_1MB",
+    "rd_delay": 256,
+    "wr_delay": 256,
+    "result": {
+      "name": "16desc_1ch_1MB",
+      "num_channels": 1,
+      "descriptors_per_channel": 16,
+      "transfer_bytes": 1048576,
+      "total_descriptors": 16,
+      "total_bytes": 16777216,
+      "load_time_s": 2.037510633468628,
+      "dma_time_s": 0.09603428840637207,
+      "completion": {
+        "completed": true,
+        "irq": false,
+        "error": false,
+        "overflow": true,
+        "timer_pass": true,
+        "timer_running": false,
+        "elapsed_s": 0.06406450271606445,
+        "raw_timer": 5,
+        "raw_status": 4
+      },
+      "crc": {
+        "rd_expected": 2474752289,
+        "wr_expected": 2474752289,
+        "wr_computed": 2474752289,
+        "match_reg": 3,
+        "rd_per_ch": [
+          2474752289
+        ],
+        "wr_per_ch": [
+          2474752289
+        ],
+        "valid_mask": 1,
+        "match_mask": 1
+      },
+      "metrics": {
+        "available": true,
+        "cycles_total": 2324502,
+        "r_first": 20,
+        "r_last": 2323940,
+        "r_window_cycles": 2324502,
+        "r_firstlast_cycles": 2323921,
+        "w_first": 299,
+        "w_last": 2324502,
+        "w_window_cycles": 2324502,
+        "w_firstlast_cycles": 2324204,
+        "datapath_utilization_r": 0.45109705218580154,
+        "datapath_utilization_w": 0.45109705218580154,
+        "end_to_end_utilization": 0.45109705218580154,
+        "r_buckets_pct": {
+          "productive": 0.45109705218580154,
+          "backpressure": 0.0,
+          "starvation": 0.5489029478141985,
+          "idle": 0.0
+        },
+        "w_buckets_pct": {
+          "productive": 0.45109705218580154,
+          "backpressure": 0.0,
+          "starvation": 0.5489029478141985,
+          "idle": 0.0
+        },
+        "r_aggregate": {
+          "productive": 1048576,
+          "backpressure": 0,
+          "starvation": 1275926,
+          "idle": 0
+        },
+        "w_aggregate": {
+          "productive": 1048576,
+          "backpressure": 0,
+          "starvation": 1275926,
+          "idle": 0
+        },
+        "r_per_channel": [
+          {
+            "channel": 0,
+            "productive": 0,
+            "backpressure": 0,
+            "starvation": 0,
+            "idle": 0,
+            "overflow_mask": 8
+          }
+        ],
+        "w_per_channel": [
+          {
+            "channel": 0,
+            "productive": 32448,
+            "backpressure": 0,
+            "starvation": 33088,
+            "idle": 0,
+            "overflow_mask": 8
+          }
+        ]
+      },
+      "trace": {
+        "wr_ptr": 3876,
+        "overflow": 1
+      },
+      "throughput_mbps": 166.60715943763236,
+      "bus_time_s": 0.02324502,
+      "bus_throughput_mbps": 688.31947660187,
+      "bus_cycles_total": 2324502,
+      "bus_e2e_util_pct": 45.10970521858015,
+      "bus_max_one_dir_mbps": 1525.87890625,
+      "bus_max_net_moved_mbps": 762.939453125,
+      "pass": true
+    }
+  },
+  {
+    "config": "16desc_1ch_1MB",
+    "rd_delay": 512,
+    "wr_delay": 512,
+    "result": {
+      "name": "16desc_1ch_1MB",
+      "num_channels": 1,
+      "descriptors_per_channel": 16,
+      "transfer_bytes": 1048576,
+      "total_descriptors": 16,
+      "total_bytes": 16777216,
+      "load_time_s": 2.0378637313842773,
+      "dma_time_s": 0.09606409072875977,
+      "completion": {
+        "completed": true,
+        "irq": false,
+        "error": false,
+        "overflow": true,
+        "timer_pass": true,
+        "timer_running": false,
+        "elapsed_s": 0.06406450271606445,
+        "raw_timer": 5,
+        "raw_status": 4
+      },
+      "crc": {
+        "rd_expected": 2474752289,
+        "wr_expected": 2474752289,
+        "wr_computed": 2474752289,
+        "match_reg": 3,
+        "rd_per_ch": [
+          2474752289
+        ],
+        "wr_per_ch": [
+          2474752289
+        ],
+        "valid_mask": 1,
+        "match_mask": 1
+      },
+      "metrics": {
+        "available": true,
+        "cycles_total": 4425494,
+        "r_first": 20,
+        "r_last": 4424420,
+        "r_window_cycles": 4425494,
+        "r_firstlast_cycles": 4424401,
+        "w_first": 555,
+        "w_last": 4425494,
+        "w_window_cycles": 4425494,
+        "w_firstlast_cycles": 4424940,
+        "datapath_utilization_r": 0.2369398760906692,
+        "datapath_utilization_w": 0.2369398760906692,
+        "end_to_end_utilization": 0.2369398760906692,
+        "r_buckets_pct": {
+          "productive": 0.2369398760906692,
+          "backpressure": 0.0,
+          "starvation": 0.7630601239093308,
+          "idle": 0.0
+        },
+        "w_buckets_pct": {
+          "productive": 0.2369398760906692,
+          "backpressure": 0.0,
+          "starvation": 0.7630601239093308,
+          "idle": 0.0
+        },
+        "r_aggregate": {
+          "productive": 1048576,
+          "backpressure": 0,
+          "starvation": 3376918,
+          "idle": 0
+        },
+        "w_aggregate": {
+          "productive": 1048576,
+          "backpressure": 0,
+          "starvation": 3376918,
+          "idle": 0
+        },
+        "r_per_channel": [
+          {
+            "channel": 0,
+            "productive": 0,
+            "backpressure": 0,
+            "starvation": 0,
+            "idle": 0,
+            "overflow_mask": 8
+          }
+        ],
+        "w_per_channel": [
+          {
+            "channel": 0,
+            "productive": 32448,
+            "backpressure": 0,
+            "starvation": 33088,
+            "idle": 0,
+            "overflow_mask": 8
+          }
+        ]
+      },
+      "trace": {
+        "wr_ptr": 2306,
+        "overflow": 1
+      },
+      "throughput_mbps": 166.5554722750309,
+      "bus_time_s": 0.04425494,
+      "bus_throughput_mbps": 361.5415589762408,
+      "bus_cycles_total": 4425494,
+      "bus_e2e_util_pct": 23.69398760906692,
+      "bus_max_one_dir_mbps": 1525.87890625,
+      "bus_max_net_moved_mbps": 762.939453125,
+      "pass": true
+    }
+  },
+  {
+    "config": "16desc_1ch_1MB",
+    "rd_delay": 1024,
+    "wr_delay": 1024,
+    "result": {
+      "name": "16desc_1ch_1MB",
+      "num_channels": 1,
+      "descriptors_per_channel": 16,
+      "transfer_bytes": 1048576,
+      "total_descriptors": 16,
+      "total_bytes": 16777216,
+      "load_time_s": 2.0378384590148926,
+      "dma_time_s": 0.1601276397705078,
+      "completion": {
+        "completed": true,
+        "irq": false,
+        "error": false,
+        "overflow": true,
+        "timer_pass": true,
+        "timer_running": false,
+        "elapsed_s": 0.12810039520263672,
+        "raw_timer": 5,
+        "raw_status": 4
+      },
+      "crc": {
+        "rd_expected": 2474752289,
+        "wr_expected": 2474752289,
+        "wr_computed": 2474752289,
+        "match_reg": 3,
+        "rd_per_ch": [
+          2474752289
+        ],
+        "wr_per_ch": [
+          2474752289
+        ],
+        "valid_mask": 1,
+        "match_mask": 1
+      },
+      "metrics": {
+        "available": true,
+        "cycles_total": 8627478,
+        "r_first": 20,
+        "r_last": 8625380,
+        "r_window_cycles": 8627478,
+        "r_firstlast_cycles": 8625361,
+        "w_first": 1067,
+        "w_last": 8627478,
+        "w_window_cycles": 8627478,
+        "w_firstlast_cycles": 8626412,
+        "datapath_utilization_r": 0.12153911027069556,
+        "datapath_utilization_w": 0.12153911027069556,
+        "end_to_end_utilization": 0.12153911027069556,
+        "r_buckets_pct": {
+          "productive": 0.12153911027069556,
+          "backpressure": 0.0,
+          "starvation": 0.8784608897293045,
+          "idle": 0.0
+        },
+        "w_buckets_pct": {
+          "productive": 0.12153911027069556,
+          "backpressure": 0.0,
+          "starvation": 0.8784608897293045,
+          "idle": 0.0
+        },
+        "r_aggregate": {
+          "productive": 1048576,
+          "backpressure": 0,
+          "starvation": 7578902,
+          "idle": 0
+        },
+        "w_aggregate": {
+          "productive": 1048576,
+          "backpressure": 0,
+          "starvation": 7578902,
+          "idle": 0
+        },
+        "r_per_channel": [
+          {
+            "channel": 0,
+            "productive": 0,
+            "backpressure": 0,
+            "starvation": 0,
+            "idle": 0,
+            "overflow_mask": 8
+          }
+        ],
+        "w_per_channel": [
+          {
+            "channel": 0,
+            "productive": 32448,
+            "backpressure": 0,
+            "starvation": 33088,
+            "idle": 0,
+            "overflow_mask": 8
+          }
+        ]
+      },
+      "trace": {
+        "wr_ptr": 3260,
+        "overflow": 1
+      },
+      "throughput_mbps": 99.92028873298155,
+      "bus_time_s": 0.08627478,
+      "bus_throughput_mbps": 185.4539646464471,
+      "bus_cycles_total": 8627478,
+      "bus_e2e_util_pct": 12.153911027069556,
+      "bus_max_one_dir_mbps": 1525.87890625,
+      "bus_max_net_moved_mbps": 762.939453125,
+      "pass": true
+    }
+  },
+  {
+    "config": "16desc_1ch_1MB",
+    "rd_delay": 2048,
+    "wr_delay": 2048,
+    "result": {
+      "name": "16desc_1ch_1MB",
+      "num_channels": 1,
+      "descriptors_per_channel": 16,
+      "transfer_bytes": 1048576,
+      "total_descriptors": 16,
+      "total_bytes": 16777216,
+      "load_time_s": 2.0378470420837402,
+      "dma_time_s": 0.22406482696533203,
+      "completion": {
+        "completed": true,
+        "irq": false,
+        "error": false,
+        "overflow": true,
+        "timer_pass": true,
+        "timer_running": false,
+        "elapsed_s": 0.1920626163482666,
+        "raw_timer": 5,
+        "raw_status": 4
+      },
+      "crc": {
+        "rd_expected": 2474752289,
+        "wr_expected": 2474752289,
+        "wr_computed": 2474752289,
+        "match_reg": 3,
+        "rd_per_ch": [
+          2474752289
+        ],
+        "wr_per_ch": [
+          2474752289
+        ],
+        "valid_mask": 1,
+        "match_mask": 1
+      },
+      "metrics": {
+        "available": true,
+        "cycles_total": 17031446,
+        "r_first": 20,
+        "r_last": 17027841,
+        "r_window_cycles": 17031446,
+        "r_firstlast_cycles": 17027822,
+        "w_first": 2091,
+        "w_last": 17031446,
+        "w_window_cycles": 17031446,
+        "w_firstlast_cycles": 17029356,
+        "datapath_utilization_r": 0.06156705660811184,
+        "datapath_utilization_w": 0.06156705660811184,
+        "end_to_end_utilization": 0.06156705660811184,
+        "r_buckets_pct": {
+          "productive": 0.06156705660811184,
+          "backpressure": 0.0,
+          "starvation": 0.9384329433918882,
+          "idle": 0.0
+        },
+        "w_buckets_pct": {
+          "productive": 0.06156705660811184,
+          "backpressure": 0.0,
+          "starvation": 0.9384329433918882,
+          "idle": 0.0
+        },
+        "r_aggregate": {
+          "productive": 1048576,
+          "backpressure": 0,
+          "starvation": 15982870,
+          "idle": 0
+        },
+        "w_aggregate": {
+          "productive": 1048576,
+          "backpressure": 0,
+          "starvation": 15982870,
+          "idle": 0
+        },
+        "r_per_channel": [
+          {
+            "channel": 0,
+            "productive": 0,
+            "backpressure": 0,
+            "starvation": 0,
+            "idle": 0,
+            "overflow_mask": 8
+          }
+        ],
+        "w_per_channel": [
+          {
+            "channel": 0,
+            "productive": 32448,
+            "backpressure": 0,
+            "starvation": 33088,
+            "idle": 0,
+            "overflow_mask": 8
+          }
+        ]
+      },
+      "trace": {
+        "wr_ptr": 1076,
+        "overflow": 1
+      },
+      "throughput_mbps": 71.4079055454588,
+      "bus_time_s": 0.17031446,
+      "bus_throughput_mbps": 93.94387299821753,
+      "bus_cycles_total": 17031446,
+      "bus_e2e_util_pct": 6.156705660811184,
+      "bus_max_one_dir_mbps": 1525.87890625,
+      "bus_max_net_moved_mbps": 762.939453125,
+      "pass": true
+    }
+  },
+  {
+    "config": "16desc_1ch_1MB",
+    "rd_delay": 4096,
+    "wr_delay": 4096,
+    "result": {
+      "name": "16desc_1ch_1MB",
+      "num_channels": 1,
+      "descriptors_per_channel": 16,
+      "transfer_bytes": 1048576,
+      "total_descriptors": 16,
+      "total_bytes": 16777216,
+      "load_time_s": 2.0378990173339844,
+      "dma_time_s": 0.41605615615844727,
+      "completion": {
+        "completed": true,
+        "irq": false,
+        "error": false,
+        "overflow": true,
+        "timer_pass": true,
+        "timer_running": false,
+        "elapsed_s": 0.38405871391296387,
+        "raw_timer": 5,
+        "raw_status": 4
+      },
+      "crc": {
+        "rd_expected": 2474752289,
+        "wr_expected": 2474752289,
+        "wr_computed": 2474752289,
+        "match_reg": 3,
+        "rd_per_ch": [
+          2474752289
+        ],
+        "wr_per_ch": [
+          2474752289
+        ],
+        "valid_mask": 1,
+        "match_mask": 1
+      },
+      "metrics": {
+        "available": true,
+        "cycles_total": 33839382,
+        "r_first": 20,
+        "r_last": 33833729,
+        "r_window_cycles": 33839382,
+        "r_firstlast_cycles": 33833710,
+        "w_first": 4139,
+        "w_last": 33839382,
+        "w_window_cycles": 33839382,
+        "w_firstlast_cycles": 33835244,
+        "datapath_utilization_r": 0.03098685431075544,
+        "datapath_utilization_w": 0.03098685431075544,
+        "end_to_end_utilization": 0.03098685431075544,
+        "r_buckets_pct": {
+          "productive": 0.03098685431075544,
+          "backpressure": 0.0,
+          "starvation": 0.9690131456892446,
+          "idle": 0.0
+        },
+        "w_buckets_pct": {
+          "productive": 0.03098685431075544,
+          "backpressure": 0.0,
+          "starvation": 0.9690131456892446,
+          "idle": 0.0
+        },
+        "r_aggregate": {
+          "productive": 1048576,
+          "backpressure": 0,
+          "starvation": 32790806,
+          "idle": 0
+        },
+        "w_aggregate": {
+          "productive": 1048576,
+          "backpressure": 0,
+          "starvation": 32790806,
+          "idle": 0
+        },
+        "r_per_channel": [
+          {
+            "channel": 0,
+            "productive": 0,
+            "backpressure": 0,
+            "starvation": 0,
+            "idle": 0,
+            "overflow_mask": 8
+          }
+        ],
+        "w_per_channel": [
+          {
+            "channel": 0,
+            "productive": 32448,
+            "backpressure": 0,
+            "starvation": 33088,
+            "idle": 0,
+            "overflow_mask": 8
+          }
+        ]
+      },
+      "trace": {
+        "wr_ptr": 800,
+        "overflow": 1
+      },
+      "throughput_mbps": 38.456347209790344,
+      "bus_time_s": 0.33839382,
+      "bus_throughput_mbps": 47.2821873638236,
+      "bus_cycles_total": 33839382,
+      "bus_e2e_util_pct": 3.098685431075544,
+      "bus_max_one_dir_mbps": 1525.87890625,
+      "bus_max_net_moved_mbps": 762.939453125,
+      "pass": true
+    }
+  }
+]

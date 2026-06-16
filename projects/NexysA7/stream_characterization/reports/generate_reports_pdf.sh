@@ -72,7 +72,6 @@ build_report() {
     "${input_md}" "${out_docx}" \
     --style "${style}" \
     --toc \
-    --number-sections \
     --title-page \
     --pdf \
     --lot \

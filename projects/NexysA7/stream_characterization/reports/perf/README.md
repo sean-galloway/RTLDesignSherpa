@@ -1,156 +1,256 @@
-# perf/ — STREAM DMA characterization runs
+# STREAM DMA — Performance Characterization (all-fixes bitstream)
 
-CSV exports of FPGA characterization measurements. Methodology: see
-`projects/NexysA7/stream_characterization/DMA_UTILIZATION_MEASUREMENT.md`.
+**Bitstream:** all-timing-fixes build, WNS **+0.048 ns** @ 100 MHz, Nexys A7
+(xc7a100t). Both CAM pipelines, half-beat packing, monbus compression,
+wrapping trace pointer, `pblock_monbus` floorplan.
+**Datapath:** 128-bit (16 B/beat). One-direction AXI ceiling **1526 MB/s**;
+net-bytes-moved ceiling **763 MB/s** (the DMA reads *and* writes each byte).
+**Date:** 2026-06-15/16. Methodology: `../../DMA_UTILIZATION_MEASUREMENT.md`.
 
-## Files
+> **Metric note.** Throughout, the headline efficiency is **datapath E2E
+> utilization** (productive beats / window, from the on-chip PMU) and
+> **bus throughput** (`mb_moved / FPGA-timer-time`). Both are on-chip,
+> UART- and wall-clock-independent. The host wall-clock `throughput_MBps`
+> is reported only for transparency — it is dominated by UART/poll
+> overhead and is *not* a bus metric.
 
-| File | Source | Rows | Notes |
+---
+
+## 1. Headline
+
+Across the full **40-config matrix** (descriptors ∈ {1,2,4,8,16} × channels
+∈ {1..8}, 1 MB/descriptor), every configuration passes CRC and lands in a
+**94.06–94.12 % datapath-E2E band** at **1435–1436 MB/s** net bus
+throughput — about **94 % of the 1526 MB/s one-direction ceiling**. The
+residual ~6 % is steady-state inter-burst arbitration (≈1.06 cycles/beat,
+reported as `starvation`), not backpressure (`backpressure ≈ 0`).
+
+| sweep | knob | result |
+|---|---|---|
+| descriptor chain (1 ch, 1→16 desc) | descriptors | flat 94.06→94.07 %, 1435.2→1435.3 MB/s |
+| multi-channel (1 desc, 1→8 ch) | channels | flat 94.06→94.11 % — shared slave, *not* per-channel BW scaling |
+| transfer size (1 ch, 1 desc, 8 KB→1 MB) | size | 78.8 %→94.0 % as a fixed ~90-cycle startup amortizes |
+| memory latency, 1 channel (0→64 cyc) | resp-delay | flat ≥94 % — pipeline fully absorbs |
+| memory latency, 1 channel (128→4096 cyc) | resp-delay | linear cliff, `BW ≈ 128/L × peak` (Little's Law) |
+| memory latency, N channels | resp-delay | cliff position scales with channels, saturating past ~4 |
+
+**Architectural takeaway:** the engine's multi-outstanding pipeline hides
+**128 cycles** of memory round-trip latency completely — exactly
+`AR_MAX_OUTSTANDING (8) × burst_len (16)` beats in flight. Past that,
+throughput degrades linearly with latency `L` per Little's Law. Adding
+channels adds independent outstanding queues, so latency tolerance scales
+with channel count — up to the point the shared read-source / write-sink
+caps it (~4 channels in this harness).
+
+---
+
+## 2. How it is measured (the observation hooks)
+
+The harness instruments the DMA's read/write AXI without perturbing it
+(the same logic now packaged standalone as `axi4_dma_observer` — see
+`../../docs/dma_observer_integration_tracker.md`):
+
+- **`axi_bus_meter` × 2** (read R-channel, write W-channel): pure
+  `valid`/`ready` snoop, classifies every cycle as productive /
+  backpressure / starvation / idle. CSR counters, no SRAM — unbounded run
+  length. Source of the datapath-utilization numbers.
+- **Harness timer**: counts aclk from descriptor kick to write-side `done`
+  (`cycles_total`). Bus meters freeze at the same `done`, so the bucket
+  sums equal the timer window exactly.
+- **`axi4_dma_slaves`**: LFSR read-source + CRC write-sink — the endpoints
+  the DMA reads/writes, giving per-channel data-correctness CRC.
+- **`axi_response_delay` × 2**: pipelined per-beat R/B hold, the knob for
+  the memory-latency axis.
+
+---
+
+## 3. Single-axis sweeps
+
+### 3.1 Descriptor-chain length (1 ch, 1→16 desc, 1 MB each, delay 0)
+
+![desc sweep](plots/desc_sweep.png)
+
+| descriptors | total moved | bus MB/s | E2E util |
 |---|---|---|---|
-| `matrix_2026-06-15.csv` / `.json` | full default matrix | 40 | **current** — all-timing-fixes bitstream (see below) |
-| `char_matrix_2026-06-05.csv` | full default matrix | 40 | desc x ch sweep at 1MB/desc (pre-cleanup, see note) |
-| `respdelay_sweep_2026-06-05.csv` | resp-delay axis | 32 | 4 configs x 8 delays (0..64 cyc) |
+| 1 | 1 MB | 1435.2 | 94.06 % |
+| 2 | 2 MB | 1435.3 | 94.06 % |
+| 4 | 4 MB | 1435.3 | 94.06 % |
+| 8 | 8 MB | 1435.3 | 94.07 % |
+| 16 | 16 MB | 1435.3 | 94.07 % |
 
-### `matrix_2026-06-15` — all-timing-fixes bitstream
+Flat to the third decimal. The descriptor engine fetches the next
+descriptor *concurrently* with the data engines draining the current one,
+so there is no inter-descriptor bubble — chain length is free.
 
-Captured on the bitstream that closes timing with **WNS +0.048 ns** at
-100 MHz (xc7a100t), carrying the full set of timing/feature work:
-both CAM pipelines (`monbus_cam_pipe` route-bound match + monitor
-`TRANS_CAM_PIPELINE` with gated MAX-3 block margin), half-beat packing,
-monbus compression, the wrapping trace write pointer, and the
-`pblock_monbus` floorplan + timing-directive build.
+### 3.2 Channel count (1 desc each, 1→8 ch, 1 MB/ch, delay 0)
 
-Result: all 40 configs pass, datapath/bus end-to-end utilization sits in
-a **94.06–94.12 %** band across the entire desc×ch matrix (engine
-ceiling, flat regardless of channel count or descriptor depth), and net
-bus throughput is **1435–1436 MB/s** against the 1526 MB/s one-direction
-ceiling. The timing fixes change none of the functional throughput —
-they make the bitstream valid (positive slack) without regressing the
-94.1 % engine efficiency measured on earlier builds.
+![channel sweep](plots/channel_sweep.png)
 
-The `trace.overflow` flag trips on the eight `16desc_*` configs because
-the on-chip debug trace SRAM is only 2048 beats deep (16 desc × 128
-beats > 2048). This is benign: it bounds only the captured waveform
-trace, not the `axi_bus_meter` counters or the timer window, so every
-efficiency number above is unaffected.
+| channels | total moved | bus MB/s | E2E util | starvation |
+|---|---|---|---|---|
+| 1 | 1 MB | 1435.2 | 94.06 % | 5.94 % |
+| 2 | 2 MB | 1435.7 | 94.09 % | 5.91 % |
+| 4 | 4 MB | 1435.9 | 94.10 % | 5.90 % |
+| 8 | 8 MB | 1436.0 | 94.11 % | 5.89 % |
 
-> **Note on the 2026-06-05 CSVs.** These pre-date the runner cleanup
-> documented below. Their `throughput_MBps`, `E2E_util_pct`, and
-> `overhead_delta_pp` columns are **host-wall-clock measurements** that
-> were polluted by the runner's 50 ms poll-loop sleep and a wrong-by-2x
-> bus-ceiling denominator. Read those three columns as host-observed
-> end-to-end metrics, **not** as bus efficiency. The bus efficiency
-> numbers in those files are `datapath_{R,W,E2E}_pct` (steady-state,
-> burst-only window from the on-chip PMU), which are clean: 94.1%
-> across every config and every resp-delay setting from 0 to 64
-> cycles. Newly captured CSVs (post-fix) should use the bus-side
-> columns documented in the next section instead.
+All channel counts land at the same ~1435 MB/s. **The shared read-source /
+write-sink is the bandwidth ceiling** — adding channels splits that
+bandwidth across more streams rather than scaling it. Arbitration overhead
+going 1→8 channels is < 0.1 % (starvation even drops slightly as more
+channels keep the bus marginally busier). Channels buy *latency tolerance*,
+not raw bandwidth (§5).
 
-## Picking the right efficiency number
+### 3.3 Transfer size (1 ch, 1 desc, 8 KB→1 MB, delay 0)
 
-The runner produces three independent throughput-ish numbers per
-config, and they answer different questions. Pick the one that
-matches the question being asked:
+![size sweep](plots/size_sweep.png)
 
-| Metric | Window | What it answers | Use it for |
+| size | cycles | bus MB/s | E2E util |
 |---|---|---|---|
-| `datapath_E2E_pct` | first→last productive beat (on-chip PMU) | "When the engine is actively bursting, what fraction of cycles are productive?" | Engine capability ceiling — independent of descriptor pacing and host overhead. |
-| `bus_e2e_util_pct` | full FPGA timer window (kick → done) | "Of every aclk cycle from kick to done, what fraction was a productive beat?" | True bus utilization for the workload (includes inter-descriptor gaps). |
-| `throughput_MBps` (wall) | host wall clock, `time.time()` around kick→poll | "How long did the whole DMA take from the host's perspective?" | End-to-end latency including UART poll cadence — **not** a bus metric. |
+| 8 KB | 650 | 1201.9 | 78.8 % |
+| 16 KB | 1,194 | 1308.6 | 85.8 % |
+| 32 KB | 2,282 | 1369.4 | 89.8 % |
+| 64 KB | 4,458 | 1402.0 | 91.9 % |
+| 128 KB | 8,810 | 1418.8 | 93.0 % |
+| 256 KB | 17,514 | 1427.4 | 93.6 % |
+| 512 KB | 34,922 | 1431.8 | 93.8 % |
+| 1 MB | 69,738 | 1433.9 | 94.0 % |
 
-Quoting `datapath_E2E_pct` as "the engine's efficiency" is the
-defensible headline. Quoting `bus_e2e_util_pct` is the defensible
-"workload as configured" number. Quoting `throughput / theoretical_max`
-where `throughput` is wall-clock and `theoretical_max` is single-bus
-peak is the wrong answer to almost every question.
+A fixed **~90-cycle startup/drain** (pipe-fill + first-descriptor fetch)
+amortizes as size grows: 21 % of an 8 KB run, but < 0.2 % of a 1 MB run.
+Steady-state efficiency asymptotes to the ~94 % seen everywhere else. At
+64 KB the software-visible loss is already under 2 %.
 
-## Columns (current runner)
+---
 
-Run-identification:
+## 4. 2-D surfaces
 
-- `date`, `time`: wall clock of the run
-- `config`, `channels`, `descriptors`, `desc_KB`: workload axes
-- `mb_moved`: net bytes the DMA moved end-to-end (R then W, so the
-  on-bus traffic is 2× this).
-- `resp_delay_cycles` (sweep only): per-beat R+B hold injected by
-  `axi_response_delay`.
+### 4.1 Channels × descriptors (1 MB, delay 0) — the operating envelope
 
-**Bus-side** (sourced from the on-chip harness timer + `axi_bus_meter`
-counters — no UART overhead, no wall-clock contamination):
+![channels x desc heatmap](plots/channels_x_desc_heatmap.png)
 
-- `bus_time_s`: `cycles_total / aclk_hz`. Span from descriptor kick
-  to write-side `done`. The exact FPGA-side DMA duration.
-- `bus_throughput_MBps`: `mb_moved / bus_time_s`. Net-bytes-moved
-  divided by FPGA time. Compare to `bus_max_net_moved_MBps`.
-- `bus_max_one_dir_MBps`: theoretical ceiling for one direction —
-  `aclk_hz * DATA_WIDTH_BYTES`. At 100 MHz + 128b that's 1600 MB/s.
-- `bus_max_net_moved_MBps`: theoretical ceiling for net bytes moved
-  end-to-end. Half of `bus_max_one_dir_MBps` because the DMA reads
-  *and* writes each byte; both directions contend for the same engine
-  budget. ~800 MB/s at the default operating point.
-- `bus_e2e_util_pct`: `productive_beats / cycles_total`. Of every aclk
-  in the FPGA timer window, what fraction was a productive beat. This
-  is the bus efficiency number that's robust against UART, poll
-  cadence, and the wrong-denominator trap.
-- `datapath_{R,W,E2E}_pct`: harness-reported steady-state productive%
-  inside the first→last beat window per side (methodology def 2.1).
-  Ignores any inter-descriptor gaps and warm-up cost. Headline metric
-  for "what is the engine capable of when it's running."
-- `{R,W}_{prod,bp,starv}_pct`: four-bucket breakdown of the data-phase
-  window (methodology Section 3). prod + bp + starv + idle = 100%.
+![channels x desc lines](plots/channels_x_desc_lines.png)
 
-**Host-side** (kept for transparency; do not use as efficiency
-metrics):
+The entire envelope is flat at 94.1 %. Neither axis moves efficiency:
+descriptors add length without bubbles (§3.1), channels share one slave
+(§3.2). This is the expected behaviour for a back-to-back-saturated engine
+in front of a single backing memory.
 
-- `dma_time_s`: `time.time() - t0` across kick → poll-completion.
-  Includes every UART CSR round-trip and the host's poll sleep.
-- `throughput_MBps` (wall): `mb_moved / dma_time_s`. Asymptotes
-  upward as transfer size grows because the per-DMA host overhead
-  amortizes — that's a property of the host, not the engine.
+### 4.2 Channels × memory latency — *the key result*
 
-## Methodology notes
+![channels x delay heatmap](plots/channels_x_delay_heatmap.png)
 
-- The on-chip timer counts aclk cycles between descriptor kick and
-  the moment `done` latches (write-side beat count reaches
-  `TIMER_EXPECTED_BEATS`). The bus meters freeze at the same `done`
-  signal, so the bucket sums equal the timer window exactly. That's
-  why dividing `productive` by either `cycles_total` (E2E) or the
-  bucket sum (datapath) is consistent — the same window is being
-  divided differently.
-- `dma_time_s` was contaminated by a 50 ms host poll sleep until the
-  runner cleanup; that's now 1 ms by default and reconfigurable via
-  `--poll-interval-ms`. Even at 1 ms, prefer `bus_time_s` for any
-  efficiency math.
-- For non-100 MHz bitstreams, pass `--aclk-mhz` so `bus_time_s` and
-  the bus throughput ceiling are computed against the right clock.
+![channels x delay lines](plots/channels_x_delay_lines.png)
 
-## Reproduce
+| delay (cyc) | 1 ch | 2 ch | 4 ch | 8 ch |
+|---|---|---|---|---|
+| 0 | 1435 | 1436 | 1436 | 1436 |
+| 64 | 1434 | 1435 | 1436 | 1436 |
+| 128 | **1258** | 1434 | 1435 | 1436 |
+| 256 | 689 | **1377** | 1435 | 1435 |
+| 512 | 362 | 724 | **761** | 761 |
+| 1024 | 186 | 371 | 381 | 381 |
+| 4096 | 47 | 95 | 95 | 95 |
+
+1 channel holds flat until **128 cycles**, then cliffs. Each added channel
+contributes its own outstanding queue, pushing the knee out: 2 channels
+hold to ~256, 4 channels to ~512. **8 channels ≈ 4 channels** — past ~4
+channels the shared read-source / write-sink caps the aggregate in-flight
+window, so more channels stop buying tolerance.
+
+### 4.3 Descriptors × memory latency (1 ch)
+
+![desc x delay heatmap](plots/desc_x_delay_heatmap.png)
+
+![desc x delay lines](plots/desc_x_delay_lines.png)
+
+Every descriptor-count curve **overlaps exactly** and cliffs at the same
+128-cycle knee. Descriptors are sequential within a channel, so they share
+the single channel's 128-beat in-flight window — they add transfer
+*length*, never latency *tolerance*. This is the clean complement to §4.2:
+**channels widen the latency window; descriptors do not.**
+
+---
+
+## 5. The architecture: Little's Law on real silicon
+
+The cliff is the textbook signature of a multi-outstanding master in front
+of a pipelined memory:
+
+- **Below the knee (L ≤ 128):** the in-flight window covers the round
+  trip; the entire latency is paid once as a pipe-fill and the rest streams
+  at line rate. Adding 64 cycles of per-beat latency costs < 0.3 % of a
+  1 MB run.
+- **At/above the knee (L ≥ 128):** Little's Law governs —
+  `BW ≈ (in_flight_beats / L) × peak`. With `in_flight = 128` and
+  `peak ≈ 1435 MB/s`:
+
+  | delay | measured (1 ch) | 128/L × 1435 | match |
+  |---|---|---|---|
+  | 128 | 1258 | 1435 | knee |
+  | 256 | 689 | 718 | −4 % |
+  | 512 | 362 | 359 | exact |
+  | 1024 | 186 | 179 | +4 % |
+  | 4096 | 47 | 45 | exact |
+
+The fit tightens as `L` grows (arbitration overhead becomes a smaller
+fraction). The window is `AR_MAX_OUTSTANDING (8) × burst_len (16) = 128`
+beats per channel; channels scale it linearly until the shared slave caps
+the aggregate (≈ 4 × in this harness).
+
+---
+
+## 6. What we learned
+
+1. **The engine is back-to-back-saturated** at ~94 % of the one-direction
+   AXI ceiling, flat across every descriptor count and channel count at
+   1 MB. The 6 % gap is steady inter-burst arbitration, not backpressure.
+2. **Descriptors are free.** Concurrent prefetch means chain length adds no
+   per-descriptor cost.
+3. **Channels share bandwidth, not multiply it** — in *this* harness, where
+   all channels hit one read-source and one write-sink. With independent
+   backing memory per channel you'd expect N× scaling; that's a follow-on.
+4. **Channels buy latency tolerance.** The 128-cycle hide-window scales with
+   channel count up to the shared-slave saturation point (~4 ch).
+5. **Descriptors buy none.** They share a channel's outstanding window.
+6. **Size matters only through startup.** A fixed ~90-cycle pipe-fill
+   amortizes; ≥ 64 KB is within 2 % of peak.
+7. **The timing fixes cost nothing in throughput.** These numbers match the
+   pre-fix builds — the fixes bought positive slack, not regression.
+
+---
+
+## Appendix: data files & reproduce
+
+| File | Sweep |
+|---|---|
+| `matrix_2026-06-15.json/.csv` | channels × descriptors, 40 configs, 1 MB |
+| `chan_x_delay_2026-06-16.json` | channels {1,2,4,8} × delay {0..4096} |
+| `desc_x_delay_2026-06-16.json` | desc {1,2,4,8,16} × delay {0..4096}, 1 ch |
+| `size_sweep_2026-06-16.json` | 1 ch, 1 desc, 8 KB→1 MB |
+| `plots/*.png` | figures above (`host/plot_char_reports.py`) |
 
 ```bash
-cd flows-stream-bridge/host
-
-# Full 40-config matrix (default 1ms poll, 100 MHz aclk):
+cd flows-stream-bridge/host && source $REPO_ROOT/env_python
+# matrix:
 python3 run_characterization.py --port /dev/ttyUSB2 --output matrix.json
-
-# resp-delay axis (4 configs x 8 delays = 32 runs):
-python3 run_characterization.py --port /dev/ttyUSB2 \
-    --configs 1desc_1ch_1MB 16desc_1ch_1MB 16desc_4ch_1MB 16desc_8ch_1MB \
-    --resp-delays 0,1,2,4,8,16,32,64 \
-    --output respdelay.json
-
-# Override host poll cadence / clock (e.g. for a 200 MHz build):
-python3 run_characterization.py --port /dev/ttyUSB2 \
-    --poll-interval-ms 0.5 --aclk-mhz 200 --output fast.json
+# channels x delay:
+python3 run_characterization.py --port /dev/ttyUSB2 --phase 1 --channels 1 2 4 8 \
+    --resp-delays 0,8,32,64,128,256,512,1024,2048,4096 --output chan_x_delay.json
+# desc x delay:
+python3 run_characterization.py --port /dev/ttyUSB2 --channels 1 \
+    --resp-delays 0,8,32,64,128,256,512,1024,2048,4096 --output desc_x_delay.json
+# plots:
+python3 plot_char_reports.py --matrix ../reports/perf/matrix_2026-06-15.json \
+    --chan-delay ... --desc-delay ... --size ... --outdir ../reports/perf/plots
+# CSV from a matrix JSON (column dictionary in this appendix):
+python3 perf_json_to_csv.py ../reports/perf/matrix_2026-06-15.json --out matrix.csv
 ```
 
-The runner emits JSON; convert it to the column set above with:
-
-```bash
-cd flows-stream-bridge/host
-python3 perf_json_to_csv.py ../../reports/perf/matrix.json \
-    --out ../../reports/perf/matrix.csv --date 2026-06-15 --time 13:58:32
-```
-
-`perf_json_to_csv.py` maps one CSV row per result dict (bus-side columns
-first, host-side last). The `--date`/`--time` flags only stamp the
-run-identification columns; all measurements come from the JSON.
+CSV columns (current runner): `date,time,config,channels,descriptors,desc_KB,
+mb_moved,bus_time_s,bus_throughput_MBps,bus_max_one_dir_MBps,
+bus_max_net_moved_MBps,bus_e2e_util_pct,datapath_{R,W,E2E}_pct,
+{R,W}_{prod,bp,starv}_pct,dma_time_s,throughput_MBps`. Bus-side columns are
+authoritative; the two host-side columns (`dma_time_s`, `throughput_MBps`)
+are transparency-only. The `16desc_*` configs trip `trace.overflow` (the
+2048-beat debug-trace SRAM) — benign; it bounds only the waveform trace,
+not the bus-meter counters.
