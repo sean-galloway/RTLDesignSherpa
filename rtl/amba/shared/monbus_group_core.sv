@@ -63,6 +63,9 @@ module monbus_group_core
 ) (
     input  logic                          axi_aclk,
     input  logic                          axi_aresetn,
+    // Synchronous CAM clear: empties the compressor template CAM + zeroes its
+    // stat counters (no effect when USE_COMPRESSION=0). Pulse when idle.
+    input  logic                          cam_clear,
 
     // ------------------------------------------------------------------
     // Monitor-bus input (single stream; upstream arbitration if any)
@@ -633,6 +636,7 @@ module monbus_group_core
         ) u_compressor (
             .clk                 (axi_aclk),
             .rst_n               (axi_aresetn),
+            .clear               (cam_clear),
 
             .in_valid            (comp_skid_rd_valid),
             .in_ready            (comp_core_in_ready),

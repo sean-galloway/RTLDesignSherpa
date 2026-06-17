@@ -47,6 +47,12 @@ module monbus_cam_pipe #(
     input  logic                    clk,
     input  logic                    rst_n,
 
+    // Synchronous clear: on the next edge, invalidate ALL entries (empty the
+    // CAM) and flush the lookup pipeline. Lets a caller reset the template
+    // table + per-entry baselines without a full rst_n (e.g. per-run
+    // compression-stat resets). Takes priority over access_en.
+    input  logic                    clear,
+
     // Access presented this cycle (accepted when access_en=1; one per cycle).
     // The access is always a lookup + touch-or-install: the CAM self-derives
     // TOUCH (on hit) vs INSTALL (on miss) from its own forwarded hit, because
@@ -177,6 +183,14 @@ module monbus_cam_pipe #(
             result_idx   <= '0;
             result_old_data <= '0;
             result_old_ts   <= '0;
+        end else if (clear) begin
+            // Synchronous clear: empty the CAM and flush the pipeline. Only
+            // the valid bits + count need clearing (keys/data are ignored
+            // while invalid); kill any pending commit / in-flight result.
+            for (int i = 0; i < DEPTH; i++) r_valid[i] <= 1'b0;
+            r_count      <= '0;
+            s1_valid     <= 1'b0;
+            result_valid <= 1'b0;
         end else begin
             // (1) Commit the pending access P (move-to-front shift).
             if (s1_do_shift) begin

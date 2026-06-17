@@ -267,6 +267,14 @@ class CharacterizationRunner:
         self.bridge.write(CSR_CTRL, 0x02)  # clear_stats pulse
         time.sleep(0.01)
 
+    def cam_clear(self):
+        """Synchronously clear ALL stream CAMs (CTRL[4]): the monbus compressor
+        template CAM + its stat counters, and the monitor transaction CAMs.
+        Use between compress runs (when idle) to reset compression statistics
+        without a full soft-reset that would strand in-flight transactions."""
+        self.bridge.write(CSR_CTRL, 0x10)  # cam_clear pulse (CTRL bit 4)
+        time.sleep(0.01)
+
     def set_resp_delay(self, rd_cyc: int, wr_cyc: int) -> None:
         """Program the per-beat hold time injected by the harness's
         axi_response_delay blocks. rd_cyc applies to the R channel,

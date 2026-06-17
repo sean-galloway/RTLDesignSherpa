@@ -61,6 +61,7 @@ module scheduler_group_array #(
     // Clock and Reset
     input  logic                        clk,
     input  logic                        rst_n,
+    input  logic                        cam_clear,  // sync clear of monitor trans CAMs
 
     // APB Programming Interface (per channel kick-off)
     input  logic [NUM_CHANNELS-1:0]              apb_valid,
@@ -518,6 +519,7 @@ module scheduler_group_array #(
     ) u_desc_axi_monitor (
         .aclk                   (clk),
         .aresetn                (rst_n),
+        .cam_clear              (cam_clear),
 
         // FUB side (input to monitor) - AR Channel
         .fub_axi_arid           (desc_axi_int_arid),

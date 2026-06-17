@@ -91,6 +91,7 @@ module stream_core #(
     // Clock and Reset
     input  logic                        clk,
     input  logic                        rst_n,
+    input  logic                        cam_clear,  // sync clear of monitor trans CAMs
 
     //=========================================================================
     // APB Programming Interface (per channel kick-off)
@@ -647,6 +648,7 @@ module stream_core #(
     ) u_scheduler_group_array (
         .clk                    (clk),
         .rst_n                  (rst_n),
+        .cam_clear              (cam_clear),
 
         // APB interface
         .apb_valid              (apb_valid),

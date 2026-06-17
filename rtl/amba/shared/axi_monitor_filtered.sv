@@ -73,6 +73,7 @@ module axi_monitor_filtered
     // Clock and Reset
     input  logic                        aclk,
     input  logic                        aresetn,
+    input  logic                        clear,   // sync clear: trans CAM + active_count
 
     // Command interface
     input  logic [ADDR_WIDTH-1:0]       cmd_addr,
@@ -227,6 +228,7 @@ module axi_monitor_filtered
     ) u_axi_monitor_base (
         .aclk                    (aclk),
         .aresetn                 (aresetn),
+        .clear                   (clear),
         .i_mon_time              (i_mon_time),
 
         // Command interface

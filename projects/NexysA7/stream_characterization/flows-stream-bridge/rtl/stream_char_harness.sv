@@ -541,6 +541,7 @@ module stream_char_harness #(
     // S1: harness_csr
     // =========================================================================
     logic        csr_start_pulse, csr_clear_pulse, csr_freeze, csr_soft_reset;
+    logic        csr_cam_clear;   // 1-cycle pulse: sync-clear all stream CAMs
     logic        csr_timer_clear_pulse;
     logic [31:0] csr_timer_expected_beats;
     logic [31:0] dbg_wr_ptr;
@@ -738,6 +739,7 @@ module stream_char_harness #(
         .o_clear_stats_pulse(csr_clear_pulse),
         .o_freeze_trace     (csr_freeze),
         .o_soft_reset_pulse (csr_soft_reset),
+        .o_cam_clear_pulse  (csr_cam_clear),
         .i_stream_irq       (stream_irq),
         .i_any_error        (any_error),
         .i_dbg_wr_ptr       (dbg_wr_ptr),
@@ -1491,6 +1493,7 @@ module stream_char_harness #(
     ) u_stream (
         .aclk    (aclk),   .aresetn(unit_aresetn),
         .pclk    (aclk),   .presetn(aresetn),
+        .cam_clear(csr_cam_clear),
 
         // Kick-burst fast path (1-cycle pulse from harness_csr KICK_GO,
         // shadow addresses from CH_KICK_ADDR[ch]).

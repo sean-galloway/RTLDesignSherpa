@@ -64,7 +64,7 @@ module monbus_cam_pipe_dut #(
         .KEY_WIDTH(KEY_WIDTH), .DATA_WIDTH(DATA_WIDTH),
         .TS_WIDTH(TS_WIDTH), .DEPTH(DEPTH)
     ) u_pipe (
-        .clk(clk), .rst_n(rst_n),
+        .clk(clk), .rst_n(rst_n), .clear(1'b0),
         .access_en(en), .access_key(key),
         .access_new_data(new_data), .access_new_ts(new_ts),
         .result_valid(pipe_valid), .result_hit(pipe_hit), .result_idx(pipe_idx),

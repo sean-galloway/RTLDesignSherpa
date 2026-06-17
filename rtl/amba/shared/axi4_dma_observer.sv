@@ -69,6 +69,10 @@ module axi4_dma_observer
 ) (
     input  logic                                                aclk,
     input  logic                                                aresetn,
+    // Synchronous clear for ALL CAMs in the observer: the compressor template
+    // CAM (+ stats) in the monbus group and every tap's transaction CAM. Pulse
+    // when idle to reset compression stats / unstick stale entries.
+    input  logic                                                cam_clear,
 
     // ================================================================
     // Read tap pairs.
@@ -393,6 +397,7 @@ module axi4_dma_observer
             ) u_rd_mon (
                 .aclk    (aclk),
                 .aresetn (aresetn),
+                .cam_clear (cam_clear),
 
                 // fub side = DMA-facing (pass-through input from DMA)
                 .fub_axi_arid    (dma_rd_arid[gi]),
@@ -518,6 +523,7 @@ module axi4_dma_observer
             ) u_wr_mon (
                 .aclk    (aclk),
                 .aresetn (aresetn),
+                .cam_clear (cam_clear),
 
                 .fub_axi_awid    (dma_wr_awid[gi]),
                 .fub_axi_awaddr  (dma_wr_awaddr[gi]),
@@ -677,6 +683,7 @@ module axi4_dma_observer
     ) u_group (
         .axi_aclk         (aclk),
         .axi_aresetn      (aresetn),
+        .cam_clear        (cam_clear),
 
         .monbus_valid     (arb_monbus_valid),
         .monbus_ready     (arb_monbus_ready),

@@ -98,6 +98,10 @@ module stream_top_ch8 #(
     //-------------------------------------------------------------------------
     input  logic                                    aclk,
     input  logic                                    aresetn,
+    // Synchronous clear of ALL CAMs in the stream: the monbus compressor
+    // template CAM (+ stats) and the descriptor monitor's transaction CAM.
+    // Pulse when idle (e.g. between compress runs) -- no full reset needed.
+    input  logic                                    cam_clear,
 
     // Optional separate APB clock domain
     input  logic                                    pclk,
@@ -1254,6 +1258,7 @@ module stream_top_ch8 #(
             ) u_stream_core (
                 .clk                        (aclk),
                 .rst_n                      (aresetn),
+                .cam_clear                  (cam_clear),
 
                 //---------------------------------------------------------------------
                 // APB Programming Interface
@@ -1489,6 +1494,7 @@ module stream_top_ch8 #(
             ) u_stream_core (
                 .clk                        (aclk),
                 .rst_n                      (aresetn),
+                .cam_clear                  (cam_clear),
 
                 //---------------------------------------------------------------------
                 // APB Programming Interface
@@ -1744,6 +1750,7 @@ module stream_top_ch8 #(
             ) u_monbus_axil_group (
                 .axi_aclk           (aclk),
                 .axi_aresetn        (aresetn),
+                .cam_clear          (cam_clear),
 
                 // Monitor Bus Input (from stream_core)
                 .monbus_valid       (mon_valid),

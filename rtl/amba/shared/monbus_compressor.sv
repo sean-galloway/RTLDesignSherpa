@@ -94,6 +94,10 @@ module monbus_compressor
 ) (
     input  logic                    clk,
     input  logic                    rst_n,
+    // Synchronous clear: empty the template CAM (+ per-template baselines) and
+    // zero the stat counters, so the next run's compression statistics start
+    // fresh -- without a full rst_n. Pulse it (when idle) between compress runs.
+    input  logic                    clear,
 
     // === Input: (packet, source_ts) records ===
     input  logic                    in_valid,
@@ -239,7 +243,7 @@ module monbus_compressor
         .KEY_WIDTH(KEY_WIDTH), .DATA_WIDTH(64),
         .TS_WIDTH(TS_STORE_BITS), .DEPTH(CAM_DEPTH)
     ) u_cam_pipe (
-        .clk(clk), .rst_n(rst_n),
+        .clk(clk), .rst_n(rst_n), .clear(clear),
         .access_en(cam_en), .access_key(in_key),
         .access_new_data(in_event_data), .access_new_ts(in_src_ts_lo),
         .result_valid(pipe_res_valid), .result_hit(pipe_res_hit),
@@ -547,6 +551,15 @@ module monbus_compressor
     // using that cycle's combinational fmt_sel / p_* values.
     `ALWAYS_FF_RST(clk, rst_n,
         if (`RST_ASSERTED(rst_n)) begin
+            r_tier1_a        <= '0;
+            r_tier1_b        <= '0;
+            r_tier1_c        <= '0;
+            r_tier0          <= '0;
+            r_cam_miss       <= '0;
+            r_delta_ts_ovf   <= '0;
+            r_event_data_ovf <= '0;
+            r_ed_delta_ovf   <= '0;
+        end else if (clear) begin
             r_tier1_a        <= '0;
             r_tier1_b        <= '0;
             r_tier1_c        <= '0;

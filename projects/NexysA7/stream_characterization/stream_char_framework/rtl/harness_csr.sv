@@ -18,6 +18,10 @@
 //                              [1]   clear_stats     (self-clearing pulse)
 //                              [2]   freeze_trace    (latch; stops debug_sram writes)
 //                              [3]   soft_reset      (self-clearing pulse)
+//                              [4]   cam_clear       (self-clearing pulse; sync-clears
+//                                                    all stream CAMs: monbus compressor
+//                                                    template CAM + stats, and the
+//                                                    monitor transaction CAMs)
 //
 //   0x04  STATUS          R   Status bits
 //                              [0]   stream_irq      (latched)
@@ -225,6 +229,7 @@ module harness_csr #(
     output logic            o_clear_stats_pulse,
     output logic            o_freeze_trace,
     output logic            o_soft_reset_pulse,
+    output logic            o_cam_clear_pulse,   // CTRL[4]: sync-clear all stream CAMs
 
     // =====================================================================
     // Status/statistics inputs (from harness)
@@ -438,6 +443,7 @@ module harness_csr #(
     logic r_start_pulse;
     logic r_clear_stats_pulse;
     logic r_soft_reset_pulse;
+    logic r_cam_clear_pulse;
     logic r_timer_clear_pulse;
     logic [31:0] r_timer_expected_beats;
     logic [15:0] r_rd_resp_delay_cyc;
@@ -501,6 +507,7 @@ module harness_csr #(
             r_start_pulse          <= 1'b0;
             r_clear_stats_pulse    <= 1'b0;
             r_soft_reset_pulse     <= 1'b0;
+            r_cam_clear_pulse      <= 1'b0;
             r_timer_clear_pulse    <= 1'b0;
             r_timer_expected_beats <= '0;
             r_rd_resp_delay_cyc    <= '0;
@@ -511,6 +518,7 @@ module harness_csr #(
             r_start_pulse          <= 1'b0;
             r_clear_stats_pulse    <= 1'b0;
             r_soft_reset_pulse     <= 1'b0;
+            r_cam_clear_pulse      <= 1'b0;
             r_timer_clear_pulse    <= 1'b0;
             r_kick_go_pulse        <= '0;  // single-cycle trigger
 
@@ -526,6 +534,7 @@ module harness_csr #(
                                 r_clear_stats_pulse <= int_wdata[1];
                                 r_freeze_trace      <= int_wdata[2];
                                 r_soft_reset_pulse  <= int_wdata[3];
+                                r_cam_clear_pulse   <= int_wdata[4];
                             end
                             8'h20: r_scratch <= int_wdata;
                             8'h28: r_timer_clear_pulse <= int_wdata[0];
@@ -775,6 +784,7 @@ module harness_csr #(
     assign o_clear_stats_pulse = r_clear_stats_pulse;
     assign o_freeze_trace      = r_freeze_trace;
     assign o_soft_reset_pulse  = r_soft_reset_pulse;
+    assign o_cam_clear_pulse   = r_cam_clear_pulse;
     assign o_timer_clear_pulse    = r_timer_clear_pulse;
     assign o_timer_expected_beats = r_timer_expected_beats;
     assign o_rd_resp_delay_cyc    = r_rd_resp_delay_cyc;

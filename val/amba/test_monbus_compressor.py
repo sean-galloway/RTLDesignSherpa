@@ -110,6 +110,7 @@ class MonbusCompressorTB(TBBase):
         self.dut.in_packet.value    = 0
         self.dut.in_source_ts.value = 0
         self.dut.out_ready.value    = 1
+        self.dut.clear.value        = 0
         self.dut.rst_n.value        = 0
         await self.wait_clocks('clk', 5)
         self.dut.rst_n.value        = 1
@@ -227,6 +228,45 @@ async def monbus_compressor_test(dut):
         tb.log.info("=== Phase 2: PASS ===")
     elif not DATASET_PATH.exists():
         tb.log.info("=== Phase 2: SKIPPED (dataset not present) ===")
+
+    # ---- Phase 3: synchronous CAM clear ----
+    # Populate the CAM + stats, pulse `clear`, and verify (a) all stat counters
+    # zero and (b) a key that hit before now MISSES -- i.e. the template CAM was
+    # actually emptied, not just the stats.
+    tb.log.info("=== Phase 3: synchronous CAM clear ===")
+    await tb.reset_dut()
+    s3 = synth_small_stream()
+    tb.dut.out_ready.value = 1
+    for pkt, ts in s3:
+        await tb.drive_record(pkt, ts)
+    await tb.wait_clocks('clk', 5)
+    await ReadOnly()
+    pre = (int(tb.dut.stat_tier1_a.value) + int(tb.dut.stat_tier1_c.value)
+           + int(tb.dut.stat_tier0.value))
+    await RisingEdge(tb.dut.clk)
+    assert pre > 0, "Phase 3: expected nonzero stats before clear"
+
+    # Pulse clear for one cycle.
+    tb.dut.clear.value = 1
+    await RisingEdge(tb.dut.clk)
+    tb.dut.clear.value = 0
+    await RisingEdge(tb.dut.clk)
+    await ReadOnly()
+    for sig in ('stat_tier1_a', 'stat_tier1_b', 'stat_tier1_c', 'stat_tier0',
+                'stat_cam_miss'):
+        assert int(getattr(tb.dut, sig).value) == 0, \
+            f"Phase 3: {sig} not cleared (= {int(getattr(tb.dut, sig).value)})"
+    await RisingEdge(tb.dut.clk)
+
+    # A previously-hit key must now be a fresh CAM miss (CAM emptied).
+    await tb.drive_record(s3[0][0], s3[0][1] + 1000)
+    await tb.wait_clocks('clk', 5)
+    await ReadOnly()
+    assert int(tb.dut.stat_cam_miss.value) == 1, \
+        ("Phase 3: post-clear record should be a fresh CAM miss "
+         f"(cam_miss={int(tb.dut.stat_cam_miss.value)}) -- CAM not emptied")
+    await RisingEdge(tb.dut.clk)
+    tb.log.info("=== Phase 3 (CAM clear): PASS ===")
 
     tb.log.info("=== ALL PHASES PASSED ===")
 

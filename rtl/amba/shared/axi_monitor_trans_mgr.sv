@@ -83,6 +83,9 @@ module axi_monitor_trans_mgr
     // Global Clock and Reset
     input  logic                        aclk,
     input  logic                        aresetn,
+    // Synchronous clear: empty the transaction CAM and zero the active-count
+    // pipeline on the next edge (no full rst_n). Pulse only when idle.
+    input  logic                        clear,
 
     // Address channel
     input  logic                        cmd_valid,
@@ -159,6 +162,7 @@ module axi_monitor_trans_mgr
     ) u_cam (
         .clk                  (aclk),
         .rst_n                (aresetn),
+        .clear                (clear),
 
         .lookup_addr_id       (cmd_id),
         .lookup_data_id       (data_id),
@@ -533,6 +537,9 @@ module axi_monitor_trans_mgr
         if (`RST_ASSERTED(aresetn)) begin
             q_addr_alloc_oh <= '0; q_data_alloc_oh <= '0;
             q_resp_alloc_oh <= '0; q_cleanup_vec   <= '0;
+        end else if (clear) begin
+            q_addr_alloc_oh <= '0; q_data_alloc_oh <= '0;
+            q_resp_alloc_oh <= '0; q_cleanup_vec   <= '0;
         end else begin
             q_addr_alloc_oh <= addr_alloc_oh;
             q_data_alloc_oh <= data_alloc_oh;
@@ -560,6 +567,9 @@ module axi_monitor_trans_mgr
         if (`RST_ASSERTED(aresetn)) begin
             r_alloc_cnt   <= '0;
             r_cleanup_cnt <= '0;
+        end else if (clear) begin
+            r_alloc_cnt   <= '0;
+            r_cleanup_cnt <= '0;
         end else begin
             r_alloc_cnt   <= w_alloc_cnt;
             r_cleanup_cnt <= w_cleanup_cnt;
@@ -568,6 +578,8 @@ module axi_monitor_trans_mgr
 
     `ALWAYS_FF_RST(aclk, aresetn,
         if (`RST_ASSERTED(aresetn)) begin
+            r_active_count <= '0;
+        end else if (clear) begin
             r_active_count <= '0;
         end else begin
             r_active_count <= r_active_count +

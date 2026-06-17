@@ -84,6 +84,7 @@ module axi_monitor_base
     // Global Clock and Reset
     input  logic                     aclk,
     input  logic                     aresetn,
+    input  logic                     clear,   // sync clear: empty the trans CAM + active_count
 
     // Command phase (AW/AR)
     input  logic [AW-1:0]            cmd_addr,    // Address value
@@ -270,6 +271,7 @@ module axi_monitor_base
     ) trans_mgr(
         .aclk               (aclk),
         .aresetn            (aresetn),
+        .clear              (clear),
         .cmd_valid          (cmd_valid),
         .cmd_ready          (cmd_ready),
         .cmd_id             (cmd_id),

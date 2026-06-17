@@ -63,6 +63,7 @@ module monbus_halfbeat_dut
     monbus_compressor #(.HALF_BEAT_EN(1)) u_compressor (
         .clk                 (clk),
         .rst_n               (rst_n),
+        .clear               (1'b0),
         .in_valid            (sk_rd_valid),
         .in_ready            (sk_rd_ready),
         .in_packet           (c_in_packet),

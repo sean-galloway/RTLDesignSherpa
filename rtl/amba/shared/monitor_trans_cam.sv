@@ -69,6 +69,9 @@ module monitor_trans_cam #(
 ) (
     input  logic                              clk,
     input  logic                              rst_n,
+    // Synchronous clear: invalidate ALL slots on the next edge (empty the CAM)
+    // without a full rst_n. Priority over entry_we.
+    input  logic                              clear,
 
     // ---- Lookup ports (combinational) ----
     input  logic [ID_WIDTH-1:0]               lookup_addr_id,
@@ -213,6 +216,8 @@ module monitor_trans_cam #(
                     r_valid[gi]   <= 1'b0;
                     r_id[gi]      <= '0;
                     r_payload[gi] <= '0;
+                end else if (clear) begin
+                    r_valid[gi]   <= 1'b0;   // synchronous CAM clear
                 end else if (entry_we[gi]) begin
                     r_valid[gi]   <= entry_valid_next[gi];
                     r_id[gi]      <= entry_id_next[gi];
