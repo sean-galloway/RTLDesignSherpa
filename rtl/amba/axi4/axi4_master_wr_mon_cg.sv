@@ -402,6 +402,7 @@ module axi4_master_wr_mon_cg
     ) axi4_master_wr_mon_inst (
         .aclk                    (aclk),  // TODO: Use aclk_monitor once ICG cells replace combinational gating
         .aresetn                 (aresetn),
+        .cam_clear               (1'b0),
         .i_mon_time              (i_mon_time),
 
         // Slave AXI Interface (Input Side)

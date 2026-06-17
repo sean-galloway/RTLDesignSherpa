@@ -255,6 +255,7 @@ module axil4_slave_wr_mon
         ) axi_monitor_inst (
             .aclk                    (aclk),
             .aresetn                 (aresetn),
+            .clear                   (1'b0),
             .i_mon_time              (i_mon_time),
 
             // Command interface (AW channel - monitoring slave side) - AXIL simplified

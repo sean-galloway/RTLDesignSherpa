@@ -276,6 +276,7 @@ module axi5_slave_wr_mon
             .N_ADDR_RANGES(N_ADDR_RANGES)
         ) axi_monitor_inst (
             .aclk(aclk), .aresetn(aresetn),
+            .clear(1'b0),
             .i_mon_time(i_mon_time),
             .cmd_addr(fub_axi_awaddr), .cmd_id(fub_axi_awid), .cmd_len(fub_axi_awlen),
             .cmd_size(fub_axi_awsize), .cmd_burst(fub_axi_awburst),

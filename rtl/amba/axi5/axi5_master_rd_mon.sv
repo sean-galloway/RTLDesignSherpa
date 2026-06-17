@@ -371,6 +371,7 @@ module axi5_master_rd_mon
         ) axi_monitor_inst (
             .aclk                (aclk),
             .aresetn             (aresetn),
+            .clear                   (1'b0),
             .i_mon_time              (i_mon_time),
 
             .cmd_addr            (m_axi_araddr),
