@@ -151,6 +151,7 @@ where at least one side is AXI4):
 | `MAX_BURST_BEATS` | 1 (AXIL master) / 64 (AXI4 master) | Maximum beats per master-write burst. AXI4 protocol max is 256. |
 | `NUM_PROTOCOLS` | 3 | Informational — AXI, AXIS, CORE filter configs are unconditional. |
 | `USE_COMPRESSION` | 0 | **Elaboration**: 0 omits the compressor entirely (raw-only build, minimum area); 1 elaborates the compressor so it can be selected at runtime via `cfg_compress_en`. The raw 3-beat-per-record path is always elaborated. |
+| `HALF_BEAT_EN` | 0 | **Elaboration**: pack two 30-bit half-slots per 64-bit beat downstream of the compressor (`monbus_halfbeat_packer`), pushing tier-1 bandwidth from 1 beat/record toward 0.5 beat/record. Requires `USE_COMPRESSION=1`; folds away when 0. |
 | `SKID_DEPTH_AR/R/AW/W/B` | 2/4/2/2/2 | Skid buffer depths for each channel. AXI4 wrappers default `SKID_DEPTH_W=4` to absorb burst W bursts. |
 
 ### Runtime config
@@ -161,6 +162,7 @@ inputs that pick mode and shape on the fly:
 | Input | Width | Notes |
 |---|---|---|
 | `cfg_compress_en` | 1 | Runtime compression enable. Only effective when `USE_COMPRESSION=1` (otherwise the compressor isn't elaborated and the bit folds away). Must be stable while the write path is active. |
+| `cam_clear` | 1 | **Synchronous CAM clear** (level-sensitive, sample one cycle while idle). Empties the compressor template CAM and zeroes the compressor stat counters so the next run starts with a fresh hit/miss profile — without asserting `axi_aresetn`. Tied off in raw-only builds (`USE_COMPRESSION=0`) where there is no CAM. Stream uses this on CTRL[4]. |
 | `cfg_base_addr` / `cfg_limit_addr` | `ADDR_WIDTH` | Master-write address window. |
 | `cfg_flush_watermark` | 16 | Master-write FIFO depth (in beats) at which a flush is triggered. |
 | `cfg_<proto>_*_mask` / `cfg_<proto>_err_select` | 16 each | Per-protocol filter and err-FIFO routing masks; see the dedicated section below. |
@@ -267,6 +269,24 @@ stage 3 (rounded + addr): r_plan_geo_units (address-feasible whole-
 A `geom_valid` settle counter holds the plan invalid for the first
 few cycles after `r_wr_addr` moves so the pipeline can reflect the
 settled address before the FSM commits.
+
+#### Rewind-snap: in-window with no record-room left
+
+If a flush fires while `r_wr_addr` is in-window but the remaining bytes
+to the next 4KB boundary cannot fit a whole record, the pipeline
+produces `r_plan_ok=false` (units rounded down to zero) and the writer
+would otherwise wedge in `WR_IDLE`. The FSM detects this case
+(`do_flush && geom_valid && !r_plan_ok && r_wr_addr != cfg_base_addr`)
+and **snaps `r_wr_addr` to `cfg_base_addr`**, staying in `WR_IDLE` so
+the pipeline re-settles with fresh geometry. The next pipeline output
+(after the settle counter expires) has `r_plan_ok=true` provided
+`cfg_base_addr` itself has at least one whole record's worth of room
+before the next 4KB line — the host's responsibility.
+
+This case is hit by the AXIL/AXIL master_write stress in Phase 5,
+where `cfg_base_addr` is intentionally placed only a few beats below a
+4KB boundary so the very first drain has to wrap-snap before it can
+emit anything.
 
 The **FRESH FIFO-occupancy cap** is applied combinationally at the
 `WR_IDLE` commit (not inside the pipeline):
@@ -377,7 +397,8 @@ dropped.
 | `axi4_master_wr` / `axil4_master_wr` | Master-write skid (one per wrapper) |
 | `gaxi_fifo_sync` × 2 | Err FIFO + write FIFO inside the core |
 | `monbus_compressor` (conditional) | Compressed-mode encoder; only when `USE_COMPRESSION=1` |
-| `monbus_cam` (transitive) | LRU CAM used by the compressor (per-template `last_ts` storage) |
+| `monbus_halfbeat_packer` (conditional) | Pairs two 30-bit half-slots into one 64-bit beat downstream of the compressor; only when `HALF_BEAT_EN=1` (which itself requires `USE_COMPRESSION=1`) |
+| `monbus_cam_pipe` (transitive) | **Pipelined** 49-bit-key LRU CAM with per-template `last_ts`/`last_data`; replaces the unpipelined `monbus_cam` as the in-production CAM inside the compressor. See [`monbus_cam`](monbus_cam.md) for the deprecation note. |
 | `mod_3_compress` × 2 (`rtl/common/`) | Geometry / FIFO whole-record rounding (X − (X mod 3)) |
 | `math_adder_carry_save_nbit` (transitive) | 3:2 compressor primitive used by `mod_3_compress` |
 | `gaxi_skid_buffer` (inside compressor) | Input skid on the `(source_ts, packet)` feed; breaks the aggregator → CAM long route |
@@ -509,7 +530,8 @@ amortize address-channel overhead), switch the wrapper to
 | Module | Role |
 |---|---|
 | [`monbus_compressor`](monbus_compressor.md) | Bulk-trace encoder used when `USE_COMPRESSION=1` |
-| [`monbus_cam`](monbus_cam.md) | LRU CAM backing the compressor |
+| [`monbus_cam_pipe`](monbus_cam_pipe.md) | Pipelined LRU CAM backing the compressor (production) |
+| [`monbus_cam`](monbus_cam.md) | Unpipelined reference CAM (superseded by `monbus_cam_pipe`) |
 | [`monbus_arbiter`](monbus_arbiter.md) | Upstream multi-source merge (instantiate before this family if you have N>1 sources) |
 | [`sdpram_slave`](sdpram_slave.md) | Canonical memory-ring backend for the master-write port (AXIL/AXIL variant pairs with `sdpram_slave_axil_axil`) |
 | [`axi_monitor_base`](axi_monitor_base.md) | Source of the monitor packets this family captures |

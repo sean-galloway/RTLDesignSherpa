@@ -81,8 +81,9 @@ the matching fabric without spurious AXI4-only fields on AXIL sides.
 | **monbus_axil_axi4_group** | Wrapper — AXIL/AXI4 | AXIL slave-read + AXI4 burst master-write (up to 256 beats/burst) | (same) |
 | **monbus_axi4_axil_group** | Wrapper — AXI4/AXIL | AXI4 burst slave-read + AXIL master-write | (same) |
 | **monbus_axi4_axi4_group** | Wrapper — AXI4/AXI4 | Burst on both sides | (same) |
-| **monbus_compressor** | Bulk-trace encoder | 32-entry LRU CAM, 4-tag slot format, ~2.6× ratio, 2-stage pipeline, per-template `delta_ts`, bit-exact to Python golden | [monbus_compressor.md](monbus_compressor.md) |
-| **monbus_cam** | LRU CAM for compressor | 32-entry, position-indexed, true LRU, 49b key + 64b payload + 24b per-entry `last_ts` | [monbus_cam.md](monbus_cam.md) |
+| **monbus_compressor** | Bulk-trace encoder | 32-entry LRU CAM, 4-tag slot format, ~2.6× ratio, 2-stage pipeline, per-template `delta_ts`, optional half-beat packing, bit-exact to Python golden | [monbus_compressor.md](monbus_compressor.md) |
+| **monbus_cam_pipe** | Pipelined LRU CAM (production) | 2-cycle compare + commit, depth-1 forwarding, sync `clear`, self-derived TOUCH/INSTALL — used in `monbus_compressor` | [monbus_cam_pipe.md](monbus_cam_pipe.md) |
+| **monbus_cam** | LRU CAM (reference) | Single-cycle reference design — same LRU semantics, superseded by `monbus_cam_pipe` in production | [monbus_cam.md](monbus_cam.md) |
 
 The group family uses a small carry-save-compressor helper
 (`rtl/common/mod_3_compress.sv`) for whole-record `X − (X mod 3)`

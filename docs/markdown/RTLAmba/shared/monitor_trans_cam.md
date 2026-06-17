@@ -138,6 +138,11 @@ module monitor_trans_cam #(
     input  logic                            clk,
     input  logic                            rst_n,
 
+    // Synchronous clear: on the next edge, invalidate every entry
+    // (empty the CAM) so the host can rebase the transaction table
+    // without a full rst_n. Takes priority over per-slot entry_we.
+    input  logic                            clear,
+
     // ---- Lookup ports (combinational) ----
     input  logic [ID_WIDTH-1:0]             lookup_addr_id,
     input  logic [ID_WIDTH-1:0]             lookup_data_id,

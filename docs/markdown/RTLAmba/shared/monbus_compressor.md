@@ -123,9 +123,17 @@ flowchart TB
 ```systemverilog
 module monbus_compressor
     import monitor_common_pkg::*;
-(
+#(
+    // 0 = default; 64-bit-slot codec only (the committed, timing-closed path).
+    // 1 = also expose a 30-bit half-slot sideband (out_half_*) for the
+    //     downstream `monbus_halfbeat_packer`. Folds away when 0.
+    parameter int HALF_BEAT_EN = 0
+) (
     input  logic                  clk,
     input  logic                  rst_n,
+    // Synchronous clear: empty the template CAM (and zero the stat counters)
+    // without asserting rst_n. Pulse one cycle while idle between runs.
+    input  logic                  clear,
 
     // Records in (one valid/ready handshake)
     input  logic                  in_valid,
@@ -137,6 +145,12 @@ module monbus_compressor
     output logic                  out_valid,
     input  logic                  out_ready,
     output logic [63:0]           out_slot,
+
+    // Half-slot sideband (valid alongside out_valid on a tier-1 beat that
+    // also fits a 30-bit half-slot). Used by monbus_halfbeat_packer when
+    // HALF_BEAT_EN=1; tied 0 when HALF_BEAT_EN=0.
+    output logic                  out_half_valid,
+    output logic [29:0]           out_half_slot,
 
     // Statistics counters (combinational from registers)
     output logic [31:0]           stat_tier1_a,
@@ -150,8 +164,20 @@ module monbus_compressor
 );
 ```
 
-No parameters — every dimension (CAM size, key width, slot format) is locked
-to match the Python golden.
+The 64-bit slot format and CAM size (32 entries × 49-bit key) are
+locked to match the Python golden. Only `HALF_BEAT_EN` is selectable:
+it gates an *additional* output port pair that feeds an optional
+downstream packer; the main `out_slot` stream is unchanged.
+
+### Synchronous CAM clear
+
+`clear` is a synchronous, level-sensitive input. Holding it for one
+cycle (while idle) invalidates every CAM entry — `r_valid`,
+`last_event_data`, and `last_ts` — *and* zeroes the stat counters.
+This is the path the Stream characterization block uses (CTRL[4]):
+the host can rebase compression statistics between runs without
+toggling `rst_n` (which would also reset the surrounding monbus
+pipeline, FIFOs, and AXI skids). Drive it low at all other times.
 
 ---
 
@@ -335,11 +361,24 @@ immediately whether to read 0 more beats (Tier-1) or 2 more beats
 ## CAM Design
 
 The 32-entry caching CAM lives in
-[`rtl/amba/shared/monbus_cam.sv`](monbus_cam.md). It is a **true LRU** CAM
-with position-indexed storage — the position rank IS the `tmpl_idx`. This
+[`rtl/amba/shared/monbus_cam_pipe.sv`](monbus_cam_pipe.md). It is a **true LRU**
+CAM with position-indexed storage — the position rank IS the `tmpl_idx`. This
 matters because both encoder and decoder must agree on the rank assignment
 when they install or touch a template, and position-indexed storage makes
 the rank update trivially atomic with the storage update.
+
+**Production CAM is pipelined.** Earlier builds used the single-cycle
+[`monbus_cam`](monbus_cam.md) directly in the encoder's combinational
+critical path. To close 100 MHz on Nexys A7, the in-production CAM is now
+`monbus_cam_pipe` — a 2-cycle variant that registers the 32-way
+compare → priority-encode → move-to-front sequence into two stages, and
+feeds the encoder through a credit-gated result skid (`SKID_DEPTH=2`).
+A `r_credit` counter tracks records in flight + skid occupancy so
+`cam_en` only fires when there is a slot to land the result, even
+under back-to-back compression bursts. Throughput stays at **1
+record/cycle** despite the +1 cycle of CAM latency; the single-cycle
+`monbus_cam.sv` is kept in-tree as the reference design (see its doc
+for the deprecation note).
 
 **Per-entry size:**
 
@@ -583,7 +622,9 @@ The dataset and acceptance recipe live at
 
 | Module | Role |
 |---|---|
-| [`monbus_cam`](monbus_cam.md) | 32-entry LRU CAM (template index store) |
+| [`monbus_cam_pipe`](monbus_cam_pipe.md) | Pipelined 32-entry LRU CAM — production CAM in the compressor |
+| [`monbus_cam`](monbus_cam.md) | Single-cycle reference CAM (superseded; kept for comparison) |
+| `monbus_halfbeat_packer.sv` | Pairs two 30-bit half-slots into one 64-bit beat downstream of the compressor (enabled by `HALF_BEAT_EN=1`) |
 | [`monbus_group` family](monbus_group.md) | Host of the compressor, plus the master writer that drains slots to memory |
 | [`sdpram_slave_axil_axil`](sdpram_slave.md) | Typical SRAM-ring backend for the compressed slot stream |
 | `bin/TBClasses/monbus/monbus_compressor.py` | Python golden encoder/decoder — the format spec |

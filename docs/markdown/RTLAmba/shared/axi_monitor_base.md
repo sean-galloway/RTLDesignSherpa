@@ -115,6 +115,7 @@ The `axi_monitor_base` module is the core building block for:
 
 | Port | Direction | Width | Description |
 |------|-----------|-------|-------------|
+| `clear` | Input | 1 | **Synchronous clear** — passes through to `axi_monitor_trans_mgr` to empty the transaction CAM and zero the active-count pipeline atomically, without a full `aresetn`. Pulse one cycle while the monitor is idle. |
 | `cfg_freq_sel` | Input | 4 | Frequency selection for timeout scaling |
 | `cfg_addr_cnt` | Input | 4 | Address phase timeout count |
 | `cfg_data_cnt` | Input | 4 | Data phase timeout count |

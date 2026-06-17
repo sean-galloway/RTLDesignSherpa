@@ -26,7 +26,23 @@
 **Module:** `monbus_cam.sv`
 **Location:** `rtl/amba/shared/`
 **Category:** Bulk-Trace Compression Infrastructure
-**Status:** Production Ready
+**Status:** Reference design — superseded in-production by [`monbus_cam_pipe`](monbus_cam_pipe.md)
+
+---
+
+> ⚠ **Deprecation note.** `monbus_cam.sv` is the single-cycle reference
+> design. The in-production CAM inside `monbus_compressor` is now
+> `monbus_cam_pipe.sv`, a 2-cycle pipelined variant that splits the
+> 49-bit compare → priority-encode → move-to-front chain into two
+> stages so the path closes at 100 MHz on Nexys A7 (`f909f01f` /
+> `0d1c0a1a`). The two CAMs are functionally identical (true-LRU, same
+> action set, same per-entry storage); the pipelined version adds a
+> 1-cycle latency and a credit-gated result skid but holds throughput at
+> 1 record/cycle. Both files are kept in tree: this single-cycle module
+> serves as the executable spec for the LRU semantics and the
+> compressor's CAM behavior, and is what the algorithmic tests
+> (`test_monbus_cam.py`) target. New code should instantiate
+> [`monbus_cam_pipe`](monbus_cam_pipe.md).
 
 ---
 

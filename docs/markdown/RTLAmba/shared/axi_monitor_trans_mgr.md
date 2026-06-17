@@ -178,6 +178,11 @@ module axi_monitor_trans_mgr
     input  logic                          aclk,
     input  logic                          aresetn,
 
+    // Synchronous clear: empty the transaction CAM and zero the
+    // active-count pipeline on the next edge (no full reset needed).
+    // Pulse one cycle while idle.
+    input  logic                          clear,
+
     // Address channel
     input  logic                          cmd_valid,
     input  logic                          cmd_ready,
@@ -275,8 +280,9 @@ The CAM-backed revision preserves the 2026-04-23 WNS fix:
 | Per-slot `always_comb` for next-payload (in a generate loop) | N independent small cones; synth cannot fuse them across slots |
 | Per-slot CAM storage via `monitor_trans_cam` (generate-loop `always_ff`) | Same property at the registered storage layer |
 | `(* keep = "true" *)` on CAM match vectors | Prevents Vivado from fusing match-result usage into the update cones, which would re-introduce the 12-LUT-level WNS issue |
-| Pipelined `active_count` adder | The wide alloc/cleanup count adder is one cycle behind the events that drove it; status counter consumers don't care about the 1-cycle lag |
+| Registered alloc/cleanup one-hot vectors (`q_addr_alloc_oh`, `q_data_alloc_oh`, `q_resp_alloc_oh`, `q_cleanup_vec`) feeding the `active_count` popcount tree | The popcount-from-OR-of-three-onehots adder is now one cycle behind the events that drove it. Both alloc *and* cleanup are registered by the **same** amount, so the accounting balances — it just lags 1 cycle. Status-counter consumers don't care about the lag, and the match → alloc → popcount → flop critical path drops to within budget at 100 MHz (`bee67f51`, `f909f01f`). |
 | Pipelined `state_change` (1 cycle of `r_trans_table_prev`) | Cheap comparison against last cycle's table; output lag is 1 cycle |
+| Synchronous `clear` clears the active-count pipeline alongside the CAM | Without this, asserting `clear` would invalidate the CAM but leave stale `r_alloc_cnt` / `r_cleanup_cnt`, briefly publishing a nonzero `active_count` against an empty table. The clear handling zeroes both pipeline stages atomically. |
 
 The combined effect is that no signal in the trans_mgr has more than ~6
 LUT levels between flops at typical configurations — closes 100 MHz on
