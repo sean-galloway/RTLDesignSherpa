@@ -165,8 +165,6 @@ class BridgeConfig:
     # Optional features
     expose_arbiter_signals: bool = False
 
-    # Interface wrapper configuration
-    enable_interface_wrappers: bool = True   # Use axi4_master/slave wrappers (timing)
     # variants: explicit per-bridge build set driven by the TOML
     # `[bridge].variants` field. Allowed values per entry: "no" (no
     # monitor) emits the bare <bridge_name>, "mon" emits

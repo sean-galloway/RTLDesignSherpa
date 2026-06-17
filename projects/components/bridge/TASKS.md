@@ -1188,8 +1188,8 @@ if (ENABLE_MONITORING && MONITOR_MASTERS[m]) begin
         // Connect to master interface signals
         .monbus_pkt_valid(mon_master_wr_valid[m]),
         .monbus_pkt_data(mon_master_wr_data[m]),
-        .cfg_error_enable(cfg_mon_error_enable),
-        .cfg_timeout_enable(cfg_mon_timeout_enable)
+        .cfg_error_enable(cfg_wr_error_enable),
+        .cfg_timeout_enable(cfg_wr_timeout_enable)
     );
 end
 

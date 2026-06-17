@@ -32,7 +32,6 @@ bridge
 │   │   │   ├── arbiter_component.py
 │   │   │   ├── bridge_module_generator.py
 │   │   │   ├── channel_mux_component.py
-│   │   │   ├── interface_wrappers.py
 │   │   │   ├── master_width_adapter.py
 │   │   │   └── slave_width_adapter.py
 │   │   ├── generators
