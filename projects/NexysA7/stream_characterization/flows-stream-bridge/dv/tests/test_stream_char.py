@@ -84,19 +84,34 @@ async def cocotb_test_stream_char(dut):
         ok &= await tb.run_apb_config_test()
 
     elif test_type.startswith('dma_'):
-        # dma_1ch, dma_2ch, ..., dma_8ch
+        # dma_1ch, dma_2ch, ..., dma_8ch -> ACTIVE channel count. The BUILD
+        # count is BASE_RTL_PARAMS['NUM_CHANNELS'] (SIM_NUM_CHANNELS), so
+        # e.g. SIM_NUM_CHANNELS=8 + dma_4ch = 4 active of 8 built (the
+        # PARTIAL-population case the FPGA hang needs). DMA_COMPRESS_EN /
+        # DMA_MON_ERR_CFG let this path match the FPGA debug-compl +
+        # compression run exactly (mon_err_cfg=0 -> bulk-trace via compressor).
         num_ch = int(test_type.split('_')[1].replace('ch', ''))
         desc_per_ch = int(os.environ.get('DMA_DESC_PER_CH', '2'))
         xfer_bytes = int(os.environ.get('DMA_XFER_BYTES', '8192'))
-        tb.log.info(f"=== DMA test: {num_ch}ch x {desc_per_ch}desc x {xfer_bytes}B ===")
+        compress_en = bool(int(os.environ.get('DMA_COMPRESS_EN', '0')))
+        # default routing = run_dma_test's default; override to 0 (bulk-trace)
+        _merr = os.environ.get('DMA_MON_ERR_CFG')
+        mon_err_cfg = int(_merr, 0) if _merr is not None else None
+        tb.log.info(f"=== DMA test: {num_ch}ch active x {desc_per_ch}desc x "
+                    f"{xfer_bytes}B  (build={BASE_RTL_PARAMS.get('NUM_CHANNELS')}, "
+                    f"compress_en={compress_en}, mon_err_cfg={mon_err_cfg}) ===")
         ok = await tb.run_ping_test()
         timeout_clocks = int(os.environ.get('DMA_TIMEOUT_CLOCKS', '50000'))
-        ok &= await tb.run_dma_test(
+        kw = dict(
             num_channels=num_ch,
             descriptors_per_channel=desc_per_ch,
             transfer_bytes=xfer_bytes,
             timeout_clocks=timeout_clocks,
+            compress_en=compress_en,
         )
+        if mon_err_cfg is not None:
+            kw['mon_err_cfg'] = mon_err_cfg
+        ok &= await tb.run_dma_test(**kw)
 
     elif test_type == 'compress_char':
         # Compression characterization: route monbus to the bulk-trace
@@ -156,9 +171,8 @@ BASE_RTL_PARAMS = {
     # path). Override with USE_MON_COMPRESSION=0 to build the uncompressed
     # baseline for the with/without compression characterization.
     'USE_MON_COMPRESSION': int(os.environ.get('USE_MON_COMPRESSION', '1')),
-    # 2-cycle pipelined compressor CAM (timing-margin experiment). Override via
-    # USE_MON_CAM_PIPELINE=1 to reproduce the full-FPGA pipelined-CAM behavior.
-    'USE_MON_CAM_PIPELINE': int(os.environ.get('USE_MON_CAM_PIPELINE', '0')),
+    # NOTE: the CAM pipeline is no longer a parameter -- the monbus compressor
+    # CAM and the AXI monitor transaction CAM are ALWAYS pipelined in RTL.
 }
 
 

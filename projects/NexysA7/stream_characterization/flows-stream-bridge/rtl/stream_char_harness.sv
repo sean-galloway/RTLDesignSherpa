@@ -67,15 +67,7 @@ module stream_char_harness #(
     // Half-beat packing on the compressed bulk-trace path: two 30-bit slots
     // per 64-bit beat (~80% reduction vs the 66.7% one-slot ceiling). Only
     // meaningful with USE_MON_COMPRESSION=1 and runtime cfg_compress_en.
-    parameter int USE_MON_HALFBEAT       = 1,
-    // 2-cycle pipelined compressor CAM. Splits the route-bound 32-way CAM
-    // match across two cycles for timing margin. +1 record latency; slot
-    // stream bit-identical.
-    parameter int USE_MON_CAM_PIPELINE   = 1,
-    // Pipeline the desc AXI monitor's transaction-CAM alloc-count (the other
-    // co-limiting route-bound CAM path). active_count lags 1 cycle; block_ready
-    // margin MAX-3. Functionally equivalent (count-only), gated, default on.
-    parameter int USE_MON_TRANS_CAM_PIPELINE = 1
+    parameter int USE_MON_HALFBEAT       = 1
 ) (
     input  logic            aclk,
     input  logic            aresetn,
@@ -1493,8 +1485,6 @@ module stream_char_harness #(
         .USE_AXI_MONITORS   (1),
         .USE_MON_COMPRESSION(USE_MON_COMPRESSION),
         .USE_MON_HALFBEAT   (USE_MON_HALFBEAT),
-        .USE_MON_CAM_PIPELINE(USE_MON_CAM_PIPELINE),
-        .USE_MON_TRANS_CAM_PIPELINE(USE_MON_TRANS_CAM_PIPELINE),
         .CDC_ENABLE         (0),
         .AR_MAX_OUTSTANDING (AR_MAX_OUTSTANDING),
         .AW_MAX_OUTSTANDING (AW_MAX_OUTSTANDING)

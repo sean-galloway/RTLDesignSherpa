@@ -58,10 +58,8 @@ module monbus_group_core
     parameter int FLUSH_TIMEOUT_CYCLES  = 1024,    // cycles since last beat to force flush
     parameter int NUM_PROTOCOLS         = 3,       // informational
     parameter int USE_COMPRESSION       = 0,       // 0 = raw 3-beat records, 1 = compressor
-    parameter int HALF_BEAT_EN          = 0,       // 1 = pack two 30-bit slots/beat
+    parameter int HALF_BEAT_EN          = 0        // 1 = pack two 30-bit slots/beat
                                                    //     (requires USE_COMPRESSION==1)
-    parameter int CAM_PIPELINE          = 0        // 1 = 2-cycle pipelined CAM in
-                                                   //     the compressor (timing margin)
 ) (
     input  logic                          axi_aclk,
     input  logic                          axi_aresetn,
@@ -631,8 +629,7 @@ module monbus_group_core
         assign comp_in_ready = comp_skid_wr_ready;
 
         monbus_compressor #(
-            .HALF_BEAT_EN        (HALF_BEAT_EN),
-            .CAM_PIPELINE        (CAM_PIPELINE)
+            .HALF_BEAT_EN        (HALF_BEAT_EN)
         ) u_compressor (
             .clk                 (axi_aclk),
             .rst_n               (axi_aresetn),
@@ -1027,6 +1024,25 @@ module monbus_group_core
                         r_w_beats_remaining <= 9'(first_sub_burst);
                         r_unit_remaining    <= total_units;
                         r_wr_state <= WR_AW;
+                    end else if (do_flush && geom_valid && !r_plan_ok
+                                 && (r_wr_addr != cfg_base_addr)) begin
+                        // Rewind-snap: the pipeline produced a plan but
+                        // r_plan_ok=false because no whole record fits in
+                        // the remaining 4KB-region space from the current
+                        // r_wr_addr. r_plan_addr is already cfg_base_addr
+                        // (the stage-3 rewind target). Snap r_wr_addr
+                        // there and stay in WR_IDLE so the pipeline
+                        // re-settles with fresh geometry computed from
+                        // cfg_base_addr. Next cycle, geom_valid drops
+                        // (settle counter resets on r_wr_addr change),
+                        // and after the pipeline depth it returns valid
+                        // with r_plan_ok=true (assuming cfg_base has
+                        // room for at least one record, the host's
+                        // responsibility). Without this transition the
+                        // writer wedges in IDLE -- caught by the AXIL/AXIL
+                        // master_write Phase 5 stress (cfg_base placed
+                        // 4 beats below a 4KB boundary).
+                        r_wr_addr <= cfg_base_addr;
                     end
                 end
 

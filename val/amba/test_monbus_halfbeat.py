@@ -240,7 +240,7 @@ def test_monbus_halfbeat(request):
             toplevel=dut_name,
             module=module,
             sim_build=sim_build,
-            parameters={'CAM_PIPELINE': int(os.environ.get('CAM_PIPELINE', '0'))},
+            parameters={},  # CAM is always pipelined (parameter removed)
             extra_env=extra_env,
             waves=enable_waves,
             keep_files=True,

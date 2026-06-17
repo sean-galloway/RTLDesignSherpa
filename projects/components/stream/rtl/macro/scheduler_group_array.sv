@@ -45,7 +45,6 @@ module scheduler_group_array #(
     parameter int DESC_AXI_MON_AGENT_ID = 8,     // 0x08 - Descriptor AXI Master Monitor
     parameter int MON_UNIT_ID = 1,               // 0x1
     parameter int MON_MAX_TRANSACTIONS = 16,
-    parameter int MON_TRANS_CAM_PIPELINE = 0,  // pipeline desc-monitor trans CAM alloc count (timing)
 
     // Desc-bus monitor reporter sub-block enables. Defaults match the
     // unit-level axi4_master_rd_mon defaults (5 cones on, debug on for
@@ -505,7 +504,6 @@ module scheduler_group_array #(
         .UNIT_ID                (MON_UNIT_ID),
         .AGENT_ID               (DESC_AXI_MON_AGENT_ID),
         .MAX_TRANSACTIONS       (MON_MAX_TRANSACTIONS),
-        .TRANS_CAM_PIPELINE     (MON_TRANS_CAM_PIPELINE),
         .ENABLE_FILTERING       (1),
         // Reporter sub-block enables — propagated from the cluster-top
         // DESC_MON_ENABLE_* parameters so integrators can drop cones

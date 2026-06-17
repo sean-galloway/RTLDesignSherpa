@@ -56,7 +56,6 @@ module stream_core #(
 
     // Monitor Control
     parameter int USE_AXI_MONITORS = 1,      // 1 = Enable monitors, 0 = Disable monitors
-    parameter int MON_TRANS_CAM_PIPELINE = 0, // pipeline desc-monitor trans CAM (timing)
 
     // AXI skid buffer depths
     parameter int SKID_DEPTH_AR = 2,
@@ -639,7 +638,6 @@ module stream_core #(
         .SCHED_MON_BASE_AGENT_ID(SCHED_MON_BASE_AGENT_ID),
         .DESC_AXI_MON_AGENT_ID  (DESC_AXI_MON_AGENT_ID),
         .MON_UNIT_ID            (MON_UNIT_ID),
-        .MON_TRANS_CAM_PIPELINE (MON_TRANS_CAM_PIPELINE),
         .DESC_MON_ENABLE_ERROR_LOGIC     (DESC_MON_ENABLE_ERROR_LOGIC),
         .DESC_MON_ENABLE_TIMEOUT_LOGIC   (DESC_MON_ENABLE_TIMEOUT_LOGIC),
         .DESC_MON_ENABLE_COMPL_LOGIC     (DESC_MON_ENABLE_COMPL_LOGIC),

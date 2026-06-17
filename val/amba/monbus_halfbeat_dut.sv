@@ -13,9 +13,7 @@
 
 module monbus_halfbeat_dut
     import monitor_common_pkg::*;
-#(
-    parameter int CAM_PIPELINE = 0
-) (
+(
     input  logic                clk,
     input  logic                rst_n,
 
@@ -62,7 +60,7 @@ module monbus_halfbeat_dut
     );
     assign {c_in_source_ts, c_in_packet} = sk_rd_data;
 
-    monbus_compressor #(.HALF_BEAT_EN(1), .CAM_PIPELINE(CAM_PIPELINE)) u_compressor (
+    monbus_compressor #(.HALF_BEAT_EN(1)) u_compressor (
         .clk                 (clk),
         .rst_n               (rst_n),
         .in_valid            (sk_rd_valid),

@@ -51,10 +51,6 @@ module axi_monitor_base
     parameter bit IS_READ             = 1'b1, // 1 for read, 0 for write
     parameter bit IS_AXI              = 1'b1, // 1 for AXI, 0 for AXI-Lite
     parameter bit ENABLE_PERF_PACKETS = 1'b0, // Enable performance metrics tracking
-    // 1 = pipeline trans_mgr's alloc/cleanup popcount (timing margin on the
-    // route-bound 16-way CAM match->alloc->active_count path). active_count
-    // then lags one extra cycle, so block_ready uses a MAX-3 margin. Default 0.
-    parameter bit TRANS_CAM_PIPELINE  = 1'b0,
     parameter bit ENABLE_DEBUG_MODULE = 1'b0, // Enable debug tracking module
 
     // Reporter sub-block enables — gate the LOGIC, not just packet emission.
@@ -270,8 +266,7 @@ module axi_monitor_base
         .ID_WIDTH           (ID_WIDTH),
         .IS_READ            (IS_READ),
         .IS_AXI             (IS_AXI),
-        .ENABLE_PERF_PACKETS(ENABLE_PERF_PACKETS),
-        .TRANS_CAM_PIPELINE (TRANS_CAM_PIPELINE)
+        .ENABLE_PERF_PACKETS(ENABLE_PERF_PACKETS)
     ) trans_mgr(
         .aclk               (aclk),
         .aresetn            (aresetn),
@@ -447,10 +442,10 @@ module axi_monitor_base
     // block_ready=0, ready=0, count never increments -> deadlock).
     // The bridge monitored-mode smoke test caught this; formal P6/P7
     // missed it because the assertion was tautological vs. the assign.
-    // Margin is MAX-2 normally; MAX-3 when TRANS_CAM_PIPELINE adds a cycle of
-    // active_count latency, so the monitor still never accepts past
-    // MAX_TRANSACTIONS even with the extra pipeline delay.
-    localparam int unsigned BLOCK_MARGIN = TRANS_CAM_PIPELINE ? 3 : 2;
+    // The trans CAM is ALWAYS pipelined (one extra cycle of active_count
+    // latency), so block_ready uses a MAX-3 margin -- the monitor still never
+    // accepts past MAX_TRANSACTIONS even with the pipeline delay.
+    localparam int unsigned BLOCK_MARGIN = 3;
     assign block_ready = (MAX_TRANSACTIONS > BLOCK_MARGIN)
                        ? ({24'h0, w_active_count} < (MAX_TRANSACTIONS - BLOCK_MARGIN))
                        : 1'b1;
