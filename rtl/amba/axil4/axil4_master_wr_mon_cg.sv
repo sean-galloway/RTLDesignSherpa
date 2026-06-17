@@ -72,6 +72,7 @@ module axil4_master_wr_mon_cg
     // Global Clock and Reset
     input  logic                       aclk,
     input  logic                       aresetn,
+    input  logic                       cam_clear,  // sync clear of the monitor trans CAM
 
     // Slave AXIL Interface (Input Side)
     // Write address channel (AW)
@@ -204,6 +205,7 @@ module axil4_master_wr_mon_cg
     ) axil4_master_wr_mon_inst (
         .aclk                    (aclk),
         .aresetn                 (aresetn),
+        .cam_clear               (cam_clear),
         .i_mon_time              (i_mon_time),
 
         // Slave AXIL Interface

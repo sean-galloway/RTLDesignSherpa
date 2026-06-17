@@ -71,6 +71,7 @@ module axi5_slave_wr_mon
 (
     input  logic aclk,
     input  logic aresetn,
+    input  logic cam_clear,  // sync clear of the monitor trans CAM
 
     // Slave interface (all AXI5 AW, W, B channel signals)
     input  logic [IW-1:0]               s_axi_awid,
@@ -276,7 +277,7 @@ module axi5_slave_wr_mon
             .N_ADDR_RANGES(N_ADDR_RANGES)
         ) axi_monitor_inst (
             .aclk(aclk), .aresetn(aresetn),
-            .clear(1'b0),
+            .clear(cam_clear),
             .i_mon_time(i_mon_time),
             .cmd_addr(fub_axi_awaddr), .cmd_id(fub_axi_awid), .cmd_len(fub_axi_awlen),
             .cmd_size(fub_axi_awsize), .cmd_burst(fub_axi_awburst),

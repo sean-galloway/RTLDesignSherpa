@@ -81,6 +81,7 @@ module axi4_master_wr_mon_cg
     // Global Clock and Reset
     input  logic                       aclk,
     input  logic                       aresetn,
+    input  logic                       cam_clear,  // sync clear of the monitor trans CAM
 
     // Slave AXI Interface (Input Side)
     // Write address channel (AW)
@@ -402,7 +403,7 @@ module axi4_master_wr_mon_cg
     ) axi4_master_wr_mon_inst (
         .aclk                    (aclk),  // TODO: Use aclk_monitor once ICG cells replace combinational gating
         .aresetn                 (aresetn),
-        .cam_clear               (1'b0),
+        .cam_clear               (cam_clear),
         .i_mon_time              (i_mon_time),
 
         // Slave AXI Interface (Input Side)

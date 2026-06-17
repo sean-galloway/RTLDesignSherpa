@@ -74,6 +74,7 @@ module axi4_slave_rd_mon
     // Global Clock and Reset
     input  logic                       aclk,
     input  logic                       aresetn,
+    input  logic                       cam_clear,  // sync clear of the monitor trans CAM
 
     // Slave AXI Interface (Input Side)
     // Read address channel (AR)
@@ -295,7 +296,7 @@ module axi4_slave_rd_mon
         ) axi_monitor_inst (
             .aclk                    (aclk),
             .aresetn                 (aresetn),
-            .clear                   (1'b0),
+            .clear                   (cam_clear),
             .i_mon_time              (i_mon_time),
 
             // Command interface (AR channel - monitoring slave side)
