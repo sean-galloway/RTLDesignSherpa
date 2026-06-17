@@ -147,39 +147,25 @@ measurement bug, not the codec:
   exact captured stream** (`val/amba/test_monbus_halfbeat.py`, Phase 2 +
   `DATASET_OVERRIDE`). The codec was never implicated.
 
-### 6.2 OPEN BUG — DMA hang at 4–7 active channels under heavy monitoring
+### 6.2 OPEN — cluster state-accumulation wedge (not a clean-state bug)
 
-Separately, with the `debug-compl` monitor preset and **4, 5, 6, or 7**
-active channels, the DMA **hangs** (reproducibly); 1, 2, 3, and 8 channels
-complete. The default-mon-config perf matrix passes *all* channel counts, so
-the trigger is the heavy monitor traffic, not plain data movement.
+> **Correction.** An earlier draft here called this a reproducible
+> 4–7-channel DMA hang / RTL bug. **That was wrong.** On a freshly
+> reprogrammed board the full 1–8 channel `debug-compl` sweep passes (all
+> CRC=ok), `8desc_4ch` passes 8/8 consecutive runs, and the `hb_measure`
+> path passes. The failures were an **accumulated-state wedge**.
 
-| active ch (8desc) | result |
-|---|---|
-| 1, 2, 3 | completes, CRC ok |
-| **4, 5, 6, 7** | **hang (timeout)** |
-| 8 | completes, CRC ok |
-
-It is a **hang, not data corruption.** The failing run times out at 120 s
-with `GLOBAL_STATUS=0`, `AXI_RD_COMPLETE=AXI_WR_COMPLETE=0` (zero
-completions), and `CHANNEL_IDLE=0xF1` — channel 0 finishes, channels 1/2/3
-are stuck mid-transfer; `SCHED_ERROR=0`; monbus trace flowing
-(`wr_ptr=242`, no overflow). The earlier "CRC mismatch" reported by
-`hb_measure` was a *consequence* of non-completion (stale CRC after
-timeout), not bad data.
-
-Suspected mechanism (under investigation): the monitors are **not** passive
-in this harness — `block_ready` (de-asserted as the transaction table fills
-while completion-reporting can't free entries) gates
-`fub_axi_arready`/`fub_axi_awready` (`axi4_master_{rd,wr}_mon.sv`), and
-`axi_monitor_base.sv:444` documents a prior `block_ready` form that
-deadlocked (`block_ready=0 → ready=0 → count never increments`). Heavy
-completion traffic at partial channel population appears to re-trip that
-corner so the shared engine stalls the non-first channels. The
-4–7-hang-but-8-complete pattern points at a `block_ready` / `active_count`
-(MAX-3 margin) corner. This is a **real RTL bug, not a measurement
-artifact**, being reproduced in the `stream_char` cosim. Until it closes,
-the 4–7-channel `debug-compl` points are excluded.
+After a long session of many mixed runs (wide resp-delay sweeps + the
+`hb_measure` compression sweeps here), the cluster reaches a wedged state in
+which some configs hang (we saw 4–7 active channels under `debug-compl` time
+out at 120 s, zero beats, `AXI_RD_COMPLETE=AXI_WR_COMPLETE=0`). The per-run
+soft-reset / cluster-reset does **not** clear it — only a full FPGA reprogram
+does (`make program`). So it is a **reset-completeness / state-accumulation**
+gap in the harness, not a clean-state config or codec bug, and not data
+corruption. Tracked in
+`rtl/amba/KNOWN_ISSUES/axi_monitor_blockready_hang_partial_channels.md`.
+The compression numbers in §2–§6.1 are from clean-state runs and are
+unaffected.
 
 ---
 
@@ -196,11 +182,11 @@ the 4–7-channel `debug-compl` points are excluded.
 5. **The HW codec is correct.** Live FPGA slots decode bit-exact and track
    the model; the codec was never the bug. The earlier non-reproducibility
    was a `hb_measure` reset bug (fixed, §6.1).
-6. **Separate open bug (§6.2):** 4–7 active channels under `debug-compl`
-   **hang the DMA** (channels 1+ stall, zero completions, 120 s timeout) —
-   a real RTL interaction (monitor `block_ready` / completion-feedback
-   deadlock), under investigation. Not a codec or measurement issue, and
-   not data corruption.
+6. **Separate open issue (§6.2):** a long mixed-run session can wedge the
+   cluster so some configs hang — but a **freshly reprogrammed board passes
+   the full sweep**, so it's a reset-completeness / state-accumulation gap in
+   the harness, not a clean-state config, codec, or data-corruption bug.
+   Cleared by `make program`.
 
 ---
 

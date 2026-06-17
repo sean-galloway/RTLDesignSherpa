@@ -8,17 +8,18 @@ This directory tracks known bugs and issues in the AXI monitor subsystem.
 
 ### 🔴 OPEN
 
-#### Issue: DMA hang at 4–7 active channels under heavy monitoring
+#### Issue: cluster state-accumulation wedge (long-session DMA hang)
 **File:** `axi_monitor_blockready_hang_partial_channels.md`
-**Status:** 🔴 OPEN — under investigation (reported 2026-06-16)
-**Severity:** HIGH — DMA deadlocks (hang, **not** data corruption)
+**Status:** 🟠 OPEN — **NOT reproducible from a clean board** (reported 2026-06-16)
+**Severity:** MEDIUM — hang (not corruption); needs a long session; reprogram clears it
 
-**Summary:** With the `debug-compl` monitor preset and 4–7 active DMA
-channels, the DMA hard-deadlocks (zero beats moved; channels 1+ stall;
-120 s timeout). 1/2/3/8 channels and the default monitor preset are
-unaffected. Suspected `block_ready` / completion-feedback corner in
-`axi_monitor_base.sv`. Workaround: default preset, or ≤3 / exactly 8
-channels for `debug-compl` runs.
+**Summary:** After a long session of many mixed characterization runs the
+cluster wedges; some configs then hang (observed 4–7 active ch under
+`debug-compl`, zero beats, 120 s timeout). **A freshly reprogrammed board
+passes the full 1–8 channel sweep** — so this is a reset-completeness /
+state-accumulation gap in the harness, not a clean-state config bug.
+(An earlier write-up wrongly called it a reproducible 4–7ch RTL bug.)
+Workaround: `make program` to clear; reprogram periodically for long runs.
 
 ---
 

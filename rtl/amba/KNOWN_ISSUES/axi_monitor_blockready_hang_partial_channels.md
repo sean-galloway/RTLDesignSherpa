@@ -1,25 +1,38 @@
-# Known Issue: DMA hang at 4–7 active channels under heavy monitoring
+# Known Issue: cluster state-accumulation wedge (long-session DMA hang)
 
-**Status:** 🔴 OPEN — under investigation
-**Severity:** HIGH — DMA deadlocks (no data loss; hang, not corruption)
+**Status:** 🟠 OPEN — needs root-cause; **NOT reproducible from a clean board**
+**Severity:** MEDIUM — only manifests after a long session of many mixed
+runs; a full FPGA reprogram fully clears it. Hang, not data corruption.
 **Date Reported:** 2026-06-16
-**Affects:** `axi_monitor_base.sv` (`block_ready` / completion-feedback path),
-as integrated by `axi4_master_rd_mon.sv` / `axi4_master_wr_mon.sv` in the
-STREAM characterization harness (`stream_char_harness.sv`).
+**Affects:** the STREAM characterization harness reset path
+(`stream_char_harness.sv` soft-reset + per-channel reset + `clear_stats`) —
+it does not fully clear all cluster state. Suspected, not confirmed:
+`axi_monitor_base.sv` `block_ready` / completion-feedback + the monbus /
+response-delay queues.
 
 ---
 
+## ⚠️ Correction (2026-06-16)
+
+An earlier version of this issue claimed a **100% reproducible** DMA hang at
+**4–7 active channels** under the `debug-compl` preset. **That was wrong.**
+On a **freshly reprogrammed board the entire 1–8 channel sweep passes**
+(all CRC=ok, clean monotonic record counts), and `8desc_4ch` passes 8/8
+consecutive runs plus the `hb_measure` path. The mid-session failures were an
+**accumulated-state wedge**, not a clean-state config bug.
+
 ## Summary
 
-With a heavy monitor preset (`debug-compl`: completion packets enabled) and
-**4, 5, 6, or 7** active DMA channels, the DMA **hangs** — the non-first
-channels stall mid-transfer and never complete. **1, 2, 3, and 8** active
-channels complete normally. The default ("allow basic") monitor preset
-passes every channel count (the full 40-config perf matrix is clean), so the
-trigger is the heavy completion-monitor traffic, not plain data movement.
+After a long session of many mixed characterization runs (wide resp-delay
+sweeps + `hb_measure` compression sweeps interleaving compression on/off and
+`debug-compl`), the cluster reaches a **wedged state** in which some configs
+(observed: 4–7 active channels under `debug-compl`) **hang** — channels stall
+mid-transfer, zero beats move, 120 s timeout. The per-run soft-reset /
+cluster-reset does **not** clear this; only a full FPGA reprogram does.
 
-This is a **hang, not data corruption.** No bad data is committed; the
-transfer simply never finishes.
+From a **clean (reprogrammed) board the same configs pass reliably**, so this
+is a **reset-completeness / state-accumulation** problem in the harness, not
+an inherent 4–7-channel DMA logic bug. It is a hang, not data corruption.
 
 ---
 
@@ -58,28 +71,38 @@ data. So done-detection is *not* the problem — the transfer never starts.
 
 ---
 
-## Affected configurations
+## Behaviour by board state
 
-| active channels (8 desc each) | result |
+| board state | result |
 |---|---|
-| 1, 2, 3 | completes, CRC ok |
-| **4, 5, 6, 7** | **hang (timeout)** |
-| 8 | completes, CRC ok |
+| fresh reprogram | **all 1–8 channel configs pass** (CRC=ok; `8desc_4ch` 8/8 consecutive; `hb_measure` 1–8ch sweep all ok) |
+| after a long mixed-run session (wedged) | some configs hang (observed 4–7 active ch under `debug-compl`); cleared only by reprogram |
 
-- Monitor preset: `debug-compl` (completions on). Default preset: not affected.
-- 100 % reproducible (verified across repeated runs, runner-direct — not an
-  `hb_measure` artifact).
+- Monitor preset of the *observed* wedged failures: `debug-compl`. Default
+  preset never showed it.
+- The 4–7-fail / 1-2-3-8-pass pattern is a snapshot of the **wedged** state,
+  not a clean-state property — it does not reproduce after reprogram.
 
 ---
 
 ## Reproduction
 
+Clean-state (does NOT fail — confirms the config itself is fine):
+
 ```bash
 cd projects/NexysA7/stream_characterization/flows-stream-bridge/host
 source $REPO_ROOT/env_python
+# (full reprogram first: cd .. && make program)
 python3 run_characterization.py --port /dev/ttyUSB2 --channels 4 \
     --configs 8desc_4ch_1MB --mon-config debug-compl --compression on
-# -> TIMEOUT after 120s; AXI_RD_COMPLETE = AXI_WR_COMPLETE = 0
+# -> RESULTS: 1 passed (and 8/8 on repeat)
+```
+
+Wedged-state (the open bug): reached only after a long sequence of mixed
+runs (wide resp-delay sweeps + `hb_measure` compression sweeps). Once wedged,
+`8desc_4ch` debug-compl times out at 120 s with
+`AXI_RD_COMPLETE = AXI_WR_COMPLETE = 0` and zero beats moved. The exact
+wedging operation is not yet bisected (TODO).
 ```
 
 ---
@@ -128,6 +151,14 @@ not the bulk-trace SRAM filling.
 
 ## Workaround
 
-Use the default monitor preset (not `debug-compl`) for >3-channel
-characterization runs, or keep `debug-compl` runs to ≤3 active channels (or
-exactly 8). The default-preset perf matrix is unaffected.
+`make program` (full FPGA reprogram) fully clears the wedge and restores
+clean behaviour. For long unattended characterization sessions, reprogram
+periodically rather than relying on the per-run soft-reset.
+
+## Next step (root-cause)
+
+Bisect which operation in a long run sequence first wedges the cluster
+(suspects: the `hb_measure` compression sweeps, compression on/off toggling,
+or the response-delay queues), then find the state that survives the
+soft-reset / `clear_stats` / per-channel reset and add it to the reset. The
+fix is to make the per-run reset as complete as a reprogram.
