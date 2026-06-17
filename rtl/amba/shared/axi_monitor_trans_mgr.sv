@@ -21,14 +21,6 @@
 // trans-mgr-specific FSM (per-slot next-payload computation, cleanup
 // eligibility, event_reported feedback, active_count, state_change).
 //
-// The previous in-place revision (2026-04-23, parallel-match + per-entry
-// generate-loop always_ff) is parked at rtl/amba/shared/mon_temp/
-// axi_monitor_trans_mgr.sv. Differential equivalence between the two is
-// proven by val/amba/test_axi_monitor_trans_mgr_equiv.py (500 cycles of
-// random stim, bit-exact comparison of every bus_transaction_t field
-// across 6 parameter configs) and by running the full *_mon regressions
-// against either build via the TRANS_MGR_VARIANT env-var knob.
-//
 // This version delegates to monitor_trans_cam:
 //
 //   * 3 ID lookup ports (addr/data/resp) -> monitor_trans_cam

@@ -31,29 +31,8 @@ from TBClasses.shared.utilities import get_paths
 
 
 def _trans_mgr_sources(rtl_dict):
-    """Returns the verilog source(s) for the AXI monitor transaction manager.
-
-    Env-var knob:
-      TRANS_MGR_VARIANT=cam    (default) -> rtl/amba/shared/
-                                            axi_monitor_trans_mgr.sv  (current
-                                            production, CAM-backed via
-                                            monitor_trans_cam.sv)
-      TRANS_MGR_VARIANT=legacy           -> rtl/amba/shared/mon_temp/
-                                            axi_monitor_trans_mgr.sv  (pre-CAM
-                                            in-place revision, parked for
-                                            timing comparison / rollback)
-
-    Bit-exact differential equivalence between the two is proven by
-    val/amba/test_axi_monitor_trans_mgr_equiv.py on 500 cycles of random
-    stimulus; this knob runs the full axi4_master_rd_mon regression
-    against either build for additional confidence.
-    """
-    variant = os.environ.get('TRANS_MGR_VARIANT', 'cam').lower()
-    if variant == 'legacy':
-        return [
-            os.path.join(rtl_dict['rtl_shared'], "mon_temp",
-                         "axi_monitor_trans_mgr.sv"),
-        ]
+    """Returns the verilog source(s) for the AXI monitor transaction manager
+    (CAM-backed production: monitor_trans_cam.sv + axi_monitor_trans_mgr.sv)."""
     return [
         os.path.join(rtl_dict['rtl_shared'], "monitor_trans_cam.sv"),
         os.path.join(rtl_dict['rtl_shared'], "axi_monitor_trans_mgr.sv"),
