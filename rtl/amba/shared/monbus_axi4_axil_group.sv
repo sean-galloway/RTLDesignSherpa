@@ -36,6 +36,7 @@ module monbus_axi4_axil_group
 ) (
     input  logic                          axi_aclk,
     input  logic                          axi_aresetn,
+    input  logic                          cam_clear,   // sync clear: compressor CAM + stats
 
     input  logic                          monbus_valid,
     output logic                          monbus_ready,
@@ -293,6 +294,7 @@ module monbus_axi4_axil_group
     ) u_core (
         .axi_aclk    (axi_aclk),
         .axi_aresetn (axi_aresetn),
+        .cam_clear   (cam_clear),
 
         .monbus_valid     (monbus_valid),
         .monbus_ready     (monbus_ready),
