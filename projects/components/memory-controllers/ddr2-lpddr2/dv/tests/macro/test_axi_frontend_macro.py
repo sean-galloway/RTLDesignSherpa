@@ -523,9 +523,13 @@ def test_axi_frontend_macro(request, test_type, num_ranks, timing_profile):
 
     enable_waves = bool(int(os.environ.get("WAVES", "0")))
     compile_args = ["+define+USE_ASYNC_RESET"]
+    sim_args = []
+    plus_args = []
     if enable_waves:
         # FST is faster + ~10× more compact than VCD on Verilator.
-        compile_args += ["--trace-fst", "--trace-structs"]
+        compile_args += ["--trace-fst", "--trace-structs", "--trace-depth", "99"]
+        sim_args   += ["--trace", "--trace-structs", "--trace-depth", "99"]
+        plus_args  += ["--trace"]
         extra_env["VERILATOR_TRACE"] = "1"
         extra_env["VERILATOR_TRACE_FST"] = "1"
 
@@ -543,5 +547,9 @@ def test_axi_frontend_macro(request, test_type, num_ranks, timing_profile):
         extra_env=extra_env,
         parameters=parameters,
         compile_args=compile_args,
+        sim_args=sim_args,
+        plus_args=plus_args,
+        waves=enable_waves,
+        keep_files=True,
         timescale="1ns/1ps",
     )

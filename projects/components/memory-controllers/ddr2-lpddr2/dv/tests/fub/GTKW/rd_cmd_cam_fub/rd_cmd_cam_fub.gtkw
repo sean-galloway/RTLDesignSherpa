@@ -1,0 +1,93 @@
+[*]
+[*] GTKWave save file for rd_cmd_cam_fub unit tests
+[*] Edit [dumpfile] to point at the scenario you want to view.
+[*] Default points at the smoke scenario built with:
+[*]   ptw projects/components/memory-controllers/ddr2-lpddr2/dv/tests/fub/test_rd_cmd_cam.py -k smoke
+[*]
+[dumpfile] "../../local_sim_build/test_rd_cmd_cam_smoke_d16_nr1/dump.fst"
+[savefile] "rd_cmd_cam_fub.gtkw"
+[timestart] 0
+[size] 3456 1863
+[pos] -1 -1
+*-17.000000 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
+[treeopen] rd_cmd_cam_fub.
+[sst_width] 503
+[signals_width] 568
+[sst_expanded] 1
+[sst_vpaned_height] 983
+
+@28
+rd_cmd_cam_fub.mc_clk
+rd_cmd_cam_fub.mc_rst_n
+
+@200
+-PUSH
+@28
+rd_cmd_cam_fub.push_valid_i
+rd_cmd_cam_fub.push_ready_o
+@22
+rd_cmd_cam_fub.push_id_i[3:0]
+rd_cmd_cam_fub.push_rank_i[0:0]
+rd_cmd_cam_fub.push_bank_i[2:0]
+rd_cmd_cam_fub.push_row_i[13:0]
+rd_cmd_cam_fub.push_col_i[9:0]
+rd_cmd_cam_fub.push_len_i[7:0]
+rd_cmd_cam_fub.push_slot_o[3:0]
+
+@200
+-QUERY/MATCH
+@22
+rd_cmd_cam_fub.q_rank_i[0:0]
+rd_cmd_cam_fub.q_bank_i[2:0]
+rd_cmd_cam_fub.q_row_i[13:0]
+rd_cmd_cam_fub.match_pending_o[15:0]
+rd_cmd_cam_fub.match_rowhit_o[15:0]
+
+@200
+-ISSUED
+@28
+rd_cmd_cam_fub.issued_we_i
+@22
+rd_cmd_cam_fub.issued_slot_i[3:0]
+
+@200
+-BEAT
+@28
+rd_cmd_cam_fub.beat_we_i
+@22
+rd_cmd_cam_fub.beat_slot_i[3:0]
+
+@200
+-ENTRY_COMPLETE
+@28
+rd_cmd_cam_fub.entry_complete_o
+@22
+rd_cmd_cam_fub.entry_complete_slot_o[3:0]
+rd_cmd_cam_fub.entry_complete_id_o[3:0]
+
+@200
+-SNAPSHOT
+@22
+rd_cmd_cam_fub.snap_valid_o[15:0]
+rd_cmd_cam_fub.snap_issued_o[15:0]
+rd_cmd_cam_fub.snap_id_o[63:0]
+rd_cmd_cam_fub.snap_col_o[159:0]
+rd_cmd_cam_fub.snap_len_o[127:0]
+
+@200
+-INTERNAL_STATE
+@22
+rd_cmd_cam_fub.r_valid[15:0]
+rd_cmd_cam_fub.r_issued[15:0]
+rd_cmd_cam_fub.w_free_slot[3:0]
+@28
+rd_cmd_cam_fub.w_has_free
+rd_cmd_cam_fub.w_entry_complete_strb
+
+@200
+-DEBUG
+@22
+rd_cmd_cam_fub.dbg_occupancy_o[4:0]
+
+[pattern_trace] 1
+[pattern_trace] 0

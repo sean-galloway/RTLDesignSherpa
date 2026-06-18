@@ -1,0 +1,109 @@
+[*]
+[*] GTKWave save file for wr_cmd_cam_fub unit tests
+[*] Edit [dumpfile] to point at the scenario you want to view.
+[*] Default points at the smoke scenario built with:
+[*]   ptw projects/components/memory-controllers/ddr2-lpddr2/dv/tests/fub/test_wr_cmd_cam.py -k smoke
+[*]
+[dumpfile] "../../local_sim_build/test_wr_cmd_cam_smoke_d16_nr1/dump.fst"
+[savefile] "wr_cmd_cam_fub.gtkw"
+[timestart] 0
+[size] 3456 1863
+[pos] -1 -1
+*-17.000000 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
+[treeopen] wr_cmd_cam_fub.
+[sst_width] 503
+[signals_width] 568
+[sst_expanded] 1
+[sst_vpaned_height] 983
+
+@28
+wr_cmd_cam_fub.mc_clk
+wr_cmd_cam_fub.mc_rst_n
+
+@200
+-PUSH
+@28
+wr_cmd_cam_fub.push_valid_i
+wr_cmd_cam_fub.push_ready_o
+@22
+wr_cmd_cam_fub.push_id_i[3:0]
+wr_cmd_cam_fub.push_rank_i[0:0]
+wr_cmd_cam_fub.push_bank_i[2:0]
+wr_cmd_cam_fub.push_row_i[13:0]
+wr_cmd_cam_fub.push_col_i[9:0]
+wr_cmd_cam_fub.push_len_i[7:0]
+wr_cmd_cam_fub.push_w_buf_ptr_i[6:0]
+wr_cmd_cam_fub.push_strb_ptr_i[6:0]
+wr_cmd_cam_fub.push_slot_o[3:0]
+
+@200
+-QUERY/MATCH
+@22
+wr_cmd_cam_fub.q_rank_i[0:0]
+wr_cmd_cam_fub.q_bank_i[2:0]
+wr_cmd_cam_fub.q_row_i[13:0]
+wr_cmd_cam_fub.match_pending_o[15:0]
+wr_cmd_cam_fub.match_rowhit_o[15:0]
+
+@200
+-ISSUED
+@28
+wr_cmd_cam_fub.issued_we_i
+@22
+wr_cmd_cam_fub.issued_slot_i[3:0]
+
+@200
+-BEAT_PULL
+@28
+wr_cmd_cam_fub.beat_pull_strb_i
+@22
+wr_cmd_cam_fub.beat_pull_slot_i[3:0]
+wr_cmd_cam_fub.beat_pull_ptr_o[6:0]
+wr_cmd_cam_fub.beat_pull_strb_ptr_o[6:0]
+@28
+wr_cmd_cam_fub.beat_pull_last_o
+
+@200
+-B_COMPLETE/ENTRY_COMPLETE
+@28
+wr_cmd_cam_fub.b_complete_strb_i
+@22
+wr_cmd_cam_fub.b_complete_slot_i[3:0]
+@28
+wr_cmd_cam_fub.entry_complete_o
+@22
+wr_cmd_cam_fub.entry_complete_slot_o[3:0]
+wr_cmd_cam_fub.entry_complete_id_o[3:0]
+
+@200
+-SNAPSHOT
+@22
+wr_cmd_cam_fub.snap_valid_o[15:0]
+wr_cmd_cam_fub.snap_issued_o[15:0]
+wr_cmd_cam_fub.snap_b_pending_o[15:0]
+wr_cmd_cam_fub.snap_id_o[63:0]
+wr_cmd_cam_fub.snap_rank_o[15:0]
+wr_cmd_cam_fub.snap_bank_o[47:0]
+wr_cmd_cam_fub.snap_row_o[223:0]
+wr_cmd_cam_fub.snap_col_o[159:0]
+wr_cmd_cam_fub.snap_len_o[127:0]
+wr_cmd_cam_fub.snap_w_buf_ptr_o[111:0]
+wr_cmd_cam_fub.snap_strb_ptr_o[111:0]
+
+@200
+-INTERNAL_STATE
+@22
+wr_cmd_cam_fub.r_valid[15:0]
+wr_cmd_cam_fub.r_issued[15:0]
+wr_cmd_cam_fub.r_b_pending[15:0]
+wr_cmd_cam_fub.w_free_slot[3:0]
+@28
+wr_cmd_cam_fub.w_has_free
+
+@200
+-DEBUG
+@22
+wr_cmd_cam_fub.dbg_occupancy_o[4:0]
+
+[pattern_trace] 1
+[pattern_trace] 0
