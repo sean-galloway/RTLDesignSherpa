@@ -47,6 +47,7 @@ from cocotb_test.simulator import run
 from TBClasses.shared.tbbase import TBBase
 from TBClasses.shared.utilities import get_paths, create_view_cmd
 from TBClasses.shared.filelist_utils import get_sources_from_filelist
+from TBClasses.scoreboards.monbus_group import MonbusGroupHarness
 
 
 BEATS_PER_RECORD = 3            # raw mode
@@ -80,10 +81,20 @@ class MonbusAxilAxilMasterWriteTB(TBBase):
         super().__init__(dut)
         self.SEED = int(os.environ.get('SEED', '0'))
         random.seed(self.SEED)
-        # Captured (addr, data) pairs in handshake order.
-        self.captured: List[Tuple[int, int]] = []
-        self._aw_q: List[int] = []
-        self._w_q: List[int] = []
+        # Shared monbus-group harness: drives the m_axil_* master-write sink
+        # (awready/wready/bvalid) and captures every (addr, data) beat into
+        # harness.trace_beats -- replaces the hand-rolled _aw/_w/_b handlers.
+        self.mon = MonbusGroupHarness(
+            dut, dut.axi_aclk,
+            drain_proto="axil", trace_proto="axil",
+            drain_prefix="s_axil_", trace_prefix="m_axil_",
+            group_node=dut, irq_sig=dut.irq_out, log=self.log,
+        )
+
+    @property
+    def captured(self) -> List[Tuple[int, int]]:
+        """(addr, data) beats captured on the master-write port, in order."""
+        return self.mon.trace_beats
 
     # ---------- setup / reset ----------
 
@@ -123,9 +134,7 @@ class MonbusAxilAxilMasterWriteTB(TBBase):
         await self.wait_clocks('axi_aclk', 5)
         self.dut.axi_aresetn.value = 1
         await self.wait_clocks('axi_aclk', 2)
-        self.captured.clear()
-        self._aw_q.clear()
-        self._w_q.clear()
+        self.mon.clear()
 
     # ---------- monbus driver ----------
 
@@ -145,68 +154,19 @@ class MonbusAxilAxilMasterWriteTB(TBBase):
         for pkt, ts in records:
             await self.drive_record(pkt, ts)
 
-    # ---------- AXIL slave model on m_axil_* ----------
-
-    async def _aw_handler(self, stop_after: int):
-        self.dut.m_axil_awready.value = 1
-        seen = 0
-        while seen < stop_after:
-            await ReadOnly()
-            if (int(self.dut.m_axil_awvalid.value) == 1
-                    and int(self.dut.m_axil_awready.value) == 1):
-                self._aw_q.append(int(self.dut.m_axil_awaddr.value))
-                seen += 1
-            await RisingEdge(self.dut.axi_aclk)
-        await RisingEdge(self.dut.axi_aclk)
-        self.dut.m_axil_awready.value = 0
-
-    async def _w_handler(self, stop_after: int):
-        self.dut.m_axil_wready.value = 1
-        seen = 0
-        while seen < stop_after:
-            await ReadOnly()
-            if (int(self.dut.m_axil_wvalid.value) == 1
-                    and int(self.dut.m_axil_wready.value) == 1):
-                self._w_q.append(int(self.dut.m_axil_wdata.value))
-                seen += 1
-            await RisingEdge(self.dut.axi_aclk)
-        await RisingEdge(self.dut.axi_aclk)
-        self.dut.m_axil_wready.value = 0
-
-    async def _b_handler(self, stop_after: int):
-        sent = 0
-        while sent < stop_after:
-            await ReadOnly()
-            ready_to_ack = bool(self._aw_q) and bool(self._w_q)
-            await RisingEdge(self.dut.axi_aclk)
-            if not ready_to_ack:
-                continue
-            self.dut.m_axil_bvalid.value = 1
-            self.dut.m_axil_bresp.value  = 0
-            while True:
-                await ReadOnly()
-                if int(self.dut.m_axil_bready.value) == 1:
-                    break
-                await RisingEdge(self.dut.axi_aclk)
-            await RisingEdge(self.dut.axi_aclk)
-            self.dut.m_axil_bvalid.value = 0
-            addr = self._aw_q.pop(0)
-            data = self._w_q.pop(0)
-            self.captured.append((addr, data))
-            sent += 1
+    # ---------- AXIL slave model on m_axil_* (via MonbusGroupHarness) ----------
 
     async def capture_n_beats(self, n: int, drain_cycles: int = 4000):
-        """Spawn the AXIL slave model handlers, run the bus for up to
-        drain_cycles, and return whatever was captured. The handlers
-        return when stop_after is reached, so this is bounded above by
-        either capture-count or wall-clock."""
-        aw_task = cocotb.start_soon(self._aw_handler(n))
-        w_task  = cocotb.start_soon(self._w_handler(n))
-        b_task  = cocotb.start_soon(self._b_handler(n))
-        timer = cocotb.start_soon(self.wait_clocks('axi_aclk', drain_cycles))
-        await Combine(timer)
-        # Allow any in-flight beats to land
-        await self.wait_clocks('axi_aclk', 4)
+        """Run the shared harness's master-write consumer (drives
+        awready/wready/bvalid, captures every (addr,data) beat into
+        harness.trace_beats) until `n` beats land or drain_cycles elapse."""
+        self.mon.start_trace_consumer()           # ready_prob defaults to 1.0
+        waited = 0
+        while len(self.mon.trace_beats) < n and waited < drain_cycles:
+            await self.wait_clocks('axi_aclk', 10)
+            waited += 10
+        await self.wait_clocks('axi_aclk', 4)     # let in-flight beats land
+        self.mon.stop_trace_consumer()
 
     # ---------- assertions ----------
 

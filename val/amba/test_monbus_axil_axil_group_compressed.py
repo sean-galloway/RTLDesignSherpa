@@ -53,6 +53,7 @@ from TBClasses.shared.utilities import get_paths, create_view_cmd
 from TBClasses.shared.filelist_utils import get_sources_from_filelist
 from TBClasses.monbus.monbus_compressor import Encoder
 from TBClasses.monbus.sniffer import load_capture
+from TBClasses.scoreboards.monbus_group import MonbusGroupHarness
 
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
@@ -105,11 +106,20 @@ class MonbusAxilAxilGroupTB(TBBase):
         super().__init__(dut)
         self.SEED = int(os.environ.get('SEED', '0'))
         random.seed(self.SEED)
-        # Captured (addr, data) per completed AXIL B response.
-        self.captured: List[Tuple[int, int]] = []
-        # Tracks pending AW (addrs) and W (data) until paired up by B.
-        self._aw_q: List[int] = []
-        self._w_q: List[int] = []
+        # Shared harness drives the m_axil_* master-write sink and captures
+        # every (addr, data) beat into harness.trace_beats (replaces the
+        # hand-rolled _aw/_w/_b AXIL slave model).
+        self.mon = MonbusGroupHarness(
+            dut, dut.axi_aclk,
+            drain_proto="axil", trace_proto="axil",
+            drain_prefix="s_axil_", trace_prefix="m_axil_",
+            group_node=dut, irq_sig=dut.irq_out, log=self.log,
+        )
+
+    @property
+    def captured(self) -> List[Tuple[int, int]]:
+        """(addr, data) compressed slots captured on m_axil_*, in order."""
+        return self.mon.trace_beats
 
     # ---------- setup / reset ----------
 
@@ -162,9 +172,7 @@ class MonbusAxilAxilGroupTB(TBBase):
         await self.wait_clocks('axi_aclk', 5)
         self.dut.axi_aresetn.value = 1
         await self.wait_clocks('axi_aclk', 2)
-        self.captured.clear()
-        self._aw_q.clear()
-        self._w_q.clear()
+        self.mon.clear()
 
     # ---------- monbus driver (input side) ----------
 
@@ -182,81 +190,27 @@ class MonbusAxilAxilGroupTB(TBBase):
         await RisingEdge(self.dut.axi_aclk)
         self.dut.monbus_valid.value = 0
 
-    # ---------- AXIL slave model (output side) ----------
-
-    async def _aw_handler(self, stop_after: int):
-        """Always-ready AW capture. Pushes each captured awaddr into
-        the pending AW queue; gives up once we've captured >= stop_after
-        AW handshakes (slot count budget)."""
-        self.dut.m_axil_awready.value = 1
-        seen = 0
-        while seen < stop_after:
-            await ReadOnly()
-            if (int(self.dut.m_axil_awvalid.value) == 1
-                    and int(self.dut.m_axil_awready.value) == 1):
-                self._aw_q.append(int(self.dut.m_axil_awaddr.value))
-                seen += 1
-            await RisingEdge(self.dut.axi_aclk)
-        # One extra cycle of awready high to let any in-flight handshake
-        # settle, then drop it so the compressor backpressures gracefully.
-        await RisingEdge(self.dut.axi_aclk)
-        self.dut.m_axil_awready.value = 0
-
-    async def _w_handler(self, stop_after: int):
-        self.dut.m_axil_wready.value = 1
-        seen = 0
-        while seen < stop_after:
-            await ReadOnly()
-            if (int(self.dut.m_axil_wvalid.value) == 1
-                    and int(self.dut.m_axil_wready.value) == 1):
-                self._w_q.append(int(self.dut.m_axil_wdata.value))
-                seen += 1
-            await RisingEdge(self.dut.axi_aclk)
-        await RisingEdge(self.dut.axi_aclk)
-        self.dut.m_axil_wready.value = 0
-
-    async def _b_handler(self, stop_after: int):
-        """When both AW and W queues are non-empty, drive bvalid for one
-        handshake, pop both queues, and record (addr, data)."""
-        sent = 0
-        while sent < stop_after:
-            # Wait until we have both an addr and data to ack.
-            await ReadOnly()
-            ready_to_ack = bool(self._aw_q) and bool(self._w_q)
-            await RisingEdge(self.dut.axi_aclk)
-            if not ready_to_ack:
-                continue
-            # Drive B response.
-            self.dut.m_axil_bvalid.value = 1
-            self.dut.m_axil_bresp.value  = 0  # OKAY
-            while True:
-                await ReadOnly()
-                if int(self.dut.m_axil_bready.value) == 1:
-                    break
-                await RisingEdge(self.dut.axi_aclk)
-            await RisingEdge(self.dut.axi_aclk)
-            self.dut.m_axil_bvalid.value = 0
-            addr = self._aw_q.pop(0)
-            data = self._w_q.pop(0)
-            self.captured.append((addr, data))
-            sent += 1
+    # ---------- AXIL slave model (output side, via MonbusGroupHarness) ----------
 
     async def run_records_through(self,
                                   records: List[Tuple[int, int]],
-                                  expected_slots: List[int]):
+                                  expected_slots: List[int],
+                                  drain_cycles: int = 6000):
         n_slots = len(expected_slots)
-        # AW handler captures one more than expected to absorb any
-        # late-stage capture race; the W and B handlers stop at the
-        # exact slot count so we don't hang waiting for phantom beats.
-        aw_task = cocotb.start_soon(self._aw_handler(n_slots))
-        w_task  = cocotb.start_soon(self._w_handler(n_slots))
-        b_task  = cocotb.start_soon(self._b_handler(n_slots))
+        # Harness master-write consumer drives awready/wready/bvalid and
+        # captures every (addr,data) slot into harness.trace_beats.
+        self.mon.start_trace_consumer()
 
         for pkt, ts in records:
             await self.drive_record(pkt, ts)
 
-        # Drain: wait for all B handshakes to fire.
-        await Combine(aw_task, w_task, b_task)
+        # Drain: wait until all expected slots land (or a wall-clock bound).
+        waited = 0
+        while len(self.mon.trace_beats) < n_slots and waited < drain_cycles:
+            await self.wait_clocks('axi_aclk', 10)
+            waited += 10
+        await self.wait_clocks('axi_aclk', 4)
+        self.mon.stop_trace_consumer()
 
         assert len(self.captured) == n_slots, (
             f"captured slot count mismatch: got={len(self.captured)}, "

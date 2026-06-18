@@ -60,6 +60,7 @@ from TBClasses.monbus.monbus_packet import create_monbus_field_config
 
 # GAXI for monitor bus driving
 from CocoTBFramework.components.gaxi.gaxi_factories import create_gaxi_master
+from TBClasses.scoreboards.monbus_group import MonbusGroupHarness
 
 
 class MonbusAxilAxilGroupTB(TBBase):
@@ -117,7 +118,15 @@ class MonbusAxilAxilGroupTB(TBBase):
 
         # Components (initialized in setup)
         self.monbus_master = None
-        self.error_fifo_reader = None
+        # Shared monbus-group harness: err-FIFO drain reads + master-write
+        # sink (replaces the framework error_fifo_reader BFM + the hand-rolled
+        # _drive_master_write_sink). Ctor only stores signal handles.
+        self.mon = MonbusGroupHarness(
+            self.dut, self.axi_aclk,
+            drain_proto="axil", trace_proto="axil",
+            drain_prefix="s_axil_", trace_prefix="m_axil_",
+            group_node=self.dut, irq_sig=self.dut.irq_out, log=self.log,
+        )
 
         # Optional monbus sniffer for offline analysis with monbus_compressor.
         # Activated when MONBUS_CAPTURE is set in the environment; output is
@@ -176,14 +185,8 @@ class MonbusAxilAxilGroupTB(TBBase):
             log=self.log
         )
 
-        # AXI-Lite slave read interface for error FIFO
-        self.error_fifo_reader = create_axil4_master_rd(
-            dut=self.dut,
-            clock=self.axi_aclk,
-            prefix="s_axil",
-            multi_sig=True,
-            log=self.log
-        )
+        # Err-FIFO drain is handled by the shared MonbusGroupHarness
+        # (self.mon.drain_read_beat); no separate reader BFM needed.
 
         # Optional monbus sniffer (gated on MONBUS_CAPTURE env var).
         if self._monbus_capture_path:
@@ -244,43 +247,14 @@ class MonbusAxilAxilGroupTB(TBBase):
         self.dut.cfg_limit_addr.value      = 0x0000_5000 - 1
         self.dut.cfg_flush_watermark.value = self.TEST_FLUSH_WATERMARK
 
-        # Master-write side is unconsumed in this minimal TB. Drive
-        # awready/wready high (so the burst writer drains freely into
-        # the void) and inject a synthetic bvalid for each AW issued.
-        # This stops the writer's FSM from stalling indefinitely.
-        self.dut.m_axil_awready.value = 1
-        self.dut.m_axil_wready.value  = 1
-        self.dut.m_axil_bvalid.value  = 0
-        self.dut.m_axil_bresp.value   = 0
-
-        # Spawn a background task that mirrors awvalid -> bvalid one
-        # cycle later. The DUT issues one B per AW (single-beat in this
-        # AXIL/AXIL build), so this is a sufficient sink.
-        cocotb.start_soon(self._drive_master_write_sink())
+        # Master-write side is unconsumed in this minimal TB. The shared
+        # harness's trace consumer drives awready/wready/bvalid (single
+        # outstanding) so the burst writer drains freely into the void --
+        # replaces the hand-rolled awvalid->bvalid mirror sink.
+        self.mon.start_trace_consumer()
 
         await self.wait_clocks(self.clk_name, 1)
         self.log.info("✅ Configuration signals initialized")
-
-    async def _drive_master_write_sink(self):
-        """Minimal AXIL slave sink for the m_axil_* outputs.
-        Mirrors awvalid -> bvalid one cycle later; bready clears bvalid."""
-        from cocotb.triggers import RisingEdge
-        while True:
-            await RisingEdge(self.axi_aclk)
-            try:
-                aw_handshake = (int(self.dut.m_axil_awvalid.value) == 1
-                                and int(self.dut.m_axil_awready.value) == 1)
-                b_handshake  = (int(self.dut.m_axil_bvalid.value)  == 1
-                                and int(self.dut.m_axil_bready.value)  == 1)
-            except Exception:
-                # During reset some signals are X; just wait it out.
-                continue
-
-            if b_handshake:
-                self.dut.m_axil_bvalid.value = 0
-            if aw_handshake and int(self.dut.m_axil_bvalid.value) == 0:
-                self.dut.m_axil_bvalid.value = 1
-                self.dut.m_axil_bresp.value  = 0  # OKAY
 
     # ========================================================================
     # Test Methods
@@ -311,9 +285,9 @@ class MonbusAxilAxilGroupTB(TBBase):
             return False
 
     async def read_error_fifo(self, address: int = 0x0) -> Optional[int]:
-        """Read from error FIFO via AXI-Lite"""
+        """Read one 64-bit beat from the error FIFO via the shared harness."""
         try:
-            data = await self.error_fifo_reader['simple_read'](address)
+            data = await self.mon.drain_read_beat(address)
             self.stats['error_fifo_reads'] += 1
             return data
         except Exception as e:
