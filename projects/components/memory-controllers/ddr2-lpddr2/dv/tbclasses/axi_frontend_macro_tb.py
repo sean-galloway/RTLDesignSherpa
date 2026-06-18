@@ -249,3 +249,112 @@ class AxiFrontendMacroTB:
     async def rd_cam_occupancy(self) -> int:
         await self.settle()
         return int(self.dut.dbg_rd_cam_occ_o.value)
+
+    # ------------------------------------------------------------------
+    # Stream push helpers (back-to-back at 1 burst per cycle when ready)
+    # ------------------------------------------------------------------
+
+    async def push_aw_stream(self, entries: List[WriteEntry]) -> List[int]:
+        """Push a list of WriteEntries with valid held high across the burst.
+        Returns the slot index each entry landed in.
+        """
+        slots: List[int] = []
+        for e in entries:
+            self.dut.aw_valid_i.value = 1
+            self.dut.aw_addr_i.value = e.addr
+            self.dut.aw_id_i.value = e.axi_id
+            self.dut.aw_len_i.value = e.length
+            self.dut.aw_w_buf_ptr_i.value = e.w_buf_ptr
+            self.dut.aw_strb_ptr_i.value = e.strb_ptr
+            self.dut.aw_full_strb_i.value = 1 if e.full_strb else 0
+
+            await ReadOnly()
+            while int(self.dut.aw_ready_o.value) == 0:
+                await RisingEdge(self.dut.mc_clk)
+                await ReadOnly()
+            slot = int(self.dut.aw_slot_o.value)
+            slots.append(slot)
+            e.slot = slot
+            self.pending_writes.append(e)
+            await RisingEdge(self.dut.mc_clk)
+
+        self.dut.aw_valid_i.value = 0
+        return slots
+
+    async def push_ar_stream(self, items) -> list:
+        """items = list of (addr, axi_id, length). Returns the outcome dict
+        for each entry."""
+        outcomes = []
+        for addr, axi_id, length in items:
+            self.dut.ar_valid_i.value = 1
+            self.dut.ar_addr_i.value = addr
+            self.dut.ar_id_i.value = axi_id
+            self.dut.ar_len_i.value = length
+
+            await ReadOnly()
+            while int(self.dut.ar_ready_o.value) == 0:
+                await RisingEdge(self.dut.mc_clk)
+                await ReadOnly()
+
+            fwd_v = int(self.dut.fwd_valid_o.value)
+            if fwd_v:
+                outcome = {
+                    'kind': 'forward',
+                    'src_slot': int(self.dut.fwd_src_slot_o.value),
+                    'w_buf_ptr': int(self.dut.fwd_w_buf_ptr_o.value),
+                    'id': axi_id,
+                    'len': length,
+                }
+                self.forward_hits += 1
+            else:
+                outcome = {
+                    'kind': 'rd_push',
+                    'rd_slot': int(self.dut.rd_slot_o.value),
+                    'id': axi_id,
+                    'len': length,
+                }
+                self.forward_misses += 1
+            outcomes.append(outcome)
+            await RisingEdge(self.dut.mc_clk)
+
+        self.dut.ar_valid_i.value = 0
+        return outcomes
+
+    # ------------------------------------------------------------------
+    # Write lifecycle helpers (issue -> drain beats -> b_complete)
+    # ------------------------------------------------------------------
+
+    async def drain_wr_slot(self, slot: int, length: int) -> None:
+        """Pull `length` beats from the wr CAM slot and then strobe b_complete.
+        Simulates what scheduler + wr_data_path + xbank_timers would do.
+        """
+        await self.mark_wr_issued(slot)
+        for _ in range(length):
+            await self.pull_wr_beat(slot)
+        await self.b_complete(slot)
+
+    # ------------------------------------------------------------------
+    # Read lifecycle helpers (issue -> strobe beats -> entry_complete)
+    # ------------------------------------------------------------------
+
+    async def drain_rd_slot(self, slot: int, length: int) -> None:
+        """Mark issued then strobe `length` beats; verifies entry_complete
+        fires on the last beat."""
+        await self.mark_rd_issued(slot)
+        for i in range(length):
+            self.dut.rd_beat_we_i.value = 1
+            self.dut.rd_beat_slot_i.value = slot
+            await RisingEdge(self.dut.mc_clk)
+        self.dut.rd_beat_we_i.value = 0
+
+    # ------------------------------------------------------------------
+    # Forwarded-read consumer (data path stub)
+    #
+    # When the macro asserts fwd_valid_o, the TB drives fwd_ready_i=1 by
+    # default — the forwarded outcomes are sampled in push_ar / push_ar_stream
+    # so there is nothing else to consume here. This helper exists for tests
+    # that want to apply backpressure.
+    # ------------------------------------------------------------------
+
+    def set_fwd_ready(self, ready: bool) -> None:
+        self.dut.fwd_ready_i.value = 1 if ready else 0
