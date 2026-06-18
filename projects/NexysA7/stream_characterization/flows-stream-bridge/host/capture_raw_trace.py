@@ -53,7 +53,14 @@ def main():
               f"{n_bytes} bytes", file=sys.stderr)
         words = read_sram_region(bridge.read, args.base, n_bytes)
     records = parse_records(words)
-    pairs = [list(_rec_to_raw_pair(r)) for r in records]
+    # Emit the canonical capture schema consumed by plot_compression_report.py
+    # / monbus_halfbeat_model.load_capture: one {"packet","timestamp"} dict per
+    # record with 0x-prefixed hex (128-bit packet, 64-bit timestamp). The older
+    # [int, int] list form is not readable by the codec model.
+    pairs = []
+    for r in records:
+        pkt, ts = _rec_to_raw_pair(r)
+        pairs.append({"packet": f"0x{pkt:032x}", "timestamp": f"0x{ts:016x}"})
     doc = {"label": args.label, "count": len(pairs), "records": pairs}
     with open(args.output, "w") as f:
         json.dump(doc, f)

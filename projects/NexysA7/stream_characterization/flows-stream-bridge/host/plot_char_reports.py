@@ -33,6 +33,13 @@ GREEN = "#228B22"
 GRAY = "#404040"
 
 
+def _bk(m, side, key):
+    """Bucket percentage (0..100) for r/w side: productive/backpressure/
+    starvation/idle, stored as 0..1 fractions in *_buckets_pct."""
+    b = m.get(f"{side}_buckets_pct", {}) or {}
+    return (b.get(key) or 0.0) * 100.0
+
+
 def _row(rec):
     """Normalize one record (flat result or delay-wrapped) into a flat dict."""
     rd_delay = rec.get("rd_delay")
@@ -45,6 +52,20 @@ def _row(rec):
         "total_bytes": r.get("total_bytes"),
         "rd_delay": rd_delay if rd_delay is not None else 0,
         "e2e_util": (m.get("end_to_end_utilization") or 0.0) * 100.0,
+        # Datapath (steady-state, §2.1) utilization per side; the engine is
+        # in-order so R and W tend to track -- keep both for the §5 pair.
+        "dp_util_r": (m.get("datapath_utilization_r") or 0.0) * 100.0,
+        "dp_util_w": (m.get("datapath_utilization_w") or 0.0) * 100.0,
+        # §3 four-bucket classification on the W (destination) side -- the
+        # diagnostic axis (backpressure => dest-bound, starvation => DMA-bound).
+        "w_prod":  _bk(m, "w", "productive"),
+        "w_bp":    _bk(m, "w", "backpressure"),
+        "w_starv": _bk(m, "w", "starvation"),
+        "w_idle":  _bk(m, "w", "idle"),
+        "r_bp":    _bk(m, "r", "backpressure"),
+        "r_starv": _bk(m, "r", "starvation"),
+        # Per-channel W-side raw bucket counts (for §3.2 per-channel balance).
+        "w_per_channel": m.get("w_per_channel", []) or [],
         "bus_util": r.get("bus_e2e_util_pct", 0.0),
         "bus_mbps": r.get("bus_throughput_mbps", 0.0),
         "wall_mbps": r.get("throughput_mbps", 0.0),
@@ -136,6 +157,70 @@ def line_family(rows, xkey, ykey, vkey, xlabel, vlabel, leg, title, outdir, name
     _save(fig, outdir, name)
 
 
+def util_pair(rows, xkey, xlabel, title, outdir, name,
+              xlog=False, xticklabels=None):
+    """Methodology §5 primary+complementary pair: datapath (steady-state)
+    utilization vs end-to-end utilization on one axis, with the gap between
+    them shaded as the setup/teardown overhead."""
+    rows = sorted(rows, key=lambda r: r[xkey])
+    xs = [r[xkey] for r in rows]
+    dp = [r["dp_util_w"] for r in rows]
+    ee = [r["e2e_util"] for r in rows]
+    fig, ax = plt.subplots(figsize=(7, 4.2))
+    ax.plot(xs, dp, "-o", color=GREEN, label="datapath util (steady-state, §2.1)")
+    ax.plot(xs, ee, "--s", color=GRAY, label="end-to-end util (§2.3)")
+    ax.fill_between(xs, ee, dp, color="#cc6600", alpha=0.15,
+                    label="overhead (setup/teardown)")
+    if xlog:
+        ax.set_xscale("symlog")
+    if xticklabels is not None:
+        ax.set_xticks(xs); ax.set_xticklabels(xticklabels)
+    ax.set_xlabel(xlabel); ax.set_ylabel("utilization (%)"); ax.set_title(title)
+    ax.grid(True, alpha=0.3); ax.legend(fontsize=8)
+    _save(fig, outdir, name)
+
+
+def buckets_stacked(rows, xkey, xlabel, title, outdir, name, xlog=False):
+    """Methodology §3 four-bucket cycle classification on the W (destination)
+    interface, stacked vs an axis. Rising backpressure => destination-bound;
+    rising starvation => DMA-bound (descriptor/arbitration on the critical path)."""
+    rows = sorted(rows, key=lambda r: r[xkey])
+    xs = [r[xkey] for r in rows]
+    prod = [r["w_prod"] for r in rows]
+    bp = [r["w_bp"] for r in rows]
+    starv = [r["w_starv"] for r in rows]
+    idle = [r["w_idle"] for r in rows]
+    fig, ax = plt.subplots(figsize=(7, 4.2))
+    ax.stackplot(xs, prod, bp, starv, idle,
+                 labels=["productive", "backpressure", "starvation", "idle"],
+                 colors=[GREEN, "#c0392b", "#e08a00", "#999999"], alpha=0.85)
+    if xlog:
+        ax.set_xscale("symlog")
+    ax.set_xlabel(xlabel); ax.set_ylabel("W-bus cycles (%)")
+    ax.set_ylim(0, 100); ax.set_title(title)
+    ax.legend(fontsize=8, loc="lower left"); ax.grid(True, alpha=0.3)
+    _save(fig, outdir, name)
+
+
+def per_channel_bar(rec, outdir, name, title):
+    """Methodology §3.2 per-channel balance: productive fraction per channel
+    (W side) for one multi-channel config. Flat bars => balanced arbitration."""
+    pcs = rec.get("w_per_channel", [])
+    if not pcs:
+        return
+    chans, prod_pct = [], []
+    for c in pcs:
+        tot = (c.get("productive", 0) + c.get("backpressure", 0)
+               + c.get("starvation", 0) + c.get("idle", 0))
+        chans.append(c.get("channel"))
+        prod_pct.append(100.0 * c.get("productive", 0) / tot if tot else 0.0)
+    fig, ax = plt.subplots(figsize=(7, 4.2))
+    ax.bar([str(c) for c in chans], prod_pct, color=GREEN, alpha=0.85)
+    ax.set_xlabel("channel"); ax.set_ylabel("productive cycles (%)")
+    ax.set_ylim(0, 100); ax.set_title(title); ax.grid(True, axis="y", alpha=0.3)
+    _save(fig, outdir, name)
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--matrix")
@@ -170,6 +255,11 @@ def main():
                     "bus throughput (MB/s)", "desc",
                     "Bus throughput — channels x descriptors (1 MB)",
                     args.outdir, "channels_x_desc_lines.png")
+        # §3.2 per-channel balance at the widest config (8ch, 1 desc, 1 MB).
+        wide = [r for r in matrix if r["channels"] == 8 and r["desc"] == 1]
+        if wide:
+            per_channel_bar(wide[0], args.outdir, "per_channel_balance.png",
+                            "Per-channel productive cycles (8 ch, 1 desc, 1 MB) — §3.2")
 
     # delay sweep (1-D): 1ch slice of chan_delay
     if chan_delay:
@@ -178,6 +268,13 @@ def main():
             line_1d(d1, "rd_delay", "memory response delay (cycles)",
                     "Throughput & utilization vs memory latency (1 ch, 1 desc)",
                     args.outdir, "delay_sweep.png")
+            # §5 pair + §3 bucket diagnostic along the latency axis.
+            util_pair(d1, "rd_delay", "memory response delay (cycles)",
+                      "Datapath vs end-to-end utilization vs latency (1 ch)",
+                      args.outdir, "delay_util_pair.png", xlog=True)
+            buckets_stacked(d1, "rd_delay", "memory response delay (cycles)",
+                            "W-bus cycle breakdown vs latency (1 ch) — §3",
+                            args.outdir, "delay_buckets.png", xlog=True)
         heatmap(chan_delay, "rd_delay", "channels", "e2e_util",
                 "response delay (cyc)", "channels", "datapath E2E util (%)",
                 "Datapath utilization — channels x memory latency",
@@ -208,6 +305,12 @@ def main():
         line_1d(size, "size_kb", "transfer size per descriptor",
                 "Throughput & utilization vs transfer size (1 ch, 1 desc)",
                 args.outdir, "size_sweep.png", xlog=True, xticklabels=labels)
+        # §5 pair vs size: the fixed setup cost amortizes as size grows, so the
+        # datapath/end-to-end gap (overhead) shrinks toward zero.
+        util_pair(sorted(size, key=lambda r: r["size_kb"]), "size_kb",
+                  "transfer size per descriptor",
+                  "Datapath vs end-to-end utilization vs size (1 ch, 1 desc)",
+                  args.outdir, "size_util_pair.png", xlog=True, xticklabels=labels)
 
     print("plotting done", file=sys.stderr)
 
