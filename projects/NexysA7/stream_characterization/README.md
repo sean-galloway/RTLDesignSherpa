@@ -36,7 +36,7 @@ stream_characterization/                       ← this directory (umbrella)
 │   ├── rtl/, tcl/, constraints/, dv/, host/
 │   ├── csv/, plots/, reports/, bitstream/     committed outputs
 │   ├── build/                                 .gitignored Vivado work
-│   ├── Makefile, cmds.sh, char_cmds.sh
+│   ├── Makefile
 │   └── README.md
 │
 ├── flows-vivado-mcdma/                        cell (1,2): Vivado MCDMA + in-house bridge   (SKELETON)

@@ -19,8 +19,8 @@ open_hw_manager
 connect_hw_server
 
 # Pin to a specific board serial so that, when multiple Digilent boards are
-# attached, the JTAG flash and the UART characterization (char_cmds.sh, which
-# uses 210292B7D46F) land on the SAME board. Override with the
+# attached, the JTAG flash and the UART characterization (run_characterization.py,
+# which drives 210292B7D46F) land on the SAME board. Override with the
 # STREAM_CHAR_JTAG_SERIAL env var if needed.
 set want_serial "210292B7D46F"
 if {[info exists ::env(STREAM_CHAR_JTAG_SERIAL)]} {
