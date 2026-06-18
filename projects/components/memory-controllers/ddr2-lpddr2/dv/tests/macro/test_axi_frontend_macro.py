@@ -643,8 +643,19 @@ async def _run_multirank_isolation(tb):
 # Parametrize
 #---------------------------------------------------------------------------
 
-# Scenarios that run on the default single-rank build
-single_rank_params = [
+#---------------------------------------------------------------------------
+# Regression-level matrix selection (REG_LEVEL env var)
+#
+# Mirrors stream's GATE/FUNC/FULL convention:
+#   GATE : minimal smoke (~5 s wall) — fast CI sanity
+#   FUNC : functional coverage (~30 s wall) — default for dev
+#   FULL : the entire scenario set (~2 min wall) — nightly / pre-release
+#
+# Default = FUNC. Set REG_LEVEL=GATE|FUNC|FULL before invoking pytest, or
+# use the `make run-gate / run-func / run-full` targets.
+#---------------------------------------------------------------------------
+
+_ALL_SINGLE_RANK = [
     "smoke",
     "miss",
     "partial_strb",
@@ -669,11 +680,52 @@ single_rank_params = [
     "addr_scheme_sweep",
 ]
 
-# Scenarios that need NUM_RANKS > 1 — built separately to avoid forcing
-# every single-rank test through a multi-rank DUT rebuild.
-multi_rank_params = [
+_ALL_MULTI_RANK = [
     "multirank_isolation",
 ]
+
+# GATE — the bare minimum to prove the build wires up correctly
+_GATE_SINGLE = ["smoke"]
+_GATE_MULTI  = []                                # skip multi-rank rebuild in GATE
+
+# FUNC — one scenario from each functional category
+_FUNC_SINGLE = [
+    # sanity
+    "smoke", "miss", "partial_strb", "len_mismatch",
+    # streaming
+    "wr_stream", "rd_stream", "snarf_stream",
+    # ordering
+    "same_id_in_order",
+    # lifecycle
+    "wr_full_lifecycle", "rd_full_lifecycle",
+    # backpressure
+    "wr_cam_full",
+    # scheduler interface
+    "b_complete_clears_match", "mark_issued_masks_match",
+]
+_FUNC_MULTI = ["multirank_isolation"]
+
+# FULL — every scenario
+_FULL_SINGLE = _ALL_SINGLE_RANK
+_FULL_MULTI  = _ALL_MULTI_RANK
+
+
+def _pick(level: str, single: bool):
+    table = single and {
+        "GATE": _GATE_SINGLE,
+        "FUNC": _FUNC_SINGLE,
+        "FULL": _FULL_SINGLE,
+    } or {
+        "GATE": _GATE_MULTI,
+        "FUNC": _FUNC_MULTI,
+        "FULL": _FULL_MULTI,
+    }
+    return table.get(level.upper(), _FUNC_SINGLE if single else _FUNC_MULTI)
+
+
+_REG_LEVEL = os.environ.get("REG_LEVEL", "FUNC").upper()
+single_rank_params = _pick(_REG_LEVEL, single=True)
+multi_rank_params  = _pick(_REG_LEVEL, single=False)
 
 
 def _build_and_run(request, test_type, num_ranks):
@@ -735,7 +787,12 @@ def test_axi_frontend_macro(request, test_type):
     _build_and_run(request, test_type, num_ranks=1)
 
 
-@pytest.mark.parametrize("test_type", multi_rank_params)
+# Skip the multi-rank wrapper entirely when REG_LEVEL=GATE picks an empty list.
+@pytest.mark.skipif(
+    not multi_rank_params,
+    reason=f"no multi-rank scenarios at REG_LEVEL={_REG_LEVEL}",
+)
+@pytest.mark.parametrize("test_type", multi_rank_params or ["__skipped__"])
 def test_axi_frontend_macro_multirank(request, test_type):
     """Multi-rank (NUM_RANKS=2) pytest wrapper."""
     _build_and_run(request, test_type, num_ranks=2)
