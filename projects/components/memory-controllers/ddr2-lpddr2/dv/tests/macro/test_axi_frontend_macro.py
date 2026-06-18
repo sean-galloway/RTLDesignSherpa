@@ -62,22 +62,29 @@ async def cocotb_test_axi_frontend(dut):
     await tb.setup()
 
     scenarios = {
-        "smoke":              _run_smoke,
-        "miss":               _run_miss,
-        "partial_strb":       _run_partial_strb,
-        "len_mismatch":       _run_len_mismatch,
-        "wr_stream":          _run_wr_stream,
-        "rd_stream":          _run_rd_stream,
-        "mixed_stream":       _run_mixed_stream,
-        "snarf_stream":       _run_snarf_stream,
-        "same_id_in_order":   _run_same_id_in_order,
-        "mixed_id_ooo":       _run_mixed_id_ooo,
-        "wr_full_lifecycle":  _run_wr_full_lifecycle,
-        "rd_full_lifecycle":  _run_rd_full_lifecycle,
-        "wr_cam_full":        _run_wr_cam_full,
-        "last_write_wins":    _run_last_write_wins,
-        "issued_then_snarf":  _run_issued_then_snarf,
-        "concurrent_aw_ar":   _run_concurrent_aw_ar,
+        "smoke":                    _run_smoke,
+        "miss":                     _run_miss,
+        "partial_strb":             _run_partial_strb,
+        "len_mismatch":             _run_len_mismatch,
+        "wr_stream":                _run_wr_stream,
+        "rd_stream":                _run_rd_stream,
+        "mixed_stream":             _run_mixed_stream,
+        "snarf_stream":             _run_snarf_stream,
+        "same_id_in_order":         _run_same_id_in_order,
+        "mixed_id_ooo":             _run_mixed_id_ooo,
+        "wr_full_lifecycle":        _run_wr_full_lifecycle,
+        "rd_full_lifecycle":        _run_rd_full_lifecycle,
+        "wr_cam_full":              _run_wr_cam_full,
+        "last_write_wins":          _run_last_write_wins,
+        "issued_then_snarf":        _run_issued_then_snarf,
+        "concurrent_aw_ar":         _run_concurrent_aw_ar,
+        "forwarded_backpressure":   _run_forwarded_backpressure,
+        "rd_cam_full":              _run_rd_cam_full,
+        "b_complete_clears_match":  _run_b_complete_clears_match,
+        "mark_issued_masks_match":  _run_mark_issued_masks_match,
+        "scheduler_query_rowhit":   _run_scheduler_query_rowhit,
+        "addr_scheme_sweep":        _run_addr_scheme_sweep,
+        "multirank_isolation":      _run_multirank_isolation,
     }
     if test_type not in scenarios:
         raise ValueError(f"Unknown TEST_TYPE: {test_type}")
@@ -411,10 +418,233 @@ async def _run_concurrent_aw_ar(tb):
 
 
 #---------------------------------------------------------------------------
+# Additional edge-case scenarios
+#---------------------------------------------------------------------------
+#
+# Addresses used here use ROW_MAJOR decode at default config:
+#   bank = addr[15:13];  row = addr[29:16];  col = addr[12:3];  rank = addr[30:..]
+#
+# For NUM_RANKS=1 the rank field is tied to 0 and addr[30] is don't-care.
+
+# Address that decodes to (rank=0, bank=2, row=0, col=0). 0x4000 = bit-14.
+_ADDR_R0B2_R0_C0 = 0x0000_4000
+
+
+async def _run_forwarded_backpressure(tb):
+    """Drive fwd_ready_i=0. Push a matching AR. ar_ready_o must stay low
+    while fwd_ready_i is low. Release backpressure, verify completion."""
+    tb.set_fwd_ready(False)
+
+    w = WriteEntry(addr=_ADDR_R0B2_R0_C0, axi_id=3, length=4,
+                   w_buf_ptr=0, strb_ptr=0, full_strb=True)
+    aw_slot = await tb.push_aw(w)
+    await RisingEdge(tb.dut.mc_clk)
+
+    # Drive the AR (matching), but DO NOT wait for ready
+    tb.dut.ar_valid_i.value = 1
+    tb.dut.ar_addr_i.value = _ADDR_R0B2_R0_C0
+    tb.dut.ar_id_i.value = 3
+    tb.dut.ar_len_i.value = 4
+
+    # Verify backpressure holds
+    for _ in range(5):
+        await RisingEdge(tb.dut.mc_clk)
+        await tb.settle()
+        assert int(tb.dut.fwd_valid_o.value) == 1, "fwd_valid should be asserted"
+        assert int(tb.dut.ar_ready_o.value) == 0, "ar_ready must be low while fwd backpressured"
+
+    # Release
+    tb.set_fwd_ready(True)
+    await tb.settle()
+    assert int(tb.dut.ar_ready_o.value) == 1, "ar_ready must rise when fwd_ready does"
+    assert int(tb.dut.fwd_src_slot_o.value) == aw_slot
+
+    await RisingEdge(tb.dut.mc_clk)
+    tb.dut.ar_valid_i.value = 0
+    tb.log.info("forwarded_backpressure PASS")
+
+
+async def _run_rd_cam_full(tb):
+    """Symmetric to wr_cam_full. Fill the rd CAM with 16 ARs (no matching
+    writes), then attempt a 17th and verify ar_ready_o stays low."""
+    reads = _mk_reads(16, base_addr=0x0000_8000)
+    outcomes = await tb.push_ar_stream(reads)
+    for o in outcomes:
+        assert o["kind"] == "rd_push", o
+    assert await tb.rd_cam_occupancy() == 16
+
+    # 17th AR
+    tb.dut.ar_valid_i.value = 1
+    tb.dut.ar_addr_i.value = 0x0000_A000
+    tb.dut.ar_id_i.value = 0
+    tb.dut.ar_len_i.value = 4
+
+    for _ in range(4):
+        await RisingEdge(tb.dut.mc_clk)
+        await tb.settle()
+        assert int(tb.dut.ar_ready_o.value) == 0, \
+            "ar_ready_o must be low when rd CAM is full"
+
+    tb.dut.ar_valid_i.value = 0
+    tb.log.info("rd_cam_full PASS")
+
+
+async def _run_b_complete_clears_match(tb):
+    """After b_complete fires, the slot's match_pending must drop."""
+    w = WriteEntry(addr=_ADDR_R0B2_R0_C0, axi_id=1, length=4,
+                   w_buf_ptr=0, strb_ptr=0, full_strb=True)
+    slot = await tb.push_aw(w)
+
+    match = await tb.query_scheduler(rank=0, bank=2, row=0)
+    assert (match["wr_pending"] >> slot) & 1, \
+        f"slot {slot} should be pending (mask=0x{match['wr_pending']:x})"
+    assert (match["wr_rowhit"] >> slot) & 1, \
+        f"slot {slot} should be row-hit"
+
+    await tb.b_complete(slot)
+    await tb.settle()
+
+    match = await tb.query_scheduler(rank=0, bank=2, row=0)
+    assert ((match["wr_pending"] >> slot) & 1) == 0, \
+        "match_pending must drop after b_complete"
+    assert await tb.wr_cam_occupancy() == 0
+    tb.log.info("b_complete_clears_match PASS")
+
+
+async def _run_mark_issued_masks_match(tb):
+    """mark_issued must drop match_pending while leaving the slot valid
+    (b_complete is what frees the slot)."""
+    w = WriteEntry(addr=_ADDR_R0B2_R0_C0, axi_id=1, length=4,
+                   w_buf_ptr=0, strb_ptr=0, full_strb=True)
+    slot = await tb.push_aw(w)
+
+    match = await tb.query_scheduler(rank=0, bank=2, row=0)
+    assert (match["wr_pending"] >> slot) & 1
+
+    await tb.mark_wr_issued(slot)
+    await tb.settle()
+
+    match = await tb.query_scheduler(rank=0, bank=2, row=0)
+    assert ((match["wr_pending"] >> slot) & 1) == 0, \
+        "issued slot must not show in match_pending"
+
+    # Slot still occupies the CAM (still tracking the in-flight write)
+    assert await tb.wr_cam_occupancy() == 1
+    tb.log.info("mark_issued_masks_match PASS")
+
+
+async def _run_scheduler_query_rowhit(tb):
+    """Push 3 reads:
+       A: (bank=2, row=0, col=0)
+       B: (bank=2, row=0, col=1)  — same bank+row as A
+       C: (bank=2, row=1, col=0)  — same bank, different row
+    Then query at (bank=2, row=0):
+       - rd_pending: {A, B, C}  (all same bank)
+       - rd_rowhit:  {A, B}     (only the row-0 entries)
+    And at (bank=2, row=1):
+       - rd_pending: {A, B, C}
+       - rd_rowhit:  {C}"""
+    # B = 0x4008 (col=1 — addr_word bit 0 = 1 since col[0]=addr_word[0])
+    # C = 0x14000 (row=1 → addr_word[13]=1 → addr=0x14000)
+    items = [
+        (0x0000_4000, 1, 4),   # A
+        (0x0000_4008, 2, 4),   # B
+        (0x0001_4000, 3, 4),   # C
+    ]
+    outcomes = await tb.push_ar_stream(items)
+    for o in outcomes:
+        assert o["kind"] == "rd_push", o
+    slots = [o["rd_slot"] for o in outcomes]
+
+    # Query at A's row
+    match = await tb.query_scheduler(rank=0, bank=2, row=0)
+    for s in slots:
+        assert (match["rd_pending"] >> s) & 1, f"slot {s} missing from rd_pending"
+    assert (match["rd_rowhit"] >> slots[0]) & 1, "A should row-hit"
+    assert (match["rd_rowhit"] >> slots[1]) & 1, "B should row-hit"
+    assert ((match["rd_rowhit"] >> slots[2]) & 1) == 0, \
+        "C should NOT row-hit (different row)"
+
+    # Query at C's row
+    match = await tb.query_scheduler(rank=0, bank=2, row=1)
+    for s in slots:
+        assert (match["rd_pending"] >> s) & 1
+    assert ((match["rd_rowhit"] >> slots[0]) & 1) == 0
+    assert ((match["rd_rowhit"] >> slots[1]) & 1) == 0
+    assert (match["rd_rowhit"] >> slots[2]) & 1, "C should row-hit at its own row"
+
+    tb.log.info(f"scheduler_query_rowhit PASS — slots {slots}")
+
+
+async def _run_addr_scheme_sweep(tb):
+    """Run a forward-smoke under each synthesized address-map scheme.
+    Default macro synthesizes ROW_MAJOR (0) and BANK_INTERLEAVE (1); XOR_HASH
+    (2) is opt-in via SYNTH_XOR_HASH and is skipped here."""
+    for scheme_val, name, base in [
+        (tb.SCHEME_ROW_MAJOR,       "ROW_MAJOR",       0x0000_4080),
+        (tb.SCHEME_BANK_INTERLEAVE, "BANK_INTERLEAVE", 0x0000_4180),
+    ]:
+        tb.dut.scheme_active_i.value = scheme_val
+        await tb.settle()
+
+        w = WriteEntry(addr=base, axi_id=(scheme_val + 1) & 0xF, length=4,
+                       w_buf_ptr=scheme_val * 16, strb_ptr=scheme_val * 16,
+                       full_strb=True)
+        slot = await tb.push_aw(w)
+        await RisingEdge(tb.dut.mc_clk)
+
+        outcome = await tb.push_ar(base, (scheme_val + 1) & 0xF, 4)
+        assert outcome["kind"] == "forward", \
+            f"scheme {name}: expected forward, got {outcome}"
+        assert outcome["src_slot"] == slot
+
+        # Free the slot so the next iteration has a clean CAM context
+        await tb.b_complete(slot)
+        tb.log.info(f"addr_scheme_sweep[{name}] PASS")
+
+    tb.log.info("addr_scheme_sweep PASS")
+
+
+async def _run_multirank_isolation(tb):
+    """Multi-rank-only test. Requires NUM_RANKS >= 2 at elaboration.
+
+    addr[30] is rank[0] under ROW_MAJOR with the default geometry. A read
+    targeting a different rank than a pending write must NOT forward, even
+    if all other tuple bits match."""
+    # Skip gracefully if NUM_RANKS == 1 — single-rank builds tie rank to 0
+    # and addr[30] becomes part of an unused upper field.
+    if not hasattr(tb.dut, "aw_addr_i"):
+        return
+
+    rank0_addr = 0x0000_4080                 # rank=0
+    rank1_addr = rank0_addr | (1 << 30)      # same (bank, row, col), rank=1
+
+    w = WriteEntry(addr=rank0_addr, axi_id=3, length=4,
+                   w_buf_ptr=0, strb_ptr=0, full_strb=True)
+    aw_slot = await tb.push_aw(w)
+    await RisingEdge(tb.dut.mc_clk)
+
+    # AR to a DIFFERENT rank — must NOT forward
+    cross_rank = await tb.push_ar(rank1_addr, 3, 4)
+    assert cross_rank["kind"] == "rd_push", \
+        f"cross-rank read must NOT forward; got {cross_rank}"
+    await RisingEdge(tb.dut.mc_clk)
+
+    # AR to the SAME rank — must forward
+    same_rank = await tb.push_ar(rank0_addr, 4, 4)
+    assert same_rank["kind"] == "forward", \
+        f"same-rank read should forward; got {same_rank}"
+    assert same_rank["src_slot"] == aw_slot
+
+    tb.log.info("multirank_isolation PASS")
+
+
+#---------------------------------------------------------------------------
 # Parametrize
 #---------------------------------------------------------------------------
 
-params = [
+# Scenarios that run on the default single-rank build
+single_rank_params = [
     "smoke",
     "miss",
     "partial_strb",
@@ -431,15 +661,26 @@ params = [
     "last_write_wins",
     "issued_then_snarf",
     "concurrent_aw_ar",
+    "forwarded_backpressure",
+    "rd_cam_full",
+    "b_complete_clears_match",
+    "mark_issued_masks_match",
+    "scheduler_query_rowhit",
+    "addr_scheme_sweep",
+]
+
+# Scenarios that need NUM_RANKS > 1 — built separately to avoid forcing
+# every single-rank test through a multi-rank DUT rebuild.
+multi_rank_params = [
+    "multirank_isolation",
 ]
 
 
-@pytest.mark.parametrize("test_type", params)
-def test_axi_frontend_macro(request, test_type):
-    """Pytest wrapper for the axi_frontend_macro tests."""
+def _build_and_run(request, test_type, num_ranks):
+    """Common builder for both the single-rank and multi-rank wrappers."""
     module, repo_root, tests_dir, log_dir, _ = get_paths({})
     dut_name = "axi_frontend_macro"
-    test_name = f"test_axi_frontend_macro_{test_type}"
+    test_name = f"test_axi_frontend_macro_{test_type}_nr{num_ranks}"
 
     filelist_path = (
         "projects/components/memory-controllers/ddr2-lpddr2/"
@@ -464,13 +705,13 @@ def test_axi_frontend_macro(request, test_type):
         "TEST_TYPE": test_type,
     }
 
-    # Enable waves with WAVES=1
     enable_waves = bool(int(os.environ.get("WAVES", "0")))
     compile_args = []
-    plus_args = []
     if enable_waves:
         compile_args += ["--trace", "--trace-structs"]
         extra_env["VERILATOR_TRACE"] = "1"
+
+    parameters = {"NUM_RANKS": str(num_ranks)}
 
     run(
         python_search=[tests_dir],
@@ -482,7 +723,19 @@ def test_axi_frontend_macro(request, test_type):
         sim_build=sim_build,
         simulator="verilator",
         extra_env=extra_env,
+        parameters=parameters,
         compile_args=compile_args,
-        plus_args=plus_args,
         timescale="1ns/1ps",
     )
+
+
+@pytest.mark.parametrize("test_type", single_rank_params)
+def test_axi_frontend_macro(request, test_type):
+    """Single-rank (NUM_RANKS=1) pytest wrapper."""
+    _build_and_run(request, test_type, num_ranks=1)
+
+
+@pytest.mark.parametrize("test_type", multi_rank_params)
+def test_axi_frontend_macro_multirank(request, test_type):
+    """Multi-rank (NUM_RANKS=2) pytest wrapper."""
+    _build_and_run(request, test_type, num_ranks=2)
