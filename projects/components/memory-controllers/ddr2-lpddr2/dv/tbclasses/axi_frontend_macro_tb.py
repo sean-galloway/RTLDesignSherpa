@@ -242,6 +242,30 @@ class AxiFrontendMacroTB:
         """Wait for combinational propagation before sampling outputs."""
         await Timer(ns, units="ns")
 
+    async def reset_dut(self, cycles: int = 3) -> None:
+        """Re-assert mc_rst_n for `cycles` MC clocks and clear TB
+        bookkeeping. Used between sub-scenarios in a bundle so each one
+        starts from a clean CAM state without rebuilding the DUT.
+        """
+        self.dut.mc_rst_n.value = 0
+        # De-assert any leftover handshakes that could carry over
+        self.dut.aw_valid_i.value = 0
+        self.dut.ar_valid_i.value = 0
+        self.dut.wr_issued_we_i.value = 0
+        self.dut.rd_issued_we_i.value = 0
+        self.dut.beat_pull_strb_i.value = 0
+        self.dut.b_complete_strb_i.value = 0
+        self.dut.rd_beat_we_i.value = 0
+        self.dut.fwd_ready_i.value = 1
+        for _ in range(cycles):
+            await RisingEdge(self.dut.mc_clk)
+        self.dut.mc_rst_n.value = 1
+        await RisingEdge(self.dut.mc_clk)
+        # TB-side bookkeeping
+        self.pending_writes.clear()
+        self.forward_hits = 0
+        self.forward_misses = 0
+
     async def wr_cam_occupancy(self) -> int:
         await self.settle()
         return int(self.dut.dbg_wr_cam_occ_o.value)

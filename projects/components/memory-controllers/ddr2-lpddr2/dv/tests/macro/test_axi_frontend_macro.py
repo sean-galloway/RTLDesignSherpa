@@ -86,9 +86,23 @@ async def cocotb_test_axi_frontend(dut):
         "addr_scheme_sweep":        _run_addr_scheme_sweep,
         "multirank_isolation":      _run_multirank_isolation,
     }
-    if test_type not in scenarios:
+    if test_type in BUNDLES:
+        # Bundle: run N sub-scenarios in one cocotb invocation, resetting
+        # the DUT between each so they don't see each other's state. The
+        # whole bundle shares one Verilator build, amortizing build cost
+        # while exercising more total scenarios per pytest test.
+        sub_names = BUNDLES[test_type]
+        for sub in sub_names:
+            if sub not in scenarios:
+                raise ValueError(f"Unknown scenario in bundle '{test_type}': {sub}")
+            tb.log.info(f"--- bundle '{test_type}' sub-scenario: {sub} ---")
+            await tb.reset_dut()
+            await scenarios[sub](tb)
+        tb.log.info(f"bundle '{test_type}' completed ({len(sub_names)} sub-scenarios)")
+    elif test_type in scenarios:
+        await scenarios[test_type](tb)
+    else:
         raise ValueError(f"Unknown TEST_TYPE: {test_type}")
-    await scenarios[test_type](tb)
 
 
 # ---------------------------------------------------------------------------
@@ -655,6 +669,26 @@ async def _run_multirank_isolation(tb):
 # use the `make run-gate / run-func / run-full` targets which set it for you.
 #---------------------------------------------------------------------------
 
+#---------------------------------------------------------------------------
+# Bundles — each maps to a list of sub-scenarios that run in one cocotb
+# invocation. The dispatcher resets the DUT between each sub-scenario so
+# state from one doesn't leak into the next. Used by FUNC/FULL test levels
+# to amortize Verilator build cost across more total scenarios per pytest
+# test, increasing coverage density without inflating the build count.
+#---------------------------------------------------------------------------
+
+BUNDLES = {
+    "sanity_bundle":       ["smoke", "miss", "partial_strb", "len_mismatch"],
+    "streaming_bundle":    ["wr_stream", "rd_stream", "mixed_stream"],
+    "snarf_bundle":        ["snarf_stream", "last_write_wins", "issued_then_snarf"],
+    "ordering_bundle":     ["same_id_in_order", "mixed_id_ooo"],
+    "lifecycle_bundle":    ["wr_full_lifecycle", "rd_full_lifecycle"],
+    "backpressure_bundle": ["wr_cam_full", "rd_cam_full", "forwarded_backpressure"],
+    "sched_bundle":        ["scheduler_query_rowhit", "b_complete_clears_match",
+                            "mark_issued_masks_match"],
+    "misc_bundle":         ["concurrent_aw_ar", "addr_scheme_sweep"],
+}
+
 _ALL_SINGLE_RANK = [
     "smoke",
     "miss",
@@ -680,34 +714,49 @@ _ALL_SINGLE_RANK = [
     "addr_scheme_sweep",
 ]
 
+# Multi-rank scenarios are (test_type, num_ranks) tuples so each NUM_RANKS
+# value gets a distinct Verilator build + sim_build dir + test ID.
+# NUM_RANKS ∈ {1, 2, 4} per HAS §5.2; the single-rank wrapper handles NR=1.
 _ALL_MULTI_RANK = [
-    "multirank_isolation",
+    ("multirank_isolation", 2),
+    ("multirank_isolation", 4),
 ]
 
-# GATE — the bare minimum to prove the build wires up correctly
-_GATE_SINGLE = ["smoke"]
-_GATE_MULTI  = []                                # skip multi-rank rebuild in GATE
+# GATE — fast sanity bundle; single-rank only. 4 sub-scenarios in one
+# cocotb invocation = one build, one process, four reset+test cycles.
+_GATE_SINGLE = ["sanity_bundle"]
+_GATE_MULTI  = []   # no multi-rank rebuilds at GATE per design
 
-# FUNC — one scenario from each functional category
+# FUNC — bundles for each functional category (≈22 sub-scenarios in 8 builds)
+# plus multirank coverage at NR=2 and NR=4.
 _FUNC_SINGLE = [
-    # sanity
-    "smoke", "miss", "partial_strb", "len_mismatch",
-    # streaming
-    "wr_stream", "rd_stream", "snarf_stream",
-    # ordering
-    "same_id_in_order",
-    # lifecycle
-    "wr_full_lifecycle", "rd_full_lifecycle",
-    # backpressure
-    "wr_cam_full",
-    # scheduler interface
-    "b_complete_clears_match", "mark_issued_masks_match",
+    "sanity_bundle",
+    "streaming_bundle",
+    "snarf_bundle",
+    "ordering_bundle",
+    "lifecycle_bundle",
+    "backpressure_bundle",
+    "sched_bundle",
+    "misc_bundle",
 ]
-_FUNC_MULTI = ["multirank_isolation"]
+_FUNC_MULTI = [
+    ("multirank_isolation", 2),
+    ("multirank_isolation", 4),
+]
 
-# FULL — every scenario
-_FULL_SINGLE = _ALL_SINGLE_RANK
-_FULL_MULTI  = _ALL_MULTI_RANK
+# FULL — bundles + every individual scenario at NR=1 (so individual debug
+# runs are still collected at FULL), plus multirank coverage with extra
+# smoke checks at NR=2 and NR=4 to prove those builds wire up cleanly.
+_FULL_SINGLE = (
+    list(BUNDLES.keys())   # 8 bundles
+    + _ALL_SINGLE_RANK     # 22 individual scenarios
+)
+_FULL_MULTI = [
+    ("smoke",               2),
+    ("multirank_isolation", 2),
+    ("smoke",               4),
+    ("multirank_isolation", 4),
+]
 
 
 def _pick(level: str, single: bool):
@@ -798,7 +847,12 @@ def test_axi_frontend_macro(request, test_type):
     not multi_rank_params,
     reason=f"no multi-rank scenarios at TEST_LEVEL={_TEST_LEVEL}",
 )
-@pytest.mark.parametrize("test_type", multi_rank_params or ["__skipped__"])
-def test_axi_frontend_macro_multirank(request, test_type):
-    """Multi-rank (NUM_RANKS=2) pytest wrapper."""
-    _build_and_run(request, test_type, num_ranks=2)
+@pytest.mark.parametrize(
+    "test_type,num_ranks",
+    multi_rank_params or [("__skipped__", 1)],
+)
+def test_axi_frontend_macro_multirank(request, test_type, num_ranks):
+    """Multi-rank (NUM_RANKS ∈ {2, 4}) pytest wrapper. The num_ranks
+    parameter goes both into the SV build and into the test_name so
+    each rank value gets its own sim_build dir + results XML."""
+    _build_and_run(request, test_type, num_ranks=num_ranks)
