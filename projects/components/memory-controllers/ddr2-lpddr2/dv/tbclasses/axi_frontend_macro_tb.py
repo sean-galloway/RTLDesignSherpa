@@ -116,6 +116,13 @@ class AxiFrontendMacroTB:
         self.fwd_hits_seen   = 0
         self.fwd_misses_seen = 0
 
+        # Stub control flags. Tests can pause the auto-services to hold a
+        # write in the CAM beyond its natural lifetime (needed for the
+        # snarf-timing schmoo so we can place the read inside / outside
+        # the snarf window deterministically).
+        self.wr_stub_paused: bool = False
+        self.rd_stub_paused: bool = False
+
         # Build AXI4 BFMs as masters (we drive the host side of the slave DUT)
         self.axi_master_wr = AXI4MasterWrite(
             dut=dut,
@@ -212,6 +219,33 @@ class AxiFrontendMacroTB:
         self.axi_master_rd.r_channel.randomizer  = FlexRandomizer(cfg['slave'])
         self.log.info(f"AXI timing profile = '{profile_name}'")
 
+    def set_scheme(self, scheme: int) -> None:
+        """Live-switch the address-map scheme (CSR-style)."""
+        self.dut.scheme_active_i.value = scheme
+
+    def stat_snapshot(self) -> Tuple[int, int]:
+        """Returns (fwd_hits, fwd_misses) — useful for delta-checking around
+        a scenario step."""
+        return self.fwd_hits_seen, self.fwd_misses_seen
+
+    async def wait_for_wr_cam_push(self, prev_occ: int = 0,
+                                   timeout_cycles: int = 200) -> int:
+        """Wait until dbg_wr_cam_occ_o exceeds prev_occ. Used by tests to
+        deterministically know the in-flight write has reached the CAM
+        before issuing the matching read (otherwise the read races the
+        BFM's AW+W drive and may arrive before the snarf window opens).
+        Returns the observed occupancy."""
+        for _ in range(timeout_cycles):
+            await RisingEdge(self.dut.mc_clk)
+            await ReadOnly()
+            occ = int(self.dut.dbg_wr_cam_occ_o.value)
+            if occ > prev_occ:
+                return occ
+        raise TimeoutError(
+            f"wait_for_wr_cam_push: occupancy did not exceed {prev_occ} "
+            f"within {timeout_cycles} cycles"
+        )
+
     # --------------------------------------------------------------------
     # Test API — high-level write/read using the BFMs
     # --------------------------------------------------------------------
@@ -264,10 +298,16 @@ class AxiFrontendMacroTB:
 
         v1 simplification: assumes single-write-in-flight (always slot 0).
         For each new occupancy: mark issued, beat-pull until last, b_complete.
+
+        Honors tb.wr_stub_paused — when True, the stub idles without
+        servicing, keeping any pushed AW in the CAM. Tests use this to
+        deterministically place a read inside or outside the snarf window.
         """
         prev_occ = 0
         while True:
             await RisingEdge(self.dut.mc_clk)
+            if self.wr_stub_paused:
+                continue
             await ReadOnly()
             occ = int(self.dut.dbg_wr_cam_occ_o.value)
             if occ <= prev_occ:

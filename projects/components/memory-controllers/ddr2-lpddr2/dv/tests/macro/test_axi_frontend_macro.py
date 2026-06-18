@@ -67,9 +67,14 @@ async def cocotb_test_axi_frontend(dut):
     await tb.setup(timing_profile=timing_profile)
 
     scenarios = {
-        "forward_smoke":   _run_forward_smoke,
-        "miss_smoke":      _run_miss_smoke,
-        "random_directed": _run_random_directed,
+        "forward_smoke":        _run_forward_smoke,
+        "miss_smoke":           _run_miss_smoke,
+        "random_directed":      _run_random_directed,
+        "snarf_timing_schmoo":  _run_snarf_timing_schmoo,
+        "addr_space_sweep":     _run_addr_space_sweep,
+        "scheme_sweep":         _run_scheme_sweep,
+        "partial_strb":         _run_partial_strb,
+        "burst_len_sweep":      _run_burst_len_sweep,
     }
     if test_type not in scenarios:
         raise ValueError(f"Unknown TEST_TYPE: {test_type}")
@@ -177,19 +182,308 @@ async def _run_random_directed(tb):
 
 
 # ---------------------------------------------------------------------------
-# Pytest wrapper
+# Schmoo: snarf timing — vary the read's arrival relative to the write,
+# from 8 cycles before to 8 cycles after, with the wr-stub paused so the
+# write stays in the CAM until we let it complete.
 # ---------------------------------------------------------------------------
 
-# Initial gate-level matrix — three scenarios, single timing profile, NR=1.
-_INITIAL_PARAMS = [
-    ("forward_smoke",   1, "backtoback"),
-    ("miss_smoke",      1, "backtoback"),
-    ("random_directed", 1, "backtoback"),
+async def _run_snarf_timing_schmoo(tb):
+    """Sweep read-to-write delta across [-8 .. +8] with the wr_stub paused.
+
+    Negative delta = read issued first, then write at |delta| cycles later.
+    Positive delta = write issued first, then read at delta cycles later.
+
+    For positive delta with the write still in the CAM, the read snarfs.
+    For negative delta the write hasn't reached the CAM yet so the read
+    takes the miss path (the rd_stub injects whatever the mem model holds
+    at the time, which is the pre-populated expected value).
+
+    We don't strictly assert hit-vs-miss per delta (the boundary is
+    timing-dependent) — instead we assert that across the sweep we see
+    BOTH paths exercised and data integrity holds in every iteration.
+    """
+    deltas = [-8, -6, -4, -2, 0, 2, 4, 6, 8]
+    burst_len = 2
+    base_addr = 0x0000_4080
+    # Vary address per iteration to make sure no inter-iteration state leaks
+    # into the next; the snarf is keyed on (rank, bank, row, col).
+
+    total_hits = 0
+    total_misses = 0
+    for i, delta in enumerate(deltas):
+        addr = base_addr + (i * 0x80)
+        beats = [(0xCAFE_0000_0000_0000 | (i << 24) | b) & tb.AXI_DATA_MASK
+                 for b in range(burst_len)]
+
+        # Pre-populate mem so that rd_inject (miss path) has the right
+        # data; snarf path will source from w_buf instead.
+        tb.mem.write(addr, beats)
+
+        hits_before, misses_before = tb.stat_snapshot()
+
+        # Pause wr_stub so the write stays in the CAM during the test.
+        tb.wr_stub_paused = True
+
+        if delta >= 0:
+            wr_task = cocotb.start_soon(tb.axi_write(addr, beats, axi_id=1))
+            for _ in range(delta + 6):   # +6 lets AW+W actually land
+                await RisingEdge(tb.dut.mc_clk)
+            rdata = await tb.axi_read(addr, beats=burst_len, axi_id=2)
+        else:
+            rd_task = cocotb.start_soon(tb.axi_read(addr, beats=burst_len, axi_id=2))
+            for _ in range(-delta):
+                await RisingEdge(tb.dut.mc_clk)
+            wr_task = cocotb.start_soon(tb.axi_write(addr, beats, axi_id=1))
+            rdata = await rd_task
+
+        # Resume the stub so the queued write can drain.
+        tb.wr_stub_paused = False
+        await wr_task
+
+        # Data integrity check — every iteration must return the right beats.
+        assert rdata == beats, (
+            f"delta={delta}: data mismatch at addr 0x{addr:x}: "
+            f"got {rdata} want {beats}"
+        )
+
+        hits_after, misses_after = tb.stat_snapshot()
+        h = hits_after - hits_before
+        m = misses_after - misses_before
+        total_hits += h
+        total_misses += m
+        tb.log.info(f"schmoo delta={delta:+d} hits={h} misses={m} addr=0x{addr:x}")
+
+        # Settle between iterations
+        for _ in range(10):
+            await RisingEdge(tb.dut.mc_clk)
+
+    # We should have seen BOTH paths across the sweep
+    assert total_hits   > 0, f"no forward hits across schmoo (total_hits={total_hits})"
+    assert total_misses > 0, f"no forward misses across schmoo (total_misses={total_misses})"
+    tb.log.info(
+        f"snarf_timing_schmoo PASS — total hits={total_hits} misses={total_misses}"
+    )
+
+
+# ---------------------------------------------------------------------------
+# Address-space sweep — vary (bank, row, col) tuples and verify snarf
+# correctness across each. Rank is fixed at 0 (only NR=1 builds here).
+# ---------------------------------------------------------------------------
+
+async def _run_addr_space_sweep(tb):
+    """For each (bank, row, col) point in a small grid, do a write+read
+    pair and verify forward hit + data integrity.
+
+    Address bit layout under ROW_MAJOR (default), with
+    BYTE_OFFSET_WIDTH=3, COL_WIDTH=10, BANK_WIDTH=3, ROW_WIDTH=14:
+
+      [2:0]    byte offset (stripped)
+      [12:3]   col[9:0]
+      [15:13]  bank[2:0]
+      [29:16]  row[13:0]
+
+    So we can sweep (bank, row, col_low) by constructing addresses
+    directly from those fields.
+    """
+    BYTE_OFF = 3
+    COL_W    = 10
+    BANK_W   = 3
+
+    def make_addr(bank, row, col):
+        return (row << (BYTE_OFF + COL_W + BANK_W)) \
+             | (bank << (BYTE_OFF + COL_W)) \
+             | (col << BYTE_OFF)
+
+    # Coverage points — not exhaustive but spans the field
+    banks = [0, 1, 4, 7]                     # boundaries + middle
+    rows  = [0, 1, 0x100, 0x3FF, 0x3FFF]     # zero, small, mid, large, max-ish
+    cols  = [0, 1, 0x100]
+
+    burst_len = 2
+    for bank in banks:
+        for row in rows:
+            for col in cols:
+                addr  = make_addr(bank, row, col)
+                beats = [(0xBA5E_0000_0000_0000
+                          | (bank << 32) | (row << 16) | (col << 4) | i)
+                         & tb.AXI_DATA_MASK
+                         for i in range(burst_len)]
+                tb.mem.write(addr, beats)
+
+                hits_before, _ = tb.stat_snapshot()
+                tb.wr_stub_paused = True
+                wr_task = cocotb.start_soon(tb.axi_write(addr, beats, axi_id=3))
+                # Wait deterministically for the wr CAM to hold the push.
+                await tb.wait_for_wr_cam_push(prev_occ=0)
+                rdata = await tb.axi_read(addr, beats=burst_len, axi_id=4)
+                tb.wr_stub_paused = False
+                await wr_task
+
+                assert rdata == beats, (
+                    f"addr 0x{addr:x} (bank={bank} row={row:#x} col={col:#x}): "
+                    f"got {rdata} want {beats}"
+                )
+                hits_after, _ = tb.stat_snapshot()
+                assert hits_after > hits_before, (
+                    f"expected fwd hit at addr 0x{addr:x}"
+                )
+
+                for _ in range(4):
+                    await RisingEdge(tb.dut.mc_clk)
+
+    tb.log.info(
+        f"addr_space_sweep PASS — {len(banks)*len(rows)*len(cols)} points "
+        f"fwd_hits={tb.fwd_hits_seen}"
+    )
+
+
+# ---------------------------------------------------------------------------
+# Scheme sweep — same workload under ROW_MAJOR and BANK_INTERLEAVE
+# (XOR_HASH currently requires a separate verilator build with
+# SYNTH_XOR_HASH=1, deferred to a future test variant).
+# ---------------------------------------------------------------------------
+
+async def _run_scheme_sweep(tb):
+    """Run a snarf check under each runtime-selectable scheme."""
+    schemes = [
+        (tb.SCHEME_ROW_MAJOR,       "ROW_MAJOR"),
+        (tb.SCHEME_BANK_INTERLEAVE, "BANK_INTERLEAVE"),
+    ]
+    addr_base = 0x0001_4080
+    burst_len = 2
+
+    for scheme_val, scheme_name in schemes:
+        tb.set_scheme(scheme_val)
+        # Pump a few cycles so the new scheme is sampled
+        for _ in range(4):
+            await RisingEdge(tb.dut.mc_clk)
+
+        addr  = addr_base + (scheme_val << 10)
+        beats = [(0x5CAE_0000_0000_0000 | (scheme_val << 32) | i)
+                 & tb.AXI_DATA_MASK for i in range(burst_len)]
+        tb.mem.write(addr, beats)
+
+        hits_before, _ = tb.stat_snapshot()
+        tb.wr_stub_paused = True
+        wr_task = cocotb.start_soon(tb.axi_write(addr, beats, axi_id=3))
+        await tb.wait_for_wr_cam_push(prev_occ=0)
+        rdata = await tb.axi_read(addr, beats=burst_len, axi_id=4)
+        tb.wr_stub_paused = False
+        await wr_task
+
+        assert rdata == beats, f"{scheme_name}: data mismatch"
+        hits_after, _ = tb.stat_snapshot()
+        assert hits_after > hits_before, f"{scheme_name}: no fwd hit"
+        tb.log.info(f"scheme_sweep[{scheme_name}] PASS")
+
+    tb.log.info("scheme_sweep PASS")
+
+
+# ---------------------------------------------------------------------------
+# Partial-strobe writes must NOT forward — wr2rd_forward gates on
+# cam_full_strb_i, which axi_intake_fub computes by AND-reducing wstrb
+# across the burst.
+# ---------------------------------------------------------------------------
+
+async def _run_partial_strb(tb):
+    """Write a burst with partial wstrb (not 0xFF). The full_strb AND-reduce
+    in axi_intake_fub should yield 0 → wr2rd_forward marks the entry
+    ineligible → the next matching read must take the miss path
+    (rd_stub injects from the memory model, which models the post-write
+    DRAM state)."""
+    addr  = 0x0000_4080
+    beats = [0xAAAA_AAAA_AAAA_AAAA, 0xBBBB_BBBB_BBBB_BBBB]
+
+    hits_before, misses_before = tb.stat_snapshot()
+    tb.wr_stub_paused = True
+    wr_task = cocotb.start_soon(
+        tb.axi_write(addr, beats, axi_id=5, strb=0x0F)   # only low nibble enabled
+    )
+    await tb.wait_for_wr_cam_push(prev_occ=0)
+    rdata = await tb.axi_read(addr, beats=len(beats), axi_id=6)
+    tb.wr_stub_paused = False
+    await wr_task
+
+    hits_after, misses_after = tb.stat_snapshot()
+    assert hits_after == hits_before, (
+        f"partial-strb write must NOT forward — saw {hits_after - hits_before} hits"
+    )
+    assert misses_after > misses_before, \
+        "partial-strb read should take the miss path (no hit, miss observed)"
+    tb.log.info(
+        f"partial_strb PASS — fwd_miss observed, rdata via rd_inject = {[hex(x) for x in rdata]}"
+    )
+
+
+# ---------------------------------------------------------------------------
+# Burst-length sweep — varies burst_len across {1, 2, 4, 8, 16}. For each
+# length, do a snarf check and verify data integrity.
+# ---------------------------------------------------------------------------
+
+async def _run_burst_len_sweep(tb):
+    """Vary the burst length and verify snarf + data integrity for each."""
+    for burst_len in [1, 2, 4, 8, 16]:
+        addr  = 0x0000_4000 + (burst_len * 0x100)
+        beats = [(0xB527_0000_0000_0000 | (burst_len << 24) | i)
+                 & tb.AXI_DATA_MASK for i in range(burst_len)]
+        tb.mem.write(addr, beats)
+
+        hits_before, _ = tb.stat_snapshot()
+        tb.wr_stub_paused = True
+        wr_task = cocotb.start_soon(tb.axi_write(addr, beats, axi_id=1))
+        await tb.wait_for_wr_cam_push(prev_occ=0)
+        rdata = await tb.axi_read(addr, beats=burst_len, axi_id=2)
+        tb.wr_stub_paused = False
+        await wr_task
+
+        assert rdata == beats, f"len={burst_len}: {rdata} != {beats}"
+        hits_after, _ = tb.stat_snapshot()
+        assert hits_after > hits_before, f"len={burst_len}: no fwd hit"
+        tb.log.info(f"burst_len_sweep[len={burst_len}] PASS")
+
+        for _ in range(6):
+            await RisingEdge(tb.dut.mc_clk)
+
+    tb.log.info("burst_len_sweep PASS")
+
+
+# ---------------------------------------------------------------------------
+# Pytest wrapper — TEST_LEVEL controls matrix density
+# ---------------------------------------------------------------------------
+
+# (test_type, num_ranks, timing_profile)
+_GATE = [
+    ("forward_smoke",       1, "backtoback"),
+    ("miss_smoke",          1, "backtoback"),
+    ("snarf_timing_schmoo", 1, "backtoback"),
 ]
 
+_FUNC = _GATE + [
+    ("random_directed",     1, "backtoback"),
+    ("addr_space_sweep",    1, "backtoback"),
+    ("scheme_sweep",        1, "backtoback"),
+    ("partial_strb",        1, "backtoback"),
+    ("burst_len_sweep",     1, "backtoback"),
+    # one timing-profile variation for sensitivity
+    ("forward_smoke",       1, "fast"),
+    ("random_directed",     1, "constrained"),
+]
 
-@pytest.mark.parametrize("test_type,num_ranks,timing_profile", _INITIAL_PARAMS,
-                         ids=[f"{t[0]}-nr{t[1]}-{t[2]}" for t in _INITIAL_PARAMS])
+_FULL = _FUNC + [
+    # broader timing profile coverage
+    ("snarf_timing_schmoo", 1, "fast"),
+    ("snarf_timing_schmoo", 1, "constrained"),
+    ("addr_space_sweep",    1, "fast"),
+    ("burst_len_sweep",     1, "constrained"),
+    ("random_directed",     1, "burst_pause"),
+]
+
+_TEST_LEVEL = os.environ.get("TEST_LEVEL", "FUNC").upper()
+_PARAMS = {"GATE": _GATE, "FUNC": _FUNC, "FULL": _FULL}.get(_TEST_LEVEL, _FUNC)
+
+
+@pytest.mark.parametrize("test_type,num_ranks,timing_profile", _PARAMS,
+                         ids=[f"{t[0]}-nr{t[1]}-{t[2]}" for t in _PARAMS])
 def test_axi_frontend_macro(request, test_type, num_ranks, timing_profile):
     """Pytest wrapper. SV NUM_RANKS controls the macro build; TIMING_PROFILE
     selects an AXI_RANDOMIZER_CONFIGS profile."""
