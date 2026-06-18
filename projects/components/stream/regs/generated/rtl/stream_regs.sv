@@ -119,6 +119,17 @@ module stream_regs (
         logic OBS_FLAGS;
         logic OBS_DATA0;
         logic OBS_DATA1;
+        logic DAXMON_PERF_CTRL;
+        logic DAXMON_PERF_STATUS;
+        logic DAXMON_PERF_WINDOW_CYCLES;
+        logic DAXMON_PERF_PROD_CYCLES;
+        logic DAXMON_PERF_BP_CYCLES;
+        logic DAXMON_PERF_STARV_CYCLES;
+        logic DAXMON_PERF_IDLE_CYCLES;
+        logic DAXMON_PERF_BEAT_COUNT;
+        logic DAXMON_PERF_BYTE_COUNT_LO;
+        logic DAXMON_PERF_BYTE_COUNT_HI;
+        logic DAXMON_PERF_BURST_COUNT;
     } decoded_reg_strb_t;
     decoded_reg_strb_t decoded_reg_strb;
     logic decoded_req;
@@ -180,6 +191,17 @@ module stream_regs (
         decoded_reg_strb.OBS_FLAGS = cpuif_req_masked & (cpuif_addr == 10'h2c4);
         decoded_reg_strb.OBS_DATA0 = cpuif_req_masked & (cpuif_addr == 10'h2c8);
         decoded_reg_strb.OBS_DATA1 = cpuif_req_masked & (cpuif_addr == 10'h2cc);
+        decoded_reg_strb.DAXMON_PERF_CTRL = cpuif_req_masked & (cpuif_addr == 10'h2d0);
+        decoded_reg_strb.DAXMON_PERF_STATUS = cpuif_req_masked & (cpuif_addr == 10'h2d4);
+        decoded_reg_strb.DAXMON_PERF_WINDOW_CYCLES = cpuif_req_masked & (cpuif_addr == 10'h2d8);
+        decoded_reg_strb.DAXMON_PERF_PROD_CYCLES = cpuif_req_masked & (cpuif_addr == 10'h2dc);
+        decoded_reg_strb.DAXMON_PERF_BP_CYCLES = cpuif_req_masked & (cpuif_addr == 10'h2e0);
+        decoded_reg_strb.DAXMON_PERF_STARV_CYCLES = cpuif_req_masked & (cpuif_addr == 10'h2e4);
+        decoded_reg_strb.DAXMON_PERF_IDLE_CYCLES = cpuif_req_masked & (cpuif_addr == 10'h2e8);
+        decoded_reg_strb.DAXMON_PERF_BEAT_COUNT = cpuif_req_masked & (cpuif_addr == 10'h2ec);
+        decoded_reg_strb.DAXMON_PERF_BYTE_COUNT_LO = cpuif_req_masked & (cpuif_addr == 10'h2f0);
+        decoded_reg_strb.DAXMON_PERF_BYTE_COUNT_HI = cpuif_req_masked & (cpuif_addr == 10'h2f4);
+        decoded_reg_strb.DAXMON_PERF_BURST_COUNT = cpuif_req_masked & (cpuif_addr == 10'h2f8);
     end
 
     // Pass down signals to next stage
@@ -558,6 +580,12 @@ module stream_regs (
                 logic load_next;
             } CAT_SEL;
         } OBS_CTRL;
+        struct {
+            struct {
+                logic next;
+                logic load_next;
+            } RUN;
+        } DAXMON_PERF_CTRL;
     } field_combo_t;
     field_combo_t field_combo;
 
@@ -855,6 +883,11 @@ module stream_regs (
                 logic [1:0] value;
             } CAT_SEL;
         } OBS_CTRL;
+        struct {
+            struct {
+                logic value;
+            } RUN;
+        } DAXMON_PERF_CTRL;
     } field_storage_t;
     field_storage_t field_storage;
 
@@ -2540,6 +2573,29 @@ module stream_regs (
         end
     end
     assign hwif_out.OBS_CTRL.CAT_SEL.value = field_storage.OBS_CTRL.CAT_SEL.value;
+    // Field: stream_regs.DAXMON_PERF_CTRL.RUN
+    always_comb begin
+        automatic logic [0:0] next_c;
+        automatic logic load_next_c;
+        next_c = field_storage.DAXMON_PERF_CTRL.RUN.value;
+        load_next_c = '0;
+        if(decoded_reg_strb.DAXMON_PERF_CTRL && decoded_req_is_wr) begin // SW write
+            next_c = (field_storage.DAXMON_PERF_CTRL.RUN.value & ~decoded_wr_biten[0:0]) | (decoded_wr_data[0:0] & decoded_wr_biten[0:0]);
+            load_next_c = '1;
+        end
+        field_combo.DAXMON_PERF_CTRL.RUN.next = next_c;
+        field_combo.DAXMON_PERF_CTRL.RUN.load_next = load_next_c;
+    end
+    always_ff @(posedge clk) begin
+        if(rst) begin
+            field_storage.DAXMON_PERF_CTRL.RUN.value <= 1'h0;
+        end else begin
+            if(field_combo.DAXMON_PERF_CTRL.RUN.load_next) begin
+                field_storage.DAXMON_PERF_CTRL.RUN.value <= field_combo.DAXMON_PERF_CTRL.RUN.next;
+            end
+        end
+    end
+    assign hwif_out.DAXMON_PERF_CTRL.RUN.value = field_storage.DAXMON_PERF_CTRL.RUN.value;
 
     //--------------------------------------------------------------------------
     // Write response
@@ -2557,7 +2613,7 @@ module stream_regs (
     logic [31:0] readback_data;
 
     // Assign readback values to a flattened array
-    logic [31:0] readback_array[58];
+    logic [31:0] readback_array[69];
     assign readback_array[0][0:0] = (decoded_reg_strb.GLOBAL_CTRL && !decoded_req_is_wr) ? field_storage.GLOBAL_CTRL.GLOBAL_EN.value : '0;
     assign readback_array[0][1:1] = (decoded_reg_strb.GLOBAL_CTRL && !decoded_req_is_wr) ? field_storage.GLOBAL_CTRL.GLOBAL_RST.value : '0;
     assign readback_array[0][31:2] = (decoded_reg_strb.GLOBAL_CTRL && !decoded_req_is_wr) ? 30'h0 : '0;
@@ -2692,6 +2748,19 @@ module stream_regs (
     assign readback_array[55][31:0] = (decoded_reg_strb.OBS_FLAGS && !decoded_req_is_wr) ? hwif_in.OBS_FLAGS.FLAGS.next : '0;
     assign readback_array[56][31:0] = (decoded_reg_strb.OBS_DATA0 && !decoded_req_is_wr) ? hwif_in.OBS_DATA0.DATA.next : '0;
     assign readback_array[57][31:0] = (decoded_reg_strb.OBS_DATA1 && !decoded_req_is_wr) ? hwif_in.OBS_DATA1.DATA.next : '0;
+    assign readback_array[58][0:0] = (decoded_reg_strb.DAXMON_PERF_CTRL && !decoded_req_is_wr) ? field_storage.DAXMON_PERF_CTRL.RUN.value : '0;
+    assign readback_array[58][31:1] = (decoded_reg_strb.DAXMON_PERF_CTRL && !decoded_req_is_wr) ? 31'h0 : '0;
+    assign readback_array[59][0:0] = (decoded_reg_strb.DAXMON_PERF_STATUS && !decoded_req_is_wr) ? hwif_in.DAXMON_PERF_STATUS.WIN_ACTIVE.next : '0;
+    assign readback_array[59][31:1] = (decoded_reg_strb.DAXMON_PERF_STATUS && !decoded_req_is_wr) ? 31'h0 : '0;
+    assign readback_array[60][31:0] = (decoded_reg_strb.DAXMON_PERF_WINDOW_CYCLES && !decoded_req_is_wr) ? hwif_in.DAXMON_PERF_WINDOW_CYCLES.VAL.next : '0;
+    assign readback_array[61][31:0] = (decoded_reg_strb.DAXMON_PERF_PROD_CYCLES && !decoded_req_is_wr) ? hwif_in.DAXMON_PERF_PROD_CYCLES.VAL.next : '0;
+    assign readback_array[62][31:0] = (decoded_reg_strb.DAXMON_PERF_BP_CYCLES && !decoded_req_is_wr) ? hwif_in.DAXMON_PERF_BP_CYCLES.VAL.next : '0;
+    assign readback_array[63][31:0] = (decoded_reg_strb.DAXMON_PERF_STARV_CYCLES && !decoded_req_is_wr) ? hwif_in.DAXMON_PERF_STARV_CYCLES.VAL.next : '0;
+    assign readback_array[64][31:0] = (decoded_reg_strb.DAXMON_PERF_IDLE_CYCLES && !decoded_req_is_wr) ? hwif_in.DAXMON_PERF_IDLE_CYCLES.VAL.next : '0;
+    assign readback_array[65][31:0] = (decoded_reg_strb.DAXMON_PERF_BEAT_COUNT && !decoded_req_is_wr) ? hwif_in.DAXMON_PERF_BEAT_COUNT.VAL.next : '0;
+    assign readback_array[66][31:0] = (decoded_reg_strb.DAXMON_PERF_BYTE_COUNT_LO && !decoded_req_is_wr) ? hwif_in.DAXMON_PERF_BYTE_COUNT_LO.VAL.next : '0;
+    assign readback_array[67][31:0] = (decoded_reg_strb.DAXMON_PERF_BYTE_COUNT_HI && !decoded_req_is_wr) ? hwif_in.DAXMON_PERF_BYTE_COUNT_HI.VAL.next : '0;
+    assign readback_array[68][31:0] = (decoded_reg_strb.DAXMON_PERF_BURST_COUNT && !decoded_req_is_wr) ? hwif_in.DAXMON_PERF_BURST_COUNT.VAL.next : '0;
 
     // Reduce the array
     always_comb begin
@@ -2699,7 +2768,7 @@ module stream_regs (
         readback_done = decoded_req & ~decoded_req_is_wr;
         readback_err = '0;
         readback_data_var = '0;
-        for(int i=0; i<58; i++) readback_data_var |= readback_array[i];
+        for(int i=0; i<69; i++) readback_data_var |= readback_array[i];
         readback_data = readback_data_var;
     end
 

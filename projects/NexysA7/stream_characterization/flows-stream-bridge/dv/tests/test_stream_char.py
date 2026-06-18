@@ -113,6 +113,37 @@ async def cocotb_test_stream_char(dut):
             kw['mon_err_cfg'] = mon_err_cfg
         ok &= await tb.run_dma_test(**kw)
 
+    elif test_type == 'desc_perf':
+        # RFC Stage E: open the descriptor-monitor perf window, run a DMA
+        # workload (which fetches descriptors over the monitored bus), close
+        # the window, and verify the perf CSRs counted real traffic and the
+        # four buckets sum to window_cycles.
+        tb.log.info("=== Descriptor-monitor perf-window test (RFC Stage E) ===")
+        ok = await tb.run_ping_test()
+        ok &= await tb.run_dma_test(
+            num_channels=1,
+            descriptors_per_channel=4,
+            transfer_bytes=4096,
+            measure_desc_perf=True,
+        )
+        perf = getattr(tb, '_desc_perf', None)
+        assert perf is not None, "desc_perf snapshot missing"
+        # WINDOW_CYCLES is a LIVE counter that the monitor zeroes when the
+        # window closes (it is sampled at close for the legacy WIN_END packet,
+        # not meant for post-close polling). The four buckets, by contrast,
+        # HOLD their values after close -- so bucket_total is the authoritative
+        # closed-window length for the CSR route. Verify the window actually
+        # opened and counted real descriptor-fetch traffic.
+        assert perf['win_active'] == 0, f"window did not close: {perf}"
+        assert perf['bucket_total'] > 0, f"perf window never opened/counted: {perf}"
+        assert perf['bursts'] > 0, f"no descriptor AR bursts counted: {perf}"
+        assert perf['beats'] > 0, f"no descriptor R beats counted: {perf}"
+        assert perf['productive'] > 0, f"no productive cycles counted: {perf}"
+        assert perf['beats'] == perf['productive'], \
+            f"beats != productive (beat_count = prod_cycles): {perf}"
+        assert perf['bytes'] > 0, f"no bytes counted: {perf}"
+        tb.log.info(f"Desc-monitor perf window verified: {perf}")
+
     elif test_type == 'compress_char':
         # Compression characterization: route monbus to the bulk-trace
         # (debug_sram) path -- mon_err_cfg=0 -- so the compressor is
@@ -191,7 +222,7 @@ def generate_stream_char_params():
     """
     max_channels = BASE_RTL_PARAMS.get('NUM_CHANNELS', 8)
     gate_types = ['ping']
-    func_types = ['desc_load', 'csr_read', 'apb_config',
+    func_types = ['desc_load', 'csr_read', 'apb_config', 'desc_perf',
                   'dma_1ch', 'dma_2ch']
     full_types = [f'dma_{n}ch' for n in range(3, max_channels + 1)]
     full_types += ['compress_char']   # compression characterization run

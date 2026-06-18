@@ -5,7 +5,7 @@ package stream_regs_pkg;
 
     localparam STREAM_REGS_DATA_WIDTH = 32;
     localparam STREAM_REGS_MIN_ADDR_WIDTH = 10;
-    localparam STREAM_REGS_SIZE = 'h2d0;
+    localparam STREAM_REGS_SIZE = 'h2fc;
 
     typedef struct {
         logic next;
@@ -131,6 +131,86 @@ package stream_regs_pkg;
     } stream_regs__OBS_DATA1__in_t;
 
     typedef struct {
+        logic next;
+    } stream_regs__DAXMON_PERF_STATUS__WIN_ACTIVE__in_t;
+
+    typedef struct {
+        stream_regs__DAXMON_PERF_STATUS__WIN_ACTIVE__in_t WIN_ACTIVE;
+    } stream_regs__DAXMON_PERF_STATUS__in_t;
+
+    typedef struct {
+        logic [31:0] next;
+    } stream_regs__DAXMON_PERF_WINDOW_CYCLES__VAL__in_t;
+
+    typedef struct {
+        stream_regs__DAXMON_PERF_WINDOW_CYCLES__VAL__in_t VAL;
+    } stream_regs__DAXMON_PERF_WINDOW_CYCLES__in_t;
+
+    typedef struct {
+        logic [31:0] next;
+    } stream_regs__DAXMON_PERF_PROD_CYCLES__VAL__in_t;
+
+    typedef struct {
+        stream_regs__DAXMON_PERF_PROD_CYCLES__VAL__in_t VAL;
+    } stream_regs__DAXMON_PERF_PROD_CYCLES__in_t;
+
+    typedef struct {
+        logic [31:0] next;
+    } stream_regs__DAXMON_PERF_BP_CYCLES__VAL__in_t;
+
+    typedef struct {
+        stream_regs__DAXMON_PERF_BP_CYCLES__VAL__in_t VAL;
+    } stream_regs__DAXMON_PERF_BP_CYCLES__in_t;
+
+    typedef struct {
+        logic [31:0] next;
+    } stream_regs__DAXMON_PERF_STARV_CYCLES__VAL__in_t;
+
+    typedef struct {
+        stream_regs__DAXMON_PERF_STARV_CYCLES__VAL__in_t VAL;
+    } stream_regs__DAXMON_PERF_STARV_CYCLES__in_t;
+
+    typedef struct {
+        logic [31:0] next;
+    } stream_regs__DAXMON_PERF_IDLE_CYCLES__VAL__in_t;
+
+    typedef struct {
+        stream_regs__DAXMON_PERF_IDLE_CYCLES__VAL__in_t VAL;
+    } stream_regs__DAXMON_PERF_IDLE_CYCLES__in_t;
+
+    typedef struct {
+        logic [31:0] next;
+    } stream_regs__DAXMON_PERF_BEAT_COUNT__VAL__in_t;
+
+    typedef struct {
+        stream_regs__DAXMON_PERF_BEAT_COUNT__VAL__in_t VAL;
+    } stream_regs__DAXMON_PERF_BEAT_COUNT__in_t;
+
+    typedef struct {
+        logic [31:0] next;
+    } stream_regs__DAXMON_PERF_BYTE_COUNT_LO__VAL__in_t;
+
+    typedef struct {
+        stream_regs__DAXMON_PERF_BYTE_COUNT_LO__VAL__in_t VAL;
+    } stream_regs__DAXMON_PERF_BYTE_COUNT_LO__in_t;
+
+    typedef struct {
+        logic [31:0] next;
+    } stream_regs__DAXMON_PERF_BYTE_COUNT_HI__VAL__in_t;
+
+    typedef struct {
+        stream_regs__DAXMON_PERF_BYTE_COUNT_HI__VAL__in_t VAL;
+    } stream_regs__DAXMON_PERF_BYTE_COUNT_HI__in_t;
+
+    typedef struct {
+        logic [31:0] next;
+    } stream_regs__DAXMON_PERF_BURST_COUNT__VAL__in_t;
+
+    typedef struct {
+        stream_regs__DAXMON_PERF_BURST_COUNT__VAL__in_t VAL;
+    } stream_regs__DAXMON_PERF_BURST_COUNT__in_t;
+
+    typedef struct {
         stream_regs__GLOBAL_STATUS__in_t GLOBAL_STATUS;
         stream_regs__CHANNEL_IDLE__in_t CHANNEL_IDLE;
         stream_regs__DESC_ENGINE_IDLE__in_t DESC_ENGINE_IDLE;
@@ -144,6 +224,16 @@ package stream_regs_pkg;
         stream_regs__OBS_FLAGS__in_t OBS_FLAGS;
         stream_regs__OBS_DATA0__in_t OBS_DATA0;
         stream_regs__OBS_DATA1__in_t OBS_DATA1;
+        stream_regs__DAXMON_PERF_STATUS__in_t DAXMON_PERF_STATUS;
+        stream_regs__DAXMON_PERF_WINDOW_CYCLES__in_t DAXMON_PERF_WINDOW_CYCLES;
+        stream_regs__DAXMON_PERF_PROD_CYCLES__in_t DAXMON_PERF_PROD_CYCLES;
+        stream_regs__DAXMON_PERF_BP_CYCLES__in_t DAXMON_PERF_BP_CYCLES;
+        stream_regs__DAXMON_PERF_STARV_CYCLES__in_t DAXMON_PERF_STARV_CYCLES;
+        stream_regs__DAXMON_PERF_IDLE_CYCLES__in_t DAXMON_PERF_IDLE_CYCLES;
+        stream_regs__DAXMON_PERF_BEAT_COUNT__in_t DAXMON_PERF_BEAT_COUNT;
+        stream_regs__DAXMON_PERF_BYTE_COUNT_LO__in_t DAXMON_PERF_BYTE_COUNT_LO;
+        stream_regs__DAXMON_PERF_BYTE_COUNT_HI__in_t DAXMON_PERF_BYTE_COUNT_HI;
+        stream_regs__DAXMON_PERF_BURST_COUNT__in_t DAXMON_PERF_BURST_COUNT;
     } stream_regs__in_t;
 
     typedef struct {
@@ -626,6 +716,14 @@ package stream_regs_pkg;
     } stream_regs__OBS_CTRL__out_t;
 
     typedef struct {
+        logic value;
+    } stream_regs__DAXMON_PERF_CTRL__RUN__out_t;
+
+    typedef struct {
+        stream_regs__DAXMON_PERF_CTRL__RUN__out_t RUN;
+    } stream_regs__DAXMON_PERF_CTRL__out_t;
+
+    typedef struct {
         stream_regs__GLOBAL_CTRL__out_t GLOBAL_CTRL;
         stream_regs__CHANNEL_ENABLE__out_t CHANNEL_ENABLE;
         stream_regs__CHANNEL_RESET__out_t CHANNEL_RESET;
@@ -663,5 +761,6 @@ package stream_regs_pkg;
         stream_regs__AXI_XFER_CONFIG__out_t AXI_XFER_CONFIG;
         stream_regs__PERF_CONFIG__out_t PERF_CONFIG;
         stream_regs__OBS_CTRL__out_t OBS_CTRL;
+        stream_regs__DAXMON_PERF_CTRL__out_t DAXMON_PERF_CTRL;
     } stream_regs__out_t;
 endpackage

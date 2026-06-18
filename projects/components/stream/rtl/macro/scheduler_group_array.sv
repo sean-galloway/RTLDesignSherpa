@@ -106,6 +106,12 @@ module scheduler_group_array #(
     input  logic [7:0]                           cfg_desc_mon_addr_mask,
     input  logic [7:0]                           cfg_desc_mon_debug_mask,
 
+    // RFC Stage E perf-window control (decoupled from cfg_desc_mon_perf_enable,
+    // which only gates legacy PktTypePerf emission; see DAXMON_PERF_CTRL @ 0x2D0).
+    // Level signal: 1=open the descriptor-monitor perf window and accumulate
+    // cycle buckets; 0=close/freeze. Rising edge clears the counters.
+    input  logic                                 cfg_desc_mon_perf_run,
+
     // Status Interface (per channel)
     output logic [NUM_CHANNELS-1:0]              descriptor_engine_idle,
     output logic [NUM_CHANNELS-1:0]              scheduler_idle,
@@ -123,6 +129,19 @@ module scheduler_group_array #(
     output logic [15:0]                          cfg_sts_desc_mon_error_count,
     output logic [31:0]                          cfg_sts_desc_mon_txn_count,
     output logic                                 cfg_sts_desc_mon_conflict_error,
+
+    // Descriptor monitor perf-window readback (RFC Stage E CSR route).
+    // Cycle buckets PROD+BP+STARV+IDLE sum to perf_window_cycles. These
+    // measure the descriptor-fetch R bus only.
+    output logic                                 perf_window_active,
+    output logic [31:0]                          perf_window_cycles,
+    output logic [31:0]                          perf_prod_cycles,
+    output logic [31:0]                          perf_bp_cycles,
+    output logic [31:0]                          perf_starv_cycles,
+    output logic [31:0]                          perf_idle_cycles,
+    output logic [31:0]                          perf_beat_count,
+    output logic [63:0]                          perf_byte_count,
+    output logic [31:0]                          perf_burst_count,
 
     // Shared Descriptor AXI4 Master Read Interface (256-bit descriptor fetch)
     output logic                        desc_axi_arvalid,
@@ -612,13 +631,15 @@ module scheduler_group_array #(
         .cfg_addr_range_low     ('0),
         .cfg_addr_range_high    ('0),
 
-        // Performance window control (Stage A of perfmon RFC). Tied to
-        // "perfmon off" for the desc-bus monitor; Stage E will wire these
-        // to the STREAM perf-CSR if desc-bus perfmon is desired.
-        .cfg_start_event_sel    (3'b111),  // never fire
-        .cfg_end_event_sel      (3'b111),  // never fire
-        .cfg_start_trigger      (1'b0),
-        .cfg_end_trigger        (1'b0),
+        // Performance window control (RFC Stage E CSR route). Trigger mode
+        // (sel=3'b000) driven by the software RUN bit: start when RUN=1,
+        // end when RUN=0. Decoupled from cfg_perf_enable so the window
+        // accumulates without emitting PktTypePerf packets. The window FSM
+        // clears the buckets on the IDLE->ACTIVE transition (RUN rising edge).
+        .cfg_start_event_sel    (3'b000),  // start on cfg_start_trigger
+        .cfg_end_event_sel      (3'b000),  // end   on cfg_end_trigger
+        .cfg_start_trigger      (cfg_desc_mon_perf_run),
+        .cfg_end_trigger        (~cfg_desc_mon_perf_run),
         .cfg_window_force_close (1'b0),
 
         // Free-running monitor time broadcast
@@ -635,17 +656,17 @@ module scheduler_group_array #(
         .active_transactions    (cfg_sts_desc_mon_active_txns),
         .error_count            (cfg_sts_desc_mon_error_count),
         .transaction_count      (cfg_sts_desc_mon_txn_count),
-        /* verilator lint_off PINCONNECTEMPTY */
-        .window_active          (),                 // Stage E will wire
-        .window_cycles          (),                 // Stage E will wire
-        .perf_prod_cycles       (),                 // Stage E will wire
-        .perf_bp_cycles         (),                 // Stage E will wire
-        .perf_starv_cycles      (),                 // Stage E will wire
-        .perf_idle_cycles       (),                 // Stage E will wire
-        .perf_beat_count        (),                 // Stage E will wire
-        .perf_byte_count        (),                 // Stage E will wire
-        .perf_burst_count       (),                 // Stage E will wire
-        /* verilator lint_on PINCONNECTEMPTY */
+        // Perf-window readback (RFC Stage E CSR route) — wired up to the
+        // STREAM perf CSRs (DAXMON_PERF_* @ 0x2D0-0x2F8).
+        .window_active          (perf_window_active),
+        .window_cycles          (perf_window_cycles),
+        .perf_prod_cycles       (perf_prod_cycles),
+        .perf_bp_cycles         (perf_bp_cycles),
+        .perf_starv_cycles      (perf_starv_cycles),
+        .perf_idle_cycles       (perf_idle_cycles),
+        .perf_beat_count        (perf_beat_count),
+        .perf_byte_count        (perf_byte_count),
+        .perf_burst_count       (perf_burst_count),
         .cfg_conflict_error     (cfg_sts_desc_mon_conflict_error)
     );
 

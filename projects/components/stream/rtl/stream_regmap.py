@@ -20,7 +20,7 @@ CocoTBFramework RegisterMap class.
 
 Address Space:
   0x000-0x03F: Channel kick-off registers (apbtodescr.sv)
-  0x100-0x2BF: Configuration and status (stream_regs.rdl)
+  0x100-0x2F8: Configuration and status (stream_regs.rdl)
 
 Usage:
     from stream_regmap import top_block
@@ -447,6 +447,70 @@ top_block = {
         'PERF_MODE': {'offset': '1', 'default': '0x0', 'sw': 'rw', 'type': 'field'},
         'PERF_CLEAR': {'offset': '2', 'default': '0x0', 'sw': 'rw', 'type': 'field'}
     },
+
+    # =========================================================================
+    # Descriptor AXI Monitor Performance Window (0x2D0 - 0x2F8)
+    # =========================================================================
+    # RFC Stage E CSR route. Software writes DAXMON_PERF_CTRL.RUN=1 to open the
+    # descriptor-monitor perf window (rising edge clears the counters), runs the
+    # workload, writes RUN=0 to close/freeze, then reads the status registers.
+    # Decoupled from DAXMON_ENABLE.PERF_EN (legacy PktTypePerf emission).
+
+    'DAXMON_PERF_CTRL': {
+        'address': '0x2D0', 'default': '0x00000000', 'type': 'reg', 'size': 4,
+        'sw': 'rw', 'name': 'DAXMON_PERF_CTRL',
+        'RUN': {'offset': '0', 'default': '0x0', 'sw': 'rw', 'type': 'field'}
+    },
+    'DAXMON_PERF_STATUS': {
+        'address': '0x2D4', 'default': '0x00000000', 'type': 'reg', 'size': 4,
+        'sw': 'r', 'name': 'DAXMON_PERF_STATUS',
+        'WIN_ACTIVE': {'offset': '0', 'default': '0x0', 'sw': 'r', 'type': 'field'}
+    },
+    'DAXMON_PERF_WINDOW_CYCLES': {
+        'address': '0x2D8', 'default': '0x00000000', 'type': 'reg', 'size': 4,
+        'sw': 'r', 'name': 'DAXMON_PERF_WINDOW_CYCLES',
+        'VAL': {'offset': '31:0', 'default': '0x0', 'sw': 'r', 'type': 'field'}
+    },
+    'DAXMON_PERF_PROD_CYCLES': {
+        'address': '0x2DC', 'default': '0x00000000', 'type': 'reg', 'size': 4,
+        'sw': 'r', 'name': 'DAXMON_PERF_PROD_CYCLES',
+        'VAL': {'offset': '31:0', 'default': '0x0', 'sw': 'r', 'type': 'field'}
+    },
+    'DAXMON_PERF_BP_CYCLES': {
+        'address': '0x2E0', 'default': '0x00000000', 'type': 'reg', 'size': 4,
+        'sw': 'r', 'name': 'DAXMON_PERF_BP_CYCLES',
+        'VAL': {'offset': '31:0', 'default': '0x0', 'sw': 'r', 'type': 'field'}
+    },
+    'DAXMON_PERF_STARV_CYCLES': {
+        'address': '0x2E4', 'default': '0x00000000', 'type': 'reg', 'size': 4,
+        'sw': 'r', 'name': 'DAXMON_PERF_STARV_CYCLES',
+        'VAL': {'offset': '31:0', 'default': '0x0', 'sw': 'r', 'type': 'field'}
+    },
+    'DAXMON_PERF_IDLE_CYCLES': {
+        'address': '0x2E8', 'default': '0x00000000', 'type': 'reg', 'size': 4,
+        'sw': 'r', 'name': 'DAXMON_PERF_IDLE_CYCLES',
+        'VAL': {'offset': '31:0', 'default': '0x0', 'sw': 'r', 'type': 'field'}
+    },
+    'DAXMON_PERF_BEAT_COUNT': {
+        'address': '0x2EC', 'default': '0x00000000', 'type': 'reg', 'size': 4,
+        'sw': 'r', 'name': 'DAXMON_PERF_BEAT_COUNT',
+        'VAL': {'offset': '31:0', 'default': '0x0', 'sw': 'r', 'type': 'field'}
+    },
+    'DAXMON_PERF_BYTE_COUNT_LO': {
+        'address': '0x2F0', 'default': '0x00000000', 'type': 'reg', 'size': 4,
+        'sw': 'r', 'name': 'DAXMON_PERF_BYTE_COUNT_LO',
+        'VAL': {'offset': '31:0', 'default': '0x0', 'sw': 'r', 'type': 'field'}
+    },
+    'DAXMON_PERF_BYTE_COUNT_HI': {
+        'address': '0x2F4', 'default': '0x00000000', 'type': 'reg', 'size': 4,
+        'sw': 'r', 'name': 'DAXMON_PERF_BYTE_COUNT_HI',
+        'VAL': {'offset': '31:0', 'default': '0x0', 'sw': 'r', 'type': 'field'}
+    },
+    'DAXMON_PERF_BURST_COUNT': {
+        'address': '0x2F8', 'default': '0x00000000', 'type': 'reg', 'size': 4,
+        'sw': 'r', 'name': 'DAXMON_PERF_BURST_COUNT',
+        'VAL': {'offset': '31:0', 'default': '0x0', 'sw': 'r', 'type': 'field'}
+    },
 }
 
 
@@ -492,3 +556,16 @@ ADDR_MON_FIFO_STATUS = 0x180
 ADDR_MON_FIFO_COUNT = 0x184
 ADDR_AXI_XFER_CONFIG = 0x2A0
 ADDR_PERF_CONFIG = 0x2B0
+
+# Descriptor AXI Monitor Performance Window (RFC Stage E CSR route)
+ADDR_DAXMON_PERF_CTRL = 0x2D0
+ADDR_DAXMON_PERF_STATUS = 0x2D4
+ADDR_DAXMON_PERF_WINDOW_CYCLES = 0x2D8
+ADDR_DAXMON_PERF_PROD_CYCLES = 0x2DC
+ADDR_DAXMON_PERF_BP_CYCLES = 0x2E0
+ADDR_DAXMON_PERF_STARV_CYCLES = 0x2E4
+ADDR_DAXMON_PERF_IDLE_CYCLES = 0x2E8
+ADDR_DAXMON_PERF_BEAT_COUNT = 0x2EC
+ADDR_DAXMON_PERF_BYTE_COUNT_LO = 0x2F0
+ADDR_DAXMON_PERF_BYTE_COUNT_HI = 0x2F4
+ADDR_DAXMON_PERF_BURST_COUNT = 0x2F8
