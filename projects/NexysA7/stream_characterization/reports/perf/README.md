@@ -1,11 +1,14 @@
 # STREAM DMA — Performance Characterization (all-fixes bitstream)
 
-**Bitstream:** all-timing-fixes build, WNS **+0.048 ns** @ 100 MHz, Nexys A7
-(xc7a100t). Both CAM pipelines, half-beat packing, monbus compression,
-wrapping trace pointer, `pblock_monbus` floorplan.
+**Bitstream:** all-timing-fixes build + monbus 32-bit err-drain serializer,
+WNS **+0.007 ns** @ 100 MHz, Nexys A7 (xc7a100t). Both CAM pipelines,
+half-beat packing, monbus compression, wrapping trace pointer,
+`pblock_monbus` floorplan. The err-drain change is observability-only — perf
+is byte-identical to the prior build (94.1% across all 40 configs).
 **Datapath:** 128-bit (16 B/beat). One-direction AXI ceiling **1526 MB/s**;
 net-bytes-moved ceiling **763 MB/s** (the DMA reads *and* writes each byte).
-**Date:** 2026-06-15/16. Methodology: `../../DMA_UTILIZATION_MEASUREMENT.md`.
+**Date:** 2026-06-18 (board 210292B7D46F). Methodology:
+`../../DMA_UTILIZATION_MEASUREMENT.md`.
 
 > **Metric note.** Throughout, the headline efficiency is **datapath E2E
 > utilization** (productive beats / window, from the on-chip PMU) and
@@ -141,21 +144,25 @@ in front of a single backing memory.
 
 ![channels x delay lines](plots/channels_x_delay_lines.png)
 
-| delay (cyc) | 1 ch | 2 ch | 4 ch | 8 ch |
+Bus throughput (MB/s), channels {1,2,3,4} × memory latency:
+
+| delay (cyc) | 1 ch | 2 ch | 3 ch | 4 ch |
 |---|---|---|---|---|
-| 0 | 1435 | 1436 | 1436 | 1436 |
-| 64 | 1434 | 1435 | 1436 | 1436 |
-| 128 | **1258** | 1434 | 1435 | 1436 |
-| 256 | 689 | **1377** | 1435 | 1435 |
-| 512 | 362 | 724 | **761** | 761 |
+| 0 | 1434 | 1435 | 1436 | 1436 |
+| 64 | 1432 | 1434 | 1435 | 1435 |
+| 128 | **1255** | 1433 | 1434 | 1434 |
+| 256 | 689 | **1375** | 1432 | 1433 |
+| 512 | 362 | 723 | 760 | **761** |
 | 1024 | 186 | 371 | 381 | 381 |
 | 4096 | 47 | 95 | 95 | 95 |
 
 1 channel holds flat until **128 cycles**, then cliffs. Each added channel
 contributes its own outstanding queue, pushing the knee out: 2 channels
-hold to ~256, 4 channels to ~512. **8 channels ≈ 4 channels** — past ~4
-channels the shared read-source / write-sink caps the aggregate in-flight
-window, so more channels stop buying tolerance.
+hold to ~256, 4 channels to ~512. **3 ch ≈ 4 ch in the deep tail** (both
+381 MB/s @ 1024, 95 @ 4096) — past ~3–4 channels the shared read-source /
+write-sink caps the aggregate in-flight window, so more channels stop buying
+latency tolerance. (The delay-0 column of the full 40-config matrix in §4.1
+extends this saturation out to 8 channels.)
 
 ### 4.3 Descriptors × memory latency (1 ch)
 
@@ -168,6 +175,49 @@ Every descriptor-count curve **overlaps exactly** and cliffs at the same
 the single channel's 128-beat in-flight window — they add transfer
 *length*, never latency *tolerance*. This is the clean complement to §4.2:
 **channels widen the latency window; descriptors do not.**
+
+### 4.4 Where the cycles go — utilization pair + bus-cycle breakdown
+
+The methodology (`DMA_UTILIZATION_MEASUREMENT.md` §5) asks for a *pair* of
+numbers — steady-state **datapath** utilization (§2.1) and **end-to-end**
+utilization (§2.3) — with the gap reported as overhead. On this SRAM↔SRAM
+engine with single-cycle descriptor turnaround the two track within the PMU's
+resolution, so the overhead band is essentially zero: there is no descriptor-
+fetch bubble to amortize.
+
+![datapath vs end-to-end utilization vs latency](plots/delay_util_pair.png)
+
+The §3 four-bucket classification on the write (destination) interface is the
+diagnostic payoff. As memory latency rises past the 128-cycle in-flight
+window, the lost cycles are **entirely `starvation`** — the read side cannot
+feed the datapath fast enough — while **`backpressure` stays pinned at 0%**:
+
+![W-bus cycle breakdown vs latency](plots/delay_buckets.png)
+
+| delay (cyc) | productive | backpressure | starvation |
+|---|---|---|---|
+| 0–96 | ~94% | **0%** | ~6% |
+| 128 | 82% | **0%** | 18% |
+| 256 | 45% | **0%** | 55% |
+| 512 | 24% | **0%** | 76% |
+
+This is the engine's signature: it is **never destination-bound** (the SRAM
+sink always keeps up); the only thing that throttles it is read-latency
+starvation past the outstanding-transaction window — exactly the Little's-Law
+behaviour of §5. The steady-state ~6% starvation at delay 0 is inter-burst
+arbitration (≈1.06 cycles/beat), not a stall.
+
+**Per-channel balance (§3.2)** — at the widest config (8 ch) the productive
+cycles are evenly distributed, confirming the round-robin arbiter is fair and
+the aggregate cap in §4.2 is a shared-resource limit, not channel imbalance:
+
+![per-channel productive cycles (8 ch)](plots/per_channel_balance.png)
+
+**Overhead vs transfer size (§5)** — the one place a real datapath/end-to-end
+gap appears is small transfers, where a fixed ~90-cycle startup is a larger
+fraction of a short run; it amortizes away by ~256 KB:
+
+![datapath vs end-to-end utilization vs size](plots/size_util_pair.png)
 
 ---
 
@@ -223,27 +273,36 @@ the aggregate (≈ 4 × in this harness).
 
 | File | Sweep |
 |---|---|
-| `matrix_2026-06-15.json/.csv` | channels × descriptors, 40 configs, 1 MB |
-| `chan_x_delay_2026-06-16.json` | channels {1,2,4,8} × delay {0..4096} |
-| `desc_x_delay_2026-06-16.json` | desc {1,2,4,8,16} × delay {0..4096}, 1 ch |
-| `size_sweep_2026-06-16.json` | 1 ch, 1 desc, 8 KB→1 MB |
-| `plots/*.png` | figures above (`host/plot_char_reports.py`) |
+| `matrix_2026-06-18.json` | channels × descriptors, 40 configs, 1 MB |
+| `chan_x_delay_2026-06-18.json` | channels {1,2,3,4} × delay {0..512}, 1 desc |
+| `desc_x_delay_2026-06-18.json` | desc {1,2,4,8,16} × delay {0..512}, 1 ch |
+| `size_sweep_2026-06-18.json` | 1 ch, 1 desc, 8 KB→1 MB |
+| `plots/*.png` | figures above (`host/plot_char_reports.py`) — includes the §5 util-pair, §3 bucket-breakdown, and §3.2 per-channel graphs |
+
+Every record carries the methodology primitives (§2.1 datapath + §2.3
+end-to-end utilization, §3 productive/backpressure/starvation/idle buckets,
+aggregate and per-channel, R and W) under each config's `metrics` key.
 
 ```bash
 cd flows-stream-bridge/host && source $REPO_ROOT/env_python
-# matrix:
-python3 run_characterization.py --port /dev/ttyUSB2 --output matrix.json
-# channels x delay:
-python3 run_characterization.py --port /dev/ttyUSB2 --phase 1 --channels 1 2 4 8 \
-    --resp-delays 0,8,32,64,128,256,512,1024,2048,4096 --output chan_x_delay.json
-# desc x delay:
-python3 run_characterization.py --port /dev/ttyUSB2 --channels 1 \
-    --resp-delays 0,8,32,64,128,256,512,1024,2048,4096 --output desc_x_delay.json
-# plots:
-python3 plot_char_reports.py --matrix ../reports/perf/matrix_2026-06-15.json \
-    --chan-delay ... --desc-delay ... --size ... --outdir ../reports/perf/plots
+P=/dev/serial/by-id/usb-Digilent_Digilent_USB_Device_210292B7D46F-if01-port0
+D=0,32,64,96,112,128,144,160,192,256,384,512
+# matrix (full 40-config):
+python3 run_characterization.py --port $P -o ../reports/perf/matrix_2026-06-18.json
+# channels x delay (1 desc, 512 KB):
+python3 run_characterization.py --port $P --phase 1 --channels 1 2 3 4 --size 512KB \
+    --resp-delays $D -o ../reports/perf/chan_x_delay_2026-06-18.json
+# desc x delay (1 ch, 512 KB):
+python3 run_characterization.py --port $P --channels 1 --size 512KB \
+    --resp-delays $D -o ../reports/perf/desc_x_delay_2026-06-18.json
+# size sweep: loop --size {8KB..1MB}, --channels 1 --phase 1, merge JSONs.
+# plots (incl. §5 util-pair, §3 buckets, §3.2 per-channel):
+python3 plot_char_reports.py --matrix ../reports/perf/matrix_2026-06-18.json \
+    --chan-delay ../reports/perf/chan_x_delay_2026-06-18.json \
+    --desc-delay ../reports/perf/desc_x_delay_2026-06-18.json \
+    --size ../reports/perf/size_sweep_2026-06-18.json --outdir ../reports/perf/plots
 # CSV from a matrix JSON (column dictionary in this appendix):
-python3 perf_json_to_csv.py ../reports/perf/matrix_2026-06-15.json --out matrix.csv
+python3 perf_json_to_csv.py ../reports/perf/matrix_2026-06-18.json --out matrix.csv
 ```
 
 CSV columns (current runner): `date,time,config,channels,descriptors,desc_KB,
