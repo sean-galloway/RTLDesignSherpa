@@ -17,7 +17,22 @@ if {![file exists $bit_file]} {
 puts "Opening hw_server..."
 open_hw_manager
 connect_hw_server
-open_hw_target
+
+# Pin to a specific board serial so that, when multiple Digilent boards are
+# attached, the JTAG flash and the UART characterization (char_cmds.sh, which
+# uses 210292B7D46F) land on the SAME board. Override with the
+# STREAM_CHAR_JTAG_SERIAL env var if needed.
+set want_serial "210292B7D46F"
+if {[info exists ::env(STREAM_CHAR_JTAG_SERIAL)]} {
+    set want_serial $::env(STREAM_CHAR_JTAG_SERIAL)
+}
+set tgt [lsearch -inline -glob [get_hw_targets] "*$want_serial*"]
+if {$tgt eq ""} {
+    puts stderr "ERROR: no JTAG target matching '$want_serial' in: [get_hw_targets]"
+    exit 1
+}
+puts "Opening hw_target $tgt (serial $want_serial)"
+open_hw_target $tgt
 
 set dev [lindex [get_hw_devices xc7a100t_0] 0]
 current_hw_device $dev
