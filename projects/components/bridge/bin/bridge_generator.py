@@ -276,6 +276,174 @@ def generate_tests(ports_file, connectivity_file, bridge_name, output_tb_dir, ou
         return False
 
 
+def generate_monitor_tests(ports_file, connectivity_file, bridge_name,
+                           output_tb_dir, output_test_dir, output_rtl_dir=None):
+    """Generate a comprehensive monitor STRESS test (+ its TB class) for a
+    monitored (_mon) bridge variant.
+
+    The _mon bridge top exposes every monitor signal as a real port
+    (cfg_* inputs, s_mon_axil_*, m_mon_axil_*, mon_irq_out), so the test
+    targets it directly (no smoke wrapper) and drives cfg + monbus
+    backpressure at runtime via the shared MonbusGroupHarness. Emits
+    bridge<name>_tb.py and test_<name>_monitor.py.
+    """
+    try:
+        ports_ext = Path(ports_file).suffix.lower()
+        if ports_ext in ['.yaml', '.yml', '.toml']:
+            config = load_config(ports_file, connectivity_file or None)
+        else:
+            masters, slaves = parse_ports_csv(ports_file)
+            connectivity = parse_connectivity_csv(connectivity_file, masters, slaves)
+            config = BridgeConfig(masters=masters, slaves=slaves, connectivity=connectivity)
+
+        channel_type = determine_channel_type(config.masters)
+        tb_class_name = build_tb_class_name(bridge_name, channel_type)
+        tb_class_module = build_tb_module_name(tb_class_name)
+
+        master_names = ', '.join(m.port_name for m in config.masters)
+        slave_names = ', '.join(s.port_name for s in config.slaves)
+        data_width = max(
+            max((m.data_width for m in config.masters), default=32),
+            max((s.data_width for s in config.slaves), default=32))
+
+        try:
+            tb_dir_abs = Path(output_tb_dir).resolve()
+            repo_root_abs = Path(get_repo_root_for_path(tb_dir_abs))
+            tb_import_pkg = '.'.join(tb_dir_abs.relative_to(repo_root_abs).parts)
+        except (ValueError, RuntimeError):
+            tb_import_pkg = 'projects.components.bridge.dv.tbclasses'
+
+        if output_rtl_dir:
+            try:
+                bridge_dir_abs = (Path(output_rtl_dir).resolve() / bridge_name)
+                repo_root_abs = Path(get_repo_root_for_path(bridge_dir_abs))
+                filelist_abs = bridge_dir_abs.parent.parent / 'filelists' / f'{bridge_name}.f'
+                filelist_path = str(filelist_abs.relative_to(repo_root_abs))
+            except (ValueError, RuntimeError):
+                filelist_path = f'projects/components/bridge/rtl/filelists/{bridge_name}.f'
+        else:
+            filelist_path = f'projects/components/bridge/rtl/filelists/{bridge_name}.f'
+
+        # Per-port cfg prefixes, matching the RTL cfg_<port>_<idx>_<chan>_ naming
+        # (masters and slaves index independently).
+        cfg_prefixes = []
+        for i, m in enumerate(config.masters):
+            if m.has_read_channels():
+                cfg_prefixes.append(f"{m.port_name}_{i}_rd")
+            if m.has_write_channels():
+                cfg_prefixes.append(f"{m.port_name}_{i}_wr")
+        for j, s in enumerate(config.slaves):
+            if s.has_read_channels():
+                cfg_prefixes.append(f"{s.port_name}_{j}_rd")
+            if s.has_write_channels():
+                cfg_prefixes.append(f"{s.port_name}_{j}_wr")
+
+        # block_ready probe: first read-capable master's adapter timing wrapper.
+        blk_master = next((m for m in config.masters if m.has_read_channels()),
+                          None) or (config.masters[0] if config.masters else None)
+        blk_chan = 'rd' if (blk_master and blk_master.has_read_channels()) else 'wr'
+        block_ready_path = (f"u_{blk_master.port_name}_adapter.u_timing_wrapper_{blk_chan}"
+                            if blk_master else "")
+
+        # Monitor stress reads only slaves needing NO conversion from master 0
+        # -- same protocol (axi4) AND same data width. Cross-width (dwidth
+        # converter) and cross-protocol (AXIL/APB shim) read paths are a
+        # separate concern and time out in this harness; the same-width AXI4
+        # slave already fully exercises the monbus. Reads also respect the
+        # connectivity matrix (unconnected = decode-gap hang).
+        m0 = config.masters[0] if config.masters else None
+        m0_name = m0.port_name if m0 else None
+        m0_dw = m0.data_width if m0 else None
+        m0_conn = config.connectivity.get(m0_name, []) if m0_name else []
+
+        def _conn(s):
+            return s.port_name in m0_conn
+
+        reachable_slaves = [j for j, s in enumerate(config.slaves)
+                            if _conn(s) and s.protocol == 'axi4' and s.data_width == m0_dw]
+        if not reachable_slaves:
+            reachable_slaves = [j for j, s in enumerate(config.slaves)
+                                if _conn(s) and s.protocol == 'axi4']
+        if not reachable_slaves:
+            reachable_slaves = [j for j, s in enumerate(config.slaves)
+                                if s.protocol == 'axi4'] or list(range(len(config.slaves)))
+
+        # Whether completion monitoring logic is instantiated (mon_preset +
+        # per-port mon_add). error_only presets have no compl reporter, so
+        # those configs run the SLVERR error-path stress only.
+        try:
+            has_compl = any(
+                p.get_mon_enables(config.mon_preset).get('compl', False)
+                for p in (list(config.masters) + list(config.slaves)))
+        except Exception:
+            has_compl = True
+
+        is_regblock = 'regblock' in bridge_name
+        # The regblock variant narrows the bridge top's 32-bit s_cfg_axil_*addr
+        # into the PeakRDL regblock's 8-bit s_axil_*addr (benign truncation) and
+        # has benign multidriven cfg fan-out; silence those for that variant.
+        extra_no_warn = ['-Wno-WIDTHTRUNC', '-Wno-MULTIDRIVEN'] if is_regblock else []
+
+        context = {
+            'rtl_module_name': bridge_name,
+            'tb_class_name': tb_class_name,
+            'tb_class_module': tb_class_module,
+            'tb_import_pkg': tb_import_pkg,
+            'num_masters': len(config.masters),
+            'num_slaves': len(config.slaves),
+            'channel_type': channel_type,
+            'enable_ooo': True,
+            'masters': config.masters,
+            'slaves': config.slaves,
+            'master_names': master_names,
+            'slave_names': slave_names,
+            'connectivity': config.connectivity,
+            'data_width': data_width,
+            'addr_width': 64,
+            'id_width': 8,
+            'rtl_relative_path': '../../../../rtl/bridge',
+            'filelist_path': filelist_path,
+            'cfg_prefixes': cfg_prefixes,
+            'block_ready_path': block_ready_path,
+            'reachable_slaves': reachable_slaves,
+            'has_compl': has_compl,
+            'is_regblock': is_regblock,
+            'extra_no_warn': extra_no_warn,
+        }
+
+        script_dir = Path(__file__).resolve().parent
+        template_dir = script_dir / 'bridge_pkg' / 'jinja_templates'
+        env = Environment(loader=FileSystemLoader(str(template_dir)),
+                          trim_blocks=True, lstrip_blocks=True)
+        env.globals['min'] = min
+        env.globals['max'] = max
+
+        tb_content = env.get_template('bridge_tb_class.py.j2').render(context)
+        test_content = env.get_template('bridge_monitor_test.py.j2').render(context)
+
+        output_tb_path = Path(output_tb_dir)
+        output_test_path = Path(output_test_dir)
+        output_tb_path.mkdir(parents=True, exist_ok=True)
+        output_test_path.mkdir(parents=True, exist_ok=True)
+
+        tb_file_path = output_tb_path / f"{tb_class_module}.py"
+        with open(tb_file_path, 'w') as f:
+            f.write(tb_content)
+        test_file_path = output_test_path / f"test_{bridge_name}_monitor.py"
+        with open(test_file_path, 'w') as f:
+            f.write(test_content)
+
+        print(f"  ✓ Generated monitor TB class: {tb_file_path}")
+        print(f"  ✓ Generated monitor test: {test_file_path}")
+        return True
+
+    except Exception as e:
+        print(f"  ✗ Monitor test generation failed: {e}")
+        import traceback
+        traceback.print_exc()
+        return False
+
+
 # ==============================================================================
 # RTL Generation Functions
 # ==============================================================================
@@ -964,7 +1132,17 @@ Bulk Generation CSV Format:
                 if args.generate_tests:
                     for variant_name, is_mon in emitted_variants:
                         if is_mon:
-                            print(f"  Skipping test generation for monitored variant {variant_name}")
+                            print(f"  Generating monitor stress test for {variant_name}...")
+                            mon_ok = generate_monitor_tests(
+                                ports_file=config['ports'],
+                                connectivity_file=config['connectivity'],
+                                bridge_name=variant_name,
+                                output_tb_dir=config['output_tb'],
+                                output_test_dir=config['output_test'],
+                                output_rtl_dir=config['output_dir']
+                            )
+                            if not mon_ok:
+                                print(f"  ⚠ Monitor test generation failed for {variant_name}")
                             continue
                         print(f"  Generating tests for {variant_name}...")
                         test_success = generate_tests(
@@ -1025,7 +1203,18 @@ Bulk Generation CSV Format:
         if args.generate_tests:
             for variant_name, is_mon in emitted_variants:
                 if is_mon:
-                    print(f"Skipping test generation for monitored variant {variant_name}")
+                    print("")
+                    print(f"Generating monitor stress test for {variant_name}...")
+                    mon_ok = generate_monitor_tests(
+                        ports_file=args.ports,
+                        connectivity_file=args.connectivity,
+                        bridge_name=variant_name,
+                        output_tb_dir=args.output_tb,
+                        output_test_dir=args.output_test,
+                        output_rtl_dir=args.output_dir
+                    )
+                    if not mon_ok:
+                        print("  ⚠ Monitor test generation failed")
                     continue
                 print("")
                 print(f"Generating tests for {variant_name}...")

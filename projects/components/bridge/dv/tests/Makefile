@@ -62,8 +62,18 @@ CHANNELS_TESTS = test_bridge_5x3_channels.py
 # 4x4_rw exercises round-robin arbitration across 4 masters into 4 slaves.
 MULTI_RW_TESTS = test_bridge_4x4_rw.py
 
-# All tests currently generated and active in bin/bridge_batch.csv (11 total)
-ALL_TESTS = $(MATCHING_WIDTH_TESTS) $(MIXED_WIDTH_TESTS) $(APB_TESTS) $(AXIL_TESTS) $(CHANNELS_TESTS) $(MULTI_RW_TESTS)
+# Test files: USE_MONITOR variant stress tests -- GENERATED, one per _mon
+# bridge variant (generate_monitor_tests -> test_<name>_mon_monitor.py).
+# Each targets the _mon bridge top directly (no smoke wrapper) and is
+# STRESSFUL: high-volume randomized reads + monbus backpressure (write-FIFO
+# throttle / err-FIFO slow-drain) that saturates the monbus FIFOs, fires IRQ,
+# and recovers. Globbed so new _mon variants are picked up automatically.
+# Serial only, like every other bridge target (~1 GB Verilator model each).
+MONITOR_TESTS = $(wildcard test_bridge_*_mon_monitor.py)
+
+# All tests currently generated and active in bin/bridge_batch.csv plus the
+# USE_MONITOR stress tests.
+ALL_TESTS = $(MATCHING_WIDTH_TESTS) $(MIXED_WIDTH_TESTS) $(APB_TESTS) $(AXIL_TESTS) $(CHANNELS_TESTS) $(MULTI_RW_TESTS) $(MONITOR_TESTS)
 
 # Default target
 .DEFAULT_GOAL := help
@@ -85,6 +95,7 @@ help:
 	@echo "  make run-apb                  Run APB protocol tests (1x4_rd, 1x4_wr)"
 	@echo "  make run-axil                 Run AXI-Lite protocol tests (1x5_rd, 1x5_wr)"
 	@echo "  make run-channels             Run channel-specific tests (5x3_channels)"
+	@echo "  make run-monitor              Run USE_MONITOR stress tests (all _mon variants)"
 	@echo ""
 	@echo "WAVEFORM TARGETS:"
 	@echo "  make run-all-waves            Run all bridge tests with waveforms"
@@ -208,6 +219,15 @@ run-channels:
 run-channels-waves:
 	@echo "Running channel-specific bridge tests with waveforms..."
 	WAVES=1 $(PYTEST) $(CHANNELS_TESTS) $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE)
+
+# ==============================================================================
+# Run Targets - USE_MONITOR Stress Tests (all _mon variants, serial)
+# ==============================================================================
+
+.PHONY: run-monitor
+run-monitor:
+	@echo "Running USE_MONITOR bridge stress tests (all _mon variants) -- serial..."
+	$(PYTEST) $(MONITOR_TESTS) $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE)
 
 # ==============================================================================
 # Run Targets - All Tests
