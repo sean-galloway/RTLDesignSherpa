@@ -308,4 +308,6 @@ clean-all: clean
 	@echo "Cleaning all test artifacts..."
 	rm -rf local_sim_build logs
 	find . -name "*.vcd" -delete
+	find . -name "*.fst" -delete
+	find . -name "*.fst.hier" -delete
 	find . -name "*.log" -delete
