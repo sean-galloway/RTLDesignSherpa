@@ -144,25 +144,24 @@ in front of a single backing memory.
 
 ![channels x delay lines](plots/channels_x_delay_lines.png)
 
-Bus throughput (MB/s), channels {1,2,3,4} × memory latency:
+Bus throughput (MB/s), channels {1,2,4,8} × memory latency:
 
-| delay (cyc) | 1 ch | 2 ch | 3 ch | 4 ch |
+| delay (cyc) | 1 ch | 2 ch | 4 ch | 8 ch |
 |---|---|---|---|---|
 | 0 | 1434 | 1435 | 1436 | 1436 |
-| 64 | 1432 | 1434 | 1435 | 1435 |
-| 128 | **1255** | 1433 | 1434 | 1434 |
-| 256 | 689 | **1375** | 1432 | 1433 |
-| 512 | 362 | 723 | 760 | **761** |
+| 64 | 1432 | 1434 | 1435 | 1436 |
+| 128 | **1255** | 1433 | 1434 | 1435 |
+| 256 | 689 | **1375** | 1433 | 1435 |
+| 512 | 362 | 723 | **761** | 761 |
 | 1024 | 186 | 371 | 381 | 381 |
 | 4096 | 47 | 95 | 95 | 95 |
 
 1 channel holds flat until **128 cycles**, then cliffs. Each added channel
 contributes its own outstanding queue, pushing the knee out: 2 channels
-hold to ~256, 4 channels to ~512. **3 ch ≈ 4 ch in the deep tail** (both
-381 MB/s @ 1024, 95 @ 4096) — past ~3–4 channels the shared read-source /
+hold to ~256, 4 channels to ~512. **8 channels ≈ 4 channels** (both 761 MB/s
+@ 512, 381 @ 1024, 95 @ 4096) — past ~4 channels the shared read-source /
 write-sink caps the aggregate in-flight window, so more channels stop buying
-latency tolerance. (The delay-0 column of the full 40-config matrix in §4.1
-extends this saturation out to 8 channels.)
+latency tolerance.
 
 ### 4.3 Descriptors × memory latency (1 ch)
 
@@ -274,8 +273,8 @@ the aggregate (≈ 4 × in this harness).
 | File | Sweep |
 |---|---|
 | `matrix_2026-06-18.json` | channels × descriptors, 40 configs, 1 MB |
-| `chan_x_delay_2026-06-18.json` | channels {1,2,3,4} × delay {0..512}, 1 desc |
-| `desc_x_delay_2026-06-18.json` | desc {1,2,4,8,16} × delay {0..512}, 1 ch |
+| `chan_x_delay_2026-06-18.json` | channels {1,2,4,8} × delay {0..4096}, 1 desc |
+| `desc_x_delay_2026-06-18.json` | desc {1,2,4,8,16} × delay {0..4096}, 1 ch |
 | `size_sweep_2026-06-18.json` | 1 ch, 1 desc, 8 KB→1 MB |
 | `plots/*.png` | figures above (`host/plot_char_reports.py`) — includes the §5 util-pair, §3 bucket-breakdown, and §3.2 per-channel graphs |
 
@@ -290,7 +289,7 @@ D=0,32,64,96,112,128,144,160,192,256,384,512
 # matrix (full 40-config):
 python3 run_characterization.py --port $P -o ../reports/perf/matrix_2026-06-18.json
 # channels x delay (1 desc, 512 KB):
-python3 run_characterization.py --port $P --phase 1 --channels 1 2 3 4 --size 512KB \
+python3 run_characterization.py --port $P --phase 1 --channels 1 2 4 8 --size 512KB \
     --resp-delays $D -o ../reports/perf/chan_x_delay_2026-06-18.json
 # desc x delay (1 ch, 512 KB):
 python3 run_characterization.py --port $P --channels 1 --size 512KB \
