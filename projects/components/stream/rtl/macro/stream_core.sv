@@ -141,6 +141,9 @@ module stream_core #(
     input  logic [7:0]                          cfg_desc_mon_addr_mask,
     input  logic [7:0]                          cfg_desc_mon_debug_mask,
 
+    // RFC Stage E perf-window run control (see DAXMON_PERF_CTRL @ 0x2D0)
+    input  logic                                cfg_desc_mon_perf_run,
+
     // Read Engine AXI monitor configuration
     input  logic                                cfg_rdeng_mon_enable,
     input  logic                                cfg_rdeng_mon_err_enable,
@@ -316,6 +319,17 @@ module stream_core #(
     output logic [31:0]                         cfg_sts_desc_mon_txn_count,
     output logic                                cfg_sts_desc_mon_conflict_error,
 
+    // Descriptor monitor perf-window readback (RFC Stage E CSR route)
+    output logic                                perf_window_active,
+    output logic [31:0]                         perf_window_cycles,
+    output logic [31:0]                         perf_prod_cycles,
+    output logic [31:0]                         perf_bp_cycles,
+    output logic [31:0]                         perf_starv_cycles,
+    output logic [31:0]                         perf_idle_cycles,
+    output logic [31:0]                         perf_beat_count,
+    output logic [63:0]                         perf_byte_count,
+    output logic [31:0]                         perf_burst_count,
+
     // Data Read Engine AXI Monitor Status
     output logic                                cfg_sts_rdeng_skid_busy,
     output logic [7:0]                          cfg_sts_rdeng_mon_active_txns,
@@ -488,6 +502,7 @@ module stream_core #(
     logic [7:0]                  int_cfg_desc_mon_perf_mask;
     logic [7:0]                  int_cfg_desc_mon_addr_mask;
     logic [7:0]                  int_cfg_desc_mon_debug_mask;
+    logic                        int_cfg_desc_mon_perf_run;
 
     logic                        int_cfg_rdeng_mon_enable;
     logic                        int_cfg_rdeng_mon_err_enable;
@@ -542,6 +557,7 @@ module stream_core #(
             assign int_cfg_desc_mon_perf_mask = cfg_desc_mon_perf_mask;
             assign int_cfg_desc_mon_addr_mask = cfg_desc_mon_addr_mask;
             assign int_cfg_desc_mon_debug_mask = cfg_desc_mon_debug_mask;
+            assign int_cfg_desc_mon_perf_run = cfg_desc_mon_perf_run;
 
             assign int_cfg_rdeng_mon_enable = cfg_rdeng_mon_enable;
             assign int_cfg_rdeng_mon_err_enable = cfg_rdeng_mon_err_enable;
@@ -591,6 +607,7 @@ module stream_core #(
             assign int_cfg_desc_mon_perf_mask = 8'h0;
             assign int_cfg_desc_mon_addr_mask = 8'h0;
             assign int_cfg_desc_mon_debug_mask = 8'h0;
+            assign int_cfg_desc_mon_perf_run = 1'b0;
 
             assign int_cfg_rdeng_mon_enable = 1'b0;
             assign int_cfg_rdeng_mon_err_enable = 1'b0;
@@ -688,6 +705,7 @@ module stream_core #(
         .cfg_desc_mon_perf_mask     (int_cfg_desc_mon_perf_mask),
         .cfg_desc_mon_addr_mask     (int_cfg_desc_mon_addr_mask),
         .cfg_desc_mon_debug_mask    (int_cfg_desc_mon_debug_mask),
+        .cfg_desc_mon_perf_run      (int_cfg_desc_mon_perf_run),
 
         // Status
         .descriptor_engine_idle (descriptor_engine_idle),
@@ -706,6 +724,17 @@ module stream_core #(
         .cfg_sts_desc_mon_error_count   (cfg_sts_desc_mon_error_count),
         .cfg_sts_desc_mon_txn_count     (cfg_sts_desc_mon_txn_count),
         .cfg_sts_desc_mon_conflict_error(cfg_sts_desc_mon_conflict_error),
+
+        // Descriptor monitor perf-window readback (RFC Stage E CSR route)
+        .perf_window_active     (perf_window_active),
+        .perf_window_cycles     (perf_window_cycles),
+        .perf_prod_cycles       (perf_prod_cycles),
+        .perf_bp_cycles         (perf_bp_cycles),
+        .perf_starv_cycles      (perf_starv_cycles),
+        .perf_idle_cycles       (perf_idle_cycles),
+        .perf_beat_count        (perf_beat_count),
+        .perf_byte_count        (perf_byte_count),
+        .perf_burst_count       (perf_burst_count),
 
         // Descriptor AXI master (connect directly to top-level ports)
         .desc_axi_arvalid       (m_axi_desc_arvalid),

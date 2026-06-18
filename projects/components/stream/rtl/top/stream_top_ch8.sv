@@ -542,6 +542,18 @@ module stream_top_ch8 #(
     logic [31:0]                            obs_data0;
     logic [31:0]                            obs_data1;
 
+    // Descriptor monitor perf-window readback (RFC Stage E CSR route).
+    // Driven by stream_core; feed hwif_in.DAXMON_PERF_*.next (@ 0x2D4-0x2F8).
+    logic                                   dmon_perf_window_active;
+    logic [31:0]                            dmon_perf_window_cycles;
+    logic [31:0]                            dmon_perf_prod_cycles;
+    logic [31:0]                            dmon_perf_bp_cycles;
+    logic [31:0]                            dmon_perf_starv_cycles;
+    logic [31:0]                            dmon_perf_idle_cycles;
+    logic [31:0]                            dmon_perf_beat_count;
+    logic [63:0]                            dmon_perf_byte_count;
+    logic [31:0]                            dmon_perf_burst_count;
+
     // Scheduler Configuration
     logic                                   cfg_sched_enable;
     logic [31:0]                            cfg_sched_timeout_cycles;
@@ -913,6 +925,19 @@ module stream_top_ch8 #(
         hwif_in.OBS_FLAGS.FLAGS.next = obs_flags;
         hwif_in.OBS_DATA0.DATA.next  = obs_data0;
         hwif_in.OBS_DATA1.DATA.next  = obs_data1;
+
+        // Descriptor AXI monitor perf-window readback (RFC Stage E CSR route;
+        // see DAXMON_PERF_CTRL @ 0x2D0 for the run control).
+        hwif_in.DAXMON_PERF_STATUS.WIN_ACTIVE.next  = dmon_perf_window_active;
+        hwif_in.DAXMON_PERF_WINDOW_CYCLES.VAL.next  = dmon_perf_window_cycles;
+        hwif_in.DAXMON_PERF_PROD_CYCLES.VAL.next    = dmon_perf_prod_cycles;
+        hwif_in.DAXMON_PERF_BP_CYCLES.VAL.next      = dmon_perf_bp_cycles;
+        hwif_in.DAXMON_PERF_STARV_CYCLES.VAL.next   = dmon_perf_starv_cycles;
+        hwif_in.DAXMON_PERF_IDLE_CYCLES.VAL.next    = dmon_perf_idle_cycles;
+        hwif_in.DAXMON_PERF_BEAT_COUNT.VAL.next     = dmon_perf_beat_count;
+        hwif_in.DAXMON_PERF_BYTE_COUNT_LO.VAL.next  = dmon_perf_byte_count[31:0];
+        hwif_in.DAXMON_PERF_BYTE_COUNT_HI.VAL.next  = dmon_perf_byte_count[63:32];
+        hwif_in.DAXMON_PERF_BURST_COUNT.VAL.next    = dmon_perf_burst_count;
     end
 
     // Debug outputs - expose what stream_regs should see for hwif_in values
@@ -1302,6 +1327,19 @@ module stream_top_ch8 #(
                 .cfg_desc_mon_perf_mask     (cfg_desc_mon_perf_mask),
                 .cfg_desc_mon_addr_mask     (cfg_desc_mon_addr_mask),
                 .cfg_desc_mon_debug_mask    (cfg_desc_mon_debug_mask),
+                // RFC Stage E perf-window run control (DAXMON_PERF_CTRL @ 0x2D0)
+                .cfg_desc_mon_perf_run      (hwif_out.DAXMON_PERF_CTRL.RUN.value),
+
+                // Descriptor monitor perf-window readback (RFC Stage E CSR route)
+                .perf_window_active         (dmon_perf_window_active),
+                .perf_window_cycles         (dmon_perf_window_cycles),
+                .perf_prod_cycles           (dmon_perf_prod_cycles),
+                .perf_bp_cycles             (dmon_perf_bp_cycles),
+                .perf_starv_cycles          (dmon_perf_starv_cycles),
+                .perf_idle_cycles           (dmon_perf_idle_cycles),
+                .perf_beat_count            (dmon_perf_beat_count),
+                .perf_byte_count            (dmon_perf_byte_count),
+                .perf_burst_count           (dmon_perf_burst_count),
 
                 // Read Engine AXI Monitor Configuration
                 .cfg_rdeng_mon_enable       (cfg_rdeng_mon_enable),
@@ -1538,6 +1576,19 @@ module stream_top_ch8 #(
                 .cfg_desc_mon_perf_mask     (8'h0),
                 .cfg_desc_mon_addr_mask     (8'h0),
                 .cfg_desc_mon_debug_mask    (8'h0),
+                .cfg_desc_mon_perf_run      (1'b0),
+
+                // Perf-window readback ties to the same wires (read 0 with
+                // monitors disabled — stream_core tied them off internally)
+                .perf_window_active         (dmon_perf_window_active),
+                .perf_window_cycles         (dmon_perf_window_cycles),
+                .perf_prod_cycles           (dmon_perf_prod_cycles),
+                .perf_bp_cycles             (dmon_perf_bp_cycles),
+                .perf_starv_cycles          (dmon_perf_starv_cycles),
+                .perf_idle_cycles           (dmon_perf_idle_cycles),
+                .perf_beat_count            (dmon_perf_beat_count),
+                .perf_byte_count            (dmon_perf_byte_count),
+                .perf_burst_count           (dmon_perf_burst_count),
 
                 .cfg_rdeng_mon_enable       (1'b0),
                 .cfg_rdeng_mon_err_enable   (1'b0),

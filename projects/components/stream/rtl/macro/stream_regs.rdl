@@ -1191,4 +1191,169 @@ addrmap stream_regs {
 
     } OBS_DATA1 @ 0x2CC;
 
+    //=========================================================================
+    // Descriptor AXI Monitor Performance Window (0x2D0 - 0x2FF)
+    //=========================================================================
+    // RFC-perfmon-window-buckets Stage E (CSR route). Surfaces the descriptor-
+    // fetch monitor's perf-window cycle buckets + beat/byte/burst counts via
+    // direct CSR reads (no MonBus packets). Software opens the window by
+    // writing PERF_CTRL.RUN=1 (rising edge clears and starts the counters),
+    // runs the workload, writes RUN=0 to close/freeze, then reads the status
+    // registers below. Decoupled from DAXMON_ENABLE.PERF_EN (which gates the
+    // legacy PktTypePerf MonBus emission) so the window can run without
+    // flooding the monitor bus.
+    //
+    // Cycle classification (DMA_UTILIZATION_MEASUREMENT.md Section 3): the four
+    // buckets PROD/BP/STARV/IDLE sum to WINDOW_CYCLES. These measure the
+    // DESCRIPTOR-FETCH R bus only; datapath R/W utilization is measured
+    // separately by the stream_char harness axi_bus_meter blocks.
+
+    reg {
+        name = "Descriptor AXI Monitor Perf Window Control";
+        desc = "Perf-window run control for the descriptor AXI monitor";
+
+        field {
+            desc = "Perf window run - 1=open window and accumulate cycle buckets, 0=close window and freeze counters. Rising edge clears all counters.";
+            sw = rw;
+            hw = r;
+        } RUN = 1'b0;
+
+        field {
+            desc = "Reserved";
+            sw = r;
+            hw = na;
+        } RSVD[31:1] = 31'h0;
+
+    } DAXMON_PERF_CTRL @ 0x2D0;
+
+    reg {
+        name = "Descriptor AXI Monitor Perf Window Status";
+        desc = "Perf-window live status";
+
+        field {
+            desc = "Window active - 1=window open and accumulating";
+            sw = r;
+            hw = w;
+        } WIN_ACTIVE;
+
+        field {
+            desc = "Reserved";
+            sw = r;
+            hw = na;
+        } RSVD[31:1] = 31'h0;
+
+    } DAXMON_PERF_STATUS @ 0x2D4;
+
+    reg {
+        name = "Descriptor AXI Monitor Perf Window Cycles";
+        desc = "LIVE free-running window-cycle counter. Valid only while
+                DAXMON_PERF_STATUS.WIN_ACTIVE=1; the monitor ZEROES this when the
+                window closes (RUN->0). For a closed window, use the sum of the
+                four bucket registers (PROD+BP+STARV+IDLE), which HOLD their
+                values after close.";
+
+        field {
+            desc = "Window cycles [31:0] (live-only; reads 0 after close)";
+            sw = r;
+            hw = w;
+        } VAL[31:0];
+
+    } DAXMON_PERF_WINDOW_CYCLES @ 0x2D8;
+
+    reg {
+        name = "Descriptor AXI Monitor Perf Productive Cycles";
+        desc = "Cycles with R data valid && ready (data delivered)";
+
+        field {
+            desc = "Productive cycles [31:0]";
+            sw = r;
+            hw = w;
+        } VAL[31:0];
+
+    } DAXMON_PERF_PROD_CYCLES @ 0x2DC;
+
+    reg {
+        name = "Descriptor AXI Monitor Perf Backpressure Cycles";
+        desc = "Cycles with R data valid && !ready (back-pressure)";
+
+        field {
+            desc = "Backpressure cycles [31:0]";
+            sw = r;
+            hw = w;
+        } VAL[31:0];
+
+    } DAXMON_PERF_BP_CYCLES @ 0x2E0;
+
+    reg {
+        name = "Descriptor AXI Monitor Perf Starvation Cycles";
+        desc = "Cycles with !R data valid && ready (starvation)";
+
+        field {
+            desc = "Starvation cycles [31:0]";
+            sw = r;
+            hw = w;
+        } VAL[31:0];
+
+    } DAXMON_PERF_STARV_CYCLES @ 0x2E4;
+
+    reg {
+        name = "Descriptor AXI Monitor Perf Idle Cycles";
+        desc = "Cycles with !R data valid && !ready (idle)";
+
+        field {
+            desc = "Idle cycles [31:0]";
+            sw = r;
+            hw = w;
+        } VAL[31:0];
+
+    } DAXMON_PERF_IDLE_CYCLES @ 0x2E8;
+
+    reg {
+        name = "Descriptor AXI Monitor Perf Beat Count";
+        desc = "R beats transferred in window (= productive cycles)";
+
+        field {
+            desc = "Beat count [31:0]";
+            sw = r;
+            hw = w;
+        } VAL[31:0];
+
+    } DAXMON_PERF_BEAT_COUNT @ 0x2EC;
+
+    reg {
+        name = "Descriptor AXI Monitor Perf Byte Count Low";
+        desc = "Bytes transferred in window (lower 32 bits)";
+
+        field {
+            desc = "Byte count [31:0]";
+            sw = r;
+            hw = w;
+        } VAL[31:0];
+
+    } DAXMON_PERF_BYTE_COUNT_LO @ 0x2F0;
+
+    reg {
+        name = "Descriptor AXI Monitor Perf Byte Count High";
+        desc = "Bytes transferred in window (upper 32 bits)";
+
+        field {
+            desc = "Byte count [63:32]";
+            sw = r;
+            hw = w;
+        } VAL[31:0];
+
+    } DAXMON_PERF_BYTE_COUNT_HI @ 0x2F4;
+
+    reg {
+        name = "Descriptor AXI Monitor Perf Burst Count";
+        desc = "AR handshakes (bursts issued) in window";
+
+        field {
+            desc = "Burst count [31:0]";
+            sw = r;
+            hw = w;
+        } VAL[31:0];
+
+    } DAXMON_PERF_BURST_COUNT @ 0x2F8;
+
 };

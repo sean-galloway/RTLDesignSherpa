@@ -138,6 +138,21 @@ APB_WRMON_PKT_MASK      = STREAM_APB_BASE + 0x28C
 APB_WRMON_ENABLE        = STREAM_APB_BASE + 0x280
 APB_WRMON_ERR_CFG       = STREAM_APB_BASE + 0x290
 
+# Descriptor AXI Monitor perf-window CSRs (RFC Stage E CSR route). RUN=1 opens
+# the window (rising edge clears counters); RUN=0 closes/freezes. PROD/BP/STARV/
+# IDLE sum to WINDOW_CYCLES. See stream_regmap.py / read_desc_perf.py.
+APB_DAXMON_PERF_CTRL          = STREAM_APB_BASE + 0x2D0  # RUN[0]
+APB_DAXMON_PERF_STATUS        = STREAM_APB_BASE + 0x2D4  # WIN_ACTIVE[0]
+APB_DAXMON_PERF_WINDOW_CYCLES = STREAM_APB_BASE + 0x2D8
+APB_DAXMON_PERF_PROD_CYCLES   = STREAM_APB_BASE + 0x2DC
+APB_DAXMON_PERF_BP_CYCLES     = STREAM_APB_BASE + 0x2E0
+APB_DAXMON_PERF_STARV_CYCLES  = STREAM_APB_BASE + 0x2E4
+APB_DAXMON_PERF_IDLE_CYCLES   = STREAM_APB_BASE + 0x2E8
+APB_DAXMON_PERF_BEAT_COUNT    = STREAM_APB_BASE + 0x2EC
+APB_DAXMON_PERF_BYTE_COUNT_LO = STREAM_APB_BASE + 0x2F0
+APB_DAXMON_PERF_BYTE_COUNT_HI = STREAM_APB_BASE + 0x2F4
+APB_DAXMON_PERF_BURST_COUNT   = STREAM_APB_BASE + 0x2F8
+
 # Value to enable MON + ERR + COMPL + TIMEOUT events (PERF stays off to avoid
 # packet congestion). Matches <MON>_ENABLE bit layout: [0]=MON_EN, [1]=ERR_EN,
 # [2]=COMPL_EN, [3]=TIMEOUT_EN, [4]=PERF_EN.
@@ -507,7 +522,8 @@ class StreamCharTB(TBBase):
                            transfer_bytes: int,
                            timeout_clocks: int = 50_000,
                            mon_err_cfg: int = MON_ERR_CFG_ROUTE_ALL,
-                           compress_en: bool = False) -> bool:
+                           compress_en: bool = False,
+                           measure_desc_perf: bool = False) -> bool:
         # compress_en=True sets WRMON_ENABLE.COMPRESS_EN (bit 5) so the
         # compressor path (w_use_comp=1) is selected at runtime -- mirrors
         # run_characterization.py "--compression on". Combined with
@@ -648,6 +664,13 @@ class StreamCharTB(TBBase):
             val = await self.uart_read(addr)
             self.log.info(f"  [DEBUG] {name:20s} @ 0x{addr:03X} = 0x{val:08X}" if val is not None
                           else f"  [DEBUG] {name:20s} @ 0x{addr:03X} = READ FAILED")
+
+        # 4y. RFC Stage E: open the descriptor-monitor perf window right before
+        # the kick so it captures the descriptor-fetch traffic. RUN rising edge
+        # clears the counters. Decoupled from the PERF_EN packet path.
+        if measure_desc_perf:
+            await self.uart_write(APB_DAXMON_PERF_CTRL, 0x1)
+            self.log.info("  Desc-monitor perf window opened (RUN=1)")
 
         # 5. Kick all channels (two APB writes per channel: LOW + HIGH 32-bit)
         # Kick-burst fast path: pre-load each channel's first descriptor
@@ -889,6 +912,31 @@ class StreamCharTB(TBBase):
             return False
 
         self.log.info("  DMA completed (IRQ received)")
+
+        # 6z. RFC Stage E: close + read the descriptor-monitor perf window.
+        # The four buckets must sum to window_cycles by construction, and a
+        # real descriptor fetch must have produced bursts/beats/productive
+        # cycles. Stashed on self._desc_perf for the desc_perf test assertions.
+        if measure_desc_perf:
+            await self.uart_write(APB_DAXMON_PERF_CTRL, 0x0)  # close + freeze
+            await self.wait_clocks(self.clk_name, 20)
+            byte_lo = await self.uart_read(APB_DAXMON_PERF_BYTE_COUNT_LO) or 0
+            byte_hi = await self.uart_read(APB_DAXMON_PERF_BYTE_COUNT_HI) or 0
+            perf = {
+                'win_active':    (await self.uart_read(APB_DAXMON_PERF_STATUS) or 0) & 0x1,
+                'window_cycles':  await self.uart_read(APB_DAXMON_PERF_WINDOW_CYCLES) or 0,
+                'productive':     await self.uart_read(APB_DAXMON_PERF_PROD_CYCLES) or 0,
+                'backpressure':   await self.uart_read(APB_DAXMON_PERF_BP_CYCLES) or 0,
+                'starvation':     await self.uart_read(APB_DAXMON_PERF_STARV_CYCLES) or 0,
+                'idle':           await self.uart_read(APB_DAXMON_PERF_IDLE_CYCLES) or 0,
+                'beats':          await self.uart_read(APB_DAXMON_PERF_BEAT_COUNT) or 0,
+                'bytes':          (byte_hi << 32) | byte_lo,
+                'bursts':         await self.uart_read(APB_DAXMON_PERF_BURST_COUNT) or 0,
+            }
+            perf['bucket_total'] = (perf['productive'] + perf['backpressure'] +
+                                    perf['starvation'] + perf['idle'])
+            self._desc_perf = perf
+            self.log.info(f"  Desc-monitor perf window (RUN=0, frozen): {perf}")
 
         # 6a. Diagnostic: wait until pattern_gen + crc_check beat counts match
         # the descriptor total before checking CRCs. The IRQ fires on the very
