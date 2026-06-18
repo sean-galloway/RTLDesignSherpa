@@ -45,7 +45,9 @@ from cocotb_test.simulator import run
 from TBClasses.shared.tbbase import TBBase
 from TBClasses.shared.utilities import get_paths, create_view_cmd, get_repo_root
 from TBClasses.shared.filelist_utils import get_sources_from_filelist
-from TBClasses.scoreboards.monbus_group import MonbusGroupHarness
+from TBClasses.scoreboards.monbus_group import (
+    MonbusGroupHarness, BeatLayout, BeatOrder,
+)
 
 
 # ----------------------------------------------------------------------------
@@ -87,6 +89,9 @@ class MonbusAxilAxi4GroupTB(TBBase):
         super().__init__(dut)
         self.SEED = int(os.environ.get('SEED', '0'))
         random.seed(self.SEED)
+        # Err-FIFO drain AXIL data width (S_AXIL_DATA_WIDTH on the DUT): 64 =
+        # one beat per record slice; 32 = the 2:1 read serializer (6 beats/rec).
+        self.TEST_S_AXIL_DATA_WIDTH = int(os.environ.get('TEST_S_AXIL_DATA_WIDTH', '64'))
         # Shared harness: drives the m_axi_* (AXI4 burst) master-write sink and
         # captures per-burst {addr,awlen,awsize,awburst,beats,wlast_flags} into
         # harness.trace_bursts -- replaces the hand-rolled _capture_burst_handler.
@@ -94,7 +99,9 @@ class MonbusAxilAxi4GroupTB(TBBase):
             dut, dut.axi_aclk,
             drain_proto="axil", trace_proto="axi4",
             drain_prefix="s_axil_", trace_prefix="m_axi_",
+            drain_data_width=self.TEST_S_AXIL_DATA_WIDTH,
             group_node=dut, irq_sig=dut.irq_out, id_width=1, log=self.log,
+            layout_drain=BeatLayout(order=BeatOrder.TS_HI_LO),
         )
 
     @property
@@ -312,6 +319,48 @@ async def cocotb_test_monbus_axil_axi4_group(dut):
     )
     tb.log.info(f"  {len(tb.bursts)} burst(s), {total} total beats, no 4KB crossing -- OK")
 
+    # ===========================================================
+    # Phase 4: err-FIFO drain + decode (S_AXIL_DATA_WIDTH path)
+    # ===========================================================
+    # Route error packets to the err FIFO and drain them over the AXIL
+    # slave-read port. At S_AXIL_DATA_WIDTH=32 this exercises the 2:1 read
+    # serializer (6 beats/record); the drained records must decode with the
+    # correct type/channel/event_data, proving no bits are lost.
+    tb.log.info(f"=== Phase 4: err-FIFO drain + decode "
+                f"({tb.TEST_S_AXIL_DATA_WIDTH}-bit) ===")
+    from TBClasses.monbus import (
+        create_monitor_packet, PktType as _PT, ProtocolType as _PROTO,
+        AXIErrorCode as _EC,
+    )
+    await tb.reset_dut(0x0000_2000, 0x0000_5FFF, flush_watermark=1024)
+    tb.dut.cfg_axi_err_select.value = 0x0001   # route PktTypeError to err FIFO
+    await tb.wait_clocks('axi_aclk', 2)
+
+    N_ERR = 8
+    exp = []
+    err_recs = []
+    for i in range(N_ERR):
+        ch, data = i & 0x1FF, (0x5A5A_0000 + (i << 8) + i) & ((1 << 64) - 1)
+        err_recs.append((create_monitor_packet(
+            _PT.PktTypeError, _PROTO.PROTOCOL_AXI, _EC.AXI_ERR_DATA_ORPHAN,
+            ch, 0x00, 0x21, data), 2000 + 10 * i))
+        exp.append((ch, data))
+    await tb.drive_records(err_recs)
+    await tb.wait_clocks('axi_aclk', 40)
+
+    drained = await tb.mon.drain_records(N_ERR)
+    assert len(drained) == N_ERR, f"phase 4: drained {len(drained)}/{N_ERR} records"
+    for idx, p in enumerate(drained):
+        ech, edata = exp[idx]
+        assert p.packet_type == _PT.PktTypeError, (
+            f"phase 4 [{idx}]: type={p.get_packet_type_name()} != PktTypeError")
+        assert int(p.protocol) == _PROTO.PROTOCOL_AXI.value, f"phase 4 [{idx}]: bad protocol"
+        assert p.channel_id == ech, f"phase 4 [{idx}]: ch=0x{p.channel_id:x} != 0x{ech:x}"
+        assert p.event_data == edata, (
+            f"phase 4 [{idx}]: data=0x{p.event_data:x} != 0x{edata:x}")
+    tb.log.info(f"  decoded {len(drained)}/{N_ERR} error records via "
+                f"{tb.TEST_S_AXIL_DATA_WIDTH}-bit drain -- OK")
+
     tb.log.info("=== ALL PHASES PASSED ===")
 
 
@@ -319,8 +368,13 @@ async def cocotb_test_monbus_axil_axi4_group(dut):
 # Pytest wrapper
 # ----------------------------------------------------------------------------
 
-def test_monbus_axil_axi4_group(request):
-    """Pytest wrapper for MonBus AXIL/AXI4 burst coverage test."""
+@pytest.mark.parametrize("s_axil_data_width", [64, 32])
+def test_monbus_axil_axi4_group(request, s_axil_data_width):
+    """Pytest wrapper for MonBus AXIL/AXI4 burst + err-drain coverage test.
+
+    Swept over the err-FIFO drain AXIL data width: 64 (one beat/slice) and
+    32 (2:1 read serializer, 6 beats/record) -- the latter is the config a
+    32-bit host crossbar uses (see monbus_axil_axil_group)."""
     module, repo_root, tests_dir, log_dir, rtl_dict = get_paths({
         'rtl_includes': 'rtl/amba/includes',
         'rtl_shared':   'rtl/amba/shared',
@@ -332,7 +386,7 @@ def test_monbus_axil_axi4_group(request):
 
     dut_name = "monbus_axil_axi4_group"
     worker_id = os.environ.get('PYTEST_XDIST_WORKER', 'gw0')
-    test_name = f"test_{worker_id}_{dut_name}_burst"
+    test_name = f"test_{worker_id}_{dut_name}_burst_sdw{s_axil_data_width:02d}"
 
     log_path  = os.path.join(log_dir, f'{test_name}.log')
     sim_build = os.path.join(tests_dir, 'local_sim_build', test_name)
@@ -368,6 +422,7 @@ def test_monbus_axil_axi4_group(request):
         'MAX_BURST_BEATS': 32,
         'FLUSH_TIMEOUT_CYCLES': 1024,
         'USE_COMPRESSION': 0,
+        'S_AXIL_DATA_WIDTH': s_axil_data_width,
     }
 
     extra_env = {
@@ -377,6 +432,7 @@ def test_monbus_axil_axi4_group(request):
         'COCOTB_RESULTS_FILE': os.path.join(log_dir, f'results_{test_name}.xml'),
         'SEED':             os.environ.get('SEED', str(random.randint(0, 100000))),
         'TEST_CLK_PERIOD':  '10',
+        'TEST_S_AXIL_DATA_WIDTH': str(s_axil_data_width),
     }
 
     compile_args = [
