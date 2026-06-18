@@ -644,15 +644,15 @@ async def _run_multirank_isolation(tb):
 #---------------------------------------------------------------------------
 
 #---------------------------------------------------------------------------
-# Regression-level matrix selection (REG_LEVEL env var)
+# Regression-level matrix selection (TEST_LEVEL env var)
 #
 # Mirrors stream's GATE/FUNC/FULL convention:
 #   GATE : minimal smoke (~5 s wall) — fast CI sanity
 #   FUNC : functional coverage (~30 s wall) — default for dev
 #   FULL : the entire scenario set (~2 min wall) — nightly / pre-release
 #
-# Default = FUNC. Set REG_LEVEL=GATE|FUNC|FULL before invoking pytest, or
-# use the `make run-gate / run-func / run-full` targets.
+# Default = FUNC. Set TEST_LEVEL=GATE|FUNC|FULL before invoking pytest, or
+# use the `make run-gate / run-func / run-full` targets which set it for you.
 #---------------------------------------------------------------------------
 
 _ALL_SINGLE_RANK = [
@@ -723,13 +723,19 @@ def _pick(level: str, single: bool):
     return table.get(level.upper(), _FUNC_SINGLE if single else _FUNC_MULTI)
 
 
-_REG_LEVEL = os.environ.get("REG_LEVEL", "FUNC").upper()
-single_rank_params = _pick(_REG_LEVEL, single=True)
-multi_rank_params  = _pick(_REG_LEVEL, single=False)
+_TEST_LEVEL = os.environ.get("TEST_LEVEL", "FUNC").upper()
+single_rank_params = _pick(_TEST_LEVEL, single=True)
+multi_rank_params  = _pick(_TEST_LEVEL, single=False)
 
 
 def _build_and_run(request, test_type, num_ranks):
-    """Common builder for both the single-rank and multi-rank wrappers."""
+    """Common builder for both the single-rank and multi-rank wrappers.
+
+    Test-name format follows stream's convention — every parametrized
+    knob is baked into `test_name` so each combo gets a unique sim_build
+    dir, log file, and results XML. Add more `_<short_code><value>` tags
+    here when new build/parametrize parameters are introduced.
+    """
     module, repo_root, tests_dir, log_dir, _ = get_paths({})
     dut_name = "axi_frontend_macro"
     test_name = f"test_axi_frontend_macro_{test_type}_nr{num_ranks}"
@@ -787,10 +793,10 @@ def test_axi_frontend_macro(request, test_type):
     _build_and_run(request, test_type, num_ranks=1)
 
 
-# Skip the multi-rank wrapper entirely when REG_LEVEL=GATE picks an empty list.
+# Skip the multi-rank wrapper entirely when TEST_LEVEL=GATE picks an empty list.
 @pytest.mark.skipif(
     not multi_rank_params,
-    reason=f"no multi-rank scenarios at REG_LEVEL={_REG_LEVEL}",
+    reason=f"no multi-rank scenarios at TEST_LEVEL={_TEST_LEVEL}",
 )
 @pytest.mark.parametrize("test_type", multi_rank_params or ["__skipped__"])
 def test_axi_frontend_macro_multirank(request, test_type):
