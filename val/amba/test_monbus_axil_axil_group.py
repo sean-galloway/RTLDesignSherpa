@@ -104,6 +104,11 @@ async def cocotb_test_monbus_axil_axil_group(dut):
         success, stats = await tb.test_error_fifo_functionality(count=8)
         assert success, f"Error FIFO test failed: {stats}"
         tb.log.info(f"✅ Error FIFO: {stats['packets_read']} packets read")
+    elif test_type == 'error_decode':
+        success, stats = await tb.test_error_fifo_decode(count=8)
+        assert success, f"Error FIFO decode test failed: {stats}"
+        tb.log.info(f"✅ Error decode: {stats['records']} records via "
+                    f"{stats['drain_width']}-bit drain")
     else:
         raise ValueError(f"Unknown TEST_TYPE: {test_type}")
 
@@ -127,18 +132,23 @@ def generate_monbus_axil_axil_test_params():
 
     Parameters:
         (test_type, fifo_depth_err, fifo_depth_write, addr_width,
-         num_protocols)
+         num_protocols, s_axil_data_width)
+
+    The err-FIFO drain AXIL data width (S_AXIL_DATA_WIDTH) is swept: 64 (one
+    beat per record slice) and 32 (the 2:1 read serializer, low/high halves,
+    6 beats/record). The 'error_decode' type runs at both widths to prove the
+    serializer preserves full packet content; the lighter flow/count types run
+    at the default 64-bit width.
     """
-    test_types = ['basic_flow', 'error_fifo']
-    base_params = [
-        # (fifo_depth_err, fifo_depth_write [beats], addr_width, num_protocols)
-        (64, 96, 32, 3),   # Standard configuration
-    ]
+    base = (64, 96, 32, 3)   # (fifo_depth_err, fifo_depth_write[beats], addr_width, num_protocols)
 
     params = []
-    for test_type in test_types:
-        for base in base_params:
-            params.append((test_type,) + base)
+    for test_type in ('basic_flow', 'error_fifo'):
+        params.append((test_type,) + base + (64,))
+    # Rigorous decode coverage at BOTH drain widths (32-bit is the config that
+    # was never tested before -- stream_top_ch8 uses it).
+    for sdw in (64, 32):
+        params.append(('error_decode',) + base + (sdw,))
 
     return params
 
@@ -150,9 +160,9 @@ monbus_axil_axil_params = generate_monbus_axil_axil_test_params()
 # PYTEST WRAPPER FUNCTION - Single wrapper for all test types
 # ===========================================================================
 
-@pytest.mark.parametrize("test_type, fifo_depth_err, fifo_depth_write, addr_width, num_protocols",
+@pytest.mark.parametrize("test_type, fifo_depth_err, fifo_depth_write, addr_width, num_protocols, s_axil_data_width",
                          monbus_axil_axil_params)
-def test_monbus_axil_axil_group(request, test_type, fifo_depth_err, fifo_depth_write, addr_width, num_protocols):
+def test_monbus_axil_axil_group(request, test_type, fifo_depth_err, fifo_depth_write, addr_width, num_protocols, s_axil_data_width):
     enable_waves = bool(int(os.environ.get('WAVES', '0')))
     """Pytest wrapper for MonBus AXIL/AXIL Group tests - handles all test types."""
     module, repo_root, tests_dir, log_dir, rtl_dict = get_paths({
@@ -192,8 +202,9 @@ def test_monbus_axil_axil_group(request, test_type, fifo_depth_err, fifo_depth_w
     fdw_str = TBBase.format_dec(fifo_depth_write, 3)
     aw_str = TBBase.format_dec(addr_width, 2)
     np_str = TBBase.format_dec(num_protocols, 1)
+    sdw_str = TBBase.format_dec(s_axil_data_width, 2)
     worker_id = os.environ.get('PYTEST_XDIST_WORKER', 'gw0')
-    test_name_plus_params = f"test_{worker_id}_{dut_name}_{test_type}_fde{fde_str}_fdw{fdw_str}_aw{aw_str}_np{np_str}"
+    test_name_plus_params = f"test_{worker_id}_{dut_name}_{test_type}_fde{fde_str}_fdw{fdw_str}_aw{aw_str}_np{np_str}_sdw{sdw_str}"
 
     log_path = os.path.join(log_dir, f'{test_name_plus_params}.log')
     sim_build = os.path.join(tests_dir, 'local_sim_build', test_name_plus_params)
@@ -204,19 +215,21 @@ def test_monbus_axil_axil_group(request, test_type, fifo_depth_err, fifo_depth_w
     # Family port surface: no more S_AXIL_DATA_WIDTH / M_AXIL_DATA_WIDTH
     # (data width is locked at 64). FIFO_DEPTH_WRITE is in beats.
     rtl_parameters = {
-        'FIFO_DEPTH_ERR':   fifo_depth_err,
-        'FIFO_DEPTH_WRITE': fifo_depth_write,
-        'ADDR_WIDTH':       addr_width,
-        'NUM_PROTOCOLS':    num_protocols,
+        'FIFO_DEPTH_ERR':    fifo_depth_err,
+        'FIFO_DEPTH_WRITE':  fifo_depth_write,
+        'ADDR_WIDTH':        addr_width,
+        'NUM_PROTOCOLS':     num_protocols,
+        'S_AXIL_DATA_WIDTH': s_axil_data_width,
     }
 
     extra_env = {
         'LOG_PATH': log_path,
         'TEST_TYPE': test_type,
-        'TEST_FIFO_DEPTH_ERR':   str(fifo_depth_err),
-        'TEST_FIFO_DEPTH_WRITE': str(fifo_depth_write),
-        'TEST_ADDR_WIDTH':       str(addr_width),
-        'TEST_NUM_PROTOCOLS':    str(num_protocols),
+        'TEST_FIFO_DEPTH_ERR':    str(fifo_depth_err),
+        'TEST_FIFO_DEPTH_WRITE':  str(fifo_depth_write),
+        'TEST_ADDR_WIDTH':        str(addr_width),
+        'TEST_NUM_PROTOCOLS':     str(num_protocols),
+        'TEST_S_AXIL_DATA_WIDTH': str(s_axil_data_width),
     }
 
     # Add coverage environment variables if coverage is enabled

@@ -23,12 +23,21 @@
 
 `timescale 1ns / 1ps
 
+`include "reset_defs.svh"
+
 module monbus_axil_axil_group
     import monitor_common_pkg::*;
 #(
     parameter int FIFO_DEPTH_ERR       = 64,
     parameter int FIFO_DEPTH_WRITE     = 96,   // beats
     parameter int ADDR_WIDTH           = 32,
+    // Err-FIFO drain AXIL data width. The monbus record is three 64-bit
+    // slices ({tag,ts}, packet[127:64], packet[63:0]). With a 64-bit drain
+    // each slice is one beat (3 beats/record). With a 32-bit drain (for a
+    // 32-bit host crossbar) a 2:1 read serializer splits each slice into a
+    // low then high 32-bit beat (6 beats/record); the err-FIFO record is
+    // popped only after the high half of slice 2 is read.
+    parameter int S_AXIL_DATA_WIDTH    = 64,
     parameter int FLUSH_TIMEOUT_CYCLES = 1024,
     parameter int NUM_PROTOCOLS        = 3,
     parameter int USE_COMPRESSION      = 0,
@@ -59,7 +68,7 @@ module monbus_axil_axil_group
 
     output logic                          s_axil_rvalid,
     input  logic                          s_axil_rready,
-    output logic [63:0]                   s_axil_rdata,
+    output logic [S_AXIL_DATA_WIDTH-1:0]  s_axil_rdata,
     output logic [1:0]                    s_axil_rresp,
 
     // ----- AXIL master write (bulk capture) -----
@@ -176,8 +185,20 @@ module monbus_axil_axil_group
     /* verilator lint_on UNUSED */
 
     // ==================================================================
-    // AXIL slave read leaf
+    // Err-FIFO drain: a 64-bit axil4_slave_rd leaf bridges the external AXIL
+    // read onto the core's 64-bit read FUB one-to-one. For a 32-bit external
+    // bus a phase counter splits each 64-bit beat into two reads (low then
+    // high): the external AR is forwarded to the leaf only on the low beat, so
+    // the leaf issues exactly one core read per PAIR and never prefetches; the
+    // leaf's R beat is held across both halves and consumed on the high beat.
     // ==================================================================
+    logic                          drv_arvalid;   // external AR seen by the leaf
+    logic                          drv_arready;
+    logic [63:0]                   drv_rdata;      // leaf's 64-bit beat
+    logic [1:0]                    drv_rresp;
+    logic                          drv_rvalid;
+    logic                          drv_rready;     // external R consumed at the leaf
+
     axil4_slave_rd #(
         .AXIL_ADDR_WIDTH (ADDR_WIDTH),
         .AXIL_DATA_WIDTH (64),
@@ -186,16 +207,14 @@ module monbus_axil_axil_group
     ) u_axil_rd (
         .aclk           (axi_aclk),
         .aresetn        (axi_aresetn),
-
         .s_axil_araddr  (s_axil_araddr),
         .s_axil_arprot  (s_axil_arprot),
-        .s_axil_arvalid (s_axil_arvalid),
-        .s_axil_arready (s_axil_arready),
-        .s_axil_rdata   (s_axil_rdata),
-        .s_axil_rresp   (s_axil_rresp),
-        .s_axil_rvalid  (s_axil_rvalid),
-        .s_axil_rready  (s_axil_rready),
-
+        .s_axil_arvalid (drv_arvalid),
+        .s_axil_arready (drv_arready),
+        .s_axil_rdata   (drv_rdata),
+        .s_axil_rresp   (drv_rresp),
+        .s_axil_rvalid  (drv_rvalid),
+        .s_axil_rready  (drv_rready),
         .fub_araddr     (axil_rd_fub_araddr),
         .fub_arprot     (axil_rd_fub_arprot),
         .fub_arvalid    (axil_rd_fub_arvalid),
@@ -204,9 +223,68 @@ module monbus_axil_axil_group
         .fub_rresp      (axil_rd_fub_rresp),
         .fub_rvalid     (axil_rd_fub_rvalid),
         .fub_rready     (axil_rd_fub_rready),
-
         .busy           ()
     );
+
+    generate
+    if (S_AXIL_DATA_WIDTH == 64) begin : g_drain_direct
+        // 64-bit external: wire the leaf straight through.
+        assign drv_arvalid    = s_axil_arvalid;
+        assign s_axil_arready = drv_arready;
+        assign s_axil_rdata   = drv_rdata;
+        assign s_axil_rresp   = drv_rresp;
+        assign s_axil_rvalid  = drv_rvalid;
+        assign drv_rready     = s_axil_rready;
+    end else begin : g_drain_2to1
+        // 32-bit external: a phase bit splits each 64-bit leaf beat into a low
+        // then high external read. The leaf is handed one read per PAIR (AR
+        // forwarded only in the low phase), so it issues exactly one core read
+        // per pair. The low read streams the leaf beat directly (consuming it
+        // here and latching its high half); the high read replays the latch.
+        // Consuming the leaf on the low read makes s_axil_rvalid pulse once per
+        // beat -- if the leaf beat were held across both reads, rvalid would
+        // stay high and a master holding rready would mis-toggle the phase.
+        localparam logic PH_LOW = 1'b0, PH_HIGH = 1'b1;
+        logic        r_phase;
+        logic [31:0] r_hi_half;
+        logic        r_hi_ar;     // high-phase AR accepted (R may now be driven)
+
+        // AR: forward to the leaf in the low phase; in the high phase accept
+        // one AR locally. Gating the high R on r_hi_ar enforces AXIL AR-before-R
+        // so a master still holding rready from the low beat cannot consume the
+        // high beat early (that would desync the pair and double the core reads).
+        assign drv_arvalid    = (r_phase == PH_LOW) && s_axil_arvalid;
+        assign s_axil_arready = (r_phase == PH_LOW) ? drv_arready : !r_hi_ar;
+
+        // R: low phase streams the leaf's low half (consuming the beat); high
+        // phase replays the latched high half once its AR has been accepted.
+        assign s_axil_rvalid  = (r_phase == PH_LOW) ? drv_rvalid : r_hi_ar;
+        assign s_axil_rdata   = (r_phase == PH_LOW) ? drv_rdata[31:0] : r_hi_half;
+        assign s_axil_rresp   = 2'b00;
+        assign drv_rready     = (r_phase == PH_LOW) && s_axil_rready;
+
+        `ALWAYS_FF_RST(axi_aclk, axi_aresetn,
+            if (`RST_ASSERTED(axi_aresetn)) begin
+                r_phase   <= PH_LOW;
+                r_hi_half <= 32'd0;
+                r_hi_ar   <= 1'b0;
+            end else begin
+                // latch the high-phase AR acceptance
+                if (r_phase == PH_HIGH && s_axil_arvalid && s_axil_arready)
+                    r_hi_ar <= 1'b1;
+                if (s_axil_rvalid && s_axil_rready) begin
+                    if (r_phase == PH_LOW) begin
+                        r_hi_half <= drv_rdata[63:32];
+                        r_phase   <= PH_HIGH;
+                    end else begin
+                        r_phase <= PH_LOW;
+                        r_hi_ar <= 1'b0;
+                    end
+                end
+            end
+        )
+    end
+    endgenerate
 
     // ==================================================================
     // AXIL master write leaf

@@ -1739,11 +1739,13 @@ module stream_top_ch8 #(
                 .FIFO_DEPTH_ERR     (64),    // Error/interrupt FIFO depth
                 .FIFO_DEPTH_WRITE   (96),    // Write data FIFO depth (BEATS)
                 .ADDR_WIDTH         (32),    // AXI-Lite address width
-                // Slave-read (CPU IRQ status) and master-write are locked
-                // at 64-bit data in the monbus_<p1>_<p2>_group family
-                // (S_AXIL_DATA_WIDTH/M_AXIL_DATA_WIDTH params dropped).
-                // Every bulk-trace record is 3 × 64-bit beats
-                // (packet[63:0], packet[127:64], source_ts[63:0]).
+                // Err-FIFO drain (CPU IRQ status read) is 32-bit to match the
+                // 32-bit stream_char host crossbar (s_axil_err_rdata[31:0]).
+                // The group's 2:1 read serializer presents each 64-bit record
+                // slice as two 32-bit beats (low then high) -> 6 beats/record.
+                // The master-write bulk-trace port stays 64-bit (3 beats/record:
+                // {tag,source_ts}, packet[127:64], packet[63:0]).
+                .S_AXIL_DATA_WIDTH  (32),
                 .NUM_PROTOCOLS      (3),     // 3 protocols: desc, rd, wr
                 .USE_COMPRESSION    (USE_MON_COMPRESSION),
                 .HALF_BEAT_EN       (USE_MON_HALFBEAT)

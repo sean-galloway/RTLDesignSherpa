@@ -60,7 +60,9 @@ from TBClasses.monbus.monbus_packet import create_monbus_field_config
 
 # GAXI for monitor bus driving
 from CocoTBFramework.components.gaxi.gaxi_factories import create_gaxi_master
-from TBClasses.scoreboards.monbus_group import MonbusGroupHarness
+from TBClasses.scoreboards.monbus_group import (
+    MonbusGroupHarness, BeatLayout, BeatOrder,
+)
 
 
 class MonbusAxilAxilGroupTB(TBBase):
@@ -91,6 +93,10 @@ class MonbusAxilAxilGroupTB(TBBase):
         self.TEST_NUM_PROTOCOLS      = int(os.environ.get('TEST_NUM_PROTOCOLS', '3'))
         self.TEST_FLUSH_WATERMARK    = int(os.environ.get('TEST_FLUSH_WATERMARK', '24'))   # beats
         self.TEST_FLUSH_TIMEOUT_CYC  = int(os.environ.get('TEST_FLUSH_TIMEOUT_CYC', '1024'))
+        # Err-FIFO drain AXIL data width (S_AXIL_DATA_WIDTH on the DUT). 64 = one
+        # beat per record slice; 32 = the 2:1 read serializer (low/high halves,
+        # 6 beats/record). The harness handles the recombination transparently.
+        self.TEST_S_AXIL_DATA_WIDTH  = int(os.environ.get('TEST_S_AXIL_DATA_WIDTH', '64'))
         self.SEED = int(os.environ.get('SEED', '12345'))
 
         random.seed(self.SEED)
@@ -125,7 +131,12 @@ class MonbusAxilAxilGroupTB(TBBase):
             self.dut, self.axi_aclk,
             drain_proto="axil", trace_proto="axil",
             drain_prefix="s_axil_", trace_prefix="m_axil_",
+            drain_data_width=self.TEST_S_AXIL_DATA_WIDTH,
             group_node=self.dut, irq_sig=self.dut.irq_out, log=self.log,
+            # Drain + trace both emit {tag,ts}, packet[127:64], packet[63:0]
+            # per docs/markdown/RTLAmba/includes/monitor_package_spec.md.
+            layout_drain=BeatLayout(order=BeatOrder.TS_HI_LO),
+            layout_trace=BeatLayout(order=BeatOrder.TS_HI_LO),
         )
 
         # Optional monbus sniffer for offline analysis with monbus_compressor.
@@ -347,6 +358,57 @@ class MonbusAxilAxilGroupTB(TBBase):
 
         success_rate = packets_read / count if count > 0 else 0.0
         return success_rate > 0.5, {'packets_read': packets_read, 'success_rate': success_rate}
+
+    async def test_error_fifo_decode(self, count: int = 8) -> Tuple[bool, Dict[str, Any]]:
+        """Drive known error packets, drain via the AXIL slave-read port, and
+        verify every drained record DECODES correctly (packet_type, protocol,
+        channel_id, event_data). Unlike test_error_fifo_functionality (which
+        only counts non-zero beats), this reassembles full 24-byte records via
+        the harness, so it exercises the err-FIFO drain datapath end to end --
+        in particular the 2:1 read serializer when S_AXIL_DATA_WIDTH==32, which
+        must preserve the upper 32 bits of every slice (packet_type lives at
+        bit 127). A naive 32-bit truncation would silently corrupt the type."""
+        self.log.info(f"Decoding {count} error packets via "
+                      f"{self.TEST_S_AXIL_DATA_WIDTH}-bit err-FIFO drain...")
+
+        # Distinct channel_id + event_data per packet so order/content is checked.
+        expected = []
+        for i in range(count):
+            ch = i & 0x1FF
+            data = (0x5A5A_0000 + (i << 8) + i) & ((1 << 64) - 1)
+            await self.send_packet(self.create_monbus_packet_dict(
+                pkt_type=PktType.PktTypeError, event_code=0x1,
+                channel_id=ch, data=data))
+            expected.append((ch, data))
+            await self.wait_clocks(self.clk_name, 2)
+
+        await self.wait_clocks(self.clk_name, 50)
+
+        # Drain exactly `count` records (harness recombines 32-bit sub-beats).
+        drained = await self.mon.drain_records(count)
+
+        ok = True
+        if len(drained) != count:
+            self.log.error(f"drained {len(drained)} records, expected {count}")
+            ok = False
+        for idx, p in enumerate(drained):
+            exp_ch, exp_data = expected[idx] if idx < count else (None, None)
+            if p.packet_type != PktType.PktTypeError:
+                self.log.error(f"[{idx}] type={p.get_packet_type_name()} != PktTypeError")
+                ok = False
+            if int(p.protocol) != ProtocolType.PROTOCOL_AXI.value:
+                self.log.error(f"[{idx}] protocol={int(p.protocol)} != AXI")
+                ok = False
+            if exp_ch is not None and p.channel_id != exp_ch:
+                self.log.error(f"[{idx}] channel_id=0x{p.channel_id:x} != 0x{exp_ch:x}")
+                ok = False
+            if exp_data is not None and p.event_data != exp_data:
+                self.log.error(f"[{idx}] event_data=0x{p.event_data:x} != 0x{exp_data:x}")
+                ok = False
+        self.log.info(f"{'✅' if ok else '❌'} decoded {len(drained)}/{count} error "
+                      f"records via {self.TEST_S_AXIL_DATA_WIDTH}-bit drain")
+        return ok, {'records': len(drained), 'expected': count,
+                    'drain_width': self.TEST_S_AXIL_DATA_WIDTH}
 
     def finalize_test(self):
         """Generate final test statistics"""

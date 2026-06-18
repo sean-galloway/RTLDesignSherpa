@@ -14,11 +14,13 @@
 #              m_axil_mon_* and decode as AXI completions (24-byte records,
 #              beat order {tag,ts}, pkt[127:64], pkt[63:0] per the monitor
 #              package spec).
-#   Phase B -- err FIFO + stream_irq: error packets (the descriptor engine's
-#              terminating reads raise AXI_ERR_RESP_SLVERR) are routed to the
-#              err FIFO via ERR_CFG.ERR_SELECT; the FIFO filling drives
-#              stream_irq, and draining its records (s_axil_err_* reads)
-#              clears the interrupt.
+#   Phase B -- err FIFO + stream_irq: completion packets are routed to the err
+#              FIFO via ERR_CFG.ERR_SELECT; the FIFO filling drives stream_irq,
+#              and draining its records over the 32-bit s_axil_err_* port (the
+#              group's S_AXIL_DATA_WIDTH=32 2:1 read serializer presents each
+#              64-bit slice as two beats) clears the interrupt. The drained
+#              packets must still decode as AXI completions, proving the 32-bit
+#              drain preserves the full 128-bit packet.
 
 import os
 import sys
@@ -51,25 +53,19 @@ MON_EN_VALUE  = 0x7
 DAXMON_PKT_MASK = 0x24C
 RDMON_PKT_MASK  = 0x26C
 WRMON_PKT_MASK  = 0x28C
-# Per-monitor ERR_CFG (stream_regs.rdl): ERR_SELECT[3:0] selects which packet
-# types divert to the err FIFO; ERR_MASK[15:8] reset 0xFF preserved. The err
-# FIFO is the error path: routing the descriptor monitor's error packets there
-# fills it -> drives stream_irq (irq_out = !err_fifo_empty). Errors arise
-# naturally here from the descriptor engine's terminating-descriptor reads,
-# which the descriptor AXI monitor flags as AXI_ERR_RESP_SLVERR (PktTypeError,
-# event_code 0x0).
-#
-# NOTE: group_core routes via cfg_axi_err_select[pkt_type] (a bitmask indexed
-# by packet_type, so PktTypeError=0 -> bit0). Empirically in this stream_top
-# integration the SLVERR error packets divert to the err FIFO with
-# ERR_SELECT=0x2 (bit1), NOT 0x1 (bit0) -- the ERR_SELECT[3:0] field bits do
-# not line up with the packet_type index here. Using the value that is
-# observed to work; the bit-mapping mismatch is flagged for follow-up.
+# Per-monitor ERR_CFG (stream_regs.rdl): ERR_SELECT[3:0] is a bitmask indexed
+# by packet_type selecting which types divert to the err FIFO (bit0=Error,
+# bit1=Completion, ...); ERR_MASK[15:8] reset 0xFF event-masks (drops) error
+# packets. We route COMPLETIONS to the err FIFO (ERR_SELECT=0x2): every
+# transfer emits completion packets deterministically, the per-protocol
+# completion masks reset to 0 (not dropped), and ERR_MASK=0xFF keeps the
+# incidental descriptor SLVERR errors out -- so the err FIFO fills cleanly
+# with completions, which drives stream_irq (irq_out = !err_fifo_empty).
 DAXMON_ERR_CFG = 0x250
 RDMON_ERR_CFG  = 0x270
 WRMON_ERR_CFG  = 0x290
-ERR_CFG_ROUTE_ERR = 0xFF02   # diverts the SLVERR error packets to the err FIFO
-ERR_CFG_NONE      = 0xFF00   # ERR_SELECT=0 (nothing to err FIFO)
+ERR_CFG_ROUTE_COMPL = 0xFF02   # ERR_SELECT=0x2 (compl->err FIFO), ERR_MASK=0xFF
+ERR_CFG_NONE        = 0xFF00   # ERR_SELECT=0 (nothing to err FIFO)
 MON_FIFO_COUNT = 0x184
 
 # Monbus-group flush window (top-level cfg_mon_* inputs on stream_top_ch8).
@@ -134,6 +130,11 @@ async def cocotb_test_stream_top_monbus(dut):
         dut, dut.aclk,
         drain_proto="axil", trace_proto="axil",
         drain_prefix="s_axil_err_", trace_prefix="m_axil_mon_",
+        # stream_top_ch8 wires the group with S_AXIL_DATA_WIDTH=32: the err
+        # drain (s_axil_err_*) is a 32-bit AXIL port whose 2:1 read serializer
+        # presents each 64-bit record slice as two beats (6 beats/record). The
+        # trace (m_axil_mon_*) stays 64-bit.
+        drain_data_width=32,
         group_node=group_node,
         irq_sig=dut.stream_irq,
         # Per docs/markdown/RTLAmba/includes/monitor_package_spec.md the group
@@ -190,14 +191,17 @@ async def cocotb_test_stream_top_monbus(dut):
         f"no completion packets; got {sorted({p.get_packet_type_name() for p in pkts})}")
     tb.log.info("Phase A: trace path verified")
 
-    # ----- Phase B: err FIFO + IRQ (error packets routed to the err FIFO) -----
-    # Route PktTypeError to the err FIFO. The descriptor engine's terminating
-    # reads produce AXI_ERR_RESP_SLVERR events that the descriptor monitor
-    # emits as error packets; routing them to the err FIFO raises stream_irq
-    # (irq_out = !err_fifo_empty). Draining the records clears the IRQ.
+    # ----- Phase B: err FIFO + IRQ (completions routed to the err FIFO) -----
+    # Route completion packets to the err FIFO (ERR_SELECT=0x2). The FIFO
+    # filling drives stream_irq (irq_out = !err_fifo_empty); draining its
+    # records over the 32-bit s_axil_err_* port (2:1 read serializer ->
+    # 6 beats/record, recombined by the harness) clears the interrupt and
+    # the drained packets must decode back as AXI completions -- proving the
+    # 32-bit drain preserves the full 128-bit packet (a naive 32-bit truncation
+    # would drop packet_type at bit 127).
     tb.log.info("=== Phase B: err FIFO + stream_irq ===")
     for reg in (DAXMON_ERR_CFG, RDMON_ERR_CFG, WRMON_ERR_CFG):
-        await tb.write_apb_register(reg, ERR_CFG_ROUTE_ERR)   # error -> err FIFO
+        await tb.write_apb_register(reg, ERR_CFG_ROUTE_COMPL)   # completions -> err FIFO
     mon.clear()
     mon.start_irq_watch()
     await drive_transfer(1)
@@ -207,22 +211,22 @@ async def cocotb_test_stream_top_monbus(dut):
     irq_live = int(dut.stream_irq.value)
     tb.log.info(f"[stream-monbus] err FIFO records={records} "
                 f"stream_irq={irq_live} irq_first_cycle={mon.irq_first_cycle}")
-    assert mon.irq_asserted, "stream_irq never asserted with errors routed to err FIFO"
+    assert mon.irq_asserted, "stream_irq never asserted with completions routed to err FIFO"
     assert records and records > 0, "err FIFO empty despite IRQ"
 
-    # Drain every record (one record == 3 drain beats), then confirm the IRQ
-    # de-asserts now that the err FIFO is empty.
+    # Drain every record over the 32-bit port, then confirm the IRQ de-asserts
+    # now that the err FIFO is empty.
     drained = await mon.drain_records(records)
     await ClockCycles(dut.aclk, 20)
     irq_after = int(dut.stream_irq.value)
     mon.stop_irq_watch()
     tb.log.info(f"[stream-monbus] err-drained pkts={len(drained)} "
                 f"types={sorted({p.get_packet_type_name() for p in drained})} "
-                f"evt_codes={sorted({p.event_code for p in drained})} "
+                f"protocols={sorted({int(p.protocol) for p in drained})} "
                 f"irq_after_drain={irq_after} final_err_records={err_fifo_records()}")
     assert len(drained) >= 1, "no records drained from the err FIFO"
-    assert all(p.packet_type == PktType.PktTypeError for p in drained), (
-        f"non-error packet in err FIFO: {sorted({p.get_packet_type_name() for p in drained})}")
+    assert all(p.packet_type == PktType.PktTypeCompletion for p in drained), (
+        f"non-completion in err FIFO: {sorted({p.get_packet_type_name() for p in drained})}")
     assert irq_after == 0, "stream_irq did not clear after draining the err FIFO"
     mon.stop_fifo_monitor()
     tb.log.info("=== stream_top monbus-group trace + err-FIFO/IRQ paths verified ===")

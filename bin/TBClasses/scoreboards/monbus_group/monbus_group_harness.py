@@ -47,6 +47,7 @@ class MonbusGroupHarness:
         irq_sig=None,
         block_node=None,
         data_width: int = 64,
+        drain_data_width: int = None,
         addr_width: int = 32,
         id_width: int = 8,
         layout_drain: BeatLayout = None,
@@ -65,6 +66,11 @@ class MonbusGroupHarness:
         self.irq_sig = irq_sig if irq_sig is not None else getattr(dut, "irq_out", None)
         self.block_node = block_node
         self.data_width = data_width
+        # The drain (err-FIFO read) port may be narrower than the 64-bit record
+        # slice. With a 32-bit drain (monbus_axil_axil_group S_AXIL_DATA_WIDTH=32)
+        # each 64-bit slice arrives as two beats, low half then high half, so a
+        # record is 6 drain beats instead of 3. drain_subbeats captures that 1x/2x.
+        self.drain_data_width = drain_data_width or data_width
         self.addr_width = addr_width
         self.id_width = id_width
         self.layout_drain = layout_drain or BeatLayout(order=BeatOrder.LO_HI_TS)
@@ -72,6 +78,8 @@ class MonbusGroupHarness:
         self.log = log
 
         self._mask = (1 << data_width) - 1
+        self._drain_mask = (1 << self.drain_data_width) - 1
+        self._drain_subbeats = max(1, 64 // self.drain_data_width)
         self.received_packets = []
         self._trace_beats = []           # captured (addr, data) in write order
         self._trace_bursts = []          # per-burst {addr,awlen,awsize,awburst,beats}
@@ -118,7 +126,7 @@ class MonbusGroupHarness:
         self._set(self._sig(p, "arprot"), 0)
         if self.drain_proto == "axi4":
             self._set(self._sig(p, "arlen"), 0)
-            self._set(self._sig(p, "arsize"), (self.data_width // 8).bit_length() - 1)
+            self._set(self._sig(p, "arsize"), (self.drain_data_width // 8).bit_length() - 1)
             self._set(self._sig(p, "arburst"), 1)
             self._set(self._sig(p, "arid"), 0)
         self._set(self._sig(p, "rready"), 1)
@@ -136,7 +144,7 @@ class MonbusGroupHarness:
         rdata_h = self._sig(p, "rdata")
         for _ in range(timeout_cycles):
             if self._get(rvalid) == 1:
-                rdata = self._get(rdata_h) & self._mask
+                rdata = self._get(rdata_h) & self._drain_mask
                 break
             await RisingEdge(clk)
         else:
@@ -209,10 +217,17 @@ class MonbusGroupHarness:
         parse, and append to received_packets. Returns the new packets."""
         out = []
         bpr = self.layout_drain.beats_per_record
+        sub = self._drain_subbeats               # 1 (64-bit drain) or 2 (32-bit drain)
         for _ in range(n_records):
             beats = []
             for b in range(bpr):
-                beats.append(await self.drain_read_beat(base_addr + b * addr_step))
+                # Each 64-bit record slice arrives as `sub` drain beats, low
+                # half first; recombine them back into the 64-bit slice value.
+                slice_val = 0
+                for s in range(sub):
+                    word = await self.drain_read_beat(base_addr + (b * sub + s) * addr_step)
+                    slice_val |= (word & self._drain_mask) << (s * self.drain_data_width)
+                beats.append(slice_val)
             pkt = self._reassemble(beats, self.layout_drain)
             if pkt is not None:
                 out.append(pkt)
