@@ -17,11 +17,12 @@
 #                          (the bulk monitor-trace dump path used by
 #                          stream_char's debug_sram).
 #
-# Record layout is fixed at 24 bytes (3 × 64-bit beats):
+# Record layout is fixed at 24 bytes (3 × 64-bit beats), TS, HI, LO order
+# (matches parse_stream ts_mode=1 and the monitor package spec):
 #
-#     +0x00:  packet[63:0]      (low 64 bits of the 128-bit monbus packet)
-#     +0x08:  packet[127:64]    (high 64 bits)
-#     +0x10:  source_ts[63:0]   (sampled by monbus_axil_group's counter)
+#     +0x00:  {tag[3:0], source_ts[59:0]}   (timestamp slice, tag=0 raw)
+#     +0x08:  packet[127:64]                (high 64 bits of the monbus packet)
+#     +0x10:  packet[63:0]                  (low 64 bits)
 #
 # That's 6 × 32-bit UART reads per record. The capture is circular within
 # [cfg_mon_base_addr, cfg_mon_limit_addr] -- if the window fills, writes
@@ -75,8 +76,8 @@ from dump_monbus import format_record  # noqa: E402
 
 # ---------------------------------------------------------------------------
 # Fixed record geometry. The variable-mode append knob was removed from
-# monbus_axil_group; every record is now 24 bytes (3 × 64-bit beats):
-# {packet[63:0], packet[127:64], source_ts[63:0]}.
+# monbus_axil_axil_group; every record is now 24 bytes (3 × 64-bit beats) in
+# TS, HI, LO order: {tag,source_ts[59:0]}, packet[127:64], packet[63:0].
 # ---------------------------------------------------------------------------
 
 RECORD_BYTES = 24

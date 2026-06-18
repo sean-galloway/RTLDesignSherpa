@@ -42,13 +42,14 @@ from TBClasses.monbus import (  # noqa: E402
 
 def _record_words(raw_pkt, source_ts=0):
     """Serialize one record into 32-bit words exactly as
-    monbus_axil_group's m_axil master would write them to memory.
-    Layout is fixed at 3 × 64-bit beats: {packet[63:0],
-    packet[127:64], source_ts[63:0]}."""
+    monbus_axil_axil_group's m_axil master writes them to memory.
+    Layout is fixed at 3 × 64-bit beats in TS, HI, LO order:
+    {tag,source_ts[59:0]}, packet[127:64], packet[63:0] -- matching
+    parse_stream(ts_mode=1) and the monitor package spec."""
     beats = [
-        raw_pkt & ((1 << 64) - 1),
-        (raw_pkt >> 64) & ((1 << 64) - 1),
-        source_ts & ((1 << 64) - 1),
+        source_ts & ((1 << 64) - 1),          # beat0: {tag, source_ts[59:0]}
+        (raw_pkt >> 64) & ((1 << 64) - 1),     # beat1: packet[127:64]
+        raw_pkt & ((1 << 64) - 1),             # beat2: packet[63:0]
     ]
     out = []
     for b in beats:

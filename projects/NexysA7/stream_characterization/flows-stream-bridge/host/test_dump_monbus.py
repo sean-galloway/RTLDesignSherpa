@@ -74,7 +74,8 @@ def test_words32_to_beats64_rejects_odd_count():
 def _make_axi_error_record(event_code=AXIErrorCode.AXI_ERR_RESP_SLVERR,
                            unit_id=2, agent_id=0x01, channel_id=3,
                            event_data=0xDEAD_BEEF_CAFE_F00D,
-                           source_ts=0x1234_5678_9ABC_DEF0):
+                           source_ts=0x0234_5678_9ABC_DEF0):
+    # source_ts is 60-bit (drain beat 0 is {tag[3:0], source_ts[59:0]}).
     raw = create_monitor_packet(
         packet_type=PktType.PktTypeError,
         protocol=ProtocolType.PROTOCOL_AXI,
@@ -86,7 +87,8 @@ def _make_axi_error_record(event_code=AXIErrorCode.AXI_ERR_RESP_SLVERR,
     )
     beat_lo = raw & ((1 << 64) - 1)
     beat_hi = (raw >> 64) & ((1 << 64) - 1)
-    return raw, [beat_lo, beat_hi, source_ts]
+    # TS, HI, LO -- matches the monbus_axil_axil_group slicer / spec.
+    return raw, [source_ts, beat_hi, beat_lo]
 
 
 def test_beats_to_packet_axi_error_round_trip():
@@ -96,7 +98,7 @@ def test_beats_to_packet_axi_error_round_trip():
     assert pkt.get_event_code_name() == "AXI_ERR_RESP_SLVERR"
     assert pkt.unit_id == 2
     assert pkt.agent_id == 0x01
-    assert source_ts == 0x1234_5678_9ABC_DEF0
+    assert source_ts == 0x0234_5678_9ABC_DEF0
 
 
 def test_beats_to_packet_rejects_wrong_count():
@@ -129,10 +131,11 @@ class CannedReader:
 
 def _record_to_words32(raw_pkt, source_ts):
     """Inverse of words32_to_beats64 + beats_to_packet: produce the
-    six 32-bit words a fake UART would return for one record."""
-    beat0 = raw_pkt & ((1 << 64) - 1)
-    beat1 = (raw_pkt >> 64) & ((1 << 64) - 1)
-    beat2 = source_ts & ((1 << 64) - 1)
+    six 32-bit words a fake UART would return for one record, in the
+    slicer's TS, HI, LO beat order (low 32 bits of each beat first)."""
+    beat0 = source_ts & ((1 << 64) - 1)            # TS
+    beat1 = (raw_pkt >> 64) & ((1 << 64) - 1)      # HI = packet[127:64]
+    beat2 = raw_pkt & ((1 << 64) - 1)              # LO = packet[63:0]
     return [
         beat0 & 0xFFFF_FFFF, (beat0 >> 32) & 0xFFFF_FFFF,
         beat1 & 0xFFFF_FFFF, (beat1 >> 32) & 0xFFFF_FFFF,
@@ -142,11 +145,11 @@ def _record_to_words32(raw_pkt, source_ts):
 
 def test_read_one_record_default_stride_increments_addresses():
     raw, _ = _make_axi_error_record()
-    words = _record_to_words32(raw, 0x1234_5678_9ABC_DEF0)
+    words = _record_to_words32(raw, 0x0234_5678_9ABC_DEF0)
     reader = CannedReader(words)
     pkt, ts = read_one_record(reader, base_addr=0xC000_0000, word_stride=4)
     assert pkt.raw_packet == raw
-    assert ts == 0x1234_5678_9ABC_DEF0
+    assert ts == 0x0234_5678_9ABC_DEF0
     # 6 reads at incrementing 32-bit offsets
     assert reader.addrs == [0xC000_0000 + 4 * i for i in range(6)]
 

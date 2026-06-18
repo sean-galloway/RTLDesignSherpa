@@ -10,16 +10,20 @@
 # via the shared TBClasses.monbus parser library, and prints one human-
 # readable line per packet.
 #
-# Each error-FIFO record drains as three 64-bit beats per the unified
-# monbus_axil_group's slice-counter read path:
+# Each error-FIFO record drains as three 64-bit beats per the
+# monbus_axil_axil_group slice-counter read path (and the monitor package
+# spec, docs/markdown/RTLAmba/includes/monitor_package_spec.md) -- TS, HI, LO:
 #
-#     beat 0:  packet[63:0]      (low half of the monbus packet)
-#     beat 1:  packet[127:64]    (high half)
-#     beat 2:  source_ts[63:0]   (timestamp sampled at the wrapper)
+#     beat 0:  {tag[3:0], source_ts[59:0]}   (timestamp slice, tag=0 raw)
+#     beat 1:  packet[127:64]                (high half of the monbus packet)
+#     beat 2:  packet[63:0]                  (low half)
 #
 # Since uart_axi_bridge only does 32-bit reads, each 64-bit beat becomes
 # two consecutive 32-bit reads (little-endian: low 32 bits first). One
-# full packet = 6 × 32-bit UART reads = 3 × 64-bit beats = 1 record.
+# full packet = 6 × 32-bit UART reads = 3 × 64-bit beats = 1 record. With a
+# 32-bit err-drain (monbus_axil_axil_group S_AXIL_DATA_WIDTH=32, as wired in
+# stream_top_ch8) the group's 2:1 read serializer presents the low then high
+# 32-bit half of each slice, so the same 6-read sequence applies.
 #
 # Usage:
 #     env_python && \
@@ -69,8 +73,8 @@ from TBClasses.monbus import (  # noqa: E402
 # Constants
 # =============================================================================
 
-# Number of 64-bit beats per error-FIFO record. Today the unified
-# monbus_axil_group slicer is fixed at 3 (packet_lo, packet_hi, source_ts).
+# Number of 64-bit beats per error-FIFO record. The monbus_axil_axil_group
+# slicer is fixed at 3 (source_ts, packet_hi, packet_lo -- TS, HI, LO order).
 BEATS_PER_RECORD = 3
 WORDS_PER_RECORD = BEATS_PER_RECORD * 2  # 6 × 32-bit
 RECORD_BYTES = BEATS_PER_RECORD * 8      # 24
@@ -97,10 +101,10 @@ def words32_to_beats64(words32: Iterable[int]) -> List[int]:
 def beats_to_packet(beats_64: List[int]) -> Tuple[MonitorPacket, int]:
     """Reassemble three 64-bit beats into a parsed packet + source
     timestamp. Beat ordering matches the slicer in
-    rtl/amba/shared/monbus_axil_group.sv:
-        beats_64[0] = packet[63:0]
-        beats_64[1] = packet[127:64]
-        beats_64[2] = source_ts[63:0]
+    rtl/amba/shared/monbus_axil_axil_group.sv (TS, HI, LO):
+        beats_64[0] = {tag[3:0], source_ts[59:0]}   (timestamp slice)
+        beats_64[1] = packet[127:64]                (high half)
+        beats_64[2] = packet[63:0]                  (low half)
     """
     if len(beats_64) != BEATS_PER_RECORD:
         raise ValueError(
@@ -108,8 +112,9 @@ def beats_to_packet(beats_64: List[int]) -> Tuple[MonitorPacket, int]:
             f"got {len(beats_64)}"
         )
     raw_pkt = ((beats_64[1] & ((1 << 64) - 1)) << 64) \
-            | (beats_64[0] & ((1 << 64) - 1))
-    source_ts = beats_64[2] & ((1 << MONBUS_TS_WIDTH) - 1)
+            | (beats_64[2] & ((1 << 64) - 1))
+    # beat 0 carries {tag[3:0], source_ts[59:0]}; strip the 4-bit encoding tag.
+    source_ts = beats_64[0] & ((1 << 60) - 1)
     return parse(raw_pkt), source_ts
 
 
