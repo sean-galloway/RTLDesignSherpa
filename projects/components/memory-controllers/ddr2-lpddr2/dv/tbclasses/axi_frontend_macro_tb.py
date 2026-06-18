@@ -2,383 +2,374 @@
 # SPDX-FileCopyrightText: 2024-2026 sean galloway
 #
 # Author: sean galloway
-# Created: 2026-06-17
+# Created: 2026-06-18
 
 """
-Testbench class for the axi_frontend_macro.
+TB class for axi_frontend_macro using CocoTBFramework AXI4 BFMs and
+FlexRandomizer for directed-random timing-profile testing.
 
-Drives:
-  - AW push (raw flat address; addr_mapper_aw decodes inside the DUT)
-  - AR push (raw flat address; addr_mapper_ar decodes inside)
-  - Scheduler query / mark-issued strobes
-  - Beat-pull and b_complete on the write side
-  - Beat-arrival on the read side
+DUT is an AXI4 slave (host signals are s_axi_*). The TB uses:
+  - AXI4MasterWrite : drives s_axi_aw* / w*, receives s_axi_b*
+  - AXI4MasterRead  : drives s_axi_ar*, receives s_axi_r*
+  - FlexRandomizer  : per-channel valid/ready timing per AXI_RANDOMIZER_CONFIGS
 
-Observes:
-  - Forwarded (snarf) hits on AR with matching pending writes
-  - Pass-through to rd_cmd_cam on miss
-  - Scheduler match vectors
-  - CAM occupancy / completion strobes
+It also drives the non-AXI stub interfaces manually:
+  - Scheduler stub (q_rank/bank/row, mark_issued, beat_pull, b_complete)
+  - Read-data injection (rd_inject_*) for non-forwarded reads
+  - Read-beat acknowledgement (rd_beat_we/slot)
 
-Methodology mirrors stream's macro-level TBs (e.g., DatapathRdTestTB):
-no FSM in the TB either — sequencing is driven by explicit method
-calls plus the DUT clock.
+Memory model tracks the writes that have been issued so any non-forwarded
+read can be auto-serviced with the expected data.
 """
 
 import os
+import sys
 import logging
-from dataclasses import dataclass
-from typing import List, Optional
+import random
+import subprocess
+from typing import Dict, List, Optional, Tuple
 
 import cocotb
 from cocotb.clock import Clock
-from cocotb.triggers import RisingEdge, ReadOnly, Timer
+from cocotb.triggers import RisingEdge, Timer, ReadOnly
 
 
-@dataclass
-class WriteEntry:
-    """Bookkeeping for an AW that's been pushed to the DUT."""
-    addr: int
-    axi_id: int
-    length: int        # beats
-    w_buf_ptr: int
-    strb_ptr: int
-    full_strb: bool
-    slot: Optional[int] = None
+# Add repo root to sys.path so framework imports work
+_repo_root = subprocess.check_output(['git', 'rev-parse', '--show-toplevel']).decode().strip()
+if _repo_root not in sys.path:
+    sys.path.insert(0, _repo_root)
 
+from CocoTBFramework.components.axi4.axi4_interfaces import (  # noqa: E402
+    AXI4MasterWrite, AXI4MasterRead,
+)
+from CocoTBFramework.components.shared.flex_randomizer import FlexRandomizer  # noqa: E402
+from TBClasses.amba.amba_random_configs import AXI_RANDOMIZER_CONFIGS  # noqa: E402
+
+
+#----------------------------------------------------------------------------
+# Memory model
+#----------------------------------------------------------------------------
+
+class MemModel:
+    """Simple address-keyed beat-store for self-checking.
+
+    The TB writes (addr, beats) on every AXI write; reads pull the same
+    beats out for verification. Non-forwarded reads also use this to source
+    the rd_inject_* data.
+    """
+
+    def __init__(self) -> None:
+        self._store: Dict[int, List[int]] = {}
+        # FIFO of (id, [beats]) for reads still in flight that the
+        # rd_scheduler stub needs to inject.
+        self._rd_inject_q: List[Tuple[int, List[int]]] = []
+
+    def write(self, addr: int, beats: List[int]) -> None:
+        self._store[addr] = list(beats)
+
+    def expected_beats(self, addr: int, count: int) -> List[int]:
+        return self._store.get(addr, [0] * count)[:count]
+
+    def queue_inject(self, axi_id: int, beats: List[int]) -> None:
+        self._rd_inject_q.append((axi_id, beats))
+
+    def pop_inject(self) -> Optional[Tuple[int, List[int]]]:
+        if self._rd_inject_q:
+            return self._rd_inject_q.pop(0)
+        return None
+
+
+#----------------------------------------------------------------------------
+# Main TB class
+#----------------------------------------------------------------------------
 
 class AxiFrontendMacroTB:
-    """TB helper for the axi_frontend_macro."""
-
-    # Default address-map scheme = ROW_MAJOR (encoded 2'h0)
     SCHEME_ROW_MAJOR       = 0
     SCHEME_BANK_INTERLEAVE = 1
     SCHEME_XOR_HASH        = 2
 
-    def __init__(self, dut):
+    def __init__(self, dut,
+                 axi_data_width: int = 64,
+                 axi_id_width:   int = 4,
+                 axi_addr_width: int = 32,
+                 axi_user_width: int = 1) -> None:
         self.dut = dut
         self.log = logging.getLogger("axi_frontend_macro_tb")
         self.log.setLevel(logging.INFO)
 
-        # In-flight bookkeeping
-        self.pending_writes: List[WriteEntry] = []
-        self.forward_hits = 0
-        self.forward_misses = 0
+        self.AXI_DATA_WIDTH = axi_data_width
+        self.AXI_ID_WIDTH   = axi_id_width
+        self.AXI_ADDR_WIDTH = axi_addr_width
+        self.AXI_USER_WIDTH = axi_user_width
+        self.AXI_STRB_WIDTH = axi_data_width // 8
+        self.AXI_DATA_MASK  = (1 << axi_data_width) - 1
+        self.AXI_STRB_FULL  = (1 << self.AXI_STRB_WIDTH) - 1
 
-    # ------------------------------------------------------------------
-    # Clock / reset / config
-    # ------------------------------------------------------------------
+        # Deterministic randomness from SEED
+        self.SEED = int(os.environ.get('SEED', '12345'))
+        random.seed(self.SEED)
 
-    async def setup(self, period_ns: int = 5, scheme: int = SCHEME_ROW_MAJOR):
-        """Start the clock, drive reset, drive CSR defaults."""
-        cocotb.start_soon(Clock(self.dut.mc_clk, period_ns, units="ns").start())
+        # Self-checking memory model
+        self.mem = MemModel()
 
-        # Defaults
+        # Statistics
+        self.fwd_hits_seen   = 0
+        self.fwd_misses_seen = 0
+
+        # Build AXI4 BFMs as masters (we drive the host side of the slave DUT)
+        self.axi_master_wr = AXI4MasterWrite(
+            dut=dut,
+            clock=dut.mc_clk,
+            prefix='s_axi',
+            data_width=axi_data_width,
+            id_width=axi_id_width,
+            addr_width=axi_addr_width,
+            user_width=axi_user_width,
+            log=self.log,
+        )
+
+        self.axi_master_rd = AXI4MasterRead(
+            dut=dut,
+            clock=dut.mc_clk,
+            prefix='s_axi',
+            data_width=axi_data_width,
+            id_width=axi_id_width,
+            addr_width=axi_addr_width,
+            user_width=axi_user_width,
+            log=self.log,
+        )
+
+    # --------------------------------------------------------------------
+    # Setup / reset
+    # --------------------------------------------------------------------
+
+    async def setup(self, period_ns: int = 5,
+                    scheme: int = SCHEME_ROW_MAJOR,
+                    timing_profile: str = 'backtoback') -> None:
+        cocotb.start_soon(Clock(self.dut.mc_clk, period_ns, units='ns').start())
+
+        # CSR
         self.dut.scheme_active_i.value = scheme
-        self.dut.xor_seed_i.value = 0
-        self.dut.aw_valid_i.value = 0
-        self.dut.aw_addr_i.value = 0
-        self.dut.aw_id_i.value = 0
-        self.dut.aw_len_i.value = 0
-        self.dut.aw_w_buf_ptr_i.value = 0
-        self.dut.aw_strb_ptr_i.value = 0
-        self.dut.aw_full_strb_i.value = 0
-        self.dut.ar_valid_i.value = 0
-        self.dut.ar_addr_i.value = 0
-        self.dut.ar_id_i.value = 0
-        self.dut.ar_len_i.value = 0
-        self.dut.fwd_ready_i.value = 1
-        self.dut.q_rank_i.value = 0
-        self.dut.q_bank_i.value = 0
-        self.dut.q_row_i.value = 0
-        self.dut.wr_issued_we_i.value = 0
+        self.dut.xor_seed_i.value      = 0
+
+        # Scheduler stub signals
+        self.dut.q_rank_i.value         = 0
+        self.dut.q_bank_i.value         = 0
+        self.dut.q_row_i.value          = 0
+        self.dut.wr_issued_we_i.value   = 0
         self.dut.wr_issued_slot_i.value = 0
-        self.dut.rd_issued_we_i.value = 0
+        self.dut.rd_issued_we_i.value   = 0
         self.dut.rd_issued_slot_i.value = 0
         self.dut.beat_pull_strb_i.value = 0
         self.dut.beat_pull_slot_i.value = 0
         self.dut.b_complete_strb_i.value = 0
         self.dut.b_complete_slot_i.value = 0
-        self.dut.rd_beat_we_i.value = 0
-        self.dut.rd_beat_slot_i.value = 0
+        self.dut.rd_beat_we_i.value     = 0
+        self.dut.rd_beat_slot_i.value   = 0
 
-        # Assert reset for a few cycles
+        # Rd inject (idle by default)
+        self.dut.rd_inject_valid_i.value = 0
+        self.dut.rd_inject_id_i.value    = 0
+        self.dut.rd_inject_data_i.value  = 0
+        self.dut.rd_inject_last_i.value  = 0
+
+        # Reset
         self.dut.mc_rst_n.value = 0
+        for _ in range(10):
+            await RisingEdge(self.dut.mc_clk)
+        self.dut.mc_rst_n.value = 1
         for _ in range(5):
             await RisingEdge(self.dut.mc_clk)
-        self.dut.mc_rst_n.value = 1
-        await RisingEdge(self.dut.mc_clk)
 
-    # ------------------------------------------------------------------
-    # AW push
-    # ------------------------------------------------------------------
+        # AXI channel timing profile
+        self.set_axi_timing_profile(timing_profile)
 
-    async def push_aw(self, entry: WriteEntry) -> int:
-        """Push one AW. Blocks until accepted. Returns the assigned slot."""
-        self.dut.aw_valid_i.value = 1
-        self.dut.aw_addr_i.value = entry.addr
-        self.dut.aw_id_i.value = entry.axi_id
-        self.dut.aw_len_i.value = entry.length
-        self.dut.aw_w_buf_ptr_i.value = entry.w_buf_ptr
-        self.dut.aw_strb_ptr_i.value = entry.strb_ptr
-        self.dut.aw_full_strb_i.value = 1 if entry.full_strb else 0
+        # Start scheduler-stub background tasks
+        cocotb.start_soon(self._wr_scheduler_stub())
+        cocotb.start_soon(self._rd_scheduler_stub())
+        cocotb.start_soon(self._fwd_observer())
 
-        # Wait for accept
-        await ReadOnly()
-        while int(self.dut.aw_ready_o.value) == 0:
+    def set_axi_timing_profile(self, profile_name: str) -> None:
+        """Configure per-channel FlexRandomizer timing.
+
+        For an AXI4 master-side BFM:
+          - aw/w/ar channels are GAXIMaster (drive valid)  -> config['master']
+          - b/r channels are GAXISlave   (drive ready)     -> config['slave']
+        """
+        if profile_name not in AXI_RANDOMIZER_CONFIGS:
+            self.log.warning(f"unknown timing profile '{profile_name}' — using 'backtoback'")
+            profile_name = 'backtoback'
+        cfg = AXI_RANDOMIZER_CONFIGS[profile_name]
+        # AW channel (master drives awvalid)
+        self.axi_master_wr.aw_channel.randomizer = FlexRandomizer(cfg['master'])
+        # W channel  (master drives wvalid)
+        self.axi_master_wr.w_channel.randomizer  = FlexRandomizer(cfg['master'])
+        # B channel  (slave drives bready)
+        self.axi_master_wr.b_channel.randomizer  = FlexRandomizer(cfg['slave'])
+        # AR channel (master drives arvalid)
+        self.axi_master_rd.ar_channel.randomizer = FlexRandomizer(cfg['master'])
+        # R channel  (slave drives rready)
+        self.axi_master_rd.r_channel.randomizer  = FlexRandomizer(cfg['slave'])
+        self.log.info(f"AXI timing profile = '{profile_name}'")
+
+    # --------------------------------------------------------------------
+    # Test API — high-level write/read using the BFMs
+    # --------------------------------------------------------------------
+
+    async def axi_write(self, address: int, beats: List[int],
+                        axi_id: int = 0, strb: Optional[int] = None) -> None:
+        """Issue an AXI write burst via the master BFM and wait for B.
+        Records the burst into the memory model for later verification.
+        """
+        if strb is None:
+            strb = self.AXI_STRB_FULL
+        self.mem.write(address, beats)
+        size = (self.AXI_DATA_WIDTH // 8).bit_length() - 1  # log2(bytes)
+        await self.axi_master_wr.write_transaction(
+            address=address,
+            data=beats,
+            burst_len=len(beats),
+            id=axi_id,
+            size=size,
+            burst_type=1,   # INCR
+            strb=strb,
+        )
+
+    async def axi_read(self, address: int, beats: int,
+                       axi_id: int = 0) -> List[int]:
+        """Issue an AXI read burst via the master BFM and return the beats.
+
+        If the read does not snarf, the rd-scheduler stub will inject the
+        expected data from the memory model so the transaction completes.
+        """
+        # Pre-queue inject data in case this becomes a miss
+        expected = self.mem.expected_beats(address, beats)
+        self.mem.queue_inject(axi_id, expected)
+        size = (self.AXI_DATA_WIDTH // 8).bit_length() - 1
+        data = await self.axi_master_rd.read_transaction(
+            address=address,
+            burst_len=beats,
+            id=axi_id,
+            size=size,
+            burst_type=1,
+        )
+        return list(data)
+
+    # --------------------------------------------------------------------
+    # Stubs — background tasks that emulate the FUBs outside this macro
+    # --------------------------------------------------------------------
+
+    async def _wr_scheduler_stub(self) -> None:
+        """Auto-services the wr_cmd_cam.
+
+        v1 simplification: assumes single-write-in-flight (always slot 0).
+        For each new occupancy: mark issued, beat-pull until last, b_complete.
+        """
+        prev_occ = 0
+        while True:
             await RisingEdge(self.dut.mc_clk)
             await ReadOnly()
-
-        slot = int(self.dut.aw_slot_o.value)
-        await RisingEdge(self.dut.mc_clk)
-        self.dut.aw_valid_i.value = 0
-        entry.slot = slot
-        self.pending_writes.append(entry)
-        self.log.info(f"AW push accepted: addr=0x{entry.addr:08x} id={entry.axi_id} "
-                      f"len={entry.length} slot={slot}")
-        return slot
-
-    # ------------------------------------------------------------------
-    # AR push (sees either forward or rd_cmd_cam push)
-    # ------------------------------------------------------------------
-
-    async def push_ar(self, addr: int, axi_id: int, length: int) -> dict:
-        """Push an AR. Returns a dict describing the outcome:
-              {'kind': 'forward', 'src_slot': N, 'w_buf_ptr': P}
-              {'kind': 'rd_push',  'rd_slot': N}
-        """
-        self.dut.ar_valid_i.value = 1
-        self.dut.ar_addr_i.value = addr
-        self.dut.ar_id_i.value = axi_id
-        self.dut.ar_len_i.value = length
-
-        await ReadOnly()
-        while int(self.dut.ar_ready_o.value) == 0:
+            occ = int(self.dut.dbg_wr_cam_occ_o.value)
+            if occ <= prev_occ:
+                prev_occ = occ
+                continue
+            prev_occ = occ
+            slot = 0
             await RisingEdge(self.dut.mc_clk)
-            await ReadOnly()
 
-        # Sample which path took it
-        fwd_v = int(self.dut.fwd_valid_o.value)
-        if fwd_v:
-            src_slot = int(self.dut.fwd_src_slot_o.value)
-            w_buf_ptr = int(self.dut.fwd_w_buf_ptr_o.value)
-            outcome = {'kind': 'forward', 'src_slot': src_slot,
-                       'w_buf_ptr': w_buf_ptr}
-            self.forward_hits += 1
-        else:
-            rd_slot = int(self.dut.rd_slot_o.value)
-            outcome = {'kind': 'rd_push', 'rd_slot': rd_slot}
-            self.forward_misses += 1
-
-        await RisingEdge(self.dut.mc_clk)
-        self.dut.ar_valid_i.value = 0
-        self.log.info(f"AR push accepted: addr=0x{addr:08x} id={axi_id} "
-                      f"len={length} -> {outcome}")
-        return outcome
-
-    # ------------------------------------------------------------------
-    # Scheduler stub: query and mark-issued
-    # ------------------------------------------------------------------
-
-    async def query_scheduler(self, rank: int, bank: int, row: int):
-        """Drive the scheduler query inputs. Returns the two match vectors."""
-        self.dut.q_rank_i.value = rank
-        self.dut.q_bank_i.value = bank
-        self.dut.q_row_i.value = row
-        await Timer(1, units="ns")  # let comb propagate
-        return {
-            'wr_pending': int(self.dut.wr_match_pending_o.value),
-            'wr_rowhit':  int(self.dut.wr_match_rowhit_o.value),
-            'rd_pending': int(self.dut.rd_match_pending_o.value),
-            'rd_rowhit':  int(self.dut.rd_match_rowhit_o.value),
-        }
-
-    async def mark_wr_issued(self, slot: int):
-        self.dut.wr_issued_we_i.value = 1
-        self.dut.wr_issued_slot_i.value = slot
-        await RisingEdge(self.dut.mc_clk)
-        self.dut.wr_issued_we_i.value = 0
-
-    async def mark_rd_issued(self, slot: int):
-        self.dut.rd_issued_we_i.value = 1
-        self.dut.rd_issued_slot_i.value = slot
-        await RisingEdge(self.dut.mc_clk)
-        self.dut.rd_issued_we_i.value = 0
-
-    # ------------------------------------------------------------------
-    # Beat-pull (wr) / b_complete / read-beat / completion observation
-    # ------------------------------------------------------------------
-
-    async def pull_wr_beat(self, slot: int):
-        self.dut.beat_pull_strb_i.value = 1
-        self.dut.beat_pull_slot_i.value = slot
-        await ReadOnly()
-        ptr  = int(self.dut.beat_pull_ptr_o.value)
-        sptr = int(self.dut.beat_pull_strb_ptr_o.value)
-        last = int(self.dut.beat_pull_last_o.value)
-        await RisingEdge(self.dut.mc_clk)
-        self.dut.beat_pull_strb_i.value = 0
-        return {'ptr': ptr, 'strb_ptr': sptr, 'last': bool(last)}
-
-    async def b_complete(self, slot: int):
-        self.dut.b_complete_strb_i.value = 1
-        self.dut.b_complete_slot_i.value = slot
-        await RisingEdge(self.dut.mc_clk)
-        self.dut.b_complete_strb_i.value = 0
-        # Prune local bookkeeping
-        self.pending_writes = [w for w in self.pending_writes if w.slot != slot]
-
-    async def rd_beat(self, slot: int):
-        self.dut.rd_beat_we_i.value = 1
-        self.dut.rd_beat_slot_i.value = slot
-        await RisingEdge(self.dut.mc_clk)
-        self.dut.rd_beat_we_i.value = 0
-
-    # ------------------------------------------------------------------
-    # Observation helpers
-    # ------------------------------------------------------------------
-
-    async def settle(self, ns: int = 1) -> None:
-        """Wait for combinational propagation before sampling outputs."""
-        await Timer(ns, units="ns")
-
-    async def reset_dut(self, cycles: int = 3) -> None:
-        """Re-assert mc_rst_n for `cycles` MC clocks and clear TB
-        bookkeeping. Used between sub-scenarios in a bundle so each one
-        starts from a clean CAM state without rebuilding the DUT.
-        """
-        self.dut.mc_rst_n.value = 0
-        # De-assert any leftover handshakes that could carry over
-        self.dut.aw_valid_i.value = 0
-        self.dut.ar_valid_i.value = 0
-        self.dut.wr_issued_we_i.value = 0
-        self.dut.rd_issued_we_i.value = 0
-        self.dut.beat_pull_strb_i.value = 0
-        self.dut.b_complete_strb_i.value = 0
-        self.dut.rd_beat_we_i.value = 0
-        self.dut.fwd_ready_i.value = 1
-        for _ in range(cycles):
+            # Mark issued
+            self.dut.wr_issued_we_i.value   = 1
+            self.dut.wr_issued_slot_i.value = slot
             await RisingEdge(self.dut.mc_clk)
-        self.dut.mc_rst_n.value = 1
-        await RisingEdge(self.dut.mc_clk)
-        # TB-side bookkeeping
-        self.pending_writes.clear()
-        self.forward_hits = 0
-        self.forward_misses = 0
+            self.dut.wr_issued_we_i.value   = 0
 
-    async def wr_cam_occupancy(self) -> int:
-        await self.settle()
-        return int(self.dut.dbg_wr_cam_occ_o.value)
-
-    async def rd_cam_occupancy(self) -> int:
-        await self.settle()
-        return int(self.dut.dbg_rd_cam_occ_o.value)
-
-    # ------------------------------------------------------------------
-    # Stream push helpers (back-to-back at 1 burst per cycle when ready)
-    # ------------------------------------------------------------------
-
-    async def push_aw_stream(self, entries: List[WriteEntry]) -> List[int]:
-        """Push a list of WriteEntries with valid held high across the burst.
-        Returns the slot index each entry landed in.
-        """
-        slots: List[int] = []
-        for e in entries:
-            self.dut.aw_valid_i.value = 1
-            self.dut.aw_addr_i.value = e.addr
-            self.dut.aw_id_i.value = e.axi_id
-            self.dut.aw_len_i.value = e.length
-            self.dut.aw_w_buf_ptr_i.value = e.w_buf_ptr
-            self.dut.aw_strb_ptr_i.value = e.strb_ptr
-            self.dut.aw_full_strb_i.value = 1 if e.full_strb else 0
-
-            await ReadOnly()
-            while int(self.dut.aw_ready_o.value) == 0:
-                await RisingEdge(self.dut.mc_clk)
+            # Pull beats until last
+            self.dut.beat_pull_slot_i.value = slot
+            self.dut.beat_pull_strb_i.value = 1
+            while True:
                 await ReadOnly()
-            slot = int(self.dut.aw_slot_o.value)
-            slots.append(slot)
-            e.slot = slot
-            self.pending_writes.append(e)
-            await RisingEdge(self.dut.mc_clk)
-
-        self.dut.aw_valid_i.value = 0
-        return slots
-
-    async def push_ar_stream(self, items) -> list:
-        """items = list of (addr, axi_id, length). Returns the outcome dict
-        for each entry."""
-        outcomes = []
-        for addr, axi_id, length in items:
-            self.dut.ar_valid_i.value = 1
-            self.dut.ar_addr_i.value = addr
-            self.dut.ar_id_i.value = axi_id
-            self.dut.ar_len_i.value = length
-
-            await ReadOnly()
-            while int(self.dut.ar_ready_o.value) == 0:
+                last = int(self.dut.beat_pull_last_o.value)
                 await RisingEdge(self.dut.mc_clk)
-                await ReadOnly()
-
-            fwd_v = int(self.dut.fwd_valid_o.value)
-            if fwd_v:
-                outcome = {
-                    'kind': 'forward',
-                    'src_slot': int(self.dut.fwd_src_slot_o.value),
-                    'w_buf_ptr': int(self.dut.fwd_w_buf_ptr_o.value),
-                    'id': axi_id,
-                    'len': length,
-                }
-                self.forward_hits += 1
-            else:
-                outcome = {
-                    'kind': 'rd_push',
-                    'rd_slot': int(self.dut.rd_slot_o.value),
-                    'id': axi_id,
-                    'len': length,
-                }
-                self.forward_misses += 1
-            outcomes.append(outcome)
+                if last:
+                    break
+            self.dut.beat_pull_strb_i.value = 0
             await RisingEdge(self.dut.mc_clk)
 
-        self.dut.ar_valid_i.value = 0
-        return outcomes
+            # b_complete
+            self.dut.b_complete_strb_i.value = 1
+            self.dut.b_complete_slot_i.value = slot
+            await RisingEdge(self.dut.mc_clk)
+            self.dut.b_complete_strb_i.value = 0
+            prev_occ = 0   # reopen for the next write
 
-    # ------------------------------------------------------------------
-    # Write lifecycle helpers (issue -> drain beats -> b_complete)
-    # ------------------------------------------------------------------
+    async def _rd_scheduler_stub(self) -> None:
+        """Auto-services rd_cmd_cam entries that didn't snarf.
 
-    async def drain_wr_slot(self, slot: int, length: int) -> None:
-        """Pull `length` beats from the wr CAM slot and then strobe b_complete.
-        Simulates what scheduler + wr_data_path + xbank_timers would do.
+        When dbg_rd_cam_occ_o rises (a miss-path read pushed) it dequeues
+        the next queued inject from the memory model and drives the R data.
+
+        v1 simplification: serial — one rd burst at a time.
         """
-        await self.mark_wr_issued(slot)
-        for _ in range(length):
-            await self.pull_wr_beat(slot)
-        await self.b_complete(slot)
-
-    # ------------------------------------------------------------------
-    # Read lifecycle helpers (issue -> strobe beats -> entry_complete)
-    # ------------------------------------------------------------------
-
-    async def drain_rd_slot(self, slot: int, length: int) -> None:
-        """Mark issued then strobe `length` beats; verifies entry_complete
-        fires on the last beat."""
-        await self.mark_rd_issued(slot)
-        for i in range(length):
-            self.dut.rd_beat_we_i.value = 1
-            self.dut.rd_beat_slot_i.value = slot
+        prev_occ = 0
+        while True:
             await RisingEdge(self.dut.mc_clk)
-        self.dut.rd_beat_we_i.value = 0
+            await ReadOnly()
+            occ = int(self.dut.dbg_rd_cam_occ_o.value)
+            if occ <= prev_occ:
+                prev_occ = occ
+                continue
+            prev_occ = occ
 
-    # ------------------------------------------------------------------
-    # Forwarded-read consumer (data path stub)
-    #
-    # When the macro asserts fwd_valid_o, the TB drives fwd_ready_i=1 by
-    # default — the forwarded outcomes are sampled in push_ar / push_ar_stream
-    # so there is nothing else to consume here. This helper exists for tests
-    # that want to apply backpressure.
-    # ------------------------------------------------------------------
+            # A new rd-CAM entry exists. Get its inject data.
+            inject = self.mem.pop_inject()
+            if inject is None:
+                self.log.warning("rd_scheduler_stub: rd CAM occupied but no inject queued")
+                continue
+            axi_id, beats = inject
+            slot = 0
+            await RisingEdge(self.dut.mc_clk)
 
-    def set_fwd_ready(self, ready: bool) -> None:
-        self.dut.fwd_ready_i.value = 1 if ready else 0
+            # Mark issued
+            self.dut.rd_issued_we_i.value   = 1
+            self.dut.rd_issued_slot_i.value = slot
+            await RisingEdge(self.dut.mc_clk)
+            self.dut.rd_issued_we_i.value   = 0
+
+            # Stream rd_inject_* beats
+            for i, beat in enumerate(beats):
+                self.dut.rd_inject_valid_i.value = 1
+                self.dut.rd_inject_id_i.value    = axi_id
+                self.dut.rd_inject_data_i.value  = beat
+                self.dut.rd_inject_last_i.value  = 1 if i == len(beats) - 1 else 0
+                await ReadOnly()
+                while int(self.dut.rd_inject_ready_o.value) == 0:
+                    await RisingEdge(self.dut.mc_clk)
+                    await ReadOnly()
+                await RisingEdge(self.dut.mc_clk)
+            self.dut.rd_inject_valid_i.value = 0
+            self.dut.rd_inject_last_i.value  = 0
+
+            # Tell rd_cmd_cam each beat was emitted to AXI R
+            for _ in range(len(beats)):
+                self.dut.rd_beat_we_i.value   = 1
+                self.dut.rd_beat_slot_i.value = slot
+                await RisingEdge(self.dut.mc_clk)
+            self.dut.rd_beat_we_i.value = 0
+            prev_occ = 0
+
+    async def _fwd_observer(self) -> None:
+        """Counts dbg_forward_hit / dbg_forward_miss pulses, and reclaims
+        the queued inject when a hit fires (the snarf'd read won't need
+        the rd-stub to drive its data, so leaving stale inject in the
+        queue would corrupt the NEXT miss-path read)."""
+        while True:
+            await RisingEdge(self.dut.mc_clk)
+            await ReadOnly()
+            if int(self.dut.dbg_forward_hit_o.value) == 1:
+                self.fwd_hits_seen += 1
+                # Pop the inject that axi_read() pre-queued — it won't be needed
+                self.mem.pop_inject()
+            if int(self.dut.dbg_forward_miss_o.value) == 1:
+                self.fwd_misses_seen += 1
+                # On miss the rd-stub will pop the inject when it
+                # services the rd_cam entry.

@@ -428,7 +428,7 @@ module axi_intake_fub
 
     assign w_aw_pend_din.id        = fub_axi_awid;
     assign w_aw_pend_din.addr      = fub_axi_awaddr;
-    assign w_aw_pend_din.len       = BLW'({1'b0, fub_axi_awlen} + 1);
+    assign w_aw_pend_din.len       = BLW'(fub_axi_awlen) + BLW'(1);
     assign w_aw_pend_din.w_buf_ptr = r_wbuf_wptr;
     assign w_aw_pend_din.strb_ptr  = r_wbuf_wptr;
 
@@ -527,7 +527,7 @@ module axi_intake_fub
 
     assign w_ar_pend_din.id   = fub_axi_arid;
     assign w_ar_pend_din.addr = fub_axi_araddr;
-    assign w_ar_pend_din.len  = BLW'({1'b0, fub_axi_arlen} + 1);
+    assign w_ar_pend_din.len  = BLW'(fub_axi_arlen) + BLW'(1);
 
     assign w_ar_pend_wr_valid = fub_axi_arvalid;
     assign fub_axi_arready    = w_ar_pend_wr_ready;
