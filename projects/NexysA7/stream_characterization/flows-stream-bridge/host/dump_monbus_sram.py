@@ -6,7 +6,7 @@
 # Purpose: UART-side dump of the bridge's monbus capture SRAM region.
 #
 # Companion to dump_monbus.py. The two scripts target the two output
-# paths of monbus_axil_group:
+# paths of monbus_axil_axil_group:
 #
 #   dump_monbus.py      <- drains the CPU IRQ-facing err_fifo via the
 #                          s_mon_axil_* slave read port (3 beats per
@@ -272,7 +272,7 @@ def dump_json(
         "label": "monbus_sram_dump",
         "schema_version": 1,
         "record_count": len(pairs),
-        "source_format": "monbus_axil_group_24B_ts_mode_1",
+        "source_format": "monbus_axil_axil_group_24B_ts_mode_1",
         "dump_base_addr": f"0x{base_addr:08x}",
         "dump_n_bytes": f"0x{n_bytes:x}",
     }

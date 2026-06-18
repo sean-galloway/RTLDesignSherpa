@@ -178,7 +178,7 @@ MON_ENABLE_COMPL_IRQ     = 0x0F
 #   bit[type] = 1  -> packet of that type goes to the err FIFO IRQ path
 #   bit[type] = 0  -> packet of that type goes to the bulk write FIFO,
 #                      which drains via m_mon_axil into debug_sram
-# Inside monbus_axil_group these are *exclusive*:
+# Inside monbus_axil_axil_group these are *exclusive*:
 #   pkt_to_write_fifo = !pkt_drop && !pkt_to_err_fifo
 # so any type routed to the err FIFO is NOT also captured in debug_sram.
 #
@@ -727,7 +727,7 @@ class CharacterizationRunner:
         self.log(f"  --- Trace counters: wr_ptr={trace['wr_ptr']} "
                  f"overflow={trace['overflow']} ---")
 
-        # 3. Head / tail of the SRAM. The monbus_axil_group writes 32-bit
+        # 3. Head / tail of the SRAM. The monbus_axil_axil_group writes 32-bit
         # words sequentially; wr_ptr counts WORDS (not bytes). Each
         # monitor record is 3 words: pkt[31:0], pkt[63:32], timestamp[31:0]
         # (plus another 3 for the 128-bit upper half + timestamp[63:32]

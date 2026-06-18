@@ -130,7 +130,7 @@ def read_one_record(
     `word_stride`:
         0 - read every word at the same address (drain semantics
             against an internal slice counter; the bridge's
-            monbus_axil_group slicer ignores address)
+            monbus_axil_axil_group slicer ignores address)
         4 - read at incrementing 32-bit word offsets (works through
             standard SoC width converters that increment per beat)
     """
