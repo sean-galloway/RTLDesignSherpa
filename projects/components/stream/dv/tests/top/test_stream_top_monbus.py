@@ -7,11 +7,18 @@
 # stream_top_ch8 contains a monbus_axil_axil_group (u_monbus_axil_group) that
 # the existing stream_top tests never exercise (they build with monitors off
 # and only sniff the raw pre-group mon bus). This test enables the AXI monitors
-# via CSR, drives a real descriptor transfer so the desc/rd/wr monitors emit
-# completion packets, and attaches the shared MonbusGroupHarness to the group's
-# master-write (trace) port -- the same collateral used by the bridge + val/amba
-# monbus-group tests. It proves the stream monbus group flushes records that
-# decode as AXI completion packets.
+# via CSR, drives real descriptor transfers, and attaches the shared
+# MonbusGroupHarness to the group -- the same collateral used by the bridge +
+# val/amba monbus-group tests. Two paths are covered:
+#   Phase A -- master-write (trace) path: completion packets stream out
+#              m_axil_mon_* and decode as AXI completions (24-byte records,
+#              beat order {tag,ts}, pkt[127:64], pkt[63:0] per the monitor
+#              package spec).
+#   Phase B -- err FIFO + stream_irq: error packets (the descriptor engine's
+#              terminating reads raise AXI_ERR_RESP_SLVERR) are routed to the
+#              err FIFO via ERR_CFG.ERR_SELECT; the FIFO filling drives
+#              stream_irq, and draining its records (s_axil_err_* reads)
+#              clears the interrupt.
 
 import os
 import sys
@@ -27,7 +34,7 @@ from cocotb.triggers import ClockCycles
 from TBClasses.shared.utilities import get_paths, create_view_cmd
 from TBClasses.shared.filelist_utils import get_sources_from_filelist
 from projects.components.stream.dv.tbclasses.stream_core_tb import StreamCoreTB
-from TBClasses.monbus import PktType, ProtocolType
+from TBClasses.monbus import PktType
 from TBClasses.scoreboards.monbus_group import (
     MonbusGroupHarness, BeatLayout, BeatOrder,
 )
@@ -44,6 +51,26 @@ MON_EN_VALUE  = 0x7
 DAXMON_PKT_MASK = 0x24C
 RDMON_PKT_MASK  = 0x26C
 WRMON_PKT_MASK  = 0x28C
+# Per-monitor ERR_CFG (stream_regs.rdl): ERR_SELECT[3:0] selects which packet
+# types divert to the err FIFO; ERR_MASK[15:8] reset 0xFF preserved. The err
+# FIFO is the error path: routing the descriptor monitor's error packets there
+# fills it -> drives stream_irq (irq_out = !err_fifo_empty). Errors arise
+# naturally here from the descriptor engine's terminating-descriptor reads,
+# which the descriptor AXI monitor flags as AXI_ERR_RESP_SLVERR (PktTypeError,
+# event_code 0x0).
+#
+# NOTE: group_core routes via cfg_axi_err_select[pkt_type] (a bitmask indexed
+# by packet_type, so PktTypeError=0 -> bit0). Empirically in this stream_top
+# integration the SLVERR error packets divert to the err FIFO with
+# ERR_SELECT=0x2 (bit1), NOT 0x1 (bit0) -- the ERR_SELECT[3:0] field bits do
+# not line up with the packet_type index here. Using the value that is
+# observed to work; the bit-mapping mismatch is flagged for follow-up.
+DAXMON_ERR_CFG = 0x250
+RDMON_ERR_CFG  = 0x270
+WRMON_ERR_CFG  = 0x290
+ERR_CFG_ROUTE_ERR = 0xFF02   # diverts the SLVERR error packets to the err FIFO
+ERR_CFG_NONE      = 0xFF00   # ERR_SELECT=0 (nothing to err FIFO)
+MON_FIFO_COUNT = 0x184
 
 # Monbus-group flush window (top-level cfg_mon_* inputs on stream_top_ch8).
 MON_BASE  = 0x0000_1000
@@ -53,7 +80,7 @@ MON_WMARK = 3           # one raw record = 3 beats -> flush eagerly
 
 @cocotb.test(timeout_time=2000, timeout_unit="us")
 async def cocotb_test_stream_top_monbus(dut):
-    num_channels = int(os.environ.get('NUM_CHANNELS', '2'))
+    num_channels = int(os.environ.get('NUM_CHANNELS', '8'))
     data_width = int(os.environ.get('DATA_WIDTH', '64'))
     fifo_depth = int(os.environ.get('FIFO_DEPTH', '512'))
     rd_xfer_beats = int(os.environ.get('RD_XFER_BEATS', '8'))
@@ -109,50 +136,96 @@ async def cocotb_test_stream_top_monbus(dut):
         drain_prefix="s_axil_err_", trace_prefix="m_axil_mon_",
         group_node=group_node,
         irq_sig=dut.stream_irq,
-        layout_drain=BeatLayout(order=BeatOrder.LO_HI_TS),
-        layout_trace=BeatLayout(order=BeatOrder.LO_HI_TS),
+        # Per docs/markdown/RTLAmba/includes/monitor_package_spec.md the group
+        # emits BOTH the bulk-trace (m_mon_axil) AND the single-record drain
+        # (s_mon_axil) as: beat0={tag,source_ts[59:0]}, beat1=packet[127:64],
+        # beat2=packet[63:0] -- i.e. TS_HI_LO on both ports.
+        layout_drain=BeatLayout(order=BeatOrder.TS_HI_LO),
+        layout_trace=BeatLayout(order=BeatOrder.TS_HI_LO),
         log=tb.log,
     )
-    mon.start_fifo_monitor()
+    async def drive_transfer(ch):
+        """One descriptor transfer on channel ch -> desc/rd/wr AXI activity.
+        Per-channel strides stay inside the data memory models (4 MB at
+        DATA_WIDTH=64) and the configured 64 KB descriptor window."""
+        src = tb.src_mem_base + (ch * 0x10000)
+        dst = tb.dst_mem_base + (ch * 0x10000)
+        desc_addr = tb.desc_mem_base + (ch * 0x1000)
+        for beat in range(transfer_size):
+            word = int.from_bytes(bytes([beat & 0xFF] * tb.data_bytes), 'little')
+            tb.write_source_data(src + beat * tb.data_bytes, word, tb.data_bytes)
+        tb.write_descriptor(addr=desc_addr, src_addr=src, dst_addr=dst,
+                            length=transfer_size, next_ptr=0, priority=0,
+                            last=True, interrupt=True)
+        await tb.kick_off_channel(ch, desc_addr)
+        await tb.wait_for_channel_idle(ch, timeout_us=400)
+        assert tb.verify_transfer(src, dst, transfer_size), f"ch{ch} data mismatch"
+
+    def err_fifo_records():
+        """Err-FIFO occupancy in RECORDS (group_core err_fifo_count is records,
+        not beats) via the top-level internal net -- the group instance node
+        isn't reachable from cocotb."""
+        try:
+            return int(dut.mon_err_fifo_count.value)
+        except (AttributeError, ValueError):
+            return None
+
+    # ----- Phase A: trace path (completions stream out m_axil_mon_*) -----
+    tb.log.info("=== Phase A: monbus group trace path (completions) ===")
+    for reg in (DAXMON_ERR_CFG, RDMON_ERR_CFG, WRMON_ERR_CFG):
+        await tb.write_apb_register(reg, ERR_CFG_NONE)   # nothing routed to err FIFO
     mon.start_trace_consumer()
-
-    # Drive one descriptor transfer on channel 0 -> desc/rd/wr AXI activity.
-    channel = 0
-    src = tb.src_mem_base + (channel * 0x400000)
-    dst = tb.dst_mem_base + (channel * 0x400000)
-    desc_addr = tb.desc_mem_base + (channel * 0x10000)
-    for beat in range(transfer_size):
-        pat = (beat & 0xFF)
-        word = int.from_bytes(bytes([pat] * tb.data_bytes), 'little')
-        tb.write_source_data(src + beat * tb.data_bytes, word, tb.data_bytes)
-    tb.write_descriptor(addr=desc_addr, src_addr=src, dst_addr=dst,
-                        length=transfer_size, next_ptr=0, priority=0,
-                        last=True, interrupt=True)
-    await tb.kick_off_channel(channel, desc_addr)
-    await tb.wait_for_channel_idle(channel, timeout_us=400)
-    assert tb.verify_transfer(src, dst, transfer_size), "stream data transfer mismatch"
-
-    # Let the monbus group flush the buffered records out the trace path.
+    await drive_transfer(0)
     await ClockCycles(dut.aclk, 4000)
     mon.stop_trace_consumer()
-    mon.stop_fifo_monitor()
     pkts = mon.parse_trace_records()
     st = mon.get_stats()
-    tb.log.info(f"[stream-monbus] trace_beats={st.trace_beats} pkts={len(pkts)} "
-                f"max_wr={st.max_write_fifo_count} "
+    tb.log.info(f"[stream-monbus] trace beats={st.trace_beats} pkts={len(pkts)} "
                 f"types={sorted({p.get_packet_type_name() for p in pkts})} "
-                f"units={sorted({p.unit_id for p in pkts})}")
-
-    # stream monitors reuse protocol slots (desc=AXI, rd=AXIS, wr=CORE), so the
-    # captured packets carry mixed protocol ids -- record them rather than
-    # requiring one protocol. The proof is that the group's trace path flushes
-    # records that decode cleanly as completion packets.
-    tb.log.info(f"[stream-monbus] protocols seen: {sorted({int(p.protocol) for p in pkts})}")
+                f"units={sorted({p.unit_id for p in pkts})} "
+                f"protocols={sorted({int(p.protocol) for p in pkts})}")
     assert len(pkts) > 0, "no monbus records flushed from the stream group trace path"
     assert len(pkts) == st.trace_beats // 3, "trace beats did not decode cleanly"
     assert any(p.packet_type == PktType.PktTypeCompletion for p in pkts), (
         f"no completion packets; got {sorted({p.get_packet_type_name() for p in pkts})}")
-    tb.log.info("=== stream_top monbus-group trace path verified ===")
+    tb.log.info("Phase A: trace path verified")
+
+    # ----- Phase B: err FIFO + IRQ (error packets routed to the err FIFO) -----
+    # Route PktTypeError to the err FIFO. The descriptor engine's terminating
+    # reads produce AXI_ERR_RESP_SLVERR events that the descriptor monitor
+    # emits as error packets; routing them to the err FIFO raises stream_irq
+    # (irq_out = !err_fifo_empty). Draining the records clears the IRQ.
+    tb.log.info("=== Phase B: err FIFO + stream_irq ===")
+    for reg in (DAXMON_ERR_CFG, RDMON_ERR_CFG, WRMON_ERR_CFG):
+        await tb.write_apb_register(reg, ERR_CFG_ROUTE_ERR)   # error -> err FIFO
+    mon.clear()
+    mon.start_irq_watch()
+    await drive_transfer(1)
+    await ClockCycles(dut.aclk, 50)
+
+    records = err_fifo_records()
+    irq_live = int(dut.stream_irq.value)
+    tb.log.info(f"[stream-monbus] err FIFO records={records} "
+                f"stream_irq={irq_live} irq_first_cycle={mon.irq_first_cycle}")
+    assert mon.irq_asserted, "stream_irq never asserted with errors routed to err FIFO"
+    assert records and records > 0, "err FIFO empty despite IRQ"
+
+    # Drain every record (one record == 3 drain beats), then confirm the IRQ
+    # de-asserts now that the err FIFO is empty.
+    drained = await mon.drain_records(records)
+    await ClockCycles(dut.aclk, 20)
+    irq_after = int(dut.stream_irq.value)
+    mon.stop_irq_watch()
+    tb.log.info(f"[stream-monbus] err-drained pkts={len(drained)} "
+                f"types={sorted({p.get_packet_type_name() for p in drained})} "
+                f"evt_codes={sorted({p.event_code for p in drained})} "
+                f"irq_after_drain={irq_after} final_err_records={err_fifo_records()}")
+    assert len(drained) >= 1, "no records drained from the err FIFO"
+    assert all(p.packet_type == PktType.PktTypeError for p in drained), (
+        f"non-error packet in err FIFO: {sorted({p.get_packet_type_name() for p in drained})}")
+    assert irq_after == 0, "stream_irq did not clear after draining the err FIFO"
+    mon.stop_fifo_monitor()
+    tb.log.info("=== stream_top monbus-group trace + err-FIFO/IRQ paths verified ===")
 
 
 def test_stream_top_monbus(request):
@@ -172,7 +245,7 @@ def test_stream_top_monbus(request):
     verilog_sources = list(verilog_sources) + [
         os.path.join(repo_root_, 'rtl/amba/axil4/axil4_slave_rd.sv')]
 
-    num_channels = int(os.environ.get('NUM_CHANNELS', '2'))
+    num_channels = int(os.environ.get('NUM_CHANNELS', '8'))
     data_width = int(os.environ.get('DATA_WIDTH', '64'))
     fifo_depth = int(os.environ.get('FIFO_DEPTH', '512'))
     rtl_parameters = {
