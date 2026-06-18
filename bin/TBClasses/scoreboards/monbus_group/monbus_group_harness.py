@@ -26,7 +26,7 @@
 import random
 
 import cocotb
-from cocotb.triggers import RisingEdge
+from cocotb.triggers import RisingEdge, ReadOnly
 
 from TBClasses.monbus import parse
 
@@ -74,6 +74,7 @@ class MonbusGroupHarness:
         self._mask = (1 << data_width) - 1
         self.received_packets = []
         self._trace_beats = []           # captured (addr, data) in write order
+        self._trace_bursts = []          # per-burst {addr,awlen,awsize,awburst,beats}
         self.stats = MonbusGroupStats()
 
         # throttle controls
@@ -145,6 +146,50 @@ class MonbusGroupHarness:
         self.stats.drain_reads += 1
         self.stats.drain_beats += 1
         return rdata
+
+    async def drain_read_burst(self, burst_len: int, *, addr: int = 0x0,
+                               arid: int = 0, timeout_cycles: int = 400):
+        """Issue ONE AXI4 read burst of `burst_len` beats on the (axi4) drain
+        port and return a list of (rdata, rlast, rid) per beat -- so callers
+        can assert burst shape (rid constant, rlast only on the final beat).
+        Only meaningful for drain_proto='axi4'."""
+        assert self.drain_proto == "axi4", "drain_read_burst requires axi4 drain"
+        p = self.drain_prefix
+        clk = self.clock
+        self._set(self._sig(p, "arid"), arid)
+        self._set(self._sig(p, "araddr"), addr)
+        self._set(self._sig(p, "arlen"), burst_len - 1)
+        self._set(self._sig(p, "arsize"), (self.data_width // 8).bit_length() - 1)
+        self._set(self._sig(p, "arburst"), 1)             # INCR
+        self._set(self._sig(p, "arvalid"), 1)
+        arready = self._sig(p, "arready")
+        for _ in range(timeout_cycles):
+            await RisingEdge(clk)
+            if self._get(arready) == 1:
+                break
+        else:
+            raise TimeoutError(f"{p}ar burst handshake timeout")
+        self._set(self._sig(p, "arvalid"), 0)
+
+        rvalid = self._sig(p, "rvalid")
+        rdata_h = self._sig(p, "rdata")
+        rlast_h = self._sig(p, "rlast")
+        rid_h = self._sig(p, "rid")
+        self._set(self._sig(p, "rready"), 1)
+        out = []
+        guard = 0
+        while len(out) < burst_len and guard < timeout_cycles:
+            await ReadOnly()
+            if self._get(rvalid) == 1:
+                out.append((self._get(rdata_h) & self._mask,
+                            self._get(rlast_h), self._get(rid_h)))
+            await RisingEdge(clk)
+            guard += 1
+        self._set(self._sig(p, "rready"), 0)
+        await RisingEdge(clk)
+        self.stats.drain_reads += 1
+        self.stats.drain_beats += len(out)
+        return out
 
     def set_drain_read_randomizer(self, randomizer) -> None:
         """FlexRandomizer whose .next() yields an inter-record gap (first value)."""
@@ -271,11 +316,19 @@ class MonbusGroupHarness:
         clk = self.clock
         awvalid = self._sig(p, "awvalid")
         awaddr = self._sig(p, "awaddr")
+        awlen = self._sig(p, "awlen")            # axi4 only (None for axil)
+        awsize = self._sig(p, "awsize")          # axi4 only
+        awburst = self._sig(p, "awburst")        # axi4 only
         wvalid = self._sig(p, "wvalid")
         wdata = self._sig(p, "wdata")
         wlast = self._sig(p, "wlast")            # axi4 only (None for axil)
         bready = self._sig(p, "bready")
         cur_addr = 0
+        cur_awlen = 0
+        cur_awsize = None
+        cur_awburst = None
+        cur_beats = []                           # data beats of the current burst
+        cur_wlast = []                           # wlast flag per captured beat
         aw_seen = False
         w_done = False                           # W (or W burst) captured
         self._set(self._sig(p, "bresp"), 0)
@@ -290,22 +343,35 @@ class MonbusGroupHarness:
             if rdy == 0:
                 self.stats.trace_backpressure_cycles += 1
             await RisingEdge(clk)
-            # B handshake first (completes the prior transaction)
+            # B handshake first (completes the prior transaction -> burst)
             if in_b and self._get(bready) == 1:
+                self._trace_bursts.append({
+                    'addr': cur_addr, 'awlen': cur_awlen,
+                    'awsize': cur_awsize, 'awburst': cur_awburst,
+                    'beats': list(cur_beats), 'wlast_flags': list(cur_wlast),
+                })
                 aw_seen = False
                 w_done = False
-                in_b = False
+                cur_beats = []
+                cur_wlast = []
                 self._set(self._sig(p, "bvalid"), 0)
             # AW handshake (only when idle -> awready was 1)
             if not aw_seen and self._get(awvalid) == 1:
                 cur_addr = self._get(awaddr) or 0
+                cur_awlen = self._get(awlen) or 0
+                cur_awsize = self._get(awsize)
+                cur_awburst = self._get(awburst)
                 self.stats.trace_aw += 1
                 aw_seen = True
             # W handshake (throttled by wready=rdy)
             if aw_seen and not w_done and self._get(wvalid) == 1 and rdy == 1:
-                self._trace_beats.append((cur_addr, self._get(wdata) & self._mask))
+                d = self._get(wdata) & self._mask
+                wl = 1 if wlast is None else (self._get(wlast) or 0)
+                self._trace_beats.append((cur_addr, d))
                 self.stats.trace_beats += 1
-                if wlast is None or self._get(wlast) == 1:
+                cur_beats.append(d)
+                cur_wlast.append(wl)
+                if wl == 1:
                     w_done = True
         self._set(self._sig(p, "wready"), 0)
         self._set(self._sig(p, "bvalid"), 0)
@@ -314,6 +380,14 @@ class MonbusGroupHarness:
     @property
     def trace_beats(self):
         return list(self._trace_beats)
+
+    @property
+    def trace_bursts(self):
+        """Per-burst captures on the master-write port, in completion order.
+        Each is a dict {addr, awlen, awsize, awburst, beats:[data...],
+        wlast_flags:[0..1]}. For an AXIL trace port every 'burst' is a single
+        beat (awlen=0); for AXI4 it groups awlen+1 W beats with wlast timing."""
+        return [dict(b) for b in self._trace_bursts]
 
     def parse_trace_records(self):
         """Reassemble captured trace wdata into records and append the decoded
@@ -412,6 +486,7 @@ class MonbusGroupHarness:
     def clear(self) -> None:
         self.received_packets = []
         self._trace_beats = []
+        self._trace_bursts = []
         self.stats = MonbusGroupStats()
 
     def get_stats(self) -> MonbusGroupStats:

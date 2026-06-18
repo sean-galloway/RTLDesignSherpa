@@ -39,6 +39,7 @@ from cocotb_test.simulator import run
 from TBClasses.shared.tbbase import TBBase
 from TBClasses.shared.utilities import get_paths, create_view_cmd
 from TBClasses.shared.filelist_utils import get_sources_from_filelist
+from TBClasses.scoreboards.monbus_group import MonbusGroupHarness
 
 
 BEATS_PER_RECORD = 3
@@ -73,12 +74,22 @@ class MonbusAxi4AxilGroupTB(TBBase):
         super().__init__(dut)
         self.SEED = int(os.environ.get('SEED', '0'))
         random.seed(self.SEED)
-        # Master-write capture
-        self.captured: List[Tuple[int, int]] = []
-        self._aw_q: List[int] = []
-        self._w_q: List[int] = []
-        # Slave-read capture
-        self.r_beats: List[Tuple[int, int, int]] = []  # (rdata, rlast, rid)
+        # Shared harness: m_axil_* (axil) master-write capture + s_axi_* (axi4)
+        # burst err-FIFO drain. Replaces the hand-rolled _aw/_w/_b handlers and
+        # issue_ar_burst.
+        self.mon = MonbusGroupHarness(
+            dut, dut.axi_aclk,
+            drain_proto="axi4", trace_proto="axil",
+            drain_prefix="s_axi_", trace_prefix="m_axil_",
+            group_node=dut, irq_sig=dut.irq_out, id_width=4, log=self.log,
+        )
+        # Slave-read capture: (rdata, rlast, rid) per beat, set by drain.
+        self.r_beats: List[Tuple[int, int, int]] = []
+
+    @property
+    def captured(self) -> List[Tuple[int, int]]:
+        """(addr, data) master-write beats captured on m_axil_*, in order."""
+        return self.mon.trace_beats
 
     def _tie_off_config(self, route_to_err: bool):
         """When route_to_err=True, errors go to err FIFO (slave-read
@@ -136,9 +147,7 @@ class MonbusAxi4AxilGroupTB(TBBase):
         await self.wait_clocks('axi_aclk', 5)
         self.dut.axi_aresetn.value = 1
         await self.wait_clocks('axi_aclk', 2)
-        self.captured.clear()
-        self._aw_q.clear()
-        self._w_q.clear()
+        self.mon.clear()
         self.r_beats.clear()
 
     # ---------- monbus driver ----------
@@ -159,98 +168,23 @@ class MonbusAxi4AxilGroupTB(TBBase):
         for pkt, ts in records:
             await self.drive_record(pkt, ts)
 
-    # ---------- AXIL slave model on m_axil_* (master-write) ----------
-
-    async def _aw_handler(self, stop_after: int):
-        self.dut.m_axil_awready.value = 1
-        seen = 0
-        while seen < stop_after:
-            await ReadOnly()
-            if (int(self.dut.m_axil_awvalid.value) == 1
-                    and int(self.dut.m_axil_awready.value) == 1):
-                self._aw_q.append(int(self.dut.m_axil_awaddr.value))
-                seen += 1
-            await RisingEdge(self.dut.axi_aclk)
-        await RisingEdge(self.dut.axi_aclk)
-        self.dut.m_axil_awready.value = 0
-
-    async def _w_handler(self, stop_after: int):
-        self.dut.m_axil_wready.value = 1
-        seen = 0
-        while seen < stop_after:
-            await ReadOnly()
-            if (int(self.dut.m_axil_wvalid.value) == 1
-                    and int(self.dut.m_axil_wready.value) == 1):
-                self._w_q.append(int(self.dut.m_axil_wdata.value))
-                seen += 1
-            await RisingEdge(self.dut.axi_aclk)
-        await RisingEdge(self.dut.axi_aclk)
-        self.dut.m_axil_wready.value = 0
-
-    async def _b_handler(self, stop_after: int):
-        sent = 0
-        while sent < stop_after:
-            await ReadOnly()
-            ready_to_ack = bool(self._aw_q) and bool(self._w_q)
-            await RisingEdge(self.dut.axi_aclk)
-            if not ready_to_ack:
-                continue
-            self.dut.m_axil_bvalid.value = 1
-            self.dut.m_axil_bresp.value  = 0
-            while True:
-                await ReadOnly()
-                if int(self.dut.m_axil_bready.value) == 1:
-                    break
-                await RisingEdge(self.dut.axi_aclk)
-            await RisingEdge(self.dut.axi_aclk)
-            self.dut.m_axil_bvalid.value = 0
-            addr = self._aw_q.pop(0)
-            data = self._w_q.pop(0)
-            self.captured.append((addr, data))
-            sent += 1
+    # ---------- master-write capture + slave-read drain (MonbusGroupHarness) --
 
     async def capture_n_master_beats(self, n: int, drain_cycles: int = 4000):
-        aw_task = cocotb.start_soon(self._aw_handler(n))
-        w_task  = cocotb.start_soon(self._w_handler(n))
-        b_task  = cocotb.start_soon(self._b_handler(n))
-        timer = cocotb.start_soon(self.wait_clocks('axi_aclk', drain_cycles))
-        await Combine(timer)
+        """Run the harness master-write consumer (m_axil_*) until `n` beats land
+        (or drain_cycles elapse); beats accumulate in harness.trace_beats."""
+        self.mon.start_trace_consumer()
+        waited = 0
+        while len(self.mon.trace_beats) < n and waited < drain_cycles:
+            await self.wait_clocks('axi_aclk', 10)
+            waited += 10
         await self.wait_clocks('axi_aclk', 4)
-
-    # ---------- AXI4 master on s_axi_* (slave-read drain) ----------
+        self.mon.stop_trace_consumer()
 
     async def issue_ar_burst(self, arlen: int, arid: int = 0x5):
-        """Issue an AXI4 read burst of `arlen+1` beats, capture all R
-        beats into self.r_beats."""
-        self.dut.s_axi_arid.value    = arid
-        self.dut.s_axi_araddr.value  = 0  # ignored by the drain
-        self.dut.s_axi_arlen.value   = arlen
-        self.dut.s_axi_arsize.value  = 3
-        self.dut.s_axi_arburst.value = 1  # INCR
-        self.dut.s_axi_arvalid.value = 1
-        # AR handshake
-        while True:
-            await ReadOnly()
-            if int(self.dut.s_axi_arready.value) == 1:
-                break
-            await RisingEdge(self.dut.axi_aclk)
-        await RisingEdge(self.dut.axi_aclk)
-        self.dut.s_axi_arvalid.value = 0
-
-        # R consumption
-        self.dut.s_axi_rready.value = 1
-        beats_remaining = arlen + 1
-        while beats_remaining > 0:
-            await ReadOnly()
-            if int(self.dut.s_axi_rvalid.value) == 1:
-                rdata = int(self.dut.s_axi_rdata.value)
-                rlast = int(self.dut.s_axi_rlast.value)
-                rid   = int(self.dut.s_axi_rid.value)
-                self.r_beats.append((rdata, rlast, rid))
-                beats_remaining -= 1
-            await RisingEdge(self.dut.axi_aclk)
-        self.dut.s_axi_rready.value = 0
-        await RisingEdge(self.dut.axi_aclk)
+        """Issue one AXI4 read burst of arlen+1 beats on s_axi_* via the harness;
+        capture (rdata, rlast, rid) per beat into self.r_beats."""
+        self.r_beats = await self.mon.drain_read_burst(arlen + 1, arid=arid)
 
     # ---------- assertions ----------
 

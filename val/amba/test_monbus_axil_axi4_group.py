@@ -45,6 +45,7 @@ from cocotb_test.simulator import run
 from TBClasses.shared.tbbase import TBBase
 from TBClasses.shared.utilities import get_paths, create_view_cmd, get_repo_root
 from TBClasses.shared.filelist_utils import get_sources_from_filelist
+from TBClasses.scoreboards.monbus_group import MonbusGroupHarness
 
 
 # ----------------------------------------------------------------------------
@@ -86,12 +87,20 @@ class MonbusAxilAxi4GroupTB(TBBase):
         super().__init__(dut)
         self.SEED = int(os.environ.get('SEED', '0'))
         random.seed(self.SEED)
-        # Each captured burst = list of (addr, [beat0, beat1, ...])
-        self.bursts: List[Tuple[int, List[int]]] = []
-        # Pending state during a burst
-        self._current_aw_addr: int = 0
-        self._current_aw_len: int  = 0
-        self._current_w_beats: List[int] = []
+        # Shared harness: drives the m_axi_* (AXI4 burst) master-write sink and
+        # captures per-burst {addr,awlen,awsize,awburst,beats,wlast_flags} into
+        # harness.trace_bursts -- replaces the hand-rolled _capture_burst_handler.
+        self.mon = MonbusGroupHarness(
+            dut, dut.axi_aclk,
+            drain_proto="axil", trace_proto="axi4",
+            drain_prefix="s_axil_", trace_prefix="m_axi_",
+            group_node=dut, irq_sig=dut.irq_out, id_width=1, log=self.log,
+        )
+
+    @property
+    def bursts(self) -> List[Tuple[int, List[int]]]:
+        """(addr, [data beats]) per captured master-write burst, in order."""
+        return [(b['addr'], b['beats']) for b in self.mon.trace_bursts]
 
     # ---------- setup / reset ----------
 
@@ -140,8 +149,7 @@ class MonbusAxilAxi4GroupTB(TBBase):
         await self.wait_clocks('axi_aclk', 5)
         self.dut.axi_aresetn.value = 1
         await self.wait_clocks('axi_aclk', 2)
-        self.bursts.clear()
-        self._current_w_beats.clear()
+        self.mon.clear()
 
     # ---------- monbus driver (input side) ----------
 
@@ -161,66 +169,34 @@ class MonbusAxilAxi4GroupTB(TBBase):
         for pkt, ts in records:
             await self.drive_record(pkt, ts)
 
-    # ---------- AXI4 slave model (output side) ----------
+    # ---------- AXI4 slave model (output side, via MonbusGroupHarness) ----------
 
-    async def _capture_burst_handler(self, expected_bursts: int):
-        """Capture (addr, awlen, [data...]) tuples and assert wlast
-        timing as we go. Stops after `expected_bursts` bursts have
-        completed (AW + N x W + B for each)."""
-        captured = 0
-        while captured < expected_bursts:
-            # 1) Wait for AW
-            while True:
-                await ReadOnly()
-                aw_seen = (int(self.dut.m_axi_awvalid.value) == 1
-                           and int(self.dut.m_axi_awready.value) == 1)
-                await RisingEdge(self.dut.axi_aclk)
-                if aw_seen:
-                    self._current_aw_addr = int(self.dut.m_axi_awaddr.value)
-                    self._current_aw_len  = int(self.dut.m_axi_awlen.value)
-                    awsize = int(self.dut.m_axi_awsize.value)
-                    awburst = int(self.dut.m_axi_awburst.value)
-                    # Expected: 8 bytes per beat (size=3), INCR (burst=01)
-                    assert awsize == 3, f"awsize={awsize}, expected 3 (8B)"
-                    assert awburst == 1, f"awburst={awburst}, expected 1 (INCR)"
-                    break
-
-            # 2) Collect W beats; assert wlast timing
-            self._current_w_beats.clear()
-            n_beats = self._current_aw_len + 1
-            while len(self._current_w_beats) < n_beats:
-                await ReadOnly()
-                w_seen = (int(self.dut.m_axi_wvalid.value) == 1
-                          and int(self.dut.m_axi_wready.value) == 1)
-                if w_seen:
-                    wdata = int(self.dut.m_axi_wdata.value)
-                    wlast = int(self.dut.m_axi_wlast.value)
-                    self._current_w_beats.append(wdata)
-                    is_final = (len(self._current_w_beats) == n_beats)
-                    assert wlast == int(is_final), (
-                        f"burst@0x{self._current_aw_addr:08x}: "
-                        f"wlast={wlast} on beat {len(self._current_w_beats)}/{n_beats}, "
-                        f"expected={int(is_final)}"
-                    )
-                await RisingEdge(self.dut.axi_aclk)
-
-            # 3) Send B
-            self.dut.m_axi_bvalid.value = 1
-            self.dut.m_axi_bresp.value  = 0
-            while True:
-                await ReadOnly()
-                if int(self.dut.m_axi_bready.value) == 1:
-                    break
-                await RisingEdge(self.dut.axi_aclk)
-            await RisingEdge(self.dut.axi_aclk)
-            self.dut.m_axi_bvalid.value = 0
-
-            # 4) Record burst
-            self.bursts.append((self._current_aw_addr,
-                                list(self._current_w_beats)))
-            captured += 1
+    async def capture_until(self, expected_bursts: int, drain_cycles: int = 1600):
+        """Run the harness master-write consumer until `expected_bursts`
+        complete (or drain_cycles elapse). The consumer drives
+        awready/wready/bvalid and records each burst into harness.trace_bursts."""
+        self.mon.start_trace_consumer()
+        waited = 0
+        while len(self.mon.trace_bursts) < expected_bursts and waited < drain_cycles:
+            await self.wait_clocks('axi_aclk', 10)
+            waited += 10
+        await self.wait_clocks('axi_aclk', 4)
+        self.mon.stop_trace_consumer()
 
     # ---------- assertions ----------
+
+    def assert_axi4_burst_protocol(self):
+        """AXI4 protocol shape on every captured burst: 8-byte INCR beats and
+        wlast asserted only on the final beat (preserves the per-beat wlast /
+        awsize / awburst checks the hand-rolled capture made inline)."""
+        for i, b in enumerate(self.mon.trace_bursts):
+            assert b['awsize'] == 3, f"burst {i}: awsize={b['awsize']}, expected 3 (8B)"
+            assert b['awburst'] == 1, f"burst {i}: awburst={b['awburst']}, expected 1 (INCR)"
+            n = len(b['beats'])
+            assert b['wlast_flags'] == [0] * (n - 1) + [1], (
+                f"burst {i}@0x{b['addr']:08x}: bad wlast cadence {b['wlast_flags']}")
+            assert n == b['awlen'] + 1, (
+                f"burst {i}: {n} beats but awlen+1={b['awlen'] + 1}")
 
     def assert_burst_shape(self, *, min_beats: int, max_beats: int,
                            expected_total_beats: int):
@@ -266,15 +242,15 @@ async def cocotb_test_monbus_axil_axi4_group(dut):
 
     # Run capture handler. Watermark=24 means exactly one flush burst
     # of 24 beats once all records are in.
-    capture = cocotb.start_soon(tb._capture_burst_handler(expected_bursts=1))
+    capture = cocotb.start_soon(tb.capture_until(expected_bursts=1, drain_cycles=400))
     await tb.drive_records(synth_record_stream(N_RECS))
-    # Give the writer plenty of cycles to complete the burst.
-    await tb.wait_clocks('axi_aclk', 200)
-    assert capture.done(), "phase 1: expected 1 burst but it never completed"
+    await capture
+    assert len(tb.bursts) >= 1, "phase 1: expected 1 burst but none completed"
 
     tb.assert_burst_shape(min_beats=24, max_beats=24,
                           expected_total_beats=24)
     tb.assert_no_4kb_crossing()
+    tb.assert_axi4_burst_protocol()
     addr0 = tb.bursts[0][0]
     assert addr0 == BASE, f"phase 1: burst started at 0x{addr0:08x}, expected 0x{BASE:08x}"
     tb.log.info(f"  burst0: addr=0x{addr0:08x}, beats={len(tb.bursts[0][1])} -- OK")
@@ -290,14 +266,14 @@ async def cocotb_test_monbus_axil_axi4_group(dut):
     LIMIT = 0x0000_4FFF
     await tb.reset_dut(BASE, LIMIT, flush_watermark=1024)
 
-    capture = cocotb.start_soon(tb._capture_burst_handler(expected_bursts=1))
+    capture = cocotb.start_soon(tb.capture_until(expected_bursts=1, drain_cycles=1800))
     await tb.drive_records(synth_record_stream(1))
-    # Wait long enough for timeout to fire (>1024 cycles).
-    await tb.wait_clocks('axi_aclk', 1500)
-    assert capture.done(), "phase 2: timeout flush never fired"
+    await capture
+    assert len(tb.bursts) >= 1, "phase 2: timeout flush never fired"
 
     tb.assert_burst_shape(min_beats=3, max_beats=3, expected_total_beats=3)
     tb.assert_no_4kb_crossing()
+    tb.assert_axi4_burst_protocol()
     tb.log.info(f"  timeout flush: burst of {len(tb.bursts[0][1])} beats -- OK")
 
     # ===========================================================
@@ -320,13 +296,14 @@ async def cocotb_test_monbus_axil_axi4_group(dut):
     # We expect either 2 bursts (some beats before the boundary, the
     # rest after) or 1 burst if the unit-rounding forces all 12 beats
     # to fit in one of the two halves. Capture up to 3 to be safe.
-    capture = cocotb.start_soon(tb._capture_burst_handler(expected_bursts=2))
+    capture = cocotb.start_soon(tb.capture_until(expected_bursts=2, drain_cycles=800))
     await tb.drive_records(synth_record_stream(N_RECS))
-    await tb.wait_clocks('axi_aclk', 500)
+    await capture
     # At least one burst should have landed.
     assert len(tb.bursts) >= 1, "phase 3: no bursts at all"
 
     tb.assert_no_4kb_crossing()
+    tb.assert_axi4_burst_protocol()
     total = sum(len(b[1]) for b in tb.bursts)
     # raw mode rounds to multiples of 3 beats; depending on where the
     # boundary falls we might emit 12 beats across multiple bursts.
