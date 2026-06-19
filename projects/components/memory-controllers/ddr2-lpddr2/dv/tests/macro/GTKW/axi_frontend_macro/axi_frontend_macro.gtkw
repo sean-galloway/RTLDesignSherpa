@@ -306,6 +306,16 @@ axi_frontend_macro.rd_inject_data_i[63:0]
 axi_frontend_macro.rd_inject_last_i
 
 @200
+-HAZARDS (axi_intake)
+@28
+axi_frontend_macro.u_axi_intake.w_hazard_any
+axi_frontend_macro.u_axi_intake.w_hazard_wbuf_wptr_glitch
+axi_frontend_macro.u_axi_intake.w_hazard_burst_done_premature
+axi_frontend_macro.u_axi_intake.w_hazard_w_after_wlast
+axi_frontend_macro.u_axi_intake.w_hazard_full_strb_acc_glitch
+axi_frontend_macro.u_axi_intake.w_hazard_aw_push_before_burst_done
+
+@200
 -debug_observables
 @28
 axi_frontend_macro.dbg_intake_busy_o

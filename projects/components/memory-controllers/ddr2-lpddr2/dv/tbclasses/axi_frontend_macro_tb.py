@@ -116,6 +116,25 @@ class AxiFrontendMacroTB:
         self.fwd_hits_seen   = 0
         self.fwd_misses_seen = 0
 
+        # Handshake-stall counters — (valid && !ready) cycles per channel.
+        # Used by the `perfect_streaming` scenario to prove the host AXI
+        # boundary never throttles under ideal drain. reset_stall_counters()
+        # clears them before the workload-of-interest begins.
+        self.aw_stall_cycles = 0
+        self.w_stall_cycles  = 0
+        self.ar_stall_cycles = 0
+        self.b_stall_cycles  = 0
+        self.r_stall_cycles  = 0
+        # Per-channel longest contiguous (valid && !ready) run — catches a
+        # multi-cycle hang even when the total budget is met.
+        self.aw_stall_run_max = 0
+        self.w_stall_run_max  = 0
+        self.ar_stall_run_max = 0
+        # Internal running-count state for the monitor.
+        self._aw_stall_run = 0
+        self._w_stall_run  = 0
+        self._ar_stall_run = 0
+
         # Stub control flags. Tests can pause the auto-services to hold a
         # write in the CAM beyond its natural lifetime (needed for the
         # snarf-timing schmoo so we can place the read inside / outside
@@ -195,6 +214,7 @@ class AxiFrontendMacroTB:
         cocotb.start_soon(self._wr_scheduler_stub())
         cocotb.start_soon(self._rd_scheduler_stub())
         cocotb.start_soon(self._fwd_observer())
+        cocotb.start_soon(self._handshake_stall_monitor())
 
     def set_axi_timing_profile(self, profile_name: str) -> None:
         """Configure per-channel FlexRandomizer timing.
@@ -227,6 +247,69 @@ class AxiFrontendMacroTB:
         """Returns (fwd_hits, fwd_misses) — useful for delta-checking around
         a scenario step."""
         return self.fwd_hits_seen, self.fwd_misses_seen
+
+    def reset_stall_counters(self) -> None:
+        """Clear the per-channel handshake-stall accumulators. Call this
+        immediately before the workload-of-interest in `perfect_streaming`
+        so warmup transactions don't count against the budget."""
+        self.aw_stall_cycles = 0
+        self.w_stall_cycles  = 0
+        self.ar_stall_cycles = 0
+        self.b_stall_cycles  = 0
+        self.r_stall_cycles  = 0
+        self.aw_stall_run_max = 0
+        self.w_stall_run_max  = 0
+        self.ar_stall_run_max = 0
+        self._aw_stall_run = 0
+        self._w_stall_run  = 0
+        self._ar_stall_run = 0
+
+    async def _handshake_stall_monitor(self) -> None:
+        """Background: every clock edge, sample (valid && !ready) on each
+        host AXI channel. Tracks both total stall cycles and the longest
+        contiguous run per channel.
+
+        Runs from `setup()` through end of test. Cheap (5 single-bit
+        comparisons per cycle).
+        """
+        while True:
+            await RisingEdge(self.dut.mc_clk)
+            await ReadOnly()
+
+            aw_stall = int(self.dut.s_axi_awvalid.value) and not int(self.dut.s_axi_awready.value)
+            w_stall  = int(self.dut.s_axi_wvalid.value)  and not int(self.dut.s_axi_wready.value)
+            ar_stall = int(self.dut.s_axi_arvalid.value) and not int(self.dut.s_axi_arready.value)
+            b_stall  = int(self.dut.s_axi_bvalid.value)  and not int(self.dut.s_axi_bready.value)
+            r_stall  = int(self.dut.s_axi_rvalid.value)  and not int(self.dut.s_axi_rready.value)
+
+            if aw_stall:
+                self.aw_stall_cycles += 1
+                self._aw_stall_run   += 1
+                if self._aw_stall_run > self.aw_stall_run_max:
+                    self.aw_stall_run_max = self._aw_stall_run
+            else:
+                self._aw_stall_run = 0
+
+            if w_stall:
+                self.w_stall_cycles += 1
+                self._w_stall_run   += 1
+                if self._w_stall_run > self.w_stall_run_max:
+                    self.w_stall_run_max = self._w_stall_run
+            else:
+                self._w_stall_run = 0
+
+            if ar_stall:
+                self.ar_stall_cycles += 1
+                self._ar_stall_run   += 1
+                if self._ar_stall_run > self.ar_stall_run_max:
+                    self.ar_stall_run_max = self._ar_stall_run
+            else:
+                self._ar_stall_run = 0
+
+            if b_stall:
+                self.b_stall_cycles += 1
+            if r_stall:
+                self.r_stall_cycles += 1
 
     async def wait_for_wr_cam_push(self, prev_occ: int = 0,
                                    timeout_cycles: int = 200) -> int:

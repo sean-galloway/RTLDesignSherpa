@@ -75,6 +75,7 @@ async def cocotb_test_axi_frontend(dut):
         "scheme_sweep":         _run_scheme_sweep,
         "partial_strb":         _run_partial_strb,
         "burst_len_sweep":      _run_burst_len_sweep,
+        "perfect_streaming":    _run_perfect_streaming,
     }
     if test_type not in scenarios:
         raise ValueError(f"Unknown TEST_TYPE: {test_type}")
@@ -448,14 +449,128 @@ async def _run_burst_len_sweep(tb):
 
 
 # ---------------------------------------------------------------------------
+# Perfect-streaming — prove host AXI never throttles under ideal drain.
+#
+# This scenario isolates the axi_intake's intrinsic handshake budget.
+# Under `backtoback` master timing + un-paused scheduler stubs:
+#   * AW / AR / B / R skid buffers are never full → 0 DUT stall cycles
+#   * W has a SINGLE design-mandated stall cycle per burst boundary —
+#     the cycle where `r_burst_done` is high awaiting the AW push to
+#     downstream. For N back-to-back bursts that's ≤ (N-1) stall cycles
+#     total AND no contiguous stall run can exceed 1 cycle.
+#
+# Anything outside that budget = real bug.
+# ---------------------------------------------------------------------------
+
+async def _run_perfect_streaming(tb):
+    """Stream N writes, then N reads back-to-back. Assert the host AXI
+    boundary hits the intake's intrinsic budget exactly."""
+    tb.wr_stub_paused = False
+    tb.rd_stub_paused = False
+
+    N         = 16
+    burst_len = 4
+    base_addr = 0x0001_0000
+
+    # Pre-populate mem so reads can either snarf (if AW still in flight)
+    # or take the miss path with correct injected data — we don't care
+    # which here, this scenario only measures handshake stall.
+    for i in range(N):
+        addr  = base_addr + i * 0x40
+        beats = [((0x5A5A_0000 | (i << 8) | b) & tb.AXI_DATA_MASK)
+                 for b in range(burst_len)]
+        tb.mem.write(addr, beats)
+
+    # Warmup: one write so the BFM's internal state is past its first-
+    # transaction cold start (which can add an extra setup cycle).
+    await tb.axi_write(base_addr - 0x100,
+                       [0xDEAD_0000 | i for i in range(burst_len)],
+                       axi_id=0xF)
+
+    # Reset counters and unleash the back-to-back workload
+    tb.reset_stall_counters()
+
+    # Back-to-back writes (parallel issue, await all). The BFM's internal
+    # AW/W queues pipeline these so we get sustained wvalid.
+    wr_tasks = []
+    for i in range(N):
+        addr  = base_addr + i * 0x40
+        beats = [((0x5A5A_0000 | (i << 8) | b) & tb.AXI_DATA_MASK)
+                 for b in range(burst_len)]
+        wr_tasks.append(cocotb.start_soon(
+            tb.axi_write(addr, beats, axi_id=i & ((1 << tb.AXI_ID_WIDTH) - 1))))
+    for t in wr_tasks:
+        await t
+
+    # Back-to-back reads
+    rd_tasks = []
+    for i in range(N):
+        addr = base_addr + i * 0x40
+        rd_tasks.append(cocotb.start_soon(
+            tb.axi_read(addr, beats=burst_len, axi_id=i & ((1 << tb.AXI_ID_WIDTH) - 1))))
+    for t in rd_tasks:
+        await t
+
+    # Let any straggler beat / response settle so the monitor stops
+    # counting before we read the totals.
+    for _ in range(20):
+        await RisingEdge(tb.dut.mc_clk)
+
+    tb.log.info(
+        f"perfect_streaming stalls: "
+        f"AW={tb.aw_stall_cycles}(run≤{tb.aw_stall_run_max}) "
+        f"W={tb.w_stall_cycles}(run≤{tb.w_stall_run_max}) "
+        f"AR={tb.ar_stall_cycles}(run≤{tb.ar_stall_run_max}) "
+        f"B={tb.b_stall_cycles} R={tb.r_stall_cycles}"
+    )
+
+    # --- assertions ----------------------------------------------------
+    # B and R are BFM-driven readies (not DUT-owned), so they're
+    # informational only — they reflect the BFM's pickup latency under
+    # backtoback, not anything the intake controls.
+    #
+    # AW / W / AR are DUT-driven readies. These are the contract.
+    #
+    # AW / AR: skid buffers absorb everything under ideal drain → 0 stalls.
+    assert tb.aw_stall_cycles == 0, (
+        f"AW stalled {tb.aw_stall_cycles} cycles under ideal drain "
+        f"(longest run {tb.aw_stall_run_max}). Skid buffer backpressure leak."
+    )
+    assert tb.ar_stall_cycles == 0, (
+        f"AR stalled {tb.ar_stall_cycles} cycles under ideal drain "
+        f"(longest run {tb.ar_stall_run_max})."
+    )
+    # W: intake gates wready low for exactly 1 cycle per burst boundary
+    # while r_burst_done waits for AW push. Budget = (N-1) for N bursts;
+    # no contiguous run > 1 cycle.
+    assert tb.w_stall_run_max <= 1, (
+        f"W stalled contiguously for {tb.w_stall_run_max} cycles "
+        "— intake held wready low across multiple cycles (expected ≤1)."
+    )
+    assert tb.w_stall_cycles <= (N - 1), (
+        f"W total stall {tb.w_stall_cycles} exceeds budget {N - 1} "
+        f"(one cycle per burst transition for {N} bursts)."
+    )
+
+    tb.log.info(
+        f"perfect_streaming PASS — DUT-driven readies clean: "
+        f"AW/AR=0, W={tb.w_stall_cycles}/{N - 1} (intake burst-done window)"
+    )
+
+
+# ---------------------------------------------------------------------------
 # Pytest wrapper — TEST_LEVEL controls matrix density
 # ---------------------------------------------------------------------------
 
 # (test_type, num_ranks, timing_profile)
+# Note: perfect_streaming is `backtoback`-only on purpose — it measures
+# the intake's intrinsic handshake budget under ideal drain. Other
+# profiles would inject master-side stalls that the test isn't about.
 _GATE = [
     ("forward_smoke",       1, "backtoback"),
     ("miss_smoke",          1, "backtoback"),
     ("snarf_timing_schmoo", 1, "backtoback"),
+    ("perfect_streaming",   1, "backtoback"),
 ]
 
 _FUNC = _GATE + [

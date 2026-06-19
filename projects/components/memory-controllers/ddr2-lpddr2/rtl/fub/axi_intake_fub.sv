@@ -691,4 +691,89 @@ module axi_intake_fub
                          rd_entry_complete_strb_i,
                          rd_entry_complete_id_i };
 
+    //=========================================================================
+    // Hazard probes — debug-only, no fanout.
+    //
+    // These nets encode logical invariants of the W intake path.
+    // Synthesis DCE removes them (they drive nothing); Verilator --trace
+    // preserves them in the FST so you can spot a misbehavior at a glance
+    // without grepping through every channel signal.
+    //
+    // Any one of them pulsing in simulation is a real bug — interpret as
+    // "this invariant just broke."
+    //=========================================================================
+
+    // 1-cycle delayed observers used to compare edge-to-edge state changes
+    logic [WPW-1:0] r_wbuf_wptr_q;
+    logic           r_burst_done_q;
+    logic           r_full_strb_acc_q;
+    logic           r_w_beat_handshake_q;
+    logic           r_wlast_q;
+    logic           r_aw_push_hs_q;
+
+    `ALWAYS_FF_RST(aclk, aresetn, begin
+        if (`RST_ASSERTED(aresetn)) begin
+            r_wbuf_wptr_q        <= '0;
+            r_burst_done_q       <= 1'b0;
+            r_full_strb_acc_q    <= 1'b1;
+            r_w_beat_handshake_q <= 1'b0;
+            r_wlast_q            <= 1'b0;
+            r_aw_push_hs_q       <= 1'b0;
+        end else begin
+            r_wbuf_wptr_q        <= r_wbuf_wptr;
+            r_burst_done_q       <= r_burst_done;
+            r_full_strb_acc_q    <= r_full_strb_acc;
+            r_w_beat_handshake_q <= w_w_beat_handshake;
+            r_wlast_q            <= fub_axi_wlast;
+            r_aw_push_hs_q       <= aw_push_valid_o && aw_push_ready_i;
+        end
+    end)
+
+    // (a) w_buf write-pointer changed in a cycle with no W beat handshake.
+    //     Means a beat got written to w_buf without a valid AXI handshake —
+    //     would corrupt w_buf and any subsequent snarf reads from it.
+    logic w_hazard_wbuf_wptr_glitch;
+    assign w_hazard_wbuf_wptr_glitch = (r_wbuf_wptr != r_wbuf_wptr_q)
+                                    && !r_w_beat_handshake_q;
+
+    // (b) burst_done rose without a wlast handshake on the previous cycle.
+    //     burst_done is the gate that promotes a write into the wr CAM
+    //     (aw_push_valid_o is gated on it). If it rises prematurely, the
+    //     entry becomes snarf-eligible before the W beats have all landed.
+    logic w_hazard_burst_done_premature;
+    assign w_hazard_burst_done_premature = r_burst_done && !r_burst_done_q
+                                        && !(r_w_beat_handshake_q && r_wlast_q);
+
+    // (c) Another W beat handshake happened while r_burst_done was already
+    //     set. fub_axi_wready is supposed to be gated by !r_burst_done so
+    //     this is unreachable — but if it ever fires, the next burst is
+    //     leaking into the current w_buf.
+    logic w_hazard_w_after_wlast;
+    assign w_hazard_w_after_wlast = r_burst_done && w_w_beat_handshake;
+
+    // (d) full_strb_acc went from 0 → 1 without an aw_push handshake on the
+    //     prior cycle. The only legal cause for that reset is the per-burst
+    //     reset on AW-push accept. A spurious reset would let a partial-
+    //     strobe burst look fully-covered → snarf eligible → silent
+    //     data corruption.
+    logic w_hazard_full_strb_acc_glitch;
+    assign w_hazard_full_strb_acc_glitch = r_full_strb_acc && !r_full_strb_acc_q
+                                        && !r_aw_push_hs_q;
+
+    // (e) aw_push_valid_o asserted while r_burst_done is low. Trivially
+    //     forbidden by the assign (`r_burst_done && w_aw_pend_rd_valid`),
+    //     but keeping it visible catches any future regression that
+    //     accidentally relaxes the gate.
+    logic w_hazard_aw_push_before_burst_done;
+    assign w_hazard_aw_push_before_burst_done = aw_push_valid_o && !r_burst_done;
+
+    // OR of all individual hazards — single yellow flag for the
+    // overview pane in gtkwave.
+    logic w_hazard_any;
+    assign w_hazard_any = w_hazard_wbuf_wptr_glitch
+                       || w_hazard_burst_done_premature
+                       || w_hazard_w_after_wlast
+                       || w_hazard_full_strb_acc_glitch
+                       || w_hazard_aw_push_before_burst_done;
+
 endmodule : axi_intake_fub
