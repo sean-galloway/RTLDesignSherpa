@@ -555,9 +555,15 @@ async def _run_perfect_streaming(tb):
     w_total   = tb.w_active_cycles
 
     # ---------------- read stream: bulk-queue AR + inject ----------------
+    # Use READ addresses disjoint from the WRITE range so reads take the
+    # miss path through `rd_inject` (driven by our pipelined drain) instead
+    # of the snarf path (driven by the intake's r_r_fwd_active FSM). This
+    # is the channel that measures the rd_inject streaming path, which is
+    # what we want to assert.
+    read_base = base_addr + 0x10_0000   # 1 MiB above writes
     for i in range(NUM_BURSTS):
-        addr  = base_addr + i * (BEATS_PER_BURST * (tb.AXI_DATA_WIDTH // 8))
-        beats = [((0x5A5A_0000_0000 | (i << 16) | b) & tb.AXI_DATA_MASK)
+        addr  = read_base + i * (BEATS_PER_BURST * (tb.AXI_DATA_WIDTH // 8))
+        beats = [((0xA5A5_0000_0000 | (i << 16) | b) & tb.AXI_DATA_MASK)
                  for b in range(BEATS_PER_BURST)]
         # Queue inject data ahead of AR so the rd drain has data ready.
         tb.mem.queue_inject(i & id_mask, beats)
@@ -585,7 +591,8 @@ async def _run_perfect_streaming(tb):
     tb.log.info(
         f"perfect_streaming results: "
         f"W active={tb.w_active_cycles}, run_max={tb.w_active_run_max} (write phase ran {w_total}/{w_run_max}); "
-        f"R active={tb.r_active_cycles}, run_max={tb.r_active_run_max}; "
+        f"R active={tb.r_active_cycles}, run_max={tb.r_active_run_max} "
+        f"(rd_inject internal run_max={tb.rd_inject_active_run_max}); "
         f"stalls: AW={tb.aw_stall_cycles} AR={tb.ar_stall_cycles} "
         f"W={tb.w_stall_cycles}(run≤{tb.w_stall_run_max})"
     )

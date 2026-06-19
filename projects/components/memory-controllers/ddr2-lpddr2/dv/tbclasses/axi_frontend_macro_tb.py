@@ -143,12 +143,17 @@ class AxiFrontendMacroTB:
         # Used to prove "sustained streaming for >= 2us" without bubbles.
         self.w_active_run_max = 0
         self.r_active_run_max = 0
+        # Diagnostic: rd_inject internal handshake (intake-side, before
+        # the slave skid + BFM rready). Lets us tell whether r_active_run_max
+        # is bottlenecked by my drain stub or by the slave path downstream.
+        self.rd_inject_active_run_max = 0
         # Internal running-count state for the monitor.
         self._aw_stall_run = 0
         self._w_stall_run  = 0
         self._ar_stall_run = 0
         self._w_active_run = 0
         self._r_active_run = 0
+        self._rd_inject_active_run = 0
 
         # Stub control flags. Tests can pause the auto-services to hold a
         # write in the CAM beyond its natural lifetime (needed for the
@@ -294,11 +299,13 @@ class AxiFrontendMacroTB:
         self.r_active_cycles  = 0
         self.w_active_run_max = 0
         self.r_active_run_max = 0
+        self.rd_inject_active_run_max = 0
         self._aw_stall_run = 0
         self._w_stall_run  = 0
         self._ar_stall_run = 0
         self._w_active_run = 0
         self._r_active_run = 0
+        self._rd_inject_active_run = 0
 
     async def _handshake_stall_monitor(self) -> None:
         """Background: every clock edge, sample (valid && !ready) on each
@@ -343,6 +350,17 @@ class AxiFrontendMacroTB:
                     self.r_active_run_max = self._r_active_run
             else:
                 self._r_active_run = 0
+
+            # Diagnostic: intake-side rd_inject handshake — tells us
+            # whether r_active_run_max bottleneck is upstream or downstream.
+            riv = int(self.dut.rd_inject_valid_i.value)
+            rir = int(self.dut.rd_inject_ready_o.value)
+            if riv and rir:
+                self._rd_inject_active_run += 1
+                if self._rd_inject_active_run > self.rd_inject_active_run_max:
+                    self.rd_inject_active_run_max = self._rd_inject_active_run
+            else:
+                self._rd_inject_active_run = 0
 
             if aw_stall:
                 self.aw_stall_cycles += 1
@@ -494,10 +512,15 @@ class AxiFrontendMacroTB:
         the next queued inject from the memory model and drives the R data.
 
         v1 simplification: serial — one rd burst at a time.
+
+        Honors tb.rd_stub_paused — perfect_streaming sets this to hand off
+        to the pipelined drain.
         """
         prev_occ = 0
         while True:
             await RisingEdge(self.dut.mc_clk)
+            if self.rd_stub_paused:
+                continue
             await ReadOnly()
             occ = int(self.dut.dbg_rd_cam_occ_o.value)
             if occ <= prev_occ:
@@ -608,57 +631,109 @@ class AxiFrontendMacroTB:
             self.dut.b_complete_strb_i.value = 0
 
     async def _rd_drain_pipelined(self) -> None:
-        """Pipelined rd CAM drain — services any valid+not-issued slot,
-        pulls inject data from the mem model in queue order, drives R."""
+        """Overlapping rd CAM drain — keeps `rd_inject_valid_i` high
+        across burst boundaries so the DUT's `s_axi_rvalid` never falls.
+
+        Design:
+          * Maintain a Python-side queue of upcoming bursts. Every cycle
+            we scan `u_rd_cam.snap_valid_o / snap_issued_o` and append
+            any newly-pending slot to the queue (popping its inject data
+            from the mem model in AR order).
+          * The drive phase always streams the queue head. When the
+            current head's beats are exhausted, the next burst in the
+            queue takes over the SAME cycle — no `rd_inject_valid_i`
+            droop.
+          * `rd_issued_we_i` is pulsed in parallel with each burst's
+            first-beat drive (one-shot per burst via `is_new`).
+          * `rd_beat_we_i` is driven one cycle after the accepted
+            handshake (latency tolerant for the CAM's beats_returned
+            counter — slot self-clears when count == len).
+        """
         cam = self.dut.u_rd_cam
+        queue: list = []
+        pending_ack_slot = None
+
+        # Idle drivers at start.
+        self.dut.rd_inject_valid_i.value = 0
+        self.dut.rd_inject_id_i.value    = 0
+        self.dut.rd_inject_data_i.value  = 0
+        self.dut.rd_inject_last_i.value  = 0
+        self.dut.rd_issued_we_i.value    = 0
+        self.dut.rd_issued_slot_i.value  = 0
+        self.dut.rd_beat_we_i.value      = 0
+        self.dut.rd_beat_slot_i.value    = 0
+
         while True:
             await RisingEdge(self.dut.mc_clk)
+
             if not getattr(self, 'fast_drain_enabled', False):
+                self.dut.rd_inject_valid_i.value = 0
+                self.dut.rd_issued_we_i.value    = 0
+                self.dut.rd_beat_we_i.value      = 0
+                pending_ack_slot = None
                 continue
 
+            # ---- drive phase ----
+            # Ack the previous-cycle's accepted handshake (if any).
+            if pending_ack_slot is not None:
+                self.dut.rd_beat_we_i.value   = 1
+                self.dut.rd_beat_slot_i.value = pending_ack_slot
+            else:
+                self.dut.rd_beat_we_i.value = 0
+            pending_ack_slot = None
+
+            # Drive rd_inject + (one-shot) rd_issued for the queue head.
+            if queue:
+                burst    = queue[0]
+                beat     = burst['beats'][0]
+                is_last  = len(burst['beats']) == 1
+                self.dut.rd_inject_valid_i.value = 1
+                self.dut.rd_inject_id_i.value    = burst['axi_id']
+                self.dut.rd_inject_data_i.value  = beat
+                self.dut.rd_inject_last_i.value  = 1 if is_last else 0
+                if burst['is_new']:
+                    self.dut.rd_issued_we_i.value   = 1
+                    self.dut.rd_issued_slot_i.value = burst['slot']
+                else:
+                    self.dut.rd_issued_we_i.value = 0
+            else:
+                self.dut.rd_inject_valid_i.value = 0
+                self.dut.rd_issued_we_i.value    = 0
+
+            # ---- sample phase ----
             await ReadOnly()
             snap_valid  = int(cam.snap_valid_o.value)
             snap_issued = int(cam.snap_issued_o.value)
+            ready       = int(self.dut.rd_inject_ready_o.value)
 
-            slot = None
+            # If we drove a beat AND it was accepted, advance the head.
+            if queue and ready:
+                burst = queue[0]
+                pending_ack_slot = burst['slot']
+                burst['beats'].pop(0)
+                burst['is_new'] = False   # mark_issued strobe was pulsed
+                if not burst['beats']:
+                    queue.pop(0)
+
+            # ---- prefetch ----
+            queued_slots = {b['slot'] for b in queue}
             for i in range(self.RD_CAM_DEPTH):
-                if ((snap_valid >> i) & 1) and not ((snap_issued >> i) & 1):
-                    slot = i
+                if not ((snap_valid >> i) & 1):
+                    continue
+                if (snap_issued >> i) & 1:
+                    continue
+                if i in queued_slots:
+                    continue
+                inject = self.mem.pop_inject()
+                if inject is None:
                     break
-            if slot is None:
-                continue
-
-            inject = self.mem.pop_inject()
-            if inject is None:
-                continue
-            axi_id, beats = inject
-
-            await RisingEdge(self.dut.mc_clk)
-            self.dut.rd_issued_we_i.value   = 1
-            self.dut.rd_issued_slot_i.value = slot
-            await RisingEdge(self.dut.mc_clk)
-            self.dut.rd_issued_we_i.value   = 0
-
-            # Stream beats out via rd_inject. Each beat handshakes on
-            # rd_inject_ready_o so we hand it across multiple cycles
-            # only when backpressured.
-            for i, beat in enumerate(beats):
-                self.dut.rd_inject_valid_i.value = 1
-                self.dut.rd_inject_id_i.value    = axi_id
-                self.dut.rd_inject_data_i.value  = beat
-                self.dut.rd_inject_last_i.value  = 1 if i == len(beats) - 1 else 0
-                # Concurrently strobe rd_beat_we so the CAM retires the
-                # beat — keeps pace with rd_inject without an extra pass.
-                self.dut.rd_beat_we_i.value   = 1
-                self.dut.rd_beat_slot_i.value = slot
-                await ReadOnly()
-                while int(self.dut.rd_inject_ready_o.value) == 0:
-                    await RisingEdge(self.dut.mc_clk)
-                    await ReadOnly()
-                await RisingEdge(self.dut.mc_clk)
-            self.dut.rd_inject_valid_i.value = 0
-            self.dut.rd_inject_last_i.value  = 0
-            self.dut.rd_beat_we_i.value      = 0
+                axi_id, beats = inject
+                queue.append({
+                    'slot':   i,
+                    'axi_id': axi_id,
+                    'beats':  list(beats),
+                    'is_new': True,
+                })
 
     async def _fwd_observer(self) -> None:
         """Counts dbg_forward_hit / dbg_forward_miss pulses, and reclaims
