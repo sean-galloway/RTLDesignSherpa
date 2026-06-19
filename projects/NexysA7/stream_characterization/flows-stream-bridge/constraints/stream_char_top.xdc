@@ -348,3 +348,28 @@ add_cells_to_pblock pblock_monbus [get_cells u_harness/u_stream/g_monbus_axil.u_
 resize_pblock pblock_monbus -add {CLOCKREGION_X0Y1:CLOCKREGION_X0Y3}
 ## Placement-only: let routes leave the region (the crossing is registered).
 set_property CONTAIN_ROUTING 0 [get_pblocks pblock_monbus]
+
+##==============================================================================
+## Nested floorplan — pin the MonBus compressor (CAM + input skid) compactly
+##==============================================================================
+## pblock_monbus is 3 clock regions tall (X0Y1:X0Y3). Inside that loose box the
+## placer scattered the compressor's input skid and its CAM result register up
+## to a full column apart, so the gen_compressor.u_comp_in_skid -> u_cam_pipe/
+## result_old_data_reg path went 74% route (7.36 ns route / 9.91 ns total) and
+## missed setup (~-0.145 ns, all 35 result-register bits failing as one path).
+## The path is only 10 logic levels, so this is purely a placement-distance
+## problem: confine the compressor + its input skid to ONE clock region so the
+## skid->CAM hop stays intra-region. The crossing back to the rest of the group
+## is registered, so CONTAIN_ROUTING can stay off (placement-only constraint).
+## Lives inside the parent region (X0Y2 is within X0Y1:X0Y3), so this is a true
+## nested pblock; the rest of u_monbus_axil_group keeps the full parent box.
+## Plain commands only (procedural Tcl — set/if/multi-line get_cells — does not
+## behave in the XDC reader; mirror the pblock_monbus style above). Both cell
+## paths verified to resolve (1 hierarchical cell each) on the routed netlist.
+## Footprint is 2601 LUT / 3883 FF, well inside one clock region (~16000 LUT /
+## ~32000 FF), so a single region forces the skid->CAM hop intra-region.
+create_pblock pblock_compressor
+add_cells_to_pblock pblock_compressor [get_cells -quiet u_harness/u_stream/g_monbus_axil.u_monbus_axil_group/u_core/gen_compressor.u_compressor]
+add_cells_to_pblock pblock_compressor [get_cells -quiet u_harness/u_stream/g_monbus_axil.u_monbus_axil_group/u_core/gen_compressor.u_comp_in_skid]
+resize_pblock pblock_compressor -add {CLOCKREGION_X0Y2:CLOCKREGION_X0Y2}
+set_property CONTAIN_ROUTING 0 [get_pblocks pblock_compressor]
