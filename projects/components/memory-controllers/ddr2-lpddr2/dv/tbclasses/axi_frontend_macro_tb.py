@@ -130,10 +130,25 @@ class AxiFrontendMacroTB:
         self.aw_stall_run_max = 0
         self.w_stall_run_max  = 0
         self.ar_stall_run_max = 0
+        # Active-cycle counters — (valid && ready) cycles per channel.
+        # `w_active_cycles` and `r_active_cycles` are the headline metric
+        # for sustained-streaming proof: they accumulate every cycle a
+        # real beat lands on the wire.
+        self.aw_active_cycles = 0
+        self.w_active_cycles  = 0
+        self.ar_active_cycles = 0
+        self.b_active_cycles  = 0
+        self.r_active_cycles  = 0
+        # Longest contiguous run of (valid && ready) per data channel.
+        # Used to prove "sustained streaming for >= 2us" without bubbles.
+        self.w_active_run_max = 0
+        self.r_active_run_max = 0
         # Internal running-count state for the monitor.
         self._aw_stall_run = 0
         self._w_stall_run  = 0
         self._ar_stall_run = 0
+        self._w_active_run = 0
+        self._r_active_run = 0
 
         # Stub control flags. Tests can pause the auto-services to hold a
         # write in the CAM beyond its natural lifetime (needed for the
@@ -141,6 +156,16 @@ class AxiFrontendMacroTB:
         # the snarf window deterministically).
         self.wr_stub_paused: bool = False
         self.rd_stub_paused: bool = False
+
+        # Fast-drain flag — when True, the pipelined drains take over
+        # from the slow scheduler stubs. perfect_streaming sets it.
+        self.fast_drain_enabled: bool = False
+
+        # CAM depths + burst_len width — used by the pipelined drains to
+        # decode the packed snap_* buses. Match the macro's defaults.
+        self.WR_CAM_DEPTH    = 16
+        self.RD_CAM_DEPTH    = 16
+        self._cached_blw     = 8   # BURST_LEN_WIDTH
 
         # Build AXI4 BFMs as masters (we drive the host side of the slave DUT)
         self.axi_master_wr = AXI4MasterWrite(
@@ -213,6 +238,8 @@ class AxiFrontendMacroTB:
         # Start scheduler-stub background tasks
         cocotb.start_soon(self._wr_scheduler_stub())
         cocotb.start_soon(self._rd_scheduler_stub())
+        cocotb.start_soon(self._wr_drain_pipelined())
+        cocotb.start_soon(self._rd_drain_pipelined())
         cocotb.start_soon(self._fwd_observer())
         cocotb.start_soon(self._handshake_stall_monitor())
 
@@ -249,9 +276,9 @@ class AxiFrontendMacroTB:
         return self.fwd_hits_seen, self.fwd_misses_seen
 
     def reset_stall_counters(self) -> None:
-        """Clear the per-channel handshake-stall accumulators. Call this
-        immediately before the workload-of-interest in `perfect_streaming`
-        so warmup transactions don't count against the budget."""
+        """Clear the per-channel handshake-stall + active-cycle accumulators.
+        Call immediately before the workload-of-interest in
+        `perfect_streaming` so warmup transactions don't pollute counts."""
         self.aw_stall_cycles = 0
         self.w_stall_cycles  = 0
         self.ar_stall_cycles = 0
@@ -260,9 +287,18 @@ class AxiFrontendMacroTB:
         self.aw_stall_run_max = 0
         self.w_stall_run_max  = 0
         self.ar_stall_run_max = 0
+        self.aw_active_cycles = 0
+        self.w_active_cycles  = 0
+        self.ar_active_cycles = 0
+        self.b_active_cycles  = 0
+        self.r_active_cycles  = 0
+        self.w_active_run_max = 0
+        self.r_active_run_max = 0
         self._aw_stall_run = 0
         self._w_stall_run  = 0
         self._ar_stall_run = 0
+        self._w_active_run = 0
+        self._r_active_run = 0
 
     async def _handshake_stall_monitor(self) -> None:
         """Background: every clock edge, sample (valid && !ready) on each
@@ -276,11 +312,37 @@ class AxiFrontendMacroTB:
             await RisingEdge(self.dut.mc_clk)
             await ReadOnly()
 
-            aw_stall = int(self.dut.s_axi_awvalid.value) and not int(self.dut.s_axi_awready.value)
-            w_stall  = int(self.dut.s_axi_wvalid.value)  and not int(self.dut.s_axi_wready.value)
-            ar_stall = int(self.dut.s_axi_arvalid.value) and not int(self.dut.s_axi_arready.value)
-            b_stall  = int(self.dut.s_axi_bvalid.value)  and not int(self.dut.s_axi_bready.value)
-            r_stall  = int(self.dut.s_axi_rvalid.value)  and not int(self.dut.s_axi_rready.value)
+            awv = int(self.dut.s_axi_awvalid.value); awr = int(self.dut.s_axi_awready.value)
+            wv  = int(self.dut.s_axi_wvalid.value);  wr  = int(self.dut.s_axi_wready.value)
+            arv = int(self.dut.s_axi_arvalid.value); arr = int(self.dut.s_axi_arready.value)
+            bv  = int(self.dut.s_axi_bvalid.value);  br  = int(self.dut.s_axi_bready.value)
+            rv  = int(self.dut.s_axi_rvalid.value);  rr  = int(self.dut.s_axi_rready.value)
+
+            aw_stall = awv and not awr
+            w_stall  = wv  and not wr
+            ar_stall = arv and not arr
+            b_stall  = bv  and not br
+            r_stall  = rv  and not rr
+
+            if awv and awr: self.aw_active_cycles += 1
+            if wv  and wr:  self.w_active_cycles  += 1
+            if arv and arr: self.ar_active_cycles += 1
+            if bv  and br:  self.b_active_cycles  += 1
+            if rv  and rr:  self.r_active_cycles  += 1
+
+            # Track longest contiguous (valid && ready) on W and R.
+            if wv and wr:
+                self._w_active_run += 1
+                if self._w_active_run > self.w_active_run_max:
+                    self.w_active_run_max = self._w_active_run
+            else:
+                self._w_active_run = 0
+            if rv and rr:
+                self._r_active_run += 1
+                if self._r_active_run > self.r_active_run_max:
+                    self.r_active_run_max = self._r_active_run
+            else:
+                self._r_active_run = 0
 
             if aw_stall:
                 self.aw_stall_cycles += 1
@@ -479,6 +541,124 @@ class AxiFrontendMacroTB:
                 await RisingEdge(self.dut.mc_clk)
             self.dut.rd_beat_we_i.value = 0
             prev_occ = 0
+
+    # ------------------------------------------------------------------
+    # Pipelined fast drains — used by perfect_streaming to remove the
+    # single-issue stub from the critical path.
+    #
+    # The slow `_wr_scheduler_stub` / `_rd_scheduler_stub` above hard-code
+    # slot=0 (single-write-in-flight). With bulk-queued AW packets the
+    # CAM fills past slot 0 and the slow stub stalls. These pipelined
+    # versions scan `u_wr_cam.snap_valid_o` / `snap_issued_o` and process
+    # the lowest pending slot back-to-back, keeping the CAM drained at
+    # roughly host-AXI line rate.
+    #
+    # Enable by setting `self.fast_drain_enabled = True` AND pausing the
+    # slow stubs via `wr_stub_paused` / `rd_stub_paused`.
+    # ------------------------------------------------------------------
+
+    async def _wr_drain_pipelined(self) -> None:
+        """Pipelined wr CAM drain — services any valid+not-issued slot
+        every cycle. Phases per slot: mark_issued (1c) → beat_pull
+        (snap_len cycles) → b_complete (1c). No inter-phase gaps."""
+        cam = self.dut.u_wr_cam
+        while True:
+            await RisingEdge(self.dut.mc_clk)
+            if not getattr(self, 'fast_drain_enabled', False):
+                continue
+
+            await ReadOnly()
+            snap_valid  = int(cam.snap_valid_o.value)
+            snap_issued = int(cam.snap_issued_o.value)
+
+            # Find lowest slot that's valid AND not-yet-issued
+            slot = None
+            for i in range(self.WR_CAM_DEPTH):
+                if ((snap_valid >> i) & 1) and not ((snap_issued >> i) & 1):
+                    slot = i
+                    break
+            if slot is None:
+                continue
+
+            # Look up burst length from snapshot
+            snap_len_raw = int(cam.snap_len_o.value)
+            blw = self._cached_blw
+            length = (snap_len_raw >> (slot * blw)) & ((1 << blw) - 1)
+            if length == 0:
+                continue
+
+            # Mark issued (1 cycle)
+            await RisingEdge(self.dut.mc_clk)
+            self.dut.wr_issued_we_i.value   = 1
+            self.dut.wr_issued_slot_i.value = slot
+            await RisingEdge(self.dut.mc_clk)
+            self.dut.wr_issued_we_i.value   = 0
+
+            # Pull every beat back-to-back
+            self.dut.beat_pull_slot_i.value = slot
+            self.dut.beat_pull_strb_i.value = 1
+            for _ in range(length):
+                await RisingEdge(self.dut.mc_clk)
+            self.dut.beat_pull_strb_i.value = 0
+
+            # b_complete the same cycle (no gap)
+            self.dut.b_complete_strb_i.value = 1
+            self.dut.b_complete_slot_i.value = slot
+            await RisingEdge(self.dut.mc_clk)
+            self.dut.b_complete_strb_i.value = 0
+
+    async def _rd_drain_pipelined(self) -> None:
+        """Pipelined rd CAM drain — services any valid+not-issued slot,
+        pulls inject data from the mem model in queue order, drives R."""
+        cam = self.dut.u_rd_cam
+        while True:
+            await RisingEdge(self.dut.mc_clk)
+            if not getattr(self, 'fast_drain_enabled', False):
+                continue
+
+            await ReadOnly()
+            snap_valid  = int(cam.snap_valid_o.value)
+            snap_issued = int(cam.snap_issued_o.value)
+
+            slot = None
+            for i in range(self.RD_CAM_DEPTH):
+                if ((snap_valid >> i) & 1) and not ((snap_issued >> i) & 1):
+                    slot = i
+                    break
+            if slot is None:
+                continue
+
+            inject = self.mem.pop_inject()
+            if inject is None:
+                continue
+            axi_id, beats = inject
+
+            await RisingEdge(self.dut.mc_clk)
+            self.dut.rd_issued_we_i.value   = 1
+            self.dut.rd_issued_slot_i.value = slot
+            await RisingEdge(self.dut.mc_clk)
+            self.dut.rd_issued_we_i.value   = 0
+
+            # Stream beats out via rd_inject. Each beat handshakes on
+            # rd_inject_ready_o so we hand it across multiple cycles
+            # only when backpressured.
+            for i, beat in enumerate(beats):
+                self.dut.rd_inject_valid_i.value = 1
+                self.dut.rd_inject_id_i.value    = axi_id
+                self.dut.rd_inject_data_i.value  = beat
+                self.dut.rd_inject_last_i.value  = 1 if i == len(beats) - 1 else 0
+                # Concurrently strobe rd_beat_we so the CAM retires the
+                # beat — keeps pace with rd_inject without an extra pass.
+                self.dut.rd_beat_we_i.value   = 1
+                self.dut.rd_beat_slot_i.value = slot
+                await ReadOnly()
+                while int(self.dut.rd_inject_ready_o.value) == 0:
+                    await RisingEdge(self.dut.mc_clk)
+                    await ReadOnly()
+                await RisingEdge(self.dut.mc_clk)
+            self.dut.rd_inject_valid_i.value = 0
+            self.dut.rd_inject_last_i.value  = 0
+            self.dut.rd_beat_we_i.value      = 0
 
     async def _fwd_observer(self) -> None:
         """Counts dbg_forward_hit / dbg_forward_miss pulses, and reclaims

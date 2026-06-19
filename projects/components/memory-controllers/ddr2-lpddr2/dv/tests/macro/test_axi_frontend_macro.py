@@ -463,98 +463,169 @@ async def _run_burst_len_sweep(tb):
 # ---------------------------------------------------------------------------
 
 async def _run_perfect_streaming(tb):
-    """Stream N writes, then N reads back-to-back. Assert the host AXI
-    boundary hits the intake's intrinsic budget exactly."""
-    tb.wr_stub_paused = False
-    tb.rd_stub_paused = False
+    """Prove ≥2us contiguous (wvalid && wready) and (rvalid && rready)
+    under ideal drain. Method:
 
-    N         = 16
-    burst_len = 4
-    base_addr = 0x0001_0000
+      * Pause the single-issue scheduler stubs; enable the pipelined
+        drains (multi-outstanding, no per-slot deadtime).
+      * Drive a SINGLE long burst (256 beats AXI4-max) per side, with
+        all W beats bulk-queued into the BFM's pipeline so it stays in
+        zero-bubble mode.
+      * 256 beats @ 10ns clock = 2.56us contiguous active per burst,
+        clearing the 2us bar with margin.
 
-    # Pre-populate mem so reads can either snarf (if AW still in flight)
-    # or take the miss path with correct injected data — we don't care
-    # which here, this scenario only measures handshake stall.
-    for i in range(N):
-        addr  = base_addr + i * 0x40
-        beats = [((0x5A5A_0000 | (i << 8) | b) & tb.AXI_DATA_MASK)
-                 for b in range(burst_len)]
-        tb.mem.write(addr, beats)
+    Build override required: W_BUF_DEPTH=256 (default is 128) so the
+    256-beat W burst fits in w_buf — the wr CAM only accepts the entry
+    after wlast, so the drain can't start consuming until then.
+    """
+    import cocotb
+    from cocotb.triggers import RisingEdge
 
-    # Warmup: one write so the BFM's internal state is past its first-
-    # transaction cold start (which can add an extra setup cycle).
-    await tb.axi_write(base_addr - 0x100,
-                       [0xDEAD_0000 | i for i in range(burst_len)],
+    BEATS_PER_BURST   = 256
+    NUM_BURSTS        = 3
+    TARGET_RUN_CYCLES = 200   # 2us @ 100MHz
+    base_addr         = 0x0001_0000
+
+    # Hand off from slow stubs to fast drains
+    tb.wr_stub_paused      = True
+    tb.rd_stub_paused      = True
+    tb.fast_drain_enabled  = True
+
+    aw      = tb.axi_master_wr.aw_channel
+    w_ch    = tb.axi_master_wr.w_channel
+    ar      = tb.axi_master_rd.ar_channel
+    full_strb = (1 << (tb.AXI_DATA_WIDTH // 8)) - 1
+    id_mask = (1 << tb.AXI_ID_WIDTH) - 1
+
+    # Warmup write so the BFM's first-call cold start is past us
+    await tb.axi_write(base_addr - 0x10000,
+                       [0xDEAD_0000 | i for i in range(8)],
                        axi_id=0xF)
 
-    # Reset counters and unleash the back-to-back workload
+    # Pre-populate mem so the rd drain has data to inject for each read
+    for i in range(NUM_BURSTS):
+        addr  = base_addr + i * (BEATS_PER_BURST * (tb.AXI_DATA_WIDTH // 8))
+        beats = [((0x5A5A_0000_0000 | (i << 16) | b) & tb.AXI_DATA_MASK)
+                 for b in range(BEATS_PER_BURST)]
+        tb.mem.write(addr, beats)
+
     tb.reset_stall_counters()
 
-    # Back-to-back writes (parallel issue, await all). The BFM's internal
-    # AW/W queues pipeline these so we get sustained wvalid.
-    wr_tasks = []
-    for i in range(N):
-        addr  = base_addr + i * 0x40
-        beats = [((0x5A5A_0000 | (i << 8) | b) & tb.AXI_DATA_MASK)
-                 for b in range(burst_len)]
-        wr_tasks.append(cocotb.start_soon(
-            tb.axi_write(addr, beats, axi_id=i & ((1 << tb.AXI_ID_WIDTH) - 1))))
-    for t in wr_tasks:
-        await t
+    # ---------------- write stream: bulk-queue AW + W ----------------
+    for i in range(NUM_BURSTS):
+        addr  = base_addr + i * (BEATS_PER_BURST * (tb.AXI_DATA_WIDTH // 8))
+        beats = [((0x5A5A_0000_0000 | (i << 16) | b) & tb.AXI_DATA_MASK)
+                 for b in range(BEATS_PER_BURST)]
 
-    # Back-to-back reads
-    rd_tasks = []
-    for i in range(N):
-        addr = base_addr + i * 0x40
-        rd_tasks.append(cocotb.start_soon(
-            tb.axi_read(addr, beats=burst_len, axi_id=i & ((1 << tb.AXI_ID_WIDTH) - 1))))
-    for t in rd_tasks:
-        await t
+        # AW: single packet, awlen = beats-1
+        aw_pkt = aw.create_packet(
+            addr=addr, len=BEATS_PER_BURST - 1,
+            id=i & id_mask, size=3, burst=1,
+        )
+        # Touch private state — `await aw.send(pkt)` would await the
+        # handshake AND deassert valid; we want it to stay high through
+        # the whole burst chain so we queue directly.
+        aw.transmit_queue.append(aw_pkt)
+        if aw.transmit_coroutine is None:
+            aw.transmit_coroutine = cocotb.start_soon(aw._transmit_pipeline())
 
-    # Let any straggler beat / response settle so the monitor stops
-    # counting before we read the totals.
-    for _ in range(20):
+        # W: bulk-queue every beat of this burst
+        for b in range(BEATS_PER_BURST):
+            w_pkt = w_ch.create_packet(
+                data=beats[b],
+                last=1 if b == BEATS_PER_BURST - 1 else 0,
+                strb=full_strb,
+            )
+            w_ch.transmit_queue.append(w_pkt)
+        if w_ch.transmit_coroutine is None:
+            w_ch.transmit_coroutine = cocotb.start_soon(w_ch._transmit_pipeline())
+
+    # Drain AW + W pipelines
+    while aw.transmit_coroutine is not None:
+        await RisingEdge(tb.dut.mc_clk)
+    while w_ch.transmit_coroutine is not None:
         await RisingEdge(tb.dut.mc_clk)
 
+    # Let B responses settle
+    for _ in range(100):
+        await RisingEdge(tb.dut.mc_clk)
+
+    # Capture write metrics before reads start
+    w_run_max = tb.w_active_run_max
+    w_total   = tb.w_active_cycles
+
+    # ---------------- read stream: bulk-queue AR + inject ----------------
+    for i in range(NUM_BURSTS):
+        addr  = base_addr + i * (BEATS_PER_BURST * (tb.AXI_DATA_WIDTH // 8))
+        beats = [((0x5A5A_0000_0000 | (i << 16) | b) & tb.AXI_DATA_MASK)
+                 for b in range(BEATS_PER_BURST)]
+        # Queue inject data ahead of AR so the rd drain has data ready.
+        tb.mem.queue_inject(i & id_mask, beats)
+
+        ar_pkt = ar.create_packet(
+            addr=addr, len=BEATS_PER_BURST - 1,
+            id=i & id_mask, size=3, burst=1,
+        )
+        ar.transmit_queue.append(ar_pkt)
+        if ar.transmit_coroutine is None:
+            ar.transmit_coroutine = cocotb.start_soon(ar._transmit_pipeline())
+
+    while ar.transmit_coroutine is not None:
+        await RisingEdge(tb.dut.mc_clk)
+
+    # Drain R beats
+    for _ in range(BEATS_PER_BURST * NUM_BURSTS + 200):
+        await RisingEdge(tb.dut.mc_clk)
+
+    # Restore default stubs (be polite to subsequent tests in the matrix)
+    tb.fast_drain_enabled = False
+    tb.wr_stub_paused     = False
+    tb.rd_stub_paused     = False
+
     tb.log.info(
-        f"perfect_streaming stalls: "
-        f"AW={tb.aw_stall_cycles}(run≤{tb.aw_stall_run_max}) "
-        f"W={tb.w_stall_cycles}(run≤{tb.w_stall_run_max}) "
-        f"AR={tb.ar_stall_cycles}(run≤{tb.ar_stall_run_max}) "
-        f"B={tb.b_stall_cycles} R={tb.r_stall_cycles}"
+        f"perfect_streaming results: "
+        f"W active={tb.w_active_cycles}, run_max={tb.w_active_run_max} (write phase ran {w_total}/{w_run_max}); "
+        f"R active={tb.r_active_cycles}, run_max={tb.r_active_run_max}; "
+        f"stalls: AW={tb.aw_stall_cycles} AR={tb.ar_stall_cycles} "
+        f"W={tb.w_stall_cycles}(run≤{tb.w_stall_run_max})"
     )
 
     # --- assertions ----------------------------------------------------
-    # B and R are BFM-driven readies (not DUT-owned), so they're
-    # informational only — they reflect the BFM's pickup latency under
-    # backtoback, not anything the intake controls.
-    #
-    # AW / W / AR are DUT-driven readies. These are the contract.
-    #
-    # AW / AR: skid buffers absorb everything under ideal drain → 0 stalls.
+    # AW / AR — skid buffers absorb everything under ideal drain.
     assert tb.aw_stall_cycles == 0, (
         f"AW stalled {tb.aw_stall_cycles} cycles under ideal drain "
-        f"(longest run {tb.aw_stall_run_max}). Skid buffer backpressure leak."
+        f"(longest run {tb.aw_stall_run_max})."
     )
     assert tb.ar_stall_cycles == 0, (
         f"AR stalled {tb.ar_stall_cycles} cycles under ideal drain "
         f"(longest run {tb.ar_stall_run_max})."
     )
-    # W: intake gates wready low for exactly 1 cycle per burst boundary
-    # while r_burst_done waits for AW push. Budget = (N-1) for N bursts;
-    # no contiguous run > 1 cycle.
+    # W — only the burst_done window allows wready low, never multi-cycle.
     assert tb.w_stall_run_max <= 1, (
-        f"W stalled contiguously for {tb.w_stall_run_max} cycles "
-        "— intake held wready low across multiple cycles (expected ≤1)."
+        f"W stalled contiguously {tb.w_stall_run_max} cycles "
+        "(expected ≤1 — intake burst_done window)."
     )
-    assert tb.w_stall_cycles <= (N - 1), (
-        f"W total stall {tb.w_stall_cycles} exceeds budget {N - 1} "
-        f"(one cycle per burst transition for {N} bursts)."
+
+    # --- the headline assertions: >= 2us contiguous streaming ----------
+    # W: (wvalid && wready) must remain 1 for at least TARGET_RUN_CYCLES.
+    assert w_run_max >= TARGET_RUN_CYCLES, (
+        f"W did not sustain (wvalid & wready)=1 for 2us. "
+        f"Longest run in the write phase was {w_run_max} cycles "
+        f"({w_run_max * 10}ns), needed ≥ {TARGET_RUN_CYCLES} cycles "
+        f"({TARGET_RUN_CYCLES * 10}ns)."
+    )
+    # R: (rvalid && rready) must remain 1 for at least TARGET_RUN_CYCLES.
+    assert tb.r_active_run_max >= TARGET_RUN_CYCLES, (
+        f"R did not sustain (rvalid & rready)=1 for 2us. "
+        f"Longest run was {tb.r_active_run_max} cycles "
+        f"({tb.r_active_run_max * 10}ns), needed ≥ {TARGET_RUN_CYCLES} cycles "
+        f"({TARGET_RUN_CYCLES * 10}ns)."
     )
 
     tb.log.info(
-        f"perfect_streaming PASS — DUT-driven readies clean: "
-        f"AW/AR=0, W={tb.w_stall_cycles}/{N - 1} (intake burst-done window)"
+        f"perfect_streaming PASS — W run_max={w_run_max} "
+        f"({w_run_max * 10}ns), R run_max={tb.r_active_run_max} "
+        f"({tb.r_active_run_max * 10}ns), both ≥ 2us target."
     )
 
 
@@ -649,6 +720,11 @@ def test_axi_frontend_macro(request, test_type, num_ranks, timing_profile):
         extra_env["VERILATOR_TRACE_FST"] = "1"
 
     parameters = {"NUM_RANKS": str(num_ranks)}
+    # perfect_streaming uses one 256-beat burst per side; w_buf default
+    # of 128 would overflow before wlast lands and the wr CAM accepts
+    # the entry. Widen for this scenario only.
+    if test_type == "perfect_streaming":
+        parameters["W_BUF_DEPTH"] = "512"
 
     run(
         python_search=[tests_dir],
