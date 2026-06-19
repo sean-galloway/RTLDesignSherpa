@@ -32,6 +32,31 @@ axi_frontend_macro.mc_clk
 axi_frontend_macro.mc_rst_n
 
 @200
+-HAZARDS (axi_intake)
+@28
+axi_frontend_macro.u_axi_intake.w_hazard_any
+axi_frontend_macro.u_axi_intake.w_hazard_wbuf_wptr_glitch
+axi_frontend_macro.u_axi_intake.w_hazard_burst_done_premature
+axi_frontend_macro.u_axi_intake.w_hazard_w_after_wlast
+axi_frontend_macro.u_axi_intake.w_hazard_full_strb_acc_glitch
+axi_frontend_macro.u_axi_intake.w_hazard_aw_push_before_burst_done
+
+@200
+-debug_observables
+@28
+axi_frontend_macro.dbg_intake_busy_o
+@22
+axi_frontend_macro.dbg_wr_cam_occ_o[4:0]
+axi_frontend_macro.dbg_rd_cam_occ_o[4:0]
+@28
+axi_frontend_macro.dbg_forward_hit_o
+axi_frontend_macro.dbg_forward_miss_o
+axi_frontend_macro.dbg_fwd_valid_o
+@22
+axi_frontend_macro.dbg_fwd_src_slot_o[3:0]
+axi_frontend_macro.dbg_fwd_id_o[3:0]
+
+@200
 -CSR
 @28
 axi_frontend_macro.scheme_active_i[1:0]
@@ -304,31 +329,6 @@ axi_frontend_macro.rd_inject_id_i[3:0]
 axi_frontend_macro.rd_inject_data_i[63:0]
 @28
 axi_frontend_macro.rd_inject_last_i
-
-@200
--HAZARDS (axi_intake)
-@28
-axi_frontend_macro.u_axi_intake.w_hazard_any
-axi_frontend_macro.u_axi_intake.w_hazard_wbuf_wptr_glitch
-axi_frontend_macro.u_axi_intake.w_hazard_burst_done_premature
-axi_frontend_macro.u_axi_intake.w_hazard_w_after_wlast
-axi_frontend_macro.u_axi_intake.w_hazard_full_strb_acc_glitch
-axi_frontend_macro.u_axi_intake.w_hazard_aw_push_before_burst_done
-
-@200
--debug_observables
-@28
-axi_frontend_macro.dbg_intake_busy_o
-@22
-axi_frontend_macro.dbg_wr_cam_occ_o[4:0]
-axi_frontend_macro.dbg_rd_cam_occ_o[4:0]
-@28
-axi_frontend_macro.dbg_forward_hit_o
-axi_frontend_macro.dbg_forward_miss_o
-axi_frontend_macro.dbg_fwd_valid_o
-@22
-axi_frontend_macro.dbg_fwd_src_slot_o[3:0]
-axi_frontend_macro.dbg_fwd_id_o[3:0]
 
 [pattern_trace] 1
 [pattern_trace] 0
