@@ -37,10 +37,15 @@ module ddr2_lpddr2_core_macro
     parameter int DRAM_STRB_WIDTH = DRAM_BEAT_WIDTH / 8,
     parameter int MAX_BURST_LEN   = 256,
 
+    // Per-phase DFI widths (multi-phase bus widths are × DFI_RATE)
     parameter int DFI_ADDR_WIDTH  = 14,
     parameter int DFI_BANK_WIDTH  = 3,
     parameter int DFI_CTRL_WIDTH  = 1,
     parameter int DFI_CS_WIDTH    = NUM_RANKS,
+    parameter int DFI_ADDR_BUS_W  = DFI_ADDR_WIDTH * DFI_RATE,
+    parameter int DFI_BANK_BUS_W  = DFI_BANK_WIDTH * DFI_RATE,
+    parameter int DFI_CTRL_BUS_W  = DFI_CTRL_WIDTH * DFI_RATE,
+    parameter int DFI_CS_BUS_W    = DFI_CS_WIDTH * DFI_RATE,
     parameter int DFI_DATA_WIDTH  = DRAM_BEAT_WIDTH * DFI_RATE,
     parameter int DFI_STRB_WIDTH  = DFI_DATA_WIDTH / 8,
     parameter int DFI_VALID_WIDTH = 1,
@@ -136,14 +141,15 @@ module ddr2_lpddr2_core_macro
     // MEMORY-SIDE — DFI v2.1
     //=========================================================================
 
-    output logic [DFI_ADDR_WIDTH-1:0]  dfi_address_o,
-    output logic [DFI_BANK_WIDTH-1:0]  dfi_bank_o,
-    output logic [DFI_CTRL_WIDTH-1:0]  dfi_cas_n_o,
-    output logic [DFI_CTRL_WIDTH-1:0]  dfi_ras_n_o,
-    output logic [DFI_CTRL_WIDTH-1:0]  dfi_we_n_o,
-    output logic [DFI_CS_WIDTH-1:0]    dfi_cs_n_o,
-    output logic [DFI_CS_WIDTH-1:0]    dfi_cke_o,
-    output logic [DFI_CS_WIDTH-1:0]    dfi_odt_o,
+    // Multi-phase DFI control bus (per-phase × DFI_RATE).
+    output logic [DFI_ADDR_BUS_W-1:0]  dfi_address_o,
+    output logic [DFI_BANK_BUS_W-1:0]  dfi_bank_o,
+    output logic [DFI_CTRL_BUS_W-1:0]  dfi_cas_n_o,
+    output logic [DFI_CTRL_BUS_W-1:0]  dfi_ras_n_o,
+    output logic [DFI_CTRL_BUS_W-1:0]  dfi_we_n_o,
+    output logic [DFI_CS_BUS_W-1:0]    dfi_cs_n_o,
+    output logic [DFI_CS_BUS_W-1:0]    dfi_cke_o,
+    output logic [DFI_CS_BUS_W-1:0]    dfi_odt_o,
 
     output logic [DFI_DATA_WIDTH-1:0]  dfi_wrdata_o,
     output logic [DFI_EN_WIDTH-1:0]    dfi_wrdata_en_o,
@@ -153,7 +159,7 @@ module ddr2_lpddr2_core_macro
     input  logic [DFI_DATA_WIDTH-1:0]  dfi_rddata_i,
     input  logic [DFI_VALID_WIDTH-1:0] dfi_rddata_valid_i,
 
-    output logic [DFI_CS_WIDTH-1:0]    dfi_dram_clk_disable_o,
+    output logic [DFI_CS_BUS_W-1:0]    dfi_dram_clk_disable_o,
     output logic                       dfi_init_start_o,
     input  logic                       dfi_init_complete_i,
 
@@ -348,6 +354,7 @@ module ddr2_lpddr2_core_macro
         .ROW_WIDTH       (RW),
         .COL_WIDTH       (CW),
         .BURST_LEN_WIDTH (BLW),
+        .DFI_RATE        (DFI_RATE),
         .DFI_ADDR_WIDTH  (DFI_ADDR_WIDTH),
         .DFI_BANK_WIDTH  (DFI_BANK_WIDTH),
         .DFI_CTRL_WIDTH  (DFI_CTRL_WIDTH),

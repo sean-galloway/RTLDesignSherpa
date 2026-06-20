@@ -32,6 +32,8 @@ WR_TEST  = test_wr_cmd_cam.py
 RD_TEST  = test_rd_cmd_cam.py
 WBS_TEST = test_wr_beat_sequencer.py
 RCL_TEST = test_rd_cl_aligner.py
+DCF_TEST = test_dfi_cmd_formatter.py
+DSP_TEST = test_dfi_signal_pack.py
 
 .DEFAULT_GOAL := help
 
@@ -71,6 +73,18 @@ help:
 	@echo "  make run-rcl-full       FULL level"
 	@echo "  make run-rcl-waves      FUNC + FST waveforms"
 	@echo "  make run-rcl-parallel   FUNC + xdist"
+	@echo ""
+	@echo "dfi_cmd_formatter_fub:"
+	@echo "  make run-dcf            FUNC level"
+	@echo "  make run-dcf-gate       GATE level"
+	@echo "  make run-dcf-full       FULL level"
+	@echo "  make run-dcf-waves      FUNC + FST waveforms"
+	@echo ""
+	@echo "dfi_signal_pack_fub:"
+	@echo "  make run-dsp            FUNC level"
+	@echo "  make run-dsp-gate       GATE level"
+	@echo "  make run-dsp-full       FULL level"
+	@echo "  make run-dsp-waves      FUNC + FST waveforms"
 	@echo ""
 	@echo "Combined:"
 	@echo "  make run-all            All FUBs, FUNC level"
@@ -158,14 +172,46 @@ run-rcl-parallel:
 	TEST_LEVEL=FUNC $(PYTEST) $(VFLAGS) $(XDIST) $(RCL_TEST)
 
 # ------------------------------------------------------------------------------
+# dfi_cmd_formatter targets
+# ------------------------------------------------------------------------------
+.PHONY: run-dcf run-dcf-gate run-dcf-full run-dcf-waves
+run-dcf:
+	TEST_LEVEL=FUNC $(PYTEST) $(VFLAGS) $(DCF_TEST)
+
+run-dcf-gate:
+	TEST_LEVEL=GATE $(PYTEST) $(VFLAGS) $(DCF_TEST)
+
+run-dcf-full:
+	TEST_LEVEL=FULL $(PYTEST) $(VFLAGS) $(DCF_TEST)
+
+run-dcf-waves:
+	WAVES=1 TEST_LEVEL=FUNC $(PYTEST) $(VFLAGS) $(DCF_TEST)
+
+# ------------------------------------------------------------------------------
+# dfi_signal_pack targets
+# ------------------------------------------------------------------------------
+.PHONY: run-dsp run-dsp-gate run-dsp-full run-dsp-waves
+run-dsp:
+	TEST_LEVEL=FUNC $(PYTEST) $(VFLAGS) $(DSP_TEST)
+
+run-dsp-gate:
+	TEST_LEVEL=GATE $(PYTEST) $(VFLAGS) $(DSP_TEST)
+
+run-dsp-full:
+	TEST_LEVEL=FULL $(PYTEST) $(VFLAGS) $(DSP_TEST)
+
+run-dsp-waves:
+	WAVES=1 TEST_LEVEL=FUNC $(PYTEST) $(VFLAGS) $(DSP_TEST)
+
+# ------------------------------------------------------------------------------
 # Combined
 # ------------------------------------------------------------------------------
 .PHONY: run-all run-all-parallel
 run-all:
-	TEST_LEVEL=FUNC $(PYTEST) $(VFLAGS) $(WR_TEST) $(RD_TEST) $(WBS_TEST) $(RCL_TEST)
+	TEST_LEVEL=FUNC $(PYTEST) $(VFLAGS) $(WR_TEST) $(RD_TEST) $(WBS_TEST) $(RCL_TEST) $(DCF_TEST) $(DSP_TEST)
 
 run-all-parallel:
-	TEST_LEVEL=FUNC $(PYTEST) $(VFLAGS) $(XDIST) $(WR_TEST) $(RD_TEST) $(WBS_TEST) $(RCL_TEST)
+	TEST_LEVEL=FUNC $(PYTEST) $(VFLAGS) $(XDIST) $(WR_TEST) $(RD_TEST) $(WBS_TEST) $(RCL_TEST) $(DCF_TEST) $(DSP_TEST)
 
 # ------------------------------------------------------------------------------
 # Cleanup

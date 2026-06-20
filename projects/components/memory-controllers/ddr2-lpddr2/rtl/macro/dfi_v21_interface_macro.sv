@@ -4,20 +4,17 @@
 // Module: dfi_v21_interface_macro
 // Purpose: "Translate internal control + data into DFI v2.1 wires."
 //          The single layer in the controller core that owns the JEDEC
-//          truth tables for DDR2/LPDDR2 commands and the rate-2 phase
-//          packing. Swap THIS macro when moving to DFI v3 / v4 / v5 / v6
+//          truth tables for DDR2/LPDDR2 commands and the multi-phase
+//          pack. Swap THIS macro when moving to DFI v3 / v4 / v5 / v6
 //          for newer DRAM generations.
 //
 // Bundles: dfi_cmd_formatter + dfi_signal_pack.
 //
-// Boundaries:
-//          * Scheduler side → cmd_* channel (op/rank/bank/row/col/len),
-//                             dfi_cke pass-through.
-//          * Data-path side → pre_dfi_wrdata/en/mask + pre_dfi_rddata_en.
-//          * PHY side       → full DFI v2.1 Control + Write Data +
-//                             Read-Data-enable + Status sub-interfaces.
-//
-// Status:  SKELETON wrapper.
+// Multi-phase output widths:
+//   For DFI_RATE = N, every DFI control bus output is widened to
+//   per-phase × N (DFI_*_WIDTH * DFI_RATE). v1 uses phase 0 for the
+//   issued command; phases 1..N-1 emit NOP. The scheduler may later
+//   provide multiple commands per cycle.
 
 `timescale 1ns / 1ps
 `include "reset_defs.svh"
@@ -30,10 +27,15 @@ module dfi_v21_interface_macro
     parameter int ROW_WIDTH       = 14,
     parameter int COL_WIDTH       = 10,
     parameter int BURST_LEN_WIDTH = 8,
+    parameter int DFI_RATE        = 2,
     parameter int DFI_ADDR_WIDTH  = 14,
     parameter int DFI_BANK_WIDTH  = 3,
     parameter int DFI_CTRL_WIDTH  = 1,
     parameter int DFI_CS_WIDTH    = NUM_RANKS,
+    parameter int DFI_ADDR_BUS_W  = DFI_ADDR_WIDTH * DFI_RATE,
+    parameter int DFI_BANK_BUS_W  = DFI_BANK_WIDTH * DFI_RATE,
+    parameter int DFI_CTRL_BUS_W  = DFI_CTRL_WIDTH * DFI_RATE,
+    parameter int DFI_CS_BUS_W    = DFI_CS_WIDTH * DFI_RATE,
     parameter int DFI_DATA_WIDTH  = 64,
     parameter int DFI_STRB_WIDTH  = DFI_DATA_WIDTH / 8,
     parameter int DFI_EN_WIDTH    = 1,
@@ -48,7 +50,7 @@ module dfi_v21_interface_macro
     input  logic                          mc_rst_n,
     input  memtype_e                      memtype_i,
 
-    // ---- chosen op from scheduler ----
+    // ----- chosen op from scheduler -----
     input  logic                          cmd_valid_i,
     output logic                          cmd_ready_o,
     input  dram_op_e                      cmd_op_i,
@@ -58,48 +60,63 @@ module dfi_v21_interface_macro
     input  logic [CW-1:0]                 cmd_col_i,
     input  logic [BLW-1:0]                cmd_len_i,
 
-    // ---- pre-pack data from data_path_macro ----
+    // ----- pre-pack data from data_path_macro -----
     input  logic [DFI_DATA_WIDTH-1:0]     pre_dfi_wrdata_i,
     input  logic [DFI_EN_WIDTH-1:0]       pre_dfi_wrdata_en_i,
     input  logic [DFI_STRB_WIDTH-1:0]     pre_dfi_wrdata_mask_i,
     input  logic [DFI_EN_WIDTH-1:0]       pre_dfi_rddata_en_i,
 
-    // ---- CKE from powerdown_ctrl (inside scheduler_macro) ----
+    // ----- per-rank CKE from powerdown_ctrl (replicated across phases) -----
     input  logic [DFI_CS_WIDTH-1:0]       pre_dfi_cke_i,
 
-    // ---- DFI Control Interface (out to PHY) ----
-    output logic [DFI_ADDR_WIDTH-1:0]     dfi_address_o,
-    output logic [DFI_BANK_WIDTH-1:0]     dfi_bank_o,
-    output logic [DFI_CTRL_WIDTH-1:0]     dfi_cas_n_o,
-    output logic [DFI_CTRL_WIDTH-1:0]     dfi_ras_n_o,
-    output logic [DFI_CTRL_WIDTH-1:0]     dfi_we_n_o,
-    output logic [DFI_CS_WIDTH-1:0]       dfi_cs_n_o,
-    output logic [DFI_CS_WIDTH-1:0]       dfi_cke_o,
-    output logic [DFI_CS_WIDTH-1:0]       dfi_odt_o,
+    // ----- DFI v2.1 control bus (multi-phase) -----
+    output logic [DFI_ADDR_BUS_W-1:0]     dfi_address_o,
+    output logic [DFI_BANK_BUS_W-1:0]     dfi_bank_o,
+    output logic [DFI_CTRL_BUS_W-1:0]     dfi_cas_n_o,
+    output logic [DFI_CTRL_BUS_W-1:0]     dfi_ras_n_o,
+    output logic [DFI_CTRL_BUS_W-1:0]     dfi_we_n_o,
+    output logic [DFI_CS_BUS_W-1:0]       dfi_cs_n_o,
+    output logic [DFI_CS_BUS_W-1:0]       dfi_cke_o,
+    output logic [DFI_CS_BUS_W-1:0]       dfi_odt_o,
 
-    // ---- DFI Write Data Interface ----
+    // ----- DFI Write Data Interface -----
     output logic [DFI_DATA_WIDTH-1:0]     dfi_wrdata_o,
     output logic [DFI_EN_WIDTH-1:0]       dfi_wrdata_en_o,
     output logic [DFI_STRB_WIDTH-1:0]     dfi_wrdata_mask_o,
 
-    // ---- DFI Read Data Enable (data + valid flow to data_path_macro
-    //      directly at the top wrapper) ----
+    // ----- DFI Read Data Enable -----
     output logic [DFI_EN_WIDTH-1:0]       dfi_rddata_en_o,
 
-    // ---- DFI Status ----
-    output logic [DFI_CS_WIDTH-1:0]       dfi_dram_clk_disable_o
+    // ----- DFI Status -----
+    output logic [DFI_CS_BUS_W-1:0]       dfi_dram_clk_disable_o
 );
 
     //=========================================================================
-    // Pre-pack control nets from cmd_formatter → signal_pack
+    // Pre-pack nets from cmd_formatter → signal_pack
     //=========================================================================
-    logic [DFI_ADDR_WIDTH-1:0]  pre_dfi_address;
-    logic [DFI_BANK_WIDTH-1:0]  pre_dfi_bank;
-    logic [DFI_CTRL_WIDTH-1:0]  pre_dfi_cas_n;
-    logic [DFI_CTRL_WIDTH-1:0]  pre_dfi_ras_n;
-    logic [DFI_CTRL_WIDTH-1:0]  pre_dfi_we_n;
-    logic [DFI_CS_WIDTH-1:0]    pre_dfi_cs_n;
-    logic [DFI_CS_WIDTH-1:0]    pre_dfi_odt;
+    logic [DFI_ADDR_BUS_W-1:0]  pre_dfi_address;
+    logic [DFI_BANK_BUS_W-1:0]  pre_dfi_bank;
+    logic [DFI_CTRL_BUS_W-1:0]  pre_dfi_cas_n;
+    logic [DFI_CTRL_BUS_W-1:0]  pre_dfi_ras_n;
+    logic [DFI_CTRL_BUS_W-1:0]  pre_dfi_we_n;
+    logic [DFI_CS_BUS_W-1:0]    pre_dfi_cs_n;
+    logic [DFI_CS_BUS_W-1:0]    pre_dfi_odt;
+
+    //=========================================================================
+    // Replicate per-rank CKE across DFI_RATE phases (CKE is the same
+    // value for every phase within a DFI cycle — sub-cycle CKE control
+    // is a TODO if a future PHY ever needs it).
+    //=========================================================================
+    logic [DFI_CS_BUS_W-1:0]    pre_dfi_cke_multi;
+    always_comb begin
+        for (int unsigned p = 0; p < DFI_RATE; p++) begin
+            pre_dfi_cke_multi[p*DFI_CS_WIDTH +: DFI_CS_WIDTH] = pre_dfi_cke_i;
+        end
+    end
+
+    //=========================================================================
+    // FUBs
+    //=========================================================================
 
     dfi_cmd_formatter_fub #(
         .NUM_RANKS       (NUM_RANKS),
@@ -107,6 +124,7 @@ module dfi_v21_interface_macro
         .ROW_WIDTH       (RW),
         .COL_WIDTH       (CW),
         .BURST_LEN_WIDTH (BLW),
+        .DFI_RATE        (DFI_RATE),
         .DFI_ADDR_WIDTH  (DFI_ADDR_WIDTH),
         .DFI_BANK_WIDTH  (DFI_BANK_WIDTH),
         .DFI_CTRL_WIDTH  (DFI_CTRL_WIDTH),
@@ -134,6 +152,7 @@ module dfi_v21_interface_macro
 
     dfi_signal_pack_fub #(
         .NUM_RANKS       (NUM_RANKS),
+        .DFI_RATE        (DFI_RATE),
         .DFI_ADDR_WIDTH  (DFI_ADDR_WIDTH),
         .DFI_BANK_WIDTH  (DFI_BANK_WIDTH),
         .DFI_CTRL_WIDTH  (DFI_CTRL_WIDTH),
@@ -150,7 +169,7 @@ module dfi_v21_interface_macro
         .i_ras_n                (pre_dfi_ras_n),
         .i_we_n                 (pre_dfi_we_n),
         .i_cs_n                 (pre_dfi_cs_n),
-        .i_cke                  (pre_dfi_cke_i),
+        .i_cke                  (pre_dfi_cke_multi),
         .i_odt                  (pre_dfi_odt),
         .i_wrdata               (pre_dfi_wrdata_i),
         .i_wrdata_en            (pre_dfi_wrdata_en_i),
