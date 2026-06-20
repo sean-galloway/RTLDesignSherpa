@@ -1,0 +1,73 @@
+[*]
+[*] GTKWave save file for wr_beat_sequencer_fub unit tests
+[*] Edit [dumpfile] to point at the scenario/rate you want to view.
+[*] Default = smoke at DFI_RATE=2.
+[*]
+[dumpfile] "../../local_sim_build/test_wr_beat_sequencer_smoke_r2/dump.fst"
+[savefile] "wr_beat_sequencer_fub.gtkw"
+[timestart] 0
+[size] 3456 1863
+[pos] -1 -1
+*-17.000000 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
+[treeopen] wr_beat_sequencer_fub.
+[sst_width] 503
+[signals_width] 568
+[sst_expanded] 1
+[sst_vpaned_height] 983
+
+@28
+wr_beat_sequencer_fub.mc_clk
+wr_beat_sequencer_fub.mc_rst_n
+
+@200
+-FSM_STATE
+@22
+wr_beat_sequencer_fub.r_state[2:0]
+wr_beat_sequencer_fub.r_cur_slot[3:0]
+wr_beat_sequencer_fub.r_cur_len[7:0]
+wr_beat_sequencer_fub.r_beats_pulled[7:0]
+wr_beat_sequencer_fub.r_wait_cnt[7:0]
+wr_beat_sequencer_fub.r_dfi_cycle_cnt[7:0]
+wr_beat_sequencer_fub.w_dfi_cycles_total[8:0]
+
+@200
+-OP_HANDSHAKE
+@28
+wr_beat_sequencer_fub.op_valid_i
+wr_beat_sequencer_fub.op_ready_o
+@22
+wr_beat_sequencer_fub.op_slot_i[3:0]
+wr_beat_sequencer_fub.op_len_i[7:0]
+wr_beat_sequencer_fub.t_phy_wrlat_i[7:0]
+
+@200
+-BEAT_PULL
+@28
+wr_beat_sequencer_fub.beat_pull_strb_o
+@22
+wr_beat_sequencer_fub.beat_pull_slot_o[3:0]
+wr_beat_sequencer_fub.beat_pull_ptr_i[6:0]
+wr_beat_sequencer_fub.beat_pull_strb_ptr_i[6:0]
+@28
+wr_beat_sequencer_fub.beat_pull_last_i
+@22
+wr_beat_sequencer_fub.wbuf_rd_data_i[63:0]
+wr_beat_sequencer_fub.wbuf_rd_strb_i[7:0]
+
+@200
+-DFI_WRITE
+@28
+wr_beat_sequencer_fub.dfi_wrdata_en_o
+@22
+wr_beat_sequencer_fub.dfi_wrdata_o[127:0]
+wr_beat_sequencer_fub.dfi_wrdata_mask_o[15:0]
+
+@200
+-B_COMPLETE
+@28
+wr_beat_sequencer_fub.b_complete_strb_o
+@22
+wr_beat_sequencer_fub.b_complete_slot_o[3:0]
+
+[pattern_trace] 1
+[pattern_trace] 0

@@ -28,8 +28,9 @@ PYTEST = python3 -m pytest
 VFLAGS = -v --tb=short
 XDIST  = -n logical
 
-WR_TEST = test_wr_cmd_cam.py
-RD_TEST = test_rd_cmd_cam.py
+WR_TEST  = test_wr_cmd_cam.py
+RD_TEST  = test_rd_cmd_cam.py
+WBS_TEST = test_wr_beat_sequencer.py
 
 .DEFAULT_GOAL := help
 
@@ -56,9 +57,16 @@ help:
 	@echo "  make run-rd-waves       FUNC + FST waveforms"
 	@echo "  make run-rd-parallel    FUNC + xdist"
 	@echo ""
-	@echo "Both:"
-	@echo "  make run-all            Both CAMs, FUNC level"
-	@echo "  make run-all-parallel   Both CAMs, FUNC level, xdist"
+	@echo "wr_beat_sequencer_fub:"
+	@echo "  make run-wbs            FUNC level (rate-2 + rate-4)"
+	@echo "  make run-wbs-gate       GATE level (rate-2 quick)"
+	@echo "  make run-wbs-full       FULL level"
+	@echo "  make run-wbs-waves      FUNC + FST waveforms"
+	@echo "  make run-wbs-parallel   FUNC + xdist"
+	@echo ""
+	@echo "Combined:"
+	@echo "  make run-all            All FUBs, FUNC level"
+	@echo "  make run-all-parallel   All FUBs, FUNC level, xdist"
 	@echo ""
 	@echo "Cleanup:"
 	@echo "  make clean              Remove local sim/build/logs"
@@ -104,14 +112,33 @@ run-rd-parallel:
 	TEST_LEVEL=FUNC $(PYTEST) $(VFLAGS) $(XDIST) $(RD_TEST)
 
 # ------------------------------------------------------------------------------
+# wr_beat_sequencer targets
+# ------------------------------------------------------------------------------
+.PHONY: run-wbs run-wbs-gate run-wbs-full run-wbs-waves run-wbs-parallel
+run-wbs:
+	TEST_LEVEL=FUNC $(PYTEST) $(VFLAGS) $(WBS_TEST)
+
+run-wbs-gate:
+	TEST_LEVEL=GATE $(PYTEST) $(VFLAGS) $(WBS_TEST)
+
+run-wbs-full:
+	TEST_LEVEL=FULL $(PYTEST) $(VFLAGS) $(WBS_TEST)
+
+run-wbs-waves:
+	WAVES=1 TEST_LEVEL=FUNC $(PYTEST) $(VFLAGS) $(WBS_TEST)
+
+run-wbs-parallel:
+	TEST_LEVEL=FUNC $(PYTEST) $(VFLAGS) $(XDIST) $(WBS_TEST)
+
+# ------------------------------------------------------------------------------
 # Combined
 # ------------------------------------------------------------------------------
 .PHONY: run-all run-all-parallel
 run-all:
-	TEST_LEVEL=FUNC $(PYTEST) $(VFLAGS) $(WR_TEST) $(RD_TEST)
+	TEST_LEVEL=FUNC $(PYTEST) $(VFLAGS) $(WR_TEST) $(RD_TEST) $(WBS_TEST)
 
 run-all-parallel:
-	TEST_LEVEL=FUNC $(PYTEST) $(VFLAGS) $(XDIST) $(WR_TEST) $(RD_TEST)
+	TEST_LEVEL=FUNC $(PYTEST) $(VFLAGS) $(XDIST) $(WR_TEST) $(RD_TEST) $(WBS_TEST)
 
 # ------------------------------------------------------------------------------
 # Cleanup
