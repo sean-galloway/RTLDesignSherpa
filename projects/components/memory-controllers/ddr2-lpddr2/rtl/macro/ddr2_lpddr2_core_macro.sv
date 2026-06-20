@@ -32,11 +32,16 @@ module ddr2_lpddr2_core_macro
     parameter int WR_CAM_DEPTH    = 16,
     parameter int RD_CAM_DEPTH    = 16,
 
+    parameter int DRAM_BEAT_WIDTH = AXI_DATA_WIDTH,
+    parameter int DFI_RATE        = 2,
+    parameter int DRAM_STRB_WIDTH = DRAM_BEAT_WIDTH / 8,
+    parameter int MAX_BURST_LEN   = 256,
+
     parameter int DFI_ADDR_WIDTH  = 14,
     parameter int DFI_BANK_WIDTH  = 3,
     parameter int DFI_CTRL_WIDTH  = 1,
     parameter int DFI_CS_WIDTH    = NUM_RANKS,
-    parameter int DFI_DATA_WIDTH  = AXI_DATA_WIDTH,
+    parameter int DFI_DATA_WIDTH  = DRAM_BEAT_WIDTH * DFI_RATE,
     parameter int DFI_STRB_WIDTH  = DFI_DATA_WIDTH / 8,
     parameter int DFI_VALID_WIDTH = 1,
     parameter int DFI_EN_WIDTH    = 1,
@@ -75,6 +80,10 @@ module ddr2_lpddr2_core_macro
     input  logic [15:0]                mr_data_i,
     input  logic [RKW-1:0]             mr_rank_i,
 
+    // ---- PHY timing (DFI Initialization Status Register-derived) ----
+    input  logic [7:0]                 t_phy_wrlat_i,
+    input  logic [7:0]                 t_rddata_en_i,
+
     //=========================================================================
     // HOST-SIDE — pairs with axi_frontend_macro backend ports
     //=========================================================================
@@ -103,8 +112,10 @@ module ddr2_lpddr2_core_macro
     input  logic [WPW-1:0]             beat_pull_ptr_i,
     input  logic [WPW-1:0]             beat_pull_strb_ptr_i,
     input  logic                       beat_pull_last_i,
-    input  logic [DFI_DATA_WIDTH-1:0]  wbuf_rd_data_i,
-    input  logic [DFI_STRB_WIDTH-1:0]  wbuf_rd_strb_i,
+    // wbuf_rd_data is one DRAM beat at a time (axi_frontend's
+    // wbuf_ext_rd port is a single-beat combinational read).
+    input  logic [DRAM_BEAT_WIDTH-1:0] wbuf_rd_data_i,
+    input  logic [DRAM_STRB_WIDTH-1:0] wbuf_rd_strb_i,
 
     output logic                       b_complete_strb_o,
     output logic [WSL-1:0]             b_complete_slot_o,
@@ -114,7 +125,8 @@ module ddr2_lpddr2_core_macro
     output logic                       rd_inject_valid_o,
     input  logic                       rd_inject_ready_i,
     output logic [IW-1:0]              rd_inject_id_o,
-    output logic [DFI_DATA_WIDTH-1:0]  rd_inject_data_o,
+    // rd_inject is one DRAM beat per cycle to the axi_frontend R FSM.
+    output logic [DRAM_BEAT_WIDTH-1:0] rd_inject_data_o,
     output logic                       rd_inject_last_o,
 
     //=========================================================================
@@ -277,16 +289,22 @@ module ddr2_lpddr2_core_macro
         .RD_CAM_DEPTH    (RD_CAM_DEPTH),
         .W_BUF_PTR_WIDTH (WPW),
         .BURST_LEN_WIDTH (BLW),
+        .DRAM_BEAT_WIDTH (DRAM_BEAT_WIDTH),
+        .DFI_RATE        (DFI_RATE),
         .DFI_DATA_WIDTH  (DFI_DATA_WIDTH),
+        .DRAM_STRB_WIDTH (DRAM_STRB_WIDTH),
         .DFI_STRB_WIDTH  (DFI_STRB_WIDTH),
         .DFI_VALID_WIDTH (DFI_VALID_WIDTH),
-        .DFI_EN_WIDTH    (DFI_EN_WIDTH)
+        .DFI_EN_WIDTH    (DFI_EN_WIDTH),
+        .MAX_BURST_LEN   (MAX_BURST_LEN)
     ) u_data_path (
         .mc_clk                (mc_clk),
         .mc_rst_n              (mc_rst_n),
         .cl_i                  (cl_val),
         .cwl_i                 (cwl_val),
         .al_i                  (al_val),
+        .t_phy_wrlat_i         (t_phy_wrlat_i),
+        .t_rddata_en_i         (t_rddata_en_i),
         .wr_op_valid_i         (wr_op_valid),
         .wr_op_ready_o         (wr_op_ready),
         .wr_op_slot_i          (cmd_wr_slot),

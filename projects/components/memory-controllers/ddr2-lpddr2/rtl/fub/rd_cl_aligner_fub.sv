@@ -18,7 +18,9 @@ module rd_cl_aligner_fub
     parameter int RD_CAM_DEPTH    = 16,
     parameter int AXI_ID_WIDTH    = 4,
     parameter int BURST_LEN_WIDTH = 8,
-    parameter int DFI_DATA_WIDTH  = 64,
+    parameter int DRAM_BEAT_WIDTH = 64,
+    parameter int DFI_RATE        = 2,
+    parameter int DFI_DATA_WIDTH  = DRAM_BEAT_WIDTH * DFI_RATE,
     parameter int DFI_VALID_WIDTH = 1,
     parameter int DFI_EN_WIDTH    = 1,
 
@@ -44,11 +46,11 @@ module rd_cl_aligner_fub
     input  logic [DFI_DATA_WIDTH-1:0]     dfi_rddata_i,
     input  logic [DFI_VALID_WIDTH-1:0]    dfi_rddata_valid_i,
 
-    // ----- rd_inject into axi_frontend -----
+    // ----- rd_inject into axi_frontend (one DRAM beat per cycle) -----
     output logic                          rd_inject_valid_o,
     input  logic                          rd_inject_ready_i,
     output logic [IW-1:0]                 rd_inject_id_o,
-    output logic [DFI_DATA_WIDTH-1:0]     rd_inject_data_o,
+    output logic [DRAM_BEAT_WIDTH-1:0]    rd_inject_data_o,
     output logic                          rd_inject_last_o,
 
     // ----- per-beat strobe to rd CAM (beat retire) -----

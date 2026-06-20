@@ -29,10 +29,14 @@ module data_path_macro
     parameter int RD_CAM_DEPTH    = 16,
     parameter int W_BUF_PTR_WIDTH = 7,
     parameter int BURST_LEN_WIDTH = 8,
-    parameter int DFI_DATA_WIDTH  = 64,
+    parameter int DRAM_BEAT_WIDTH = 64,
+    parameter int DFI_RATE        = 2,
+    parameter int DFI_DATA_WIDTH  = DRAM_BEAT_WIDTH * DFI_RATE,
+    parameter int DRAM_STRB_WIDTH = DRAM_BEAT_WIDTH / 8,
     parameter int DFI_STRB_WIDTH  = DFI_DATA_WIDTH / 8,
     parameter int DFI_VALID_WIDTH = 1,
     parameter int DFI_EN_WIDTH    = 1,
+    parameter int MAX_BURST_LEN   = 256,
 
     parameter int IW  = AXI_ID_WIDTH,
     parameter int WPW = W_BUF_PTR_WIDTH,
@@ -47,6 +51,10 @@ module data_path_macro
     input  logic [3:0]                 cl_i,
     input  logic [3:0]                 cwl_i,
     input  logic [3:0]                 al_i,
+
+    // ---- PHY timing (CSR-loaded after DFI init) ----
+    input  logic [7:0]                 t_phy_wrlat_i,
+    input  logic [7:0]                 t_rddata_en_i,
 
     // ---- write op handshake (from scheduler/top) ----
     input  logic                       wr_op_valid_i,
@@ -67,18 +75,21 @@ module data_path_macro
     input  logic [WPW-1:0]             beat_pull_ptr_i,
     input  logic [WPW-1:0]             beat_pull_strb_ptr_i,
     input  logic                       beat_pull_last_i,
-    input  logic [DFI_DATA_WIDTH-1:0]  wbuf_rd_data_i,
-    input  logic [DFI_STRB_WIDTH-1:0]  wbuf_rd_strb_i,
+    // wbuf read is one DRAM beat per cycle (the wr CAM beat_pull port
+    // exposes a single read at a time).
+    input  logic [DRAM_BEAT_WIDTH-1:0] wbuf_rd_data_i,
+    input  logic [DRAM_STRB_WIDTH-1:0] wbuf_rd_strb_i,
 
     // ---- b_complete back to host wr CAM ----
     output logic                       b_complete_strb_o,
     output logic [WSL-1:0]             b_complete_slot_o,
 
-    // ---- rd_inject path (axi_frontend ← rd_cl_aligner) ----
+    // ---- rd_inject path (axi_frontend ← rd_cl_aligner). One DRAM beat
+    //      per cycle to the axi_frontend R FSM. ----
     output logic                       rd_inject_valid_o,
     input  logic                       rd_inject_ready_i,
     output logic [IW-1:0]              rd_inject_id_o,
-    output logic [DFI_DATA_WIDTH-1:0]  rd_inject_data_o,
+    output logic [DRAM_BEAT_WIDTH-1:0] rd_inject_data_o,
     output logic                       rd_inject_last_o,
 
     // ---- rd beat strobe back to host rd CAM ----
@@ -100,13 +111,18 @@ module data_path_macro
         .WR_CAM_DEPTH    (WR_CAM_DEPTH),
         .W_BUF_PTR_WIDTH (WPW),
         .BURST_LEN_WIDTH (BLW),
+        .DRAM_BEAT_WIDTH (DRAM_BEAT_WIDTH),
+        .DFI_RATE        (DFI_RATE),
         .DFI_DATA_WIDTH  (DFI_DATA_WIDTH),
+        .DRAM_STRB_WIDTH (DRAM_STRB_WIDTH),
         .DFI_STRB_WIDTH  (DFI_STRB_WIDTH),
-        .DFI_EN_WIDTH    (DFI_EN_WIDTH)
+        .DFI_EN_WIDTH    (DFI_EN_WIDTH),
+        .MAX_BURST_LEN   (MAX_BURST_LEN)
     ) u_wr_beat_sequencer (
         .mc_clk               (mc_clk),
         .mc_rst_n             (mc_rst_n),
         .cwl_i                (cwl_i),
+        .t_phy_wrlat_i        (t_phy_wrlat_i),
         .op_valid_i           (wr_op_valid_i),
         .op_ready_o           (wr_op_ready_o),
         .op_slot_i            (wr_op_slot_i),
@@ -129,6 +145,8 @@ module data_path_macro
         .RD_CAM_DEPTH    (RD_CAM_DEPTH),
         .AXI_ID_WIDTH    (IW),
         .BURST_LEN_WIDTH (BLW),
+        .DRAM_BEAT_WIDTH (DRAM_BEAT_WIDTH),
+        .DFI_RATE        (DFI_RATE),
         .DFI_DATA_WIDTH  (DFI_DATA_WIDTH),
         .DFI_VALID_WIDTH (DFI_VALID_WIDTH),
         .DFI_EN_WIDTH    (DFI_EN_WIDTH)
