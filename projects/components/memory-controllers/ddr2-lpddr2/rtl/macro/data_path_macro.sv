@@ -56,6 +56,9 @@ module data_path_macro
     input  logic [7:0]                 t_phy_wrlat_i,
     input  logic [7:0]                 t_rddata_en_i,
 
+    // ---- multi-outstanding read ordering mode (v2; tied off in v1) ----
+    input  logic                       rd_in_order_i,
+
     // ---- write op handshake (from scheduler/top) ----
     input  logic                       wr_op_valid_i,
     output logic                       wr_op_ready_o,
@@ -149,12 +152,15 @@ module data_path_macro
         .DFI_RATE        (DFI_RATE),
         .DFI_DATA_WIDTH  (DFI_DATA_WIDTH),
         .DFI_VALID_WIDTH (DFI_VALID_WIDTH),
-        .DFI_EN_WIDTH    (DFI_EN_WIDTH)
+        .DFI_EN_WIDTH    (DFI_EN_WIDTH),
+        .MAX_BURST_LEN   (MAX_BURST_LEN)
     ) u_rd_cl_aligner (
         .mc_clk             (mc_clk),
         .mc_rst_n           (mc_rst_n),
         .cl_i               (cl_i),
         .al_i               (al_i),
+        .t_rddata_en_i      (t_rddata_en_i),
+        .rd_in_order_i      (rd_in_order_i),
         .op_valid_i         (rd_op_valid_i),
         .op_ready_o         (rd_op_ready_o),
         .op_slot_i          (rd_op_slot_i),

@@ -31,6 +31,7 @@ XDIST  = -n logical
 WR_TEST  = test_wr_cmd_cam.py
 RD_TEST  = test_rd_cmd_cam.py
 WBS_TEST = test_wr_beat_sequencer.py
+RCL_TEST = test_rd_cl_aligner.py
 
 .DEFAULT_GOAL := help
 
@@ -63,6 +64,13 @@ help:
 	@echo "  make run-wbs-full       FULL level"
 	@echo "  make run-wbs-waves      FUNC + FST waveforms"
 	@echo "  make run-wbs-parallel   FUNC + xdist"
+	@echo ""
+	@echo "rd_cl_aligner_fub:"
+	@echo "  make run-rcl            FUNC level (rate-2 + rate-4)"
+	@echo "  make run-rcl-gate       GATE level"
+	@echo "  make run-rcl-full       FULL level"
+	@echo "  make run-rcl-waves      FUNC + FST waveforms"
+	@echo "  make run-rcl-parallel   FUNC + xdist"
 	@echo ""
 	@echo "Combined:"
 	@echo "  make run-all            All FUBs, FUNC level"
@@ -131,14 +139,33 @@ run-wbs-parallel:
 	TEST_LEVEL=FUNC $(PYTEST) $(VFLAGS) $(XDIST) $(WBS_TEST)
 
 # ------------------------------------------------------------------------------
+# rd_cl_aligner targets
+# ------------------------------------------------------------------------------
+.PHONY: run-rcl run-rcl-gate run-rcl-full run-rcl-waves run-rcl-parallel
+run-rcl:
+	TEST_LEVEL=FUNC $(PYTEST) $(VFLAGS) $(RCL_TEST)
+
+run-rcl-gate:
+	TEST_LEVEL=GATE $(PYTEST) $(VFLAGS) $(RCL_TEST)
+
+run-rcl-full:
+	TEST_LEVEL=FULL $(PYTEST) $(VFLAGS) $(RCL_TEST)
+
+run-rcl-waves:
+	WAVES=1 TEST_LEVEL=FUNC $(PYTEST) $(VFLAGS) $(RCL_TEST)
+
+run-rcl-parallel:
+	TEST_LEVEL=FUNC $(PYTEST) $(VFLAGS) $(XDIST) $(RCL_TEST)
+
+# ------------------------------------------------------------------------------
 # Combined
 # ------------------------------------------------------------------------------
 .PHONY: run-all run-all-parallel
 run-all:
-	TEST_LEVEL=FUNC $(PYTEST) $(VFLAGS) $(WR_TEST) $(RD_TEST) $(WBS_TEST)
+	TEST_LEVEL=FUNC $(PYTEST) $(VFLAGS) $(WR_TEST) $(RD_TEST) $(WBS_TEST) $(RCL_TEST)
 
 run-all-parallel:
-	TEST_LEVEL=FUNC $(PYTEST) $(VFLAGS) $(XDIST) $(WR_TEST) $(RD_TEST) $(WBS_TEST)
+	TEST_LEVEL=FUNC $(PYTEST) $(VFLAGS) $(XDIST) $(WR_TEST) $(RD_TEST) $(WBS_TEST) $(RCL_TEST)
 
 # ------------------------------------------------------------------------------
 # Cleanup

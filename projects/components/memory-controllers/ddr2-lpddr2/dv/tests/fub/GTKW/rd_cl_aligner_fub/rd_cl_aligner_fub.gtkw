@@ -1,0 +1,71 @@
+[*]
+[*] GTKWave save file for rd_cl_aligner_fub unit tests
+[*] Default = smoke at DFI_RATE=2.
+[*]
+[dumpfile] "../../local_sim_build/test_rd_cl_aligner_smoke_r2/dump.fst"
+[savefile] "rd_cl_aligner_fub.gtkw"
+[timestart] 0
+[size] 3456 1863
+[pos] -1 -1
+*-17.000000 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
+[treeopen] rd_cl_aligner_fub.
+[sst_width] 503
+[signals_width] 568
+[sst_expanded] 1
+[sst_vpaned_height] 983
+
+@28
+rd_cl_aligner_fub.mc_clk
+rd_cl_aligner_fub.mc_rst_n
+
+@200
+-FSM_STATE
+@22
+rd_cl_aligner_fub.r_state[1:0]
+rd_cl_aligner_fub.r_cur_slot[3:0]
+rd_cl_aligner_fub.r_cur_id[3:0]
+rd_cl_aligner_fub.r_cur_len[7:0]
+rd_cl_aligner_fub.r_wait_cnt[7:0]
+rd_cl_aligner_fub.r_en_remaining[8:0]
+rd_cl_aligner_fub.r_dfi_captured[8:0]
+rd_cl_aligner_fub.r_beats_emitted[7:0]
+
+@200
+-OP_HANDSHAKE
+@28
+rd_cl_aligner_fub.op_valid_i
+rd_cl_aligner_fub.op_ready_o
+@22
+rd_cl_aligner_fub.op_slot_i[3:0]
+rd_cl_aligner_fub.op_id_i[3:0]
+rd_cl_aligner_fub.op_len_i[7:0]
+rd_cl_aligner_fub.t_rddata_en_i[7:0]
+
+@200
+-DFI_READ
+@28
+rd_cl_aligner_fub.dfi_rddata_en_o
+rd_cl_aligner_fub.dfi_rddata_valid_i
+@22
+rd_cl_aligner_fub.dfi_rddata_i[127:0]
+
+@200
+-RD_INJECT
+@28
+rd_cl_aligner_fub.rd_inject_valid_o
+rd_cl_aligner_fub.rd_inject_ready_i
+@22
+rd_cl_aligner_fub.rd_inject_id_o[3:0]
+rd_cl_aligner_fub.rd_inject_data_o[63:0]
+@28
+rd_cl_aligner_fub.rd_inject_last_o
+
+@200
+-RD_BEAT_RETIRE
+@28
+rd_cl_aligner_fub.rd_beat_we_o
+@22
+rd_cl_aligner_fub.rd_beat_slot_o[3:0]
+
+[pattern_trace] 1
+[pattern_trace] 0

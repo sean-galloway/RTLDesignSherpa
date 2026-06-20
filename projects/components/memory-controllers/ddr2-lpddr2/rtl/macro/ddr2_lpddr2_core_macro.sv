@@ -84,6 +84,9 @@ module ddr2_lpddr2_core_macro
     input  logic [7:0]                 t_phy_wrlat_i,
     input  logic [7:0]                 t_rddata_en_i,
 
+    // ---- read ordering: 1 = strict issue order across IDs (v2 only) ----
+    input  logic                       rd_in_order_i,
+
     //=========================================================================
     // HOST-SIDE — pairs with axi_frontend_macro backend ports
     //=========================================================================
@@ -305,6 +308,7 @@ module ddr2_lpddr2_core_macro
         .al_i                  (al_val),
         .t_phy_wrlat_i         (t_phy_wrlat_i),
         .t_rddata_en_i         (t_rddata_en_i),
+        .rd_in_order_i         (rd_in_order_i),
         .wr_op_valid_i         (wr_op_valid),
         .wr_op_ready_o         (wr_op_ready),
         .wr_op_slot_i          (cmd_wr_slot),
