@@ -1,22 +1,16 @@
 # Filelist for ddr2_lpddr2_core_macro (SKELETON)
 # Location: projects/components/memory-controllers/ddr2-lpddr2/rtl/filelists/macro/ddr2_lpddr2_core_macro.f
 #
-# Bundles the mid-layer macro that sits between axi_frontend_macro and
-# the DFI v2.1 PHY: scheduler + per-bank/global timers + refresh +
-# powerdown + init + mode register + write/read data path + DFI cmd
-# formatter + DFI signal pack.
+# Slim top wrapper: instantiates the three sub-macros that together
+# form the controller core (scheduler + data path + DFI v2.1 wire pack).
 
-# Include directories
 +incdir+$REPO_ROOT/projects/components/memory-controllers/ddr2-lpddr2/rtl/includes
 +incdir+$REPO_ROOT/rtl/amba/includes
 
-# Header files (MUST be compiled first)
 $REPO_ROOT/rtl/amba/includes/reset_defs.svh
-
-# Packages
 $REPO_ROOT/projects/components/memory-controllers/ddr2-lpddr2/rtl/includes/ddr2_lpddr2_pkg.sv
 
-# FUBs
+# FUBs — listed once at the top so each sub-macro elaborates clean
 $REPO_ROOT/projects/components/memory-controllers/ddr2-lpddr2/rtl/fub/scheduler_fub.sv
 $REPO_ROOT/projects/components/memory-controllers/ddr2-lpddr2/rtl/fub/xbank_timers_fub.sv
 $REPO_ROOT/projects/components/memory-controllers/ddr2-lpddr2/rtl/fub/global_timers_fub.sv
@@ -29,5 +23,10 @@ $REPO_ROOT/projects/components/memory-controllers/ddr2-lpddr2/rtl/fub/rd_cl_alig
 $REPO_ROOT/projects/components/memory-controllers/ddr2-lpddr2/rtl/fub/dfi_cmd_formatter_fub.sv
 $REPO_ROOT/projects/components/memory-controllers/ddr2-lpddr2/rtl/fub/dfi_signal_pack_fub.sv
 
-# Macro
+# Sub-macros (each wraps a coherent FUB group)
+$REPO_ROOT/projects/components/memory-controllers/ddr2-lpddr2/rtl/macro/command_scheduler_macro.sv
+$REPO_ROOT/projects/components/memory-controllers/ddr2-lpddr2/rtl/macro/data_path_macro.sv
+$REPO_ROOT/projects/components/memory-controllers/ddr2-lpddr2/rtl/macro/dfi_v21_interface_macro.sv
+
+# Top wrapper
 $REPO_ROOT/projects/components/memory-controllers/ddr2-lpddr2/rtl/macro/ddr2_lpddr2_core_macro.sv
