@@ -21,26 +21,34 @@
 
 <!-- End Header -->
 
-# FR-FCFS Scheduler (`scheduler`)
+# Scheduler (`scheduler`)
 
 **Module:** `scheduler.sv`
 **Location:** `rtl/fub/`
 **Category:** FUB
 **Parent macro:** `command_scheduler_macro`
-**Status:** v1 implemented (closed-page policy; outputs strict-flop registered)
+**Status:** v2 implemented (CLOSE / OPEN / HAPPY_HYBRID page policies;
+W/R round-robin arbitration; outputs strict-flop registered)
 
 > Architectural context: HAS §3.2 (priority function, refresh / init priority).
 > This block-level MAS section is the implementation view.
 >
-> **Implementation notes vs the early SWAG:**
-> - **Closed-page policy** in v1: every column command issues with
->   auto-precharge (RDA / WRA). Page prediction and open-page state machine
->   are not present; `page_predictor_fub` was removed (see
->   [ch02_blocks/08](08_page_predictor.md)).
-> - **No standalone `txn_queue` or `bank_machine`** — those were absorbed
->   into the CAMs + `xbank_timers`. The scheduler reads from CAM
->   match-query buses and per-(rank, bank) ready arrays.
-> - **No lookahead window** in v1 — one CMD per cycle from current match.
+> **v2 vs v1:**
+> - **Page policy is now selectable** via the `PAGE_POLICY` parameter
+>   (CLOSE / OPEN / HAPPY_HYBRID). v1 was CLOSE only.
+> - **HAPPY_HYBRID** consults [`page_predictor`](08_page_predictor.md)'s
+>   per-bank hint to decide auto-precharge per command.
+> - **W/R arbitration** is now round-robin (toggle on every issue) instead
+>   of strict W-then-R. Prevents read starvation under bursty write.
+>
+> **Implementation notes:**
+> - **No standalone `txn_queue` or `bank_machine`** — absorbed into CAMs +
+>   `xbank_timers`. Scheduler reads CAM match buses + per-(rank, bank)
+>   ready arrays.
+> - **No CAM query bus driven** — scheduler uses CAM snapshots
+>   (`wr_snap_*` / `rd_snap_*`) to pick a slot and use its decoded
+>   (rank, bank, row, col) directly.
+> - **No lookahead** — one CMD per cycle from the current match.
 
 ---
 
@@ -48,15 +56,52 @@
 
 `scheduler` is the central command issue engine. Every MC clock cycle it:
 
-1. Snapshots the wr/rd CAM match-query and `xbank_timers` / `global_timers`
-   ready arrays.
-2. Computes which slots' next-needed command (ACT / RD / WR) is currently
-   eligible.
-3. Applies priority masking (init busy, refresh wants, MR-write priority,
-   then write-vs-read fairness).
-4. Picks at most one winner via parallel priority encoders.
-5. Generates the DRAM command (`cmd_op`, `cmd_rank`, `cmd_bank`, `cmd_row`,
-   `cmd_col`, `cmd_ap`) and the CAM mark-issued strobe.
+1. Snapshots the wr/rd CAM match-query, `xbank_timers` ready arrays,
+   and `global_timers` window OK signals.
+2. Picks a slot (CLOSE always; OPEN/HAPPY prefers row-hit).
+3. Decides the **initial state** based on policy + bank state.
+4. Walks through PRE → ACT → RD/WR via the column-op FSM.
+
+## Page-Policy Decision Table
+
+At slot pick time, the scheduler's initial FSM state is:
+
+| `PAGE_POLICY`     | Bank state     | Open row vs req row | Initial state |
+|-------------------|----------------|---------------------|---------------|
+| CLOSE             | (any)          | (any)               | S_NEED_ACT    |
+| OPEN              | IDLE           | n/a                 | S_NEED_ACT    |
+| OPEN              | ACTIVE         | match (hit)         | S_NEED_RDWR   |
+| OPEN              | ACTIVE         | mismatch (miss)     | S_NEED_PRE    |
+| HAPPY_HYBRID      | (same as OPEN — predictor only changes the `ap` bit in S_NEED_RDWR) | | |
+
+## Column-Op Selection (S_NEED_RDWR)
+
+| `PAGE_POLICY`     | Predictor hint     | OP for WR | OP for RD |
+|-------------------|--------------------|-----------|-----------|
+| CLOSE             | (ignored)          | WRA       | RDA       |
+| OPEN              | (ignored)          | WR        | RD        |
+| HAPPY_HYBRID      | `predict_open=1`   | WR        | RD        |
+| HAPPY_HYBRID      | `predict_open=0`   | WRA       | RDA       |
+
+`evt_ap_o` is driven high together with `evt_wr_o`/`evt_rd_o` when the
+issued op was WRA/RDA; this tells [`xbank_timers`](10_xbank_timers.md) to
+transition the bank to PRECHARGING instead of ACTIVE after tWR/tRTP.
+
+## W/R Arbitration
+
+Round-robin: an `r_arb_prefer_rd` toggle flips on every successful issue
+(in S_DONE). When both W and R have pending slots, the toggle picks which
+goes first. When only one direction has pending, that one wins.
+
+## FSM States
+
+```
+S_IDLE   → S_NEED_PRE | S_NEED_ACT | S_NEED_RDWR   (by policy + bank state)
+S_NEED_PRE   → S_NEED_ACT     (after PRE handshake)
+S_NEED_ACT   → S_NEED_RDWR    (after ACT handshake)
+S_NEED_RDWR  → S_DONE         (after RD/WR/RDA/WRA handshake)
+S_DONE       → S_IDLE         (mark_issued pulse; toggle W/R preference)
+```
 
 Issue rate is **one command per MC clock**. The scheduler does not see
 the DFI multi-phase dimension — `dfi_signal_pack` absorbs it.

@@ -21,20 +21,55 @@
 
 <!-- End Header -->
 
-# HAPPY Page Predictor (removed)
+# HAPPY Page Predictor (`page_predictor`)
 
-> ## ⚠️ REMOVED — Not in current RTL
->
-> The HAPPY hybrid page-conflict predictor described below was **removed**
-> from the v1 implementation. The v1 scheduler uses a **closed-page policy**
-> (RDA / WRA auto-precharge on every column command), which makes page
-> prediction moot — there is no open row to predict against.
->
-> If an open-page or hybrid policy is reintroduced in a future revision,
-> the predictor's design rationale (HAPPY thresholds, table sizing,
-> hysteresis) in this chapter remains a useful starting point.
+**Module:** `page_predictor.sv`
+**Location:** `rtl/fub/`
+**Category:** FUB
+**Parent macro:** `command_scheduler_macro`
+**Status:** v2 implemented (per-bank 2-bit saturating predictor; strict-flop outputs)
 
-**Status:** Removed in v1 (was Draft v0.1)
+> Architectural context: HAS §3.2.
+>
+> **History:** the SWAG planned a HAPPY hybrid predictor. v1 shipped
+> closed-page only (no predictor). v2 reintroduces the predictor as a
+> distinct FUB so the scheduler can pick between OPEN and CLOSE
+> behavior on a per-bank basis under `PAGE_POLICY == HAPPY_HYBRID`.
+
+## Purpose
+
+Per-(rank, bank) 2-bit saturating counter that predicts whether the
+*next* access to a bank will hit the row currently open in DRAM.
+
+| Counter | Meaning             | Scheduler hint           |
+|---------|---------------------|--------------------------|
+| `00`    | strongly closed     | prefer auto-precharge    |
+| `01`    | weakly closed       | prefer auto-precharge    |
+| `10`    | weakly open         | prefer leave-open        |
+| `11`    | strongly open       | prefer leave-open        |
+
+The output `predict_open_o[r][b]` is the **MSB** of the counter — the
+scheduler consults it when in HAPPY_HYBRID mode to decide RDA/WRA vs
+RD/WR.
+
+## Update Rules
+
+Updates on every `evt_act_i` strobe (post-issue, registered):
+
+- **First ACT on a bank**: record the row; no counter update.
+- **Row hit** (ACT on same row as last seen): counter saturates **up**.
+- **Row miss** (ACT on different row): counter saturates **down**.
+
+Hysteresis (2-bit counter) means a single anomaly doesn't flip the
+prediction — only a sustained pattern does.
+
+## Tests
+
+Verified by `dv/tests/fub/test_page_predictor.py` (4 scenarios):
+- `smoke` — reset state + initial predict_open=0
+- `row_hit_saturates_up` — 4 same-row ACTs drive predict_open to 1
+- `row_miss_saturates_down` — bootstrap to open then 4 misses → 0
+- `independent_banks` — different banks track independently
 **Status:** Draft v0.1
 
 > Architectural context: HAS §3.2 `page_predictor`. The algorithm view (query + update flow) is in `ddr2_lpddr2_has/assets/mermaid/09_happy_predictor.png` — refer to it for the algorithm. This block-level MAS section is the implementation view: hash inputs, table organization, multi-rank handling, warmup / hysteresis, storage choice, scheduler timing.

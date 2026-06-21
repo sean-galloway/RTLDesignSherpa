@@ -14,5 +14,6 @@ $REPO_ROOT/projects/components/memory-controllers/ddr2-lpddr2/rtl/fub/refresh_ct
 $REPO_ROOT/projects/components/memory-controllers/ddr2-lpddr2/rtl/fub/powerdown_ctrl.sv
 $REPO_ROOT/projects/components/memory-controllers/ddr2-lpddr2/rtl/fub/mode_register.sv
 $REPO_ROOT/projects/components/memory-controllers/ddr2-lpddr2/rtl/fub/init_sequencer.sv
+$REPO_ROOT/projects/components/memory-controllers/ddr2-lpddr2/rtl/fub/page_predictor.sv
 
 $REPO_ROOT/projects/components/memory-controllers/ddr2-lpddr2/rtl/macro/command_scheduler_macro.sv

@@ -15,26 +15,30 @@
 //            6. RD CAM op        → ACT / RDA / PRE-state-machine
 //            7. else             → NOP
 //
-//          Closed-page policy: every column command is RDA/WRA
-//          (auto-precharge). The bank returns to IDLE without an
-//          explicit PRE. No row-hit reuse — every access needs its
-//          own ACT.
+//          Page policy is selected by the PAGE_POLICY parameter:
+//            CLOSE       — every column command is RDA/WRA (auto-pre).
+//                          Bank returns to IDLE via xbank_timers's
+//                          ap_pending logic. No row-hit reuse.
+//            OPEN        — row-hit slots skip ACT (issue plain RD/WR);
+//                          row-miss slots issue PRE → ACT → RD/WR.
+//                          Banks stay open until evicted.
+//            HAPPY_HYBRID— uses the page_predictor FUB's per-bank
+//                          "predict_open" hint to decide ap on each
+//                          column command. On hit: behaves OPEN; on
+//                          miss: behaves CLOSE.
 //
 //          State for an in-progress column op:
 //            * `r_pending` = the (rank, bank, row, col, len, slot)
 //              chosen for the current pass.
-//            * After ACT issued: wait until rdwr_ready, then issue
-//              RDA/WRA.
-//            * After RDA/WRA: pulse mark_issued back to the CAM and
-//              clear r_pending.
+//            * On entry: determine action by policy + bank state:
+//                row-hit (bank ACTIVE + open_row matches) → skip to RDWR
+//                row-miss (bank ACTIVE + open_row mismatches) → PRE, ACT, RDWR
+//                bank IDLE → ACT, RDWR
 //
-// v1 (TODO):
-//   * Open-page policy with row-hit reuse — needs to compare
-//     bank_open_row vs requested row; cheap perf win.
+// v2 (TODO):
 //   * Bank-parallel multi-cmd issue per DFI cycle (multi-phase).
-//   * Smarter arbitration: age-aware, write-clustering, etc.
-//   * wr_op/rd_op are issued in strict alternation across CAM scans —
-//     no priority between W and R yet.
+//   * Write-clustering hysteresis.
+//   * Age-weighted W/R arbitration (currently round-robin).
 
 `timescale 1ns / 1ps
 
@@ -51,6 +55,10 @@ module scheduler
     parameter int COL_WIDTH       = 10,
     parameter int BURST_LEN_WIDTH = 8,
     parameter int AXI_ID_WIDTH    = 4,
+    // PAGE_POLICY values: 0=OPEN, 1=CLOSE, 2=HAPPY_HYBRID (mirrors
+    // page_policy_e in the package). Typed as `int` so the test runner
+    // can pass -GPAGE_POLICY=N without WIDTHTRUNC warnings.
+    parameter int PAGE_POLICY     = 32'(PAGE_POLICY_CLOSE),
 
     parameter int RKW = (NUM_RANKS > 1) ? $clog2(NUM_RANKS) : 1,
     parameter int BKW = $clog2(NUM_BANKS),
@@ -72,8 +80,14 @@ module scheduler
     input  logic [RD_CAM_DEPTH-1:0]    rd_match_rowhit_i,
 
     // ----- per-slot metadata snapshots -----
+    input  logic [WR_CAM_DEPTH-1:0][RKW-1:0]             wr_snap_rank_i,
+    input  logic [WR_CAM_DEPTH-1:0][BKW-1:0]             wr_snap_bank_i,
+    input  logic [WR_CAM_DEPTH-1:0][ROW_WIDTH-1:0]       wr_snap_row_i,
     input  logic [WR_CAM_DEPTH-1:0][COL_WIDTH-1:0]       wr_snap_col_i,
     input  logic [WR_CAM_DEPTH-1:0][BURST_LEN_WIDTH-1:0] wr_snap_len_i,
+    input  logic [RD_CAM_DEPTH-1:0][RKW-1:0]             rd_snap_rank_i,
+    input  logic [RD_CAM_DEPTH-1:0][BKW-1:0]             rd_snap_bank_i,
+    input  logic [RD_CAM_DEPTH-1:0][ROW_WIDTH-1:0]       rd_snap_row_i,
     input  logic [RD_CAM_DEPTH-1:0][COL_WIDTH-1:0]       rd_snap_col_i,
     input  logic [RD_CAM_DEPTH-1:0][BURST_LEN_WIDTH-1:0] rd_snap_len_i,
 
@@ -90,6 +104,9 @@ module scheduler
     input  logic [NUM_RANKS-1:0][NUM_BANKS-1:0] bank_row_active_i,
     input  logic [NUM_RANKS-1:0][NUM_BANKS-1:0][ROW_WIDTH-1:0] bank_open_row_i,
     input  logic                       tfaw_window_ok_i,
+
+    // ----- page predictor hint (HAPPY_HYBRID only; tie-low otherwise) -----
+    input  logic [NUM_RANKS-1:0][NUM_BANKS-1:0] predict_open_i,
 
     // ----- refresh / power injection -----
     input  logic                       refresh_req_i,
@@ -119,22 +136,31 @@ module scheduler
     output logic                       evt_rd_o,
     output logic                       evt_wr_o,
     output logic                       evt_pre_o,
+    output logic                       evt_ap_o,    // 1 when evt_rd/evt_wr
+                                                    // accompanies RDA/WRA so
+                                                    // xbank_timers auto-PREs
     output logic [RKW-1:0]             evt_rank_o,
     output logic [BKW-1:0]             evt_bank_o
 );
 
     //=========================================================================
-    // FSM for an in-progress column-op (closed-page):
-    //   S_IDLE       : choose next slot; query bank state
+    // FSM for an in-progress column-op (page-policy-aware):
+    //   S_IDLE       : choose next slot; query bank state; transition to
+    //                  S_NEED_RDWR (row hit), S_NEED_PRE (row miss),
+    //                  or S_NEED_ACT (bank IDLE), based on PAGE_POLICY.
+    //   S_NEED_PRE   : wait until bank_pre_ready; issue PRE; → S_NEED_ACT.
+    //                  (open-page row miss only)
     //   S_NEED_ACT   : wait until bank_act_ready; issue ACT
-    //   S_NEED_RDWR  : wait until bank_rdwr_ready; issue RDA/WRA
+    //   S_NEED_RDWR  : wait until bank_rdwr_ready; issue RD/WR or RDA/WRA
+    //                  per policy + predictor.
     //   S_DONE       : mark_issued pulse; back to IDLE
     //=========================================================================
     typedef enum logic [2:0] {
         S_IDLE      = 3'd0,
-        S_NEED_ACT  = 3'd1,
-        S_NEED_RDWR = 3'd2,
-        S_DONE      = 3'd3
+        S_NEED_PRE  = 3'd1,
+        S_NEED_ACT  = 3'd2,
+        S_NEED_RDWR = 3'd3,
+        S_DONE      = 3'd4
     } state_e;
 
     state_e             r_state;
@@ -150,12 +176,11 @@ module scheduler
     logic [BURST_LEN_WIDTH-1:0] r_pending_len;
 
     //=========================================================================
-    // For v1, we don't query the CAMs via q_rank/bank/row — we just take
-    // the lowest-index pending slot. The CAM-snapshot col/len gives us
-    // per-slot col + len; rank/bank/row aren't in the snapshot here, so
-    // for v1 we drive (rank=0, bank=0, row=0) for the chosen slot.
-    // A real implementation extends the snapshot to include the decoded
-    // tuple — that's an axi_frontend_macro upgrade.
+    // Slot pick: lowest-index pending slot. We use the snapshot's
+    // rank/bank/row/col/len for that slot directly — no CAM query bus.
+    // (`wr_match_pending_i` here is effectively the same as `snap_valid &
+    // !snap_issued` since we don't drive q_*. A future revision can use
+    // a per-cycle query to filter on (rank, bank, row) for row-hit-first.)
     //=========================================================================
     logic                w_have_wr;
     logic                w_have_rd;
@@ -185,6 +210,75 @@ module scheduler
     end
 
     //=========================================================================
+    // W/R arbitration: alternate W and R passes to avoid starving either
+    // direction. A toggle bit flips on every successful issue; when both
+    // W and R have pending slots, the toggle picks which goes first.
+    // (v3 will weight by per-slot age.)
+    //=========================================================================
+    logic r_arb_prefer_rd;
+    logic w_pick_wr_first;
+
+    // If only one direction has pending → pick that one.
+    // If both have pending → use the toggle.
+    assign w_pick_wr_first = w_have_wr && (!w_have_rd || !r_arb_prefer_rd);
+
+    //=========================================================================
+    // Page-policy initial-state decision: when picking a slot in S_IDLE,
+    // figure out whether the bank is open on the right row (skip ACT),
+    // open on the wrong row (need PRE then ACT), or closed (just ACT).
+    // CLOSE always goes ACT first because xbank_timers auto-precharges
+    // on RDA/WRA so the bank is always IDLE between accesses.
+    //=========================================================================
+    logic [RKW-1:0]       w_pick_rank;
+    logic [BKW-1:0]       w_pick_bank;
+    logic [ROW_WIDTH-1:0] w_pick_row;
+    logic                 w_pick_is_wr;
+    always_comb begin
+        if (w_pick_wr_first) begin
+            w_pick_is_wr = 1'b1;
+            w_pick_rank  = wr_snap_rank_i[w_wr_pick];
+            w_pick_bank  = wr_snap_bank_i[w_wr_pick];
+            w_pick_row   = wr_snap_row_i [w_wr_pick];
+        end else begin
+            w_pick_is_wr = 1'b0;
+            w_pick_rank  = rd_snap_rank_i[w_rd_pick];
+            w_pick_bank  = rd_snap_bank_i[w_rd_pick];
+            w_pick_row   = rd_snap_row_i [w_rd_pick];
+        end
+    end
+
+    logic w_row_hit, w_row_miss;
+    assign w_row_hit  = bank_row_active_i[w_pick_rank][w_pick_bank]
+                     && (bank_open_row_i[w_pick_rank][w_pick_bank] == w_pick_row);
+    assign w_row_miss = bank_row_active_i[w_pick_rank][w_pick_bank]
+                     && (bank_open_row_i[w_pick_rank][w_pick_bank] != w_pick_row);
+
+    state_e w_initial_state;
+    always_comb begin
+        if (PAGE_POLICY == 32'(PAGE_POLICY_CLOSE)) begin
+            w_initial_state = S_NEED_ACT;
+        end else begin
+            // OPEN or HAPPY_HYBRID
+            if      (w_row_hit)  w_initial_state = S_NEED_RDWR;
+            else if (w_row_miss) w_initial_state = S_NEED_PRE;
+            else                 w_initial_state = S_NEED_ACT;
+        end
+    end
+
+    // Per-cycle auto-precharge decision for the current r_pending op
+    // (consumed in S_NEED_RDWR).
+    logic w_ap_for_rdwr;
+    always_comb begin
+        unique case (PAGE_POLICY)
+            32'(PAGE_POLICY_CLOSE):        w_ap_for_rdwr = 1'b1;
+            32'(PAGE_POLICY_OPEN):         w_ap_for_rdwr = 1'b0;
+            32'(PAGE_POLICY_HAPPY_HYBRID): w_ap_for_rdwr =
+                !predict_open_i[r_pending_rank][r_pending_bank];
+            default:                       w_ap_for_rdwr = 1'b1;
+        endcase
+    end
+
+    //=========================================================================
     // Next-cycle output values — combinational on r_state.
     //=========================================================================
     dram_op_e            w_op;
@@ -196,7 +290,7 @@ module scheduler
     logic [BURST_LEN_WIDTH-1:0] w_cmd_len;
     logic [WSL-1:0]      w_cmd_wr_slot, w_wr_issued_slot;
     logic [RSL-1:0]      w_cmd_rd_slot, w_rd_issued_slot;
-    logic                w_evt_act, w_evt_rd, w_evt_wr, w_evt_pre;
+    logic                w_evt_act, w_evt_rd, w_evt_wr, w_evt_pre, w_evt_ap;
     logic                w_refresh_grant, w_pdn_grant, w_mr_grant;
     logic                w_wr_issued_we, w_rd_issued_we;
 
@@ -215,6 +309,7 @@ module scheduler
         w_evt_rd         = 1'b0;
         w_evt_wr         = 1'b0;
         w_evt_pre        = 1'b0;
+        w_evt_ap         = 1'b0;
         w_evt_rank       = '0;
         w_evt_bank       = '0;
         w_refresh_grant  = 1'b0;
@@ -258,9 +353,28 @@ module scheduler
                 end
             end
 
+            S_NEED_PRE: begin
+                if (bank_pre_ready_i[r_pending_rank][r_pending_bank]) begin
+                    w_op         = OP_PRE;
+                    w_cmd_valid  = 1'b1;
+                    w_cmd_rank   = r_pending_rank;
+                    w_cmd_bank   = r_pending_bank;
+                    if (cmd_ready_i) begin
+                        w_evt_pre  = 1'b1;
+                        w_evt_rank = r_pending_rank;
+                        w_evt_bank = r_pending_bank;
+                    end
+                end
+            end
+
             S_NEED_RDWR: begin
                 if (bank_rdwr_ready_i[r_pending_rank][r_pending_bank]) begin
-                    w_op         = r_pending_is_wr ? OP_WRA : OP_RDA;
+                    // Op selection: WR/RD vs WRA/RDA based on policy +
+                    // (HAPPY only) per-bank predictor hint.
+                    if (r_pending_is_wr)
+                        w_op = w_ap_for_rdwr ? OP_WRA : OP_WR;
+                    else
+                        w_op = w_ap_for_rdwr ? OP_RDA : OP_RD;
                     w_cmd_valid  = 1'b1;
                     w_cmd_rank   = r_pending_rank;
                     w_cmd_bank   = r_pending_bank;
@@ -271,6 +385,7 @@ module scheduler
                     if (cmd_ready_i) begin
                         if (r_pending_is_wr) w_evt_wr = 1'b1;
                         else                 w_evt_rd = 1'b1;
+                        w_evt_ap   = w_ap_for_rdwr;
                         w_evt_rank = r_pending_rank;
                         w_evt_bank = r_pending_bank;
                     end
@@ -309,6 +424,7 @@ module scheduler
             evt_rd_o         <= 1'b0;
             evt_wr_o         <= 1'b0;
             evt_pre_o        <= 1'b0;
+            evt_ap_o         <= 1'b0;
             evt_rank_o       <= '0;
             evt_bank_o       <= '0;
             refresh_grant_o  <= 1'b0;
@@ -335,6 +451,7 @@ module scheduler
             evt_rd_o         <= w_evt_rd;
             evt_wr_o         <= w_evt_wr;
             evt_pre_o        <= w_evt_pre;
+            evt_ap_o         <= w_evt_ap;
             evt_rank_o       <= w_evt_rank;
             evt_bank_o       <= w_evt_bank;
             refresh_grant_o  <= w_refresh_grant;
@@ -364,29 +481,36 @@ module scheduler
             r_pending_row     <= '0;
             r_pending_col     <= '0;
             r_pending_len     <= '0;
+            r_arb_prefer_rd   <= 1'b0;   // first contention picks WR
         end else begin
             unique case (r_state)
                 S_IDLE: begin
                     if (init_busy_i || mr_req_i || refresh_req_i || pdn_req_i) begin
                         // Stay IDLE; output logic emits the injection cmd.
-                    end else if (w_have_wr) begin
+                    end else if (w_pick_wr_first) begin
                         r_pending_is_wr   <= 1'b1;
                         r_pending_wr_slot <= w_wr_pick;
-                        r_pending_rank    <= '0;
-                        r_pending_bank    <= '0;
-                        r_pending_row     <= '0;
-                        r_pending_col     <= wr_snap_col_i[w_wr_pick];
-                        r_pending_len     <= wr_snap_len_i[w_wr_pick];
-                        r_state           <= S_NEED_ACT;
+                        r_pending_rank    <= w_pick_rank;
+                        r_pending_bank    <= w_pick_bank;
+                        r_pending_row     <= w_pick_row;
+                        r_pending_col     <= wr_snap_col_i [w_wr_pick];
+                        r_pending_len     <= wr_snap_len_i [w_wr_pick];
+                        r_state           <= w_initial_state;
                     end else if (w_have_rd) begin
                         r_pending_is_wr   <= 1'b0;
                         r_pending_rd_slot <= w_rd_pick;
-                        r_pending_rank    <= '0;
-                        r_pending_bank    <= '0;
-                        r_pending_row     <= '0;
-                        r_pending_col     <= rd_snap_col_i[w_rd_pick];
-                        r_pending_len     <= rd_snap_len_i[w_rd_pick];
-                        r_state           <= S_NEED_ACT;
+                        r_pending_rank    <= w_pick_rank;
+                        r_pending_bank    <= w_pick_bank;
+                        r_pending_row     <= w_pick_row;
+                        r_pending_col     <= rd_snap_col_i [w_rd_pick];
+                        r_pending_len     <= rd_snap_len_i [w_rd_pick];
+                        r_state           <= w_initial_state;
+                    end
+                end
+
+                S_NEED_PRE: begin
+                    if (w_cmd_valid && cmd_ready_i) begin
+                        r_state <= S_NEED_ACT;
                     end
                 end
 
@@ -403,7 +527,10 @@ module scheduler
                 end
 
                 S_DONE: begin
-                    r_state <= S_IDLE;
+                    r_state         <= S_IDLE;
+                    // Toggle the W/R arbitration preference so the next
+                    // contention picks the other direction.
+                    r_arb_prefer_rd <= ~r_arb_prefer_rd;
                 end
 
                 default: r_state <= S_IDLE;
@@ -411,7 +538,11 @@ module scheduler
         end
     end)
 
-    wire unused_v1 = |{ wr_match_rowhit_i, rd_match_rowhit_i,
-                        bank_pre_ready_i, bank_row_active_i, bank_open_row_i };
+    // wr_match_rowhit_i / rd_match_rowhit_i are not yet consumed — the
+    // current scheduler uses per-slot snapshot rank/bank/row from
+    // wr_snap_* / rd_snap_* and computes hits inline. The match_rowhit
+    // signals are useful for "prefer row-hit slots" arbitration which
+    // is a future enhancement (HAS §3.2.3).
+    wire unused_v2 = |{ wr_match_rowhit_i, rd_match_rowhit_i };
 
 endmodule : scheduler

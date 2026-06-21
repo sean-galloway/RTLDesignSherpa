@@ -34,6 +34,7 @@ module command_scheduler_macro
     parameter int WR_CAM_DEPTH    = 16,
     parameter int RD_CAM_DEPTH    = 16,
     parameter int DFI_CS_WIDTH    = NUM_RANKS,
+    parameter int PAGE_POLICY     = 32'(PAGE_POLICY_CLOSE),
 
     parameter int IW  = AXI_ID_WIDTH,
     parameter int RKW = (NUM_RANKS > 1) ? $clog2(NUM_RANKS) : 1,
@@ -79,8 +80,14 @@ module command_scheduler_macro
     input  logic [RD_CAM_DEPTH-1:0]    rd_match_rowhit_i,
 
     // ---- CAM snapshot metadata (combinational from host) ----
+    input  logic [WR_CAM_DEPTH-1:0][RKW-1:0] wr_snap_rank_i,
+    input  logic [WR_CAM_DEPTH-1:0][BKW-1:0] wr_snap_bank_i,
+    input  logic [WR_CAM_DEPTH-1:0][RW-1:0]  wr_snap_row_i,
     input  logic [WR_CAM_DEPTH-1:0][CW-1:0]  wr_snap_col_i,
     input  logic [WR_CAM_DEPTH-1:0][BLW-1:0] wr_snap_len_i,
+    input  logic [RD_CAM_DEPTH-1:0][RKW-1:0] rd_snap_rank_i,
+    input  logic [RD_CAM_DEPTH-1:0][BKW-1:0] rd_snap_bank_i,
+    input  logic [RD_CAM_DEPTH-1:0][RW-1:0]  rd_snap_row_i,
     input  logic [RD_CAM_DEPTH-1:0][CW-1:0]  rd_snap_col_i,
     input  logic [RD_CAM_DEPTH-1:0][BLW-1:0] rd_snap_len_i,
 
@@ -138,9 +145,10 @@ module command_scheduler_macro
     logic                                               mr_req;
     logic                                               mr_grant;
 
-    logic                                               evt_act, evt_rd, evt_wr, evt_pre;
+    logic                                               evt_act, evt_rd, evt_wr, evt_pre, evt_ap;
     logic [RKW-1:0]                                     evt_rank;
     logic [BKW-1:0]                                     evt_bank;
+    logic [NUM_RANKS-1:0][NUM_BANKS-1:0]                predict_open;
 
     // init-sequencer MR stream
     logic                                               mr_seq_we;
@@ -185,7 +193,8 @@ module command_scheduler_macro
         .ROW_WIDTH       (RW),
         .COL_WIDTH       (CW),
         .BURST_LEN_WIDTH (BLW),
-        .AXI_ID_WIDTH    (IW)
+        .AXI_ID_WIDTH    (IW),
+        .PAGE_POLICY     (PAGE_POLICY)
     ) u_scheduler (
         .mc_clk             (mc_clk),
         .mc_rst_n           (mc_rst_n),
@@ -196,8 +205,14 @@ module command_scheduler_macro
         .wr_match_rowhit_i  (wr_match_rowhit_i),
         .rd_match_pending_i (rd_match_pending_i),
         .rd_match_rowhit_i  (rd_match_rowhit_i),
+        .wr_snap_rank_i     (wr_snap_rank_i),
+        .wr_snap_bank_i     (wr_snap_bank_i),
+        .wr_snap_row_i      (wr_snap_row_i),
         .wr_snap_col_i      (wr_snap_col_i),
         .wr_snap_len_i      (wr_snap_len_i),
+        .rd_snap_rank_i     (rd_snap_rank_i),
+        .rd_snap_bank_i     (rd_snap_bank_i),
+        .rd_snap_row_i      (rd_snap_row_i),
         .rd_snap_col_i      (rd_snap_col_i),
         .rd_snap_len_i      (rd_snap_len_i),
         .wr_issued_we_o     (wr_issued_we_o),
@@ -210,6 +225,7 @@ module command_scheduler_macro
         .bank_row_active_i  (bank_row_active),
         .bank_open_row_i    (bank_open_row),
         .tfaw_window_ok_i   (tfaw_window_ok),
+        .predict_open_i     (predict_open),
         .refresh_req_i      (refresh_req),
         .refresh_grant_o    (refresh_grant),
         .pdn_req_i          (pdn_req),
@@ -231,6 +247,7 @@ module command_scheduler_macro
         .evt_rd_o           (evt_rd),
         .evt_wr_o           (evt_wr),
         .evt_pre_o          (evt_pre),
+        .evt_ap_o           (evt_ap),
         .evt_rank_o         (evt_rank),
         .evt_bank_o         (evt_bank)
     );
@@ -253,6 +270,7 @@ module command_scheduler_macro
         .evt_rd_i           (evt_rd),
         .evt_wr_i           (evt_wr),
         .evt_pre_i          (evt_pre),
+        .evt_ap_i           (evt_ap),
         .evt_rank_i         (evt_rank),
         .evt_bank_i         (evt_bank),
         .evt_row_i          (cmd_row_o),
@@ -346,6 +364,25 @@ module command_scheduler_macro
         .zqcl_grant_i        (zqcl_grant),
         .init_busy_o         (init_busy),
         .init_done_o         (init_done)
+    );
+
+    //=========================================================================
+    // HAPPY page predictor — informs the scheduler whether each bank's
+    // next access is likely to row-hit. Only consulted when PAGE_POLICY
+    // == HAPPY_HYBRID; tied-off otherwise (the scheduler ignores).
+    //=========================================================================
+    page_predictor #(
+        .NUM_RANKS (NUM_RANKS),
+        .NUM_BANKS (NUM_BANKS),
+        .ROW_WIDTH (RW)
+    ) u_page_predictor (
+        .mc_clk         (mc_clk),
+        .mc_rst_n       (mc_rst_n),
+        .evt_act_i      (evt_act),
+        .evt_rank_i     (evt_rank),
+        .evt_bank_i     (evt_bank),
+        .evt_row_i      (cmd_row_o),
+        .predict_open_o (predict_open)
     );
 
     wire unused = |{ bank_state_unused, drv_strength_unused, odt_unused,

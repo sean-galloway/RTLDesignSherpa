@@ -56,6 +56,7 @@ class XbTB(TBBase):
         self.dut.evt_rd_i.value   = 0
         self.dut.evt_wr_i.value   = 0
         self.dut.evt_pre_i.value  = 0
+        self.dut.evt_ap_i.value   = 0
         self.dut.evt_rank_i.value = 0
         self.dut.evt_bank_i.value = 0
         self.dut.evt_row_i.value  = 0
@@ -65,7 +66,7 @@ class XbTB(TBBase):
         self.dut.mc_rst_n.value = 1
         await self.wait_clocks('mc_clk', 5)
 
-    async def pulse_event(self, kind: str, rank=0, bank=0, row=0):
+    async def pulse_event(self, kind: str, rank=0, bank=0, row=0, ap=False):
         sig = {'act': self.dut.evt_act_i,
                'rd':  self.dut.evt_rd_i,
                'wr':  self.dut.evt_wr_i,
@@ -73,10 +74,12 @@ class XbTB(TBBase):
         self.dut.evt_rank_i.value = rank
         self.dut.evt_bank_i.value = bank
         self.dut.evt_row_i.value  = row
+        self.dut.evt_ap_i.value   = 1 if ap else 0
         sig.value = 1
         await RisingEdge(self.dut.mc_clk)
         await Timer(1, units='ps')
         sig.value = 0
+        self.dut.evt_ap_i.value = 0
 
     def _vec(self, sig, rank, bank) -> int:
         full = int(sig.value)

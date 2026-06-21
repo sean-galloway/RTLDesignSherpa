@@ -124,16 +124,27 @@ The 16 FUBs by macro grouping.
   issuing the read on the DRAM, preserving AXI ordering.
 - **Key params**: `WR_CAM_DEPTH`, `W_BUF_DEPTH`.
 
-### `command_scheduler_macro` (7 FUBs)
+### `command_scheduler_macro` (8 FUBs)
 
 #### `scheduler`
 - **Purpose**: "What command to issue this cycle?" — picks one CMD per cycle
   from {ACT, RD/RDA, WR/WRA, PRE, REF, MRS, NOP} based on per-(rank,bank)
-  ready, cross-bank windows, refresh priority, init/MR priority. Closed-page
-  policy in v1 (RDA/WRA auto-precharge).
-- **Key params**: `WR_CAM_DEPTH`, `RD_CAM_DEPTH`, `NUM_RANKS`, `NUM_BANKS`.
+  ready, cross-bank windows, refresh priority, init/MR priority.
+- **Page policy**: parameterizable — CLOSE (auto-pre on every column op),
+  OPEN (row-hit reuse + explicit PRE on miss), or HAPPY_HYBRID (per-bank
+  predictor selects). W/R arbitration is round-robin.
+- **Key params**: `WR_CAM_DEPTH`, `RD_CAM_DEPTH`, `NUM_RANKS`, `NUM_BANKS`,
+  `PAGE_POLICY`.
 - **Notable**: The single hardest timing FUB. Outputs all strict-flop
   registered for hierarchical timing closure.
+
+#### `page_predictor`
+- **Purpose**: Per-(rank, bank) 2-bit saturating predictor of whether the
+  next access will hit the bank's currently open row. Drives
+  `predict_open_o[r][b]` consumed by the scheduler in HAPPY_HYBRID mode.
+- **Key params**: `NUM_RANKS`, `NUM_BANKS`, `ROW_WIDTH`.
+- **Update rules**: ACT on same row → counter saturates up; ACT on
+  different row → saturates down. First ACT on a bank just records.
 
 #### `xbank_timers`
 - **Purpose**: Per-(rank, bank) JEDEC timing counters (tRCD, tRP, tWR, tRTP,
@@ -220,11 +231,11 @@ behavioral logic. Tie-offs in place for a future `ctrl_update_fub`
 | Macro                          | FUBs | Names                                                                       |
 |--------------------------------|------|-----------------------------------------------------------------------------|
 | `axi_frontend_macro`           | 5    | `axi_intake`, `addr_mapper`, `wr_cmd_cam`, `rd_cmd_cam`, `wr2rd_forward`    |
-| `command_scheduler_macro`      | 7    | `scheduler`, `xbank_timers`, `global_timers`, `refresh_ctrl`, `powerdown_ctrl`, `mode_register`, `init_sequencer` |
+| `command_scheduler_macro`      | 8    | `scheduler`, `page_predictor`, `xbank_timers`, `global_timers`, `refresh_ctrl`, `powerdown_ctrl`, `mode_register`, `init_sequencer` |
 | `data_path_macro`              | 2    | `wr_beat_sequencer`, `rd_cl_aligner`                                        |
 | `dfi_v21_interface_macro`      | 2    | `dfi_cmd_formatter`, `dfi_signal_pack`                                      |
 | `ddr2_lpddr2_core_macro`       | —    | (skeleton; wraps the three above)                                           |
-| **Total leaf FUBs**            | **16** |                                                                           |
+| **Total leaf FUBs**            | **17** |                                                                           |
 
 ## Divergence from the Early SWAG
 
@@ -235,7 +246,7 @@ auto-precharge) made several SWAG FUBs unnecessary:
 | SWAG FUB                  | Status today                          | Why                                                                                   |
 |---------------------------|---------------------------------------|---------------------------------------------------------------------------------------|
 | `txn_queue_fub`           | Absorbed into `axi_intake` + CAMs     | Per-direction CAMs + b_fifo replace the unified queue                                 |
-| `page_predictor_fub`      | Removed                               | Closed-page policy makes page prediction moot                                         |
+| `page_predictor_fub`      | Restored in v2 as `page_predictor`    | HAPPY_HYBRID policy added in v2; predictor reactivated as a distinct FUB              |
 | `bank_machine_fub`        | Absorbed into CAMs + `xbank_timers`   | Per-bank FSM became per-bank timing counters + per-slot CAM state                     |
 | `odt_ctrl_fub`            | Absorbed into `dfi_cmd_formatter`     | ODT rules are part of the JEDEC command table, not a separate FSM                     |
 | `dfi_master`              | Renamed → `dfi_signal_pack`           | Final wire packing only; protocol formatting is `dfi_cmd_formatter`                   |

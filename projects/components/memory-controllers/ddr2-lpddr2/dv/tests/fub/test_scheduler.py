@@ -56,11 +56,18 @@ class SchedTB(TBBase):
         self.dut.wr_match_rowhit_i.value  = 0
         self.dut.rd_match_pending_i.value = 0
         self.dut.rd_match_rowhit_i.value  = 0
-        # Snap arrays: all zero
-        self.dut.wr_snap_col_i.value = 0
-        self.dut.wr_snap_len_i.value = 0
-        self.dut.rd_snap_col_i.value = 0
-        self.dut.rd_snap_len_i.value = 0
+        # Snap arrays: all zero (rank/bank/row default to 0; tests can
+        # override per slot via set_wr_pending / set_rd_pending)
+        self.dut.wr_snap_rank_i.value = 0
+        self.dut.wr_snap_bank_i.value = 0
+        self.dut.wr_snap_row_i.value  = 0
+        self.dut.wr_snap_col_i.value  = 0
+        self.dut.wr_snap_len_i.value  = 0
+        self.dut.rd_snap_rank_i.value = 0
+        self.dut.rd_snap_bank_i.value = 0
+        self.dut.rd_snap_row_i.value  = 0
+        self.dut.rd_snap_col_i.value  = 0
+        self.dut.rd_snap_len_i.value  = 0
         # Timer ready vectors: all banks ready by default
         ready_all = (1 << (self.NUM_RANKS * self.NUM_BANKS)) - 1
         self.dut.bank_act_ready_i.value  = ready_all if all_banks_ready else 0
@@ -69,6 +76,7 @@ class SchedTB(TBBase):
         self.dut.bank_row_active_i.value = 0
         self.dut.bank_open_row_i.value   = 0
         self.dut.tfaw_window_ok_i.value  = 1
+        self.dut.predict_open_i.value    = 0
         # Injection req inputs
         self.dut.refresh_req_i.value = 0
         self.dut.pdn_req_i.value     = 0
@@ -202,7 +210,72 @@ async def cocotb_test_scheduler(dut):
         assert tb.cmd_op() == OP_ACT, f"got op {tb.cmd_op()}"
         assert tb.evt_act() == 1
         await tb.wait_clocks('mc_clk', 1)
+        # CLOSE policy → WRA (closed-page default in this test)
         assert tb.cmd_op() == OP_WRA
+        tb.clear_pending()
+
+    elif test_type == "open_page_row_hit":
+        # OPEN policy + bank already active on the requested row → skip
+        # ACT, issue plain WR.
+        await tb.setup()
+        # Bank 0 active on row 0; slot 0 also targets row 0.
+        tb.dut.bank_row_active_i.value = 1
+        tb.dut.bank_open_row_i.value   = 0
+        tb.set_wr_pending(slot=0, col=0x40, length=4)
+        await tb.wait_clocks('mc_clk', 2)
+        # No ACT — go straight to RDWR with plain WR
+        assert tb.cmd_op() == OP_WR, f"expected WR (no auto-pre), got {tb.cmd_op()}"
+        tb.clear_pending()
+
+    elif test_type == "open_page_row_miss":
+        # OPEN policy + bank active on DIFFERENT row → PRE first,
+        # then ACT, then WR.
+        await tb.setup()
+        tb.dut.bank_row_active_i.value = 1
+        # bank 0 has row 7 open; slot 0 wants row 0 (default snap_row=0)
+        tb.dut.bank_open_row_i.value   = (7 << 0)  # bank[0] open row = 7
+        tb.set_wr_pending(slot=0, col=0x40, length=4)
+        await tb.wait_clocks('mc_clk', 2)
+        assert tb.cmd_op() == OP_PRE, f"expected PRE, got {tb.cmd_op()}"
+        await tb.wait_clocks('mc_clk', 1)
+        assert tb.cmd_op() == OP_ACT, f"expected ACT, got {tb.cmd_op()}"
+        await tb.wait_clocks('mc_clk', 1)
+        assert tb.cmd_op() == OP_WR, f"expected WR, got {tb.cmd_op()}"
+        tb.clear_pending()
+
+    elif test_type == "open_page_bank_idle":
+        # OPEN policy + bank IDLE → ACT then plain WR (no auto-pre).
+        await tb.setup()
+        tb.dut.bank_row_active_i.value = 0
+        tb.set_wr_pending(slot=0, col=0x40, length=4)
+        await tb.wait_clocks('mc_clk', 2)
+        assert tb.cmd_op() == OP_ACT
+        await tb.wait_clocks('mc_clk', 1)
+        assert tb.cmd_op() == OP_WR, f"OPEN should issue WR, got {tb.cmd_op()}"
+        tb.clear_pending()
+
+    elif test_type == "happy_predict_open":
+        # HAPPY policy + predictor says "open" → issue WR (no auto-pre)
+        await tb.setup()
+        # All banks "predicted open"
+        nb = tb.NUM_RANKS * tb.NUM_BANKS
+        tb.dut.predict_open_i.value = (1 << nb) - 1
+        tb.set_wr_pending(slot=0, col=0x40, length=4)
+        await tb.wait_clocks('mc_clk', 2)
+        assert tb.cmd_op() == OP_ACT
+        await tb.wait_clocks('mc_clk', 1)
+        assert tb.cmd_op() == OP_WR, f"HAPPY predict-open → WR, got {tb.cmd_op()}"
+        tb.clear_pending()
+
+    elif test_type == "happy_predict_close":
+        # HAPPY policy + predictor says "close" (counter low) → WRA
+        await tb.setup()
+        tb.dut.predict_open_i.value = 0
+        tb.set_wr_pending(slot=0, col=0x40, length=4)
+        await tb.wait_clocks('mc_clk', 2)
+        assert tb.cmd_op() == OP_ACT
+        await tb.wait_clocks('mc_clk', 1)
+        assert tb.cmd_op() == OP_WRA, f"HAPPY predict-close → WRA, got {tb.cmd_op()}"
         tb.clear_pending()
 
     else:
@@ -211,21 +284,39 @@ async def cocotb_test_scheduler(dut):
     await tb.wait_clocks('mc_clk', 3)
 
 
-_GATE = [("smoke_wr",), ("smoke_rd",), ("init_busy_nop",)]
-_FUNC = _GATE + [("refresh_priority",), ("mr_priority",),
-                 ("pdn_grant",), ("wait_for_act_ready",)]
+# page_policy_e values match the SV enum.
+PAGE_POLICY_OPEN  = 0
+PAGE_POLICY_CLOSE = 1
+PAGE_POLICY_HAPPY = 2
+
+# (test_type, PAGE_POLICY)
+_BASE_CLOSE   = ["smoke_wr", "smoke_rd", "init_busy_nop", "refresh_priority",
+                 "mr_priority", "pdn_grant", "wait_for_act_ready"]
+_OPEN_ONLY    = ["open_page_row_hit", "open_page_row_miss",
+                 "open_page_bank_idle"]
+_HAPPY_ONLY   = ["happy_predict_open", "happy_predict_close"]
+
+_GATE = [(t, PAGE_POLICY_CLOSE) for t in ["smoke_wr", "smoke_rd",
+                                         "init_busy_nop"]]
+_FUNC = ([(t, PAGE_POLICY_CLOSE) for t in _BASE_CLOSE]
+       + [(t, PAGE_POLICY_OPEN)  for t in _OPEN_ONLY]
+       + [(t, PAGE_POLICY_HAPPY) for t in _HAPPY_ONLY])
 _FULL = _FUNC
 
 _TEST_LEVEL = os.environ.get("TEST_LEVEL", "FUNC").upper()
 _PARAMS = {"GATE": _GATE, "FUNC": _FUNC, "FULL": _FULL}.get(_TEST_LEVEL, _FUNC)
 
+_POLICY_NAMES = {PAGE_POLICY_OPEN: "open",
+                 PAGE_POLICY_CLOSE: "close",
+                 PAGE_POLICY_HAPPY: "happy"}
 
-@pytest.mark.parametrize("test_type", [t[0] for t in _PARAMS],
-                         ids=[t[0] for t in _PARAMS])
-def test_scheduler(request, test_type):
+
+@pytest.mark.parametrize("test_type,page_policy", _PARAMS,
+                         ids=[f"{t[0]}-{_POLICY_NAMES[t[1]]}" for t in _PARAMS])
+def test_scheduler(request, test_type, page_policy):
     module, repo_root, tests_dir, log_dir, _ = get_paths({})
     dut_name = "scheduler"
-    test_name = f"test_scheduler_{test_type}"
+    test_name = f"test_scheduler_{test_type}_{_POLICY_NAMES[page_policy]}"
 
     filelist_path = ("projects/components/memory-controllers/ddr2-lpddr2/"
                      "rtl/filelists/fub/scheduler.f")
@@ -261,6 +352,7 @@ def test_scheduler(request, test_type):
         "COL_WIDTH":    "10",
         "BURST_LEN_WIDTH": "8",
         "AXI_ID_WIDTH": "4",
+        "PAGE_POLICY":  str(page_policy),
     }
 
     enable_waves = bool(int(os.environ.get("WAVES", "0")))

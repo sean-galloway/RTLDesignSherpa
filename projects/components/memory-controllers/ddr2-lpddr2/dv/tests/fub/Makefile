@@ -53,10 +53,11 @@ INIT_TEST = test_init_sequencer.py
 XT_TEST   = test_xbank_timers.py
 GT_TEST   = test_global_timers.py
 SCH_TEST  = test_scheduler.py
+PP_TEST   = test_page_predictor.py
 
 ALL_TESTS = $(WR_TEST) $(RD_TEST) $(WBS_TEST) $(RCL_TEST) $(DCF_TEST) $(DSP_TEST) \
             $(MR_TEST) $(RF_TEST) $(PD_TEST) $(INIT_TEST) \
-            $(XT_TEST) $(GT_TEST) $(SCH_TEST)
+            $(XT_TEST) $(GT_TEST) $(SCH_TEST) $(PP_TEST)
 
 # Default target
 .DEFAULT_GOAL := help

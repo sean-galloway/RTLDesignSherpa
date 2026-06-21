@@ -84,9 +84,13 @@ module rd_cmd_cam
     output logic [SLW-1:0]       entry_complete_slot_o,
     output logic [IW-1:0]        entry_complete_id_o,
 
-    // Snapshot for downstream (slot → id lookup; col/len for issue)
+    // Snapshot for downstream (slot → id lookup; col/len + rank/bank/row
+    // for scheduler issue without re-driving the q_* query bus)
     output logic [CD-1:0]                       snap_valid_o,
     output logic [CD-1:0][IW-1:0]               snap_id_o,
+    output logic [CD-1:0][RKW-1:0]              snap_rank_o,
+    output logic [CD-1:0][BKW-1:0]              snap_bank_o,
+    output logic [CD-1:0][RW-1:0]               snap_row_o,
     output logic [CD-1:0][CW-1:0]               snap_col_o,
     output logic [CD-1:0][BLW-1:0]              snap_len_o,
     output logic [CD-1:0]                       snap_issued_o,
@@ -177,6 +181,9 @@ module rd_cmd_cam
     // Snapshot
     assign snap_valid_o   = r_valid;
     assign snap_id_o      = r_id;
+    assign snap_rank_o    = r_rank;
+    assign snap_bank_o    = r_bank;
+    assign snap_row_o     = r_row;
     assign snap_col_o     = r_col;
     assign snap_len_o     = r_len;
     assign snap_issued_o  = r_issued;

@@ -63,6 +63,11 @@ module xbank_timers
     input  logic                       evt_rd_i,
     input  logic                       evt_wr_i,
     input  logic                       evt_pre_i,
+    input  logic                       evt_ap_i,     // auto-precharge bit:
+                                                     //   set with evt_rd_i (RDA)
+                                                     //   or evt_wr_i (WRA);
+                                                     //   tells xbank_timers to
+                                                     //   auto-PRE after tRTP/tWR
     input  logic [RKW-1:0]             evt_rank_i,
     input  logic [BKW-1:0]             evt_bank_i,
     input  logic [ROW_WIDTH-1:0]       evt_row_i,    // for ACT row-tracking
@@ -84,14 +89,19 @@ module xbank_timers
     logic        [NUM_RANKS-1:0][NUM_BANKS-1:0][7:0]       r_rdwr_cnt;
     logic        [NUM_RANKS-1:0][NUM_BANKS-1:0][7:0]       r_pre_cnt;
     logic        [NUM_RANKS-1:0][NUM_BANKS-1:0][ROW_WIDTH-1:0] r_open_row;
+    // r_ap_pending: this bank just issued a RDA/WRA. When the RD/WR cnt
+    // expires, transition straight to PRECHARGING with t_rp_i instead of
+    // ACTIVE. Needed for closed-page auto-precharge correctness.
+    logic        [NUM_RANKS-1:0][NUM_BANKS-1:0]            r_ap_pending;
 
     `ALWAYS_FF_RST(mc_clk, mc_rst_n, begin
         if (`RST_ASSERTED(mc_rst_n)) begin
-            r_state    <= '0;   // BANK_IDLE = 3'h0
-            r_act_cnt  <= '0;
-            r_rdwr_cnt <= '0;
-            r_pre_cnt  <= '0;
-            r_open_row <= '0;
+            r_state      <= '0;   // BANK_IDLE = 3'h0
+            r_act_cnt    <= '0;
+            r_rdwr_cnt   <= '0;
+            r_pre_cnt    <= '0;
+            r_open_row   <= '0;
+            r_ap_pending <= '0;
         end else begin
             // 1. Decrement all per-bank counters (saturate at 0).
             for (int unsigned k = 0; k < NUM_RANKS; k++) begin
@@ -104,11 +114,16 @@ module xbank_timers
                     if (r_state[k][b] == BANK_ACTIVATING && r_act_cnt[k][b] == 8'd1) begin
                         r_state[k][b] <= BANK_ACTIVE;
                     end
-                    if (r_state[k][b] == BANK_RD_BUSY && r_rdwr_cnt[k][b] == 8'd1) begin
-                        r_state[k][b] <= BANK_ACTIVE;
-                    end
-                    if (r_state[k][b] == BANK_WR_BUSY && r_rdwr_cnt[k][b] == 8'd1) begin
-                        r_state[k][b] <= BANK_ACTIVE;
+                    if ((r_state[k][b] == BANK_RD_BUSY || r_state[k][b] == BANK_WR_BUSY)
+                        && r_rdwr_cnt[k][b] == 8'd1) begin
+                        // Auto-precharge: skip ACTIVE and go to PRECHARGING.
+                        if (r_ap_pending[k][b]) begin
+                            r_state     [k][b] <= BANK_PRECHARGING;
+                            r_pre_cnt   [k][b] <= t_rp_i;
+                            r_ap_pending[k][b] <= 1'b0;
+                        end else begin
+                            r_state[k][b] <= BANK_ACTIVE;
+                        end
                     end
                     if (r_state[k][b] == BANK_PRECHARGING && r_pre_cnt[k][b] == 8'd1) begin
                         r_state[k][b] <= BANK_IDLE;
@@ -119,21 +134,25 @@ module xbank_timers
             // 3. Apply incoming event strobes — overrides above for the
             //    targeted bank.
             if (evt_act_i) begin
-                r_state   [evt_rank_i][evt_bank_i] <= BANK_ACTIVATING;
-                r_act_cnt [evt_rank_i][evt_bank_i] <= t_rcd_i;
-                r_open_row[evt_rank_i][evt_bank_i] <= evt_row_i;
+                r_state     [evt_rank_i][evt_bank_i] <= BANK_ACTIVATING;
+                r_act_cnt   [evt_rank_i][evt_bank_i] <= t_rcd_i;
+                r_open_row  [evt_rank_i][evt_bank_i] <= evt_row_i;
+                r_ap_pending[evt_rank_i][evt_bank_i] <= 1'b0;
             end
             if (evt_rd_i) begin
-                r_state   [evt_rank_i][evt_bank_i] <= BANK_RD_BUSY;
-                r_rdwr_cnt[evt_rank_i][evt_bank_i] <= t_rtp_i;
+                r_state     [evt_rank_i][evt_bank_i] <= BANK_RD_BUSY;
+                r_rdwr_cnt  [evt_rank_i][evt_bank_i] <= t_rtp_i;
+                r_ap_pending[evt_rank_i][evt_bank_i] <= evt_ap_i;
             end
             if (evt_wr_i) begin
-                r_state   [evt_rank_i][evt_bank_i] <= BANK_WR_BUSY;
-                r_rdwr_cnt[evt_rank_i][evt_bank_i] <= t_wr_i;
+                r_state     [evt_rank_i][evt_bank_i] <= BANK_WR_BUSY;
+                r_rdwr_cnt  [evt_rank_i][evt_bank_i] <= t_wr_i;
+                r_ap_pending[evt_rank_i][evt_bank_i] <= evt_ap_i;
             end
             if (evt_pre_i) begin
-                r_state  [evt_rank_i][evt_bank_i] <= BANK_PRECHARGING;
-                r_pre_cnt[evt_rank_i][evt_bank_i] <= t_rp_i;
+                r_state     [evt_rank_i][evt_bank_i] <= BANK_PRECHARGING;
+                r_pre_cnt   [evt_rank_i][evt_bank_i] <= t_rp_i;
+                r_ap_pending[evt_rank_i][evt_bank_i] <= 1'b0;
             end
         end
     end)

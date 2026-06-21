@@ -182,6 +182,21 @@ module axi_frontend_macro
     output logic [RD_CAM_DEPTH-1:0]         rd_match_rowhit_o,
 
     //=========================================================================
+    // Per-slot snapshots (combinational; scheduler picks a slot and uses
+    // its decoded tuple directly rather than driving q_* per cycle)
+    //=========================================================================
+    output logic [WR_CAM_DEPTH-1:0][RKW-1:0] wr_snap_rank_o,
+    output logic [WR_CAM_DEPTH-1:0][BKW-1:0] wr_snap_bank_o,
+    output logic [WR_CAM_DEPTH-1:0][RW-1:0]  wr_snap_row_o,
+    output logic [WR_CAM_DEPTH-1:0][CW-1:0]  wr_snap_col_o,
+    output logic [WR_CAM_DEPTH-1:0][BLW-1:0] wr_snap_len_o,
+    output logic [RD_CAM_DEPTH-1:0][RKW-1:0] rd_snap_rank_o,
+    output logic [RD_CAM_DEPTH-1:0][BKW-1:0] rd_snap_bank_o,
+    output logic [RD_CAM_DEPTH-1:0][RW-1:0]  rd_snap_row_o,
+    output logic [RD_CAM_DEPTH-1:0][CW-1:0]  rd_snap_col_o,
+    output logic [RD_CAM_DEPTH-1:0][BLW-1:0] rd_snap_len_o,
+
+    //=========================================================================
     // Scheduler "mark issued" strobes
     //=========================================================================
     input  logic                 wr_issued_we_i,
@@ -590,6 +605,9 @@ module axi_frontend_macro
     //=========================================================================
     logic [RD_CAM_DEPTH-1:0]                       w_rd_snap_valid;
     logic [RD_CAM_DEPTH-1:0][IW-1:0]               w_rd_snap_id;
+    logic [RD_CAM_DEPTH-1:0][RKW-1:0]              w_rd_snap_rank;
+    logic [RD_CAM_DEPTH-1:0][BKW-1:0]              w_rd_snap_bank;
+    logic [RD_CAM_DEPTH-1:0][RW-1:0]               w_rd_snap_row;
     logic [RD_CAM_DEPTH-1:0][CW-1:0]               w_rd_snap_col;
     logic [RD_CAM_DEPTH-1:0][BLW-1:0]              w_rd_snap_len;
     logic [RD_CAM_DEPTH-1:0]                       w_rd_snap_issued;
@@ -634,6 +652,9 @@ module axi_frontend_macro
 
         .snap_valid_o            (w_rd_snap_valid),
         .snap_id_o               (w_rd_snap_id),
+        .snap_rank_o             (w_rd_snap_rank),
+        .snap_bank_o             (w_rd_snap_bank),
+        .snap_row_o              (w_rd_snap_row),
         .snap_col_o              (w_rd_snap_col),
         .snap_len_o              (w_rd_snap_len),
         .snap_issued_o           (w_rd_snap_issued),
@@ -641,13 +662,23 @@ module axi_frontend_macro
         .dbg_occupancy_o         (dbg_rd_cam_occ_o)
     );
 
-    // Tie unused snapshot consumers (will be consumed when scheduler /
-    // rd_data_path / xbank_timers FUBs land).
-    wire unused = |{ w_wr_snap_col,    w_wr_snap_strb_ptr,
+    // Expose snapshots at the macro boundary for the scheduler.
+    assign wr_snap_rank_o = w_wr_snap_rank;
+    assign wr_snap_bank_o = w_wr_snap_bank;
+    assign wr_snap_row_o  = w_wr_snap_row;
+    assign wr_snap_col_o  = w_wr_snap_col;
+    assign wr_snap_len_o  = w_wr_snap_len;
+    assign rd_snap_rank_o = w_rd_snap_rank;
+    assign rd_snap_bank_o = w_rd_snap_bank;
+    assign rd_snap_row_o  = w_rd_snap_row;
+    assign rd_snap_col_o  = w_rd_snap_col;
+    assign rd_snap_len_o  = w_rd_snap_len;
+
+    // Tie unused snapshot consumers (remaining; not all wired yet).
+    wire unused = |{ w_wr_snap_strb_ptr,
                      w_wr_snap_issued, w_wr_snap_b_pending,
                      w_wr_snap_id,
-                     w_rd_snap_valid,  w_rd_snap_id,
-                     w_rd_snap_col,    w_rd_snap_len,
+                     w_rd_snap_valid, w_rd_snap_id,
                      w_rd_snap_issued };
 
 endmodule : axi_frontend_macro

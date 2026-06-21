@@ -27,19 +27,21 @@
 **Location:** `rtl/macro/`
 **Category:** Integration macro (pure structural)
 **Parent macro:** `ddr2_lpddr2_core_macro`
-**FUBs bundled:** 7
+**FUBs bundled:** 8
 
 ## Purpose
 
 "What command should we issue this cycle?" — bundles all the
-decision-making layer of the controller core: scheduler + per-bank /
-global timers + refresh + powerdown + mode register + init sequencer.
+decision-making layer of the controller core: scheduler + page predictor
++ per-bank / global timers + refresh + powerdown + mode register + init
+sequencer.
 
 ## FUBs
 
 | FUB                | Role                                                                                                |
 |--------------------|-----------------------------------------------------------------------------------------------------|
-| `scheduler`        | FR-FCFS-style picker. Closed-page policy (RDA/WRA auto-precharge). Refresh + init priority gating.  |
+| `scheduler`        | Column-op picker with CLOSE / OPEN / HAPPY_HYBRID page policy. Round-robin W/R. Refresh + init priority. |
+| `page_predictor`   | Per-(rank, bank) 2-bit saturating predictor; drives `predict_open` to scheduler in HAPPY mode.       |
 | `xbank_timers`     | Per-(rank, bank) JEDEC counters (tRCD, tRP, tWR, tRTP, tRC, tRAS). Drives per-bank ready arrays.    |
 | `global_timers`    | Cross-bank windows: tFAW (4-ACT), tRRD, tWTR, tRTW. Drives per-rank `_window_ok` flags.             |
 | `refresh_ctrl`     | tREFI down-counter + postponed-refresh accumulator (JEDEC max 8). `refresh_pending_o` to scheduler. |

@@ -31,6 +31,7 @@ module ddr2_lpddr2_core_macro
     parameter int W_BUF_PTR_WIDTH = $clog2(W_BUF_DEPTH),
     parameter int WR_CAM_DEPTH    = 16,
     parameter int RD_CAM_DEPTH    = 16,
+    parameter int PAGE_POLICY     = 32'(PAGE_POLICY_CLOSE),
 
     parameter int DRAM_BEAT_WIDTH = AXI_DATA_WIDTH,
     parameter int DFI_RATE        = 2,
@@ -104,8 +105,14 @@ module ddr2_lpddr2_core_macro
     input  logic [RD_CAM_DEPTH-1:0]    rd_match_pending_i,
     input  logic [RD_CAM_DEPTH-1:0]    rd_match_rowhit_i,
 
+    input  logic [WR_CAM_DEPTH-1:0][RKW-1:0] wr_snap_rank_i,
+    input  logic [WR_CAM_DEPTH-1:0][BKW-1:0] wr_snap_bank_i,
+    input  logic [WR_CAM_DEPTH-1:0][RW-1:0]  wr_snap_row_i,
     input  logic [WR_CAM_DEPTH-1:0][CW-1:0]  wr_snap_col_i,
     input  logic [WR_CAM_DEPTH-1:0][BLW-1:0] wr_snap_len_i,
+    input  logic [RD_CAM_DEPTH-1:0][RKW-1:0] rd_snap_rank_i,
+    input  logic [RD_CAM_DEPTH-1:0][BKW-1:0] rd_snap_bank_i,
+    input  logic [RD_CAM_DEPTH-1:0][RW-1:0]  rd_snap_row_i,
     input  logic [RD_CAM_DEPTH-1:0][CW-1:0]  rd_snap_col_i,
     input  logic [RD_CAM_DEPTH-1:0][BLW-1:0] rd_snap_len_i,
     input  logic [RD_CAM_DEPTH-1:0][IW-1:0]  rd_snap_id_i,
@@ -235,7 +242,8 @@ module ddr2_lpddr2_core_macro
         .BURST_LEN_WIDTH (BLW),
         .WR_CAM_DEPTH    (WR_CAM_DEPTH),
         .RD_CAM_DEPTH    (RD_CAM_DEPTH),
-        .DFI_CS_WIDTH    (DFI_CS_WIDTH)
+        .DFI_CS_WIDTH    (DFI_CS_WIDTH),
+        .PAGE_POLICY     (PAGE_POLICY)
     ) u_command_scheduler (
         .mc_clk              (mc_clk),
         .mc_rst_n            (mc_rst_n),
@@ -264,8 +272,14 @@ module ddr2_lpddr2_core_macro
         .wr_match_rowhit_i   (wr_match_rowhit_i),
         .rd_match_pending_i  (rd_match_pending_i),
         .rd_match_rowhit_i   (rd_match_rowhit_i),
+        .wr_snap_rank_i      (wr_snap_rank_i),
+        .wr_snap_bank_i      (wr_snap_bank_i),
+        .wr_snap_row_i       (wr_snap_row_i),
         .wr_snap_col_i       (wr_snap_col_i),
         .wr_snap_len_i       (wr_snap_len_i),
+        .rd_snap_rank_i      (rd_snap_rank_i),
+        .rd_snap_bank_i      (rd_snap_bank_i),
+        .rd_snap_row_i       (rd_snap_row_i),
         .rd_snap_col_i       (rd_snap_col_i),
         .rd_snap_len_i       (rd_snap_len_i),
         .wr_issued_we_o      (wr_issued_we_o),

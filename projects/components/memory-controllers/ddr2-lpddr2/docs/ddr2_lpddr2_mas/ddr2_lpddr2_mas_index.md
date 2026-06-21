@@ -65,8 +65,9 @@
 - [Write Command CAM (`wr_cmd_cam`)](ch02_blocks/05_wr_cmd_cam.md)
 - [Write-to-Read Forward (`wr2rd_forward`)](ch02_blocks/21_wr2rd_forward.md)
 
-**Scheduling (7 FUBs in `command_scheduler_macro`):**
-- [FR-FCFS Scheduler (`scheduler`)](ch02_blocks/07_scheduler.md)
+**Scheduling (8 FUBs in `command_scheduler_macro`):**
+- [Scheduler (`scheduler`)](ch02_blocks/07_scheduler.md) — CLOSE/OPEN/HAPPY_HYBRID
+- [HAPPY Page Predictor (`page_predictor`)](ch02_blocks/08_page_predictor.md)
 - [Cross-Bank Timers (`xbank_timers`)](ch02_blocks/10_xbank_timers.md)
 - [Global Timers (`global_timers`)](ch02_blocks/19_global_timers.md)
 - [Refresh Controller (`refresh_ctrl`)](ch02_blocks/11_refresh_mgr.md)
@@ -84,7 +85,6 @@
 
 **Absorbed (kept for design rationale; no standalone FUB exists today):**
 - [Transaction Queue — absorbed into intake+CAMs](ch02_blocks/06_txn_queue.md)
-- [HAPPY Page Predictor — removed (closed-page policy)](ch02_blocks/08_page_predictor.md)
 - [Bank Machine — absorbed into CAMs+xbank_timers](ch02_blocks/09_bank_machine.md)
 - [ODT Control — absorbed into dfi_cmd_formatter](ch02_blocks/16_odt_ctrl.md)
 
