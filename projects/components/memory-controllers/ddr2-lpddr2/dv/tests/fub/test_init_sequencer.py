@@ -1,0 +1,197 @@
+# SPDX-License-Identifier: MIT
+# SPDX-FileCopyrightText: 2024-2026 sean galloway
+
+"""
+Unit-test runner for `init_sequencer_fub`. Walks the FSM from RESET
+through DONE, verifies dfi_init_start_o asserts, verifies the MR
+write sequence (MR2 → MR3 → MR1 → MR0), and checks ZQCL handshake.
+"""
+
+import os
+import sys
+import random
+import pytest
+
+import cocotb
+from cocotb.triggers import RisingEdge, Timer
+from cocotb_test.simulator import run
+
+from TBClasses.shared.utilities import get_paths
+from TBClasses.shared.filelist_utils import get_sources_from_filelist
+from TBClasses.shared.tbbase import TBBase
+
+_DV_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), "../.."))
+if _DV_DIR not in sys.path:
+    sys.path.insert(0, _DV_DIR)
+
+
+MEMTYPE_DDR2   = 0
+MEMTYPE_LPDDR2 = 1
+
+# Default MR values per init_sequencer_fub
+DDR2_MR0_DEFAULT = 0x0152
+DDR2_MR1_DEFAULT = 0x0000
+DDR2_MR2_DEFAULT = 0x0000
+DDR2_MR3_DEFAULT = 0x0000
+
+
+class InitTB(TBBase):
+    CLK = 10
+
+    async def setup(self, memtype: int = MEMTYPE_DDR2):
+        self.dut.memtype_i.value             = memtype
+        self.dut.dfi_init_complete_i.value   = 0
+        self.dut.zqcl_grant_i.value          = 0
+        await self.start_clock('mc_clk', freq=self.CLK, units='ns')
+        self.dut.mc_rst_n.value = 0
+        await self.wait_clocks('mc_clk', 5)
+        self.dut.mc_rst_n.value = 1
+        await self.wait_clocks('mc_clk', 5)
+
+    def init_start(self) -> int:
+        return int(self.dut.dfi_init_start_o.value)
+
+    def init_busy(self) -> int:
+        return int(self.dut.init_busy_o.value)
+
+    def init_done(self) -> int:
+        return int(self.dut.init_done_o.value)
+
+    def mr_we(self) -> int:
+        return int(self.dut.mr_seq_we_o.value)
+
+    def mr_idx(self) -> int:
+        return int(self.dut.mr_seq_index_o.value)
+
+    def mr_data(self) -> int:
+        return int(self.dut.mr_seq_data_o.value)
+
+    def zqcl_req(self) -> int:
+        return int(self.dut.zqcl_req_o.value)
+
+    async def capture_mr_seq(self, max_cycles: int = 20):
+        """Watch for MR write strobes; return list of (index, data) seen."""
+        seen = []
+        for _ in range(max_cycles):
+            await RisingEdge(self.dut.mc_clk)
+            await Timer(1, units='ps')
+            if self.mr_we():
+                seen.append((self.mr_idx(), self.mr_data()))
+        return seen
+
+
+@cocotb.test(timeout_time=10, timeout_unit="ms")
+async def cocotb_test_init_sequencer(dut):
+    test_type = os.environ.get("TEST_TYPE", "ddr2_init_walk")
+    tb = InitTB(dut)
+
+    if test_type == "ddr2_init_walk":
+        await tb.setup(MEMTYPE_DDR2)
+        # After reset deassertion, dfi_init_start_o should be high.
+        await tb.wait_clocks('mc_clk', 1)
+        assert tb.init_start() == 1
+        assert tb.init_busy() == 1
+        assert tb.init_done() == 0
+        # PHY completes init
+        tb.dut.dfi_init_complete_i.value = 1
+        # Capture MR sequence
+        seen = await tb.capture_mr_seq(max_cycles=10)
+        # Should see MR2, MR3, MR1, MR0 in order
+        seq = [(idx, data) for idx, data in seen]
+        expected = [
+            (2, DDR2_MR2_DEFAULT),
+            (3, DDR2_MR3_DEFAULT),
+            (1, DDR2_MR1_DEFAULT),
+            (0, DDR2_MR0_DEFAULT),
+        ]
+        assert seq == expected, f"MR seq mismatch: got {seq}, want {expected}"
+        # ZQCL request follows
+        await tb.wait_clocks('mc_clk', 1)
+        assert tb.zqcl_req() == 1
+        # Grant; advance to DONE
+        tb.dut.zqcl_grant_i.value = 1
+        await tb.wait_clocks('mc_clk', 2)
+        tb.dut.zqcl_grant_i.value = 0
+        await tb.wait_clocks('mc_clk', 2)
+        assert tb.init_done() == 1
+        assert tb.init_busy() == 0
+
+    elif test_type == "wait_for_complete":
+        await tb.setup(MEMTYPE_DDR2)
+        await tb.wait_clocks('mc_clk', 1)
+        assert tb.init_start() == 1
+        # Don't assert dfi_init_complete; init should stay busy
+        await tb.wait_clocks('mc_clk', 30)
+        assert tb.init_busy() == 1
+        assert tb.init_done() == 0
+
+    elif test_type == "lpddr2_smoke":
+        await tb.setup(MEMTYPE_LPDDR2)
+        await tb.wait_clocks('mc_clk', 1)
+        assert tb.init_start() == 1
+        tb.dut.dfi_init_complete_i.value = 1
+        # LPDDR2 MR data is zero (TODO for real LPDDR2 init)
+        seen = await tb.capture_mr_seq(max_cycles=10)
+        for idx, data in seen:
+            assert data == 0, f"LPDDR2 MR{idx} should be 0 (TODO)"
+        tb.dut.zqcl_grant_i.value = 1
+        await tb.wait_clocks('mc_clk', 5)
+        assert tb.init_done() == 1
+
+    else:
+        raise ValueError(f"Unknown TEST_TYPE: {test_type}")
+
+    await tb.wait_clocks('mc_clk', 3)
+
+
+_GATE = [("ddr2_init_walk",)]
+_FUNC = _GATE + [("wait_for_complete",), ("lpddr2_smoke",)]
+_FULL = _FUNC
+
+_TEST_LEVEL = os.environ.get("TEST_LEVEL", "FUNC").upper()
+_PARAMS = {"GATE": _GATE, "FUNC": _FUNC, "FULL": _FULL}.get(_TEST_LEVEL, _FUNC)
+
+
+@pytest.mark.parametrize("test_type", [t[0] for t in _PARAMS],
+                         ids=[t[0] for t in _PARAMS])
+def test_init_sequencer(request, test_type):
+    module, repo_root, tests_dir, log_dir, _ = get_paths({})
+    dut_name = "init_sequencer_fub"
+    test_name = f"test_init_sequencer_{test_type}"
+
+    filelist_path = ("projects/components/memory-controllers/ddr2-lpddr2/"
+                     "rtl/filelists/fub/init_sequencer_fub.f")
+    verilog_sources, includes = get_sources_from_filelist(
+        repo_root=repo_root, filelist_path=filelist_path)
+
+    sim_build = os.path.join(tests_dir, "local_sim_build", test_name)
+    os.makedirs(sim_build, exist_ok=True)
+    os.makedirs(log_dir, exist_ok=True)
+
+    extra_env = {
+        "DUT": dut_name,
+        "TEST_TYPE": test_type,
+        "SEED": str(random.randint(0, 100000)),
+        "COCOTB_LOG_LEVEL": "INFO",
+        "COCOTB_RESULTS_FILE":
+            os.path.join(log_dir, f"results_{test_name}.xml"),
+    }
+
+    enable_waves = bool(int(os.environ.get("WAVES", "0")))
+    compile_args = ["+define+USE_ASYNC_RESET"]
+    sim_args = []
+    plus_args = []
+    if enable_waves:
+        compile_args += ["--trace-fst", "--trace-structs", "--trace-depth", "99"]
+        sim_args     += ["--trace", "--trace-structs", "--trace-depth", "99"]
+        plus_args    += ["--trace"]
+        extra_env["VERILATOR_TRACE_FST"] = "1"
+
+    run(python_search=[tests_dir],
+        verilog_sources=verilog_sources, includes=includes,
+        toplevel=dut_name, module=module,
+        testcase="cocotb_test_init_sequencer",
+        sim_build=sim_build, simulator="verilator",
+        extra_env=extra_env,
+        compile_args=compile_args, sim_args=sim_args, plus_args=plus_args,
+        waves=enable_waves, keep_files=True, timescale="1ns/1ps")
