@@ -21,28 +21,51 @@
 
 <!-- End Header -->
 
-# Command Encoder (`cmd_encoder_fub`)
+# DFI Command Formatter (`dfi_cmd_formatter`)
 
-**Module:** `cmd_encoder_fub.sv`
+**Module:** `dfi_cmd_formatter.sv`
 **Location:** `rtl/fub/`
 **Category:** FUB
-**Parent:** `ddr2_lpddr2_ctrl`
-**Status:** Draft v0.1
+**Parent macro:** `dfi_v21_interface_macro`
+**Status:** v1 implemented (DDR2 truth table; LPDDR2 deferred to v2)
 
-> Architectural context: HAS §3.6. This block is the **memtype-swappable encoder** — the one stage of the controller where DDR2 and LPDDR2 actually diverge at the wire level. Everything upstream is rank/bank-tuple-abstract; everything downstream is DFI-frame-abstract.
+> Architectural context: HAS §3.6.
+>
+> **Renamed:** the SWAG called this `cmd_encoder_fub`; the implementation
+> name is `dfi_cmd_formatter`.
+>
+> **Absorbed:** the SWAG's separate `odt_ctrl_fub` (ODT timing) was
+> absorbed into this FUB — ODT rules follow deterministically from the
+> issued command so they live in the same JEDEC truth table.
+>
+> **Strict-flop outputs:** every DFI control output (cs_n, ras_n, cas_n,
+> we_n, address, bank) is registered.
+>
+> **v1 vs SWAG:** v1 implements the DDR2 truth table. LPDDR2's 20-bit
+> CA-bus packed encoding is deferred to v2.
 
 ---
 
 ## Purpose
 
-`cmd_encoder_fub` takes an abstract DRAM command operand `(op, rank, bank, row, col, auto_pre)` and emits the wire-level DFI command bits:
+`dfi_cmd_formatter` takes an abstract DRAM command operand `(op, rank, bank,
+row, col, auto_pre)` from the scheduler and emits the wire-level DFI command
+bits:
 
-- For **DDR2**: traditional `dfi_ras_n` / `dfi_cas_n` / `dfi_we_n` strobes plus `dfi_address` and `dfi_bank`
-- For **LPDDR2**: the JEDEC 20-bit CA-bus packed encoding per DFI v2.1 §3.1 Table 1
+- For **DDR2**: traditional `dfi_ras_n` / `dfi_cas_n` / `dfi_we_n` strobes
+  plus `dfi_address` and `dfi_bank`.
+- For **LPDDR2** (v2): the JEDEC 20-bit CA-bus packed encoding per DFI v2.1
+  §3.1 Table 1.
 
-Per-rank `dfi_cs_n[NR]` driving is also this FUB's job — it derives the per-rank chip-select pattern from the issue's target rank and the command type (single-rank commands drive one CS_n low; REFab with per-rank dispatch from §2.11 drives the appropriate single rank).
+Per-rank `dfi_cs_n[NR]` driving is this FUB's job — derives the per-rank
+chip-select pattern from the issue's target rank.
 
-The FUB is purely combinational at the per-command level — the input arrives from the scheduler / init / refresh / power-state bypass paths, the encoded output flows the same cycle to `gear_dfi_fub` for per-phase packing. There is no state inside the encoder; that lives upstream (scheduler, init, refresh) or downstream (gear, bank machines).
+ODT timing also lives here: WR/WRA turn ODT on at CWL-2, off after the
+burst; RD turns ODT on the *other* rank. Both rules are derived from the
+same truth table as ras_n/cas_n/we_n.
+
+All outputs are flopped at the end of this FUB; `dfi_signal_pack` widens
+them to per-phase × `DFI_RATE`.
 
 ---
 

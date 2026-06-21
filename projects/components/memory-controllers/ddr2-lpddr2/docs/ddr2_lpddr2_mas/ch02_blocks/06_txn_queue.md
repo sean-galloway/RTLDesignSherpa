@@ -21,12 +21,27 @@
 
 <!-- End Header -->
 
-# Transaction Queue (`txn_queue_fub`)
+# Transaction Queue (absorbed)
 
-**Module:** `txn_queue_fub.sv`
-**Location:** `rtl/fub/`
-**Category:** FUB
-**Parent:** `ddr2_lpddr2_ctrl`
+> ## ⚠️ ABSORBED — No standalone FUB
+>
+> The unified transaction queue described below was **absorbed** during
+> implementation:
+>
+> - **Pending-write metadata** lives in [`wr_cmd_cam`](05_wr_cmd_cam.md)
+>   (per-slot rank/bank/row + b_complete state).
+> - **Pending-read metadata** lives in [`rd_cmd_cam`](04_rd_cmd_cam.md)
+>   (per-slot rank/bank/row + beats remaining).
+> - **Per-direction completion FIFOs** live in [`axi_intake`](02_axi4_slave.md)
+>   (b_fifo for the B channel; R-emit FIFO for the R channel).
+>
+> The chapter is retained for the **architectural reasoning** — why
+> row-hit caching, why per-direction CAMs, why two metadata layouts —
+> which still applies. Treat the implementation details (FSM states,
+> entry layout) below as the historical SWAG, superseded by the three
+> FUBs above.
+
+**Status:** Absorbed (was Draft v0.1)
 **Status:** Draft v0.1
 
 > Architectural context: HAS §3.2 `txn_queue`. This block-level MAS section is the implementation detail: entry format, port arrangement, insert/clear paths, `row_hit_cached` coherency, backpressure, storage choice.

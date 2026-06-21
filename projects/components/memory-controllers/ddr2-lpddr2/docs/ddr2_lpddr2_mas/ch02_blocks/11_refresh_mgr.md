@@ -21,29 +21,42 @@
 
 <!-- End Header -->
 
-# Refresh Manager (`refresh_mgr_fub`)
+# Refresh Controller (`refresh_ctrl`)
 
-**Module:** `refresh_mgr_fub.sv`
+**Module:** `refresh_ctrl.sv`
 **Location:** `rtl/fub/`
 **Category:** FUB
-**Parent:** `ddr2_lpddr2_ctrl`
-**Status:** Draft v0.1
+**Parent macro:** `command_scheduler_macro`
+**Status:** v1 implemented (REFab + tREFI postponer; REFpb/DARP/ZQCS/PASR deferred to v2)
 
-> Architectural context: HAS §3.4 (postponer, REFab/REFpb paths, DARP selection, ZQCS piggyback, per-rank PASR, multi-rank round-robin). The HAS state diagram for the controller-level refresh FSM is in `ddr2_lpddr2_has/assets/mermaid/11_refresh_controller_fsm.png` — refer to that for the state machine; this section is the implementation view (counters, DARP selector, per-rank handshake fan-out, sequencer, timing).
+> Architectural context: HAS §3.4.
+>
+> **Renamed:** the SWAG called this `refresh_mgr_fub`; the implementation
+> name is `refresh_ctrl`.
+>
+> **v1 scope vs SWAG:** v1 implements the **REFab path** and the **tREFI
+> postponer** (JEDEC max 8 postponed refreshes). The DARP per-bank selector,
+> ZQCS piggyback path, per-rank round-robin, and PASR mask propagation
+> described below are **deferred to v2** — they're kept in this chapter as
+> the architectural target. The text says "bank machines" in places; in
+> the current implementation refresh wins against the scheduler's other
+> commands via priority, and the per-bank counters in `xbank_timers` reset
+> when REF issues.
 
 ---
 
 ## Purpose
 
-`refresh_mgr_fub` owns DRAM refresh scheduling and the ZQCS-piggyback path. It produces:
+`refresh_ctrl` owns DRAM refresh scheduling. In v1 it produces:
 
-- The binary `refresh_wants_o` signal that pauses scheduler issue at the right cycles
-- Per-(rank, bank) `refresh_req_o[NR][NB]` handshake assertions to bank machines
-- The actual REF / REFpb command issue (routed through the scheduler's pipeline)
-- ZQCS commands during the same refresh window when the periodic ZQCS timer fires
-- PASR mask propagation to the DRAM via MR16/MR17 writes (per-rank for LPDDR2)
+- The `refresh_req_o` signal that elevates refresh to highest priority in
+  the scheduler.
+- The `pending_refreshes_o` counter for the JEDEC max-8 postponed window.
+- (Future) Per-rank DARP selection, ZQCS piggyback, PASR mask propagation.
 
-This is the heart of the controller's correctness story: get refresh wrong and DRAM forgets data. The FUB is built around a deterministic postponer (no saturating-pending counter — earlier revisions saturated, which was out-of-JEDEC; v0.2 fixed this) and a per-rank handshake mesh.
+This is the heart of the controller's correctness story: get refresh wrong
+and DRAM forgets data. The FUB is built around a deterministic postponer
+(no saturating-pending counter — saturation would be out-of-JEDEC).
 
 For multi-rank builds, the FUB drives REFab in a round-robin across ranks so non-targeted ranks keep servicing column commands during the refresh window — see §3.4 in the HAS for the rationale.
 

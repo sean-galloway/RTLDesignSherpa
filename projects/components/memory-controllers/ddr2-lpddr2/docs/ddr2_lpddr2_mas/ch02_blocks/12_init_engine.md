@@ -21,13 +21,18 @@
 
 <!-- End Header -->
 
-# Init Engine (`init_engine_fub`)
+# Init Sequencer (`init_sequencer`)
 
-**Module:** `init_engine_fub.sv`
+**Module:** `init_sequencer.sv`
 **Location:** `rtl/fub/`
 **Category:** FUB
-**Parent:** `ddr2_lpddr2_ctrl`
-**Status:** Draft v0.1
+**Parent macro:** `command_scheduler_macro`
+**Status:** v1 implemented (DDR2 step table; LPDDR2 step table deferred to v2)
+
+> **Renamed:** the SWAG called this `init_engine_fub`; the implementation
+> name is `init_sequencer`. It drives MR-write strobes into
+> [`mode_register`](20_mode_register.md) (which owns the MR shadow + decode);
+> the SWAG's combined "init + MRS" responsibilities are split.
 
 > Architectural context: HAS §3.5. The HAS flow diagram is in `ddr2_lpddr2_has/assets/mermaid/05_init_engine_flow.png` and is the canonical step-decode reference — this section is the implementation view (ROM organization, step encoding, FSM, bypass path into bank machines, multi-rank MRS loop, sim shortcut).
 

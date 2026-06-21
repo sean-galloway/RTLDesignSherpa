@@ -21,25 +21,41 @@
 
 <!-- End Header -->
 
-# DFI Gear (`gear_dfi_fub`)
+# DFI Signal Pack (`dfi_signal_pack`)
 
-**Module:** `gear_dfi_fub.sv`
+**Module:** `dfi_signal_pack.sv`
 **Location:** `rtl/fub/`
 **Category:** FUB
-**Parent:** `ddr2_lpddr2_ctrl`
-**Status:** Draft v0.1
+**Parent macro:** `dfi_v21_interface_macro`
+**Status:** v1 implemented (phase-0 carries cmd; other phases NOP)
 
-> Architectural context: HAS §3.6 `gear_dfi`. This block is the gear-ratio packer: it absorbs the DFI per-phase dimension so upstream FUBs see one command per MC clock and downstream DFI sees an N-phase frame per MC clock.
+> Architectural context: HAS §3.6.
+>
+> **Renamed:** the SWAG called this `gear_dfi_fub`; the implementation
+> name is `dfi_signal_pack`. The parameter `N_PHASES` is now `DFI_RATE`.
+>
+> **Strict-flop outputs:** every aggregated DFI control bus output is
+> registered.
 
 ---
 
 ## Purpose
 
-DFI v2.1 runs at the PHY clock; the controller side runs at the MC clock, which is the PHY clock divided by `N_PHASES`. Each MC cycle therefore corresponds to N consecutive PHY-side DFI cycles ("phases"). `gear_dfi_fub` packs the controller's single-issue command stream and burst-of-N data beats into the right phase slots, and unpacks the rddata return into the controller's single-cycle view.
+DFI v2.1 runs at the PHY clock; the controller side runs at the MC clock,
+which is the PHY clock divided by `DFI_RATE`. Each MC cycle therefore
+corresponds to `DFI_RATE` consecutive PHY-side DFI cycles ("phases").
+`dfi_signal_pack` aggregates the controller's single-issue command and
+burst-of-`DFI_RATE` data beats into the right phase slots.
 
-The FUB is purely combinational on the command path (cmd flows from `cmd_encoder` to phase-0 slot, idle to other slots) and lightly registered on the data paths (one MC cycle of pipeline latency for `wr_data_path` packing; one MC cycle for `rd_data_path` reconstruction).
+In v1, phase 0 carries the command emitted by `dfi_cmd_formatter` and the
+other phases drive NOP. Data-path FUBs (`wr_beat_sequencer`,
+`rd_cl_aligner`) pre-pack `DFI_RATE` DRAM beats per DFI cycle, so the data
+path is naturally per-MC-cycle aligned.
 
-Upstream FUBs are gear-blind: scheduler, init, refresh, power, cmd_encoder all see one issue per MC clock. Downstream is the DFI pin layer where the per-phase signals route to the PHY.
+Upstream FUBs are rate-blind: scheduler, init, refresh, powerdown,
+mode_register, dfi_cmd_formatter all see one issue per MC clock. The
+output of this FUB is the per-phase × `DFI_RATE` bus that routes to the
+PHY pad.
 
 ---
 

@@ -21,23 +21,50 @@
 
 <!-- End Header -->
 
-# Top-Level Integration (`ddr2_lpddr2_ctrl`)
+# Top-Level Integration (`ddr2_lpddr2_core_macro`)
 
-**Module:** `ddr2_lpddr2_ctrl.sv`
-**Location:** `rtl/top/`
-**Category:** TOP (Structural only — no behavioral logic)
+**Module:** `ddr2_lpddr2_core_macro.sv`
+**Location:** `rtl/macro/`
+**Category:** Integration macro (pure structural — no behavioral logic)
 **Status:** Skeleton
+
+> **Note:** The early SWAG called this `ddr2_lpddr2_ctrl.sv` in `rtl/top/`.
+> The implementation moved to a 5-macro hierarchy under `rtl/macro/`; the
+> top-of-tree macro that the SoC instantiates is `ddr2_lpddr2_core_macro`.
+> `axi_frontend_macro` sits next to it (not inside) so it can be reused
+> across DFI versions.
 
 ---
 
 ## Purpose
 
-`ddr2_lpddr2_ctrl` is the controller's top-level integration. It is **pure structural wiring** — every behavioral statement belongs in a FUB. The role of the top is:
+`ddr2_lpddr2_core_macro` is the controller core's top-level integration.
+It is **pure structural wiring** — every behavioral statement belongs in
+a FUB. It instantiates the three sub-macros:
 
-1. Declare the external port list (see §1.2)
-2. Instantiate every FUB
-3. Wire FUB↔FUB interfaces
-4. Fan-out per-rank / per-bank / per-phase signals where the FUB count is parametric
+```
+ddr2_lpddr2_core_macro
+├── command_scheduler_macro   (7 FUBs — "what command to issue this cycle")
+├── data_path_macro           (2 FUBs — "move bytes")
+└── dfi_v21_interface_macro   (2 FUBs — "DFI v2.1 wire pack")
+```
+
+`axi_frontend_macro` (5 FUBs) lives next to it under the SoC integration
+layer.
+
+See:
+- [`axi_frontend_macro`](../ch02_macros/01_axi_frontend_macro.md)
+- [`command_scheduler_macro`](../ch02_macros/02_command_scheduler_macro.md)
+- [`data_path_macro`](../ch02_macros/03_data_path_macro.md)
+- [`dfi_v21_interface_macro`](../ch02_macros/04_dfi_v21_interface_macro.md)
+
+The role of each macro is:
+
+1. Instantiate its FUBs
+2. Wire FUB↔FUB interfaces inside the macro
+3. Expose external ports to peer macros / SoC
+4. Fan-out per-rank / per-bank / per-phase signals where the FUB count
+   is parametric
 
 ## Instantiation Inventory
 

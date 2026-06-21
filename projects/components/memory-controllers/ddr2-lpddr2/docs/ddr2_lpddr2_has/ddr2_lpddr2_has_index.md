@@ -23,9 +23,16 @@
 
 # DDR2 / LPDDR2 Family Controller Hardware Architecture Specification Index
 
-**Version:** 0.2
-**Date:** 2026-06-13
+**Version:** 0.3
+**Date:** 2026-06-21
 **Purpose:** High-level hardware architecture specification for the unified DDR2 / LPDDR2 memory controller family
+
+> **Note (v0.3):** The implementation has converged on a 16-FUB / 5-macro structure
+> that differs from the early SWAG. `txn_queue`, `page_predictor`, `bank_machine`,
+> and `odt_ctrl` were absorbed into surrounding FUBs; `mode_register`,
+> `global_timers`, `wr2rd_forward`, `axi_intake`, `wr_cmd_cam`, `rd_cmd_cam` were
+> added. See [FUB Breakdown](ch02_overview/05_fub_breakdown.md) for the current
+> inventory and the macro hierarchy.
 
 ---
 
@@ -53,14 +60,14 @@
 
 ### Chapter 3: Architecture
 
-- [AXI4 Frontend](ch03_architecture/01_axi_frontend.md)
-- [Scheduler and Page Predictor](ch03_architecture/02_scheduler.md)
-- [Bank Machines and Cross-Bank Timers](ch03_architecture/03_bank_machines.md)
-- [Refresh Manager](ch03_architecture/04_refresh.md)
-- [Init Engine and Power State](ch03_architecture/05_init_power.md)
-- [Command Encoder and Gear Output](ch03_architecture/06_encoder_output.md)
-- [Write / Read Data Paths](ch03_architecture/07_data_paths.md)
-- [DFI Master and CSR Slave](ch03_architecture/08_dfi_csr.md)
+- [AXI Frontend (`axi_frontend_macro`)](ch03_architecture/01_axi_frontend.md)
+- [Scheduler (closed-page; per-(rank,bank) timing query)](ch03_architecture/02_scheduler.md)
+- [Per-bank + cross-bank Timers (`xbank_timers`, `global_timers`)](ch03_architecture/03_bank_machines.md)
+- [Refresh Controller (`refresh_ctrl`)](ch03_architecture/04_refresh.md)
+- [Init Sequencer and Power-Down (`init_sequencer`, `powerdown_ctrl`, `mode_register`)](ch03_architecture/05_init_power.md)
+- [DFI v2.1 Output Pipeline (`dfi_cmd_formatter`, `dfi_signal_pack`)](ch03_architecture/06_encoder_output.md)
+- [Write / Read Data Paths (`wr_beat_sequencer`, `rd_cl_aligner`)](ch03_architecture/07_data_paths.md)
+- [DFI v2.1 Wire Interface and CSR (planned)](ch03_architecture/08_dfi_csr.md)
 
 ### Chapter 4: Interfaces
 

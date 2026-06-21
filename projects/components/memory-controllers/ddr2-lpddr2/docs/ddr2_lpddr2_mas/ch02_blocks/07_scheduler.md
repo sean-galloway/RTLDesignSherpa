@@ -26,10 +26,21 @@
 **Module:** `scheduler.sv`
 **Location:** `rtl/fub/`
 **Category:** FUB
-**Parent:** `ddr2_lpddr2_ctrl`
-**Status:** Draft v0.1
+**Parent macro:** `command_scheduler_macro`
+**Status:** v1 implemented (closed-page policy; outputs strict-flop registered)
 
-> Architectural context: HAS §3.2 (`scheduler`, priority function, lookahead, `force_inorder`, refresh-priority). This block-level MAS section is the implementation view: signals, internal datapath, pipeline staging, critical paths, and verification scenarios.
+> Architectural context: HAS §3.2 (priority function, refresh / init priority).
+> This block-level MAS section is the implementation view.
+>
+> **Implementation notes vs the early SWAG:**
+> - **Closed-page policy** in v1: every column command issues with
+>   auto-precharge (RDA / WRA). Page prediction and open-page state machine
+>   are not present; `page_predictor_fub` was removed (see
+>   [ch02_blocks/08](08_page_predictor.md)).
+> - **No standalone `txn_queue` or `bank_machine`** — those were absorbed
+>   into the CAMs + `xbank_timers`. The scheduler reads from CAM
+>   match-query buses and per-(rank, bank) ready arrays.
+> - **No lookahead window** in v1 — one CMD per cycle from current match.
 
 ---
 
@@ -37,15 +48,23 @@
 
 `scheduler` is the central command issue engine. Every MC clock cycle it:
 
-1. Snapshots `txn_queue` and all `bank_machine` states
-2. Computes a per-entry readiness vector (which queue entries *could* issue right now)
-3. Applies priority masking (init, refresh, force-inorder, row-hit-first, age tie-break)
-4. Picks at most one winner via parallel priority encoders
-5. Generates the DRAM command (`issue_op`, operands) and the CAM "mark issued" strobe
+1. Snapshots the wr/rd CAM match-query and `xbank_timers` / `global_timers`
+   ready arrays.
+2. Computes which slots' next-needed command (ACT / RD / WR) is currently
+   eligible.
+3. Applies priority masking (init busy, refresh wants, MR-write priority,
+   then write-vs-read fairness).
+4. Picks at most one winner via parallel priority encoders.
+5. Generates the DRAM command (`cmd_op`, `cmd_rank`, `cmd_bank`, `cmd_row`,
+   `cmd_col`, `cmd_ap`) and the CAM mark-issued strobe.
 
-Issue rate is **one command per MC clock**. Multi-cycle commands (LPDDR2's 2-cycle CA encodings) are absorbed inside `cmd_encoder_fub` and `gear_dfi_fub`; the scheduler still sees one issue per cycle.
+Issue rate is **one command per MC clock**. The scheduler does not see
+the DFI multi-phase dimension — `dfi_signal_pack` absorbs it.
 
-The block is the **single hardest synthesis-timing FUB** in the design — the parallel match-line into per-entry readiness, then into priority encoders, is what sets the MC clock frequency ceiling. Everything else has slack.
+The block is the **single hardest synthesis-timing FUB** in the design — the
+parallel match-line into per-entry readiness, then into priority encoders,
+is what sets the MC clock frequency ceiling. All outputs are strict-flop
+registered.
 
 ---
 

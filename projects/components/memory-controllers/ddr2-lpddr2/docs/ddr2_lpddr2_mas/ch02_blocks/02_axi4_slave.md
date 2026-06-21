@@ -21,13 +21,19 @@
 
 <!-- End Header -->
 
-# AXI4 Slave (`axi4_slave_fub`)
+# AXI4 Intake (`axi_intake`)
 
-**Module:** `axi4_slave_fub.sv`
+**Module:** `axi_intake.sv`
 **Location:** `rtl/fub/`
 **Category:** FUB
-**Parent:** `ddr2_lpddr2_ctrl`
-**Status:** Skeleton
+**Parent macro:** `axi_frontend_macro`
+**Status:** v1 implemented (outputs strict-flop registered)
+
+> **Renamed:** the SWAG called this `axi4_slave_fub`; the implementation
+> name is `axi_intake`. It owns the AXI4 protocol engine, the `w_buf` for
+> write data staging, the `b_fifo` for ID-aware B-channel ordering, and the
+> R-emit FSM that returns read beats (from `rd_inject` and the
+> `wr2rd_forward` snarf path).
 
 ---
 

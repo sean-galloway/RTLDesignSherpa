@@ -1,28 +1,37 @@
 %%{init: {'theme': 'base', 'themeVariables': { 'primaryColor': '#e8f4e8', 'primaryTextColor': '#000', 'primaryBorderColor': '#228B22', 'lineColor': '#404040', 'secondaryColor': '#f0f0f0', 'tertiaryColor': '#fff'}}}%%
 graph TD
-    top["memctrl_top"]
-    top --> axi4_slave["axi4_slave<br/><i>AXI4 channel handshake</i>"]
-    top --> addr_mapper["addr_mapper<br/><i>AXI addr to bank/row/col</i>"]
-    top --> txn_queue["txn_queue<br/><i>pending transactions</i>"]
-    top --> scheduler["scheduler<br/><i>FR-FCFS picker</i>"]
-    top --> page_predictor["page_predictor<br/><i>HAPPY (optional)</i>"]
-    top --> bank_machines["bank_machine[N]<br/><i>per-bank FSM + timing</i>"]
-    top --> xbank_timers["xbank_timers<br/><i>cross-bank constraints</i>"]
-    top --> refresh_mgr["refresh_mgr<br/><i>tREFI, DARP, Elastic</i>"]
-    top --> power_state["power_state<br/><i>top-level FSM</i>"]
-    top --> init_engine["init_engine<br/><i>microprogram sequencer</i>"]
-    init_engine --> step_table["step_table<br/><i>memtype ROM</i>"]
-    top --> cmd_encoder["cmd_encoder<br/><i>command to DFI wires</i>"]
-    top --> gear_out["gear_out<br/><i>1-phase to N-phase</i>"]
-    top --> wdata_path["wdata_path<br/><i>CWL-aligned wrdata</i>"]
-    top --> rdata_path["rdata_path<br/><i>CL-aligned rddata</i>"]
-    top --> dfi_master["dfi_master<br/><i>final aggregation</i>"]
-    top --> csr_slave["csr_slave<br/><i>APB3 configuration</i>"]
+    soc["SoC top"]
+    soc --> axi_frontend["axi_frontend_macro"]
+    soc --> core["ddr2_lpddr2_core_macro"]
 
-    classDef root fill:#404040,stroke:#228B22,stroke-width:2px,color:#fff
-    classDef branch fill:#e8f4e8,stroke:#228B22,stroke-width:1px,color:#000
-    classDef sub fill:#f0f0f0,stroke:#404040,stroke-width:1px,color:#000
+    axi_frontend --> axi_intake["axi_intake<br/><i>AXI4 protocol + w_buf + b_fifo</i>"]
+    axi_frontend --> addr_mapper["addr_mapper<br/><i>flat addr to bank/row/col</i>"]
+    axi_frontend --> wr_cmd_cam["wr_cmd_cam<br/><i>W-side slot bank</i>"]
+    axi_frontend --> rd_cmd_cam["rd_cmd_cam<br/><i>R-side slot bank</i>"]
+    axi_frontend --> wr2rd_forward["wr2rd_forward<br/><i>W to R snarf bypass</i>"]
 
-    class top root
-    class axi4_slave,addr_mapper,txn_queue,scheduler,page_predictor,bank_machines,xbank_timers,refresh_mgr,power_state,init_engine,cmd_encoder,gear_out,wdata_path,rdata_path,dfi_master,csr_slave branch
-    class step_table sub
+    core --> command_scheduler["command_scheduler_macro"]
+    core --> data_path["data_path_macro"]
+    core --> dfi_v21_interface["dfi_v21_interface_macro"]
+
+    command_scheduler --> scheduler["scheduler<br/><i>FR-FCFS closed-page</i>"]
+    command_scheduler --> xbank_timers["xbank_timers<br/><i>per-(rank,bank) JEDEC counters</i>"]
+    command_scheduler --> global_timers["global_timers<br/><i>tFAW/tRRD/tWTR/tRTW windows</i>"]
+    command_scheduler --> refresh_ctrl["refresh_ctrl<br/><i>tREFI postponer</i>"]
+    command_scheduler --> powerdown_ctrl["powerdown_ctrl<br/><i>Active/APD/SR/DPD FSM, CKE</i>"]
+    command_scheduler --> mode_register["mode_register<br/><i>MR0-3 decode to live CL/CWL/BL/AL</i>"]
+    command_scheduler --> init_sequencer["init_sequencer<br/><i>cold-boot microprogram</i>"]
+
+    data_path --> wr_beat_sequencer["wr_beat_sequencer<br/><i>w_buf pull to DFI wrdata</i>"]
+    data_path --> rd_cl_aligner["rd_cl_aligner<br/><i>DFI rddata capture to rd_inject</i>"]
+
+    dfi_v21_interface --> dfi_cmd_formatter["dfi_cmd_formatter<br/><i>JEDEC cmd truth table</i>"]
+    dfi_v21_interface --> dfi_signal_pack["dfi_signal_pack<br/><i>multi-phase DFI pack</i>"]
+
+    classDef soc fill:#404040,stroke:#228B22,stroke-width:2px,color:#fff
+    classDef macro fill:#fef6c8,stroke:#b08000,stroke-width:2px,color:#000
+    classDef fub fill:#e8f4e8,stroke:#228B22,stroke-width:1px,color:#000
+
+    class soc soc
+    class axi_frontend,core,command_scheduler,data_path,dfi_v21_interface macro
+    class axi_intake,addr_mapper,wr_cmd_cam,rd_cmd_cam,wr2rd_forward,scheduler,xbank_timers,global_timers,refresh_ctrl,powerdown_ctrl,mode_register,init_sequencer,wr_beat_sequencer,rd_cl_aligner,dfi_cmd_formatter,dfi_signal_pack fub

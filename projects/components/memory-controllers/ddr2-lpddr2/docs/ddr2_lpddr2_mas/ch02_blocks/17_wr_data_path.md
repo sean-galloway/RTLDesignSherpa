@@ -21,13 +21,18 @@
 
 <!-- End Header -->
 
-# Write Data Path (`wr_data_path_fub`)
+# Write Beat Sequencer (`wr_beat_sequencer`)
 
-**Module:** `wr_data_path_fub.sv`
+**Module:** `wr_beat_sequencer.sv`
 **Location:** `rtl/fub/`
 **Category:** FUB
-**Parent:** `ddr2_lpddr2_ctrl`
-**Status:** Draft v0.1
+**Parent macro:** `data_path_macro`
+**Status:** v1 implemented (single-burst FSM; outputs strict-flop registered)
+
+> **Renamed:** the SWAG called this `wr_data_path_fub`; the implementation
+> name is `wr_beat_sequencer`. It pulls W beats from `axi_intake.w_buf`
+> via `beat_pull`, packs them into `DFI_RATE` DRAM beats per DFI cycle,
+> and drives `dfi_wrdata` / `dfi_wrdata_en` / `dfi_wrdata_mask`.
 
 > Architectural context: HAS §3.7. The micro-architecture closely mirrors the **stream** `axi_write_engine` (`projects/components/stream/rtl/fub/axi_write_engine.sv`): a streaming pipeline with **no FSM**, only flags, counters, and shift registers. State is implicit in pointers and inflight counts; sequence is enforced by data-flow handshakes, not by enumerated states.
 

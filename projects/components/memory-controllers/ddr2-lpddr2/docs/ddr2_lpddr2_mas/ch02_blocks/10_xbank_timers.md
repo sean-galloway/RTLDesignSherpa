@@ -26,20 +26,36 @@
 **Module:** `xbank_timers.sv`
 **Location:** `rtl/fub/`
 **Category:** FUB
-**Parent:** `ddr2_lpddr2_ctrl` (one instance)
-**Status:** Draft v0.1
+**Parent macro:** `command_scheduler_macro`
+**Status:** v1 implemented (outputs strict-flop registered)
 
-> Architectural context: HAS §3.3 `xbank_timers` and the "Per-Rank vs. Cross-Rank Scope" table added in v0.2. This block-level MAS section is the implementation view: per-constraint tracker structure, the per-rank vs global scope partition, multi-rank cross-rank gates, and the combinational `blocks_*` outputs.
+> Architectural context: HAS §3.3.
+>
+> **Scope evolution vs early SWAG:** the SWAG had this FUB own only
+> *cross-bank* constraints, with per-bank constraints (tRCD, tRAS, tRP, tRTP,
+> tWR) inside a per-bank `bank_machine_fub`. In the implementation,
+> `bank_machine_fub` was absorbed — the per-bank counters moved **into**
+> `xbank_timers`, and the cross-bank / cross-rank windows moved out into a
+> separate [`global_timers`](19_global_timers.md) FUB.
+>
+> **What this FUB actually owns today:** per-(rank, bank) JEDEC timing
+> counters (tRCD, tRP, tWR, tRTP, tRAS, tRC) exposed as the per-bank ready
+> arrays `bank_act_ready_o[r][b]`, `bank_rdwr_ready_o[r][b]`,
+> `bank_pre_ready_o[r][b]`. The scheduler ANDs these with the
+> `global_timers` `_window_ok` signals to decide eligibility.
+>
+> The text below (constraint inventory, per-rank vs global partition) is
+> **the architectural reasoning**; the actual signal split now follows the
+> xbank_timers / global_timers boundary above.
 
 ---
 
 ## Purpose
 
-`xbank_timers` enforces the **cross-bank** JEDEC timing constraints — the ones that span banks of the same rank, or span ranks of the same channel. Per-bank constraints (tRCD, tRAS, tRP, etc.) live in `bank_machine_fub` (§2.9); this FUB owns everything that cannot live in a single bank machine because the relevant resource (the DRAM device's ACT-rate budget, the shared DQ bus, the chip-select setup) is shared.
-
-The FUB produces per-(rank, bank) AND-mask signals (`blocks_act`, `blocks_rd`, `blocks_wr`) that gate each bank machine's `accepts_*` outputs. These masks are the bridge between cross-bank reality and the per-bank state machines' otherwise-local view.
-
-There is **one instance** at the top level — even at multi-rank, the FUB is internally partitioned by scope rather than replicated.
+`xbank_timers` holds the per-(rank, bank) JEDEC timing counters that govern
+when each bank is ready to accept the next ACT, RD/WR, or PRE. The scheduler
+queries these per-bank ready arrays (along with `global_timers` cross-bank
+windows) to decide which slot can fire each cycle.
 
 ---
 

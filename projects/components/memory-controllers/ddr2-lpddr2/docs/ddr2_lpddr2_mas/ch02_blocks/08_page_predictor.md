@@ -21,12 +21,20 @@
 
 <!-- End Header -->
 
-# HAPPY Page Predictor (`page_predictor_fub`)
+# HAPPY Page Predictor (removed)
 
-**Module:** `page_predictor_fub.sv`
-**Location:** `rtl/fub/`
-**Category:** FUB (conditional — synthesized only when `PAGE_POLICY == HAPPY_HYBRID`)
-**Parent:** `ddr2_lpddr2_ctrl`
+> ## ⚠️ REMOVED — Not in current RTL
+>
+> The HAPPY hybrid page-conflict predictor described below was **removed**
+> from the v1 implementation. The v1 scheduler uses a **closed-page policy**
+> (RDA / WRA auto-precharge on every column command), which makes page
+> prediction moot — there is no open row to predict against.
+>
+> If an open-page or hybrid policy is reintroduced in a future revision,
+> the predictor's design rationale (HAPPY thresholds, table sizing,
+> hysteresis) in this chapter remains a useful starting point.
+
+**Status:** Removed in v1 (was Draft v0.1)
 **Status:** Draft v0.1
 
 > Architectural context: HAS §3.2 `page_predictor`. The algorithm view (query + update flow) is in `ddr2_lpddr2_has/assets/mermaid/09_happy_predictor.png` — refer to it for the algorithm. This block-level MAS section is the implementation view: hash inputs, table organization, multi-rank handling, warmup / hysteresis, storage choice, scheduler timing.

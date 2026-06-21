@@ -21,13 +21,18 @@
 
 <!-- End Header -->
 
-# Power-State FSM (`power_state_fub`)
+# Power-Down Controller (`powerdown_ctrl`)
 
-**Module:** `power_state_fub.sv`
+**Module:** `powerdown_ctrl.sv`
 **Location:** `rtl/fub/`
 **Category:** FUB
-**Parent:** `ddr2_lpddr2_ctrl`
-**Status:** Draft v0.1
+**Parent macro:** `command_scheduler_macro`
+**Status:** v1 implemented (Active / APD scope; SR/DPD entry deferred to v2)
+
+> **Renamed:** the SWAG called this `power_state_fub`; the implementation
+> name is `powerdown_ctrl`. SR-entry coordination with
+> [`refresh_ctrl`](11_refresh_mgr.md) and DPD entry (LPDDR2 only) remain
+> the planned scope but are not in v1.
 
 > Architectural context: HAS §3.5. The HAS state diagram for power transitions is in `ddr2_lpddr2_has/assets/mermaid/04_power_state_fsm.png` — refer to it for state transitions. This section is the implementation view (per-rank FSM array, per-rank CKE routing, self-refresh coord with refresh manager, quiet-point detector, init-time CKE handoff).
 

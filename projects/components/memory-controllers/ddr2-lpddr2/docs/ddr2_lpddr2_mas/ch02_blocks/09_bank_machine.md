@@ -21,12 +21,28 @@
 
 <!-- End Header -->
 
-# Bank Machine (`bank_machine_fub`)
+# Bank Machine (absorbed)
 
-**Module:** `bank_machine_fub.sv`
-**Location:** `rtl/fub/`
-**Category:** FUB
-**Parent:** `ddr2_lpddr2_ctrl` (instantiated `NUM_RANKS × NUM_BANKS` times)
+> ## ⚠️ ABSORBED — No standalone FUB
+>
+> The per-bank FSM described below was **absorbed** during implementation:
+>
+> - **Per-(rank, bank) timing counters** (tRCD, tRP, tWR, tRTP, tRAS,
+>   tRC) live in [`xbank_timers`](10_xbank_timers.md), which exposes
+>   `bank_act_ready_o[r][b]`, `bank_rdwr_ready_o[r][b]`, `bank_pre_ready_o[r][b]`
+>   arrays to the scheduler.
+> - **"Row open" state** is implicit in the v1 closed-page policy (every
+>   column command issues with auto-precharge, so no row stays open).
+> - **Per-slot bookkeeping** (in-flight ACT, awaiting WR/RD, awaiting PRE)
+>   is held in the slot records of [`wr_cmd_cam`](05_wr_cmd_cam.md) and
+>   [`rd_cmd_cam`](04_rd_cmd_cam.md).
+>
+> The chapter's per-bank FSM and refresh handshake design are retained for
+> reasoning — the closed-page policy makes the FSM mostly degenerate
+> (one-shot ACT → R/W → auto-PRE), but the counter discipline lives on
+> in `xbank_timers`.
+
+**Status:** Absorbed (was Draft v0.1)
 **Status:** Draft v0.1
 
 > Architectural context: HAS §3.3. The FSM state diagram is in `ddr2_lpddr2_has/assets/mermaid/03_bank_machine_fsm.png` and is the canonical state reference — this section is the implementation view (port interface, counter pool, broadcast updates, multi-rank instantiation, timing).

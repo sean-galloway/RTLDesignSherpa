@@ -1,78 +1,63 @@
 %%{init: {'theme': 'base', 'themeVariables': { 'primaryColor': '#e8f4e8', 'primaryTextColor': '#000', 'primaryBorderColor': '#228B22', 'lineColor': '#404040', 'secondaryColor': '#f0f0f0', 'tertiaryColor': '#fff'}}}%%
 flowchart TB
-    subgraph MEMCTRL["memctrl_top"]
+    subgraph FRONT["axi_frontend_macro"]
+        axi_intake["axi_intake<br/>(AXI4 protocol +<br/>w_buf + b_fifo)"]
+        addr_mapper["addr_mapper"]
+        wr_cmd_cam["wr_cmd_cam"]
+        rd_cmd_cam["rd_cmd_cam"]
+        wr2rd_forward["wr2rd_forward<br/>(snarf bypass)"]
+    end
 
-        subgraph FRONT["AXI Frontend"]
-            axi4_slave["axi4_slave"]
-            addr_mapper["addr_mapper"]
+    subgraph CORE["ddr2_lpddr2_core_macro"]
+
+        subgraph CSCHED["command_scheduler_macro"]
+            scheduler["scheduler<br/>(FR-FCFS, closed-page)"]
+            xbank_timers["xbank_timers<br/>(per-(rank,bank) JEDEC)"]
+            global_timers["global_timers<br/>(tFAW/tRRD/tWTR/tRTW)"]
+            refresh_ctrl["refresh_ctrl<br/>(tREFI postponer)"]
+            mode_register["mode_register<br/>(MR0-3 → CL/CWL/BL/AL)"]
+            init_sequencer["init_sequencer<br/>(cold-boot microprogram)"]
+            powerdown_ctrl["powerdown_ctrl<br/>(Active/APD/SR/DPD)"]
         end
 
-        subgraph BUFFER["Transaction Buffering"]
-            txn_queue["txn_queue"]
+        subgraph DPATH["data_path_macro"]
+            wr_beat_sequencer["wr_beat_sequencer<br/>(W-buf pull → DFI wrdata)"]
+            rd_cl_aligner["rd_cl_aligner<br/>(DFI rddata → rd_inject)"]
         end
 
-        subgraph SCHED["Scheduling"]
-            scheduler["scheduler<br/>(FR-FCFS)"]
-            page_predictor["page_predictor<br/>(HAPPY, optional)"]
-        end
-
-        subgraph BANKS["Bank State + Timing"]
-            bank_machines["bank_machine[0..N-1]"]
-            xbank_timers["xbank_timers<br/>(tRRD, tFAW,<br/>tWTR, tCCD)"]
-        end
-
-        subgraph REFPWR["Refresh + Power"]
-            refresh_mgr["refresh_mgr<br/>(REFpb / REFab,<br/>Elastic, DARP)"]
-            power_state["power_state<br/>FSM"]
-        end
-
-        subgraph INIT["Initialization"]
-            init_engine["init_engine"]
-            step_table["step_table<br/>(DDR2 OR LPDDR2)"]
-        end
-
-        subgraph ENC["Command Output"]
-            cmd_encoder["cmd_encoder<br/>(DDR2 OR LPDDR2)"]
-            gear_out["gear_out<br/>(1 → N phases)"]
-        end
-
-        subgraph DATA["Data Paths"]
-            wdata_path["wdata_path<br/>(CWL pipeline)"]
-            rdata_path["rdata_path<br/>(CL pipeline)"]
-        end
-
-        subgraph PHY["PHY Interface"]
-            dfi_master["dfi_master"]
-        end
-
-        subgraph CFG["Configuration"]
-            csr_slave["csr_slave<br/>(APB3)"]
+        subgraph DFI["dfi_v21_interface_macro"]
+            dfi_cmd_formatter["dfi_cmd_formatter<br/>(JEDEC truth table + ODT)"]
+            dfi_signal_pack["dfi_signal_pack<br/>(multi-phase pack)"]
         end
 
     end
 
-    AXI[/"AXI4 Slave Port<br/>(from SoC)"/] --> axi4_slave
-    axi4_slave --> addr_mapper
-    addr_mapper --> txn_queue
-    txn_queue --> scheduler
-    scheduler <--> page_predictor
-    scheduler --> bank_machines
-    bank_machines --> scheduler
-    bank_machines <--> xbank_timers
-    refresh_mgr --> scheduler
-    bank_machines --> refresh_mgr
-    init_engine --> step_table
-    init_engine --> scheduler
-    power_state --> scheduler
-    refresh_mgr --> power_state
-    scheduler --> cmd_encoder
-    cmd_encoder --> gear_out
-    gear_out --> dfi_master
-    wdata_path --> dfi_master
-    dfi_master --> rdata_path
-    dfi_master --> DFI[/"DFI v2.1 Master Port<br/>(to PHY)"/]
-    csr_slave -.config.-> scheduler
-    csr_slave -.config.-> refresh_mgr
-    csr_slave -.config.-> init_engine
-    csr_slave -.config.-> power_state
-    APB[/"APB3 Slave Port"/] --> csr_slave
+    AXI[/"AXI4 Slave Port<br/>(from SoC)"/] --> axi_intake
+    axi_intake --> addr_mapper
+    addr_mapper --> wr_cmd_cam
+    addr_mapper --> rd_cmd_cam
+    wr_cmd_cam <--> wr2rd_forward
+    rd_cmd_cam <--> wr2rd_forward
+    wr2rd_forward --> axi_intake
+
+    wr_cmd_cam --> scheduler
+    rd_cmd_cam --> scheduler
+    xbank_timers <--> scheduler
+    global_timers <--> scheduler
+    refresh_ctrl --> scheduler
+    init_sequencer --> scheduler
+    powerdown_ctrl --> scheduler
+    mode_register --> scheduler
+    init_sequencer --> mode_register
+
+    scheduler --> dfi_cmd_formatter
+    scheduler --> wr_beat_sequencer
+    scheduler --> rd_cl_aligner
+
+    axi_intake -.w_buf pull.-> wr_beat_sequencer
+    rd_cl_aligner -.rd_inject.-> axi_intake
+
+    dfi_cmd_formatter --> dfi_signal_pack
+    wr_beat_sequencer --> dfi_signal_pack
+    rd_cl_aligner --> dfi_signal_pack
+    dfi_signal_pack --> DFI[/"DFI v2.1 Master Port<br/>(to PHY)"/]

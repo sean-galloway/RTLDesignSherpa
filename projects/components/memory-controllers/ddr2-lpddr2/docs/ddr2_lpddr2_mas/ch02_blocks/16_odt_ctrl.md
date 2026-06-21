@@ -21,12 +21,22 @@
 
 <!-- End Header -->
 
-# ODT Control (`odt_ctrl_fub`)
+# ODT Control (absorbed)
 
-**Module:** `odt_ctrl_fub.sv`
-**Location:** `rtl/fub/`
-**Category:** FUB
-**Parent:** `ddr2_lpddr2_ctrl`
+> ## ⚠️ ABSORBED — No standalone FUB
+>
+> The dedicated ODT control FUB described below was **absorbed** into
+> [`dfi_cmd_formatter`](14_cmd_encoder.md): ODT timing follows
+> deterministically from the issued command (WR/WRA turns ODT on at
+> CWL-2, off after the burst; RD turns ODT on the *other* rank), so it
+> can be derived from the same JEDEC truth table that produces the
+> ras_n/cas_n/we_n encoding rather than maintained as a separate FSM.
+>
+> The cross-rank ODT-on-other-rank rule and the multi-rank
+> termination-window reasoning in this chapter still apply — they live
+> inside `dfi_cmd_formatter`'s output stage.
+
+**Status:** Absorbed (was Draft v0.1)
 **Status:** Draft v0.1
 
 > Architectural context: HAS §3.6 and the `ODT_RULE_MULTIRANK` parameter in HAS §5.2. This is the FUB where the famous "ODT-high on the non-accessed rank during read" JEDEC rule lives. It is also the single most multi-rank-specific block in the design — for `NUM_RANKS=1`, the FUB synthesizes to a trivial tie-off.

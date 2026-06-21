@@ -21,13 +21,23 @@
 
 <!-- End Header -->
 
-# Read Data Path (`rd_data_path_fub`)
+# Read CL Aligner (`rd_cl_aligner`)
 
-**Module:** `rd_data_path_fub.sv`
+**Module:** `rd_cl_aligner.sv`
 **Location:** `rtl/fub/`
 **Category:** FUB
-**Parent:** `ddr2_lpddr2_ctrl`
-**Status:** Draft v0.1
+**Parent macro:** `data_path_macro`
+**Status:** v1 implemented (single-burst FSM; outputs strict-flop registered)
+
+> **Renamed:** the SWAG called this `rd_data_path_fub`; the implementation
+> name is `rd_cl_aligner`. It drives `dfi_rddata_en` at the right cycle
+> for an issued READ, captures `dfi_rddata` beats (`DFI_RATE` DRAM beats
+> per DFI cycle), and streams them out as DRAM-beat-wide `rd_inject_*`
+> handshakes to `axi_intake.R-emit`.
+>
+> **Strict-flop output design note:** the FSM uses a lookahead on the
+> "next beats_emitted" value so the registered data_o / valid_o stay
+> aligned with the external handshake. See commit 97a91fb8.
 
 > Architectural context: HAS §3.7. The micro-architecture closely mirrors the **stream** `axi_read_engine` (`projects/components/stream/rtl/fub/axi_read_engine.sv`): a streaming pipeline with **no FSM**, only flags, counters, and shift registers. Per-burst state is implicit in pointers and an ID-indexed inflight ring buffer; sequence is enforced by data-flow handshakes, not by enumerated states.
 
