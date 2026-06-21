@@ -5,7 +5,7 @@
 # Created: 2026-06-20
 
 """
-Unit-test runner for `rd_cl_aligner_fub`.
+Unit-test runner for `rd_cl_aligner`.
 
 Scenarios (all scoreboarded via RdClAlignerTB.verify_capture):
   smoke           single 4-beat read, t_rddata_en=2, phy_rdlat=1
@@ -167,6 +167,9 @@ _FULL = _FUNC + [(t, 4) for t in _ALL_TYPES] + [
     ("random_soak", 2),
     ("random_soak", 4),
 ]
+# Dedupe — otherwise pytest disambiguates colliding IDs with _0/_1 suffixes
+# and parallel workers race on the same local_sim_build/ directory.
+_FULL = list(dict.fromkeys(_FULL))
 
 _TEST_LEVEL = os.environ.get("TEST_LEVEL", "FUNC").upper()
 _PARAMS = {"GATE": _GATE, "FUNC": _FUNC, "FULL": _FULL}.get(_TEST_LEVEL, _FUNC)
@@ -176,13 +179,13 @@ _PARAMS = {"GATE": _GATE, "FUNC": _FUNC, "FULL": _FULL}.get(_TEST_LEVEL, _FUNC)
                          ids=[f"{t[0]}-r{t[1]}" for t in _PARAMS])
 def test_rd_cl_aligner(request, test_type, dfi_rate):
     module, repo_root, tests_dir, log_dir, _ = get_paths({})
-    dut_name = "rd_cl_aligner_fub"
+    dut_name = "rd_cl_aligner"
 
     test_name = f"test_rd_cl_aligner_{test_type}_r{dfi_rate}"
 
     filelist_path = (
         "projects/components/memory-controllers/ddr2-lpddr2/"
-        "rtl/filelists/fub/rd_cl_aligner_fub.f"
+        "rtl/filelists/fub/rd_cl_aligner.f"
     )
     verilog_sources, includes = get_sources_from_filelist(
         repo_root=repo_root, filelist_path=filelist_path

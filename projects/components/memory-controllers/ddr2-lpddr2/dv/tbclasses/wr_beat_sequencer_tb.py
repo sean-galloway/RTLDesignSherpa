@@ -2,10 +2,10 @@
 # SPDX-FileCopyrightText: 2024-2026 sean galloway
 #
 # Module: WrBeatSequencerTB
-# Purpose: Unit-level testbench for wr_beat_sequencer_fub.
+# Purpose: Unit-level testbench for wr_beat_sequencer.
 
 """
-Testbench class for `wr_beat_sequencer_fub`.
+Testbench class for `wr_beat_sequencer`.
 
 The FUB pulls W beats from a mocked wr CAM (via the beat_pull interface +
 wbuf_rd_data/strb) and packs them into DFI_RATE-wide DFI cycles after a

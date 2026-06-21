@@ -382,13 +382,13 @@ async def _run_scheme_sweep(tb):
 
 # ---------------------------------------------------------------------------
 # Partial-strobe writes must NOT forward — wr2rd_forward gates on
-# cam_full_strb_i, which axi_intake_fub computes by AND-reducing wstrb
+# cam_full_strb_i, which axi_intake computes by AND-reducing wstrb
 # across the burst.
 # ---------------------------------------------------------------------------
 
 async def _run_partial_strb(tb):
     """Write a burst with partial wstrb (not 0xFF). The full_strb AND-reduce
-    in axi_intake_fub should yield 0 → wr2rd_forward marks the entry
+    in axi_intake should yield 0 → wr2rd_forward marks the entry
     ineligible → the next matching read must take the miss path
     (rd_stub injects from the memory model, which models the post-write
     DRAM state)."""

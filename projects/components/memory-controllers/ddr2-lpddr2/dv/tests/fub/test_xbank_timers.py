@@ -2,7 +2,7 @@
 # SPDX-FileCopyrightText: 2024-2026 sean galloway
 
 """
-Unit-test runner for `xbank_timers_fub`. Verifies per-(rank,bank)
+Unit-test runner for `xbank_timers`. Verifies per-(rank,bank)
 state machine + countdown timers (tRCD, tWR/tRTP, tRP) and the
 combinational ready vectors derived from them.
 """
@@ -124,18 +124,19 @@ async def cocotb_test_xbank_timers(dut):
         assert tb.rdwr_ready(0, 0)
 
     elif test_type == "act_to_wr_to_pre":
+        # Output bank_state is registered (+1 cycle vs the FSM state).
+        # Wait one extra cycle at each transition-observation point.
         await tb.setup(t_rcd=3, t_rp=3, t_wr=2, t_rtp=2)
-        # ACT, wait tRCD, then WR, wait tWR, then PRE, wait tRP → IDLE
         await tb.pulse_event('act', bank=2, row=0x456)
-        await tb.wait_clocks('mc_clk', 3)
+        await tb.wait_clocks('mc_clk', 4)
         assert tb.state(0, 2) == BANK_ACTIVE
         await tb.pulse_event('wr', bank=2)
-        await tb.wait_clocks('mc_clk', 1)
+        await tb.wait_clocks('mc_clk', 2)
         assert tb.state(0, 2) == BANK_WR_BUSY
         await tb.wait_clocks('mc_clk', 2)
         assert tb.state(0, 2) == BANK_ACTIVE
         await tb.pulse_event('pre', bank=2)
-        await tb.wait_clocks('mc_clk', 1)
+        await tb.wait_clocks('mc_clk', 2)
         assert tb.state(0, 2) == BANK_PRECHARGING
         await tb.wait_clocks('mc_clk', 3)
         assert tb.state(0, 2) == BANK_IDLE
@@ -176,6 +177,9 @@ _FUNC = _GATE + [("act_to_wr_to_pre", 1, 8),
                  ("independent_banks", 1, 8),
                  ("rd_path", 1, 8)]
 _FULL = _FUNC + [(t, 2, 8) for t, _, _ in _FUNC]
+# Dedupe — otherwise pytest disambiguates colliding IDs with _0/_1 suffixes
+# and parallel workers race on the same local_sim_build/ directory.
+_FULL = list(dict.fromkeys(_FULL))
 
 _TEST_LEVEL = os.environ.get("TEST_LEVEL", "FUNC").upper()
 _PARAMS = {"GATE": _GATE, "FUNC": _FUNC, "FULL": _FULL}.get(_TEST_LEVEL, _FUNC)
@@ -185,11 +189,11 @@ _PARAMS = {"GATE": _GATE, "FUNC": _FUNC, "FULL": _FULL}.get(_TEST_LEVEL, _FUNC)
                          ids=[f"{t[0]}-nr{t[1]}-nb{t[2]}" for t in _PARAMS])
 def test_xbank_timers(request, test_type, num_ranks, num_banks):
     module, repo_root, tests_dir, log_dir, _ = get_paths({})
-    dut_name = "xbank_timers_fub"
+    dut_name = "xbank_timers"
     test_name = f"test_xbank_timers_{test_type}_nr{num_ranks}_nb{num_banks}"
 
     filelist_path = ("projects/components/memory-controllers/ddr2-lpddr2/"
-                     "rtl/filelists/fub/xbank_timers_fub.f")
+                     "rtl/filelists/fub/xbank_timers.f")
     verilog_sources, includes = get_sources_from_filelist(
         repo_root=repo_root, filelist_path=filelist_path)
 

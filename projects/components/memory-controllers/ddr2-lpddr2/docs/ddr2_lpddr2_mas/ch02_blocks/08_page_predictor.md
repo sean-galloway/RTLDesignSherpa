@@ -39,7 +39,7 @@
 
 > "For a request I am about to issue to (rank, bank), will the *next* access to this (rank, bank) hit the row I am about to leave open, or conflict with it?"
 
-The answer drives the Stage-4 auto-precharge fallback in `scheduler_fub` (§2.7) when the lookahead window is inconclusive. A "next will hit" prediction → issue bare RD/WR (keep row open). A "next will conflict" prediction → issue RDA/WRA (close row in flight to save tRP later).
+The answer drives the Stage-4 auto-precharge fallback in `scheduler` (§2.7) when the lookahead window is inconclusive. A "next will hit" prediction → issue bare RD/WR (keep row open). A "next will conflict" prediction → issue RDA/WRA (close row in flight to save tRP later).
 
 The FUB is **synthesized only when `PAGE_POLICY == HAPPY_HYBRID`** at elaboration. Builds with `PAGE_POLICY == OPEN` or `PAGE_POLICY == CLOSE` do not instantiate this FUB; the scheduler ties its `predict_hit_i` input to 1 (default-to-open) or 0 (default-to-close) respectively.
 

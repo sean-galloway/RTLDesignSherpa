@@ -21,9 +21,9 @@
 
 <!-- End Header -->
 
-# Address XOR / Hash (`addr_mapper_fub`)
+# Address XOR / Hash (`addr_mapper`)
 
-**Module:** `addr_mapper_fub.sv`
+**Module:** `addr_mapper.sv`
 **Location:** `rtl/fub/`
 **Category:** FUB (combinational; no clock)
 **Parent:** `ddr2_lpddr2_ctrl`
@@ -33,7 +33,7 @@
 
 ## Purpose
 
-`addr_mapper_fub` decodes a flat `AXI_ADDR_WIDTH`-bit address into the DRAM-layer `(rank, bank, row, column)` tuple per the currently-active address-mapping scheme. The XOR / hash happens **here** — upstream of the read/write CAMs — so that the CAMs store the decoded tuple and not the raw AXI address.
+`addr_mapper` decodes a flat `AXI_ADDR_WIDTH`-bit address into the DRAM-layer `(rank, bank, row, column)` tuple per the currently-active address-mapping scheme. The XOR / hash happens **here** — upstream of the read/write CAMs — so that the CAMs store the decoded tuple and not the raw AXI address.
 
 The FUB is **pure combinational** — there is no clock, no flop, no FSM. The output is valid the same cycle as the input. The path is one of the timing-critical signatures in the design and is treated as a multi-cycle path only if synthesis cannot meet timing.
 
@@ -127,7 +127,7 @@ If XOR_HASH does not meet timing at the target frequency, the FUB can be re-fitt
 
 ## Verification
 
-The RTL decoder and the Python `AddressMapping` class are co-validated by a small cocotb test that picks 10000 random addresses, asks each side to decode, and asserts bit-equality on the (rank, bank, row, col) tuple. This is the primary regression for `addr_mapper_fub`.
+The RTL decoder and the Python `AddressMapping` class are co-validated by a small cocotb test that picks 10000 random addresses, asks each side to decode, and asserts bit-equality on the (rank, bank, row, col) tuple. This is the primary regression for `addr_mapper`.
 
 ## TODO
 

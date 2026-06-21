@@ -10,7 +10,7 @@
 #
 # Quick start:
 #   make help           - Show available targets
-#   make run            - Run macro tests (FUNC level, default)
+#   make run-all        - Run macro tests (FUNC level, default)
 #   make run-gate       - Run macro tests at GATE level (quick)
 #   make run-func       - Run macro tests at FUNC level (default)
 #   make run-full       - Run macro tests at FULL level (comprehensive)
@@ -56,8 +56,8 @@ help:
 	@echo "================================================================================"
 	@echo ""
 	@echo "QUICK RUN TARGETS:"
-	@echo "  make run                          Run macro tests (FUNC level)"
-	@echo "  make run-parallel                 Run macro tests in parallel"
+	@echo "  make run-all                      Run macro tests (FUNC level)"
+	@echo "  make run-all-parallel             Run macro tests in parallel"
 	@echo "  make ptw                          Run pytest-watch (auto-rerun on changes)"
 	@echo ""
 	@echo "MACRO TARGETS (test_axi_frontend_macro.py):"
@@ -109,13 +109,13 @@ help:
 # Quick Run Targets (Default FUNC level)
 # ==============================================================================
 
-.PHONY: run
-run:
+.PHONY: run-all
+run-all:
 	@echo "Running axi_frontend_macro tests (FUNC level)..."
 	TEST_LEVEL=FUNC $(PYTEST) $(TEST_FILE) $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE)
 
-.PHONY: run-parallel
-run-parallel:
+.PHONY: run-all-parallel
+run-all-parallel:
 	@echo "Running axi_frontend_macro tests (FUNC level) in parallel..."
 	TEST_LEVEL=FUNC $(PYTEST) $(TEST_FILE) $(PYTEST_VERBOSE) $(PYTEST_TBSTYLE) $(PYTEST_XDIST) $(PYTEST_RERUNS)
 

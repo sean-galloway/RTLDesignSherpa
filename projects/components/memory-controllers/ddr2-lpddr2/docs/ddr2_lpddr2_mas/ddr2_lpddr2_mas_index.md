@@ -50,18 +50,18 @@
 
 **AXI Frontend:**
 - [AXI4 Slave (`axi4_slave_fub`)](ch02_blocks/02_axi4_slave.md)
-- [Address XOR/Hash (`addr_mapper_fub`)](ch02_blocks/03_addr_mapper.md)
-- [Read Command CAM (`rd_cmd_cam_fub`)](ch02_blocks/04_rd_cmd_cam.md)
-- [Write Command CAM (`wr_cmd_cam_fub`)](ch02_blocks/05_wr_cmd_cam.md)
+- [Address XOR/Hash (`addr_mapper`)](ch02_blocks/03_addr_mapper.md)
+- [Read Command CAM (`rd_cmd_cam`)](ch02_blocks/04_rd_cmd_cam.md)
+- [Write Command CAM (`wr_cmd_cam`)](ch02_blocks/05_wr_cmd_cam.md)
 
 **Transaction Buffering and Scheduling:**
 - [Transaction Queue (`txn_queue_fub`)](ch02_blocks/06_txn_queue.md)
-- [FR-FCFS Scheduler (`scheduler_fub`)](ch02_blocks/07_scheduler.md)
+- [FR-FCFS Scheduler (`scheduler`)](ch02_blocks/07_scheduler.md)
 - [HAPPY Page Predictor (`page_predictor_fub`)](ch02_blocks/08_page_predictor.md)
 
 **Bank State and Cross-Bank Timing:**
 - [Bank Machine (`bank_machine_fub`)](ch02_blocks/09_bank_machine.md)
-- [Cross-Bank Timers (`xbank_timers_fub`)](ch02_blocks/10_xbank_timers.md)
+- [Cross-Bank Timers (`xbank_timers`)](ch02_blocks/10_xbank_timers.md)
 
 **Refresh, Init, Power:**
 - [Refresh Manager (`refresh_mgr_fub`)](ch02_blocks/11_refresh_mgr.md)

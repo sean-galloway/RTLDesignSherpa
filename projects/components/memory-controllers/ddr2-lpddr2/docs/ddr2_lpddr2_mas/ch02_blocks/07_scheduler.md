@@ -21,9 +21,9 @@
 
 <!-- End Header -->
 
-# FR-FCFS Scheduler (`scheduler_fub`)
+# FR-FCFS Scheduler (`scheduler`)
 
-**Module:** `scheduler_fub.sv`
+**Module:** `scheduler.sv`
 **Location:** `rtl/fub/`
 **Category:** FUB
 **Parent:** `ddr2_lpddr2_ctrl`
@@ -35,7 +35,7 @@
 
 ## Purpose
 
-`scheduler_fub` is the central command issue engine. Every MC clock cycle it:
+`scheduler` is the central command issue engine. Every MC clock cycle it:
 
 1. Snapshots `txn_queue` and all `bank_machine` states
 2. Computes a per-entry readiness vector (which queue entries *could* issue right now)
@@ -294,5 +294,5 @@ The scheduler drives several CSR observability fields:
 ## Open Questions / Future Work
 
 - Should QoS (`awqos` / `arqos`) be promoted from the v1 "no behavior" pass-through to a real priority boost in the FR-FCFS function? Currently HAS §3.2 leaves QoS as a side-band hint for v2. The hook would be a `qos_boost_mask` between the row-hit and row-miss stages.
-- The cross-rank read-to-write turnaround (`tRTRS` + write window) lives in `xbank_timers_fub` today; the scheduler consumes the gate but does not pre-plan around it. A smarter scheduler could **batch by rank** (issue all ready reads on rank 0, then all on rank 1) to amortize `tRTRS`. This is a v2 feature; v1 takes the simpler per-cycle gating.
+- The cross-rank read-to-write turnaround (`tRTRS` + write window) lives in `xbank_timers` today; the scheduler consumes the gate but does not pre-plan around it. A smarter scheduler could **batch by rank** (issue all ready reads on rank 0, then all on rank 1) to amortize `tRTRS`. This is a v2 feature; v1 takes the simpler per-cycle gating.
 - Whether `OBS_INORDER_FALLBACKS` is useful for characterization is not yet validated; the counter is cheap, but if it's never read by the bring-up team it can be dropped in v2.

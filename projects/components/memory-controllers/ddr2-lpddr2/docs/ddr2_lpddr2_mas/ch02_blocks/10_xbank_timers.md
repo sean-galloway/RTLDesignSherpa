@@ -21,9 +21,9 @@
 
 <!-- End Header -->
 
-# Cross-Bank Timers (`xbank_timers_fub`)
+# Cross-Bank Timers (`xbank_timers`)
 
-**Module:** `xbank_timers_fub.sv`
+**Module:** `xbank_timers.sv`
 **Location:** `rtl/fub/`
 **Category:** FUB
 **Parent:** `ddr2_lpddr2_ctrl` (one instance)
@@ -35,7 +35,7 @@
 
 ## Purpose
 
-`xbank_timers_fub` enforces the **cross-bank** JEDEC timing constraints — the ones that span banks of the same rank, or span ranks of the same channel. Per-bank constraints (tRCD, tRAS, tRP, etc.) live in `bank_machine_fub` (§2.9); this FUB owns everything that cannot live in a single bank machine because the relevant resource (the DRAM device's ACT-rate budget, the shared DQ bus, the chip-select setup) is shared.
+`xbank_timers` enforces the **cross-bank** JEDEC timing constraints — the ones that span banks of the same rank, or span ranks of the same channel. Per-bank constraints (tRCD, tRAS, tRP, etc.) live in `bank_machine_fub` (§2.9); this FUB owns everything that cannot live in a single bank machine because the relevant resource (the DRAM device's ACT-rate budget, the shared DQ bus, the chip-select setup) is shared.
 
 The FUB produces per-(rank, bank) AND-mask signals (`blocks_act`, `blocks_rd`, `blocks_wr`) that gate each bank machine's `accepts_*` outputs. These masks are the bridge between cross-bank reality and the per-bank state machines' otherwise-local view.
 
@@ -232,7 +232,7 @@ This is a deliberate fanout: the bank machine port (§2.9) accepts `xbank_blocks
 
 | Signal                       | Direction | Width             | Description                                          |
 |------------------------------|-----------|-------------------|------------------------------------------------------|
-| `issue_op_i`                 | input     | 4                 | Same encoding as `scheduler_fub.issue_op_o`          |
+| `issue_op_i`                 | input     | 4                 | Same encoding as `scheduler.issue_op_o`          |
 | `issue_rank_i`               | input     | `$clog2(NR)`      | Rank being issued to                                 |
 | `issue_strobe_i`             | input     | 1                 | `(issue_op_i != NOP) && issue_valid`                  |
 

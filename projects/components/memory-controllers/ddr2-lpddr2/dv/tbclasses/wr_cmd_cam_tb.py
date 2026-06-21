@@ -2,10 +2,10 @@
 # SPDX-FileCopyrightText: 2024-2026 sean galloway
 #
 # Module: WrCmdCamTB
-# Purpose: Unit-level testbench for wr_cmd_cam_fub.
+# Purpose: Unit-level testbench for wr_cmd_cam.
 
 """
-Testbench class for `wr_cmd_cam_fub`.
+Testbench class for `wr_cmd_cam`.
 
 The CAM has no AXI surface — it exposes a custom set of push/query/issued/
 beat_pull/b_complete strobes plus a packed snapshot bus. The TB mirrors the
@@ -66,7 +66,7 @@ class WrSlot:
 
 
 class WrCmdCamScoreboard:
-    """Cycle-accurate Python mirror of wr_cmd_cam_fub state."""
+    """Cycle-accurate Python mirror of wr_cmd_cam state."""
 
     def __init__(self, depth: int) -> None:
         self.depth = depth

@@ -21,9 +21,9 @@
 
 <!-- End Header -->
 
-# Write Command CAM (`wr_cmd_cam_fub`)
+# Write Command CAM (`wr_cmd_cam`)
 
-**Module:** `wr_cmd_cam_fub.sv`
+**Module:** `wr_cmd_cam.sv`
 **Location:** `rtl/fub/`
 **Category:** FUB
 **Parent:** `ddr2_lpddr2_ctrl`
@@ -33,7 +33,7 @@
 
 ## Purpose
 
-`wr_cmd_cam_fub` is the **write-side content-addressable storage** of in-flight write commands. It mirrors the read CAM's role for write traffic but carries different per-slot metadata:
+`wr_cmd_cam` is the **write-side content-addressable storage** of in-flight write commands. It mirrors the read CAM's role for write traffic but carries different per-slot metadata:
 
 - Pointer into the AXI-side write-data buffer (`w_buf_ptr`)
 - Pointer into the AXI-side write-strobe buffer (`strb_ptr`)
@@ -119,7 +119,7 @@ The asymmetry justifies the separate FUBs. Trying to share a CAM would either in
 
 ## Timing Budget
 
-Same shape as the read CAM. The combinational match-line path is shared with `rd_cmd_cam_fub` in the scheduler's match aggregation.
+Same shape as the read CAM. The combinational match-line path is shared with `rd_cmd_cam` in the scheduler's match aggregation.
 
 ## CSR Hooks
 

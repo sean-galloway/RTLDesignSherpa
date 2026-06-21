@@ -110,7 +110,7 @@ module data_path_macro
     input  logic [DFI_VALID_WIDTH-1:0] dfi_rddata_valid_i
 );
 
-    wr_beat_sequencer_fub #(
+    wr_beat_sequencer #(
         .WR_CAM_DEPTH    (WR_CAM_DEPTH),
         .W_BUF_PTR_WIDTH (WPW),
         .BURST_LEN_WIDTH (BLW),
@@ -144,7 +144,7 @@ module data_path_macro
         .b_complete_slot_o    (b_complete_slot_o)
     );
 
-    rd_cl_aligner_fub #(
+    rd_cl_aligner #(
         .RD_CAM_DEPTH    (RD_CAM_DEPTH),
         .AXI_ID_WIDTH    (IW),
         .BURST_LEN_WIDTH (BLW),

@@ -12,11 +12,11 @@
 //   Wraps the host-AXI4 protocol layer plus address decoding, the two
 //   per-direction CAMs, and the write→read snarf path:
 //
-//     - axi_intake_fub  (host AXI4 protocol + w_buf + b_fifo + fwd-R emit)
-//     - addr_mapper_fub (×2 — AW side, AR side; both combinational)
-//     - wr_cmd_cam_fub
-//     - rd_cmd_cam_fub
-//     - wr2rd_forward_fub
+//     - axi_intake  (host AXI4 protocol + w_buf + b_fifo + fwd-R emit)
+//     - addr_mapper (×2 — AW side, AR side; both combinational)
+//     - wr_cmd_cam
+//     - rd_cmd_cam
+//     - wr2rd_forward
 //
 //   Flow (write):
 //     host AW/W → axi_intake → aw_push (decoded by addr_mapper_aw) →
@@ -32,7 +32,7 @@
 //                  (rd_inject) → axi_intake forwards as R beats
 //
 //   The macro is the testable unit for the AXI-ingress side of the
-//   controller. axi_intake_fub uses rtl/amba axi4_slave_wr / axi4_slave_rd
+//   controller. axi_intake uses rtl/amba axi4_slave_wr / axi4_slave_rd
 //   for the wire-level protocol, NOT a hand-rolled valid/ready engine.
 //
 // References:
@@ -191,7 +191,7 @@ module axi_frontend_macro
 
     //=========================================================================
     // Write data-path beat pull (consumed by wr_data_path stub; the macro
-    // wires this to axi_intake_fub's w_buf read port internally)
+    // wires this to axi_intake's w_buf read port internally)
     //=========================================================================
     input  logic                 beat_pull_strb_i,
     input  logic [WSL-1:0]       beat_pull_slot_i,
@@ -231,7 +231,7 @@ module axi_frontend_macro
 );
 
     //=========================================================================
-    // axi_intake_fub — host AXI4 protocol layer + w_buf + B FIFO + R emit
+    // axi_intake — host AXI4 protocol layer + w_buf + B FIFO + R emit
     //=========================================================================
     // aw_push_* go through addr_mapper_aw → wr_cmd_cam.push_*
     logic                 w_aw_push_valid;
@@ -250,7 +250,7 @@ module axi_frontend_macro
     logic [IW-1:0]        w_ar_push_id;
     logic [BLW-1:0]       w_ar_push_len;
 
-    // wr2rd_forward.fwd_* → axi_intake_fub.fwd_*
+    // wr2rd_forward.fwd_* → axi_intake.fwd_*
     logic                 w_fwd_valid;
     logic                 w_fwd_ready;
     logic [IW-1:0]        w_fwd_id;
@@ -258,12 +258,12 @@ module axi_frontend_macro
     logic [BLW-1:0]       w_fwd_len;
     logic [WSL-1:0]       w_fwd_src_slot;
 
-    // wr_cmd_cam.entry_complete_* → axi_intake_fub
+    // wr_cmd_cam.entry_complete_* → axi_intake
     logic                 w_wr_entry_complete;
     logic [WSL-1:0]       w_wr_entry_complete_slot;
     logic [IW-1:0]        w_wr_entry_complete_id;
 
-    axi_intake_fub #(
+    axi_intake #(
         .AXI_ADDR_WIDTH    (AXI_ADDR_WIDTH),
         .AXI_DATA_WIDTH    (AXI_DATA_WIDTH),
         .AXI_ID_WIDTH      (AXI_ID_WIDTH),
@@ -374,7 +374,7 @@ module axi_frontend_macro
     logic [RW-1:0]  w_aw_row;
     logic [CW-1:0]  w_aw_col;
 
-    addr_mapper_fub #(
+    addr_mapper #(
         .AXI_ADDR_WIDTH        (AXI_ADDR_WIDTH),
         .NUM_RANKS             (NUM_RANKS),
         .NUM_BANKS             (NUM_BANKS),
@@ -403,7 +403,7 @@ module axi_frontend_macro
     logic [RW-1:0]  w_ar_row;
     logic [CW-1:0]  w_ar_col;
 
-    addr_mapper_fub #(
+    addr_mapper #(
         .AXI_ADDR_WIDTH        (AXI_ADDR_WIDTH),
         .NUM_RANKS             (NUM_RANKS),
         .NUM_BANKS             (NUM_BANKS),
@@ -439,7 +439,7 @@ module axi_frontend_macro
     logic [WR_CAM_DEPTH-1:0]                       w_wr_snap_b_pending;
     logic [WR_CAM_DEPTH-1:0][IW-1:0]               w_wr_snap_id;
 
-    // Per-write "full-strb" hint, latched from axi_intake_fub's per-burst
+    // Per-write "full-strb" hint, latched from axi_intake's per-burst
     // AND-reduce result when the burst is pushed into the wr CAM.
     logic [WR_CAM_DEPTH-1:0] r_full_strb;
     logic [WSL-1:0]          w_wr_push_slot;
@@ -451,7 +451,7 @@ module axi_frontend_macro
         end
     end)
 
-    wr_cmd_cam_fub #(
+    wr_cmd_cam #(
         .WR_CAM_DEPTH    (WR_CAM_DEPTH),
         .AXI_ID_WIDTH    (AXI_ID_WIDTH),
         .NUM_RANKS       (NUM_RANKS),
@@ -529,7 +529,7 @@ module axi_frontend_macro
     logic [CW-1:0]  w_rd_push_col;
     logic [BLW-1:0] w_rd_push_len;
 
-    wr2rd_forward_fub #(
+    wr2rd_forward #(
         .WR_CAM_DEPTH    (WR_CAM_DEPTH),
         .AXI_ID_WIDTH    (AXI_ID_WIDTH),
         .NUM_RANKS       (NUM_RANKS),
@@ -594,7 +594,7 @@ module axi_frontend_macro
     logic [RD_CAM_DEPTH-1:0][BLW-1:0]              w_rd_snap_len;
     logic [RD_CAM_DEPTH-1:0]                       w_rd_snap_issued;
 
-    rd_cmd_cam_fub #(
+    rd_cmd_cam #(
         .RD_CAM_DEPTH    (RD_CAM_DEPTH),
         .AXI_ID_WIDTH    (AXI_ID_WIDTH),
         .NUM_RANKS       (NUM_RANKS),

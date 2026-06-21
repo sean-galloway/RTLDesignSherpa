@@ -4,7 +4,7 @@ flowchart LR
         rd_lane["per-MC-cycle<br/>rd_beat_data,<br/>rd_beat_valid<br/>(captured at RDPHASE)"]
     end
 
-    subgraph SCHED["scheduler_fub"]
+    subgraph SCHED["scheduler"]
         rd_strobe["WR/WRA/RD/RDA<br/>issue strobe +<br/>id_tag (slot index)"]
     end
 
@@ -16,7 +16,7 @@ flowchart LR
         beat_pipe["one-beat-per-MC-cycle<br/>output register<br/>(rid, rdata, rresp,<br/> rlast, rvalid)"]
     end
 
-    subgraph CAM["rd_cmd_cam_fub"]
+    subgraph CAM["rd_cmd_cam"]
         beat_done["beat_we strobe<br/>(decrement beats_returned;<br/> entry_complete when 0)"]
     end
 

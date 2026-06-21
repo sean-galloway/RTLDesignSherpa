@@ -2,7 +2,7 @@
 # SPDX-FileCopyrightText: 2024-2026 sean galloway
 
 """
-Unit-test runner for `mode_register_fub`. Verifies MR storage + live
+Unit-test runner for `mode_register`. Verifies MR storage + live
 decode of CL/CWL/BL/AL.
 """
 
@@ -154,6 +154,9 @@ async def cocotb_test_mode_register(dut):
 _GATE = [("smoke_ddr2", 1), ("ddr2_cl_sweep", 1), ("reset_values", 1)]
 _FUNC = _GATE + [("ddr2_bl_sweep", 1), ("ddr2_al_sweep", 1), ("multi_rank", 2)]
 _FULL = _FUNC + [("ddr2_cl_sweep", 2)]
+# Dedupe — defensive; keeps every (type, rank) tuple unique so pytest IDs
+# stay distinct and parallel workers don't race on local_sim_build/.
+_FULL = list(dict.fromkeys(_FULL))
 
 _TEST_LEVEL = os.environ.get("TEST_LEVEL", "FUNC").upper()
 _PARAMS = {"GATE": _GATE, "FUNC": _FUNC, "FULL": _FULL}.get(_TEST_LEVEL, _FUNC)
@@ -163,11 +166,11 @@ _PARAMS = {"GATE": _GATE, "FUNC": _FUNC, "FULL": _FULL}.get(_TEST_LEVEL, _FUNC)
                          ids=[f"{t[0]}-nr{t[1]}" for t in _PARAMS])
 def test_mode_register(request, test_type, num_ranks):
     module, repo_root, tests_dir, log_dir, _ = get_paths({})
-    dut_name = "mode_register_fub"
+    dut_name = "mode_register"
     test_name = f"test_mode_register_{test_type}_nr{num_ranks}"
 
     filelist_path = ("projects/components/memory-controllers/ddr2-lpddr2/"
-                     "rtl/filelists/fub/mode_register_fub.f")
+                     "rtl/filelists/fub/mode_register.f")
     verilog_sources, includes = get_sources_from_filelist(
         repo_root=repo_root, filelist_path=filelist_path)
 

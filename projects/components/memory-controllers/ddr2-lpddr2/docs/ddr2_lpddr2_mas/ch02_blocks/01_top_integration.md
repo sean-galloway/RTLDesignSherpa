@@ -44,14 +44,14 @@
 | Instance Name        | FUB                     | Count                  | Notes                                       |
 |----------------------|-------------------------|------------------------|---------------------------------------------|
 | `u_axi4_slave`       | `axi4_slave_fub`        | 1                      | Single AXI4 slave port                      |
-| `u_addr_mapper`      | `addr_mapper_fub`       | 1                      | Combinational; no clock                     |
-| `u_rd_cmd_cam`       | `rd_cmd_cam_fub`        | 1                      | Read-side CAM                               |
-| `u_wr_cmd_cam`       | `wr_cmd_cam_fub`        | 1                      | Write-side CAM                              |
+| `u_addr_mapper`      | `addr_mapper`       | 1                      | Combinational; no clock                     |
+| `u_rd_cmd_cam`       | `rd_cmd_cam`        | 1                      | Read-side CAM                               |
+| `u_wr_cmd_cam`       | `wr_cmd_cam`        | 1                      | Write-side CAM                              |
 | `u_txn_queue`        | `txn_queue_fub`         | 1                      | Unified pending queue                       |
-| `u_scheduler`        | `scheduler_fub`         | 1                      |                                             |
+| `u_scheduler`        | `scheduler`         | 1                      |                                             |
 | `u_page_predictor`   | `page_predictor_fub`    | 0 or 1                 | Conditional on `PAGE_POLICY == HAPPY_HYBRID`|
 | `u_bank_machine[r][b]` | `bank_machine_fub`    | `NUM_RANKS × NUM_BANKS`| `generate` block, two-dimensional           |
-| `u_xbank_timers`     | `xbank_timers_fub`      | 1                      | Internally per-rank tRRD/tFAW + global tCCD |
+| `u_xbank_timers`     | `xbank_timers`      | 1                      | Internally per-rank tRRD/tFAW + global tCCD |
 | `u_refresh_mgr`      | `refresh_mgr_fub`       | 1                      |                                             |
 | `u_init_engine`      | `init_engine_fub`       | 1                      |                                             |
 | `u_power_state`      | `power_state_fub`       | 1                      |                                             |

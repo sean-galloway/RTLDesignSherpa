@@ -177,7 +177,7 @@ module command_scheduler_macro
     // FUBs
     //=========================================================================
 
-    scheduler_fub #(
+    scheduler #(
         .WR_CAM_DEPTH    (WR_CAM_DEPTH),
         .RD_CAM_DEPTH    (RD_CAM_DEPTH),
         .NUM_RANKS       (NUM_RANKS),
@@ -235,7 +235,7 @@ module command_scheduler_macro
         .evt_bank_o         (evt_bank)
     );
 
-    xbank_timers_fub #(
+    xbank_timers #(
         .NUM_RANKS (NUM_RANKS),
         .NUM_BANKS (NUM_BANKS),
         .ROW_WIDTH (RW)
@@ -264,7 +264,7 @@ module command_scheduler_macro
         .bank_state_o       (bank_state_unused)
     );
 
-    global_timers_fub #(
+    global_timers #(
         .NUM_RANKS (NUM_RANKS),
         .NUM_BANKS (NUM_BANKS)
     ) u_global_timers (
@@ -284,7 +284,7 @@ module command_scheduler_macro
         .trtw_window_ok_o (trtw_unused)
     );
 
-    refresh_ctrl_fub u_refresh_ctrl (
+    refresh_ctrl u_refresh_ctrl (
         .mc_clk              (mc_clk),
         .mc_rst_n            (mc_rst_n),
         .t_refi_i            (t_refi_i),
@@ -295,7 +295,7 @@ module command_scheduler_macro
         .pending_refreshes_o (pending_refreshes_unused)
     );
 
-    powerdown_ctrl_fub #(
+    powerdown_ctrl #(
         .NUM_RANKS (NUM_RANKS),
         .CS_WIDTH  (DFI_CS_WIDTH)
     ) u_powerdown_ctrl (
@@ -310,7 +310,7 @@ module command_scheduler_macro
         .dfi_cke_o        (dfi_cke_o)
     );
 
-    mode_register_fub #(
+    mode_register #(
         .NUM_RANKS (NUM_RANKS)
     ) u_mode_register (
         .mc_clk          (mc_clk),
@@ -333,7 +333,7 @@ module command_scheduler_macro
         .odt_o           (odt_unused)
     );
 
-    init_sequencer_fub u_init_sequencer (
+    init_sequencer u_init_sequencer (
         .mc_clk              (mc_clk),
         .mc_rst_n            (mc_rst_n),
         .memtype_i           (memtype_i),

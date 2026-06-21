@@ -37,7 +37,7 @@
 
 `wr_data_path_fub` moves write-data beats from the AXI4-slave's `w_buf` into DFI write-data form, aligned to the CWL window after the corresponding WR/WRA command issue. Width-conversion (AXI `DATA_WIDTH` → `N_PHASES × DFI_DATA_WIDTH` per MC cycle) happens here; byte-strobe (`wstrb`) propagates with the data.
 
-The FUB is **pulled by `wr_cmd_cam_fub`**, not by the scheduler. When the scheduler picks a write entry, the CAM's `beat_pull_*` interface begins requesting per-beat data from this FUB. The FUB walks the AXI W-buffer at the supplied pointer (`w_buf_ptr` + `beats_issued`), width-converts, and presents the result to `gear_dfi_fub` on the WRPHASE slot of the appropriate MC cycle.
+The FUB is **pulled by `wr_cmd_cam`**, not by the scheduler. When the scheduler picks a write entry, the CAM's `beat_pull_*` interface begins requesting per-beat data from this FUB. The FUB walks the AXI W-buffer at the supplied pointer (`w_buf_ptr` + `beats_issued`), width-converts, and presents the result to `gear_dfi_fub` on the WRPHASE slot of the appropriate MC cycle.
 
 There are no enumerated FSM states. Internal state is:
 
@@ -57,7 +57,7 @@ This FUB is modeled after stream's `axi_write_engine` with the following deliber
 |-------------------------------------------|------------------------------------------|-------------------------------------------|
 | No enumerated FSM                          | Yes — streaming flags only               | Yes — streaming flags only                |
 | Streaming data path (no internal buffering)| Yes — passthrough SRAM → AXI W            | Yes — passthrough w_buf → DFI wrdata       |
-| Per-transaction outstanding tracking      | Per-channel inflight flags (V1) or counters (V2/V3) | Per-CAM-slot beat counter, in `wr_cmd_cam_fub` rather than here |
+| Per-transaction outstanding tracking      | Per-channel inflight flags (V1) or counters (V2/V3) | Per-CAM-slot beat counter, in `wr_cmd_cam` rather than here |
 | Pre-allocation handshake                  | SRAM `wr_alloc_size` reserves space       | `w_buf` allocation reserves space in `axi4_slave_fub` (upstream) |
 | Combinational AR / W outputs              | Yes (option to register for timing)       | `wr_beat_*` outputs are registered (1-cycle pipeline stage) |
 | Strobe-on-handshake completion             | `done_strobe` on AW handshake             | `wr_beat_last` strobe on last beat issued; CAM holds completion until `b_complete` from `xbank_timers` |
@@ -170,7 +170,7 @@ Per-MC-cycle output to `gear_dfi_fub`. The single register stage matches stream'
 
 ## Outstanding Tracking — Per CAM Slot
 
-Stream's `axi_write_engine` tracks per-channel inflight state as a simple flag (PIPELINE=0) or counter (PIPELINE=1). Here, the per-burst tracking lives **in `wr_cmd_cam_fub` (§2.5)**:
+Stream's `axi_write_engine` tracks per-channel inflight state as a simple flag (PIPELINE=0) or counter (PIPELINE=1). Here, the per-burst tracking lives **in `wr_cmd_cam` (§2.5)**:
 
 | What                              | Where                              | Stream analog                              |
 |-----------------------------------|------------------------------------|--------------------------------------------|
@@ -200,7 +200,7 @@ The most common configs (left rows) need no sub-beat conversion at all — the w
 
 ## Interface
 
-### From `wr_cmd_cam_fub` (the pull side)
+### From `wr_cmd_cam` (the pull side)
 
 | Signal                  | Direction | Width                    | Description                                          |
 |-------------------------|-----------|--------------------------|------------------------------------------------------|
@@ -219,7 +219,7 @@ The most common configs (left rows) need no sub-beat conversion at all — the w
 
 The `w_buf` is implemented as distributed RAM in `axi4_slave_fub`; the FUB reads it asynchronously at `pull_ptr`. This is the same pattern as stream's SRAM-to-engine streaming.
 
-### From `scheduler_fub` (CWL alignment)
+### From `scheduler` (CWL alignment)
 
 | Signal              | Direction | Width                    | Description                                          |
 |---------------------|-----------|--------------------------|------------------------------------------------------|
@@ -236,7 +236,7 @@ The `w_buf` is implemented as distributed RAM in `axi4_slave_fub`; the FUB reads
 | `wr_beat_last_o`    | output    | 1                              | Last beat of the burst                               |
 | `wr_beat_slot_o`    | output    | `$clog2(WR_CAM_DEPTH)`         | CAM slot (for `xbank_timers` last-beat strobe)        |
 
-### To `xbank_timers_fub`
+### To `xbank_timers`
 
 | Signal              | Direction | Width  | Description                                          |
 |---------------------|-----------|--------|------------------------------------------------------|

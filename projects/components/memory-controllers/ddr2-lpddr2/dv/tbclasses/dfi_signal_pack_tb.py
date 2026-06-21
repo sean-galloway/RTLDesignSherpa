@@ -2,10 +2,10 @@
 # SPDX-FileCopyrightText: 2024-2026 sean galloway
 #
 # Module: DfiSignalPackTB
-# Purpose: Unit-level testbench for dfi_signal_pack_fub.
+# Purpose: Unit-level testbench for dfi_signal_pack.
 
 """
-Testbench class for `dfi_signal_pack_fub`.
+Testbench class for `dfi_signal_pack`.
 
 The FUB is a pure 1-cycle registered pipeline on every DFI bus signal.
 The TB drives the input ports, advances one clock, and checks the output

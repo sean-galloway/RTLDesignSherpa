@@ -5,7 +5,7 @@
 # Created: 2026-06-18
 
 """
-Unit-test runner for `rd_cmd_cam_fub`.
+Unit-test runner for `rd_cmd_cam`.
 
 Same structure as test_wr_cmd_cam.py; covers push/free-slot, match vectors,
 issued masking, beat counting + entry_complete, snapshot, occupancy and
@@ -268,6 +268,9 @@ _FULL = _FUNC + [(t, 16, 2) for t in _ALL_TYPES] + [
     ("random_soak", 32, 1),
     ("random_soak",  4, 1),
 ]
+# Dedupe — otherwise pytest disambiguates colliding IDs with _0/_1 suffixes
+# and parallel workers race on the same local_sim_build/ directory.
+_FULL = list(dict.fromkeys(_FULL))
 
 _TEST_LEVEL = os.environ.get("TEST_LEVEL", "FUNC").upper()
 _PARAMS = {"GATE": _GATE, "FUNC": _FUNC, "FULL": _FULL}.get(_TEST_LEVEL, _FUNC)
@@ -277,13 +280,13 @@ _PARAMS = {"GATE": _GATE, "FUNC": _FUNC, "FULL": _FULL}.get(_TEST_LEVEL, _FUNC)
                          ids=[f"{t[0]}-d{t[1]}-nr{t[2]}" for t in _PARAMS])
 def test_rd_cmd_cam(request, test_type, rd_cam_depth, num_ranks):
     module, repo_root, tests_dir, log_dir, _ = get_paths({})
-    dut_name = "rd_cmd_cam_fub"
+    dut_name = "rd_cmd_cam"
 
     test_name = f"test_rd_cmd_cam_{test_type}_d{rd_cam_depth}_nr{num_ranks}"
 
     filelist_path = (
         "projects/components/memory-controllers/ddr2-lpddr2/"
-        "rtl/filelists/fub/rd_cmd_cam_fub.f"
+        "rtl/filelists/fub/rd_cmd_cam.f"
     )
     verilog_sources, includes = get_sources_from_filelist(
         repo_root=repo_root, filelist_path=filelist_path

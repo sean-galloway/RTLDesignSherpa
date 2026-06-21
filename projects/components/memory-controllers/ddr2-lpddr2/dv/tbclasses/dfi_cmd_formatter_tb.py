@@ -2,10 +2,10 @@
 # SPDX-FileCopyrightText: 2024-2026 sean galloway
 #
 # Module: DfiCmdFormatterTB
-# Purpose: Unit-level testbench for dfi_cmd_formatter_fub.
+# Purpose: Unit-level testbench for dfi_cmd_formatter.
 
 """
-Testbench class for `dfi_cmd_formatter_fub`.
+Testbench class for `dfi_cmd_formatter`.
 
 The FUB is a pure combinational truth-table decode of `dram_op_e` to the
 DFI v2.1 control bus (multi-phase). The TB drives op/rank/bank/row/col
@@ -240,7 +240,8 @@ class DfiCmdFormatterTB(TBBase):
         self.dut.cmd_col_i.value   = col    & ((1 << self.COL_WIDTH) - 1)
         self.dut.cmd_len_i.value   = length & ((1 << self.BLW) - 1)
 
-        # Let combinational outputs settle.
+        # Outputs are registered — wait 1 cycle for inputs to clock through.
+        await self.wait_clocks('mc_clk', 1)
         await Timer(_NBA_SETTLE_PS, units='ps')
 
         # Build expected — phase 0 = decoded; phase 1..N-1 = NOP.

@@ -118,7 +118,7 @@ module dfi_v21_interface_macro
     // FUBs
     //=========================================================================
 
-    dfi_cmd_formatter_fub #(
+    dfi_cmd_formatter #(
         .NUM_RANKS       (NUM_RANKS),
         .NUM_BANKS       (NUM_BANKS),
         .ROW_WIDTH       (RW),
@@ -150,7 +150,7 @@ module dfi_v21_interface_macro
         .dfi_odt_o     (pre_dfi_odt)
     );
 
-    dfi_signal_pack_fub #(
+    dfi_signal_pack #(
         .NUM_RANKS       (NUM_RANKS),
         .DFI_RATE        (DFI_RATE),
         .DFI_ADDR_WIDTH  (DFI_ADDR_WIDTH),

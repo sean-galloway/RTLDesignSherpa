@@ -21,9 +21,9 @@
 
 <!-- End Header -->
 
-# Read Command CAM (`rd_cmd_cam_fub`)
+# Read Command CAM (`rd_cmd_cam`)
 
-**Module:** `rd_cmd_cam_fub.sv`
+**Module:** `rd_cmd_cam.sv`
 **Location:** `rtl/fub/`
 **Category:** FUB
 **Parent:** `ddr2_lpddr2_ctrl`
@@ -33,7 +33,7 @@
 
 ## Purpose
 
-`rd_cmd_cam_fub` is the **read-side content-addressable storage** of in-flight read commands. It holds the DRAM-layer view (rank, bank, row, col) of every read burst that has been pushed by `axi4_slave_fub` and not yet fully returned on the AXI R-channel.
+`rd_cmd_cam` is the **read-side content-addressable storage** of in-flight read commands. It holds the DRAM-layer view (rank, bank, row, col) of every read burst that has been pushed by `axi4_slave_fub` and not yet fully returned on the AXI R-channel.
 
 The CAM is keyed by **AXI ID**, allowing the scheduler to find all reads to a given (rank, bank) without iterating the queue and allowing `rd_data_path_fub` to find the right entry to decrement when a read beat returns.
 
@@ -136,7 +136,7 @@ If `AXI_OOO_ACROSS_IDS == false` (rare), the SoC has asked for in-order return a
 | `beat_id_i` → `beats_returned[slot]+1` | 1 cycle     |
 | `entry_complete_o` → slot clear        | 1 cycle     |
 
-The combinational match path is on the scheduler's critical loop and is shared with `wr_cmd_cam_fub` and the bank machines' state matrix. See `ch02_blocks/07_scheduler.md` for the full critical-path breakdown.
+The combinational match path is on the scheduler's critical loop and is shared with `wr_cmd_cam` and the bank machines' state matrix. See `ch02_blocks/07_scheduler.md` for the full critical-path breakdown.
 
 ## CSR Hooks
 

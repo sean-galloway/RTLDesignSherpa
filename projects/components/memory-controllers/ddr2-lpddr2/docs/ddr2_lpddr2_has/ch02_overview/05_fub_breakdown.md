@@ -62,9 +62,9 @@ The 14 leaf FUBs proposed below are grouped by major architectural role. Each en
 - **Purpose**: AXI4 slave protocol engine; AW / W / B and AR / R channel handshake; ID-aware out-of-order completion buffer.
 - **Key params**: `AXI_DATA_WIDTH`, `AXI_ID_WIDTH`, `AXI_ADDR_WIDTH`, `AXI_OOO_ACROSS_IDS`, `SUPPORT_FIXED_BURST`, `SUPPORT_WRAP_BURST`.
 - **Upstream**: top-level AXI ports.
-- **Downstream**: `addr_mapper_fub` (decoded address), `txn_queue_fub` (request push), data-path FUBs (`wr_data_path_fub`, `rd_data_path_fub`).
+- **Downstream**: `addr_mapper` (decoded address), `txn_queue_fub` (request push), data-path FUBs (`wr_data_path_fub`, `rd_data_path_fub`).
 
-#### `addr_mapper_fub`
+#### `addr_mapper`
 - **Purpose**: Decode flat AXI address into (rank, bank, row, column) per the active address-mapping scheme.
 - **Key params**: `NUM_RANKS`, `NUM_BANKS`, `ROW_WIDTH`, `COL_WIDTH`, `ADDR_MAP_SCHEMES_SYNTH`, `ADDR_MAP_SCHEME_DEFAULT`.
 - **Notable**: Mirrors the Python `AddressMapping` class in the DV repo; the same decode function is used by RTL and BFM.
@@ -76,7 +76,7 @@ The 14 leaf FUBs proposed below are grouped by major architectural role. Each en
 - **Key params**: `TXN_QUEUE_DEPTH`, `AGE_MAX`.
 - **Storage**: Distributed registers; for `TXN_QUEUE_DEPTH ≥ 32` consider promoting to a small SRAM in `rtl/macro/`.
 
-#### `scheduler_fub`
+#### `scheduler`
 - **Purpose**: FR-FCFS priority function, lookahead window, refresh-priority gating, runtime `force_inorder` collapse.
 - **Key params**: `SCHEDULER_MODE`, `LOOKAHEAD_DEPTH_MAX`.
 - **Notable**: The single hardest synthesis-timing FUB in the design; expected to dominate the path from `txn_queue` to command issue.
@@ -93,7 +93,7 @@ The 14 leaf FUBs proposed below are grouped by major architectural role. Each en
 - **Key params**: `ROW_WIDTH`. Instantiated `NUM_RANKS × NUM_BANKS` times by the top.
 - **Synthesis note**: Replicated; an attempt at sharing across banks is rejected because per-bank state must be queryable in parallel by the scheduler.
 
-#### `xbank_timers_fub`
+#### `xbank_timers`
 - **Purpose**: Cross-bank timing constraints (tRRD, tFAW, tCCD, tWTR, tRTW, tRTRS, tCS); per-rank vs. global scope as documented in §3.3.
 - **Key params**: `NUM_RANKS`, `NUM_BANKS`.
 - **Storage**: Per-rank 4-entry tFAW FIFOs; remaining state is small down-counters.
@@ -166,7 +166,7 @@ The number is a SWAG; expect ±2 during detailed design as the boundary between 
 
 The top has three principal wiring concerns:
 
-1. **Per-rank, per-bank fan-out** of `bank_machine_fub` instances; their state aggregation to `scheduler_fub`.
+1. **Per-rank, per-bank fan-out** of `bank_machine_fub` instances; their state aggregation to `scheduler`.
 2. **Per-rank fan-out** of `dfi_cs_n`, `dfi_cke`, `dfi_odt` from `odt_ctrl_fub` and `power_state_fub`.
 3. **Per-phase fan-out** to `gear_dfi_fub` and `wr_data_path_fub` / `rd_data_path_fub`.
 

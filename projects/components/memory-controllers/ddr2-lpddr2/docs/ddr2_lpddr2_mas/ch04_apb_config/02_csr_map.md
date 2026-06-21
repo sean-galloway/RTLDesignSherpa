@@ -106,12 +106,12 @@ Each R/W field's MC-side live value drives a specific FUB input (per §1.3 and t
 
 | CSR field                                  | Drives                                          |
 |--------------------------------------------|-------------------------------------------------|
-| `SCHED_TUNING.force_inorder`               | `scheduler_fub.cfg_force_inorder_i`             |
-| `SCHED_TUNING.lookahead_active`            | `scheduler_fub.cfg_lookahead_active_i`           |
+| `SCHED_TUNING.force_inorder`               | `scheduler.cfg_force_inorder_i`             |
+| `SCHED_TUNING.lookahead_active`            | `scheduler.cfg_lookahead_active_i`           |
 | `REFRESH_TUNING.refresh_defer_active`      | `refresh_mgr_fub.cfg_refresh_defer_active_i`     |
 | `REFRESH_TUNING.zqcs_freq_hz`              | `refresh_mgr_fub.cfg_zqcs_freq_hz_i`             |
-| `ADDR_MAP_TUNING.scheme_or`                | `addr_mapper_fub.scheme_active_i`                |
-| `ADDR_MAP_TUNING.xor_seed_runtime`         | `addr_mapper_fub.xor_seed_i`                     |
+| `ADDR_MAP_TUNING.scheme_or`                | `addr_mapper.scheme_active_i`                |
+| `ADDR_MAP_TUNING.xor_seed_runtime`         | `addr_mapper.xor_seed_i`                     |
 | `RANK_TUNING.odt_rule_or`                  | `odt_ctrl_fub.cfg_odt_rule_or_i`                 |
 | `POWER_TUNING.apd_idle_threshold`          | `power_state_fub.cfg_apd_idle_threshold_i`        |
 | ... (many more) ...                        | per-FUB CSR sections                             |

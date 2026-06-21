@@ -2,10 +2,10 @@
 # SPDX-FileCopyrightText: 2024-2026 sean galloway
 #
 # Module: RdCmdCamTB
-# Purpose: Unit-level testbench for rd_cmd_cam_fub.
+# Purpose: Unit-level testbench for rd_cmd_cam.
 
 """
-Testbench for `rd_cmd_cam_fub`.
+Testbench for `rd_cmd_cam`.
 
 Same shape as `WrCmdCamTB` but simpler — the read-side CAM has no
 w_buf_ptr/strb_ptr fields and tracks `beats_returned` rather than

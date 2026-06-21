@@ -37,8 +37,8 @@ The HAS-side registry enumerates 25+ bits that span DDR2/3/4 and LPDDR2/3/4 cont
 
 | Bit                     | This controller                                              |
 |-------------------------|--------------------------------------------------------------|
-| `lookahead_active`      | Live; drives `scheduler_fub.cfg_lookahead_active_i` (§2.7)    |
-| `force_inorder`         | Live; drives `scheduler_fub.cfg_force_inorder_i`              |
+| `lookahead_active`      | Live; drives `scheduler.cfg_lookahead_active_i` (§2.7)    |
+| `force_inorder`         | Live; drives `scheduler.cfg_force_inorder_i`              |
 | `happy_enable`          | Live when `PAGE_POLICY == HAPPY_HYBRID`; reads as 0 otherwise (the FUB isn't synthesized) |
 | `age_max_runtime`       | Live; clipped to `≤ AGE_MAX` build-time parameter             |
 | `txn_queue_high_water`  | Live; drives backpressure threshold                           |
@@ -61,7 +61,7 @@ The HAS-side registry enumerates 25+ bits that span DDR2/3/4 and LPDDR2/3/4 cont
 
 | Bit                       | This controller                                                |
 |---------------------------|----------------------------------------------------------------|
-| `scheme_or`               | Live; drives `addr_mapper_fub.scheme_active_i` (§2.3)           |
+| `scheme_or`               | Live; drives `addr_mapper.scheme_active_i` (§2.3)           |
 | `synth_mask_obs`          | RO echo of build-time `ADDR_MAP_SCHEMES_SYNTH`                 |
 | `bg_field_position`       | **Reads as 0**; bank groups are DDR4+ feature                  |
 | `xor_seed_runtime`        | Live when XOR_HASH scheme is synthesized                        |

@@ -5,7 +5,7 @@
 # Created: 2026-06-19
 
 """
-Unit-test runner for `wr_beat_sequencer_fub`.
+Unit-test runner for `wr_beat_sequencer`.
 
 Scenarios (all scoreboarded via WrBeatSequencerTB.expected_dfi_cycles):
   smoke           single 4-beat burst with full strb, t_phy_wrlat=2
@@ -161,6 +161,10 @@ _FULL = _FUNC + [
     ("random_soak", 2),
     ("random_soak", 4),
 ]
+# Dedupe FULL so every (type, rate) tuple is unique. Without this, pytest
+# auto-disambiguates the colliding IDs with _0/_1 suffixes, and parallel
+# workers race on the same local_sim_build/ directory → make Error 2.
+_FULL = list(dict.fromkeys(_FULL))
 
 _TEST_LEVEL = os.environ.get("TEST_LEVEL", "FUNC").upper()
 _PARAMS = {"GATE": _GATE, "FUNC": _FUNC, "FULL": _FULL}.get(_TEST_LEVEL, _FUNC)
@@ -170,13 +174,13 @@ _PARAMS = {"GATE": _GATE, "FUNC": _FUNC, "FULL": _FULL}.get(_TEST_LEVEL, _FUNC)
                          ids=[f"{t[0]}-r{t[1]}" for t in _PARAMS])
 def test_wr_beat_sequencer(request, test_type, dfi_rate):
     module, repo_root, tests_dir, log_dir, _ = get_paths({})
-    dut_name = "wr_beat_sequencer_fub"
+    dut_name = "wr_beat_sequencer"
 
     test_name = f"test_wr_beat_sequencer_{test_type}_r{dfi_rate}"
 
     filelist_path = (
         "projects/components/memory-controllers/ddr2-lpddr2/"
-        "rtl/filelists/fub/wr_beat_sequencer_fub.f"
+        "rtl/filelists/fub/wr_beat_sequencer.f"
     )
     verilog_sources, includes = get_sources_from_filelist(
         repo_root=repo_root, filelist_path=filelist_path

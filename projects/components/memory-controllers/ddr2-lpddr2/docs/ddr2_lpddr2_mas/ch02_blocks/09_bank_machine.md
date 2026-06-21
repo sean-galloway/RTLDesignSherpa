@@ -180,7 +180,7 @@ accepts_ref = (state == IDLE)
 
 These are pure combinational — no flop between the state register and the scheduler. The scheduler's Stage-1 critical path (per §2.7) routes through these comparators.
 
-**Why xbank lives outside.** Cross-bank constraints (tRRD, tFAW, tCCD, tWTR, tRTW) are shared across all banks of a rank or globally across the channel — they can't be enforced inside a per-bank FSM. The `xbank_timers_fub` (§2.10) aggregates them and presents the per-(rank, bank) AND-mask via `xbank_blocks_i`.
+**Why xbank lives outside.** Cross-bank constraints (tRRD, tFAW, tCCD, tWTR, tRTW) are shared across all banks of a rank or globally across the channel — they can't be enforced inside a per-bank FSM. The `xbank_timers` (§2.10) aggregates them and presents the per-(rank, bank) AND-mask via `xbank_blocks_i`.
 
 ---
 

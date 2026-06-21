@@ -2,7 +2,7 @@
 # SPDX-FileCopyrightText: 2024-2026 sean galloway
 
 """
-Unit-test runner for `init_sequencer_fub`. Walks the FSM from RESET
+Unit-test runner for `init_sequencer`. Walks the FSM from RESET
 through DONE, verifies dfi_init_start_o asserts, verifies the MR
 write sequence (MR2 → MR3 → MR1 → MR0), and checks ZQCL handshake.
 """
@@ -28,7 +28,7 @@ if _DV_DIR not in sys.path:
 MEMTYPE_DDR2   = 0
 MEMTYPE_LPDDR2 = 1
 
-# Default MR values per init_sequencer_fub
+# Default MR values per init_sequencer
 DDR2_MR0_DEFAULT = 0x0152
 DDR2_MR1_DEFAULT = 0x0000
 DDR2_MR2_DEFAULT = 0x0000
@@ -156,11 +156,11 @@ _PARAMS = {"GATE": _GATE, "FUNC": _FUNC, "FULL": _FULL}.get(_TEST_LEVEL, _FUNC)
                          ids=[t[0] for t in _PARAMS])
 def test_init_sequencer(request, test_type):
     module, repo_root, tests_dir, log_dir, _ = get_paths({})
-    dut_name = "init_sequencer_fub"
+    dut_name = "init_sequencer"
     test_name = f"test_init_sequencer_{test_type}"
 
     filelist_path = ("projects/components/memory-controllers/ddr2-lpddr2/"
-                     "rtl/filelists/fub/init_sequencer_fub.f")
+                     "rtl/filelists/fub/init_sequencer.f")
     verilog_sources, includes = get_sources_from_filelist(
         repo_root=repo_root, filelist_path=filelist_path)
 

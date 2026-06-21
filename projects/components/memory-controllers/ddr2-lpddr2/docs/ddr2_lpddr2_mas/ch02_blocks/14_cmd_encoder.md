@@ -190,7 +190,7 @@ The encoder accepts commands from four upstream sources, multiplexed at the inpu
 
 | Source                | Path                                          | Active when                          |
 |-----------------------|-----------------------------------------------|--------------------------------------|
-| `scheduler_fub`       | `sched_cmd_*` (normal traffic)                | `init_in_progress == 0`              |
+| `scheduler`       | `sched_cmd_*` (normal traffic)                | `init_in_progress == 0`              |
 | `init_engine_fub`     | `init_cmd_*` (cold boot)                       | `init_in_progress == 1`              |
 | `refresh_mgr_fub`     | `refresh_issue_*` (REF / REFpb)                | Inside refresh-priority window       |
 | `power_state_fub`     | `pwr_cmd_*` (SREFE, SREFX, DPDE, DPDX)         | Power-state transitions              |

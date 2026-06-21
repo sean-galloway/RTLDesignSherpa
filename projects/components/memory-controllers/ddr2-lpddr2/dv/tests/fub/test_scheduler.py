@@ -2,7 +2,7 @@
 # SPDX-FileCopyrightText: 2024-2026 sean galloway
 
 """
-Unit-test runner for `scheduler_fub`. Verifies the closed-page v1
+Unit-test runner for `scheduler`. Verifies the closed-page v1
 arbiter: priority ordering (init > MR > refresh > pdn > WR/RD CAM)
 and the per-op FSM IDLE → NEED_ACT → NEED_RDWR → DONE.
 """
@@ -118,27 +118,30 @@ async def cocotb_test_scheduler(dut):
     tb = SchedTB(dut)
 
     if test_type == "smoke_wr":
-        # Drive one pending WR; verify ACT, WRA, mark_issued sequence.
-        # FSM: IDLE → NEED_ACT (1 edge) → NEED_RDWR (1 edge) → DONE.
-        # Output is combinational on state; one wait_clocks gets us to
-        # the next state's output.
+        # Outputs are registered (+1 cycle vs the internal FSM state).
+        # Sequence:
+        #   cycle 0: IDLE → state advances to NEED_ACT
+        #   cycle 1: NEED_ACT → handshake at edge; output reg loads ACT
+        #   cycle 2: cmd_op_o = ACT visible; state = NEED_RDWR
+        #   cycle 3: cmd_op_o = WRA visible; state = DONE
+        #   cycle 4: wr_issued_we_o = 1 visible; state = IDLE
         await tb.setup()
         tb.set_wr_pending(slot=3, col=0x80, length=8)
-        await tb.wait_clocks('mc_clk', 1)   # → NEED_ACT, emit ACT
+        await tb.wait_clocks('mc_clk', 2)
         assert tb.cmd_valid() == 1, "should be issuing"
         assert tb.cmd_op() == OP_ACT, f"got op {tb.cmd_op()}"
         assert tb.evt_act() == 1
-        await tb.wait_clocks('mc_clk', 1)   # → NEED_RDWR, emit WRA
+        await tb.wait_clocks('mc_clk', 1)
         assert tb.cmd_op() == OP_WRA, f"expected WRA, got {tb.cmd_op()}"
         assert tb.evt_wr() == 1
-        await tb.wait_clocks('mc_clk', 1)   # → DONE, mark_issued
+        await tb.wait_clocks('mc_clk', 1)
         assert tb.wr_issued() == 1
         tb.clear_pending()
 
     elif test_type == "smoke_rd":
         await tb.setup()
         tb.set_rd_pending(slot=5, col=0x20, length=4)
-        await tb.wait_clocks('mc_clk', 1)
+        await tb.wait_clocks('mc_clk', 2)
         assert tb.cmd_op() == OP_ACT
         await tb.wait_clocks('mc_clk', 1)
         assert tb.cmd_op() == OP_RDA
@@ -184,10 +187,8 @@ async def cocotb_test_scheduler(dut):
 
     elif test_type == "wait_for_act_ready":
         # Banks NOT ready initially; scheduler holds NEED_ACT until
-        # bank_act_ready_i goes high. cmd_op is combinational on
-        # bank_act_ready_i + state, so it transitions to ACT as soon
-        # as the ready vector goes high — we check before the next
-        # clock edge advances state.
+        # bank_act_ready_i goes high. Output is registered → ACT
+        # appears one cycle AFTER bank_act_ready_i transitions.
         await tb.setup(all_banks_ready=False)
         tb.set_wr_pending(slot=0, col=0x40, length=4)
         await tb.wait_clocks('mc_clk', 5)
@@ -196,11 +197,10 @@ async def cocotb_test_scheduler(dut):
         ready_all = (1 << (tb.NUM_RANKS * tb.NUM_BANKS)) - 1
         tb.dut.bank_act_ready_i.value  = ready_all
         tb.dut.bank_rdwr_ready_i.value = ready_all
-        await Timer(1, units='ps')
-        # Output is now ACT (state still NEED_ACT, ready vector now high)
+        # 1 cycle for registered output to catch up
+        await tb.wait_clocks('mc_clk', 1)
         assert tb.cmd_op() == OP_ACT, f"got op {tb.cmd_op()}"
         assert tb.evt_act() == 1
-        # Advance — handshake fires, state → NEED_RDWR
         await tb.wait_clocks('mc_clk', 1)
         assert tb.cmd_op() == OP_WRA
         tb.clear_pending()
@@ -224,11 +224,11 @@ _PARAMS = {"GATE": _GATE, "FUNC": _FUNC, "FULL": _FULL}.get(_TEST_LEVEL, _FUNC)
                          ids=[t[0] for t in _PARAMS])
 def test_scheduler(request, test_type):
     module, repo_root, tests_dir, log_dir, _ = get_paths({})
-    dut_name = "scheduler_fub"
+    dut_name = "scheduler"
     test_name = f"test_scheduler_{test_type}"
 
     filelist_path = ("projects/components/memory-controllers/ddr2-lpddr2/"
-                     "rtl/filelists/fub/scheduler_fub.f")
+                     "rtl/filelists/fub/scheduler.f")
     verilog_sources, includes = get_sources_from_filelist(
         repo_root=repo_root, filelist_path=filelist_path)
 

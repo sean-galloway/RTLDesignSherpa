@@ -33,7 +33,7 @@
 
 ## Purpose
 
-`axi4_slave_fub` is the AXI4 host-facing protocol engine. It accepts AW/W/AR transactions from the SoC, hands off the address to `addr_mapper_fub` for decode, and pushes the resulting transaction into the appropriate CAM (`wr_cmd_cam_fub` or `rd_cmd_cam_fub`). On B and R returns, it pulls completion signals from the CAMs and merges them with AXI-side metadata to produce protocol-compliant responses.
+`axi4_slave_fub` is the AXI4 host-facing protocol engine. It accepts AW/W/AR transactions from the SoC, hands off the address to `addr_mapper` for decode, and pushes the resulting transaction into the appropriate CAM (`wr_cmd_cam` or `rd_cmd_cam`). On B and R returns, it pulls completion signals from the CAMs and merges them with AXI-side metadata to produce protocol-compliant responses.
 
 The FUB owns the AXI ID side table — the per-ID set of fields (`awcache`, `awprot`, `awqos`, `awregion`, `bid` echo, `rid` echo) that never need to cross into the DRAM-layer state.
 
@@ -60,24 +60,24 @@ The buffers above are FUB-internal; they do **not** appear in the architecture-l
 
 1. AW intake: capture `aw*` fields; push to `aw_buf`. Compute outstanding-count and assert `awready` if `aw_buf` not full.
 2. W intake: accept `w*` beats into `w_buf`. Each W beat carries `wstrb` and `wlast`. The W path does not wait for AW — W can lead AW or trail it within AXI ordering rules.
-3. CAM push: when both `aw_buf` head and the matching `w_buf` head are present (or when a write-only / address-only burst's prerequisites are satisfied), push to `wr_cmd_cam_fub` with:
+3. CAM push: when both `aw_buf` head and the matching `w_buf` head are present (or when a write-only / address-only burst's prerequisites are satisfied), push to `wr_cmd_cam` with:
    - `key = awid`
    - `data = (rank, bank, row, col, burst_len, w_buf_ptr, strb_ptr)`
-   - where (rank, bank, row, col) come from `addr_mapper_fub` (combinational, same cycle)
+   - where (rank, bank, row, col) come from `addr_mapper` (combinational, same cycle)
 4. Scheduler issue: when scheduler picks this entry, the FUB hands `w_data_path_fub` the `w_buf_ptr` and `strb_ptr` for it to walk the data beats.
-5. B response: when `wr_cmd_cam_fub` reports the entry complete (last W beat issued + tDFI write to DFI), the FUB pops the AXI ID, joins with `id_side_table[id].axi_metadata`, and pushes `b_response_fifo`.
+5. B response: when `wr_cmd_cam` reports the entry complete (last W beat issued + tDFI write to DFI), the FUB pops the AXI ID, joins with `id_side_table[id].axi_metadata`, and pushes `b_response_fifo`.
 6. B emit: standard B-channel handshake; pop `b_response_fifo`.
 
 ### Read Path
 
 1. AR intake: capture `ar*` fields; push to `ar_buf`. Assert `arready` if not full.
-2. CAM push: pop `ar_buf` head; push to `rd_cmd_cam_fub` with:
+2. CAM push: pop `ar_buf` head; push to `rd_cmd_cam` with:
    - `key = arid`
    - `data = (rank, bank, row, col, burst_len, rid_counter, expected_beats)`
-   - where (rank, bank, row, col) come from `addr_mapper_fub`
+   - where (rank, bank, row, col) come from `addr_mapper`
    - `rid_counter` is the AXI ID echo
 3. Scheduler issue: when scheduler picks this entry, it commands the issue of RD / RDA. `rd_data_path_fub` watches for the corresponding DFI rddata beats.
-4. R response: as each R beat completes, `rd_data_path_fub` strobes `rd_cmd_cam_fub` to decrement `expected_beats`; the CAM emits `r_beat_to_axi` with `rid`, beat data, `rlast` when the last beat arrives.
+4. R response: as each R beat completes, `rd_data_path_fub` strobes `rd_cmd_cam` to decrement `expected_beats`; the CAM emits `r_beat_to_axi` with `rid`, beat data, `rlast` when the last beat arrives.
 5. R emit: standard R-channel handshake; pop `r_response_fifo`.
 
 ## Outstanding Burst Tracking
@@ -86,8 +86,8 @@ The FUB enforces:
 
 | Limit                     | Constraint                                            |
 |---------------------------|-------------------------------------------------------|
-| Total in-flight reads     | ≤ `rd_cmd_cam_fub` depth (default 16)                 |
-| Total in-flight writes    | ≤ `wr_cmd_cam_fub` depth (default 16)                 |
+| Total in-flight reads     | ≤ `rd_cmd_cam` depth (default 16)                 |
+| Total in-flight writes    | ≤ `wr_cmd_cam` depth (default 16)                 |
 | Per-ID in-flight reads    | ≤ `MAX_PER_ID_READS` parameter (default 4)            |
 | Per-ID in-flight writes   | ≤ `MAX_PER_ID_WRITES` parameter (default 4)           |
 

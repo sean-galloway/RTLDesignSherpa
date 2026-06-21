@@ -35,7 +35,7 @@
 
 ## Purpose
 
-`txn_queue_fub` is the **scheduling view** of in-flight DRAM transactions. It is the data structure the scheduler reads every MC clock to pick the next command. The queue is not the source of truth for AXI metadata or beat tracking — that lives in `rd_cmd_cam_fub` and `wr_cmd_cam_fub`. The queue carries *only* the fields the scheduler's priority function needs, plus a reverse pointer back to the CAM slot.
+`txn_queue_fub` is the **scheduling view** of in-flight DRAM transactions. It is the data structure the scheduler reads every MC clock to pick the next command. The queue is not the source of truth for AXI metadata or beat tracking — that lives in `rd_cmd_cam` and `wr_cmd_cam`. The queue carries *only* the fields the scheduler's priority function needs, plus a reverse pointer back to the CAM slot.
 
 The split exists because the scheduler's read path is the hottest in the design: every cycle it touches every entry in parallel. Making the entry narrow (~32 bits, see below) keeps the parallel-comparator fan-in manageable. The CAMs carry the wider per-burst metadata (`w_buf_ptr`, `strb_ptr`, `beats_returned`, etc.) which is only touched on insert, on scheduler pick, and on per-beat completion — never in the per-cycle scheduling loop.
 
@@ -49,7 +49,7 @@ Each entry in `txn_queue` reflects exactly one slot in `rd_cmd_cam` or `wr_cmd_c
 txn_queue[q].cam_slot_idx ──► (is_write ? wr_cmd_cam[cam_slot_idx] : rd_cmd_cam[cam_slot_idx])
 ```
 
-When the scheduler picks `txn_queue[q]`, it issues an "mark issued" strobe to the corresponding CAM using `cam_slot_idx` (see `scheduler_fub`, §2.7). When the CAM signals entry-complete (read: last beat returned; write: B-channel quiet point reached), it strobes back to clear `txn_queue[q]`.
+When the scheduler picks `txn_queue[q]`, it issues an "mark issued" strobe to the corresponding CAM using `cam_slot_idx` (see `scheduler`, §2.7). When the CAM signals entry-complete (read: last beat returned; write: B-channel quiet point reached), it strobes back to clear `txn_queue[q]`.
 
 The queue and CAMs are sized independently:
 

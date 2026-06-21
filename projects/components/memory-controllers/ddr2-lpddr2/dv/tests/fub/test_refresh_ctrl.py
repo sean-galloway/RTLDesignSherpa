@@ -2,7 +2,7 @@
 # SPDX-FileCopyrightText: 2024-2026 sean galloway
 
 """
-Unit-test runner for `refresh_ctrl_fub`. Verifies tREFI countdown,
+Unit-test runner for `refresh_ctrl`. Verifies tREFI countdown,
 refresh_req assertion, grant decrement, and saturating pending counter.
 """
 
@@ -132,11 +132,11 @@ _PARAMS = {"GATE": _GATE, "FUNC": _FUNC, "FULL": _FULL}.get(_TEST_LEVEL, _FUNC)
                          ids=[t[0] for t in _PARAMS])
 def test_refresh_ctrl(request, test_type):
     module, repo_root, tests_dir, log_dir, _ = get_paths({})
-    dut_name = "refresh_ctrl_fub"
+    dut_name = "refresh_ctrl"
     test_name = f"test_refresh_ctrl_{test_type}"
 
     filelist_path = ("projects/components/memory-controllers/ddr2-lpddr2/"
-                     "rtl/filelists/fub/refresh_ctrl_fub.f")
+                     "rtl/filelists/fub/refresh_ctrl.f")
     verilog_sources, includes = get_sources_from_filelist(
         repo_root=repo_root, filelist_path=filelist_path)
 

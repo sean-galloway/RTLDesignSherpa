@@ -64,7 +64,7 @@ This FUB is modeled after stream's `axi_read_engine` with the following delibera
 | Out-of-order completion across IDs         | Inherent — channel ID is part of AXI ID   | Inherent — slot index travels with the data |
 | Per-PERFORMANCE mode parameter             | `PERFORMANCE` ∈ LOW/MED/HIGH               | `RD_DATAPATH_PIPELINE` ∈ {0, 1} for v1; deeper modes deferred to v2 |
 
-Where stream's read engine tracks per-channel inflight reads, this FUB tracks per-CAM-slot inflight reads. The slot index in `rd_cmd_cam_fub` is the analog of stream's channel ID.
+Where stream's read engine tracks per-channel inflight reads, this FUB tracks per-CAM-slot inflight reads. The slot index in `rd_cmd_cam` is the analog of stream's channel ID.
 
 **No FSMs anywhere in this FUB.** When the description below uses words like "first beat" or "burst completion" it does NOT mean an enumerated state — it's encoded in the inflight ring buffer's `beats_remaining` counter and the data-flow valid/last bits.
 
@@ -230,7 +230,7 @@ This is the rough timing — actual cycles depend on `CL`, `N_PHASES`, `BL`, and
 
 ## Interface
 
-### From `scheduler_fub` (CL alignment intake)
+### From `scheduler` (CL alignment intake)
 
 | Signal              | Direction | Width                    | Description                                          |
 |---------------------|-----------|--------------------------|------------------------------------------------------|
@@ -245,13 +245,13 @@ This is the rough timing — actual cycles depend on `CL`, `N_PHASES`, `BL`, and
 | `rd_beat_data_i`    | input     | `N_PHASES × DFI_DATA_WIDTH`        | One MC-cycle frame's worth of read data              |
 | `rd_beat_valid_i`   | input     | 1                                  | Frame is valid this cycle                            |
 
-### From `rd_cmd_cam_fub` (slot → AXI ID lookup)
+### From `rd_cmd_cam` (slot → AXI ID lookup)
 
 | Signal              | Direction | Width                                              | Description                              |
 |---------------------|-----------|----------------------------------------------------|------------------------------------------|
 | `cam_axi_id_i[RD_CAM_DEPTH]`  | input | RD_CAM_DEPTH × AXI_ID_WIDTH | Per-slot AXI ID (combinational read)             |
 
-### To `rd_cmd_cam_fub` (entry-complete strobe)
+### To `rd_cmd_cam` (entry-complete strobe)
 
 | Signal                  | Direction | Width                    | Description                                          |
 |-------------------------|-----------|--------------------------|------------------------------------------------------|
@@ -269,7 +269,7 @@ This is the rough timing — actual cycles depend on `CL`, `N_PHASES`, `BL`, and
 | `r_beat_valid_o`    | output    | 1                    | rvalid                                                |
 | `r_beat_ready_i`    | input     | 1                    | rready (back-pressure from axi4_slave's r_response_fifo) |
 
-### To `xbank_timers_fub`
+### To `xbank_timers`
 
 | Signal              | Direction | Width  | Description                                          |
 |---------------------|-----------|--------|------------------------------------------------------|

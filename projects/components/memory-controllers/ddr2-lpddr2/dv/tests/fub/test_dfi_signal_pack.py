@@ -5,7 +5,7 @@
 # Created: 2026-06-20
 
 """
-Unit-test runner for `dfi_signal_pack_fub`.
+Unit-test runner for `dfi_signal_pack`.
 
 Scenarios:
   reset_values  immediately after reset, all outputs at their safe defaults
@@ -132,6 +132,9 @@ _FULL = _FUNC + [(t, 4, 2) for t in _ALL_TYPES] + [
     ("random_soak", 2, 1),
     ("random_soak", 4, 2),
 ]
+# Dedupe so every tuple is unique — otherwise pytest disambiguates collisions
+# with _0/_1 suffixes and parallel workers race on the same local_sim_build/.
+_FULL = list(dict.fromkeys(_FULL))
 
 _TEST_LEVEL = os.environ.get("TEST_LEVEL", "FUNC").upper()
 _PARAMS = {"GATE": _GATE, "FUNC": _FUNC, "FULL": _FULL}.get(_TEST_LEVEL, _FUNC)
@@ -141,13 +144,13 @@ _PARAMS = {"GATE": _GATE, "FUNC": _FUNC, "FULL": _FULL}.get(_TEST_LEVEL, _FUNC)
                          ids=[f"{t[0]}-r{t[1]}-nr{t[2]}" for t in _PARAMS])
 def test_dfi_signal_pack(request, test_type, dfi_rate, num_ranks):
     module, repo_root, tests_dir, log_dir, _ = get_paths({})
-    dut_name = "dfi_signal_pack_fub"
+    dut_name = "dfi_signal_pack"
 
     test_name = f"test_dfi_signal_pack_{test_type}_r{dfi_rate}_nr{num_ranks}"
 
     filelist_path = (
         "projects/components/memory-controllers/ddr2-lpddr2/"
-        "rtl/filelists/fub/dfi_signal_pack_fub.f"
+        "rtl/filelists/fub/dfi_signal_pack.f"
     )
     verilog_sources, includes = get_sources_from_filelist(
         repo_root=repo_root, filelist_path=filelist_path

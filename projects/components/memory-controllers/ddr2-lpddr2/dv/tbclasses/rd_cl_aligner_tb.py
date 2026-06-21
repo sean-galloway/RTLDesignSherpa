@@ -2,10 +2,10 @@
 # SPDX-FileCopyrightText: 2024-2026 sean galloway
 #
 # Module: RdClAlignerTB
-# Purpose: Unit-level testbench for rd_cl_aligner_fub.
+# Purpose: Unit-level testbench for rd_cl_aligner.
 
 """
-Testbench class for `rd_cl_aligner_fub`.
+Testbench class for `rd_cl_aligner`.
 
 The FUB drives `dfi_rddata_en`, captures PHY-returned `dfi_rddata` (DFI_RATE
 DRAM beats per cycle) and streams DRAM beats out to `rd_inject_*`.

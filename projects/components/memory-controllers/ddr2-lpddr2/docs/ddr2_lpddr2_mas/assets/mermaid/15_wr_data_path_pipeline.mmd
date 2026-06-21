@@ -2,7 +2,7 @@
 flowchart LR
     subgraph AXI["axi4_slave_fub"]
         w_buf["w_buf<br/>(AXI W beat data +<br/> wstrb + wlast)"]
-        wr_cam["wr_cmd_cam_fub<br/>beat_pull strobe<br/>(per slot,<br/> emits beat_pull_ptr,<br/> beat_pull_strb,<br/> beat_pull_last)"]
+        wr_cam["wr_cmd_cam<br/>beat_pull strobe<br/>(per slot,<br/> emits beat_pull_ptr,<br/> beat_pull_strb,<br/> beat_pull_last)"]
     end
 
     subgraph WRP["wr_data_path_fub (streaming pipeline; NO FSM)"]
