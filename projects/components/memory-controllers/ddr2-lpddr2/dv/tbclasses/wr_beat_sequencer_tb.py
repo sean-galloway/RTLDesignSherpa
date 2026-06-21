@@ -100,6 +100,10 @@ class WrBeatSequencerTB(TBBase):
         self.current_burst: Optional[Burst] = None
         self.captured_cycles: List[DfiCycle] = []
         self.b_completes:     List[int]      = []
+        # v2 multi-outstanding: bursts indexed by their WR CAM slot. The
+        # pull responder uses beat_pull_slot_o to pick which burst's beats
+        # to serve. Populated by issue_op, cleared by b_complete.
+        self.bursts_by_slot: Dict[int, Burst] = {}
 
         # Pending op queue for back-to-back tests: each entry is a Burst
         # to issue when op_ready_o is high.
@@ -136,29 +140,30 @@ class WrBeatSequencerTB(TBBase):
 
     async def _beat_pull_responder(self):
         """Acts as the wr CAM + w_buf: drives wbuf_rd_data/strb whenever the
-        FUB raises beat_pull_strb_o, and pulses beat_pull_last_i on the
-        burst's final beat."""
+        FUB raises beat_pull_strb_o. v2 multi-outstanding: picks the burst
+        whose WR CAM slot matches beat_pull_slot_o; falls back to
+        current_burst (single-burst legacy path) if not in the dict."""
         while True:
             await RisingEdge(self.dut.mc_clk)
             await Timer(_NBA_SETTLE_PS, units='ps')
 
             strb = int(self.dut.beat_pull_strb_o.value)
-            if strb and self.current_burst is not None:
-                b = self.current_burst
-                if b.pulled_count >= len(b.beats):
-                    # Spurious / extra strobe — drive idle to make the bug
-                    # visible in scoreboard.
+            if strb:
+                pull_slot = int(self.dut.beat_pull_slot_o.value)
+                b = self.bursts_by_slot.get(pull_slot, self.current_burst)
+                if b is not None and b.pulled_count < len(b.beats):
+                    idx = b.pulled_count
+                    self.dut.wbuf_rd_data_i.value   = b.beats[idx] & self.MASK_DATA
+                    self.dut.wbuf_rd_strb_i.value   = b.strbs[idx] & self.MASK_STRB
+                    self.dut.beat_pull_last_i.value = 1 if (idx == len(b.beats) - 1) else 0
+                    self.dut.beat_pull_ptr_i.value  = idx & ((1 << self.W_BUF_PTR_WIDTH) - 1)
+                    self.dut.beat_pull_strb_ptr_i.value = idx & ((1 << self.W_BUF_PTR_WIDTH) - 1)
+                    b.pulled_count += 1
+                else:
+                    # Spurious / extra strobe — drive idle
                     self.dut.wbuf_rd_data_i.value = 0
                     self.dut.wbuf_rd_strb_i.value = 0
                     self.dut.beat_pull_last_i.value = 0
-                    continue
-                idx = b.pulled_count
-                self.dut.wbuf_rd_data_i.value   = b.beats[idx] & self.MASK_DATA
-                self.dut.wbuf_rd_strb_i.value   = b.strbs[idx] & self.MASK_STRB
-                self.dut.beat_pull_last_i.value = 1 if (idx == len(b.beats) - 1) else 0
-                self.dut.beat_pull_ptr_i.value  = idx & ((1 << self.W_BUF_PTR_WIDTH) - 1)
-                self.dut.beat_pull_strb_ptr_i.value = idx & ((1 << self.W_BUF_PTR_WIDTH) - 1)
-                b.pulled_count += 1
             else:
                 self.dut.wbuf_rd_data_i.value   = 0
                 self.dut.wbuf_rd_strb_i.value   = 0
@@ -186,15 +191,25 @@ class WrBeatSequencerTB(TBBase):
 
     # ---------------- op driver ----------------
 
-    async def issue_op(self, burst: Burst) -> None:
+    async def issue_op(self, burst: Burst, clear_captures: bool = True) -> None:
         """Drive op_valid handshake for `burst`. Returns when handshake
         completes; the rest of the burst (pull / drive / b_complete) runs
         through the background responders. Caller should `await
-        await_burst()` to wait for completion."""
-        # Make this the current burst for the responders
+        await_burst_complete()` to wait for completion.
+
+        For multi-outstanding scenarios, pass `clear_captures=False` on
+        subsequent issue_op calls so previous bursts' DFI capture isn't
+        wiped out.
+        """
+        # Register for the multi-outstanding pull-by-slot path. Keep
+        # current_burst pointing at the most recently-issued burst so the
+        # single-burst legacy fallback in _beat_pull_responder works for
+        # tests that don't pre-populate bursts_by_slot.
+        self.bursts_by_slot[burst.slot] = burst
         self.current_burst = burst
-        self.captured_cycles.clear()
-        self.b_completes.clear()
+        if clear_captures:
+            self.captured_cycles.clear()
+            self.b_completes.clear()
 
         self.dut.t_phy_wrlat_i.value = burst.t_phy_wrlat
         self.dut.op_slot_i.value     = burst.slot & ((1 << self.WSL) - 1)

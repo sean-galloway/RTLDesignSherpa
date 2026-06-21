@@ -50,12 +50,13 @@ async def cocotb_test_wr_beat_sequencer(dut):
     await tb.setup_clocks_and_reset()
 
     scenarios = {
-        "smoke":           _smoke,
-        "burst_len_sweep": _burst_len_sweep,
-        "tphy_sweep":      _tphy_sweep,
-        "partial_strb":    _partial_strb,
-        "back_to_back":    _back_to_back,
-        "random_soak":     _random_soak,
+        "smoke":             _smoke,
+        "burst_len_sweep":   _burst_len_sweep,
+        "tphy_sweep":        _tphy_sweep,
+        "partial_strb":      _partial_strb,
+        "back_to_back":      _back_to_back,
+        "multi_outstanding": _multi_outstanding,
+        "random_soak":       _random_soak,
     }
     if test_type not in scenarios:
         raise ValueError(f"Unknown TEST_TYPE: {test_type}")
@@ -123,6 +124,47 @@ async def _back_to_back(tb: WrBeatSequencerTB):
         await tb.wait_clocks('mc_clk', 2)
 
 
+async def _multi_outstanding(tb: WrBeatSequencerTB):
+    """v2 multi-outstanding: issue two ops back-to-back without waiting
+    for the first to drain. Verifies op_ready stays high so the second
+    handshake succeeds immediately, and both bursts produce correct DFI
+    output in op-issue order."""
+    burst_a = tb.make_burst(slot=2, length=4, full_strb=True,
+                            t_phy_wrlat=2, seed_tag=0xAA)
+    burst_b = tb.make_burst(slot=7, length=8, full_strb=True,
+                            t_phy_wrlat=2, seed_tag=0xBB)
+
+    await tb.issue_op(burst_a)
+    # Issue B immediately — op_ready should stay high since MAX_CONCURRENT≥2.
+    await tb.issue_op(burst_b, clear_captures=False)
+
+    await tb.await_burst_complete(burst_a)
+    await tb.await_burst_complete(burst_b)
+
+    # The captured_cycles list contains A's cycles followed by B's cycles
+    # (FIFO drive order). Split by burst length.
+    n_a = (len(burst_a.beats) + tb.DFI_RATE - 1) // tb.DFI_RATE
+    n_b = (len(burst_b.beats) + tb.DFI_RATE - 1) // tb.DFI_RATE
+
+    captured_a = tb.captured_cycles[:n_a]
+    captured_b = tb.captured_cycles[n_a:n_a + n_b]
+
+    expected_a = tb.expected_dfi_cycles(burst_a)
+    expected_b = tb.expected_dfi_cycles(burst_b)
+
+    for i, (g, e) in enumerate(zip(captured_a, expected_a)):
+        assert g.data == e.data, f"A cycle {i} data: got {g.data:#x} want {e.data:#x}"
+        assert g.mask == e.mask, f"A cycle {i} mask: got {g.mask:#x} want {e.mask:#x}"
+    for i, (g, e) in enumerate(zip(captured_b, expected_b)):
+        assert g.data == e.data, f"B cycle {i} data: got {g.data:#x} want {e.data:#x}"
+        assert g.mask == e.mask, f"B cycle {i} mask: got {g.mask:#x} want {e.mask:#x}"
+
+    # b_complete order must match op-issue order (slot A then slot B).
+    assert tb.b_completes == [burst_a.slot, burst_b.slot], (
+        f"b_complete order: got {tb.b_completes} want [{burst_a.slot}, {burst_b.slot}]"
+    )
+
+
 async def _random_soak(tb: WrBeatSequencerTB):
     rng = random.Random(tb.SEED ^ 0xBEEF)
     n_bursts = {'gate': 8, 'func': 32, 'full': 96}.get(tb.TEST_LEVEL, 32)
@@ -149,6 +191,7 @@ _ALL_TYPES = [
     "tphy_sweep",
     "partial_strb",
     "back_to_back",
+    "multi_outstanding",
     "random_soak",
 ]
 
