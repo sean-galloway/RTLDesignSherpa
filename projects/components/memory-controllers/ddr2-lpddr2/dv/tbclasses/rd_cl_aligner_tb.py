@@ -95,6 +95,11 @@ class RdClAlignerTB(TBBase):
         self.dfi_cycles_remaining_pending: Deque[Tuple[int, int]] = deque()
         # ^ queue of (dfi_cycle_value, delay_remaining) tuples to inject
 
+        # v2 multi-outstanding: ordered list of bursts in scheduler-issue
+        # order. The PHY injector walks this FIFO; when empty, falls back
+        # to current_burst for single-burst legacy tests.
+        self.pending_bursts:   List[ReadBurst] = []
+
         # Backpressure control
         self.rd_inject_ready_pattern = 'always'  # 'always' or 'throttle'
 

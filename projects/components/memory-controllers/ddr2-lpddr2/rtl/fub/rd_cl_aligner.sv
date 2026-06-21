@@ -9,38 +9,32 @@
 //          `rd_beat_we` back to the rd CAM per accepted beat so the
 //          slot retires after `len` beats.
 //
-// Body design:
-//          Single-burst FSM:
-//            IDLE → WAIT_EN → ACTIVE → IDLE
+// v2 architecture (multi-outstanding):
+//          Up to MAX_CONCURRENT ops can be in flight. The FUB maintains
+//          MAX_CONCURRENT per-op contexts, each tracking its own
+//          (slot, id, len, wait_cnt, en_remaining, dfi_captured,
+//          beats_emitted) and a per-op DFI staging buffer.
 //
-//          * WAIT_EN counts down t_rddata_en_i cycles after the OP_RD
-//            handshake. This is the PHY-defined latency from a READ
-//            command on the DFI control bus to the cycle the controller
-//            asserts dfi_rddata_en.
-//          * ACTIVE concurrently runs three counters:
-//              - en_remaining   : dfi_rddata_en pulses left to drive
-//                                 (= ceil(len / DFI_RATE) DFI cycles)
-//              - dfi_captured   : DFI cycles received from the PHY
-//                                 (advances on every dfi_rddata_valid_i)
-//              - beats_emitted  : DRAM beats handshaken to rd_inject
-//                                 (= 0..len)
-//            The PHY may begin returning rddata before en falls (overlap)
-//            or after a delay up to t_phy_rdlat (PHY-defined). The FSM
-//            stays in ACTIVE until beats_emitted == len.
-//          * rd_inject_valid_o is gated on "buffer has a beat the emit
-//            counter hasn't consumed yet" — i.e., emit can chase the
-//            captured DFI cycles in real time without an extra DRAIN
-//            phase. rd_beat_we_o pulses on every accepted handshake.
+//          Three pipelines run in parallel, each with its own "head"
+//          pointer walking the op-acceptance FIFO:
+//            EN pipeline    : drives dfi_rddata_en for the head op
+//            CAPTURE pipeline: latches dfi_rddata into the head op's
+//                              staging buffer when dfi_rddata_valid fires
+//            EMIT pipeline  : streams rd_inject beats to axi_intake
 //
-// v1 limitations (TODO markers):
-//   (TODO multi-outstanding) Single in-flight read at a time. The rd CAM
-//   allows up to RD_CAM_DEPTH=16 concurrent slots; v2 should add a
-//   per-slot context + reorder logic. rd_in_order_i is wired as a
-//   placeholder port for that follow-on.
+//          Each head advances when its phase completes for the head op.
+//          The PHY returns rddata in scheduler-issue order, so all three
+//          heads walk the same FIFO in order. Op slot is freed when EMIT
+//          finishes (beats_emitted == len).
 //
-//   (TODO OOO across IDs) When multi-outstanding lands, the default
-//   behavior should be OOO across IDs (in-order within each ID, per
-//   AXI4 spec); rd_in_order_i=1 forces strict issue-order.
+//          op_ready_o is high whenever ANY op slot is free.
+//
+// v2 / v3 TODO:
+//   * (OOO across IDs) Emission today is strictly in op-issue order. Full
+//     AXI4-compliant OOO across IDs would require per-ID FIFOs. The
+//     `rd_in_order_i` input is wired as a placeholder.
+//   * Per-op gap during EMIT-head transition: a 1-cycle gap between
+//     bursts (allows the strict-flop output lookahead to remain coherent).
 
 `timescale 1ns / 1ps
 
@@ -58,11 +52,14 @@ module rd_cl_aligner
     parameter int DFI_VALID_WIDTH = 1,
     parameter int DFI_EN_WIDTH    = 1,
     parameter int MAX_BURST_LEN   = 256,
+    // v2 multi-outstanding: number of concurrent in-flight read ops.
+    parameter int MAX_CONCURRENT  = 2,
 
     parameter int RSL = $clog2(RD_CAM_DEPTH),
     parameter int IW  = AXI_ID_WIDTH,
     parameter int BLW = BURST_LEN_WIDTH,
-    parameter int RATE_LOG2 = $clog2(DFI_RATE)
+    parameter int RATE_LOG2 = $clog2(DFI_RATE),
+    parameter int MCL = (MAX_CONCURRENT > 1) ? $clog2(MAX_CONCURRENT) : 1
 ) (
     input  logic                          mc_clk,
     input  logic                          mc_rst_n,
@@ -74,10 +71,7 @@ module rd_cl_aligner
     // ----- PHY timing (DFI Initialization Status Register-loaded) -----
     input  logic [7:0]                    t_rddata_en_i,
 
-    // ----- TODO: multi-outstanding ordering mode -----
-    //   rd_in_order_i = 1 forces strict issue-order completion across IDs.
-    //   rd_in_order_i = 0 allows OOO across IDs (AXI4-compliant).
-    //   Currently unused in v1 (single-in-flight is intrinsically in-order).
+    // ----- TODO: multi-outstanding ordering mode (v2 ignored) -----
     input  logic                          rd_in_order_i,
 
     // ----- read-op handshake from scheduler -----
@@ -104,60 +98,98 @@ module rd_cl_aligner
     output logic [RSL-1:0]                rd_beat_slot_o
 );
 
-    //=========================================================================
-    // FSM states
-    //=========================================================================
-    typedef enum logic [1:0] {
-        S_IDLE    = 2'd0,
-        S_WAIT_EN = 2'd1,
-        S_ACTIVE  = 2'd2
-    } state_e;
-
-    state_e         r_state;
-
-    // Per-burst context
-    logic [RSL-1:0] r_cur_slot;
-    logic [IW-1:0]  r_cur_id;
-    logic [BLW-1:0] r_cur_len;
-    logic [7:0]     r_wait_cnt;
-
-    // ACTIVE-state counters
-    logic [BLW:0]   r_en_remaining;     // DFI en pulses left to drive
-    logic [BLW:0]   r_dfi_captured;     // DFI cycles received
-    logic [BLW-1:0] r_beats_emitted;    // DRAM beats handshaken
-
-    // DFI cycle staging: one entry per DFI cycle received. Buffer indexed by
-    // the lower MAX_LOG2 bits of dfi_captured so we don't pay for a wide
-    // mux when MAX_BURST_LEN is power-of-two.
-    localparam int MAX_LOG2     = $clog2(MAX_BURST_LEN);
     localparam int MAX_DFI_CYC  = (MAX_BURST_LEN + DFI_RATE - 1) / DFI_RATE;
-    localparam int DFI_CYC_LOG2 = $clog2(MAX_DFI_CYC);
-
-    logic [DFI_DATA_WIDTH-1:0] r_stage [MAX_DFI_CYC];
+    localparam int DFI_CYC_LOG2 = (MAX_DFI_CYC > 1) ? $clog2(MAX_DFI_CYC) : 1;
 
     //=========================================================================
-    // Pre-compute DFI cycles needed for the current burst.
+    // Per-op contexts (MAX_CONCURRENT slots)
     //=========================================================================
-    logic [BLW:0] w_dfi_cycles_total;
-    assign w_dfi_cycles_total = ({1'b0, r_cur_len} + (BLW+1)'(DFI_RATE - 1))
-                              >> RATE_LOG2;
+    logic [MAX_CONCURRENT-1:0]            r_op_valid;
+    logic [MAX_CONCURRENT-1:0][RSL-1:0]   r_op_slot;
+    logic [MAX_CONCURRENT-1:0][IW-1:0]    r_op_id;
+    logic [MAX_CONCURRENT-1:0][BLW-1:0]   r_op_len;
+    logic [MAX_CONCURRENT-1:0][7:0]       r_op_wait_cnt;
+    logic [MAX_CONCURRENT-1:0][BLW:0]     r_op_en_remaining;
+    logic [MAX_CONCURRENT-1:0][BLW:0]     r_op_dfi_captured;
+    logic [MAX_CONCURRENT-1:0][BLW-1:0]   r_op_beats_emitted;
+
+    // Per-op DFI cycle staging.
+    logic [DFI_DATA_WIDTH-1:0] r_stage [MAX_CONCURRENT][MAX_DFI_CYC];
 
     //=========================================================================
-    // Combinational: with strict-flop outputs, the data_o / valid_o NBAs
-    // commit at end-of-cycle and are seen by the consumer one cycle later.
-    // The FSM advances r_beats_emitted on the EXTERNAL handshake
-    // (registered valid_o & ready_i). So at this cycle's NBA, the values
-    // we register are for what the consumer will see at the NEXT cycle —
-    // pre-compute beat index using the post-handshake counter so the
-    // stage indexing and "data available" check are consistent with
-    // what the consumer captures.
+    // Op-acceptance FIFO — slot indices in op-valid order. Three "head"
+    // pointers walk it: EN head, CAPTURE head, EMIT head. The op slot at
+    // EMIT head is freed when its beats_emitted reaches its len.
+    //=========================================================================
+    logic [MAX_CONCURRENT-1:0][MCL-1:0]   r_fifo;
+    logic [MCL:0]                         r_fifo_count;
+    logic [MCL-1:0]                       r_en_head_idx;
+    logic [MCL-1:0]                       r_cap_head_idx;
+    // EMIT head is always r_fifo[0]; we don't carry a separate index for
+    // it because EMIT is what frees a slot and shifts the FIFO.
+
+    //=========================================================================
+    // Free-slot priority encoder for allocation.
+    //=========================================================================
+    logic           w_has_free;
+    logic [MCL-1:0] w_free_slot;
+    always_comb begin
+        w_has_free  = 1'b0;
+        w_free_slot = '0;
+        for (int unsigned i = 0; i < MAX_CONCURRENT; i++) begin
+            if (!w_has_free && !r_op_valid[i]) begin
+                w_has_free  = 1'b1;
+                w_free_slot = MCL'(i);
+            end
+        end
+    end
+
+    //=========================================================================
+    // EN head + CAPTURE head + EMIT head accessors.
+    //=========================================================================
+    logic [MCL-1:0] w_en_op;
+    logic [MCL-1:0] w_cap_op;
+    logic [MCL-1:0] w_emit_op;
+    assign w_en_op   = r_fifo[r_en_head_idx];
+    assign w_cap_op  = r_fifo[r_cap_head_idx];
+    assign w_emit_op = r_fifo[0];
+
+    //=========================================================================
+    // Pre-compute DFI cycles needed for the EMIT-head op's burst.
+    //=========================================================================
+    logic [BLW:0] w_emit_dfi_cycles_total;
+    assign w_emit_dfi_cycles_total =
+        ({1'b0, r_op_len[w_emit_op]} + (BLW+1)'(DFI_RATE - 1)) >> RATE_LOG2;
+
+    logic [BLW:0] w_en_dfi_cycles_total;
+    assign w_en_dfi_cycles_total =
+        ({1'b0, r_op_len[w_en_op]} + (BLW+1)'(DFI_RATE - 1)) >> RATE_LOG2;
+
+    //=========================================================================
+    // EN pipeline: drive en for the EN-head op while its en_remaining > 0
+    // and its wait_cnt has elapsed.
+    //=========================================================================
+    logic w_en_active;
+    assign w_en_active = (r_fifo_count > '0)
+                      && r_op_valid[w_en_op]
+                      && (r_op_wait_cnt[w_en_op] == 8'd0)
+                      && (r_op_en_remaining[w_en_op] > '0);
+
+    logic w_en_complete_for_head;
+    assign w_en_complete_for_head = w_en_active
+                                 && (r_op_en_remaining[w_en_op] == (BLW+1)'(1));
+
+    //=========================================================================
+    // EMIT pipeline: stream beats from the EMIT-head op's staging buffer.
+    // Uses post-handshake lookahead (next_beats) so the registered output
+    // stays aligned with what the external consumer captures.
     //=========================================================================
     logic w_handshake;
     assign w_handshake = rd_inject_valid_o && rd_inject_ready_i;
 
     logic [BLW:0]   w_next_beats_full;
     logic [BLW-1:0] w_next_beats;
-    assign w_next_beats_full = {1'b0, r_beats_emitted}
+    assign w_next_beats_full = {1'b0, r_op_beats_emitted[w_emit_op]}
                              + (w_handshake ? (BLW+1)'(1) : (BLW+1)'(0));
     assign w_next_beats = w_next_beats_full[BLW-1:0];
 
@@ -166,97 +198,24 @@ module rd_cl_aligner
     assign w_emit_dfi_idx  = w_next_beats[BLW-1:RATE_LOG2];
     assign w_emit_rate_idx = w_next_beats[RATE_LOG2-1:0];
 
-    // Next-beat is available if its DFI cycle has been captured.
     logic w_emit_available;
     assign w_emit_available = (w_next_beats_full >> RATE_LOG2)
-                            < r_dfi_captured;
+                            < r_op_dfi_captured[w_emit_op];
 
-    // Next-beat is still within the burst.
     logic w_next_in_burst;
-    assign w_next_in_burst = (w_next_beats_full < {1'b0, r_cur_len});
+    assign w_next_in_burst = (w_next_beats_full < {1'b0, r_op_len[w_emit_op]});
 
-    // Are we in the middle of a burst? (live in ACTIVE)
-    logic w_in_active;
-    assign w_in_active = (r_state == S_ACTIVE);
+    logic w_emit_active;
+    assign w_emit_active = (r_fifo_count > '0)
+                        && r_op_valid[w_emit_op];
 
-    // Next-cycle emit beat extracted from the staging buffer.
     logic [DRAM_BEAT_WIDTH-1:0] w_emit_data;
-    assign w_emit_data = r_stage[w_emit_dfi_idx]
-                       [w_emit_rate_idx * DRAM_BEAT_WIDTH +: DRAM_BEAT_WIDTH];
+    assign w_emit_data =
+        r_stage[w_emit_op][w_emit_dfi_idx]
+               [w_emit_rate_idx * DRAM_BEAT_WIDTH +: DRAM_BEAT_WIDTH];
 
     //=========================================================================
-    // Sequential FSM
-    //=========================================================================
-    `ALWAYS_FF_RST(mc_clk, mc_rst_n, begin
-        if (`RST_ASSERTED(mc_rst_n)) begin
-            r_state         <= S_IDLE;
-            r_cur_slot      <= '0;
-            r_cur_id        <= '0;
-            r_cur_len       <= '0;
-            r_wait_cnt      <= '0;
-            r_en_remaining  <= '0;
-            r_dfi_captured  <= '0;
-            r_beats_emitted <= '0;
-        end else begin
-            unique case (r_state)
-
-                S_IDLE: begin
-                    // Internal "ready" uses the live FSM state, not the
-                    // (now registered) output port.
-                    if (op_valid_i) begin
-                        r_cur_slot      <= op_slot_i;
-                        r_cur_id        <= op_id_i;
-                        r_cur_len       <= op_len_i;
-                        r_wait_cnt      <= t_rddata_en_i;
-                        r_en_remaining  <= '0;
-                        r_dfi_captured  <= '0;
-                        r_beats_emitted <= '0;
-                        r_state         <= S_WAIT_EN;
-                    end
-                end
-
-                S_WAIT_EN: begin
-                    if (r_wait_cnt == 8'd0) begin
-                        r_en_remaining <= w_dfi_cycles_total;
-                        r_state        <= S_ACTIVE;
-                    end else begin
-                        r_wait_cnt <= r_wait_cnt - 8'd1;
-                    end
-                end
-
-                S_ACTIVE: begin
-                    // 1. Drive en — decrement on each cycle in ACTIVE
-                    //    while there are still pulses left.
-                    if (r_en_remaining > '0) begin
-                        r_en_remaining <= r_en_remaining - (BLW+1)'(1);
-                    end
-
-                    // 2. Capture rddata when valid is high.
-                    if (dfi_rddata_valid_i) begin
-                        r_stage[r_dfi_captured[DFI_CYC_LOG2-1:0]] <= dfi_rddata_i;
-                        r_dfi_captured <= r_dfi_captured + (BLW+1)'(1);
-                    end
-
-                    // 3. Emit on accepted rd_inject handshake.
-                    //    With registered valid_o, the FSM tracks the
-                    //    EXTERNAL handshake (registered valid + raw
-                    //    ready), so the internal beat counter stays
-                    //    aligned with what the consumer captures.
-                    if (rd_inject_valid_o && rd_inject_ready_i) begin
-                        if ((r_beats_emitted + BLW'(1)) == r_cur_len) begin
-                            r_state <= S_IDLE;
-                        end
-                        r_beats_emitted <= r_beats_emitted + BLW'(1);
-                    end
-                end
-
-                default: r_state <= S_IDLE;
-            endcase
-        end
-    end)
-
-    //=========================================================================
-    // Next-cycle output values — combinational on FSM state.
+    // Combinational next-cycle output values.
     //=========================================================================
     logic                       w_op_ready;
     logic [DFI_EN_WIDTH-1:0]    w_dfi_rddata_en;
@@ -264,16 +223,118 @@ module rd_cl_aligner
     logic                       w_rd_inject_last;
     logic                       w_rd_beat_we;
 
-    assign w_op_ready        = (r_state == S_IDLE);
-    assign w_dfi_rddata_en   = (w_in_active && (r_en_remaining > '0))
-                             ? '1 : '0;
-    assign w_rd_inject_valid = w_in_active && w_next_in_burst && w_emit_available;
-    assign w_rd_inject_last  = w_in_active && w_next_in_burst
-                             && ((w_next_beats_full + (BLW+1)'(1))
-                                  == {1'b0, r_cur_len});
-    // beat strobe to rd CAM fires one cycle after the registered handshake
-    // — the slot_o latch is also registered, so they're consistent.
+    assign w_op_ready        = w_has_free;
+    assign w_dfi_rddata_en   = w_en_active ? '1 : '0;
+    assign w_rd_inject_valid = w_emit_active && w_next_in_burst
+                            && w_emit_available;
+    assign w_rd_inject_last  = w_emit_active && w_next_in_burst
+                            && ((w_next_beats_full + (BLW+1)'(1))
+                                 == {1'b0, r_op_len[w_emit_op]});
     assign w_rd_beat_we      = w_handshake;
+
+    //=========================================================================
+    // Sequential state update.
+    //=========================================================================
+    `ALWAYS_FF_RST(mc_clk, mc_rst_n, begin
+        if (`RST_ASSERTED(mc_rst_n)) begin
+            r_op_valid         <= '0;
+            r_op_wait_cnt      <= '{default: '0};
+            r_op_en_remaining  <= '{default: '0};
+            r_op_dfi_captured  <= '{default: '0};
+            r_op_beats_emitted <= '{default: '0};
+            r_fifo_count       <= '0;
+            r_en_head_idx      <= '0;
+            r_cap_head_idx     <= '0;
+            for (int unsigned i = 0; i < MAX_CONCURRENT; i++) begin
+                r_op_slot[i] <= '0;
+                r_op_id  [i] <= '0;
+                r_op_len [i] <= '0;
+                r_fifo   [i] <= '0;
+            end
+        end else begin
+            //---------------------------------------------------------------
+            // 1. Allocate new op on op_valid handshake.
+            //---------------------------------------------------------------
+            if (op_valid_i && op_ready_o) begin
+                r_op_valid        [w_free_slot] <= 1'b1;
+                r_op_slot         [w_free_slot] <= op_slot_i;
+                r_op_id           [w_free_slot] <= op_id_i;
+                r_op_len          [w_free_slot] <= op_len_i;
+                r_op_wait_cnt     [w_free_slot] <= t_rddata_en_i;
+                r_op_en_remaining [w_free_slot] <=
+                    ({1'b0, op_len_i} + (BLW+1)'(DFI_RATE - 1)) >> RATE_LOG2;
+                r_op_dfi_captured [w_free_slot] <= '0;
+                r_op_beats_emitted[w_free_slot] <= '0;
+                // Push onto FIFO at tail.
+                r_fifo[r_fifo_count[MCL-1:0]] <= w_free_slot;
+                r_fifo_count <= r_fifo_count + 1'b1;
+            end
+
+            //---------------------------------------------------------------
+            // 2. Per-op wait countdown (every op with wait_cnt > 0).
+            //---------------------------------------------------------------
+            for (int unsigned i = 0; i < MAX_CONCURRENT; i++) begin
+                if (r_op_valid[i] && r_op_wait_cnt[i] > 8'd0) begin
+                    r_op_wait_cnt[i] <= r_op_wait_cnt[i] - 8'd1;
+                end
+            end
+
+            //---------------------------------------------------------------
+            // 3. EN pipeline — head op drives en_remaining countdown.
+            //---------------------------------------------------------------
+            if (w_en_active) begin
+                r_op_en_remaining[w_en_op]
+                    <= r_op_en_remaining[w_en_op] - (BLW+1)'(1);
+                if (w_en_complete_for_head
+                    && (r_en_head_idx + 1'b1 < r_fifo_count[MCL:0])) begin
+                    r_en_head_idx <= r_en_head_idx + 1'b1;
+                end
+            end
+
+            //---------------------------------------------------------------
+            // 4. CAPTURE pipeline — head op latches rddata when valid.
+            //---------------------------------------------------------------
+            if (dfi_rddata_valid_i && (r_fifo_count > '0)
+                && r_op_valid[w_cap_op]
+                && (r_op_dfi_captured[w_cap_op] < w_en_dfi_cycles_total)) begin
+                r_stage[w_cap_op][r_op_dfi_captured[w_cap_op][DFI_CYC_LOG2-1:0]]
+                    <= dfi_rddata_i;
+                r_op_dfi_captured[w_cap_op]
+                    <= r_op_dfi_captured[w_cap_op] + (BLW+1)'(1);
+                if (r_op_dfi_captured[w_cap_op] + (BLW+1)'(1)
+                    == w_en_dfi_cycles_total
+                    && r_cap_head_idx + 1'b1 < r_fifo_count[MCL:0]) begin
+                    r_cap_head_idx <= r_cap_head_idx + 1'b1;
+                end
+            end
+
+            //---------------------------------------------------------------
+            // 5. EMIT pipeline — advance head op's beat counter on external
+            //    handshake. On burst end, free the op slot and shift the
+            //    FIFO (also adjust en_head_idx / cap_head_idx).
+            //---------------------------------------------------------------
+            if (w_handshake) begin
+                if ((r_op_beats_emitted[w_emit_op] + BLW'(1))
+                    == r_op_len[w_emit_op]) begin
+                    // Free the op slot, pop FIFO.
+                    r_op_valid       [w_emit_op] <= 1'b0;
+                    r_op_dfi_captured[w_emit_op] <= '0;
+                    for (int unsigned i = 0; i < MAX_CONCURRENT-1; i++) begin
+                        r_fifo[i] <= r_fifo[i+1];
+                    end
+                    r_fifo_count <= r_fifo_count - 1'b1;
+                    // EN/CAP head indices were offsets into the FIFO;
+                    // shrink them by 1 (with floor at 0).
+                    r_en_head_idx  <= (r_en_head_idx  > 0) ?
+                                      r_en_head_idx  - 1'b1 : '0;
+                    r_cap_head_idx <= (r_cap_head_idx > 0) ?
+                                      r_cap_head_idx - 1'b1 : '0;
+                end
+                r_op_beats_emitted[w_emit_op]
+                    <= r_op_beats_emitted[w_emit_op] + BLW'(1);
+            end
+        end
+    end)
 
     //=========================================================================
     // Strict-flop outputs.
@@ -292,14 +353,14 @@ module rd_cl_aligner
             op_ready_o        <= w_op_ready;
             dfi_rddata_en_o   <= w_dfi_rddata_en;
             rd_inject_valid_o <= w_rd_inject_valid;
-            rd_inject_id_o    <= r_cur_id;
+            rd_inject_id_o    <= r_op_id[w_emit_op];
             rd_inject_data_o  <= w_emit_data;
             rd_inject_last_o  <= w_rd_inject_last;
             rd_beat_we_o      <= w_rd_beat_we;
-            rd_beat_slot_o    <= r_cur_slot;
+            rd_beat_slot_o    <= r_op_slot[w_emit_op];
         end
     end)
 
-    wire unused_v1 = |{ cl_i, al_i, rd_in_order_i };
+    wire unused_v2 = |{ cl_i, al_i, rd_in_order_i };
 
 endmodule : rd_cl_aligner
