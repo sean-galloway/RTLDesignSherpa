@@ -1356,4 +1356,506 @@ addrmap stream_regs {
 
     } DAXMON_PERF_BURST_COUNT @ 0x2F8;
 
+    //=========================================================================
+    // Data-Read Datapath Monitor Performance Window (0x300 - 0x32F)
+    //=========================================================================
+    // RFC-perfmon-window-buckets Stage E (option 2, CSR route). Surfaces the
+    // data-READ datapath monitor's perf-window cycle buckets + beat/byte/burst
+    // counts via direct CSR reads (no MonBus packets). Same RUN-bit window
+    // protocol as DAXMON_PERF_CTRL: write RUN=1 to clear+open, run the workload,
+    // write RUN=0 to close/freeze, then read the status registers below.
+    // Decoupled from RDMON_ENABLE.PERF_EN (legacy PktTypePerf gate).
+    //
+    // These buckets measure the data-read R bus and are the in-core replacement
+    // for the FPGA-characterization read-side axi_bus_meter (RFC Stage E option 2).
+    // PROD/BP/STARV/IDLE sum to the closed-window length.
+
+    reg {
+        name = "Read Datapath Monitor Perf Window Control";
+        desc = "Perf-window run control for the data-read datapath monitor";
+
+        field {
+            desc = "Perf window run - 1=open window and accumulate cycle buckets, 0=close window and freeze counters. Rising edge clears all counters.";
+            sw = rw;
+            hw = r;
+        } RUN = 1'b0;
+
+        field {
+            desc = "Reserved";
+            sw = r;
+            hw = na;
+        } RSVD[31:1] = 31'h0;
+
+    } RDMON_PERF_CTRL @ 0x300;
+
+    reg {
+        name = "Read Datapath Monitor Perf Window Status";
+        desc = "Perf-window live status";
+
+        field {
+            desc = "Window active - 1=window open and accumulating";
+            sw = r;
+            hw = w;
+        } WIN_ACTIVE;
+
+        field {
+            desc = "Reserved";
+            sw = r;
+            hw = na;
+        } RSVD[31:1] = 31'h0;
+
+    } RDMON_PERF_STATUS @ 0x304;
+
+    reg {
+        name = "Read Datapath Monitor Perf Window Cycles";
+        desc = "LIVE free-running window-cycle counter. Valid only while
+                RDMON_PERF_STATUS.WIN_ACTIVE=1; the monitor ZEROES this when the
+                window closes (RUN->0). For a closed window, use the sum of the
+                four bucket registers (PROD+BP+STARV+IDLE), which HOLD their
+                values after close.";
+
+        field {
+            desc = "Window cycles [31:0] (live-only; reads 0 after close)";
+            sw = r;
+            hw = w;
+        } VAL[31:0];
+
+    } RDMON_PERF_WINDOW_CYCLES @ 0x308;
+
+    reg {
+        name = "Read Datapath Monitor Perf Productive Cycles";
+        desc = "Cycles with R data valid && ready (data delivered)";
+
+        field {
+            desc = "Productive cycles [31:0]";
+            sw = r;
+            hw = w;
+        } VAL[31:0];
+
+    } RDMON_PERF_PROD_CYCLES @ 0x30C;
+
+    reg {
+        name = "Read Datapath Monitor Perf Backpressure Cycles";
+        desc = "Cycles with R data valid && !ready (back-pressure)";
+
+        field {
+            desc = "Backpressure cycles [31:0]";
+            sw = r;
+            hw = w;
+        } VAL[31:0];
+
+    } RDMON_PERF_BP_CYCLES @ 0x310;
+
+    reg {
+        name = "Read Datapath Monitor Perf Starvation Cycles";
+        desc = "Cycles with !R data valid && ready (starvation)";
+
+        field {
+            desc = "Starvation cycles [31:0]";
+            sw = r;
+            hw = w;
+        } VAL[31:0];
+
+    } RDMON_PERF_STARV_CYCLES @ 0x314;
+
+    reg {
+        name = "Read Datapath Monitor Perf Idle Cycles";
+        desc = "Cycles with !R data valid && !ready (idle)";
+
+        field {
+            desc = "Idle cycles [31:0]";
+            sw = r;
+            hw = w;
+        } VAL[31:0];
+
+    } RDMON_PERF_IDLE_CYCLES @ 0x318;
+
+    reg {
+        name = "Read Datapath Monitor Perf Beat Count";
+        desc = "R beats transferred in window (= productive cycles)";
+
+        field {
+            desc = "Beat count [31:0]";
+            sw = r;
+            hw = w;
+        } VAL[31:0];
+
+    } RDMON_PERF_BEAT_COUNT @ 0x31C;
+
+    reg {
+        name = "Read Datapath Monitor Perf Byte Count Low";
+        desc = "Bytes transferred in window (lower 32 bits)";
+
+        field {
+            desc = "Byte count [31:0]";
+            sw = r;
+            hw = w;
+        } VAL[31:0];
+
+    } RDMON_PERF_BYTE_COUNT_LO @ 0x320;
+
+    reg {
+        name = "Read Datapath Monitor Perf Byte Count High";
+        desc = "Bytes transferred in window (upper 32 bits)";
+
+        field {
+            desc = "Byte count [63:32]";
+            sw = r;
+            hw = w;
+        } VAL[31:0];
+
+    } RDMON_PERF_BYTE_COUNT_HI @ 0x324;
+
+    reg {
+        name = "Read Datapath Monitor Perf Burst Count";
+        desc = "AR handshakes (bursts issued) in window";
+
+        field {
+            desc = "Burst count [31:0]";
+            sw = r;
+            hw = w;
+        } VAL[31:0];
+
+    } RDMON_PERF_BURST_COUNT @ 0x328;
+
+    //=========================================================================
+    // Data-Write Datapath Monitor Performance Window (0x330 - 0x35F)
+    //=========================================================================
+    // RFC-perfmon-window-buckets Stage E (option 2, CSR route). Data-WRITE
+    // datapath monitor's perf-window cycle buckets + beat/byte/burst counts.
+    // Same RUN-bit protocol as above. In-core replacement for the FPGA-char
+    // write-side axi_bus_meter. Buckets measure the data-write W bus:
+    //   PROD  = W data valid && ready (beat delivered)
+    //   BP    = W data valid && !ready (slave back-pressure)
+    //   STARV = !W data valid && ready (engine has no data to send)
+    //   IDLE  = !W data valid && !ready
+    // BURST counts AW handshakes; BYTE = beats << awsize.
+
+    reg {
+        name = "Write Datapath Monitor Perf Window Control";
+        desc = "Perf-window run control for the data-write datapath monitor";
+
+        field {
+            desc = "Perf window run - 1=open window and accumulate cycle buckets, 0=close window and freeze counters. Rising edge clears all counters.";
+            sw = rw;
+            hw = r;
+        } RUN = 1'b0;
+
+        field {
+            desc = "Reserved";
+            sw = r;
+            hw = na;
+        } RSVD[31:1] = 31'h0;
+
+    } WRMON_PERF_CTRL @ 0x330;
+
+    reg {
+        name = "Write Datapath Monitor Perf Window Status";
+        desc = "Perf-window live status";
+
+        field {
+            desc = "Window active - 1=window open and accumulating";
+            sw = r;
+            hw = w;
+        } WIN_ACTIVE;
+
+        field {
+            desc = "Reserved";
+            sw = r;
+            hw = na;
+        } RSVD[31:1] = 31'h0;
+
+    } WRMON_PERF_STATUS @ 0x334;
+
+    reg {
+        name = "Write Datapath Monitor Perf Window Cycles";
+        desc = "LIVE free-running window-cycle counter. Valid only while
+                WRMON_PERF_STATUS.WIN_ACTIVE=1; the monitor ZEROES this when the
+                window closes (RUN->0). For a closed window, use the sum of the
+                four bucket registers (PROD+BP+STARV+IDLE), which HOLD their
+                values after close.";
+
+        field {
+            desc = "Window cycles [31:0] (live-only; reads 0 after close)";
+            sw = r;
+            hw = w;
+        } VAL[31:0];
+
+    } WRMON_PERF_WINDOW_CYCLES @ 0x338;
+
+    reg {
+        name = "Write Datapath Monitor Perf Productive Cycles";
+        desc = "Cycles with W data valid && ready (beat delivered)";
+
+        field {
+            desc = "Productive cycles [31:0]";
+            sw = r;
+            hw = w;
+        } VAL[31:0];
+
+    } WRMON_PERF_PROD_CYCLES @ 0x33C;
+
+    reg {
+        name = "Write Datapath Monitor Perf Backpressure Cycles";
+        desc = "Cycles with W data valid && !ready (back-pressure)";
+
+        field {
+            desc = "Backpressure cycles [31:0]";
+            sw = r;
+            hw = w;
+        } VAL[31:0];
+
+    } WRMON_PERF_BP_CYCLES @ 0x340;
+
+    reg {
+        name = "Write Datapath Monitor Perf Starvation Cycles";
+        desc = "Cycles with !W data valid && ready (starvation)";
+
+        field {
+            desc = "Starvation cycles [31:0]";
+            sw = r;
+            hw = w;
+        } VAL[31:0];
+
+    } WRMON_PERF_STARV_CYCLES @ 0x344;
+
+    reg {
+        name = "Write Datapath Monitor Perf Idle Cycles";
+        desc = "Cycles with !W data valid && !ready (idle)";
+
+        field {
+            desc = "Idle cycles [31:0]";
+            sw = r;
+            hw = w;
+        } VAL[31:0];
+
+    } WRMON_PERF_IDLE_CYCLES @ 0x348;
+
+    reg {
+        name = "Write Datapath Monitor Perf Beat Count";
+        desc = "W beats transferred in window (= productive cycles)";
+
+        field {
+            desc = "Beat count [31:0]";
+            sw = r;
+            hw = w;
+        } VAL[31:0];
+
+    } WRMON_PERF_BEAT_COUNT @ 0x34C;
+
+    reg {
+        name = "Write Datapath Monitor Perf Byte Count Low";
+        desc = "Bytes transferred in window (lower 32 bits)";
+
+        field {
+            desc = "Byte count [31:0]";
+            sw = r;
+            hw = w;
+        } VAL[31:0];
+
+    } WRMON_PERF_BYTE_COUNT_LO @ 0x350;
+
+    reg {
+        name = "Write Datapath Monitor Perf Byte Count High";
+        desc = "Bytes transferred in window (upper 32 bits)";
+
+        field {
+            desc = "Byte count [63:32]";
+            sw = r;
+            hw = w;
+        } VAL[31:0];
+
+    } WRMON_PERF_BYTE_COUNT_HI @ 0x354;
+
+    reg {
+        name = "Write Datapath Monitor Perf Burst Count";
+        desc = "AW handshakes (bursts issued) in window";
+
+        field {
+            desc = "Burst count [31:0]";
+            sw = r;
+            hw = w;
+        } VAL[31:0];
+
+    } WRMON_PERF_BURST_COUNT @ 0x358;
+
+    //=========================================================================
+    // Per-Channel Datapath Perf Buckets (RFC Stage C, indexed readout)
+    //=========================================================================
+    // RFC-perfmon Stage C via the in-core axi_bus_meter blocks. Rather than
+    // NUM_CHANNELS x 4 buckets x 2 buses flat registers, software selects a
+    // channel with PERF_CH_SEL.CH_SEL and reads that channel's four 16-bit
+    // buckets through the packed RD/WRMON_PERF_CH_* registers below (same
+    // {bp,prod} / {idle,starv} packing as the FPGA-char harness meter, so the
+    // host decode is identical). Per-channel counters are 16-bit and share the
+    // RD/WRMON_PERF_CTRL.RUN window with the aggregate buckets; the per-channel
+    // OVERFLOW stickies flag any 16-bit wrap. Summed over channels the buckets
+    // equal the aggregate RD/WRMON_PERF buckets.
+
+    reg {
+        name = "Per-Channel Perf Bucket Readout Select";
+        desc = "Selects which channel's buckets appear in RD/WRMON_PERF_CH_*";
+
+        field {
+            desc = "Channel select (0..NUM_CHANNELS-1)";
+            sw = rw;
+            hw = r;
+        } CH_SEL[2:0] = 3'h0;
+
+        field {
+            desc = "Reserved";
+            sw = r;
+            hw = na;
+        } RSVD[31:3] = 29'h0;
+
+    } PERF_CH_SEL @ 0x35C;
+
+    reg {
+        name = "Read Datapath Per-Channel Productive/Backpressure";
+        desc = "Selected channel: {backpressure[31:16], productive[15:0]} (16-bit each)";
+
+        field {
+            desc = "{bp[15:0], prod[15:0]} for PERF_CH_SEL channel";
+            sw = r;
+            hw = w;
+        } VAL[31:0];
+
+    } RDMON_PERF_CH_PROD_BP @ 0x360;
+
+    reg {
+        name = "Read Datapath Per-Channel Starvation/Idle";
+        desc = "Selected channel: {idle[31:16], starvation[15:0]} (16-bit each)";
+
+        field {
+            desc = "{idle[15:0], starv[15:0]} for PERF_CH_SEL channel";
+            sw = r;
+            hw = w;
+        } VAL[31:0];
+
+    } RDMON_PERF_CH_STARV_IDLE @ 0x364;
+
+    reg {
+        name = "Write Datapath Per-Channel Productive/Backpressure";
+        desc = "Selected channel: {backpressure[31:16], productive[15:0]} (16-bit each)";
+
+        field {
+            desc = "{bp[15:0], prod[15:0]} for PERF_CH_SEL channel";
+            sw = r;
+            hw = w;
+        } VAL[31:0];
+
+    } WRMON_PERF_CH_PROD_BP @ 0x368;
+
+    reg {
+        name = "Write Datapath Per-Channel Starvation/Idle";
+        desc = "Selected channel: {idle[31:16], starvation[15:0]} (16-bit each)";
+
+        field {
+            desc = "{idle[15:0], starv[15:0]} for PERF_CH_SEL channel";
+            sw = r;
+            hw = w;
+        } VAL[31:0];
+
+    } WRMON_PERF_CH_STARV_IDLE @ 0x36C;
+
+    reg {
+        name = "Read Datapath Per-Channel Overflow Stickies";
+        desc = "All channels, {prod,bp,starv,idle} sticky overflow per channel
+                (4 bits/channel, channel 0 in the low nibble). A set bit means
+                that 16-bit per-channel bucket wrapped during the window.";
+
+        field {
+            desc = "Per-channel overflow mask (NUM_CHANNELS*4 bits)";
+            sw = r;
+            hw = w;
+        } VAL[31:0];
+
+    } RDMON_PERF_CH_OVERFLOW @ 0x370;
+
+    reg {
+        name = "Write Datapath Per-Channel Overflow Stickies";
+        desc = "All channels, {prod,bp,starv,idle} sticky overflow per channel.";
+
+        field {
+            desc = "Per-channel overflow mask (NUM_CHANNELS*4 bits)";
+            sw = r;
+            hw = w;
+        } VAL[31:0];
+
+    } WRMON_PERF_CH_OVERFLOW @ 0x374;
+
+    //=========================================================================
+    // Datapath Latency Histograms (RFC Stage D, indexed readout)
+    //=========================================================================
+    // Per-transaction latency distribution for the data-read and data-write
+    // buses, binned into 16 log2 bins (bin b counts transactions whose latency
+    // is in [2^b, 2^(b+1)) cycles; bin 15 is the saturating tail). This is the
+    // only genuinely-new perfmon data versus the legacy axi_bus_meter. To avoid
+    // 3 metrics x 16 bins x 2 buses flat registers it uses indexed readout:
+    // write HIST_SEL (bus, metric, bin), then read HIST_DATA (that bin's count)
+    // and HIST_TOTAL (the selected bus+metric's total transaction count, which
+    // equals the sum over bins). Latencies are measured over the same RUN window
+    // as RD/WRMON_PERF_CTRL (the histogram shares the perf-window clear/freeze).
+    //
+    // Metrics:
+    //   bus=0 (read):  metric 0 = AR handshake -> first R beat
+    //                  metric 1 = AR handshake -> RLAST beat
+    //   bus=1 (write): metric 0 = AW handshake -> B response (metric 1 unused)
+
+    reg {
+        name = "Latency Histogram Readout Select";
+        desc = "Selects bus/metric/bin presented in HIST_DATA / HIST_TOTAL";
+
+        field {
+            desc = "Bus: 0=data-read R bus, 1=data-write W bus";
+            sw = rw;
+            hw = r;
+        } BUS = 1'b0;
+
+        field {
+            desc = "Metric: 0=AR->firstR (rd) / AW->B (wr), 1=AR->RLAST (rd only)";
+            sw = rw;
+            hw = r;
+        } METRIC = 1'b0;
+
+        field {
+            desc = "Latency bin index (0..15, log2)";
+            sw = rw;
+            hw = r;
+        } BIN[5:2] = 4'h0;
+
+        field {
+            desc = "Reserved";
+            sw = r;
+            hw = na;
+        } RSVD[31:6] = 26'h0;
+
+    } HIST_SEL @ 0x378;
+
+    reg {
+        name = "Latency Histogram Bin Count";
+        desc = "Transaction count in the HIST_SEL-selected bus/metric/bin";
+
+        field {
+            desc = "Selected histogram bin count [31:0]";
+            sw = r;
+            hw = w;
+        } VAL[31:0];
+
+    } HIST_DATA @ 0x37C;
+
+    reg {
+        name = "Latency Histogram Metric Total";
+        desc = "Total transactions for the HIST_SEL-selected bus/metric (= sum
+                over all bins). Equals the burst/transaction count, an
+                acceptance cross-check against the perf-window burst counters.";
+
+        field {
+            desc = "Selected metric total transaction count [31:0]";
+            sw = r;
+            hw = w;
+        } VAL[31:0];
+
+    } HIST_TOTAL @ 0x380;
+
 };

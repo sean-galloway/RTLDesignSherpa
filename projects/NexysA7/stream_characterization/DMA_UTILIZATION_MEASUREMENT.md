@@ -158,6 +158,43 @@ end_event_sel[2:0]:
 
 Same RTL, multiple reporting flavors, controlled by software at runtime.
 
+### 4.2 Implementation status (RFC Stage E option 2 — IMPLEMENTED, in-core)
+
+The instrumentation in Sections 3-4 is now realized **in the STREAM core itself**,
+read back over the regblock perf CSRs (no MonBus packets). The legacy
+characterization-harness `axi_bus_meter` blocks (CSRs at `HARNESS_CSR_BASE +
+0x100`/`0x180`) have been **retired** — datapath utilization is now sourced from
+the in-core monitors. Equivalence was proven in cosim (the in-core per-channel
+meter matched the harness meter bit-for-bit before retirement).
+
+Measurement mechanism, by stage:
+
+- **Aggregate four buckets + beat/byte/burst counts** (Section 3): two
+  `axi4_master_rd_mon` / `axi4_master_wr_mon` instances on the data-read R bus
+  and data-write W bus. CSRs `RDMON_PERF_*` @ `0x300`, `WRMON_PERF_*` @ `0x330`
+  (PROD/BP/STARV/IDLE + WINDOW_CYCLES + BEAT/BYTE/BURST).
+- **Per-channel buckets** (Section 3.2): in-core `axi_bus_meter` per bus, keyed
+  by `rid` (read) / the write-engine active-channel sideband (write). Indexed
+  readout: write `PERF_CH_SEL.CH_SEL` (@ `0x35C`), read the packed
+  `RD/WRMON_PERF_CH_PROD_BP` / `_STARV_IDLE` (@ `0x360`-`0x36C`) and the
+  all-channel overflow masks (`0x370`/`0x374`).
+- **Latency histograms** (Section 4, "optional, valuable"): `axi_perf_latency_hist`
+  per bus — read AR->first-R + AR->RLAST, write AW->B — binned into 16 log2
+  bins. Indexed readout: `HIST_SEL{BUS,METRIC,BIN}` (@ `0x378`), `HIST_DATA`
+  (@ `0x37C`), `HIST_TOTAL` (@ `0x380`, = per-metric transaction count).
+
+**Window control** (Section 4.1): the perf window is driven by the
+`RD/WRMON_PERF_CTRL.RUN` bits in **trigger mode** (`start/end_event_sel=000`):
+write `RUN=1` to clear+open the window, run the workload, write `RUN=0` to
+close/freeze, then read the counters. The rising edge of `RUN` clears the
+aggregate buckets, per-channel meter, and histograms in lockstep. The host
+(`read_rw_perf.py`; `read_bus_meters.py` is now a compatibility shim) opens the
+window before the kick and closes it the instant the workload completes;
+`datapath_utilization` additionally uses the harness timer's exact first/last
+beat span as a methodology denominator. `WINDOW_CYCLES` is a live-only counter
+the monitor zeroes at close, so the authoritative closed-window length is the
+sum of the four buckets (which hold after close).
+
 ---
 
 ## 5. Recommended primary + complementary pair
@@ -236,7 +273,9 @@ These should be answered before settling on the measurement window definition, b
 ## 9. Proposed next steps
 
 1. **Design-side agent** to confirm prefetch depth, completion pipelining behavior, and which end-event (data-last vs B-last vs writeback vs IRQ) the engine treats as "transfer complete" from a software perspective.
-2. **Add instrumentation block** per Section 4 if not already present. Configurable start/end events per Section 4.1.
+2. **Add instrumentation block** per Section 4 — DONE (in-core, RFC Stage E
+   option 2; see Section 4.2). Configurable start/end events per Section 4.1 are
+   implemented as the `RD/WRMON_PERF_CTRL.RUN` trigger-mode window.
 3. **Run characterization sweep** across the workload axes in Section 6. Report primary + complementary pair per Section 5 at each operating point.
 4. **Decision point** on whether to publish (a) only end-to-end, (b) only datapath, or (c) both with overhead breakdown. Recommended: (c), for the reasons in Section 5.
 

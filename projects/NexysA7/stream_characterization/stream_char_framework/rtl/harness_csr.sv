@@ -251,32 +251,9 @@ module harness_csr #(
     input  logic [31:0]     i_mon_comp_event_data_ovf,
     input  logic [31:0]     i_mon_comp_ed_delta_ovf,
 
-    // =====================================================================
-    // AXI bus meter readback ports (per-engine, R then W).
-    // Aggregate counters are 32-bit free-running, cleared by CTRL.clear_stats
-    // alongside debug_sram and the per-channel CRC state. Per-channel are
-    // 16-bit; ch_overflow is a sticky packed mask of (channel, bucket)
-    // pairs that wrapped past 16-bit.
-    // =====================================================================
-    input  logic [31:0]                       i_rd_meter_agg_prod,
-    input  logic [31:0]                       i_rd_meter_agg_bp,
-    input  logic [31:0]                       i_rd_meter_agg_starv,
-    input  logic [31:0]                       i_rd_meter_agg_idle,
-    input  logic [15:0]                       i_rd_meter_ch_prod   [NUM_CHANNELS],
-    input  logic [15:0]                       i_rd_meter_ch_bp     [NUM_CHANNELS],
-    input  logic [15:0]                       i_rd_meter_ch_starv  [NUM_CHANNELS],
-    input  logic [15:0]                       i_rd_meter_ch_idle   [NUM_CHANNELS],
-    input  logic [NUM_CHANNELS*4-1:0]         i_rd_meter_ch_overflow,
-
-    input  logic [31:0]                       i_wr_meter_agg_prod,
-    input  logic [31:0]                       i_wr_meter_agg_bp,
-    input  logic [31:0]                       i_wr_meter_agg_starv,
-    input  logic [31:0]                       i_wr_meter_agg_idle,
-    input  logic [15:0]                       i_wr_meter_ch_prod   [NUM_CHANNELS],
-    input  logic [15:0]                       i_wr_meter_ch_bp     [NUM_CHANNELS],
-    input  logic [15:0]                       i_wr_meter_ch_starv  [NUM_CHANNELS],
-    input  logic [15:0]                       i_wr_meter_ch_idle   [NUM_CHANNELS],
-    input  logic [NUM_CHANNELS*4-1:0]         i_wr_meter_ch_overflow,
+    // (AXI bus meter readback ports retired in RFC Stage E.4 -- datapath
+    //  utilization is now measured in-core and read via the STREAM regblock
+    //  perf CSRs, not through this harness CSR block.)
     input  logic [31:0]     i_crc_rd_expected,
     input  logic [31:0]     i_crc_wr_expected,
     input  logic [31:0]     i_crc_wr_computed,
@@ -687,69 +664,11 @@ module harness_csr #(
                             8'hCC: r_rdata <= r_kick_addr[6];
                             8'hD0: r_rdata <= r_kick_addr[7];
 
-                            // =================================================
-                            // AXI bus meter readback. R-meter at 0x100, W-meter
-                            // at 0x180. Each meter has the same layout:
-                            //   +0x00 AGG_PROD       (32 b)
-                            //   +0x04 AGG_BP         (32 b)
-                            //   +0x08 AGG_STARV      (32 b)
-                            //   +0x0C AGG_IDLE       (32 b)
-                            //   +0x10 CH_OVERFLOW    (NUM_CHANNELS*4 packed,
-                            //                         {ch7..ch0} of {prod,
-                            //                         bp, starv, idle})
-                            //   +0x20+4*ch  CH[ch]   {bp[15:0],   prod[15:0]}
-                            //   +0x40+4*ch  CH[ch]   {idle[15:0], starv[15:0]}
-                            // =================================================
-
-                            // ---- R-meter aggregate ----
-                            9'h100: r_rdata <= i_rd_meter_agg_prod;
-                            9'h104: r_rdata <= i_rd_meter_agg_bp;
-                            9'h108: r_rdata <= i_rd_meter_agg_starv;
-                            9'h10C: r_rdata <= i_rd_meter_agg_idle;
-                            9'h110: r_rdata <= {{(32-NUM_CHANNELS*4){1'b0}}, i_rd_meter_ch_overflow};
-                            // ---- R-meter per-channel {bp, prod} ----
-                            9'h120: r_rdata <= {i_rd_meter_ch_bp[0], i_rd_meter_ch_prod[0]};
-                            9'h124: r_rdata <= {i_rd_meter_ch_bp[1], i_rd_meter_ch_prod[1]};
-                            9'h128: r_rdata <= {i_rd_meter_ch_bp[2], i_rd_meter_ch_prod[2]};
-                            9'h12C: r_rdata <= {i_rd_meter_ch_bp[3], i_rd_meter_ch_prod[3]};
-                            9'h130: r_rdata <= {i_rd_meter_ch_bp[4], i_rd_meter_ch_prod[4]};
-                            9'h134: r_rdata <= {i_rd_meter_ch_bp[5], i_rd_meter_ch_prod[5]};
-                            9'h138: r_rdata <= {i_rd_meter_ch_bp[6], i_rd_meter_ch_prod[6]};
-                            9'h13C: r_rdata <= {i_rd_meter_ch_bp[7], i_rd_meter_ch_prod[7]};
-                            // ---- R-meter per-channel {idle, starv} ----
-                            9'h140: r_rdata <= {i_rd_meter_ch_idle[0], i_rd_meter_ch_starv[0]};
-                            9'h144: r_rdata <= {i_rd_meter_ch_idle[1], i_rd_meter_ch_starv[1]};
-                            9'h148: r_rdata <= {i_rd_meter_ch_idle[2], i_rd_meter_ch_starv[2]};
-                            9'h14C: r_rdata <= {i_rd_meter_ch_idle[3], i_rd_meter_ch_starv[3]};
-                            9'h150: r_rdata <= {i_rd_meter_ch_idle[4], i_rd_meter_ch_starv[4]};
-                            9'h154: r_rdata <= {i_rd_meter_ch_idle[5], i_rd_meter_ch_starv[5]};
-                            9'h158: r_rdata <= {i_rd_meter_ch_idle[6], i_rd_meter_ch_starv[6]};
-                            9'h15C: r_rdata <= {i_rd_meter_ch_idle[7], i_rd_meter_ch_starv[7]};
-
-                            // ---- W-meter aggregate ----
-                            9'h180: r_rdata <= i_wr_meter_agg_prod;
-                            9'h184: r_rdata <= i_wr_meter_agg_bp;
-                            9'h188: r_rdata <= i_wr_meter_agg_starv;
-                            9'h18C: r_rdata <= i_wr_meter_agg_idle;
-                            9'h190: r_rdata <= {{(32-NUM_CHANNELS*4){1'b0}}, i_wr_meter_ch_overflow};
-                            // ---- W-meter per-channel {bp, prod} ----
-                            9'h1A0: r_rdata <= {i_wr_meter_ch_bp[0], i_wr_meter_ch_prod[0]};
-                            9'h1A4: r_rdata <= {i_wr_meter_ch_bp[1], i_wr_meter_ch_prod[1]};
-                            9'h1A8: r_rdata <= {i_wr_meter_ch_bp[2], i_wr_meter_ch_prod[2]};
-                            9'h1AC: r_rdata <= {i_wr_meter_ch_bp[3], i_wr_meter_ch_prod[3]};
-                            9'h1B0: r_rdata <= {i_wr_meter_ch_bp[4], i_wr_meter_ch_prod[4]};
-                            9'h1B4: r_rdata <= {i_wr_meter_ch_bp[5], i_wr_meter_ch_prod[5]};
-                            9'h1B8: r_rdata <= {i_wr_meter_ch_bp[6], i_wr_meter_ch_prod[6]};
-                            9'h1BC: r_rdata <= {i_wr_meter_ch_bp[7], i_wr_meter_ch_prod[7]};
-                            // ---- W-meter per-channel {idle, starv} ----
-                            9'h1C0: r_rdata <= {i_wr_meter_ch_idle[0], i_wr_meter_ch_starv[0]};
-                            9'h1C4: r_rdata <= {i_wr_meter_ch_idle[1], i_wr_meter_ch_starv[1]};
-                            9'h1C8: r_rdata <= {i_wr_meter_ch_idle[2], i_wr_meter_ch_starv[2]};
-                            9'h1CC: r_rdata <= {i_wr_meter_ch_idle[3], i_wr_meter_ch_starv[3]};
-                            9'h1D0: r_rdata <= {i_wr_meter_ch_idle[4], i_wr_meter_ch_starv[4]};
-                            9'h1D4: r_rdata <= {i_wr_meter_ch_idle[5], i_wr_meter_ch_starv[5]};
-                            9'h1D8: r_rdata <= {i_wr_meter_ch_idle[6], i_wr_meter_ch_starv[6]};
-                            9'h1DC: r_rdata <= {i_wr_meter_ch_idle[7], i_wr_meter_ch_starv[7]};
+                            // AXI bus meter readback (R-meter @ 0x100, W-meter @
+                            // 0x180) RETIRED in RFC Stage E.4 -- datapath
+                            // utilization is now measured in-core and read from
+                            // the STREAM regblock perf CSRs. The 0x100-0x1DF
+                            // range now falls through to the default (reads 0).
 
                             // MonBus compressor statistics (0 unless the
                             // build has USE_MON_COMPRESSION=1).

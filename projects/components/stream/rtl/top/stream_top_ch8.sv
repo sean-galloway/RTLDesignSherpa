@@ -320,14 +320,10 @@ module stream_top_ch8 #(
     // Sticky counters - count total reads at each stage
     output logic [7:0]                              debug_apb_rd_count,
     output logic [7:0]                              debug_peakrdl_rd_count,
-    output logic [7:0]                              debug_regblk_rd_count,
-
-    // Sideband for FPGA characterization. Mirrors the write engine's
-    // r_w_channel_id / r_w_active so an external axi_bus_meter can
-    // attribute per-W-beat activity to a channel. Unused / left
-    // dangling in non-characterization SoC integrations.
-    output logic [$clog2(NUM_CHANNELS)-1:0]         o_wr_active_channel_id,
-    output logic                                    o_wr_active_channel_valid
+    output logic [7:0]                              debug_regblk_rd_count
+    // (The o_wr_active_channel_* sideband ports were removed in RFC Stage E.4 --
+    //  the harness axi_bus_meter that consumed them was retired, and the in-core
+    //  per-channel meter uses the engine sideband internally to stream_core.)
 );
 
     //=========================================================================
@@ -518,13 +514,9 @@ module stream_top_ch8 #(
     monitor_common_pkg::monbus_timestamp_t         mon_timestamp;
     monitor_common_pkg::monbus_timestamp_t         mon_time_w;
 
-    //-------------------------------------------------------------------------
-    // Sideband from stream_core to expose write-engine's active channel for
-    // FPGA-characterization axi_bus_meter (driven by both stream_core variants
-    // via the generate block below; consumed at the bridge-side harness).
-    //-------------------------------------------------------------------------
-    logic [$clog2(NUM_CHANNELS)-1:0]              wr_active_channel_id;
-    logic                                         wr_active_channel_valid;
+    // (The write-engine active-channel sideband is no longer surfaced here --
+    //  the harness axi_bus_meter that consumed it was retired in RFC Stage E.4;
+    //  the in-core per-channel meter uses it internally to stream_core.)
 
     //-------------------------------------------------------------------------
     // Configuration Signals - from stream_config_block
@@ -553,6 +545,49 @@ module stream_top_ch8 #(
     logic [31:0]                            dmon_perf_beat_count;
     logic [63:0]                            dmon_perf_byte_count;
     logic [31:0]                            dmon_perf_burst_count;
+
+    // Data-read datapath monitor perf-window readback (RFC Stage E CSR route).
+    // Driven by stream_core; feed hwif_in.RDMON_PERF_*.next (@ 0x304-0x328).
+    logic                                   rdmon_perf_window_active;
+    logic [31:0]                            rdmon_perf_window_cycles;
+    logic [31:0]                            rdmon_perf_prod_cycles;
+    logic [31:0]                            rdmon_perf_bp_cycles;
+    logic [31:0]                            rdmon_perf_starv_cycles;
+    logic [31:0]                            rdmon_perf_idle_cycles;
+    logic [31:0]                            rdmon_perf_beat_count;
+    logic [63:0]                            rdmon_perf_byte_count;
+    logic [31:0]                            rdmon_perf_burst_count;
+
+    // Data-write datapath monitor perf-window readback (RFC Stage E CSR route).
+    // Driven by stream_core; feed hwif_in.WRMON_PERF_*.next (@ 0x334-0x358).
+    logic                                   wrmon_perf_window_active;
+    logic [31:0]                            wrmon_perf_window_cycles;
+    logic [31:0]                            wrmon_perf_prod_cycles;
+    logic [31:0]                            wrmon_perf_bp_cycles;
+    logic [31:0]                            wrmon_perf_starv_cycles;
+    logic [31:0]                            wrmon_perf_idle_cycles;
+    logic [31:0]                            wrmon_perf_beat_count;
+    logic [63:0]                            wrmon_perf_byte_count;
+    logic [31:0]                            wrmon_perf_burst_count;
+
+    // Per-channel datapath perf buckets (RFC Stage C, indexed readout). The
+    // four 16-bit buckets are for the PERF_CH_SEL channel; overflow masks
+    // expose all channels. Driven by stream_core's in-core axi_bus_meter mux.
+    logic [15:0]                            rdmon_ch_prod_cycles;
+    logic [15:0]                            rdmon_ch_bp_cycles;
+    logic [15:0]                            rdmon_ch_starv_cycles;
+    logic [15:0]                            rdmon_ch_idle_cycles;
+    logic [NUM_CHANNELS*4-1:0]              rdmon_ch_overflow;
+    logic [15:0]                            wrmon_ch_prod_cycles;
+    logic [15:0]                            wrmon_ch_bp_cycles;
+    logic [15:0]                            wrmon_ch_starv_cycles;
+    logic [15:0]                            wrmon_ch_idle_cycles;
+    logic [NUM_CHANNELS*4-1:0]              wrmon_ch_overflow;
+
+    // Datapath latency-histogram indexed readout (RFC Stage D). Driven by
+    // stream_core; selected via HIST_SEL, feed hwif_in.HIST_DATA/HIST_TOTAL.
+    logic [31:0]                            perf_hist_data;
+    logic [31:0]                            perf_hist_total;
 
     // Scheduler Configuration
     logic                                   cfg_sched_enable;
@@ -938,6 +973,47 @@ module stream_top_ch8 #(
         hwif_in.DAXMON_PERF_BYTE_COUNT_LO.VAL.next  = dmon_perf_byte_count[31:0];
         hwif_in.DAXMON_PERF_BYTE_COUNT_HI.VAL.next  = dmon_perf_byte_count[63:32];
         hwif_in.DAXMON_PERF_BURST_COUNT.VAL.next    = dmon_perf_burst_count;
+
+        // Data-read datapath monitor perf-window readback (RFC Stage E option 2;
+        // see RDMON_PERF_CTRL @ 0x300 for the run control).
+        hwif_in.RDMON_PERF_STATUS.WIN_ACTIVE.next   = rdmon_perf_window_active;
+        hwif_in.RDMON_PERF_WINDOW_CYCLES.VAL.next   = rdmon_perf_window_cycles;
+        hwif_in.RDMON_PERF_PROD_CYCLES.VAL.next     = rdmon_perf_prod_cycles;
+        hwif_in.RDMON_PERF_BP_CYCLES.VAL.next       = rdmon_perf_bp_cycles;
+        hwif_in.RDMON_PERF_STARV_CYCLES.VAL.next    = rdmon_perf_starv_cycles;
+        hwif_in.RDMON_PERF_IDLE_CYCLES.VAL.next     = rdmon_perf_idle_cycles;
+        hwif_in.RDMON_PERF_BEAT_COUNT.VAL.next      = rdmon_perf_beat_count;
+        hwif_in.RDMON_PERF_BYTE_COUNT_LO.VAL.next   = rdmon_perf_byte_count[31:0];
+        hwif_in.RDMON_PERF_BYTE_COUNT_HI.VAL.next   = rdmon_perf_byte_count[63:32];
+        hwif_in.RDMON_PERF_BURST_COUNT.VAL.next     = rdmon_perf_burst_count;
+
+        // Data-write datapath monitor perf-window readback (RFC Stage E option 2;
+        // see WRMON_PERF_CTRL @ 0x330 for the run control).
+        hwif_in.WRMON_PERF_STATUS.WIN_ACTIVE.next   = wrmon_perf_window_active;
+        hwif_in.WRMON_PERF_WINDOW_CYCLES.VAL.next   = wrmon_perf_window_cycles;
+        hwif_in.WRMON_PERF_PROD_CYCLES.VAL.next     = wrmon_perf_prod_cycles;
+        hwif_in.WRMON_PERF_BP_CYCLES.VAL.next       = wrmon_perf_bp_cycles;
+        hwif_in.WRMON_PERF_STARV_CYCLES.VAL.next    = wrmon_perf_starv_cycles;
+        hwif_in.WRMON_PERF_IDLE_CYCLES.VAL.next     = wrmon_perf_idle_cycles;
+        hwif_in.WRMON_PERF_BEAT_COUNT.VAL.next      = wrmon_perf_beat_count;
+        hwif_in.WRMON_PERF_BYTE_COUNT_LO.VAL.next   = wrmon_perf_byte_count[31:0];
+        hwif_in.WRMON_PERF_BYTE_COUNT_HI.VAL.next   = wrmon_perf_byte_count[63:32];
+        hwif_in.WRMON_PERF_BURST_COUNT.VAL.next     = wrmon_perf_burst_count;
+
+        // Per-channel datapath perf buckets (RFC Stage C). Packed exactly like
+        // the FPGA-char harness meter: {bp[31:16], prod[15:0]} and
+        // {idle[31:16], starv[15:0]} for the PERF_CH_SEL-selected channel. The
+        // overflow masks are zero-extended to 32 bits (NUM_CHANNELS*4 valid).
+        hwif_in.RDMON_PERF_CH_PROD_BP.VAL.next    = {rdmon_ch_bp_cycles,   rdmon_ch_prod_cycles};
+        hwif_in.RDMON_PERF_CH_STARV_IDLE.VAL.next = {rdmon_ch_idle_cycles, rdmon_ch_starv_cycles};
+        hwif_in.WRMON_PERF_CH_PROD_BP.VAL.next    = {wrmon_ch_bp_cycles,   wrmon_ch_prod_cycles};
+        hwif_in.WRMON_PERF_CH_STARV_IDLE.VAL.next = {wrmon_ch_idle_cycles, wrmon_ch_starv_cycles};
+        hwif_in.RDMON_PERF_CH_OVERFLOW.VAL.next   = 32'(rdmon_ch_overflow);
+        hwif_in.WRMON_PERF_CH_OVERFLOW.VAL.next   = 32'(wrmon_ch_overflow);
+
+        // Datapath latency histograms (RFC Stage D), indexed by HIST_SEL.
+        hwif_in.HIST_DATA.VAL.next  = perf_hist_data;
+        hwif_in.HIST_TOTAL.VAL.next = perf_hist_total;
     end
 
     // Debug outputs - expose what stream_regs should see for hwif_in values
@@ -1357,6 +1433,19 @@ module stream_top_ch8 #(
                 .cfg_rdeng_mon_perf_mask    (cfg_rdeng_mon_perf_mask),
                 .cfg_rdeng_mon_addr_mask    (cfg_rdeng_mon_addr_mask),
                 .cfg_rdeng_mon_debug_mask   (cfg_rdeng_mon_debug_mask),
+                // RFC Stage E perf-window run control (RDMON_PERF_CTRL @ 0x300)
+                .cfg_rdeng_mon_perf_run     (hwif_out.RDMON_PERF_CTRL.RUN.value),
+
+                // Read datapath monitor perf-window readback (RFC Stage E CSR route)
+                .rdmon_perf_window_active   (rdmon_perf_window_active),
+                .rdmon_perf_window_cycles   (rdmon_perf_window_cycles),
+                .rdmon_perf_prod_cycles     (rdmon_perf_prod_cycles),
+                .rdmon_perf_bp_cycles       (rdmon_perf_bp_cycles),
+                .rdmon_perf_starv_cycles    (rdmon_perf_starv_cycles),
+                .rdmon_perf_idle_cycles     (rdmon_perf_idle_cycles),
+                .rdmon_perf_beat_count      (rdmon_perf_beat_count),
+                .rdmon_perf_byte_count      (rdmon_perf_byte_count),
+                .rdmon_perf_burst_count     (rdmon_perf_burst_count),
 
                 // Write Engine AXI Monitor Configuration
                 .cfg_wreng_mon_enable       (cfg_wreng_mon_enable),
@@ -1374,6 +1463,42 @@ module stream_top_ch8 #(
                 .cfg_wreng_mon_perf_mask    (cfg_wreng_mon_perf_mask),
                 .cfg_wreng_mon_addr_mask    (cfg_wreng_mon_addr_mask),
                 .cfg_wreng_mon_debug_mask   (cfg_wreng_mon_debug_mask),
+                // RFC Stage E perf-window run control (WRMON_PERF_CTRL @ 0x330)
+                .cfg_wreng_mon_perf_run     (hwif_out.WRMON_PERF_CTRL.RUN.value),
+
+                // Write datapath monitor perf-window readback (RFC Stage E CSR route)
+                .wrmon_perf_window_active   (wrmon_perf_window_active),
+                .wrmon_perf_window_cycles   (wrmon_perf_window_cycles),
+                .wrmon_perf_prod_cycles     (wrmon_perf_prod_cycles),
+                .wrmon_perf_bp_cycles       (wrmon_perf_bp_cycles),
+                .wrmon_perf_starv_cycles    (wrmon_perf_starv_cycles),
+                .wrmon_perf_idle_cycles     (wrmon_perf_idle_cycles),
+                .wrmon_perf_beat_count      (wrmon_perf_beat_count),
+                .wrmon_perf_byte_count      (wrmon_perf_byte_count),
+                .wrmon_perf_burst_count     (wrmon_perf_burst_count),
+
+                // Per-channel datapath perf buckets (RFC Stage C, indexed readout).
+                // cfg_perf_ch_sel from PERF_CH_SEL.CH_SEL; outputs are the
+                // selected channel's buckets + all-channel overflow masks.
+                // (In the monitors-disabled variant stream_core ties these to 0.)
+                .cfg_perf_ch_sel            (hwif_out.PERF_CH_SEL.CH_SEL.value[$clog2(NUM_CHANNELS)-1:0]),
+                .rdmon_ch_prod_cycles       (rdmon_ch_prod_cycles),
+                .rdmon_ch_bp_cycles         (rdmon_ch_bp_cycles),
+                .rdmon_ch_starv_cycles      (rdmon_ch_starv_cycles),
+                .rdmon_ch_idle_cycles       (rdmon_ch_idle_cycles),
+                .rdmon_ch_overflow          (rdmon_ch_overflow),
+                .wrmon_ch_prod_cycles       (wrmon_ch_prod_cycles),
+                .wrmon_ch_bp_cycles         (wrmon_ch_bp_cycles),
+                .wrmon_ch_starv_cycles      (wrmon_ch_starv_cycles),
+                .wrmon_ch_idle_cycles       (wrmon_ch_idle_cycles),
+                .wrmon_ch_overflow          (wrmon_ch_overflow),
+
+                // Datapath latency histograms (RFC Stage D), indexed by HIST_SEL.
+                .cfg_perf_hist_bus          (hwif_out.HIST_SEL.BUS.value),
+                .cfg_perf_hist_metric       (hwif_out.HIST_SEL.METRIC.value),
+                .cfg_perf_hist_bin          (hwif_out.HIST_SEL.BIN.value),
+                .perf_hist_data             (perf_hist_data),
+                .perf_hist_total            (perf_hist_total),
 
                 // AXI Transfer Configuration
                 .cfg_axi_rd_xfer_beats      (cfg_axi_rd_xfer_beats),
@@ -1507,9 +1632,7 @@ module stream_top_ch8 #(
                 .mon_packet                 (mon_packet),
                 .mon_timestamp              (mon_timestamp),
 
-                // Sideband for FPGA-characterization axi_bus_meter
-                .o_wr_active_channel_id     (wr_active_channel_id),
-                .o_wr_active_channel_valid  (wr_active_channel_valid),
+                // (write-engine active-channel sideband retired -- RFC Stage E.4)
 
                 // Channel-Observation Mux (internal — feeds stream_config_block)
                 .cfg_obs_ch_sel             (cfg_obs_ch_sel),
@@ -1605,6 +1728,19 @@ module stream_top_ch8 #(
                 .cfg_rdeng_mon_perf_mask    (8'h0),
                 .cfg_rdeng_mon_addr_mask    (8'h0),
                 .cfg_rdeng_mon_debug_mask   (8'h0),
+                .cfg_rdeng_mon_perf_run     (1'b0),
+
+                // Perf-window readback ties to the same wires (read 0 with
+                // monitors disabled — stream_core tied them off internally)
+                .rdmon_perf_window_active   (rdmon_perf_window_active),
+                .rdmon_perf_window_cycles   (rdmon_perf_window_cycles),
+                .rdmon_perf_prod_cycles     (rdmon_perf_prod_cycles),
+                .rdmon_perf_bp_cycles       (rdmon_perf_bp_cycles),
+                .rdmon_perf_starv_cycles    (rdmon_perf_starv_cycles),
+                .rdmon_perf_idle_cycles     (rdmon_perf_idle_cycles),
+                .rdmon_perf_beat_count      (rdmon_perf_beat_count),
+                .rdmon_perf_byte_count      (rdmon_perf_byte_count),
+                .rdmon_perf_burst_count     (rdmon_perf_burst_count),
 
                 .cfg_wreng_mon_enable       (1'b0),
                 .cfg_wreng_mon_err_enable   (1'b0),
@@ -1621,6 +1757,42 @@ module stream_top_ch8 #(
                 .cfg_wreng_mon_perf_mask    (8'h0),
                 .cfg_wreng_mon_addr_mask    (8'h0),
                 .cfg_wreng_mon_debug_mask   (8'h0),
+                .cfg_wreng_mon_perf_run     (1'b0),
+
+                // Perf-window readback ties to the same wires (read 0 with
+                // monitors disabled — stream_core tied them off internally)
+                .wrmon_perf_window_active   (wrmon_perf_window_active),
+                .wrmon_perf_window_cycles   (wrmon_perf_window_cycles),
+                .wrmon_perf_prod_cycles     (wrmon_perf_prod_cycles),
+                .wrmon_perf_bp_cycles       (wrmon_perf_bp_cycles),
+                .wrmon_perf_starv_cycles    (wrmon_perf_starv_cycles),
+                .wrmon_perf_idle_cycles     (wrmon_perf_idle_cycles),
+                .wrmon_perf_beat_count      (wrmon_perf_beat_count),
+                .wrmon_perf_byte_count      (wrmon_perf_byte_count),
+                .wrmon_perf_burst_count     (wrmon_perf_burst_count),
+
+                // Per-channel datapath perf buckets (RFC Stage C, indexed readout).
+                // cfg_perf_ch_sel from PERF_CH_SEL.CH_SEL; outputs are the
+                // selected channel's buckets + all-channel overflow masks.
+                // (In the monitors-disabled variant stream_core ties these to 0.)
+                .cfg_perf_ch_sel            (hwif_out.PERF_CH_SEL.CH_SEL.value[$clog2(NUM_CHANNELS)-1:0]),
+                .rdmon_ch_prod_cycles       (rdmon_ch_prod_cycles),
+                .rdmon_ch_bp_cycles         (rdmon_ch_bp_cycles),
+                .rdmon_ch_starv_cycles      (rdmon_ch_starv_cycles),
+                .rdmon_ch_idle_cycles       (rdmon_ch_idle_cycles),
+                .rdmon_ch_overflow          (rdmon_ch_overflow),
+                .wrmon_ch_prod_cycles       (wrmon_ch_prod_cycles),
+                .wrmon_ch_bp_cycles         (wrmon_ch_bp_cycles),
+                .wrmon_ch_starv_cycles      (wrmon_ch_starv_cycles),
+                .wrmon_ch_idle_cycles       (wrmon_ch_idle_cycles),
+                .wrmon_ch_overflow          (wrmon_ch_overflow),
+
+                // Datapath latency histograms (RFC Stage D), indexed by HIST_SEL.
+                .cfg_perf_hist_bus          (hwif_out.HIST_SEL.BUS.value),
+                .cfg_perf_hist_metric       (hwif_out.HIST_SEL.METRIC.value),
+                .cfg_perf_hist_bin          (hwif_out.HIST_SEL.BIN.value),
+                .perf_hist_data             (perf_hist_data),
+                .perf_hist_total            (perf_hist_total),
 
                 // AXI Transfer Configuration
                 .cfg_axi_rd_xfer_beats      (cfg_axi_rd_xfer_beats),
@@ -1754,9 +1926,7 @@ module stream_top_ch8 #(
                 .mon_packet                 (mon_packet),
                 .mon_timestamp              (mon_timestamp),
 
-                // Sideband for FPGA-characterization axi_bus_meter
-                .o_wr_active_channel_id     (wr_active_channel_id),
-                .o_wr_active_channel_valid  (wr_active_channel_valid),
+                // (write-engine active-channel sideband retired -- RFC Stage E.4)
 
                 // Channel-Observation Mux (internal — feeds stream_config_block)
                 .cfg_obs_ch_sel             (cfg_obs_ch_sel),
@@ -1953,12 +2123,6 @@ module stream_top_ch8 #(
             assign mon_compressor_stat_ed_delta_ovf   = 32'h0;
         end
     endgenerate
-
-    // Drive the top-level write-engine sideband outputs. Both stream_core
-    // variants feed wr_active_channel_id / wr_active_channel_valid via the
-    // generate block above, so the assigns below pass them straight out.
-    assign o_wr_active_channel_id    = wr_active_channel_id;
-    assign o_wr_active_channel_valid = wr_active_channel_valid;
 
 endmodule : stream_top_ch8
 

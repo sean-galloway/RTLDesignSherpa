@@ -43,5 +43,22 @@ $REPO_ROOT/rtl/amba/axi4/axi4_master_wr.sv
 -f $STREAM_ROOT/rtl/filelists/fub/sram_controller.f
 -f $STREAM_ROOT/rtl/filelists/fub/perf_profiler.f
 
+# Monitored AXI write-master wrapper for the data-write datapath perf monitor
+# (RFC Stage E option 2). Listed AFTER scheduler_group_array.f so monitor_pkg
+# and the shared axi_monitor stack (also used by the read-side axi4_master_rd_mon)
+# are already declared. axi4_master_rd_mon itself comes from that include.
+$REPO_ROOT/rtl/amba/axi4/axi4_master_wr_mon.sv
+
+# Per-channel perf-bucket counter for the datapath monitors (RFC Stage C /
+# Stage E option 2). The in-core equivalent of the FPGA-char harness meter.
+# NOTE: the stream_char_harness build also pulls this via instrumentation.f
+# (for its own u_rd/u_wr_bus_meter); the resulting duplicate is a benign
+# Verilator MODDUP warning and is de-duplicated when Stage E.4 retires the
+# harness-side meters.
+$REPO_ROOT/rtl/amba/shared/axi_bus_meter.sv
+
+# Per-transaction latency histogram for the datapath monitors (RFC Stage D).
+$REPO_ROOT/rtl/amba/shared/axi_perf_latency_hist.sv
+
 # Top-level integration (unique to this filelist)
 $STREAM_ROOT/rtl/macro/stream_core.sv

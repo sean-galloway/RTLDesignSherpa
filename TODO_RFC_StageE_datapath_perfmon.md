@@ -1,6 +1,28 @@
 # TODO — RFC Stage E (option 2): in-core R/W datapath perf monitors, retire `axi_bus_meter`
 
-**Status:** NOT STARTED. Tracked as task #56.
+**Status:** RTL + COSIM COMPLETE (Stages E.1-E.4); board bring-up pending.
+Tracked as task #56. Done in this side repo:
+- E.1 in-core datapath R/W monitors -> RDMON_PERF_* @ 0x300 / WRMON_PERF_* @ 0x330
+  (the two datapath skid buffers were upgraded to axi4_master_rd_mon /
+  axi4_master_wr_mon; aggregate buckets + beat/byte/burst, RUN-bit window).
+- E.2 per-channel buckets via in-core axi_bus_meter (PERF_CH_SEL @ 0x35C +
+  packed RD/WRMON_PERF_CH_* @ 0x360-0x374); cosim matched the legacy harness
+  meter exactly (all four buckets, every channel) before it was retired.
+- E.3 latency histograms via new rtl/amba/shared/axi_perf_latency_hist.sv
+  (HIST_SEL/HIST_DATA/HIST_TOTAL @ 0x378-0x380); totals == burst counts.
+- E.4 retired the harness-side axi_bus_meter (instances + harness_csr 0x100/0x180
+  readback + instrumentation.f); repointed read_bus_meters.py (now an in-core
+  shim) + run_characterization.py (opens/closes the RUN windows around the
+  workload). NOTE: the legacy PktTypePerf / axi_monitor_reporter_perf path was
+  DELIBERATELY NOT retired -- it is shared rtl/amba IP enabled across many
+  generated bridge adapters and covered by the val/amba test suite.
+Validation done here: lint clean both USE_AXI_MONITORS variants (back to the
+pristine baseline warning profile); cosim TEST_TYPE=rw_perf + csr_read pass.
+REMAINING (board, you drive): make bitstream / make timing / make utilization /
+make program; run a known workload and sanity-check the in-core perf CSRs.
+The run_characterization.py sweep repoint is board-only-testable (not cosim).
+
+**Original status:** NOT STARTED.
 **Prerequisite (DONE):** RFC Stage E **option 1** landed in commit `a4a7442b`
 ("feat(stream): surface descriptor-monitor perf window via CSR"). Read that
 commit first — it is the **proven template** for everything below.

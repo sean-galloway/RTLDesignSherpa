@@ -10,6 +10,10 @@ Test Types (dispatched via TEST_TYPE env var):
   'desc_load'  : Descriptor loading into desc_ram via UART
   'csr_read'   : Read status, wr_ptr, CRC registers
   'apb_config' : Write/readback through axil2apb to STREAM APB space
+  'desc_perf'  : Open descriptor-monitor perf window, run DMA, verify buckets
+  'rw_perf'    : Open data-read/data-write datapath perf windows + per-channel
+                 buckets + latency histograms, run DMA, verify from the in-core
+                 monitor CSRs (RFC Stage E option 2, CSR route)
 
 STRUCTURE FOLLOWS REPOSITORY STANDARD:
   - Single CocoTB test function (dispatches on TEST_TYPE)
@@ -144,6 +148,113 @@ async def cocotb_test_stream_char(dut):
         assert perf['bytes'] > 0, f"no bytes counted: {perf}"
         tb.log.info(f"Desc-monitor perf window verified: {perf}")
 
+    elif test_type == 'rw_perf':
+        # RFC Stage E option 2: open the data-read and data-write datapath perf
+        # windows, run a DMA workload (which moves data over the monitored R/W
+        # buses), close the windows, and verify the in-core monitor CSRs counted
+        # real traffic -- aggregate buckets/counts (E.1), per-channel buckets
+        # (E.2), and latency histograms (E.3). The legacy harness axi_bus_meter
+        # this route replaces was retired in E.4.
+        tb.log.info("=== RD/WR datapath perf-window test (RFC Stage E option 2) ===")
+        ok = await tb.run_ping_test()
+        # Match the FPGA characterization's first config exactly: 1 channel,
+        # 1 descriptor of 64 KB (the pattern where scheduler_idle lingered
+        # ~1000x past the data transfer on the board).
+        ok &= await tb.run_dma_test(
+            num_channels=1,
+            descriptors_per_channel=1,
+            transfer_bytes=65536,
+            timeout_clocks=200_000,
+            measure_rw_perf=True,
+        )
+        rd = getattr(tb, '_rd_perf', None)
+        wr = getattr(tb, '_wr_perf', None)
+        assert rd is not None and wr is not None, "rw_perf snapshots missing"
+        # Per-monitor invariants. WINDOW_CYCLES is live-only (zeroed at close),
+        # so bucket_total is the authoritative closed-window length; beats equals
+        # productive cycles by construction (beat_count = prod_cycles).
+        for name, perf in (('RDMON', rd), ('WRMON', wr)):
+            assert perf['win_active'] == 0, f"{name} window did not close: {perf}"
+            assert perf['bucket_total'] > 0, f"{name} window never opened/counted: {perf}"
+            assert perf['bursts'] > 0, f"{name} no AR/AW bursts counted: {perf}"
+            assert perf['beats'] > 0, f"{name} no data beats counted: {perf}"
+            assert perf['productive'] > 0, f"{name} no productive cycles: {perf}"
+            assert perf['beats'] == perf['productive'], \
+                f"{name} beats != productive (beat_count = prod_cycles): {perf}"
+            assert perf['bytes'] > 0, f"{name} no bytes counted: {perf}"
+        # HARDWARE close: the window must auto-close when the datapath goes idle,
+        # NOT wait for software to clear RUN. The TB idled 2000 cycles with RUN
+        # still high before checking; WIN_ACTIVE must already be 0 (otherwise the
+        # post-transfer idle inflates the buckets -- the bug seen on the board).
+        rd_win = getattr(tb, '_rd_win_preclose', 1)
+        wr_win = getattr(tb, '_wr_win_preclose', 1)
+        assert rd_win == 0, ("RD window did NOT auto-close in hardware (still "
+                             "active after 2000-cyc idle with RUN high) -- the "
+                             "window would be contaminated by post-transfer idle")
+        assert wr_win == 0, ("WR window did NOT auto-close in hardware (still "
+                             "active after 2000-cyc idle with RUN high)")
+        tb.log.info(f"RD/WR datapath perf windows verified (hardware-closed): "
+                    f"rd={rd} wr={wr}")
+
+        # RFC Stage C: per-channel buckets (in-core axi_bus_meter). The legacy
+        # harness axi_bus_meter has been retired (RFC Stage E.4) -- its job, as
+        # the equivalence oracle for the in-core meter, was proven in the Stage
+        # E.1/E.2 bring-up. Going forward the in-core meter is the source of
+        # truth, cross-checked here against the aggregate monitor: attributed
+        # per-channel productive cannot exceed the aggregate productive, and
+        # (read bus, where every beat carries a valid rid) per-channel sum equals
+        # the aggregate. On the write bus the engine's active-channel sideband
+        # does not cover every productive W beat (burst boundaries), so the sum
+        # is <= aggregate; we log the (expected) shortfall.
+        rd_ch = getattr(tb, '_rd_ch', None)
+        wr_ch = getattr(tb, '_wr_ch', None)
+        assert rd_ch and wr_ch, "per-channel snapshots missing"
+        for bus, ch_list, agg in (('RD', rd_ch, rd['productive']),
+                                  ('WR', wr_ch, wr['productive'])):
+            prod_sum = sum(c['prod'] for c in ch_list)
+            tb.log.info(f"  {bus} per-channel buckets={ch_list} "
+                        f"prod_sum={prod_sum} vs aggregate={agg}")
+            tol = max(4, agg // 100)
+            assert prod_sum <= agg + tol, \
+                (f"{bus} per-channel prod sum {prod_sum} exceeds aggregate {agg}")
+            if bus == 'RD':
+                assert abs(prod_sum - agg) <= tol, \
+                    (f"RD per-channel prod sum {prod_sum} != aggregate {agg} "
+                     f"(every read beat carries a valid rid)")
+            elif prod_sum < agg - tol:
+                tb.log.info(f"  {bus} {agg - prod_sum} productive cycles "
+                            f"unattributed (channel_valid low -- expected on W bus)")
+        tb.log.info("Per-channel buckets verified (in-core meter self-consistent "
+                    "with aggregate)")
+
+        # RFC Stage D: latency histograms. Each metric's total must equal the
+        # corresponding burst/transaction count (every read burst contributes
+        # one AR->firstR and one AR->RLAST sample; every write burst one AW->B),
+        # the histogram bins must sum to that total, and the latency must land in
+        # a plausible (non-zero) bin -- a real fetch cannot complete in 0 cycles.
+        rd_firstr = getattr(tb, '_rd_hist_firstr', None)
+        rd_rlast = getattr(tb, '_rd_hist_rlast', None)
+        wr_b = getattr(tb, '_wr_hist_b', None)
+        assert rd_firstr and rd_rlast and wr_b, "latency histogram snapshots missing"
+        for name, hist, bursts in (('RD AR->firstR', rd_firstr, rd['bursts']),
+                                   ('RD AR->RLAST', rd_rlast, rd['bursts']),
+                                   ('WR AW->B', wr_b, wr['bursts'])):
+            bin_sum = sum(hist['bins'])
+            assert hist['total'] == bursts, \
+                (f"{name} histogram total {hist['total']} != burst count {bursts}")
+            assert bin_sum == hist['total'], \
+                (f"{name} histogram bins sum {bin_sum} != total {hist['total']}")
+            # Highest populated bin -> a coarse latency sanity check.
+            hi_bin = max((b for b, c in enumerate(hist['bins']) if c > 0),
+                         default=-1)
+            assert hi_bin >= 1, \
+                (f"{name} all latency in bin {hi_bin} (<2 cycles) -- implausible: "
+                 f"{hist['bins']}")
+            tb.log.info(f"  {name}: total={hist['total']} matches bursts={bursts}, "
+                        f"highest bin={hi_bin} (~{1 << hi_bin}-{(1 << (hi_bin + 1)) - 1} cyc)")
+        tb.log.info("Latency histograms verified (totals == burst counts, bins "
+                    "sum to total, plausible bin placement)")
+
     elif test_type == 'compress_char':
         # Compression characterization: route monbus to the bulk-trace
         # (debug_sram) path -- mon_err_cfg=0 -- so the compressor is
@@ -222,7 +333,7 @@ def generate_stream_char_params():
     """
     max_channels = BASE_RTL_PARAMS.get('NUM_CHANNELS', 8)
     gate_types = ['ping']
-    func_types = ['desc_load', 'csr_read', 'apb_config', 'desc_perf',
+    func_types = ['desc_load', 'csr_read', 'apb_config', 'desc_perf', 'rw_perf',
                   'dma_1ch', 'dma_2ch']
     full_types = [f'dma_{n}ch' for n in range(3, max_channels + 1)]
     full_types += ['compress_char']   # compression characterization run
