@@ -103,7 +103,7 @@ module scheduler
     input  logic [NUM_RANKS-1:0][NUM_BANKS-1:0] bank_pre_ready_i,
     input  logic [NUM_RANKS-1:0][NUM_BANKS-1:0] bank_row_active_i,
     input  logic [NUM_RANKS-1:0][NUM_BANKS-1:0][ROW_WIDTH-1:0] bank_open_row_i,
-    input  logic                       tfaw_window_ok_i,
+    input  logic [NUM_RANKS-1:0]       tfaw_window_ok_i,
 
     // ----- page predictor hint (HAPPY_HYBRID only; tie-low otherwise) -----
     input  logic [NUM_RANKS-1:0][NUM_BANKS-1:0] predict_open_i,
@@ -210,17 +210,28 @@ module scheduler
     end
 
     //=========================================================================
-    // W/R arbitration: alternate W and R passes to avoid starving either
-    // direction. A toggle bit flips on every successful issue; when both
-    // W and R have pending slots, the toggle picks which goes first.
-    // (v3 will weight by per-slot age.)
+    // W/R arbitration: age-weighted starvation scheme. Per-direction
+    // "wait counters" increment while pending and reset on issue. When
+    // both directions have pending, whichever has been waiting longer
+    // wins. Falls back to a fairness toggle if both ages are equal.
+    //
+    // Saturating 8-bit ages: under sustained pressure on one side, the
+    // counter pins at 0xFF and the other side wins every contention
+    // until the OPPOSING age catches up.
     //=========================================================================
-    logic r_arb_prefer_rd;
-    logic w_pick_wr_first;
+    logic [7:0] r_w_age;
+    logic [7:0] r_r_age;
+    logic       r_arb_prefer_rd;   // fairness toggle for age ties
 
-    // If only one direction has pending → pick that one.
-    // If both have pending → use the toggle.
-    assign w_pick_wr_first = w_have_wr && (!w_have_rd || !r_arb_prefer_rd);
+    logic w_pick_wr_first;
+    always_comb begin
+        if (w_have_wr && !w_have_rd) w_pick_wr_first = 1'b1;
+        else if (!w_have_wr)         w_pick_wr_first = 1'b0;
+        // both have pending — choose by age, break ties with toggle.
+        else if (r_w_age > r_r_age)  w_pick_wr_first = 1'b1;
+        else if (r_r_age > r_w_age)  w_pick_wr_first = 1'b0;
+        else                          w_pick_wr_first = !r_arb_prefer_rd;
+    end
 
     //=========================================================================
     // Page-policy initial-state decision: when picking a slot in S_IDLE,
@@ -339,7 +350,7 @@ module scheduler
 
             S_NEED_ACT: begin
                 if (bank_act_ready_i[r_pending_rank][r_pending_bank]
-                 && tfaw_window_ok_i) begin
+                 && tfaw_window_ok_i[r_pending_rank]) begin
                     w_op         = OP_ACT;
                     w_cmd_valid  = 1'b1;
                     w_cmd_rank   = r_pending_rank;
@@ -482,7 +493,17 @@ module scheduler
             r_pending_col     <= '0;
             r_pending_len     <= '0;
             r_arb_prefer_rd   <= 1'b0;   // first contention picks WR
+            r_w_age           <= 8'd0;
+            r_r_age           <= 8'd0;
         end else begin
+            // Age accumulators — increment each cycle while pending,
+            // reset when there's nothing pending on that side. Saturating
+            // at 0xFF so a runaway side stays "max-old" but doesn't roll.
+            if (w_have_wr && r_w_age != 8'hFF) r_w_age <= r_w_age + 8'd1;
+            else if (!w_have_wr)               r_w_age <= 8'd0;
+            if (w_have_rd && r_r_age != 8'hFF) r_r_age <= r_r_age + 8'd1;
+            else if (!w_have_rd)               r_r_age <= 8'd0;
+
             unique case (r_state)
                 S_IDLE: begin
                     if (init_busy_i || mr_req_i || refresh_req_i || pdn_req_i) begin
@@ -528,9 +549,12 @@ module scheduler
 
                 S_DONE: begin
                     r_state         <= S_IDLE;
-                    // Toggle the W/R arbitration preference so the next
-                    // contention picks the other direction.
+                    // Toggle fairness bit for age ties.
                     r_arb_prefer_rd <= ~r_arb_prefer_rd;
+                    // Reset the AGE of the side that just issued; the
+                    // other side keeps accumulating.
+                    if (r_pending_is_wr) r_w_age <= 8'd0;
+                    else                 r_r_age <= 8'd0;
                 end
 
                 default: r_state <= S_IDLE;

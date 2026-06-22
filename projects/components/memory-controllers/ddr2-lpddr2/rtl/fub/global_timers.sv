@@ -5,23 +5,23 @@
 // Purpose: Controller-wide constraint trackers that span banks.
 //
 //          * tFAW — at most 4 ACT commands within a t_faw_i window.
-//            Tracked via a 4-deep sliding window of countdown timers:
-//            on each ACT, kick out the oldest slot and reload it
-//            with t_faw_i. The window is "open" (tfaw_window_ok=1)
-//            as long as at least one of the four slots is at 0.
+//            Per-rank: each rank has its own 4-deep sliding window so
+//            multi-rank silicon enforces the device-local thermal/power
+//            limit independently. `tfaw_window_ok_o[r]` is high when
+//            rank r has at least one tFAW slot at 0.
 //
-//          * tRRD — minimum cycles between any two ACTs.
-//            Single countdown timer reloaded on each ACT.
+//          * tRRD — minimum cycles between any two ACTs (per rank).
+//            Single countdown timer per rank reloaded on each ACT.
 //
-//          * tWTR — cycles since last WR (any bank). Limits when
-//            the controller can issue RD after a WR.
-//          * tRTW — cycles since last RD. Limits when WR after RD.
-//            Tracked as single countdowns; output _ok flags.
+//          * tWTR — cycles since last WR (global, shared DQ bus).
+//          * tRTW — cycles since last RD (global, shared DQ bus).
+//          * tCCD — cycles since last column command (global, shared
+//            DQ bus). Limits back-to-back RD/WR pacing across banks.
 //
-// v1 (TODO):
-//   * Per-rank tFAW (multi-rank silicon enforces tFAW per rank).
-//   * tCCD (CAS-to-CAS delay) is currently baked into burst-length
-//     timing in the scheduler; a real impl would track here.
+// v2 H — adds per-rank tFAW + tCCD tracking; tWTR / tRTW remain global
+// because the DQ bus is shared across all ranks.
+//
+// Debug outputs (obs_*): expose all counter "non-zero" flags.
 
 `timescale 1ns / 1ps
 
@@ -42,96 +42,127 @@ module global_timers
     input  logic [7:0]                 t_rrd_i,
     input  logic [7:0]                 t_wtr_global_i,
     input  logic [7:0]                 t_rtw_i,
+    input  logic [7:0]                 t_ccd_i,        // CAS-to-CAS
 
     // ----- events -----
     input  logic                       evt_act_i,
-    input  logic [RKW-1:0]             evt_act_rank_i,    // v1: ignored
+    input  logic [RKW-1:0]             evt_act_rank_i,
     input  logic                       evt_rd_i,
     input  logic                       evt_wr_i,
 
     // ----- readiness back to scheduler -----
-    output logic                       tfaw_window_ok_o,
-    output logic                       trrd_window_ok_o,
+    // Per-rank tFAW + tRRD; global tWTR / tRTW / tCCD.
+    output logic [NUM_RANKS-1:0]       tfaw_window_ok_o,
+    output logic [NUM_RANKS-1:0]       trrd_window_ok_o,
     output logic                       twtr_global_ok_o,
-    output logic                       trtw_window_ok_o
+    output logic                       trtw_window_ok_o,
+    output logic                       tccd_window_ok_o,
+
+    // ----- observability -----
+    output logic [NUM_RANKS-1:0]       obs_faw_nz_o,
+    output logic [NUM_RANKS-1:0]       obs_trrd_nz_o,
+    output logic                       obs_twtr_nz_o,
+    output logic                       obs_trtw_nz_o,
+    output logic                       obs_tccd_nz_o
 );
 
     //=========================================================================
-    // tFAW: 4-deep sliding window of countdowns
+    // Per-rank tFAW: 4-deep sliding window of countdowns.
+    // Per-rank tRRD: single countdown.
+    // Global tWTR/tRTW/tCCD: single counters shared.
     //=========================================================================
-    logic [3:0][7:0] r_faw_slots;
-
-    //=========================================================================
-    // Single-counter windows
-    //=========================================================================
-    logic [7:0] r_trrd_cnt;
+    logic [NUM_RANKS-1:0][3:0][7:0] r_faw_slots;
+    logic [NUM_RANKS-1:0][7:0]      r_trrd_cnt;
     logic [7:0] r_twtr_cnt;
     logic [7:0] r_trtw_cnt;
+    logic [7:0] r_tccd_cnt;
 
     `ALWAYS_FF_RST(mc_clk, mc_rst_n, begin
         if (`RST_ASSERTED(mc_rst_n)) begin
             r_faw_slots <= '0;
-            r_trrd_cnt  <= 8'd0;
+            r_trrd_cnt  <= '0;
             r_twtr_cnt  <= 8'd0;
             r_trtw_cnt  <= 8'd0;
+            r_tccd_cnt  <= 8'd0;
         end else begin
             // Decrement counters (saturate at 0).
-            for (int unsigned i = 0; i < 4; i++) begin
-                if (r_faw_slots[i] > 8'd0) r_faw_slots[i] <= r_faw_slots[i] - 8'd1;
+            for (int unsigned k = 0; k < NUM_RANKS; k++) begin
+                for (int unsigned i = 0; i < 4; i++) begin
+                    if (r_faw_slots[k][i] > 8'd0)
+                        r_faw_slots[k][i] <= r_faw_slots[k][i] - 8'd1;
+                end
+                if (r_trrd_cnt[k] > 8'd0) r_trrd_cnt[k] <= r_trrd_cnt[k] - 8'd1;
             end
-            if (r_trrd_cnt > 8'd0) r_trrd_cnt <= r_trrd_cnt - 8'd1;
             if (r_twtr_cnt > 8'd0) r_twtr_cnt <= r_twtr_cnt - 8'd1;
             if (r_trtw_cnt > 8'd0) r_trtw_cnt <= r_trtw_cnt - 8'd1;
+            if (r_tccd_cnt > 8'd0) r_tccd_cnt <= r_tccd_cnt - 8'd1;
 
             // ACT event: install t_faw_i into the slot with the smallest
-            // remaining count (== 0 if window is open); reload tRRD.
+            // remaining count for the targeted rank; reload that rank's tRRD.
             if (evt_act_i) begin
                 automatic int unsigned slot_pick = 0;
                 automatic logic [7:0] slot_min = 8'hFF;
                 for (int unsigned i = 0; i < 4; i++) begin
-                    if (r_faw_slots[i] < slot_min) begin
-                        slot_min  = r_faw_slots[i];
+                    if (r_faw_slots[evt_act_rank_i][i] < slot_min) begin
+                        slot_min  = r_faw_slots[evt_act_rank_i][i];
                         slot_pick = i;
                     end
                 end
-                r_faw_slots[slot_pick] <= t_faw_i;
-                r_trrd_cnt <= t_rrd_i;
+                r_faw_slots[evt_act_rank_i][slot_pick] <= t_faw_i;
+                r_trrd_cnt [evt_act_rank_i]            <= t_rrd_i;
             end
-            // WR event: reload tWTR (used by next RD).
+            // WR event: reload tWTR + tCCD.
             if (evt_wr_i) begin
                 r_twtr_cnt <= t_wtr_global_i;
+                r_tccd_cnt <= t_ccd_i;
             end
-            // RD event: reload tRTW (used by next WR).
+            // RD event: reload tRTW + tCCD.
             if (evt_rd_i) begin
                 r_trtw_cnt <= t_rtw_i;
+                r_tccd_cnt <= t_ccd_i;
             end
         end
     end)
 
-    // Next-cycle window-ok values (combinational on the flop counters).
-    logic w_tfaw_ok;
+    // Next-cycle window-ok values.
+    logic [NUM_RANKS-1:0] w_tfaw_ok;
     always_comb begin
-        w_tfaw_ok = 1'b0;
-        for (int unsigned i = 0; i < 4; i++) begin
-            if (r_faw_slots[i] == 8'd0) w_tfaw_ok = 1'b1;
+        for (int unsigned k = 0; k < NUM_RANKS; k++) begin
+            w_tfaw_ok[k] = 1'b0;
+            for (int unsigned i = 0; i < 4; i++) begin
+                if (r_faw_slots[k][i] == 8'd0) w_tfaw_ok[k] = 1'b1;
+            end
         end
     end
 
     // Strict-flop outputs.
     `ALWAYS_FF_RST(mc_clk, mc_rst_n, begin
         if (`RST_ASSERTED(mc_rst_n)) begin
-            tfaw_window_ok_o <= 1'b1;
-            trrd_window_ok_o <= 1'b1;
+            tfaw_window_ok_o <= '1;
+            trrd_window_ok_o <= '1;
             twtr_global_ok_o <= 1'b1;
             trtw_window_ok_o <= 1'b1;
+            tccd_window_ok_o <= 1'b1;
         end else begin
             tfaw_window_ok_o <= w_tfaw_ok;
-            trrd_window_ok_o <= (r_trrd_cnt == 8'd0);
+            for (int unsigned k = 0; k < NUM_RANKS; k++) begin
+                trrd_window_ok_o[k] <= (r_trrd_cnt[k] == 8'd0);
+            end
             twtr_global_ok_o <= (r_twtr_cnt == 8'd0);
             trtw_window_ok_o <= (r_trtw_cnt == 8'd0);
+            tccd_window_ok_o <= (r_tccd_cnt == 8'd0);
         end
     end)
 
-    wire unused_v1 = |{ evt_act_rank_i };
+    // obs_* — combinational.
+    always_comb begin
+        for (int unsigned k = 0; k < NUM_RANKS; k++) begin
+            obs_faw_nz_o [k] = !w_tfaw_ok[k];
+            obs_trrd_nz_o[k] = (r_trrd_cnt[k] != 8'd0);
+        end
+        obs_twtr_nz_o = (r_twtr_cnt != 8'd0);
+        obs_trtw_nz_o = (r_trtw_cnt != 8'd0);
+        obs_tccd_nz_o = (r_tccd_cnt != 8'd0);
+    end
 
 endmodule : global_timers

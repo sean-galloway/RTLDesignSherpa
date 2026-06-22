@@ -207,7 +207,11 @@ module axi_intake
     //=========================================================================
     // Status
     //=========================================================================
-    output logic                 busy_o
+    output logic                 busy_o,
+
+    // ----- observability -----
+    output logic [15:0]          obs_wr_completions_o,
+    output logic [15:0]          obs_rd_completions_o
 );
 
     //=========================================================================
@@ -688,8 +692,9 @@ module axi_intake
                          fub_axi_arsize, fub_axi_arburst, fub_axi_arlock,
                          fub_axi_arcache, fub_axi_arprot, fub_axi_arqos,
                          fub_axi_arregion, fub_axi_aruser,
-                         rd_entry_complete_strb_i,
-                         rd_entry_complete_id_i };
+                         // rd_entry_complete_strb_i / _id_i consumed by
+                         // r_rd_completions_o below — no longer unused.
+                         1'b0 };
 
     //=========================================================================
     // Hazard probes — debug-only, no fanout.
@@ -775,5 +780,28 @@ module axi_intake
                        || w_hazard_w_after_wlast
                        || w_hazard_full_strb_acc_glitch
                        || w_hazard_aw_push_before_burst_done;
+
+    //=========================================================================
+    // Observability counters — increment on each entry_complete strobe.
+    // Useful for end-to-end health-check from CSR: total writes / reads
+    // that round-tripped through the controller.
+    //=========================================================================
+    logic [15:0] r_wr_completions;
+    logic [15:0] r_rd_completions;
+
+    `ALWAYS_FF_RST(aclk, aresetn, begin
+        if (`RST_ASSERTED(aresetn)) begin
+            r_wr_completions <= 16'd0;
+            r_rd_completions <= 16'd0;
+        end else begin
+            if (wr_entry_complete_strb_i) r_wr_completions <= r_wr_completions + 16'd1;
+            if (rd_entry_complete_strb_i) r_rd_completions <= r_rd_completions + 16'd1;
+        end
+    end)
+
+    assign obs_wr_completions_o = r_wr_completions;
+    assign obs_rd_completions_o = r_rd_completions;
+
+    wire unused_rd_id = |rd_entry_complete_id_i;
 
 endmodule : axi_intake

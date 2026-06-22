@@ -27,11 +27,12 @@ if _DV_DIR not in sys.path:
 class GtTB(TBBase):
     CLK = 10
 
-    async def setup(self, t_faw=20, t_rrd=4, t_wtr=4, t_rtw=4):
+    async def setup(self, t_faw=20, t_rrd=4, t_wtr=4, t_rtw=4, t_ccd=4):
         self.dut.t_faw_i.value          = t_faw
         self.dut.t_rrd_i.value          = t_rrd
         self.dut.t_wtr_global_i.value   = t_wtr
         self.dut.t_rtw_i.value          = t_rtw
+        self.dut.t_ccd_i.value          = t_ccd
         self.dut.evt_act_i.value        = 0
         self.dut.evt_act_rank_i.value   = 0
         self.dut.evt_rd_i.value         = 0
@@ -51,8 +52,11 @@ class GtTB(TBBase):
         await Timer(1, units='ps')
         sig.value = 0
 
-    def tfaw_ok(self) -> bool: return bool(int(self.dut.tfaw_window_ok_o.value))
-    def trrd_ok(self) -> bool: return bool(int(self.dut.trrd_window_ok_o.value))
+    def tfaw_ok(self, rank: int = 0) -> bool:
+        # tfaw_window_ok_o is now per-rank — bit r is high if rank r's window is open.
+        return bool((int(self.dut.tfaw_window_ok_o.value) >> rank) & 0x1)
+    def trrd_ok(self, rank: int = 0) -> bool:
+        return bool((int(self.dut.trrd_window_ok_o.value) >> rank) & 0x1)
     def twtr_ok(self) -> bool: return bool(int(self.dut.twtr_global_ok_o.value))
     def trtw_ok(self) -> bool: return bool(int(self.dut.trtw_window_ok_o.value))
 

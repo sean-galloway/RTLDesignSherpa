@@ -134,7 +134,11 @@ module command_scheduler_macro
     logic [NUM_RANKS-1:0][NUM_BANKS-1:0]                bank_row_active;
     logic [NUM_RANKS-1:0][NUM_BANKS-1:0][RW-1:0]        bank_open_row;
     bank_state_e [NUM_RANKS-1:0][NUM_BANKS-1:0]         bank_state_unused;
-    logic                                               tfaw_window_ok;
+    logic [NUM_RANKS-1:0]                               tfaw_window_ok;
+    logic [NUM_RANKS-1:0]                               trrd_window_ok_unused;
+    logic                                               twtr_global_ok_unused;
+    logic                                               trtw_window_ok_unused;
+    logic                                               tccd_window_ok_unused;
 
     logic                                               refresh_req;
     logic                                               refresh_grant;
@@ -179,7 +183,8 @@ module command_scheduler_macro
     logic [4:0]  mr_req_index_unused;
     logic [15:0] mr_req_data_unused;
     logic [3:0]  pending_refreshes_unused;
-    logic        trrd_unused, twtr_unused, trtw_unused;
+    // (legacy trrd_unused/twtr_unused/trtw_unused removed; see new
+    //  per-rank _window_ok_unused declarations above)
 
     //=========================================================================
     // FUBs
@@ -279,7 +284,17 @@ module command_scheduler_macro
         .bank_pre_ready_o   (bank_pre_ready),
         .bank_row_active_o  (bank_row_active),
         .bank_open_row_o    (bank_open_row),
-        .bank_state_o       (bank_state_unused)
+        .bank_state_o       (bank_state_unused),
+        // obs_* — collected by the macro for the eventual CSR readout
+        // mux. Tied here without consumers; harvested in the obs_*
+        // task pass after all FUBs are touched.
+        .obs_state_o        (),
+        .obs_act_cnt_nz_o   (),
+        .obs_rdwr_cnt_nz_o  (),
+        .obs_pre_cnt_nz_o   (),
+        .obs_rc_cnt_nz_o    (),
+        .obs_ras_cnt_nz_o   (),
+        .obs_ap_pending_o   ()
     );
 
     global_timers #(
@@ -292,14 +307,21 @@ module command_scheduler_macro
         .t_rrd_i          (t_rrd_i),
         .t_wtr_global_i   (t_wtr_i),
         .t_rtw_i          (t_rtp_i),
+        .t_ccd_i          (8'd4),    // typical DDR2/LPDDR2 tCCD
         .evt_act_i        (evt_act),
         .evt_act_rank_i   (evt_rank),
         .evt_rd_i         (evt_rd),
         .evt_wr_i         (evt_wr),
         .tfaw_window_ok_o (tfaw_window_ok),
-        .trrd_window_ok_o (trrd_unused),
-        .twtr_global_ok_o (twtr_unused),
-        .trtw_window_ok_o (trtw_unused)
+        .trrd_window_ok_o (trrd_window_ok_unused),
+        .twtr_global_ok_o (twtr_global_ok_unused),
+        .trtw_window_ok_o (trtw_window_ok_unused),
+        .tccd_window_ok_o (tccd_window_ok_unused),
+        .obs_faw_nz_o     (),
+        .obs_trrd_nz_o    (),
+        .obs_twtr_nz_o    (),
+        .obs_trtw_nz_o    (),
+        .obs_tccd_nz_o    ()
     );
 
     refresh_ctrl u_refresh_ctrl (
@@ -389,6 +411,7 @@ module command_scheduler_macro
                      bl_o,
                      mr_req_index_unused, mr_req_data_unused,
                      pending_refreshes_unused,
-                     trrd_unused, twtr_unused, trtw_unused };
+                     trrd_window_ok_unused, twtr_global_ok_unused,
+                     trtw_window_ok_unused, tccd_window_ok_unused };
 
 endmodule : command_scheduler_macro

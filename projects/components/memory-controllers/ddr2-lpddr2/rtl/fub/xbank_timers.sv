@@ -27,12 +27,20 @@
 //   ACTIVE     --pre-->   PRECHARGING (pre_busy=tRP)
 //   PRECHARGING --tRP-->  IDLE
 //
-// v1 (TODO):
-//   * tRC (ACT-to-ACT same bank) tracked via act_busy_cnt indirectly
-//     (act_busy >= max(tRCD, tRC-tRP)) — approximation; needs a
-//     separate counter for strict tRC enforcement.
+// v2 H — timing precision:
+//   * Adds strict tRC counter per bank — gates act_ready until at
+//     least t_rc_i cycles have elapsed since the previous ACT to the
+//     same bank.
+//   * Adds tRAS counter per bank — gates pre_ready until at least
+//     t_ras_i cycles have elapsed since the bank was activated.
+//
+// v3 (TODO):
 //   * Per-bank refresh state (BANK_REFRESHING) is set externally; this
 //     module doesn't drive it yet.
+//
+// Debug outputs (obs_*):
+//   * obs_state, obs_act_cnt_nz, obs_rdwr_cnt_nz, obs_pre_cnt_nz,
+//     obs_rc_cnt_nz, obs_ras_cnt_nz, obs_ap_pending — per-(rank,bank).
 
 `timescale 1ns / 1ps
 
@@ -78,7 +86,16 @@ module xbank_timers
     output logic [NUM_RANKS-1:0][NUM_BANKS-1:0]                  bank_pre_ready_o,
     output logic [NUM_RANKS-1:0][NUM_BANKS-1:0]                  bank_row_active_o,
     output logic [NUM_RANKS-1:0][NUM_BANKS-1:0][ROW_WIDTH-1:0]   bank_open_row_o,
-    output bank_state_e [NUM_RANKS-1:0][NUM_BANKS-1:0]           bank_state_o
+    output bank_state_e [NUM_RANKS-1:0][NUM_BANKS-1:0]           bank_state_o,
+
+    // ----- observability (debug, CSR-readable) -----
+    output bank_state_e [NUM_RANKS-1:0][NUM_BANKS-1:0]           obs_state_o,
+    output logic [NUM_RANKS-1:0][NUM_BANKS-1:0]                  obs_act_cnt_nz_o,
+    output logic [NUM_RANKS-1:0][NUM_BANKS-1:0]                  obs_rdwr_cnt_nz_o,
+    output logic [NUM_RANKS-1:0][NUM_BANKS-1:0]                  obs_pre_cnt_nz_o,
+    output logic [NUM_RANKS-1:0][NUM_BANKS-1:0]                  obs_rc_cnt_nz_o,
+    output logic [NUM_RANKS-1:0][NUM_BANKS-1:0]                  obs_ras_cnt_nz_o,
+    output logic [NUM_RANKS-1:0][NUM_BANKS-1:0]                  obs_ap_pending_o
 );
 
     //=========================================================================
@@ -88,6 +105,11 @@ module xbank_timers
     logic        [NUM_RANKS-1:0][NUM_BANKS-1:0][7:0]       r_act_cnt;
     logic        [NUM_RANKS-1:0][NUM_BANKS-1:0][7:0]       r_rdwr_cnt;
     logic        [NUM_RANKS-1:0][NUM_BANKS-1:0][7:0]       r_pre_cnt;
+    // tRC (ACT-to-ACT same bank) — loaded on ACT, must hit 0 before
+    // next ACT to same bank.
+    logic        [NUM_RANKS-1:0][NUM_BANKS-1:0][7:0]       r_rc_cnt;
+    // tRAS (ACT-to-PRE) — loaded on ACT, must hit 0 before PRE.
+    logic        [NUM_RANKS-1:0][NUM_BANKS-1:0][7:0]       r_ras_cnt;
     logic        [NUM_RANKS-1:0][NUM_BANKS-1:0][ROW_WIDTH-1:0] r_open_row;
     // r_ap_pending: this bank just issued a RDA/WRA. When the RD/WR cnt
     // expires, transition straight to PRECHARGING with t_rp_i instead of
@@ -100,6 +122,8 @@ module xbank_timers
             r_act_cnt    <= '0;
             r_rdwr_cnt   <= '0;
             r_pre_cnt    <= '0;
+            r_rc_cnt     <= '0;
+            r_ras_cnt    <= '0;
             r_open_row   <= '0;
             r_ap_pending <= '0;
         end else begin
@@ -109,6 +133,8 @@ module xbank_timers
                     if (r_act_cnt[k][b]  > 8'd0) r_act_cnt[k][b]  <= r_act_cnt[k][b]  - 8'd1;
                     if (r_rdwr_cnt[k][b] > 8'd0) r_rdwr_cnt[k][b] <= r_rdwr_cnt[k][b] - 8'd1;
                     if (r_pre_cnt[k][b]  > 8'd0) r_pre_cnt[k][b]  <= r_pre_cnt[k][b]  - 8'd1;
+                    if (r_rc_cnt[k][b]   > 8'd0) r_rc_cnt[k][b]   <= r_rc_cnt[k][b]   - 8'd1;
+                    if (r_ras_cnt[k][b]  > 8'd0) r_ras_cnt[k][b]  <= r_ras_cnt[k][b]  - 8'd1;
 
                     // 2. State transitions on counter expiry.
                     if (r_state[k][b] == BANK_ACTIVATING && r_act_cnt[k][b] == 8'd1) begin
@@ -136,6 +162,8 @@ module xbank_timers
             if (evt_act_i) begin
                 r_state     [evt_rank_i][evt_bank_i] <= BANK_ACTIVATING;
                 r_act_cnt   [evt_rank_i][evt_bank_i] <= t_rcd_i;
+                r_rc_cnt    [evt_rank_i][evt_bank_i] <= t_rc_i;   // ACT-to-ACT same bank
+                r_ras_cnt   [evt_rank_i][evt_bank_i] <= t_ras_i;  // ACT-to-PRE
                 r_open_row  [evt_rank_i][evt_bank_i] <= evt_row_i;
                 r_ap_pending[evt_rank_i][evt_bank_i] <= 1'b0;
             end
@@ -172,13 +200,17 @@ module xbank_timers
     always_comb begin
         for (int unsigned k = 0; k < NUM_RANKS; k++) begin
             for (int unsigned b = 0; b < NUM_BANKS; b++) begin
+                // act_ready gated on tRC counter (strict ACT-to-ACT same bank).
                 w_act_ready [k][b] = (r_state[k][b] == BANK_IDLE)
-                                  && (r_pre_cnt[k][b] == 8'd0);
+                                  && (r_pre_cnt[k][b] == 8'd0)
+                                  && (r_rc_cnt[k][b]  == 8'd0);
                 w_rdwr_ready[k][b] = (r_state[k][b] == BANK_ACTIVE)
                                   && (r_act_cnt[k][b]  == 8'd0)
                                   && (r_rdwr_cnt[k][b] == 8'd0);
+                // pre_ready gated on tRAS counter (strict ACT-to-PRE).
                 w_pre_ready [k][b] = (r_state[k][b] == BANK_ACTIVE)
-                                  && (r_rdwr_cnt[k][b] == 8'd0);
+                                  && (r_rdwr_cnt[k][b] == 8'd0)
+                                  && (r_ras_cnt[k][b]  == 8'd0);
                 w_row_active[k][b] = (r_state[k][b] == BANK_ACTIVE)
                                   || (r_state[k][b] == BANK_RD_BUSY)
                                   || (r_state[k][b] == BANK_WR_BUSY);
@@ -207,6 +239,24 @@ module xbank_timers
         end
     end)
 
-    wire unused_v1 = |{ t_ras_i, t_rc_i, t_wtr_i };
+    //=========================================================================
+    // Observability outputs (debug) — combinational, but the consumers
+    // typically register at the CSR slave so timing is fine.
+    //=========================================================================
+    always_comb begin
+        for (int unsigned k = 0; k < NUM_RANKS; k++) begin
+            for (int unsigned b = 0; b < NUM_BANKS; b++) begin
+                obs_state_o      [k][b] = r_state    [k][b];
+                obs_act_cnt_nz_o [k][b] = (r_act_cnt [k][b] != 8'd0);
+                obs_rdwr_cnt_nz_o[k][b] = (r_rdwr_cnt[k][b] != 8'd0);
+                obs_pre_cnt_nz_o [k][b] = (r_pre_cnt [k][b] != 8'd0);
+                obs_rc_cnt_nz_o  [k][b] = (r_rc_cnt  [k][b] != 8'd0);
+                obs_ras_cnt_nz_o [k][b] = (r_ras_cnt [k][b] != 8'd0);
+                obs_ap_pending_o [k][b] = r_ap_pending[k][b];
+            end
+        end
+    end
+
+    wire unused_v2 = |{ t_wtr_i };
 
 endmodule : xbank_timers

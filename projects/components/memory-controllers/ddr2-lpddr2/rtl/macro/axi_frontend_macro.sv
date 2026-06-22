@@ -378,7 +378,10 @@ module axi_frontend_macro
         .wbuf_ext_rd_ptr_i          (beat_pull_ptr_o),
         .wbuf_ext_rd_data_o         (wbuf_ext_rd_data_o),
         .wbuf_ext_rd_strb_o         (wbuf_ext_rd_strb_o),
-        .busy_o                     (dbg_intake_busy_o)
+        .busy_o                     (dbg_intake_busy_o),
+        // obs_* — harvested for CSR in the obs_* pass
+        .obs_wr_completions_o       (),
+        .obs_rd_completions_o       ()
     );
 
     //=========================================================================
