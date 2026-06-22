@@ -24,6 +24,8 @@ _DV_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), "../.."))
 if _DV_DIR not in sys.path:
     sys.path.insert(0, _DV_DIR)
 
+from tbclasses.trackers import SchedulerTracker  # noqa: E402
+
 
 # dram_op_e values
 OP_NOP  = 0x0
@@ -124,6 +126,13 @@ class SchedTB(TBBase):
 async def cocotb_test_scheduler(dut):
     test_type = os.environ.get("TEST_TYPE", "smoke_wr")
     tb = SchedTB(dut)
+
+    # Attach the scheduler tracker. It auto-writes <sim_build_dir>/sched.out
+    # at end of simulation (via atexit) so we can grep the command stream
+    # after the test. Other trackers' signals don't exist on this DUT, so
+    # only SchedulerTracker is wired here.
+    sched_tracker = SchedulerTracker(dut)
+    cocotb.start_soon(sched_tracker.run())
 
     if test_type == "smoke_wr":
         # Outputs are registered (+1 cycle vs the internal FSM state).
