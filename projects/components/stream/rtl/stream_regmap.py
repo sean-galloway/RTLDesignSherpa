@@ -20,7 +20,7 @@ CocoTBFramework RegisterMap class.
 
 Address Space:
   0x000-0x03F: Channel kick-off registers (apbtodescr.sv)
-  0x100-0x2F8: Configuration and status (stream_regs.rdl)
+  0x100-0x380: Configuration and status (stream_regs.rdl)
 
 Usage:
     from stream_regmap import top_block
@@ -511,6 +511,196 @@ top_block = {
         'sw': 'r', 'name': 'DAXMON_PERF_BURST_COUNT',
         'VAL': {'offset': '31:0', 'default': '0x0', 'sw': 'r', 'type': 'field'}
     },
+
+    # =========================================================================
+    # Read Datapath Monitor Performance Window (0x300 - 0x328)
+    # =========================================================================
+    # RFC Stage E option 2 (CSR route). Same RUN-bit protocol as DAXMON_PERF.
+    # In-core replacement for the FPGA-char read-side axi_bus_meter; buckets
+    # measure the data-read R bus.
+    'RDMON_PERF_CTRL': {
+        'address': '0x300', 'default': '0x00000000', 'type': 'reg', 'size': 4,
+        'sw': 'rw', 'name': 'RDMON_PERF_CTRL',
+        'RUN': {'offset': '0', 'default': '0x0', 'sw': 'rw', 'type': 'field'}
+    },
+    'RDMON_PERF_STATUS': {
+        'address': '0x304', 'default': '0x00000000', 'type': 'reg', 'size': 4,
+        'sw': 'r', 'name': 'RDMON_PERF_STATUS',
+        'WIN_ACTIVE': {'offset': '0', 'default': '0x0', 'sw': 'r', 'type': 'field'}
+    },
+    'RDMON_PERF_WINDOW_CYCLES': {
+        'address': '0x308', 'default': '0x00000000', 'type': 'reg', 'size': 4,
+        'sw': 'r', 'name': 'RDMON_PERF_WINDOW_CYCLES',
+        'VAL': {'offset': '31:0', 'default': '0x0', 'sw': 'r', 'type': 'field'}
+    },
+    'RDMON_PERF_PROD_CYCLES': {
+        'address': '0x30C', 'default': '0x00000000', 'type': 'reg', 'size': 4,
+        'sw': 'r', 'name': 'RDMON_PERF_PROD_CYCLES',
+        'VAL': {'offset': '31:0', 'default': '0x0', 'sw': 'r', 'type': 'field'}
+    },
+    'RDMON_PERF_BP_CYCLES': {
+        'address': '0x310', 'default': '0x00000000', 'type': 'reg', 'size': 4,
+        'sw': 'r', 'name': 'RDMON_PERF_BP_CYCLES',
+        'VAL': {'offset': '31:0', 'default': '0x0', 'sw': 'r', 'type': 'field'}
+    },
+    'RDMON_PERF_STARV_CYCLES': {
+        'address': '0x314', 'default': '0x00000000', 'type': 'reg', 'size': 4,
+        'sw': 'r', 'name': 'RDMON_PERF_STARV_CYCLES',
+        'VAL': {'offset': '31:0', 'default': '0x0', 'sw': 'r', 'type': 'field'}
+    },
+    'RDMON_PERF_IDLE_CYCLES': {
+        'address': '0x318', 'default': '0x00000000', 'type': 'reg', 'size': 4,
+        'sw': 'r', 'name': 'RDMON_PERF_IDLE_CYCLES',
+        'VAL': {'offset': '31:0', 'default': '0x0', 'sw': 'r', 'type': 'field'}
+    },
+    'RDMON_PERF_BEAT_COUNT': {
+        'address': '0x31C', 'default': '0x00000000', 'type': 'reg', 'size': 4,
+        'sw': 'r', 'name': 'RDMON_PERF_BEAT_COUNT',
+        'VAL': {'offset': '31:0', 'default': '0x0', 'sw': 'r', 'type': 'field'}
+    },
+    'RDMON_PERF_BYTE_COUNT_LO': {
+        'address': '0x320', 'default': '0x00000000', 'type': 'reg', 'size': 4,
+        'sw': 'r', 'name': 'RDMON_PERF_BYTE_COUNT_LO',
+        'VAL': {'offset': '31:0', 'default': '0x0', 'sw': 'r', 'type': 'field'}
+    },
+    'RDMON_PERF_BYTE_COUNT_HI': {
+        'address': '0x324', 'default': '0x00000000', 'type': 'reg', 'size': 4,
+        'sw': 'r', 'name': 'RDMON_PERF_BYTE_COUNT_HI',
+        'VAL': {'offset': '31:0', 'default': '0x0', 'sw': 'r', 'type': 'field'}
+    },
+    'RDMON_PERF_BURST_COUNT': {
+        'address': '0x328', 'default': '0x00000000', 'type': 'reg', 'size': 4,
+        'sw': 'r', 'name': 'RDMON_PERF_BURST_COUNT',
+        'VAL': {'offset': '31:0', 'default': '0x0', 'sw': 'r', 'type': 'field'}
+    },
+
+    # =========================================================================
+    # Write Datapath Monitor Performance Window (0x330 - 0x358)
+    # =========================================================================
+    # RFC Stage E option 2 (CSR route). In-core replacement for the FPGA-char
+    # write-side axi_bus_meter; buckets measure the data-write W bus.
+    'WRMON_PERF_CTRL': {
+        'address': '0x330', 'default': '0x00000000', 'type': 'reg', 'size': 4,
+        'sw': 'rw', 'name': 'WRMON_PERF_CTRL',
+        'RUN': {'offset': '0', 'default': '0x0', 'sw': 'rw', 'type': 'field'}
+    },
+    'WRMON_PERF_STATUS': {
+        'address': '0x334', 'default': '0x00000000', 'type': 'reg', 'size': 4,
+        'sw': 'r', 'name': 'WRMON_PERF_STATUS',
+        'WIN_ACTIVE': {'offset': '0', 'default': '0x0', 'sw': 'r', 'type': 'field'}
+    },
+    'WRMON_PERF_WINDOW_CYCLES': {
+        'address': '0x338', 'default': '0x00000000', 'type': 'reg', 'size': 4,
+        'sw': 'r', 'name': 'WRMON_PERF_WINDOW_CYCLES',
+        'VAL': {'offset': '31:0', 'default': '0x0', 'sw': 'r', 'type': 'field'}
+    },
+    'WRMON_PERF_PROD_CYCLES': {
+        'address': '0x33C', 'default': '0x00000000', 'type': 'reg', 'size': 4,
+        'sw': 'r', 'name': 'WRMON_PERF_PROD_CYCLES',
+        'VAL': {'offset': '31:0', 'default': '0x0', 'sw': 'r', 'type': 'field'}
+    },
+    'WRMON_PERF_BP_CYCLES': {
+        'address': '0x340', 'default': '0x00000000', 'type': 'reg', 'size': 4,
+        'sw': 'r', 'name': 'WRMON_PERF_BP_CYCLES',
+        'VAL': {'offset': '31:0', 'default': '0x0', 'sw': 'r', 'type': 'field'}
+    },
+    'WRMON_PERF_STARV_CYCLES': {
+        'address': '0x344', 'default': '0x00000000', 'type': 'reg', 'size': 4,
+        'sw': 'r', 'name': 'WRMON_PERF_STARV_CYCLES',
+        'VAL': {'offset': '31:0', 'default': '0x0', 'sw': 'r', 'type': 'field'}
+    },
+    'WRMON_PERF_IDLE_CYCLES': {
+        'address': '0x348', 'default': '0x00000000', 'type': 'reg', 'size': 4,
+        'sw': 'r', 'name': 'WRMON_PERF_IDLE_CYCLES',
+        'VAL': {'offset': '31:0', 'default': '0x0', 'sw': 'r', 'type': 'field'}
+    },
+    'WRMON_PERF_BEAT_COUNT': {
+        'address': '0x34C', 'default': '0x00000000', 'type': 'reg', 'size': 4,
+        'sw': 'r', 'name': 'WRMON_PERF_BEAT_COUNT',
+        'VAL': {'offset': '31:0', 'default': '0x0', 'sw': 'r', 'type': 'field'}
+    },
+    'WRMON_PERF_BYTE_COUNT_LO': {
+        'address': '0x350', 'default': '0x00000000', 'type': 'reg', 'size': 4,
+        'sw': 'r', 'name': 'WRMON_PERF_BYTE_COUNT_LO',
+        'VAL': {'offset': '31:0', 'default': '0x0', 'sw': 'r', 'type': 'field'}
+    },
+    'WRMON_PERF_BYTE_COUNT_HI': {
+        'address': '0x354', 'default': '0x00000000', 'type': 'reg', 'size': 4,
+        'sw': 'r', 'name': 'WRMON_PERF_BYTE_COUNT_HI',
+        'VAL': {'offset': '31:0', 'default': '0x0', 'sw': 'r', 'type': 'field'}
+    },
+    'WRMON_PERF_BURST_COUNT': {
+        'address': '0x358', 'default': '0x00000000', 'type': 'reg', 'size': 4,
+        'sw': 'r', 'name': 'WRMON_PERF_BURST_COUNT',
+        'VAL': {'offset': '31:0', 'default': '0x0', 'sw': 'r', 'type': 'field'}
+    },
+
+    # =========================================================================
+    # Per-Channel Datapath Perf Buckets (RFC Stage C, indexed readout, 0x35C-0x374)
+    # =========================================================================
+    # Select a channel with PERF_CH_SEL.CH_SEL, then read its 4 buckets from the
+    # packed RD/WRMON_PERF_CH_* regs ({bp,prod}/{idle,starv}, 16-bit each --
+    # identical packing to the FPGA-char harness meter). Overflow masks expose
+    # all channels at once ({prod,bp,starv,idle} sticky per channel).
+    'PERF_CH_SEL': {
+        'address': '0x35C', 'default': '0x00000000', 'type': 'reg', 'size': 4,
+        'sw': 'rw', 'name': 'PERF_CH_SEL',
+        'CH_SEL': {'offset': '2:0', 'default': '0x0', 'sw': 'rw', 'type': 'field'}
+    },
+    'RDMON_PERF_CH_PROD_BP': {
+        'address': '0x360', 'default': '0x00000000', 'type': 'reg', 'size': 4,
+        'sw': 'r', 'name': 'RDMON_PERF_CH_PROD_BP',
+        'VAL': {'offset': '31:0', 'default': '0x0', 'sw': 'r', 'type': 'field'}
+    },
+    'RDMON_PERF_CH_STARV_IDLE': {
+        'address': '0x364', 'default': '0x00000000', 'type': 'reg', 'size': 4,
+        'sw': 'r', 'name': 'RDMON_PERF_CH_STARV_IDLE',
+        'VAL': {'offset': '31:0', 'default': '0x0', 'sw': 'r', 'type': 'field'}
+    },
+    'WRMON_PERF_CH_PROD_BP': {
+        'address': '0x368', 'default': '0x00000000', 'type': 'reg', 'size': 4,
+        'sw': 'r', 'name': 'WRMON_PERF_CH_PROD_BP',
+        'VAL': {'offset': '31:0', 'default': '0x0', 'sw': 'r', 'type': 'field'}
+    },
+    'WRMON_PERF_CH_STARV_IDLE': {
+        'address': '0x36C', 'default': '0x00000000', 'type': 'reg', 'size': 4,
+        'sw': 'r', 'name': 'WRMON_PERF_CH_STARV_IDLE',
+        'VAL': {'offset': '31:0', 'default': '0x0', 'sw': 'r', 'type': 'field'}
+    },
+    'RDMON_PERF_CH_OVERFLOW': {
+        'address': '0x370', 'default': '0x00000000', 'type': 'reg', 'size': 4,
+        'sw': 'r', 'name': 'RDMON_PERF_CH_OVERFLOW',
+        'VAL': {'offset': '31:0', 'default': '0x0', 'sw': 'r', 'type': 'field'}
+    },
+    'WRMON_PERF_CH_OVERFLOW': {
+        'address': '0x374', 'default': '0x00000000', 'type': 'reg', 'size': 4,
+        'sw': 'r', 'name': 'WRMON_PERF_CH_OVERFLOW',
+        'VAL': {'offset': '31:0', 'default': '0x0', 'sw': 'r', 'type': 'field'}
+    },
+
+    # =========================================================================
+    # Datapath Latency Histograms (RFC Stage D, indexed readout, 0x378-0x380)
+    # =========================================================================
+    # Write HIST_SEL {BUS[0], METRIC[1], BIN[5:2]}, then read HIST_DATA (that
+    # bin's transaction count) and HIST_TOTAL (the bus+metric total = sum over
+    # bins = burst/transaction count). 16 log2 bins per metric.
+    'HIST_SEL': {
+        'address': '0x378', 'default': '0x00000000', 'type': 'reg', 'size': 4,
+        'sw': 'rw', 'name': 'HIST_SEL',
+        'BUS': {'offset': '0', 'default': '0x0', 'sw': 'rw', 'type': 'field'},
+        'METRIC': {'offset': '1', 'default': '0x0', 'sw': 'rw', 'type': 'field'},
+        'BIN': {'offset': '5:2', 'default': '0x0', 'sw': 'rw', 'type': 'field'}
+    },
+    'HIST_DATA': {
+        'address': '0x37C', 'default': '0x00000000', 'type': 'reg', 'size': 4,
+        'sw': 'r', 'name': 'HIST_DATA',
+        'VAL': {'offset': '31:0', 'default': '0x0', 'sw': 'r', 'type': 'field'}
+    },
+    'HIST_TOTAL': {
+        'address': '0x380', 'default': '0x00000000', 'type': 'reg', 'size': 4,
+        'sw': 'r', 'name': 'HIST_TOTAL',
+        'VAL': {'offset': '31:0', 'default': '0x0', 'sw': 'r', 'type': 'field'}
+    },
 }
 
 
@@ -569,3 +759,43 @@ ADDR_DAXMON_PERF_BEAT_COUNT = 0x2EC
 ADDR_DAXMON_PERF_BYTE_COUNT_LO = 0x2F0
 ADDR_DAXMON_PERF_BYTE_COUNT_HI = 0x2F4
 ADDR_DAXMON_PERF_BURST_COUNT = 0x2F8
+
+# Read Datapath Monitor Performance Window (RFC Stage E option 2, CSR route)
+ADDR_RDMON_PERF_CTRL = 0x300
+ADDR_RDMON_PERF_STATUS = 0x304
+ADDR_RDMON_PERF_WINDOW_CYCLES = 0x308
+ADDR_RDMON_PERF_PROD_CYCLES = 0x30C
+ADDR_RDMON_PERF_BP_CYCLES = 0x310
+ADDR_RDMON_PERF_STARV_CYCLES = 0x314
+ADDR_RDMON_PERF_IDLE_CYCLES = 0x318
+ADDR_RDMON_PERF_BEAT_COUNT = 0x31C
+ADDR_RDMON_PERF_BYTE_COUNT_LO = 0x320
+ADDR_RDMON_PERF_BYTE_COUNT_HI = 0x324
+ADDR_RDMON_PERF_BURST_COUNT = 0x328
+
+# Write Datapath Monitor Performance Window (RFC Stage E option 2, CSR route)
+ADDR_WRMON_PERF_CTRL = 0x330
+ADDR_WRMON_PERF_STATUS = 0x334
+ADDR_WRMON_PERF_WINDOW_CYCLES = 0x338
+ADDR_WRMON_PERF_PROD_CYCLES = 0x33C
+ADDR_WRMON_PERF_BP_CYCLES = 0x340
+ADDR_WRMON_PERF_STARV_CYCLES = 0x344
+ADDR_WRMON_PERF_IDLE_CYCLES = 0x348
+ADDR_WRMON_PERF_BEAT_COUNT = 0x34C
+ADDR_WRMON_PERF_BYTE_COUNT_LO = 0x350
+ADDR_WRMON_PERF_BYTE_COUNT_HI = 0x354
+ADDR_WRMON_PERF_BURST_COUNT = 0x358
+
+# Per-Channel Datapath Perf Buckets (RFC Stage C, indexed readout)
+ADDR_PERF_CH_SEL = 0x35C
+ADDR_RDMON_PERF_CH_PROD_BP = 0x360
+ADDR_RDMON_PERF_CH_STARV_IDLE = 0x364
+ADDR_WRMON_PERF_CH_PROD_BP = 0x368
+ADDR_WRMON_PERF_CH_STARV_IDLE = 0x36C
+ADDR_RDMON_PERF_CH_OVERFLOW = 0x370
+ADDR_WRMON_PERF_CH_OVERFLOW = 0x374
+
+# Datapath Latency Histograms (RFC Stage D, indexed readout)
+ADDR_HIST_SEL = 0x378
+ADDR_HIST_DATA = 0x37C
+ADDR_HIST_TOTAL = 0x380

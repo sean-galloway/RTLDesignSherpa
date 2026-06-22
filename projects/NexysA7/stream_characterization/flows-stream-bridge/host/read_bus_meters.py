@@ -3,42 +3,34 @@
 # SPDX-FileCopyrightText: 2024-2025 sean galloway
 #
 # Module: read_bus_meters
-# Purpose: UART-side reader for stream_char's axi_bus_meter CSRs.
+# Purpose: Compatibility shim -- reads the IN-CORE STREAM datapath perf monitors
+#          and presents them through the legacy axi_bus_meter API.
 #
-# After a characterization run, the host calls into this script (or imports
-# read_bus_meters() directly) to:
-#   1. Read the R-meter and W-meter aggregate counters (4 buckets each)
-#   2. Read all per-channel counters (4 buckets x NUM_CHANNELS each)
-#   3. Read the per-channel overflow mask (sticky bits for 16-bit wraparound)
-#   4. Compute and print:
-#       - Aggregate datapath utilization (per methodology doc Section 2.1)
-#       - 4-bucket cycle breakdown (productive/backpressure/starvation/idle)
-#       - Per-channel productive/backpressure split with overflow flagging
+# RFC Stage E option 2 (Stage E.4) retired the harness-side axi_bus_meter blocks
+# (their CSRs at HARNESS_CSR_BASE + 0x100 / 0x180 were removed). Datapath
+# utilization is now measured IN-CORE by stream_core's RDMON/WRMON perf monitors
+# + per-channel axi_bus_meter, surfaced through the STREAM regblock perf CSRs.
 #
-# All cycle counts are in aclk cycles (10 ns at 100 MHz). Aggregate
-# counters are 32-bit; they accumulate for 42.9 s before wrapping. Per-
-# channel counters are 16-bit; they wrap at 655 us. The overflow mask
-# in the CSR records exactly which (channel, bucket) pairs wrapped.
+# This module keeps the historical read_meter()/read_bus_meters() interface
+# (and the BucketCounts / ChannelBuckets / MeterSnapshot dataclasses) so callers
+# like run_characterization.py keep working -- it just sources the numbers from
+# the in-core CSRs (via read_rw_perf) instead of the deleted harness meters.
 #
-# The meter CSRs live in harness_csr at:
-#   R-meter:  HARNESS_CSR_BASE + 0x100
-#   W-meter:  HARNESS_CSR_BASE + 0x180
-# See projects/NexysA7/stream_characterization/stream_char_framework/rtl/
-# harness_csr.sv (top-of-file docblock) for the per-meter offset map.
+# Window control: the in-core monitor accumulates while RDMON/WRMON_PERF_CTRL.RUN
+# is 1. The caller opens the window before the workload and closes it right after
+# completion (open_windows/close_windows are re-exported from read_rw_perf). The
+# aggregate buckets are 32-bit; per-channel are 16-bit with a sticky overflow
+# mask, exactly as the legacy meter.
 
 import argparse
 import os
 import sys
-import time
 from dataclasses import dataclass
 from typing import List
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, HERE)
 
-# Also add converters/bin so `from uart_axi_bridge import UARTAxiBridge`
-# resolves in main(). Mirror what dump_monbus_sram.py does -- walk up
-# until we find the repo root (the dir with a .git child).
 _repo_root = os.environ.get("REPO_ROOT")
 if not _repo_root:
     _cand = HERE
@@ -49,24 +41,22 @@ if not _repo_root:
 if _repo_root:
     sys.path.insert(0, os.path.join(_repo_root, "projects/components/converters/bin"))
 
-from descriptor_builder import HARNESS_CSR_BASE  # noqa: E402
+# In-core CSR offsets (STREAM regblock; mirror stream_regmap.py). RDMON_PERF and
+# WRMON_PERF aggregate buckets are 32-bit separate registers; per-channel is read
+# via the PERF_CH_SEL indexed mechanism.
+from read_rw_perf import (  # noqa: E402
+    RDMON_PERF_BASE, WRMON_PERF_BASE,
+    OFF_PROD_CYCLES, OFF_BP_CYCLES, OFF_STARV_CYCLES, OFF_IDLE_CYCLES,
+    PERF_CH_SEL, RDMON_PERF_CH_PROD_BP, RDMON_PERF_CH_STARV_IDLE,
+    WRMON_PERF_CH_PROD_BP, WRMON_PERF_CH_STARV_IDLE,
+    RDMON_PERF_CH_OVERFLOW, WRMON_PERF_CH_OVERFLOW,
+    open_windows, close_windows,  # re-exported so the sweep can bracket the run
+)
 
-
-# ---------------------------------------------------------------------------
-# CSR offsets within a single meter block. R-meter base = HARNESS_CSR_BASE +
-# 0x100; W-meter base = HARNESS_CSR_BASE + 0x180.
-# ---------------------------------------------------------------------------
-
-OFF_AGG_PRODUCTIVE   = 0x00
-OFF_AGG_BACKPRESSURE = 0x04
-OFF_AGG_STARVATION   = 0x08
-OFF_AGG_IDLE         = 0x0C
-OFF_CH_OVERFLOW      = 0x10
-OFF_CH_PROD_BP_BASE  = 0x20  # +4*ch -> {bp[15:0], productive[15:0]}
-OFF_CH_STARV_IDLE_BASE = 0x40  # +4*ch -> {idle[15:0], starvation[15:0]}
-
-R_METER_BASE = HARNESS_CSR_BASE + 0x100
-W_METER_BASE = HARNESS_CSR_BASE + 0x180
+# Legacy sentinels. run_characterization passes these to read_meter(); they now
+# select the in-core bus rather than a harness CSR base address.
+R_METER_BASE = 'R'
+W_METER_BASE = 'W'
 
 
 @dataclass(frozen=True)
@@ -82,9 +72,9 @@ class BucketCounts:
 
     @property
     def datapath_utilization(self) -> float:
-        """Productive cycles divided by (productive + backpressure + starvation
-        + idle), i.e. the fraction of measurement-window cycles that delivered
-        data. Returns 0 if the meter saw no cycles at all (window not open)."""
+        """Productive / (productive + backpressure + starvation + idle): the
+        fraction of in-window cycles that delivered data. 0 if the window saw
+        no cycles (never opened)."""
         t = self.total
         return self.productive / t if t > 0 else 0.0
 
@@ -92,11 +82,7 @@ class BucketCounts:
 @dataclass(frozen=True)
 class ChannelBuckets(BucketCounts):
     channel: int
-    overflow: int  # 4-bit mask {prod, bp, starv, idle}; bit set = wrapped
-
-    @property
-    def any_overflow(self) -> bool:
-        return self.overflow != 0
+    overflow: int  # 4-bit mask {prod, bp, starv, idle}; bit set = 16-bit wrap
 
 
 @dataclass(frozen=True)
@@ -107,45 +93,45 @@ class MeterSnapshot:
 
 
 # ---------------------------------------------------------------------------
-# Reader
+# Reader (in-core CSRs, legacy API)
 # ---------------------------------------------------------------------------
 
-def read_meter(bridge, meter_base: int, num_channels: int, name: str) -> MeterSnapshot:
-    """Read one meter (R or W) from a UARTAxiBridge-like object.
+def read_meter(bridge, which: str, num_channels: int, name: str) -> MeterSnapshot:
+    """Read one in-core datapath monitor (R or W) and present it as a legacy
+    MeterSnapshot. `which` is R_METER_BASE ('R') or W_METER_BASE ('W')."""
+    is_read = (which == R_METER_BASE) or (name.upper().startswith('R'))
+    agg_base = RDMON_PERF_BASE if is_read else WRMON_PERF_BASE
+    ch_prod_bp    = RDMON_PERF_CH_PROD_BP    if is_read else WRMON_PERF_CH_PROD_BP
+    ch_starv_idle = RDMON_PERF_CH_STARV_IDLE if is_read else WRMON_PERF_CH_STARV_IDLE
+    ch_overflow   = RDMON_PERF_CH_OVERFLOW   if is_read else WRMON_PERF_CH_OVERFLOW
 
-    `bridge.read(addr)` must return a 32-bit int (UARTAxiBridge.read's
-    signature). The function performs 5 + 2*num_channels reads.
-    """
+    r = lambda a: bridge.read(a) & 0xFFFF_FFFF
     agg = BucketCounts(
-        productive   = bridge.read(meter_base + OFF_AGG_PRODUCTIVE),
-        backpressure = bridge.read(meter_base + OFF_AGG_BACKPRESSURE),
-        starvation   = bridge.read(meter_base + OFF_AGG_STARVATION),
-        idle         = bridge.read(meter_base + OFF_AGG_IDLE),
+        productive   = r(agg_base + OFF_PROD_CYCLES),
+        backpressure = r(agg_base + OFF_BP_CYCLES),
+        starvation   = r(agg_base + OFF_STARV_CYCLES),
+        idle         = r(agg_base + OFF_IDLE_CYCLES),
     )
-    ovf_word = bridge.read(meter_base + OFF_CH_OVERFLOW)
+    ovf_word = r(ch_overflow)
 
     per_channel: List[ChannelBuckets] = []
     for ch in range(num_channels):
-        pb = bridge.read(meter_base + OFF_CH_PROD_BP_BASE + 4 * ch)
-        si = bridge.read(meter_base + OFF_CH_STARV_IDLE_BASE + 4 * ch)
-        prod  = pb & 0xFFFF
-        bp    = (pb >> 16) & 0xFFFF
-        starv = si & 0xFFFF
-        idle  = (si >> 16) & 0xFFFF
-        ch_ovf = (ovf_word >> (4 * ch)) & 0xF
+        bridge.write(PERF_CH_SEL, ch)
+        pb = r(ch_prod_bp)
+        si = r(ch_starv_idle)
         per_channel.append(ChannelBuckets(
             channel=ch,
-            productive=prod, backpressure=bp,
-            starvation=starv, idle=idle,
-            overflow=ch_ovf,
+            productive=pb & 0xFFFF,
+            backpressure=(pb >> 16) & 0xFFFF,
+            starvation=si & 0xFFFF,
+            idle=(si >> 16) & 0xFFFF,
+            overflow=(ovf_word >> (4 * ch)) & 0xF,
         ))
-
     return MeterSnapshot(name=name, aggregate=agg, per_channel=per_channel)
 
 
 def read_bus_meters(bridge, num_channels: int) -> dict:
-    """Read both R-meter and W-meter, return {'r': MeterSnapshot, 'w': MeterSnapshot}.
-    Pure data; formatting is up to the caller."""
+    """Read both R and W in-core monitors -> {'r': MeterSnapshot, 'w': ...}."""
     return {
         'r': read_meter(bridge, R_METER_BASE, num_channels, 'R'),
         'w': read_meter(bridge, W_METER_BASE, num_channels, 'W'),
@@ -153,7 +139,7 @@ def read_bus_meters(bridge, num_channels: int) -> dict:
 
 
 # ---------------------------------------------------------------------------
-# Pretty-printing
+# Pretty-printing (unchanged)
 # ---------------------------------------------------------------------------
 
 def _format_pct(num: int, den: int) -> str:
@@ -163,9 +149,8 @@ def _format_pct(num: int, den: int) -> str:
 
 
 def format_meter(snap: MeterSnapshot, file=sys.stdout) -> None:
-    """Render one meter snapshot in human-readable form."""
     agg = snap.aggregate
-    print(f"=== {snap.name}-bus meter ===", file=file)
+    print(f"=== {snap.name}-bus monitor (in-core) ===", file=file)
     print(f"  Aggregate over {agg.total} cycles "
           f"(~{agg.total * 10e-9 * 1e6:.1f} us at 100 MHz):", file=file)
     print(f"    productive     {agg.productive:>10d}  ({_format_pct(agg.productive, agg.total)})", file=file)
@@ -178,9 +163,9 @@ def format_meter(snap: MeterSnapshot, file=sys.stdout) -> None:
     print(f"  Per-channel breakdown:", file=file)
     print(f"    ch  prod   bp    starv idle  overflow", file=file)
     for c in snap.per_channel:
-        ovf_flag = "*" if c.any_overflow else " "
+        ovf_flag = "*" if c.overflow else " "
         ovf_decode = ""
-        if c.any_overflow:
+        if c.overflow:
             ovf_bits = []
             if c.overflow & 0b1000: ovf_bits.append("PROD")
             if c.overflow & 0b0100: ovf_bits.append("BP")
@@ -192,30 +177,29 @@ def format_meter(snap: MeterSnapshot, file=sys.stdout) -> None:
 
 
 def format_snapshot(snaps: dict, file=sys.stdout) -> None:
-    """Pretty-print the {'r', 'w'} dict returned by read_bus_meters()."""
     format_meter(snaps['r'], file=file)
     print("", file=file)
     format_meter(snaps['w'], file=file)
 
 
-# ---------------------------------------------------------------------------
-# CLI entry point
-# ---------------------------------------------------------------------------
-
 def main(argv=None) -> int:
     p = argparse.ArgumentParser(
-        description="Read stream_char's axi_bus_meter CSRs via UART AXIL "
-                    "bridge, decode, and print aggregate + per-channel "
-                    "utilization."
+        description="Read the STREAM in-core datapath perf monitors via UART "
+                    "AXIL bridge (legacy axi_bus_meter-compatible view; RFC "
+                    "Stage E option 2)."
     )
     p.add_argument("--port", required=True, help="UART device path, e.g. /dev/ttyUSB1")
     p.add_argument("--baud", type=int, default=115200)
     p.add_argument("--channels", type=int, default=8,
                    help="NUM_CHANNELS the bitfile was built with (default 8)")
+    p.add_argument("--close", action="store_true",
+                   help="freeze the windows (RUN=0) before reading")
     args = p.parse_args(argv)
 
     from uart_axi_bridge import UARTAxiBridge  # noqa: E402
     with UARTAxiBridge(port=args.port, baudrate=args.baud) as bridge:
+        if args.close:
+            close_windows(bridge)
         snaps = read_bus_meters(bridge, args.channels)
     format_snapshot(snaps)
     return 0

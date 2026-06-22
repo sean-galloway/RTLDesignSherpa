@@ -120,11 +120,9 @@ CSR_TIMER_W_FIRST_HI    = HARNESS_CSR_BASE + 0x54
 CSR_TIMER_W_LAST_LO     = HARNESS_CSR_BASE + 0x58
 CSR_TIMER_W_LAST_HI     = HARNESS_CSR_BASE + 0x5C
 
-# axi_bus_meter readback bases (R = 0x100, W = 0x180); per-meter offsets
-# match read_bus_meters.py's OFF_* constants -- see that module for the
-# full per-(channel,bucket) map.
-CSR_RD_METER_BASE       = HARNESS_CSR_BASE + 0x100
-CSR_WR_METER_BASE       = HARNESS_CSR_BASE + 0x180
+# (The harness axi_bus_meter readback bases at HARNESS_CSR_BASE + 0x100 / 0x180
+#  were retired in RFC Stage E.4 -- datapath utilization is now read in-core via
+#  the read_bus_meters shim over the STREAM perf CSRs.)
 
 # Engine data width in BYTES per beat. The DMA's AXI bus is 128 bits wide
 # (DATA_WIDTH parameter in stream_top_ch8 / stream_char_top), so each
@@ -429,7 +427,14 @@ class CharacterizationRunner:
         return ((hi & 0xFFFF_FFFF) << 32) | (lo & 0xFFFF_FFFF)
 
     def read_run_metrics(self, num_channels: int) -> dict:
-        """Snapshot timer + bus meter state at the moment 'done' fired.
+        """Snapshot timer + in-core datapath monitor state after the run.
+
+        Sources the datapath buckets from the in-core STREAM perf monitors
+        (RFC Stage E option 2) via the read_bus_meters compatibility shim --
+        the legacy harness axi_bus_meter was retired in Stage E.4. The perf
+        windows were opened before the kick and closed the instant the workload
+        completed (see run_config), so the in-core bucket sum brackets the burst
+        and, for real workloads, matches the harness timer's first/last span.
 
         Computes the methodology-doc primitives:
 
@@ -473,7 +478,8 @@ class CharacterizationRunner:
         w_last  = self._read64(self.bridge,
                                CSR_TIMER_W_LAST_LO,  CSR_TIMER_W_LAST_HI)
 
-        # Bus meter snapshots (aggregate + per-channel for both sides).
+        # In-core monitor snapshots (aggregate + per-channel for both sides),
+        # read through the legacy meter-compatible shim.
         rd_meter = read_meter(self.bridge, R_METER_BASE, num_channels, 'R')
         wr_meter = read_meter(self.bridge, W_METER_BASE, num_channels, 'W')
 
@@ -483,14 +489,13 @@ class CharacterizationRunner:
         r_firstlast = (r_last - r_first + 1) if r_last >= r_first and r_last > 0 else 0
         w_firstlast = (w_last - w_first + 1) if w_last >= w_first and w_last > 0 else 0
 
-        # Meter window = sum of all four buckets. With i_freeze gated on
-        # !timer_running, the meter only ticks during the harness timer's
-        # active window (first descriptor AR -> beat count reached). The
-        # bucket sum is then exactly the timer window, so dividing the
-        # productive count by it yields the methodology datapath number
-        # without needing to read TIMER_CYCLES separately. Falls back to
-        # the first/last span if the bucket sum is zero (e.g. a workload
-        # that never produced a productive beat).
+        # Window = sum of all four buckets. The in-core monitor accumulates
+        # only while RDMON/WRMON_PERF_CTRL.RUN=1 (opened before kick, closed at
+        # completion), so the bucket sum brackets the burst; dividing productive
+        # by it yields the methodology datapath number. Falls back to the timer
+        # first/last span if the bucket sum is zero (a workload that never
+        # produced a beat). For an exact methodology denominator the timer's
+        # first/last span (r_firstlast / w_firstlast) is reported alongside.
         def window_of(meter):
             agg = meter.aggregate
             s = agg.productive + agg.backpressure + agg.starvation + agg.idle
@@ -769,8 +774,9 @@ class CharacterizationRunner:
         which the harness pulse-extends into ~16 clocks of reset on the
         unit_aresetn line. That line fans out to u_stream, u_desc_ram,
         u_debug_sram, u_rd_pattern, u_wr_crc_check, u_rd_resp_delay,
-        u_wr_resp_delay, u_rd_bus_meter, u_wr_bus_meter -- i.e. every
-        block whose internal state might wedge across matrix configs.
+        u_wr_resp_delay -- i.e. every block whose internal state might
+        wedge across matrix configs. (The harness axi_bus_meter blocks
+        were retired in RFC Stage E.4.)
         u_csr (harness CSR), u_uart, and u_bridge intentionally stay on
         hardware aresetn so the soft reset can't break the host
         connection or self-terminate the very pulse driving it.
@@ -829,6 +835,19 @@ class CharacterizationRunner:
         # this value, which is how poll_completion knows the DMA is over.
         self.setup_timer(test_data['total_bytes'])
 
+        # 4b. Open the in-core datapath perf windows (RFC Stage E option 2).
+        # They accumulate cycle buckets / beat-byte-burst counts / latency
+        # histograms while RDMON/WRMON_PERF_CTRL.RUN=1; the rising edge clears
+        # the counters. We open here (just before kick) and close the instant
+        # the workload completes (below) so the window brackets the burst. The
+        # legacy harness axi_bus_meter (which hardware-froze on the timer) was
+        # retired in Stage E.4; this is its in-core replacement.
+        try:
+            from read_rw_perf import open_windows as _open_perf_windows
+            _open_perf_windows(self.bridge)
+        except ImportError:
+            pass
+
         # 5. Kick channels
         t0 = time.time()
         self.kick_channels(test_data['kick_addresses'])
@@ -839,9 +858,44 @@ class CharacterizationRunner:
         # with high channel count -- 16 desc x 8 ch x 1 MB = 128 MB total,
         # which at observed ~250 MB/s aggregate wall throughput is ~0.5 s
         # of DMA but several seconds of host-side per-channel overhead.
-        completion = self.poll_completion(timeout_s=120.0)
+        # DIAG: if DIAG_NO_POLL_MS is set, sleep with ZERO UART traffic instead
+        # of hammering the xbar with poll reads. If the perf window then reads
+        # tight (high util), the host's poll traffic was starving the datapath
+        # (not a scheduler_idle bug); if still loose, the datapath genuinely
+        # lingers.
+        _diag_ms = float(os.environ.get('DIAG_NO_POLL_MS', '0') or 0)
+        if _diag_ms > 0:
+            time.sleep(_diag_ms / 1000.0)
+            completion = {'completed': True, 'elapsed_s': _diag_ms / 1000.0,
+                          'error': False, 'diag_no_poll': True}
+        else:
+            completion = self.poll_completion(timeout_s=120.0)
         result['dma_time_s'] = time.time() - t0
         result['completion'] = completion
+
+        # DIAGNOSTIC: read RDMON/WRMON_PERF_STATUS.WIN_ACTIVE with RUN still
+        # HIGH. With the hardware-close window this should already be 0 (the
+        # window auto-closed when the datapath went idle); if it reads 1 the
+        # auto-close did not fire and the buckets are contaminated.
+        try:
+            rd_wa = self.bridge.read(STREAM_APB_BASE + 0x304) & 0x1
+            wr_wa = self.bridge.read(STREAM_APB_BASE + 0x334) & 0x1
+            self.log(f"  [perf-window] WIN_ACTIVE (RUN still high): "
+                     f"RD={rd_wa} WR={wr_wa} (0 = auto-closed in hardware)")
+        except Exception as _e:
+            pass
+
+        # Close the in-core perf windows ASAP after completion -- before the
+        # slow CRC/UART readback below -- so post-burst idle cycles don't
+        # contaminate the buckets. (For real characterization workloads the
+        # done-detect-to-close gap is negligible vs the multi-ms transfer;
+        # datapath_utilization additionally uses the harness timer's exact
+        # first/last beat span as the methodology denominator.)
+        try:
+            from read_rw_perf import close_windows as _close_perf_windows
+            _close_perf_windows(self.bridge)
+        except ImportError:
+            pass
 
         if not completion.get('completed'):
             self.log(f"  TIMEOUT after {completion['elapsed_s']:.1f}s")

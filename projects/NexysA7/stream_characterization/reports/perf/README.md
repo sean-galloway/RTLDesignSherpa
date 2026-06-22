@@ -1,13 +1,20 @@
-# STREAM DMA — Performance Characterization (all-fixes bitstream)
+# STREAM DMA — Performance Characterization (in-core PMU build)
 
-**Bitstream:** all-timing-fixes build + monbus 32-bit err-drain serializer,
-WNS **+0.007 ns** @ 100 MHz, Nexys A7 (xc7a100t). Both CAM pipelines,
-half-beat packing, monbus compression, wrapping trace pointer,
-`pblock_monbus` floorplan. The err-drain change is observability-only — perf
-is byte-identical to the prior build (94.1% across all 40 configs).
+**Bitstream:** RFC Stage E in-core datapath perf-monitor build with the
+perf-window **arm-gap fix** (the window now starts on first DMA activity, not
+on the RUN-arm edge — see `stream_core.sv`). WNS **−0.097 ns** @ 100 MHz,
+Nexys A7 (xc7a100t). This is a marginal (sub-0.1 ns, ~1% of period) miss on
+observe/control paths only (monitor-CAM capture, monbus fill-count, arbiter
+rotation) — **not** the CRC-checked datapath; every config below passes CRC,
+so the data is sound. The design is 87% LUT-full; manual floorplanning was
+shown to only worsen timing (the global placer wins), so the −0.097 ns build
+is accepted. **Source of truth:** the **in-core PMU** read over CSR (the
+legacy harness `axi_bus_meter` was retired in RFC Stage E.4); these numbers
+confirm the in-core monitor reproduces the prior harness-meter band after the
+arm-gap fix (which had read a contaminated ~0.1% before the fix).
 **Datapath:** 128-bit (16 B/beat). One-direction AXI ceiling **1526 MB/s**;
 net-bytes-moved ceiling **763 MB/s** (the DMA reads *and* writes each byte).
-**Date:** 2026-06-18 (board 210292B7D46F). Methodology:
+**Date:** 2026-06-21 (board 210292B7D46F). Methodology:
 `../../DMA_UTILIZATION_MEASUREMENT.md`.
 
 > **Metric note.** Throughout, the headline efficiency is **datapath E2E
@@ -32,9 +39,9 @@ reported as `starvation`), not backpressure (`backpressure ≈ 0`).
 |---|---|---|
 | descriptor chain (1 ch, 1→16 desc) | descriptors | flat 94.06→94.07 %, 1435.2→1435.3 MB/s |
 | multi-channel (1 desc, 1→8 ch) | channels | flat 94.06→94.11 % — shared slave, *not* per-channel BW scaling |
-| transfer size (1 ch, 1 desc, 8 KB→1 MB) | size | 78.8 %→94.0 % as a fixed ~90-cycle startup amortizes |
-| memory latency, 1 channel (0→64 cyc) | resp-delay | flat ≥94 % — pipeline fully absorbs |
-| memory latency, 1 channel (128→4096 cyc) | resp-delay | linear cliff, `BW ≈ 128/L × peak` (Little's Law) |
+| transfer size (1 ch, 1 desc, 8 KB→1 MB) | size | 87.2 %→94.1 % as a fixed startup overhead amortizes |
+| memory latency, 1 channel (0→96 cyc) | resp-delay | flat ≥93.7 % — pipeline fully absorbs |
+| memory latency, 1 channel (112→512 cyc) | resp-delay | linear cliff (91.7 %→23.7 %), `BW ≈ 128/L × peak` (Little's Law) |
 | memory latency, N channels | resp-delay | cliff position scales with channels, saturating past ~4 |
 
 **Architectural takeaway:** the engine's multi-outstanding pipeline hides
@@ -272,36 +279,48 @@ the aggregate (≈ 4 × in this harness).
 
 | File | Sweep |
 |---|---|
-| `matrix_2026-06-18.json` | channels × descriptors, 40 configs, 1 MB |
-| `chan_x_delay_2026-06-18.json` | channels {1,2,4,8} × delay {0..4096}, 1 desc |
-| `desc_x_delay_2026-06-18.json` | desc {1,2,4,8,16} × delay {0..4096}, 1 ch |
-| `size_sweep_2026-06-18.json` | 1 ch, 1 desc, 8 KB→1 MB |
+| `matrix_2026-06-21.json` | channels × descriptors, 40 configs, 1 MB |
+| `chan_x_delay_2026-06-21.json` | channels {1,2,4,8} × delay {0..512}, 1 desc |
+| `desc_x_delay_2026-06-21.json` | desc {1,2,4,8,16} × delay {0..512}, 1 ch |
+| `size_sweep_2026-06-21.json` | 1 ch, 1 desc, 8 KB→1 MB |
+| `matrix_2026-06-21.csv` | flat CSV of the matrix (column dictionary below) |
 | `plots/*.png` | figures above (`host/plot_char_reports.py`) — includes the §5 util-pair, §3 bucket-breakdown, and §3.2 per-channel graphs |
 
 Every record carries the methodology primitives (§2.1 datapath + §2.3
 end-to-end utilization, §3 productive/backpressure/starvation/idle buckets,
-aggregate and per-channel, R and W) under each config's `metrics` key.
+aggregate and per-channel, R and W) under each config's `metrics` key. Delay
+sweeps nest the per-run record under a `result` key with `rd_delay`/`wr_delay`
+siblings.
 
 ```bash
 cd flows-stream-bridge/host && source $REPO_ROOT/env_python
 P=/dev/serial/by-id/usb-Digilent_Digilent_USB_Device_210292B7D46F-if01-port0
 D=0,32,64,96,112,128,144,160,192,256,384,512
+# NOTE: -o paths are relative to host/; the reports dir is two levels up, so
+# use an ABSOLUTE path (or ../../reports/perf) -- "../reports/perf" does NOT
+# exist and the run will compute then crash on save.
+R=$REPO_ROOT/projects/NexysA7/stream_characterization/reports/perf
+# IMPORTANT: re-program the board (make program) before the matrix / size
+# sweeps. The --resp-delays sweep leaves the RESP_DELAY CSR set; a leftover
+# value silently degrades a later no-delay run (util drops, high-load configs
+# time out). Re-program also recovers a clean state if a sweep crashed.
 # matrix (full 40-config):
-python3 run_characterization.py --port $P -o ../reports/perf/matrix_2026-06-18.json
+python3 run_characterization.py --port $P -o $R/matrix_2026-06-21.json
 # channels x delay (1 desc, 512 KB):
 python3 run_characterization.py --port $P --phase 1 --channels 1 2 4 8 --size 512KB \
-    --resp-delays $D -o ../reports/perf/chan_x_delay_2026-06-18.json
+    --resp-delays $D -o $R/chan_x_delay_2026-06-21.json
 # desc x delay (1 ch, 512 KB):
 python3 run_characterization.py --port $P --channels 1 --size 512KB \
-    --resp-delays $D -o ../reports/perf/desc_x_delay_2026-06-18.json
-# size sweep: loop --size {8KB..1MB}, --channels 1 --phase 1, merge JSONs.
+    --resp-delays $D -o $R/desc_x_delay_2026-06-21.json
+# size sweep: re-program first, then loop --size {8KB..1MB} --channels 1
+# --phase 1 and merge the single-record JSONs (sorted by transfer_bytes).
 # plots (incl. §5 util-pair, §3 buckets, §3.2 per-channel):
-python3 plot_char_reports.py --matrix ../reports/perf/matrix_2026-06-18.json \
-    --chan-delay ../reports/perf/chan_x_delay_2026-06-18.json \
-    --desc-delay ../reports/perf/desc_x_delay_2026-06-18.json \
-    --size ../reports/perf/size_sweep_2026-06-18.json --outdir ../reports/perf/plots
+python3 plot_char_reports.py --matrix $R/matrix_2026-06-21.json \
+    --chan-delay $R/chan_x_delay_2026-06-21.json \
+    --desc-delay $R/desc_x_delay_2026-06-21.json \
+    --size $R/size_sweep_2026-06-21.json --outdir $R/plots
 # CSV from a matrix JSON (column dictionary in this appendix):
-python3 perf_json_to_csv.py ../reports/perf/matrix_2026-06-18.json --out matrix.csv
+python3 perf_json_to_csv.py $R/matrix_2026-06-21.json --out $R/matrix_2026-06-21.csv
 ```
 
 CSV columns (current runner): `date,time,config,channels,descriptors,desc_KB,

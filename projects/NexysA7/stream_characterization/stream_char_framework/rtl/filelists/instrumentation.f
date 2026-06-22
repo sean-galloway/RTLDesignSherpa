@@ -17,11 +17,9 @@ $FRAMEWORK_ROOT/rtl/axi_response_delay.sv
 # Harness CSRs (kick-burst, response-delay programming, cycle timer, status).
 $FRAMEWORK_ROOT/rtl/harness_csr.sv
 
-# Per-cycle valid/ready bucket counter for DMA bus characterization.
-# Two instances live in stream_char_harness (one on the read engine R bus,
-# one on the write engine W bus); their counters are exposed via harness_csr
-# at 0x100 (R) and 0x180 (W).
-$REPO_ROOT/rtl/amba/shared/axi_bus_meter.sv
+# (axi_bus_meter.sv retired from the harness in RFC Stage E.4 -- the per-cycle
+#  valid/ready bucket counters are now in-core in stream_core, pulled in via
+#  stream_core.f. Listing it here too would just create a MODDUP.)
 
 # Unified SDP-BRAM slave -- protocol-agnostic compute kernel + thin
 # per-permutation wrappers (no string-switch generate plumbing).

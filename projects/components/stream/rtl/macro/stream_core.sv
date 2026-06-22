@@ -68,6 +68,8 @@ module stream_core #(
     parameter DESC_MON_BASE_AGENT_ID = 16,   // 0x10 - Descriptor Engines (16-23)
     parameter SCHED_MON_BASE_AGENT_ID = 48,  // 0x30 - Schedulers (48-55)
     parameter DESC_AXI_MON_AGENT_ID = 8,     // 0x08 - Descriptor AXI Master Monitor
+    parameter RD_AXI_MON_AGENT_ID = 9,       // 0x09 - Data-read datapath monitor
+    parameter WR_AXI_MON_AGENT_ID = 10,      // 0x0A - Data-write datapath monitor
     parameter MON_UNIT_ID = 1,               // 0x1
 
     // Desc-bus monitor reporter sub-block enables. Pass-through to
@@ -177,6 +179,28 @@ module stream_core #(
     input  logic [7:0]                          cfg_wreng_mon_perf_mask,
     input  logic [7:0]                          cfg_wreng_mon_addr_mask,
     input  logic [7:0]                          cfg_wreng_mon_debug_mask,
+
+    // RFC Stage E perf-window run control for the datapath monitors
+    // (decoupled from cfg_*eng_mon_perf_enable, which only gates legacy
+    // PktTypePerf emission). Level signal: 1=open the monitor's perf window
+    // and accumulate cycle buckets; 0=close/freeze. Rising edge clears the
+    // counters. See RDMON_PERF_CTRL @ 0x300 / WRMON_PERF_CTRL @ 0x330.
+    input  logic                                cfg_rdeng_mon_perf_run,
+    input  logic                                cfg_wreng_mon_perf_run,
+
+    // RFC Stage E option 2 / RFC Stage C: per-channel perf-bucket readout
+    // select. Picks which channel's 4 buckets appear on the rdmon/wrmon_ch_*
+    // outputs (indexed-readout pattern; see PERF_CH_SEL @ 0x35C).
+    input  logic [CHAN_WIDTH-1:0]               cfg_perf_ch_sel,
+
+    // RFC Stage D: latency-histogram indexed readout select (see HIST_SEL @
+    // 0x378). bus 0=read R bus, 1=write W bus; metric 0=AR->firstR / AW->B,
+    // 1=AR->RLAST (reads only); bin selects one of 16 log2 latency bins.
+    input  logic                                cfg_perf_hist_bus,
+    input  logic                                cfg_perf_hist_metric,
+    input  logic [3:0]                          cfg_perf_hist_bin,
+    output logic [31:0]                         perf_hist_data,
+    output logic [31:0]                         perf_hist_total,
 
     // AXI transfer configuration
     input  logic [7:0]                          cfg_axi_rd_xfer_beats,
@@ -337,12 +361,53 @@ module stream_core #(
     output logic [31:0]                         cfg_sts_rdeng_mon_txn_count,
     output logic                                cfg_sts_rdeng_mon_conflict_error,
 
+    // Read-engine datapath monitor perf-window readback (RFC Stage E CSR route).
+    // Buckets PROD+BP+STARV+IDLE sum to the closed-window length; these measure
+    // the data-read R bus (the same bus the FPGA-char axi_bus_meter snoops).
+    output logic                                rdmon_perf_window_active,
+    output logic [31:0]                         rdmon_perf_window_cycles,
+    output logic [31:0]                         rdmon_perf_prod_cycles,
+    output logic [31:0]                         rdmon_perf_bp_cycles,
+    output logic [31:0]                         rdmon_perf_starv_cycles,
+    output logic [31:0]                         rdmon_perf_idle_cycles,
+    output logic [31:0]                         rdmon_perf_beat_count,
+    output logic [63:0]                         rdmon_perf_byte_count,
+    output logic [31:0]                         rdmon_perf_burst_count,
+
     // Data Write Engine AXI Monitor Status
     output logic                                cfg_sts_wreng_skid_busy,
     output logic [7:0]                          cfg_sts_wreng_mon_active_txns,
     output logic [15:0]                         cfg_sts_wreng_mon_error_count,
     output logic [31:0]                         cfg_sts_wreng_mon_txn_count,
     output logic                                cfg_sts_wreng_mon_conflict_error,
+
+    // Write-engine datapath monitor perf-window readback (RFC Stage E CSR route).
+    // Buckets PROD+BP+STARV+IDLE sum to the closed-window length; these measure
+    // the data-write W bus (the same bus the FPGA-char axi_bus_meter snoops).
+    output logic                                wrmon_perf_window_active,
+    output logic [31:0]                         wrmon_perf_window_cycles,
+    output logic [31:0]                         wrmon_perf_prod_cycles,
+    output logic [31:0]                         wrmon_perf_bp_cycles,
+    output logic [31:0]                         wrmon_perf_starv_cycles,
+    output logic [31:0]                         wrmon_perf_idle_cycles,
+    output logic [31:0]                         wrmon_perf_beat_count,
+    output logic [63:0]                         wrmon_perf_byte_count,
+    output logic [31:0]                         wrmon_perf_burst_count,
+
+    // Per-channel perf buckets (RFC Stage C, via in-core axi_bus_meter). The
+    // four 16-bit buckets are for the channel selected by cfg_perf_ch_sel; the
+    // overflow masks expose all channels at once ({prod,bp,starv,idle} per
+    // channel). Window-aligned with the aggregate monitor windows (same RUN).
+    output logic [15:0]                         rdmon_ch_prod_cycles,
+    output logic [15:0]                         rdmon_ch_bp_cycles,
+    output logic [15:0]                         rdmon_ch_starv_cycles,
+    output logic [15:0]                         rdmon_ch_idle_cycles,
+    output logic [NC*4-1:0]                     rdmon_ch_overflow,
+    output logic [15:0]                         wrmon_ch_prod_cycles,
+    output logic [15:0]                         wrmon_ch_bp_cycles,
+    output logic [15:0]                         wrmon_ch_starv_cycles,
+    output logic [15:0]                         wrmon_ch_idle_cycles,
+    output logic [NC*4-1:0]                     wrmon_ch_overflow,
 
     //=========================================================================
     // Unified Monitor Bus Interface (128-bit packet + 64-bit side-band ts)
@@ -351,16 +416,7 @@ module stream_core #(
     output logic                                    mon_valid,
     input  logic                                    mon_ready,
     output monitor_common_pkg::monitor_packet_t     mon_packet,
-    output monitor_common_pkg::monbus_timestamp_t   mon_timestamp,
-
-    //=========================================================================
-    // Sideband for FPGA-characterization axi_bus_meter (W channel demux).
-    // The W bus in AXI4 has no wid; this sideband mirrors the write engine's
-    // internal r_w_channel_id / r_w_active so a bus meter at the wrapper
-    // level can attribute per-W-beat activity to the correct channel.
-    //=========================================================================
-    output logic [$clog2(NC)-1:0]                   o_wr_active_channel_id,
-    output logic                                    o_wr_active_channel_valid
+    output monitor_common_pkg::monbus_timestamp_t   mon_timestamp
 );
 
     //=========================================================================
@@ -419,6 +475,13 @@ module stream_core #(
     logic [UW-1:0]               fub_wr_axi_buser;
     logic                        fub_wr_axi_bvalid;
     logic                        fub_wr_axi_bready;
+
+    // Write-engine active-channel sideband (the W bus has no wid; this mirrors
+    // the engine's r_w_channel_id / r_w_active). Consumed internally by the
+    // in-core per-channel axi_bus_meter -- formerly a top-level output for the
+    // harness meter, which was retired in RFC Stage E.4.
+    logic [CHAN_WIDTH-1:0]       wr_active_channel_id;
+    logic                        wr_active_channel_valid;
 
     //=========================================================================
     // Internal Signals - Scheduler ↔ Engines
@@ -519,6 +582,7 @@ module stream_core #(
     logic [7:0]                  int_cfg_rdeng_mon_perf_mask;
     logic [7:0]                  int_cfg_rdeng_mon_addr_mask;
     logic [7:0]                  int_cfg_rdeng_mon_debug_mask;
+    logic                        int_cfg_rdeng_mon_perf_run;
 
     logic                        int_cfg_wreng_mon_enable;
     logic                        int_cfg_wreng_mon_err_enable;
@@ -535,6 +599,7 @@ module stream_core #(
     logic [7:0]                  int_cfg_wreng_mon_perf_mask;
     logic [7:0]                  int_cfg_wreng_mon_addr_mask;
     logic [7:0]                  int_cfg_wreng_mon_debug_mask;
+    logic                        int_cfg_wreng_mon_perf_run;
 
     //=========================================================================
     // Generate Block - Monitor Configuration Assignment
@@ -574,6 +639,7 @@ module stream_core #(
             assign int_cfg_rdeng_mon_perf_mask = cfg_rdeng_mon_perf_mask;
             assign int_cfg_rdeng_mon_addr_mask = cfg_rdeng_mon_addr_mask;
             assign int_cfg_rdeng_mon_debug_mask = cfg_rdeng_mon_debug_mask;
+            assign int_cfg_rdeng_mon_perf_run = cfg_rdeng_mon_perf_run;
 
             assign int_cfg_wreng_mon_enable = cfg_wreng_mon_enable;
             assign int_cfg_wreng_mon_err_enable = cfg_wreng_mon_err_enable;
@@ -590,6 +656,7 @@ module stream_core #(
             assign int_cfg_wreng_mon_perf_mask = cfg_wreng_mon_perf_mask;
             assign int_cfg_wreng_mon_addr_mask = cfg_wreng_mon_addr_mask;
             assign int_cfg_wreng_mon_debug_mask = cfg_wreng_mon_debug_mask;
+            assign int_cfg_wreng_mon_perf_run = cfg_wreng_mon_perf_run;
         end else begin : g_monitors_disabled
             // Tie off all monitor configurations to 0
             assign int_cfg_desc_mon_enable = 1'b0;
@@ -624,6 +691,7 @@ module stream_core #(
             assign int_cfg_rdeng_mon_perf_mask = 8'h0;
             assign int_cfg_rdeng_mon_addr_mask = 8'h0;
             assign int_cfg_rdeng_mon_debug_mask = 8'h0;
+            assign int_cfg_rdeng_mon_perf_run = 1'b0;
 
             assign int_cfg_wreng_mon_enable = 1'b0;
             assign int_cfg_wreng_mon_err_enable = 1'b0;
@@ -640,6 +708,7 @@ module stream_core #(
             assign int_cfg_wreng_mon_perf_mask = 8'h0;
             assign int_cfg_wreng_mon_addr_mask = 8'h0;
             assign int_cfg_wreng_mon_debug_mask = 8'h0;
+            assign int_cfg_wreng_mon_perf_run = 1'b0;
         end
     endgenerate
 
@@ -796,6 +865,84 @@ module stream_core #(
     assign mon_timestamp      = schedgrp_mon_timestamp;
 
     //=========================================================================
+    // RFC Stage E perf-window controller (HARDWARE close)
+    //=========================================================================
+    // The datapath perf windows (aggregate monitors, per-channel meters, latency
+    // histograms) must bracket the ACTIVE transfer, exactly like the retired
+    // harness axi_bus_meter (which froze on the harness timer 'done'). Software
+    // writing RUN=1 opens the window (rising edge clears the counters), but
+    // closing it in software lags by the host poll/UART latency -- on real
+    // hardware that counts ~ms of post-transfer idle as starvation. So we close
+    // the window IN HARDWARE: it opens on the RUN rising edge, latches "was
+    // busy" once any scheduler is active, and closes a few cycles after all
+    // schedulers go idle (the settle counter covers the final write-response
+    // drain). Clearing RUN also closes it (software override). Shared by both
+    // datapath buses; the host still toggles RUN to arm/disarm and read.
+    localparam int unsigned PERF_SETTLE = 16;
+    logic        w_perf_run_any;
+    logic        w_perf_dma_busy;
+    logic        r_perf_armed;       // RUN is asserted (level), one window per arm
+    logic        r_perf_started;     // a window has already begun this arm
+    logic        r_perf_win_active;  // counting window currently open
+    logic        w_perf_begin;
+    logic [4:0]  r_perf_settle;
+    logic        w_perf_close, w_perf_clear;
+
+    assign w_perf_run_any   = int_cfg_rdeng_mon_perf_run | int_cfg_wreng_mon_perf_run;
+    // Busy = any ENABLED channel's scheduler is not idle. Masking by
+    // cfg_channel_enable is essential: disabled channels are held in
+    // channel-reset, which forces their scheduler_idle low (idle && !reset), so
+    // a plain &scheduler_idle would never assert and the window would never
+    // close on "done" -- it would stay open until the host clears RUN.
+    assign w_perf_dma_busy  = |(~scheduler_idle & cfg_channel_enable);
+
+    // CRITICAL: the window must START on the first DMA activity AFTER RUN is
+    // armed -- NOT on the RUN rising edge. The host arms RUN and then issues
+    // several more slow 115200-baud UART transactions (kick-address shadow
+    // loads + KICK_GO) before the DMA actually starts; that arm->kick gap is
+    // millions of idle aclk cycles. Starting the counters on the RUN edge
+    // bucketed all of those idle cycles into the window, so the board reported
+    // ~0.1% utilisation while the datapath itself was fully busy. Holding the
+    // meters frozen (i_freeze = ~r_perf_win_active) until w_perf_dma_busy first
+    // rises excludes the entire arm->kick gap. (scheduler_idle was correct all
+    // along -- it is idle because nothing has been kicked yet.)
+    assign w_perf_begin     = w_perf_run_any & w_perf_dma_busy &
+                              ~r_perf_win_active & ~r_perf_started;
+    assign w_perf_clear     = w_perf_begin;               // clear+start counters on first activity
+    assign w_perf_close     = r_perf_win_active &
+                              ( (~w_perf_dma_busy & (r_perf_settle == PERF_SETTLE[4:0]))
+                                | ~w_perf_run_any );        // done (idle+settle), or RUN cleared
+
+    `ALWAYS_FF_RST(clk, rst_n,
+        if (`RST_ASSERTED(rst_n)) begin
+            r_perf_armed      <= 1'b0;
+            r_perf_started    <= 1'b0;
+            r_perf_win_active <= 1'b0;
+            r_perf_settle     <= 5'd0;
+        end else begin
+            r_perf_armed <= w_perf_run_any;
+            if (!w_perf_run_any) begin
+                // RUN cleared: disarm and re-arm fresh on the next RUN edge.
+                r_perf_started    <= 1'b0;
+                r_perf_win_active <= 1'b0;
+                r_perf_settle     <= 5'd0;
+            end else if (w_perf_begin) begin
+                // First DMA activity under this arm: open the window now.
+                r_perf_win_active <= 1'b1;
+                r_perf_started    <= 1'b1;
+                r_perf_settle     <= 5'd0;
+            end else if (r_perf_win_active) begin
+                if (w_perf_dma_busy) begin
+                    r_perf_settle <= 5'd0;
+                end else if (r_perf_settle != PERF_SETTLE[4:0]) begin
+                    r_perf_settle <= r_perf_settle + 5'd1;
+                end
+                if (w_perf_close) r_perf_win_active <= 1'b0;
+            end
+        end
+    )
+
+    //=========================================================================
     // Component Instantiation - AXI Read Engine
     //=========================================================================
 
@@ -939,8 +1086,8 @@ module stream_core #(
 
         // Sideband to stream_core's external port surface so the FPGA
         // characterization harness can wire axi_bus_meter directly.
-        .o_active_channel_id    (o_wr_active_channel_id),
-        .o_active_channel_valid (o_wr_active_channel_valid)
+        .o_active_channel_id    (wr_active_channel_id),
+        .o_active_channel_valid (wr_active_channel_valid)
     );
 
     //=========================================================================
@@ -1035,16 +1182,37 @@ module stream_core #(
     // driven only by the master is correct.
     assign fub_rd_axi_aruser = UW'(fub_rd_axi_arid);  // Extract channel ID from transaction ID
 
-    axi4_master_rd #(
+    // Data read AXI skid buffer + integrated datapath perf monitor (RFC Stage E).
+    // Upgraded from a bare axi4_master_rd to axi4_master_rd_mon: same skid core,
+    // plus an axi_monitor snooping the master-side R bus. Perf-only build
+    // (ENABLE_PERF_LOGIC) so it accumulates the four cycle buckets + beat/byte/
+    // burst counts read back through RDMON_PERF_* CSRs (no MonBus packets).
+    // MAX_TRANSACTIONS(16) > AR_MAX_OUTSTANDING(8) so the monitor's block_ready
+    // never deasserts: it stays as passive as the legacy axi_bus_meter snoop.
+    // USE_MONITOR follows USE_AXI_MONITORS so the production (monitors-off)
+    // build keeps a bare skid with zero monitor area.
+    axi4_master_rd_mon #(
         .SKID_DEPTH_AR          (SKID_DEPTH_AR),
         .SKID_DEPTH_R           (SKID_DEPTH_R),
         .AXI_ID_WIDTH           (IW),
         .AXI_ADDR_WIDTH         (AW),
         .AXI_DATA_WIDTH         (DW),
-        .AXI_USER_WIDTH         (UW)
+        .AXI_USER_WIDTH         (UW),
+        .USE_MONITOR            (USE_AXI_MONITORS == 1),
+        .UNIT_ID                (MON_UNIT_ID),
+        .AGENT_ID               (RD_AXI_MON_AGENT_ID),
+        .MAX_TRANSACTIONS       (32'd16),
+        .ENABLE_FILTERING       (1),
+        .ENABLE_ERROR_LOGIC     (1'b0),
+        .ENABLE_TIMEOUT_LOGIC   (1'b0),
+        .ENABLE_COMPL_LOGIC     (1'b0),
+        .ENABLE_THRESHOLD_LOGIC (1'b0),
+        .ENABLE_PERF_LOGIC      (1'b1),
+        .ENABLE_DEBUG_LOGIC     (1'b0)
     ) u_rd_axi_skid (
         .aclk                   (clk),
         .aresetn                (rst_n),
+        .cam_clear              (cam_clear),
 
         // FUB side (input from read engine)
         .fub_axi_arid           (fub_rd_axi_arid),
@@ -1092,8 +1260,74 @@ module stream_core #(
         .m_axi_rvalid           (m_axi_rd_rvalid),
         .m_axi_rready           (m_axi_rd_rready),
 
+        // Monitor configuration (driven by the now-live RDMON_* CSR hooks).
+        // compl follows monitor-enable, threshold follows perf, debug off —
+        // mirroring the descriptor-monitor aliasing in scheduler_group_array.
+        .cfg_monitor_enable     (int_cfg_rdeng_mon_enable),
+        .cfg_error_enable       (int_cfg_rdeng_mon_err_enable),
+        .cfg_perf_enable        (int_cfg_rdeng_mon_perf_enable),
+        .cfg_compl_enable       (int_cfg_rdeng_mon_enable),
+        .cfg_threshold_enable   (int_cfg_rdeng_mon_perf_enable),
+        .cfg_debug_enable       (1'b0),
+        .cfg_timeout_enable     (int_cfg_rdeng_mon_timeout_enable),
+        .cfg_timeout_cycles     (16'(int_cfg_rdeng_mon_timeout_cycles)),
+        .cfg_latency_threshold  (int_cfg_rdeng_mon_latency_thresh),
+
+        .cfg_axi_pkt_mask       (int_cfg_rdeng_mon_pkt_mask),
+        .cfg_axi_err_select     (16'(int_cfg_rdeng_mon_err_select)),
+        .cfg_axi_error_mask     (16'(int_cfg_rdeng_mon_err_mask)),
+        .cfg_axi_timeout_mask   (16'(int_cfg_rdeng_mon_timeout_mask)),
+        .cfg_axi_compl_mask     (16'(int_cfg_rdeng_mon_compl_mask)),
+        .cfg_axi_thresh_mask    (16'(int_cfg_rdeng_mon_thresh_mask)),
+        .cfg_axi_perf_mask      (16'(int_cfg_rdeng_mon_perf_mask)),
+        .cfg_axi_addr_mask      (16'(int_cfg_rdeng_mon_addr_mask)),
+        .cfg_axi_debug_mask     (16'(int_cfg_rdeng_mon_debug_mask)),
+
+        // Address-range checker disabled (N_ADDR_RANGES=0 default)
+        .cfg_addr_check_enable  (1'b0),
+        .cfg_addr_range_enable  (1'b0),
+        .cfg_addr_range_low     ('0),
+        .cfg_addr_range_high    ('0),
+
+        // Perf-window control (RFC Stage E CSR route). Trigger mode driven by
+        // the RDMON_PERF_CTRL.RUN bit; decoupled from cfg_perf_enable so the
+        // window accumulates without emitting PktTypePerf packets.
+        // Hardware-closed window: open on the RUN rising edge, close when the
+        // datapath goes idle after activity (see the perf-window controller).
+        .cfg_start_event_sel    (3'b000),
+        .cfg_end_event_sel      (3'b000),
+        .cfg_start_trigger      (w_perf_clear),
+        .cfg_end_trigger        (w_perf_close),
+        .cfg_window_force_close (1'b0),
+
+        .i_mon_time             (i_mon_time),
+
+        // Monitor bus — CSR route, no downstream consumer. monbus_ready=1 so a
+        // (disabled) packet would drain; outputs left open (perf via CSR only).
+        /* verilator lint_off PINCONNECTEMPTY */
+        .monbus_valid           (),
+        .monbus_packet          (),
+        .monbus_timestamp       (),
+        /* verilator lint_on PINCONNECTEMPTY */
+        .monbus_ready           (1'b1),
+
         // Status
-        .busy                   (cfg_sts_rdeng_skid_busy)
+        .busy                   (cfg_sts_rdeng_skid_busy),
+        .active_transactions    (cfg_sts_rdeng_mon_active_txns),
+        .error_count            (cfg_sts_rdeng_mon_error_count),
+        .transaction_count      (cfg_sts_rdeng_mon_txn_count),
+
+        // Perf-window readback (RFC Stage E CSR route → RDMON_PERF_* @ 0x300)
+        .window_active          (rdmon_perf_window_active),
+        .window_cycles          (rdmon_perf_window_cycles),
+        .perf_prod_cycles       (rdmon_perf_prod_cycles),
+        .perf_bp_cycles         (rdmon_perf_bp_cycles),
+        .perf_starv_cycles      (rdmon_perf_starv_cycles),
+        .perf_idle_cycles       (rdmon_perf_idle_cycles),
+        .perf_beat_count        (rdmon_perf_beat_count),
+        .perf_byte_count        (rdmon_perf_byte_count),
+        .perf_burst_count       (rdmon_perf_burst_count),
+        .cfg_conflict_error     (cfg_sts_rdeng_mon_conflict_error)
     );
 
     // Data write AXI skid buffer
@@ -1110,17 +1344,34 @@ module stream_core #(
     assign fub_wr_axi_awuser = UW'(fub_wr_axi_awid);  // Extract channel ID from transaction ID
     // NOTE: fub_wr_axi_wuser already carries channel ID from write engine (passes through)
 
-    axi4_master_wr #(
+    // Data write AXI skid buffer + integrated datapath perf monitor (RFC Stage E).
+    // See the read-side comment above: axi4_master_wr upgraded to
+    // axi4_master_wr_mon, perf-only, passive (MAX_TRANSACTIONS > AW outstanding),
+    // read back through WRMON_PERF_* CSRs. W-channel cycle buckets match the
+    // legacy write-side axi_bus_meter.
+    axi4_master_wr_mon #(
         .SKID_DEPTH_AW          (SKID_DEPTH_AW),
         .SKID_DEPTH_W           (SKID_DEPTH_W),
         .SKID_DEPTH_B           (SKID_DEPTH_B),
         .AXI_ID_WIDTH           (IW),
         .AXI_ADDR_WIDTH         (AW),
         .AXI_DATA_WIDTH         (DW),
-        .AXI_USER_WIDTH         (UW)
+        .AXI_USER_WIDTH         (UW),
+        .USE_MONITOR            (USE_AXI_MONITORS == 1),
+        .UNIT_ID                (MON_UNIT_ID),
+        .AGENT_ID               (WR_AXI_MON_AGENT_ID),
+        .MAX_TRANSACTIONS       (32'd16),
+        .ENABLE_FILTERING       (1),
+        .ENABLE_ERROR_LOGIC     (1'b0),
+        .ENABLE_TIMEOUT_LOGIC   (1'b0),
+        .ENABLE_COMPL_LOGIC     (1'b0),
+        .ENABLE_THRESHOLD_LOGIC (1'b0),
+        .ENABLE_PERF_LOGIC      (1'b1),
+        .ENABLE_DEBUG_LOGIC     (1'b0)
     ) u_wr_axi_skid (
         .aclk                   (clk),
         .aresetn                (rst_n),
+        .cam_clear              (cam_clear),
 
         // FUB side (input from write engine)
         .fub_axi_awid           (fub_wr_axi_awid),
@@ -1178,9 +1429,233 @@ module stream_core #(
         .m_axi_bvalid           (m_axi_wr_bvalid),
         .m_axi_bready           (m_axi_wr_bready),
 
+        // Monitor configuration (driven by the now-live WRMON_* CSR hooks)
+        .cfg_monitor_enable     (int_cfg_wreng_mon_enable),
+        .cfg_error_enable       (int_cfg_wreng_mon_err_enable),
+        .cfg_perf_enable        (int_cfg_wreng_mon_perf_enable),
+        .cfg_compl_enable       (int_cfg_wreng_mon_enable),
+        .cfg_threshold_enable   (int_cfg_wreng_mon_perf_enable),
+        .cfg_debug_enable       (1'b0),
+        .cfg_timeout_enable     (int_cfg_wreng_mon_timeout_enable),
+        .cfg_timeout_cycles     (16'(int_cfg_wreng_mon_timeout_cycles)),
+        .cfg_latency_threshold  (int_cfg_wreng_mon_latency_thresh),
+
+        .cfg_axi_pkt_mask       (int_cfg_wreng_mon_pkt_mask),
+        .cfg_axi_err_select     (16'(int_cfg_wreng_mon_err_select)),
+        .cfg_axi_error_mask     (16'(int_cfg_wreng_mon_err_mask)),
+        .cfg_axi_timeout_mask   (16'(int_cfg_wreng_mon_timeout_mask)),
+        .cfg_axi_compl_mask     (16'(int_cfg_wreng_mon_compl_mask)),
+        .cfg_axi_thresh_mask    (16'(int_cfg_wreng_mon_thresh_mask)),
+        .cfg_axi_perf_mask      (16'(int_cfg_wreng_mon_perf_mask)),
+        .cfg_axi_addr_mask      (16'(int_cfg_wreng_mon_addr_mask)),
+        .cfg_axi_debug_mask     (16'(int_cfg_wreng_mon_debug_mask)),
+
+        .cfg_addr_check_enable  (1'b0),
+        .cfg_addr_range_enable  (1'b0),
+        .cfg_addr_range_low     ('0),
+        .cfg_addr_range_high    ('0),
+
+        // Perf-window control (RFC Stage E CSR route, WRMON_PERF_CTRL.RUN)
+        // Hardware-closed window (shared controller; see the read monitor).
+        .cfg_start_event_sel    (3'b000),
+        .cfg_end_event_sel      (3'b000),
+        .cfg_start_trigger      (w_perf_clear),
+        .cfg_end_trigger        (w_perf_close),
+        .cfg_window_force_close (1'b0),
+
+        .i_mon_time             (i_mon_time),
+
+        /* verilator lint_off PINCONNECTEMPTY */
+        .monbus_valid           (),
+        .monbus_packet          (),
+        .monbus_timestamp       (),
+        /* verilator lint_on PINCONNECTEMPTY */
+        .monbus_ready           (1'b1),
+
         // Status
-        .busy                   (cfg_sts_wreng_skid_busy)
+        .busy                   (cfg_sts_wreng_skid_busy),
+        .active_transactions    (cfg_sts_wreng_mon_active_txns),
+        .error_count            (cfg_sts_wreng_mon_error_count),
+        .transaction_count      (cfg_sts_wreng_mon_txn_count),
+
+        // Perf-window readback (RFC Stage E CSR route → WRMON_PERF_* @ 0x330)
+        .window_active          (wrmon_perf_window_active),
+        .window_cycles          (wrmon_perf_window_cycles),
+        .perf_prod_cycles       (wrmon_perf_prod_cycles),
+        .perf_bp_cycles         (wrmon_perf_bp_cycles),
+        .perf_starv_cycles      (wrmon_perf_starv_cycles),
+        .perf_idle_cycles       (wrmon_perf_idle_cycles),
+        .perf_beat_count        (wrmon_perf_beat_count),
+        .perf_byte_count        (wrmon_perf_byte_count),
+        .perf_burst_count       (wrmon_perf_burst_count),
+        .cfg_conflict_error     (cfg_sts_wreng_mon_conflict_error)
     );
+
+    //=========================================================================
+    // RFC Stage C: per-channel perf buckets (in-core axi_bus_meter)
+    //=========================================================================
+    // Two axi_bus_meter blocks snoop the same R/W master buses as the aggregate
+    // monitors above, attributing each productive/bp/starv/idle cycle to a
+    // channel (read: m_axi_rd_rid[CHAN_WIDTH-1:0]; write: the write-engine
+    // o_wr_active_channel_id sideband -- the W bus has no wid). They are
+    // window-aligned with the aggregate monitor windows: i_freeze = ~RUN and a
+    // one-cycle i_clear pulse on the RUN rising edge, so the per-channel buckets
+    // summed over channels equal the aggregate buckets. This is the in-core
+    // equivalent of the FPGA-char harness axi_bus_meter (RFC Stage E option 2);
+    // the selected channel is muxed out via cfg_perf_ch_sel (indexed readout).
+    generate
+        if (USE_AXI_MONITORS == 1) begin : g_perf_ch
+            // Window control comes from the shared hardware-close perf-window
+            // controller above: i_clear = w_perf_clear (RUN rising edge), and
+            // i_freeze = ~r_perf_win_active (frozen once the window closes on
+            // datapath idle), so the per-channel meters + latency histograms
+            // bracket exactly the same active span as the aggregate monitors.
+            logic [15:0] rd_ch_prod  [NC];
+            logic [15:0] rd_ch_bp    [NC];
+            logic [15:0] rd_ch_starv [NC];
+            logic [15:0] rd_ch_idle  [NC];
+            logic [15:0] wr_ch_prod  [NC];
+            logic [15:0] wr_ch_bp    [NC];
+            logic [15:0] wr_ch_starv [NC];
+            logic [15:0] wr_ch_idle  [NC];
+
+            axi_bus_meter #(.NUM_CHANNELS(NC)) u_rd_bus_meter (
+                .aclk            (clk),
+                .aresetn         (rst_n),
+                .i_clear         (w_perf_clear),
+                .i_freeze        (~r_perf_win_active),
+                .i_valid         (m_axi_rd_rvalid),
+                .i_ready         (m_axi_rd_rready),
+                .i_channel_id    (m_axi_rd_rid[CHAN_WIDTH-1:0]),
+                .i_channel_valid (m_axi_rd_rvalid),
+                /* verilator lint_off PINCONNECTEMPTY */
+                .o_agg_productive   (),
+                .o_agg_backpressure (),
+                .o_agg_starvation   (),
+                .o_agg_idle         (),
+                /* verilator lint_on PINCONNECTEMPTY */
+                .o_ch_productive   (rd_ch_prod),
+                .o_ch_backpressure (rd_ch_bp),
+                .o_ch_starvation   (rd_ch_starv),
+                .o_ch_idle         (rd_ch_idle),
+                .o_ch_overflow     (rdmon_ch_overflow)
+            );
+
+            axi_bus_meter #(.NUM_CHANNELS(NC)) u_wr_bus_meter (
+                .aclk            (clk),
+                .aresetn         (rst_n),
+                .i_clear         (w_perf_clear),
+                .i_freeze        (~r_perf_win_active),
+                .i_valid         (m_axi_wr_wvalid),
+                .i_ready         (m_axi_wr_wready),
+                .i_channel_id    (wr_active_channel_id),
+                .i_channel_valid (wr_active_channel_valid),
+                /* verilator lint_off PINCONNECTEMPTY */
+                .o_agg_productive   (),
+                .o_agg_backpressure (),
+                .o_agg_starvation   (),
+                .o_agg_idle         (),
+                /* verilator lint_on PINCONNECTEMPTY */
+                .o_ch_productive   (wr_ch_prod),
+                .o_ch_backpressure (wr_ch_bp),
+                .o_ch_starvation   (wr_ch_starv),
+                .o_ch_idle         (wr_ch_idle),
+                .o_ch_overflow     (wrmon_ch_overflow)
+            );
+
+            // Indexed readout: present the cfg_perf_ch_sel-selected channel.
+            always_comb begin
+                rdmon_ch_prod_cycles  = rd_ch_prod [cfg_perf_ch_sel];
+                rdmon_ch_bp_cycles    = rd_ch_bp   [cfg_perf_ch_sel];
+                rdmon_ch_starv_cycles = rd_ch_starv[cfg_perf_ch_sel];
+                rdmon_ch_idle_cycles  = rd_ch_idle [cfg_perf_ch_sel];
+                wrmon_ch_prod_cycles  = wr_ch_prod [cfg_perf_ch_sel];
+                wrmon_ch_bp_cycles    = wr_ch_bp   [cfg_perf_ch_sel];
+                wrmon_ch_starv_cycles = wr_ch_starv[cfg_perf_ch_sel];
+                wrmon_ch_idle_cycles  = wr_ch_idle [cfg_perf_ch_sel];
+            end
+
+            //=================================================================
+            // RFC Stage D: per-transaction latency histograms
+            //=================================================================
+            // One histogram block per datapath bus, sharing the perf RUN window
+            // with the buckets above. Read block: AR->first-R + AR->RLAST;
+            // write block: AW->B. Indexed readout muxed by cfg_perf_hist_*.
+            logic [31:0] rd_hist_count, rd_hist_total;
+            logic [31:0] wr_hist_count, wr_hist_total;
+
+            axi_perf_latency_hist #(
+                .ID_WIDTH        (IW),
+                .NUM_CHANNELS    (NC),
+                .MAX_OUTSTANDING (AR_MAX_OUTSTANDING),
+                .NUM_BINS        (16),
+                .IS_READ         (1'b1)
+            ) u_rd_lat_hist (
+                .aclk         (clk),
+                .aresetn      (rst_n),
+                .i_clear      (w_perf_clear),
+                .i_freeze     (~r_perf_win_active),
+                .cmd_valid    (m_axi_rd_arvalid),
+                .cmd_ready    (m_axi_rd_arready),
+                .cmd_id       (m_axi_rd_arid),
+                .data_valid   (m_axi_rd_rvalid),
+                .data_ready   (m_axi_rd_rready),
+                .data_last    (m_axi_rd_rlast),
+                .data_id      (m_axi_rd_rid),
+                .resp_valid   (1'b0),
+                .resp_ready   (1'b0),
+                .resp_id      ('0),
+                .i_hist_metric(cfg_perf_hist_metric),
+                .i_hist_bin   (cfg_perf_hist_bin),
+                .o_hist_count (rd_hist_count),
+                .o_hist_total (rd_hist_total)
+            );
+
+            axi_perf_latency_hist #(
+                .ID_WIDTH        (IW),
+                .NUM_CHANNELS    (NC),
+                .MAX_OUTSTANDING (AW_MAX_OUTSTANDING),
+                .NUM_BINS        (16),
+                .IS_READ         (1'b0)
+            ) u_wr_lat_hist (
+                .aclk         (clk),
+                .aresetn      (rst_n),
+                .i_clear      (w_perf_clear),
+                .i_freeze     (~r_perf_win_active),
+                .cmd_valid    (m_axi_wr_awvalid),
+                .cmd_ready    (m_axi_wr_awready),
+                .cmd_id       (m_axi_wr_awid),
+                .data_valid   (1'b0),
+                .data_ready   (1'b0),
+                .data_last    (1'b0),
+                .data_id      ('0),
+                .resp_valid   (m_axi_wr_bvalid),
+                .resp_ready   (m_axi_wr_bready),
+                .resp_id      (m_axi_wr_bid),
+                .i_hist_metric(cfg_perf_hist_metric),
+                .i_hist_bin   (cfg_perf_hist_bin),
+                .o_hist_count (wr_hist_count),
+                .o_hist_total (wr_hist_total)
+            );
+
+            assign perf_hist_data  = cfg_perf_hist_bus ? wr_hist_count : rd_hist_count;
+            assign perf_hist_total = cfg_perf_hist_bus ? wr_hist_total : rd_hist_total;
+        end else begin : g_no_perf_ch
+            // Monitors disabled (production build): no meter area, read 0.
+            assign rdmon_ch_prod_cycles  = 16'h0;
+            assign rdmon_ch_bp_cycles    = 16'h0;
+            assign rdmon_ch_starv_cycles = 16'h0;
+            assign rdmon_ch_idle_cycles  = 16'h0;
+            assign rdmon_ch_overflow     = '0;
+            assign wrmon_ch_prod_cycles  = 16'h0;
+            assign wrmon_ch_bp_cycles    = 16'h0;
+            assign wrmon_ch_starv_cycles = 16'h0;
+            assign wrmon_ch_idle_cycles  = 16'h0;
+            assign wrmon_ch_overflow     = '0;
+            assign perf_hist_data        = 32'h0;
+            assign perf_hist_total       = 32'h0;
+        end
+    endgenerate
 
     //=========================================================================
     // System-Level Status Logic

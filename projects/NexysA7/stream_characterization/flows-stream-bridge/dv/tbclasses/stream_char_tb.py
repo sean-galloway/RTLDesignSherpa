@@ -153,6 +153,47 @@ APB_DAXMON_PERF_BYTE_COUNT_LO = STREAM_APB_BASE + 0x2F0
 APB_DAXMON_PERF_BYTE_COUNT_HI = STREAM_APB_BASE + 0x2F4
 APB_DAXMON_PERF_BURST_COUNT   = STREAM_APB_BASE + 0x2F8
 
+# Datapath monitor perf-window CSRs (RFC Stage E option 2, CSR route). Same RUN-
+# bit protocol as DAXMON_PERF. RDMON measures the data-read R bus, WRMON the
+# data-write W bus -- the in-core replacement for the FPGA-char axi_bus_meter.
+# The block layout is identical to DAXMON_PERF (11 regs, 0x04 stride), so a
+# single base + offset table reads any of the three. See _read_perf_window().
+APB_RDMON_PERF_BASE = STREAM_APB_BASE + 0x300
+APB_WRMON_PERF_BASE = STREAM_APB_BASE + 0x330
+PERF_OFF_CTRL          = 0x00  # RUN[0]
+PERF_OFF_STATUS        = 0x04  # WIN_ACTIVE[0]
+PERF_OFF_WINDOW_CYCLES = 0x08
+PERF_OFF_PROD_CYCLES   = 0x0C
+PERF_OFF_BP_CYCLES     = 0x10
+PERF_OFF_STARV_CYCLES  = 0x14
+PERF_OFF_IDLE_CYCLES   = 0x18
+PERF_OFF_BEAT_COUNT    = 0x1C
+PERF_OFF_BYTE_COUNT_LO = 0x20
+PERF_OFF_BYTE_COUNT_HI = 0x24
+PERF_OFF_BURST_COUNT   = 0x28
+
+# NOTE: the legacy harness axi_bus_meter readback (HARNESS_CSR_BASE + 0x100 /
+# 0x180) was retired in RFC Stage E.4 -- the in-core monitor CSRs below are now
+# the sole datapath-utilization source.
+
+# Per-channel datapath perf buckets (RFC Stage C, indexed readout). Select a
+# channel via PERF_CH_SEL, then read the packed {bp,prod}/{idle,starv} regs.
+APB_PERF_CH_SEL              = STREAM_APB_BASE + 0x35C  # CH_SEL[2:0]
+APB_RDMON_PERF_CH_PROD_BP    = STREAM_APB_BASE + 0x360  # {bp[31:16], prod[15:0]}
+APB_RDMON_PERF_CH_STARV_IDLE = STREAM_APB_BASE + 0x364  # {idle[31:16], starv[15:0]}
+APB_WRMON_PERF_CH_PROD_BP    = STREAM_APB_BASE + 0x368
+APB_WRMON_PERF_CH_STARV_IDLE = STREAM_APB_BASE + 0x36C
+APB_RDMON_PERF_CH_OVERFLOW   = STREAM_APB_BASE + 0x370
+APB_WRMON_PERF_CH_OVERFLOW   = STREAM_APB_BASE + 0x374
+
+# Datapath latency histograms (RFC Stage D, indexed readout). HIST_SEL packs
+# {BUS[0], METRIC[1], BIN[5:2]}; read HIST_DATA for the selected bin and
+# HIST_TOTAL for the selected bus+metric total (= sum over bins = txn count).
+APB_HIST_SEL   = STREAM_APB_BASE + 0x378
+APB_HIST_DATA  = STREAM_APB_BASE + 0x37C
+APB_HIST_TOTAL = STREAM_APB_BASE + 0x380
+HIST_NUM_BINS  = 16
+
 # Value to enable MON + ERR + COMPL + TIMEOUT events (PERF stays off to avoid
 # packet congestion). Matches <MON>_ENABLE bit layout: [0]=MON_EN, [1]=ERR_EN,
 # [2]=COMPL_EN, [3]=TIMEOUT_EN, [4]=PERF_EN.
@@ -517,13 +558,66 @@ class StreamCharTB(TBBase):
     # DMA test using descriptor_builder
     # =====================================================================
 
+    async def _decode_packed_buckets(self, prod_bp_addr: int,
+                                     starv_idle_addr: int) -> dict:
+        """Decode a packed per-channel bucket pair: {bp[31:16], prod[15:0]} and
+        {idle[31:16], starv[15:0]} -- the layout shared by the in-core CSRs and
+        the harness axi_bus_meter. Returns 16-bit prod/bp/starv/idle."""
+        pb = await self.uart_read(prod_bp_addr) or 0
+        si = await self.uart_read(starv_idle_addr) or 0
+        return {
+            'prod':  pb & 0xFFFF,
+            'bp':    (pb >> 16) & 0xFFFF,
+            'starv': si & 0xFFFF,
+            'idle':  (si >> 16) & 0xFFFF,
+        }
+
+    async def _read_histogram(self, bus: int, metric: int) -> dict:
+        """Read one latency histogram (RFC Stage D) via HIST_SEL indexed readout.
+
+        bus: 0=read, 1=write; metric: 0=AR->firstR/AW->B, 1=AR->RLAST (read).
+        Returns {'bins': [count per bin], 'total': metric total}.
+        """
+        bins = []
+        for b in range(HIST_NUM_BINS):
+            sel = (bus & 0x1) | ((metric & 0x1) << 1) | ((b & 0xF) << 2)
+            await self.uart_write(APB_HIST_SEL, sel)
+            bins.append(await self.uart_read(APB_HIST_DATA) or 0)
+        total = await self.uart_read(APB_HIST_TOTAL) or 0
+        return {'bins': bins, 'total': total}
+
+    async def _read_perf_window(self, base: int) -> dict:
+        """Read one perf-window CSR block (DAXMON/RDMON/WRMON share the layout).
+
+        Returns the decoded buckets/counts. WINDOW_CYCLES is a LIVE counter the
+        monitor zeroes on close, so the authoritative closed-window length is
+        bucket_total = PROD+BP+STARV+IDLE (the buckets HOLD after close).
+        """
+        byte_lo = await self.uart_read(base + PERF_OFF_BYTE_COUNT_LO) or 0
+        byte_hi = await self.uart_read(base + PERF_OFF_BYTE_COUNT_HI) or 0
+        perf = {
+            'win_active':   (await self.uart_read(base + PERF_OFF_STATUS) or 0) & 0x1,
+            'window_cycles': await self.uart_read(base + PERF_OFF_WINDOW_CYCLES) or 0,
+            'productive':    await self.uart_read(base + PERF_OFF_PROD_CYCLES) or 0,
+            'backpressure':  await self.uart_read(base + PERF_OFF_BP_CYCLES) or 0,
+            'starvation':    await self.uart_read(base + PERF_OFF_STARV_CYCLES) or 0,
+            'idle':          await self.uart_read(base + PERF_OFF_IDLE_CYCLES) or 0,
+            'beats':         await self.uart_read(base + PERF_OFF_BEAT_COUNT) or 0,
+            'bytes':         (byte_hi << 32) | byte_lo,
+            'bursts':        await self.uart_read(base + PERF_OFF_BURST_COUNT) or 0,
+        }
+        perf['bucket_total'] = (perf['productive'] + perf['backpressure'] +
+                                perf['starvation'] + perf['idle'])
+        return perf
+
     async def run_dma_test(self, num_channels: int,
                            descriptors_per_channel: int,
                            transfer_bytes: int,
                            timeout_clocks: int = 50_000,
                            mon_err_cfg: int = MON_ERR_CFG_ROUTE_ALL,
                            compress_en: bool = False,
-                           measure_desc_perf: bool = False) -> bool:
+                           measure_desc_perf: bool = False,
+                           measure_rw_perf: bool = False) -> bool:
         # compress_en=True sets WRMON_ENABLE.COMPRESS_EN (bit 5) so the
         # compressor path (w_use_comp=1) is selected at runtime -- mirrors
         # run_characterization.py "--compression on". Combined with
@@ -671,6 +765,28 @@ class StreamCharTB(TBBase):
         if measure_desc_perf:
             await self.uart_write(APB_DAXMON_PERF_CTRL, 0x1)
             self.log.info("  Desc-monitor perf window opened (RUN=1)")
+
+        # 4y'. RFC Stage E option 2: open the data-read and data-write datapath
+        # perf windows right before the kick so they enclose all R/W datapath
+        # traffic. RUN rising edge clears the counters. Decoupled from the
+        # RDMON/WRMON PERF_EN packet path.
+        if measure_rw_perf:
+            await self.uart_write(APB_RDMON_PERF_BASE + PERF_OFF_CTRL, 0x1)
+            await self.uart_write(APB_WRMON_PERF_BASE + PERF_OFF_CTRL, 0x1)
+            self.log.info("  RD/WR datapath perf windows opened (RUN=1)")
+
+        # DIAG: reproduce the board's slow-UART arm->kick latency. On the FPGA
+        # the host arms RUN (open_windows) and then issues several more 115200-
+        # baud UART transactions (kick-addr shadow loads + KICK_GO) before the
+        # DMA actually starts -- a multi-ms gap = millions of aclk cycles. The
+        # cosim UART BFM is effectively instantaneous, so that gap collapses and
+        # the bug never showed in sim. Inject the gap explicitly (idle cycles
+        # with RUN already armed) to put the exact FPGA timing pattern into sim.
+        _arm_gap = int(os.environ.get('DIAG_PERF_ARM_GAP_CLOCKS', '0'))
+        if _arm_gap > 0:
+            self.log.info(f"  [DIAG] arm->kick idle gap = {_arm_gap} clocks "
+                          f"(RUN armed, scheduler idle, no DMA yet)")
+            await self.wait_clocks(self.clk_name, _arm_gap)
 
         # 5. Kick all channels (two APB writes per channel: LOW + HIGH 32-bit)
         # Kick-burst fast path: pre-load each channel's first descriptor
@@ -937,6 +1053,58 @@ class StreamCharTB(TBBase):
                                     perf['starvation'] + perf['idle'])
             self._desc_perf = perf
             self.log.info(f"  Desc-monitor perf window (RUN=0, frozen): {perf}")
+
+        # 6z'. RFC Stage E option 2: close + read the data-read and data-write
+        # datapath perf windows from the in-core monitor CSRs. (The legacy
+        # harness axi_bus_meter was retired in Stage E.4; the in-core monitor is
+        # now the source of truth.) Stashed on self._rd_perf / self._wr_perf.
+        if measure_rw_perf:
+            # The window must close in HARDWARE when the datapath goes idle, NOT
+            # when software clears RUN -- on the board the host clears RUN ~ms
+            # after the transfer, and that post-transfer idle must NOT inflate
+            # the buckets. Emulate that here: idle a long time with RUN still
+            # HIGH, then confirm the window already closed itself (WIN_ACTIVE=0)
+            # and that the idle was NOT counted (buckets unchanged).
+            await self.wait_clocks(self.clk_name, 2000)
+            self._rd_win_preclose = (await self.uart_read(
+                APB_RDMON_PERF_BASE + PERF_OFF_STATUS) or 0) & 0x1
+            self._wr_win_preclose = (await self.uart_read(
+                APB_WRMON_PERF_BASE + PERF_OFF_STATUS) or 0) & 0x1
+            self.log.info(f"  Window auto-close (RUN still high after 2000-cyc "
+                          f"idle): rd_win_active={self._rd_win_preclose} "
+                          f"wr_win_active={self._wr_win_preclose}")
+            # Now disarm (RUN=0) and read the frozen counters.
+            await self.uart_write(APB_RDMON_PERF_BASE + PERF_OFF_CTRL, 0x0)
+            await self.uart_write(APB_WRMON_PERF_BASE + PERF_OFF_CTRL, 0x0)
+            await self.wait_clocks(self.clk_name, 20)
+            self._rd_perf = await self._read_perf_window(APB_RDMON_PERF_BASE)
+            self._wr_perf = await self._read_perf_window(APB_WRMON_PERF_BASE)
+            self.log.info(f"  RD datapath perf (RUN=0): {self._rd_perf}")
+            self.log.info(f"  WR datapath perf (RUN=0): {self._wr_perf}")
+
+            # RFC Stage C: per-channel buckets for the active channel(s), read
+            # from the in-core indexed CSRs.
+            self._rd_ch = []
+            self._wr_ch = []
+            for ch in range(num_channels):
+                await self.uart_write(APB_PERF_CH_SEL, ch)
+                self._rd_ch.append(await self._decode_packed_buckets(
+                    APB_RDMON_PERF_CH_PROD_BP, APB_RDMON_PERF_CH_STARV_IDLE))
+                self._wr_ch.append(await self._decode_packed_buckets(
+                    APB_WRMON_PERF_CH_PROD_BP, APB_WRMON_PERF_CH_STARV_IDLE))
+            self._rd_ch_overflow = await self.uart_read(APB_RDMON_PERF_CH_OVERFLOW) or 0
+            self._wr_ch_overflow = await self.uart_read(APB_WRMON_PERF_CH_OVERFLOW) or 0
+            self.log.info(f"  RD per-channel (in-core): {self._rd_ch}")
+            self.log.info(f"  WR per-channel (in-core): {self._wr_ch}")
+
+            # RFC Stage D: latency histograms. Read read-bus first-R + RLAST and
+            # write-bus AW->B. The total per metric must equal the burst count.
+            self._rd_hist_firstr = await self._read_histogram(bus=0, metric=0)
+            self._rd_hist_rlast = await self._read_histogram(bus=0, metric=1)
+            self._wr_hist_b = await self._read_histogram(bus=1, metric=0)
+            self.log.info(f"  RD latency hist AR->firstR: {self._rd_hist_firstr}")
+            self.log.info(f"  RD latency hist AR->RLAST:  {self._rd_hist_rlast}")
+            self.log.info(f"  WR latency hist AW->B:      {self._wr_hist_b}")
 
         # 6a. Diagnostic: wait until pattern_gen + crc_check beat counts match
         # the descriptor total before checking CRCs. The IRQ fires on the very

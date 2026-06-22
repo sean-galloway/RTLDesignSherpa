@@ -582,26 +582,9 @@ module stream_char_harness #(
     )
     wire unit_aresetn = aresetn & (r_soft_rst_cnt == 0);
 
-    // axi_bus_meter outputs (per-engine R + W). CHW = local channel-id width.
-    localparam int CHW = (NUM_CHANNELS > 1) ? $clog2(NUM_CHANNELS) : 1;
-    logic [CHW-1:0] wr_active_channel_id;
-    logic           wr_active_channel_valid;
-    // Read meter aggregate + per-channel
-    logic [31:0]                    rd_meter_agg_prod, rd_meter_agg_bp,
-                                    rd_meter_agg_starv, rd_meter_agg_idle;
-    logic [15:0]                    rd_meter_ch_prod   [NUM_CHANNELS];
-    logic [15:0]                    rd_meter_ch_bp     [NUM_CHANNELS];
-    logic [15:0]                    rd_meter_ch_starv  [NUM_CHANNELS];
-    logic [15:0]                    rd_meter_ch_idle   [NUM_CHANNELS];
-    logic [NUM_CHANNELS*4-1:0]      rd_meter_ch_overflow;
-    // Write meter aggregate + per-channel
-    logic [31:0]                    wr_meter_agg_prod, wr_meter_agg_bp,
-                                    wr_meter_agg_starv, wr_meter_agg_idle;
-    logic [15:0]                    wr_meter_ch_prod   [NUM_CHANNELS];
-    logic [15:0]                    wr_meter_ch_bp     [NUM_CHANNELS];
-    logic [15:0]                    wr_meter_ch_starv  [NUM_CHANNELS];
-    logic [15:0]                    wr_meter_ch_idle   [NUM_CHANNELS];
-    logic [NUM_CHANNELS*4-1:0]      wr_meter_ch_overflow;
+    // (axi_bus_meter output + sideband wires retired in RFC Stage E.4 --
+    //  datapath utilization is now measured in-core; see the retirement note
+    //  at the former meter-instance site below.)
     // Per-channel CRC + beat-count outputs from the slaves. The slaves
     // demux off s_axi_arid / s_axi_wuser low-bits and keep independent
     // LFSR/CRC state per channel, so multi-channel runs verify integrity
@@ -788,25 +771,9 @@ module stream_char_harness #(
         .o_kick_burst_mask     (csr_kick_burst_mask),
         .o_kick_burst_addr     (csr_kick_burst_addr),
 
-        // AXI bus meter readback (R-meter at CSR 0x100, W-meter at 0x180)
-        .i_rd_meter_agg_prod    (rd_meter_agg_prod),
-        .i_rd_meter_agg_bp      (rd_meter_agg_bp),
-        .i_rd_meter_agg_starv   (rd_meter_agg_starv),
-        .i_rd_meter_agg_idle    (rd_meter_agg_idle),
-        .i_rd_meter_ch_prod     (rd_meter_ch_prod),
-        .i_rd_meter_ch_bp       (rd_meter_ch_bp),
-        .i_rd_meter_ch_starv    (rd_meter_ch_starv),
-        .i_rd_meter_ch_idle     (rd_meter_ch_idle),
-        .i_rd_meter_ch_overflow (rd_meter_ch_overflow),
-        .i_wr_meter_agg_prod    (wr_meter_agg_prod),
-        .i_wr_meter_agg_bp      (wr_meter_agg_bp),
-        .i_wr_meter_agg_starv   (wr_meter_agg_starv),
-        .i_wr_meter_agg_idle    (wr_meter_agg_idle),
-        .i_wr_meter_ch_prod     (wr_meter_ch_prod),
-        .i_wr_meter_ch_bp       (wr_meter_ch_bp),
-        .i_wr_meter_ch_starv    (wr_meter_ch_starv),
-        .i_wr_meter_ch_idle     (wr_meter_ch_idle),
-        .i_wr_meter_ch_overflow (wr_meter_ch_overflow),
+        // (AXI bus meter readback retired in RFC Stage E.4 -- datapath
+        //  utilization is now measured in-core via the STREAM RDMON/WRMON_PERF
+        //  CSRs, read directly from the regblock.)
 
         // desc_ram observation counters (CSR readback at 0xD4/0xD8 + 0xE0-0xFC)
         .i_desc_sram_ar_hs (r_desc_sram_ar_hs_cnt),
@@ -1627,11 +1594,10 @@ module stream_char_harness #(
         .debug_apb_rsp_prdata_captured(),
         .debug_apb_rd_count           (),
         .debug_peakrdl_rd_count       (),
-        .debug_regblk_rd_count        (),
-
-        // Sideband from write engine for axi_bus_meter per-channel demux
-        .o_wr_active_channel_id    (wr_active_channel_id),
-        .o_wr_active_channel_valid (wr_active_channel_valid)
+        .debug_regblk_rd_count        ()
+        // (o_wr_active_channel_* sideband ports removed from stream_top_ch8 in
+        //  RFC Stage E.4; the in-core per-channel meter uses the engine sideband
+        //  internally to stream_core.)
     );
 
     // =========================================================================
@@ -1657,76 +1623,15 @@ module stream_char_harness #(
     assign o_timer_pass = timer_pass;
 
     // =========================================================================
-    // AXI bus meters -- per-cycle valid/ready bucket counters for the read
-    // engine's R bus and the write engine's W bus. Cleared by the same
-    // csr_clear_pulse that wipes debug_sram, so a single CSR write
-    // (CTRL.clear_stats) gives the host an atomic reset of the entire
-    // measurement substrate.
+    // AXI bus meters: RETIRED (RFC Stage E option 2, Stage E.4).
+    // The per-cycle valid/ready bucket counters for the read R bus and write W
+    // bus are now measured IN-CORE by stream_core's datapath monitors and
+    // axi_bus_meter blocks, read back via the STREAM regblock perf CSRs
+    // (RDMON_PERF_* @ 0x300, WRMON_PERF_* @ 0x330, per-channel @ 0x360, latency
+    // histograms @ 0x378). The harness-side meters + their harness_csr readback
+    // (0x100 / 0x180) were removed; equivalence to the legacy meter was proven
+    // in the Stage E.1/E.2 cosim bring-up.
     // =========================================================================
-
-    axi_bus_meter #(
-        .NUM_CHANNELS(NUM_CHANNELS)
-    ) u_rd_bus_meter (
-        .aclk             (aclk),
-        .aresetn(unit_aresetn),
-        .i_clear          (csr_clear_pulse),
-        // Freeze when the harness timer is NOT running. The meter then
-        // accumulates only during [first descriptor AR -> beat-count-
-        // reached], which is the methodology Section 2.1 datapath
-        // window. Pre-kick UART setup time and post-burst host polling
-        // are both excluded; the bucket sum equals the timer window.
-        .i_freeze         (!timer_running),
-        // Watch the read engine's R channel. rid carries the channel index
-        // on every beat; per-channel attribution is meaningful exactly when
-        // rvalid is high (master driving R).
-        .i_valid          (rd_rvalid),
-        .i_ready          (rd_rready),
-        .i_channel_id     (rd_rid[CHW-1:0]),
-        .i_channel_valid  (rd_rvalid),
-        // Aggregate
-        .o_agg_productive   (rd_meter_agg_prod),
-        .o_agg_backpressure (rd_meter_agg_bp),
-        .o_agg_starvation   (rd_meter_agg_starv),
-        .o_agg_idle         (rd_meter_agg_idle),
-        // Per-channel
-        .o_ch_productive    (rd_meter_ch_prod),
-        .o_ch_backpressure  (rd_meter_ch_bp),
-        .o_ch_starvation    (rd_meter_ch_starv),
-        .o_ch_idle          (rd_meter_ch_idle),
-        .o_ch_overflow      (rd_meter_ch_overflow)
-    );
-
-    axi_bus_meter #(
-        .NUM_CHANNELS(NUM_CHANNELS)
-    ) u_wr_bus_meter (
-        .aclk             (aclk),
-        .aresetn(unit_aresetn),
-        .i_clear          (csr_clear_pulse),
-        // Freeze when the harness timer is NOT running. The meter then
-        // accumulates only during [first descriptor AR -> beat-count-
-        // reached], which is the methodology Section 2.1 datapath
-        // window. Pre-kick UART setup time and post-burst host polling
-        // are both excluded; the bucket sum equals the timer window.
-        .i_freeze         (!timer_running),
-        // Watch the write engine's W channel. W beats carry no id in AXI4,
-        // so attribution comes from stream_top_ch8's sideband (driven from
-        // the write engine's r_w_channel_id / r_w_active).
-        .i_valid          (wr_wvalid),
-        .i_ready          (wr_wready),
-        .i_channel_id     (wr_active_channel_id),
-        .i_channel_valid  (wr_active_channel_valid),
-        // Aggregate
-        .o_agg_productive   (wr_meter_agg_prod),
-        .o_agg_backpressure (wr_meter_agg_bp),
-        .o_agg_starvation   (wr_meter_agg_starv),
-        .o_agg_idle         (wr_meter_agg_idle),
-        // Per-channel
-        .o_ch_productive    (wr_meter_ch_prod),
-        .o_ch_backpressure  (wr_meter_ch_bp),
-        .o_ch_starvation    (wr_meter_ch_starv),
-        .o_ch_idle          (wr_meter_ch_idle),
-        .o_ch_overflow      (wr_meter_ch_overflow)
-    );
 
     // Prevent unused signal warnings. csr_soft_reset is now consumed by
     // the unit_aresetn pulse extender above, so it's removed from here.
