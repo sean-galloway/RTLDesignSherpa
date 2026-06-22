@@ -138,6 +138,7 @@ observer adds **no new combinational depth** in the AXI path.
 | `MAX_TRANSACTIONS` | 16 | Per-tap monitor transaction-table depth |
 | `UNIT_ID` | `8'h10` | UNIT_ID stamped into emitted monbus packets |
 | `ENABLE_BUS_METER` | 1 | 0 ties all bus-meter outputs to 0 |
+| `WR_CH_FROM_AWID` | 0 | 1 = derive write per-channel attribution from `awid` via an internal AW→W order tracker (no `dma_wr_active_ch_*` sideband needed); 0 = use the sideband. Reads always attribute via `rid` |
 | `NUM_CHANNELS` | 1 | 1 = aggregate-only buckets; > 1 = per-channel attribution |
 | `ENABLE_LATENCY_HIST` | 1 | 0 ties all latency-histogram outputs to 0 (RFC Stage E.3) |
 | `HIST_NUM_BINS` | 16 | log2 latency bins: bin `b` counts `[2^b, 2^(b+1))` cycles |

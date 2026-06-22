@@ -108,20 +108,35 @@ Only two things vary per DMA-under-test:
 1. **Kick adapter** (Phase 2) — how the DMA is started and how "done" /
    expected-beats are signalled.
 2. **Channel attribution config** — `NUM_CHANNELS` + `cfg_rd_rid_per_channel`
-   (reads) and `dma_wr_active_ch_id` sideband or an AW→W order tracker
-   (writes). `NUM_CHANNELS=1` (aggregate-only) works for any DMA with no
-   extra wiring.
+   (reads, keyed by `rid`). Writes attribute from `awid` via the observer's
+   built-in **AW→W order tracker** (`WR_CH_FROM_AWID=1`): AXI4 W beats carry no
+   WID, so the tracker captures `awid`'s channel at AW-accept and pops at WLAST
+   — no DMA sideband needed (the legacy `dma_wr_active_ch_*` sideband is still
+   selectable with `WR_CH_FROM_AWID=0`). `NUM_CHANNELS=1` (aggregate-only) works
+   for any DMA with no extra wiring.
 
 | Flavor | Kick mechanism | Channels | Status |
 |---|---|---|---|
-| STREAM | descriptor kick (existing harness) | 8 (rid + wr sideband) | `[x]` works today |
+| STREAM (in-harness instrumentation, today) | descriptor kick (existing harness) | 8 (rid + in-core wr meter) | `[x]` works today |
+| STREAM (via `axi4_dma_observer`) | descriptor kick (existing harness) | 8 (rid reads + `WR_CH_FROM_AWID` writes — STREAM drives `awid`=channel) | `[~]` observer at parity; needs the observer dropped on STREAM's `m_axi_rd/wr_*` + CSR wiring |
 | *(next external DMA)* | TBD | TBD | `[ ]` |
+
+> **Why route STREAM through the observer (the timing payoff):** the in-core
+> monitors are what push STREAM to ~87% LUT and a marginal −0.097 ns @ 100 MHz.
+> Because STREAM already drives `m_axi_{ar,aw}id = channel` and exposes
+> `m_axi_rd/wr_*` + `scheduler_idle` at the top, the observer can measure the
+> **same** rd/wr datapath externally (reads via `rid`, writes via the AW→W
+> `awid` tracker, window from `scheduler_idle`). That lets STREAM build with
+> **`USE_AXI_MONITORS=0`** — dropping the in-core CAMs / meters / histograms —
+> which relieves the congestion and very likely closes 100 MHz timing, with no
+> loss of perf data. Validate observer-vs-in-core equivalence in cosim first,
+> then flip the characterization bitstream to `USE_AXI_MONITORS=0`.
 
 ---
 
 ## 5. Open decisions
 
-1. **Channel attribution granularity** — `NUM_CHANNELS=1` (aggregate, simplest, any DMA) vs. bucket by AXI ID (fill `cfg_rd_rid_per_channel`; writes need a sideband or an AW→W order tracker).
+1. **Channel attribution granularity** — `NUM_CHANNELS=1` (aggregate, simplest, any DMA) vs. bucket by AXI ID. RESOLVED for the per-channel case: reads fill `cfg_rd_rid_per_channel`; writes use the built-in AW→W `awid` tracker (`WR_CH_FROM_AWID=1`) — no sideband. (Caveat: the tracker assumes AW leads/accompanies W, true for STREAM and most DMAs; the first beat of a burst is unattributed if W lands the same cycle its AW is accepted.)
 2. **Trace readout** — land `m_axi` dump into `debug_sram` @ 0x40000 (zero host change, SRAM-depth-limited) vs. `s_axil` IRQ-drain (unbounded, new host reader). Bus-meter utilization (the headline) is unaffected either way — pure CSR counters.
 3. **First target DMA + its kick mechanism** — defines the first Phase-2 flavor (descriptor in memory? a "go" register? something else?).
 

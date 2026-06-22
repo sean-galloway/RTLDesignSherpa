@@ -64,6 +64,10 @@ module axi4_dma_observer
 
     // ---------- axi_bus_meter integration ----------
     parameter bit ENABLE_BUS_METER      = 1'b1,  // 0 = omit meters, tie outputs to 0
+    // 1 = derive write per-channel attribution from awid via an internal AW->W
+    // order tracker (no dma_wr_active_ch_* sideband needed; valid when AW leads
+    // W, the common case). 0 = use the explicit dma_wr_active_ch_* sideband.
+    parameter bit WR_CH_FROM_AWID       = 1'b0,
     parameter int NUM_CHANNELS          = 1,     // 1 = aggregate only (no per-channel buckets)
     parameter int CW                    = (NUM_CHANNELS > 1) ? $clog2(NUM_CHANNELS) : 1,
 
@@ -877,6 +881,49 @@ module axi4_dma_observer
 
             // ---------- Write-side meters ----------
             for (mi = 0; mi < NUM_WR_PORTS; mi = mi + 1) begin : gen_wr_meter
+                // Write per-channel attribution source.
+                //   WR_CH_FROM_AWID=1: AXI4 W beats carry no WID, but W bursts
+                //   follow AW-issue order -- so reconstruct the in-flight W
+                //   burst's channel from awid with an AW->W order tracker
+                //   (push awid's channel at AW-accept, head = current burst's
+                //   channel, pop at WLAST). STREAM drives awid = channel, so no
+                //   DMA sideband is needed. Correct when AW leads/accompanies W.
+                //   WR_CH_FROM_AWID=0: use the explicit dma_wr_active_ch_* sideband.
+                logic [CW-1:0]  wr_ch_id;
+                logic           wr_ch_valid;
+
+                if (WR_CH_FROM_AWID) begin : g_awid_track
+                    localparam int AWQ_PTRW = (MAX_TRANSACTIONS > 1) ? $clog2(MAX_TRANSACTIONS) : 1;
+                    logic [CW-1:0]     awq_mem [MAX_TRANSACTIONS];
+                    logic [AWQ_PTRW:0] awq_wptr, awq_rptr;
+                    logic              awq_empty, awq_full, awq_push, awq_pop;
+
+                    assign awq_empty = (awq_wptr == awq_rptr);
+                    assign awq_full  = (awq_wptr[AWQ_PTRW-1:0] == awq_rptr[AWQ_PTRW-1:0])
+                                    && (awq_wptr[AWQ_PTRW]     != awq_rptr[AWQ_PTRW]);
+                    assign awq_push  = fab_wr_awvalid[mi] && fab_wr_awready[mi] && !awq_full;
+                    assign awq_pop   = fab_wr_wvalid[mi]  && fab_wr_wready[mi]
+                                    && fab_wr_wlast[mi]   && !awq_empty;
+
+                    `ALWAYS_FF_RST(aclk, aresetn,
+                        if (`RST_ASSERTED(aresetn)) begin
+                            awq_wptr <= '0;
+                            awq_rptr <= '0;
+                        end else begin
+                            if (awq_push) begin
+                                awq_mem[awq_wptr[AWQ_PTRW-1:0]] <= fab_wr_awid[mi][CW-1:0];
+                                awq_wptr <= awq_wptr + 1'b1;
+                            end
+                            if (awq_pop) awq_rptr <= awq_rptr + 1'b1;
+                        end
+                    )
+                    assign wr_ch_id    = awq_mem[awq_rptr[AWQ_PTRW-1:0]];
+                    assign wr_ch_valid = !awq_empty;
+                end else begin : g_sideband
+                    assign wr_ch_id    = dma_wr_active_ch_id[mi];
+                    assign wr_ch_valid = dma_wr_active_ch_valid[mi];
+                end
+
                 axi_bus_meter #(
                     .NUM_CHANNELS (NUM_CHANNELS)
                 ) u_wr_meter (
@@ -886,12 +933,8 @@ module axi4_dma_observer
                     .i_freeze         (i_meter_freeze),
                     .i_valid          (fab_wr_wvalid[mi]),
                     .i_ready          (fab_wr_wready[mi]),
-                    // Channel attribution comes from the optional DMA
-                    // sideband. If the DMA doesn't expose it, the user
-                    // ties both to 0 and only the aggregate buckets
-                    // are meaningful.
-                    .i_channel_id     (dma_wr_active_ch_id[mi]),
-                    .i_channel_valid  (dma_wr_active_ch_valid[mi]),
+                    .i_channel_id     (wr_ch_id),
+                    .i_channel_valid  (wr_ch_valid),
                     .o_agg_productive   (wr_meter_agg_productive[mi]),
                     .o_agg_backpressure (wr_meter_agg_backpressure[mi]),
                     .o_agg_starvation   (wr_meter_agg_starvation[mi]),

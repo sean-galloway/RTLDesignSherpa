@@ -487,6 +487,20 @@ async def cocotb_test_axi4_dma_observer(dut):
     assert wr_prod >= n_xfers, (
         f"wr meter: expected >= {n_xfers} productive cycles, got {wr_prod}"
     )
+    # AW->W tracker (WR_CH_FROM_AWID=1): write beats are attributed per-channel
+    # from awid, so the per-channel productive buckets should be populated and
+    # sum to no more than the aggregate (a beat is attributed to at most one
+    # channel; the first beat of a burst may be unattributed if W lands the same
+    # cycle its AW is accepted, so this is `<= wr_prod`, not `==`).
+    try:
+        wr_ch_sum = sum(int(tb.dut.wr_meter_ch_productive[0][ch].value)
+                        for ch in range(8))
+        tb.log.info(f"  wr per-channel productive sum (awid tracker)={wr_ch_sum}")
+        assert 0 < wr_ch_sum <= wr_prod, (
+            f"wr AW->W tracker: per-channel sum {wr_ch_sum} not in (0, {wr_prod}]"
+        )
+    except (AttributeError, IndexError) as e:
+        tb.log.warning(f"  per-channel write readback skipped: {e}")
     # Per-channel attribution: with the identity rid->channel map and arids
     # 1..n_xfers, channels 0..(n_xfers-1) should each show one productive
     # cycle on the read side. (This is a soft check -- skip if the array
@@ -597,6 +611,9 @@ def test_axi4_dma_observer(request):
         'USE_COMPRESSION':      0,
         'ENABLE_BUS_METER':     1,
         'NUM_CHANNELS':         8,
+        # Exercise the AW->W order tracker: derive write per-channel attribution
+        # from awid (the driver issues awid=(i&0xF)+1) instead of the sideband.
+        'WR_CH_FROM_AWID':      1,
     }
 
     extra_env = {
