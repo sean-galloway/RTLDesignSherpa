@@ -80,6 +80,7 @@ What the host already reads, and where it comes from in an observer-based harnes
 - [ ] Instantiate the external DMA as the DUT; bring its rd/wr master ports to the observer `dma_*` side
 - [ ] Instantiate `axi4_dma_observer`; `fab_*` side → `axi4_dma_slaves` (LFSR source + CRC sink)
 - [ ] Wire observer `{rd,wr}_meter_agg_*` / per-channel → `harness_csr` meter inputs (0x100/0x180)
+- [ ] Wire observer `{rd,wr}_hist_count`/`_total` + `i_hist_metric`/`i_hist_bin` → `HIST_SEL`/`HIST_DATA`/`HIST_TOTAL` CSRs (mirror the in-core STREAM regblock @ 0x378-0x380); the RTL ports exist (RFC Stage E.3) — this is harness-glue only
 - [ ] Land observer `m_axi` bulk-dump into a `debug_sram` exposed at 0x40000 with `wr_ptr`/`overflow`
 - [ ] Reuse harness timer + first/last latches + freeze/clear → observer `i_meter_freeze`/`i_meter_clear`
 - [ ] Bridge/UART + `harness_csr` as today
