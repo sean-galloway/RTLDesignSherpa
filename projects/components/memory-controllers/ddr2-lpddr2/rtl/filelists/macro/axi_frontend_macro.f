@@ -30,6 +30,7 @@ $REPO_ROOT/projects/components/memory-controllers/ddr2-lpddr2/rtl/fub/addr_mappe
 $REPO_ROOT/projects/components/memory-controllers/ddr2-lpddr2/rtl/fub/wr_cmd_cam.sv
 $REPO_ROOT/projects/components/memory-controllers/ddr2-lpddr2/rtl/fub/rd_cmd_cam.sv
 $REPO_ROOT/projects/components/memory-controllers/ddr2-lpddr2/rtl/fub/wr2rd_forward.sv
+$REPO_ROOT/projects/components/memory-controllers/ddr2-lpddr2/rtl/fub/axi_id_side_table.sv
 $REPO_ROOT/projects/components/memory-controllers/ddr2-lpddr2/rtl/fub/axi_intake.sv
 
 # Macro

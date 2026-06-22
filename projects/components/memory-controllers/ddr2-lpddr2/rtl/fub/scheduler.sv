@@ -85,11 +85,13 @@ module scheduler
     input  logic [WR_CAM_DEPTH-1:0][ROW_WIDTH-1:0]       wr_snap_row_i,
     input  logic [WR_CAM_DEPTH-1:0][COL_WIDTH-1:0]       wr_snap_col_i,
     input  logic [WR_CAM_DEPTH-1:0][BURST_LEN_WIDTH-1:0] wr_snap_len_i,
+    input  logic [WR_CAM_DEPTH-1:0][3:0]                 wr_snap_qos_i,
     input  logic [RD_CAM_DEPTH-1:0][RKW-1:0]             rd_snap_rank_i,
     input  logic [RD_CAM_DEPTH-1:0][BKW-1:0]             rd_snap_bank_i,
     input  logic [RD_CAM_DEPTH-1:0][ROW_WIDTH-1:0]       rd_snap_row_i,
     input  logic [RD_CAM_DEPTH-1:0][COL_WIDTH-1:0]       rd_snap_col_i,
     input  logic [RD_CAM_DEPTH-1:0][BURST_LEN_WIDTH-1:0] rd_snap_len_i,
+    input  logic [RD_CAM_DEPTH-1:0][3:0]                 rd_snap_qos_i,
 
     // ----- mark-issued strobes back to CAMs -----
     output logic                       wr_issued_we_o,
@@ -187,24 +189,38 @@ module scheduler
     logic [WSL-1:0]      w_wr_pick;
     logic [RSL-1:0]      w_rd_pick;
 
+    // F4c: QoS-aware slot picker. Highest AXI QoS wins; on ties, the
+    // lowest slot index wins (oldest-allocated under the wr/rd_cmd_cam
+    // free-slot priority encoder). Falls through to existing W/R
+    // arbitration below.
+    logic [3:0] w_wr_best_qos;
     always_comb begin
-        w_have_wr = 1'b0;
-        w_wr_pick = '0;
+        w_have_wr     = 1'b0;
+        w_wr_pick     = '0;
+        w_wr_best_qos = 4'd0;
         for (int unsigned i = 0; i < WR_CAM_DEPTH; i++) begin
-            if (!w_have_wr && wr_match_pending_i[i]) begin
-                w_have_wr = 1'b1;
-                w_wr_pick = WSL'(i);
+            if (wr_match_pending_i[i]) begin
+                if (!w_have_wr || (wr_snap_qos_i[i] > w_wr_best_qos)) begin
+                    w_have_wr     = 1'b1;
+                    w_wr_pick     = WSL'(i);
+                    w_wr_best_qos = wr_snap_qos_i[i];
+                end
             end
         end
     end
 
+    logic [3:0] w_rd_best_qos;
     always_comb begin
-        w_have_rd = 1'b0;
-        w_rd_pick = '0;
+        w_have_rd     = 1'b0;
+        w_rd_pick     = '0;
+        w_rd_best_qos = 4'd0;
         for (int unsigned i = 0; i < RD_CAM_DEPTH; i++) begin
-            if (!w_have_rd && rd_match_pending_i[i]) begin
-                w_have_rd = 1'b1;
-                w_rd_pick = RSL'(i);
+            if (rd_match_pending_i[i]) begin
+                if (!w_have_rd || (rd_snap_qos_i[i] > w_rd_best_qos)) begin
+                    w_have_rd     = 1'b1;
+                    w_rd_pick     = RSL'(i);
+                    w_rd_best_qos = rd_snap_qos_i[i];
+                end
             end
         end
     end

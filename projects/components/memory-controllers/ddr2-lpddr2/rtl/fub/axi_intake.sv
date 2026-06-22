@@ -156,6 +156,7 @@ module axi_intake
     output logic [WPW-1:0]       aw_push_w_buf_ptr_o,
     output logic [WPW-1:0]       aw_push_strb_ptr_o,
     output logic                 aw_push_full_strb_o,
+    output logic [3:0]           aw_push_qos_o,
 
     //=========================================================================
     // Downstream AR push (to addr_mapper → wr2rd_forward / rd_cmd_cam)
@@ -165,6 +166,7 @@ module axi_intake
     output logic [AW-1:0]        ar_push_addr_o,
     output logic [IW-1:0]        ar_push_id_o,
     output logic [BLW-1:0]       ar_push_len_o,
+    output logic [3:0]           ar_push_qos_o,
 
     //=========================================================================
     // Write completion (from wr_cmd_cam entry_complete) → B-channel push
@@ -217,6 +219,14 @@ module axi_intake
 );
 
     //=========================================================================
+    // F4 side-table lookup outputs — declared up-front so the
+    // aw_push_qos_o / ar_push_qos_o assigns + B/R user-echo paths can
+    // reference them. Driven by u_id_side_table further down.
+    logic [3:0]    w_aw_push_qos;
+    logic [UW-1:0] w_aw_compl_user;
+    logic [3:0]    w_ar_push_qos;
+    logic [UW-1:0] w_ar_compl_user;
+
     // Internal fub_axi_* — post-skid signals from the AMBA wrappers
     //=========================================================================
     // From axi4_slave_wr (AW side, W side)
@@ -511,6 +521,7 @@ module axi_intake
     assign aw_push_w_buf_ptr_o = w_aw_pend_dout.w_buf_ptr;
     assign aw_push_strb_ptr_o  = w_aw_pend_dout.strb_ptr;
     assign aw_push_full_strb_o = r_final_full_strb;
+    assign aw_push_qos_o       = w_aw_push_qos;
 
     // Pop aw_pending head on push handshake
     assign w_aw_pend_rd_ready  = aw_push_valid_o && aw_push_ready_i;
@@ -557,75 +568,64 @@ module axi_intake
     assign ar_push_addr_o  = w_ar_pend_dout.addr;
     assign ar_push_id_o    = w_ar_pend_dout.id;
     assign ar_push_len_o   = w_ar_pend_dout.len;
+    assign ar_push_qos_o   = w_ar_push_qos;
     assign w_ar_pend_rd_ready = ar_push_valid_o && ar_push_ready_i;
 
     //=========================================================================
-    // F2: AXI metadata side-table, keyed by AXI ID.
-    //
-    // Captures AW/AR metadata (awuser/awprot/awcache/awqos/awregion/awsize/
-    // awburst, mirror for AR) on the host-side handshake. At completion
-    // (wr_entry_complete / R-emit), look up by ID to echo the user field
-    // back on B / R per the AXI4 contract that BUSER mirrors AWUSER, RUSER
-    // mirrors ARUSER. The non-user fields are captured for future
-    // pass-through downstream (CSR audit, QoS-aware scheduling) and harvested
-    // through obs_*.
-    //
-    // Storage cost: 2 * 2**IW entries — for IW=4 (16 IDs) that's 32 rows
-    // of ~UW+16 bits each.
+    // F2/F4: AXI metadata side-table — extracted into axi_id_side_table.
+    // Two read ports per side:
+    //   *_push_* — feeds aw_push_qos_o / ar_push_qos_o downstream so
+    //              the CAMs + scheduler can do QoS-aware arbitration.
+    //   *_compl_* — feeds the B FIFO push (BUSER) and R emit (RUSER).
+    // The four lookup wires are declared near the top of the module so
+    // earlier aw_push_qos_o / ar_push_qos_o / BUSER / RUSER assigns can
+    // reference them.
     //=========================================================================
-    localparam int ID_TAB_DEPTH = 1 << IW;
+    // ar_compl_id selects the R-emit ID for the user echo. Driven in the
+    // R emit block below (where r_r_fwd_active / r_r_fwd_id are declared).
+    logic [IW-1:0] w_ar_compl_id;
 
-    typedef struct packed {
-        logic [UW-1:0] user;
-        logic [3:0]    cache;
-        logic [2:0]    prot;
-        logic [3:0]    qos;
-        logic [3:0]    region;
-        logic [2:0]    size;
-        logic [1:0]    burst;
-    } axi_meta_t;
-
-    axi_meta_t r_aw_meta_tab [0:ID_TAB_DEPTH-1];
-    axi_meta_t r_ar_meta_tab [0:ID_TAB_DEPTH-1];
-
-    logic w_aw_meta_hs;
-    logic w_ar_meta_hs;
-    assign w_aw_meta_hs = fub_axi_awvalid && fub_axi_awready;
-    assign w_ar_meta_hs = fub_axi_arvalid && fub_axi_arready;
-
-    logic [15:0] r_aw_meta_writes;
-    logic [15:0] r_ar_meta_writes;
-
-    `ALWAYS_FF_RST(aclk, aresetn, begin
-        if (`RST_ASSERTED(aresetn)) begin
-            r_aw_meta_writes <= 16'd0;
-            r_ar_meta_writes <= 16'd0;
-        end else begin
-            if (w_aw_meta_hs) begin
-                r_aw_meta_tab[fub_axi_awid].user   <= fub_axi_awuser;
-                r_aw_meta_tab[fub_axi_awid].cache  <= fub_axi_awcache;
-                r_aw_meta_tab[fub_axi_awid].prot   <= fub_axi_awprot;
-                r_aw_meta_tab[fub_axi_awid].qos    <= fub_axi_awqos;
-                r_aw_meta_tab[fub_axi_awid].region <= fub_axi_awregion;
-                r_aw_meta_tab[fub_axi_awid].size   <= fub_axi_awsize;
-                r_aw_meta_tab[fub_axi_awid].burst  <= fub_axi_awburst;
-                r_aw_meta_writes <= r_aw_meta_writes + 16'd1;
-            end
-            if (w_ar_meta_hs) begin
-                r_ar_meta_tab[fub_axi_arid].user   <= fub_axi_aruser;
-                r_ar_meta_tab[fub_axi_arid].cache  <= fub_axi_arcache;
-                r_ar_meta_tab[fub_axi_arid].prot   <= fub_axi_arprot;
-                r_ar_meta_tab[fub_axi_arid].qos    <= fub_axi_arqos;
-                r_ar_meta_tab[fub_axi_arid].region <= fub_axi_arregion;
-                r_ar_meta_tab[fub_axi_arid].size   <= fub_axi_arsize;
-                r_ar_meta_tab[fub_axi_arid].burst  <= fub_axi_arburst;
-                r_ar_meta_writes <= r_ar_meta_writes + 16'd1;
-            end
-        end
-    end)
-
-    assign obs_aw_meta_writes_o = r_aw_meta_writes;
-    assign obs_ar_meta_writes_o = r_ar_meta_writes;
+    axi_id_side_table #(
+        .AXI_ID_WIDTH   (IW),
+        .AXI_USER_WIDTH (UW)
+    ) u_id_side_table (
+        .aclk             (aclk),
+        .aresetn          (aresetn),
+        // AW writes
+        .aw_we_i          (fub_axi_awvalid && fub_axi_awready),
+        .aw_id_i          (fub_axi_awid),
+        .aw_user_i        (fub_axi_awuser),
+        .aw_cache_i       (fub_axi_awcache),
+        .aw_prot_i        (fub_axi_awprot),
+        .aw_qos_i         (fub_axi_awqos),
+        .aw_region_i      (fub_axi_awregion),
+        .aw_size_i        (fub_axi_awsize),
+        .aw_burst_i       (fub_axi_awburst),
+        // AR writes
+        .ar_we_i          (fub_axi_arvalid && fub_axi_arready),
+        .ar_id_i          (fub_axi_arid),
+        .ar_user_i        (fub_axi_aruser),
+        .ar_cache_i       (fub_axi_arcache),
+        .ar_prot_i        (fub_axi_arprot),
+        .ar_qos_i         (fub_axi_arqos),
+        .ar_region_i      (fub_axi_arregion),
+        .ar_size_i        (fub_axi_arsize),
+        .ar_burst_i       (fub_axi_arburst),
+        // AW push-side (qos forward)
+        .aw_push_id_i     (w_aw_pend_dout.id),
+        .aw_push_qos_o    (w_aw_push_qos),
+        // AW completion-side (user echo)
+        .aw_compl_id_i    (wr_entry_complete_id_i),
+        .aw_compl_user_o  (w_aw_compl_user),
+        // AR push-side
+        .ar_push_id_i     (w_ar_pend_dout.id),
+        .ar_push_qos_o    (w_ar_push_qos),
+        // AR completion-side
+        .ar_compl_id_i    (w_ar_compl_id),
+        .ar_compl_user_o  (w_ar_compl_user),
+        .obs_aw_writes_o  (obs_aw_meta_writes_o),
+        .obs_ar_writes_o  (obs_ar_meta_writes_o)
+    );
 
     //=========================================================================
     // B response FIFO — pushed on wr_entry_complete_strb, drained on B
@@ -647,8 +647,8 @@ module axi_intake
 
     assign w_b_din.id   = wr_entry_complete_id_i;
     assign w_b_din.resp = 2'b00;            // RESP_OKAY
-    // BUSER mirrors AWUSER captured at host-side AW handshake (F2 side-table).
-    assign w_b_din.user = r_aw_meta_tab[wr_entry_complete_id_i].user;
+    // BUSER mirrors AWUSER from the id-side-table completion port.
+    assign w_b_din.user = w_aw_compl_user;
     assign w_b_wr_valid = wr_entry_complete_strb_i;
 
     gaxi_fifo_sync #(
@@ -718,6 +718,10 @@ module axi_intake
     // is idle AND the R skid buffer can accept.
     assign rd_inject_ready_o = !r_r_fwd_active && fub_axi_rready;
 
+    // Side-table AR completion lookup ID: forwarded path uses r_r_fwd_id;
+    // injected path uses the live rd_inject_id.
+    assign w_ar_compl_id = r_r_fwd_active ? r_r_fwd_id : rd_inject_id_i;
+
     always_comb begin
         fub_axi_rvalid = 1'b0;
         fub_axi_rid    = '0;
@@ -731,15 +735,16 @@ module axi_intake
             fub_axi_rdata  = r_w_buf[r_r_fwd_ptr];
             fub_axi_rresp  = 2'b00;
             fub_axi_rlast  = (r_r_fwd_remaining == BLW'(1));
-            // RUSER mirrors ARUSER captured at host-side AR handshake.
-            fub_axi_ruser  = r_ar_meta_tab[r_r_fwd_id].user;
+            // RUSER mirrors ARUSER from the id-side-table completion port.
+            // (w_ar_compl_id selects r_r_fwd_id when r_r_fwd_active.)
+            fub_axi_ruser  = w_ar_compl_user;
         end else if (rd_inject_valid_i) begin
             fub_axi_rvalid = rd_inject_valid_i;
             fub_axi_rid    = rd_inject_id_i;
             fub_axi_rdata  = rd_inject_data_i;
             fub_axi_rresp  = 2'b00;
             fub_axi_rlast  = rd_inject_last_i;
-            fub_axi_ruser  = r_ar_meta_tab[rd_inject_id_i].user;
+            fub_axi_ruser  = w_ar_compl_user;
         end
     end
 

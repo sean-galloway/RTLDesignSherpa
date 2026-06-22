@@ -190,11 +190,13 @@ module axi_frontend_macro
     output logic [WR_CAM_DEPTH-1:0][RW-1:0]  wr_snap_row_o,
     output logic [WR_CAM_DEPTH-1:0][CW-1:0]  wr_snap_col_o,
     output logic [WR_CAM_DEPTH-1:0][BLW-1:0] wr_snap_len_o,
+    output logic [WR_CAM_DEPTH-1:0][3:0]     wr_snap_qos_o,
     output logic [RD_CAM_DEPTH-1:0][RKW-1:0] rd_snap_rank_o,
     output logic [RD_CAM_DEPTH-1:0][BKW-1:0] rd_snap_bank_o,
     output logic [RD_CAM_DEPTH-1:0][RW-1:0]  rd_snap_row_o,
     output logic [RD_CAM_DEPTH-1:0][CW-1:0]  rd_snap_col_o,
     output logic [RD_CAM_DEPTH-1:0][BLW-1:0] rd_snap_len_o,
+    output logic [RD_CAM_DEPTH-1:0][3:0]     rd_snap_qos_o,
 
     //=========================================================================
     // Scheduler "mark issued" strobes
@@ -278,6 +280,8 @@ module axi_frontend_macro
     logic [AW-1:0]        w_ar_push_addr;
     logic [IW-1:0]        w_ar_push_id;
     logic [BLW-1:0]       w_ar_push_len;
+    logic [3:0]           w_aw_push_qos;
+    logic [3:0]           w_ar_push_qos;
 
     // wr2rd_forward.fwd_* → axi_intake.fwd_*
     logic                 w_fwd_valid;
@@ -366,11 +370,13 @@ module axi_frontend_macro
         .aw_push_w_buf_ptr_o        (w_aw_push_w_buf_ptr),
         .aw_push_strb_ptr_o         (w_aw_push_strb_ptr),
         .aw_push_full_strb_o        (w_aw_push_full_strb),
+        .aw_push_qos_o              (w_aw_push_qos),
         .ar_push_valid_o            (w_ar_push_valid),
         .ar_push_ready_i            (w_ar_push_ready),
         .ar_push_addr_o             (w_ar_push_addr),
         .ar_push_id_o               (w_ar_push_id),
         .ar_push_len_o              (w_ar_push_len),
+        .ar_push_qos_o              (w_ar_push_qos),
         // Completion notifications
         .wr_entry_complete_strb_i   (w_wr_entry_complete),
         .wr_entry_complete_id_i     (w_wr_entry_complete_id),
@@ -471,6 +477,7 @@ module axi_frontend_macro
     logic [WR_CAM_DEPTH-1:0][WPW-1:0]              w_wr_snap_strb_ptr;
     logic [WR_CAM_DEPTH-1:0]                       w_wr_snap_issued;
     logic [WR_CAM_DEPTH-1:0]                       w_wr_snap_b_pending;
+    logic [WR_CAM_DEPTH-1:0][3:0]                  w_wr_snap_qos;
     logic [WR_CAM_DEPTH-1:0][IW-1:0]               w_wr_snap_id;
 
     // Per-write "full-strb" hint, latched from axi_intake's per-burst
@@ -508,6 +515,7 @@ module axi_frontend_macro
         .push_len_i              (w_aw_push_len),
         .push_w_buf_ptr_i        (w_aw_push_w_buf_ptr),
         .push_strb_ptr_i         (w_aw_push_strb_ptr),
+        .push_qos_i              (w_aw_push_qos),
         .push_slot_o             (w_wr_push_slot),
 
         .q_rank_i                (q_rank_i),
@@ -541,6 +549,7 @@ module axi_frontend_macro
         .snap_strb_ptr_o         (w_wr_snap_strb_ptr),
         .snap_issued_o           (w_wr_snap_issued),
         .snap_b_pending_o        (w_wr_snap_b_pending),
+        .snap_qos_o              (w_wr_snap_qos),
         .snap_id_o               (w_wr_snap_id),
 
         .dbg_occupancy_o         (dbg_wr_cam_occ_o)
@@ -562,6 +571,7 @@ module axi_frontend_macro
     logic [RW-1:0]  w_rd_push_row;
     logic [CW-1:0]  w_rd_push_col;
     logic [BLW-1:0] w_rd_push_len;
+    logic [3:0]     w_rd_push_qos;
 
     wr2rd_forward #(
         .WR_CAM_DEPTH    (WR_CAM_DEPTH),
@@ -584,6 +594,7 @@ module axi_frontend_macro
         .ar_row_i            (w_ar_row),
         .ar_col_i            (w_ar_col),
         .ar_len_i            (w_ar_push_len),
+        .ar_qos_i            (w_ar_push_qos),
 
         .cam_valid_i         (w_wr_snap_valid),
         .cam_rank_i          (w_wr_snap_rank),
@@ -602,6 +613,7 @@ module axi_frontend_macro
         .rd_push_row_o       (w_rd_push_row),
         .rd_push_col_o       (w_rd_push_col),
         .rd_push_len_o       (w_rd_push_len),
+        .rd_push_qos_o       (w_rd_push_qos),
 
         .fwd_valid_o         (w_fwd_valid),
         .fwd_ready_i         (w_fwd_ready),
@@ -630,6 +642,7 @@ module axi_frontend_macro
     logic [RD_CAM_DEPTH-1:0][CW-1:0]               w_rd_snap_col;
     logic [RD_CAM_DEPTH-1:0][BLW-1:0]              w_rd_snap_len;
     logic [RD_CAM_DEPTH-1:0]                       w_rd_snap_issued;
+    logic [RD_CAM_DEPTH-1:0][3:0]                  w_rd_snap_qos;
 
     rd_cmd_cam #(
         .RD_CAM_DEPTH    (RD_CAM_DEPTH),
@@ -651,6 +664,7 @@ module axi_frontend_macro
         .push_row_i              (w_rd_push_row),
         .push_col_i              (w_rd_push_col),
         .push_len_i              (w_rd_push_len),
+        .push_qos_i              (w_rd_push_qos),
         .push_slot_o             (),
 
         .q_rank_i                (q_rank_i),
@@ -677,6 +691,7 @@ module axi_frontend_macro
         .snap_col_o              (w_rd_snap_col),
         .snap_len_o              (w_rd_snap_len),
         .snap_issued_o           (w_rd_snap_issued),
+        .snap_qos_o              (w_rd_snap_qos),
 
         .dbg_occupancy_o         (dbg_rd_cam_occ_o)
     );
@@ -687,11 +702,13 @@ module axi_frontend_macro
     assign wr_snap_row_o  = w_wr_snap_row;
     assign wr_snap_col_o  = w_wr_snap_col;
     assign wr_snap_len_o  = w_wr_snap_len;
+    assign wr_snap_qos_o  = w_wr_snap_qos;
     assign rd_snap_rank_o = w_rd_snap_rank;
     assign rd_snap_bank_o = w_rd_snap_bank;
     assign rd_snap_row_o  = w_rd_snap_row;
     assign rd_snap_col_o  = w_rd_snap_col;
     assign rd_snap_len_o  = w_rd_snap_len;
+    assign rd_snap_qos_o  = w_rd_snap_qos;
 
     // Tie unused snapshot consumers (remaining; not all wired yet).
     wire unused = |{ w_wr_snap_strb_ptr,

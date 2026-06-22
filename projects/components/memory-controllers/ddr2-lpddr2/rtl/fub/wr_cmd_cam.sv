@@ -66,6 +66,7 @@ module wr_cmd_cam
     input  logic [BLW-1:0]       push_len_i,         // beats (NOT len-1)
     input  logic [WPW-1:0]       push_w_buf_ptr_i,
     input  logic [WPW-1:0]       push_strb_ptr_i,
+    input  logic [3:0]           push_qos_i,         // AXI awqos
     output logic [SLW-1:0]       push_slot_o,        // which slot took it
 
     // Scheduler query — per-(rank,bank) match vector
@@ -104,6 +105,7 @@ module wr_cmd_cam
     output logic [CD-1:0][WPW-1:0]              snap_strb_ptr_o,
     output logic [CD-1:0]                       snap_issued_o,
     output logic [CD-1:0]                       snap_b_pending_o,
+    output logic [CD-1:0][3:0]                  snap_qos_o,
 
     // Slot-to-AXI-ID lookup for completion routing
     output logic [CD-1:0][IW-1:0]               snap_id_o,
@@ -123,6 +125,7 @@ module wr_cmd_cam
     logic [CD-1:0][BLW-1:0]      r_beats_issued;
     logic [CD-1:0][WPW-1:0]      r_w_buf_ptr;
     logic [CD-1:0][WPW-1:0]      r_strb_ptr;
+    logic [CD-1:0][3:0]          r_qos;
     logic [CD-1:0]               r_issued;
     logic [CD-1:0]               r_b_pending;
 
@@ -162,6 +165,7 @@ module wr_cmd_cam
                 r_len         [w_free_slot] <= push_len_i;
                 r_w_buf_ptr   [w_free_slot] <= push_w_buf_ptr_i;
                 r_strb_ptr    [w_free_slot] <= push_strb_ptr_i;
+                r_qos         [w_free_slot] <= push_qos_i;
                 r_beats_issued[w_free_slot] <= '0;
                 r_issued      [w_free_slot] <= 1'b0;
                 r_b_pending   [w_free_slot] <= 1'b0;
@@ -218,6 +222,7 @@ module wr_cmd_cam
     assign snap_strb_ptr_o   = r_strb_ptr;
     assign snap_issued_o     = r_issued;
     assign snap_b_pending_o  = r_b_pending;
+    assign snap_qos_o        = r_qos;
     assign snap_id_o         = r_id;
 
     // Entry-complete strobe — drives axi4_slave B emit + txn_queue clear

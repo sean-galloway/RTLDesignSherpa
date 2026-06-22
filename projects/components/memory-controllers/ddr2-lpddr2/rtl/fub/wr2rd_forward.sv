@@ -88,6 +88,7 @@ module wr2rd_forward
     input  logic [RW-1:0]        ar_row_i,
     input  logic [CW-1:0]        ar_col_i,
     input  logic [BLW-1:0]       ar_len_i,           // beats (NOT len-1)
+    input  logic [3:0]           ar_qos_i,
 
     // Snapshot from wr_cmd_cam (combinational)
     input  logic [WD-1:0]                       cam_valid_i,
@@ -110,6 +111,7 @@ module wr2rd_forward
     output logic [RW-1:0]        rd_push_row_o,
     output logic [CW-1:0]        rd_push_col_o,
     output logic [BLW-1:0]       rd_push_len_o,
+    output logic [3:0]           rd_push_qos_o,
 
     // Forwarded read path (to rd_data_path / r_response_fifo)
     output logic                 fwd_valid_o,
@@ -201,6 +203,7 @@ module wr2rd_forward
     assign rd_push_row_o   = ar_row_i;
     assign rd_push_col_o   = ar_col_i;
     assign rd_push_len_o   = ar_len_i;
+    assign rd_push_qos_o   = ar_qos_i;
 
     assign ar_ready_o = (w_take_fwd && fwd_ready_i)
                      || (w_take_rd  && rd_push_ready_i);

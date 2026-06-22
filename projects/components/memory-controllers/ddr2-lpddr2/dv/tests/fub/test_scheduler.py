@@ -73,11 +73,13 @@ class SchedTB(TBBase):
         self.dut.wr_snap_row_i.value  = 0
         self.dut.wr_snap_col_i.value  = 0
         self.dut.wr_snap_len_i.value  = 0
+        self.dut.wr_snap_qos_i.value  = 0
         self.dut.rd_snap_rank_i.value = 0
         self.dut.rd_snap_bank_i.value = 0
         self.dut.rd_snap_row_i.value  = 0
         self.dut.rd_snap_col_i.value  = 0
         self.dut.rd_snap_len_i.value  = 0
+        self.dut.rd_snap_qos_i.value  = 0
         # Timer ready vectors: all banks ready by default
         ready_all = (1 << (self.NUM_RANKS * self.NUM_BANKS)) - 1
         self.dut.bank_act_ready_i.value  = ready_all if all_banks_ready else 0
@@ -461,6 +463,56 @@ async def cocotb_test_scheduler(dut):
             f"only {wr_count + rd_count} ops issued in {n} iterations"
         )
 
+    elif test_type == "qos_picker":
+        # F4c: when multiple wr slots are pending, the highest-qos slot
+        # is picked first regardless of slot index. Set slot 0 with qos=2
+        # and slot 1 with qos=15 — picker should pick slot 1.
+        await tb.setup()
+        # Both slots pending, same bank/row (default 0,0,0), different col
+        # so they're distinguishable.
+        tb.dut.wr_match_pending_i.value = 0b11
+        # snap_len for both slots: 4 beats each
+        snap_len = (4 << 0) | (4 << tb.BLW)
+        tb.dut.wr_snap_len_i.value = snap_len
+        # snap_col: slot0=0x40, slot1=0x80
+        snap_col = (0x40 << 0) | (0x80 << tb.COL_WIDTH)
+        tb.dut.wr_snap_col_i.value = snap_col
+        # snap_qos: slot0=2, slot1=15 (4 bits each)
+        snap_qos = (2 << 0) | (15 << 4)
+        tb.dut.wr_snap_qos_i.value = snap_qos
+        # Wait for scheduler to pick + emit
+        for _ in range(20):
+            await tb.wait_clocks('mc_clk', 1)
+            if tb.wr_issued():
+                # The slot picked should be slot 1 (qos=15 > qos=2)
+                slot = int(tb.dut.wr_issued_slot_o.value)
+                assert slot == 1, \
+                    f"QoS picker should pick slot 1 (qos=15), got slot {slot}"
+                break
+        else:
+            raise AssertionError("scheduler never issued wr")
+
+    elif test_type == "qos_tie_lowest_index":
+        # F4c: when two slots have equal qos, lowest slot index wins.
+        await tb.setup()
+        tb.dut.wr_match_pending_i.value = 0b11
+        snap_len = (4 << 0) | (4 << tb.BLW)
+        tb.dut.wr_snap_len_i.value = snap_len
+        snap_col = (0x40 << 0) | (0x80 << tb.COL_WIDTH)
+        tb.dut.wr_snap_col_i.value = snap_col
+        # Both slots qos=8
+        snap_qos = (8 << 0) | (8 << 4)
+        tb.dut.wr_snap_qos_i.value = snap_qos
+        for _ in range(20):
+            await tb.wait_clocks('mc_clk', 1)
+            if tb.wr_issued():
+                slot = int(tb.dut.wr_issued_slot_o.value)
+                assert slot == 0, \
+                    f"tie-break should prefer slot 0, got slot {slot}"
+                break
+        else:
+            raise AssertionError("scheduler never issued wr")
+
     else:
         raise ValueError(f"Unknown TEST_TYPE: {test_type}")
 
@@ -490,7 +542,10 @@ _FUNC = ([(t, PAGE_POLICY_CLOSE) for t in _BASE_CLOSE]
           # Directed-random — FlexRandomizer over (length, col, bank, row)
           ("dr_close_burst",  PAGE_POLICY_CLOSE),
           ("dr_open_row_hit", PAGE_POLICY_OPEN),
-          ("dr_open_row_miss",PAGE_POLICY_OPEN)])
+          ("dr_open_row_miss",PAGE_POLICY_OPEN),
+          # F4c: QoS-aware picker
+          ("qos_picker",            PAGE_POLICY_CLOSE),
+          ("qos_tie_lowest_index",  PAGE_POLICY_CLOSE)])
 _FULL = _FUNC
 _FULL = list(dict.fromkeys(_FULL))
 

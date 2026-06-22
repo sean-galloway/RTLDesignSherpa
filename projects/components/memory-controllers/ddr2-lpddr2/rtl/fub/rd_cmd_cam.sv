@@ -62,6 +62,7 @@ module rd_cmd_cam
     input  logic [RW-1:0]        push_row_i,
     input  logic [CW-1:0]        push_col_i,
     input  logic [BLW-1:0]       push_len_i,         // beats (NOT len-1)
+    input  logic [3:0]           push_qos_i,         // AXI arqos
     output logic [SLW-1:0]       push_slot_o,
 
     // Scheduler query
@@ -94,6 +95,7 @@ module rd_cmd_cam
     output logic [CD-1:0][CW-1:0]               snap_col_o,
     output logic [CD-1:0][BLW-1:0]              snap_len_o,
     output logic [CD-1:0]                       snap_issued_o,
+    output logic [CD-1:0][3:0]                  snap_qos_o,
 
     // Telemetry
     output logic [SLW:0]         dbg_occupancy_o
@@ -108,6 +110,7 @@ module rd_cmd_cam
     logic [CD-1:0][BLW-1:0]      r_len;
     logic [CD-1:0][BLW-1:0]      r_beats_returned;
     logic [CD-1:0]               r_issued;
+    logic [CD-1:0][3:0]          r_qos;
 
     // Free slot pick
     logic [SLW-1:0] w_free_slot;
@@ -147,6 +150,7 @@ module rd_cmd_cam
                 r_row           [w_free_slot] <= push_row_i;
                 r_col           [w_free_slot] <= push_col_i;
                 r_len           [w_free_slot] <= push_len_i;
+                r_qos           [w_free_slot] <= push_qos_i;
                 r_beats_returned[w_free_slot] <= '0;
                 r_issued        [w_free_slot] <= 1'b0;
             end
@@ -187,6 +191,7 @@ module rd_cmd_cam
     assign snap_col_o     = r_col;
     assign snap_len_o     = r_len;
     assign snap_issued_o  = r_issued;
+    assign snap_qos_o     = r_qos;
 
     // Entry complete
     assign entry_complete_o      = w_entry_complete_strb;
