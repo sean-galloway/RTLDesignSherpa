@@ -34,6 +34,7 @@ if _DV_DIR not in sys.path:
     sys.path.insert(0, _DV_DIR)
 
 from tbclasses.wr_beat_sequencer_tb import WrBeatSequencerTB  # noqa: E402
+from tbclasses.trackers import WrBeatSequencerTracker  # noqa: E402
 
 
 # ---------------------------------------------------------------------------
@@ -47,6 +48,9 @@ async def cocotb_test_wr_beat_sequencer(dut):
     log.info(f"TEST_TYPE={test_type}")
 
     tb = WrBeatSequencerTB(dut)
+    # Tracker auto-dumps <sim_build>/wrbeat.out at end of sim.
+    wrbeat_tracker = WrBeatSequencerTracker(dut)
+    cocotb.start_soon(wrbeat_tracker.run())
     await tb.setup_clocks_and_reset()
 
     scenarios = {

@@ -23,6 +23,8 @@ _DV_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), "../.."))
 if _DV_DIR not in sys.path:
     sys.path.insert(0, _DV_DIR)
 
+from tbclasses.trackers import RefreshTracker  # noqa: E402
+
 
 class RefTB(TBBase):
     CLK = 10
@@ -58,6 +60,11 @@ class RefTB(TBBase):
 async def cocotb_test_refresh_ctrl(dut):
     test_type = os.environ.get("TEST_TYPE", "smoke")
     tb = RefTB(dut)
+    # Tracker auto-dumps <sim_build>/refr.out at end of sim.
+    # The DUT lacks refresh_grant_o (that's the scheduler's output);
+    # disable that signal to suppress missing-signal warnings.
+    refr_tracker = RefreshTracker(dut, refresh_grant_signal=None)
+    cocotb.start_soon(refr_tracker.run())
     await tb.setup(t_refi=10)
 
     if test_type == "smoke":

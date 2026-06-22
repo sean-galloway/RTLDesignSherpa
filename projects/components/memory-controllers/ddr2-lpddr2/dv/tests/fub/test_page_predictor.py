@@ -21,6 +21,12 @@ from TBClasses.shared.utilities import get_paths
 from TBClasses.shared.filelist_utils import get_sources_from_filelist
 from TBClasses.shared.tbbase import TBBase
 
+_DV_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), "../.."))
+if _DV_DIR not in sys.path:
+    sys.path.insert(0, _DV_DIR)
+
+from tbclasses.trackers import PagePredictorTracker  # noqa: E402
+
 
 class PredTB(TBBase):
     CLK = 10
@@ -59,6 +65,11 @@ class PredTB(TBBase):
 async def cocotb_test_page_predictor(dut):
     test_type = os.environ.get("TEST_TYPE", "smoke")
     tb = PredTB(dut)
+    # Tracker auto-dumps <sim_build>/pgpred.out at end of sim.
+    pgpred_tracker = PagePredictorTracker(
+        dut, num_ranks=tb.NUM_RANKS, num_banks=tb.NUM_BANKS,
+    )
+    cocotb.start_soon(pgpred_tracker.run())
 
     if test_type == "smoke":
         # Default: predictor starts at counter=0 (predict_open = 0).

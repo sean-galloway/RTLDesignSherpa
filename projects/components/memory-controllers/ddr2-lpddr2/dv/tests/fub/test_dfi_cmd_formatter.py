@@ -33,6 +33,7 @@ _DV_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), "../.."))
 if _DV_DIR not in sys.path:
     sys.path.insert(0, _DV_DIR)
 
+from tbclasses.trackers import DfiCmdFormatterTracker  # noqa: E402
 from tbclasses.dfi_cmd_formatter_tb import (  # noqa: E402
     DfiCmdFormatterTB,
     OP_NOP, OP_ACT, OP_RD, OP_RDA, OP_WR, OP_WRA,
@@ -52,6 +53,9 @@ async def cocotb_test_dfi_cmd_formatter(dut):
     log.info(f"TEST_TYPE={test_type}")
 
     tb = DfiCmdFormatterTB(dut)
+    # Tracker auto-dumps <sim_build>/dficmd.out at end of sim.
+    dficmd_tracker = DfiCmdFormatterTracker(dut)
+    cocotb.start_soon(dficmd_tracker.run())
     await tb.setup_clocks_and_reset()
 
     scenarios = {

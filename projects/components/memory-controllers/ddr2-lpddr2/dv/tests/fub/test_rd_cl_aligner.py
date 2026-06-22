@@ -35,6 +35,7 @@ if _DV_DIR not in sys.path:
     sys.path.insert(0, _DV_DIR)
 
 from tbclasses.rd_cl_aligner_tb import RdClAlignerTB  # noqa: E402
+from tbclasses.trackers import RdClAlignerTracker  # noqa: E402
 
 
 # ---------------------------------------------------------------------------
@@ -48,6 +49,9 @@ async def cocotb_test_rd_cl_aligner(dut):
     log.info(f"TEST_TYPE={test_type}")
 
     tb = RdClAlignerTB(dut)
+    # Tracker auto-dumps <sim_build>/rdalign.out at end of sim.
+    rdalign_tracker = RdClAlignerTracker(dut)
+    cocotb.start_soon(rdalign_tracker.run())
     await tb.setup_clocks_and_reset()
 
     scenarios = {

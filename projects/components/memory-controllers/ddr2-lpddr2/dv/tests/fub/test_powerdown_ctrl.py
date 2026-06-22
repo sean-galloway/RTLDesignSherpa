@@ -23,6 +23,8 @@ _DV_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), "../.."))
 if _DV_DIR not in sys.path:
     sys.path.insert(0, _DV_DIR)
 
+from tbclasses.trackers import PowerdownTracker  # noqa: E402
+
 
 class PdnTB(TBBase):
     CLK = 10
@@ -62,6 +64,9 @@ class PdnTB(TBBase):
 async def cocotb_test_powerdown_ctrl(dut):
     test_type = os.environ.get("TEST_TYPE", "smoke")
     tb = PdnTB(dut)
+    # Tracker auto-dumps <sim_build>/pdn.out at end of sim.
+    pdn_tracker = PowerdownTracker(dut, num_ranks=1)
+    cocotb.start_soon(pdn_tracker.run())
     await tb.setup(idle_threshold=10)
 
     if test_type == "smoke":

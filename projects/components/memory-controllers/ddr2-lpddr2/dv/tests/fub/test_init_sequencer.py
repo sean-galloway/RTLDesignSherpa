@@ -24,6 +24,8 @@ _DV_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), "../.."))
 if _DV_DIR not in sys.path:
     sys.path.insert(0, _DV_DIR)
 
+from tbclasses.trackers import InitSequencerTracker  # noqa: E402
+
 
 MEMTYPE_DDR2   = 0
 MEMTYPE_LPDDR2 = 1
@@ -84,6 +86,9 @@ class InitTB(TBBase):
 async def cocotb_test_init_sequencer(dut):
     test_type = os.environ.get("TEST_TYPE", "ddr2_init_walk")
     tb = InitTB(dut)
+    # Tracker auto-dumps <sim_build>/init.out at end of sim.
+    init_tracker = InitSequencerTracker(dut)
+    cocotb.start_soon(init_tracker.run())
 
     if test_type == "ddr2_init_walk":
         await tb.setup(MEMTYPE_DDR2)

@@ -24,6 +24,8 @@ _DV_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), "../.."))
 if _DV_DIR not in sys.path:
     sys.path.insert(0, _DV_DIR)
 
+from tbclasses.trackers import XBankTimersTracker  # noqa: E402
+
 
 # bank_state_e (from ddr2_lpddr2_pkg.sv)
 BANK_IDLE        = 0
@@ -107,6 +109,11 @@ class XbTB(TBBase):
 async def cocotb_test_xbank_timers(dut):
     test_type = os.environ.get("TEST_TYPE", "smoke")
     tb = XbTB(dut)
+    # Tracker auto-dumps <sim_build>/xbank.out at end of sim.
+    xbank_tracker = XBankTimersTracker(
+        dut, num_ranks=tb.NUM_RANKS, num_banks=tb.NUM_BANKS,
+    )
+    cocotb.start_soon(xbank_tracker.run())
 
     if test_type == "smoke":
         await tb.setup(t_rcd=4, t_rp=4, t_wr=3, t_rtp=2)

@@ -76,30 +76,30 @@ class DfiCmdFormatterTracker:
             self._sample()
 
     def _sample(self) -> None:
-        cs_n  = safe_int(self.dut, 'dfi_cs_n_o',  1)
-        # Only sample when at least one rank is selected.
-        if cs_n == ((1 << _bit_width(self.dut, 'dfi_cs_n_o', 1)) - 1):
-            pass   # all 1s = no chip selected → likely NOP
-
-        ras_n = safe_int(self.dut, 'dfi_ras_n_o', 1) & 0x1
-        cas_n = safe_int(self.dut, 'dfi_cas_n_o', 1) & 0x1
-        we_n  = safe_int(self.dut, 'dfi_we_n_o',  1) & 0x1
-        addr  = safe_int(self.dut, 'dfi_address_o', 0)
-        bank  = safe_int(self.dut, 'dfi_bank_o',    0)
+        # The DFI control + CS signals are widened to per-phase × DFI_RATE
+        # (DFI_CTRL_BUS_W = DFI_CTRL_WIDTH * DFI_RATE, similarly for CS).
+        # v1 dfi_signal_pack puts the command on phase 0 — bit 0 of each
+        # control signal — so we sample phase 0 only.
+        cs_n_p0  = safe_int(self.dut, 'dfi_cs_n_o',  1) & 0x1
+        ras_n    = safe_int(self.dut, 'dfi_ras_n_o', 1) & 0x1
+        cas_n    = safe_int(self.dut, 'dfi_cas_n_o', 1) & 0x1
+        we_n     = safe_int(self.dut, 'dfi_we_n_o',  1) & 0x1
+        addr     = safe_int(self.dut, 'dfi_address_o', 0)
+        bank     = safe_int(self.dut, 'dfi_bank_o',    0)
 
         # Decode JEDEC; treat NOP as silent.
         cmd = _JEDEC_DDR2.get((ras_n, cas_n, we_n))
         if cmd is None:
             self._unknown_encodings.append((ras_n, cas_n, we_n))
             cmd = f"UNKNOWN_{ras_n}{cas_n}{we_n}"
-        if cmd != "NOP" and cs_n == 0:
+        if cmd != "NOP" and cs_n_p0 == 0:
             # Distinguish A10 auto-precharge variants for RD/WR/PRE.
             a10 = (addr >> 10) & 0x1
             if cmd == "RD"  and a10: cmd = "RDA"
             if cmd == "WR"  and a10: cmd = "WRA"
             if cmd == "PRE" and a10: cmd = "PREA"
             self._push(f"WIRE_{cmd}",
-                       data=f"bank={bank} addr={addr:#x} cs_n={cs_n}")
+                       data=f"bank={bank} addr={addr:#x} cs_n={cs_n_p0}")
 
         # CKE/ODT changes
         cke = safe_int(self.dut, 'dfi_cke_o', 0)
