@@ -20,6 +20,9 @@ from TBClasses.shared.utilities import get_paths
 from TBClasses.shared.filelist_utils import get_sources_from_filelist
 from TBClasses.shared.tbbase import TBBase
 
+# FlexRandomizer for directed-random scenarios.
+from CocoTBFramework.components.shared.flex_randomizer import FlexRandomizer
+
 _DV_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), "../.."))
 if _DV_DIR not in sys.path:
     sys.path.insert(0, _DV_DIR)
@@ -52,6 +55,10 @@ class SchedTB(TBBase):
         self.COL_WIDTH    = int(os.environ.get('COL_WIDTH',   '10'))
         self.BLW          = int(os.environ.get('BURST_LEN_WIDTH', '8'))
         self.SEED         = int(os.environ.get('SEED', '12345'))
+        # Width constants used by set_*_pending_full helpers
+        self.RKW          = max(1, (self.NUM_RANKS - 1).bit_length())
+        self.BKW          = max(1, (self.NUM_BANKS - 1).bit_length())
+        self.ROW_WIDTH    = int(os.environ.get('ROW_WIDTH', '14'))
 
     async def setup(self, all_banks_ready: bool = True):
         # Match vectors: empty by default
@@ -106,6 +113,26 @@ class SchedTB(TBBase):
         self.dut.rd_match_pending_i.value = (1 << slot)
         self.dut.rd_snap_col_i.value = col << (slot * self.COL_WIDTH)
         self.dut.rd_snap_len_i.value = length << (slot * self.BLW)
+
+    def set_wr_pending_full(self, slot: int, *, rank: int = 0, bank: int = 0,
+                            row: int = 0, col: int = 0x40, length: int = 4):
+        """set_wr_pending + full (rank, bank, row) snapshot for the slot."""
+        self.dut.wr_match_pending_i.value = (1 << slot)
+        self.dut.wr_snap_rank_i.value = rank   << (slot * self.RKW)
+        self.dut.wr_snap_bank_i.value = bank   << (slot * self.BKW)
+        self.dut.wr_snap_row_i.value  = row    << (slot * self.ROW_WIDTH)
+        self.dut.wr_snap_col_i.value  = col    << (slot * self.COL_WIDTH)
+        self.dut.wr_snap_len_i.value  = length << (slot * self.BLW)
+
+    def set_rd_pending_full(self, slot: int, *, rank: int = 0, bank: int = 0,
+                            row: int = 0, col: int = 0x40, length: int = 4):
+        """set_rd_pending + full (rank, bank, row) snapshot for the slot."""
+        self.dut.rd_match_pending_i.value = (1 << slot)
+        self.dut.rd_snap_rank_i.value = rank   << (slot * self.RKW)
+        self.dut.rd_snap_bank_i.value = bank   << (slot * self.BKW)
+        self.dut.rd_snap_row_i.value  = row    << (slot * self.ROW_WIDTH)
+        self.dut.rd_snap_col_i.value  = col    << (slot * self.COL_WIDTH)
+        self.dut.rd_snap_len_i.value  = length << (slot * self.BLW)
 
     def clear_pending(self):
         self.dut.wr_match_pending_i.value = 0
@@ -288,6 +315,114 @@ async def cocotb_test_scheduler(dut):
         assert tb.cmd_op() == OP_WRA, f"HAPPY predict-close → WRA, got {tb.cmd_op()}"
         tb.clear_pending()
 
+    elif test_type == "dr_close_burst":
+        # Directed-random under CLOSE policy. Each iteration: a randomized
+        # WR op with FlexRandomizer-weighted (length, col, bank, row),
+        # checked against the precise expected CLOSE-policy sequence
+        # (ACT → WRA → ISSUED_WR). N=100 iterations.
+        await tb.setup()
+        rzr = FlexRandomizer({
+            # length: small bursts most common, medium next, long rare
+            'length': ([(1, 4), (5, 16), (17, 64)], [0.5, 0.3, 0.2]),
+            'col':    ([(0, 0xFF), (0x100, 0x3FF)], [0.7, 0.3]),
+            'bank':   ([(0, tb.NUM_BANKS - 1)], [1.0]),
+            'row':    ([(0, (1 << tb.ROW_WIDTH) - 1)], [1.0]),
+        })
+        for i in range(100):
+            v = rzr.next()
+            slot = i % tb.WR_CAM_DEPTH
+            tb.set_wr_pending_full(slot=slot, bank=v['bank'], row=v['row'],
+                                   col=v['col'], length=v['length'])
+            await tb.wait_clocks('mc_clk', 2)
+            assert tb.cmd_op() == OP_ACT, (
+                f"iter {i}: expected ACT, got {tb.cmd_op()}"
+            )
+            await tb.wait_clocks('mc_clk', 1)
+            assert tb.cmd_op() == OP_WRA, (
+                f"iter {i}: CLOSE policy must auto-precharge, got {tb.cmd_op()}"
+            )
+            await tb.wait_clocks('mc_clk', 1)
+            assert tb.wr_issued() == 1
+            tb.clear_pending()
+            await tb.wait_clocks('mc_clk', 2)
+
+    elif test_type == "dr_open_row_hit":
+        # Directed-random under OPEN policy. Each iteration: force a
+        # row-hit on a random (bank, row) and expect the scheduler to
+        # skip ACT entirely and issue plain WR (no auto-precharge).
+        await tb.setup()
+        # Function-based generator: prefer column boundaries
+        # (col=0, col=max) 30% of the time, else uniform random.
+        # Captures a private RNG via closure so FlexRandomizer's
+        # generator-invocation convention (may pass dict of current
+        # values) doesn't clobber our state.
+        _col_rng = random.Random(tb.SEED ^ 0xC01)
+        _col_max = (1 << tb.COL_WIDTH) - 1
+        def _gen_col(*_args, **_kwargs):
+            if _col_rng.random() < 0.3:
+                return _col_rng.choice([0, _col_max])
+            return _col_rng.randrange(1 << tb.COL_WIDTH)
+
+        rzr = FlexRandomizer({
+            'bank': ([(0, tb.NUM_BANKS - 1)], [1.0]),
+            'row':  ([(0, (1 << tb.ROW_WIDTH) - 1)], [1.0]),
+            'col':  _gen_col,
+        })
+        for i in range(50):
+            v = rzr.next()
+            bank = v['bank']
+            row  = v['row']
+            tb.dut.bank_row_active_i.value = (1 << bank)
+            tb.dut.bank_open_row_i.value   = (row << (bank * tb.ROW_WIDTH))
+            tb.set_wr_pending_full(slot=0, bank=bank, row=row,
+                                   col=v['col'], length=4)
+            await tb.wait_clocks('mc_clk', 2)
+            assert tb.cmd_op() == OP_WR, (
+                f"iter {i}: row-hit must skip ACT and issue WR "
+                f"(bank={bank} row={row:#x}), got {tb.cmd_op()}"
+            )
+            tb.clear_pending()
+            tb.dut.bank_row_active_i.value = 0
+            await tb.wait_clocks('mc_clk', 2)
+
+    elif test_type == "dr_open_row_miss":
+        # Directed-random row-miss: bank is active on row A, request
+        # targets row B (≠ A). Expect PRE → ACT → WR.
+        await tb.setup()
+        rzr = FlexRandomizer({
+            'bank':    ([(0, tb.NUM_BANKS - 1)], [1.0]),
+            'old_row': ([(0, (1 << tb.ROW_WIDTH) - 1)], [1.0]),
+        })
+        rng = random.Random(tb.SEED ^ 0xA155)
+        for i in range(50):
+            v = rzr.next()
+            bank    = v['bank']
+            old_row = v['old_row']
+            # Pick a new row guaranteed different from old_row.
+            new_row = (old_row + rng.randint(1, 0x100)) & ((1 << tb.ROW_WIDTH) - 1)
+            if new_row == old_row:
+                new_row = (old_row + 1) & ((1 << tb.ROW_WIDTH) - 1)
+
+            tb.dut.bank_row_active_i.value = (1 << bank)
+            tb.dut.bank_open_row_i.value   = (old_row << (bank * tb.ROW_WIDTH))
+            tb.set_wr_pending_full(slot=0, bank=bank, row=new_row,
+                                   col=0x40, length=4)
+            await tb.wait_clocks('mc_clk', 2)
+            assert tb.cmd_op() == OP_PRE, (
+                f"iter {i}: row-miss must issue PRE first, got {tb.cmd_op()}"
+            )
+            await tb.wait_clocks('mc_clk', 1)
+            assert tb.cmd_op() == OP_ACT, (
+                f"iter {i}: after PRE, expected ACT, got {tb.cmd_op()}"
+            )
+            await tb.wait_clocks('mc_clk', 1)
+            assert tb.cmd_op() == OP_WR, (
+                f"iter {i}: OPEN policy must issue plain WR, got {tb.cmd_op()}"
+            )
+            tb.clear_pending()
+            tb.dut.bank_row_active_i.value = 0
+            await tb.wait_clocks('mc_clk', 2)
+
     elif test_type == "random_soak":
         rng = random.Random(tb.SEED)
         test_level = os.environ.get("TEST_LEVEL", "FUNC").upper()
@@ -349,9 +484,13 @@ _GATE = [(t, PAGE_POLICY_CLOSE) for t in ["smoke_wr", "smoke_rd",
 _FUNC = ([(t, PAGE_POLICY_CLOSE) for t in _BASE_CLOSE]
        + [(t, PAGE_POLICY_OPEN)  for t in _OPEN_ONLY]
        + [(t, PAGE_POLICY_HAPPY) for t in _HAPPY_ONLY]
-       + [("random_soak", PAGE_POLICY_CLOSE),
-          ("random_soak", PAGE_POLICY_OPEN),
-          ("random_soak", PAGE_POLICY_HAPPY)])
+       + [("random_soak",     PAGE_POLICY_CLOSE),
+          ("random_soak",     PAGE_POLICY_OPEN),
+          ("random_soak",     PAGE_POLICY_HAPPY),
+          # Directed-random — FlexRandomizer over (length, col, bank, row)
+          ("dr_close_burst",  PAGE_POLICY_CLOSE),
+          ("dr_open_row_hit", PAGE_POLICY_OPEN),
+          ("dr_open_row_miss",PAGE_POLICY_OPEN)])
 _FULL = _FUNC
 _FULL = list(dict.fromkeys(_FULL))
 

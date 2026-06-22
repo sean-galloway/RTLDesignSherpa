@@ -153,20 +153,36 @@ async def cocotb_test_init_sequencer(dut):
         assert tb.init_done() == 1
 
     elif test_type == "random_soak":
+        # Soak the init flow by repeatedly pulsing reset and walking the
+        # init sequence with random PHY-complete / ZQCL-grant delays.
+        # Clock is started only once (via the initial setup); subsequent
+        # iterations toggle mc_rst_n manually rather than calling setup()
+        # again (which would spawn duplicate clock coroutines).
         rng = random.Random(int(os.environ.get('SEED', '12345')))
         test_level = os.environ.get("TEST_LEVEL", "FUNC").upper()
         n = {"GATE": 8, "FUNC": 40, "FULL": 200}.get(test_level, 40)
 
+        await tb.setup(MEMTYPE_DDR2)   # starts clock + initial reset
         for _ in range(n):
             memtype = rng.choice([MEMTYPE_DDR2, MEMTYPE_LPDDR2])
-            await tb.setup(memtype)
-            await tb.wait_clocks('mc_clk', rng.randint(1, 5))
-            await tb.wait_clocks('mc_clk', rng.randint(0, 6))
-            tb.dut.dfi_init_complete_i.value = 1
-            await tb.wait_clocks('mc_clk', rng.randint(3, 8))
-            tb.dut.zqcl_grant_i.value = 1
+            tb.dut.memtype_i.value           = memtype
+            tb.dut.dfi_init_complete_i.value = 0
+            tb.dut.zqcl_grant_i.value        = 0
+            # Pulse reset to restart the init FSM.
+            tb.dut.mc_rst_n.value = 0
+            await tb.wait_clocks('mc_clk', 3)
+            tb.dut.mc_rst_n.value = 1
             await tb.wait_clocks('mc_clk', rng.randint(2, 6))
-            assert tb.init_done() == 1
+            # Variable PHY-complete delay
+            tb.dut.dfi_init_complete_i.value = 1
+            # FSM walks S_DFI_INIT → MR2 → MR3 → MR1 → MR0 → S_ZQCL,
+            # which is 5 cycles minimum. Give it ≥6 to be safe; add
+            # randomness on top.
+            await tb.wait_clocks('mc_clk', 6 + rng.randint(0, 6))
+            # Variable ZQCL-grant delay
+            tb.dut.zqcl_grant_i.value = 1
+            await tb.wait_clocks('mc_clk', 4 + rng.randint(0, 4))
+            assert tb.init_done() == 1, f"init not done with memtype={memtype}"
 
     else:
         raise ValueError(f"Unknown TEST_TYPE: {test_type}")
