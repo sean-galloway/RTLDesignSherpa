@@ -12,11 +12,14 @@ the same data we already gather for STREAM — for our DMA or anyone else's.
 > **Why this is "mostly done":** the observation + metering logic that
 > produces the STREAM numbers (`datapath_E2E_pct = 94.1%`, etc.) has been
 > pulled into one standalone, DMA-agnostic module (`axi4_dma_observer`)
-> and unit-tested. STREAM itself is fully characterized through the
-> equivalent in-harness instrumentation today. What's left is the
-> integration glue (a harness "flavor") to point the observer at a
-> non-STREAM DMA and land its outputs on the CSR surface the host
-> already reads.
+> and unit-tested. As of 2026-06-22 the observer is at **full feature
+> parity** with the in-core STREAM path: aggregate + per-channel meter
+> buckets **and** per-port latency histograms (`axi_perf_latency_hist`,
+> AR->first-R/RLAST and AW->B), all sharing one measurement window. STREAM
+> itself is fully characterized through the equivalent in-core
+> instrumentation today. What's left is the integration glue (a harness
+> "flavor") to point the observer at a non-STREAM DMA and land its outputs
+> on the CSR surface the host already reads.
 
 ---
 
@@ -33,8 +36,9 @@ the same data we already gather for STREAM — for our DMA or anyone else's.
 | Component | Path | Status | Notes |
 |---|---|---|---|
 | `axi4_dma_observer` (taps + arbiter + group + meters, pass-through) | `rtl/amba/shared/axi4_dma_observer.sv` | `[x]` | Built, cocotb block-test `val/amba/test_axi4_dma_observer.py`; in `rtl/amba/filelists/monbus_group.f` |
-| `axi_bus_meter` (prod/bp/starv/idle buckets) | `rtl/amba/shared/axi_bus_meter.sv` | `[x]` | Per rd/wr port inside the observer; pure CSR counters, no SRAM, unbounded run length |
-| `axi4_master_rd_mon` / `axi4_master_wr_mon` (passive taps) | `rtl/amba/axi4/` | `[x]` | Per-txn completion/latency, errors, timeouts; `TRANS_CAM_PIPELINE` available |
+| `axi_bus_meter` (prod/bp/starv/idle buckets) | `rtl/amba/shared/axi_bus_meter.sv` | `[x]` | Per rd/wr port inside the observer; pure CSR counters, no SRAM, unbounded run length. Aggregate + per-channel (rid for reads, sideband for writes) |
+| `axi_perf_latency_hist` (AR->first-R / AR->RLAST, AW->B; 16 log2 bins) | `rtl/amba/shared/axi_perf_latency_hist.sv` | `[x]` | Per rd/wr port inside the observer (RFC Stage E.3); `ENABLE_LATENCY_HIST` gate; indexed readout `i_hist_metric`/`i_hist_bin` -> `{rd,wr}_hist_count`/`_total`; windowed in lockstep with the meters. Ported into the observer from the in-core STREAM path 2026-06-22 |
+| `axi4_master_rd_mon` / `axi4_master_wr_mon` (passive taps) | `rtl/amba/axi4/` | `[x]` | Per-txn completion/latency, errors, timeouts; CAMs always pipelined (the `TRANS_CAM_PIPELINE`/CAM-pipeline params were removed); `cam_clear` wired through every wrapper |
 | `monbus_arbiter` + `monbus_compressor` + `monbus_halfbeat_packer` | `rtl/amba/shared/` | `[x]` | Aggregation + optional compression chain |
 | `monbus_axil_axi4_group` (AXIL drain + AXI4 bulk-dump + IRQ) | `rtl/amba/shared/monbus_axil_axi4_group.sv` | `[x]` | Observer's output stage; test `val/amba/test_monbus_axil_axi4_group.py` |
 | `axi4_dma_slaves` (LFSR read source + CRC write sink) | stream char harness | `[x]` | The endpoint for endpoint-mode characterization |
@@ -43,8 +47,15 @@ the same data we already gather for STREAM — for our DMA or anyone else's.
 | PDF/CSV report tooling (`generate_reports_pdf.sh`, `perf_json_to_csv.py`) | `reports/` | `[x]` | House-style reports already wired |
 
 **STREAM end-to-end characterization:** `[x]` proven — perf matrix
-(`reports/perf/matrix_2026-06-15.*`) and compression report
-(`reports/compression/`) were gathered on the all-fixes bitstream.
+(`reports/perf/matrix_2026-06-21.*`) and compression report
+(`reports/compression/`) were gathered on the in-core perf-monitor bitstream
+(RFC Stage E option 2 with the perf-window **arm-gap fix**: the window now
+starts on the first DMA activity, not the RUN-arm edge — earlier it counted the
+host's slow-UART arm->kick gap as idle and read ~0.1%). STREAM's source of truth
+is now the **in-core** perf monitors (the harness `axi_bus_meter` was retired);
+the standalone observer bundles the same meter + histogram logic for non-STREAM
+DMAs, and the host drives `i_meter_clear`/`i_meter_freeze` the same arm-gap-safe
+way (open the window on first activity, close the instant the workload finishes).
 
 ---
 
@@ -55,6 +66,7 @@ What the host already reads, and where it comes from in an observer-based harnes
 | Field(s) | Source | Status |
 |---|---|---|
 | `r/w_aggregate{prod,bp,starv,idle}`, `*_buckets_pct`, `datapath_utilization_r/w`, per-channel, overflow | observer `*_meter_*` ports | `[~]` ports exist; needs wiring to `harness_csr` 0x100/0x180 |
+| latency histograms (AR->first-R / AR->RLAST, AW->B; 16 log2 bins; `HIST_SEL`/`HIST_DATA`/`HIST_TOTAL`) | observer `{rd,wr}_hist_count`/`_total` + `i_hist_metric`/`i_hist_bin` | `[~]` ports exist (RFC Stage E.3); needs wiring to the `HIST_SEL`/`HIST_DATA`/`HIST_TOTAL` CSRs (mirror the in-core STREAM regblock @ 0x378-0x380) |
 | `cycles_total`, `end_to_end_utilization`, `r/w_first/last/firstlast_cycles` | harness timer + first/last-beat latches | `[~]` reuse harness timer; add/verify first/last latches (meter doesn't emit them) |
 | CRC `rd_expected/wr_expected/wr_computed/match`; beat counts → `mb_moved`/throughput | `axi4_dma_slaves` (endpoint) | `[x]` reuse as-is on fabric side |
 | `completion{completed,timer_pass,overflow,...}` | harness timer/status | `[x]` reuse |

@@ -115,6 +115,7 @@ observer adds **no new combinational depth** in the AXI path.
 | `monbus_arbiter` (CLIENTS = NUM_RD + NUM_WR) | Merges the per-port monbus streams into one |
 | `monbus_axil_axi4_group` | Central filter + err FIFO (AXIL slave-read) + bulk-trace dump (AXI4 burst master-write) — see [`monbus_group.md`](monbus_group.md) |
 | `axi_bus_meter` × `NUM_RD_PORTS + NUM_WR_PORTS` | Per-cycle valid/ready bucket counters (productive / backpressure / starvation / idle) — gated by `ENABLE_BUS_METER` |
+| `axi_perf_latency_hist` × `NUM_RD_PORTS + NUM_WR_PORTS` | Per-transaction latency histograms (read: AR→first-R + AR→RLAST; write: AW→B) into `HIST_NUM_BINS` log2 bins — gated by `ENABLE_LATENCY_HIST` (RFC Stage E.3) |
 
 ---
 
@@ -138,6 +139,15 @@ observer adds **no new combinational depth** in the AXI path.
 | `UNIT_ID` | `8'h10` | UNIT_ID stamped into emitted monbus packets |
 | `ENABLE_BUS_METER` | 1 | 0 ties all bus-meter outputs to 0 |
 | `NUM_CHANNELS` | 1 | 1 = aggregate-only buckets; > 1 = per-channel attribution |
+| `ENABLE_LATENCY_HIST` | 1 | 0 ties all latency-histogram outputs to 0 (RFC Stage E.3) |
+| `HIST_NUM_BINS` | 16 | log2 latency bins: bin `b` counts `[2^b, 2^(b+1))` cycles |
+| `HIST_MAX_OUTSTANDING` | 8 | Per-channel timestamp-FIFO depth in each histogram |
+
+**Latency-histogram readout** (indexed, shared across ports): drive
+`i_hist_metric` (0 = AR→first-R, 1 = AR→RLAST for reads; ignored for writes) and
+`i_hist_bin`, then read each port's `{rd,wr}_hist_count` (selected bin) and
+`{rd,wr}_hist_total` (per-metric transaction count = burst count). Frozen and
+cleared in lockstep with the meters via `i_meter_freeze` / `i_meter_clear`.
 
 ---
 

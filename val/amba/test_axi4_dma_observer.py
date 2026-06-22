@@ -575,6 +575,8 @@ def test_axi4_dma_observer(request):
         os.path.join(rtl_dict['rtl_shared'],   "monbus_arbiter.sv"),
         # Per-cycle valid/ready bucket counter (moved into shared)
         os.path.join(rtl_dict['rtl_shared'],   "axi_bus_meter.sv"),
+        # Per-transaction latency histograms (RFC Stage E.3)
+        os.path.join(rtl_dict['rtl_shared'],   "axi_perf_latency_hist.sv"),
         # The observer itself
         os.path.join(rtl_dict['rtl_shared'],   f"{dut_name}.sv"),
     ]

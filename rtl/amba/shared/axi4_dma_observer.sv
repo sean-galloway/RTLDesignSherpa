@@ -65,7 +65,13 @@ module axi4_dma_observer
     // ---------- axi_bus_meter integration ----------
     parameter bit ENABLE_BUS_METER      = 1'b1,  // 0 = omit meters, tie outputs to 0
     parameter int NUM_CHANNELS          = 1,     // 1 = aggregate only (no per-channel buckets)
-    parameter int CW                    = (NUM_CHANNELS > 1) ? $clog2(NUM_CHANNELS) : 1
+    parameter int CW                    = (NUM_CHANNELS > 1) ? $clog2(NUM_CHANNELS) : 1,
+
+    // ---------- axi_perf_latency_hist integration (RFC Stage E option 2 / E.3) ----------
+    parameter bit ENABLE_LATENCY_HIST   = 1'b1,  // 0 = omit histograms, tie outputs to 0
+    parameter int HIST_NUM_BINS         = 16,    // log2 latency bins: bin b = [2^b, 2^(b+1))
+    parameter int HIST_MAX_OUTSTANDING  = 8,     // per-channel timestamp FIFO depth
+    parameter int HIST_BINW             = (HIST_NUM_BINS > 1) ? $clog2(HIST_NUM_BINS) : 1
 ) (
     input  logic                                                aclk,
     input  logic                                                aresetn,
@@ -349,7 +355,23 @@ module axi4_dma_observer
     output logic [15:0]             wr_meter_ch_backpressure     [NUM_WR_PORTS][NUM_CHANNELS],
     output logic [15:0]             wr_meter_ch_starvation       [NUM_WR_PORTS][NUM_CHANNELS],
     output logic [15:0]             wr_meter_ch_idle             [NUM_WR_PORTS][NUM_CHANNELS],
-    output logic [NUM_CHANNELS*4-1:0] wr_meter_ch_overflow       [NUM_WR_PORTS]
+    output logic [NUM_CHANNELS*4-1:0] wr_meter_ch_overflow       [NUM_WR_PORTS],
+
+    // ================================================================
+    // axi_perf_latency_hist (RFC Stage E.3) — per-port latency histograms
+    // ================================================================
+    // Indexed readout: the selectors below are shared across all ports
+    // (drive one {metric, bin}, read each port's count/total separately).
+    // Reads expose two metrics (i_hist_metric: 0 = AR->first-R, 1 = AR->RLAST);
+    // writes expose one metric (AW->B; i_hist_metric is ignored for writes).
+    // o_*_hist_total is the per-metric transaction count (== burst count).
+    // Frozen/cleared in lockstep with the meters (i_meter_clear/i_meter_freeze).
+    input  logic                    i_hist_metric,
+    input  logic [HIST_BINW-1:0]    i_hist_bin,
+    output logic [31:0]             rd_hist_count   [NUM_RD_PORTS],
+    output logic [31:0]             rd_hist_total   [NUM_RD_PORTS],
+    output logic [31:0]             wr_hist_count   [NUM_WR_PORTS],
+    output logic [31:0]             wr_hist_total   [NUM_WR_PORTS]
 );
 
     // =================================================================
@@ -909,6 +931,92 @@ module axi4_dma_observer
                     assign wr_meter_ch_starvation[mi][ci]   = '0;
                     assign wr_meter_ch_idle[mi][ci]         = '0;
                 end
+            end
+        end
+    endgenerate
+
+    // =================================================================
+    // axi_perf_latency_hist per-port instantiations (RFC Stage E.3)
+    //
+    //   - One read histogram per rd port: AR->first-R + AR->RLAST, binned
+    //     into HIST_NUM_BINS log2 bins (two metrics, select via i_hist_metric).
+    //   - One write histogram per wr port: AW->B (one metric).
+    //   Fed from the fabric-side handshakes (same side the meters snoop, no
+    //   beats dropped through the pass-through wrappers); windowed in lockstep
+    //   with the meters via i_meter_clear / i_meter_freeze. The in-core STREAM
+    //   path drives those from its first-DMA-activity perf-window controller
+    //   (the arm-gap fix); an observer-based harness drives them the same way.
+    //   ENABLE_LATENCY_HIST=0 skips instantiation and ties outputs to 0.
+    // =================================================================
+    genvar hi;
+    generate
+        if (ENABLE_LATENCY_HIST) begin : gen_hist
+            // ---------- Read-side histograms (AR->first-R, AR->RLAST) ----------
+            for (hi = 0; hi < NUM_RD_PORTS; hi = hi + 1) begin : gen_rd_hist
+                axi_perf_latency_hist #(
+                    .ID_WIDTH        (AXI_ID_WIDTH),
+                    .NUM_CHANNELS    (NUM_CHANNELS),
+                    .MAX_OUTSTANDING (HIST_MAX_OUTSTANDING),
+                    .NUM_BINS        (HIST_NUM_BINS),
+                    .IS_READ         (1'b1)
+                ) u_rd_lat_hist (
+                    .aclk         (aclk),
+                    .aresetn      (aresetn),
+                    .i_clear      (i_meter_clear),
+                    .i_freeze     (i_meter_freeze),
+                    .cmd_valid    (fab_rd_arvalid[hi]),
+                    .cmd_ready    (fab_rd_arready[hi]),
+                    .cmd_id       (fab_rd_arid[hi]),
+                    .data_valid   (fab_rd_rvalid[hi]),
+                    .data_ready   (fab_rd_rready[hi]),
+                    .data_last    (fab_rd_rlast[hi]),
+                    .data_id      (fab_rd_rid[hi]),
+                    .resp_valid   (1'b0),
+                    .resp_ready   (1'b0),
+                    .resp_id      ('0),
+                    .i_hist_metric(i_hist_metric),
+                    .i_hist_bin   (i_hist_bin),
+                    .o_hist_count (rd_hist_count[hi]),
+                    .o_hist_total (rd_hist_total[hi])
+                );
+            end
+            // ---------- Write-side histograms (AW->B) ----------
+            for (hi = 0; hi < NUM_WR_PORTS; hi = hi + 1) begin : gen_wr_hist
+                axi_perf_latency_hist #(
+                    .ID_WIDTH        (AXI_ID_WIDTH),
+                    .NUM_CHANNELS    (NUM_CHANNELS),
+                    .MAX_OUTSTANDING (HIST_MAX_OUTSTANDING),
+                    .NUM_BINS        (HIST_NUM_BINS),
+                    .IS_READ         (1'b0)
+                ) u_wr_lat_hist (
+                    .aclk         (aclk),
+                    .aresetn      (aresetn),
+                    .i_clear      (i_meter_clear),
+                    .i_freeze     (i_meter_freeze),
+                    .cmd_valid    (fab_wr_awvalid[hi]),
+                    .cmd_ready    (fab_wr_awready[hi]),
+                    .cmd_id       (fab_wr_awid[hi]),
+                    .data_valid   (1'b0),
+                    .data_ready   (1'b0),
+                    .data_last    (1'b0),
+                    .data_id      ('0),
+                    .resp_valid   (fab_wr_bvalid[hi]),
+                    .resp_ready   (fab_wr_bready[hi]),
+                    .resp_id      (fab_wr_bid[hi]),
+                    .i_hist_metric(i_hist_metric),
+                    .i_hist_bin   (i_hist_bin),
+                    .o_hist_count (wr_hist_count[hi]),
+                    .o_hist_total (wr_hist_total[hi])
+                );
+            end
+        end else begin : gen_no_hist
+            for (hi = 0; hi < NUM_RD_PORTS; hi = hi + 1) begin : gen_rd_hist_tie
+                assign rd_hist_count[hi] = '0;
+                assign rd_hist_total[hi] = '0;
+            end
+            for (hi = 0; hi < NUM_WR_PORTS; hi = hi + 1) begin : gen_wr_hist_tie
+                assign wr_hist_count[hi] = '0;
+                assign wr_hist_total[hi] = '0;
             end
         end
     endgenerate
