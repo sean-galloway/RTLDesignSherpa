@@ -23,7 +23,10 @@ Available trackers (9 total):
     RdClAlignerTracker      — multi-outstanding lifecycle + EN/CAPTURE/EMIT overlap
 """
 
-from ._base import TrackerEvent, md_header, dump_md_unified
+from ._base import (
+    TrackerEvent, md_header, dump_md_unified,
+    auto_dump_register, wire_trackers,
+)
 
 from .scheduler_tracker        import SchedulerTracker
 from .refresh_tracker          import RefreshTracker
@@ -38,6 +41,7 @@ from .rd_cl_aligner_tracker    import RdClAlignerTracker
 __all__ = [
     # base
     "TrackerEvent", "md_header", "dump_md_unified",
+    "auto_dump_register", "wire_trackers",
     # trackers
     "SchedulerTracker", "RefreshTracker",
     "XBankTimersTracker", "PagePredictorTracker",

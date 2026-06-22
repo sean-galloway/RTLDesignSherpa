@@ -22,12 +22,12 @@ Passive tracker for the `init_sequencer` FUB.
 from __future__ import annotations
 
 from collections import deque
-from typing import Deque, Dict, List, Tuple
+from typing import Deque, Dict, List, Optional, Tuple
 
 import cocotb
 from cocotb.triggers import RisingEdge, Timer
 
-from ._base import TrackerEvent, is_high, safe_int, _sim_time_ns
+from ._base import TrackerEvent, is_high, safe_int, _sim_time_ns, auto_dump_register
 
 
 _NBA_SETTLE_PS = 1
@@ -36,8 +36,11 @@ _TRACKER_NAME  = "init"
 
 class InitSequencerTracker:
     """Background tracker for init_sequencer."""
+    SHORT_NAME = _TRACKER_NAME
 
-    def __init__(self, dut, log=None):
+    def __init__(self, dut, log=None,
+                 output_dir: "Optional[str]" = None,
+                 filename:   "Optional[str]" = None):
         self.dut = dut
         self.log = log
         self._cycle = 0
@@ -46,6 +49,9 @@ class InitSequencerTracker:
         self._last_init_start  = -1
         self._init_done_cycle  = None
         self._init_start_cycle = 0
+        self.output_path = auto_dump_register(
+            self, _TRACKER_NAME, output_dir=output_dir, filename=filename,
+        )
 
     async def run(self) -> None:
         while True:

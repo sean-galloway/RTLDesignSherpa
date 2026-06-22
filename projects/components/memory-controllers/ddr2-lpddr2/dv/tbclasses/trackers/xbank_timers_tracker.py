@@ -23,12 +23,12 @@ Passive tracker for the `xbank_timers` FUB.
 from __future__ import annotations
 
 from collections import Counter, deque
-from typing import Deque, Dict, List, Tuple
+from typing import Deque, Dict, List, Optional, Tuple
 
 import cocotb
 from cocotb.triggers import RisingEdge, Timer
 
-from ._base import TrackerEvent, is_high, safe_int, _sim_time_ns
+from ._base import TrackerEvent, is_high, safe_int, _sim_time_ns, auto_dump_register
 
 
 _NBA_SETTLE_PS = 1
@@ -42,8 +42,11 @@ _STATE_NAMES = {
 
 class XBankTimersTracker:
     """Background tracker for xbank_timers per-(rank, bank) state."""
+    SHORT_NAME = _TRACKER_NAME
 
     def __init__(self, dut, log=None,
+                 output_dir: "Optional[str]" = None,
+                 filename:   "Optional[str]" = None,
                  num_ranks: int = 1, num_banks: int = 8):
         self.dut = dut
         self.log = log
@@ -51,6 +54,9 @@ class XBankTimersTracker:
         self.NB = num_banks
         self._cycle = 0
         self.events: Deque[TrackerEvent] = deque()
+        self.output_path = auto_dump_register(
+            self, _TRACKER_NAME, output_dir=output_dir, filename=filename,
+        )
 
         self._last_state    : List[List[int]] = [[0]*num_banks for _ in range(num_ranks)]
         self._last_open_row : List[List[int]] = [[0]*num_banks for _ in range(num_ranks)]

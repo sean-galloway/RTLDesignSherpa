@@ -35,6 +35,9 @@ grep '| pgpred  | open' log.md  # page predictor 0→1 transitions
 
 from __future__ import annotations
 
+import atexit
+import os
+import sys
 from dataclasses import dataclass, field
 from typing import List, Optional
 
@@ -125,6 +128,116 @@ def dump_md_unified(trackers: List["object"], file_path: str) -> None:
         f.write(md_header() + "\n")
         for ev in all_events:
             f.write(ev.to_md_row() + "\n")
+
+
+# ---------------------------------------------------------------------------
+# Auto-dump on simulation end.
+#
+# Every tracker calls auto_dump_register() in its __init__. The handler
+# writes the tracker's events as a markdown table to <output_dir>/<short>.out
+# when the Python interpreter exits — which for cocotb_test happens at the
+# end of each pytest-spawned simulation subprocess, so every test gets its
+# own .out files in its sim_build/ directory.
+# ---------------------------------------------------------------------------
+
+# Track registered (short_name, output_dir) pairs so a second instance with
+# the same short_name doesn't double-register.
+_REGISTERED: set = set()
+
+
+def auto_dump_register(tracker, short_name: str,
+                       output_dir: Optional[str] = None,
+                       filename:   Optional[str] = None) -> str:
+    """Register an atexit handler that writes `tracker.events` as a
+    markdown table.
+
+    The output path is:
+      * `filename` if given, OR
+      * `<output_dir>/<short_name>.out` if output_dir given, OR
+      * `<cwd>/<short_name>.out` (cwd is the cocotb simulation dir).
+
+    Returns the resolved path.
+    """
+    if filename is None:
+        out_dir = output_dir or os.getcwd()
+        try:
+            os.makedirs(out_dir, exist_ok=True)
+        except Exception:
+            pass
+        filename = os.path.join(out_dir, f"{short_name}.out")
+
+    # De-dup: if the same (short_name, output dir) was already registered
+    # for THIS tracker, skip. Different instances with same short_name in
+    # the same dir would overwrite each other; this is intentional and
+    # avoids double atexit handlers.
+    key = (short_name, os.path.dirname(filename))
+    if key in _REGISTERED:
+        return filename
+    _REGISTERED.add(key)
+
+    def _do_dump() -> None:
+        try:
+            with open(filename, 'w') as f:
+                f.write(md_header() + "\n")
+                for ev in getattr(tracker, 'events', []):
+                    if isinstance(ev, TrackerEvent):
+                        f.write(ev.to_md_row() + "\n")
+        except Exception as e:
+            print(f"[tracker {short_name}] dump to {filename} failed: {e}",
+                  file=sys.stderr)
+
+    atexit.register(_do_dump)
+    return filename
+
+
+def wire_trackers(dut, *, output_dir: Optional[str] = None,
+                  log=None, num_ranks: int = 1, num_banks: int = 8,
+                  autostart: bool = True) -> dict:
+    """Convenience: instantiate every tracker on `dut` with consistent
+    output_dir + log, optionally start their run() coroutines.
+
+    Returns a dict keyed by short-name: {'sched': SchedulerTracker(...), ...}.
+
+    Each tracker writes `<output_dir>/<short>.out` at end of sim
+    (default output_dir is the cwd, which for cocotb_test runs is the
+    simulation's sim_build/ directory).
+
+    Pass `autostart=False` if you want to start tasks yourself (e.g.,
+    to defer until after reset). With `autostart=True` (default), the
+    function calls `cocotb.start_soon(t.run())` for each tracker.
+    """
+    # Local imports to avoid circular deps.
+    from .scheduler_tracker         import SchedulerTracker
+    from .refresh_tracker           import RefreshTracker
+    from .xbank_timers_tracker      import XBankTimersTracker
+    from .page_predictor_tracker    import PagePredictorTracker
+    from .dfi_cmd_formatter_tracker import DfiCmdFormatterTracker
+    from .powerdown_tracker         import PowerdownTracker
+    from .init_sequencer_tracker    import InitSequencerTracker
+    from .wr_beat_sequencer_tracker import WrBeatSequencerTracker
+    from .rd_cl_aligner_tracker     import RdClAlignerTracker
+
+    common = dict(output_dir=output_dir, log=log)
+    trackers = {
+        'sched':   SchedulerTracker(dut, **common),
+        'refr':    RefreshTracker(dut, **common),
+        'xbank':   XBankTimersTracker(dut, num_ranks=num_ranks, num_banks=num_banks, **common),
+        'pgpred':  PagePredictorTracker(dut, num_ranks=num_ranks, num_banks=num_banks, **common),
+        'dficmd':  DfiCmdFormatterTracker(dut, **common),
+        'pdn':     PowerdownTracker(dut, num_ranks=num_ranks, **common),
+        'init':    InitSequencerTracker(dut, **common),
+        'wrbeat':  WrBeatSequencerTracker(dut, **common),
+        'rdalign': RdClAlignerTracker(dut, **common),
+    }
+    if autostart:
+        try:
+            import cocotb
+            for t in trackers.values():
+                cocotb.start_soon(t.run())
+        except Exception as e:
+            print(f"[wire_trackers] autostart failed (no cocotb?): {e}",
+                  file=sys.stderr)
+    return trackers
 
 
 # ---------------------------------------------------------------------------

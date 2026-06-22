@@ -22,12 +22,12 @@ Passive tracker for the `page_predictor` FUB.
 from __future__ import annotations
 
 from collections import Counter, deque
-from typing import Deque, Dict, List
+from typing import Deque, Dict, List, Optional
 
 import cocotb
 from cocotb.triggers import RisingEdge, Timer
 
-from ._base import TrackerEvent, is_high, safe_int, _sim_time_ns
+from ._base import TrackerEvent, is_high, safe_int, _sim_time_ns, auto_dump_register
 
 
 _NBA_SETTLE_PS = 1
@@ -36,8 +36,11 @@ _TRACKER_NAME  = "pgpred"
 
 class PagePredictorTracker:
     """Background tracker for page_predictor."""
+    SHORT_NAME = _TRACKER_NAME
 
     def __init__(self, dut, log=None,
+                 output_dir: "Optional[str]" = None,
+                 filename:   "Optional[str]" = None,
                  num_ranks: int = 1, num_banks: int = 8):
         self.dut = dut
         self.log = log
@@ -47,6 +50,9 @@ class PagePredictorTracker:
         self.events: Deque[TrackerEvent] = deque()
         self._last_predict: List[List[int]] = [[0]*num_banks for _ in range(num_ranks)]
         self._open_cycles : Dict[tuple, int] = {}
+        self.output_path = auto_dump_register(
+            self, _TRACKER_NAME, output_dir=output_dir, filename=filename,
+        )
 
     async def run(self) -> None:
         while True:

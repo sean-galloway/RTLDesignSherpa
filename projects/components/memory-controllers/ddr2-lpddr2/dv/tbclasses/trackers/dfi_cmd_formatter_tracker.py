@@ -26,12 +26,12 @@ encoding the PHY expects.
 from __future__ import annotations
 
 from collections import Counter, deque
-from typing import Deque, Dict, List
+from typing import Deque, Dict, List, Optional
 
 import cocotb
 from cocotb.triggers import RisingEdge, Timer
 
-from ._base import TrackerEvent, is_high, safe_int, _sim_time_ns
+from ._base import TrackerEvent, is_high, safe_int, _sim_time_ns, auto_dump_register
 
 
 _NBA_SETTLE_PS = 1
@@ -52,8 +52,11 @@ _JEDEC_DDR2 = {
 
 class DfiCmdFormatterTracker:
     """Background tracker for dfi_cmd_formatter."""
+    SHORT_NAME = _TRACKER_NAME
 
-    def __init__(self, dut, log=None):
+    def __init__(self, dut, log=None,
+                 output_dir: "Optional[str]" = None,
+                 filename:   "Optional[str]" = None):
         self.dut = dut
         self.log = log
         self._cycle = 0
@@ -61,6 +64,9 @@ class DfiCmdFormatterTracker:
         self._last_cke = -1
         self._last_odt = -1
         self._unknown_encodings: List[tuple] = []
+        self.output_path = auto_dump_register(
+            self, _TRACKER_NAME, output_dir=output_dir, filename=filename,
+        )
 
     async def run(self) -> None:
         while True:

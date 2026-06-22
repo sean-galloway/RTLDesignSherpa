@@ -74,23 +74,73 @@ grep '| wrbeat   ' trace.md | grep -E 'PULL_BEAT|DRIVE_CYC'
 
 ## Usage
 
+### Quick: attach all 9 trackers at once
+
 ```python
-from tbclasses.trackers import SchedulerTracker, RefreshTracker
+from tbclasses.trackers import wire_trackers
+
+# In your TB setup, after start_clock + reset:
+trackers = wire_trackers(dut, num_ranks=1, num_banks=8)
+# That's it — all 9 trackers are running. Each will auto-write its file
+# at end of sim:
+#   <sim_build_dir>/sched.out
+#   <sim_build_dir>/refr.out
+#   <sim_build_dir>/xbank.out
+#   <sim_build_dir>/pgpred.out
+#   <sim_build_dir>/dficmd.out
+#   <sim_build_dir>/pdn.out
+#   <sim_build_dir>/init.out
+#   <sim_build_dir>/wrbeat.out
+#   <sim_build_dir>/rdalign.out
+
+# Mid-test, query in-memory stats:
+print(trackers['sched'].stats())
+assert not trackers['refr'].jedec_postpone_violation()
+```
+
+### Manual: one tracker, custom path
+
+```python
+from tbclasses.trackers import SchedulerTracker
 import cocotb
 
-sched = SchedulerTracker(dut)
-refr  = RefreshTracker(dut)
+# output_dir defaults to cwd (= sim_build dir under cocotb_test)
+sched = SchedulerTracker(dut)               # → sched.out in cwd
+sched = SchedulerTracker(dut, output_dir='/tmp')  # → /tmp/sched.out
+sched = SchedulerTracker(dut, filename='/tmp/custom.out')  # explicit path
+
 cocotb.start_soon(sched.run())
-cocotb.start_soon(refr.run())
-
-# ... run the test ...
-
-# Inspect:
-print(sched.stats())
-# {'total_cmds': 42, 'op_counts': {'ACT': 7, 'WRA': 4, 'RDA': 3, 'REF': 1, ...}, ...}
-
-assert not refr.jedec_postpone_violation()
 ```
+
+### Unified file (all trackers' events merged + sorted by cycle)
+
+```python
+from tbclasses.trackers import dump_md_unified
+
+# Sometime during or after the test:
+dump_md_unified(list(trackers.values()), 'trace_unified.out')
+```
+
+## Output files
+
+Every tracker auto-registers an `atexit` handler that writes its events
+to `<output_dir>/<short>.out` at the end of the simulation subprocess.
+
+| Default filename | Tracker |
+|---|---|
+| `sched.out`   | `SchedulerTracker` |
+| `refr.out`    | `RefreshTracker` |
+| `xbank.out`   | `XBankTimersTracker` |
+| `pgpred.out`  | `PagePredictorTracker` |
+| `dficmd.out`  | `DfiCmdFormatterTracker` |
+| `pdn.out`     | `PowerdownTracker` |
+| `init.out`    | `InitSequencerTracker` |
+| `wrbeat.out`  | `WrBeatSequencerTracker` |
+| `rdalign.out` | `RdClAlignerTracker` |
+
+The default `output_dir` is `os.getcwd()`. Under cocotb_test, the
+simulation runs from the per-test `sim_build/<test_name>/` directory,
+so the files land there alongside the other simulation artifacts.
 
 ## Design conventions
 

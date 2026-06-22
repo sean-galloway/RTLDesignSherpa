@@ -31,7 +31,7 @@ from typing import Deque, Dict, List, Optional
 import cocotb
 from cocotb.triggers import RisingEdge, Timer
 
-from ._base import TrackerEvent, is_high, safe_int, _sim_time_ns
+from ._base import TrackerEvent, is_high, safe_int, _sim_time_ns, auto_dump_register
 
 
 _NBA_SETTLE_PS = 1
@@ -41,8 +41,11 @@ _JEDEC_MAX_POSTPONED = 8
 
 class RefreshTracker:
     """Background tracker for refresh_ctrl."""
+    SHORT_NAME = _TRACKER_NAME
 
     def __init__(self, dut, log=None,
+                 output_dir: Optional[str] = None,
+                 filename:   Optional[str] = None,
                  refresh_req_signal: str = 'refresh_req_o',
                  pending_signal:     str = 'pending_refreshes_o',
                  refresh_grant_signal: Optional[str] = 'refresh_grant_o',
@@ -57,6 +60,9 @@ class RefreshTracker:
         self._last_req     = 0
         self._last_pending = 0
         self.events: Deque[TrackerEvent] = deque()
+        self.output_path = auto_dump_register(
+            self, _TRACKER_NAME, output_dir=output_dir, filename=filename,
+        )
 
     async def run(self) -> None:
         while True:

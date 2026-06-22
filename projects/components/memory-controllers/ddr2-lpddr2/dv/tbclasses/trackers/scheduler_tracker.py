@@ -36,12 +36,12 @@ Passive tracker for the `scheduler` FUB.
 from __future__ import annotations
 
 from collections import Counter, deque
-from typing import Deque, Dict, Optional
+from typing import Deque, Dict, Optional  # noqa: F401
 
 import cocotb
 from cocotb.triggers import RisingEdge, Timer
 
-from ._base import TrackerEvent, is_high, safe_int, _sim_time_ns
+from ._base import TrackerEvent, is_high, safe_int, _sim_time_ns, auto_dump_register
 
 
 _NBA_SETTLE_PS = 1
@@ -58,13 +58,20 @@ _OP_NAMES = {
 
 class SchedulerTracker:
     """Background tracker for the scheduler."""
+    SHORT_NAME = _TRACKER_NAME
 
-    def __init__(self, dut, log=None):
+    def __init__(self, dut, log=None,
+                 output_dir: Optional[str] = None,
+                 filename:   Optional[str] = None):
         self.dut = dut
         self.log = log
         self._cycle = 0
         # Unified event queue (the only one — all event types go here).
         self.events: Deque[TrackerEvent] = deque()
+        # Register the end-of-sim atexit dump. Returns the resolved path.
+        self.output_path = auto_dump_register(
+            self, _TRACKER_NAME, output_dir=output_dir, filename=filename,
+        )
 
     async def run(self) -> None:
         while True:
