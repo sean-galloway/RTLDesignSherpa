@@ -55,7 +55,7 @@ Common in academic papers because it isolates the engine's per-transfer behavior
 
 This is the system-architect-relevant number. Use #2 (last B response) as the default end event for a typical engineering report; software-visible measurements may need #4 or #5.
 
-### 2.4 Sustained-rate (PMU window) utilization
+### 2.4 Sustained-rate (performance-counter window) utilization
 
 - **Start event:** programmable performance counter starts at an arbitrary cycle
 - **End event:** counter stops at a later arbitrary cycle

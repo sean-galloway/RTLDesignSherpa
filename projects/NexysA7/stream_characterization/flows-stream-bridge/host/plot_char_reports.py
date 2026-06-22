@@ -4,7 +4,7 @@
 #
 # plot_char_reports.py — figures for the STREAM characterization perf report
 # (all-fixes bitstream). Consumes the run_characterization.py JSON outputs and
-# emits PNGs using the *clean* metrics (on-chip-timer bus throughput + PMU
+# emits PNGs using the *clean* metrics (on-chip-timer bus throughput + perf-monitor
 # datapath utilization), not the UART-contaminated wall throughput.
 #
 # Handles both JSON shapes the runner emits:

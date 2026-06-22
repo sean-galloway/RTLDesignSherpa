@@ -1,4 +1,4 @@
-# Monbus Compression — Characterization (in-core PMU build)
+# Monbus Compression — Characterization (in-core perf-monitor build)
 
 Companion to `../perf/`. Where the perf report measures how hard the DMA
 drives the bus, this measures how well the **monbus compressor + half-beat
@@ -7,7 +7,7 @@ packer** shrink the monitor-event stream on real captured traffic.
 > **Provenance.** The compressor RTL and packet format are unchanged by the
 > RFC Stage E in-core perf-monitor work / arm-gap fix, so the locked 682-record
 > golden capture and its reductions (current **63.0%**, half-beat **75.7%**)
-> still stand. Re-confirmed live on the 2026-06-21 in-core-PMU build (board
+> still stand. Re-confirmed live on the 2026-06-21 in-core perf-monitor build (board
 > 210292B7D46F, `8desc_1ch_1MB --mon-config debug-compl`): CRC ok, decode OK,
 > **63.5%** reduction — consistent with the golden capture.
 

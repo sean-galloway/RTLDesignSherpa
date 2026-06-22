@@ -1,4 +1,4 @@
-# STREAM DMA — Performance Characterization (in-core PMU build)
+# STREAM DMA — Performance Characterization (in-core perf-monitor build)
 
 **Bitstream:** RFC Stage E in-core datapath perf-monitor build with the
 perf-window **arm-gap fix** (the window now starts on first DMA activity, not
@@ -8,7 +8,7 @@ observe/control paths only (monitor-CAM capture, monbus fill-count, arbiter
 rotation) — **not** the CRC-checked datapath; every config below passes CRC,
 so the data is sound. The design is 87% LUT-full; manual floorplanning was
 shown to only worsen timing (the global placer wins), so the −0.097 ns build
-is accepted. **Source of truth:** the **in-core PMU** read over CSR (the
+is accepted. **Source of truth:** the **in-core perf monitors** read over CSR (the
 legacy harness `axi_bus_meter` was retired in RFC Stage E.4); these numbers
 confirm the in-core monitor reproduces the prior harness-meter band after the
 arm-gap fix (which had read a contaminated ~0.1% before the fix).
@@ -18,7 +18,7 @@ net-bytes-moved ceiling **763 MB/s** (the DMA reads *and* writes each byte).
 `../../DMA_UTILIZATION_MEASUREMENT.md`.
 
 > **Metric note.** Throughout, the headline efficiency is **datapath E2E
-> utilization** (productive beats / window, from the on-chip PMU) and
+> utilization** (productive beats / window, from the on-chip perf monitors) and
 > **bus throughput** (`mb_moved / FPGA-timer-time`). Both are on-chip,
 > UART- and wall-clock-independent. The host wall-clock `throughput_MBps`
 > is reported only for transparency — it is dominated by UART/poll
@@ -187,7 +187,7 @@ the single channel's 128-beat in-flight window — they add transfer
 The methodology (`DMA_UTILIZATION_MEASUREMENT.md` §5) asks for a *pair* of
 numbers — steady-state **datapath** utilization (§2.1) and **end-to-end**
 utilization (§2.3) — with the gap reported as overhead. On this SRAM↔SRAM
-engine with single-cycle descriptor turnaround the two track within the PMU's
+engine with single-cycle descriptor turnaround the two track within the perf monitor's
 resolution, so the overhead band is essentially zero: there is no descriptor-
 fetch bubble to amortize.
 
